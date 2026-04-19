@@ -28,13 +28,11 @@ function rowGear(slot: Slot, key: SpellRowKey): { name: string | null; id: strin
 // affordance across both info surfaces.
 export default function SlotSpellPanel({ slot }: { slot: Slot }) {
   const rows: RowItem[] = []
-  let totalSpells = 0
   for (const key of SPELL_ROW_KEYS) {
     const spells = getSpells(slot.spells, key as SlotKey)
     if (spells.length === 0) continue
     const gear = rowGear(slot, key)
     rows.push({ key, ...gear, spells })
-    totalSpells += spells.length
   }
 
   if (rows.length === 0) return null
@@ -44,11 +42,11 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
       <span
         tabIndex={0}
         role="button"
-        aria-label={`장착 스킬 ${totalSpells}개 보기`}
+        aria-label="장착 스킬 보기"
         className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-200 border border-purple-500/30 hover:bg-purple-500/20 cursor-help focus:outline-none focus:ring-1 focus:ring-purple-500/50"
       >
         <Sparkles size={10} />
-        스킬 {totalSpells}
+        스킬
       </span>
       <div
         role="tooltip"
