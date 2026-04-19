@@ -5,6 +5,8 @@ import { Trash2, X, Pencil, Plus } from 'lucide-react'
 import ItemPicker from './ItemPicker'
 import ItemImage from './ItemImage'
 import SpellPicker from './SpellPicker'
+import SaveSlotAsTemplateButton from './SaveSlotAsTemplateButton'
+import LoadSlotTemplateButton from './LoadSlotTemplateButton'
 import type { SlotKey, WeaponOption } from '@/types'
 import { SLOT_KEYS, SLOT_LABELS, SLOT_ROLES, getRoleStyle, isFreeItem } from '@/types'
 
@@ -68,12 +70,18 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
   const [weaponMode, setWeaponModeLocal] = useState<WeaponMode>(() => deriveWeaponMode(slot))
 
   // If the slot prop gets reset from outside and now unambiguously signals
-  // 'multi' (options present) or 'free' (free marker), mirror that. Leave
-  // the user's in-progress 'multi' selection alone when the slot looks
-  // 'single' — otherwise we'd wipe their mode switch.
+  // 'multi' (options present), 'free' (free marker), or 'single' (a weapon
+  // is actually picked — e.g. from a loaded template), mirror that. Leave
+  // the user's in-progress 'multi' selection alone when the slot is blank
+  // (empty options AND empty weapon) — otherwise we'd wipe the mode switch
+  // they just made before they had a chance to add options.
   useEffect(() => {
     const derived = deriveWeaponMode(slot)
-    if (derived !== 'single') setWeaponModeLocal(derived)
+    if (derived !== 'single') {
+      setWeaponModeLocal(derived)
+      return
+    }
+    if (slot.items.weapon.id) setWeaponModeLocal('single')
   }, [slot])
 
   useEffect(() => {
@@ -236,6 +244,14 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
             {/* min-h-0 is required on flex children that should scroll — without it, flex items
                 default to min-height:auto (content-based) and overflow the parent's max-height. */}
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-4">
+              <div className="flex items-center flex-wrap gap-2">
+                <SaveSlotAsTemplateButton
+                  slot={slot}
+                  defaultName={slot.role_name ? `${slot.role_name} 빌드` : ''}
+                />
+                <LoadSlotTemplateButton slot={slot} onLoad={onChange} />
+              </div>
+
               <div>
                 <label className="text-gray-400 text-[11px] font-semibold block mb-1">역할</label>
                 <select

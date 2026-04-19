@@ -1,0 +1,115 @@
+'use server'
+
+import { getAdminClient } from '@/lib/supabase-admin'
+import { getSession } from '@/lib/session'
+import type { SlotSpells, WeaponOption } from '@/types'
+
+async function requireAdmin() {
+  const session = await getSession()
+  if (!session?.isAdmin) throw new Error('Unauthorized')
+  return getAdminClient()
+}
+
+// Slot-level template data: role + notes + 8 gear slots + multi-weapon options
+// + per-item spells. No slot_number (templates are position-agnostic) and no
+// assignment data (templates carry configuration only, per product spec).
+export interface SlotTemplateData {
+  role_name: string | null
+  notes: string | null
+  weapon_name: string | null
+  weapon_id: string | null
+  weapon_options: WeaponOption[] | null
+  head_name: string | null;   head_id: string | null
+  armor_name: string | null;  armor_id: string | null
+  shoes_name: string | null;  shoes_id: string | null
+  offhand_name: string | null;offhand_id: string | null
+  potion_name: string | null; potion_id: string | null
+  food_name: string | null;   food_id: string | null
+  cape_name: string | null;   cape_id: string | null
+  spells: SlotSpells | null
+}
+
+export interface SlotTemplateSummary {
+  id: string
+  name: string
+  created_at: string
+}
+
+export interface SlotTemplateRecord {
+  id: string
+  name: string
+  data: SlotTemplateData
+  created_at: string
+}
+
+const MAX_NAME_LENGTH = 80
+
+export async function saveSlotAsTemplate(
+  name: string,
+  data: SlotTemplateData,
+): Promise<{ error?: string }> {
+  try {
+    const trimmed = name.trim()
+    if (!trimmed) return { error: '템플릿 이름을 입력하세요.' }
+    if (trimmed.length > MAX_NAME_LENGTH) {
+      return { error: `템플릿 이름은 ${MAX_NAME_LENGTH}자 이내로 입력하세요.` }
+    }
+
+    const db = await requireAdmin()
+    const { error } = await db
+      .from('slot_templates')
+      .insert({ name: trimmed, data })
+    if (error) return { error: error.message }
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : '서버 오류' }
+  }
+}
+
+export async function listSlotTemplates(): Promise<{
+  templates: SlotTemplateSummary[]
+  error?: string
+}> {
+  try {
+    const db = await requireAdmin()
+    const { data, error } = await db
+      .from('slot_templates')
+      .select('id, name, created_at')
+      .order('created_at', { ascending: false })
+    if (error) return { templates: [], error: error.message }
+    return { templates: (data ?? []) as SlotTemplateSummary[] }
+  } catch (e) {
+    return { templates: [], error: e instanceof Error ? e.message : '서버 오류' }
+  }
+}
+
+// Fetch a single template's full data. Used when the user picks one in the
+// load dialog — the caller merges `data` into its local editor state.
+export async function getSlotTemplate(id: string): Promise<{
+  template?: SlotTemplateRecord
+  error?: string
+}> {
+  try {
+    const db = await requireAdmin()
+    const { data, error } = await db
+      .from('slot_templates')
+      .select('id, name, data, created_at')
+      .eq('id', id)
+      .single()
+    if (error) return { error: error.message }
+    return { template: data as SlotTemplateRecord }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : '서버 오류' }
+  }
+}
+
+export async function deleteSlotTemplate(id: string): Promise<{ error?: string }> {
+  try {
+    const db = await requireAdmin()
+    const { error } = await db.from('slot_templates').delete().eq('id', id)
+    if (error) return { error: error.message }
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : '서버 오류' }
+  }
+}
