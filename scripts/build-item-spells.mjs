@@ -42,6 +42,7 @@ const ITEM_ELEMENT_RE =
 
 const CRAFTING_LIST_RE = /<craftingspelllist(\s+reference="([^"]+)")?\s*(\/>|>([\s\S]*?)<\/craftingspelllist>)/
 const CRAFTSPELL_RE = /<craftspell\s+([^>/]*?)\/>/g
+const REMOVESPELL_RE = /<removespell\s+([^>/]*?)\/>/g
 const ATTR_RE = /(\w+)="([^"]*)"/g
 
 function parseAttrs(attrString) {
@@ -54,8 +55,28 @@ function parseAttrs(attrString) {
   return attrs
 }
 
-// First pass: gather raw spell-list data for each item.
-// { explicit: string[] } OR { reference: 'TX_BASE' } OR null (no list).
+function extractSpellNames(innerBody, pattern) {
+  if (!innerBody) return []
+  const out = []
+  const seen = new Set()
+  pattern.lastIndex = 0
+  let m
+  while ((m = pattern.exec(innerBody)) !== null) {
+    const attrs = parseAttrs(m[1])
+    const spellName = attrs.uniquename
+    if (!spellName || seen.has(spellName)) continue
+    seen.add(spellName)
+    out.push(spellName)
+  }
+  return out
+}
+
+// First pass: gather raw spell-list data for each item. Entries are one of:
+//   { explicit: string[] }                       — direct list, no inheritance
+//   { reference: 'TX_BASE', adds, removes }      — inherit base, then modify
+// Artifacts (hell/crystal/morgana/avalon/keeper) use the reference+adds+removes
+// form: they inherit the base weapon's pool and swap in their signature spell
+// (e.g. T4_MAIN_MACE_HELL removes MACELEAP, adds SHRINKINGSMASH).
 function collectRawLists(xml) {
   const raw = new Map()
   let m
@@ -71,40 +92,43 @@ function collectRawLists(xml) {
     const innerBody = listMatch[4]
 
     if (refAttr) {
-      raw.set(uniqueName, { reference: refAttr })
+      // Reference, optionally with an override body of craftspell/removespell.
+      raw.set(uniqueName, {
+        reference: refAttr,
+        adds: extractSpellNames(innerBody, CRAFTSPELL_RE),
+        removes: extractSpellNames(innerBody, REMOVESPELL_RE),
+      })
       continue
     }
 
     if (!innerBody) {
-      // Self-closing <craftingspelllist/> with no reference — treat as empty.
       raw.set(uniqueName, { explicit: [] })
       continue
     }
 
-    const spells = []
-    const seen = new Set()
-    let sm
-    CRAFTSPELL_RE.lastIndex = 0
-    while ((sm = CRAFTSPELL_RE.exec(innerBody)) !== null) {
-      const attrs = parseAttrs(sm[1])
-      const spellName = attrs.uniquename
-      if (!spellName || seen.has(spellName)) continue
-      seen.add(spellName)
-      spells.push(spellName)
-    }
-    raw.set(uniqueName, { explicit: spells })
+    raw.set(uniqueName, { explicit: extractSpellNames(innerBody, CRAFTSPELL_RE) })
   }
   return raw
 }
 
-// Second pass: resolve reference chains. If a reference target is missing,
-// we log and drop the item — better to surface the data issue than to ship
-// a half-filled pool.
+function applyOverrides(base, adds, removes) {
+  const removeSet = new Set(removes)
+  const addSet = new Set(adds)
+  // Drop anything the base provides that this item removes, AND strip any
+  // base spell also named in adds — artifacts occasionally re-declare a
+  // base spell; the override wins and we'd otherwise duplicate-render it.
+  const kept = base.filter((s) => !removeSet.has(s) && !addSet.has(s))
+  return [...kept, ...adds]
+}
+
+// Second pass: resolve reference chains. Each resolution returns a NEW array
+// (overrides compose, so the parent's resolved list must not be mutated
+// when a child layers removes/adds on top).
 function resolveAll(raw) {
   const resolved = new Map()
   const unresolved = []
 
-  function resolve(name, depth) {
+  function resolveOne(name, depth) {
     if (resolved.has(name)) return resolved.get(name)
     if (depth > MAX_REFERENCE_DEPTH) return null
     const entry = raw.get(name)
@@ -113,16 +137,15 @@ function resolveAll(raw) {
       resolved.set(name, entry.explicit)
       return entry.explicit
     }
-    const target = resolve(entry.reference, depth + 1)
-    if (target) {
-      resolved.set(name, target)
-      return target
-    }
-    return null
+    const base = resolveOne(entry.reference, depth + 1)
+    if (!base) return null
+    const merged = applyOverrides(base, entry.adds ?? [], entry.removes ?? [])
+    resolved.set(name, merged)
+    return merged
   }
 
   for (const name of raw.keys()) {
-    const result = resolve(name, 0)
+    const result = resolveOne(name, 0)
     if (!result) unresolved.push(name)
   }
 
