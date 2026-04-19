@@ -12,7 +12,7 @@ const SPELL_ROW_KEYS = ['weapon', 'head', 'armor', 'shoes'] as const
 type SpellRowKey = (typeof SPELL_ROW_KEYS)[number]
 
 const GEAR_ICON_SIZE = 44
-const SPELL_ICON_SIZE = 60
+const SPELL_ICON_SIZE = 45
 
 type RowItem = { key: SpellRowKey; name: string | null; id: string | null; spells: string[] }
 
