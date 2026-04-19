@@ -11,8 +11,8 @@ import { getSpells, getDisplayWeapon, isFreeItem } from '@/types'
 const SPELL_ROW_KEYS = ['weapon', 'head', 'armor', 'shoes'] as const
 type SpellRowKey = (typeof SPELL_ROW_KEYS)[number]
 
-const GEAR_ICON_SIZE = 22
-const SPELL_ICON_SIZE = 30
+const GEAR_ICON_SIZE = 44
+const SPELL_ICON_SIZE = 60
 
 type RowItem = { key: SpellRowKey; name: string | null; id: string | null; spells: string[] }
 
@@ -52,7 +52,7 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
       </span>
       <div
         role="tooltip"
-        className="hidden group-hover/spells:block group-focus-within/spells:block absolute z-30 top-full left-0 mt-1 min-w-[200px] max-w-[90vw] bg-gray-950 border border-purple-500/40 rounded-lg p-1.5 shadow-xl pointer-events-none space-y-1"
+        className="hidden group-hover/spells:block group-focus-within/spells:block absolute z-30 top-full left-0 mt-1 min-w-[280px] max-w-[92vw] bg-gray-950 border border-purple-500/40 rounded-lg p-2 shadow-xl pointer-events-none space-y-1.5"
       >
         {rows.map(({ key, name, id, spells }) => (
           <div key={key} className="flex items-center gap-1.5">
