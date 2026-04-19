@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import itemSpells from '@/data/albion-item-spells.json'
+import type { SpellPoolEntry } from '@/types'
 
 // Edge runtime: lookups are pure in-memory map reads, no network egress.
 export const runtime = 'edge'
@@ -12,13 +13,13 @@ function stripEnchantment(id: string): string {
   return at >= 0 ? id.slice(0, at) : id
 }
 
-const POOL = itemSpells as Record<string, string[]>
+const POOL = itemSpells as Record<string, SpellPoolEntry[]>
 
 export function GET(request: NextRequest) {
   const ids = request.nextUrl.searchParams.getAll('id').map((s) => s.trim()).filter(Boolean)
   if (ids.length === 0) return NextResponse.json({})
 
-  const out: Record<string, string[]> = {}
+  const out: Record<string, SpellPoolEntry[]> = {}
   for (const id of ids) {
     const base = stripEnchantment(id)
     const pool = POOL[base]

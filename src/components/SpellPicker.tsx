@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { X, Sparkles } from 'lucide-react'
 import SpellImage from './SpellImage'
-import { MAX_SPELLS_PER_SLOT_ITEM } from '@/types'
+import { MAX_SPELLS_PER_SLOT_ITEM, type SpellPoolEntry } from '@/types'
 
 interface Props {
   // One or more item uniqueNames that own this picker. For single-weapon /
@@ -16,25 +16,48 @@ interface Props {
   maxSpells?: number
 }
 
-function mergePools(pools: string[][]): string[] {
+function mergePools(pools: SpellPoolEntry[][]): SpellPoolEntry[] {
   // Preserves the order the server returned — items.xml lists spells in
-  // slot order (Q→W→E→Passives), and we want the grid to honor that.
+  // slot order (1→2→3→Passives), and we want sections to honor that.
   const seen = new Set<string>()
-  const out: string[] = []
+  const out: SpellPoolEntry[] = []
   for (const pool of pools) {
-    for (const spell of pool) {
-      if (seen.has(spell)) continue
-      seen.add(spell)
-      out.push(spell)
+    for (const entry of pool) {
+      if (seen.has(entry.name)) continue
+      seen.add(entry.name)
+      out.push(entry)
     }
   }
   return out
 }
 
+// Groups a flat pool by slot index. Slot=null buckets are rendered as
+// "passive" at the end; active slots are ordered numerically.
+function groupBySlot(pool: SpellPoolEntry[]): Array<{ slot: number | null; spells: string[] }> {
+  const buckets = new Map<number | null, string[]>()
+  for (const entry of pool) {
+    const key = entry.slot
+    const list = buckets.get(key) ?? []
+    list.push(entry.name)
+    buckets.set(key, list)
+  }
+  const active = [...buckets.keys()]
+    .filter((k): k is number => k !== null)
+    .sort((a, b) => a - b)
+    .map((slot) => ({ slot, spells: buckets.get(slot) ?? [] }))
+  const passive = buckets.has(null) ? [{ slot: null, spells: buckets.get(null) ?? [] }] : []
+  return [...active, ...passive]
+}
+
+function slotLabel(slot: number | null): string {
+  if (slot === null) return '패시브'
+  return `${slot}번 슬롯`
+}
+
 // Module-level cache keyed by item uniqueName. The pool never changes at
 // runtime (data is bundled at build time), so re-fetching per SlotEditor
 // open would just add latency for repeat item picks.
-const poolCache = new Map<string, string[]>()
+const poolCache = new Map<string, SpellPoolEntry[]>()
 
 async function loadMissing(ids: string[]): Promise<void> {
   const missing = ids.filter((id) => !poolCache.has(id))
@@ -43,7 +66,7 @@ async function loadMissing(ids: string[]): Promise<void> {
   for (const id of missing) params.append('id', id)
   const res = await fetch(`/api/items/spells?${params.toString()}`)
   if (!res.ok) throw new Error(`Failed to fetch spell pool: ${res.status}`)
-  const data = (await res.json()) as Record<string, string[]>
+  const data = (await res.json()) as Record<string, SpellPoolEntry[]>
   for (const id of missing) {
     poolCache.set(id, Array.isArray(data[id]) ? data[id] : [])
   }
@@ -87,6 +110,8 @@ export default function SpellPicker({
   // needs to fire in the effect body.
   void tick // tick is intentionally read to re-subscribe after cache updates
   const pool = mergePools(itemIds.map((id) => poolCache.get(id) ?? []))
+  const groups = groupBySlot(pool)
+  const poolNames = pool.map((e) => e.name)
   const hasItems = itemIds.length > 0
   const anyUnfetched = itemIds.some((id) => !poolCache.has(id))
   const isLoading = hasItems && anyUnfetched
@@ -106,7 +131,7 @@ export default function SpellPicker({
   // spell is no longer in the new pool, surface it as a "stale" chip rather
   // than silently deleting — the choice they made was intentional.
   const stale = hasItems && !isLoading
-    ? spells.filter((s) => !pool.includes(s))
+    ? spells.filter((s) => !poolNames.includes(s))
     : []
 
   return (
@@ -126,30 +151,39 @@ export default function SpellPicker({
       ) : !isLoading && pool.length === 0 ? (
         <p className="text-[10px] text-gray-600 italic">이 아이템은 스킬 선택이 없습니다.</p>
       ) : (
-        <div className="flex flex-wrap gap-1">
-          {pool.map((spellId) => {
-            const selected = spells.includes(spellId)
-            const disabled = !selected && !canAddMore
-            return (
-              <button
-                key={spellId}
-                type="button"
-                onClick={() => toggle(spellId)}
-                disabled={disabled}
-                title={spellId}
-                className={`relative rounded-md transition-all ${
-                  selected
-                    ? 'ring-2 ring-purple-400 scale-100'
-                    : disabled
-                      ? 'opacity-30 cursor-not-allowed'
-                      : 'opacity-60 hover:opacity-100 hover:ring-1 hover:ring-purple-500/50'
-                }`}
-                aria-pressed={selected}
-              >
-                <SpellImage spellId={spellId} size={24} />
-              </button>
-            )
-          })}
+        <div className="space-y-1.5">
+          {groups.map((group) => (
+            <div key={group.slot === null ? 'passive' : `slot-${group.slot}`}>
+              <div className="text-[9px] uppercase tracking-wide text-gray-500 mb-0.5">
+                {slotLabel(group.slot)}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {group.spells.map((spellId) => {
+                  const selected = spells.includes(spellId)
+                  const disabled = !selected && !canAddMore
+                  return (
+                    <button
+                      key={spellId}
+                      type="button"
+                      onClick={() => toggle(spellId)}
+                      disabled={disabled}
+                      title={spellId}
+                      className={`relative rounded-md transition-all ${
+                        selected
+                          ? 'ring-2 ring-purple-400 scale-100'
+                          : disabled
+                            ? 'opacity-30 cursor-not-allowed'
+                            : 'opacity-60 hover:opacity-100 hover:ring-1 hover:ring-purple-500/50'
+                      }`}
+                      aria-pressed={selected}
+                    >
+                      <SpellImage spellId={spellId} size={24} />
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

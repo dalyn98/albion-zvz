@@ -55,7 +55,12 @@ function parseAttrs(attrString) {
   return attrs
 }
 
-function extractSpellNames(innerBody, pattern) {
+// Each entry is { name, slot } where slot is the integer slot index from
+// items.xml's `slots="N"` attribute, or null for passives (no slots attr).
+// The picker groups by this slot; removespell doesn't carry slot info but
+// only needs the name to match, so callers passing REMOVESPELL_RE can
+// ignore the slot field.
+function extractSpellEntries(innerBody, pattern) {
   if (!innerBody) return []
   const out = []
   const seen = new Set()
@@ -66,7 +71,9 @@ function extractSpellNames(innerBody, pattern) {
     const spellName = attrs.uniquename
     if (!spellName || seen.has(spellName)) continue
     seen.add(spellName)
-    out.push(spellName)
+    const slotRaw = attrs.slots
+    const slot = slotRaw === undefined || slotRaw === '' ? null : Number(slotRaw)
+    out.push({ name: spellName, slot: Number.isFinite(slot) ? slot : null })
   }
   return out
 }
@@ -95,8 +102,8 @@ function collectRawLists(xml) {
       // Reference, optionally with an override body of craftspell/removespell.
       raw.set(uniqueName, {
         reference: refAttr,
-        adds: extractSpellNames(innerBody, CRAFTSPELL_RE),
-        removes: extractSpellNames(innerBody, REMOVESPELL_RE),
+        adds: extractSpellEntries(innerBody, CRAFTSPELL_RE),
+        removes: extractSpellEntries(innerBody, REMOVESPELL_RE).map((e) => e.name),
       })
       continue
     }
@@ -106,18 +113,18 @@ function collectRawLists(xml) {
       continue
     }
 
-    raw.set(uniqueName, { explicit: extractSpellNames(innerBody, CRAFTSPELL_RE) })
+    raw.set(uniqueName, { explicit: extractSpellEntries(innerBody, CRAFTSPELL_RE) })
   }
   return raw
 }
 
 function applyOverrides(base, adds, removes) {
   const removeSet = new Set(removes)
-  const addSet = new Set(adds)
+  const addNames = new Set(adds.map((e) => e.name))
   // Drop anything the base provides that this item removes, AND strip any
   // base spell also named in adds — artifacts occasionally re-declare a
   // base spell; the override wins and we'd otherwise duplicate-render it.
-  const kept = base.filter((s) => !removeSet.has(s) && !addSet.has(s))
+  const kept = base.filter((e) => !removeSet.has(e.name) && !addNames.has(e.name))
   return [...kept, ...adds]
 }
 
