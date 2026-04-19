@@ -55,11 +55,17 @@ function parseAttrs(attrString) {
   return attrs
 }
 
-// Each entry is { name, slot } where slot is the integer slot index from
-// items.xml's `slots="N"` attribute, or null for passives (no slots attr).
-// The picker groups by this slot; removespell doesn't carry slot info but
-// only needs the name to match, so callers passing REMOVESPELL_RE can
-// ignore the slot field.
+// Each entry is { name, slot, type }:
+// - `type` is derived from the uniqueName prefix: PASSIVE_* → 'passive',
+//   everything else → 'active'. items.xml has no explicit active/passive
+//   attribute, so we lean on the naming convention (PASSIVE_ prefix is
+//   consistent across 200+ passive spells in the dump).
+// - `slot` is the integer from `slots="N"` or null if absent. The meaning
+//   differs by item type: weapons use slots=1/2/3 to mark active Q/W/E
+//   position; armor/head/shoes use slots=1/2 to mark which passive slot
+//   a passive goes into. Consumers interpret it via (type, slot) together.
+// removespell doesn't carry slot info but only needs the name to match,
+// so callers passing REMOVESPELL_RE can ignore slot/type.
 function extractSpellEntries(innerBody, pattern) {
   if (!innerBody) return []
   const out = []
@@ -73,7 +79,12 @@ function extractSpellEntries(innerBody, pattern) {
     seen.add(spellName)
     const slotRaw = attrs.slots
     const slot = slotRaw === undefined || slotRaw === '' ? null : Number(slotRaw)
-    out.push({ name: spellName, slot: Number.isFinite(slot) ? slot : null })
+    const type = spellName.startsWith('PASSIVE') ? 'passive' : 'active'
+    out.push({
+      name: spellName,
+      slot: Number.isFinite(slot) ? slot : null,
+      type,
+    })
   }
   return out
 }

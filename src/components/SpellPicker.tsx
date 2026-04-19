@@ -31,27 +31,46 @@ function mergePools(pools: SpellPoolEntry[][]): SpellPoolEntry[] {
   return out
 }
 
-// Groups a flat pool by slot index. Slot=null buckets are rendered as
-// "passive" at the end; active slots are ordered numerically.
-function groupBySlot(pool: SpellPoolEntry[]): Array<{ slot: number | null; spells: string[] }> {
-  const buckets = new Map<number | null, string[]>()
+// Groups a flat pool by (type, slot). Sections render in this order:
+//   actives sorted by slot (null last) → passives sorted by slot (null last)
+// Labels adapt to what exists:
+//   - Weapons: actives tagged slots=1/2/3 → "1번 슬롯"/"2번 슬롯"/"3번 슬롯";
+//     passives untagged → "패시브".
+//   - Armor/head/shoes: actives untagged → "액티브";
+//     passives tagged slots=1/2 → "패시브 1"/"패시브 2";
+//     passives untagged → "패시브".
+function groupByTypeAndSlot(
+  pool: SpellPoolEntry[],
+): Array<{ key: string; label: string; spells: string[] }> {
+  type Bucket = { type: 'active' | 'passive'; slot: number | null; spells: string[] }
+  const buckets = new Map<string, Bucket>()
   for (const entry of pool) {
-    const key = entry.slot
-    const list = buckets.get(key) ?? []
-    list.push(entry.name)
-    buckets.set(key, list)
+    const key = `${entry.type}:${entry.slot ?? 'none'}`
+    const existing = buckets.get(key)
+    if (existing) {
+      existing.spells.push(entry.name)
+      continue
+    }
+    buckets.set(key, { type: entry.type, slot: entry.slot, spells: [entry.name] })
   }
-  const active = [...buckets.keys()]
-    .filter((k): k is number => k !== null)
-    .sort((a, b) => a - b)
-    .map((slot) => ({ slot, spells: buckets.get(slot) ?? [] }))
-  const passive = buckets.has(null) ? [{ slot: null, spells: buckets.get(null) ?? [] }] : []
-  return [...active, ...passive]
+
+  const order = (b: Bucket): number => {
+    const slotRank = b.slot ?? Number.POSITIVE_INFINITY
+    return (b.type === 'active' ? 0 : 1000) + slotRank
+  }
+  const sorted = [...buckets.values()].sort((a, b) => order(a) - order(b))
+  return sorted.map((b) => ({
+    key: `${b.type}:${b.slot ?? 'none'}`,
+    label: bucketLabel(b.type, b.slot),
+    spells: b.spells,
+  }))
 }
 
-function slotLabel(slot: number | null): string {
-  if (slot === null) return '패시브'
-  return `${slot}번 슬롯`
+function bucketLabel(type: 'active' | 'passive', slot: number | null): string {
+  if (type === 'active') {
+    return slot === null ? '액티브' : `${slot}번 슬롯`
+  }
+  return slot === null ? '패시브' : `패시브 ${slot}`
 }
 
 // Module-level cache keyed by item uniqueName. The pool never changes at
@@ -110,7 +129,7 @@ export default function SpellPicker({
   // needs to fire in the effect body.
   void tick // tick is intentionally read to re-subscribe after cache updates
   const pool = mergePools(itemIds.map((id) => poolCache.get(id) ?? []))
-  const groups = groupBySlot(pool)
+  const groups = groupByTypeAndSlot(pool)
   const poolNames = pool.map((e) => e.name)
   const hasItems = itemIds.length > 0
   const anyUnfetched = itemIds.some((id) => !poolCache.has(id))
@@ -153,9 +172,9 @@ export default function SpellPicker({
       ) : (
         <div className="space-y-1.5">
           {groups.map((group) => (
-            <div key={group.slot === null ? 'passive' : `slot-${group.slot}`}>
+            <div key={group.key}>
               <div className="text-[9px] uppercase tracking-wide text-gray-500 mb-0.5">
-                {slotLabel(group.slot)}
+                {group.label}
               </div>
               <div className="flex flex-wrap gap-1">
                 {group.spells.map((spellId) => {

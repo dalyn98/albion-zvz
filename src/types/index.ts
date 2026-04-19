@@ -86,11 +86,16 @@ export type SlotSpells = Partial<Record<SlotKey, string[]>>
 
 export const MAX_SPELLS_PER_SLOT_ITEM = 4
 
-// One entry in an item's craftable spell pool. `slot` is the slot index from
-// items.xml (`slots="N"`). Weapons use 1/2/3 (Q/W/E); passives have slot=null.
+// One entry in an item's craftable spell pool.
+// - `type` classifies by name prefix: 'passive' for PASSIVE_*, 'active'
+//   otherwise. items.xml has no explicit marker so we rely on the convention.
+// - `slot` is items.xml's `slots="N"` attribute. Its meaning depends on type:
+//   for active spells on weapons it's the Q/W/E position (1/2/3); for passive
+//   spells on armor/head/shoes it partitions passive slots (1/2).
 export interface SpellPoolEntry {
   name: string
   slot: number | null
+  type: 'active' | 'passive'
 }
 
 export function getSpells(spells: SlotSpells | null | undefined, key: SlotKey): string[] {
