@@ -222,6 +222,25 @@ async function main() {
   await writeFile(outPath, JSON.stringify(map))
   const outSize = JSON.stringify(map).length
   console.log(`[build-item-spells] Wrote ${outPath} (${(outSize / 1024).toFixed(1)}KB)`)
+
+  // Derived lookup: spell uniqueName → {slot, type}. Slot/type are universal
+  // per spell (same spell name has the same slot across every item that grants
+  // it, per items.xml), so we can dedupe into a flat table. Needed on the
+  // client to group member-facing spell displays by slot without shipping the
+  // full per-item map (~700KB → ~60KB).
+  const slotMap = {}
+  for (const spells of resolved.values()) {
+    for (const s of spells) {
+      if (slotMap[s.name]) continue
+      slotMap[s.name] = { slot: s.slot, type: s.type }
+    }
+  }
+  const slotOutPath = resolve(here, '..', 'src', 'data', 'albion-spell-slots.json')
+  const slotJson = JSON.stringify(slotMap)
+  await writeFile(slotOutPath, slotJson)
+  console.log(
+    `[build-item-spells] Wrote ${slotOutPath} (${Object.keys(slotMap).length} spells, ${(slotJson.length / 1024).toFixed(1)}KB)`,
+  )
 }
 
 main().catch((e) => {

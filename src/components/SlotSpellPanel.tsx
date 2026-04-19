@@ -3,6 +3,7 @@ import ItemImage from './ItemImage'
 import SpellImage from './SpellImage'
 import type { Slot, SlotKey } from '@/types'
 import { getSpells, getDisplayGear, isFreeItem } from '@/types'
+import spellSlotsJson from '@/data/albion-spell-slots.json'
 
 // Rows appear in this fixed top-to-bottom order. Offhand/potion/food/cape
 // are omitted because they carry no active spells in practice; if we ever
@@ -20,7 +21,49 @@ function rowGear(slot: Slot, key: SpellRowKey): { name: string | null; id: strin
   return getDisplayGear(slot, key as SlotKey)
 }
 
-// Displays a small "스킬 N" badge that reveals a 4-row gear+spells panel on
+// Derived at build time from items.xml — spell uniqueName → slot+type.
+// Slot meaning depends on type: active → weapon Q/W/E position (1/2/3),
+// passive → which passive slot a passive fills (1/2). null = no slot attr.
+type SpellSlotInfo = { slot: number | null; type: 'active' | 'passive' }
+const SPELL_SLOTS = spellSlotsJson as Record<string, SpellSlotInfo>
+
+interface SpellGroup {
+  key: string
+  type: 'active' | 'passive'
+  slot: number | null
+  spellIds: string[]
+}
+
+// Groups spells sharing the same (type, slot) tuple. In Albion, spells in the
+// same slot are mutually exclusive in-game — picking multiple in the admin
+// editor means "member can choose any one of these", not "all are equipped".
+function groupSpellsBySlot(spellIds: string[]): SpellGroup[] {
+  const buckets = new Map<string, SpellGroup>()
+  const order: string[] = []
+  for (const id of spellIds) {
+    const info = SPELL_SLOTS[id]
+    const type = info?.type ?? 'active'
+    const slot = info?.slot ?? null
+    const key = `${type}:${slot ?? 'x'}`
+    const existing = buckets.get(key)
+    if (existing) {
+      existing.spellIds.push(id)
+      continue
+    }
+    buckets.set(key, { key, type, slot, spellIds: [id] })
+    order.push(key)
+  }
+  return order.map((k) => buckets.get(k)!)
+}
+
+function groupLabel(g: SpellGroup): string {
+  if (g.type === 'active') {
+    return g.slot === null ? '액티브' : `${g.slot}번 슬롯`
+  }
+  return g.slot === null ? '패시브' : `패시브 ${g.slot}`
+}
+
+// Displays a small "스킬" badge that reveals a 4-row gear+spells panel on
 // hover/focus — mirrors NoteTooltip so mobile users get the same tap-to-open
 // affordance across both info surfaces.
 export default function SlotSpellPanel({ slot }: { slot: Slot }) {
@@ -50,7 +93,7 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
         className="hidden group-hover/spells:block group-focus-within/spells:block absolute z-30 top-full left-0 mt-1 min-w-[280px] max-w-[92vw] bg-gray-950 border border-purple-500/40 rounded-lg p-2 shadow-xl pointer-events-none space-y-1.5"
       >
         {rows.map(({ key, name, id, spells }) => (
-          <div key={key} className="flex items-center gap-1.5">
+          <div key={key} className="flex items-start gap-1.5">
             {isFreeItem(name, id) ? (
               <div
                 style={{ width: GEAR_ICON_SIZE, height: GEAR_ICON_SIZE }}
@@ -63,10 +106,36 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
                 <ItemImage itemId={id} itemName={name} size={GEAR_ICON_SIZE} />
               </div>
             )}
-            <div className="flex flex-wrap gap-0.5">
-              {spells.map((spellId) => (
-                <SpellImage key={spellId} spellId={spellId} size={SPELL_ICON_SIZE} />
-              ))}
+            <div className="flex flex-wrap gap-x-2 gap-y-1 items-start">
+              {groupSpellsBySlot(spells).map((group) => {
+                const isMulti = group.spellIds.length > 1
+                const label = groupLabel(group)
+                if (!isMulti) {
+                  return (
+                    <div key={group.key} className="flex gap-0.5" title={label}>
+                      {group.spellIds.map((spellId) => (
+                        <SpellImage key={spellId} spellId={spellId} size={SPELL_ICON_SIZE} />
+                      ))}
+                    </div>
+                  )
+                }
+                return (
+                  <div
+                    key={group.key}
+                    className="flex flex-col items-center gap-0.5"
+                    title={`${label} · 인게임에서 한 개만 사용 가능`}
+                  >
+                    <div className="flex gap-0.5 p-0.5 rounded-md border border-amber-500/50 bg-amber-500/10">
+                      {group.spellIds.map((spellId) => (
+                        <SpellImage key={spellId} spellId={spellId} size={SPELL_ICON_SIZE} />
+                      ))}
+                    </div>
+                    <span className="text-amber-300 text-[10px] font-bold leading-none">
+                      택1
+                    </span>
+                  </div>
+                )
+              })}
             </div>
           </div>
         ))}
