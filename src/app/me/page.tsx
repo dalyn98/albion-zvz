@@ -5,6 +5,7 @@ import { getSession } from '@/lib/session'
 import { listMyRegearRequests, getMyPointsSummary } from '@/app/actions/regear'
 import { listMyExchangeRequests } from '@/app/actions/exchange'
 import { formatSilver } from '@/lib/silver'
+import { formatDateTime } from '@/lib/format-datetime'
 import { regearPayoutSilver } from '@/types'
 import RequestExchangeForm from '@/components/RequestExchangeForm'
 import ExchangeRequestActions from '@/components/ExchangeRequestActions'
@@ -16,11 +17,6 @@ const STATUS_CLASS: Record<string, string> = {
   pending: 'bg-yellow-500/20 text-yellow-300',
   approved: 'bg-green-500/20 text-green-300',
   rejected: 'bg-gray-700 text-gray-300',
-}
-
-function formatDateTime(iso: string): string {
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 export default async function MePage() {

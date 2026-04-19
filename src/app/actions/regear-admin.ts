@@ -2,15 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { getAdminClient } from '@/lib/supabase-admin'
-import { getSession } from '@/lib/session'
+import { requireAdmin } from '@/lib/auth'
 import type { RegearType } from '@/types'
-
-async function requireAdmin() {
-  const session = await getSession()
-  if (!session?.isAdmin) throw new Error('Unauthorized')
-  return getAdminClient()
-}
 
 const SCREENSHOT_BUCKET = 'regear-screenshots'
 // Signed URLs only need to live long enough for an admin to review. 10 min.

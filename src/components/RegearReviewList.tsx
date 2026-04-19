@@ -11,6 +11,7 @@ import {
   type AdminRegearRequest,
 } from '@/app/actions/regear-admin'
 import { formatSilver } from '@/lib/silver'
+import { formatDateTimeShort } from '@/lib/format-datetime'
 import { regearPayoutSilver } from '@/types'
 import ImageLightbox from './ImageLightbox'
 import SearchBox from './SearchBox'
@@ -21,11 +22,6 @@ const STATUS_CLASS: Record<string, string> = {
   pending: 'bg-yellow-500/20 text-yellow-300',
   approved: 'bg-green-500/20 text-green-300',
   rejected: 'bg-gray-700 text-gray-300',
-}
-
-function formatDateTime(iso: string): string {
-  const d = new Date(iso)
-  return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 interface RegearReviewListProps {
@@ -133,7 +129,7 @@ function RegearRow({ request, avatar }: { request: AdminRegearRequest; avatar: s
               {t('claimed', { amount: formatSilver(regearPayoutSilver(request)) })}
               <span className="text-gray-500"> / {t('cap', { amount: formatSilver(request.silver) })}</span>
             </span>
-            <span className="font-mono text-gray-500">{formatDateTime(request.created_at)}</span>
+            <span className="font-mono text-gray-500">{formatDateTimeShort(request.created_at)}</span>
           </div>
         </div>
         <span className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS[request.status]}`}>
@@ -270,7 +266,7 @@ function RegearRow({ request, avatar }: { request: AdminRegearRequest; avatar: s
 
       {request.resolved_at && request.status !== 'pending' && (
         <p className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2">
-          {t('resolvedAt', { status: statusLabel(request.status), datetime: formatDateTime(request.resolved_at) })}
+          {t('resolvedAt', { status: statusLabel(request.status), datetime: formatDateTimeShort(request.resolved_at) })}
         </p>
       )}
 

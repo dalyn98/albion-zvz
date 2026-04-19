@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { FolderDown, X } from 'lucide-react'
 import { applyTemplate, type TemplateSummary } from '@/app/actions/templates'
+import { formatDate } from '@/lib/format-datetime'
 
 interface Props {
   eventId: string
@@ -32,11 +33,6 @@ export default function LoadTemplateButton({ eventId, templates }: Props) {
       setOpen(false)
       router.refresh()
     })
-  }
-
-  const formatDate = (iso: string) => {
-    const d = new Date(iso)
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   }
 
   return (

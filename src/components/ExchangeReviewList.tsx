@@ -10,6 +10,7 @@ import {
   type AdminExchangeRequest,
 } from '@/app/actions/regear-admin'
 import { formatSilver } from '@/lib/silver'
+import { formatDateTimeShort } from '@/lib/format-datetime'
 import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
@@ -18,11 +19,6 @@ const STATUS_CLASS: Record<string, string> = {
   pending: 'bg-yellow-500/20 text-yellow-300',
   approved: 'bg-green-500/20 text-green-300',
   rejected: 'bg-gray-700 text-gray-300',
-}
-
-function formatDateTime(iso: string): string {
-  const d = new Date(iso)
-  return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 interface ExchangeReviewListProps {
@@ -110,7 +106,7 @@ function ExchangeRow({ request, avatar }: { request: AdminExchangeRequest; avata
           <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
             <span className="font-mono text-amber-400">{formatSilver(request.silver)}</span>
             <span className="text-gray-500">{t('balanceLabel', { amount: formatSilver(request.balance) })}</span>
-            <span className="font-mono text-gray-600">{formatDateTime(request.created_at)}</span>
+            <span className="font-mono text-gray-600">{formatDateTimeShort(request.created_at)}</span>
           </div>
         </div>
         <span className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS[request.status]}`}>
@@ -193,7 +189,7 @@ function ExchangeRow({ request, avatar }: { request: AdminExchangeRequest; avata
 
       {request.resolved_at && request.status !== 'pending' && (
         <p className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2">
-          {t('resolvedAt', { status: statusLabel(request.status), datetime: formatDateTime(request.resolved_at) })}
+          {t('resolvedAt', { status: statusLabel(request.status), datetime: formatDateTimeShort(request.resolved_at) })}
         </p>
       )}
     </li>

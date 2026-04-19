@@ -2,15 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { getAdminClient } from '@/lib/supabase-admin'
-import { getSession } from '@/lib/session'
+import { requireAdmin } from '@/lib/auth'
 import type { GearOption, SlotSpells } from '@/types'
-
-async function requireAdmin() {
-  const session = await getSession()
-  if (!session?.isAdmin) throw new Error('Unauthorized')
-  return getAdminClient()
-}
 
 // Columns saved per slot: role + notes + all 8 gear slots + per-slot options
 // + per-item spells, no assignment data (per product spec: templates store

@@ -2,8 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { getAdminClient } from '@/lib/supabase-admin'
-import { getSession } from '@/lib/session'
+import { requireAdmin } from '@/lib/auth'
 import { sendEventNotification } from '@/lib/discord'
 import { getAppSetting } from '@/lib/app-settings'
 import type { SlotKey, SlotSpells, GearOption } from '@/types'
@@ -15,12 +14,6 @@ const MAX_PARTIES = 4
 const MAX_SLOTS_PER_PARTY = 20
 
 type AdminErrorTranslator = Awaited<ReturnType<typeof getTranslations<'adminActionError'>>>
-
-async function requireAdmin() {
-  const session = await getSession()
-  if (!session?.isAdmin) throw new Error('Unauthorized')
-  return getAdminClient()
-}
 
 // --- Event actions ---
 

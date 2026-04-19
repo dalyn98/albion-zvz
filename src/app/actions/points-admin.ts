@@ -2,16 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { getAdminClient } from '@/lib/supabase-admin'
-import { getSession } from '@/lib/session'
+import { requireAdmin } from '@/lib/auth'
 
 const MEMO_MAX_LENGTH = 200
-
-async function requireAdmin() {
-  const session = await getSession()
-  if (!session?.isAdmin) throw new Error('Unauthorized')
-  return getAdminClient()
-}
 
 // 관리자가 길드원의 포인트(실버)를 +/- 수동 조정한다. 리기어/환전 플로우와 달리
 // 참조할 요청 레코드가 없어 ref_id는 null, reason은 'admin_adjust'를 사용.

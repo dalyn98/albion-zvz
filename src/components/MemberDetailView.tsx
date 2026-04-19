@@ -2,6 +2,7 @@ import { Coins, Wallet, ShieldCheck } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
 import { formatSilver } from '@/lib/silver'
+import { formatDate, formatDateTime } from '@/lib/format-datetime'
 import { getRoleStyle, regearPayoutSilver } from '@/types'
 import type { GuildMemberDetail, MemberExchangeEntry } from '@/app/actions/members-admin'
 
@@ -17,16 +18,6 @@ interface StatusLabels {
   pending: string
   approved: string
   rejected: string
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function formatDateTime(iso: string): string {
-  const d = new Date(iso)
-  return `${formatDate(iso)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 interface Props {

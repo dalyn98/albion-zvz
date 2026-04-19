@@ -3,13 +3,8 @@
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
+import { requireAdmin } from '@/lib/auth'
 import type { RegearType } from '@/types'
-
-async function requireAdmin() {
-  const session = await getSession()
-  if (!session?.isAdmin) throw new Error('Unauthorized')
-  return getAdminClient()
-}
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
 // 포인트 조정 같은 mutation은 별도로 requireAdmin()을 거치게 둔다.

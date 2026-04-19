@@ -2,8 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { getAdminClient } from '@/lib/supabase-admin'
-import { getSession } from '@/lib/session'
+import { requireAdmin } from '@/lib/auth'
 import type { AppSettingKey } from '@/lib/app-settings'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
@@ -16,12 +15,6 @@ const MAX_VALUE_LENGTH = 500
 // Keys for which an empty value is meaningful (= "unset, fall back to
 // application default"). Other keys reject empty input.
 const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = ['landing_cta_text'] as const
-
-async function requireAdmin() {
-  const session = await getSession()
-  if (!session?.isAdmin) throw new Error('Unauthorized')
-  return getAdminClient()
-}
 
 export async function updateAppSetting(
   key: AppSettingKey,

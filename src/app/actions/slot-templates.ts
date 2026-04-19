@@ -1,15 +1,8 @@
 'use server'
 
 import { getTranslations } from 'next-intl/server'
-import { getAdminClient } from '@/lib/supabase-admin'
-import { getSession } from '@/lib/session'
+import { requireAdmin } from '@/lib/auth'
 import type { GearOption, SlotSpells } from '@/types'
-
-async function requireAdmin() {
-  const session = await getSession()
-  if (!session?.isAdmin) throw new Error('Unauthorized')
-  return getAdminClient()
-}
 
 // Slot-level template data: role + notes + 8 gear slots + per-slot multi-option
 // lists + per-item spells. No slot_number (templates are position-agnostic) and
