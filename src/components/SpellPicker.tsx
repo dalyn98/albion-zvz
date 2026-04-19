@@ -177,7 +177,7 @@ export default function SpellPicker({
                       }`}
                       aria-pressed={selected}
                     >
-                      <SpellImage spellId={spellId} size={24} />
+                      <SpellImage spellId={spellId} size={36} />
                     </button>
                   )
                 })}
@@ -192,7 +192,7 @@ export default function SpellPicker({
           <span className="text-[10px] text-amber-300/80 self-center">이전 선택(현재 풀에 없음):</span>
           {stale.map((spellId) => (
             <div key={spellId} className="relative">
-              <SpellImage spellId={spellId} size={22} />
+              <SpellImage spellId={spellId} size={32} />
               <button
                 type="button"
                 onClick={() => onRemove(spellId)}
