@@ -33,7 +33,9 @@ export interface KillboardDeath {
   Killer: PlayerRef
 }
 
-async function fetchJson<T>(url: string): Promise<T> {
+type FetchOpts = Pick<RequestInit, 'cache'> & { revalidate?: number }
+
+async function fetchJson<T>(url: string, opts: FetchOpts = {}): Promise<T> {
   // 10s timeout — killboard occasionally stalls and we don't want server
   // actions hanging on it.
   const controller = new AbortController()
@@ -42,8 +44,9 @@ async function fetchJson<T>(url: string): Promise<T> {
     const res = await fetch(url, {
       signal: controller.signal,
       headers: { 'User-Agent': 'albion-zvz-regear/1.0' },
-      // Don't cache — kills are time-sensitive.
-      cache: 'no-store',
+      // Caller decides cache strategy. Default: don't cache.
+      cache: opts.cache ?? 'no-store',
+      ...(opts.revalidate ? { next: { revalidate: opts.revalidate } } : {}),
     })
     if (!res.ok) throw new Error(`killboard ${res.status}`)
     return (await res.json()) as T
@@ -54,7 +57,10 @@ async function fetchJson<T>(url: string): Promise<T> {
 
 export async function searchPlayerByName(name: string): Promise<PlayerRef | null> {
   const url = `${KILLBOARD_BASE}/search?q=${encodeURIComponent(name)}`
-  const data = await fetchJson<SearchResponse>(url)
+  // Player name → ID mapping is effectively immutable for our use case
+  // (Albion charges silver to rename); 1h cache eliminates the duplicate
+  // search call when the same member submits regears in quick succession.
+  const data = await fetchJson<SearchResponse>(url, { revalidate: 3600 })
   // Case-insensitive exact match on Name — the search endpoint returns
   // prefix/fuzzy matches too.
   const target = name.trim().toLowerCase()
@@ -64,6 +70,7 @@ export async function searchPlayerByName(name: string): Promise<PlayerRef | null
 export async function getPlayerDeaths(playerId: string): Promise<KillboardDeath[]> {
   // The API returns the 50 most recent deaths; for a 1h window that's always
   // enough unless the player is AFK-dying at unusual frequency.
+  // No cache — deaths are time-sensitive.
   const url = `${KILLBOARD_BASE}/players/${encodeURIComponent(playerId)}/deaths?range=day&limit=50&offset=0`
   return fetchJson<KillboardDeath[]>(url)
 }
