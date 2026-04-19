@@ -9,28 +9,29 @@
 -- rows retain their death/overcharge label. Application code no longer
 -- branches on it — it exists only for audit/history readability.
 
--- 1) Backfill existing death rows (claimed_silver null) with their silver
+-- 1) Drop the old type-branched check first — it requires
+--    (death → claimed_silver null), which blocks the backfill UPDATE below.
+alter table public.regear_requests
+  drop constraint if exists regear_requests_type_claim_valid;
+
+-- 2) Backfill existing death rows (claimed_silver null) with their silver
 --    snapshot so the new RPC credits the same amount they would have paid.
 update public.regear_requests
    set claimed_silver = silver
  where claimed_silver is null;
 
--- 2) Require claimed_silver going forward.
+-- 3) Require claimed_silver going forward.
 alter table public.regear_requests
   alter column claimed_silver set not null;
 
--- 3) Replace the type-branched check with a unified bound.
---    Lower bound is >=0 (not >0) so legacy rows where the role reward was 0
---    at the time of approval still pass. The server action separately
---    enforces >0 for fresh submissions.
-alter table public.regear_requests
-  drop constraint if exists regear_requests_type_claim_valid;
-
+-- 4) Add the unified bound. Lower bound is >=0 (not >0) so legacy rows where
+--    the role reward was 0 at the time of approval still pass. The server
+--    action separately enforces >0 for fresh submissions.
 alter table public.regear_requests
   add constraint regear_requests_claim_bound
     check (claimed_silver >= 0 and claimed_silver <= silver);
 
--- 4) Rewrite approve_regear_request to always credit claimed_silver.
+-- 5) Rewrite approve_regear_request to always credit claimed_silver.
 --    FOR UPDATE row lock still serializes concurrent approvers.
 create or replace function public.approve_regear_request(p_id uuid)
 returns void language plpgsql security definer as $$
