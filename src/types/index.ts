@@ -182,21 +182,19 @@ export function isFreeItem(
   return name === FREE_ITEM_NAME && !id
 }
 
+// Preserved for historical rows inserted before migration 018 unified the
+// flow. New rows always carry claimed_silver; the column stays for audit
+// readability but application code no longer branches on it.
 export type RegearType = 'death' | 'overcharge'
 
-export const REGEAR_TYPE_LABEL: Record<RegearType, string> = {
-  death: '데스',
-  overcharge: '오버차지',
-}
-
-// For overcharge, the actual payout is the member's claimed amount; for death,
-// it's the role reward snapshot. `silver` keeps both meanings (ceiling/payout).
+// Unified payout helper. Post-018 every row has claimed_silver set; the
+// fallback to `silver` only matters for legacy rows read during the window
+// between deploy and migration apply.
 export function regearPayoutSilver(row: {
   silver: number
-  request_type: RegearType
   claimed_silver: number | null
 }): number {
-  return row.request_type === 'overcharge' ? row.claimed_silver ?? 0 : row.silver
+  return row.claimed_silver ?? row.silver
 }
 
 export const SLOT_ROLES = [

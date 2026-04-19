@@ -97,7 +97,7 @@ export default function SettingsTabs({
         {active === 'rewards' && (
           <div className="space-y-3">
             <p className="text-gray-500 text-xs">
-              리기어 승인 시 역할별로 정해진 실버가 포인트로 지급됩니다. 금액은 신청 시점에 스냅샷되므로, 기존 신청에는 영향이 없습니다.
+              역할별 리기어 청구 상한입니다. 길드원은 이 금액 이하 범위에서 직접 청구 금액을 입력해 신청하고, 승인 시 청구 금액이 포인트로 지급됩니다. 상한이 0인 역할은 리기어 신청이 차단됩니다.
             </p>
             {rewardsError && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
