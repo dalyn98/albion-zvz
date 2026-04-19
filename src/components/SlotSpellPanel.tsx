@@ -1,4 +1,7 @@
+'use client'
+
 import { Sparkles } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import ItemImage from './ItemImage'
 import SpellImage from './SpellImage'
 import type { Slot, SlotKey } from '@/types'
@@ -56,17 +59,21 @@ function groupSpellsBySlot(spellIds: string[]): SpellGroup[] {
   return order.map((k) => buckets.get(k)!)
 }
 
-function groupLabel(g: SpellGroup): string {
+type SpellTranslator = ReturnType<typeof useTranslations>
+
+function groupLabel(g: SpellGroup, tSpell: SpellTranslator): string {
   if (g.type === 'active') {
-    return g.slot === null ? '액티브' : `${g.slot}번 슬롯`
+    return g.slot === null ? tSpell('active') : tSpell('activeSlot', { n: g.slot })
   }
-  return g.slot === null ? '패시브' : `패시브 ${g.slot}`
+  return g.slot === null ? tSpell('passive') : tSpell('passiveSlot', { n: g.slot })
 }
 
 // Displays a small "스킬" badge that reveals a 4-row gear+spells panel on
 // hover/focus — mirrors NoteTooltip so mobile users get the same tap-to-open
 // affordance across both info surfaces.
 export default function SlotSpellPanel({ slot }: { slot: Slot }) {
+  const tSpell = useTranslations('slot.spell')
+  const tSlot = useTranslations('slot')
   const rows: RowItem[] = []
   for (const key of SPELL_ROW_KEYS) {
     const spells = getSpells(slot.spells, key as SlotKey)
@@ -82,11 +89,11 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
       <span
         tabIndex={0}
         role="button"
-        aria-label="장착 스킬 보기"
+        aria-label={tSpell('view')}
         className="inline-flex items-center gap-0.5 text-[12px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-200 border border-purple-500/30 hover:bg-purple-500/20 cursor-help focus:outline-none focus:ring-1 focus:ring-purple-500/50"
       >
         <Sparkles size={10} />
-        스킬
+        {tSpell('label')}
       </span>
       <div
         role="tooltip"
@@ -99,7 +106,7 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
                 style={{ width: GEAR_ICON_SIZE, height: GEAR_ICON_SIZE }}
                 className="flex items-center justify-center rounded bg-emerald-900/30 border border-emerald-600/50 text-emerald-300 font-bold text-[10px] flex-shrink-0"
               >
-                자유
+                {tSlot('free')}
               </div>
             ) : (
               <div className="flex-shrink-0">
@@ -109,7 +116,7 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
             <div className="flex flex-wrap gap-x-2 gap-y-1 items-start">
               {groupSpellsBySlot(spells).map((group) => {
                 const isMulti = group.spellIds.length > 1
-                const label = groupLabel(group)
+                const label = groupLabel(group, tSpell)
                 if (!isMulti) {
                   return (
                     <div key={group.key} className="flex gap-0.5" title={label}>
@@ -123,7 +130,7 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
                   <div
                     key={group.key}
                     className="flex flex-col items-center gap-0.5"
-                    title={`${label} · 인게임에서 한 개만 사용 가능`}
+                    title={tSpell('pickOneInGame', { label })}
                   >
                     <div className="flex gap-0.5 p-0.5 rounded-md border border-amber-500/50 bg-amber-500/10">
                       {group.spellIds.map((spellId) => (
@@ -131,7 +138,7 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
                       ))}
                     </div>
                     <span className="text-amber-300 text-[10px] font-bold leading-none">
-                      택1
+                      {tSpell('pickOne')}
                     </span>
                   </div>
                 )

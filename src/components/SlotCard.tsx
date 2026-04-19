@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLocale, useTranslations } from 'next-intl'
 import { assignSlot, cancelSlot, type SlotPicks } from '@/app/actions/member'
 import type { GearOption, Slot, SlotKey } from '@/types'
 import {
   SLOT_KEYS,
-  SLOT_LABELS,
   getDisplayGear,
   getGearOptions,
   getRoleStyle,
@@ -14,6 +14,8 @@ import {
   isFreeItem,
 } from '@/types'
 import { stripTierPrefix } from '@/lib/weapon-display'
+import { getLocalizedItemName } from '@/lib/item-names'
+import type { Locale } from '@/i18n/locales'
 import ItemImage from './ItemImage'
 import SlotSpellPanel from './SlotSpellPanel'
 import MemberAvatar from './MemberAvatar'
@@ -29,12 +31,13 @@ interface Props {
 }
 
 function FreeBadge({ size }: { size: number }) {
+  const t = useTranslations('slot')
   return (
     <div
       className="flex items-center justify-center rounded-md bg-emerald-900/30 border border-emerald-600/50 text-emerald-300 font-bold"
       style={{ width: size, height: size, fontSize: size >= 44 ? 14 : 11 }}
     >
-      자유
+      {t('free')}
     </div>
   )
 }
@@ -96,16 +99,17 @@ function GearPreview({
 }
 
 function NoteTooltip({ notes }: { notes: string }) {
+  const t = useTranslations('slot')
   return (
     <div className="group/note relative inline-block">
       <span
         tabIndex={0}
         role="button"
-        aria-label={`메모: ${notes}`}
+        aria-label={t('memoLabel', { notes })}
         className="inline-flex items-center gap-0.5 text-[12px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300/90 border border-amber-500/30 hover:bg-amber-500/20 cursor-help focus:outline-none focus:ring-1 focus:ring-amber-500/50"
       >
         <MessageSquare size={10} />
-        메모
+        {t('memo')}
       </span>
       <div
         role="tooltip"
@@ -131,6 +135,9 @@ export default function SlotCard({
   const [pending, startTransition] = useTransition()
   const [pickerOpen, setPickerOpen] = useState(false)
   const router = useRouter()
+  const t = useTranslations('slot')
+  const tGear = useTranslations('gear')
+  const locale = useLocale() as Locale
 
   const isTaken = slot.assigned_discord_id !== null
   const isMine = isTaken && slot.assigned_discord_id === currentDiscordId
@@ -157,9 +164,7 @@ export default function SlotCard({
 
   const handleAssign = () => {
     if (battleStarted) {
-      const ok = confirm(
-        '전투가 이미 시작된 이벤트입니다.\n신청 후에는 취소가 불가능합니다. 계속 진행할까요?',
-      )
+      const ok = confirm(t('confirmBattleStarted'))
       if (!ok) return
     }
     if (needsPicks) {
@@ -191,7 +196,7 @@ export default function SlotCard({
     }`}>
       <div className="flex items-center justify-between gap-1">
         <div className="flex items-center gap-1 flex-wrap min-w-0">
-          <span className="text-gray-500 text-[12px]">{partyNumber}파티·{slot.slot_number}번</span>
+          <span className="text-gray-500 text-[12px]">{t('partyLabel', { party: partyNumber, slot: slot.slot_number })}</span>
           {slot.role_name && (
             <span className={`text-[12px] font-bold px-1.5 py-0.5 rounded ${
               roleStyle ? roleStyle.badge : 'bg-amber-500/20 text-amber-400'
@@ -225,12 +230,12 @@ export default function SlotCard({
 
       {!isTaken && needsPicks ? (
         <p className="text-amber-300 text-[12px] font-medium truncate leading-tight">
-          복수 선택 필요 · {multiOptionKinds.map((k) => SLOT_LABELS[k]).join('/')}
+          {t('multiRequired', { labels: multiOptionKinds.map((k) => tGear(k)).join('/') })}
         </p>
       ) : (
         weaponDisplay.name && !isFreeItem(weaponDisplay.name, weaponDisplay.id) && (
           <p className="text-white text-[12px] font-medium truncate leading-tight">
-            {stripTierPrefix(weaponDisplay.name)}
+            {stripTierPrefix(getLocalizedItemName(weaponDisplay.id, locale, weaponDisplay.name) ?? weaponDisplay.name)}
           </p>
         )
       )}
@@ -262,7 +267,7 @@ export default function SlotCard({
           className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-medium bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-700 transition-colors"
         >
           <LogIn size={11} />
-          로그인 후 신청
+          {t('loginToApply')}
         </a>
       )
     }
@@ -271,11 +276,11 @@ export default function SlotCard({
         return (
           <button
             disabled
-            title="전투가 시작되어 취소할 수 없습니다."
+            title={t('battleStartedTooltip')}
             className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-medium bg-gray-800/60 text-gray-400 border border-gray-700 cursor-not-allowed"
           >
             <Lock size={11} />
-            전투 시작 · 취소 불가
+            {t('battleStartedLocked')}
           </button>
         )
       }
@@ -286,7 +291,7 @@ export default function SlotCard({
           className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 transition-colors disabled:opacity-50"
         >
           <UserX size={11} />
-          {pending ? '취소 중...' : '신청 취소'}
+          {pending ? t('cancelling') : t('cancelApplication')}
         </button>
       )
     }
@@ -296,7 +301,7 @@ export default function SlotCard({
           disabled
           className="w-full py-1 rounded-md text-[13px] font-medium bg-gray-800/50 text-gray-500 border border-gray-800 cursor-not-allowed"
         >
-          신청 불가
+          {t('cannotApply')}
         </button>
       )
     }
@@ -307,7 +312,7 @@ export default function SlotCard({
         className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 transition-colors disabled:opacity-50"
       >
         {needsPicks ? <Swords size={11} /> : <UserPlus size={11} />}
-        {pending ? '신청 중...' : needsPicks ? '장비 선택 후 신청' : '신청'}
+        {pending ? t('applying') : needsPicks ? t('pickThenApply') : t('apply')}
       </button>
     )
   }
@@ -325,6 +330,9 @@ function GearChoiceModal({
   onConfirm: (picks: SlotPicks) => void
 }) {
   const [picks, setPicks] = useState<Record<string, string>>({})
+  const t = useTranslations('slot.picker')
+  const tGear = useTranslations('gear')
+  const locale = useLocale() as Locale
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -361,12 +369,12 @@ function GearChoiceModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
-          <h3 className="font-bold text-white text-base">장비 선택</h3>
+          <h3 className="font-bold text-white text-base">{t('title')}</h3>
           <button
             type="button"
             onClick={onCancel}
             className="p-1 text-gray-400 hover:text-white"
-            aria-label="닫기"
+            aria-label={t('close')}
           >
             <X size={18} />
           </button>
@@ -378,7 +386,7 @@ function GearChoiceModal({
             return (
               <section key={kind} className="space-y-1.5">
                 <h4 className="text-amber-400 text-sm font-semibold">
-                  {SLOT_LABELS[kind]}
+                  {tGear(kind)}
                 </h4>
                 <div className="space-y-1">
                   {options.map((opt) => {
@@ -397,12 +405,12 @@ function GearChoiceModal({
                         <ItemImage itemId={opt.id} itemName={stripTierPrefix(opt.name)} size={32} />
                         <div className="flex-1 min-w-0">
                           <p className="text-white text-sm font-medium truncate">
-                            {stripTierPrefix(opt.name)}
+                            {stripTierPrefix(getLocalizedItemName(opt.id, locale, opt.name) ?? opt.name)}
                           </p>
                           <p className="text-gray-500 text-[12px] font-mono truncate">{opt.id}</p>
                         </div>
                         {isSel && (
-                          <span className="text-amber-400 text-[12px] font-bold flex-shrink-0">선택</span>
+                          <span className="text-amber-400 text-[12px] font-bold flex-shrink-0">{t('selected')}</span>
                         )}
                       </button>
                     )
@@ -418,7 +426,7 @@ function GearChoiceModal({
             onClick={onCancel}
             className="text-gray-400 hover:text-white text-sm font-medium px-3 py-2"
           >
-            취소
+            {t('cancel')}
           </button>
           <button
             type="button"
@@ -429,7 +437,7 @@ function GearChoiceModal({
             disabled={!allSelected}
             className="ml-auto bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black font-bold px-6 py-2 rounded-lg text-sm transition-colors"
           >
-            신청하기
+            {t('submit')}
           </button>
         </div>
       </div>

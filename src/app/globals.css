@@ -1,26 +1,104 @@
+/* Pretendard: 한글/영문 모두 균형 좋은 현대적인 가변 폰트. Retro 픽셀 폰트를 걷어내고
+   가독성·트렌디함을 우선한 타이포로 전환. CSS 사양상 `@import url(...)`은 다른 규칙보다
+   앞에 와야 하므로 tailwindcss 보다 먼저 선언. */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/variable/pretendardvariable.css');
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* 차가운 블루-블랙 베이스. 순수 검정(#000)보다 파랑 기미가 있어야
+     모던한 dark UI에서 덜 칙칙해 보인다. */
+  --background: #0b0d12;
+  --foreground: #ededf0;
+
+  /* 브랜드 액센트 — amber 계열을 유지하되 gradient/glow에 쓸 수 있게 HSL 보관. */
+  --accent: 38 92% 56%;
+  --accent-foreground: 48 96% 89%;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+html {
+  color-scheme: dark;
+  font-size: 16px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* High-DPI / large screens show fonts as 자글자글 because rem-based sizes stay
+   the same while viewport pixel density increases. Bump the html base so all
+   rem utilities scale up proportionally — spacing and line-height ride along
+   so layouts don't feel cramped either. */
+@media (min-width: 1536px) {
+  html {
+    font-size: 17px;
+  }
+}
+
+@media (min-width: 1920px) {
+  html {
+    font-size: 18px;
   }
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(245, 158, 11, 0.08), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 110%, rgba(99, 102, 241, 0.06), transparent 60%),
+    var(--background);
+  background-attachment: fixed;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family:
+    'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+    system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans KR', sans-serif;
+  /* 모던 sans-serif는 antialiasing을 켜야 더 깔끔하게 렌더된다. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'ss01', 'ss02', 'cv01', 'cv02';
+}
+
+/* 알비온 아이템 아이콘처럼 원본이 픽셀 아트인 이미지는 보간을 꺼야 또렷해진다.
+   옵트인 방식(`pixel-img` 클래스)으로 유지. */
+.pixel-img {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* 모던한 은은한 리프트 그림자. 카드/모달 hover에 가볍게 얹으면 입체감이 살아난다. */
+.shadow-glow {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 8px 24px -8px rgba(0, 0, 0, 0.5),
+    0 2px 6px -2px rgba(0, 0, 0, 0.4);
+}
+
+.shadow-glow-amber {
+  box-shadow:
+    0 0 0 1px rgba(245, 158, 11, 0.25),
+    0 10px 30px -10px rgba(245, 158, 11, 0.35),
+    0 4px 12px -4px rgba(245, 158, 11, 0.2);
+}
+
+/* 모던 UI의 표준 — 포커스 링을 accent 색으로 통일. Tailwind의 default outline을
+   덮어서 브랜드 통일감을 준다. */
+*:focus-visible {
+  outline: 2px solid hsl(var(--accent));
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* 스크롤바도 모던 dark UI에 맞게 얇고 차분하게. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.16);
+  background-clip: padding-box;
 }

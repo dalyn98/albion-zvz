@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Plus, ChevronDown, ChevronUp } from 'lucide-react'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
 import type { GearOption, SlotKey, SlotSpells } from '@/types'
@@ -112,6 +113,7 @@ function partyStatesToTemplateData(parties: PartyState[]): TemplateData {
 }
 
 export default function TemplateEditor({ template }: { template: TemplateRecord }) {
+  const t = useTranslations('adminTemplates')
   const router = useRouter()
   const [name, setName] = useState(template.name)
   const [parties, setParties] = useState<PartyState[]>(() => templateToPartyStates(template.data))
@@ -163,7 +165,7 @@ export default function TemplateEditor({ template }: { template: TemplateRecord 
   return (
     <div className="space-y-6 sm:space-y-8">
       <div>
-        <label className="text-gray-400 text-[11px] font-semibold block mb-1">템플릿 이름</label>
+        <label className="text-gray-400 text-[11px] font-semibold block mb-1">{t('nameLabel')}</label>
         <input
           type="text"
           value={name}
@@ -177,9 +179,9 @@ export default function TemplateEditor({ template }: { template: TemplateRecord 
 
       <section className="space-y-3 sm:space-y-4">
         <div>
-          <h2 className="text-lg font-bold text-white">파티 구성</h2>
+          <h2 className="text-lg font-bold text-white">{t('partyConfigTitle')}</h2>
           <p className="text-gray-400 text-xs sm:text-sm mt-1">
-            최대 {MAX_PARTIES}개 파티, 파티당 최대 20명. 역할과 장비만 저장됩니다.
+            {t('partyConfigDescription', { max: MAX_PARTIES })}
           </p>
         </div>
         <div className="space-y-3">
@@ -203,7 +205,7 @@ export default function TemplateEditor({ template }: { template: TemplateRecord 
 
       <div className="sticky bottom-0 bg-black/80 backdrop-blur-sm -mx-4 px-4 py-3 border-t border-gray-800 flex items-center gap-3">
         {savedAt && !pending && (
-          <span className="text-green-400 text-xs">저장되었습니다</span>
+          <span className="text-green-400 text-xs">{t('savedMessage')}</span>
         )}
         <button
           type="button"
@@ -211,7 +213,7 @@ export default function TemplateEditor({ template }: { template: TemplateRecord 
           disabled={pending}
           className="ml-auto bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-6 py-2.5 rounded-xl text-sm transition-colors"
         >
-          {pending ? '저장중...' : '템플릿 저장'}
+          {pending ? t('savingDots') : t('saveButton')}
         </button>
       </div>
     </div>
@@ -226,15 +228,16 @@ interface PartyPanelProps {
 }
 
 function PartyPanel({ party, onAddSlot, onUpdateSlot, onDeleteSlot }: PartyPanelProps) {
+  const t = useTranslations('adminTemplates')
   return (
     <details className="group border border-gray-700 rounded-xl overflow-hidden" open={party.slots.length > 0}>
       <summary className="flex items-center justify-between px-4 py-3 bg-gray-900 cursor-pointer hover:bg-gray-800 list-none [&::-webkit-details-marker]:hidden">
         <div className="flex items-center gap-3">
           <span className="bg-amber-500/20 text-amber-400 text-sm font-bold px-2.5 py-0.5 rounded">
-            {party.party_number}파티
+            {t('partyBadge', { num: party.party_number })}
           </span>
           <span className="text-gray-400 text-sm">
-            {party.slots.length}명 구성 / 최대 20명
+            {t('slotCount', { count: party.slots.length })}
           </span>
         </div>
         <ChevronDown size={16} className="text-gray-400 group-open:hidden" />
@@ -244,7 +247,7 @@ function PartyPanel({ party, onAddSlot, onUpdateSlot, onDeleteSlot }: PartyPanel
       <div className="p-4 space-y-3 border-t border-gray-700">
         {party.slots.length === 0 && (
           <p className="text-gray-500 text-sm text-center py-4">
-            슬롯이 없습니다. 아래 버튼으로 추가하세요.
+            {t('noSlotsHint')}
           </p>
         )}
 
@@ -265,7 +268,7 @@ function PartyPanel({ party, onAddSlot, onUpdateSlot, onDeleteSlot }: PartyPanel
             disabled={party.slots.length >= 20}
             className="flex items-center gap-1 text-amber-400 hover:text-amber-300 disabled:text-gray-600 text-sm font-medium"
           >
-            <Plus size={14} /> 슬롯 추가 ({party.slots.length}/20)
+            <Plus size={14} /> {t('addSlot', { count: party.slots.length })}
           </button>
         </div>
       </div>

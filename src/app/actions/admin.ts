@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { sendEventNotification } from '@/lib/discord'
@@ -12,6 +13,8 @@ const DEFAULT_EVENT_NOTIFICATION_MESSAGE = '새 이벤트가 등록되었습니�
 
 const MAX_PARTIES = 4
 const MAX_SLOTS_PER_PARTY = 20
+
+type AdminErrorTranslator = Awaited<ReturnType<typeof getTranslations<'adminActionError'>>>
 
 async function requireAdmin() {
   const session = await getSession()
@@ -31,17 +34,18 @@ interface EventPayload {
 
 // Final check in case the client bypassed validation — a bad ISO string would
 // otherwise surface as an obscure Postgres error on insert.
-function validateEventPayload(payload: EventPayload): string | null {
-  if (!payload.title.trim()) return '이벤트 제목이 비어 있습니다.'
-  if (!payload.gather_location.trim()) return '집결 장소가 비어 있습니다.'
+function validateEventPayload(payload: EventPayload, tErr: AdminErrorTranslator): string | null {
+  if (!payload.title.trim()) return tErr('missingTitle')
+  if (!payload.gather_location.trim()) return tErr('missingLocation')
   const dt = new Date(payload.gather_at)
-  if (Number.isNaN(dt.getTime())) return '집결 시간이 올바르지 않습니다.'
+  if (Number.isNaN(dt.getTime())) return tErr('invalidGatherTime')
   return null
 }
 
 export async function createEvent(payload: EventPayload): Promise<{ id: string } | { error: string }> {
+  const tErr = await getTranslations('adminActionError')
   try {
-    const invalid = validateEventPayload(payload)
+    const invalid = validateEventPayload(payload, tErr)
     if (invalid) return { error: invalid }
     const db = await requireAdmin()
     const { data, error } = await db.from('events').insert(payload).select('id').single()
@@ -60,13 +64,14 @@ export async function createEvent(payload: EventPayload): Promise<{ id: string }
 
     return { id: data.id }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : '서버 오류' }
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
 
 export async function updateEvent(id: string, payload: EventPayload): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
   try {
-    const invalid = validateEventPayload(payload)
+    const invalid = validateEventPayload(payload, tErr)
     if (invalid) return { error: invalid }
     const db = await requireAdmin()
     const { error } = await db.from('events').update(payload).eq('id', id)
@@ -76,11 +81,12 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
     revalidatePath(`/events/${id}`)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : '서버 오류' }
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
 
 export async function notifyEvent(id: string): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
     const { data, error } = await db
@@ -89,7 +95,7 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
       .eq('id', id)
       .maybeSingle()
     if (error) return { error: error.message }
-    if (!data) return { error: '이벤트를 찾을 수 없습니다.' }
+    if (!data) return { error: tErr('eventNotFound') }
     const content = await getAppSetting(
       'event_notification_message',
       DEFAULT_EVENT_NOTIFICATION_MESSAGE,
@@ -97,11 +103,12 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
     await sendEventNotification(data, { content })
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : '서버 오류' }
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
 
 export async function deleteEvent(id: string): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
     const { error } = await db.from('events').delete().eq('id', id)
@@ -111,11 +118,12 @@ export async function deleteEvent(id: string): Promise<{ error?: string }> {
     revalidatePath(`/events/${id}`)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : '서버 오류' }
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
 
 export async function startBattle(id: string): Promise<{ startedAt?: string; error?: string }> {
+  const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
     const startedAt = new Date().toISOString()
@@ -128,11 +136,12 @@ export async function startBattle(id: string): Promise<{ startedAt?: string; err
     revalidatePath(`/events/${id}`)
     return { startedAt }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : '서버 오류' }
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
 
 export async function resetBattleStart(id: string): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
     const { error } = await db.from('events').update({ battle_started_at: null }).eq('id', id)
@@ -141,7 +150,7 @@ export async function resetBattleStart(id: string): Promise<{ error?: string }> 
     revalidatePath(`/events/${id}`)
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : '서버 오류' }
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
 
@@ -224,9 +233,10 @@ export async function savePartySlots(
   slots: SlotPayload[],
   originalSlotIds: string[],
 ): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
   try {
-    if (partyNumber < 1 || partyNumber > MAX_PARTIES) return { error: '파티 번호가 올바르지 않습니다.' }
-    if (slots.length > MAX_SLOTS_PER_PARTY) return { error: `한 파티는 최대 ${MAX_SLOTS_PER_PARTY}명까지입니다.` }
+    if (partyNumber < 1 || partyNumber > MAX_PARTIES) return { error: tErr('invalidPartyNumber') }
+    if (slots.length > MAX_SLOTS_PER_PARTY) return { error: tErr('tooManySlots', { max: MAX_SLOTS_PER_PARTY }) }
 
     const db = await requireAdmin()
 
@@ -238,9 +248,7 @@ export async function savePartySlots(
       .maybeSingle()
     if (eventCheckError) return { error: eventCheckError.message }
     if (!eventRow) {
-      return {
-        error: '이벤트가 존재하지 않습니다. 스키마를 재실행했다면 새 이벤트를 먼저 만들어주세요.',
-      }
+      return { error: tErr('eventMissing') }
     }
 
     // Saving a never-created party with zero slots should be a no-op — otherwise
@@ -262,7 +270,7 @@ export async function savePartySlots(
         .single()
       if (error) {
         if (error.code === '23503') {
-          return { error: '이벤트가 존재하지 않아 파티를 생성할 수 없습니다. 이벤트 목록으로 돌아가서 새로 만들어주세요.' }
+          return { error: tErr('eventMissingForParty') }
         }
         return { error: error.message }
       }
@@ -303,11 +311,12 @@ export async function savePartySlots(
     revalidatePath('/')
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : '서버 오류' }
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
 
 export async function clearSlotAssignment(slotId: string): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
     const { error } = await db
@@ -318,6 +327,6 @@ export async function clearSlotAssignment(slotId: string): Promise<{ error?: str
     revalidatePath('/')
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : '서버 오류' }
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }

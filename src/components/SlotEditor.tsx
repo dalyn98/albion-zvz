@@ -1,7 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import { Trash2, X, Pencil, Plus } from 'lucide-react'
+import { getLocalizedItemName } from '@/lib/item-names'
+import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import ItemPicker from './ItemPicker'
 import ItemImage from './ItemImage'
 import SpellPicker from './SpellPicker'
@@ -67,6 +70,8 @@ interface Props {
 }
 
 export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Props) {
+  const t = useTranslations('adminParty')
+  const tCommon = useTranslations('common')
   const [open, setOpen] = useState(false)
 
   // Per-slot mode stored locally: 'multi' with an empty options list is a
@@ -148,7 +153,7 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
     if (mode === 'free') {
       onChange({
         ...slot,
-        items: { ...slot.items, [key]: { name: '자유', id: '' } },
+        items: { ...slot.items, [key]: { name: t('itemFree'), id: '' } },
         options: { ...slot.options, [key]: [] },
       })
     } else {
@@ -195,7 +200,7 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
           className="flex items-center gap-2 min-w-0 flex-1 text-left"
         >
           <span className="text-gray-400 text-xs flex-shrink-0">
-            {partyNumber}파티 · {slot.slot_number}번
+            {t('slotBreadcrumb', { party: partyNumber, slot: slot.slot_number })}
           </span>
           {slot.role_name ? (
             <span
@@ -206,7 +211,7 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
               {slot.role_name}
             </span>
           ) : (
-            <span className="text-gray-600 text-xs italic">역할 미선택</span>
+            <span className="text-gray-600 text-xs italic">{t('roleNone')}</span>
           )}
           <span className="text-gray-600 text-xs ml-auto flex-shrink-0">
             {filledCount}/8
@@ -220,7 +225,7 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
             type="button"
             onClick={() => setOpen(true)}
             className="p-1 text-gray-400 hover:text-amber-400 transition-colors"
-            aria-label="편집"
+            aria-label={tCommon('edit')}
           >
             <Pencil size={13} />
           </button>
@@ -228,7 +233,7 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
             type="button"
             onClick={onDelete}
             className="p-1 text-gray-600 hover:text-red-400 transition-colors"
-            aria-label="삭제"
+            aria-label={tCommon('delete')}
           >
             <Trash2 size={13} />
           </button>
@@ -247,7 +252,7 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
               <div className="flex items-center gap-2 min-w-0">
                 <h3 className="font-bold text-white text-base">
-                  {partyNumber}파티 {slot.slot_number}번
+                  {t('slotTitle', { party: partyNumber, slot: slot.slot_number })}
                 </h3>
                 {slot.role_name && (
                   <span
@@ -263,7 +268,7 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
                 type="button"
                 onClick={() => setOpen(false)}
                 className="p-1 text-gray-400 hover:text-white"
-                aria-label="닫기"
+                aria-label={tCommon('close')}
               >
                 <X size={18} />
               </button>
@@ -275,19 +280,19 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
               <div className="flex items-center flex-wrap gap-2">
                 <SaveSlotAsTemplateButton
                   slot={slot}
-                  defaultName={slot.role_name ? `${slot.role_name} 빌드` : ''}
+                  defaultName={slot.role_name ? t('buildName', { role: slot.role_name }) : ''}
                 />
                 <LoadSlotTemplateButton slot={slot} onLoad={onChange} />
               </div>
 
               <div>
-                <label className="text-gray-400 text-[11px] font-semibold block mb-1">역할</label>
+                <label className="text-gray-400 text-[11px] font-semibold block mb-1">{t('roleLabel')}</label>
                 <select
                   value={slot.role_name}
                   onChange={(e) => onChange({ ...slot, role_name: e.target.value })}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-base text-white focus:outline-none focus:border-amber-500"
                 >
-                  <option value="">역할 선택 안 함</option>
+                  <option value="">{t('noRoleOption')}</option>
                   {SLOT_ROLES.map((r) => (
                     <option key={r} value={r}>
                       {r}
@@ -297,11 +302,11 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
               </div>
 
               <div>
-                <label className="text-gray-400 text-[11px] font-semibold block mb-1">메모</label>
+                <label className="text-gray-400 text-[11px] font-semibold block mb-1">{t('notesLabel')}</label>
                 <textarea
                   value={slot.notes}
                   onChange={(e) => onChange({ ...slot, notes: e.target.value })}
-                  placeholder="예: 팟밥 필수 / 스웜힐러 위치 고정"
+                  placeholder={t('notesPlaceholder')}
                   rows={2}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-base text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 resize-none"
                 />
@@ -356,14 +361,14 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
                 }}
                 className="flex items-center gap-1 text-red-400 hover:text-red-300 text-sm font-medium px-3 py-2"
               >
-                <Trash2 size={13} /> 슬롯 삭제
+                <Trash2 size={13} /> {t('deleteSlot')}
               </button>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 className="ml-auto bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 py-2 rounded-lg text-sm transition-colors"
               >
-                완료
+                {t('done')}
               </button>
             </div>
           </div>
@@ -404,6 +409,9 @@ function GearSection({
   onAddSpell,
   onRemoveSpell,
 }: GearSectionProps) {
+  const t = useTranslations('adminParty')
+  const rawLocale = useLocale()
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
   // 'free' has no item id — there's no pool to show. Multi merges pools
   // across all options at the picker level.
   const pickerItemIds =
@@ -429,7 +437,7 @@ function GearSection({
                   : 'text-gray-400 hover:text-white'
               }`}
             >
-              {m === 'single' ? '단일' : m === 'multi' ? '복수' : '자유'}
+              {m === 'single' ? t('modeSingle') : m === 'multi' ? t('modeMulti') : t('modeFree')}
             </button>
           ))}
         </div>
@@ -446,14 +454,14 @@ function GearSection({
                 >
                   <ItemImage itemId={opt.id} itemName={opt.name} size={32} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-white text-xs font-medium truncate">{opt.name}</p>
+                    <p className="text-white text-xs font-medium truncate">{getLocalizedItemName(opt.id, locale, opt.name)}</p>
                     <p className="text-gray-500 text-[10px] font-mono truncate">{opt.id}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => onRemoveOption(opt.id)}
                     className="text-gray-500 hover:text-red-400 p-1"
-                    aria-label="제거"
+                    aria-label={t('removeAria')}
                   >
                     <X size={12} />
                   </button>
@@ -469,16 +477,16 @@ function GearSection({
               count={options.length}
             />
           ) : (
-            <p className="text-[11px] text-gray-500">최대 {MAX_GEAR_OPTIONS}개까지 추가할 수 있습니다.</p>
+            <p className="text-[11px] text-gray-500">{t('maxOptionsReached', { max: MAX_GEAR_OPTIONS })}</p>
           )}
           {options.length === 0 && (
             <p className="text-[11px] text-amber-300/80">
-              허용할 아이템을 2개 이상 추가하세요. 구성원은 신청 시 이 중 하나를 고릅니다.
+              {t('addMultiHint')}
             </p>
           )}
         </div>
       ) : mode === 'free' ? (
-        <p className="text-[11px] text-emerald-300/90">자유 선택 — 구성원이 직접 아이템을 골라 장착합니다.</p>
+        <p className="text-[11px] text-emerald-300/90">{t('freeHint')}</p>
       ) : (
         <ItemPicker
           label=""

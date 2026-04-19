@@ -1,5 +1,6 @@
 'use server'
 
+import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import type { GearOption, SlotSpells } from '@/types'
@@ -46,11 +47,12 @@ export async function saveSlotAsTemplate(
   name: string,
   data: SlotTemplateData,
 ): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
   try {
     const trimmed = name.trim()
-    if (!trimmed) return { error: '템플릿 이름을 입력하세요.' }
+    if (!trimmed) return { error: tErr('templateNameRequired') }
     if (trimmed.length > MAX_NAME_LENGTH) {
-      return { error: `템플릿 이름은 ${MAX_NAME_LENGTH}자 이내로 입력하세요.` }
+      return { error: tErr('templateNameTooLong', { max: MAX_NAME_LENGTH }) }
     }
 
     const db = await requireAdmin()
@@ -60,7 +62,7 @@ export async function saveSlotAsTemplate(
     if (error) return { error: error.message }
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : '서버 오류' }
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
 
@@ -68,6 +70,7 @@ export async function listSlotTemplates(): Promise<{
   templates: SlotTemplateSummary[]
   error?: string
 }> {
+  const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
     const { data, error } = await db
@@ -77,7 +80,7 @@ export async function listSlotTemplates(): Promise<{
     if (error) return { templates: [], error: error.message }
     return { templates: (data ?? []) as SlotTemplateSummary[] }
   } catch (e) {
-    return { templates: [], error: e instanceof Error ? e.message : '서버 오류' }
+    return { templates: [], error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
 
@@ -87,6 +90,7 @@ export async function getSlotTemplate(id: string): Promise<{
   template?: SlotTemplateRecord
   error?: string
 }> {
+  const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
     const { data, error } = await db
@@ -97,17 +101,18 @@ export async function getSlotTemplate(id: string): Promise<{
     if (error) return { error: error.message }
     return { template: data as SlotTemplateRecord }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : '서버 오류' }
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
 
 export async function deleteSlotTemplate(id: string): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
     const { error } = await db.from('slot_templates').delete().eq('id', id)
     if (error) return { error: error.message }
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : '서버 오류' }
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }

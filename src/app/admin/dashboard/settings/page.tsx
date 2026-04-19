@@ -1,7 +1,7 @@
 import { getAppSetting } from '@/lib/app-settings'
 import { listRoleRewards } from '@/app/actions/regear-admin'
 import SettingsTabs from '@/components/SettingsTabs'
-import { DEFAULT_LANDING_CTA_TEXT } from '@/app/page'
+import { getTranslations } from 'next-intl/server'
 
 const DEFAULT_EVENT_NOTIFICATION_MESSAGE = '새 이벤트가 등록되었습니다.'
 
@@ -10,18 +10,20 @@ const DEFAULT_EVENT_NOTIFICATION_MESSAGE = '새 이벤트가 등록되었습니�
 export const dynamic = 'force-dynamic'
 
 export default async function SettingsPage() {
-  const [message, bannerUrl, ctaText, { rewards, error: rewardsError }] = await Promise.all([
+  const [message, bannerUrl, ctaText, { rewards, error: rewardsError }, tLanding, t] = await Promise.all([
     getAppSetting('event_notification_message', DEFAULT_EVENT_NOTIFICATION_MESSAGE),
     getAppSetting('landing_banner_url', ''),
     getAppSetting('landing_cta_text', ''),
     listRoleRewards(),
+    getTranslations('landing'),
+    getTranslations('adminSettings'),
   ])
 
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-white">설정</h1>
-        <p className="text-gray-500 text-sm mt-1">사이트 전역 설정을 카테고리별로 관리합니다.</p>
+        <h1 className="text-2xl font-bold text-white">{t('pageTitle')}</h1>
+        <p className="text-gray-500 text-sm mt-1">{t('pageDescription')}</p>
       </div>
 
       <SettingsTabs
@@ -30,7 +32,7 @@ export default async function SettingsPage() {
         rewardsError={rewardsError}
         landingBannerUrl={bannerUrl}
         landingCtaText={ctaText}
-        defaultLandingCtaText={DEFAULT_LANDING_CTA_TEXT}
+        defaultLandingCtaText={tLanding('defaultCta')}
       />
     </div>
   )

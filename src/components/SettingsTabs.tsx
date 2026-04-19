@@ -2,6 +2,7 @@
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { Bell, Coins, Image as ImageIcon } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import NotificationSettingsForm from './NotificationSettingsForm'
 import RoleRewardsEditor from './RoleRewardsEditor'
 import LandingBannerForm from './LandingBannerForm'
@@ -12,14 +13,14 @@ type TabKey = 'notifications' | 'rewards' | 'landing'
 
 interface TabDef {
   key: TabKey
-  label: string
+  labelKey: 'tabNotifications' | 'tabRewards' | 'tabLanding'
   icon: React.ComponentType<{ size?: number; className?: string }>
 }
 
 const TABS: readonly TabDef[] = [
-  { key: 'notifications', label: '이벤트 알림', icon: Bell },
-  { key: 'rewards', label: '역할별 리기어 금액', icon: Coins },
-  { key: 'landing', label: '대문 페이지', icon: ImageIcon },
+  { key: 'notifications', labelKey: 'tabNotifications', icon: Bell },
+  { key: 'rewards', labelKey: 'tabRewards', icon: Coins },
+  { key: 'landing', labelKey: 'tabLanding', icon: ImageIcon },
 ]
 
 const DEFAULT_TAB: TabKey = 'notifications'
@@ -45,6 +46,7 @@ export default function SettingsTabs({
   landingCtaText,
   defaultLandingCtaText,
 }: Props) {
+  const t = useTranslations('adminSettings')
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
@@ -65,10 +67,10 @@ export default function SettingsTabs({
     <div className="space-y-4">
       <nav
         role="tablist"
-        aria-label="설정 카테고리"
+        aria-label={t('categoryLabel')}
         className="flex gap-1 border-b border-gray-800 overflow-x-auto"
       >
-        {TABS.map(({ key, label, icon: Icon }) => {
+        {TABS.map(({ key, labelKey, icon: Icon }) => {
           const isActive = active === key
           return (
             <button
@@ -84,7 +86,7 @@ export default function SettingsTabs({
               }`}
             >
               <Icon size={14} />
-              {label}
+              {t(labelKey)}
             </button>
           )
         })}
@@ -96,9 +98,7 @@ export default function SettingsTabs({
         )}
         {active === 'rewards' && (
           <div className="space-y-3">
-            <p className="text-gray-500 text-xs">
-              역할별 리기어 청구 상한입니다. 길드원은 이 금액 이하 범위에서 직접 청구 금액을 입력해 신청하고, 승인 시 청구 금액이 포인트로 지급됩니다. 상한이 0인 역할은 리기어 신청이 차단됩니다.
-            </p>
+            <p className="text-gray-500 text-xs">{t('rewardsDescription')}</p>
             {rewardsError && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
                 <p className="text-red-400 text-sm">{rewardsError}</p>

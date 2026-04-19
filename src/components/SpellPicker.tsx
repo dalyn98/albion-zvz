@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { X, Sparkles } from 'lucide-react'
 import SpellImage from './SpellImage'
 import type { SpellPoolEntry } from '@/types'
@@ -32,15 +33,14 @@ function mergePools(pools: SpellPoolEntry[][]): SpellPoolEntry[] {
 
 // Groups a flat pool by (type, slot). Sections render in this order:
 //   actives sorted by slot (null last) → passives sorted by slot (null last)
-// Labels adapt to what exists:
-//   - Weapons: actives tagged slots=1/2/3 → "1번 슬롯"/"2번 슬롯"/"3번 슬롯";
-//     passives untagged → "패시브".
-//   - Armor/head/shoes: actives untagged → "액티브";
-//     passives tagged slots=1/2 → "패시브 1"/"패시브 2";
-//     passives untagged → "패시브".
-function groupByTypeAndSlot(
-  pool: SpellPoolEntry[],
-): Array<{ key: string; label: string; spells: string[] }> {
+interface SpellGroup {
+  key: string
+  type: 'active' | 'passive'
+  slot: number | null
+  spells: string[]
+}
+
+function groupByTypeAndSlot(pool: SpellPoolEntry[]): SpellGroup[] {
   type Bucket = { type: 'active' | 'passive'; slot: number | null; spells: string[] }
   const buckets = new Map<string, Bucket>()
   for (const entry of pool) {
@@ -60,16 +60,10 @@ function groupByTypeAndSlot(
   const sorted = [...buckets.values()].sort((a, b) => order(a) - order(b))
   return sorted.map((b) => ({
     key: `${b.type}:${b.slot ?? 'none'}`,
-    label: bucketLabel(b.type, b.slot),
+    type: b.type,
+    slot: b.slot,
     spells: b.spells,
   }))
-}
-
-function bucketLabel(type: 'active' | 'passive', slot: number | null): string {
-  if (type === 'active') {
-    return slot === null ? '액티브' : `${slot}번 슬롯`
-  }
-  return slot === null ? '패시브' : `패시브 ${slot}`
 }
 
 // Module-level cache keyed by item uniqueName. The pool never changes at
@@ -96,12 +90,20 @@ export default function SpellPicker({
   onAdd,
   onRemove,
 }: Props) {
+  const t = useTranslations('picker')
   // Tick forces a re-read from poolCache after an async fetch completes.
   // Using a counter rather than state-of-pool avoids sync setState in the
   // effect body (lint rule `react-hooks/set-state-in-effect`).
   const [tick, setTick] = useState(0)
   const [error, setError] = useState('')
   const key = itemIds.join(',')
+
+  const bucketLabel = (type: 'active' | 'passive', slot: number | null): string => {
+    if (type === 'active') {
+      return slot === null ? t('bucketActive') : t('bucketActiveSlot', { slot })
+    }
+    return slot === null ? t('bucketPassive') : t('bucketPassiveSlot', { slot })
+  }
 
   useEffect(() => {
     if (itemIds.length === 0) return
@@ -114,7 +116,7 @@ export default function SpellPicker({
       })
       .catch((e) => {
         if (cancelled) return
-        setError(e instanceof Error ? e.message : '스킬 목록 로드 실패')
+        setError(e instanceof Error ? e.message : t('spellLoadFailed'))
       })
     return () => {
       cancelled = true
@@ -153,23 +155,23 @@ export default function SpellPicker({
       <div className="flex items-center justify-between">
         <span className="inline-flex items-center gap-1 text-[10px] text-purple-300 font-semibold">
           <Sparkles size={10} />
-          스킬 {spells.length}
+          {t('spellCount', { count: spells.length })}
         </span>
-        {isLoading && <span className="text-[10px] text-gray-500">로드 중...</span>}
+        {isLoading && <span className="text-[10px] text-gray-500">{t('loading')}</span>}
       </div>
 
       {!hasItems ? (
-        <p className="text-[10px] text-gray-600 italic">아이템을 먼저 선택하세요.</p>
+        <p className="text-[10px] text-gray-600 italic">{t('selectItemFirst')}</p>
       ) : error ? (
         <p className="text-[10px] text-red-400">{error}</p>
       ) : !isLoading && pool.length === 0 ? (
-        <p className="text-[10px] text-gray-600 italic">이 아이템은 스킬 선택이 없습니다.</p>
+        <p className="text-[10px] text-gray-600 italic">{t('noSpellsForItem')}</p>
       ) : (
         <div className="space-y-1.5">
           {groups.map((group) => (
             <div key={group.key}>
               <div className="text-[9px] uppercase tracking-wide text-gray-500 mb-0.5">
-                {group.label}
+                {bucketLabel(group.type, group.slot)}
               </div>
               <div className="flex flex-wrap gap-1">
                 {group.spells.map((spellId) => {
@@ -199,7 +201,7 @@ export default function SpellPicker({
 
       {stale.length > 0 && (
         <div className="flex flex-wrap gap-1 pt-1">
-          <span className="text-[10px] text-amber-300/80 self-center">이전 선택(현재 풀에 없음):</span>
+          <span className="text-[10px] text-amber-300/80 self-center">{t('staleSpells')}</span>
           {stale.map((spellId) => (
             <div key={spellId} className="relative">
               <SpellImage spellId={spellId} size={32} />
@@ -207,7 +209,7 @@ export default function SpellPicker({
                 type="button"
                 onClick={() => onRemove(spellId)}
                 className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-400 text-white rounded-full w-3.5 h-3.5 flex items-center justify-center"
-                aria-label={`${spellId} 제거`}
+                aria-label={t('spellRemoveAria', { id: spellId })}
               >
                 <X size={8} strokeWidth={3} />
               </button>

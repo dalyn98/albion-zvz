@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import type { AppSettingKey } from '@/lib/app-settings'
@@ -26,16 +27,17 @@ export async function updateAppSetting(
   key: AppSettingKey,
   value: string,
 ): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
   try {
     if (!EDITABLE_KEYS.includes(key)) {
-      return { error: '알 수 없는 설정 키입니다.' }
+      return { error: tErr('unknownSettingKey') }
     }
     const trimmed = value.trim()
     if (!trimmed && !ALLOW_EMPTY_KEYS.includes(key)) {
-      return { error: '값이 비어 있습니다.' }
+      return { error: tErr('emptyValue') }
     }
     if (trimmed.length > MAX_VALUE_LENGTH) {
-      return { error: `값은 ${MAX_VALUE_LENGTH}자를 넘을 수 없습니다.` }
+      return { error: tErr('valueTooLong', { max: MAX_VALUE_LENGTH }) }
     }
     const db = await requireAdmin()
     const { error } = await db
@@ -45,6 +47,6 @@ export async function updateAppSetting(
     revalidatePath('/admin/dashboard/settings')
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : '서버 오류' }
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }

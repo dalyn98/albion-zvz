@@ -2,7 +2,9 @@ import { supabase } from '@/lib/supabase'
 import type { Event } from '@/types'
 import { Clock, MapPin, ChevronRight, Users, Swords, Flame, Archive } from 'lucide-react'
 import Link from 'next/link'
-import { isImminent, isEnded } from '@/lib/gather-time'
+import { getTranslations } from 'next-intl/server'
+import { formatGatherTimeFor, isImminent, isEnded } from '@/lib/gather-time'
+import { getLocale } from '@/lib/locale'
 import { getSession } from '@/lib/session'
 import { getAppSetting } from '@/lib/app-settings'
 
@@ -15,21 +17,19 @@ interface EventWithCounts extends Event {
   assigned: number
 }
 
-const AUTH_ERROR_MESSAGES: Record<string, string> = {
-  denied: '로그인을 취소했습니다.',
-  invalid: '잘못된 로그인 요청입니다.',
-  state_mismatch: '세션이 만료되어 다시 시도해야 합니다.',
-  not_in_guild: 'Discord 서버에 입장한 멤버만 로그인할 수 있습니다.',
-  no_identity: 'Discord 사용자 정보를 가져오지 못했습니다.',
-  no_role: '필요한 역할이 없어 로그인할 수 없습니다.',
-  server_error: '로그인 처리 중 서버 오류가 발생했습니다.',
-}
-
 type EventKind = 'imminent' | 'ended' | 'upcoming'
 
-// Default copy shown on the landing hero when the app_settings row is empty.
-// Kept in code (not the DB default) so copy tweaks don't require a migration.
-export const DEFAULT_LANDING_CTA_TEXT = 'Discord로 로그인하면 이벤트와 파티에 접근할 수 있습니다.'
+// Maps the auth_error query param the Discord callback sets on redirect
+// to translation keys under `auth.error`.
+const AUTH_ERROR_KEY_MAP: Record<string, string> = {
+  denied: 'denied',
+  invalid: 'invalid',
+  state_mismatch: 'stateMismatch',
+  not_in_guild: 'notInGuild',
+  no_identity: 'noIdentity',
+  no_role: 'noRole',
+  server_error: 'serverError',
+}
 
 async function getActiveEvents(): Promise<EventWithCounts[]> {
   const { data: events } = await supabase
@@ -68,7 +68,24 @@ function classifyEvent(event: Event): EventKind {
   return 'upcoming'
 }
 
-function EventCard({ event, kind }: { event: EventWithCounts; kind: EventKind }) {
+interface EventCardLabels {
+  inProgress: string
+  imminent: string
+  ended: string
+  applicants: (assigned: number, total: number) => string
+}
+
+function EventCard({
+  event,
+  kind,
+  labels,
+  displayGatherTime,
+}: {
+  event: EventWithCounts
+  kind: EventKind
+  labels: EventCardLabels
+  displayGatherTime: string
+}) {
   // 카드 상태별 액센트. 테두리+미세한 glow로 상태를 전달하되 hover 시 살짝
   // 떠오르는 느낌을 주기 위해 -translate-y-0.5 + shadow 강화.
   const stateClass =
@@ -91,24 +108,24 @@ function EventCard({ event, kind }: { event: EventWithCounts; kind: EventKind })
             {kind === 'imminent' && event.battle_started_at ? (
               <span className="inline-flex items-center gap-1 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">
                 <Swords size={10} />
-                전투 진행중
+                {labels.inProgress}
               </span>
             ) : kind === 'imminent' ? (
               <span className="inline-flex items-center gap-1 bg-amber-500/20 border border-amber-500/40 text-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">
                 <Flame size={10} />
-                전투 임박
+                {labels.imminent}
               </span>
             ) : kind === 'ended' ? (
               <span className="inline-flex items-center gap-1 bg-gray-700 text-gray-300 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">
                 <Archive size={10} />
-                종료
+                {labels.ended}
               </span>
             ) : null}
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
             <div className="flex items-center gap-1.5 text-gray-300">
               <Clock size={13} className="text-amber-400" />
-              {event.gather_time}
+              {displayGatherTime}
             </div>
             <div className="flex items-center gap-1.5 text-gray-300">
               <MapPin size={13} className="text-amber-400" />
@@ -118,7 +135,7 @@ function EventCard({ event, kind }: { event: EventWithCounts; kind: EventKind })
           {event.total > 0 && (
             <div className="flex items-center gap-1.5 text-xs text-gray-400">
               <Users size={12} />
-              신청 {event.assigned}/{event.total}
+              {labels.applicants(event.assigned, event.total)}
             </div>
           )}
         </div>
@@ -136,8 +153,21 @@ export default async function HomePage({
 }: {
   searchParams: Promise<{ auth_error?: string }>
 }) {
-  const [{ auth_error }, session] = await Promise.all([searchParams, getSession()])
-  const authErrorMessage = auth_error ? AUTH_ERROR_MESSAGES[auth_error] ?? '로그인에 실패했습니다.' : null
+  const [{ auth_error }, session, t, locale] = await Promise.all([
+    searchParams,
+    getSession(),
+    getTranslations(),
+    getLocale(),
+  ])
+
+  // Prefer gather_at (ISO) for locale-aware formatting; fall back to stored
+  // gather_time (always Korean) for legacy rows that predate gather_at.
+  const displayGatherTime = (event: Event): string =>
+    event.gather_at ? formatGatherTimeFor(locale, event.gather_at) : event.gather_time
+
+  const authErrorMessage = auth_error
+    ? t(`auth.error.${AUTH_ERROR_KEY_MAP[auth_error] ?? 'default'}`)
+    : null
 
   if (!session) {
     const [bannerUrl, ctaText] = await Promise.all([
@@ -147,8 +177,9 @@ export default async function HomePage({
     return (
       <LandingHero
         bannerUrl={bannerUrl}
-        ctaText={ctaText || DEFAULT_LANDING_CTA_TEXT}
+        ctaText={ctaText || t('landing.defaultCta')}
         authErrorMessage={authErrorMessage}
+        loginLabel={t('landing.discordLogin')}
       />
     )
   }
@@ -165,11 +196,18 @@ export default async function HomePage({
     else upcoming.push(e)
   }
 
+  const cardLabels: EventCardLabels = {
+    inProgress: t('home.badge.inProgress'),
+    imminent: t('home.badge.imminent'),
+    ended: t('home.badge.ended'),
+    applicants: (assigned, total) => t('home.applicants', { assigned, total }),
+  }
+
   return (
     <main className="flex-1 px-4 py-6 sm:py-8 max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto w-full space-y-6">
       <div className="space-y-1.5">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">전투 일정</h1>
-        <p className="text-gray-400 text-sm">이벤트를 선택해 파티 구성을 확인하고 신청하세요.</p>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">{t('home.title')}</h1>
+        <p className="text-gray-400 text-sm">{t('home.subtitle')}</p>
       </div>
 
       {authErrorMessage && (
@@ -180,38 +218,38 @@ export default async function HomePage({
 
       {events.length === 0 ? (
         <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center">
-          <p className="text-gray-400">등록된 전투가 없습니다.</p>
+          <p className="text-gray-400">{t('home.empty')}</p>
         </div>
       ) : (
         <div className="space-y-6">
           {imminent.length > 0 && (
             <Section
-              title="전투 임박"
+              title={t('home.sections.imminent')}
               icon={<Flame size={16} className="text-amber-400" />}
               titleClass="text-amber-300"
             >
               {imminent.map((event) => (
-                <EventCard key={event.id} event={event} kind="imminent" />
+                <EventCard key={event.id} event={event} kind="imminent" labels={cardLabels} displayGatherTime={displayGatherTime(event)} />
               ))}
             </Section>
           )}
 
           {ended.length > 0 && (
             <Section
-              title="종료된 전투"
+              title={t('home.sections.ended')}
               icon={<Archive size={16} className="text-gray-500" />}
               titleClass="text-gray-400"
             >
               {ended.map((event) => (
-                <EventCard key={event.id} event={event} kind="ended" />
+                <EventCard key={event.id} event={event} kind="ended" labels={cardLabels} displayGatherTime={displayGatherTime(event)} />
               ))}
             </Section>
           )}
 
           {upcoming.length > 0 && (
-            <Section title="예정된 전투" titleClass="text-gray-400">
+            <Section title={t('home.sections.upcoming')} titleClass="text-gray-400">
               {upcoming.map((event) => (
-                <EventCard key={event.id} event={event} kind="upcoming" />
+                <EventCard key={event.id} event={event} kind="upcoming" labels={cardLabels} displayGatherTime={displayGatherTime(event)} />
               ))}
             </Section>
           )}
@@ -249,10 +287,12 @@ function LandingHero({
   bannerUrl,
   ctaText,
   authErrorMessage,
+  loginLabel,
 }: {
   bannerUrl: string
   ctaText: string
   authErrorMessage: string | null
+  loginLabel: string
 }) {
   const loginHref = '/api/auth/discord/start?returnTo=/'
   // 사이드바까지 덮는 풀-뷰포트 오버레이. `fixed inset-0`로 상위 레이아웃의 사이드바와
@@ -289,7 +329,7 @@ function LandingHero({
           className="group relative inline-flex items-center justify-center gap-2 w-full bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold py-3.5 rounded-xl shadow-[0_10px_30px_-10px_rgba(88,101,242,0.6)] hover:shadow-[0_14px_36px_-10px_rgba(88,101,242,0.75)] hover:-translate-y-0.5 transition-all duration-200"
         >
           <DiscordIcon />
-          <span>Discord로 로그인</span>
+          <span>{loginLabel}</span>
         </a>
 
         {authErrorMessage && (

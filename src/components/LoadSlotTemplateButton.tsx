@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
+import { useTranslations } from 'next-intl'
 import { FolderDown, Trash2, X } from 'lucide-react'
 import {
   deleteSlotTemplate,
@@ -22,6 +23,8 @@ function formatDate(iso: string): string {
 }
 
 export default function LoadSlotTemplateButton({ slot, onLoad }: Props) {
+  const t = useTranslations('adminTemplates')
+  const tCommon = useTranslations('common')
   const [open, setOpen] = useState(false)
   const [templates, setTemplates] = useState<SlotTemplateSummary[]>([])
   const [selected, setSelected] = useState<string | null>(null)
@@ -54,7 +57,7 @@ export default function LoadSlotTemplateButton({ slot, onLoad }: Props) {
     startTransition(async () => {
       const result = await getSlotTemplate(selected)
       if (result.error || !result.template) {
-        setError(result.error ?? '템플릿을 찾을 수 없습니다.')
+        setError(result.error ?? t('slotTemplateNotFound'))
         return
       }
       const next = applyTemplateToSlotInput(slot, result.template.data)
@@ -71,7 +74,7 @@ export default function LoadSlotTemplateButton({ slot, onLoad }: Props) {
         setError(result.error)
         return
       }
-      setTemplates((prev) => prev.filter((t) => t.id !== id))
+      setTemplates((prev) => prev.filter((tpl) => tpl.id !== id))
       if (selected === id) setSelected(null)
     })
   }
@@ -86,10 +89,10 @@ export default function LoadSlotTemplateButton({ slot, onLoad }: Props) {
           setOpen(true)
         }}
         className="flex items-center gap-1 text-[11px] font-medium text-sky-300 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 rounded-md px-2 py-1 transition-colors"
-        title="저장된 빌드 템플릿에서 불러오기"
+        title={t('slotTemplateLoadTooltip')}
       >
         <FolderDown size={11} />
-        템플릿 불러오기
+        {t('slotTemplateLoadBtn')}
       </button>
 
       {open && (
@@ -102,49 +105,49 @@ export default function LoadSlotTemplateButton({ slot, onLoad }: Props) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
-              <h3 className="font-bold text-white text-base">슬롯 템플릿 불러오기</h3>
+              <h3 className="font-bold text-white text-base">{t('slotTemplateLoadTitle')}</h3>
               <button
                 type="button"
                 onClick={() => !pending && setOpen(false)}
                 className="p-1 text-gray-400 hover:text-white"
-                aria-label="닫기"
+                aria-label={tCommon('close')}
               >
                 <X size={18} />
               </button>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2">
               {listLoading ? (
-                <p className="text-gray-500 text-xs text-center py-4">로드 중…</p>
+                <p className="text-gray-500 text-xs text-center py-4">{tCommon('loadingDots')}</p>
               ) : templates.length === 0 ? (
                 <p className="text-gray-500 text-xs text-center py-4">
-                  저장된 빌드 템플릿이 없습니다.
+                  {t('slotTemplateNoData')}
                 </p>
               ) : (
-                templates.map((t) => (
+                templates.map((tpl) => (
                   <div
-                    key={t.id}
+                    key={tpl.id}
                     className={`flex items-center gap-1 rounded-lg border transition-colors ${
-                      selected === t.id
+                      selected === tpl.id
                         ? 'bg-sky-500/20 border-sky-500/50'
                         : 'bg-gray-800 border-gray-700 hover:bg-gray-700'
                     }`}
                   >
                     <button
                       type="button"
-                      onClick={() => setSelected(t.id)}
+                      onClick={() => setSelected(tpl.id)}
                       className="flex-1 flex items-center justify-between gap-2 px-3 py-2 text-left min-w-0"
                     >
-                      <span className="text-white text-sm truncate">{t.name}</span>
+                      <span className="text-white text-sm truncate">{tpl.name}</span>
                       <span className="text-gray-500 text-[10px] font-mono flex-shrink-0">
-                        {formatDate(t.created_at)}
+                        {formatDate(tpl.created_at)}
                       </span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => remove(t.id)}
+                      onClick={() => remove(tpl.id)}
                       disabled={pending}
                       className="p-2 text-gray-500 hover:text-red-400 flex-shrink-0 disabled:opacity-50"
-                      aria-label={`${t.name} 삭제`}
+                      aria-label={t('slotTemplateDeleteAria', { name: tpl.name })}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -158,7 +161,7 @@ export default function LoadSlotTemplateButton({ slot, onLoad }: Props) {
               )}
             </div>
             <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-gray-700 flex-shrink-0">
-              <p className="text-gray-500 text-[11px]">적용하면 현재 슬롯 내용이 덮어써집니다.</p>
+              <p className="text-gray-500 text-[11px]">{t('slotTemplateOverwriteWarn')}</p>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -166,7 +169,7 @@ export default function LoadSlotTemplateButton({ slot, onLoad }: Props) {
                   className="text-gray-400 hover:text-white text-sm px-3 py-2"
                   disabled={pending}
                 >
-                  취소
+                  {tCommon('cancel')}
                 </button>
                 <button
                   type="button"
@@ -174,7 +177,7 @@ export default function LoadSlotTemplateButton({ slot, onLoad }: Props) {
                   disabled={pending || !selected}
                   className="bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-lg text-sm"
                 >
-                  {pending ? '적용중...' : '적용'}
+                  {pending ? t('applying') : t('apply')}
                 </button>
               </div>
             </div>
