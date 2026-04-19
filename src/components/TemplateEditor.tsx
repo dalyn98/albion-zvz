@@ -4,11 +4,12 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, ChevronDown, ChevronUp } from 'lucide-react'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
-import type { SlotKey, SlotSpells, WeaponOption } from '@/types'
+import type { GearOption, SlotKey, SlotSpells } from '@/types'
 import { SLOT_KEYS } from '@/types'
 import { updateTemplate, type TemplateData, type TemplateRecord } from '@/app/actions/templates'
 
-function sanitizeWeaponOptions(opts: WeaponOption[]): WeaponOption[] | null {
+function sanitizeGearOptions(opts: GearOption[] | null | undefined): GearOption[] | null {
+  if (!Array.isArray(opts)) return null
   const clean = opts.filter((o) => o && typeof o.id === 'string' && o.id && typeof o.name === 'string' && o.name)
   const seen = new Set<string>()
   const deduped = clean.filter((o) => (seen.has(o.id) ? false : (seen.add(o.id), true)))
@@ -55,7 +56,6 @@ function templateToPartyStates(data: TemplateData): PartyState[] {
         role_name: s.role_name ?? '',
         notes: s.notes ?? '',
         assigned_username: null,
-        weapon_options: s.weapon_options ?? [],
         items: SLOT_KEYS.reduce((acc, k) => ({
           ...acc,
           [k]: {
@@ -63,6 +63,10 @@ function templateToPartyStates(data: TemplateData): PartyState[] {
             id: (s[`${k}_id`] as string | null) ?? '',
           },
         }), {} as Record<SlotKey, { name: string; id: string }>),
+        options: SLOT_KEYS.reduce((acc, k) => ({
+          ...acc,
+          [k]: (s[`${k}_options`] as GearOption[] | null) ?? [],
+        }), {} as Record<SlotKey, GearOption[]>),
         spells: SLOT_KEYS.reduce((acc, k) => ({
           ...acc,
           [k]: s.spells?.[k] ?? [],
@@ -79,24 +83,29 @@ function partyStatesToTemplateData(parties: PartyState[]): TemplateData {
       .map((p) => ({
         party_number: p.party_number,
         slots: p.slots.map((s, idx) => {
-          const weaponOptions = sanitizeWeaponOptions(s.weapon_options)
-          const clearFixedWeapon = weaponOptions !== null
+          const cleanedOptions = SLOT_KEYS.reduce(
+            (acc, k) => ({ ...acc, [k]: sanitizeGearOptions(s.options[k]) }),
+            {} as Record<SlotKey, GearOption[] | null>,
+          )
+          const perSlot = SLOT_KEYS.reduce(
+            (acc, k) => {
+              const hasOpts = cleanedOptions[k] !== null
+              return {
+                ...acc,
+                [`${k}_options`]: cleanedOptions[k],
+                [`${k}_name`]: hasOpts ? null : s.items[k].name || null,
+                [`${k}_id`]: hasOpts ? null : s.items[k].id || null,
+              }
+            },
+            {} as Record<string, unknown>,
+          )
           return {
             slot_number: idx + 1,
             role_name: s.role_name || null,
             notes: s.notes || null,
-            weapon_options: weaponOptions,
             spells: sanitizeSpells(s.spells),
-            weapon_name: clearFixedWeapon ? null : (s.items.weapon.name || null),
-            weapon_id: clearFixedWeapon ? null : (s.items.weapon.id || null),
-            head_name: s.items.head.name || null,       head_id: s.items.head.id || null,
-            armor_name: s.items.armor.name || null,     armor_id: s.items.armor.id || null,
-            shoes_name: s.items.shoes.name || null,     shoes_id: s.items.shoes.id || null,
-            offhand_name: s.items.offhand.name || null, offhand_id: s.items.offhand.id || null,
-            potion_name: s.items.potion.name || null,   potion_id: s.items.potion.id || null,
-            food_name: s.items.food.name || null,       food_id: s.items.food.id || null,
-            cape_name: s.items.cape.name || null,       cape_id: s.items.cape.id || null,
-          }
+            ...perSlot,
+          } as TemplateData['parties'][number]['slots'][number]
         }),
       })),
   }

@@ -2,7 +2,7 @@
 
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
-import type { SlotSpells, WeaponOption } from '@/types'
+import type { GearOption, SlotSpells } from '@/types'
 
 async function requireAdmin() {
   const session = await getSession()
@@ -10,23 +10,21 @@ async function requireAdmin() {
   return getAdminClient()
 }
 
-// Slot-level template data: role + notes + 8 gear slots + multi-weapon options
-// + per-item spells. No slot_number (templates are position-agnostic) and no
-// assignment data (templates carry configuration only, per product spec).
+// Slot-level template data: role + notes + 8 gear slots + per-slot multi-option
+// lists + per-item spells. No slot_number (templates are position-agnostic) and
+// no assignment data (templates carry configuration only, per product spec).
 export interface SlotTemplateData {
   role_name: string | null
   notes: string | null
-  weapon_name: string | null
-  weapon_id: string | null
-  weapon_options: WeaponOption[] | null
-  head_name: string | null;   head_id: string | null
-  armor_name: string | null;  armor_id: string | null
-  shoes_name: string | null;  shoes_id: string | null
-  offhand_name: string | null;offhand_id: string | null
-  potion_name: string | null; potion_id: string | null
-  food_name: string | null;   food_id: string | null
-  cape_name: string | null;   cape_id: string | null
   spells: SlotSpells | null
+  weapon_name: string | null;  weapon_id: string | null;  weapon_options: GearOption[] | null
+  head_name: string | null;    head_id: string | null;    head_options: GearOption[] | null
+  armor_name: string | null;   armor_id: string | null;   armor_options: GearOption[] | null
+  shoes_name: string | null;   shoes_id: string | null;   shoes_options: GearOption[] | null
+  offhand_name: string | null; offhand_id: string | null; offhand_options: GearOption[] | null
+  potion_name: string | null;  potion_id: string | null;  potion_options: GearOption[] | null
+  food_name: string | null;    food_id: string | null;    food_options: GearOption[] | null
+  cape_name: string | null;    cape_id: string | null;    cape_options: GearOption[] | null
 }
 
 export interface SlotTemplateSummary {

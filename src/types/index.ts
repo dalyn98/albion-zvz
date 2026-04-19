@@ -16,10 +16,13 @@ export interface Party {
   party_number: number
 }
 
-export interface WeaponOption {
+export interface GearOption {
   name: string
   id: string
 }
+
+/** @deprecated Use GearOption — this alias exists for older imports only. */
+export type WeaponOption = GearOption
 
 export interface Slot {
   id: string
@@ -28,7 +31,6 @@ export interface Slot {
   role_name: string | null
   notes: string | null
   weapon_name: string | null; weapon_id: string | null
-  weapon_options: WeaponOption[] | null
   head_name: string | null;   head_id: string | null
   armor_name: string | null;  armor_id: string | null
   shoes_name: string | null;  shoes_id: string | null
@@ -36,28 +38,79 @@ export interface Slot {
   potion_name: string | null; potion_id: string | null
   food_name: string | null;   food_id: string | null
   cape_name: string | null;   cape_id: string | null
+  weapon_options: GearOption[] | null
+  head_options: GearOption[] | null
+  armor_options: GearOption[] | null
+  shoes_options: GearOption[] | null
+  offhand_options: GearOption[] | null
+  potion_options: GearOption[] | null
+  food_options: GearOption[] | null
+  cape_options: GearOption[] | null
   spells: SlotSpells | null
   assigned_discord_id: string | null
   assigned_username: string | null
-  assigned_weapon_name: string | null
-  assigned_weapon_id: string | null
+  assigned_weapon_name: string | null;  assigned_weapon_id: string | null
+  assigned_head_name: string | null;    assigned_head_id: string | null
+  assigned_armor_name: string | null;   assigned_armor_id: string | null
+  assigned_shoes_name: string | null;   assigned_shoes_id: string | null
+  assigned_offhand_name: string | null; assigned_offhand_id: string | null
+  assigned_potion_name: string | null;  assigned_potion_id: string | null
+  assigned_food_name: string | null;    assigned_food_id: string | null
+  assigned_cape_name: string | null;    assigned_cape_id: string | null
 }
 
-// Returns the weapon to display for a slot. The assignment takes priority
-// (member-picked weapon), then the admin-specified fixed weapon.
-export function getDisplayWeapon(
-  slot: Pick<Slot, 'weapon_name' | 'weapon_id' | 'assigned_weapon_name' | 'assigned_weapon_id'>,
+// Pick<Slot, ...> helpers for callers that only need the gear-display subset —
+// avoids forcing tests/helpers to fabricate the full Slot shape.
+export type SlotGearDisplay = Pick<Slot,
+  | 'weapon_name'  | 'weapon_id'  | 'assigned_weapon_name'  | 'assigned_weapon_id'
+  | 'head_name'    | 'head_id'    | 'assigned_head_name'    | 'assigned_head_id'
+  | 'armor_name'   | 'armor_id'   | 'assigned_armor_name'   | 'assigned_armor_id'
+  | 'shoes_name'   | 'shoes_id'   | 'assigned_shoes_name'   | 'assigned_shoes_id'
+  | 'offhand_name' | 'offhand_id' | 'assigned_offhand_name' | 'assigned_offhand_id'
+  | 'potion_name'  | 'potion_id'  | 'assigned_potion_name'  | 'assigned_potion_id'
+  | 'food_name'    | 'food_id'    | 'assigned_food_name'    | 'assigned_food_id'
+  | 'cape_name'    | 'cape_id'    | 'assigned_cape_name'    | 'assigned_cape_id'
+>
+
+export type SlotGearOptionsFields = Pick<Slot,
+  | 'weapon_options' | 'head_options' | 'armor_options' | 'shoes_options'
+  | 'offhand_options' | 'potion_options' | 'food_options' | 'cape_options'
+>
+
+// Returns the gear to display for a slot kind. A member's pick (assigned_*)
+// takes priority over the admin-specified fixed gear.
+export function getDisplayGear(
+  slot: SlotGearDisplay,
+  key: SlotKey,
 ): { name: string | null; id: string | null } {
-  if (slot.assigned_weapon_id) {
-    return { name: slot.assigned_weapon_name, id: slot.assigned_weapon_id }
-  }
-  return { name: slot.weapon_name, id: slot.weapon_id }
+  const assignedName = slot[`assigned_${key}_name`]
+  const assignedId = slot[`assigned_${key}_id`]
+  if (assignedId) return { name: assignedName, id: assignedId }
+  return { name: slot[`${key}_name`], id: slot[`${key}_id`] }
 }
 
-export function hasWeaponOptions(
-  slot: Pick<Slot, 'weapon_options'>,
-): slot is Slot & { weapon_options: WeaponOption[] } {
-  return Array.isArray(slot.weapon_options) && slot.weapon_options.length > 0
+export function getGearOptions(
+  slot: SlotGearOptionsFields,
+  key: SlotKey,
+): GearOption[] | null {
+  return slot[`${key}_options`]
+}
+
+export function hasGearOptions(
+  slot: SlotGearOptionsFields,
+  key: SlotKey,
+): boolean {
+  const opts = slot[`${key}_options`]
+  return Array.isArray(opts) && opts.length > 0
+}
+
+// Legacy weapon-only helpers — still used by pieces that haven't migrated yet.
+export function getDisplayWeapon(slot: SlotGearDisplay): { name: string | null; id: string | null } {
+  return getDisplayGear(slot, 'weapon')
+}
+
+export function hasWeaponOptions(slot: SlotGearOptionsFields): boolean {
+  return hasGearOptions(slot, 'weapon')
 }
 
 export interface PartyWithSlots extends Party {
@@ -78,6 +131,19 @@ export const SLOT_LABELS: Record<SlotKey, string> = {
 }
 
 export const SLOT_KEYS: SlotKey[] = ['weapon', 'head', 'armor', 'shoes', 'offhand', 'potion', 'food', 'cape']
+
+// Categories passed to ItemPicker for each slot kind. Weapons share the mount
+// category because Albion treats mounts as a weapon slot substitute.
+export const SLOT_PICKER_CATEGORY: Record<SlotKey, string> = {
+  weapon:  'weapon,mount',
+  head:    'head',
+  armor:   'armor',
+  shoes:   'shoes',
+  offhand: 'offhand',
+  potion:  'potion',
+  food:    'food',
+  cape:    'cape',
+}
 
 // Per-slot spell assignments. Keyed by gear kind (weapon/head/armor/...),
 // value is an array of Albion spell uniquenames (e.g. "MOUNTSPELL_INTIMIDATINGAURA").

@@ -1,4 +1,5 @@
-import { SLOT_KEYS, type SlotKey, type SlotSpells } from '@/types'
+import type { GearOption, SlotKey, SlotSpells } from '@/types'
+import { SLOT_KEYS } from '@/types'
 import type { SlotInput } from '@/components/SlotEditor'
 import type { SlotTemplateData } from '@/app/actions/slot-templates'
 
@@ -12,18 +13,21 @@ export function slotInputToTemplateData(slot: SlotInput): SlotTemplateData {
   }
   const spellsOrNull = Object.keys(spells).length > 0 ? spells : null
 
-  const weaponOptions =
-    slot.weapon_options.length > 0
-      ? slot.weapon_options.map((o) => ({ name: o.name, id: o.id }))
-      : null
+  const cleanedOptions = SLOT_KEYS.reduce(
+    (acc, k) => {
+      const opts = slot.options[k]
+      const nonEmpty = Array.isArray(opts) && opts.length > 0
+      acc[k] = nonEmpty ? opts.map((o) => ({ name: o.name, id: o.id })) : null
+      return acc
+    },
+    {} as Record<SlotKey, GearOption[] | null>,
+  )
 
-  // If multi-weapon is active the fixed weapon columns must be null, matching
-  // the server-side slotToRow convention — otherwise a loaded template would
-  // carry a stale fixed weapon alongside its options.
-  const clearFixedWeapon = weaponOptions !== null
-
-  const itemValue = (key: SlotKey, field: 'name' | 'id'): string | null => {
-    if (key === 'weapon' && clearFixedWeapon) return null
+  // When multi-option is active for a slot, its fixed name/id columns must be
+  // null, matching the server-side slotToRow convention — otherwise a loaded
+  // template would carry a stale fixed item alongside its options.
+  const fixedValue = (key: SlotKey, field: 'name' | 'id'): string | null => {
+    if (cleanedOptions[key] !== null) return null
     const value = slot.items[key][field]
     return value ? value : null
   }
@@ -31,17 +35,15 @@ export function slotInputToTemplateData(slot: SlotInput): SlotTemplateData {
   return {
     role_name: slot.role_name.trim() || null,
     notes: slot.notes.trim() || null,
-    weapon_name: itemValue('weapon', 'name'),
-    weapon_id: itemValue('weapon', 'id'),
-    weapon_options: weaponOptions,
-    head_name: itemValue('head', 'name'),   head_id: itemValue('head', 'id'),
-    armor_name: itemValue('armor', 'name'), armor_id: itemValue('armor', 'id'),
-    shoes_name: itemValue('shoes', 'name'), shoes_id: itemValue('shoes', 'id'),
-    offhand_name: itemValue('offhand', 'name'), offhand_id: itemValue('offhand', 'id'),
-    potion_name: itemValue('potion', 'name'),   potion_id: itemValue('potion', 'id'),
-    food_name: itemValue('food', 'name'),       food_id: itemValue('food', 'id'),
-    cape_name: itemValue('cape', 'name'),       cape_id: itemValue('cape', 'id'),
     spells: spellsOrNull,
+    weapon_name: fixedValue('weapon', 'name'),  weapon_id: fixedValue('weapon', 'id'),   weapon_options: cleanedOptions.weapon,
+    head_name: fixedValue('head', 'name'),       head_id: fixedValue('head', 'id'),       head_options: cleanedOptions.head,
+    armor_name: fixedValue('armor', 'name'),     armor_id: fixedValue('armor', 'id'),     armor_options: cleanedOptions.armor,
+    shoes_name: fixedValue('shoes', 'name'),     shoes_id: fixedValue('shoes', 'id'),     shoes_options: cleanedOptions.shoes,
+    offhand_name: fixedValue('offhand', 'name'), offhand_id: fixedValue('offhand', 'id'), offhand_options: cleanedOptions.offhand,
+    potion_name: fixedValue('potion', 'name'),   potion_id: fixedValue('potion', 'id'),   potion_options: cleanedOptions.potion,
+    food_name: fixedValue('food', 'name'),       food_id: fixedValue('food', 'id'),       food_options: cleanedOptions.food,
+    cape_name: fixedValue('cape', 'name'),       cape_id: fixedValue('cape', 'id'),       cape_options: cleanedOptions.cape,
   }
 }
 
@@ -52,17 +54,26 @@ export function applyTemplateToSlotInput(
   current: SlotInput,
   data: SlotTemplateData,
 ): SlotInput {
+  const optionsRecord = SLOT_KEYS.reduce(
+    (acc, k) => {
+      const opts = data[`${k}_options`]
+      acc[k] = Array.isArray(opts) ? opts.map((o) => ({ name: o.name, id: o.id })) : []
+      return acc
+    },
+    {} as Record<SlotKey, GearOption[]>,
+  )
+
   const items = SLOT_KEYS.reduce(
     (acc, k) => {
-      if (k === 'weapon' && Array.isArray(data.weapon_options) && data.weapon_options.length > 0) {
-        // Multi-weapon: the fixed weapon slot stays blank and the options
-        // drive the picker. Keep items.weapon empty to match the editor's
-        // deriveWeaponMode contract.
+      // If this slot has options, the fixed item should stay blank — mirrors
+      // the save path's clearFixed convention.
+      if (optionsRecord[k].length > 0) {
         return { ...acc, [k]: { name: '', id: '' } }
       }
-      const name = data[`${k}_name`] ?? ''
-      const id = data[`${k}_id`] ?? ''
-      return { ...acc, [k]: { name, id } }
+      return {
+        ...acc,
+        [k]: { name: data[`${k}_name`] ?? '', id: data[`${k}_id`] ?? '' },
+      }
     },
     {} as Record<SlotKey, { name: string; id: string }>,
   )
@@ -72,16 +83,12 @@ export function applyTemplateToSlotInput(
     {} as Record<SlotKey, string[]>,
   )
 
-  const weaponOptions = Array.isArray(data.weapon_options)
-    ? data.weapon_options.map((o) => ({ name: o.name, id: o.id }))
-    : []
-
   return {
     ...current,
     role_name: data.role_name ?? '',
     notes: data.notes ?? '',
     items,
-    weapon_options: weaponOptions,
+    options: optionsRecord,
     spells,
   }
 }

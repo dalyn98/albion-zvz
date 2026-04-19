@@ -5,7 +5,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { sendEventNotification } from '@/lib/discord'
 import { getAppSetting } from '@/lib/app-settings'
-import type { SlotKey, SlotSpells, WeaponOption } from '@/types'
+import type { SlotKey, SlotSpells, GearOption } from '@/types'
 import { SLOT_KEYS } from '@/types'
 
 const DEFAULT_EVENT_NOTIFICATION_MESSAGE = '새 이벤트가 등록되었습니다.'
@@ -153,11 +153,11 @@ interface SlotPayload {
   role_name: string
   notes: string
   items: Record<SlotKey, { name: string; id: string }>
-  weapon_options: WeaponOption[]
+  options: Record<SlotKey, GearOption[]>
   spells: SlotSpells
 }
 
-function sanitizeWeaponOptions(opts: WeaponOption[]): WeaponOption[] | null {
+function sanitizeGearOptions(opts: GearOption[]): GearOption[] | null {
   const clean = opts
     .filter((o) => o && typeof o.id === 'string' && typeof o.name === 'string' && o.id && o.name)
     .map((o) => ({ name: o.name, id: o.id }))
@@ -191,25 +191,27 @@ function sanitizeSpells(spells: SlotSpells | null | undefined): SlotSpells | nul
 }
 
 function slotToRow(partyId: string, slot: SlotPayload) {
-  const weaponOptions = sanitizeWeaponOptions(slot.weapon_options)
-  // When multi-weapon is active, the fixed weapon columns are cleared — the
-  // member's chosen weapon lands in assigned_weapon_* at assign time.
-  const clearFixedWeapon = weaponOptions !== null
+  const cleanedOptions = SLOT_KEYS.reduce(
+    (acc, k) => ({ ...acc, [k]: sanitizeGearOptions(slot.options[k] ?? []) }),
+    {} as Record<SlotKey, GearOption[] | null>,
+  )
+  // When a slot kind has multi-options, the fixed {kind}_name/id columns must
+  // be cleared — the member's pick lands in assigned_{kind}_* at assign time.
+  // Holding both a fixed item and an option list would let stale fixed data
+  // survive a mode switch.
   return {
     party_id: partyId,
     slot_number: slot.slot_number,
     role_name: slot.role_name.trim() || null,
     notes: slot.notes.trim() || null,
-    weapon_options: weaponOptions,
     spells: sanitizeSpells(slot.spells),
     ...SLOT_KEYS.reduce((acc, k) => {
-      if (k === 'weapon' && clearFixedWeapon) {
-        return { ...acc, weapon_name: null, weapon_id: null }
-      }
+      const hasOptions = cleanedOptions[k] !== null
       return {
         ...acc,
-        [`${k}_name`]: slot.items[k].name || null,
-        [`${k}_id`]: slot.items[k].id || null,
+        [`${k}_options`]: cleanedOptions[k],
+        [`${k}_name`]: hasOptions ? null : slot.items[k].name || null,
+        [`${k}_id`]: hasOptions ? null : slot.items[k].id || null,
       }
     }, {}),
   }

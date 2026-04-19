@@ -1,10 +1,18 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { assignSlot, cancelSlot } from '@/app/actions/member'
-import type { Slot, WeaponOption } from '@/types'
-import { SLOT_KEYS, getRoleStyle, isFreeItem, getDisplayWeapon, hasWeaponOptions } from '@/types'
+import { assignSlot, cancelSlot, type SlotPicks } from '@/app/actions/member'
+import type { GearOption, Slot, SlotKey } from '@/types'
+import {
+  SLOT_KEYS,
+  SLOT_LABELS,
+  getDisplayGear,
+  getGearOptions,
+  getRoleStyle,
+  hasGearOptions,
+  isFreeItem,
+} from '@/types'
 import { stripTierPrefix } from '@/lib/weapon-display'
 import ItemImage from './ItemImage'
 import SlotSpellPanel from './SlotSpellPanel'
@@ -36,6 +44,57 @@ function SlotItem({ name, id, size }: { name: string | null; id: string | null; 
   return <ItemImage itemId={id} itemName={name} size={size} />
 }
 
+// Multi-option preview: first item in the options list as the main image,
+// with a "+N" badge overlay when there are more to pick from. Signals to the
+// member that they'll be asked to pick at signup time without crowding the
+// card with every option.
+function MultiOptionPreview({
+  options,
+  size,
+}: {
+  options: GearOption[]
+  size: number
+}) {
+  const first = options[0]
+  const extra = options.length - 1
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <ItemImage itemId={first.id} itemName={stripTierPrefix(first.name)} size={size} />
+      {extra > 0 && (
+        <span
+          className="absolute -top-1 -right-1 bg-amber-500 text-black font-bold rounded-full px-1 leading-tight"
+          style={{ fontSize: Math.max(9, Math.floor(size * 0.28)) }}
+        >
+          +{extra}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function GearPreview({
+  slot,
+  kind,
+  size,
+  isTaken,
+}: {
+  slot: Slot
+  kind: SlotKey
+  size: number
+  isTaken: boolean
+}) {
+  const options = getGearOptions(slot, kind)
+  // Only show the multi-option preview when nothing has been assigned yet;
+  // once a member picks, their choice lives in assigned_{kind}_* and the
+  // normal display takes over.
+  const display = getDisplayGear(slot, kind)
+  const showOptionsPreview = !isTaken && !display.id && Array.isArray(options) && options.length > 0
+  if (showOptionsPreview) {
+    return <MultiOptionPreview options={options!} size={size} />
+  }
+  return <SlotItem name={display.name} id={display.id} size={size} />
+}
+
 function NoteTooltip({ notes }: { notes: string }) {
   return (
     <div className="group/note relative inline-block">
@@ -60,7 +119,14 @@ function NoteTooltip({ notes }: { notes: string }) {
   )
 }
 
-export default function SlotCard({ slot, partyNumber, currentDiscordId, loginHref, battleStarted, assignedAvatar = null }: Props) {
+export default function SlotCard({
+  slot,
+  partyNumber,
+  currentDiscordId,
+  loginHref,
+  battleStarted,
+  assignedAvatar = null,
+}: Props) {
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -70,13 +136,20 @@ export default function SlotCard({ slot, partyNumber, currentDiscordId, loginHre
   const isMine = isTaken && slot.assigned_discord_id === currentDiscordId
   const isLoggedIn = currentDiscordId !== null
   const roleStyle = getRoleStyle(slot.role_name)
-  const hasOptions = hasWeaponOptions(slot)
-  const displayWeapon = getDisplayWeapon(slot)
 
-  const doAssign = (chosen: WeaponOption | null) => {
+  // Slot kinds that need a choice at signup time: the admin marked them multi
+  // and the member hasn't been assigned yet.
+  const multiOptionKinds = useMemo<SlotKey[]>(
+    () => SLOT_KEYS.filter((k) => hasGearOptions(slot, k)),
+    [slot],
+  )
+  const needsPicks = multiOptionKinds.length > 0
+  const weaponDisplay = getDisplayGear(slot, 'weapon')
+
+  const doAssign = (picks: SlotPicks) => {
     setError('')
     startTransition(async () => {
-      const result = await assignSlot(slot.id, chosen)
+      const result = await assignSlot(slot.id, picks)
       if (result.error) setError(result.error)
       else router.refresh()
     })
@@ -89,12 +162,12 @@ export default function SlotCard({ slot, partyNumber, currentDiscordId, loginHre
       )
       if (!ok) return
     }
-    if (hasOptions) {
+    if (needsPicks) {
       setError('')
       setPickerOpen(true)
       return
     }
-    doAssign(null)
+    doAssign({})
   }
 
   const handleCancel = () => {
@@ -139,33 +212,25 @@ export default function SlotCard({ slot, partyNumber, currentDiscordId, loginHre
 
       <div className="grid grid-cols-3 gap-1">
         <div className="row-span-2 flex items-center justify-center">
-          {hasOptions && !isTaken ? (
-            <WeaponOptionsPreview options={slot.weapon_options!} />
-          ) : (
-            <SlotItem name={displayWeapon.name} id={displayWeapon.id} size={52} />
-          )}
+          <GearPreview slot={slot} kind="weapon" size={52} isTaken={isTaken} />
         </div>
-        {otherKeys.map((key) => {
-          const itemName = slot[`${key}_name`]
-          const itemId = slot[`${key}_id`]
-          return (
-            <div key={key} className="flex items-center justify-center">
-              <SlotItem name={itemName} id={itemId} size={28} />
-            </div>
-          )
-        })}
+        {otherKeys.map((key) => (
+          <div key={key} className="flex items-center justify-center">
+            <GearPreview slot={slot} kind={key} size={28} isTaken={isTaken} />
+          </div>
+        ))}
       </div>
 
       <SlotSpellPanel slot={slot} />
 
-      {hasOptions && !isTaken ? (
+      {!isTaken && needsPicks ? (
         <p className="text-amber-300 text-[10px] font-medium truncate leading-tight">
-          선택 가능 무기 {slot.weapon_options!.length}종
+          복수 선택 필요 · {multiOptionKinds.map((k) => SLOT_LABELS[k]).join('/')}
         </p>
       ) : (
-        displayWeapon.name && !isFreeItem(displayWeapon.name, displayWeapon.id) && (
+        weaponDisplay.name && !isFreeItem(weaponDisplay.name, weaponDisplay.id) && (
           <p className="text-white text-[10px] font-medium truncate leading-tight">
-            {stripTierPrefix(displayWeapon.name)}
+            {stripTierPrefix(weaponDisplay.name)}
           </p>
         )
       )}
@@ -176,12 +241,13 @@ export default function SlotCard({ slot, partyNumber, currentDiscordId, loginHre
       {error && <p className="text-red-400 text-[10px] leading-tight">{error}</p>}
 
       {pickerOpen && (
-        <WeaponChoiceModal
-          options={slot.weapon_options!}
+        <GearChoiceModal
+          slot={slot}
+          kinds={multiOptionKinds}
           onCancel={() => setPickerOpen(false)}
-          onConfirm={(chosen) => {
+          onConfirm={(picks) => {
             setPickerOpen(false)
-            doAssign(chosen)
+            doAssign(picks)
           }}
         />
       )}
@@ -240,42 +306,25 @@ export default function SlotCard({ slot, partyNumber, currentDiscordId, loginHre
         disabled={pending}
         className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[11px] font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 transition-colors disabled:opacity-50"
       >
-        {hasOptions ? <Swords size={11} /> : <UserPlus size={11} />}
-        {pending ? '신청 중...' : hasOptions ? '무기 선택 후 신청' : '신청'}
+        {needsPicks ? <Swords size={11} /> : <UserPlus size={11} />}
+        {pending ? '신청 중...' : needsPicks ? '장비 선택 후 신청' : '신청'}
       </button>
     )
   }
 }
 
-function WeaponOptionsPreview({ options }: { options: WeaponOption[] }) {
-  const shown = options.slice(0, 4)
-  const extra = options.length - shown.length
-  return (
-    <div className="grid grid-cols-2 gap-0.5 w-[52px] h-[52px]">
-      {shown.map((opt) => (
-        <div key={opt.id} className="relative w-full h-full">
-          <ItemImage itemId={opt.id} itemName={stripTierPrefix(opt.name)} size={24} />
-        </div>
-      ))}
-      {extra > 0 && (
-        <div className="flex items-center justify-center text-amber-300 text-[9px] font-bold bg-amber-500/10 border border-amber-500/30 rounded">
-          +{extra}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function WeaponChoiceModal({
-  options,
+function GearChoiceModal({
+  slot,
+  kinds,
   onCancel,
   onConfirm,
 }: {
-  options: WeaponOption[]
+  slot: Slot
+  kinds: SlotKey[]
   onCancel: () => void
-  onConfirm: (chosen: WeaponOption) => void
+  onConfirm: (picks: SlotPicks) => void
 }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [picks, setPicks] = useState<Record<string, string>>({})
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -289,7 +338,18 @@ function WeaponChoiceModal({
     }
   }, [onCancel])
 
-  const selected = options.find((o) => o.id === selectedId) ?? null
+  const allSelected = kinds.every((k) => picks[k])
+
+  const buildPicksPayload = (): SlotPicks => {
+    const payload: SlotPicks = {}
+    for (const k of kinds) {
+      const chosenId = picks[k]
+      if (!chosenId) continue
+      const opt = getGearOptions(slot, k)?.find((o) => o.id === chosenId)
+      if (opt) payload[k] = { name: opt.name, id: opt.id }
+    }
+    return payload
+  }
 
   return (
     <div
@@ -301,7 +361,7 @@ function WeaponChoiceModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
-          <h3 className="font-bold text-white text-base">무기 선택</h3>
+          <h3 className="font-bold text-white text-base">장비 선택</h3>
           <button
             type="button"
             onClick={onCancel}
@@ -311,29 +371,44 @@ function WeaponChoiceModal({
             <X size={18} />
           </button>
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1.5">
-          {options.map((opt) => {
-            const isSel = opt.id === selectedId
+        <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-4">
+          {kinds.map((kind) => {
+            const options = getGearOptions(slot, kind) ?? []
+            const selectedId = picks[kind]
             return (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => setSelectedId(opt.id)}
-                className={`w-full flex items-center gap-2 rounded-lg p-2 border transition-colors text-left ${
-                  isSel
-                    ? 'bg-amber-500/10 border-amber-500/50'
-                    : 'bg-gray-800 border-gray-700 hover:border-gray-600'
-                }`}
-              >
-                <ItemImage itemId={opt.id} itemName={stripTierPrefix(opt.name)} size={36} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-xs font-medium truncate">{stripTierPrefix(opt.name)}</p>
-                  <p className="text-gray-500 text-[10px] font-mono truncate">{opt.id}</p>
+              <section key={kind} className="space-y-1.5">
+                <h4 className="text-amber-400 text-xs font-semibold">
+                  {SLOT_LABELS[kind]}
+                </h4>
+                <div className="space-y-1">
+                  {options.map((opt) => {
+                    const isSel = opt.id === selectedId
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setPicks((prev) => ({ ...prev, [kind]: opt.id }))}
+                        className={`w-full flex items-center gap-2 rounded-lg p-2 border transition-colors text-left ${
+                          isSel
+                            ? 'bg-amber-500/10 border-amber-500/50'
+                            : 'bg-gray-800 border-gray-700 hover:border-gray-600'
+                        }`}
+                      >
+                        <ItemImage itemId={opt.id} itemName={stripTierPrefix(opt.name)} size={32} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-xs font-medium truncate">
+                            {stripTierPrefix(opt.name)}
+                          </p>
+                          <p className="text-gray-500 text-[10px] font-mono truncate">{opt.id}</p>
+                        </div>
+                        {isSel && (
+                          <span className="text-amber-400 text-[10px] font-bold flex-shrink-0">선택</span>
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
-                {isSel && (
-                  <span className="text-amber-400 text-[10px] font-bold flex-shrink-0">선택</span>
-                )}
-              </button>
+              </section>
             )
           })}
         </div>
@@ -347,8 +422,11 @@ function WeaponChoiceModal({
           </button>
           <button
             type="button"
-            onClick={() => selected && onConfirm(selected)}
-            disabled={!selected}
+            onClick={() => {
+              if (!allSelected) return
+              onConfirm(buildPicksPayload())
+            }}
+            disabled={!allSelected}
             className="ml-auto bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black font-bold px-6 py-2 rounded-lg text-sm transition-colors"
           >
             신청하기

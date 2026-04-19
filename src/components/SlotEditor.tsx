@@ -7,8 +7,17 @@ import ItemImage from './ItemImage'
 import SpellPicker from './SpellPicker'
 import SaveSlotAsTemplateButton from './SaveSlotAsTemplateButton'
 import LoadSlotTemplateButton from './LoadSlotTemplateButton'
-import type { SlotKey, WeaponOption } from '@/types'
-import { SLOT_KEYS, SLOT_LABELS, SLOT_ROLES, getRoleStyle, isFreeItem } from '@/types'
+import type { SlotKey, GearOption } from '@/types'
+import {
+  SLOT_KEYS,
+  SLOT_LABELS,
+  SLOT_PICKER_CATEGORY,
+  SLOT_ROLES,
+  getRoleStyle,
+  isFreeItem,
+} from '@/types'
+
+export type GearMode = 'single' | 'multi' | 'free'
 
 export interface SlotInput {
   id?: string
@@ -16,17 +25,17 @@ export interface SlotInput {
   role_name: string
   notes: string
   items: Record<SlotKey, { name: string; id: string }>
-  weapon_options: WeaponOption[]
+  options: Record<SlotKey, GearOption[]>
   // Always an 8-keyed record in the editor — simpler than Partial here. Empty
   // arrays are serialized back to null at save time (see sanitizeSpells).
   spells: Record<SlotKey, string[]>
   assigned_username: string | null
 }
 
-function emptySpells(): Record<SlotKey, string[]> {
+function emptyPerSlot<T>(fill: () => T): Record<SlotKey, T> {
   return SLOT_KEYS.reduce(
-    (acc, k) => ({ ...acc, [k]: [] }),
-    {} as Record<SlotKey, string[]>,
+    (acc, k) => ({ ...acc, [k]: fill() }),
+    {} as Record<SlotKey, T>,
   )
 }
 
@@ -35,23 +44,20 @@ export function emptySlotInput(slotNumber: number): SlotInput {
     slot_number: slotNumber,
     role_name: '',
     notes: '',
-    items: SLOT_KEYS.reduce(
-      (acc, k) => ({ ...acc, [k]: { name: '', id: '' } }),
-      {} as Record<SlotKey, { name: string; id: string }>,
-    ),
-    weapon_options: [],
-    spells: emptySpells(),
+    items: emptyPerSlot(() => ({ name: '', id: '' })),
+    options: emptyPerSlot(() => []),
+    spells: emptyPerSlot(() => []),
     assigned_username: null,
   }
 }
 
-type WeaponMode = 'single' | 'multi' | 'free'
-
-function deriveWeaponMode(slot: SlotInput): WeaponMode {
-  if (slot.weapon_options.length > 0) return 'multi'
-  if (isFreeItem(slot.items.weapon.name, slot.items.weapon.id)) return 'free'
+export function deriveGearMode(slot: SlotInput, key: SlotKey): GearMode {
+  if (slot.options[key].length > 0) return 'multi'
+  if (isFreeItem(slot.items[key].name, slot.items[key].id)) return 'free'
   return 'single'
 }
+
+const MAX_GEAR_OPTIONS = 6
 
 interface Props {
   slot: SlotInput
@@ -63,25 +69,38 @@ interface Props {
 export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Props) {
   const [open, setOpen] = useState(false)
 
-  // Mode is stored locally because 'multi' with an empty options list is a
-  // legitimate intermediate state: the user just switched to multi and hasn't
-  // added options yet. Deriving mode from slot data alone would snap them
-  // back to 'single' on the next render and make the button unclickable.
-  const [weaponMode, setWeaponModeLocal] = useState<WeaponMode>(() => deriveWeaponMode(slot))
+  // Per-slot mode stored locally: 'multi' with an empty options list is a
+  // legitimate in-progress state, so we can't derive mode from slot data on
+  // every render — that would snap the user back to 'single' before they can
+  // add options. We only force-sync when the slot prop unambiguously signals
+  // a mode (options present, free marker set, or a specific item picked).
+  const [modes, setModes] = useState<Record<SlotKey, GearMode>>(() =>
+    SLOT_KEYS.reduce(
+      (acc, k) => ({ ...acc, [k]: deriveGearMode(slot, k) }),
+      {} as Record<SlotKey, GearMode>,
+    ),
+  )
 
-  // If the slot prop gets reset from outside and now unambiguously signals
-  // 'multi' (options present), 'free' (free marker), or 'single' (a weapon
-  // is actually picked — e.g. from a loaded template), mirror that. Leave
-  // the user's in-progress 'multi' selection alone when the slot is blank
-  // (empty options AND empty weapon) — otherwise we'd wipe the mode switch
-  // they just made before they had a chance to add options.
   useEffect(() => {
-    const derived = deriveWeaponMode(slot)
-    if (derived !== 'single') {
-      setWeaponModeLocal(derived)
-      return
-    }
-    if (slot.items.weapon.id) setWeaponModeLocal('single')
+    setModes((prev) => {
+      const next = { ...prev }
+      let changed = false
+      for (const k of SLOT_KEYS) {
+        const derived = deriveGearMode(slot, k)
+        if (derived !== 'single') {
+          if (next[k] !== derived) {
+            next[k] = derived
+            changed = true
+          }
+          continue
+        }
+        if (slot.items[k].id && next[k] !== 'single') {
+          next[k] = 'single'
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
   }, [slot])
 
   useEffect(() => {
@@ -92,15 +111,11 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
     }
     window.addEventListener('keydown', onKey)
     return () => {
-      // Always reset to empty — capturing `prev` under StrictMode double-invoke
-      // can snapshot 'hidden' and re-apply it after close, leaving the page unscrollable.
       document.body.style.overflow = ''
       window.removeEventListener('keydown', onKey)
     }
   }, [open])
 
-  // Defensive unmount cleanup: if the editor is removed from the tree while open
-  // (e.g. slot deleted, party re-saved), the [open] effect's cleanup may not fire.
   useEffect(() => {
     return () => {
       document.body.style.overflow = ''
@@ -126,34 +141,47 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
     onChange({ ...slot, spells: { ...slot.spells, [key]: current.filter((s) => s !== spellId) } })
   }
 
-  const setWeaponMode = (mode: WeaponMode) => {
-    if (mode === weaponMode) return
-    setWeaponModeLocal(mode)
-    const emptyWeapon = { name: '', id: '' }
+  const setGearMode = (key: SlotKey, mode: GearMode) => {
+    if (modes[key] === mode) return
+    setModes((prev) => ({ ...prev, [key]: mode }))
+    const emptyItem = { name: '', id: '' }
     if (mode === 'free') {
-      onChange({ ...slot, items: { ...slot.items, weapon: { name: '자유', id: '' } }, weapon_options: [] })
+      onChange({
+        ...slot,
+        items: { ...slot.items, [key]: { name: '자유', id: '' } },
+        options: { ...slot.options, [key]: [] },
+      })
     } else {
-      // single / multi both start with no weapon picked; multi expects
-      // options to be filled in next.
-      onChange({ ...slot, items: { ...slot.items, weapon: emptyWeapon }, weapon_options: [] })
+      onChange({
+        ...slot,
+        items: { ...slot.items, [key]: emptyItem },
+        options: { ...slot.options, [key]: [] },
+      })
     }
   }
 
-  const addWeaponOption = (name: string, id: string) => {
+  const addOption = (key: SlotKey, name: string, id: string) => {
     if (!id) return
-    if (slot.weapon_options.some((w) => w.id === id)) return
-    if (slot.weapon_options.length >= 6) return
-    onChange({ ...slot, weapon_options: [...slot.weapon_options, { name, id }] })
+    const current = slot.options[key]
+    if (current.some((o) => o.id === id)) return
+    if (current.length >= MAX_GEAR_OPTIONS) return
+    onChange({
+      ...slot,
+      options: { ...slot.options, [key]: [...current, { name, id }] },
+    })
   }
 
-  const removeWeaponOption = (id: string) => {
-    onChange({ ...slot, weapon_options: slot.weapon_options.filter((w) => w.id !== id) })
+  const removeOption = (key: SlotKey, id: string) => {
+    onChange({
+      ...slot,
+      options: { ...slot.options, [key]: slot.options[key].filter((o) => o.id !== id) },
+    })
   }
 
-  // Both picked items (have id) and "free" markers (name=자유, no id) count as configured.
-  // For weapon, a filled multi-option list also counts.
+  // Both picked items (have id), "free" markers (name=자유, no id), and
+  // a non-empty options list all count as configured.
   const filledCount = SLOT_KEYS.filter((k) => {
-    if (k === 'weapon' && slot.weapon_options.length > 0) return true
+    if (slot.options[k].length > 0) return true
     return slot.items[k].id || isFreeItem(slot.items[k].name, slot.items[k].id)
   }).length
   const roleStyle = getRoleStyle(slot.role_name)
@@ -280,43 +308,41 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
               </div>
 
               <div className="space-y-3">
-                <WeaponSection
-                  mode={weaponMode}
-                  onModeChange={setWeaponMode}
+                <GearSection
+                  slotKey="weapon"
+                  mode={modes.weapon}
+                  onModeChange={(m) => setGearMode('weapon', m)}
                   singleName={slot.items.weapon.name || null}
                   singleId={slot.items.weapon.id || null}
-                  onSingleChange={(name, id) => updateItem('weapon', name, id)}
+                  onSingleChange={(n, i) => updateItem('weapon', n, i)}
                   onSingleClear={() => clearItem('weapon')}
-                  options={slot.weapon_options}
-                  onAddOption={addWeaponOption}
-                  onRemoveOption={removeWeaponOption}
+                  options={slot.options.weapon}
+                  onAddOption={(n, i) => addOption('weapon', n, i)}
+                  onRemoveOption={(i) => removeOption('weapon', i)}
                   spells={slot.spells.weapon ?? []}
                   onAddSpell={(id) => addSpell('weapon', id)}
                   onRemoveSpell={(id) => removeSpell('weapon', id)}
                 />
 
-                <div className="grid grid-cols-2 gap-2">
-                  {SLOT_KEYS.filter((k) => k !== 'weapon').map((key) => {
-                    const itemId = slot.items[key].id || null
-                    return (
-                      <div key={key} className="space-y-1.5">
-                        <ItemPicker
-                          label={SLOT_LABELS[key]}
-                          category={key}
-                          itemName={slot.items[key].name || null}
-                          itemId={itemId}
-                          onChange={(name, id) => updateItem(key, name, id)}
-                          onClear={() => clearItem(key)}
-                        />
-                        <SpellPicker
-                          itemIds={itemId ? [itemId] : []}
-                          spells={slot.spells[key] ?? []}
-                          onAdd={(id) => addSpell(key, id)}
-                          onRemove={(id) => removeSpell(key, id)}
-                        />
-                      </div>
-                    )
-                  })}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {SLOT_KEYS.filter((k) => k !== 'weapon').map((key) => (
+                    <GearSection
+                      key={key}
+                      slotKey={key}
+                      mode={modes[key]}
+                      onModeChange={(m) => setGearMode(key, m)}
+                      singleName={slot.items[key].name || null}
+                      singleId={slot.items[key].id || null}
+                      onSingleChange={(n, i) => updateItem(key, n, i)}
+                      onSingleClear={() => clearItem(key)}
+                      options={slot.options[key]}
+                      onAddOption={(n, i) => addOption(key, n, i)}
+                      onRemoveOption={(i) => removeOption(key, i)}
+                      spells={slot.spells[key] ?? []}
+                      onAddSpell={(id) => addSpell(key, id)}
+                      onRemoveSpell={(id) => removeSpell(key, id)}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
@@ -347,14 +373,15 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
   )
 }
 
-interface WeaponSectionProps {
-  mode: WeaponMode
-  onModeChange: (mode: WeaponMode) => void
+interface GearSectionProps {
+  slotKey: SlotKey
+  mode: GearMode
+  onModeChange: (mode: GearMode) => void
   singleName: string | null
   singleId: string | null
   onSingleChange: (name: string, id: string) => void
   onSingleClear: () => void
-  options: WeaponOption[]
+  options: GearOption[]
   onAddOption: (name: string, id: string) => void
   onRemoveOption: (id: string) => void
   spells: string[]
@@ -362,9 +389,8 @@ interface WeaponSectionProps {
   onRemoveSpell: (id: string) => void
 }
 
-const MAX_WEAPON_OPTIONS = 6
-
-function WeaponSection({
+function GearSection({
+  slotKey,
   mode,
   onModeChange,
   singleName,
@@ -377,32 +403,33 @@ function WeaponSection({
   spells,
   onAddSpell,
   onRemoveSpell,
-}: WeaponSectionProps) {
-  // 'free' weapons have no item id — there's no pool to show. Multi-weapon
-  // merges pools across all options at the picker level.
+}: GearSectionProps) {
+  // 'free' has no item id — there's no pool to show. Multi merges pools
+  // across all options at the picker level.
   const pickerItemIds =
     mode === 'multi'
       ? options.map((o) => o.id).filter(Boolean)
       : mode === 'single' && singleId
         ? [singleId]
         : []
+  const category = SLOT_PICKER_CATEGORY[slotKey]
   return (
     <div className="border border-gray-800 rounded-lg p-3 space-y-2 bg-gray-950/40">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <span className="text-amber-400 text-[11px] font-semibold">{SLOT_LABELS.weapon}</span>
+        <span className="text-amber-400 text-[11px] font-semibold">{SLOT_LABELS[slotKey]}</span>
         <div className="inline-flex bg-gray-800 border border-gray-700 rounded-lg p-0.5 text-[11px] font-semibold">
-          {(['single', 'multi', 'free'] as WeaponMode[]).map((m) => (
+          {(['single', 'multi', 'free'] as GearMode[]).map((m) => (
             <button
               key={m}
               type="button"
               onClick={() => onModeChange(m)}
-              className={`px-2.5 py-1 rounded-md transition-colors ${
+              className={`px-2 py-0.5 rounded-md transition-colors ${
                 mode === m
                   ? 'bg-amber-500 text-black'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
-              {m === 'single' ? '단일 고정' : m === 'multi' ? '복수 허용' : '자유'}
+              {m === 'single' ? '단일' : m === 'multi' ? '복수' : '자유'}
             </button>
           ))}
         </div>
@@ -434,25 +461,28 @@ function WeaponSection({
               ))}
             </ul>
           )}
-          {options.length < MAX_WEAPON_OPTIONS ? (
-            <WeaponOptionPicker
+          {options.length < MAX_GEAR_OPTIONS ? (
+            <GearOptionPicker
+              category={category}
               disabledIds={options.map((o) => o.id)}
               onAdd={onAddOption}
               count={options.length}
             />
           ) : (
-            <p className="text-[11px] text-gray-500">최대 {MAX_WEAPON_OPTIONS}개까지 추가할 수 있습니다.</p>
+            <p className="text-[11px] text-gray-500">최대 {MAX_GEAR_OPTIONS}개까지 추가할 수 있습니다.</p>
           )}
           {options.length === 0 && (
             <p className="text-[11px] text-amber-300/80">
-              허용할 무기를 2개 이상 추가하세요. 구성원은 신청 시 이 중 하나를 고릅니다.
+              허용할 아이템을 2개 이상 추가하세요. 구성원은 신청 시 이 중 하나를 고릅니다.
             </p>
           )}
         </div>
+      ) : mode === 'free' ? (
+        <p className="text-[11px] text-emerald-300/90">자유 선택 — 구성원이 직접 아이템을 골라 장착합니다.</p>
       ) : (
         <ItemPicker
           label=""
-          category="weapon,mount"
+          category={category}
           itemName={singleName}
           itemId={singleId}
           onChange={onSingleChange}
@@ -470,11 +500,13 @@ function WeaponSection({
   )
 }
 
-function WeaponOptionPicker({
+function GearOptionPicker({
+  category,
   disabledIds,
   onAdd,
   count,
 }: {
+  category: string
   disabledIds: string[]
   onAdd: (name: string, id: string) => void
   count: number
@@ -486,7 +518,7 @@ function WeaponOptionPicker({
       <div className="flex-1">
         <ItemPicker
           label=""
-          category="weapon,mount"
+          category={category}
           itemName={name || null}
           itemId={id || null}
           onChange={(n, i) => {
@@ -502,7 +534,7 @@ function WeaponOptionPicker({
         />
       </div>
       <span className="text-gray-500 text-[10px] flex-shrink-0">
-        <Plus size={10} className="inline" /> {count}/{MAX_WEAPON_OPTIONS}
+        <Plus size={10} className="inline" /> {count}/{MAX_GEAR_OPTIONS}
       </span>
     </div>
   )

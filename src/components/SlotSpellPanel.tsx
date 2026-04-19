@@ -2,7 +2,7 @@ import { Sparkles } from 'lucide-react'
 import ItemImage from './ItemImage'
 import SpellImage from './SpellImage'
 import type { Slot, SlotKey } from '@/types'
-import { getSpells, getDisplayWeapon, isFreeItem } from '@/types'
+import { getSpells, getDisplayGear, isFreeItem } from '@/types'
 
 // Rows appear in this fixed top-to-bottom order. Offhand/potion/food/cape
 // are omitted because they carry no active spells in practice; if we ever
@@ -17,10 +17,7 @@ const SPELL_ICON_SIZE = 45
 type RowItem = { key: SpellRowKey; name: string | null; id: string | null; spells: string[] }
 
 function rowGear(slot: Slot, key: SpellRowKey): { name: string | null; id: string | null } {
-  if (key === 'weapon') {
-    return getDisplayWeapon(slot)
-  }
-  return { name: slot[`${key}_name`], id: slot[`${key}_id`] }
+  return getDisplayGear(slot, key as SlotKey)
 }
 
 // Displays a small "스킬 N" badge that reveals a 4-row gear+spells panel on
