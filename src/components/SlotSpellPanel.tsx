@@ -40,7 +40,7 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
         tabIndex={0}
         role="button"
         aria-label="장착 스킬 보기"
-        className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-200 border border-purple-500/30 hover:bg-purple-500/20 cursor-help focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+        className="inline-flex items-center gap-0.5 text-[12px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-200 border border-purple-500/30 hover:bg-purple-500/20 cursor-help focus:outline-none focus:ring-1 focus:ring-purple-500/50"
       >
         <Sparkles size={10} />
         스킬
@@ -54,7 +54,7 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
             {isFreeItem(name, id) ? (
               <div
                 style={{ width: GEAR_ICON_SIZE, height: GEAR_ICON_SIZE }}
-                className="flex items-center justify-center rounded bg-emerald-900/30 border border-emerald-600/50 text-emerald-300 font-bold text-[8px] flex-shrink-0"
+                className="flex items-center justify-center rounded bg-emerald-900/30 border border-emerald-600/50 text-emerald-300 font-bold text-[10px] flex-shrink-0"
               >
                 자유
               </div>
