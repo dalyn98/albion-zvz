@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { X, Sparkles } from 'lucide-react'
 import SpellImage from './SpellImage'
-import { MAX_SPELLS_PER_SLOT_ITEM, type SpellPoolEntry } from '@/types'
+import type { SpellPoolEntry } from '@/types'
 
 interface Props {
   // One or more item uniqueNames that own this picker. For single-weapon /
@@ -13,7 +13,6 @@ interface Props {
   spells: string[]
   onAdd: (uniqueName: string) => void
   onRemove: (uniqueName: string) => void
-  maxSpells?: number
 }
 
 function mergePools(pools: SpellPoolEntry[][]): SpellPoolEntry[] {
@@ -96,7 +95,6 @@ export default function SpellPicker({
   spells,
   onAdd,
   onRemove,
-  maxSpells = MAX_SPELLS_PER_SLOT_ITEM,
 }: Props) {
   // Tick forces a re-read from poolCache after an async fetch completes.
   // Using a counter rather than state-of-pool avoids sync setState in the
@@ -135,14 +133,11 @@ export default function SpellPicker({
   const anyUnfetched = itemIds.some((id) => !poolCache.has(id))
   const isLoading = hasItems && anyUnfetched
 
-  const canAddMore = spells.length < maxSpells
-
   const toggle = (spellId: string) => {
     if (spells.includes(spellId)) {
       onRemove(spellId)
       return
     }
-    if (!canAddMore) return
     onAdd(spellId)
   }
 
@@ -158,7 +153,7 @@ export default function SpellPicker({
       <div className="flex items-center justify-between">
         <span className="inline-flex items-center gap-1 text-[10px] text-purple-300 font-semibold">
           <Sparkles size={10} />
-          스킬 {spells.length}/{maxSpells}
+          스킬 {spells.length}
         </span>
         {isLoading && <span className="text-[10px] text-gray-500">로드 중...</span>}
       </div>
@@ -179,20 +174,16 @@ export default function SpellPicker({
               <div className="flex flex-wrap gap-1">
                 {group.spells.map((spellId) => {
                   const selected = spells.includes(spellId)
-                  const disabled = !selected && !canAddMore
                   return (
                     <button
                       key={spellId}
                       type="button"
                       onClick={() => toggle(spellId)}
-                      disabled={disabled}
                       title={spellId}
                       className={`relative rounded-md transition-all ${
                         selected
                           ? 'ring-2 ring-purple-400 scale-100'
-                          : disabled
-                            ? 'opacity-30 cursor-not-allowed'
-                            : 'opacity-60 hover:opacity-100 hover:ring-1 hover:ring-purple-500/50'
+                          : 'opacity-60 hover:opacity-100 hover:ring-1 hover:ring-purple-500/50'
                       }`}
                       aria-pressed={selected}
                     >

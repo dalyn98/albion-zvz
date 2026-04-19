@@ -84,8 +84,6 @@ export const SLOT_KEYS: SlotKey[] = ['weapon', 'head', 'armor', 'shoes', 'offhan
 // Icons are resolved at display time via render.albiononline.com/v1/spell/{uniquename}.png.
 export type SlotSpells = Partial<Record<SlotKey, string[]>>
 
-export const MAX_SPELLS_PER_SLOT_ITEM = 4
-
 // One entry in an item's craftable spell pool.
 // - `type` classifies by name prefix: 'passive' for PASSIVE_*, 'active'
 //   otherwise. items.xml has no explicit marker so we rely on the convention.
