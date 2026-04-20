@@ -54,7 +54,9 @@ export default function EventInfoForm({ initialEvent }: Props) {
       setError(t('titleRequired'))
       return
     }
-    const dt = parseGatherTime(parts)
+    const dt = parseGatherTime(parts, {
+      referenceIso: initialEvent?.gather_at ?? null,
+    })
     if (!dt) {
       setError(t('gatherTimeInvalid'))
       return

@@ -51,22 +51,38 @@ function kstPartsToDate(p: KstParts): Date {
   )
 }
 
-export function parseGatherTime(parts: GatherTimeParts): Date | null {
+export interface ParseGatherTimeOptions {
+  // When editing an existing event, pass its stored `gather_at` so the year
+  // is preserved. Without this, the past-roll-forward heuristic can silently
+  // bump an event's date forward one year on edit (e.g., editing a 3-week-old
+  // event to fix notes jumps it to next year).
+  referenceIso?: string | null
+}
+
+export function parseGatherTime(
+  parts: GatherTimeParts,
+  options?: ParseGatherTimeOptions,
+): Date | null {
   const { month, day, hour, minute } = parts
   if (!Number.isInteger(month) || month < 1 || month > 12) return null
   if (!Number.isInteger(day) || day < 1 || day > 31) return null
   if (!Number.isInteger(hour) || hour < 0 || hour > 23) return null
   if (!Number.isInteger(minute) || minute < 0 || minute > 59) return null
 
-  const nowKst = toKstParts(new Date())
-  let dt = kstPartsToDate({ year: nowKst.year, month, day, hour, minute })
+  const referenceIso = options?.referenceIso ?? null
+  const hasReference = Boolean(referenceIso)
+  const baseYear = hasReference
+    ? toKstParts(referenceIso as string).year
+    : toKstParts(new Date()).year
+  let dt = kstPartsToDate({ year: baseYear, month, day, hour, minute })
   // Catches impossible combos like 2/30 — JS rolls them to the next month.
   const check = toKstParts(dt)
   if (check.month !== month || check.day !== day) return null
-  // If the caller entered a date that's clearly in the past (more than a week),
-  // assume they meant next year — e.g., entering "1월 5일" in December.
-  if (dt.getTime() < Date.now() - PAST_ROLLFORWARD_MS) {
-    dt = kstPartsToDate({ year: nowKst.year + 1, month, day, hour, minute })
+  // Roll-forward heuristic only applies when creating (no reference). On edit
+  // we trust the stored year, otherwise stale events silently jump a year
+  // whenever the admin re-saves the form.
+  if (!hasReference && dt.getTime() < Date.now() - PAST_ROLLFORWARD_MS) {
+    dt = kstPartsToDate({ year: baseYear + 1, month, day, hour, minute })
   }
   return dt
 }
