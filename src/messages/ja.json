@@ -353,6 +353,8 @@
     "backToList": "イベント一覧",
     "info": "戦闘情報",
     "inProgress": "戦闘中 · {time} 開始",
+    "ended": "イベント終了",
+    "endedNotice": "イベントは終了しました。新規申請およびキャンセルはできません。結果は各メンバーの参加履歴で確認できます。",
     "startedNotice": "戦闘はすでに開始されています。スロットの<bold>申請は可能</bold>ですが、<bold>キャンセルはできません</bold>。申請した時点で参加確定とみなされます。リギア申請は左側の<bold>リギア申請</bold>タブから行えます。",
     "applicants": "申請 {assigned}/{total}",
     "noParties": "登録されたパーティーはありません。",
@@ -368,6 +370,8 @@
     "loginToApply": "ログインして申請",
     "battleStartedLocked": "戦闘開始 · キャンセル不可",
     "battleStartedTooltip": "戦闘が始まったためキャンセルできません。",
+    "eventFinalizedLocked": "イベント終了",
+    "eventFinalizedTooltip": "イベントが終了しているため、これ以上参加できません。",
     "cancelling": "キャンセル中...",
     "cancelApplication": "申請キャンセル",
     "cannotApply": "申請不可",
@@ -514,7 +518,9 @@
     "resolvedAt": "{status} {when}",
     "outcomeWin": "勝利",
     "outcomeLoss": "敗北",
-    "outcomePending": "結果待ち"
+    "outcomePending": "結果待ち",
+    "winsCount": "{count}勝",
+    "lossesCount": "{count}敗"
   },
   "requestExchange": {
     "pendingNotice": "処理待ちの両替申請があるため、新規申請はできません。",
@@ -570,7 +576,8 @@
     "notOwner": "自分で申請したスロットのみキャンセルできます。",
     "loginRequired": "ログインが必要です。",
     "noMemberRole": "申請できる役割がありません。",
-    "battleAlreadyStarted": "戦闘が既に開始されており、キャンセルできません。"
+    "battleAlreadyStarted": "戦闘が既に開始されており、キャンセルできません。",
+    "eventFinalized": "イベントが終了しているため、これ以上参加できません。"
   },
   "adminBattleOutcome": {
     "sectionTitle": "戦闘結果",

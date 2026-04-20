@@ -5,7 +5,7 @@ import type { Event, PartyWithSlots } from '@/types'
 import SlotCard from '@/components/SlotCard'
 import EventSlotSidebar from '@/components/EventSlotSidebar'
 import AutoRefresh from '@/components/AutoRefresh'
-import { Clock, MapPin, ArrowLeft, Swords, Info } from 'lucide-react'
+import { Clock, MapPin, ArrowLeft, Swords, Info, Lock } from 'lucide-react'
 import Link from 'next/link'
 import { getSession } from '@/lib/session'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
@@ -86,7 +86,11 @@ export default async function EventDetailPage({
         </Link>
 
         <div className={`bg-gray-900 border rounded-2xl p-4 sm:p-6 space-y-3 sm:space-y-4 ${
-          event.battle_started_at ? 'border-rose-500/40' : 'border-gray-700'
+          event.finalized_at
+            ? 'border-gray-600/60'
+            : event.battle_started_at
+              ? 'border-rose-500/40'
+              : 'border-gray-700'
         }`}>
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
@@ -95,14 +99,24 @@ export default async function EventDetailPage({
               </p>
               <h1 className="text-xl sm:text-2xl font-bold text-white">{event.title}</h1>
             </div>
-            {event.battle_started_at && (
+            {event.finalized_at ? (
+              <span className="inline-flex items-center gap-1.5 bg-gray-700/60 border border-gray-600 text-gray-200 text-sm font-bold px-2.5 py-1 rounded-full">
+                <Lock size={12} />
+                {t('ended')}
+              </span>
+            ) : event.battle_started_at && (
               <span className="inline-flex items-center gap-1.5 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-sm font-bold px-2.5 py-1 rounded-full">
                 <Swords size={12} />
                 {t('inProgress', { time: formatStartedAt(event.battle_started_at) })}
               </span>
             )}
           </div>
-          {event.battle_started_at && (
+          {event.finalized_at ? (
+            <div className="bg-gray-800/40 border border-gray-700 rounded-lg p-3 flex items-start gap-2">
+              <Info size={14} className="text-gray-300 flex-shrink-0 mt-0.5" />
+              <p className="text-gray-200 text-sm leading-relaxed">{t('endedNotice')}</p>
+            </div>
+          ) : event.battle_started_at && (
             <div className="bg-rose-500/10 border border-rose-500/30 rounded-lg p-3 flex items-start gap-2">
               <Info size={14} className="text-rose-300 flex-shrink-0 mt-0.5" />
               <p className="text-rose-200 text-sm leading-relaxed">
@@ -168,6 +182,7 @@ export default async function EventDetailPage({
                       currentDiscordId={session?.discordId ?? null}
                       loginHref={loginHref}
                       battleStarted={!!event.battle_started_at}
+                      eventFinalized={!!event.finalized_at}
                       assignedAvatar={slot.assigned_discord_id ? avatars[slot.assigned_discord_id] ?? null : null}
                     />
                   ))}

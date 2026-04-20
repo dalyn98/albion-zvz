@@ -353,6 +353,8 @@
     "backToList": "이벤트 목록",
     "info": "전투 정보",
     "inProgress": "전투 진행중 · {time} 시작",
+    "ended": "이벤트 종료",
+    "endedNotice": "이벤트가 종료되었습니다. 신규 신청 및 취소는 불가능합니다. 결과는 멤버 페이지의 참여 기록에서 확인할 수 있습니다.",
     "startedNotice": "전투가 이미 시작되었습니다. 슬롯 <bold>신청은 가능</bold>하지만, <bold>취소는 불가능</bold>합니다. 신청 시 참가 확정으로 간주됩니다. 리기어 신청은 좌측 <bold>리기어 신청</bold> 탭에서 하실 수 있습니다.",
     "applicants": "신청 {assigned}/{total}",
     "noParties": "등록된 파티가 없습니다.",
@@ -368,6 +370,8 @@
     "loginToApply": "로그인 후 신청",
     "battleStartedLocked": "전투 시작 · 취소 불가",
     "battleStartedTooltip": "전투가 시작되어 취소할 수 없습니다.",
+    "eventFinalizedLocked": "이벤트 종료",
+    "eventFinalizedTooltip": "이벤트가 종료되어 더 이상 참여할 수 없습니다.",
     "cancelling": "취소 중...",
     "cancelApplication": "신청 취소",
     "cannotApply": "신청 불가",
@@ -514,7 +518,9 @@
     "resolvedAt": "{status} {when}",
     "outcomeWin": "승리",
     "outcomeLoss": "패배",
-    "outcomePending": "결과 대기"
+    "outcomePending": "결과 대기",
+    "winsCount": "{count}승",
+    "lossesCount": "{count}패"
   },
   "requestExchange": {
     "pendingNotice": "처리 대기 중인 환전 신청이 있어 새로 신청할 수 없습니다.",
@@ -570,7 +576,8 @@
     "notOwner": "본인이 신청한 슬롯만 취소할 수 있습니다.",
     "loginRequired": "로그인이 필요합니다.",
     "noMemberRole": "신청할 수 있는 역할이 없습니다.",
-    "battleAlreadyStarted": "전투가 이미 시작되어 취소할 수 없습니다."
+    "battleAlreadyStarted": "전투가 이미 시작되어 취소할 수 없습니다.",
+    "eventFinalized": "이벤트가 종료되어 더 이상 참여할 수 없습니다."
   },
   "adminBattleOutcome": {
     "sectionTitle": "전투 결과",

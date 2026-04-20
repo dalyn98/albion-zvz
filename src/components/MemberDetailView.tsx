@@ -98,7 +98,21 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-white font-bold text-sm">{t('participatedEvents', { count: detail.events.length })}</h2>
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="text-white font-bold text-sm">{t('participatedEvents', { count: detail.events.length })}</h2>
+          {(() => {
+            const wins = detail.events.filter((e) => e.outcome === 'win').length
+            const losses = detail.events.filter((e) => e.outcome === 'loss').length
+            if (wins === 0 && losses === 0) return null
+            return (
+              <p className="text-xs text-gray-400">
+                <span className="text-emerald-300 font-semibold">{t('winsCount', { count: wins })}</span>
+                <span className="mx-1.5 text-gray-600">·</span>
+                <span className="text-rose-300 font-semibold">{t('lossesCount', { count: losses })}</span>
+              </p>
+            )
+          })()}
+        </div>
         {detail.events.length === 0 ? (
           <p className="text-gray-500 text-xs">{t('noEvents')}</p>
         ) : (

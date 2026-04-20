@@ -82,14 +82,29 @@ export async function assignSlot(
 
   // Hidden slots are intentionally invisible to members — guard the action so
   // a crafted request with a stale slot id can't silently bypass the UI hide.
-  const { data: hiddenCheck, error: hiddenLookupError } = await db
+  // Also pull the parent event's finalized_at so we can refuse assignment to
+  // events that already have a recorded outcome (event ended).
+  const { data: slotCheck, error: slotLookupError } = await db
     .from('slots')
-    .select('is_hidden')
+    .select('is_hidden, parties!inner(events!inner(finalized_at))')
     .eq('id', slotId)
     .maybeSingle()
-  if (hiddenLookupError) return { error: hiddenLookupError.message }
-  if (!hiddenCheck) return { error: tAction('slotNotFound') }
-  if (hiddenCheck.is_hidden) return { error: tAction('slotNotFound') }
+  if (slotLookupError) return { error: slotLookupError.message }
+  if (!slotCheck) return { error: tAction('slotNotFound') }
+  if (slotCheck.is_hidden) return { error: tAction('slotNotFound') }
+  const partyJoin = slotCheck.parties as
+    | { events: { finalized_at: string | null } | { finalized_at: string | null }[] }
+    | { events: { finalized_at: string | null } | { finalized_at: string | null }[] }[]
+    | null
+  const partyObj = Array.isArray(partyJoin) ? partyJoin[0] : partyJoin
+  const eventObj = partyObj
+    ? Array.isArray(partyObj.events)
+      ? partyObj.events[0]
+      : partyObj.events
+    : null
+  if (eventObj?.finalized_at) {
+    return { error: tAction('eventFinalized') }
+  }
 
   const { error } = await db.rpc('assign_slot', {
     p_slot_id: slotId,
@@ -124,18 +139,19 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
 
   const { data: partyRow, error: partyLookupError } = await db
     .from('parties')
-    .select('events(battle_started_at)')
+    .select('events(battle_started_at, finalized_at)')
     .eq('id', slotRow.party_id)
     .maybeSingle()
   if (partyLookupError) return { error: partyLookupError.message }
   const eventJoin = partyRow?.events as
-    | { battle_started_at: string | null }
-    | { battle_started_at: string | null }[]
+    | { battle_started_at: string | null; finalized_at: string | null }
+    | { battle_started_at: string | null; finalized_at: string | null }[]
     | null
-  const battleStartedAt = Array.isArray(eventJoin)
-    ? eventJoin[0]?.battle_started_at
-    : eventJoin?.battle_started_at
-  if (battleStartedAt) {
+  const eventState = Array.isArray(eventJoin) ? eventJoin[0] : eventJoin
+  if (eventState?.finalized_at) {
+    return { error: tAction('eventFinalized') }
+  }
+  if (eventState?.battle_started_at) {
     return { error: tAction('battleAlreadyStarted') }
   }
 

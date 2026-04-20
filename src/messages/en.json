@@ -353,6 +353,8 @@
     "backToList": "Event list",
     "info": "Battle info",
     "inProgress": "In battle · started {time}",
+    "ended": "Event ended",
+    "endedNotice": "This event has ended. Sign-ups and cancellations are closed. The recorded outcome appears on each member's participation history.",
     "startedNotice": "The battle has already started. You <bold>can still apply</bold> to slots, but you <bold>cannot cancel</bold>. Applying counts as committed participation. Submit regear requests from the <bold>Regear</bold> tab on the left.",
     "applicants": "Applied {assigned}/{total}",
     "noParties": "No parties registered.",
@@ -368,6 +370,8 @@
     "loginToApply": "Log in to apply",
     "battleStartedLocked": "Battle started · no cancel",
     "battleStartedTooltip": "Cannot cancel — the battle has started.",
+    "eventFinalizedLocked": "Event ended",
+    "eventFinalizedTooltip": "This event has ended; sign-ups are closed.",
     "cancelling": "Cancelling...",
     "cancelApplication": "Cancel application",
     "cannotApply": "Cannot apply",
@@ -514,7 +518,9 @@
     "resolvedAt": "{status} {when}",
     "outcomeWin": "Win",
     "outcomeLoss": "Loss",
-    "outcomePending": "Pending"
+    "outcomePending": "Pending",
+    "winsCount": "{count} W",
+    "lossesCount": "{count} L"
   },
   "requestExchange": {
     "pendingNotice": "You already have a pending exchange request, so you cannot apply again.",
@@ -570,7 +576,8 @@
     "notOwner": "You can only cancel slots you applied for.",
     "loginRequired": "Login required.",
     "noMemberRole": "You don't have an eligible role.",
-    "battleAlreadyStarted": "The battle has already started and cannot be cancelled."
+    "battleAlreadyStarted": "The battle has already started and cannot be cancelled.",
+    "eventFinalized": "This event has ended; new sign-ups are closed."
   },
   "adminBattleOutcome": {
     "sectionTitle": "Battle results",
