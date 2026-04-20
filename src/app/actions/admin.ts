@@ -104,11 +104,17 @@ export async function deleteEvent(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
+    // event_battles cascades (migration 023); regear_requests keeps history via SET NULL (migration 005).
     const { error } = await db.from('events').delete().eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard')
     revalidatePath('/')
     revalidatePath(`/events/${id}`)
+    revalidatePath('/me')
+    revalidatePath('/members')
+    revalidatePath('/members/[discordId]', 'page')
+    revalidatePath('/battle-records')
+    revalidatePath('/battle-records/[id]', 'page')
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

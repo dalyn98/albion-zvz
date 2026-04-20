@@ -62,7 +62,7 @@
     "badgeEnded": "Ended",
     "badgeBattleActive": "In battle",
     "badgeImminent": "Imminent",
-    "confirmDeleteEvent": "Delete this event? All builds and applications will also be removed.",
+    "confirmDeleteEvent": "Delete this event? Builds, applications, and battle records will be removed, and member/guild stats will reflect the deletion.",
     "notifyConfirm": "Re-send this event notification to Discord?\n@everyone will be pinged.",
     "notifyErrorPrefix": "Notification failed",
     "notifyTitle": "Send Discord notification",

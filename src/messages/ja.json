@@ -62,7 +62,7 @@
     "badgeEnded": "終了",
     "badgeBattleActive": "戦闘中",
     "badgeImminent": "戦闘間近",
-    "confirmDeleteEvent": "このイベントを削除しますか? ビルドと申請データもすべて削除されます。",
+    "confirmDeleteEvent": "このイベントを削除しますか? ビルド・申請・戦闘記録もすべて削除され、メンバー/ギルドの戦績にも反映されます。",
     "notifyConfirm": "このイベント通知を Discord に再送しますか?\n@everyone がタグされます。",
     "notifyErrorPrefix": "通知送信失敗",
     "notifyTitle": "Discord 通知を送る",

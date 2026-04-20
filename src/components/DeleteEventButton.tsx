@@ -5,7 +5,13 @@ import { useTranslations } from 'next-intl'
 import { Trash2 } from 'lucide-react'
 import { deleteEvent } from '@/app/actions/admin'
 
-export default function DeleteEventButton({ eventId }: { eventId: string }) {
+interface Props {
+  eventId: string
+  redirectTo?: string
+  variant?: 'icon' | 'labeled'
+}
+
+export default function DeleteEventButton({ eventId, redirectTo, variant = 'icon' }: Props) {
   const router = useRouter()
   const t = useTranslations('adminDashboard')
   const tCommon = useTranslations('common')
@@ -13,8 +19,28 @@ export default function DeleteEventButton({ eventId }: { eventId: string }) {
   const handleDelete = async () => {
     if (!confirm(t('confirmDeleteEvent'))) return
     const result = await deleteEvent(eventId)
-    if (result.error) alert(result.error)
-    else router.refresh()
+    if (result.error) {
+      alert(result.error)
+      return
+    }
+    if (redirectTo) {
+      router.push(redirectTo)
+      router.refresh()
+    } else {
+      router.refresh()
+    }
+  }
+
+  if (variant === 'labeled') {
+    return (
+      <button
+        onClick={handleDelete}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-300 hover:text-red-200 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500/50 rounded-lg transition-colors"
+      >
+        <Trash2 size={13} />
+        {tCommon('delete')}
+      </button>
+    )
   }
 
   return (

@@ -8,6 +8,7 @@ import EventSlotSidebar from '@/components/EventSlotSidebar'
 import SaveAsTemplateButton from '@/components/SaveAsTemplateButton'
 import LoadTemplateButton from '@/components/LoadTemplateButton'
 import BattleOutcomeEditor from '@/components/BattleOutcomeEditor'
+import DeleteEventButton from '@/components/DeleteEventButton'
 import { listTemplates } from '@/app/actions/templates'
 import { listOpponentGuilds } from '@/app/actions/opponent-guilds'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
@@ -65,7 +66,10 @@ export default async function EditEventPage({
   return (
     <div className="flex flex-col lg:flex-row lg:items-start lg:gap-6 space-y-4 lg:space-y-0">
       <div className="flex-1 min-w-0 space-y-6 sm:space-y-8">
-        <h1 className="text-xl sm:text-2xl font-bold text-white">{t('title')}</h1>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold text-white">{t('title')}</h1>
+          <DeleteEventButton eventId={event.id} redirectTo="/admin/dashboard" variant="labeled" />
+        </div>
         <EventInfoForm initialEvent={event} />
 
         {event.battle_started_at && (
