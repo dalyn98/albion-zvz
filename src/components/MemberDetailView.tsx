@@ -101,8 +101,14 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
         <div className="flex items-baseline justify-between gap-2">
           <h2 className="text-white font-bold text-sm">{t('participatedEvents', { count: detail.events.length })}</h2>
           {(() => {
-            const wins = detail.events.filter((e) => e.outcome === 'win').length
-            const losses = detail.events.filter((e) => e.outcome === 'loss').length
+            // Sum per-battle wins/losses across every participated event, so
+            // an event with 2 battles both won contributes 2 wins — not 1.
+            let wins = 0
+            let losses = 0
+            for (const e of detail.events) {
+              wins += e.battle_wins
+              losses += e.battle_losses
+            }
             if (wins === 0 && losses === 0) return null
             return (
               <p className="text-xs text-gray-400">
@@ -134,6 +140,13 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
                       {e.role}
                     </span>
                     <span className="text-white text-sm truncate flex-1">{e.event_title}</span>
+                    {e.battle_wins + e.battle_losses > 1 && (
+                      <span className="text-[10px] font-mono text-gray-400 flex-shrink-0">
+                        <span className="text-emerald-300">{e.battle_wins}</span>
+                        <span className="text-gray-600">/</span>
+                        <span className="text-rose-300">{e.battle_losses}</span>
+                      </span>
+                    )}
                     <OutcomeBadge
                       outcome={e.outcome}
                       labels={{

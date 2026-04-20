@@ -39,6 +39,10 @@ export interface MemberEventEntry {
   gather_at: string | null
   created_at: string
   outcome: 'win' | 'loss' | null
+  // Per-battle breakdown for this event (from event_battles). Used for
+  // aggregate totals that count each battle separately rather than each event.
+  battle_wins: number
+  battle_losses: number
 }
 
 export interface MemberRegearEntry {
@@ -99,10 +103,10 @@ export interface GuildAggregateStats {
   endDate: string
 }
 
-// /members 최상단 요약용. outcome 이 집계된(finalized_at 이 있고 outcome !== null)
-// 이벤트들을 기준으로 승/패 합산, 그리고 그 범위의 event_battles 에서 등장한
-// 상대 길드 종류 수를 센다. 관리자 설정의 날짜 필터(members_aggregate_*_date)
-// 가 설정되면 events.battle_started_at 이 그 안에 들어오는 이벤트만 센다.
+// /members 최상단 요약용. event_battles 의 outcome 을 그대로 세서 전투 단위로
+// 승/패를 합산한다 (한 이벤트에서 2번 싸워 모두 이기면 2승). 같은 쿼리에서
+// 등장한 상대 길드 종류 수도 센다. 관리자 설정의 날짜 필터는
+// events.battle_started_at 에 적용한다.
 export async function getGuildAggregateStats(): Promise<{
   stats: GuildAggregateStats | null
   error?: string
@@ -118,49 +122,37 @@ export async function getGuildAggregateStats(): Promise<{
     ])
 
     const db = getAdminClient()
-    let eventQuery = db
-      .from('events')
-      .select('id, outcome, battle_started_at')
-      .not('outcome', 'is', null)
     // Admin-entered dates are KST calendar days — anchor both bounds to KST
     // midnight so the filter includes everything from "YYYY-MM-DD 00:00 KST"
     // through "YYYY-MM-DD 23:59 KST", not the UTC equivalent that would
     // drift the window by 9 hours.
-    if (startDate) eventQuery = eventQuery.gte('battle_started_at', `${startDate}T00:00:00+09:00`)
-    if (endDate) eventQuery = eventQuery.lte('battle_started_at', `${endDate}T23:59:59+09:00`)
+    let battleQuery = db
+      .from('event_battles')
+      .select('outcome, opponent_guild_id, opponent_guild, events!inner(battle_started_at)')
+    if (startDate)
+      battleQuery = battleQuery.gte('events.battle_started_at', `${startDate}T00:00:00+09:00`)
+    if (endDate)
+      battleQuery = battleQuery.lte('events.battle_started_at', `${endDate}T23:59:59+09:00`)
 
-    const eventsRes = await eventQuery
-    if (eventsRes.error) return { stats: null, error: eventsRes.error.message }
-    const events = eventsRes.data ?? []
-    const eventIds = events.map((e) => e.id)
+    const battlesRes = await battleQuery
+    if (battlesRes.error) return { stats: null, error: battlesRes.error.message }
 
     let wins = 0
     let losses = 0
-    for (const e of events) {
-      if (e.outcome === 'win') wins++
-      else if (e.outcome === 'loss') losses++
-    }
-
-    let distinctOpponents = 0
-    if (eventIds.length > 0) {
-      const battlesRes = await db
-        .from('event_battles')
-        .select('opponent_guild_id, opponent_guild')
-        .in('event_id', eventIds)
-      if (battlesRes.error) return { stats: null, error: battlesRes.error.message }
-      const keys = new Set<string>()
-      for (const row of battlesRes.data ?? []) {
-        // FK 가 백필된 행은 id 로, 아직 FK 가 연결 안 된 레거시 행은 정규화된
-        // 이름으로 dedupe. 같은 길드가 두 방식으로 카운트돼 부풀지 않도록 우선순위:
-        // id 가 있으면 id, 없으면 lowercase trim.
-        if (row.opponent_guild_id) keys.add(`id:${row.opponent_guild_id}`)
-        else if (row.opponent_guild) keys.add(`name:${row.opponent_guild.trim().toLowerCase()}`)
-      }
-      distinctOpponents = keys.size
+    // FK 가 백필된 행은 id 로, 아직 FK 가 연결 안 된 레거시 행은 정규화된
+    // 이름으로 dedupe. 같은 길드가 두 방식으로 카운트돼 부풀지 않도록 우선순위:
+    // id 가 있으면 id, 없으면 lowercase trim.
+    const opponentKeys = new Set<string>()
+    for (const row of battlesRes.data ?? []) {
+      if (row.outcome === 'win') wins++
+      else if (row.outcome === 'loss') losses++
+      if (row.opponent_guild_id) opponentKeys.add(`id:${row.opponent_guild_id}`)
+      else if (row.opponent_guild)
+        opponentKeys.add(`name:${row.opponent_guild.trim().toLowerCase()}`)
     }
 
     return {
-      stats: { wins, losses, distinctOpponents, startDate, endDate },
+      stats: { wins, losses, distinctOpponents: opponentKeys.size, startDate, endDate },
     }
   } catch (e) {
     return { stats: null, error: e instanceof Error ? e.message : tErr('serverError') }
@@ -409,7 +401,27 @@ async function fetchMemberDetail(discordId: string): Promise<{
           gather_at: event.gather_at,
           created_at: event.created_at,
           outcome: event.outcome,
+          battle_wins: 0,
+          battle_losses: 0,
         })
+      }
+    }
+
+    // Fetch per-battle outcomes for all participated events so the UI can show
+    // per-battle wins/losses (user request: one event with 2 battles both won
+    // should count as 2 wins, not 1).
+    const participatedEventIds = Array.from(eventsMap.keys())
+    if (participatedEventIds.length > 0) {
+      const battlesRes = await db
+        .from('event_battles')
+        .select('event_id, outcome')
+        .in('event_id', participatedEventIds)
+      if (battlesRes.error) return { detail: null, error: battlesRes.error.message }
+      for (const row of battlesRes.data ?? []) {
+        const entry = eventsMap.get(row.event_id)
+        if (!entry) continue
+        if (row.outcome === 'win') entry.battle_wins++
+        else if (row.outcome === 'loss') entry.battle_losses++
       }
     }
 
