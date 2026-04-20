@@ -9,6 +9,7 @@
     "members": "ギルドメンバー",
     "battleRecords": "戦闘記録",
     "myWallet": "マイウォレット",
+    "mySettings": "設定",
     "eventAdmin": "イベント管理",
     "templates": "テンプレート",
     "regearReview": "リギア審査",
@@ -581,6 +582,11 @@
   },
   "myProfile": {
     "notRegistered": "ギルドメンバー情報がまだ登録されていません。再ログインすると自動的に登録されます。"
+  },
+  "mySettings": {
+    "title": "設定",
+    "description": "通知や個人設定を一箇所で管理します。",
+    "notificationsGroup": "通知"
   },
   "memberDetail": {
     "recentLogin": "最近のログイン: {date}",

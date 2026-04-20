@@ -9,6 +9,7 @@
     "members": "Guild members",
     "battleRecords": "Battle records",
     "myWallet": "My wallet",
+    "mySettings": "Settings",
     "eventAdmin": "Event admin",
     "templates": "Templates",
     "regearReview": "Regear review",
@@ -581,6 +582,11 @@
   },
   "myProfile": {
     "notRegistered": "Your guild member record hasn't been registered yet. Logging in again will register you automatically."
+  },
+  "mySettings": {
+    "title": "Settings",
+    "description": "Manage notifications and personal preferences in one place.",
+    "notificationsGroup": "Notifications"
   },
   "memberDetail": {
     "recentLogin": "Last login: {date}",

@@ -3,8 +3,6 @@ import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getMyMemberDetail } from '@/app/actions/members-admin'
 import MemberDetailView from '@/components/MemberDetailView'
-import PushToggle from '@/components/PushToggle'
-import { getPublicVapidKey } from '@/lib/web-push'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +16,6 @@ export default async function MyProfilePage() {
     getMyMemberDetail(),
     getTranslations('myProfile'),
   ])
-  const vapidPublicKey = getPublicVapidKey()
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -33,8 +30,6 @@ export default async function MyProfilePage() {
       )}
 
       {detail && <MemberDetailView detail={detail} showDiscordId={false} />}
-
-      <PushToggle publicKey={vapidPublicKey} />
     </main>
   )
 }

@@ -44,6 +44,7 @@ const MEMBER_NAV: NavItem[] = [
   { href: '/members', labelKey: 'members', icon: Users },
   { href: '/battle-records', labelKey: 'battleRecords', icon: Swords },
   { href: '/me', labelKey: 'myWallet', icon: Wallet, exact: true, memberOnly: true },
+  { href: '/me/settings', labelKey: 'mySettings', icon: Settings },
 ]
 
 const ADMIN_NAV: NavItem[] = [
