@@ -27,7 +27,9 @@ async function getEvent(id: string) {
 
   const sorted = (parties ?? []).map((p) => ({
     ...p,
-    slots: [...(p.slots ?? [])].sort((a, b) => a.slot_number - b.slot_number),
+    slots: [...(p.slots ?? [])]
+      .filter((s) => !s.is_hidden)
+      .sort((a, b) => a.slot_number - b.slot_number),
   })) as PartyWithSlots[]
 
   return { event: event as Event | null, parties: sorted }

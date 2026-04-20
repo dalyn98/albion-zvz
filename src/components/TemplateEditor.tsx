@@ -54,6 +54,7 @@ function templateToPartyStates(data: TemplateData): PartyState[] {
       party_number: partyNumber,
       slots: (party?.slots ?? []).map((s) => ({
         slot_number: s.slot_number,
+        is_hidden: false,
         role_name: s.role_name ?? '',
         notes: s.notes ?? '',
         assigned_username: null,

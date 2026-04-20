@@ -5,7 +5,7 @@ import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { verifyDeathInWindow } from '@/lib/killboard'
-import type { RegearType } from '@/types'
+import { SLOT_KEYS, getDisplayGear, type BuildSnapshot, type RegearType, type SlotGearDisplay, type SlotKey } from '@/types'
 
 // User-facing regear actions. Admin-side lives in `regear-admin.ts`.
 
@@ -14,6 +14,18 @@ const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024 // 10 MiB — must match bucket li
 const REGEAR_WINDOW_MINUTES = 60
 
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp'])
+
+function buildSnapshotFromSlot(slot: SlotGearDisplay, roleName: string): BuildSnapshot {
+  const gear = SLOT_KEYS.reduce(
+    (acc, k) => {
+      const { name, id } = getDisplayGear(slot, k)
+      acc[k] = { name: name ?? null, id: id ?? null }
+      return acc
+    },
+    {} as Record<SlotKey, { name: string | null; id: string | null }>,
+  )
+  return { role_name: roleName || null, ...gear }
+}
 
 export interface MyRegearRequest {
   id: string
@@ -28,6 +40,7 @@ export interface MyRegearRequest {
   admin_notes: string | null
   created_at: string
   resolved_at: string | null
+  build_snapshot: BuildSnapshot | null
 }
 
 export interface MyPointsSummary {
@@ -66,10 +79,15 @@ export async function requestRegear(
 
   const db = getAdminClient()
 
-  // 1) Must be assigned to a slot with a role in that event.
+  // 1) Must be assigned to a slot with a role in that event. Pull the full
+  //    gear so we can snapshot the build — the regear admin uses this to
+  //    verify in-game that the member wore what they applied with. Columns
+  //    are spelled out because Supabase's select parser needs a literal.
   const { data: slot, error: slotError } = await db
     .from('slots')
-    .select('role_name, parties!inner(event_id)')
+    .select(
+      'role_name, weapon_name, weapon_id, head_name, head_id, armor_name, armor_id, shoes_name, shoes_id, offhand_name, offhand_id, potion_name, potion_id, food_name, food_id, cape_name, cape_id, assigned_weapon_name, assigned_weapon_id, assigned_head_name, assigned_head_id, assigned_armor_name, assigned_armor_id, assigned_shoes_name, assigned_shoes_id, assigned_offhand_name, assigned_offhand_id, assigned_potion_name, assigned_potion_id, assigned_food_name, assigned_food_id, assigned_cape_name, assigned_cape_id, parties!inner(event_id)',
+    )
     .eq('assigned_discord_id', session.discordId)
     .eq('parties.event_id', eventId)
     .maybeSingle()
@@ -77,6 +95,8 @@ export async function requestRegear(
   if (!slot) return { error: tErr('noAssignedSlot') }
   const roleName = (slot.role_name ?? '').trim()
   if (!roleName) return { error: tErr('slotRoleMissing') }
+
+  const buildSnapshot = buildSnapshotFromSlot(slot as unknown as SlotGearDisplay, roleName)
 
   // 2) Duplicate request guard (partial; DB unique index is the hard guard).
   const { data: existing, error: existingError } = await db
@@ -159,6 +179,7 @@ export async function requestRegear(
       killboard_verified: kbResult.verified,
       killboard_event_id: kbResult.matchedEventId,
       admin_notes: kbResult.reason, // Shown to admin as the killboard hint.
+      build_snapshot: buildSnapshot,
     })
     .select('id')
     .single()
@@ -223,7 +244,7 @@ export async function listMyRegearRequests(): Promise<{
   const { data, error } = await db
     .from('regear_requests')
     .select(
-      'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, status, killboard_verified, admin_notes, created_at, resolved_at, events(title)',
+      'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, status, killboard_verified, admin_notes, created_at, resolved_at, build_snapshot, events(title)',
     )
     .eq('discord_id', session.discordId)
     .order('created_at', { ascending: false })
@@ -246,6 +267,7 @@ export async function listMyRegearRequests(): Promise<{
       admin_notes: row.admin_notes,
       created_at: row.created_at,
       resolved_at: row.resolved_at,
+      build_snapshot: (row.build_snapshot as BuildSnapshot | null) ?? null,
     }
   })
   return { requests }

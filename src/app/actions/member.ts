@@ -78,7 +78,20 @@ export async function assignSlot(
   }
   const payload = Object.keys(cleanPicks).length > 0 ? cleanPicks : null
 
-  const { error } = await getAdminClient().rpc('assign_slot', {
+  const db = getAdminClient()
+
+  // Hidden slots are intentionally invisible to members — guard the action so
+  // a crafted request with a stale slot id can't silently bypass the UI hide.
+  const { data: hiddenCheck, error: hiddenLookupError } = await db
+    .from('slots')
+    .select('is_hidden')
+    .eq('id', slotId)
+    .maybeSingle()
+  if (hiddenLookupError) return { error: hiddenLookupError.message }
+  if (!hiddenCheck) return { error: tAction('slotNotFound') }
+  if (hiddenCheck.is_hidden) return { error: tAction('slotNotFound') }
+
+  const { error } = await db.rpc('assign_slot', {
     p_slot_id: slotId,
     p_discord_id: session.discordId,
     p_username: session.username,

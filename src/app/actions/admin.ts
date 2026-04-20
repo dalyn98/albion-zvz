@@ -152,6 +152,7 @@ export async function resetBattleStart(id: string): Promise<{ error?: string }> 
 interface SlotPayload {
   id?: string
   slot_number: number
+  is_hidden: boolean
   role_name: string
   notes: string
   items: Record<SlotKey, { name: string; id: string }>
@@ -204,6 +205,7 @@ function slotToRow(partyId: string, slot: SlotPayload) {
   return {
     party_id: partyId,
     slot_number: slot.slot_number,
+    is_hidden: slot.is_hidden,
     role_name: slot.role_name.trim() || null,
     notes: slot.notes.trim() || null,
     spells: sanitizeSpells(slot.spells),

@@ -122,7 +122,8 @@
     "reject": "Reject",
     "rejectPlaceholder": "Reason (optional)",
     "rejectConfirm": "Confirm reject",
-    "resolvedAt": "{status} at {datetime}"
+    "resolvedAt": "{status} at {datetime}",
+    "appliedBuild": "Applied build"
   },
   "adminExchangeReview": {
     "pageTitle": "Exchange requests",
@@ -243,7 +244,12 @@
     "maxOptionsReached": "Up to {max} items can be added.",
     "addMultiHint": "Add 2 or more allowed items. Members pick one at apply time.",
     "freeHint": "Free choice — members pick and equip any item themselves.",
-    "buildName": "{role} build"
+    "buildName": "{role} build",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "hide": "Hide",
+    "show": "Show",
+    "hiddenBadge": "Hidden"
   },
   "adminRoleRewards": {
     "noRoles": "No roles registered.",

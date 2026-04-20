@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
-import type { RegearType } from '@/types'
+import type { BuildSnapshot, RegearType } from '@/types'
 
 const SCREENSHOT_BUCKET = 'regear-screenshots'
 // Signed URLs only need to live long enough for an admin to review. 10 min.
@@ -27,6 +27,7 @@ export interface AdminRegearRequest {
   admin_notes: string | null
   created_at: string
   resolved_at: string | null
+  build_snapshot: BuildSnapshot | null
 }
 
 export interface AdminExchangeRequest {
@@ -56,7 +57,7 @@ export async function listRegearRequests(
     let query = db
       .from('regear_requests')
       .select(
-        'id, event_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, screenshot_path, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, events(title)',
+        'id, event_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, screenshot_path, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, build_snapshot, events(title)',
       )
       .order('created_at', { ascending: false })
     if (scope === 'pending') query = query.eq('status', 'pending')
@@ -85,6 +86,7 @@ export async function listRegearRequests(
         admin_notes: row.admin_notes,
         created_at: row.created_at,
         resolved_at: row.resolved_at,
+        build_snapshot: (row.build_snapshot as BuildSnapshot | null) ?? null,
       }
     })
     return { requests }

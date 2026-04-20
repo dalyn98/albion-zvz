@@ -43,13 +43,13 @@ async function getActiveEvents(): Promise<EventWithCounts[]> {
   const ids = (events as Event[]).map((e) => e.id)
   const { data: parties } = await supabase
     .from('parties')
-    .select('event_id, slots(id, assigned_discord_id)')
+    .select('event_id, slots(id, assigned_discord_id, is_hidden)')
     .in('event_id', ids)
 
   const totals = new Map<string, { total: number; assigned: number }>()
-  for (const p of (parties ?? []) as { event_id: string; slots: { id: string; assigned_discord_id: string | null }[] | null }[]) {
+  for (const p of (parties ?? []) as { event_id: string; slots: { id: string; assigned_discord_id: string | null; is_hidden: boolean }[] | null }[]) {
     const current = totals.get(p.event_id) ?? { total: 0, assigned: 0 }
-    const slots = p.slots ?? []
+    const slots = (p.slots ?? []).filter((s) => !s.is_hidden)
     current.total += slots.length
     current.assigned += slots.filter((s) => s.assigned_discord_id).length
     totals.set(p.event_id, current)

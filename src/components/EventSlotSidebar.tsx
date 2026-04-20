@@ -132,9 +132,10 @@ function countArmor(parties: PartyWithSlots[], keywords: readonly string[]): num
   let count = 0
   for (const p of parties) {
     for (const s of p.slots) {
-      // Use the display-priority name so multi-option armor slots are counted
-      // once a member has actually picked — pre-pick, armor_name is null and
-      // we have no single "this slot is armor X" answer yet.
+      // Only count slots a member has actually joined. Fixed armor in an
+      // unassigned slot is a plan, not a confirmed wear — counting it inflates
+      // the "이 전투에 갑옷 X개 온다" number that callers use for balance.
+      if (!s.assigned_discord_id) continue
       const name = getDisplayGear(s, 'armor').name?.toLowerCase()
       if (name && keywords.some((k) => name.includes(k.toLowerCase()))) count++
     }

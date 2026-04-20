@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Check, X, ShieldCheck, ShieldAlert, ImageIcon, Loader2, ZoomIn, ChevronUp } from 'lucide-react'
+import { Check, X, ShieldCheck, ShieldAlert, ImageIcon, Loader2, ZoomIn, ChevronUp, Swords } from 'lucide-react'
 import {
   approveRegearRequest,
   rejectRegearRequest,
@@ -12,8 +12,9 @@ import {
 } from '@/app/actions/regear-admin'
 import { formatSilver } from '@/lib/silver'
 import { formatDateTimeShort } from '@/lib/format-datetime'
-import { regearPayoutSilver } from '@/types'
+import { SLOT_KEYS, regearPayoutSilver, type BuildSnapshot, type SlotKey } from '@/types'
 import ImageLightbox from './ImageLightbox'
+import ItemImage from './ItemImage'
 import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
@@ -152,6 +153,8 @@ function RegearRow({ request, avatar }: { request: AdminRegearRequest; avatar: s
         )}
       </div>
 
+      {request.build_snapshot && <BuildSnapshotStrip snapshot={request.build_snapshot} />}
+
       {request.admin_notes && (
         <p className="text-gray-400 text-xs italic bg-gray-800/50 rounded px-3 py-2">
           {request.admin_notes}
@@ -274,5 +277,35 @@ function RegearRow({ request, avatar }: { request: AdminRegearRequest; avatar: s
         <ImageLightbox src={screenshotUrl} alt={t('screenshotAlt')} onClose={() => setZoomed(false)} />
       )}
     </li>
+  )
+}
+
+// Frozen at request time so admins can verify in-game what the member actually
+// wore — the live slot may have been re-assigned or edited since.
+function BuildSnapshotStrip({ snapshot }: { snapshot: BuildSnapshot }) {
+  const t = useTranslations('adminRegearReview')
+  const tGear = useTranslations('gear')
+  return (
+    <div className="space-y-1.5 border-t border-gray-800 pt-2.5">
+      <div className="flex items-center gap-2 text-xs text-gray-400">
+        <Swords size={12} />
+        <span className="font-semibold text-gray-300">{t('appliedBuild')}</span>
+        {snapshot.role_name && (
+          <span className="bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded text-[11px] font-semibold">
+            {snapshot.role_name}
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {SLOT_KEYS.map((key: SlotKey) => {
+          const item = snapshot[key]
+          return (
+            <div key={key} className="flex flex-col items-center" title={tGear(key)}>
+              <ItemImage itemId={item.id} itemName={item.name} size={36} hoverPreview />
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }

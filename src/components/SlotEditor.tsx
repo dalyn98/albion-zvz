@@ -25,6 +25,7 @@ export type GearMode = 'single' | 'multi' | 'free'
 export interface SlotInput {
   id?: string
   slot_number: number
+  is_hidden: boolean
   role_name: string
   notes: string
   items: Record<SlotKey, { name: string; id: string }>
@@ -45,6 +46,7 @@ function emptyPerSlot<T>(fill: () => T): Record<SlotKey, T> {
 export function emptySlotInput(slotNumber: number): SlotInput {
   return {
     slot_number: slotNumber,
+    is_hidden: false,
     role_name: '',
     notes: '',
     items: emptyPerSlot(() => ({ name: '', id: '' })),

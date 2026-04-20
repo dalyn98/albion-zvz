@@ -122,7 +122,8 @@
     "reject": "却下",
     "rejectPlaceholder": "却下理由 (任意)",
     "rejectConfirm": "却下確定",
-    "resolvedAt": "{status} 処理: {datetime}"
+    "resolvedAt": "{status} 処理: {datetime}",
+    "appliedBuild": "申請ビルド"
   },
   "adminExchangeReview": {
     "pageTitle": "両替申請",
@@ -243,7 +244,12 @@
     "maxOptionsReached": "最大 {max} 個まで追加できます。",
     "addMultiHint": "許可するアイテムを 2 個以上追加してください。メンバーは応募時にその中から 1 つを選びます。",
     "freeHint": "自由選択 — メンバーが自分でアイテムを選んで装備します。",
-    "buildName": "{role} ビルド"
+    "buildName": "{role} ビルド",
+    "moveUp": "上へ移動",
+    "moveDown": "下へ移動",
+    "hide": "非表示",
+    "show": "表示",
+    "hiddenBadge": "非表示"
   },
   "adminRoleRewards": {
     "noRoles": "登録された役割がありません。",

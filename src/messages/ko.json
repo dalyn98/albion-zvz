@@ -122,7 +122,8 @@
     "reject": "거절",
     "rejectPlaceholder": "거절 사유 (선택)",
     "rejectConfirm": "거절 확정",
-    "resolvedAt": "{status} 처리: {datetime}"
+    "resolvedAt": "{status} 처리: {datetime}",
+    "appliedBuild": "신청 빌드"
   },
   "adminExchangeReview": {
     "pageTitle": "환전 신청",
@@ -243,7 +244,12 @@
     "maxOptionsReached": "최대 {max}개까지 추가할 수 있습니다.",
     "addMultiHint": "허용할 아이템을 2개 이상 추가하세요. 구성원은 신청 시 이 중 하나를 고릅니다.",
     "freeHint": "자유 선택 — 구성원이 직접 아이템을 골라 장착합니다.",
-    "buildName": "{role} 빌드"
+    "buildName": "{role} 빌드",
+    "moveUp": "위로 이동",
+    "moveDown": "아래로 이동",
+    "hide": "숨김",
+    "show": "보기",
+    "hiddenBadge": "숨김"
   },
   "adminRoleRewards": {
     "noRoles": "등록된 역할이 없습니다.",

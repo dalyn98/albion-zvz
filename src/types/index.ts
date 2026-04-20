@@ -28,6 +28,9 @@ export interface Slot {
   id: string
   party_id: string
   slot_number: number
+  // Admins can hide individual builds so members don't see them in the event
+  // sidebar. Assignment data is preserved so unhiding restores the slot as-is.
+  is_hidden: boolean
   role_name: string | null
   notes: string | null
   weapon_name: string | null; weapon_id: string | null
@@ -170,6 +173,18 @@ export interface AlbionItem {
   uniqueName: string
   displayName: string
 }
+
+// Regear 신청 시점에 고정되는 gear 정보. 슬롯이 이후 편집·삭제되어도 관리자
+// 검증(인게임에서 실제 착용 확인)을 위해 스냅샷으로 보존. 각 키는 assigned
+// 우선, 없으면 고정 gear(`{kind}_name`/`{kind}_id`) 규칙으로 채운다.
+export interface GearSnapshotItem {
+  name: string | null
+  id: string | null
+}
+
+export type BuildSnapshot = {
+  role_name: string | null
+} & Record<SlotKey, GearSnapshotItem>
 
 // Sentinel name stored in `{slot}_name` with a null `{slot}_id` to mark the slot as
 // "free choice" — the assigned member picks their own item for this slot.
