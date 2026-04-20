@@ -76,6 +76,9 @@ export interface Slot {
   spells: SlotSpells | null
   assigned_discord_id: string | null
   assigned_username: string | null
+  // Set by admin when a signed-up member actually showed up in-game. NULL
+  // after battle start means "no-show". See migration 027.
+  attended_at: string | null
   assigned_weapon_name: string | null;  assigned_weapon_id: string | null
   assigned_head_name: string | null;    assigned_head_id: string | null
   assigned_armor_name: string | null;   assigned_armor_id: string | null

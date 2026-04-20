@@ -8,6 +8,7 @@ import EventSlotSidebar from '@/components/EventSlotSidebar'
 import SaveAsTemplateButton from '@/components/SaveAsTemplateButton'
 import LoadTemplateButton from '@/components/LoadTemplateButton'
 import BattleOutcomeEditor from '@/components/BattleOutcomeEditor'
+import AttendanceEditor from '@/components/AttendanceEditor'
 import DeleteEventButton from '@/components/DeleteEventButton'
 import { listTemplates } from '@/app/actions/templates'
 import { listOpponentGuilds } from '@/app/actions/opponent-guilds'
@@ -79,6 +80,10 @@ export default async function EditEventPage({
             currentOutcome={event.outcome}
             opponentGuilds={opponentGuilds}
           />
+        )}
+
+        {event.battle_started_at && (
+          <AttendanceEditor eventId={event.id} parties={parties} avatars={avatars} />
         )}
 
         <div className="lg:hidden">

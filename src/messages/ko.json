@@ -672,6 +672,24 @@
     "reset": "초기화",
     "resetConfirm": "전투 기록과 결과를 모두 삭제할까요?"
   },
+  "adminAttendance": {
+    "sectionTitle": "참석 체크",
+    "description": "신청한 길드원 중 실제 전투에 참석한 인원을 체크합니다. 체크되지 않은 인원은 노쇼로 집계됩니다.",
+    "summary": "{attended}/{total}명 참석",
+    "empty": "아직 신청자가 없습니다.",
+    "markAll": "전원 참석",
+    "clearAll": "전원 해제",
+    "confirmMarkAll": "모든 신청자를 참석으로 체크할까요?",
+    "confirmClearAll": "참석 체크를 모두 해제할까요?",
+    "party": "{number}파티",
+    "slotLabel": "{slot}번",
+    "attended": "참석",
+    "noShow": "노쇼",
+    "attendedAt": "{datetime} 체크",
+    "toastMarked": "참석으로 체크했어요.",
+    "toastUnmarked": "참석 체크를 해제했어요.",
+    "toastBulk": "{count}명 업데이트했어요."
+  },
   "adminOpponentGuilds": {
     "pageTitle": "상대 길드",
     "pageDescription": "전투 기록에서 상대로 등장하는 길드를 주소록처럼 관리합니다. 여기서 등록된 길드만 전투 편집 화면의 선택지로 노출됩니다.",
@@ -740,6 +758,7 @@
     "bannerWrongType": "PNG, JPG, WEBP, GIF 파일만 업로드할 수 있습니다.",
     "bannerUploadFailed": "업로드 실패: {reason}",
     "battleNotStarted": "전투 시작 전에는 결과를 저장할 수 없습니다.",
+    "attendanceSlotEmpty": "신청자가 없는 슬롯은 참석 체크할 수 없습니다.",
     "emptyBattles": "전투 기록을 하나 이상 입력해주세요.",
     "tooManyBattles": "전투는 최대 {max}회까지 입력할 수 있습니다.",
     "invalidBattleNumber": "전투 번호가 올바르지 않습니다.",

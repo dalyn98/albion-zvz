@@ -672,6 +672,24 @@
     "reset": "リセット",
     "resetConfirm": "戦闘記録と結果をすべて削除しますか?"
   },
+  "adminAttendance": {
+    "sectionTitle": "参加チェック",
+    "description": "申請したギルドメンバーのうち、実際の戦闘に参加した人を確認します。チェックされていないメンバーは不参加として集計されます。",
+    "summary": "{attended}/{total}名が参加",
+    "empty": "まだ申請者がいません。",
+    "markAll": "全員参加",
+    "clearAll": "すべて解除",
+    "confirmMarkAll": "すべての申請者を参加にチェックしますか？",
+    "confirmClearAll": "参加チェックをすべて解除しますか？",
+    "party": "パーティー {number}",
+    "slotLabel": "スロット {slot}",
+    "attended": "参加",
+    "noShow": "不参加",
+    "attendedAt": "{datetime} チェック",
+    "toastMarked": "参加としてチェックしました。",
+    "toastUnmarked": "参加チェックを解除しました。",
+    "toastBulk": "{count}名更新しました。"
+  },
   "adminOpponentGuilds": {
     "pageTitle": "対戦ギルド",
     "pageDescription": "戦闘記録に登場する相手ギルドをアドレス帳のように管理します。ここに登録されたギルドのみが戦闘編集画面の選択肢として表示されます。",
@@ -740,6 +758,7 @@
     "bannerWrongType": "PNG、JPG、WEBP、GIF ファイルのみアップロードできます。",
     "bannerUploadFailed": "アップロードに失敗しました: {reason}",
     "battleNotStarted": "戦闘開始前は結果を保存できません。",
+    "attendanceSlotEmpty": "申請者がいないスロットは参加チェックできません。",
     "emptyBattles": "戦闘記録を1件以上入力してください。",
     "tooManyBattles": "戦闘は最大{max}回まで入力できます。",
     "invalidBattleNumber": "戦闘番号が正しくありません。",

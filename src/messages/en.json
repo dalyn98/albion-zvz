@@ -672,6 +672,24 @@
     "reset": "Reset",
     "resetConfirm": "Delete all battle records and the outcome?"
   },
+  "adminAttendance": {
+    "sectionTitle": "Attendance check",
+    "description": "Mark which applicants actually showed up for the battle. Unchecked members are counted as no-shows.",
+    "summary": "{attended}/{total} attended",
+    "empty": "No sign-ups yet.",
+    "markAll": "Mark all attended",
+    "clearAll": "Clear all",
+    "confirmMarkAll": "Mark every applicant as attended?",
+    "confirmClearAll": "Clear all attendance checks?",
+    "party": "Party {number}",
+    "slotLabel": "Slot {slot}",
+    "attended": "Attended",
+    "noShow": "No-show",
+    "attendedAt": "Checked at {datetime}",
+    "toastMarked": "Marked attended.",
+    "toastUnmarked": "Cleared attendance.",
+    "toastBulk": "Updated {count} members."
+  },
   "adminOpponentGuilds": {
     "pageTitle": "Opponent guilds",
     "pageDescription": "Manage opposing guilds as an address book. Only guilds registered here appear in the battle-outcome dropdown.",
@@ -740,6 +758,7 @@
     "bannerWrongType": "Only PNG, JPG, WEBP, GIF files can be uploaded.",
     "bannerUploadFailed": "Upload failed: {reason}",
     "battleNotStarted": "Cannot save outcome before battle starts.",
+    "attendanceSlotEmpty": "Cannot mark attendance on an empty slot.",
     "emptyBattles": "At least one battle is required.",
     "tooManyBattles": "You can record at most {max} battles.",
     "invalidBattleNumber": "Invalid battle number.",

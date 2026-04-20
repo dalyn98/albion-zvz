@@ -542,6 +542,84 @@ export async function savePartySlots(
   }
 }
 
+// --- Attendance actions ---
+
+export async function toggleSlotAttendance(
+  slotId: string,
+  attended: boolean,
+): Promise<{ error?: string; attendedAt?: string | null }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const db = await requireAdmin()
+    // Confirm the slot has an assignee — an empty slot can't be marked attended.
+    const { data: slot, error: readErr } = await db
+      .from('slots')
+      .select('id, assigned_discord_id, party_id')
+      .eq('id', slotId)
+      .maybeSingle()
+    if (readErr) return { error: readErr.message }
+    if (!slot) return { error: tErr('serverError') }
+    if (!slot.assigned_discord_id) return { error: tErr('attendanceSlotEmpty') }
+
+    const attendedAt = attended ? new Date().toISOString() : null
+    const { error: updErr } = await db
+      .from('slots')
+      .update({ attended_at: attendedAt })
+      .eq('id', slotId)
+    if (updErr) return { error: updErr.message }
+
+    // Revalidate the event page so the admin list reflects the change. The
+    // slot row doesn't carry event_id directly, so we walk through party.
+    const { data: party } = await db
+      .from('parties')
+      .select('event_id')
+      .eq('id', slot.party_id)
+      .maybeSingle()
+    if (party?.event_id) {
+      revalidatePath(`/admin/dashboard/events/${party.event_id}`)
+      revalidatePath(`/events/${party.event_id}`)
+    }
+    return { attendedAt }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function bulkSetAttendance(
+  eventId: string,
+  attended: boolean,
+): Promise<{ error?: string; affected?: number }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const db = await requireAdmin()
+
+    const { data: parties, error: pErr } = await db
+      .from('parties')
+      .select('id')
+      .eq('event_id', eventId)
+    if (pErr) return { error: pErr.message }
+    const partyIds = (parties ?? []).map((p) => p.id)
+    if (partyIds.length === 0) return { affected: 0 }
+
+    const attendedAt = attended ? new Date().toISOString() : null
+    // Only update slots that currently have an assignee — empty slots should
+    // not get a timestamp even when "mark all" is pressed.
+    const { data, error: updErr } = await db
+      .from('slots')
+      .update({ attended_at: attendedAt })
+      .in('party_id', partyIds)
+      .not('assigned_discord_id', 'is', null)
+      .select('id')
+    if (updErr) return { error: updErr.message }
+
+    revalidatePath(`/admin/dashboard/events/${eventId}`)
+    revalidatePath(`/events/${eventId}`)
+    return { affected: data?.length ?? 0 }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
 export async function clearSlotAssignment(slotId: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
