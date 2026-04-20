@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server'
 import { ArrowLeft, Trophy, ShieldAlert, Flag } from 'lucide-react'
 import { getSession } from '@/lib/session'
 import { getBattlesAgainst } from '@/app/actions/battle-records'
+import { formatDateTime } from '@/lib/format-datetime'
 
 export const dynamic = 'force-dynamic'
 
@@ -95,7 +96,7 @@ export default async function GuildBattleDetailPage({
                       <p className="text-white text-sm font-semibold truncate">{e.event_title}</p>
                       {e.event_started_at && (
                         <p className="text-[11px] text-gray-500 mt-0.5">
-                          {new Date(e.event_started_at).toLocaleString()}
+                          {formatDateTime(e.event_started_at)}
                         </p>
                       )}
                     </div>

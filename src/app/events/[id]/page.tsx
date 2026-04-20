@@ -10,11 +10,12 @@ import Link from 'next/link'
 import { getSession } from '@/lib/session'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 import { formatGatherTimeFor, isEnded } from '@/lib/gather-time'
+import { formatDateTimeShort } from '@/lib/format-datetime'
 import { getLocale } from '@/lib/locale'
 
 function formatStartedAt(iso: string): string {
-  const d = new Date(iso)
-  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  // "MM-DD HH:mm" → "MM/DD HH:mm" (KST, via formatDateTimeShort).
+  return formatDateTimeShort(iso).replace('-', '/')
 }
 
 export const dynamic = 'force-dynamic'

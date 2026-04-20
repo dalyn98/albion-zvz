@@ -121,8 +121,12 @@ export async function getGuildAggregateStats(): Promise<{
       .from('events')
       .select('id, outcome, battle_started_at')
       .not('outcome', 'is', null)
-    if (startDate) eventQuery = eventQuery.gte('battle_started_at', `${startDate}T00:00:00Z`)
-    if (endDate) eventQuery = eventQuery.lte('battle_started_at', `${endDate}T23:59:59Z`)
+    // Admin-entered dates are KST calendar days — anchor both bounds to KST
+    // midnight so the filter includes everything from "YYYY-MM-DD 00:00 KST"
+    // through "YYYY-MM-DD 23:59 KST", not the UTC equivalent that would
+    // drift the window by 9 hours.
+    if (startDate) eventQuery = eventQuery.gte('battle_started_at', `${startDate}T00:00:00+09:00`)
+    if (endDate) eventQuery = eventQuery.lte('battle_started_at', `${endDate}T23:59:59+09:00`)
 
     const eventsRes = await eventQuery
     if (eventsRes.error) return { stats: null, error: eventsRes.error.message }

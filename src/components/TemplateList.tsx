@@ -6,12 +6,8 @@ import { useTranslations } from 'next-intl'
 import DeleteTemplateButton from './DeleteTemplateButton'
 import SearchBox from './SearchBox'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
+import { formatDate } from '@/lib/format-datetime'
 import type { TemplateSummary } from '@/app/actions/templates'
-
-function formatDate(iso: string) {
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 export default function TemplateList({ templates }: { templates: TemplateSummary[] }) {
   const t = useTranslations('adminTemplates')

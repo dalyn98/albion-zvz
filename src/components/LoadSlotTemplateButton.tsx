@@ -10,16 +10,12 @@ import {
   type SlotTemplateSummary,
 } from '@/app/actions/slot-templates'
 import { applyTemplateToSlotInput } from '@/lib/slot-template-shape'
+import { formatDate } from '@/lib/format-datetime'
 import type { SlotInput } from './SlotEditor'
 
 interface Props {
   slot: SlotInput
   onLoad: (next: SlotInput) => void
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export default function LoadSlotTemplateButton({ slot, onLoad }: Props) {

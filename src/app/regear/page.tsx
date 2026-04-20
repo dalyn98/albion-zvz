@@ -6,14 +6,15 @@ import { getSession } from '@/lib/session'
 import { listMyRegearEligibleEvents } from '@/app/actions/regear'
 import { formatSilver } from '@/lib/silver'
 import { formatGatherTimeFor } from '@/lib/gather-time'
+import { formatDateTimeShort } from '@/lib/format-datetime'
 import { getLocale } from '@/lib/locale'
 import RegearRequestButton from '@/components/RegearRequestButton'
 
 export const dynamic = 'force-dynamic'
 
 function formatStartedAt(iso: string): string {
-  const d = new Date(iso)
-  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  // "MM-DD HH:mm" → "MM/DD HH:mm" (KST, via formatDateTimeShort).
+  return formatDateTimeShort(iso).replace('-', '/')
 }
 
 export default async function RegearPage() {

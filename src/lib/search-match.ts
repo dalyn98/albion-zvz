@@ -14,15 +14,20 @@ export function matchesName(name: string | null | undefined, query: string): boo
 
 // Matches an ISO timestamp against a date-ish query. We serialize the date as
 // multiple string shapes so typing any part of the date hits. Cheap enough to
-// do per-row at guild scale.
+// do per-row at guild scale. Date components are extracted in KST so search
+// matches what the user sees — e.g. typing "4/20" finds an event labeled
+// "4월 20일" even if the viewer is in another timezone.
 export function matchesDate(iso: string | null | undefined, query: string): boolean {
   if (!query) return true
   if (!iso) return false
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return false
-  const yyyy = String(d.getFullYear())
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
+  const shifted = new Date(d.getTime() + 9 * 60 * 60 * 1000)
+  const yyyy = String(shifted.getUTCFullYear())
+  const month = shifted.getUTCMonth() + 1
+  const day = shifted.getUTCDate()
+  const mm = String(month).padStart(2, '0')
+  const dd = String(day).padStart(2, '0')
   const candidates = [
     `${yyyy}-${mm}-${dd}`,
     `${yyyy}/${mm}/${dd}`,
@@ -30,7 +35,7 @@ export function matchesDate(iso: string | null | undefined, query: string): bool
     `${mm}/${dd}`,
     `${mm}${dd}`,
     `${yyyy}${mm}${dd}`,
-    `${d.getMonth() + 1}월${d.getDate()}일`,
+    `${month}월${day}일`,
   ].map(normalizeQuery)
   return candidates.some((c) => c.includes(query))
 }

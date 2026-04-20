@@ -18,11 +18,13 @@ interface Props {
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
 
 function formatWindow(iso: string): string {
-  const start = new Date(iso)
-  const end = new Date(start.getTime() + 60 * 60 * 1000)
-  const fmt = (d: Date) =>
-    `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  return `${fmt(start)} ~ ${fmt(end)}`
+  const startMs = new Date(iso).getTime()
+  // KST (UTC+9, no DST). Extract HH:mm by shifting into UTC+9.
+  const kstHourMinute = (ms: number) => {
+    const shifted = new Date(ms + 9 * 60 * 60 * 1000)
+    return `${String(shifted.getUTCHours()).padStart(2, '0')}:${String(shifted.getUTCMinutes()).padStart(2, '0')}`
+  }
+  return `${kstHourMinute(startMs)} ~ ${kstHourMinute(startMs + 60 * 60 * 1000)}`
 }
 
 export default function RegearRequestButton({
