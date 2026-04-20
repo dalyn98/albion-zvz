@@ -12,6 +12,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'members_aggregate_end_date',
   'guest_invite_token',
   'regear_notice_message',
+  'events_notice_message',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -26,6 +27,7 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   'guest_invite_token',
   // Empty message = hide the regear notice banner entirely.
   'regear_notice_message',
+  'events_notice_message',
 ] as const
 
 // Date-shaped setting keys that must be 'YYYY-MM-DD' or empty. A free-form

@@ -15,6 +15,8 @@ export type AppSettingKey =
   | 'guest_invite_token'
   // Admin-authored notice shown at the top of `/regear`. Empty string = hide.
   | 'regear_notice_message'
+  // Admin-authored notice shown at the top of `/` (events list). Empty = hide.
+  | 'events_notice_message'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

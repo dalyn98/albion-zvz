@@ -18,6 +18,7 @@ export default async function SettingsPage() {
     aggregateEndDate,
     guestInviteToken,
     regearNoticeMessage,
+    eventsNoticeMessage,
     { rewards, error: rewardsError },
     tLanding,
     t,
@@ -29,6 +30,7 @@ export default async function SettingsPage() {
     getAppSetting('members_aggregate_end_date', ''),
     getAppSetting('guest_invite_token', ''),
     getAppSetting('regear_notice_message', ''),
+    getAppSetting('events_notice_message', ''),
     listRoleRewards(),
     getTranslations('landing'),
     getTranslations('adminSettings'),
@@ -56,6 +58,7 @@ export default async function SettingsPage() {
         aggregateEndDate={aggregateEndDate}
         guestInviteToken={guestInviteToken}
         regearNoticeMessage={regearNoticeMessage}
+        eventsNoticeMessage={eventsNoticeMessage}
         origin={origin}
       />
     </div>

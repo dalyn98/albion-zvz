@@ -1,8 +1,10 @@
 import { supabase } from '@/lib/supabase'
 import type { Event } from '@/types'
 import { getTranslations } from 'next-intl/server'
+import { Megaphone } from 'lucide-react'
 import { formatGatherTimeFor, isImminent, isEnded } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
+import { getAppSetting } from '@/lib/app-settings'
 import HomeEventTabs, { type HomeEventCardData, type HomeEventKind } from '@/components/HomeEventTabs'
 
 // Homepage reflects the live DB, so never prerender at build — a static
@@ -57,9 +59,10 @@ function classifyScheduled(event: Event): ScheduledKind {
 // Layout-level gate (src/app/layout.tsx) blocks non-members before this
 // component runs — by the time HomePage renders, the viewer is a guild member.
 export default async function HomePage() {
-  const [t, locale] = await Promise.all([
+  const [t, locale, noticeMessage] = await Promise.all([
     getTranslations(),
     getLocale(),
+    getAppSetting('events_notice_message', ''),
   ])
 
   // Prefer gather_at (ISO) for locale-aware formatting; fall back to stored
@@ -119,6 +122,13 @@ export default async function HomePage() {
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">{t('home.title')}</h1>
         <p className="text-gray-400 text-sm">{t('home.subtitle')}</p>
       </div>
+
+      {noticeMessage.trim() && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-3 flex items-start gap-3">
+          <Megaphone size={16} className="text-amber-300 mt-0.5 flex-shrink-0" />
+          <p className="text-amber-100 text-sm whitespace-pre-wrap break-words">{noticeMessage}</p>
+        </div>
+      )}
 
       {events.length === 0 ? (
         <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center">

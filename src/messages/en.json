@@ -293,7 +293,7 @@
     "tabLanding": "Landing page",
     "tabMembersRange": "Members stats range",
     "tabGuests": "Guest invite",
-    "tabRegear": "Regear notice",
+    "tabNotices": "Notices",
     "membersRangeTitle": "Members win/loss aggregate range",
     "membersRangeDescription": "Date range used by the wins/losses and distinct-opponent totals at the top of the guild members page. Leave blank to include all time.",
     "membersRangeStart": "Start date",
@@ -330,6 +330,15 @@
     "description": "Banner shown at the top of the regear request page. Leave blank to hide it.",
     "label": "Notice content",
     "placeholder": "e.g. Regear reviews are processed in a weekly batch on Sunday.",
+    "tooLong": "Notice must be {max} characters or fewer.",
+    "clear": "Clear",
+    "clearTooltip": "Empty the notice to hide the banner"
+  },
+  "adminEventsNotice": {
+    "title": "Events notice",
+    "description": "Banner shown at the top of the events list. Leave blank to hide it.",
+    "label": "Notice content",
+    "placeholder": "e.g. Recruiting participants for this weekend's large-scale battle.",
     "tooLong": "Notice must be {max} characters or fewer.",
     "clear": "Clear",
     "clearTooltip": "Empty the notice to hide the banner"

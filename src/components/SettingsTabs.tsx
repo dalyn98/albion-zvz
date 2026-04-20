@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { Bell, Coins, Image as ImageIcon, CalendarRange, UserPlus, ShieldCheck } from 'lucide-react'
+import { Bell, Coins, Image as ImageIcon, CalendarRange, UserPlus, Megaphone } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import NotificationSettingsForm from './NotificationSettingsForm'
 import RoleRewardsEditor from './RoleRewardsEditor'
@@ -9,10 +9,10 @@ import LandingBannerForm from './LandingBannerForm'
 import LandingCtaTextForm from './LandingCtaTextForm'
 import MembersAggregateRangeForm from './MembersAggregateRangeForm'
 import GuestInviteSettingsForm from './GuestInviteSettingsForm'
-import RegearNoticeForm from './RegearNoticeForm'
+import NoticeSettingForm from './NoticeSettingForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
 
-type TabKey = 'notifications' | 'rewards' | 'landing' | 'membersRange' | 'guests' | 'regear'
+type TabKey = 'notifications' | 'rewards' | 'landing' | 'membersRange' | 'guests' | 'notices'
 
 interface TabDef {
   key: TabKey
@@ -22,14 +22,14 @@ interface TabDef {
     | 'tabLanding'
     | 'tabMembersRange'
     | 'tabGuests'
-    | 'tabRegear'
+    | 'tabNotices'
   icon: React.ComponentType<{ size?: number; className?: string }>
 }
 
 const TABS: readonly TabDef[] = [
   { key: 'notifications', labelKey: 'tabNotifications', icon: Bell },
   { key: 'rewards', labelKey: 'tabRewards', icon: Coins },
-  { key: 'regear', labelKey: 'tabRegear', icon: ShieldCheck },
+  { key: 'notices', labelKey: 'tabNotices', icon: Megaphone },
   { key: 'landing', labelKey: 'tabLanding', icon: ImageIcon },
   { key: 'membersRange', labelKey: 'tabMembersRange', icon: CalendarRange },
   { key: 'guests', labelKey: 'tabGuests', icon: UserPlus },
@@ -48,6 +48,7 @@ interface Props {
   aggregateEndDate: string
   guestInviteToken: string
   regearNoticeMessage: string
+  eventsNoticeMessage: string
   origin: string
 }
 
@@ -58,7 +59,7 @@ function isTabKey(value: string | null): value is TabKey {
     value === 'landing' ||
     value === 'membersRange' ||
     value === 'guests' ||
-    value === 'regear'
+    value === 'notices'
   )
 }
 
@@ -73,9 +74,12 @@ export default function SettingsTabs({
   aggregateEndDate,
   guestInviteToken,
   regearNoticeMessage,
+  eventsNoticeMessage,
   origin,
 }: Props) {
   const t = useTranslations('adminSettings')
+  const tEventsNotice = useTranslations('adminEventsNotice')
+  const tRegearNotice = useTranslations('adminRegearNotice')
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
@@ -154,8 +158,31 @@ export default function SettingsTabs({
         {active === 'guests' && (
           <GuestInviteSettingsForm initialToken={guestInviteToken} origin={origin} />
         )}
-        {active === 'regear' && (
-          <RegearNoticeForm initialMessage={regearNoticeMessage} />
+        {active === 'notices' && (
+          <div className="space-y-4">
+            <NoticeSettingForm
+              settingKey="events_notice_message"
+              initialMessage={eventsNoticeMessage}
+              title={tEventsNotice('title')}
+              description={tEventsNotice('description')}
+              label={tEventsNotice('label')}
+              placeholder={tEventsNotice('placeholder')}
+              clearLabel={tEventsNotice('clear')}
+              clearTooltip={tEventsNotice('clearTooltip')}
+              tooLongTemplate={(max) => tEventsNotice('tooLong', { max })}
+            />
+            <NoticeSettingForm
+              settingKey="regear_notice_message"
+              initialMessage={regearNoticeMessage}
+              title={tRegearNotice('title')}
+              description={tRegearNotice('description')}
+              label={tRegearNotice('label')}
+              placeholder={tRegearNotice('placeholder')}
+              clearLabel={tRegearNotice('clear')}
+              clearTooltip={tRegearNotice('clearTooltip')}
+              tooLongTemplate={(max) => tRegearNotice('tooLong', { max })}
+            />
+          </div>
         )}
       </div>
     </div>

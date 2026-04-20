@@ -293,7 +293,7 @@
     "tabLanding": "대문 페이지",
     "tabMembersRange": "길드원 통계 기간",
     "tabGuests": "게스트 초대",
-    "tabRegear": "리기어 공지",
+    "tabNotices": "공지",
     "membersRangeTitle": "길드원 승패 집계 기간",
     "membersRangeDescription": "길드원 목록 최상단에 표시되는 승/패 합산과 상대 길드 수의 집계 범위입니다. 비워두면 전체 기간이 집계됩니다.",
     "membersRangeStart": "시작일",
@@ -330,6 +330,15 @@
     "description": "리기어 신청 페이지 최상단에 표시되는 공지입니다. 비워두면 표시되지 않습니다.",
     "label": "공지 내용",
     "placeholder": "예: 리기어 심사는 매주 일요일에 일괄 처리됩니다.",
+    "tooLong": "공지는 최대 {max}자까지 입력할 수 있습니다.",
+    "clear": "지우기",
+    "clearTooltip": "공지를 비워 배너를 숨깁니다"
+  },
+  "adminEventsNotice": {
+    "title": "이벤트 공지",
+    "description": "이벤트 목록 페이지 최상단에 표시되는 공지입니다. 비워두면 표시되지 않습니다.",
+    "label": "공지 내용",
+    "placeholder": "예: 이번 주말 대규모 전투 참여자 모집 중.",
     "tooLong": "공지는 최대 {max}자까지 입력할 수 있습니다.",
     "clear": "지우기",
     "clearTooltip": "공지를 비워 배너를 숨깁니다"

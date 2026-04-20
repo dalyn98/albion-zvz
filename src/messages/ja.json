@@ -293,7 +293,7 @@
     "tabLanding": "ランディングページ",
     "tabMembersRange": "メンバー統計期間",
     "tabGuests": "ゲスト招待",
-    "tabRegear": "リギア告知",
+    "tabNotices": "告知",
     "membersRangeTitle": "メンバー勝敗集計期間",
     "membersRangeDescription": "ギルドメンバー一覧の上部に表示される勝敗合計と対戦ギルド数の集計範囲です。空欄の場合は全期間が集計されます。",
     "membersRangeStart": "開始日",
@@ -330,6 +330,15 @@
     "description": "リギア申請ページの最上部に表示される告知です。空欄の場合は非表示になります。",
     "label": "告知内容",
     "placeholder": "例: リギア審査は毎週日曜日にまとめて処理されます。",
+    "tooLong": "告知は最大 {max} 文字まで入力できます。",
+    "clear": "消去",
+    "clearTooltip": "告知を空にしてバナーを非表示にします"
+  },
+  "adminEventsNotice": {
+    "title": "イベント告知",
+    "description": "イベント一覧ページの最上部に表示される告知です。空欄の場合は非表示になります。",
+    "label": "告知内容",
+    "placeholder": "例: 今週末の大規模戦闘に参加者を募集しています。",
     "tooLong": "告知は最大 {max} 文字まで入力できます。",
     "clear": "消去",
     "clearTooltip": "告知を空にしてバナーを非表示にします"
