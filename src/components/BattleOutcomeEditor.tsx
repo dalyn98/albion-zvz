@@ -3,22 +3,31 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Plus, Trash2, RotateCcw, Loader2, Trophy, ShieldAlert, UserPlus } from 'lucide-react'
+import { Plus, Trash2, RotateCcw, Loader2, Trophy, ShieldAlert, UserPlus, Crown } from 'lucide-react'
 import { saveEventBattles, resetEventOutcome } from '@/app/actions/admin'
 import { createOpponentGuild } from '@/app/actions/opponent-guilds'
 import type { EventBattle, EventOutcome, OpponentGuild } from '@/types'
+
+export interface MvpCandidate {
+  discord_id: string
+  username: string
+  role_name: string | null
+  attended: boolean
+}
 
 interface Props {
   eventId: string
   initialBattles: EventBattle[]
   currentOutcome: EventOutcome | null
   opponentGuilds: OpponentGuild[]
+  mvpCandidates: MvpCandidate[]
 }
 
 interface BattleDraft {
   opponent_guild_id: string | null
   opponent_guild_name: string
   outcome: EventOutcome
+  mvp_discord_id: string | null
 }
 
 export default function BattleOutcomeEditor({
@@ -26,6 +35,7 @@ export default function BattleOutcomeEditor({
   initialBattles,
   currentOutcome,
   opponentGuilds: initialGuilds,
+  mvpCandidates,
 }: Props) {
   const t = useTranslations('adminBattleOutcome')
   const tCommon = useTranslations('common')
@@ -39,8 +49,9 @@ export default function BattleOutcomeEditor({
           opponent_guild_id: b.opponent_guild_id,
           opponent_guild_name: b.opponent_guild,
           outcome: b.outcome,
+          mvp_discord_id: b.mvp_discord_id,
         }))
-      : [{ opponent_guild_id: null, opponent_guild_name: '', outcome: 'win' }],
+      : [{ opponent_guild_id: null, opponent_guild_name: '', outcome: 'win', mvp_discord_id: null }],
   )
   const [addingIndex, setAddingIndex] = useState<number | null>(null)
   const [newGuildName, setNewGuildName] = useState('')
@@ -56,7 +67,7 @@ export default function BattleOutcomeEditor({
   const addBattle = () =>
     setBattles((prev) => [
       ...prev,
-      { opponent_guild_id: null, opponent_guild_name: '', outcome: 'win' },
+      { opponent_guild_id: null, opponent_guild_name: '', outcome: 'win', mvp_discord_id: null },
     ])
 
   const removeBattle = (index: number) =>
@@ -111,6 +122,7 @@ export default function BattleOutcomeEditor({
       opponent_guild: b.opponent_guild_name,
       opponent_guild_id: b.opponent_guild_id,
       outcome: b.outcome,
+      mvp_discord_id: b.mvp_discord_id,
     }))
     startTransition(async () => {
       const result = await saveEventBattles(eventId, payload)
@@ -126,7 +138,7 @@ export default function BattleOutcomeEditor({
       const result = await resetEventOutcome(eventId)
       if (result.error) setError(result.error)
       else {
-        setBattles([{ opponent_guild_id: null, opponent_guild_name: '', outcome: 'win' }])
+        setBattles([{ opponent_guild_id: null, opponent_guild_name: '', outcome: 'win', mvp_discord_id: null }])
         router.refresh()
       }
     })
@@ -149,100 +161,133 @@ export default function BattleOutcomeEditor({
         {battles.map((battle, index) => (
           <div
             key={index}
-            className="flex items-center gap-2 bg-gray-800/50 border border-gray-700 rounded-lg p-2"
+            className="flex flex-col gap-2 bg-gray-800/50 border border-gray-700 rounded-lg p-2"
           >
-            <span className="text-gray-500 text-xs w-8 text-center flex-shrink-0">
-              #{index + 1}
-            </span>
-            {addingIndex === index ? (
-              <div className="flex-1 flex items-center gap-2 min-w-0">
-                <input
-                  type="text"
-                  autoFocus
-                  value={newGuildName}
-                  onChange={(e) => setNewGuildName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') confirmAddGuild()
-                    if (e.key === 'Escape') setAddingIndex(null)
-                  }}
-                  placeholder={t('newGuildNamePlaceholder')}
-                  maxLength={100}
-                  className="flex-1 min-w-0 bg-gray-800 border border-amber-500/60 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-400"
-                />
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500 text-xs w-8 text-center flex-shrink-0">
+                #{index + 1}
+              </span>
+              {addingIndex === index ? (
+                <div className="flex-1 flex items-center gap-2 min-w-0">
+                  <input
+                    type="text"
+                    autoFocus
+                    value={newGuildName}
+                    onChange={(e) => setNewGuildName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') confirmAddGuild()
+                      if (e.key === 'Escape') setAddingIndex(null)
+                    }}
+                    placeholder={t('newGuildNamePlaceholder')}
+                    maxLength={100}
+                    className="flex-1 min-w-0 bg-gray-800 border border-amber-500/60 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={confirmAddGuild}
+                    disabled={pending || !newGuildName.trim()}
+                    className="text-xs bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-3 py-2 rounded flex-shrink-0"
+                  >
+                    {pending ? <Loader2 size={12} className="animate-spin" /> : tCommon('save')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAddingIndex(null)}
+                    className="text-xs text-gray-400 hover:text-white px-2 flex-shrink-0"
+                  >
+                    {tCommon('cancel')}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <select
+                    value={battle.opponent_guild_id ?? ''}
+                    onChange={(e) => selectGuild(index, e.target.value)}
+                    className="flex-1 min-w-0 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="">{t('opponentPlaceholder')}</option>
+                    {guilds.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => openAddGuild(index)}
+                    className="p-2 text-amber-300 hover:text-amber-200 border border-gray-700 hover:border-amber-500/40 rounded flex-shrink-0"
+                    title={t('addNewGuild')}
+                    aria-label={t('addNewGuild')}
+                  >
+                    <UserPlus size={14} />
+                  </button>
+                </>
+              )}
+              <div className="flex rounded overflow-hidden border border-gray-700 flex-shrink-0">
                 <button
                   type="button"
-                  onClick={confirmAddGuild}
-                  disabled={pending || !newGuildName.trim()}
-                  className="text-xs bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-3 py-2 rounded flex-shrink-0"
+                  onClick={() => updateBattle(index, { outcome: 'win' })}
+                  className={`px-3 py-2 text-xs font-semibold transition-colors ${
+                    battle.outcome === 'win'
+                      ? 'bg-emerald-500/30 text-emerald-200'
+                      : 'bg-gray-800 text-gray-400 hover:text-gray-200'
+                  }`}
                 >
-                  {pending ? <Loader2 size={12} className="animate-spin" /> : tCommon('save')}
+                  {t('win')}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setAddingIndex(null)}
-                  className="text-xs text-gray-400 hover:text-white px-2 flex-shrink-0"
+                  onClick={() => updateBattle(index, { outcome: 'loss' })}
+                  className={`px-3 py-2 text-xs font-semibold transition-colors ${
+                    battle.outcome === 'loss'
+                      ? 'bg-rose-500/30 text-rose-200'
+                      : 'bg-gray-800 text-gray-400 hover:text-gray-200'
+                  }`}
                 >
-                  {tCommon('cancel')}
+                  {t('loss')}
                 </button>
               </div>
-            ) : (
-              <>
-                <select
-                  value={battle.opponent_guild_id ?? ''}
-                  onChange={(e) => selectGuild(index, e.target.value)}
-                  className="flex-1 min-w-0 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+              <button
+                type="button"
+                onClick={() => removeBattle(index)}
+                disabled={battles.length === 1}
+                className="p-2 text-gray-500 hover:text-red-400 disabled:opacity-30 disabled:hover:text-gray-500 flex-shrink-0"
+                aria-label={tCommon('delete')}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+            {addingIndex !== index && (
+              <div className="flex items-center gap-2 pl-10">
+                <label
+                  htmlFor={`battle-mvp-${index}`}
+                  className="text-[11px] text-amber-300 font-semibold inline-flex items-center gap-1 flex-shrink-0"
                 >
-                  <option value="">{t('opponentPlaceholder')}</option>
-                  {guilds.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name}
+                  <Crown size={12} />
+                  {t('mvpLabel')}
+                </label>
+                <select
+                  id={`battle-mvp-${index}`}
+                  value={battle.mvp_discord_id ?? ''}
+                  onChange={(e) =>
+                    updateBattle(index, { mvp_discord_id: e.target.value || null })
+                  }
+                  disabled={mvpCandidates.length === 0}
+                  className="flex-1 min-w-0 bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500 disabled:opacity-50"
+                >
+                  <option value="">
+                    {mvpCandidates.length === 0 ? t('mvpNoCandidates') : t('mvpPlaceholder')}
+                  </option>
+                  {mvpCandidates.map((c) => (
+                    <option key={c.discord_id} value={c.discord_id}>
+                      {c.attended ? '✓ ' : ''}
+                      {c.username}
+                      {c.role_name ? ` — ${c.role_name}` : ''}
                     </option>
                   ))}
                 </select>
-                <button
-                  type="button"
-                  onClick={() => openAddGuild(index)}
-                  className="p-2 text-amber-300 hover:text-amber-200 border border-gray-700 hover:border-amber-500/40 rounded flex-shrink-0"
-                  title={t('addNewGuild')}
-                  aria-label={t('addNewGuild')}
-                >
-                  <UserPlus size={14} />
-                </button>
-              </>
+              </div>
             )}
-            <div className="flex rounded overflow-hidden border border-gray-700 flex-shrink-0">
-              <button
-                type="button"
-                onClick={() => updateBattle(index, { outcome: 'win' })}
-                className={`px-3 py-2 text-xs font-semibold transition-colors ${
-                  battle.outcome === 'win'
-                    ? 'bg-emerald-500/30 text-emerald-200'
-                    : 'bg-gray-800 text-gray-400 hover:text-gray-200'
-                }`}
-              >
-                {t('win')}
-              </button>
-              <button
-                type="button"
-                onClick={() => updateBattle(index, { outcome: 'loss' })}
-                className={`px-3 py-2 text-xs font-semibold transition-colors ${
-                  battle.outcome === 'loss'
-                    ? 'bg-rose-500/30 text-rose-200'
-                    : 'bg-gray-800 text-gray-400 hover:text-gray-200'
-                }`}
-              >
-                {t('loss')}
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => removeBattle(index)}
-              disabled={battles.length === 1}
-              className="p-2 text-gray-500 hover:text-red-400 disabled:opacity-30 disabled:hover:text-gray-500 flex-shrink-0"
-              aria-label={tCommon('delete')}
-            >
-              <Trash2 size={14} />
-            </button>
           </div>
         ))}
       </div>

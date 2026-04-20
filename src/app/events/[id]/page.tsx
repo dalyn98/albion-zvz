@@ -1,9 +1,10 @@
 import { supabase } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
-import type { Event, PartyWithSlots } from '@/types'
+import type { Event, EventBattle, PartyWithSlots } from '@/types'
 import EventPartyGrid from '@/components/EventPartyGrid'
 import EventSlotSidebar from '@/components/EventSlotSidebar'
+import EventBattlesSection from '@/components/EventBattlesSection'
 import AutoRefresh from '@/components/AutoRefresh'
 import { Clock, MapPin, ArrowLeft, Swords, Info, Lock } from 'lucide-react'
 import Link from 'next/link'
@@ -21,9 +22,14 @@ function formatStartedAt(iso: string): string {
 export const dynamic = 'force-dynamic'
 
 async function getEvent(id: string) {
-  const [{ data: event }, { data: parties }] = await Promise.all([
+  const [{ data: event }, { data: parties }, { data: battles }] = await Promise.all([
     supabase.from('events').select('*').eq('id', id).maybeSingle(),
     supabase.from('parties').select('*, slots(*)').eq('event_id', id).order('party_number'),
+    supabase
+      .from('event_battles')
+      .select('*')
+      .eq('event_id', id)
+      .order('battle_number', { ascending: true }),
   ])
 
   const sorted = (parties ?? []).map((p) => ({
@@ -33,7 +39,11 @@ async function getEvent(id: string) {
       .sort((a, b) => a.slot_number - b.slot_number),
   })) as PartyWithSlots[]
 
-  return { event: event as Event | null, parties: sorted }
+  return {
+    event: event as Event | null,
+    parties: sorted,
+    battles: (battles ?? []) as EventBattle[],
+  }
 }
 
 export default async function EventDetailPage({
@@ -42,7 +52,7 @@ export default async function EventDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const [{ event, parties }, session, t, locale] = await Promise.all([
+  const [{ event, parties, battles }, session, t, locale] = await Promise.all([
     getEvent(id),
     getSession(),
     getTranslations('event'),
@@ -66,6 +76,19 @@ export default async function EventDetailPage({
   )
   const avatarMap = await getAvatarsByDiscordIds(assignedDiscordIds)
   const avatars = Object.fromEntries(avatarMap)
+
+  // MVP Discord ID → display username map. Names come from the same slot
+  // assignments we already fetched, so a member renamed on Discord after
+  // the battle still appears under the name they signed up with.
+  const mvpNameMap = new Map<string, string>()
+  for (const p of parties) {
+    for (const s of p.slots) {
+      if (s.assigned_discord_id && s.assigned_username && !mvpNameMap.has(s.assigned_discord_id)) {
+        mvpNameMap.set(s.assigned_discord_id, s.assigned_username)
+      }
+    }
+  }
+  const mvpNames = Object.fromEntries(mvpNameMap)
 
   const loginHref = `/api/auth/discord/start?returnTo=${encodeURIComponent(`/events/${id}`)}`
 
@@ -150,6 +173,14 @@ export default async function EventDetailPage({
             </div>
           )}
         </div>
+
+        {battles.length > 0 && (
+          <EventBattlesSection
+            battles={battles}
+            mvpNames={mvpNames}
+            avatars={avatars}
+          />
+        )}
 
         <div className="lg:hidden">
           <EventSlotSidebar placement="mobile" parties={parties} avatars={avatars} />

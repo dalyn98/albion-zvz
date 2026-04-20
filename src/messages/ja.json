@@ -421,6 +421,13 @@
     "filterMyRoleActive": "{role} フィルター解除",
     "filterNoMatches": "同じ役割の他のスロットはありません。"
   },
+  "eventBattles": {
+    "title": "戦闘記録",
+    "count": "{n}戦",
+    "win": "勝",
+    "loss": "敗",
+    "mvpSuffix": "MVP"
+  },
   "slot": {
     "free": "自由",
     "memoLabel": "メモ: {notes}",
@@ -670,7 +677,10 @@
     "previewLabel": "最終:",
     "addBattle": "戦闘を追加",
     "reset": "リセット",
-    "resetConfirm": "戦闘記録と結果をすべて削除しますか?"
+    "resetConfirm": "戦闘記録と結果をすべて削除しますか?",
+    "mvpLabel": "MVP",
+    "mvpPlaceholder": "MVPなし",
+    "mvpNoCandidates": "参加者がいないため選択できません"
   },
   "adminAttendance": {
     "sectionTitle": "参加チェック",

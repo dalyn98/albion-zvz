@@ -64,6 +64,37 @@ export default async function EditEventPage({
   const avatarMap = await getAvatarsByDiscordIds(assignedDiscordIds)
   const avatars = Object.fromEntries(avatarMap)
 
+  // MVP dropdown candidates — any assigned slot is eligible. We dedupe on
+  // discord_id so a member taking multiple slots shows once. Role is the
+  // first assigned slot's role_name for display; attendance flag lets the
+  // editor mark confirmed attendees prominently.
+  const mvpCandidateMap = new Map<
+    string,
+    { discord_id: string; username: string; role_name: string | null; attended: boolean }
+  >()
+  for (const p of parties) {
+    for (const s of p.slots) {
+      if (!s.assigned_discord_id) continue
+      if (mvpCandidateMap.has(s.assigned_discord_id)) {
+        if (s.attended_at) {
+          const prev = mvpCandidateMap.get(s.assigned_discord_id)!
+          mvpCandidateMap.set(s.assigned_discord_id, { ...prev, attended: true })
+        }
+        continue
+      }
+      mvpCandidateMap.set(s.assigned_discord_id, {
+        discord_id: s.assigned_discord_id,
+        username: s.assigned_username ?? s.assigned_discord_id,
+        role_name: s.role_name,
+        attended: !!s.attended_at,
+      })
+    }
+  }
+  const mvpCandidates = Array.from(mvpCandidateMap.values()).sort((a, b) => {
+    if (a.attended !== b.attended) return a.attended ? -1 : 1
+    return a.username.localeCompare(b.username)
+  })
+
   return (
     <div className="flex flex-col lg:flex-row lg:items-start lg:gap-6 space-y-4 lg:space-y-0">
       <div className="flex-1 min-w-0 space-y-6 sm:space-y-8">
@@ -79,6 +110,7 @@ export default async function EditEventPage({
             initialBattles={battles}
             currentOutcome={event.outcome}
             opponentGuilds={opponentGuilds}
+            mvpCandidates={mvpCandidates}
           />
         )}
 

@@ -421,6 +421,13 @@
     "filterMyRoleActive": "{role} 필터 해제",
     "filterNoMatches": "같은 역할의 다른 슬롯이 없습니다."
   },
+  "eventBattles": {
+    "title": "전투 기록",
+    "count": "{n}전",
+    "win": "승",
+    "loss": "패",
+    "mvpSuffix": "MVP"
+  },
   "slot": {
     "free": "자유",
     "memoLabel": "메모: {notes}",
@@ -670,7 +677,10 @@
     "previewLabel": "최종:",
     "addBattle": "전투 추가",
     "reset": "초기화",
-    "resetConfirm": "전투 기록과 결과를 모두 삭제할까요?"
+    "resetConfirm": "전투 기록과 결과를 모두 삭제할까요?",
+    "mvpLabel": "MVP",
+    "mvpPlaceholder": "MVP 없음",
+    "mvpNoCandidates": "참석자가 없어 선택할 수 없습니다"
   },
   "adminAttendance": {
     "sectionTitle": "참석 체크",

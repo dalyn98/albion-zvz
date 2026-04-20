@@ -421,6 +421,13 @@
     "filterMyRoleActive": "Clear {role} filter",
     "filterNoMatches": "No other slots with this role."
   },
+  "eventBattles": {
+    "title": "Battle log",
+    "count": "{n} battles",
+    "win": "Win",
+    "loss": "Loss",
+    "mvpSuffix": "MVP"
+  },
   "slot": {
     "free": "Free",
     "memoLabel": "Notes: {notes}",
@@ -670,7 +677,10 @@
     "previewLabel": "Final:",
     "addBattle": "Add battle",
     "reset": "Reset",
-    "resetConfirm": "Delete all battle records and the outcome?"
+    "resetConfirm": "Delete all battle records and the outcome?",
+    "mvpLabel": "MVP",
+    "mvpPlaceholder": "No MVP",
+    "mvpNoCandidates": "No attendees to choose from"
   },
   "adminAttendance": {
     "sectionTitle": "Attendance check",

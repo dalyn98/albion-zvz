@@ -258,6 +258,8 @@ interface BattlePayload {
   // still work.
   opponent_guild_id: string | null
   outcome: 'win' | 'loss'
+  // Migration 028: optional per-battle MVP. NULL = not recorded.
+  mvp_discord_id: string | null
 }
 
 const MAX_BATTLES_PER_EVENT = 50
@@ -323,6 +325,7 @@ export async function saveEventBattles(
       opponent_guild: b.opponent_guild.trim(),
       opponent_guild_id: b.opponent_guild_id,
       outcome: b.outcome,
+      mvp_discord_id: b.mvp_discord_id,
     }))
     const { error: insErr } = await db.from('event_battles').insert(rows)
     if (insErr) return { error: insErr.message }

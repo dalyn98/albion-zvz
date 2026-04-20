@@ -24,6 +24,8 @@ export interface EventBattle {
   // display snapshot so renaming/deleting a guild doesn't mutate history.
   opponent_guild_id: string | null
   outcome: EventOutcome
+  // Migration 028: Discord ID of the per-battle MVP. NULL means not recorded.
+  mvp_discord_id: string | null
   created_at: string
 }
 
