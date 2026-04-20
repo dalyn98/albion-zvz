@@ -98,12 +98,15 @@ export async function requestRegear(
 
   const buildSnapshot = buildSnapshotFromSlot(slot as unknown as SlotGearDisplay, roleName)
 
-  // 2) Duplicate request guard (partial; DB unique index is the hard guard).
+  // 2) Duplicate request guard (partial; DB partial-unique index is the hard
+  //    guard). Only pending/approved rows block re-submission — rejected rows
+  //    stay on record for audit but don't lock the user out of retrying.
   const { data: existing, error: existingError } = await db
     .from('regear_requests')
     .select('id')
     .eq('event_id', eventId)
     .eq('discord_id', session.discordId)
+    .neq('status', 'rejected')
     .maybeSingle()
   if (existingError) return { error: existingError.message }
   if (existing) return { error: tErr('alreadyRequestedForEvent') }
@@ -339,6 +342,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
       .from('regear_requests')
       .select('event_id')
       .eq('discord_id', session.discordId)
+      .neq('status', 'rejected')
       .in('event_id', Array.from(eventIdSet)),
   ])
   if (rewardRes.error) return { events: [], error: rewardRes.error.message }
