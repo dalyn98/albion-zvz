@@ -768,5 +768,13 @@
     "invalidAmount": "正しい金額を入力してください。",
     "insufficientBalance": "残高が不足しています。現在の残高: {balance} silver",
     "pendingExchangeExists": "処理待ちの両替申請がすでにあります。"
+  },
+  "errors": {
+    "title": "問題が発生しました",
+    "description": "もう一度お試しいただくか、ホームに戻ってください。",
+    "retry": "再試行",
+    "home": "ホームへ",
+    "notFoundTitle": "ページが見つかりません",
+    "notFoundDescription": "URLが変更されたか、削除されたページかもしれません。"
   }
 }

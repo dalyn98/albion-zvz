@@ -768,5 +768,13 @@
     "invalidAmount": "올바른 금액을 입력해 주세요.",
     "insufficientBalance": "잔액이 부족합니다. 현재 잔액: {balance} silver",
     "pendingExchangeExists": "이미 처리 대기 중인 환전 신청이 있습니다."
+  },
+  "errors": {
+    "title": "문제가 발생했어요",
+    "description": "다시 시도하거나 홈으로 돌아가 주세요.",
+    "retry": "다시 시도",
+    "home": "홈으로",
+    "notFoundTitle": "페이지를 찾을 수 없어요",
+    "notFoundDescription": "주소가 바뀌었거나 삭제된 페이지일 수 있어요."
   }
 }

@@ -768,5 +768,13 @@
     "invalidAmount": "Please enter a valid amount.",
     "insufficientBalance": "Insufficient balance. Current: {balance} silver",
     "pendingExchangeExists": "A pending exchange request already exists."
+  },
+  "errors": {
+    "title": "Something went wrong",
+    "description": "Please try again or go back to the home page.",
+    "retry": "Try again",
+    "home": "Home",
+    "notFoundTitle": "Page not found",
+    "notFoundDescription": "The URL may have changed or the page may have been removed."
   }
 }
