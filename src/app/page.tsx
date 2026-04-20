@@ -1,11 +1,11 @@
 import { supabase } from '@/lib/supabase'
 import type { Event } from '@/types'
 import { getTranslations } from 'next-intl/server'
-import { Megaphone } from 'lucide-react'
 import { formatGatherTimeFor, isImminent, isEnded } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
 import { getAppSetting } from '@/lib/app-settings'
 import HomeEventTabs, { type HomeEventCardData, type HomeEventKind } from '@/components/HomeEventTabs'
+import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
 
 // Homepage reflects the live DB, so never prerender at build — a static
 // snapshot would show stale or deleted events.
@@ -123,12 +123,7 @@ export default async function HomePage() {
         <p className="text-gray-400 text-sm">{t('home.subtitle')}</p>
       </div>
 
-      {noticeMessage.trim() && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-3 flex items-start gap-3">
-          <Megaphone size={16} className="text-amber-300 mt-0.5 flex-shrink-0" />
-          <p className="text-amber-100 text-sm whitespace-pre-wrap break-words">{noticeMessage}</p>
-        </div>
-      )}
+      <DismissibleNoticeBanner storageKey="events" message={noticeMessage} />
 
       {events.length === 0 ? (
         <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center">
