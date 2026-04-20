@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { assignSlot, cancelSlot, type SlotPicks } from '@/app/actions/member'
+import { assignSlot, cancelSlot, adminCancelSlot, type SlotPicks } from '@/app/actions/member'
 import type { GearOption, Slot, SlotKey } from '@/types'
 import {
   SLOT_KEYS,
@@ -28,6 +28,7 @@ interface Props {
   loginHref: string
   battleStarted: boolean
   eventFinalized: boolean
+  isAdmin: boolean
   assignedAvatar?: string | null
 }
 
@@ -131,6 +132,7 @@ export default function SlotCard({
   loginHref,
   battleStarted,
   eventFinalized,
+  isAdmin,
   assignedAvatar = null,
 }: Props) {
   const [error, setError] = useState('')
@@ -181,6 +183,17 @@ export default function SlotCard({
     setError('')
     startTransition(async () => {
       const result = await cancelSlot(slot.id)
+      if (result.error) setError(result.error)
+      else router.refresh()
+    })
+  }
+
+  const handleAdminKick = () => {
+    if (!slot.assigned_username) return
+    if (!confirm(t('confirmAdminKick', { name: slot.assigned_username }))) return
+    setError('')
+    startTransition(async () => {
+      const result = await adminCancelSlot(slot.id)
       if (result.error) setError(result.error)
       else router.refresh()
     })
@@ -313,6 +326,18 @@ export default function SlotCard({
       )
     }
     if (isTaken) {
+      if (isAdmin && !battleStarted) {
+        return (
+          <button
+            onClick={handleAdminKick}
+            disabled={pending}
+            className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 transition-colors disabled:opacity-50"
+          >
+            <UserX size={11} />
+            {pending ? t('kicking') : t('adminKick')}
+          </button>
+        )
+      }
       return (
         <button
           disabled

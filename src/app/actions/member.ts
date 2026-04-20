@@ -167,6 +167,52 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
   return {}
 }
 
+// Admin can remove anyone from a slot. Same event-state guards as self-cancel
+// (no post-battle/finalized kicks to keep participation tracking intact), but
+// bypasses the ownership check that blocks regular cancelSlot.
+export async function adminCancelSlot(slotId: string): Promise<{ error?: string }> {
+  const tAction = await getTranslations('slotAction')
+  const session = await getSession()
+  if (!session) return { error: tAction('loginRequired') }
+  if (!session.isAdmin) return { error: tAction('adminOnly') }
+
+  const db = getAdminClient()
+
+  const { data: slotRow, error: slotLookupError } = await db
+    .from('slots')
+    .select('party_id, assigned_discord_id')
+    .eq('id', slotId)
+    .maybeSingle()
+  if (slotLookupError) return { error: slotLookupError.message }
+  if (!slotRow) return { error: tAction('slotNotFound') }
+  if (!slotRow.assigned_discord_id) return { error: tAction('slotEmpty') }
+
+  const { data: partyRow, error: partyLookupError } = await db
+    .from('parties')
+    .select('events(battle_started_at, finalized_at)')
+    .eq('id', slotRow.party_id)
+    .maybeSingle()
+  if (partyLookupError) return { error: partyLookupError.message }
+  const eventJoin = partyRow?.events as
+    | { battle_started_at: string | null; finalized_at: string | null }
+    | { battle_started_at: string | null; finalized_at: string | null }[]
+    | null
+  const eventState = Array.isArray(eventJoin) ? eventJoin[0] : eventJoin
+  if (eventState?.finalized_at) return { error: tAction('eventFinalized') }
+  if (eventState?.battle_started_at) return { error: tAction('battleAlreadyStarted') }
+
+  // Pass the current owner's discord id to cancel_slot so the RPC's
+  // NOT_OWNER guard passes while we keep a single code path for the update.
+  const { error } = await db.rpc('cancel_slot', {
+    p_slot_id: slotId,
+    p_discord_id: slotRow.assigned_discord_id,
+  })
+  if (error) return { error: error.message }
+
+  revalidatePath('/')
+  return {}
+}
+
 export interface MyParticipationEntry {
   event_id: string
   event_title: string

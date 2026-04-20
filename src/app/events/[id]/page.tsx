@@ -184,6 +184,7 @@ export default async function EventDetailPage({
                       loginHref={loginHref}
                       battleStarted={!!event.battle_started_at}
                       eventFinalized={!!event.finalized_at}
+                      isAdmin={session?.isAdmin ?? false}
                       assignedAvatar={slot.assigned_discord_id ? avatars[slot.assigned_discord_id] ?? null : null}
                     />
                   ))}

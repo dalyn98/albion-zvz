@@ -403,6 +403,9 @@
     "cancelling": "Cancelling...",
     "cancelApplication": "Cancel application",
     "cannotApply": "Cannot apply",
+    "adminKick": "Remove applicant",
+    "kicking": "Removing…",
+    "confirmAdminKick": "Remove {name} from this slot?",
     "applying": "Applying...",
     "pickThenApply": "Pick gear then apply",
     "apply": "Apply",
@@ -619,7 +622,8 @@
     "loginRequired": "Login required.",
     "noMemberRole": "You don't have an eligible role.",
     "battleAlreadyStarted": "The battle has already started and cannot be cancelled.",
-    "eventFinalized": "This event has ended; new sign-ups are closed."
+    "eventFinalized": "This event has ended; new sign-ups are closed.",
+    "adminOnly": "Admin only."
   },
   "adminBattleOutcome": {
     "sectionTitle": "Battle results",

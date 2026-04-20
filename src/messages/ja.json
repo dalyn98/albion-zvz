@@ -403,6 +403,9 @@
     "cancelling": "キャンセル中...",
     "cancelApplication": "申請キャンセル",
     "cannotApply": "申請不可",
+    "adminKick": "申請者を外す",
+    "kicking": "外しています…",
+    "confirmAdminKick": "{name} さんをこのスロットから外しますか？",
     "applying": "申請中...",
     "pickThenApply": "装備を選んで申請",
     "apply": "申請",
@@ -619,7 +622,8 @@
     "loginRequired": "ログインが必要です。",
     "noMemberRole": "申請できる役割がありません。",
     "battleAlreadyStarted": "戦闘が既に開始されており、キャンセルできません。",
-    "eventFinalized": "イベントが終了しているため、これ以上参加できません。"
+    "eventFinalized": "イベントが終了しているため、これ以上参加できません。",
+    "adminOnly": "管理者のみ実行できます。"
   },
   "adminBattleOutcome": {
     "sectionTitle": "戦闘結果",
