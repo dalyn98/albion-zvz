@@ -71,7 +71,12 @@
     "battleStart": "戦闘開始",
     "battleStartConfirm": "今から戦闘開始として処理しますか? 以降 1 時間以内のデスがリギア対象になります。",
     "battleResetConfirm": "戦闘開始時刻をリセットしますか? 誤操作の時のみ使用してください。",
-    "battleResetTitle": "戦闘開始時刻をリセット"
+    "battleResetTitle": "戦闘開始時刻をリセット",
+    "tabsLabel": "イベント状態タブ",
+    "tabActive": "進行中",
+    "tabEnded": "終了",
+    "noActiveEvents": "進行中のイベントはありません。",
+    "noEndedEvents": "終了したイベントはありません。"
   },
   "adminNewEvent": {
     "title": "新規イベント",
@@ -288,6 +293,7 @@
     "tabLanding": "ランディングページ",
     "tabMembersRange": "メンバー統計期間",
     "tabGuests": "ゲスト招待",
+    "tabRegear": "リギア告知",
     "membersRangeTitle": "メンバー勝敗集計期間",
     "membersRangeDescription": "ギルドメンバー一覧の上部に表示される勝敗合計と対戦ギルド数の集計範囲です。空欄の場合は全期間が集計されます。",
     "membersRangeStart": "開始日",
@@ -318,6 +324,15 @@
     "clear": "クリア",
     "clearTooltip": "トークンを空にして招待リンクを無効化します",
     "copyFailed": "クリップボードへのコピーに失敗しました。"
+  },
+  "adminRegearNotice": {
+    "title": "リギア告知",
+    "description": "リギア申請ページの最上部に表示される告知です。空欄の場合は非表示になります。",
+    "label": "告知内容",
+    "placeholder": "例: リギア審査は毎週日曜日にまとめて処理されます。",
+    "tooLong": "告知は最大 {max} 文字まで入力できます。",
+    "clear": "消去",
+    "clearTooltip": "告知を空にしてバナーを非表示にします"
   },
   "sidebar": {
     "memberGroup": "メンバー",

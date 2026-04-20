@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Clock, MapPin, Swords, ShieldCheck } from 'lucide-react'
+import { Clock, MapPin, Swords, ShieldCheck, Megaphone } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { listMyRegearEligibleEvents } from '@/app/actions/regear'
@@ -8,6 +8,7 @@ import { formatSilver } from '@/lib/silver'
 import { formatGatherTimeFor } from '@/lib/gather-time'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { getLocale } from '@/lib/locale'
+import { getAppSetting } from '@/lib/app-settings'
 import RegearRequestButton from '@/components/RegearRequestButton'
 
 export const dynamic = 'force-dynamic'
@@ -28,10 +29,11 @@ export default async function RegearPage() {
     redirect('/')
   }
 
-  const [{ events, error }, t, locale] = await Promise.all([
+  const [{ events, error }, t, locale, noticeMessage] = await Promise.all([
     listMyRegearEligibleEvents(),
     getTranslations('regear'),
     getLocale(),
+    getAppSetting('regear_notice_message', ''),
   ])
 
   return (
@@ -40,6 +42,13 @@ export default async function RegearPage() {
         <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">{t('pageTitle')}</h1>
         <p className="text-gray-400 text-sm">{t('pageDescription')}</p>
       </div>
+
+      {noticeMessage.trim() && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-3 flex items-start gap-3">
+          <Megaphone size={16} className="text-amber-300 mt-0.5 flex-shrink-0" />
+          <p className="text-amber-100 text-sm whitespace-pre-wrap break-words">{noticeMessage}</p>
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">

@@ -43,18 +43,6 @@ export async function createEvent(payload: EventPayload): Promise<{ id: string }
     const db = await requireAdmin()
     const { data, error } = await db.from('events').insert(payload).select('id').single()
     if (error) return { error: error.message }
-
-    // Notify Discord — do not fail the event creation if the bot call errors.
-    try {
-      const content = await getAppSetting(
-        'event_notification_message',
-        DEFAULT_EVENT_NOTIFICATION_MESSAGE,
-      )
-      await sendEventNotification({ id: data.id, ...payload }, { content })
-    } catch (notifyError) {
-      console.error('[createEvent] discord notify failed', notifyError)
-    }
-
     return { id: data.id }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

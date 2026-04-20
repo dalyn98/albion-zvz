@@ -71,7 +71,12 @@
     "battleStart": "전투 시작",
     "battleStartConfirm": "지금 전투를 시작 처리할까요? 이후 1시간 이내 데스가 리기어 대상이 됩니다.",
     "battleResetConfirm": "전투 시작 시간을 초기화할까요? 잘못 눌렀을 때만 사용하세요.",
-    "battleResetTitle": "전투 시작 시간 초기화"
+    "battleResetTitle": "전투 시작 시간 초기화",
+    "tabsLabel": "이벤트 상태 탭",
+    "tabActive": "진행중",
+    "tabEnded": "종료됨",
+    "noActiveEvents": "진행중인 이벤트가 없습니다.",
+    "noEndedEvents": "종료된 이벤트가 없습니다."
   },
   "adminNewEvent": {
     "title": "새 이벤트",
@@ -288,6 +293,7 @@
     "tabLanding": "대문 페이지",
     "tabMembersRange": "길드원 통계 기간",
     "tabGuests": "게스트 초대",
+    "tabRegear": "리기어 공지",
     "membersRangeTitle": "길드원 승패 집계 기간",
     "membersRangeDescription": "길드원 목록 최상단에 표시되는 승/패 합산과 상대 길드 수의 집계 범위입니다. 비워두면 전체 기간이 집계됩니다.",
     "membersRangeStart": "시작일",
@@ -318,6 +324,15 @@
     "clear": "초기화",
     "clearTooltip": "토큰을 비워 초대 링크를 비활성화합니다",
     "copyFailed": "클립보드 복사에 실패했습니다."
+  },
+  "adminRegearNotice": {
+    "title": "리기어 공지",
+    "description": "리기어 신청 페이지 최상단에 표시되는 공지입니다. 비워두면 표시되지 않습니다.",
+    "label": "공지 내용",
+    "placeholder": "예: 리기어 심사는 매주 일요일에 일괄 처리됩니다.",
+    "tooLong": "공지는 최대 {max}자까지 입력할 수 있습니다.",
+    "clear": "지우기",
+    "clearTooltip": "공지를 비워 배너를 숨깁니다"
   },
   "sidebar": {
     "memberGroup": "구성원",

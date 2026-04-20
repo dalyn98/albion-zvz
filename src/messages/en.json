@@ -71,7 +71,12 @@
     "battleStart": "Start battle",
     "battleStartConfirm": "Mark the battle as started now? Deaths within the next 1 hour will be eligible for regear.",
     "battleResetConfirm": "Reset the battle start time? Use only to correct mistakes.",
-    "battleResetTitle": "Reset battle start time"
+    "battleResetTitle": "Reset battle start time",
+    "tabsLabel": "Event status tabs",
+    "tabActive": "Active",
+    "tabEnded": "Ended",
+    "noActiveEvents": "No active events.",
+    "noEndedEvents": "No ended events."
   },
   "adminNewEvent": {
     "title": "New event",
@@ -288,6 +293,7 @@
     "tabLanding": "Landing page",
     "tabMembersRange": "Members stats range",
     "tabGuests": "Guest invite",
+    "tabRegear": "Regear notice",
     "membersRangeTitle": "Members win/loss aggregate range",
     "membersRangeDescription": "Date range used by the wins/losses and distinct-opponent totals at the top of the guild members page. Leave blank to include all time.",
     "membersRangeStart": "Start date",
@@ -318,6 +324,15 @@
     "clear": "Clear",
     "clearTooltip": "Clear the token to disable the invite link",
     "copyFailed": "Couldn't copy to the clipboard."
+  },
+  "adminRegearNotice": {
+    "title": "Regear notice",
+    "description": "Banner shown at the top of the regear request page. Leave blank to hide it.",
+    "label": "Notice content",
+    "placeholder": "e.g. Regear reviews are processed in a weekly batch on Sunday.",
+    "tooLong": "Notice must be {max} characters or fewer.",
+    "clear": "Clear",
+    "clearTooltip": "Empty the notice to hide the banner"
   },
   "sidebar": {
     "memberGroup": "Members",

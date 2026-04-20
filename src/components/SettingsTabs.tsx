@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { Bell, Coins, Image as ImageIcon, CalendarRange, UserPlus } from 'lucide-react'
+import { Bell, Coins, Image as ImageIcon, CalendarRange, UserPlus, ShieldCheck } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import NotificationSettingsForm from './NotificationSettingsForm'
 import RoleRewardsEditor from './RoleRewardsEditor'
@@ -9,19 +9,27 @@ import LandingBannerForm from './LandingBannerForm'
 import LandingCtaTextForm from './LandingCtaTextForm'
 import MembersAggregateRangeForm from './MembersAggregateRangeForm'
 import GuestInviteSettingsForm from './GuestInviteSettingsForm'
+import RegearNoticeForm from './RegearNoticeForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
 
-type TabKey = 'notifications' | 'rewards' | 'landing' | 'membersRange' | 'guests'
+type TabKey = 'notifications' | 'rewards' | 'landing' | 'membersRange' | 'guests' | 'regear'
 
 interface TabDef {
   key: TabKey
-  labelKey: 'tabNotifications' | 'tabRewards' | 'tabLanding' | 'tabMembersRange' | 'tabGuests'
+  labelKey:
+    | 'tabNotifications'
+    | 'tabRewards'
+    | 'tabLanding'
+    | 'tabMembersRange'
+    | 'tabGuests'
+    | 'tabRegear'
   icon: React.ComponentType<{ size?: number; className?: string }>
 }
 
 const TABS: readonly TabDef[] = [
   { key: 'notifications', labelKey: 'tabNotifications', icon: Bell },
   { key: 'rewards', labelKey: 'tabRewards', icon: Coins },
+  { key: 'regear', labelKey: 'tabRegear', icon: ShieldCheck },
   { key: 'landing', labelKey: 'tabLanding', icon: ImageIcon },
   { key: 'membersRange', labelKey: 'tabMembersRange', icon: CalendarRange },
   { key: 'guests', labelKey: 'tabGuests', icon: UserPlus },
@@ -39,6 +47,7 @@ interface Props {
   aggregateStartDate: string
   aggregateEndDate: string
   guestInviteToken: string
+  regearNoticeMessage: string
   origin: string
 }
 
@@ -48,7 +57,8 @@ function isTabKey(value: string | null): value is TabKey {
     value === 'rewards' ||
     value === 'landing' ||
     value === 'membersRange' ||
-    value === 'guests'
+    value === 'guests' ||
+    value === 'regear'
   )
 }
 
@@ -62,6 +72,7 @@ export default function SettingsTabs({
   aggregateStartDate,
   aggregateEndDate,
   guestInviteToken,
+  regearNoticeMessage,
   origin,
 }: Props) {
   const t = useTranslations('adminSettings')
@@ -142,6 +153,9 @@ export default function SettingsTabs({
         )}
         {active === 'guests' && (
           <GuestInviteSettingsForm initialToken={guestInviteToken} origin={origin} />
+        )}
+        {active === 'regear' && (
+          <RegearNoticeForm initialMessage={regearNoticeMessage} />
         )}
       </div>
     </div>
