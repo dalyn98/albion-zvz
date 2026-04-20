@@ -1,11 +1,15 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Coins } from 'lucide-react'
+import { Coins, Trophy, ShieldAlert, Hourglass } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { listMyRegearRequests, getMyPointsSummary } from '@/app/actions/regear'
 import { listMyExchangeRequests } from '@/app/actions/exchange'
+import { listMyParticipation } from '@/app/actions/member'
 import { formatSilver } from '@/lib/silver'
 import { formatDateTime } from '@/lib/format-datetime'
+import { formatGatherTimeFor } from '@/lib/gather-time'
+import { getLocale } from '@/lib/locale'
 import { regearPayoutSilver } from '@/types'
 import RequestExchangeForm from '@/components/RequestExchangeForm'
 import ExchangeRequestActions from '@/components/ExchangeRequestActions'
@@ -25,17 +29,28 @@ export default async function MePage() {
     redirect('/api/auth/discord/start?returnTo=/me')
   }
 
-  const [{ summary }, { requests: regears }, { requests: exchanges }, t, tStatus] =
-    await Promise.all([
-      getMyPointsSummary(),
-      listMyRegearRequests(),
-      listMyExchangeRequests(),
-      getTranslations('me'),
-      getTranslations('status'),
-    ])
+  const [
+    { summary },
+    { requests: regears },
+    { requests: exchanges },
+    { entries: participation },
+    t,
+    tStatus,
+    locale,
+  ] = await Promise.all([
+    getMyPointsSummary(),
+    listMyRegearRequests(),
+    listMyExchangeRequests(),
+    listMyParticipation(),
+    getTranslations('me'),
+    getTranslations('status'),
+    getLocale(),
+  ])
 
   const balance = summary?.balance ?? 0
   const hasPendingExchange = exchanges.some((e) => e.status === 'pending')
+  const wins = participation.filter((p) => p.outcome === 'win').length
+  const losses = participation.filter((p) => p.outcome === 'loss').length
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -100,6 +115,49 @@ export default async function MePage() {
       </section>
 
       <section className="space-y-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="text-lg font-bold text-white">{t('participationTitle')}</h2>
+          {participation.length > 0 && (
+            <p className="text-xs text-gray-400">
+              <span className="text-emerald-300 font-semibold">{t('winsCount', { count: wins })}</span>
+              <span className="mx-1.5 text-gray-600">·</span>
+              <span className="text-rose-300 font-semibold">{t('lossesCount', { count: losses })}</span>
+            </p>
+          )}
+        </div>
+        {participation.length === 0 ? (
+          <p className="text-gray-500 text-sm text-center py-6">{t('noParticipation')}</p>
+        ) : (
+          <ul className="space-y-2">
+            {participation.map((p) => (
+              <li
+                key={p.event_id}
+                className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3"
+              >
+                <Link href={`/events/${p.event_id}`} className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-white text-sm font-medium truncate">{p.event_title}</p>
+                    <p className="text-gray-500 text-xs">
+                      {p.gather_at ? formatGatherTimeFor(locale, p.gather_at) : p.gather_time}
+                      {p.role_name && <span className="ml-2 text-gray-400">· {p.role_name}</span>}
+                    </p>
+                  </div>
+                  <ParticipationOutcomeBadge
+                    outcome={p.outcome}
+                    labels={{
+                      win: t('outcomeWin'),
+                      loss: t('outcomeLoss'),
+                      pending: t('outcomePending'),
+                    }}
+                  />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-3">
         <h2 className="text-lg font-bold text-white">{t('regearListTitle')}</h2>
         {regears.length === 0 ? (
           <p className="text-gray-500 text-sm text-center py-6">{t('noRegears')}</p>
@@ -144,5 +202,36 @@ export default async function MePage() {
         )}
       </section>
     </main>
+  )
+}
+
+function ParticipationOutcomeBadge({
+  outcome,
+  labels,
+}: {
+  outcome: 'win' | 'loss' | null
+  labels: { win: string; loss: string; pending: string }
+}) {
+  if (outcome === 'win') {
+    return (
+      <span className="inline-flex items-center gap-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0">
+        <Trophy size={11} />
+        {labels.win}
+      </span>
+    )
+  }
+  if (outcome === 'loss') {
+    return (
+      <span className="inline-flex items-center gap-1 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0">
+        <ShieldAlert size={11} />
+        {labels.loss}
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 bg-gray-700 text-gray-300 text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0">
+      <Hourglass size={11} />
+      {labels.pending}
+    </span>
   )
 }

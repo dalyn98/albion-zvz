@@ -1,12 +1,11 @@
 import { supabase } from '@/lib/supabase'
 import type { Event } from '@/types'
-import { Clock, MapPin, ChevronRight, Users, Swords, Flame, Archive } from 'lucide-react'
-import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import { formatGatherTimeFor, isImminent, isEnded } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
 import { getSession } from '@/lib/session'
 import { getAppSetting } from '@/lib/app-settings'
+import HomeEventTabs, { type HomeEventCardData, type HomeEventKind } from '@/components/HomeEventTabs'
 
 // Homepage reflects the live DB, so never prerender at build — a static
 // snapshot would show stale or deleted events.
@@ -17,7 +16,8 @@ interface EventWithCounts extends Event {
   assigned: number
 }
 
-type EventKind = 'imminent' | 'ended' | 'upcoming'
+// Scheduled kinds only; wins/losses are determined by event.outcome directly.
+type ScheduledKind = 'imminent' | 'ended' | 'upcoming'
 
 // Maps the auth_error query param the Discord callback sets on redirect
 // to translation keys under `auth.error`.
@@ -62,90 +62,10 @@ async function getActiveEvents(): Promise<EventWithCounts[]> {
   }))
 }
 
-function classifyEvent(event: Event): EventKind {
+function classifyScheduled(event: Event): ScheduledKind {
   if (event.battle_started_at && isEnded(event.battle_started_at)) return 'ended'
   if (event.battle_started_at || isImminent(event.gather_at)) return 'imminent'
   return 'upcoming'
-}
-
-interface EventCardLabels {
-  inProgress: string
-  imminent: string
-  ended: string
-  applicants: (assigned: number, total: number) => string
-}
-
-function EventCard({
-  event,
-  kind,
-  labels,
-  displayGatherTime,
-}: {
-  event: EventWithCounts
-  kind: EventKind
-  labels: EventCardLabels
-  displayGatherTime: string
-}) {
-  // 카드 상태별 액센트. 테두리+미세한 glow로 상태를 전달하되 hover 시 살짝
-  // 떠오르는 느낌을 주기 위해 -translate-y-0.5 + shadow 강화.
-  const stateClass =
-    kind === 'imminent' && event.battle_started_at
-      ? 'border-rose-500/40 hover:border-rose-500/60 hover:shadow-[0_12px_28px_-12px_rgba(244,63,94,0.35)]'
-      : kind === 'imminent'
-      ? 'border-amber-500/40 hover:border-amber-400/70 hover:shadow-[0_12px_28px_-12px_rgba(245,158,11,0.4)]'
-      : kind === 'ended'
-      ? 'border-gray-800/80 hover:border-gray-700 opacity-70 hover:opacity-85'
-      : 'border-white/5 hover:border-amber-500/40 hover:shadow-[0_12px_28px_-12px_rgba(0,0,0,0.5)]'
-  return (
-    <Link
-      href={`/events/${event.id}`}
-      className={`group block bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-sm border rounded-2xl p-4 sm:p-5 transition-all duration-200 hover:-translate-y-0.5 ${stateClass}`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0 space-y-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-base sm:text-lg font-bold text-white truncate">{event.title}</h2>
-            {kind === 'imminent' && event.battle_started_at ? (
-              <span className="inline-flex items-center gap-1 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">
-                <Swords size={10} />
-                {labels.inProgress}
-              </span>
-            ) : kind === 'imminent' ? (
-              <span className="inline-flex items-center gap-1 bg-amber-500/20 border border-amber-500/40 text-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">
-                <Flame size={10} />
-                {labels.imminent}
-              </span>
-            ) : kind === 'ended' ? (
-              <span className="inline-flex items-center gap-1 bg-gray-700 text-gray-300 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">
-                <Archive size={10} />
-                {labels.ended}
-              </span>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            <div className="flex items-center gap-1.5 text-gray-300">
-              <Clock size={13} className="text-amber-400" />
-              {displayGatherTime}
-            </div>
-            <div className="flex items-center gap-1.5 text-gray-300">
-              <MapPin size={13} className="text-amber-400" />
-              {event.gather_location}
-            </div>
-          </div>
-          {event.total > 0 && (
-            <div className="flex items-center gap-1.5 text-xs text-gray-400">
-              <Users size={12} />
-              {labels.applicants(event.assigned, event.total)}
-            </div>
-          )}
-        </div>
-        <ChevronRight
-          size={20}
-          className="text-gray-500 group-hover:text-gray-300 group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-1"
-        />
-      </div>
-    </Link>
-  )
 }
 
 export default async function HomePage({
@@ -186,21 +106,48 @@ export default async function HomePage({
 
   const events = await getActiveEvents()
 
-  const imminent: EventWithCounts[] = []
-  const ended: EventWithCounts[] = []
-  const upcoming: EventWithCounts[] = []
-  for (const e of events) {
-    const kind = classifyEvent(e)
-    if (kind === 'imminent') imminent.push(e)
-    else if (kind === 'ended') ended.push(e)
-    else upcoming.push(e)
+  // Fetch opponent guild summaries for finalized events so the win/loss tabs
+  // can display "vs GuildA, GuildB · 3 battles" per card. Skip when there are
+  // no finalized events.
+  const finalizedIds = events.filter((e) => e.outcome).map((e) => e.id)
+  const battleMap = new Map<string, { opponents: string[]; count: number }>()
+  if (finalizedIds.length > 0) {
+    const { data: battles } = await supabase
+      .from('event_battles')
+      .select('event_id, opponent_guild, battle_number')
+      .in('event_id', finalizedIds)
+      .order('battle_number', { ascending: true })
+    for (const b of (battles ?? []) as { event_id: string; opponent_guild: string }[]) {
+      const cur = battleMap.get(b.event_id) ?? { opponents: [], count: 0 }
+      if (!cur.opponents.includes(b.opponent_guild)) cur.opponents.push(b.opponent_guild)
+      cur.count += 1
+      battleMap.set(b.event_id, cur)
+    }
   }
 
-  const cardLabels: EventCardLabels = {
-    inProgress: t('home.badge.inProgress'),
-    imminent: t('home.badge.imminent'),
-    ended: t('home.badge.ended'),
-    applicants: (assigned, total) => t('home.applicants', { assigned, total }),
+  const toCard = (event: EventWithCounts, kind: HomeEventKind): HomeEventCardData => {
+    const battleInfo = battleMap.get(event.id)
+    return {
+      id: event.id,
+      title: event.title,
+      gather_location: event.gather_location,
+      displayGatherTime: displayGatherTime(event),
+      total: event.total,
+      assigned: event.assigned,
+      kind,
+      battleStarted: !!event.battle_started_at,
+      opponentGuilds: battleInfo ? battleInfo.opponents.join(', ') : null,
+      battleCount: battleInfo?.count ?? 0,
+    }
+  }
+
+  const scheduled: HomeEventCardData[] = []
+  const wins: HomeEventCardData[] = []
+  const losses: HomeEventCardData[] = []
+  for (const e of events) {
+    if (e.outcome === 'win') wins.push(toCard(e, 'win'))
+    else if (e.outcome === 'loss') losses.push(toCard(e, 'loss'))
+    else scheduled.push(toCard(e, classifyScheduled(e)))
   }
 
   return (
@@ -221,65 +168,30 @@ export default async function HomePage({
           <p className="text-gray-400">{t('home.empty')}</p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {imminent.length > 0 && (
-            <Section
-              title={t('home.sections.imminent')}
-              icon={<Flame size={16} className="text-amber-400" />}
-              titleClass="text-amber-300"
-            >
-              {imminent.map((event) => (
-                <EventCard key={event.id} event={event} kind="imminent" labels={cardLabels} displayGatherTime={displayGatherTime(event)} />
-              ))}
-            </Section>
-          )}
-
-          {ended.length > 0 && (
-            <Section
-              title={t('home.sections.ended')}
-              icon={<Archive size={16} className="text-gray-500" />}
-              titleClass="text-gray-400"
-            >
-              {ended.map((event) => (
-                <EventCard key={event.id} event={event} kind="ended" labels={cardLabels} displayGatherTime={displayGatherTime(event)} />
-              ))}
-            </Section>
-          )}
-
-          {upcoming.length > 0 && (
-            <Section title={t('home.sections.upcoming')} titleClass="text-gray-400">
-              {upcoming.map((event) => (
-                <EventCard key={event.id} event={event} kind="upcoming" labels={cardLabels} displayGatherTime={displayGatherTime(event)} />
-              ))}
-            </Section>
-          )}
-        </div>
+        <HomeEventTabs
+          scheduled={scheduled}
+          wins={wins}
+          losses={losses}
+          labels={{
+            inProgress: t('home.badge.inProgress'),
+            imminent: t('home.badge.imminent'),
+            ended: t('home.badge.ended'),
+            win: t('home.badge.win'),
+            loss: t('home.badge.loss'),
+            applicants: (assigned, total) => t('home.applicants', { assigned, total }),
+            opponentsPrefix: t('home.opponentsPrefix'),
+            battlesSuffix: (count) => t('home.battlesSuffix', { count }),
+          }}
+          sectionTitles={{
+            imminent: t('home.sections.imminent'),
+            ended: t('home.sections.ended'),
+            upcoming: t('home.sections.upcoming'),
+          }}
+          tabCountTemplate={(count) => t('home.tabs.count', { count })}
+          emptyLabel={t('home.empty')}
+        />
       )}
     </main>
-  )
-}
-
-function Section({
-  title,
-  icon,
-  titleClass,
-  children,
-}: {
-  title: string
-  icon?: React.ReactNode
-  titleClass: string
-  children: React.ReactNode
-}) {
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center gap-2">
-        {icon}
-        <h2 className={`text-sm font-bold ${titleClass}`}>{title}</h2>
-      </div>
-      <div className="space-y-3 xl:grid xl:grid-cols-2 xl:gap-3 xl:space-y-0 2xl:grid-cols-3">
-        {children}
-      </div>
-    </section>
   )
 }
 

@@ -319,9 +319,19 @@
     "badge": {
       "inProgress": "In battle",
       "imminent": "Imminent",
-      "ended": "Ended"
+      "ended": "Ended",
+      "win": "Win",
+      "loss": "Loss"
     },
-    "applicants": "Applied {assigned}/{total}"
+    "tabs": {
+      "scheduled": "Scheduled",
+      "wins": "Wins",
+      "losses": "Losses",
+      "count": "({count})"
+    },
+    "applicants": "Applied {assigned}/{total}",
+    "opponentsPrefix": "vs",
+    "battlesSuffix": "{count} battles"
   },
   "landing": {
     "defaultCta": "Log in with Discord to access events and parties.",
@@ -469,7 +479,14 @@
     "noRegears": "No request history.",
     "claimed": "Claimed",
     "ceiling": "Cap",
-    "killboardUnverified": "Killboard unverified"
+    "killboardUnverified": "Killboard unverified",
+    "participationTitle": "Event participation",
+    "noParticipation": "You haven't participated in any events yet.",
+    "outcomeWin": "Win",
+    "outcomeLoss": "Loss",
+    "outcomePending": "Pending",
+    "winsCount": "{count} W",
+    "lossesCount": "{count} L"
   },
   "myProfile": {
     "notRegistered": "Your guild member record hasn't been registered yet. Logging in again will register you automatically."
@@ -552,6 +569,18 @@
     "noMemberRole": "You don't have an eligible role.",
     "battleAlreadyStarted": "The battle has already started and cannot be cancelled."
   },
+  "adminBattleOutcome": {
+    "sectionTitle": "Battle results",
+    "description": "Record each battle's opponent and outcome. The event's final result is decided by majority (null on a tie).",
+    "opponentPlaceholder": "Opponent guild name",
+    "win": "Win",
+    "loss": "Loss",
+    "tie": "Tie (unresolved)",
+    "previewLabel": "Final:",
+    "addBattle": "Add battle",
+    "reset": "Reset",
+    "resetConfirm": "Delete all battle records and the outcome?"
+  },
   "adminActionError": {
     "serverError": "Server error",
     "missingTitle": "Event title is empty.",
@@ -594,7 +623,15 @@
     "bannerEmptyFile": "The file is empty.",
     "bannerFileTooLarge": "File size cannot exceed 5 MB.",
     "bannerWrongType": "Only PNG, JPG, WEBP, GIF files can be uploaded.",
-    "bannerUploadFailed": "Upload failed: {reason}"
+    "bannerUploadFailed": "Upload failed: {reason}",
+    "battleNotStarted": "Cannot save outcome before battle starts.",
+    "emptyBattles": "At least one battle is required.",
+    "tooManyBattles": "You can record at most {max} battles.",
+    "invalidBattleNumber": "Invalid battle number.",
+    "duplicateBattleNumber": "Duplicate battle number.",
+    "missingOpponentGuild": "Please enter the opponent guild name.",
+    "opponentGuildTooLong": "Opponent guild name must be at most {max} characters.",
+    "invalidBattleOutcome": "Invalid battle outcome value."
   },
   "memberActionError": {
     "loginRequired": "Login required.",

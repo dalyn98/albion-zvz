@@ -147,6 +147,121 @@ export async function resetBattleStart(id: string): Promise<{ error?: string }> 
   }
 }
 
+// --- Event outcome (win/loss) actions ---
+
+interface BattlePayload {
+  battle_number: number
+  opponent_guild: string
+  outcome: 'win' | 'loss'
+}
+
+const MAX_BATTLES_PER_EVENT = 50
+const MAX_OPPONENT_GUILD_LENGTH = 100
+
+// Event outcome is determined by majority of battle results. A tie leaves
+// outcome null so the event stays in "미확정/예정" tab until the admin edits
+// further battles to break the tie.
+function computeMajorityOutcome(battles: BattlePayload[]): 'win' | 'loss' | null {
+  const wins = battles.filter((b) => b.outcome === 'win').length
+  const losses = battles.length - wins
+  if (wins > losses) return 'win'
+  if (losses > wins) return 'loss'
+  return null
+}
+
+function validateBattles(battles: BattlePayload[], tErr: AdminErrorTranslator): string | null {
+  if (battles.length === 0) return tErr('emptyBattles')
+  if (battles.length > MAX_BATTLES_PER_EVENT) return tErr('tooManyBattles', { max: MAX_BATTLES_PER_EVENT })
+  const seen = new Set<number>()
+  for (const b of battles) {
+    if (!Number.isInteger(b.battle_number) || b.battle_number < 1) return tErr('invalidBattleNumber')
+    if (seen.has(b.battle_number)) return tErr('duplicateBattleNumber')
+    seen.add(b.battle_number)
+    const guild = b.opponent_guild.trim()
+    if (!guild) return tErr('missingOpponentGuild')
+    if (guild.length > MAX_OPPONENT_GUILD_LENGTH) {
+      return tErr('opponentGuildTooLong', { max: MAX_OPPONENT_GUILD_LENGTH })
+    }
+    if (b.outcome !== 'win' && b.outcome !== 'loss') return tErr('invalidBattleOutcome')
+  }
+  return null
+}
+
+export async function saveEventBattles(
+  eventId: string,
+  battles: BattlePayload[],
+): Promise<{ error?: string; outcome?: 'win' | 'loss' | null }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const invalid = validateBattles(battles, tErr)
+    if (invalid) return { error: invalid }
+
+    const db = await requireAdmin()
+
+    const { data: eventRow, error: eventErr } = await db
+      .from('events')
+      .select('id, battle_started_at')
+      .eq('id', eventId)
+      .maybeSingle()
+    if (eventErr) return { error: eventErr.message }
+    if (!eventRow) return { error: tErr('eventNotFound') }
+    if (!eventRow.battle_started_at) return { error: tErr('battleNotStarted') }
+
+    // Replace-all semantics — simpler than diffing and matches how the admin
+    // edits the battle list as a single form.
+    const { error: delErr } = await db.from('event_battles').delete().eq('event_id', eventId)
+    if (delErr) return { error: delErr.message }
+
+    const rows = battles.map((b) => ({
+      event_id: eventId,
+      battle_number: b.battle_number,
+      opponent_guild: b.opponent_guild.trim(),
+      outcome: b.outcome,
+    }))
+    const { error: insErr } = await db.from('event_battles').insert(rows)
+    if (insErr) return { error: insErr.message }
+
+    const outcome = computeMajorityOutcome(battles)
+    const { error: updErr } = await db
+      .from('events')
+      .update({ outcome, finalized_at: new Date().toISOString() })
+      .eq('id', eventId)
+    if (updErr) return { error: updErr.message }
+
+    revalidatePath(`/admin/dashboard/events/${eventId}`)
+    revalidatePath(`/events/${eventId}`)
+    revalidatePath('/')
+    revalidatePath('/me')
+    return { outcome }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function resetEventOutcome(eventId: string): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const db = await requireAdmin()
+
+    const { error: delErr } = await db.from('event_battles').delete().eq('event_id', eventId)
+    if (delErr) return { error: delErr.message }
+
+    const { error: updErr } = await db
+      .from('events')
+      .update({ outcome: null, finalized_at: null })
+      .eq('id', eventId)
+    if (updErr) return { error: updErr.message }
+
+    revalidatePath(`/admin/dashboard/events/${eventId}`)
+    revalidatePath(`/events/${eventId}`)
+    revalidatePath('/')
+    revalidatePath('/me')
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
 // --- Party / slot actions ---
 
 interface SlotPayload {

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
-import type { GearOption, SlotKey } from '@/types'
+import type { EventOutcome, GearOption, SlotKey } from '@/types'
 
 export type SlotPicks = Partial<Record<SlotKey, GearOption>>
 
@@ -147,4 +147,76 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
 
   revalidatePath('/')
   return {}
+}
+
+export interface MyParticipationEntry {
+  event_id: string
+  event_title: string
+  gather_at: string | null
+  gather_time: string
+  role_name: string | null
+  outcome: EventOutcome | null
+  battle_started_at: string | null
+}
+
+// Events the signed-in member actually participated in — defined as events
+// where the admin pressed "battle start" AND one of their slots was assigned
+// to the member. Events still awaiting an admin outcome appear with outcome
+// = null so the member can see they participated but the result is pending.
+export async function listMyParticipation(): Promise<{
+  entries: MyParticipationEntry[]
+}> {
+  const session = await getSession()
+  if (!session) return { entries: [] }
+
+  const db = getAdminClient()
+  const { data, error } = await db
+    .from('slots')
+    .select(
+      'role_name, parties!inner(events!inner(id, title, gather_at, gather_time, battle_started_at, outcome))',
+    )
+    .eq('assigned_discord_id', session.discordId)
+
+  if (error) return { entries: [] }
+
+  type JoinedEvent = {
+    id: string
+    title: string
+    gather_at: string | null
+    gather_time: string
+    battle_started_at: string | null
+    outcome: EventOutcome | null
+  }
+  type Row = {
+    role_name: string | null
+    parties: { events: JoinedEvent | JoinedEvent[] } | { events: JoinedEvent | JoinedEvent[] }[]
+  }
+
+  // Dedupe by event_id — a member might fill multiple slots in the same event
+  // (edge case, but possible with admin-assisted moves). Keep the first entry.
+  const byEventId = new Map<string, MyParticipationEntry>()
+  for (const row of (data ?? []) as Row[]) {
+    const parties = Array.isArray(row.parties) ? row.parties[0] : row.parties
+    if (!parties) continue
+    const event = Array.isArray(parties.events) ? parties.events[0] : parties.events
+    if (!event) continue
+    if (!event.battle_started_at) continue
+    if (byEventId.has(event.id)) continue
+    byEventId.set(event.id, {
+      event_id: event.id,
+      event_title: event.title,
+      gather_at: event.gather_at,
+      gather_time: event.gather_time,
+      role_name: row.role_name,
+      outcome: event.outcome,
+      battle_started_at: event.battle_started_at,
+    })
+  }
+
+  const entries = Array.from(byEventId.values()).sort((a, b) => {
+    const at = a.gather_at ? new Date(a.gather_at).getTime() : 0
+    const bt = b.gather_at ? new Date(b.gather_at).getTime() : 0
+    return bt - at
+  })
+  return { entries }
 }

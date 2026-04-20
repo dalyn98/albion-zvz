@@ -7,6 +7,20 @@ export interface Event {
   special_notes: string | null
   is_active: boolean
   battle_started_at: string | null
+  // 과반수의 event_battles.outcome 에서 자동 집계. 동수이면 null 로 남는다.
+  outcome: 'win' | 'loss' | null
+  finalized_at: string | null
+  created_at: string
+}
+
+export type EventOutcome = 'win' | 'loss'
+
+export interface EventBattle {
+  id: string
+  event_id: string
+  battle_number: number
+  opponent_guild: string
+  outcome: EventOutcome
   created_at: string
 }
 

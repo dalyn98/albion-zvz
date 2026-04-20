@@ -319,9 +319,19 @@
     "badge": {
       "inProgress": "戦闘中",
       "imminent": "戦闘間近",
-      "ended": "終了"
+      "ended": "終了",
+      "win": "勝利",
+      "loss": "敗北"
     },
-    "applicants": "申請 {assigned}/{total}"
+    "tabs": {
+      "scheduled": "予定",
+      "wins": "勝利",
+      "losses": "敗北",
+      "count": "({count})"
+    },
+    "applicants": "申請 {assigned}/{total}",
+    "opponentsPrefix": "相手",
+    "battlesSuffix": "{count}戦"
   },
   "landing": {
     "defaultCta": "Discord でログインすると、イベントとパーティーにアクセスできます。",
@@ -469,7 +479,14 @@
     "noRegears": "申請履歴がありません。",
     "claimed": "請求",
     "ceiling": "上限",
-    "killboardUnverified": "キルボード未確認"
+    "killboardUnverified": "キルボード未確認",
+    "participationTitle": "参加イベント履歴",
+    "noParticipation": "参加したイベントがありません。",
+    "outcomeWin": "勝利",
+    "outcomeLoss": "敗北",
+    "outcomePending": "結果待ち",
+    "winsCount": "{count}勝",
+    "lossesCount": "{count}敗"
   },
   "myProfile": {
     "notRegistered": "ギルドメンバー情報がまだ登録されていません。再ログインすると自動的に登録されます。"
@@ -552,6 +569,18 @@
     "noMemberRole": "申請できる役割がありません。",
     "battleAlreadyStarted": "戦闘が既に開始されており、キャンセルできません。"
   },
+  "adminBattleOutcome": {
+    "sectionTitle": "戦闘結果",
+    "description": "戦闘ごとに相手ギルドと勝敗を記録してください。過半数で最終結果が決まります (同数の場合は未確定)。",
+    "opponentPlaceholder": "相手ギルド名",
+    "win": "勝利",
+    "loss": "敗北",
+    "tie": "同点 (未確定)",
+    "previewLabel": "最終:",
+    "addBattle": "戦闘を追加",
+    "reset": "リセット",
+    "resetConfirm": "戦闘記録と結果をすべて削除しますか?"
+  },
   "adminActionError": {
     "serverError": "サーバーエラー",
     "missingTitle": "イベントタイトルが空です。",
@@ -594,7 +623,15 @@
     "bannerEmptyFile": "空のファイルです。",
     "bannerFileTooLarge": "ファイルサイズは 5MB を超えることはできません。",
     "bannerWrongType": "PNG、JPG、WEBP、GIF ファイルのみアップロードできます。",
-    "bannerUploadFailed": "アップロードに失敗しました: {reason}"
+    "bannerUploadFailed": "アップロードに失敗しました: {reason}",
+    "battleNotStarted": "戦闘開始前は結果を保存できません。",
+    "emptyBattles": "戦闘記録を1件以上入力してください。",
+    "tooManyBattles": "戦闘は最大{max}回まで入力できます。",
+    "invalidBattleNumber": "戦闘番号が正しくありません。",
+    "duplicateBattleNumber": "戦闘番号が重複しています。",
+    "missingOpponentGuild": "相手ギルド名を入力してください。",
+    "opponentGuildTooLong": "相手ギルド名は{max}文字以内で入力してください。",
+    "invalidBattleOutcome": "戦闘結果の値が正しくありません。"
   },
   "memberActionError": {
     "loginRequired": "ログインが必要です。",

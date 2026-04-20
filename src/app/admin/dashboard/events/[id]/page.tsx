@@ -1,21 +1,27 @@
 import { supabase } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
-import type { Event, PartyWithSlots } from '@/types'
+import type { Event, EventBattle, PartyWithSlots } from '@/types'
 import EventInfoForm from '@/components/EventInfoForm'
 import PartyEditorPanel from '@/components/PartyEditorPanel'
 import EventSlotSidebar from '@/components/EventSlotSidebar'
 import SaveAsTemplateButton from '@/components/SaveAsTemplateButton'
 import LoadTemplateButton from '@/components/LoadTemplateButton'
+import BattleOutcomeEditor from '@/components/BattleOutcomeEditor'
 import { listTemplates } from '@/app/actions/templates'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 
 const MAX_PARTIES = 4
 
 async function getData(id: string) {
-  const [{ data: event }, { data: parties }] = await Promise.all([
+  const [{ data: event }, { data: parties }, { data: battles }] = await Promise.all([
     supabase.from('events').select('*').eq('id', id).single(),
     supabase.from('parties').select('*, slots(*)').eq('event_id', id).order('party_number'),
+    supabase
+      .from('event_battles')
+      .select('*')
+      .eq('event_id', id)
+      .order('battle_number', { ascending: true }),
   ])
 
   const sorted = (parties ?? []).map((p) => ({
@@ -23,7 +29,11 @@ async function getData(id: string) {
     slots: [...(p.slots ?? [])].sort((a, b) => a.slot_number - b.slot_number),
   })) as PartyWithSlots[]
 
-  return { event: event as Event | null, parties: sorted }
+  return {
+    event: event as Event | null,
+    parties: sorted,
+    battles: (battles ?? []) as EventBattle[],
+  }
 }
 
 export default async function EditEventPage({
@@ -32,7 +42,7 @@ export default async function EditEventPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const [{ event, parties }, { templates }, t] = await Promise.all([
+  const [{ event, parties, battles }, { templates }, t] = await Promise.all([
     getData(id),
     listTemplates(),
     getTranslations('adminEditEvent'),
@@ -55,6 +65,14 @@ export default async function EditEventPage({
       <div className="flex-1 min-w-0 space-y-6 sm:space-y-8">
         <h1 className="text-xl sm:text-2xl font-bold text-white">{t('title')}</h1>
         <EventInfoForm initialEvent={event} />
+
+        {event.battle_started_at && (
+          <BattleOutcomeEditor
+            eventId={event.id}
+            initialBattles={battles}
+            currentOutcome={event.outcome}
+          />
+        )}
 
         <div className="lg:hidden">
           <EventSlotSidebar placement="mobile" parties={parties} avatars={avatars} />
