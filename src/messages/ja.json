@@ -829,7 +829,9 @@
     "alreadyProcessedCannotEdit": "すでに処理された申請は編集できません。",
     "invalidAmount": "正しい金額を入力してください。",
     "insufficientBalance": "残高が不足しています。現在の残高: {balance} silver",
-    "pendingExchangeExists": "処理待ちの両替申請がすでにあります。"
+    "pendingExchangeExists": "処理待ちの両替申請がすでにあります。",
+    "pushUnavailable": "通知の送信設定がまだ完了していません。管理者にお問い合わせください。",
+    "invalidPushSubscription": "通知の購読情報が正しくありません。"
   },
   "errors": {
     "title": "問題が発生しました",
@@ -854,5 +856,36 @@
     "settingsSaved": "保存しました。",
     "genericError": "問題が発生しました。",
     "eventDuplicated": "イベントを複製しました。"
+  },
+  "pushNotifications": {
+    "title": "プッシュ通知",
+    "description": "リギア/両替の承認通知と、イベント集合30分前の通知をブラウザで受け取れます。",
+    "enableButton": "通知をオンにする",
+    "disableButton": "通知をオフにする",
+    "enabledBadge": "通知オン",
+    "testButton": "テスト送信",
+    "testing": "送信中…",
+    "testSent": "{count}台の端末にテスト通知を送信しました。",
+    "testNoDevices": "登録中の端末に送信できませんでした。再度登録してください。",
+    "loading": "確認中…",
+    "enableFailed": "通知を有効化できませんでした。再試行してください。",
+    "disableFailed": "通知の無効化に失敗しました。",
+    "enabledMessage": "通知を有効にしました!",
+    "disabledMessage": "通知を無効にしました。",
+    "permissionDenied": "ブラウザの通知許可が拒否されました。",
+    "permissionBlocked": "ブラウザで通知がブロックされています。ブラウザ設定で許可に変更してください。",
+    "unsupported": "このブラウザは Web Push 非対応、またはサーバーに VAPID キーが未設定です。",
+    "testTitle": "テスト通知",
+    "testBody": "プッシュ通知が正常に動作しています。",
+    "regearApprovedTitle": "リギア承認",
+    "regearApprovedBody": "{event} のリギアが承認されました (+{silver} silver)。",
+    "regearRejectedTitle": "リギア却下",
+    "regearRejectedBody": "{event} のリギア申請が却下されました。",
+    "exchangeApprovedTitle": "両替承認",
+    "exchangeApprovedBody": "{silver} silver の両替が承認されました。",
+    "exchangeRejectedTitle": "両替却下",
+    "exchangeRejectedBody": "{silver} silver の両替申請が却下されました。",
+    "eventImminentTitle": "イベント間近: {title}",
+    "eventImminentBody": "{time} 集合 — 装備の準備をお願いします。"
   }
 }

@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
+import { sendPushToUser } from '@/lib/web-push'
+import { formatSilver } from '@/lib/silver'
 import type { BuildSnapshot, RegearType } from '@/types'
 
 const SCREENSHOT_BUCKET = 'regear-screenshots'
@@ -111,6 +113,7 @@ export async function getScreenshotUrl(path: string): Promise<{ url?: string; er
 
 export async function approveRegearRequest(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
+  const tPush = await getTranslations('pushNotifications')
   try {
     const db = await requireAdmin()
     const { error } = await db.rpc('approve_regear_request', { p_id: id })
@@ -122,6 +125,23 @@ export async function approveRegearRequest(id: string): Promise<{ error?: string
     }
     revalidatePath('/admin/dashboard/regear')
     revalidatePath('/me')
+    // 승인 직후 요청자에게 푸시. 실패해도 승인은 성공한 상태이므로 무시.
+    const { data: row } = await db
+      .from('regear_requests')
+      .select('discord_id, event_title_snapshot, claimed_silver')
+      .eq('id', id)
+      .maybeSingle()
+    if (row?.discord_id) {
+      void sendPushToUser(row.discord_id, {
+        title: tPush('regearApprovedTitle'),
+        body: tPush('regearApprovedBody', {
+          event: row.event_title_snapshot ?? '',
+          silver: formatSilver(row.claimed_silver ?? 0),
+        }),
+        url: '/me',
+        tag: `regear-${id}`,
+      })
+    }
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -133,6 +153,7 @@ export async function rejectRegearRequest(
   notes: string,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
+  const tPush = await getTranslations('pushNotifications')
   try {
     const db = await requireAdmin()
     const { error } = await db.rpc('reject_regear_request', {
@@ -147,6 +168,19 @@ export async function rejectRegearRequest(
     }
     revalidatePath('/admin/dashboard/regear')
     revalidatePath('/me')
+    const { data: row } = await db
+      .from('regear_requests')
+      .select('discord_id, event_title_snapshot')
+      .eq('id', id)
+      .maybeSingle()
+    if (row?.discord_id) {
+      void sendPushToUser(row.discord_id, {
+        title: tPush('regearRejectedTitle'),
+        body: tPush('regearRejectedBody', { event: row.event_title_snapshot ?? '' }),
+        url: '/me',
+        tag: `regear-${id}`,
+      })
+    }
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -202,6 +236,7 @@ export async function listExchangeRequests(
 
 export async function approveExchangeRequest(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
+  const tPush = await getTranslations('pushNotifications')
   try {
     const db = await requireAdmin()
     const { error } = await db.rpc('approve_exchange_request', { p_id: id })
@@ -216,6 +251,19 @@ export async function approveExchangeRequest(id: string): Promise<{ error?: stri
     }
     revalidatePath('/admin/dashboard/exchanges')
     revalidatePath('/me')
+    const { data: row } = await db
+      .from('exchange_requests')
+      .select('discord_id, silver')
+      .eq('id', id)
+      .maybeSingle()
+    if (row?.discord_id) {
+      void sendPushToUser(row.discord_id, {
+        title: tPush('exchangeApprovedTitle'),
+        body: tPush('exchangeApprovedBody', { silver: formatSilver(row.silver ?? 0) }),
+        url: '/me',
+        tag: `exchange-${id}`,
+      })
+    }
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -227,6 +275,7 @@ export async function rejectExchangeRequest(
   notes: string,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
+  const tPush = await getTranslations('pushNotifications')
   try {
     const db = await requireAdmin()
     const { error } = await db.rpc('reject_exchange_request', {
@@ -241,6 +290,19 @@ export async function rejectExchangeRequest(
     }
     revalidatePath('/admin/dashboard/exchanges')
     revalidatePath('/me')
+    const { data: row } = await db
+      .from('exchange_requests')
+      .select('discord_id, silver')
+      .eq('id', id)
+      .maybeSingle()
+    if (row?.discord_id) {
+      void sendPushToUser(row.discord_id, {
+        title: tPush('exchangeRejectedTitle'),
+        body: tPush('exchangeRejectedBody', { silver: formatSilver(row.silver ?? 0) }),
+        url: '/me',
+        tag: `exchange-${id}`,
+      })
+    }
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

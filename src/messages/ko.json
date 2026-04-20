@@ -829,7 +829,9 @@
     "alreadyProcessedCannotEdit": "이미 처리된 신청은 편집할 수 없습니다.",
     "invalidAmount": "올바른 금액을 입력해 주세요.",
     "insufficientBalance": "잔액이 부족합니다. 현재 잔액: {balance} silver",
-    "pendingExchangeExists": "이미 처리 대기 중인 환전 신청이 있습니다."
+    "pendingExchangeExists": "이미 처리 대기 중인 환전 신청이 있습니다.",
+    "pushUnavailable": "알림 발송 설정이 완료되지 않았어요. 관리자에게 문의해 주세요.",
+    "invalidPushSubscription": "알림 구독 정보가 올바르지 않아요."
   },
   "errors": {
     "title": "문제가 발생했어요",
@@ -854,5 +856,36 @@
     "settingsSaved": "저장했어요.",
     "genericError": "문제가 발생했어요.",
     "eventDuplicated": "이벤트를 복제했어요."
+  },
+  "pushNotifications": {
+    "title": "푸시 알림",
+    "description": "리기어/환전 승인 알림과 이벤트 집결 30분 전 알림을 브라우저로 받습니다.",
+    "enableButton": "알림 켜기",
+    "disableButton": "알림 끄기",
+    "enabledBadge": "알림 켜짐",
+    "testButton": "테스트 전송",
+    "testing": "전송 중…",
+    "testSent": "{count}개 기기로 테스트 알림을 보냈어요.",
+    "testNoDevices": "현재 등록된 기기에 전송할 수 없습니다. 다시 등록해 주세요.",
+    "loading": "확인 중…",
+    "enableFailed": "알림을 켜지 못했어요. 다시 시도해 주세요.",
+    "disableFailed": "알림 끄기에 실패했어요.",
+    "enabledMessage": "알림을 켰어요!",
+    "disabledMessage": "알림을 껐어요.",
+    "permissionDenied": "브라우저 알림 권한이 거부되었어요.",
+    "permissionBlocked": "브라우저에서 알림이 차단된 상태입니다. 브라우저 설정에서 허용으로 바꿔 주세요.",
+    "unsupported": "이 브라우저는 웹 푸시를 지원하지 않거나 서버에 VAPID 키가 설정되지 않았어요.",
+    "testTitle": "테스트 알림",
+    "testBody": "푸시 알림이 정상 동작하고 있어요.",
+    "regearApprovedTitle": "리기어 승인",
+    "regearApprovedBody": "{event} 리기어가 승인됐어요 (+{silver} silver).",
+    "regearRejectedTitle": "리기어 거절",
+    "regearRejectedBody": "{event} 리기어 신청이 거절됐어요.",
+    "exchangeApprovedTitle": "환전 승인",
+    "exchangeApprovedBody": "{silver} silver 환전이 승인됐어요.",
+    "exchangeRejectedTitle": "환전 거절",
+    "exchangeRejectedBody": "{silver} silver 환전 신청이 거절됐어요.",
+    "eventImminentTitle": "이벤트 임박: {title}",
+    "eventImminentBody": "{time} 집결 — 장비를 미리 준비해 두세요."
   }
 }

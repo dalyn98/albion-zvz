@@ -829,7 +829,9 @@
     "alreadyProcessedCannotEdit": "Already processed requests cannot be edited.",
     "invalidAmount": "Please enter a valid amount.",
     "insufficientBalance": "Insufficient balance. Current: {balance} silver",
-    "pendingExchangeExists": "A pending exchange request already exists."
+    "pendingExchangeExists": "A pending exchange request already exists.",
+    "pushUnavailable": "Notifications aren't configured yet. Please ask an admin.",
+    "invalidPushSubscription": "The push subscription payload is invalid."
   },
   "errors": {
     "title": "Something went wrong",
@@ -854,5 +856,36 @@
     "settingsSaved": "Saved.",
     "genericError": "Something went wrong.",
     "eventDuplicated": "Event duplicated."
+  },
+  "pushNotifications": {
+    "title": "Push notifications",
+    "description": "Receive browser pushes for regear/exchange decisions and 30 minutes before event gather time.",
+    "enableButton": "Enable notifications",
+    "disableButton": "Disable notifications",
+    "enabledBadge": "Enabled",
+    "testButton": "Send test",
+    "testing": "Sending…",
+    "testSent": "Test push sent to {count} device(s).",
+    "testNoDevices": "No registered devices could receive the test — please re-enable.",
+    "loading": "Checking…",
+    "enableFailed": "Couldn't enable notifications. Please try again.",
+    "disableFailed": "Couldn't disable notifications.",
+    "enabledMessage": "Notifications enabled!",
+    "disabledMessage": "Notifications disabled.",
+    "permissionDenied": "Browser notification permission was denied.",
+    "permissionBlocked": "Notifications are blocked in your browser. Allow them in your browser settings to re-enable.",
+    "unsupported": "This browser doesn't support web push, or the server has no VAPID key configured.",
+    "testTitle": "Test notification",
+    "testBody": "Push notifications are working.",
+    "regearApprovedTitle": "Regear approved",
+    "regearApprovedBody": "{event} regear approved (+{silver} silver).",
+    "regearRejectedTitle": "Regear rejected",
+    "regearRejectedBody": "{event} regear request was rejected.",
+    "exchangeApprovedTitle": "Exchange approved",
+    "exchangeApprovedBody": "{silver} silver exchange approved.",
+    "exchangeRejectedTitle": "Exchange rejected",
+    "exchangeRejectedBody": "{silver} silver exchange request was rejected.",
+    "eventImminentTitle": "Event starting soon: {title}",
+    "eventImminentBody": "Gather at {time} — prep your gear."
   }
 }
