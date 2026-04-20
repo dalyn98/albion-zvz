@@ -416,7 +416,10 @@
     "noParties": "No parties registered.",
     "partyNumber": "Party {number}",
     "applicationsCount": "{assigned}/{total} applied",
-    "noSlots": "No slots."
+    "noSlots": "No slots.",
+    "filterMyRole": "Show my role only ({role})",
+    "filterMyRoleActive": "Clear {role} filter",
+    "filterNoMatches": "No other slots with this role."
   },
   "slot": {
     "free": "Free",

@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import type { Event, PartyWithSlots } from '@/types'
-import SlotCard from '@/components/SlotCard'
+import EventPartyGrid from '@/components/EventPartyGrid'
 import EventSlotSidebar from '@/components/EventSlotSidebar'
 import AutoRefresh from '@/components/AutoRefresh'
 import { Clock, MapPin, ArrowLeft, Swords, Info, Lock } from 'lucide-react'
@@ -155,44 +155,15 @@ export default async function EventDetailPage({
           <EventSlotSidebar placement="mobile" parties={parties} avatars={avatars} />
         </div>
 
-        {parties.length === 0 && (
-          <p className="text-center text-gray-500">{t('noParties')}</p>
-        )}
-
-        {parties.map((party) => {
-          const assigned = party.slots.filter((s) => s.assigned_discord_id).length
-          return (
-            <section key={party.id} className="space-y-3 sm:space-y-4">
-              <div className="flex items-center justify-between border-b border-gray-800 pb-2">
-                <h2 className="text-base sm:text-lg font-bold text-white">
-                  {t('partyNumber', { number: party.party_number })}
-                </h2>
-                <span className="text-sm sm:text-base text-gray-400">
-                  {t('applicationsCount', { assigned, total: party.slots.length })}
-                </span>
-              </div>
-              {party.slots.length === 0 ? (
-                <p className="text-center text-gray-500 text-sm py-4">{t('noSlots')}</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-3">
-                  {party.slots.map((slot) => (
-                    <SlotCard
-                      key={slot.id}
-                      slot={slot}
-                      partyNumber={party.party_number}
-                      currentDiscordId={session?.discordId ?? null}
-                      loginHref={loginHref}
-                      battleStarted={!!event.battle_started_at}
-                      eventFinalized={!!event.finalized_at}
-                      isAdmin={session?.isAdmin ?? false}
-                      assignedAvatar={slot.assigned_discord_id ? avatars[slot.assigned_discord_id] ?? null : null}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-          )
-        })}
+        <EventPartyGrid
+          parties={parties}
+          currentDiscordId={session?.discordId ?? null}
+          loginHref={loginHref}
+          battleStarted={!!event.battle_started_at}
+          eventFinalized={!!event.finalized_at}
+          isAdmin={session?.isAdmin ?? false}
+          avatars={avatars}
+        />
       </main>
 
       <aside className="hidden lg:block w-72 xl:w-80 flex-shrink-0">

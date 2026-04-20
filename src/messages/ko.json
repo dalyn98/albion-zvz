@@ -416,7 +416,10 @@
     "noParties": "등록된 파티가 없습니다.",
     "partyNumber": "{number}파티",
     "applicationsCount": "{assigned}/{total}명 신청",
-    "noSlots": "슬롯이 없습니다."
+    "noSlots": "슬롯이 없습니다.",
+    "filterMyRole": "내 역할만 보기 ({role})",
+    "filterMyRoleActive": "{role} 필터 해제",
+    "filterNoMatches": "같은 역할의 다른 슬롯이 없습니다."
   },
   "slot": {
     "free": "자유",

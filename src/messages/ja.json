@@ -416,7 +416,10 @@
     "noParties": "登録されたパーティーはありません。",
     "partyNumber": "パーティー {number}",
     "applicationsCount": "申請 {assigned}/{total}名",
-    "noSlots": "スロットがありません。"
+    "noSlots": "スロットがありません。",
+    "filterMyRole": "自分の役割だけ表示 ({role})",
+    "filterMyRoleActive": "{role} フィルター解除",
+    "filterNoMatches": "同じ役割の他のスロットはありません。"
   },
   "slot": {
     "free": "自由",
