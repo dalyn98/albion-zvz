@@ -76,7 +76,11 @@
     "tabActive": "Active",
     "tabEnded": "Ended",
     "noActiveEvents": "No active events.",
-    "noEndedEvents": "No ended events."
+    "noEndedEvents": "No ended events.",
+    "duplicate": "Duplicate",
+    "duplicateAria": "Duplicate event",
+    "duplicateConfirm": "This will clone the event's parties and slot builds.\nThe gather time is auto-set to 7 days later and sign-ups are reset.\nContinue?",
+    "duplicateSuffix": " (copy)"
   },
   "adminNewEvent": {
     "title": "New event",
@@ -790,6 +794,7 @@
     "slotCancelled": "Slot sign-up cancelled.",
     "slotKicked": "Removed from the slot.",
     "settingsSaved": "Saved.",
-    "genericError": "Something went wrong."
+    "genericError": "Something went wrong.",
+    "eventDuplicated": "Event duplicated."
   }
 }

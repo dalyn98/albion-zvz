@@ -76,7 +76,11 @@
     "tabActive": "進行中",
     "tabEnded": "終了",
     "noActiveEvents": "進行中のイベントはありません。",
-    "noEndedEvents": "終了したイベントはありません。"
+    "noEndedEvents": "終了したイベントはありません。",
+    "duplicate": "複製",
+    "duplicateAria": "イベントを複製",
+    "duplicateConfirm": "このイベントのパーティ/スロット構成をそのまま複製します。\n集合時刻は7日後に自動設定され、参加者情報はリセットされます。\n続行しますか？",
+    "duplicateSuffix": "（コピー）"
   },
   "adminNewEvent": {
     "title": "新規イベント",
@@ -790,6 +794,7 @@
     "slotCancelled": "スロット申請をキャンセルしました。",
     "slotKicked": "スロットから外しました。",
     "settingsSaved": "保存しました。",
-    "genericError": "問題が発生しました。"
+    "genericError": "問題が発生しました。",
+    "eventDuplicated": "イベントを複製しました。"
   }
 }

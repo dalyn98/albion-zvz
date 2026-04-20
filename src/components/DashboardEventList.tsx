@@ -6,6 +6,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { Pencil, Swords, Flame, Archive, Activity } from 'lucide-react'
 import DeleteEventButton from './DeleteEventButton'
+import DuplicateEventButton from './DuplicateEventButton'
 import InlineBattleStartButton from './InlineBattleStartButton'
 import NotifyEventButton from './NotifyEventButton'
 import SearchBox from './SearchBox'
@@ -162,6 +163,7 @@ export default function DashboardEventList({ events }: { events: Event[] }) {
                   >
                     <Pencil size={15} />
                   </Link>
+                  <DuplicateEventButton eventId={event.id} />
                   <DeleteEventButton eventId={event.id} />
                 </div>
               </div>

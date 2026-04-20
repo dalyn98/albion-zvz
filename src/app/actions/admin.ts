@@ -88,6 +88,112 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
   }
 }
 
+export async function cloneEvent(id: string): Promise<{ id?: string; error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  const tDash = await getTranslations('adminDashboard')
+  try {
+    const db = await requireAdmin()
+
+    const { data: source, error: sourceErr } = await db
+      .from('events')
+      .select('title, gather_at, gather_time, gather_location, special_notes')
+      .eq('id', id)
+      .maybeSingle()
+    if (sourceErr) return { error: sourceErr.message }
+    if (!source) return { error: tErr('eventNotFound') }
+
+    // Shift gather_at forward by 7 days so the copy lands on the same weekday
+    // at the same hour. Admin can still edit if needed.
+    let shiftedGatherAt = source.gather_at as string | null
+    if (shiftedGatherAt) {
+      const d = new Date(shiftedGatherAt)
+      d.setUTCDate(d.getUTCDate() + 7)
+      shiftedGatherAt = d.toISOString()
+    }
+
+    const { data: newEvent, error: insErr } = await db
+      .from('events')
+      .insert({
+        title: `${source.title}${tDash('duplicateSuffix')}`,
+        gather_time: source.gather_time,
+        gather_at: shiftedGatherAt,
+        gather_location: source.gather_location,
+        special_notes: source.special_notes,
+      })
+      .select('id')
+      .single()
+    if (insErr) return { error: insErr.message }
+    const newId = newEvent.id
+
+    const { data: parties, error: partyErr } = await db
+      .from('parties')
+      .select('id, party_number')
+      .eq('event_id', id)
+      .order('party_number')
+    if (partyErr) {
+      await db.from('events').delete().eq('id', newId)
+      return { error: partyErr.message }
+    }
+
+    if (!parties || parties.length === 0) {
+      revalidatePath('/admin/dashboard')
+      return { id: newId }
+    }
+
+    const newPartyRows = parties.map((p) => ({ event_id: newId, party_number: p.party_number }))
+    const { data: newParties, error: newPartyErr } = await db
+      .from('parties')
+      .insert(newPartyRows)
+      .select('id, party_number')
+    if (newPartyErr || !newParties) {
+      await db.from('events').delete().eq('id', newId)
+      return { error: newPartyErr?.message ?? tErr('serverError') }
+    }
+
+    const oldToNewPartyId = new Map<string, string>()
+    for (const oldParty of parties) {
+      const match = newParties.find((np) => np.party_number === oldParty.party_number)
+      if (match) oldToNewPartyId.set(oldParty.id, match.id)
+    }
+
+    // Copy build config only — strip id/assigned_* so the clone starts with
+    // empty signup slots. Callers usually duplicate a proven event to re-run it.
+    const { data: slots, error: slotErr } = await db
+      .from('slots')
+      .select('*')
+      .in('party_id', parties.map((p) => p.id))
+    if (slotErr) {
+      await db.from('events').delete().eq('id', newId)
+      return { error: slotErr.message }
+    }
+
+    if (slots && slots.length > 0) {
+      const newSlotRows = slots.map((slot) => {
+        const row: Record<string, unknown> = {}
+        for (const [key, value] of Object.entries(slot)) {
+          if (key === 'id') continue
+          if (key.startsWith('assigned_')) continue
+          if (key === 'party_id') continue
+          row[key] = value
+        }
+        row.party_id = oldToNewPartyId.get(slot.party_id)
+        return row
+      })
+      const { error: insSlotErr } = await db.from('slots').insert(newSlotRows)
+      if (insSlotErr) {
+        await db.from('events').delete().eq('id', newId)
+        return { error: insSlotErr.message }
+      }
+    }
+
+    revalidatePath('/admin/dashboard')
+    revalidatePath('/')
+    return { id: newId }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
 export async function deleteEvent(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
