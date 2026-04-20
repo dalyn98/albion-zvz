@@ -10,7 +10,7 @@ import {
 
 // 이벤트 집결 시간이 다가오면 파티에 편성된 멤버들에게 푸시를 보낸다.
 //
-// 호출 규약: Vercel Cron 이 Authorization: Bearer <CRON_SECRET> 로 GET 을 날려
+// 호출 규약: 스케줄러가 Authorization: Bearer <CRON_SECRET> 로 GET 을 날려
 // 이 라우트를 호출. 수동 트리거도 같은 헤더로 가능.
 //
 // 동작:
@@ -20,7 +20,9 @@ import {
 //   3. locale 별로 구독을 그룹화해 각 언어에 맞는 문구로 발송.
 //   4. events.imminent_notified_at 를 현재 시각으로 표시해 중복 발송 방지.
 //
-// 크론 주기는 vercel.json 에서 관리.
+// 스케줄링: Vercel Hobby 플랜은 일 1회 제한이라 cron 을 걸 수 없어,
+// .github/workflows/event-imminent.yml 의 GitHub Actions 가 5분 주기로 이 엔드포인트를
+// 호출한다. Pro 로 업그레이드하면 vercel.json 에 다시 옮길 수 있음.
 
 const LEAD_MIN = 35 // gather_at - 35분 이내면 임박
 const LOOKBACK_MIN = 5 // 놓친 구간 재캐치용 (크론 누락 대비)
