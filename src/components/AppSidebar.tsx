@@ -23,6 +23,7 @@ import {
   Flag,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
+import type { AdminBadgeCounts } from '@/lib/admin-badges'
 import LanguageSwitcher from './LanguageSwitcher'
 
 interface NavItem {
@@ -73,7 +74,12 @@ function isActivePath(pathname: string, href: string, exact: boolean = false): b
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
-export default function AppSidebar({ session }: { session: SessionPayload | null }) {
+interface AppSidebarProps {
+  session: SessionPayload | null
+  adminBadges: AdminBadgeCounts | null
+}
+
+export default function AppSidebar({ session, adminBadges }: AppSidebarProps) {
   const pathname = usePathname()
   const t = useTranslations('sidebar')
   const tNav = useTranslations('nav')
@@ -201,7 +207,11 @@ export default function AppSidebar({ session }: { session: SessionPayload | null
           {session?.isAdmin && (
             <NavGroup
               title={t('adminGroup')}
-              items={ADMIN_NAV.map((i) => ({ ...i, label: tNav(i.labelKey) }))}
+              items={ADMIN_NAV.map((i) => ({
+                ...i,
+                label: tNav(i.labelKey),
+                badge: badgeCountFor(i.href, adminBadges),
+              }))}
               pathname={pathname || '/'}
               expanded={open}
               collapsible={adminOpen}
@@ -263,6 +273,15 @@ export default function AppSidebar({ session }: { session: SessionPayload | null
 
 interface ResolvedNavItem extends NavItem {
   label: string
+  badge?: number
+}
+
+// Maps an admin nav href to its pending count for the sidebar badge.
+function badgeCountFor(href: string, badges: AdminBadgeCounts | null): number {
+  if (!badges) return 0
+  if (href === '/admin/dashboard/regear') return badges.regear
+  if (href === '/admin/dashboard/exchanges') return badges.exchange
+  return 0
 }
 
 interface NavGroupProps {
@@ -293,14 +312,15 @@ function NavGroup({ title, items, pathname, expanded, collapsible, setCollapsibl
         <div className="border-t border-gray-800 mx-2 my-1" aria-label={title} />
       )}
       {(collapsible || !expanded) &&
-        items.map(({ href, label, icon: Icon, exact }) => {
+        items.map(({ href, label, icon: Icon, exact, badge }) => {
           const active = isActivePath(pathname, href, exact)
+          const hasBadge = typeof badge === 'number' && badge > 0
           return (
             <Link
               key={href}
               href={href}
               title={expanded ? undefined : label}
-              className={`flex items-center gap-3 rounded-lg transition-colors ${
+              className={`relative flex items-center gap-3 rounded-lg transition-colors ${
                 expanded ? 'px-3 py-2 text-sm' : 'justify-center p-2'
               } ${
                 active
@@ -308,8 +328,20 @@ function NavGroup({ title, items, pathname, expanded, collapsible, setCollapsibl
                   : 'text-gray-400 hover:text-white hover:bg-gray-800'
               }`}
             >
-              <Icon size={expanded ? 15 : 18} />
-              {expanded && <span className="truncate">{label}</span>}
+              <span className="relative flex-shrink-0">
+                <Icon size={expanded ? 15 : 18} />
+                {hasBadge && !expanded && (
+                  <span className="absolute -top-1 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none flex items-center justify-center">
+                    {badge > 99 ? '99+' : badge}
+                  </span>
+                )}
+              </span>
+              {expanded && <span className="truncate flex-1">{label}</span>}
+              {hasBadge && expanded && (
+                <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none flex items-center justify-center flex-shrink-0">
+                  {badge > 99 ? '99+' : badge}
+                </span>
+              )}
             </Link>
           )
         })}
