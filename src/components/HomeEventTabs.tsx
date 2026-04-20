@@ -25,11 +25,7 @@ export interface HomeEventCardData {
   total: number
   assigned: number
   kind: HomeEventKind
-  // True when the admin hit "battle started" — used with kind='imminent' to
-  // distinguish the "진행중" badge from the pre-battle "임박" badge.
   battleStarted: boolean
-  // Comma-joined list of opponent guild labels, or null when no battles were
-  // recorded — passed down for the win/loss tabs only.
   opponentGuilds: string | null
   battleCount: number
 }
@@ -43,41 +39,16 @@ interface Props {
   scheduled: HomeEventCardData[]
   wins: HomeEventCardData[]
   losses: HomeEventCardData[]
-  labels: {
-    inProgress: string
-    imminent: string
-    ended: string
-    win: string
-    loss: string
-    applicants: (assigned: number, total: number) => string
-    opponentsPrefix: string
-    battlesSuffix: (count: number) => string
-  }
-  sectionTitles: {
-    imminent: string
-    ended: string
-    upcoming: string
-  }
-  tabCountTemplate: (count: number) => string
-  emptyLabel: string
 }
 
-export default function HomeEventTabs({
-  scheduled,
-  wins,
-  losses,
-  labels,
-  sectionTitles,
-  tabCountTemplate,
-  emptyLabel,
-}: Props) {
-  const t = useTranslations('home.tabs')
+export default function HomeEventTabs({ scheduled, wins, losses }: Props) {
+  const t = useTranslations('home')
   const [active, setActive] = useState<TabDef['key']>('scheduled')
 
   const tabs: TabDef[] = [
-    { key: 'scheduled', label: t('scheduled') },
-    { key: 'wins', label: t('wins') },
-    { key: 'losses', label: t('losses') },
+    { key: 'scheduled', label: t('tabs.scheduled') },
+    { key: 'wins', label: t('tabs.wins') },
+    { key: 'losses', label: t('tabs.losses') },
   ]
 
   const counts: Record<TabDef['key'], number> = {
@@ -104,59 +75,48 @@ export default function HomeEventTabs({
             >
               {tab.label}
               <span className="ml-1.5 text-xs text-gray-500">
-                {tabCountTemplate(counts[tab.key])}
+                {t('tabs.count', { count: counts[tab.key] })}
               </span>
             </button>
           )
         })}
       </div>
 
-      {active === 'scheduled' && (
-        <ScheduledView events={scheduled} labels={labels} sectionTitles={sectionTitles} emptyLabel={emptyLabel} />
-      )}
-      {active === 'wins' && <FlatView events={wins} labels={labels} emptyLabel={emptyLabel} />}
-      {active === 'losses' && <FlatView events={losses} labels={labels} emptyLabel={emptyLabel} />}
+      {active === 'scheduled' && <ScheduledView events={scheduled} />}
+      {active === 'wins' && <FlatView events={wins} />}
+      {active === 'losses' && <FlatView events={losses} />}
     </div>
   )
 }
 
-function ScheduledView({
-  events,
-  labels,
-  sectionTitles,
-  emptyLabel,
-}: {
-  events: HomeEventCardData[]
-  labels: Props['labels']
-  sectionTitles: Props['sectionTitles']
-  emptyLabel: string
-}) {
+function ScheduledView({ events }: { events: HomeEventCardData[] }) {
+  const t = useTranslations('home')
   const imminent = events.filter((e) => e.kind === 'imminent')
   const ended = events.filter((e) => e.kind === 'ended')
   const upcoming = events.filter((e) => e.kind === 'upcoming')
 
-  if (events.length === 0) return <EmptyState label={emptyLabel} />
+  if (events.length === 0) return <EmptyState label={t('empty')} />
 
   return (
     <div className="space-y-6">
       {imminent.length > 0 && (
-        <Section title={sectionTitles.imminent} icon={<Flame size={16} className="text-amber-400" />} titleClass="text-amber-300">
+        <Section title={t('sections.imminent')} icon={<Flame size={16} className="text-amber-400" />} titleClass="text-amber-300">
           {imminent.map((e) => (
-            <EventCard key={e.id} event={e} labels={labels} />
+            <EventCard key={e.id} event={e} />
           ))}
         </Section>
       )}
       {ended.length > 0 && (
-        <Section title={sectionTitles.ended} icon={<Archive size={16} className="text-gray-500" />} titleClass="text-gray-400">
+        <Section title={t('sections.ended')} icon={<Archive size={16} className="text-gray-500" />} titleClass="text-gray-400">
           {ended.map((e) => (
-            <EventCard key={e.id} event={e} labels={labels} />
+            <EventCard key={e.id} event={e} />
           ))}
         </Section>
       )}
       {upcoming.length > 0 && (
-        <Section title={sectionTitles.upcoming} titleClass="text-gray-400">
+        <Section title={t('sections.upcoming')} titleClass="text-gray-400">
           {upcoming.map((e) => (
-            <EventCard key={e.id} event={e} labels={labels} />
+            <EventCard key={e.id} event={e} />
           ))}
         </Section>
       )}
@@ -164,20 +124,13 @@ function ScheduledView({
   )
 }
 
-function FlatView({
-  events,
-  labels,
-  emptyLabel,
-}: {
-  events: HomeEventCardData[]
-  labels: Props['labels']
-  emptyLabel: string
-}) {
-  if (events.length === 0) return <EmptyState label={emptyLabel} />
+function FlatView({ events }: { events: HomeEventCardData[] }) {
+  const t = useTranslations('home')
+  if (events.length === 0) return <EmptyState label={t('empty')} />
   return (
     <div className="space-y-3 xl:grid xl:grid-cols-2 xl:gap-3 xl:space-y-0 2xl:grid-cols-3">
       {events.map((e) => (
-        <EventCard key={e.id} event={e} labels={labels} />
+        <EventCard key={e.id} event={e} />
       ))}
     </div>
   )
@@ -215,7 +168,8 @@ function EmptyState({ label }: { label: string }) {
   )
 }
 
-function EventCard({ event, labels }: { event: HomeEventCardData; labels: Props['labels'] }) {
+function EventCard({ event }: { event: HomeEventCardData }) {
+  const t = useTranslations('home')
   const stateClass =
     event.kind === 'win'
       ? 'border-emerald-500/30 hover:border-emerald-500/60 hover:shadow-[0_12px_28px_-12px_rgba(16,185,129,0.35)]'
@@ -238,7 +192,7 @@ function EventCard({ event, labels }: { event: HomeEventCardData; labels: Props[
         <div className="flex-1 min-w-0 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-base sm:text-lg font-bold text-white truncate">{event.title}</h2>
-            <KindBadge kind={event.kind} battleStarted={event.battleStarted} labels={labels} />
+            <KindBadge kind={event.kind} battleStarted={event.battleStarted} />
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
             <div className="flex items-center gap-1.5 text-gray-300">
@@ -253,14 +207,14 @@ function EventCard({ event, labels }: { event: HomeEventCardData; labels: Props[
           {event.total > 0 && (
             <div className="flex items-center gap-1.5 text-xs text-gray-400">
               <Users size={12} />
-              {labels.applicants(event.assigned, event.total)}
+              {t('applicants', { assigned: event.assigned, total: event.total })}
             </div>
           )}
           {(event.kind === 'win' || event.kind === 'loss') && event.opponentGuilds && (
             <div className="text-xs text-gray-400">
-              <span className="text-gray-500">{labels.opponentsPrefix}</span>{' '}
+              <span className="text-gray-500">{t('opponentsPrefix')}</span>{' '}
               <span className="text-gray-300">{event.opponentGuilds}</span>
-              <span className="text-gray-500"> · {labels.battlesSuffix(event.battleCount)}</span>
+              <span className="text-gray-500"> · {t('battlesSuffix', { count: event.battleCount })}</span>
             </div>
           )}
         </div>
@@ -276,17 +230,16 @@ function EventCard({ event, labels }: { event: HomeEventCardData; labels: Props[
 function KindBadge({
   kind,
   battleStarted,
-  labels,
 }: {
   kind: HomeEventKind
   battleStarted: boolean
-  labels: Props['labels']
 }) {
+  const t = useTranslations('home.badge')
   if (kind === 'win') {
     return (
       <span className="inline-flex items-center gap-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">
         <Trophy size={10} />
-        {labels.win}
+        {t('win')}
       </span>
     )
   }
@@ -294,7 +247,7 @@ function KindBadge({
     return (
       <span className="inline-flex items-center gap-1 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">
         <ShieldAlert size={10} />
-        {labels.loss}
+        {t('loss')}
       </span>
     )
   }
@@ -302,7 +255,7 @@ function KindBadge({
     return (
       <span className="inline-flex items-center gap-1 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">
         <Swords size={10} />
-        {labels.inProgress}
+        {t('inProgress')}
       </span>
     )
   }
@@ -310,7 +263,7 @@ function KindBadge({
     return (
       <span className="inline-flex items-center gap-1 bg-amber-500/20 border border-amber-500/40 text-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">
         <Flame size={10} />
-        {labels.imminent}
+        {t('imminent')}
       </span>
     )
   }
@@ -318,7 +271,7 @@ function KindBadge({
     return (
       <span className="inline-flex items-center gap-1 bg-gray-700 text-gray-300 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">
         <Archive size={10} />
-        {labels.ended}
+        {t('ended')}
       </span>
     )
   }

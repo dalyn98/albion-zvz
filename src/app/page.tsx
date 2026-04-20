@@ -168,28 +168,7 @@ export default async function HomePage({
           <p className="text-gray-400">{t('home.empty')}</p>
         </div>
       ) : (
-        <HomeEventTabs
-          scheduled={scheduled}
-          wins={wins}
-          losses={losses}
-          labels={{
-            inProgress: t('home.badge.inProgress'),
-            imminent: t('home.badge.imminent'),
-            ended: t('home.badge.ended'),
-            win: t('home.badge.win'),
-            loss: t('home.badge.loss'),
-            applicants: (assigned, total) => t('home.applicants', { assigned, total }),
-            opponentsPrefix: t('home.opponentsPrefix'),
-            battlesSuffix: (count) => t('home.battlesSuffix', { count }),
-          }}
-          sectionTitles={{
-            imminent: t('home.sections.imminent'),
-            ended: t('home.sections.ended'),
-            upcoming: t('home.sections.upcoming'),
-          }}
-          tabCountTemplate={(count) => t('home.tabs.count', { count })}
-          emptyLabel={t('home.empty')}
-        />
+        <HomeEventTabs scheduled={scheduled} wins={wins} losses={losses} />
       )}
     </main>
   )
