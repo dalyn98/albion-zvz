@@ -36,6 +36,7 @@ export interface MemberEventEntry {
   battle_started_at: string | null
   gather_at: string | null
   created_at: string
+  outcome: 'win' | 'loss' | null
 }
 
 export interface MemberRegearEntry {
@@ -183,7 +184,7 @@ async function fetchMemberDetail(discordId: string): Promise<{
       db
         .from('slots')
         .select(
-          'role_name, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at))',
+          'role_name, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at, outcome))',
         )
         .eq('assigned_discord_id', discordId),
       db
@@ -219,8 +220,8 @@ async function fetchMemberDetail(discordId: string): Promise<{
     const roleCounter = new Map<string, number>()
     for (const row of slotsRes.data ?? []) {
       const party = row.parties as
-        | { event_id: string; events: { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null } | { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null }[] }
-        | { event_id: string; events: { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null } | { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null }[] }[]
+        | { event_id: string; events: { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null; outcome: 'win' | 'loss' | null } | { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null; outcome: 'win' | 'loss' | null }[] }
+        | { event_id: string; events: { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null; outcome: 'win' | 'loss' | null } | { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null; outcome: 'win' | 'loss' | null }[] }[]
         | null
       const partyObj = Array.isArray(party) ? party[0] : party
       if (!partyObj) continue
@@ -236,6 +237,7 @@ async function fetchMemberDetail(discordId: string): Promise<{
           battle_started_at: event.battle_started_at,
           gather_at: event.gather_at,
           created_at: event.created_at,
+          outcome: event.outcome,
         })
       }
     }

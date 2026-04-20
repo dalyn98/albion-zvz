@@ -511,7 +511,10 @@
     "claimedAmount": "Claimed {amount}",
     "ceilingAmount": "Cap {amount}",
     "requestedAt": "Requested {when}",
-    "resolvedAt": "{status} {when}"
+    "resolvedAt": "{status} {when}",
+    "outcomeWin": "Win",
+    "outcomeLoss": "Loss",
+    "outcomePending": "Pending"
   },
   "requestExchange": {
     "pendingNotice": "You already have a pending exchange request, so you cannot apply again.",

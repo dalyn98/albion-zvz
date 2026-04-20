@@ -511,7 +511,10 @@
     "claimedAmount": "請求 {amount}",
     "ceilingAmount": "上限 {amount}",
     "requestedAt": "申請 {when}",
-    "resolvedAt": "{status} {when}"
+    "resolvedAt": "{status} {when}",
+    "outcomeWin": "勝利",
+    "outcomeLoss": "敗北",
+    "outcomePending": "結果待ち"
   },
   "requestExchange": {
     "pendingNotice": "処理待ちの両替申請があるため、新規申請はできません。",

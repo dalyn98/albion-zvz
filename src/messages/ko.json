@@ -511,7 +511,10 @@
     "claimedAmount": "청구 {amount}",
     "ceilingAmount": "상한 {amount}",
     "requestedAt": "신청 {when}",
-    "resolvedAt": "{status} {when}"
+    "resolvedAt": "{status} {when}",
+    "outcomeWin": "승리",
+    "outcomeLoss": "패배",
+    "outcomePending": "결과 대기"
   },
   "requestExchange": {
     "pendingNotice": "처리 대기 중인 환전 신청이 있어 새로 신청할 수 없습니다.",

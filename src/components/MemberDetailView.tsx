@@ -1,4 +1,5 @@
-import { Coins, Wallet, ShieldCheck } from 'lucide-react'
+import Link from 'next/link'
+import { Coins, Wallet, ShieldCheck, ChevronRight, Trophy, ShieldAlert, Hourglass } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
 import { formatSilver } from '@/lib/silver'
@@ -106,21 +107,32 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
               const style = getRoleStyle(e.role)
               const whenIso = e.battle_started_at ?? e.gather_at ?? e.created_at
               return (
-                <li
-                  key={e.event_id}
-                  className="flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2"
-                >
-                  <span
-                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${
-                      style?.badge ?? 'bg-gray-700 text-gray-300'
-                    }`}
+                <li key={e.event_id}>
+                  <Link
+                    href={`/events/${e.event_id}`}
+                    className="flex items-center gap-3 bg-gray-900 border border-gray-800 hover:border-gray-700 hover:bg-gray-800/60 rounded-lg px-3 py-2 transition-colors group"
                   >
-                    {e.role}
-                  </span>
-                  <span className="text-white text-sm truncate flex-1">{e.event_title}</span>
-                  <span className="text-gray-500 text-xs font-mono flex-shrink-0">
-                    {formatDate(whenIso)}
-                  </span>
+                    <span
+                      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${
+                        style?.badge ?? 'bg-gray-700 text-gray-300'
+                      }`}
+                    >
+                      {e.role}
+                    </span>
+                    <span className="text-white text-sm truncate flex-1">{e.event_title}</span>
+                    <OutcomeBadge
+                      outcome={e.outcome}
+                      labels={{
+                        win: t('outcomeWin'),
+                        loss: t('outcomeLoss'),
+                        pending: t('outcomePending'),
+                      }}
+                    />
+                    <span className="text-gray-500 text-xs font-mono flex-shrink-0">
+                      {formatDate(whenIso)}
+                    </span>
+                    <ChevronRight size={14} className="text-gray-600 group-hover:text-gray-300 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                  </Link>
                 </li>
               )
             })}
@@ -261,6 +273,37 @@ function ExchangeRow({
         {statusLabels[statusKey]}
       </span>
     </li>
+  )
+}
+
+function OutcomeBadge({
+  outcome,
+  labels,
+}: {
+  outcome: 'win' | 'loss' | null
+  labels: { win: string; loss: string; pending: string }
+}) {
+  if (outcome === 'win') {
+    return (
+      <span className="inline-flex items-center gap-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">
+        <Trophy size={10} />
+        {labels.win}
+      </span>
+    )
+  }
+  if (outcome === 'loss') {
+    return (
+      <span className="inline-flex items-center gap-1 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">
+        <ShieldAlert size={10} />
+        {labels.loss}
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 bg-gray-700 text-gray-300 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">
+      <Hourglass size={10} />
+      {labels.pending}
+    </span>
   )
 }
 
