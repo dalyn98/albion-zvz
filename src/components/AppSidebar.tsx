@@ -19,6 +19,8 @@ import {
   X,
   ChevronDown,
   Settings,
+  Swords,
+  Flag,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import LanguageSwitcher from './LanguageSwitcher'
@@ -36,6 +38,7 @@ const MEMBER_NAV: NavItem[] = [
   { href: '/', labelKey: 'events', icon: CalendarDays },
   { href: '/regear', labelKey: 'regearRequest', icon: ShieldCheck },
   { href: '/members', labelKey: 'members', icon: Users },
+  { href: '/battle-records', labelKey: 'battleRecords', icon: Swords },
   { href: '/me', labelKey: 'myWallet', icon: Wallet, exact: true },
 ]
 
@@ -46,6 +49,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/dashboard/templates', labelKey: 'templates', icon: LayoutTemplate },
   { href: '/admin/dashboard/regear', labelKey: 'regearReview', icon: ShieldCheck },
   { href: '/admin/dashboard/exchanges', labelKey: 'exchangeReview', icon: Wallet },
+  { href: '/admin/dashboard/opponent-guilds', labelKey: 'opponentGuilds', icon: Flag },
   { href: '/admin/dashboard/settings', labelKey: 'settings', icon: Settings },
 ]
 

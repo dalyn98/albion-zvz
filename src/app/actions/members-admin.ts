@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { requireAdmin } from '@/lib/auth'
+import { getAppSetting } from '@/lib/app-settings'
 import type { RegearType } from '@/types'
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
@@ -87,6 +88,78 @@ export interface GuildMemberDetail {
   balance: number
   lifetime_earned: number
   lifetime_spent: number
+}
+
+export interface GuildAggregateStats {
+  wins: number
+  losses: number
+  distinctOpponents: number
+  startDate: string
+  endDate: string
+}
+
+// /members 최상단 요약용. outcome 이 집계된(finalized_at 이 있고 outcome !== null)
+// 이벤트들을 기준으로 승/패 합산, 그리고 그 범위의 event_battles 에서 등장한
+// 상대 길드 종류 수를 센다. 관리자 설정의 날짜 필터(members_aggregate_*_date)
+// 가 설정되면 events.battle_started_at 이 그 안에 들어오는 이벤트만 센다.
+export async function getGuildAggregateStats(): Promise<{
+  stats: GuildAggregateStats | null
+  error?: string
+}> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { stats: null, error: 'Unauthorized' }
+
+    const [startDate, endDate] = await Promise.all([
+      getAppSetting('members_aggregate_start_date', ''),
+      getAppSetting('members_aggregate_end_date', ''),
+    ])
+
+    const db = getAdminClient()
+    let eventQuery = db
+      .from('events')
+      .select('id, outcome, battle_started_at')
+      .not('outcome', 'is', null)
+    if (startDate) eventQuery = eventQuery.gte('battle_started_at', `${startDate}T00:00:00Z`)
+    if (endDate) eventQuery = eventQuery.lte('battle_started_at', `${endDate}T23:59:59Z`)
+
+    const eventsRes = await eventQuery
+    if (eventsRes.error) return { stats: null, error: eventsRes.error.message }
+    const events = eventsRes.data ?? []
+    const eventIds = events.map((e) => e.id)
+
+    let wins = 0
+    let losses = 0
+    for (const e of events) {
+      if (e.outcome === 'win') wins++
+      else if (e.outcome === 'loss') losses++
+    }
+
+    let distinctOpponents = 0
+    if (eventIds.length > 0) {
+      const battlesRes = await db
+        .from('event_battles')
+        .select('opponent_guild_id, opponent_guild')
+        .in('event_id', eventIds)
+      if (battlesRes.error) return { stats: null, error: battlesRes.error.message }
+      const keys = new Set<string>()
+      for (const row of battlesRes.data ?? []) {
+        // FK 가 백필된 행은 id 로, 아직 FK 가 연결 안 된 레거시 행은 정규화된
+        // 이름으로 dedupe. 같은 길드가 두 방식으로 카운트돼 부풀지 않도록 우선순위:
+        // id 가 있으면 id, 없으면 lowercase trim.
+        if (row.opponent_guild_id) keys.add(`id:${row.opponent_guild_id}`)
+        else if (row.opponent_guild) keys.add(`name:${row.opponent_guild.trim().toLowerCase()}`)
+      }
+      distinctOpponents = keys.size
+    }
+
+    return {
+      stats: { wins, losses, distinctOpponents, startDate, endDate },
+    }
+  } catch (e) {
+    return { stats: null, error: e instanceof Error ? e.message : tErr('serverError') }
+  }
 }
 
 export async function listGuildMembers(): Promise<{

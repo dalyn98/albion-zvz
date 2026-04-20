@@ -3,32 +3,47 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Plus, Trash2, RotateCcw, Loader2, Trophy, ShieldAlert } from 'lucide-react'
+import { Plus, Trash2, RotateCcw, Loader2, Trophy, ShieldAlert, UserPlus } from 'lucide-react'
 import { saveEventBattles, resetEventOutcome } from '@/app/actions/admin'
-import type { EventBattle, EventOutcome } from '@/types'
+import { createOpponentGuild } from '@/app/actions/opponent-guilds'
+import type { EventBattle, EventOutcome, OpponentGuild } from '@/types'
 
 interface Props {
   eventId: string
   initialBattles: EventBattle[]
   currentOutcome: EventOutcome | null
+  opponentGuilds: OpponentGuild[]
 }
 
 interface BattleDraft {
-  opponent_guild: string
+  opponent_guild_id: string | null
+  opponent_guild_name: string
   outcome: EventOutcome
 }
 
-export default function BattleOutcomeEditor({ eventId, initialBattles, currentOutcome }: Props) {
+export default function BattleOutcomeEditor({
+  eventId,
+  initialBattles,
+  currentOutcome,
+  opponentGuilds: initialGuilds,
+}: Props) {
   const t = useTranslations('adminBattleOutcome')
   const tCommon = useTranslations('common')
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
+  const [guilds, setGuilds] = useState<OpponentGuild[]>(initialGuilds)
   const [battles, setBattles] = useState<BattleDraft[]>(() =>
     initialBattles.length > 0
-      ? initialBattles.map((b) => ({ opponent_guild: b.opponent_guild, outcome: b.outcome }))
-      : [{ opponent_guild: '', outcome: 'win' }],
+      ? initialBattles.map((b) => ({
+          opponent_guild_id: b.opponent_guild_id,
+          opponent_guild_name: b.opponent_guild,
+          outcome: b.outcome,
+        }))
+      : [{ opponent_guild_id: null, opponent_guild_name: '', outcome: 'win' }],
   )
+  const [addingIndex, setAddingIndex] = useState<number | null>(null)
+  const [newGuildName, setNewGuildName] = useState('')
 
   const preview = useMemo<EventOutcome | 'tie'>(() => {
     const wins = battles.filter((b) => b.outcome === 'win').length
@@ -39,7 +54,10 @@ export default function BattleOutcomeEditor({ eventId, initialBattles, currentOu
   }, [battles])
 
   const addBattle = () =>
-    setBattles((prev) => [...prev, { opponent_guild: '', outcome: 'win' }])
+    setBattles((prev) => [
+      ...prev,
+      { opponent_guild_id: null, opponent_guild_name: '', outcome: 'win' },
+    ])
 
   const removeBattle = (index: number) =>
     setBattles((prev) => prev.filter((_, i) => i !== index))
@@ -47,11 +65,51 @@ export default function BattleOutcomeEditor({ eventId, initialBattles, currentOu
   const updateBattle = (index: number, patch: Partial<BattleDraft>) =>
     setBattles((prev) => prev.map((b, i) => (i === index ? { ...b, ...patch } : b)))
 
+  const selectGuild = (index: number, guildId: string) => {
+    const guild = guilds.find((g) => g.id === guildId)
+    updateBattle(index, {
+      opponent_guild_id: guild?.id ?? null,
+      opponent_guild_name: guild?.name ?? '',
+    })
+  }
+
+  const openAddGuild = (index: number) => {
+    setAddingIndex(index)
+    setNewGuildName('')
+  }
+
+  const confirmAddGuild = () => {
+    if (addingIndex === null) return
+    const name = newGuildName.trim()
+    if (!name) return
+    setError('')
+    const slot = addingIndex
+    startTransition(async () => {
+      const result = await createOpponentGuild(name, '')
+      if (result.error || !result.guild) {
+        setError(result.error ?? t('createGuildFailed'))
+        return
+      }
+      setGuilds((prev) => [...prev, result.guild!].sort((a, b) => a.name.localeCompare(b.name)))
+      updateBattle(slot, {
+        opponent_guild_id: result.guild.id,
+        opponent_guild_name: result.guild.name,
+      })
+      setAddingIndex(null)
+      setNewGuildName('')
+    })
+  }
+
   const save = () => {
     setError('')
+    if (battles.some((b) => !b.opponent_guild_id)) {
+      setError(t('selectGuildRequired'))
+      return
+    }
     const payload = battles.map((b, i) => ({
       battle_number: i + 1,
-      opponent_guild: b.opponent_guild,
+      opponent_guild: b.opponent_guild_name,
+      opponent_guild_id: b.opponent_guild_id,
       outcome: b.outcome,
     }))
     startTransition(async () => {
@@ -68,7 +126,7 @@ export default function BattleOutcomeEditor({ eventId, initialBattles, currentOu
       const result = await resetEventOutcome(eventId)
       if (result.error) setError(result.error)
       else {
-        setBattles([{ opponent_guild: '', outcome: 'win' }])
+        setBattles([{ opponent_guild_id: null, opponent_guild_name: '', outcome: 'win' }])
         router.refresh()
       }
     })
@@ -96,14 +154,62 @@ export default function BattleOutcomeEditor({ eventId, initialBattles, currentOu
             <span className="text-gray-500 text-xs w-8 text-center flex-shrink-0">
               #{index + 1}
             </span>
-            <input
-              type="text"
-              value={battle.opponent_guild}
-              onChange={(e) => updateBattle(index, { opponent_guild: e.target.value })}
-              placeholder={t('opponentPlaceholder')}
-              maxLength={100}
-              className="flex-1 min-w-0 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
-            />
+            {addingIndex === index ? (
+              <div className="flex-1 flex items-center gap-2 min-w-0">
+                <input
+                  type="text"
+                  autoFocus
+                  value={newGuildName}
+                  onChange={(e) => setNewGuildName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') confirmAddGuild()
+                    if (e.key === 'Escape') setAddingIndex(null)
+                  }}
+                  placeholder={t('newGuildNamePlaceholder')}
+                  maxLength={100}
+                  className="flex-1 min-w-0 bg-gray-800 border border-amber-500/60 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-400"
+                />
+                <button
+                  type="button"
+                  onClick={confirmAddGuild}
+                  disabled={pending || !newGuildName.trim()}
+                  className="text-xs bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-3 py-2 rounded flex-shrink-0"
+                >
+                  {pending ? <Loader2 size={12} className="animate-spin" /> : tCommon('save')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAddingIndex(null)}
+                  className="text-xs text-gray-400 hover:text-white px-2 flex-shrink-0"
+                >
+                  {tCommon('cancel')}
+                </button>
+              </div>
+            ) : (
+              <>
+                <select
+                  value={battle.opponent_guild_id ?? ''}
+                  onChange={(e) => selectGuild(index, e.target.value)}
+                  className="flex-1 min-w-0 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+                >
+                  <option value="">{t('opponentPlaceholder')}</option>
+                  {guilds.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => openAddGuild(index)}
+                  className="p-2 text-amber-300 hover:text-amber-200 border border-gray-700 hover:border-amber-500/40 rounded flex-shrink-0"
+                  title={t('addNewGuild')}
+                  aria-label={t('addNewGuild')}
+                >
+                  <UserPlus size={14} />
+                </button>
+              </>
+            )}
             <div className="flex rounded overflow-hidden border border-gray-700 flex-shrink-0">
               <button
                 type="button"

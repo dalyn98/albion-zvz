@@ -1,19 +1,20 @@
 'use client'
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { Bell, Coins, Image as ImageIcon } from 'lucide-react'
+import { Bell, Coins, Image as ImageIcon, CalendarRange } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import NotificationSettingsForm from './NotificationSettingsForm'
 import RoleRewardsEditor from './RoleRewardsEditor'
 import LandingBannerForm from './LandingBannerForm'
 import LandingCtaTextForm from './LandingCtaTextForm'
+import MembersAggregateRangeForm from './MembersAggregateRangeForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
 
-type TabKey = 'notifications' | 'rewards' | 'landing'
+type TabKey = 'notifications' | 'rewards' | 'landing' | 'membersRange'
 
 interface TabDef {
   key: TabKey
-  labelKey: 'tabNotifications' | 'tabRewards' | 'tabLanding'
+  labelKey: 'tabNotifications' | 'tabRewards' | 'tabLanding' | 'tabMembersRange'
   icon: React.ComponentType<{ size?: number; className?: string }>
 }
 
@@ -21,6 +22,7 @@ const TABS: readonly TabDef[] = [
   { key: 'notifications', labelKey: 'tabNotifications', icon: Bell },
   { key: 'rewards', labelKey: 'tabRewards', icon: Coins },
   { key: 'landing', labelKey: 'tabLanding', icon: ImageIcon },
+  { key: 'membersRange', labelKey: 'tabMembersRange', icon: CalendarRange },
 ]
 
 const DEFAULT_TAB: TabKey = 'notifications'
@@ -32,10 +34,17 @@ interface Props {
   landingBannerUrl: string
   landingCtaText: string
   defaultLandingCtaText: string
+  aggregateStartDate: string
+  aggregateEndDate: string
 }
 
 function isTabKey(value: string | null): value is TabKey {
-  return value === 'notifications' || value === 'rewards' || value === 'landing'
+  return (
+    value === 'notifications' ||
+    value === 'rewards' ||
+    value === 'landing' ||
+    value === 'membersRange'
+  )
 }
 
 export default function SettingsTabs({
@@ -45,6 +54,8 @@ export default function SettingsTabs({
   landingBannerUrl,
   landingCtaText,
   defaultLandingCtaText,
+  aggregateStartDate,
+  aggregateEndDate,
 }: Props) {
   const t = useTranslations('adminSettings')
   const searchParams = useSearchParams()
@@ -115,6 +126,12 @@ export default function SettingsTabs({
             />
             <LandingBannerForm currentUrl={landingBannerUrl} />
           </div>
+        )}
+        {active === 'membersRange' && (
+          <MembersAggregateRangeForm
+            initialStart={aggregateStartDate}
+            initialEnd={aggregateEndDate}
+          />
         )}
       </div>
     </div>

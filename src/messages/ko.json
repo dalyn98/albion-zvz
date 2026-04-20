@@ -7,11 +7,13 @@
     "events": "이벤트",
     "regearRequest": "리기어 신청",
     "members": "길드원",
+    "battleRecords": "전투 기록",
     "myWallet": "내 지갑",
     "eventAdmin": "이벤트 관리",
     "templates": "템플릿",
     "regearReview": "리기어 검토",
     "exchangeReview": "환전 검토",
+    "opponentGuilds": "상대 길드",
     "settings": "설정"
   },
   "common": {
@@ -282,6 +284,13 @@
     "tabNotifications": "이벤트 알림",
     "tabRewards": "역할별 리기어 금액",
     "tabLanding": "대문 페이지",
+    "tabMembersRange": "길드원 통계 기간",
+    "membersRangeTitle": "길드원 승패 집계 기간",
+    "membersRangeDescription": "길드원 목록 최상단에 표시되는 승/패 합산과 상대 길드 수의 집계 범위입니다. 비워두면 전체 기간이 집계됩니다.",
+    "membersRangeStart": "시작일",
+    "membersRangeEnd": "종료일",
+    "membersRangeClear": "초기화",
+    "membersRangeInvalid": "종료일이 시작일보다 빠릅니다.",
     "rewardsDescription": "역할별 리기어 청구 상한입니다. 길드원은 이 금액 이하 범위에서 직접 청구 금액을 입력해 신청하고, 승인 시 청구 금액이 포인트로 지급됩니다. 상한이 0인 역할은 리기어 신청이 차단됩니다.",
     "notificationsTitle": "이벤트 생성 알림 메시지",
     "notificationsDescription": "새 이벤트가 생성될 때 Discord 채널 상단에 표시되는 문구입니다. 메시지 아래에는 사이트 메인 링크가 자동으로 붙습니다.",
@@ -467,7 +476,12 @@
     "noSearchResult": "검색 결과가 없습니다.",
     "adminLabel": "관리자",
     "noParticipationHistory": "참여 이력 없음",
-    "participation": "참여"
+    "participation": "참여",
+    "aggregateRange": "집계 기간",
+    "aggregateAllTime": "전체 기간",
+    "aggregateWins": "총 승",
+    "aggregateLosses": "총 패",
+    "aggregateOpponents": "상대 길드 수"
   },
   "me": {
     "title": "내 지갑",
@@ -582,7 +596,11 @@
   "adminBattleOutcome": {
     "sectionTitle": "전투 결과",
     "description": "전투별로 상대 길드와 승패를 기록하세요. 과반수로 이벤트의 최종 승패가 결정됩니다 (동수이면 미확정).",
-    "opponentPlaceholder": "상대 길드 이름",
+    "opponentPlaceholder": "상대 길드 선택",
+    "addNewGuild": "새 상대 길드 추가",
+    "newGuildNamePlaceholder": "예: MenHera",
+    "selectGuildRequired": "모든 전투의 상대 길드를 선택해 주세요.",
+    "createGuildFailed": "상대 길드 생성에 실패했습니다.",
     "win": "승리",
     "loss": "패배",
     "tie": "동점 (미확정)",
@@ -590,6 +608,30 @@
     "addBattle": "전투 추가",
     "reset": "초기화",
     "resetConfirm": "전투 기록과 결과를 모두 삭제할까요?"
+  },
+  "adminOpponentGuilds": {
+    "pageTitle": "상대 길드",
+    "pageDescription": "전투 기록에서 상대로 등장하는 길드를 주소록처럼 관리합니다. 여기서 등록된 길드만 전투 편집 화면의 선택지로 노출됩니다.",
+    "addGuild": "길드 추가",
+    "namePlaceholder": "예: MenHera",
+    "notesPlaceholder": "메모 (선택)",
+    "empty": "등록된 상대 길드가 없습니다.",
+    "createFailed": "길드 생성에 실패했습니다.",
+    "deleteConfirm": "\"{name}\" 길드를 삭제할까요? 기존 전투 기록의 이름은 남지만 길드 연결은 해제됩니다."
+  },
+  "battleRecords": {
+    "title": "전투 기록",
+    "description": "상대 길드별 통산 승패 전적을 확인합니다.",
+    "empty": "아직 기록된 전투가 없습니다.",
+    "searchPlaceholder": "상대 길드 이름으로 검색",
+    "noSearchResult": "검색 결과가 없습니다.",
+    "unnamedGuild": "(이름 없음)",
+    "winRate": "승률 {rate}%",
+    "legacyNotLinked": "과거 기록 (길드 연결 미완료)",
+    "backToList": "전투 기록 목록",
+    "wins": "승",
+    "losses": "패",
+    "detailEmpty": "이 길드와의 전투 기록이 없습니다."
   },
   "adminActionError": {
     "serverError": "서버 오류",
@@ -641,7 +683,10 @@
     "duplicateBattleNumber": "전투 번호가 중복됐습니다.",
     "missingOpponentGuild": "상대 길드 이름을 입력해주세요.",
     "opponentGuildTooLong": "상대 길드 이름은 {max}자 이내여야 합니다.",
-    "invalidBattleOutcome": "전투 결과 값이 올바르지 않습니다."
+    "opponentGuildDuplicate": "이미 \"{name}\" 길드가 등록되어 있습니다.",
+    "opponentGuildNotFound": "상대 길드를 찾을 수 없습니다.",
+    "invalidBattleOutcome": "전투 결과 값이 올바르지 않습니다.",
+    "invalidDateFormat": "날짜는 YYYY-MM-DD 형식으로 입력해 주세요."
   },
   "memberActionError": {
     "loginRequired": "로그인이 필요합니다.",

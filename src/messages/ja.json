@@ -7,11 +7,13 @@
     "events": "イベント",
     "regearRequest": "リギア申請",
     "members": "ギルドメンバー",
+    "battleRecords": "戦闘記録",
     "myWallet": "マイウォレット",
     "eventAdmin": "イベント管理",
     "templates": "テンプレート",
     "regearReview": "リギア審査",
     "exchangeReview": "両替審査",
+    "opponentGuilds": "対戦ギルド",
     "settings": "設定"
   },
   "common": {
@@ -282,6 +284,13 @@
     "tabNotifications": "イベント通知",
     "tabRewards": "役割別リギア金額",
     "tabLanding": "ランディングページ",
+    "tabMembersRange": "メンバー統計期間",
+    "membersRangeTitle": "メンバー勝敗集計期間",
+    "membersRangeDescription": "ギルドメンバー一覧の上部に表示される勝敗合計と対戦ギルド数の集計範囲です。空欄の場合は全期間が集計されます。",
+    "membersRangeStart": "開始日",
+    "membersRangeEnd": "終了日",
+    "membersRangeClear": "クリア",
+    "membersRangeInvalid": "終了日が開始日より前です。",
     "rewardsDescription": "役割ごとのリギア請求上限です。ギルドメンバーはこの金額以下の範囲で直接請求金額を入力して申請し、承認時に請求金額がポイントとして支給されます。上限が 0 の役割はリギア申請がブロックされます。",
     "notificationsTitle": "イベント作成通知メッセージ",
     "notificationsDescription": "新しいイベントが作成されたときに Discord チャンネルの先頭に表示される文言です。メッセージの下にはサイトのメインリンクが自動的に添付されます。",
@@ -467,7 +476,12 @@
     "noSearchResult": "検索結果がありません。",
     "adminLabel": "管理者",
     "noParticipationHistory": "参加履歴なし",
-    "participation": "参加"
+    "participation": "参加",
+    "aggregateRange": "集計期間",
+    "aggregateAllTime": "全期間",
+    "aggregateWins": "総勝数",
+    "aggregateLosses": "総敗数",
+    "aggregateOpponents": "対戦ギルド数"
   },
   "me": {
     "title": "マイウォレット",
@@ -582,7 +596,11 @@
   "adminBattleOutcome": {
     "sectionTitle": "戦闘結果",
     "description": "戦闘ごとに相手ギルドと勝敗を記録してください。過半数で最終結果が決まります (同数の場合は未確定)。",
-    "opponentPlaceholder": "相手ギルド名",
+    "opponentPlaceholder": "相手ギルドを選択",
+    "addNewGuild": "新しい相手ギルドを追加",
+    "newGuildNamePlaceholder": "例: MenHera",
+    "selectGuildRequired": "全ての戦闘の相手ギルドを選択してください。",
+    "createGuildFailed": "相手ギルドの作成に失敗しました。",
     "win": "勝利",
     "loss": "敗北",
     "tie": "同点 (未確定)",
@@ -590,6 +608,30 @@
     "addBattle": "戦闘を追加",
     "reset": "リセット",
     "resetConfirm": "戦闘記録と結果をすべて削除しますか?"
+  },
+  "adminOpponentGuilds": {
+    "pageTitle": "対戦ギルド",
+    "pageDescription": "戦闘記録に登場する相手ギルドをアドレス帳のように管理します。ここに登録されたギルドのみが戦闘編集画面の選択肢として表示されます。",
+    "addGuild": "ギルド追加",
+    "namePlaceholder": "例: MenHera",
+    "notesPlaceholder": "メモ (任意)",
+    "empty": "登録された相手ギルドがありません。",
+    "createFailed": "ギルド作成に失敗しました。",
+    "deleteConfirm": "\"{name}\" ギルドを削除しますか? 既存の戦闘記録の名前は残りますがリンクは解除されます。"
+  },
+  "battleRecords": {
+    "title": "戦闘記録",
+    "description": "相手ギルド別の通算勝敗成績を確認します。",
+    "empty": "まだ記録された戦闘がありません。",
+    "searchPlaceholder": "相手ギルド名で検索",
+    "noSearchResult": "検索結果がありません。",
+    "unnamedGuild": "(無名)",
+    "winRate": "勝率 {rate}%",
+    "legacyNotLinked": "過去の記録 (ギルド未連結)",
+    "backToList": "戦闘記録一覧",
+    "wins": "勝",
+    "losses": "敗",
+    "detailEmpty": "このギルドとの戦闘記録はありません。"
   },
   "adminActionError": {
     "serverError": "サーバーエラー",
@@ -641,7 +683,10 @@
     "duplicateBattleNumber": "戦闘番号が重複しています。",
     "missingOpponentGuild": "相手ギルド名を入力してください。",
     "opponentGuildTooLong": "相手ギルド名は{max}文字以内で入力してください。",
-    "invalidBattleOutcome": "戦闘結果の値が正しくありません。"
+    "opponentGuildDuplicate": "既に \"{name}\" ギルドが登録されています。",
+    "opponentGuildNotFound": "相手ギルドが見つかりません。",
+    "invalidBattleOutcome": "戦闘結果の値が正しくありません。",
+    "invalidDateFormat": "日付は YYYY-MM-DD 形式で入力してください。"
   },
   "memberActionError": {
     "loginRequired": "ログインが必要です。",

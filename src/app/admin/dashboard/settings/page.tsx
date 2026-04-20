@@ -10,10 +10,21 @@ const DEFAULT_EVENT_NOTIFICATION_MESSAGE = '새 이벤트가 등록되었습니�
 export const dynamic = 'force-dynamic'
 
 export default async function SettingsPage() {
-  const [message, bannerUrl, ctaText, { rewards, error: rewardsError }, tLanding, t] = await Promise.all([
+  const [
+    message,
+    bannerUrl,
+    ctaText,
+    aggregateStartDate,
+    aggregateEndDate,
+    { rewards, error: rewardsError },
+    tLanding,
+    t,
+  ] = await Promise.all([
     getAppSetting('event_notification_message', DEFAULT_EVENT_NOTIFICATION_MESSAGE),
     getAppSetting('landing_banner_url', ''),
     getAppSetting('landing_cta_text', ''),
+    getAppSetting('members_aggregate_start_date', ''),
+    getAppSetting('members_aggregate_end_date', ''),
     listRoleRewards(),
     getTranslations('landing'),
     getTranslations('adminSettings'),
@@ -33,6 +44,8 @@ export default async function SettingsPage() {
         landingBannerUrl={bannerUrl}
         landingCtaText={ctaText}
         defaultLandingCtaText={tLanding('defaultCta')}
+        aggregateStartDate={aggregateStartDate}
+        aggregateEndDate={aggregateEndDate}
       />
     </div>
   )

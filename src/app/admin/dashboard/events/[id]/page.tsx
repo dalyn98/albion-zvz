@@ -9,6 +9,7 @@ import SaveAsTemplateButton from '@/components/SaveAsTemplateButton'
 import LoadTemplateButton from '@/components/LoadTemplateButton'
 import BattleOutcomeEditor from '@/components/BattleOutcomeEditor'
 import { listTemplates } from '@/app/actions/templates'
+import { listOpponentGuilds } from '@/app/actions/opponent-guilds'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 
 const MAX_PARTIES = 4
@@ -42,9 +43,10 @@ export default async function EditEventPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const [{ event, parties, battles }, { templates }, t] = await Promise.all([
+  const [{ event, parties, battles }, { templates }, { guilds: opponentGuilds }, t] = await Promise.all([
     getData(id),
     listTemplates(),
+    listOpponentGuilds(),
     getTranslations('adminEditEvent'),
   ])
 
@@ -71,6 +73,7 @@ export default async function EditEventPage({
             eventId={event.id}
             initialBattles={battles}
             currentOutcome={event.outcome}
+            opponentGuilds={opponentGuilds}
           />
         )}
 

@@ -20,7 +20,17 @@ export interface EventBattle {
   event_id: string
   battle_number: number
   opponent_guild: string
+  // Migration 024: FK to opponent_guilds. `opponent_guild` (text) stays as a
+  // display snapshot so renaming/deleting a guild doesn't mutate history.
+  opponent_guild_id: string | null
   outcome: EventOutcome
+  created_at: string
+}
+
+export interface OpponentGuild {
+  id: string
+  name: string
+  notes: string | null
   created_at: string
 }
 

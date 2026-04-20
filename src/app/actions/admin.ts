@@ -152,6 +152,11 @@ export async function resetBattleStart(id: string): Promise<{ error?: string }> 
 interface BattlePayload {
   battle_number: number
   opponent_guild: string
+  // Migration 024: FK to opponent_guilds. When set, the saved row links to a
+  // canonical guild entity; the text stays as a snapshot for historical
+  // display. Nullable so legacy/ad-hoc battles without a canonical guild
+  // still work.
+  opponent_guild_id: string | null
   outcome: 'win' | 'loss'
 }
 
@@ -216,6 +221,7 @@ export async function saveEventBattles(
       event_id: eventId,
       battle_number: b.battle_number,
       opponent_guild: b.opponent_guild.trim(),
+      opponent_guild_id: b.opponent_guild_id,
       outcome: b.outcome,
     }))
     const { error: insErr } = await db.from('event_battles').insert(rows)
