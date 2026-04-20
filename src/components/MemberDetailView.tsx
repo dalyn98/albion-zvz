@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Coins, Wallet, ShieldCheck, ChevronRight, Trophy, ShieldAlert, Hourglass } from 'lucide-react'
+import { Coins, Wallet, ShieldCheck, ChevronRight, Trophy, ShieldAlert, Hourglass, UserCheck, UserX, Crown } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
 import { formatSilver } from '@/lib/silver'
@@ -71,6 +71,32 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
           label={t('statSpent')}
           value={formatSilver(detail.lifetime_spent)}
           mono
+        />
+      </section>
+
+      <section className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <StatCard
+          icon={<UserCheck size={14} className="text-emerald-400" />}
+          label={t('statAttendanceRate')}
+          value={
+            detail.attendance_stats.rate === null
+              ? t('attendanceNotAvailable')
+              : t('attendancePercent', { rate: detail.attendance_stats.rate })
+          }
+          mono
+        />
+        <StatCard
+          icon={<UserX size={14} className="text-rose-400" />}
+          label={t('statAttendedCount')}
+          value={t('attendedCount', {
+            attended: detail.attendance_stats.attended,
+            no_show: detail.attendance_stats.no_show,
+          })}
+        />
+        <StatCard
+          icon={<Crown size={14} className="text-amber-300" />}
+          label={t('statMvpCount')}
+          value={t('mvpTimes', { count: detail.total_mvps })}
         />
       </section>
 
@@ -147,6 +173,22 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
                         <span className="text-rose-300">{e.battle_losses}</span>
                       </span>
                     )}
+                    {e.mvp_count > 0 && (
+                      <span
+                        className="inline-flex items-center gap-1 bg-amber-500/20 border border-amber-500/40 text-amber-200 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                        title={t('mvpBadgeTitle', { count: e.mvp_count })}
+                      >
+                        <Crown size={10} />
+                        {e.mvp_count > 1 ? `×${e.mvp_count}` : 'MVP'}
+                      </span>
+                    )}
+                    <AttendanceBadge
+                      attendance={e.attendance}
+                      labels={{
+                        attended: t('attendanceBadgeAttended'),
+                        noShow: t('attendanceBadgeNoShow'),
+                      }}
+                    />
                     <OutcomeBadge
                       outcome={e.outcome}
                       labels={{
@@ -301,6 +343,32 @@ function ExchangeRow({
       </span>
     </li>
   )
+}
+
+function AttendanceBadge({
+  attendance,
+  labels,
+}: {
+  attendance: 'attended' | 'no_show' | 'unknown'
+  labels: { attended: string; noShow: string }
+}) {
+  if (attendance === 'attended') {
+    return (
+      <span className="inline-flex items-center gap-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">
+        <UserCheck size={10} />
+        {labels.attended}
+      </span>
+    )
+  }
+  if (attendance === 'no_show') {
+    return (
+      <span className="inline-flex items-center gap-1 bg-gray-700/60 border border-gray-600 text-gray-300 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">
+        <UserX size={10} />
+        {labels.noShow}
+      </span>
+    )
+  }
+  return null
 }
 
 function OutcomeBadge({
