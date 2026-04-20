@@ -281,10 +281,21 @@ export async function savePartySlots(
       if (error) return { error: error.message }
     }
 
-    // Update kept slots in ascending slot_number order so any shift-down moves don't
-    // transiently collide with a still-higher slot_number on the UNIQUE(party_id, slot_number) index
-    const keptSorted = [...slots].filter((s) => s.id).sort((a, b) => a.slot_number - b.slot_number)
-    for (const slot of keptSorted) {
+    // A plain ascending-order UPDATE is not enough for arbitrary reorders
+    // (swaps and permutations always collide on UNIQUE(party_id, slot_number)).
+    // Park kept slots at temp numbers >20 first, then write the final values.
+    // Migration 022 widens the slot_number CHECK to permit this transient range.
+    const kept = slots.filter((s) => s.id)
+    const TEMP_OFFSET = 1000
+    for (let i = 0; i < kept.length; i++) {
+      const { error } = await db
+        .from('slots')
+        .update({ slot_number: TEMP_OFFSET + i + 1 })
+        .eq('id', kept[i].id!)
+      if (error) return { error: error.message }
+    }
+
+    for (const slot of kept) {
       const { error } = await db
         .from('slots')
         .update(slotToRow(resolvedPartyId, slot))
