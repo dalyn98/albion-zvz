@@ -6,6 +6,7 @@ import { ArrowRightLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { requestExchange } from '@/app/actions/exchange'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
+import { useToast } from './ToastProvider'
 
 interface Props {
   balance: number
@@ -15,6 +16,8 @@ interface Props {
 export default function RequestExchangeForm({ balance, disabled }: Props) {
   const router = useRouter()
   const t = useTranslations('requestExchange')
+  const tToast = useTranslations('toast')
+  const toast = useToast()
   const [amount, setAmount] = useState('')
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
@@ -35,6 +38,7 @@ export default function RequestExchangeForm({ balance, disabled }: Props) {
         return
       }
       setAmount('')
+      toast.success(tToast('exchangeSubmitted'))
       router.refresh()
     })
   }

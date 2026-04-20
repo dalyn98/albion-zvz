@@ -9,6 +9,7 @@ import {
   updateMyExchangeRequest,
 } from '@/app/actions/exchange'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
+import { useToast } from './ToastProvider'
 
 interface Props {
   id: string
@@ -18,6 +19,9 @@ interface Props {
 export default function ExchangeRequestActions({ id, silver }: Props) {
   const router = useRouter()
   const t = useTranslations('exchangeActions')
+  const tToast = useTranslations('toast')
+  const tCommon = useTranslations('common')
+  const toast = useToast()
   const [mode, setMode] = useState<'idle' | 'confirm-cancel' | 'edit'>('idle')
   const initialDraft = silver.toString()
   const [draft, setDraft] = useState(initialDraft)
@@ -34,8 +38,12 @@ export default function ExchangeRequestActions({ id, silver }: Props) {
     setError('')
     startTransition(async () => {
       const result = await cancelMyExchangeRequest(id)
-      if (result.error) setError(result.error)
-      else router.refresh()
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      toast.success(tToast('exchangeCancelled'))
+      router.refresh()
     })
   }
 
@@ -52,11 +60,13 @@ export default function ExchangeRequestActions({ id, silver }: Props) {
     }
     startTransition(async () => {
       const result = await updateMyExchangeRequest(id, nextSilver)
-      if (result.error) setError(result.error)
-      else {
-        setMode('idle')
-        router.refresh()
+      if (result.error) {
+        setError(result.error)
+        return
       }
+      setMode('idle')
+      toast.success(tCommon('saved'))
+      router.refresh()
     })
   }
 

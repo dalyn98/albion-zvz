@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { ShieldCheck, X, Upload, Clipboard } from 'lucide-react'
 import { requestRegear } from '@/app/actions/regear'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
+import { useToast } from './ToastProvider'
 
 interface Props {
   eventId: string
@@ -36,6 +37,8 @@ export default function RegearRequestButton({
 }: Props) {
   const router = useRouter()
   const t = useTranslations('regear')
+  const tToast = useTranslations('toast')
+  const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
   const dropRef = useRef<HTMLLabelElement>(null)
   const [open, setOpen] = useState(false)
@@ -123,6 +126,7 @@ export default function RegearRequestButton({
       setOpen(false)
       setFile(null)
       setClaimedInput('')
+      toast.success(tToast('regearSubmitted'))
       router.refresh()
     })
   }

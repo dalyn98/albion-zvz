@@ -776,5 +776,20 @@
     "home": "홈으로",
     "notFoundTitle": "페이지를 찾을 수 없어요",
     "notFoundDescription": "주소가 바뀌었거나 삭제된 페이지일 수 있어요."
+  },
+  "toast": {
+    "regearSubmitted": "리기어 신청이 접수되었어요.",
+    "regearCancelled": "리기어 신청을 취소했어요.",
+    "regearApproved": "리기어 신청을 승인했어요.",
+    "regearRejected": "리기어 신청을 거절했어요.",
+    "exchangeSubmitted": "환전 신청이 접수되었어요.",
+    "exchangeCancelled": "환전 신청을 취소했어요.",
+    "exchangeApproved": "환전 신청을 승인했어요.",
+    "exchangeRejected": "환전 신청을 거절했어요.",
+    "slotApplied": "슬롯에 신청했어요.",
+    "slotCancelled": "슬롯 신청을 취소했어요.",
+    "slotKicked": "슬롯에서 내보냈어요.",
+    "settingsSaved": "저장했어요.",
+    "genericError": "문제가 발생했어요."
   }
 }

@@ -776,5 +776,20 @@
     "home": "ホームへ",
     "notFoundTitle": "ページが見つかりません",
     "notFoundDescription": "URLが変更されたか、削除されたページかもしれません。"
+  },
+  "toast": {
+    "regearSubmitted": "リギア申請を受け付けました。",
+    "regearCancelled": "リギア申請をキャンセルしました。",
+    "regearApproved": "リギア申請を承認しました。",
+    "regearRejected": "リギア申請を却下しました。",
+    "exchangeSubmitted": "両替申請を受け付けました。",
+    "exchangeCancelled": "両替申請をキャンセルしました。",
+    "exchangeApproved": "両替申請を承認しました。",
+    "exchangeRejected": "両替申請を却下しました。",
+    "slotApplied": "スロットに申請しました。",
+    "slotCancelled": "スロット申請をキャンセルしました。",
+    "slotKicked": "スロットから外しました。",
+    "settingsSaved": "保存しました。",
+    "genericError": "問題が発生しました。"
   }
 }

@@ -18,6 +18,7 @@ import ItemImage from './ItemImage'
 import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
+import { useToast } from './ToastProvider'
 
 const STATUS_CLASS: Record<string, string> = {
   pending: 'bg-yellow-500/20 text-yellow-300',
@@ -65,6 +66,8 @@ function RegearRow({ request, avatar }: { request: AdminRegearRequest; avatar: s
   const router = useRouter()
   const t = useTranslations('adminRegearReview')
   const tCommon = useTranslations('common')
+  const tToast = useTranslations('toast')
+  const toast = useToast()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [rejectMode, setRejectMode] = useState(false)
@@ -98,8 +101,12 @@ function RegearRow({ request, avatar }: { request: AdminRegearRequest; avatar: s
     setError('')
     startTransition(async () => {
       const result = await approveRegearRequest(request.id)
-      if (result.error) setError(result.error)
-      else router.refresh()
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      toast.success(tToast('regearApproved'))
+      router.refresh()
     })
   }
 
@@ -107,11 +114,13 @@ function RegearRow({ request, avatar }: { request: AdminRegearRequest; avatar: s
     setError('')
     startTransition(async () => {
       const result = await rejectRegearRequest(request.id, rejectNotes)
-      if (result.error) setError(result.error)
-      else {
-        setRejectMode(false)
-        router.refresh()
+      if (result.error) {
+        setError(result.error)
+        return
       }
+      setRejectMode(false)
+      toast.success(tToast('regearRejected'))
+      router.refresh()
     })
   }
 

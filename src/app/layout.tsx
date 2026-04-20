@@ -4,6 +4,7 @@ import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import './globals.css'
 import AppShell from '@/components/AppShell'
 import AppGate from '@/components/AppGate'
+import { ToastProvider } from '@/components/ToastProvider'
 import { getSession } from '@/lib/session'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -82,7 +83,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang={locale} className="h-full antialiased">
       <body className="min-h-full bg-[#0f1117] text-white">
         <NextIntlClientProvider locale={locale} messages={messages}>
-          {locked ? gateContent : <AppShell>{children}</AppShell>}
+          <ToastProvider>
+            {locked ? gateContent : <AppShell>{children}</AppShell>}
+          </ToastProvider>
         </NextIntlClientProvider>
       </body>
     </html>

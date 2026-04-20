@@ -5,10 +5,13 @@ import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cancelMyRegearRequest } from '@/app/actions/regear'
+import { useToast } from './ToastProvider'
 
 export default function RegearRequestCancelButton({ id }: { id: string }) {
   const router = useRouter()
   const t = useTranslations('regear')
+  const tToast = useTranslations('toast')
+  const toast = useToast()
   const [confirming, setConfirming] = useState(false)
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
@@ -17,8 +20,12 @@ export default function RegearRequestCancelButton({ id }: { id: string }) {
     setError('')
     startTransition(async () => {
       const result = await cancelMyRegearRequest(id)
-      if (result.error) setError(result.error)
-      else router.refresh()
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      toast.success(tToast('regearCancelled'))
+      router.refresh()
     })
   }
 

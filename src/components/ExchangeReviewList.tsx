@@ -14,6 +14,7 @@ import { formatDateTimeShort } from '@/lib/format-datetime'
 import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
+import { useToast } from './ToastProvider'
 
 const STATUS_CLASS: Record<string, string> = {
   pending: 'bg-yellow-500/20 text-yellow-300',
@@ -61,6 +62,8 @@ function ExchangeRow({ request, avatar }: { request: AdminExchangeRequest; avata
   const router = useRouter()
   const t = useTranslations('adminExchangeReview')
   const tCommon = useTranslations('common')
+  const tToast = useTranslations('toast')
+  const toast = useToast()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [rejectMode, setRejectMode] = useState(false)
@@ -76,8 +79,12 @@ function ExchangeRow({ request, avatar }: { request: AdminExchangeRequest; avata
     setError('')
     startTransition(async () => {
       const result = await approveExchangeRequest(request.id)
-      if (result.error) setError(result.error)
-      else router.refresh()
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      toast.success(tToast('exchangeApproved'))
+      router.refresh()
     })
   }
 
@@ -85,11 +92,13 @@ function ExchangeRow({ request, avatar }: { request: AdminExchangeRequest; avata
     setError('')
     startTransition(async () => {
       const result = await rejectExchangeRequest(request.id, rejectNotes)
-      if (result.error) setError(result.error)
-      else {
-        setRejectMode(false)
-        router.refresh()
+      if (result.error) {
+        setError(result.error)
+        return
       }
+      setRejectMode(false)
+      toast.success(tToast('exchangeRejected'))
+      router.refresh()
     })
   }
 
