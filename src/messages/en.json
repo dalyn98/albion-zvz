@@ -344,7 +344,9 @@
   },
   "landing": {
     "defaultCta": "Log in with Discord to access events and parties.",
-    "discordLogin": "Log in with Discord"
+    "discordLogin": "Log in with Discord",
+    "memberRequired": "You must be a member of the guild to view this site.\nAsk an admin for an invite, then log in again.",
+    "logout": "Sign in with another account"
   },
   "auth": {
     "error": {

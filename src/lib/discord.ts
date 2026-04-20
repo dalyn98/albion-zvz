@@ -25,27 +25,35 @@ export interface DiscordConfig {
   clientId: string
   clientSecret: string
   guildId: string
-  memberRoleId: string
-  adminRoleId: string
+  // Both role-id env vars accept a comma-separated list. A user is counted as
+  // member/admin if they hold ANY of the listed roles. Trailing/leading space
+  // and empty entries are tolerated so `a, b ,` still parses cleanly.
+  memberRoleIds: string[]
+  adminRoleIds: string[]
   redirectUri: string
+}
+
+function parseRoleIds(raw: string | undefined): string[] {
+  if (!raw) return []
+  return raw.split(',').map((s) => s.trim()).filter(Boolean)
 }
 
 export function getDiscordConfig(): DiscordConfig {
   const clientId = process.env.DISCORD_CLIENT_ID
   const clientSecret = process.env.DISCORD_CLIENT_SECRET
   const guildId = process.env.DISCORD_GUILD_ID
-  const memberRoleId = process.env.DISCORD_MEMBER_ROLE_ID
-  const adminRoleId = process.env.DISCORD_ADMIN_ROLE_ID
+  const memberRoleIds = parseRoleIds(process.env.DISCORD_MEMBER_ROLE_ID)
+  const adminRoleIds = parseRoleIds(process.env.DISCORD_ADMIN_ROLE_ID)
   const appUrl = process.env.APP_URL
-  if (!clientId || !clientSecret || !guildId || !memberRoleId || !adminRoleId || !appUrl) {
+  if (!clientId || !clientSecret || !guildId || memberRoleIds.length === 0 || adminRoleIds.length === 0 || !appUrl) {
     throw new Error('Discord env vars not fully set')
   }
   return {
     clientId,
     clientSecret,
     guildId,
-    memberRoleId,
-    adminRoleId,
+    memberRoleIds,
+    adminRoleIds,
     redirectUri: `${appUrl.replace(/\/$/, '')}/api/auth/discord/callback`,
   }
 }
@@ -118,9 +126,10 @@ export interface DiscordIdentity {
 
 export function identityFromMember(member: DiscordGuildMember): DiscordIdentity | null {
   if (!member.user) return null
-  const { memberRoleId, adminRoleId } = getDiscordConfig()
-  const isAdmin = member.roles.includes(adminRoleId)
-  const isMember = member.roles.includes(memberRoleId) || isAdmin
+  const { memberRoleIds, adminRoleIds } = getDiscordConfig()
+  const roles = new Set(member.roles)
+  const isAdmin = adminRoleIds.some((id) => roles.has(id))
+  const isMember = memberRoleIds.some((id) => roles.has(id)) || isAdmin
   return {
     discordId: member.user.id,
     // Prefer server nickname, then global_name (display name), then username.

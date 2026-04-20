@@ -344,7 +344,9 @@
   },
   "landing": {
     "defaultCta": "Discord でログインすると、イベントとパーティーにアクセスできます。",
-    "discordLogin": "Discord でログイン"
+    "discordLogin": "Discord でログイン",
+    "memberRequired": "ギルドに加入していないためサイトを閲覧できません。\nギルド管理者に招待を依頼してから再度ログインしてください。",
+    "logout": "別のアカウントでログイン"
   },
   "auth": {
     "error": {
