@@ -21,6 +21,7 @@ interface Props {
   loginLabel: string
   memberRequiredLabel: string
   logoutLabel: string
+  publicRecordsLabel: string
   authErrorLabels: Record<string, string>
 }
 
@@ -31,6 +32,7 @@ export default function AppGate({
   loginLabel,
   memberRequiredLabel,
   logoutLabel,
+  publicRecordsLabel,
   authErrorLabels,
 }: Props) {
   const searchParams = useSearchParams()
@@ -89,6 +91,13 @@ export default function AppGate({
         )}
 
         {errorMessage && <p className="text-red-300 text-xs drop-shadow">{errorMessage}</p>}
+
+        <a
+          href="/public/records"
+          className="inline-block text-gray-300/90 hover:text-white text-xs drop-shadow underline underline-offset-4 decoration-gray-500/60"
+        >
+          {publicRecordsLabel}
+        </a>
       </div>
 
       <p className="absolute bottom-4 left-0 right-0 text-center text-[11px] text-gray-400/80 drop-shadow z-10 tracking-wide">

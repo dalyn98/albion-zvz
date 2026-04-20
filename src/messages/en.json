@@ -391,7 +391,8 @@
     "defaultCta": "Log in with Discord to access events and parties.",
     "discordLogin": "Log in with Discord",
     "memberRequired": "You must be a member of the guild to view this site.\nAsk an admin for an invite, then log in again.",
-    "logout": "Sign in with another account"
+    "logout": "Sign in with another account",
+    "publicRecords": "View public records"
   },
   "auth": {
     "error": {
@@ -736,6 +737,18 @@
     "wins": "Wins",
     "losses": "Losses",
     "detailEmpty": "No battles recorded against this guild."
+  },
+  "publicRecords": {
+    "title": "Menhera record",
+    "description": "Public-facing summary of our win/loss record against each opponent guild.",
+    "empty": "No battles recorded yet.",
+    "statOpponents": "Opponents",
+    "statFights": "Fights",
+    "statWinRate": "Win rate",
+    "percent": "{value}%",
+    "ctaHeadline": "Want the full picture?",
+    "ctaBody": "Sign in with Discord to browse events, parties, and MVP history.",
+    "ctaLogin": "Sign in with Discord"
   },
   "adminActionError": {
     "serverError": "Server error",

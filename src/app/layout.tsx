@@ -1,13 +1,22 @@
 import type { Metadata, Viewport } from 'next'
+import { headers } from 'next/headers'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import './globals.css'
 import AppShell from '@/components/AppShell'
 import AppGate from '@/components/AppGate'
+import PublicShell from '@/components/PublicShell'
 import { ToastProvider } from '@/components/ToastProvider'
 import { getSession } from '@/lib/session'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
+
+// Routes that should render for anyone, even without a session. The proxy
+// forwards the pathname via x-pathname so we can decide here without duplicating
+// the matcher logic.
+function isPublicPathname(pathname: string): boolean {
+  return pathname.startsWith('/public/')
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta')
@@ -37,16 +46,21 @@ export const viewport: Viewport = {
 // only these two classes of session can exist, so the check here is mostly
 // defensive for stale cookies where a role was later revoked.
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [locale, messages, session] = await Promise.all([
+  const [locale, messages, session, headersList] = await Promise.all([
     getLocale(),
     getMessages(),
     getSession(),
+    headers(),
   ])
 
+  const pathname = headersList.get('x-pathname') ?? ''
+  const isPublic = isPublicPathname(pathname)
+
   // Verify guests still exist in the DB so admin deletions take effect on the
-  // next request rather than waiting for the 7-day cookie to expire.
+  // next request rather than waiting for the 7-day cookie to expire. Public
+  // routes skip this — anyone can see them regardless of session state.
   let guestRevoked = false
-  if (session && !session.isMember && session.isGuest) {
+  if (!isPublic && session && !session.isMember && session.isGuest) {
     const { data } = await getAdminClient()
       .from('guests')
       .select('discord_id')
@@ -55,7 +69,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     if (!data) guestRevoked = true
   }
 
-  const locked = !session || (!session.isMember && !session.isGuest) || guestRevoked
+  const locked =
+    !isPublic && (!session || (!session.isMember && !session.isGuest) || guestRevoked)
 
   let gateContent: React.ReactNode = null
   if (locked) {
@@ -73,6 +88,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         loginLabel={tLanding('discordLogin')}
         memberRequiredLabel={tLanding('memberRequired')}
         logoutLabel={tLanding('logout')}
+        publicRecordsLabel={tLanding('publicRecords')}
         authErrorLabels={{
           denied: tAuthError('denied'),
           invalid: tAuthError('invalid'),
@@ -87,13 +103,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     )
   }
 
+  // Public routes: if the visitor has a real session, give them the normal
+  // AppShell so the sidebar stays consistent; otherwise wrap in a minimal
+  // PublicShell with a login CTA.
+  const body = locked
+    ? gateContent
+    : isPublic && !session
+      ? <PublicShell>{children}</PublicShell>
+      : <AppShell>{children}</AppShell>
+
   return (
     <html lang={locale} className="h-full antialiased">
       <body className="min-h-full bg-[#0f1117] text-white">
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <ToastProvider>
-            {locked ? gateContent : <AppShell>{children}</AppShell>}
-          </ToastProvider>
+          <ToastProvider>{body}</ToastProvider>
         </NextIntlClientProvider>
       </body>
     </html>

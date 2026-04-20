@@ -391,7 +391,8 @@
     "defaultCta": "Discord로 로그인하면 이벤트와 파티에 접근할 수 있습니다.",
     "discordLogin": "Discord로 로그인",
     "memberRequired": "길드에 가입되어 있지 않아 사이트를 볼 수 없습니다.\n길드 관리자에게 초대를 요청한 뒤 다시 로그인해주세요.",
-    "logout": "다른 계정으로 로그인"
+    "logout": "다른 계정으로 로그인",
+    "publicRecords": "로그인 없이 전적 보기"
   },
   "auth": {
     "error": {
@@ -736,6 +737,18 @@
     "wins": "승",
     "losses": "패",
     "detailEmpty": "이 길드와의 전투 기록이 없습니다."
+  },
+  "publicRecords": {
+    "title": "멘헤라 전적",
+    "description": "로그인 없이도 볼 수 있는 상대 길드별 통산 승패 기록입니다.",
+    "empty": "아직 기록된 전투가 없습니다.",
+    "statOpponents": "상대 길드",
+    "statFights": "전투 수",
+    "statWinRate": "승률",
+    "percent": "{value}%",
+    "ctaHeadline": "더 자세한 기록이 보고 싶다면?",
+    "ctaBody": "디스코드로 로그인하면 이벤트, 파티, MVP 기록까지 열람할 수 있습니다.",
+    "ctaLogin": "디스코드로 로그인"
   },
   "adminActionError": {
     "serverError": "서버 오류",

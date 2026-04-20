@@ -10,9 +10,13 @@ import type { GuildRecord } from '@/app/actions/battle-records'
 
 interface Props {
   records: GuildRecord[]
+  // When false, rows render as static cards instead of links. The public
+  // records page uses this so guests don't click into an auth-gated detail
+  // that would just bounce them to login.
+  linkable?: boolean
 }
 
-export default function GuildRecordsList({ records }: Props) {
+export default function GuildRecordsList({ records, linkable = true }: Props) {
   const t = useTranslations('battleRecords')
   const [search, setSearch] = useState('')
 
@@ -30,7 +34,7 @@ export default function GuildRecordsList({ records }: Props) {
         <ul className="space-y-2">
           {filtered.map((r) => {
             const winRate = r.total > 0 ? Math.round((r.wins / r.total) * 100) : 0
-            const disabled = !r.opponent_guild_id
+            const disabled = !r.opponent_guild_id || !linkable
             const classes = disabled
               ? 'flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 opacity-70'
               : 'flex items-center gap-3 bg-gray-900 border border-gray-800 hover:border-amber-500/40 rounded-lg px-4 py-3 transition-colors'
@@ -58,15 +62,21 @@ export default function GuildRecordsList({ records }: Props) {
                 {!disabled && <ChevronRight size={16} className="text-gray-600 flex-shrink-0" />}
               </>
             )
+            const key = r.opponent_guild_id ?? `name:${r.name}`
             if (disabled) {
               return (
-                <li key={r.name}>
-                  <div className={classes} title={t('legacyNotLinked')}>{content}</div>
+                <li key={key}>
+                  <div
+                    className={classes}
+                    title={!linkable ? undefined : t('legacyNotLinked')}
+                  >
+                    {content}
+                  </div>
                 </li>
               )
             }
             return (
-              <li key={r.opponent_guild_id}>
+              <li key={key}>
                 <Link href={`/battle-records/${r.opponent_guild_id}`} className={classes}>
                   {content}
                 </Link>

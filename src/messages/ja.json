@@ -391,7 +391,8 @@
     "defaultCta": "Discord でログインすると、イベントとパーティーにアクセスできます。",
     "discordLogin": "Discord でログイン",
     "memberRequired": "ギルドに加入していないためサイトを閲覧できません。\nギルド管理者に招待を依頼してから再度ログインしてください。",
-    "logout": "別のアカウントでログイン"
+    "logout": "別のアカウントでログイン",
+    "publicRecords": "ログインなしで戦績を見る"
   },
   "auth": {
     "error": {
@@ -736,6 +737,18 @@
     "wins": "勝",
     "losses": "敗",
     "detailEmpty": "このギルドとの戦闘記録はありません。"
+  },
+  "publicRecords": {
+    "title": "メンヘラ戦績",
+    "description": "ログインなしで閲覧できる、相手ギルド別の通算勝敗記録です。",
+    "empty": "まだ記録された戦闘がありません。",
+    "statOpponents": "相手ギルド",
+    "statFights": "戦闘数",
+    "statWinRate": "勝率",
+    "percent": "{value}%",
+    "ctaHeadline": "もっと詳しい記録を見たい?",
+    "ctaBody": "Discord でログインすると、イベント・パーティー・MVP 記録まで閲覧できます。",
+    "ctaLogin": "Discord でログイン"
   },
   "adminActionError": {
     "serverError": "サーバーエラー",

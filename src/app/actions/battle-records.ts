@@ -26,6 +26,50 @@ export interface OpponentEventRecord {
 // 길드별 집계. event_battles 의 outcome 이 그대로 승/패 카운트.
 // FK 가 걸린 행은 opponent_guild_id 기준, 레거시 행은 lowercase 이름 기준으로
 // dedup 해 같은 길드가 두 줄로 갈라지지 않게 한다.
+async function aggregateGuildRecords(): Promise<{
+  records: GuildRecord[]
+  error?: string
+}> {
+  const db = getAdminClient()
+  const { data, error } = await db
+    .from('event_battles')
+    .select('opponent_guild_id, opponent_guild, outcome')
+  if (error) return { records: [], error: error.message }
+
+  interface Agg {
+    opponent_guild_id: string | null
+    name: string
+    wins: number
+    losses: number
+  }
+  const map = new Map<string, Agg>()
+  for (const row of data ?? []) {
+    const key = row.opponent_guild_id
+      ? `id:${row.opponent_guild_id}`
+      : `name:${(row.opponent_guild ?? '').trim().toLowerCase()}`
+    if (!map.has(key)) {
+      map.set(key, {
+        opponent_guild_id: row.opponent_guild_id ?? null,
+        name: row.opponent_guild ?? '',
+        wins: 0,
+        losses: 0,
+      })
+    }
+    const agg = map.get(key)!
+    if (row.outcome === 'win') agg.wins++
+    else if (row.outcome === 'loss') agg.losses++
+  }
+
+  const records: GuildRecord[] = Array.from(map.values())
+    .map((a) => ({ ...a, total: a.wins + a.losses }))
+    .filter((r) => r.total > 0)
+    .sort((a, b) => {
+      if (b.total !== a.total) return b.total - a.total
+      return a.name.localeCompare(b.name)
+    })
+  return { records }
+}
+
 export async function listGuildRecords(): Promise<{
   records: GuildRecord[]
   error?: string
@@ -34,45 +78,21 @@ export async function listGuildRecords(): Promise<{
   try {
     const session = await getSession()
     if (!session) return { records: [], error: 'Unauthorized' }
+    return await aggregateGuildRecords()
+  } catch (e) {
+    return { records: [], error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
 
-    const db = getAdminClient()
-    const { data, error } = await db
-      .from('event_battles')
-      .select('opponent_guild_id, opponent_guild, outcome')
-    if (error) return { records: [], error: error.message }
-
-    interface Agg {
-      opponent_guild_id: string | null
-      name: string
-      wins: number
-      losses: number
-    }
-    const map = new Map<string, Agg>()
-    for (const row of data ?? []) {
-      const key = row.opponent_guild_id
-        ? `id:${row.opponent_guild_id}`
-        : `name:${(row.opponent_guild ?? '').trim().toLowerCase()}`
-      if (!map.has(key)) {
-        map.set(key, {
-          opponent_guild_id: row.opponent_guild_id ?? null,
-          name: row.opponent_guild ?? '',
-          wins: 0,
-          losses: 0,
-        })
-      }
-      const agg = map.get(key)!
-      if (row.outcome === 'win') agg.wins++
-      else if (row.outcome === 'loss') agg.losses++
-    }
-
-    const records: GuildRecord[] = Array.from(map.values())
-      .map((a) => ({ ...a, total: a.wins + a.losses }))
-      .filter((r) => r.total > 0)
-      .sort((a, b) => {
-        if (b.total !== a.total) return b.total - a.total
-        return a.name.localeCompare(b.name)
-      })
-    return { records }
+// 공개 전적 페이지 전용. 세션 검사 없이 집계만 반환한다. 상대 길드 상세
+// 라우트는 여전히 로그인 뒤에만 접근 가능하므로, 이 액션으로는 목록만 노출된다.
+export async function listPublicGuildRecords(): Promise<{
+  records: GuildRecord[]
+  error?: string
+}> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    return await aggregateGuildRecords()
   } catch (e) {
     return { records: [], error: e instanceof Error ? e.message : tErr('serverError') }
   }
