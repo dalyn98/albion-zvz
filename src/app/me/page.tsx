@@ -28,6 +28,10 @@ export default async function MePage() {
   if (!session) {
     redirect('/api/auth/discord/start?returnTo=/me')
   }
+  // Guests have no points/regear/exchange — skip the financial dashboard.
+  if (!session.isMember) {
+    redirect('/')
+  }
 
   const [
     { summary },

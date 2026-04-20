@@ -22,6 +22,11 @@ export default async function RegearPage() {
   if (!session) {
     redirect('/api/auth/discord/start?returnTo=/regear')
   }
+  // Guests can't submit regear (Option B scope: slots only). Send them home
+  // so they don't see an action page that immediately errors.
+  if (!session.isMember) {
+    redirect('/')
+  }
 
   const [{ events, error }, t, locale] = await Promise.all([
     listMyRegearEligibleEvents(),

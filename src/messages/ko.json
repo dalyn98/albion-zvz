@@ -34,7 +34,9 @@
     "loadingDots": "불러오는 중…",
     "searchNoResults": "검색 결과가 없습니다.",
     "sending": "전송 중…",
-    "uploading": "업로드 중…"
+    "uploading": "업로드 중…",
+    "copy": "복사",
+    "copied": "복사됨"
   },
   "adminLogin": {
     "title": "관리자 로그인",
@@ -285,6 +287,7 @@
     "tabRewards": "역할별 리기어 금액",
     "tabLanding": "대문 페이지",
     "tabMembersRange": "길드원 통계 기간",
+    "tabGuests": "게스트 초대",
     "membersRangeTitle": "길드원 승패 집계 기간",
     "membersRangeDescription": "길드원 목록 최상단에 표시되는 승/패 합산과 상대 길드 수의 집계 범위입니다. 비워두면 전체 기간이 집계됩니다.",
     "membersRangeStart": "시작일",
@@ -301,6 +304,20 @@
     "saved": "저장됨",
     "saving": "저장 중…",
     "save": "저장"
+  },
+  "adminGuestInvite": {
+    "title": "게스트 초대 링크",
+    "description": "지정한 토큰이 포함된 링크로 접속한 사용자는 Discord 로그인 후 게스트로 참여합니다.\n길드원이 아니어도 이벤트 슬롯 배정과 참여 이력 조회가 가능합니다. 토큰을 비우면 초대 링크가 비활성화됩니다.",
+    "tokenLabel": "초대 토큰",
+    "tokenPlaceholder": "예: spring2026",
+    "patternHint": "영문·숫자·밑줄·하이픈만 사용하며 64자 이하",
+    "patternError": "토큰 형식이 올바르지 않습니다.",
+    "randomize": "랜덤 생성",
+    "linkLabel": "초대 링크",
+    "linkHint": "이 링크를 공유하면 누구나 게스트로 합류할 수 있습니다. 유출되었다면 토큰을 새로 발급하세요.",
+    "clear": "초기화",
+    "clearTooltip": "토큰을 비워 초대 링크를 비활성화합니다",
+    "copyFailed": "클립보드 복사에 실패했습니다."
   },
   "sidebar": {
     "memberGroup": "구성원",
@@ -483,7 +500,16 @@
     "aggregateAllTime": "전체 기간",
     "aggregateWins": "총 승",
     "aggregateLosses": "총 패",
-    "aggregateOpponents": "상대 길드 수"
+    "aggregateOpponents": "상대 길드 수",
+    "tabsLabel": "구성원 카테고리",
+    "tabMembers": "길드원",
+    "tabGuests": "게스트",
+    "guestCounter": "게스트 {count}명",
+    "guestBadge": "게스트",
+    "noGuests": "아직 참여한 게스트가 없습니다.",
+    "sortByJoined": "최근 초대 순",
+    "revokeGuest": "게스트 권한 해제",
+    "confirmRevokeGuest": "{name} 님의 게스트 권한을 해제할까요? 다시 초대 링크로 접속하면 복구됩니다."
   },
   "me": {
     "title": "내 지갑",

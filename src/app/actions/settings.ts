@@ -10,6 +10,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'landing_cta_text',
   'members_aggregate_start_date',
   'members_aggregate_end_date',
+  'guest_invite_token',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -20,6 +21,8 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   'landing_cta_text',
   'members_aggregate_start_date',
   'members_aggregate_end_date',
+  // Empty token = guest invites disabled. Admin rotates or clears to revoke.
+  'guest_invite_token',
 ] as const
 
 // Date-shaped setting keys that must be 'YYYY-MM-DD' or empty. A free-form

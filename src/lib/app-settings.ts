@@ -9,6 +9,10 @@ export type AppSettingKey =
   // Stored as 'YYYY-MM-DD' — parsed client-side as a local date.
   | 'members_aggregate_start_date'
   | 'members_aggregate_end_date'
+  // Migration 025: admin-managed invite token. Empty string means guests are
+  // disabled (no one can join via `?invite=...`). Admin rotates this value to
+  // invalidate any outstanding invite links.
+  | 'guest_invite_token'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

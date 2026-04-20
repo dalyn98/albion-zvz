@@ -29,21 +29,26 @@ export function discordAvatarUrl(
   return `https://cdn.discordapp.com/avatars/${discordId}/${avatar}.${ext}?size=${cdnSize}`
 }
 
-// Server-side batch lookup. Reads from the `guild_avatars` table populated
-// on each Discord login. Missing entries return null — caller should render
-// a default icon in that case.
+// Server-side batch lookup. Reads from `guild_avatars` (populated on each
+// member login) and `guests` (populated on guest signup) so slot/party views
+// can render an avatar for either class of user. Missing entries return null
+// and the caller falls back to a default icon.
 export async function getAvatarsByDiscordIds(
   ids: readonly string[],
 ): Promise<Map<string, string | null>> {
   if (ids.length === 0) return new Map()
   const unique = Array.from(new Set(ids))
   const db = getAdminClient()
-  const { data, error } = await db
-    .from('guild_avatars')
-    .select('discord_id, avatar')
-    .in('discord_id', unique)
-  if (error || !data) return new Map()
-  return new Map(data.map((row) => [row.discord_id, row.avatar ?? null]))
+  const [members, guests] = await Promise.all([
+    db.from('guild_avatars').select('discord_id, avatar').in('discord_id', unique),
+    db.from('guests').select('discord_id, avatar').in('discord_id', unique),
+  ])
+  const result = new Map<string, string | null>()
+  // Guests first, then members — a rare dual-row (shouldn't happen) prefers
+  // the member avatar which is refreshed on every login.
+  for (const row of guests.data ?? []) result.set(row.discord_id, row.avatar ?? null)
+  for (const row of members.data ?? []) result.set(row.discord_id, row.avatar ?? null)
+  return result
 }
 
 export async function upsertGuildAvatar(

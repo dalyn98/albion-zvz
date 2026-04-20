@@ -34,7 +34,9 @@
     "loadingDots": "Loading…",
     "searchNoResults": "No results.",
     "sending": "Sending…",
-    "uploading": "Uploading…"
+    "uploading": "Uploading…",
+    "copy": "Copy",
+    "copied": "Copied"
   },
   "adminLogin": {
     "title": "Admin login",
@@ -285,6 +287,7 @@
     "tabRewards": "Role regear caps",
     "tabLanding": "Landing page",
     "tabMembersRange": "Members stats range",
+    "tabGuests": "Guest invite",
     "membersRangeTitle": "Members win/loss aggregate range",
     "membersRangeDescription": "Date range used by the wins/losses and distinct-opponent totals at the top of the guild members page. Leave blank to include all time.",
     "membersRangeStart": "Start date",
@@ -301,6 +304,20 @@
     "saved": "Saved",
     "saving": "Saving…",
     "save": "Save"
+  },
+  "adminGuestInvite": {
+    "title": "Guest invite link",
+    "description": "Anyone opening a link with this token signs in with Discord and joins as a guest.\nGuests aren't in the guild role, but they can be assigned to event slots and view participation history. Clear the token to disable the invite link.",
+    "tokenLabel": "Invite token",
+    "tokenPlaceholder": "e.g. spring2026",
+    "patternHint": "Letters, digits, underscores, and hyphens only — up to 64 characters.",
+    "patternError": "The token format is invalid.",
+    "randomize": "Randomize",
+    "linkLabel": "Invite link",
+    "linkHint": "Anyone with this link can join as a guest. If it leaks, generate a new token.",
+    "clear": "Clear",
+    "clearTooltip": "Clear the token to disable the invite link",
+    "copyFailed": "Couldn't copy to the clipboard."
   },
   "sidebar": {
     "memberGroup": "Members",
@@ -483,7 +500,16 @@
     "aggregateAllTime": "All time",
     "aggregateWins": "Wins",
     "aggregateLosses": "Losses",
-    "aggregateOpponents": "Opponent guilds"
+    "aggregateOpponents": "Opponent guilds",
+    "tabsLabel": "Member categories",
+    "tabMembers": "Members",
+    "tabGuests": "Guests",
+    "guestCounter": "{count} guests",
+    "guestBadge": "Guest",
+    "noGuests": "No guests have joined yet.",
+    "sortByJoined": "Recently invited",
+    "revokeGuest": "Revoke guest access",
+    "confirmRevokeGuest": "Revoke {name}'s guest access? They can rejoin by visiting the invite link again."
   },
   "me": {
     "title": "My wallet",

@@ -99,6 +99,20 @@ export async function exchangeCode(code: string): Promise<TokenResponse> {
   return res.json() as Promise<TokenResponse>
 }
 
+// Falls back to the plain user profile (no guild context) so we can still
+// identify guests who aren't in the guild. `identify` scope is enough.
+export async function getCurrentUser(accessToken: string): Promise<DiscordUser | null> {
+  const res = await fetch(`${DISCORD_API}/users/@me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: 'no-store',
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Discord user fetch failed (${res.status}): ${text}`)
+  }
+  return res.json() as Promise<DiscordUser>
+}
+
 export async function getGuildMember(accessToken: string): Promise<DiscordGuildMember | null> {
   const { guildId } = getDiscordConfig()
   const res = await fetch(`${DISCORD_API}/users/@me/guilds/${guildId}/member`, {

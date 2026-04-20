@@ -34,7 +34,9 @@
     "loadingDots": "読み込み中…",
     "searchNoResults": "検索結果がありません。",
     "sending": "送信中…",
-    "uploading": "アップロード中…"
+    "uploading": "アップロード中…",
+    "copy": "コピー",
+    "copied": "コピーしました"
   },
   "adminLogin": {
     "title": "管理者ログイン",
@@ -285,6 +287,7 @@
     "tabRewards": "役割別リギア金額",
     "tabLanding": "ランディングページ",
     "tabMembersRange": "メンバー統計期間",
+    "tabGuests": "ゲスト招待",
     "membersRangeTitle": "メンバー勝敗集計期間",
     "membersRangeDescription": "ギルドメンバー一覧の上部に表示される勝敗合計と対戦ギルド数の集計範囲です。空欄の場合は全期間が集計されます。",
     "membersRangeStart": "開始日",
@@ -301,6 +304,20 @@
     "saved": "保存しました",
     "saving": "保存中…",
     "save": "保存"
+  },
+  "adminGuestInvite": {
+    "title": "ゲスト招待リンク",
+    "description": "指定したトークン付きのリンクからアクセスしたユーザーは、Discord ログイン後にゲストとして参加します。\nギルドメンバーでなくてもイベントスロットの割り当てや参加履歴の閲覧が可能です。トークンを空にすると招待リンクは無効になります。",
+    "tokenLabel": "招待トークン",
+    "tokenPlaceholder": "例: spring2026",
+    "patternHint": "英数字・アンダースコア・ハイフンのみ、64文字以内",
+    "patternError": "トークンの形式が正しくありません。",
+    "randomize": "ランダム生成",
+    "linkLabel": "招待リンク",
+    "linkHint": "このリンクを共有すると誰でもゲストとして参加できます。漏洩した場合はトークンを再発行してください。",
+    "clear": "クリア",
+    "clearTooltip": "トークンを空にして招待リンクを無効化します",
+    "copyFailed": "クリップボードへのコピーに失敗しました。"
   },
   "sidebar": {
     "memberGroup": "メンバー",
@@ -483,7 +500,16 @@
     "aggregateAllTime": "全期間",
     "aggregateWins": "総勝数",
     "aggregateLosses": "総敗数",
-    "aggregateOpponents": "対戦ギルド数"
+    "aggregateOpponents": "対戦ギルド数",
+    "tabsLabel": "メンバーカテゴリ",
+    "tabMembers": "ギルドメンバー",
+    "tabGuests": "ゲスト",
+    "guestCounter": "ゲスト {count}名",
+    "guestBadge": "ゲスト",
+    "noGuests": "まだ参加したゲストはいません。",
+    "sortByJoined": "招待が新しい順",
+    "revokeGuest": "ゲスト権限を解除",
+    "confirmRevokeGuest": "{name} さんのゲスト権限を解除しますか？招待リンクから再度アクセスすれば復元できます。"
   },
   "me": {
     "title": "マイウォレット",

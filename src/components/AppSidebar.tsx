@@ -32,14 +32,17 @@ interface NavItem {
   // `exact` avoids matching /me when on /me/profile — needed when a more
   // specific sibling route shares the same prefix.
   exact?: boolean
+  // Hidden from guests — these pages are about regear points and wouldn't
+  // do anything useful for a non-member session.
+  memberOnly?: boolean
 }
 
 const MEMBER_NAV: NavItem[] = [
   { href: '/', labelKey: 'events', icon: CalendarDays },
-  { href: '/regear', labelKey: 'regearRequest', icon: ShieldCheck },
+  { href: '/regear', labelKey: 'regearRequest', icon: ShieldCheck, memberOnly: true },
   { href: '/members', labelKey: 'members', icon: Users },
   { href: '/battle-records', labelKey: 'battleRecords', icon: Swords },
-  { href: '/me', labelKey: 'myWallet', icon: Wallet, exact: true },
+  { href: '/me', labelKey: 'myWallet', icon: Wallet, exact: true, memberOnly: true },
 ]
 
 const ADMIN_NAV: NavItem[] = [
@@ -187,7 +190,9 @@ export default function AppSidebar({ session }: { session: SessionPayload | null
         <nav className="flex-1 overflow-y-auto py-3 space-y-4">
           <NavGroup
             title={t('memberGroup')}
-            items={MEMBER_NAV.map((i) => ({ ...i, label: tNav(i.labelKey) }))}
+            items={MEMBER_NAV
+              .filter((i) => !i.memberOnly || session?.isMember)
+              .map((i) => ({ ...i, label: tNav(i.labelKey) }))}
             pathname={pathname || '/'}
             expanded={open}
             collapsible={memberOpen}

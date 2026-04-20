@@ -16,6 +16,7 @@ export default async function SettingsPage() {
     ctaText,
     aggregateStartDate,
     aggregateEndDate,
+    guestInviteToken,
     { rewards, error: rewardsError },
     tLanding,
     t,
@@ -25,10 +26,15 @@ export default async function SettingsPage() {
     getAppSetting('landing_cta_text', ''),
     getAppSetting('members_aggregate_start_date', ''),
     getAppSetting('members_aggregate_end_date', ''),
+    getAppSetting('guest_invite_token', ''),
     listRoleRewards(),
     getTranslations('landing'),
     getTranslations('adminSettings'),
   ])
+
+  // Prefer the deployed public URL so the invite link we show to the admin
+  // matches what recipients will actually visit.
+  const origin = (process.env.APP_URL ?? '').replace(/\/$/, '')
 
   return (
     <div className="space-y-5">
@@ -46,6 +52,8 @@ export default async function SettingsPage() {
         defaultLandingCtaText={tLanding('defaultCta')}
         aggregateStartDate={aggregateStartDate}
         aggregateEndDate={aggregateEndDate}
+        guestInviteToken={guestInviteToken}
+        origin={origin}
       />
     </div>
   )

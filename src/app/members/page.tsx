@@ -1,8 +1,12 @@
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
-import { listGuildMembers, getGuildAggregateStats } from '@/app/actions/members-admin'
-import GuildMemberList from '@/components/GuildMemberList'
+import {
+  listGuildMembers,
+  listGuildGuests,
+  getGuildAggregateStats,
+} from '@/app/actions/members-admin'
+import MembersPageTabs from '@/components/MembersPageTabs'
 import GuildAggregateHeader from '@/components/GuildAggregateHeader'
 
 export const dynamic = 'force-dynamic'
@@ -13,11 +17,13 @@ export default async function MembersPage() {
     redirect('/api/auth/discord/start?returnTo=/members')
   }
 
-  const [{ members, error }, { stats }, t] = await Promise.all([
-    listGuildMembers(),
-    getGuildAggregateStats(),
-    getTranslations('members'),
-  ])
+  const [{ members, error: membersError }, { guests, error: guestsError }, { stats }, t] =
+    await Promise.all([
+      listGuildMembers(),
+      listGuildGuests(),
+      getGuildAggregateStats(),
+      getTranslations('members'),
+    ])
 
   return (
     <main className="flex-1 w-full max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 py-6 sm:py-8 space-y-4">
@@ -28,17 +34,13 @@ export default async function MembersPage() {
 
       {stats && <GuildAggregateHeader stats={stats} />}
 
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
-          <p className="text-red-400 text-sm">{error}</p>
-        </div>
-      )}
-
-      {members.length === 0 && !error ? (
-        <p className="text-gray-500 text-sm text-center py-8">{t('none')}</p>
-      ) : (
-        <GuildMemberList members={members} />
-      )}
+      <MembersPageTabs
+        members={members}
+        guests={guests}
+        membersError={membersError}
+        guestsError={guestsError}
+        isAdmin={session.isAdmin}
+      />
     </main>
   )
 }

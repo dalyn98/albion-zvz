@@ -18,6 +18,7 @@ export interface SessionPayload {
   avatar: string | null
   isMember: boolean
   isAdmin: boolean
+  isGuest: boolean
   issuedAt: number
 }
 
@@ -73,11 +74,20 @@ export async function verifySession(cookieValue: string | undefined): Promise<Se
     )
     if (!ok) return null
     const json = new TextDecoder().decode(base64UrlDecode(payloadB64))
-    const parsed = JSON.parse(json) as SessionPayload
+    const parsed = JSON.parse(json) as Partial<SessionPayload> & { issuedAt: number }
     // Expire server-side too — cookie maxAge is client hint, not enforcement.
     const ageSeconds = (Date.now() - parsed.issuedAt) / 1000
     if (ageSeconds > SESSION_MAX_AGE_SECONDS) return null
-    return parsed
+    // Legacy cookies issued before isGuest was added default to false.
+    return {
+      discordId: parsed.discordId ?? '',
+      username: parsed.username ?? '',
+      avatar: parsed.avatar ?? null,
+      isMember: parsed.isMember ?? false,
+      isAdmin: parsed.isAdmin ?? false,
+      isGuest: parsed.isGuest ?? false,
+      issuedAt: parsed.issuedAt,
+    }
   } catch {
     return null
   }

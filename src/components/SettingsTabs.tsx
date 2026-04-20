@@ -1,20 +1,21 @@
 'use client'
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { Bell, Coins, Image as ImageIcon, CalendarRange } from 'lucide-react'
+import { Bell, Coins, Image as ImageIcon, CalendarRange, UserPlus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import NotificationSettingsForm from './NotificationSettingsForm'
 import RoleRewardsEditor from './RoleRewardsEditor'
 import LandingBannerForm from './LandingBannerForm'
 import LandingCtaTextForm from './LandingCtaTextForm'
 import MembersAggregateRangeForm from './MembersAggregateRangeForm'
+import GuestInviteSettingsForm from './GuestInviteSettingsForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
 
-type TabKey = 'notifications' | 'rewards' | 'landing' | 'membersRange'
+type TabKey = 'notifications' | 'rewards' | 'landing' | 'membersRange' | 'guests'
 
 interface TabDef {
   key: TabKey
-  labelKey: 'tabNotifications' | 'tabRewards' | 'tabLanding' | 'tabMembersRange'
+  labelKey: 'tabNotifications' | 'tabRewards' | 'tabLanding' | 'tabMembersRange' | 'tabGuests'
   icon: React.ComponentType<{ size?: number; className?: string }>
 }
 
@@ -23,6 +24,7 @@ const TABS: readonly TabDef[] = [
   { key: 'rewards', labelKey: 'tabRewards', icon: Coins },
   { key: 'landing', labelKey: 'tabLanding', icon: ImageIcon },
   { key: 'membersRange', labelKey: 'tabMembersRange', icon: CalendarRange },
+  { key: 'guests', labelKey: 'tabGuests', icon: UserPlus },
 ]
 
 const DEFAULT_TAB: TabKey = 'notifications'
@@ -36,6 +38,8 @@ interface Props {
   defaultLandingCtaText: string
   aggregateStartDate: string
   aggregateEndDate: string
+  guestInviteToken: string
+  origin: string
 }
 
 function isTabKey(value: string | null): value is TabKey {
@@ -43,7 +47,8 @@ function isTabKey(value: string | null): value is TabKey {
     value === 'notifications' ||
     value === 'rewards' ||
     value === 'landing' ||
-    value === 'membersRange'
+    value === 'membersRange' ||
+    value === 'guests'
   )
 }
 
@@ -56,6 +61,8 @@ export default function SettingsTabs({
   defaultLandingCtaText,
   aggregateStartDate,
   aggregateEndDate,
+  guestInviteToken,
+  origin,
 }: Props) {
   const t = useTranslations('adminSettings')
   const searchParams = useSearchParams()
@@ -132,6 +139,9 @@ export default function SettingsTabs({
             initialStart={aggregateStartDate}
             initialEnd={aggregateEndDate}
           />
+        )}
+        {active === 'guests' && (
+          <GuestInviteSettingsForm initialToken={guestInviteToken} origin={origin} />
         )}
       </div>
     </div>

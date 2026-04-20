@@ -65,7 +65,9 @@ export async function assignSlot(
   const tGear = await getTranslations('gear')
   const session = await getSession()
   if (!session) return { error: tAction('loginRequired') }
-  if (!session.isMember) return { error: tAction('noMemberRole') }
+  // Guests can sign up for slots too (Option B) — only fully unroled sessions
+  // are blocked, which shouldn't happen since the layout gate rejects them.
+  if (!session.isMember && !session.isGuest) return { error: tAction('noMemberRole') }
 
   // Filter out empty picks before sending — the RPC treats a missing kind the
   // same as an explicit null, so trimming keeps the payload minimal.

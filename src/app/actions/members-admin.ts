@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
@@ -237,6 +238,99 @@ export async function listGuildMembers(): Promise<{
     return { members }
   } catch (e) {
     return { members: [], error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export interface GuildGuestSummary {
+  discord_id: string
+  username: string
+  avatar: string | null
+  joined_at: string
+  participation_count: number
+  top_roles: RoleCount[]
+}
+
+// Lists everyone in the `guests` table with their slot participation counts.
+// Mirrors listGuildMembers but pulls from guests + counts slot assignments.
+export async function listGuildGuests(): Promise<{
+  guests: GuildGuestSummary[]
+  error?: string
+}> {
+  const tCommon = await getTranslations('common')
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const db = await requireSession()
+
+    const [guestsRes, slotsRes] = await Promise.all([
+      db
+        .from('guests')
+        .select('discord_id, username, avatar, joined_at')
+        .order('joined_at', { ascending: false }),
+      db
+        .from('slots')
+        .select('assigned_discord_id, role_name, parties!inner(event_id)')
+        .not('assigned_discord_id', 'is', null),
+    ])
+    if (guestsRes.error) return { guests: [], error: guestsRes.error.message }
+    if (slotsRes.error) return { guests: [], error: slotsRes.error.message }
+
+    const unassignedRoleLabel = tCommon('unassignedRole')
+    interface Agg {
+      events: Set<string>
+      roles: Map<string, number>
+    }
+    const bucket = new Map<string, Agg>()
+    for (const row of slotsRes.data ?? []) {
+      const discordId = row.assigned_discord_id
+      if (!discordId) continue
+      const party = row.parties as { event_id: string } | { event_id: string }[] | null
+      const eventId = Array.isArray(party) ? party[0]?.event_id : party?.event_id
+      if (!eventId) continue
+      let agg = bucket.get(discordId)
+      if (!agg) {
+        agg = { events: new Set(), roles: new Map() }
+        bucket.set(discordId, agg)
+      }
+      agg.events.add(eventId)
+      const role = row.role_name ?? unassignedRoleLabel
+      agg.roles.set(role, (agg.roles.get(role) ?? 0) + 1)
+    }
+
+    const guests: GuildGuestSummary[] = (guestsRes.data ?? []).map((g) => {
+      const agg = bucket.get(g.discord_id)
+      const roles = agg
+        ? Array.from(agg.roles.entries())
+            .map(([role, count]) => ({ role, count }))
+            .sort((x, y) => y.count - x.count)
+        : []
+      return {
+        discord_id: g.discord_id,
+        username: g.username,
+        avatar: g.avatar,
+        joined_at: g.joined_at,
+        participation_count: agg?.events.size ?? 0,
+        top_roles: roles.slice(0, 3),
+      }
+    })
+
+    return { guests }
+  } catch (e) {
+    return { guests: [], error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+// Admin-only. Revokes a guest immediately — layout gate re-checks existence
+// on every request so the guest loses access on next navigation.
+export async function revokeGuest(discordId: string): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const db = await requireAdmin()
+    const { error } = await db.from('guests').delete().eq('discord_id', discordId)
+    if (error) return { error: error.message }
+    revalidatePath('/members')
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
 

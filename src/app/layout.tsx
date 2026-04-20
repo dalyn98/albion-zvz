@@ -6,6 +6,7 @@ import AppShell from '@/components/AppShell'
 import AppGate from '@/components/AppGate'
 import { getSession } from '@/lib/session'
 import { getAppSetting } from '@/lib/app-settings'
+import { getAdminClient } from '@/lib/supabase-admin'
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta')
@@ -22,10 +23,10 @@ export const viewport: Viewport = {
 }
 
 // Hard-gate every page (except /api/* routes, which are not wrapped by this
-// layout). Non-authenticated and non-member visitors never see the app — the
-// callback already rejects non-members, so a valid session implies guild
-// membership, but we still check isMember defensively in case a stale cookie
-// outlives the user's role.
+// layout). Members pass through; guests (logged in with valid invite) pass
+// through; everyone else sees the AppGate landing. The callback enforces that
+// only these two classes of session can exist, so the check here is mostly
+// defensive for stale cookies where a role was later revoked.
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const [locale, messages, session] = await Promise.all([
     getLocale(),
@@ -33,7 +34,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     getSession(),
   ])
 
-  const locked = !session || !session.isMember
+  // Verify guests still exist in the DB so admin deletions take effect on the
+  // next request rather than waiting for the 7-day cookie to expire.
+  let guestRevoked = false
+  if (session && !session.isMember && session.isGuest) {
+    const { data } = await getAdminClient()
+      .from('guests')
+      .select('discord_id')
+      .eq('discord_id', session.discordId)
+      .maybeSingle()
+    if (!data) guestRevoked = true
+  }
+
+  const locked = !session || (!session.isMember && !session.isGuest) || guestRevoked
 
   let gateContent: React.ReactNode = null
   if (locked) {

@@ -39,7 +39,12 @@ export default function AppGate({
     ? authErrorLabels[AUTH_ERROR_KEY_MAP[authError] ?? 'default'] ?? authErrorLabels.default
     : null
 
-  const loginHref = '/api/auth/discord/start?returnTo=/'
+  // Forward any ?invite=... token into the OAuth round-trip so the callback
+  // can validate it against the current guest token and grant guest access.
+  const invite = searchParams.get('invite')?.trim() ?? ''
+  const loginHref = invite
+    ? `/api/auth/discord/start?returnTo=/&invite=${encodeURIComponent(invite)}`
+    : '/api/auth/discord/start?returnTo=/'
   const backgroundStyle = bannerUrl
     ? {
         backgroundImage: `url(${bannerUrl})`,
