@@ -346,11 +346,11 @@ export default function SlotCard({
 
       <div className="grid grid-cols-4 gap-1">
         <div className="col-span-2 row-span-2 flex items-center justify-center">
-          <GearPreview slot={slot} kind={primaryKind} size={52} isTaken={isTaken} />
+          <GearPreview slot={slot} kind={primaryKind} size={55} isTaken={isTaken} />
         </div>
         {otherKeys.map((key) => (
           <div key={key} className="flex items-center justify-center">
-            <GearPreview slot={slot} kind={key} size={28} isTaken={isTaken} />
+            <GearPreview slot={slot} kind={key} size={31} isTaken={isTaken} />
           </div>
         ))}
       </div>
@@ -601,7 +601,7 @@ function GearChoiceModal({
                             : 'bg-gray-800 border-gray-700 hover:border-gray-600'
                         }`}
                       >
-                        <ItemImage itemId={opt.id} itemName={stripTierPrefix(opt.name)} size={32} />
+                        <ItemImage itemId={opt.id} itemName={stripTierPrefix(opt.name)} size={35} />
                         <div className="flex-1 min-w-0">
                           <p className="text-white text-sm font-medium truncate">
                             {stripTierPrefix(getLocalizedItemName(opt.id, locale, opt.name) ?? opt.name)}

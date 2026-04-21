@@ -332,7 +332,7 @@ function ArmorSummarySection({
           const label = labels.armorLabel(keywords)
           return (
             <div key={labelKey} className="flex items-center gap-2">
-              <ItemImage itemId={iconId} itemName={label} size={22} />
+              <ItemImage itemId={iconId} itemName={label} size={25} />
               <span className="text-gray-300 text-[13px] flex-1 truncate">{label}</span>
               <span
                 className={`text-sm font-bold tabular-nums ${
@@ -481,7 +481,7 @@ function SidebarRow({
             {labels.free}
           </div>
         ) : (
-          <ItemImage itemId={display.id} itemName={stripTierPrefix(display.name)} size={20} hoverPreview />
+          <ItemImage itemId={display.id} itemName={stripTierPrefix(display.name)} size={23} hoverPreview />
         )}
         <span className="text-gray-300 text-[13px] truncate">
           {showMulti
