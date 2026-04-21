@@ -5,7 +5,9 @@ import ShopImportForm from '@/components/ShopImportForm'
 import ShopBlacklistEditor from '@/components/ShopBlacklistEditor'
 import ShopNameOverridesEditor from '@/components/ShopNameOverridesEditor'
 import ShopSilverRateForm from '@/components/ShopSilverRateForm'
+import ShopInventoryEditor, { type InventoryRow } from '@/components/ShopInventoryEditor'
 import NoticeSettingForm from '@/components/NoticeSettingForm'
+import { parseSilverToPointRate } from '@/lib/shop/price'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,6 +16,7 @@ export default async function AdminShopPage() {
   const [
     { data: blacklist },
     { data: overrides },
+    { data: inventory },
     deliveryNotice,
     silverToPointRate,
   ] = await Promise.all([
@@ -22,9 +25,33 @@ export default async function AdminShopPage() {
       .from('shop_name_overrides')
       .select('item_name_raw, unique_name')
       .order('added_at', { ascending: false }),
+    db
+      .from('shop_inventory')
+      .select(
+        'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver, price_source, price_updated_at, updated_at',
+      )
+      .order('tier', { ascending: false, nullsFirst: false })
+      .order('name_ko', { ascending: true }),
     getAppSetting('shop_delivery_notice', ''),
     getAppSetting('shop_silver_to_point_rate', '1'),
   ])
+
+  const rate = parseSilverToPointRate(silverToPointRate)
+  const inventoryRows: InventoryRow[] = (inventory ?? []).map((r) => ({
+    id: r.id as string,
+    uniqueName: r.unique_name as string,
+    enchant: r.enchant as number,
+    quality: r.quality as number,
+    stock: r.stock as number,
+    nameKo: r.name_ko as string,
+    category: (r.category as string | null) ?? null,
+    tier: (r.tier as number | null) ?? null,
+    manualPrice: (r.manual_price as number | null) ?? null,
+    autoPriceSilver: (r.auto_price_silver as number | null) ?? null,
+    priceSource: (r.price_source as string | null) ?? null,
+    priceUpdatedAt: (r.price_updated_at as string | null) ?? null,
+    updatedAt: r.updated_at as string,
+  }))
 
   return (
     <div className="space-y-6">
@@ -36,6 +63,7 @@ export default async function AdminShopPage() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="space-y-4">
           <ShopImportForm />
+          <ShopInventoryEditor rows={inventoryRows} silverToPointRate={rate} />
         </div>
         <div className="space-y-4">
           <NoticeSettingForm
