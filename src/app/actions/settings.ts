@@ -17,6 +17,8 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'regear_max_deaths_per_event',
   'events_auto_start_enabled',
   'regear_payout_rate_percent',
+  'shop_silver_to_point_rate',
+  'shop_delivery_notice',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -30,6 +32,8 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   // Empty message = hide the regear notice banner entirely.
   'regear_notice_message',
   'events_notice_message',
+  // 빈 값 = /shop 상단 공지 배너 숨김.
+  'shop_delivery_notice',
   // Empty JSON array '[]' = admin-only event creation.
   'event_creator_role_ids',
   // Empty JSON array '[]' = no member is eligible to be a bomb squad caller;
@@ -51,6 +55,9 @@ const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
   regear_window_minutes: { min: 1, max: 240 },
   regear_max_deaths_per_event: { min: 1, max: 10 },
   regear_payout_rate_percent: { min: 1, max: 100 },
+  // 1p = N silver. 1 이 기본(AODP 그대로 환산). 값이 커질수록 동일 시세 → 더 작은
+  // 포인트 가격이 된다.
+  shop_silver_to_point_rate: { min: 1, max: 1_000_000 },
 }
 
 // Boolean-string keys. Must be exactly 'true' or 'false'.
@@ -102,6 +109,10 @@ export async function updateAppSetting(
       .upsert({ key, value: trimmed, updated_at: new Date().toISOString() }, { onConflict: 'key' })
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/settings')
+    if (key === 'shop_delivery_notice' || key === 'shop_silver_to_point_rate') {
+      revalidatePath('/admin/dashboard/shop')
+      revalidatePath('/shop')
+    }
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

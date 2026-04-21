@@ -39,6 +39,12 @@ export type AppSettingKey =
   // time: point_ledger delta = floor(claimed_silver × percent ÷ 100). Default
   // '100' keeps the legacy behaviour (pay the full claim).
   | 'regear_payout_rate_percent'
+  // 1 포인트 = N 실버. 상점 아이템의 자동 가격(AODP 실버 시세)을 포인트로
+  // 환산할 때 사용. 정수 문자열, 기본 '1'.
+  | 'shop_silver_to_point_rate'
+  // /shop 상단에 뜨는 관리자 공지 — 아이템 전달 방법 등을 자유롭게 안내.
+  // 빈 문자열이면 배너 비표시.
+  | 'shop_delivery_notice'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.
