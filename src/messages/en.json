@@ -592,7 +592,25 @@
     "outcomeLoss": "Loss",
     "outcomePending": "Pending",
     "winsCount": "{count} W",
-    "lossesCount": "{count} L"
+    "lossesCount": "{count} L",
+    "transferTitle": "Transfer points",
+    "transferDescription": "Send some of your points to another guild member. You can split a single transfer across several people.",
+    "transferOpen": "Transfer",
+    "transferModalTitle": "Transfer points",
+    "transferAddRecipient": "Add member",
+    "transferPlaceholder": "Search member name",
+    "transferNoCandidates": "No eligible recipients.",
+    "transferAmountLabel": "Amount",
+    "transferAmountPlaceholder": "0",
+    "transferRemove": "Remove",
+    "transferTotal": "Total",
+    "transferBalanceAfter": "Balance after",
+    "transferSubmit": "Confirm transfer",
+    "transferSubmitting": "Transferring…",
+    "transferCancel": "Cancel",
+    "transferDone": "Transferred (-{silver} silver)",
+    "transferNoBalance": "No points to transfer.",
+    "transferMemoPlaceholder": "Memo (optional)"
   },
   "myProfile": {
     "notRegistered": "Your guild member record hasn't been registered yet. Logging in again will register you automatically."
@@ -851,7 +869,14 @@
     "insufficientBalance": "Insufficient balance. Current: {balance} silver",
     "pendingExchangeExists": "A pending exchange request already exists.",
     "pushUnavailable": "Notifications aren't configured yet. Please ask an admin.",
-    "invalidPushSubscription": "The push subscription payload is invalid."
+    "invalidPushSubscription": "The push subscription payload is invalid.",
+    "transferSelf": "You can't transfer points to yourself.",
+    "transferNoRecipients": "Select at least one member to transfer to.",
+    "transferInvalidAmount": "Transfer amount must be a positive integer.",
+    "transferMemberNotFound": "One of the selected members was not found.",
+    "transferDuplicateRecipient": "A member is listed twice in the transfer.",
+    "transferTooManyRecipients": "You can only transfer to {max} members at once.",
+    "transferMemoTooLong": "Memo must be {max} characters or fewer."
   },
   "errors": {
     "title": "Something went wrong",

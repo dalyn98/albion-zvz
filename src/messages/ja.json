@@ -592,7 +592,25 @@
     "outcomeLoss": "敗北",
     "outcomePending": "結果待ち",
     "winsCount": "{count}勝",
-    "lossesCount": "{count}敗"
+    "lossesCount": "{count}敗",
+    "transferTitle": "ポイント譲渡",
+    "transferDescription": "他のギルドメンバーにポイントを譲渡できます。複数人へ同時に分けて送ることも可能です。",
+    "transferOpen": "譲渡する",
+    "transferModalTitle": "ポイント譲渡",
+    "transferAddRecipient": "メンバーを追加",
+    "transferPlaceholder": "メンバー名で検索",
+    "transferNoCandidates": "譲渡対象がいません。",
+    "transferAmountLabel": "金額",
+    "transferAmountPlaceholder": "0",
+    "transferRemove": "削除",
+    "transferTotal": "合計",
+    "transferBalanceAfter": "譲渡後残高",
+    "transferSubmit": "譲渡を確定",
+    "transferSubmitting": "譲渡中…",
+    "transferCancel": "キャンセル",
+    "transferDone": "譲渡しました (-{silver} silver)",
+    "transferNoBalance": "譲渡できるポイントがありません。",
+    "transferMemoPlaceholder": "メモ (任意)"
   },
   "myProfile": {
     "notRegistered": "ギルドメンバー情報がまだ登録されていません。再ログインすると自動的に登録されます。"
@@ -851,7 +869,14 @@
     "insufficientBalance": "残高が不足しています。現在の残高: {balance} silver",
     "pendingExchangeExists": "処理待ちの両替申請がすでにあります。",
     "pushUnavailable": "通知の送信設定がまだ完了していません。管理者にお問い合わせください。",
-    "invalidPushSubscription": "通知の購読情報が正しくありません。"
+    "invalidPushSubscription": "通知の購読情報が正しくありません。",
+    "transferSelf": "自分自身には送れません。",
+    "transferNoRecipients": "送る相手を 1 人以上選んでください。",
+    "transferInvalidAmount": "送る金額は 1 silver 以上の整数で入力してください。",
+    "transferMemberNotFound": "選択したギルドメンバーが見つかりません。",
+    "transferDuplicateRecipient": "同じメンバーが重複して選ばれています。",
+    "transferTooManyRecipients": "一度に送れるのは最大 {max} 人までです。",
+    "transferMemoTooLong": "メモは {max} 文字以内で入力してください。"
   },
   "errors": {
     "title": "問題が発生しました",
