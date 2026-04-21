@@ -120,6 +120,8 @@
     "notifyChannelNone": "デフォルトチャンネルを使用",
     "notifyChannelLoading": "チャンネルを読み込み中…",
     "notifyChannelError": "チャンネル一覧の読み込みに失敗しました。",
+    "confirmTitle": "このイベントを作成しますか？",
+    "confirmHint": "以下の内容で新しいイベントが作成されます。作成後の編集画面でパーティー・スロット・告知チャンネルを設定できます。",
     "createEvent": "イベント作成 →"
   },
   "adminRegearReview": {

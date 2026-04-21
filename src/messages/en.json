@@ -120,6 +120,8 @@
     "notifyChannelNone": "Use default channel",
     "notifyChannelLoading": "Loading channels…",
     "notifyChannelError": "Couldn't load channel list.",
+    "confirmTitle": "Create this event?",
+    "confirmHint": "A new event will be created with the details below. You can configure parties, slots, and the notification channel on the edit page after creation.",
     "createEvent": "Create event →"
   },
   "adminRegearReview": {

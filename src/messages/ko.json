@@ -120,6 +120,8 @@
     "notifyChannelNone": "기본 채널 사용",
     "notifyChannelLoading": "채널 불러오는 중…",
     "notifyChannelError": "채널 목록을 불러오지 못했습니다.",
+    "confirmTitle": "이벤트를 생성하시겠습니까?",
+    "confirmHint": "아래 내용으로 새 이벤트가 생성됩니다. 생성 후 편집 화면에서 파티·슬롯·공지 채널을 설정할 수 있습니다.",
     "createEvent": "이벤트 생성 →"
   },
   "adminRegearReview": {

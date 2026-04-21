@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { X } from 'lucide-react'
 import { createEvent, updateEvent } from '@/app/actions/admin'
 import {
   listGuildRoles,
@@ -45,6 +46,10 @@ export default function EventInfoForm({ initialEvent }: Props) {
   const [channelsError, setChannelsError] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // 생성 모드 전용 확인 모달 상태. 편집 모드에서는 사용하지 않는다.
+  // 생성은 "미리보기 → 저장" 2단계 — 폼 입력이 끝나도 명시적으로 저장을
+  // 한 번 더 눌러야 DB 에 실제로 insert 된다.
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   useEffect(() => {
     // 생성 폼은 공지 관련 UI 가 없으므로 역할/채널 조회 자체를 건너뛴다.
@@ -62,6 +67,21 @@ export default function EventInfoForm({ initialEvent }: Props) {
     })()
   }, [isEdit])
 
+  // 모달 열린 동안 배경 스크롤을 잠그고 ESC 로 닫기. 저장 중에는 ESC 무시.
+  useEffect(() => {
+    if (!confirmOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !loading) setConfirmOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [confirmOpen, loading])
+
   const parsed = parseGatherTime(parts)
   const preview = parsed ? formatGatherTimeKo(parsed) : null
 
@@ -78,58 +98,82 @@ export default function EventInfoForm({ initialEvent }: Props) {
     setParts((prev) => ({ ...prev, [key]: next }))
   }
 
-  const handleSave = async () => {
+  // 폼 → 실제 DB 호출에 쓰는 payload 를 한번에 조립. validate 에서 파싱한
+  // Date 를 그대로 받아 다시 파싱하는 일 없이 재사용한다.
+  const validate = (): Date | null => {
     if (!title.trim()) {
       setError(t('titleRequired'))
-      return
+      return null
     }
     const dt = parseGatherTime(parts, {
       referenceIso: initialEvent?.gather_at ?? null,
     })
     if (!dt) {
       setError(t('gatherTimeInvalid'))
-      return
+      return null
     }
     if (!gatherLocation.trim()) {
       setError(t('gatherLocationRequired'))
+      return null
+    }
+    setError('')
+    return dt
+  }
+
+  const handlePrimary = async () => {
+    const dt = validate()
+    if (!dt) return
+
+    // 편집 모드는 기존대로 즉시 저장. 생성 모드는 확인 모달을 띄워
+    // "생성 → 저장" 2단계로 분리한다.
+    if (!initialEvent) {
+      setConfirmOpen(true)
       return
     }
 
     setLoading(true)
-    setError('')
-
-    if (initialEvent) {
-      const result = await updateEvent(initialEvent.id, {
-        title: title.trim(),
-        gather_at: dt.toISOString(),
-        gather_time: formatGatherTimeKo(dt),
-        gather_location: gatherLocation.trim(),
-        special_notes: specialNotes.trim() || null,
-        notify_role_id: notifyRoleId || null,
-        notify_channel_id: notifyChannelId || null,
-      })
-      if ('error' in result && result.error) {
-        setError(result.error)
-      } else {
-        router.refresh()
-      }
+    const result = await updateEvent(initialEvent.id, {
+      title: title.trim(),
+      gather_at: dt.toISOString(),
+      gather_time: formatGatherTimeKo(dt),
+      gather_location: gatherLocation.trim(),
+      special_notes: specialNotes.trim() || null,
+      notify_role_id: notifyRoleId || null,
+      notify_channel_id: notifyChannelId || null,
+    })
+    if ('error' in result && result.error) {
+      setError(result.error)
     } else {
-      // 생성 단계에서는 공지 대상(역할/채널) 을 보내지 않는다. 생성 후
-      // 편집 화면에서 고르는 흐름.
-      const result = await createEvent({
-        title: title.trim(),
-        gather_at: dt.toISOString(),
-        gather_time: formatGatherTimeKo(dt),
-        gather_location: gatherLocation.trim(),
-        special_notes: specialNotes.trim() || null,
-      })
-      if ('error' in result && result.error) {
-        setError(result.error)
-      } else if ('id' in result) {
-        router.push(`/admin/dashboard/events/${result.id}`)
-      }
+      router.refresh()
     }
     setLoading(false)
+  }
+
+  const commitCreate = async () => {
+    const dt = validate()
+    if (!dt) {
+      setConfirmOpen(false)
+      return
+    }
+    setLoading(true)
+    // 생성 단계에서는 공지 대상(역할/채널) 을 보내지 않는다. 생성 후
+    // 편집 화면에서 고르는 흐름.
+    const result = await createEvent({
+      title: title.trim(),
+      gather_at: dt.toISOString(),
+      gather_time: formatGatherTimeKo(dt),
+      gather_location: gatherLocation.trim(),
+      special_notes: specialNotes.trim() || null,
+    })
+    if ('error' in result && result.error) {
+      setError(result.error)
+      setConfirmOpen(false)
+      setLoading(false)
+      return
+    }
+    if ('id' in result) {
+      router.push(`/admin/dashboard/events/${result.id}`)
+    }
   }
 
   return (
@@ -264,12 +308,95 @@ export default function EventInfoForm({ initialEvent }: Props) {
       )}
 
       <button
-        onClick={handleSave}
+        type="button"
+        onClick={handlePrimary}
         disabled={loading}
         className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-6 py-2.5 rounded-lg transition-colors"
       >
         {loading ? tCommon('saving') : initialEvent ? tCommon('save') : t('createEvent')}
       </button>
+
+      {/*
+        생성 모드에서만 쓰이는 "미리보기 → 저장" 확인 모달. 관리자가
+        실수로 생성 버튼을 눌렀을 때 입력값을 한 번 더 보고 확정할 수 있게.
+      */}
+      {!isEdit && confirmOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('confirmTitle')}
+          className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6"
+        >
+          <button
+            type="button"
+            aria-label={tCommon('close')}
+            onClick={() => {
+              if (!loading) setConfirmOpen(false)
+            }}
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm cursor-default"
+          />
+          <div className="relative w-full max-w-md bg-gray-900 border border-amber-500/30 rounded-2xl p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-white font-bold">{t('confirmTitle')}</h2>
+              <button
+                type="button"
+                onClick={() => setConfirmOpen(false)}
+                disabled={loading}
+                className="text-gray-500 hover:text-white disabled:opacity-40"
+                aria-label={tCommon('close')}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-400">{t('confirmHint')}</p>
+
+            <div className="bg-gray-950 border border-gray-800 rounded-lg px-3 py-3 text-sm space-y-1.5">
+              <p>
+                <span className="text-gray-500 text-xs">{t('titleLabel')}</span>
+                <br />
+                <span className="text-white font-semibold">{title.trim()}</span>
+              </p>
+              <p>
+                <span className="text-gray-500 text-xs">{t('gatherTimeLabel')}</span>
+                <br />
+                <span className="text-amber-300">{preview}</span>
+              </p>
+              <p>
+                <span className="text-gray-500 text-xs">{t('gatherLocationLabel')}</span>
+                <br />
+                <span className="text-white">{gatherLocation.trim()}</span>
+              </p>
+              {specialNotes.trim() && (
+                <p>
+                  <span className="text-gray-500 text-xs">{t('specialNotesLabel')}</span>
+                  <br />
+                  <span className="text-gray-200 whitespace-pre-wrap">{specialNotes.trim()}</span>
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmOpen(false)}
+                disabled={loading}
+                className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold py-2 rounded-lg transition-colors disabled:opacity-40"
+              >
+                {tCommon('cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={commitCreate}
+                disabled={loading}
+                className="flex-1 bg-amber-500 hover:bg-amber-400 text-black text-sm font-bold py-2 rounded-lg transition-colors disabled:opacity-40"
+              >
+                {loading ? tCommon('saving') : tCommon('save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
