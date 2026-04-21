@@ -17,6 +17,11 @@ export type AppSettingKey =
   | 'regear_notice_message'
   // Admin-authored notice shown at the top of `/` (events list). Empty = hide.
   | 'events_notice_message'
+  // JSON array (string) of Discord role IDs whose holders gain the event
+  // creator capability. Empty array = admin-only. Computed at login into
+  // `SessionPayload.canCreateEvents` — changes require affected users to
+  // re-login before taking effect.
+  | 'event_creator_role_ids'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

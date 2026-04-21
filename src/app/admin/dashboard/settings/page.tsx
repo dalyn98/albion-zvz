@@ -19,6 +19,7 @@ export default async function SettingsPage() {
     guestInviteToken,
     regearNoticeMessage,
     eventsNoticeMessage,
+    eventCreatorRoleIdsRaw,
     { rewards, error: rewardsError },
     tLanding,
     t,
@@ -31,10 +32,25 @@ export default async function SettingsPage() {
     getAppSetting('guest_invite_token', ''),
     getAppSetting('regear_notice_message', ''),
     getAppSetting('events_notice_message', ''),
+    getAppSetting('event_creator_role_ids', '[]'),
     listRoleRewards(),
     getTranslations('landing'),
     getTranslations('adminSettings'),
   ])
+
+  // JSON 파싱 실패/잘못된 shape 은 빈 배열로 degrade — UI 를 깨뜨리기보다
+  // 비활성 상태(=admin 만 이벤트 생성) 로 보이게 한다.
+  let eventCreatorRoleIds: string[] = []
+  try {
+    const parsed = JSON.parse(eventCreatorRoleIdsRaw)
+    if (Array.isArray(parsed)) {
+      eventCreatorRoleIds = parsed.filter(
+        (v): v is string => typeof v === 'string' && v.length > 0,
+      )
+    }
+  } catch {
+    eventCreatorRoleIds = []
+  }
 
   // Prefer the deployed public URL so the invite link we show to the admin
   // matches what recipients will actually visit.
@@ -59,6 +75,7 @@ export default async function SettingsPage() {
         guestInviteToken={guestInviteToken}
         regearNoticeMessage={regearNoticeMessage}
         eventsNoticeMessage={eventsNoticeMessage}
+        eventCreatorRoleIds={eventCreatorRoleIds}
         origin={origin}
       />
     </div>

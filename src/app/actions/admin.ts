@@ -2,7 +2,12 @@
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { requireAdmin } from '@/lib/auth'
+import {
+  requireEventCreator,
+  requireEventCreatorForEvent,
+  requireEventCreatorForSlot,
+} from '@/lib/auth'
+import { getSession } from '@/lib/session'
 import { sendEventNotification } from '@/lib/discord'
 import { getAppSetting } from '@/lib/app-settings'
 import type { SlotKey, SlotSpells, GearOption, GearSpec, GearSpecs } from '@/types'
@@ -56,8 +61,14 @@ export async function createEvent(payload: EventPayload): Promise<{ id: string }
   try {
     const invalid = validateEventPayload(payload, tErr)
     if (invalid) return { error: invalid }
-    const db = await requireAdmin()
-    const { data, error } = await db.from('events').insert(payload).select('id').single()
+    const session = await getSession()
+    if (!session?.canCreateEvents) return { error: tErr('unauthorized') }
+    const db = await requireEventCreator()
+    const { data, error } = await db
+      .from('events')
+      .insert({ ...payload, created_by: session.discordId })
+      .select('id')
+      .single()
     if (error) return { error: error.message }
     return { id: data.id }
   } catch (e) {
@@ -70,7 +81,7 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
   try {
     const invalid = validateEventPayload(payload, tErr)
     if (invalid) return { error: invalid }
-    const db = await requireAdmin()
+    const db = await requireEventCreatorForEvent(id)
     const { error } = await db.from('events').update(payload).eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard')
@@ -85,7 +96,7 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
 export async function notifyEvent(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireEventCreatorForEvent(id)
     const { data, error } = await db
       .from('events')
       .select('id, title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id')
@@ -112,7 +123,9 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
   const tErr = await getTranslations('adminActionError')
   const tDash = await getTranslations('adminDashboard')
   try {
-    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session?.canCreateEvents) return { error: tErr('unauthorized') }
+    const db = await requireEventCreator()
 
     const { data: source, error: sourceErr } = await db
       .from('events')
@@ -141,6 +154,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
         special_notes: source.special_notes,
         notify_role_id: source.notify_role_id,
         notify_channel_id: source.notify_channel_id,
+        created_by: session.discordId,
       })
       .select('id')
       .single()
@@ -219,7 +233,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
 export async function deleteEvent(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireEventCreatorForEvent(id)
     // event_battles cascades (migration 023); regear_requests keeps history via SET NULL (migration 005).
     const { error } = await db.from('events').delete().eq('id', id)
     if (error) return { error: error.message }
@@ -240,7 +254,7 @@ export async function deleteEvent(id: string): Promise<{ error?: string }> {
 export async function startBattle(id: string): Promise<{ startedAt?: string; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireEventCreatorForEvent(id)
     const startedAt = new Date().toISOString()
     const { error } = await db
       .from('events')
@@ -258,7 +272,7 @@ export async function startBattle(id: string): Promise<{ startedAt?: string; err
 export async function resetBattleStart(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireEventCreatorForEvent(id)
     const { error } = await db.from('events').update({ battle_started_at: null }).eq('id', id)
     if (error) return { error: error.message }
     revalidatePath(`/admin/dashboard/events/${id}`)
@@ -325,7 +339,7 @@ export async function saveEventBattles(
     const invalid = validateBattles(battles, tErr)
     if (invalid) return { error: invalid }
 
-    const db = await requireAdmin()
+    const db = await requireEventCreatorForEvent(eventId)
 
     const { data: eventRow, error: eventErr } = await db
       .from('events')
@@ -372,7 +386,7 @@ export async function saveEventBattles(
 export async function resetEventOutcome(eventId: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireEventCreatorForEvent(eventId)
 
     const { error: delErr } = await db.from('event_battles').delete().eq('event_id', eventId)
     if (delErr) return { error: delErr.message }
@@ -530,7 +544,7 @@ export async function savePartySlots(
     if (partyNumber < 1 || partyNumber > MAX_PARTIES) return { error: tErr('invalidPartyNumber') }
     if (slots.length > MAX_SLOTS_PER_PARTY) return { error: tErr('tooManySlots', { max: MAX_SLOTS_PER_PARTY }) }
 
-    const db = await requireAdmin()
+    const db = await requireEventCreatorForEvent(eventId)
 
     // Validate event exists first — otherwise FK violation is obscure to the admin.
     const { data: eventRow, error: eventCheckError } = await db
@@ -626,7 +640,7 @@ export async function toggleSlotAttendance(
 ): Promise<{ error?: string; attendedAt?: string | null }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireEventCreatorForSlot(slotId)
     // Confirm the slot has an assignee — an empty slot can't be marked attended.
     const { data: slot, error: readErr } = await db
       .from('slots')
@@ -667,7 +681,7 @@ export async function bulkSetAttendance(
 ): Promise<{ error?: string; affected?: number }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireEventCreatorForEvent(eventId)
 
     const { data: parties, error: pErr } = await db
       .from('parties')
@@ -699,7 +713,7 @@ export async function bulkSetAttendance(
 export async function clearSlotAssignment(slotId: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireEventCreatorForSlot(slotId)
     const { error } = await db
       .from('slots')
       .update({ assigned_discord_id: null, assigned_username: null })

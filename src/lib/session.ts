@@ -19,6 +19,9 @@ export interface SessionPayload {
   isMember: boolean
   isAdmin: boolean
   isGuest: boolean
+  // Admin 이거나 app_setting 의 event_creator_role_ids 중 하나를 가진 구성원.
+  // 로그인 시점에 계산되므로 역할 리스트 변경은 재로그인 후 반영된다.
+  canCreateEvents: boolean
   issuedAt: number
 }
 
@@ -78,14 +81,18 @@ export async function verifySession(cookieValue: string | undefined): Promise<Se
     // Expire server-side too — cookie maxAge is client hint, not enforcement.
     const ageSeconds = (Date.now() - parsed.issuedAt) / 1000
     if (ageSeconds > SESSION_MAX_AGE_SECONDS) return null
-    // Legacy cookies issued before isGuest was added default to false.
+    // Legacy cookies issued before isGuest / canCreateEvents were added default
+    // to safe values — admins always retain the capability so their old
+    // sessions keep working without forcing a re-login.
+    const isAdmin = parsed.isAdmin ?? false
     return {
       discordId: parsed.discordId ?? '',
       username: parsed.username ?? '',
       avatar: parsed.avatar ?? null,
       isMember: parsed.isMember ?? false,
-      isAdmin: parsed.isAdmin ?? false,
+      isAdmin,
       isGuest: parsed.isGuest ?? false,
+      canCreateEvents: parsed.canCreateEvents ?? isAdmin,
       issuedAt: parsed.issuedAt,
     }
   } catch {

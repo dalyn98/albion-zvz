@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { Bell, Coins, Image as ImageIcon, CalendarRange, UserPlus, Megaphone } from 'lucide-react'
+import { Bell, Coins, Image as ImageIcon, CalendarRange, UserPlus, Megaphone, Shield } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import NotificationSettingsForm from './NotificationSettingsForm'
 import RoleRewardsEditor from './RoleRewardsEditor'
@@ -10,9 +10,17 @@ import LandingCtaTextForm from './LandingCtaTextForm'
 import MembersAggregateRangeForm from './MembersAggregateRangeForm'
 import GuestInviteSettingsForm from './GuestInviteSettingsForm'
 import NoticeSettingForm from './NoticeSettingForm'
+import EventCreatorRolesSetting from './EventCreatorRolesSetting'
 import type { RoleReward } from '@/app/actions/regear-admin'
 
-type TabKey = 'notifications' | 'rewards' | 'landing' | 'membersRange' | 'guests' | 'notices'
+type TabKey =
+  | 'notifications'
+  | 'rewards'
+  | 'landing'
+  | 'membersRange'
+  | 'guests'
+  | 'notices'
+  | 'permissions'
 
 interface TabDef {
   key: TabKey
@@ -23,6 +31,7 @@ interface TabDef {
     | 'tabMembersRange'
     | 'tabGuests'
     | 'tabNotices'
+    | 'tabPermissions'
   icon: React.ComponentType<{ size?: number; className?: string }>
 }
 
@@ -30,6 +39,7 @@ const TABS: readonly TabDef[] = [
   { key: 'notifications', labelKey: 'tabNotifications', icon: Bell },
   { key: 'rewards', labelKey: 'tabRewards', icon: Coins },
   { key: 'notices', labelKey: 'tabNotices', icon: Megaphone },
+  { key: 'permissions', labelKey: 'tabPermissions', icon: Shield },
   { key: 'landing', labelKey: 'tabLanding', icon: ImageIcon },
   { key: 'membersRange', labelKey: 'tabMembersRange', icon: CalendarRange },
   { key: 'guests', labelKey: 'tabGuests', icon: UserPlus },
@@ -49,6 +59,7 @@ interface Props {
   guestInviteToken: string
   regearNoticeMessage: string
   eventsNoticeMessage: string
+  eventCreatorRoleIds: string[]
   origin: string
 }
 
@@ -59,7 +70,8 @@ function isTabKey(value: string | null): value is TabKey {
     value === 'landing' ||
     value === 'membersRange' ||
     value === 'guests' ||
-    value === 'notices'
+    value === 'notices' ||
+    value === 'permissions'
   )
 }
 
@@ -75,6 +87,7 @@ export default function SettingsTabs({
   guestInviteToken,
   regearNoticeMessage,
   eventsNoticeMessage,
+  eventCreatorRoleIds,
   origin,
 }: Props) {
   const t = useTranslations('adminSettings')
@@ -157,6 +170,9 @@ export default function SettingsTabs({
         )}
         {active === 'guests' && (
           <GuestInviteSettingsForm initialToken={guestInviteToken} origin={origin} />
+        )}
+        {active === 'permissions' && (
+          <EventCreatorRolesSetting initialRoleIds={eventCreatorRoleIds} />
         )}
         {active === 'notices' && (
           <div className="space-y-4">

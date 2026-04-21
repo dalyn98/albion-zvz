@@ -1,9 +1,12 @@
 import { supabase } from '@/lib/supabase'
 import type { Event } from '@/types'
 import { getTranslations } from 'next-intl/server'
+import Link from 'next/link'
+import { Plus } from 'lucide-react'
 import { formatGatherTimeFor, isImminent, isEnded } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
 import { getAppSetting } from '@/lib/app-settings'
+import { getSession } from '@/lib/session'
 import HomeEventTabs, { type HomeEventCardData, type HomeEventKind } from '@/components/HomeEventTabs'
 import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
 
@@ -59,10 +62,11 @@ function classifyScheduled(event: Event): ScheduledKind {
 // Layout-level gate (src/app/layout.tsx) blocks non-members before this
 // component runs — by the time HomePage renders, the viewer is a guild member.
 export default async function HomePage() {
-  const [t, locale, noticeMessage] = await Promise.all([
+  const [t, locale, noticeMessage, session] = await Promise.all([
     getTranslations(),
     getLocale(),
     getAppSetting('events_notice_message', ''),
+    getSession(),
   ])
 
   // Prefer gather_at (ISO) for locale-aware formatting; fall back to stored
@@ -118,9 +122,20 @@ export default async function HomePage() {
 
   return (
     <main className="flex-1 px-4 py-6 sm:py-8 max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto w-full space-y-6">
-      <div className="space-y-1.5">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">{t('home.title')}</h1>
-        <p className="text-gray-400 text-sm">{t('home.subtitle')}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1.5">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">{t('home.title')}</h1>
+          <p className="text-gray-400 text-sm">{t('home.subtitle')}</p>
+        </div>
+        {session?.canCreateEvents && (
+          <Link
+            href="/admin/dashboard/events/new"
+            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-3 py-2 rounded-lg transition-colors text-sm whitespace-nowrap"
+          >
+            <Plus size={16} />
+            {t('home.newEvent')}
+          </Link>
+        )}
       </div>
 
       <DismissibleNoticeBanner storageKey="events" message={noticeMessage} />

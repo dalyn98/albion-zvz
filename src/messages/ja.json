@@ -366,6 +366,7 @@
     "tabMembersRange": "メンバー統計期間",
     "tabGuests": "ゲスト招待",
     "tabNotices": "告知",
+    "tabPermissions": "権限",
     "membersRangeTitle": "メンバー勝敗集計期間",
     "membersRangeDescription": "ギルドメンバー一覧の上部に表示される勝敗合計と対戦ギルド数の集計範囲です。空欄の場合は全期間が集計されます。",
     "membersRangeStart": "開始日",
@@ -415,6 +416,17 @@
     "clear": "消去",
     "clearTooltip": "告知を空にしてバナーを非表示にします"
   },
+  "adminEventCreatorRoles": {
+    "title": "イベント作成が可能な役割",
+    "description": "選択した Discord 役割を持つメンバーはイベントを作成し、自分が作成したイベントを編集できます。何も選択しない場合は管理者のみがイベントを作成できます。",
+    "reloginHint": "変更は各ユーザーが再度ログインした後に反映されます。",
+    "rolesLoading": "役割一覧を読み込み中…",
+    "rolesError": "役割一覧の取得に失敗しました。",
+    "rolesEmpty": "利用できる役割がありません。",
+    "save": "保存",
+    "saving": "保存中…",
+    "saved": "保存しました"
+  },
   "sidebar": {
     "memberGroup": "メンバー",
     "adminGroup": "管理者",
@@ -453,7 +465,8 @@
     },
     "applicants": "申請 {assigned}/{total}",
     "opponentsPrefix": "相手",
-    "battlesSuffix": "{count}戦"
+    "battlesSuffix": "{count}戦",
+    "newEvent": "新しいイベント"
   },
   "landing": {
     "defaultCta": "Discord でログインすると、イベントとパーティーにアクセスできます。",
@@ -936,7 +949,9 @@
     "opponentGuildDuplicate": "既に \"{name}\" ギルドが登録されています。",
     "opponentGuildNotFound": "相手ギルドが見つかりません。",
     "invalidBattleOutcome": "戦闘結果の値が正しくありません。",
-    "invalidDateFormat": "日付は YYYY-MM-DD 形式で入力してください。"
+    "invalidDateFormat": "日付は YYYY-MM-DD 形式で入力してください。",
+    "unauthorized": "この操作を実行する権限がありません。",
+    "invalidJsonArray": "役割一覧を保存できませんでした。"
   },
   "memberActionError": {
     "loginRequired": "ログインが必要です。",

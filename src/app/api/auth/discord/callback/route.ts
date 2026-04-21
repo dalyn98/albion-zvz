@@ -27,6 +27,20 @@ function resolvePostLoginPath(
   return `/welcome-language?return=${encoded}`
 }
 
+// app_setting `event_creator_role_ids` 를 역할 ID 배열로 로드. JSON 파싱 실패나
+// 잘못된 shape 이면 빈 배열 fallback (=admin 만 이벤트 생성 가능). 로그인 마다
+// 한 번 호출되므로 실패 시 로그인 전체를 막지 않도록 방어적으로 처리.
+async function loadEventCreatorRoleIds(): Promise<string[]> {
+  try {
+    const raw = await getAppSetting('event_creator_role_ids', '[]')
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((v): v is string => typeof v === 'string' && v.length > 0)
+  } catch {
+    return []
+  }
+}
+
 function errorRedirect(origin: string, reason: string): NextResponse {
   const url = new URL('/', origin)
   url.searchParams.set('auth_error', reason)
@@ -64,6 +78,11 @@ export async function GET(request: NextRequest) {
     const roles = new Set(member?.roles ?? [])
     const isAdmin = adminRoleIds.some((id) => roles.has(id))
     const isMember = memberRoleIds.some((id) => roles.has(id)) || isAdmin
+    // 관리자 설정 기반 이벤트 생성 권한 계산. app_setting 은 JSON 배열 문자열로
+    // 저장되며, 파싱 실패 시 빈 배열로 fallback 한다(=admin 만 생성 가능).
+    const eventCreatorRoleIds = await loadEventCreatorRoleIds()
+    const hasEventCreatorRole = isMember && eventCreatorRoleIds.some((id) => roles.has(id))
+    const canCreateEvents = isAdmin || hasEventCreatorRole
     // Server nick wins, then global_name, then raw username.
     const displayName = member?.nick || user.global_name || user.username
 
@@ -94,6 +113,7 @@ export async function GET(request: NextRequest) {
         isMember: true,
         isAdmin,
         isGuest: false,
+        canCreateEvents,
         issuedAt: Date.now(),
       })
       const destination = resolvePostLoginPath(returnTo, preferred)
@@ -161,6 +181,8 @@ export async function GET(request: NextRequest) {
       isMember: false,
       isAdmin: false,
       isGuest: true,
+      // 게스트는 길드원이 아니라서 역할 기반 자격이 붙지 않는다. 항상 false.
+      canCreateEvents: false,
       issuedAt: Date.now(),
     })
     const destination = resolvePostLoginPath(returnTo, guestPreferred)

@@ -13,6 +13,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'guest_invite_token',
   'regear_notice_message',
   'events_notice_message',
+  'event_creator_role_ids',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -28,6 +29,8 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   // Empty message = hide the regear notice banner entirely.
   'regear_notice_message',
   'events_notice_message',
+  // Empty JSON array '[]' = admin-only event creation.
+  'event_creator_role_ids',
 ] as const
 
 // Date-shaped setting keys that must be 'YYYY-MM-DD' or empty. A free-form
@@ -35,6 +38,11 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
 const DATE_KEYS: readonly AppSettingKey[] = [
   'members_aggregate_start_date',
   'members_aggregate_end_date',
+] as const
+
+// JSON array string keys. Must parse to string[] or the upsert is rejected.
+const JSON_ARRAY_KEYS: readonly AppSettingKey[] = [
+  'event_creator_role_ids',
 ] as const
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -57,6 +65,16 @@ export async function updateAppSetting(
     }
     if (trimmed && DATE_KEYS.includes(key) && !DATE_RE.test(trimmed)) {
       return { error: tErr('invalidDateFormat') }
+    }
+    if (trimmed && JSON_ARRAY_KEYS.includes(key)) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        if (!Array.isArray(parsed) || !parsed.every((v) => typeof v === 'string' && v.length > 0)) {
+          return { error: tErr('invalidJsonArray') }
+        }
+      } catch {
+        return { error: tErr('invalidJsonArray') }
+      }
     }
     const db = await requireAdmin()
     const { error } = await db

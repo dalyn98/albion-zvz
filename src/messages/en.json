@@ -366,6 +366,7 @@
     "tabMembersRange": "Members stats range",
     "tabGuests": "Guest invite",
     "tabNotices": "Notices",
+    "tabPermissions": "Permissions",
     "membersRangeTitle": "Members win/loss aggregate range",
     "membersRangeDescription": "Date range used by the wins/losses and distinct-opponent totals at the top of the guild members page. Leave blank to include all time.",
     "membersRangeStart": "Start date",
@@ -415,6 +416,17 @@
     "clear": "Clear",
     "clearTooltip": "Empty the notice to hide the banner"
   },
+  "adminEventCreatorRoles": {
+    "title": "Event creator roles",
+    "description": "Members with any of the selected Discord roles can create events and edit the events they created. Leave empty to keep event creation admin-only.",
+    "reloginHint": "Changes take effect after each user signs in again.",
+    "rolesLoading": "Loading roles…",
+    "rolesError": "Failed to load role list.",
+    "rolesEmpty": "No roles available.",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved"
+  },
   "sidebar": {
     "memberGroup": "Members",
     "adminGroup": "Admin",
@@ -453,7 +465,8 @@
     },
     "applicants": "Applied {assigned}/{total}",
     "opponentsPrefix": "vs",
-    "battlesSuffix": "{count} battles"
+    "battlesSuffix": "{count} battles",
+    "newEvent": "New event"
   },
   "landing": {
     "defaultCta": "Log in with Discord to access events and parties.",
@@ -936,7 +949,9 @@
     "opponentGuildDuplicate": "\"{name}\" is already registered.",
     "opponentGuildNotFound": "Opponent guild not found.",
     "invalidBattleOutcome": "Invalid battle outcome value.",
-    "invalidDateFormat": "Dates must be in YYYY-MM-DD format."
+    "invalidDateFormat": "Dates must be in YYYY-MM-DD format.",
+    "unauthorized": "You don't have permission to perform this action.",
+    "invalidJsonArray": "Could not save the role list."
   },
   "memberActionError": {
     "loginRequired": "Login required.",
