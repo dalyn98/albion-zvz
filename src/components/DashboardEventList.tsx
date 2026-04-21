@@ -24,7 +24,6 @@ function isTabKey(value: string | null): value is TabKey {
 }
 
 function isEventEnded(event: Event): boolean {
-  if (event.finalized_at) return true
   if (event.battle_started_at && isEnded(event.battle_started_at)) return true
   return false
 }

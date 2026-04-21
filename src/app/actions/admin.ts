@@ -235,7 +235,7 @@ export async function deleteEvent(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireEventCreatorForEvent(id)
-    // event_battles cascades (migration 023); regear_requests keeps history via SET NULL (migration 005).
+    // regear_requests keeps history via SET NULL (migration 005).
     const { error } = await db.from('events').delete().eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard')
@@ -244,8 +244,6 @@ export async function deleteEvent(id: string): Promise<{ error?: string }> {
     revalidatePath('/me')
     revalidatePath('/members')
     revalidatePath('/members/[discordId]', 'page')
-    revalidatePath('/battle-records')
-    revalidatePath('/battle-records/[id]', 'page')
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -278,130 +276,6 @@ export async function resetBattleStart(id: string): Promise<{ error?: string }> 
     if (error) return { error: error.message }
     revalidatePath(`/admin/dashboard/events/${id}`)
     revalidatePath(`/events/${id}`)
-    return {}
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
-  }
-}
-
-// --- Event outcome (win/loss) actions ---
-
-interface BattlePayload {
-  battle_number: number
-  opponent_guild: string
-  // Migration 024: FK to opponent_guilds. When set, the saved row links to a
-  // canonical guild entity; the text stays as a snapshot for historical
-  // display. Nullable so legacy/ad-hoc battles without a canonical guild
-  // still work.
-  opponent_guild_id: string | null
-  outcome: 'win' | 'loss'
-  // Migration 028: optional per-battle MVP. NULL = not recorded.
-  mvp_discord_id: string | null
-}
-
-const MAX_BATTLES_PER_EVENT = 50
-const MAX_OPPONENT_GUILD_LENGTH = 100
-
-// Event outcome is determined by majority of battle results. A tie leaves
-// outcome null so the event stays in "미확정/예정" tab until the admin edits
-// further battles to break the tie.
-function computeMajorityOutcome(battles: BattlePayload[]): 'win' | 'loss' | null {
-  const wins = battles.filter((b) => b.outcome === 'win').length
-  const losses = battles.length - wins
-  if (wins > losses) return 'win'
-  if (losses > wins) return 'loss'
-  return null
-}
-
-function validateBattles(battles: BattlePayload[], tErr: AdminErrorTranslator): string | null {
-  if (battles.length === 0) return tErr('emptyBattles')
-  if (battles.length > MAX_BATTLES_PER_EVENT) return tErr('tooManyBattles', { max: MAX_BATTLES_PER_EVENT })
-  const seen = new Set<number>()
-  for (const b of battles) {
-    if (!Number.isInteger(b.battle_number) || b.battle_number < 1) return tErr('invalidBattleNumber')
-    if (seen.has(b.battle_number)) return tErr('duplicateBattleNumber')
-    seen.add(b.battle_number)
-    const guild = b.opponent_guild.trim()
-    if (!guild) return tErr('missingOpponentGuild')
-    if (guild.length > MAX_OPPONENT_GUILD_LENGTH) {
-      return tErr('opponentGuildTooLong', { max: MAX_OPPONENT_GUILD_LENGTH })
-    }
-    if (b.outcome !== 'win' && b.outcome !== 'loss') return tErr('invalidBattleOutcome')
-  }
-  return null
-}
-
-export async function saveEventBattles(
-  eventId: string,
-  battles: BattlePayload[],
-): Promise<{ error?: string; outcome?: 'win' | 'loss' | null }> {
-  const tErr = await getTranslations('adminActionError')
-  try {
-    const invalid = validateBattles(battles, tErr)
-    if (invalid) return { error: invalid }
-
-    const db = await requireEventCreatorForEvent(eventId)
-
-    const { data: eventRow, error: eventErr } = await db
-      .from('events')
-      .select('id, battle_started_at')
-      .eq('id', eventId)
-      .maybeSingle()
-    if (eventErr) return { error: eventErr.message }
-    if (!eventRow) return { error: tErr('eventNotFound') }
-    if (!eventRow.battle_started_at) return { error: tErr('battleNotStarted') }
-
-    // Replace-all semantics — simpler than diffing and matches how the admin
-    // edits the battle list as a single form.
-    const { error: delErr } = await db.from('event_battles').delete().eq('event_id', eventId)
-    if (delErr) return { error: delErr.message }
-
-    const rows = battles.map((b) => ({
-      event_id: eventId,
-      battle_number: b.battle_number,
-      opponent_guild: b.opponent_guild.trim(),
-      opponent_guild_id: b.opponent_guild_id,
-      outcome: b.outcome,
-      mvp_discord_id: b.mvp_discord_id,
-    }))
-    const { error: insErr } = await db.from('event_battles').insert(rows)
-    if (insErr) return { error: insErr.message }
-
-    const outcome = computeMajorityOutcome(battles)
-    const { error: updErr } = await db
-      .from('events')
-      .update({ outcome, finalized_at: new Date().toISOString() })
-      .eq('id', eventId)
-    if (updErr) return { error: updErr.message }
-
-    revalidatePath(`/admin/dashboard/events/${eventId}`)
-    revalidatePath(`/events/${eventId}`)
-    revalidatePath('/')
-    revalidatePath('/me')
-    return { outcome }
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
-  }
-}
-
-export async function resetEventOutcome(eventId: string): Promise<{ error?: string }> {
-  const tErr = await getTranslations('adminActionError')
-  try {
-    const db = await requireEventCreatorForEvent(eventId)
-
-    const { error: delErr } = await db.from('event_battles').delete().eq('event_id', eventId)
-    if (delErr) return { error: delErr.message }
-
-    const { error: updErr } = await db
-      .from('events')
-      .update({ outcome: null, finalized_at: null })
-      .eq('id', eventId)
-    if (updErr) return { error: updErr.message }
-
-    revalidatePath(`/admin/dashboard/events/${eventId}`)
-    revalidatePath(`/events/${eventId}`)
-    revalidatePath('/')
-    revalidatePath('/me')
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -689,84 +563,6 @@ export async function savePartySlots(
     revalidatePath(`/events/${eventId}`)
     revalidatePath('/')
     return {}
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
-  }
-}
-
-// --- Attendance actions ---
-
-export async function toggleSlotAttendance(
-  slotId: string,
-  attended: boolean,
-): Promise<{ error?: string; attendedAt?: string | null }> {
-  const tErr = await getTranslations('adminActionError')
-  try {
-    const db = await requireEventCreatorForSlot(slotId)
-    // Confirm the slot has an assignee — an empty slot can't be marked attended.
-    const { data: slot, error: readErr } = await db
-      .from('slots')
-      .select('id, assigned_discord_id, party_id')
-      .eq('id', slotId)
-      .maybeSingle()
-    if (readErr) return { error: readErr.message }
-    if (!slot) return { error: tErr('serverError') }
-    if (!slot.assigned_discord_id) return { error: tErr('attendanceSlotEmpty') }
-
-    const attendedAt = attended ? new Date().toISOString() : null
-    const { error: updErr } = await db
-      .from('slots')
-      .update({ attended_at: attendedAt })
-      .eq('id', slotId)
-    if (updErr) return { error: updErr.message }
-
-    // Revalidate the event page so the admin list reflects the change. The
-    // slot row doesn't carry event_id directly, so we walk through party.
-    const { data: party } = await db
-      .from('parties')
-      .select('event_id')
-      .eq('id', slot.party_id)
-      .maybeSingle()
-    if (party?.event_id) {
-      revalidatePath(`/admin/dashboard/events/${party.event_id}`)
-      revalidatePath(`/events/${party.event_id}`)
-    }
-    return { attendedAt }
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
-  }
-}
-
-export async function bulkSetAttendance(
-  eventId: string,
-  attended: boolean,
-): Promise<{ error?: string; affected?: number }> {
-  const tErr = await getTranslations('adminActionError')
-  try {
-    const db = await requireEventCreatorForEvent(eventId)
-
-    const { data: parties, error: pErr } = await db
-      .from('parties')
-      .select('id')
-      .eq('event_id', eventId)
-    if (pErr) return { error: pErr.message }
-    const partyIds = (parties ?? []).map((p) => p.id)
-    if (partyIds.length === 0) return { affected: 0 }
-
-    const attendedAt = attended ? new Date().toISOString() : null
-    // Only update slots that currently have an assignee — empty slots should
-    // not get a timestamp even when "mark all" is pressed.
-    const { data, error: updErr } = await db
-      .from('slots')
-      .update({ attended_at: attendedAt })
-      .in('party_id', partyIds)
-      .not('assigned_discord_id', 'is', null)
-      .select('id')
-    if (updErr) return { error: updErr.message }
-
-    revalidatePath(`/admin/dashboard/events/${eventId}`)
-    revalidatePath(`/events/${eventId}`)
-    return { affected: data?.length ?? 0 }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }

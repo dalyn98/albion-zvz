@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
-import type { EventOutcome, GearOption, SlotKey } from '@/types'
+import type { GearOption, SlotKey } from '@/types'
 
 export type SlotPicks = Partial<Record<SlotKey, GearOption>>
 
@@ -88,36 +88,21 @@ export async function assignSlot(
 
   // Hidden slots are intentionally invisible to members — guard the action so
   // a crafted request with a stale slot id can't silently bypass the UI hide.
-  // Pull the parent event's finalized_at plus the party's bomb-squad flag so
-  // we can (a) refuse assignments on ended events and (b) decide whether the
-  // action returns pending:true (bomb squad) or pending:false (regular).
+  // The party's bomb-squad flag decides whether the action returns pending:true
+  // (bomb squad) or pending:false (regular).
   const { data: slotCheck, error: slotLookupError } = await db
     .from('slots')
-    .select('is_hidden, parties!inner(is_bomb_squad, events!inner(finalized_at))')
+    .select('is_hidden, parties!inner(is_bomb_squad)')
     .eq('id', slotId)
     .maybeSingle()
   if (slotLookupError) return { error: slotLookupError.message }
   if (!slotCheck) return { error: tAction('slotNotFound') }
   if (slotCheck.is_hidden) return { error: tAction('slotNotFound') }
   const partyJoin = slotCheck.parties as
-    | {
-        is_bomb_squad: boolean | null
-        events: { finalized_at: string | null } | { finalized_at: string | null }[]
-      }
-    | {
-        is_bomb_squad: boolean | null
-        events: { finalized_at: string | null } | { finalized_at: string | null }[]
-      }[]
+    | { is_bomb_squad: boolean | null }
+    | { is_bomb_squad: boolean | null }[]
     | null
   const partyObj = Array.isArray(partyJoin) ? partyJoin[0] : partyJoin
-  const eventObj = partyObj
-    ? Array.isArray(partyObj.events)
-      ? partyObj.events[0]
-      : partyObj.events
-    : null
-  if (eventObj?.finalized_at) {
-    return { error: tAction('eventFinalized') }
-  }
   const isBomb = !!partyObj?.is_bomb_squad
 
   const { error } = await db.rpc('assign_slot', {
@@ -153,18 +138,15 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
 
   const { data: partyRow, error: partyLookupError } = await db
     .from('parties')
-    .select('events(battle_started_at, finalized_at)')
+    .select('events(battle_started_at)')
     .eq('id', slotRow.party_id)
     .maybeSingle()
   if (partyLookupError) return { error: partyLookupError.message }
   const eventJoin = partyRow?.events as
-    | { battle_started_at: string | null; finalized_at: string | null }
-    | { battle_started_at: string | null; finalized_at: string | null }[]
+    | { battle_started_at: string | null }
+    | { battle_started_at: string | null }[]
     | null
   const eventState = Array.isArray(eventJoin) ? eventJoin[0] : eventJoin
-  if (eventState?.finalized_at) {
-    return { error: tAction('eventFinalized') }
-  }
   if (eventState?.battle_started_at) {
     return { error: tAction('battleAlreadyStarted') }
   }
@@ -180,8 +162,8 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
 }
 
 // Admin can remove anyone from a slot. Same event-state guards as self-cancel
-// (no post-battle/finalized kicks to keep participation tracking intact), but
-// bypasses the ownership check that blocks regular cancelSlot.
+// (no post-battle kicks to keep participation tracking intact), but bypasses
+// the ownership check that blocks regular cancelSlot.
 export async function adminCancelSlot(slotId: string): Promise<{ error?: string }> {
   const tAction = await getTranslations('slotAction')
   const session = await getSession()
@@ -201,16 +183,15 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
 
   const { data: partyRow, error: partyLookupError } = await db
     .from('parties')
-    .select('events(battle_started_at, finalized_at)')
+    .select('events(battle_started_at)')
     .eq('id', slotRow.party_id)
     .maybeSingle()
   if (partyLookupError) return { error: partyLookupError.message }
   const eventJoin = partyRow?.events as
-    | { battle_started_at: string | null; finalized_at: string | null }
-    | { battle_started_at: string | null; finalized_at: string | null }[]
+    | { battle_started_at: string | null }
+    | { battle_started_at: string | null }[]
     | null
   const eventState = Array.isArray(eventJoin) ? eventJoin[0] : eventJoin
-  if (eventState?.finalized_at) return { error: tAction('eventFinalized') }
   if (eventState?.battle_started_at) return { error: tAction('battleAlreadyStarted') }
 
   // Pass the current owner's discord id to cancel_slot so the RPC's
@@ -231,14 +212,12 @@ export interface MyParticipationEntry {
   gather_at: string | null
   gather_time: string
   role_name: string | null
-  outcome: EventOutcome | null
   battle_started_at: string | null
 }
 
 // Events the signed-in member actually participated in — defined as events
 // where the admin pressed "battle start" AND one of their slots was assigned
-// to the member. Events still awaiting an admin outcome appear with outcome
-// = null so the member can see they participated but the result is pending.
+// to the member.
 export async function listMyParticipation(): Promise<{
   entries: MyParticipationEntry[]
 }> {
@@ -249,7 +228,7 @@ export async function listMyParticipation(): Promise<{
   const { data, error } = await db
     .from('slots')
     .select(
-      'role_name, parties!inner(events!inner(id, title, gather_at, gather_time, battle_started_at, outcome))',
+      'role_name, parties!inner(events!inner(id, title, gather_at, gather_time, battle_started_at))',
     )
     .eq('assigned_discord_id', session.discordId)
 
@@ -261,7 +240,6 @@ export async function listMyParticipation(): Promise<{
     gather_at: string | null
     gather_time: string
     battle_started_at: string | null
-    outcome: EventOutcome | null
   }
   type Row = {
     role_name: string | null
@@ -284,7 +262,6 @@ export async function listMyParticipation(): Promise<{
       gather_at: event.gather_at,
       gather_time: event.gather_time,
       role_name: row.role_name,
-      outcome: event.outcome,
       battle_started_at: event.battle_started_at,
     })
   }

@@ -7,12 +7,10 @@
     "events": "Events",
     "regearRequest": "Regear",
     "members": "Guild members",
-    "battleRecords": "Battle records",
     "myWallet": "My wallet",
     "mySettings": "Settings",
     "eventAdmin": "Event admin",
     "approvals": "Approvals",
-    "opponentGuilds": "Opponent guilds",
     "settings": "Settings"
   },
   "common": {
@@ -357,7 +355,10 @@
       "callerPlaceholder": "Select a caller",
       "callerStale": "{name} (role revoked)",
       "callerEmptyHint": "Configure caller roles in Settings first.",
-      "kind": { "melee": "Melee", "ranged": "Ranged" }
+      "kind": {
+        "melee": "Melee",
+        "ranged": "Ranged"
+      }
     }
   },
   "adminRoleRewards": {
@@ -391,17 +392,10 @@
     "tabNotifications": "Event notifications",
     "tabRewards": "Role regear caps",
     "tabLanding": "Landing page",
-    "tabMembersRange": "Members stats range",
     "tabGuests": "Guest invite",
     "tabNotices": "Notices",
     "tabPermissions": "Permissions",
     "tabEvents": "Events / Regear",
-    "membersRangeTitle": "Members win/loss aggregate range",
-    "membersRangeDescription": "Date range used by the wins/losses and distinct-opponent totals at the top of the guild members page. Leave blank to include all time.",
-    "membersRangeStart": "Start date",
-    "membersRangeEnd": "End date",
-    "membersRangeClear": "Clear",
-    "membersRangeInvalid": "End date is earlier than start date.",
     "rewardsDescription": "Regear claim caps per role. Guild members enter a claim amount up to this cap, and the claimed amount is paid out as points on approval. Roles with a 0 cap cannot submit regear requests.",
     "notificationsTitle": "Event-created notification message",
     "notificationsDescription": "The text shown at the top of the Discord channel message when a new event is created. The site's main link is automatically appended below.",
@@ -532,19 +526,13 @@
     "badge": {
       "inProgress": "In battle",
       "imminent": "Imminent",
-      "ended": "Ended",
-      "win": "Win",
-      "loss": "Loss"
+      "ended": "Ended"
     },
     "tabs": {
       "scheduled": "Scheduled",
-      "wins": "Wins",
-      "losses": "Losses",
       "count": "({count})"
     },
     "applicants": "Applied {assigned}/{total}",
-    "opponentsPrefix": "vs",
-    "battlesSuffix": "{count} battles",
     "newEvent": "New event"
   },
   "landing": {
@@ -571,7 +559,6 @@
     "info": "Battle info",
     "inProgress": "In battle · started {time}",
     "ended": "Event ended",
-    "endedNotice": "This event has ended. Sign-ups and cancellations are closed. The recorded outcome appears on each member's participation history.",
     "startedNotice": "The battle has already started. You <bold>can still apply</bold> to slots, but you <bold>cannot cancel</bold>. Applying counts as committed participation. Submit regear requests from the <bold>Regear</bold> tab on the left.",
     "applicants": "Applied {assigned}/{total}",
     "noParties": "No parties registered.",
@@ -585,15 +572,11 @@
     "editAria": "Edit event",
     "bombSquad": {
       "callerLabel": "Caller {name}",
-      "kind": { "melee": "Melee", "ranged": "Ranged" }
+      "kind": {
+        "melee": "Melee",
+        "ranged": "Ranged"
+      }
     }
-  },
-  "eventBattles": {
-    "title": "Battle log",
-    "count": "{n} battles",
-    "win": "Win",
-    "loss": "Loss",
-    "mvpSuffix": "MVP"
   },
   "slot": {
     "free": "Free",
@@ -735,19 +718,13 @@
     "counter": "Guild members <bold>{memberCount}</bold> · total participation <bold>{total}</bold>",
     "searchPlaceholder": "Search by member name",
     "sortByParticipation": "Most participation",
-    "sortByAttendance": "Attendance rate",
     "sortByRecent": "Recently logged in",
     "noSearchResult": "No results.",
     "adminLabel": "Admin",
     "noParticipationHistory": "No participation yet",
     "participation": "joined",
-    "attendancePercent": "{rate}%",
-    "attendanceFraction": "{attended}/{total} attended",
     "aggregateRange": "Range",
     "aggregateAllTime": "All time",
-    "aggregateWins": "Wins",
-    "aggregateLosses": "Losses",
-    "aggregateOpponents": "Opponent guilds",
     "tabsLabel": "Member categories",
     "tabMembers": "Members",
     "tabGuests": "Guests",
@@ -775,11 +752,6 @@
     "killboardUnverified": "Killboard unverified",
     "participationTitle": "Event participation",
     "noParticipation": "You haven't participated in any events yet.",
-    "outcomeWin": "Win",
-    "outcomeLoss": "Loss",
-    "outcomePending": "Pending",
-    "winsCount": "{count} W",
-    "lossesCount": "{count} L",
     "transferTitle": "Transfer points",
     "transferDescription": "Send some of your points to another guild member. You can split a single transfer across several people.",
     "transferOpen": "Transfer",
@@ -806,7 +778,8 @@
     "donationCancelConfirm": "Cancel this donation request? The uploaded screenshot will also be deleted.",
     "donationCancelConfirmButton": "Confirm cancel",
     "donationKeep": "Keep",
-    "handledBy": "by {handler}"
+    "handledBy": "by {handler}",
+    "participationCount": "{count} total"
   },
   "myProfile": {
     "notRegistered": "Your guild member record hasn't been registered yet. Logging in again will register you automatically."
@@ -852,22 +825,7 @@
     "ceilingAmount": "Cap {amount}",
     "requestedAt": "Requested {when}",
     "resolvedAt": "{status} {when}",
-    "handledBy": "by {handler}",
-    "outcomeWin": "Win",
-    "outcomeLoss": "Loss",
-    "outcomePending": "Pending",
-    "winsCount": "{count} W",
-    "lossesCount": "{count} L",
-    "statAttendanceRate": "Attendance rate",
-    "statAttendedCount": "Attended/No-show",
-    "statMvpCount": "MVP awards",
-    "attendancePercent": "{rate}%",
-    "attendanceNotAvailable": "No data",
-    "attendedCount": "{attended} / {no_show}",
-    "mvpTimes": "{count}×",
-    "attendanceBadgeAttended": "Attended",
-    "attendanceBadgeNoShow": "No-show",
-    "mvpBadgeTitle": "{count} MVP(s) in this event"
+    "handledBy": "by {handler}"
   },
   "requestExchange": {
     "pendingNotice": "You already have a pending exchange request, so you cannot apply again.",
@@ -933,67 +891,6 @@
     "bombSquadNotAuthorized": "Only the caller or an admin can act on this request.",
     "serverError": "A server error occurred."
   },
-  "adminBattleOutcome": {
-    "sectionTitle": "Battle results",
-    "description": "Record each battle's opponent and outcome. The event's final result is decided by majority (null on a tie).",
-    "opponentPlaceholder": "Select opponent guild",
-    "addNewGuild": "Add new opponent guild",
-    "newGuildNamePlaceholder": "e.g. MenHera",
-    "selectGuildRequired": "Select an opponent guild for every battle.",
-    "createGuildFailed": "Failed to create opponent guild.",
-    "win": "Win",
-    "loss": "Loss",
-    "tie": "Tie (unresolved)",
-    "previewLabel": "Final:",
-    "addBattle": "Add battle",
-    "reset": "Reset",
-    "resetConfirm": "Delete all battle records and the outcome?",
-    "mvpLabel": "MVP",
-    "mvpPlaceholder": "No MVP",
-    "mvpNoCandidates": "No attendees to choose from"
-  },
-  "adminAttendance": {
-    "sectionTitle": "Attendance check",
-    "description": "Mark which applicants actually showed up for the battle. Unchecked members are counted as no-shows.",
-    "summary": "{attended}/{total} attended",
-    "empty": "No sign-ups yet.",
-    "markAll": "Mark all attended",
-    "clearAll": "Clear all",
-    "confirmMarkAll": "Mark every applicant as attended?",
-    "confirmClearAll": "Clear all attendance checks?",
-    "party": "Party {number}",
-    "slotLabel": "Slot {slot}",
-    "attended": "Attended",
-    "noShow": "No-show",
-    "attendedAt": "Checked at {datetime}",
-    "toastMarked": "Marked attended.",
-    "toastUnmarked": "Cleared attendance.",
-    "toastBulk": "Updated {count} members."
-  },
-  "adminOpponentGuilds": {
-    "pageTitle": "Opponent guilds",
-    "pageDescription": "Manage opposing guilds as an address book. Only guilds registered here appear in the battle-outcome dropdown.",
-    "addGuild": "Add guild",
-    "namePlaceholder": "e.g. MenHera",
-    "notesPlaceholder": "Notes (optional)",
-    "empty": "No opponent guilds registered yet.",
-    "createFailed": "Failed to create guild.",
-    "deleteConfirm": "Delete \"{name}\"? The guild name stays in history but the link is removed."
-  },
-  "battleRecords": {
-    "title": "Battle records",
-    "description": "Per-opponent win/loss history across all events.",
-    "empty": "No battles recorded yet.",
-    "searchPlaceholder": "Search by opponent guild name",
-    "noSearchResult": "No results.",
-    "unnamedGuild": "(unnamed)",
-    "winRate": "Win rate {rate}%",
-    "legacyNotLinked": "Legacy record (guild not linked)",
-    "backToList": "Back to battle records",
-    "wins": "Wins",
-    "losses": "Losses",
-    "detailEmpty": "No battles recorded against this guild."
-  },
   "publicRecords": {
     "title": "Menhera record",
     "description": "Public-facing summary of our win/loss record against each opponent guild.",
@@ -1049,17 +946,6 @@
     "bannerFileTooLarge": "File size cannot exceed 5 MB.",
     "bannerWrongType": "Only PNG, JPG, WEBP, GIF files can be uploaded.",
     "bannerUploadFailed": "Upload failed: {reason}",
-    "battleNotStarted": "Cannot save outcome before battle starts.",
-    "attendanceSlotEmpty": "Cannot mark attendance on an empty slot.",
-    "emptyBattles": "At least one battle is required.",
-    "tooManyBattles": "You can record at most {max} battles.",
-    "invalidBattleNumber": "Invalid battle number.",
-    "duplicateBattleNumber": "Duplicate battle number.",
-    "missingOpponentGuild": "Please enter the opponent guild name.",
-    "opponentGuildTooLong": "Opponent guild name must be at most {max} characters.",
-    "opponentGuildDuplicate": "\"{name}\" is already registered.",
-    "opponentGuildNotFound": "Opponent guild not found.",
-    "invalidBattleOutcome": "Invalid battle outcome value.",
     "invalidDateFormat": "Dates must be in YYYY-MM-DD format.",
     "unauthorized": "You don't have permission to perform this action.",
     "invalidJsonArray": "Could not save the role list.",
@@ -1080,7 +966,6 @@
     "noAssignedSlot": "You don't have an assigned slot in this event.",
     "slotRoleMissing": "The slot has no role assigned. Please contact an admin.",
     "alreadyRequestedForEvent": "You've already submitted a regear request for this event.",
-    "battleNotStarted": "The battle hasn't started yet. You can apply after an admin marks it as started.",
     "regearWindowNotOpen": "Waiting for the killboard to index deaths. Please retry {minutes} minutes after battle start.",
     "regearDeathsLimitReached": "You've already submitted the max ({max}) regear requests for this event.",
     "ceilingNotSetForRole": "This role's regear cap isn't set. Please contact an admin.",

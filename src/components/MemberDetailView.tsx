@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Coins, Wallet, ShieldCheck, ChevronRight, Trophy, ShieldAlert, Hourglass, UserCheck, UserX, Crown, Sword } from 'lucide-react'
+import { Coins, Wallet, ShieldCheck, ChevronRight, Sword } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
 import LanguageBadge from './LanguageBadge'
@@ -83,32 +83,6 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
         />
       </section>
 
-      <section className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <StatCard
-          icon={<UserCheck size={14} className="text-emerald-400" />}
-          label={t('statAttendanceRate')}
-          value={
-            detail.attendance_stats.rate === null
-              ? t('attendanceNotAvailable')
-              : t('attendancePercent', { rate: detail.attendance_stats.rate })
-          }
-          mono
-        />
-        <StatCard
-          icon={<UserX size={14} className="text-rose-400" />}
-          label={t('statAttendedCount')}
-          value={t('attendedCount', {
-            attended: detail.attendance_stats.attended,
-            no_show: detail.attendance_stats.no_show,
-          })}
-        />
-        <StatCard
-          icon={<Crown size={14} className="text-amber-300" />}
-          label={t('statMvpCount')}
-          value={t('mvpTimes', { count: detail.total_mvps })}
-        />
-      </section>
-
       <section className="space-y-2">
         <h2 className="text-white font-bold text-sm">{t('roleBreakdown')}</h2>
         {detail.role_breakdown.length === 0 ? (
@@ -161,27 +135,7 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
       </section>
 
       <section className="space-y-2">
-        <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-white font-bold text-sm">{t('participatedEvents', { count: detail.events.length })}</h2>
-          {(() => {
-            // Sum per-battle wins/losses across every participated event, so
-            // an event with 2 battles both won contributes 2 wins — not 1.
-            let wins = 0
-            let losses = 0
-            for (const e of detail.events) {
-              wins += e.battle_wins
-              losses += e.battle_losses
-            }
-            if (wins === 0 && losses === 0) return null
-            return (
-              <p className="text-xs text-gray-400">
-                <span className="text-emerald-300 font-semibold">{t('winsCount', { count: wins })}</span>
-                <span className="mx-1.5 text-gray-600">·</span>
-                <span className="text-rose-300 font-semibold">{t('lossesCount', { count: losses })}</span>
-              </p>
-            )
-          })()}
-        </div>
+        <h2 className="text-white font-bold text-sm">{t('participatedEvents', { count: detail.events.length })}</h2>
         {detail.events.length === 0 ? (
           <p className="text-gray-500 text-xs">{t('noEvents')}</p>
         ) : (
@@ -203,37 +157,6 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
                       {e.role}
                     </span>
                     <span className="text-white text-sm truncate flex-1">{e.event_title}</span>
-                    {e.battle_wins + e.battle_losses > 1 && (
-                      <span className="text-[10px] font-mono text-gray-400 flex-shrink-0">
-                        <span className="text-emerald-300">{e.battle_wins}</span>
-                        <span className="text-gray-600">/</span>
-                        <span className="text-rose-300">{e.battle_losses}</span>
-                      </span>
-                    )}
-                    {e.mvp_count > 0 && (
-                      <span
-                        className="inline-flex items-center gap-1 bg-amber-500/20 border border-amber-500/40 text-amber-200 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
-                        title={t('mvpBadgeTitle', { count: e.mvp_count })}
-                      >
-                        <Crown size={10} />
-                        {e.mvp_count > 1 ? `×${e.mvp_count}` : 'MVP'}
-                      </span>
-                    )}
-                    <AttendanceBadge
-                      attendance={e.attendance}
-                      labels={{
-                        attended: t('attendanceBadgeAttended'),
-                        noShow: t('attendanceBadgeNoShow'),
-                      }}
-                    />
-                    <OutcomeBadge
-                      outcome={e.outcome}
-                      labels={{
-                        win: t('outcomeWin'),
-                        loss: t('outcomeLoss'),
-                        pending: t('outcomePending'),
-                      }}
-                    />
                     <span className="text-gray-500 text-xs font-mono flex-shrink-0">
                       {formatDate(whenIso)}
                     </span>
@@ -392,63 +315,6 @@ function ExchangeRow({
         {statusLabels[statusKey]}
       </span>
     </li>
-  )
-}
-
-function AttendanceBadge({
-  attendance,
-  labels,
-}: {
-  attendance: 'attended' | 'no_show' | 'unknown'
-  labels: { attended: string; noShow: string }
-}) {
-  if (attendance === 'attended') {
-    return (
-      <span className="inline-flex items-center gap-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">
-        <UserCheck size={10} />
-        {labels.attended}
-      </span>
-    )
-  }
-  if (attendance === 'no_show') {
-    return (
-      <span className="inline-flex items-center gap-1 bg-gray-700/60 border border-gray-600 text-gray-300 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">
-        <UserX size={10} />
-        {labels.noShow}
-      </span>
-    )
-  }
-  return null
-}
-
-function OutcomeBadge({
-  outcome,
-  labels,
-}: {
-  outcome: 'win' | 'loss' | null
-  labels: { win: string; loss: string; pending: string }
-}) {
-  if (outcome === 'win') {
-    return (
-      <span className="inline-flex items-center gap-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">
-        <Trophy size={10} />
-        {labels.win}
-      </span>
-    )
-  }
-  if (outcome === 'loss') {
-    return (
-      <span className="inline-flex items-center gap-1 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">
-        <ShieldAlert size={10} />
-        {labels.loss}
-      </span>
-    )
-  }
-  return (
-    <span className="inline-flex items-center gap-1 bg-gray-700 text-gray-300 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0">
-      <Hourglass size={10} />
-      {labels.pending}
-    </span>
   )
 }
 

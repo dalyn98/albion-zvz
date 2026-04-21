@@ -14,8 +14,6 @@ export default async function SettingsPage() {
     message,
     bannerUrl,
     ctaText,
-    aggregateStartDate,
-    aggregateEndDate,
     guestInviteToken,
     regearNoticeMessage,
     eventsNoticeMessage,
@@ -32,8 +30,6 @@ export default async function SettingsPage() {
     getAppSetting('event_notification_message', DEFAULT_EVENT_NOTIFICATION_MESSAGE),
     getAppSetting('landing_banner_url', ''),
     getAppSetting('landing_cta_text', ''),
-    getAppSetting('members_aggregate_start_date', ''),
-    getAppSetting('members_aggregate_end_date', ''),
     getAppSetting('guest_invite_token', ''),
     getAppSetting('regear_notice_message', ''),
     getAppSetting('events_notice_message', ''),
@@ -98,8 +94,6 @@ export default async function SettingsPage() {
         landingBannerUrl={bannerUrl}
         landingCtaText={ctaText}
         defaultLandingCtaText={tLanding('defaultCta')}
-        aggregateStartDate={aggregateStartDate}
-        aggregateEndDate={aggregateEndDate}
         guestInviteToken={guestInviteToken}
         regearNoticeMessage={regearNoticeMessage}
         eventsNoticeMessage={eventsNoticeMessage}

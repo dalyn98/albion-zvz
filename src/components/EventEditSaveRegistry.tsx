@@ -2,8 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode } from 'react'
 
-// 이벤트 편집 화면의 여러 섹션(EventInfoForm, BattleOutcomeEditor, 파티 편집기)
-// 을 하나의 "저장" 버튼으로 커밋하기 위한 공용 레지스트리.
+// 이벤트 편집 화면의 여러 섹션(EventInfoForm, 파티 편집기)을 하나의 "저장"
+// 버튼으로 커밋하기 위한 공용 레지스트리.
 //
 // 각 섹션은 useRegisterSave(id, fn) 으로 자신을 등록만 하고, 실제 버튼은
 // EventEditSaveBar 가 단일 제공. 개별 섹션의 save 버튼은 편집 모드에서 숨긴다.

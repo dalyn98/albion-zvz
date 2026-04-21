@@ -7,9 +7,6 @@ export interface Event {
   special_notes: string | null
   is_active: boolean
   battle_started_at: string | null
-  // 과반수의 event_battles.outcome 에서 자동 집계. 동수이면 null 로 남는다.
-  outcome: 'win' | 'loss' | null
-  finalized_at: string | null
   // Migration 030: 이벤트 Discord 채널 공지 시 @멘션할 역할 ID. NULL 이면
   // 멘션 없이 조용히 올린다.
   notify_role_id: string | null
@@ -19,29 +16,6 @@ export interface Event {
   // Migration 039: Discord ID of the event creator. NULL for legacy events
   // created before this column existed — those remain admin-only for edits.
   created_by: string | null
-  created_at: string
-}
-
-export type EventOutcome = 'win' | 'loss'
-
-export interface EventBattle {
-  id: string
-  event_id: string
-  battle_number: number
-  opponent_guild: string
-  // Migration 024: FK to opponent_guilds. `opponent_guild` (text) stays as a
-  // display snapshot so renaming/deleting a guild doesn't mutate history.
-  opponent_guild_id: string | null
-  outcome: EventOutcome
-  // Migration 028: Discord ID of the per-battle MVP. NULL means not recorded.
-  mvp_discord_id: string | null
-  created_at: string
-}
-
-export interface OpponentGuild {
-  id: string
-  name: string
-  notes: string | null
   created_at: string
 }
 
@@ -181,9 +155,6 @@ export interface Slot {
   gear_specs: GearSpecs | null
   assigned_discord_id: string | null
   assigned_username: string | null
-  // Set by admin when a signed-up member actually showed up in-game. NULL
-  // after battle start means "no-show". See migration 027.
-  attended_at: string | null
   assigned_weapon_name: string | null;  assigned_weapon_id: string | null
   assigned_head_name: string | null;    assigned_head_id: string | null
   assigned_armor_name: string | null;   assigned_armor_id: string | null

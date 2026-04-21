@@ -7,7 +7,7 @@ import { formatGatherTimeFor, isImminent, isEnded } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
-import HomeEventTabs, { type HomeEventCardData, type HomeEventKind } from '@/components/HomeEventTabs'
+import HomeEventList, { type HomeEventCardData, type HomeEventKind } from '@/components/HomeEventList'
 import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
 
 // Homepage reflects the live DB, so never prerender at build — a static
@@ -18,9 +18,6 @@ interface EventWithCounts extends Event {
   total: number
   assigned: number
 }
-
-// Scheduled kinds only; wins/losses are determined by event.outcome directly.
-type ScheduledKind = 'imminent' | 'ended' | 'upcoming'
 
 async function getActiveEvents(): Promise<EventWithCounts[]> {
   const { data: events } = await supabase
@@ -53,7 +50,7 @@ async function getActiveEvents(): Promise<EventWithCounts[]> {
   }))
 }
 
-function classifyScheduled(event: Event): ScheduledKind {
+function classifyScheduled(event: Event): HomeEventKind {
   if (event.battle_started_at && isEnded(event.battle_started_at)) return 'ended'
   if (event.battle_started_at || isImminent(event.gather_at)) return 'imminent'
   return 'upcoming'
@@ -76,49 +73,18 @@ export default async function HomePage() {
 
   const events = await getActiveEvents()
 
-  // Fetch opponent guild summaries for finalized events so the win/loss tabs
-  // can display "vs GuildA, GuildB · 3 battles" per card. Skip when there are
-  // no finalized events.
-  const finalizedIds = events.filter((e) => e.outcome).map((e) => e.id)
-  const battleMap = new Map<string, { opponents: string[]; count: number }>()
-  if (finalizedIds.length > 0) {
-    const { data: battles } = await supabase
-      .from('event_battles')
-      .select('event_id, opponent_guild, battle_number')
-      .in('event_id', finalizedIds)
-      .order('battle_number', { ascending: true })
-    for (const b of (battles ?? []) as { event_id: string; opponent_guild: string }[]) {
-      const cur = battleMap.get(b.event_id) ?? { opponents: [], count: 0 }
-      if (!cur.opponents.includes(b.opponent_guild)) cur.opponents.push(b.opponent_guild)
-      cur.count += 1
-      battleMap.set(b.event_id, cur)
-    }
-  }
+  const toCard = (event: EventWithCounts): HomeEventCardData => ({
+    id: event.id,
+    title: event.title,
+    gather_location: event.gather_location,
+    displayGatherTime: displayGatherTime(event),
+    total: event.total,
+    assigned: event.assigned,
+    kind: classifyScheduled(event),
+    battleStarted: !!event.battle_started_at,
+  })
 
-  const toCard = (event: EventWithCounts, kind: HomeEventKind): HomeEventCardData => {
-    const battleInfo = battleMap.get(event.id)
-    return {
-      id: event.id,
-      title: event.title,
-      gather_location: event.gather_location,
-      displayGatherTime: displayGatherTime(event),
-      total: event.total,
-      assigned: event.assigned,
-      kind,
-      battleStarted: !!event.battle_started_at,
-      opponentGuilds: battleInfo ? battleInfo.opponents.join(', ') : null,
-      battleCount: battleInfo?.count ?? 0,
-    }
-  }
-
-  const scheduled: HomeEventCardData[] = []
-  const wins: HomeEventCardData[] = []
-  const losses: HomeEventCardData[] = []
-  for (const e of events) {
-    if (e.outcome === 'win') wins.push(toCard(e, 'win'))
-    else if (e.outcome === 'loss') losses.push(toCard(e, 'loss'))
-    else scheduled.push(toCard(e, classifyScheduled(e)))
-  }
+  const cards = events.map(toCard)
 
   return (
     <main className="flex-1 px-4 py-6 sm:py-8 max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto w-full space-y-6">
@@ -145,7 +111,7 @@ export default async function HomePage() {
           <p className="text-gray-400">{t('home.empty')}</p>
         </div>
       ) : (
-        <HomeEventTabs scheduled={scheduled} wins={wins} losses={losses} />
+        <HomeEventList events={cards} />
       )}
     </main>
   )

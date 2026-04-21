@@ -18,8 +18,6 @@ import {
   X,
   ChevronDown,
   Settings,
-  Swords,
-  Flag,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -41,7 +39,6 @@ const MEMBER_NAV: NavItem[] = [
   { href: '/', labelKey: 'events', icon: CalendarDays },
   { href: '/regear', labelKey: 'regearRequest', icon: ShieldCheck, memberOnly: true },
   { href: '/members', labelKey: 'members', icon: Users },
-  { href: '/battle-records', labelKey: 'battleRecords', icon: Swords },
   { href: '/me', labelKey: 'myWallet', icon: Wallet, exact: true, memberOnly: true },
   { href: '/me/settings', labelKey: 'mySettings', icon: Settings },
 ]
@@ -51,7 +48,6 @@ const ADMIN_NAV: NavItem[] = [
   // exact 매칭이 없으면 하위 페이지에 있을 때도 "이벤트 관리"가 계속 하이라이트됨.
   { href: '/admin/dashboard', labelKey: 'eventAdmin', icon: CalendarDays, exact: true },
   { href: '/admin/dashboard/approvals', labelKey: 'approvals', icon: ShieldCheck },
-  { href: '/admin/dashboard/opponent-guilds', labelKey: 'opponentGuilds', icon: Flag },
   { href: '/admin/dashboard/settings', labelKey: 'settings', icon: Settings },
 ]
 

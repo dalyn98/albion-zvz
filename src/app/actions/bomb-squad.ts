@@ -24,7 +24,7 @@ async function authorizeBombSquadAction(slotId: string): Promise<
   const { data, error } = await db
     .from('slots')
     .select(
-      'id, requested_discord_id, parties!inner(is_bomb_squad, caller_discord_id, events!inner(id, created_by, finalized_at, battle_started_at))',
+      'id, requested_discord_id, parties!inner(is_bomb_squad, caller_discord_id, events!inner(id, created_by, battle_started_at))',
     )
     .eq('id', slotId)
     .maybeSingle()
@@ -39,7 +39,6 @@ async function authorizeBombSquadAction(slotId: string): Promise<
     : null
   if (!party?.is_bomb_squad) return { ok: false, error: tAction('notBombSquad') }
   if (!event) return { ok: false, error: tAction('slotNotFound') }
-  if (event.finalized_at) return { ok: false, error: tAction('eventFinalized') }
   if (event.battle_started_at) return { ok: false, error: tAction('battleAlreadyStarted') }
 
   const isEventOwner = !!event.created_by && event.created_by === session.discordId

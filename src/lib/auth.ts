@@ -44,8 +44,7 @@ export async function requireEventCreatorForEvent(eventId: string) {
 
 // Slot-scoped variant: resolves slot → party → event and delegates to
 // requireEventCreatorForEvent. Used by actions that take a slot id but need
-// to gate on the parent event's ownership (attendance toggle, assignment
-// clear from admin side).
+// to gate on the parent event's ownership (admin-side assignment clear, etc).
 export async function requireEventCreatorForSlot(slotId: string) {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')

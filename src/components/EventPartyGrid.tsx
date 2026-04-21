@@ -11,7 +11,6 @@ interface Props {
   currentDiscordId: string | null
   loginHref: string
   battleStarted: boolean
-  eventFinalized: boolean
   isAdmin: boolean
   avatars: Record<string, string | null>
 }
@@ -21,7 +20,6 @@ export default function EventPartyGrid({
   currentDiscordId,
   loginHref,
   battleStarted,
-  eventFinalized,
   isAdmin,
   avatars,
 }: Props) {
@@ -135,7 +133,6 @@ export default function EventPartyGrid({
                     currentDiscordId={currentDiscordId}
                     loginHref={loginHref}
                     battleStarted={battleStarted}
-                    eventFinalized={eventFinalized}
                     isAdmin={isAdmin}
                     assignedAvatar={
                       slot.assigned_discord_id ? avatars[slot.assigned_discord_id] ?? null : null

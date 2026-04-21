@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Coins, Trophy, ShieldAlert, Hourglass } from 'lucide-react'
+import { Coins } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { listMyRegearRequests, getMyPointsSummary } from '@/app/actions/regear'
@@ -62,8 +62,6 @@ export default async function MePage() {
 
   const balance = summary?.balance ?? 0
   const hasPendingExchange = exchanges.some((e) => e.status === 'pending')
-  const wins = participation.filter((p) => p.outcome === 'win').length
-  const losses = participation.filter((p) => p.outcome === 'loss').length
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -194,9 +192,7 @@ export default async function MePage() {
           <h2 className="text-lg font-bold text-white">{t('participationTitle')}</h2>
           {participation.length > 0 && (
             <p className="text-xs text-gray-400">
-              <span className="text-emerald-300 font-semibold">{t('winsCount', { count: wins })}</span>
-              <span className="mx-1.5 text-gray-600">·</span>
-              <span className="text-rose-300 font-semibold">{t('lossesCount', { count: losses })}</span>
+              {t('participationCount', { count: participation.length })}
             </p>
           )}
         </div>
@@ -217,14 +213,6 @@ export default async function MePage() {
                       {p.role_name && <span className="ml-2 text-gray-400">· {p.role_name}</span>}
                     </p>
                   </div>
-                  <ParticipationOutcomeBadge
-                    outcome={p.outcome}
-                    labels={{
-                      win: t('outcomeWin'),
-                      loss: t('outcomeLoss'),
-                      pending: t('outcomePending'),
-                    }}
-                  />
                 </Link>
               </li>
             ))}
@@ -282,36 +270,5 @@ export default async function MePage() {
         )}
       </section>
     </main>
-  )
-}
-
-function ParticipationOutcomeBadge({
-  outcome,
-  labels,
-}: {
-  outcome: 'win' | 'loss' | null
-  labels: { win: string; loss: string; pending: string }
-}) {
-  if (outcome === 'win') {
-    return (
-      <span className="inline-flex items-center gap-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0">
-        <Trophy size={11} />
-        {labels.win}
-      </span>
-    )
-  }
-  if (outcome === 'loss') {
-    return (
-      <span className="inline-flex items-center gap-1 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0">
-        <ShieldAlert size={11} />
-        {labels.loss}
-      </span>
-    )
-  }
-  return (
-    <span className="inline-flex items-center gap-1 bg-gray-700 text-gray-300 text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0">
-      <Hourglass size={11} />
-      {labels.pending}
-    </span>
   )
 }

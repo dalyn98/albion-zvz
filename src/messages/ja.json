@@ -7,12 +7,10 @@
     "events": "イベント",
     "regearRequest": "リギア申請",
     "members": "ギルドメンバー",
-    "battleRecords": "戦闘記録",
     "myWallet": "マイウォレット",
     "mySettings": "設定",
     "eventAdmin": "イベント管理",
     "approvals": "承認管理",
-    "opponentGuilds": "対戦ギルド",
     "settings": "設定"
   },
   "common": {
@@ -357,7 +355,10 @@
       "callerPlaceholder": "コーラーを選択してください",
       "callerStale": "{name} (資格なし)",
       "callerEmptyHint": "先に設定画面でコーラー役割を指定してください。",
-      "kind": { "melee": "近接", "ranged": "遠距離" }
+      "kind": {
+        "melee": "近接",
+        "ranged": "遠距離"
+      }
     }
   },
   "adminRoleRewards": {
@@ -391,17 +392,10 @@
     "tabNotifications": "イベント通知",
     "tabRewards": "役割別リギア金額",
     "tabLanding": "ランディングページ",
-    "tabMembersRange": "メンバー統計期間",
     "tabGuests": "ゲスト招待",
     "tabNotices": "告知",
     "tabPermissions": "権限",
     "tabEvents": "イベント/リギア",
-    "membersRangeTitle": "メンバー勝敗集計期間",
-    "membersRangeDescription": "ギルドメンバー一覧の上部に表示される勝敗合計と対戦ギルド数の集計範囲です。空欄の場合は全期間が集計されます。",
-    "membersRangeStart": "開始日",
-    "membersRangeEnd": "終了日",
-    "membersRangeClear": "クリア",
-    "membersRangeInvalid": "終了日が開始日より前です。",
     "rewardsDescription": "役割ごとのリギア請求上限です。ギルドメンバーはこの金額以下の範囲で直接請求金額を入力して申請し、承認時に請求金額がポイントとして支給されます。上限が 0 の役割はリギア申請がブロックされます。",
     "notificationsTitle": "イベント作成通知メッセージ",
     "notificationsDescription": "新しいイベントが作成されたときに Discord チャンネルの先頭に表示される文言です。メッセージの下にはサイトのメインリンクが自動的に添付されます。",
@@ -532,19 +526,13 @@
     "badge": {
       "inProgress": "戦闘中",
       "imminent": "戦闘間近",
-      "ended": "終了",
-      "win": "勝利",
-      "loss": "敗北"
+      "ended": "終了"
     },
     "tabs": {
       "scheduled": "予定",
-      "wins": "勝利",
-      "losses": "敗北",
       "count": "({count})"
     },
     "applicants": "申請 {assigned}/{total}",
-    "opponentsPrefix": "相手",
-    "battlesSuffix": "{count}戦",
     "newEvent": "新しいイベント"
   },
   "landing": {
@@ -571,7 +559,6 @@
     "info": "戦闘情報",
     "inProgress": "戦闘中 · {time} 開始",
     "ended": "イベント終了",
-    "endedNotice": "イベントは終了しました。新規申請およびキャンセルはできません。結果は各メンバーの参加履歴で確認できます。",
     "startedNotice": "戦闘はすでに開始されています。スロットの<bold>申請は可能</bold>ですが、<bold>キャンセルはできません</bold>。申請した時点で参加確定とみなされます。リギア申請は左側の<bold>リギア申請</bold>タブから行えます。",
     "applicants": "申請 {assigned}/{total}",
     "noParties": "登録されたパーティーはありません。",
@@ -585,15 +572,11 @@
     "editAria": "イベントを編集",
     "bombSquad": {
       "callerLabel": "コーラー {name}",
-      "kind": { "melee": "近接", "ranged": "遠距離" }
+      "kind": {
+        "melee": "近接",
+        "ranged": "遠距離"
+      }
     }
-  },
-  "eventBattles": {
-    "title": "戦闘記録",
-    "count": "{n}戦",
-    "win": "勝",
-    "loss": "敗",
-    "mvpSuffix": "MVP"
   },
   "slot": {
     "free": "自由",
@@ -735,19 +718,13 @@
     "counter": "ギルドメンバー <bold>{memberCount}</bold>名 · 累計参加 <bold>{total}</bold>回",
     "searchPlaceholder": "ギルドメンバー名で検索",
     "sortByParticipation": "参加回数順",
-    "sortByAttendance": "出席率順",
     "sortByRecent": "最近のログイン順",
     "noSearchResult": "検索結果がありません。",
     "adminLabel": "管理者",
     "noParticipationHistory": "参加履歴なし",
     "participation": "参加",
-    "attendancePercent": "{rate}%",
-    "attendanceFraction": "{attended}/{total}回参加",
     "aggregateRange": "集計期間",
     "aggregateAllTime": "全期間",
-    "aggregateWins": "総勝数",
-    "aggregateLosses": "総敗数",
-    "aggregateOpponents": "対戦ギルド数",
     "tabsLabel": "メンバーカテゴリ",
     "tabMembers": "ギルドメンバー",
     "tabGuests": "ゲスト",
@@ -775,11 +752,6 @@
     "killboardUnverified": "キルボード未確認",
     "participationTitle": "参加イベント履歴",
     "noParticipation": "参加したイベントがありません。",
-    "outcomeWin": "勝利",
-    "outcomeLoss": "敗北",
-    "outcomePending": "結果待ち",
-    "winsCount": "{count}勝",
-    "lossesCount": "{count}敗",
     "transferTitle": "ポイント譲渡",
     "transferDescription": "他のギルドメンバーにポイントを譲渡できます。複数人へ同時に分けて送ることも可能です。",
     "transferOpen": "譲渡する",
@@ -806,7 +778,8 @@
     "donationCancelConfirm": "この寄付申請をキャンセルしますか? アップロードしたスクリーンショットも削除されます。",
     "donationCancelConfirmButton": "キャンセル確定",
     "donationKeep": "維持",
-    "handledBy": "処理者 {handler}"
+    "handledBy": "処理者 {handler}",
+    "participationCount": "合計{count}回参加"
   },
   "myProfile": {
     "notRegistered": "ギルドメンバー情報がまだ登録されていません。再ログインすると自動的に登録されます。"
@@ -852,22 +825,7 @@
     "ceilingAmount": "上限 {amount}",
     "requestedAt": "申請 {when}",
     "resolvedAt": "{status} {when}",
-    "handledBy": "処理者 {handler}",
-    "outcomeWin": "勝利",
-    "outcomeLoss": "敗北",
-    "outcomePending": "結果待ち",
-    "winsCount": "{count}勝",
-    "lossesCount": "{count}敗",
-    "statAttendanceRate": "出席率",
-    "statAttendedCount": "参加/不参加",
-    "statMvpCount": "MVP獲得",
-    "attendancePercent": "{rate}%",
-    "attendanceNotAvailable": "集計なし",
-    "attendedCount": "{attended}回 / {no_show}回",
-    "mvpTimes": "{count}回",
-    "attendanceBadgeAttended": "参加",
-    "attendanceBadgeNoShow": "不参加",
-    "mvpBadgeTitle": "このイベントで{count}回MVP"
+    "handledBy": "処理者 {handler}"
   },
   "requestExchange": {
     "pendingNotice": "処理待ちの両替申請があるため、新規申請はできません。",
@@ -933,67 +891,6 @@
     "bombSquadNotAuthorized": "コーラーまたは管理者のみ処理できます。",
     "serverError": "サーバーエラーが発生しました。"
   },
-  "adminBattleOutcome": {
-    "sectionTitle": "戦闘結果",
-    "description": "戦闘ごとに相手ギルドと勝敗を記録してください。過半数で最終結果が決まります (同数の場合は未確定)。",
-    "opponentPlaceholder": "相手ギルドを選択",
-    "addNewGuild": "新しい相手ギルドを追加",
-    "newGuildNamePlaceholder": "例: MenHera",
-    "selectGuildRequired": "全ての戦闘の相手ギルドを選択してください。",
-    "createGuildFailed": "相手ギルドの作成に失敗しました。",
-    "win": "勝利",
-    "loss": "敗北",
-    "tie": "同点 (未確定)",
-    "previewLabel": "最終:",
-    "addBattle": "戦闘を追加",
-    "reset": "リセット",
-    "resetConfirm": "戦闘記録と結果をすべて削除しますか?",
-    "mvpLabel": "MVP",
-    "mvpPlaceholder": "MVPなし",
-    "mvpNoCandidates": "参加者がいないため選択できません"
-  },
-  "adminAttendance": {
-    "sectionTitle": "参加チェック",
-    "description": "申請したギルドメンバーのうち、実際の戦闘に参加した人を確認します。チェックされていないメンバーは不参加として集計されます。",
-    "summary": "{attended}/{total}名が参加",
-    "empty": "まだ申請者がいません。",
-    "markAll": "全員参加",
-    "clearAll": "すべて解除",
-    "confirmMarkAll": "すべての申請者を参加にチェックしますか？",
-    "confirmClearAll": "参加チェックをすべて解除しますか？",
-    "party": "パーティー {number}",
-    "slotLabel": "スロット {slot}",
-    "attended": "参加",
-    "noShow": "不参加",
-    "attendedAt": "{datetime} チェック",
-    "toastMarked": "参加としてチェックしました。",
-    "toastUnmarked": "参加チェックを解除しました。",
-    "toastBulk": "{count}名更新しました。"
-  },
-  "adminOpponentGuilds": {
-    "pageTitle": "対戦ギルド",
-    "pageDescription": "戦闘記録に登場する相手ギルドをアドレス帳のように管理します。ここに登録されたギルドのみが戦闘編集画面の選択肢として表示されます。",
-    "addGuild": "ギルド追加",
-    "namePlaceholder": "例: MenHera",
-    "notesPlaceholder": "メモ (任意)",
-    "empty": "登録された相手ギルドがありません。",
-    "createFailed": "ギルド作成に失敗しました。",
-    "deleteConfirm": "\"{name}\" ギルドを削除しますか? 既存の戦闘記録の名前は残りますがリンクは解除されます。"
-  },
-  "battleRecords": {
-    "title": "戦闘記録",
-    "description": "相手ギルド別の通算勝敗成績を確認します。",
-    "empty": "まだ記録された戦闘がありません。",
-    "searchPlaceholder": "相手ギルド名で検索",
-    "noSearchResult": "検索結果がありません。",
-    "unnamedGuild": "(無名)",
-    "winRate": "勝率 {rate}%",
-    "legacyNotLinked": "過去の記録 (ギルド未連結)",
-    "backToList": "戦闘記録一覧",
-    "wins": "勝",
-    "losses": "敗",
-    "detailEmpty": "このギルドとの戦闘記録はありません。"
-  },
   "publicRecords": {
     "title": "メンヘラ戦績",
     "description": "ログインなしで閲覧できる、相手ギルド別の通算勝敗記録です。",
@@ -1049,17 +946,6 @@
     "bannerFileTooLarge": "ファイルサイズは 5MB を超えることはできません。",
     "bannerWrongType": "PNG、JPG、WEBP、GIF ファイルのみアップロードできます。",
     "bannerUploadFailed": "アップロードに失敗しました: {reason}",
-    "battleNotStarted": "戦闘開始前は結果を保存できません。",
-    "attendanceSlotEmpty": "申請者がいないスロットは参加チェックできません。",
-    "emptyBattles": "戦闘記録を1件以上入力してください。",
-    "tooManyBattles": "戦闘は最大{max}回まで入力できます。",
-    "invalidBattleNumber": "戦闘番号が正しくありません。",
-    "duplicateBattleNumber": "戦闘番号が重複しています。",
-    "missingOpponentGuild": "相手ギルド名を入力してください。",
-    "opponentGuildTooLong": "相手ギルド名は{max}文字以内で入力してください。",
-    "opponentGuildDuplicate": "既に \"{name}\" ギルドが登録されています。",
-    "opponentGuildNotFound": "相手ギルドが見つかりません。",
-    "invalidBattleOutcome": "戦闘結果の値が正しくありません。",
     "invalidDateFormat": "日付は YYYY-MM-DD 形式で入力してください。",
     "unauthorized": "この操作を実行する権限がありません。",
     "invalidJsonArray": "役割一覧を保存できませんでした。",
@@ -1080,7 +966,6 @@
     "noAssignedSlot": "このイベントに割り当てられたスロットがありません。",
     "slotRoleMissing": "役割が指定されていないスロットです。管理者にお問い合わせください。",
     "alreadyRequestedForEvent": "このイベントにはすでにリギアを申請しています。",
-    "battleNotStarted": "まだ戦闘が開始されていません。管理者が戦闘開始を押してから申請できます。",
     "regearWindowNotOpen": "キルボードの集計待機中です。戦闘開始から{minutes}分が経過してから再度お試しください。",
     "regearDeathsLimitReached": "このイベントでは最大 {max}回まで申請できます。",
     "ceilingNotSetForRole": "この役割のリギア上限が設定されていません。管理者にお問い合わせください。",

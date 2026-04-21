@@ -8,8 +8,6 @@ import type { AppSettingKey } from '@/lib/app-settings'
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
   'landing_cta_text',
-  'members_aggregate_start_date',
-  'members_aggregate_end_date',
   'guest_invite_token',
   'regear_notice_message',
   'events_notice_message',
@@ -27,8 +25,6 @@ const MAX_VALUE_LENGTH = 500
 // application default"). Other keys reject empty input.
 const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   'landing_cta_text',
-  'members_aggregate_start_date',
-  'members_aggregate_end_date',
   // Empty token = guest invites disabled. Admin rotates or clears to revoke.
   'guest_invite_token',
   // Empty message = hide the regear notice banner entirely.
@@ -40,13 +36,6 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   // per-party caller picker will be empty and parties can still be created
   // but without a caller (admin/event creator can still approve).
   'bomb_squad_caller_role_ids',
-] as const
-
-// Date-shaped setting keys that must be 'YYYY-MM-DD' or empty. A free-form
-// setting form could drop arbitrary strings here, so we validate explicitly.
-const DATE_KEYS: readonly AppSettingKey[] = [
-  'members_aggregate_start_date',
-  'members_aggregate_end_date',
 ] as const
 
 // JSON array string keys. Must parse to string[] or the upsert is rejected.
@@ -69,8 +58,6 @@ const BOOLEAN_KEYS: readonly AppSettingKey[] = [
   'events_auto_start_enabled',
 ] as const
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-
 export async function updateAppSetting(
   key: AppSettingKey,
   value: string,
@@ -86,9 +73,6 @@ export async function updateAppSetting(
     }
     if (trimmed.length > MAX_VALUE_LENGTH) {
       return { error: tErr('valueTooLong', { max: MAX_VALUE_LENGTH }) }
-    }
-    if (trimmed && DATE_KEYS.includes(key) && !DATE_RE.test(trimmed)) {
-      return { error: tErr('invalidDateFormat') }
     }
     if (trimmed && JSON_ARRAY_KEYS.includes(key)) {
       try {

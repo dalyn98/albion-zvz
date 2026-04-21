@@ -39,7 +39,6 @@ interface Props {
   currentDiscordId: string | null
   loginHref: string
   battleStarted: boolean
-  eventFinalized: boolean
   isAdmin: boolean
   assignedAvatar?: string | null
   requestedAvatar?: string | null
@@ -193,7 +192,6 @@ export default function SlotCard({
   currentDiscordId,
   loginHref,
   battleStarted,
-  eventFinalized,
   isAdmin,
   assignedAvatar = null,
   requestedAvatar = null,
@@ -391,21 +389,6 @@ export default function SlotCard({
   )
 
   function renderAction() {
-    if (eventFinalized) {
-      if (isMine || !isTaken) {
-        return (
-          <button
-            disabled
-            title={t('eventFinalizedTooltip')}
-            className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-medium bg-gray-800/60 text-gray-400 border border-gray-700 cursor-not-allowed"
-          >
-            <Lock size={11} />
-            {t('eventFinalizedLocked')}
-          </button>
-        )
-      }
-      return null
-    }
     if (!isLoggedIn) {
       return (
         <a

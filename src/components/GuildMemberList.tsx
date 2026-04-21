@@ -15,7 +15,7 @@ interface Props {
   members: GuildMemberSummary[]
 }
 
-type SortKey = 'participation' | 'recent' | 'attendance'
+type SortKey = 'participation' | 'recent'
 
 export default function GuildMemberList({ members }: Props) {
   const t = useTranslations('members')
@@ -28,24 +28,6 @@ export default function GuildMemberList({ members }: Props) {
     const sorted = [...base]
     if (sortKey === 'recent') {
       sorted.sort((a, b) => b.updated_at.localeCompare(a.updated_at))
-    } else if (sortKey === 'attendance') {
-      // Members with no decidable events (everything upcoming) sort to the
-      // bottom — a NULL rate isn't comparable so we fall back to
-      // participation count then name.
-      sorted.sort((a, b) => {
-        const ar = a.attendance_rate
-        const br = b.attendance_rate
-        if (ar === null && br === null) {
-          if (b.participation_count !== a.participation_count) {
-            return b.participation_count - a.participation_count
-          }
-          return a.username.localeCompare(b.username)
-        }
-        if (ar === null) return 1
-        if (br === null) return -1
-        if (br !== ar) return br - ar
-        return a.username.localeCompare(b.username)
-      })
     } else {
       sorted.sort((a, b) => {
         if (b.participation_count !== a.participation_count) {
@@ -80,9 +62,6 @@ export default function GuildMemberList({ members }: Props) {
       <div className="flex items-center gap-2 flex-wrap">
         <SortChip active={sortKey === 'participation'} onClick={() => setSortKey('participation')}>
           {t('sortByParticipation')}
-        </SortChip>
-        <SortChip active={sortKey === 'attendance'} onClick={() => setSortKey('attendance')}>
-          {t('sortByAttendance')}
         </SortChip>
         <SortChip active={sortKey === 'recent'} onClick={() => setSortKey('recent')}>
           {t('sortByRecent')}
@@ -170,23 +149,6 @@ function MemberRow({ member }: { member: GuildMemberSummary }) {
         <div className="flex-shrink-0 text-right">
           <p className="text-amber-400 font-mono font-semibold text-sm">{member.participation_count}</p>
           <p className="text-gray-500 text-[10px]">{t('participation')}</p>
-          {member.attendance_rate !== null && (
-            <p
-              className={`text-[10px] font-mono mt-0.5 ${
-                member.attendance_rate >= 80
-                  ? 'text-emerald-400'
-                  : member.attendance_rate >= 50
-                    ? 'text-amber-300'
-                    : 'text-rose-300'
-              }`}
-              title={t('attendanceFraction', {
-                attended: member.attended_count,
-                total: member.decidable_count,
-              })}
-            >
-              {t('attendancePercent', { rate: member.attendance_rate })}
-            </p>
-          )}
         </div>
         <ChevronRight size={16} className="text-gray-600 flex-shrink-0" />
       </Link>

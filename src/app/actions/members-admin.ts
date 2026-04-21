@@ -5,7 +5,6 @@ import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { requireAdmin } from '@/lib/auth'
-import { getAppSetting } from '@/lib/app-settings'
 import { isLocale } from '@/i18n/locales'
 import type { RegearType } from '@/types'
 
@@ -38,14 +37,6 @@ export interface GuildMemberSummary {
   updated_at: string
   participation_count: number
   top_roles: RoleCount[]
-  // Attendance rate across events whose battle has started. NULL when the
-  // member has no decidable events (everything's upcoming/cancelled) — the
-  // list UI displays "—" in that case.
-  attendance_rate: number | null
-  // Same denominator as `attendance_rate` — lets the UI show "(5/7)" next
-  // to the percent so low-sample members aren't ranked misleadingly.
-  attended_count: number
-  decidable_count: number
   // null = 아직 언어 선택 안한 사용자 (환영 페이지 유도 대상)
   preferred_language: 'ko' | 'en' | 'ja' | null
 }
@@ -57,19 +48,6 @@ export interface MemberEventEntry {
   battle_started_at: string | null
   gather_at: string | null
   created_at: string
-  outcome: 'win' | 'loss' | null
-  // Per-battle breakdown for this event (from event_battles). Used for
-  // aggregate totals that count each battle separately rather than each event.
-  battle_wins: number
-  battle_losses: number
-  // Per-event attendance. 'attended' = at least one assigned slot for this
-  // member has attended_at set. 'no_show' = event battle started but no slot
-  // was marked attended. 'unknown' = battle hasn't started yet (upcoming or
-  // cancelled event) so attendance isn't decidable.
-  attendance: 'attended' | 'no_show' | 'unknown'
-  // Count of event_battles where this member was the recorded MVP. Summed
-  // per event so the detail card can flag stand-out performances.
-  mvp_count: number
 }
 
 export interface MemberRegearEntry {
@@ -129,84 +107,6 @@ export interface GuildMemberDetail {
   balance: number
   lifetime_earned: number
   lifetime_spent: number
-  // Attendance stats across all events the member signed up for. Rate is
-  // attended / (attended + no_show) rounded to two digits — events where
-  // the battle never started ('unknown') are excluded from the denominator
-  // so cancelled/upcoming signups don't hurt the rate.
-  attendance_stats: {
-    attended: number
-    no_show: number
-    unknown: number
-    rate: number | null
-  }
-  // Total MVP selections across the member's history. A single event can
-  // contribute multiple MVPs if they had standout performances in more
-  // than one battle of that event.
-  total_mvps: number
-}
-
-export interface GuildAggregateStats {
-  wins: number
-  losses: number
-  distinctOpponents: number
-  startDate: string
-  endDate: string
-}
-
-// /members 최상단 요약용. event_battles 의 outcome 을 그대로 세서 전투 단위로
-// 승/패를 합산한다 (한 이벤트에서 2번 싸워 모두 이기면 2승). 같은 쿼리에서
-// 등장한 상대 길드 종류 수도 센다. 관리자 설정의 날짜 필터는
-// events.battle_started_at 에 적용한다.
-export async function getGuildAggregateStats(): Promise<{
-  stats: GuildAggregateStats | null
-  error?: string
-}> {
-  const tErr = await getTranslations('adminActionError')
-  try {
-    const session = await getSession()
-    if (!session) return { stats: null, error: 'Unauthorized' }
-
-    const [startDate, endDate] = await Promise.all([
-      getAppSetting('members_aggregate_start_date', ''),
-      getAppSetting('members_aggregate_end_date', ''),
-    ])
-
-    const db = getAdminClient()
-    // Admin-entered dates are KST calendar days — anchor both bounds to KST
-    // midnight so the filter includes everything from "YYYY-MM-DD 00:00 KST"
-    // through "YYYY-MM-DD 23:59 KST", not the UTC equivalent that would
-    // drift the window by 9 hours.
-    let battleQuery = db
-      .from('event_battles')
-      .select('outcome, opponent_guild_id, opponent_guild, events!inner(battle_started_at)')
-    if (startDate)
-      battleQuery = battleQuery.gte('events.battle_started_at', `${startDate}T00:00:00+09:00`)
-    if (endDate)
-      battleQuery = battleQuery.lte('events.battle_started_at', `${endDate}T23:59:59+09:00`)
-
-    const battlesRes = await battleQuery
-    if (battlesRes.error) return { stats: null, error: battlesRes.error.message }
-
-    let wins = 0
-    let losses = 0
-    // FK 가 백필된 행은 id 로, 아직 FK 가 연결 안 된 레거시 행은 정규화된
-    // 이름으로 dedupe. 같은 길드가 두 방식으로 카운트돼 부풀지 않도록 우선순위:
-    // id 가 있으면 id, 없으면 lowercase trim.
-    const opponentKeys = new Set<string>()
-    for (const row of battlesRes.data ?? []) {
-      if (row.outcome === 'win') wins++
-      else if (row.outcome === 'loss') losses++
-      if (row.opponent_guild_id) opponentKeys.add(`id:${row.opponent_guild_id}`)
-      else if (row.opponent_guild)
-        opponentKeys.add(`name:${row.opponent_guild.trim().toLowerCase()}`)
-    }
-
-    return {
-      stats: { wins, losses, distinctOpponents: opponentKeys.size, startDate, endDate },
-    }
-  } catch (e) {
-    return { stats: null, error: e instanceof Error ? e.message : tErr('serverError') }
-  }
 }
 
 export async function listGuildMembers(): Promise<{
@@ -224,9 +124,7 @@ export async function listGuildMembers(): Promise<{
         .select('discord_id, username, avatar, is_admin, updated_at, preferred_language'),
       db
         .from('slots')
-        .select(
-          'assigned_discord_id, role_name, attended_at, parties!inner(event_id, events!inner(id, battle_started_at))',
-        )
+        .select('assigned_discord_id, role_name, parties!inner(event_id)')
         .not('assigned_discord_id', 'is', null),
     ])
     if (avatarsRes.error) return { members: [], error: avatarsRes.error.message }
@@ -236,42 +134,22 @@ export async function listGuildMembers(): Promise<{
     interface Agg {
       events: Set<string>
       roles: Map<string, number>
-      attendedEvents: Set<string>
-      decidableEvents: Set<string>
     }
     const bucket = new Map<string, Agg>()
     for (const row of slotsRes.data ?? []) {
       const discordId = row.assigned_discord_id
       if (!discordId) continue
-      const party = row.parties as
-        | { event_id: string; events: { id: string; battle_started_at: string | null } | { id: string; battle_started_at: string | null }[] }
-        | { event_id: string; events: { id: string; battle_started_at: string | null } | { id: string; battle_started_at: string | null }[] }[]
-        | null
-      const partyObj = Array.isArray(party) ? party[0] : party
-      const eventId = partyObj?.event_id
+      const party = row.parties as { event_id: string } | { event_id: string }[] | null
+      const eventId = Array.isArray(party) ? party[0]?.event_id : party?.event_id
       if (!eventId) continue
-      const event = partyObj
-        ? Array.isArray(partyObj.events)
-          ? partyObj.events[0]
-          : partyObj.events
-        : null
       let agg = bucket.get(discordId)
       if (!agg) {
-        agg = {
-          events: new Set(),
-          roles: new Map(),
-          attendedEvents: new Set(),
-          decidableEvents: new Set(),
-        }
+        agg = { events: new Set(), roles: new Map() }
         bucket.set(discordId, agg)
       }
       agg.events.add(eventId)
       const role = row.role_name ?? unassignedRoleLabel
       agg.roles.set(role, (agg.roles.get(role) ?? 0) + 1)
-      if (event?.battle_started_at) {
-        agg.decidableEvents.add(eventId)
-        if (row.attended_at) agg.attendedEvents.add(eventId)
-      }
     }
 
     const members: GuildMemberSummary[] = (avatarsRes.data ?? []).map((a) => {
@@ -281,9 +159,6 @@ export async function listGuildMembers(): Promise<{
             .map(([role, count]) => ({ role, count }))
             .sort((x, y) => y.count - x.count)
         : []
-      const decidable = agg?.decidableEvents.size ?? 0
-      const attended = agg?.attendedEvents.size ?? 0
-      const rate = decidable > 0 ? Math.round((attended / decidable) * 1000) / 10 : null
       return {
         discord_id: a.discord_id,
         username: a.username,
@@ -292,9 +167,6 @@ export async function listGuildMembers(): Promise<{
         updated_at: a.updated_at,
         participation_count: agg?.events.size ?? 0,
         top_roles: roles.slice(0, 3),
-        attendance_rate: rate,
-        attended_count: attended,
-        decidable_count: decidable,
         preferred_language: isLocale(a.preferred_language) ? a.preferred_language : null,
       }
     })
@@ -428,7 +300,7 @@ async function fetchMemberDetail(discordId: string): Promise<{
       db
         .from('slots')
         .select(
-          'role_name, attended_at, weapon_name, weapon_id, assigned_weapon_name, assigned_weapon_id, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at, outcome))',
+          'role_name, weapon_name, weapon_id, assigned_weapon_name, assigned_weapon_id, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at))',
         )
         .eq('assigned_discord_id', discordId),
       db
@@ -467,14 +339,10 @@ async function fetchMemberDetail(discordId: string): Promise<{
     // id (for icon rendering) and the raw name so the UI can render whichever
     // is available without a second lookup.
     const weaponAgg = new Map<string, { id: string | null; name: string; count: number }>()
-    // Per-event attendance aggregation — a member can fill multiple slots for
-    // one event; any attended slot flips the event to 'attended'. Stored as
-    // boolean per event and materialized into the enum after the loop.
-    const attendedAnySlot = new Map<string, boolean>()
     for (const row of slotsRes.data ?? []) {
       const party = row.parties as
-        | { event_id: string; events: { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null; outcome: 'win' | 'loss' | null } | { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null; outcome: 'win' | 'loss' | null }[] }
-        | { event_id: string; events: { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null; outcome: 'win' | 'loss' | null } | { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null; outcome: 'win' | 'loss' | null }[] }[]
+        | { event_id: string; events: { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null } | { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null }[] }
+        | { event_id: string; events: { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null } | { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null }[] }[]
         | null
       const partyObj = Array.isArray(party) ? party[0] : party
       if (!partyObj) continue
@@ -482,7 +350,6 @@ async function fetchMemberDetail(discordId: string): Promise<{
       if (!event) continue
       const role = row.role_name ?? unassignedRoleLabel
       roleCounter.set(role, (roleCounter.get(role) ?? 0) + 1)
-      attendedAnySlot.set(event.id, (attendedAnySlot.get(event.id) ?? false) || !!row.attended_at)
 
       // Prefer the member's assigned pick; fall back to the template weapon so
       // fixed-weapon slots (no weapon_options) still count. Skip rows where
@@ -516,45 +383,7 @@ async function fetchMemberDetail(discordId: string): Promise<{
           battle_started_at: event.battle_started_at,
           gather_at: event.gather_at,
           created_at: event.created_at,
-          outcome: event.outcome,
-          battle_wins: 0,
-          battle_losses: 0,
-          attendance: 'unknown',
-          mvp_count: 0,
         })
-      }
-    }
-
-    // Fetch per-battle outcomes for all participated events so the UI can show
-    // per-battle wins/losses (user request: one event with 2 battles both won
-    // should count as 2 wins, not 1). Also tallies MVP selections in the same
-    // pass so we don't need a second round-trip.
-    const participatedEventIds = Array.from(eventsMap.keys())
-    if (participatedEventIds.length > 0) {
-      const battlesRes = await db
-        .from('event_battles')
-        .select('event_id, outcome, mvp_discord_id')
-        .in('event_id', participatedEventIds)
-      if (battlesRes.error) return { detail: null, error: battlesRes.error.message }
-      for (const row of battlesRes.data ?? []) {
-        const entry = eventsMap.get(row.event_id)
-        if (!entry) continue
-        if (row.outcome === 'win') entry.battle_wins++
-        else if (row.outcome === 'loss') entry.battle_losses++
-        if (row.mvp_discord_id === discordId) entry.mvp_count++
-      }
-    }
-
-    // Materialize attendance per event: once the battle has started the
-    // member is either 'attended' (any slot marked attended_at) or 'no_show'
-    // (battle started but no confirmation). Pre-battle events stay 'unknown'.
-    for (const entry of eventsMap.values()) {
-      if (!entry.battle_started_at) {
-        entry.attendance = 'unknown'
-      } else if (attendedAnySlot.get(entry.event_id)) {
-        entry.attendance = 'attended'
-      } else {
-        entry.attendance = 'no_show'
       }
     }
 
@@ -629,19 +458,6 @@ async function fetchMemberDetail(discordId: string): Promise<{
       b.created_at.localeCompare(a.created_at),
     )
 
-    let attended = 0
-    let noShow = 0
-    let unknown = 0
-    let totalMvps = 0
-    for (const e of events) {
-      if (e.attendance === 'attended') attended++
-      else if (e.attendance === 'no_show') noShow++
-      else unknown++
-      totalMvps += e.mvp_count
-    }
-    const decidable = attended + noShow
-    const rate = decidable > 0 ? Math.round((attended / decidable) * 1000) / 10 : null
-
     return {
       detail: {
         discord_id: avatar.discord_id,
@@ -658,13 +474,6 @@ async function fetchMemberDetail(discordId: string): Promise<{
         balance,
         lifetime_earned: earned,
         lifetime_spent: spent,
-        attendance_stats: {
-          attended,
-          no_show: noShow,
-          unknown,
-          rate,
-        },
-        total_mvps: totalMvps,
       },
     }
   } catch (e) {

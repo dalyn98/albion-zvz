@@ -1,13 +1,12 @@
 'use client'
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { Bell, Coins, Image as ImageIcon, CalendarRange, UserPlus, Megaphone, Shield, Timer } from 'lucide-react'
+import { Bell, Coins, Image as ImageIcon, UserPlus, Megaphone, Shield, Timer } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import NotificationSettingsForm from './NotificationSettingsForm'
 import RoleRewardsEditor from './RoleRewardsEditor'
 import LandingBannerForm from './LandingBannerForm'
 import LandingCtaTextForm from './LandingCtaTextForm'
-import MembersAggregateRangeForm from './MembersAggregateRangeForm'
 import GuestInviteSettingsForm from './GuestInviteSettingsForm'
 import NoticeSettingForm from './NoticeSettingForm'
 import EventCreatorRolesSetting from './EventCreatorRolesSetting'
@@ -21,7 +20,6 @@ type TabKey =
   | 'notifications'
   | 'rewards'
   | 'landing'
-  | 'membersRange'
   | 'guests'
   | 'notices'
   | 'permissions'
@@ -33,7 +31,6 @@ interface TabDef {
     | 'tabNotifications'
     | 'tabRewards'
     | 'tabLanding'
-    | 'tabMembersRange'
     | 'tabGuests'
     | 'tabNotices'
     | 'tabPermissions'
@@ -48,7 +45,6 @@ const TABS: readonly TabDef[] = [
   { key: 'permissions', labelKey: 'tabPermissions', icon: Shield },
   { key: 'events', labelKey: 'tabEvents', icon: Timer },
   { key: 'landing', labelKey: 'tabLanding', icon: ImageIcon },
-  { key: 'membersRange', labelKey: 'tabMembersRange', icon: CalendarRange },
   { key: 'guests', labelKey: 'tabGuests', icon: UserPlus },
 ]
 
@@ -61,8 +57,6 @@ interface Props {
   landingBannerUrl: string
   landingCtaText: string
   defaultLandingCtaText: string
-  aggregateStartDate: string
-  aggregateEndDate: string
   guestInviteToken: string
   regearNoticeMessage: string
   eventsNoticeMessage: string
@@ -80,7 +74,6 @@ function isTabKey(value: string | null): value is TabKey {
     value === 'notifications' ||
     value === 'rewards' ||
     value === 'landing' ||
-    value === 'membersRange' ||
     value === 'guests' ||
     value === 'notices' ||
     value === 'permissions' ||
@@ -95,8 +88,6 @@ export default function SettingsTabs({
   landingBannerUrl,
   landingCtaText,
   defaultLandingCtaText,
-  aggregateStartDate,
-  aggregateEndDate,
   guestInviteToken,
   regearNoticeMessage,
   eventsNoticeMessage,
@@ -179,12 +170,6 @@ export default function SettingsTabs({
             />
             <LandingBannerForm currentUrl={landingBannerUrl} />
           </div>
-        )}
-        {active === 'membersRange' && (
-          <MembersAggregateRangeForm
-            initialStart={aggregateStartDate}
-            initialEnd={aggregateEndDate}
-          />
         )}
         {active === 'guests' && (
           <GuestInviteSettingsForm initialToken={guestInviteToken} origin={origin} />
