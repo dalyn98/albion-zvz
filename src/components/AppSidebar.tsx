@@ -20,6 +20,7 @@ import {
   Settings,
   Archive,
   ShoppingBag,
+  BarChart3,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -53,6 +54,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/dashboard', labelKey: 'eventAdmin', icon: CalendarDays, exact: true },
   { href: '/admin/dashboard/approvals', labelKey: 'approvals', icon: ShieldCheck },
   { href: '/admin/dashboard/shop', labelKey: 'shopAdmin', icon: ShoppingBag },
+  { href: '/admin/dashboard/stats', labelKey: 'stats', icon: BarChart3 },
   { href: '/admin/dashboard/settings', labelKey: 'settings', icon: Settings },
 ]
 
