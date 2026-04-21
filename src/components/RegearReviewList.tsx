@@ -92,6 +92,9 @@ function RegearRow({
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null)
   const [loadingScreenshot, setLoadingScreenshot] = useState(false)
   const [zoomed, setZoomed] = useState(false)
+  // 관리자가 청구 금액을 재량으로 조정해서 승인할 수 있게 — 빈 값 = 요율 기본.
+  const [overrideMode, setOverrideMode] = useState(false)
+  const [overrideInput, setOverrideInput] = useState('')
 
   const statusLabel = (status: string): string => {
     if (status === 'pending') return t('statusPending')
@@ -121,10 +124,10 @@ function RegearRow({
     })()
   }
 
-  const approve = () => {
+  const approve = (override?: number) => {
     setError('')
     startTransition(async () => {
-      const result = await approveRegearRequest(request.id)
+      const result = await approveRegearRequest(request.id, override)
       if (result.error) {
         setError(result.error)
         return
@@ -132,6 +135,24 @@ function RegearRow({
       toast.success(tToast('regearApproved'))
       router.refresh()
     })
+  }
+
+  const approveWithOverride = () => {
+    const trimmed = overrideInput.trim().replace(/,/g, '')
+    if (!trimmed) {
+      approve()
+      return
+    }
+    const n = Number(trimmed)
+    if (!Number.isInteger(n) || n < 0) {
+      setError('지급 금액은 0 이상 정수.')
+      return
+    }
+    if (n > claimed) {
+      setError(`지급 금액은 청구 금액(${claimed.toLocaleString()}s)을 넘을 수 없습니다.`)
+      return
+    }
+    approve(n)
   }
 
   const reject = () => {
@@ -243,11 +264,11 @@ function RegearRow({
       )}
 
       <div className="flex items-center gap-2 flex-wrap">
-        {request.status === 'pending' && !rejectMode && (
+        {request.status === 'pending' && !rejectMode && !overrideMode && (
           <>
             <button
               type="button"
-              onClick={approve}
+              onClick={() => approve()}
               disabled={pending}
               className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded"
             >
@@ -261,6 +282,18 @@ function RegearRow({
             </button>
             <button
               type="button"
+              onClick={() => {
+                setOverrideInput(String(pendingPayout))
+                setOverrideMode(true)
+              }}
+              disabled={pending}
+              className="flex items-center gap-1 text-xs bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 px-3 py-1.5 rounded"
+              title="청구 금액을 임의로 조정해서 승인"
+            >
+              금액 조정
+            </button>
+            <button
+              type="button"
               onClick={() => setRejectMode(true)}
               disabled={pending}
               className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded"
@@ -270,6 +303,52 @@ function RegearRow({
           </>
         )}
       </div>
+
+      {overrideMode && request.status === 'pending' && (
+        <div className="bg-amber-500/5 border border-amber-500/30 rounded-lg px-3 py-2 space-y-2">
+          <p className="text-xs text-amber-200/80">
+            지급 실버를 직접 입력합니다. 청구 금액({formatSilver(claimed)}s) 이내, 0 이상 정수.
+            비워두면 기본 요율({ratePercent}%) 로 지급됩니다.
+          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={overrideInput}
+              onChange={(e) => setOverrideInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') approveWithOverride()
+                if (e.key === 'Escape') setOverrideMode(false)
+              }}
+              className="bg-gray-900 border border-amber-500/60 rounded-lg px-3 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-amber-400 w-36 text-right"
+              placeholder={String(pendingPayout)}
+              autoFocus
+              disabled={pending}
+            />
+            <span className="text-xs text-gray-400 font-mono">실버</span>
+            <button
+              type="button"
+              onClick={approveWithOverride}
+              disabled={pending}
+              className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded disabled:opacity-50"
+            >
+              <Check size={13} />
+              조정 승인
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOverrideMode(false)
+                setOverrideInput('')
+              }}
+              disabled={pending}
+              className="text-gray-400 hover:text-white text-xs px-3 py-1.5"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
 
       {rejectMode && (
         <div className="space-y-2">

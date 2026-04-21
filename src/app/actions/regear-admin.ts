@@ -145,7 +145,10 @@ export async function getScreenshotUrl(path: string): Promise<{ url?: string; er
   }
 }
 
-export async function approveRegearRequest(id: string): Promise<{ error?: string }> {
+export async function approveRegearRequest(
+  id: string,
+  overrideSilver?: number,
+): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   const tDm = await getTranslations('discordDm')
   try {
@@ -153,7 +156,9 @@ export async function approveRegearRequest(id: string): Promise<{ error?: string
     const session = await getSession()
     // Compute the actual credit using the current rate. RPC also clamps to
     // [0, claimed]; this client-side calc is for the DM body and the
-    // approved row's payout_silver column.
+    // approved row's payout_silver column. If the admin typed an explicit
+    // override, use that value verbatim (clamped to [0, claimed] by the RPC
+    // too — 재고 없는 신청은 위에서 거르고 들어옴).
     const { data: pending } = await db
       .from('regear_requests')
       .select('claimed_silver')
@@ -162,7 +167,19 @@ export async function approveRegearRequest(id: string): Promise<{ error?: string
       .maybeSingle()
     const claimed = pending?.claimed_silver ?? 0
     const ratePercent = await loadPayoutRatePercent()
-    const payout = calcPayoutSilver(claimed, ratePercent)
+    const defaultPayout = calcPayoutSilver(claimed, ratePercent)
+    let payout = defaultPayout
+    if (typeof overrideSilver === 'number') {
+      if (!Number.isInteger(overrideSilver) || overrideSilver < 0) {
+        return { error: '지급 금액은 0 이상 정수여야 합니다.' }
+      }
+      // 상한은 claimed (원래 청구한 실버) — RPC 가 다시 클램프하지만 사용자에게
+      // 명확한 에러를 주기 위해 여기서도 검증.
+      if (overrideSilver > claimed) {
+        return { error: `지급 금액은 청구 금액(${claimed.toLocaleString()}s) 을 넘을 수 없습니다.` }
+      }
+      payout = overrideSilver
+    }
     const { error } = await db.rpc('approve_regear_request', {
       p_id: id,
       p_admin_id: session?.discordId ?? '',
