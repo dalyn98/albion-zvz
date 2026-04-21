@@ -90,7 +90,9 @@
   "adminEditEvent": {
     "title": "イベント編集",
     "partyConfigTitle": "パーティ構成",
-    "partyConfigDescription": "最大 {max} パーティ、パーティあたり最大 20 人。各スロットにロール名と 8 種の装備を指定できます。"
+    "partyConfigDescription": "最大 {max} パーティ、パーティあたり最大 20 人。各スロットにロール名と 8 種の装備を指定できます。",
+    "saveAll": "全体保存",
+    "saveAllSuccess": "保存済み"
   },
   "adminEventForm": {
     "sectionTitle": "イベント情報",

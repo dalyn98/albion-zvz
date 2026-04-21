@@ -7,6 +7,7 @@ import { Plus, Trash2, RotateCcw, Loader2, Trophy, ShieldAlert, UserPlus, Crown 
 import { saveEventBattles, resetEventOutcome } from '@/app/actions/admin'
 import { createOpponentGuild } from '@/app/actions/opponent-guilds'
 import type { EventBattle, EventOutcome, OpponentGuild } from '@/types'
+import { useRegisterSave } from './EventEditSaveRegistry'
 
 export interface MvpCandidate {
   discord_id: string
@@ -111,11 +112,13 @@ export default function BattleOutcomeEditor({
     })
   }
 
-  const save = () => {
-    setError('')
+  // 상위 저장 바에 합쳐지도록 서버 액션을 직접 호출하는 형태로 분리.
+  // router.refresh 는 저장 바가 담당하므로 여기서는 생략.
+  const persistBattles = async (): Promise<{ error?: string }> => {
     if (battles.some((b) => !b.opponent_guild_id)) {
-      setError(t('selectGuildRequired'))
-      return
+      const msg = t('selectGuildRequired')
+      setError(msg)
+      return { error: msg }
     }
     const payload = battles.map((b, i) => ({
       battle_number: i + 1,
@@ -124,12 +127,16 @@ export default function BattleOutcomeEditor({
       outcome: b.outcome,
       mvp_discord_id: b.mvp_discord_id,
     }))
-    startTransition(async () => {
-      const result = await saveEventBattles(eventId, payload)
-      if (result.error) setError(result.error)
-      else router.refresh()
-    })
+    const result = await saveEventBattles(eventId, payload)
+    if (result.error) {
+      setError(result.error)
+      return { error: result.error }
+    }
+    setError('')
+    return {}
   }
+
+  useRegisterSave('battle-outcome', t('sectionTitle'), persistBattles)
 
   const reset = () => {
     if (!confirm(t('resetConfirm'))) return
@@ -322,15 +329,6 @@ export default function BattleOutcomeEditor({
               {t('reset')}
             </button>
           )}
-          <button
-            type="button"
-            onClick={save}
-            disabled={pending}
-            className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-4 py-2 rounded text-sm"
-          >
-            {pending && <Loader2 size={13} className="animate-spin" />}
-            {pending ? tCommon('saving') : tCommon('save')}
-          </button>
         </div>
       </div>
 

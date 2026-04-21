@@ -90,7 +90,9 @@
   "adminEditEvent": {
     "title": "이벤트 수정",
     "partyConfigTitle": "파티 구성",
-    "partyConfigDescription": "최대 {max}개 파티, 파티당 최대 20명. 각 슬롯에는 역할명과 8종 장비를 지정할 수 있습니다."
+    "partyConfigDescription": "최대 {max}개 파티, 파티당 최대 20명. 각 슬롯에는 역할명과 8종 장비를 지정할 수 있습니다.",
+    "saveAll": "전체 저장",
+    "saveAllSuccess": "저장됨"
   },
   "adminEventForm": {
     "sectionTitle": "이벤트 정보",

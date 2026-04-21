@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Eye, EyeOff } from 'lucide-react'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
@@ -9,6 +8,7 @@ import type { GearOption, SlotKey } from '@/types'
 import { SLOT_KEYS } from '@/types'
 import { savePartySlots } from '@/app/actions/admin'
 import type { PartyWithSlots } from '@/types'
+import { useRegisterSave } from './EventEditSaveRegistry'
 
 function slotToInput(s: import('@/types').Slot): SlotInput {
   return {
@@ -44,11 +44,9 @@ interface Props {
 
 export default function PartyEditorPanel({ eventId, partyNumber, initialData }: Props) {
   const t = useTranslations('adminParty')
-  const router = useRouter()
   const [slots, setSlots] = useState<SlotInput[]>(
     initialData?.slots.map(slotToInput) ?? []
   )
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   const addSlot = () => {
@@ -74,9 +72,9 @@ export default function PartyEditorPanel({ eventId, partyNumber, initialData }: 
   const toggleHide = (idx: number) =>
     setSlots(slots.map((s, i) => i === idx ? { ...s, is_hidden: !s.is_hidden } : s))
 
-  const save = async () => {
-    setSaving(true)
-    setError('')
+  // 상위 저장 바에서 호출될 saver. 개별 저장 버튼이 없어졌으므로 에러만
+  // 지역 state 에 반영하고 실제 router.refresh 는 저장 바가 처리.
+  const persistParty = async (): Promise<{ error?: string }> => {
     const result = await savePartySlots(
       eventId,
       partyNumber,
@@ -84,10 +82,15 @@ export default function PartyEditorPanel({ eventId, partyNumber, initialData }: 
       slots.map((s, i) => ({ ...s, slot_number: i + 1 })),
       (initialData?.slots ?? []).map((s) => s.id),
     )
-    setSaving(false)
-    if (result.error) setError(result.error)
-    else router.refresh()
+    if (result.error) {
+      setError(result.error)
+      return { error: result.error }
+    }
+    setError('')
+    return {}
   }
+
+  useRegisterSave(`party-${partyNumber}`, t('partyBadge', { num: partyNumber }), persistParty)
 
   return (
     <details className="group border border-gray-700 rounded-xl overflow-hidden">
@@ -182,14 +185,6 @@ export default function PartyEditorPanel({ eventId, partyNumber, initialData }: 
             <p className="text-red-400 text-sm">{error}</p>
           </div>
         )}
-
-        <button
-          onClick={save}
-          disabled={saving}
-          className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold py-2.5 rounded-xl text-sm transition-colors"
-        >
-          {saving ? t('savingDots') : t('saveParty', { num: partyNumber })}
-        </button>
       </div>
     </details>
   )

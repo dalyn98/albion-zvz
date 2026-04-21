@@ -10,6 +10,8 @@ import LoadTemplateButton from '@/components/LoadTemplateButton'
 import BattleOutcomeEditor from '@/components/BattleOutcomeEditor'
 import AttendanceEditor from '@/components/AttendanceEditor'
 import DeleteEventButton from '@/components/DeleteEventButton'
+import { EventEditSaveProvider } from '@/components/EventEditSaveRegistry'
+import EventEditSaveBar from '@/components/EventEditSaveBar'
 import { listTemplates } from '@/app/actions/templates'
 import { listOpponentGuilds } from '@/app/actions/opponent-guilds'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
@@ -95,70 +97,76 @@ export default async function EditEventPage({
     return a.username.localeCompare(b.username)
   })
 
+  // EventEditSaveProvider 로 편집 섹션 전체를 감싸 하단 EventEditSaveBar 가
+  // 등록된 모든 섹션을 한번에 저장한다. 개별 섹션의 저장 버튼은 제거됨.
   return (
-    <div className="flex flex-col lg:flex-row lg:items-start lg:gap-6 space-y-4 lg:space-y-0">
-      <div className="flex-1 min-w-0 space-y-6 sm:space-y-8">
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="text-xl sm:text-2xl font-bold text-white">{t('title')}</h1>
-          <DeleteEventButton eventId={event.id} redirectTo="/admin/dashboard" variant="labeled" />
-        </div>
-        <EventInfoForm initialEvent={event} />
-
-        {event.battle_started_at && (
-          <BattleOutcomeEditor
-            eventId={event.id}
-            initialBattles={battles}
-            currentOutcome={event.outcome}
-            opponentGuilds={opponentGuilds}
-            mvpCandidates={mvpCandidates}
-          />
-        )}
-
-        {event.battle_started_at && (
-          <AttendanceEditor eventId={event.id} parties={parties} avatars={avatars} />
-        )}
-
-        <div className="lg:hidden">
-          <EventSlotSidebar placement="mobile" parties={parties} avatars={avatars} />
-        </div>
-
-        <hr className="border-gray-700" />
-        <section className="space-y-3 sm:space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-bold text-white">{t('partyConfigTitle')}</h2>
-              <p className="text-gray-400 text-xs sm:text-sm mt-1">
-                {t('partyConfigDescription', { max: MAX_PARTIES })}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {!hasParties && (
-                <LoadTemplateButton eventId={id} templates={templates} />
-              )}
-              {hasSlots && (
-                <SaveAsTemplateButton eventId={id} defaultName={event.title} />
-              )}
-            </div>
+    <EventEditSaveProvider>
+      <div className="flex flex-col lg:flex-row lg:items-start lg:gap-6 space-y-4 lg:space-y-0">
+        <div className="flex-1 min-w-0 space-y-6 sm:space-y-8">
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="text-xl sm:text-2xl font-bold text-white">{t('title')}</h1>
+            <DeleteEventButton eventId={event.id} redirectTo="/admin/dashboard" variant="labeled" />
           </div>
-          <div className="space-y-3">
-            {Array.from({ length: MAX_PARTIES }, (_, i) => i + 1).map((partyNumber) => {
-              const party = partiesByNumber.get(partyNumber) ?? null
-              return (
-                <PartyEditorPanel
-                  key={`${partyNumber}-${party?.id ?? 'empty'}`}
-                  eventId={id}
-                  partyNumber={partyNumber}
-                  initialData={party}
-                />
-              )
-            })}
+          <EventInfoForm initialEvent={event} />
+
+          {event.battle_started_at && (
+            <BattleOutcomeEditor
+              eventId={event.id}
+              initialBattles={battles}
+              currentOutcome={event.outcome}
+              opponentGuilds={opponentGuilds}
+              mvpCandidates={mvpCandidates}
+            />
+          )}
+
+          {event.battle_started_at && (
+            <AttendanceEditor eventId={event.id} parties={parties} avatars={avatars} />
+          )}
+
+          <div className="lg:hidden">
+            <EventSlotSidebar placement="mobile" parties={parties} avatars={avatars} />
           </div>
-        </section>
+
+          <hr className="border-gray-700" />
+          <section className="space-y-3 sm:space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-white">{t('partyConfigTitle')}</h2>
+                <p className="text-gray-400 text-xs sm:text-sm mt-1">
+                  {t('partyConfigDescription', { max: MAX_PARTIES })}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {!hasParties && (
+                  <LoadTemplateButton eventId={id} templates={templates} />
+                )}
+                {hasSlots && (
+                  <SaveAsTemplateButton eventId={id} defaultName={event.title} />
+                )}
+              </div>
+            </div>
+            <div className="space-y-3">
+              {Array.from({ length: MAX_PARTIES }, (_, i) => i + 1).map((partyNumber) => {
+                const party = partiesByNumber.get(partyNumber) ?? null
+                return (
+                  <PartyEditorPanel
+                    key={`${partyNumber}-${party?.id ?? 'empty'}`}
+                    eventId={id}
+                    partyNumber={partyNumber}
+                    initialData={party}
+                  />
+                )
+              })}
+            </div>
+          </section>
+
+          <EventEditSaveBar />
+        </div>
+
+        <aside className="hidden lg:block w-72 flex-shrink-0">
+          <EventSlotSidebar placement="desktop" parties={parties} avatars={avatars} />
+        </aside>
       </div>
-
-      <aside className="hidden lg:block w-72 flex-shrink-0">
-        <EventSlotSidebar placement="desktop" parties={parties} avatars={avatars} />
-      </aside>
-    </div>
+    </EventEditSaveProvider>
   )
 }

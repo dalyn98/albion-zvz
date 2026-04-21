@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { X } from 'lucide-react'
 import { createEvent, updateEvent } from '@/app/actions/admin'
+import { useRegisterSave } from './EventEditSaveRegistry'
 import {
   listGuildRoles,
   listGuildChannels,
@@ -100,68 +101,43 @@ export default function EventInfoForm({ initialEvent }: Props) {
 
   // 폼 → 실제 DB 호출에 쓰는 payload 를 한번에 조립. validate 에서 파싱한
   // Date 를 그대로 받아 다시 파싱하는 일 없이 재사용한다.
-  const validate = (): Date | null => {
-    if (!title.trim()) {
-      setError(t('titleRequired'))
-      return null
-    }
+  // 결과는 { dt } 또는 { error } — error 상태는 호출측에서 별도로 setError 한다.
+  const validate = (): { dt: Date } | { error: string } => {
+    if (!title.trim()) return { error: t('titleRequired') }
     const dt = parseGatherTime(parts, {
       referenceIso: initialEvent?.gather_at ?? null,
     })
-    if (!dt) {
-      setError(t('gatherTimeInvalid'))
-      return null
-    }
-    if (!gatherLocation.trim()) {
-      setError(t('gatherLocationRequired'))
-      return null
-    }
-    setError('')
-    return dt
+    if (!dt) return { error: t('gatherTimeInvalid') }
+    if (!gatherLocation.trim()) return { error: t('gatherLocationRequired') }
+    return { dt }
   }
 
-  const handlePrimary = async () => {
-    const dt = validate()
-    if (!dt) return
-
-    // 편집 모드는 기존대로 즉시 저장. 생성 모드는 확인 모달을 띄워
-    // "생성 → 저장" 2단계로 분리한다.
-    if (!initialEvent) {
-      setConfirmOpen(true)
+  // 생성 버튼은 확인 모달을 띄우는 1차 단계. 편집 모드에서는 렌더되지 않는다.
+  const openConfirm = () => {
+    const v = validate()
+    if ('error' in v) {
+      setError(v.error)
       return
     }
-
-    setLoading(true)
-    const result = await updateEvent(initialEvent.id, {
-      title: title.trim(),
-      gather_at: dt.toISOString(),
-      gather_time: formatGatherTimeKo(dt),
-      gather_location: gatherLocation.trim(),
-      special_notes: specialNotes.trim() || null,
-      notify_role_id: notifyRoleId || null,
-      notify_channel_id: notifyChannelId || null,
-    })
-    if ('error' in result && result.error) {
-      setError(result.error)
-    } else {
-      router.refresh()
-    }
-    setLoading(false)
+    setError('')
+    setConfirmOpen(true)
   }
 
   const commitCreate = async () => {
-    const dt = validate()
-    if (!dt) {
+    const v = validate()
+    if ('error' in v) {
+      setError(v.error)
       setConfirmOpen(false)
       return
     }
+    setError('')
     setLoading(true)
     // 생성 단계에서는 공지 대상(역할/채널) 을 보내지 않는다. 생성 후
     // 편집 화면에서 고르는 흐름.
     const result = await createEvent({
       title: title.trim(),
-      gather_at: dt.toISOString(),
-      gather_time: formatGatherTimeKo(dt),
+      gather_at: v.dt.toISOString(),
+      gather_time: formatGatherTimeKo(v.dt),
       gather_location: gatherLocation.trim(),
       special_notes: specialNotes.trim() || null,
     })
@@ -175,6 +151,36 @@ export default function EventInfoForm({ initialEvent }: Props) {
       router.push(`/admin/dashboard/events/${result.id}`)
     }
   }
+
+  // 편집 모드에서만 상위 저장 바에 자신을 등록. 생성 모드는 기존 모달 흐름.
+  useRegisterSave(
+    'event-info',
+    t('sectionTitle'),
+    async () => {
+      if (!initialEvent) return {}
+      const v = validate()
+      if ('error' in v) {
+        setError(v.error)
+        return { error: v.error }
+      }
+      const result = await updateEvent(initialEvent.id, {
+        title: title.trim(),
+        gather_at: v.dt.toISOString(),
+        gather_time: formatGatherTimeKo(v.dt),
+        gather_location: gatherLocation.trim(),
+        special_notes: specialNotes.trim() || null,
+        notify_role_id: notifyRoleId || null,
+        notify_channel_id: notifyChannelId || null,
+      })
+      if ('error' in result && result.error) {
+        setError(result.error)
+        return { error: result.error }
+      }
+      setError('')
+      return {}
+    },
+    isEdit,
+  )
 
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4">
@@ -307,14 +313,20 @@ export default function EventInfoForm({ initialEvent }: Props) {
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={handlePrimary}
-        disabled={loading}
-        className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-6 py-2.5 rounded-lg transition-colors"
-      >
-        {loading ? tCommon('saving') : initialEvent ? tCommon('save') : t('createEvent')}
-      </button>
+      {/*
+        편집 모드에서는 하단 EventEditSaveBar 가 전체 섹션을 한번에 저장하므로
+        개별 저장 버튼을 숨긴다. 생성 모드는 이 버튼으로 확인 모달을 띄운다.
+      */}
+      {!isEdit && (
+        <button
+          type="button"
+          onClick={openConfirm}
+          disabled={loading}
+          className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-6 py-2.5 rounded-lg transition-colors"
+        >
+          {loading ? tCommon('saving') : t('createEvent')}
+        </button>
+      )}
 
       {/*
         생성 모드에서만 쓰이는 "미리보기 → 저장" 확인 모달. 관리자가

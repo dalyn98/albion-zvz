@@ -90,7 +90,9 @@
   "adminEditEvent": {
     "title": "Edit event",
     "partyConfigTitle": "Party composition",
-    "partyConfigDescription": "Up to {max} parties, 20 members per party. Each slot can be assigned a role name and 8 gear pieces."
+    "partyConfigDescription": "Up to {max} parties, 20 members per party. Each slot can be assigned a role name and 8 gear pieces.",
+    "saveAll": "Save all",
+    "saveAllSuccess": "Saved"
   },
   "adminEventForm": {
     "sectionTitle": "Event info",
