@@ -396,6 +396,7 @@
     "tabGuests": "게스트 초대",
     "tabNotices": "공지",
     "tabPermissions": "권한",
+    "tabEvents": "이벤트/리기어",
     "membersRangeTitle": "길드원 승패 집계 기간",
     "membersRangeDescription": "길드원 목록 최상단에 표시되는 승/패 합산과 상대 길드 수의 집계 범위입니다. 비워두면 전체 기간이 집계됩니다.",
     "membersRangeStart": "시작일",
@@ -471,6 +472,27 @@
     "searchPlaceholder": "역할 이름으로 검색",
     "clearSelection": "모두 해제",
     "noMatches": "일치하는 역할이 없습니다.",
+    "save": "저장",
+    "saving": "저장 중…",
+    "saved": "저장됨"
+  },
+  "adminRegearLimits": {
+    "title": "리기어 신청 제한",
+    "description": "전투 시작 이후 리기어 신청 가능 창(분)과 1명이 같은 이벤트에서 제출할 수 있는 최대 건수를 설정합니다. 변경은 이후 제출부터 반영됩니다.",
+    "windowMinutesLabel": "신청 창 (분)",
+    "windowMinutesHint": "{min} ~ {max}분. 전투 시작(battle_started_at) 이후 이 시간 안에만 신청 가능. 킬보드 검증 창도 같은 값입니다.",
+    "maxDeathsLabel": "이벤트당 최대 신청 수",
+    "maxDeathsHint": "{min} ~ {max}. 1명이 같은 이벤트에서 제출할 수 있는 최대 건수. rejected 된 건은 제외 — 재신청 가능합니다.",
+    "invalidRange": "입력 값이 허용 범위를 벗어났습니다.",
+    "save": "저장",
+    "saving": "저장 중…",
+    "saved": "저장됨"
+  },
+  "adminEventAutoStart": {
+    "title": "이벤트 자동 시작",
+    "description": "집결 시간(gather_at)이 지난 이벤트를 크론이 자동으로 시작 처리합니다. 관리자가 수동으로 시작을 누르지 않아도 리기어 창이 예정 시간에 열립니다.",
+    "enabledLabel": "자동 시작 활성화",
+    "enabledHint": "활성화하면 5분 주기 크론이 gather_at ≤ 현재 시각이고 battle_started_at 이 비어 있는 이벤트의 시작 시점을 gather_at 로 채웁니다. 과거 이벤트 일괄 처리를 막기 위해 최근 30분 이내만 대상입니다.",
     "save": "저장",
     "saving": "저장 중…",
     "saved": "저장됨"
@@ -672,7 +694,11 @@
     "submit": "신청",
     "cancelConfirm": "이 리기어 신청을 취소할까요? 업로드한 스크린샷도 함께 삭제됩니다.",
     "cancelConfirmButton": "취소 확정",
-    "keep": "유지"
+    "keep": "유지",
+    "buttonWindowClosed": "창 닫힘",
+    "buttonRequestRemaining": "리기어 신청 (잔여 {remaining}회)",
+    "deathsRemaining": "잔여 신청",
+    "deathsRemainingValue": "{remaining}/{max}회"
   },
   "donation": {
     "openButton": "기부 신청",
@@ -1028,7 +1054,9 @@
     "invalidBattleOutcome": "전투 결과 값이 올바르지 않습니다.",
     "invalidDateFormat": "날짜는 YYYY-MM-DD 형식으로 입력해 주세요.",
     "unauthorized": "이 작업을 수행할 권한이 없습니다.",
-    "invalidJsonArray": "역할 목록을 올바르게 저장할 수 없습니다."
+    "invalidJsonArray": "역할 목록을 올바르게 저장할 수 없습니다.",
+    "invalidIntegerRange": "{min} ~ {max} 사이의 정수로 입력해 주세요.",
+    "invalidBoolean": "true 또는 false 값만 허용됩니다."
   },
   "memberActionError": {
     "loginRequired": "로그인이 필요합니다.",
@@ -1043,6 +1071,8 @@
     "slotRoleMissing": "역할이 지정되지 않은 슬롯입니다. 관리자에게 문의하세요.",
     "alreadyRequestedForEvent": "이 이벤트에 이미 리기어를 신청했습니다.",
     "battleNotStarted": "아직 전투가 시작되지 않았습니다. 관리자가 전투 시작을 눌러야 신청이 가능합니다.",
+    "regearWindowClosed": "리기어 신청 창이 이미 닫혔습니다.",
+    "regearDeathsLimitReached": "이 이벤트에서 최대 {max}회까지 신청 가능합니다.",
     "ceilingNotSetForRole": "해당 역할의 리기어 상한이 설정되지 않았습니다. 관리자에게 문의하세요.",
     "invalidClaimAmount": "청구 금액을 정수로 입력해 주세요.",
     "claimOverCeiling": "청구 금액은 역할 상한({ceiling}) 이하여야 합니다.",

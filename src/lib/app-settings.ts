@@ -27,6 +27,19 @@ export type AppSettingKey =
   // into `guild_avatars.is_bomb_squad_caller` at login, so role changes take
   // effect after the member's next login.
   | 'bomb_squad_caller_role_ids'
+  // Regear submission window in minutes, measured from `events.battle_started_at`.
+  // Stored as an integer string. Killboard verification uses the same window.
+  // Default '60' matches the legacy hard-coded value.
+  | 'regear_window_minutes'
+  // Max regear requests per user per event (non-rejected rows). Integer string.
+  // Default '1' matches the legacy partial-unique constraint. Raising this lets
+  // members submit one request per in-game death within the same event.
+  | 'regear_max_deaths_per_event'
+  // Boolean string ('true'/'false'). When 'true', the event-imminent cron also
+  // auto-sets `battle_started_at = gather_at` for events whose gather_at has
+  // passed — so the regear window opens at the scheduled time without waiting
+  // for the admin to click the manual start button.
+  | 'events_auto_start_enabled'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

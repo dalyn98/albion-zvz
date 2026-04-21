@@ -393,6 +393,7 @@
     "tabGuests": "Guest invite",
     "tabNotices": "Notices",
     "tabPermissions": "Permissions",
+    "tabEvents": "Events / Regear",
     "membersRangeTitle": "Members win/loss aggregate range",
     "membersRangeDescription": "Date range used by the wins/losses and distinct-opponent totals at the top of the guild members page. Leave blank to include all time.",
     "membersRangeStart": "Start date",
@@ -468,6 +469,27 @@
     "searchPlaceholder": "Search roles",
     "clearSelection": "Clear all",
     "noMatches": "No matching roles.",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved"
+  },
+  "adminRegearLimits": {
+    "title": "Regear submission limits",
+    "description": "Configure how long after battle start members can submit regear requests and how many requests a single member can file per event. Changes apply to submissions from now on.",
+    "windowMinutesLabel": "Submission window (minutes)",
+    "windowMinutesHint": "{min}–{max} minutes. Measured from battle_started_at. Killboard verification uses the same window.",
+    "maxDeathsLabel": "Max requests per event",
+    "maxDeathsHint": "{min}–{max}. Max regear requests a single member can file per event. Rejected rows don't count — members can retry after a rejection.",
+    "invalidRange": "Value out of allowed range.",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved"
+  },
+  "adminEventAutoStart": {
+    "title": "Auto-start events",
+    "description": "Cron automatically marks battle started for events whose gather_at has passed, opening the regear window at the scheduled time without admin intervention.",
+    "enabledLabel": "Enable auto-start",
+    "enabledHint": "When enabled, the 5-min cron sets battle_started_at = gather_at for events where gather_at ≤ now and battle_started_at is NULL. Only the last 30 minutes are scanned to prevent bulk-starting historical events.",
     "save": "Save",
     "saving": "Saving…",
     "saved": "Saved"
@@ -666,7 +688,11 @@
     "submit": "Submit",
     "cancelConfirm": "Cancel this regear request? The uploaded screenshot will also be deleted.",
     "cancelConfirmButton": "Confirm cancel",
-    "keep": "Keep"
+    "keep": "Keep",
+    "buttonWindowClosed": "Window closed",
+    "buttonRequestRemaining": "Regear ({remaining} left)",
+    "deathsRemaining": "Remaining",
+    "deathsRemainingValue": "{remaining}/{max}"
   },
   "donation": {
     "openButton": "Submit donation",
@@ -1022,7 +1048,9 @@
     "unauthorized": "You don't have permission to perform this action.",
     "invalidJsonArray": "Could not save the role list.",
     "bombSquadKindRequired": "Select the bomb squad kind (melee/ranged).",
-    "partyNameTooLong": "Party name cannot exceed {max} characters."
+    "partyNameTooLong": "Party name cannot exceed {max} characters.",
+    "invalidIntegerRange": "Enter an integer between {min} and {max}.",
+    "invalidBoolean": "Only 'true' or 'false' is allowed."
   },
   "memberActionError": {
     "loginRequired": "Login required.",
@@ -1037,6 +1065,8 @@
     "slotRoleMissing": "The slot has no role assigned. Please contact an admin.",
     "alreadyRequestedForEvent": "You've already submitted a regear request for this event.",
     "battleNotStarted": "The battle hasn't started yet. You can apply after an admin marks it as started.",
+    "regearWindowClosed": "The regear submission window has closed.",
+    "regearDeathsLimitReached": "You've already submitted the max ({max}) regear requests for this event.",
     "ceilingNotSetForRole": "This role's regear cap isn't set. Please contact an admin.",
     "invalidClaimAmount": "Claim amount must be an integer.",
     "claimOverCeiling": "Claim must be at or below the role cap ({ceiling}).",

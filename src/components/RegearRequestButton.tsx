@@ -12,27 +12,31 @@ interface Props {
   eventId: string
   roleName: string | null
   roleReward: number
-  alreadyRequested: boolean
+  existingActiveCount: number
+  maxDeaths: number
+  windowMinutes: number
   battleStartedAt: string | null
 }
 
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
 
-function formatWindow(iso: string): string {
+function formatWindow(iso: string, windowMinutes: number): string {
   const startMs = new Date(iso).getTime()
   // KST (UTC+9, no DST). Extract HH:mm by shifting into UTC+9.
   const kstHourMinute = (ms: number) => {
     const shifted = new Date(ms + 9 * 60 * 60 * 1000)
     return `${String(shifted.getUTCHours()).padStart(2, '0')}:${String(shifted.getUTCMinutes()).padStart(2, '0')}`
   }
-  return `${kstHourMinute(startMs)} ~ ${kstHourMinute(startMs + 60 * 60 * 1000)}`
+  return `${kstHourMinute(startMs)} ~ ${kstHourMinute(startMs + windowMinutes * 60 * 1000)}`
 }
 
 export default function RegearRequestButton({
   eventId,
   roleName,
   roleReward,
-  alreadyRequested,
+  existingActiveCount,
+  maxDeaths,
+  windowMinutes,
   battleStartedAt,
 }: Props) {
   const router = useRouter()
@@ -84,14 +88,26 @@ export default function RegearRequestButton({
 
   const notStarted = !battleStartedAt
   const ceilingMissing = roleReward <= 0
-  const disabled = alreadyRequested || !roleName || notStarted || ceilingMissing
-  const buttonLabel = alreadyRequested
+  const atLimit = existingActiveCount >= maxDeaths
+  const remaining = Math.max(0, maxDeaths - existingActiveCount)
+  // Client-side window-closed check. Server re-validates; this is just to keep
+  // the button from opening a modal that will error on submit.
+  const windowEndMs = battleStartedAt
+    ? new Date(battleStartedAt).getTime() + windowMinutes * 60 * 1000
+    : null
+  const windowClosed = windowEndMs !== null && Date.now() > windowEndMs
+  const disabled = atLimit || !roleName || notStarted || ceilingMissing || windowClosed
+  const buttonLabel = atLimit
     ? t('buttonDone')
     : notStarted
       ? t('buttonNotStarted')
-      : ceilingMissing
-        ? t('buttonCeilingMissing')
-        : t('buttonRequest')
+      : windowClosed
+        ? t('buttonWindowClosed')
+        : ceilingMissing
+          ? t('buttonCeilingMissing')
+          : maxDeaths > 1 && existingActiveCount > 0
+            ? t('buttonRequestRemaining', { remaining })
+            : t('buttonRequest')
 
   const claimInvalid = parsedClaim === null || parsedClaim <= 0 || parsedClaim > roleReward
 
@@ -180,7 +196,15 @@ export default function RegearRequestButton({
                 {battleStartedAt && (
                   <div className="flex items-center justify-between">
                     <span className="text-gray-400">{t('acceptedWindow')}</span>
-                    <span className="text-gray-200 font-mono text-xs">{formatWindow(battleStartedAt)}</span>
+                    <span className="text-gray-200 font-mono text-xs">{formatWindow(battleStartedAt, windowMinutes)}</span>
+                  </div>
+                )}
+                {maxDeaths > 1 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400">{t('deathsRemaining')}</span>
+                    <span className="text-gray-200 font-mono text-xs">
+                      {t('deathsRemainingValue', { remaining, max: maxDeaths })}
+                    </span>
                   </div>
                 )}
               </div>

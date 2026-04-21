@@ -21,6 +21,9 @@ export default async function SettingsPage() {
     eventsNoticeMessage,
     eventCreatorRoleIdsRaw,
     bombSquadCallerRoleIdsRaw,
+    regearWindowMinutesRaw,
+    regearMaxDeathsRaw,
+    eventsAutoStartRaw,
     { rewards, error: rewardsError },
     tLanding,
     t,
@@ -35,6 +38,9 @@ export default async function SettingsPage() {
     getAppSetting('events_notice_message', ''),
     getAppSetting('event_creator_role_ids', '[]'),
     getAppSetting('bomb_squad_caller_role_ids', '[]'),
+    getAppSetting('regear_window_minutes', '60'),
+    getAppSetting('regear_max_deaths_per_event', '1'),
+    getAppSetting('events_auto_start_enabled', 'false'),
     listRoleRewards(),
     getTranslations('landing'),
     getTranslations('adminSettings'),
@@ -53,6 +59,16 @@ export default async function SettingsPage() {
   }
   const eventCreatorRoleIds = parseRoleIds(eventCreatorRoleIdsRaw)
   const bombSquadCallerRoleIds = parseRoleIds(bombSquadCallerRoleIdsRaw)
+
+  // Numeric/boolean settings degrade to sane defaults if the DB value is
+  // missing or malformed — admin can correct via the new form.
+  const parseInteger = (raw: string, fallback: number): number => {
+    const parsed = Number(raw)
+    return Number.isFinite(parsed) && Number.isInteger(parsed) && parsed >= 1 ? parsed : fallback
+  }
+  const regearWindowMinutes = parseInteger(regearWindowMinutesRaw, 60)
+  const regearMaxDeaths = parseInteger(regearMaxDeathsRaw, 1)
+  const eventsAutoStartEnabled = eventsAutoStartRaw === 'true'
 
   // Prefer the deployed public URL so the invite link we show to the admin
   // matches what recipients will actually visit.
@@ -79,6 +95,9 @@ export default async function SettingsPage() {
         eventsNoticeMessage={eventsNoticeMessage}
         eventCreatorRoleIds={eventCreatorRoleIds}
         bombSquadCallerRoleIds={bombSquadCallerRoleIds}
+        regearWindowMinutes={regearWindowMinutes}
+        regearMaxDeaths={regearMaxDeaths}
+        eventsAutoStartEnabled={eventsAutoStartEnabled}
         origin={origin}
       />
     </div>

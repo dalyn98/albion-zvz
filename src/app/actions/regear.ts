@@ -5,15 +5,30 @@ import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { verifyDeathInWindow } from '@/lib/killboard'
+import { getAppSetting } from '@/lib/app-settings'
 import { SLOT_KEYS, getDisplayGear, type BuildSnapshot, type RegearType, type SlotGearDisplay, type SlotKey } from '@/types'
 
 // User-facing regear actions. Admin-side lives in `regear-admin.ts`.
 
 const SCREENSHOT_BUCKET = 'regear-screenshots'
 const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024 // 10 MiB — must match bucket limit in migration 003
-const REGEAR_WINDOW_MINUTES = 60
+const DEFAULT_REGEAR_WINDOW_MINUTES = 60
+const DEFAULT_MAX_DEATHS_PER_EVENT = 1
 
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp'])
+
+async function loadRegearLimits(): Promise<{ windowMinutes: number; maxDeaths: number }> {
+  const [windowRaw, maxRaw] = await Promise.all([
+    getAppSetting('regear_window_minutes', String(DEFAULT_REGEAR_WINDOW_MINUTES)),
+    getAppSetting('regear_max_deaths_per_event', String(DEFAULT_MAX_DEATHS_PER_EVENT)),
+  ])
+  const windowParsed = Number(windowRaw)
+  const maxParsed = Number(maxRaw)
+  return {
+    windowMinutes: Number.isFinite(windowParsed) && windowParsed >= 1 ? Math.floor(windowParsed) : DEFAULT_REGEAR_WINDOW_MINUTES,
+    maxDeaths: Number.isFinite(maxParsed) && maxParsed >= 1 ? Math.floor(maxParsed) : DEFAULT_MAX_DEATHS_PER_EVENT,
+  }
+}
 
 function buildSnapshotFromSlot(slot: SlotGearDisplay, roleName: string): BuildSnapshot {
   const gear = SLOT_KEYS.reduce(
@@ -59,7 +74,20 @@ export interface RegearEligibleEvent {
   battle_started_at: string
   role_name: string
   role_reward: number
-  already_requested: boolean
+  // Non-rejected regear requests the current user already has for this event.
+  // Button disables when this hits `maxDeaths` (loaded separately on the page).
+  existing_active_count: number
+}
+
+export interface RegearLimits {
+  windowMinutes: number
+  maxDeaths: number
+}
+
+// Exposed to the regear page so it can render the window/cap labels and
+// decide button state without re-reading app_settings from the client bundle.
+export async function getRegearLimits(): Promise<RegearLimits> {
+  return loadRegearLimits()
 }
 
 export async function requestRegear(
@@ -99,18 +127,22 @@ export async function requestRegear(
 
   const buildSnapshot = buildSnapshotFromSlot(slot as unknown as SlotGearDisplay, roleName)
 
-  // 2) Duplicate request guard (partial; DB partial-unique index is the hard
-  //    guard). Only pending/approved rows block re-submission — rejected rows
-  //    stay on record for audit but don't lock the user out of retrying.
-  const { data: existing, error: existingError } = await db
+  const { windowMinutes, maxDeaths } = await loadRegearLimits()
+
+  // 2) Per-event death cap. Non-rejected rows count toward the limit so a user
+  //    can re-submit after a rejection but can't spam past the admin-configured
+  //    cap. Migration 043 removed the DB partial-unique; this is now the only
+  //    gate, so the count query runs before the upload.
+  const { count: activeCount, error: countError } = await db
     .from('regear_requests')
-    .select('id')
+    .select('id', { count: 'exact', head: true })
     .eq('event_id', eventId)
     .eq('discord_id', session.discordId)
     .neq('status', 'rejected')
-    .maybeSingle()
-  if (existingError) return { error: existingError.message }
-  if (existing) return { error: tErr('alreadyRequestedForEvent') }
+  if (countError) return { error: countError.message }
+  if ((activeCount ?? 0) >= maxDeaths) {
+    return { error: tErr('regearDeathsLimitReached', { max: maxDeaths }) }
+  }
 
   // 3) Event window — killboard verify needs a real timestamp. `gather_time`
   //    is free-text so we anchor off `battle_started_at` which the admin sets
@@ -124,6 +156,11 @@ export async function requestRegear(
   if (eventError) return { error: eventError.message }
   if (!event.battle_started_at) {
     return { error: tErr('battleNotStarted') }
+  }
+  const windowStartMs = new Date(event.battle_started_at).getTime()
+  const windowEndMs = windowStartMs + windowMinutes * 60 * 1000
+  if (Date.now() > windowEndMs) {
+    return { error: tErr('regearWindowClosed') }
   }
 
   // 4) Snapshot the role's silver ceiling. A ceiling of 0 blocks the role
@@ -157,13 +194,12 @@ export async function requestRegear(
     .upload(path, file, { contentType: file.type, upsert: false })
   if (uploadError) return { error: tErr('screenshotUploadFailed', { reason: uploadError.message }) }
 
-  // 6) Killboard verification (hint-only — admin still reviews).
-  const windowStart = new Date(event.battle_started_at)
-  const windowEnd = new Date(windowStart.getTime() + REGEAR_WINDOW_MINUTES * 60 * 1000)
+  // 6) Killboard verification (hint-only — admin still reviews). Reuses the
+  //    same window as the submit gate so the verify window matches policy.
   const kbResult = await verifyDeathInWindow(
     session.username,
-    windowStart.toISOString(),
-    windowEnd.toISOString(),
+    new Date(windowStartMs).toISOString(),
+    new Date(windowEndMs).toISOString(),
   )
 
   // 7) Insert the request. request_type column defaults to 'death' in the DB
@@ -351,7 +387,10 @@ export async function listMyRegearEligibleEvents(): Promise<{
   if (requestRes.error) return { events: [], error: requestRes.error.message }
 
   const rewardMap = new Map((rewardRes.data ?? []).map((r) => [r.role_name, r.silver]))
-  const requestedSet = new Set((requestRes.data ?? []).map((r) => r.event_id))
+  const countByEvent = new Map<string, number>()
+  for (const row of requestRes.data ?? []) {
+    countByEvent.set(row.event_id, (countByEvent.get(row.event_id) ?? 0) + 1)
+  }
 
   const result: RegearEligibleEvent[] = events
     .filter((e) => eventToRole.has(e.id))
@@ -366,7 +405,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
         battle_started_at: e.battle_started_at as string,
         role_name: role,
         role_reward: rewardMap.get(role) ?? 0,
-        already_requested: requestedSet.has(e.id),
+        existing_active_count: countByEvent.get(e.id) ?? 0,
       }
     })
 

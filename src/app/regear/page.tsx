@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Clock, MapPin, Swords, ShieldCheck } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
-import { listMyRegearEligibleEvents } from '@/app/actions/regear'
+import { getRegearLimits, listMyRegearEligibleEvents } from '@/app/actions/regear'
 import { formatSilver } from '@/lib/silver'
 import { formatGatherTimeFor } from '@/lib/gather-time'
 import { formatDateTimeShort } from '@/lib/format-datetime'
@@ -30,8 +30,9 @@ export default async function RegearPage() {
     redirect('/')
   }
 
-  const [{ events, error }, t, locale, noticeMessage] = await Promise.all([
+  const [{ events, error }, limits, t, locale, noticeMessage] = await Promise.all([
     listMyRegearEligibleEvents(),
+    getRegearLimits(),
     getTranslations('regear'),
     getLocale(),
     getAppSetting('regear_notice_message', ''),
@@ -102,7 +103,9 @@ export default async function RegearPage() {
                   eventId={event.id}
                   roleName={event.role_name}
                   roleReward={event.role_reward}
-                  alreadyRequested={event.already_requested}
+                  existingActiveCount={event.existing_active_count}
+                  maxDeaths={limits.maxDeaths}
+                  windowMinutes={limits.windowMinutes}
                   battleStartedAt={event.battle_started_at}
                 />
               </div>

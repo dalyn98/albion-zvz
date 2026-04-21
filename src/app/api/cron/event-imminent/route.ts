@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { isDiscordDmConfigured, sendDiscordDmsToUsers } from '@/lib/discord-dm'
+import { getAppSetting } from '@/lib/app-settings'
 
 // 이벤트 집결 시간이 다가오면 파티에 편성된 멤버들에게 Discord DM 을 보낸다.
 //
@@ -25,6 +26,9 @@ import { isDiscordDmConfigured, sendDiscordDmsToUsers } from '@/lib/discord-dm'
 
 const LEAD_MIN = 35 // gather_at - 35분 이내면 임박
 const LOOKBACK_MIN = 5 // 놓친 구간 재캐치용 (크론 누락 대비)
+// 자동 시작은 gather_at 이 지난 이벤트를 최근 구간에서만 스캔. 너무 길게 두면
+// 설정을 처음 켠 순간 과거 이벤트가 한꺼번에 시작 처리될 수 있다.
+const AUTO_START_LOOKBACK_MIN = 30
 const DISPLAY_TIMEZONE = 'Asia/Seoul' // 길드가 KST 기준으로 운영
 const DEFAULT_LOCALE = 'ko'
 
@@ -49,12 +53,47 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  if (!isDiscordDmConfigured()) {
-    return NextResponse.json({ skipped: 'discord-dm-not-configured' })
-  }
-
   const db = getAdminClient()
   const now = new Date()
+
+  // Auto-start: scheduled events whose gather_at is in the recent past get
+  // their battle_started_at set automatically, opening the regear window at
+  // the planned time. Runs regardless of DM configuration — it's a DB-only
+  // side effect. Idempotent (update is conditional on battle_started_at IS NULL).
+  const autoStartEnabled = (await getAppSetting('events_auto_start_enabled', 'false')) === 'true'
+  const autoStartResults: Array<{ event_id: string; battle_started_at: string }> = []
+  if (autoStartEnabled) {
+    const autoStartFloor = new Date(now.getTime() - AUTO_START_LOOKBACK_MIN * 60 * 1000).toISOString()
+    const { data: pending, error: pendingError } = await db
+      .from('events')
+      .select('id, gather_at')
+      .is('battle_started_at', null)
+      .not('gather_at', 'is', null)
+      .gte('gather_at', autoStartFloor)
+      .lte('gather_at', now.toISOString())
+    if (pendingError) {
+      console.error('[cron/event-imminent] auto-start scan failed:', pendingError.message)
+    } else {
+      for (const row of pending ?? []) {
+        const gatherAt = row.gather_at as string
+        const { error: updateError } = await db
+          .from('events')
+          .update({ battle_started_at: gatherAt })
+          .eq('id', row.id)
+          .is('battle_started_at', null)
+        if (updateError) {
+          console.error('[cron/event-imminent] auto-start update failed:', updateError.message)
+          continue
+        }
+        autoStartResults.push({ event_id: row.id, battle_started_at: gatherAt })
+      }
+    }
+  }
+
+  if (!isDiscordDmConfigured()) {
+    return NextResponse.json({ skipped: 'discord-dm-not-configured', auto_started: autoStartResults })
+  }
+
   const upperBound = new Date(now.getTime() + LEAD_MIN * 60 * 1000).toISOString()
   const lowerBound = new Date(now.getTime() - LOOKBACK_MIN * 60 * 1000).toISOString()
 
@@ -70,7 +109,7 @@ export async function GET(request: Request) {
   }
 
   if (!events || events.length === 0) {
-    return NextResponse.json({ notified: 0, scanned: 0 })
+    return NextResponse.json({ notified: 0, scanned: 0, auto_started: autoStartResults })
   }
 
   const t = await getTranslations({ locale: DEFAULT_LOCALE, namespace: 'discordDm' })
@@ -128,5 +167,5 @@ export async function GET(request: Request) {
     })
   }
 
-  return NextResponse.json({ scanned: events.length, results })
+  return NextResponse.json({ scanned: events.length, results, auto_started: autoStartResults })
 }

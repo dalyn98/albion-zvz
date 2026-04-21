@@ -15,6 +15,9 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'events_notice_message',
   'event_creator_role_ids',
   'bomb_squad_caller_role_ids',
+  'regear_window_minutes',
+  'regear_max_deaths_per_event',
+  'events_auto_start_enabled',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -51,6 +54,19 @@ const JSON_ARRAY_KEYS: readonly AppSettingKey[] = [
   'bomb_squad_caller_role_ids',
 ] as const
 
+// Integer-string keys. Must parse as a positive integer within the declared
+// range. UI stores raw numbers; the app layer reads via getAppSetting and
+// re-parses with a fallback.
+const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }>> = {
+  regear_window_minutes: { min: 1, max: 240 },
+  regear_max_deaths_per_event: { min: 1, max: 10 },
+}
+
+// Boolean-string keys. Must be exactly 'true' or 'false'.
+const BOOLEAN_KEYS: readonly AppSettingKey[] = [
+  'events_auto_start_enabled',
+] as const
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 export async function updateAppSetting(
@@ -80,6 +96,18 @@ export async function updateAppSetting(
         }
       } catch {
         return { error: tErr('invalidJsonArray') }
+      }
+    }
+    const range = INTEGER_RANGES[key]
+    if (trimmed && range) {
+      const parsed = Number(trimmed)
+      if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < range.min || parsed > range.max) {
+        return { error: tErr('invalidIntegerRange', { min: range.min, max: range.max }) }
+      }
+    }
+    if (trimmed && BOOLEAN_KEYS.includes(key)) {
+      if (trimmed !== 'true' && trimmed !== 'false') {
+        return { error: tErr('invalidBoolean') }
       }
     }
     const db = await requireAdmin()

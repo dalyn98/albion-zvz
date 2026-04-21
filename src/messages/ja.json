@@ -393,6 +393,7 @@
     "tabGuests": "ゲスト招待",
     "tabNotices": "告知",
     "tabPermissions": "権限",
+    "tabEvents": "イベント/リギア",
     "membersRangeTitle": "メンバー勝敗集計期間",
     "membersRangeDescription": "ギルドメンバー一覧の上部に表示される勝敗合計と対戦ギルド数の集計範囲です。空欄の場合は全期間が集計されます。",
     "membersRangeStart": "開始日",
@@ -468,6 +469,27 @@
     "searchPlaceholder": "役割名で検索",
     "clearSelection": "すべて解除",
     "noMatches": "一致する役割がありません。",
+    "save": "保存",
+    "saving": "保存中…",
+    "saved": "保存しました"
+  },
+  "adminRegearLimits": {
+    "title": "リギア申請の制限",
+    "description": "戦闘開始後のリギア申請受付時間(分)と、1人が同じイベントで提出できる最大件数を設定します。変更は次回の提出から即時反映されます。",
+    "windowMinutesLabel": "受付時間 (分)",
+    "windowMinutesHint": "{min} ~ {max}分。戦闘開始(battle_started_at)からこの時間内のみ申請可能。キルボード検証も同じ時間幅を使用します。",
+    "maxDeathsLabel": "イベントごとの最大申請数",
+    "maxDeathsHint": "{min} ~ {max}。1人が同じイベントで提出できる最大件数。rejected は対象外 — 再申請可。",
+    "invalidRange": "入力値が許容範囲外です。",
+    "save": "保存",
+    "saving": "保存中…",
+    "saved": "保存しました"
+  },
+  "adminEventAutoStart": {
+    "title": "イベント自動開始",
+    "description": "集合時間(gather_at)を過ぎたイベントをクロンが自動で開始処理します。リギア受付が管理者の手動開始なしに予定時刻に開きます。",
+    "enabledLabel": "自動開始を有効化",
+    "enabledHint": "有効にすると 5分周期のクロンが gather_at ≤ 現在時刻 かつ battle_started_at が未設定のイベントの開始時刻を gather_at に埋めます。過去イベントの一括処理を防ぐため、直近 30分以内のみ対象です。",
     "save": "保存",
     "saving": "保存中…",
     "saved": "保存しました"
@@ -666,7 +688,11 @@
     "submit": "申請",
     "cancelConfirm": "このリギア申請をキャンセルしますか? アップロードしたスクリーンショットも一緒に削除されます。",
     "cancelConfirmButton": "キャンセル確定",
-    "keep": "維持"
+    "keep": "維持",
+    "buttonWindowClosed": "受付終了",
+    "buttonRequestRemaining": "リギア申請 (残り {remaining}回)",
+    "deathsRemaining": "残り申請",
+    "deathsRemainingValue": "{remaining}/{max}回"
   },
   "donation": {
     "openButton": "寄付申請",
@@ -1022,7 +1048,9 @@
     "unauthorized": "この操作を実行する権限がありません。",
     "invalidJsonArray": "役割一覧を保存できませんでした。",
     "bombSquadKindRequired": "ボムスクワッドの種類(近接/遠距離)を選択してください。",
-    "partyNameTooLong": "パーティー名は {max} 文字以内で入力してください。"
+    "partyNameTooLong": "パーティー名は {max} 文字以内で入力してください。",
+    "invalidIntegerRange": "{min} ~ {max} の整数で入力してください。",
+    "invalidBoolean": "true または false のみ指定できます。"
   },
   "memberActionError": {
     "loginRequired": "ログインが必要です。",
@@ -1037,6 +1065,8 @@
     "slotRoleMissing": "役割が指定されていないスロットです。管理者にお問い合わせください。",
     "alreadyRequestedForEvent": "このイベントにはすでにリギアを申請しています。",
     "battleNotStarted": "まだ戦闘が開始されていません。管理者が戦闘開始を押してから申請できます。",
+    "regearWindowClosed": "リギア申請の受付時間が終了しました。",
+    "regearDeathsLimitReached": "このイベントでは最大 {max}回まで申請できます。",
     "ceilingNotSetForRole": "この役割のリギア上限が設定されていません。管理者にお問い合わせください。",
     "invalidClaimAmount": "請求金額は整数で入力してください。",
     "claimOverCeiling": "請求金額は役割上限 ({ceiling}) 以下にしてください。",

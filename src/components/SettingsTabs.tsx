@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { Bell, Coins, Image as ImageIcon, CalendarRange, UserPlus, Megaphone, Shield } from 'lucide-react'
+import { Bell, Coins, Image as ImageIcon, CalendarRange, UserPlus, Megaphone, Shield, Timer } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import NotificationSettingsForm from './NotificationSettingsForm'
 import RoleRewardsEditor from './RoleRewardsEditor'
@@ -12,6 +12,8 @@ import GuestInviteSettingsForm from './GuestInviteSettingsForm'
 import NoticeSettingForm from './NoticeSettingForm'
 import EventCreatorRolesSetting from './EventCreatorRolesSetting'
 import BombSquadCallerRolesSetting from './BombSquadCallerRolesSetting'
+import RegearLimitsForm from './RegearLimitsForm'
+import EventAutoStartForm from './EventAutoStartForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
 
 type TabKey =
@@ -22,6 +24,7 @@ type TabKey =
   | 'guests'
   | 'notices'
   | 'permissions'
+  | 'events'
 
 interface TabDef {
   key: TabKey
@@ -33,6 +36,7 @@ interface TabDef {
     | 'tabGuests'
     | 'tabNotices'
     | 'tabPermissions'
+    | 'tabEvents'
   icon: React.ComponentType<{ size?: number; className?: string }>
 }
 
@@ -41,6 +45,7 @@ const TABS: readonly TabDef[] = [
   { key: 'rewards', labelKey: 'tabRewards', icon: Coins },
   { key: 'notices', labelKey: 'tabNotices', icon: Megaphone },
   { key: 'permissions', labelKey: 'tabPermissions', icon: Shield },
+  { key: 'events', labelKey: 'tabEvents', icon: Timer },
   { key: 'landing', labelKey: 'tabLanding', icon: ImageIcon },
   { key: 'membersRange', labelKey: 'tabMembersRange', icon: CalendarRange },
   { key: 'guests', labelKey: 'tabGuests', icon: UserPlus },
@@ -62,6 +67,9 @@ interface Props {
   eventsNoticeMessage: string
   eventCreatorRoleIds: string[]
   bombSquadCallerRoleIds: string[]
+  regearWindowMinutes: number
+  regearMaxDeaths: number
+  eventsAutoStartEnabled: boolean
   origin: string
 }
 
@@ -73,7 +81,8 @@ function isTabKey(value: string | null): value is TabKey {
     value === 'membersRange' ||
     value === 'guests' ||
     value === 'notices' ||
-    value === 'permissions'
+    value === 'permissions' ||
+    value === 'events'
   )
 }
 
@@ -91,6 +100,9 @@ export default function SettingsTabs({
   eventsNoticeMessage,
   eventCreatorRoleIds,
   bombSquadCallerRoleIds,
+  regearWindowMinutes,
+  regearMaxDeaths,
+  eventsAutoStartEnabled,
   origin,
 }: Props) {
   const t = useTranslations('adminSettings')
@@ -178,6 +190,15 @@ export default function SettingsTabs({
           <div className="space-y-4">
             <EventCreatorRolesSetting initialRoleIds={eventCreatorRoleIds} />
             <BombSquadCallerRolesSetting initialRoleIds={bombSquadCallerRoleIds} />
+          </div>
+        )}
+        {active === 'events' && (
+          <div className="space-y-4">
+            <RegearLimitsForm
+              initialWindowMinutes={regearWindowMinutes}
+              initialMaxDeaths={regearMaxDeaths}
+            />
+            <EventAutoStartForm initialEnabled={eventsAutoStartEnabled} />
           </div>
         )}
         {active === 'notices' && (
