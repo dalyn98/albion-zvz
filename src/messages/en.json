@@ -427,6 +427,10 @@
     "rolesLoading": "Loading roles…",
     "rolesError": "Failed to load role list.",
     "rolesEmpty": "No roles available.",
+    "placeholder": "Select roles…",
+    "searchPlaceholder": "Search roles",
+    "clearSelection": "Clear all",
+    "noMatches": "No matching roles.",
     "save": "Save",
     "saving": "Saving…",
     "saved": "Saved"

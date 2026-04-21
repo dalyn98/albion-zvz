@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Save } from 'lucide-react'
+import { Save, ChevronDown, Check, Search } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
 import { listGuildRoles, type DiscordRoleOption } from '@/app/actions/notifications'
 
@@ -20,6 +20,9 @@ export default function EventCreatorRolesSetting({ initialRoleIds }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     void (async () => {
@@ -27,6 +30,14 @@ export default function EventCreatorRolesSetting({ initialRoleIds }: Props) {
       if (res.error) setRolesError(true)
       else setRoles(res.roles)
     })()
+  }, [])
+
+  useEffect(() => {
+    const handler = (e: PointerEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', handler)
+    return () => document.removeEventListener('pointerdown', handler)
   }, [])
 
   const toggle = (id: string) => {
@@ -37,9 +48,26 @@ export default function EventCreatorRolesSetting({ initialRoleIds }: Props) {
     setSaved(false)
   }
 
+  const clearAll = () => {
+    setSelected(new Set())
+    setSaved(false)
+  }
+
   const sortedInitial = [...initialRoleIds].sort().join(',')
   const sortedCurrent = [...selected].sort().join(',')
   const dirty = sortedInitial !== sortedCurrent
+
+  const filtered = useMemo(() => {
+    if (!roles) return []
+    const q = search.trim().toLowerCase()
+    if (!q) return roles
+    return roles.filter((r) => r.name.toLowerCase().includes(q) || r.id.includes(q))
+  }, [roles, search])
+
+  const selectedRoles = useMemo(() => {
+    if (!roles) return []
+    return roles.filter((r) => selected.has(r.id))
+  }, [roles, selected])
 
   const handleSave = async () => {
     setLoading(true)
@@ -64,37 +92,94 @@ export default function EventCreatorRolesSetting({ initialRoleIds }: Props) {
         <p className="text-amber-400/80 text-xs mt-1">{t('reloginHint')}</p>
       </div>
 
-      {rolesError && (
-        <p className="text-xs text-red-400">{t('rolesError')}</p>
-      )}
-      {!rolesError && roles === null && (
-        <p className="text-xs text-gray-500">{t('rolesLoading')}</p>
-      )}
-      {roles && roles.length === 0 && (
-        <p className="text-xs text-gray-500">{t('rolesEmpty')}</p>
-      )}
+      {rolesError && <p className="text-xs text-red-400">{t('rolesError')}</p>}
+      {!rolesError && roles === null && <p className="text-xs text-gray-500">{t('rolesLoading')}</p>}
+      {roles && roles.length === 0 && <p className="text-xs text-gray-500">{t('rolesEmpty')}</p>}
+
       {roles && roles.length > 0 && (
-        <div className="max-h-72 overflow-y-auto flex flex-col gap-1.5 rounded-lg border border-gray-800 bg-gray-950 p-2">
-          {roles.map((role) => {
-            const checked = selected.has(role.id)
-            return (
-              <label
-                key={role.id}
-                className={`flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors ${
-                  checked ? 'bg-amber-500/10' : 'hover:bg-gray-800'
-                }`}
-              >
+        <div ref={containerRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="w-full flex items-start gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-left hover:border-gray-600 focus:outline-none focus:border-amber-500"
+            aria-expanded={open}
+          >
+            <div className="flex-1 min-w-0 py-0.5">
+              {selectedRoles.length === 0 ? (
+                <span className="text-sm text-gray-500">{t('placeholder')}</span>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedRoles.map((role) => (
+                    <span
+                      key={role.id}
+                      className="inline-flex items-center bg-amber-500/10 border border-amber-500/30 rounded px-1.5 py-0.5 text-xs text-white"
+                    >
+                      {role.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <ChevronDown
+              size={14}
+              className={`text-gray-500 mt-1 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+            />
+          </button>
+
+          {open && (
+            <div className="absolute z-30 top-full mt-1 w-full bg-gray-950 border border-gray-700 rounded-lg shadow-xl">
+              <div className="flex items-center gap-2 border-b border-gray-800 px-3 py-2">
+                <Search size={12} className="text-gray-500 flex-shrink-0" />
                 <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => toggle(role.id)}
-                  className="accent-amber-500"
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t('searchPlaceholder')}
+                  className="flex-1 bg-transparent text-sm text-white placeholder-gray-600 focus:outline-none min-w-0"
                 />
-                <span className="text-sm text-white">{role.name}</span>
-                <span className="text-[11px] text-gray-500 ml-auto">{role.id}</span>
-              </label>
-            )
-          })}
+                {selectedRoles.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearAll}
+                    className="text-[11px] text-gray-500 hover:text-red-400 flex-shrink-0"
+                  >
+                    {t('clearSelection')}
+                  </button>
+                )}
+              </div>
+              <div className="max-h-64 overflow-y-auto p-1">
+                {filtered.length === 0 ? (
+                  <p className="text-xs text-gray-500 px-2 py-3 text-center">{t('noMatches')}</p>
+                ) : (
+                  filtered.map((role) => {
+                    const checked = selected.has(role.id)
+                    return (
+                      <button
+                        key={role.id}
+                        type="button"
+                        onClick={() => toggle(role.id)}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors ${
+                          checked ? 'bg-amber-500/10' : 'hover:bg-gray-800'
+                        }`}
+                      >
+                        <span
+                          className={`flex h-4 w-4 items-center justify-center rounded border flex-shrink-0 ${
+                            checked ? 'bg-amber-500 border-amber-500' : 'border-gray-600'
+                          }`}
+                        >
+                          {checked && <Check size={10} className="text-black" strokeWidth={3} />}
+                        </span>
+                        <span className="text-sm text-white flex-1 truncate">{role.name}</span>
+                        <span className="text-[11px] text-gray-500 font-mono truncate flex-shrink-0">
+                          {role.id}
+                        </span>
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

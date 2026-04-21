@@ -427,6 +427,10 @@
     "rolesLoading": "役割一覧を読み込み中…",
     "rolesError": "役割一覧の取得に失敗しました。",
     "rolesEmpty": "利用できる役割がありません。",
+    "placeholder": "役割を選択してください…",
+    "searchPlaceholder": "役割名で検索",
+    "clearSelection": "すべて解除",
+    "noMatches": "一致する役割がありません。",
     "save": "保存",
     "saving": "保存中…",
     "saved": "保存しました"
