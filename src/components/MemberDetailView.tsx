@@ -1,10 +1,13 @@
 import Link from 'next/link'
-import { Coins, Wallet, ShieldCheck, ChevronRight, Trophy, ShieldAlert, Hourglass, UserCheck, UserX, Crown } from 'lucide-react'
-import { getTranslations } from 'next-intl/server'
+import { Coins, Wallet, ShieldCheck, ChevronRight, Trophy, ShieldAlert, Hourglass, UserCheck, UserX, Crown, Sword } from 'lucide-react'
+import { getLocale, getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
 import LanguageBadge from './LanguageBadge'
+import ItemImage from './ItemImage'
 import { formatSilver } from '@/lib/silver'
 import { formatDate, formatDateTime } from '@/lib/format-datetime'
+import { getLocalizedItemName } from '@/lib/item-names'
+import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import { getRoleStyle, regearPayoutSilver } from '@/types'
 import type { GuildMemberDetail, MemberExchangeEntry } from '@/app/actions/members-admin'
 
@@ -31,6 +34,8 @@ interface Props {
 export default async function MemberDetailView({ detail, showDiscordId = true }: Props) {
   const t = await getTranslations('memberDetail')
   const tStatus = await getTranslations('status')
+  const rawLocale = await getLocale()
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
   const statusLabels: StatusLabels = {
     pending: tStatus('pending'),
     approved: tStatus('approved'),
@@ -124,6 +129,34 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
               )
             })}
           </div>
+        )}
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
+          <Sword size={14} className="text-amber-400" />
+          {t('weaponUsage')}
+        </h2>
+        {detail.weapon_breakdown.length === 0 ? (
+          <p className="text-gray-500 text-xs">{t('noWeaponUsage')}</p>
+        ) : (
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {detail.weapon_breakdown.map((w, idx) => {
+              const displayName = getLocalizedItemName(w.weapon_id, locale, w.weapon_name) ?? w.weapon_name
+              return (
+                <li
+                  key={`${w.weapon_id ?? 'free'}-${idx}`}
+                  className="flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2"
+                >
+                  <ItemImage itemId={w.weapon_id} itemName={displayName} size={36} hoverPreview />
+                  <span className="text-white text-sm truncate flex-1">{displayName}</span>
+                  <span className="text-amber-300 text-xs font-mono font-bold flex-shrink-0">
+                    {t('weaponUsageCount', { count: w.count })}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
         )}
       </section>
 

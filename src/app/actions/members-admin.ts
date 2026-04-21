@@ -22,6 +22,14 @@ export interface RoleCount {
   count: number
 }
 
+export interface WeaponCount {
+  // item id when the slot used a bundled item (so the UI can render the
+  // render.albiononline.com icon); null for free-text entries.
+  weapon_id: string | null
+  weapon_name: string
+  count: number
+}
+
 export interface GuildMemberSummary {
   discord_id: string
   username: string
@@ -110,6 +118,10 @@ export interface GuildMemberDetail {
   participation_count: number
   role_breakdown: RoleCount[]
   events: MemberEventEntry[]
+  // Top weapons the member brought, sorted by usage count desc. Aggregation
+  // uses coalesce(assigned_weapon, weapon) so template slots without a
+  // weapon_options pick still count toward the member's preference profile.
+  weapon_breakdown: WeaponCount[]
   regears: MemberRegearEntry[]
   exchanges: MemberExchangeEntry[]
   balance: number
@@ -414,7 +426,7 @@ async function fetchMemberDetail(discordId: string): Promise<{
       db
         .from('slots')
         .select(
-          'role_name, attended_at, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at, outcome))',
+          'role_name, attended_at, weapon_name, weapon_id, assigned_weapon_name, assigned_weapon_id, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at, outcome))',
         )
         .eq('assigned_discord_id', discordId),
       db
@@ -448,6 +460,11 @@ async function fetchMemberDetail(discordId: string): Promise<{
     const deletedEventLabel = tCommon('deletedEvent')
     const eventsMap = new Map<string, MemberEventEntry>()
     const roleCounter = new Map<string, number>()
+    // Weapon aggregation — keyed by weapon_id when bundled, otherwise by a
+    // normalized name so free-text entries still merge. Value tracks both the
+    // id (for icon rendering) and the raw name so the UI can render whichever
+    // is available without a second lookup.
+    const weaponAgg = new Map<string, { id: string | null; name: string; count: number }>()
     // Per-event attendance aggregation — a member can fill multiple slots for
     // one event; any attended slot flips the event to 'attended'. Stored as
     // boolean per event and materialized into the enum after the loop.
@@ -464,6 +481,31 @@ async function fetchMemberDetail(discordId: string): Promise<{
       const role = row.role_name ?? unassignedRoleLabel
       roleCounter.set(role, (roleCounter.get(role) ?? 0) + 1)
       attendedAnySlot.set(event.id, (attendedAnySlot.get(event.id) ?? false) || !!row.attended_at)
+
+      // Prefer the member's assigned pick; fall back to the template weapon so
+      // fixed-weapon slots (no weapon_options) still count. Skip rows where
+      // neither exists — nothing to aggregate.
+      const weaponId: string | null =
+        (row as { assigned_weapon_id: string | null }).assigned_weapon_id ??
+        (row as { weapon_id: string | null }).weapon_id ??
+        null
+      const weaponName: string | null =
+        (row as { assigned_weapon_name: string | null }).assigned_weapon_name ??
+        (row as { weapon_name: string | null }).weapon_name ??
+        null
+      if (weaponId || (weaponName && weaponName.trim().length > 0)) {
+        const key = weaponId ?? `name:${(weaponName ?? '').trim().toLowerCase()}`
+        const existing = weaponAgg.get(key)
+        if (existing) {
+          existing.count++
+        } else {
+          weaponAgg.set(key, {
+            id: weaponId,
+            name: weaponName?.trim() ?? weaponId ?? '',
+            count: 1,
+          })
+        }
+      }
       if (!eventsMap.has(event.id)) {
         eventsMap.set(event.id, {
           event_id: event.id,
@@ -523,6 +565,13 @@ async function fetchMemberDetail(discordId: string): Promise<{
     const roleBreakdown: RoleCount[] = Array.from(roleCounter.entries())
       .map(([role, count]) => ({ role, count }))
       .sort((a, b) => b.count - a.count)
+
+    // Cap at 10 so a prolific member's card doesn't scroll forever — the tail
+    // is uninteresting anyway (usually a long tail of one-off pick-ups).
+    const weaponBreakdown: WeaponCount[] = Array.from(weaponAgg.values())
+      .map((w) => ({ weapon_id: w.id, weapon_name: w.name, count: w.count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
 
     const regears: MemberRegearEntry[] = (regearsRes.data ?? []).map((row) => {
       const event = row.events as { title?: string } | { title?: string }[] | null
@@ -599,6 +648,7 @@ async function fetchMemberDetail(discordId: string): Promise<{
         preferred_language: isLocale(avatar.preferred_language) ? avatar.preferred_language : null,
         participation_count: events.length,
         role_breakdown: roleBreakdown,
+        weapon_breakdown: weaponBreakdown,
         events,
         regears,
         exchanges,
