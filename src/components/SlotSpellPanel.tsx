@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import ItemImage from './ItemImage'
 import SpellImage from './SpellImage'
 import type { Slot, SlotKey } from '@/types'
-import { getSpells, getDisplayGear, isFreeItem } from '@/types'
+import { getSpells, getDisplayGear, getGearOptions, isFreeItem } from '@/types'
 import spellSlotsJson from '@/data/albion-spell-slots.json'
 
 // Rows appear in this fixed top-to-bottom order. Offhand/potion/food/cape
@@ -20,8 +20,36 @@ const SPELL_ICON_SIZE = 45
 
 type RowItem = { key: SpellRowKey; name: string | null; id: string | null; spells: string[] }
 
-function rowGear(slot: Slot, key: SpellRowKey): { name: string | null; id: string | null } {
-  return getDisplayGear(slot, key as SlotKey)
+// 각 gear key 에 대해 뷰어에 표시할 행을 계산한다.
+//   1) options[key] 가 있는 multi 모드:
+//      - 배정된 멤버가 있으면 assigned_{key}_id 에 해당하는 옵션 한 줄
+//      - 배정 전이면 spells 가 지정된 모든 옵션을 각각 한 줄로
+//   2) 그 외 (single/free): 기존 동작 — 공용 slot.spells[key] 한 줄
+// 어떤 경우든 spells 가 비어 있으면 행을 추가하지 않는다.
+function rowsForKey(slot: Slot, key: SpellRowKey): RowItem[] {
+  const slotKey = key as SlotKey
+  const options = getGearOptions(slot, slotKey)
+  if (options && options.length > 0) {
+    const assignedId = slot[`assigned_${slotKey}_id`]
+    if (assignedId) {
+      const opt = options.find((o) => o.id === assignedId)
+      if (!opt) return []
+      const s = opt.spells ?? []
+      if (s.length === 0) return []
+      return [{ key, name: opt.name, id: opt.id, spells: s }]
+    }
+    const rows: RowItem[] = []
+    for (const opt of options) {
+      const s = opt.spells ?? []
+      if (s.length === 0) continue
+      rows.push({ key, name: opt.name, id: opt.id, spells: s })
+    }
+    return rows
+  }
+  const spells = getSpells(slot.spells, slotKey)
+  if (spells.length === 0) return []
+  const gear = getDisplayGear(slot, slotKey)
+  return [{ key, ...gear, spells }]
 }
 
 // Derived at build time from items.xml — spell uniqueName → slot+type.
@@ -76,10 +104,7 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
   const tSlot = useTranslations('slot')
   const rows: RowItem[] = []
   for (const key of SPELL_ROW_KEYS) {
-    const spells = getSpells(slot.spells, key as SlotKey)
-    if (spells.length === 0) continue
-    const gear = rowGear(slot, key)
-    rows.push({ key, ...gear, spells })
+    rows.push(...rowsForKey(slot, key))
   }
 
   if (rows.length === 0) return null
@@ -99,8 +124,8 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
         role="tooltip"
         className="hidden group-hover/spells:block group-focus-within/spells:block absolute z-30 top-full left-0 mt-1 min-w-[280px] max-w-[92vw] bg-gray-950 border border-purple-500/40 rounded-lg p-2 shadow-xl pointer-events-none space-y-1.5"
       >
-        {rows.map(({ key, name, id, spells }) => (
-          <div key={key} className="flex items-start gap-1.5">
+        {rows.map(({ key, name, id, spells }, idx) => (
+          <div key={`${key}:${id ?? 'x'}:${idx}`} className="flex items-start gap-1.5">
             {isFreeItem(name, id) ? (
               <div
                 style={{ width: GEAR_ICON_SIZE, height: GEAR_ICON_SIZE }}

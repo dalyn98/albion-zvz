@@ -48,6 +48,10 @@ export interface Party {
 export interface GearOption {
   name: string
   id: string
+  // Multi 모드에서 옵션별로 다른 스킬을 고를 수 있도록 옵션 자체에 스킬을
+  // 매단다. null/undefined 이면 해당 옵션에 지정된 스킬이 없음. Single/free
+  // 모드에서는 `slot.spells[key]` 를 계속 사용하므로 이 필드는 무시된다.
+  spells?: string[]
 }
 
 /** @deprecated Use GearOption — this alias exists for older imports only. */

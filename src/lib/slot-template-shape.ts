@@ -17,7 +17,14 @@ export function slotInputToTemplateData(slot: SlotInput): SlotTemplateData {
     (acc, k) => {
       const opts = slot.options[k]
       const nonEmpty = Array.isArray(opts) && opts.length > 0
-      acc[k] = nonEmpty ? opts.map((o) => ({ name: o.name, id: o.id })) : null
+      acc[k] = nonEmpty
+        ? opts.map((o) => {
+            // 옵션별 스킬은 multi 모드의 일급 편집 상태. 템플릿 저장/로드에서
+            // 잃어버리면 편집기에서 재복원이 불가능하므로 그대로 보존한다.
+            const spells = Array.isArray(o.spells) && o.spells.length > 0 ? [...o.spells] : undefined
+            return spells ? { name: o.name, id: o.id, spells } : { name: o.name, id: o.id }
+          })
+        : null
       return acc
     },
     {} as Record<SlotKey, GearOption[] | null>,
@@ -57,7 +64,12 @@ export function applyTemplateToSlotInput(
   const optionsRecord = SLOT_KEYS.reduce(
     (acc, k) => {
       const opts = data[`${k}_options`]
-      acc[k] = Array.isArray(opts) ? opts.map((o) => ({ name: o.name, id: o.id })) : []
+      acc[k] = Array.isArray(opts)
+        ? opts.map((o) => {
+            const spells = Array.isArray(o.spells) && o.spells.length > 0 ? [...o.spells] : undefined
+            return spells ? { name: o.name, id: o.id, spells } : { name: o.name, id: o.id }
+          })
+        : []
       return acc
     },
     {} as Record<SlotKey, GearOption[]>,

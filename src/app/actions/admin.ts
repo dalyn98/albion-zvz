@@ -389,10 +389,29 @@ interface SlotPayload {
   spells: SlotSpells
 }
 
+function sanitizeOptionSpells(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const v of raw) {
+    if (typeof v !== 'string') continue
+    const trimmed = v.trim()
+    if (!trimmed || seen.has(trimmed)) continue
+    seen.add(trimmed)
+    out.push(trimmed)
+  }
+  return out.length > 0 ? out : undefined
+}
+
 function sanitizeGearOptions(opts: GearOption[]): GearOption[] | null {
   const clean = opts
     .filter((o) => o && typeof o.id === 'string' && typeof o.name === 'string' && o.id && o.name)
-    .map((o) => ({ name: o.name, id: o.id }))
+    .map((o) => {
+      const spells = sanitizeOptionSpells(o.spells)
+      // spells 가 비어있으면 필드 자체를 빼서 jsonb 용량을 아낀다. 누락은
+      // undefined/[] 동등 취급 (viewer 가 `opt.spells ?? []` 로 읽는다).
+      return spells ? { name: o.name, id: o.id, spells } : { name: o.name, id: o.id }
+    })
   // Dedupe by id, preserving order.
   const seen = new Set<string>()
   const deduped = clean.filter((o) => (seen.has(o.id) ? false : (seen.add(o.id), true)))

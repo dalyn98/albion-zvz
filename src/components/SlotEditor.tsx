@@ -185,6 +185,35 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
     })
   }
 
+  const addOptionSpell = (key: SlotKey, optId: string, spellId: string) => {
+    onChange({
+      ...slot,
+      options: {
+        ...slot.options,
+        [key]: slot.options[key].map((o) => {
+          if (o.id !== optId) return o
+          const existing = o.spells ?? []
+          if (existing.includes(spellId)) return o
+          return { ...o, spells: [...existing, spellId] }
+        }),
+      },
+    })
+  }
+
+  const removeOptionSpell = (key: SlotKey, optId: string, spellId: string) => {
+    onChange({
+      ...slot,
+      options: {
+        ...slot.options,
+        [key]: slot.options[key].map((o) => {
+          if (o.id !== optId) return o
+          const filtered = (o.spells ?? []).filter((s) => s !== spellId)
+          return { ...o, spells: filtered }
+        }),
+      },
+    })
+  }
+
   // Both picked items (have id), "free" markers (name=자유, no id), and
   // a non-empty options list all count as configured.
   const filledCount = SLOT_KEYS.filter((k) => {
@@ -329,6 +358,8 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
                   spells={slot.spells.weapon ?? []}
                   onAddSpell={(id) => addSpell('weapon', id)}
                   onRemoveSpell={(id) => removeSpell('weapon', id)}
+                  onAddOptionSpell={(oid, sid) => addOptionSpell('weapon', oid, sid)}
+                  onRemoveOptionSpell={(oid, sid) => removeOptionSpell('weapon', oid, sid)}
                 />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -348,6 +379,8 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
                       spells={slot.spells[key] ?? []}
                       onAddSpell={(id) => addSpell(key, id)}
                       onRemoveSpell={(id) => removeSpell(key, id)}
+                      onAddOptionSpell={(oid, sid) => addOptionSpell(key, oid, sid)}
+                      onRemoveOptionSpell={(oid, sid) => removeOptionSpell(key, oid, sid)}
                     />
                   ))}
                 </div>
@@ -394,6 +427,8 @@ interface GearSectionProps {
   spells: string[]
   onAddSpell: (id: string) => void
   onRemoveSpell: (id: string) => void
+  onAddOptionSpell: (optId: string, spellId: string) => void
+  onRemoveOptionSpell: (optId: string, spellId: string) => void
 }
 
 function GearSection({
@@ -410,18 +445,15 @@ function GearSection({
   spells,
   onAddSpell,
   onRemoveSpell,
+  onAddOptionSpell,
+  onRemoveOptionSpell,
 }: GearSectionProps) {
   const t = useTranslations('adminParty')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
-  // 'free' has no item id — there's no pool to show. Multi merges pools
-  // across all options at the picker level.
-  const pickerItemIds =
-    mode === 'multi'
-      ? options.map((o) => o.id).filter(Boolean)
-      : mode === 'single' && singleId
-        ? [singleId]
-        : []
+  // Single 모드 전용 pool — multi 모드에서는 옵션마다 개별 SpellPicker 가
+  // 자기 itemId 로 pool 을 불러오므로 여기선 single 의 singleId 만 반영.
+  const singlePickerItemIds = mode === 'single' && singleId ? [singleId] : []
   const category = SLOT_PICKER_CATEGORY[slotKey]
   return (
     <div className="border border-gray-800 rounded-lg p-3 space-y-2 bg-gray-950/40">
@@ -448,25 +480,33 @@ function GearSection({
       {mode === 'multi' ? (
         <div className="space-y-2">
           {options.length > 0 && (
-            <ul className="space-y-1">
+            <ul className="space-y-2">
               {options.map((opt) => (
                 <li
                   key={opt.id}
-                  className="flex items-center gap-2 bg-gray-800 rounded-lg p-1.5"
+                  className="bg-gray-800 rounded-lg p-2 space-y-2"
                 >
-                  <ItemImage itemId={opt.id} itemName={opt.name} size={32} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-xs font-medium truncate">{getLocalizedItemName(opt.id, locale, opt.name)}</p>
-                    <p className="text-gray-500 text-[10px] font-mono truncate">{opt.id}</p>
+                  <div className="flex items-center gap-2">
+                    <ItemImage itemId={opt.id} itemName={opt.name} size={32} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-xs font-medium truncate">{getLocalizedItemName(opt.id, locale, opt.name)}</p>
+                      <p className="text-gray-500 text-[10px] font-mono truncate">{opt.id}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveOption(opt.id)}
+                      className="text-gray-500 hover:text-red-400 p-1"
+                      aria-label={t('removeAria')}
+                    >
+                      <X size={12} />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => onRemoveOption(opt.id)}
-                    className="text-gray-500 hover:text-red-400 p-1"
-                    aria-label={t('removeAria')}
-                  >
-                    <X size={12} />
-                  </button>
+                  <SpellPicker
+                    itemIds={[opt.id]}
+                    spells={opt.spells ?? []}
+                    onAdd={(sid) => onAddOptionSpell(opt.id, sid)}
+                    onRemove={(sid) => onRemoveOptionSpell(opt.id, sid)}
+                  />
                 </li>
               ))}
             </ul>
@@ -490,22 +530,23 @@ function GearSection({
       ) : mode === 'free' ? (
         <p className="text-[11px] text-emerald-300/90">{t('freeHint')}</p>
       ) : (
-        <ItemPicker
-          label=""
-          category={category}
-          itemName={singleName}
-          itemId={singleId}
-          onChange={onSingleChange}
-          onClear={onSingleClear}
-        />
+        <>
+          <ItemPicker
+            label=""
+            category={category}
+            itemName={singleName}
+            itemId={singleId}
+            onChange={onSingleChange}
+            onClear={onSingleClear}
+          />
+          <SpellPicker
+            itemIds={singlePickerItemIds}
+            spells={spells}
+            onAdd={onAddSpell}
+            onRemove={onRemoveSpell}
+          />
+        </>
       )}
-
-      <SpellPicker
-        itemIds={pickerItemIds}
-        spells={spells}
-        onAdd={onAddSpell}
-        onRemove={onRemoveSpell}
-      />
     </div>
   )
 }
