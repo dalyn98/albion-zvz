@@ -111,12 +111,15 @@ async function main() {
       continue
     }
 
-    // Enchantment variants are suffixed `@1`/`@2`/`@3` — they share a display
-    // name with the base item and would dedupe badly in the picker.
-    if (uniqueName.includes('@')) continue
     const category = categoryOf(uniqueName)
     if (!category) continue
     if (!tierMatches(uniqueName, category)) continue
+    // Enchantment variants are suffixed `@1`/`@2`/`@3` — they share a display
+    // name with the base item and would dedupe badly in the picker. Mounts are
+    // exempt: several unique mounts (Swiftclaw, Rageclaw, Spectral Bonehorse,
+    // Morgana Nightmare, Caerleon Cottontail) only exist as @1 variants with
+    // no base form, and no mount has both base and @ forms upstream.
+    if (category !== 'mount' && uniqueName.includes('@')) continue
     const names = item.LocalizedNames
     if (!names || typeof names !== 'object') continue
     const en = names['EN-US']
