@@ -320,8 +320,18 @@
     "batchGroupWeapon": "武器",
     "batchGroupArmor": "防具",
     "batchGroupCape": "マント",
+    "batchGroupMount": "マウント",
     "batchGroupFood": "料理",
-    "batchGroupPotion": "ポーション"
+    "batchGroupPotion": "ポーション",
+    "batchItemsButton": "ポーション/マウント 一括適用",
+    "batchItemsTitle": "ポーション・マウント パーティ一括適用",
+    "batchItemsHint": "現在のパーティの全スロットに、選択したポーション/マウントアイテムを上書きします。オプション(マルチ)指定のスロットは対象外です。",
+    "batchItemsOverwriteHint": "設定済みの固定アイテムも上書きされるためご注意ください。",
+    "batchItemsApply": "一括適用",
+    "batchItemsNoSelection": "ポーションまたはマウントのいずれかを選択してください。",
+    "batchItemsPotionLabel": "ポーション",
+    "batchItemsMountLabel": "マウント",
+    "batchItemsAffectedCount": "対象スロット {count}件"
   },
   "adminRoleRewards": {
     "noRoles": "登録された役割がありません。",
@@ -764,7 +774,8 @@
     "offhand": "サブ武器",
     "potion": "ポーション",
     "food": "食料",
-    "cape": "マント"
+    "cape": "マント",
+    "mount": "マウント"
   },
   "armor": {
     "keeper": "ジャッジメントアーマー",

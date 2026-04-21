@@ -63,6 +63,7 @@ export function slotInputToTemplateData(slot: SlotInput): SlotTemplateData {
     potion_name: fixedValue('potion', 'name'),   potion_id: fixedValue('potion', 'id'),   potion_options: cleanedOptions.potion,
     food_name: fixedValue('food', 'name'),       food_id: fixedValue('food', 'id'),       food_options: cleanedOptions.food,
     cape_name: fixedValue('cape', 'name'),       cape_id: fixedValue('cape', 'id'),       cape_options: cleanedOptions.cape,
+    mount_name: fixedValue('mount', 'name'),     mount_id: fixedValue('mount', 'id'),     mount_options: cleanedOptions.mount,
   }
 }
 

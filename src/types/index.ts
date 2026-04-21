@@ -122,6 +122,7 @@ export interface Slot {
   potion_name: string | null; potion_id: string | null
   food_name: string | null;   food_id: string | null
   cape_name: string | null;   cape_id: string | null
+  mount_name: string | null;  mount_id: string | null
   weapon_options: GearOption[] | null
   head_options: GearOption[] | null
   armor_options: GearOption[] | null
@@ -130,6 +131,7 @@ export interface Slot {
   potion_options: GearOption[] | null
   food_options: GearOption[] | null
   cape_options: GearOption[] | null
+  mount_options: GearOption[] | null
   spells: SlotSpells | null
   // Migration 035: per-slot target tier/enchant the member is expected to
   // bring. Independent of item_id (which is the archetype reference).
@@ -147,6 +149,7 @@ export interface Slot {
   assigned_potion_name: string | null;  assigned_potion_id: string | null
   assigned_food_name: string | null;    assigned_food_id: string | null
   assigned_cape_name: string | null;    assigned_cape_id: string | null
+  assigned_mount_name: string | null;   assigned_mount_id: string | null
 }
 
 // Pick<Slot, ...> helpers for callers that only need the gear-display subset —
@@ -160,11 +163,13 @@ export type SlotGearDisplay = Pick<Slot,
   | 'potion_name'  | 'potion_id'  | 'assigned_potion_name'  | 'assigned_potion_id'
   | 'food_name'    | 'food_id'    | 'assigned_food_name'    | 'assigned_food_id'
   | 'cape_name'    | 'cape_id'    | 'assigned_cape_name'    | 'assigned_cape_id'
+  | 'mount_name'   | 'mount_id'   | 'assigned_mount_name'   | 'assigned_mount_id'
 >
 
 export type SlotGearOptionsFields = Pick<Slot,
   | 'weapon_options' | 'head_options' | 'armor_options' | 'shoes_options'
   | 'offhand_options' | 'potion_options' | 'food_options' | 'cape_options'
+  | 'mount_options'
 >
 
 // Returns the gear to display for a slot kind. A member's pick (assigned_*)
@@ -207,7 +212,7 @@ export interface PartyWithSlots extends Party {
   slots: Slot[]
 }
 
-export type SlotKey = 'weapon' | 'head' | 'armor' | 'shoes' | 'offhand' | 'potion' | 'food' | 'cape'
+export type SlotKey = 'weapon' | 'head' | 'armor' | 'shoes' | 'offhand' | 'potion' | 'food' | 'cape' | 'mount'
 
 export const SLOT_LABELS: Record<SlotKey, string> = {
   weapon:  '주무기',
@@ -218,9 +223,10 @@ export const SLOT_LABELS: Record<SlotKey, string> = {
   potion:  '포션',
   food:    '음식',
   cape:    '망토',
+  mount:   '탈것',
 }
 
-export const SLOT_KEYS: SlotKey[] = ['weapon', 'head', 'armor', 'shoes', 'offhand', 'potion', 'food', 'cape']
+export const SLOT_KEYS: SlotKey[] = ['weapon', 'head', 'armor', 'shoes', 'offhand', 'potion', 'food', 'cape', 'mount']
 
 // Food/potion items already encode their tier in the item id (e.g. T8 Roast Beef),
 // so the admin spec only carries the enchant requirement. Weapon/armor/cape
@@ -232,8 +238,9 @@ export function isTierlessSlot(key: SlotKey): boolean {
   return TIERLESS_SLOT_KEYS.includes(key)
 }
 
-// Categories passed to ItemPicker for each slot kind. Weapons share the mount
-// category because Albion treats mounts as a weapon slot substitute.
+// Categories passed to ItemPicker for each slot kind. Weapon keeps the mount
+// category for backward compatibility — legacy builds stored battle mounts in
+// the weapon slot before the dedicated mount slot existed (migration 036).
 export const SLOT_PICKER_CATEGORY: Record<SlotKey, string> = {
   weapon:  'weapon,mount',
   head:    'head',
@@ -243,6 +250,7 @@ export const SLOT_PICKER_CATEGORY: Record<SlotKey, string> = {
   potion:  'potion',
   food:    'food',
   cape:    'cape',
+  mount:   'mount',
 }
 
 // Per-slot spell assignments. Keyed by gear kind (weapon/head/armor/...),

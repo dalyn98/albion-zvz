@@ -320,8 +320,18 @@
     "batchGroupWeapon": "무기",
     "batchGroupArmor": "방어구",
     "batchGroupCape": "망토",
+    "batchGroupMount": "탈것",
     "batchGroupFood": "음식",
-    "batchGroupPotion": "포션"
+    "batchGroupPotion": "포션",
+    "batchItemsButton": "포션/탈것 파티 일괄",
+    "batchItemsTitle": "포션·탈것 파티 일괄 적용",
+    "batchItemsHint": "현재 파티의 모든 슬롯에 선택한 포션/탈것 아이템을 덮어씁니다. 옵션(멀티)으로 지정된 슬롯은 건드리지 않습니다.",
+    "batchItemsOverwriteHint": "이미 설정된 고정 아이템도 덮어쓰니 주의하세요.",
+    "batchItemsApply": "일괄 적용",
+    "batchItemsNoSelection": "포션 또는 탈것 중 하나 이상 선택해 주세요.",
+    "batchItemsPotionLabel": "포션",
+    "batchItemsMountLabel": "탈것",
+    "batchItemsAffectedCount": "대상 슬롯 {count}개"
   },
   "adminRoleRewards": {
     "noRoles": "등록된 역할이 없습니다.",
@@ -764,7 +774,8 @@
     "offhand": "보조무기",
     "potion": "포션",
     "food": "음식",
-    "cape": "망토"
+    "cape": "망토",
+    "mount": "탈것"
   },
   "armor": {
     "keeper": "심판관 아머",

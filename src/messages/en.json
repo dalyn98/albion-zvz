@@ -320,8 +320,18 @@
     "batchGroupWeapon": "Weapon",
     "batchGroupArmor": "Armor",
     "batchGroupCape": "Cape",
+    "batchGroupMount": "Mount",
     "batchGroupFood": "Food",
-    "batchGroupPotion": "Potion"
+    "batchGroupPotion": "Potion",
+    "batchItemsButton": "Apply potion/mount to party",
+    "batchItemsTitle": "Apply potion/mount to whole party",
+    "batchItemsHint": "Overwrites the selected potion/mount item on every slot in this party. Slots configured with option (multi) lists are left alone.",
+    "batchItemsOverwriteHint": "Already-set fixed items will be overwritten — double-check before applying.",
+    "batchItemsApply": "Apply",
+    "batchItemsNoSelection": "Select at least one of potion or mount.",
+    "batchItemsPotionLabel": "Potion",
+    "batchItemsMountLabel": "Mount",
+    "batchItemsAffectedCount": "{count} slots affected"
   },
   "adminRoleRewards": {
     "noRoles": "No roles registered.",
@@ -764,7 +774,8 @@
     "offhand": "Off-hand",
     "potion": "Potion",
     "food": "Food",
-    "cape": "Cape"
+    "cape": "Cape",
+    "mount": "Mount"
   },
   "armor": {
     "keeper": "Judicator armor",

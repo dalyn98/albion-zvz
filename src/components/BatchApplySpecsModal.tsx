@@ -20,7 +20,7 @@ export type BatchSpecsScope = 'all' | SlotRole
 // expands that to each member SlotKey on apply. Food and potion are tierless
 // because their item id already carries the tier (e.g. T8 Roast Beef).
 interface BatchGroup {
-  id: 'weapon' | 'armor' | 'cape' | 'food' | 'potion'
+  id: 'weapon' | 'armor' | 'cape' | 'mount' | 'food' | 'potion'
   labelKey: string
   keys: SlotKey[]
   includeTier: boolean
@@ -30,6 +30,7 @@ const BATCH_GROUPS: BatchGroup[] = [
   { id: 'weapon', labelKey: 'batchGroupWeapon', keys: ['weapon', 'offhand'], includeTier: true },
   { id: 'armor',  labelKey: 'batchGroupArmor',  keys: ['head', 'armor', 'shoes'], includeTier: true },
   { id: 'cape',   labelKey: 'batchGroupCape',   keys: ['cape'], includeTier: true },
+  { id: 'mount',  labelKey: 'batchGroupMount',  keys: ['mount'], includeTier: true },
   { id: 'food',   labelKey: 'batchGroupFood',   keys: ['food'], includeTier: false },
   { id: 'potion', labelKey: 'batchGroupPotion', keys: ['potion'], includeTier: false },
 ]
@@ -40,6 +41,7 @@ const EMPTY_GROUP_SPECS: GroupSpecState = {
   weapon: {},
   armor: {},
   cape: {},
+  mount: {},
   food: {},
   potion: {},
 }

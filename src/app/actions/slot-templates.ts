@@ -23,6 +23,9 @@ export interface SlotTemplateData {
   potion_name: string | null;  potion_id: string | null;  potion_options: GearOption[] | null
   food_name: string | null;    food_id: string | null;    food_options: GearOption[] | null
   cape_name: string | null;    cape_id: string | null;    cape_options: GearOption[] | null
+  // Mount is optional so templates saved before migration 036 still load.
+  // Missing → applyTemplateToSlotInput defaults to empty.
+  mount_name?: string | null;  mount_id?: string | null;  mount_options?: GearOption[] | null
 }
 
 export interface SlotTemplateSummary {

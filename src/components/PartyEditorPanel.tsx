@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Eye, EyeOff, Package } from 'lucide-react'
+import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Eye, EyeOff, Package, Beaker } from 'lucide-react'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
 import BatchApplySpecsModal, { type BatchSpecsScope } from './BatchApplySpecsModal'
+import BatchApplyItemsModal from './BatchApplyItemsModal'
 import type { GearOption, GearSpec, SlotKey } from '@/types'
 import { SLOT_KEYS } from '@/types'
 import { savePartySlots } from '@/app/actions/admin'
@@ -54,6 +55,32 @@ export default function PartyEditorPanel({ eventId, partyNumber, initialData }: 
   )
   const [error, setError] = useState('')
   const [batchModalOpen, setBatchModalOpen] = useState(false)
+  const [batchItemsModalOpen, setBatchItemsModalOpen] = useState(false)
+
+  // Overwrite semantics: potion/mount are uniform within a party in practice,
+  // so a bulk apply that skips already-set slots would leave accidental holes.
+  // Slots configured with option (multi) lists are left untouched — their
+  // fixed columns are null by convention and we'd corrupt that shape.
+  const applyBatchItems = (picks: {
+    potion: { name: string; id: string } | null
+    mount: { name: string; id: string } | null
+  }) => {
+    setSlots((prev) =>
+      prev.map((s) => {
+        const nextItems = { ...s.items }
+        let changed = false
+        if (picks.potion && s.options.potion.length === 0) {
+          nextItems.potion = { name: picks.potion.name, id: picks.potion.id }
+          changed = true
+        }
+        if (picks.mount && s.options.mount.length === 0) {
+          nextItems.mount = { name: picks.mount.name, id: picks.mount.id }
+          changed = true
+        }
+        return changed ? { ...s, items: nextItems } : s
+      }),
+    )
+  }
 
   const applyBatchSpecs = (
     scope: BatchSpecsScope,
@@ -148,7 +175,15 @@ export default function PartyEditorPanel({ eventId, partyNumber, initialData }: 
 
       <div className="p-4 space-y-3 border-t border-gray-700">
         {slots.length > 0 && (
-          <div className="flex items-center justify-end">
+          <div className="flex items-center justify-end gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setBatchItemsModalOpen(true)}
+              className="flex items-center gap-1 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 text-amber-300 px-3 py-1.5 rounded-lg"
+            >
+              <Beaker size={12} />
+              {t('batchItemsButton')}
+            </button>
             <button
               type="button"
               onClick={() => setBatchModalOpen(true)}
@@ -241,6 +276,14 @@ export default function PartyEditorPanel({ eventId, partyNumber, initialData }: 
           slots={slots}
           onApply={applyBatchSpecs}
           onClose={() => setBatchModalOpen(false)}
+        />
+      )}
+
+      {batchItemsModalOpen && (
+        <BatchApplyItemsModal
+          slots={slots}
+          onApply={applyBatchItems}
+          onClose={() => setBatchItemsModalOpen(false)}
         />
       )}
     </details>

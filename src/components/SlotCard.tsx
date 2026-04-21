@@ -257,8 +257,8 @@ export default function SlotCard({
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-1">
-        <div className="row-span-2 flex items-center justify-center">
+      <div className="grid grid-cols-4 gap-1">
+        <div className="col-span-2 row-span-2 flex items-center justify-center">
           <GearPreview slot={slot} kind="weapon" size={52} isTaken={isTaken} />
         </div>
         {otherKeys.map((key) => (

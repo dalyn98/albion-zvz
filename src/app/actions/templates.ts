@@ -18,7 +18,8 @@ const TEMPLATE_SLOT_COLUMNS =
   'offhand_name, offhand_id, offhand_options, ' +
   'potion_name, potion_id, potion_options, ' +
   'food_name, food_id, food_options, ' +
-  'cape_name, cape_id, cape_options'
+  'cape_name, cape_id, cape_options, ' +
+  'mount_name, mount_id, mount_options'
 
 interface TemplateSlot {
   slot_number: number
@@ -34,6 +35,7 @@ interface TemplateSlot {
   potion_name: string | null;  potion_id: string | null;  potion_options: GearOption[] | null
   food_name: string | null;    food_id: string | null;    food_options: GearOption[] | null
   cape_name: string | null;    cape_id: string | null;    cape_options: GearOption[] | null
+  mount_name: string | null;   mount_id: string | null;   mount_options: GearOption[] | null
 }
 
 interface TemplateParty {
@@ -240,6 +242,7 @@ export async function applyTemplate(
         potion_name: s.potion_name,   potion_id: s.potion_id,   potion_options: s.potion_options ?? null,
         food_name: s.food_name,       food_id: s.food_id,       food_options: s.food_options ?? null,
         cape_name: s.cape_name,       cape_id: s.cape_id,       cape_options: s.cape_options ?? null,
+        mount_name: s.mount_name,     mount_id: s.mount_id,     mount_options: s.mount_options ?? null,
       }))
     })
 
