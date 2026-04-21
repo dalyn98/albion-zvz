@@ -9,30 +9,30 @@ import { requireAdmin } from '@/lib/auth'
 // 사용자(길드원/게스트) 본인의 Discord DM 수신 토글과 관리자용 Discord 역할
 // 목록 조회를 담당. 웹 푸시 스택(actions/push.ts) 을 대체한다.
 
-// 현재 세션 사용자의 discord_dm_enabled 값을 돌려준다. 기본값은 true (옵트아웃).
+// 현재 세션 사용자의 discord_dm_enabled 값을 돌려준다. 기본값은 false (옵트인).
 export async function getMyDmPreference(): Promise<{ enabled: boolean; error?: string }> {
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
-  if (!session) return { enabled: true, error: tErr('loginRequired') }
+  if (!session) return { enabled: false, error: tErr('loginRequired') }
 
   const db = getAdminClient()
   // 길드원(guild_avatars) 우선, 없으면 게스트(guests) 확인. 둘 다 없는 경우는
-  // 실질적으로 세션이 살아있지만 아바타가 삭제된 엣지 케이스 — 기본 true 반환.
+  // 실질적으로 세션이 살아있지만 아바타가 삭제된 엣지 케이스 — 기본 false 반환.
   const { data: avatar } = await db
     .from('guild_avatars')
     .select('discord_dm_enabled')
     .eq('discord_id', session.discordId)
     .maybeSingle()
-  if (avatar) return { enabled: avatar.discord_dm_enabled ?? true }
+  if (avatar) return { enabled: avatar.discord_dm_enabled ?? false }
 
   const { data: guest } = await db
     .from('guests')
     .select('discord_dm_enabled')
     .eq('discord_id', session.discordId)
     .maybeSingle()
-  if (guest) return { enabled: guest.discord_dm_enabled ?? true }
+  if (guest) return { enabled: guest.discord_dm_enabled ?? false }
 
-  return { enabled: true }
+  return { enabled: false }
 }
 
 export async function setMyDmPreference(
