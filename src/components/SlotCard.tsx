@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { assignSlot, cancelSlot, adminCancelSlot, type SlotPicks } from '@/app/actions/member'
+import { approveSlotRequest, rejectSlotRequest } from '@/app/actions/bomb-squad'
 import type { GearOption, GearSpec, Slot, SlotKey } from '@/types'
 import {
   SLOT_KEYS,
@@ -24,17 +25,24 @@ import type { Locale } from '@/i18n/locales'
 import ItemImage from './ItemImage'
 import SlotSpellPanel from './SlotSpellPanel'
 import MemberAvatar from './MemberAvatar'
-import { UserPlus, UserX, MessageSquare, LogIn, Lock, X, Swords } from 'lucide-react'
+import { UserPlus, UserX, MessageSquare, LogIn, Lock, X, Swords, Check, Hourglass, Bomb } from 'lucide-react'
 
 interface Props {
   slot: Slot
   partyNumber: number
+  // Migration 041: party-level context needed to render bomb squad state and
+  // decide who can approve/reject pending requests. partyName is shown only on
+  // bomb squad parties (regular parties keep the "N파티" label).
+  partyName?: string | null
+  isBombSquadParty?: boolean
+  bombSquadCallerId?: string | null
   currentDiscordId: string | null
   loginHref: string
   battleStarted: boolean
   eventFinalized: boolean
   isAdmin: boolean
   assignedAvatar?: string | null
+  requestedAvatar?: string | null
 }
 
 function FreeBadge({ size }: { size: number }) {
@@ -179,12 +187,16 @@ function NoteTooltip({ notes }: { notes: string }) {
 export default function SlotCard({
   slot,
   partyNumber,
+  partyName = null,
+  isBombSquadParty = false,
+  bombSquadCallerId = null,
   currentDiscordId,
   loginHref,
   battleStarted,
   eventFinalized,
   isAdmin,
   assignedAvatar = null,
+  requestedAvatar = null,
 }: Props) {
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
@@ -198,6 +210,15 @@ export default function SlotCard({
   const isMine = isTaken && slot.assigned_discord_id === currentDiscordId
   const isLoggedIn = currentDiscordId !== null
   const roleStyle = getRoleStyle(slot.role_name)
+  // Bomb squad pending request state. Only relevant when the slot is empty
+  // (requested_* is cleared once approve_slot_request moves data to assigned_*).
+  const hasPendingRequest = !isTaken && slot.requested_discord_id !== null
+  const isMyPending = hasPendingRequest && slot.requested_discord_id === currentDiscordId
+  const canReviewPending =
+    hasPendingRequest &&
+    isLoggedIn &&
+    !battleStarted &&
+    (isAdmin || (!!bombSquadCallerId && bombSquadCallerId === currentDiscordId))
 
   // Slot kinds that need a choice at signup time: the admin marked them multi
   // and the member hasn't been assigned yet.
@@ -253,19 +274,52 @@ export default function SlotCard({
     })
   }
 
+  const handleApproveRequest = () => {
+    setError('')
+    startTransition(async () => {
+      const result = await approveSlotRequest(slot.id)
+      if (result.error) setError(result.error)
+      else router.refresh()
+    })
+  }
+
+  const handleRejectRequest = () => {
+    if (!slot.requested_username) return
+    if (!confirm(t('bombSquad.confirmReject', { name: slot.requested_username }))) return
+    setError('')
+    startTransition(async () => {
+      const result = await rejectSlotRequest(slot.id)
+      if (result.error) setError(result.error)
+      else router.refresh()
+    })
+  }
+
   const otherKeys = SLOT_KEYS.filter((k) => k !== primaryKind)
 
-  return (
-    <div className={`rounded-xl p-2.5 space-y-2 border transition-colors ${
-      isMine
-        ? 'bg-amber-500/5 border-amber-500/40'
+  // Pending-request highlight uses rose (bomb squad color) so the state is
+  // distinguishable from the amber "mine" border and neutral "taken" border.
+  const cardStateClasses = isMine
+    ? 'bg-amber-500/5 border-amber-500/40'
+    : isMyPending
+      ? 'bg-rose-500/5 border-rose-500/40'
+      : hasPendingRequest
+        ? 'bg-gray-900/60 border-rose-500/20'
         : isTaken
           ? 'bg-gray-900/60 border-gray-700'
           : 'bg-gray-900 border-gray-600 hover:border-gray-500'
-    }`}>
+
+  const slotLabel = isBombSquadParty && partyName
+    ? t('partyLabelCustom', { name: partyName, slot: slot.slot_number })
+    : t('partyLabel', { party: partyNumber, slot: slot.slot_number })
+
+  return (
+    <div className={`rounded-xl p-2.5 space-y-2 border transition-colors ${cardStateClasses}`}>
       <div className="flex items-center justify-between gap-1">
         <div className="flex items-center gap-1 flex-wrap min-w-0">
-          <span className="text-gray-500 text-[12px]">{t('partyLabel', { party: partyNumber, slot: slot.slot_number })}</span>
+          <span className="text-gray-500 text-[12px] inline-flex items-center gap-1">
+            {isBombSquadParty && <Bomb size={10} className="text-rose-400" />}
+            {slotLabel}
+          </span>
           {slot.role_name && (
             <span className={`text-[12px] font-bold px-1.5 py-0.5 rounded ${
               roleStyle ? roleStyle.badge : 'bg-amber-500/20 text-amber-400'
@@ -274,12 +328,20 @@ export default function SlotCard({
             </span>
           )}
         </div>
-        {isTaken && (
+        {isTaken ? (
           <div className={`flex items-center gap-1 text-[12px] flex-shrink-0 ${
             isMine ? 'text-amber-300' : 'text-green-400'
           }`}>
             <MemberAvatar discordId={slot.assigned_discord_id} avatar={assignedAvatar} size={14} />
             <span className="font-semibold truncate max-w-[80px]">{slot.assigned_username}</span>
+          </div>
+        ) : hasPendingRequest && (
+          <div className={`flex items-center gap-1 text-[12px] flex-shrink-0 ${
+            isMyPending ? 'text-rose-300' : 'text-rose-200/80'
+          }`}>
+            <Hourglass size={11} />
+            <MemberAvatar discordId={slot.requested_discord_id} avatar={requestedAvatar} size={14} />
+            <span className="font-semibold truncate max-w-[80px]">{slot.requested_username}</span>
           </div>
         )}
       </div>
@@ -401,14 +463,72 @@ export default function SlotCard({
         </button>
       )
     }
+    if (isMyPending) {
+      // The requestor withdraws their own pending signup. RPC routes to the
+      // pending branch automatically, so we reuse cancelSlot.
+      return (
+        <button
+          onClick={handleCancel}
+          disabled={pending}
+          className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-200 border border-rose-500/30 transition-colors disabled:opacity-50"
+        >
+          <UserX size={11} />
+          {pending ? t('cancelling') : t('bombSquad.withdrawRequest')}
+        </button>
+      )
+    }
+    if (hasPendingRequest) {
+      if (canReviewPending) {
+        return (
+          <div className="grid grid-cols-2 gap-1">
+            <button
+              onClick={handleApproveRequest}
+              disabled={pending}
+              className="flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 transition-colors disabled:opacity-50"
+            >
+              <Check size={11} />
+              {pending ? t('bombSquad.reviewing') : t('bombSquad.approve')}
+            </button>
+            <button
+              onClick={handleRejectRequest}
+              disabled={pending}
+              className="flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 transition-colors disabled:opacity-50"
+            >
+              <X size={11} />
+              {t('bombSquad.reject')}
+            </button>
+          </div>
+        )
+      }
+      return (
+        <button
+          disabled
+          title={t('bombSquad.pendingTooltip')}
+          className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-medium bg-gray-800/50 text-gray-400 border border-gray-800 cursor-not-allowed"
+        >
+          <Hourglass size={11} />
+          {t('bombSquad.pendingOther')}
+        </button>
+      )
+    }
     return (
       <button
         onClick={handleAssign}
         disabled={pending}
-        className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 transition-colors disabled:opacity-50"
+        className={`w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-semibold transition-colors disabled:opacity-50 ${
+          isBombSquadParty
+            ? 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-200 border border-rose-500/40'
+            : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30'
+        }`}
       >
-        {needsPicks ? <Swords size={11} /> : <UserPlus size={11} />}
-        {pending ? t('applying') : needsPicks ? t('pickThenApply') : t('apply')}
+        {isBombSquadParty ? <Bomb size={11} /> : needsPicks ? <Swords size={11} /> : <UserPlus size={11} />}
+        {pending
+          ? t('applying')
+          : isBombSquadParty
+            ? t('bombSquad.requestApply')
+            : needsPicks
+              ? t('pickThenApply')
+              : t('apply')}
       </button>
     )
   }

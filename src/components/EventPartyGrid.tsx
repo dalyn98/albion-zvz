@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Filter, X } from 'lucide-react'
+import { Bomb, Filter, Megaphone, X } from 'lucide-react'
 import type { PartyWithSlots } from '@/types'
 import SlotCard from './SlotCard'
 
@@ -83,12 +83,39 @@ export default function EventPartyGrid({
 
       {filteredParties.map((party) => {
         const assigned = party.slots.filter((s) => s.assigned_discord_id).length
+        const isBomb = party.is_bomb_squad
+        const customName = party.name?.trim()
+        const displayName = isBomb && customName
+          ? customName
+          : t('partyNumber', { number: party.party_number })
+        const callerName = isBomb && party.caller_discord_id
+          ? party.slots.find((s) => s.assigned_discord_id === party.caller_discord_id)?.assigned_username
+            ?? null
+          : null
         return (
           <section key={party.id} className="space-y-3 sm:space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-800 pb-2">
-              <h2 className="text-base sm:text-lg font-bold text-white">
-                {t('partyNumber', { number: party.party_number })}
-              </h2>
+            <div className={`flex items-center justify-between border-b pb-2 ${
+              isBomb ? 'border-rose-500/40' : 'border-gray-800'
+            }`}>
+              <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                <h2 className={`text-base sm:text-lg font-bold flex items-center gap-1.5 ${
+                  isBomb ? 'text-rose-200' : 'text-white'
+                }`}>
+                  {isBomb && <Bomb size={16} className="text-rose-400" />}
+                  {displayName}
+                </h2>
+                {isBomb && party.bomb_squad_kind && (
+                  <span className="bg-rose-500/10 text-rose-300 text-xs font-semibold px-2 py-0.5 rounded border border-rose-500/30">
+                    {t(`bombSquad.kind.${party.bomb_squad_kind}`)}
+                  </span>
+                )}
+                {isBomb && callerName && (
+                  <span className="inline-flex items-center gap-1 text-xs text-rose-200/90">
+                    <Megaphone size={11} />
+                    {t('bombSquad.callerLabel', { name: callerName })}
+                  </span>
+                )}
+              </div>
               <span className="text-sm sm:text-base text-gray-400">
                 {t('applicationsCount', { assigned, total: party.slots.length })}
               </span>
@@ -102,6 +129,9 @@ export default function EventPartyGrid({
                     key={slot.id}
                     slot={slot}
                     partyNumber={party.party_number}
+                    partyName={customName || null}
+                    isBombSquadParty={isBomb}
+                    bombSquadCallerId={party.caller_discord_id}
                     currentDiscordId={currentDiscordId}
                     loginHref={loginHref}
                     battleStarted={battleStarted}
@@ -109,6 +139,9 @@ export default function EventPartyGrid({
                     isAdmin={isAdmin}
                     assignedAvatar={
                       slot.assigned_discord_id ? avatars[slot.assigned_discord_id] ?? null : null
+                    }
+                    requestedAvatar={
+                      slot.requested_discord_id ? avatars[slot.requested_discord_id] ?? null : null
                     }
                   />
                 ))}

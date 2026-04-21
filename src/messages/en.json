@@ -344,7 +344,17 @@
     "batchItemsNoSelection": "Select at least one of potion or mount.",
     "batchItemsPotionLabel": "Potion",
     "batchItemsMountLabel": "Mount",
-    "batchItemsAffectedCount": "{count} slots affected"
+    "batchItemsAffectedCount": "{count} slots affected",
+    "bombSquad": {
+      "toggleLabel": "Bomb squad",
+      "toggleHint": "Approval-only · custom names allowed",
+      "kindLabel": "Kind",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. Breeze / Darkflare (blank = default party name)",
+      "callerLabel": "Caller",
+      "callerPlaceholder": "Select a caller",
+      "kind": { "melee": "Melee", "ranged": "Ranged" }
+    }
   },
   "adminRoleRewards": {
     "noRoles": "No roles registered.",
@@ -521,7 +531,11 @@
     "filterMyRoleActive": "Clear {role} filter",
     "filterNoMatches": "No other slots with this role.",
     "edit": "Edit",
-    "editAria": "Edit event"
+    "editAria": "Edit event",
+    "bombSquad": {
+      "callerLabel": "Caller {name}",
+      "kind": { "melee": "Melee", "ranged": "Ranged" }
+    }
   },
   "eventBattles": {
     "title": "Battle log",
@@ -550,6 +564,17 @@
     "pickThenApply": "Pick gear then apply",
     "apply": "Apply",
     "partyLabel": "Party {party} · slot {slot}",
+    "partyLabelCustom": "{name} · slot {slot}",
+    "bombSquad": {
+      "requestApply": "Request approval",
+      "withdrawRequest": "Withdraw request",
+      "approve": "Approve",
+      "reject": "Reject",
+      "reviewing": "Processing...",
+      "confirmReject": "Reject {name}'s bomb squad request?",
+      "pendingOther": "Awaiting approval",
+      "pendingTooltip": "No one else can apply until the caller or an admin approves."
+    },
     "confirmBattleStarted": "This event's battle has already started.\nYou can't cancel after applying. Continue?",
     "picker": {
       "title": "Pick gear",
@@ -842,7 +867,12 @@
     "noMemberRole": "You don't have an eligible role.",
     "battleAlreadyStarted": "The battle has already started and cannot be cancelled.",
     "eventFinalized": "This event has ended; new sign-ups are closed.",
-    "adminOnly": "Admin only."
+    "adminOnly": "Admin only.",
+    "slotPending": "An approval request is already pending for this slot.",
+    "noPendingRequest": "No pending request to act on.",
+    "notBombSquad": "Bomb squad action only.",
+    "bombSquadNotAuthorized": "Only the caller or an admin can act on this request.",
+    "serverError": "A server error occurred."
   },
   "adminBattleOutcome": {
     "sectionTitle": "Battle results",
@@ -973,7 +1003,9 @@
     "invalidBattleOutcome": "Invalid battle outcome value.",
     "invalidDateFormat": "Dates must be in YYYY-MM-DD format.",
     "unauthorized": "You don't have permission to perform this action.",
-    "invalidJsonArray": "Could not save the role list."
+    "invalidJsonArray": "Could not save the role list.",
+    "bombSquadKindRequired": "Select the bomb squad kind (melee/ranged).",
+    "partyNameTooLong": "Party name cannot exceed {max} characters."
   },
   "memberActionError": {
     "loginRequired": "Login required.",

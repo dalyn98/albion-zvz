@@ -344,7 +344,17 @@
     "batchItemsNoSelection": "ポーションまたはマウントのいずれかを選択してください。",
     "batchItemsPotionLabel": "ポーション",
     "batchItemsMountLabel": "マウント",
-    "batchItemsAffectedCount": "対象スロット {count}件"
+    "batchItemsAffectedCount": "対象スロット {count}件",
+    "bombSquad": {
+      "toggleLabel": "ボムスクワッド",
+      "toggleHint": "承認制 · カスタム名可",
+      "kindLabel": "種類",
+      "nameLabel": "名前",
+      "namePlaceholder": "例: ブリーズ/ダークフレア (空欄ならパーティー名を使用)",
+      "callerLabel": "コーラー",
+      "callerPlaceholder": "コーラーを選択してください",
+      "kind": { "melee": "近接", "ranged": "遠距離" }
+    }
   },
   "adminRoleRewards": {
     "noRoles": "登録された役割がありません。",
@@ -521,7 +531,11 @@
     "filterMyRoleActive": "{role} フィルター解除",
     "filterNoMatches": "同じ役割の他のスロットはありません。",
     "edit": "編集",
-    "editAria": "イベントを編集"
+    "editAria": "イベントを編集",
+    "bombSquad": {
+      "callerLabel": "コーラー {name}",
+      "kind": { "melee": "近接", "ranged": "遠距離" }
+    }
   },
   "eventBattles": {
     "title": "戦闘記録",
@@ -550,6 +564,17 @@
     "pickThenApply": "装備を選んで申請",
     "apply": "申請",
     "partyLabel": "パーティー{party}·{slot}番",
+    "partyLabelCustom": "{name}·{slot}番",
+    "bombSquad": {
+      "requestApply": "承認申請",
+      "withdrawRequest": "申請を取り消す",
+      "approve": "承認",
+      "reject": "拒否",
+      "reviewing": "処理中...",
+      "confirmReject": "{name} さんのボムスクワッド申請を拒否しますか?",
+      "pendingOther": "承認待ち",
+      "pendingTooltip": "コーラーまたは管理者が承認するまで、他の人は申請できません。"
+    },
     "confirmBattleStarted": "すでに戦闘が始まっているイベントです。\n申請後はキャンセルできません。続行しますか?",
     "picker": {
       "title": "装備選択",
@@ -842,7 +867,12 @@
     "noMemberRole": "申請できる役割がありません。",
     "battleAlreadyStarted": "戦闘が既に開始されており、キャンセルできません。",
     "eventFinalized": "イベントが終了しているため、これ以上参加できません。",
-    "adminOnly": "管理者のみ実行できます。"
+    "adminOnly": "管理者のみ実行できます。",
+    "slotPending": "すでに承認待ちの申請があります。",
+    "noPendingRequest": "保留中の申請はありません。",
+    "notBombSquad": "ボムスクワッド専用の操作です。",
+    "bombSquadNotAuthorized": "コーラーまたは管理者のみ処理できます。",
+    "serverError": "サーバーエラーが発生しました。"
   },
   "adminBattleOutcome": {
     "sectionTitle": "戦闘結果",
@@ -973,7 +1003,9 @@
     "invalidBattleOutcome": "戦闘結果の値が正しくありません。",
     "invalidDateFormat": "日付は YYYY-MM-DD 形式で入力してください。",
     "unauthorized": "この操作を実行する権限がありません。",
-    "invalidJsonArray": "役割一覧を保存できませんでした。"
+    "invalidJsonArray": "役割一覧を保存できませんでした。",
+    "bombSquadKindRequired": "ボムスクワッドの種類(近接/遠距離)を選択してください。",
+    "partyNameTooLong": "パーティー名は {max} 文字以内で入力してください。"
   },
   "memberActionError": {
     "loginRequired": "ログインが必要です。",

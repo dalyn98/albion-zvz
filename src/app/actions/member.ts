@@ -14,16 +14,20 @@ type GearTranslator = Awaited<ReturnType<typeof getTranslations<'gear'>>>
 type RpcCodeKey =
   | 'slotNotFound'
   | 'slotTaken'
+  | 'slotPending'
   | 'alreadyInEvent'
   | 'slotEmpty'
   | 'notOwner'
+  | 'noPendingRequest'
 
 const RPC_CODE_KEYS: Record<string, RpcCodeKey> = {
   SLOT_NOT_FOUND: 'slotNotFound',
   SLOT_TAKEN: 'slotTaken',
+  SLOT_PENDING: 'slotPending',
   ALREADY_IN_EVENT: 'alreadyInEvent',
   SLOT_EMPTY: 'slotEmpty',
   NOT_OWNER: 'notOwner',
+  NO_PENDING_REQUEST: 'noPendingRequest',
 }
 
 function mapRpcError(
@@ -60,7 +64,7 @@ function safeGearLabel(slotKey: SlotKey, tGear: GearTranslator): string {
 export async function assignSlot(
   slotId: string,
   picks: SlotPicks = {},
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; pending?: boolean }> {
   const tAction = await getTranslations('slotAction')
   const tGear = await getTranslations('gear')
   const session = await getSession()
@@ -84,19 +88,26 @@ export async function assignSlot(
 
   // Hidden slots are intentionally invisible to members — guard the action so
   // a crafted request with a stale slot id can't silently bypass the UI hide.
-  // Also pull the parent event's finalized_at so we can refuse assignment to
-  // events that already have a recorded outcome (event ended).
+  // Pull the parent event's finalized_at plus the party's bomb-squad flag so
+  // we can (a) refuse assignments on ended events and (b) decide whether the
+  // action returns pending:true (bomb squad) or pending:false (regular).
   const { data: slotCheck, error: slotLookupError } = await db
     .from('slots')
-    .select('is_hidden, parties!inner(events!inner(finalized_at))')
+    .select('is_hidden, parties!inner(is_bomb_squad, events!inner(finalized_at))')
     .eq('id', slotId)
     .maybeSingle()
   if (slotLookupError) return { error: slotLookupError.message }
   if (!slotCheck) return { error: tAction('slotNotFound') }
   if (slotCheck.is_hidden) return { error: tAction('slotNotFound') }
   const partyJoin = slotCheck.parties as
-    | { events: { finalized_at: string | null } | { finalized_at: string | null }[] }
-    | { events: { finalized_at: string | null } | { finalized_at: string | null }[] }[]
+    | {
+        is_bomb_squad: boolean | null
+        events: { finalized_at: string | null } | { finalized_at: string | null }[]
+      }
+    | {
+        is_bomb_squad: boolean | null
+        events: { finalized_at: string | null } | { finalized_at: string | null }[]
+      }[]
     | null
   const partyObj = Array.isArray(partyJoin) ? partyJoin[0] : partyJoin
   const eventObj = partyObj
@@ -107,6 +118,7 @@ export async function assignSlot(
   if (eventObj?.finalized_at) {
     return { error: tAction('eventFinalized') }
   }
+  const isBomb = !!partyObj?.is_bomb_squad
 
   const { error } = await db.rpc('assign_slot', {
     p_slot_id: slotId,
@@ -117,7 +129,7 @@ export async function assignSlot(
   if (error) return { error: mapRpcError(error.message, tAction, tGear) }
 
   revalidatePath('/')
-  return {}
+  return { pending: isBomb }
 }
 
 export async function cancelSlot(slotId: string): Promise<{ error?: string }> {

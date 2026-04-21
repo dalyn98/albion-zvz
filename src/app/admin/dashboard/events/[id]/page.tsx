@@ -19,7 +19,7 @@ import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 const MAX_PARTIES = 4
 
 async function getData(id: string) {
-  const [{ data: event }, { data: parties }, { data: battles }] = await Promise.all([
+  const [{ data: event }, { data: parties }, { data: battles }, { data: directory }] = await Promise.all([
     supabase.from('events').select('*').eq('id', id).single(),
     supabase.from('parties').select('*, slots(*)').eq('event_id', id).order('party_number'),
     supabase
@@ -27,6 +27,9 @@ async function getData(id: string) {
       .select('*')
       .eq('event_id', id)
       .order('battle_number', { ascending: true }),
+    // Bomb squad caller picker — any logged-in member is eligible since the
+    // sub-caller may not yet hold a slot in the event.
+    supabase.from('guild_avatars').select('discord_id, username').order('username'),
   ])
 
   const sorted = (parties ?? []).map((p) => ({
@@ -38,6 +41,7 @@ async function getData(id: string) {
     event: event as Event | null,
     parties: sorted,
     battles: (battles ?? []) as EventBattle[],
+    memberDirectory: (directory ?? []) as { discord_id: string; username: string }[],
   }
 }
 
@@ -47,7 +51,7 @@ export default async function EditEventPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const [{ event, parties, battles }, { templates }, { guilds: opponentGuilds }, t] = await Promise.all([
+  const [{ event, parties, battles, memberDirectory }, { templates }, { guilds: opponentGuilds }, t] = await Promise.all([
     getData(id),
     listTemplates(),
     listOpponentGuilds(),
@@ -154,6 +158,7 @@ export default async function EditEventPage({
                     eventId={id}
                     partyNumber={partyNumber}
                     initialData={party}
+                    memberDirectory={memberDirectory}
                   />
                 )
               })}

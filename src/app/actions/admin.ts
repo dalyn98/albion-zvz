@@ -10,8 +10,9 @@ import {
 import { getSession } from '@/lib/session'
 import { sendEventNotification } from '@/lib/discord'
 import { getAppSetting } from '@/lib/app-settings'
-import type { SlotKey, SlotSpells, GearOption, GearSpec, GearSpecs } from '@/types'
+import type { BombSquadKind, SlotKey, SlotSpells, GearOption, GearSpec, GearSpecs } from '@/types'
 import {
+  BOMB_SQUAD_KINDS,
   SLOT_KEYS,
   GEAR_TIER_MIN,
   GEAR_TIER_MAX,
@@ -421,6 +422,57 @@ interface SlotPayload {
   specs?: Partial<Record<SlotKey, GearSpec>>
 }
 
+// Migration 041: party-level bomb-squad metadata. All fields optional on input
+// so older callers (templates, tests) can omit. sanitizePartyMeta enforces the
+// "kind required when flag is on, name/caller only when flag is on" rules.
+export interface PartyMetaPayload {
+  is_bomb_squad?: boolean
+  bomb_squad_kind?: BombSquadKind | null
+  name?: string | null
+  caller_discord_id?: string | null
+}
+
+const MAX_PARTY_NAME_LENGTH = 40
+
+function sanitizePartyMeta(
+  meta: PartyMetaPayload | undefined,
+  tErr: AdminErrorTranslator,
+): { row: {
+  name: string | null
+  is_bomb_squad: boolean
+  bomb_squad_kind: BombSquadKind | null
+  caller_discord_id: string | null
+} } | { error: string } {
+  const isBomb = meta?.is_bomb_squad === true
+  if (!isBomb) {
+    return {
+      row: {
+        name: null,
+        is_bomb_squad: false,
+        bomb_squad_kind: null,
+        caller_discord_id: null,
+      },
+    }
+  }
+  const kind = meta?.bomb_squad_kind
+  if (!kind || !BOMB_SQUAD_KINDS.includes(kind)) {
+    return { error: tErr('bombSquadKindRequired') }
+  }
+  const rawName = typeof meta?.name === 'string' ? meta.name.trim() : ''
+  if (rawName.length > MAX_PARTY_NAME_LENGTH) {
+    return { error: tErr('partyNameTooLong', { max: MAX_PARTY_NAME_LENGTH }) }
+  }
+  const rawCaller = typeof meta?.caller_discord_id === 'string' ? meta.caller_discord_id.trim() : ''
+  return {
+    row: {
+      name: rawName || null,
+      is_bomb_squad: true,
+      bomb_squad_kind: kind,
+      caller_discord_id: rawCaller || null,
+    },
+  }
+}
+
 function sanitizeOptionSpells(raw: unknown): string[] | undefined {
   if (!Array.isArray(raw)) return undefined
   const seen = new Set<string>()
@@ -538,11 +590,16 @@ export async function savePartySlots(
   partyId: string | null,
   slots: SlotPayload[],
   originalSlotIds: string[],
+  partyMeta?: PartyMetaPayload,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
     if (partyNumber < 1 || partyNumber > MAX_PARTIES) return { error: tErr('invalidPartyNumber') }
     if (slots.length > MAX_SLOTS_PER_PARTY) return { error: tErr('tooManySlots', { max: MAX_SLOTS_PER_PARTY }) }
+
+    const metaResult = sanitizePartyMeta(partyMeta, tErr)
+    if ('error' in metaResult) return { error: metaResult.error }
+    const metaRow = metaResult.row
 
     const db = await requireEventCreatorForEvent(eventId)
 
@@ -568,10 +625,15 @@ export async function savePartySlots(
     let resolvedPartyId: string
     if (partyId) {
       resolvedPartyId = partyId
+      const { error: metaUpdErr } = await db
+        .from('parties')
+        .update(metaRow)
+        .eq('id', partyId)
+      if (metaUpdErr) return { error: metaUpdErr.message }
     } else {
       const { data, error } = await db
         .from('parties')
-        .insert({ event_id: eventId, party_number: partyNumber })
+        .insert({ event_id: eventId, party_number: partyNumber, ...metaRow })
         .select('id')
         .single()
       if (error) {

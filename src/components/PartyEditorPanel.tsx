@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Eye, EyeOff, Package, Beaker } from 'lucide-react'
+import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Eye, EyeOff, Package, Beaker, Bomb } from 'lucide-react'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
 import BatchApplySpecsModal, { type BatchSpecsScope } from './BatchApplySpecsModal'
 import BatchApplyItemsModal from './BatchApplyItemsModal'
-import type { GearOption, GearSpec, SlotKey } from '@/types'
-import { SLOT_KEYS } from '@/types'
+import type { BombSquadKind, GearOption, GearSpec, SlotKey } from '@/types'
+import { BOMB_SQUAD_KINDS, SLOT_KEYS } from '@/types'
 import { savePartySlots } from '@/app/actions/admin'
 import type { PartyWithSlots } from '@/types'
 import { useRegisterSave } from './EventEditSaveRegistry'
@@ -42,16 +42,32 @@ function slotToInput(s: import('@/types').Slot): SlotInput {
   }
 }
 
+interface MemberDirectoryEntry {
+  discord_id: string
+  username: string
+}
+
 interface Props {
   eventId: string
   partyNumber: number
   initialData: PartyWithSlots | null
+  memberDirectory: MemberDirectoryEntry[]
 }
 
-export default function PartyEditorPanel({ eventId, partyNumber, initialData }: Props) {
+export default function PartyEditorPanel({ eventId, partyNumber, initialData, memberDirectory }: Props) {
   const t = useTranslations('adminParty')
   const [slots, setSlots] = useState<SlotInput[]>(
     initialData?.slots.map(slotToInput) ?? []
+  )
+  const [isBombSquad, setIsBombSquad] = useState<boolean>(
+    initialData?.is_bomb_squad ?? false,
+  )
+  const [bombSquadKind, setBombSquadKind] = useState<BombSquadKind>(
+    initialData?.bomb_squad_kind ?? 'melee',
+  )
+  const [partyName, setPartyName] = useState<string>(initialData?.name ?? '')
+  const [callerDiscordId, setCallerDiscordId] = useState<string>(
+    initialData?.caller_discord_id ?? '',
   )
   const [error, setError] = useState('')
   const [batchModalOpen, setBatchModalOpen] = useState(false)
@@ -144,6 +160,12 @@ export default function PartyEditorPanel({ eventId, partyNumber, initialData }: 
       initialData?.id ?? null,
       slots.map((s, i) => ({ ...s, slot_number: i + 1 })),
       (initialData?.slots ?? []).map((s) => s.id),
+      {
+        is_bomb_squad: isBombSquad,
+        bomb_squad_kind: isBombSquad ? bombSquadKind : null,
+        name: isBombSquad ? partyName.trim() : null,
+        caller_discord_id: isBombSquad ? callerDiscordId.trim() || null : null,
+      },
     )
     if (result.error) {
       setError(result.error)
@@ -158,10 +180,18 @@ export default function PartyEditorPanel({ eventId, partyNumber, initialData }: 
   return (
     <details className="group border border-gray-700 rounded-xl overflow-hidden">
       <summary className="flex items-center justify-between px-4 py-3 bg-gray-900 cursor-pointer hover:bg-gray-800 list-none [&::-webkit-details-marker]:hidden">
-        <div className="flex items-center gap-3">
-          <span className="bg-amber-500/20 text-amber-400 text-sm font-bold px-2.5 py-0.5 rounded">
-            {t('partyBadge', { num: partyNumber })}
+        <div className="flex items-center gap-3 min-w-0">
+          <span className={`${isBombSquad ? 'bg-rose-500/20 text-rose-300' : 'bg-amber-500/20 text-amber-400'} text-sm font-bold px-2.5 py-0.5 rounded flex items-center gap-1`}>
+            {isBombSquad && <Bomb size={12} />}
+            {isBombSquad && partyName.trim()
+              ? partyName.trim()
+              : t('partyBadge', { num: partyNumber })}
           </span>
+          {isBombSquad && (
+            <span className="bg-rose-500/10 text-rose-300 text-xs font-semibold px-2 py-0.5 rounded border border-rose-500/30">
+              {t(`bombSquad.kind.${bombSquadKind}`)}
+            </span>
+          )}
           <span className="text-gray-400 text-sm">
             {t('slotCount', { count: slots.length })}
           </span>
@@ -174,6 +204,77 @@ export default function PartyEditorPanel({ eventId, partyNumber, initialData }: 
       </summary>
 
       <div className="p-4 space-y-3 border-t border-gray-700">
+        <div className="rounded-lg border border-gray-700 bg-gray-900/40 p-3 space-y-2">
+          <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-200">
+            <input
+              type="checkbox"
+              checked={isBombSquad}
+              onChange={(e) => setIsBombSquad(e.target.checked)}
+              className="h-4 w-4 accent-rose-500"
+            />
+            <Bomb size={14} className="text-rose-400" />
+            <span className="font-semibold">{t('bombSquad.toggleLabel')}</span>
+            <span className="text-gray-500 text-xs">{t('bombSquad.toggleHint')}</span>
+          </label>
+          {isBombSquad && (
+            <div className="pl-6 space-y-2">
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-400 min-w-[3rem]">{t('bombSquad.kindLabel')}</span>
+                {BOMB_SQUAD_KINDS.map((kind) => (
+                  <label key={kind} className="flex items-center gap-1.5 text-sm text-gray-200 cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`bomb-kind-${partyNumber}`}
+                      value={kind}
+                      checked={bombSquadKind === kind}
+                      onChange={() => setBombSquadKind(kind)}
+                      className="h-3.5 w-3.5 accent-rose-500"
+                    />
+                    {t(`bombSquad.kind.${kind}`)}
+                  </label>
+                ))}
+              </div>
+              <div className="flex items-center gap-3">
+                <label
+                  htmlFor={`bomb-name-${partyNumber}`}
+                  className="text-xs text-gray-400 min-w-[3rem]"
+                >
+                  {t('bombSquad.nameLabel')}
+                </label>
+                <input
+                  id={`bomb-name-${partyNumber}`}
+                  type="text"
+                  value={partyName}
+                  onChange={(e) => setPartyName(e.target.value)}
+                  placeholder={t('bombSquad.namePlaceholder')}
+                  maxLength={40}
+                  className="flex-1 rounded-md bg-gray-800 border border-gray-700 px-2 py-1 text-sm text-gray-100 placeholder-gray-500 focus:border-rose-500/60 focus:outline-none"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <label
+                  htmlFor={`bomb-caller-${partyNumber}`}
+                  className="text-xs text-gray-400 min-w-[3rem]"
+                >
+                  {t('bombSquad.callerLabel')}
+                </label>
+                <select
+                  id={`bomb-caller-${partyNumber}`}
+                  value={callerDiscordId}
+                  onChange={(e) => setCallerDiscordId(e.target.value)}
+                  className="flex-1 rounded-md bg-gray-800 border border-gray-700 px-2 py-1 text-sm text-gray-100 focus:border-rose-500/60 focus:outline-none"
+                >
+                  <option value="">{t('bombSquad.callerPlaceholder')}</option>
+                  {memberDirectory.map((m) => (
+                    <option key={m.discord_id} value={m.discord_id}>
+                      {m.username}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
         {slots.length > 0 && (
           <div className="flex items-center justify-end gap-2 flex-wrap">
             <button

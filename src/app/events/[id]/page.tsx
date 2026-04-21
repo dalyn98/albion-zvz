@@ -71,10 +71,16 @@ export default async function EventDetailPage({
     0,
   )
 
-  const assignedDiscordIds = parties.flatMap((p) =>
-    p.slots.map((s) => s.assigned_discord_id).filter((id): id is string => !!id),
+  // Collect both assigned + pending-request IDs and bomb squad caller IDs so
+  // avatars render for all member-facing states (assigned, pending, caller).
+  const memberIds = parties.flatMap((p) => [
+    ...p.slots.map((s) => s.assigned_discord_id),
+    ...p.slots.map((s) => s.requested_discord_id),
+    p.caller_discord_id,
+  ])
+  const avatarMap = await getAvatarsByDiscordIds(
+    memberIds.filter((id): id is string => !!id),
   )
-  const avatarMap = await getAvatarsByDiscordIds(assignedDiscordIds)
   const avatars = Object.fromEntries(avatarMap)
 
   // MVP Discord ID → display username map. Names come from the same slot

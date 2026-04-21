@@ -45,10 +45,27 @@ export interface OpponentGuild {
   created_at: string
 }
 
+export type BombSquadKind = 'melee' | 'ranged'
+
+export const BOMB_SQUAD_KINDS: readonly BombSquadKind[] = ['melee', 'ranged']
+
 export interface Party {
   id: string
   event_id: string
   party_number: number
+  // Migration 041: custom party name. Only allowed on bomb squad parties —
+  // regular parties render as "N파티" derived from party_number.
+  name: string | null
+  // Migration 041: opt-in flag that switches the party to approval-gated
+  // sign-ups (via requested_* slot fields).
+  is_bomb_squad: boolean
+  // Migration 041: required when is_bomb_squad = true; null otherwise. Drives
+  // member-facing badge text (근거리/원거리) and team-comp guidance.
+  bomb_squad_kind: BombSquadKind | null
+  // Migration 041: Discord ID of the sub-caller who approves sign-ups to this
+  // bomb squad. The main event caller (admin) is always authorized regardless
+  // of this value. Null for regular parties.
+  caller_discord_id: string | null
 }
 
 export interface GearOption {
@@ -176,6 +193,13 @@ export interface Slot {
   assigned_food_name: string | null;    assigned_food_id: string | null
   assigned_cape_name: string | null;    assigned_cape_id: string | null
   assigned_mount_name: string | null;   assigned_mount_id: string | null
+  // Migration 041: pending bomb squad request. All four are set together or
+  // all null — assigned_* stays empty while the request is pending, and is
+  // populated from requested_picks by approve_slot_request.
+  requested_discord_id: string | null
+  requested_username: string | null
+  requested_picks: Record<string, { name: string | null; id: string | null }> | null
+  requested_at: string | null
 }
 
 // Pick<Slot, ...> helpers for callers that only need the gear-display subset —
