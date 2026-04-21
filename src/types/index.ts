@@ -79,6 +79,12 @@ export const GEAR_TIER_MAX = 8
 export const GEAR_ENCHANT_MIN = 0
 export const GEAR_ENCHANT_MAX = 4
 
+// "Flat" = tier + enchant. 4.4 / 5.3 / 6.2 / 7.1 / 8.0 are all "8 flat" and
+// perform roughly equivalently in zvz, so admins specify gear by flat rather
+// than picking a specific tier/enchant breakdown.
+export const GEAR_FLAT_MIN = GEAR_TIER_MIN + GEAR_ENCHANT_MIN
+export const GEAR_FLAT_MAX = GEAR_TIER_MAX + GEAR_ENCHANT_MAX
+
 // Enchant level color mapping — Albion's in-game visual cue. 0 has no color
 // (base white), 1-4 map to green/blue/purple/yellow respectively.
 export const GEAR_ENCHANT_COLOR_CLASS: Record<number, string> = {
@@ -87,6 +93,23 @@ export const GEAR_ENCHANT_COLOR_CLASS: Record<number, string> = {
   2: 'text-sky-400',
   3: 'text-purple-400',
   4: 'text-yellow-300',
+}
+
+// Returns the flat value for a spec, or null if either tier or enchant is
+// missing (a partial spec can't be meaningfully summed).
+export function specToFlat(spec: GearSpec | null | undefined): number | null {
+  if (!spec) return null
+  if (spec.tier == null || spec.enchant == null) return null
+  return spec.tier + spec.enchant
+}
+
+// Canonicalizes a flat value to {tier, enchant}: prefer max tier, push the
+// remainder into enchant. Legacy breakdowns like 4.4 normalize to 8.0 on
+// resave — intentional since the user treats them as equivalent.
+export function flatToSpec(flat: number): GearSpec {
+  const tier = Math.min(GEAR_TIER_MAX, Math.max(GEAR_TIER_MIN, flat))
+  const enchant = Math.max(GEAR_ENCHANT_MIN, Math.min(GEAR_ENCHANT_MAX, flat - tier))
+  return { tier, enchant }
 }
 
 export function formatTierEnchant(spec: GearSpec | null | undefined): string | null {

@@ -16,11 +16,13 @@ import {
   SLOT_LABELS,
   SLOT_PICKER_CATEGORY,
   SLOT_ROLES,
-  GEAR_TIER_MIN,
-  GEAR_TIER_MAX,
   GEAR_ENCHANT_MIN,
   GEAR_ENCHANT_MAX,
+  GEAR_FLAT_MIN,
+  GEAR_FLAT_MAX,
   GEAR_ENCHANT_COLOR_CLASS,
+  flatToSpec,
+  specToFlat,
   getRoleStyle,
   isFreeItem,
   isTierlessSlot,
@@ -596,42 +598,66 @@ function TierEnchantPicker({
   // Mount has no tier/enchant concept at all — skip the whole row rather than
   // showing empty selects that save nothing (sanitizeGearSpecs drops it anyway).
   if (isSpecLessSlot(slotKey)) return null
-  const tierless = isTierlessSlot(slotKey)
-  const tiers: number[] = []
-  for (let tier = GEAR_TIER_MIN; tier <= GEAR_TIER_MAX; tier++) tiers.push(tier)
-  const enchants: number[] = []
-  for (let e = GEAR_ENCHANT_MIN; e <= GEAR_ENCHANT_MAX; e++) enchants.push(e)
-  const hasSpec = spec.enchant != null || (!tierless && spec.tier != null)
-  return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-gray-500 text-[10px] font-semibold uppercase tracking-wider">{t('specLabel')}</span>
-      {!tierless && (
+  // Food/potion: enchant only (the tier is baked into the item id).
+  if (isTierlessSlot(slotKey)) {
+    const enchants: number[] = []
+    for (let e = GEAR_ENCHANT_MIN; e <= GEAR_ENCHANT_MAX; e++) enchants.push(e)
+    const hasSpec = spec.enchant != null
+    return (
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-gray-500 text-[10px] font-semibold uppercase tracking-wider">{t('specLabel')}</span>
         <select
-          value={spec.tier ?? ''}
-          onChange={(e) => onChange({ tier: e.target.value ? Number(e.target.value) : undefined })}
-          className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-[11px] text-white focus:outline-none focus:border-amber-500"
-          aria-label={t('specTier')}
+          value={spec.enchant ?? ''}
+          onChange={(e) => onChange({ enchant: e.target.value ? Number(e.target.value) : undefined })}
+          className={`bg-gray-800 border border-gray-700 rounded px-2 py-1 text-[11px] focus:outline-none focus:border-amber-500 ${
+            spec.enchant != null ? GEAR_ENCHANT_COLOR_CLASS[spec.enchant] ?? 'text-white' : 'text-white'
+          }`}
+          aria-label={t('specEnchant')}
         >
-          <option value="">{t('specTierAny')}</option>
-          {tiers.map((tier) => (
-            <option key={tier} value={tier}>
-              T{tier}
+          <option value="">{t('specEnchantAny')}</option>
+          {enchants.map((level) => (
+            <option key={level} value={level}>
+              @{level}
             </option>
           ))}
         </select>
-      )}
+        {hasSpec && (
+          <button
+            type="button"
+            onClick={() => onChange({ tier: undefined, enchant: undefined })}
+            className="text-gray-500 hover:text-red-400 text-[10px]"
+          >
+            {t('specClear')}
+          </button>
+        )}
+      </div>
+    )
+  }
+  // Gear: single flat select. Legacy partial specs (only tier or only enchant)
+  // can't be expressed as flat so they show "Any" until the admin picks again.
+  const flats: number[] = []
+  for (let f = GEAR_FLAT_MIN; f <= GEAR_FLAT_MAX; f++) flats.push(f)
+  const currentFlat = specToFlat(spec)
+  const hasSpec = currentFlat != null || spec.tier != null || spec.enchant != null
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-gray-500 text-[10px] font-semibold uppercase tracking-wider">{t('specLabel')}</span>
       <select
-        value={spec.enchant ?? ''}
-        onChange={(e) => onChange({ enchant: e.target.value ? Number(e.target.value) : undefined })}
-        className={`bg-gray-800 border border-gray-700 rounded px-2 py-1 text-[11px] focus:outline-none focus:border-amber-500 ${
-          spec.enchant != null ? GEAR_ENCHANT_COLOR_CLASS[spec.enchant] ?? 'text-white' : 'text-white'
-        }`}
-        aria-label={t('specEnchant')}
+        value={currentFlat ?? ''}
+        onChange={(e) => {
+          if (!e.target.value) {
+            onChange({ tier: undefined, enchant: undefined })
+            return
+          }
+          onChange(flatToSpec(Number(e.target.value)))
+        }}
+        className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-[11px] text-white focus:outline-none focus:border-amber-500"
+        aria-label={t('specFlat')}
       >
-        <option value="">{t('specEnchantAny')}</option>
-        {enchants.map((level) => (
-          <option key={level} value={level}>
-            @{level}
+        <option value="">{t('specFlatAny')}</option>
+        {flats.map((flat) => (
+          <option key={flat} value={flat}>
+            {flat}F
           </option>
         ))}
       </select>

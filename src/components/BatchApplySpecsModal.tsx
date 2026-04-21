@@ -7,11 +7,13 @@ import type { SlotInput } from './SlotEditor'
 import type { SlotKey, SlotRole, GearSpec } from '@/types'
 import {
   SLOT_ROLES,
-  GEAR_TIER_MIN,
-  GEAR_TIER_MAX,
   GEAR_ENCHANT_MIN,
   GEAR_ENCHANT_MAX,
+  GEAR_FLAT_MIN,
+  GEAR_FLAT_MAX,
   GEAR_ENCHANT_COLOR_CLASS,
+  flatToSpec,
+  specToFlat,
 } from '@/types'
 
 export type BatchSpecsScope = 'all' | SlotRole
@@ -58,12 +60,15 @@ export default function BatchApplySpecsModal({ slots, onApply, onClose }: Props)
   const [scope, setScope] = useState<BatchSpecsScope>('all')
   const [groupSpecs, setGroupSpecs] = useState<GroupSpecState>(EMPTY_GROUP_SPECS)
 
-  const updateGroupSpec = (id: BatchGroup['id'], patch: Partial<GearSpec>) => {
+  const replaceGroupSpec = (id: BatchGroup['id'], spec: GearSpec) => {
+    setGroupSpecs((prev) => ({ ...prev, [id]: spec }))
+  }
+
+  const updateGroupEnchant = (id: BatchGroup['id'], enchant: number | undefined) => {
     setGroupSpecs((prev) => {
-      const current = prev[id]
-      const next: GearSpec = { ...current, ...patch }
-      if (next.tier == null) delete next.tier
-      if (next.enchant == null) delete next.enchant
+      const next: GearSpec = { ...prev[id] }
+      if (enchant == null) delete next.enchant
+      else next.enchant = enchant
       return { ...prev, [id]: next }
     })
   }
@@ -90,8 +95,8 @@ export default function BatchApplySpecsModal({ slots, onApply, onClose }: Props)
     onClose()
   }
 
-  const tiers: number[] = []
-  for (let tier = GEAR_TIER_MIN; tier <= GEAR_TIER_MAX; tier++) tiers.push(tier)
+  const flats: number[] = []
+  for (let f = GEAR_FLAT_MIN; f <= GEAR_FLAT_MAX; f++) flats.push(f)
   const enchants: number[] = []
   for (let e = GEAR_ENCHANT_MIN; e <= GEAR_ENCHANT_MAX; e++) enchants.push(e)
 
@@ -147,6 +152,7 @@ export default function BatchApplySpecsModal({ slots, onApply, onClose }: Props)
                 g.enchant != null
                   ? GEAR_ENCHANT_COLOR_CLASS[g.enchant] ?? 'text-white'
                   : 'text-white'
+              const currentFlat = specToFlat(g)
               return (
                 <div key={group.id} className="flex items-center gap-2">
                   <span className="text-amber-400 text-[11px] font-semibold w-16 flex-shrink-0">
@@ -154,42 +160,40 @@ export default function BatchApplySpecsModal({ slots, onApply, onClose }: Props)
                   </span>
                   {group.includeTier ? (
                     <select
-                      value={g.tier ?? ''}
+                      value={currentFlat ?? ''}
                       onChange={(e) =>
-                        updateGroupSpec(group.id, { tier: e.target.value ? Number(e.target.value) : undefined })
+                        replaceGroupSpec(
+                          group.id,
+                          e.target.value ? flatToSpec(Number(e.target.value)) : {},
+                        )
                       }
                       className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-amber-500"
-                      aria-label={`${t(group.labelKey)} ${t('specTier')}`}
+                      aria-label={`${t(group.labelKey)} ${t('specFlat')}`}
                     >
-                      <option value="">{t('specTierAny')}</option>
-                      {tiers.map((tier) => (
-                        <option key={tier} value={tier}>
-                          T{tier}
+                      <option value="">{t('specFlatAny')}</option>
+                      {flats.map((flat) => (
+                        <option key={flat} value={flat}>
+                          {flat}F
                         </option>
                       ))}
                     </select>
                   ) : (
-                    <span className="text-gray-600 text-[11px] italic w-[68px] flex-shrink-0">
-                      {t('batchSpecTierFixed')}
-                    </span>
+                    <select
+                      value={g.enchant ?? ''}
+                      onChange={(e) =>
+                        updateGroupEnchant(group.id, e.target.value ? Number(e.target.value) : undefined)
+                      }
+                      className={`bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs focus:outline-none focus:border-amber-500 ${enchantColor}`}
+                      aria-label={`${t(group.labelKey)} ${t('specEnchant')}`}
+                    >
+                      <option value="">{t('specEnchantAny')}</option>
+                      {enchants.map((level) => (
+                        <option key={level} value={level}>
+                          @{level}
+                        </option>
+                      ))}
+                    </select>
                   )}
-                  <select
-                    value={g.enchant ?? ''}
-                    onChange={(e) =>
-                      updateGroupSpec(group.id, {
-                        enchant: e.target.value ? Number(e.target.value) : undefined,
-                      })
-                    }
-                    className={`bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs focus:outline-none focus:border-amber-500 ${enchantColor}`}
-                    aria-label={`${t(group.labelKey)} ${t('specEnchant')}`}
-                  >
-                    <option value="">{t('specEnchantAny')}</option>
-                    {enchants.map((level) => (
-                      <option key={level} value={level}>
-                        @{level}
-                      </option>
-                    ))}
-                  </select>
                 </div>
               )
             })}

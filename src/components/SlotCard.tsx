@@ -15,6 +15,8 @@ import {
   getSlotGearSpec,
   hasGearOptions,
   isFreeItem,
+  isTierlessSlot,
+  specToFlat,
 } from '@/types'
 import { stripTierPrefix } from '@/lib/weapon-display'
 import { getLocalizedItemName } from '@/lib/item-names'
@@ -80,20 +82,41 @@ function MultiOptionPreview({
   )
 }
 
-function SpecBadge({ spec, size }: { spec: GearSpec; size: number }) {
+function SpecBadge({ spec, slotKey, size }: { spec: GearSpec; slotKey: SlotKey; size: number }) {
   const { tier, enchant } = spec
-  const tierText = tier != null ? `T${tier}` : ''
-  const enchantText = enchant != null ? (tier != null ? `.${enchant}` : `@${enchant}`) : ''
   const enchantColor =
     enchant != null ? GEAR_ENCHANT_COLOR_CLASS[enchant] ?? 'text-white' : 'text-white'
   const fontSize = size >= 44 ? 11 : 9
+  // Food/potion stay enchant-only — they have no tier concept (the tier is
+  // baked into the item id), so "8F" makes no sense here.
+  if (isTierlessSlot(slotKey)) {
+    if (enchant == null) return null
+    return (
+      <span
+        className={`absolute -bottom-1 -right-1 bg-black/85 border border-gray-700 font-mono font-bold rounded px-1 leading-tight ${enchantColor}`}
+        style={{ fontSize }}
+      >
+        @{enchant}
+      </span>
+    )
+  }
+  // Gear: show flat when both parts known, otherwise fall back to whatever
+  // partial piece the admin specified (legacy rows may have tier-only).
+  const flat = specToFlat(spec)
+  const text = flat != null
+    ? `${flat}F`
+    : tier != null
+      ? `T${tier}`
+      : enchant != null
+        ? `@${enchant}`
+        : null
+  if (text == null) return null
   return (
     <span
       className={`absolute -bottom-1 -right-1 bg-black/85 border border-gray-700 font-mono font-bold rounded px-1 leading-tight ${enchantColor}`}
       style={{ fontSize }}
     >
-      {tierText}
-      {enchantText}
+      {text}
     </span>
   )
 }
@@ -123,7 +146,7 @@ function GearPreview({
       ) : (
         <SlotItem name={display.name} id={display.id} size={size} />
       )}
-      {spec && <SpecBadge spec={spec} size={size} />}
+      {spec && <SpecBadge spec={spec} slotKey={kind} size={size} />}
     </div>
   )
 }
