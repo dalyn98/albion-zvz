@@ -13,6 +13,7 @@ import { formatSilver } from '@/lib/silver'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
+import MemberLink from './MemberLink'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
 import { useToast } from './ToastProvider'
 
@@ -110,7 +111,11 @@ function ExchangeRow({ request, avatar }: { request: AdminExchangeRequest; avata
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <MemberAvatar discordId={request.discord_id} avatar={avatar} size={20} />
-            <p className="text-white text-sm font-semibold truncate">{request.username}</p>
+            <MemberLink
+              discordId={request.discord_id}
+              username={request.username}
+              className="text-white text-sm font-semibold truncate"
+            />
           </div>
           <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
             <span className="font-mono text-amber-400">{formatSilver(request.silver)}</span>

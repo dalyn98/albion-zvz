@@ -25,6 +25,7 @@ import type { Locale } from '@/i18n/locales'
 import ItemImage from './ItemImage'
 import SlotSpellPanel from './SlotSpellPanel'
 import MemberAvatar from './MemberAvatar'
+import MemberLink from './MemberLink'
 import { UserPlus, UserX, MessageSquare, LogIn, Lock, X, Swords, Check, Hourglass, Bomb } from 'lucide-react'
 
 interface Props {
@@ -331,7 +332,11 @@ export default function SlotCard({
             isMine ? 'text-amber-300' : 'text-green-400'
           }`}>
             <MemberAvatar discordId={slot.assigned_discord_id} avatar={assignedAvatar} size={14} />
-            <span className="font-semibold truncate max-w-[80px]">{slot.assigned_username}</span>
+            <MemberLink
+              discordId={slot.assigned_discord_id}
+              username={slot.assigned_username ?? ''}
+              className="font-semibold truncate max-w-[80px]"
+            />
           </div>
         ) : hasPendingRequest && (
           <div className={`flex items-center gap-1 text-[12px] flex-shrink-0 ${
@@ -339,7 +344,11 @@ export default function SlotCard({
           }`}>
             <Hourglass size={11} />
             <MemberAvatar discordId={slot.requested_discord_id} avatar={requestedAvatar} size={14} />
-            <span className="font-semibold truncate max-w-[80px]">{slot.requested_username}</span>
+            <MemberLink
+              discordId={slot.requested_discord_id}
+              username={slot.requested_username ?? ''}
+              className="font-semibold truncate max-w-[80px]"
+            />
           </div>
         )}
       </div>

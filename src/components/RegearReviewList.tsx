@@ -18,6 +18,7 @@ import ImageLightbox from './ImageLightbox'
 import ItemImage from './ItemImage'
 import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
+import MemberLink from './MemberLink'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
 import { useToast } from './ToastProvider'
 
@@ -175,7 +176,11 @@ function RegearRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-1">
             <MemberAvatar discordId={request.discord_id} avatar={avatar} size={20} />
-            <span className="text-white text-sm font-semibold truncate">{request.username}</span>
+            <MemberLink
+              discordId={request.discord_id}
+              username={request.username}
+              className="text-white text-sm font-semibold truncate"
+            />
             <span className="text-gray-400 text-xs truncate">· {request.event_title}</span>
           </div>
           <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400">

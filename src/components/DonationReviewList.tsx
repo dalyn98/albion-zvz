@@ -15,6 +15,7 @@ import { formatDateTimeShort } from '@/lib/format-datetime'
 import ImageLightbox from './ImageLightbox'
 import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
+import MemberLink from './MemberLink'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
 import { useToast } from './ToastProvider'
 
@@ -128,7 +129,11 @@ function DonationRow({ request, avatar }: { request: AdminDonationRequest; avata
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-1">
             <MemberAvatar discordId={request.discord_id} avatar={avatar} size={20} />
-            <span className="text-white text-sm font-semibold truncate">{request.username}</span>
+            <MemberLink
+              discordId={request.discord_id}
+              username={request.username}
+              className="text-white text-sm font-semibold truncate"
+            />
           </div>
           <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400">
             <span className="font-mono text-emerald-400">

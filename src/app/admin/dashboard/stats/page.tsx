@@ -1,6 +1,7 @@
 import { BarChart3, Wallet, TrendingUp, TrendingDown, Users } from 'lucide-react'
 import { getPointStats } from '@/app/actions/stats-admin'
 import MemberAvatar from '@/components/MemberAvatar'
+import MemberLink from '@/components/MemberLink'
 
 export const dynamic = 'force-dynamic'
 
@@ -109,10 +110,14 @@ export default async function AdminStatsPage() {
               >
                 <span className="text-xs text-gray-500 font-mono w-6 text-right">{idx + 1}</span>
                 <MemberAvatar discordId={h.discordId} avatar={h.avatar} size={24} />
-                <span className="flex-1 text-sm text-gray-200 truncate">
-                  {h.username}
+                <span className="flex-1 text-sm text-gray-200 truncate flex items-center gap-2 min-w-0">
+                  <MemberLink
+                    discordId={h.discordId}
+                    username={h.username}
+                    className="truncate"
+                  />
                   {h.isAdmin && (
-                    <span className="ml-2 text-[10px] text-amber-400 border border-amber-500/40 rounded px-1 py-0.5 align-middle">
+                    <span className="text-[10px] text-amber-400 border border-amber-500/40 rounded px-1 py-0.5 flex-shrink-0">
                       ADMIN
                     </span>
                   )}

@@ -12,6 +12,7 @@ import {
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
+import MemberLink from './MemberLink'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
 
 const STATUS_CLASS: Record<string, string> = {
@@ -110,7 +111,11 @@ function OrderRow({ order, avatar }: { order: AdminShopOrder; avatar: string | n
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <MemberAvatar discordId={order.discordId} avatar={avatar} size={20} />
-            <p className="text-white text-sm font-semibold truncate">{order.username}</p>
+            <MemberLink
+              discordId={order.discordId}
+              username={order.username}
+              className="text-white text-sm font-semibold truncate"
+            />
           </div>
           <div className="flex items-center gap-3 text-xs text-gray-400 mt-1 flex-wrap">
             <span className="font-mono text-amber-300 font-bold">
