@@ -14,6 +14,7 @@
     "templates": "テンプレート",
     "regearReview": "リギア審査",
     "exchangeReview": "両替審査",
+    "donationReview": "寄付審査",
     "opponentGuilds": "対戦ギルド",
     "settings": "設定"
   },
@@ -167,6 +168,29 @@
     "balanceLabel": "残高 {amount}",
     "insufficientWarn": "⚠ 承認時点で残高が不足しています。却下で処理してください。",
     "approveButton": "支給完了 (承認)",
+    "reject": "却下",
+    "rejectPlaceholder": "却下理由 (任意)",
+    "rejectConfirm": "却下確定",
+    "resolvedAt": "{status} 処理: {datetime}"
+  },
+  "adminDonationReview": {
+    "pageTitle": "寄付審査",
+    "pageDescription": "ギルドメンバーの寄付証明を確認して承認/却下します。承認時に申請金額の全額がポイントとして支給されます。",
+    "scopePending": "保留中",
+    "scopeAll": "全て",
+    "noPending": "保留中の寄付申請はありません。",
+    "noRequests": "申請履歴がありません。",
+    "statusPending": "保留",
+    "statusApproved": "承認",
+    "statusRejected": "却下",
+    "searchPlaceholder": "申請者名または日付で検索 (例: 04-19, 4月19日)",
+    "claimed": "寄付 {amount}",
+    "memoLabel": "メモ",
+    "screenshotAlt": "寄付スクリーンショット",
+    "zoom": "拡大",
+    "collapseScreenshot": "スクリーンショットを畳む",
+    "viewScreenshot": "スクリーンショットを表示",
+    "approveWithPayout": "承認 (+{amount})",
     "reject": "却下",
     "rejectPlaceholder": "却下理由 (任意)",
     "rejectConfirm": "却下確定",
@@ -540,6 +564,26 @@
     "cancelConfirmButton": "キャンセル確定",
     "keep": "維持"
   },
+  "donation": {
+    "openButton": "寄付申請",
+    "modalTitle": "ギルド寄付申請",
+    "close": "閉じる",
+    "hint": "ギルド金庫に寄付したシルバー/アイテムの領収書スクリーンショットを添付してください。管理者承認後、該当金額がポイントとして支給されます。",
+    "amountLabel": "寄付金額 (silver)",
+    "amountPlaceholder": "例: 1000000",
+    "memoLabel": "メモ (任意)",
+    "memoPlaceholder": "例: Guardian アーマー 5 着 / T8 バトルマウント 2 体",
+    "screenshotAlt": "寄付スクリーンショット",
+    "pickOrPaste": "クリックで選択 · ドラッグ · ペースト",
+    "pasteHint": "Ctrl/⌘ + V でクリップボード画像を添付",
+    "remove": "削除",
+    "uploadHint": "金庫入庫の通知ウィンドウや倉庫ログを見せていただけると管理者承認が早まります。",
+    "cancel": "キャンセル",
+    "submitting": "申請中…",
+    "submit": "申請",
+    "screenshotMissing": "スクリーンショットを添付してください。",
+    "invalidAmount": "有効な寄付金額を入力してください。"
+  },
   "members": {
     "title": "ギルドメンバー",
     "description": "Discord でログインしたギルドメンバーの参加統計と履歴を確認します。",
@@ -610,7 +654,15 @@
     "transferCancel": "キャンセル",
     "transferDone": "譲渡しました (-{silver} silver)",
     "transferNoBalance": "譲渡できるポイントがありません。",
-    "transferMemoPlaceholder": "メモ (任意)"
+    "transferMemoPlaceholder": "メモ (任意)",
+    "donationTitle": "ギルド寄付",
+    "donationDescription": "ギルド金庫に寄付したシルバー/アイテムを管理者審査後にポイントとして受け取れます。",
+    "noDonations": "寄付申請履歴がありません。",
+    "donationAmount": "寄付 {amount}",
+    "donationCancel": "申請をキャンセル",
+    "donationCancelConfirm": "この寄付申請をキャンセルしますか? アップロードしたスクリーンショットも削除されます。",
+    "donationCancelConfirmButton": "キャンセル確定",
+    "donationKeep": "維持"
   },
   "myProfile": {
     "notRegistered": "ギルドメンバー情報がまだ登録されていません。再ログインすると自動的に登録されます。"
@@ -876,7 +928,9 @@
     "transferMemberNotFound": "選択したギルドメンバーが見つかりません。",
     "transferDuplicateRecipient": "同じメンバーが重複して選ばれています。",
     "transferTooManyRecipients": "一度に送れるのは最大 {max} 人までです。",
-    "transferMemoTooLong": "メモは {max} 文字以内で入力してください。"
+    "transferMemoTooLong": "メモは {max} 文字以内で入力してください。",
+    "donationInvalidAmount": "有効な寄付金額を入力してください。",
+    "donationMemoTooLong": "メモは {max} 文字以内で入力してください。"
   },
   "errors": {
     "title": "問題が発生しました",
@@ -895,6 +949,10 @@
     "exchangeCancelled": "両替申請をキャンセルしました。",
     "exchangeApproved": "両替申請を承認しました。",
     "exchangeRejected": "両替申請を却下しました。",
+    "donationSubmitted": "寄付申請を受け付けました。",
+    "donationCancelled": "寄付申請をキャンセルしました。",
+    "donationApproved": "寄付申請を承認しました。",
+    "donationRejected": "寄付申請を却下しました。",
     "slotApplied": "スロットに申請しました。",
     "slotCancelled": "スロット申請をキャンセルしました。",
     "slotKicked": "スロットから外しました。",
@@ -920,6 +978,10 @@
     "exchangeApprovedBody": "{silver} silver の両替が承認されました。",
     "exchangeRejectedTitle": "両替却下",
     "exchangeRejectedBody": "{silver} silver の両替申請が却下されました。",
+    "donationApprovedTitle": "寄付承認",
+    "donationApprovedBody": "ギルド寄付が承認されました (+{silver} silver)。",
+    "donationRejectedTitle": "寄付却下",
+    "donationRejectedBody": "{silver} silver の寄付申請が却下されました。",
     "eventImminentTitle": "イベント間近: {title}",
     "eventImminentBody": "{time} 集合 — 装備の準備をお願いします。"
   }

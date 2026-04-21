@@ -14,6 +14,7 @@
     "templates": "템플릿",
     "regearReview": "리기어 검토",
     "exchangeReview": "환전 검토",
+    "donationReview": "기부 승인",
     "opponentGuilds": "상대 길드",
     "settings": "설정"
   },
@@ -167,6 +168,29 @@
     "balanceLabel": "잔액 {amount}",
     "insufficientWarn": "⚠ 승인 시점 잔액이 부족합니다. 거절로 처리해 주세요.",
     "approveButton": "지급 완료 (승인)",
+    "reject": "거절",
+    "rejectPlaceholder": "거절 사유 (선택)",
+    "rejectConfirm": "거절 확정",
+    "resolvedAt": "{status} 처리: {datetime}"
+  },
+  "adminDonationReview": {
+    "pageTitle": "기부 승인",
+    "pageDescription": "길드원이 올린 기부 인증을 검토하고 승인/거절합니다. 승인 시 신청 금액 전액이 포인트로 지급됩니다.",
+    "scopePending": "대기중",
+    "scopeAll": "전체",
+    "noPending": "대기중인 기부 신청이 없습니다.",
+    "noRequests": "신청 내역이 없습니다.",
+    "statusPending": "대기",
+    "statusApproved": "승인",
+    "statusRejected": "거절",
+    "searchPlaceholder": "신청자 이름 또는 날짜로 검색 (예: 04-19, 4월 19일)",
+    "claimed": "기부 {amount}",
+    "memoLabel": "메모",
+    "screenshotAlt": "기부 스크린샷",
+    "zoom": "확대",
+    "collapseScreenshot": "스크린샷 접기",
+    "viewScreenshot": "스크린샷 보기",
+    "approveWithPayout": "승인 (+{amount})",
     "reject": "거절",
     "rejectPlaceholder": "거절 사유 (선택)",
     "rejectConfirm": "거절 확정",
@@ -540,6 +564,26 @@
     "cancelConfirmButton": "취소 확정",
     "keep": "유지"
   },
+  "donation": {
+    "openButton": "기부 신청",
+    "modalTitle": "길드 기부 신청",
+    "close": "닫기",
+    "hint": "길드 금고에 기부하신 실버/아이템의 영수증 스크린샷을 올려 주세요. 관리자 승인 후 해당 금액이 포인트로 지급됩니다.",
+    "amountLabel": "기부 금액 (silver)",
+    "amountPlaceholder": "예: 1000000",
+    "memoLabel": "메모 (선택)",
+    "memoPlaceholder": "예: 가디언 아머 5벌 / T8 배틀마운트 2기",
+    "screenshotAlt": "기부 스크린샷",
+    "pickOrPaste": "클릭해서 선택 · 드래그 · 붙여넣기",
+    "pasteHint": "Ctrl/⌘ + V 로 클립보드 이미지 첨부",
+    "remove": "제거",
+    "uploadHint": "금고 입고 알림창 / 창고 로그를 함께 보여주시면 관리자 승인이 빨라집니다.",
+    "cancel": "취소",
+    "submitting": "신청중…",
+    "submit": "신청",
+    "screenshotMissing": "스크린샷을 첨부해 주세요.",
+    "invalidAmount": "유효한 기부 금액을 입력해 주세요."
+  },
   "members": {
     "title": "길드원",
     "description": "Discord 로그인을 거쳐본 길드원의 참여 통계와 내역을 확인합니다.",
@@ -610,7 +654,15 @@
     "transferCancel": "취소",
     "transferDone": "양도했어요 (-{silver} silver)",
     "transferNoBalance": "포인트가 없습니다.",
-    "transferMemoPlaceholder": "메모 (선택)"
+    "transferMemoPlaceholder": "메모 (선택)",
+    "donationTitle": "길드 기부",
+    "donationDescription": "길드 금고에 기부한 실버/아이템을 관리자 심사 후 포인트로 돌려받습니다.",
+    "noDonations": "기부 신청 내역이 없습니다.",
+    "donationAmount": "기부 {amount}",
+    "donationCancel": "신청 취소",
+    "donationCancelConfirm": "이 기부 신청을 취소할까요? 업로드한 스크린샷도 함께 삭제됩니다.",
+    "donationCancelConfirmButton": "취소 확정",
+    "donationKeep": "유지"
   },
   "myProfile": {
     "notRegistered": "길드원 정보가 아직 등록되지 않았습니다. 다시 로그인하면 자동으로 등록됩니다."
@@ -876,7 +928,9 @@
     "transferMemberNotFound": "선택한 길드원을 찾을 수 없습니다.",
     "transferDuplicateRecipient": "같은 길드원이 중복 선택되어 있습니다.",
     "transferTooManyRecipients": "한 번에 최대 {max}명까지만 양도할 수 있습니다.",
-    "transferMemoTooLong": "메모는 {max}자 이하로 입력해 주세요."
+    "transferMemoTooLong": "메모는 {max}자 이하로 입력해 주세요.",
+    "donationInvalidAmount": "올바른 기부 금액을 입력해 주세요.",
+    "donationMemoTooLong": "메모는 {max}자 이하로 입력해 주세요."
   },
   "errors": {
     "title": "문제가 발생했어요",
@@ -895,6 +949,10 @@
     "exchangeCancelled": "환전 신청을 취소했어요.",
     "exchangeApproved": "환전 신청을 승인했어요.",
     "exchangeRejected": "환전 신청을 거절했어요.",
+    "donationSubmitted": "기부 신청이 접수되었어요.",
+    "donationCancelled": "기부 신청을 취소했어요.",
+    "donationApproved": "기부 신청을 승인했어요.",
+    "donationRejected": "기부 신청을 거절했어요.",
     "slotApplied": "슬롯에 신청했어요.",
     "slotCancelled": "슬롯 신청을 취소했어요.",
     "slotKicked": "슬롯에서 내보냈어요.",
@@ -920,6 +978,10 @@
     "exchangeApprovedBody": "{silver} silver 환전이 승인됐어요.",
     "exchangeRejectedTitle": "환전 거절",
     "exchangeRejectedBody": "{silver} silver 환전 신청이 거절됐어요.",
+    "donationApprovedTitle": "기부 승인",
+    "donationApprovedBody": "길드 기부가 승인됐어요 (+{silver} silver).",
+    "donationRejectedTitle": "기부 거절",
+    "donationRejectedBody": "길드 기부 신청({silver} silver)이 거절됐어요.",
     "eventImminentTitle": "이벤트 임박: {title}",
     "eventImminentBody": "{time} 집결 — 장비를 미리 준비해 두세요."
   }

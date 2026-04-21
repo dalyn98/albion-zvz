@@ -7,6 +7,7 @@ import { listMyRegearRequests, getMyPointsSummary } from '@/app/actions/regear'
 import { listMyExchangeRequests } from '@/app/actions/exchange'
 import { listMyParticipation } from '@/app/actions/member'
 import { listTransferCandidates } from '@/app/actions/transfer'
+import { listMyDonationRequests } from '@/app/actions/donation'
 import { formatSilver } from '@/lib/silver'
 import { formatDateTime } from '@/lib/format-datetime'
 import { formatGatherTimeFor } from '@/lib/gather-time'
@@ -16,6 +17,8 @@ import RequestExchangeForm from '@/components/RequestExchangeForm'
 import ExchangeRequestActions from '@/components/ExchangeRequestActions'
 import RegearRequestCancelButton from '@/components/RegearRequestCancelButton'
 import TransferPointsForm from '@/components/TransferPointsForm'
+import DonationRequestButton from '@/components/DonationRequestButton'
+import DonationRequestCancelButton from '@/components/DonationRequestCancelButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,6 +44,7 @@ export default async function MePage() {
     { requests: exchanges },
     { entries: participation },
     { candidates: transferCandidates },
+    { requests: donations },
     t,
     tStatus,
     locale,
@@ -50,6 +54,7 @@ export default async function MePage() {
     listMyExchangeRequests(),
     listMyParticipation(),
     listTransferCandidates(),
+    listMyDonationRequests(),
     getTranslations('me'),
     getTranslations('status'),
     getLocale(),
@@ -124,6 +129,50 @@ export default async function MePage() {
                 <span className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS[e.status]}`}>
                   {tStatus(e.status)}
                 </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="text-lg font-bold text-white">{t('donationTitle')}</h2>
+          <DonationRequestButton />
+        </div>
+        <p className="text-gray-400 text-xs leading-relaxed">{t('donationDescription')}</p>
+        {donations.length === 0 ? (
+          <p className="text-gray-500 text-sm text-center py-6">{t('noDonations')}</p>
+        ) : (
+          <ul className="space-y-2">
+            {donations.map((d) => (
+              <li
+                key={d.id}
+                className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 space-y-1"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-white text-sm font-mono">
+                    {t('donationAmount', { amount: formatSilver(d.silver) })}
+                  </p>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS[d.status]}`}>
+                    {tStatus(d.status)}
+                  </span>
+                </div>
+                {d.memo && (
+                  <p className="text-gray-400 text-xs whitespace-pre-wrap">{d.memo}</p>
+                )}
+                {d.admin_notes && (
+                  <p className="text-gray-500 text-xs truncate">{d.admin_notes}</p>
+                )}
+                <p className="text-gray-600 text-xs font-mono">
+                  {t('requestedAt', { when: formatDateTime(d.created_at) })}
+                  {d.resolved_at && d.status !== 'pending' && (
+                    <span className="ml-2">
+                      · {tStatus(d.status)} {formatDateTime(d.resolved_at)}
+                    </span>
+                  )}
+                </p>
+                {d.status === 'pending' && <DonationRequestCancelButton id={d.id} />}
               </li>
             ))}
           </ul>

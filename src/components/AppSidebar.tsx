@@ -21,6 +21,7 @@ import {
   Settings,
   Swords,
   Flag,
+  Gift,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -54,6 +55,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/dashboard/templates', labelKey: 'templates', icon: LayoutTemplate },
   { href: '/admin/dashboard/regear', labelKey: 'regearReview', icon: ShieldCheck },
   { href: '/admin/dashboard/exchanges', labelKey: 'exchangeReview', icon: Wallet },
+  { href: '/admin/dashboard/donations', labelKey: 'donationReview', icon: Gift },
   { href: '/admin/dashboard/opponent-guilds', labelKey: 'opponentGuilds', icon: Flag },
   { href: '/admin/dashboard/settings', labelKey: 'settings', icon: Settings },
 ]
@@ -282,6 +284,7 @@ function badgeCountFor(href: string, badges: AdminBadgeCounts | null): number {
   if (!badges) return 0
   if (href === '/admin/dashboard/regear') return badges.regear
   if (href === '/admin/dashboard/exchanges') return badges.exchange
+  if (href === '/admin/dashboard/donations') return badges.donation
   return 0
 }
 

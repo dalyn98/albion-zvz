@@ -14,6 +14,7 @@
     "templates": "Templates",
     "regearReview": "Regear review",
     "exchangeReview": "Exchange review",
+    "donationReview": "Donation review",
     "opponentGuilds": "Opponent guilds",
     "settings": "Settings"
   },
@@ -167,6 +168,29 @@
     "balanceLabel": "Balance {amount}",
     "insufficientWarn": "⚠ Balance is insufficient to approve. Please reject.",
     "approveButton": "Paid (approve)",
+    "reject": "Reject",
+    "rejectPlaceholder": "Reason (optional)",
+    "rejectConfirm": "Confirm reject",
+    "resolvedAt": "{status} at {datetime}"
+  },
+  "adminDonationReview": {
+    "pageTitle": "Donation review",
+    "pageDescription": "Review and approve/reject guild donations submitted by members. Approval credits the full claimed amount as points.",
+    "scopePending": "Pending",
+    "scopeAll": "All",
+    "noPending": "No pending donation requests.",
+    "noRequests": "No request history.",
+    "statusPending": "Pending",
+    "statusApproved": "Approved",
+    "statusRejected": "Rejected",
+    "searchPlaceholder": "Search by applicant or date (e.g. 04-19, Apr 19)",
+    "claimed": "Donation {amount}",
+    "memoLabel": "Memo",
+    "screenshotAlt": "Donation screenshot",
+    "zoom": "Zoom",
+    "collapseScreenshot": "Collapse screenshot",
+    "viewScreenshot": "View screenshot",
+    "approveWithPayout": "Approve (+{amount})",
     "reject": "Reject",
     "rejectPlaceholder": "Reason (optional)",
     "rejectConfirm": "Confirm reject",
@@ -540,6 +564,26 @@
     "cancelConfirmButton": "Confirm cancel",
     "keep": "Keep"
   },
+  "donation": {
+    "openButton": "Submit donation",
+    "modalTitle": "Guild donation",
+    "close": "Close",
+    "hint": "Upload a receipt screenshot of the silver/items you deposited to the guild bank. The claimed amount will be credited as points once an admin approves.",
+    "amountLabel": "Donation amount (silver)",
+    "amountPlaceholder": "e.g. 1000000",
+    "memoLabel": "Memo (optional)",
+    "memoPlaceholder": "e.g. 5 Guardian armors / 2 T8 battle mounts",
+    "screenshotAlt": "Donation screenshot",
+    "pickOrPaste": "Click to pick · drag · paste",
+    "pasteHint": "Ctrl/⌘ + V to paste a clipboard image",
+    "remove": "Remove",
+    "uploadHint": "A deposit confirmation popup or bank log makes approval faster.",
+    "cancel": "Cancel",
+    "submitting": "Submitting…",
+    "submit": "Submit",
+    "screenshotMissing": "Please attach a screenshot.",
+    "invalidAmount": "Please enter a valid amount."
+  },
   "members": {
     "title": "Guild members",
     "description": "Review participation stats and history for guild members who've logged in with Discord.",
@@ -610,7 +654,15 @@
     "transferCancel": "Cancel",
     "transferDone": "Transferred (-{silver} silver)",
     "transferNoBalance": "No points to transfer.",
-    "transferMemoPlaceholder": "Memo (optional)"
+    "transferMemoPlaceholder": "Memo (optional)",
+    "donationTitle": "Guild donations",
+    "donationDescription": "Claim back the silver/items you donated to the guild bank as points after admin approval.",
+    "noDonations": "No donation history.",
+    "donationAmount": "Donation {amount}",
+    "donationCancel": "Cancel request",
+    "donationCancelConfirm": "Cancel this donation request? The uploaded screenshot will also be deleted.",
+    "donationCancelConfirmButton": "Confirm cancel",
+    "donationKeep": "Keep"
   },
   "myProfile": {
     "notRegistered": "Your guild member record hasn't been registered yet. Logging in again will register you automatically."
@@ -876,7 +928,9 @@
     "transferMemberNotFound": "One of the selected members was not found.",
     "transferDuplicateRecipient": "A member is listed twice in the transfer.",
     "transferTooManyRecipients": "You can only transfer to {max} members at once.",
-    "transferMemoTooLong": "Memo must be {max} characters or fewer."
+    "transferMemoTooLong": "Memo must be {max} characters or fewer.",
+    "donationInvalidAmount": "Please enter a valid donation amount.",
+    "donationMemoTooLong": "Memo must be {max} characters or fewer."
   },
   "errors": {
     "title": "Something went wrong",
@@ -895,6 +949,10 @@
     "exchangeCancelled": "Exchange request cancelled.",
     "exchangeApproved": "Exchange request approved.",
     "exchangeRejected": "Exchange request rejected.",
+    "donationSubmitted": "Donation request submitted.",
+    "donationCancelled": "Donation request cancelled.",
+    "donationApproved": "Donation request approved.",
+    "donationRejected": "Donation request rejected.",
     "slotApplied": "Signed up for the slot.",
     "slotCancelled": "Slot sign-up cancelled.",
     "slotKicked": "Removed from the slot.",
@@ -920,6 +978,10 @@
     "exchangeApprovedBody": "{silver} silver exchange approved.",
     "exchangeRejectedTitle": "Exchange rejected",
     "exchangeRejectedBody": "{silver} silver exchange request was rejected.",
+    "donationApprovedTitle": "Donation approved",
+    "donationApprovedBody": "Your guild donation was approved (+{silver} silver).",
+    "donationRejectedTitle": "Donation rejected",
+    "donationRejectedBody": "Your {silver} silver donation request was rejected.",
     "eventImminentTitle": "Event starting soon: {title}",
     "eventImminentBody": "Gather at {time} — prep your gear."
   }
