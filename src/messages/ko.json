@@ -11,10 +11,7 @@
     "myWallet": "내 지갑",
     "mySettings": "설정",
     "eventAdmin": "이벤트 관리",
-    "templates": "템플릿",
-    "regearReview": "리기어 검토",
-    "exchangeReview": "환전 검토",
-    "donationReview": "기부 승인",
+    "approvals": "승인 관리",
     "opponentGuilds": "상대 길드",
     "settings": "설정"
   },
@@ -83,7 +80,18 @@
     "duplicate": "복제",
     "duplicateAria": "이벤트 복제",
     "duplicateConfirm": "이 이벤트의 파티/슬롯 구성을 그대로 복제합니다.\n집결 시간은 7일 뒤로 자동 설정되며 신청자 정보는 초기화됩니다.\n계속할까요?",
-    "duplicateSuffix": " (복사본)"
+    "duplicateSuffix": " (복사본)",
+    "sectionTabsLabel": "이벤트/템플릿 탭",
+    "sectionEvents": "이벤트",
+    "sectionTemplates": "템플릿"
+  },
+  "adminApprovals": {
+    "pageTitle": "승인 관리",
+    "pageDescription": "리기어·환전·기부 신청을 한 곳에서 검토합니다.",
+    "tabsLabel": "승인 유형 탭",
+    "tabRegear": "리기어",
+    "tabExchange": "환전",
+    "tabDonation": "기부"
   },
   "adminNewEvent": {
     "title": "새 이벤트",

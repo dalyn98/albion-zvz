@@ -96,7 +96,7 @@ export async function saveEventAsTemplate(
       .insert({ name: trimmed, data })
     if (insertError) return { error: insertError.message }
 
-    revalidatePath('/admin/dashboard/templates')
+    revalidatePath('/admin/dashboard')
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -159,7 +159,7 @@ export async function updateTemplate(
       .eq('id', id)
     if (error) return { error: error.message }
 
-    revalidatePath('/admin/dashboard/templates')
+    revalidatePath('/admin/dashboard')
     revalidatePath(`/admin/dashboard/templates/${id}`)
     return {}
   } catch (e) {
@@ -173,7 +173,7 @@ export async function deleteTemplate(id: string): Promise<{ error?: string }> {
     const db = await requireAdmin()
     const { error } = await db.from('event_templates').delete().eq('id', id)
     if (error) return { error: error.message }
-    revalidatePath('/admin/dashboard/templates')
+    revalidatePath('/admin/dashboard')
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

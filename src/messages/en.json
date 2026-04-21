@@ -11,10 +11,7 @@
     "myWallet": "My wallet",
     "mySettings": "Settings",
     "eventAdmin": "Event admin",
-    "templates": "Templates",
-    "regearReview": "Regear review",
-    "exchangeReview": "Exchange review",
-    "donationReview": "Donation review",
+    "approvals": "Approvals",
     "opponentGuilds": "Opponent guilds",
     "settings": "Settings"
   },
@@ -83,7 +80,18 @@
     "duplicate": "Duplicate",
     "duplicateAria": "Duplicate event",
     "duplicateConfirm": "This will clone the event's parties and slot builds.\nThe gather time is auto-set to 7 days later and sign-ups are reset.\nContinue?",
-    "duplicateSuffix": " (copy)"
+    "duplicateSuffix": " (copy)",
+    "sectionTabsLabel": "Events/Templates tabs",
+    "sectionEvents": "Events",
+    "sectionTemplates": "Templates"
+  },
+  "adminApprovals": {
+    "pageTitle": "Approvals",
+    "pageDescription": "Review regear, exchange, and donation requests in one place.",
+    "tabsLabel": "Approval type tabs",
+    "tabRegear": "Regear",
+    "tabExchange": "Exchange",
+    "tabDonation": "Donation"
   },
   "adminNewEvent": {
     "title": "New event",

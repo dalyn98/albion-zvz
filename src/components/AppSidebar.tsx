@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
   CalendarDays,
-  LayoutTemplate,
   ShieldCheck,
   Wallet,
   LogIn,
@@ -21,7 +20,6 @@ import {
   Settings,
   Swords,
   Flag,
-  Gift,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -52,10 +50,7 @@ const ADMIN_NAV: NavItem[] = [
   // `/admin/dashboard`는 다른 모든 관리자 라우트의 부모이기도 해서,
   // exact 매칭이 없으면 하위 페이지에 있을 때도 "이벤트 관리"가 계속 하이라이트됨.
   { href: '/admin/dashboard', labelKey: 'eventAdmin', icon: CalendarDays, exact: true },
-  { href: '/admin/dashboard/templates', labelKey: 'templates', icon: LayoutTemplate },
-  { href: '/admin/dashboard/regear', labelKey: 'regearReview', icon: ShieldCheck },
-  { href: '/admin/dashboard/exchanges', labelKey: 'exchangeReview', icon: Wallet },
-  { href: '/admin/dashboard/donations', labelKey: 'donationReview', icon: Gift },
+  { href: '/admin/dashboard/approvals', labelKey: 'approvals', icon: ShieldCheck },
   { href: '/admin/dashboard/opponent-guilds', labelKey: 'opponentGuilds', icon: Flag },
   { href: '/admin/dashboard/settings', labelKey: 'settings', icon: Settings },
 ]
@@ -279,12 +274,14 @@ interface ResolvedNavItem extends NavItem {
   badge?: number
 }
 
-// Maps an admin nav href to its pending count for the sidebar badge.
+// Maps an admin nav href to its pending count for the sidebar badge. The
+// unified approvals entry shows the sum across all three request types so the
+// operator sees a single "queue" size without drilling into sub-tabs.
 function badgeCountFor(href: string, badges: AdminBadgeCounts | null): number {
   if (!badges) return 0
-  if (href === '/admin/dashboard/regear') return badges.regear
-  if (href === '/admin/dashboard/exchanges') return badges.exchange
-  if (href === '/admin/dashboard/donations') return badges.donation
+  if (href === '/admin/dashboard/approvals') {
+    return badges.regear + badges.exchange + badges.donation
+  }
   return 0
 }
 

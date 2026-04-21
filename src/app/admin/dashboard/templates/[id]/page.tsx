@@ -23,7 +23,7 @@ export default async function TemplateEditPage({
   return (
     <div className="space-y-4">
       <Link
-        href="/admin/dashboard/templates"
+        href="/admin/dashboard?section=templates"
         className="inline-flex items-center gap-1 text-gray-400 hover:text-white text-sm"
       >
         <ChevronLeft size={14} /> {t('backToList')}

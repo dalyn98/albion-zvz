@@ -11,10 +11,7 @@
     "myWallet": "マイウォレット",
     "mySettings": "設定",
     "eventAdmin": "イベント管理",
-    "templates": "テンプレート",
-    "regearReview": "リギア審査",
-    "exchangeReview": "両替審査",
-    "donationReview": "寄付審査",
+    "approvals": "承認管理",
     "opponentGuilds": "対戦ギルド",
     "settings": "設定"
   },
@@ -83,7 +80,18 @@
     "duplicate": "複製",
     "duplicateAria": "イベントを複製",
     "duplicateConfirm": "このイベントのパーティ/スロット構成をそのまま複製します。\n集合時刻は7日後に自動設定され、参加者情報はリセットされます。\n続行しますか？",
-    "duplicateSuffix": "（コピー）"
+    "duplicateSuffix": "（コピー）",
+    "sectionTabsLabel": "イベント/テンプレートタブ",
+    "sectionEvents": "イベント",
+    "sectionTemplates": "テンプレート"
+  },
+  "adminApprovals": {
+    "pageTitle": "承認管理",
+    "pageDescription": "リギア・両替・寄付の申請を一カ所で審査します。",
+    "tabsLabel": "承認タイプタブ",
+    "tabRegear": "リギア",
+    "tabExchange": "両替",
+    "tabDonation": "寄付"
   },
   "adminNewEvent": {
     "title": "新規イベント",
