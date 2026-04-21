@@ -12,6 +12,7 @@ export interface MyExchangeRequest {
   admin_notes: string | null
   created_at: string
   resolved_at: string | null
+  handled_by_username: string | null
 }
 
 export async function requestExchange(silver: number): Promise<{ error?: string; id?: string }> {
@@ -146,9 +147,18 @@ export async function listMyExchangeRequests(): Promise<{
   const db = getAdminClient()
   const { data, error } = await db
     .from('exchange_requests')
-    .select('id, silver, status, admin_notes, created_at, resolved_at')
+    .select('id, silver, status, admin_notes, created_at, resolved_at, handled_by_username')
     .eq('discord_id', session.discordId)
     .order('created_at', { ascending: false })
   if (error) return { requests: [], error: error.message }
-  return { requests: (data ?? []) as MyExchangeRequest[] }
+  const requests: MyExchangeRequest[] = (data ?? []).map((row) => ({
+    id: row.id,
+    silver: row.silver,
+    status: row.status as MyExchangeRequest['status'],
+    admin_notes: row.admin_notes,
+    created_at: row.created_at,
+    resolved_at: row.resolved_at,
+    handled_by_username: row.handled_by_username ?? null,
+  }))
+  return { requests }
 }

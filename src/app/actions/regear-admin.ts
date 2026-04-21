@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
+import { getSession } from '@/lib/session'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { formatSilver } from '@/lib/silver'
 import type { BuildSnapshot, RegearType } from '@/types'
@@ -29,6 +30,9 @@ export interface AdminRegearRequest {
   admin_notes: string | null
   created_at: string
   resolved_at: string | null
+  // 처리한 관리자 Discord ID + 당시 표시명 스냅샷. 마이그 040 이전 row 는 null.
+  handled_by: string | null
+  handled_by_username: string | null
   build_snapshot: BuildSnapshot | null
 }
 
@@ -41,6 +45,8 @@ export interface AdminExchangeRequest {
   admin_notes: string | null
   created_at: string
   resolved_at: string | null
+  handled_by: string | null
+  handled_by_username: string | null
   balance: number
 }
 
@@ -59,7 +65,7 @@ export async function listRegearRequests(
     let query = db
       .from('regear_requests')
       .select(
-        'id, event_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, screenshot_path, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, build_snapshot, events(title)',
+        'id, event_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, screenshot_path, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, events(title)',
       )
       .order('created_at', { ascending: false })
     if (scope === 'pending') query = query.eq('status', 'pending')
@@ -88,6 +94,8 @@ export async function listRegearRequests(
         admin_notes: row.admin_notes,
         created_at: row.created_at,
         resolved_at: row.resolved_at,
+        handled_by: row.handled_by ?? null,
+        handled_by_username: row.handled_by_username ?? null,
         build_snapshot: (row.build_snapshot as BuildSnapshot | null) ?? null,
       }
     })
@@ -116,7 +124,12 @@ export async function approveRegearRequest(id: string): Promise<{ error?: string
   const tDm = await getTranslations('discordDm')
   try {
     const db = await requireAdmin()
-    const { error } = await db.rpc('approve_regear_request', { p_id: id })
+    const session = await getSession()
+    const { error } = await db.rpc('approve_regear_request', {
+      p_id: id,
+      p_admin_id: session?.discordId ?? '',
+      p_admin_username: session?.username ?? '',
+    })
     if (error) {
       if (error.message.includes('REGEAR_NOT_PENDING')) {
         return { error: tErr('alreadyHandled') }
@@ -155,9 +168,12 @@ export async function rejectRegearRequest(
   const tDm = await getTranslations('discordDm')
   try {
     const db = await requireAdmin()
+    const session = await getSession()
     const { error } = await db.rpc('reject_regear_request', {
       p_id: id,
       p_notes: notes.trim() || null,
+      p_admin_id: session?.discordId ?? '',
+      p_admin_username: session?.username ?? '',
     })
     if (error) {
       if (error.message.includes('REGEAR_NOT_PENDING')) {
@@ -193,7 +209,9 @@ export async function listExchangeRequests(
     const db = await requireAdmin()
     let query = db
       .from('exchange_requests')
-      .select('id, discord_id, username, silver, status, admin_notes, created_at, resolved_at')
+      .select(
+        'id, discord_id, username, silver, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username',
+      )
       .order('created_at', { ascending: false })
     if (scope === 'pending') query = query.eq('status', 'pending')
     const { data, error } = await query
@@ -224,6 +242,8 @@ export async function listExchangeRequests(
         admin_notes: r.admin_notes,
         created_at: r.created_at,
         resolved_at: r.resolved_at,
+        handled_by: r.handled_by ?? null,
+        handled_by_username: r.handled_by_username ?? null,
         balance: balances.get(r.discord_id) ?? 0,
       })),
     }
@@ -237,7 +257,12 @@ export async function approveExchangeRequest(id: string): Promise<{ error?: stri
   const tDm = await getTranslations('discordDm')
   try {
     const db = await requireAdmin()
-    const { error } = await db.rpc('approve_exchange_request', { p_id: id })
+    const session = await getSession()
+    const { error } = await db.rpc('approve_exchange_request', {
+      p_id: id,
+      p_admin_id: session?.discordId ?? '',
+      p_admin_username: session?.username ?? '',
+    })
     if (error) {
       if (error.message.includes('EXCHANGE_NOT_PENDING')) {
         return { error: tErr('alreadyHandled') }
@@ -275,9 +300,12 @@ export async function rejectExchangeRequest(
   const tDm = await getTranslations('discordDm')
   try {
     const db = await requireAdmin()
+    const session = await getSession()
     const { error } = await db.rpc('reject_exchange_request', {
       p_id: id,
       p_notes: notes.trim() || null,
+      p_admin_id: session?.discordId ?? '',
+      p_admin_username: session?.username ?? '',
     })
     if (error) {
       if (error.message.includes('EXCHANGE_NOT_PENDING')) {

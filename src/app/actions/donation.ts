@@ -26,6 +26,7 @@ export interface MyDonationRequest {
   admin_notes: string | null
   created_at: string
   resolved_at: string | null
+  handled_by_username: string | null
 }
 
 export async function requestDonation(
@@ -129,9 +130,19 @@ export async function listMyDonationRequests(): Promise<{
   const db = getAdminClient()
   const { data, error } = await db
     .from('donation_requests')
-    .select('id, silver, memo, status, admin_notes, created_at, resolved_at')
+    .select('id, silver, memo, status, admin_notes, created_at, resolved_at, handled_by_username')
     .eq('discord_id', session.discordId)
     .order('created_at', { ascending: false })
   if (error) return { requests: [], error: error.message }
-  return { requests: (data ?? []) as MyDonationRequest[] }
+  const requests: MyDonationRequest[] = (data ?? []).map((row) => ({
+    id: row.id,
+    silver: row.silver,
+    memo: row.memo,
+    status: row.status as MyDonationRequest['status'],
+    admin_notes: row.admin_notes,
+    created_at: row.created_at,
+    resolved_at: row.resolved_at,
+    handled_by_username: row.handled_by_username ?? null,
+  }))
+  return { requests }
 }

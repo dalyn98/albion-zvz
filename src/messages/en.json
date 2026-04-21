@@ -38,7 +38,8 @@
     "sending": "Sending…",
     "uploading": "Uploading…",
     "copy": "Copy",
-    "copied": "Copied"
+    "copied": "Copied",
+    "unknown": "Unknown"
   },
   "adminLogin": {
     "title": "Admin login",
@@ -152,6 +153,7 @@
     "rejectPlaceholder": "Reason (optional)",
     "rejectConfirm": "Confirm reject",
     "resolvedAt": "{status} at {datetime}",
+    "handledBy": "{status} by {handler}",
     "appliedBuild": "Applied build"
   },
   "adminExchangeReview": {
@@ -171,7 +173,8 @@
     "reject": "Reject",
     "rejectPlaceholder": "Reason (optional)",
     "rejectConfirm": "Confirm reject",
-    "resolvedAt": "{status} at {datetime}"
+    "resolvedAt": "{status} at {datetime}",
+    "handledBy": "{status} by {handler}"
   },
   "adminDonationReview": {
     "pageTitle": "Donation review",
@@ -194,7 +197,8 @@
     "reject": "Reject",
     "rejectPlaceholder": "Reason (optional)",
     "rejectConfirm": "Confirm reject",
-    "resolvedAt": "{status} at {datetime}"
+    "resolvedAt": "{status} at {datetime}",
+    "handledBy": "{status} by {handler}"
   },
   "adminPointAdjust": {
     "openButton": "Adjust points",
@@ -704,7 +708,8 @@
     "donationCancel": "Cancel request",
     "donationCancelConfirm": "Cancel this donation request? The uploaded screenshot will also be deleted.",
     "donationCancelConfirmButton": "Confirm cancel",
-    "donationKeep": "Keep"
+    "donationKeep": "Keep",
+    "handledBy": "by {handler}"
   },
   "myProfile": {
     "notRegistered": "Your guild member record hasn't been registered yet. Logging in again will register you automatically."
@@ -747,6 +752,7 @@
     "ceilingAmount": "Cap {amount}",
     "requestedAt": "Requested {when}",
     "resolvedAt": "{status} {when}",
+    "handledBy": "by {handler}",
     "outcomeWin": "Win",
     "outcomeLoss": "Loss",
     "outcomePending": "Pending",

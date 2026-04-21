@@ -117,6 +117,11 @@ export default async function MePage() {
                   {e.resolved_at && e.status !== 'pending' && (
                     <p className="text-gray-500 text-xs">
                       {tStatus(e.status)} {formatDateTime(e.resolved_at)}
+                      {e.handled_by_username && (
+                        <span className="ml-2 text-gray-600">
+                          · {t('handledBy', { handler: e.handled_by_username })}
+                        </span>
+                      )}
                     </p>
                   )}
                   {e.admin_notes && (
@@ -169,6 +174,11 @@ export default async function MePage() {
                   {d.resolved_at && d.status !== 'pending' && (
                     <span className="ml-2">
                       · {tStatus(d.status)} {formatDateTime(d.resolved_at)}
+                      {d.handled_by_username && (
+                        <span className="ml-1 text-gray-700">
+                          · {t('handledBy', { handler: d.handled_by_username })}
+                        </span>
+                      )}
                     </span>
                   )}
                 </p>
@@ -257,6 +267,11 @@ export default async function MePage() {
                   {r.resolved_at && r.status !== 'pending' && (
                     <span className="ml-2">
                       · {tStatus(r.status)} {formatDateTime(r.resolved_at)}
+                      {r.handled_by_username && (
+                        <span className="ml-1 text-gray-700">
+                          · {t('handledBy', { handler: r.handled_by_username })}
+                        </span>
+                      )}
                     </span>
                   )}
                 </p>

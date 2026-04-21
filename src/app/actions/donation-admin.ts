@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
+import { getSession } from '@/lib/session'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { formatSilver } from '@/lib/silver'
 
@@ -21,6 +22,8 @@ export interface AdminDonationRequest {
   admin_notes: string | null
   created_at: string
   resolved_at: string | null
+  handled_by: string | null
+  handled_by_username: string | null
 }
 
 export async function listDonationRequests(
@@ -32,13 +35,27 @@ export async function listDonationRequests(
     let query = db
       .from('donation_requests')
       .select(
-        'id, discord_id, username, silver, memo, screenshot_path, status, admin_notes, created_at, resolved_at',
+        'id, discord_id, username, silver, memo, screenshot_path, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username',
       )
       .order('created_at', { ascending: false })
     if (scope === 'pending') query = query.eq('status', 'pending')
     const { data, error } = await query
     if (error) return { requests: [], error: error.message }
-    return { requests: (data ?? []) as AdminDonationRequest[] }
+    const requests: AdminDonationRequest[] = (data ?? []).map((row) => ({
+      id: row.id,
+      discord_id: row.discord_id,
+      username: row.username,
+      silver: row.silver,
+      memo: row.memo,
+      screenshot_path: row.screenshot_path,
+      status: row.status as AdminDonationRequest['status'],
+      admin_notes: row.admin_notes,
+      created_at: row.created_at,
+      resolved_at: row.resolved_at,
+      handled_by: row.handled_by ?? null,
+      handled_by_username: row.handled_by_username ?? null,
+    }))
+    return { requests }
   } catch (e) {
     return { requests: [], error: e instanceof Error ? e.message : tErr('serverError') }
   }
@@ -65,7 +82,12 @@ export async function approveDonationRequest(id: string): Promise<{ error?: stri
   const tDm = await getTranslations('discordDm')
   try {
     const db = await requireAdmin()
-    const { error } = await db.rpc('approve_donation_request', { p_id: id })
+    const session = await getSession()
+    const { error } = await db.rpc('approve_donation_request', {
+      p_id: id,
+      p_admin_id: session?.discordId ?? '',
+      p_admin_username: session?.username ?? '',
+    })
     if (error) {
       if (error.message.includes('DONATION_NOT_PENDING')) {
         return { error: tErr('alreadyHandled') }
@@ -100,9 +122,12 @@ export async function rejectDonationRequest(
   const tDm = await getTranslations('discordDm')
   try {
     const db = await requireAdmin()
+    const session = await getSession()
     const { error } = await db.rpc('reject_donation_request', {
       p_id: id,
       p_notes: notes.trim() || null,
+      p_admin_id: session?.discordId ?? '',
+      p_admin_username: session?.username ?? '',
     })
     if (error) {
       if (error.message.includes('DONATION_NOT_PENDING')) {

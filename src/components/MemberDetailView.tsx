@@ -246,6 +246,11 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
                     {r.resolved_at && statusKey !== 'pending' && (
                       <span className="ml-2">
                         · {t('resolvedAt', { status: statusLabels[statusKey], when: formatDateTime(r.resolved_at) })}
+                        {r.handled_by_username && (
+                          <span className="ml-1 text-gray-700">
+                            · {t('handledBy', { handler: r.handled_by_username })}
+                          </span>
+                        )}
                       </span>
                     )}
                   </p>
@@ -274,6 +279,7 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
                 adjustedAtLabel={(when) => t('adjustedAt', { when })}
                 requestedAtLabel={(when) => t('requestedAt', { when })}
                 resolvedAtLabel={(status, when) => t('resolvedAt', { status, when })}
+                handledByLabel={(handler) => t('handledBy', { handler })}
               />
             ))}
           </ul>
@@ -290,6 +296,7 @@ interface ExchangeRowProps {
   adjustedAtLabel: (when: string) => string
   requestedAtLabel: (when: string) => string
   resolvedAtLabel: (status: string, when: string) => string
+  handledByLabel: (handler: string) => string
 }
 
 function ExchangeRow({
@@ -299,6 +306,7 @@ function ExchangeRow({
   adjustedAtLabel,
   requestedAtLabel,
   resolvedAtLabel,
+  handledByLabel,
 }: ExchangeRowProps) {
   if (entry.kind === 'admin_adjust') {
     const isGrant = entry.delta > 0
@@ -333,6 +341,11 @@ function ExchangeRow({
           {entry.resolved_at && statusKey !== 'pending' && (
             <span className="ml-2">
               · {resolvedAtLabel(statusLabels[statusKey], formatDateTime(entry.resolved_at))}
+              {entry.handled_by_username && (
+                <span className="ml-1 text-gray-700">
+                  · {handledByLabel(entry.handled_by_username)}
+                </span>
+              )}
             </span>
           )}
         </p>

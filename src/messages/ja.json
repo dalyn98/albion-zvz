@@ -38,7 +38,8 @@
     "sending": "送信中…",
     "uploading": "アップロード中…",
     "copy": "コピー",
-    "copied": "コピーしました"
+    "copied": "コピーしました",
+    "unknown": "不明"
   },
   "adminLogin": {
     "title": "管理者ログイン",
@@ -152,6 +153,7 @@
     "rejectPlaceholder": "却下理由 (任意)",
     "rejectConfirm": "却下確定",
     "resolvedAt": "{status} 処理: {datetime}",
+    "handledBy": "{status} 処理者: {handler}",
     "appliedBuild": "申請ビルド"
   },
   "adminExchangeReview": {
@@ -171,7 +173,8 @@
     "reject": "却下",
     "rejectPlaceholder": "却下理由 (任意)",
     "rejectConfirm": "却下確定",
-    "resolvedAt": "{status} 処理: {datetime}"
+    "resolvedAt": "{status} 処理: {datetime}",
+    "handledBy": "{status} 処理者: {handler}"
   },
   "adminDonationReview": {
     "pageTitle": "寄付審査",
@@ -194,7 +197,8 @@
     "reject": "却下",
     "rejectPlaceholder": "却下理由 (任意)",
     "rejectConfirm": "却下確定",
-    "resolvedAt": "{status} 処理: {datetime}"
+    "resolvedAt": "{status} 処理: {datetime}",
+    "handledBy": "{status} 処理者: {handler}"
   },
   "adminPointAdjust": {
     "openButton": "ポイント手動調整",
@@ -704,7 +708,8 @@
     "donationCancel": "申請をキャンセル",
     "donationCancelConfirm": "この寄付申請をキャンセルしますか? アップロードしたスクリーンショットも削除されます。",
     "donationCancelConfirmButton": "キャンセル確定",
-    "donationKeep": "維持"
+    "donationKeep": "維持",
+    "handledBy": "処理者 {handler}"
   },
   "myProfile": {
     "notRegistered": "ギルドメンバー情報がまだ登録されていません。再ログインすると自動的に登録されます。"
@@ -747,6 +752,7 @@
     "ceilingAmount": "上限 {amount}",
     "requestedAt": "申請 {when}",
     "resolvedAt": "{status} {when}",
+    "handledBy": "処理者 {handler}",
     "outcomeWin": "勝利",
     "outcomeLoss": "敗北",
     "outcomePending": "結果待ち",

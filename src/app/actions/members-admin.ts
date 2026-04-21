@@ -76,6 +76,7 @@ export interface MemberRegearEntry {
   admin_notes: string | null
   created_at: string
   resolved_at: string | null
+  handled_by_username: string | null
 }
 
 // 'exchange'는 기존 환전 요청(exchange_requests) 흐름, 'admin_adjust'는 관리자 수동
@@ -90,6 +91,7 @@ export type MemberExchangeEntry =
       admin_notes: string | null
       created_at: string
       resolved_at: string | null
+      handled_by_username: string | null
     }
   | {
       kind: 'admin_adjust'
@@ -418,13 +420,13 @@ async function fetchMemberDetail(discordId: string): Promise<{
       db
         .from('regear_requests')
         .select(
-          'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, status, admin_notes, created_at, resolved_at, events(title)',
+          'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, status, admin_notes, created_at, resolved_at, handled_by_username, events(title)',
         )
         .eq('discord_id', discordId)
         .order('created_at', { ascending: false }),
       db
         .from('exchange_requests')
-        .select('id, silver, status, admin_notes, created_at, resolved_at')
+        .select('id, silver, status, admin_notes, created_at, resolved_at, handled_by_username')
         .eq('discord_id', discordId)
         .order('created_at', { ascending: false }),
       db
@@ -537,6 +539,7 @@ async function fetchMemberDetail(discordId: string): Promise<{
         admin_notes: row.admin_notes,
         created_at: row.created_at,
         resolved_at: row.resolved_at,
+        handled_by_username: row.handled_by_username ?? null,
       }
     })
 
@@ -548,6 +551,7 @@ async function fetchMemberDetail(discordId: string): Promise<{
       admin_notes: row.admin_notes,
       created_at: row.created_at,
       resolved_at: row.resolved_at,
+      handled_by_username: row.handled_by_username ?? null,
     }))
 
     let balance = 0

@@ -38,7 +38,8 @@
     "sending": "전송 중…",
     "uploading": "업로드 중…",
     "copy": "복사",
-    "copied": "복사됨"
+    "copied": "복사됨",
+    "unknown": "알 수 없음"
   },
   "adminLogin": {
     "title": "관리자 로그인",
@@ -152,6 +153,7 @@
     "rejectPlaceholder": "거절 사유 (선택)",
     "rejectConfirm": "거절 확정",
     "resolvedAt": "{status} 처리: {datetime}",
+    "handledBy": "{status} 처리자: {handler}",
     "appliedBuild": "신청 빌드"
   },
   "adminExchangeReview": {
@@ -171,7 +173,8 @@
     "reject": "거절",
     "rejectPlaceholder": "거절 사유 (선택)",
     "rejectConfirm": "거절 확정",
-    "resolvedAt": "{status} 처리: {datetime}"
+    "resolvedAt": "{status} 처리: {datetime}",
+    "handledBy": "{status} 처리자: {handler}"
   },
   "adminDonationReview": {
     "pageTitle": "기부 승인",
@@ -194,7 +197,8 @@
     "reject": "거절",
     "rejectPlaceholder": "거절 사유 (선택)",
     "rejectConfirm": "거절 확정",
-    "resolvedAt": "{status} 처리: {datetime}"
+    "resolvedAt": "{status} 처리: {datetime}",
+    "handledBy": "{status} 처리자: {handler}"
   },
   "adminPointAdjust": {
     "openButton": "포인트 수동 조정",
@@ -704,7 +708,8 @@
     "donationCancel": "신청 취소",
     "donationCancelConfirm": "이 기부 신청을 취소할까요? 업로드한 스크린샷도 함께 삭제됩니다.",
     "donationCancelConfirmButton": "취소 확정",
-    "donationKeep": "유지"
+    "donationKeep": "유지",
+    "handledBy": "처리자 {handler}"
   },
   "myProfile": {
     "notRegistered": "길드원 정보가 아직 등록되지 않았습니다. 다시 로그인하면 자동으로 등록됩니다."
@@ -747,6 +752,7 @@
     "ceilingAmount": "상한 {amount}",
     "requestedAt": "신청 {when}",
     "resolvedAt": "{status} {when}",
+    "handledBy": "처리자 {handler}",
     "outcomeWin": "승리",
     "outcomeLoss": "패배",
     "outcomePending": "결과 대기",

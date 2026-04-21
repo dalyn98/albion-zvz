@@ -40,6 +40,7 @@ export interface MyRegearRequest {
   admin_notes: string | null
   created_at: string
   resolved_at: string | null
+  handled_by_username: string | null
   build_snapshot: BuildSnapshot | null
 }
 
@@ -247,7 +248,7 @@ export async function listMyRegearRequests(): Promise<{
   const { data, error } = await db
     .from('regear_requests')
     .select(
-      'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, status, killboard_verified, admin_notes, created_at, resolved_at, build_snapshot, events(title)',
+      'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, status, killboard_verified, admin_notes, created_at, resolved_at, handled_by_username, build_snapshot, events(title)',
     )
     .eq('discord_id', session.discordId)
     .order('created_at', { ascending: false })
@@ -270,6 +271,7 @@ export async function listMyRegearRequests(): Promise<{
       admin_notes: row.admin_notes,
       created_at: row.created_at,
       resolved_at: row.resolved_at,
+      handled_by_username: row.handled_by_username ?? null,
       build_snapshot: (row.build_snapshot as BuildSnapshot | null) ?? null,
     }
   })

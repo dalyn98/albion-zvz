@@ -262,9 +262,17 @@ function DonationRow({ request, avatar }: { request: AdminDonationRequest; avata
       )}
 
       {request.resolved_at && request.status !== 'pending' && (
-        <p className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2">
-          {t('resolvedAt', { status: statusLabel(request.status), datetime: formatDateTimeShort(request.resolved_at) })}
-        </p>
+        <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2 space-y-0.5">
+          <p>
+            {t('resolvedAt', { status: statusLabel(request.status), datetime: formatDateTimeShort(request.resolved_at) })}
+          </p>
+          <p>
+            {t('handledBy', {
+              status: statusLabel(request.status),
+              handler: request.handled_by_username ?? tCommon('unknown'),
+            })}
+          </p>
+        </div>
       )}
 
       {zoomed && screenshotUrl && (
