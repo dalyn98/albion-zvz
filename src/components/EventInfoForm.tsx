@@ -4,7 +4,12 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { createEvent, updateEvent } from '@/app/actions/admin'
-import { listGuildRoles, type DiscordRoleOption } from '@/app/actions/notifications'
+import {
+  listGuildRoles,
+  listGuildChannels,
+  type DiscordRoleOption,
+  type DiscordChannelOption,
+} from '@/app/actions/notifications'
 import { defaultGatherParts, parseGatherTime, formatGatherTimeKo, type GatherTimeParts } from '@/lib/gather-time'
 import type { Event } from '@/types'
 
@@ -25,6 +30,7 @@ export default function EventInfoForm({ initialEvent }: Props) {
   const router = useRouter()
   const t = useTranslations('adminEventForm')
   const tCommon = useTranslations('common')
+  const isEdit = !!initialEvent
   const [title, setTitle] = useState(initialEvent?.title ?? '')
   const [parts, setParts] = useState<GatherTimeParts>(() =>
     defaultGatherParts(initialEvent?.gather_at ?? null),
@@ -32,22 +38,29 @@ export default function EventInfoForm({ initialEvent }: Props) {
   const [gatherLocation, setGatherLocation] = useState(initialEvent?.gather_location ?? '')
   const [specialNotes, setSpecialNotes] = useState(initialEvent?.special_notes ?? '')
   const [notifyRoleId, setNotifyRoleId] = useState<string>(initialEvent?.notify_role_id ?? '')
+  const [notifyChannelId, setNotifyChannelId] = useState<string>(initialEvent?.notify_channel_id ?? '')
   const [roles, setRoles] = useState<DiscordRoleOption[] | null>(null)
   const [rolesError, setRolesError] = useState(false)
+  const [channels, setChannels] = useState<DiscordChannelOption[] | null>(null)
+  const [channelsError, setChannelsError] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    // 역할 목록은 봇 토큰으로만 조회 가능 — 서버 액션이 Discord API 로 1회 fetch.
+    // 생성 폼은 공지 관련 UI 가 없으므로 역할/채널 조회 자체를 건너뛴다.
+    // 편집 단계에서만 봇 토큰으로 Discord API 를 1회 호출.
+    if (!isEdit) return
     void (async () => {
-      const res = await listGuildRoles()
-      if (res.error) {
-        setRolesError(true)
-        return
-      }
-      setRoles(res.roles)
+      const [rolesRes, channelsRes] = await Promise.all([
+        listGuildRoles(),
+        listGuildChannels(),
+      ])
+      if (rolesRes.error) setRolesError(true)
+      else setRoles(rolesRes.roles)
+      if (channelsRes.error) setChannelsError(true)
+      else setChannels(channelsRes.channels)
     })()
-  }, [])
+  }, [isEdit])
 
   const parsed = parseGatherTime(parts)
   const preview = parsed ? formatGatherTimeKo(parsed) : null
@@ -85,24 +98,31 @@ export default function EventInfoForm({ initialEvent }: Props) {
     setLoading(true)
     setError('')
 
-    const payload = {
-      title: title.trim(),
-      gather_at: dt.toISOString(),
-      gather_time: formatGatherTimeKo(dt),
-      gather_location: gatherLocation.trim(),
-      special_notes: specialNotes.trim() || null,
-      notify_role_id: notifyRoleId || null,
-    }
-
     if (initialEvent) {
-      const result = await updateEvent(initialEvent.id, payload)
+      const result = await updateEvent(initialEvent.id, {
+        title: title.trim(),
+        gather_at: dt.toISOString(),
+        gather_time: formatGatherTimeKo(dt),
+        gather_location: gatherLocation.trim(),
+        special_notes: specialNotes.trim() || null,
+        notify_role_id: notifyRoleId || null,
+        notify_channel_id: notifyChannelId || null,
+      })
       if ('error' in result && result.error) {
         setError(result.error)
       } else {
         router.refresh()
       }
     } else {
-      const result = await createEvent(payload)
+      // 생성 단계에서는 공지 대상(역할/채널) 을 보내지 않는다. 생성 후
+      // 편집 화면에서 고르는 흐름.
+      const result = await createEvent({
+        title: title.trim(),
+        gather_at: dt.toISOString(),
+        gather_time: formatGatherTimeKo(dt),
+        gather_location: gatherLocation.trim(),
+        special_notes: specialNotes.trim() || null,
+      })
       if ('error' in result && result.error) {
         setError(result.error)
       } else if ('id' in result) {
@@ -180,29 +200,62 @@ export default function EventInfoForm({ initialEvent }: Props) {
         />
       </div>
 
-      <div>
-        <label className="text-gray-400 text-xs mb-1 block">{t('notifyRoleLabel')}</label>
-        <select
-          value={notifyRoleId}
-          onChange={(e) => setNotifyRoleId(e.target.value)}
-          disabled={roles === null && !rolesError}
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-base text-white focus:outline-none focus:border-amber-500 disabled:opacity-50"
-        >
-          <option value="">{t('notifyRoleNone')}</option>
-          {(roles ?? []).map((role) => (
-            <option key={role.id} value={role.id}>
-              {role.name}
-            </option>
-          ))}
-        </select>
-        {rolesError ? (
-          <p className="text-xs text-red-400 mt-1.5">{t('notifyRoleError')}</p>
-        ) : roles === null ? (
-          <p className="text-xs text-gray-500 mt-1.5">{t('notifyRoleLoading')}</p>
-        ) : (
-          <p className="text-xs text-gray-500 mt-1.5">{t('notifyRoleHint')}</p>
-        )}
-      </div>
+      {/*
+        공지 채널/역할 선택은 편집 단계에서만 노출. 이벤트를 막 만든 직후
+        관리자가 기본 채널 대신 원하는 곳으로 바꿀 수 있도록 편집으로 이동
+        하면서 선택하게 만드는 흐름.
+      */}
+      {isEdit && (
+        <>
+          <div>
+            <label className="text-gray-400 text-xs mb-1 block">{t('notifyChannelLabel')}</label>
+            <select
+              value={notifyChannelId}
+              onChange={(e) => setNotifyChannelId(e.target.value)}
+              disabled={channels === null && !channelsError}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-base text-white focus:outline-none focus:border-amber-500 disabled:opacity-50"
+            >
+              <option value="">{t('notifyChannelNone')}</option>
+              {(channels ?? []).map((channel) => (
+                <option key={channel.id} value={channel.id}>
+                  #{channel.name}
+                </option>
+              ))}
+            </select>
+            {channelsError ? (
+              <p className="text-xs text-red-400 mt-1.5">{t('notifyChannelError')}</p>
+            ) : channels === null ? (
+              <p className="text-xs text-gray-500 mt-1.5">{t('notifyChannelLoading')}</p>
+            ) : (
+              <p className="text-xs text-gray-500 mt-1.5">{t('notifyChannelHint')}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="text-gray-400 text-xs mb-1 block">{t('notifyRoleLabel')}</label>
+            <select
+              value={notifyRoleId}
+              onChange={(e) => setNotifyRoleId(e.target.value)}
+              disabled={roles === null && !rolesError}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-base text-white focus:outline-none focus:border-amber-500 disabled:opacity-50"
+            >
+              <option value="">{t('notifyRoleNone')}</option>
+              {(roles ?? []).map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.name}
+                </option>
+              ))}
+            </select>
+            {rolesError ? (
+              <p className="text-xs text-red-400 mt-1.5">{t('notifyRoleError')}</p>
+            ) : roles === null ? (
+              <p className="text-xs text-gray-500 mt-1.5">{t('notifyRoleLoading')}</p>
+            ) : (
+              <p className="text-xs text-gray-500 mt-1.5">{t('notifyRoleHint')}</p>
+            )}
+          </div>
+        </>
+      )}
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2">

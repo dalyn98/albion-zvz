@@ -27,6 +27,10 @@ interface EventPayload {
   // 채널 공지 시 이 역할만 @멘션한다. NULL/미지정이면 멘션 없이 조용히 공지.
   // optional 로 둬서 role picker UI 를 아직 안 쓰는 호출부도 호환되게 한다.
   notify_role_id?: string | null
+  // 편집 화면에서 관리자가 고른 Discord 채널 ID. NULL 이면 env 기반 기본
+  // 채널(DISCORD_EVENT_CHANNEL_ID) 로 fallback. 생성 폼은 이 필드를 보내지
+  // 않으며 편집 단계에서만 채널을 고른다.
+  notify_channel_id?: string | null
 }
 
 // Final check in case the client bypassed validation — a bad ISO string would
@@ -76,7 +80,7 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
     const db = await requireAdmin()
     const { data, error } = await db
       .from('events')
-      .select('id, title, gather_at, gather_time, gather_location, special_notes, notify_role_id')
+      .select('id, title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id')
       .eq('id', id)
       .maybeSingle()
     if (error) return { error: error.message }
@@ -85,7 +89,11 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
       'event_notification_message',
       DEFAULT_EVENT_NOTIFICATION_MESSAGE,
     )
-    await sendEventNotification(data, { content, notifyRoleId: data.notify_role_id })
+    await sendEventNotification(data, {
+      content,
+      notifyRoleId: data.notify_role_id,
+      channelId: data.notify_channel_id,
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -100,7 +108,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
 
     const { data: source, error: sourceErr } = await db
       .from('events')
-      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id')
+      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id')
       .eq('id', id)
       .maybeSingle()
     if (sourceErr) return { error: sourceErr.message }
@@ -124,6 +132,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
         gather_location: source.gather_location,
         special_notes: source.special_notes,
         notify_role_id: source.notify_role_id,
+        notify_channel_id: source.notify_channel_id,
       })
       .select('id')
       .single()

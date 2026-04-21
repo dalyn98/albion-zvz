@@ -63,12 +63,28 @@ export interface DiscordRoleOption {
   position: number
 }
 
+export interface DiscordChannelOption {
+  id: string
+  name: string
+  position: number
+  parent_id: string | null
+}
+
 interface RawDiscordRole {
   id: string
   name: string
   color: number
   position: number
   managed?: boolean
+}
+
+interface RawDiscordChannel {
+  id: string
+  name: string
+  // type 0 = GUILD_TEXT, 5 = GUILD_ANNOUNCEMENT. Others (voice/forum/etc.) 배제.
+  type: number
+  position: number
+  parent_id: string | null
 }
 
 // 관리자 이벤트 편집 UI 에서 "어떤 역할을 태그할지" 고르는 드롭다운용.
@@ -105,5 +121,42 @@ export async function listGuildRoles(): Promise<{
     return { roles }
   } catch (e) {
     return { roles: [], error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+// 이벤트 편집에서 "어떤 채널에 공지를 올릴지" 고르는 드롭다운용.
+// 길드의 모든 채널을 받아 텍스트/공지 채널만 필터해 UI 에 돌려준다.
+// category (type 4) 와 voice/forum 은 제외 — 메시지 전송 대상이 아니기 때문.
+export async function listGuildChannels(): Promise<{
+  channels: DiscordChannelOption[]
+  error?: string
+}> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    await requireAdmin()
+    const botToken = process.env.DISCORD_BOT_TOKEN
+    const guildId = process.env.DISCORD_GUILD_ID
+    if (!botToken || !guildId) {
+      return { channels: [], error: tErr('serverError') }
+    }
+    const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
+      headers: { Authorization: `Bot ${botToken}` },
+      cache: 'no-store',
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      console.error(`[notifications] listGuildChannels failed: ${res.status} ${text}`)
+      return { channels: [], error: tErr('serverError') }
+    }
+    const raw = (await res.json()) as RawDiscordChannel[]
+    // GUILD_TEXT(0) 과 GUILD_ANNOUNCEMENT(5) 만 — 그 외 카테고리/보이스/포럼은
+    // 봇 메시지 대상이 아니라서 UI 에 노출 안함.
+    const channels = raw
+      .filter((c) => c.type === 0 || c.type === 5)
+      .map((c) => ({ id: c.id, name: c.name, position: c.position, parent_id: c.parent_id }))
+      .sort((a, b) => a.position - b.position)
+    return { channels }
+  } catch (e) {
+    return { channels: [], error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }

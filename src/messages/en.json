@@ -115,6 +115,11 @@
     "notifyRoleNone": "No role (silent post)",
     "notifyRoleLoading": "Loading roles…",
     "notifyRoleError": "Couldn't load role list.",
+    "notifyChannelLabel": "Notification channel",
+    "notifyChannelHint": "Pick a channel for the Discord announcement. Leave blank to post to the default event channel.",
+    "notifyChannelNone": "Use default channel",
+    "notifyChannelLoading": "Loading channels…",
+    "notifyChannelError": "Couldn't load channel list.",
     "createEvent": "Create event →"
   },
   "adminRegearReview": {

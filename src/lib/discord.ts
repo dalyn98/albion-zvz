@@ -165,6 +165,8 @@ export interface EventNotificationPayload {
   // 이벤트에 연결된 Discord 역할 ID. 채널 알림 시 이 역할만 멘션한다.
   // NULL 이면 아무 역할도 멘션하지 않고 조용한 채널 메시지만 보낸다.
   notify_role_id: string | null
+  // 이벤트가 지정한 공지 채널. NULL 이면 호출부가 env fallback 을 넘긴다.
+  notify_channel_id: string | null
 }
 
 function formatGatherAt(iso: string): string {
@@ -187,6 +189,8 @@ export interface SendEventNotificationOptions {
   content: string
   // 이벤트에 설정된 역할 ID. NULL 이면 멘션 없이 채널에만 올린다.
   notifyRoleId: string | null
+  // 이벤트에 설정된 채널 ID. NULL 이면 env DISCORD_EVENT_CHANNEL_ID fallback.
+  channelId: string | null
 }
 
 export async function sendEventNotification(
@@ -194,8 +198,9 @@ export async function sendEventNotification(
   options: SendEventNotificationOptions,
 ): Promise<void> {
   const botToken = process.env.DISCORD_BOT_TOKEN
-  const channelId = process.env.DISCORD_EVENT_CHANNEL_ID
   const appUrl = process.env.APP_URL
+  // 이벤트가 지정한 채널이 우선. 없으면 env 로 떨어져 기존 동작을 유지한다.
+  const channelId = options.channelId ?? process.env.DISCORD_EVENT_CHANNEL_ID
   if (!botToken || !channelId || !appUrl) {
     throw new Error('Discord bot notification env not set (DISCORD_BOT_TOKEN, DISCORD_EVENT_CHANNEL_ID, APP_URL)')
   }

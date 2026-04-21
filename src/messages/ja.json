@@ -115,6 +115,11 @@
     "notifyRoleNone": "ロールなし (サイレント告知)",
     "notifyRoleLoading": "ロールを読み込み中…",
     "notifyRoleError": "ロール一覧の読み込みに失敗しました。",
+    "notifyChannelLabel": "告知チャンネル",
+    "notifyChannelHint": "Discord告知を投稿するチャンネルを選択。未選択ならデフォルトのイベントチャンネルへ投稿します。",
+    "notifyChannelNone": "デフォルトチャンネルを使用",
+    "notifyChannelLoading": "チャンネルを読み込み中…",
+    "notifyChannelError": "チャンネル一覧の読み込みに失敗しました。",
     "createEvent": "イベント作成 →"
   },
   "adminRegearReview": {
