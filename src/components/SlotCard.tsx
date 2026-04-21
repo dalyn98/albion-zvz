@@ -10,6 +10,7 @@ import {
   GEAR_ENCHANT_COLOR_CLASS,
   getDisplayGear,
   getGearOptions,
+  getPrimaryGearKind,
   getRoleStyle,
   getSlotGearSpec,
   hasGearOptions,
@@ -182,7 +183,10 @@ export default function SlotCard({
     [slot],
   )
   const needsPicks = multiOptionKinds.length > 0
-  const weaponDisplay = getDisplayGear(slot, 'weapon')
+  // BM role's defining item is the battle mount, not the weapon — swap the
+  // hero preview + name line accordingly so the card reads naturally.
+  const primaryKind = getPrimaryGearKind(slot.role_name)
+  const primaryDisplay = getDisplayGear(slot, primaryKind)
 
   const doAssign = (picks: SlotPicks) => {
     setError('')
@@ -226,7 +230,7 @@ export default function SlotCard({
     })
   }
 
-  const otherKeys = SLOT_KEYS.filter((k) => k !== 'weapon')
+  const otherKeys = SLOT_KEYS.filter((k) => k !== primaryKind)
 
   return (
     <div className={`rounded-xl p-2.5 space-y-2 border transition-colors ${
@@ -259,7 +263,7 @@ export default function SlotCard({
 
       <div className="grid grid-cols-4 gap-1">
         <div className="col-span-2 row-span-2 flex items-center justify-center">
-          <GearPreview slot={slot} kind="weapon" size={52} isTaken={isTaken} />
+          <GearPreview slot={slot} kind={primaryKind} size={52} isTaken={isTaken} />
         </div>
         {otherKeys.map((key) => (
           <div key={key} className="flex items-center justify-center">
@@ -275,9 +279,9 @@ export default function SlotCard({
           {t('multiRequired', { labels: multiOptionKinds.map((k) => tGear(k)).join('/') })}
         </p>
       ) : (
-        weaponDisplay.name && !isFreeItem(weaponDisplay.name, weaponDisplay.id) && (
+        primaryDisplay.name && !isFreeItem(primaryDisplay.name, primaryDisplay.id) && (
           <p className="text-white text-[12px] font-medium truncate leading-tight">
-            {stripTierPrefix(getLocalizedItemName(weaponDisplay.id, locale, weaponDisplay.name) ?? weaponDisplay.name)}
+            {stripTierPrefix(getLocalizedItemName(primaryDisplay.id, locale, primaryDisplay.name) ?? primaryDisplay.name)}
           </p>
         )
       )}

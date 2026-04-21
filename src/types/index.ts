@@ -238,11 +238,24 @@ export function isTierlessSlot(key: SlotKey): boolean {
   return TIERLESS_SLOT_KEYS.includes(key)
 }
 
-// Categories passed to ItemPicker for each slot kind. Weapon keeps the mount
-// category for backward compatibility — legacy builds stored battle mounts in
-// the weapon slot before the dedicated mount slot existed (migration 036).
+// Mount items don't participate in the tier/enchant spec system at all —
+// they're picked as a specific item, no quality override to track.
+export const SPEC_LESS_SLOT_KEYS: readonly SlotKey[] = ['mount']
+
+export function isSpecLessSlot(key: SlotKey): boolean {
+  return SPEC_LESS_SLOT_KEYS.includes(key)
+}
+
+// Role-dependent primary gear. For BM (battle mount) role the mount is the
+// main weapon — everything else (spell panel, card preview) should pivot
+// around mount instead of weapon for that role.
+export function getPrimaryGearKind(roleName: string | null | undefined): SlotKey {
+  return roleName === 'BM' ? 'mount' : 'weapon'
+}
+
+// Categories passed to ItemPicker for each slot kind.
 export const SLOT_PICKER_CATEGORY: Record<SlotKey, string> = {
-  weapon:  'weapon,mount',
+  weapon:  'weapon',
   head:    'head',
   armor:   'armor',
   shoes:   'shoes',

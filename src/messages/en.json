@@ -320,7 +320,6 @@
     "batchGroupWeapon": "Weapon",
     "batchGroupArmor": "Armor",
     "batchGroupCape": "Cape",
-    "batchGroupMount": "Mount",
     "batchGroupFood": "Food",
     "batchGroupPotion": "Potion",
     "batchItemsButton": "Apply potion/mount to party",

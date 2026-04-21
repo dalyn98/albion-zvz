@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Plus, ChevronDown, ChevronUp } from 'lucide-react'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
 import type { GearOption, GearSpec, GearSpecs, SlotKey, SlotSpells } from '@/types'
-import { GEAR_ENCHANT_MAX, GEAR_ENCHANT_MIN, GEAR_TIER_MAX, GEAR_TIER_MIN, SLOT_KEYS, isTierlessSlot } from '@/types'
+import { GEAR_ENCHANT_MAX, GEAR_ENCHANT_MIN, GEAR_TIER_MAX, GEAR_TIER_MIN, SLOT_KEYS, isTierlessSlot, isSpecLessSlot } from '@/types'
 import { updateTemplate, type TemplateData, type TemplateRecord } from '@/app/actions/templates'
 
 function sanitizeGearOptions(opts: GearOption[] | null | undefined): GearOption[] | null {
@@ -41,6 +41,7 @@ function sanitizeSpells(spells: Record<SlotKey, string[]>): SlotSpells | null {
 function sanitizeGearSpecs(specs: Record<SlotKey, GearSpec>): GearSpecs | null {
   const out: GearSpecs = {}
   for (const key of SLOT_KEYS) {
+    if (isSpecLessSlot(key)) continue
     const raw = specs[key]
     if (!raw) continue
     const entry: GearSpec = {}

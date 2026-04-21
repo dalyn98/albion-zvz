@@ -24,6 +24,7 @@ import {
   getRoleStyle,
   isFreeItem,
   isTierlessSlot,
+  isSpecLessSlot,
 } from '@/types'
 
 export type GearMode = 'single' | 'multi' | 'free'
@@ -592,6 +593,9 @@ function TierEnchantPicker({
   onChange: (patch: Partial<GearSpec>) => void
 }) {
   const t = useTranslations('adminParty')
+  // Mount has no tier/enchant concept at all — skip the whole row rather than
+  // showing empty selects that save nothing (sanitizeGearSpecs drops it anyway).
+  if (isSpecLessSlot(slotKey)) return null
   const tierless = isTierlessSlot(slotKey)
   const tiers: number[] = []
   for (let tier = GEAR_TIER_MIN; tier <= GEAR_TIER_MAX; tier++) tiers.push(tier)

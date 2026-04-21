@@ -13,6 +13,7 @@ import {
   GEAR_ENCHANT_MIN,
   GEAR_ENCHANT_MAX,
   isTierlessSlot,
+  isSpecLessSlot,
 } from '@/types'
 
 const DEFAULT_EVENT_NOTIFICATION_MESSAGE = '새 이벤트가 등록되었습니다.'
@@ -464,6 +465,7 @@ function sanitizeGearSpecs(specs: Partial<Record<SlotKey, GearSpec>> | null | un
   if (!specs || typeof specs !== 'object') return null
   const out: GearSpecs = {}
   for (const key of SLOT_KEYS) {
+    if (isSpecLessSlot(key)) continue
     const raw = specs[key]
     if (!raw || typeof raw !== 'object') continue
     const clean: GearSpec = {}

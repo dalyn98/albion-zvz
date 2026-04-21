@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import type { PartyWithSlots } from '@/types'
-import { getRoleStyle, isFreeItem, getDisplayGear, hasGearOptions } from '@/types'
+import { getRoleStyle, isFreeItem, getDisplayGear, getPrimaryGearKind, hasGearOptions } from '@/types'
 import { stripTierPrefix } from '@/lib/weapon-display'
 import { getLocalizedItemName } from '@/lib/item-names'
 import { getLocale } from '@/lib/locale'
@@ -112,8 +112,12 @@ function sumMountDisarray(parties: PartyWithSlots[]): number {
   for (const p of parties) {
     for (const s of p.slots) {
       if (!s.assigned_discord_id) continue
-      const display = getDisplayGear(s, 'weapon')
-      sum += getMountDisarray(display.id)
+      // Battle mounts live in the mount column after migration 037. Still
+      // fall back to weapon for disarray IDs in case a legacy slot hasn't
+      // been migrated yet (role_name !== 'BM' but weapon holds a mount).
+      const mount = getDisplayGear(s, 'mount')
+      const weapon = getDisplayGear(s, 'weapon')
+      sum += getMountDisarray(mount.id) + getMountDisarray(weapon.id)
     }
   }
   return sum
@@ -439,13 +443,15 @@ function SidebarRow({
   locale: Locale
 }) {
   const roleStyle = getRoleStyle(slot.role_name)
-  const isMulti = hasGearOptions(slot, 'weapon')
+  const primaryKind = getPrimaryGearKind(slot.role_name)
+  const primaryOptions = primaryKind === 'mount' ? slot.mount_options : slot.weapon_options
+  const isMulti = hasGearOptions(slot, primaryKind)
   const isAssigned = slot.assigned_discord_id !== null
-  // When slot has weapon_options and no one has claimed it yet, show a multi-weapon
-  // marker instead of a single fixed icon — the picked weapon only exists post-assign.
+  // When slot has options on the primary kind and no one has claimed it yet,
+  // show a multi marker — the picked item only exists post-assign.
   const showMulti = isMulti && !isAssigned
-  const display = getDisplayGear(slot, 'weapon')
-  const weaponFree = !showMulti && isFreeItem(display.name, display.id)
+  const display = getDisplayGear(slot, primaryKind)
+  const primaryFree = !showMulti && isFreeItem(display.name, display.id)
   return (
     <li className="flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-gray-800/60 transition-colors">
       <span className="text-gray-600 text-[12px] font-mono w-7 flex-shrink-0 text-right">
@@ -467,7 +473,7 @@ function SidebarRow({
           <div className="w-5 h-5 rounded-sm bg-amber-500/10 border border-amber-500/40 text-amber-300 flex items-center justify-center flex-shrink-0">
             <Swords size={10} />
           </div>
-        ) : weaponFree ? (
+        ) : primaryFree ? (
           <div
             className="w-5 h-5 rounded-sm bg-emerald-900/40 border border-emerald-600/50 text-emerald-300 font-bold flex items-center justify-center text-[10px] flex-shrink-0 tracking-tighter"
             aria-label={labels.free}
@@ -479,7 +485,7 @@ function SidebarRow({
         )}
         <span className="text-gray-300 text-[13px] truncate">
           {showMulti
-            ? labels.multiWeapon(slot.weapon_options!.length)
+            ? labels.multiWeapon(primaryOptions!.length)
             : stripTierPrefix(getLocalizedItemName(display.id, locale, display.name) ?? display.name) || '-'}
         </span>
       </div>
