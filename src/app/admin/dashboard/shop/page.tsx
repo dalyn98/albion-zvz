@@ -6,7 +6,7 @@ import ShopBlacklistEditor from '@/components/ShopBlacklistEditor'
 import ShopNameOverridesEditor from '@/components/ShopNameOverridesEditor'
 import ShopSilverRateForm from '@/components/ShopSilverRateForm'
 import ShopInventoryEditor, { type InventoryRow } from '@/components/ShopInventoryEditor'
-import NoticeSettingForm from '@/components/NoticeSettingForm'
+import NoticeSettingForm, { NOTICE_MAX_LENGTH } from '@/components/NoticeSettingForm'
 import { parseSilverToPointRate } from '@/lib/shop/price'
 
 export const dynamic = 'force-dynamic'
@@ -75,7 +75,7 @@ export default async function AdminShopPage() {
             placeholder="예: 주문 승인 후 디스코드 #상점 채널에서 DM 받으면 인게임 우편으로 전달됩니다."
             clearLabel="배너 비우기"
             clearTooltip="빈 문자열 = 배너 숨김"
-            tooLongTemplate={(max) => `최대 ${max}자까지 입력 가능`}
+            tooLongMessage={`최대 ${NOTICE_MAX_LENGTH}자까지 입력 가능`}
           />
           <ShopSilverRateForm initial={silverToPointRate} />
           <ShopBlacklistEditor

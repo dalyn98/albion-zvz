@@ -7,6 +7,8 @@ import { updateAppSetting } from '@/app/actions/settings'
 import type { AppSettingKey } from '@/lib/app-settings'
 import { Save, Eraser } from 'lucide-react'
 
+export const NOTICE_MAX_LENGTH = 500
+
 interface Props {
   settingKey: AppSettingKey
   initialMessage: string
@@ -16,10 +18,8 @@ interface Props {
   placeholder: string
   clearLabel: string
   clearTooltip: string
-  tooLongTemplate: (max: number) => string
+  tooLongMessage: string
 }
-
-const MAX_LENGTH = 500
 
 export default function NoticeSettingForm({
   settingKey,
@@ -30,7 +30,7 @@ export default function NoticeSettingForm({
   placeholder,
   clearLabel,
   clearTooltip,
-  tooLongTemplate,
+  tooLongMessage,
 }: Props) {
   const tCommon = useTranslations('common')
   const router = useRouter()
@@ -40,11 +40,11 @@ export default function NoticeSettingForm({
   const [saved, setSaved] = useState(false)
 
   const dirty = text !== initialMessage
-  const tooLong = text.length > MAX_LENGTH
+  const tooLong = text.length > NOTICE_MAX_LENGTH
 
   const handleSave = async () => {
     if (tooLong) {
-      setError(tooLongTemplate(MAX_LENGTH))
+      setError(tooLongMessage)
       return
     }
     setLoading(true)
@@ -86,7 +86,7 @@ export default function NoticeSettingForm({
         />
         <div className="flex items-center justify-between mt-1">
           <span className={`text-[11px] ${tooLong ? 'text-red-400' : 'text-gray-500'}`}>
-            {text.length}/{MAX_LENGTH}
+            {text.length}/{NOTICE_MAX_LENGTH}
           </span>
           {saved && !dirty && <span className="text-[11px] text-emerald-400">{tCommon('saved')}</span>}
         </div>

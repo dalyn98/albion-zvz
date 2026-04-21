@@ -8,7 +8,7 @@ import RoleRewardsEditor from './RoleRewardsEditor'
 import LandingBannerForm from './LandingBannerForm'
 import LandingCtaTextForm from './LandingCtaTextForm'
 import GuestInviteSettingsForm from './GuestInviteSettingsForm'
-import NoticeSettingForm from './NoticeSettingForm'
+import NoticeSettingForm, { NOTICE_MAX_LENGTH } from './NoticeSettingForm'
 import EventCreatorRolesSetting from './EventCreatorRolesSetting'
 import BombSquadCallerRolesSetting from './BombSquadCallerRolesSetting'
 import RegearLimitsForm from './RegearLimitsForm'
@@ -201,7 +201,7 @@ export default function SettingsTabs({
               placeholder={tEventsNotice('placeholder')}
               clearLabel={tEventsNotice('clear')}
               clearTooltip={tEventsNotice('clearTooltip')}
-              tooLongTemplate={(max) => tEventsNotice('tooLong', { max })}
+              tooLongMessage={tEventsNotice('tooLong', { max: NOTICE_MAX_LENGTH })}
             />
             <NoticeSettingForm
               settingKey="regear_notice_message"
@@ -212,7 +212,7 @@ export default function SettingsTabs({
               placeholder={tRegearNotice('placeholder')}
               clearLabel={tRegearNotice('clear')}
               clearTooltip={tRegearNotice('clearTooltip')}
-              tooLongTemplate={(max) => tRegearNotice('tooLong', { max })}
+              tooLongMessage={tRegearNotice('tooLong', { max: NOTICE_MAX_LENGTH })}
             />
           </div>
         )}
