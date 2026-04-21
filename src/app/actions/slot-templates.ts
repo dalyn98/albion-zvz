@@ -2,7 +2,7 @@
 
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
-import type { GearOption, SlotSpells } from '@/types'
+import type { GearOption, GearSpecs, SlotSpells } from '@/types'
 
 // Slot-level template data: role + notes + 8 gear slots + per-slot multi-option
 // lists + per-item spells. No slot_number (templates are position-agnostic) and
@@ -11,6 +11,10 @@ export interface SlotTemplateData {
   role_name: string | null
   notes: string | null
   spells: SlotSpells | null
+  // Migration 035: per-slot target tier/enchant. Optional so existing
+  // templates loaded without this field still work — applyTemplate defaults
+  // to empty specs when absent.
+  gear_specs?: GearSpecs | null
   weapon_name: string | null;  weapon_id: string | null;  weapon_options: GearOption[] | null
   head_name: string | null;    head_id: string | null;    head_options: GearOption[] | null
   armor_name: string | null;   armor_id: string | null;   armor_options: GearOption[] | null

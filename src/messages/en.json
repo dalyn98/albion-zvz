@@ -301,7 +301,21 @@
     "moveDown": "Move down",
     "hide": "Hide",
     "show": "Show",
-    "hiddenBadge": "Hidden"
+    "hiddenBadge": "Hidden",
+    "specLabel": "Spec",
+    "specTier": "Tier",
+    "specEnchant": "Enchant",
+    "specTierAny": "T Any",
+    "specEnchantAny": "@ Any",
+    "specClear": "Clear",
+    "batchSpecButton": "Apply default spec",
+    "batchSpecTitle": "Apply default spec",
+    "batchSpecHint": "Fills tier/enchant defaults across the selected scope. Existing values are never overwritten.",
+    "batchSpecScope": "Scope",
+    "batchSpecScopeAll": "Entire party",
+    "batchSpecTargetCount": "{count} target slot(s)",
+    "batchSpecFillHint": "Only unset slots are filled — apply role-specific defaults first, then party-wide fallback.",
+    "batchSpecApply": "Apply"
   },
   "adminRoleRewards": {
     "noRoles": "No roles registered.",

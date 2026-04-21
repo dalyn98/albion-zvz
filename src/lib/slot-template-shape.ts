@@ -1,4 +1,4 @@
-import type { GearOption, SlotKey, SlotSpells } from '@/types'
+import type { GearOption, GearSpec, GearSpecs, SlotKey, SlotSpells } from '@/types'
 import { SLOT_KEYS } from '@/types'
 import type { SlotInput } from '@/components/SlotEditor'
 import type { SlotTemplateData } from '@/app/actions/slot-templates'
@@ -39,10 +39,22 @@ export function slotInputToTemplateData(slot: SlotInput): SlotTemplateData {
     return value ? value : null
   }
 
+  const specs: GearSpecs = {}
+  for (const key of SLOT_KEYS) {
+    const spec = slot.specs[key]
+    if (!spec) continue
+    const clean: GearSpec = {}
+    if (typeof spec.tier === 'number') clean.tier = spec.tier
+    if (typeof spec.enchant === 'number') clean.enchant = spec.enchant
+    if (clean.tier != null || clean.enchant != null) specs[key] = clean
+  }
+  const specsOrNull = Object.keys(specs).length > 0 ? specs : null
+
   return {
     role_name: slot.role_name.trim() || null,
     notes: slot.notes.trim() || null,
     spells: spellsOrNull,
+    gear_specs: specsOrNull,
     weapon_name: fixedValue('weapon', 'name'),  weapon_id: fixedValue('weapon', 'id'),   weapon_options: cleanedOptions.weapon,
     head_name: fixedValue('head', 'name'),       head_id: fixedValue('head', 'id'),       head_options: cleanedOptions.head,
     armor_name: fixedValue('armor', 'name'),     armor_id: fixedValue('armor', 'id'),     armor_options: cleanedOptions.armor,
@@ -95,6 +107,11 @@ export function applyTemplateToSlotInput(
     {} as Record<SlotKey, string[]>,
   )
 
+  const specs = SLOT_KEYS.reduce(
+    (acc, k) => ({ ...acc, [k]: { ...(data.gear_specs?.[k] ?? {}) } }),
+    {} as Record<SlotKey, GearSpec>,
+  )
+
   return {
     ...current,
     role_name: data.role_name ?? '',
@@ -102,5 +119,6 @@ export function applyTemplateToSlotInput(
     items,
     options: optionsRecord,
     spells,
+    specs,
   }
 }

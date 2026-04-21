@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Eye, EyeOff } from 'lucide-react'
+import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Eye, EyeOff, Package } from 'lucide-react'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
-import type { GearOption, SlotKey } from '@/types'
+import BatchApplySpecsModal, { type BatchSpecsScope } from './BatchApplySpecsModal'
+import type { GearOption, GearSpec, SlotKey } from '@/types'
 import { SLOT_KEYS } from '@/types'
 import { savePartySlots } from '@/app/actions/admin'
 import type { PartyWithSlots } from '@/types'
@@ -33,6 +34,10 @@ function slotToInput(s: import('@/types').Slot): SlotInput {
       ...acc,
       [k]: s.spells?.[k] ?? [],
     }), {} as Record<SlotKey, string[]>),
+    specs: SLOT_KEYS.reduce((acc, k) => ({
+      ...acc,
+      [k]: s.gear_specs?.[k] ?? {},
+    }), {} as Record<SlotKey, GearSpec>),
   }
 }
 
@@ -48,6 +53,37 @@ export default function PartyEditorPanel({ eventId, partyNumber, initialData }: 
     initialData?.slots.map(slotToInput) ?? []
   )
   const [error, setError] = useState('')
+  const [batchModalOpen, setBatchModalOpen] = useState(false)
+
+  const applyBatchSpecs = (
+    scope: BatchSpecsScope,
+    incoming: Partial<Record<SlotKey, GearSpec>>,
+  ) => {
+    setSlots((prev) =>
+      prev.map((s) => {
+        if (scope !== 'all' && s.role_name !== scope) return s
+        const nextSpecs = { ...s.specs }
+        let changed = false
+        for (const key of SLOT_KEYS) {
+          const patch = incoming[key]
+          if (!patch) continue
+          const current = nextSpecs[key] ?? {}
+          const merged: GearSpec = { ...current }
+          // Fill-empty-only semantics: never override an admin's manual spec.
+          if (patch.tier != null && merged.tier == null) {
+            merged.tier = patch.tier
+            changed = true
+          }
+          if (patch.enchant != null && merged.enchant == null) {
+            merged.enchant = patch.enchant
+            changed = true
+          }
+          nextSpecs[key] = merged
+        }
+        return changed ? { ...s, specs: nextSpecs } : s
+      }),
+    )
+  }
 
   const addSlot = () => {
     if (slots.length >= 20) return
@@ -111,6 +147,19 @@ export default function PartyEditorPanel({ eventId, partyNumber, initialData }: 
       </summary>
 
       <div className="p-4 space-y-3 border-t border-gray-700">
+        {slots.length > 0 && (
+          <div className="flex items-center justify-end">
+            <button
+              type="button"
+              onClick={() => setBatchModalOpen(true)}
+              className="flex items-center gap-1 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 text-amber-300 px-3 py-1.5 rounded-lg"
+            >
+              <Package size={12} />
+              {t('batchSpecButton')}
+            </button>
+          </div>
+        )}
+
         {slots.length === 0 && (
           <p className="text-gray-500 text-sm text-center py-4">
             {t('noSlotsHint')}
@@ -186,6 +235,14 @@ export default function PartyEditorPanel({ eventId, partyNumber, initialData }: 
           </div>
         )}
       </div>
+
+      {batchModalOpen && (
+        <BatchApplySpecsModal
+          slots={slots}
+          onApply={applyBatchSpecs}
+          onClose={() => setBatchModalOpen(false)}
+        />
+      )}
     </details>
   )
 }

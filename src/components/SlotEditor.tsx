@@ -10,12 +10,17 @@ import ItemImage from './ItemImage'
 import SpellPicker from './SpellPicker'
 import SaveSlotAsTemplateButton from './SaveSlotAsTemplateButton'
 import LoadSlotTemplateButton from './LoadSlotTemplateButton'
-import type { SlotKey, GearOption } from '@/types'
+import type { SlotKey, GearOption, GearSpec } from '@/types'
 import {
   SLOT_KEYS,
   SLOT_LABELS,
   SLOT_PICKER_CATEGORY,
   SLOT_ROLES,
+  GEAR_TIER_MIN,
+  GEAR_TIER_MAX,
+  GEAR_ENCHANT_MIN,
+  GEAR_ENCHANT_MAX,
+  GEAR_ENCHANT_COLOR_CLASS,
   getRoleStyle,
   isFreeItem,
 } from '@/types'
@@ -33,6 +38,10 @@ export interface SlotInput {
   // Always an 8-keyed record in the editor — simpler than Partial here. Empty
   // arrays are serialized back to null at save time (see sanitizeSpells).
   spells: Record<SlotKey, string[]>
+  // Target tier/enchant per slot kind. Undefined entries in the shape mean
+  // "no spec" — the member is free to bring any quality. Serialized to
+  // `gear_specs` jsonb at save time.
+  specs: Record<SlotKey, GearSpec>
   assigned_username: string | null
 }
 
@@ -52,6 +61,7 @@ export function emptySlotInput(slotNumber: number): SlotInput {
     items: emptyPerSlot(() => ({ name: '', id: '' })),
     options: emptyPerSlot(() => []),
     spells: emptyPerSlot(() => []),
+    specs: emptyPerSlot(() => ({}) as GearSpec),
     assigned_username: null,
   }
 }
@@ -135,6 +145,15 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
 
   const clearItem = (key: SlotKey) => {
     onChange({ ...slot, items: { ...slot.items, [key]: { name: '', id: '' } } })
+  }
+
+  const setSpec = (key: SlotKey, patch: Partial<GearSpec>) => {
+    const current = slot.specs[key] ?? {}
+    const next: GearSpec = { ...current, ...patch }
+    // Drop keys set back to undefined/null so the stored shape stays minimal.
+    if (next.tier == null) delete next.tier
+    if (next.enchant == null) delete next.enchant
+    onChange({ ...slot, specs: { ...slot.specs, [key]: next } })
   }
 
   const addSpell = (key: SlotKey, spellId: string) => {
@@ -360,6 +379,8 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
                   onRemoveSpell={(id) => removeSpell('weapon', id)}
                   onAddOptionSpell={(oid, sid) => addOptionSpell('weapon', oid, sid)}
                   onRemoveOptionSpell={(oid, sid) => removeOptionSpell('weapon', oid, sid)}
+                  spec={slot.specs.weapon ?? {}}
+                  onSpecChange={(patch) => setSpec('weapon', patch)}
                 />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -381,6 +402,8 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
                       onRemoveSpell={(id) => removeSpell(key, id)}
                       onAddOptionSpell={(oid, sid) => addOptionSpell(key, oid, sid)}
                       onRemoveOptionSpell={(oid, sid) => removeOptionSpell(key, oid, sid)}
+                      spec={slot.specs[key] ?? {}}
+                      onSpecChange={(patch) => setSpec(key, patch)}
                     />
                   ))}
                 </div>
@@ -429,6 +452,8 @@ interface GearSectionProps {
   onRemoveSpell: (id: string) => void
   onAddOptionSpell: (optId: string, spellId: string) => void
   onRemoveOptionSpell: (optId: string, spellId: string) => void
+  spec: GearSpec
+  onSpecChange: (patch: Partial<GearSpec>) => void
 }
 
 function GearSection({
@@ -447,6 +472,8 @@ function GearSection({
   onRemoveSpell,
   onAddOptionSpell,
   onRemoveOptionSpell,
+  spec,
+  onSpecChange,
 }: GearSectionProps) {
   const t = useTranslations('adminParty')
   const rawLocale = useLocale()
@@ -476,6 +503,9 @@ function GearSection({
           ))}
         </div>
       </div>
+
+      <TierEnchantPicker spec={spec} onChange={onSpecChange} />
+
 
       {mode === 'multi' ? (
         <div className="space-y-2">
@@ -546,6 +576,62 @@ function GearSection({
             onRemove={onRemoveSpell}
           />
         </>
+      )}
+    </div>
+  )
+}
+
+function TierEnchantPicker({
+  spec,
+  onChange,
+}: {
+  spec: GearSpec
+  onChange: (patch: Partial<GearSpec>) => void
+}) {
+  const t = useTranslations('adminParty')
+  const tiers: number[] = []
+  for (let tier = GEAR_TIER_MIN; tier <= GEAR_TIER_MAX; tier++) tiers.push(tier)
+  const enchants: number[] = []
+  for (let e = GEAR_ENCHANT_MIN; e <= GEAR_ENCHANT_MAX; e++) enchants.push(e)
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-gray-500 text-[10px] font-semibold uppercase tracking-wider">{t('specLabel')}</span>
+      <select
+        value={spec.tier ?? ''}
+        onChange={(e) => onChange({ tier: e.target.value ? Number(e.target.value) : undefined })}
+        className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-[11px] text-white focus:outline-none focus:border-amber-500"
+        aria-label={t('specTier')}
+      >
+        <option value="">{t('specTierAny')}</option>
+        {tiers.map((tier) => (
+          <option key={tier} value={tier}>
+            T{tier}
+          </option>
+        ))}
+      </select>
+      <select
+        value={spec.enchant ?? ''}
+        onChange={(e) => onChange({ enchant: e.target.value ? Number(e.target.value) : undefined })}
+        className={`bg-gray-800 border border-gray-700 rounded px-2 py-1 text-[11px] focus:outline-none focus:border-amber-500 ${
+          spec.enchant != null ? GEAR_ENCHANT_COLOR_CLASS[spec.enchant] ?? 'text-white' : 'text-white'
+        }`}
+        aria-label={t('specEnchant')}
+      >
+        <option value="">{t('specEnchantAny')}</option>
+        {enchants.map((level) => (
+          <option key={level} value={level}>
+            @{level}
+          </option>
+        ))}
+      </select>
+      {(spec.tier != null || spec.enchant != null) && (
+        <button
+          type="button"
+          onClick={() => onChange({ tier: undefined, enchant: undefined })}
+          className="text-gray-500 hover:text-red-400 text-[10px]"
+        >
+          {t('specClear')}
+        </button>
       )}
     </div>
   )

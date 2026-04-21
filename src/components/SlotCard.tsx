@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { assignSlot, cancelSlot, adminCancelSlot, type SlotPicks } from '@/app/actions/member'
-import type { GearOption, Slot, SlotKey } from '@/types'
+import type { GearOption, GearSpec, Slot, SlotKey } from '@/types'
 import {
   SLOT_KEYS,
+  GEAR_ENCHANT_COLOR_CLASS,
   getDisplayGear,
   getGearOptions,
   getRoleStyle,
+  getSlotGearSpec,
   hasGearOptions,
   isFreeItem,
 } from '@/types'
@@ -77,6 +79,24 @@ function MultiOptionPreview({
   )
 }
 
+function SpecBadge({ spec, size }: { spec: GearSpec; size: number }) {
+  const { tier, enchant } = spec
+  const tierText = tier != null ? `T${tier}` : ''
+  const enchantText = enchant != null ? (tier != null ? `.${enchant}` : `@${enchant}`) : ''
+  const enchantColor =
+    enchant != null ? GEAR_ENCHANT_COLOR_CLASS[enchant] ?? 'text-white' : 'text-white'
+  const fontSize = size >= 44 ? 11 : 9
+  return (
+    <span
+      className={`absolute -bottom-1 -right-1 bg-black/85 border border-gray-700 font-mono font-bold rounded px-1 leading-tight ${enchantColor}`}
+      style={{ fontSize }}
+    >
+      {tierText}
+      {enchantText}
+    </span>
+  )
+}
+
 function GearPreview({
   slot,
   kind,
@@ -94,10 +114,17 @@ function GearPreview({
   // normal display takes over.
   const display = getDisplayGear(slot, kind)
   const showOptionsPreview = !isTaken && !display.id && Array.isArray(options) && options.length > 0
-  if (showOptionsPreview) {
-    return <MultiOptionPreview options={options!} size={size} />
-  }
-  return <SlotItem name={display.name} id={display.id} size={size} />
+  const spec = getSlotGearSpec(slot.gear_specs, kind)
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      {showOptionsPreview ? (
+        <MultiOptionPreview options={options!} size={size} />
+      ) : (
+        <SlotItem name={display.name} id={display.id} size={size} />
+      )}
+      {spec && <SpecBadge spec={spec} size={size} />}
+    </div>
+  )
 }
 
 function NoteTooltip({ notes }: { notes: string }) {

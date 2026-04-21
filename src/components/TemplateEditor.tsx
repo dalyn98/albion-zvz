@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Plus, ChevronDown, ChevronUp } from 'lucide-react'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
-import type { GearOption, SlotKey, SlotSpells } from '@/types'
-import { SLOT_KEYS } from '@/types'
+import type { GearOption, GearSpec, GearSpecs, SlotKey, SlotSpells } from '@/types'
+import { GEAR_ENCHANT_MAX, GEAR_ENCHANT_MIN, GEAR_TIER_MAX, GEAR_TIER_MIN, SLOT_KEYS } from '@/types'
 import { updateTemplate, type TemplateData, type TemplateRecord } from '@/app/actions/templates'
 
 function sanitizeGearOptions(opts: GearOption[] | null | undefined): GearOption[] | null {
@@ -34,6 +34,23 @@ function sanitizeSpells(spells: Record<SlotKey, string[]>): SlotSpells | null {
       cleaned.push(trimmed)
     }
     if (cleaned.length > 0) out[key] = cleaned
+  }
+  return Object.keys(out).length > 0 ? out : null
+}
+
+function sanitizeGearSpecs(specs: Record<SlotKey, GearSpec>): GearSpecs | null {
+  const out: GearSpecs = {}
+  for (const key of SLOT_KEYS) {
+    const raw = specs[key]
+    if (!raw) continue
+    const entry: GearSpec = {}
+    if (typeof raw.tier === 'number' && raw.tier >= GEAR_TIER_MIN && raw.tier <= GEAR_TIER_MAX) {
+      entry.tier = raw.tier
+    }
+    if (typeof raw.enchant === 'number' && raw.enchant >= GEAR_ENCHANT_MIN && raw.enchant <= GEAR_ENCHANT_MAX) {
+      entry.enchant = raw.enchant
+    }
+    if (entry.tier != null || entry.enchant != null) out[key] = entry
   }
   return Object.keys(out).length > 0 ? out : null
 }
@@ -73,6 +90,10 @@ function templateToPartyStates(data: TemplateData): PartyState[] {
           ...acc,
           [k]: s.spells?.[k] ?? [],
         }), {} as Record<SlotKey, string[]>),
+        specs: SLOT_KEYS.reduce((acc, k) => ({
+          ...acc,
+          [k]: { ...(s.gear_specs?.[k] ?? {}) },
+        }), {} as Record<SlotKey, GearSpec>),
       })),
     }
   })
@@ -106,6 +127,7 @@ function partyStatesToTemplateData(parties: PartyState[]): TemplateData {
             role_name: s.role_name || null,
             notes: s.notes || null,
             spells: sanitizeSpells(s.spells),
+            gear_specs: sanitizeGearSpecs(s.specs),
             ...perSlot,
           } as TemplateData['parties'][number]['slots'][number]
         }),

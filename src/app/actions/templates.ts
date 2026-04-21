@@ -3,14 +3,14 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
-import type { GearOption, SlotSpells } from '@/types'
+import type { GearOption, GearSpecs, SlotSpells } from '@/types'
 
 // Columns saved per slot: role + notes + all 8 gear slots + per-slot options
 // + per-item spells, no assignment data (per product spec: templates store
 // configuration only). Must be a string literal — the Supabase typegen parser
 // can't narrow a dynamically joined column list.
 const TEMPLATE_SLOT_COLUMNS =
-  'slot_number, role_name, notes, spells, ' +
+  'slot_number, role_name, notes, spells, gear_specs, ' +
   'weapon_name, weapon_id, weapon_options, ' +
   'head_name, head_id, head_options, ' +
   'armor_name, armor_id, armor_options, ' +
@@ -25,6 +25,7 @@ interface TemplateSlot {
   role_name: string | null
   notes: string | null
   spells: SlotSpells | null
+  gear_specs: GearSpecs | null
   weapon_name: string | null;  weapon_id: string | null;  weapon_options: GearOption[] | null
   head_name: string | null;    head_id: string | null;    head_options: GearOption[] | null
   armor_name: string | null;   armor_id: string | null;   armor_options: GearOption[] | null
@@ -230,6 +231,7 @@ export async function applyTemplate(
         role_name: s.role_name,
         notes: s.notes,
         spells: s.spells ?? null,
+        gear_specs: s.gear_specs ?? null,
         weapon_name: s.weapon_name,   weapon_id: s.weapon_id,   weapon_options: s.weapon_options ?? null,
         head_name: s.head_name,       head_id: s.head_id,       head_options: s.head_options ?? null,
         armor_name: s.armor_name,     armor_id: s.armor_id,     armor_options: s.armor_options ?? null,

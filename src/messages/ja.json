@@ -301,7 +301,21 @@
     "moveDown": "下へ移動",
     "hide": "非表示",
     "show": "表示",
-    "hiddenBadge": "非表示"
+    "hiddenBadge": "非表示",
+    "specLabel": "スペック",
+    "specTier": "ティア",
+    "specEnchant": "エンチャント",
+    "specTierAny": "T 任意",
+    "specEnchantAny": "@ 任意",
+    "specClear": "クリア",
+    "batchSpecButton": "デフォルトスペック一括適用",
+    "batchSpecTitle": "デフォルトスペック一括適用",
+    "batchSpecHint": "選択した範囲のスロットにティア/エンチャントのデフォルト値を埋めます。既に設定された値は上書きしません。",
+    "batchSpecScope": "適用範囲",
+    "batchSpecScopeAll": "パーティ全体",
+    "batchSpecTargetCount": "対象スロット {count} 個",
+    "batchSpecFillHint": "空のスロットのみ埋められます。先に役割ごと、その後パーティ全体の順で適用すると便利です。",
+    "batchSpecApply": "適用"
   },
   "adminRoleRewards": {
     "noRoles": "登録された役割がありません。",

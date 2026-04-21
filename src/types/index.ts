@@ -60,6 +60,51 @@ export interface GearOption {
 /** @deprecated Use GearOption — this alias exists for older imports only. */
 export type WeaponOption = GearOption
 
+// Target gear spec: what tier/enchant the member should bring. Both optional
+// because admin may specify only one (e.g. "T8 any enchant").
+export interface GearSpec {
+  tier?: number
+  enchant?: number
+}
+
+export type GearSpecs = Partial<Record<SlotKey, GearSpec>>
+
+// Albion gear quality ranges. Tier 2-3 exist in game but zvz builds always
+// start from T4; we lock the picker to T4-T8 to match what admins specify.
+export const GEAR_TIER_MIN = 4
+export const GEAR_TIER_MAX = 8
+export const GEAR_ENCHANT_MIN = 0
+export const GEAR_ENCHANT_MAX = 4
+
+// Enchant level color mapping — Albion's in-game visual cue. 0 has no color
+// (base white), 1-4 map to green/blue/purple/yellow respectively.
+export const GEAR_ENCHANT_COLOR_CLASS: Record<number, string> = {
+  0: 'text-gray-300',
+  1: 'text-green-400',
+  2: 'text-sky-400',
+  3: 'text-purple-400',
+  4: 'text-yellow-300',
+}
+
+export function formatTierEnchant(spec: GearSpec | null | undefined): string | null {
+  if (!spec) return null
+  const { tier, enchant } = spec
+  if (tier == null && enchant == null) return null
+  if (tier != null && enchant != null) return `T${tier}.${enchant}`
+  if (tier != null) return `T${tier}`
+  return `@${enchant}`
+}
+
+export function getSlotGearSpec(
+  specs: GearSpecs | null | undefined,
+  key: SlotKey,
+): GearSpec | null {
+  const spec = specs?.[key]
+  if (!spec) return null
+  if (spec.tier == null && spec.enchant == null) return null
+  return spec
+}
+
 export interface Slot {
   id: string
   party_id: string
@@ -86,6 +131,9 @@ export interface Slot {
   food_options: GearOption[] | null
   cape_options: GearOption[] | null
   spells: SlotSpells | null
+  // Migration 035: per-slot target tier/enchant the member is expected to
+  // bring. Independent of item_id (which is the archetype reference).
+  gear_specs: GearSpecs | null
   assigned_discord_id: string | null
   assigned_username: string | null
   // Set by admin when a signed-up member actually showed up in-game. NULL

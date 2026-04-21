@@ -5,8 +5,14 @@ import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import { sendEventNotification } from '@/lib/discord'
 import { getAppSetting } from '@/lib/app-settings'
-import type { SlotKey, SlotSpells, GearOption } from '@/types'
-import { SLOT_KEYS } from '@/types'
+import type { SlotKey, SlotSpells, GearOption, GearSpec, GearSpecs } from '@/types'
+import {
+  SLOT_KEYS,
+  GEAR_TIER_MIN,
+  GEAR_TIER_MAX,
+  GEAR_ENCHANT_MIN,
+  GEAR_ENCHANT_MAX,
+} from '@/types'
 
 const DEFAULT_EVENT_NOTIFICATION_MESSAGE = '새 이벤트가 등록되었습니다.'
 
@@ -396,6 +402,7 @@ interface SlotPayload {
   items: Record<SlotKey, { name: string; id: string }>
   options: Record<SlotKey, GearOption[]>
   spells: SlotSpells
+  specs?: Partial<Record<SlotKey, GearSpec>>
 }
 
 function sanitizeOptionSpells(raw: unknown): string[] | undefined {
@@ -450,6 +457,30 @@ function sanitizeSpells(spells: SlotSpells | null | undefined): SlotSpells | nul
   return Object.keys(out).length > 0 ? out : null
 }
 
+// Drops undefined/out-of-range entries so the stored jsonb stays minimal and
+// well-formed. Returns null when no slot has any spec configured.
+function sanitizeGearSpecs(specs: Partial<Record<SlotKey, GearSpec>> | null | undefined): GearSpecs | null {
+  if (!specs || typeof specs !== 'object') return null
+  const out: GearSpecs = {}
+  for (const key of SLOT_KEYS) {
+    const raw = specs[key]
+    if (!raw || typeof raw !== 'object') continue
+    const clean: GearSpec = {}
+    if (typeof raw.tier === 'number' && raw.tier >= GEAR_TIER_MIN && raw.tier <= GEAR_TIER_MAX) {
+      clean.tier = raw.tier
+    }
+    if (
+      typeof raw.enchant === 'number' &&
+      raw.enchant >= GEAR_ENCHANT_MIN &&
+      raw.enchant <= GEAR_ENCHANT_MAX
+    ) {
+      clean.enchant = raw.enchant
+    }
+    if (clean.tier != null || clean.enchant != null) out[key] = clean
+  }
+  return Object.keys(out).length > 0 ? out : null
+}
+
 function slotToRow(partyId: string, slot: SlotPayload) {
   const cleanedOptions = SLOT_KEYS.reduce(
     (acc, k) => ({ ...acc, [k]: sanitizeGearOptions(slot.options[k] ?? []) }),
@@ -466,6 +497,7 @@ function slotToRow(partyId: string, slot: SlotPayload) {
     role_name: slot.role_name.trim() || null,
     notes: slot.notes.trim() || null,
     spells: sanitizeSpells(slot.spells),
+    gear_specs: sanitizeGearSpecs(slot.specs),
     ...SLOT_KEYS.reduce((acc, k) => {
       const hasOptions = cleanedOptions[k] !== null
       return {
