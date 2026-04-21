@@ -27,9 +27,15 @@ async function getData(id: string) {
       .select('*')
       .eq('event_id', id)
       .order('battle_number', { ascending: true }),
-    // Bomb squad caller picker — any logged-in member is eligible since the
-    // sub-caller may not yet hold a slot in the event.
-    supabase.from('guild_avatars').select('discord_id, username').order('username'),
+    // Bomb squad caller picker — admin picks from members whose Discord
+    // role(s) are listed under the `bomb_squad_caller_role_ids` app setting.
+    // The flag is refreshed at login; newly-granted callers must re-login
+    // before appearing here.
+    supabase
+      .from('guild_avatars')
+      .select('discord_id, username')
+      .eq('is_bomb_squad_caller', true)
+      .order('username'),
   ])
 
   const sorted = (parties ?? []).map((p) => ({
@@ -37,11 +43,31 @@ async function getData(id: string) {
     slots: [...(p.slots ?? [])].sort((a, b) => a.slot_number - b.slot_number),
   })) as PartyWithSlots[]
 
+  // Include assigned-but-no-longer-eligible callers so the dropdown can still
+  // display their name. Marked `eligible:false` so the UI can flag them as
+  // role-revoked — admin can then replace or clear the assignment.
+  const eligibleIds = new Set((directory ?? []).map((m) => m.discord_id))
+  const staleCallerIds = sorted
+    .map((p) => p.caller_discord_id)
+    .filter((id): id is string => !!id && !eligibleIds.has(id))
+
+  const { data: staleCallers } = staleCallerIds.length > 0
+    ? await supabase
+        .from('guild_avatars')
+        .select('discord_id, username')
+        .in('discord_id', staleCallerIds)
+    : { data: [] as { discord_id: string; username: string }[] }
+
+  const memberDirectory = [
+    ...(directory ?? []).map((m) => ({ ...m, eligible: true as const })),
+    ...(staleCallers ?? []).map((m) => ({ ...m, eligible: false as const })),
+  ]
+
   return {
     event: event as Event | null,
     parties: sorted,
     battles: (battles ?? []) as EventBattle[],
-    memberDirectory: (directory ?? []) as { discord_id: string; username: string }[],
+    memberDirectory,
   }
 }
 

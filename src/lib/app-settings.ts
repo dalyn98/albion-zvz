@@ -22,6 +22,11 @@ export type AppSettingKey =
   // `SessionPayload.canCreateEvents` — changes require affected users to
   // re-login before taking effect.
   | 'event_creator_role_ids'
+  // JSON array (string) of Discord role IDs. Holders are eligible to be
+  // assigned as a bomb squad caller on a per-party basis. The flag is baked
+  // into `guild_avatars.is_bomb_squad_caller` at login, so role changes take
+  // effect after the member's next login.
+  | 'bomb_squad_caller_role_ids'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

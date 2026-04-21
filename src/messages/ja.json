@@ -353,6 +353,8 @@
       "namePlaceholder": "例: ブリーズ/ダークフレア (空欄ならパーティー名を使用)",
       "callerLabel": "コーラー",
       "callerPlaceholder": "コーラーを選択してください",
+      "callerStale": "{name} (資格なし)",
+      "callerEmptyHint": "先に設定画面でコーラー役割を指定してください。",
       "kind": { "melee": "近接", "ranged": "遠距離" }
     }
   },
@@ -443,6 +445,21 @@
   "adminEventCreatorRoles": {
     "title": "イベント作成が可能な役割",
     "description": "選択した Discord 役割を持つメンバーはイベントを作成し、自分が作成したイベントを編集できます。何も選択しない場合は管理者のみがイベントを作成できます。",
+    "reloginHint": "変更は各ユーザーが再度ログインした後に反映されます。",
+    "rolesLoading": "役割一覧を読み込み中…",
+    "rolesError": "役割一覧の取得に失敗しました。",
+    "rolesEmpty": "利用できる役割がありません。",
+    "placeholder": "役割を選択してください…",
+    "searchPlaceholder": "役割名で検索",
+    "clearSelection": "すべて解除",
+    "noMatches": "一致する役割がありません。",
+    "save": "保存",
+    "saving": "保存中…",
+    "saved": "保存しました"
+  },
+  "adminBombSquadCallerRoles": {
+    "title": "ボムスクワッド コーラー役割",
+    "description": "選択した Discord 役割を持つメンバーは、イベント編集画面でボムスクワッド パーティのコーラーに指定できます。指定されたコーラーは自分のパーティの承認リクエストを処理できます。",
     "reloginHint": "変更は各ユーザーが再度ログインした後に反映されます。",
     "rolesLoading": "役割一覧を読み込み中…",
     "rolesError": "役割一覧の取得に失敗しました。",

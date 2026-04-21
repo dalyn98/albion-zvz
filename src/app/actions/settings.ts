@@ -14,6 +14,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'regear_notice_message',
   'events_notice_message',
   'event_creator_role_ids',
+  'bomb_squad_caller_role_ids',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -31,6 +32,10 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   'events_notice_message',
   // Empty JSON array '[]' = admin-only event creation.
   'event_creator_role_ids',
+  // Empty JSON array '[]' = no member is eligible to be a bomb squad caller;
+  // per-party caller picker will be empty and parties can still be created
+  // but without a caller (admin/event creator can still approve).
+  'bomb_squad_caller_role_ids',
 ] as const
 
 // Date-shaped setting keys that must be 'YYYY-MM-DD' or empty. A free-form
@@ -43,6 +48,7 @@ const DATE_KEYS: readonly AppSettingKey[] = [
 // JSON array string keys. Must parse to string[] or the upsert is rejected.
 const JSON_ARRAY_KEYS: readonly AppSettingKey[] = [
   'event_creator_role_ids',
+  'bomb_squad_caller_role_ids',
 ] as const
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/

@@ -45,6 +45,7 @@ function slotToInput(s: import('@/types').Slot): SlotInput {
 interface MemberDirectoryEntry {
   discord_id: string
   username: string
+  eligible: boolean
 }
 
 interface Props {
@@ -267,11 +268,16 @@ export default function PartyEditorPanel({ eventId, partyNumber, initialData, me
                   <option value="">{t('bombSquad.callerPlaceholder')}</option>
                   {memberDirectory.map((m) => (
                     <option key={m.discord_id} value={m.discord_id}>
-                      {m.username}
+                      {m.eligible ? m.username : t('bombSquad.callerStale', { name: m.username })}
                     </option>
                   ))}
                 </select>
               </div>
+              {memberDirectory.every((m) => !m.eligible) && (
+                <p className="pl-[3rem] text-xs text-amber-400/80">
+                  {t('bombSquad.callerEmptyHint')}
+                </p>
+              )}
             </div>
           )}
         </div>

@@ -56,6 +56,7 @@ export async function upsertGuildAvatar(
   username: string,
   avatar: string | null,
   isAdmin: boolean,
+  isBombSquadCaller: boolean,
 ): Promise<void> {
   const db = getAdminClient()
   await db
@@ -66,6 +67,7 @@ export async function upsertGuildAvatar(
         username,
         avatar,
         is_admin: isAdmin,
+        is_bomb_squad_caller: isBombSquadCaller,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'discord_id' },

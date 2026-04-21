@@ -11,6 +11,7 @@ import MembersAggregateRangeForm from './MembersAggregateRangeForm'
 import GuestInviteSettingsForm from './GuestInviteSettingsForm'
 import NoticeSettingForm from './NoticeSettingForm'
 import EventCreatorRolesSetting from './EventCreatorRolesSetting'
+import BombSquadCallerRolesSetting from './BombSquadCallerRolesSetting'
 import type { RoleReward } from '@/app/actions/regear-admin'
 
 type TabKey =
@@ -60,6 +61,7 @@ interface Props {
   regearNoticeMessage: string
   eventsNoticeMessage: string
   eventCreatorRoleIds: string[]
+  bombSquadCallerRoleIds: string[]
   origin: string
 }
 
@@ -88,6 +90,7 @@ export default function SettingsTabs({
   regearNoticeMessage,
   eventsNoticeMessage,
   eventCreatorRoleIds,
+  bombSquadCallerRoleIds,
   origin,
 }: Props) {
   const t = useTranslations('adminSettings')
@@ -172,7 +175,10 @@ export default function SettingsTabs({
           <GuestInviteSettingsForm initialToken={guestInviteToken} origin={origin} />
         )}
         {active === 'permissions' && (
-          <EventCreatorRolesSetting initialRoleIds={eventCreatorRoleIds} />
+          <div className="space-y-4">
+            <EventCreatorRolesSetting initialRoleIds={eventCreatorRoleIds} />
+            <BombSquadCallerRolesSetting initialRoleIds={bombSquadCallerRoleIds} />
+          </div>
         )}
         {active === 'notices' && (
           <div className="space-y-4">
