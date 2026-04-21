@@ -144,9 +144,10 @@ export async function requestRegear(
     return { error: tErr('regearDeathsLimitReached', { max: maxDeaths }) }
   }
 
-  // 3) Event window — killboard verify needs a real timestamp. `gather_time`
-  //    is free-text so we anchor off `battle_started_at` which the admin sets
-  //    at kickoff. No battle start = no regear window yet. Title is captured
+  // 3) Submission gate — `regear_window_minutes` is the killboard-collection
+  //    delay, not a deadline. Submissions open at `battle_started_at + N` so
+  //    the killboard has time to index the death; no upper bound. `gather_time`
+  //    is free-text so we anchor off `battle_started_at`. Title is snapshotted
   //    here so history survives if the event is later deleted.
   const { data: event, error: eventError } = await db
     .from('events')
@@ -157,10 +158,10 @@ export async function requestRegear(
   if (!event.battle_started_at) {
     return { error: tErr('battleNotStarted') }
   }
-  const windowStartMs = new Date(event.battle_started_at).getTime()
-  const windowEndMs = windowStartMs + windowMinutes * 60 * 1000
-  if (Date.now() > windowEndMs) {
-    return { error: tErr('regearWindowClosed') }
+  const battleStartMs = new Date(event.battle_started_at).getTime()
+  const windowOpenMs = battleStartMs + windowMinutes * 60 * 1000
+  if (Date.now() < windowOpenMs) {
+    return { error: tErr('regearWindowNotOpen', { minutes: windowMinutes }) }
   }
 
   // 4) Snapshot the role's silver ceiling. A ceiling of 0 blocks the role
@@ -194,12 +195,13 @@ export async function requestRegear(
     .upload(path, file, { contentType: file.type, upsert: false })
   if (uploadError) return { error: tErr('screenshotUploadFailed', { reason: uploadError.message }) }
 
-  // 6) Killboard verification (hint-only — admin still reviews). Reuses the
-  //    same window as the submit gate so the verify window matches policy.
+  // 6) Killboard verification (hint-only — admin still reviews). We look from
+  //    battle start up to now; the submission itself is already gated behind
+  //    the collection delay, so the killboard should have the death indexed.
   const kbResult = await verifyDeathInWindow(
     session.username,
-    new Date(windowStartMs).toISOString(),
-    new Date(windowEndMs).toISOString(),
+    new Date(battleStartMs).toISOString(),
+    new Date().toISOString(),
   )
 
   // 7) Insert the request. request_type column defaults to 'death' in the DB

@@ -20,14 +20,11 @@ interface Props {
 
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
 
-function formatWindow(iso: string, windowMinutes: number): string {
-  const startMs = new Date(iso).getTime()
+function formatWindowOpen(iso: string, windowMinutes: number): string {
+  const openMs = new Date(iso).getTime() + windowMinutes * 60 * 1000
   // KST (UTC+9, no DST). Extract HH:mm by shifting into UTC+9.
-  const kstHourMinute = (ms: number) => {
-    const shifted = new Date(ms + 9 * 60 * 60 * 1000)
-    return `${String(shifted.getUTCHours()).padStart(2, '0')}:${String(shifted.getUTCMinutes()).padStart(2, '0')}`
-  }
-  return `${kstHourMinute(startMs)} ~ ${kstHourMinute(startMs + windowMinutes * 60 * 1000)}`
+  const shifted = new Date(openMs + 9 * 60 * 60 * 1000)
+  return `${String(shifted.getUTCHours()).padStart(2, '0')}:${String(shifted.getUTCMinutes()).padStart(2, '0')}`
 }
 
 export default function RegearRequestButton({
@@ -90,19 +87,19 @@ export default function RegearRequestButton({
   const ceilingMissing = roleReward <= 0
   const atLimit = existingActiveCount >= maxDeaths
   const remaining = Math.max(0, maxDeaths - existingActiveCount)
-  // Client-side window-closed check. Server re-validates; this is just to keep
-  // the button from opening a modal that will error on submit.
-  const windowEndMs = battleStartedAt
+  // Client-side "waiting for killboard" check. Server re-validates; this is
+  // just to keep the button from opening a modal that will error on submit.
+  const windowOpenMs = battleStartedAt
     ? new Date(battleStartedAt).getTime() + windowMinutes * 60 * 1000
     : null
-  const windowClosed = windowEndMs !== null && Date.now() > windowEndMs
-  const disabled = atLimit || !roleName || notStarted || ceilingMissing || windowClosed
+  const windowPending = windowOpenMs !== null && Date.now() < windowOpenMs
+  const disabled = atLimit || !roleName || notStarted || ceilingMissing || windowPending
   const buttonLabel = atLimit
     ? t('buttonDone')
     : notStarted
       ? t('buttonNotStarted')
-      : windowClosed
-        ? t('buttonWindowClosed')
+      : windowPending && battleStartedAt
+        ? t('buttonWindowPending', { opensAt: formatWindowOpen(battleStartedAt, windowMinutes) })
         : ceilingMissing
           ? t('buttonCeilingMissing')
           : maxDeaths > 1 && existingActiveCount > 0
@@ -195,8 +192,8 @@ export default function RegearRequestButton({
                 </div>
                 {battleStartedAt && (
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-400">{t('acceptedWindow')}</span>
-                    <span className="text-gray-200 font-mono text-xs">{formatWindow(battleStartedAt, windowMinutes)}</span>
+                    <span className="text-gray-400">{t('windowOpensAt')}</span>
+                    <span className="text-gray-200 font-mono text-xs">{formatWindowOpen(battleStartedAt, windowMinutes)}</span>
                   </div>
                 )}
                 {maxDeaths > 1 && (
