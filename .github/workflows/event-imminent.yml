@@ -1,0 +1,42 @@
+name: Event imminent push
+
+# Vercel Hobby 플랜은 cron 을 일 1회로 제한해 5분 주기를 돌릴 수 없다. 그래서
+# GitHub Actions 에서 스케줄을 돌리고 Next.js 의 /api/cron/event-imminent 엔드포인트를
+# Bearer 인증으로 호출한다. (public repo 이므로 Actions 사용량 제한 없음.)
+#
+# 지연: GitHub Actions 의 schedule 은 공용 러너 혼잡 시 몇 분 지연될 수 있다.
+# LEAD_MIN=35 / LOOKBACK_MIN=5 구성이라 10분 이내 지연은 문제 없음.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: event-imminent
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Call cron endpoint
+        env:
+          APP_URL: https://albion-zvz.vercel.app
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set"
+            exit 1
+          fi
+          response=$(curl -sS -w "\n%{http_code}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/event-imminent")
+          body=$(echo "$response" | sed '$d')
+          status=$(echo "$response" | tail -n1)
+          echo "status=$status"
+          echo "body=$body"
+          if [ "$status" != "200" ]; then
+            exit 1
+          fi
