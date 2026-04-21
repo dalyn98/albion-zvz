@@ -6,6 +6,7 @@ import { UserX, Users2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
+import LanguageBadge from './LanguageBadge'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
 import { getRoleStyle } from '@/types'
 import { revokeGuest } from '@/app/actions/members-admin'
@@ -127,6 +128,7 @@ function GuestRow({ guest, isAdmin }: { guest: GuildGuestSummary; isAdmin: boole
               {t('guestBadge')}
             </span>
             <span className="truncate min-w-0">{guest.username}</span>
+            <LanguageBadge locale={guest.preferred_language} />
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             {guest.top_roles.length === 0 ? (

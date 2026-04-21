@@ -699,7 +699,19 @@
   "mySettings": {
     "title": "設定",
     "description": "通知や個人設定を一箇所で管理します。",
-    "notificationsGroup": "通知"
+    "notificationsGroup": "通知",
+    "languageGroup": "言語"
+  },
+  "welcomeLanguage": {
+    "title": "使用する言語を選択してください",
+    "description": "あとから設定メニューでいつでも変更できます。",
+    "saveFailed": "言語の保存に失敗しました。しばらくしてから再度お試しください。"
+  },
+  "languageSetting": {
+    "title": "表示言語",
+    "description": "サイトの表示言語を選択します。ブラウザの言語設定より優先されます。",
+    "saved": "言語を変更しました。",
+    "saveFailed": "言語の変更に失敗しました。"
   },
   "memberDetail": {
     "recentLogin": "最近のログイン: {date}",

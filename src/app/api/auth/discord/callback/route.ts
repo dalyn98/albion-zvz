@@ -9,10 +9,23 @@ import { SESSION_COOKIE_NAME, cookieOptions, signSession } from '@/lib/session'
 import { upsertGuildAvatar } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { LOCALE_COOKIE, isLocale } from '@/i18n/locales'
 
 const STATE_COOKIE = 'discord_oauth_state'
 const RETURN_TO_COOKIE = 'discord_oauth_return_to'
 const INVITE_COOKIE = 'guest_invite'
+const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
+
+// 로그인 후 최종 리다이렉트 경로를 정한다. preferred_language 가 없으면
+// /welcome-language 로 보내서 선택을 강제하고, 있으면 원래 가려던 곳으로.
+function resolvePostLoginPath(
+  returnTo: string,
+  preferredLanguage: string | null,
+): string {
+  if (isLocale(preferredLanguage)) return returnTo
+  const encoded = encodeURIComponent(returnTo)
+  return `/welcome-language?return=${encoded}`
+}
 
 function errorRedirect(origin: string, reason: string): NextResponse {
   const url = new URL('/', origin)
@@ -63,6 +76,17 @@ export async function GET(request: NextRequest) {
       } catch (err) {
         console.error('[discord-callback] upsertGuildAvatar failed', err)
       }
+      // preferred_language 를 한 번 조회해서 (a) 없으면 환영 페이지로 보내고
+      // (b) 있으면 lang 쿠키를 DB 값에 동기화. 새 디바이스/쿠키 삭제 케이스에서
+      // 본인이 저장해둔 언어로 바로 렌더된다.
+      const db = getAdminClient()
+      const { data: langRow } = await db
+        .from('guild_avatars')
+        .select('preferred_language')
+        .eq('discord_id', user.id)
+        .maybeSingle()
+      const preferred = langRow?.preferred_language ?? null
+
       const sessionCookie = await signSession({
         discordId: user.id,
         username: displayName,
@@ -72,8 +96,16 @@ export async function GET(request: NextRequest) {
         isGuest: false,
         issuedAt: Date.now(),
       })
-      const response = NextResponse.redirect(new URL(returnTo, url.origin))
+      const destination = resolvePostLoginPath(returnTo, preferred)
+      const response = NextResponse.redirect(new URL(destination, url.origin))
       response.cookies.set(SESSION_COOKIE_NAME, sessionCookie, cookieOptions())
+      if (isLocale(preferred)) {
+        response.cookies.set(LOCALE_COOKIE, preferred, {
+          path: '/',
+          maxAge: LOCALE_COOKIE_MAX_AGE,
+          sameSite: 'lax',
+        })
+      }
       response.cookies.delete(STATE_COOKIE)
       response.cookies.delete(RETURN_TO_COOKIE)
       response.cookies.delete(INVITE_COOKIE)
@@ -84,7 +116,7 @@ export async function GET(request: NextRequest) {
     const db = getAdminClient()
     const { data: existingGuest } = await db
       .from('guests')
-      .select('discord_id')
+      .select('discord_id, preferred_language')
       .eq('discord_id', user.id)
       .maybeSingle()
 
@@ -118,6 +150,10 @@ export async function GET(request: NextRequest) {
       return errorRedirect(url.origin, member ? 'no_role' : 'not_in_guild')
     }
 
+    // preferred_language: 신규 게스트는 insert 에서 넣지 않았으니 null. 기존
+     // 게스트는 위에서 fetch 한 existingGuest.preferred_language 를 사용.
+    const guestPreferred = existingGuest?.preferred_language ?? null
+
     const sessionCookie = await signSession({
       discordId: user.id,
       username: displayName,
@@ -127,8 +163,16 @@ export async function GET(request: NextRequest) {
       isGuest: true,
       issuedAt: Date.now(),
     })
-    const response = NextResponse.redirect(new URL(returnTo, url.origin))
+    const destination = resolvePostLoginPath(returnTo, guestPreferred)
+    const response = NextResponse.redirect(new URL(destination, url.origin))
     response.cookies.set(SESSION_COOKIE_NAME, sessionCookie, cookieOptions())
+    if (isLocale(guestPreferred)) {
+      response.cookies.set(LOCALE_COOKIE, guestPreferred, {
+        path: '/',
+        maxAge: LOCALE_COOKIE_MAX_AGE,
+        sameSite: 'lax',
+      })
+    }
     response.cookies.delete(STATE_COOKIE)
     response.cookies.delete(RETURN_TO_COOKIE)
     response.cookies.delete(INVITE_COOKIE)

@@ -699,7 +699,19 @@
   "mySettings": {
     "title": "Settings",
     "description": "Manage notifications and personal preferences in one place.",
-    "notificationsGroup": "Notifications"
+    "notificationsGroup": "Notifications",
+    "languageGroup": "Language"
+  },
+  "welcomeLanguage": {
+    "title": "Pick your language",
+    "description": "You can change this anytime from Settings.",
+    "saveFailed": "Failed to save language. Please try again."
+  },
+  "languageSetting": {
+    "title": "Interface Language",
+    "description": "Controls the language shown across the site. Overrides your browser's language settings.",
+    "saved": "Language updated.",
+    "saveFailed": "Failed to update language."
   },
   "memberDetail": {
     "recentLogin": "Last login: {date}",

@@ -6,6 +6,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { requireAdmin } from '@/lib/auth'
 import { getAppSetting } from '@/lib/app-settings'
+import { isLocale } from '@/i18n/locales'
 import type { RegearType } from '@/types'
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
@@ -37,6 +38,8 @@ export interface GuildMemberSummary {
   // to the percent so low-sample members aren't ranked misleadingly.
   attended_count: number
   decidable_count: number
+  // null = 아직 언어 선택 안한 사용자 (환영 페이지 유도 대상)
+  preferred_language: 'ko' | 'en' | 'ja' | null
 }
 
 export interface MemberEventEntry {
@@ -101,6 +104,7 @@ export interface GuildMemberDetail {
   username: string
   avatar: string | null
   updated_at: string
+  preferred_language: 'ko' | 'en' | 'ja' | null
   participation_count: number
   role_breakdown: RoleCount[]
   events: MemberEventEntry[]
@@ -201,7 +205,7 @@ export async function listGuildMembers(): Promise<{
     const [avatarsRes, slotsRes] = await Promise.all([
       db
         .from('guild_avatars')
-        .select('discord_id, username, avatar, is_admin, updated_at'),
+        .select('discord_id, username, avatar, is_admin, updated_at, preferred_language'),
       db
         .from('slots')
         .select(
@@ -275,6 +279,7 @@ export async function listGuildMembers(): Promise<{
         attendance_rate: rate,
         attended_count: attended,
         decidable_count: decidable,
+        preferred_language: isLocale(a.preferred_language) ? a.preferred_language : null,
       }
     })
 
@@ -298,6 +303,7 @@ export interface GuildGuestSummary {
   joined_at: string
   participation_count: number
   top_roles: RoleCount[]
+  preferred_language: 'ko' | 'en' | 'ja' | null
 }
 
 // Lists everyone in the `guests` table with their slot participation counts.
@@ -314,7 +320,7 @@ export async function listGuildGuests(): Promise<{
     const [guestsRes, slotsRes] = await Promise.all([
       db
         .from('guests')
-        .select('discord_id, username, avatar, joined_at')
+        .select('discord_id, username, avatar, joined_at, preferred_language')
         .order('joined_at', { ascending: false }),
       db
         .from('slots')
@@ -360,6 +366,7 @@ export async function listGuildGuests(): Promise<{
         joined_at: g.joined_at,
         participation_count: agg?.events.size ?? 0,
         top_roles: roles.slice(0, 3),
+        preferred_language: isLocale(g.preferred_language) ? g.preferred_language : null,
       }
     })
 
@@ -399,7 +406,7 @@ async function fetchMemberDetail(discordId: string): Promise<{
     const [avatarRes, slotsRes, regearsRes, exchangesRes, ledgerRes] = await Promise.all([
       db
         .from('guild_avatars')
-        .select('discord_id, username, avatar, updated_at')
+        .select('discord_id, username, avatar, updated_at, preferred_language')
         .eq('discord_id', discordId)
         .maybeSingle(),
       db
@@ -585,6 +592,7 @@ async function fetchMemberDetail(discordId: string): Promise<{
         username: avatar.username,
         avatar: avatar.avatar,
         updated_at: avatar.updated_at,
+        preferred_language: isLocale(avatar.preferred_language) ? avatar.preferred_language : null,
         participation_count: events.length,
         role_breakdown: roleBreakdown,
         events,

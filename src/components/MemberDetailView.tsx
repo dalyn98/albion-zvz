@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Coins, Wallet, ShieldCheck, ChevronRight, Trophy, ShieldAlert, Hourglass, UserCheck, UserX, Crown } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
+import LanguageBadge from './LanguageBadge'
 import { formatSilver } from '@/lib/silver'
 import { formatDate, formatDateTime } from '@/lib/format-datetime'
 import { getRoleStyle, regearPayoutSilver } from '@/types'
@@ -40,7 +41,10 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
       <header className="flex items-center gap-4 bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5">
         <MemberAvatar discordId={detail.discord_id} avatar={detail.avatar} size={56} />
         <div className="min-w-0 flex-1">
-          <h1 className="text-white text-lg sm:text-xl font-bold truncate">{detail.username}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-white text-lg sm:text-xl font-bold truncate">{detail.username}</h1>
+            <LanguageBadge locale={detail.preferred_language} />
+          </div>
           {showDiscordId && (
             <p className="text-gray-500 text-xs mt-0.5 font-mono truncate">{detail.discord_id}</p>
           )}
