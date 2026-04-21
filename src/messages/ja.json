@@ -315,7 +315,13 @@
     "batchSpecScopeAll": "パーティ全体",
     "batchSpecTargetCount": "対象スロット {count} 個",
     "batchSpecFillHint": "空のスロットのみ埋められます。先に役割ごと、その後パーティ全体の順で適用すると便利です。",
-    "batchSpecApply": "適用"
+    "batchSpecApply": "適用",
+    "batchSpecTierFixed": "(アイテム固定)",
+    "batchGroupWeapon": "武器",
+    "batchGroupArmor": "防具",
+    "batchGroupCape": "マント",
+    "batchGroupFood": "料理",
+    "batchGroupPotion": "ポーション"
   },
   "adminRoleRewards": {
     "noRoles": "登録された役割がありません。",

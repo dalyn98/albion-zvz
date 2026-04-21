@@ -222,6 +222,16 @@ export const SLOT_LABELS: Record<SlotKey, string> = {
 
 export const SLOT_KEYS: SlotKey[] = ['weapon', 'head', 'armor', 'shoes', 'offhand', 'potion', 'food', 'cape']
 
+// Food/potion items already encode their tier in the item id (e.g. T8 Roast Beef),
+// so the admin spec only carries the enchant requirement. Weapon/armor/cape
+// items have a tier prefix on the id too, but the spec overrides are meaningful
+// there because admins often want "any T8 of this family".
+export const TIERLESS_SLOT_KEYS: readonly SlotKey[] = ['food', 'potion']
+
+export function isTierlessSlot(key: SlotKey): boolean {
+  return TIERLESS_SLOT_KEYS.includes(key)
+}
+
 // Categories passed to ItemPicker for each slot kind. Weapons share the mount
 // category because Albion treats mounts as a weapon slot substitute.
 export const SLOT_PICKER_CATEGORY: Record<SlotKey, string> = {

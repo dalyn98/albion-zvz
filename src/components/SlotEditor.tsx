@@ -23,6 +23,7 @@ import {
   GEAR_ENCHANT_COLOR_CLASS,
   getRoleStyle,
   isFreeItem,
+  isTierlessSlot,
 } from '@/types'
 
 export type GearMode = 'single' | 'multi' | 'free'
@@ -504,7 +505,7 @@ function GearSection({
         </div>
       </div>
 
-      <TierEnchantPicker spec={spec} onChange={onSpecChange} />
+      <TierEnchantPicker slotKey={slotKey} spec={spec} onChange={onSpecChange} />
 
 
       {mode === 'multi' ? (
@@ -582,33 +583,39 @@ function GearSection({
 }
 
 function TierEnchantPicker({
+  slotKey,
   spec,
   onChange,
 }: {
+  slotKey: SlotKey
   spec: GearSpec
   onChange: (patch: Partial<GearSpec>) => void
 }) {
   const t = useTranslations('adminParty')
+  const tierless = isTierlessSlot(slotKey)
   const tiers: number[] = []
   for (let tier = GEAR_TIER_MIN; tier <= GEAR_TIER_MAX; tier++) tiers.push(tier)
   const enchants: number[] = []
   for (let e = GEAR_ENCHANT_MIN; e <= GEAR_ENCHANT_MAX; e++) enchants.push(e)
+  const hasSpec = spec.enchant != null || (!tierless && spec.tier != null)
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <span className="text-gray-500 text-[10px] font-semibold uppercase tracking-wider">{t('specLabel')}</span>
-      <select
-        value={spec.tier ?? ''}
-        onChange={(e) => onChange({ tier: e.target.value ? Number(e.target.value) : undefined })}
-        className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-[11px] text-white focus:outline-none focus:border-amber-500"
-        aria-label={t('specTier')}
-      >
-        <option value="">{t('specTierAny')}</option>
-        {tiers.map((tier) => (
-          <option key={tier} value={tier}>
-            T{tier}
-          </option>
-        ))}
-      </select>
+      {!tierless && (
+        <select
+          value={spec.tier ?? ''}
+          onChange={(e) => onChange({ tier: e.target.value ? Number(e.target.value) : undefined })}
+          className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-[11px] text-white focus:outline-none focus:border-amber-500"
+          aria-label={t('specTier')}
+        >
+          <option value="">{t('specTierAny')}</option>
+          {tiers.map((tier) => (
+            <option key={tier} value={tier}>
+              T{tier}
+            </option>
+          ))}
+        </select>
+      )}
       <select
         value={spec.enchant ?? ''}
         onChange={(e) => onChange({ enchant: e.target.value ? Number(e.target.value) : undefined })}
@@ -624,7 +631,7 @@ function TierEnchantPicker({
           </option>
         ))}
       </select>
-      {(spec.tier != null || spec.enchant != null) && (
+      {hasSpec && (
         <button
           type="button"
           onClick={() => onChange({ tier: undefined, enchant: undefined })}

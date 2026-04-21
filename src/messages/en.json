@@ -315,7 +315,13 @@
     "batchSpecScopeAll": "Entire party",
     "batchSpecTargetCount": "{count} target slot(s)",
     "batchSpecFillHint": "Only unset slots are filled — apply role-specific defaults first, then party-wide fallback.",
-    "batchSpecApply": "Apply"
+    "batchSpecApply": "Apply",
+    "batchSpecTierFixed": "(item-fixed)",
+    "batchGroupWeapon": "Weapon",
+    "batchGroupArmor": "Armor",
+    "batchGroupCape": "Cape",
+    "batchGroupFood": "Food",
+    "batchGroupPotion": "Potion"
   },
   "adminRoleRewards": {
     "noRoles": "No roles registered.",

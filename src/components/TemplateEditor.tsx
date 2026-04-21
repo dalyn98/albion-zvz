@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Plus, ChevronDown, ChevronUp } from 'lucide-react'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
 import type { GearOption, GearSpec, GearSpecs, SlotKey, SlotSpells } from '@/types'
-import { GEAR_ENCHANT_MAX, GEAR_ENCHANT_MIN, GEAR_TIER_MAX, GEAR_TIER_MIN, SLOT_KEYS } from '@/types'
+import { GEAR_ENCHANT_MAX, GEAR_ENCHANT_MIN, GEAR_TIER_MAX, GEAR_TIER_MIN, SLOT_KEYS, isTierlessSlot } from '@/types'
 import { updateTemplate, type TemplateData, type TemplateRecord } from '@/app/actions/templates'
 
 function sanitizeGearOptions(opts: GearOption[] | null | undefined): GearOption[] | null {
@@ -44,7 +44,12 @@ function sanitizeGearSpecs(specs: Record<SlotKey, GearSpec>): GearSpecs | null {
     const raw = specs[key]
     if (!raw) continue
     const entry: GearSpec = {}
-    if (typeof raw.tier === 'number' && raw.tier >= GEAR_TIER_MIN && raw.tier <= GEAR_TIER_MAX) {
+    if (
+      !isTierlessSlot(key) &&
+      typeof raw.tier === 'number' &&
+      raw.tier >= GEAR_TIER_MIN &&
+      raw.tier <= GEAR_TIER_MAX
+    ) {
       entry.tier = raw.tier
     }
     if (typeof raw.enchant === 'number' && raw.enchant >= GEAR_ENCHANT_MIN && raw.enchant <= GEAR_ENCHANT_MAX) {

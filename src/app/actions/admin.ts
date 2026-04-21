@@ -12,6 +12,7 @@ import {
   GEAR_TIER_MAX,
   GEAR_ENCHANT_MIN,
   GEAR_ENCHANT_MAX,
+  isTierlessSlot,
 } from '@/types'
 
 const DEFAULT_EVENT_NOTIFICATION_MESSAGE = '새 이벤트가 등록되었습니다.'
@@ -466,7 +467,12 @@ function sanitizeGearSpecs(specs: Partial<Record<SlotKey, GearSpec>> | null | un
     const raw = specs[key]
     if (!raw || typeof raw !== 'object') continue
     const clean: GearSpec = {}
-    if (typeof raw.tier === 'number' && raw.tier >= GEAR_TIER_MIN && raw.tier <= GEAR_TIER_MAX) {
+    if (
+      !isTierlessSlot(key) &&
+      typeof raw.tier === 'number' &&
+      raw.tier >= GEAR_TIER_MIN &&
+      raw.tier <= GEAR_TIER_MAX
+    ) {
       clean.tier = raw.tier
     }
     if (
