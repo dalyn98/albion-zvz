@@ -509,7 +509,9 @@
     "noSlots": "No slots.",
     "filterMyRole": "Show my role only ({role})",
     "filterMyRoleActive": "Clear {role} filter",
-    "filterNoMatches": "No other slots with this role."
+    "filterNoMatches": "No other slots with this role.",
+    "edit": "Edit",
+    "editAria": "Edit event"
   },
   "eventBattles": {
     "title": "Battle log",

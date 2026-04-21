@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { requireAdmin } from '@/lib/auth'
+import { requireEventCreator } from '@/lib/auth'
 
 // 사용자(길드원/게스트) 본인의 Discord DM 수신 토글과 관리자용 Discord 역할
 // 목록 조회를 담당. 웹 푸시 스택(actions/push.ts) 을 대체한다.
@@ -96,7 +96,7 @@ export async function listGuildRoles(): Promise<{
 }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    await requireAdmin()
+    await requireEventCreator()
     const botToken = process.env.DISCORD_BOT_TOKEN
     const guildId = process.env.DISCORD_GUILD_ID
     if (!botToken || !guildId) {
@@ -133,7 +133,7 @@ export async function listGuildChannels(): Promise<{
 }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    await requireAdmin()
+    await requireEventCreator()
     const botToken = process.env.DISCORD_BOT_TOKEN
     const guildId = process.env.DISCORD_GUILD_ID
     if (!botToken || !guildId) {

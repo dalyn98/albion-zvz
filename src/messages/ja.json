@@ -509,7 +509,9 @@
     "noSlots": "スロットがありません。",
     "filterMyRole": "自分の役割だけ表示 ({role})",
     "filterMyRoleActive": "{role} フィルター解除",
-    "filterNoMatches": "同じ役割の他のスロットはありません。"
+    "filterNoMatches": "同じ役割の他のスロットはありません。",
+    "edit": "編集",
+    "editAria": "イベントを編集"
   },
   "eventBattles": {
     "title": "戦闘記録",

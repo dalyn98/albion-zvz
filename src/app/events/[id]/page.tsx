@@ -6,7 +6,7 @@ import EventPartyGrid from '@/components/EventPartyGrid'
 import EventSlotSidebar from '@/components/EventSlotSidebar'
 import EventBattlesSection from '@/components/EventBattlesSection'
 import AutoRefresh from '@/components/AutoRefresh'
-import { Clock, MapPin, ArrowLeft, Swords, Info, Lock } from 'lucide-react'
+import { Clock, MapPin, ArrowLeft, Swords, Info, Lock, Pencil } from 'lucide-react'
 import Link from 'next/link'
 import { getSession } from '@/lib/session'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
@@ -92,6 +92,14 @@ export default async function EventDetailPage({
 
   const loginHref = `/api/auth/discord/start?returnTo=${encodeURIComponent(`/events/${id}`)}`
 
+  // Edit entry point for non-admin event creators — admins already reach this
+  // via the sidebar's admin nav. Members with the event-creator role only see
+  // the button on events they own (matches `requireEventCreatorForEvent`).
+  const canEdit =
+    !!session &&
+    (session.isAdmin ||
+      (session.canCreateEvents && !!event.created_by && event.created_by === session.discordId))
+
   // Pre-battle & in-progress battles get live polling. Once the battle is
   // finished (battle_started_at + 1h), slots are frozen — no reason to keep
   // hammering the DB or draining mobile batteries.
@@ -123,17 +131,29 @@ export default async function EventDetailPage({
               </p>
               <h1 className="text-xl sm:text-2xl font-bold text-white">{event.title}</h1>
             </div>
-            {event.finalized_at ? (
-              <span className="inline-flex items-center gap-1.5 bg-gray-700/60 border border-gray-600 text-gray-200 text-sm font-bold px-2.5 py-1 rounded-full">
-                <Lock size={12} />
-                {t('ended')}
-              </span>
-            ) : event.battle_started_at && (
-              <span className="inline-flex items-center gap-1.5 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-sm font-bold px-2.5 py-1 rounded-full">
-                <Swords size={12} />
-                {t('inProgress', { time: formatStartedAt(event.battle_started_at) })}
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {event.finalized_at ? (
+                <span className="inline-flex items-center gap-1.5 bg-gray-700/60 border border-gray-600 text-gray-200 text-sm font-bold px-2.5 py-1 rounded-full">
+                  <Lock size={12} />
+                  {t('ended')}
+                </span>
+              ) : event.battle_started_at && (
+                <span className="inline-flex items-center gap-1.5 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-sm font-bold px-2.5 py-1 rounded-full">
+                  <Swords size={12} />
+                  {t('inProgress', { time: formatStartedAt(event.battle_started_at) })}
+                </span>
+              )}
+              {canEdit && (
+                <Link
+                  href={`/admin/dashboard/events/${id}`}
+                  className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-300 text-sm font-bold px-2.5 py-1 rounded-full transition-colors"
+                  aria-label={t('editAria')}
+                >
+                  <Pencil size={12} />
+                  {t('edit')}
+                </Link>
+              )}
+            </div>
           </div>
           {event.finalized_at ? (
             <div className="bg-gray-800/40 border border-gray-700 rounded-lg p-3 flex items-start gap-2">

@@ -16,6 +16,9 @@ export interface Event {
   // Migration 032: 공지를 올릴 Discord 채널 ID. NULL 이면 env 기반 기본 채널
   // (DISCORD_EVENT_CHANNEL_ID) 로 fallback.
   notify_channel_id: string | null
+  // Migration 039: Discord ID of the event creator. NULL for legacy events
+  // created before this column existed — those remain admin-only for edits.
+  created_by: string | null
   created_at: string
 }
 

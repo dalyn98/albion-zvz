@@ -509,7 +509,9 @@
     "noSlots": "슬롯이 없습니다.",
     "filterMyRole": "내 역할만 보기 ({role})",
     "filterMyRoleActive": "{role} 필터 해제",
-    "filterNoMatches": "같은 역할의 다른 슬롯이 없습니다."
+    "filterNoMatches": "같은 역할의 다른 슬롯이 없습니다.",
+    "edit": "편집",
+    "editAria": "이벤트 편집"
   },
   "eventBattles": {
     "title": "전투 기록",
