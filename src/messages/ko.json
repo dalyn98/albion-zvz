@@ -11,7 +11,8 @@
     "mySettings": "설정",
     "eventAdmin": "이벤트 관리",
     "approvals": "승인 관리",
-    "settings": "설정"
+    "settings": "설정",
+    "archive": "아카이브"
   },
   "common": {
     "close": "닫기",
@@ -1043,5 +1044,13 @@
     "donationRejectedBody": "길드 기부 신청({silver} silver)이 거절됐어요.",
     "eventImminentTitle": "이벤트 임박: {title}",
     "eventImminentBody": "{time} 집결 — 장비를 미리 준비해 두세요."
+  },
+  "archive": {
+    "title": "종료된 전투 아카이브",
+    "description": "전투 시작 후 1시간이 지난 종료된 이벤트 전체 내역. 최근 종료순.",
+    "empty": "아직 종료된 전투가 없습니다.",
+    "searchPlaceholder": "이벤트 제목·집결지·날짜로 검색 (예: 04-19)",
+    "applicants": "참여 {assigned}/{total}명",
+    "battleStartedAt": "전투 시작: {when}"
   }
 }

@@ -28,7 +28,13 @@ async function getActiveEvents(): Promise<EventWithCounts[]> {
 
   if (!events || events.length === 0) return []
 
-  const ids = (events as Event[]).map((e) => e.id)
+  // 종료된 전투는 /archive 로 이동 — 메인 화면은 예정/임박만.
+  const active = (events as Event[]).filter(
+    (e) => !(e.battle_started_at && isEnded(e.battle_started_at)),
+  )
+  if (active.length === 0) return []
+
+  const ids = active.map((e) => e.id)
   const { data: parties } = await supabase
     .from('parties')
     .select('event_id, slots(id, assigned_discord_id, is_hidden)')
@@ -43,7 +49,7 @@ async function getActiveEvents(): Promise<EventWithCounts[]> {
     totals.set(p.event_id, current)
   }
 
-  return (events as Event[]).map((e) => ({
+  return active.map((e) => ({
     ...e,
     total: totals.get(e.id)?.total ?? 0,
     assigned: totals.get(e.id)?.assigned ?? 0,
@@ -51,7 +57,6 @@ async function getActiveEvents(): Promise<EventWithCounts[]> {
 }
 
 function classifyScheduled(event: Event): HomeEventKind {
-  if (event.battle_started_at && isEnded(event.battle_started_at)) return 'ended'
   if (event.battle_started_at || isImminent(event.gather_at)) return 'imminent'
   return 'upcoming'
 }

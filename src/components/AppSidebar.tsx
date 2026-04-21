@@ -18,6 +18,7 @@ import {
   X,
   ChevronDown,
   Settings,
+  Archive,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -39,6 +40,7 @@ const MEMBER_NAV: NavItem[] = [
   { href: '/', labelKey: 'events', icon: CalendarDays },
   { href: '/regear', labelKey: 'regearRequest', icon: ShieldCheck, memberOnly: true },
   { href: '/members', labelKey: 'members', icon: Users },
+  { href: '/archive', labelKey: 'archive', icon: Archive },
   { href: '/me', labelKey: 'myWallet', icon: Wallet, exact: true, memberOnly: true },
   { href: '/me/settings', labelKey: 'mySettings', icon: Settings },
 ]

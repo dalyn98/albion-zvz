@@ -11,7 +11,8 @@
     "mySettings": "Settings",
     "eventAdmin": "Event admin",
     "approvals": "Approvals",
-    "settings": "Settings"
+    "settings": "Settings",
+    "archive": "Archive"
   },
   "common": {
     "close": "Close",
@@ -1043,5 +1044,13 @@
     "donationRejectedBody": "Your {silver} silver donation request was rejected.",
     "eventImminentTitle": "Event starting soon: {title}",
     "eventImminentBody": "Gather at {time} — prep your gear."
+  },
+  "archive": {
+    "title": "Battle Archive",
+    "description": "All events ended more than 1 hour after battle start. Most recent first.",
+    "empty": "No ended battles yet.",
+    "searchPlaceholder": "Search by title, location, or date (e.g. 04-19)",
+    "applicants": "{assigned}/{total} joined",
+    "battleStartedAt": "Battle started: {when}"
   }
 }

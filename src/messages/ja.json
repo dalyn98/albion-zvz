@@ -11,7 +11,8 @@
     "mySettings": "設定",
     "eventAdmin": "イベント管理",
     "approvals": "承認管理",
-    "settings": "設定"
+    "settings": "設定",
+    "archive": "アーカイブ"
   },
   "common": {
     "close": "閉じる",
@@ -1043,5 +1044,13 @@
     "donationRejectedBody": "{silver} silver の寄付申請が却下されました。",
     "eventImminentTitle": "イベント間近: {title}",
     "eventImminentBody": "{time} 集合 — 装備の準備をお願いします。"
+  },
+  "archive": {
+    "title": "戦闘アーカイブ",
+    "description": "戦闘開始から1時間経過した終了イベントの全履歴。最新順。",
+    "empty": "終了した戦闘はまだありません。",
+    "searchPlaceholder": "タイトル・集結地・日付で検索 (例: 04-19)",
+    "applicants": "参加 {assigned}/{total}名",
+    "battleStartedAt": "戦闘開始: {when}"
   }
 }

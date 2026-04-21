@@ -9,10 +9,9 @@ import {
   Users,
   Swords,
   Flame,
-  Archive,
 } from 'lucide-react'
 
-export type HomeEventKind = 'imminent' | 'ended' | 'upcoming'
+export type HomeEventKind = 'imminent' | 'upcoming'
 
 export interface HomeEventCardData {
   id: string
@@ -32,7 +31,6 @@ interface Props {
 export default function HomeEventList({ events }: Props) {
   const t = useTranslations('home')
   const imminent = events.filter((e) => e.kind === 'imminent')
-  const ended = events.filter((e) => e.kind === 'ended')
   const upcoming = events.filter((e) => e.kind === 'upcoming')
 
   if (events.length === 0) {
@@ -48,13 +46,6 @@ export default function HomeEventList({ events }: Props) {
       {imminent.length > 0 && (
         <Section title={t('sections.imminent')} icon={<Flame size={16} className="text-amber-400" />} titleClass="text-amber-300">
           {imminent.map((e) => (
-            <EventCard key={e.id} event={e} />
-          ))}
-        </Section>
-      )}
-      {ended.length > 0 && (
-        <Section title={t('sections.ended')} icon={<Archive size={16} className="text-gray-500" />} titleClass="text-gray-400">
-          {ended.map((e) => (
             <EventCard key={e.id} event={e} />
           ))}
         </Section>
@@ -101,8 +92,6 @@ function EventCard({ event }: { event: HomeEventCardData }) {
       ? 'border-rose-500/40 hover:border-rose-500/60 hover:shadow-[0_12px_28px_-12px_rgba(244,63,94,0.35)]'
       : event.kind === 'imminent'
       ? 'border-amber-500/40 hover:border-amber-400/70 hover:shadow-[0_12px_28px_-12px_rgba(245,158,11,0.4)]'
-      : event.kind === 'ended'
-      ? 'border-gray-800/80 hover:border-gray-700 opacity-70 hover:opacity-85'
       : 'border-white/5 hover:border-amber-500/40 hover:shadow-[0_12px_28px_-12px_rgba(0,0,0,0.5)]'
 
   return (
@@ -163,14 +152,6 @@ function KindBadge({
       <span className="inline-flex items-center gap-1 bg-amber-500/20 border border-amber-500/40 text-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">
         <Flame size={10} />
         {t('imminent')}
-      </span>
-    )
-  }
-  if (kind === 'ended') {
-    return (
-      <span className="inline-flex items-center gap-1 bg-gray-700 text-gray-300 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">
-        <Archive size={10} />
-        {t('ended')}
       </span>
     )
   }
