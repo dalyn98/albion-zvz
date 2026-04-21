@@ -23,6 +23,10 @@ interface EventPayload {
   gather_time: string
   gather_location: string
   special_notes: string | null
+  // 이벤트 생성/편집 시 관리자가 고른 Discord 역할 ID. notifyEvent 가
+  // 채널 공지 시 이 역할만 @멘션한다. NULL/미지정이면 멘션 없이 조용히 공지.
+  // optional 로 둬서 role picker UI 를 아직 안 쓰는 호출부도 호환되게 한다.
+  notify_role_id?: string | null
 }
 
 // Final check in case the client bypassed validation — a bad ISO string would
@@ -72,7 +76,7 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
     const db = await requireAdmin()
     const { data, error } = await db
       .from('events')
-      .select('id, title, gather_at, gather_time, gather_location, special_notes')
+      .select('id, title, gather_at, gather_time, gather_location, special_notes, notify_role_id')
       .eq('id', id)
       .maybeSingle()
     if (error) return { error: error.message }
@@ -81,7 +85,7 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
       'event_notification_message',
       DEFAULT_EVENT_NOTIFICATION_MESSAGE,
     )
-    await sendEventNotification(data, { content })
+    await sendEventNotification(data, { content, notifyRoleId: data.notify_role_id })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -96,7 +100,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
 
     const { data: source, error: sourceErr } = await db
       .from('events')
-      .select('title, gather_at, gather_time, gather_location, special_notes')
+      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id')
       .eq('id', id)
       .maybeSingle()
     if (sourceErr) return { error: sourceErr.message }
@@ -119,6 +123,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
         gather_at: shiftedGatherAt,
         gather_location: source.gather_location,
         special_notes: source.special_notes,
+        notify_role_id: source.notify_role_id,
       })
       .select('id')
       .single()

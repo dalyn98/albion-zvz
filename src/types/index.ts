@@ -10,6 +10,9 @@ export interface Event {
   // 과반수의 event_battles.outcome 에서 자동 집계. 동수이면 null 로 남는다.
   outcome: 'win' | 'loss' | null
   finalized_at: string | null
+  // Migration 030: 이벤트 Discord 채널 공지 시 @멘션할 역할 ID. NULL 이면
+  // 멘션 없이 조용히 올린다.
+  notify_role_id: string | null
   created_at: string
 }
 

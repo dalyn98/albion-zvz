@@ -2,8 +2,8 @@ import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { Bell } from 'lucide-react'
 import { getSession } from '@/lib/session'
-import { getPublicVapidKey } from '@/lib/web-push'
-import PushToggle from '@/components/PushToggle'
+import { getMyDmPreference } from '@/app/actions/notifications'
+import DmToggle from '@/components/DmToggle'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +14,7 @@ export default async function MySettingsPage() {
   }
 
   const t = await getTranslations('mySettings')
-  const vapidPublicKey = getPublicVapidKey()
+  const { enabled } = await getMyDmPreference()
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -28,7 +28,7 @@ export default async function MySettingsPage() {
           <Bell size={11} />
           {t('notificationsGroup')}
         </h2>
-        <PushToggle publicKey={vapidPublicKey} />
+        <DmToggle initialEnabled={enabled} />
       </section>
     </main>
   )

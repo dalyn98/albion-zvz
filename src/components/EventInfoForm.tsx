@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { createEvent, updateEvent } from '@/app/actions/admin'
+import { listGuildRoles, type DiscordRoleOption } from '@/app/actions/notifications'
 import { defaultGatherParts, parseGatherTime, formatGatherTimeKo, type GatherTimeParts } from '@/lib/gather-time'
 import type { Event } from '@/types'
 
@@ -30,8 +31,23 @@ export default function EventInfoForm({ initialEvent }: Props) {
   )
   const [gatherLocation, setGatherLocation] = useState(initialEvent?.gather_location ?? '')
   const [specialNotes, setSpecialNotes] = useState(initialEvent?.special_notes ?? '')
+  const [notifyRoleId, setNotifyRoleId] = useState<string>(initialEvent?.notify_role_id ?? '')
+  const [roles, setRoles] = useState<DiscordRoleOption[] | null>(null)
+  const [rolesError, setRolesError] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    // 역할 목록은 봇 토큰으로만 조회 가능 — 서버 액션이 Discord API 로 1회 fetch.
+    void (async () => {
+      const res = await listGuildRoles()
+      if (res.error) {
+        setRolesError(true)
+        return
+      }
+      setRoles(res.roles)
+    })()
+  }, [])
 
   const parsed = parseGatherTime(parts)
   const preview = parsed ? formatGatherTimeKo(parsed) : null
@@ -75,6 +91,7 @@ export default function EventInfoForm({ initialEvent }: Props) {
       gather_time: formatGatherTimeKo(dt),
       gather_location: gatherLocation.trim(),
       special_notes: specialNotes.trim() || null,
+      notify_role_id: notifyRoleId || null,
     }
 
     if (initialEvent) {
@@ -161,6 +178,30 @@ export default function EventInfoForm({ initialEvent }: Props) {
           rows={2}
           className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-base text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 resize-none"
         />
+      </div>
+
+      <div>
+        <label className="text-gray-400 text-xs mb-1 block">{t('notifyRoleLabel')}</label>
+        <select
+          value={notifyRoleId}
+          onChange={(e) => setNotifyRoleId(e.target.value)}
+          disabled={roles === null && !rolesError}
+          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-base text-white focus:outline-none focus:border-amber-500 disabled:opacity-50"
+        >
+          <option value="">{t('notifyRoleNone')}</option>
+          {(roles ?? []).map((role) => (
+            <option key={role.id} value={role.id}>
+              {role.name}
+            </option>
+          ))}
+        </select>
+        {rolesError ? (
+          <p className="text-xs text-red-400 mt-1.5">{t('notifyRoleError')}</p>
+        ) : roles === null ? (
+          <p className="text-xs text-gray-500 mt-1.5">{t('notifyRoleLoading')}</p>
+        ) : (
+          <p className="text-xs text-gray-500 mt-1.5">{t('notifyRoleHint')}</p>
+        )}
       </div>
 
       {error && (

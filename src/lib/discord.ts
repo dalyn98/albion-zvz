@@ -162,6 +162,9 @@ export interface EventNotificationPayload {
   gather_time: string
   gather_location: string
   special_notes: string | null
+  // 이벤트에 연결된 Discord 역할 ID. 채널 알림 시 이 역할만 멘션한다.
+  // NULL 이면 아무 역할도 멘션하지 않고 조용한 채널 메시지만 보낸다.
+  notify_role_id: string | null
 }
 
 function formatGatherAt(iso: string): string {
@@ -182,6 +185,8 @@ function formatGatherAt(iso: string): string {
 export interface SendEventNotificationOptions {
   // Admin-editable announcement line shown above the embed.
   content: string
+  // 이벤트에 설정된 역할 ID. NULL 이면 멘션 없이 채널에만 올린다.
+  notifyRoleId: string | null
 }
 
 export async function sendEventNotification(
@@ -215,10 +220,12 @@ export async function sendEventNotification(
     timestamp: new Date().toISOString(),
   }
 
-  // Lead with @everyone so every guild member gets a push notification, then
-  // the admin-editable announcement, then the site URL on its own line so
-  // Discord renders it as a normal link (and optionally unfurls a preview).
-  const content = `@everyone\n${options.content}\n${siteUrl}`
+  // 역할 멘션 전략:
+  //   - notify_role_id 지정: `<@&id>` 로 해당 역할만 태그하고 allowed_mentions
+  //     로 허용 역할을 좁힌다. @everyone 스팸 대신 선택된 역할만 ping.
+  //   - NULL: 멘션 없이 채널 메시지만. 기존처럼 모든 멤버에게 ping 하지 않는다.
+  const mentionLine = options.notifyRoleId ? `<@&${options.notifyRoleId}>\n` : ''
+  const content = `${mentionLine}${options.content}\n${siteUrl}`
 
   const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
     method: 'POST',
@@ -229,9 +236,9 @@ export async function sendEventNotification(
     body: JSON.stringify({
       content,
       embeds: [embed],
-      // Required for @everyone to actually ping. Without this the API returns
-      // 200 but Discord suppresses the mention.
-      allowed_mentions: { parse: ['everyone'] },
+      allowed_mentions: options.notifyRoleId
+        ? { roles: [options.notifyRoleId] }
+        : { parse: [] },
     }),
   })
 

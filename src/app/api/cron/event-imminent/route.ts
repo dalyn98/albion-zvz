@@ -1,14 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
-import {
-  fetchSubscriptionsForUsers,
-  isPushConfigured,
-  sendPushToSubscriptions,
-  type SubscriptionRow,
-} from '@/lib/web-push'
+import { isDiscordDmConfigured, sendDiscordDmsToUsers } from '@/lib/discord-dm'
 
-// 이벤트 집결 시간이 다가오면 파티에 편성된 멤버들에게 푸시를 보낸다.
+// 이벤트 집결 시간이 다가오면 파티에 편성된 멤버들에게 Discord DM 을 보낸다.
 //
 // 호출 규약: 스케줄러가 Authorization: Bearer <CRON_SECRET> 로 GET 을 날려
 // 이 라우트를 호출. 수동 트리거도 같은 헤더로 가능.
@@ -16,17 +11,22 @@ import {
 // 동작:
 //   1. gather_at 이 이후 LEAD_MIN 분 이내이고 아직 imminent_notified_at 이
 //      NULL 인 이벤트를 찾음.
-//   2. 해당 이벤트의 slots.assigned_discord_id 를 수집해 구독 행을 fetch.
-//   3. locale 별로 구독을 그룹화해 각 언어에 맞는 문구로 발송.
+//   2. 해당 이벤트의 slots.assigned_discord_id 를 수집해 중복 제거.
+//   3. discord_dm_enabled = true 인 수신자에게 DM 발송.
 //   4. events.imminent_notified_at 를 현재 시각으로 표시해 중복 발송 방지.
 //
 // 스케줄링: Vercel Hobby 플랜은 일 1회 제한이라 cron 을 걸 수 없어,
 // .github/workflows/event-imminent.yml 의 GitHub Actions 가 5분 주기로 이 엔드포인트를
 // 호출한다. Pro 로 업그레이드하면 vercel.json 에 다시 옮길 수 있음.
+//
+// locale: 이전 Web Push 때는 구독별 locale 을 저장했지만 DM 으로 바뀌면서
+// 개인 locale 을 따로 저장하지 않는다. 길드가 KST 한국어 기준이라 기본 'ko'
+// 로 발송. 향후 필요하면 guild_avatars.locale 을 추가해 개인화할 수 있음.
 
 const LEAD_MIN = 35 // gather_at - 35분 이내면 임박
 const LOOKBACK_MIN = 5 // 놓친 구간 재캐치용 (크론 누락 대비)
-const DISPLAY_TIMEZONE = 'Asia/Seoul' // 길드가 KST 기준으로 운영 — 모든 locale 공통
+const DISPLAY_TIMEZONE = 'Asia/Seoul' // 길드가 KST 기준으로 운영
+const DEFAULT_LOCALE = 'ko'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,16 +39,6 @@ function formatGatherTime(gatherAtIso: string): string {
   }).format(new Date(gatherAtIso))
 }
 
-function groupByLocale(rows: SubscriptionRow[]): Map<string, SubscriptionRow[]> {
-  const map = new Map<string, SubscriptionRow[]>()
-  for (const row of rows) {
-    const list = map.get(row.locale) ?? []
-    list.push(row)
-    map.set(row.locale, list)
-  }
-  return map
-}
-
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET
   if (!secret) {
@@ -59,8 +49,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  if (!isPushConfigured()) {
-    return NextResponse.json({ skipped: 'vapid-not-configured' })
+  if (!isDiscordDmConfigured()) {
+    return NextResponse.json({ skipped: 'discord-dm-not-configured' })
   }
 
   const db = getAdminClient()
@@ -83,10 +73,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ notified: 0, scanned: 0 })
   }
 
+  const t = await getTranslations({ locale: DEFAULT_LOCALE, namespace: 'discordDm' })
   const results: Array<{ event_id: string; attempted: number; succeeded: number }> = []
 
   for (const event of events) {
-    // 이벤트당 편성된 멤버 모두 — 중복 제거 후 구독 fetch.
+    // 이벤트당 편성된 멤버 모두 — 중복 제거 후 DM 발송.
     const { data: slots, error: slotsError } = await db
       .from('slots')
       .select('assigned_discord_id, parties!inner(event_id)')
@@ -109,22 +100,14 @@ export async function GET(request: Request) {
     let succeeded = 0
 
     if (discordIds.length > 0) {
-      const subs = await fetchSubscriptionsForUsers(discordIds)
-      const byLocale = groupByLocale(subs)
       const time = formatGatherTime(event.gather_at as string)
-
-      for (const [locale, rows] of byLocale) {
-        const t = await getTranslations({ locale, namespace: 'pushNotifications' })
-        const payload = {
-          title: t('eventImminentTitle', { title: event.title }),
-          body: t('eventImminentBody', { time }),
-          url: `/events/${event.id}`,
-          tag: `event-imminent-${event.id}`,
-        }
-        const result = await sendPushToSubscriptions(rows, payload)
-        attempted += result.attempted
-        succeeded += result.succeeded
-      }
+      const result = await sendDiscordDmsToUsers(discordIds, {
+        title: t('eventImminentTitle', { title: event.title }),
+        body: t('eventImminentBody', { time }),
+        url: `/events/${event.id}`,
+      })
+      attempted = result.attempted
+      succeeded = result.succeeded
     }
 
     // 멤버가 없어도 notified 로 표시 — 다음 크론에서 같은 이벤트를 다시 스캔하지
