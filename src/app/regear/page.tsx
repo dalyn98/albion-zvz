@@ -4,6 +4,7 @@ import { Clock, MapPin, Swords, ShieldCheck } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getRegearLimits, listMyRegearEligibleEvents } from '@/app/actions/regear'
+import { getRegearPayoutRatePercent } from '@/app/actions/regear-admin'
 import { formatSilver } from '@/lib/silver'
 import { formatGatherTimeFor } from '@/lib/gather-time'
 import { formatDateTimeShort } from '@/lib/format-datetime'
@@ -30,9 +31,10 @@ export default async function RegearPage() {
     redirect('/')
   }
 
-  const [{ events, error }, limits, t, locale, noticeMessage] = await Promise.all([
+  const [{ events, error }, limits, payoutRatePercent, t, locale, noticeMessage] = await Promise.all([
     listMyRegearEligibleEvents(),
     getRegearLimits(),
+    getRegearPayoutRatePercent(),
     getTranslations('regear'),
     getLocale(),
     getAppSetting('regear_notice_message', ''),
@@ -106,6 +108,7 @@ export default async function RegearPage() {
                   existingActiveCount={event.existing_active_count}
                   maxDeaths={limits.maxDeaths}
                   windowMinutes={limits.windowMinutes}
+                  payoutRatePercent={payoutRatePercent}
                   battleStartedAt={event.battle_started_at}
                 />
               </div>

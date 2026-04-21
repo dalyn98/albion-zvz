@@ -12,7 +12,8 @@ import {
 } from '@/app/actions/regear-admin'
 import { formatSilver } from '@/lib/silver'
 import { formatDateTimeShort } from '@/lib/format-datetime'
-import { SLOT_KEYS, regearPayoutSilver, type BuildSnapshot, type SlotKey } from '@/types'
+import { calcPayoutSilver } from '@/lib/regear-payout'
+import { SLOT_KEYS, type BuildSnapshot, type SlotKey } from '@/types'
 import ImageLightbox from './ImageLightbox'
 import ItemImage from './ItemImage'
 import SearchBox from './SearchBox'
@@ -29,9 +30,12 @@ const STATUS_CLASS: Record<string, string> = {
 interface RegearReviewListProps {
   requests: AdminRegearRequest[]
   avatars?: Record<string, string | null>
+  // Current payout rate (1..100). Approve button and pending-row hint use this
+  // so admins see the exact silver amount the RPC will credit.
+  ratePercent: number
 }
 
-export default function RegearReviewList({ requests, avatars = {} }: RegearReviewListProps) {
+export default function RegearReviewList({ requests, avatars = {}, ratePercent }: RegearReviewListProps) {
   const t = useTranslations('adminRegearReview')
   const tCommon = useTranslations('common')
   const [search, setSearch] = useState('')
@@ -54,7 +58,12 @@ export default function RegearReviewList({ requests, avatars = {} }: RegearRevie
       ) : (
         <ul className="space-y-3">
           {filtered.map((r) => (
-            <RegearRow key={r.id} request={r} avatar={avatars[r.discord_id] ?? null} />
+            <RegearRow
+              key={r.id}
+              request={r}
+              avatar={avatars[r.discord_id] ?? null}
+              ratePercent={ratePercent}
+            />
           ))}
         </ul>
       )}
@@ -62,7 +71,15 @@ export default function RegearReviewList({ requests, avatars = {} }: RegearRevie
   )
 }
 
-function RegearRow({ request, avatar }: { request: AdminRegearRequest; avatar: string | null }) {
+function RegearRow({
+  request,
+  avatar,
+  ratePercent,
+}: {
+  request: AdminRegearRequest
+  avatar: string | null
+  ratePercent: number
+}) {
   const router = useRouter()
   const t = useTranslations('adminRegearReview')
   const tCommon = useTranslations('common')
@@ -81,6 +98,13 @@ function RegearRow({ request, avatar }: { request: AdminRegearRequest; avatar: s
     if (status === 'approved') return t('statusApproved')
     return t('statusRejected')
   }
+
+  // Approved rows: RPC already persisted the credited amount, use it verbatim
+  // so historical rows display correctly even after the admin changes the rate.
+  // Pending rows: preview what approval would credit at the *current* rate.
+  const claimed = request.claimed_silver ?? request.silver
+  const approvedPayout = request.payout_silver
+  const pendingPayout = calcPayoutSilver(claimed, ratePercent)
 
   const loadScreenshot = () => {
     if (loadingScreenshot || screenshotUrl || !request.screenshot_path) return
@@ -136,9 +160,14 @@ function RegearRow({ request, avatar }: { request: AdminRegearRequest; avatar: s
           <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400">
             <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded">{request.role_name}</span>
             <span className="font-mono text-amber-400">
-              {t('claimed', { amount: formatSilver(regearPayoutSilver(request)) })}
+              {t('claimed', { amount: formatSilver(claimed) })}
               <span className="text-gray-500"> / {t('cap', { amount: formatSilver(request.silver) })}</span>
             </span>
+            {request.status === 'approved' && approvedPayout !== null && approvedPayout !== claimed && (
+              <span className="font-mono text-emerald-400">
+                {t('paidOut', { amount: formatSilver(approvedPayout) })}
+              </span>
+            )}
             <span className="font-mono text-gray-500">{formatDateTimeShort(request.created_at)}</span>
           </div>
         </div>
@@ -223,7 +252,12 @@ function RegearRow({ request, avatar }: { request: AdminRegearRequest; avatar: s
               className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded"
             >
               <Check size={13} />
-              {t('approveWithPayout', { amount: formatSilver(regearPayoutSilver(request)) })}
+              {ratePercent === 100
+                ? t('approveWithPayout', { amount: formatSilver(pendingPayout) })
+                : t('approveWithPayoutRate', {
+                    amount: formatSilver(pendingPayout),
+                    rate: ratePercent,
+                  })}
             </button>
             <button
               type="button"

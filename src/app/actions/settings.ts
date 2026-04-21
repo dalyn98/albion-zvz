@@ -18,6 +18,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'regear_window_minutes',
   'regear_max_deaths_per_event',
   'events_auto_start_enabled',
+  'regear_payout_rate_percent',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -60,6 +61,7 @@ const JSON_ARRAY_KEYS: readonly AppSettingKey[] = [
 const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }>> = {
   regear_window_minutes: { min: 1, max: 240 },
   regear_max_deaths_per_event: { min: 1, max: 10 },
+  regear_payout_rate_percent: { min: 1, max: 100 },
 }
 
 // Boolean-string keys. Must be exactly 'true' or 'false'.

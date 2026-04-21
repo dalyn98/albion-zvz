@@ -157,6 +157,8 @@
     "viewScreenshot": "View screenshot",
     "screenshotDeleted": "The screenshot was auto-deleted 48 hours after processing.",
     "approveWithPayout": "Approve (pay out {amount})",
+    "approveWithPayoutRate": "Approve (pay out {amount}, {rate}%)",
+    "paidOut": "Paid {amount}",
     "reject": "Reject",
     "rejectPlaceholder": "Reason (optional)",
     "rejectConfirm": "Confirm reject",
@@ -494,6 +496,16 @@
     "saving": "Saving…",
     "saved": "Saved"
   },
+  "adminRegearPayoutRate": {
+    "title": "Regear payout rate",
+    "description": "The percentage of each claim that is credited on approval. Payout = claimed × percent ÷ 100 (floor). Default 100%. Changes apply to approvals from now on.",
+    "percentLabel": "Payout rate (%)",
+    "percentHint": "{min}–{max}%. Example: at 80%, approving a 10,000-silver claim credits 8,000 silver.",
+    "invalidRange": "Value out of allowed range.",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved"
+  },
   "sidebar": {
     "memberGroup": "Members",
     "adminGroup": "Admin",
@@ -675,6 +687,7 @@
     "claimAmountPrefix": "Claim:",
     "claimAmountWithUnit": "{amount} silver",
     "overCeiling": "(over role cap)",
+    "expectedPayout": "→ est. payout {amount} ({rate}%)",
     "screenshotMissing": "Please select a screenshot.",
     "claimInvalid": "Claim amount must be an integer.",
     "claimOverCeiling": "Claim must be at or below the role cap ({ceiling}).",

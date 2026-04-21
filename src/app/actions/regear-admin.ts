@@ -6,7 +6,29 @@ import { requireAdmin } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { formatSilver } from '@/lib/silver'
+import { getAppSetting } from '@/lib/app-settings'
+import { calcPayoutSilver } from '@/lib/regear-payout'
 import type { BuildSnapshot, RegearType } from '@/types'
+
+const DEFAULT_PAYOUT_RATE_PERCENT = 100
+
+// Read once and normalise. Centralised so admin action and UI loaders return
+// the same number even if the DB row is malformed — 100% is the safe default
+// since it matches the legacy "pay the full claim" behaviour.
+async function loadPayoutRatePercent(): Promise<number> {
+  const raw = await getAppSetting('regear_payout_rate_percent', String(DEFAULT_PAYOUT_RATE_PERCENT))
+  const parsed = Number(raw)
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 1 || parsed > 100) {
+    return DEFAULT_PAYOUT_RATE_PERCENT
+  }
+  return parsed
+}
+
+// Exposed so the review UI can show "청구 X → 지급 Y (Z%)" without calling
+// the RPC path. The pure rounding helper lives in `@/lib/regear-payout`.
+export async function getRegearPayoutRatePercent(): Promise<number> {
+  return loadPayoutRatePercent()
+}
 
 const SCREENSHOT_BUCKET = 'regear-screenshots'
 // Signed URLs only need to live long enough for an admin to review. 10 min.
@@ -22,6 +44,9 @@ export interface AdminRegearRequest {
   silver: number
   request_type: RegearType
   claimed_silver: number | null
+  // Actual credited amount for approved rows (rate × claimed, floor). NULL for
+  // pending/rejected. Migration 044 adds and backfills the column.
+  payout_silver: number | null
   // null once the retention window (48h after resolve) has expired.
   screenshot_path: string | null
   killboard_verified: boolean
@@ -65,7 +90,7 @@ export async function listRegearRequests(
     let query = db
       .from('regear_requests')
       .select(
-        'id, event_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, screenshot_path, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, events(title)',
+        'id, event_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, events(title)',
       )
       .order('created_at', { ascending: false })
     if (scope === 'pending') query = query.eq('status', 'pending')
@@ -87,6 +112,7 @@ export async function listRegearRequests(
         silver: row.silver,
         request_type: (row.request_type ?? 'death') as RegearType,
         claimed_silver: row.claimed_silver,
+        payout_silver: row.payout_silver ?? null,
         screenshot_path: row.screenshot_path ?? null,
         killboard_verified: row.killboard_verified,
         killboard_event_id: row.killboard_event_id,
@@ -125,10 +151,23 @@ export async function approveRegearRequest(id: string): Promise<{ error?: string
   try {
     const db = await requireAdmin()
     const session = await getSession()
+    // Compute the actual credit using the current rate. RPC also clamps to
+    // [0, claimed]; this client-side calc is for the DM body and the
+    // approved row's payout_silver column.
+    const { data: pending } = await db
+      .from('regear_requests')
+      .select('claimed_silver')
+      .eq('id', id)
+      .eq('status', 'pending')
+      .maybeSingle()
+    const claimed = pending?.claimed_silver ?? 0
+    const ratePercent = await loadPayoutRatePercent()
+    const payout = calcPayoutSilver(claimed, ratePercent)
     const { error } = await db.rpc('approve_regear_request', {
       p_id: id,
       p_admin_id: session?.discordId ?? '',
       p_admin_username: session?.username ?? '',
+      p_payout_silver: payout,
     })
     if (error) {
       if (error.message.includes('REGEAR_NOT_PENDING')) {
@@ -141,7 +180,7 @@ export async function approveRegearRequest(id: string): Promise<{ error?: string
     // 승인 직후 요청자에게 Discord DM. 실패해도 승인은 성공한 상태이므로 무시.
     const { data: row } = await db
       .from('regear_requests')
-      .select('discord_id, event_title_snapshot, claimed_silver')
+      .select('discord_id, event_title_snapshot, payout_silver')
       .eq('id', id)
       .maybeSingle()
     if (row?.discord_id) {
@@ -149,7 +188,7 @@ export async function approveRegearRequest(id: string): Promise<{ error?: string
         title: tDm('regearApprovedTitle'),
         body: tDm('regearApprovedBody', {
           event: row.event_title_snapshot ?? '',
-          silver: formatSilver(row.claimed_silver ?? 0),
+          silver: formatSilver(row.payout_silver ?? payout),
         }),
         url: '/me',
       })

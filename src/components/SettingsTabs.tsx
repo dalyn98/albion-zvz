@@ -13,6 +13,7 @@ import NoticeSettingForm from './NoticeSettingForm'
 import EventCreatorRolesSetting from './EventCreatorRolesSetting'
 import BombSquadCallerRolesSetting from './BombSquadCallerRolesSetting'
 import RegearLimitsForm from './RegearLimitsForm'
+import RegearPayoutRateForm from './RegearPayoutRateForm'
 import EventAutoStartForm from './EventAutoStartForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
 
@@ -69,6 +70,7 @@ interface Props {
   bombSquadCallerRoleIds: string[]
   regearWindowMinutes: number
   regearMaxDeaths: number
+  regearPayoutRatePercent: number
   eventsAutoStartEnabled: boolean
   origin: string
 }
@@ -102,6 +104,7 @@ export default function SettingsTabs({
   bombSquadCallerRoleIds,
   regearWindowMinutes,
   regearMaxDeaths,
+  regearPayoutRatePercent,
   eventsAutoStartEnabled,
   origin,
 }: Props) {
@@ -198,6 +201,7 @@ export default function SettingsTabs({
               initialWindowMinutes={regearWindowMinutes}
               initialMaxDeaths={regearMaxDeaths}
             />
+            <RegearPayoutRateForm initialPercent={regearPayoutRatePercent} />
             <EventAutoStartForm initialEnabled={eventsAutoStartEnabled} />
           </div>
         )}

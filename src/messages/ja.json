@@ -157,6 +157,8 @@
     "viewScreenshot": "スクリーンショットを表示",
     "screenshotDeleted": "スクリーンショットは処理後 48 時間経過により自動削除されました。",
     "approveWithPayout": "承認 ({amount} 支給)",
+    "approveWithPayoutRate": "承認 ({amount} 支給, {rate}%)",
+    "paidOut": "支給 {amount}",
     "reject": "却下",
     "rejectPlaceholder": "却下理由 (任意)",
     "rejectConfirm": "却下確定",
@@ -494,6 +496,16 @@
     "saving": "保存中…",
     "saved": "保存しました"
   },
+  "adminRegearPayoutRate": {
+    "title": "リギア支給レート",
+    "description": "承認時に請求額の何% をシルバーで支給するかを設定します。支給額 = 請求額 × レート ÷ 100 (切り捨て)。既定 100%。変更は以降の承認から反映されます。",
+    "percentLabel": "支給レート (%)",
+    "percentHint": "{min} ~ {max}%。例: 80 に設定すると 10,000 シルバーの請求承認時に 8,000 シルバーが支給されます。",
+    "invalidRange": "入力値が許容範囲外です。",
+    "save": "保存",
+    "saving": "保存中…",
+    "saved": "保存しました"
+  },
   "sidebar": {
     "memberGroup": "メンバー",
     "adminGroup": "管理者",
@@ -675,6 +687,7 @@
     "claimAmountPrefix": "請求金額:",
     "claimAmountWithUnit": "{amount} silver",
     "overCeiling": "(役割上限超過)",
+    "expectedPayout": "→ 予想支給 {amount} ({rate}%)",
     "screenshotMissing": "スクリーンショットを選択してください。",
     "claimInvalid": "請求金額は整数で入力してください。",
     "claimOverCeiling": "請求金額は役割上限({ceiling})以下にしてください。",

@@ -23,6 +23,7 @@ export default async function SettingsPage() {
     bombSquadCallerRoleIdsRaw,
     regearWindowMinutesRaw,
     regearMaxDeathsRaw,
+    regearPayoutRatePercentRaw,
     eventsAutoStartRaw,
     { rewards, error: rewardsError },
     tLanding,
@@ -40,6 +41,7 @@ export default async function SettingsPage() {
     getAppSetting('bomb_squad_caller_role_ids', '[]'),
     getAppSetting('regear_window_minutes', '60'),
     getAppSetting('regear_max_deaths_per_event', '1'),
+    getAppSetting('regear_payout_rate_percent', '100'),
     getAppSetting('events_auto_start_enabled', 'false'),
     listRoleRewards(),
     getTranslations('landing'),
@@ -68,6 +70,14 @@ export default async function SettingsPage() {
   }
   const regearWindowMinutes = parseInteger(regearWindowMinutesRaw, 60)
   const regearMaxDeaths = parseInteger(regearMaxDeathsRaw, 1)
+  const parsedPayoutRate = Number(regearPayoutRatePercentRaw)
+  const regearPayoutRatePercent =
+    Number.isFinite(parsedPayoutRate) &&
+    Number.isInteger(parsedPayoutRate) &&
+    parsedPayoutRate >= 1 &&
+    parsedPayoutRate <= 100
+      ? parsedPayoutRate
+      : 100
   const eventsAutoStartEnabled = eventsAutoStartRaw === 'true'
 
   // Prefer the deployed public URL so the invite link we show to the admin
@@ -97,6 +107,7 @@ export default async function SettingsPage() {
         bombSquadCallerRoleIds={bombSquadCallerRoleIds}
         regearWindowMinutes={regearWindowMinutes}
         regearMaxDeaths={regearMaxDeaths}
+        regearPayoutRatePercent={regearPayoutRatePercent}
         eventsAutoStartEnabled={eventsAutoStartEnabled}
         origin={origin}
       />

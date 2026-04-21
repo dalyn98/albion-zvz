@@ -50,6 +50,8 @@ export interface MyRegearRequest {
   silver: number
   request_type: RegearType
   claimed_silver: number | null
+  // Actual credited amount for approved rows (migration 044). NULL for pending/rejected.
+  payout_silver: number | null
   status: 'pending' | 'approved' | 'rejected'
   killboard_verified: boolean
   admin_notes: string | null
@@ -286,7 +288,7 @@ export async function listMyRegearRequests(): Promise<{
   const { data, error } = await db
     .from('regear_requests')
     .select(
-      'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, status, killboard_verified, admin_notes, created_at, resolved_at, handled_by_username, build_snapshot, events(title)',
+      'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, status, killboard_verified, admin_notes, created_at, resolved_at, handled_by_username, build_snapshot, events(title)',
     )
     .eq('discord_id', session.discordId)
     .order('created_at', { ascending: false })
@@ -304,6 +306,7 @@ export async function listMyRegearRequests(): Promise<{
       silver: row.silver,
       request_type: (row.request_type ?? 'death') as RegearType,
       claimed_silver: row.claimed_silver,
+      payout_silver: row.payout_silver ?? null,
       status: row.status as MyRegearRequest['status'],
       killboard_verified: row.killboard_verified,
       admin_notes: row.admin_notes,

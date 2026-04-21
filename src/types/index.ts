@@ -370,14 +370,18 @@ export function isFreeItem(
 // readability but application code no longer branches on it.
 export type RegearType = 'death' | 'overcharge'
 
-// Unified payout helper. Post-018 every row has claimed_silver set; the
-// fallback to `silver` only matters for legacy rows read during the window
-// between deploy and migration apply.
+// Unified payout helper. Resolves to the actual credited amount when known:
+//   1. payout_silver — set on approved rows after migration 044; reflects the
+//      rate-adjusted credit that landed in point_ledger.
+//   2. claimed_silver — set on every post-018 row; pending/rejected rows have
+//      no payout yet, so the UI shows the member's ask.
+//   3. silver — legacy rows inserted before migration 018 unified the flow.
 export function regearPayoutSilver(row: {
   silver: number
   claimed_silver: number | null
+  payout_silver?: number | null
 }): number {
-  return row.claimed_silver ?? row.silver
+  return row.payout_silver ?? row.claimed_silver ?? row.silver
 }
 
 export const SLOT_ROLES = [

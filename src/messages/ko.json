@@ -157,6 +157,8 @@
     "viewScreenshot": "스크린샷 보기",
     "screenshotDeleted": "스크린샷은 처리 후 48시간이 지나 자동 삭제되었습니다.",
     "approveWithPayout": "승인 ({amount} 지급)",
+    "approveWithPayoutRate": "승인 ({amount} 지급, {rate}%)",
+    "paidOut": "지급 {amount}",
     "reject": "거절",
     "rejectPlaceholder": "거절 사유 (선택)",
     "rejectConfirm": "거절 확정",
@@ -497,6 +499,16 @@
     "saving": "저장 중…",
     "saved": "저장됨"
   },
+  "adminRegearPayoutRate": {
+    "title": "리기어 지급 비율",
+    "description": "승인 시 청구 금액의 몇 %를 실버로 지급할지 설정합니다. 지급액 = 청구 × 비율 ÷ 100 (내림). 기본 100%. 변경은 이후 승인부터 반영됩니다.",
+    "percentLabel": "지급 비율 (%)",
+    "percentHint": "{min} ~ {max}%. 예: 80 으로 설정하면 10,000 실버 청구 승인 시 8,000 실버가 지급됩니다.",
+    "invalidRange": "입력 값이 허용 범위를 벗어났습니다.",
+    "save": "저장",
+    "saving": "저장 중…",
+    "saved": "저장됨"
+  },
   "sidebar": {
     "memberGroup": "구성원",
     "adminGroup": "관리자",
@@ -681,6 +693,7 @@
     "claimAmountPrefix": "청구 금액:",
     "claimAmountWithUnit": "{amount} silver",
     "overCeiling": "(역할 상한 초과)",
+    "expectedPayout": "→ 예상 지급 {amount} ({rate}%)",
     "screenshotMissing": "스크린샷을 선택해 주세요.",
     "claimInvalid": "청구 금액을 정수로 입력해 주세요.",
     "claimOverCeiling": "청구 금액은 역할 상한({ceiling}) 이하여야 합니다.",

@@ -1,7 +1,11 @@
 import Link from 'next/link'
 import { ShieldCheck, Wallet, Gift } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-import { listRegearRequests, listExchangeRequests } from '@/app/actions/regear-admin'
+import {
+  listRegearRequests,
+  listExchangeRequests,
+  getRegearPayoutRatePercent,
+} from '@/app/actions/regear-admin'
 import { listDonationRequests } from '@/app/actions/donation-admin'
 import RegearReviewList from '@/components/RegearReviewList'
 import ExchangeReviewList from '@/components/ExchangeReviewList'
@@ -161,9 +165,10 @@ function ScopeTabs({ baseHref, active, tKeys, accent }: ScopeTabsProps) {
 }
 
 async function RegearSection({ scope }: { scope: Scope }) {
-  const [{ requests, error }, t] = await Promise.all([
+  const [{ requests, error }, t, ratePercent] = await Promise.all([
     listRegearRequests(scope),
     getTranslations('adminRegearReview'),
+    getRegearPayoutRatePercent(),
   ])
   const avatarMap = await getAvatarsByDiscordIds(requests.map((r) => r.discord_id))
   const avatars = Object.fromEntries(avatarMap)
@@ -186,7 +191,7 @@ async function RegearSection({ scope }: { scope: Scope }) {
           {scope === 'pending' ? t('noPending') : t('noRequests')}
         </p>
       ) : (
-        <RegearReviewList requests={requests} avatars={avatars} />
+        <RegearReviewList requests={requests} avatars={avatars} ratePercent={ratePercent} />
       )}
     </div>
   )

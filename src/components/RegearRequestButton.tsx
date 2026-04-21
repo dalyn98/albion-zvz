@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { ShieldCheck, X, Upload, Clipboard } from 'lucide-react'
 import { requestRegear } from '@/app/actions/regear'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
+import { calcPayoutSilver } from '@/lib/regear-payout'
 import { useToast } from './ToastProvider'
 
 interface Props {
@@ -15,6 +16,10 @@ interface Props {
   existingActiveCount: number
   maxDeaths: number
   windowMinutes: number
+  // Current payout rate (1..100). If <100 we surface an "expected payout"
+  // hint so the member isn't surprised when the credited amount differs from
+  // their claim.
+  payoutRatePercent: number
   battleStartedAt: string | null
 }
 
@@ -34,6 +39,7 @@ export default function RegearRequestButton({
   existingActiveCount,
   maxDeaths,
   windowMinutes,
+  payoutRatePercent,
   battleStartedAt,
 }: Props) {
   const router = useRouter()
@@ -235,6 +241,14 @@ export default function RegearRequestButton({
                       </span>
                       {parsedClaim > roleReward && (
                         <span className="text-red-400 ml-2">{t('overCeiling')}</span>
+                      )}
+                      {parsedClaim <= roleReward && payoutRatePercent < 100 && (
+                        <span className="text-emerald-400 ml-2 font-mono">
+                          {t('expectedPayout', {
+                            amount: formatSilver(calcPayoutSilver(parsedClaim, payoutRatePercent)),
+                            rate: payoutRatePercent,
+                          })}
+                        </span>
                       )}
                     </p>
                   )

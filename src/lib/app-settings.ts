@@ -40,6 +40,10 @@ export type AppSettingKey =
   // passed — so the regear window opens at the scheduled time without waiting
   // for the admin to click the manual start button.
   | 'events_auto_start_enabled'
+  // Integer string 1..100. Admin-configurable payout rate applied at approval
+  // time: point_ledger delta = floor(claimed_silver × percent ÷ 100). Default
+  // '100' keeps the legacy behaviour (pay the full claim).
+  | 'regear_payout_rate_percent'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

@@ -80,6 +80,8 @@ export interface MemberRegearEntry {
   silver: number
   request_type: RegearType
   claimed_silver: number | null
+  // Actual credited amount for approved rows (migration 044). NULL otherwise.
+  payout_silver: number | null
   status: 'pending' | 'approved' | 'rejected'
   admin_notes: string | null
   created_at: string
@@ -432,7 +434,7 @@ async function fetchMemberDetail(discordId: string): Promise<{
       db
         .from('regear_requests')
         .select(
-          'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, status, admin_notes, created_at, resolved_at, handled_by_username, events(title)',
+          'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, status, admin_notes, created_at, resolved_at, handled_by_username, events(title)',
         )
         .eq('discord_id', discordId)
         .order('created_at', { ascending: false }),
@@ -584,6 +586,7 @@ async function fetchMemberDetail(discordId: string): Promise<{
         silver: row.silver,
         request_type: (row.request_type ?? 'death') as RegearType,
         claimed_silver: row.claimed_silver,
+        payout_silver: row.payout_silver ?? null,
         status: row.status as MemberRegearEntry['status'],
         admin_notes: row.admin_notes,
         created_at: row.created_at,
