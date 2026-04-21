@@ -40,6 +40,7 @@ interface NavItem {
 const MEMBER_NAV: NavItem[] = [
   { href: '/', labelKey: 'events', icon: CalendarDays },
   { href: '/regear', labelKey: 'regearRequest', icon: ShieldCheck, memberOnly: true },
+  { href: '/shop', labelKey: 'shop', icon: ShoppingBag },
   { href: '/members', labelKey: 'members', icon: Users },
   { href: '/archive', labelKey: 'archive', icon: Archive },
   { href: '/me', labelKey: 'myWallet', icon: Wallet, exact: true, memberOnly: true },
@@ -280,7 +281,7 @@ interface ResolvedNavItem extends NavItem {
 function badgeCountFor(href: string, badges: AdminBadgeCounts | null): number {
   if (!badges) return 0
   if (href === '/admin/dashboard/approvals') {
-    return badges.regear + badges.exchange + badges.donation
+    return badges.regear + badges.exchange + badges.donation + badges.shop
   }
   return 0
 }

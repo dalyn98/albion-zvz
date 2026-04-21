@@ -283,3 +283,192 @@ export async function removeNameOverride(itemName: string): Promise<{ error?: st
     return { error: e instanceof Error ? e.message : 'Server error' }
   }
 }
+
+// ============ 주문 승인/거절 ============
+
+export interface AdminShopOrder {
+  id: string
+  discordId: string
+  username: string
+  totalPoints: number
+  balance: number
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+  memberNote: string | null
+  adminNote: string | null
+  createdAt: string
+  resolvedAt: string | null
+  resolvedBy: string | null
+  items: Array<{
+    nameKo: string
+    uniqueName: string
+    enchant: number
+    quality: number
+    quantity: number
+    unitPoints: number
+    subtotalPoints: number
+    stockAvailable: number
+  }>
+}
+
+export interface ListShopOrdersResult {
+  orders: AdminShopOrder[]
+  error?: string
+}
+
+export async function listShopOrders(
+  scope: 'pending' | 'all' = 'pending',
+): Promise<ListShopOrdersResult> {
+  try {
+    const db = await requireAdmin()
+    const q = db
+      .from('shop_orders')
+      .select(
+        'id, discord_id, username, total_points, status, member_note, admin_note, created_at, resolved_at, resolved_by',
+      )
+      .order('created_at', { ascending: false })
+      .limit(200)
+    const { data: orders, error } =
+      scope === 'pending' ? await q.eq('status', 'pending') : await q
+    if (error) return { orders: [], error: error.message }
+    if (!orders || orders.length === 0) return { orders: [] }
+
+    const ids = orders.map((o) => o.id as string)
+    const { data: items, error: itemsErr } = await db
+      .from('shop_order_items')
+      .select(
+        'order_id, name_ko, unique_name, enchant, quality, quantity, unit_points, subtotal_points',
+      )
+      .in('order_id', ids)
+    if (itemsErr) return { orders: [], error: itemsErr.message }
+
+    // 재고 확인 — 각 (unique_name, enchant, quality) 조합을 모아 한 번에 조회.
+    const itemKeySet = new Set<string>()
+    for (const it of items ?? []) {
+      itemKeySet.add(`${it.unique_name}|${it.enchant}|${it.quality}`)
+    }
+    const uniqueNames = Array.from(new Set((items ?? []).map((i) => i.unique_name as string)))
+    const { data: invRows } = await db
+      .from('shop_inventory')
+      .select('unique_name, enchant, quality, stock')
+      .in('unique_name', uniqueNames)
+    const stockByKey = new Map<string, number>()
+    for (const r of invRows ?? []) {
+      stockByKey.set(
+        `${r.unique_name}|${r.enchant}|${r.quality}`,
+        r.stock as number,
+      )
+    }
+
+    // 잔액 — 전부 한 번에.
+    const discordIds = Array.from(new Set(orders.map((o) => o.discord_id as string)))
+    const { data: ledgerRows } = await db
+      .from('point_ledger')
+      .select('discord_id, delta')
+      .in('discord_id', discordIds)
+    const balanceByUser = new Map<string, number>()
+    for (const row of ledgerRows ?? []) {
+      const k = row.discord_id as string
+      balanceByUser.set(k, (balanceByUser.get(k) ?? 0) + (row.delta as number))
+    }
+
+    const itemsByOrder = new Map<string, AdminShopOrder['items']>()
+    for (const it of items ?? []) {
+      const key = it.order_id as string
+      const arr = itemsByOrder.get(key) ?? []
+      arr.push({
+        nameKo: it.name_ko as string,
+        uniqueName: it.unique_name as string,
+        enchant: it.enchant as number,
+        quality: it.quality as number,
+        quantity: it.quantity as number,
+        unitPoints: it.unit_points as number,
+        subtotalPoints: it.subtotal_points as number,
+        stockAvailable:
+          stockByKey.get(`${it.unique_name}|${it.enchant}|${it.quality}`) ?? 0,
+      })
+      itemsByOrder.set(key, arr)
+    }
+
+    return {
+      orders: orders.map((o) => ({
+        id: o.id as string,
+        discordId: o.discord_id as string,
+        username: o.username as string,
+        totalPoints: o.total_points as number,
+        balance: balanceByUser.get(o.discord_id as string) ?? 0,
+        status: o.status as AdminShopOrder['status'],
+        memberNote: (o.member_note as string | null) ?? null,
+        adminNote: (o.admin_note as string | null) ?? null,
+        createdAt: o.created_at as string,
+        resolvedAt: (o.resolved_at as string | null) ?? null,
+        resolvedBy: (o.resolved_by as string | null) ?? null,
+        items: itemsByOrder.get(o.id as string) ?? [],
+      })),
+    }
+  } catch (e) {
+    return { orders: [], error: e instanceof Error ? e.message : 'Server error' }
+  }
+}
+
+export async function approveShopOrder(
+  orderId: string,
+  adminNote?: string,
+): Promise<{ error?: string }> {
+  try {
+    const session = await getSession()
+    if (!session?.isAdmin) return { error: 'Unauthorized' }
+    const db = await requireAdmin()
+    const { error } = await db.rpc('approve_shop_order', {
+      p_id: orderId,
+      p_admin_id: session.discordId,
+      p_admin_note: adminNote?.trim() || null,
+    })
+    if (error) {
+      // RPC raise exception 메시지를 사용자 친화 문구로.
+      if (error.message.includes('INSUFFICIENT_BALANCE')) {
+        return { error: '포인트가 부족합니다.' }
+      }
+      if (error.message.includes('INSUFFICIENT_STOCK')) {
+        return { error: '재고가 부족합니다. 재고를 보충하거나 주문을 거절하세요.' }
+      }
+      if (error.message.includes('ORDER_NOT_PENDING')) {
+        return { error: '이미 처리된 주문입니다.' }
+      }
+      return { error: error.message }
+    }
+    revalidatePath('/admin/dashboard/approvals')
+    revalidatePath('/admin/dashboard/shop')
+    revalidatePath('/shop')
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Server error' }
+  }
+}
+
+export async function rejectShopOrder(
+  orderId: string,
+  adminNote?: string,
+): Promise<{ error?: string }> {
+  try {
+    const session = await getSession()
+    if (!session?.isAdmin) return { error: 'Unauthorized' }
+    const db = await requireAdmin()
+    const { error } = await db.rpc('reject_shop_order', {
+      p_id: orderId,
+      p_admin_id: session.discordId,
+      p_admin_note: adminNote?.trim() || null,
+    })
+    if (error) {
+      if (error.message.includes('ORDER_NOT_PENDING')) {
+        return { error: '이미 처리된 주문입니다.' }
+      }
+      return { error: error.message }
+    }
+    revalidatePath('/admin/dashboard/approvals')
+    revalidatePath('/admin/dashboard/shop')
+    revalidatePath('/shop')
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Server error' }
+  }
+}

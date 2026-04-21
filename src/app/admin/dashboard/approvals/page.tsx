@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ShieldCheck, Wallet, Gift } from 'lucide-react'
+import { ShieldCheck, Wallet, Gift, ShoppingBag } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import {
   listRegearRequests,
@@ -7,13 +7,15 @@ import {
   getRegearPayoutRatePercent,
 } from '@/app/actions/regear-admin'
 import { listDonationRequests } from '@/app/actions/donation-admin'
+import { listShopOrders } from '@/app/actions/shop-admin'
 import RegearReviewList from '@/components/RegearReviewList'
 import ExchangeReviewList from '@/components/ExchangeReviewList'
 import DonationReviewList from '@/components/DonationReviewList'
+import ShopOrderReviewList from '@/components/ShopOrderReviewList'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 import { getAdminBadgeCounts } from '@/lib/admin-badges'
 
-type TypeKey = 'regear' | 'exchange' | 'donation'
+type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop'
 type Scope = 'pending' | 'all'
 
 interface SearchParams {
@@ -22,7 +24,8 @@ interface SearchParams {
 }
 
 function resolveType(v: string | undefined): TypeKey {
-  return v === 'exchange' || v === 'donation' ? v : 'regear'
+  if (v === 'exchange' || v === 'donation' || v === 'shop') return v
+  return 'regear'
 }
 
 function resolveScope(v: string | undefined): Scope {
@@ -49,6 +52,7 @@ export default async function ApprovalsPage({
     { key: 'regear', label: tApprovals('tabRegear'), icon: ShieldCheck, badge: badges.regear },
     { key: 'exchange', label: tApprovals('tabExchange'), icon: Wallet, badge: badges.exchange },
     { key: 'donation', label: tApprovals('tabDonation'), icon: Gift, badge: badges.donation },
+    { key: 'shop', label: '상점 주문', icon: ShoppingBag, badge: badges.shop },
   ]
 
   return (
@@ -63,6 +67,7 @@ export default async function ApprovalsPage({
       {type === 'regear' && <RegearSection scope={scope} />}
       {type === 'exchange' && <ExchangeSection scope={scope} />}
       {type === 'donation' && <DonationSection scope={scope} />}
+      {type === 'shop' && <ShopSection scope={scope} />}
     </div>
   )
 }
@@ -224,6 +229,35 @@ async function ExchangeSection({ scope }: { scope: Scope }) {
         </p>
       ) : (
         <ExchangeReviewList requests={requests} avatars={avatars} />
+      )}
+    </div>
+  )
+}
+
+async function ShopSection({ scope }: { scope: Scope }) {
+  const { orders, error } = await listShopOrders(scope)
+  const avatarMap = await getAvatarsByDiscordIds(orders.map((o) => o.discordId))
+  const avatars = Object.fromEntries(avatarMap)
+
+  return (
+    <div className="space-y-4">
+      <ScopeTabs
+        baseHref="/admin/dashboard/approvals?tab=shop"
+        active={scope}
+        tKeys={{ pending: '대기중', all: '전체' }}
+        accent="amber"
+      />
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+          <p className="text-red-400 text-sm">{error}</p>
+        </div>
+      )}
+      {orders.length === 0 && !error ? (
+        <p className="text-gray-500 text-sm text-center py-8">
+          {scope === 'pending' ? '대기중인 주문이 없습니다.' : '주문 내역이 없습니다.'}
+        </p>
+      ) : (
+        <ShopOrderReviewList orders={orders} avatars={avatars} />
       )}
     </div>
   )
