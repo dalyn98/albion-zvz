@@ -10,6 +10,7 @@ import {
 import { getSession } from '@/lib/session'
 import { sendEventNotification } from '@/lib/discord'
 import { getAppSetting } from '@/lib/app-settings'
+import { ensureBattleForEvent } from '@/lib/battle-snapshot'
 import type { BombSquadKind, SlotKey, SlotSpells, GearOption, GearSpec, GearSpecs } from '@/types'
 import {
   BOMB_SQUAD_KINDS,
@@ -260,6 +261,14 @@ export async function startBattle(id: string): Promise<{ startedAt?: string; err
       .update({ battle_started_at: startedAt })
       .eq('id', id)
     if (error) return { error: error.message }
+    // 킬로그 스냅샷 수집 윈도우 생성. 실패해도 이벤트 시작은 그대로 성공 처리.
+    const windowHoursRaw = await getAppSetting('battle_window_hours', '3')
+    const windowHours = Number(windowHoursRaw) || 3
+    try {
+      await ensureBattleForEvent(db, id, startedAt, windowHours)
+    } catch (battleErr) {
+      console.error('[startBattle] ensureBattleForEvent failed:', battleErr)
+    }
     revalidatePath(`/admin/dashboard/events/${id}`)
     revalidatePath(`/events/${id}`)
     return { startedAt }
@@ -274,6 +283,8 @@ export async function resetBattleStart(id: string): Promise<{ error?: string }> 
     const db = await requireEventCreatorForEvent(id)
     const { error } = await db.from('events').update({ battle_started_at: null }).eq('id', id)
     if (error) return { error: error.message }
+    // 재시작 시 깨끗한 윈도우를 위해 기존 배틀 행 제거 (cascade 로 스냅샷/참여 길드도 정리).
+    await db.from('battles').delete().eq('event_id', id)
     revalidatePath(`/admin/dashboard/events/${id}`)
     revalidatePath(`/events/${id}`)
     return {}

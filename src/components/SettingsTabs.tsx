@@ -18,6 +18,7 @@ import AlbionServerForm, { type AlbionServer } from './AlbionServerForm'
 import AodpSettingsForm from './AodpSettingsForm'
 import AutoRegearToggleForm from './AutoRegearToggleForm'
 import CdBadgeRolesForm from './CdBadgeRolesForm'
+import BattleThresholdsForm from './BattleThresholdsForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
 import type { SlotRole } from '@/types'
 
@@ -77,6 +78,9 @@ interface Props {
   aodpMinQuality: 1 | 2 | 3 | 4 | 5
   autoRegearEnabled: boolean
   cdBadgeRoles: SlotRole[]
+  battleWindowHours: number
+  battleMinTotalPlayers: number
+  battleMinGuildPlayers: number
   origin: string
 }
 
@@ -114,6 +118,9 @@ export default function SettingsTabs({
   aodpMinQuality,
   autoRegearEnabled,
   cdBadgeRoles,
+  battleWindowHours,
+  battleMinTotalPlayers,
+  battleMinGuildPlayers,
   origin,
 }: Props) {
   const t = useTranslations('adminSettings')
@@ -213,6 +220,11 @@ export default function SettingsTabs({
             <AutoRegearToggleForm initialEnabled={autoRegearEnabled} />
             <EventAutoStartForm initialEnabled={eventsAutoStartEnabled} />
             <CdBadgeRolesForm initialRoles={cdBadgeRoles} />
+            <BattleThresholdsForm
+              initialWindowHours={battleWindowHours}
+              initialMinTotalPlayers={battleMinTotalPlayers}
+              initialMinGuildPlayers={battleMinGuildPlayers}
+            />
           </div>
         )}
         {active === 'notices' && (

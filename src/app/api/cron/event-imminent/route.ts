@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { isDiscordDmConfigured, sendDiscordDmsToUsers } from '@/lib/discord-dm'
 import { getAppSetting } from '@/lib/app-settings'
+import { ensureBattleForEvent } from '@/lib/battle-snapshot'
 
 // 이벤트 집결 시간이 다가오면 파티에 편성된 멤버들에게 Discord DM 을 보낸다.
 //
@@ -64,6 +65,8 @@ export async function GET(request: Request) {
   const autoStartResults: Array<{ event_id: string; battle_started_at: string }> = []
   if (autoStartEnabled) {
     const autoStartFloor = new Date(now.getTime() - AUTO_START_LOOKBACK_MIN * 60 * 1000).toISOString()
+    const windowHoursRaw = await getAppSetting('battle_window_hours', '3')
+    const windowHours = Number(windowHoursRaw) || 3
     const { data: pending, error: pendingError } = await db
       .from('events')
       .select('id, gather_at')
@@ -84,6 +87,11 @@ export async function GET(request: Request) {
         if (updateError) {
           console.error('[cron/event-imminent] auto-start update failed:', updateError.message)
           continue
+        }
+        try {
+          await ensureBattleForEvent(db, row.id as string, gatherAt, windowHours)
+        } catch (battleErr) {
+          console.error('[cron/event-imminent] ensureBattleForEvent failed:', battleErr)
         }
         autoStartResults.push({ event_id: row.id, battle_started_at: gatherAt })
       }

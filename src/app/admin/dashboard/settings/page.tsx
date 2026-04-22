@@ -32,6 +32,9 @@ export default async function SettingsPage() {
     aodpMinQualityRaw,
     autoRegearEnabledRaw,
     cdBadgeRolesRaw,
+    battleWindowHoursRaw,
+    battleMinTotalPlayersRaw,
+    battleMinGuildPlayersRaw,
     { rewards, error: rewardsError },
     tLanding,
     t,
@@ -54,6 +57,9 @@ export default async function SettingsPage() {
     getAppSetting('aodp_min_quality', '1'),
     getAppSetting('auto_regear_enabled', 'false'),
     getAppSetting('cd_badge_roles', '["Dps"]'),
+    getAppSetting('battle_window_hours', '3'),
+    getAppSetting('battle_min_total_players', '30'),
+    getAppSetting('battle_min_guild_players', '5'),
     listRoleRewards(),
     getTranslations('landing'),
     getTranslations('adminSettings'),
@@ -150,6 +156,16 @@ export default async function SettingsPage() {
     // 손상된 값 — 기본값으로 degrade.
   }
 
+  const parseIntegerInRange = (raw: string, fallback: number, min: number, max: number): number => {
+    const parsed = Number(raw)
+    return Number.isFinite(parsed) && Number.isInteger(parsed) && parsed >= min && parsed <= max
+      ? parsed
+      : fallback
+  }
+  const battleWindowHours = parseIntegerInRange(battleWindowHoursRaw, 3, 1, 6)
+  const battleMinTotalPlayers = parseIntegerInRange(battleMinTotalPlayersRaw, 30, 10, 200)
+  const battleMinGuildPlayers = parseIntegerInRange(battleMinGuildPlayersRaw, 5, 1, 20)
+
   // Prefer the deployed public URL so the invite link we show to the admin
   // matches what recipients will actually visit.
   const origin = (process.env.APP_URL ?? '').replace(/\/$/, '')
@@ -183,6 +199,9 @@ export default async function SettingsPage() {
         aodpMinQuality={aodpMinQuality}
         autoRegearEnabled={autoRegearEnabled}
         cdBadgeRoles={cdBadgeRoles}
+        battleWindowHours={battleWindowHours}
+        battleMinTotalPlayers={battleMinTotalPlayers}
+        battleMinGuildPlayers={battleMinGuildPlayers}
         origin={origin}
       />
     </div>

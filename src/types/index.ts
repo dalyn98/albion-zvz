@@ -391,3 +391,35 @@ export function getRoleStyle(role: string | null | undefined): SlotRoleStyle | n
   if (!role) return null
   return SLOT_ROLE_STYLES[role as SlotRole] ?? null
 }
+
+// 배틀 집계 스키마 (migration 054). 'pending' 은 윈도우 미종료,
+// 'excluded' 는 최소 인원 미달, 'error' 는 집계 중 오류.
+export type BattleOutcome = 'pending' | 'win' | 'loss' | 'draw' | 'excluded' | 'error'
+
+export type BattleParticipantOutcomeRole = 'winner' | 'loser' | 'draw' | 'ineligible'
+
+export interface Battle {
+  id: string
+  event_id: string
+  window_start: string
+  window_end: string
+  total_players: number
+  outcome: BattleOutcome
+  exclude_reason: string | null
+  snapshot_fetched_at: string | null
+  aggregated_at: string | null
+  created_at: string
+}
+
+export interface BattleParticipant {
+  battle_id: string
+  guild_name: string
+  player_count: number
+  kills: number
+  deaths: number
+  fame_gained: number
+  fame_lost: number
+  fame_delta: number
+  is_own_guild: boolean
+  outcome_role: BattleParticipantOutcomeRole | null
+}
