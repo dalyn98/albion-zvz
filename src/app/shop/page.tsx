@@ -4,6 +4,7 @@ import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import { computePointPrice, parseSilverToPointRate } from '@/lib/shop/price'
+import { categoryRank } from '@/lib/shop/category-order'
 import { getMyPointBalance, listMyShopOrders } from '@/app/actions/shop-member'
 import ShopCatalog, { type CatalogItem } from '@/components/ShopCatalog'
 import ShopMyOrders from '@/components/ShopMyOrders'
@@ -20,7 +21,7 @@ export default async function PublicShopPage() {
     db
       .from('shop_inventory')
       .select(
-        'id, unique_name, enchant, quality, stock, name_ko, tier, manual_price, auto_price_silver',
+        'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver',
       )
       .gt('stock', 0)
       .order('name_ko', { ascending: true })
@@ -29,6 +30,8 @@ export default async function PublicShopPage() {
 
   const rate = parseSilverToPointRate(silverRateSetting)
 
+  // 가격 계산 후 카테고리 → 이름 순으로 안정 정렬. DB 가 name_ko asc 로 반환하므로
+  // 카테고리 랭크만 비교하면 동일 카테고리 내 이름순이 자동 유지된다.
   const items: CatalogItem[] = []
   for (const r of invRows ?? []) {
     const price = computePointPrice({
@@ -44,10 +47,12 @@ export default async function PublicShopPage() {
       quality: r.quality as number,
       stock: r.stock as number,
       nameKo: r.name_ko as string,
+      category: (r.category as string | null) ?? null,
       tier: (r.tier as number | null) ?? null,
       pointPrice: price,
     })
   }
+  items.sort((a, b) => categoryRank(a.category) - categoryRank(b.category))
 
   const balance = session ? await getMyPointBalance() : 0
   const orders = session ? await listMyShopOrders(20) : []

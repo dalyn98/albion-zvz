@@ -22,6 +22,7 @@ export interface CatalogItem {
   quality: number
   stock: number
   nameKo: string
+  category: string | null
   tier: number | null
   pointPrice: number
 }

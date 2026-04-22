@@ -9,6 +9,7 @@ import NoticeSettingForm, { NOTICE_MAX_LENGTH } from '@/components/NoticeSetting
 import AodpSettingsForm from '@/components/AodpSettingsForm'
 import { parseSilverToPointRate } from '@/lib/shop/price'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
+import { categoryRank } from '@/lib/shop/category-order'
 
 export const dynamic = 'force-dynamic'
 
@@ -76,21 +77,25 @@ export default async function AdminShopPage() {
       : 1
 
   const rate = parseSilverToPointRate(silverToPointRate)
-  const inventoryRows: InventoryRow[] = (inventory ?? []).map((r) => ({
-    id: r.id as string,
-    uniqueName: r.unique_name as string,
-    enchant: r.enchant as number,
-    quality: r.quality as number,
-    stock: r.stock as number,
-    nameKo: r.name_ko as string,
-    category: (r.category as string | null) ?? null,
-    tier: (r.tier as number | null) ?? null,
-    manualPrice: (r.manual_price as number | null) ?? null,
-    autoPriceSilver: (r.auto_price_silver as number | null) ?? null,
-    priceSource: (r.price_source as string | null) ?? null,
-    priceUpdatedAt: (r.price_updated_at as string | null) ?? null,
-    updatedAt: r.updated_at as string,
-  }))
+  // DB 가 name_ko asc 로 반환 → stable sort 로 카테고리만 재정렬하면
+  // (카테고리 랭크, 이름) 순이 된다.
+  const inventoryRows: InventoryRow[] = (inventory ?? [])
+    .map((r) => ({
+      id: r.id as string,
+      uniqueName: r.unique_name as string,
+      enchant: r.enchant as number,
+      quality: r.quality as number,
+      stock: r.stock as number,
+      nameKo: r.name_ko as string,
+      category: (r.category as string | null) ?? null,
+      tier: (r.tier as number | null) ?? null,
+      manualPrice: (r.manual_price as number | null) ?? null,
+      autoPriceSilver: (r.auto_price_silver as number | null) ?? null,
+      priceSource: (r.price_source as string | null) ?? null,
+      priceUpdatedAt: (r.price_updated_at as string | null) ?? null,
+      updatedAt: r.updated_at as string,
+    }))
+    .sort((a, b) => categoryRank(a.category) - categoryRank(b.category))
 
   return (
     <div className="space-y-6">
