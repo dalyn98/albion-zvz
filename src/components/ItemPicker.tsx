@@ -12,13 +12,14 @@ import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 interface Props {
   label: string
   category?: string
+  tier?: number
   itemName: string | null
   itemId: string | null
   onChange: (name: string, id: string) => void
   onClear: () => void
 }
 
-export default function ItemPicker({ label, category, itemName, itemId, onChange, onClear }: Props) {
+export default function ItemPicker({ label, category, tier, itemName, itemId, onChange, onClear }: Props) {
   const t = useTranslations('picker')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
@@ -51,6 +52,7 @@ export default function ItemPicker({ label, category, itemName, itemId, onChange
       try {
         const params = new URLSearchParams({ q: value })
         if (category) params.set('category', category)
+        if (tier != null) params.set('tier', String(tier))
         const res = await fetch(`/api/items/search?${params.toString()}`)
         const data = await res.json()
         setResults(Array.isArray(data) ? data : [])

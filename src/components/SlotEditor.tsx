@@ -27,6 +27,7 @@ import {
   isFreeItem,
   isTierlessSlot,
   isSpecLessSlot,
+  isT8OnlySlot,
 } from '@/types'
 
 export type GearMode = 'single' | 'multi' | 'free'
@@ -153,7 +154,12 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, onCha
   }, [])
 
   const updateItem = (key: SlotKey, name: string, id: string) => {
-    onChange({ ...slot, items: { ...slot.items, [key]: { name, id } } })
+    const idChanged = slot.items[key]?.id !== id
+    onChange({
+      ...slot,
+      items: { ...slot.items, [key]: { name, id } },
+      spells: idChanged ? { ...slot.spells, [key]: [] } : slot.spells,
+    })
   }
 
   const clearItem = (key: SlotKey) => {
@@ -516,6 +522,7 @@ function GearSection({
   // 자기 itemId 로 pool 을 불러오므로 여기선 single 의 singleId 만 반영.
   const singlePickerItemIds = mode === 'single' && singleId ? [singleId] : []
   const category = SLOT_PICKER_CATEGORY[slotKey]
+  const tierFilter = isT8OnlySlot(slotKey) ? 8 : undefined
   return (
     <div className="border border-gray-800 rounded-lg p-3 space-y-2 bg-gray-950/40">
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -578,6 +585,7 @@ function GearSection({
           {options.length < MAX_GEAR_OPTIONS ? (
             <GearOptionPicker
               category={category}
+              tier={tierFilter}
               disabledIds={options.map((o) => o.id)}
               onAdd={onAddOption}
               count={options.length}
@@ -598,6 +606,7 @@ function GearSection({
           <ItemPicker
             label=""
             category={category}
+            tier={tierFilter}
             itemName={singleName}
             itemId={singleId}
             onChange={onSingleChange}
@@ -706,11 +715,13 @@ function TierEnchantPicker({
 
 function GearOptionPicker({
   category,
+  tier,
   disabledIds,
   onAdd,
   count,
 }: {
   category: string
+  tier?: number
   disabledIds: string[]
   onAdd: (name: string, id: string) => void
   count: number
@@ -723,6 +734,7 @@ function GearOptionPicker({
         <ItemPicker
           label=""
           category={category}
+          tier={tier}
           itemName={name || null}
           itemId={id || null}
           onChange={(n, i) => {

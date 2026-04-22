@@ -33,6 +33,8 @@ export function GET(request: NextRequest) {
   // also surface battle mounts. An empty list means no category filter.
   const categoryRaw = request.nextUrl.searchParams.get('category')?.trim().toLowerCase()
   const categories = categoryRaw ? categoryRaw.split(',').map((c) => c.trim()).filter(Boolean) : []
+  const tierRaw = request.nextUrl.searchParams.get('tier')?.trim()
+  const tierPrefix = tierRaw && /^\d+$/.test(tierRaw) ? `t${tierRaw}_` : null
 
   if (!q || q.length < 2) return NextResponse.json([])
 
@@ -40,6 +42,7 @@ export function GET(request: NextRequest) {
   const results: { uniqueName: string; displayName: string }[] = []
   for (const item of ITEMS) {
     if (categories.length && !categories.includes(item.c)) continue
+    if (tierPrefix && !item.u.toLowerCase().startsWith(tierPrefix)) continue
     // Match across EN + KO + JA so a ko user searching an EN/JA name still
     // hits, and vice versa. Display name follows the active locale.
     if (!item.e.includes(q) && !item.k.includes(q) && !item.j.includes(q)) continue

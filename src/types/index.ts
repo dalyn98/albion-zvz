@@ -270,6 +270,15 @@ export function isSpecLessSlot(key: SlotKey): boolean {
   return SPEC_LESS_SLOT_KEYS.includes(key)
 }
 
+// Event editor restricts gear pickers to T8 (Elder's) only — ZvZ compositions
+// never call for lower-tier gear. Consumables (food/potion) and mounts keep
+// the full tier range so admins can still prescribe cheaper alternatives.
+export const T8_ONLY_SLOT_KEYS: readonly SlotKey[] = ['weapon', 'head', 'armor', 'shoes', 'offhand', 'cape']
+
+export function isT8OnlySlot(key: SlotKey): boolean {
+  return T8_ONLY_SLOT_KEYS.includes(key)
+}
+
 // Role-dependent primary gear. For BM (battle mount) role the mount is the
 // main weapon — everything else (spell panel, card preview) should pivot
 // around mount instead of weapon for that role.
