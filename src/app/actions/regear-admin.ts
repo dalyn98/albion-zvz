@@ -8,6 +8,7 @@ import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { formatSilver } from '@/lib/silver'
 import { getAppSetting } from '@/lib/app-settings'
 import { calcPayoutSilver } from '@/lib/regear-payout'
+import { verifyDeathInWindow } from '@/lib/killboard'
 import type { BuildSnapshot, RegearType } from '@/types'
 
 const DEFAULT_PAYOUT_RATE_PERCENT = 100
@@ -213,6 +214,75 @@ export async function approveRegearRequest(
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+// 제출 시점엔 Albion API 가 아직 사망을 인덱싱하지 않아 killboard_verified 가
+// false 로 굳는 경우가 흔하다 (API 지연 ~30분). 관리자가 시간 지난 뒤 이 액션을
+// 눌러 최신 결과로 다시 채워넣을 수 있게 한다. pending 상태만 재확인 허용 —
+// 이미 처리된 행은 감사 로그처럼 당시 상태를 보존.
+export interface RecheckKillboardResult {
+  killboard_verified: boolean
+  killboard_event_id: number | null
+  admin_notes: string | null
+  error?: string
+}
+
+export async function recheckKillboardVerification(
+  id: string,
+): Promise<RecheckKillboardResult> {
+  const tErr = await getTranslations('adminActionError')
+  const empty: RecheckKillboardResult = {
+    killboard_verified: false,
+    killboard_event_id: null,
+    admin_notes: null,
+  }
+  try {
+    const db = await requireAdmin()
+    const { data: row, error: fetchError } = await db
+      .from('regear_requests')
+      .select('username, status, event_id, events(battle_started_at)')
+      .eq('id', id)
+      .maybeSingle()
+    if (fetchError) return { ...empty, error: fetchError.message }
+    if (!row) return { ...empty, error: tErr('requestNotFound') }
+    if (row.status !== 'pending') return { ...empty, error: tErr('alreadyHandled') }
+
+    const event = row.events as
+      | { battle_started_at: string | null }
+      | { battle_started_at: string | null }[]
+      | null
+    const battleStartedAt = Array.isArray(event)
+      ? event[0]?.battle_started_at ?? null
+      : event?.battle_started_at ?? null
+    if (!battleStartedAt) return { ...empty, error: tErr('battleNotStarted') }
+
+    const result = await verifyDeathInWindow(
+      row.username as string,
+      battleStartedAt,
+      new Date().toISOString(),
+    )
+
+    const { error: updateError } = await db
+      .from('regear_requests')
+      .update({
+        killboard_verified: result.verified,
+        killboard_event_id: result.matchedEventId,
+        admin_notes: result.reason,
+      })
+      .eq('id', id)
+      .eq('status', 'pending')
+    if (updateError) return { ...empty, error: updateError.message }
+
+    revalidatePath('/admin/dashboard/regear')
+    revalidatePath('/admin/dashboard/approvals')
+    return {
+      killboard_verified: result.verified,
+      killboard_event_id: result.matchedEventId,
+      admin_notes: result.reason,
+    }
+  } catch (e) {
+    return { ...empty, error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
 

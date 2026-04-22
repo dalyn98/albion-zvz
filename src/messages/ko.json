@@ -153,6 +153,9 @@
     "cap": "상한 {amount}",
     "killboardVerified": "킬보드 확인됨",
     "killboardNotVerified": "킬보드 미확인",
+    "killboardDelayHint": "Albion 킬보드는 사망 기록 반영에 ~30분 걸립니다. 시간이 지난 뒤 재확인을 눌러보세요.",
+    "recheckKillboard": "재확인",
+    "recheckingKillboard": "재확인 중...",
     "screenshotAlt": "리기어 스크린샷",
     "zoom": "확대",
     "collapseScreenshot": "스크린샷 접기",
@@ -980,6 +983,7 @@
     "roleRewardDuplicate": "이미 같은 역할이 존재합니다.",
     "reasonRequired": "조정 사유를 입력해주세요.",
     "alreadyHandled": "이미 처리된 신청입니다.",
+    "battleNotStarted": "전투 시작 시간이 설정되지 않았습니다.",
     "insufficientBalanceForExchange": "신청자의 잔액이 부족합니다. 거절로 처리해 주세요.",
     "nonNegativeInteger": "0 이상의 정수를 입력해 주세요.",
     "deletedEvent": "(삭제된 이벤트)",
@@ -1069,7 +1073,9 @@
     "slotKicked": "슬롯에서 내보냈어요.",
     "settingsSaved": "저장했어요.",
     "genericError": "문제가 발생했어요.",
-    "eventDuplicated": "이벤트를 복제했어요."
+    "eventDuplicated": "이벤트를 복제했어요.",
+    "killboardVerifiedNow": "킬보드에서 사망 기록을 찾았어요.",
+    "killboardStillNotVerified": "아직 킬보드에 반영되지 않았습니다. 잠시 후 다시 시도해 주세요."
   },
   "discordDm": {
     "title": "디스코드 DM 알림",

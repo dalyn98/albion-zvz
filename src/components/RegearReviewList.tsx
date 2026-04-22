@@ -3,11 +3,12 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Check, X, ShieldCheck, ShieldAlert, ImageIcon, Loader2, ZoomIn, ChevronUp, ChevronRight, Swords } from 'lucide-react'
+import { Check, X, ShieldCheck, ShieldAlert, ImageIcon, Loader2, ZoomIn, ChevronUp, ChevronRight, Swords, RotateCw } from 'lucide-react'
 import {
   approveRegearRequest,
   rejectRegearRequest,
   getScreenshotUrl,
+  recheckKillboardVerification,
   type AdminRegearRequest,
 } from '@/app/actions/regear-admin'
 import { formatSilver } from '@/lib/silver'
@@ -216,6 +217,7 @@ function RegearRow({
   const tToast = useTranslations('toast')
   const toast = useToast()
   const [pending, startTransition] = useTransition()
+  const [rechecking, setRechecking] = useState(false)
   const [error, setError] = useState('')
   const [rejectMode, setRejectMode] = useState(false)
   const [rejectNotes, setRejectNotes] = useState('')
@@ -285,6 +287,24 @@ function RegearRow({
     approve(n)
   }
 
+  const recheckKillboard = async () => {
+    if (rechecking) return
+    setError('')
+    setRechecking(true)
+    const result = await recheckKillboardVerification(request.id)
+    setRechecking(false)
+    if (result.error) {
+      setError(result.error)
+      return
+    }
+    if (result.killboard_verified) {
+      toast.success(tToast('killboardVerifiedNow'))
+    } else {
+      toast.info(tToast('killboardStillNotVerified'))
+    }
+    router.refresh()
+  }
+
   const reject = () => {
     setError('')
     startTransition(async () => {
@@ -331,18 +351,40 @@ function RegearRow({
         </span>
       </div>
 
-      <div className="flex items-center gap-2 text-xs">
-        {request.killboard_verified ? (
-          <span className="flex items-center gap-1 text-green-400">
-            <ShieldCheck size={13} /> {t('killboardVerified')}
-            {request.killboard_event_id && (
-              <span className="font-mono text-gray-500">#{request.killboard_event_id}</span>
-            )}
-          </span>
-        ) : (
-          <span className="flex items-center gap-1 text-yellow-400">
-            <ShieldAlert size={13} /> {t('killboardNotVerified')}
-          </span>
+      <div className="flex flex-col gap-1 text-xs">
+        <div className="flex items-center gap-2 flex-wrap">
+          {request.killboard_verified ? (
+            <span className="flex items-center gap-1 text-green-400">
+              <ShieldCheck size={13} /> {t('killboardVerified')}
+              {request.killboard_event_id && (
+                <span className="font-mono text-gray-500">#{request.killboard_event_id}</span>
+              )}
+            </span>
+          ) : (
+            <>
+              <span className="flex items-center gap-1 text-yellow-400">
+                <ShieldAlert size={13} /> {t('killboardNotVerified')}
+              </span>
+              {request.status === 'pending' && (
+                <button
+                  type="button"
+                  onClick={recheckKillboard}
+                  disabled={rechecking || pending}
+                  className="flex items-center gap-1 text-[11px] bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-2 py-0.5 rounded disabled:opacity-50"
+                >
+                  {rechecking ? (
+                    <Loader2 size={11} className="animate-spin" />
+                  ) : (
+                    <RotateCw size={11} />
+                  )}
+                  {rechecking ? t('recheckingKillboard') : t('recheckKillboard')}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+        {!request.killboard_verified && request.status === 'pending' && (
+          <p className="text-[11px] text-gray-500">{t('killboardDelayHint')}</p>
         )}
       </div>
 

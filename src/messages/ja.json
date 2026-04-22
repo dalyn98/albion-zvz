@@ -153,6 +153,9 @@
     "cap": "上限 {amount}",
     "killboardVerified": "キルボード確認済み",
     "killboardNotVerified": "キルボード未確認",
+    "killboardDelayHint": "Albion のキルボードは死亡記録の反映に約 30 分かかります。時間をおいてから「再確認」を押してください。",
+    "recheckKillboard": "再確認",
+    "recheckingKillboard": "再確認中...",
     "screenshotAlt": "リギアスクリーンショット",
     "zoom": "拡大",
     "collapseScreenshot": "スクリーンショットを畳む",
@@ -978,6 +981,7 @@
     "roleRewardDuplicate": "同じロールが既に存在します。",
     "reasonRequired": "調整理由を入力してください。",
     "alreadyHandled": "すでに処理された申請です。",
+    "battleNotStarted": "戦闘開始時刻が設定されていません。",
     "insufficientBalanceForExchange": "申請者の残高が不足しています。却下で処理してください。",
     "nonNegativeInteger": "0 以上の整数を入力してください。",
     "deletedEvent": "(削除されたイベント)",
@@ -1069,7 +1073,9 @@
     "slotKicked": "スロットから外しました。",
     "settingsSaved": "保存しました。",
     "genericError": "問題が発生しました。",
-    "eventDuplicated": "イベントを複製しました。"
+    "eventDuplicated": "イベントを複製しました。",
+    "killboardVerifiedNow": "キルボードで死亡記録を確認しました。",
+    "killboardStillNotVerified": "キルボードにまだ反映されていません。しばらくしてから再試行してください。"
   },
   "discordDm": {
     "title": "Discord DM通知",

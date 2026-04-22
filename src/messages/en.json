@@ -1069,7 +1069,9 @@
     "slotKicked": "Removed from the slot.",
     "settingsSaved": "Saved.",
     "genericError": "Something went wrong.",
-    "eventDuplicated": "Event duplicated."
+    "eventDuplicated": "Event duplicated.",
+    "killboardVerifiedNow": "Death record found on killboard.",
+    "killboardStillNotVerified": "Not indexed on the killboard yet. Try again later."
   },
   "discordDm": {
     "title": "Discord DM notifications",
