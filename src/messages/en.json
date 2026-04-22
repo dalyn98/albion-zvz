@@ -728,7 +728,11 @@
     "buttonWindowPending": "Waiting for killboard (opens {opensAt})",
     "buttonRequestRemaining": "Regear ({remaining} left)",
     "deathsRemaining": "Remaining",
-    "deathsRemainingValue": "{remaining}/{max}"
+    "deathsRemainingValue": "{remaining}/{max}",
+    "entryLabel": "Death #{n}",
+    "addEntry": "Add death",
+    "removeEntry": "Remove",
+    "multiHint": "Submit up to {max} deaths in one request."
   },
   "donation": {
     "openButton": "Submit donation",
@@ -1053,6 +1057,8 @@
   },
   "toast": {
     "regearSubmitted": "Regear request submitted.",
+    "regearSubmittedMulti": "{count} regear requests submitted.",
+    "regearSubmittedPartial": "Only {success} of {total} submitted. Retry the failed ones in the modal.",
     "regearCancelled": "Regear request cancelled.",
     "regearApproved": "Regear request approved.",
     "regearRejected": "Regear request rejected.",

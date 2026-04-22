@@ -731,7 +731,11 @@
     "buttonWindowPending": "집계 대기 ({opensAt} 오픈)",
     "buttonRequestRemaining": "리기어 신청 (잔여 {remaining}회)",
     "deathsRemaining": "잔여 신청",
-    "deathsRemainingValue": "{remaining}/{max}회"
+    "deathsRemainingValue": "{remaining}/{max}회",
+    "entryLabel": "데스 #{n}",
+    "addEntry": "데스 추가",
+    "removeEntry": "제거",
+    "multiHint": "한 번에 최대 {max}건까지 묶어서 올릴 수 있어요."
   },
   "donation": {
     "openButton": "기부 신청",
@@ -1057,6 +1061,8 @@
   },
   "toast": {
     "regearSubmitted": "리기어 신청이 접수되었어요.",
+    "regearSubmittedMulti": "{count}건의 리기어 신청을 접수했어요.",
+    "regearSubmittedPartial": "{success}/{total}건만 접수되었어요. 실패한 항목은 모달에서 다시 시도해 주세요.",
     "regearCancelled": "리기어 신청을 취소했어요.",
     "regearApproved": "리기어 신청을 승인했어요.",
     "regearRejected": "리기어 신청을 거절했어요.",
