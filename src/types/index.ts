@@ -153,6 +153,9 @@ export interface Slot {
   // Migration 035: per-slot target tier/enchant the member is expected to
   // bring. Independent of item_id (which is the archetype reference).
   gear_specs: GearSpecs | null
+  // Migration 050: per-slot opt-out for auto-regear. When true, the auto-regear
+  // cron will skip this slot's assignee even if the global toggle is ON.
+  auto_regear_excluded: boolean
   assigned_discord_id: string | null
   assigned_username: string | null
   assigned_weapon_name: string | null;  assigned_weapon_id: string | null

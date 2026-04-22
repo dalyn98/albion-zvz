@@ -80,6 +80,7 @@ function templateToPartyStates(data: TemplateData): PartyState[] {
         is_hidden: false,
         role_name: s.role_name ?? '',
         notes: s.notes ?? '',
+        auto_regear_excluded: false,
         assigned_username: null,
         items: SLOT_KEYS.reduce((acc, k) => ({
           ...acc,
@@ -285,6 +286,7 @@ function PartyPanel({ party, onAddSlot, onUpdateSlot, onDeleteSlot }: PartyPanel
             key={idx}
             slot={slot}
             partyNumber={party.party_number}
+            autoRegearEnabled={false}
             onChange={(updated) => onUpdateSlot(idx, updated)}
             onDelete={() => onDeleteSlot(idx)}
           />

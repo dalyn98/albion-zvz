@@ -64,6 +64,14 @@ export type AppSettingKey =
   // 이 값으로 끌어올려 조회 → "Normal 드랍도 Good 가치로 보정" 같은 정책
   // 구현. 기본 '1' (모든 품질 그대로).
   | 'aodp_min_quality'
+  // Phase 3 자동 리기어 전역 스위치. 'true' 면 이벤트 종료 후 cron 이 killboard
+  // victim 이벤트 → AODP 시세 → 즉시 승인. 빌드별 opt-out 체크박스(slots.
+  // auto_regear_excluded) 도 이 toggle 이 켜져 있을 때만 UI 에 노출.
+  | 'auto_regear_enabled'
+  // 마지막 auto-regear cron 성공 시각(ISO). killboard-sync 와 유사한 throttle
+  // 용이지만 auto-regear 는 "event 별로 1회" idempotent 가 더 강한 gate 라
+  // 이 값은 모니터링/디버깅 용도에 가깝다.
+  | 'last_auto_regear_at'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

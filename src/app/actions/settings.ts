@@ -24,6 +24,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'aodp_cities',
   'aodp_price_mode',
   'aodp_min_quality',
+  'auto_regear_enabled',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -71,6 +72,7 @@ const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
 // Boolean-string keys. Must be exactly 'true' or 'false'.
 const BOOLEAN_KEYS: readonly AppSettingKey[] = [
   'events_auto_start_enabled',
+  'auto_regear_enabled',
 ] as const
 
 // Enum-string keys. Value must be exactly one of the listed members.
@@ -147,6 +149,10 @@ export async function updateAppSetting(
     ) {
       revalidatePath('/admin/dashboard/shop')
       revalidatePath('/shop')
+    }
+    if (key === 'auto_regear_enabled') {
+      // 슬롯 편집기의 opt-out 체크박스 가시성이 이 값에 의존.
+      revalidatePath('/admin/dashboard/events', 'layout')
     }
     return {}
   } catch (e) {

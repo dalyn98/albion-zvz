@@ -46,6 +46,10 @@ export interface SlotInput {
   // "no spec" — the member is free to bring any quality. Serialized to
   // `gear_specs` jsonb at save time.
   specs: Record<SlotKey, GearSpec>
+  // Migration 050: per-slot opt-out for auto-regear. Only persisted to DB
+  // when the global auto_regear_enabled toggle is ON; UI also only exposes
+  // the checkbox in that case.
+  auto_regear_excluded: boolean
   assigned_username: string | null
 }
 
@@ -66,6 +70,7 @@ export function emptySlotInput(slotNumber: number): SlotInput {
     options: emptyPerSlot(() => []),
     spells: emptyPerSlot(() => []),
     specs: emptyPerSlot(() => ({}) as GearSpec),
+    auto_regear_excluded: false,
     assigned_username: null,
   }
 }
@@ -81,11 +86,15 @@ const MAX_GEAR_OPTIONS = 6
 interface Props {
   slot: SlotInput
   partyNumber: number
+  // 전역 auto_regear_enabled 가 ON 일 때만 true. 편집 모달에 "자동 리기어
+  // 제외" 체크박스 노출 여부를 결정하며, OFF 일 땐 슬롯에 이미 저장된 값이
+  // 있어도 UI 로 건드릴 수 없게 감춘다.
+  autoRegearEnabled: boolean
   onChange: (updated: SlotInput) => void
   onDelete: () => void
 }
 
-export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Props) {
+export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, onChange, onDelete }: Props) {
   const t = useTranslations('adminParty')
   const tCommon = useTranslations('common')
   const [open, setOpen] = useState(false)
@@ -365,6 +374,27 @@ export default function SlotEditor({ slot, partyNumber, onChange, onDelete }: Pr
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-base text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 resize-none"
                 />
               </div>
+
+              {autoRegearEnabled && (
+                <label className="flex items-start gap-2 cursor-pointer select-none bg-gray-950/40 border border-gray-800 rounded-lg px-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={slot.auto_regear_excluded}
+                    onChange={(e) =>
+                      onChange({ ...slot, auto_regear_excluded: e.target.checked })
+                    }
+                    className="mt-0.5 h-4 w-4 accent-amber-500"
+                  />
+                  <span>
+                    <span className="text-[12px] text-white font-semibold">
+                      자동 리기어 제외
+                    </span>
+                    <span className="block text-[11px] text-gray-500 mt-0.5">
+                      체크하면 이 빌드에 배정된 멤버는 이벤트 종료 후 자동 리기어 처리에서 제외됩니다.
+                    </span>
+                  </span>
+                </label>
+              )}
 
               <div className="space-y-3">
                 <GearSection

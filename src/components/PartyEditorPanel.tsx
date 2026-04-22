@@ -19,6 +19,7 @@ function slotToInput(s: import('@/types').Slot): SlotInput {
     is_hidden: s.is_hidden,
     role_name: s.role_name ?? '',
     notes: s.notes ?? '',
+    auto_regear_excluded: s.auto_regear_excluded,
     assigned_username: s.assigned_username,
     items: SLOT_KEYS.reduce((acc, k) => ({
       ...acc,
@@ -53,9 +54,18 @@ interface Props {
   partyNumber: number
   initialData: PartyWithSlots | null
   memberDirectory: MemberDirectoryEntry[]
+  // 전역 auto_regear_enabled — SlotEditor 에 그대로 내려 "자동 리기어 제외"
+  // 체크박스 가시성을 제어.
+  autoRegearEnabled: boolean
 }
 
-export default function PartyEditorPanel({ eventId, partyNumber, initialData, memberDirectory }: Props) {
+export default function PartyEditorPanel({
+  eventId,
+  partyNumber,
+  initialData,
+  memberDirectory,
+  autoRegearEnabled,
+}: Props) {
   const t = useTranslations('adminParty')
   const [slots, setSlots] = useState<SlotInput[]>(
     initialData?.slots.map(slotToInput) ?? []
@@ -355,6 +365,7 @@ export default function PartyEditorPanel({ eventId, partyNumber, initialData, me
             <SlotEditor
               slot={slot}
               partyNumber={partyNumber}
+              autoRegearEnabled={autoRegearEnabled}
               onChange={(updated) => updateSlot(idx, updated)}
               onDelete={() => deleteSlot(idx)}
             />

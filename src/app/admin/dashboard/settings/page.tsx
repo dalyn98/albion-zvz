@@ -29,6 +29,7 @@ export default async function SettingsPage() {
     aodpCitiesRaw,
     aodpPriceModeRaw,
     aodpMinQualityRaw,
+    autoRegearEnabledRaw,
     { rewards, error: rewardsError },
     tLanding,
     t,
@@ -49,6 +50,7 @@ export default async function SettingsPage() {
     getAppSetting('aodp_cities', ''),
     getAppSetting('aodp_price_mode', 'spot'),
     getAppSetting('aodp_min_quality', '1'),
+    getAppSetting('auto_regear_enabled', 'false'),
     listRoleRewards(),
     getTranslations('landing'),
     getTranslations('adminSettings'),
@@ -128,6 +130,8 @@ export default async function SettingsPage() {
       ? aodpMinQualityParsed
       : 1
 
+  const autoRegearEnabled = autoRegearEnabledRaw === 'true'
+
   // Prefer the deployed public URL so the invite link we show to the admin
   // matches what recipients will actually visit.
   const origin = (process.env.APP_URL ?? '').replace(/\/$/, '')
@@ -159,6 +163,7 @@ export default async function SettingsPage() {
         aodpCities={aodpCities}
         aodpPriceMode={aodpPriceMode}
         aodpMinQuality={aodpMinQuality}
+        autoRegearEnabled={autoRegearEnabled}
         origin={origin}
       />
     </div>

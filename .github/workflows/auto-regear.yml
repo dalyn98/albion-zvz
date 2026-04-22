@@ -1,0 +1,39 @@
+name: Auto regear
+
+# Phase 3 자동 리기어 cron. 종료된 이벤트를 찾아 killboard victim 기록 →
+# AODP 시세 → regear_requests 자동 생성. 엔드포인트 자체가 멱등이고 전역
+# toggle/이벤트 단위 processed gate 로 중복을 막으므로 5분 간격은 충분히 안전.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: auto-regear
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call cron endpoint
+        env:
+          APP_URL: https://albion-zvz.vercel.app
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set"
+            exit 1
+          fi
+          response=$(curl -sS -w "\n%{http_code}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/auto-regear")
+          body=$(echo "$response" | sed '$d')
+          status=$(echo "$response" | tail -n1)
+          echo "status=$status"
+          echo "body=$body"
+          if [ "$status" != "200" ]; then
+            exit 1
+          fi

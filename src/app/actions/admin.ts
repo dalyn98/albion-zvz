@@ -294,6 +294,9 @@ interface SlotPayload {
   options: Record<SlotKey, GearOption[]>
   spells: SlotSpells
   specs?: Partial<Record<SlotKey, GearSpec>>
+  // Migration 050: per-slot auto-regear opt-out. Optional for compatibility
+  // with template-shaped callers that don't know about this flag yet.
+  auto_regear_excluded?: boolean
 }
 
 // Migration 041: party-level bomb-squad metadata. All fields optional on input
@@ -446,6 +449,7 @@ function slotToRow(partyId: string, slot: SlotPayload) {
     notes: slot.notes.trim() || null,
     spells: sanitizeSpells(slot.spells),
     gear_specs: sanitizeGearSpecs(slot.specs),
+    auto_regear_excluded: slot.auto_regear_excluded === true,
     ...SLOT_KEYS.reduce((acc, k) => {
       const hasOptions = cleanedOptions[k] !== null
       return {

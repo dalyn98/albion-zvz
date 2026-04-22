@@ -12,6 +12,7 @@ import { EventEditSaveProvider } from '@/components/EventEditSaveRegistry'
 import EventEditSaveBar from '@/components/EventEditSaveBar'
 import { listTemplates } from '@/app/actions/templates'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
+import { getAppSetting } from '@/lib/app-settings'
 
 const MAX_PARTIES = 4
 
@@ -68,11 +69,13 @@ export default async function EditEventPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const [{ event, parties, memberDirectory }, { templates }, t] = await Promise.all([
+  const [{ event, parties, memberDirectory }, { templates }, t, autoRegearRaw] = await Promise.all([
     getData(id),
     listTemplates(),
     getTranslations('adminEditEvent'),
+    getAppSetting('auto_regear_enabled', 'false'),
   ])
+  const autoRegearEnabled = autoRegearRaw === 'true'
 
   if (!event) notFound()
 
@@ -128,6 +131,7 @@ export default async function EditEventPage({
                     partyNumber={partyNumber}
                     initialData={party}
                     memberDirectory={memberDirectory}
+                    autoRegearEnabled={autoRegearEnabled}
                   />
                 )
               })}
