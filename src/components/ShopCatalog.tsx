@@ -342,13 +342,14 @@ function ShopTile({
       type="button"
       onClick={onAdd}
       disabled={disabled}
-      title={`${item.nameKo}${item.enchant > 0 ? ` .${item.enchant}` : ''} / ${quality} / ${item.pointPrice.toLocaleString()}p`}
-      className={`group relative aspect-square rounded-md bg-[#1a140c] ring-1 ${ringClass} hover:ring-2 hover:ring-amber-300 transition-all ${
+      title={`${item.nameKo}${item.enchant > 0 ? ` .${item.enchant}` : ''} / ${quality} / ${item.pointPrice.toLocaleString()}p / 재고 ${item.stock.toLocaleString()}`}
+      className={`group relative flex flex-col rounded-md bg-[#1a140c] ring-1 ${ringClass} hover:ring-2 hover:ring-amber-300 transition-all overflow-hidden ${
         disabled ? 'opacity-70 cursor-not-allowed' : ''
       }`}
       style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 2px rgba(0,0,0,0.5)' }}
     >
-      <div className="absolute inset-0 flex items-center justify-center p-1">
+      {/* 아이콘 영역 (정사각형) */}
+      <div className="relative aspect-square">
         <Image
           src={imageUrl(item.uniqueName, item.enchant, item.quality, 96)}
           alt={item.nameKo}
@@ -357,24 +358,33 @@ function ShopTile({
           sizes="100px"
           unoptimized
         />
+
+        {/* 인챈트 (왼쪽 위) */}
+        {item.enchant > 0 && (
+          <span className="absolute top-0.5 left-1 text-[10px] font-bold text-cyan-200 drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+            .{item.enchant}
+          </span>
+        )}
+
+        {/* 재고 (오른쪽 위) — 작은 배지 */}
+        <span className="absolute top-0.5 right-1 text-[10px] font-bold text-white/90 bg-black/60 rounded px-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
+          ×{item.stock.toLocaleString()}
+        </span>
       </div>
 
-      {/* 재고 수량 (오른쪽 아래) */}
-      <span className="absolute bottom-0.5 right-1 text-[11px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-        {item.stock.toLocaleString()}
-      </span>
-
-      {/* 포인트 가격 (왼쪽 위) */}
-      <span className="absolute top-0.5 left-1 text-[10px] font-mono text-amber-300 drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
-        {item.pointPrice.toLocaleString()}p
-      </span>
-
-      {/* 인챈트 인디케이터 (왼쪽 아래) */}
-      {item.enchant > 0 && (
-        <span className="absolute bottom-0.5 left-1 text-[10px] font-bold text-cyan-200 drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
-          .{item.enchant}
-        </span>
-      )}
+      {/* 가격 바 (하단 전체 폭) — 가장 중요한 정보라 크고 선명하게 */}
+      <div
+        className="px-1.5 py-1 text-center border-t border-amber-400/30"
+        style={{
+          background:
+            'linear-gradient(to bottom, rgba(245,158,11,0.18) 0%, rgba(180,83,9,0.28) 100%)',
+        }}
+      >
+        <p className="text-[13px] sm:text-sm font-bold font-mono text-amber-200 leading-tight tracking-tight">
+          {item.pointPrice.toLocaleString()}
+          <span className="text-amber-300/70 text-[10px] ml-0.5">P</span>
+        </p>
+      </div>
 
       {/* 장바구니에 이미 담긴 수량 */}
       {cartQty > 0 && (

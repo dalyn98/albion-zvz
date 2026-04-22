@@ -23,7 +23,6 @@ export default async function PublicShopPage() {
         'id, unique_name, enchant, quality, stock, name_ko, tier, manual_price, auto_price_silver',
       )
       .gt('stock', 0)
-      .order('tier', { ascending: false, nullsFirst: false })
       .order('name_ko', { ascending: true })
       .limit(500),
   ])

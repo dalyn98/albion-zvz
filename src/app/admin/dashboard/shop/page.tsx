@@ -3,38 +3,77 @@ import { requireAdmin } from '@/lib/auth'
 import { getAppSetting } from '@/lib/app-settings'
 import ShopImportForm from '@/components/ShopImportForm'
 import ShopBlacklistEditor from '@/components/ShopBlacklistEditor'
-import ShopNameOverridesEditor from '@/components/ShopNameOverridesEditor'
 import ShopSilverRateForm from '@/components/ShopSilverRateForm'
 import ShopInventoryEditor, { type InventoryRow } from '@/components/ShopInventoryEditor'
 import NoticeSettingForm, { NOTICE_MAX_LENGTH } from '@/components/NoticeSettingForm'
+import AodpSettingsForm from '@/components/AodpSettingsForm'
 import { parseSilverToPointRate } from '@/lib/shop/price'
+import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 
 export const dynamic = 'force-dynamic'
+
+type AodpPriceMode = 'spot' | 'avg_1d' | 'avg_3d' | 'avg_7d' | 'avg_14d'
+type AodpQuality = 1 | 2 | 3 | 4 | 5
 
 export default async function AdminShopPage() {
   const db = await requireAdmin()
   const [
     { data: blacklist },
-    { data: overrides },
     { data: inventory },
     deliveryNotice,
     silverToPointRate,
+    aodpCitiesRaw,
+    aodpPriceModeRaw,
+    aodpMinQualityRaw,
   ] = await Promise.all([
     db.from('shop_blacklist').select('item_name_raw').order('added_at', { ascending: false }),
-    db
-      .from('shop_name_overrides')
-      .select('item_name_raw, unique_name')
-      .order('added_at', { ascending: false }),
     db
       .from('shop_inventory')
       .select(
         'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver, price_source, price_updated_at, updated_at',
       )
-      .order('tier', { ascending: false, nullsFirst: false })
       .order('name_ko', { ascending: true }),
     getAppSetting('shop_delivery_notice', ''),
     getAppSetting('shop_silver_to_point_rate', '1'),
+    getAppSetting('aodp_cities', ''),
+    getAppSetting('aodp_price_mode', 'spot'),
+    getAppSetting('aodp_min_quality', '1'),
   ])
+
+  const aodpAllowedSet: ReadonlySet<string> = new Set(AODP_ALLOWED_CITIES)
+  let aodpCities: string[] = [...AODP_ALLOWED_CITIES]
+  if (aodpCitiesRaw) {
+    try {
+      const parsed = JSON.parse(aodpCitiesRaw)
+      if (Array.isArray(parsed)) {
+        const filtered = parsed.filter(
+          (v): v is string => typeof v === 'string' && aodpAllowedSet.has(v),
+        )
+        if (filtered.length > 0) aodpCities = filtered
+      }
+    } catch {
+      // 손상된 값 — 전체 도시로 fallback.
+    }
+  }
+
+  const aodpPriceMode: AodpPriceMode =
+    aodpPriceModeRaw === 'spot' ||
+    aodpPriceModeRaw === 'avg_1d' ||
+    aodpPriceModeRaw === 'avg_3d' ||
+    aodpPriceModeRaw === 'avg_7d' ||
+    aodpPriceModeRaw === 'avg_14d'
+      ? aodpPriceModeRaw
+      : 'spot'
+
+  const aodpMinQualityParsed = Number(aodpMinQualityRaw)
+  const aodpMinQuality: AodpQuality =
+    aodpMinQualityParsed === 1 ||
+    aodpMinQualityParsed === 2 ||
+    aodpMinQualityParsed === 3 ||
+    aodpMinQualityParsed === 4 ||
+    aodpMinQualityParsed === 5
+      ? aodpMinQualityParsed
+      : 1
 
   const rate = parseSilverToPointRate(silverToPointRate)
   const inventoryRows: InventoryRow[] = (inventory ?? []).map((r) => ({
@@ -78,14 +117,13 @@ export default async function AdminShopPage() {
             tooLongMessage={`최대 ${NOTICE_MAX_LENGTH}자까지 입력 가능`}
           />
           <ShopSilverRateForm initial={silverToPointRate} />
+          <AodpSettingsForm
+            initialCities={aodpCities}
+            initialMode={aodpPriceMode}
+            initialMinQuality={aodpMinQuality}
+          />
           <ShopBlacklistEditor
             initial={(blacklist ?? []).map((r) => r.item_name_raw as string)}
-          />
-          <ShopNameOverridesEditor
-            initial={(overrides ?? []).map((r) => ({
-              itemName: r.item_name_raw as string,
-              uniqueName: r.unique_name as string,
-            }))}
           />
         </div>
       </div>

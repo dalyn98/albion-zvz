@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, Check, AlertCircle, Loader2, Ban, Package } from 'lucide-react'
+import { Upload, Check, AlertCircle, Loader2, Ban, Package, Coins } from 'lucide-react'
 import { importChestLog, addBlacklist, type ImportSummary } from '@/app/actions/shop-admin'
 
 const PLACEHOLDER = `예시:
@@ -134,6 +134,30 @@ function ImportResult({
         )}
       </div>
 
+      {summary.priceSync && (
+        <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <Coins size={16} className="text-amber-400" />
+            <h3 className="font-bold text-white">시세 갱신 (AODP)</h3>
+          </div>
+          {summary.priceSync.error ? (
+            <div className="bg-red-500/10 border border-red-500/40 rounded-lg px-3 py-2">
+              <p className="text-red-300 text-xs">{summary.priceSync.error}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-3">
+              <StatCell label="요청" value={summary.priceSync.requested} />
+              <StatCell label="갱신" value={summary.priceSync.updated} accent="emerald" />
+              <StatCell
+                label="시세 없음"
+                value={summary.priceSync.missing}
+                accent={summary.priceSync.missing > 0 ? 'amber' : undefined}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
       {summary.unresolvedNames.length > 0 && (
         <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl p-5 space-y-3">
           <div className="flex items-center gap-2">
@@ -143,8 +167,7 @@ function ImportResult({
             </h3>
           </div>
           <p className="text-gray-400 text-xs">
-            번들 사전에서 한글명 매칭에 실패했습니다. 잡템이면 블랙리스트에 추가하고, 그 외엔 "이름
-            오버라이드"에서 UniqueName 을 수동으로 지정하세요.
+            번들 사전에서 한글명 매칭에 실패했습니다. 잡템이면 블랙리스트에 추가하세요.
           </p>
           <div className="flex flex-wrap gap-2">
             {summary.unresolvedNames.map((name) => (

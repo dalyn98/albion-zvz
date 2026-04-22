@@ -1,9 +1,8 @@
 'use server'
 
 // 길드 상점 관리자 액션.
-// - importChestLog: 붙여넣은 상자 로그 파싱 → 원본 보존 + 재고 반영
+// - importChestLog: 붙여넣은 상자 로그 파싱 → 원본 보존 + 재고 반영 + 시세 sync
 // - addBlacklist / removeBlacklist: 잡템 필터
-// - upsertNameOverride / removeNameOverride: 한글명 → UniqueName 수동 매핑
 
 import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/auth'
@@ -11,6 +10,7 @@ import { parseChestLog, type ChestLogEntry } from '@/lib/shop/parse-chest-log'
 import { resolveKoItem } from '@/lib/shop/resolve-item'
 import { aggregateStock, type AggregateRow } from '@/lib/shop/aggregate-stock'
 import { getSession } from '@/lib/session'
+import { syncShopPrices, type PriceSyncSummary } from './shop-inventory'
 
 export interface ImportSummary {
   parsed: number
@@ -28,6 +28,7 @@ export interface ImportSummary {
     delta: number
     newStock: number
   }>
+  priceSync?: PriceSyncSummary
   error?: string
 }
 
@@ -85,15 +86,9 @@ export async function importChestLog(raw: string): Promise<ImportSummary> {
       }
     }
 
-    // 블랙리스트 / 오버라이드 로드
-    const [{ data: blacklistRows }, { data: overrideRows }] = await Promise.all([
-      db.from('shop_blacklist').select('item_name_raw'),
-      db.from('shop_name_overrides').select('item_name_raw, unique_name'),
-    ])
+    // 블랙리스트 로드
+    const { data: blacklistRows } = await db.from('shop_blacklist').select('item_name_raw')
     const blacklist = new Set((blacklistRows ?? []).map((r) => r.item_name_raw))
-    const overrides = new Map(
-      (overrideRows ?? []).map((r) => [r.item_name_raw as string, r.unique_name as string]),
-    )
 
     // 중복 검출: 임포트 행들의 logged_at 범위를 잡아 기존 로그를 한 번에 조회 →
     // dedupe 키 세트로 비교. UNIQUE 제약이 있어 INSERT 중 레이스가 발생해도
@@ -130,7 +125,7 @@ export async function importChestLog(raw: string): Promise<ImportSummary> {
     // 집계 (원본 보존 + 재고 델타)
     const rows: AggregateRow[] = newEntries.map((entry) => ({
       entry,
-      resolved: resolveKoItem(entry.itemName, overrides),
+      resolved: resolveKoItem(entry.itemName),
       isBlacklisted: blacklist.has(entry.itemName),
     }))
     const { toInsert, stockDeltas, unresolvedNames } = aggregateStock(rows)
@@ -162,7 +157,7 @@ export async function importChestLog(raw: string): Promise<ImportSummary> {
 
     const blacklistedRows = newEntries.filter((e) => blacklist.has(e.itemName)).length
     const unresolvedRows = newEntries.filter(
-      (e) => !blacklist.has(e.itemName) && !resolveKoItem(e.itemName, overrides),
+      (e) => !blacklist.has(e.itemName) && !resolveKoItem(e.itemName),
     ).length
 
     // 재고 RPC 호출 — 각 (item × enchant × quality) 단위로 원자 누적.
@@ -200,6 +195,9 @@ export async function importChestLog(raw: string): Promise<ImportSummary> {
       })
     }
 
+    // 재고가 갱신됐으므로 AODP 시세도 이어서 sync — 실패해도 import 결과는 그대로 반환.
+    const priceSync = await syncShopPrices()
+
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')
 
@@ -212,6 +210,7 @@ export async function importChestLog(raw: string): Promise<ImportSummary> {
       unresolvedRows,
       unresolvedNames,
       stockChanges,
+      priceSync,
     }
   } catch (e) {
     return { ...empty, error: e instanceof Error ? e.message : 'Server error' }
@@ -241,41 +240,6 @@ export async function removeBlacklist(itemName: string): Promise<{ error?: strin
   try {
     const db = await requireAdmin()
     const { error } = await db.from('shop_blacklist').delete().eq('item_name_raw', itemName)
-    if (error) return { error: error.message }
-    revalidatePath('/admin/dashboard/shop')
-    return {}
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
-  }
-}
-
-// 한글명 → UniqueName 오버라이드
-export async function upsertNameOverride(
-  itemName: string,
-  uniqueName: string,
-): Promise<{ error?: string }> {
-  try {
-    const session = await getSession()
-    if (!session?.isAdmin) return { error: 'Unauthorized' }
-    const raw = itemName.trim()
-    const u = uniqueName.trim()
-    if (!raw || !u) return { error: '이름이 비어있습니다.' }
-    const db = await requireAdmin()
-    const { error } = await db
-      .from('shop_name_overrides')
-      .upsert({ item_name_raw: raw, unique_name: u, added_by: session.discordId })
-    if (error) return { error: error.message }
-    revalidatePath('/admin/dashboard/shop')
-    return {}
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server error' }
-  }
-}
-
-export async function removeNameOverride(itemName: string): Promise<{ error?: string }> {
-  try {
-    const db = await requireAdmin()
-    const { error } = await db.from('shop_name_overrides').delete().eq('item_name_raw', itemName)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/shop')
     return {}
