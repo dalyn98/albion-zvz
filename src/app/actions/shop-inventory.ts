@@ -9,7 +9,12 @@
 import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/auth'
 import { getSession } from '@/lib/session'
-import { fetchAodpPrices, inventoryKey, type AodpPriceKey } from '@/lib/shop/aodp'
+import {
+  fetchAodpPrices,
+  inventoryKey,
+  loadAodpOptions,
+  type AodpPriceKey,
+} from '@/lib/shop/aodp'
 
 export interface PriceSyncSummary {
   requested: number
@@ -41,7 +46,8 @@ export async function syncShopPrices(): Promise<PriceSyncSummary> {
     }))
     if (keys.length === 0) return { requested: 0, updated: 0, missing: 0 }
 
-    const priceMap = await fetchAodpPrices(keys)
+    const aodpOptions = await loadAodpOptions()
+    const priceMap = await fetchAodpPrices(keys, aodpOptions)
 
     let updated = 0
     let missing = 0

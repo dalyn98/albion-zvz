@@ -52,6 +52,18 @@ export type AppSettingKey =
   // 마지막 killboard-sync cron 성공 시각(ISO). 평시엔 1시간 쿨다운으로 API
   // 부하를 낮추고, 이벤트 진행 중엔 이 값을 무시하고 매 tick sync.
   | 'last_killboard_sync_at'
+  // AODP 시세 조회에 쓸 도시 목록 (JSON array 문자열). 관리자가 체크박스로
+  // 고르며, 비어 있으면 서버 측 DEFAULT_CITIES 로 fallback. Black Market 은
+  // 매수 호가가 많아 sell_price_min 이 왜곡되므로 후보에서 제외.
+  | 'aodp_cities'
+  // 시세 조회 방식. 'spot' = /stats/prices 최저가, 'avg_Nd' = /stats/history
+  // 최근 N 일 평균(아이템 수량 가중). 리기어 산정 변동성을 줄이고 싶으면
+  // 평균 모드를 쓴다. 기본 'spot'.
+  | 'aodp_price_mode'
+  // 시세 조회 시 최소 품질 floor (1..5). 실제 아이템 품질이 이 값보다 낮으면
+  // 이 값으로 끌어올려 조회 → "Normal 드랍도 Good 가치로 보정" 같은 정책
+  // 구현. 기본 '1' (모든 품질 그대로).
+  | 'aodp_min_quality'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

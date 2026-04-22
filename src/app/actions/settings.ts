@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import type { AppSettingKey } from '@/lib/app-settings'
+import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
@@ -20,6 +21,9 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'shop_silver_to_point_rate',
   'shop_delivery_notice',
   'albion_server',
+  'aodp_cities',
+  'aodp_price_mode',
+  'aodp_min_quality',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -47,6 +51,7 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
 const JSON_ARRAY_KEYS: readonly AppSettingKey[] = [
   'event_creator_role_ids',
   'bomb_squad_caller_role_ids',
+  'aodp_cities',
 ] as const
 
 // Integer-string keys. Must parse as a positive integer within the declared
@@ -59,6 +64,8 @@ const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
   // 1p = N silver. 1 이 기본(AODP 그대로 환산). 값이 커질수록 동일 시세 → 더 작은
   // 포인트 가격이 된다.
   shop_silver_to_point_rate: { min: 1, max: 1_000_000 },
+  // 1 Normal, 2 Good, 3 Outstanding, 4 Excellent, 5 Masterpiece.
+  aodp_min_quality: { min: 1, max: 5 },
 }
 
 // Boolean-string keys. Must be exactly 'true' or 'false'.
@@ -69,6 +76,8 @@ const BOOLEAN_KEYS: readonly AppSettingKey[] = [
 // Enum-string keys. Value must be exactly one of the listed members.
 const ENUM_VALUES: Partial<Record<AppSettingKey, readonly string[]>> = {
   albion_server: ['west', 'east', 'europe'] as const,
+  // spot = 현재가, avg_Nd = 최근 N 일 평균(aodp history 엔드포인트).
+  aodp_price_mode: ['spot', 'avg_1d', 'avg_3d', 'avg_7d', 'avg_14d'] as const,
 }
 
 export async function updateAppSetting(
@@ -92,6 +101,16 @@ export async function updateAppSetting(
         const parsed = JSON.parse(trimmed)
         if (!Array.isArray(parsed) || !parsed.every((v) => typeof v === 'string' && v.length > 0)) {
           return { error: tErr('invalidJsonArray') }
+        }
+        // aodp_cities 는 화이트리스트에 없는 도시명이 들어오면 AODP 가 조용히
+        // 무시하므로, 저장 시점에 거부해 관리자가 실수 즉시 인지하게 한다.
+        if (key === 'aodp_cities') {
+          const unknown = (parsed as string[]).filter(
+            (c) => !(AODP_ALLOWED_CITIES as readonly string[]).includes(c),
+          )
+          if (unknown.length > 0) {
+            return { error: tErr('invalidEnumValue', { values: AODP_ALLOWED_CITIES.join(', ') }) }
+          }
         }
       } catch {
         return { error: tErr('invalidJsonArray') }
@@ -119,7 +138,13 @@ export async function updateAppSetting(
       .upsert({ key, value: trimmed, updated_at: new Date().toISOString() }, { onConflict: 'key' })
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/settings')
-    if (key === 'shop_delivery_notice' || key === 'shop_silver_to_point_rate') {
+    if (
+      key === 'shop_delivery_notice' ||
+      key === 'shop_silver_to_point_rate' ||
+      key === 'aodp_cities' ||
+      key === 'aodp_price_mode' ||
+      key === 'aodp_min_quality'
+    ) {
       revalidatePath('/admin/dashboard/shop')
       revalidatePath('/shop')
     }

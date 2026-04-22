@@ -112,7 +112,7 @@ export default function ShopInventoryEditor({ rows, silverToPointRate }: Props) 
       </div>
 
       <p className="text-gray-500 text-xs">
-        AODP(east) 시세를 전 재고에 대해 한 번에 조회합니다. manual_price 가 있으면 그 값을 우선. 환율{' '}
+        AODP 시세(관리자 설정의 서버/도시/모드 적용)를 전 재고에 대해 한 번에 조회합니다. manual_price 가 있으면 그 값을 우선. 환율{' '}
         <code className="text-gray-400">1p = {silverToPointRate.toLocaleString()}s</code>.
       </p>
 

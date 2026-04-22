@@ -2,6 +2,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { listRoleRewards } from '@/app/actions/regear-admin'
 import SettingsTabs from '@/components/SettingsTabs'
 import type { AlbionServer } from '@/components/AlbionServerForm'
+import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { getTranslations } from 'next-intl/server'
 
 const DEFAULT_EVENT_NOTIFICATION_MESSAGE = '새 이벤트가 등록되었습니다.'
@@ -25,6 +26,9 @@ export default async function SettingsPage() {
     regearPayoutRatePercentRaw,
     eventsAutoStartRaw,
     albionServerRaw,
+    aodpCitiesRaw,
+    aodpPriceModeRaw,
+    aodpMinQualityRaw,
     { rewards, error: rewardsError },
     tLanding,
     t,
@@ -42,6 +46,9 @@ export default async function SettingsPage() {
     getAppSetting('regear_payout_rate_percent', '100'),
     getAppSetting('events_auto_start_enabled', 'false'),
     getAppSetting('albion_server', 'east'),
+    getAppSetting('aodp_cities', ''),
+    getAppSetting('aodp_price_mode', 'spot'),
+    getAppSetting('aodp_min_quality', '1'),
     listRoleRewards(),
     getTranslations('landing'),
     getTranslations('adminSettings'),
@@ -85,6 +92,42 @@ export default async function SettingsPage() {
       ? albionServerRaw
       : 'east'
 
+  const aodpAllowedSet: ReadonlySet<string> = new Set(AODP_ALLOWED_CITIES)
+  let aodpCities: string[] = [...AODP_ALLOWED_CITIES]
+  if (aodpCitiesRaw) {
+    try {
+      const parsed = JSON.parse(aodpCitiesRaw)
+      if (Array.isArray(parsed)) {
+        const filtered = parsed.filter(
+          (v): v is string => typeof v === 'string' && aodpAllowedSet.has(v),
+        )
+        if (filtered.length > 0) aodpCities = filtered
+      }
+    } catch {
+      // 손상된 값 — 전체 도시로 fallback.
+    }
+  }
+
+  type AodpPriceMode = 'spot' | 'avg_1d' | 'avg_3d' | 'avg_7d' | 'avg_14d'
+  const aodpPriceMode: AodpPriceMode =
+    aodpPriceModeRaw === 'spot' ||
+    aodpPriceModeRaw === 'avg_1d' ||
+    aodpPriceModeRaw === 'avg_3d' ||
+    aodpPriceModeRaw === 'avg_7d' ||
+    aodpPriceModeRaw === 'avg_14d'
+      ? aodpPriceModeRaw
+      : 'spot'
+
+  const aodpMinQualityParsed = Number(aodpMinQualityRaw)
+  const aodpMinQuality: 1 | 2 | 3 | 4 | 5 =
+    aodpMinQualityParsed === 1 ||
+    aodpMinQualityParsed === 2 ||
+    aodpMinQualityParsed === 3 ||
+    aodpMinQualityParsed === 4 ||
+    aodpMinQualityParsed === 5
+      ? aodpMinQualityParsed
+      : 1
+
   // Prefer the deployed public URL so the invite link we show to the admin
   // matches what recipients will actually visit.
   const origin = (process.env.APP_URL ?? '').replace(/\/$/, '')
@@ -113,6 +156,9 @@ export default async function SettingsPage() {
         regearPayoutRatePercent={regearPayoutRatePercent}
         eventsAutoStartEnabled={eventsAutoStartEnabled}
         albionServer={albionServer}
+        aodpCities={aodpCities}
+        aodpPriceMode={aodpPriceMode}
+        aodpMinQuality={aodpMinQuality}
         origin={origin}
       />
     </div>

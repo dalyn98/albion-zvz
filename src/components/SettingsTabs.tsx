@@ -15,6 +15,7 @@ import RegearLimitsForm from './RegearLimitsForm'
 import RegearPayoutRateForm from './RegearPayoutRateForm'
 import EventAutoStartForm from './EventAutoStartForm'
 import AlbionServerForm, { type AlbionServer } from './AlbionServerForm'
+import AodpSettingsForm from './AodpSettingsForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
 
 type TabKey =
@@ -68,6 +69,9 @@ interface Props {
   regearPayoutRatePercent: number
   eventsAutoStartEnabled: boolean
   albionServer: AlbionServer
+  aodpCities: string[]
+  aodpPriceMode: 'spot' | 'avg_1d' | 'avg_3d' | 'avg_7d' | 'avg_14d'
+  aodpMinQuality: 1 | 2 | 3 | 4 | 5
   origin: string
 }
 
@@ -100,6 +104,9 @@ export default function SettingsTabs({
   regearPayoutRatePercent,
   eventsAutoStartEnabled,
   albionServer,
+  aodpCities,
+  aodpPriceMode,
+  aodpMinQuality,
   origin,
 }: Props) {
   const t = useTranslations('adminSettings')
@@ -186,6 +193,11 @@ export default function SettingsTabs({
         {active === 'events' && (
           <div className="space-y-4">
             <AlbionServerForm initialServer={albionServer} />
+            <AodpSettingsForm
+              initialCities={aodpCities}
+              initialMode={aodpPriceMode}
+              initialMinQuality={aodpMinQuality}
+            />
             <RegearLimitsForm
               initialWindowMinutes={regearWindowMinutes}
               initialMaxDeaths={regearMaxDeaths}
