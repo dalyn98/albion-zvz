@@ -1,23 +1,29 @@
 'use client'
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { Users, UserPlus } from 'lucide-react'
+import { Users, UserPlus, UserMinus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import GuildMemberList from './GuildMemberList'
 import GuildGuestList from './GuildGuestList'
-import type { GuildMemberSummary, GuildGuestSummary } from '@/app/actions/members-admin'
+import GuildWithdrawnList from './GuildWithdrawnList'
+import type {
+  GuildMemberSummary,
+  GuildGuestSummary,
+  WithdrawnMemberSummary,
+} from '@/app/actions/members-admin'
 
-type TabKey = 'members' | 'guests'
+type TabKey = 'members' | 'guests' | 'withdrawn'
 
 interface TabDef {
   key: TabKey
-  labelKey: 'tabMembers' | 'tabGuests'
+  labelKey: 'tabMembers' | 'tabGuests' | 'tabWithdrawn'
   icon: React.ComponentType<{ size?: number; className?: string }>
 }
 
 const TABS: readonly TabDef[] = [
   { key: 'members', labelKey: 'tabMembers', icon: Users },
   { key: 'guests', labelKey: 'tabGuests', icon: UserPlus },
+  { key: 'withdrawn', labelKey: 'tabWithdrawn', icon: UserMinus },
 ]
 
 const DEFAULT_TAB: TabKey = 'members'
@@ -25,20 +31,24 @@ const DEFAULT_TAB: TabKey = 'members'
 interface Props {
   members: GuildMemberSummary[]
   guests: GuildGuestSummary[]
+  withdrawnMembers: WithdrawnMemberSummary[]
   membersError?: string
   guestsError?: string
+  withdrawnError?: string
   isAdmin: boolean
 }
 
 function isTabKey(value: string | null): value is TabKey {
-  return value === 'members' || value === 'guests'
+  return value === 'members' || value === 'guests' || value === 'withdrawn'
 }
 
 export default function MembersPageTabs({
   members,
   guests,
+  withdrawnMembers,
   membersError,
   guestsError,
+  withdrawnError,
   isAdmin,
 }: Props) {
   const t = useTranslations('members')
@@ -67,7 +77,12 @@ export default function MembersPageTabs({
       >
         {TABS.map(({ key, labelKey, icon: Icon }) => {
           const isActive = active === key
-          const count = key === 'members' ? members.length : guests.length
+          const count =
+            key === 'members'
+              ? members.length
+              : key === 'guests'
+                ? guests.length
+                : withdrawnMembers.length
           return (
             <button
               key={key}
@@ -112,6 +127,16 @@ export default function MembersPageTabs({
               </div>
             )}
             <GuildGuestList guests={guests} isAdmin={isAdmin} />
+          </>
+        )}
+        {active === 'withdrawn' && (
+          <>
+            {withdrawnError && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-3">
+                <p className="text-red-400 text-sm">{withdrawnError}</p>
+              </div>
+            )}
+            <GuildWithdrawnList members={withdrawnMembers} />
           </>
         )}
       </div>

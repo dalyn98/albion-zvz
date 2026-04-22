@@ -1,7 +1,11 @@
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
-import { listGuildMembers, listGuildGuests } from '@/app/actions/members-admin'
+import {
+  listGuildMembers,
+  listGuildGuests,
+  listWithdrawnMembers,
+} from '@/app/actions/members-admin'
 import MembersPageTabs from '@/components/MembersPageTabs'
 
 export const dynamic = 'force-dynamic'
@@ -12,9 +16,15 @@ export default async function MembersPage() {
     redirect('/api/auth/discord/start?returnTo=/members')
   }
 
-  const [{ members, error: membersError }, { guests, error: guestsError }, t] = await Promise.all([
+  const [
+    { members, error: membersError },
+    { guests, error: guestsError },
+    { members: withdrawnMembers, error: withdrawnError },
+    t,
+  ] = await Promise.all([
     listGuildMembers(),
     listGuildGuests(),
+    listWithdrawnMembers(),
     getTranslations('members'),
   ])
 
@@ -28,8 +38,10 @@ export default async function MembersPage() {
       <MembersPageTabs
         members={members}
         guests={guests}
+        withdrawnMembers={withdrawnMembers}
         membersError={membersError}
         guestsError={guestsError}
+        withdrawnError={withdrawnError}
         isAdmin={session.isAdmin}
       />
     </main>

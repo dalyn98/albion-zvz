@@ -762,12 +762,18 @@
     "tabsLabel": "구성원 카테고리",
     "tabMembers": "길드원",
     "tabGuests": "게스트",
+    "tabWithdrawn": "탈퇴자",
     "guestCounter": "게스트 {count}명",
     "guestBadge": "게스트",
     "noGuests": "아직 참여한 게스트가 없습니다.",
     "sortByJoined": "최근 초대 순",
     "revokeGuest": "게스트 권한 해제",
-    "confirmRevokeGuest": "{name} 님의 게스트 권한을 해제할까요? 다시 초대 링크로 접속하면 복구됩니다."
+    "confirmRevokeGuest": "{name} 님의 게스트 권한을 해제할까요? 다시 초대 링크로 접속하면 복구됩니다.",
+    "withdrawnCounter": "탈퇴자 {count}명",
+    "withdrawnBadge": "탈퇴",
+    "noWithdrawn": "탈퇴 처리된 길드원이 없습니다.",
+    "sortByWithdrawnAt": "최근 탈퇴 순",
+    "withdrawnAt": "탈퇴 {date}"
   },
   "me": {
     "title": "내 지갑",

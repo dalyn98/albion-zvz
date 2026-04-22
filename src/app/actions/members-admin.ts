@@ -200,6 +200,90 @@ export async function listGuildMembers(): Promise<{
   }
 }
 
+export interface WithdrawnMemberSummary {
+  discord_id: string
+  username: string
+  avatar: string | null
+  withdrawn_at: string
+  updated_at: string
+  participation_count: number
+  top_roles: RoleCount[]
+  preferred_language: 'ko' | 'en' | 'ja' | null
+}
+
+// 탈퇴 처리(member-sync 로 withdrawn_at 이 찍힌 행) 된 길드원 목록.
+// /members 탭에서 별도로 노출 — 활동 중인 길드원과 섞이지 않게.
+export async function listWithdrawnMembers(): Promise<{
+  members: WithdrawnMemberSummary[]
+  error?: string
+}> {
+  const tCommon = await getTranslations('common')
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const db = await requireSession()
+
+    const [avatarsRes, slotsRes] = await Promise.all([
+      db
+        .from('guild_avatars')
+        .select('discord_id, username, avatar, updated_at, withdrawn_at, preferred_language')
+        .not('withdrawn_at', 'is', null),
+      db
+        .from('slots')
+        .select('assigned_discord_id, role_name, parties!inner(event_id)')
+        .not('assigned_discord_id', 'is', null),
+    ])
+    if (avatarsRes.error) return { members: [], error: avatarsRes.error.message }
+    if (slotsRes.error) return { members: [], error: slotsRes.error.message }
+
+    const unassignedRoleLabel = tCommon('unassignedRole')
+    interface Agg {
+      events: Set<string>
+      roles: Map<string, number>
+    }
+    const bucket = new Map<string, Agg>()
+    for (const row of slotsRes.data ?? []) {
+      const discordId = row.assigned_discord_id
+      if (!discordId) continue
+      const party = row.parties as { event_id: string } | { event_id: string }[] | null
+      const eventId = Array.isArray(party) ? party[0]?.event_id : party?.event_id
+      if (!eventId) continue
+      let agg = bucket.get(discordId)
+      if (!agg) {
+        agg = { events: new Set(), roles: new Map() }
+        bucket.set(discordId, agg)
+      }
+      agg.events.add(eventId)
+      const role = row.role_name ?? unassignedRoleLabel
+      agg.roles.set(role, (agg.roles.get(role) ?? 0) + 1)
+    }
+
+    const members: WithdrawnMemberSummary[] = (avatarsRes.data ?? []).map((a) => {
+      const agg = bucket.get(a.discord_id)
+      const roles = agg
+        ? Array.from(agg.roles.entries())
+            .map(([role, count]) => ({ role, count }))
+            .sort((x, y) => y.count - x.count)
+        : []
+      return {
+        discord_id: a.discord_id,
+        username: a.username,
+        avatar: a.avatar,
+        withdrawn_at: a.withdrawn_at as string,
+        updated_at: a.updated_at,
+        participation_count: agg?.events.size ?? 0,
+        top_roles: roles.slice(0, 3),
+        preferred_language: isLocale(a.preferred_language) ? a.preferred_language : null,
+      }
+    })
+
+    members.sort((a, b) => b.withdrawn_at.localeCompare(a.withdrawn_at))
+
+    return { members }
+  } catch (e) {
+    return { members: [], error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
 export interface GuildGuestSummary {
   discord_id: string
   username: string

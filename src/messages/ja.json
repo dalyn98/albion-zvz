@@ -762,12 +762,18 @@
     "tabsLabel": "メンバーカテゴリ",
     "tabMembers": "ギルドメンバー",
     "tabGuests": "ゲスト",
+    "tabWithdrawn": "脱退者",
     "guestCounter": "ゲスト {count}名",
     "guestBadge": "ゲスト",
     "noGuests": "まだ参加したゲストはいません。",
     "sortByJoined": "招待が新しい順",
     "revokeGuest": "ゲスト権限を解除",
-    "confirmRevokeGuest": "{name} さんのゲスト権限を解除しますか？招待リンクから再度アクセスすれば復元できます。"
+    "confirmRevokeGuest": "{name} さんのゲスト権限を解除しますか？招待リンクから再度アクセスすれば復元できます。",
+    "withdrawnCounter": "脱退者 {count}名",
+    "withdrawnBadge": "脱退",
+    "noWithdrawn": "脱退処理されたメンバーはいません。",
+    "sortByWithdrawnAt": "脱退が新しい順",
+    "withdrawnAt": "脱退 {date}"
   },
   "me": {
     "title": "マイウォレット",

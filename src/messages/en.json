@@ -762,12 +762,18 @@
     "tabsLabel": "Member categories",
     "tabMembers": "Members",
     "tabGuests": "Guests",
+    "tabWithdrawn": "Withdrawn",
     "guestCounter": "{count} guests",
     "guestBadge": "Guest",
     "noGuests": "No guests have joined yet.",
     "sortByJoined": "Recently invited",
     "revokeGuest": "Revoke guest access",
-    "confirmRevokeGuest": "Revoke {name}'s guest access? They can rejoin by visiting the invite link again."
+    "confirmRevokeGuest": "Revoke {name}'s guest access? They can rejoin by visiting the invite link again.",
+    "withdrawnCounter": "{count} withdrawn",
+    "withdrawnBadge": "Withdrawn",
+    "noWithdrawn": "No withdrawn members.",
+    "sortByWithdrawnAt": "Most recently withdrawn",
+    "withdrawnAt": "Left on {date}"
   },
   "me": {
     "title": "My wallet",
