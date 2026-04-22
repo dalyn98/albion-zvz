@@ -23,7 +23,7 @@ import { stripTierPrefix } from '@/lib/weapon-display'
 import { getLocalizedItemName } from '@/lib/item-names'
 import type { Locale } from '@/i18n/locales'
 import ItemImage from './ItemImage'
-import SlotSpellPanel from './SlotSpellPanel'
+import SlotSpellPanel, { SlotCooldownBadge } from './SlotSpellPanel'
 import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
 import { UserPlus, UserX, MessageSquare, LogIn, Lock, X, Swords, Check, Hourglass, Bomb } from 'lucide-react'
@@ -366,7 +366,10 @@ export default function SlotCard({
         ))}
       </div>
 
-      <SlotSpellPanel slot={slot} cdBadgeRoles={cdBadgeRoles} />
+      <div className="flex flex-wrap items-center gap-1">
+        <SlotSpellPanel slot={slot} cdBadgeRoles={cdBadgeRoles} />
+        <SlotCooldownBadge slot={slot} cdBadgeRoles={cdBadgeRoles} />
+      </div>
 
       {!isTaken && needsPicks ? (
         <p className="text-amber-300 text-[12px] font-medium truncate leading-tight">

@@ -1,13 +1,18 @@
 'use client'
 
-import { Sparkles } from 'lucide-react'
+import { Sparkles, Timer } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import ItemImage from './ItemImage'
 import SpellImage from './SpellImage'
 import type { Slot, SlotKey, SlotRole } from '@/types'
 import { getSpells, getDisplayGear, getGearOptions, isFreeItem } from '@/types'
 import spellSlotsJson from '@/data/albion-spell-slots.json'
-import { computeEffectiveCd, isCdTargetSpell, formatCooldown } from '@/lib/cooldown'
+import {
+  computeEffectiveCd,
+  isCdTargetSpell,
+  formatCooldown,
+  type EffectiveCooldown,
+} from '@/lib/cooldown'
 
 // Rows appear in this fixed top-to-bottom order. Offhand/potion/food/cape
 // are omitted because they carry no active spells in practice; if we ever
@@ -97,12 +102,11 @@ function groupLabel(g: SpellGroup, tSpell: SpellTranslator): string {
   return g.slot === null ? tSpell('passive') : tSpell('passiveSlot', { n: g.slot })
 }
 
-// Badge overlay shown on the weapon's CD-target active spell icon (slot 3
-// normally, slot 2 for basic Mace). Shows the effective cooldown after
-// leather armor / food CDR modifiers, with a styled hover tooltip that
-// breaks down each CDR source. Renders nothing when the spell isn't the
-// CD-target, has no recastdelay, the row isn't a weapon row, or — per the
-// multi-option rule — the member hasn't picked a weapon yet.
+// Small CD text badge overlaid on the weapon's CD-target active spell icon.
+// The detailed breakdown now lives in the sibling SlotCooldownBadge — this
+// stays as a minimal at-a-glance indicator on the skill panel itself.
+// Renders nothing when the spell isn't the CD-target, has no recastdelay,
+// the row isn't a weapon row, or the member hasn't picked a weapon yet.
 interface SpellIconProps {
   spellId: string
   slot: Slot
@@ -110,8 +114,6 @@ interface SpellIconProps {
   rowKey: SpellRowKey
   weaponItemId: string | null
   cdBadgeRoles: readonly SlotRole[]
-  tSpell: SpellTranslator
-  tGear: SpellTranslator
 }
 function SpellIconWithCd({
   spellId,
@@ -120,8 +122,6 @@ function SpellIconWithCd({
   rowKey,
   weaponItemId,
   cdBadgeRoles,
-  tSpell,
-  tGear,
 }: SpellIconProps) {
   const roleAllowed = !!slot.role_name && cdBadgeRoles.includes(slot.role_name as SlotRole)
   if (!roleAllowed || rowKey !== 'weapon' || !isCdTargetSpell(spellId, weaponItemId)) {
@@ -131,61 +131,12 @@ function SpellIconWithCd({
   if (!cd) {
     return <SpellImage spellId={spellId} size={size} />
   }
-  const effective = formatCooldown(cd.effectiveCd)
-  const offhandSource = cd.sources.find((s) => s.key === 'offhand')
   return (
-    <div className="group/cd relative">
+    <div className="relative">
       <SpellImage spellId={spellId} size={size} />
       <span className="absolute bottom-0 right-0 text-[9px] font-bold leading-none px-1 py-[1px] rounded-sm bg-gray-950/90 text-cyan-300 border border-cyan-600/60 pointer-events-none tabular-nums">
-        {effective}
+        {formatCooldown(cd.effectiveCd)}
       </span>
-      <div
-        role="tooltip"
-        className="hidden group-hover/cd:block absolute z-40 bottom-full left-1/2 -translate-x-1/2 mb-1 w-[200px] bg-gray-950 border border-cyan-500/40 rounded-lg p-2 shadow-xl pointer-events-none space-y-1 text-[11px]"
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-cyan-300 font-bold">{tSpell('cdLabel')}</span>
-          <span className="text-white font-bold tabular-nums">{effective}</span>
-        </div>
-        {offhandSource && (
-          <div className="inline-block text-[9px] font-bold leading-none px-1.5 py-0.5 rounded-sm bg-amber-500/15 text-amber-300 border border-amber-500/40">
-            {tSpell('cdOffhandIncluded')}
-          </div>
-        )}
-        <div className="flex items-center justify-between text-gray-400">
-          <span>{tSpell('cdBase')}</span>
-          <span className="tabular-nums">{formatCooldown(cd.baseCd)}</span>
-        </div>
-        {cd.sources.length > 0 && (
-          <div className="pt-1 border-t border-gray-800 space-y-0.5">
-            {cd.sources.map((src, idx) => {
-              const offhandLabel =
-                src.key === 'offhand' && src.offhandType
-                  ? tSpell(`offhand_${src.offhandType}`)
-                  : null
-              return (
-                <div
-                  key={`${src.key}:${src.spell}:${idx}`}
-                  className="flex items-center justify-between text-gray-300"
-                >
-                  <span>
-                    {tGear(src.key)}
-                    {offhandLabel ? (
-                      <span className="text-amber-300"> ({offhandLabel})</span>
-                    ) : null}
-                  </span>
-                  <span className="text-emerald-300 tabular-nums">
-                    -{(src.cdr * 100).toFixed(1)}%
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        )}
-        <div className="pt-1 border-t border-gray-800 text-[10px] text-gray-500 leading-tight">
-          {tSpell('cdNote')}
-        </div>
-      </div>
     </div>
   )
 }
@@ -202,7 +153,6 @@ export default function SlotSpellPanel({
 }) {
   const tSpell = useTranslations('slot.spell')
   const tSlot = useTranslations('slot')
-  const tGear = useTranslations('gear')
   const rows: RowItem[] = []
   for (const key of SPELL_ROW_KEYS) {
     rows.push(...rowsForKey(slot, key))
@@ -255,8 +205,6 @@ export default function SlotSpellPanel({
                           rowKey={key}
                           weaponItemId={id}
                           cdBadgeRoles={cdBadgeRoles}
-                          tSpell={tSpell}
-                          tGear={tGear}
                         />
                       ))}
                     </div>
@@ -278,8 +226,6 @@ export default function SlotSpellPanel({
                           rowKey={key}
                           weaponItemId={id}
                           cdBadgeRoles={cdBadgeRoles}
-                          tSpell={tSpell}
-                          tGear={tGear}
                         />
                       ))}
                     </div>
@@ -292,6 +238,105 @@ export default function SlotSpellPanel({
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+// Finds the weapon row that drives the CD badge, then picks the CD-target
+// spell (E-slot for most weapons, W-slot for base Mace). Returns null for:
+//   - roles outside cdBadgeRoles (tanks/healers aren't headline-CD roles)
+//   - multi-weapon slots where the member hasn't assigned a pick
+//   - weapons whose CD-target spell isn't in the cooldown table
+function resolvePrimaryCd(
+  slot: Slot,
+  cdBadgeRoles: readonly SlotRole[],
+): EffectiveCooldown | null {
+  if (!slot.role_name || !cdBadgeRoles.includes(slot.role_name as SlotRole)) return null
+  const weaponRows = rowsForKey(slot, 'weapon')
+  for (const row of weaponRows) {
+    const target = row.spells.find((s) => isCdTargetSpell(s, row.id))
+    if (!target) continue
+    const cd = computeEffectiveCd(slot, target)
+    if (cd) return cd
+  }
+  return null
+}
+
+// Separate "쿨타임 {effective}s" badge rendered alongside SlotSpellPanel.
+// Hovering reveals a dedicated cooldown breakdown — base CD, each CDR
+// source with percentage, and the "보조무기 포함" callout when an offhand
+// artifact (torch / horn / jester cane / tome) is contributing.
+export function SlotCooldownBadge({
+  slot,
+  cdBadgeRoles,
+}: {
+  slot: Slot
+  cdBadgeRoles: readonly SlotRole[]
+}) {
+  const tSpell = useTranslations('slot.spell')
+  const tGear = useTranslations('gear')
+  const cd = resolvePrimaryCd(slot, cdBadgeRoles)
+  if (!cd) return null
+  const effective = formatCooldown(cd.effectiveCd)
+  const offhandSource = cd.sources.find((s) => s.key === 'offhand')
+  return (
+    <div className="group/cd relative inline-block">
+      <span
+        tabIndex={0}
+        role="button"
+        aria-label={tSpell('cdLabel')}
+        className="inline-flex items-center gap-0.5 text-[12px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-200 border border-cyan-500/30 hover:bg-cyan-500/20 cursor-help focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+      >
+        <Timer size={10} />
+        <span className="tabular-nums">{effective}</span>
+      </span>
+      <div
+        role="tooltip"
+        className="hidden group-hover/cd:block group-focus-within/cd:block absolute z-30 top-full left-0 mt-1 w-[220px] bg-gray-950 border border-cyan-500/40 rounded-lg p-2 shadow-xl space-y-1 text-[11px]"
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-cyan-300 font-bold">{tSpell('cdLabel')}</span>
+          <span className="text-white font-bold tabular-nums">{effective}</span>
+        </div>
+        {offhandSource && (
+          <div className="inline-block text-[9px] font-bold leading-none px-1.5 py-0.5 rounded-sm bg-amber-500/15 text-amber-300 border border-amber-500/40">
+            {tSpell('cdOffhandIncluded')}
+          </div>
+        )}
+        <div className="flex items-center justify-between text-gray-400">
+          <span>{tSpell('cdBase')}</span>
+          <span className="tabular-nums">{formatCooldown(cd.baseCd)}</span>
+        </div>
+        {cd.sources.length > 0 && (
+          <div className="pt-1 border-t border-gray-800 space-y-0.5">
+            {cd.sources.map((src, idx) => {
+              const offhandLabel =
+                src.key === 'offhand' && src.offhandType
+                  ? tSpell(`offhand_${src.offhandType}`)
+                  : null
+              return (
+                <div
+                  key={`${src.key}:${src.spell}:${idx}`}
+                  className="flex items-center justify-between text-gray-300"
+                >
+                  <span>
+                    {tGear(src.key)}
+                    {offhandLabel ? (
+                      <span className="text-amber-300"> ({offhandLabel})</span>
+                    ) : null}
+                  </span>
+                  <span className="text-emerald-300 tabular-nums">
+                    -{(src.cdr * 100).toFixed(1)}%
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+        <div className="pt-1 border-t border-gray-800 text-[10px] text-gray-500 leading-tight">
+          {tSpell('cdNote')}
+        </div>
       </div>
     </div>
   )
