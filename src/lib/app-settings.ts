@@ -76,15 +76,6 @@ export type AppSettingKey =
   // 아무 슬롯에도 뱃지 표시 안 함. 기본 `["Dps"]`. 리더/탱커 등 다른 포지션
   // 까지 CD 를 보고 싶으면 관리자가 설정 페이지에서 추가.
   | 'cd_badge_roles'
-  // 킬로그 기반 배틀 기록 (migration 054). battle_started_at 부터 몇 시간
-  // 동안을 "이 배틀" 로 간주할지. 정수 문자열, 기본 '3'.
-  | 'battle_window_hours'
-  // 전체 참가자가 이 수 미만이면 배틀 자체를 excluded 처리 — 알비온 소규모
-  // 교전(15명 내외)을 제외하려는 장치. 기본 '30'.
-  | 'battle_min_total_players'
-  // 참여 길드 중 이 수 이상의 선수가 있어야 승/패 판정 대상. 그 외는
-  // ineligible. 기본 '5'.
-  | 'battle_min_guild_players'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

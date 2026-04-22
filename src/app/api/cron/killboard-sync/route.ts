@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import { syncKillboard } from '@/lib/killboard-sync'
-import { pollBattleSnapshots } from '@/lib/battle-snapshot'
 
 // 킬보드 동기화 cron. GitHub Actions 가 5분 주기로 호출하면, 이 엔드포인트가
 // 내부적으로 "지금 sync 를 돌릴지" 를 판단한다 — 이벤트 진행 중이면 5분 간격,
@@ -70,17 +69,6 @@ export async function GET(request: Request) {
 
   const result = await syncKillboard(db)
 
-  // 활성 배틀이 있으면 서버 전역 `/events` 도 폴링 — 이 데이터가
-  // battle-aggregate 의 입력이 된다. 실패해도 killboard-sync 본체는
-  // 성공 처리 (집계는 재시도 가능).
-  let snapshot: Awaited<ReturnType<typeof pollBattleSnapshots>> | null = null
-  let snapshotError: string | null = null
-  try {
-    snapshot = await pollBattleSnapshots(db)
-  } catch (e) {
-    snapshotError = e instanceof Error ? e.message : String(e)
-  }
-
   const nowIso = new Date().toISOString()
   await db
     .from('app_settings')
@@ -89,10 +77,5 @@ export async function GET(request: Request) {
       { onConflict: 'key' },
     )
 
-  return NextResponse.json({
-    active,
-    ...result,
-    battle_snapshot: snapshot,
-    battle_snapshot_error: snapshotError,
-  })
+  return NextResponse.json({ active, ...result })
 }

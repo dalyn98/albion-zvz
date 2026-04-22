@@ -1,12 +1,11 @@
 import { supabase } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
-import type { Battle, BattleParticipant, Event, PartyWithSlots } from '@/types'
+import type { Event, PartyWithSlots } from '@/types'
 import { SLOT_ROLES, type SlotRole } from '@/types'
 import { getAppSetting } from '@/lib/app-settings'
 import EventPartyGrid from '@/components/EventPartyGrid'
 import EventSlotSidebar from '@/components/EventSlotSidebar'
-import BattleResultCard from '@/components/BattleResultCard'
 import AutoRefresh from '@/components/AutoRefresh'
 import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil } from 'lucide-react'
 import Link from 'next/link'
@@ -24,10 +23,9 @@ function formatStartedAt(iso: string): string {
 export const dynamic = 'force-dynamic'
 
 async function getEvent(id: string) {
-  const [{ data: event }, { data: parties }, { data: battle }] = await Promise.all([
+  const [{ data: event }, { data: parties }] = await Promise.all([
     supabase.from('events').select('*').eq('id', id).maybeSingle(),
     supabase.from('parties').select('*, slots(*)').eq('event_id', id).order('party_number'),
-    supabase.from('battles').select('*').eq('event_id', id).maybeSingle(),
   ])
 
   const sorted = (parties ?? []).map((p) => ({
@@ -37,21 +35,9 @@ async function getEvent(id: string) {
       .sort((a, b) => a.slot_number - b.slot_number),
   })) as PartyWithSlots[]
 
-  // battle_participants 는 별도 쿼리 — battle 이 없으면 건너뛴다.
-  let participants: BattleParticipant[] = []
-  if (battle) {
-    const { data } = await supabase
-      .from('battle_participants')
-      .select('*')
-      .eq('battle_id', (battle as Battle).id)
-    participants = (data ?? []) as BattleParticipant[]
-  }
-
   return {
     event: event as Event | null,
     parties: sorted,
-    battle: (battle ?? null) as Battle | null,
-    participants,
   }
 }
 
@@ -61,7 +47,7 @@ export default async function EventDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const [{ event, parties, battle, participants }, session, t, locale, cdBadgeRolesRaw] = await Promise.all([
+  const [{ event, parties }, session, t, locale, cdBadgeRolesRaw] = await Promise.all([
     getEvent(id),
     getSession(),
     getTranslations('event'),
@@ -197,8 +183,6 @@ export default async function EventDetailPage({
             </div>
           )}
         </div>
-
-        {battle && <BattleResultCard battle={battle} participants={participants} />}
 
         <div className="lg:hidden">
           <EventSlotSidebar placement="mobile" parties={parties} avatars={avatars} />

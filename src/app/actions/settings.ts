@@ -27,9 +27,6 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'aodp_min_quality',
   'auto_regear_enabled',
   'cd_badge_roles',
-  'battle_window_hours',
-  'battle_min_total_players',
-  'battle_min_guild_players',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -75,13 +72,6 @@ const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
   shop_silver_to_point_rate: { min: 1, max: 1_000_000 },
   // 1 Normal, 2 Good, 3 Outstanding, 4 Excellent, 5 Masterpiece.
   aodp_min_quality: { min: 1, max: 5 },
-  // 배틀 윈도우 길이(시간). 보통의 ZvZ 는 2~3시간으로 끝나지만 포탑/미사
-  // 방어전이 길어질 수 있어 최대 6시간까지 허용.
-  battle_window_hours: { min: 1, max: 6 },
-  // 배틀 성립 최소 인원. 10명 미만은 소규모 교전으로 간주해 집계 제외.
-  battle_min_total_players: { min: 10, max: 200 },
-  // 길드 판정 최소 참여자. 대형 길드에서 1~2명 스쳐간 케이스를 제외.
-  battle_min_guild_players: { min: 1, max: 20 },
 }
 
 // Boolean-string keys. Must be exactly 'true' or 'false'.
