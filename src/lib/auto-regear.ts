@@ -28,6 +28,12 @@ export interface AutoRegearResult {
   // role_rewards.silver 가 0 또는 미등록인 역할 (= "리기어 차단" 의도).
   // 수동 flow 와 동일하게 자동도 지급 없이 스킵.
   requests_skipped_no_role_cap: number
+  // killboard sync 가 battle 종료 시점을 따라잡지 못한 이벤트. 다음 cron 에
+  // 재시도하도록 mark-processed 하지 않고 연기.
+  events_deferred_sync_lag: number
+  // 관리자가 retroactive 로 만든 이벤트 (created_at > battle_started_at).
+  // 자동 처리 대신 park — admin 이 수동 검토했을 거라고 가정.
+  events_skipped_retroactive: number
   errors: Array<{ event_id: string; step: string; message: string }>
   duration_ms: number
 }
@@ -63,6 +69,7 @@ interface EventRow {
   id: string
   title: string
   battle_started_at: string
+  created_at: string
   auto_regear_processed_at: string | null
 }
 
@@ -140,6 +147,8 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
       requests_skipped_no_slot: 0,
       requests_skipped_manual_exists: 0,
       requests_skipped_no_role_cap: 0,
+      events_deferred_sync_lag: 0,
+      events_skipped_retroactive: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
@@ -165,7 +174,7 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
   const cutoffIso = new Date(Date.now() - regearWindowMinutes * 60 * 1000).toISOString()
   const { data: events, error: eventsErr } = await db
     .from('events')
-    .select('id, title, battle_started_at, auto_regear_processed_at')
+    .select('id, title, battle_started_at, created_at, auto_regear_processed_at')
     .not('battle_started_at', 'is', null)
     .is('auto_regear_processed_at', null)
     .lte('battle_started_at', cutoffIso)
@@ -185,12 +194,23 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
       requests_skipped_no_slot: 0,
       requests_skipped_manual_exists: 0,
       requests_skipped_no_role_cap: 0,
+      events_deferred_sync_lag: 0,
+      events_skipped_retroactive: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
   }
 
   const aodpOptions = await loadAodpOptions()
+
+  // killboard sync 지연 체크용 전역 타임스탬프. sync 가 battle 종료 시점 이후로
+  // 돌지 않았다면 victim 목록이 불완전할 수 있어 해당 이벤트는 다음 cron 으로 연기.
+  const { data: syncRow } = await db
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'last_killboard_sync_at')
+    .maybeSingle()
+  const lastKillboardSyncMs = syncRow?.value ? Date.parse(syncRow.value) : NaN
 
   // 역할별 상한을 한 번에 로드. 수동 flow 와 동일한 cap 을 자동에도 적용.
   // 0 또는 미등록 = "리기어 차단" 의도이므로 해당 역할 victim 은 스킵.
@@ -210,10 +230,34 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
   let skippedNoSlot = 0
   let skippedManualExists = 0
   let skippedNoRoleCap = 0
+  let deferredSyncLag = 0
+  let skippedRetroactive = 0
   let processed = 0
 
   for (const event of eventRows) {
     try {
+      // retroactive 가드: 관리자가 battle 이후 이벤트를 만든 케이스.
+      // 수동으로 이미 보상이 처리됐을 가능성이 높으므로 park 처리하고 skip.
+      // 정상 flow(이벤트 생성 → 배틀) 는 created_at <= battle_started_at.
+      const createdMs = Date.parse(event.created_at)
+      const battleMs = Date.parse(event.battle_started_at)
+      if (Number.isFinite(createdMs) && Number.isFinite(battleMs) && createdMs > battleMs) {
+        const nowIso = new Date().toISOString()
+        await db.from('events').update({ auto_regear_processed_at: nowIso }).eq('id', event.id)
+        skippedRetroactive += 1
+        processed += 1
+        continue
+      }
+
+      // killboard sync 지연 가드: 배틀 종료 시점(= battle_started_at + window)
+      // 이후로 sync 가 한 번이라도 돌았어야 victim 목록이 완결됐다고 판단.
+      // 못 돌았으면 다음 cron 에서 재시도 (mark-processed 하지 않음).
+      const battleEndMs = battleMs + regearWindowMinutes * 60 * 1000
+      if (!Number.isFinite(lastKillboardSyncMs) || lastKillboardSyncMs < battleEndMs) {
+        deferredSyncLag += 1
+        continue
+      }
+
       // 파티/슬롯 조회. 배정된 discord_id 만 뽑아 빠르게 룩업.
       const { data: parties, error: partiesErr } = await db
         .from('parties')
@@ -244,8 +288,7 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
 
       // battle 창 안에서 victim 이벤트만 조회. occurred_at 이 일반적으로
       // battle_started_at ± window 범위에 들어온다.
-      const battleStartMs = Date.parse(event.battle_started_at)
-      const battleEndIso = new Date(battleStartMs + regearWindowMinutes * 60 * 1000).toISOString()
+      const battleEndIso = new Date(battleEndMs).toISOString()
       const { data: victims, error: victimsErr } = await db
         .from('killboard_events')
         .select('event_id, discord_id, player_name, occurred_at, equipment')
@@ -366,6 +409,8 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
     requests_skipped_no_slot: skippedNoSlot,
     requests_skipped_manual_exists: skippedManualExists,
     requests_skipped_no_role_cap: skippedNoRoleCap,
+    events_deferred_sync_lag: deferredSyncLag,
+    events_skipped_retroactive: skippedRetroactive,
     errors,
     duration_ms: Date.now() - startedAt,
   }

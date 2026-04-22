@@ -32,11 +32,11 @@ export async function GET(request: Request) {
       { onConflict: 'key' },
     )
 
-  // 자동 행이 생겼으면 대시보드의 regear 관련 화면이 즉시 반영되게 한다.
+  // 자동 행이 생겼으면 관리자 대시보드 regear 화면이 즉시 반영되게 한다.
+  // /me 는 세션 별 동적 라우트라 path-based revalidate 로는 무효화 안 됨 — 제외.
   if (result.requests_created > 0) {
     revalidatePath('/admin/dashboard/regear')
     revalidatePath('/admin/dashboard/approvals')
-    revalidatePath('/me')
   }
 
   return NextResponse.json(result)
