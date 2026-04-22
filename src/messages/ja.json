@@ -645,7 +645,18 @@
       "reviewing": "処理中...",
       "confirmReject": "{name} さんのボムスクワッド申請を拒否しますか?",
       "pendingOther": "承認待ち",
-      "pendingTooltip": "コーラーまたは管理者が承認するまで、他の人は申請できません。"
+      "pendingTooltip": "コーラーまたは管理者が承認するまで、他の人は申請できません。",
+      "callerAssignButton": "メンバー指定",
+      "callerAssign": {
+        "title": "ボムスクワッドメンバー指定",
+        "subtitle": "メンバーを選択するとすぐにスロットへ割り当てられます。",
+        "close": "閉じる",
+        "searchPlaceholder": "メンバー名を検索",
+        "loading": "読み込み中…",
+        "noMatches": "一致するメンバーがいません。",
+        "alreadyInEvent": "既に参加中",
+        "assigning": "指定中…"
+      }
     },
     "confirmBattleStarted": "すでに戦闘が始まっているイベントです。\n申請後はキャンセルできません。続行しますか?",
     "picker": {
@@ -950,6 +961,9 @@
     "noPendingRequest": "保留中の申請はありません。",
     "notBombSquad": "ボムスクワッド専用の操作です。",
     "bombSquadNotAuthorized": "コーラーまたは管理者のみ処理できます。",
+    "memberNotFound": "対象のメンバーが見つかりません。",
+    "memberWithdrawn": "脱退したメンバーは指定できません。",
+    "eventNotFound": "イベントが見つかりません。",
     "serverError": "サーバーエラーが発生しました。"
   },
   "publicRecords": {

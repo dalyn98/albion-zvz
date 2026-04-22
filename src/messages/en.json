@@ -642,7 +642,18 @@
       "reviewing": "Processing...",
       "confirmReject": "Reject {name}'s bomb squad request?",
       "pendingOther": "Awaiting approval",
-      "pendingTooltip": "No one else can apply until the caller or an admin approves."
+      "pendingTooltip": "No one else can apply until the caller or an admin approves.",
+      "callerAssignButton": "Assign member",
+      "callerAssign": {
+        "title": "Assign bomb squad member",
+        "subtitle": "Pick a member — they're slotted immediately.",
+        "close": "Close",
+        "searchPlaceholder": "Search member name",
+        "loading": "Loading…",
+        "noMatches": "No matching members.",
+        "alreadyInEvent": "Already in event",
+        "assigning": "Assigning…"
+      }
     },
     "confirmBattleStarted": "This event's battle has already started.\nYou can't cancel after applying. Continue?",
     "picker": {
@@ -947,6 +958,9 @@
     "noPendingRequest": "No pending request to act on.",
     "notBombSquad": "Bomb squad action only.",
     "bombSquadNotAuthorized": "Only the caller or an admin can act on this request.",
+    "memberNotFound": "Target member not found.",
+    "memberWithdrawn": "Withdrawn members can't be assigned.",
+    "eventNotFound": "Event not found.",
     "serverError": "A server error occurred."
   },
   "publicRecords": {

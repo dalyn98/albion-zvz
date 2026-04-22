@@ -26,11 +26,13 @@ import ItemImage from './ItemImage'
 import SlotSpellPanel, { SlotCooldownBadge } from './SlotSpellPanel'
 import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
+import MemberAssignModal from './MemberAssignModal'
 import { UserPlus, UserX, MessageSquare, LogIn, Lock, X, Swords, Check, Hourglass, Bomb } from 'lucide-react'
 
 interface Props {
   slot: Slot
   partyNumber: number
+  eventId: string
   // Migration 041: party-level context needed to render bomb squad state and
   // decide who can approve/reject pending requests. partyName is shown only on
   // bomb squad parties (regular parties keep the "N파티" label).
@@ -188,6 +190,7 @@ function NoteTooltip({ notes }: { notes: string }) {
 export default function SlotCard({
   slot,
   partyNumber,
+  eventId,
   partyName = null,
   isBombSquadParty = false,
   bombSquadCallerId = null,
@@ -202,6 +205,7 @@ export default function SlotCard({
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [assignModalOpen, setAssignModalOpen] = useState(false)
   const router = useRouter()
   const t = useTranslations('slot')
   const tGear = useTranslations('gear')
@@ -215,11 +219,14 @@ export default function SlotCard({
   // (requested_* is cleared once approve_slot_request moves data to assigned_*).
   const hasPendingRequest = !isTaken && slot.requested_discord_id !== null
   const isMyPending = hasPendingRequest && slot.requested_discord_id === currentDiscordId
-  const canReviewPending =
-    hasPendingRequest &&
+  const isCallerOrAdmin =
     isLoggedIn &&
-    !battleStarted &&
     (isAdmin || (!!bombSquadCallerId && bombSquadCallerId === currentDiscordId))
+  const canReviewPending = hasPendingRequest && !battleStarted && isCallerOrAdmin
+  // 빈 슬롯에 한해 콜러/관리자가 "멤버 지정" 모달을 열 수 있게 한다.
+  // 신청(requested_*) 이 걸려 있으면 먼저 승인/거절을 처리해야 한다.
+  const canCallerAssign =
+    !isTaken && !hasPendingRequest && isBombSquadParty && !battleStarted && isCallerOrAdmin
 
   // Slot kinds that need a choice at signup time: the admin marked them multi
   // and the member hasn't been assigned yet.
@@ -386,6 +393,16 @@ export default function SlotCard({
       {slot.notes && <NoteTooltip notes={slot.notes} />}
 
       {renderAction()}
+      {canCallerAssign && (
+        <button
+          type="button"
+          onClick={() => setAssignModalOpen(true)}
+          className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[12px] font-semibold bg-gray-800/80 hover:bg-rose-500/15 text-rose-200 border border-rose-500/40 transition-colors"
+        >
+          <UserPlus size={11} />
+          {t('bombSquad.callerAssignButton')}
+        </button>
+      )}
       {error && <p className="text-red-400 text-[12px] leading-tight">{error}</p>}
 
       {pickerOpen && (
@@ -397,6 +414,15 @@ export default function SlotCard({
             setPickerOpen(false)
             doAssign(picks)
           }}
+        />
+      )}
+
+      {assignModalOpen && (
+        <MemberAssignModal
+          eventId={eventId}
+          slotId={slot.id}
+          slotLabel={slotLabel}
+          onClose={() => setAssignModalOpen(false)}
         />
       )}
     </div>

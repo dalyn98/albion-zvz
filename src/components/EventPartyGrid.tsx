@@ -129,6 +129,7 @@ export default function EventPartyGrid({
                     key={slot.id}
                     slot={slot}
                     partyNumber={party.party_number}
+                    eventId={party.event_id}
                     partyName={customName || null}
                     isBombSquadParty={isBomb}
                     bombSquadCallerId={party.caller_discord_id}
