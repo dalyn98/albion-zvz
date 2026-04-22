@@ -58,7 +58,7 @@ interface SearchResponse {
 export interface KillboardDeath {
   EventId: number
   TimeStamp: string
-  Victim: PlayerRef
+  Victim: PlayerRef & { Equipment?: Record<string, unknown> | null }
   Killer: PlayerRef
 }
 
@@ -109,6 +109,9 @@ interface VerifyResult {
   matchedEventId: number | null
   // Reason the check didn't verify, for admin display. null if verified.
   reason: string | null
+  // Equipment JSONB from the matched death, if any. Used downstream to
+  // estimate regear silver from market prices without re-hitting the API.
+  matchedEquipment: Record<string, unknown> | null
 }
 
 // Check whether `username` died in `guildName` during [windowStartIso, windowEndIso].
@@ -124,13 +127,19 @@ export async function verifyDeathInWindow(
     const baseUrl = await resolveBaseUrl()
     const player = await searchPlayerByName(baseUrl, username)
     if (!player) {
-      return { verified: false, matchedEventId: null, reason: '킬보드에서 해당 닉네임을 찾지 못했습니다.' }
+      return {
+        verified: false,
+        matchedEventId: null,
+        reason: '킬보드에서 해당 닉네임을 찾지 못했습니다.',
+        matchedEquipment: null,
+      }
     }
     if ((player.GuildName ?? '').toLowerCase() !== guildName.toLowerCase()) {
       return {
         verified: false,
         matchedEventId: null,
         reason: `길드가 일치하지 않습니다 (${player.GuildName ?? '길드 없음'}).`,
+        matchedEquipment: null,
       }
     }
 
@@ -146,14 +155,21 @@ export async function verifyDeathInWindow(
         verified: false,
         matchedEventId: null,
         reason: '해당 시간대 내 사망 기록을 찾지 못했습니다.',
+        matchedEquipment: null,
       }
     }
-    return { verified: true, matchedEventId: match.EventId, reason: null }
+    return {
+      verified: true,
+      matchedEventId: match.EventId,
+      reason: null,
+      matchedEquipment: match.Victim.Equipment ?? null,
+    }
   } catch (e) {
     return {
       verified: false,
       matchedEventId: null,
       reason: e instanceof Error ? `킬보드 조회 실패: ${e.message}` : '킬보드 조회 실패',
+      matchedEquipment: null,
     }
   }
 }

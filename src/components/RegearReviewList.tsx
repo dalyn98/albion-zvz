@@ -298,7 +298,15 @@ function RegearRow({
       return
     }
     if (result.killboard_verified) {
-      toast.success(tToast('killboardVerifiedNow'))
+      if (result.estimated_silver && result.estimated_silver > 0) {
+        toast.success(
+          tToast('killboardVerifiedNowWithEstimate', {
+            amount: formatSilver(result.estimated_silver),
+          }),
+        )
+      } else {
+        toast.success(tToast('killboardVerifiedNow'))
+      }
     } else {
       toast.info(tToast('killboardStillNotVerified'))
     }
@@ -338,6 +346,14 @@ function RegearRow({
               {t('claimed', { amount: formatSilver(claimed) })}
               <span className="text-gray-500"> / {t('cap', { amount: formatSilver(request.silver) })}</span>
             </span>
+            {request.estimated_silver !== null && (
+              <span
+                className="font-mono text-cyan-300"
+                title={t('estimatedMarketHint')}
+              >
+                {t('estimatedMarket', { amount: formatSilver(request.estimated_silver) })}
+              </span>
+            )}
             {request.status === 'approved' && approvedPayout !== null && approvedPayout !== claimed && (
               <span className="font-mono text-emerald-400">
                 {t('paidOut', { amount: formatSilver(approvedPayout) })}

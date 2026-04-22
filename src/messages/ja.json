@@ -151,6 +151,8 @@
     "searchPlaceholder": "申請者名または日付で検索 (例: 04-19, 4月19日)",
     "claimed": "請求 {amount}",
     "cap": "上限 {amount}",
+    "estimatedMarket": "推定 {amount}",
+    "estimatedMarketHint": "キルボードの死亡装備を AODP 設定都市の最安値で換算した金額です。",
     "killboardVerified": "キルボード確認済み",
     "killboardNotVerified": "キルボード未確認",
     "killboardDelayHint": "Albion のキルボードは死亡記録の反映に約 30 分かかります。時間をおいてから「再確認」を押してください。",
@@ -1081,6 +1083,7 @@
     "genericError": "問題が発生しました。",
     "eventDuplicated": "イベントを複製しました。",
     "killboardVerifiedNow": "キルボードで死亡記録を確認しました。",
+    "killboardVerifiedNowWithEstimate": "キルボード確認完了。推定金額 {amount}。",
     "killboardStillNotVerified": "キルボードにまだ反映されていません。しばらくしてから再試行してください。"
   },
   "discordDm": {

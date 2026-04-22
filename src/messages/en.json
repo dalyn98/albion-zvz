@@ -151,6 +151,8 @@
     "searchPlaceholder": "Search by applicant or date (e.g. 04-19, Apr 19)",
     "claimed": "Claimed {amount}",
     "cap": "Cap {amount}",
+    "estimatedMarket": "Est. {amount}",
+    "estimatedMarketHint": "Market price of the killboard loadout, priced from the configured AODP cities.",
     "killboardVerified": "Killboard verified",
     "killboardNotVerified": "Killboard unverified",
     "screenshotAlt": "Regear screenshot",
@@ -1077,6 +1079,7 @@
     "genericError": "Something went wrong.",
     "eventDuplicated": "Event duplicated.",
     "killboardVerifiedNow": "Death record found on killboard.",
+    "killboardVerifiedNowWithEstimate": "Killboard verified. Estimated market value: {amount}.",
     "killboardStillNotVerified": "Not indexed on the killboard yet. Try again later."
   },
   "discordDm": {

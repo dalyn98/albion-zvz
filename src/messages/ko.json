@@ -151,6 +151,8 @@
     "searchPlaceholder": "신청자 이름 또는 날짜로 검색 (예: 04-19, 4월 19일)",
     "claimed": "청구 {amount}",
     "cap": "상한 {amount}",
+    "estimatedMarket": "추정가 {amount}",
+    "estimatedMarketHint": "킬보드 사망 장비를 AODP 설정 도시 최저가로 환산한 값입니다.",
     "killboardVerified": "킬보드 확인됨",
     "killboardNotVerified": "킬보드 미확인",
     "killboardDelayHint": "Albion 킬보드는 사망 기록 반영에 ~30분 걸립니다. 시간이 지난 뒤 재확인을 눌러보세요.",
@@ -1081,6 +1083,7 @@
     "genericError": "문제가 발생했어요.",
     "eventDuplicated": "이벤트를 복제했어요.",
     "killboardVerifiedNow": "킬보드에서 사망 기록을 찾았어요.",
+    "killboardVerifiedNowWithEstimate": "킬보드 확인 완료. 추정가 {amount}.",
     "killboardStillNotVerified": "아직 킬보드에 반영되지 않았습니다. 잠시 후 다시 시도해 주세요."
   },
   "discordDm": {

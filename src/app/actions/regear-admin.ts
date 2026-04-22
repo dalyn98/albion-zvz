@@ -9,6 +9,7 @@ import { formatSilver } from '@/lib/silver'
 import { getAppSetting } from '@/lib/app-settings'
 import { calcPayoutSilver } from '@/lib/regear-payout'
 import { verifyDeathInWindow } from '@/lib/killboard'
+import { estimateSilverFromEquipment } from '@/lib/regear-estimate'
 import type { BuildSnapshot, RegearType } from '@/types'
 
 const DEFAULT_PAYOUT_RATE_PERCENT = 100
@@ -60,6 +61,9 @@ export interface AdminRegearRequest {
   handled_by: string | null
   handled_by_username: string | null
   build_snapshot: BuildSnapshot | null
+  // 킬보드 장비 + AODP 시세로 추산한 시장가. 자동 리기어와 관리자 재확인에서
+  // 동일 포맷(gear_breakdown.market_silver) 으로 기록한다. null = 추산 없음.
+  estimated_silver: number | null
 }
 
 export interface AdminExchangeRequest {
@@ -91,7 +95,7 @@ export async function listRegearRequests(
     let query = db
       .from('regear_requests')
       .select(
-        'id, event_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, events(title)',
+        'id, event_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, events(title)',
       )
       .order('created_at', { ascending: false })
     if (scope === 'pending') query = query.eq('status', 'pending')
@@ -103,6 +107,12 @@ export async function listRegearRequests(
     const requests: AdminRegearRequest[] = (data ?? []).map((row) => {
       const event = row.events as { title?: string } | { title?: string }[] | null
       const liveTitle = Array.isArray(event) ? event[0]?.title ?? '' : event?.title ?? ''
+      const breakdown = row.gear_breakdown as { market_silver?: unknown } | null
+      const marketRaw = breakdown?.market_silver
+      const estimatedSilver =
+        typeof marketRaw === 'number' && Number.isFinite(marketRaw) && marketRaw > 0
+          ? Math.trunc(marketRaw)
+          : null
       return {
         id: row.id,
         event_id: row.event_id ?? '',
@@ -124,6 +134,7 @@ export async function listRegearRequests(
         handled_by: row.handled_by ?? null,
         handled_by_username: row.handled_by_username ?? null,
         build_snapshot: (row.build_snapshot as BuildSnapshot | null) ?? null,
+        estimated_silver: estimatedSilver,
       }
     })
     return { requests }
@@ -225,6 +236,10 @@ export interface RecheckKillboardResult {
   killboard_verified: boolean
   killboard_event_id: number | null
   admin_notes: string | null
+  // Market-based estimate from the matched death equipment. Only set when
+  // verification succeeded AND AODP returned at least one price. `null` means
+  // either the request isn't verified or we couldn't price any slot.
+  estimated_silver: number | null
   error?: string
 }
 
@@ -236,6 +251,7 @@ export async function recheckKillboardVerification(
     killboard_verified: false,
     killboard_event_id: null,
     admin_notes: null,
+    estimated_silver: null,
   }
   try {
     const db = await requireAdmin()
@@ -263,12 +279,30 @@ export async function recheckKillboardVerification(
       new Date().toISOString(),
     )
 
+    // 재확인이 성공하고 equipment 가 있으면 AODP 시세로 추산액을 계산.
+    // 실패 케이스(equipment 없음, AODP 전부 null 등) 는 조용히 null 로 둔다 —
+    // 기존 검증 로직을 막아선 안 되므로.
+    let estimatedSilver: number | null = null
+    let breakdown: Record<string, unknown> | null = null
+    if (result.verified && result.matchedEquipment) {
+      try {
+        const estimate = await estimateSilverFromEquipment(result.matchedEquipment)
+        if (estimate.marketSilver > 0) {
+          estimatedSilver = estimate.marketSilver
+        }
+        breakdown = estimate.breakdown as unknown as Record<string, unknown>
+      } catch {
+        // AODP 실패는 재확인 전체를 실패시키지 않는다.
+      }
+    }
+
     const { error: updateError } = await db
       .from('regear_requests')
       .update({
         killboard_verified: result.verified,
         killboard_event_id: result.matchedEventId,
         admin_notes: result.reason,
+        gear_breakdown: breakdown,
       })
       .eq('id', id)
       .eq('status', 'pending')
@@ -280,6 +314,7 @@ export async function recheckKillboardVerification(
       killboard_verified: result.verified,
       killboard_event_id: result.matchedEventId,
       admin_notes: result.reason,
+      estimated_silver: estimatedSilver,
     }
   } catch (e) {
     return { ...empty, error: e instanceof Error ? e.message : tErr('serverError') }
