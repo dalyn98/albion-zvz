@@ -49,6 +49,9 @@ export type AppSettingKey =
   // 잘못 설정되면 /search 와 /deaths 모두 빈 응답이 돌아와 리기어 자동 검증이
   // 항상 실패한다. 기본 'east' — 레거시 하드코딩값(gameinfo-sgp) 유지.
   | 'albion_server'
+  // 마지막 killboard-sync cron 성공 시각(ISO). 평시엔 1시간 쿨다운으로 API
+  // 부하를 낮추고, 이벤트 진행 중엔 이 값을 무시하고 매 tick sync.
+  | 'last_killboard_sync_at'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

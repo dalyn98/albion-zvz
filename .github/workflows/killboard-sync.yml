@@ -1,0 +1,40 @@
+name: Killboard sync
+
+# 킬보드 sync cron. GitHub Actions 스케줄 한계(최저 5분)에 맞춰 5분 간격으로
+# /api/cron/killboard-sync 엔드포인트를 호출. 평시엔 엔드포인트 내부에서
+# 1시간 쿨다운 gate 로 실제 sync 를 스킵한다. 이벤트가 활성일 때만 5분마다
+# 실제 sync 가 돌아가 API 호출을 최소화.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: killboard-sync
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call cron endpoint
+        env:
+          APP_URL: https://albion-zvz.vercel.app
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set"
+            exit 1
+          fi
+          response=$(curl -sS -w "\n%{http_code}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/killboard-sync")
+          body=$(echo "$response" | sed '$d')
+          status=$(echo "$response" | tail -n1)
+          echo "status=$status"
+          echo "body=$body"
+          if [ "$status" != "200" ]; then
+            exit 1
+          fi
