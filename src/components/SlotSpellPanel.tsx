@@ -12,6 +12,7 @@ import {
   isCdTargetSpell,
   formatCooldown,
   type EffectiveCooldown,
+  type OffhandCdrType,
 } from '@/lib/cooldown'
 
 // Rows appear in this fixed top-to-bottom order. Offhand/potion/food/cape
@@ -101,6 +102,17 @@ function groupLabel(g: SpellGroup, tSpell: SpellTranslator): string {
   }
   return g.slot === null ? tSpell('passive') : tSpell('passiveSlot', { n: g.slot })
 }
+
+// Static map from OffhandCdrType → the corresponding translation key under
+// `slot.spell.*`. Using an explicit literal map (instead of `offhand_${type}`)
+// keeps every key visible to the next-intl key checker and makes it obvious
+// when OffhandCdrType gains a new member without a matching translation.
+const OFFHAND_CDR_TYPE_TO_KEY = {
+  TORCH: 'offhand_TORCH',
+  HORN_KEEPER: 'offhand_HORN_KEEPER',
+  JESTERCANE_HELL: 'offhand_JESTERCANE_HELL',
+  TOME_CRYSTAL: 'offhand_TOME_CRYSTAL',
+} as const satisfies Record<OffhandCdrType, string>
 
 // Small CD text badge overlaid on the weapon's CD-target active spell icon.
 // The detailed breakdown now lives in the sibling SlotCooldownBadge — this
@@ -313,7 +325,7 @@ export function SlotCooldownBadge({
             {cd.sources.map((src, idx) => {
               const offhandLabel =
                 src.key === 'offhand' && src.offhandType
-                  ? tSpell(`offhand_${src.offhandType}`)
+                  ? tSpell(OFFHAND_CDR_TYPE_TO_KEY[src.offhandType])
                   : null
               return (
                 <div
