@@ -24,7 +24,6 @@ import {
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
-import LanguageSwitcher from './LanguageSwitcher'
 
 interface NavItem {
   href: string
@@ -220,11 +219,6 @@ export default function AppSidebar({ session, adminBadges }: AppSidebarProps) {
             />
           )}
         </nav>
-
-        {/* Language switcher — above user info */}
-        <div className={`border-t border-white/5 flex-shrink-0 ${open ? 'px-3 py-2' : 'px-2 py-2'}`}>
-          <LanguageSwitcher expanded={open} />
-        </div>
 
         {/* Footer — session info */}
         <div className={`border-t border-white/5 flex-shrink-0 ${open ? 'px-3 py-3' : 'px-2 py-3'}`}>
