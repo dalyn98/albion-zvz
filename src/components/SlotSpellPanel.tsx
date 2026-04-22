@@ -7,7 +7,7 @@ import SpellImage from './SpellImage'
 import type { Slot, SlotKey } from '@/types'
 import { getSpells, getDisplayGear, getGearOptions, isFreeItem } from '@/types'
 import spellSlotsJson from '@/data/albion-spell-slots.json'
-import { computeEffectiveCd, isEslotActive, formatCooldown } from '@/lib/cooldown'
+import { computeEffectiveCd, isCdTargetSpell, formatCooldown } from '@/lib/cooldown'
 
 // Rows appear in this fixed top-to-bottom order. Offhand/potion/food/cape
 // are omitted because they carry no active spells in practice; if we ever
@@ -97,20 +97,23 @@ function groupLabel(g: SpellGroup, tSpell: SpellTranslator): string {
   return g.slot === null ? tSpell('passive') : tSpell('passiveSlot', { n: g.slot })
 }
 
-// Badge overlay shown on the E-slot (weapon slot=3) active spell icon. Shows
-// the effective cooldown after leather armor / food CDR modifiers, and a
-// breakdown tooltip via `title`. Renders nothing when the spell isn't an
-// E-slot active, has no recastdelay, or — per the multi-option rule — the
-// member hasn't picked a weapon yet.
+// Badge overlay shown on the weapon's CD-target active spell icon (slot 3
+// normally, slot 2 for basic Mace). Shows the effective cooldown after
+// leather armor / food CDR modifiers, and a breakdown tooltip via `title`.
+// Renders nothing when the spell isn't the CD-target, has no recastdelay,
+// the row isn't a weapon row, or — per the multi-option rule — the member
+// hasn't picked a weapon yet.
 interface SpellIconProps {
   spellId: string
   slot: Slot
   size: number
+  rowKey: SpellRowKey
+  weaponItemId: string | null
   tSpell: SpellTranslator
   tGear: SpellTranslator
 }
-function SpellIconWithCd({ spellId, slot, size, tSpell, tGear }: SpellIconProps) {
-  if (!isEslotActive(spellId)) {
+function SpellIconWithCd({ spellId, slot, size, rowKey, weaponItemId, tSpell, tGear }: SpellIconProps) {
+  if (rowKey !== 'weapon' || !isCdTargetSpell(spellId, weaponItemId)) {
     return <SpellImage spellId={spellId} size={size} />
   }
   const cd = computeEffectiveCd(slot, spellId)
@@ -193,6 +196,8 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
                           spellId={spellId}
                           slot={slot}
                           size={SPELL_ICON_SIZE}
+                          rowKey={key}
+                          weaponItemId={id}
                           tSpell={tSpell}
                           tGear={tGear}
                         />
@@ -213,6 +218,8 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
                           spellId={spellId}
                           slot={slot}
                           size={SPELL_ICON_SIZE}
+                          rowKey={key}
+                          weaponItemId={id}
                           tSpell={tSpell}
                           tGear={tGear}
                         />

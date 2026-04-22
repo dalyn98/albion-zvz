@@ -36,13 +36,33 @@ type CooldownsData = {
 }
 const CD_DATA = cooldownsJson as CooldownsData
 
-// Returns true when the spell is the weapon's E-slot active (slot 3). The UI
-// calls this to decide whether to render a CD badge at all — CD math is only
-// meaningful for active spells that carry a recastdelay, and the product
-// scope is currently limited to the weapon's E position.
-export function isEslotActive(spellId: string): boolean {
+// Which weapon-slot active spell should carry the CD badge for a given
+// weapon item. Defaults to slot 3 (E-slot) — the member's headline spell
+// across almost every weapon.
+//
+// Exception: the basic Mace (T4~T8_MAIN_MACE, no artifact suffix) — its
+// W-slot (slot 2, e.g. GROUNDSHAKER / CHARGE_ROOT / GUARDRUNE / PBAOE_PULL)
+// is the real main skill for guilds running base mace tanks; MACELEAP on
+// slot 3 is a mobility tool, not a rotation keystone. Artifact maces
+// (MAIN_MACE_HELL/MORGANA/KEEPER/AVALON/CRYSTAL) swap in a signature E
+// spell (SHRINKINGSMASH etc.) so they keep the slot-3 default.
+const BASE_MACE_RE = /^T\d_MAIN_MACE$/
+
+function targetCdSlot(weaponItemId: string | null | undefined): number {
+  if (weaponItemId && BASE_MACE_RE.test(weaponItemId)) return 2
+  return 3
+}
+
+// Returns true when the spell sits in the CD-target slot for its weapon.
+// Callers that don't know the weapon id (non-weapon rows) pass null, and
+// we fall back to the default slot 3.
+export function isCdTargetSpell(
+  spellId: string,
+  weaponItemId: string | null | undefined,
+): boolean {
   const info = SPELL_SLOTS[spellId]
-  return info?.type === 'active' && info.slot === 3
+  if (info?.type !== 'active') return false
+  return info.slot === targetCdSlot(weaponItemId)
 }
 
 // Strips an Albion enchantment suffix (`@1`/`@2`/`@3`) — item-spells maps
