@@ -1,12 +1,42 @@
-import { BarChart3, Wallet, TrendingUp, TrendingDown, Users } from 'lucide-react'
-import { getPointStats } from '@/app/actions/stats-admin'
+import Image from 'next/image'
+import {
+  BarChart3,
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  Users,
+  CalendarCheck,
+  UserCheck,
+  ShoppingBag,
+  ShieldCheck,
+  Clock,
+  Trophy,
+} from 'lucide-react'
+import {
+  getPointStats,
+  getEventStats,
+  getShopRegearStats,
+} from '@/app/actions/stats-admin'
 import MemberAvatar from '@/components/MemberAvatar'
 import MemberLink from '@/components/MemberLink'
 
 export const dynamic = 'force-dynamic'
 
+function itemImageUrl(uniqueName: string, enchant: number, quality: number): string {
+  const id = enchant > 0 ? `${uniqueName}@${enchant}` : uniqueName
+  const params = new URLSearchParams({ quality: String(quality), size: '48' })
+  return `https://render.albiononline.com/v1/item/${id}.png?${params.toString()}`
+}
+
 export default async function AdminStatsPage() {
-  const { stats, error } = await getPointStats()
+  // 세 섹션을 병렬로 — 하나가 느려도 다른 섹션이 블로킹되지 않도록.
+  const [pointRes, eventRes, shopRegearRes] = await Promise.all([
+    getPointStats(),
+    getEventStats(),
+    getShopRegearStats(),
+  ])
+
+  const { stats, error } = pointRes
 
   if (error || !stats) {
     return (
@@ -130,6 +160,258 @@ export default async function AdminStatsPage() {
           </ol>
         )}
       </section>
+
+      <EventParticipationSection result={eventRes} />
+      <ShopRegearSection result={shopRegearRes} />
     </div>
+  )
+}
+
+function EventParticipationSection({
+  result,
+}: {
+  result: Awaited<ReturnType<typeof getEventStats>>
+}) {
+  const { stats, error } = result
+  if (error || !stats) {
+    return (
+      <section className="bg-gray-900/60 border border-gray-700 rounded-lg p-4 text-sm text-red-300">
+        이벤트 참여 통계를 불러오지 못했습니다: {error ?? '알 수 없는 오류'}
+      </section>
+    )
+  }
+
+  const ratePercent = Math.round(stats.participationRate * 1000) / 10 // 소수 1자리.
+  const cards = [
+    {
+      label: `최근 ${stats.windowDays}일 이벤트 수`,
+      value: stats.totalEvents,
+      hint: '창 내 생성된 이벤트',
+      icon: CalendarCheck,
+      accent: 'text-indigo-300',
+      ring: 'border-indigo-500/30',
+      bg: 'bg-indigo-500/5',
+    },
+    {
+      label: '참여한 길드원',
+      value: stats.activeMembers,
+      hint: `전체 ${stats.totalMembers.toLocaleString()}명 중`,
+      icon: UserCheck,
+      accent: 'text-emerald-300',
+      ring: 'border-emerald-500/30',
+      bg: 'bg-emerald-500/5',
+    },
+    {
+      label: '참여율',
+      value: `${ratePercent.toLocaleString()}%`,
+      hint: 'activeMembers / totalMembers',
+      icon: Users,
+      accent: 'text-sky-300',
+      ring: 'border-sky-500/30',
+      bg: 'bg-sky-500/5',
+    },
+  ]
+
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center gap-2">
+        <CalendarCheck size={18} className="text-indigo-300" />
+        <h2 className="text-lg font-semibold text-white">
+          이벤트 참여 · 최근 {stats.windowDays}일
+        </h2>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {cards.map((card) => {
+          const Icon = card.icon
+          return (
+            <div
+              key={card.label}
+              className={`${card.bg} ${card.ring} border rounded-lg p-4 space-y-2`}
+            >
+              <div className="flex items-center gap-2">
+                <Icon size={16} className={card.accent} />
+                <span className="text-xs text-gray-300">{card.label}</span>
+              </div>
+              <div className={`text-2xl font-bold font-mono ${card.accent}`}>
+                {typeof card.value === 'number' ? card.value.toLocaleString() : card.value}
+              </div>
+              <div className="text-[11px] text-gray-500">{card.hint}</div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="bg-gray-900/60 border border-gray-700 rounded-lg">
+        <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-white">최다 참석 길드원</h3>
+          <span className="text-xs text-gray-500">Top {stats.topAttendees.length}</span>
+        </header>
+        {stats.topAttendees.length === 0 ? (
+          <div className="px-4 py-8 text-center text-sm text-gray-500">
+            창 내 이벤트 참여 기록이 없습니다.
+          </div>
+        ) : (
+          <ol className="divide-y divide-gray-800">
+            {stats.topAttendees.map((a, idx) => (
+              <li
+                key={a.discordId}
+                className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800/40"
+              >
+                <span className="text-xs text-gray-500 font-mono w-6 text-right">{idx + 1}</span>
+                <MemberAvatar discordId={a.discordId} avatar={a.avatar} size={24} />
+                <span className="flex-1 text-sm text-gray-200 truncate flex items-center gap-2 min-w-0">
+                  <MemberLink
+                    discordId={a.discordId}
+                    username={a.username}
+                    className="truncate"
+                  />
+                  {a.isAdmin && (
+                    <span className="text-[10px] text-amber-400 border border-amber-500/40 rounded px-1 py-0.5 flex-shrink-0">
+                      ADMIN
+                    </span>
+                  )}
+                </span>
+                <span className="text-sm font-mono text-indigo-300 tabular-nums">
+                  {a.eventCount.toLocaleString()}회
+                </span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function ShopRegearSection({
+  result,
+}: {
+  result: Awaited<ReturnType<typeof getShopRegearStats>>
+}) {
+  const { stats, error } = result
+  if (error || !stats) {
+    return (
+      <section className="bg-gray-900/60 border border-gray-700 rounded-lg p-4 text-sm text-red-300">
+        상점/리기어 트렌드를 불러오지 못했습니다: {error ?? '알 수 없는 오류'}
+      </section>
+    )
+  }
+
+  const cards = [
+    {
+      label: `최근 ${stats.windowDays}일 상점 주문`,
+      value: stats.ordersCreated,
+      hint: `승인 ${stats.ordersApproved.toLocaleString()}건 · ${stats.pointsSpent.toLocaleString()}p`,
+      icon: ShoppingBag,
+      accent: 'text-amber-300',
+      ring: 'border-amber-500/30',
+      bg: 'bg-amber-500/5',
+    },
+    {
+      label: `최근 ${stats.windowDays}일 리기어`,
+      value: stats.regearCreated,
+      hint: `승인 ${stats.regearApproved.toLocaleString()}건 · ${stats.silverPaid.toLocaleString()}s`,
+      icon: ShieldCheck,
+      accent: 'text-emerald-300',
+      ring: 'border-emerald-500/30',
+      bg: 'bg-emerald-500/5',
+    },
+    {
+      label: '대기중 주문',
+      value: stats.ordersPending,
+      hint: '현재 pending 상점 주문',
+      icon: Clock,
+      accent: stats.ordersPending > 0 ? 'text-rose-300' : 'text-gray-400',
+      ring: stats.ordersPending > 0 ? 'border-rose-500/30' : 'border-gray-700',
+      bg: stats.ordersPending > 0 ? 'bg-rose-500/5' : 'bg-gray-800/40',
+    },
+    {
+      label: '대기중 리기어',
+      value: stats.regearPending,
+      hint: '현재 pending 리기어 신청',
+      icon: Clock,
+      accent: stats.regearPending > 0 ? 'text-rose-300' : 'text-gray-400',
+      ring: stats.regearPending > 0 ? 'border-rose-500/30' : 'border-gray-700',
+      bg: stats.regearPending > 0 ? 'bg-rose-500/5' : 'bg-gray-800/40',
+    },
+  ]
+
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Trophy size={18} className="text-amber-300" />
+        <h2 className="text-lg font-semibold text-white">
+          상점 · 리기어 트렌드 · 최근 {stats.windowDays}일
+        </h2>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {cards.map((card) => {
+          const Icon = card.icon
+          return (
+            <div
+              key={card.label}
+              className={`${card.bg} ${card.ring} border rounded-lg p-4 space-y-2`}
+            >
+              <div className="flex items-center gap-2">
+                <Icon size={16} className={card.accent} />
+                <span className="text-xs text-gray-300">{card.label}</span>
+              </div>
+              <div className={`text-2xl font-bold font-mono ${card.accent}`}>
+                {card.value.toLocaleString()}
+              </div>
+              <div className="text-[11px] text-gray-500">{card.hint}</div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="bg-gray-900/60 border border-gray-700 rounded-lg">
+        <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-white">최다 판매 아이템</h3>
+          <span className="text-xs text-gray-500">
+            승인 기준 Top {stats.topSoldItems.length}
+          </span>
+        </header>
+        {stats.topSoldItems.length === 0 ? (
+          <div className="px-4 py-8 text-center text-sm text-gray-500">
+            창 내 승인된 주문이 없습니다.
+          </div>
+        ) : (
+          <ol className="divide-y divide-gray-800">
+            {stats.topSoldItems.map((item, idx) => (
+              <li
+                key={`${item.uniqueName}@${item.enchant}#${item.quality}`}
+                className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800/40"
+              >
+                <span className="text-xs text-gray-500 font-mono w-6 text-right">{idx + 1}</span>
+                <div className="relative w-8 h-8 rounded bg-gray-950 flex-shrink-0">
+                  <Image
+                    src={itemImageUrl(item.uniqueName, item.enchant, item.quality)}
+                    alt={item.nameKo}
+                    fill
+                    className="object-contain pixel-img"
+                    unoptimized
+                  />
+                </div>
+                <span className="flex-1 text-sm text-gray-200 truncate">
+                  {item.nameKo}
+                  {item.enchant > 0 && (
+                    <span className="text-amber-300 ml-1 font-mono">.{item.enchant}</span>
+                  )}
+                </span>
+                <span className="text-xs font-mono text-gray-400 tabular-nums">
+                  × {item.quantity.toLocaleString()}
+                </span>
+                <span className="text-sm font-mono text-amber-300 tabular-nums w-24 text-right">
+                  {item.points.toLocaleString()}p
+                </span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </section>
   )
 }
