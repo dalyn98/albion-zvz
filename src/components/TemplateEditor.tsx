@@ -259,8 +259,15 @@ interface PartyPanelProps {
 
 function PartyPanel({ party, onAddSlot, onUpdateSlot, onDeleteSlot }: PartyPanelProps) {
   const t = useTranslations('adminTemplates')
+  // 리컨실러가 매 렌더마다 open 을 강제 동기화하면 유저가 수동으로 닫아도
+  // 슬롯 추가시 다시 열려버림 — PartyEditorPanel 과 동일 패턴으로 controlled.
+  const [isOpen, setIsOpen] = useState(party.slots.length > 0)
   return (
-    <details className="group border border-gray-700 rounded-xl overflow-hidden" open={party.slots.length > 0}>
+    <details
+      className="group border border-gray-700 rounded-xl overflow-hidden"
+      open={isOpen}
+      onToggle={(e) => setIsOpen(e.currentTarget.open)}
+    >
       <summary className="flex items-center justify-between px-4 py-3 bg-gray-900 cursor-pointer hover:bg-gray-800 list-none [&::-webkit-details-marker]:hidden">
         <div className="flex items-center gap-3">
           <span className="bg-amber-500/20 text-amber-400 text-sm font-bold px-2.5 py-0.5 rounded">

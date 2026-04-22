@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Save } from 'lucide-react'
@@ -28,10 +28,16 @@ export default function EventEditSaveBar() {
     if (errs.length === 0) {
       setJustSaved(true)
       router.refresh()
-      // 성공 플래시는 잠깐만 — 저장 직후 DB 상태가 반영되었음을 시각적으로만 알림.
-      setTimeout(() => setJustSaved(false), 2000)
     }
   }
+
+  // 성공 플래시를 타이머 기반으로 한 번만 띄우되, 언마운트/재저장 시 이전
+  // 타이머는 정리해야 state leak/경쟁을 피할 수 있다.
+  useEffect(() => {
+    if (!justSaved) return
+    const h = setTimeout(() => setJustSaved(false), 2000)
+    return () => clearTimeout(h)
+  }, [justSaved])
 
   return (
     <div className="sticky bottom-0 left-0 right-0 z-30 -mx-4 sm:mx-0 mt-6 bg-gray-950/95 backdrop-blur border-t border-gray-800 px-4 py-3">
