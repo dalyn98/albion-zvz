@@ -120,11 +120,16 @@ function collectFoodCdr(itemId: string): { spell: string; cdr: number } | null {
   return { spell: consumespell, cdr: mod.cdr }
 }
 
+export type OffhandCdrType = 'TORCH' | 'HORN_KEEPER' | 'JESTERCANE_HELL' | 'TOME_CRYSTAL'
+
 export interface CooldownSource {
   key: 'head' | 'armor' | 'shoes' | 'food' | 'offhand'
   itemId: string
   spell: string
   cdr: number
+  // Only populated when `key === 'offhand'` — identifies which artifact family
+  // contributed the CDR so the tooltip can spell it out (e.g. "Torch", "Horn").
+  offhandType?: OffhandCdrType
 }
 
 // Offhands with CDR don't expose it via passivespell — the modifier lives on
@@ -152,10 +157,15 @@ const OFFHAND_CDR_BY_SUFFIX: Record<string, number> = {
 
 const OFFHAND_SUFFIX_RE = /^T\d_OFF_(.+)$/
 
-function collectOffhandCdr(itemId: string): number | null {
+function collectOffhandCdr(
+  itemId: string,
+): { cdr: number; offhandType: OffhandCdrType } | null {
   const m = baseId(itemId).match(OFFHAND_SUFFIX_RE)
   if (!m) return null
-  return OFFHAND_CDR_BY_SUFFIX[m[1]] ?? null
+  const suffix = m[1]
+  const cdr = OFFHAND_CDR_BY_SUFFIX[suffix]
+  if (cdr === undefined) return null
+  return { cdr, offhandType: suffix as OffhandCdrType }
 }
 
 export interface EffectiveCooldown {
@@ -200,9 +210,15 @@ export function computeEffectiveCd(
   }
   const offhandItemId = resolveCdrSourceItem(slot, 'offhand')
   if (offhandItemId) {
-    const cdr = collectOffhandCdr(offhandItemId)
-    if (cdr !== null) {
-      sources.push({ key: 'offhand', itemId: offhandItemId, spell: 'OFFHAND_CDR', cdr })
+    const off = collectOffhandCdr(offhandItemId)
+    if (off) {
+      sources.push({
+        key: 'offhand',
+        itemId: offhandItemId,
+        spell: 'OFFHAND_CDR',
+        cdr: off.cdr,
+        offhandType: off.offhandType,
+      })
     }
   }
   const foodItemId = resolveCdrSourceItem(slot, 'food')

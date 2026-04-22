@@ -660,7 +660,12 @@
       "pickOneInGame": "{label} · 인게임에서 한 개만 사용 가능",
       "cdLabel": "쿨타임",
       "cdBase": "기본",
-      "cdNote": "가능한 최저 쿨타임입니다"
+      "cdNote": "가능한 최저 쿨타임입니다",
+      "cdOffhandIncluded": "보조무기 포함",
+      "offhand_TORCH": "토치",
+      "offhand_HORN_KEEPER": "호른",
+      "offhand_JESTERCANE_HELL": "제스터케인",
+      "offhand_TOME_CRYSTAL": "토메"
     }
   },
   "eventSidebar": {

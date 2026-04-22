@@ -660,7 +660,12 @@
       "pickOneInGame": "{label} · only one usable in-game",
       "cdLabel": "Cooldown",
       "cdBase": "Base",
-      "cdNote": "Lowest achievable cooldown"
+      "cdNote": "Lowest achievable cooldown",
+      "cdOffhandIncluded": "Offhand included",
+      "offhand_TORCH": "Torch",
+      "offhand_HORN_KEEPER": "Horn",
+      "offhand_JESTERCANE_HELL": "Jester Cane",
+      "offhand_TOME_CRYSTAL": "Tome"
     }
   },
   "eventSidebar": {

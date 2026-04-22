@@ -132,6 +132,7 @@ function SpellIconWithCd({
     return <SpellImage spellId={spellId} size={size} />
   }
   const effective = formatCooldown(cd.effectiveCd)
+  const offhandSource = cd.sources.find((s) => s.key === 'offhand')
   return (
     <div className="group/cd relative">
       <SpellImage spellId={spellId} size={size} />
@@ -140,29 +141,45 @@ function SpellIconWithCd({
       </span>
       <div
         role="tooltip"
-        className="hidden group-hover/cd:block absolute z-40 bottom-full left-1/2 -translate-x-1/2 mb-1 w-[180px] bg-gray-950 border border-cyan-500/40 rounded-lg p-2 shadow-xl pointer-events-none space-y-1 text-[11px]"
+        className="hidden group-hover/cd:block absolute z-40 bottom-full left-1/2 -translate-x-1/2 mb-1 w-[200px] bg-gray-950 border border-cyan-500/40 rounded-lg p-2 shadow-xl pointer-events-none space-y-1 text-[11px]"
       >
         <div className="flex items-center justify-between">
           <span className="text-cyan-300 font-bold">{tSpell('cdLabel')}</span>
           <span className="text-white font-bold tabular-nums">{effective}</span>
         </div>
+        {offhandSource && (
+          <div className="inline-block text-[9px] font-bold leading-none px-1.5 py-0.5 rounded-sm bg-amber-500/15 text-amber-300 border border-amber-500/40">
+            {tSpell('cdOffhandIncluded')}
+          </div>
+        )}
         <div className="flex items-center justify-between text-gray-400">
           <span>{tSpell('cdBase')}</span>
           <span className="tabular-nums">{formatCooldown(cd.baseCd)}</span>
         </div>
         {cd.sources.length > 0 && (
           <div className="pt-1 border-t border-gray-800 space-y-0.5">
-            {cd.sources.map((src, idx) => (
-              <div
-                key={`${src.key}:${src.spell}:${idx}`}
-                className="flex items-center justify-between text-gray-300"
-              >
-                <span>{tGear(src.key)}</span>
-                <span className="text-emerald-300 tabular-nums">
-                  -{(src.cdr * 100).toFixed(1)}%
-                </span>
-              </div>
-            ))}
+            {cd.sources.map((src, idx) => {
+              const offhandLabel =
+                src.key === 'offhand' && src.offhandType
+                  ? tSpell(`offhand_${src.offhandType}`)
+                  : null
+              return (
+                <div
+                  key={`${src.key}:${src.spell}:${idx}`}
+                  className="flex items-center justify-between text-gray-300"
+                >
+                  <span>
+                    {tGear(src.key)}
+                    {offhandLabel ? (
+                      <span className="text-amber-300"> ({offhandLabel})</span>
+                    ) : null}
+                  </span>
+                  <span className="text-emerald-300 tabular-nums">
+                    -{(src.cdr * 100).toFixed(1)}%
+                  </span>
+                </div>
+              )
+            })}
           </div>
         )}
         <div className="pt-1 border-t border-gray-800 text-[10px] text-gray-500 leading-tight">
