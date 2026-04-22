@@ -496,7 +496,9 @@ export async function savePartySlots(
     // Saving a never-created party with zero slots should be a no-op — otherwise
     // a single click on an empty panel creates a phantom party row that blocks
     // template loading and can't be removed via the UI.
-    if (!partyId && slots.length === 0) {
+    // 예외: 밤스쿼드 파티는 admin/owner 가 먼저 메타(콜러 지정 등) 만 설정해두고
+    // 콜러가 나중에 슬롯/빌드를 채우는 플로우가 유효하므로 슬롯 0 개여도 생성 허용.
+    if (!partyId && slots.length === 0 && !metaRow.is_bomb_squad) {
       revalidatePath(`/admin/dashboard/events/${eventId}`)
       return {}
     }
