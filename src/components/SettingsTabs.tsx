@@ -11,6 +11,7 @@ import GuestInviteSettingsForm from './GuestInviteSettingsForm'
 import NoticeSettingForm, { NOTICE_MAX_LENGTH } from './NoticeSettingForm'
 import EventCreatorRolesSetting from './EventCreatorRolesSetting'
 import BombSquadCallerRolesSetting from './BombSquadCallerRolesSetting'
+import ActiveMemberRolesSetting from './ActiveMemberRolesSetting'
 import RegearLimitsForm from './RegearLimitsForm'
 import RegearPayoutRateForm from './RegearPayoutRateForm'
 import EventAutoStartForm from './EventAutoStartForm'
@@ -67,6 +68,7 @@ interface Props {
   eventsNoticeMessage: string
   eventCreatorRoleIds: string[]
   bombSquadCallerRoleIds: string[]
+  activeMemberRoleIds: string[]
   regearWindowMinutes: number
   regearMaxDeaths: number
   regearPayoutRatePercent: number
@@ -104,6 +106,7 @@ export default function SettingsTabs({
   eventsNoticeMessage,
   eventCreatorRoleIds,
   bombSquadCallerRoleIds,
+  activeMemberRoleIds,
   regearWindowMinutes,
   regearMaxDeaths,
   regearPayoutRatePercent,
@@ -195,6 +198,7 @@ export default function SettingsTabs({
           <div className="space-y-4">
             <EventCreatorRolesSetting initialRoleIds={eventCreatorRoleIds} />
             <BombSquadCallerRolesSetting initialRoleIds={bombSquadCallerRoleIds} />
+            <ActiveMemberRolesSetting initialRoleIds={activeMemberRoleIds} />
           </div>
         )}
         {active === 'events' && (

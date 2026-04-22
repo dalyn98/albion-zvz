@@ -76,6 +76,15 @@ export type AppSettingKey =
   // 아무 슬롯에도 뱃지 표시 안 함. 기본 `["Dps"]`. 리더/탱커 등 다른 포지션
   // 까지 CD 를 보고 싶으면 관리자가 설정 페이지에서 추가.
   | 'cd_badge_roles'
+  // JSON array (string) of Discord role IDs. "이 역할을 하나라도 보유하지 않는
+  // 길드원 = 탈퇴자" 로 간주. 빈 배열이면 "디스코드 서버 재적 여부" 만 확인
+  // (역할 검사 생략). member-sync cron 이 이 값을 읽어 withdrawn_at 플래그를
+  // 갱신한다.
+  | 'active_member_role_ids'
+  // 마지막 member-sync cron 성공 시각(ISO). 하루 1회 이상 실행되지 않도록 gate
+  // 용. 관리자에겐 /admin/dashboard/stats 의 탈퇴자 섹션에 마지막 동기화 시각
+  // 으로 표시.
+  | 'last_member_sync_at'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

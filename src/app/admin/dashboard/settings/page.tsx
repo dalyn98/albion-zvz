@@ -22,6 +22,7 @@ export default async function SettingsPage() {
     eventsNoticeMessage,
     eventCreatorRoleIdsRaw,
     bombSquadCallerRoleIdsRaw,
+    activeMemberRoleIdsRaw,
     regearWindowMinutesRaw,
     regearMaxDeathsRaw,
     regearPayoutRatePercentRaw,
@@ -44,6 +45,7 @@ export default async function SettingsPage() {
     getAppSetting('events_notice_message', ''),
     getAppSetting('event_creator_role_ids', '[]'),
     getAppSetting('bomb_squad_caller_role_ids', '[]'),
+    getAppSetting('active_member_role_ids', '[]'),
     getAppSetting('regear_window_minutes', '60'),
     getAppSetting('regear_max_deaths_per_event', '1'),
     getAppSetting('regear_payout_rate_percent', '100'),
@@ -72,6 +74,7 @@ export default async function SettingsPage() {
   }
   const eventCreatorRoleIds = parseRoleIds(eventCreatorRoleIdsRaw)
   const bombSquadCallerRoleIds = parseRoleIds(bombSquadCallerRoleIdsRaw)
+  const activeMemberRoleIds = parseRoleIds(activeMemberRoleIdsRaw)
 
   // Numeric/boolean settings degrade to sane defaults if the DB value is
   // missing or malformed — admin can correct via the new form.
@@ -173,6 +176,7 @@ export default async function SettingsPage() {
         eventsNoticeMessage={eventsNoticeMessage}
         eventCreatorRoleIds={eventCreatorRoleIds}
         bombSquadCallerRoleIds={bombSquadCallerRoleIds}
+        activeMemberRoleIds={activeMemberRoleIds}
         regearWindowMinutes={regearWindowMinutes}
         regearMaxDeaths={regearMaxDeaths}
         regearPayoutRatePercent={regearPayoutRatePercent}

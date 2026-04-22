@@ -27,6 +27,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'aodp_min_quality',
   'auto_regear_enabled',
   'cd_badge_roles',
+  'active_member_role_ids',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -50,6 +51,8 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   'bomb_squad_caller_role_ids',
   // 빈 배열 = 어떤 역할군에도 CD 뱃지 표시 안 함 (기능 전체 off 에 가까움).
   'cd_badge_roles',
+  // 빈 배열 = 역할 검사 생략, 디스코드 서버 재적 여부만으로 탈퇴 판정.
+  'active_member_role_ids',
 ] as const
 
 // JSON array string keys. Must parse to string[] or the upsert is rejected.
@@ -58,6 +61,7 @@ const JSON_ARRAY_KEYS: readonly AppSettingKey[] = [
   'bomb_squad_caller_role_ids',
   'aodp_cities',
   'cd_badge_roles',
+  'active_member_role_ids',
 ] as const
 
 // Integer-string keys. Must parse as a positive integer within the declared

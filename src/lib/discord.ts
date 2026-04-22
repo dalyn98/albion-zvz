@@ -155,6 +155,49 @@ export function identityFromMember(member: DiscordGuildMember): DiscordIdentity 
   }
 }
 
+// Bulk guild member listing — bot 전용. OAuth `guilds.members.read` 와 달리
+// 서버 전체 멤버를 훑어야 하므로 bot token + GUILD_MEMBERS privileged intent 가
+// 필요하다. Developer Portal → Bot → Privileged Gateway Intents 에서 Server
+// Members Intent 를 켜둔 봇만 200 을 반환, 아니면 Discord 는 403 을 돌려준다.
+//
+// 페이징: limit=1000 (Discord 상한) + after=<last_user_id> 커서. page.length
+// < 1000 이면 마지막 페이지. Menhera 길드 규모(<300명) 에서는 사실상 1 페이지로
+// 끝나지만 안전하게 루프를 돌린다.
+export interface DiscordGuildMemberBulk {
+  user: DiscordUser | null
+  nick: string | null
+  roles: string[]
+}
+
+export async function listGuildMembersBulk(): Promise<DiscordGuildMemberBulk[]> {
+  const botToken = process.env.DISCORD_BOT_TOKEN
+  if (!botToken) throw new Error('DISCORD_BOT_TOKEN not configured')
+  const { guildId } = getDiscordConfig()
+
+  const all: DiscordGuildMemberBulk[] = []
+  let after: string | undefined
+  while (true) {
+    const params = new URLSearchParams({ limit: '1000' })
+    if (after) params.set('after', after)
+    const res = await fetch(`${DISCORD_API}/guilds/${guildId}/members?${params.toString()}`, {
+      headers: { Authorization: `Bot ${botToken}` },
+      cache: 'no-store',
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      throw new Error(`Discord bulk members fetch failed (${res.status}): ${text}`)
+    }
+    const page = (await res.json()) as DiscordGuildMemberBulk[]
+    if (page.length === 0) break
+    all.push(...page)
+    if (page.length < 1000) break
+    const lastId = page[page.length - 1]?.user?.id
+    if (!lastId) break
+    after = lastId
+  }
+  return all
+}
+
 export interface EventNotificationPayload {
   id: string
   title: string

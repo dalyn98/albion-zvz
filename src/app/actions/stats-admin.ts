@@ -13,6 +13,7 @@ export interface TopHolder {
 
 export interface PointStats {
   // 길드원 모두의 현재 보유 포인트 합 — 곧 지급해야 할 '부채' 규모.
+  // 탈퇴자 포함 — 실제 원장 부채는 탈퇴 여부와 무관하게 존재.
   totalHeld: number
   // 지금까지 지급된 포인트(리기어 승인 + 기부 승인 + admin_adjust 양수 등) 누적.
   lifetimeEarned: number
@@ -22,6 +23,11 @@ export interface PointStats {
   entriesCount: number
   memberCount: number
   topHolders: TopHolder[]
+  // 탈퇴한 사용자(guild_avatars.withdrawn_at IS NOT NULL) 의 잔액 합계 — 즉시
+  // 회수/정리 대상이 될 수 있는 '잠긴' 부채 규모.
+  withdrawnHeld: number
+  // 탈퇴한 사용자들의 개별 잔액 목록. 0 보다 큰 잔액만 노출(통계 의미).
+  withdrawnHolders: TopHolder[]
 }
 
 // 이벤트 참여 집계 창: 과거 30일. 직관적 '최근 한 달' 지표로 운영진에게 친숙.
@@ -87,7 +93,9 @@ export async function getPointStats(): Promise<{ stats?: PointStats; error?: str
     const db = await requireAdmin()
     const [ledgerRes, avatarsRes] = await Promise.all([
       db.from('point_ledger').select('discord_id, delta'),
-      db.from('guild_avatars').select('discord_id, username, avatar, is_admin'),
+      db
+        .from('guild_avatars')
+        .select('discord_id, username, avatar, is_admin, withdrawn_at'),
     ])
     if (ledgerRes.error) return { error: ledgerRes.error.message }
     if (avatarsRes.error) return { error: avatarsRes.error.message }
@@ -120,22 +128,34 @@ export async function getPointStats(): Promise<{ stats?: PointStats; error?: str
     const avatarsByDiscord = new Map(avatars.map((a) => [a.discord_id, a]))
 
     const topHolders: TopHolder[] = []
+    const withdrawnHolders: TopHolder[] = []
     let totalHeld = 0
+    let withdrawnHeld = 0
     for (const [discordId, v] of balances.entries()) {
       totalHeld += v.balance
       // 보유 포인트가 0 이하인 사람은 "top" 에서 제외 — 0 이면 표시 가치 없고,
       // 음수면 이상 상태(관리자 조정 중) 이므로 별도 섹션이 필요하면 추후에.
       if (v.balance <= 0) continue
       const a = avatarsByDiscord.get(discordId)
-      topHolders.push({
+      const entry: TopHolder = {
         discordId,
         username: a?.username ?? '이름 미상',
         avatar: a?.avatar ?? null,
         isAdmin: a?.is_admin ?? false,
         balance: v.balance,
-      })
+      }
+      // 탈퇴자는 별도 섹션으로. guild_avatars 에 없는 경우(= 레거시, avatar 미등록)
+      // 는 "정상" 으로 간주 — 이 케이스는 게스트/과거 로그인 없이 ledger 만 쌓인
+      // 엣지케이스라 탈퇴 분류에 포함시키면 오히려 혼동된다.
+      if (a?.withdrawn_at) {
+        withdrawnHolders.push(entry)
+        withdrawnHeld += v.balance
+      } else {
+        topHolders.push(entry)
+      }
     }
     topHolders.sort((a, b) => b.balance - a.balance)
+    withdrawnHolders.sort((a, b) => b.balance - a.balance)
 
     return {
       stats: {
@@ -145,6 +165,8 @@ export async function getPointStats(): Promise<{ stats?: PointStats; error?: str
         entriesCount: rows.length,
         memberCount: balances.size,
         topHolders: topHolders.slice(0, 50),
+        withdrawnHeld,
+        withdrawnHolders,
       },
     }
   } catch (e) {
@@ -208,17 +230,21 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
       set.add(row.eventId)
     }
 
-    // 이름/아바타 매핑. 길드원 수(= 분모)는 guild_avatars 전체 크기 사용 —
-    // 로그인 적어도 1회 한 멤버 기준. 참여율은 여기서 계산.
+    // 이름/아바타 매핑. 길드원 수(= 분모)는 활동 회원(withdrawn_at IS NULL) 기준.
+    // 탈퇴자가 계속 분모에 포함되면 "참여율" 이 장기적으로 과소 집계된다 —
+    // 탈퇴자는 이벤트에 참여할 수 없기 때문.
     const avatarsRes = await db
       .from('guild_avatars')
-      .select('discord_id, username, avatar, is_admin')
+      .select('discord_id, username, avatar, is_admin, withdrawn_at')
     if (avatarsRes.error) return { error: avatarsRes.error.message }
     const avatarsByDiscord = new Map((avatarsRes.data ?? []).map((a) => [a.discord_id, a]))
 
     const topAttendees: TopAttendee[] = []
     for (const [discordId, events] of perMember.entries()) {
       const a = avatarsByDiscord.get(discordId)
+      // 탈퇴자는 상위 참석자 목록에서 제외. 과거에 많이 참석했더라도 현재 길드
+      // 운영 지표로서 가치가 없음.
+      if (a?.withdrawn_at) continue
       topAttendees.push({
         discordId,
         username: a?.username ?? '이름 미상',
@@ -229,8 +255,13 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
     }
     topAttendees.sort((a, b) => b.eventCount - a.eventCount)
 
-    const totalMembers = avatarsByDiscord.size
-    const activeMembers = perMember.size
+    const activeAvatars = (avatarsRes.data ?? []).filter((a) => a.withdrawn_at === null)
+    const totalMembers = activeAvatars.length
+    const activeSet = new Set(activeAvatars.map((a) => a.discord_id))
+    let activeMembers = 0
+    for (const discordId of perMember.keys()) {
+      if (activeSet.has(discordId)) activeMembers++
+    }
     const participationRate = totalMembers > 0 ? activeMembers / totalMembers : 0
 
     return {

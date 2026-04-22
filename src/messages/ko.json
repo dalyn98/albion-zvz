@@ -463,6 +463,21 @@
     "saving": "저장 중…",
     "saved": "저장됨"
   },
+  "adminActiveMemberRoles": {
+    "title": "활동 회원 역할",
+    "description": "선택한 Discord 역할을 하나라도 보유한 구성원을 '활동 회원'으로 간주합니다. 아무것도 선택하지 않으면 Discord 서버 재적 여부만 확인합니다. 디스코드 서버에서 나갔거나 활동 역할이 없는 구성원은 '탈퇴한 사용자'로 분류되어 멤버 목록·집계에서 제외됩니다.",
+    "cronHint": "하루 1회 자정 이후 크론(04:00 KST)이 Discord 멤버 목록을 확인해 반영합니다. 즉시 반영이 필요하면 관리자가 수동으로 워크플로를 실행할 수 있습니다.",
+    "rolesLoading": "역할 목록을 불러오는 중…",
+    "rolesError": "역할 목록을 가져오지 못했습니다.",
+    "rolesEmpty": "사용 가능한 역할이 없습니다.",
+    "placeholder": "역할을 선택하세요…",
+    "searchPlaceholder": "역할 이름으로 검색",
+    "clearSelection": "모두 해제",
+    "noMatches": "일치하는 역할이 없습니다.",
+    "save": "저장",
+    "saving": "저장 중…",
+    "saved": "저장됨"
+  },
   "adminBombSquadCallerRoles": {
     "title": "밤스쿼드 콜러 역할",
     "description": "선택한 Discord 역할을 가진 구성원은 이벤트 편집 화면에서 밤스쿼드 파티의 콜러로 지정할 수 있습니다. 지정된 콜러는 본인 파티의 승인 요청을 처리할 수 있습니다.",

@@ -133,7 +133,10 @@ export async function listGuildMembers(): Promise<{
     const [avatarsRes, slotsRes] = await Promise.all([
       db
         .from('guild_avatars')
-        .select('discord_id, username, avatar, is_admin, updated_at, preferred_language'),
+        .select('discord_id, username, avatar, is_admin, updated_at, preferred_language')
+        // 탈퇴자(member-sync cron 이 withdrawn_at 을 찍은 행) 은 /members 에서
+        // 숨긴다. 통계 페이지에서만 별도 섹션으로 노출.
+        .is('withdrawn_at', null),
       db
         .from('slots')
         .select('assigned_discord_id, role_name, parties!inner(event_id)')
