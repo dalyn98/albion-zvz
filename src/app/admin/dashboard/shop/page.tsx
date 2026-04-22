@@ -21,6 +21,7 @@ export default async function AdminShopPage() {
   const [
     { data: blacklist },
     { data: inventory },
+    { data: lastLog },
     deliveryNotice,
     silverToPointRate,
     aodpCitiesRaw,
@@ -34,12 +35,20 @@ export default async function AdminShopPage() {
         'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver, price_source, price_updated_at, updated_at',
       )
       .order('name_ko', { ascending: true }),
+    db
+      .from('shop_chest_logs')
+      .select('imported_at')
+      .order('imported_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
     getAppSetting('shop_delivery_notice', ''),
     getAppSetting('shop_silver_to_point_rate', '1'),
     getAppSetting('aodp_cities', ''),
     getAppSetting('aodp_price_mode', 'spot'),
     getAppSetting('aodp_min_quality', '1'),
   ])
+
+  const lastImportAt = (lastLog?.imported_at as string | null | undefined) ?? null
 
   const aodpAllowedSet: ReadonlySet<string> = new Set(AODP_ALLOWED_CITIES)
   let aodpCities: string[] = [...AODP_ALLOWED_CITIES]
@@ -106,7 +115,7 @@ export default async function AdminShopPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="space-y-4">
-          <ShopImportForm />
+          <ShopImportForm lastImportAt={lastImportAt} />
           <ShopInventoryEditor rows={inventoryRows} silverToPointRate={rate} />
         </div>
         <div className="space-y-4">
