@@ -22,6 +22,9 @@ export interface AutoRegearResult {
   requests_created: number
   requests_skipped_excluded: number
   requests_skipped_no_slot: number
+  // RPC 가 NULL 을 반환한 케이스 = 같은 이벤트에 수동 non-rejected 행이 이미
+  // 존재. 중복 지급 방지 가드(migration 051)에 의해 건너뜀.
+  requests_skipped_manual_exists: number
   errors: Array<{ event_id: string; step: string; message: string }>
   duration_ms: number
 }
@@ -132,6 +135,7 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
       requests_created: 0,
       requests_skipped_excluded: 0,
       requests_skipped_no_slot: 0,
+      requests_skipped_manual_exists: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
@@ -175,6 +179,7 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
       requests_created: 0,
       requests_skipped_excluded: 0,
       requests_skipped_no_slot: 0,
+      requests_skipped_manual_exists: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
@@ -185,6 +190,7 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
   let requestsCreated = 0
   let skippedExcluded = 0
   let skippedNoSlot = 0
+  let skippedManualExists = 0
   let processed = 0
 
   for (const event of eventRows) {
@@ -279,7 +285,7 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
           items: lineItems,
         }
 
-        const { error: rpcErr } = await db.rpc('create_auto_regear_request', {
+        const { data: rpcData, error: rpcErr } = await db.rpc('create_auto_regear_request', {
           p_event_id: event.id,
           p_event_title: event.title,
           p_discord_id: v.discord_id,
@@ -293,6 +299,9 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
         })
         if (rpcErr) {
           errors.push({ event_id: event.id, step: 'rpc', message: rpcErr.message })
+        } else if (rpcData === null) {
+          // RPC 가 NULL 반환 = 이미 수동 승인/대기 행 존재(migration 051 guard).
+          skippedManualExists += 1
         } else {
           requestsCreated += 1
         }
@@ -323,6 +332,7 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
     requests_created: requestsCreated,
     requests_skipped_excluded: skippedExcluded,
     requests_skipped_no_slot: skippedNoSlot,
+    requests_skipped_manual_exists: skippedManualExists,
     errors,
     duration_ms: Date.now() - startedAt,
   }
