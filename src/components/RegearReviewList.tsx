@@ -433,7 +433,9 @@ function BuildSnapshotStrip({ snapshot }: { snapshot: BuildSnapshot }) {
       </div>
       <div className="flex items-center gap-1.5 flex-wrap">
         {SLOT_KEYS.map((key: SlotKey) => {
+          // 마이그 036 이전 스냅샷은 `mount` 키가 없다 — 누락된 슬롯은 건너뛴다.
           const item = snapshot[key]
+          if (!item) return null
           return (
             <div key={key} className="flex flex-col items-center" title={tGear(key)}>
               <ItemImage itemId={item.id} itemName={item.name} size={36} hoverPreview />
