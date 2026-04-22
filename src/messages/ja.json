@@ -634,7 +634,9 @@
       "activeSlot": "{n}番スロット",
       "passiveSlot": "パッシブ {n}",
       "pickOne": "択一",
-      "pickOneInGame": "{label} · ゲーム内では1つのみ使用可能"
+      "pickOneInGame": "{label} · ゲーム内では1つのみ使用可能",
+      "cdTooltip": "基本 {base}s → {effective}s",
+      "cdSource": "{label} {percent}%"
     }
   },
   "eventSidebar": {

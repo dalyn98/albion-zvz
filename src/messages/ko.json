@@ -634,7 +634,9 @@
       "activeSlot": "{n}번 슬롯",
       "passiveSlot": "패시브 {n}",
       "pickOne": "택1",
-      "pickOneInGame": "{label} · 인게임에서 한 개만 사용 가능"
+      "pickOneInGame": "{label} · 인게임에서 한 개만 사용 가능",
+      "cdTooltip": "기본 {base}s → {effective}s",
+      "cdSource": "{label} {percent}%"
     }
   },
   "eventSidebar": {

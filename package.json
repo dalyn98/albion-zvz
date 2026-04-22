@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -H 0.0.0.0",
-    "prebuild": "node scripts/build-items.mjs && node scripts/build-item-spells.mjs",
+    "prebuild": "node scripts/build-items.mjs && node scripts/build-item-spells.mjs && node scripts/build-spell-cooldowns.mjs",
     "build": "next build",
     "start": "next start -H 0.0.0.0",
     "lint": "eslint"

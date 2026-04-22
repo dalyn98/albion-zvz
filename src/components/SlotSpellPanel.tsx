@@ -7,6 +7,7 @@ import SpellImage from './SpellImage'
 import type { Slot, SlotKey } from '@/types'
 import { getSpells, getDisplayGear, getGearOptions, isFreeItem } from '@/types'
 import spellSlotsJson from '@/data/albion-spell-slots.json'
+import { computeEffectiveCd, isEslotActive, formatCooldown } from '@/lib/cooldown'
 
 // Rows appear in this fixed top-to-bottom order. Offhand/potion/food/cape
 // are omitted because they carry no active spells in practice; if we ever
@@ -96,12 +97,53 @@ function groupLabel(g: SpellGroup, tSpell: SpellTranslator): string {
   return g.slot === null ? tSpell('passive') : tSpell('passiveSlot', { n: g.slot })
 }
 
+// Badge overlay shown on the E-slot (weapon slot=3) active spell icon. Shows
+// the effective cooldown after leather armor / food CDR modifiers, and a
+// breakdown tooltip via `title`. Renders nothing when the spell isn't an
+// E-slot active, has no recastdelay, or — per the multi-option rule — the
+// member hasn't picked a weapon yet.
+interface SpellIconProps {
+  spellId: string
+  slot: Slot
+  size: number
+  tSpell: SpellTranslator
+  tGear: SpellTranslator
+}
+function SpellIconWithCd({ spellId, slot, size, tSpell, tGear }: SpellIconProps) {
+  if (!isEslotActive(spellId)) {
+    return <SpellImage spellId={spellId} size={size} />
+  }
+  const cd = computeEffectiveCd(slot, spellId)
+  if (!cd) {
+    return <SpellImage spellId={spellId} size={size} />
+  }
+  const effective = formatCooldown(cd.effectiveCd)
+  const base = cd.baseCd.toString()
+  const lines = [tSpell('cdTooltip', { base, effective })]
+  for (const src of cd.sources) {
+    const pct = (src.cdr * 100).toFixed(1)
+    lines.push(
+      ' · ' + tSpell('cdSource', { label: tGear(src.key), percent: pct }),
+    )
+  }
+  const tooltip = lines.join('\n')
+  return (
+    <div className="relative" title={tooltip}>
+      <SpellImage spellId={spellId} size={size} />
+      <span className="absolute bottom-0 right-0 text-[9px] font-bold leading-none px-1 py-[1px] rounded-sm bg-gray-950/90 text-cyan-300 border border-cyan-600/60 pointer-events-none tabular-nums">
+        {effective}
+      </span>
+    </div>
+  )
+}
+
 // Displays a small "스킬" badge that reveals a 4-row gear+spells panel on
 // hover/focus — mirrors NoteTooltip so mobile users get the same tap-to-open
 // affordance across both info surfaces.
 export default function SlotSpellPanel({ slot }: { slot: Slot }) {
   const tSpell = useTranslations('slot.spell')
   const tSlot = useTranslations('slot')
+  const tGear = useTranslations('gear')
   const rows: RowItem[] = []
   for (const key of SPELL_ROW_KEYS) {
     rows.push(...rowsForKey(slot, key))
@@ -146,7 +188,14 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
                   return (
                     <div key={group.key} className="flex gap-0.5" title={label}>
                       {group.spellIds.map((spellId) => (
-                        <SpellImage key={spellId} spellId={spellId} size={SPELL_ICON_SIZE} />
+                        <SpellIconWithCd
+                          key={spellId}
+                          spellId={spellId}
+                          slot={slot}
+                          size={SPELL_ICON_SIZE}
+                          tSpell={tSpell}
+                          tGear={tGear}
+                        />
                       ))}
                     </div>
                   )
@@ -159,7 +208,14 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
                   >
                     <div className="flex gap-0.5 p-0.5 rounded-md border border-amber-500/50 bg-amber-500/10">
                       {group.spellIds.map((spellId) => (
-                        <SpellImage key={spellId} spellId={spellId} size={SPELL_ICON_SIZE} />
+                        <SpellIconWithCd
+                          key={spellId}
+                          spellId={spellId}
+                          slot={slot}
+                          size={SPELL_ICON_SIZE}
+                          tSpell={tSpell}
+                          tGear={tGear}
+                        />
                       ))}
                     </div>
                     <span className="text-amber-300 text-[10px] font-bold leading-none">
