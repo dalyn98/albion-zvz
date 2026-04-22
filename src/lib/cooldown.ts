@@ -121,10 +121,41 @@ function collectFoodCdr(itemId: string): { spell: string; cdr: number } | null {
 }
 
 export interface CooldownSource {
-  key: 'head' | 'armor' | 'shoes' | 'food'
+  key: 'head' | 'armor' | 'shoes' | 'food' | 'offhand'
   itemId: string
   spell: string
   cdr: number
+}
+
+// Offhands with CDR don't expose it via passivespell — the modifier lives on
+// the equipmentitem itself as `magiccooldownreduction="0.00XX"` and scales
+// with item power + mastery spec at runtime. Product spec (2026-04-22):
+// assume 100 mastery; pick a rough fixed value per artifact family. These
+// are tuned to match in-game tooltip at T7–T8.0 with 100 spec — the guild
+// uses them as planning reference, not exact math.
+//
+//   Torch               ~5%
+//   Horn (Keeper)       ~7.7%
+//   Jester Cane (Hell)  ~3.8%
+//   Tome (Crystal)      ~3.8%
+//
+// Suffix matches the portion after `T\d_OFF_` (and after stripping the @N
+// enchant suffix). If the upstream adds a new CDR-carrying offhand artifact,
+// check items.xml for `<equipmentitem ... slottype="offhand" ... magiccooldownreduction=".."`
+// and extend this table.
+const OFFHAND_CDR_BY_SUFFIX: Record<string, number> = {
+  TORCH: 0.05,
+  HORN_KEEPER: 0.077,
+  JESTERCANE_HELL: 0.038,
+  TOME_CRYSTAL: 0.038,
+}
+
+const OFFHAND_SUFFIX_RE = /^T\d_OFF_(.+)$/
+
+function collectOffhandCdr(itemId: string): number | null {
+  const m = baseId(itemId).match(OFFHAND_SUFFIX_RE)
+  if (!m) return null
+  return OFFHAND_CDR_BY_SUFFIX[m[1]] ?? null
 }
 
 export interface EffectiveCooldown {
@@ -165,6 +196,13 @@ export function computeEffectiveCd(
     if (!itemId) continue
     for (const c of collectArmorCdr(itemId)) {
       sources.push({ key, itemId, spell: c.spell, cdr: c.cdr })
+    }
+  }
+  const offhandItemId = resolveCdrSourceItem(slot, 'offhand')
+  if (offhandItemId) {
+    const cdr = collectOffhandCdr(offhandItemId)
+    if (cdr !== null) {
+      sources.push({ key: 'offhand', itemId: offhandItemId, spell: 'OFFHAND_CDR', cdr })
     }
   }
   const foodItemId = resolveCdrSourceItem(slot, 'food')
