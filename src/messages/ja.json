@@ -611,8 +611,8 @@
     "editAria": "イベントを編集",
     "bombSquad": {
       "callerLabel": "コーラー {name}",
-      "editParty": "パーティ編集",
-      "editPartyAria": "このパーティを編集",
+      "editParty": "ボムスクワッド編集",
+      "editPartyAria": "ボムスクワッド編集 (コーラー専用)",
       "kind": {
         "melee": "近接",
         "ranged": "遠距離"

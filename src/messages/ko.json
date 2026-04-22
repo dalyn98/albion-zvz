@@ -611,8 +611,8 @@
     "editAria": "이벤트 편집",
     "bombSquad": {
       "callerLabel": "콜러 {name}",
-      "editParty": "파티 편집",
-      "editPartyAria": "이 파티 편집",
+      "editParty": "밤스쿼드 편집",
+      "editPartyAria": "밤스쿼드 편집 (콜러 전용)",
       "kind": {
         "melee": "근거리",
         "ranged": "원거리"

@@ -608,8 +608,8 @@
     "editAria": "Edit event",
     "bombSquad": {
       "callerLabel": "Caller {name}",
-      "editParty": "Edit party",
-      "editPartyAria": "Edit this party",
+      "editParty": "Edit bomb squad",
+      "editPartyAria": "Edit bomb squad (caller only)",
       "kind": {
         "melee": "Melee",
         "ranged": "Ranged"

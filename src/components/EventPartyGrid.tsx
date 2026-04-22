@@ -14,7 +14,6 @@ interface Props {
   battleStarted: boolean
   isAdmin: boolean
   eventId: string
-  eventCreatedBy: string | null
   avatars: Record<string, string | null>
   cdBadgeRoles: readonly SlotRole[]
 }
@@ -26,7 +25,6 @@ export default function EventPartyGrid({
   battleStarted,
   isAdmin,
   eventId,
-  eventCreatedBy,
   avatars,
   cdBadgeRoles,
 }: Props) {
@@ -56,8 +54,6 @@ export default function EventPartyGrid({
   }, [parties, onlyMyRole, myRoleName])
 
   const hasAnyRoleFilter = !!myRoleName
-  const isEventOwner =
-    !!currentDiscordId && !!eventCreatedBy && eventCreatedBy === currentDiscordId
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -104,7 +100,10 @@ export default function EventPartyGrid({
           !!currentDiscordId &&
           !!party.caller_discord_id &&
           party.caller_discord_id === currentDiscordId
-        const canEditThisParty = isBomb && (isAdmin || isEventOwner || isPartyCaller)
+        // 편집 버튼은 "밤스쿼드 콜러 본인"에게만 노출. 관리자/이벤트 주인은
+        // 어드민 대시보드로 편집하므로 공개 페이지의 밤스쿼드 헤더에는 표시
+        // 하지 않음 (콜러 고유 UX 강조).
+        const canEditThisParty = isBomb && isPartyCaller
         return (
           <section key={party.id} className="space-y-3 sm:space-y-4">
             <div className={`flex items-center justify-between gap-2 border-b pb-2 ${
