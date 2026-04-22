@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Coins, Wallet, ShieldCheck, ChevronRight, Sword } from 'lucide-react'
+import { Coins, Wallet, ShieldCheck, ChevronRight, Sword, Skull, Flame } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
 import LanguageBadge from './LanguageBadge'
@@ -81,6 +81,39 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
           value={formatSilver(detail.lifetime_spent)}
           mono
         />
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
+          <Sword size={14} className="text-red-400" />
+          {t('killboardHeading')}
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <StatCard
+            icon={<Sword size={14} className="text-red-400" />}
+            label={t('statKills')}
+            value={detail.killboard.kills.toLocaleString()}
+            mono
+          />
+          <StatCard
+            icon={<Skull size={14} className="text-gray-400" />}
+            label={t('statDeaths')}
+            value={detail.killboard.deaths.toLocaleString()}
+            mono
+          />
+          <StatCard
+            icon={<Flame size={14} className="text-orange-400" />}
+            label={t('statKillFame')}
+            value={detail.killboard.kill_fame.toLocaleString()}
+            mono
+          />
+          <StatCard
+            icon={<Flame size={14} className="text-gray-500" />}
+            label={t('statDeathFame')}
+            value={detail.killboard.death_fame.toLocaleString()}
+            mono
+          />
+        </div>
       </section>
 
       <section className="space-y-2">

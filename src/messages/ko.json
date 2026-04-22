@@ -834,7 +834,12 @@
     "ceilingAmount": "상한 {amount}",
     "requestedAt": "신청 {when}",
     "resolvedAt": "{status} {when}",
-    "handledBy": "처리자 {handler}"
+    "handledBy": "처리자 {handler}",
+    "killboardHeading": "킬보드 통계",
+    "statKills": "킬",
+    "statDeaths": "데스",
+    "statKillFame": "킬 명성",
+    "statDeathFame": "데스 명성"
   },
   "requestExchange": {
     "pendingNotice": "처리 대기 중인 환전 신청이 있어 새로 신청할 수 없습니다.",

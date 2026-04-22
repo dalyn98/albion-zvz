@@ -834,7 +834,12 @@
     "ceilingAmount": "上限 {amount}",
     "requestedAt": "申請 {when}",
     "resolvedAt": "{status} {when}",
-    "handledBy": "処理者 {handler}"
+    "handledBy": "処理者 {handler}",
+    "killboardHeading": "キルボード統計",
+    "statKills": "キル",
+    "statDeaths": "デス",
+    "statKillFame": "キル名声",
+    "statDeathFame": "デス名声"
   },
   "requestExchange": {
     "pendingNotice": "処理待ちの両替申請があるため、新規申請はできません。",

@@ -834,7 +834,12 @@
     "ceilingAmount": "Cap {amount}",
     "requestedAt": "Requested {when}",
     "resolvedAt": "{status} {when}",
-    "handledBy": "by {handler}"
+    "handledBy": "by {handler}",
+    "killboardHeading": "Killboard stats",
+    "statKills": "Kills",
+    "statDeaths": "Deaths",
+    "statKillFame": "Kill fame",
+    "statDeathFame": "Death fame"
   },
   "requestExchange": {
     "pendingNotice": "You already have a pending exchange request, so you cannot apply again.",

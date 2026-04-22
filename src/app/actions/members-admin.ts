@@ -89,6 +89,17 @@ export type MemberExchangeEntry =
       created_at: string
     }
 
+// killboard_events 집계. 길드 sync cron 이 폴링하는 Albion 킬보드 행에서
+// role='killer' 는 멤버가 적을 잡은 이벤트, role='victim' 은 멤버가 죽은 이벤트.
+// fame 필드는 TotalVictimKillFame 을 양쪽 모두 동일하게 저장해둔 것이라
+// SUM 이 일관되게 나온다.
+export interface KillboardStats {
+  kills: number
+  deaths: number
+  kill_fame: number
+  death_fame: number
+}
+
 export interface GuildMemberDetail {
   discord_id: string
   username: string
@@ -107,6 +118,7 @@ export interface GuildMemberDetail {
   balance: number
   lifetime_earned: number
   lifetime_spent: number
+  killboard: KillboardStats
 }
 
 export async function listGuildMembers(): Promise<{
@@ -291,41 +303,45 @@ async function fetchMemberDetail(discordId: string): Promise<{
   try {
     const db = getAdminClient()
 
-    const [avatarRes, slotsRes, regearsRes, exchangesRes, ledgerRes] = await Promise.all([
-      db
-        .from('guild_avatars')
-        .select('discord_id, username, avatar, updated_at, preferred_language')
-        .eq('discord_id', discordId)
-        .maybeSingle(),
-      db
-        .from('slots')
-        .select(
-          'role_name, weapon_name, weapon_id, assigned_weapon_name, assigned_weapon_id, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at))',
-        )
-        .eq('assigned_discord_id', discordId),
-      db
-        .from('regear_requests')
-        .select(
-          'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, status, admin_notes, created_at, resolved_at, handled_by_username, events(title)',
-        )
-        .eq('discord_id', discordId)
-        .order('created_at', { ascending: false }),
-      db
-        .from('exchange_requests')
-        .select('id, silver, status, admin_notes, created_at, resolved_at, handled_by_username')
-        .eq('discord_id', discordId)
-        .order('created_at', { ascending: false }),
-      db
-        .from('point_ledger')
-        .select('id, delta, reason, memo, created_at')
-        .eq('discord_id', discordId),
-    ])
+    const [avatarRes, slotsRes, regearsRes, exchangesRes, ledgerRes, killboardRes] =
+      await Promise.all([
+        db
+          .from('guild_avatars')
+          .select('discord_id, username, avatar, updated_at, preferred_language')
+          .eq('discord_id', discordId)
+          .maybeSingle(),
+        db
+          .from('slots')
+          .select(
+            'role_name, weapon_name, weapon_id, assigned_weapon_name, assigned_weapon_id, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at))',
+          )
+          .eq('assigned_discord_id', discordId),
+        db
+          .from('regear_requests')
+          .select(
+            'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, status, admin_notes, created_at, resolved_at, handled_by_username, events(title)',
+          )
+          .eq('discord_id', discordId)
+          .order('created_at', { ascending: false }),
+        db
+          .from('exchange_requests')
+          .select('id, silver, status, admin_notes, created_at, resolved_at, handled_by_username')
+          .eq('discord_id', discordId)
+          .order('created_at', { ascending: false }),
+        db
+          .from('point_ledger')
+          .select('id, delta, reason, memo, created_at')
+          .eq('discord_id', discordId),
+        db.from('killboard_events').select('role, fame').eq('discord_id', discordId),
+      ])
 
     if (avatarRes.error) return { detail: null, error: avatarRes.error.message }
     if (slotsRes.error) return { detail: null, error: slotsRes.error.message }
     if (regearsRes.error) return { detail: null, error: regearsRes.error.message }
     if (exchangesRes.error) return { detail: null, error: exchangesRes.error.message }
     if (ledgerRes.error) return { detail: null, error: ledgerRes.error.message }
+    // killboard_events 는 cron sync 실패·지연 등으로 비어 있을 수 있으므로
+    // 오류가 나더라도 상세 페이지 자체를 막지 않고 0 으로 fallback.
 
     const avatar = avatarRes.data
     if (!avatar) return { detail: null }
@@ -458,6 +474,18 @@ async function fetchMemberDetail(discordId: string): Promise<{
       b.created_at.localeCompare(a.created_at),
     )
 
+    const killboard: KillboardStats = { kills: 0, deaths: 0, kill_fame: 0, death_fame: 0 }
+    for (const row of killboardRes.data ?? []) {
+      const fame = (row.fame as number | null) ?? 0
+      if (row.role === 'killer') {
+        killboard.kills += 1
+        killboard.kill_fame += fame
+      } else if (row.role === 'victim') {
+        killboard.deaths += 1
+        killboard.death_fame += fame
+      }
+    }
+
     return {
       detail: {
         discord_id: avatar.discord_id,
@@ -474,6 +502,7 @@ async function fetchMemberDetail(discordId: string): Promise<{
         balance,
         lifetime_earned: earned,
         lifetime_spent: spent,
+        killboard,
       },
     }
   } catch (e) {
