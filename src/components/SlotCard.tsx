@@ -60,7 +60,7 @@ function FreeBadge({ size }: { size: number }) {
 
 function SlotItem({ name, id, size }: { name: string | null; id: string | null; size: number }) {
   if (isFreeItem(name, id)) return <FreeBadge size={size} />
-  return <ItemImage itemId={id} itemName={name} size={size} />
+  return <ItemImage itemId={id} itemName={name} size={size} clickZoom />
 }
 
 // Multi-option preview: first item in the options list as the main image,
@@ -78,7 +78,7 @@ function MultiOptionPreview({
   const extra = options.length - 1
   return (
     <div className="relative" style={{ width: size, height: size }}>
-      <ItemImage itemId={first.id} itemName={stripTierPrefix(first.name)} size={size} />
+      <ItemImage itemId={first.id} itemName={stripTierPrefix(first.name)} size={size} clickZoom />
       {extra > 0 && (
         <span
           className="absolute -top-1 -right-1 bg-amber-500 text-black font-bold rounded-full px-1 leading-tight"
