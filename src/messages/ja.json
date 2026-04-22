@@ -166,7 +166,12 @@
     "rejectConfirm": "却下確定",
     "resolvedAt": "{status} 処理: {datetime}",
     "handledBy": "{status} 処理者: {handler}",
-    "appliedBuild": "申請ビルド"
+    "appliedBuild": "申請ビルド",
+    "groupLatest": "最新 {datetime}",
+    "groupPending": "待機 {n}",
+    "groupApproved": "承認 {n}",
+    "groupRejected": "却下 {n}",
+    "groupTotal": "合計 {n}件"
   },
   "adminExchangeReview": {
     "pageTitle": "両替申請",

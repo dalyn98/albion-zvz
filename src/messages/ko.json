@@ -166,7 +166,12 @@
     "rejectConfirm": "거절 확정",
     "resolvedAt": "{status} 처리: {datetime}",
     "handledBy": "{status} 처리자: {handler}",
-    "appliedBuild": "신청 빌드"
+    "appliedBuild": "신청 빌드",
+    "groupLatest": "최근 신청 {datetime}",
+    "groupPending": "대기 {n}",
+    "groupApproved": "승인 {n}",
+    "groupRejected": "거절 {n}",
+    "groupTotal": "총 {n}건"
   },
   "adminExchangeReview": {
     "pageTitle": "환전 신청",

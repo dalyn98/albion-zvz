@@ -196,7 +196,12 @@ async function RegearSection({ scope }: { scope: Scope }) {
           {scope === 'pending' ? t('noPending') : t('noRequests')}
         </p>
       ) : (
-        <RegearReviewList requests={requests} avatars={avatars} ratePercent={ratePercent} />
+        <RegearReviewList
+          requests={requests}
+          avatars={avatars}
+          ratePercent={ratePercent}
+          groupByEvent={scope === 'all'}
+        />
       )}
     </div>
   )

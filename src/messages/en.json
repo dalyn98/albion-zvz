@@ -166,7 +166,12 @@
     "rejectConfirm": "Confirm reject",
     "resolvedAt": "{status} at {datetime}",
     "handledBy": "{status} by {handler}",
-    "appliedBuild": "Applied build"
+    "appliedBuild": "Applied build",
+    "groupLatest": "Latest {datetime}",
+    "groupPending": "Pending {n}",
+    "groupApproved": "Approved {n}",
+    "groupRejected": "Rejected {n}",
+    "groupTotal": "{n} total"
   },
   "adminExchangeReview": {
     "pageTitle": "Exchange requests",

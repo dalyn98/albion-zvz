@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Check, X, ShieldCheck, ShieldAlert, ImageIcon, Loader2, ZoomIn, ChevronUp, Swords } from 'lucide-react'
+import { Check, X, ShieldCheck, ShieldAlert, ImageIcon, Loader2, ZoomIn, ChevronUp, ChevronRight, Swords } from 'lucide-react'
 import {
   approveRegearRequest,
   rejectRegearRequest,
@@ -34,9 +34,22 @@ interface RegearReviewListProps {
   // Current payout rate (1..100). Approve button and pending-row hint use this
   // so admins see the exact silver amount the RPC will credit.
   ratePercent: number
+  // When true, 이벤트별로 묶어서 아코디언 UI 로 보여준다. `전체` 스코프에서만 켠다.
+  groupByEvent?: boolean
 }
 
-export default function RegearReviewList({ requests, avatars = {}, ratePercent }: RegearReviewListProps) {
+interface EventGroupRow {
+  eventId: string
+  eventTitle: string
+  rows: AdminRegearRequest[]
+}
+
+export default function RegearReviewList({
+  requests,
+  avatars = {},
+  ratePercent,
+  groupByEvent = false,
+}: RegearReviewListProps) {
   const t = useTranslations('adminRegearReview')
   const tCommon = useTranslations('common')
   const [search, setSearch] = useState('')
@@ -51,11 +64,42 @@ export default function RegearReviewList({ requests, avatars = {}, ratePercent }
     )
   }, [requests, search])
 
+  // 이벤트 정렬: 그룹 내 최신 신청(= rows[0], DB 쿼리가 created_at desc) 기준 desc.
+  // 삭제된 이벤트(event_id = '') 는 하나의 "미지정" 버킷으로 묶임.
+  const eventGroups = useMemo<EventGroupRow[] | null>(() => {
+    if (!groupByEvent) return null
+    const map = new Map<string, EventGroupRow>()
+    for (const r of filtered) {
+      const key = r.event_id || '__no_event__'
+      const prev = map.get(key)
+      if (prev) {
+        prev.rows.push(r)
+      } else {
+        map.set(key, { eventId: r.event_id, eventTitle: r.event_title, rows: [r] })
+      }
+    }
+    return [...map.values()].sort((a, b) => b.rows[0].created_at.localeCompare(a.rows[0].created_at))
+  }, [filtered, groupByEvent])
+
+  const searchActive = normalizeQuery(search).length > 0
+
   return (
     <div className="space-y-3">
       <SearchBox value={search} onChange={setSearch} placeholder={t('searchPlaceholder')} />
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-6">{tCommon('searchNoResults')}</p>
+      ) : eventGroups ? (
+        <ul className="space-y-2">
+          {eventGroups.map((g) => (
+            <EventGroup
+              key={g.eventId || `__no_event__:${g.eventTitle}`}
+              group={g}
+              avatars={avatars}
+              ratePercent={ratePercent}
+              forceExpanded={searchActive}
+            />
+          ))}
+        </ul>
       ) : (
         <ul className="space-y-3">
           {filtered.map((r) => (
@@ -69,6 +113,91 @@ export default function RegearReviewList({ requests, avatars = {}, ratePercent }
         </ul>
       )}
     </div>
+  )
+}
+
+interface EventGroupProps {
+  group: EventGroupRow
+  avatars: Record<string, string | null>
+  ratePercent: number
+  forceExpanded: boolean
+}
+
+function EventGroup({ group, avatars, ratePercent, forceExpanded }: EventGroupProps) {
+  const t = useTranslations('adminRegearReview')
+  const [expanded, setExpanded] = useState(false)
+  const isOpen = forceExpanded || expanded
+
+  const counts = useMemo(() => {
+    let pending = 0
+    let approved = 0
+    let rejected = 0
+    for (const r of group.rows) {
+      if (r.status === 'pending') pending += 1
+      else if (r.status === 'approved') approved += 1
+      else if (r.status === 'rejected') rejected += 1
+    }
+    return { pending, approved, rejected, total: group.rows.length }
+  }, [group.rows])
+
+  const latestAt = group.rows[0]?.created_at ?? null
+
+  return (
+    <li className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-start justify-between gap-3 px-4 py-3 hover:bg-gray-800/40 text-left"
+        aria-expanded={isOpen}
+      >
+        <div className="min-w-0 flex-1 flex items-start gap-2">
+          <ChevronRight
+            size={16}
+            className={`text-gray-500 mt-0.5 flex-shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`}
+          />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-white truncate">{group.eventTitle}</div>
+            {latestAt && (
+              <div className="text-[11px] text-gray-500 mt-0.5 font-mono">
+                {t('groupLatest', { datetime: formatDateTimeShort(latestAt) })}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap flex-shrink-0">
+          {counts.pending > 0 && (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-300">
+              {t('groupPending', { n: counts.pending })}
+            </span>
+          )}
+          {counts.approved > 0 && (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-green-500/20 text-green-300">
+              {t('groupApproved', { n: counts.approved })}
+            </span>
+          )}
+          {counts.rejected > 0 && (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-gray-700 text-gray-300">
+              {t('groupRejected', { n: counts.rejected })}
+            </span>
+          )}
+          <span className="text-[11px] text-gray-500 font-mono">
+            {t('groupTotal', { n: counts.total })}
+          </span>
+        </div>
+      </button>
+      {isOpen && (
+        <ul className="border-t border-gray-800 p-3 space-y-3 bg-gray-950/40">
+          {group.rows.map((r) => (
+            <RegearRow
+              key={r.id}
+              request={r}
+              avatar={avatars[r.discord_id] ?? null}
+              ratePercent={ratePercent}
+            />
+          ))}
+        </ul>
+      )}
+    </li>
   )
 }
 
