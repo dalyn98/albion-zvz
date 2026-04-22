@@ -29,6 +29,22 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // 전역 noindex/nofollow. robots.txt 와 이중 신호 — 일부 봇은 meta/header 만
+  // 본다. multi-tenant SaaS 로 확장 시 marketing 도메인만 인덱싱 허용하고
+  // 이 길드 인스턴스는 계속 차단 유지하는 전제.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'X-Robots-Tag',
+            value: 'noindex, nofollow, noarchive, nosnippet, notranslate, noimageindex',
+          },
+        ],
+      },
+    ]
+  },
 }
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts')

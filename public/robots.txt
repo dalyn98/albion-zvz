@@ -1,0 +1,91 @@
+# albion-zvz (길드 관리 시스템) — 비공개 운영 인스턴스.
+# AI 학습 / 웹 크롤러 일체 차단. 정상 봇은 자발적으로 이 선언을 따르지만
+# 악의적 스크레이퍼는 우회한다 — 추가 보호(서버 auth, X-Robots-Tag header,
+# 저작권 고지)와 병행 필요.
+
+# ── AI 학습용 크롤러 ──
+User-agent: GPTBot
+Disallow: /
+
+User-agent: OAI-SearchBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: GoogleOther
+Disallow: /
+
+User-agent: FacebookBot
+Disallow: /
+
+User-agent: Meta-ExternalAgent
+Disallow: /
+
+User-agent: Meta-ExternalFetcher
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
+User-agent: Perplexity-User
+Disallow: /
+
+User-agent: YouBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
+User-agent: Amazonbot
+Disallow: /
+
+User-agent: cohere-ai
+Disallow: /
+
+User-agent: cohere-training-data-crawler
+Disallow: /
+
+User-agent: Diffbot
+Disallow: /
+
+User-agent: ImagesiftBot
+Disallow: /
+
+User-agent: Omgilibot
+Disallow: /
+
+User-agent: DuckAssistBot
+Disallow: /
+
+User-agent: MistralAI-User
+Disallow: /
+
+User-agent: Timpibot
+Disallow: /
+
+User-agent: Yeti
+Disallow: /
+
+# ── 일반 검색 엔진 인덱싱 ──
+# 길드 내부 데이터라 공개 검색 노출 불필요.
+User-agent: *
+Disallow: /

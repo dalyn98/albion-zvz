@@ -23,6 +23,19 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t('title'),
     description: t('description'),
+    // robots.txt + next.config headers 와 3중 신호. 일부 크롤러는 HTML meta
+    // 만 보고 일부는 HTTP header 만 본다. 추후 marketing 도메인 분리 시 그
+    // 도메인만 index:true 로 오버라이드.
+    robots: {
+      index: false,
+      follow: false,
+      nocache: true,
+      googleBot: {
+        index: false,
+        follow: false,
+        noimageindex: true,
+      },
+    },
     appleWebApp: {
       capable: true,
       statusBarStyle: 'black-translucent',
