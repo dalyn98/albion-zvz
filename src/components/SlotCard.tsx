@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { assignSlot, cancelSlot, adminCancelSlot, type SlotPicks } from '@/app/actions/member'
 import { approveSlotRequest, rejectSlotRequest } from '@/app/actions/bomb-squad'
-import type { GearOption, GearSpec, Slot, SlotKey } from '@/types'
+import type { GearOption, GearSpec, Slot, SlotKey, SlotRole } from '@/types'
 import {
   SLOT_KEYS,
   GEAR_ENCHANT_COLOR_CLASS,
@@ -43,6 +43,7 @@ interface Props {
   isAdmin: boolean
   assignedAvatar?: string | null
   requestedAvatar?: string | null
+  cdBadgeRoles: readonly SlotRole[]
 }
 
 function FreeBadge({ size }: { size: number }) {
@@ -196,6 +197,7 @@ export default function SlotCard({
   isAdmin,
   assignedAvatar = null,
   requestedAvatar = null,
+  cdBadgeRoles,
 }: Props) {
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
@@ -364,7 +366,7 @@ export default function SlotCard({
         ))}
       </div>
 
-      <SlotSpellPanel slot={slot} />
+      <SlotSpellPanel slot={slot} cdBadgeRoles={cdBadgeRoles} />
 
       {!isTaken && needsPicks ? (
         <p className="text-amber-300 text-[12px] font-medium truncate leading-tight">

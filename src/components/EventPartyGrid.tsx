@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Bomb, Filter, Megaphone, X } from 'lucide-react'
-import type { PartyWithSlots } from '@/types'
+import type { PartyWithSlots, SlotRole } from '@/types'
 import SlotCard from './SlotCard'
 
 interface Props {
@@ -13,6 +13,7 @@ interface Props {
   battleStarted: boolean
   isAdmin: boolean
   avatars: Record<string, string | null>
+  cdBadgeRoles: readonly SlotRole[]
 }
 
 export default function EventPartyGrid({
@@ -22,6 +23,7 @@ export default function EventPartyGrid({
   battleStarted,
   isAdmin,
   avatars,
+  cdBadgeRoles,
 }: Props) {
   const t = useTranslations('event')
   const [onlyMyRole, setOnlyMyRole] = useState(false)
@@ -140,6 +142,7 @@ export default function EventPartyGrid({
                     requestedAvatar={
                       slot.requested_discord_id ? avatars[slot.requested_discord_id] ?? null : null
                     }
+                    cdBadgeRoles={cdBadgeRoles}
                   />
                 ))}
               </div>

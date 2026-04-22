@@ -2,6 +2,8 @@ import { supabase } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import type { Event, PartyWithSlots } from '@/types'
+import { SLOT_ROLES, type SlotRole } from '@/types'
+import { getAppSetting } from '@/lib/app-settings'
 import EventPartyGrid from '@/components/EventPartyGrid'
 import EventSlotSidebar from '@/components/EventSlotSidebar'
 import AutoRefresh from '@/components/AutoRefresh'
@@ -45,12 +47,28 @@ export default async function EventDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const [{ event, parties }, session, t, locale] = await Promise.all([
+  const [{ event, parties }, session, t, locale, cdBadgeRolesRaw] = await Promise.all([
     getEvent(id),
     getSession(),
     getTranslations('event'),
     getLocale(),
+    getAppSetting('cd_badge_roles', '["Dps"]'),
   ])
+
+  // 파싱 실패/잘못된 shape 은 기본값(`["Dps"]`) 으로 degrade — 설정 페이지에서
+  // 동일 파서를 쓰기 때문에 양쪽이 같은 방식으로 동작한다.
+  const slotRoleSet: ReadonlySet<string> = new Set(SLOT_ROLES)
+  let cdBadgeRoles: SlotRole[] = ['Dps']
+  try {
+    const parsed = JSON.parse(cdBadgeRolesRaw)
+    if (Array.isArray(parsed)) {
+      cdBadgeRoles = parsed.filter(
+        (v): v is SlotRole => typeof v === 'string' && slotRoleSet.has(v),
+      )
+    }
+  } catch {
+    // 손상된 값 — 기본값 유지.
+  }
 
   if (!event) notFound()
 
@@ -177,6 +195,7 @@ export default async function EventDetailPage({
           battleStarted={!!event.battle_started_at}
           isAdmin={session?.isAdmin ?? false}
           avatars={avatars}
+          cdBadgeRoles={cdBadgeRoles}
         />
       </main>
 

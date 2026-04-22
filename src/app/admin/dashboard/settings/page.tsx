@@ -4,6 +4,7 @@ import SettingsTabs from '@/components/SettingsTabs'
 import type { AlbionServer } from '@/components/AlbionServerForm'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { getTranslations } from 'next-intl/server'
+import { SLOT_ROLES, type SlotRole } from '@/types'
 
 const DEFAULT_EVENT_NOTIFICATION_MESSAGE = '새 이벤트가 등록되었습니다.'
 
@@ -30,6 +31,7 @@ export default async function SettingsPage() {
     aodpPriceModeRaw,
     aodpMinQualityRaw,
     autoRegearEnabledRaw,
+    cdBadgeRolesRaw,
     { rewards, error: rewardsError },
     tLanding,
     t,
@@ -51,6 +53,7 @@ export default async function SettingsPage() {
     getAppSetting('aodp_price_mode', 'spot'),
     getAppSetting('aodp_min_quality', '1'),
     getAppSetting('auto_regear_enabled', 'false'),
+    getAppSetting('cd_badge_roles', '["Dps"]'),
     listRoleRewards(),
     getTranslations('landing'),
     getTranslations('adminSettings'),
@@ -132,6 +135,21 @@ export default async function SettingsPage() {
 
   const autoRegearEnabled = autoRegearEnabledRaw === 'true'
 
+  // SLOT_ROLES 에 없는 값은 drop — UI 토글이 조용히 잃어버리는 것보다
+  // 관리자에게 재저장을 유도하는 편이 명확.
+  const slotRoleSet: ReadonlySet<string> = new Set(SLOT_ROLES)
+  let cdBadgeRoles: SlotRole[] = ['Dps']
+  try {
+    const parsed = JSON.parse(cdBadgeRolesRaw)
+    if (Array.isArray(parsed)) {
+      cdBadgeRoles = parsed.filter(
+        (v): v is SlotRole => typeof v === 'string' && slotRoleSet.has(v),
+      )
+    }
+  } catch {
+    // 손상된 값 — 기본값으로 degrade.
+  }
+
   // Prefer the deployed public URL so the invite link we show to the admin
   // matches what recipients will actually visit.
   const origin = (process.env.APP_URL ?? '').replace(/\/$/, '')
@@ -164,6 +182,7 @@ export default async function SettingsPage() {
         aodpPriceMode={aodpPriceMode}
         aodpMinQuality={aodpMinQuality}
         autoRegearEnabled={autoRegearEnabled}
+        cdBadgeRoles={cdBadgeRoles}
         origin={origin}
       />
     </div>

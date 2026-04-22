@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import type { AppSettingKey } from '@/lib/app-settings'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
+import { SLOT_ROLES } from '@/types'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
@@ -25,6 +26,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'aodp_price_mode',
   'aodp_min_quality',
   'auto_regear_enabled',
+  'cd_badge_roles',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -46,6 +48,8 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   // per-party caller picker will be empty and parties can still be created
   // but without a caller (admin/event creator can still approve).
   'bomb_squad_caller_role_ids',
+  // 빈 배열 = 어떤 역할군에도 CD 뱃지 표시 안 함 (기능 전체 off 에 가까움).
+  'cd_badge_roles',
 ] as const
 
 // JSON array string keys. Must parse to string[] or the upsert is rejected.
@@ -53,6 +57,7 @@ const JSON_ARRAY_KEYS: readonly AppSettingKey[] = [
   'event_creator_role_ids',
   'bomb_squad_caller_role_ids',
   'aodp_cities',
+  'cd_badge_roles',
 ] as const
 
 // Integer-string keys. Must parse as a positive integer within the declared
@@ -114,6 +119,14 @@ export async function updateAppSetting(
             return { error: tErr('invalidEnumValue', { values: AODP_ALLOWED_CITIES.join(', ') }) }
           }
         }
+        if (key === 'cd_badge_roles') {
+          const unknown = (parsed as string[]).filter(
+            (r) => !(SLOT_ROLES as readonly string[]).includes(r),
+          )
+          if (unknown.length > 0) {
+            return { error: tErr('invalidEnumValue', { values: SLOT_ROLES.join(', ') }) }
+          }
+        }
       } catch {
         return { error: tErr('invalidJsonArray') }
       }
@@ -153,6 +166,10 @@ export async function updateAppSetting(
     if (key === 'auto_regear_enabled') {
       // 슬롯 편집기의 opt-out 체크박스 가시성이 이 값에 의존.
       revalidatePath('/admin/dashboard/events', 'layout')
+    }
+    if (key === 'cd_badge_roles') {
+      // 이벤트 상세의 파티 그리드에서 CD 뱃지 표시가 이 값에 의존.
+      revalidatePath('/events/[id]', 'page')
     }
     return {}
   } catch (e) {

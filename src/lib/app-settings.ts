@@ -72,6 +72,10 @@ export type AppSettingKey =
   // 용이지만 auto-regear 는 "event 별로 1회" idempotent 가 더 강한 gate 라
   // 이 값은 모니터링/디버깅 용도에 가깝다.
   | 'last_auto_regear_at'
+  // CD 뱃지를 노출할 역할군 목록 (JSON array 문자열, SlotRole 값). 빈 배열 =
+  // 아무 슬롯에도 뱃지 표시 안 함. 기본 `["Dps"]`. 리더/탱커 등 다른 포지션
+  // 까지 CD 를 보고 싶으면 관리자가 설정 페이지에서 추가.
+  | 'cd_badge_roles'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

@@ -4,7 +4,7 @@ import { Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import ItemImage from './ItemImage'
 import SpellImage from './SpellImage'
-import type { Slot, SlotKey } from '@/types'
+import type { Slot, SlotKey, SlotRole } from '@/types'
 import { getSpells, getDisplayGear, getGearOptions, isFreeItem } from '@/types'
 import spellSlotsJson from '@/data/albion-spell-slots.json'
 import { computeEffectiveCd, isCdTargetSpell, formatCooldown } from '@/lib/cooldown'
@@ -109,11 +109,22 @@ interface SpellIconProps {
   size: number
   rowKey: SpellRowKey
   weaponItemId: string | null
+  cdBadgeRoles: readonly SlotRole[]
   tSpell: SpellTranslator
   tGear: SpellTranslator
 }
-function SpellIconWithCd({ spellId, slot, size, rowKey, weaponItemId, tSpell, tGear }: SpellIconProps) {
-  if (rowKey !== 'weapon' || !isCdTargetSpell(spellId, weaponItemId)) {
+function SpellIconWithCd({
+  spellId,
+  slot,
+  size,
+  rowKey,
+  weaponItemId,
+  cdBadgeRoles,
+  tSpell,
+  tGear,
+}: SpellIconProps) {
+  const roleAllowed = !!slot.role_name && cdBadgeRoles.includes(slot.role_name as SlotRole)
+  if (!roleAllowed || rowKey !== 'weapon' || !isCdTargetSpell(spellId, weaponItemId)) {
     return <SpellImage spellId={spellId} size={size} />
   }
   const cd = computeEffectiveCd(slot, spellId)
@@ -143,7 +154,13 @@ function SpellIconWithCd({ spellId, slot, size, rowKey, weaponItemId, tSpell, tG
 // Displays a small "스킬" badge that reveals a 4-row gear+spells panel on
 // hover/focus — mirrors NoteTooltip so mobile users get the same tap-to-open
 // affordance across both info surfaces.
-export default function SlotSpellPanel({ slot }: { slot: Slot }) {
+export default function SlotSpellPanel({
+  slot,
+  cdBadgeRoles,
+}: {
+  slot: Slot
+  cdBadgeRoles: readonly SlotRole[]
+}) {
   const tSpell = useTranslations('slot.spell')
   const tSlot = useTranslations('slot')
   const tGear = useTranslations('gear')
@@ -198,6 +215,7 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
                           size={SPELL_ICON_SIZE}
                           rowKey={key}
                           weaponItemId={id}
+                          cdBadgeRoles={cdBadgeRoles}
                           tSpell={tSpell}
                           tGear={tGear}
                         />
@@ -220,6 +238,7 @@ export default function SlotSpellPanel({ slot }: { slot: Slot }) {
                           size={SPELL_ICON_SIZE}
                           rowKey={key}
                           weaponItemId={id}
+                          cdBadgeRoles={cdBadgeRoles}
                           tSpell={tSpell}
                           tGear={tGear}
                         />

@@ -17,7 +17,9 @@ import EventAutoStartForm from './EventAutoStartForm'
 import AlbionServerForm, { type AlbionServer } from './AlbionServerForm'
 import AodpSettingsForm from './AodpSettingsForm'
 import AutoRegearToggleForm from './AutoRegearToggleForm'
+import CdBadgeRolesForm from './CdBadgeRolesForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
+import type { SlotRole } from '@/types'
 
 type TabKey =
   | 'notifications'
@@ -74,6 +76,7 @@ interface Props {
   aodpPriceMode: 'spot' | 'avg_1d' | 'avg_3d' | 'avg_7d' | 'avg_14d'
   aodpMinQuality: 1 | 2 | 3 | 4 | 5
   autoRegearEnabled: boolean
+  cdBadgeRoles: SlotRole[]
   origin: string
 }
 
@@ -110,6 +113,7 @@ export default function SettingsTabs({
   aodpPriceMode,
   aodpMinQuality,
   autoRegearEnabled,
+  cdBadgeRoles,
   origin,
 }: Props) {
   const t = useTranslations('adminSettings')
@@ -208,6 +212,7 @@ export default function SettingsTabs({
             <RegearPayoutRateForm initialPercent={regearPayoutRatePercent} />
             <AutoRegearToggleForm initialEnabled={autoRegearEnabled} />
             <EventAutoStartForm initialEnabled={eventsAutoStartEnabled} />
+            <CdBadgeRolesForm initialRoles={cdBadgeRoles} />
           </div>
         )}
         {active === 'notices' && (
