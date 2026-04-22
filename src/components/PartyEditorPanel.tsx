@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Eye, EyeOff, Package, Beaker, Bomb } from 'lucide-react'
+import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Eye, EyeOff, Package, Beaker, Bomb, Megaphone } from 'lucide-react'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
 import BatchApplySpecsModal, { type BatchSpecsScope } from './BatchApplySpecsModal'
 import BatchApplyItemsModal from './BatchApplyItemsModal'
@@ -57,6 +57,13 @@ interface Props {
   // 전역 auto_regear_enabled — SlotEditor 에 그대로 내려 "자동 리기어 제외"
   // 체크박스 가시성을 제어.
   autoRegearEnabled: boolean
+  // 콜러 전용 모드: 파티 메타(밤스쿼드 토글/이름/콜러) 설정 섹션을 숨기고
+  // 슬롯 편집 UI 만 노출. 저장 시 partyMeta 는 서버에서도 방어적으로 무시
+  // 되지만, 우선 UI 수준에서 차단해 혼란 방지.
+  isCallerScoped?: boolean
+  // 펼친 상태로 시작 — 콜러 전용 페이지에서는 첫 진입 시 편집 화면이 바로
+  // 보이게 하고 싶고, 관리자 편집기에서는 기존 접혀있는 기본값을 유지.
+  defaultOpen?: boolean
 }
 
 export default function PartyEditorPanel({
@@ -65,6 +72,8 @@ export default function PartyEditorPanel({
   initialData,
   memberDirectory,
   autoRegearEnabled,
+  isCallerScoped = false,
+  defaultOpen = false,
 }: Props) {
   const t = useTranslations('adminParty')
   const [slots, setSlots] = useState<SlotInput[]>(
@@ -188,10 +197,15 @@ export default function PartyEditorPanel({
 
   useRegisterSave(`party-${partyNumber}`, t('partyBadge', { num: partyNumber }), persistParty)
 
+  const callerName =
+    isBombSquad && callerDiscordId
+      ? memberDirectory.find((m) => m.discord_id === callerDiscordId)?.username ?? null
+      : null
+
   return (
-    <details className="group border border-gray-700 rounded-xl overflow-hidden">
+    <details open={defaultOpen} className="group border border-gray-700 rounded-xl overflow-hidden">
       <summary className="flex items-center justify-between px-4 py-3 bg-gray-900 cursor-pointer hover:bg-gray-800 list-none [&::-webkit-details-marker]:hidden">
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-3 min-w-0 flex-wrap">
           <span className={`${isBombSquad ? 'bg-rose-500/20 text-rose-300' : 'bg-amber-500/20 text-amber-400'} text-sm font-bold px-2.5 py-0.5 rounded flex items-center gap-1`}>
             {isBombSquad && <Bomb size={12} />}
             {isBombSquad && partyName.trim()
@@ -201,6 +215,12 @@ export default function PartyEditorPanel({
           {isBombSquad && (
             <span className="bg-rose-500/10 text-rose-300 text-xs font-semibold px-2 py-0.5 rounded border border-rose-500/30">
               {t(`bombSquad.kind.${bombSquadKind}`)}
+            </span>
+          )}
+          {callerName && (
+            <span className="inline-flex items-center gap-1 bg-rose-500/10 text-rose-200 text-xs font-semibold px-2 py-0.5 rounded border border-rose-500/30">
+              <Megaphone size={10} />
+              {t('bombSquad.callerBadge', { name: callerName })}
             </span>
           )}
           <span className="text-gray-400 text-sm">
@@ -215,6 +235,7 @@ export default function PartyEditorPanel({
       </summary>
 
       <div className="p-4 space-y-3 border-t border-gray-700">
+        {!isCallerScoped && (
         <div className="rounded-lg border border-gray-700 bg-gray-900/40 p-3 space-y-2">
           <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-200">
             <input
@@ -291,6 +312,7 @@ export default function PartyEditorPanel({
             </div>
           )}
         </div>
+        )}
         {slots.length > 0 && (
           <div className="flex items-center justify-end gap-2 flex-wrap">
             <button

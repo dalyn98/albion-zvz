@@ -42,6 +42,47 @@ export async function requireEventCreatorForEvent(eventId: string) {
   return db
 }
 
+// Party-scoped gate: admins / event owners pass unconditionally; non-admin
+// users who are the assigned caller of `partyId` also pass. Designed for
+// actions where a bomb squad caller edits only their own party (slots, gear
+// builds, member assignment). Caller edits must never change partyMeta —
+// `isAdminOrOwner` lets the action short-circuit meta mutations.
+export async function requireEventCreatorOrPartyCaller(
+  eventId: string,
+  partyId: string | null,
+): Promise<{ db: ReturnType<typeof getAdminClient>; isAdminOrOwner: boolean }> {
+  const session = await getSession()
+  if (!session) throw new Error('Unauthorized')
+  const db = getAdminClient()
+  if (session.isAdmin) return { db, isAdminOrOwner: true }
+
+  const { data: event, error: eventError } = await db
+    .from('events')
+    .select('created_by')
+    .eq('id', eventId)
+    .maybeSingle()
+  if (eventError) throw new Error(eventError.message)
+  if (!event) throw new Error('Event not found')
+  if (event.created_by && event.created_by === session.discordId) {
+    return { db, isAdminOrOwner: true }
+  }
+
+  // 캘러는 반드시 "기존 파티" 의 caller 로 지정돼 있어야 한다. partyId 가
+  // null 이면 (새 파티 생성 시도) admin/owner 가 아닌 이상 차단.
+  if (!partyId) throw new Error('Unauthorized')
+  const { data: party, error: partyError } = await db
+    .from('parties')
+    .select('event_id, caller_discord_id')
+    .eq('id', partyId)
+    .maybeSingle()
+  if (partyError) throw new Error(partyError.message)
+  if (!party || party.event_id !== eventId) throw new Error('Unauthorized')
+  if (!party.caller_discord_id || party.caller_discord_id !== session.discordId) {
+    throw new Error('Unauthorized')
+  }
+  return { db, isAdminOrOwner: false }
+}
+
 // Slot-scoped variant: resolves slot → party → event and delegates to
 // requireEventCreatorForEvent. Used by actions that take a slot id but need
 // to gate on the parent event's ownership (admin-side assignment clear, etc).

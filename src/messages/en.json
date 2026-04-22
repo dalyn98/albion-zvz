@@ -363,6 +363,7 @@
       "nameLabel": "Name",
       "namePlaceholder": "e.g. Breeze / Darkflare (blank = default party name)",
       "callerLabel": "Caller",
+      "callerBadge": "Caller {name}",
       "callerPlaceholder": "Select a caller",
       "callerStale": "{name} (role revoked)",
       "callerEmptyHint": "Configure caller roles in Settings first.",
@@ -607,6 +608,8 @@
     "editAria": "Edit event",
     "bombSquad": {
       "callerLabel": "Caller {name}",
+      "editParty": "Edit party",
+      "editPartyAria": "Edit this party",
       "kind": {
         "melee": "Melee",
         "ranged": "Ranged"

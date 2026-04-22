@@ -1,8 +1,9 @@
 'use client'
 
+import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Bomb, Filter, Megaphone, X } from 'lucide-react'
+import { Bomb, Filter, Megaphone, Pencil, X } from 'lucide-react'
 import type { PartyWithSlots, SlotRole } from '@/types'
 import SlotCard from './SlotCard'
 
@@ -12,6 +13,8 @@ interface Props {
   loginHref: string
   battleStarted: boolean
   isAdmin: boolean
+  eventId: string
+  eventCreatedBy: string | null
   avatars: Record<string, string | null>
   cdBadgeRoles: readonly SlotRole[]
 }
@@ -22,6 +25,8 @@ export default function EventPartyGrid({
   loginHref,
   battleStarted,
   isAdmin,
+  eventId,
+  eventCreatedBy,
   avatars,
   cdBadgeRoles,
 }: Props) {
@@ -51,6 +56,8 @@ export default function EventPartyGrid({
   }, [parties, onlyMyRole, myRoleName])
 
   const hasAnyRoleFilter = !!myRoleName
+  const isEventOwner =
+    !!currentDiscordId && !!eventCreatedBy && eventCreatedBy === currentDiscordId
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -92,9 +99,15 @@ export default function EventPartyGrid({
           ? party.slots.find((s) => s.assigned_discord_id === party.caller_discord_id)?.assigned_username
             ?? null
           : null
+        const isPartyCaller =
+          isBomb &&
+          !!currentDiscordId &&
+          !!party.caller_discord_id &&
+          party.caller_discord_id === currentDiscordId
+        const canEditThisParty = isBomb && (isAdmin || isEventOwner || isPartyCaller)
         return (
           <section key={party.id} className="space-y-3 sm:space-y-4">
-            <div className={`flex items-center justify-between border-b pb-2 ${
+            <div className={`flex items-center justify-between gap-2 border-b pb-2 ${
               isBomb ? 'border-rose-500/40' : 'border-gray-800'
             }`}>
               <div className="flex items-center gap-2 min-w-0 flex-wrap">
@@ -116,9 +129,21 @@ export default function EventPartyGrid({
                   </span>
                 )}
               </div>
-              <span className="text-sm sm:text-base text-gray-400">
-                {t('applicationsCount', { assigned, total: party.slots.length })}
-              </span>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {canEditThisParty && (
+                  <Link
+                    href={`/events/${eventId}/party/${party.party_number}`}
+                    className="inline-flex items-center gap-1 bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 text-rose-200 text-xs font-semibold px-2 py-1 rounded transition-colors"
+                    aria-label={t('bombSquad.editPartyAria')}
+                  >
+                    <Pencil size={11} />
+                    {t('bombSquad.editParty')}
+                  </Link>
+                )}
+                <span className="text-sm sm:text-base text-gray-400">
+                  {t('applicationsCount', { assigned, total: party.slots.length })}
+                </span>
+              </div>
             </div>
             {party.slots.length === 0 ? (
               <p className="text-center text-gray-500 text-sm py-4">{t('noSlots')}</p>

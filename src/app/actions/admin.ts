@@ -6,6 +6,7 @@ import {
   requireEventCreator,
   requireEventCreatorForEvent,
   requireEventCreatorForSlot,
+  requireEventCreatorOrPartyCaller,
 } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { sendEventNotification } from '@/lib/discord'
@@ -479,7 +480,7 @@ export async function savePartySlots(
     if ('error' in metaResult) return { error: metaResult.error }
     const metaRow = metaResult.row
 
-    const db = await requireEventCreatorForEvent(eventId)
+    const { db, isAdminOrOwner } = await requireEventCreatorOrPartyCaller(eventId, partyId)
 
     // Validate event exists first — otherwise FK violation is obscure to the admin.
     const { data: eventRow, error: eventCheckError } = await db
@@ -503,11 +504,16 @@ export async function savePartySlots(
     let resolvedPartyId: string
     if (partyId) {
       resolvedPartyId = partyId
-      const { error: metaUpdErr } = await db
-        .from('parties')
-        .update(metaRow)
-        .eq('id', partyId)
-      if (metaUpdErr) return { error: metaUpdErr.message }
+      // 콜러(= !isAdminOrOwner)는 is_bomb_squad / bomb_squad_kind / name /
+      // caller_discord_id 같은 파티 메타를 건드릴 수 없다. UI 에서도 감추지만
+      // 서버에서도 방어적으로 skip.
+      if (isAdminOrOwner) {
+        const { error: metaUpdErr } = await db
+          .from('parties')
+          .update(metaRow)
+          .eq('id', partyId)
+        if (metaUpdErr) return { error: metaUpdErr.message }
+      }
     } else {
       const { data, error } = await db
         .from('parties')
@@ -565,6 +571,7 @@ export async function savePartySlots(
 
     revalidatePath(`/admin/dashboard/events/${eventId}`)
     revalidatePath(`/events/${eventId}`)
+    revalidatePath(`/events/${eventId}/party/${partyNumber}`)
     revalidatePath('/')
     return {}
   } catch (e) {

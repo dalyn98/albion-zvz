@@ -210,6 +210,8 @@ export default async function EventDetailPage({
           loginHref={loginHref}
           battleStarted={!!event.battle_started_at}
           isAdmin={session?.isAdmin ?? false}
+          eventId={id}
+          eventCreatedBy={event.created_by ?? null}
           avatars={avatars}
           cdBadgeRoles={cdBadgeRoles}
         />

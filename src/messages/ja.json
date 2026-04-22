@@ -366,6 +366,7 @@
       "nameLabel": "名前",
       "namePlaceholder": "例: ブリーズ/ダークフレア (空欄ならパーティー名を使用)",
       "callerLabel": "コーラー",
+      "callerBadge": "コーラー {name}",
       "callerPlaceholder": "コーラーを選択してください",
       "callerStale": "{name} (資格なし)",
       "callerEmptyHint": "先に設定画面でコーラー役割を指定してください。",
@@ -610,6 +611,8 @@
     "editAria": "イベントを編集",
     "bombSquad": {
       "callerLabel": "コーラー {name}",
+      "editParty": "パーティ編集",
+      "editPartyAria": "このパーティを編集",
       "kind": {
         "melee": "近接",
         "ranged": "遠距離"
