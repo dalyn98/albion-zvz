@@ -25,6 +25,9 @@ export interface AutoRegearResult {
   // RPC 가 NULL 을 반환한 케이스 = 같은 이벤트에 수동 non-rejected 행이 이미
   // 존재. 중복 지급 방지 가드(migration 051)에 의해 건너뜀.
   requests_skipped_manual_exists: number
+  // role_rewards.silver 가 0 또는 미등록인 역할 (= "리기어 차단" 의도).
+  // 수동 flow 와 동일하게 자동도 지급 없이 스킵.
+  requests_skipped_no_role_cap: number
   errors: Array<{ event_id: string; step: string; message: string }>
   duration_ms: number
 }
@@ -136,6 +139,7 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
       requests_skipped_excluded: 0,
       requests_skipped_no_slot: 0,
       requests_skipped_manual_exists: 0,
+      requests_skipped_no_role_cap: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
@@ -180,6 +184,7 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
       requests_skipped_excluded: 0,
       requests_skipped_no_slot: 0,
       requests_skipped_manual_exists: 0,
+      requests_skipped_no_role_cap: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
@@ -187,10 +192,24 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
 
   const aodpOptions = await loadAodpOptions()
 
+  // 역할별 상한을 한 번에 로드. 수동 flow 와 동일한 cap 을 자동에도 적용.
+  // 0 또는 미등록 = "리기어 차단" 의도이므로 해당 역할 victim 은 스킵.
+  const { data: rewardRows, error: rewardsErr } = await db
+    .from('role_rewards')
+    .select('role_name, silver')
+  if (rewardsErr) {
+    throw new Error(`role_rewards query failed: ${rewardsErr.message}`)
+  }
+  const roleCapByName = new Map<string, number>()
+  for (const r of (rewardRows ?? []) as Array<{ role_name: string; silver: number }>) {
+    roleCapByName.set(r.role_name, Number.isFinite(r.silver) ? r.silver : 0)
+  }
+
   let requestsCreated = 0
   let skippedExcluded = 0
   let skippedNoSlot = 0
   let skippedManualExists = 0
+  let skippedNoRoleCap = 0
   let processed = 0
 
   for (const event of eventRows) {
@@ -250,19 +269,27 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
           continue
         }
 
+        // 역할 상한 적용. 수동 flow 와 동일 semantic — role_rewards.silver 가
+        // 0 또는 미등록이면 "이 역할은 리기어 차단" 의미로 스킵.
+        const roleCap = slot.role_name ? roleCapByName.get(slot.role_name) : undefined
+        if (!roleCap || roleCap <= 0) {
+          skippedNoRoleCap += 1
+          continue
+        }
+
         const gearEntries = extractGearKeys(v.equipment)
         const aodpKeys = gearEntries.map((g) => g.key)
         const priceMap =
           aodpKeys.length > 0 ? await fetchAodpPrices(aodpKeys, aodpOptions) : new Map()
 
         const lineItems: GearLineItem[] = []
-        let totalSilver = 0
+        let marketSilver = 0
         for (const entry of gearEntries) {
           const lookupKey = `${entry.key.uniqueName}|${entry.key.enchant}|${entry.key.quality}`
           const hit = priceMap.get(lookupKey)
           const unit = hit?.price ?? null
           if (unit && unit > 0) {
-            totalSilver += unit * entry.count
+            marketSilver += unit * entry.count
           }
           lineItems.push({
             slot: entry.slot,
@@ -275,13 +302,18 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
           })
         }
 
-        const payoutSilver = Math.floor((totalSilver * payoutRatePercent) / 100)
+        // 수동 flow 와 schema 대칭: silver = 역할상한, claimed = min(시장가, 상한),
+        // payout = floor(claimed * rate%). gear_breakdown 에는 원본 시장가 유지(감사용).
+        const claimedSilver = Math.min(marketSilver, roleCap)
+        const payoutSilver = Math.floor((claimedSilver * payoutRatePercent) / 100)
         const breakdown = {
           mode: aodpOptions.mode,
           server: aodpOptions.server,
           cities: aodpOptions.cities,
           min_quality: aodpOptions.minQuality,
           payout_rate_percent: payoutRatePercent,
+          role_cap: roleCap,
+          market_silver: marketSilver,
           items: lineItems,
         }
 
@@ -291,8 +323,8 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
           p_discord_id: v.discord_id,
           p_username: v.player_name,
           p_role_name: slot.role_name,
-          p_silver: totalSilver,
-          p_claimed_silver: totalSilver,
+          p_silver: roleCap,
+          p_claimed_silver: claimedSilver,
           p_payout_silver: payoutSilver,
           p_killboard_event_id: v.event_id,
           p_gear_breakdown: breakdown,
@@ -333,6 +365,7 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
     requests_skipped_excluded: skippedExcluded,
     requests_skipped_no_slot: skippedNoSlot,
     requests_skipped_manual_exists: skippedManualExists,
+    requests_skipped_no_role_cap: skippedNoRoleCap,
     errors,
     duration_ms: Date.now() - startedAt,
   }
