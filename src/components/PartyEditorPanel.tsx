@@ -92,6 +92,12 @@ export default function PartyEditorPanel({
   const [error, setError] = useState('')
   const [batchModalOpen, setBatchModalOpen] = useState(false)
   const [batchItemsModalOpen, setBatchItemsModalOpen] = useState(false)
+  // <details> 의 open 을 prop 값으로 직접 제어하면 (open={false}) React 가 매
+  // 리렌더마다 DOM 의 open 속성을 강제 제거해, 사용자가 열어 둔 패널이 다른
+  // state 변경(dropdown/체크박스)으로 리렌더될 때마다 닫혀버린다. isOpen
+  // state 로 한 번 래핑해 onToggle 에서 사용자 인터랙션을 받아 React 상태와
+  // DOM 을 동기화.
+  const [isOpen, setIsOpen] = useState(defaultOpen)
 
   // Overwrite semantics: potion/mount are uniform within a party in practice,
   // so a bulk apply that skips already-set slots would leave accidental holes.
@@ -203,7 +209,11 @@ export default function PartyEditorPanel({
       : null
 
   return (
-    <details open={defaultOpen} className="group border border-gray-700 rounded-xl overflow-hidden">
+    <details
+      open={isOpen}
+      onToggle={(e) => setIsOpen(e.currentTarget.open)}
+      className="group border border-gray-700 rounded-xl overflow-hidden"
+    >
       <summary className="flex items-center justify-between px-4 py-3 bg-gray-900 cursor-pointer hover:bg-gray-800 list-none [&::-webkit-details-marker]:hidden">
         <div className="flex items-center gap-3 min-w-0 flex-wrap">
           <span className={`${isBombSquad ? 'bg-rose-500/20 text-rose-300' : 'bg-amber-500/20 text-amber-400'} text-sm font-bold px-2.5 py-0.5 rounded flex items-center gap-1`}>
