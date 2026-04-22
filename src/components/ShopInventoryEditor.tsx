@@ -62,7 +62,10 @@ export default function ShopInventoryEditor({ rows, silverToPointRate }: Props) 
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [syncSummary, setSyncSummary] = useState<PriceSyncSummary | null>(null)
-  const [resetSummary, setResetSummary] = useState<number | null>(null)
+  const [resetSummary, setResetSummary] = useState<{
+    stockRowsZeroed: number
+    logsDeleted: number
+  } | null>(null)
   const [query, setQuery] = useState('')
   const [filterTier, setFilterTier] = useState<number | 'all'>('all')
 
@@ -98,7 +101,7 @@ export default function ShopInventoryEditor({ rows, silverToPointRate }: Props) 
   const handleReset = () => {
     if (
       !confirm(
-        '전 재고를 0 으로 초기화합니다. 수동 가격 / 카테고리 / 주문 내역 / 블랙리스트 / 오버라이드는 유지됩니다. 계속?',
+        '전 재고를 0 으로 초기화하고 원본 상자 로그도 삭제합니다. 수동 가격 / 카테고리 / 주문 내역 / 블랙리스트 / 오버라이드는 유지됩니다. 계속?',
       )
     ) {
       return
@@ -112,7 +115,10 @@ export default function ShopInventoryEditor({ rows, silverToPointRate }: Props) 
         setError(result.error)
         return
       }
-      setResetSummary(result.updated)
+      setResetSummary({
+        stockRowsZeroed: result.stockRowsZeroed,
+        logsDeleted: result.logsDeleted,
+      })
       router.refresh()
     })
   }
@@ -137,9 +143,9 @@ export default function ShopInventoryEditor({ rows, silverToPointRate }: Props) 
         <button
           type="button"
           onClick={handleReset}
-          disabled={pending || totalStock === 0}
+          disabled={pending}
           className="flex items-center gap-1.5 bg-gray-800 hover:bg-red-900/40 hover:border-red-700 border border-gray-700 disabled:bg-gray-900 disabled:text-gray-600 disabled:border-gray-800 text-red-300 px-3 py-1.5 rounded-lg transition-colors text-xs"
-          title="전 재고를 0 으로 초기화 (가격/카테고리/주문은 보존)"
+          title="전 재고를 0 으로 초기화 + 원본 로그 삭제 (가격/카테고리/주문은 보존)"
         >
           <RotateCcw size={12} />
           재고 초기화
@@ -158,7 +164,8 @@ export default function ShopInventoryEditor({ rows, silverToPointRate }: Props) 
       )}
       {resetSummary !== null && (
         <div className="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-1.5">
-          {resetSummary.toLocaleString()}개 행의 재고를 0 으로 초기화했습니다.
+          {resetSummary.stockRowsZeroed.toLocaleString()}개 행의 재고를 0 으로 초기화했습니다. 원본 로그{' '}
+          {resetSummary.logsDeleted.toLocaleString()}행 삭제.
         </div>
       )}
       {error && <p className="text-xs text-red-400">{error}</p>}

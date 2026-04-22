@@ -167,29 +167,51 @@ export async function clearManualPrice(id: string): Promise<{ error?: string }> 
 }
 
 export interface ResetInventoryResult {
-  updated: number
+  stockRowsZeroed: number
+  logsDeleted: number
   error?: string
 }
 
-// 전 재고의 stock 만 0 으로 초기화. manual_price, auto_price, 카테고리 등 행 자체는
-// 보존 — 다음 임포트 때 pricing config 가 그대로 재사용되게 둔다.
-// shop_chest_logs, shop_orders, shop_blacklist, shop_name_overrides 는 건드리지 않음.
+// 전 재고의 stock 을 0 으로 초기화하고 shop_chest_logs 원본도 삭제한다.
+// manual_price, auto_price, 카테고리 등 행 자체는 보존 — 다음 임포트 때
+// pricing config 가 재사용되게 둔다. 로그를 같이 지워야 동일 로그 재임포트가
+// dedupe 에 막히지 않는다. shop_orders, shop_blacklist, shop_name_overrides 는
+// 건드리지 않음.
 export async function resetShopInventory(): Promise<ResetInventoryResult> {
+  const empty: ResetInventoryResult = { stockRowsZeroed: 0, logsDeleted: 0 }
   try {
     const session = await getSession()
-    if (!session?.isAdmin) return { updated: 0, error: 'Unauthorized' }
+    if (!session?.isAdmin) return { ...empty, error: 'Unauthorized' }
     const db = await requireAdmin()
-    const { data, error } = await db
+
+    const { data: zeroed, error: zeroErr } = await db
       .from('shop_inventory')
       .update({ stock: 0, updated_at: new Date().toISOString() })
       .gt('stock', 0)
       .select('id')
-    if (error) return { updated: 0, error: error.message }
+    if (zeroErr) return { ...empty, error: zeroErr.message }
+
+    const { data: deleted, error: delErr } = await db
+      .from('shop_chest_logs')
+      .delete()
+      .not('id', 'is', null)
+      .select('id')
+    if (delErr) {
+      return {
+        stockRowsZeroed: zeroed?.length ?? 0,
+        logsDeleted: 0,
+        error: `로그 삭제 실패: ${delErr.message}`,
+      }
+    }
+
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')
-    return { updated: data?.length ?? 0 }
+    return {
+      stockRowsZeroed: zeroed?.length ?? 0,
+      logsDeleted: deleted?.length ?? 0,
+    }
   } catch (e) {
-    return { updated: 0, error: e instanceof Error ? e.message : 'Server error' }
+    return { ...empty, error: e instanceof Error ? e.message : 'Server error' }
   }
 }
 
