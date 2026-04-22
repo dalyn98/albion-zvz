@@ -465,7 +465,7 @@
   },
   "adminActiveMemberRoles": {
     "title": "Active member roles",
-    "description": "Members holding any of the selected Discord roles are treated as active. Leave empty to only verify that the member still belongs to the Discord server. Members who left the server or hold none of the listed roles are classified as withdrawn and excluded from member lists and aggregates.",
+    "description": "Members holding any of the selected Discord roles are treated as active. Leave empty to default to the site login roles (DISCORD_MEMBER_ROLE_ID). Members who left the server or hold none of the listed roles are classified as withdrawn and excluded from member lists and aggregates.",
     "cronHint": "A daily cron (04:00 KST) checks the Discord member list and updates the flag. Admins can trigger the workflow manually for an immediate refresh.",
     "rolesLoading": "Loading roles…",
     "rolesError": "Failed to load role list.",

@@ -12,6 +12,11 @@ import { listGuildMembersBulk } from '@/lib/discord'
 //      → 탈퇴
 //   3) 위 둘 다 아니면 활동 회원 — withdrawn_at 이 걸려 있었다면 NULL 로 복구
 //
+// 활동 역할 기본값: active_member_role_ids 가 비어 있으면 사이트 로그인 게이트와
+// 동일한 DISCORD_MEMBER_ROLE_ID (env, comma-separated) 로 fallback. "사이트 입장
+// 불가 = 탈퇴자" 가 기본 동작. 관리자가 별도 역할을 고르고 싶으면 설정 UI 에서
+// override.
+//
 // 멱등성: 같은 날 재실행되면 결과는 동일. Throttle gate (last_member_sync_at)
 // 는 GitHub Actions 중복 트리거/수동 실행을 하루 1회로 수렴시킨다.
 
@@ -31,6 +36,16 @@ function parseRoleIds(raw: string): string[] {
   } catch {
     return []
   }
+}
+
+// DISCORD_MEMBER_ROLE_ID env 는 comma-separated. discord.ts 의 parseRoleIds 와
+// 동일 규약 — 앞뒤 공백/빈 토큰 제거.
+function parseEnvRoleIds(raw: string | undefined): string[] {
+  if (!raw) return []
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
 }
 
 export async function GET(request: Request) {
@@ -55,7 +70,18 @@ export async function GET(request: Request) {
   }
 
   const activeRoleIdsRaw = await getAppSetting('active_member_role_ids', '[]')
-  const activeRoleIds = parseRoleIds(activeRoleIdsRaw)
+  const explicitRoleIds = parseRoleIds(activeRoleIdsRaw)
+  // 관리자가 UI 에서 역할을 고르지 않았으면 사이트 로그인 게이트와 같은 역할
+  // (DISCORD_MEMBER_ROLE_ID) 을 기본값으로 사용한다. 그래야 "사이트 입장 불가 ↔
+  // 탈퇴자" 정의가 일관된다.
+  const envFallbackRoleIds = parseEnvRoleIds(process.env.DISCORD_MEMBER_ROLE_ID)
+  const activeRoleIds = explicitRoleIds.length > 0 ? explicitRoleIds : envFallbackRoleIds
+  const rolesSource: 'explicit' | 'env_fallback' | 'server_only' =
+    explicitRoleIds.length > 0
+      ? 'explicit'
+      : envFallbackRoleIds.length > 0
+        ? 'env_fallback'
+        : 'server_only'
 
   const { data: avatars, error: avatarsError } = await db
     .from('guild_avatars')
@@ -126,6 +152,7 @@ export async function GET(request: Request) {
     scanned: avatars?.length ?? 0,
     discord_members: memberRoles.size,
     active_role_ids_count: activeRoleIds.length,
+    roles_source: rolesSource,
     withdrawn: toWithdraw.length,
     rejoined: toRejoin.length,
   })
