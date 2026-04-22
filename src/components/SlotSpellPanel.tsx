@@ -99,10 +99,10 @@ function groupLabel(g: SpellGroup, tSpell: SpellTranslator): string {
 
 // Badge overlay shown on the weapon's CD-target active spell icon (slot 3
 // normally, slot 2 for basic Mace). Shows the effective cooldown after
-// leather armor / food CDR modifiers, and a breakdown tooltip via `title`.
-// Renders nothing when the spell isn't the CD-target, has no recastdelay,
-// the row isn't a weapon row, or — per the multi-option rule — the member
-// hasn't picked a weapon yet.
+// leather armor / food CDR modifiers, with a styled hover tooltip that
+// breaks down each CDR source. Renders nothing when the spell isn't the
+// CD-target, has no recastdelay, the row isn't a weapon row, or — per the
+// multi-option rule — the member hasn't picked a weapon yet.
 interface SpellIconProps {
   spellId: string
   slot: Slot
@@ -132,21 +132,43 @@ function SpellIconWithCd({
     return <SpellImage spellId={spellId} size={size} />
   }
   const effective = formatCooldown(cd.effectiveCd)
-  const base = cd.baseCd.toString()
-  const lines = [tSpell('cdTooltip', { base, effective })]
-  for (const src of cd.sources) {
-    const pct = (src.cdr * 100).toFixed(1)
-    lines.push(
-      ' · ' + tSpell('cdSource', { label: tGear(src.key), percent: pct }),
-    )
-  }
-  const tooltip = lines.join('\n')
   return (
-    <div className="relative" title={tooltip}>
+    <div className="group/cd relative">
       <SpellImage spellId={spellId} size={size} />
       <span className="absolute bottom-0 right-0 text-[9px] font-bold leading-none px-1 py-[1px] rounded-sm bg-gray-950/90 text-cyan-300 border border-cyan-600/60 pointer-events-none tabular-nums">
         {effective}
       </span>
+      <div
+        role="tooltip"
+        className="hidden group-hover/cd:block absolute z-40 bottom-full left-1/2 -translate-x-1/2 mb-1 w-[180px] bg-gray-950 border border-cyan-500/40 rounded-lg p-2 shadow-xl pointer-events-none space-y-1 text-[11px]"
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-cyan-300 font-bold">{tSpell('cdLabel')}</span>
+          <span className="text-white font-bold tabular-nums">{effective}</span>
+        </div>
+        <div className="flex items-center justify-between text-gray-400">
+          <span>{tSpell('cdBase')}</span>
+          <span className="tabular-nums">{formatCooldown(cd.baseCd)}</span>
+        </div>
+        {cd.sources.length > 0 && (
+          <div className="pt-1 border-t border-gray-800 space-y-0.5">
+            {cd.sources.map((src, idx) => (
+              <div
+                key={`${src.key}:${src.spell}:${idx}`}
+                className="flex items-center justify-between text-gray-300"
+              >
+                <span>{tGear(src.key)}</span>
+                <span className="text-emerald-300 tabular-nums">
+                  -{(src.cdr * 100).toFixed(1)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="pt-1 border-t border-gray-800 text-[10px] text-gray-500 leading-tight">
+          {tSpell('cdNote')}
+        </div>
+      </div>
     </div>
   )
 }
@@ -184,7 +206,7 @@ export default function SlotSpellPanel({
       </span>
       <div
         role="tooltip"
-        className="hidden group-hover/spells:block group-focus-within/spells:block absolute z-30 top-full left-0 mt-1 min-w-[280px] max-w-[92vw] bg-gray-950 border border-purple-500/40 rounded-lg p-2 shadow-xl pointer-events-none space-y-1.5"
+        className="hidden group-hover/spells:block group-focus-within/spells:block absolute z-30 top-full left-0 mt-1 min-w-[280px] max-w-[92vw] bg-gray-950 border border-purple-500/40 rounded-lg p-2 shadow-xl space-y-1.5"
       >
         {rows.map(({ key, name, id, spells }, idx) => (
           <div key={`${key}:${id ?? 'x'}:${idx}`} className="flex items-start gap-1.5">

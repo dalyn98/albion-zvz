@@ -658,8 +658,9 @@
       "passiveSlot": "パッシブ {n}",
       "pickOne": "択一",
       "pickOneInGame": "{label} · ゲーム内では1つのみ使用可能",
-      "cdTooltip": "基本 {base}s → {effective}s",
-      "cdSource": "{label} {percent}%"
+      "cdLabel": "クールダウン",
+      "cdBase": "基本",
+      "cdNote": "可能な最低クールダウン"
     }
   },
   "eventSidebar": {

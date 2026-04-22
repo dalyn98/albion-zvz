@@ -83,12 +83,13 @@ export default function ShopCatalog({ items, balance, isMember }: Props) {
   const addToCart = (item: CatalogItem) => {
     setCart((prev) => {
       const existing = prev.find((l) => l.item.id === item.id)
-      if (existing) {
-        const nextQty = Math.min(item.stock, existing.qty + 1)
-        if (nextQty === existing.qty) return prev
-        return prev.map((l) => (l.item.id === item.id ? { ...l, qty: nextQty } : l))
+      if (!existing) return [...prev, { item, qty: 1 }]
+      // 재고만큼 담긴 상태에서 또 클릭하면 "초과"로 보고 장바구니에서 완전히 뺀다.
+      // 0 → 1 → … → stock → 0 사이클 — 잘못 담았을 때 빠르게 리셋하는 용도.
+      if (existing.qty >= item.stock) {
+        return prev.filter((l) => l.item.id !== item.id)
       }
-      return [...prev, { item, qty: 1 }]
+      return prev.map((l) => (l.item.id === item.id ? { ...l, qty: l.qty + 1 } : l))
     })
     setResult(null)
   }
@@ -313,13 +314,13 @@ function ShopTile({
     <button
       type="button"
       onClick={onAdd}
-      disabled={disabled || atMax}
-      title={`${item.nameKo}${item.enchant > 0 ? ` .${item.enchant}` : ''} / ${quality} / ${item.pointPrice.toLocaleString()}p / 재고 ${item.stock.toLocaleString()}${inCart ? ` / 담긴 수량 ${cartQty}` : ''}`}
+      disabled={disabled}
+      title={`${item.nameKo}${item.enchant > 0 ? ` .${item.enchant}` : ''} / ${quality} / ${item.pointPrice.toLocaleString()}p / 재고 ${item.stock.toLocaleString()}${inCart ? ` / 담긴 수량 ${cartQty}` : ''}${atMax ? ' / 클릭 시 비우기' : ''}`}
       className={`group relative flex flex-col rounded-md bg-[#1a140c] ${ringClass} hover:ring-2 ${
         inCart ? 'hover:ring-emerald-300' : 'hover:ring-amber-300'
       } transition-all overflow-hidden ${
         disabled ? 'opacity-70 cursor-not-allowed' : ''
-      } ${atMax && !disabled ? 'cursor-not-allowed' : ''}`}
+      }`}
       style={{
         boxShadow: inCart
           ? 'inset 0 0 0 1px rgba(16,185,129,0.35), 0 0 0 2px rgba(16,185,129,0.15), 0 1px 2px rgba(0,0,0,0.5)'

@@ -658,8 +658,9 @@
       "passiveSlot": "Passive {n}",
       "pickOne": "Pick one",
       "pickOneInGame": "{label} · only one usable in-game",
-      "cdTooltip": "Base {base}s → {effective}s",
-      "cdSource": "{label} {percent}%"
+      "cdLabel": "Cooldown",
+      "cdBase": "Base",
+      "cdNote": "Lowest achievable cooldown"
     }
   },
   "eventSidebar": {
