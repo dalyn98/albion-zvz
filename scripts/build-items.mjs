@@ -23,6 +23,7 @@ const CATEGORY_PATTERNS = {
   armor:   /^T\d+_ARMOR_/,
   shoes:   /^T\d+_SHOES_/,
   cape:    /^T\d+_CAPE(ITEM)?($|_|@)/,
+  bag:     /^T\d+_BAG($|@)/,
   food:    /^T\d+_MEAL_/,
   potion:  /^T\d+_(POTION|FOCUSPOTION)/,
   // Mount category covers regular mounts (horse/ox/direwolf/stag/swiftclaw/...)
@@ -31,15 +32,15 @@ const CATEGORY_PATTERNS = {
   // since they don't carry tier prefixes.
   mount:   /^T\d+_MOUNT_/,
 }
-// Categories allowed across multiple tiers. Others restrict to T8 only to
-// keep the bundle small. Mounts need the full T4-T8 range because recall
-// mounts (T5 stag), transport oxen, and various battle mounts live below T8.
+// Tier coverage per category. Default covers T4-T8 — the full range of
+// equippable gear players deposit in the guild bank. Potions/food go down to
+// T3 because common PvP consumables (소형 진정 포션 T3) show up in logs.
 const CATEGORY_TIER_REGEX = {
-  food:  /^T[678]_/,
-  potion:/^T[678]_/,
-  mount: /^T[4-8]_/,
+  food:  /^T[3-8]_/,
+  potion:/^T[3-8]_/,
+  mount: /^T[3-8]_/,
 }
-const DEFAULT_TIER_REGEX = /^T8_/
+const DEFAULT_TIER_REGEX = /^T[4-8]_/
 
 // Battle mounts are a hand-picked list that skips the normal category/tier
 // pattern matching. Korean upstream names include "실버 " / "화염의 " prefixes
