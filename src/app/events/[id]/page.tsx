@@ -6,6 +6,7 @@ import { SLOT_ROLES, type SlotRole } from '@/types'
 import { getAppSetting } from '@/lib/app-settings'
 import EventPartyGrid from '@/components/EventPartyGrid'
 import EventSlotSidebar from '@/components/EventSlotSidebar'
+import EventGuestInviteManager from '@/components/EventGuestInviteManager'
 import AutoRefresh from '@/components/AutoRefresh'
 import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil } from 'lucide-react'
 import Link from 'next/link'
@@ -14,6 +15,7 @@ import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 import { formatGatherTimeFor, isEnded } from '@/lib/gather-time'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { getLocale } from '@/lib/locale'
+import { listEventGuestTokens } from '@/app/actions/event-invites'
 
 function formatStartedAt(iso: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (KST, via formatDateTimeShort).
@@ -104,6 +106,13 @@ export default async function EventDetailPage({
     (session.isAdmin ||
       (session.canCreateEvents && !!event.created_by && event.created_by === session.discordId))
 
+  // 게스트 초대 관리도 같은 권한(관리자 or 이벤트 작성자). 서버에서 미리
+  // 활성 토큰 목록을 로드해 모달이 즉시 열리도록 prefill.
+  const origin = (process.env.APP_URL ?? '').replace(/\/$/, '')
+  const { tokens: guestTokens } = canEdit
+    ? await listEventGuestTokens(id)
+    : { tokens: [] as const }
+
   // Pre-battle & in-progress battles get live polling. Once the battle is
   // finished (battle_started_at + 1h), slots are frozen — no reason to keep
   // hammering the DB or draining mobile batteries.
@@ -137,6 +146,13 @@ export default async function EventDetailPage({
                   <Swords size={12} />
                   {t('inProgress', { time: formatStartedAt(event.battle_started_at) })}
                 </span>
+              )}
+              {canEdit && (
+                <EventGuestInviteManager
+                  eventId={id}
+                  initialTokens={[...(guestTokens ?? [])]}
+                  origin={origin}
+                />
               )}
               {canEdit && (
                 <Link

@@ -16,7 +16,6 @@ export default async function SettingsPage() {
     message,
     bannerUrl,
     ctaText,
-    guestInviteToken,
     regearNoticeMessage,
     eventsNoticeMessage,
     eventCreatorRoleIdsRaw,
@@ -37,7 +36,6 @@ export default async function SettingsPage() {
     getAppSetting('event_notification_message', DEFAULT_EVENT_NOTIFICATION_MESSAGE),
     getAppSetting('landing_banner_url', ''),
     getAppSetting('landing_cta_text', ''),
-    getAppSetting('guest_invite_token', ''),
     getAppSetting('regear_notice_message', ''),
     getAppSetting('events_notice_message', ''),
     getAppSetting('event_creator_role_ids', '[]'),
@@ -113,10 +111,6 @@ export default async function SettingsPage() {
     // 손상된 값 — 기본값으로 degrade.
   }
 
-  // Prefer the deployed public URL so the invite link we show to the admin
-  // matches what recipients will actually visit.
-  const origin = (process.env.APP_URL ?? '').replace(/\/$/, '')
-
   return (
     <div className="space-y-5">
       <div>
@@ -131,7 +125,6 @@ export default async function SettingsPage() {
         landingBannerUrl={bannerUrl}
         landingCtaText={ctaText}
         defaultLandingCtaText={tLanding('defaultCta')}
-        guestInviteToken={guestInviteToken}
         regearNoticeMessage={regearNoticeMessage}
         eventsNoticeMessage={eventsNoticeMessage}
         eventCreatorRoleIds={eventCreatorRoleIds}
@@ -145,7 +138,6 @@ export default async function SettingsPage() {
         albionServer={albionServer}
         autoRegearEnabled={autoRegearEnabled}
         cdBadgeRoles={cdBadgeRoles}
-        origin={origin}
       />
     </div>
   )

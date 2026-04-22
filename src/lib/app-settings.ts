@@ -4,10 +4,6 @@ export type AppSettingKey =
   | 'event_notification_message'
   | 'landing_banner_url'
   | 'landing_cta_text'
-  // Migration 025: admin-managed invite token. Empty string means guests are
-  // disabled (no one can join via `?invite=...`). Admin rotates this value to
-  // invalidate any outstanding invite links.
-  | 'guest_invite_token'
   // Admin-authored notice shown at the top of `/regear`. Empty string = hide.
   | 'regear_notice_message'
   // Admin-authored notice shown at the top of `/` (events list). Empty = hide.

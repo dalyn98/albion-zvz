@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import './globals.css'
@@ -16,6 +17,17 @@ import { getAdminClient } from '@/lib/supabase-admin'
 // the matcher logic.
 function isPublicPathname(pathname: string): boolean {
   return pathname.startsWith('/public/')
+}
+
+// 이벤트 스코프 게스트가 접근 가능한 경로. 자기 이벤트 + welcome 외엔 모두
+// 본인 이벤트로 리다이렉트된다. (API 라우트는 이 layout 으로 wrap 되지 않아
+// 별도 제어 불필요.)
+function isAllowedForEventScope(pathname: string, eventScope: string): boolean {
+  if (pathname === `/events/${eventScope}`) return true
+  if (pathname.startsWith(`/events/${eventScope}/`)) return true
+  if (pathname.startsWith('/welcome-language')) return true
+  if (pathname.startsWith('/public/')) return true
+  return false
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -80,6 +92,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       .eq('discord_id', session.discordId)
       .maybeSingle()
     if (!data) guestRevoked = true
+  }
+
+  // 이벤트 스코프 게스트: 자신이 초대받은 이벤트 외 페이지 접근 시 redirect.
+  // gate(AppGate) 가 발동하기 전에 먼저 실행해야 "로그인된 게스트" 가 다른
+  // 페이지 URL 을 직접 치는 경로를 막는다.
+  if (
+    !isPublic &&
+    session?.isGuest &&
+    !guestRevoked &&
+    session.eventScope &&
+    !isAllowedForEventScope(pathname, session.eventScope)
+  ) {
+    redirect(`/events/${session.eventScope}`)
   }
 
   const locked =

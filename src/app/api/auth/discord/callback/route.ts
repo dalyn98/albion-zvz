@@ -118,6 +118,7 @@ export async function GET(request: NextRequest) {
         isAdmin,
         isGuest: false,
         canCreateEvents,
+        eventScope: null,
         issuedAt: Date.now(),
       })
       const destination = resolvePostLoginPath(returnTo, preferred)
@@ -136,7 +137,9 @@ export async function GET(request: NextRequest) {
       return response
     }
 
-    // Guest path: either already registered, or presenting a valid invite cookie.
+    // Guest path: must present a valid, non-revoked, non-expired event guest
+    // token. Unlike the old global-token model, every guest session is now
+    // scoped to exactly one event_id.
     const db = getAdminClient()
     const { data: existingGuest } = await db
       .from('guests')
@@ -144,34 +147,43 @@ export async function GET(request: NextRequest) {
       .eq('discord_id', user.id)
       .maybeSingle()
 
-    let canGuest = !!existingGuest
-    if (canGuest) {
+    let eventScope: string | null = null
+    const inviteCookie = request.cookies.get(INVITE_COOKIE)?.value
+    if (inviteCookie) {
+      const nowIso = new Date().toISOString()
+      const { data: tokenRow } = await db
+        .from('event_guest_tokens')
+        .select('event_id, revoked_at, expires_at')
+        .eq('token', inviteCookie)
+        .maybeSingle()
+      if (
+        tokenRow &&
+        !tokenRow.revoked_at &&
+        (!tokenRow.expires_at || tokenRow.expires_at > nowIso)
+      ) {
+        eventScope = tokenRow.event_id
+      }
+    }
+
+    if (!eventScope) {
+      // No valid event-scoped invite → reject. (전역 토큰 경로 폐기.)
+      return errorRedirect(url.origin, member ? 'no_role' : 'not_in_guild')
+    }
+
+    if (existingGuest) {
       // Refresh display fields so guest list stays current.
       await db
         .from('guests')
         .update({ username: displayName, avatar: user.avatar })
         .eq('discord_id', user.id)
     } else {
-      const inviteCookie = request.cookies.get(INVITE_COOKIE)?.value
-      if (inviteCookie) {
-        const currentToken = await getAppSetting('guest_invite_token', '')
-        if (currentToken && inviteCookie === currentToken) {
-          const { error } = await db
-            .from('guests')
-            .insert({
-              discord_id: user.id,
-              username: displayName,
-              avatar: user.avatar,
-            })
-          if (!error) canGuest = true
-        }
-      }
-    }
-
-    if (!canGuest) {
-      // Distinguish "in guild but no role" from "not in guild at all" so the
-      // landing page can show the right copy.
-      return errorRedirect(url.origin, member ? 'no_role' : 'not_in_guild')
+      await db
+        .from('guests')
+        .insert({
+          discord_id: user.id,
+          username: displayName,
+          avatar: user.avatar,
+        })
     }
 
     // preferred_language: 신규 게스트는 insert 에서 넣지 않았으니 null. 기존
@@ -187,9 +199,13 @@ export async function GET(request: NextRequest) {
       isGuest: true,
       // 게스트는 길드원이 아니라서 역할 기반 자격이 붙지 않는다. 항상 false.
       canCreateEvents: false,
+      eventScope,
       issuedAt: Date.now(),
     })
-    const destination = resolvePostLoginPath(returnTo, guestPreferred)
+    // 게스트의 returnTo 는 항상 스코프 이벤트로 강제. 링크를 어떻게 타고
+    // 왔든 "그 이벤트만 볼 수 있음" 규칙을 여기서 고정.
+    const scopedReturnTo = `/events/${eventScope}`
+    const destination = resolvePostLoginPath(scopedReturnTo, guestPreferred)
     const response = NextResponse.redirect(new URL(destination, url.origin))
     response.cookies.set(SESSION_COOKIE_NAME, sessionCookie, cookieOptions())
     if (isLocale(guestPreferred)) {

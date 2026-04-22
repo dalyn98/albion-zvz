@@ -92,18 +92,24 @@ export async function assignSlot(
   // (bomb squad) or pending:false (regular).
   const { data: slotCheck, error: slotLookupError } = await db
     .from('slots')
-    .select('is_hidden, parties!inner(is_bomb_squad)')
+    .select('is_hidden, parties!inner(is_bomb_squad, event_id)')
     .eq('id', slotId)
     .maybeSingle()
   if (slotLookupError) return { error: slotLookupError.message }
   if (!slotCheck) return { error: tAction('slotNotFound') }
   if (slotCheck.is_hidden) return { error: tAction('slotNotFound') }
   const partyJoin = slotCheck.parties as
-    | { is_bomb_squad: boolean | null }
-    | { is_bomb_squad: boolean | null }[]
+    | { is_bomb_squad: boolean | null; event_id: string }
+    | { is_bomb_squad: boolean | null; event_id: string }[]
     | null
   const partyObj = Array.isArray(partyJoin) ? partyJoin[0] : partyJoin
   const isBomb = !!partyObj?.is_bomb_squad
+
+  // 이벤트 스코프 게스트는 자신이 초대받은 이벤트 슬롯만 지원 가능. 다른
+  // 이벤트의 slotId 로 crafted 요청이 오면 차단.
+  if (session.eventScope && partyObj?.event_id !== session.eventScope) {
+    return { error: tAction('slotNotFound') }
+  }
 
   const { error } = await db.rpc('assign_slot', {
     p_slot_id: slotId,
@@ -138,7 +144,7 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
 
   const { data: partyRow, error: partyLookupError } = await db
     .from('parties')
-    .select('events(battle_started_at)')
+    .select('event_id, events(battle_started_at)')
     .eq('id', slotRow.party_id)
     .maybeSingle()
   if (partyLookupError) return { error: partyLookupError.message }
@@ -149,6 +155,10 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
   const eventState = Array.isArray(eventJoin) ? eventJoin[0] : eventJoin
   if (eventState?.battle_started_at) {
     return { error: tAction('battleAlreadyStarted') }
+  }
+  // 이벤트 스코프 게스트는 자기 이벤트의 슬롯만 취소 가능.
+  if (session.eventScope && partyRow?.event_id !== session.eventScope) {
+    return { error: tAction('slotNotFound') }
   }
 
   const { error } = await db.rpc('cancel_slot', {

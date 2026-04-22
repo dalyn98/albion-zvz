@@ -1,6 +1,6 @@
 'use client'
 
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 
 const AUTH_ERROR_KEY_MAP: Record<string, string> = {
   denied: 'denied',
@@ -36,6 +36,7 @@ export default function AppGate({
   authErrorLabels,
 }: Props) {
   const searchParams = useSearchParams()
+  const pathname = usePathname()
   const authError = searchParams.get('auth_error')
   const errorMessage = authError
     ? authErrorLabels[AUTH_ERROR_KEY_MAP[authError] ?? 'default'] ?? authErrorLabels.default
@@ -43,10 +44,13 @@ export default function AppGate({
 
   // Forward any ?invite=... token into the OAuth round-trip so the callback
   // can validate it against the current guest token and grant guest access.
+  // returnTo 는 현재 경로 — 이벤트 상세 URL 로 들어온 게스트는 로그인 직후
+  // 같은 이벤트 페이지에 착륙하게 된다.
   const invite = searchParams.get('invite')?.trim() ?? ''
-  const loginHref = invite
-    ? `/api/auth/discord/start?returnTo=/&invite=${encodeURIComponent(invite)}`
-    : '/api/auth/discord/start?returnTo=/'
+  const returnTo = pathname && pathname.startsWith('/') && !pathname.startsWith('//') ? pathname : '/'
+  const params = new URLSearchParams({ returnTo })
+  if (invite) params.set('invite', invite)
+  const loginHref = `/api/auth/discord/start?${params.toString()}`
   const backgroundStyle = bannerUrl
     ? {
         backgroundImage: `url(${bannerUrl})`,

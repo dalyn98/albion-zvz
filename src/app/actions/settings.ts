@@ -10,7 +10,6 @@ import { SLOT_ROLES } from '@/types'
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
   'landing_cta_text',
-  'guest_invite_token',
   'regear_notice_message',
   'events_notice_message',
   'event_creator_role_ids',
@@ -36,8 +35,6 @@ const MAX_VALUE_LENGTH = 500
 // application default"). Other keys reject empty input.
 const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   'landing_cta_text',
-  // Empty token = guest invites disabled. Admin rotates or clears to revoke.
-  'guest_invite_token',
   // Empty message = hide the regear notice banner entirely.
   'regear_notice_message',
   'events_notice_message',

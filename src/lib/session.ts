@@ -22,6 +22,10 @@ export interface SessionPayload {
   // Admin 이거나 app_setting 의 event_creator_role_ids 중 하나를 가진 구성원.
   // 로그인 시점에 계산되므로 역할 리스트 변경은 재로그인 후 반영된다.
   canCreateEvents: boolean
+  // 이벤트별 게스트 초대 링크로 로그인한 경우 해당 event_id. layout 이 이 값을
+  // 보고 `/events/{eventScope}` 외 모든 경로를 redirect 로 차단한다. member/
+  // admin 세션은 null (전체 접근).
+  eventScope: string | null
   issuedAt: number
 }
 
@@ -93,6 +97,8 @@ export async function verifySession(cookieValue: string | undefined): Promise<Se
       isAdmin,
       isGuest: parsed.isGuest ?? false,
       canCreateEvents: parsed.canCreateEvents ?? isAdmin,
+      // 레거시 쿠키(eventScope 도입 이전) 는 undefined → null 로 정규화.
+      eventScope: parsed.eventScope ?? null,
       issuedAt: parsed.issuedAt,
     }
   } catch {

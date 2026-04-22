@@ -1,13 +1,12 @@
 'use client'
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { Bell, Coins, Image as ImageIcon, UserPlus, Megaphone, Shield, Timer } from 'lucide-react'
+import { Bell, Coins, Image as ImageIcon, Megaphone, Shield, Timer } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import NotificationSettingsForm from './NotificationSettingsForm'
 import RoleRewardsEditor from './RoleRewardsEditor'
 import LandingBannerForm from './LandingBannerForm'
 import LandingCtaTextForm from './LandingCtaTextForm'
-import GuestInviteSettingsForm from './GuestInviteSettingsForm'
 import NoticeSettingForm, { NOTICE_MAX_LENGTH } from './NoticeSettingForm'
 import EventCreatorRolesSetting from './EventCreatorRolesSetting'
 import BombSquadCallerRolesSetting from './BombSquadCallerRolesSetting'
@@ -25,7 +24,6 @@ type TabKey =
   | 'notifications'
   | 'rewards'
   | 'landing'
-  | 'guests'
   | 'notices'
   | 'permissions'
   | 'events'
@@ -36,7 +34,6 @@ interface TabDef {
     | 'tabNotifications'
     | 'tabRewards'
     | 'tabLanding'
-    | 'tabGuests'
     | 'tabNotices'
     | 'tabPermissions'
     | 'tabEvents'
@@ -50,7 +47,6 @@ const TABS: readonly TabDef[] = [
   { key: 'permissions', labelKey: 'tabPermissions', icon: Shield },
   { key: 'events', labelKey: 'tabEvents', icon: Timer },
   { key: 'landing', labelKey: 'tabLanding', icon: ImageIcon },
-  { key: 'guests', labelKey: 'tabGuests', icon: UserPlus },
 ]
 
 const DEFAULT_TAB: TabKey = 'notifications'
@@ -62,7 +58,6 @@ interface Props {
   landingBannerUrl: string
   landingCtaText: string
   defaultLandingCtaText: string
-  guestInviteToken: string
   regearNoticeMessage: string
   eventsNoticeMessage: string
   eventCreatorRoleIds: string[]
@@ -76,7 +71,6 @@ interface Props {
   albionServer: AlbionServer
   autoRegearEnabled: boolean
   cdBadgeRoles: SlotRole[]
-  origin: string
 }
 
 function isTabKey(value: string | null): value is TabKey {
@@ -84,7 +78,6 @@ function isTabKey(value: string | null): value is TabKey {
     value === 'notifications' ||
     value === 'rewards' ||
     value === 'landing' ||
-    value === 'guests' ||
     value === 'notices' ||
     value === 'permissions' ||
     value === 'events'
@@ -98,7 +91,6 @@ export default function SettingsTabs({
   landingBannerUrl,
   landingCtaText,
   defaultLandingCtaText,
-  guestInviteToken,
   regearNoticeMessage,
   eventsNoticeMessage,
   eventCreatorRoleIds,
@@ -112,7 +104,6 @@ export default function SettingsTabs({
   albionServer,
   autoRegearEnabled,
   cdBadgeRoles,
-  origin,
 }: Props) {
   const t = useTranslations('adminSettings')
   const tEventsNotice = useTranslations('adminEventsNotice')
@@ -185,9 +176,6 @@ export default function SettingsTabs({
             />
             <LandingBannerForm currentUrl={landingBannerUrl} />
           </div>
-        )}
-        {active === 'guests' && (
-          <GuestInviteSettingsForm initialToken={guestInviteToken} origin={origin} />
         )}
         {active === 'permissions' && (
           <div className="space-y-4">
