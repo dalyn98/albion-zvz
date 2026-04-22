@@ -956,7 +956,8 @@
     "unauthorized": "이 작업을 수행할 권한이 없습니다.",
     "invalidJsonArray": "역할 목록을 올바르게 저장할 수 없습니다.",
     "invalidIntegerRange": "{min} ~ {max} 사이의 정수로 입력해 주세요.",
-    "invalidBoolean": "true 또는 false 값만 허용됩니다."
+    "invalidBoolean": "true 또는 false 값만 허용됩니다.",
+    "invalidEnumValue": "허용된 값: {values}"
   },
   "memberActionError": {
     "loginRequired": "로그인이 필요합니다.",

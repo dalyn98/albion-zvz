@@ -14,6 +14,7 @@ import BombSquadCallerRolesSetting from './BombSquadCallerRolesSetting'
 import RegearLimitsForm from './RegearLimitsForm'
 import RegearPayoutRateForm from './RegearPayoutRateForm'
 import EventAutoStartForm from './EventAutoStartForm'
+import AlbionServerForm, { type AlbionServer } from './AlbionServerForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
 
 type TabKey =
@@ -66,6 +67,7 @@ interface Props {
   regearMaxDeaths: number
   regearPayoutRatePercent: number
   eventsAutoStartEnabled: boolean
+  albionServer: AlbionServer
   origin: string
 }
 
@@ -97,6 +99,7 @@ export default function SettingsTabs({
   regearMaxDeaths,
   regearPayoutRatePercent,
   eventsAutoStartEnabled,
+  albionServer,
   origin,
 }: Props) {
   const t = useTranslations('adminSettings')
@@ -182,6 +185,7 @@ export default function SettingsTabs({
         )}
         {active === 'events' && (
           <div className="space-y-4">
+            <AlbionServerForm initialServer={albionServer} />
             <RegearLimitsForm
               initialWindowMinutes={regearWindowMinutes}
               initialMaxDeaths={regearMaxDeaths}

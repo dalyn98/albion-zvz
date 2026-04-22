@@ -19,6 +19,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'regear_payout_rate_percent',
   'shop_silver_to_point_rate',
   'shop_delivery_notice',
+  'albion_server',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -65,6 +66,11 @@ const BOOLEAN_KEYS: readonly AppSettingKey[] = [
   'events_auto_start_enabled',
 ] as const
 
+// Enum-string keys. Value must be exactly one of the listed members.
+const ENUM_VALUES: Partial<Record<AppSettingKey, readonly string[]>> = {
+  albion_server: ['west', 'east', 'europe'] as const,
+}
+
 export async function updateAppSetting(
   key: AppSettingKey,
   value: string,
@@ -102,6 +108,10 @@ export async function updateAppSetting(
       if (trimmed !== 'true' && trimmed !== 'false') {
         return { error: tErr('invalidBoolean') }
       }
+    }
+    const allowedEnum = ENUM_VALUES[key]
+    if (trimmed && allowedEnum && !allowedEnum.includes(trimmed)) {
+      return { error: tErr('invalidEnumValue', { values: allowedEnum.join(', ') }) }
     }
     const db = await requireAdmin()
     const { error } = await db

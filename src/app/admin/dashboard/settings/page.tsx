@@ -1,6 +1,7 @@
 import { getAppSetting } from '@/lib/app-settings'
 import { listRoleRewards } from '@/app/actions/regear-admin'
 import SettingsTabs from '@/components/SettingsTabs'
+import type { AlbionServer } from '@/components/AlbionServerForm'
 import { getTranslations } from 'next-intl/server'
 
 const DEFAULT_EVENT_NOTIFICATION_MESSAGE = '새 이벤트가 등록되었습니다.'
@@ -23,6 +24,7 @@ export default async function SettingsPage() {
     regearMaxDeathsRaw,
     regearPayoutRatePercentRaw,
     eventsAutoStartRaw,
+    albionServerRaw,
     { rewards, error: rewardsError },
     tLanding,
     t,
@@ -39,6 +41,7 @@ export default async function SettingsPage() {
     getAppSetting('regear_max_deaths_per_event', '1'),
     getAppSetting('regear_payout_rate_percent', '100'),
     getAppSetting('events_auto_start_enabled', 'false'),
+    getAppSetting('albion_server', 'east'),
     listRoleRewards(),
     getTranslations('landing'),
     getTranslations('adminSettings'),
@@ -76,6 +79,12 @@ export default async function SettingsPage() {
       : 100
   const eventsAutoStartEnabled = eventsAutoStartRaw === 'true'
 
+  // DB에 잘못된 값이 박혀있을 경우(과거 마이그레이션 실수 등) 기본값으로 degrade.
+  const albionServer: AlbionServer =
+    albionServerRaw === 'west' || albionServerRaw === 'east' || albionServerRaw === 'europe'
+      ? albionServerRaw
+      : 'east'
+
   // Prefer the deployed public URL so the invite link we show to the admin
   // matches what recipients will actually visit.
   const origin = (process.env.APP_URL ?? '').replace(/\/$/, '')
@@ -103,6 +112,7 @@ export default async function SettingsPage() {
         regearMaxDeaths={regearMaxDeaths}
         regearPayoutRatePercent={regearPayoutRatePercent}
         eventsAutoStartEnabled={eventsAutoStartEnabled}
+        albionServer={albionServer}
         origin={origin}
       />
     </div>

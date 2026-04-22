@@ -1,12 +1,41 @@
 // Albion Online killboard (unofficial) API client.
-// Asia server = gameinfo-sgp. Endpoints are public but rate-limited.
+// Endpoints are public but rate-limited. The game is hosted on three regional
+// servers with separate killboards; the guild's server is configured in
+// app_settings.albion_server so the admin can switch without a redeploy.
 //
 // Used for *hint-level* verification of regear claims: we check whether a
 // guild member's death appears in the killboard during the event window. The
 // screenshot uploaded by the user is still the primary evidence; this check
 // just flags suspicious requests to the admin.
 
-const KILLBOARD_BASE = 'https://gameinfo-sgp.albiononline.com/api/gameinfo'
+import { getAppSetting } from '@/lib/app-settings'
+
+export type AlbionServer = 'west' | 'east' | 'europe'
+
+// Mapping matches Albion Online's official API hostnames. 'east' is the
+// Asia/Pacific server (Singapore DC) — naming follows albionbb.com's scheme
+// which most admins are already using to eyeball battles.
+const SERVER_ENDPOINTS: Record<AlbionServer, string> = {
+  west: 'https://gameinfo.albiononline.com/api/gameinfo',
+  east: 'https://gameinfo-sgp.albiononline.com/api/gameinfo',
+  europe: 'https://gameinfo-ams.albiononline.com/api/gameinfo',
+}
+
+const DEFAULT_SERVER: AlbionServer = 'east'
+
+function parseServer(raw: string): AlbionServer {
+  if (raw === 'west' || raw === 'east' || raw === 'europe') return raw
+  return DEFAULT_SERVER
+}
+
+export async function resolveAlbionServer(): Promise<AlbionServer> {
+  const raw = await getAppSetting('albion_server', DEFAULT_SERVER)
+  return parseServer(raw)
+}
+
+async function resolveBaseUrl(): Promise<string> {
+  return SERVER_ENDPOINTS[await resolveAlbionServer()]
+}
 
 // NEXT_PUBLIC_* names are a Next.js convention for client-accessible env vars;
 // killboard calls are server-only, so plain names are fine.
@@ -55,8 +84,8 @@ async function fetchJson<T>(url: string, opts: FetchOpts = {}): Promise<T> {
   }
 }
 
-export async function searchPlayerByName(name: string): Promise<PlayerRef | null> {
-  const url = `${KILLBOARD_BASE}/search?q=${encodeURIComponent(name)}`
+async function searchPlayerByName(baseUrl: string, name: string): Promise<PlayerRef | null> {
+  const url = `${baseUrl}/search?q=${encodeURIComponent(name)}`
   // Player name → ID mapping is effectively immutable for our use case
   // (Albion charges silver to rename); 1h cache eliminates the duplicate
   // search call when the same member submits regears in quick succession.
@@ -67,11 +96,11 @@ export async function searchPlayerByName(name: string): Promise<PlayerRef | null
   return data.players.find((p) => p.Name.toLowerCase() === target) ?? null
 }
 
-export async function getPlayerDeaths(playerId: string): Promise<KillboardDeath[]> {
+async function getPlayerDeaths(baseUrl: string, playerId: string): Promise<KillboardDeath[]> {
   // The API returns the 50 most recent deaths; for a 1h window that's always
   // enough unless the player is AFK-dying at unusual frequency.
   // No cache — deaths are time-sensitive.
-  const url = `${KILLBOARD_BASE}/players/${encodeURIComponent(playerId)}/deaths?range=day&limit=50&offset=0`
+  const url = `${baseUrl}/players/${encodeURIComponent(playerId)}/deaths?range=day&limit=50&offset=0`
   return fetchJson<KillboardDeath[]>(url)
 }
 
@@ -92,7 +121,8 @@ export async function verifyDeathInWindow(
   guildName: string = DEFAULT_GUILD_NAME,
 ): Promise<VerifyResult> {
   try {
-    const player = await searchPlayerByName(username)
+    const baseUrl = await resolveBaseUrl()
+    const player = await searchPlayerByName(baseUrl, username)
     if (!player) {
       return { verified: false, matchedEventId: null, reason: '킬보드에서 해당 닉네임을 찾지 못했습니다.' }
     }
@@ -104,7 +134,7 @@ export async function verifyDeathInWindow(
       }
     }
 
-    const deaths = await getPlayerDeaths(player.Id)
+    const deaths = await getPlayerDeaths(baseUrl, player.Id)
     const startMs = Date.parse(windowStartIso)
     const endMs = Date.parse(windowEndIso)
     const match = deaths.find((d) => {

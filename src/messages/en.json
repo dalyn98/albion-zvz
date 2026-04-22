@@ -956,7 +956,8 @@
     "bombSquadKindRequired": "Select the bomb squad kind (melee/ranged).",
     "partyNameTooLong": "Party name cannot exceed {max} characters.",
     "invalidIntegerRange": "Enter an integer between {min} and {max}.",
-    "invalidBoolean": "Only 'true' or 'false' is allowed."
+    "invalidBoolean": "Only 'true' or 'false' is allowed.",
+    "invalidEnumValue": "Allowed values: {values}"
   },
   "memberActionError": {
     "loginRequired": "Login required.",

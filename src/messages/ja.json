@@ -956,7 +956,8 @@
     "bombSquadKindRequired": "ボムスクワッドの種類(近接/遠距離)を選択してください。",
     "partyNameTooLong": "パーティー名は {max} 文字以内で入力してください。",
     "invalidIntegerRange": "{min} ~ {max} の整数で入力してください。",
-    "invalidBoolean": "true または false のみ指定できます。"
+    "invalidBoolean": "true または false のみ指定できます。",
+    "invalidEnumValue": "許可された値: {values}"
   },
   "memberActionError": {
     "loginRequired": "ログインが必要です。",

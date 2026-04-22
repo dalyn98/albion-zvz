@@ -45,6 +45,10 @@ export type AppSettingKey =
   // /shop 상단에 뜨는 관리자 공지 — 아이템 전달 방법 등을 자유롭게 안내.
   // 빈 문자열이면 배너 비표시.
   | 'shop_delivery_notice'
+  // 킬보드 API 가 붙을 알비온 서버. 'west' | 'east' | 'europe'.
+  // 잘못 설정되면 /search 와 /deaths 모두 빈 응답이 돌아와 리기어 자동 검증이
+  // 항상 실패한다. 기본 'east' — 레거시 하드코딩값(gameinfo-sgp) 유지.
+  | 'albion_server'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.
