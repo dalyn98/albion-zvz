@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { getAdminClient } from '@/lib/supabase-admin'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import type { Event, PartyWithSlots } from '@/types'
@@ -17,6 +18,10 @@ import { getAppSetting } from '@/lib/app-settings'
 const MAX_PARTIES = 4
 
 async function getData(id: string) {
+  // guild_avatars 는 anon/authenticated 에 revoke 되어 있어 (migration 008)
+  // service-role client 로만 읽을 수 있다. 이 server component 는 admin 전용
+  // 레이아웃 하위라 service-role 사용이 안전.
+  const admin = getAdminClient()
   const [{ data: event }, { data: parties }, { data: directory }] = await Promise.all([
     supabase.from('events').select('*').eq('id', id).single(),
     supabase.from('parties').select('*, slots(*)').eq('event_id', id).order('party_number'),
@@ -24,7 +29,7 @@ async function getData(id: string) {
     // role(s) are listed under the `bomb_squad_caller_role_ids` app setting.
     // The flag is refreshed at login; newly-granted callers must re-login
     // before appearing here.
-    supabase
+    admin
       .from('guild_avatars')
       .select('discord_id, username')
       .eq('is_bomb_squad_caller', true)
@@ -45,7 +50,7 @@ async function getData(id: string) {
     .filter((id): id is string => !!id && !eligibleIds.has(id))
 
   const { data: staleCallers } = staleCallerIds.length > 0
-    ? await supabase
+    ? await admin
         .from('guild_avatars')
         .select('discord_id, username')
         .in('discord_id', staleCallerIds)
