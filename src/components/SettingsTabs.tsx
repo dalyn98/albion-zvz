@@ -69,6 +69,7 @@ interface Props {
   eventCreatorRoleIds: string[]
   bombSquadCallerRoleIds: string[]
   activeMemberRoleIds: string[]
+  lastMemberSyncAt: string | null
   regearWindowMinutes: number
   regearMaxDeaths: number
   regearPayoutRatePercent: number
@@ -107,6 +108,7 @@ export default function SettingsTabs({
   eventCreatorRoleIds,
   bombSquadCallerRoleIds,
   activeMemberRoleIds,
+  lastMemberSyncAt,
   regearWindowMinutes,
   regearMaxDeaths,
   regearPayoutRatePercent,
@@ -198,7 +200,10 @@ export default function SettingsTabs({
           <div className="space-y-4">
             <EventCreatorRolesSetting initialRoleIds={eventCreatorRoleIds} />
             <BombSquadCallerRolesSetting initialRoleIds={bombSquadCallerRoleIds} />
-            <ActiveMemberRolesSetting initialRoleIds={activeMemberRoleIds} />
+            <ActiveMemberRolesSetting
+              initialRoleIds={activeMemberRoleIds}
+              initialLastSyncAt={lastMemberSyncAt}
+            />
           </div>
         )}
         {active === 'events' && (

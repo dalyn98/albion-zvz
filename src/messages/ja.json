@@ -466,7 +466,7 @@
   "adminActiveMemberRoles": {
     "title": "活動メンバー役割",
     "description": "選択した Discord 役割を1つでも保有しているメンバーを活動メンバーとみなします。何も選択しない場合はサイトログインを許可する役割(DISCORD_MEMBER_ROLE_ID)をデフォルト値として使用します。サーバーから離れた、または活動役割を持たないメンバーは「脱退したユーザー」として分類され、メンバー一覧や集計から除外されます。",
-    "cronHint": "1日1回(KST 04:00)のクーロンが Discord メンバー一覧を確認して反映します。即時反映が必要な場合は管理者がワークフローを手動実行できます。",
+    "cronHint": "1日1回(KST 04:00)のクーロンが Discord メンバー一覧を確認して反映します。即時反映が必要な場合は下の「今すぐ判定実行」ボタンを押してください。",
     "rolesLoading": "役割一覧を読み込み中…",
     "rolesError": "役割一覧の取得に失敗しました。",
     "rolesEmpty": "利用できる役割がありません。",
@@ -476,7 +476,15 @@
     "noMatches": "一致する役割がありません。",
     "save": "保存",
     "saving": "保存中…",
-    "saved": "保存しました"
+    "saved": "保存しました",
+    "syncTitle": "脱退メンバー判定の手動実行",
+    "syncDescription": "今すぐ Discord メンバー一覧を取得し、活動/脱退フラグを即時更新します。20時間のクーロン待機をバイパスします。",
+    "syncNow": "今すぐ判定実行",
+    "syncing": "実行中…",
+    "lastSyncAt": "最終実行: {time}",
+    "neverSynced": "まだ実行されていません",
+    "syncSuccess": "完了 · スキャン {scanned}名 · サーバー在籍 {discordMembers}名 · 脱退 {withdrawn} · 復帰 {rejoined}",
+    "syncError": "失敗: {error}"
   },
   "adminBombSquadCallerRoles": {
     "title": "ボムスクワッド コーラー役割",

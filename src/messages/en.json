@@ -466,7 +466,7 @@
   "adminActiveMemberRoles": {
     "title": "Active member roles",
     "description": "Members holding any of the selected Discord roles are treated as active. Leave empty to default to the site login roles (DISCORD_MEMBER_ROLE_ID). Members who left the server or hold none of the listed roles are classified as withdrawn and excluded from member lists and aggregates.",
-    "cronHint": "A daily cron (04:00 KST) checks the Discord member list and updates the flag. Admins can trigger the workflow manually for an immediate refresh.",
+    "cronHint": "A daily cron (04:00 KST) checks the Discord member list and updates the flag. Click 'Run sync now' below for an immediate refresh.",
     "rolesLoading": "Loading roles…",
     "rolesError": "Failed to load role list.",
     "rolesEmpty": "No roles available.",
@@ -476,7 +476,15 @@
     "noMatches": "No matching roles.",
     "save": "Save",
     "saving": "Saving…",
-    "saved": "Saved"
+    "saved": "Saved",
+    "syncTitle": "Run withdrawal sync manually",
+    "syncDescription": "Fetch the Discord member list and update active/withdrawn flags right now. Bypasses the 20h cron throttle.",
+    "syncNow": "Run sync now",
+    "syncing": "Running…",
+    "lastSyncAt": "Last run: {time}",
+    "neverSynced": "Not yet run",
+    "syncSuccess": "Done · scanned {scanned} · in server {discordMembers} · withdrawn {withdrawn} · rejoined {rejoined}",
+    "syncError": "Failed: {error}"
   },
   "adminBombSquadCallerRoles": {
     "title": "Bomb squad caller roles",

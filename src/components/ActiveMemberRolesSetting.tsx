@@ -3,15 +3,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Save, ChevronDown, Check, Search } from 'lucide-react'
+import { Save, ChevronDown, Check, Search, RefreshCw } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
 import { listGuildRoles, type DiscordRoleOption } from '@/app/actions/notifications'
+import { syncMembersNow, type SyncMembersNowResult } from '@/app/actions/members-admin'
 
 interface Props {
   initialRoleIds: string[]
+  initialLastSyncAt: string | null
 }
 
-export default function ActiveMemberRolesSetting({ initialRoleIds }: Props) {
+export default function ActiveMemberRolesSetting({
+  initialRoleIds,
+  initialLastSyncAt,
+}: Props) {
   const t = useTranslations('adminActiveMemberRoles')
   const router = useRouter()
   const [roles, setRoles] = useState<DiscordRoleOption[] | null>(null)
@@ -22,6 +27,10 @@ export default function ActiveMemberRolesSetting({ initialRoleIds }: Props) {
   const [saved, setSaved] = useState(false)
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<SyncMembersNowResult | null>(null)
+  const [syncError, setSyncError] = useState('')
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(initialLastSyncAt)
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -83,6 +92,33 @@ export default function ActiveMemberRolesSetting({ initialRoleIds }: Props) {
     }
     setLoading(false)
   }
+
+  const handleSyncNow = async () => {
+    setSyncing(true)
+    setSyncError('')
+    setSyncResult(null)
+    const result = await syncMembersNow()
+    if (result.error) {
+      setSyncError(result.error)
+    } else {
+      setSyncResult(result)
+      setLastSyncAt(new Date().toISOString())
+      router.refresh()
+    }
+    setSyncing(false)
+  }
+
+  const lastSyncLabel = useMemo(() => {
+    if (!lastSyncAt) return t('neverSynced')
+    const formatted = new Date(lastSyncAt).toLocaleString('ko-KR', {
+      year: '2-digit',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    return t('lastSyncAt', { time: formatted })
+  }, [lastSyncAt, t])
 
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4">
@@ -200,6 +236,42 @@ export default function ActiveMemberRolesSetting({ initialRoleIds }: Props) {
           {loading ? t('saving') : t('save')}
         </button>
         {saved && !dirty && <span className="text-[11px] text-emerald-400">{t('saved')}</span>}
+      </div>
+
+      <div className="pt-4 border-t border-gray-800 space-y-3">
+        <div>
+          <h3 className="font-semibold text-white text-sm">{t('syncTitle')}</h3>
+          <p className="text-gray-500 text-xs mt-1">{t('syncDescription')}</p>
+          <p className="text-gray-600 text-[11px] mt-1">{lastSyncLabel}</p>
+        </div>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={handleSyncNow}
+            disabled={syncing}
+            className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-900 disabled:text-gray-600 text-white border border-gray-700 px-4 py-2 rounded-lg transition-colors text-sm"
+          >
+            <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
+            {syncing ? t('syncing') : t('syncNow')}
+          </button>
+          {syncResult && (
+            <span className="text-[11px] text-emerald-400">
+              {t('syncSuccess', {
+                scanned: syncResult.scanned,
+                discordMembers: syncResult.discordMembers,
+                withdrawn: syncResult.withdrawn,
+                rejoined: syncResult.rejoined,
+              })}
+            </span>
+          )}
+        </div>
+
+        {syncError && (
+          <div className="bg-red-900/30 border border-red-700 rounded-lg px-3 py-2 text-red-300 text-xs">
+            {t('syncError', { error: syncError })}
+          </div>
+        )}
       </div>
     </div>
   )

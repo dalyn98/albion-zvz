@@ -466,7 +466,7 @@
   "adminActiveMemberRoles": {
     "title": "활동 회원 역할",
     "description": "선택한 Discord 역할을 하나라도 보유한 구성원을 '활동 회원'으로 간주합니다. 아무것도 선택하지 않으면 사이트 로그인이 허용된 역할(DISCORD_MEMBER_ROLE_ID) 을 기본값으로 사용합니다. 디스코드 서버에서 나갔거나 활동 역할이 없는 구성원은 '탈퇴한 사용자'로 분류되어 멤버 목록·집계에서 제외됩니다.",
-    "cronHint": "하루 1회 자정 이후 크론(04:00 KST)이 Discord 멤버 목록을 확인해 반영합니다. 즉시 반영이 필요하면 관리자가 수동으로 워크플로를 실행할 수 있습니다.",
+    "cronHint": "하루 1회 자정 이후 크론(04:00 KST)이 Discord 멤버 목록을 확인해 반영합니다. 즉시 반영이 필요하면 아래 '지금 판정 실행' 버튼을 누르세요.",
     "rolesLoading": "역할 목록을 불러오는 중…",
     "rolesError": "역할 목록을 가져오지 못했습니다.",
     "rolesEmpty": "사용 가능한 역할이 없습니다.",
@@ -476,7 +476,15 @@
     "noMatches": "일치하는 역할이 없습니다.",
     "save": "저장",
     "saving": "저장 중…",
-    "saved": "저장됨"
+    "saved": "저장됨",
+    "syncTitle": "탈퇴 회원 판정 수동 실행",
+    "syncDescription": "지금 Discord 멤버 목록을 가져와 활동/탈퇴 플래그를 즉시 갱신합니다. 크론 대기(20시간) 를 우회합니다.",
+    "syncNow": "지금 판정 실행",
+    "syncing": "실행 중…",
+    "lastSyncAt": "마지막 실행: {time}",
+    "neverSynced": "아직 실행 기록 없음",
+    "syncSuccess": "완료 · 스캔 {scanned}명 · 서버재적 {discordMembers}명 · 탈퇴 {withdrawn} · 복귀 {rejoined}",
+    "syncError": "실행 실패: {error}"
   },
   "adminBombSquadCallerRoles": {
     "title": "밤스쿼드 콜러 역할",

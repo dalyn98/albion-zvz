@@ -6,6 +6,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { requireAdmin } from '@/lib/auth'
 import { isLocale } from '@/i18n/locales'
+import { runMemberSync, type RolesSource } from '@/lib/member-sync'
 import type { RegearType } from '@/types'
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
@@ -520,6 +521,40 @@ export async function getGuildMemberDetail(discordId: string): Promise<{
   const session = await getSession()
   if (!session) return { detail: null, error: 'Unauthorized' }
   return fetchMemberDetail(discordId)
+}
+
+export interface SyncMembersNowResult {
+  scanned: number
+  discordMembers: number
+  activeRoleIdsCount: number
+  rolesSource: RolesSource
+  withdrawn: number
+  rejoined: number
+  error?: string
+}
+
+// 관리자 수동 실행. Cron 과 달리 20h throttle 을 우회해서 즉시 돌린다.
+export async function syncMembersNow(): Promise<SyncMembersNowResult> {
+  const tErr = await getTranslations('adminActionError')
+  const empty: SyncMembersNowResult = {
+    scanned: 0,
+    discordMembers: 0,
+    activeRoleIdsCount: 0,
+    rolesSource: 'server_only',
+    withdrawn: 0,
+    rejoined: 0,
+  }
+  try {
+    const session = await getSession()
+    if (!session?.isAdmin) return { ...empty, error: tErr('unauthorized') }
+    const outcome = await runMemberSync({ skipThrottle: true })
+    if (outcome.kind === 'error') return { ...empty, error: outcome.message }
+    // skipThrottle 이므로 'throttled' 은 발생 안함 — 안전하게 result 꺼냄.
+    if (outcome.kind === 'throttled') return { ...empty, error: tErr('serverError') }
+    return { ...outcome.result }
+  } catch (e) {
+    return { ...empty, error: e instanceof Error ? e.message : tErr('serverError') }
+  }
 }
 
 // Self-serve variant: logged-in members read their own detail.
