@@ -4,13 +4,25 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { getSession, signSession, SESSION_COOKIE_NAME, cookieOptions } from '@/lib/session'
+import {
+  getSession,
+  signSession,
+  SESSION_COOKIE_NAME,
+  cookieOptions,
+  type SessionPayload,
+} from '@/lib/session'
 import { buildBotInstallUrl } from '@/lib/discord'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 
 const BOT_INSTALL_STATE_COOKIE = 'discord_bot_install_state'
 const BOT_INSTALL_GUILD_COOKIE = 'discord_bot_install_guild'
 const BOT_INSTALL_TTL_SEC = 60 * 10
+
+// 온보딩 위저드는 3 단계다. 각 단계별 액션은 세션이 tenant 의 created_by_discord_id
+// 와 일치하는지만 독립적으로 검증하고, 세션 자체(isAdmin 등) 는 bot-callback 에서
+// 이미 세팅된 값을 그대로 쓴다. 마지막 단계에서만 세션을 재서명해 issuedAt 을
+// 갱신하고 홈 길드 컨텍스트를 확정한다.
 
 // 온보딩 페이지에서 "봇 설치" 버튼을 눌렀을 때 호출. state cookie 를 심고
 // Discord 봇 설치 OAuth 로 리다이렉트한다. 돌아오면 /api/auth/discord/bot-callback
@@ -40,6 +52,33 @@ export async function startBotInstall(guildId: string): Promise<void> {
   redirect(buildBotInstallUrl({ guildId, state }))
 }
 
+interface TenantOwnerCheck {
+  id: string
+  discord_guild_id: string
+  created_by_discord_id: string
+}
+
+// 세 단계가 공유하는 owner 검증. created_by_discord_id 와 세션 유저가 같아야
+// 설정 변경 가능. 봇 설치 callback 이 심어놓은 값을 기준으로 한다.
+async function verifyTenantOwnership(
+  tenantId: string,
+  session: SessionPayload,
+): Promise<TenantOwnerCheck | null> {
+  const db = getAdminClient()
+  const { data } = await db
+    .from('tenants')
+    .select('id, discord_guild_id, created_by_discord_id')
+    .eq('id', tenantId)
+    .maybeSingle()
+  if (!data) return null
+  if (data.created_by_discord_id !== session.discordId) return null
+  return {
+    id: data.id as string,
+    discord_guild_id: data.discord_guild_id as string,
+    created_by_discord_id: data.created_by_discord_id as string,
+  }
+}
+
 interface SaveTenantSetupInput {
   tenantId: string
   memberRoleIds: string[]
@@ -47,6 +86,8 @@ interface SaveTenantSetupInput {
   eventChannelId: string | null
 }
 
+// 단계 1: Discord 역할 + 공지 채널. 저장 후 세션은 건드리지 않고 클라이언트가
+// 다음 단계로 네비게이트.
 export async function saveTenantSetup(
   input: SaveTenantSetupInput,
 ): Promise<{ error?: string }> {
@@ -58,20 +99,10 @@ export async function saveTenantSetup(
     return { error: t('missingRoles') }
   }
 
-  const db = getAdminClient()
-  // 이 tenant 의 creator 만 설정 변경 가능. 봇 설치 callback 이 created_by_discord_id
-  // 를 심어놓았으므로 그걸 기준으로 검증. Admin 권한은 아직 session 에 부여되지
-  // 않은 상태이기 때문.
-  const { data: tenant, error: tenantError } = await db
-    .from('tenants')
-    .select('id, discord_guild_id, created_by_discord_id')
-    .eq('id', input.tenantId)
-    .maybeSingle()
-  if (tenantError || !tenant) return { error: t('unauthorized') }
-  if (tenant.created_by_discord_id !== session.discordId) {
-    return { error: t('unauthorized') }
-  }
+  const tenant = await verifyTenantOwnership(input.tenantId, session)
+  if (!tenant) return { error: t('unauthorized') }
 
+  const db = getAdminClient()
   const { error } = await db
     .from('tenants')
     .update({
@@ -82,8 +113,102 @@ export async function saveTenantSetup(
     .eq('id', input.tenantId)
   if (error) return { error: error.message }
 
-  // 설정 저장 후 세션을 admin 으로 재발급 — 사용자가 본인 길드 관리자로
-  // 즉시 들어갈 수 있게. 다음 로그인부터는 실제 Discord 역할 기반으로 재계산.
+  return {}
+}
+
+interface SaveTenantAlbionInput {
+  tenantId: string
+  server: string
+  homeGuildId: string
+}
+
+const MAX_HOME_GUILD_ID_LENGTH = 500
+
+// 단계 2: 알비온 서버 + 홈 길드. 길드 UUID 는 서버별로 다르기 때문에 둘을
+// 원자적으로 저장해야 한다 — app_settings PK 는 (guild_id, key) 복합.
+export async function saveTenantAlbion(
+  input: SaveTenantAlbionInput,
+): Promise<{ error?: string }> {
+  const t = await getTranslations('onboard')
+  const session = await getSession()
+  if (!session) return { error: t('unauthorized') }
+
+  const tenant = await verifyTenantOwnership(input.tenantId, session)
+  if (!tenant) return { error: t('unauthorized') }
+
+  if (!isAlbionServer(input.server)) {
+    return { error: t('errorGeneric') }
+  }
+  const server: AlbionServer = input.server
+  const homeGuildId = input.homeGuildId.trim()
+  if (homeGuildId.length > MAX_HOME_GUILD_ID_LENGTH) {
+    return { error: t('errorGeneric') }
+  }
+
+  const db = getAdminClient()
+  const now = new Date().toISOString()
+  const { error } = await db.from('app_settings').upsert(
+    [
+      {
+        guild_id: input.tenantId,
+        key: 'albion_server',
+        value: server,
+        updated_at: now,
+      },
+      {
+        guild_id: input.tenantId,
+        key: 'albion_home_guild_id',
+        value: homeGuildId,
+        updated_at: now,
+      },
+    ],
+    { onConflict: 'guild_id,key' },
+  )
+  if (error) return { error: error.message }
+  return {}
+}
+
+interface SaveTenantRewardsInput {
+  tenantId: string
+  rewards: Array<{ role_name: string; silver: number }>
+}
+
+// 단계 3 (최종): 역할별 기본 리기어 실버. bot-callback 이 seed 를 못 했거나
+// 실패한 경우를 대비해 upsert 로 저장 — mig 075 이후 PK=(guild_id, role_name)
+// 이므로 conflict target 지정 가능. 저장 성공 시 세션을 admin 으로 재서명해
+// guildId/issuedAt 을 갱신하고 /admin/dashboard 로 리다이렉트할 수 있도록 한다.
+export async function saveTenantRewards(
+  input: SaveTenantRewardsInput,
+): Promise<{ error?: string }> {
+  const t = await getTranslations('onboard')
+  const session = await getSession()
+  if (!session) return { error: t('unauthorized') }
+
+  const tenant = await verifyTenantOwnership(input.tenantId, session)
+  if (!tenant) return { error: t('unauthorized') }
+
+  for (const r of input.rewards) {
+    if (!Number.isInteger(r.silver) || r.silver < 0) {
+      return { error: t('rewardsErrorInvalidSilver') }
+    }
+    if (typeof r.role_name !== 'string' || r.role_name.length === 0) {
+      return { error: t('errorGeneric') }
+    }
+  }
+
+  const db = getAdminClient()
+  const now = new Date().toISOString()
+  const rows = input.rewards.map((r) => ({
+    guild_id: input.tenantId,
+    role_name: r.role_name,
+    silver: r.silver,
+    updated_at: now,
+  }))
+  const { error } = await db
+    .from('role_rewards')
+    .upsert(rows, { onConflict: 'guild_id,role_name' })
+  if (error) return { error: error.message }
+
   const newSession = await signSession({
     discordId: session.discordId,
     username: session.username,
@@ -99,5 +224,6 @@ export async function saveTenantSetup(
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE_NAME, newSession, cookieOptions())
   revalidatePath('/')
+  revalidatePath('/admin/dashboard')
   return {}
 }

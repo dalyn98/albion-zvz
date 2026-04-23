@@ -1,6 +1,4 @@
-import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
-import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import TenantSetupForm from '@/components/TenantSetupForm'
 
@@ -36,10 +34,9 @@ interface DiscordChannelOption {
   parent_id: string | null
 }
 
-// /onboard/setup/[id] — 봇 설치 직후 이 tenant 의 멤버/관리자 역할과 알림 채널을
-// 초기 설정한다. 이 페이지는 bot-callback 이 발급한 admin 세션(guildId=tenant
-// id, isAdmin=true) 전제로 동작. 추가로 tenant.created_by_discord_id 가 요청자와
-// 일치하는지 서버 쪽에서도 재검증한다 — 다른 admin 이 접근하는 걸 막기 위함.
+// /onboard/setup/[id] — 위저드 1단계: Discord 역할 + 공지 채널. 세션·소유권 검증은
+// layout.tsx 가 담당하고, 여기서는 discord_guild_id 만 다시 불러 Discord API 로
+// 역할/채널 후보를 프리로드한다.
 
 interface Props {
   params: Promise<{ id: string }>
@@ -47,21 +44,14 @@ interface Props {
 
 export default async function TenantSetupPage({ params }: Props) {
   const { id } = await params
-  const session = await getSession()
-  if (!session) redirect('/api/auth/discord/start?returnTo=/onboard')
 
-  // 소유자 검증 + discord_guild_id 로드를 한 쿼리로 처리.
-  // created_by_discord_id 가 요청자와 일치해야 설정 가능.
   const db = getAdminClient()
   const { data: tenantRow } = await db
     .from('tenants')
-    .select('id, discord_guild_id, created_by_discord_id')
+    .select('discord_guild_id')
     .eq('id', id)
     .maybeSingle()
-  if (!tenantRow || tenantRow.created_by_discord_id !== session.discordId) {
-    redirect('/onboard')
-  }
-  const discordGuildId = tenantRow.discord_guild_id as string
+  const discordGuildId = (tenantRow?.discord_guild_id ?? '') as string
 
   const t = await getTranslations('onboard')
 
@@ -69,7 +59,7 @@ export default async function TenantSetupPage({ params }: Props) {
   const botToken = process.env.DISCORD_BOT_TOKEN
   let roles: DiscordRoleOption[] = []
   let channels: DiscordChannelOption[] = []
-  if (botToken) {
+  if (botToken && discordGuildId) {
     try {
       const [rolesRes, channelsRes] = await Promise.all([
         fetch(`https://discord.com/api/v10/guilds/${discordGuildId}/roles`, {
@@ -106,7 +96,7 @@ export default async function TenantSetupPage({ params }: Props) {
   }
 
   return (
-    <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-10 sm:py-14">
+    <>
       <div className="space-y-2 mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-white">{t('setupTitle')}</h1>
         <p className="text-sm text-gray-400">{t('setupDescription')}</p>
@@ -123,12 +113,12 @@ export default async function TenantSetupPage({ params }: Props) {
           channelLabel: t('channelLabel'),
           channelHelp: t('channelHelp'),
           noChannel: t('noChannel'),
-          saveButton: t('saveButton'),
+          nextButton: t('nextButton'),
           savingButton: t('savingButton'),
           errorGeneric: t('errorGeneric'),
           missingRoles: t('missingRoles'),
         }}
       />
-    </main>
+    </>
   )
 }

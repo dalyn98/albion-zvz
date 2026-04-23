@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession, signSession, SESSION_COOKIE_NAME, cookieOptions } from '@/lib/session'
 import { getDiscordGuild } from '@/lib/discord'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { SLOT_ROLES } from '@/types'
 
 const BOT_INSTALL_STATE_COOKIE = 'discord_bot_install_state'
 const BOT_INSTALL_GUILD_COOKIE = 'discord_bot_install_guild'
@@ -106,6 +107,23 @@ export async function GET(request: NextRequest) {
         return errorRedirect(url.origin, 'server_error')
       }
       tenantId = inserted.id as string
+
+      // 새 tenant 에 기본 role_rewards 8개 seed (silver=0 = "미설정, 리기어 차단").
+      // onboarding 위저드 3단계에서 관리자가 실버 값을 채운다. 실패해도 tenant
+      // 생성 자체는 성공한 상태이므로 에러 로그만 남기고 진행 — 위저드에서 upsert
+      // 으로 다시 시도할 수 있다.
+      const seedRows = SLOT_ROLES.map((role_name) => ({
+        guild_id: tenantId,
+        role_name,
+        silver: 0,
+        updated_at: new Date().toISOString(),
+      }))
+      const { error: seedError } = await db
+        .from('role_rewards')
+        .upsert(seedRows, { onConflict: 'guild_id,role_name' })
+      if (seedError) {
+        console.error('[bot-callback] role_rewards seed failed', seedError)
+      }
     }
 
     // 설치자를 즉시 이 tenant 의 admin 세션으로 설정 — 설정 페이지에서 바로

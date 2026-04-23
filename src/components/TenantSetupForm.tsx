@@ -26,7 +26,7 @@ interface Labels {
   channelLabel: string
   channelHelp: string
   noChannel: string
-  saveButton: string
+  nextButton: string
   savingButton: string
   errorGeneric: string
   missingRoles: string
@@ -39,9 +39,8 @@ interface Props {
   labels: Labels
 }
 
-// 초기 tenant 설정 폼. 체크박스 기반 다중 선택 (admin 설정 페이지 컨벤션과 동일).
-// 저장 성공 시 홈으로 이동한다. saveTenantSetup 이 세션을 admin 으로 승격하므로
-// 홈에서 정상적으로 모든 권한을 갖고 들어간다.
+// 초기 tenant 설정 폼 (위저드 1단계). 체크박스 기반 다중 선택 (admin 설정 페이지
+// 컨벤션과 동일). 저장 성공 시 2단계 (알비온 서버/홈 길드) 로 이동한다.
 export default function TenantSetupForm({ tenantId, roles, channels, labels }: Props) {
   const router = useRouter()
   const [memberIds, setMemberIds] = useState<string[]>([])
@@ -76,8 +75,7 @@ export default function TenantSetupForm({ tenantId, roles, channels, labels }: P
         setError(result.error)
         return
       }
-      router.push('/')
-      router.refresh()
+      router.push(`/onboard/setup/${tenantId}/albion`)
     })
   }
 
@@ -146,7 +144,7 @@ export default function TenantSetupForm({ tenantId, roles, channels, labels }: P
         disabled={isPending}
         className="w-full rounded-lg bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-60 text-white text-sm font-semibold py-2.5"
       >
-        {isPending ? labels.savingButton : labels.saveButton}
+        {isPending ? labels.savingButton : labels.nextButton}
       </button>
     </form>
   )

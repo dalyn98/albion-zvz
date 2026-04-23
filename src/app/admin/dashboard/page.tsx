@@ -6,6 +6,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import type { Event } from '@/types'
 import DashboardEventList from '@/components/DashboardEventList'
+import OnboardCompletionBanner from '@/components/OnboardCompletionBanner'
 import TemplateList from '@/components/TemplateList'
 import { listTemplates } from '@/app/actions/templates'
 
@@ -13,6 +14,7 @@ type Section = 'events' | 'templates'
 
 interface SearchParams {
   section?: string
+  onboarded?: string
 }
 
 function resolveSection(v: string | undefined): Section {
@@ -40,14 +42,25 @@ export default async function DashboardPage({
 }) {
   const sp = await searchParams
   const section = resolveSection(sp.section)
+  const showOnboardedBanner = sp.onboarded === '1'
 
-  const [tDashboard, tTemplates] = await Promise.all([
+  const [tDashboard, tTemplates, tOnboard] = await Promise.all([
     getTranslations('adminDashboard'),
     getTranslations('adminTemplates'),
+    getTranslations('onboard'),
   ])
 
   return (
     <div className="space-y-6">
+      {showOnboardedBanner && (
+        <OnboardCompletionBanner
+          title={tOnboard('completionBannerTitle')}
+          description={tOnboard('completionBannerDescription')}
+          linkLabel={tOnboard('completionBannerLink')}
+          dismissLabel={tOnboard('completionBannerDismiss')}
+        />
+      )}
+
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-white">
           {section === 'templates' ? tTemplates('pageTitle') : tDashboard('pageTitle')}
