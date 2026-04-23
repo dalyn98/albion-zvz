@@ -91,6 +91,20 @@ export async function confirmAlbionIdentity(input: {
   const serverMatch = homeServer === input.server
   const guildMatch = Boolean(homeGuildId) && player.GuildId === homeGuildId
   const verified = serverMatch && guildMatch
+  if (!verified) {
+    // 관리자 진단용 로그 — 인증 실패 시 왜 실패했는지(서버 불일치/길드 ID 불일치)
+    // 를 vercel logs 에서 바로 볼 수 있게 한다. player UUID 는 공개 정보.
+    console.warn('[onboarding] verify failed', {
+      discordId: session.discordId,
+      inputServer: input.server,
+      homeServer,
+      serverMatch,
+      playerGuildId: player.GuildId,
+      playerGuildName: player.GuildName,
+      homeGuildId,
+      guildMatch,
+    })
+  }
 
   const updated = await upsertAlbionIdentity(session.discordId, {
     server: input.server,
