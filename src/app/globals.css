@@ -1,7 +1,6 @@
-/* Pretendard: 한글/영문 모두 균형 좋은 현대적인 가변 폰트. Retro 픽셀 폰트를 걷어내고
-   가독성·트렌디함을 우선한 타이포로 전환. CSS 사양상 `@import url(...)`은 다른 규칙보다
-   앞에 와야 하므로 tailwindcss 보다 먼저 선언. */
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/variable/pretendardvariable.css');
+/* Pretendard 폰트는 layout.tsx 의 <link rel="stylesheet"> 로 병렬 로드.
+   예전엔 여기서 @import 했는데, CSS @import 는 항상 렌더 블로킹 + 순차이라
+   LCP 가 200-300ms 늦어졌다. link preconnect + stylesheet 로 옮겨 병렬화. */
 @import "tailwindcss";
 
 :root {

@@ -207,6 +207,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang={locale} className="h-full antialiased">
+      <head>
+        {/* Pretendard 가변 폰트. jsdelivr CDN 에 별도 preconnect 해두면
+            TLS/DNS 가 CSS 다운로드 전에 끝난다. stylesheet 는 render-blocking
+            이지만 globals.css 와 병렬로 받아오므로 globals 내부 @import 보다
+            빠르다 (~200ms 체감). */}
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/variable/pretendardvariable.css"
+        />
+      </head>
       <body className="min-h-full bg-[#0f1117] text-white">
         <NextIntlClientProvider locale={locale} messages={messages}>
           <ToastProvider>
