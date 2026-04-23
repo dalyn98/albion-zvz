@@ -36,16 +36,18 @@ interface SearchResponse {
   players: GameinfoPlayer[]
 }
 
-async function fetchJson<T>(url: string): Promise<T> {
+async function fetchJson<T>(url: string, opts: { fresh?: boolean } = {}): Promise<T> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 10_000)
   try {
     const res = await fetch(url, {
       signal: controller.signal,
       headers: { 'User-Agent': 'albion-zvz-onboarding/1.0' },
-      // 닉네임→ID 매핑은 사실상 immutable(이름변경은 실버 과금), 5분 캐시로
-      // 드롭다운 상호작용 중 동일 쿼리 재조회 제거.
-      next: { revalidate: 300 },
+      // fresh=true: 인증 확정 시점처럼 실시간 데이터가 필요한 호출. 드롭다운 검색
+      // 처럼 동일 쿼리가 연달아 발생하는 경로만 5분 캐시를 쓴다.
+      ...(opts.fresh
+        ? { cache: 'no-store' as const }
+        : { next: { revalidate: 300 } }),
     })
     if (!res.ok) throw new Error(`gameinfo ${res.status}`)
     return (await res.json()) as T
@@ -99,6 +101,8 @@ export async function searchGuilds(
 }
 
 // 특정 플레이어 ID 의 상세 조회. 인증 시점에 GuildId 를 재확인하기 위해 사용.
+// Next.js fetch 캐시가 플레이어가 길드 가입하기 전의 응답을 5분간 물고 있으면
+// 가입한 뒤 온보딩해도 계속 미인증이 되므로 fresh 모드(캐시 우회) 로 호출한다.
 // 실패 시 null 반환 — 호출부에서 "Gameinfo 장애" 로 처리.
 export async function getPlayer(
   server: AlbionServer,
@@ -107,7 +111,7 @@ export async function getPlayer(
   const base = SERVER_ENDPOINTS[server]
   const url = `${base}/players/${encodeURIComponent(playerId)}`
   try {
-    return await fetchJson<GameinfoPlayer>(url)
+    return await fetchJson<GameinfoPlayer>(url, { fresh: true })
   } catch {
     return null
   }

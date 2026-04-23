@@ -14,8 +14,8 @@ import ActiveMemberRolesSetting from './ActiveMemberRolesSetting'
 import RegearLimitsForm from './RegearLimitsForm'
 import RegearPayoutRateForm from './RegearPayoutRateForm'
 import EventAutoStartForm from './EventAutoStartForm'
-import AlbionServerForm, { type AlbionServer } from './AlbionServerForm'
 import AlbionHomeGuildForm from './AlbionHomeGuildForm'
+import type { AlbionServer } from '@/lib/albion-gameinfo'
 import AutoRegearToggleForm from './AutoRegearToggleForm'
 import CdBadgeRolesForm from './CdBadgeRolesForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
@@ -174,9 +174,8 @@ export default function SettingsTabs({
         )}
         {active === 'events' && (
           <div className="space-y-4">
-            <AlbionServerForm initialServer={albionServer} />
             <AlbionHomeGuildForm
-              server={albionServer}
+              initialServer={albionServer}
               initialGuildId={albionHomeGuildId}
             />
             <RegearLimitsForm

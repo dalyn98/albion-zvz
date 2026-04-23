@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import type { AppSettingKey } from '@/lib/app-settings'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
+import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 import { SLOT_ROLES } from '@/types'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
@@ -194,6 +195,41 @@ export async function updateAppSetting(
       // 이벤트 상세의 파티 그리드에서 CD 뱃지 표시가 이 값에 의존.
       revalidatePath('/events/[id]', 'page')
     }
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+// 홈 길드 UUID 는 서버별로 다르기 때문에 albion_server 와 함께 원자적으로 저장
+// 해야 한다. 둘을 따로 업데이트하면 서버는 바꿨는데 길드 UUID 는 구 서버의 값
+// 이 남아서 온보딩 인증이 전부 실패하는 상태가 된다. 이 액션은 한 번의 upsert
+// 로 두 값을 같이 쓴다. guildId 는 빈 문자열 허용(= 홈 길드 해제).
+export async function updateAlbionHomeGuild(input: {
+  server: string
+  guildId: string
+}): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    if (!isAlbionServer(input.server)) {
+      return { error: tErr('invalidEnumValue', { values: 'west, east, europe' }) }
+    }
+    const server: AlbionServer = input.server
+    const guildId = input.guildId.trim()
+    if (guildId.length > MAX_VALUE_LENGTH) {
+      return { error: tErr('valueTooLong', { max: MAX_VALUE_LENGTH }) }
+    }
+    const db = await requireAdmin()
+    const now = new Date().toISOString()
+    const { error } = await db.from('app_settings').upsert(
+      [
+        { key: 'albion_server', value: server, updated_at: now },
+        { key: 'albion_home_guild_id', value: guildId, updated_at: now },
+      ],
+      { onConflict: 'key' },
+    )
+    if (error) return { error: error.message }
+    revalidatePath('/admin/dashboard/settings')
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
