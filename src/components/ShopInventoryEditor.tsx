@@ -57,6 +57,27 @@ function formatAgo(iso: string | null): string {
   return `${diffDay}일 전`
 }
 
+// price_source 는 `aodp:{city}` 또는 `aodp:{city}:spot` 또는 `manual`.
+// `:spot` 접미사는 avg_Nd 모드에서 history 데이터가 없어 현재가로 폴백했음을 의미.
+function isSpotFallback(source: string | null): boolean {
+  return source !== null && source.endsWith(':spot')
+}
+
+function priceSourceTooltip(source: string | null): string {
+  if (!source) return '포인트 가격 수정 (빈 값 = 자동)'
+  if (source === 'manual') return '수동 고정가 (빈 값으로 저장하면 자동으로 복귀)'
+  if (source.startsWith('aodp:')) {
+    const parts = source.split(':')
+    const city = parts[1] ?? ''
+    const isSpot = parts[2] === 'spot'
+    if (isSpot) {
+      return `${city} 현재가 (설정된 평균 기간 내 history 데이터가 없어 spot 호가로 폴백)`
+    }
+    return `${city} AODP 평균가`
+  }
+  return source
+}
+
 export default function ShopInventoryEditor({ rows, silverToPointRate }: Props) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -444,7 +465,7 @@ function InventoryListItem({
             onClick={() => setEditingPrice(true)}
             disabled={pending}
             className="flex flex-col items-end hover:text-amber-300 group"
-            title="포인트 가격 수정 (빈 값 = 자동)"
+            title={priceSourceTooltip(row.priceSource)}
           >
             <span className="flex items-center gap-1 text-xs font-mono text-white">
               {pointPrice !== null ? `${pointPrice.toLocaleString()}p` : '—'}
@@ -454,7 +475,7 @@ function InventoryListItem({
               {row.manualPrice !== null
                 ? 'manual'
                 : row.autoPriceSilver
-                ? `auto · ${formatAgo(row.priceUpdatedAt)}`
+                ? `auto · ${formatAgo(row.priceUpdatedAt)}${isSpotFallback(row.priceSource) ? ' · spot' : ''}`
                 : 'no price'}
             </span>
           </button>

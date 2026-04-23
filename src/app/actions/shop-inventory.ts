@@ -60,11 +60,14 @@ export async function syncShopPrices(): Promise<PriceSyncSummary> {
         missing += 1
         continue
       }
+      // source 가 'spot' 이면 평균 모드에서 폴백된 현재가. 관리자가 원본 설정 (avg_7d)
+      // 과 실제 반영된 값이 다르다는 걸 알 수 있게 접미사로 덧붙인다.
+      const sourceTag = hit.source === 'spot' ? `aodp:${hit.city}:spot` : `aodp:${hit.city}`
       const { error } = await db
         .from('shop_inventory')
         .update({
           auto_price_silver: hit.price,
-          price_source: `aodp:${hit.city}`,
+          price_source: sourceTag,
           price_updated_at: now,
           updated_at: now,
         })

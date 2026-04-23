@@ -52,6 +52,10 @@ export interface AodpPriceResult {
   price: number | null
   city: string | null
   sampledAt: string | null
+  // 'history' = 평균 모드 (avg_Nd) 결과, 'spot' = 현재 호가.
+  // 평균 모드에서 히스토리 데이터가 비어 있으면 spot 으로 폴백하므로
+  // 호출자가 원본 소스를 구분할 수 있게 둔다. null = 시세 없음.
+  source: 'history' | 'spot' | null
 }
 
 interface AodpSpotRow {
@@ -242,30 +246,11 @@ export async function fetchAodpPrices(
   const result = new Map<string, AodpPriceResult>()
 
   if (mode === 'spot') {
-    const all: AodpSpotRow[] = []
-    for (let i = 0; i < uniqIds.length; i += CHUNK) {
-      const slice = uniqIds.slice(i, i + CHUNK)
-      all.push(...(await fetchSpotBatch(host, slice, qualities, cities)))
-    }
-    const bestByKey = new Map<string, { price: number; city: string; sampledAt: string }>()
-    const now = new Date()
-    for (const row of all) {
-      if (!row.sell_price_min || row.sell_price_min <= 0) continue
-      if (isStale(row.sell_price_min_date, now)) continue
-      const key = `${row.item_id}|${row.quality}`
-      const prev = bestByKey.get(key)
-      if (!prev || row.sell_price_min < prev.price) {
-        bestByKey.set(key, {
-          price: row.sell_price_min,
-          city: row.city,
-          sampledAt: row.sell_price_min_date,
-        })
-      }
-    }
+    const spotMap = await fetchSpotBestByKey(host, uniqIds, qualities, cities, CHUNK)
     for (const k of keys) {
       const id = itemId(k)
       const effQ = effectiveQuality(k.quality, minQuality)
-      const hit = bestByKey.get(`${id}|${effQ}`)
+      const hit = spotMap.get(`${id}|${effQ}`)
       const outKey = `${k.uniqueName}|${k.enchant}|${k.quality}`
       result.set(outKey, {
         uniqueName: k.uniqueName,
@@ -274,32 +259,56 @@ export async function fetchAodpPrices(
         price: hit?.price ?? null,
         city: hit?.city ?? null,
         sampledAt: hit?.sampledAt ?? null,
+        source: hit ? 'spot' : null,
       })
     }
     return result
   }
 
   // avg_Nd 모드 — history 를 가져와 도시별로 수량 가중 평균 후 최저 도시 선택.
+  // AODP 는 crowdsourced 라 동아시아 서버는 history 데이터가 비어 있는 경우가
+  // 많다. 히스토리 미스 → spot 폴백으로 확장해 최소한 현재가는 보장.
   const days = modeToDays(mode)
   const all: AodpHistoryRow[] = []
   for (let i = 0; i < uniqIds.length; i += CHUNK) {
     const slice = uniqIds.slice(i, i + CHUNK)
     all.push(...(await fetchHistoryBatch(host, slice, qualities, cities, days)))
   }
-  const bestByKey = new Map<string, { price: number; city: string; sampledAt: string }>()
+  const historyBestByKey = new Map<string, { price: number; city: string; sampledAt: string }>()
   for (const row of all) {
     const avg = weightedAverage(row.data ?? [])
     if (!avg) continue
     const key = `${row.item_id}|${row.quality}`
-    const prev = bestByKey.get(key)
+    const prev = historyBestByKey.get(key)
     if (!prev || avg.price < prev.price) {
-      bestByKey.set(key, { price: avg.price, city: row.location, sampledAt: avg.sampledAt })
+      historyBestByKey.set(key, { price: avg.price, city: row.location, sampledAt: avg.sampledAt })
     }
   }
+
+  // 히스토리에서 못 찾은 key 모음 → spot 폴백. 원본 keys 는 (item, enchant, quality)
+  // 조합이고 AODP 는 `itemId|quality` 로 조회하므로 중복 제거.
+  const missingLookupKeys = new Set<string>()
   for (const k of keys) {
     const id = itemId(k)
     const effQ = effectiveQuality(k.quality, minQuality)
-    const hit = bestByKey.get(`${id}|${effQ}`)
+    if (!historyBestByKey.has(`${id}|${effQ}`)) {
+      missingLookupKeys.add(`${id}|${effQ}`)
+    }
+  }
+
+  let spotBestByKey = new Map<string, { price: number; city: string; sampledAt: string }>()
+  if (missingLookupKeys.size > 0) {
+    // 폴백 spot 은 원본 keys 와 같은 도시/품질로만 조회. 사용자 설정을 벗어나진 않음.
+    spotBestByKey = await fetchSpotBestByKey(host, uniqIds, qualities, cities, CHUNK)
+  }
+
+  for (const k of keys) {
+    const id = itemId(k)
+    const effQ = effectiveQuality(k.quality, minQuality)
+    const lookupKey = `${id}|${effQ}`
+    const historyHit = historyBestByKey.get(lookupKey)
+    const spotHit = historyHit ? undefined : spotBestByKey.get(lookupKey)
+    const hit = historyHit ?? spotHit ?? null
     const outKey = `${k.uniqueName}|${k.enchant}|${k.quality}`
     result.set(outKey, {
       uniqueName: k.uniqueName,
@@ -308,9 +317,43 @@ export async function fetchAodpPrices(
       price: hit?.price ?? null,
       city: hit?.city ?? null,
       sampledAt: hit?.sampledAt ?? null,
+      source: historyHit ? 'history' : spotHit ? 'spot' : null,
     })
   }
   return result
+}
+
+// spot 결과를 `${itemId}|${quality}` 로 인덱스한 맵으로 반환하는 공용 루틴.
+// 같은 (item, quality) 에 대해 도시가 여러 개 내려오면 최저가를 선택한다.
+// 7일 이상 스탬프가 오래된 행은 시세가 움직였을 가능성 커 제외 (STALE_HOURS 참고).
+async function fetchSpotBestByKey(
+  host: string,
+  uniqIds: string[],
+  qualities: string,
+  cities: readonly string[],
+  chunk: number,
+): Promise<Map<string, { price: number; city: string; sampledAt: string }>> {
+  const all: AodpSpotRow[] = []
+  for (let i = 0; i < uniqIds.length; i += chunk) {
+    const slice = uniqIds.slice(i, i + chunk)
+    all.push(...(await fetchSpotBatch(host, slice, qualities, cities)))
+  }
+  const best = new Map<string, { price: number; city: string; sampledAt: string }>()
+  const now = new Date()
+  for (const row of all) {
+    if (!row.sell_price_min || row.sell_price_min <= 0) continue
+    if (isStale(row.sell_price_min_date, now)) continue
+    const key = `${row.item_id}|${row.quality}`
+    const prev = best.get(key)
+    if (!prev || row.sell_price_min < prev.price) {
+      best.set(key, {
+        price: row.sell_price_min,
+        city: row.city,
+        sampledAt: row.sell_price_min_date,
+      })
+    }
+  }
+  return best
 }
 
 export function inventoryKey(uniqueName: string, enchant: number, quality: number): string {
