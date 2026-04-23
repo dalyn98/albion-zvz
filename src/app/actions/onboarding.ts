@@ -87,7 +87,10 @@ export async function confirmAlbionIdentity(input: {
   if (!player) return { error: tErr('albionGameinfoUnavailable') }
 
   const homeGuildId = (await getAppSetting('albion_home_guild_id', '')).trim()
-  const homeServer = (await getAppSetting('albion_server', '')).trim()
+  // fallback 'east' — 설정 페이지/killboard/AODP 전부 'east' fallback 을 쓰므로
+  // 온보딩도 같은 기본값을 써야 관리자가 "UI 에 East 로 보여서 저장 안 했는데
+  // 실제 DB 에는 row 가 없어 인증이 항상 실패" 하는 상태가 안 된다.
+  const homeServer = (await getAppSetting('albion_server', 'east')).trim()
   const serverMatch = homeServer === input.server
   const guildMatch = Boolean(homeGuildId) && player.GuildId === homeGuildId
   const verified = serverMatch && guildMatch
