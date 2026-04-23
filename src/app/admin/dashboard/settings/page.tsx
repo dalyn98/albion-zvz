@@ -1,7 +1,7 @@
 import { getAppSetting } from '@/lib/app-settings'
 import { listRoleRewards } from '@/app/actions/regear-admin'
 import SettingsTabs from '@/components/SettingsTabs'
-import type { AlbionServer } from '@/lib/albion-gameinfo'
+import { getGuild, type AlbionServer } from '@/lib/albion-gameinfo'
 import { getTranslations } from 'next-intl/server'
 import { SLOT_ROLES, type SlotRole } from '@/types'
 
@@ -108,6 +108,12 @@ export default async function SettingsPage() {
   // 'true' 이외는 모두 false 로 해석 — 유일한 opt-out 경로는 명시적 'false'.
   const allowUnverifiedMemberAccess = allowUnverifiedMemberAccessRaw !== 'false'
 
+  // 저장돼 있는 홈 길드 UUID 를 이름으로 역조회. Gameinfo 장애/삭제된 길드는
+  // null 로 폴백해 UI 가 ID 만 노출하도록 둔다 — 실패해도 저장 흐름은 막지 않는다.
+  const initialHomeGuildName = albionHomeGuildId
+    ? (await getGuild(albionServer, albionHomeGuildId))?.Name ?? null
+    : null
+
   // SLOT_ROLES 에 없는 값은 drop — UI 토글이 조용히 잃어버리는 것보다
   // 관리자에게 재저장을 유도하는 편이 명확.
   const slotRoleSet: ReadonlySet<string> = new Set(SLOT_ROLES)
@@ -151,6 +157,7 @@ export default async function SettingsPage() {
         eventsAutoStartEnabled={eventsAutoStartEnabled}
         albionServer={albionServer}
         albionHomeGuildId={albionHomeGuildId}
+        albionHomeGuildName={initialHomeGuildName}
         autoRegearEnabled={autoRegearEnabled}
         cdBadgeRoles={cdBadgeRoles}
         allowUnverifiedMemberAccess={allowUnverifiedMemberAccess}

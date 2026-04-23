@@ -71,6 +71,7 @@ interface Props {
   eventsAutoStartEnabled: boolean
   albionServer: AlbionServer
   albionHomeGuildId: string
+  albionHomeGuildName: string | null
   autoRegearEnabled: boolean
   cdBadgeRoles: SlotRole[]
   allowUnverifiedMemberAccess: boolean
@@ -107,6 +108,7 @@ export default function SettingsTabs({
   eventsAutoStartEnabled,
   albionServer,
   albionHomeGuildId,
+  albionHomeGuildName,
   autoRegearEnabled,
   cdBadgeRoles,
   allowUnverifiedMemberAccess,
@@ -165,6 +167,7 @@ export default function SettingsTabs({
             <AlbionHomeGuildForm
               initialServer={albionServer}
               initialGuildId={albionHomeGuildId}
+              initialGuildName={albionHomeGuildName}
             />
             <AllowUnverifiedAccessForm initialAllowed={allowUnverifiedMemberAccess} />
             <ActiveMemberRolesSetting

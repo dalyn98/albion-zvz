@@ -100,6 +100,25 @@ export async function searchGuilds(
   }
 }
 
+// UUID 로 길드 상세 조회. 설정 화면에서 저장돼 있는 홈 길드 ID 로 이름을
+// 역조회할 때 사용. /search 는 닉네임 기반이라 UUID 로는 못 찾음.
+// 5분 캐시 허용 — 길드명이 바뀌는 일은 거의 없고, 관리자 설정 페이지가
+// revalidatePath 로 무효화하므로 저장 직후에도 최신 값이 따라온다.
+export async function getGuild(
+  server: AlbionServer,
+  guildId: string,
+): Promise<GameinfoGuild | null> {
+  const trimmed = guildId.trim()
+  if (!trimmed) return null
+  const base = SERVER_ENDPOINTS[server]
+  const url = `${base}/guilds/${encodeURIComponent(trimmed)}`
+  try {
+    return await fetchJson<GameinfoGuild>(url)
+  } catch {
+    return null
+  }
+}
+
 // 특정 플레이어 ID 의 상세 조회. 인증 시점에 GuildId 를 재확인하기 위해 사용.
 // Next.js fetch 캐시가 플레이어가 길드 가입하기 전의 응답을 5분간 물고 있으면
 // 가입한 뒤 온보딩해도 계속 미인증이 되므로 fresh 모드(캐시 우회) 로 호출한다.

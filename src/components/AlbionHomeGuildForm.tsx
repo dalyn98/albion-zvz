@@ -13,6 +13,7 @@ import type { AlbionServer } from '@/lib/albion-gameinfo'
 interface Props {
   initialServer: AlbionServer
   initialGuildId: string
+  initialGuildName?: string | null
 }
 
 const SEARCH_DEBOUNCE_MS = 300
@@ -31,11 +32,15 @@ const SERVER_OPTIONS: ReadonlyArray<{
 // 이 어긋나면 온보딩 인증이 전부 실패한다. 그래서 두 값은 항상 같이 저장.
 // 서버를 바꾸면 현재 선택된 길드는 무효(UUID 가 다른 서버 값이라 의미 없음)
 // 이므로 초기화한다.
-export default function AlbionHomeGuildForm({ initialServer, initialGuildId }: Props) {
+export default function AlbionHomeGuildForm({
+  initialServer,
+  initialGuildId,
+  initialGuildName,
+}: Props) {
   const router = useRouter()
   const [server, setServer] = useState<AlbionServer>(initialServer)
   const [guildId, setGuildId] = useState(initialGuildId)
-  const [guildName, setGuildName] = useState('')
+  const [guildName, setGuildName] = useState(initialGuildName ?? '')
   const [query, setQuery] = useState('')
   const [candidates, setCandidates] = useState<AlbionGuildCandidate[]>([])
   const [searching, setSearching] = useState(false)

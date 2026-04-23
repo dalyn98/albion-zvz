@@ -4,13 +4,31 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { ChevronRight, Crown, Users, X } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
 import LanguageBadge from './LanguageBadge'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
 import { SLOT_ROLES, getRoleStyle, type SlotRole } from '@/types'
 import type { GuildMemberSummary } from '@/app/actions/members-admin'
+import { getLocalizedItemName } from '@/lib/item-names'
+import { stripTierPrefix } from '@/lib/weapon-display'
+import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/locales'
+
+// 무기군 필터/뱃지에 쓸 라벨. Albion item id 로 번역본을 구하고 앞의 "T4 " 같은
+// 티어 접두사는 제거해서 같은 카테고리의 여러 티어를 한 묶음처럼 보이게 한다.
+// sampleId 가 없거나 번역이 비면 원본 category 코드로 폴백 — UI 가 비어 보이는
+// 것보다 raw id 라도 보여주는 편이 낫다.
+function resolveWeaponLabel(
+  sampleId: string | null,
+  category: string,
+  locale: Locale,
+): string {
+  if (!sampleId) return category
+  const name = getLocalizedItemName(sampleId, locale, null)
+  if (!name) return category
+  return stripTierPrefix(name)
+}
 
 interface Props {
   members: GuildMemberSummary[]
@@ -21,6 +39,8 @@ const BADGE_LIMIT = 3
 
 export default function GuildMemberList({ members }: Props) {
   const t = useTranslations('members')
+  const rawLocale = useLocale()
+  const locale: Locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('participation')
   const [roleFilter, setRoleFilter] = useState<SlotRole | null>(null)
@@ -121,6 +141,14 @@ export default function GuildMemberList({ members }: Props) {
 
   const hasFilter = !!roleFilter || !!weaponFilter
 
+  // 활성화된 무기 필터의 로컬라이즈된 라벨. availableWeapons 에 이미 sampleId 가
+  // 쌓여 있어서 따로 조회 없이 한 줄로 뽑힌다.
+  const activeWeaponLabel = useMemo(() => {
+    if (!weaponFilter) return null
+    const entry = availableWeapons.find((w) => w.category === weaponFilter)
+    return resolveWeaponLabel(entry?.sampleId ?? null, weaponFilter, locale)
+  }, [weaponFilter, availableWeapons, locale])
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-4 py-3">
@@ -196,6 +224,7 @@ export default function GuildMemberList({ members }: Props) {
           <div className="flex items-center gap-1.5 flex-wrap">
             {availableWeapons.map(({ category, sampleId }) => {
               const active = weaponFilter === category
+              const label = resolveWeaponLabel(sampleId, category, locale)
               return (
                 <button
                   key={category}
@@ -217,7 +246,7 @@ export default function GuildMemberList({ members }: Props) {
                       unoptimized
                     />
                   ) : null}
-                  <span>{category}</span>
+                  <span>{label}</span>
                 </button>
               )
             })}
@@ -240,9 +269,9 @@ export default function GuildMemberList({ members }: Props) {
         >
           {t('sortByRecent')}
         </SortChip>
-        {weaponFilter && (
+        {weaponFilter && activeWeaponLabel && (
           <span className="text-[11px] text-amber-300/80">
-            {t('sortByWeaponActive', { weapon: weaponFilter })}
+            {t('sortByWeaponActive', { weapon: activeWeaponLabel })}
           </span>
         )}
         {roleFilter && !weaponFilter && (
@@ -262,6 +291,7 @@ export default function GuildMemberList({ members }: Props) {
               member={m}
               roleFilter={roleFilter}
               weaponFilter={weaponFilter}
+              locale={locale}
             />
           ))}
         </ul>
@@ -303,10 +333,12 @@ function MemberRow({
   member,
   roleFilter,
   weaponFilter,
+  locale,
 }: {
   member: GuildMemberSummary
   roleFilter: SlotRole | null
   weaponFilter: string | null
+  locale: Locale
 }) {
   const t = useTranslations('members')
   // When a role filter is active, surface that role's badge first even if it's
@@ -374,7 +406,12 @@ function MemberRow({
                     unoptimized
                   />
                 )}
-                {matchedWeapon.category} {matchedWeapon.count}
+                {resolveWeaponLabel(
+                  matchedWeapon.sample_weapon_id ?? null,
+                  matchedWeapon.category,
+                  locale,
+                )}{' '}
+                {matchedWeapon.count}
               </span>
             )}
           </div>
