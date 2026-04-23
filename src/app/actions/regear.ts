@@ -8,6 +8,7 @@ import { verifyDeathInWindow } from '@/lib/killboard'
 import { getAppSetting } from '@/lib/app-settings'
 import { calcPayoutSilver } from '@/lib/regear-payout'
 import { requireAlbionVerified } from '@/lib/albion-identity'
+import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import { SLOT_KEYS, getDisplayGear, type BuildSnapshot, type RegearType, type SlotGearDisplay, type SlotKey } from '@/types'
 
 // User-facing regear actions. Admin-side lives in `regear-admin.ts`.
@@ -95,10 +96,6 @@ export interface RegearLimits {
 export async function getRegearLimits(): Promise<RegearLimits> {
   return loadRegearLimits()
 }
-
-// 인증 필요 에러 앞에 붙는 프리픽스. 클라이언트가 이 프리픽스를 보고 온보딩
-// 으로 안내하는 CTA 버튼을 렌더한다. 사용자에겐 프리픽스 뒤의 문자열만 노출.
-export const REGEAR_VERIFICATION_ERROR_PREFIX = 'ALBION_VERIFICATION_REQUIRED:'
 
 export async function requestRegear(
   formData: FormData,
