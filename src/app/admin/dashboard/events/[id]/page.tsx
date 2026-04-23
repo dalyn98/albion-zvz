@@ -16,15 +16,22 @@ import EventEditSaveBar from '@/components/EventEditSaveBar'
 import { listTemplates } from '@/app/actions/templates'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
+import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 
-async function getData(id: string) {
+async function getData(id: string, guildId: string) {
   // guild_avatars 는 anon/authenticated 에 revoke 되어 있어 (migration 008)
   // service-role client 로만 읽을 수 있다. 이 server component 는 admin 전용
   // 레이아웃 하위라 service-role 사용이 안전.
   const admin = getAdminClient()
   const [{ data: event }, { data: parties }, { data: directory }] = await Promise.all([
-    supabase.from('events').select('*').eq('id', id).single(),
-    supabase.from('parties').select('*, slots(*)').eq('event_id', id).order('party_number'),
+    supabase.from('events').select('*').eq('guild_id', guildId).eq('id', id).single(),
+    supabase
+      .from('parties')
+      .select('*, slots(*)')
+      .eq('guild_id', guildId)
+      .eq('event_id', id)
+      .order('party_number'),
     // Bomb squad caller picker — admin picks from members whose Discord
     // role(s) are listed under the `bomb_squad_caller_role_ids` app setting.
     // The flag is refreshed at login; newly-granted callers must re-login
@@ -32,6 +39,7 @@ async function getData(id: string) {
     admin
       .from('guild_avatars')
       .select('discord_id, username')
+      .eq('guild_id', guildId)
       .eq('is_bomb_squad_caller', true)
       .order('username'),
   ])
@@ -53,6 +61,7 @@ async function getData(id: string) {
     ? await admin
         .from('guild_avatars')
         .select('discord_id, username')
+        .eq('guild_id', guildId)
         .in('discord_id', staleCallerIds)
     : { data: [] as { discord_id: string; username: string }[] }
 
@@ -74,8 +83,11 @@ export default async function EditEventPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+  const session = await getSession()
+  if (!session) throw new Error('Unauthorized')
+  const guildId = await getSessionGuildId(session)
   const [{ event, parties, memberDirectory }, { templates }, t, autoRegearRaw] = await Promise.all([
-    getData(id),
+    getData(id, guildId),
     listTemplates(),
     getTranslations('adminEditEvent'),
     getAppSetting('auto_regear_enabled', 'false'),

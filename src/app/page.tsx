@@ -7,6 +7,7 @@ import { formatGatherTimeFor, isImminent, isEnded } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
 import HomeEventList, { type HomeEventCardData, type HomeEventKind } from '@/components/HomeEventList'
 import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
 
@@ -19,10 +20,11 @@ interface EventWithCounts extends Event {
   assigned: number
 }
 
-async function getActiveEvents(): Promise<EventWithCounts[]> {
+async function getActiveEvents(guildId: string): Promise<EventWithCounts[]> {
   const { data: events } = await supabase
     .from('events')
     .select('*')
+    .eq('guild_id', guildId)
     // draft 이벤트는 관리자 대시보드에서만 노출 — 공개 홈에서는 숨김.
     .eq('status', 'published')
     .order('gather_at', { ascending: true, nullsFirst: false })
@@ -40,6 +42,7 @@ async function getActiveEvents(): Promise<EventWithCounts[]> {
   const { data: parties } = await supabase
     .from('parties')
     .select('event_id, slots(id, assigned_discord_id, is_hidden)')
+    .eq('guild_id', guildId)
     .in('event_id', ids)
 
   const totals = new Map<string, { total: number; assigned: number }>()
@@ -79,7 +82,10 @@ export default async function HomePage() {
   const displayGatherTime = (event: Event): string =>
     event.gather_at ? formatGatherTimeFor(locale, event.gather_at) : event.gather_time
 
-  const events = await getActiveEvents()
+  // 홈은 공개 게이트가 걸려 있어 사실상 멤버만 들어오지만, 세션이 없어도 primary
+  // tenant 로 fallback 해 레이아웃 상 게이트가 렌더하는 동안 깨지지 않게 한다.
+  const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
+  const events = await getActiveEvents(guildId)
 
   const toCard = (event: EventWithCounts): HomeEventCardData => ({
     id: event.id,

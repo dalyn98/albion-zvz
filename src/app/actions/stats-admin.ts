@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/auth'
 import { getAppSetting } from '@/lib/app-settings'
+import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { getTranslations } from 'next-intl/server'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
 
@@ -93,12 +95,16 @@ export interface ShopRegearStats {
 export async function getPointStats(): Promise<{ stats?: PointStats; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
     const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
     const [ledgerRes, avatarsRes] = await Promise.all([
-      db.from('point_ledger').select('discord_id, delta'),
+      db.from('point_ledger').select('discord_id, delta').eq('guild_id', guildId),
       db
         .from('guild_avatars')
-        .select('discord_id, username, avatar, is_admin, withdrawn_at'),
+        .select('discord_id, username, avatar, is_admin, withdrawn_at')
+        .eq('guild_id', guildId),
     ])
     if (ledgerRes.error) return { error: ledgerRes.error.message }
     if (avatarsRes.error) return { error: avatarsRes.error.message }
@@ -184,12 +190,19 @@ function daysAgoIso(days: number): string {
 export async function getEventStats(): Promise<{ stats?: EventStats; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
     const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
     const since = daysAgoIso(PARTICIPATION_WINDOW_DAYS)
 
     // 창 내 생성된 이벤트 id 목록을 먼저 구하고, 해당 이벤트에 속한 party id
     // 들을 한 번에 조회. slots 는 event 를 직접 참조하지 않으므로 이 단계가 필요.
-    const eventsRes = await db.from('events').select('id').gte('created_at', since)
+    const eventsRes = await db
+      .from('events')
+      .select('id')
+      .eq('guild_id', guildId)
+      .gte('created_at', since)
     if (eventsRes.error) return { error: eventsRes.error.message }
     const eventIds = (eventsRes.data ?? []).map((e) => e.id as string)
 
@@ -197,7 +210,11 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
     // 가 null 이 아닌) 행만 쓴다. event_id 는 parties 를 경유해야 해서 중첩 select.
     let slotRows: Array<{ discordId: string; eventId: string }> = []
     if (eventIds.length > 0) {
-      const partiesRes = await db.from('parties').select('id, event_id').in('event_id', eventIds)
+      const partiesRes = await db
+        .from('parties')
+        .select('id, event_id')
+        .eq('guild_id', guildId)
+        .in('event_id', eventIds)
       if (partiesRes.error) return { error: partiesRes.error.message }
       const partyToEvent = new Map<string, string>()
       for (const p of partiesRes.data ?? []) {
@@ -208,6 +225,7 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
         const slotsRes = await db
           .from('slots')
           .select('assigned_discord_id, party_id')
+          .eq('guild_id', guildId)
           .in('party_id', partyIds)
           .not('assigned_discord_id', 'is', null)
         if (slotsRes.error) return { error: slotsRes.error.message }
@@ -239,6 +257,7 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
     const avatarsRes = await db
       .from('guild_avatars')
       .select('discord_id, username, avatar, is_admin, withdrawn_at')
+      .eq('guild_id', guildId)
     if (avatarsRes.error) return { error: avatarsRes.error.message }
     const avatarsByDiscord = new Map((avatarsRes.data ?? []).map((a) => [a.discord_id, a]))
 
@@ -288,7 +307,10 @@ export async function getShopRegearStats(): Promise<{
 }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
     const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
     const since = daysAgoIso(SHOP_REGEAR_WINDOW_DAYS)
 
     const [
@@ -302,17 +324,24 @@ export async function getShopRegearStats(): Promise<{
       db
         .from('shop_orders')
         .select('id, status, total_points')
+        .eq('guild_id', guildId)
         .gte('created_at', since),
       // 큐 크기: 전체 기간 pending.
-      db.from('shop_orders').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      db
+        .from('shop_orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('guild_id', guildId)
+        .eq('status', 'pending'),
       // 창 내 생성된 리기어 — 집계 방식은 주문과 유사.
       db
         .from('regear_requests')
         .select('id, status, payout_silver, claimed_silver, silver')
+        .eq('guild_id', guildId)
         .gte('created_at', since),
       db
         .from('regear_requests')
         .select('id', { count: 'exact', head: true })
+        .eq('guild_id', guildId)
         .eq('status', 'pending'),
       // 최다 판매 아이템 — 승인된 주문에 딸린 라인만 보면 충분.
       // resolved_at 대신 created_at 기준 창을 유지해 '신청량' 과 '판매량' 의 축을 맞춘다.
@@ -321,6 +350,7 @@ export async function getShopRegearStats(): Promise<{
         .select(
           'unique_name, enchant, quality, name_ko, quantity, subtotal_points, shop_orders!inner(status, created_at)',
         )
+        .eq('guild_id', guildId)
         .eq('shop_orders.status', 'approved')
         .gte('shop_orders.created_at', since),
     ])
@@ -444,13 +474,17 @@ export async function getAlbionVerificationStats(): Promise<{
 }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
     const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
     const [avatarsRes, homeGuildId] = await Promise.all([
       db
         .from('guild_avatars')
         .select(
           'discord_id, username, avatar, is_admin, withdrawn_at, albion_server, albion_nickname, albion_player_id, albion_guild_id, albion_verified_at',
-        ),
+        )
+        .eq('guild_id', guildId),
       getAppSetting('albion_home_guild_id', ''),
     ])
     if (avatarsRes.error) return { error: avatarsRes.error.message }
@@ -522,7 +556,10 @@ export async function resetMemberAlbionOnboarding(
 ): Promise<{ ok?: true; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
     const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
     const { error } = await db
       .from('guild_avatars')
       .update({
@@ -532,6 +569,7 @@ export async function resetMemberAlbionOnboarding(
         albion_guild_id: null,
         albion_verified_at: null,
       })
+      .eq('guild_id', guildId)
       .eq('discord_id', discordId)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/stats')

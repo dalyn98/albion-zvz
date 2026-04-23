@@ -87,9 +87,13 @@ export async function listSlotTemplates(): Promise<{
   const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { templates: [], error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
     const { data, error } = await db
       .from('slot_templates')
       .select('id, name, category, created_at, role_name:data->>role_name')
+      .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
     if (error) return { templates: [], error: error.message }
     return { templates: (data ?? []) as SlotTemplateSummary[] }
@@ -107,9 +111,13 @@ export async function getSlotTemplate(id: string): Promise<{
   const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
     const { data, error } = await db
       .from('slot_templates')
       .select('id, name, data, category, created_at')
+      .eq('guild_id', guildId)
       .eq('id', id)
       .single()
     if (error) return { error: error.message }
@@ -123,7 +131,14 @@ export async function deleteSlotTemplate(id: string): Promise<{ error?: string }
   const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
-    const { error } = await db.from('slot_templates').delete().eq('id', id)
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+    const { error } = await db
+      .from('slot_templates')
+      .delete()
+      .eq('guild_id', guildId)
+      .eq('id', id)
     if (error) return { error: error.message }
     return {}
   } catch (e) {

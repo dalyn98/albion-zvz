@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 
 // Approve / reject sign-ups on a bomb squad party. Authorization passes if the
@@ -13,12 +14,13 @@ import { getAdminClient } from '@/lib/supabase-admin'
 // The RPC trusts its caller — all authorization happens in this action layer,
 // mirroring the regear-admin pattern.
 async function authorizeBombSquadAction(slotId: string): Promise<
-  | { ok: true; db: ReturnType<typeof getAdminClient>; eventId: string }
+  | { ok: true; db: ReturnType<typeof getAdminClient>; eventId: string; guildId: string }
   | { ok: false; error: string }
 > {
   const tAction = await getTranslations('slotAction')
   const session = await getSession()
   if (!session) return { ok: false, error: tAction('loginRequired') }
+  const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
   const { data, error } = await db
@@ -26,6 +28,7 @@ async function authorizeBombSquadAction(slotId: string): Promise<
     .select(
       'id, requested_discord_id, parties!inner(is_bomb_squad, caller_discord_id, events!inner(id, created_by, battle_started_at))',
     )
+    .eq('guild_id', guildId)
     .eq('id', slotId)
     .maybeSingle()
   if (error) return { ok: false, error: error.message }
@@ -46,7 +49,7 @@ async function authorizeBombSquadAction(slotId: string): Promise<
   if (!session.isAdmin && !isEventOwner && !isCaller) {
     return { ok: false, error: tAction('bombSquadNotAuthorized') }
   }
-  return { ok: true, db, eventId: event.id }
+  return { ok: true, db, eventId: event.id, guildId }
 }
 
 export async function approveSlotRequest(slotId: string): Promise<{ error?: string }> {
@@ -94,13 +97,14 @@ export async function directAssignMember(
   const tAction = await getTranslations('slotAction')
   const auth = await authorizeBombSquadAction(slotId)
   if (!auth.ok) return { error: auth.error }
-  const { db, eventId } = auth
+  const { db, eventId, guildId } = auth
 
   // guild_avatars 는 service-role 로만 읽을 수 있어 auth 에서 받은 admin db 를
   // 그대로 재사용한다. withdrawn 된 멤버는 명단에 뜨지도 않지만 방어적으로 체크.
   const { data: member, error: memberError } = await db
     .from('guild_avatars')
     .select('username, withdrawn_at')
+    .eq('guild_id', guildId)
     .eq('discord_id', memberDiscordId)
     .maybeSingle()
   if (memberError) return { error: memberError.message }
@@ -140,11 +144,13 @@ export async function listAssignableMembers(
   const tAction = await getTranslations('slotAction')
   const session = await getSession()
   if (!session) return { error: tAction('loginRequired') }
+  const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
   const { data: eventRow, error: eventError } = await db
     .from('events')
     .select('id, created_by, parties(caller_discord_id)')
+    .eq('guild_id', guildId)
     .eq('id', eventId)
     .maybeSingle()
   if (eventError) return { error: eventError.message }
@@ -159,6 +165,7 @@ export async function listAssignableMembers(
   const { data: members, error: membersError } = await db
     .from('guild_avatars')
     .select('discord_id, username, withdrawn_at')
+    .eq('guild_id', guildId)
     .order('username', { ascending: true })
   if (membersError) return { error: membersError.message }
 
@@ -167,6 +174,7 @@ export async function listAssignableMembers(
   const { data: assignments, error: assignError } = await db
     .from('slots')
     .select('assigned_discord_id, requested_discord_id, parties!inner(event_id)')
+    .eq('guild_id', guildId)
     .eq('parties.event_id', eventId)
   if (assignError) return { error: assignError.message }
 

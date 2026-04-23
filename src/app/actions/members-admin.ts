@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { requireAdmin } from '@/lib/auth'
 import { isLocale } from '@/i18n/locales'
 import { runMemberSync, type RolesSource } from '@/lib/member-sync'
@@ -12,10 +13,14 @@ import type { RegearType } from '@/types'
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
 // 포인트 조정 같은 mutation은 별도로 requireAdmin()을 거치게 둔다.
-async function requireSession() {
+async function requireSessionWithGuild(): Promise<{
+  db: ReturnType<typeof getAdminClient>
+  guildId: string
+}> {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
-  return getAdminClient()
+  const guildId = await getSessionGuildId(session)
+  return { db: getAdminClient(), guildId }
 }
 
 export interface RoleCount {
@@ -143,12 +148,13 @@ export async function listGuildMembers(): Promise<{
   const tCommon = await getTranslations('common')
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireSession()
+    const { db, guildId } = await requireSessionWithGuild()
 
     const [avatarsRes, slotsRes] = await Promise.all([
       db
         .from('guild_avatars')
         .select('discord_id, username, avatar, is_admin, updated_at, preferred_language')
+        .eq('guild_id', guildId)
         // 탈퇴자(member-sync cron 이 withdrawn_at 을 찍은 행) 은 /members 에서
         // 숨긴다. 통계 페이지에서만 별도 섹션으로 노출.
         .is('withdrawn_at', null),
@@ -157,6 +163,7 @@ export async function listGuildMembers(): Promise<{
         .select(
           'assigned_discord_id, role_name, weapon_id, assigned_weapon_id, parties!inner(event_id)',
         )
+        .eq('guild_id', guildId)
         .not('assigned_discord_id', 'is', null),
     ])
     if (avatarsRes.error) return { members: [], error: avatarsRes.error.message }
@@ -267,16 +274,18 @@ export async function listWithdrawnMembers(): Promise<{
   const tCommon = await getTranslations('common')
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireSession()
+    const { db, guildId } = await requireSessionWithGuild()
 
     const [avatarsRes, slotsRes] = await Promise.all([
       db
         .from('guild_avatars')
         .select('discord_id, username, avatar, updated_at, withdrawn_at, preferred_language')
+        .eq('guild_id', guildId)
         .not('withdrawn_at', 'is', null),
       db
         .from('slots')
         .select('assigned_discord_id, role_name, parties!inner(event_id)')
+        .eq('guild_id', guildId)
         .not('assigned_discord_id', 'is', null),
     ])
     if (avatarsRes.error) return { members: [], error: avatarsRes.error.message }
@@ -350,16 +359,18 @@ export async function listGuildGuests(): Promise<{
   const tCommon = await getTranslations('common')
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireSession()
+    const { db, guildId } = await requireSessionWithGuild()
 
     const [guestsRes, slotsRes] = await Promise.all([
       db
         .from('guests')
         .select('discord_id, username, avatar, joined_at, preferred_language')
+        .eq('guild_id', guildId)
         .order('joined_at', { ascending: false }),
       db
         .from('slots')
         .select('assigned_discord_id, role_name, parties!inner(event_id)')
+        .eq('guild_id', guildId)
         .not('assigned_discord_id', 'is', null),
     ])
     if (guestsRes.error) return { guests: [], error: guestsRes.error.message }
@@ -416,8 +427,15 @@ export async function listGuildGuests(): Promise<{
 export async function revokeGuest(discordId: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
     const db = await requireAdmin()
-    const { error } = await db.from('guests').delete().eq('discord_id', discordId)
+    const guildId = await getSessionGuildId(session)
+    const { error } = await db
+      .from('guests')
+      .delete()
+      .eq('guild_id', guildId)
+      .eq('discord_id', discordId)
     if (error) return { error: error.message }
     revalidatePath('/members')
     return {}
@@ -429,7 +447,7 @@ export async function revokeGuest(discordId: string): Promise<{ error?: string }
 // Core fetch — assumes caller has already authorized access to discordId.
 // Both the admin-only `getGuildMemberDetail` and the self-only `getMyMemberDetail`
 // funnel through this so they stay in lock-step.
-async function fetchMemberDetail(discordId: string): Promise<{
+async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
   detail: GuildMemberDetail | null
   error?: string
 }> {
@@ -443,6 +461,7 @@ async function fetchMemberDetail(discordId: string): Promise<{
         db
           .from('guild_avatars')
           .select('discord_id, username, avatar, updated_at, preferred_language')
+          .eq('guild_id', guildId)
           .eq('discord_id', discordId)
           .maybeSingle(),
         db
@@ -450,24 +469,32 @@ async function fetchMemberDetail(discordId: string): Promise<{
           .select(
             'role_name, weapon_name, weapon_id, assigned_weapon_name, assigned_weapon_id, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at))',
           )
+          .eq('guild_id', guildId)
           .eq('assigned_discord_id', discordId),
         db
           .from('regear_requests')
           .select(
             'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, status, admin_notes, created_at, resolved_at, handled_by_username, events(title)',
           )
+          .eq('guild_id', guildId)
           .eq('discord_id', discordId)
           .order('created_at', { ascending: false }),
         db
           .from('exchange_requests')
           .select('id, silver, status, admin_notes, created_at, resolved_at, handled_by_username')
+          .eq('guild_id', guildId)
           .eq('discord_id', discordId)
           .order('created_at', { ascending: false }),
         db
           .from('point_ledger')
           .select('id, delta, reason, memo, created_at')
+          .eq('guild_id', guildId)
           .eq('discord_id', discordId),
-        db.from('killboard_events').select('role, fame').eq('discord_id', discordId),
+        db
+          .from('killboard_events')
+          .select('role, fame')
+          .eq('guild_id', guildId)
+          .eq('discord_id', discordId),
       ])
 
     if (avatarRes.error) return { detail: null, error: avatarRes.error.message }
@@ -651,7 +678,8 @@ export async function getGuildMemberDetail(discordId: string): Promise<{
 }> {
   const session = await getSession()
   if (!session) return { detail: null, error: 'Unauthorized' }
-  return fetchMemberDetail(discordId)
+  const guildId = await getSessionGuildId(session)
+  return fetchMemberDetail(discordId, guildId)
 }
 
 export interface SyncMembersNowResult {
@@ -678,7 +706,8 @@ export async function syncMembersNow(): Promise<SyncMembersNowResult> {
   try {
     const session = await getSession()
     if (!session?.isAdmin) return { ...empty, error: tErr('unauthorized') }
-    const outcome = await runMemberSync({ skipThrottle: true })
+    const guildId = await getSessionGuildId(session)
+    const outcome = await runMemberSync(guildId, { skipThrottle: true })
     if (outcome.kind === 'error') return { ...empty, error: outcome.message }
     // skipThrottle 이므로 'throttled' 은 발생 안함 — 안전하게 result 꺼냄.
     if (outcome.kind === 'throttled') return { ...empty, error: tErr('serverError') }
@@ -696,5 +725,6 @@ export async function getMyMemberDetail(): Promise<{
 }> {
   const session = await getSession()
   if (!session) return { detail: null, error: 'Unauthorized' }
-  return fetchMemberDetail(session.discordId)
+  const guildId = await getSessionGuildId(session)
+  return fetchMemberDetail(session.discordId, guildId)
 }

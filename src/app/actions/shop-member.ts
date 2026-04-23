@@ -27,10 +27,12 @@ const MAX_LINES = 50
 export async function getMyPointBalance(): Promise<number> {
   const session = await getSession()
   if (!session?.isMember) return 0
+  const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
   const { data, error } = await db
     .from('point_ledger')
     .select('delta')
+    .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
   if (error) return 0
   return (data ?? []).reduce((sum, r) => sum + (r.delta as number), 0)
@@ -57,6 +59,7 @@ export async function submitShopOrder(
     }
 
     const db = getAdminClient()
+    const guildId = await getSessionGuildId(session)
 
     // 할인율 + 재고 + 가격 조회.
     const rateSetting = await getAppSetting('shop_discount_rate', '1')
@@ -68,6 +71,7 @@ export async function submitShopOrder(
       .select(
         'id, unique_name, enchant, quality, stock, name_ko, manual_price, auto_price_silver',
       )
+      .eq('guild_id', guildId)
       .in('id', ids)
     if (invErr) return { ok: false, error: invErr.message }
     const invMap = new Map(
@@ -124,6 +128,7 @@ export async function submitShopOrder(
     const { data: ledger, error: ledgerErr } = await db
       .from('point_ledger')
       .select('delta')
+      .eq('guild_id', guildId)
       .eq('discord_id', session.discordId)
     if (ledgerErr) return { ok: false, error: ledgerErr.message }
     const balance = (ledger ?? []).reduce((sum, r) => sum + (r.delta as number), 0)
@@ -132,7 +137,6 @@ export async function submitShopOrder(
     }
 
     // 주문 + 라인 삽입.
-    const guildId = await getSessionGuildId(session)
     const { data: orderRow, error: insertErr } = await db
       .from('shop_orders')
       .insert({
@@ -162,7 +166,7 @@ export async function submitShopOrder(
     const { error: lineErr } = await db.from('shop_order_items').insert(lineRows)
     if (lineErr) {
       // 라인 삽입 실패 시 주문 롤백.
-      await db.from('shop_orders').delete().eq('id', orderId)
+      await db.from('shop_orders').delete().eq('guild_id', guildId).eq('id', orderId)
       return { ok: false, error: lineErr.message }
     }
 
@@ -196,10 +200,12 @@ export interface MyOrderRow {
 export async function listMyShopOrders(limit = 20): Promise<MyOrderRow[]> {
   const session = await getSession()
   if (!session) return []
+  const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
   const { data: orders } = await db
     .from('shop_orders')
     .select('id, total_points, status, member_note, admin_note, created_at, resolved_at')
+    .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
     .order('created_at', { ascending: false })
     .limit(limit)
@@ -208,6 +214,7 @@ export async function listMyShopOrders(limit = 20): Promise<MyOrderRow[]> {
   const { data: items } = await db
     .from('shop_order_items')
     .select('order_id, name_ko, unique_name, enchant, quality, quantity, unit_points')
+    .eq('guild_id', guildId)
     .in('order_id', ids)
   const itemsByOrder = new Map<string, MyOrderRow['items']>()
   for (const it of items ?? []) {
@@ -240,10 +247,12 @@ export async function cancelMyOrder(orderId: string): Promise<{ error?: string }
   try {
     const session = await getSession()
     if (!session) return { error: tErr('loginRequired') }
+    const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
     const { error } = await db
       .from('shop_orders')
       .update({ status: 'cancelled', resolved_at: new Date().toISOString(), resolved_by: session.discordId })
+      .eq('guild_id', guildId)
       .eq('id', orderId)
       .eq('discord_id', session.discordId)
       .eq('status', 'pending')

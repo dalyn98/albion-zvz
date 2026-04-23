@@ -5,14 +5,17 @@ import { Archive } from 'lucide-react'
 import { formatGatherTimeFor, isEnded } from '@/lib/gather-time'
 import { formatDateTime } from '@/lib/format-datetime'
 import { getLocale } from '@/lib/locale'
+import { getSession } from '@/lib/session'
+import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
 import ArchiveEventList, { type ArchivedEventCard } from '@/components/ArchiveEventList'
 
 export const dynamic = 'force-dynamic'
 
-async function getArchivedEvents(): Promise<ArchivedEventCard[]> {
+async function getArchivedEvents(guildId: string): Promise<ArchivedEventCard[]> {
   const { data: events } = await supabase
     .from('events')
     .select('*')
+    .eq('guild_id', guildId)
     .not('battle_started_at', 'is', null)
     .order('battle_started_at', { ascending: false })
 
@@ -25,6 +28,7 @@ async function getArchivedEvents(): Promise<ArchivedEventCard[]> {
   const { data: parties } = await supabase
     .from('parties')
     .select('event_id, slots(id, assigned_discord_id, is_hidden)')
+    .eq('guild_id', guildId)
     .in('event_id', ids)
 
   const totals = new Map<string, { total: number; assigned: number }>()
@@ -57,7 +61,12 @@ async function getArchivedEvents(): Promise<ArchivedEventCard[]> {
 }
 
 export default async function ArchivePage() {
-  const [t, events] = await Promise.all([getTranslations('archive'), getArchivedEvents()])
+  const session = await getSession()
+  const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
+  const [t, events] = await Promise.all([
+    getTranslations('archive'),
+    getArchivedEvents(guildId),
+  ])
   return (
     <main className="flex-1 px-4 py-6 sm:py-8 max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto w-full space-y-6">
       <header className="space-y-1.5">

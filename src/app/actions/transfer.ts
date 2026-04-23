@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { requireAlbionVerified } from '@/lib/albion-identity'
 
 // 길드원 → 길드원 포인트 양도. 여러 명 일괄 지급 지원.
@@ -63,6 +64,7 @@ export async function transferPoints(
   }
 
   const db = getAdminClient()
+  const guildId = await getSessionGuildId(session)
 
   // 서버에서 잔액을 먼저 확인 (UX 용 빠른 실패). RPC 가 lock 아래에서 재확인하므로
   // 이 체크가 race 를 유발하진 않는다.
@@ -70,6 +72,7 @@ export async function transferPoints(
   const { data: ledger, error: ledgerError } = await db
     .from('point_ledger')
     .select('delta')
+    .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
   if (ledgerError) return { error: ledgerError.message }
   const balance = (ledger ?? []).reduce((sum, r) => sum + r.delta, 0)
@@ -115,11 +118,13 @@ export async function listTransferCandidates(): Promise<{
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { candidates: [], error: tErr('loginRequired') }
+  const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
   const { data, error } = await db
     .from('guild_avatars')
     .select('discord_id, username, avatar')
+    .eq('guild_id', guildId)
     .neq('discord_id', session.discordId)
     .order('username', { ascending: true })
   if (error) return { candidates: [], error: error.message }

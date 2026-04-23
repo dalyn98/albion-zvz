@@ -97,11 +97,13 @@ export async function cancelMyDonationRequest(id: string): Promise<{ error?: str
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
+  const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
   const { data: row, error: fetchError } = await db
     .from('donation_requests')
     .select('id, status, discord_id, screenshot_path')
+    .eq('guild_id', guildId)
     .eq('id', id)
     .maybeSingle()
   if (fetchError) return { error: fetchError.message }
@@ -112,6 +114,7 @@ export async function cancelMyDonationRequest(id: string): Promise<{ error?: str
   const { error: deleteError } = await db
     .from('donation_requests')
     .delete()
+    .eq('guild_id', guildId)
     .eq('id', id)
     .eq('status', 'pending')
   if (deleteError) return { error: deleteError.message }
@@ -132,11 +135,13 @@ export async function listMyDonationRequests(): Promise<{
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { requests: [], error: tErr('loginRequired') }
+  const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
   const { data, error } = await db
     .from('donation_requests')
     .select('id, silver, memo, status, admin_notes, created_at, resolved_at, handled_by_username')
+    .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
     .order('created_at', { ascending: false })
   if (error) return { requests: [], error: error.message }

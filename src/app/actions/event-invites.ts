@@ -41,10 +41,12 @@ export async function createEventGuestToken(
     const session = await getSession()
     if (!session) return { error: 'Unauthorized' }
     const db = await requireEventCreatorForEvent(eventId)
+    const guildId = await getSessionGuildId(session)
 
     const { data: event, error: eventError } = await db
       .from('events')
       .select('gather_at')
+      .eq('guild_id', guildId)
       .eq('id', eventId)
       .maybeSingle()
     if (eventError) return { error: eventError.message }
@@ -54,7 +56,6 @@ export async function createEventGuestToken(
       ? new Date(new Date(event.gather_at).getTime() + POST_GATHER_TTL_MS)
       : new Date(Date.now() + FALLBACK_TTL_MS)
 
-    const guildId = await getSessionGuildId(session)
     const token = randomToken()
     const { data: inserted, error: insertError } = await db
       .from('event_guest_tokens')
@@ -81,10 +82,14 @@ export async function listEventGuestTokens(
   eventId: string,
 ): Promise<{ tokens?: EventGuestToken[]; error?: string }> {
   try {
+    const session = await getSession()
+    if (!session) return { error: 'Unauthorized' }
     const db = await requireEventCreatorForEvent(eventId)
+    const guildId = await getSessionGuildId(session)
     const { data, error } = await db
       .from('event_guest_tokens')
       .select('id, token, created_by, created_by_username, created_at, expires_at, revoked_at')
+      .eq('guild_id', guildId)
       .eq('event_id', eventId)
       .order('created_at', { ascending: false })
     if (error) return { error: error.message }
@@ -99,10 +104,14 @@ export async function revokeEventGuestToken(
   eventId: string,
 ): Promise<{ error?: string }> {
   try {
+    const session = await getSession()
+    if (!session) return { error: 'Unauthorized' }
     const db = await requireEventCreatorForEvent(eventId)
+    const guildId = await getSessionGuildId(session)
     const { error } = await db
       .from('event_guest_tokens')
       .update({ revoked_at: new Date().toISOString() })
+      .eq('guild_id', guildId)
       .eq('id', tokenId)
       .eq('event_id', eventId)
     if (error) return { error: error.message }

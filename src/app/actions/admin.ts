@@ -149,8 +149,11 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
     // 에서 한 번 더 strict 검증을 거친다.
     const invalid = validateEventPayload(payload, tErr, { publishing: false })
     if (invalid) return { error: invalid }
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
-    const { error } = await db.from('events').update(payload).eq('id', id)
+    const guildId = await getSessionGuildId(session)
+    const { error } = await db.from('events').update(payload).eq('guild_id', guildId).eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard')
     revalidatePath('/')
@@ -173,10 +176,14 @@ export async function publishEvent(
   try {
     const invalid = validateEventPayload(payload, tErr, { publishing: true })
     if (invalid) return { error: invalid }
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
+    const guildId = await getSessionGuildId(session)
     const { error } = await db
       .from('events')
       .update({ ...payload, status: 'published' })
+      .eq('guild_id', guildId)
       .eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard')
@@ -191,10 +198,14 @@ export async function publishEvent(
 export async function notifyEvent(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
+    const guildId = await getSessionGuildId(session)
     const { data, error } = await db
       .from('events')
       .select('id, title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id')
+      .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
     if (error) return { error: error.message }
@@ -226,6 +237,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
     const { data: source, error: sourceErr } = await db
       .from('events')
       .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id')
+      .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
     if (sourceErr) return { error: sourceErr.message }
@@ -263,10 +275,11 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
     const { data: parties, error: partyErr } = await db
       .from('parties')
       .select('id, party_number')
+      .eq('guild_id', guildId)
       .eq('event_id', id)
       .order('party_number')
     if (partyErr) {
-      await db.from('events').delete().eq('id', newId)
+      await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
       return { error: partyErr.message }
     }
 
@@ -285,7 +298,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
       .insert(newPartyRows)
       .select('id, party_number')
     if (newPartyErr || !newParties) {
-      await db.from('events').delete().eq('id', newId)
+      await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
       return { error: newPartyErr?.message ?? tErr('serverError') }
     }
 
@@ -300,9 +313,10 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
     const { data: slots, error: slotErr } = await db
       .from('slots')
       .select('*')
+      .eq('guild_id', guildId)
       .in('party_id', parties.map((p) => p.id))
     if (slotErr) {
-      await db.from('events').delete().eq('id', newId)
+      await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
       return { error: slotErr.message }
     }
 
@@ -321,7 +335,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
       })
       const { error: insSlotErr } = await db.from('slots').insert(newSlotRows)
       if (insSlotErr) {
-        await db.from('events').delete().eq('id', newId)
+        await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
         return { error: insSlotErr.message }
       }
     }
@@ -337,9 +351,12 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
 export async function deleteEvent(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
+    const guildId = await getSessionGuildId(session)
     // regear_requests keeps history via SET NULL (migration 005).
-    const { error } = await db.from('events').delete().eq('id', id)
+    const { error } = await db.from('events').delete().eq('guild_id', guildId).eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard')
     revalidatePath('/')
@@ -356,11 +373,15 @@ export async function deleteEvent(id: string): Promise<{ error?: string }> {
 export async function startBattle(id: string): Promise<{ startedAt?: string; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
+    const guildId = await getSessionGuildId(session)
     const startedAt = new Date().toISOString()
     const { error } = await db
       .from('events')
       .update({ battle_started_at: startedAt })
+      .eq('guild_id', guildId)
       .eq('id', id)
     if (error) return { error: error.message }
     revalidatePath(`/admin/dashboard/events/${id}`)
@@ -374,8 +395,15 @@ export async function startBattle(id: string): Promise<{ startedAt?: string; err
 export async function resetBattleStart(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
-    const { error } = await db.from('events').update({ battle_started_at: null }).eq('id', id)
+    const guildId = await getSessionGuildId(session)
+    const { error } = await db
+      .from('events')
+      .update({ battle_started_at: null })
+      .eq('guild_id', guildId)
+      .eq('id', id)
     if (error) return { error: error.message }
     revalidatePath(`/admin/dashboard/events/${id}`)
     revalidatePath(`/events/${id}`)
@@ -598,6 +626,7 @@ export async function savePartySlots(
     const { data: eventRow, error: eventCheckError } = await db
       .from('events')
       .select('id, category')
+      .eq('guild_id', guildId)
       .eq('id', eventId)
       .maybeSingle()
     if (eventCheckError) return { error: eventCheckError.message }
@@ -628,6 +657,7 @@ export async function savePartySlots(
         const { error: metaUpdErr } = await db
           .from('parties')
           .update(metaRow)
+          .eq('guild_id', guildId)
           .eq('id', partyId)
         if (metaUpdErr) return { error: metaUpdErr.message }
       }
@@ -651,7 +681,11 @@ export async function savePartySlots(
 
     // Delete removed slots first so their slot_numbers free up before we renumber kept ones
     if (removedIds.length > 0) {
-      const { error } = await db.from('slots').delete().in('id', removedIds)
+      const { error } = await db
+        .from('slots')
+        .delete()
+        .eq('guild_id', guildId)
+        .in('id', removedIds)
       if (error) return { error: error.message }
     }
 
@@ -665,6 +699,7 @@ export async function savePartySlots(
       const { error } = await db
         .from('slots')
         .update({ slot_number: TEMP_OFFSET + i + 1 })
+        .eq('guild_id', guildId)
         .eq('id', kept[i].id!)
       if (error) return { error: error.message }
     }
@@ -673,6 +708,7 @@ export async function savePartySlots(
       const { error } = await db
         .from('slots')
         .update(slotToRow(resolvedPartyId, slot, guildId))
+        .eq('guild_id', guildId)
         .eq('id', slot.id!)
       if (error) return { error: error.message }
     }
@@ -699,10 +735,14 @@ export async function savePartySlots(
 export async function clearSlotAssignment(slotId: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForSlot(slotId)
+    const guildId = await getSessionGuildId(session)
     const { error } = await db
       .from('slots')
       .update({ assigned_discord_id: null, assigned_username: null })
+      .eq('guild_id', guildId)
       .eq('id', slotId)
     if (error) return { error: error.message }
     revalidatePath('/')
@@ -722,11 +762,15 @@ export async function updateSingleSlot(
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForSlot(slotId)
+    const guildId = await getSessionGuildId(session)
 
     const { data: slotRow, error: slotErr } = await db
       .from('slots')
       .select('party_id, slot_number, parties!inner(event_id, party_number)')
+      .eq('guild_id', guildId)
       .eq('id', slotId)
       .maybeSingle()
     if (slotErr) return { error: slotErr.message }
@@ -743,6 +787,7 @@ export async function updateSingleSlot(
     const { error: updErr } = await db
       .from('slots')
       .update(row)
+      .eq('guild_id', guildId)
       .eq('id', slotId)
     if (updErr) return { error: updErr.message }
 

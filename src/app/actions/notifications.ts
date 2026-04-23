@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { requireEventCreator } from '@/lib/auth'
 import { CATEGORY_NOTIFY_COLUMN, EVENT_CATEGORIES, type EventCategory } from '@/types'
@@ -33,6 +34,7 @@ export async function getMyDmPreference(): Promise<DmPreference> {
   if (!session) {
     return { enabled: false, categories: { ...DEFAULT_CATEGORIES }, error: tErr('loginRequired') }
   }
+  const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
   const columns = 'discord_dm_enabled, notify_combat, notify_ff, notify_ganking'
@@ -56,6 +58,7 @@ export async function getMyDmPreference(): Promise<DmPreference> {
   const { data: avatar } = await db
     .from('guild_avatars')
     .select(columns)
+    .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
     .maybeSingle()
   if (avatar) return toPref(avatar as Row)
@@ -63,6 +66,7 @@ export async function getMyDmPreference(): Promise<DmPreference> {
   const { data: guest } = await db
     .from('guests')
     .select(columns)
+    .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
     .maybeSingle()
   if (guest) return toPref(guest as Row)
@@ -76,6 +80,7 @@ export async function setMyDmPreference(
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
+  const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
   // 세션의 역할 플래그로 어떤 테이블에 쓸지 결정. 길드원 ↔ 게스트 전환은
@@ -84,6 +89,7 @@ export async function setMyDmPreference(
   const { error } = await db
     .from(table)
     .update({ discord_dm_enabled: enabled })
+    .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
   if (error) return { error: error.message }
 
@@ -100,6 +106,7 @@ export async function setMyCategoryPreference(
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
+  const guildId = await getSessionGuildId(session)
 
   // 클라이언트가 보낸 category 가 타입 시스템을 벗어난 값일 수 있어 — 화이트
   // 리스트 검증. 통과 실패 시 컬럼 매핑이 undefined 로 빠져 Supabase 에 잘못된
@@ -114,6 +121,7 @@ export async function setMyCategoryPreference(
   const { error } = await db
     .from(table)
     .update({ [column]: enabled })
+    .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
   if (error) return { error: error.message }
 

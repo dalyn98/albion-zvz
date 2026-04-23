@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { Plus, Calendar, CalendarDays, LayoutTemplate } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { supabase } from '@/lib/supabase'
+import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import type { Event } from '@/types'
 import DashboardEventList from '@/components/DashboardEventList'
 import TemplateList from '@/components/TemplateList'
@@ -22,10 +24,11 @@ function resolveSection(v: string | undefined): Section {
 // links to already-deleted rows.
 export const dynamic = 'force-dynamic'
 
-async function getEvents(): Promise<Event[]> {
+async function getEvents(guildId: string): Promise<Event[]> {
   const { data } = await supabase
     .from('events')
     .select('*')
+    .eq('guild_id', guildId)
     .order('created_at', { ascending: false })
   return data ?? []
 }
@@ -73,7 +76,10 @@ export default async function DashboardPage({
 }
 
 async function EventsSection() {
-  const [events, t] = await Promise.all([getEvents(), getTranslations('adminDashboard')])
+  const session = await getSession()
+  if (!session) throw new Error('Unauthorized')
+  const guildId = await getSessionGuildId(session)
+  const [events, t] = await Promise.all([getEvents(guildId), getTranslations('adminDashboard')])
   if (events.length === 0) {
     return (
       <div className="bg-gray-900 border border-gray-700 rounded-xl p-12 text-center">

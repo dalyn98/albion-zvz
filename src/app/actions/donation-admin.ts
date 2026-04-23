@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { formatSilver } from '@/lib/silver'
 
@@ -31,12 +32,16 @@ export async function listDonationRequests(
 ): Promise<{ requests: AdminDonationRequest[]; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const session = await getSession()
+    if (!session) return { requests: [], error: tErr('unauthorized') }
     const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
     let query = db
       .from('donation_requests')
       .select(
         'id, discord_id, username, silver, memo, screenshot_path, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username',
       )
+      .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
       .limit(500)
     if (scope === 'pending') query = query.eq('status', 'pending')
@@ -84,10 +89,12 @@ export async function approveDonationRequest(id: string): Promise<{ error?: stri
   try {
     const db = await requireAdmin()
     const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
     const { error } = await db.rpc('approve_donation_request', {
       p_id: id,
-      p_admin_id: session?.discordId ?? '',
-      p_admin_username: session?.username ?? '',
+      p_admin_id: session.discordId,
+      p_admin_username: session.username,
     })
     if (error) {
       if (error.message.includes('DONATION_NOT_PENDING')) {
@@ -100,6 +107,7 @@ export async function approveDonationRequest(id: string): Promise<{ error?: stri
     const { data: row } = await db
       .from('donation_requests')
       .select('discord_id, silver')
+      .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
     if (row?.discord_id) {
@@ -124,11 +132,13 @@ export async function rejectDonationRequest(
   try {
     const db = await requireAdmin()
     const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
     const { error } = await db.rpc('reject_donation_request', {
       p_id: id,
       p_notes: notes.trim() || null,
-      p_admin_id: session?.discordId ?? '',
-      p_admin_username: session?.username ?? '',
+      p_admin_id: session.discordId,
+      p_admin_username: session.username,
     })
     if (error) {
       if (error.message.includes('DONATION_NOT_PENDING')) {
@@ -141,6 +151,7 @@ export async function rejectDonationRequest(
     const { data: row } = await db
       .from('donation_requests')
       .select('discord_id, silver')
+      .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
     if (row?.discord_id) {

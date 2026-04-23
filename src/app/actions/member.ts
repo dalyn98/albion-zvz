@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import type { GearOption, SlotKey } from '@/types'
 
 export type SlotPicks = Partial<Record<SlotKey, GearOption>>
@@ -85,6 +86,7 @@ export async function assignSlot(
   const payload = Object.keys(cleanPicks).length > 0 ? cleanPicks : null
 
   const db = getAdminClient()
+  const guildId = await getSessionGuildId(session)
 
   // Hidden slots are intentionally invisible to members — guard the action so
   // a crafted request with a stale slot id can't silently bypass the UI hide.
@@ -93,6 +95,7 @@ export async function assignSlot(
   const { data: slotCheck, error: slotLookupError } = await db
     .from('slots')
     .select('is_hidden, parties!inner(is_bomb_squad, event_id)')
+    .eq('guild_id', guildId)
     .eq('id', slotId)
     .maybeSingle()
   if (slotLookupError) return { error: slotLookupError.message }
@@ -128,6 +131,7 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
   const tGear = await getTranslations('gear')
   const session = await getSession()
   if (!session) return { error: tAction('loginRequired') }
+  const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
 
@@ -137,6 +141,7 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
   const { data: slotRow, error: slotLookupError } = await db
     .from('slots')
     .select('party_id')
+    .eq('guild_id', guildId)
     .eq('id', slotId)
     .maybeSingle()
   if (slotLookupError) return { error: slotLookupError.message }
@@ -145,6 +150,7 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
   const { data: partyRow, error: partyLookupError } = await db
     .from('parties')
     .select('event_id, events(battle_started_at)')
+    .eq('guild_id', guildId)
     .eq('id', slotRow.party_id)
     .maybeSingle()
   if (partyLookupError) return { error: partyLookupError.message }
@@ -179,12 +185,14 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
   const session = await getSession()
   if (!session) return { error: tAction('loginRequired') }
   if (!session.isAdmin) return { error: tAction('adminOnly') }
+  const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
 
   const { data: slotRow, error: slotLookupError } = await db
     .from('slots')
     .select('party_id, assigned_discord_id')
+    .eq('guild_id', guildId)
     .eq('id', slotId)
     .maybeSingle()
   if (slotLookupError) return { error: slotLookupError.message }
@@ -194,6 +202,7 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
   const { data: partyRow, error: partyLookupError } = await db
     .from('parties')
     .select('events(battle_started_at)')
+    .eq('guild_id', guildId)
     .eq('id', slotRow.party_id)
     .maybeSingle()
   if (partyLookupError) return { error: partyLookupError.message }
@@ -233,6 +242,7 @@ export async function listMyParticipation(): Promise<{
 }> {
   const session = await getSession()
   if (!session) return { entries: [] }
+  const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
   const { data, error } = await db
@@ -240,6 +250,7 @@ export async function listMyParticipation(): Promise<{
     .select(
       'role_name, parties!inner(events!inner(id, title, gather_at, gather_time, battle_started_at))',
     )
+    .eq('guild_id', guildId)
     .eq('assigned_discord_id', session.discordId)
 
   if (error) return { entries: [] }

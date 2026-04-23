@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
+import { getSessionGuildId } from '@/lib/tenant'
 import type { EventCategory, PartyWithSlots } from '@/types'
 import { CATEGORY_PARTY_LIMITS } from '@/types'
 import PartyEditorPanel from '@/components/PartyEditorPanel'
@@ -18,13 +19,19 @@ interface PageParams {
   partyNumber: string
 }
 
-async function loadContext(eventId: string, partyNumber: number) {
+async function loadContext(eventId: string, partyNumber: number, guildId: string) {
   const admin = getAdminClient()
   const [{ data: event }, { data: partyRow }] = await Promise.all([
-    admin.from('events').select('id, title, created_by, battle_started_at, status, category').eq('id', eventId).maybeSingle(),
+    admin
+      .from('events')
+      .select('id, title, created_by, battle_started_at, status, category')
+      .eq('guild_id', guildId)
+      .eq('id', eventId)
+      .maybeSingle(),
     admin
       .from('parties')
       .select('*, slots(*)')
+      .eq('guild_id', guildId)
       .eq('event_id', eventId)
       .eq('party_number', partyNumber)
       .maybeSingle(),
@@ -64,7 +71,8 @@ export default async function CallerPartyEditPage({
   ])
   if (!session) notFound()
 
-  const { event, party } = await loadContext(eventId, partyNumber)
+  const guildId = await getSessionGuildId(session)
+  const { event, party } = await loadContext(eventId, partyNumber, guildId)
   if (!event || !party) notFound()
 
   const eventCategory = (event.category ?? '전투') as EventCategory
@@ -87,6 +95,7 @@ export default async function CallerPartyEditPage({
     ? await admin
         .from('guild_avatars')
         .select('discord_id, username')
+        .eq('guild_id', guildId)
         .eq('discord_id', callerIdForLookup)
         .maybeSingle()
     : { data: null }

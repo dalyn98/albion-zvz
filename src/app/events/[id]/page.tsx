@@ -11,6 +11,7 @@ import AutoRefresh from '@/components/AutoRefresh'
 import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil } from 'lucide-react'
 import Link from 'next/link'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
 import { getAvatarsByDiscordIds, getUsernamesByDiscordIds } from '@/lib/discord-avatar'
 import { formatGatherTimeFor, isEnded } from '@/lib/gather-time'
 import { formatDateTimeShort } from '@/lib/format-datetime'
@@ -24,10 +25,15 @@ function formatStartedAt(iso: string): string {
 
 export const dynamic = 'force-dynamic'
 
-async function getEvent(id: string) {
+async function getEvent(id: string, guildId: string) {
   const [{ data: event }, { data: parties }] = await Promise.all([
-    supabase.from('events').select('*').eq('id', id).maybeSingle(),
-    supabase.from('parties').select('*, slots(*)').eq('event_id', id).order('party_number'),
+    supabase.from('events').select('*').eq('guild_id', guildId).eq('id', id).maybeSingle(),
+    supabase
+      .from('parties')
+      .select('*, slots(*)')
+      .eq('guild_id', guildId)
+      .eq('event_id', id)
+      .order('party_number'),
   ])
 
   const sorted = (parties ?? []).map((p) => ({
@@ -49,9 +55,13 @@ export default async function EventDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const [{ event, parties }, session, t, locale, cdBadgeRolesRaw, autoRegearRaw] = await Promise.all([
-    getEvent(id),
-    getSession(),
+  const session = await getSession()
+  // 로그인된 멤버면 세션 가드, 게스트/레거시 쿠키/미로그인은 primary tenant 로
+  // fallback. 이벤트 상세는 layout gate 가 자기 이벤트 외 접근을 차단하므로
+  // guildId 미스매치는 유효 경로에서 발생하지 않는다.
+  const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
+  const [{ event, parties }, t, locale, cdBadgeRolesRaw, autoRegearRaw] = await Promise.all([
+    getEvent(id, guildId),
     getTranslations('event'),
     getLocale(),
     getAppSetting('cd_badge_roles', '["Dps"]'),

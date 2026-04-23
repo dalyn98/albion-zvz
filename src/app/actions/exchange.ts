@@ -29,6 +29,7 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
   }
 
   const db = getAdminClient()
+  const guildId = await getSessionGuildId(session)
 
   // Check balance — the DB unique-partial index blocks multiple pending
   // requests per user, and approve_exchange_request re-checks under lock,
@@ -36,6 +37,7 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
   const { data: ledger, error: ledgerError } = await db
     .from('point_ledger')
     .select('delta')
+    .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
   if (ledgerError) return { error: ledgerError.message }
   const balance = (ledger ?? []).reduce((sum, row) => sum + row.delta, 0)
@@ -43,7 +45,6 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
     return { error: tErr('insufficientBalance', { balance: balance.toLocaleString() }) }
   }
 
-  const guildId = await getSessionGuildId(session)
   const { data, error } = await db
     .from('exchange_requests')
     .insert({
@@ -71,6 +72,7 @@ export async function cancelMyExchangeRequest(id: string): Promise<{ error?: str
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
+  const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
   // Only pending rows owned by the caller can be cancelled. We check status
@@ -79,6 +81,7 @@ export async function cancelMyExchangeRequest(id: string): Promise<{ error?: str
   const { data: row, error: fetchError } = await db
     .from('exchange_requests')
     .select('id, status, discord_id')
+    .eq('guild_id', guildId)
     .eq('id', id)
     .maybeSingle()
   if (fetchError) return { error: fetchError.message }
@@ -89,6 +92,7 @@ export async function cancelMyExchangeRequest(id: string): Promise<{ error?: str
   const { error: deleteError } = await db
     .from('exchange_requests')
     .delete()
+    .eq('guild_id', guildId)
     .eq('id', id)
     .eq('status', 'pending')
   if (deleteError) return { error: deleteError.message }
@@ -108,11 +112,13 @@ export async function updateMyExchangeRequest(
   if (!Number.isInteger(silver) || silver <= 0) {
     return { error: tErr('invalidAmount') }
   }
+  const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
   const { data: row, error: fetchError } = await db
     .from('exchange_requests')
     .select('id, status, discord_id')
+    .eq('guild_id', guildId)
     .eq('id', id)
     .maybeSingle()
   if (fetchError) return { error: fetchError.message }
@@ -124,6 +130,7 @@ export async function updateMyExchangeRequest(
   const { data: ledger, error: ledgerError } = await db
     .from('point_ledger')
     .select('delta')
+    .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
   if (ledgerError) return { error: ledgerError.message }
   const balance = (ledger ?? []).reduce((sum, r) => sum + r.delta, 0)
@@ -134,6 +141,7 @@ export async function updateMyExchangeRequest(
   const { error: updateError } = await db
     .from('exchange_requests')
     .update({ silver })
+    .eq('guild_id', guildId)
     .eq('id', id)
     .eq('status', 'pending')
   if (updateError) return { error: updateError.message }
@@ -150,11 +158,13 @@ export async function listMyExchangeRequests(): Promise<{
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { requests: [], error: tErr('loginRequired') }
+  const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
   const { data, error } = await db
     .from('exchange_requests')
     .select('id, silver, status, admin_notes, created_at, resolved_at, handled_by_username')
+    .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
     .order('created_at', { ascending: false })
   if (error) return { requests: [], error: error.message }

@@ -2,6 +2,8 @@ import { ShoppingBag } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import { getAppSetting } from '@/lib/app-settings'
+import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import ShopImportForm from '@/components/ShopImportForm'
 import ShopBlacklistEditor from '@/components/ShopBlacklistEditor'
 import ShopSilverRateForm from '@/components/ShopSilverRateForm'
@@ -19,6 +21,9 @@ type AodpQuality = 1 | 2 | 3 | 4 | 5
 
 export default async function AdminShopPage() {
   const db = await requireAdmin()
+  const session = await getSession()
+  if (!session) throw new Error('Unauthorized')
+  const guildId = await getSessionGuildId(session)
   const tNav = await getTranslations('nav')
   const [
     { data: blacklist },
@@ -30,16 +35,22 @@ export default async function AdminShopPage() {
     aodpPriceModeRaw,
     aodpMinQualityRaw,
   ] = await Promise.all([
-    db.from('shop_blacklist').select('item_name_raw').order('added_at', { ascending: false }),
+    db
+      .from('shop_blacklist')
+      .select('item_name_raw')
+      .eq('guild_id', guildId)
+      .order('added_at', { ascending: false }),
     db
       .from('shop_inventory')
       .select(
         'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver, price_source, price_warning_level, price_updated_at, updated_at',
       )
+      .eq('guild_id', guildId)
       .order('name_ko', { ascending: true }),
     db
       .from('shop_chest_logs')
       .select('imported_at')
+      .eq('guild_id', guildId)
       .order('imported_at', { ascending: false })
       .limit(1)
       .maybeSingle(),

@@ -127,6 +127,7 @@ export async function requestRegear(
   }
 
   const db = getAdminClient()
+  const guildId = await getSessionGuildId(session)
 
   // 1) Must be assigned to a slot with a role in that event. Pull the full
   //    gear so we can snapshot the build — the regear admin uses this to
@@ -137,6 +138,7 @@ export async function requestRegear(
     .select(
       'role_name, manual_regear_excluded, weapon_name, weapon_id, head_name, head_id, armor_name, armor_id, shoes_name, shoes_id, offhand_name, offhand_id, potion_name, potion_id, food_name, food_id, cape_name, cape_id, mount_name, mount_id, assigned_weapon_name, assigned_weapon_id, assigned_head_name, assigned_head_id, assigned_armor_name, assigned_armor_id, assigned_shoes_name, assigned_shoes_id, assigned_offhand_name, assigned_offhand_id, assigned_potion_name, assigned_potion_id, assigned_food_name, assigned_food_id, assigned_cape_name, assigned_cape_id, assigned_mount_name, assigned_mount_id, parties!inner(event_id)',
     )
+    .eq('guild_id', guildId)
     .eq('assigned_discord_id', session.discordId)
     .eq('parties.event_id', eventId)
     .maybeSingle()
@@ -161,6 +163,7 @@ export async function requestRegear(
       resolved_at: new Date().toISOString(),
       admin_notes: '수동 리기어 신청으로 자동 대체됨',
     })
+    .eq('guild_id', guildId)
     .eq('event_id', eventId)
     .eq('discord_id', session.discordId)
     .eq('auto_generated', true)
@@ -174,6 +177,7 @@ export async function requestRegear(
   const { count: activeCount, error: countError } = await db
     .from('regear_requests')
     .select('id', { count: 'exact', head: true })
+    .eq('guild_id', guildId)
     .eq('event_id', eventId)
     .eq('discord_id', session.discordId)
     .neq('status', 'rejected')
@@ -190,6 +194,7 @@ export async function requestRegear(
   const { data: event, error: eventError } = await db
     .from('events')
     .select('id, title, battle_started_at')
+    .eq('guild_id', guildId)
     .eq('id', eventId)
     .single()
   if (eventError) return { error: eventError.message }
@@ -207,6 +212,7 @@ export async function requestRegear(
   const { data: reward, error: rewardError } = await db
     .from('role_rewards')
     .select('silver')
+    .eq('guild_id', guildId)
     .eq('role_name', roleName)
     .maybeSingle()
   if (rewardError) return { error: rewardError.message }
@@ -261,7 +267,6 @@ export async function requestRegear(
   // 7) Insert the request. request_type column defaults to 'death' in the DB
   //    for backwards compatibility; application code no longer branches on it
   //    after migration 018 unified the flow.
-  const guildId = await getSessionGuildId(session)
   const { data: inserted, error: insertError } = await db
     .from('regear_requests')
     .insert({
@@ -299,11 +304,13 @@ export async function cancelMyRegearRequest(id: string): Promise<{ error?: strin
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
+  const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
   const { data: row, error: fetchError } = await db
     .from('regear_requests')
     .select('id, status, discord_id, event_id, screenshot_path, screenshot_path_2')
+    .eq('guild_id', guildId)
     .eq('id', id)
     .maybeSingle()
   if (fetchError) return { error: fetchError.message }
@@ -314,6 +321,7 @@ export async function cancelMyRegearRequest(id: string): Promise<{ error?: strin
   const { error: deleteError } = await db
     .from('regear_requests')
     .delete()
+    .eq('guild_id', guildId)
     .eq('id', id)
     .eq('status', 'pending')
   if (deleteError) return { error: deleteError.message }
@@ -342,6 +350,7 @@ export async function listMyRegearRequests(): Promise<{
   const tCommon = await getTranslations('common')
   const session = await getSession()
   if (!session) return { requests: [], error: tErr('loginRequired') }
+  const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
   const { data, error } = await db
@@ -349,6 +358,7 @@ export async function listMyRegearRequests(): Promise<{
     .select(
       'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, status, killboard_verified, admin_notes, created_at, resolved_at, handled_by_username, build_snapshot, auto_generated, events(title)',
     )
+    .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
     .order('created_at', { ascending: false })
   if (error) return { requests: [], error: error.message }
@@ -387,6 +397,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
   const session = await getSession()
   if (!session) return { events: [], error: tErr('loginRequired') }
   if (!session.isMember) return { events: [], error: tErr('memberOnlyRegear') }
+  const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
 
@@ -397,6 +408,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
   const { data: slots, error: slotError } = await db
     .from('slots')
     .select('role_name, party_id, manual_regear_excluded')
+    .eq('guild_id', guildId)
     .eq('assigned_discord_id', session.discordId)
     .eq('manual_regear_excluded', false)
   if (slotError) return { events: [], error: slotError.message }
@@ -405,6 +417,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
   const { data: parties, error: partiesError } = await db
     .from('parties')
     .select('id, event_id')
+    .eq('guild_id', guildId)
     .in(
       'id',
       slots.map((s) => s.party_id),
@@ -418,6 +431,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
   const { data: events, error: eventsError } = await db
     .from('events')
     .select('id, title, gather_time, gather_at, gather_location, battle_started_at')
+    .eq('guild_id', guildId)
     .in('id', eventIds)
     .not('battle_started_at', 'is', null)
     .order('battle_started_at', { ascending: false })
@@ -440,11 +454,16 @@ export async function listMyRegearEligibleEvents(): Promise<{
   const roleNames = Array.from(new Set(Array.from(eventToRole.values())))
   const [rewardRes, requestRes] = await Promise.all([
     roleNames.length > 0
-      ? db.from('role_rewards').select('role_name, silver').in('role_name', roleNames)
+      ? db
+          .from('role_rewards')
+          .select('role_name, silver')
+          .eq('guild_id', guildId)
+          .in('role_name', roleNames)
       : Promise.resolve({ data: [] as { role_name: string; silver: number }[], error: null }),
     db
       .from('regear_requests')
       .select('event_id')
+      .eq('guild_id', guildId)
       .eq('discord_id', session.discordId)
       .neq('status', 'rejected')
       .in('event_id', Array.from(eventIdSet)),
@@ -485,11 +504,13 @@ export async function getMyPointsSummary(): Promise<{
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
+  const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
   const { data, error } = await db
     .from('point_ledger')
     .select('delta')
+    .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
   if (error) return { error: error.message }
 
@@ -596,6 +617,7 @@ export async function getMyRegearDetail(
   const tCommon = await getTranslations('common')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
+  const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
   const { data, error } = await db
@@ -603,6 +625,7 @@ export async function getMyRegearDetail(
     .select(
       'id, event_id, event_title_snapshot, role_name, silver, claimed_silver, payout_silver, status, auto_generated, gear_breakdown, price_warning_level, created_at, admin_notes, events(title)',
     )
+    .eq('guild_id', guildId)
     .eq('id', id)
     .eq('discord_id', session.discordId)
     .maybeSingle()
@@ -673,6 +696,7 @@ export async function updateMyRegearLineItemPrice(
   try {
     const session = await getSession()
     if (!session) return { error: tErr('loginRequired') }
+    const guildId = await getSessionGuildId(session)
 
     if (!Number.isInteger(newUnitSilver) || newUnitSilver < 0) {
       return { error: tErr('priceMustBeNonNegativeInt') }
@@ -687,6 +711,7 @@ export async function updateMyRegearLineItemPrice(
     const { data, error } = await db
       .from('regear_requests')
       .select('id, status, auto_generated, discord_id, gear_breakdown')
+      .eq('guild_id', guildId)
       .eq('id', requestId)
       .eq('discord_id', session.discordId)
       .maybeSingle()
@@ -733,6 +758,7 @@ export async function updateMyRegearLineItemPrice(
         claimed_silver: newClaimedSilver,
         payout_silver: newPayoutSilver,
       })
+      .eq('guild_id', guildId)
       .eq('id', requestId)
       .eq('discord_id', session.discordId)
       .eq('status', 'pending')

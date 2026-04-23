@@ -36,6 +36,7 @@ export async function adjustMemberPoints(
     const { data: avatar, error: avatarErr } = await db
       .from('guild_avatars')
       .select('discord_id')
+      .eq('guild_id', guildId)
       .eq('discord_id', discordId)
       .maybeSingle()
     if (avatarErr) return { error: avatarErr.message }

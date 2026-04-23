@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import {
@@ -109,7 +110,8 @@ export async function confirmAlbionIdentity(input: {
     })
   }
 
-  const updated = await upsertAlbionIdentity(session.discordId, {
+  const sessionGuildId = await getSessionGuildId(session)
+  const updated = await upsertAlbionIdentity(session.discordId, sessionGuildId, {
     server: input.server,
     playerId: player.Id,
     nickname: player.Name,
@@ -149,7 +151,8 @@ export async function setAlbionIdentityManually(input: {
   const nickname = input.nickname.trim()
   if (nickname.length < 2 || nickname.length > 32) return { error: tErr('invalidInput') }
 
-  const updated = await upsertAlbionIdentity(session.discordId, {
+  const sessionGuildId = await getSessionGuildId(session)
+  const updated = await upsertAlbionIdentity(session.discordId, sessionGuildId, {
     server: input.server,
     playerId: null,
     nickname,
@@ -199,6 +202,7 @@ interface UpsertPayload {
 
 async function upsertAlbionIdentity(
   discordId: string,
+  sessionGuildId: string,
   payload: UpsertPayload,
 ): Promise<{ ok?: true; error?: string }> {
   const tErr = await getTranslations('memberActionError')
@@ -216,6 +220,7 @@ async function upsertAlbionIdentity(
   const { error } = await db
     .from('guild_avatars')
     .update(update)
+    .eq('guild_id', sessionGuildId)
     .eq('discord_id', discordId)
   if (error) {
     // (server, player_id) 유니크 제약 충돌 — 같은 알비온 캐릭터를 이미 다른

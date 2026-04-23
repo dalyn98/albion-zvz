@@ -145,6 +145,7 @@ export async function syncKillboard(
         const { error } = await db
           .from('guild_avatars')
           .update({ albion_player_id: id })
+          .eq('guild_id', guildId)
           .eq('discord_id', m.discord_id)
         if (error) {
           errors.push({ member: m.username, step: 'update-player-id', message: error.message })

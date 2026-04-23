@@ -80,6 +80,7 @@ export async function saveEventAsTemplate(
     const { data: parties, error } = await db
       .from('parties')
       .select(`party_number, slots(${TEMPLATE_SLOT_COLUMNS})`)
+      .eq('guild_id', guildId)
       .eq('event_id', eventId)
       .order('party_number')
     if (error) return { error: error.message }
@@ -115,9 +116,13 @@ export async function listTemplates(): Promise<{
   const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { templates: [], error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
     const { data, error } = await db
       .from('event_templates')
       .select('id, name, created_at')
+      .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
     if (error) return { templates: [], error: error.message }
     return { templates: (data ?? []) as TemplateSummary[] }
@@ -133,9 +138,13 @@ export async function getTemplate(id: string): Promise<{
   const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
     const { data, error } = await db
       .from('event_templates')
       .select('id, name, data, created_at')
+      .eq('guild_id', guildId)
       .eq('id', id)
       .single()
     if (error) return { error: error.message }
@@ -158,9 +167,13 @@ export async function updateTemplate(
     if (!data?.parties) return { error: tErr('invalidTemplateData') }
 
     const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
     const { error } = await db
       .from('event_templates')
       .update({ name: trimmed, data })
+      .eq('guild_id', guildId)
       .eq('id', id)
     if (error) return { error: error.message }
 
@@ -176,7 +189,14 @@ export async function deleteTemplate(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
-    const { error } = await db.from('event_templates').delete().eq('id', id)
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+    const { error } = await db
+      .from('event_templates')
+      .delete()
+      .eq('guild_id', guildId)
+      .eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard')
     return {}
@@ -202,6 +222,7 @@ export async function applyTemplate(
     const { count, error: countError } = await db
       .from('parties')
       .select('id', { count: 'exact', head: true })
+      .eq('guild_id', guildId)
       .eq('event_id', eventId)
     if (countError) return { error: countError.message }
     if ((count ?? 0) > 0) {
@@ -211,6 +232,7 @@ export async function applyTemplate(
     const { data: template, error: templateError } = await db
       .from('event_templates')
       .select('data')
+      .eq('guild_id', guildId)
       .eq('id', templateId)
       .single()
     if (templateError) return { error: templateError.message }

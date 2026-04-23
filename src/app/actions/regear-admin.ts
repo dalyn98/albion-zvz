@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { formatSilver } from '@/lib/silver'
 import { getAppSetting } from '@/lib/app-settings'
@@ -114,12 +115,16 @@ export async function listRegearRequests(
 ): Promise<{ requests: AdminRegearRequest[]; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const session = await getSession()
+    if (!session) return { requests: [], error: tErr('unauthorized') }
     const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
     let query = db
       .from('regear_requests')
       .select(
         'id, event_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, auto_generated, price_warning_level, events(title)',
       )
+      .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
       .limit(500)
     if (scope === 'pending') query = query.eq('status', 'pending')
@@ -227,6 +232,8 @@ export async function approveRegearRequest(
   try {
     const db = await requireAdmin()
     const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
     // Compute the actual credit using the current rate. RPC also clamps to
     // [0, claimed]; this client-side calc is for the DM body and the
     // approved row's payout_silver column. If the admin typed an explicit
@@ -235,6 +242,7 @@ export async function approveRegearRequest(
     const { data: pending } = await db
       .from('regear_requests')
       .select('claimed_silver')
+      .eq('guild_id', guildId)
       .eq('id', id)
       .eq('status', 'pending')
       .maybeSingle()
@@ -255,8 +263,8 @@ export async function approveRegearRequest(
     }
     const { error } = await db.rpc('approve_regear_request', {
       p_id: id,
-      p_admin_id: session?.discordId ?? '',
-      p_admin_username: session?.username ?? '',
+      p_admin_id: session.discordId,
+      p_admin_username: session.username,
       p_payout_silver: payout,
     })
     if (error) {
@@ -271,6 +279,7 @@ export async function approveRegearRequest(
     const { data: row } = await db
       .from('regear_requests')
       .select('discord_id, event_title_snapshot, payout_silver')
+      .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
     if (row?.discord_id) {
@@ -315,10 +324,14 @@ export async function recheckKillboardVerification(
     estimated_silver: null,
   }
   try {
+    const session = await getSession()
+    if (!session) return { ...empty, error: tErr('unauthorized') }
     const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
     const { data: row, error: fetchError } = await db
       .from('regear_requests')
       .select('username, status, event_id, events(battle_started_at)')
+      .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
     if (fetchError) return { ...empty, error: fetchError.message }
@@ -365,6 +378,7 @@ export async function recheckKillboardVerification(
         admin_notes: result.reason,
         gear_breakdown: breakdown,
       })
+      .eq('guild_id', guildId)
       .eq('id', id)
       .eq('status', 'pending')
     if (updateError) return { ...empty, error: updateError.message }
@@ -391,11 +405,13 @@ export async function rejectRegearRequest(
   try {
     const db = await requireAdmin()
     const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
     const { error } = await db.rpc('reject_regear_request', {
       p_id: id,
       p_notes: notes.trim() || null,
-      p_admin_id: session?.discordId ?? '',
-      p_admin_username: session?.username ?? '',
+      p_admin_id: session.discordId,
+      p_admin_username: session.username,
     })
     if (error) {
       if (error.message.includes('REGEAR_NOT_PENDING')) {
@@ -408,6 +424,7 @@ export async function rejectRegearRequest(
     const { data: row } = await db
       .from('regear_requests')
       .select('discord_id, event_title_snapshot')
+      .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
     if (row?.discord_id) {
@@ -428,12 +445,16 @@ export async function listExchangeRequests(
 ): Promise<{ requests: AdminExchangeRequest[]; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const session = await getSession()
+    if (!session) return { requests: [], error: tErr('unauthorized') }
     const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
     let query = db
       .from('exchange_requests')
       .select(
         'id, discord_id, username, silver, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username',
       )
+      .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
       .limit(500)
     if (scope === 'pending') query = query.eq('status', 'pending')
@@ -448,6 +469,7 @@ export async function listExchangeRequests(
       const { data: ledger, error: ledgerError } = await db
         .from('point_ledger')
         .select('discord_id, delta')
+        .eq('guild_id', guildId)
         .in('discord_id', uniqueIds)
       if (ledgerError) return { requests: [], error: ledgerError.message }
       for (const row of ledger ?? []) {
@@ -481,10 +503,12 @@ export async function approveExchangeRequest(id: string): Promise<{ error?: stri
   try {
     const db = await requireAdmin()
     const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
     const { error } = await db.rpc('approve_exchange_request', {
       p_id: id,
-      p_admin_id: session?.discordId ?? '',
-      p_admin_username: session?.username ?? '',
+      p_admin_id: session.discordId,
+      p_admin_username: session.username,
     })
     if (error) {
       if (error.message.includes('EXCHANGE_NOT_PENDING')) {
@@ -500,6 +524,7 @@ export async function approveExchangeRequest(id: string): Promise<{ error?: stri
     const { data: row } = await db
       .from('exchange_requests')
       .select('discord_id, silver')
+      .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
     if (row?.discord_id) {
@@ -524,11 +549,13 @@ export async function rejectExchangeRequest(
   try {
     const db = await requireAdmin()
     const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
     const { error } = await db.rpc('reject_exchange_request', {
       p_id: id,
       p_notes: notes.trim() || null,
-      p_admin_id: session?.discordId ?? '',
-      p_admin_username: session?.username ?? '',
+      p_admin_id: session.discordId,
+      p_admin_username: session.username,
     })
     if (error) {
       if (error.message.includes('EXCHANGE_NOT_PENDING')) {
@@ -541,6 +568,7 @@ export async function rejectExchangeRequest(
     const { data: row } = await db
       .from('exchange_requests')
       .select('discord_id, silver')
+      .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
     if (row?.discord_id) {
@@ -562,10 +590,14 @@ export async function listRoleRewards(): Promise<{
 }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const session = await getSession()
+    if (!session) return { rewards: [], error: tErr('unauthorized') }
     const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
     const { data, error } = await db
       .from('role_rewards')
       .select('role_name, silver, updated_at')
+      .eq('guild_id', guildId)
       .order('role_name')
     if (error) return { rewards: [], error: error.message }
     return { rewards: (data ?? []) as RoleReward[] }
@@ -583,10 +615,14 @@ export async function updateRoleReward(
     if (!Number.isInteger(silver) || silver < 0) {
       return { error: tErr('nonNegativeInteger') }
     }
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
     const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
     const { error } = await db
       .from('role_rewards')
       .update({ silver, updated_at: new Date().toISOString() })
+      .eq('guild_id', guildId)
       .eq('role_name', roleName)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/settings')

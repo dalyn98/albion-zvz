@@ -10,6 +10,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import {
   fetchAodpPrices,
   inventoryKey,
@@ -33,11 +34,13 @@ export async function syncShopPrices(): Promise<PriceSyncSummary> {
     if (!session?.isAdmin) {
       return { requested: 0, updated: 0, missing: 0, error: 'Unauthorized' }
     }
+    const guildId = await getSessionGuildId(session)
     const db = await requireAdmin()
 
     const { data: rows, error: rowErr } = await db
       .from('shop_inventory')
       .select('unique_name, enchant, quality')
+      .eq('guild_id', guildId)
       .limit(MAX_SYNC_ROWS)
     if (rowErr) return { requested: 0, updated: 0, missing: 0, error: rowErr.message }
 
@@ -83,6 +86,7 @@ export async function syncShopPrices(): Promise<PriceSyncSummary> {
           price_updated_at: now,
           updated_at: now,
         })
+        .eq('guild_id', guildId)
         .eq('unique_name', k.uniqueName)
         .eq('enchant', k.enchant)
         .eq('quality', k.quality)
@@ -119,10 +123,12 @@ export async function updateInventoryStock(
     const session = await getSession()
     if (!session?.isAdmin) return { error: 'Unauthorized' }
     if (!Number.isInteger(stock) || stock < 0) return { error: tErr('nonNegativeInteger') }
+    const guildId = await getSessionGuildId(session)
     const db = await requireAdmin()
     const { error } = await db
       .from('shop_inventory')
       .update({ stock, updated_at: new Date().toISOString() })
+      .eq('guild_id', guildId)
       .eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/shop')
@@ -142,6 +148,7 @@ export async function setManualPrice(
     const session = await getSession()
     if (!session?.isAdmin) return { error: 'Unauthorized' }
     if (!Number.isInteger(pointPrice) || pointPrice < 0) return { error: tErr('nonNegativeInteger') }
+    const guildId = await getSessionGuildId(session)
     const db = await requireAdmin()
     const { error } = await db
       .from('shop_inventory')
@@ -153,6 +160,7 @@ export async function setManualPrice(
         price_updated_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
+      .eq('guild_id', guildId)
       .eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/shop')
@@ -167,6 +175,7 @@ export async function clearManualPrice(id: string): Promise<{ error?: string }> 
   try {
     const session = await getSession()
     if (!session?.isAdmin) return { error: 'Unauthorized' }
+    const guildId = await getSessionGuildId(session)
     const db = await requireAdmin()
     const { error } = await db
       .from('shop_inventory')
@@ -175,6 +184,7 @@ export async function clearManualPrice(id: string): Promise<{ error?: string }> 
         // price_source/price_updated_at 은 auto 값이 마지막으로 채워졌을 때 갱신됨 — 여기서는 건드리지 않음.
         updated_at: new Date().toISOString(),
       })
+      .eq('guild_id', guildId)
       .eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/shop')
@@ -202,11 +212,13 @@ export async function resetShopInventory(): Promise<ResetInventoryResult> {
   try {
     const session = await getSession()
     if (!session?.isAdmin) return { ...empty, error: 'Unauthorized' }
+    const guildId = await getSessionGuildId(session)
     const db = await requireAdmin()
 
     const { data: zeroed, error: zeroErr } = await db
       .from('shop_inventory')
       .update({ stock: 0, updated_at: new Date().toISOString() })
+      .eq('guild_id', guildId)
       .gt('stock', 0)
       .select('id')
     if (zeroErr) return { ...empty, error: zeroErr.message }
@@ -214,6 +226,7 @@ export async function resetShopInventory(): Promise<ResetInventoryResult> {
     const { data: deleted, error: delErr } = await db
       .from('shop_chest_logs')
       .delete()
+      .eq('guild_id', guildId)
       .not('id', 'is', null)
       .select('id')
     if (delErr) {
@@ -240,11 +253,13 @@ export async function deleteInventoryRow(id: string): Promise<{ error?: string }
   try {
     const session = await getSession()
     if (!session?.isAdmin) return { error: 'Unauthorized' }
+    const guildId = await getSessionGuildId(session)
     const db = await requireAdmin()
     // 안전장치: 재고 > 0 인 행은 실수로 지우지 않게 거부.
     const { data: row, error: readErr } = await db
       .from('shop_inventory')
       .select('stock')
+      .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
     if (readErr) return { error: readErr.message }
@@ -252,7 +267,7 @@ export async function deleteInventoryRow(id: string): Promise<{ error?: string }
     if ((row.stock as number) > 0) {
       return { error: tErr('cannotDeleteNonEmptyInventory') }
     }
-    const { error } = await db.from('shop_inventory').delete().eq('id', id)
+    const { error } = await db.from('shop_inventory').delete().eq('guild_id', guildId).eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')

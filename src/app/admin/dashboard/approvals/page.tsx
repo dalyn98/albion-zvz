@@ -14,6 +14,8 @@ import DonationReviewList from '@/components/DonationReviewList'
 import ShopOrderReviewList from '@/components/ShopOrderReviewList'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 import { getAdminBadgeCounts } from '@/lib/admin-badges'
+import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 
 type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop'
 type Scope = 'pending' | 'all'
@@ -43,9 +45,14 @@ export default async function ApprovalsPage({
   const type = resolveType(sp.tab)
   const scope = resolveScope(sp.scope)
 
+  const session = await getSession()
+  if (!session) {
+    throw new Error('Unauthorized')
+  }
+  const guildId = await getSessionGuildId(session)
   const [tApprovals, badges] = await Promise.all([
     getTranslations('adminApprovals'),
-    getAdminBadgeCounts(),
+    getAdminBadgeCounts(guildId),
   ])
 
   const tabs: TabDef[] = [

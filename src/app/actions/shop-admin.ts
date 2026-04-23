@@ -112,7 +112,10 @@ export async function importChestLog(
     }
 
     // 블랙리스트 로드
-    const { data: blacklistRows } = await db.from('shop_blacklist').select('item_name_raw')
+    const { data: blacklistRows } = await db
+      .from('shop_blacklist')
+      .select('item_name_raw')
+      .eq('guild_id', guildId)
     const blacklist = new Set((blacklistRows ?? []).map((r) => r.item_name_raw))
 
     // 중복 검출: 임포트 행들의 logged_at 범위를 잡아 기존 로그를 한 번에 조회 →
@@ -124,6 +127,7 @@ export async function importChestLog(
     const { data: existingRows, error: existingErr } = await db
       .from('shop_chest_logs')
       .select('logged_at, player, item_name_raw, enchant, quality, quantity')
+      .eq('guild_id', guildId)
       .gte('logged_at', minLogged)
       .lte('logged_at', maxLogged)
     if (existingErr) return { ...empty, parseErrors: errors, error: existingErr.message }
@@ -152,6 +156,7 @@ export async function importChestLog(
     const { data: latestRow } = await db
       .from('shop_chest_logs')
       .select('logged_at, player, item_name_raw, enchant, quality, quantity')
+      .eq('guild_id', guildId)
       .order('logged_at', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -203,6 +208,7 @@ export async function importChestLog(
         const { data: invRows } = await db
           .from('shop_inventory')
           .select('unique_name, enchant, quality, stock')
+          .eq('guild_id', guildId)
           .in('unique_name', uniqueNames)
         for (const r of invRows ?? []) {
           existingStockByKey.set(
@@ -353,8 +359,15 @@ export async function addBlacklist(itemName: string): Promise<{ error?: string }
 
 export async function removeBlacklist(itemName: string): Promise<{ error?: string }> {
   try {
+    const session = await getSession()
+    if (!session?.isAdmin) return { error: 'Unauthorized' }
     const db = await requireAdmin()
-    const { error } = await db.from('shop_blacklist').delete().eq('item_name_raw', itemName)
+    const guildId = await getSessionGuildId(session)
+    const { error } = await db
+      .from('shop_blacklist')
+      .delete()
+      .eq('guild_id', guildId)
+      .eq('item_name_raw', itemName)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/shop')
     return {}
@@ -398,12 +411,16 @@ export async function listShopOrders(
   scope: 'pending' | 'all' = 'pending',
 ): Promise<ListShopOrdersResult> {
   try {
+    const session = await getSession()
+    if (!session?.isAdmin) return { orders: [], error: 'Unauthorized' }
     const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
     const q = db
       .from('shop_orders')
       .select(
         'id, discord_id, username, total_points, status, member_note, admin_note, created_at, resolved_at, resolved_by',
       )
+      .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
       .limit(200)
     const { data: orders, error } =
@@ -417,6 +434,7 @@ export async function listShopOrders(
       .select(
         'order_id, name_ko, unique_name, enchant, quality, quantity, unit_points, subtotal_points',
       )
+      .eq('guild_id', guildId)
       .in('order_id', ids)
     if (itemsErr) return { orders: [], error: itemsErr.message }
 
@@ -429,6 +447,7 @@ export async function listShopOrders(
     const { data: invRows } = await db
       .from('shop_inventory')
       .select('unique_name, enchant, quality, stock')
+      .eq('guild_id', guildId)
       .in('unique_name', uniqueNames)
     const stockByKey = new Map<string, number>()
     for (const r of invRows ?? []) {
@@ -443,6 +462,7 @@ export async function listShopOrders(
     const { data: ledgerRows } = await db
       .from('point_ledger')
       .select('discord_id, delta')
+      .eq('guild_id', guildId)
       .in('discord_id', discordIds)
     const balanceByUser = new Map<string, number>()
     for (const row of ledgerRows ?? []) {

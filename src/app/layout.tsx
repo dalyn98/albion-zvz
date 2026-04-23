@@ -13,6 +13,7 @@ import { getSession } from '@/lib/session'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getMemberAlbionIdentity } from '@/lib/albion-identity'
+import { getSessionGuildId } from '@/lib/tenant'
 
 // Routes that should render for anyone, even without a session. The proxy
 // forwards the pathname via x-pathname so we can decide here without duplicating
@@ -99,9 +100,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // routes skip this — anyone can see them regardless of session state.
   let guestRevoked = false
   if (!isPublic && session && !session.isMember && session.isGuest) {
+    const guildId = await getSessionGuildId(session)
     const { data } = await getAdminClient()
       .from('guests')
       .select('discord_id')
+      .eq('guild_id', guildId)
       .eq('discord_id', session.discordId)
       .maybeSingle()
     if (!data) guestRevoked = true
@@ -133,9 +136,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     session?.isMember &&
     !skipAlbionOnboardingModal(pathname)
   ) {
+    const guildId = await getSessionGuildId(session)
     const { data: avatarRow } = await getAdminClient()
       .from('guild_avatars')
       .select('albion_server, albion_verified_at')
+      .eq('guild_id', guildId)
       .eq('discord_id', session.discordId)
       .maybeSingle()
 

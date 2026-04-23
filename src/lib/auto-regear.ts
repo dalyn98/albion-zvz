@@ -150,6 +150,7 @@ export async function processAutoRegear(
   const { data: settingRow } = await db
     .from('app_settings')
     .select('value')
+    .eq('guild_id', guildId)
     .eq('key', 'auto_regear_enabled')
     .maybeSingle()
   if ((settingRow?.value ?? 'false') !== 'true') {
@@ -174,6 +175,7 @@ export async function processAutoRegear(
   const { data: delayRow } = await db
     .from('app_settings')
     .select('value')
+    .eq('guild_id', guildId)
     .eq('key', 'auto_regear_delay_minutes')
     .maybeSingle()
   const parsedDelay = Number(delayRow?.value ?? '15')
@@ -185,6 +187,7 @@ export async function processAutoRegear(
   const { data: rateRow } = await db
     .from('app_settings')
     .select('value')
+    .eq('guild_id', guildId)
     .eq('key', 'regear_payout_rate_percent')
     .maybeSingle()
   const parsedRate = Number(rateRow?.value ?? '100')
@@ -196,6 +199,7 @@ export async function processAutoRegear(
   const { data: events, error: eventsErr } = await db
     .from('events')
     .select('id, title, battle_started_at, created_at, auto_regear_processed_at')
+    .eq('guild_id', guildId)
     .not('battle_started_at', 'is', null)
     .is('auto_regear_processed_at', null)
     .lte('battle_started_at', cutoffIso)
@@ -229,6 +233,7 @@ export async function processAutoRegear(
   const { data: syncRow } = await db
     .from('app_settings')
     .select('value')
+    .eq('guild_id', guildId)
     .eq('key', 'last_killboard_sync_at')
     .maybeSingle()
   const lastKillboardSyncMs = syncRow?.value ? Date.parse(syncRow.value) : NaN
@@ -238,6 +243,7 @@ export async function processAutoRegear(
   const { data: rewardRows, error: rewardsErr } = await db
     .from('role_rewards')
     .select('role_name, silver')
+    .eq('guild_id', guildId)
   if (rewardsErr) {
     throw new Error(`role_rewards query failed: ${rewardsErr.message}`)
   }
@@ -283,6 +289,7 @@ export async function processAutoRegear(
       const { data: parties, error: partiesErr } = await db
         .from('parties')
         .select('id, slots:slots(assigned_discord_id, auto_regear_excluded, role_name)')
+        .eq('guild_id', guildId)
         .eq('event_id', event.id)
       if (partiesErr) throw new Error(`parties: ${partiesErr.message}`)
 
@@ -313,6 +320,7 @@ export async function processAutoRegear(
       const { data: victims, error: victimsErr } = await db
         .from('killboard_events')
         .select('event_id, discord_id, player_name, occurred_at, equipment')
+        .eq('guild_id', guildId)
         .eq('role', 'victim')
         .in('discord_id', Array.from(slotByDiscord.keys()))
         .gte('occurred_at', event.battle_started_at)

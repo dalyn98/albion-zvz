@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
+import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
 import { computePointPrice, parseShopDiscountRate } from '@/lib/shop/price'
 import { categoryRank } from '@/lib/shop/category-order'
 import { getMyPointBalance, listMyShopOrders } from '@/app/actions/shop-member'
@@ -41,6 +42,7 @@ export const dynamic = 'force-dynamic'
 export default async function PublicShopPage() {
   const session = await getSession()
   const db = getAdminClient()
+  const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
 
   const [tNav, deliveryNotice, discountRateSetting, aodpCitiesSetting, { data: invRows }] =
     await Promise.all([
@@ -53,6 +55,7 @@ export default async function PublicShopPage() {
         .select(
           'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver, price_warning_level',
         )
+        .eq('guild_id', guildId)
         .gt('stock', 0)
         .order('name_ko', { ascending: true })
         .limit(500),

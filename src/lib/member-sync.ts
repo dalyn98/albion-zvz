@@ -10,7 +10,6 @@ import { revalidatePath } from 'next/cache'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import { listGuildMembersBulk } from '@/lib/discord'
-import { getPrimaryTenantId } from '@/lib/tenant'
 
 // 직전 성공 후 20시간 내면 skip — cron 재시도가 하루 2회 이상 돌지 않게 수렴.
 // KST 04:00 스케줄이 약간 앞당겨져도 다음날 실행이 건너뛰지 않도록 20h.
@@ -54,12 +53,15 @@ interface RunOptions {
   skipThrottle?: boolean
 }
 
-export async function runMemberSync(opts: RunOptions = {}): Promise<MemberSyncOutcome> {
+export async function runMemberSync(
+  guildId: string,
+  opts: RunOptions = {},
+): Promise<MemberSyncOutcome> {
   const db = getAdminClient()
   const nowIso = new Date().toISOString()
 
   if (!opts.skipThrottle) {
-    const lastAt = await getAppSetting('last_member_sync_at', '')
+    const lastAt = await getAppSetting('last_member_sync_at', '', guildId)
     if (lastAt) {
       const lastMs = Date.parse(lastAt)
       if (Number.isFinite(lastMs) && Date.now() - lastMs < MIN_SYNC_INTERVAL_MS) {
@@ -68,7 +70,7 @@ export async function runMemberSync(opts: RunOptions = {}): Promise<MemberSyncOu
     }
   }
 
-  const activeRoleIdsRaw = await getAppSetting('active_member_role_ids', '[]')
+  const activeRoleIdsRaw = await getAppSetting('active_member_role_ids', '[]', guildId)
   const explicitRoleIds = parseRoleIds(activeRoleIdsRaw)
   const envFallbackRoleIds = parseEnvRoleIds(process.env.DISCORD_MEMBER_ROLE_ID)
   const activeRoleIds = explicitRoleIds.length > 0 ? explicitRoleIds : envFallbackRoleIds
@@ -82,6 +84,7 @@ export async function runMemberSync(opts: RunOptions = {}): Promise<MemberSyncOu
   const { data: avatars, error: avatarsError } = await db
     .from('guild_avatars')
     .select('discord_id, withdrawn_at')
+    .eq('guild_id', guildId)
   if (avatarsError) return { kind: 'error', message: avatarsError.message }
 
   let members: Awaited<ReturnType<typeof listGuildMembersBulk>>
@@ -117,6 +120,7 @@ export async function runMemberSync(opts: RunOptions = {}): Promise<MemberSyncOu
     const { error: updErr } = await db
       .from('guild_avatars')
       .update({ withdrawn_at: nowIso })
+      .eq('guild_id', guildId)
       .in('discord_id', toWithdraw)
     if (updErr) console.error('[member-sync] withdraw update failed:', updErr.message)
   }
@@ -124,15 +128,15 @@ export async function runMemberSync(opts: RunOptions = {}): Promise<MemberSyncOu
     const { error: updErr } = await db
       .from('guild_avatars')
       .update({ withdrawn_at: null })
+      .eq('guild_id', guildId)
       .in('discord_id', toRejoin)
     if (updErr) console.error('[member-sync] rejoin update failed:', updErr.message)
   }
 
-  const tenantId = await getPrimaryTenantId()
   await db
     .from('app_settings')
     .upsert(
-      { guild_id: tenantId, key: 'last_member_sync_at', value: nowIso, updated_at: nowIso },
+      { guild_id: guildId, key: 'last_member_sync_at', value: nowIso, updated_at: nowIso },
       { onConflict: 'guild_id,key' },
     )
 
