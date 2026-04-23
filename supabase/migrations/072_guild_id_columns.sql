@@ -132,17 +132,12 @@ alter table public.guests alter column guild_id set not null;
 alter table public.guests add constraint guests_guild_id_fkey foreign key (guild_id) references public.tenants(id) on delete cascade;
 create index if not exists guests_guild_id_idx on public.guests (guild_id);
 
--- ────────────────────────────────────────────────────────────
--- 13. push_subscriptions
--- ────────────────────────────────────────────────────────────
-alter table public.push_subscriptions add column if not exists guild_id uuid;
-update public.push_subscriptions set guild_id = (select id from public.tenants where discord_guild_id = '1231989392277635102') where guild_id is null;
-alter table public.push_subscriptions alter column guild_id set not null;
-alter table public.push_subscriptions add constraint push_subscriptions_guild_id_fkey foreign key (guild_id) references public.tenants(id) on delete cascade;
-create index if not exists push_subscriptions_guild_id_idx on public.push_subscriptions (guild_id);
+-- (push_subscriptions 는 mig 029 에서 생성됐다가 mig 030 에서 드랍된 뒤 재생성되지
+--  않았으므로 여기서 스킵. 향후 Web Push 기능이 다시 붙으면 그때 guild_id 포함해
+--  재생성할 것.)
 
 -- ────────────────────────────────────────────────────────────
--- 14. shop_inventory
+-- 13. shop_inventory
 -- ────────────────────────────────────────────────────────────
 alter table public.shop_inventory add column if not exists guild_id uuid;
 update public.shop_inventory set guild_id = (select id from public.tenants where discord_guild_id = '1231989392277635102') where guild_id is null;
