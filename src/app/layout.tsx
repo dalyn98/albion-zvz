@@ -7,10 +7,12 @@ import './globals.css'
 import AppShell from '@/components/AppShell'
 import AppGate from '@/components/AppGate'
 import PublicShell from '@/components/PublicShell'
+import AlbionOnboardingModal from '@/components/AlbionOnboardingModal'
 import { ToastProvider } from '@/components/ToastProvider'
 import { getSession } from '@/lib/session'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { getMemberAlbionIdentity } from '@/lib/albion-identity'
 
 // Routes that should render for anyone, even without a session. The proxy
 // forwards the pathname via x-pathname so we can decide here without duplicating
@@ -30,11 +32,9 @@ function isAllowedForEventScope(pathname: string, eventScope: string): boolean {
   return false
 }
 
-// 알비온 온보딩 강제 게이트 — 멤버가 최초 로그인 후 서버/닉네임을 한 번도
-// 고르지 않은 상태에서 다른 페이지로 진입하면 `/onboarding/albion` 으로
-// 이동시킨다. 여기서 허용하는 경로(이 자신/welcome-language/logout 등)는
-// 무한 루프 방지용.
-function isAllowedDuringAlbionOnboarding(pathname: string): boolean {
+// 알비온 온보딩 모달을 띄우지 않을 경로. 전용 온보딩 페이지 자체, 언어 선택,
+// OAuth 콜백 중 등에서는 모달이 겹치거나 세션이 불완전할 수 있으므로 skip.
+function skipAlbionOnboardingModal(pathname: string): boolean {
   if (pathname.startsWith('/onboarding/albion')) return true
   if (pathname.startsWith('/welcome-language')) return true
   if (pathname.startsWith('/api/auth/')) return true
@@ -120,13 +120,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     redirect(`/events/${session.eventScope}`)
   }
 
-  // 알비온 온보딩 강제: 멤버인데 아직 서버를 고르지 않았으면 이동. DB 1회
-  // 조회 (부분 인덱스가 있어 O(log N)). 인증 여부는 상관 없고 "서버 선택
-  // 자체가 안 된 상태" 만 gate.
+  // 알비온 온보딩 강제: 멤버가 아직 서버를 고르지 않았으면 랜딩 위에 모달을
+  // 덮는다. 리디렉트 대신 overlay 방식 — 로그인 직후 대문 페이지에서 바로
+  // 인증할 수 있게. DB 1회 조회(부분 인덱스로 O(log N)).
+  let onboardingModalProps: {
+    discordNickname: string
+    initialIdentity: Awaited<ReturnType<typeof getMemberAlbionIdentity>>
+    homeGuildConfigured: boolean
+  } | null = null
   if (
     !isPublic &&
     session?.isMember &&
-    !isAllowedDuringAlbionOnboarding(pathname)
+    !skipAlbionOnboardingModal(pathname)
   ) {
     const { data: avatarRow } = await getAdminClient()
       .from('guild_avatars')
@@ -134,8 +139,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       .eq('discord_id', session.discordId)
       .maybeSingle()
     if (!avatarRow?.albion_server) {
-      const returnTo = pathname || '/me'
-      redirect(`/onboarding/albion?return=${encodeURIComponent(returnTo)}`)
+      const [identity, homeGuildId] = await Promise.all([
+        getMemberAlbionIdentity(session.discordId),
+        getAppSetting('albion_home_guild_id', ''),
+      ])
+      onboardingModalProps = {
+        discordNickname: session.username,
+        initialIdentity: identity,
+        homeGuildConfigured: homeGuildId.trim().length > 0,
+      }
     }
   }
 
@@ -186,7 +198,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang={locale} className="h-full antialiased">
       <body className="min-h-full bg-[#0f1117] text-white">
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <ToastProvider>{body}</ToastProvider>
+          <ToastProvider>
+            {body}
+            {onboardingModalProps && <AlbionOnboardingModal {...onboardingModalProps} />}
+          </ToastProvider>
         </NextIntlClientProvider>
       </body>
     </html>

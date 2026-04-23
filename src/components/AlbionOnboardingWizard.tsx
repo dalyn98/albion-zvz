@@ -19,6 +19,9 @@ interface Props {
   initialIdentity: MemberAlbionIdentity | null
   homeGuildConfigured: boolean
   returnTo: string
+  // 모달 variant 에서 주입. 넘기면 기본 router.replace(returnTo) 대신 이
+  // 콜백만 실행 — 모달이 스스로 닫거나 refresh 할 수 있게.
+  onFinish?: () => void
 }
 
 type Step = 'server' | 'search' | 'done'
@@ -30,6 +33,7 @@ export default function AlbionOnboardingWizard({
   initialIdentity,
   homeGuildConfigured,
   returnTo,
+  onFinish,
 }: Props) {
   const t = useTranslations('albionOnboarding')
   const router = useRouter()
@@ -119,6 +123,10 @@ export default function AlbionOnboardingWizard({
   }
 
   const handleFinish = () => {
+    if (onFinish) {
+      onFinish()
+      return
+    }
     router.replace(returnTo)
     router.refresh()
   }
