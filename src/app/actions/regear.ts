@@ -672,13 +672,13 @@ export async function updateMyRegearLineItemPrice(
     if (!session) return { error: tErr('loginRequired') }
 
     if (!Number.isInteger(newUnitSilver) || newUnitSilver < 0) {
-      return { error: '가격은 0 이상 정수여야 합니다.' }
+      return { error: tErr('priceMustBeNonNegativeInt') }
     }
     if (newUnitSilver > MAX_UNIT_SILVER) {
-      return { error: `가격이 너무 큽니다 (최대 ${MAX_UNIT_SILVER.toLocaleString()}s).` }
+      return { error: tErr('priceTooLarge', { max: MAX_UNIT_SILVER.toLocaleString() }) }
     }
     const slotTrimmed = slot.trim()
-    if (!slotTrimmed) return { error: '슬롯이 비어있습니다.' }
+    if (!slotTrimmed) return { error: tErr('slotEmpty') }
 
     const db = getAdminClient()
     const { data, error } = await db
@@ -689,13 +689,13 @@ export async function updateMyRegearLineItemPrice(
       .maybeSingle()
     if (error) return { error: error.message }
     if (!data) return { error: tErr('requestNotFound') }
-    if (data.status !== 'pending') return { error: '이미 처리된 리기어는 수정할 수 없습니다.' }
-    if (!data.auto_generated) return { error: '자동 생성된 리기어만 수정 가능합니다.' }
+    if (data.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
+    if (!data.auto_generated) return { error: tErr('autoOnlyEditable') }
 
     const breakdown = (data.gear_breakdown as RawBreakdown | null) ?? {}
     const items = normalizeBreakdownItems(breakdown.items)
     const idx = items.findIndex((it) => it.slot === slotTrimmed)
-    if (idx === -1) return { error: '해당 슬롯을 찾을 수 없습니다.' }
+    if (idx === -1) return { error: tErr('slotNotFound') }
 
     // Immutable update — items 배열을 재구성해 해당 슬롯만 교체.
     const updatedItems: RegearLineItem[] = items.map((it, i) =>

@@ -1239,7 +1239,12 @@
     "transferTooManyRecipients": "You can only transfer to {max} members at once.",
     "transferMemoTooLong": "Memo must be {max} characters or fewer.",
     "donationInvalidAmount": "Please enter a valid donation amount.",
-    "donationMemoTooLong": "Memo must be {max} characters or fewer."
+    "donationMemoTooLong": "Memo must be {max} characters or fewer.",
+    "priceMustBeNonNegativeInt": "Price must be a non-negative integer.",
+    "priceTooLarge": "Price is too large (max {max}s).",
+    "slotEmpty": "Slot is empty.",
+    "autoOnlyEditable": "Only auto-generated regear can be edited.",
+    "slotNotFound": "Slot not found."
   },
   "errors": {
     "title": "Something went wrong",

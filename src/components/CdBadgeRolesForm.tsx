@@ -6,6 +6,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Save, Timer } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
 import { SLOT_ROLES, SLOT_ROLE_STYLES, type SlotRole } from '@/types'
@@ -27,6 +28,7 @@ interface Props {
 
 export default function CdBadgeRolesForm({ initialRoles }: Props) {
   const router = useRouter()
+  const tc = useTranslations('common')
   const [selected, setSelected] = useState<Set<SlotRole>>(new Set(initialRoles))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -112,9 +114,9 @@ export default function CdBadgeRolesForm({ initialRoles }: Props) {
           className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-4 py-2 rounded-lg transition-colors text-sm"
         >
           <Save size={14} />
-          {loading ? '저장 중…' : '저장'}
+          {loading ? tc('saving') : tc('save')}
         </button>
-        {saved && !dirty && <span className="text-[11px] text-emerald-400">저장됨</span>}
+        {saved && !dirty && <span className="text-[11px] text-emerald-400">{tc('saved')}</span>}
       </div>
     </div>
   )

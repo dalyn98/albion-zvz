@@ -1239,7 +1239,12 @@
     "transferTooManyRecipients": "한 번에 최대 {max}명까지만 양도할 수 있습니다.",
     "transferMemoTooLong": "메모는 {max}자 이하로 입력해 주세요.",
     "donationInvalidAmount": "올바른 기부 금액을 입력해 주세요.",
-    "donationMemoTooLong": "메모는 {max}자 이하로 입력해 주세요."
+    "donationMemoTooLong": "메모는 {max}자 이하로 입력해 주세요.",
+    "priceMustBeNonNegativeInt": "가격은 0 이상 정수여야 합니다.",
+    "priceTooLarge": "가격이 너무 큽니다 (최대 {max}s).",
+    "slotEmpty": "슬롯이 비어있습니다.",
+    "autoOnlyEditable": "자동 생성된 리기어만 수정 가능합니다.",
+    "slotNotFound": "해당 슬롯을 찾을 수 없습니다."
   },
   "errors": {
     "title": "문제가 발생했어요",

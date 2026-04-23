@@ -1239,7 +1239,12 @@
     "transferTooManyRecipients": "一度に送れるのは最大 {max} 人までです。",
     "transferMemoTooLong": "メモは {max} 文字以内で入力してください。",
     "donationInvalidAmount": "有効な寄付金額を入力してください。",
-    "donationMemoTooLong": "メモは {max} 文字以内で入力してください。"
+    "donationMemoTooLong": "メモは {max} 文字以内で入力してください。",
+    "priceMustBeNonNegativeInt": "価格は0以上の整数である必要があります。",
+    "priceTooLarge": "価格が大きすぎます (最大 {max}s)。",
+    "slotEmpty": "スロットが空です。",
+    "autoOnlyEditable": "自動生成されたリギアのみ編集できます。",
+    "slotNotFound": "該当のスロットが見つかりません。"
   },
   "errors": {
     "title": "問題が発生しました",

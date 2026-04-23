@@ -9,6 +9,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Save, BadgeCheck } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
 
@@ -22,6 +23,7 @@ const DELAY_MAX = 120
 
 export default function AutoRegearToggleForm({ initialEnabled, initialDelayMinutes }: Props) {
   const router = useRouter()
+  const tc = useTranslations('common')
   const [enabled, setEnabled] = useState(initialEnabled)
   const [delayMinutes, setDelayMinutes] = useState(String(initialDelayMinutes))
   const [loading, setLoading] = useState(false)
@@ -137,9 +139,9 @@ export default function AutoRegearToggleForm({ initialEnabled, initialDelayMinut
           className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-4 py-2 rounded-lg transition-colors text-sm"
         >
           <Save size={14} />
-          {loading ? '저장 중…' : '저장'}
+          {loading ? tc('saving') : tc('save')}
         </button>
-        {saved && !dirty && <span className="text-[11px] text-emerald-400">저장됨</span>}
+        {saved && !dirty && <span className="text-[11px] text-emerald-400">{tc('saved')}</span>}
       </div>
     </div>
   )

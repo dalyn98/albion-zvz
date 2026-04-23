@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { ChevronRight, Globe2, Loader2, Save, Search, Shield, Trash2 } from 'lucide-react'
 import {
   searchAlbionGuildCandidates,
@@ -38,6 +39,7 @@ export default function AlbionHomeGuildForm({
   initialGuildName,
 }: Props) {
   const router = useRouter()
+  const tc = useTranslations('common')
   const [server, setServer] = useState<AlbionServer>(initialServer)
   const [guildId, setGuildId] = useState(initialGuildId)
   const [guildName, setGuildName] = useState(initialGuildName ?? '')
@@ -254,10 +256,10 @@ export default function AlbionHomeGuildForm({
           className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-4 py-2 rounded-lg transition-colors text-sm"
         >
           {isPending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-          {isPending ? '저장 중…' : '저장'}
+          {isPending ? tc('saving') : tc('save')}
         </button>
         {saved && !dirty && (
-          <span className="text-[11px] text-emerald-400">저장됨</span>
+          <span className="text-[11px] text-emerald-400">{tc('saved')}</span>
         )}
       </div>
     </div>
