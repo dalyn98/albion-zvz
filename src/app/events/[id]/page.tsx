@@ -72,7 +72,10 @@ export default async function EventDetailPage({
     // 손상된 값 — 기본값 유지.
   }
 
-  if (!event) notFound()
+  // Draft 이벤트는 공개 URL 로 접근 못하게 숨김 — 관리자 편집기로만 볼 수 있다.
+  // admin 이라도 draft 미리보기 용도로 쓰고 싶다면 관리자 경로 (/admin/dashboard/events/[id])
+  // 로 들어가야 한다. 여기서 굳이 우회 열어주지 않는 편이 실수 공개를 방지한다.
+  if (!event || event.status === 'draft') notFound()
 
   const displayGatherTime = event.gather_at
     ? formatGatherTimeFor(locale, event.gather_at)

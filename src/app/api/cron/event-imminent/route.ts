@@ -69,6 +69,8 @@ export async function GET(request: Request) {
       .select('id, gather_at')
       .is('battle_started_at', null)
       .not('gather_at', 'is', null)
+      // draft 이벤트는 auto-start 대상에서 제외 — 아직 발행 전이라 전투 시작 X.
+      .eq('status', 'published')
       .gte('gather_at', autoStartFloor)
       .lte('gather_at', now.toISOString())
     if (pendingError) {
@@ -102,6 +104,8 @@ export async function GET(request: Request) {
     .select('id, title, gather_at')
     .is('imminent_notified_at', null)
     .not('gather_at', 'is', null)
+    // draft 이벤트는 임박 DM 대상 아님 — 발행된 이벤트만 DM.
+    .eq('status', 'published')
     .gte('gather_at', lowerBound)
     .lte('gather_at', upperBound)
   if (eventsError) {

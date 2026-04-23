@@ -16,6 +16,10 @@ export interface Event {
   // Migration 039: Discord ID of the event creator. NULL for legacy events
   // created before this column existed — those remain admin-only for edits.
   created_by: string | null
+  // Migration 059: 발행 상태. 'draft' = 관리자만 보임, 공개 /events 숨김.
+  // 'published' = 공개. createEvent 는 draft 로만 만들고, publishEvent 가
+  // gather_at 을 검증 후 published 로 전이시킨다.
+  status: 'draft' | 'published'
   created_at: string
 }
 

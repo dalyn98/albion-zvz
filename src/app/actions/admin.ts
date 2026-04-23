@@ -50,25 +50,71 @@ interface EventPayload {
 
 // Final check in case the client bypassed validation — a bad ISO string would
 // otherwise surface as an obscure Postgres error on insert.
-function validateEventPayload(payload: EventPayload, tErr: AdminErrorTranslator): string | null {
+// publishing=true 면 발행 시점 검증 — gather_at + gather_location 필수.
+// publishing=false 면 draft 편집 중이라 gather_at 은 비어 있어도 OK.
+function validateEventPayload(
+  payload: EventPayload,
+  tErr: AdminErrorTranslator,
+  opts: { publishing: boolean } = { publishing: true },
+): string | null {
   if (!payload.title.trim()) return tErr('missingTitle')
-  if (!payload.gather_location.trim()) return tErr('missingLocation')
-  const dt = new Date(payload.gather_at)
-  if (Number.isNaN(dt.getTime())) return tErr('invalidGatherTime')
+  if (opts.publishing) {
+    if (!payload.gather_location.trim()) return tErr('missingLocation')
+    const dt = new Date(payload.gather_at)
+    if (Number.isNaN(dt.getTime())) return tErr('invalidGatherTime')
+  } else if (payload.gather_at) {
+    // draft 단계라도 값이 들어왔으면 형식은 맞아야 한다 — 완전 공란만 허용.
+    const dt = new Date(payload.gather_at)
+    if (Number.isNaN(dt.getTime())) return tErr('invalidGatherTime')
+  }
   return null
 }
 
+// 이벤트를 draft 상태로 생성. 제목만 받아 빈 껍질을 만든 뒤 편집/발행 단계로 넘긴다.
+// 기존 createEvent 와 달리 gather_at 을 요구하지 않으며 공개 /events 에도 뜨지 않는다.
+export async function createDraftEvent(
+  payload: { title: string },
+): Promise<{ id: string } | { error: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    if (!payload.title.trim()) return { error: tErr('missingTitle') }
+    const session = await getSession()
+    if (!session?.canCreateEvents) return { error: tErr('unauthorized') }
+    const db = await requireEventCreator()
+    const { data, error } = await db
+      .from('events')
+      .insert({
+        title: payload.title.trim(),
+        gather_time: '',
+        gather_at: null,
+        gather_location: '',
+        special_notes: null,
+        status: 'draft',
+        created_by: session.discordId,
+      })
+      .select('id')
+      .single()
+    if (error) return { error: error.message }
+    return { id: data.id }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+// 기존 코드 호환을 위해 `createEvent` 는 남겨두되, 내부적으로는 draft 를 만든 뒤
+// 즉시 update 로 메타를 채운다. EventInfoForm create 모드의 기존 흐름에서 호출되며
+// 이 경우에도 status 는 'draft' 로 두고 공개는 publishEvent 까지 미룬다.
 export async function createEvent(payload: EventPayload): Promise<{ id: string } | { error: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const invalid = validateEventPayload(payload, tErr)
+    const invalid = validateEventPayload(payload, tErr, { publishing: false })
     if (invalid) return { error: invalid }
     const session = await getSession()
     if (!session?.canCreateEvents) return { error: tErr('unauthorized') }
     const db = await requireEventCreator()
     const { data, error } = await db
       .from('events')
-      .insert({ ...payload, created_by: session.discordId })
+      .insert({ ...payload, status: 'draft', created_by: session.discordId })
       .select('id')
       .single()
     if (error) return { error: error.message }
@@ -81,10 +127,39 @@ export async function createEvent(payload: EventPayload): Promise<{ id: string }
 export async function updateEvent(id: string, payload: EventPayload): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const invalid = validateEventPayload(payload, tErr)
+    // draft 편집 중에도 부분 저장을 허용해야 하므로 publishing=false. 발행 단계
+    // 에서 한 번 더 strict 검증을 거친다.
+    const invalid = validateEventPayload(payload, tErr, { publishing: false })
     if (invalid) return { error: invalid }
     const db = await requireEventCreatorForEvent(id)
     const { error } = await db.from('events').update(payload).eq('id', id)
+    if (error) return { error: error.message }
+    revalidatePath('/admin/dashboard')
+    revalidatePath('/')
+    revalidatePath(`/events/${id}`)
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+// draft → published 전이. gather_at / gather_location 이 필수 필드로 채워져 있어야
+// 한다. 발행 시점의 payload 를 함께 업데이트해 "편집 후 발행" 을 한 번의 클릭으로.
+// 여기서 Discord notify 는 자동 발송하지 않는다 — 기존 notifyEvent 처럼 명시적 호출
+// 이 필요. 이렇게 두는 건 발행과 채널 공지를 분리해 실수로 알림 폭탄을 막기 위함.
+export async function publishEvent(
+  id: string,
+  payload: EventPayload,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const invalid = validateEventPayload(payload, tErr, { publishing: true })
+    if (invalid) return { error: invalid }
+    const db = await requireEventCreatorForEvent(id)
+    const { error } = await db
+      .from('events')
+      .update({ ...payload, status: 'published' })
+      .eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard')
     revalidatePath('/')
@@ -156,6 +231,8 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
         special_notes: source.special_notes,
         notify_role_id: source.notify_role_id,
         notify_channel_id: source.notify_channel_id,
+        // 복제는 늘 draft 로 시작 — 관리자가 날짜/공지 확인 후 명시적으로 발행.
+        status: 'draft',
         created_by: session.discordId,
       })
       .select('id')

@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import type { Event, PartyWithSlots } from '@/types'
 import EventInfoForm from '@/components/EventInfoForm'
+import PublishEventBanner from '@/components/PublishEventBanner'
 import PartyEditorPanel from '@/components/PartyEditorPanel'
 import EventSlotSidebar from '@/components/EventSlotSidebar'
 import SaveAsTemplateButton from '@/components/SaveAsTemplateButton'
@@ -102,6 +103,7 @@ export default async function EditEventPage({
             <h1 className="text-xl sm:text-2xl font-bold text-white">{t('title')}</h1>
             <DeleteEventButton eventId={event.id} redirectTo="/admin/dashboard" variant="labeled" />
           </div>
+          {event.status === 'draft' && <PublishEventBanner event={event} />}
           <EventInfoForm initialEvent={event} />
 
           <div className="lg:hidden">

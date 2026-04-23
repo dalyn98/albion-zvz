@@ -23,6 +23,8 @@ async function getActiveEvents(): Promise<EventWithCounts[]> {
   const { data: events } = await supabase
     .from('events')
     .select('*')
+    // draft 이벤트는 관리자 대시보드에서만 노출 — 공개 홈에서는 숨김.
+    .eq('status', 'published')
     .order('gather_at', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false })
 

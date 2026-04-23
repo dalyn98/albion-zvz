@@ -112,6 +112,23 @@ export default function EventInfoForm({ initialEvent }: Props) {
     return { dt }
   }
 
+  // Draft 편집 시에는 날짜 / 장소가 비어 있어도 저장이 되어야 한다 (publishEvent
+  // 시점에 strict 검증). 이 버전은 제목만 필수로 체크하고 나머지는 채워진 만큼
+  // 담아 반환한다. 값이 비면 빈 문자열 / null 로 남겨둬 서버 쪽에서 draft-tolerant
+  // validateEventPayload 가 통과시키도록 한다.
+  const validateDraft = ():
+    | { title: string; dtIso: string | ''; gatherTimeKo: string; location: string }
+    | { error: string } => {
+    if (!title.trim()) return { error: t('titleRequired') }
+    const dt = parseGatherTime(parts, {
+      referenceIso: initialEvent?.gather_at ?? null,
+    })
+    // dt 가 NaN 이면 아예 날짜를 비워 저장. 유효한 date 가 있으면 같이 저장.
+    const dtIso = dt ? dt.toISOString() : ''
+    const gatherTimeKo = dt ? formatGatherTimeKo(dt) : ''
+    return { title: title.trim(), dtIso, gatherTimeKo, location: gatherLocation.trim() }
+  }
+
   // 생성 버튼은 확인 모달을 띄우는 1차 단계. 편집 모드에서는 렌더되지 않는다.
   const openConfirm = () => {
     const v = validate()
@@ -153,11 +170,36 @@ export default function EventInfoForm({ initialEvent }: Props) {
   }
 
   // 편집 모드에서만 상위 저장 바에 자신을 등록. 생성 모드는 기존 모달 흐름.
+  // draft 이벤트는 날짜 / 장소가 비어 있어도 저장되어야 하므로 validateDraft 사용.
+  // published 이벤트는 strict 검증 유지 — 이미 공개된 값이 비는 건 허용 불가.
   useRegisterSave(
     'event-info',
     t('sectionTitle'),
     async () => {
       if (!initialEvent) return {}
+      const isDraft = initialEvent.status === 'draft'
+      if (isDraft) {
+        const v = validateDraft()
+        if ('error' in v) {
+          setError(v.error)
+          return { error: v.error }
+        }
+        const result = await updateEvent(initialEvent.id, {
+          title: v.title,
+          gather_at: v.dtIso,
+          gather_time: v.gatherTimeKo,
+          gather_location: v.location,
+          special_notes: specialNotes.trim() || null,
+          notify_role_id: notifyRoleId || null,
+          notify_channel_id: notifyChannelId || null,
+        })
+        if ('error' in result && result.error) {
+          setError(result.error)
+          return { error: result.error }
+        }
+        setError('')
+        return {}
+      }
       const v = validate()
       if ('error' in v) {
         setError(v.error)
