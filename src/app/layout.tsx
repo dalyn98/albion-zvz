@@ -22,6 +22,13 @@ function isPublicPathname(pathname: string): boolean {
   return pathname.startsWith('/public/')
 }
 
+// Tenant 온보딩 경로: 로그인은 됐지만 아직 어떤 tenant 에도 속하지 않은
+// 사용자가 봇을 설치하고 초기 설정을 하는 흐름. role 이 없으므로 layout 의
+// gate 를 우회하고, 자체 페이지에서 session.discordId 로 검증한다.
+function isOnboardPathname(pathname: string): boolean {
+  return pathname === '/onboard' || pathname.startsWith('/onboard/')
+}
+
 // 이벤트 스코프 게스트가 접근 가능한 경로. 자기 이벤트 + welcome 외엔 모두
 // 본인 이벤트로 리다이렉트된다. (API 라우트는 이 layout 으로 wrap 되지 않아
 // 별도 제어 불변.)
@@ -94,6 +101,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   const pathname = headersList.get('x-pathname') ?? ''
   const isPublic = isPublicPathname(pathname)
+  const isOnboard = isOnboardPathname(pathname)
 
   // Verify guests still exist in the DB so admin deletions take effect on the
   // next request rather than waiting for the 7-day cookie to expire. Public
@@ -167,8 +175,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     }
   }
 
+  // 온보딩 경로: 세션이 있으면 role 없이도 통과시킨다 (bot 설치 전). 세션이 아예
+  // 없으면 여전히 gate — 로그인 유도. layout 하단에서 Public/App shell 분기.
   const locked =
-    !isPublic && (!session || (!session.isMember && !session.isGuest) || guestRevoked)
+    !isPublic &&
+    !(isOnboard && session) &&
+    (!session || (!session.isMember && !session.isGuest) || guestRevoked)
 
   let gateContent: React.ReactNode = null
   if (locked) {
@@ -203,12 +215,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   // Public routes: if the visitor has a real session, give them the normal
   // AppShell so the sidebar stays consistent; otherwise wrap in a minimal
-  // PublicShell with a login CTA.
+  // PublicShell with a login CTA. 온보딩은 아직 어떤 길드에도 속하지 않은
+  // 사용자라 AppSidebar 가 어색해서 PublicShell 로 통일.
   const body = locked
     ? gateContent
-    : isPublic && !session
+    : isOnboard
       ? <PublicShell>{children}</PublicShell>
-      : <AppShell>{children}</AppShell>
+      : isPublic && !session
+        ? <PublicShell>{children}</PublicShell>
+        : <AppShell>{children}</AppShell>
 
   return (
     <html lang={locale} className="h-full antialiased">

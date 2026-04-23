@@ -6,7 +6,9 @@
 // `guilds.members.read` is the scope that lets us fetch roles without a bot.
 
 const DISCORD_API = 'https://discord.com/api/v10'
-const OAUTH_SCOPES = 'identify guilds.members.read'
+// identify: 유저 기본 프로필. guilds: 유저의 길드 목록 (tenant 매칭).
+// guilds.members.read: 선택된 길드 내 역할 조회.
+const OAUTH_SCOPES = 'identify guilds guilds.members.read'
 
 export interface DiscordUser {
   id: string
@@ -21,45 +23,31 @@ export interface DiscordGuildMember {
   roles: string[]
 }
 
-export interface DiscordConfig {
+// OAuth 관련 설정은 모든 tenant 가 공유한다 (단일 Discord 앱). env 에서만 읽는다.
+export interface DiscordOAuthConfig {
   clientId: string
   clientSecret: string
-  guildId: string
-  // Both role-id env vars accept a comma-separated list. A user is counted as
-  // member/admin if they hold ANY of the listed roles. Trailing/leading space
-  // and empty entries are tolerated so `a, b ,` still parses cleanly.
-  memberRoleIds: string[]
-  adminRoleIds: string[]
   redirectUri: string
+  appUrl: string
 }
 
-function parseRoleIds(raw: string | undefined): string[] {
-  if (!raw) return []
-  return raw.split(',').map((s) => s.trim()).filter(Boolean)
-}
-
-export function getDiscordConfig(): DiscordConfig {
+export function getDiscordOAuthConfig(): DiscordOAuthConfig {
   const clientId = process.env.DISCORD_CLIENT_ID
   const clientSecret = process.env.DISCORD_CLIENT_SECRET
-  const guildId = process.env.DISCORD_GUILD_ID
-  const memberRoleIds = parseRoleIds(process.env.DISCORD_MEMBER_ROLE_ID)
-  const adminRoleIds = parseRoleIds(process.env.DISCORD_ADMIN_ROLE_ID)
   const appUrl = process.env.APP_URL
-  if (!clientId || !clientSecret || !guildId || memberRoleIds.length === 0 || adminRoleIds.length === 0 || !appUrl) {
-    throw new Error('Discord env vars not fully set')
+  if (!clientId || !clientSecret || !appUrl) {
+    throw new Error('Discord OAuth env vars not fully set (DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, APP_URL)')
   }
   return {
     clientId,
     clientSecret,
-    guildId,
-    memberRoleIds,
-    adminRoleIds,
+    appUrl,
     redirectUri: `${appUrl.replace(/\/$/, '')}/api/auth/discord/callback`,
   }
 }
 
 export function buildAuthorizeUrl(state: string): string {
-  const { clientId, redirectUri } = getDiscordConfig()
+  const { clientId, redirectUri } = getDiscordOAuthConfig()
   const params = new URLSearchParams({
     client_id: clientId,
     response_type: 'code',
@@ -68,6 +56,57 @@ export function buildAuthorizeUrl(state: string): string {
     state,
   })
   return `https://discord.com/oauth2/authorize?${params.toString()}`
+}
+
+// 봇 설치용 OAuth URL. `bot` + `applications.commands` scope 와 필요 권한 bitmask.
+// VIEW_CHANNEL(0x400) + SEND_MESSAGES(0x800) + EMBED_LINKS(0x4000) +
+// MANAGE_NICKNAMES(0x8000000) = 134236036.
+// 멤버 역할/관리 역할은 설치 시점에 결정되지 않으므로 MANAGE_ROLES 는 제외 —
+// 길드 운영자가 수동으로 역할을 부여한다.
+const BOT_PERMISSIONS = (0x400 | 0x800 | 0x4000 | 0x8000000).toString()
+
+export function buildBotInstallUrl(options: {
+  guildId: string
+  state: string
+}): string {
+  const { clientId, appUrl } = getDiscordOAuthConfig()
+  const redirectUri = `${appUrl.replace(/\/$/, '')}/api/auth/discord/bot-callback`
+  const params = new URLSearchParams({
+    client_id: clientId,
+    scope: 'bot applications.commands',
+    permissions: BOT_PERMISSIONS,
+    guild_id: options.guildId,
+    disable_guild_select: 'true',
+    response_type: 'code',
+    redirect_uri: redirectUri,
+    state: options.state,
+  })
+  return `https://discord.com/oauth2/authorize?${params.toString()}`
+}
+
+// 봇이 길드에 들어있다는 전제로 길드 메타(이름/아이콘)를 읽어온다. 봇 설치
+// 콜백 직후 tenants row 를 만들 때 사용.
+export interface DiscordGuild {
+  id: string
+  name: string
+  icon: string | null
+}
+
+export async function getDiscordGuild(
+  discordGuildId: string,
+): Promise<DiscordGuild | null> {
+  const botToken = process.env.DISCORD_BOT_TOKEN
+  if (!botToken) throw new Error('DISCORD_BOT_TOKEN not configured')
+  const res = await fetch(`${DISCORD_API}/guilds/${discordGuildId}`, {
+    headers: { Authorization: `Bot ${botToken}` },
+    cache: 'no-store',
+  })
+  if (res.status === 404) return null
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Discord guild fetch failed (${res.status}): ${text}`)
+  }
+  return res.json() as Promise<DiscordGuild>
 }
 
 interface TokenResponse {
@@ -79,7 +118,7 @@ interface TokenResponse {
 }
 
 export async function exchangeCode(code: string): Promise<TokenResponse> {
-  const { clientId, clientSecret, redirectUri } = getDiscordConfig()
+  const { clientId, clientSecret, redirectUri } = getDiscordOAuthConfig()
   const body = new URLSearchParams({
     client_id: clientId,
     client_secret: clientSecret,
@@ -113,9 +152,11 @@ export async function getCurrentUser(accessToken: string): Promise<DiscordUser |
   return res.json() as Promise<DiscordUser>
 }
 
-export async function getGuildMember(accessToken: string): Promise<DiscordGuildMember | null> {
-  const { guildId } = getDiscordConfig()
-  const res = await fetch(`${DISCORD_API}/users/@me/guilds/${guildId}/member`, {
+export async function getGuildMember(
+  accessToken: string,
+  discordGuildId: string,
+): Promise<DiscordGuildMember | null> {
+  const res = await fetch(`${DISCORD_API}/users/@me/guilds/${discordGuildId}/member`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     // Member data can change (role added/removed); never serve a cached copy.
     cache: 'no-store',
@@ -130,6 +171,30 @@ export async function getGuildMember(accessToken: string): Promise<DiscordGuildM
   return res.json() as Promise<DiscordGuildMember>
 }
 
+// 유저가 속한 Discord 길드 목록. Phase 3 온보딩에서 tenant 매칭 / 길드 피커에 사용.
+// OAuth `guilds` scope 가 필요하다 — `buildAuthorizeUrl` 의 OAUTH_SCOPES 참조.
+export interface DiscordUserGuild {
+  id: string
+  name: string
+  icon: string | null
+  owner: boolean
+  // permissions 는 유저가 해당 길드에서 갖는 권한 bitmask (string 으로 옴).
+  // 0x20 = MANAGE_GUILD — 봇 초대에 필요.
+  permissions: string
+}
+
+export async function listUserGuilds(accessToken: string): Promise<DiscordUserGuild[]> {
+  const res = await fetch(`${DISCORD_API}/users/@me/guilds`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: 'no-store',
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Discord user guilds fetch failed (${res.status}): ${text}`)
+  }
+  return res.json() as Promise<DiscordUserGuild[]>
+}
+
 export interface DiscordIdentity {
   discordId: string
   username: string
@@ -138,9 +203,12 @@ export interface DiscordIdentity {
   isAdmin: boolean
 }
 
-export function identityFromMember(member: DiscordGuildMember): DiscordIdentity | null {
+export function identityFromMember(
+  member: DiscordGuildMember,
+  memberRoleIds: string[],
+  adminRoleIds: string[],
+): DiscordIdentity | null {
   if (!member.user) return null
-  const { memberRoleIds, adminRoleIds } = getDiscordConfig()
   const roles = new Set(member.roles)
   const isAdmin = adminRoleIds.some((id) => roles.has(id))
   const isMember = memberRoleIds.some((id) => roles.has(id)) || isAdmin
@@ -169,17 +237,18 @@ export interface DiscordGuildMemberBulk {
   roles: string[]
 }
 
-export async function listGuildMembersBulk(): Promise<DiscordGuildMemberBulk[]> {
+export async function listGuildMembersBulk(
+  discordGuildId: string,
+): Promise<DiscordGuildMemberBulk[]> {
   const botToken = process.env.DISCORD_BOT_TOKEN
   if (!botToken) throw new Error('DISCORD_BOT_TOKEN not configured')
-  const { guildId } = getDiscordConfig()
 
   const all: DiscordGuildMemberBulk[] = []
   let after: string | undefined
   while (true) {
     const params = new URLSearchParams({ limit: '1000' })
     if (after) params.set('after', after)
-    const res = await fetch(`${DISCORD_API}/guilds/${guildId}/members?${params.toString()}`, {
+    const res = await fetch(`${DISCORD_API}/guilds/${discordGuildId}/members?${params.toString()}`, {
       headers: { Authorization: `Bot ${botToken}` },
       cache: 'no-store',
     })
@@ -232,7 +301,9 @@ export interface SendEventNotificationOptions {
   content: string
   // 이벤트에 설정된 역할 ID. NULL 이면 멘션 없이 채널에만 올린다.
   notifyRoleId: string | null
-  // 이벤트에 설정된 채널 ID. NULL 이면 env DISCORD_EVENT_CHANNEL_ID fallback.
+  // 최종 전송 채널 ID. 호출부가 event.notify_channel_id ?? tenant.event_channel_id
+  // 로 미리 해석해서 넘긴다. 빈 값이면 여기서 throw — 봇 알림은 조용한 실패로
+  // 덮어놓으면 운영자가 "왜 안 오지" 하는 시간이 길어진다.
   channelId: string | null
 }
 
@@ -242,10 +313,9 @@ export async function sendEventNotification(
 ): Promise<void> {
   const botToken = process.env.DISCORD_BOT_TOKEN
   const appUrl = process.env.APP_URL
-  // 이벤트가 지정한 채널이 우선. 없으면 env 로 떨어져 기존 동작을 유지한다.
-  const channelId = options.channelId ?? process.env.DISCORD_EVENT_CHANNEL_ID
+  const channelId = options.channelId
   if (!botToken || !channelId || !appUrl) {
-    throw new Error('Discord bot notification env not set (DISCORD_BOT_TOKEN, DISCORD_EVENT_CHANNEL_ID, APP_URL)')
+    throw new Error('Discord bot notification not configured (DISCORD_BOT_TOKEN/APP_URL env + tenant event_channel_id)')
   }
 
   const siteUrl = appUrl.replace(/\/$/, '')
@@ -301,15 +371,15 @@ export async function sendEventNotification(
 // 길드 소유자 닉은 못 바꾼다. 실패해도 호출부에서 삼키도록 throw — 온보딩
 // 플로우 자체가 실패하는 건 부적절.
 export async function changeGuildMemberNickname(
+  discordGuildId: string,
   discordUserId: string,
   nick: string,
 ): Promise<void> {
   const botToken = process.env.DISCORD_BOT_TOKEN
   if (!botToken) throw new Error('DISCORD_BOT_TOKEN not configured')
-  const { guildId } = getDiscordConfig()
   // Discord 서버 닉네임은 32 자 제한. 알비온 닉은 규칙상 더 짧지만 안전하게 자름.
   const trimmed = nick.trim().slice(0, 32)
-  const res = await fetch(`${DISCORD_API}/guilds/${guildId}/members/${discordUserId}`, {
+  const res = await fetch(`${DISCORD_API}/guilds/${discordGuildId}/members/${discordUserId}`, {
     method: 'PATCH',
     headers: {
       Authorization: `Bot ${botToken}`,

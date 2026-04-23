@@ -1341,5 +1341,31 @@
     "searchPlaceholder": "이벤트 제목·집결지·날짜로 검색 (예: 04-19)",
     "applicants": "참여 {assigned}/{total}명",
     "battleStartedAt": "전투 시작: {when}"
+  },
+  "onboard": {
+    "title": "내 Discord 서버에 봇 설치",
+    "description": "관리 권한이 있는 서버 중 봇을 설치할 길드를 고르세요.",
+    "installButton": "봇 설치",
+    "emptyTitle": "설치 가능한 서버가 없습니다",
+    "emptyDescription": "봇을 설치하려면 Discord 서버에서 \"서버 관리\" 권한이 필요합니다.",
+    "ownerBadge": "서버 소유자",
+    "adminBadge": "관리자",
+    "expiredTitle": "온보딩 정보가 만료되었습니다",
+    "expiredDescription": "다시 로그인하여 Discord 서버 목록을 불러와 주세요.",
+    "relogin": "다시 로그인",
+    "setupTitle": "초기 설정",
+    "setupDescription": "봇이 설치된 길드에 필요한 역할과 공지 채널을 연결합니다.",
+    "memberRoleLabel": "멤버 역할",
+    "memberRoleHelp": "이 역할을 가진 Discord 유저만 로그인할 수 있습니다 (중복 선택 가능).",
+    "adminRoleLabel": "관리자 역할",
+    "adminRoleHelp": "이 역할을 가진 유저는 모든 관리 기능에 접근합니다 (중복 선택 가능).",
+    "channelLabel": "이벤트 공지 채널",
+    "channelHelp": "이벤트 생성 시 기본으로 알림을 보낼 Discord 채널 (추후 이벤트별 변경 가능).",
+    "noChannel": "(나중에 설정)",
+    "saveButton": "설정 저장하고 시작",
+    "savingButton": "저장 중...",
+    "errorGeneric": "설정 저장에 실패했습니다.",
+    "unauthorized": "이 길드의 설정을 변경할 권한이 없습니다.",
+    "missingRoles": "멤버 역할을 최소 1개 선택해야 합니다."
   }
 }

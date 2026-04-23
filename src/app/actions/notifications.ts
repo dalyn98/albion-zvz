@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
-import { getSessionGuildId } from '@/lib/tenant'
+import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { requireEventCreator } from '@/lib/auth'
 import { CATEGORY_NOTIFY_COLUMN, EVENT_CATEGORIES, type EventCategory } from '@/types'
@@ -170,12 +170,16 @@ export async function listGuildRoles(): Promise<{
   const tErr = await getTranslations('adminActionError')
   try {
     await requireEventCreator()
+    const session = await getSession()
+    if (!session) return { roles: [], error: tErr('serverError') }
+    const sessionGuildId = await getSessionGuildId(session)
+    const tenantConfig = await getTenantDiscordConfig(sessionGuildId)
     const botToken = process.env.DISCORD_BOT_TOKEN
-    const guildId = process.env.DISCORD_GUILD_ID
-    if (!botToken || !guildId) {
+    if (!botToken || !tenantConfig) {
       return { roles: [], error: tErr('serverError') }
     }
-    const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
+    const discordGuildId = tenantConfig.discordGuildId
+    const res = await fetch(`https://discord.com/api/v10/guilds/${discordGuildId}/roles`, {
       headers: { Authorization: `Bot ${botToken}` },
       cache: 'no-store',
     })
@@ -188,7 +192,7 @@ export async function listGuildRoles(): Promise<{
     // @everyone 은 id === guildId 로 식별된다. Discord API 특성.
     // managed=true 는 봇/Integration 이 자동 생성한 역할 — 수동 멘션 대상 아님.
     const roles = raw
-      .filter((r) => r.id !== guildId && !r.managed)
+      .filter((r) => r.id !== discordGuildId && !r.managed)
       .map((r) => ({ id: r.id, name: r.name, color: r.color, position: r.position }))
       .sort((a, b) => b.position - a.position)
     return { roles }
@@ -207,12 +211,15 @@ export async function listGuildChannels(): Promise<{
   const tErr = await getTranslations('adminActionError')
   try {
     await requireEventCreator()
+    const session = await getSession()
+    if (!session) return { channels: [], error: tErr('serverError') }
+    const sessionGuildId = await getSessionGuildId(session)
+    const tenantConfig = await getTenantDiscordConfig(sessionGuildId)
     const botToken = process.env.DISCORD_BOT_TOKEN
-    const guildId = process.env.DISCORD_GUILD_ID
-    if (!botToken || !guildId) {
+    if (!botToken || !tenantConfig) {
       return { channels: [], error: tErr('serverError') }
     }
-    const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
+    const res = await fetch(`https://discord.com/api/v10/guilds/${tenantConfig.discordGuildId}/channels`, {
       headers: { Authorization: `Bot ${botToken}` },
       cache: 'no-store',
     })

@@ -55,3 +55,84 @@ export async function getSessionGuildId(session: SessionPayload): Promise<string
   if (session.guildId) return session.guildId
   return getPrimaryTenantId()
 }
+
+// Phase 3: tenant 스코프의 Discord 설정. env 대신 tenants 테이블 컬럼을 본다.
+// 호출부는 auth callback, member-sync cron, 이벤트 알림, 닉네임 동기화 등.
+export interface TenantDiscordConfig {
+  id: string
+  discordGuildId: string
+  slug: string
+  name: string
+  memberRoleIds: string[]
+  adminRoleIds: string[]
+  eventChannelId: string | null
+  botInstalled: boolean
+}
+
+export async function getTenantDiscordConfig(
+  tenantId: string,
+): Promise<TenantDiscordConfig | null> {
+  const db = getAdminClient()
+  const { data } = await db
+    .from('tenants')
+    .select(
+      'id, discord_guild_id, slug, name, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at',
+    )
+    .eq('id', tenantId)
+    .maybeSingle()
+  if (!data) return null
+  return {
+    id: data.id as string,
+    discordGuildId: data.discord_guild_id as string,
+    slug: data.slug as string,
+    name: data.name as string,
+    memberRoleIds: (data.member_role_ids as string[] | null) ?? [],
+    adminRoleIds: (data.admin_role_ids as string[] | null) ?? [],
+    eventChannelId: (data.event_channel_id as string | null) ?? null,
+    botInstalled: !!data.bot_installed_at,
+  }
+}
+
+export async function getTenantDiscordConfigByDiscordGuildId(
+  discordGuildId: string,
+): Promise<TenantDiscordConfig | null> {
+  const db = getAdminClient()
+  const { data } = await db
+    .from('tenants')
+    .select(
+      'id, discord_guild_id, slug, name, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at',
+    )
+    .eq('discord_guild_id', discordGuildId)
+    .maybeSingle()
+  if (!data) return null
+  return {
+    id: data.id as string,
+    discordGuildId: data.discord_guild_id as string,
+    slug: data.slug as string,
+    name: data.name as string,
+    memberRoleIds: (data.member_role_ids as string[] | null) ?? [],
+    adminRoleIds: (data.admin_role_ids as string[] | null) ?? [],
+    eventChannelId: (data.event_channel_id as string | null) ?? null,
+    botInstalled: !!data.bot_installed_at,
+  }
+}
+
+export async function listActiveTenants(): Promise<TenantDiscordConfig[]> {
+  const db = getAdminClient()
+  const { data } = await db
+    .from('tenants')
+    .select(
+      'id, discord_guild_id, slug, name, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at',
+    )
+    .eq('status', 'active')
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    discordGuildId: r.discord_guild_id as string,
+    slug: r.slug as string,
+    name: r.name as string,
+    memberRoleIds: (r.member_role_ids as string[] | null) ?? [],
+    adminRoleIds: (r.admin_role_ids as string[] | null) ?? [],
+    eventChannelId: (r.event_channel_id as string | null) ?? null,
+    botInstalled: !!r.bot_installed_at,
+  }))
+}

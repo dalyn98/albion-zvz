@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { isDiscordDmConfigured, sendDiscordDmsToUsers } from '@/lib/discord-dm'
 import { getAppSetting } from '@/lib/app-settings'
+import { listActiveTenants } from '@/lib/tenant'
 import type { EventCategory } from '@/types'
 
 // 이벤트 집결 시간이 다가오면 파티에 편성된 멤버들에게 Discord DM 을 보낸다.
@@ -56,18 +57,19 @@ export async function GET(request: Request) {
 
   const db = getAdminClient()
   const now = new Date()
+  const tenants = await listActiveTenants()
 
-  // Auto-start: scheduled events whose gather_at is in the recent past get
-  // their battle_started_at set automatically, opening the regear window at
-  // the planned time. Runs regardless of DM configuration — it's a DB-only
-  // side effect. Idempotent (update is conditional on battle_started_at IS NULL).
-  const autoStartEnabled = (await getAppSetting('events_auto_start_enabled', 'false')) === 'true'
+  // Auto-start: 테넌트별 events_auto_start_enabled 설정을 존중. 끄지 않은 테넌트의
+  // 지난 gather_at 이벤트만 자동 시작.
   const autoStartResults: Array<{ event_id: string; battle_started_at: string }> = []
-  if (autoStartEnabled) {
-    const autoStartFloor = new Date(now.getTime() - AUTO_START_LOOKBACK_MIN * 60 * 1000).toISOString()
+  const autoStartFloor = new Date(now.getTime() - AUTO_START_LOOKBACK_MIN * 60 * 1000).toISOString()
+  for (const tenant of tenants) {
+    const enabled = (await getAppSetting('events_auto_start_enabled', 'false', tenant.id)) === 'true'
+    if (!enabled) continue
     const { data: pending, error: pendingError } = await db
       .from('events')
       .select('id, gather_at')
+      .eq('guild_id', tenant.id)
       .is('battle_started_at', null)
       .not('gather_at', 'is', null)
       // draft 이벤트는 auto-start 대상에서 제외 — 아직 발행 전이라 전투 시작 X.
@@ -76,20 +78,21 @@ export async function GET(request: Request) {
       .lte('gather_at', now.toISOString())
     if (pendingError) {
       console.error('[cron/event-imminent] auto-start scan failed:', pendingError.message)
-    } else {
-      for (const row of pending ?? []) {
-        const gatherAt = row.gather_at as string
-        const { error: updateError } = await db
-          .from('events')
-          .update({ battle_started_at: gatherAt })
-          .eq('id', row.id)
-          .is('battle_started_at', null)
-        if (updateError) {
-          console.error('[cron/event-imminent] auto-start update failed:', updateError.message)
-          continue
-        }
-        autoStartResults.push({ event_id: row.id, battle_started_at: gatherAt })
+      continue
+    }
+    for (const row of pending ?? []) {
+      const gatherAt = row.gather_at as string
+      const { error: updateError } = await db
+        .from('events')
+        .update({ battle_started_at: gatherAt })
+        .eq('guild_id', tenant.id)
+        .eq('id', row.id)
+        .is('battle_started_at', null)
+      if (updateError) {
+        console.error('[cron/event-imminent] auto-start update failed:', updateError.message)
+        continue
       }
+      autoStartResults.push({ event_id: row.id, battle_started_at: gatherAt })
     }
   }
 
@@ -100,6 +103,8 @@ export async function GET(request: Request) {
   const upperBound = new Date(now.getTime() + LEAD_MIN * 60 * 1000).toISOString()
   const lowerBound = new Date(now.getTime() - LOOKBACK_MIN * 60 * 1000).toISOString()
 
+  // 임박 이벤트는 tenant 무관하게 한 번에 스캔한다 — DM 은 개인 단위라 tenant 격리가
+  // 부가 가치가 없고, imminent_notified_at 은 이벤트당 1회라 이미 중복이 없다.
   const { data: events, error: eventsError } = await db
     .from('events')
     .select('id, title, gather_at, category')

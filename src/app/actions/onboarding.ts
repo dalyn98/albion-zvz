@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
-import { getSessionGuildId } from '@/lib/tenant'
+import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import {
@@ -127,7 +127,10 @@ export async function confirmAlbionIdentity(input: {
   // 순위로 실패할 수 있으므로 best-effort — 로그만 남기고 온보딩은 성공 반환.
   if (verified) {
     try {
-      await changeGuildMemberNickname(session.discordId, player.Name)
+      const tenantConfig = await getTenantDiscordConfig(sessionGuildId)
+      if (tenantConfig) {
+        await changeGuildMemberNickname(tenantConfig.discordGuildId, session.discordId, player.Name)
+      }
     } catch (e) {
       console.warn('[onboarding] discord nickname change failed', e)
     }

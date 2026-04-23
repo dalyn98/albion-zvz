@@ -10,6 +10,7 @@ import { revalidatePath } from 'next/cache'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import { listGuildMembersBulk } from '@/lib/discord'
+import { getTenantDiscordConfig } from '@/lib/tenant'
 
 // 직전 성공 후 20시간 내면 skip — cron 재시도가 하루 2회 이상 돌지 않게 수렴.
 // KST 04:00 스케줄이 약간 앞당겨져도 다음날 실행이 건너뛰지 않도록 20h.
@@ -41,14 +42,6 @@ function parseRoleIds(raw: string): string[] {
   }
 }
 
-function parseEnvRoleIds(raw: string | undefined): string[] {
-  if (!raw) return []
-  return raw
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-}
-
 interface RunOptions {
   skipThrottle?: boolean
 }
@@ -70,14 +63,19 @@ export async function runMemberSync(
     }
   }
 
+  const tenantConfig = await getTenantDiscordConfig(guildId)
+  if (!tenantConfig) return { kind: 'error', message: 'Tenant not found' }
+
   const activeRoleIdsRaw = await getAppSetting('active_member_role_ids', '[]', guildId)
   const explicitRoleIds = parseRoleIds(activeRoleIdsRaw)
-  const envFallbackRoleIds = parseEnvRoleIds(process.env.DISCORD_MEMBER_ROLE_ID)
-  const activeRoleIds = explicitRoleIds.length > 0 ? explicitRoleIds : envFallbackRoleIds
+  // env 폴백 제거 — 대신 tenant.member_role_ids (마이그 074 에 시드됨) 를 사용.
+  // 신규 tenant 는 반드시 tenants.member_role_ids 가 채워진 상태여야 동작.
+  const tenantMemberRoleIds = tenantConfig.memberRoleIds
+  const activeRoleIds = explicitRoleIds.length > 0 ? explicitRoleIds : tenantMemberRoleIds
   const rolesSource: RolesSource =
     explicitRoleIds.length > 0
       ? 'explicit'
-      : envFallbackRoleIds.length > 0
+      : tenantMemberRoleIds.length > 0
         ? 'env_fallback'
         : 'server_only'
 
@@ -89,7 +87,7 @@ export async function runMemberSync(
 
   let members: Awaited<ReturnType<typeof listGuildMembersBulk>>
   try {
-    members = await listGuildMembersBulk()
+    members = await listGuildMembersBulk(tenantConfig.discordGuildId)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     console.error('[member-sync] bulk fetch failed:', msg)

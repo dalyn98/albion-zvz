@@ -9,7 +9,7 @@ import {
   requireEventCreatorOrPartyCaller,
 } from '@/lib/auth'
 import { getSession } from '@/lib/session'
-import { getSessionGuildId } from '@/lib/tenant'
+import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { sendEventNotification } from '@/lib/discord'
 import { getAppSetting } from '@/lib/app-settings'
 import type { BombSquadKind, EventCategory, SlotKey, SlotSpells, GearOption, GearSpec, GearSpecs } from '@/types'
@@ -213,11 +213,17 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
     const content = await getAppSetting(
       'event_notification_message',
       DEFAULT_EVENT_NOTIFICATION_MESSAGE,
+      guildId,
     )
+    // notify_channel_id 가 null 이면 tenant 기본 채널로 fallback. tenant 도
+    // 안 설정되어 있으면 sendEventNotification 에서 throw — 관리자가 채널 설정
+    // 누락을 바로 인지할 수 있게 조용한 실패를 피한다.
+    const tenantConfig = await getTenantDiscordConfig(guildId)
+    const channelId = data.notify_channel_id ?? tenantConfig?.eventChannelId ?? null
     await sendEventNotification(data, {
       content,
       notifyRoleId: data.notify_role_id,
-      channelId: data.notify_channel_id,
+      channelId,
     })
     return {}
   } catch (e) {

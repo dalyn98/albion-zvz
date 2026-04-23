@@ -1341,5 +1341,31 @@
     "searchPlaceholder": "タイトル・集結地・日付で検索 (例: 04-19)",
     "applicants": "参加 {assigned}/{total}名",
     "battleStartedAt": "戦闘開始: {when}"
+  },
+  "onboard": {
+    "title": "自分のDiscordサーバーにBotをインストール",
+    "description": "「サーバーの管理」権限があるサーバーの中からBotをインストール先を選んでください。",
+    "installButton": "Botをインストール",
+    "emptyTitle": "インストール可能なサーバーがありません",
+    "emptyDescription": "Botをインストールするには「サーバーの管理」権限が必要です。",
+    "ownerBadge": "オーナー",
+    "adminBadge": "管理者",
+    "expiredTitle": "オンボーディング情報の有効期限が切れました",
+    "expiredDescription": "もう一度ログインしてDiscordサーバー一覧を更新してください。",
+    "relogin": "再ログイン",
+    "setupTitle": "初期設定",
+    "setupDescription": "Botをインストールしたギルドで使うロールとアナウンスチャンネルを設定します。",
+    "memberRoleLabel": "メンバーロール",
+    "memberRoleHelp": "このロールを持つユーザーのみログインできます（複数選択可）。",
+    "adminRoleLabel": "管理者ロール",
+    "adminRoleHelp": "このロールを持つユーザーは全ての管理機能にアクセスできます（複数選択可）。",
+    "channelLabel": "イベント告知チャンネル",
+    "channelHelp": "イベント作成時にデフォルトで告知するDiscordチャンネル（イベントごとに変更可能）。",
+    "noChannel": "(後で設定)",
+    "saveButton": "保存して開始",
+    "savingButton": "保存中...",
+    "errorGeneric": "設定の保存に失敗しました。",
+    "unauthorized": "このギルドを設定する権限がありません。",
+    "missingRoles": "メンバーロールを少なくとも1つ選択してください。"
   }
 }

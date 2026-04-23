@@ -2,23 +2,33 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   exchangeCode,
   getCurrentUser,
-  getDiscordConfig,
   getGuildMember,
+  identityFromMember,
+  listUserGuilds,
+  type DiscordUser,
+  type DiscordUserGuild,
 } from '@/lib/discord'
 import { SESSION_COOKIE_NAME, cookieOptions, signSession } from '@/lib/session'
 import { upsertGuildAvatar } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getPrimaryTenantId, getTenantIdByDiscordGuildId } from '@/lib/tenant'
+import {
+  getPrimaryTenantId,
+  getTenantDiscordConfigByDiscordGuildId,
+  type TenantDiscordConfig,
+} from '@/lib/tenant'
 import { LOCALE_COOKIE, isLocale } from '@/i18n/locales'
 
 const STATE_COOKIE = 'discord_oauth_state'
 const RETURN_TO_COOKIE = 'discord_oauth_return_to'
 const INVITE_COOKIE = 'guest_invite'
+const ONBOARD_GUILDS_COOKIE = 'discord_onboard_guilds'
+const ONBOARD_GUILDS_TTL_SEC = 60 * 30 // 30분: 봇 설치 결정 + 돌아오는 round-trip 용
 const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
-// 로그인 후 최종 리다이렉트 경로를 정한다. preferred_language 가 없으면
-// /welcome-language 로 보내서 선택을 강제하고, 있으면 원래 가려던 곳으로.
+// Discord 유저 권한 bitmask. MANAGE_GUILD = 0x20 — 봇 초대 가능.
+const MANAGE_GUILD_BIT = BigInt(0x20)
+
 function resolvePostLoginPath(
   returnTo: string,
   preferredLanguage: string | null,
@@ -28,12 +38,12 @@ function resolvePostLoginPath(
   return `/welcome-language?return=${encoded}`
 }
 
-// app_setting `event_creator_role_ids` 를 역할 ID 배열로 로드. JSON 파싱 실패나
-// 잘못된 shape 이면 빈 배열 fallback (=admin 만 이벤트 생성 가능). 로그인 마다
-// 한 번 호출되므로 실패 시 로그인 전체를 막지 않도록 방어적으로 처리.
-async function loadRoleIdSetting(key: 'event_creator_role_ids' | 'bomb_squad_caller_role_ids'): Promise<string[]> {
+async function loadRoleIdSetting(
+  key: 'event_creator_role_ids' | 'bomb_squad_caller_role_ids',
+  guildId: string,
+): Promise<string[]> {
   try {
-    const raw = await getAppSetting(key, '[]')
+    const raw = await getAppSetting(key, '[]', guildId)
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
     return parsed.filter((v): v is string => typeof v === 'string' && v.length > 0)
@@ -46,6 +56,52 @@ function errorRedirect(origin: string, reason: string): NextResponse {
   const url = new URL('/', origin)
   url.searchParams.set('auth_error', reason)
   const response = NextResponse.redirect(url)
+  response.cookies.delete(STATE_COOKIE)
+  response.cookies.delete(RETURN_TO_COOKIE)
+  response.cookies.delete(INVITE_COOKIE)
+  return response
+}
+
+interface OnboardGuild {
+  id: string
+  name: string
+  icon: string | null
+}
+
+async function onboardingRedirect(
+  origin: string,
+  user: DiscordUser,
+  onboardableGuilds: DiscordUserGuild[],
+): Promise<NextResponse> {
+  const response = NextResponse.redirect(new URL('/onboard', origin))
+  // 온보딩 세션: 아직 어떤 tenant 에도 속하지 않은 상태. layout 이 /onboard 경로
+  // 는 role 없이도 접근 가능하도록 별도 처리. 설치 완료 후 bot-callback 이
+  // 새 tenant 의 admin 세션으로 재발급.
+  const sessionCookie = await signSession({
+    discordId: user.id,
+    username: user.global_name || user.username,
+    avatar: user.avatar,
+    isMember: false,
+    isAdmin: false,
+    isGuest: false,
+    canCreateEvents: false,
+    eventScope: null,
+    guildId: null,
+    issuedAt: Date.now(),
+  })
+  response.cookies.set(SESSION_COOKIE_NAME, sessionCookie, cookieOptions())
+  const payload: OnboardGuild[] = onboardableGuilds.map((g) => ({
+    id: g.id,
+    name: g.name,
+    icon: g.icon,
+  }))
+  response.cookies.set(ONBOARD_GUILDS_COOKIE, JSON.stringify(payload), {
+    httpOnly: true,
+    secure: process.env.COOKIE_SECURE === 'true',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: ONBOARD_GUILDS_TTL_SEC,
+  })
   response.cookies.delete(STATE_COOKIE)
   response.cookies.delete(RETURN_TO_COOKIE)
   response.cookies.delete(INVITE_COOKIE)
@@ -68,96 +124,103 @@ export async function GET(request: NextRequest) {
 
   try {
     const token = await exchangeCode(code)
-    // member may be null (user not in guild) — guests can still log in.
-    const [member, user] = await Promise.all([
-      getGuildMember(token.access_token),
-      getCurrentUser(token.access_token),
-    ])
+    const user = await getCurrentUser(token.access_token)
     if (!user) return errorRedirect(url.origin, 'no_identity')
 
-    const { guildId: discordGuildId, memberRoleIds, adminRoleIds } = getDiscordConfig()
-    const roles = new Set(member?.roles ?? [])
-    const isAdmin = adminRoleIds.some((id) => roles.has(id))
-    const isMember = memberRoleIds.some((id) => roles.has(id)) || isAdmin
-    // 관리자 설정 기반 이벤트 생성 권한 계산. app_setting 은 JSON 배열 문자열로
-    // 저장되며, 파싱 실패 시 빈 배열로 fallback 한다(=admin 만 생성 가능).
-    const [eventCreatorRoleIds, bombSquadCallerRoleIds] = await Promise.all([
-      loadRoleIdSetting('event_creator_role_ids'),
-      loadRoleIdSetting('bomb_squad_caller_role_ids'),
-    ])
-    const hasEventCreatorRole = isMember && eventCreatorRoleIds.some((id) => roles.has(id))
-    const canCreateEvents = isAdmin || hasEventCreatorRole
-    const isBombSquadCaller = isMember && bombSquadCallerRoleIds.some((id) => roles.has(id))
-    // Server nick wins, then global_name, then raw username.
-    const displayName = member?.nick || user.global_name || user.username
+    // Phase 3: 유저의 Discord 길드 목록 → tenants 매칭. 관리자 승인된 tenant 중
+    // 유저가 속한 길드의 교집합.
+    const userGuilds = await listUserGuilds(token.access_token).catch((e) => {
+      console.error('[discord-callback] listUserGuilds failed', e)
+      return [] as Awaited<ReturnType<typeof listUserGuilds>>
+    })
+
+    const matchedTenants: TenantDiscordConfig[] = []
+    for (const g of userGuilds) {
+      const tenant = await getTenantDiscordConfigByDiscordGuildId(g.id)
+      if (tenant && tenant.botInstalled) matchedTenants.push(tenant)
+    }
 
     const rawReturnTo = request.cookies.get(RETURN_TO_COOKIE)?.value ?? '/'
     const returnTo = rawReturnTo.startsWith('/') && !rawReturnTo.startsWith('//') ? rawReturnTo : '/'
 
-    // Multi-tenant: 현재 로그인한 Discord 길드에 해당하는 tenant UUID. 여기서
-    // 미리 구해야 upsertGuildAvatar 이 guild_id NOT NULL 제약을 만족한다.
-    // 매핑이 없으면 primary tenant 로 fallback — 신규 길드의 첫 로그인에서
-    // 레코드를 안전하게 초기화하기 위함.
-    const resolvedGuildId =
-      (await getTenantIdByDiscordGuildId(discordGuildId)) ?? (await getPrimaryTenantId())
-
-    if (isMember) {
-      try {
-        await upsertGuildAvatar(resolvedGuildId, user.id, displayName, user.avatar, isAdmin, isBombSquadCaller)
-      } catch (err) {
-        console.error('[discord-callback] upsertGuildAvatar failed', err)
+    // ───── Member path ─────
+    // 유저가 가입된 tenant 가 하나 이상이면 첫 번째를 선택.
+    // (>1 이면 추후 picker UI 를 추가. 현재 MVP 는 첫 매칭 자동 선택.)
+    if (matchedTenants.length > 0) {
+      const tenant = matchedTenants[0]
+      const member = await getGuildMember(token.access_token, tenant.discordGuildId)
+      if (!member) {
+        // tenant 에 매칭은 됐으나 (guilds 에 포함) 멤버 카드가 없는 경우 — 레이스.
+        return errorRedirect(url.origin, 'not_in_guild')
       }
-      // preferred_language 를 한 번 조회해서 (a) 없으면 환영 페이지로 보내고
-      // (b) 있으면 lang 쿠키를 DB 값에 동기화. 새 디바이스/쿠키 삭제 케이스에서
-      // 본인이 저장해둔 언어로 바로 렌더된다.
-      const db = getAdminClient()
-      const { data: langRow } = await db
-        .from('guild_avatars')
-        .select('preferred_language')
-        .eq('discord_id', user.id)
-        .maybeSingle()
-      const preferred = langRow?.preferred_language ?? null
+      const identity = identityFromMember(member, tenant.memberRoleIds, tenant.adminRoleIds)
+      if (!identity) return errorRedirect(url.origin, 'no_identity')
+      const { isAdmin, isMember } = identity
 
-      const sessionCookie = await signSession({
-        discordId: user.id,
-        username: displayName,
-        avatar: user.avatar,
-        isMember: true,
-        isAdmin,
-        isGuest: false,
-        canCreateEvents,
-        eventScope: null,
-        guildId: resolvedGuildId,
-        issuedAt: Date.now(),
-      })
-      const destination = resolvePostLoginPath(returnTo, preferred)
-      const response = NextResponse.redirect(new URL(destination, url.origin))
-      response.cookies.set(SESSION_COOKIE_NAME, sessionCookie, cookieOptions())
-      if (isLocale(preferred)) {
-        response.cookies.set(LOCALE_COOKIE, preferred, {
-          path: '/',
-          maxAge: LOCALE_COOKIE_MAX_AGE,
-          sameSite: 'lax',
+      const [eventCreatorRoleIds, bombSquadCallerRoleIds] = await Promise.all([
+        loadRoleIdSetting('event_creator_role_ids', tenant.id),
+        loadRoleIdSetting('bomb_squad_caller_role_ids', tenant.id),
+      ])
+      const memberRoleSet = new Set(member.roles)
+      const hasEventCreatorRole = isMember && eventCreatorRoleIds.some((id) => memberRoleSet.has(id))
+      const canCreateEvents = isAdmin || hasEventCreatorRole
+      const isBombSquadCaller = isMember && bombSquadCallerRoleIds.some((id) => memberRoleSet.has(id))
+      const displayName = identity.username
+
+      if (!isMember) {
+        // 봇은 있으나 member/admin 역할이 없는 경우 — 게스트 경로로 폴백.
+        // 그대로 falls-through to guest path.
+      } else {
+        try {
+          await upsertGuildAvatar(tenant.id, user.id, displayName, user.avatar, isAdmin, isBombSquadCaller)
+        } catch (err) {
+          console.error('[discord-callback] upsertGuildAvatar failed', err)
+        }
+        const db = getAdminClient()
+        const { data: langRow } = await db
+          .from('guild_avatars')
+          .select('preferred_language')
+          .eq('guild_id', tenant.id)
+          .eq('discord_id', user.id)
+          .maybeSingle()
+        const preferred = langRow?.preferred_language ?? null
+
+        const sessionCookie = await signSession({
+          discordId: user.id,
+          username: displayName,
+          avatar: user.avatar,
+          isMember: true,
+          isAdmin,
+          isGuest: false,
+          canCreateEvents,
+          eventScope: null,
+          guildId: tenant.id,
+          issuedAt: Date.now(),
         })
+        const destination = resolvePostLoginPath(returnTo, preferred)
+        const response = NextResponse.redirect(new URL(destination, url.origin))
+        response.cookies.set(SESSION_COOKIE_NAME, sessionCookie, cookieOptions())
+        if (isLocale(preferred)) {
+          response.cookies.set(LOCALE_COOKIE, preferred, {
+            path: '/',
+            maxAge: LOCALE_COOKIE_MAX_AGE,
+            sameSite: 'lax',
+          })
+        }
+        response.cookies.delete(STATE_COOKIE)
+        response.cookies.delete(RETURN_TO_COOKIE)
+        response.cookies.delete(INVITE_COOKIE)
+        return response
       }
-      response.cookies.delete(STATE_COOKIE)
-      response.cookies.delete(RETURN_TO_COOKIE)
-      response.cookies.delete(INVITE_COOKIE)
-      return response
     }
 
-    // Guest path: must present a valid, non-revoked, non-expired event guest
-    // token. Unlike the old global-token model, every guest session is now
-    // scoped to exactly one event_id.
+    // ───── Guest path ─────
+    // 초대 토큰이 있으면 이벤트 스코프 게스트. 없으면 — 유저가 MANAGE_GUILD 를 가진
+    // Discord 길드가 있으면 /onboard 로 안내 (신규 길드 온보딩). 둘 다 아니면 거절.
+    const inviteCookie = request.cookies.get(INVITE_COOKIE)?.value
     const db = getAdminClient()
-    const { data: existingGuest } = await db
-      .from('guests')
-      .select('discord_id, preferred_language')
-      .eq('discord_id', user.id)
-      .maybeSingle()
 
     let eventScope: string | null = null
-    const inviteCookie = request.cookies.get(INVITE_COOKIE)?.value
     if (inviteCookie) {
       const nowIso = new Date().toISOString()
       const { data: tokenRow } = await db
@@ -170,18 +233,30 @@ export async function GET(request: NextRequest) {
         !tokenRow.revoked_at &&
         (!tokenRow.expires_at || tokenRow.expires_at > nowIso)
       ) {
-        eventScope = tokenRow.event_id
+        eventScope = tokenRow.event_id as string
       }
     }
 
     if (!eventScope) {
-      // No valid event-scoped invite → reject. (전역 토큰 경로 폐기.)
-      return errorRedirect(url.origin, member ? 'no_role' : 'not_in_guild')
+      // 초대 토큰 없음 → 온보딩 가능한 길드가 있는지 확인. 이미 tenant 로 등록된
+      // 길드는 "이미 설치됨" 상태라 목록에서 제외한다 (사용자 혼란 방지).
+      const matchedTenantGuildIds = new Set(matchedTenants.map((t) => t.discordGuildId))
+      const onboardableGuilds = userGuilds.filter((g) => {
+        if (matchedTenantGuildIds.has(g.id)) return false
+        try {
+          const perms = BigInt(g.permissions)
+          return g.owner || (perms & MANAGE_GUILD_BIT) === MANAGE_GUILD_BIT
+        } catch {
+          return g.owner
+        }
+      })
+      if (onboardableGuilds.length > 0) {
+        return onboardingRedirect(url.origin, user, onboardableGuilds)
+      }
+      return errorRedirect(url.origin, matchedTenants.length > 0 ? 'no_role' : 'not_in_guild')
     }
 
-    // 게스트의 tenant 는 해당 event 의 guild_id. 한 유저가 guild A 의 게스트
-    // 이면서 guild B 의 게스트일 수 있으므로 "유저의 primary tenant" 가 아니라
-    // 이 초대 토큰이 속한 이벤트의 guild 를 써야 한다. INSERT 전에 미리 구한다.
+    // 게스트: 이벤트 스코프로 로그인.
     const { data: scopeEvent } = await db
       .from('events')
       .select('guild_id')
@@ -190,11 +265,19 @@ export async function GET(request: NextRequest) {
     const guestGuildId =
       (scopeEvent?.guild_id as string | undefined) ?? (await getPrimaryTenantId())
 
+    const { data: existingGuest } = await db
+      .from('guests')
+      .select('discord_id, preferred_language')
+      .eq('guild_id', guestGuildId)
+      .eq('discord_id', user.id)
+      .maybeSingle()
+    const displayName = user.global_name || user.username
+
     if (existingGuest) {
-      // Refresh display fields so guest list stays current.
       await db
         .from('guests')
         .update({ username: displayName, avatar: user.avatar })
+        .eq('guild_id', guestGuildId)
         .eq('discord_id', user.id)
     } else {
       await db
@@ -207,8 +290,6 @@ export async function GET(request: NextRequest) {
         })
     }
 
-    // preferred_language: 신규 게스트는 insert 에서 넣지 않았으니 null. 기존
-     // 게스트는 위에서 fetch 한 existingGuest.preferred_language 를 사용.
     const guestPreferred = existingGuest?.preferred_language ?? null
 
     const sessionCookie = await signSession({
@@ -218,14 +299,11 @@ export async function GET(request: NextRequest) {
       isMember: false,
       isAdmin: false,
       isGuest: true,
-      // 게스트는 길드원이 아니라서 역할 기반 자격이 붙지 않는다. 항상 false.
       canCreateEvents: false,
       eventScope,
       guildId: guestGuildId,
       issuedAt: Date.now(),
     })
-    // 게스트의 returnTo 는 항상 스코프 이벤트로 강제. 링크를 어떻게 타고
-    // 왔든 "그 이벤트만 볼 수 있음" 규칙을 여기서 고정.
     const scopedReturnTo = `/events/${eventScope}`
     const destination = resolvePostLoginPath(scopedReturnTo, guestPreferred)
     const response = NextResponse.redirect(new URL(destination, url.origin))
