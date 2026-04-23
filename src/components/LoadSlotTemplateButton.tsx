@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useTranslations } from 'next-intl'
 import { FolderDown, Trash2, X } from 'lucide-react'
 import {
@@ -11,12 +11,18 @@ import {
 } from '@/app/actions/slot-templates'
 import { applyTemplateToSlotInput } from '@/lib/slot-template-shape'
 import { formatDate } from '@/lib/format-datetime'
+import { getRoleStyle } from '@/types'
 import type { SlotInput } from './SlotEditor'
 
 interface Props {
   slot: SlotInput
   onLoad: (next: SlotInput) => void
 }
+
+// Sentinel for the "no role" filter option — distinct from null so the
+// select can round-trip empty-string values without ambiguity.
+const ROLE_FILTER_ALL = '__all__'
+const ROLE_FILTER_NONE = '__none__'
 
 export default function LoadSlotTemplateButton({ slot, onLoad }: Props) {
   const t = useTranslations('adminTemplates')
@@ -27,6 +33,7 @@ export default function LoadSlotTemplateButton({ slot, onLoad }: Props) {
   const [error, setError] = useState('')
   const [listLoading, setListLoading] = useState(false)
   const [pending, startTransition] = useTransition()
+  const [roleFilter, setRoleFilter] = useState<string>(ROLE_FILTER_ALL)
 
   useEffect(() => {
     if (!open) return
@@ -46,6 +53,26 @@ export default function LoadSlotTemplateButton({ slot, onLoad }: Props) {
       cancelled = true
     }
   }, [open])
+
+  // Role options derived from the loaded templates — only surface roles that
+  // actually exist so the dropdown doesn't advertise empty filter buckets.
+  const availableRoles = useMemo(() => {
+    const set = new Set<string>()
+    let hasUnroled = false
+    for (const tpl of templates) {
+      if (tpl.role_name && tpl.role_name.trim().length > 0) set.add(tpl.role_name)
+      else hasUnroled = true
+    }
+    return { roles: Array.from(set).sort(), hasUnroled }
+  }, [templates])
+
+  const filteredTemplates = useMemo(() => {
+    if (roleFilter === ROLE_FILTER_ALL) return templates
+    if (roleFilter === ROLE_FILTER_NONE) {
+      return templates.filter((tpl) => !tpl.role_name || tpl.role_name.trim().length === 0)
+    }
+    return templates.filter((tpl) => tpl.role_name === roleFilter)
+  }, [templates, roleFilter])
 
   const apply = () => {
     if (!selected) return
@@ -112,43 +139,90 @@ export default function LoadSlotTemplateButton({ slot, onLoad }: Props) {
               </button>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2">
+              {!listLoading && templates.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <label className="text-gray-400 text-[11px] font-semibold">
+                    {t('slotTemplateRoleFilter')}
+                  </label>
+                  <select
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value)}
+                    className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-[11px] text-white focus:outline-none focus:border-sky-500"
+                  >
+                    <option value={ROLE_FILTER_ALL}>
+                      {t('slotTemplateRoleAll', { count: templates.length })}
+                    </option>
+                    {availableRoles.roles.map((role) => {
+                      const count = templates.filter((tpl) => tpl.role_name === role).length
+                      return (
+                        <option key={role} value={role}>
+                          {role} ({count})
+                        </option>
+                      )
+                    })}
+                    {availableRoles.hasUnroled && (
+                      <option value={ROLE_FILTER_NONE}>
+                        {t('slotTemplateRoleNone', {
+                          count: templates.filter((tpl) => !tpl.role_name || tpl.role_name.trim().length === 0).length,
+                        })}
+                      </option>
+                    )}
+                  </select>
+                </div>
+              )}
               {listLoading ? (
                 <p className="text-gray-500 text-xs text-center py-4">{tCommon('loadingDots')}</p>
               ) : templates.length === 0 ? (
                 <p className="text-gray-500 text-xs text-center py-4">
                   {t('slotTemplateNoData')}
                 </p>
+              ) : filteredTemplates.length === 0 ? (
+                <p className="text-gray-500 text-xs text-center py-4">
+                  {t('slotTemplateNoDataFiltered')}
+                </p>
               ) : (
-                templates.map((tpl) => (
-                  <div
-                    key={tpl.id}
-                    className={`flex items-center gap-1 rounded-lg border transition-colors ${
-                      selected === tpl.id
-                        ? 'bg-sky-500/20 border-sky-500/50'
-                        : 'bg-gray-800 border-gray-700 hover:bg-gray-700'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setSelected(tpl.id)}
-                      className="flex-1 flex items-center justify-between gap-2 px-3 py-2 text-left min-w-0"
+                filteredTemplates.map((tpl) => {
+                  const roleStyle = getRoleStyle(tpl.role_name)
+                  return (
+                    <div
+                      key={tpl.id}
+                      className={`flex items-center gap-1 rounded-lg border transition-colors ${
+                        selected === tpl.id
+                          ? 'bg-sky-500/20 border-sky-500/50'
+                          : 'bg-gray-800 border-gray-700 hover:bg-gray-700'
+                      }`}
                     >
-                      <span className="text-white text-sm truncate">{tpl.name}</span>
-                      <span className="text-gray-500 text-[10px] font-mono flex-shrink-0">
-                        {formatDate(tpl.created_at)}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => remove(tpl.id)}
-                      disabled={pending}
-                      className="p-2 text-gray-500 hover:text-red-400 flex-shrink-0 disabled:opacity-50"
-                      aria-label={t('slotTemplateDeleteAria', { name: tpl.name })}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                ))
+                      <button
+                        type="button"
+                        onClick={() => setSelected(tpl.id)}
+                        className="flex-1 flex items-center gap-2 px-3 py-2 text-left min-w-0"
+                      >
+                        <span className="text-white text-sm truncate flex-1 min-w-0">{tpl.name}</span>
+                        {tpl.role_name && (
+                          <span
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${
+                              roleStyle ? roleStyle.badge : 'bg-amber-500/20 text-amber-400'
+                            }`}
+                          >
+                            {tpl.role_name}
+                          </span>
+                        )}
+                        <span className="text-gray-500 text-[10px] font-mono flex-shrink-0">
+                          {formatDate(tpl.created_at)}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => remove(tpl.id)}
+                        disabled={pending}
+                        className="p-2 text-gray-500 hover:text-red-400 flex-shrink-0 disabled:opacity-50"
+                        aria-label={t('slotTemplateDeleteAria', { name: tpl.name })}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  )
+                })
               )}
               {error && (
                 <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">

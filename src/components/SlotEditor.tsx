@@ -11,6 +11,7 @@ import SpellPicker from './SpellPicker'
 import SaveSlotAsTemplateButton from './SaveSlotAsTemplateButton'
 import LoadSlotTemplateButton from './LoadSlotTemplateButton'
 import RecentBuildsDropdown from './RecentBuildsDropdown'
+import BuildPreview from './BuildPreview'
 import { slotInputToTemplateData } from '@/lib/slot-template-shape'
 import { saveRecentBuild } from '@/lib/recent-builds'
 import type { SlotKey, GearOption, GearSpec } from '@/types'
@@ -357,6 +358,8 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, onCha
                 <LoadSlotTemplateButton slot={slot} onLoad={onChange} />
                 <RecentBuildsDropdown slot={slot} onLoad={onChange} />
               </div>
+
+              <BuildPreview slot={slot} />
 
               <div>
                 <label className="text-gray-400 text-[11px] font-semibold block mb-1">{t('roleLabel')}</label>

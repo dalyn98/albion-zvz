@@ -31,6 +31,9 @@ export interface SlotTemplateData {
 export interface SlotTemplateSummary {
   id: string
   name: string
+  // Projected from data->>'role_name' so the load dialog can filter by role
+  // without loading every template's full gear payload up front.
+  role_name: string | null
   created_at: string
 }
 
@@ -75,7 +78,7 @@ export async function listSlotTemplates(): Promise<{
     const db = await requireAdmin()
     const { data, error } = await db
       .from('slot_templates')
-      .select('id, name, created_at')
+      .select('id, name, created_at, role_name:data->>role_name')
       .order('created_at', { ascending: false })
     if (error) return { templates: [], error: error.message }
     return { templates: (data ?? []) as SlotTemplateSummary[] }
