@@ -295,3 +295,31 @@ export async function sendEventNotification(
     throw new Error(`Discord channel message failed (${res.status}): ${text}`)
   }
 }
+
+// 길드 멤버 닉네임 변경. 온보딩 인증 성공 시 알비온 닉네임으로 동기화하려고
+// 쓴다. 봇이 MANAGE_NICKNAMES 권한 + 대상 유저보다 높은 역할을 가져야 하고,
+// 길드 소유자 닉은 못 바꾼다. 실패해도 호출부에서 삼키도록 throw — 온보딩
+// 플로우 자체가 실패하는 건 부적절.
+export async function changeGuildMemberNickname(
+  discordUserId: string,
+  nick: string,
+): Promise<void> {
+  const botToken = process.env.DISCORD_BOT_TOKEN
+  if (!botToken) throw new Error('DISCORD_BOT_TOKEN not configured')
+  const { guildId } = getDiscordConfig()
+  // Discord 서버 닉네임은 32 자 제한. 알비온 닉은 규칙상 더 짧지만 안전하게 자름.
+  const trimmed = nick.trim().slice(0, 32)
+  const res = await fetch(`${DISCORD_API}/guilds/${guildId}/members/${discordUserId}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bot ${botToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ nick: trimmed }),
+    cache: 'no-store',
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Discord nickname change failed (${res.status}): ${text}`)
+  }
+}

@@ -15,6 +15,7 @@ import {
 } from '@/lib/albion-gameinfo'
 import { requireAdmin } from '@/lib/auth'
 import { getMemberAlbionIdentity, type MemberAlbionIdentity } from '@/lib/albion-identity'
+import { changeGuildMemberNickname } from '@/lib/discord'
 
 // 드롭다운에서 유저가 고르기 편하도록 정리한 후보 구조.
 export interface AlbionPlayerCandidate {
@@ -97,8 +98,21 @@ export async function confirmAlbionIdentity(input: {
     nickname: player.Name,
     guildId: player.GuildId,
     verifiedAt: verified ? new Date().toISOString() : null,
+    // 인증된 경우에만 사이트 닉네임을 알비온 닉으로 동기화. 미인증/수동 입력은
+    // 그대로 디스코드 이름을 유지한다.
+    syncSiteUsername: verified,
   })
   if (updated.error) return { error: updated.error }
+
+  // 인증 성공 시 디스코드 길드 닉네임도 알비온 닉으로 변경 시도. 봇 권한/역할
+  // 순위로 실패할 수 있으므로 best-effort — 로그만 남기고 온보딩은 성공 반환.
+  if (verified) {
+    try {
+      await changeGuildMemberNickname(session.discordId, player.Name)
+    } catch (e) {
+      console.warn('[onboarding] discord nickname change failed', e)
+    }
+  }
 
   revalidatePath('/me')
   revalidatePath('/onboarding/albion')
@@ -161,6 +175,9 @@ interface UpsertPayload {
   nickname: string
   guildId: string | null
   verifiedAt: string | null
+  // true 면 guild_avatars.username 도 payload.nickname 으로 덮어씀. 인증 성공
+  // 플로우에서만 설정되어 사이트 전역에서 알비온 닉으로 보이게 한다.
+  syncSiteUsername?: boolean
 }
 
 async function upsertAlbionIdentity(
@@ -169,15 +186,19 @@ async function upsertAlbionIdentity(
 ): Promise<{ ok?: true; error?: string }> {
   const tErr = await getTranslations('memberActionError')
   const db = getAdminClient()
+  const update: Record<string, string | null> = {
+    albion_server: payload.server,
+    albion_player_id: payload.playerId,
+    albion_nickname: payload.nickname,
+    albion_guild_id: payload.guildId,
+    albion_verified_at: payload.verifiedAt,
+  }
+  if (payload.syncSiteUsername) {
+    update.username = payload.nickname
+  }
   const { error } = await db
     .from('guild_avatars')
-    .update({
-      albion_server: payload.server,
-      albion_player_id: payload.playerId,
-      albion_nickname: payload.nickname,
-      albion_guild_id: payload.guildId,
-      albion_verified_at: payload.verifiedAt,
-    })
+    .update(update)
     .eq('discord_id', discordId)
   if (error) {
     // (server, player_id) 유니크 제약 충돌 — 같은 알비온 캐릭터를 이미 다른
