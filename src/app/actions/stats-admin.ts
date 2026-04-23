@@ -1,7 +1,9 @@
 'use server'
 
 import { requireAdmin } from '@/lib/auth'
+import { getAppSetting } from '@/lib/app-settings'
 import { getTranslations } from 'next-intl/server'
+import type { AlbionServer } from '@/lib/albion-gameinfo'
 
 export interface TopHolder {
   discordId: string
@@ -401,6 +403,107 @@ export async function getShopRegearStats(): Promise<{
         silverPaid,
         regearPending: pendingRegearRes.count ?? 0,
         topSoldItems,
+      },
+    }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export interface VerificationMember {
+  discordId: string
+  username: string
+  avatar: string | null
+  isAdmin: boolean
+  server: AlbionServer | null
+  nickname: string | null
+  guildId: string | null
+  verifiedAt: string | null
+  // guild_id 가 홈 길드와 일치하는지 — UI 에서 "길드 매칭" 배지로 사용.
+  guildMatchesHome: boolean
+}
+
+export interface VerificationStats {
+  totalActive: number
+  // albion_server IS NULL (= 온보딩 한 번도 열지 않음).
+  onboardingPending: number
+  // server 는 골랐지만 verified_at 이 null (수동 입력 또는 길드 불일치).
+  unverified: number
+  // verified_at IS NOT NULL.
+  verified: number
+  homeGuildConfigured: boolean
+  // 온보딩 미완료 + 미인증 멤버 목록 — 관리자가 바로 식별할 수 있게 탑 N.
+  pendingMembers: VerificationMember[]
+  unverifiedMembers: VerificationMember[]
+}
+
+export async function getAlbionVerificationStats(): Promise<{
+  stats?: VerificationStats
+  error?: string
+}> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const db = await requireAdmin()
+    const [avatarsRes, homeGuildId] = await Promise.all([
+      db
+        .from('guild_avatars')
+        .select(
+          'discord_id, username, avatar, is_admin, withdrawn_at, albion_server, albion_nickname, albion_player_id, albion_guild_id, albion_verified_at',
+        ),
+      getAppSetting('albion_home_guild_id', ''),
+    ])
+    if (avatarsRes.error) return { error: avatarsRes.error.message }
+
+    const rows = (avatarsRes.data ?? []).filter((a) => !a.withdrawn_at)
+    const home = homeGuildId.trim()
+
+    let onboardingPending = 0
+    let unverified = 0
+    let verified = 0
+    const pendingMembers: VerificationMember[] = []
+    const unverifiedMembers: VerificationMember[] = []
+
+    for (const a of rows) {
+      const server = (a.albion_server ?? null) as AlbionServer | null
+      const guildId = (a.albion_guild_id ?? null) as string | null
+      const guildMatchesHome = Boolean(home) && guildId === home
+      const entry: VerificationMember = {
+        discordId: a.discord_id as string,
+        username: (a.username as string) ?? '이름 미상',
+        avatar: (a.avatar as string | null) ?? null,
+        isAdmin: Boolean(a.is_admin),
+        server,
+        nickname: (a.albion_nickname as string | null) ?? null,
+        guildId,
+        verifiedAt: (a.albion_verified_at as string | null) ?? null,
+        guildMatchesHome,
+      }
+      if (!server) {
+        onboardingPending += 1
+        pendingMembers.push(entry)
+        continue
+      }
+      if (entry.verifiedAt) {
+        verified += 1
+      } else {
+        unverified += 1
+        unverifiedMembers.push(entry)
+      }
+    }
+
+    // 관리자가 상단에서 즉시 식별할 수 있도록 이름순 정렬.
+    pendingMembers.sort((a, b) => a.username.localeCompare(b.username))
+    unverifiedMembers.sort((a, b) => a.username.localeCompare(b.username))
+
+    return {
+      stats: {
+        totalActive: rows.length,
+        onboardingPending,
+        unverified,
+        verified,
+        homeGuildConfigured: home.length > 0,
+        pendingMembers: pendingMembers.slice(0, 50),
+        unverifiedMembers: unverifiedMembers.slice(0, 50),
       },
     }
   } catch (e) {

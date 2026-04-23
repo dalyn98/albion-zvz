@@ -8,8 +8,11 @@ import {
   CalendarCheck,
   UserCheck,
   UserMinus,
+  UserX,
   ShoppingBag,
   ShieldCheck,
+  ShieldAlert,
+  ShieldQuestion,
   Clock,
   Trophy,
 } from 'lucide-react'
@@ -17,10 +20,13 @@ import {
   getPointStats,
   getEventStats,
   getShopRegearStats,
+  getAlbionVerificationStats,
   type TopHolder,
+  type VerificationMember,
 } from '@/app/actions/stats-admin'
 import MemberAvatar from '@/components/MemberAvatar'
 import MemberLink from '@/components/MemberLink'
+import { ALBION_SERVER_LABEL } from '@/lib/albion-gameinfo'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,11 +37,12 @@ function itemImageUrl(uniqueName: string, enchant: number, quality: number): str
 }
 
 export default async function AdminStatsPage() {
-  // 세 섹션을 병렬로 — 하나가 느려도 다른 섹션이 블로킹되지 않도록.
-  const [pointRes, eventRes, shopRegearRes] = await Promise.all([
+  // 네 섹션을 병렬로 — 하나가 느려도 다른 섹션이 블로킹되지 않도록.
+  const [pointRes, eventRes, shopRegearRes, verificationRes] = await Promise.all([
     getPointStats(),
     getEventStats(),
     getShopRegearStats(),
+    getAlbionVerificationStats(),
   ])
 
   const { stats, error } = pointRes
@@ -163,6 +170,7 @@ export default async function AdminStatsPage() {
         )}
       </section>
 
+      <AlbionVerificationSection result={verificationRes} />
       <EventParticipationSection result={eventRes} />
       <ShopRegearSection result={shopRegearRes} />
       <WithdrawnMembersSection
@@ -500,5 +508,185 @@ function ShopRegearSection({
         )}
       </div>
     </section>
+  )
+}
+
+function AlbionVerificationSection({
+  result,
+}: {
+  result: Awaited<ReturnType<typeof getAlbionVerificationStats>>
+}) {
+  const { stats, error } = result
+  if (error || !stats) {
+    return (
+      <section className="bg-gray-900/60 border border-gray-700 rounded-lg p-4 text-sm text-red-300">
+        알비온 인증 현황을 불러오지 못했습니다: {error ?? '알 수 없는 오류'}
+      </section>
+    )
+  }
+
+  const cards = [
+    {
+      label: '활동 멤버',
+      value: stats.totalActive,
+      hint: 'withdrawn_at IS NULL',
+      icon: Users,
+      accent: 'text-gray-300',
+      ring: 'border-gray-700',
+      bg: 'bg-gray-800/40',
+    },
+    {
+      label: '인증 완료',
+      value: stats.verified,
+      hint: 'verified_at NOT NULL · 홈 길드 일치',
+      icon: ShieldCheck,
+      accent: 'text-emerald-300',
+      ring: 'border-emerald-500/30',
+      bg: 'bg-emerald-500/5',
+    },
+    {
+      label: '미인증',
+      value: stats.unverified,
+      hint: '수동 입력 또는 홈 길드 불일치',
+      icon: ShieldAlert,
+      accent: stats.unverified > 0 ? 'text-yellow-300' : 'text-gray-400',
+      ring: stats.unverified > 0 ? 'border-yellow-500/30' : 'border-gray-700',
+      bg: stats.unverified > 0 ? 'bg-yellow-500/5' : 'bg-gray-800/40',
+    },
+    {
+      label: '온보딩 미완료',
+      value: stats.onboardingPending,
+      hint: 'albion_server IS NULL',
+      icon: ShieldQuestion,
+      accent: stats.onboardingPending > 0 ? 'text-rose-300' : 'text-gray-400',
+      ring: stats.onboardingPending > 0 ? 'border-rose-500/30' : 'border-gray-700',
+      bg: stats.onboardingPending > 0 ? 'bg-rose-500/5' : 'bg-gray-800/40',
+    },
+  ]
+
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center gap-2">
+        <ShieldCheck size={18} className="text-emerald-300" />
+        <h2 className="text-lg font-semibold text-white">알비온 인증 현황</h2>
+      </div>
+      <p className="text-xs text-gray-500 leading-relaxed">
+        멤버가 로그인 후 알비온 캐릭터 정보를 등록하고 홈 길드 소속임을 인증한 상태를 집계합니다.
+        미인증 멤버는 리기어/환전/기부 등 인증 필요 기능을 쓸 수 없습니다.
+        {!stats.homeGuildConfigured && (
+          <span className="text-amber-300 ml-1">
+            홈 길드 ID 가 설정되어 있지 않아 모든 멤버가 미인증 상태로 저장됩니다.
+          </span>
+        )}
+      </p>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {cards.map((card) => {
+          const Icon = card.icon
+          return (
+            <div
+              key={card.label}
+              className={`${card.bg} ${card.ring} border rounded-lg p-4 space-y-2`}
+            >
+              <div className="flex items-center gap-2">
+                <Icon size={16} className={card.accent} />
+                <span className="text-xs text-gray-300">{card.label}</span>
+              </div>
+              <div className={`text-2xl font-bold font-mono ${card.accent}`}>
+                {card.value.toLocaleString()}
+              </div>
+              <div className="text-[11px] text-gray-500">{card.hint}</div>
+            </div>
+          )
+        })}
+      </div>
+
+      <VerificationMemberList
+        title="온보딩 미완료 멤버"
+        icon={UserX}
+        accent="text-rose-300"
+        emptyLabel="모든 활동 멤버가 온보딩을 마쳤습니다."
+        members={stats.pendingMembers}
+        mode="pending"
+      />
+      <VerificationMemberList
+        title="미인증 멤버"
+        icon={ShieldAlert}
+        accent="text-yellow-300"
+        emptyLabel="미인증 멤버가 없습니다."
+        members={stats.unverifiedMembers}
+        mode="unverified"
+      />
+    </section>
+  )
+}
+
+function VerificationMemberList({
+  title,
+  icon: Icon,
+  accent,
+  emptyLabel,
+  members,
+  mode,
+}: {
+  title: string
+  icon: React.ComponentType<{ size?: number; className?: string }>
+  accent: string
+  emptyLabel: string
+  members: VerificationMember[]
+  mode: 'pending' | 'unverified'
+}) {
+  return (
+    <div className="bg-gray-900/60 border border-gray-700 rounded-lg">
+      <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+          <Icon size={14} className={accent} />
+          {title}
+        </h3>
+        <span className="text-xs text-gray-500">{members.length}명</span>
+      </header>
+      {members.length === 0 ? (
+        <div className="px-4 py-6 text-center text-sm text-gray-500">{emptyLabel}</div>
+      ) : (
+        <ul className="divide-y divide-gray-800">
+          {members.map((m) => (
+            <li key={m.discordId} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800/40">
+              <MemberAvatar discordId={m.discordId} avatar={m.avatar} size={24} />
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                <MemberLink
+                  discordId={m.discordId}
+                  username={m.username}
+                  className="text-sm text-gray-200 truncate"
+                />
+                {m.isAdmin && (
+                  <span className="text-[10px] text-amber-400 border border-amber-500/40 rounded px-1 py-0.5 flex-shrink-0">
+                    ADMIN
+                  </span>
+                )}
+              </div>
+              {mode === 'unverified' && (
+                <div className="hidden sm:flex flex-col items-end text-[11px] text-gray-500 min-w-0">
+                  <span className="text-gray-300 truncate max-w-[140px]">
+                    {m.nickname ?? '—'}
+                  </span>
+                  <span className="font-mono">
+                    {m.server ? ALBION_SERVER_LABEL[m.server] : '—'}
+                    {m.guildId ? (
+                      m.guildMatchesHome ? (
+                        <span className="ml-1 text-emerald-400">· 길드 일치</span>
+                      ) : (
+                        <span className="ml-1 text-rose-400">· 타 길드</span>
+                      )
+                    ) : (
+                      <span className="ml-1 text-gray-600">· 수동입력</span>
+                    )}
+                  </span>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
