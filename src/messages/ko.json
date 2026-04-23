@@ -276,7 +276,15 @@
     "slotTemplateNoData": "저장된 빌드 템플릿이 없습니다.",
     "slotTemplateOverwriteWarn": "적용하면 현재 슬롯 내용이 덮어써집니다.",
     "slotTemplateNotFound": "템플릿을 찾을 수 없습니다.",
-    "slotTemplateDeleteAria": "{name} 삭제"
+    "slotTemplateDeleteAria": "{name} 삭제",
+    "recentBuildsBtn": "최근 빌드",
+    "recentBuildsTooltip": "최근에 만든 빌드 5개에서 빠르게 불러오기 (이 기기 전용)",
+    "recentBuildsTitle": "최근 빌드",
+    "recentBuildsLimit": "최대 5개",
+    "recentBuildsEmpty": "최근 빌드가 없습니다. 슬롯을 구성하고 완료를 누르면 자동 저장됩니다.",
+    "recentBuildsNoRole": "역할 미지정",
+    "recentBuildsFallbackName": "빌드",
+    "recentBuildsRemoveAria": "최근 빌드에서 제거"
   },
   "picker": {
     "itemSearchPlaceholder": "아이템 검색...",
@@ -811,7 +819,9 @@
     "sortByParticipation": "참여 많은 순",
     "sortByRecent": "최근 로그인 순",
     "sortByRoleActive": "{role} 참여 많은 순으로 정렬 중",
+    "sortByWeaponActive": "{weapon} 사용 많은 순으로 정렬 중",
     "filterByRole": "역할군 필터",
+    "filterByWeapon": "무기군 필터",
     "filterClear": "전체 보기",
     "noSearchResult": "검색 결과가 없습니다.",
     "adminLabel": "관리자",

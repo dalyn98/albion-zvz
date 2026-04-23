@@ -276,7 +276,15 @@
     "slotTemplateNoData": "保存されたビルドテンプレートがありません。",
     "slotTemplateOverwriteWarn": "適用すると現在のスロット内容が上書きされます。",
     "slotTemplateNotFound": "テンプレートが見つかりません。",
-    "slotTemplateDeleteAria": "{name} を削除"
+    "slotTemplateDeleteAria": "{name} を削除",
+    "recentBuildsBtn": "最近のビルド",
+    "recentBuildsTooltip": "最近作成したビルド5件から素早く呼び出し（この端末のみ）",
+    "recentBuildsTitle": "最近のビルド",
+    "recentBuildsLimit": "最大5件",
+    "recentBuildsEmpty": "最近のビルドはまだありません。スロット設定を完了すると自動保存されます。",
+    "recentBuildsNoRole": "役割未指定",
+    "recentBuildsFallbackName": "ビルド",
+    "recentBuildsRemoveAria": "最近のビルドから削除"
   },
   "picker": {
     "itemSearchPlaceholder": "アイテム検索...",
@@ -811,7 +819,9 @@
     "sortByParticipation": "参加回数順",
     "sortByRecent": "最近のログイン順",
     "sortByRoleActive": "{role} 参加回数順で並び替え中",
+    "sortByWeaponActive": "{weapon} 使用回数順で並び替え中",
     "filterByRole": "役割フィルター",
+    "filterByWeapon": "武器フィルター",
     "filterClear": "すべて表示",
     "noSearchResult": "検索結果がありません。",
     "adminLabel": "管理者",

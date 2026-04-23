@@ -10,6 +10,9 @@ import ItemImage from './ItemImage'
 import SpellPicker from './SpellPicker'
 import SaveSlotAsTemplateButton from './SaveSlotAsTemplateButton'
 import LoadSlotTemplateButton from './LoadSlotTemplateButton'
+import RecentBuildsDropdown from './RecentBuildsDropdown'
+import { slotInputToTemplateData } from '@/lib/slot-template-shape'
+import { saveRecentBuild } from '@/lib/recent-builds'
 import type { SlotKey, GearOption, GearSpec } from '@/types'
 import {
   SLOT_KEYS,
@@ -352,6 +355,7 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, onCha
                   defaultName={slot.role_name ? t('buildName', { role: slot.role_name }) : ''}
                 />
                 <LoadSlotTemplateButton slot={slot} onLoad={onChange} />
+                <RecentBuildsDropdown slot={slot} onLoad={onChange} />
               </div>
 
               <div>
@@ -463,7 +467,13 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, onCha
               </button>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  // Auto-stash the current build in browser-local recents so
+                  // the admin can re-apply it without retyping. saveRecentBuild
+                  // no-ops when the weapon slot is empty.
+                  saveRecentBuild(slotInputToTemplateData(slot))
+                  setOpen(false)
+                }}
                 className="ml-auto bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 py-2 rounded-lg text-sm transition-colors"
               >
                 {t('done')}

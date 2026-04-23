@@ -273,7 +273,15 @@
     "slotTemplateNoData": "No saved build templates.",
     "slotTemplateOverwriteWarn": "Applying will overwrite the current slot contents.",
     "slotTemplateNotFound": "Template not found.",
-    "slotTemplateDeleteAria": "Delete {name}"
+    "slotTemplateDeleteAria": "Delete {name}",
+    "recentBuildsBtn": "Recent builds",
+    "recentBuildsTooltip": "Quickly reload from your last 5 builds (this device only)",
+    "recentBuildsTitle": "Recent builds",
+    "recentBuildsLimit": "Up to 5",
+    "recentBuildsEmpty": "No recent builds yet. Finish configuring a slot and they appear here.",
+    "recentBuildsNoRole": "No role",
+    "recentBuildsFallbackName": "Build",
+    "recentBuildsRemoveAria": "Remove from recent builds"
   },
   "picker": {
     "itemSearchPlaceholder": "Search items...",
@@ -808,7 +816,9 @@
     "sortByParticipation": "Most participation",
     "sortByRecent": "Recently logged in",
     "sortByRoleActive": "Sorted by {role} participation",
+    "sortByWeaponActive": "Sorted by {weapon} usage",
     "filterByRole": "Filter by role",
+    "filterByWeapon": "Filter by weapon",
     "filterClear": "Show all",
     "noSearchResult": "No results.",
     "adminLabel": "Admin",

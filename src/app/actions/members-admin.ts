@@ -7,6 +7,7 @@ import { getSession } from '@/lib/session'
 import { requireAdmin } from '@/lib/auth'
 import { isLocale } from '@/i18n/locales'
 import { runMemberSync, type RolesSource } from '@/lib/member-sync'
+import { extractWeaponCategory } from '@/lib/weapon-category'
 import type { RegearType } from '@/types'
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
@@ -30,6 +31,18 @@ export interface WeaponCount {
   count: number
 }
 
+// Aggregated by Albion weapon-family code (e.g., HOLYSTAFF / FIRESTAFF / SWORD).
+// Same category covers every tier/enchant/artifact variant so the guild-level
+// filter works even when members run different tiers of the same weapon.
+export interface WeaponCategoryCount {
+  category: string
+  count: number
+  // A representative bundled item id for the category (picked from the first
+  // aggregated row). null when the category came from free-text names only,
+  // which means the UI has no icon to render.
+  sample_weapon_id: string | null
+}
+
 export interface GuildMemberSummary {
   discord_id: string
   username: string
@@ -38,6 +51,7 @@ export interface GuildMemberSummary {
   updated_at: string
   participation_count: number
   top_roles: RoleCount[]
+  top_weapons: WeaponCategoryCount[]
   // null = 아직 언어 선택 안한 사용자 (환영 페이지 유도 대상)
   preferred_language: 'ko' | 'en' | 'ja' | null
 }
@@ -140,7 +154,9 @@ export async function listGuildMembers(): Promise<{
         .is('withdrawn_at', null),
       db
         .from('slots')
-        .select('assigned_discord_id, role_name, parties!inner(event_id)')
+        .select(
+          'assigned_discord_id, role_name, weapon_id, assigned_weapon_id, parties!inner(event_id)',
+        )
         .not('assigned_discord_id', 'is', null),
     ])
     if (avatarsRes.error) return { members: [], error: avatarsRes.error.message }
@@ -150,6 +166,7 @@ export async function listGuildMembers(): Promise<{
     interface Agg {
       events: Set<string>
       roles: Map<string, number>
+      weapons: Map<string, { count: number; sampleId: string | null }>
     }
     const bucket = new Map<string, Agg>()
     for (const row of slotsRes.data ?? []) {
@@ -160,12 +177,30 @@ export async function listGuildMembers(): Promise<{
       if (!eventId) continue
       let agg = bucket.get(discordId)
       if (!agg) {
-        agg = { events: new Set(), roles: new Map() }
+        agg = { events: new Set(), roles: new Map(), weapons: new Map() }
         bucket.set(discordId, agg)
       }
       agg.events.add(eventId)
       const role = row.role_name ?? unassignedRoleLabel
       agg.roles.set(role, (agg.roles.get(role) ?? 0) + 1)
+
+      // Prefer the member's assigned pick; fall back to the template weapon so
+      // fixed-weapon slots (no weapon_options) still count toward the profile.
+      const weaponId: string | null =
+        (row as { assigned_weapon_id: string | null }).assigned_weapon_id ??
+        (row as { weapon_id: string | null }).weapon_id ??
+        null
+      const category = extractWeaponCategory(weaponId)
+      if (category) {
+        const existing = agg.weapons.get(category)
+        if (existing) {
+          existing.count++
+          // Keep the first valid sample id — stable across re-renders.
+          if (!existing.sampleId && weaponId) existing.sampleId = weaponId
+        } else {
+          agg.weapons.set(category, { count: 1, sampleId: weaponId })
+        }
+      }
     }
 
     const members: GuildMemberSummary[] = (avatarsRes.data ?? []).map((a) => {
@@ -173,6 +208,15 @@ export async function listGuildMembers(): Promise<{
       const roles = agg
         ? Array.from(agg.roles.entries())
             .map(([role, count]) => ({ role, count }))
+            .sort((x, y) => y.count - x.count)
+        : []
+      const weapons: WeaponCategoryCount[] = agg
+        ? Array.from(agg.weapons.entries())
+            .map(([category, v]) => ({
+              category,
+              count: v.count,
+              sample_weapon_id: v.sampleId,
+            }))
             .sort((x, y) => y.count - x.count)
         : []
       return {
@@ -185,6 +229,7 @@ export async function listGuildMembers(): Promise<{
         // Full per-role breakdown so the client can filter/sort by any role.
         // UI only renders the first few as badges.
         top_roles: roles,
+        top_weapons: weapons,
         preferred_language: isLocale(a.preferred_language) ? a.preferred_language : null,
       }
     })

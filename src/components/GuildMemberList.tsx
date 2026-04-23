@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { ChevronRight, Crown, Users, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import SearchBox from './SearchBox'
@@ -23,6 +24,7 @@ export default function GuildMemberList({ members }: Props) {
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('participation')
   const [roleFilter, setRoleFilter] = useState<SlotRole | null>(null)
+  const [weaponFilter, setWeaponFilter] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
     const q = normalizeQuery(search)
@@ -32,11 +34,31 @@ export default function GuildMemberList({ members }: Props) {
         m.top_roles.some((r) => r.role === roleFilter && r.count > 0),
       )
     }
+    if (weaponFilter) {
+      base = base.filter((m) =>
+        m.top_weapons.some((w) => w.category === weaponFilter && w.count > 0),
+      )
+    }
     const sorted = [...base]
-    if (roleFilter) {
-      // With a role filter active, sort by that role's count desc — the user's
-      // request was "역할군 참여 높은순". Fall through to general participation
-      // on ties so members with identical role counts order deterministically.
+    // Filter-aware sort: whichever active filter is "strongest" drives the
+    // order so matches with higher usage of the filtered role/weapon come
+    // first. Fall through on ties to keep the order deterministic.
+    if (weaponFilter) {
+      sorted.sort((a, b) => {
+        const countA = a.top_weapons.find((w) => w.category === weaponFilter)?.count ?? 0
+        const countB = b.top_weapons.find((w) => w.category === weaponFilter)?.count ?? 0
+        if (countB !== countA) return countB - countA
+        if (roleFilter) {
+          const rA = a.top_roles.find((r) => r.role === roleFilter)?.count ?? 0
+          const rB = b.top_roles.find((r) => r.role === roleFilter)?.count ?? 0
+          if (rB !== rA) return rB - rA
+        }
+        if (b.participation_count !== a.participation_count) {
+          return b.participation_count - a.participation_count
+        }
+        return a.username.localeCompare(b.username)
+      })
+    } else if (roleFilter) {
       sorted.sort((a, b) => {
         const countA = a.top_roles.find((r) => r.role === roleFilter)?.count ?? 0
         const countB = b.top_roles.find((r) => r.role === roleFilter)?.count ?? 0
@@ -57,7 +79,7 @@ export default function GuildMemberList({ members }: Props) {
       })
     }
     return sorted
-  }, [members, search, sortKey, roleFilter])
+  }, [members, search, sortKey, roleFilter, weaponFilter])
 
   const totalParticipations = useMemo(
     () => members.reduce((acc, m) => acc + m.participation_count, 0),
@@ -75,6 +97,29 @@ export default function GuildMemberList({ members }: Props) {
     }
     return SLOT_ROLES.filter((r) => seen.has(r))
   }, [members])
+
+  // Aggregate guild-wide weapon usage so the filter shows the most-used
+  // categories first (and members picking rare weapons don't hide them).
+  const availableWeapons = useMemo(() => {
+    const tally = new Map<string, { count: number; sampleId: string | null }>()
+    for (const m of members) {
+      for (const w of m.top_weapons) {
+        if (w.count <= 0) continue
+        const existing = tally.get(w.category)
+        if (existing) {
+          existing.count += w.count
+          if (!existing.sampleId && w.sample_weapon_id) existing.sampleId = w.sample_weapon_id
+        } else {
+          tally.set(w.category, { count: w.count, sampleId: w.sample_weapon_id })
+        }
+      }
+    }
+    return Array.from(tally.entries())
+      .map(([category, v]) => ({ category, count: v.count, sampleId: v.sampleId }))
+      .sort((a, b) => b.count - a.count)
+  }, [members])
+
+  const hasFilter = !!roleFilter || !!weaponFilter
 
   return (
     <div className="space-y-3">
@@ -131,22 +176,76 @@ export default function GuildMemberList({ members }: Props) {
         </div>
       )}
 
+      {availableWeapons.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500 text-[11px] font-semibold uppercase tracking-wider">
+              {t('filterByWeapon')}
+            </span>
+            {weaponFilter && (
+              <button
+                type="button"
+                onClick={() => setWeaponFilter(null)}
+                className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-white"
+              >
+                <X size={11} />
+                {t('filterClear')}
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {availableWeapons.map(({ category, sampleId }) => {
+              const active = weaponFilter === category
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() => setWeaponFilter(active ? null : category)}
+                  className={`inline-flex items-center gap-1.5 text-[11px] font-semibold pl-1 pr-2.5 py-0.5 rounded-full border transition-colors ${
+                    active
+                      ? 'bg-amber-500/20 border-amber-500/60 text-amber-200'
+                      : 'bg-gray-900 border-gray-700 text-gray-300 hover:text-white hover:border-gray-600'
+                  }`}
+                >
+                  {sampleId ? (
+                    <Image
+                      src={`https://render.albiononline.com/v1/item/${sampleId}.png`}
+                      alt=""
+                      width={20}
+                      height={20}
+                      className="rounded-sm bg-black/40 pixel-img"
+                      unoptimized
+                    />
+                  ) : null}
+                  <span>{category}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-2 flex-wrap">
         <SortChip
-          active={!roleFilter && sortKey === 'participation'}
-          disabled={!!roleFilter}
+          active={!hasFilter && sortKey === 'participation'}
+          disabled={hasFilter}
           onClick={() => setSortKey('participation')}
         >
           {t('sortByParticipation')}
         </SortChip>
         <SortChip
-          active={!roleFilter && sortKey === 'recent'}
-          disabled={!!roleFilter}
+          active={!hasFilter && sortKey === 'recent'}
+          disabled={hasFilter}
           onClick={() => setSortKey('recent')}
         >
           {t('sortByRecent')}
         </SortChip>
-        {roleFilter && (
+        {weaponFilter && (
+          <span className="text-[11px] text-amber-300/80">
+            {t('sortByWeaponActive', { weapon: weaponFilter })}
+          </span>
+        )}
+        {roleFilter && !weaponFilter && (
           <span className="text-[11px] text-amber-300/80">
             {t('sortByRoleActive', { role: roleFilter })}
           </span>
@@ -158,7 +257,12 @@ export default function GuildMemberList({ members }: Props) {
       ) : (
         <ul className="space-y-2 xl:grid xl:grid-cols-2 xl:gap-2 xl:space-y-0 2xl:grid-cols-3">
           {filtered.map((m) => (
-            <MemberRow key={m.discord_id} member={m} roleFilter={roleFilter} />
+            <MemberRow
+              key={m.discord_id}
+              member={m}
+              roleFilter={roleFilter}
+              weaponFilter={weaponFilter}
+            />
           ))}
         </ul>
       )}
@@ -198,9 +302,11 @@ function SortChip({
 function MemberRow({
   member,
   roleFilter,
+  weaponFilter,
 }: {
   member: GuildMemberSummary
   roleFilter: SlotRole | null
+  weaponFilter: string | null
 }) {
   const t = useTranslations('members')
   // When a role filter is active, surface that role's badge first even if it's
@@ -212,6 +318,11 @@ function MemberRow({
     const rest = member.top_roles.filter((r) => r.role !== roleFilter).slice(0, BADGE_LIMIT - 1)
     return [match, ...rest]
   }, [member.top_roles, roleFilter])
+
+  const matchedWeapon = useMemo(() => {
+    if (!weaponFilter) return null
+    return member.top_weapons.find((w) => w.category === weaponFilter) ?? null
+  }, [member.top_weapons, weaponFilter])
 
   return (
     <li>
@@ -250,6 +361,21 @@ function MemberRow({
                   </span>
                 )
               })
+            )}
+            {matchedWeapon && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-200 ring-1 ring-amber-300/60">
+                {matchedWeapon.sample_weapon_id && (
+                  <Image
+                    src={`https://render.albiononline.com/v1/item/${matchedWeapon.sample_weapon_id}.png`}
+                    alt=""
+                    width={14}
+                    height={14}
+                    className="pixel-img"
+                    unoptimized
+                  />
+                )}
+                {matchedWeapon.category} {matchedWeapon.count}
+              </span>
             )}
           </div>
         </div>
