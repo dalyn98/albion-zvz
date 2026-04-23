@@ -1,13 +1,19 @@
 'use client'
 
-// AODP 시세 설정 — 도시 체크박스 / 가격 모드 / 최소 품질.
+// AODP 시세 설정 — 기준 도시 1개 / 가격 모드 / 최소 품질.
 // 상점 자동 가격 갱신과 (Phase 3) 자동 리기어가 공용으로 사용.
+// 기준 도시는 단일 선택: 거래소를 한 군데로 가정한 시세 추정이 이해하기 쉽고,
+// 시세 없는 아이템은 aodp.ts 폴백 체인이 자동으로 블루존 → 레드존으로 넓힌다.
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Save, LineChart } from 'lucide-react'
+import { Save, LineChart, Info } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
-import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
+import {
+  AODP_ALLOWED_CITIES,
+  AODP_CITY_LABEL,
+  AODP_INFO_TOOLTIP,
+} from '@/lib/shop/aodp-constants'
 
 type PriceMode = 'spot' | 'avg_1d' | 'avg_3d' | 'avg_7d' | 'avg_14d'
 type Quality = 1 | 2 | 3 | 4 | 5
@@ -34,52 +40,28 @@ const QUALITY_OPTIONS: ReadonlyArray<{ value: Quality; label: string }> = [
   { value: 5, label: '5 Masterpiece' },
 ]
 
-const CITY_LABELS: Record<(typeof AODP_ALLOWED_CITIES)[number], string> = {
-  Caerleon: '카에르레온',
-  Bridgewatch: '브리지워치',
-  Lymhurst: '림허스트',
-  Martlock: '말록',
-  Thetford: '테트포드',
-  'Fort Sterling': '포트 스털링',
-  Brecilien: '브레실리엔',
-}
-
 export default function AodpSettingsForm({ initialCities, initialMode, initialMinQuality }: Props) {
   const router = useRouter()
-  const [cities, setCities] = useState<Set<string>>(new Set(initialCities))
+  // 기준 도시는 1개만. 기존에 여러 개 저장됐던 값도 첫 항목만 남긴다.
+  const [city, setCity] = useState<string>(
+    initialCities[0] ?? (AODP_ALLOWED_CITIES[0] as string),
+  )
   const [mode, setMode] = useState<PriceMode>(initialMode)
   const [minQuality, setMinQuality] = useState<Quality>(initialMinQuality)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
 
-  const initialCitySet = new Set(initialCities)
-  const citiesDirty =
-    cities.size !== initialCitySet.size ||
-    Array.from(cities).some((c) => !initialCitySet.has(c))
-  const dirty = citiesDirty || mode !== initialMode || minQuality !== initialMinQuality
-
-  const toggleCity = (city: string) => {
-    setSaved(false)
-    setCities((prev) => {
-      const next = new Set(prev)
-      if (next.has(city)) next.delete(city)
-      else next.add(city)
-      return next
-    })
-  }
+  const initialCity = initialCities[0] ?? (AODP_ALLOWED_CITIES[0] as string)
+  const dirty =
+    city !== initialCity || mode !== initialMode || minQuality !== initialMinQuality
 
   const handleSave = async () => {
-    if (cities.size === 0) {
-      setError('최소 한 도시 이상 선택해 주세요.')
-      return
-    }
     setLoading(true)
     setError('')
     setSaved(false)
-    const orderedCities = (AODP_ALLOWED_CITIES as readonly string[]).filter((c) => cities.has(c))
     const results = await Promise.all([
-      updateAppSetting('aodp_cities', JSON.stringify(orderedCities)),
+      updateAppSetting('aodp_cities', JSON.stringify([city])),
       updateAppSetting('aodp_price_mode', mode),
       updateAppSetting('aodp_min_quality', String(minQuality)),
     ])
@@ -97,8 +79,17 @@ export default function AodpSettingsForm({ initialCities, initialMode, initialMi
     <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4">
       <div className="flex items-start gap-2">
         <LineChart size={16} className="text-amber-400 mt-0.5" />
-        <div>
-          <h2 className="font-bold text-white">AODP 시세 설정</h2>
+        <div className="flex-1">
+          <div className="flex items-center gap-1.5">
+            <h2 className="font-bold text-white">AODP 시세 설정</h2>
+            <span
+              className="inline-flex cursor-help text-gray-500"
+              aria-label="AODP 설명"
+              title={AODP_INFO_TOOLTIP}
+            >
+              <Info size={12} />
+            </span>
+          </div>
           <p className="text-gray-500 text-xs mt-1">
             상점 자동 가격 · 자동 리기어 산정에 공용으로 쓰이는 시세 조회 옵션입니다.
           </p>
@@ -107,14 +98,14 @@ export default function AodpSettingsForm({ initialCities, initialMode, initialMi
 
       <section className="space-y-2">
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
-          조회 도시 (복수 선택)
+          기준 도시 (1개)
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {AODP_ALLOWED_CITIES.map((city) => {
-            const active = cities.has(city)
+          {AODP_ALLOWED_CITIES.map((c) => {
+            const active = c === city
             return (
               <label
-                key={city}
+                key={c}
                 className={`flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer select-none transition-colors ${
                   active
                     ? 'border-amber-500/60 bg-amber-500/10'
@@ -122,19 +113,22 @@ export default function AodpSettingsForm({ initialCities, initialMode, initialMi
                 }`}
               >
                 <input
-                  type="checkbox"
+                  type="radio"
+                  name="aodp-base-city"
                   checked={active}
-                  onChange={() => toggleCity(city)}
+                  onChange={() => {
+                    setCity(c)
+                    setSaved(false)
+                  }}
                   className="accent-amber-500"
                 />
-                <span className="text-sm text-white">{CITY_LABELS[city]}</span>
+                <span className="text-sm text-white">{AODP_CITY_LABEL[c]}</span>
               </label>
             )
           })}
         </div>
         <p className="text-[11px] text-gray-500">
-          여러 도시를 선택하면 그중 <span className="text-amber-300">최저가</span> 도시가 자동 채택됩니다. Black Market 은
-          제외됐습니다.
+          길드의 <span className="text-amber-300">홈 거래소</span> 로 쓸 도시 1곳만 고릅니다. 이 도시에 시세가 없으면 자동으로 다른 로열 시티 → 레드존 순으로 폴백해 추정합니다.
         </p>
       </section>
 

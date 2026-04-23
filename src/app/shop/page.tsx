@@ -6,11 +6,34 @@ import { getAppSetting } from '@/lib/app-settings'
 import { computePointPrice, parseSilverToPointRate } from '@/lib/shop/price'
 import { categoryRank } from '@/lib/shop/category-order'
 import { getMyPointBalance, listMyShopOrders } from '@/app/actions/shop-member'
+import {
+  AODP_ALLOWED_CITIES,
+  AODP_CITY_LABEL,
+  type AodpCity,
+} from '@/lib/shop/aodp-constants'
 import ShopCatalog, {
   type CatalogItem,
   type ShopPriceWarning,
 } from '@/components/ShopCatalog'
 import ShopMyOrders from '@/components/ShopMyOrders'
+
+// 관리자 설정에서 저장된 aodp_cities (JSON 배열) 에서 첫 항목을 꺼낸다. 파싱
+// 실패하거나 허용된 도시가 아니면 기본값(카에르레온) 으로 폴백 — 관리자가
+// 설정 전에도 /shop 이 깨지지 않게.
+function parseBaseCity(raw: string): AodpCity {
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed) && typeof parsed[0] === 'string') {
+      const first = parsed[0]
+      if ((AODP_ALLOWED_CITIES as readonly string[]).includes(first)) {
+        return first as AodpCity
+      }
+    }
+  } catch {
+    // ignore — fall through
+  }
+  return AODP_ALLOWED_CITIES[0]
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -18,20 +41,23 @@ export default async function PublicShopPage() {
   const session = await getSession()
   const db = getAdminClient()
 
-  const [deliveryNotice, silverRateSetting, { data: invRows }] = await Promise.all([
-    getAppSetting('shop_delivery_notice', ''),
-    getAppSetting('shop_silver_to_point_rate', '1'),
-    db
-      .from('shop_inventory')
-      .select(
-        'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver, price_warning_level',
-      )
-      .gt('stock', 0)
-      .order('name_ko', { ascending: true })
-      .limit(500),
-  ])
+  const [deliveryNotice, silverRateSetting, aodpCitiesSetting, { data: invRows }] =
+    await Promise.all([
+      getAppSetting('shop_delivery_notice', ''),
+      getAppSetting('shop_silver_to_point_rate', '1'),
+      getAppSetting('aodp_cities', ''),
+      db
+        .from('shop_inventory')
+        .select(
+          'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver, price_warning_level',
+        )
+        .gt('stock', 0)
+        .order('name_ko', { ascending: true })
+        .limit(500),
+    ])
 
   const rate = parseSilverToPointRate(silverRateSetting)
+  const baseCity = parseBaseCity(aodpCitiesSetting)
 
   // 가격 계산 후 카테고리 → 이름 순으로 안정 정렬. DB 가 name_ko asc 로 반환하므로
   // 카테고리 랭크만 비교하면 동일 카테고리 내 이름순이 자동 유지된다.
@@ -107,7 +133,12 @@ export default async function PublicShopPage() {
 
       {orders.length > 0 && <ShopMyOrders orders={orders} />}
 
-      <ShopCatalog items={items} balance={balance} isMember={isMember} />
+      <ShopCatalog
+        items={items}
+        balance={balance}
+        isMember={isMember}
+        baseCityLabel={AODP_CITY_LABEL[baseCity]}
+      />
     </div>
   )
 }

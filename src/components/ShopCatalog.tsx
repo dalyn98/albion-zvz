@@ -12,8 +12,10 @@ import {
   Send,
   Loader2,
   Trash2,
+  Info,
 } from 'lucide-react'
 import { submitShopOrder } from '@/app/actions/shop-member'
+import { AODP_INFO_TOOLTIP } from '@/lib/shop/aodp-constants'
 
 export type ShopPriceWarning = 'quality' | 'window' | 'bluezone' | 'redzone' | null
 
@@ -65,6 +67,8 @@ interface Props {
   items: CatalogItem[]
   balance: number
   isMember: boolean
+  // AODP 기준 도시 한글 라벨 — /shop 상단에 "시세 기준: ○○" 로 노출한다.
+  baseCityLabel: string
 }
 
 interface CartLine {
@@ -88,7 +92,12 @@ function imageUrl(uniqueName: string, enchant: number, quality: number, size = 9
   return `https://render.albiononline.com/v1/item/${id}.png?${params.toString()}`
 }
 
-export default function ShopCatalog({ items, balance, isMember }: Props) {
+export default function ShopCatalog({
+  items,
+  balance,
+  isMember,
+  baseCityLabel,
+}: Props) {
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [tier, setTier] = useState<number | 'all'>('all')
@@ -171,7 +180,21 @@ export default function ShopCatalog({ items, balance, isMember }: Props) {
   // 좌: 카탈로그, 우: 장바구니 (lg+ 상시 표시). 모바일에선 아래 토글 드로어로 전환.
   return (
     <div className="lg:grid lg:grid-cols-[1fr_20rem] lg:gap-4 lg:items-start">
-      <div className="space-y-4 min-w-0">
+      <div className="space-y-3 min-w-0">
+        {/* 시세 기준 도시 안내 — 관리자가 설정한 홈 거래소. Info 아이콘 호버 시
+            AODP 폴백/부정확 사유를 설명하는 툴팁이 뜬다. 상점 전역에 적용되는
+            힌트라 검색 툴바 위쪽 한 줄에 배치. */}
+        <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+          <span>시세 기준</span>
+          <span className="text-amber-300 font-semibold">{baseCityLabel}</span>
+          <span
+            className="inline-flex cursor-help text-gray-500"
+            aria-label="AODP 설명"
+            title={AODP_INFO_TOOLTIP}
+          >
+            <Info size={12} />
+          </span>
+        </div>
         {/* 상단 도구: 검색 + 티어 필터 + 잔액 + (모바일) 장바구니 버튼 */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative flex-1 min-w-[160px]">
