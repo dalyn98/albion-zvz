@@ -102,11 +102,18 @@ export async function requestRegear(
 
   const eventId = String(formData.get('eventId') ?? '')
   const file = formData.get('screenshot')
+  const file2 = formData.get('screenshot2')
   const claimedSilverRaw = String(formData.get('claimedSilver') ?? '')
   if (!eventId) return { error: tErr('missingEventInfo') }
   if (!(file instanceof File) || file.size === 0) return { error: tErr('screenshotMissing') }
   if (file.size > MAX_SCREENSHOT_BYTES) return { error: tErr('screenshotTooLarge') }
   if (!ALLOWED_MIME.has(file.type)) return { error: tErr('screenshotWrongType') }
+  // 두 번째 스크린샷은 선택 사항 — 제출 된 경우에만 검증.
+  const hasFile2 = file2 instanceof File && file2.size > 0
+  if (hasFile2) {
+    if (file2.size > MAX_SCREENSHOT_BYTES) return { error: tErr('screenshotTooLarge') }
+    if (!ALLOWED_MIME.has(file2.type)) return { error: tErr('screenshotWrongType') }
+  }
 
   const db = getAdminClient()
 
@@ -197,6 +204,22 @@ export async function requestRegear(
     .upload(path, file, { contentType: file.type, upsert: false })
   if (uploadError) return { error: tErr('screenshotUploadFailed', { reason: uploadError.message }) }
 
+  // 5a) 두 번째 스크린샷이 있으면 같은 버킷에 업로드. 파일명은 첫 번째 경로에
+  //     `-2` 접미사를 붙여 쌍 관계를 쉽게 파악할 수 있게 한다. 업로드 실패 시
+  //     앞서 올린 첫 번째 파일도 같이 지워 고아 파일을 남기지 않는다.
+  let path2: string | null = null
+  if (hasFile2) {
+    const ext2 = file2.type === 'image/png' ? 'png' : file2.type === 'image/webp' ? 'webp' : 'jpg'
+    path2 = `${session.discordId}/${eventId}-${Date.now()}-2.${ext2}`
+    const { error: upload2Error } = await db.storage
+      .from(SCREENSHOT_BUCKET)
+      .upload(path2, file2, { contentType: file2.type, upsert: false })
+    if (upload2Error) {
+      await db.storage.from(SCREENSHOT_BUCKET).remove([path])
+      return { error: tErr('screenshotUploadFailed', { reason: upload2Error.message }) }
+    }
+  }
+
   // 6) Killboard verification (hint-only — admin still reviews). We look from
   //    battle start up to now; the submission itself is already gated behind
   //    the collection delay, so the killboard should have the death indexed.
@@ -220,6 +243,7 @@ export async function requestRegear(
       silver,
       claimed_silver: claimedSilver,
       screenshot_path: path,
+      screenshot_path_2: path2,
       killboard_verified: kbResult.verified,
       killboard_event_id: kbResult.matchedEventId,
       admin_notes: kbResult.reason, // Shown to admin as the killboard hint.
@@ -229,7 +253,8 @@ export async function requestRegear(
     .single()
   if (insertError) {
     // Best-effort cleanup so we don't leak orphaned screenshots.
-    await db.storage.from(SCREENSHOT_BUCKET).remove([path])
+    const cleanup = path2 ? [path, path2] : [path]
+    await db.storage.from(SCREENSHOT_BUCKET).remove(cleanup)
     return { error: insertError.message }
   }
 
@@ -247,7 +272,7 @@ export async function cancelMyRegearRequest(id: string): Promise<{ error?: strin
   const db = getAdminClient()
   const { data: row, error: fetchError } = await db
     .from('regear_requests')
-    .select('id, status, discord_id, event_id, screenshot_path')
+    .select('id, status, discord_id, event_id, screenshot_path, screenshot_path_2')
     .eq('id', id)
     .maybeSingle()
   if (fetchError) return { error: fetchError.message }
@@ -264,8 +289,11 @@ export async function cancelMyRegearRequest(id: string): Promise<{ error?: strin
 
   // Best-effort screenshot cleanup. If this fails we continue — the nightly
   // cron already has a separate sweep for orphaned files.
-  if (row.screenshot_path) {
-    await db.storage.from(SCREENSHOT_BUCKET).remove([row.screenshot_path])
+  const toRemove: string[] = []
+  if (row.screenshot_path) toRemove.push(row.screenshot_path)
+  if (row.screenshot_path_2) toRemove.push(row.screenshot_path_2)
+  if (toRemove.length > 0) {
+    await db.storage.from(SCREENSHOT_BUCKET).remove(toRemove)
   }
 
   if (row.event_id) revalidatePath(`/events/${row.event_id}`)

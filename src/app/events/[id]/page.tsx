@@ -11,7 +11,7 @@ import AutoRefresh from '@/components/AutoRefresh'
 import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil } from 'lucide-react'
 import Link from 'next/link'
 import { getSession } from '@/lib/session'
-import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
+import { getAvatarsByDiscordIds, getUsernamesByDiscordIds } from '@/lib/discord-avatar'
 import { formatGatherTimeFor, isEnded } from '@/lib/gather-time'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { getLocale } from '@/lib/locale'
@@ -94,10 +94,13 @@ export default async function EventDetailPage({
     ...p.slots.map((s) => s.requested_discord_id),
     p.caller_discord_id,
   ])
-  const avatarMap = await getAvatarsByDiscordIds(
-    memberIds.filter((id): id is string => !!id),
-  )
+  const memberIdList = memberIds.filter((id): id is string => !!id)
+  const [avatarMap, usernameMap] = await Promise.all([
+    getAvatarsByDiscordIds(memberIdList),
+    getUsernamesByDiscordIds(memberIdList),
+  ])
   const avatars = Object.fromEntries(avatarMap)
+  const usernames = Object.fromEntries(usernameMap)
 
   const loginHref = `/api/auth/discord/start?returnTo=${encodeURIComponent(`/events/${id}`)}`
 
@@ -215,6 +218,7 @@ export default async function EventDetailPage({
           isAdmin={session?.isAdmin ?? false}
           eventId={id}
           avatars={avatars}
+          usernames={usernames}
           cdBadgeRoles={cdBadgeRoles}
         />
       </main>

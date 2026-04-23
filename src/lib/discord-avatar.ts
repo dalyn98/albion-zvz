@@ -51,6 +51,24 @@ export async function getAvatarsByDiscordIds(
   return result
 }
 
+// Username 조회용 배치 API. 콜러가 파티 슬롯에 배정되지 않아도 이름 표시
+// 하려고 만들었다 — guild_avatars/guests 에서 찾고, 없으면 null.
+export async function getUsernamesByDiscordIds(
+  ids: readonly string[],
+): Promise<Map<string, string | null>> {
+  if (ids.length === 0) return new Map()
+  const unique = Array.from(new Set(ids))
+  const db = getAdminClient()
+  const [members, guests] = await Promise.all([
+    db.from('guild_avatars').select('discord_id, username').in('discord_id', unique),
+    db.from('guests').select('discord_id, username').in('discord_id', unique),
+  ])
+  const result = new Map<string, string | null>()
+  for (const row of guests.data ?? []) result.set(row.discord_id, row.username ?? null)
+  for (const row of members.data ?? []) result.set(row.discord_id, row.username ?? null)
+  return result
+}
+
 export async function upsertGuildAvatar(
   discordId: string,
   username: string,

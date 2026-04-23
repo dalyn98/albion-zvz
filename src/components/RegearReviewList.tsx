@@ -224,6 +224,9 @@ function RegearRow({
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null)
   const [loadingScreenshot, setLoadingScreenshot] = useState(false)
   const [zoomed, setZoomed] = useState(false)
+  const [screenshot2Url, setScreenshot2Url] = useState<string | null>(null)
+  const [loadingScreenshot2, setLoadingScreenshot2] = useState(false)
+  const [zoomed2, setZoomed2] = useState(false)
   // 관리자가 청구 금액을 재량으로 조정해서 승인할 수 있게 — 빈 값 = 요율 기본.
   const [overrideMode, setOverrideMode] = useState(false)
   const [overrideInput, setOverrideInput] = useState('')
@@ -253,6 +256,21 @@ function RegearRow({
         return
       }
       if (result.url) setScreenshotUrl(result.url)
+    })()
+  }
+
+  const loadScreenshot2 = () => {
+    if (loadingScreenshot2 || screenshot2Url || !request.screenshot_path_2) return
+    setLoadingScreenshot2(true)
+    setError('')
+    ;(async () => {
+      const result = await getScreenshotUrl(request.screenshot_path_2!)
+      setLoadingScreenshot2(false)
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      if (result.url) setScreenshot2Url(result.url)
     })()
   }
 
@@ -455,6 +473,47 @@ function RegearRow({
         <p className="text-xs text-gray-500 italic">{t('screenshotDeleted')}</p>
       )}
 
+      {screenshot2Url ? (
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => setZoomed2(true)}
+            className="group relative block w-full overflow-hidden rounded-lg border border-gray-700 bg-gray-950 hover:border-amber-500/50"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={screenshot2Url}
+              alt={t('screenshotAlt')}
+              className="w-full max-h-72 object-contain bg-black"
+            />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-colors">
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
+                <ZoomIn size={12} />
+                {t('zoom')}
+              </span>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setScreenshot2Url(null)}
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-white"
+          >
+            <ChevronUp size={13} />
+            {t('collapseScreenshot')}
+          </button>
+        </div>
+      ) : request.screenshot_path_2 ? (
+        <button
+          type="button"
+          onClick={loadScreenshot2}
+          disabled={loadingScreenshot2}
+          className="flex items-center gap-1 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded"
+        >
+          {loadingScreenshot2 ? <Loader2 size={13} className="animate-spin" /> : <ImageIcon size={13} />}
+          {loadingScreenshot2 ? tCommon('loadingDots') : t('viewScreenshot2')}
+        </button>
+      ) : null}
+
       <div className="flex items-center gap-2 flex-wrap">
         {request.status === 'pending' && !rejectMode && !overrideMode && (
           <>
@@ -597,6 +656,14 @@ function RegearRow({
 
       {zoomed && screenshotUrl && (
         <ImageLightbox src={screenshotUrl} alt={t('screenshotAlt')} onClose={() => setZoomed(false)} />
+      )}
+
+      {zoomed2 && screenshot2Url && (
+        <ImageLightbox
+          src={screenshot2Url}
+          alt={t('screenshotAlt')}
+          onClose={() => setZoomed2(false)}
+        />
       )}
     </li>
   )

@@ -14,6 +14,7 @@ export const dynamic = 'force-dynamic'
 export default async function SettingsPage() {
   const [
     message,
+    notificationImageUrl,
     bannerUrl,
     ctaText,
     regearNoticeMessage,
@@ -34,6 +35,7 @@ export default async function SettingsPage() {
     t,
   ] = await Promise.all([
     getAppSetting('event_notification_message', DEFAULT_EVENT_NOTIFICATION_MESSAGE),
+    getAppSetting('event_notification_image_url', ''),
     getAppSetting('landing_banner_url', ''),
     getAppSetting('landing_cta_text', ''),
     getAppSetting('regear_notice_message', ''),
@@ -120,6 +122,7 @@ export default async function SettingsPage() {
 
       <SettingsTabs
         notificationMessage={message}
+        notificationImageUrl={notificationImageUrl}
         rewards={rewards}
         rewardsError={rewardsError}
         landingBannerUrl={bannerUrl}

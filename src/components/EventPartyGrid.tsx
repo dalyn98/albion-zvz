@@ -15,6 +15,7 @@ interface Props {
   isAdmin: boolean
   eventId: string
   avatars: Record<string, string | null>
+  usernames: Record<string, string | null>
   cdBadgeRoles: readonly SlotRole[]
 }
 
@@ -26,6 +27,7 @@ export default function EventPartyGrid({
   isAdmin,
   eventId,
   avatars,
+  usernames,
   cdBadgeRoles,
 }: Props) {
   const t = useTranslations('event')
@@ -91,8 +93,12 @@ export default function EventPartyGrid({
         const displayName = isBomb && customName
           ? customName
           : t('partyNumber', { number: party.party_number })
+        // 콜러가 자기 파티 슬롯에 배정돼 있으면 그 슬롯의 username 을 우선 사용
+        // (가장 최신 표기). 아니면 guild_avatars/guests 캐시에서 lookup — 이름
+        // 없는 콜러도 표시되게 하기 위함.
         const callerName = isBomb && party.caller_discord_id
           ? party.slots.find((s) => s.assigned_discord_id === party.caller_discord_id)?.assigned_username
+            ?? usernames[party.caller_discord_id]
             ?? null
           : null
         const isPartyCaller =

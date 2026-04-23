@@ -6,9 +6,16 @@ import { useTranslations } from 'next-intl'
 import { Save } from 'lucide-react'
 import { useEventEditSaveAll } from './EventEditSaveRegistry'
 
+interface Props {
+  // published 이벤트 저장 성공 시 상세 페이지로 이동할 때 사용. draft 는
+  // 편집 화면에 남아 있어야 게시 전 추가 수정이 가능하다.
+  eventId: string
+  eventStatus: 'draft' | 'published'
+}
+
 // 이벤트 편집 화면 하단 고정 저장 바. 등록된 섹션 전체를 순차 저장하고
 // 에러를 모아 표시. 섹션별 save 버튼을 숨기고 이 바로만 커밋하게 한다.
-export default function EventEditSaveBar() {
+export default function EventEditSaveBar({ eventId, eventStatus }: Props) {
   const ctx = useEventEditSaveAll()
   const t = useTranslations('adminEditEvent')
   const tCommon = useTranslations('common')
@@ -27,7 +34,11 @@ export default function EventEditSaveBar() {
     setSaving(false)
     if (errs.length === 0) {
       setJustSaved(true)
-      router.refresh()
+      if (eventStatus === 'published') {
+        router.push(`/events/${eventId}`)
+      } else {
+        router.refresh()
+      }
     }
   }
 

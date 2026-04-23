@@ -181,14 +181,18 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
       .maybeSingle()
     if (error) return { error: error.message }
     if (!data) return { error: tErr('eventNotFound') }
-    const content = await getAppSetting(
-      'event_notification_message',
-      DEFAULT_EVENT_NOTIFICATION_MESSAGE,
-    )
+    const [content, imageUrl] = await Promise.all([
+      getAppSetting(
+        'event_notification_message',
+        DEFAULT_EVENT_NOTIFICATION_MESSAGE,
+      ),
+      getAppSetting('event_notification_image_url', ''),
+    ])
     await sendEventNotification(data, {
       content,
       notifyRoleId: data.notify_role_id,
       channelId: data.notify_channel_id,
+      imageUrl,
     })
     return {}
   } catch (e) {

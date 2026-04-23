@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { Bell, Coins, Image as ImageIcon, Megaphone, Shield, Timer } from 'lucide-react'
+import { Image as ImageIcon, Megaphone, Shield, Timer } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import NotificationSettingsForm from './NotificationSettingsForm'
 import RoleRewardsEditor from './RoleRewardsEditor'
@@ -21,8 +21,6 @@ import type { RoleReward } from '@/app/actions/regear-admin'
 import type { SlotRole } from '@/types'
 
 type TabKey =
-  | 'notifications'
-  | 'rewards'
   | 'landing'
   | 'notices'
   | 'permissions'
@@ -31,8 +29,6 @@ type TabKey =
 interface TabDef {
   key: TabKey
   labelKey:
-    | 'tabNotifications'
-    | 'tabRewards'
     | 'tabLanding'
     | 'tabNotices'
     | 'tabPermissions'
@@ -41,18 +37,17 @@ interface TabDef {
 }
 
 const TABS: readonly TabDef[] = [
-  { key: 'notifications', labelKey: 'tabNotifications', icon: Bell },
-  { key: 'rewards', labelKey: 'tabRewards', icon: Coins },
   { key: 'notices', labelKey: 'tabNotices', icon: Megaphone },
   { key: 'permissions', labelKey: 'tabPermissions', icon: Shield },
   { key: 'events', labelKey: 'tabEvents', icon: Timer },
   { key: 'landing', labelKey: 'tabLanding', icon: ImageIcon },
 ]
 
-const DEFAULT_TAB: TabKey = 'notifications'
+const DEFAULT_TAB: TabKey = 'notices'
 
 interface Props {
   notificationMessage: string
+  notificationImageUrl: string
   rewards: RoleReward[]
   rewardsError?: string
   landingBannerUrl: string
@@ -75,8 +70,6 @@ interface Props {
 
 function isTabKey(value: string | null): value is TabKey {
   return (
-    value === 'notifications' ||
-    value === 'rewards' ||
     value === 'landing' ||
     value === 'notices' ||
     value === 'permissions' ||
@@ -86,6 +79,7 @@ function isTabKey(value: string | null): value is TabKey {
 
 export default function SettingsTabs({
   notificationMessage,
+  notificationImageUrl,
   rewards,
   rewardsError,
   landingBannerUrl,
@@ -154,20 +148,6 @@ export default function SettingsTabs({
       </nav>
 
       <div role="tabpanel">
-        {active === 'notifications' && (
-          <NotificationSettingsForm initialMessage={notificationMessage} />
-        )}
-        {active === 'rewards' && (
-          <div className="space-y-3">
-            <p className="text-gray-500 text-xs">{t('rewardsDescription')}</p>
-            {rewardsError && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
-                <p className="text-red-400 text-sm">{rewardsError}</p>
-              </div>
-            )}
-            <RoleRewardsEditor rewards={rewards} />
-          </div>
-        )}
         {active === 'landing' && (
           <div className="space-y-4">
             <LandingCtaTextForm
@@ -198,10 +178,23 @@ export default function SettingsTabs({
             <AutoRegearToggleForm initialEnabled={autoRegearEnabled} />
             <EventAutoStartForm initialEnabled={eventsAutoStartEnabled} />
             <CdBadgeRolesForm initialRoles={cdBadgeRoles} />
+            <div className="space-y-3">
+              <p className="text-gray-500 text-xs">{t('rewardsDescription')}</p>
+              {rewardsError && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+                  <p className="text-red-400 text-sm">{rewardsError}</p>
+                </div>
+              )}
+              <RoleRewardsEditor rewards={rewards} />
+            </div>
           </div>
         )}
         {active === 'notices' && (
           <div className="space-y-4">
+            <NotificationSettingsForm
+              initialMessage={notificationMessage}
+              initialImageUrl={notificationImageUrl}
+            />
             <NoticeSettingForm
               settingKey="events_notice_message"
               initialMessage={eventsNoticeMessage}

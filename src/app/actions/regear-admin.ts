@@ -51,6 +51,8 @@ export interface AdminRegearRequest {
   payout_silver: number | null
   // null once the retention window (48h after resolve) has expired.
   screenshot_path: string | null
+  // 선택 사항 (migration 061). 데스당 2번째 스크린샷을 올린 경우에만 값이 있다.
+  screenshot_path_2: string | null
   killboard_verified: boolean
   killboard_event_id: number | null
   status: 'pending' | 'approved' | 'rejected'
@@ -95,7 +97,7 @@ export async function listRegearRequests(
     let query = db
       .from('regear_requests')
       .select(
-        'id, event_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, events(title)',
+        'id, event_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, events(title)',
       )
       .order('created_at', { ascending: false })
     if (scope === 'pending') query = query.eq('status', 'pending')
@@ -125,6 +127,7 @@ export async function listRegearRequests(
         claimed_silver: row.claimed_silver,
         payout_silver: row.payout_silver ?? null,
         screenshot_path: row.screenshot_path ?? null,
+        screenshot_path_2: row.screenshot_path_2 ?? null,
         killboard_verified: row.killboard_verified,
         killboard_event_id: row.killboard_event_id,
         status: row.status as AdminRegearRequest['status'],

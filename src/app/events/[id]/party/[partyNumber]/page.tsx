@@ -20,7 +20,7 @@ interface PageParams {
 async function loadContext(eventId: string, partyNumber: number) {
   const admin = getAdminClient()
   const [{ data: event }, { data: partyRow }] = await Promise.all([
-    admin.from('events').select('id, title, created_by, battle_started_at').eq('id', eventId).maybeSingle(),
+    admin.from('events').select('id, title, created_by, battle_started_at, status').eq('id', eventId).maybeSingle(),
     admin
       .from('parties')
       .select('*, slots(*)')
@@ -121,7 +121,10 @@ export default async function CallerPartyEditPage({
           defaultOpen
         />
 
-        <EventEditSaveBar />
+        <EventEditSaveBar
+          eventId={eventId}
+          eventStatus={event.status === 'draft' ? 'draft' : 'published'}
+        />
       </div>
     </EventEditSaveProvider>
   )

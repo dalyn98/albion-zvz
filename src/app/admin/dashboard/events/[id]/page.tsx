@@ -145,7 +145,7 @@ export default async function EditEventPage({
             </div>
           </section>
 
-          <EventEditSaveBar />
+          <EventEditSaveBar eventId={event.id} eventStatus={event.status} />
         </div>
 
         <aside className="hidden lg:block w-72 flex-shrink-0">
