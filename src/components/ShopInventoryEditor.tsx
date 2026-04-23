@@ -15,6 +15,8 @@ import {
 } from '@/app/actions/shop-inventory'
 import { computePointPrice } from '@/lib/shop/price'
 
+export type InventoryPriceWarning = 'quality' | 'window' | 'bluezone' | 'redzone' | null
+
 export interface InventoryRow {
   id: string
   uniqueName: string
@@ -27,8 +29,36 @@ export interface InventoryRow {
   manualPrice: number | null
   autoPriceSilver: number | null
   priceSource: string | null
+  priceWarningLevel: InventoryPriceWarning
   priceUpdatedAt: string | null
   updatedAt: string
+}
+
+// AODP 폴백 단계별 배지 색/라벨. 관리자 inventory 테이블에서 가격 옆에 노출.
+const WARNING_META: Record<
+  NonNullable<InventoryPriceWarning>,
+  { color: string; label: string; tooltip: string }
+> = {
+  quality: {
+    color: 'bg-yellow-500/80 text-black',
+    label: '품질대체',
+    tooltip: '요청 품질 데이터가 없어 낮은 품질로 대체 추정된 가격입니다.',
+  },
+  window: {
+    color: 'bg-yellow-500/80 text-black',
+    label: '기간확장',
+    tooltip: '최근 시세가 부족해 최대 14일 평균으로 추정된 가격입니다.',
+  },
+  bluezone: {
+    color: 'bg-orange-500/90 text-black',
+    label: '타도시',
+    tooltip: '설정 도시 시세가 없어 다른 로열 시티 시세로 추정된 가격입니다.',
+  },
+  redzone: {
+    color: 'bg-red-600 text-white',
+    label: '레드존',
+    tooltip: '로열 시티 시세가 모두 없어 레드존 시세로 추정된 가격입니다. 실가치와 차이가 클 수 있어 관리자 검토를 권장합니다.',
+  },
 }
 
 interface Props {
@@ -497,6 +527,16 @@ function InventoryListItem({
           >
             <span className="flex items-center gap-1 text-xs font-mono text-white">
               {pointPrice !== null ? `${pointPrice.toLocaleString()}p` : '—'}
+              {row.manualPrice === null && row.priceWarningLevel && (
+                <span
+                  className={`text-[9px] font-bold rounded px-1 leading-tight ${
+                    WARNING_META[row.priceWarningLevel].color
+                  }`}
+                  title={WARNING_META[row.priceWarningLevel].tooltip}
+                >
+                  {WARNING_META[row.priceWarningLevel].label}
+                </span>
+              )}
               <Pencil size={10} className="text-gray-500 group-hover:text-amber-300" />
             </span>
             <span className="text-[9px] text-gray-500 font-mono">

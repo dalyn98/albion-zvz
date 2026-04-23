@@ -14,7 +14,13 @@
 // (0 payout 행을 남겨 '처리됨' 을 기록). 이력 추적이 더 중요해서 선택한 절충.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { fetchAodpPrices, loadAodpOptions, type AodpPriceKey } from '@/lib/shop/aodp'
+import {
+  fetchAodpPrices,
+  loadAodpOptions,
+  type AodpFallbackTier,
+  type AodpPriceKey,
+} from '@/lib/shop/aodp'
+import { worstWarningLevel } from '@/lib/regear-estimate'
 
 export interface AutoRegearResult {
   events_considered: number
@@ -34,6 +40,10 @@ export interface AutoRegearResult {
   // 관리자가 retroactive 로 만든 이벤트 (created_at > battle_started_at).
   // 자동 처리 대신 park — admin 이 수동 검토했을 거라고 가정.
   events_skipped_retroactive: number
+  // 레드존 시세로 추정된 자동 건 — status='pending' 으로 관리자 검토 대기열에 들어감.
+  // requests_created 에도 포함되지만, 승인 대기 건수를 별도로 노출해 관리자가
+  // 검토 속도를 판단할 수 있게 한다.
+  requests_held_redzone: number
   errors: Array<{ event_id: string; step: string; message: string }>
   duration_ms: number
 }
@@ -89,6 +99,7 @@ interface GearLineItem {
   count: number
   price: number | null
   city: string | null
+  fallbackTier: AodpFallbackTier
 }
 
 // Type 문자열은 `T5_ARMOR_CLOTH_SET2@1` 같은 포맷. @N 접미는 있을 수도 없을 수도.
@@ -149,6 +160,7 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
       requests_skipped_no_role_cap: 0,
       events_deferred_sync_lag: 0,
       events_skipped_retroactive: 0,
+      requests_held_redzone: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
@@ -196,6 +208,7 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
       requests_skipped_no_role_cap: 0,
       events_deferred_sync_lag: 0,
       events_skipped_retroactive: 0,
+      requests_held_redzone: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
@@ -232,6 +245,7 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
   let skippedNoRoleCap = 0
   let deferredSyncLag = 0
   let skippedRetroactive = 0
+  let heldRedzone = 0
   let processed = 0
 
   for (const event of eventRows) {
@@ -342,8 +356,12 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
             count: entry.count,
             price: unit,
             city: hit?.city ?? null,
+            fallbackTier: hit?.fallbackTier ?? 'none',
           })
         }
+
+        // 경고 단계 요약. redzone 이면 RPC 가 status=pending 으로 돌려 관리자 검토 대기열.
+        const warningLevel = worstWarningLevel(lineItems.map((i) => i.fallbackTier))
 
         // 수동 flow 와 schema 대칭: silver = 역할상한, claimed = min(시장가, 상한),
         // payout = floor(claimed * rate%). gear_breakdown 에는 원본 시장가 유지(감사용).
@@ -358,6 +376,7 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
           role_cap: roleCap,
           market_silver: marketSilver,
           items: lineItems,
+          warning_level: warningLevel,
         }
 
         const { data: rpcData, error: rpcErr } = await db.rpc('create_auto_regear_request', {
@@ -371,6 +390,7 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
           p_payout_silver: payoutSilver,
           p_killboard_event_id: v.event_id,
           p_gear_breakdown: breakdown,
+          p_price_warning_level: warningLevel,
         })
         if (rpcErr) {
           errors.push({ event_id: event.id, step: 'rpc', message: rpcErr.message })
@@ -379,6 +399,7 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
           skippedManualExists += 1
         } else {
           requestsCreated += 1
+          if (warningLevel === 'redzone') heldRedzone += 1
         }
       }
 
@@ -411,6 +432,7 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
     requests_skipped_no_role_cap: skippedNoRoleCap,
     events_deferred_sync_lag: deferredSyncLag,
     events_skipped_retroactive: skippedRetroactive,
+    requests_held_redzone: heldRedzone,
     errors,
     duration_ms: Date.now() - startedAt,
   }

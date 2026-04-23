@@ -3,7 +3,27 @@
 // 공통으로 사용한다 — 두 flow 에서 포맷을 맞춰 대시보드 UI 가 단일 로직
 // 으로 표시할 수 있게 함.
 
-import { fetchAodpPrices, loadAodpOptions, type AodpPriceKey } from '@/lib/shop/aodp'
+import {
+  fetchAodpPrices,
+  loadAodpOptions,
+  type AodpFallbackTier,
+  type AodpPriceKey,
+} from '@/lib/shop/aodp'
+
+// 장비 전체의 가장 나쁜 경고 단계를 한 값으로 요약.
+// 우선순위: redzone > bluezone > window > quality > null(exact / 시세 없음).
+// 시세 없음('none') 은 marketSilver 자체가 낮아 이미 보수적이라 경고 단계에서 제외.
+export type RegearWarningLevel = 'quality' | 'window' | 'bluezone' | 'redzone' | null
+
+export function worstWarningLevel(
+  tiers: readonly AodpFallbackTier[],
+): RegearWarningLevel {
+  const priority: RegearWarningLevel[] = ['redzone', 'bluezone', 'window', 'quality']
+  for (const p of priority) {
+    if (tiers.some((t) => t === p)) return p
+  }
+  return null
+}
 
 const EQUIPMENT_SLOTS = [
   'MainHand',
@@ -32,6 +52,7 @@ export interface RegearEstimateLineItem {
   count: number
   price: number | null
   city: string | null
+  fallbackTier: AodpFallbackTier
 }
 
 export interface RegearEstimateBreakdown {
@@ -41,10 +62,13 @@ export interface RegearEstimateBreakdown {
   min_quality: number
   market_silver: number
   items: RegearEstimateLineItem[]
+  // 품목 전체를 요약한 가장 나쁜 경고 단계. null = 모두 exact hit 또는 경고 없음.
+  warning_level: RegearWarningLevel
 }
 
 export interface RegearEstimate {
   marketSilver: number
+  warningLevel: RegearWarningLevel
   breakdown: RegearEstimateBreakdown
 }
 
@@ -116,11 +140,15 @@ export async function estimateSilverFromEquipment(
       count: entry.count,
       price: unit,
       city: hit?.city ?? null,
+      fallbackTier: hit?.fallbackTier ?? 'none',
     })
   }
 
+  const warningLevel = worstWarningLevel(lineItems.map((i) => i.fallbackTier))
+
   return {
     marketSilver,
+    warningLevel,
     breakdown: {
       mode: aodpOptions.mode,
       server: aodpOptions.server,
@@ -128,6 +156,7 @@ export async function estimateSilverFromEquipment(
       min_quality: aodpOptions.minQuality,
       market_silver: marketSilver,
       items: lineItems,
+      warning_level: warningLevel,
     },
   }
 }

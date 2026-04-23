@@ -6,7 +6,10 @@ import { getAppSetting } from '@/lib/app-settings'
 import { computePointPrice, parseSilverToPointRate } from '@/lib/shop/price'
 import { categoryRank } from '@/lib/shop/category-order'
 import { getMyPointBalance, listMyShopOrders } from '@/app/actions/shop-member'
-import ShopCatalog, { type CatalogItem } from '@/components/ShopCatalog'
+import ShopCatalog, {
+  type CatalogItem,
+  type ShopPriceWarning,
+} from '@/components/ShopCatalog'
 import ShopMyOrders from '@/components/ShopMyOrders'
 
 export const dynamic = 'force-dynamic'
@@ -21,7 +24,7 @@ export default async function PublicShopPage() {
     db
       .from('shop_inventory')
       .select(
-        'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver',
+        'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver, price_warning_level',
       )
       .gt('stock', 0)
       .order('name_ko', { ascending: true })
@@ -34,12 +37,16 @@ export default async function PublicShopPage() {
   // 카테고리 랭크만 비교하면 동일 카테고리 내 이름순이 자동 유지된다.
   const items: CatalogItem[] = []
   for (const r of invRows ?? []) {
+    const manualPrice = r.manual_price as number | null
     const price = computePointPrice({
-      manualPrice: r.manual_price as number | null,
+      manualPrice,
       autoPriceSilver: r.auto_price_silver as number | null,
       silverToPointRate: rate,
     })
     if (price === null) continue // 가격 미정 아이템은 노출하지 않음
+    // 수동 가격이 있으면 관리자가 확정한 값이라 AODP 경고를 숨긴다.
+    const rawWarning = r.price_warning_level as ShopPriceWarning | null
+    const priceWarning: ShopPriceWarning = manualPrice !== null ? null : rawWarning
     items.push({
       id: r.id as string,
       uniqueName: r.unique_name as string,
@@ -50,6 +57,7 @@ export default async function PublicShopPage() {
       category: (r.category as string | null) ?? null,
       tier: (r.tier as number | null) ?? null,
       pointPrice: price,
+      priceWarning,
     })
   }
   items.sort((a, b) => categoryRank(a.category) - categoryRank(b.category))

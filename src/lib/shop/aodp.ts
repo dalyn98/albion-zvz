@@ -31,6 +31,36 @@ const HISTORY_TIME_SCALE_HOURS = 24
 
 export type AodpPriceMode = 'spot' | 'avg_1d' | 'avg_3d' | 'avg_7d' | 'avg_14d'
 
+// AODP 폴백 단계. 사용자 설정으로 못 찾을 때 점진적으로 범위를 넓힌다.
+//   exact    — 사용자 설정 그대로 hit (품질 일치)
+//   quality  — 품질을 낮춰서 hit (quality fallback within exact query)
+//   window   — 평균 기간을 14일로 늘려서 hit
+//   bluezone — 검색 도시를 블루존(로열 시티 5개)까지 확장해 hit
+//   redzone  — 검색 도시를 레드존(Caerleon, Brecilien)까지 확장해 hit
+//   none     — 모든 단계 실패. price === null.
+// UI 는 quality/window 를 노란 경고, bluezone 을 주황, redzone 을 빨간 경고로
+// 표시하고, 자동 리기어는 redzone tier 면 자동 승인하지 않고 관리자 검토 대기열로 보낸다.
+export type AodpFallbackTier =
+  | 'exact'
+  | 'quality'
+  | 'window'
+  | 'bluezone'
+  | 'redzone'
+  | 'none'
+
+// 알비온 온라인 로열 시티(블루존). PvP 위험 없이 거래 가능.
+export const BLUE_ZONE_CITIES = [
+  'Lymhurst',
+  'Martlock',
+  'Thetford',
+  'Bridgewatch',
+  'Fort Sterling',
+] as const
+
+// 레드존 도시. 거래량 많지만 레드존 안으로 가야 해서 아이템 분실 리스크.
+// 폴백 최후 단계로만 사용.
+export const RED_ZONE_CITIES = ['Caerleon', 'Brecilien'] as const
+
 export interface AodpOptions {
   cities?: readonly string[]
   server?: AlbionServer
@@ -60,6 +90,8 @@ export interface AodpPriceResult {
   // 호출자가 `quality !== usedQuality` 로 fallback 여부를 판단할 수 있게 한다.
   // null = 시세 없음.
   usedQuality: number | null
+  // 어느 폴백 단계에서 시세가 나왔는지. UI 경고 색·자동 리기어 게이트 결정에 사용.
+  fallbackTier: AodpFallbackTier
 }
 
 interface AodpSpotRow {
@@ -238,17 +270,17 @@ export async function loadAodpOptions(): Promise<Required<AodpOptions>> {
   return { cities, server, mode, minQuality }
 }
 
+// AODP 폴백 체인의 한 단계. 사용자 설정(또는 widen 된 설정) 으로 한 번
+// 조회하고 결과를 그대로 반환한다. tier 는 wrapper 가 결정.
+//
 // 결과 맵의 키는 `${uniqueName}|${enchant}|${quality}` — quality 는 호출부가
 // 보낸 "원본" 품질이다 (minQuality floor 는 조회 내부에서만 쓴다).
-export async function fetchAodpPrices(
+async function fetchAodpPricesExact(
   keys: AodpPriceKey[],
-  options: AodpOptions = {},
+  options: Required<AodpOptions>,
 ): Promise<Map<string, AodpPriceResult>> {
   if (keys.length === 0) return new Map()
-  const cities = options.cities && options.cities.length > 0 ? options.cities : DEFAULT_CITIES
-  const server: AlbionServer = options.server ?? 'east'
-  const mode: AodpPriceMode = options.mode ?? 'spot'
-  const minQuality = options.minQuality && options.minQuality > 0 ? options.minQuality : 1
+  const { cities, server, mode, minQuality } = options
   const host = AODP_HOSTS[server]
 
   const uniqIds = Array.from(new Set(keys.map(itemId)))
@@ -258,6 +290,25 @@ export async function fetchAodpPrices(
   const CHUNK = 100
 
   const result = new Map<string, AodpPriceResult>()
+  const buildResult = (
+    k: AodpPriceKey,
+    hit: { price: number; city: string; sampledAt: string; quality: number } | null,
+    source: 'history' | 'spot' | null,
+  ): AodpPriceResult => ({
+    uniqueName: k.uniqueName,
+    enchant: k.enchant,
+    quality: k.quality,
+    price: hit?.price ?? null,
+    city: hit?.city ?? null,
+    sampledAt: hit?.sampledAt ?? null,
+    source: hit ? source : null,
+    usedQuality: hit?.quality ?? null,
+    // tier 는 hit 의 usedQuality 가 요청 품질과 다르면 'quality', 같으면 'exact'.
+    // 호출 시점에 widen 된 mode/cities 였다면 wrapper 가 덮어쓴다.
+    fallbackTier: hit
+      ? hit.quality === k.quality ? 'exact' : 'quality'
+      : 'none',
+  })
 
   if (mode === 'spot') {
     const spotMap = await fetchSpotBestByKey(host, uniqIds, qualities, cities, CHUNK)
@@ -266,16 +317,7 @@ export async function fetchAodpPrices(
       const effQ = effectiveQuality(k.quality, minQuality)
       const best = findBestByQuality(spotMap, id, effQ, minQuality)
       const outKey = `${k.uniqueName}|${k.enchant}|${k.quality}`
-      result.set(outKey, {
-        uniqueName: k.uniqueName,
-        enchant: k.enchant,
-        quality: k.quality,
-        price: best?.price ?? null,
-        city: best?.city ?? null,
-        sampledAt: best?.sampledAt ?? null,
-        source: best ? 'spot' : null,
-        usedQuality: best?.quality ?? null,
-      })
+      result.set(outKey, buildResult(k, best, 'spot'))
     }
     return result
   }
@@ -323,18 +365,130 @@ export async function fetchAodpPrices(
     const spotHit = historyHit ? null : findBestByQuality(spotBestByKey, id, effQ, minQuality)
     const hit = historyHit ?? spotHit
     const outKey = `${k.uniqueName}|${k.enchant}|${k.quality}`
-    result.set(outKey, {
-      uniqueName: k.uniqueName,
-      enchant: k.enchant,
-      quality: k.quality,
-      price: hit?.price ?? null,
-      city: hit?.city ?? null,
-      sampledAt: hit?.sampledAt ?? null,
-      source: historyHit ? 'history' : spotHit ? 'spot' : null,
-      usedQuality: hit?.quality ?? null,
-    })
+    result.set(outKey, buildResult(k, hit, historyHit ? 'history' : spotHit ? 'spot' : null))
   }
   return result
+}
+
+// 두 도시 리스트의 합집합. 순서 보존 — Set 으로 dedupe 후 배열 변환.
+function unionCities(a: readonly string[], b: readonly string[]): readonly string[] {
+  return Array.from(new Set([...a, ...b]))
+}
+
+// 두 도시 리스트가 같은 set 인지. 순서 무관.
+function sameCities(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false
+  const aSet = new Set(a)
+  for (const c of b) if (!aSet.has(c)) return false
+  return true
+}
+
+// 공개 API. 폴백 체인을 돌려 가능한 한 시세를 찾아 반환한다.
+// 각 결과의 fallbackTier 가 어느 단계에서 hit 했는지 알려준다.
+//   1. exact      — 사용자 설정 그대로 (quality fallback 은 내장)
+//   2. window     — mode='avg_14d' 로 풀어 재시도
+//   3. bluezone   — cities 에 블루존 추가
+//   4. redzone    — cities 에 레드존도 추가 (= 사실상 모든 시티)
+//   5. none       — 끝까지 못 찾음. price === null.
+//
+// 단계는 누적: window 부터 minQuality=1, mode='avg_14d' 가 강제되며 그 위에
+// 도시만 점진적으로 넓어진다. 사용자 설정에 이미 모든 도시가 포함돼 있으면
+// 도시 확장 단계는 자동으로 skip — 추가 API 호출 없음.
+export async function fetchAodpPrices(
+  keys: AodpPriceKey[],
+  options: AodpOptions = {},
+): Promise<Map<string, AodpPriceResult>> {
+  if (keys.length === 0) return new Map()
+  const userOpts: Required<AodpOptions> = {
+    cities: options.cities && options.cities.length > 0 ? options.cities : DEFAULT_CITIES,
+    server: options.server ?? 'east',
+    mode: options.mode ?? 'spot',
+    minQuality: options.minQuality && options.minQuality > 0 ? options.minQuality : 1,
+  }
+
+  // 1단계: exact (사용자 설정). buildResult 가 이미 'exact' 또는 'quality' 태그.
+  const out = await fetchAodpPricesExact(keys, userOpts)
+
+  const collectMisses = (): AodpPriceKey[] =>
+    keys.filter((k) => {
+      const mk = `${k.uniqueName}|${k.enchant}|${k.quality}`
+      const r = out.get(mk)
+      return !r || r.price === null
+    })
+
+  // 2단계: window — avg_14d + minQuality=1. 이미 14d 면 skip.
+  const widenedOpts: Required<AodpOptions> = {
+    ...userOpts,
+    mode: 'avg_14d',
+    minQuality: 1,
+  }
+  if (userOpts.mode !== 'avg_14d' || userOpts.minQuality !== 1) {
+    const misses = collectMisses()
+    if (misses.length > 0) {
+      const m = await fetchAodpPricesExact(misses, widenedOpts)
+      for (const [mk, r] of m) {
+        if (r.price !== null) {
+          r.fallbackTier = 'window'
+          out.set(mk, r)
+        }
+      }
+    }
+  }
+
+  // 3단계: bluezone — cities 에 블루존 union. 이미 모든 블루존이 포함돼 있으면 skip.
+  const bzCities = unionCities(userOpts.cities, BLUE_ZONE_CITIES)
+  if (!sameCities(bzCities, userOpts.cities)) {
+    const misses = collectMisses()
+    if (misses.length > 0) {
+      const m = await fetchAodpPricesExact(misses, { ...widenedOpts, cities: bzCities })
+      for (const [mk, r] of m) {
+        if (r.price !== null) {
+          r.fallbackTier = 'bluezone'
+          out.set(mk, r)
+        }
+      }
+    }
+  }
+
+  // 4단계: redzone — cities 에 레드존도 union.
+  const allCities = unionCities(bzCities, RED_ZONE_CITIES)
+  if (!sameCities(allCities, bzCities)) {
+    const misses = collectMisses()
+    if (misses.length > 0) {
+      const m = await fetchAodpPricesExact(misses, { ...widenedOpts, cities: allCities })
+      for (const [mk, r] of m) {
+        if (r.price !== null) {
+          r.fallbackTier = 'redzone'
+          out.set(mk, r)
+        }
+      }
+    }
+  }
+
+  // 5단계: none — 마지막까지 못 찾은 key 는 null + tier='none'. 기존 result 에
+  // 누락된 key 는 전혀 hit 되지 않은 것이고, 있는데 price=null 이면 1~4 단계가
+  // 다 빈 결과를 돌려줬다는 뜻. 둘 다 동일하게 'none' 태그로 통일.
+  for (const k of keys) {
+    const mk = `${k.uniqueName}|${k.enchant}|${k.quality}`
+    const r = out.get(mk)
+    if (!r) {
+      out.set(mk, {
+        uniqueName: k.uniqueName,
+        enchant: k.enchant,
+        quality: k.quality,
+        price: null,
+        city: null,
+        sampledAt: null,
+        source: null,
+        usedQuality: null,
+        fallbackTier: 'none',
+      })
+    } else if (r.price === null) {
+      r.fallbackTier = 'none'
+    }
+  }
+
+  return out
 }
 
 // 맵 키는 `${itemId}|${quality}`. 요청 품질에서 데이터가 없으면 quality-1,

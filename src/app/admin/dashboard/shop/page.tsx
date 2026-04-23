@@ -32,7 +32,7 @@ export default async function AdminShopPage() {
     db
       .from('shop_inventory')
       .select(
-        'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver, price_source, price_updated_at, updated_at',
+        'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver, price_source, price_warning_level, price_updated_at, updated_at',
       )
       .order('name_ko', { ascending: true }),
     db
@@ -109,6 +109,13 @@ export default async function AdminShopPage() {
       manualPrice: (r.manual_price as number | null) ?? null,
       autoPriceSilver: (r.auto_price_silver as number | null) ?? null,
       priceSource: (r.price_source as string | null) ?? null,
+      priceWarningLevel: (r.price_warning_level as
+        | 'quality'
+        | 'window'
+        | 'bluezone'
+        | 'redzone'
+        | null
+        | undefined) ?? null,
       priceUpdatedAt: (r.price_updated_at as string | null) ?? null,
       updatedAt: r.updated_at as string,
     }))

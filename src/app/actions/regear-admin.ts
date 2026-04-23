@@ -66,6 +66,9 @@ export interface AdminRegearRequest {
   // 킬보드 장비 + AODP 시세로 추산한 시장가. 자동 리기어와 관리자 재확인에서
   // 동일 포맷(gear_breakdown.market_silver) 으로 기록한다. null = 추산 없음.
   estimated_silver: number | null
+  // AODP 폴백 단계(재migration 065). null = 경고 없음. redzone 건은 자동 리기어가
+  // 승인 대신 pending 으로 넣어 관리자 검토 대기열에 쌓이고, UI 는 색상 배지로 표시.
+  price_warning_level: 'quality' | 'window' | 'bluezone' | 'redzone' | null
 }
 
 export interface AdminExchangeRequest {
@@ -97,7 +100,7 @@ export async function listRegearRequests(
     let query = db
       .from('regear_requests')
       .select(
-        'id, event_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, events(title)',
+        'id, event_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, price_warning_level, events(title)',
       )
       .order('created_at', { ascending: false })
     if (scope === 'pending') query = query.eq('status', 'pending')
@@ -138,6 +141,8 @@ export async function listRegearRequests(
         handled_by_username: row.handled_by_username ?? null,
         build_snapshot: (row.build_snapshot as BuildSnapshot | null) ?? null,
         estimated_silver: estimatedSilver,
+        price_warning_level:
+          (row.price_warning_level as AdminRegearRequest['price_warning_level']) ?? null,
       }
     })
     return { requests }

@@ -70,11 +70,14 @@ export async function syncShopPrices(): Promise<PriceSyncSummary> {
         parts.push(`q${hit.usedQuality}`)
       }
       const sourceTag = parts.join(':')
+      // exact hit 은 경고 없음(null); 나머지는 fallbackTier 그대로 저장해 UI 배지로 활용.
+      const warningLevel = hit.fallbackTier === 'exact' ? null : hit.fallbackTier
       const { error } = await db
         .from('shop_inventory')
         .update({
           auto_price_silver: hit.price,
           price_source: sourceTag,
+          price_warning_level: warningLevel,
           price_updated_at: now,
           updated_at: now,
         })
@@ -141,6 +144,8 @@ export async function setManualPrice(
       .update({
         manual_price: pointPrice,
         price_source: 'manual',
+        // 수동 가격은 AODP 경고와 무관 — 배지를 지우고 관리자가 정한 값 그대로 노출.
+        price_warning_level: null,
         price_updated_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
