@@ -17,6 +17,7 @@ import { calcPayoutSilver } from '@/lib/regear-payout'
 import { SLOT_KEYS, type BuildSnapshot, type SlotKey } from '@/types'
 import ImageLightbox from './ImageLightbox'
 import ItemImage from './ItemImage'
+import RegearBreakdownPreview from './RegearBreakdownPreview'
 import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
@@ -437,6 +438,13 @@ function RegearRow({
       </div>
 
       {request.build_snapshot && <BuildSnapshotStrip snapshot={request.build_snapshot} />}
+
+      {request.auto_generated && request.breakdown_items.length > 0 && (
+        <RegearBreakdownPreview
+          items={request.breakdown_items}
+          marketSilver={request.estimated_silver ?? 0}
+        />
+      )}
 
       {request.admin_notes && (
         <p className="text-gray-400 text-xs italic bg-gray-800/50 rounded px-3 py-2">

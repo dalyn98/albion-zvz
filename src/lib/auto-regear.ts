@@ -1,5 +1,7 @@
 // Phase 3 자동 리기어 핵심 로직. cron 이 이 함수를 호출해 종료된 이벤트
-// 각각에 대해 killboard victim 기록 → AODP 시세 → regear_requests 자동 생성.
+// 각각에 대해 killboard victim 기록 → AODP 시세 → regear_requests 를
+// status='pending' 으로 자동 생성한다. 포인트 지급은 하지 않고, 관리자가
+// /approvals 에서 승인해야 ledger 적립이 일어난다 (migration 067).
 //
 // 멱등성: events.auto_regear_processed_at 로 이벤트 단위 게이트, 그리고 RPC
 // 내부에서 (event_id, killboard_event_id) unique 로 killboard 단위 게이트.
@@ -9,9 +11,11 @@
 //   - 이벤트에 auto_regear_processed_at 이 이미 있음 → 스킵
 //   - killboard victim 의 discord_id 가 파티 슬롯에 배정되지 않음 → 스킵
 //   - 배정된 슬롯의 auto_regear_excluded=true → 스킵
+//   - role_rewards.silver = 0 또는 미등록 → 스킵 ("이 역할은 리기어 차단")
 //
-// 시세 0 / equipment 비어 있음 / AODP 전부 null 인 케이스도 RPC 는 호출한다
-// (0 payout 행을 남겨 '처리됨' 을 기록). 이력 추적이 더 중요해서 선택한 절충.
+// 시세 0 / equipment 비어 있음 / AODP 전부 null 인 케이스도 pending 행을
+// 남긴다 — 청구자가 부위별 가격을 수정할 수 있고(Phase B-3), 관리자는 그대로
+// 반려할 수도 있다.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
@@ -40,10 +44,6 @@ export interface AutoRegearResult {
   // 관리자가 retroactive 로 만든 이벤트 (created_at > battle_started_at).
   // 자동 처리 대신 park — admin 이 수동 검토했을 거라고 가정.
   events_skipped_retroactive: number
-  // 레드존 시세로 추정된 자동 건 — status='pending' 으로 관리자 검토 대기열에 들어감.
-  // requests_created 에도 포함되지만, 승인 대기 건수를 별도로 노출해 관리자가
-  // 검토 속도를 판단할 수 있게 한다.
-  requests_held_redzone: number
   errors: Array<{ event_id: string; step: string; message: string }>
   duration_ms: number
 }
@@ -160,7 +160,6 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
       requests_skipped_no_role_cap: 0,
       events_deferred_sync_lag: 0,
       events_skipped_retroactive: 0,
-      requests_held_redzone: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
@@ -208,7 +207,6 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
       requests_skipped_no_role_cap: 0,
       events_deferred_sync_lag: 0,
       events_skipped_retroactive: 0,
-      requests_held_redzone: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
@@ -245,7 +243,6 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
   let skippedNoRoleCap = 0
   let deferredSyncLag = 0
   let skippedRetroactive = 0
-  let heldRedzone = 0
   let processed = 0
 
   for (const event of eventRows) {
@@ -360,7 +357,9 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
           })
         }
 
-        // 경고 단계 요약. redzone 이면 RPC 가 status=pending 으로 돌려 관리자 검토 대기열.
+        // 경고 단계 요약 — UI 에서 배지 색상 결정용 메타데이터로만 쓰인다.
+        // 모든 자동 건은 status='pending' 으로 생성되므로 warning_level 은
+        // status 결정에 영향을 주지 않는다.
         const warningLevel = worstWarningLevel(lineItems.map((i) => i.fallbackTier))
 
         // 수동 flow 와 schema 대칭: silver = 역할상한, claimed = min(시장가, 상한),
@@ -395,11 +394,10 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
         if (rpcErr) {
           errors.push({ event_id: event.id, step: 'rpc', message: rpcErr.message })
         } else if (rpcData === null) {
-          // RPC 가 NULL 반환 = 이미 수동 승인/대기 행 존재(migration 051 guard).
+          // RPC 가 NULL 반환 = 이미 수동 승인/대기 행 존재 또는 role cap 0/미등록.
           skippedManualExists += 1
         } else {
           requestsCreated += 1
-          if (warningLevel === 'redzone') heldRedzone += 1
         }
       }
 
@@ -432,7 +430,6 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
     requests_skipped_no_role_cap: skippedNoRoleCap,
     events_deferred_sync_lag: deferredSyncLag,
     events_skipped_retroactive: skippedRetroactive,
-    requests_held_redzone: heldRedzone,
     errors,
     duration_ms: Date.now() - startedAt,
   }

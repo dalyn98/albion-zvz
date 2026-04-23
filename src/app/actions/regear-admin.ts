@@ -66,9 +66,27 @@ export interface AdminRegearRequest {
   // 킬보드 장비 + AODP 시세로 추산한 시장가. 자동 리기어와 관리자 재확인에서
   // 동일 포맷(gear_breakdown.market_silver) 으로 기록한다. null = 추산 없음.
   estimated_silver: number | null
-  // AODP 폴백 단계(재migration 065). null = 경고 없음. redzone 건은 자동 리기어가
-  // 승인 대신 pending 으로 넣어 관리자 검토 대기열에 쌓이고, UI 는 색상 배지로 표시.
+  // AODP 폴백 단계 (migration 065). null = 경고 없음. 자동 리기어는 모든 건이
+  // status='pending' 으로 들어오고(migration 067), 이 필드는 UI 가 색상 배지로
+  // 시세 정확도 경고를 띄우는 데 쓰인다. status 결정에는 영향 없음.
   price_warning_level: 'quality' | 'window' | 'bluezone' | 'redzone' | null
+  // 자동 생성 여부. 자동 건은 gear_breakdown 에 부위별 시세 breakdown 을 저장해
+  // 관리자/청구자가 내역을 확인·수정할 수 있다.
+  auto_generated: boolean
+  // 자동 건일 경우 부위별 breakdown. 수동 건이거나 breakdown 이 없으면 빈 배열.
+  // 청구자의 수정 여부(user_edited) 도 함께 노출해 관리자가 AODP 추정과 구분
+  // 가능하도록 한다.
+  breakdown_items: Array<{
+    slot: string
+    unique_name: string
+    enchant: number
+    quality: number
+    count: number
+    price: number | null
+    city: string | null
+    fallback_tier: string | null
+    user_edited: boolean
+  }>
 }
 
 export interface AdminExchangeRequest {
@@ -100,7 +118,7 @@ export async function listRegearRequests(
     let query = db
       .from('regear_requests')
       .select(
-        'id, event_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, price_warning_level, events(title)',
+        'id, event_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, auto_generated, price_warning_level, events(title)',
       )
       .order('created_at', { ascending: false })
     if (scope === 'pending') query = query.eq('status', 'pending')
@@ -112,12 +130,44 @@ export async function listRegearRequests(
     const requests: AdminRegearRequest[] = (data ?? []).map((row) => {
       const event = row.events as { title?: string } | { title?: string }[] | null
       const liveTitle = Array.isArray(event) ? event[0]?.title ?? '' : event?.title ?? ''
-      const breakdown = row.gear_breakdown as { market_silver?: unknown } | null
+      const breakdown = row.gear_breakdown as
+        | { market_silver?: unknown; items?: unknown }
+        | null
       const marketRaw = breakdown?.market_silver
       const estimatedSilver =
         typeof marketRaw === 'number' && Number.isFinite(marketRaw) && marketRaw > 0
           ? Math.trunc(marketRaw)
           : null
+      const rawItems = Array.isArray(breakdown?.items) ? breakdown.items : []
+      const breakdownItems = rawItems
+        .filter(
+          (v): v is Record<string, unknown> =>
+            typeof v === 'object' && v !== null,
+        )
+        .map((v) => ({
+          slot: typeof v.slot === 'string' ? v.slot : '',
+          unique_name: typeof v.uniqueName === 'string' ? v.uniqueName : '',
+          enchant:
+            typeof v.enchant === 'number' && Number.isFinite(v.enchant)
+              ? Math.trunc(v.enchant)
+              : 0,
+          quality:
+            typeof v.quality === 'number' && Number.isFinite(v.quality)
+              ? Math.trunc(v.quality)
+              : 1,
+          count:
+            typeof v.count === 'number' && Number.isFinite(v.count) && v.count > 0
+              ? Math.trunc(v.count)
+              : 1,
+          price:
+            typeof v.price === 'number' && Number.isFinite(v.price) && v.price >= 0
+              ? Math.trunc(v.price)
+              : null,
+          city: typeof v.city === 'string' ? v.city : null,
+          fallback_tier: typeof v.fallbackTier === 'string' ? v.fallbackTier : null,
+          user_edited: v.userEdited === true,
+        }))
+        .filter((it) => it.slot.length > 0)
       return {
         id: row.id,
         event_id: row.event_id ?? '',
@@ -143,6 +193,8 @@ export async function listRegearRequests(
         estimated_silver: estimatedSilver,
         price_warning_level:
           (row.price_warning_level as AdminRegearRequest['price_warning_level']) ?? null,
+        auto_generated: Boolean(row.auto_generated),
+        breakdown_items: breakdownItems,
       }
     })
     return { requests }
