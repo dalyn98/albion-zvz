@@ -349,7 +349,7 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, event
           onClick={closeModal}
         >
           <div
-            className="bg-gray-900 border border-gray-700 w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl max-h-[92dvh] flex flex-col"
+            className="bg-gray-900 border border-gray-700 w-full sm:max-w-2xl lg:max-w-5xl sm:rounded-2xl rounded-t-2xl max-h-[92dvh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
@@ -377,9 +377,12 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, event
               </button>
             </div>
 
-            {/* min-h-0 is required on flex children that should scroll — without it, flex items
-                default to min-height:auto (content-based) and overflow the parent's max-height. */}
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-4">
+            {/* 편집 폼(좌/하단) + 미리보기(우/상단) 2단 레이아웃.
+                lg 미만: flex-col-reverse 로 프리뷰가 모달 상단에 오고 편집 폼이 그 아래로 스크롤.
+                lg 이상: flex-row 로 편집 폼이 왼쪽, 프리뷰가 오른쪽 사이드바로 고정.
+                min-h-0 은 flex 자식이 overflow-y-auto 로 스크롤하려면 필수 — 없으면 부모 max-h 를 무시하고 내용이 튀어나간다. */}
+            <div className="flex-1 min-h-0 flex flex-col-reverse lg:flex-row">
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-4 border-t lg:border-t-0 border-gray-700">
               <div className="flex items-center flex-wrap gap-2">
                 <SaveSlotAsTemplateButton
                   slot={slot}
@@ -393,8 +396,6 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, event
                 />
                 <RecentBuildsDropdown slot={slot} onLoad={onChange} />
               </div>
-
-              <BuildPreview slot={slot} />
 
               <div>
                 <label className="text-gray-400 text-[11px] font-semibold block mb-1">{t('roleLabel')}</label>
@@ -508,6 +509,13 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, event
                     />
                   ))}
                 </div>
+              </div>
+              </div>
+
+              {/* 프리뷰 컬럼. lg 이상: 우측 320px 고정 폭 사이드바, 세로 overflow 자체 스크롤.
+                  lg 미만: flex-col-reverse 로 모달 상단에 쌓이며 max-h-[32vh] 로 화면 과점유 방지. */}
+              <div className="lg:w-80 lg:flex-shrink-0 lg:border-l lg:border-gray-700 overflow-y-auto overscroll-contain max-h-[32vh] lg:max-h-none px-4 py-4">
+                <BuildPreview slot={slot} />
               </div>
             </div>
 

@@ -2,11 +2,12 @@
 
 import { useMemo } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import type { GearOption, GearSpec, Slot, SlotKey, SlotRole, SlotSpells } from '@/types'
+import type { GearOption, GearSpec, Slot, SlotKey, SlotSpells } from '@/types'
 import {
   SLOT_KEYS,
+  SLOT_LABELS,
   getDisplayGear,
-  getPrimaryGearKind,
+  getGearOptions,
   getRoleStyle,
   isFreeItem,
 } from '@/types'
@@ -14,14 +15,12 @@ import { stripTierPrefix } from '@/lib/weapon-display'
 import { getLocalizedItemName } from '@/lib/item-names'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import GearPreview from './GearPreview'
-import SlotSpellPanel, { SlotCooldownBadge } from './SlotSpellPanel'
+import SpellImage from './SpellImage'
 import type { SlotInput } from './SlotEditor'
 
-// Roles that get the CD badge treatment in the event detail UI. The real
-// value is fetched from app_settings at render time on the server, but for
-// the admin preview we mirror the default so the editor feels faithful
-// without an extra round-trip.
-const CD_BADGE_ROLES: readonly SlotRole[] = ['Dps']
+// 사이드바 프리뷰는 weapon/head/armor/shoes 에만 스킬 아이콘을 노출한다.
+// 나머지 슬롯은 실전에서 액티브 스킬을 담지 않으므로 행만 차지할 뿐 의미가 없다.
+const SPELL_CAPABLE_KEYS: readonly SlotKey[] = ['weapon', 'head', 'armor', 'shoes']
 
 // Converts the editor's nested SlotInput to a read-only Slot shape that the
 // preview components (GearPreview, SlotSpellPanel) already know how to render.
@@ -81,25 +80,36 @@ function buildDisplaySlot(input: SlotInput): Slot {
   return flat as unknown as Slot
 }
 
+// 슬롯별로 표시할 스킬 아이콘 id 목록을 뽑는다.
+//   - multi 옵션 슬롯: 옵션별 spells 를 합쳐서 중복 제거 (세부 매핑은 좌측 에디터에서 확인 가능)
+//   - 그 외: input.spells[key] 그대로
+// SPELL_CAPABLE_KEYS 에 속하지 않는 슬롯은 호출부에서 이미 필터링된다.
+function spellIdsForKey(input: SlotInput, key: SlotKey): string[] {
+  const opts = input.options[key]
+  if (Array.isArray(opts) && opts.length > 0) {
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const opt of opts) {
+      for (const sid of opt.spells ?? []) {
+        if (seen.has(sid)) continue
+        seen.add(sid)
+        out.push(sid)
+      }
+    }
+    return out
+  }
+  return input.spells[key] ?? []
+}
+
 export default function BuildPreview({ slot: input }: { slot: SlotInput }) {
   const t = useTranslations('adminParty')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
   const displaySlot = useMemo(() => buildDisplaySlot(input), [input])
-  const primaryKind = getPrimaryGearKind(input.role_name)
-  const primaryDisplay = getDisplayGear(displaySlot, primaryKind)
-  const otherKeys = SLOT_KEYS.filter((k) => k !== primaryKind)
   const roleStyle = getRoleStyle(input.role_name)
 
-  const hasAnyContent = SLOT_KEYS.some((k) => {
-    const item = input.items[k]
-    const opts = input.options[k]
-    if (Array.isArray(opts) && opts.length > 0) return true
-    return !!item.id || isFreeItem(item.name, item.id)
-  })
-
   return (
-    <div className="rounded-xl p-2.5 space-y-2 border bg-gray-900/60 border-gray-700">
+    <div className="rounded-xl p-3 space-y-2 border bg-gray-900/60 border-gray-700">
       <div className="flex items-center justify-between gap-2">
         <span className="text-gray-500 text-[10px] font-semibold uppercase tracking-wider">
           {t('previewLabel')}
@@ -115,38 +125,60 @@ export default function BuildPreview({ slot: input }: { slot: SlotInput }) {
         )}
       </div>
 
-      {hasAnyContent ? (
-        <>
-          <div className="grid grid-cols-4 gap-1">
-            <div className="col-span-2 row-span-2 flex items-center justify-center">
-              <GearPreview slot={displaySlot} kind={primaryKind} size={55} isTaken={false} />
-            </div>
-            {otherKeys.map((key) => (
-              <div key={key} className="flex items-center justify-center">
-                <GearPreview slot={displaySlot} kind={key} size={31} isTaken={false} />
+      <ul className="space-y-1">
+        {SLOT_KEYS.map((key) => {
+          const gear = getDisplayGear(displaySlot, key)
+          const opts = getGearOptions(displaySlot, key)
+          const hasOptions = Array.isArray(opts) && opts.length > 0
+          const free = isFreeItem(gear.name, gear.id)
+          const hasGear = !!gear.id || free || hasOptions
+          const spellIds = SPELL_CAPABLE_KEYS.includes(key) ? spellIdsForKey(input, key) : []
+
+          // 이름 표시: multi 모드는 첫 옵션 이름 (아이콘 위 +N 배지가 나머지 개수를 암시).
+          // free 마커는 "자유" 로 바꿔 다른 슬롯과 시각적으로 구분.
+          let displayName: string | null = null
+          if (hasOptions) {
+            const first = opts![0]
+            displayName = stripTierPrefix(
+              getLocalizedItemName(first.id, locale, first.name) ?? first.name,
+            )
+          } else if (free) {
+            displayName = t('itemFree')
+          } else if (gear.name) {
+            displayName = stripTierPrefix(
+              getLocalizedItemName(gear.id, locale, gear.name) ?? gear.name,
+            )
+          }
+
+          return (
+            <li
+              key={key}
+              className={`flex items-center gap-2 px-1.5 py-1 rounded-md ${
+                hasGear ? 'bg-gray-950/40' : 'opacity-50'
+              }`}
+            >
+              <span className="text-gray-500 text-[10px] w-10 flex-shrink-0 truncate">
+                {SLOT_LABELS[key]}
+              </span>
+              <GearPreview slot={displaySlot} kind={key} size={32} isTaken={false} />
+              <div className="flex-1 min-w-0">
+                {displayName ? (
+                  <p className="text-white text-[11px] truncate leading-tight">{displayName}</p>
+                ) : (
+                  <p className="text-gray-600 text-[11px] italic leading-tight">—</p>
+                )}
+                {spellIds.length > 0 && (
+                  <div className="flex flex-wrap gap-0.5 mt-1">
+                    {spellIds.map((sid, i) => (
+                      <SpellImage key={`${sid}-${i}`} spellId={sid} size={20} />
+                    ))}
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1">
-            <SlotSpellPanel slot={displaySlot} cdBadgeRoles={CD_BADGE_ROLES} />
-            <SlotCooldownBadge slot={displaySlot} cdBadgeRoles={CD_BADGE_ROLES} />
-          </div>
-
-          {primaryDisplay.name && !isFreeItem(primaryDisplay.name, primaryDisplay.id) && (
-            <p className="text-white text-[12px] font-medium truncate leading-tight">
-              {stripTierPrefix(
-                getLocalizedItemName(primaryDisplay.id, locale, primaryDisplay.name) ??
-                  primaryDisplay.name,
-              )}
-            </p>
-          )}
-        </>
-      ) : (
-        <p className="text-gray-500 text-[11px] text-center py-4 italic">
-          {t('previewEmpty')}
-        </p>
-      )}
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }
