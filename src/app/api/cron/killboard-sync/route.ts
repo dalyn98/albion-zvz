@@ -68,10 +68,10 @@ export async function GET(request: Request) {
     }
   }
 
-  const result = await syncKillboard(db)
+  const tenantId = await getPrimaryTenantId()
+  const result = await syncKillboard(db, tenantId)
 
   const nowIso = new Date().toISOString()
-  const tenantId = await getPrimaryTenantId()
   await db
     .from('app_settings')
     .upsert(

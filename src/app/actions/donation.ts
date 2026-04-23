@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { requireAlbionVerified } from '@/lib/albion-identity'
 
 // 길드 기부 신청 — 유저 측 액션. 관리자 측은 donation-admin.ts.
@@ -69,9 +70,11 @@ export async function requestDonation(
     return { error: tErr('screenshotUploadFailed', { reason: uploadError.message }) }
   }
 
+  const guildId = await getSessionGuildId(session)
   const { data, error: insertError } = await db
     .from('donation_requests')
     .insert({
+      guild_id: guildId,
       discord_id: session.discordId,
       username: session.username,
       silver,

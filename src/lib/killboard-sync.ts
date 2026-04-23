@@ -115,7 +115,10 @@ export interface KillboardSyncResult {
   duration_ms: number
 }
 
-export async function syncKillboard(db: SupabaseClient): Promise<KillboardSyncResult> {
+export async function syncKillboard(
+  db: SupabaseClient,
+  guildId: string,
+): Promise<KillboardSyncResult> {
   const startedAt = Date.now()
   const server = await resolveAlbionServer()
   const baseUrl = SERVER_ENDPOINTS[server]
@@ -125,6 +128,7 @@ export async function syncKillboard(db: SupabaseClient): Promise<KillboardSyncRe
   const { data: members, error: membersError } = await db
     .from('guild_avatars')
     .select('discord_id, username, albion_player_id')
+    .eq('guild_id', guildId)
     .order('updated_at', { ascending: false })
   if (membersError) {
     throw new Error(`guild_avatars query failed: ${membersError.message}`)
@@ -171,8 +175,8 @@ export async function syncKillboard(db: SupabaseClient): Promise<KillboardSyncRe
       ])
 
       const rows = [
-        ...kills.map((e) => toRow(e, 'killer', m, playerId)),
-        ...deaths.map((e) => toRow(e, 'victim', m, playerId)),
+        ...kills.map((e) => toRow(e, 'killer', m, playerId, guildId)),
+        ...deaths.map((e) => toRow(e, 'victim', m, playerId, guildId)),
       ]
 
       if (rows.length === 0) {
@@ -216,10 +220,12 @@ function toRow(
   role: 'killer' | 'victim',
   member: GuildMemberRow,
   playerId: string,
+  guildId: string,
 ) {
   const self = role === 'killer' ? e.Killer : e.Victim
   const opponent = role === 'killer' ? e.Victim : e.Killer
   return {
+    guild_id: guildId,
     event_id: e.EventId,
     role,
     discord_id: member.discord_id,

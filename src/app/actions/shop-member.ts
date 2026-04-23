@@ -5,6 +5,7 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { computePointPrice, parseShopDiscountRate } from '@/lib/shop/price'
 import { getAppSetting } from '@/lib/app-settings'
@@ -131,9 +132,11 @@ export async function submitShopOrder(
     }
 
     // 주문 + 라인 삽입.
+    const guildId = await getSessionGuildId(session)
     const { data: orderRow, error: insertErr } = await db
       .from('shop_orders')
       .insert({
+        guild_id: guildId,
         discord_id: session.discordId,
         username: session.username,
         total_points: total,
@@ -146,6 +149,7 @@ export async function submitShopOrder(
     const orderId = orderRow.id as string
 
     const lineRows = orderLines.map((l) => ({
+      guild_id: guildId,
       order_id: orderId,
       unique_name: l.uniqueName,
       enchant: l.enchant,

@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
+import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 
 const MEMO_MAX_LENGTH = 200
 
@@ -25,6 +27,9 @@ export async function adjustMemberPoints(
     }
 
     const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
 
     // 대상 길드원이 실제로 존재하는지 확인 — 잘못된 discord_id로 ledger를 더럽히지
     // 않도록 방어. 잔액 검증은 하지 않음(관리자는 마이너스 조정도 허용).
@@ -37,6 +42,7 @@ export async function adjustMemberPoints(
     if (!avatar) return { error: tErr('memberNotFound') }
 
     const { error } = await db.from('point_ledger').insert({
+      guild_id: guildId,
       discord_id: discordId,
       delta: deltaSilver,
       reason: 'admin_adjust',

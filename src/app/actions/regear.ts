@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { verifyDeathInWindow } from '@/lib/killboard'
 import { getAppSetting } from '@/lib/app-settings'
 import { calcPayoutSilver } from '@/lib/regear-payout'
@@ -260,9 +261,11 @@ export async function requestRegear(
   // 7) Insert the request. request_type column defaults to 'death' in the DB
   //    for backwards compatibility; application code no longer branches on it
   //    after migration 018 unified the flow.
+  const guildId = await getSessionGuildId(session)
   const { data: inserted, error: insertError } = await db
     .from('regear_requests')
     .insert({
+      guild_id: guildId,
       event_id: eventId,
       event_title_snapshot: event.title,
       discord_id: session.discordId,

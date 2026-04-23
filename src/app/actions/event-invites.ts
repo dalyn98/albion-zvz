@@ -8,6 +8,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { requireEventCreatorForEvent } from '@/lib/auth'
 
 export interface EventGuestToken {
@@ -53,10 +54,12 @@ export async function createEventGuestToken(
       ? new Date(new Date(event.gather_at).getTime() + POST_GATHER_TTL_MS)
       : new Date(Date.now() + FALLBACK_TTL_MS)
 
+    const guildId = await getSessionGuildId(session)
     const token = randomToken()
     const { data: inserted, error: insertError } = await db
       .from('event_guest_tokens')
       .insert({
+        guild_id: guildId,
         event_id: eventId,
         token,
         created_by: session.discordId,

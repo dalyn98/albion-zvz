@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { requireAlbionVerified } from '@/lib/albion-identity'
 
 export interface MyExchangeRequest {
@@ -42,9 +43,11 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
     return { error: tErr('insufficientBalance', { balance: balance.toLocaleString() }) }
   }
 
+  const guildId = await getSessionGuildId(session)
   const { data, error } = await db
     .from('exchange_requests')
     .insert({
+      guild_id: guildId,
       discord_id: session.discordId,
       username: session.username,
       silver,

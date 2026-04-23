@@ -9,6 +9,7 @@ import {
   requireEventCreatorOrPartyCaller,
 } from '@/lib/auth'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { sendEventNotification } from '@/lib/discord'
 import { getAppSetting } from '@/lib/app-settings'
 import type { BombSquadKind, EventCategory, SlotKey, SlotSpells, GearOption, GearSpec, GearSpecs } from '@/types'
@@ -94,9 +95,11 @@ export async function createDraftEvent(
     const session = await getSession()
     if (!session?.canCreateEvents) return { error: tErr('unauthorized') }
     const db = await requireEventCreator()
+    const guildId = await getSessionGuildId(session)
     const { data, error } = await db
       .from('events')
       .insert({
+        guild_id: guildId,
         title: payload.title.trim(),
         gather_time: '',
         gather_at: null,
@@ -126,9 +129,10 @@ export async function createEvent(payload: EventPayload): Promise<{ id: string }
     const session = await getSession()
     if (!session?.canCreateEvents) return { error: tErr('unauthorized') }
     const db = await requireEventCreator()
+    const guildId = await getSessionGuildId(session)
     const { data, error } = await db
       .from('events')
-      .insert({ ...payload, status: 'draft', created_by: session.discordId })
+      .insert({ ...payload, guild_id: guildId, status: 'draft', created_by: session.discordId })
       .select('id')
       .single()
     if (error) return { error: error.message }
@@ -217,6 +221,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
     const session = await getSession()
     if (!session?.canCreateEvents) return { error: tErr('unauthorized') }
     const db = await requireEventCreator()
+    const guildId = await getSessionGuildId(session)
 
     const { data: source, error: sourceErr } = await db
       .from('events')
@@ -238,6 +243,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
     const { data: newEvent, error: insErr } = await db
       .from('events')
       .insert({
+        guild_id: guildId,
         title: `${source.title}${tDash('duplicateSuffix')}`,
         gather_time: source.gather_time,
         gather_at: shiftedGatherAt,
@@ -269,7 +275,11 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
       return { id: newId }
     }
 
-    const newPartyRows = parties.map((p) => ({ event_id: newId, party_number: p.party_number }))
+    const newPartyRows = parties.map((p) => ({
+      guild_id: guildId,
+      event_id: newId,
+      party_number: p.party_number,
+    }))
     const { data: newParties, error: newPartyErr } = await db
       .from('parties')
       .insert(newPartyRows)
@@ -306,6 +316,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
           row[key] = value
         }
         row.party_id = oldToNewPartyId.get(slot.party_id)
+        row.guild_id = guildId
         return row
       })
       const { error: insSlotErr } = await db.from('slots').insert(newSlotRows)
@@ -526,7 +537,7 @@ function sanitizeGearSpecs(specs: Partial<Record<SlotKey, GearSpec>> | null | un
   return Object.keys(out).length > 0 ? out : null
 }
 
-function slotToRow(partyId: string, slot: SlotPayload) {
+function slotToRow(partyId: string, slot: SlotPayload, guildId?: string) {
   const cleanedOptions = SLOT_KEYS.reduce(
     (acc, k) => ({ ...acc, [k]: sanitizeGearOptions(slot.options[k] ?? []) }),
     {} as Record<SlotKey, GearOption[] | null>,
@@ -535,7 +546,10 @@ function slotToRow(partyId: string, slot: SlotPayload) {
   // be cleared — the member's pick lands in assigned_{kind}_* at assign time.
   // Holding both a fixed item and an option list would let stale fixed data
   // survive a mode switch.
+  // guildId 는 INSERT 경로에서만 넘긴다. UPDATE 는 기존 행의 guild_id 를
+  // 건드리지 않는다.
   return {
+    ...(guildId !== undefined ? { guild_id: guildId } : {}),
     party_id: partyId,
     slot_number: slot.slot_number,
     is_hidden: slot.is_hidden,
@@ -575,6 +589,9 @@ export async function savePartySlots(
     const metaRow = metaResult.row
 
     const { db, isAdminOrOwner } = await requireEventCreatorOrPartyCaller(eventId, partyId)
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
 
     // Validate event exists + category-aware party cap. FF/갱킹 이벤트에서 UI
     // 를 우회해 5번째 파티를 저장하려는 요청을 서버에서도 거부.
@@ -617,7 +634,7 @@ export async function savePartySlots(
     } else {
       const { data, error } = await db
         .from('parties')
-        .insert({ event_id: eventId, party_number: partyNumber, ...metaRow })
+        .insert({ guild_id: guildId, event_id: eventId, party_number: partyNumber, ...metaRow })
         .select('id')
         .single()
       if (error) {
@@ -655,7 +672,7 @@ export async function savePartySlots(
     for (const slot of kept) {
       const { error } = await db
         .from('slots')
-        .update(slotToRow(resolvedPartyId, slot))
+        .update(slotToRow(resolvedPartyId, slot, guildId))
         .eq('id', slot.id!)
       if (error) return { error: error.message }
     }
@@ -665,7 +682,7 @@ export async function savePartySlots(
     if (newSlots.length > 0) {
       const { error } = await db
         .from('slots')
-        .insert(newSlots.map((s) => slotToRow(resolvedPartyId, s)))
+        .insert(newSlots.map((s) => slotToRow(resolvedPartyId, s, guildId)))
       if (error) return { error: error.message }
     }
 

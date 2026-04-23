@@ -9,7 +9,7 @@ import { SESSION_COOKIE_NAME, cookieOptions, signSession } from '@/lib/session'
 import { upsertGuildAvatar } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getTenantIdByDiscordGuildId } from '@/lib/tenant'
+import { getPrimaryTenantId, getTenantIdByDiscordGuildId } from '@/lib/tenant'
 import { LOCALE_COOKIE, isLocale } from '@/i18n/locales'
 
 const STATE_COOKIE = 'discord_oauth_state'
@@ -94,9 +94,16 @@ export async function GET(request: NextRequest) {
     const rawReturnTo = request.cookies.get(RETURN_TO_COOKIE)?.value ?? '/'
     const returnTo = rawReturnTo.startsWith('/') && !rawReturnTo.startsWith('//') ? rawReturnTo : '/'
 
+    // Multi-tenant: 현재 로그인한 Discord 길드에 해당하는 tenant UUID. 여기서
+    // 미리 구해야 upsertGuildAvatar 이 guild_id NOT NULL 제약을 만족한다.
+    // 매핑이 없으면 primary tenant 로 fallback — 신규 길드의 첫 로그인에서
+    // 레코드를 안전하게 초기화하기 위함.
+    const resolvedGuildId =
+      (await getTenantIdByDiscordGuildId(discordGuildId)) ?? (await getPrimaryTenantId())
+
     if (isMember) {
       try {
-        await upsertGuildAvatar(user.id, displayName, user.avatar, isAdmin, isBombSquadCaller)
+        await upsertGuildAvatar(resolvedGuildId, user.id, displayName, user.avatar, isAdmin, isBombSquadCaller)
       } catch (err) {
         console.error('[discord-callback] upsertGuildAvatar failed', err)
       }
@@ -111,12 +118,6 @@ export async function GET(request: NextRequest) {
         .maybeSingle()
       const preferred = langRow?.preferred_language ?? null
 
-      // Multi-tenant: 현재 로그인한 Discord 길드에 해당하는 tenant UUID 를
-      // session 에 심는다. Phase 2 이후 모든 쿼리가 이 값으로 스코프된다.
-      // 레거시 마이그 직전 환경에서 tenants 테이블이 비어 있으면 null → 소비
-      // 측에서 primary tenant fallback.
-      const guildId = await getTenantIdByDiscordGuildId(discordGuildId)
-
       const sessionCookie = await signSession({
         discordId: user.id,
         username: displayName,
@@ -126,7 +127,7 @@ export async function GET(request: NextRequest) {
         isGuest: false,
         canCreateEvents,
         eventScope: null,
-        guildId,
+        guildId: resolvedGuildId,
         issuedAt: Date.now(),
       })
       const destination = resolvePostLoginPath(returnTo, preferred)
@@ -178,6 +179,17 @@ export async function GET(request: NextRequest) {
       return errorRedirect(url.origin, member ? 'no_role' : 'not_in_guild')
     }
 
+    // 게스트의 tenant 는 해당 event 의 guild_id. 한 유저가 guild A 의 게스트
+    // 이면서 guild B 의 게스트일 수 있으므로 "유저의 primary tenant" 가 아니라
+    // 이 초대 토큰이 속한 이벤트의 guild 를 써야 한다. INSERT 전에 미리 구한다.
+    const { data: scopeEvent } = await db
+      .from('events')
+      .select('guild_id')
+      .eq('id', eventScope)
+      .maybeSingle()
+    const guestGuildId =
+      (scopeEvent?.guild_id as string | undefined) ?? (await getPrimaryTenantId())
+
     if (existingGuest) {
       // Refresh display fields so guest list stays current.
       await db
@@ -188,6 +200,7 @@ export async function GET(request: NextRequest) {
       await db
         .from('guests')
         .insert({
+          guild_id: guestGuildId,
           discord_id: user.id,
           username: displayName,
           avatar: user.avatar,
@@ -197,16 +210,6 @@ export async function GET(request: NextRequest) {
     // preferred_language: 신규 게스트는 insert 에서 넣지 않았으니 null. 기존
      // 게스트는 위에서 fetch 한 existingGuest.preferred_language 를 사용.
     const guestPreferred = existingGuest?.preferred_language ?? null
-
-    // 게스트의 tenant 는 해당 event 의 guild_id. 한 유저가 guild A 의 게스트
-    // 이면서 guild B 의 게스트일 수 있으므로 "유저의 primary tenant" 가 아니라
-    // 이 초대 토큰이 속한 이벤트의 guild 를 써야 한다.
-    const { data: scopeEvent } = await db
-      .from('events')
-      .select('guild_id')
-      .eq('id', eventScope)
-      .maybeSingle()
-    const guestGuildId = (scopeEvent?.guild_id as string | undefined) ?? null
 
     const sessionCookie = await signSession({
       discordId: user.id,

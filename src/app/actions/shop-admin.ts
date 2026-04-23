@@ -11,6 +11,7 @@ import { parseChestLog, type ChestLogEntry } from '@/lib/shop/parse-chest-log'
 import { resolveKoItem } from '@/lib/shop/resolve-item'
 import { aggregateStock, type AggregateRow } from '@/lib/shop/aggregate-stock'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { syncShopPrices, type PriceSyncSummary } from './shop-inventory'
 
 export interface ImportSummary {
@@ -90,6 +91,7 @@ export async function importChestLog(
     const session = await getSession()
     if (!session?.isAdmin) return { ...empty, error: 'Unauthorized' }
     const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
 
     const { entries, errors } = parseChestLog(raw)
     if (entries.length === 0) {
@@ -242,6 +244,7 @@ export async function importChestLog(
     const BATCH = 500
     for (let i = 0; i < toInsert.length; i += BATCH) {
       const slice = toInsert.slice(i, i + BATCH).map((r) => ({
+        guild_id: guildId,
         logged_at: r.loggedAt.toISOString(),
         player: r.player,
         item_name_raw: r.itemNameRaw,
@@ -335,9 +338,10 @@ export async function addBlacklist(itemName: string): Promise<{ error?: string }
     const trimmed = itemName.trim()
     if (!trimmed) return { error: tErr('itemNameEmpty') }
     const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
     const { error } = await db
       .from('shop_blacklist')
-      .upsert({ item_name_raw: trimmed, added_by: session.discordId })
+      .upsert({ guild_id: guildId, item_name_raw: trimmed, added_by: session.discordId })
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/shop')
     return {}

@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
+import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import type { GearOption, GearSpecs, SlotSpells } from '@/types'
 
 // Columns saved per slot: role + notes + all 8 gear slots + per-slot options
@@ -71,6 +73,9 @@ export async function saveEventAsTemplate(
     if (trimmed.length > 80) return { error: tErr('templateNameTooLong', { max: 80 }) }
 
     const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
 
     const { data: parties, error } = await db
       .from('parties')
@@ -93,7 +98,7 @@ export async function saveEventAsTemplate(
 
     const { error: insertError } = await db
       .from('event_templates')
-      .insert({ name: trimmed, data })
+      .insert({ guild_id: guildId, name: trimmed, data })
     if (insertError) return { error: insertError.message }
 
     revalidatePath('/admin/dashboard')
@@ -190,6 +195,9 @@ export async function applyTemplate(
   const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
 
     const { count, error: countError } = await db
       .from('parties')
@@ -215,7 +223,11 @@ export async function applyTemplate(
     const { data: insertedParties, error: partiesError } = await db
       .from('parties')
       .insert(
-        data.parties.map((p) => ({ event_id: eventId, party_number: p.party_number })),
+        data.parties.map((p) => ({
+          guild_id: guildId,
+          event_id: eventId,
+          party_number: p.party_number,
+        })),
       )
       .select('id, party_number')
     if (partiesError) return { error: partiesError.message }
@@ -228,6 +240,7 @@ export async function applyTemplate(
       const partyId = partyIdByNumber.get(party.party_number)
       if (!partyId) return []
       return party.slots.map((s) => ({
+        guild_id: guildId,
         party_id: partyId,
         slot_number: s.slot_number,
         role_name: s.role_name,

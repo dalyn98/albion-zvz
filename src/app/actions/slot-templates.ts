@@ -2,6 +2,8 @@
 
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
+import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { EVENT_CATEGORIES, type EventCategory, type GearOption, type GearSpecs, type SlotSpells } from '@/types'
 
 // Slot-level template data: role + notes + 8 gear slots + per-slot multi-option
@@ -65,9 +67,12 @@ export async function saveSlotAsTemplate(
     const resolvedCategory: EventCategory = EVENT_CATEGORIES.includes(category) ? category : '전투'
 
     const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
     const { error } = await db
       .from('slot_templates')
-      .insert({ name: trimmed, data, category: resolvedCategory })
+      .insert({ guild_id: guildId, name: trimmed, data, category: resolvedCategory })
     if (error) return { error: error.message }
     return {}
   } catch (e) {

@@ -70,6 +70,7 @@ export async function getUsernamesByDiscordIds(
 }
 
 export async function upsertGuildAvatar(
+  guildId: string,
   discordId: string,
   username: string,
   avatar: string | null,
@@ -81,6 +82,7 @@ export async function upsertGuildAvatar(
     .from('guild_avatars')
     .upsert(
       {
+        guild_id: guildId,
         discord_id: discordId,
         username,
         avatar,
