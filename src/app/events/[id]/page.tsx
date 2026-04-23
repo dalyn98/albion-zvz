@@ -125,7 +125,7 @@ export default async function EventDetailPage({
   const shouldPoll = !event.battle_started_at || !isEnded(event.battle_started_at)
 
   return (
-    <div className="flex-1 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 py-6 sm:py-8 flex flex-col lg:flex-row lg:items-start lg:gap-6 space-y-4 lg:space-y-0">
+    <div className="flex-1 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 py-6 sm:py-8 flex flex-col lg:flex-row lg:gap-6 space-y-4 lg:space-y-0">
       {shouldPoll && <AutoRefresh intervalMs={15000} />}
       <main className="flex-1 min-w-0 space-y-6 sm:space-y-8">
         <Link

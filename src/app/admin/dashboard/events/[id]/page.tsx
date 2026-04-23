@@ -97,7 +97,7 @@ export default async function EditEventPage({
 
   return (
     <EventEditSaveProvider>
-      <div className="flex flex-col lg:flex-row lg:items-start lg:gap-6 space-y-4 lg:space-y-0">
+      <div className="flex flex-col lg:flex-row lg:gap-6 space-y-4 lg:space-y-0">
         <div className="flex-1 min-w-0 space-y-6 sm:space-y-8">
           <div className="flex items-center justify-between gap-3">
             <h1 className="text-xl sm:text-2xl font-bold text-white">{t('title')}</h1>
