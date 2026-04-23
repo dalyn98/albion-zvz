@@ -6,7 +6,7 @@ import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Eye, EyeOff, Package,
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
 import BatchApplySpecsModal, { type BatchSpecsScope } from './BatchApplySpecsModal'
 import BatchApplyItemsModal from './BatchApplyItemsModal'
-import type { BombSquadKind, GearOption, GearSpec, SlotKey } from '@/types'
+import type { BombSquadKind, EventCategory, GearOption, GearSpec, SlotKey } from '@/types'
 import { BOMB_SQUAD_KINDS, SLOT_KEYS } from '@/types'
 import { savePartySlots } from '@/app/actions/admin'
 import type { PartyWithSlots } from '@/types'
@@ -57,6 +57,9 @@ interface Props {
   // 전역 auto_regear_enabled — SlotEditor 에 그대로 내려 "자동 리기어 제외"
   // 체크박스 가시성을 제어.
   autoRegearEnabled: boolean
+  // 편집 중인 이벤트의 카테고리. SlotEditor 에 내려 슬롯 템플릿 저장/불러오기
+  // 다이얼로그가 이벤트 카테고리를 기본값으로 쓰게 한다.
+  eventCategory?: EventCategory
   // 콜러 전용 모드: 파티 메타(밤스쿼드 토글/이름/콜러) 설정 섹션을 숨기고
   // 슬롯 편집 UI 만 노출. 저장 시 partyMeta 는 서버에서도 방어적으로 무시
   // 되지만, 우선 UI 수준에서 차단해 혼란 방지.
@@ -72,6 +75,7 @@ export default function PartyEditorPanel({
   initialData,
   memberDirectory,
   autoRegearEnabled,
+  eventCategory,
   isCallerScoped = false,
   defaultOpen = false,
 }: Props) {
@@ -398,6 +402,7 @@ export default function PartyEditorPanel({
               slot={slot}
               partyNumber={partyNumber}
               autoRegearEnabled={autoRegearEnabled}
+              eventCategory={eventCategory}
               onChange={(updated) => updateSlot(idx, updated)}
               onDelete={() => deleteSlot(idx)}
             />

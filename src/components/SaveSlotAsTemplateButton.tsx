@@ -5,20 +5,24 @@ import { useTranslations } from 'next-intl'
 import { Save, X } from 'lucide-react'
 import { saveSlotAsTemplate } from '@/app/actions/slot-templates'
 import { slotInputToTemplateData } from '@/lib/slot-template-shape'
+import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, type EventCategory } from '@/types'
 import type { SlotInput } from './SlotEditor'
 
 interface Props {
   slot: SlotInput
   defaultName: string
+  // 편집 중인 이벤트 카테고리가 있다면 초기값으로 사용. 없으면 '전투' 기본.
+  defaultCategory?: EventCategory
 }
 
 const MAX_NAME_LENGTH = 80
 
-export default function SaveSlotAsTemplateButton({ slot, defaultName }: Props) {
+export default function SaveSlotAsTemplateButton({ slot, defaultName, defaultCategory }: Props) {
   const t = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
   const [open, setOpen] = useState(false)
   const [name, setName] = useState(defaultName)
+  const [category, setCategory] = useState<EventCategory>(defaultCategory ?? '전투')
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [pending, startTransition] = useTransition()
@@ -28,7 +32,7 @@ export default function SaveSlotAsTemplateButton({ slot, defaultName }: Props) {
     setSaved(false)
     startTransition(async () => {
       const data = slotInputToTemplateData(slot)
-      const result = await saveSlotAsTemplate(name, data)
+      const result = await saveSlotAsTemplate(name, data, category)
       if (result.error) {
         setError(result.error)
         return
@@ -44,6 +48,7 @@ export default function SaveSlotAsTemplateButton({ slot, defaultName }: Props) {
         type="button"
         onClick={() => {
           setName(defaultName)
+          setCategory(defaultCategory ?? '전투')
           setError('')
           setSaved(false)
           setOpen(true)
@@ -94,6 +99,25 @@ export default function SaveSlotAsTemplateButton({ slot, defaultName }: Props) {
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
                   autoFocus
                 />
+              </div>
+              <div>
+                <label className="text-gray-400 text-xs font-semibold block mb-1">
+                  {t('slotTemplateCategoryLabel')}
+                </label>
+                <div className="inline-flex bg-gray-800 border border-gray-700 rounded-lg p-0.5 text-xs font-semibold">
+                  {EVENT_CATEGORIES.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setCategory(c)}
+                      className={`px-3 py-1 rounded-md transition-colors ${
+                        category === c ? 'bg-amber-500 text-black' : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {t(`slotTemplateCategory_${CATEGORY_I18N_SLUG[c]}`)}
+                    </button>
+                  ))}
+                </div>
               </div>
               {error && (
                 <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">

@@ -10,7 +10,7 @@ import {
   Swords,
   Flame,
 } from 'lucide-react'
-import type { EventCategory } from '@/types'
+import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, type EventCategory } from '@/types'
 
 export type HomeEventKind = 'imminent' | 'upcoming'
 
@@ -43,18 +43,21 @@ export default function HomeEventList({ events }: Props) {
 
   // 카테고리 단위로 큰 섹션을 만들고, 섹션 안에서 다시 임박/예정으로 나눈다.
   // 기존 단일 섹션 구조와 동일한 우선순위 (임박 먼저) 를 category 내부에서
-  // 유지해야 "전투 임박" 이 여전히 맨 위에 보인다.
-  const combat = events.filter((e) => e.category === '전투')
-  const other = events.filter((e) => e.category === '기타')
-
+  // 유지해야 "전투 임박" 이 여전히 맨 위에 보인다. EVENT_CATEGORIES 순서대로
+  // 렌더 — 전투 → FF → 갱킹.
   return (
     <div className="space-y-8">
-      {combat.length > 0 && (
-        <CategorySection title={t('sections.combat')} events={combat} />
-      )}
-      {other.length > 0 && (
-        <CategorySection title={t('sections.other')} events={other} />
-      )}
+      {EVENT_CATEGORIES.map((c) => {
+        const group = events.filter((e) => e.category === c)
+        if (group.length === 0) return null
+        return (
+          <CategorySection
+            key={c}
+            title={t(`sections.${CATEGORY_I18N_SLUG[c]}`)}
+            events={group}
+          />
+        )
+      })}
     </div>
   )
 }

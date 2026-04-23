@@ -14,7 +14,7 @@ import RecentBuildsDropdown from './RecentBuildsDropdown'
 import BuildPreview from './BuildPreview'
 import { slotInputToTemplateData } from '@/lib/slot-template-shape'
 import { saveRecentBuild } from '@/lib/recent-builds'
-import type { SlotKey, GearOption, GearSpec } from '@/types'
+import type { EventCategory, SlotKey, GearOption, GearSpec } from '@/types'
 import {
   SLOT_KEYS,
   SLOT_LABELS,
@@ -95,11 +95,15 @@ interface Props {
   // 제외" 체크박스 노출 여부를 결정하며, OFF 일 땐 슬롯에 이미 저장된 값이
   // 있어도 UI 로 건드릴 수 없게 감춘다.
   autoRegearEnabled: boolean
+  // 편집 중인 이벤트의 카테고리. 전달되면 Save/Load 템플릿 다이얼로그에서
+  // 카테고리 기본값/필터로 사용한다. 관리자 템플릿 페이지처럼 이벤트 컨텍스트가
+  // 없는 곳에서는 생략 가능.
+  eventCategory?: EventCategory
   onChange: (updated: SlotInput) => void
   onDelete: () => void
 }
 
-export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, onChange, onDelete }: Props) {
+export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, eventCategory, onChange, onDelete }: Props) {
   const t = useTranslations('adminParty')
   const tCommon = useTranslations('common')
   const [open, setOpen] = useState(false)
@@ -354,8 +358,13 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, onCha
                 <SaveSlotAsTemplateButton
                   slot={slot}
                   defaultName={slot.role_name ? t('buildName', { role: slot.role_name }) : ''}
+                  defaultCategory={eventCategory}
                 />
-                <LoadSlotTemplateButton slot={slot} onLoad={onChange} />
+                <LoadSlotTemplateButton
+                  slot={slot}
+                  onLoad={onChange}
+                  defaultCategoryFilter={eventCategory}
+                />
                 <RecentBuildsDropdown slot={slot} onLoad={onChange} />
               </div>
 

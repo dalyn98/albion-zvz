@@ -1,6 +1,6 @@
 import 'server-only'
 import { getAdminClient } from './supabase-admin'
-import type { EventCategory } from '@/types'
+import { CATEGORY_NOTIFY_COLUMN, type EventCategory } from '@/types'
 
 // Discord DM 발송용 공용 모듈.
 //
@@ -51,12 +51,7 @@ export async function filterDmOptedIn(
 ): Promise<string[]> {
   if (discordIds.length === 0) return []
   const db = getAdminClient()
-  const categoryColumn =
-    categoryFilter === '전투'
-      ? 'notify_combat'
-      : categoryFilter === '기타'
-      ? 'notify_other'
-      : null
+  const categoryColumn = categoryFilter ? CATEGORY_NOTIFY_COLUMN[categoryFilter] : null
   const columns = categoryColumn
     ? `discord_id, discord_dm_enabled, ${categoryColumn}`
     : 'discord_id, discord_dm_enabled'

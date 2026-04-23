@@ -11,20 +11,24 @@ import {
 } from '@/app/actions/slot-templates'
 import { applyTemplateToSlotInput } from '@/lib/slot-template-shape'
 import { formatDate } from '@/lib/format-datetime'
-import { getRoleStyle } from '@/types'
+import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, getRoleStyle, type EventCategory } from '@/types'
 import type { SlotInput } from './SlotEditor'
 
 interface Props {
   slot: SlotInput
   onLoad: (next: SlotInput) => void
+  // 편집 중인 이벤트 카테고리 — 전달되면 카테고리 필터가 초기값으로 세팅된다.
+  // 관리자 템플릿 페이지처럼 이벤트 컨텍스트가 없는 곳에서는 생략.
+  defaultCategoryFilter?: EventCategory
 }
 
 // Sentinel for the "no role" filter option — distinct from null so the
 // select can round-trip empty-string values without ambiguity.
 const ROLE_FILTER_ALL = '__all__'
 const ROLE_FILTER_NONE = '__none__'
+const CATEGORY_FILTER_ALL = '__all__'
 
-export default function LoadSlotTemplateButton({ slot, onLoad }: Props) {
+export default function LoadSlotTemplateButton({ slot, onLoad, defaultCategoryFilter }: Props) {
   const t = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
   const [open, setOpen] = useState(false)
@@ -34,6 +38,7 @@ export default function LoadSlotTemplateButton({ slot, onLoad }: Props) {
   const [listLoading, setListLoading] = useState(false)
   const [pending, startTransition] = useTransition()
   const [roleFilter, setRoleFilter] = useState<string>(ROLE_FILTER_ALL)
+  const [categoryFilter, setCategoryFilter] = useState<string>(defaultCategoryFilter ?? CATEGORY_FILTER_ALL)
 
   useEffect(() => {
     if (!open) return
@@ -54,25 +59,30 @@ export default function LoadSlotTemplateButton({ slot, onLoad }: Props) {
     }
   }, [open])
 
-  // Role options derived from the loaded templates — only surface roles that
-  // actually exist so the dropdown doesn't advertise empty filter buckets.
+  const categoryFilteredTemplates = useMemo(() => {
+    if (categoryFilter === CATEGORY_FILTER_ALL) return templates
+    return templates.filter((tpl) => tpl.category === categoryFilter)
+  }, [templates, categoryFilter])
+
+  // Role options derived from the category-filtered set so switching categories
+  // only surfaces roles that actually exist within the current bucket.
   const availableRoles = useMemo(() => {
     const set = new Set<string>()
     let hasUnroled = false
-    for (const tpl of templates) {
+    for (const tpl of categoryFilteredTemplates) {
       if (tpl.role_name && tpl.role_name.trim().length > 0) set.add(tpl.role_name)
       else hasUnroled = true
     }
     return { roles: Array.from(set).sort(), hasUnroled }
-  }, [templates])
+  }, [categoryFilteredTemplates])
 
   const filteredTemplates = useMemo(() => {
-    if (roleFilter === ROLE_FILTER_ALL) return templates
+    if (roleFilter === ROLE_FILTER_ALL) return categoryFilteredTemplates
     if (roleFilter === ROLE_FILTER_NONE) {
-      return templates.filter((tpl) => !tpl.role_name || tpl.role_name.trim().length === 0)
+      return categoryFilteredTemplates.filter((tpl) => !tpl.role_name || tpl.role_name.trim().length === 0)
     }
-    return templates.filter((tpl) => tpl.role_name === roleFilter)
-  }, [templates, roleFilter])
+    return categoryFilteredTemplates.filter((tpl) => tpl.role_name === roleFilter)
+  }, [categoryFilteredTemplates, roleFilter])
 
   const apply = () => {
     if (!selected) return
@@ -140,34 +150,58 @@ export default function LoadSlotTemplateButton({ slot, onLoad }: Props) {
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2">
               {!listLoading && templates.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <label className="text-gray-400 text-[11px] font-semibold">
-                    {t('slotTemplateRoleFilter')}
-                  </label>
-                  <select
-                    value={roleFilter}
-                    onChange={(e) => setRoleFilter(e.target.value)}
-                    className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-[11px] text-white focus:outline-none focus:border-sky-500"
-                  >
-                    <option value={ROLE_FILTER_ALL}>
-                      {t('slotTemplateRoleAll', { count: templates.length })}
-                    </option>
-                    {availableRoles.roles.map((role) => {
-                      const count = templates.filter((tpl) => tpl.role_name === role).length
-                      return (
-                        <option key={role} value={role}>
-                          {role} ({count})
-                        </option>
-                      )
-                    })}
-                    {availableRoles.hasUnroled && (
-                      <option value={ROLE_FILTER_NONE}>
-                        {t('slotTemplateRoleNone', {
-                          count: templates.filter((tpl) => !tpl.role_name || tpl.role_name.trim().length === 0).length,
-                        })}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <label className="text-gray-400 text-[11px] font-semibold">
+                      {t('slotTemplateCategoryFilter')}
+                    </label>
+                    <select
+                      value={categoryFilter}
+                      onChange={(e) => setCategoryFilter(e.target.value)}
+                      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-[11px] text-white focus:outline-none focus:border-sky-500"
+                    >
+                      <option value={CATEGORY_FILTER_ALL}>
+                        {t('slotTemplateCategoryAll', { count: templates.length })}
                       </option>
-                    )}
-                  </select>
+                      {EVENT_CATEGORIES.map((c) => {
+                        const count = templates.filter((tpl) => tpl.category === c).length
+                        return (
+                          <option key={c} value={c}>
+                            {t(`slotTemplateCategory_${CATEGORY_I18N_SLUG[c]}`)} ({count})
+                          </option>
+                        )
+                      })}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-gray-400 text-[11px] font-semibold">
+                      {t('slotTemplateRoleFilter')}
+                    </label>
+                    <select
+                      value={roleFilter}
+                      onChange={(e) => setRoleFilter(e.target.value)}
+                      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-[11px] text-white focus:outline-none focus:border-sky-500"
+                    >
+                      <option value={ROLE_FILTER_ALL}>
+                        {t('slotTemplateRoleAll', { count: categoryFilteredTemplates.length })}
+                      </option>
+                      {availableRoles.roles.map((role) => {
+                        const count = categoryFilteredTemplates.filter((tpl) => tpl.role_name === role).length
+                        return (
+                          <option key={role} value={role}>
+                            {role} ({count})
+                          </option>
+                        )
+                      })}
+                      {availableRoles.hasUnroled && (
+                        <option value={ROLE_FILTER_NONE}>
+                          {t('slotTemplateRoleNone', {
+                            count: categoryFilteredTemplates.filter((tpl) => !tpl.role_name || tpl.role_name.trim().length === 0).length,
+                          })}
+                        </option>
+                      )}
+                    </select>
+                  </div>
                 </div>
               )}
               {listLoading ? (

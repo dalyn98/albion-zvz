@@ -5,7 +5,8 @@ import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
-import type { PartyWithSlots } from '@/types'
+import type { EventCategory, PartyWithSlots } from '@/types'
+import { CATEGORY_PARTY_LIMITS } from '@/types'
 import PartyEditorPanel from '@/components/PartyEditorPanel'
 import { EventEditSaveProvider } from '@/components/EventEditSaveRegistry'
 import EventEditSaveBar from '@/components/EventEditSaveBar'
@@ -20,7 +21,7 @@ interface PageParams {
 async function loadContext(eventId: string, partyNumber: number) {
   const admin = getAdminClient()
   const [{ data: event }, { data: partyRow }] = await Promise.all([
-    admin.from('events').select('id, title, created_by, battle_started_at, status').eq('id', eventId).maybeSingle(),
+    admin.from('events').select('id, title, created_by, battle_started_at, status, category').eq('id', eventId).maybeSingle(),
     admin
       .from('parties')
       .select('*, slots(*)')
@@ -48,7 +49,10 @@ export default async function CallerPartyEditPage({
 }) {
   const { id: eventId, partyNumber: partyNumberRaw } = await params
   const partyNumber = Number(partyNumberRaw)
-  if (!Number.isInteger(partyNumber) || partyNumber < 1 || partyNumber > 4) {
+  // 카테고리별 상한은 event 로드 후 추가 검증 — 여기서는 어떤 카테고리에서도
+  // 가능한 최대치만 거른다.
+  const HARD_MAX_PARTIES = Math.max(...Object.values(CATEGORY_PARTY_LIMITS).map((l) => l.max))
+  if (!Number.isInteger(partyNumber) || partyNumber < 1 || partyNumber > HARD_MAX_PARTIES) {
     notFound()
   }
 
@@ -62,6 +66,10 @@ export default async function CallerPartyEditPage({
 
   const { event, party } = await loadContext(eventId, partyNumber)
   if (!event || !party) notFound()
+
+  const eventCategory = (event.category ?? '전투') as EventCategory
+  const categoryMax = CATEGORY_PARTY_LIMITS[eventCategory]?.max ?? HARD_MAX_PARTIES
+  if (partyNumber > categoryMax) notFound()
 
   const isOwner = !!event.created_by && event.created_by === session.discordId
   const isCaller =
@@ -117,6 +125,7 @@ export default async function CallerPartyEditPage({
           initialData={party}
           memberDirectory={memberDirectory}
           autoRegearEnabled={autoRegearEnabled}
+          eventCategory={eventCategory}
           isCallerScoped={!isAdminOrOwner}
           defaultOpen
         />

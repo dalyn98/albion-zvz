@@ -20,15 +20,44 @@ export interface Event {
   // 'published' = 공개. createEvent 는 draft 로만 만들고, publishEvent 가
   // gather_at 을 검증 후 published 로 전이시킨다.
   status: 'draft' | 'published'
-  // Migration 063: 이벤트 카테고리. '전투' = 정식 ZvZ, '기타' = 친선전·연습·
-  // 기타 길드 이벤트. 홈 목록에서 카테고리별로 분리 표시하고, 개인 알림
-  // 설정(notify_combat/notify_other)에 따라 DM 대상을 필터링한다.
+  // Migration 063+064: 이벤트 카테고리. '전투' = 정식 ZvZ, 'FF' = 페임파밍,
+  // '갱킹' = 소규모 PvP 갱킹. 홈 목록에서 카테고리별로 분리 표시하고, 개인 알림
+  // 설정(notify_combat / notify_ff / notify_ganking)에 따라 DM 대상을 필터링한다.
   category: EventCategory
   created_at: string
 }
 
-export const EVENT_CATEGORIES = ['전투', '기타'] as const
+export const EVENT_CATEGORIES = ['전투', 'FF', '갱킹'] as const
 export type EventCategory = (typeof EVENT_CATEGORIES)[number]
+
+// 각 카테고리별 notify 플래그가 매핑되는 DB 컬럼명. 한 군데서만 관리해
+// notifications / discord-dm / 컴포넌트가 동일한 이름을 쓴다.
+export const CATEGORY_NOTIFY_COLUMN: Record<EventCategory, 'notify_combat' | 'notify_ff' | 'notify_ganking'> = {
+  '전투': 'notify_combat',
+  'FF': 'notify_ff',
+  '갱킹': 'notify_ganking',
+}
+
+// 카테고리 값을 그대로 번역 키로 쓸 수 없어 (ascii-safe 아님) 별도 slug 매핑.
+// i18n 에서는 `category_${slug}` 형식으로 참조한다.
+export const CATEGORY_I18N_SLUG: Record<EventCategory, 'combat' | 'ff' | 'ganking'> = {
+  '전투': 'combat',
+  'FF': 'ff',
+  '갱킹': 'ganking',
+}
+
+// 카테고리별 파티 수 제한. 전투는 기본 4파티·최대 10파티, FF/갱킹은 소규모
+// 스쿼드 단위라 기본 1파티·최대 2파티로 제한한다. 편집 페이지가 이 값을 사용해
+// 초기 렌더 개수와 "파티 추가" 버튼 상한을 결정.
+export interface CategoryPartyLimits {
+  default: number
+  max: number
+}
+export const CATEGORY_PARTY_LIMITS: Record<EventCategory, CategoryPartyLimits> = {
+  '전투': { default: 4, max: 10 },
+  'FF': { default: 1, max: 2 },
+  '갱킹': { default: 1, max: 2 },
+}
 
 export type BombSquadKind = 'melee' | 'ranged'
 

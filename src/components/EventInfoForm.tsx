@@ -14,7 +14,7 @@ import {
 } from '@/app/actions/notifications'
 import { defaultGatherParts, parseGatherTime, formatGatherTimeKo, type GatherTimeParts } from '@/lib/gather-time'
 import type { Event, EventCategory } from '@/types'
-import { EVENT_CATEGORIES } from '@/types'
+import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES } from '@/types'
 
 interface Props {
   initialEvent?: Event
@@ -255,7 +255,7 @@ export default function EventInfoForm({ initialEvent }: Props) {
                 category === c ? 'bg-amber-500 text-black' : 'text-gray-400 hover:text-white'
               }`}
             >
-              {t(`category_${c === '전투' ? 'combat' : 'other'}`)}
+              {t(`category_${CATEGORY_I18N_SLUG[c]}`)}
             </button>
           ))}
         </div>

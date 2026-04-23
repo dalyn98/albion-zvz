@@ -5,32 +5,52 @@ import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { requireEventCreator } from '@/lib/auth'
-import type { EventCategory } from '@/types'
+import { CATEGORY_NOTIFY_COLUMN, type EventCategory } from '@/types'
 
 // 사용자(길드원/게스트) 본인의 Discord DM 수신 토글과 관리자용 Discord 역할
 // 목록 조회를 담당. 웹 푸시 스택(actions/push.ts) 을 대체한다.
 
 export interface DmPreference {
   enabled: boolean
-  notifyCombat: boolean
-  notifyOther: boolean
+  // 카테고리별 옵트아웃 (migration 063+064). EventCategory 별 key.
+  categories: Record<EventCategory, boolean>
   error?: string
 }
 
+const DEFAULT_CATEGORIES: Record<EventCategory, boolean> = {
+  '전투': true,
+  'FF': true,
+  '갱킹': true,
+}
+
 // 현재 세션 사용자의 DM 수신 설정을 한 번에 가져온다.
-//   - enabled: discord_dm_enabled (마스터 스위치)
-//   - notifyCombat / notifyOther: 카테고리별 옵트아웃 (migration 063)
-// 셋 모두 기본값은 true/false 혼재인데 (enabled 는 옵트인이라 false, 카테고리는
-// 기존 동작 유지용 true), DB 의 DEFAULT 를 그대로 따른다.
+//   - enabled: discord_dm_enabled (마스터 스위치, 기본 false = 옵트인)
+//   - categories: 카테고리별 옵트아웃 (기본 true = 기존 동작 유지)
+// DB 의 DEFAULT 를 그대로 따른다.
 export async function getMyDmPreference(): Promise<DmPreference> {
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) {
-    return { enabled: false, notifyCombat: true, notifyOther: true, error: tErr('loginRequired') }
+    return { enabled: false, categories: { ...DEFAULT_CATEGORIES }, error: tErr('loginRequired') }
   }
 
   const db = getAdminClient()
-  const columns = 'discord_dm_enabled, notify_combat, notify_other'
+  const columns = 'discord_dm_enabled, notify_combat, notify_ff, notify_ganking'
+  type Row = {
+    discord_dm_enabled: boolean | null
+    notify_combat: boolean | null
+    notify_ff: boolean | null
+    notify_ganking: boolean | null
+  }
+  const toPref = (row: Row): DmPreference => ({
+    enabled: row.discord_dm_enabled ?? false,
+    categories: {
+      '전투': row.notify_combat ?? true,
+      'FF': row.notify_ff ?? true,
+      '갱킹': row.notify_ganking ?? true,
+    },
+  })
+
   // 길드원(guild_avatars) 우선, 없으면 게스트(guests) 확인. 둘 다 없는 경우는
   // 실질적으로 세션이 살아있지만 아바타가 삭제된 엣지 케이스 — 기본값 반환.
   const { data: avatar } = await db
@@ -38,28 +58,16 @@ export async function getMyDmPreference(): Promise<DmPreference> {
     .select(columns)
     .eq('discord_id', session.discordId)
     .maybeSingle()
-  if (avatar) {
-    return {
-      enabled: avatar.discord_dm_enabled ?? false,
-      notifyCombat: avatar.notify_combat ?? true,
-      notifyOther: avatar.notify_other ?? true,
-    }
-  }
+  if (avatar) return toPref(avatar as Row)
 
   const { data: guest } = await db
     .from('guests')
     .select(columns)
     .eq('discord_id', session.discordId)
     .maybeSingle()
-  if (guest) {
-    return {
-      enabled: guest.discord_dm_enabled ?? false,
-      notifyCombat: guest.notify_combat ?? true,
-      notifyOther: guest.notify_other ?? true,
-    }
-  }
+  if (guest) return toPref(guest as Row)
 
-  return { enabled: false, notifyCombat: true, notifyOther: true }
+  return { enabled: false, categories: { ...DEFAULT_CATEGORIES } }
 }
 
 export async function setMyDmPreference(
@@ -93,7 +101,7 @@ export async function setMyCategoryPreference(
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
 
-  const column = category === '전투' ? 'notify_combat' : 'notify_other'
+  const column = CATEGORY_NOTIFY_COLUMN[category]
   const table = session.isGuest ? 'guests' : 'guild_avatars'
   const db = getAdminClient()
   const { error } = await db

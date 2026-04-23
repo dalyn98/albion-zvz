@@ -14,6 +14,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import type { BombSquadKind, EventCategory, SlotKey, SlotSpells, GearOption, GearSpec, GearSpecs } from '@/types'
 import {
   BOMB_SQUAD_KINDS,
+  CATEGORY_PARTY_LIMITS,
   EVENT_CATEGORIES,
   SLOT_KEYS,
   GEAR_TIER_MIN,
@@ -26,7 +27,9 @@ import {
 
 const DEFAULT_EVENT_NOTIFICATION_MESSAGE = '새 이벤트가 등록되었습니다.'
 
-const MAX_PARTIES = 4
+// 카테고리와 무관하게 존재할 수 있는 가장 큰 파티 번호 — 입력이 터무니없이
+// 크면 아래 category-aware 검증 이전에 빠르게 차단.
+const HARD_MAX_PARTIES = Math.max(...Object.values(CATEGORY_PARTY_LIMITS).map((l) => l.max))
 const MAX_SLOTS_PER_PARTY = 20
 
 type AdminErrorTranslator = Awaited<ReturnType<typeof getTranslations<'adminActionError'>>>
@@ -561,7 +564,7 @@ export async function savePartySlots(
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    if (partyNumber < 1 || partyNumber > MAX_PARTIES) return { error: tErr('invalidPartyNumber') }
+    if (partyNumber < 1 || partyNumber > HARD_MAX_PARTIES) return { error: tErr('invalidPartyNumber') }
     if (slots.length > MAX_SLOTS_PER_PARTY) return { error: tErr('tooManySlots', { max: MAX_SLOTS_PER_PARTY }) }
 
     const metaResult = sanitizePartyMeta(partyMeta, tErr)
@@ -570,16 +573,20 @@ export async function savePartySlots(
 
     const { db, isAdminOrOwner } = await requireEventCreatorOrPartyCaller(eventId, partyId)
 
-    // Validate event exists first — otherwise FK violation is obscure to the admin.
+    // Validate event exists + category-aware party cap. FF/갱킹 이벤트에서 UI
+    // 를 우회해 5번째 파티를 저장하려는 요청을 서버에서도 거부.
     const { data: eventRow, error: eventCheckError } = await db
       .from('events')
-      .select('id')
+      .select('id, category')
       .eq('id', eventId)
       .maybeSingle()
     if (eventCheckError) return { error: eventCheckError.message }
     if (!eventRow) {
       return { error: tErr('eventMissing') }
     }
+    const eventCategory = (eventRow.category ?? '전투') as EventCategory
+    const categoryMax = CATEGORY_PARTY_LIMITS[eventCategory]?.max ?? HARD_MAX_PARTIES
+    if (partyNumber > categoryMax) return { error: tErr('invalidPartyNumber') }
 
     // Saving a never-created party with zero slots should be a no-op — otherwise
     // a single click on an empty panel creates a phantom party row that blocks

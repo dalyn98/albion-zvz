@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { isDiscordDmConfigured, sendDiscordDmsToUsers } from '@/lib/discord-dm'
 import { getAppSetting } from '@/lib/app-settings'
+import type { EventCategory } from '@/types'
 
 // 이벤트 집결 시간이 다가오면 파티에 편성된 멤버들에게 Discord DM 을 보낸다.
 //
@@ -144,9 +145,9 @@ export async function GET(request: Request) {
 
     if (discordIds.length > 0) {
       const time = formatGatherTime(event.gather_at as string)
-      // event.category 는 migration 063 이후 NOT NULL — 기존 행도 '전투' 로
-      // backfill 됐다. 개인 옵트아웃 (notify_combat / notify_other) 과 AND.
-      const category = (event.category ?? '전투') as '전투' | '기타'
+      // event.category 는 migration 063+064 이후 NOT NULL. 개인 옵트아웃
+      // (notify_combat / notify_ff / notify_ganking) 과 AND.
+      const category = (event.category ?? '전투') as EventCategory
       const result = await sendDiscordDmsToUsers(
         discordIds,
         {

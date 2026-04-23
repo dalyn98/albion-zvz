@@ -1,42 +1,41 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Bell, BellOff, Swords, Sparkles } from 'lucide-react'
+import { Bell, BellOff, Swords, Sprout, Target } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { setMyCategoryPreference } from '@/app/actions/notifications'
 import { EVENT_CATEGORIES, type EventCategory } from '@/types'
 import { useToast } from './ToastProvider'
 
 interface Props {
-  initialCombat: boolean
-  initialOther: boolean
+  initialCategories: Record<EventCategory, boolean>
   // DM 마스터 스위치가 꺼져 있으면 카테고리 토글은 무의미하지만 상태는 미리
   // 설정할 수 있도록 비활성화된 UI 로 렌더링한다.
   masterEnabled: boolean
 }
 
-export default function CategoryDmPrefs({
-  initialCombat,
-  initialOther,
-  masterEnabled,
-}: Props) {
+// 카테고리별 아이콘 · 번역 키. EVENT_CATEGORIES 순서대로 렌더링.
+const CATEGORY_META: Record<EventCategory, { icon: typeof Swords; labelKey: string }> = {
+  '전투': { icon: Swords, labelKey: 'category_combat' },
+  'FF': { icon: Sprout, labelKey: 'category_ff' },
+  '갱킹': { icon: Target, labelKey: 'category_ganking' },
+}
+
+export default function CategoryDmPrefs({ initialCategories, masterEnabled }: Props) {
   const t = useTranslations('discordDm')
   const toast = useToast()
   const [pending, startTransition] = useTransition()
-  const [combat, setCombat] = useState(initialCombat)
-  const [other, setOther] = useState(initialOther)
+  const [categories, setCategories] = useState<Record<EventCategory, boolean>>(initialCategories)
 
   const toggle = (category: EventCategory, next: boolean) => {
-    const prev = category === '전투' ? combat : other
-    if (category === '전투') setCombat(next)
-    else setOther(next)
+    const prev = categories[category]
+    setCategories((current) => ({ ...current, [category]: next }))
 
     startTransition(async () => {
       const res = await setMyCategoryPreference(category, next)
       if (res.error) {
         // 롤백 — 서버 실패 시 UI 상태도 원복.
-        if (category === '전투') setCombat(prev)
-        else setOther(prev)
+        setCategories((current) => ({ ...current, [category]: prev }))
         toast.error(t('updateFailed'))
       }
     })
@@ -52,9 +51,9 @@ export default function CategoryDmPrefs({
 
       <div className="space-y-2">
         {EVENT_CATEGORIES.map((c) => {
-          const value = c === '전투' ? combat : other
-          const labelKey = c === '전투' ? 'category_combat' : 'category_other'
-          const Icon = c === '전투' ? Swords : Sparkles
+          const value = categories[c]
+          const { icon: Icon, labelKey } = CATEGORY_META[c]
+          const active = value && masterEnabled
           return (
             <button
               key={c}
@@ -62,14 +61,14 @@ export default function CategoryDmPrefs({
               disabled={pending || !masterEnabled}
               onClick={() => toggle(c, !value)}
               className={`w-full flex items-center justify-between gap-3 border rounded-lg px-3 py-2.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                value && masterEnabled
+                active
                   ? 'bg-emerald-500/10 border-emerald-500/40 hover:bg-emerald-500/15'
                   : 'bg-gray-800/60 border-gray-700 hover:border-gray-600'
               }`}
             >
               <div className="flex items-center gap-2">
-                <Icon size={14} className={value && masterEnabled ? 'text-emerald-300' : 'text-gray-500'} />
-                <span className={`text-sm font-semibold ${value && masterEnabled ? 'text-emerald-200' : 'text-gray-300'}`}>
+                <Icon size={14} className={active ? 'text-emerald-300' : 'text-gray-500'} />
+                <span className={`text-sm font-semibold ${active ? 'text-emerald-200' : 'text-gray-300'}`}>
                   {t(labelKey)}
                 </span>
               </div>

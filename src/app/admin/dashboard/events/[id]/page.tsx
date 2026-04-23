@@ -2,10 +2,11 @@ import { supabase } from '@/lib/supabase'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
-import type { Event, PartyWithSlots } from '@/types'
+import type { Event, EventCategory, PartyWithSlots } from '@/types'
+import { CATEGORY_PARTY_LIMITS } from '@/types'
 import EventInfoForm from '@/components/EventInfoForm'
 import PublishEventBanner from '@/components/PublishEventBanner'
-import PartyEditorPanel from '@/components/PartyEditorPanel'
+import PartyListEditor from '@/components/PartyListEditor'
 import EventSlotSidebar from '@/components/EventSlotSidebar'
 import SaveAsTemplateButton from '@/components/SaveAsTemplateButton'
 import LoadTemplateButton from '@/components/LoadTemplateButton'
@@ -15,8 +16,6 @@ import EventEditSaveBar from '@/components/EventEditSaveBar'
 import { listTemplates } from '@/app/actions/templates'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
-
-const MAX_PARTIES = 4
 
 async function getData(id: string) {
   // guild_avatars 는 anon/authenticated 에 revoke 되어 있어 (migration 008)
@@ -85,7 +84,8 @@ export default async function EditEventPage({
 
   if (!event) notFound()
 
-  const partiesByNumber = new Map(parties.map((p) => [p.party_number, p]))
+  const eventCategory: EventCategory = event.category
+  const partyLimits = CATEGORY_PARTY_LIMITS[eventCategory]
   const hasParties = parties.length > 0
   const hasSlots = parties.some((p) => p.slots.length > 0)
 
@@ -116,7 +116,7 @@ export default async function EditEventPage({
               <div>
                 <h2 className="text-lg font-bold text-white">{t('partyConfigTitle')}</h2>
                 <p className="text-gray-400 text-xs sm:text-sm mt-1">
-                  {t('partyConfigDescription', { max: MAX_PARTIES })}
+                  {t('partyConfigDescription', { max: partyLimits.max })}
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -128,21 +128,13 @@ export default async function EditEventPage({
                 )}
               </div>
             </div>
-            <div className="space-y-3">
-              {Array.from({ length: MAX_PARTIES }, (_, i) => i + 1).map((partyNumber) => {
-                const party = partiesByNumber.get(partyNumber) ?? null
-                return (
-                  <PartyEditorPanel
-                    key={`${partyNumber}-${party?.id ?? 'empty'}`}
-                    eventId={id}
-                    partyNumber={partyNumber}
-                    initialData={party}
-                    memberDirectory={memberDirectory}
-                    autoRegearEnabled={autoRegearEnabled}
-                  />
-                )
-              })}
-            </div>
+            <PartyListEditor
+              eventId={id}
+              parties={parties}
+              memberDirectory={memberDirectory}
+              autoRegearEnabled={autoRegearEnabled}
+              eventCategory={eventCategory}
+            />
           </section>
 
           <EventEditSaveBar eventId={event.id} eventStatus={event.status} />

@@ -11,7 +11,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { createDraftEvent } from '@/app/actions/admin'
-import { EVENT_CATEGORIES, type EventCategory } from '@/types'
+import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, type EventCategory } from '@/types'
 
 export default function NewEventDraftForm() {
   const router = useRouter()
@@ -69,7 +69,7 @@ export default function NewEventDraftForm() {
                 category === c ? 'bg-amber-500 text-black' : 'text-gray-400 hover:text-white'
               }`}
             >
-              {t(`category_${c === '전투' ? 'combat' : 'other'}`)}
+              {t(`category_${CATEGORY_I18N_SLUG[c]}`)}
             </button>
           ))}
         </div>

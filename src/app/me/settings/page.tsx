@@ -23,7 +23,7 @@ export default async function MySettingsPage() {
     getMyPreferredLanguage(),
     getLocale(),
   ])
-  const { enabled, notifyCombat, notifyOther } = dmPref
+  const { enabled, categories: categoryPrefs } = dmPref
   // DB 값 > 현재 활성 로케일 > 기본값 순으로 fallback. 마이그레이션 직후
   // preferred_language 가 null 인 기존 사용자는 활성 로케일이 표시되어야 한다.
   const initialLocale: Locale = preferredLocale
@@ -51,8 +51,7 @@ export default async function MySettingsPage() {
         </h2>
         <DmToggle initialEnabled={enabled} />
         <CategoryDmPrefs
-          initialCombat={notifyCombat}
-          initialOther={notifyOther}
+          initialCategories={categoryPrefs}
           masterEnabled={enabled}
         />
       </section>
