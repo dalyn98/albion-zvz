@@ -26,6 +26,7 @@ import {
 } from '@/app/actions/stats-admin'
 import MemberAvatar from '@/components/MemberAvatar'
 import MemberLink from '@/components/MemberLink'
+import ForceOnboardButton from '@/components/ForceOnboardButton'
 import { ALBION_SERVER_LABEL } from '@/lib/albion-gameinfo'
 
 export const dynamic = 'force-dynamic'
@@ -683,6 +684,7 @@ function VerificationMemberList({
                   </span>
                 </div>
               )}
+              <ForceOnboardButton discordId={m.discordId} username={m.username} />
             </li>
           ))}
         </ul>

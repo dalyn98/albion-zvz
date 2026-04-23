@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/auth'
 import { getAppSetting } from '@/lib/app-settings'
 import { getTranslations } from 'next-intl/server'
@@ -506,6 +507,35 @@ export async function getAlbionVerificationStats(): Promise<{
         unverifiedMembers: unverifiedMembers.slice(0, 50),
       },
     }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+// 관리자가 특정 멤버의 알비온 필드를 전부 초기화한다. 다음 사이트 방문 시
+// layout 게이트가 albion_server IS NULL 을 감지해 온보딩 모달을 다시 띄운다.
+// 수동 입력 상태(비인증) 인 사람을 재인증시키거나, 잘못 입력한 캐릭터를 지우는
+// 관리자 조치. guild_avatars.username 은 건드리지 않는다 — 디스코드 세션이
+// 참조하는 기본 값이라 복구 시점에 자동으로 덮어써진다.
+export async function resetMemberAlbionOnboarding(
+  discordId: string,
+): Promise<{ ok?: true; error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const db = await requireAdmin()
+    const { error } = await db
+      .from('guild_avatars')
+      .update({
+        albion_server: null,
+        albion_player_id: null,
+        albion_nickname: null,
+        albion_guild_id: null,
+        albion_verified_at: null,
+      })
+      .eq('discord_id', discordId)
+    if (error) return { error: error.message }
+    revalidatePath('/admin/dashboard/stats')
+    return { ok: true }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
