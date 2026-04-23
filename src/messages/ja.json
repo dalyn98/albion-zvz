@@ -1147,6 +1147,7 @@
     "screenshotUploadFailed": "スクリーンショットのアップロードに失敗しました: {reason}",
     "noAssignedSlot": "このイベントに割り当てられたスロットがありません。",
     "slotRoleMissing": "役割が指定されていないスロットです。管理者にお問い合わせください。",
+    "manualRegearExcluded": "このビルドは手動リギア申請が無効化されています。管理者にお問い合わせください。",
     "alreadyRequestedForEvent": "このイベントにはすでにリギアを申請しています。",
     "regearWindowNotOpen": "キルボードの集計待機中です。戦闘開始から{minutes}分が経過してから再度お試しください。",
     "regearDeathsLimitReached": "このイベントでは最大 {max}回まで申請できます。",

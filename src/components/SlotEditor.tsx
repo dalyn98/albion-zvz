@@ -55,6 +55,9 @@ export interface SlotInput {
   // when the global auto_regear_enabled toggle is ON; UI also only exposes
   // the checkbox in that case.
   auto_regear_excluded: boolean
+  // Migration 069: per-slot opt-out for manual regear submissions. No global
+  // toggle — always editable.
+  manual_regear_excluded: boolean
   assigned_username: string | null
 }
 
@@ -76,6 +79,7 @@ export function emptySlotInput(slotNumber: number): SlotInput {
     spells: emptyPerSlot(() => []),
     specs: emptyPerSlot(() => ({}) as GearSpec),
     auto_regear_excluded: false,
+    manual_regear_excluded: false,
     assigned_username: null,
   }
 }
@@ -417,6 +421,25 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, event
                   </span>
                 </label>
               )}
+
+              <label className="flex items-start gap-2 cursor-pointer select-none bg-gray-950/40 border border-gray-800 rounded-lg px-3 py-2">
+                <input
+                  type="checkbox"
+                  checked={slot.manual_regear_excluded}
+                  onChange={(e) =>
+                    onChange({ ...slot, manual_regear_excluded: e.target.checked })
+                  }
+                  className="mt-0.5 h-4 w-4 accent-amber-500"
+                />
+                <span>
+                  <span className="text-[12px] text-white font-semibold">
+                    수동 리기어 제외
+                  </span>
+                  <span className="block text-[11px] text-gray-500 mt-0.5">
+                    체크하면 이 빌드에 배정된 멤버는 스크린샷 기반 리기어 신청이 차단됩니다.
+                  </span>
+                </span>
+              </label>
 
               <div className="space-y-3">
                 <GearSection

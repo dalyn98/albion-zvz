@@ -130,13 +130,14 @@ export async function requestRegear(
   const { data: slot, error: slotError } = await db
     .from('slots')
     .select(
-      'role_name, weapon_name, weapon_id, head_name, head_id, armor_name, armor_id, shoes_name, shoes_id, offhand_name, offhand_id, potion_name, potion_id, food_name, food_id, cape_name, cape_id, mount_name, mount_id, assigned_weapon_name, assigned_weapon_id, assigned_head_name, assigned_head_id, assigned_armor_name, assigned_armor_id, assigned_shoes_name, assigned_shoes_id, assigned_offhand_name, assigned_offhand_id, assigned_potion_name, assigned_potion_id, assigned_food_name, assigned_food_id, assigned_cape_name, assigned_cape_id, assigned_mount_name, assigned_mount_id, parties!inner(event_id)',
+      'role_name, manual_regear_excluded, weapon_name, weapon_id, head_name, head_id, armor_name, armor_id, shoes_name, shoes_id, offhand_name, offhand_id, potion_name, potion_id, food_name, food_id, cape_name, cape_id, mount_name, mount_id, assigned_weapon_name, assigned_weapon_id, assigned_head_name, assigned_head_id, assigned_armor_name, assigned_armor_id, assigned_shoes_name, assigned_shoes_id, assigned_offhand_name, assigned_offhand_id, assigned_potion_name, assigned_potion_id, assigned_food_name, assigned_food_id, assigned_cape_name, assigned_cape_id, assigned_mount_name, assigned_mount_id, parties!inner(event_id)',
     )
     .eq('assigned_discord_id', session.discordId)
     .eq('parties.event_id', eventId)
     .maybeSingle()
   if (slotError) return { error: slotError.message }
   if (!slot) return { error: tErr('noAssignedSlot') }
+  if (slot.manual_regear_excluded === true) return { error: tErr('manualRegearExcluded') }
   const roleName = (slot.role_name ?? '').trim()
   if (!roleName) return { error: tErr('slotRoleMissing') }
 
@@ -371,8 +372,9 @@ export async function listMyRegearEligibleEvents(): Promise<{
   // the in-game 1-hour window (the cutoff is for the screenshot itself).
   const { data: slots, error: slotError } = await db
     .from('slots')
-    .select('role_name, party_id')
+    .select('role_name, party_id, manual_regear_excluded')
     .eq('assigned_discord_id', session.discordId)
+    .eq('manual_regear_excluded', false)
   if (slotError) return { events: [], error: slotError.message }
   if (!slots || slots.length === 0) return { events: [] }
 

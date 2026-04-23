@@ -196,6 +196,8 @@ export interface Slot {
   // Migration 050: per-slot opt-out for auto-regear. When true, the auto-regear
   // cron will skip this slot's assignee even if the global toggle is ON.
   auto_regear_excluded: boolean
+  // Migration 069: per-slot opt-out for manual regear submissions.
+  manual_regear_excluded: boolean
   assigned_discord_id: string | null
   assigned_username: string | null
   assigned_weapon_name: string | null;  assigned_weapon_id: string | null

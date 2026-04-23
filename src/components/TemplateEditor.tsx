@@ -81,6 +81,7 @@ function templateToPartyStates(data: TemplateData): PartyState[] {
         role_name: s.role_name ?? '',
         notes: s.notes ?? '',
         auto_regear_excluded: false,
+        manual_regear_excluded: false,
         assigned_username: null,
         items: SLOT_KEYS.reduce((acc, k) => ({
           ...acc,

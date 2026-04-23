@@ -36,6 +36,7 @@ function buildDisplaySlot(input: SlotInput): Slot {
     role_name: input.role_name || null,
     notes: input.notes || null,
     auto_regear_excluded: input.auto_regear_excluded,
+    manual_regear_excluded: input.manual_regear_excluded,
     assigned_discord_id: null,
     assigned_username: null,
     requested_discord_id: null,

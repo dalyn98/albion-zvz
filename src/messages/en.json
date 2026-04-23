@@ -1143,6 +1143,7 @@
     "screenshotUploadFailed": "Screenshot upload failed: {reason}",
     "noAssignedSlot": "You don't have an assigned slot in this event.",
     "slotRoleMissing": "The slot has no role assigned. Please contact an admin.",
+    "manualRegearExcluded": "Manual regear requests are blocked for this build. Please contact an admin.",
     "alreadyRequestedForEvent": "You've already submitted a regear request for this event.",
     "regearWindowNotOpen": "Waiting for the killboard to index deaths. Please retry {minutes} minutes after battle start.",
     "regearDeathsLimitReached": "You've already submitted the max ({max}) regear requests for this event.",

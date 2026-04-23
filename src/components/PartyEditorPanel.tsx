@@ -20,6 +20,7 @@ function slotToInput(s: import('@/types').Slot): SlotInput {
     role_name: s.role_name ?? '',
     notes: s.notes ?? '',
     auto_regear_excluded: s.auto_regear_excluded,
+    manual_regear_excluded: s.manual_regear_excluded,
     assigned_username: s.assigned_username,
     items: SLOT_KEYS.reduce((acc, k) => ({
       ...acc,

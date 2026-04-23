@@ -1147,6 +1147,7 @@
     "screenshotUploadFailed": "스크린샷 업로드 실패: {reason}",
     "noAssignedSlot": "해당 이벤트에 배정된 슬롯이 없습니다.",
     "slotRoleMissing": "역할이 지정되지 않은 슬롯입니다. 관리자에게 문의하세요.",
+    "manualRegearExcluded": "이 빌드는 수동 리기어 신청이 차단되어 있습니다. 관리자에게 문의하세요.",
     "alreadyRequestedForEvent": "이 이벤트에 이미 리기어를 신청했습니다.",
     "regearWindowNotOpen": "킬보드 집계 대기 중입니다. 전투 시작 후 {minutes}분이 지난 뒤에 다시 시도해 주세요.",
     "regearDeathsLimitReached": "이 이벤트에서 최대 {max}회까지 신청 가능합니다.",
