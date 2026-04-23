@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import { getTranslations } from 'next-intl/server'
 import {
   BarChart3,
   Wallet,
@@ -43,7 +44,8 @@ function itemImageUrl(uniqueName: string, enchant: number, quality: number): str
 
 export default async function AdminStatsPage() {
   // 네 섹션을 병렬로 — 하나가 느려도 다른 섹션이 블로킹되지 않도록.
-  const [pointRes, eventRes, shopRegearRes, verificationRes] = await Promise.all([
+  const [tNav, pointRes, eventRes, shopRegearRes, verificationRes] = await Promise.all([
+    getTranslations('nav'),
     getPointStats(),
     getEventStats(),
     getShopRegearStats(),
@@ -55,7 +57,7 @@ export default async function AdminStatsPage() {
   if (error || !stats) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold text-white">통계</h1>
+        <h1 className="text-2xl font-bold text-white">{tNav('stats')}</h1>
         <div className="bg-red-500/10 border border-red-500/40 text-red-200 rounded-lg p-4 text-sm">
           통계를 불러오지 못했습니다: {error ?? '알 수 없는 오류'}
         </div>
@@ -108,7 +110,7 @@ export default async function AdminStatsPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <BarChart3 size={22} className="text-amber-400" />
-        <h1 className="text-2xl font-bold text-white">통계</h1>
+        <h1 className="text-2xl font-bold text-white">{tNav('stats')}</h1>
       </div>
       <p className="text-sm text-gray-400">
         길드 포인트 원장(point_ledger) 집계. 리기어 승인/기부/환전/상점 구매/관리자 조정이 모두

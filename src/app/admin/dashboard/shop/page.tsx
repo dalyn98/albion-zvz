@@ -1,4 +1,5 @@
 import { ShoppingBag } from 'lucide-react'
+import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import { getAppSetting } from '@/lib/app-settings'
 import ShopImportForm from '@/components/ShopImportForm'
@@ -18,6 +19,7 @@ type AodpQuality = 1 | 2 | 3 | 4 | 5
 
 export default async function AdminShopPage() {
   const db = await requireAdmin()
+  const tNav = await getTranslations('nav')
   const [
     { data: blacklist },
     { data: inventory },
@@ -125,7 +127,7 @@ export default async function AdminShopPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <ShoppingBag size={22} className="text-amber-400" />
-        <h1 className="text-2xl font-bold text-white">길드 상점 관리</h1>
+        <h1 className="text-2xl font-bold text-white">{tNav('shopAdmin')}</h1>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">

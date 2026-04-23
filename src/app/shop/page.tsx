@@ -1,5 +1,6 @@
 import { ShoppingBag, Info, LogIn, Lock } from 'lucide-react'
 import Link from 'next/link'
+import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
@@ -41,8 +42,9 @@ export default async function PublicShopPage() {
   const session = await getSession()
   const db = getAdminClient()
 
-  const [deliveryNotice, discountRateSetting, aodpCitiesSetting, { data: invRows }] =
+  const [tNav, deliveryNotice, discountRateSetting, aodpCitiesSetting, { data: invRows }] =
     await Promise.all([
+      getTranslations('nav'),
       getAppSetting('shop_delivery_notice', ''),
       getAppSetting('shop_discount_rate', '1'),
       getAppSetting('aodp_cities', ''),
@@ -96,7 +98,7 @@ export default async function PublicShopPage() {
     <div className="space-y-4 max-w-7xl">
       <div className="flex items-center gap-2">
         <ShoppingBag size={22} className="text-amber-400" />
-        <h1 className="text-2xl font-bold text-white">길드 상점</h1>
+        <h1 className="text-2xl font-bold text-white">{tNav('shop')}</h1>
       </div>
 
       {deliveryNotice && (
