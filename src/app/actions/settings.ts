@@ -21,6 +21,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'shop_discount_rate',
   'shop_delivery_notice',
   'albion_server',
+  'albion_home_guild_id',
   'aodp_cities',
   'aodp_price_mode',
   'aodp_min_quality',
@@ -50,6 +51,8 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   'cd_badge_roles',
   // 빈 배열 = 역할 검사 생략, 디스코드 서버 재적 여부만으로 탈퇴 판정.
   'active_member_role_ids',
+  // 빈 문자열 = 홈 길드 미설정. 모든 온보딩이 [미인증] 으로만 저장된다.
+  'albion_home_guild_id',
 ] as const
 
 // JSON array string keys. Must parse to string[] or the upsert is rejected.

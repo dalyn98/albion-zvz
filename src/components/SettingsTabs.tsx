@@ -15,6 +15,7 @@ import RegearLimitsForm from './RegearLimitsForm'
 import RegearPayoutRateForm from './RegearPayoutRateForm'
 import EventAutoStartForm from './EventAutoStartForm'
 import AlbionServerForm, { type AlbionServer } from './AlbionServerForm'
+import AlbionHomeGuildForm from './AlbionHomeGuildForm'
 import AutoRegearToggleForm from './AutoRegearToggleForm'
 import CdBadgeRolesForm from './CdBadgeRolesForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
@@ -65,6 +66,7 @@ interface Props {
   regearPayoutRatePercent: number
   eventsAutoStartEnabled: boolean
   albionServer: AlbionServer
+  albionHomeGuildId: string
   autoRegearEnabled: boolean
   cdBadgeRoles: SlotRole[]
 }
@@ -98,6 +100,7 @@ export default function SettingsTabs({
   regearPayoutRatePercent,
   eventsAutoStartEnabled,
   albionServer,
+  albionHomeGuildId,
   autoRegearEnabled,
   cdBadgeRoles,
 }: Props) {
@@ -172,6 +175,10 @@ export default function SettingsTabs({
         {active === 'events' && (
           <div className="space-y-4">
             <AlbionServerForm initialServer={albionServer} />
+            <AlbionHomeGuildForm
+              server={albionServer}
+              initialGuildId={albionHomeGuildId}
+            />
             <RegearLimitsForm
               initialWindowMinutes={regearWindowMinutes}
               initialMaxDeaths={regearMaxDeaths}

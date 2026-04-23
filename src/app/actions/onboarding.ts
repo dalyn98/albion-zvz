@@ -7,11 +7,13 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import {
   searchPlayers,
+  searchGuilds,
   getPlayer,
   isAlbionServer,
   type AlbionServer,
   type GameinfoPlayer,
 } from '@/lib/albion-gameinfo'
+import { requireAdmin } from '@/lib/auth'
 import { getMemberAlbionIdentity, type MemberAlbionIdentity } from '@/lib/albion-identity'
 
 // 드롭다운에서 유저가 고르기 편하도록 정리한 후보 구조.
@@ -128,6 +130,29 @@ export async function setAlbionIdentityManually(input: {
   revalidatePath('/me')
   revalidatePath('/onboarding/albion')
   return { ok: true }
+}
+
+// 관리자 전용: /admin/dashboard/settings 의 홈 길드 ID 입력 helper. 길드명을
+// 받아 Gameinfo /search 로 후보 길드 리스트를 반환. 관리자가 후보 중 하나를
+// 고르면 ID 가 자동 채워진다.
+export interface AlbionGuildCandidate {
+  id: string
+  name: string
+}
+
+export async function searchAlbionGuildCandidates(
+  serverRaw: string,
+  query: string,
+): Promise<{ candidates: AlbionGuildCandidate[]; error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    await requireAdmin()
+  } catch {
+    return { candidates: [], error: tErr('serverError') }
+  }
+  if (!isAlbionServer(serverRaw)) return { candidates: [], error: tErr('unknownSettingKey') }
+  const guilds = await searchGuilds(serverRaw, query, 10)
+  return { candidates: guilds.map((g) => ({ id: g.Id, name: g.Name })) }
 }
 
 interface UpsertPayload {

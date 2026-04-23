@@ -29,6 +29,7 @@ export default async function SettingsPage() {
     regearPayoutRatePercentRaw,
     eventsAutoStartRaw,
     albionServerRaw,
+    albionHomeGuildId,
     autoRegearEnabledRaw,
     cdBadgeRolesRaw,
     { rewards, error: rewardsError },
@@ -51,6 +52,7 @@ export default async function SettingsPage() {
     getAppSetting('regear_payout_rate_percent', '100'),
     getAppSetting('events_auto_start_enabled', 'false'),
     getAppSetting('albion_server', 'east'),
+    getAppSetting('albion_home_guild_id', ''),
     getAppSetting('auto_regear_enabled', 'false'),
     getAppSetting('cd_badge_roles', '["Dps"]'),
     listRoleRewards(),
@@ -142,6 +144,7 @@ export default async function SettingsPage() {
         regearPayoutRatePercent={regearPayoutRatePercent}
         eventsAutoStartEnabled={eventsAutoStartEnabled}
         albionServer={albionServer}
+        albionHomeGuildId={albionHomeGuildId}
         autoRegearEnabled={autoRegearEnabled}
         cdBadgeRoles={cdBadgeRoles}
       />

@@ -74,6 +74,30 @@ export async function searchPlayers(
   }
 }
 
+// 길드명으로 후보 길드 리스트. 관리자가 /admin/dashboard/settings 에서 홈 길드
+// ID 를 고를 때 쓴다. Gameinfo /search 의 guilds 필드를 그대로 반환.
+export interface GameinfoGuild {
+  Id: string
+  Name: string
+}
+
+export async function searchGuilds(
+  server: AlbionServer,
+  query: string,
+  limit = 10,
+): Promise<GameinfoGuild[]> {
+  const trimmed = query.trim()
+  if (trimmed.length < 2) return []
+  const base = SERVER_ENDPOINTS[server]
+  const url = `${base}/search?q=${encodeURIComponent(trimmed)}`
+  try {
+    const data = await fetchJson<SearchResponse>(url)
+    return (data.guilds ?? []).slice(0, limit)
+  } catch {
+    return []
+  }
+}
+
 // 특정 플레이어 ID 의 상세 조회. 인증 시점에 GuildId 를 재확인하기 위해 사용.
 // 실패 시 null 반환 — 호출부에서 "Gameinfo 장애" 로 처리.
 export async function getPlayer(
