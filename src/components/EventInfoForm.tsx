@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { X } from 'lucide-react'
@@ -33,6 +33,11 @@ export default function EventInfoForm({ initialEvent }: Props) {
   const router = useRouter()
   const t = useTranslations('adminEventForm')
   const tCommon = useTranslations('common')
+  const titleId = useId()
+  const locationId = useId()
+  const notesId = useId()
+  const channelId = useId()
+  const roleId = useId()
   const isEdit = !!initialEvent
   const [title, setTitle] = useState(initialEvent?.title ?? '')
   const [parts, setParts] = useState<GatherTimeParts>(() =>
@@ -233,8 +238,9 @@ export default function EventInfoForm({ initialEvent }: Props) {
       <h2 className="font-bold text-white">{t('sectionTitle')}</h2>
 
       <div>
-        <label className="text-gray-400 text-xs mb-1 block">{t('titleLabel')}</label>
+        <label htmlFor={titleId} className="text-gray-400 text-xs mb-1 block">{t('titleLabel')}</label>
         <input
+          id={titleId}
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -293,8 +299,9 @@ export default function EventInfoForm({ initialEvent }: Props) {
       </div>
 
       <div>
-        <label className="text-gray-400 text-xs mb-1 block">{t('gatherLocationLabel')}</label>
+        <label htmlFor={locationId} className="text-gray-400 text-xs mb-1 block">{t('gatherLocationLabel')}</label>
         <input
+          id={locationId}
           type="text"
           value={gatherLocation}
           onChange={(e) => setGatherLocation(e.target.value)}
@@ -304,8 +311,9 @@ export default function EventInfoForm({ initialEvent }: Props) {
       </div>
 
       <div>
-        <label className="text-gray-400 text-xs mb-1 block">{t('specialNotesLabel')}</label>
+        <label htmlFor={notesId} className="text-gray-400 text-xs mb-1 block">{t('specialNotesLabel')}</label>
         <textarea
+          id={notesId}
           value={specialNotes}
           onChange={(e) => setSpecialNotes(e.target.value)}
           placeholder={t('specialNotesPlaceholder')}
@@ -322,8 +330,9 @@ export default function EventInfoForm({ initialEvent }: Props) {
       {isEdit && (
         <>
           <div>
-            <label className="text-gray-400 text-xs mb-1 block">{t('notifyChannelLabel')}</label>
+            <label htmlFor={channelId} className="text-gray-400 text-xs mb-1 block">{t('notifyChannelLabel')}</label>
             <select
+              id={channelId}
               value={notifyChannelId}
               onChange={(e) => setNotifyChannelId(e.target.value)}
               disabled={channels === null && !channelsError}
@@ -346,8 +355,9 @@ export default function EventInfoForm({ initialEvent }: Props) {
           </div>
 
           <div>
-            <label className="text-gray-400 text-xs mb-1 block">{t('notifyRoleLabel')}</label>
+            <label htmlFor={roleId} className="text-gray-400 text-xs mb-1 block">{t('notifyRoleLabel')}</label>
             <select
+              id={roleId}
               value={notifyRoleId}
               onChange={(e) => setNotifyRoleId(e.target.value)}
               disabled={roles === null && !rolesError}

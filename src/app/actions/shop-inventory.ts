@@ -7,6 +7,7 @@
 // - deleteInventoryRow: 재고=0 && 수동 가격 없음인 행 제거 (정리용)
 
 import { revalidatePath } from 'next/cache'
+import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import {
@@ -26,6 +27,7 @@ export interface PriceSyncSummary {
 const MAX_SYNC_ROWS = 500
 
 export async function syncShopPrices(): Promise<PriceSyncSummary> {
+  const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
     if (!session?.isAdmin) {
@@ -89,7 +91,7 @@ export async function syncShopPrices(): Promise<PriceSyncSummary> {
           requested: keys.length,
           updated,
           missing,
-          error: `${k.uniqueName} 업데이트 실패: ${error.message}`,
+          error: tErr('priceUpdateFailed', { uniqueName: k.uniqueName, reason: error.message }),
         }
       }
       updated += 1
@@ -112,10 +114,11 @@ export async function updateInventoryStock(
   id: string,
   stock: number,
 ): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
     if (!session?.isAdmin) return { error: 'Unauthorized' }
-    if (!Number.isInteger(stock) || stock < 0) return { error: '재고는 0 이상 정수.' }
+    if (!Number.isInteger(stock) || stock < 0) return { error: tErr('nonNegativeInteger') }
     const db = await requireAdmin()
     const { error } = await db
       .from('shop_inventory')
@@ -134,10 +137,11 @@ export async function setManualPrice(
   id: string,
   pointPrice: number,
 ): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
     if (!session?.isAdmin) return { error: 'Unauthorized' }
-    if (!Number.isInteger(pointPrice) || pointPrice < 0) return { error: '가격은 0 이상 정수.' }
+    if (!Number.isInteger(pointPrice) || pointPrice < 0) return { error: tErr('nonNegativeInteger') }
     const db = await requireAdmin()
     const { error } = await db
       .from('shop_inventory')
@@ -193,6 +197,7 @@ export interface ResetInventoryResult {
 // dedupe 에 막히지 않는다. shop_orders, shop_blacklist, shop_name_overrides 는
 // 건드리지 않음.
 export async function resetShopInventory(): Promise<ResetInventoryResult> {
+  const tErr = await getTranslations('adminActionError')
   const empty: ResetInventoryResult = { stockRowsZeroed: 0, logsDeleted: 0 }
   try {
     const session = await getSession()
@@ -215,7 +220,7 @@ export async function resetShopInventory(): Promise<ResetInventoryResult> {
       return {
         stockRowsZeroed: zeroed?.length ?? 0,
         logsDeleted: 0,
-        error: `로그 삭제 실패: ${delErr.message}`,
+        error: tErr('logDeleteFailed', { reason: delErr.message }),
       }
     }
 
@@ -231,6 +236,7 @@ export async function resetShopInventory(): Promise<ResetInventoryResult> {
 }
 
 export async function deleteInventoryRow(id: string): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
     if (!session?.isAdmin) return { error: 'Unauthorized' }
@@ -242,9 +248,9 @@ export async function deleteInventoryRow(id: string): Promise<{ error?: string }
       .eq('id', id)
       .maybeSingle()
     if (readErr) return { error: readErr.message }
-    if (!row) return { error: '존재하지 않는 재고.' }
+    if (!row) return { error: tErr('inventoryNotFound') }
     if ((row.stock as number) > 0) {
-      return { error: '재고가 남아있는 행은 지울 수 없습니다. 먼저 0 으로 조정하세요.' }
+      return { error: tErr('cannotDeleteNonEmptyInventory') }
     }
     const { error } = await db.from('shop_inventory').delete().eq('id', id)
     if (error) return { error: error.message }

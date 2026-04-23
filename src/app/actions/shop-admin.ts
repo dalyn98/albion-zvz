@@ -5,6 +5,7 @@
 // - addBlacklist / removeBlacklist: 잡템 필터
 
 import { revalidatePath } from 'next/cache'
+import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import { parseChestLog, type ChestLogEntry } from '@/lib/shop/parse-chest-log'
 import { resolveKoItem } from '@/lib/shop/resolve-item'
@@ -69,6 +70,7 @@ export async function importChestLog(
   raw: string,
   options: ImportOptions = {},
 ): Promise<ImportSummary> {
+  const tErr = await getTranslations('adminActionError')
   const dryRun = options.dryRun === true
   const empty: ImportSummary = {
     parsed: 0,
@@ -95,15 +97,15 @@ export async function importChestLog(
         ...empty,
         parseErrors: errors,
         error: errors.length
-          ? '파싱 가능한 행이 없습니다. 포맷(탭 구분, 6필드)을 확인하세요.'
-          : '로그가 비어있습니다.',
+          ? tErr('importNoParseableRows')
+          : tErr('importEmptyLog'),
       }
     }
     if (entries.length > IMPORT_ROW_LIMIT) {
       return {
         ...empty,
         parseErrors: errors,
-        error: `한 번에 ${IMPORT_ROW_LIMIT}행까지만 임포트 가능합니다. (현재 ${entries.length}행)`,
+        error: tErr('importRowLimit', { max: IMPORT_ROW_LIMIT, current: entries.length }),
       }
     }
 
@@ -285,7 +287,7 @@ export async function importChestLog(
           lastKnownLabel,
           lastKnownInBatch,
           newEntriesAfterLast,
-          error: `재고 반영 실패(${d.uniqueName}): ${error.message}`,
+          error: tErr('stockApplyFailed', { uniqueName: d.uniqueName, reason: error.message }),
         }
       }
       stockChanges.push({
@@ -326,11 +328,12 @@ export async function importChestLog(
 
 // 블랙리스트 관리
 export async function addBlacklist(itemName: string): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
     if (!session?.isAdmin) return { error: 'Unauthorized' }
     const trimmed = itemName.trim()
-    if (!trimmed) return { error: '아이템 이름이 비어있습니다.' }
+    if (!trimmed) return { error: tErr('itemNameEmpty') }
     const db = await requireAdmin()
     const { error } = await db
       .from('shop_blacklist')
@@ -485,6 +488,7 @@ export async function approveShopOrder(
   orderId: string,
   adminNote?: string,
 ): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
     if (!session?.isAdmin) return { error: 'Unauthorized' }
@@ -497,13 +501,13 @@ export async function approveShopOrder(
     if (error) {
       // RPC raise exception 메시지를 사용자 친화 문구로.
       if (error.message.includes('INSUFFICIENT_BALANCE')) {
-        return { error: '포인트가 부족합니다.' }
+        return { error: tErr('insufficientPoints') }
       }
       if (error.message.includes('INSUFFICIENT_STOCK')) {
-        return { error: '재고가 부족합니다. 재고를 보충하거나 주문을 거절하세요.' }
+        return { error: tErr('orderInsufficientStock') }
       }
       if (error.message.includes('ORDER_NOT_PENDING')) {
-        return { error: '이미 처리된 주문입니다.' }
+        return { error: tErr('orderAlreadyProcessed') }
       }
       return { error: error.message }
     }
@@ -520,6 +524,7 @@ export async function rejectShopOrder(
   orderId: string,
   adminNote?: string,
 ): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
     if (!session?.isAdmin) return { error: 'Unauthorized' }
@@ -531,7 +536,7 @@ export async function rejectShopOrder(
     })
     if (error) {
       if (error.message.includes('ORDER_NOT_PENDING')) {
-        return { error: '이미 처리된 주문입니다.' }
+        return { error: tErr('orderAlreadyProcessed') }
       }
       return { error: error.message }
     }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useId, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRightLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -18,6 +18,7 @@ export default function RequestExchangeForm({ balance, disabled }: Props) {
   const t = useTranslations('requestExchange')
   const tToast = useTranslations('toast')
   const toast = useToast()
+  const amountId = useId()
   const [amount, setAmount] = useState('')
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
@@ -55,10 +56,11 @@ export default function RequestExchangeForm({ balance, disabled }: Props) {
     <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 space-y-3">
       <div className="flex items-end gap-2">
         <div className="flex-1">
-          <label className="text-gray-400 text-[11px] font-semibold block mb-1">
+          <label htmlFor={amountId} className="text-gray-400 text-[11px] font-semibold block mb-1">
             {t('amountLabel', { max: formatSilver(balance) })}
           </label>
           <input
+            id={amountId}
             type="text"
             inputMode="numeric"
             placeholder={t('amountPlaceholder')}

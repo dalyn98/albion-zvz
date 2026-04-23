@@ -7,7 +7,7 @@
 // - 지연(분): 배틀 시작 후 몇 분 뒤 cron 이 이벤트를 처리할지. regear_window_minutes
 //            (수동 신청 오픈 시각) 와 분리돼 있어 자동이 먼저 pending 행을 선점.
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Save, BadgeCheck } from 'lucide-react'
@@ -24,6 +24,7 @@ const DELAY_MAX = 120
 export default function AutoRegearToggleForm({ initialEnabled, initialDelayMinutes }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
+  const delayId = useId()
   const [enabled, setEnabled] = useState(initialEnabled)
   const [delayMinutes, setDelayMinutes] = useState(String(initialDelayMinutes))
   const [loading, setLoading] = useState(false)
@@ -102,9 +103,10 @@ export default function AutoRegearToggleForm({ initialEnabled, initialDelayMinut
       </label>
 
       <div>
-        <label className="text-gray-400 text-xs mb-1 block">처리 지연 (분)</label>
+        <label htmlFor={delayId} className="text-gray-400 text-xs mb-1 block">처리 지연 (분)</label>
         <div className="flex items-center gap-2">
           <input
+            id={delayId}
             type="number"
             inputMode="numeric"
             min={DELAY_MIN}

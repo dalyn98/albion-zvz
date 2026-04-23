@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { updateAppSetting } from '@/app/actions/settings'
@@ -16,6 +16,7 @@ const PERCENT_MAX = 100
 export default function RegearPayoutRateForm({ initialPercent }: Props) {
   const t = useTranslations('adminRegearPayoutRate')
   const router = useRouter()
+  const percentId = useId()
   const [percent, setPercent] = useState(String(initialPercent))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -56,9 +57,10 @@ export default function RegearPayoutRateForm({ initialPercent }: Props) {
       </div>
 
       <div>
-        <label className="text-gray-400 text-xs mb-1 block">{t('percentLabel')}</label>
+        <label htmlFor={percentId} className="text-gray-400 text-xs mb-1 block">{t('percentLabel')}</label>
         <div className="flex items-center gap-2">
           <input
+            id={percentId}
             type="number"
             inputMode="numeric"
             min={PERCENT_MIN}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useTransition } from 'react'
+import { useId, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { updateAppSetting } from '@/app/actions/settings'
@@ -47,6 +47,7 @@ export default function NoticeSettingForm({
   const tCommon = useTranslations('common')
   const t = useTranslations('adminSettings')
   const router = useRouter()
+  const textareaId = useId()
   const [text, setText] = useState(initialMessage)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -154,8 +155,9 @@ export default function NoticeSettingForm({
       </div>
 
       <div>
-        <label className="text-gray-400 text-xs mb-1 block">{label}</label>
+        <label htmlFor={textareaId} className="text-gray-400 text-xs mb-1 block">{label}</label>
         <textarea
+          id={textareaId}
           value={text}
           onChange={(e) => {
             setText(e.target.value)

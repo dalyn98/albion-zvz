@@ -1198,7 +1198,18 @@
     "invalidIntegerRange": "{min} ~ {max} 사이의 정수로 입력해 주세요.",
     "invalidBoolean": "true 또는 false 값만 허용됩니다.",
     "invalidEnumValue": "허용된 값: {values}",
-    "payoutExceedsClaim": "지급 금액은 청구 금액({claimed}s) 을 넘을 수 없습니다."
+    "payoutExceedsClaim": "지급 금액은 청구 금액({claimed}s) 을 넘을 수 없습니다.",
+    "importNoParseableRows": "파싱 가능한 행이 없습니다. 포맷(탭 구분, 6필드)을 확인하세요.",
+    "importEmptyLog": "로그가 비어있습니다.",
+    "importRowLimit": "한 번에 {max}행까지만 임포트 가능합니다. (현재 {current}행)",
+    "stockApplyFailed": "재고 반영 실패({uniqueName}): {reason}",
+    "itemNameEmpty": "아이템 이름이 비어있습니다.",
+    "orderInsufficientStock": "재고가 부족합니다. 재고를 보충하거나 주문을 거절하세요.",
+    "orderAlreadyProcessed": "이미 처리된 주문입니다.",
+    "priceUpdateFailed": "{uniqueName} 업데이트 실패: {reason}",
+    "logDeleteFailed": "로그 삭제 실패: {reason}",
+    "inventoryNotFound": "존재하지 않는 재고.",
+    "cannotDeleteNonEmptyInventory": "재고가 남아있는 행은 지울 수 없습니다. 먼저 0 으로 조정하세요."
   },
   "memberActionError": {
     "loginRequired": "로그인이 필요합니다.",

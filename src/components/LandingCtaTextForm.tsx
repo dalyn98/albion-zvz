@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { updateAppSetting } from '@/app/actions/settings'
@@ -17,6 +17,7 @@ export default function LandingCtaTextForm({ initialText, defaultText }: Props) 
   const t = useTranslations('adminLanding')
   const tCommon = useTranslations('common')
   const router = useRouter()
+  const ctaId = useId()
   const [text, setText] = useState(initialText)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -61,8 +62,9 @@ export default function LandingCtaTextForm({ initialText, defaultText }: Props) 
       </div>
 
       <div>
-        <label className="text-gray-400 text-xs mb-1 block">{t('ctaLabel')}</label>
+        <label htmlFor={ctaId} className="text-gray-400 text-xs mb-1 block">{t('ctaLabel')}</label>
         <textarea
+          id={ctaId}
           value={text}
           onChange={(e) => {
             setText(e.target.value)

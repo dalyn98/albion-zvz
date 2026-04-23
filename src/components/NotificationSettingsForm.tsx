@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { updateAppSetting } from '@/app/actions/settings'
@@ -15,6 +15,7 @@ const MAX_LENGTH = 500
 export default function NotificationSettingsForm({ initialMessage }: Props) {
   const t = useTranslations('adminSettings')
   const router = useRouter()
+  const messageId = useId()
   const [message, setMessage] = useState(initialMessage)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -55,8 +56,9 @@ export default function NotificationSettingsForm({ initialMessage }: Props) {
       </div>
 
       <div>
-        <label className="text-gray-400 text-xs mb-1 block">{t('messageLabel')}</label>
+        <label htmlFor={messageId} className="text-gray-400 text-xs mb-1 block">{t('messageLabel')}</label>
         <textarea
+          id={messageId}
           value={message}
           onChange={(e) => {
             setMessage(e.target.value)

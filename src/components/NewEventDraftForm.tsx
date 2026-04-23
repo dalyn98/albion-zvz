@@ -7,7 +7,7 @@
 // "제목만" 으로 축소. 날짜/장소/특이사항은 편집 화면에서 채우고, 준비되면 "발행"
 // 을 눌러 draft → published 로 전이 (publishEvent).
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { createDraftEvent } from '@/app/actions/admin'
@@ -17,6 +17,7 @@ export default function NewEventDraftForm() {
   const router = useRouter()
   const t = useTranslations('adminEventForm')
   const tCommon = useTranslations('common')
+  const titleId = useId()
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState<EventCategory>('전투')
   const [loading, setLoading] = useState(false)
@@ -43,8 +44,9 @@ export default function NewEventDraftForm() {
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4">
       <div>
-        <label className="text-gray-400 text-xs mb-1 block">{t('titleLabel')}</label>
+        <label htmlFor={titleId} className="text-gray-400 text-xs mb-1 block">{t('titleLabel')}</label>
         <input
+          id={titleId}
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}

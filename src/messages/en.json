@@ -1198,7 +1198,18 @@
     "invalidIntegerRange": "Enter an integer between {min} and {max}.",
     "invalidBoolean": "Only 'true' or 'false' is allowed.",
     "invalidEnumValue": "Allowed values: {values}",
-    "payoutExceedsClaim": "Payout cannot exceed the claim amount ({claimed}s)."
+    "payoutExceedsClaim": "Payout cannot exceed the claim amount ({claimed}s).",
+    "importNoParseableRows": "No parseable rows found. Please check the format (tab-separated, 6 fields).",
+    "importEmptyLog": "The log is empty.",
+    "importRowLimit": "Only up to {max} rows can be imported at once. (Currently {current} rows)",
+    "stockApplyFailed": "Stock update failed ({uniqueName}): {reason}",
+    "itemNameEmpty": "Item name is empty.",
+    "orderInsufficientStock": "Insufficient stock. Replenish inventory or reject the order.",
+    "orderAlreadyProcessed": "This order has already been processed.",
+    "priceUpdateFailed": "{uniqueName} update failed: {reason}",
+    "logDeleteFailed": "Log deletion failed: {reason}",
+    "inventoryNotFound": "Inventory row not found.",
+    "cannotDeleteNonEmptyInventory": "Cannot delete rows with remaining stock. Zero out the stock first."
   },
   "memberActionError": {
     "loginRequired": "Login required.",

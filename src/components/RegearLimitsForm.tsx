@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { updateAppSetting } from '@/app/actions/settings'
@@ -19,6 +19,8 @@ const DEATHS_MAX = 10
 export default function RegearLimitsForm({ initialWindowMinutes, initialMaxDeaths }: Props) {
   const t = useTranslations('adminRegearLimits')
   const router = useRouter()
+  const windowId = useId()
+  const deathsId = useId()
   const [windowMinutes, setWindowMinutes] = useState(String(initialWindowMinutes))
   const [maxDeaths, setMaxDeaths] = useState(String(initialMaxDeaths))
   const [loading, setLoading] = useState(false)
@@ -74,8 +76,9 @@ export default function RegearLimitsForm({ initialWindowMinutes, initialMaxDeath
 
       <div className="grid sm:grid-cols-2 gap-4">
         <div>
-          <label className="text-gray-400 text-xs mb-1 block">{t('windowMinutesLabel')}</label>
+          <label htmlFor={windowId} className="text-gray-400 text-xs mb-1 block">{t('windowMinutesLabel')}</label>
           <input
+            id={windowId}
             type="number"
             inputMode="numeric"
             min={WINDOW_MIN}
@@ -93,8 +96,9 @@ export default function RegearLimitsForm({ initialWindowMinutes, initialMaxDeath
         </div>
 
         <div>
-          <label className="text-gray-400 text-xs mb-1 block">{t('maxDeathsLabel')}</label>
+          <label htmlFor={deathsId} className="text-gray-400 text-xs mb-1 block">{t('maxDeathsLabel')}</label>
           <input
+            id={deathsId}
             type="number"
             inputMode="numeric"
             min={DEATHS_MIN}

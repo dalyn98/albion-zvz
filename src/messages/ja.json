@@ -1198,7 +1198,18 @@
     "invalidIntegerRange": "{min} ~ {max} の整数で入力してください。",
     "invalidBoolean": "true または false のみ指定できます。",
     "invalidEnumValue": "許可された値: {values}",
-    "payoutExceedsClaim": "支給額は請求額 ({claimed}s) を超えることはできません。"
+    "payoutExceedsClaim": "支給額は請求額 ({claimed}s) を超えることはできません。",
+    "importNoParseableRows": "解析可能な行がありません。フォーマット(タブ区切り、6フィールド)を確認してください。",
+    "importEmptyLog": "ログが空です。",
+    "importRowLimit": "一度に {max} 行までインポート可能です。(現在 {current} 行)",
+    "stockApplyFailed": "在庫反映失敗 ({uniqueName}): {reason}",
+    "itemNameEmpty": "アイテム名が空です。",
+    "orderInsufficientStock": "在庫が不足しています。在庫を補充するか注文を却下してください。",
+    "orderAlreadyProcessed": "すでに処理された注文です。",
+    "priceUpdateFailed": "{uniqueName} 更新失敗: {reason}",
+    "logDeleteFailed": "ログ削除失敗: {reason}",
+    "inventoryNotFound": "存在しない在庫です。",
+    "cannotDeleteNonEmptyInventory": "在庫が残っている行は削除できません。先に 0 に調整してください。"
   },
   "memberActionError": {
     "loginRequired": "ログインが必要です。",
