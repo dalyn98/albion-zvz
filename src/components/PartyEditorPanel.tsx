@@ -6,6 +6,7 @@ import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Eye, EyeOff, Package,
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
 import BatchApplySpecsModal, { type BatchSpecsScope } from './BatchApplySpecsModal'
 import BatchApplyItemsModal from './BatchApplyItemsModal'
+import FeatureSetupRequiredModal from './FeatureSetupRequiredModal'
 import type { BombSquadKind, EventCategory, GearOption, GearSpec, SlotKey } from '@/types'
 import { BOMB_SQUAD_KINDS, SLOT_KEYS } from '@/types'
 import { savePartySlots } from '@/app/actions/admin'
@@ -97,6 +98,17 @@ export default function PartyEditorPanel({
   const [error, setError] = useState('')
   const [batchModalOpen, setBatchModalOpen] = useState(false)
   const [batchItemsModalOpen, setBatchItemsModalOpen] = useState(false)
+  // 콜러 후보가 한 명도 없는 상태에서 밤스쿼드 토글을 켜려 하면 띄우는 안내 모달.
+  const [callerSetupModalOpen, setCallerSetupModalOpen] = useState(false)
+
+  const hasEligibleCaller = memberDirectory.some((m) => m.eligible)
+  const handleBombSquadToggle = (checked: boolean) => {
+    if (checked && !hasEligibleCaller) {
+      setCallerSetupModalOpen(true)
+      return
+    }
+    setIsBombSquad(checked)
+  }
   // <details> 의 open 을 prop 값으로 직접 제어하면 (open={false}) React 가 매
   // 리렌더마다 DOM 의 open 속성을 강제 제거해, 사용자가 열어 둔 패널이 다른
   // state 변경(dropdown/체크박스)으로 리렌더될 때마다 닫혀버린다. isOpen
@@ -182,6 +194,15 @@ export default function PartyEditorPanel({
   const toggleHide = (idx: number) =>
     setSlots(slots.map((s, i) => i === idx ? { ...s, is_hidden: !s.is_hidden } : s))
 
+  // 파티 안의 모든 슬롯을 한 번에 숨김/보이기. 하나라도 보이면 전체 숨김,
+  // 전부 숨겨진 상태면 전체 공개. 공개 페이지에선 이미 is_hidden 슬롯이
+  // fetch 단계에서 걸러지므로 이 토글만으로 파티 카드 자체가 사라지는 효과.
+  const anyVisibleSlot = slots.some((s) => !s.is_hidden)
+  const toggleAllHidden = () => {
+    if (slots.length === 0) return
+    setSlots(slots.map((s) => ({ ...s, is_hidden: anyVisibleSlot })))
+  }
+
   // 상위 저장 바에서 호출될 saver. 개별 저장 버튼이 없어졌으므로 에러만
   // 지역 state 에 반영하고 실제 router.refresh 는 저장 바가 처리.
   const persistParty = async (): Promise<{ error?: string }> => {
@@ -256,7 +277,7 @@ export default function PartyEditorPanel({
             <input
               type="checkbox"
               checked={isBombSquad}
-              onChange={(e) => setIsBombSquad(e.target.checked)}
+              onChange={(e) => handleBombSquadToggle(e.target.checked)}
               className="h-4 w-4 accent-rose-500"
             />
             <Bomb size={14} className="text-rose-400" />
@@ -330,6 +351,15 @@ export default function PartyEditorPanel({
         )}
         {slots.length > 0 && (
           <div className="flex items-center justify-end gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={toggleAllHidden}
+              className="flex items-center gap-1 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded-lg"
+              title={anyVisibleSlot ? t('hideAllTitle') : t('showAllTitle')}
+            >
+              {anyVisibleSlot ? <EyeOff size={12} /> : <Eye size={12} />}
+              {anyVisibleSlot ? t('hideAllButton') : t('showAllButton')}
+            </button>
             <button
               type="button"
               onClick={() => setBatchItemsModalOpen(true)}
@@ -440,6 +470,16 @@ export default function PartyEditorPanel({
           slots={slots}
           onApply={applyBatchItems}
           onClose={() => setBatchItemsModalOpen(false)}
+        />
+      )}
+
+      {callerSetupModalOpen && (
+        <FeatureSetupRequiredModal
+          title={t('bombSquad.callerSetupTitle')}
+          body={t('bombSquad.callerSetupBody')}
+          settingsHref="/admin/dashboard/settings?tab=permissions"
+          settingsLabel={t('bombSquad.callerSetupCta')}
+          onClose={() => setCallerSetupModalOpen(false)}
         />
       )}
     </details>

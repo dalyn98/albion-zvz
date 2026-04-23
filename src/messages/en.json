@@ -15,6 +15,7 @@
     "shopAdmin": "Guild shop",
     "stats": "Stats",
     "settings": "Settings",
+    "guide": "Guide",
     "archive": "Archive"
   },
   "common": {
@@ -329,6 +330,61 @@
     "bucketPassive": "Passive",
     "bucketPassiveSlot": "Passive {slot}"
   },
+  "adminGuide": {
+    "eyebrow": "Admin guide",
+    "title": "Site operations guide",
+    "intro": "Common settings and workflows that guild operators often miss. Each section links directly to where you can edit it.",
+    "eventLifecycle": {
+      "title": "Event lifecycle",
+      "cta": "Create event",
+      "step1": "Create event: fill in time/location/notes. Saved as draft initially.",
+      "step2": "Configure parties/slots: load a template or add parties → set role, gear, and spec per slot.",
+      "step3": "Publish: use the banner button to move the event to a state where members can apply.",
+      "step4": "Mark battle started: press the 'Battle Started' button to lock battle_started_at. Regear window timer begins from this moment.",
+      "step5": "After the event: the auto-regear cron reads killboard and generates approvals. Members can submit manual regear once the window opens."
+    },
+    "regear": {
+      "title": "Regear system",
+      "cta": "Open regear settings",
+      "body": "Auto (killboard-based) and manual (screenshot-based) regear coexist. Per-role cap (role_rewards.silver) of 0 blocks all regear for that role.",
+      "bullet1": "The auto-regear toggle is a global switch. It must be ON for the cron to convert killboard deaths into approvals.",
+      "bullet2": "Slot editor has 'Exclude from auto-regear' (visible only when global ON) and 'Exclude from manual regear' (always) checkboxes for per-build opt-out.",
+      "bullet3": "Regear window = N minutes after battle start. Max screenshot 10MB, PNG/JPEG/WebP only.",
+      "bullet4": "Auto-generated pending rows let the claimant edit per-slot prices. Admins review at /admin/dashboard/regear."
+    },
+    "onboarding": {
+      "title": "Albion nickname verification",
+      "cta": "Configure home guild",
+      "body": "New members see an Albion server/nickname onboarding modal after login. On successful verification, both the site and Discord guild nicknames sync to the Albion name.\n\nVerification requires an 'Albion home guild ID' set in Settings → Events tab. Without it, identities are stored but left unverified (verifiedAt=null).\n\nThe Stats page shows unverified/pending members. The 'Re-onboard' button clears a member's albion_* fields so the modal shows again."
+    },
+    "bombSquad": {
+      "title": "Bomb-squad party & caller",
+      "cta": "Open permissions",
+      "body": "Bomb-squad parties use a 'members apply freely → caller approves/direct-assigns' flow. To use it:\n\n1) Go to Settings → Permissions and configure at least one caller role.\n2) Have at least one guild member with that role.\n3) In the event party editor, toggle 'Bomb Squad' on and pick a caller.\n\nCallers get a dedicated edit page at /events/{id}/party/{n} where they manage their own party's slots and members."
+    },
+    "shop": {
+      "title": "Guild shop",
+      "cta": "Open shop admin",
+      "body": "Members exchange points for gear. Stock syncs via manual 'log paste' (ShopImportForm).\n\nSilver↔point exchange rate (discount_rate) is a discount on a 1:1 base. 100% means silver price = point price; 50% sells for half.\n\nAODP price warnings (quality/window/bluezone/redzone) surface when auto-regear suspects a problematic row."
+    },
+    "notifications": {
+      "title": "Discord notifications",
+      "cta": "Open notification settings",
+      "body": "Two delivery channels: event channel announcements and personal DMs.\n\n- Event channel: configured via notify_channel_id + notify_role_id (role mention). Sent via a manual button on event create/edit.\n- Personal DM: auto-sent 35 min before event to assigned members. Users can opt out in /me/settings.\n- Regear/exchange approvals also DM the requester.\n\nRequires DISCORD_BOT_TOKEN, DISCORD_EVENT_CHANNEL_ID, DISCORD_GUILD_ID env vars."
+    },
+    "stats": {
+      "title": "Stats & monitoring",
+      "cta": "Open stats",
+      "body": "Top/bottom point holders, event participation, shop/regear activity, and Albion verification status in one page. Use the inline 'Re-onboard' button to restart the onboarding flow for unverified members."
+    },
+    "tips": {
+      "title": "Operation tips",
+      "tip1": "Before big changes, review global toggles (auto-regear, auto-start) in Settings.",
+      "tip2": "Save slot layouts as templates at /admin/dashboard/templates. Load quickly from the event editor.",
+      "tip3": "Use the party editor's 'Hide party' button to hide in-progress parties from the public page.",
+      "tip4": "For data issues, query Supabase Dashboard SQL editor directly. The 3 core tables: guild_avatars, regear_requests, point_ledger."
+    }
+  },
   "adminParty": {
     "partyBadge": "Party {num}",
     "slotCount": "{count} members / max 20",
@@ -385,6 +441,10 @@
     "batchGroupFood": "Food",
     "batchGroupPotion": "Potion",
     "batchItemsButton": "Apply potion/mount to party",
+    "hideAllButton": "Hide party",
+    "showAllButton": "Show party",
+    "hideAllTitle": "Hide all slots in this party from the public page",
+    "showAllTitle": "Make all slots in this party visible again",
     "batchItemsTitle": "Apply potion/mount to whole party",
     "batchItemsHint": "Overwrites the selected potion/mount item on every slot in this party. Slots configured with option (multi) lists are left alone.",
     "batchItemsOverwriteHint": "Already-set fixed items will be overwritten — double-check before applying.",
@@ -404,6 +464,9 @@
       "callerPlaceholder": "Select a caller",
       "callerStale": "{name} (role revoked)",
       "callerEmptyHint": "Configure caller roles in Settings first.",
+      "callerSetupTitle": "Caller role is not configured",
+      "callerSetupBody": "To use bomb-squad parties, first configure at least one caller role and have at least one guild member with that role.\nYou can set this in Admin Settings → Permissions tab.",
+      "callerSetupCta": "Open Settings",
       "kind": {
         "melee": "Melee",
         "ranged": "Ranged"
