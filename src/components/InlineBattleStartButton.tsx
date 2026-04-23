@@ -44,6 +44,7 @@ export default function InlineBattleStartButton({ eventId, battleStartedAt }: Pr
         onClick={reset}
         disabled={pending}
         title={t('battleResetTitle')}
+        aria-label={t('battleResetTitle')}
         className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-400 disabled:opacity-50 px-2 py-1.5 rounded-lg hover:bg-gray-700"
       >
         {pending ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}

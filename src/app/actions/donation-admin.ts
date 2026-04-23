@@ -38,6 +38,7 @@ export async function listDonationRequests(
         'id, discord_id, username, silver, memo, screenshot_path, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username',
       )
       .order('created_at', { ascending: false })
+      .limit(500)
     if (scope === 'pending') query = query.eq('status', 'pending')
     const { data, error } = await query
     if (error) return { requests: [], error: error.message }

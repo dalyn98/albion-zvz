@@ -121,6 +121,7 @@ export async function listRegearRequests(
         'id, event_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, auto_generated, price_warning_level, events(title)',
       )
       .order('created_at', { ascending: false })
+      .limit(500)
     if (scope === 'pending') query = query.eq('status', 'pending')
 
     const { data, error } = await query
@@ -434,6 +435,7 @@ export async function listExchangeRequests(
         'id, discord_id, username, silver, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username',
       )
       .order('created_at', { ascending: false })
+      .limit(500)
     if (scope === 'pending') query = query.eq('status', 'pending')
     const { data, error } = await query
     if (error) return { requests: [], error: error.message }
