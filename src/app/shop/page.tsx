@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
-import { computePointPrice, parseSilverToPointRate } from '@/lib/shop/price'
+import { computePointPrice, parseShopDiscountRate } from '@/lib/shop/price'
 import { categoryRank } from '@/lib/shop/category-order'
 import { getMyPointBalance, listMyShopOrders } from '@/app/actions/shop-member'
 import {
@@ -41,10 +41,10 @@ export default async function PublicShopPage() {
   const session = await getSession()
   const db = getAdminClient()
 
-  const [deliveryNotice, silverRateSetting, aodpCitiesSetting, { data: invRows }] =
+  const [deliveryNotice, discountRateSetting, aodpCitiesSetting, { data: invRows }] =
     await Promise.all([
       getAppSetting('shop_delivery_notice', ''),
-      getAppSetting('shop_silver_to_point_rate', '1'),
+      getAppSetting('shop_discount_rate', '1'),
       getAppSetting('aodp_cities', ''),
       db
         .from('shop_inventory')
@@ -56,7 +56,7 @@ export default async function PublicShopPage() {
         .limit(500),
     ])
 
-  const rate = parseSilverToPointRate(silverRateSetting)
+  const discountRate = parseShopDiscountRate(discountRateSetting)
   const baseCity = parseBaseCity(aodpCitiesSetting)
 
   // 가격 계산 후 카테고리 → 이름 순으로 안정 정렬. DB 가 name_ko asc 로 반환하므로
@@ -67,7 +67,7 @@ export default async function PublicShopPage() {
     const price = computePointPrice({
       manualPrice,
       autoPriceSilver: r.auto_price_silver as number | null,
-      silverToPointRate: rate,
+      discountRate,
     })
     if (price === null) continue // 가격 미정 아이템은 노출하지 않음
     // 수동 가격이 있으면 관리자가 확정한 값이라 AODP 경고를 숨긴다.

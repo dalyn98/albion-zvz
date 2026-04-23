@@ -66,7 +66,8 @@ const WARNING_META: Record<
 
 interface Props {
   rows: InventoryRow[]
-  silverToPointRate: number
+  // 상점 할인율 (0 < rate ≤ 1). 수동/자동 가격(모두 실버) 에 곱해 최종 포인트 계산.
+  discountRate: number
 }
 
 const QUALITY_LABELS = ['?', '일반', '좋음', '뛰어남', '우수', '걸작']
@@ -122,8 +123,8 @@ function fallbackQuality(source: string | null): number | null {
 }
 
 function priceSourceTooltip(source: string | null): string {
-  if (!source) return '포인트 가격 수정 (빈 값 = 자동)'
-  if (source === 'manual') return '수동 고정가 (빈 값으로 저장하면 자동으로 복귀)'
+  if (!source) return '수동 가격(실버, 할인 전) 수정 · 빈 값 = 자동'
+  if (source === 'manual') return '수동 고정가(실버, 할인 전) · 빈 값 저장 시 자동 시세로 복귀'
   const info = parseAodpSource(source)
   if (info) {
     const extras: string[] = []
@@ -139,7 +140,7 @@ function priceSourceTooltip(source: string | null): string {
   return source
 }
 
-export default function ShopInventoryEditor({ rows, silverToPointRate }: Props) {
+export default function ShopInventoryEditor({ rows, discountRate }: Props) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
@@ -235,8 +236,9 @@ export default function ShopInventoryEditor({ rows, silverToPointRate }: Props) 
       </div>
 
       <p className="text-gray-500 text-xs">
-        AODP 시세(관리자 설정의 서버/도시/모드 적용)를 전 재고에 대해 한 번에 조회합니다. manual_price 가 있으면 그 값을 우선. 환율{' '}
-        <code className="text-gray-400">1p = {silverToPointRate.toLocaleString()}s</code>.
+        AODP 시세(관리자 설정의 서버/도시/모드 적용)를 전 재고에 대해 한 번에 조회합니다.
+        수동 가격이 있으면 자동 시세 대신 그 값 사용. 포인트·실버 1:1, 할인율{' '}
+        <code className="text-gray-400">×{discountRate}</code> 적용 후 노출.
       </p>
 
       {syncSummary && !syncSummary.error && (
@@ -291,7 +293,7 @@ export default function ShopInventoryEditor({ rows, silverToPointRate }: Props) 
             <InventoryListItem
               key={row.id}
               row={row}
-              silverToPointRate={silverToPointRate}
+              discountRate={discountRate}
               pending={pending}
               onStart={startTransition}
               onError={setError}
@@ -306,14 +308,14 @@ export default function ShopInventoryEditor({ rows, silverToPointRate }: Props) 
 
 function InventoryListItem({
   row,
-  silverToPointRate,
+  discountRate,
   pending,
   onStart,
   onError,
   onDone,
 }: {
   row: InventoryRow
-  silverToPointRate: number
+  discountRate: number
   pending: boolean
   onStart: (cb: () => void) => void
   onError: (msg: string) => void
@@ -329,7 +331,7 @@ function InventoryListItem({
   const pointPrice = computePointPrice({
     manualPrice: row.manualPrice,
     autoPriceSilver: row.autoPriceSilver,
-    silverToPointRate,
+    discountRate,
   })
 
   const commitStock = () => {

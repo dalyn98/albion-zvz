@@ -37,9 +37,11 @@ export type AppSettingKey =
   // time: point_ledger delta = floor(claimed_silver × percent ÷ 100). Default
   // '100' keeps the legacy behaviour (pay the full claim).
   | 'regear_payout_rate_percent'
-  // 1 포인트 = N 실버. 상점 아이템의 자동 가격(AODP 실버 시세)을 포인트로
-  // 환산할 때 사용. 정수 문자열, 기본 '1'.
-  | 'shop_silver_to_point_rate'
+  // 길드 상점 할인율. 실수 문자열, 범위 (0, 1], 기본 '1'(할인 없음).
+  // 포인트와 실버는 1:1 동일 개념 — 수동 가격/자동 가격(AODP 실버 시세) 모두
+  // 실버 단위이고 이 할인율을 곱해 /shop 에 노출할 최종 포인트를 계산한다.
+  // 예: 실버 1,000,000 × 0.5 = 500,000p.
+  | 'shop_discount_rate'
   // /shop 상단에 뜨는 관리자 공지 — 아이템 전달 방법 등을 자유롭게 안내.
   // 빈 문자열이면 배너 비표시.
   | 'shop_delivery_notice'

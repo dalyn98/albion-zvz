@@ -18,7 +18,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'regear_max_deaths_per_event',
   'events_auto_start_enabled',
   'regear_payout_rate_percent',
-  'shop_silver_to_point_rate',
+  'shop_discount_rate',
   'shop_delivery_notice',
   'albion_server',
   'aodp_cities',
@@ -68,11 +68,14 @@ const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
   regear_window_minutes: { min: 1, max: 240 },
   regear_max_deaths_per_event: { min: 1, max: 10 },
   regear_payout_rate_percent: { min: 1, max: 100 },
-  // 1p = N silver. 1 이 기본(AODP 그대로 환산). 값이 커질수록 동일 시세 → 더 작은
-  // 포인트 가격이 된다.
-  shop_silver_to_point_rate: { min: 1, max: 1_000_000 },
   // 1 Normal, 2 Good, 3 Outstanding, 4 Excellent, 5 Masterpiece.
   aodp_min_quality: { min: 1, max: 5 },
+}
+
+// 실수(decimal) 를 허용하는 키. range 는 inclusive.
+const DECIMAL_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }>> = {
+  // 상점 할인율 — 0 초과 1 이하. 1 이면 할인 없음, 0.5 = 50% 할인.
+  shop_discount_rate: { min: 0.01, max: 1 },
 }
 
 // Boolean-string keys. Must be exactly 'true' or 'false'.
@@ -139,6 +142,22 @@ export async function updateAppSetting(
         return { error: tErr('invalidIntegerRange', { min: range.min, max: range.max }) }
       }
     }
+    const decimalRange = DECIMAL_RANGES[key]
+    if (trimmed && decimalRange) {
+      const parsed = Number(trimmed)
+      if (
+        !Number.isFinite(parsed) ||
+        parsed < decimalRange.min ||
+        parsed > decimalRange.max
+      ) {
+        return {
+          error: tErr('invalidIntegerRange', {
+            min: decimalRange.min,
+            max: decimalRange.max,
+          }),
+        }
+      }
+    }
     if (trimmed && BOOLEAN_KEYS.includes(key)) {
       if (trimmed !== 'true' && trimmed !== 'false') {
         return { error: tErr('invalidBoolean') }
@@ -156,7 +175,7 @@ export async function updateAppSetting(
     revalidatePath('/admin/dashboard/settings')
     if (
       key === 'shop_delivery_notice' ||
-      key === 'shop_silver_to_point_rate' ||
+      key === 'shop_discount_rate' ||
       key === 'aodp_cities' ||
       key === 'aodp_price_mode' ||
       key === 'aodp_min_quality'

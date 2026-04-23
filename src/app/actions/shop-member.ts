@@ -5,7 +5,7 @@
 import { revalidatePath } from 'next/cache'
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { computePointPrice, parseSilverToPointRate } from '@/lib/shop/price'
+import { computePointPrice, parseShopDiscountRate } from '@/lib/shop/price'
 import { getAppSetting } from '@/lib/app-settings'
 
 export interface OrderLineInput {
@@ -55,9 +55,9 @@ export async function submitShopOrder(
 
     const db = getAdminClient()
 
-    // 환율 + 재고 + 가격 조회.
-    const rateSetting = await getAppSetting('shop_silver_to_point_rate', '1')
-    const rate = parseSilverToPointRate(rateSetting)
+    // 할인율 + 재고 + 가격 조회.
+    const rateSetting = await getAppSetting('shop_discount_rate', '1')
+    const discountRate = parseShopDiscountRate(rateSetting)
 
     const ids = Array.from(new Set(lines.map((l) => l.inventoryId)))
     const { data: inventoryRows, error: invErr } = await db
@@ -97,7 +97,7 @@ export async function submitShopOrder(
       const unit = computePointPrice({
         manualPrice: inv.manual_price as number | null,
         autoPriceSilver: inv.auto_price_silver as number | null,
-        silverToPointRate: rate,
+        discountRate,
       })
       if (unit === null) {
         return { ok: false, error: `가격 미정 아이템: ${inv.name_ko}` }

@@ -7,7 +7,7 @@ import ShopSilverRateForm from '@/components/ShopSilverRateForm'
 import ShopInventoryEditor, { type InventoryRow } from '@/components/ShopInventoryEditor'
 import NoticeSettingForm, { NOTICE_MAX_LENGTH } from '@/components/NoticeSettingForm'
 import AodpSettingsForm from '@/components/AodpSettingsForm'
-import { parseSilverToPointRate } from '@/lib/shop/price'
+import { parseShopDiscountRate } from '@/lib/shop/price'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { categoryRank } from '@/lib/shop/category-order'
 
@@ -23,7 +23,7 @@ export default async function AdminShopPage() {
     { data: inventory },
     { data: lastLog },
     deliveryNotice,
-    silverToPointRate,
+    discountRateSetting,
     aodpCitiesRaw,
     aodpPriceModeRaw,
     aodpMinQualityRaw,
@@ -42,7 +42,7 @@ export default async function AdminShopPage() {
       .limit(1)
       .maybeSingle(),
     getAppSetting('shop_delivery_notice', ''),
-    getAppSetting('shop_silver_to_point_rate', '1'),
+    getAppSetting('shop_discount_rate', '1'),
     getAppSetting('aodp_cities', ''),
     getAppSetting('aodp_price_mode', 'spot'),
     getAppSetting('aodp_min_quality', '1'),
@@ -93,7 +93,7 @@ export default async function AdminShopPage() {
       ? aodpMinQualityParsed
       : 1
 
-  const rate = parseSilverToPointRate(silverToPointRate)
+  const discountRate = parseShopDiscountRate(discountRateSetting)
   // DB 가 name_ko asc 로 반환 → stable sort 로 카테고리만 재정렬하면
   // (카테고리 랭크, 이름) 순이 된다.
   const inventoryRows: InventoryRow[] = (inventory ?? [])
@@ -131,7 +131,7 @@ export default async function AdminShopPage() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="space-y-4">
           <ShopImportForm lastImportAt={lastImportAt} isImportStale={isImportStale} />
-          <ShopInventoryEditor rows={inventoryRows} silverToPointRate={rate} />
+          <ShopInventoryEditor rows={inventoryRows} discountRate={discountRate} />
         </div>
         <div className="space-y-4">
           <NoticeSettingForm
@@ -145,7 +145,7 @@ export default async function AdminShopPage() {
             clearTooltip="빈 문자열 = 배너 숨김"
             tooLongMessage={`최대 ${NOTICE_MAX_LENGTH}자까지 입력 가능`}
           />
-          <ShopSilverRateForm initial={silverToPointRate} />
+          <ShopSilverRateForm initial={discountRateSetting} />
           <AodpSettingsForm
             initialCities={aodpCities}
             initialMode={aodpPriceMode}
