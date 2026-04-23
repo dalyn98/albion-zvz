@@ -34,30 +34,33 @@ export interface InventoryRow {
   updatedAt: string
 }
 
-// AODP 폴백 단계별 배지 색/라벨. 관리자 inventory 테이블에서 가격 옆에 노출.
+// 관리자 테이블용 경고 배지. 통일 라벨 "시세 부정확" + 색상으로 심각도.
+// 원인은 툴팁에만 — 관리자는 가격 옆 짧은 배지로 빠르게 스캔하고, 상세는
+// 호버해 읽는다.
+const WARNING_LABEL = '시세 부정확'
 const WARNING_META: Record<
   NonNullable<InventoryPriceWarning>,
-  { color: string; label: string; tooltip: string }
+  { color: string; tooltip: string }
 > = {
   quality: {
-    color: 'bg-yellow-500/80 text-black',
-    label: '품질대체',
-    tooltip: '요청 품질 데이터가 없어 낮은 품질로 대체 추정된 가격입니다.',
+    color: 'bg-yellow-400 text-black',
+    tooltip:
+      '시세 부정확: 요청 품질 데이터가 없어 낮은 품질로 대체 추정된 가격입니다.',
   },
   window: {
-    color: 'bg-yellow-500/80 text-black',
-    label: '기간확장',
-    tooltip: '최근 시세가 부족해 최대 14일 평균으로 추정된 가격입니다.',
+    color: 'bg-yellow-400 text-black',
+    tooltip:
+      '시세 부정확: 최근 시세가 부족해 최대 14일 평균으로 추정된 가격입니다.',
   },
   bluezone: {
-    color: 'bg-orange-500/90 text-black',
-    label: '타도시',
-    tooltip: '설정 도시 시세가 없어 다른 로열 시티 시세로 추정된 가격입니다.',
+    color: 'bg-orange-500 text-black',
+    tooltip:
+      '시세 부정확: 설정 도시 시세가 없어 다른 로열 시티 시세로 추정된 가격입니다.',
   },
   redzone: {
     color: 'bg-red-600 text-white',
-    label: '레드존',
-    tooltip: '로열 시티 시세가 모두 없어 레드존 시세로 추정된 가격입니다. 실가치와 차이가 클 수 있어 관리자 검토를 권장합니다.',
+    tooltip:
+      '시세 부정확: 로열 시티 시세가 모두 없어 레드존 시세로 추정된 가격입니다. 실가치와 차이가 클 수 있어 관리자 검토를 권장합니다.',
   },
 }
 
@@ -534,7 +537,7 @@ function InventoryListItem({
                   }`}
                   title={WARNING_META[row.priceWarningLevel].tooltip}
                 >
-                  {WARNING_META[row.priceWarningLevel].label}
+                  {WARNING_LABEL}
                 </span>
               )}
               <Pencil size={10} className="text-gray-500 group-hover:text-amber-300" />

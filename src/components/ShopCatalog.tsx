@@ -30,32 +30,34 @@ export interface CatalogItem {
   priceWarning: ShopPriceWarning
 }
 
-// AODP 폴백 단계별 경고 메타. 툴팁은 "왜 가격이 덜 정확한지" 를 짧게 설명.
-// 알비온은 도시마다 시세가 달라 순간이동 비용·레드존 리스크가 있어 서버별로
-// 로컬 도시 데이터가 비는 경우 점진적으로 먼 도시/기간을 넓혀 추정한다.
+// AODP 폴백 단계별 경고 메타. 공통 라벨은 "시세 부정확" — 구매자 입장에선 왜
+// 정확하지 않은지보다 "믿을 수 없음" 이 먼저 읽혀야 한다. 색상으로 심각도만
+// 차등 (노랑=경미, 주황=주의, 빨강=심각) 하고 구체 원인은 툴팁으로 보조.
+const PRICE_WARNING_LABEL = '시세 부정확'
+
 const PRICE_WARNING_META: Record<
   NonNullable<ShopPriceWarning>,
-  { color: string; label: string; tooltip: string }
+  { color: string; tooltip: string }
 > = {
   quality: {
-    color: 'bg-yellow-500',
-    label: '부정확',
-    tooltip: '이 아이템 품질의 시세 데이터가 없어 낮은 품질로 대체 추정된 가격입니다.',
+    color: 'bg-yellow-400 text-black',
+    tooltip:
+      '시세 부정확: 이 아이템 품질의 시세 데이터가 없어 낮은 품질로 대체 추정된 가격입니다.',
   },
   window: {
-    color: 'bg-yellow-500',
-    label: '부정확',
-    tooltip: '최근 시세가 부족해 최대 14일 평균으로 추정된 가격입니다.',
+    color: 'bg-yellow-400 text-black',
+    tooltip:
+      '시세 부정확: 최근 시세가 부족해 최대 14일 평균으로 추정된 가격입니다.',
   },
   bluezone: {
-    color: 'bg-orange-500',
-    label: '타도시',
-    tooltip: '현재 도시 시세가 없어 다른 로열 시티 시세로 추정된 가격입니다. 실제 거래 시 순간이동 비용·시간이 들 수 있습니다.',
+    color: 'bg-orange-500 text-black',
+    tooltip:
+      '시세 부정확: 현재 도시 시세가 없어 다른 로열 시티 시세로 추정된 가격입니다. 실제 거래 시 순간이동 비용·시간이 들 수 있습니다.',
   },
   redzone: {
-    color: 'bg-red-600',
-    label: '레드존',
-    tooltip: '로열 시티 시세가 모두 없어 레드존(칼레온·브레실리앙) 시세로 추정된 가격입니다. 레드존은 PvP 위험 지역이라 실제 가치와 차이가 클 수 있습니다.',
+    color: 'bg-red-600 text-white',
+    tooltip:
+      '시세 부정확: 로열 시티 시세가 모두 없어 레드존(칼레온·브레실리앙) 시세로 추정된 가격입니다. PvP 위험 지역이라 실제 가치와 차이가 클 수 있습니다.',
   },
 }
 
@@ -392,16 +394,19 @@ function ShopTile({
           </div>
         )}
 
-        {/* 시세 경고 배지 (왼쪽 아래) — 폴백 단계에 따라 노란/주황/빨강. */}
-        {item.priceWarning && !inCart && (
-          <span
-            title={PRICE_WARNING_META[item.priceWarning].tooltip}
-            className={`absolute bottom-0.5 left-1 text-[9px] font-bold text-white ${PRICE_WARNING_META[item.priceWarning].color} rounded px-1 py-[1px] shadow-[0_1px_1px_rgba(0,0,0,0.9)]`}
-          >
-            {PRICE_WARNING_META[item.priceWarning].label}
-          </span>
-        )}
       </div>
+
+      {/* 시세 경고 라벨 — 가격 바 위에 풀 폭으로. 심각도에 따라 색상 차등.
+          구매자가 "이 가격은 추정치 / 실거래가 다를 수 있음" 을 놓치지 않게
+          가격 바 바로 위에 별도 줄로 배치. 가장 눈에 띄는 위치. */}
+      {item.priceWarning && (
+        <div
+          title={PRICE_WARNING_META[item.priceWarning].tooltip}
+          className={`text-[10px] sm:text-[11px] font-bold text-center leading-tight py-0.5 ${PRICE_WARNING_META[item.priceWarning].color}`}
+        >
+          ⚠ {PRICE_WARNING_LABEL}
+        </div>
+      )}
 
       {/* 가격 바 (하단 전체 폭) */}
       <div
