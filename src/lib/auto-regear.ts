@@ -139,7 +139,10 @@ function extractGearKeys(
   return out
 }
 
-export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearResult> {
+export async function processAutoRegear(
+  db: SupabaseClient,
+  guildId: string,
+): Promise<AutoRegearResult> {
   const startedAt = Date.now()
   const errors: AutoRegearResult['errors'] = []
 
@@ -385,6 +388,7 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
         }
 
         const { data: rpcData, error: rpcErr } = await db.rpc('create_auto_regear_request', {
+          p_guild_id: guildId,
           p_event_id: event.id,
           p_event_title: event.title,
           p_discord_id: v.discord_id,

@@ -23,10 +23,10 @@ export async function GET(request: Request) {
   }
 
   const db = getAdminClient()
-  const result = await processAutoRegear(db)
+  const tenantId = await getPrimaryTenantId()
+  const result = await processAutoRegear(db, tenantId)
 
   const nowIso = new Date().toISOString()
-  const tenantId = await getPrimaryTenantId()
   await db
     .from('app_settings')
     .upsert(

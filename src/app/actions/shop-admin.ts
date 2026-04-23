@@ -268,6 +268,7 @@ export async function importChestLog(
     // 재고 RPC 호출 — 각 (item × enchant × quality) 단위로 원자 누적.
     for (const d of stockDeltas) {
       const { data: newStock, error } = await db.rpc('apply_shop_stock_delta', {
+        p_guild_id: guildId,
         p_unique_name: d.uniqueName,
         p_enchant: d.enchant,
         p_quality: d.quality,
