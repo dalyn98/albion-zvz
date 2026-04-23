@@ -160,7 +160,7 @@ export default function BuildPreview({ slot: input }: { slot: SlotInput }) {
               <span className="text-gray-500 text-[10px] w-10 flex-shrink-0 truncate">
                 {SLOT_LABELS[key]}
               </span>
-              <GearPreview slot={displaySlot} kind={key} size={32} isTaken={false} />
+              <GearPreview slot={displaySlot} kind={key} size={34} isTaken={false} />
               <div className="flex-1 min-w-0">
                 {displayName ? (
                   <p className="text-white text-[11px] truncate leading-tight">{displayName}</p>
