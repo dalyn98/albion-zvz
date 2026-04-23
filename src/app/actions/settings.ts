@@ -29,6 +29,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'auto_regear_enabled',
   'cd_badge_roles',
   'active_member_role_ids',
+  'allow_unverified_member_access',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -86,6 +87,7 @@ const DECIMAL_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
 const BOOLEAN_KEYS: readonly AppSettingKey[] = [
   'events_auto_start_enabled',
   'auto_regear_enabled',
+  'allow_unverified_member_access',
 ] as const
 
 // Enum-string keys. Value must be exactly one of the listed members.

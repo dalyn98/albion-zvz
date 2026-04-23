@@ -89,6 +89,11 @@ export type AppSettingKey =
   // 비어 있으면 인증 불가능(모든 유저가 [미인증] 저장). 관리자가 인게임 길드
   // 페이지의 URL 에서 복사해 넣는다. SaaS 확장 시 tenants 테이블로 이전.
   | 'albion_home_guild_id'
+  // Boolean 문자열. 'true' 이면 알비온 인증을 하지 않은 길드원도 사이트 전역에
+  // 접근 가능 (현재 기본 동작). 'false' 이면 `layout.tsx` 게이트가 미인증 멤버
+  // 를 `/onboarding/albion` 으로 강제 리디렉트. 관리자/게스트/공개 경로/OAuth
+  // 콜백은 항상 제외.
+  | 'allow_unverified_member_access'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

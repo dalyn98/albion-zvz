@@ -32,6 +32,7 @@ export default async function SettingsPage() {
     albionHomeGuildId,
     autoRegearEnabledRaw,
     cdBadgeRolesRaw,
+    allowUnverifiedMemberAccessRaw,
     { rewards, error: rewardsError },
     tLanding,
     t,
@@ -55,6 +56,9 @@ export default async function SettingsPage() {
     getAppSetting('albion_home_guild_id', ''),
     getAppSetting('auto_regear_enabled', 'false'),
     getAppSetting('cd_badge_roles', '["Dps"]'),
+    // 기본값 'true' — 기존 동작(미인증 멤버도 접근 가능) 유지. 관리자가 끌
+    // 때만 layout 게이트가 /onboarding/albion 으로 강제 리다이렉트.
+    getAppSetting('allow_unverified_member_access', 'true'),
     listRoleRewards(),
     getTranslations('landing'),
     getTranslations('adminSettings'),
@@ -101,6 +105,8 @@ export default async function SettingsPage() {
       : 'east'
 
   const autoRegearEnabled = autoRegearEnabledRaw === 'true'
+  // 'true' 이외는 모두 false 로 해석 — 유일한 opt-out 경로는 명시적 'false'.
+  const allowUnverifiedMemberAccess = allowUnverifiedMemberAccessRaw !== 'false'
 
   // SLOT_ROLES 에 없는 값은 drop — UI 토글이 조용히 잃어버리는 것보다
   // 관리자에게 재저장을 유도하는 편이 명확.
@@ -147,6 +153,7 @@ export default async function SettingsPage() {
         albionHomeGuildId={albionHomeGuildId}
         autoRegearEnabled={autoRegearEnabled}
         cdBadgeRoles={cdBadgeRoles}
+        allowUnverifiedMemberAccess={allowUnverifiedMemberAccess}
       />
     </div>
   )

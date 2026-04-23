@@ -135,9 +135,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   ) {
     const { data: avatarRow } = await getAdminClient()
       .from('guild_avatars')
-      .select('albion_server')
+      .select('albion_server, albion_verified_at')
       .eq('discord_id', session.discordId)
       .maybeSingle()
+
+    // 관리자가 /admin/dashboard/settings 의 "미인증 길드원 접속 허용" 을 끈
+    // 경우, 인증되지 않은 멤버를 /onboarding/albion 으로 강제 리디렉트. 관리자
+    // 자신은 사이트 관리 접근권이 있어야 하므로 예외 — isAdmin 은 통과.
+    if (!session.isAdmin && !avatarRow?.albion_verified_at) {
+      const allowUnverified = await getAppSetting('allow_unverified_member_access', 'true')
+      if (allowUnverified === 'false') {
+        redirect('/onboarding/albion')
+      }
+    }
+
     if (!avatarRow?.albion_server) {
       const [identity, homeGuildId] = await Promise.all([
         getMemberAlbionIdentity(session.discordId),

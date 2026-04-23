@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { Image as ImageIcon, Megaphone, Shield, Timer } from 'lucide-react'
+import { Image as ImageIcon, Megaphone, Settings, Shield, Timer } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import NotificationSettingsForm from './NotificationSettingsForm'
 import RoleRewardsEditor from './RoleRewardsEditor'
@@ -15,6 +15,7 @@ import RegearLimitsForm from './RegearLimitsForm'
 import RegearPayoutRateForm from './RegearPayoutRateForm'
 import EventAutoStartForm from './EventAutoStartForm'
 import AlbionHomeGuildForm from './AlbionHomeGuildForm'
+import AllowUnverifiedAccessForm from './AllowUnverifiedAccessForm'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
 import AutoRegearToggleForm from './AutoRegearToggleForm'
 import CdBadgeRolesForm from './CdBadgeRolesForm'
@@ -22,6 +23,7 @@ import type { RoleReward } from '@/app/actions/regear-admin'
 import type { SlotRole } from '@/types'
 
 type TabKey =
+  | 'basic'
   | 'landing'
   | 'notices'
   | 'permissions'
@@ -30,6 +32,7 @@ type TabKey =
 interface TabDef {
   key: TabKey
   labelKey:
+    | 'tabBasic'
     | 'tabLanding'
     | 'tabNotices'
     | 'tabPermissions'
@@ -38,13 +41,14 @@ interface TabDef {
 }
 
 const TABS: readonly TabDef[] = [
+  { key: 'basic', labelKey: 'tabBasic', icon: Settings },
   { key: 'notices', labelKey: 'tabNotices', icon: Megaphone },
   { key: 'permissions', labelKey: 'tabPermissions', icon: Shield },
   { key: 'events', labelKey: 'tabEvents', icon: Timer },
   { key: 'landing', labelKey: 'tabLanding', icon: ImageIcon },
 ]
 
-const DEFAULT_TAB: TabKey = 'notices'
+const DEFAULT_TAB: TabKey = 'basic'
 
 interface Props {
   notificationMessage: string
@@ -69,10 +73,12 @@ interface Props {
   albionHomeGuildId: string
   autoRegearEnabled: boolean
   cdBadgeRoles: SlotRole[]
+  allowUnverifiedMemberAccess: boolean
 }
 
 function isTabKey(value: string | null): value is TabKey {
   return (
+    value === 'basic' ||
     value === 'landing' ||
     value === 'notices' ||
     value === 'permissions' ||
@@ -103,6 +109,7 @@ export default function SettingsTabs({
   albionHomeGuildId,
   autoRegearEnabled,
   cdBadgeRoles,
+  allowUnverifiedMemberAccess,
 }: Props) {
   const t = useTranslations('adminSettings')
   const tEventsNotice = useTranslations('adminEventsNotice')
@@ -153,6 +160,19 @@ export default function SettingsTabs({
       </nav>
 
       <div role="tabpanel">
+        {active === 'basic' && (
+          <div className="space-y-4">
+            <AlbionHomeGuildForm
+              initialServer={albionServer}
+              initialGuildId={albionHomeGuildId}
+            />
+            <AllowUnverifiedAccessForm initialAllowed={allowUnverifiedMemberAccess} />
+            <ActiveMemberRolesSetting
+              initialRoleIds={activeMemberRoleIds}
+              initialLastSyncAt={lastMemberSyncAt}
+            />
+          </div>
+        )}
         {active === 'landing' && (
           <div className="space-y-4">
             <LandingCtaTextForm
@@ -166,18 +186,10 @@ export default function SettingsTabs({
           <div className="space-y-4">
             <EventCreatorRolesSetting initialRoleIds={eventCreatorRoleIds} />
             <BombSquadCallerRolesSetting initialRoleIds={bombSquadCallerRoleIds} />
-            <ActiveMemberRolesSetting
-              initialRoleIds={activeMemberRoleIds}
-              initialLastSyncAt={lastMemberSyncAt}
-            />
           </div>
         )}
         {active === 'events' && (
           <div className="space-y-4">
-            <AlbionHomeGuildForm
-              initialServer={albionServer}
-              initialGuildId={albionHomeGuildId}
-            />
             <RegearLimitsForm
               initialWindowMinutes={regearWindowMinutes}
               initialMaxDeaths={regearMaxDeaths}
