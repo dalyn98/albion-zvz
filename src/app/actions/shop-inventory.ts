@@ -62,7 +62,14 @@ export async function syncShopPrices(): Promise<PriceSyncSummary> {
       }
       // source 가 'spot' 이면 평균 모드에서 폴백된 현재가. 관리자가 원본 설정 (avg_7d)
       // 과 실제 반영된 값이 다르다는 걸 알 수 있게 접미사로 덧붙인다.
-      const sourceTag = hit.source === 'spot' ? `aodp:${hit.city}:spot` : `aodp:${hit.city}`
+      // usedQuality 가 원래 요청 품질보다 낮으면 AODP 에 해당 품질 데이터가 없어
+      // 낮은 품질로 fallback 했다는 뜻이라 `:q{usedQuality}` 도 덧붙인다.
+      const parts = [`aodp:${hit.city}`]
+      if (hit.source === 'spot') parts.push('spot')
+      if (hit.usedQuality !== null && hit.usedQuality !== k.quality) {
+        parts.push(`q${hit.usedQuality}`)
+      }
+      const sourceTag = parts.join(':')
       const { error } = await db
         .from('shop_inventory')
         .update({

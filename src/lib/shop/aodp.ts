@@ -56,6 +56,10 @@ export interface AodpPriceResult {
   // 평균 모드에서 히스토리 데이터가 비어 있으면 spot 으로 폴백하므로
   // 호출자가 원본 소스를 구분할 수 있게 둔다. null = 시세 없음.
   source: 'history' | 'spot' | null
+  // 실제 사용된 품질. 요청 품질에 데이터가 없으면 낮은 품질로 fallback 하므로
+  // 호출자가 `quality !== usedQuality` 로 fallback 여부를 판단할 수 있게 한다.
+  // null = 시세 없음.
+  usedQuality: number | null
 }
 
 interface AodpSpotRow {
@@ -88,11 +92,21 @@ function effectiveQuality(quality: number, minQuality: number): number {
   return Math.max(quality, minQuality)
 }
 
+// AODP 는 crowdsourced 라 특정 품질만 데이터가 비어 있는 경우가 잦다 (특히
+// East 서버 quality 4 우수함). 요청 품질에서 데이터가 없을 때 낮은 품질로 폴백해
+// 최소한 근사값이라도 보여줄 수 있게, 조회 쿼리에 minQuality..max(requested)
+// 범위를 한꺼번에 담는다. 알비온의 품질 범위 1~5 안이라 payload 증가는 크지 않다.
 function qualityList(keys: AodpPriceKey[], minQuality: number): string {
-  const set = new Set(keys.map((k) => effectiveQuality(k.quality, minQuality)))
-  return Array.from(set)
-    .sort((a, b) => a - b)
-    .join(',')
+  let maxQ = 0
+  for (const k of keys) {
+    const eq = effectiveQuality(k.quality, minQuality)
+    if (eq > maxQ) maxQ = eq
+  }
+  const floor = Math.max(1, Math.min(5, minQuality))
+  const ceiling = Math.max(floor, Math.min(5, maxQ || floor))
+  const list: number[] = []
+  for (let q = floor; q <= ceiling; q += 1) list.push(q)
+  return list.join(',')
 }
 
 function isStale(isoDate: string, now: Date): boolean {
@@ -250,16 +264,17 @@ export async function fetchAodpPrices(
     for (const k of keys) {
       const id = itemId(k)
       const effQ = effectiveQuality(k.quality, minQuality)
-      const hit = spotMap.get(`${id}|${effQ}`)
+      const best = findBestByQuality(spotMap, id, effQ, minQuality)
       const outKey = `${k.uniqueName}|${k.enchant}|${k.quality}`
       result.set(outKey, {
         uniqueName: k.uniqueName,
         enchant: k.enchant,
         quality: k.quality,
-        price: hit?.price ?? null,
-        city: hit?.city ?? null,
-        sampledAt: hit?.sampledAt ?? null,
-        source: hit ? 'spot' : null,
+        price: best?.price ?? null,
+        city: best?.city ?? null,
+        sampledAt: best?.sampledAt ?? null,
+        source: best ? 'spot' : null,
+        usedQuality: best?.quality ?? null,
       })
     }
     return result
@@ -285,14 +300,13 @@ export async function fetchAodpPrices(
     }
   }
 
-  // 히스토리에서 못 찾은 key 모음 → spot 폴백. 원본 keys 는 (item, enchant, quality)
-  // 조합이고 AODP 는 `itemId|quality` 로 조회하므로 중복 제거.
+  // 히스토리에서 못 찾은 key (요청 품질 + 낮은 품질 어느 것도 없는 경우) → spot 폴백.
   const missingLookupKeys = new Set<string>()
   for (const k of keys) {
     const id = itemId(k)
     const effQ = effectiveQuality(k.quality, minQuality)
-    if (!historyBestByKey.has(`${id}|${effQ}`)) {
-      missingLookupKeys.add(`${id}|${effQ}`)
+    if (!findBestByQuality(historyBestByKey, id, effQ, minQuality)) {
+      missingLookupKeys.add(id)
     }
   }
 
@@ -305,10 +319,9 @@ export async function fetchAodpPrices(
   for (const k of keys) {
     const id = itemId(k)
     const effQ = effectiveQuality(k.quality, minQuality)
-    const lookupKey = `${id}|${effQ}`
-    const historyHit = historyBestByKey.get(lookupKey)
-    const spotHit = historyHit ? undefined : spotBestByKey.get(lookupKey)
-    const hit = historyHit ?? spotHit ?? null
+    const historyHit = findBestByQuality(historyBestByKey, id, effQ, minQuality)
+    const spotHit = historyHit ? null : findBestByQuality(spotBestByKey, id, effQ, minQuality)
+    const hit = historyHit ?? spotHit
     const outKey = `${k.uniqueName}|${k.enchant}|${k.quality}`
     result.set(outKey, {
       uniqueName: k.uniqueName,
@@ -318,9 +331,27 @@ export async function fetchAodpPrices(
       city: hit?.city ?? null,
       sampledAt: hit?.sampledAt ?? null,
       source: historyHit ? 'history' : spotHit ? 'spot' : null,
+      usedQuality: hit?.quality ?? null,
     })
   }
   return result
+}
+
+// 맵 키는 `${itemId}|${quality}`. 요청 품질에서 데이터가 없으면 quality-1,
+// quality-2 … minQuality 까지 내려가며 가장 높은 품질의 데이터를 반환한다.
+// AODP 데이터가 일부 품질만 비는 경우 (East 서버 우수함 등) 실용적 근사치.
+function findBestByQuality(
+  map: Map<string, { price: number; city: string; sampledAt: string }>,
+  id: string,
+  requestedQuality: number,
+  minQuality: number,
+): { price: number; city: string; sampledAt: string; quality: number } | null {
+  const floor = Math.max(1, Math.min(5, minQuality))
+  for (let q = requestedQuality; q >= floor; q -= 1) {
+    const hit = map.get(`${id}|${q}`)
+    if (hit) return { ...hit, quality: q }
+  }
+  return null
 }
 
 // spot 결과를 `${itemId}|${quality}` 로 인덱스한 맵으로 반환하는 공용 루틴.

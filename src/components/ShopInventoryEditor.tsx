@@ -57,23 +57,51 @@ function formatAgo(iso: string | null): string {
   return `${diffDay}일 전`
 }
 
-// price_source 는 `aodp:{city}` 또는 `aodp:{city}:spot` 또는 `manual`.
-// `:spot` 접미사는 avg_Nd 모드에서 history 데이터가 없어 현재가로 폴백했음을 의미.
+// price_source 는 `aodp:{city}[:spot][:q{n}]` 또는 `manual`.
+// - `:spot` 접미사 = avg_Nd 모드에서 history 데이터가 없어 현재가로 폴백.
+// - `:q{n}` 접미사 = 요청 품질에 데이터가 없어 낮은 품질 {n} 로 폴백.
+interface AodpSourceInfo {
+  city: string
+  isSpot: boolean
+  fallbackQuality: number | null
+}
+
+function parseAodpSource(source: string | null): AodpSourceInfo | null {
+  if (!source || !source.startsWith('aodp:')) return null
+  const parts = source.split(':')
+  const city = parts[1] ?? ''
+  let isSpot = false
+  let fallbackQuality: number | null = null
+  for (let i = 2; i < parts.length; i += 1) {
+    const p = parts[i]
+    if (p === 'spot') isSpot = true
+    else if (/^q\d$/.test(p)) fallbackQuality = Number(p.slice(1))
+  }
+  return { city, isSpot, fallbackQuality }
+}
+
 function isSpotFallback(source: string | null): boolean {
-  return source !== null && source.endsWith(':spot')
+  return parseAodpSource(source)?.isSpot === true
+}
+
+function fallbackQuality(source: string | null): number | null {
+  return parseAodpSource(source)?.fallbackQuality ?? null
 }
 
 function priceSourceTooltip(source: string | null): string {
   if (!source) return '포인트 가격 수정 (빈 값 = 자동)'
   if (source === 'manual') return '수동 고정가 (빈 값으로 저장하면 자동으로 복귀)'
-  if (source.startsWith('aodp:')) {
-    const parts = source.split(':')
-    const city = parts[1] ?? ''
-    const isSpot = parts[2] === 'spot'
-    if (isSpot) {
-      return `${city} 현재가 (설정된 평균 기간 내 history 데이터가 없어 spot 호가로 폴백)`
+  const info = parseAodpSource(source)
+  if (info) {
+    const extras: string[] = []
+    if (info.isSpot) extras.push('설정된 평균 기간 내 history 데이터 없어 spot 호가 폴백')
+    if (info.fallbackQuality !== null) {
+      extras.push(
+        `요청 품질에 AODP 데이터가 없어 품질 ${info.fallbackQuality}(${QUALITY_LABELS[info.fallbackQuality] ?? '?'}) 로 폴백 — 실제 시세와 다를 수 있음`,
+      )
     }
-    return `${city} AODP 평균가`
+    const base = `${info.city} AODP ${info.isSpot ? '현재가' : '평균가'}`
+    return extras.length > 0 ? `${base} · ${extras.join(' · ')}` : base
   }
   return source
 }
@@ -475,7 +503,12 @@ function InventoryListItem({
               {row.manualPrice !== null
                 ? 'manual'
                 : row.autoPriceSilver
-                ? `auto · ${formatAgo(row.priceUpdatedAt)}${isSpotFallback(row.priceSource) ? ' · spot' : ''}`
+                ? (() => {
+                    const fq = fallbackQuality(row.priceSource)
+                    const spotTag = isSpotFallback(row.priceSource) ? ' · spot' : ''
+                    const qTag = fq !== null ? ` · q${fq}` : ''
+                    return `auto · ${formatAgo(row.priceUpdatedAt)}${spotTag}${qTag}`
+                  })()
                 : 'no price'}
             </span>
           </button>
