@@ -7,43 +7,12 @@ import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
 import BatchApplySpecsModal, { type BatchSpecsScope } from './BatchApplySpecsModal'
 import BatchApplyItemsModal from './BatchApplyItemsModal'
 import FeatureSetupRequiredModal from './FeatureSetupRequiredModal'
-import type { BombSquadKind, EventCategory, GearOption, GearSpec, SlotKey } from '@/types'
+import type { BombSquadKind, EventCategory, GearSpec, SlotKey } from '@/types'
 import { BOMB_SQUAD_KINDS, SLOT_KEYS } from '@/types'
 import { savePartySlots } from '@/app/actions/admin'
 import type { PartyWithSlots } from '@/types'
+import { slotToInput } from '@/lib/slot-to-input'
 import { useRegisterSave } from './EventEditSaveRegistry'
-
-function slotToInput(s: import('@/types').Slot): SlotInput {
-  return {
-    id: s.id,
-    slot_number: s.slot_number,
-    is_hidden: s.is_hidden,
-    role_name: s.role_name ?? '',
-    notes: s.notes ?? '',
-    auto_regear_excluded: s.auto_regear_excluded,
-    manual_regear_excluded: s.manual_regear_excluded,
-    assigned_username: s.assigned_username,
-    items: SLOT_KEYS.reduce((acc, k) => ({
-      ...acc,
-      [k]: {
-        name: s[`${k}_name`] ?? '',
-        id: s[`${k}_id`] ?? '',
-      },
-    }), {} as Record<SlotKey, { name: string; id: string }>),
-    options: SLOT_KEYS.reduce((acc, k) => ({
-      ...acc,
-      [k]: s[`${k}_options`] ?? [],
-    }), {} as Record<SlotKey, GearOption[]>),
-    spells: SLOT_KEYS.reduce((acc, k) => ({
-      ...acc,
-      [k]: s.spells?.[k] ?? [],
-    }), {} as Record<SlotKey, string[]>),
-    specs: SLOT_KEYS.reduce((acc, k) => ({
-      ...acc,
-      [k]: s.gear_specs?.[k] ?? {},
-    }), {} as Record<SlotKey, GearSpec>),
-  }
-}
 
 interface MemberDirectoryEntry {
   discord_id: string

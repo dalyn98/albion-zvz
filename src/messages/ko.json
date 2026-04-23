@@ -808,7 +808,9 @@
       "offhand_HORN_KEEPER": "호른",
       "offhand_JESTERCANE_HELL": "제스터케인",
       "offhand_TOME_CRYSTAL": "토메"
-    }
+    },
+    "editBuild": "빌드 편집",
+    "buildSaved": "빌드가 저장되었습니다"
   },
   "eventSidebar": {
     "title": "전체 신청 현황",

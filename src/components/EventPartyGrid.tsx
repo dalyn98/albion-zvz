@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Bomb, Eye, EyeOff, Filter, Megaphone, Pencil, X } from 'lucide-react'
-import type { PartyWithSlots, SlotRole } from '@/types'
+import type { EventCategory, PartyWithSlots, SlotRole } from '@/types'
 import SlotCard from './SlotCard'
 
 interface Props {
@@ -17,6 +17,10 @@ interface Props {
   avatars: Record<string, string | null>
   usernames: Record<string, string | null>
   cdBadgeRoles: readonly SlotRole[]
+  // 관리자 편집 버튼에서 SlotCard → SingleSlotEditModal → SlotEditor 까지
+  // 내려가는 컨텍스트. 관리자가 아니면 사용되지 않으므로 SSR 비용은 없음.
+  autoRegearEnabled: boolean
+  eventCategory?: EventCategory
 }
 
 function hiddenStorageKey(eventId: string, discordId: string) {
@@ -33,6 +37,8 @@ export default function EventPartyGrid({
   avatars,
   usernames,
   cdBadgeRoles,
+  autoRegearEnabled,
+  eventCategory,
 }: Props) {
   const t = useTranslations('event')
   const [onlyMyRole, setOnlyMyRole] = useState(false)
@@ -316,6 +322,8 @@ export default function EventPartyGrid({
                       slot.requested_discord_id ? avatars[slot.requested_discord_id] ?? null : null
                     }
                     cdBadgeRoles={cdBadgeRoles}
+                    autoRegearEnabled={autoRegearEnabled}
+                    eventCategory={eventCategory}
                   />
                 ))}
               </div>

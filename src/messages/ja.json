@@ -808,7 +808,9 @@
       "offhand_HORN_KEEPER": "ホルン",
       "offhand_JESTERCANE_HELL": "ジェスターケイン",
       "offhand_TOME_CRYSTAL": "トーム"
-    }
+    },
+    "editBuild": "ビルド編集",
+    "buildSaved": "ビルドを保存しました"
   },
   "eventSidebar": {
     "title": "申請状況",

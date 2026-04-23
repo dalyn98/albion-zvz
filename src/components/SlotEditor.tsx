@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Trash2, X, Pencil, Plus } from 'lucide-react'
 import { getLocalizedItemName } from '@/lib/item-names'
@@ -105,12 +105,32 @@ interface Props {
   eventCategory?: EventCategory
   onChange: (updated: SlotInput) => void
   onDelete: () => void
+  // 단일 슬롯 편집 모드. 이 prop 이 주어지면:
+  // - 접힌 요약 행은 렌더하지 않고 곧바로 편집 모달만 띄운다
+  // - "완료" 버튼이 onSave 를 호출하는 저장 버튼으로 치환된다
+  // - 삭제 버튼은 숨겨진다 (슬롯 번호/파티 구조는 부모 파티 에디터의 책임)
+  // - 모달 dismiss (X/ESC/backdrop) 시 onClose 가 호출되어 부모가 unmount 한다
+  standaloneMode?: {
+    onSave: () => Promise<boolean>
+    onClose: () => void
+    saveLabel: string
+    savingLabel: string
+  }
 }
 
-export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, eventCategory, onChange, onDelete }: Props) {
+export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, eventCategory, onChange, onDelete, standaloneMode }: Props) {
   const t = useTranslations('adminParty')
   const tCommon = useTranslations('common')
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(standaloneMode ? true : false)
+  const [saving, setSaving] = useState(false)
+
+  const closeModal = useCallback(() => {
+    if (standaloneMode) {
+      standaloneMode.onClose()
+    } else {
+      setOpen(false)
+    }
+  }, [standaloneMode])
 
   // Per-slot mode stored locally: 'multi' with an empty options list is a
   // legitimate in-progress state, so we can't derive mode from slot data on
@@ -150,14 +170,14 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, event
     if (!open) return
     document.body.style.overflow = 'hidden'
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key === 'Escape') closeModal()
     }
     window.addEventListener('keydown', onKey)
     return () => {
       document.body.style.overflow = ''
       window.removeEventListener('keydown', onKey)
     }
-  }, [open])
+  }, [open, closeModal])
 
   useEffect(() => {
     return () => {
@@ -274,57 +294,59 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, event
 
   return (
     <>
-      <div className="flex items-center justify-between px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg">
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="flex items-center gap-2 min-w-0 flex-1 text-left"
-        >
-          <span className="text-gray-400 text-xs flex-shrink-0">
-            {t('slotBreadcrumb', { party: partyNumber, slot: slot.slot_number })}
-          </span>
-          {slot.role_name ? (
-            <span
-              className={`text-xs font-semibold px-2 py-0.5 rounded truncate ${
-                roleStyle ? roleStyle.badge : 'bg-amber-500/20 text-amber-400'
-              }`}
-            >
-              {slot.role_name}
-            </span>
-          ) : (
-            <span className="text-gray-600 text-xs italic">{t('roleNone')}</span>
-          )}
-          <span className="text-gray-600 text-xs ml-auto flex-shrink-0">
-            {filledCount}/8
-          </span>
-          {slot.assigned_username && (
-            <span className="text-green-400 text-xs flex-shrink-0">✓ {slot.assigned_username}</span>
-          )}
-        </button>
-        <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+      {!standaloneMode && (
+        <div className="flex items-center justify-between px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg">
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="p-1 text-gray-400 hover:text-amber-400 transition-colors"
-            aria-label={tCommon('edit')}
+            className="flex items-center gap-2 min-w-0 flex-1 text-left"
           >
-            <Pencil size={13} />
+            <span className="text-gray-400 text-xs flex-shrink-0">
+              {t('slotBreadcrumb', { party: partyNumber, slot: slot.slot_number })}
+            </span>
+            {slot.role_name ? (
+              <span
+                className={`text-xs font-semibold px-2 py-0.5 rounded truncate ${
+                  roleStyle ? roleStyle.badge : 'bg-amber-500/20 text-amber-400'
+                }`}
+              >
+                {slot.role_name}
+              </span>
+            ) : (
+              <span className="text-gray-600 text-xs italic">{t('roleNone')}</span>
+            )}
+            <span className="text-gray-600 text-xs ml-auto flex-shrink-0">
+              {filledCount}/8
+            </span>
+            {slot.assigned_username && (
+              <span className="text-green-400 text-xs flex-shrink-0">✓ {slot.assigned_username}</span>
+            )}
           </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="p-1 text-gray-600 hover:text-red-400 transition-colors"
-            aria-label={tCommon('delete')}
-          >
-            <Trash2 size={13} />
-          </button>
+          <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="p-1 text-gray-400 hover:text-amber-400 transition-colors"
+              aria-label={tCommon('edit')}
+            >
+              <Pencil size={13} />
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              className="p-1 text-gray-600 hover:text-red-400 transition-colors"
+              aria-label={tCommon('delete')}
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {open && (
         <div
           className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center sm:p-6"
-          onClick={() => setOpen(false)}
+          onClick={closeModal}
         >
           <div
             className="bg-gray-900 border border-gray-700 w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl max-h-[92dvh] flex flex-col"
@@ -347,7 +369,7 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, event
               </div>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={closeModal}
                 className="p-1 text-gray-400 hover:text-white"
                 aria-label={tCommon('close')}
               >
@@ -490,28 +512,38 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, event
             </div>
 
             <div className="flex-shrink-0 border-t border-gray-700 px-4 py-3 flex gap-2">
+              {!standaloneMode && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onDelete()
+                    setOpen(false)
+                  }}
+                  className="flex items-center gap-1 text-red-400 hover:text-red-300 text-sm font-medium px-3 py-2"
+                >
+                  <Trash2 size={13} /> {t('deleteSlot')}
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => {
-                  onDelete()
-                  setOpen(false)
-                }}
-                className="flex items-center gap-1 text-red-400 hover:text-red-300 text-sm font-medium px-3 py-2"
-              >
-                <Trash2 size={13} /> {t('deleteSlot')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
+                disabled={saving}
+                onClick={async () => {
+                  if (standaloneMode) {
+                    setSaving(true)
+                    const ok = await standaloneMode.onSave()
+                    setSaving(false)
+                    if (ok) standaloneMode.onClose()
+                    return
+                  }
                   // Auto-stash the current build in browser-local recents so
                   // the admin can re-apply it without retyping. saveRecentBuild
                   // no-ops when the weapon slot is empty.
                   saveRecentBuild(slotInputToTemplateData(slot))
                   setOpen(false)
                 }}
-                className="ml-auto bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 py-2 rounded-lg text-sm transition-colors"
+                className="ml-auto bg-amber-500 hover:bg-amber-400 text-black font-bold px-6 py-2 rounded-lg text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {t('done')}
+                {standaloneMode ? (saving ? standaloneMode.savingLabel : standaloneMode.saveLabel) : t('done')}
               </button>
             </div>
           </div>

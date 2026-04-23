@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { assignSlot, cancelSlot, adminCancelSlot, type SlotPicks } from '@/app/actions/member'
 import { approveSlotRequest, rejectSlotRequest } from '@/app/actions/bomb-squad'
-import type { Slot, SlotKey, SlotRole } from '@/types'
+import type { EventCategory, Slot, SlotKey, SlotRole } from '@/types'
 import {
   SLOT_KEYS,
   getDisplayGear,
@@ -24,7 +24,8 @@ import SlotSpellPanel, { SlotCooldownBadge } from './SlotSpellPanel'
 import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
 import MemberAssignModal from './MemberAssignModal'
-import { UserPlus, UserX, MessageSquare, LogIn, Lock, X, Swords, Check, Hourglass, Bomb } from 'lucide-react'
+import SingleSlotEditModal from './SingleSlotEditModal'
+import { UserPlus, UserX, MessageSquare, LogIn, Lock, X, Swords, Check, Hourglass, Bomb, Pencil } from 'lucide-react'
 
 interface Props {
   slot: Slot
@@ -43,6 +44,10 @@ interface Props {
   assignedAvatar?: string | null
   requestedAvatar?: string | null
   cdBadgeRoles: readonly SlotRole[]
+  // 관리자 전용 단일 슬롯 편집 버튼용 — SlotEditor 가 "자동 리기어 제외" 체크박스
+  // 노출 여부 / 템플릿 저장 다이얼로그의 카테고리 기본값을 판단한다.
+  autoRegearEnabled: boolean
+  eventCategory?: EventCategory
 }
 
 function NoteTooltip({ notes }: { notes: string }) {
@@ -84,11 +89,14 @@ export default function SlotCard({
   assignedAvatar = null,
   requestedAvatar = null,
   cdBadgeRoles,
+  autoRegearEnabled,
+  eventCategory,
 }: Props) {
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [assignModalOpen, setAssignModalOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const router = useRouter()
   const t = useTranslations('slot')
   const tGear = useTranslations('gear')
@@ -218,6 +226,17 @@ export default function SlotCard({
               {slot.role_name}
             </span>
           )}
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setEditOpen(true)}
+              aria-label={t('editBuild')}
+              title={t('editBuild')}
+              className="p-0.5 text-gray-500 hover:text-amber-400 transition-colors"
+            >
+              <Pencil size={11} />
+            </button>
+          )}
         </div>
         {isTaken ? (
           <div className={`flex items-center gap-1 text-[12px] flex-shrink-0 ${
@@ -306,6 +325,16 @@ export default function SlotCard({
           slotId={slot.id}
           slotLabel={slotLabel}
           onClose={() => setAssignModalOpen(false)}
+        />
+      )}
+
+      {editOpen && isAdmin && (
+        <SingleSlotEditModal
+          slot={slot}
+          partyNumber={partyNumber}
+          autoRegearEnabled={autoRegearEnabled}
+          eventCategory={eventCategory}
+          onClose={() => setEditOpen(false)}
         />
       )}
     </div>

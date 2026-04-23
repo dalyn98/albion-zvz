@@ -49,13 +49,15 @@ export default async function EventDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const [{ event, parties }, session, t, locale, cdBadgeRolesRaw] = await Promise.all([
+  const [{ event, parties }, session, t, locale, cdBadgeRolesRaw, autoRegearRaw] = await Promise.all([
     getEvent(id),
     getSession(),
     getTranslations('event'),
     getLocale(),
     getAppSetting('cd_badge_roles', '["Dps"]'),
+    getAppSetting('auto_regear_enabled', 'false'),
   ])
+  const autoRegearEnabled = autoRegearRaw === 'true'
 
   // 파싱 실패/잘못된 shape 은 기본값(`["Dps"]`) 으로 degrade — 설정 페이지에서
   // 동일 파서를 쓰기 때문에 양쪽이 같은 방식으로 동작한다.
@@ -220,6 +222,8 @@ export default async function EventDetailPage({
           avatars={avatars}
           usernames={usernames}
           cdBadgeRoles={cdBadgeRoles}
+          autoRegearEnabled={autoRegearEnabled}
+          eventCategory={event.category}
         />
       </main>
 

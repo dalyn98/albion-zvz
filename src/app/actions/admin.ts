@@ -694,3 +694,47 @@ export async function clearSlotAssignment(slotId: string): Promise<{ error?: str
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
+
+// 단일 슬롯 빌드(아이템/옵션/주문/스펙/역할명/메모 등) 만 업데이트. slot_number
+// 와 party_id 는 DB 값으로 고정 — 재배치/이동은 파티 편집 화면의 전용 플로우.
+// 할당 정보(assigned_*) 도 건드리지 않는다 — 그쪽은 clearSlotAssignment /
+// assignSelfToSlot 이 담당.
+export async function updateSingleSlot(
+  slotId: string,
+  slot: Omit<SlotPayload, 'id' | 'slot_number'>,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const db = await requireEventCreatorForSlot(slotId)
+
+    const { data: slotRow, error: slotErr } = await db
+      .from('slots')
+      .select('party_id, slot_number, parties!inner(event_id, party_number)')
+      .eq('id', slotId)
+      .maybeSingle()
+    if (slotErr) return { error: slotErr.message }
+    if (!slotRow) return { error: tErr('serverError') }
+
+    const party = Array.isArray(slotRow.parties) ? slotRow.parties[0] : slotRow.parties
+    if (!party) return { error: tErr('serverError') }
+
+    const row = slotToRow(slotRow.party_id, {
+      ...slot,
+      slot_number: slotRow.slot_number,
+    })
+
+    const { error: updErr } = await db
+      .from('slots')
+      .update(row)
+      .eq('id', slotId)
+    if (updErr) return { error: updErr.message }
+
+    revalidatePath(`/admin/dashboard/events/${party.event_id}`)
+    revalidatePath(`/events/${party.event_id}`)
+    revalidatePath(`/events/${party.event_id}/party/${party.party_number}`)
+    revalidatePath('/')
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}

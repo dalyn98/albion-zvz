@@ -808,7 +808,9 @@
       "offhand_HORN_KEEPER": "Horn",
       "offhand_JESTERCANE_HELL": "Jester Cane",
       "offhand_TOME_CRYSTAL": "Tome"
-    }
+    },
+    "editBuild": "Edit build",
+    "buildSaved": "Build saved"
   },
   "eventSidebar": {
     "title": "Application status",
