@@ -20,8 +20,15 @@ export interface Event {
   // 'published' = 공개. createEvent 는 draft 로만 만들고, publishEvent 가
   // gather_at 을 검증 후 published 로 전이시킨다.
   status: 'draft' | 'published'
+  // Migration 063: 이벤트 카테고리. '전투' = 정식 ZvZ, '기타' = 친선전·연습·
+  // 기타 길드 이벤트. 홈 목록에서 카테고리별로 분리 표시하고, 개인 알림
+  // 설정(notify_combat/notify_other)에 따라 DM 대상을 필터링한다.
+  category: EventCategory
   created_at: string
 }
+
+export const EVENT_CATEGORIES = ['전투', '기타'] as const
+export type EventCategory = (typeof EVENT_CATEGORIES)[number]
 
 export type BombSquadKind = 'melee' | 'ranged'
 

@@ -111,6 +111,10 @@
     "titleLabel": "イベントタイトル *",
     "titlePlaceholder": "例: 06/01 ZvZ 戦闘",
     "titleRequired": "イベントタイトルを入力してください。",
+    "categoryLabel": "カテゴリ *",
+    "categoryHint": "戦闘（正式ZvZ）と その他（フレマ・練習・その他ギルドイベント）から選択。ホーム一覧では別セクションに表示され、通知設定もカテゴリ別に適用されます。",
+    "category_combat": "戦闘",
+    "category_other": "その他",
     "gatherTimeLabel": "集結時間 *",
     "gatherTimeInvalid": "集結時間が正しくありません。月/日/時/分をもう一度ご確認ください。",
     "gatherTimeIncomplete": "月/日/時/分を正確に入力してください。",
@@ -585,7 +589,9 @@
     "sections": {
       "imminent": "戦闘間近",
       "ended": "終了した戦闘",
-      "upcoming": "予定された戦闘"
+      "upcoming": "予定された戦闘",
+      "combat": "戦闘",
+      "other": "その他"
     },
     "badge": {
       "inProgress": "戦闘中",
@@ -1160,6 +1166,13 @@
     "updateFailed": "設定を保存できませんでした。再試行してください。",
     "enabledMessage": "Discord DM通知をオンにしました。",
     "disabledMessage": "Discord DM通知をオフにしました。",
+    "categoryTitle": "カテゴリ別イベント通知",
+    "categoryDescription": "関心のないカテゴリのイベント間近DMはオフにできます。DM受信がオンの時のみ適用されます。",
+    "categoryMasterOff": "上部の「DMを受け取る」を先に有効にしてください — カテゴリ設定はDMがオンの時だけ有効です。",
+    "categoryOn": "受信",
+    "categoryOff": "ミュート",
+    "category_combat": "戦闘",
+    "category_other": "その他",
     "regearApprovedTitle": "リギア承認",
     "regearApprovedBody": "{event} のリギアが承認されました (+{silver} silver)。",
     "regearRejectedTitle": "リギア却下",

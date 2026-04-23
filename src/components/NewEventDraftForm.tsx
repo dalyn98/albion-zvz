@@ -11,12 +11,14 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { createDraftEvent } from '@/app/actions/admin'
+import { EVENT_CATEGORIES, type EventCategory } from '@/types'
 
 export default function NewEventDraftForm() {
   const router = useRouter()
   const t = useTranslations('adminEventForm')
   const tCommon = useTranslations('common')
   const [title, setTitle] = useState('')
+  const [category, setCategory] = useState<EventCategory>('전투')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -28,7 +30,7 @@ export default function NewEventDraftForm() {
     }
     setError('')
     setLoading(true)
-    const result = await createDraftEvent({ title: trimmed })
+    const result = await createDraftEvent({ title: trimmed, category })
     if ('error' in result) {
       setError(result.error)
       setLoading(false)
@@ -53,6 +55,25 @@ export default function NewEventDraftForm() {
           className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-base text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
           autoFocus
         />
+      </div>
+
+      <div>
+        <label className="text-gray-400 text-xs mb-1 block">{t('categoryLabel')}</label>
+        <div className="inline-flex bg-gray-800 border border-gray-700 rounded-lg p-0.5 text-sm font-semibold">
+          {EVENT_CATEGORIES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setCategory(c)}
+              className={`px-4 py-1.5 rounded-md transition-colors ${
+                category === c ? 'bg-amber-500 text-black' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              {t(`category_${c === '전투' ? 'combat' : 'other'}`)}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500 mt-1.5">{t('categoryHint')}</p>
       </div>
 
       <p className="text-xs text-gray-500 leading-relaxed">

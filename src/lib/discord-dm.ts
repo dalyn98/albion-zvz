@@ -1,5 +1,6 @@
 import 'server-only'
 import { getAdminClient } from './supabase-admin'
+import type { EventCategory } from '@/types'
 
 // Discord DM 발송용 공용 모듈.
 //
@@ -40,25 +41,39 @@ export function isDiscordDmConfigured(): boolean {
 
 // 입력받은 Discord ID 들 중 discord_dm_enabled = true 인 것만 통과시킨다.
 // guild_avatars 와 guests 두 테이블에 나눠 저장돼 있으므로 둘 다 조회해 합집합.
-export async function filterDmOptedIn(discordIds: string[]): Promise<string[]> {
+//
+// categoryFilter 가 주어지면 해당 카테고리의 개인 옵트아웃
+// (notify_combat / notify_other) 도 함께 AND 조건으로 확인한다. 이벤트 임박 DM
+// 전용. regear/donation 등 카테고리와 무관한 DM 은 categoryFilter 없이 호출.
+export async function filterDmOptedIn(
+  discordIds: string[],
+  categoryFilter?: EventCategory,
+): Promise<string[]> {
   if (discordIds.length === 0) return []
   const db = getAdminClient()
+  const categoryColumn =
+    categoryFilter === '전투'
+      ? 'notify_combat'
+      : categoryFilter === '기타'
+      ? 'notify_other'
+      : null
+  const columns = categoryColumn
+    ? `discord_id, discord_dm_enabled, ${categoryColumn}`
+    : 'discord_id, discord_dm_enabled'
   const [avatars, guests] = await Promise.all([
-    db
-      .from('guild_avatars')
-      .select('discord_id, discord_dm_enabled')
-      .in('discord_id', discordIds),
-    db
-      .from('guests')
-      .select('discord_id, discord_dm_enabled')
-      .in('discord_id', discordIds),
+    db.from('guild_avatars').select(columns).in('discord_id', discordIds),
+    db.from('guests').select(columns).in('discord_id', discordIds),
   ])
   const enabled = new Set<string>()
-  for (const row of avatars.data ?? []) {
-    if (row.discord_dm_enabled) enabled.add(row.discord_id)
-  }
-  for (const row of guests.data ?? []) {
-    if (row.discord_dm_enabled) enabled.add(row.discord_id)
+  // Supabase 의 dynamic select 는 반환 타입이 GenericStringError[] 로 좁혀져서
+  // 일반 object 접근이 안 된다. 실제 런타임 형태는 Record 이므로 unknown 경유.
+  const rows = [...(avatars.data ?? []), ...(guests.data ?? [])] as unknown as Array<
+    Record<string, unknown> & { discord_id: string; discord_dm_enabled: boolean | null }
+  >
+  for (const row of rows) {
+    if (!row.discord_dm_enabled) continue
+    if (categoryColumn && row[categoryColumn] === false) continue
+    enabled.add(row.discord_id)
   }
   return discordIds.filter((id) => enabled.has(id))
 }
@@ -123,13 +138,14 @@ export interface DmResult {
 export async function sendDiscordDmsToUsers(
   discordIds: string[],
   payload: DiscordDmPayload,
+  categoryFilter?: EventCategory,
 ): Promise<DmResult> {
   const token = getBotToken()
   if (!token) {
     console.warn('[discord-dm] DISCORD_BOT_TOKEN not set — skipping send')
     return { attempted: 0, succeeded: 0 }
   }
-  const optedIn = await filterDmOptedIn(discordIds)
+  const optedIn = await filterDmOptedIn(discordIds, categoryFilter)
   if (optedIn.length === 0) return { attempted: 0, succeeded: 0 }
 
   let succeeded = 0

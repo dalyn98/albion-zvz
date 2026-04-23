@@ -6,6 +6,7 @@ import { getMyDmPreference } from '@/app/actions/notifications'
 import { getMyPreferredLanguage } from '@/app/actions/language'
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/locales'
 import DmToggle from '@/components/DmToggle'
+import CategoryDmPrefs from '@/components/CategoryDmPrefs'
 import LanguageSetting from '@/components/LanguageSetting'
 
 export const dynamic = 'force-dynamic'
@@ -17,11 +18,12 @@ export default async function MySettingsPage() {
   }
 
   const t = await getTranslations('mySettings')
-  const [{ enabled }, { locale: preferredLocale }, activeLocale] = await Promise.all([
+  const [dmPref, { locale: preferredLocale }, activeLocale] = await Promise.all([
     getMyDmPreference(),
     getMyPreferredLanguage(),
     getLocale(),
   ])
+  const { enabled, notifyCombat, notifyOther } = dmPref
   // DB 값 > 현재 활성 로케일 > 기본값 순으로 fallback. 마이그레이션 직후
   // preferred_language 가 null 인 기존 사용자는 활성 로케일이 표시되어야 한다.
   const initialLocale: Locale = preferredLocale
@@ -48,6 +50,11 @@ export default async function MySettingsPage() {
           {t('notificationsGroup')}
         </h2>
         <DmToggle initialEnabled={enabled} />
+        <CategoryDmPrefs
+          initialCombat={notifyCombat}
+          initialOther={notifyOther}
+          masterEnabled={enabled}
+        />
       </section>
     </main>
   )

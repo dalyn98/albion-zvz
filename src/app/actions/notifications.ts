@@ -5,34 +5,61 @@ import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { requireEventCreator } from '@/lib/auth'
+import type { EventCategory } from '@/types'
 
 // 사용자(길드원/게스트) 본인의 Discord DM 수신 토글과 관리자용 Discord 역할
 // 목록 조회를 담당. 웹 푸시 스택(actions/push.ts) 을 대체한다.
 
-// 현재 세션 사용자의 discord_dm_enabled 값을 돌려준다. 기본값은 false (옵트인).
-export async function getMyDmPreference(): Promise<{ enabled: boolean; error?: string }> {
+export interface DmPreference {
+  enabled: boolean
+  notifyCombat: boolean
+  notifyOther: boolean
+  error?: string
+}
+
+// 현재 세션 사용자의 DM 수신 설정을 한 번에 가져온다.
+//   - enabled: discord_dm_enabled (마스터 스위치)
+//   - notifyCombat / notifyOther: 카테고리별 옵트아웃 (migration 063)
+// 셋 모두 기본값은 true/false 혼재인데 (enabled 는 옵트인이라 false, 카테고리는
+// 기존 동작 유지용 true), DB 의 DEFAULT 를 그대로 따른다.
+export async function getMyDmPreference(): Promise<DmPreference> {
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
-  if (!session) return { enabled: false, error: tErr('loginRequired') }
+  if (!session) {
+    return { enabled: false, notifyCombat: true, notifyOther: true, error: tErr('loginRequired') }
+  }
 
   const db = getAdminClient()
+  const columns = 'discord_dm_enabled, notify_combat, notify_other'
   // 길드원(guild_avatars) 우선, 없으면 게스트(guests) 확인. 둘 다 없는 경우는
-  // 실질적으로 세션이 살아있지만 아바타가 삭제된 엣지 케이스 — 기본 false 반환.
+  // 실질적으로 세션이 살아있지만 아바타가 삭제된 엣지 케이스 — 기본값 반환.
   const { data: avatar } = await db
     .from('guild_avatars')
-    .select('discord_dm_enabled')
+    .select(columns)
     .eq('discord_id', session.discordId)
     .maybeSingle()
-  if (avatar) return { enabled: avatar.discord_dm_enabled ?? false }
+  if (avatar) {
+    return {
+      enabled: avatar.discord_dm_enabled ?? false,
+      notifyCombat: avatar.notify_combat ?? true,
+      notifyOther: avatar.notify_other ?? true,
+    }
+  }
 
   const { data: guest } = await db
     .from('guests')
-    .select('discord_dm_enabled')
+    .select(columns)
     .eq('discord_id', session.discordId)
     .maybeSingle()
-  if (guest) return { enabled: guest.discord_dm_enabled ?? false }
+  if (guest) {
+    return {
+      enabled: guest.discord_dm_enabled ?? false,
+      notifyCombat: guest.notify_combat ?? true,
+      notifyOther: guest.notify_other ?? true,
+    }
+  }
 
-  return { enabled: false }
+  return { enabled: false, notifyCombat: true, notifyOther: true }
 }
 
 export async function setMyDmPreference(
@@ -49,6 +76,29 @@ export async function setMyDmPreference(
   const { error } = await db
     .from(table)
     .update({ discord_dm_enabled: enabled })
+    .eq('discord_id', session.discordId)
+  if (error) return { error: error.message }
+
+  revalidatePath('/me/settings')
+  return {}
+}
+
+// 카테고리별 알림 옵트아웃 토글. discord_dm_enabled 가 꺼져 있으면 이 값은
+// 아무 효과 없음 (filterDmOptedIn 에서 enabled 가 먼저 걸러짐).
+export async function setMyCategoryPreference(
+  category: EventCategory,
+  enabled: boolean,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('memberActionError')
+  const session = await getSession()
+  if (!session) return { error: tErr('loginRequired') }
+
+  const column = category === '전투' ? 'notify_combat' : 'notify_other'
+  const table = session.isGuest ? 'guests' : 'guild_avatars'
+  const db = getAdminClient()
+  const { error } = await db
+    .from(table)
+    .update({ [column]: enabled })
     .eq('discord_id', session.discordId)
   if (error) return { error: error.message }
 

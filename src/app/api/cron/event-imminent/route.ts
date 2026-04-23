@@ -101,7 +101,7 @@ export async function GET(request: Request) {
 
   const { data: events, error: eventsError } = await db
     .from('events')
-    .select('id, title, gather_at')
+    .select('id, title, gather_at, category')
     .is('imminent_notified_at', null)
     .not('gather_at', 'is', null)
     // draft 이벤트는 임박 DM 대상 아님 — 발행된 이벤트만 DM.
@@ -144,11 +144,18 @@ export async function GET(request: Request) {
 
     if (discordIds.length > 0) {
       const time = formatGatherTime(event.gather_at as string)
-      const result = await sendDiscordDmsToUsers(discordIds, {
-        title: t('eventImminentTitle', { title: event.title }),
-        body: t('eventImminentBody', { time }),
-        url: `/events/${event.id}`,
-      })
+      // event.category 는 migration 063 이후 NOT NULL — 기존 행도 '전투' 로
+      // backfill 됐다. 개인 옵트아웃 (notify_combat / notify_other) 과 AND.
+      const category = (event.category ?? '전투') as '전투' | '기타'
+      const result = await sendDiscordDmsToUsers(
+        discordIds,
+        {
+          title: t('eventImminentTitle', { title: event.title }),
+          body: t('eventImminentBody', { time }),
+          url: `/events/${event.id}`,
+        },
+        category,
+      )
       attempted = result.attempted
       succeeded = result.succeeded
     }

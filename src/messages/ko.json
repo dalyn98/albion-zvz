@@ -111,6 +111,10 @@
     "titleLabel": "이벤트 제목 *",
     "titlePlaceholder": "예: 06/01 ZvZ 전투",
     "titleRequired": "이벤트 제목을 입력해주세요.",
+    "categoryLabel": "카테고리 *",
+    "categoryHint": "전투(정식 ZvZ)와 기타(친선전·연습·기타 길드 이벤트) 중 선택. 홈 목록에서 분리 표시되고, 알림도 카테고리별 설정이 따로 적용됩니다.",
+    "category_combat": "전투",
+    "category_other": "기타",
     "gatherTimeLabel": "집결 시간 *",
     "gatherTimeInvalid": "집결 시간이 올바르지 않습니다. 월/일/시/분을 다시 확인해주세요.",
     "gatherTimeIncomplete": "월/일/시/분을 정확히 입력해주세요.",
@@ -585,7 +589,9 @@
     "sections": {
       "imminent": "전투 임박",
       "ended": "종료된 전투",
-      "upcoming": "예정된 전투"
+      "upcoming": "예정된 전투",
+      "combat": "전투",
+      "other": "기타"
     },
     "badge": {
       "inProgress": "전투 진행중",
@@ -1160,6 +1166,13 @@
     "updateFailed": "설정을 저장하지 못했어요. 다시 시도해 주세요.",
     "enabledMessage": "DM 알림을 켰어요!",
     "disabledMessage": "DM 알림을 껐어요.",
+    "categoryTitle": "카테고리별 이벤트 알림",
+    "categoryDescription": "관심 없는 카테고리의 이벤트 임박 DM 은 받지 않도록 끌 수 있어요. DM 수신이 켜져 있을 때만 적용됩니다.",
+    "categoryMasterOff": "상단의 \"DM 받기\" 를 먼저 켜야 카테고리 설정이 적용돼요.",
+    "categoryOn": "수신",
+    "categoryOff": "차단",
+    "category_combat": "전투",
+    "category_other": "기타",
     "regearApprovedTitle": "리기어 승인",
     "regearApprovedBody": "{event} 리기어가 승인됐어요 (+{silver} silver).",
     "regearRejectedTitle": "리기어 거절",

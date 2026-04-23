@@ -10,6 +10,7 @@ import {
   Swords,
   Flame,
 } from 'lucide-react'
+import type { EventCategory } from '@/types'
 
 export type HomeEventKind = 'imminent' | 'upcoming'
 
@@ -22,6 +23,7 @@ export interface HomeEventCardData {
   assigned: number
   kind: HomeEventKind
   battleStarted: boolean
+  category: EventCategory
 }
 
 interface Props {
@@ -30,8 +32,6 @@ interface Props {
 
 export default function HomeEventList({ events }: Props) {
   const t = useTranslations('home')
-  const imminent = events.filter((e) => e.kind === 'imminent')
-  const upcoming = events.filter((e) => e.kind === 'upcoming')
 
   if (events.length === 0) {
     return (
@@ -41,23 +41,61 @@ export default function HomeEventList({ events }: Props) {
     )
   }
 
+  // 카테고리 단위로 큰 섹션을 만들고, 섹션 안에서 다시 임박/예정으로 나눈다.
+  // 기존 단일 섹션 구조와 동일한 우선순위 (임박 먼저) 를 category 내부에서
+  // 유지해야 "전투 임박" 이 여전히 맨 위에 보인다.
+  const combat = events.filter((e) => e.category === '전투')
+  const other = events.filter((e) => e.category === '기타')
+
   return (
-    <div className="space-y-6">
-      {imminent.length > 0 && (
-        <Section title={t('sections.imminent')} icon={<Flame size={16} className="text-amber-400" />} titleClass="text-amber-300">
-          {imminent.map((e) => (
-            <EventCard key={e.id} event={e} />
-          ))}
-        </Section>
+    <div className="space-y-8">
+      {combat.length > 0 && (
+        <CategorySection title={t('sections.combat')} events={combat} />
       )}
-      {upcoming.length > 0 && (
-        <Section title={t('sections.upcoming')} titleClass="text-gray-400">
-          {upcoming.map((e) => (
-            <EventCard key={e.id} event={e} />
-          ))}
-        </Section>
+      {other.length > 0 && (
+        <CategorySection title={t('sections.other')} events={other} />
       )}
     </div>
+  )
+}
+
+function CategorySection({
+  title,
+  events,
+}: {
+  title: string
+  events: HomeEventCardData[]
+}) {
+  const t = useTranslations('home')
+  const imminent = events.filter((e) => e.kind === 'imminent')
+  const upcoming = events.filter((e) => e.kind === 'upcoming')
+
+  return (
+    <section className="space-y-4">
+      <h2 className="text-lg font-bold text-white border-l-2 border-amber-500 pl-3">
+        {title}
+      </h2>
+      <div className="space-y-6">
+        {imminent.length > 0 && (
+          <Section
+            title={t('sections.imminent')}
+            icon={<Flame size={16} className="text-amber-400" />}
+            titleClass="text-amber-300"
+          >
+            {imminent.map((e) => (
+              <EventCard key={e.id} event={e} />
+            ))}
+          </Section>
+        )}
+        {upcoming.length > 0 && (
+          <Section title={t('sections.upcoming')} titleClass="text-gray-400">
+            {upcoming.map((e) => (
+              <EventCard key={e.id} event={e} />
+            ))}
+          </Section>
+        )}
+      </div>
+    </section>
   )
 }
 

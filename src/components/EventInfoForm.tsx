@@ -13,7 +13,8 @@ import {
   type DiscordChannelOption,
 } from '@/app/actions/notifications'
 import { defaultGatherParts, parseGatherTime, formatGatherTimeKo, type GatherTimeParts } from '@/lib/gather-time'
-import type { Event } from '@/types'
+import type { Event, EventCategory } from '@/types'
+import { EVENT_CATEGORIES } from '@/types'
 
 interface Props {
   initialEvent?: Event
@@ -41,6 +42,7 @@ export default function EventInfoForm({ initialEvent }: Props) {
   const [specialNotes, setSpecialNotes] = useState(initialEvent?.special_notes ?? '')
   const [notifyRoleId, setNotifyRoleId] = useState<string>(initialEvent?.notify_role_id ?? '')
   const [notifyChannelId, setNotifyChannelId] = useState<string>(initialEvent?.notify_channel_id ?? '')
+  const [category, setCategory] = useState<EventCategory>(initialEvent?.category ?? '전투')
   const [roles, setRoles] = useState<DiscordRoleOption[] | null>(null)
   const [rolesError, setRolesError] = useState(false)
   const [channels, setChannels] = useState<DiscordChannelOption[] | null>(null)
@@ -192,6 +194,7 @@ export default function EventInfoForm({ initialEvent }: Props) {
           special_notes: specialNotes.trim() || null,
           notify_role_id: notifyRoleId || null,
           notify_channel_id: notifyChannelId || null,
+          category,
         })
         if ('error' in result && result.error) {
           setError(result.error)
@@ -213,6 +216,7 @@ export default function EventInfoForm({ initialEvent }: Props) {
         special_notes: specialNotes.trim() || null,
         notify_role_id: notifyRoleId || null,
         notify_channel_id: notifyChannelId || null,
+        category,
       })
       if ('error' in result && result.error) {
         setError(result.error)
@@ -237,6 +241,24 @@ export default function EventInfoForm({ initialEvent }: Props) {
           placeholder={t('titlePlaceholder')}
           className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-base text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
         />
+      </div>
+
+      <div>
+        <label className="text-gray-400 text-xs mb-1 block">{t('categoryLabel')}</label>
+        <div className="inline-flex bg-gray-800 border border-gray-700 rounded-lg p-0.5 text-sm font-semibold">
+          {EVENT_CATEGORIES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setCategory(c)}
+              className={`px-4 py-1.5 rounded-md transition-colors ${
+                category === c ? 'bg-amber-500 text-black' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              {t(`category_${c === '전투' ? 'combat' : 'other'}`)}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div>

@@ -11,9 +11,10 @@ import {
 import { getSession } from '@/lib/session'
 import { sendEventNotification } from '@/lib/discord'
 import { getAppSetting } from '@/lib/app-settings'
-import type { BombSquadKind, SlotKey, SlotSpells, GearOption, GearSpec, GearSpecs } from '@/types'
+import type { BombSquadKind, EventCategory, SlotKey, SlotSpells, GearOption, GearSpec, GearSpecs } from '@/types'
 import {
   BOMB_SQUAD_KINDS,
+  EVENT_CATEGORIES,
   SLOT_KEYS,
   GEAR_TIER_MIN,
   GEAR_TIER_MAX,
@@ -46,6 +47,9 @@ interface EventPayload {
   // 채널(DISCORD_EVENT_CHANNEL_ID) 로 fallback. 생성 폼은 이 필드를 보내지
   // 않으며 편집 단계에서만 채널을 고른다.
   notify_channel_id?: string | null
+  // Migration 063: 이벤트 카테고리. 생성 시 선택하고 편집에서도 변경 가능.
+  // 생략하면 DB 기본값 '전투' 가 적용된다.
+  category?: EventCategory
 }
 
 // Final check in case the client bypassed validation — a bad ISO string would
@@ -67,17 +71,23 @@ function validateEventPayload(
     const dt = new Date(payload.gather_at)
     if (Number.isNaN(dt.getTime())) return tErr('invalidGatherTime')
   }
+  // 카테고리 — 값이 있으면 화이트리스트 검증. 없으면 DB DEFAULT ('전투') 사용.
+  if (payload.category !== undefined && !EVENT_CATEGORIES.includes(payload.category)) {
+    return tErr('serverError')
+  }
   return null
 }
 
 // 이벤트를 draft 상태로 생성. 제목만 받아 빈 껍질을 만든 뒤 편집/발행 단계로 넘긴다.
 // 기존 createEvent 와 달리 gather_at 을 요구하지 않으며 공개 /events 에도 뜨지 않는다.
 export async function createDraftEvent(
-  payload: { title: string },
+  payload: { title: string; category?: EventCategory },
 ): Promise<{ id: string } | { error: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
     if (!payload.title.trim()) return { error: tErr('missingTitle') }
+    const category: EventCategory =
+      payload.category && EVENT_CATEGORIES.includes(payload.category) ? payload.category : '전투'
     const session = await getSession()
     if (!session?.canCreateEvents) return { error: tErr('unauthorized') }
     const db = await requireEventCreator()
@@ -90,6 +100,7 @@ export async function createDraftEvent(
         gather_location: '',
         special_notes: null,
         status: 'draft',
+        category,
         created_by: session.discordId,
       })
       .select('id')

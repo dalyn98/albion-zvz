@@ -90,6 +90,7 @@ export default async function HomePage() {
     assigned: event.assigned,
     kind: classifyScheduled(event),
     battleStarted: !!event.battle_started_at,
+    category: event.category,
   })
 
   const cards = events.map(toCard)

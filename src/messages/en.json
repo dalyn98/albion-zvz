@@ -111,6 +111,10 @@
     "titleLabel": "Event title *",
     "titlePlaceholder": "e.g. 06/01 ZvZ battle",
     "titleRequired": "Please enter an event title.",
+    "categoryLabel": "Category *",
+    "categoryHint": "Combat (formal ZvZ) or Other (friendlies, practice, misc guild events). The home list splits by category, and per-user alarm prefs apply per category.",
+    "category_combat": "Combat",
+    "category_other": "Other",
     "gatherTimeLabel": "Gather time *",
     "gatherTimeInvalid": "Invalid gather time. Please check the month/day/hour/minute.",
     "gatherTimeIncomplete": "Please enter a valid month/day/hour/minute.",
@@ -582,7 +586,9 @@
     "sections": {
       "imminent": "Imminent battles",
       "ended": "Ended battles",
-      "upcoming": "Upcoming battles"
+      "upcoming": "Upcoming battles",
+      "combat": "Combat",
+      "other": "Other"
     },
     "badge": {
       "inProgress": "In battle",
@@ -1156,6 +1162,13 @@
     "updateFailed": "Couldn't save the setting. Please try again.",
     "enabledMessage": "Discord DM notifications enabled.",
     "disabledMessage": "Discord DM notifications disabled.",
+    "categoryTitle": "Event category alerts",
+    "categoryDescription": "Mute imminent-event DMs for categories you don't care about. Only applies when DM notifications are enabled.",
+    "categoryMasterOff": "Enable \"Receive DMs\" above first — category settings take effect only when DMs are on.",
+    "categoryOn": "On",
+    "categoryOff": "Muted",
+    "category_combat": "Combat",
+    "category_other": "Other",
     "regearApprovedTitle": "Regear approved",
     "regearApprovedBody": "{event} regear approved (+{silver} silver).",
     "regearRejectedTitle": "Regear rejected",
