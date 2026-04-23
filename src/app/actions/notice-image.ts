@@ -9,6 +9,8 @@ import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { requireAdmin } from '@/lib/auth'
 import type { AppSettingKey } from '@/lib/app-settings'
+import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 
 export type NoticeTarget = 'events' | 'regear'
 
@@ -29,11 +31,13 @@ function extractPath(url: string): string | null {
 
 async function readCurrentUrl(
   db: ReturnType<typeof getAdminClient>,
+  guildId: string,
   key: AppSettingKey,
 ): Promise<string> {
   const { data } = await db
     .from('app_settings')
     .select('value')
+    .eq('guild_id', guildId)
     .eq('key', key)
     .maybeSingle()
   return data?.value ?? ''
@@ -41,14 +45,15 @@ async function readCurrentUrl(
 
 async function writeUrl(
   db: ReturnType<typeof getAdminClient>,
+  guildId: string,
   key: AppSettingKey,
   value: string,
 ): Promise<string | null> {
   const { error } = await db
     .from('app_settings')
     .upsert(
-      { key, value, updated_at: new Date().toISOString() },
-      { onConflict: 'key' },
+      { guild_id: guildId, key, value, updated_at: new Date().toISOString() },
+      { onConflict: 'guild_id,key' },
     )
   return error?.message ?? null
 }
@@ -76,8 +81,11 @@ export async function uploadNoticeImage(
     if (!ALLOWED_TYPES.includes(file.type)) return { error: tErr('bannerWrongType') }
 
     const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('serverError') }
+    const guildId = await getSessionGuildId(session)
     const key = settingKeyFor(target)
-    const previousUrl = await readCurrentUrl(db, key)
+    const previousUrl = await readCurrentUrl(db, guildId, key)
 
     const path = `${target}/${randomUUID()}.${extFromMime(file.type)}`
     const { error: uploadError } = await db.storage
@@ -88,7 +96,7 @@ export async function uploadNoticeImage(
     const { data: urlData } = db.storage.from(BUCKET).getPublicUrl(path)
     const publicUrl = urlData.publicUrl
 
-    const writeErr = await writeUrl(db, key, publicUrl)
+    const writeErr = await writeUrl(db, guildId, key, publicUrl)
     if (writeErr) {
       await db.storage.from(BUCKET).remove([path])
       return { error: writeErr }
@@ -114,10 +122,13 @@ export async function clearNoticeImage(
   const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('serverError') }
+    const guildId = await getSessionGuildId(session)
     const key = settingKeyFor(target)
-    const previousUrl = await readCurrentUrl(db, key)
+    const previousUrl = await readCurrentUrl(db, guildId, key)
 
-    const writeErr = await writeUrl(db, key, '')
+    const writeErr = await writeUrl(db, guildId, key, '')
     if (writeErr) return { error: writeErr }
 
     const previousPath = previousUrl ? extractPath(previousUrl) : null

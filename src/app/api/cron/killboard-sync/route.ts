@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import { syncKillboard } from '@/lib/killboard-sync'
+import { getPrimaryTenantId } from '@/lib/tenant'
 
 // 킬보드 동기화 cron. GitHub Actions 가 5분 주기로 호출하면, 이 엔드포인트가
 // 내부적으로 "지금 sync 를 돌릴지" 를 판단한다 — 이벤트 진행 중이면 5분 간격,
@@ -70,11 +71,12 @@ export async function GET(request: Request) {
   const result = await syncKillboard(db)
 
   const nowIso = new Date().toISOString()
+  const tenantId = await getPrimaryTenantId()
   await db
     .from('app_settings')
     .upsert(
-      { key: 'last_killboard_sync_at', value: nowIso, updated_at: nowIso },
-      { onConflict: 'key' },
+      { guild_id: tenantId, key: 'last_killboard_sync_at', value: nowIso, updated_at: nowIso },
+      { onConflict: 'guild_id,key' },
     )
 
   return NextResponse.json({ active, ...result })

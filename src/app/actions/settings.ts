@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import type { AppSettingKey } from '@/lib/app-settings'
+import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 import { SLOT_ROLES } from '@/types'
@@ -180,9 +182,15 @@ export async function updateAppSetting(
       return { error: tErr('invalidEnumValue', { values: allowedEnum.join(', ') }) }
     }
     const db = await requireAdmin()
-    const { error } = await db
-      .from('app_settings')
-      .upsert({ key, value: trimmed, updated_at: new Date().toISOString() }, { onConflict: 'key' })
+    // Multi-tenant: app_settings PK 가 (guild_id, key) 복합이므로 upsert 타겟도
+    // 두 컬럼 모두 지정. 세션에 guildId 가 없으면 primary tenant 로 fallback.
+    const session = await getSession()
+    if (!session) return { error: tErr('serverError') }
+    const guildId = await getSessionGuildId(session)
+    const { error } = await db.from('app_settings').upsert(
+      { guild_id: guildId, key, value: trimmed, updated_at: new Date().toISOString() },
+      { onConflict: 'guild_id,key' },
+    )
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/settings')
     if (
@@ -228,13 +236,16 @@ export async function updateAlbionHomeGuild(input: {
       return { error: tErr('valueTooLong', { max: MAX_VALUE_LENGTH }) }
     }
     const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('serverError') }
+    const sessionGuildId = await getSessionGuildId(session)
     const now = new Date().toISOString()
     const { error } = await db.from('app_settings').upsert(
       [
-        { key: 'albion_server', value: server, updated_at: now },
-        { key: 'albion_home_guild_id', value: guildId, updated_at: now },
+        { guild_id: sessionGuildId, key: 'albion_server', value: server, updated_at: now },
+        { guild_id: sessionGuildId, key: 'albion_home_guild_id', value: guildId, updated_at: now },
       ],
-      { onConflict: 'key' },
+      { onConflict: 'guild_id,key' },
     )
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/settings')

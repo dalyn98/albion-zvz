@@ -10,6 +10,7 @@ import { revalidatePath } from 'next/cache'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import { listGuildMembersBulk } from '@/lib/discord'
+import { getPrimaryTenantId } from '@/lib/tenant'
 
 // 직전 성공 후 20시간 내면 skip — cron 재시도가 하루 2회 이상 돌지 않게 수렴.
 // KST 04:00 스케줄이 약간 앞당겨져도 다음날 실행이 건너뛰지 않도록 20h.
@@ -127,11 +128,12 @@ export async function runMemberSync(opts: RunOptions = {}): Promise<MemberSyncOu
     if (updErr) console.error('[member-sync] rejoin update failed:', updErr.message)
   }
 
+  const tenantId = await getPrimaryTenantId()
   await db
     .from('app_settings')
     .upsert(
-      { key: 'last_member_sync_at', value: nowIso, updated_at: nowIso },
-      { onConflict: 'key' },
+      { guild_id: tenantId, key: 'last_member_sync_at', value: nowIso, updated_at: nowIso },
+      { onConflict: 'guild_id,key' },
     )
 
   if (toWithdraw.length > 0 || toRejoin.length > 0) {

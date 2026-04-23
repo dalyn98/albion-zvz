@@ -5,6 +5,8 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { requireAdmin } from '@/lib/auth'
+import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 
 const BANNER_BUCKET = 'landing-banners'
 const MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -21,10 +23,12 @@ function extractPath(url: string): string | null {
 
 async function readCurrentBannerUrl(
   db: ReturnType<typeof getAdminClient>,
+  guildId: string,
 ): Promise<string> {
   const { data } = await db
     .from('app_settings')
     .select('value')
+    .eq('guild_id', guildId)
     .eq('key', 'landing_banner_url')
     .maybeSingle()
   return data?.value ?? ''
@@ -32,13 +36,14 @@ async function readCurrentBannerUrl(
 
 async function writeBannerUrl(
   db: ReturnType<typeof getAdminClient>,
+  guildId: string,
   value: string,
 ): Promise<string | null> {
   const { error } = await db
     .from('app_settings')
     .upsert(
-      { key: 'landing_banner_url', value, updated_at: new Date().toISOString() },
-      { onConflict: 'key' },
+      { guild_id: guildId, key: 'landing_banner_url', value, updated_at: new Date().toISOString() },
+      { onConflict: 'guild_id,key' },
     )
   return error?.message ?? null
 }
@@ -69,7 +74,10 @@ export async function uploadLandingBanner(
     }
 
     const db = await requireAdmin()
-    const previousUrl = await readCurrentBannerUrl(db)
+    const session = await getSession()
+    if (!session) return { error: tErr('serverError') }
+    const guildId = await getSessionGuildId(session)
+    const previousUrl = await readCurrentBannerUrl(db, guildId)
 
     const path = `banner-${randomUUID()}.${extFromMime(file.type)}`
     const { error: uploadError } = await db.storage
@@ -80,7 +88,7 @@ export async function uploadLandingBanner(
     const { data: urlData } = db.storage.from(BANNER_BUCKET).getPublicUrl(path)
     const publicUrl = urlData.publicUrl
 
-    const writeErr = await writeBannerUrl(db, publicUrl)
+    const writeErr = await writeBannerUrl(db, guildId, publicUrl)
     if (writeErr) {
       // 설정 저장이 실패했으면 방금 올린 파일도 롤백. 고아 파일 방지.
       await db.storage.from(BANNER_BUCKET).remove([path])
@@ -104,9 +112,12 @@ export async function clearLandingBanner(): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
-    const previousUrl = await readCurrentBannerUrl(db)
+    const session = await getSession()
+    if (!session) return { error: tErr('serverError') }
+    const guildId = await getSessionGuildId(session)
+    const previousUrl = await readCurrentBannerUrl(db, guildId)
 
-    const writeErr = await writeBannerUrl(db, '')
+    const writeErr = await writeBannerUrl(db, guildId, '')
     if (writeErr) return { error: writeErr }
 
     const previousPath = previousUrl ? extractPath(previousUrl) : null

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { processAutoRegear } from '@/lib/auto-regear'
 import { revalidatePath } from 'next/cache'
+import { getPrimaryTenantId } from '@/lib/tenant'
 
 // 자동 리기어 cron. GitHub Actions 가 5분 주기로 호출. 내부에서 전역 toggle
 // (auto_regear_enabled) 과 이벤트 단위 processed gate 로 중복 처리를 방지한다.
@@ -25,11 +26,12 @@ export async function GET(request: Request) {
   const result = await processAutoRegear(db)
 
   const nowIso = new Date().toISOString()
+  const tenantId = await getPrimaryTenantId()
   await db
     .from('app_settings')
     .upsert(
-      { key: 'last_auto_regear_at', value: nowIso, updated_at: nowIso },
-      { onConflict: 'key' },
+      { guild_id: tenantId, key: 'last_auto_regear_at', value: nowIso, updated_at: nowIso },
+      { onConflict: 'guild_id,key' },
     )
 
   // 자동 행이 생겼으면 관리자 대시보드 regear 화면이 즉시 반영되게 한다.
