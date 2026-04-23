@@ -49,6 +49,14 @@ export default async function AdminShopPage() {
   ])
 
   const lastImportAt = (lastLog?.imported_at as string | null | undefined) ?? null
+  // 6 시간 이상 경과 시 stale. 서버 컴포넌트 요청 타임에 한 번만 평가되므로
+  // Date.now() 가 idempotent 아닌 건 맞지만 의도된 동작 — purity 룰은 클라
+  // render 전제라 서버에선 false positive.
+  const STALE_THRESHOLD_MS = 6 * 60 * 60 * 1000
+  const isImportStale = lastImportAt
+    // eslint-disable-next-line react-hooks/purity
+    ? Date.now() - new Date(lastImportAt).getTime() > STALE_THRESHOLD_MS
+    : false
 
   const aodpAllowedSet: ReadonlySet<string> = new Set(AODP_ALLOWED_CITIES)
   let aodpCities: string[] = [...AODP_ALLOWED_CITIES]
@@ -115,7 +123,7 @@ export default async function AdminShopPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="space-y-4">
-          <ShopImportForm lastImportAt={lastImportAt} />
+          <ShopImportForm lastImportAt={lastImportAt} isImportStale={isImportStale} />
           <ShopInventoryEditor rows={inventoryRows} silverToPointRate={rate} />
         </div>
         <div className="space-y-4">

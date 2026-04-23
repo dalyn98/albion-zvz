@@ -28,11 +28,24 @@ export interface ImportSummary {
     delta: number
     newStock: number
   }>
+  // DB 전체에서 가장 최신 logged_at 행 — 사용자에게 "어디까지 이어졌는지" 보여주기 위함.
+  lastKnownLoggedAt: string | null
+  lastKnownLabel: string | null
+  // 붙여넣은 배치 안에 DB 최신 행과 일치하는 entry 가 있는가. true 면 배치가 이어진다는 근거.
+  lastKnownInBatch: boolean
+  // 이번 배치에서 DB 최신 행 이후로 발생한 신규 entry 개수. 0 이면 저장할 게 없음.
+  newEntriesAfterLast: number
   priceSync?: PriceSyncSummary
   error?: string
 }
 
 const IMPORT_ROW_LIMIT = 5000
+
+export interface ImportOptions {
+  // true 면 DB insert / 재고 RPC / 시세 동기화 / revalidate 모두 스킵하고
+  // 예측 결과만 반환 — 붙여넣기 미리보기용.
+  dryRun?: boolean
+}
 
 function dedupeKey(e: {
   loggedAt: Date
@@ -52,7 +65,11 @@ function dedupeKey(e: {
   ].join('|')
 }
 
-export async function importChestLog(raw: string): Promise<ImportSummary> {
+export async function importChestLog(
+  raw: string,
+  options: ImportOptions = {},
+): Promise<ImportSummary> {
+  const dryRun = options.dryRun === true
   const empty: ImportSummary = {
     parsed: 0,
     parseErrors: [],
@@ -62,6 +79,10 @@ export async function importChestLog(raw: string): Promise<ImportSummary> {
     unresolvedRows: 0,
     unresolvedNames: [],
     stockChanges: [],
+    lastKnownLoggedAt: null,
+    lastKnownLabel: null,
+    lastKnownInBatch: false,
+    newEntriesAfterLast: 0,
   }
   try {
     const session = await getSession()
@@ -122,6 +143,39 @@ export async function importChestLog(raw: string): Promise<ImportSummary> {
     const newEntries = entries.filter(isNewEntry)
     const duplicatesSkipped = entries.length - newEntries.length
 
+    // 마지막 로그 감지 — DB 전체에서 가장 최신 1행 조회.
+    // 사용자에게 "이 지점까지 저장돼있고, 그 이후 N건이 신규" 를 알려주기 위함.
+    const { data: latestRow } = await db
+      .from('shop_chest_logs')
+      .select('logged_at, player, item_name_raw, enchant, quality, quantity')
+      .order('logged_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    let lastKnownLoggedAt: string | null = null
+    let lastKnownLabel: string | null = null
+    let lastKnownInBatch = false
+    let newEntriesAfterLast = newEntries.length
+    if (latestRow) {
+      lastKnownLoggedAt = latestRow.logged_at as string
+      const qty = latestRow.quantity as number
+      const sign = qty > 0 ? '+' : ''
+      lastKnownLabel = `${latestRow.item_name_raw} ${sign}${qty}`
+      const latestKey = dedupeKey({
+        loggedAt: new Date(lastKnownLoggedAt),
+        player: latestRow.player as string,
+        itemName: latestRow.item_name_raw as string,
+        enchant: latestRow.enchant as number,
+        quality: latestRow.quality as number,
+        quantity: qty,
+      })
+      const batchKeys = new Set(entries.map((e) => dedupeKey(e)))
+      lastKnownInBatch = batchKeys.has(latestKey)
+      const latestMs = new Date(lastKnownLoggedAt).getTime()
+      newEntriesAfterLast = newEntries.filter(
+        (e) => e.loggedAt.getTime() >= latestMs,
+      ).length
+    }
+
     // 집계 (원본 보존 + 재고 델타)
     const rows: AggregateRow[] = newEntries.map((entry) => ({
       entry,
@@ -129,6 +183,57 @@ export async function importChestLog(raw: string): Promise<ImportSummary> {
       isBlacklisted: blacklist.has(entry.itemName),
     }))
     const { toInsert, stockDeltas, unresolvedNames } = aggregateStock(rows)
+
+    const blacklistedRows = newEntries.filter((e) => blacklist.has(e.itemName)).length
+    const unresolvedRows = newEntries.filter(
+      (e) => !blacklist.has(e.itemName) && !resolveKoItem(e.itemName),
+    ).length
+
+    const stockChanges: ImportSummary['stockChanges'] = []
+
+    if (dryRun) {
+      // 미리보기: 현재 재고를 조회해 "적용 시 예상 재고" 를 계산한다. DB 는 건드리지 않음.
+      const uniqueNames = Array.from(new Set(stockDeltas.map((d) => d.uniqueName)))
+      const existingStockByKey = new Map<string, number>()
+      if (uniqueNames.length > 0) {
+        const { data: invRows } = await db
+          .from('shop_inventory')
+          .select('unique_name, enchant, quality, stock')
+          .in('unique_name', uniqueNames)
+        for (const r of invRows ?? []) {
+          existingStockByKey.set(
+            `${r.unique_name}|${r.enchant}|${r.quality}`,
+            r.stock as number,
+          )
+        }
+      }
+      for (const d of stockDeltas) {
+        const key = `${d.uniqueName}|${d.enchant}|${d.quality}`
+        const current = existingStockByKey.get(key) ?? 0
+        stockChanges.push({
+          uniqueName: d.uniqueName,
+          nameKo: d.nameKo,
+          enchant: d.enchant,
+          quality: d.quality,
+          delta: d.delta,
+          newStock: current + d.delta,
+        })
+      }
+      return {
+        parsed: entries.length,
+        parseErrors: errors,
+        inserted: 0,
+        duplicatesSkipped,
+        blacklistedRows,
+        unresolvedRows,
+        unresolvedNames,
+        stockChanges,
+        lastKnownLoggedAt,
+        lastKnownLabel,
+        lastKnownInBatch,
+        newEntriesAfterLast,
+      }
+    }
 
     // 원본 로그 INSERT. 배치 크기 500 으로 나눠 대용량도 안전하게.
     let inserted = 0
@@ -155,13 +260,7 @@ export async function importChestLog(raw: string): Promise<ImportSummary> {
       }
     }
 
-    const blacklistedRows = newEntries.filter((e) => blacklist.has(e.itemName)).length
-    const unresolvedRows = newEntries.filter(
-      (e) => !blacklist.has(e.itemName) && !resolveKoItem(e.itemName),
-    ).length
-
     // 재고 RPC 호출 — 각 (item × enchant × quality) 단위로 원자 누적.
-    const stockChanges: ImportSummary['stockChanges'] = []
     for (const d of stockDeltas) {
       const { data: newStock, error } = await db.rpc('apply_shop_stock_delta', {
         p_unique_name: d.uniqueName,
@@ -182,6 +281,10 @@ export async function importChestLog(raw: string): Promise<ImportSummary> {
           unresolvedRows,
           unresolvedNames,
           stockChanges,
+          lastKnownLoggedAt,
+          lastKnownLabel,
+          lastKnownInBatch,
+          newEntriesAfterLast,
           error: `재고 반영 실패(${d.uniqueName}): ${error.message}`,
         }
       }
@@ -210,6 +313,10 @@ export async function importChestLog(raw: string): Promise<ImportSummary> {
       unresolvedRows,
       unresolvedNames,
       stockChanges,
+      lastKnownLoggedAt,
+      lastKnownLabel,
+      lastKnownInBatch,
+      newEntriesAfterLast,
       priceSync,
     }
   } catch (e) {
