@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
+import { requireAlbionVerified } from '@/lib/albion-identity'
 
 // 길드 기부 신청 — 유저 측 액션. 관리자 측은 donation-admin.ts.
 //
@@ -36,6 +37,8 @@ export async function requestDonation(
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
+  const albionError = await requireAlbionVerified(session.discordId)
+  if (albionError) return { error: albionError }
 
   const file = formData.get('screenshot')
   const silverRaw = String(formData.get('silver') ?? '')

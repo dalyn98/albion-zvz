@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Coins, Pencil } from 'lucide-react'
+import { Coins, Pencil, ShieldAlert, ShieldCheck } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { listMyRegearRequests, getMyPointsSummary } from '@/app/actions/regear'
@@ -8,6 +8,8 @@ import { listMyExchangeRequests } from '@/app/actions/exchange'
 import { listMyParticipation } from '@/app/actions/member'
 import { listTransferCandidates } from '@/app/actions/transfer'
 import { listMyDonationRequests } from '@/app/actions/donation'
+import { getMemberAlbionIdentity, isAlbionVerified } from '@/lib/albion-identity'
+import { ALBION_SERVER_LABEL } from '@/lib/albion-gameinfo'
 import { formatSilver } from '@/lib/silver'
 import { formatDateTime } from '@/lib/format-datetime'
 import { formatGatherTimeFor } from '@/lib/gather-time'
@@ -45,8 +47,10 @@ export default async function MePage() {
     { entries: participation },
     { candidates: transferCandidates },
     { requests: donations },
+    albionIdentity,
     t,
     tStatus,
+    tOnboarding,
     locale,
   ] = await Promise.all([
     getMyPointsSummary(),
@@ -55,10 +59,14 @@ export default async function MePage() {
     listMyParticipation(),
     listTransferCandidates(),
     listMyDonationRequests(),
+    getMemberAlbionIdentity(session.discordId),
     getTranslations('me'),
     getTranslations('status'),
+    getTranslations('albionOnboarding'),
     getLocale(),
   ])
+
+  const albionVerified = isAlbionVerified(albionIdentity)
 
   const balance = summary?.balance ?? 0
   const hasPendingExchange = exchanges.some((e) => e.status === 'pending')
@@ -69,6 +77,46 @@ export default async function MePage() {
         <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">{t('title')}</h1>
         <p className="text-gray-400 text-sm">{t('description')}</p>
       </div>
+
+      <section
+        className={`flex items-start gap-3 rounded-2xl border p-4 ${
+          albionVerified
+            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+            : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-200'
+        }`}
+      >
+        {albionVerified ? (
+          <ShieldCheck size={20} className="flex-shrink-0 mt-0.5" />
+        ) : (
+          <ShieldAlert size={20} className="flex-shrink-0 mt-0.5" />
+        )}
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="text-sm font-semibold">
+            {albionVerified ? tOnboarding('profileBadgeVerified') : tOnboarding('profileBadgeUnverified')}
+            {albionIdentity?.nickname && (
+              <span className="ml-2 text-xs opacity-80 font-mono">
+                {albionIdentity.nickname}
+                {albionIdentity.server && (
+                  <span className="ml-1 opacity-70">· {ALBION_SERVER_LABEL[albionIdentity.server]}</span>
+                )}
+              </span>
+            )}
+          </p>
+          <p className="text-xs leading-relaxed opacity-80">
+            {albionVerified
+              ? tOnboarding('profileNoteVerified')
+              : tOnboarding('profileNoteUnverified')}
+          </p>
+          {!albionVerified && (
+            <Link
+              href="/onboarding/albion?return=%2Fme"
+              className="inline-block mt-1 text-xs underline underline-offset-2 font-semibold hover:opacity-80"
+            >
+              {tOnboarding('profileCtaVerify')}
+            </Link>
+          )}
+        </div>
+      </section>
 
       <section className="bg-gray-900 border border-gray-700 rounded-2xl p-5 sm:p-6 space-y-3">
         <div className="flex items-start justify-between gap-3">

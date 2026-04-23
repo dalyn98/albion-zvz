@@ -7,6 +7,7 @@ import { getSession } from '@/lib/session'
 import { verifyDeathInWindow } from '@/lib/killboard'
 import { getAppSetting } from '@/lib/app-settings'
 import { calcPayoutSilver } from '@/lib/regear-payout'
+import { requireAlbionVerified } from '@/lib/albion-identity'
 import { SLOT_KEYS, getDisplayGear, type BuildSnapshot, type RegearType, type SlotGearDisplay, type SlotKey } from '@/types'
 
 // User-facing regear actions. Admin-side lives in `regear-admin.ts`.
@@ -102,6 +103,8 @@ export async function requestRegear(
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
+  const albionError = await requireAlbionVerified(session.discordId)
+  if (albionError) return { error: albionError }
 
   const eventId = String(formData.get('eventId') ?? '')
   const file = formData.get('screenshot')

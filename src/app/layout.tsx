@@ -21,12 +21,25 @@ function isPublicPathname(pathname: string): boolean {
 
 // 이벤트 스코프 게스트가 접근 가능한 경로. 자기 이벤트 + welcome 외엔 모두
 // 본인 이벤트로 리다이렉트된다. (API 라우트는 이 layout 으로 wrap 되지 않아
-// 별도 제어 불필요.)
+// 별도 제어 불변.)
 function isAllowedForEventScope(pathname: string, eventScope: string): boolean {
   if (pathname === `/events/${eventScope}`) return true
   if (pathname.startsWith(`/events/${eventScope}/`)) return true
   if (pathname.startsWith('/welcome-language')) return true
   if (pathname.startsWith('/public/')) return true
+  return false
+}
+
+// 알비온 온보딩 강제 게이트 — 멤버가 최초 로그인 후 서버/닉네임을 한 번도
+// 고르지 않은 상태에서 다른 페이지로 진입하면 `/onboarding/albion` 으로
+// 이동시킨다. 여기서 허용하는 경로(이 자신/welcome-language/logout 등)는
+// 무한 루프 방지용.
+function isAllowedDuringAlbionOnboarding(pathname: string): boolean {
+  if (pathname.startsWith('/onboarding/albion')) return true
+  if (pathname.startsWith('/welcome-language')) return true
+  if (pathname.startsWith('/api/auth/')) return true
+  if (pathname.startsWith('/public/')) return true
+  if (pathname === '/logout') return true
   return false
 }
 
@@ -105,6 +118,25 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     !isAllowedForEventScope(pathname, session.eventScope)
   ) {
     redirect(`/events/${session.eventScope}`)
+  }
+
+  // 알비온 온보딩 강제: 멤버인데 아직 서버를 고르지 않았으면 이동. DB 1회
+  // 조회 (부분 인덱스가 있어 O(log N)). 인증 여부는 상관 없고 "서버 선택
+  // 자체가 안 된 상태" 만 gate.
+  if (
+    !isPublic &&
+    session?.isMember &&
+    !isAllowedDuringAlbionOnboarding(pathname)
+  ) {
+    const { data: avatarRow } = await getAdminClient()
+      .from('guild_avatars')
+      .select('albion_server')
+      .eq('discord_id', session.discordId)
+      .maybeSingle()
+    if (!avatarRow?.albion_server) {
+      const returnTo = pathname || '/me'
+      redirect(`/onboarding/albion?return=${encodeURIComponent(returnTo)}`)
+    }
   }
 
   const locked =

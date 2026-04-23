@@ -85,6 +85,10 @@ export type AppSettingKey =
   // 용. 관리자에겐 /admin/dashboard/stats 의 탈퇴자 섹션에 마지막 동기화 시각
   // 으로 표시.
   | 'last_member_sync_at'
+  // 알비온 온보딩에서 "우리 길드" 로 인정할 Gameinfo GuildId (UUID 문자열).
+  // 비어 있으면 인증 불가능(모든 유저가 [미인증] 저장). 관리자가 인게임 길드
+  // 페이지의 URL 에서 복사해 넣는다. SaaS 확장 시 tenants 테이블로 이전.
+  | 'albion_home_guild_id'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

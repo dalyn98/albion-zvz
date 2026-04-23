@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
+import { requireAlbionVerified } from '@/lib/albion-identity'
 
 export interface MyExchangeRequest {
   id: string
@@ -19,6 +20,9 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
+  if (!session.isMember) return { error: tErr('memberOnly') }
+  const albionError = await requireAlbionVerified(session.discordId)
+  if (albionError) return { error: albionError }
   if (!Number.isInteger(silver) || silver <= 0) {
     return { error: tErr('invalidAmount') }
   }

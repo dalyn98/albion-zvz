@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
+import { requireAlbionVerified } from '@/lib/albion-identity'
 
 // 길드원 → 길드원 포인트 양도. 여러 명 일괄 지급 지원.
 // 원자성은 RPC transfer_points 가 보장(advisory lock + 잔액 체크 + 쌍 기록).
@@ -37,6 +38,8 @@ export async function transferPoints(
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
+  const albionError = await requireAlbionVerified(session.discordId)
+  if (albionError) return { error: albionError }
 
   if (!Array.isArray(transfers) || transfers.length === 0) {
     return { error: tErr('transferNoRecipients') }
