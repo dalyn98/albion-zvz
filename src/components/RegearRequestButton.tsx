@@ -137,6 +137,22 @@ export default function RegearRequestButton({
     setPhase('count')
   }
 
+  // 모달 a11y: ESC 로 닫기 + body scroll lock. 제출 중(pending)엔 ESC 무시
+  // — 진행 중인 업로드가 끊겼다고 오해할 여지를 피함.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !pending) setOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [open, pending])
+
   // Paste handler: drop the clipboard image into the first empty primary slot
   // so a rapid Ctrl-V workflow fills in screenshots without clicking.
   useEffect(() => {
@@ -293,11 +309,14 @@ export default function RegearRequestButton({
           onClick={() => !pending && setOpen(false)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="regear-modal-title"
             className="bg-gray-900 border border-gray-700 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[92dvh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
-              <h3 className="font-bold text-white text-base">{t('modalTitle')}</h3>
+              <h3 id="regear-modal-title" className="font-bold text-white text-base">{t('modalTitle')}</h3>
               <button
                 type="button"
                 onClick={() => !pending && setOpen(false)}

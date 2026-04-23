@@ -49,10 +49,15 @@ export default function DonationRequestButton() {
     }
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !pending) setOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
     return () => {
       document.body.style.overflow = prev
+      document.removeEventListener('keydown', onKey)
     }
-  }, [open])
+  }, [open, pending])
 
   useEffect(() => {
     if (!open) return
@@ -119,11 +124,14 @@ export default function DonationRequestButton() {
           onClick={() => !pending && setOpen(false)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="donation-modal-title"
             className="bg-gray-900 border border-emerald-500/30 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[92dvh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
-              <h3 className="font-bold text-white text-base inline-flex items-center gap-2">
+              <h3 id="donation-modal-title" className="font-bold text-white text-base inline-flex items-center gap-2">
                 <Gift size={15} className="text-emerald-400" />
                 {t('modalTitle')}
               </h3>
