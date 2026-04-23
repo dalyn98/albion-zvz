@@ -9,6 +9,7 @@ import { SESSION_COOKIE_NAME, cookieOptions, signSession } from '@/lib/session'
 import { upsertGuildAvatar } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { getTenantIdByDiscordGuildId } from '@/lib/tenant'
 import { LOCALE_COOKIE, isLocale } from '@/i18n/locales'
 
 const STATE_COOKIE = 'discord_oauth_state'
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest) {
     ])
     if (!user) return errorRedirect(url.origin, 'no_identity')
 
-    const { memberRoleIds, adminRoleIds } = getDiscordConfig()
+    const { guildId: discordGuildId, memberRoleIds, adminRoleIds } = getDiscordConfig()
     const roles = new Set(member?.roles ?? [])
     const isAdmin = adminRoleIds.some((id) => roles.has(id))
     const isMember = memberRoleIds.some((id) => roles.has(id)) || isAdmin
@@ -110,6 +111,12 @@ export async function GET(request: NextRequest) {
         .maybeSingle()
       const preferred = langRow?.preferred_language ?? null
 
+      // Multi-tenant: 현재 로그인한 Discord 길드에 해당하는 tenant UUID 를
+      // session 에 심는다. Phase 2 이후 모든 쿼리가 이 값으로 스코프된다.
+      // 레거시 마이그 직전 환경에서 tenants 테이블이 비어 있으면 null → 소비
+      // 측에서 primary tenant fallback.
+      const guildId = await getTenantIdByDiscordGuildId(discordGuildId)
+
       const sessionCookie = await signSession({
         discordId: user.id,
         username: displayName,
@@ -119,6 +126,7 @@ export async function GET(request: NextRequest) {
         isGuest: false,
         canCreateEvents,
         eventScope: null,
+        guildId,
         issuedAt: Date.now(),
       })
       const destination = resolvePostLoginPath(returnTo, preferred)
@@ -190,6 +198,16 @@ export async function GET(request: NextRequest) {
      // 게스트는 위에서 fetch 한 existingGuest.preferred_language 를 사용.
     const guestPreferred = existingGuest?.preferred_language ?? null
 
+    // 게스트의 tenant 는 해당 event 의 guild_id. 한 유저가 guild A 의 게스트
+    // 이면서 guild B 의 게스트일 수 있으므로 "유저의 primary tenant" 가 아니라
+    // 이 초대 토큰이 속한 이벤트의 guild 를 써야 한다.
+    const { data: scopeEvent } = await db
+      .from('events')
+      .select('guild_id')
+      .eq('id', eventScope)
+      .maybeSingle()
+    const guestGuildId = (scopeEvent?.guild_id as string | undefined) ?? null
+
     const sessionCookie = await signSession({
       discordId: user.id,
       username: displayName,
@@ -200,6 +218,7 @@ export async function GET(request: NextRequest) {
       // 게스트는 길드원이 아니라서 역할 기반 자격이 붙지 않는다. 항상 false.
       canCreateEvents: false,
       eventScope,
+      guildId: guestGuildId,
       issuedAt: Date.now(),
     })
     // 게스트의 returnTo 는 항상 스코프 이벤트로 강제. 링크를 어떻게 타고

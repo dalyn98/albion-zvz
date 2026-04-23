@@ -26,6 +26,10 @@ export interface SessionPayload {
   // 보고 `/events/{eventScope}` 외 모든 경로를 redirect 로 차단한다. member/
   // admin 세션은 null (전체 접근).
   eventScope: string | null
+  // Multi-tenant 테넌트 UUID. 로그인 시점에 Discord 길드 → tenants 조회로 결정.
+  // 레거시 쿠키(Phase 1 이전 발급)는 null 이며, 이 경우 소비 측에서 primary
+  // tenant 로 fallback 한다 (src/lib/tenant.ts:getSessionGuildId).
+  guildId: string | null
   issuedAt: number
 }
 
@@ -99,6 +103,8 @@ export async function verifySession(cookieValue: string | undefined): Promise<Se
       canCreateEvents: parsed.canCreateEvents ?? isAdmin,
       // 레거시 쿠키(eventScope 도입 이전) 는 undefined → null 로 정규화.
       eventScope: parsed.eventScope ?? null,
+      // 레거시 쿠키(guildId 도입 이전) 는 null. 소비 측에서 primary tenant 로 fallback.
+      guildId: parsed.guildId ?? null,
       issuedAt: parsed.issuedAt,
     }
   } catch {
