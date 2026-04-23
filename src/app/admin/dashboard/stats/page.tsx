@@ -27,7 +27,11 @@ import {
 import MemberAvatar from '@/components/MemberAvatar'
 import MemberLink from '@/components/MemberLink'
 import ForceOnboardButton from '@/components/ForceOnboardButton'
+import CollapsibleList from '@/components/CollapsibleList'
 import { ALBION_SERVER_LABEL } from '@/lib/albion-gameinfo'
+
+// 통계 페이지의 모든 상위 N 목록이 공유하는 기본 접힘 행수. 바꾸려면 여기만.
+const STATS_COLLAPSED_ROWS = 8
 
 export const dynamic = 'force-dynamic'
 
@@ -142,7 +146,12 @@ export default async function AdminStatsPage() {
             아직 포인트를 보유한 길드원이 없습니다.
           </div>
         ) : (
-          <ol className="divide-y divide-gray-800">
+          <CollapsibleList
+            as="ol"
+            className="divide-y divide-gray-800"
+            initialCount={STATS_COLLAPSED_ROWS}
+            unit="명"
+          >
             {stats.topHolders.map((h, idx) => (
               <li
                 key={h.discordId}
@@ -167,7 +176,7 @@ export default async function AdminStatsPage() {
                 </span>
               </li>
             ))}
-          </ol>
+          </CollapsibleList>
         )}
       </section>
 
@@ -233,7 +242,12 @@ function WithdrawnMembersSection({
             잔액이 남은 탈퇴자가 없습니다.
           </div>
         ) : (
-          <ol className="divide-y divide-gray-800">
+          <CollapsibleList
+            as="ol"
+            className="divide-y divide-gray-800"
+            initialCount={STATS_COLLAPSED_ROWS}
+            unit="명"
+          >
             {withdrawnHolders.map((h, idx) => (
               <li
                 key={h.discordId}
@@ -256,7 +270,7 @@ function WithdrawnMembersSection({
                 </span>
               </li>
             ))}
-          </ol>
+          </CollapsibleList>
         )}
       </div>
     </section>
@@ -348,7 +362,12 @@ function EventParticipationSection({
             창 내 이벤트 참여 기록이 없습니다.
           </div>
         ) : (
-          <ol className="divide-y divide-gray-800">
+          <CollapsibleList
+            as="ol"
+            className="divide-y divide-gray-800"
+            initialCount={STATS_COLLAPSED_ROWS}
+            unit="명"
+          >
             {stats.topAttendees.map((a, idx) => (
               <li
                 key={a.discordId}
@@ -373,7 +392,7 @@ function EventParticipationSection({
                 </span>
               </li>
             ))}
-          </ol>
+          </CollapsibleList>
         )}
       </div>
     </section>
@@ -475,7 +494,12 @@ function ShopRegearSection({
             창 내 승인된 주문이 없습니다.
           </div>
         ) : (
-          <ol className="divide-y divide-gray-800">
+          <CollapsibleList
+            as="ol"
+            className="divide-y divide-gray-800"
+            initialCount={STATS_COLLAPSED_ROWS}
+            unit="개"
+          >
             {stats.topSoldItems.map((item, idx) => (
               <li
                 key={`${item.uniqueName}@${item.enchant}#${item.quality}`}
@@ -505,7 +529,7 @@ function ShopRegearSection({
                 </span>
               </li>
             ))}
-          </ol>
+          </CollapsibleList>
         )}
       </div>
     </section>
@@ -649,7 +673,12 @@ function VerificationMemberList({
       {members.length === 0 ? (
         <div className="px-4 py-6 text-center text-sm text-gray-500">{emptyLabel}</div>
       ) : (
-        <ul className="divide-y divide-gray-800">
+        <CollapsibleList
+          as="ul"
+          className="divide-y divide-gray-800"
+          initialCount={STATS_COLLAPSED_ROWS}
+          unit="명"
+        >
           {members.map((m) => (
             <li key={m.discordId} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800/40">
               <MemberAvatar discordId={m.discordId} avatar={m.avatar} size={24} />
@@ -687,7 +716,7 @@ function VerificationMemberList({
               <ForceOnboardButton discordId={m.discordId} username={m.username} />
             </li>
           ))}
-        </ul>
+        </CollapsibleList>
       )}
     </div>
   )

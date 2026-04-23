@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { submitShopOrder } from '@/app/actions/shop-member'
 import { AODP_INFO_TOOLTIP } from '@/lib/shop/aodp-constants'
+import HoverTip from './HoverTip'
 
 export type ShopPriceWarning = 'quality' | 'window' | 'bluezone' | 'redzone' | null
 
@@ -187,13 +188,15 @@ export default function ShopCatalog({
         <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
           <span>시세 기준</span>
           <span className="text-amber-300 font-semibold">{baseCityLabel}</span>
-          <span
-            className="inline-flex cursor-help text-gray-500"
-            aria-label="AODP 설명"
-            title={AODP_INFO_TOOLTIP}
+          <HoverTip
+            label={AODP_INFO_TOOLTIP}
+            placement="bottom"
+            triggerClassName="inline-flex items-center cursor-help text-gray-500"
           >
-            <Info size={12} />
-          </span>
+            <span aria-label="AODP 설명">
+              <Info size={12} />
+            </span>
+          </HoverTip>
         </div>
         {/* 상단 도구: 검색 + 티어 필터 + 잔액 + (모바일) 장바구니 버튼 */}
         <div className="flex items-center gap-2 flex-wrap">
@@ -367,15 +370,21 @@ function ShopTile({
   const ringClass = inCart ? 'ring-2 ring-emerald-400' : `ring-1 ${qualityRing}`
   const atMax = cartQty >= item.stock
 
+  // aria-label 에 타일이 담고 있는 정보를 풀어 넣는다. 이전에 title 로 쓰던 내용을
+  // 그대로 옮겨온 것 — 스크린 리더 사용자에게는 가격/재고/담긴 수량이 여전히 전달되고,
+  // 마우스 호버 시 뜨던 OS 기본 툴팁은 제거된다 (타일 안에 이미 같은 정보가 시각적으로
+  // 다 보이므로 시각 사용자에겐 중복이었음).
+  const ariaLabel = `${item.nameKo}${item.enchant > 0 ? ` .${item.enchant}` : ''} / ${quality} / ${item.pointPrice.toLocaleString()}p / 재고 ${item.stock.toLocaleString()}${inCart ? ` / 담긴 수량 ${cartQty}` : ''}${atMax ? ' / 클릭 시 비우기' : ''}`
+
   return (
     <button
       type="button"
       onClick={onAdd}
       disabled={disabled}
-      title={`${item.nameKo}${item.enchant > 0 ? ` .${item.enchant}` : ''} / ${quality} / ${item.pointPrice.toLocaleString()}p / 재고 ${item.stock.toLocaleString()}${inCart ? ` / 담긴 수량 ${cartQty}` : ''}${atMax ? ' / 클릭 시 비우기' : ''}`}
+      aria-label={ariaLabel}
       className={`group relative flex flex-col rounded-md bg-[#1a140c] ${ringClass} hover:ring-2 ${
         inCart ? 'hover:ring-emerald-300' : 'hover:ring-amber-300'
-      } transition-all overflow-hidden ${
+      } transition-all ${
         disabled ? 'opacity-70 cursor-not-allowed' : ''
       }`}
       style={{
@@ -384,8 +393,10 @@ function ShopTile({
           : 'inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 2px rgba(0,0,0,0.5)',
       }}
     >
-      {/* 아이콘 영역 (정사각형) */}
-      <div className="relative aspect-square">
+      {/* 아이콘 영역 (정사각형). overflow-hidden + rounded-t-md 는 타일의 상단
+          둥근 모서리를 이미지/배지들이 덮지 않도록 여기에만 둔다 — 타일 바깥으로는
+          자식이 나갈 수 있어야 (HoverTip) 하므로 button 전체에는 걸지 않는다. */}
+      <div className="relative aspect-square overflow-hidden rounded-t-md">
         <Image
           src={imageUrl(item.uniqueName, item.enchant, item.quality, 96)}
           alt={item.nameKo}
@@ -423,17 +434,23 @@ function ShopTile({
           구매자가 "이 가격은 추정치 / 실거래가 다를 수 있음" 을 놓치지 않게
           가격 바 바로 위에 별도 줄로 배치. 가장 눈에 띄는 위치. */}
       {item.priceWarning && (
-        <div
-          title={PRICE_WARNING_META[item.priceWarning].tooltip}
-          className={`text-[10px] sm:text-[11px] font-bold text-center leading-tight py-0.5 ${PRICE_WARNING_META[item.priceWarning].color}`}
+        <HoverTip
+          label={PRICE_WARNING_META[item.priceWarning].tooltip}
+          placement="top"
+          triggerClassName="block w-full"
         >
-          ⚠ {PRICE_WARNING_LABEL}
-        </div>
+          <span
+            className={`block text-[10px] sm:text-[11px] font-bold text-center leading-tight py-0.5 ${PRICE_WARNING_META[item.priceWarning].color}`}
+          >
+            ⚠ {PRICE_WARNING_LABEL}
+          </span>
+        </HoverTip>
       )}
 
-      {/* 가격 바 (하단 전체 폭) */}
+      {/* 가격 바 (하단 전체 폭). rounded-b-md 로 타일의 하단 둥근 모서리를 덮어쓴다
+          — 상단의 rounded-t-md 대칭. */}
       <div
-        className={`px-1.5 py-1 text-center border-t ${
+        className={`px-1.5 py-1 text-center border-t rounded-b-md ${
           inCart ? 'border-emerald-400/40' : 'border-amber-400/30'
         }`}
         style={{
