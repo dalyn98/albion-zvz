@@ -234,9 +234,6 @@ export interface SendEventNotificationOptions {
   notifyRoleId: string | null
   // 이벤트에 설정된 채널 ID. NULL 이면 env DISCORD_EVENT_CHANNEL_ID fallback.
   channelId: string | null
-  // 관리자 설정에 저장된 알림 이미지 URL. 있으면 embed `image.url` 로 실어
-  // Discord 에서 배너처럼 보여준다. NULL/빈 문자열이면 텍스트-only embed.
-  imageUrl?: string | null
 }
 
 export async function sendEventNotification(
@@ -262,24 +259,13 @@ export async function sendEventNotification(
     fields.push({ name: '특이사항', value: event.special_notes, inline: false })
   }
 
-  const trimmedImageUrl = options.imageUrl?.trim() || null
-  const embed: {
-    title: string
-    url: string
-    color: number
-    fields: typeof fields
-    timestamp: string
-    image?: { url: string }
-  } = {
+  const embed = {
     title: event.title,
     url: eventUrl,
     // Discord blurple
     color: 0x5865f2,
     fields,
     timestamp: new Date().toISOString(),
-  }
-  if (trimmedImageUrl) {
-    embed.image = { url: trimmedImageUrl }
   }
 
   // 역할 멘션 전략:

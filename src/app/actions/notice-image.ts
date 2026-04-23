@@ -1,18 +1,25 @@
 'use server'
 
-// 이벤트 생성 알림(Discord embed) 에 첨부할 이미지. landing-banner.ts 와 같은
-// 패턴으로 단일 이미지 슬롯 1 개만 유지 — 새 이미지로 교체하거나 지울 수 있다.
+// 페이지 상단 공지(DismissibleNoticeBanner) 이미지. 홈(/) 과 리기어(/regear)
+// 각각 단일 이미지 슬롯 1 개를 유지한다. landing-banner.ts 패턴과 동일.
 
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { requireAdmin } from '@/lib/auth'
+import type { AppSettingKey } from '@/lib/app-settings'
 
-const BUCKET = 'notification-images'
+export type NoticeTarget = 'events' | 'regear'
+
+const BUCKET = 'notice-images'
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 const PUBLIC_URL_PREFIX = `/storage/v1/object/public/${BUCKET}/`
+
+function settingKeyFor(target: NoticeTarget): AppSettingKey {
+  return target === 'events' ? 'events_notice_image_url' : 'regear_notice_image_url'
+}
 
 function extractPath(url: string): string | null {
   const idx = url.indexOf(PUBLIC_URL_PREFIX)
@@ -22,23 +29,25 @@ function extractPath(url: string): string | null {
 
 async function readCurrentUrl(
   db: ReturnType<typeof getAdminClient>,
+  key: AppSettingKey,
 ): Promise<string> {
   const { data } = await db
     .from('app_settings')
     .select('value')
-    .eq('key', 'event_notification_image_url')
+    .eq('key', key)
     .maybeSingle()
   return data?.value ?? ''
 }
 
 async function writeUrl(
   db: ReturnType<typeof getAdminClient>,
+  key: AppSettingKey,
   value: string,
 ): Promise<string | null> {
   const { error } = await db
     .from('app_settings')
     .upsert(
-      { key: 'event_notification_image_url', value, updated_at: new Date().toISOString() },
+      { key, value, updated_at: new Date().toISOString() },
       { onConflict: 'key' },
     )
   return error?.message ?? null
@@ -54,7 +63,8 @@ function extFromMime(mime: string): string {
   }
 }
 
-export async function uploadNotificationImage(
+export async function uploadNoticeImage(
+  target: NoticeTarget,
   formData: FormData,
 ): Promise<{ error?: string; url?: string }> {
   const tErr = await getTranslations('adminActionError')
@@ -66,9 +76,10 @@ export async function uploadNotificationImage(
     if (!ALLOWED_TYPES.includes(file.type)) return { error: tErr('bannerWrongType') }
 
     const db = await requireAdmin()
-    const previousUrl = await readCurrentUrl(db)
+    const key = settingKeyFor(target)
+    const previousUrl = await readCurrentUrl(db, key)
 
-    const path = `notify-${randomUUID()}.${extFromMime(file.type)}`
+    const path = `${target}/${randomUUID()}.${extFromMime(file.type)}`
     const { error: uploadError } = await db.storage
       .from(BUCKET)
       .upload(path, file, { contentType: file.type, upsert: false })
@@ -77,7 +88,7 @@ export async function uploadNotificationImage(
     const { data: urlData } = db.storage.from(BUCKET).getPublicUrl(path)
     const publicUrl = urlData.publicUrl
 
-    const writeErr = await writeUrl(db, publicUrl)
+    const writeErr = await writeUrl(db, key, publicUrl)
     if (writeErr) {
       await db.storage.from(BUCKET).remove([path])
       return { error: writeErr }
@@ -89,19 +100,24 @@ export async function uploadNotificationImage(
     }
 
     revalidatePath('/admin/dashboard/settings')
+    if (target === 'events') revalidatePath('/')
+    else revalidatePath('/regear')
     return { url: publicUrl }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
 
-export async function clearNotificationImage(): Promise<{ error?: string }> {
+export async function clearNoticeImage(
+  target: NoticeTarget,
+): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
     const db = await requireAdmin()
-    const previousUrl = await readCurrentUrl(db)
+    const key = settingKeyFor(target)
+    const previousUrl = await readCurrentUrl(db, key)
 
-    const writeErr = await writeUrl(db, '')
+    const writeErr = await writeUrl(db, key, '')
     if (writeErr) return { error: writeErr }
 
     const previousPath = previousUrl ? extractPath(previousUrl) : null
@@ -110,6 +126,8 @@ export async function clearNotificationImage(): Promise<{ error?: string }> {
     }
 
     revalidatePath('/admin/dashboard/settings')
+    if (target === 'events') revalidatePath('/')
+    else revalidatePath('/regear')
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

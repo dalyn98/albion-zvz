@@ -31,13 +31,14 @@ export default async function RegearPage() {
     redirect('/')
   }
 
-  const [{ events, error }, limits, payoutRatePercent, t, locale, noticeMessage] = await Promise.all([
+  const [{ events, error }, limits, payoutRatePercent, t, locale, noticeMessage, noticeImageUrl] = await Promise.all([
     listMyRegearEligibleEvents(),
     getRegearLimits(),
     getRegearPayoutRatePercent(),
     getTranslations('regear'),
     getLocale(),
     getAppSetting('regear_notice_message', ''),
+    getAppSetting('regear_notice_image_url', ''),
   ])
 
   return (
@@ -47,7 +48,7 @@ export default async function RegearPage() {
         <p className="text-gray-400 text-sm">{t('pageDescription')}</p>
       </div>
 
-      <DismissibleNoticeBanner storageKey="regear" message={noticeMessage} />
+      <DismissibleNoticeBanner storageKey="regear" message={noticeMessage} imageUrl={noticeImageUrl} />
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">

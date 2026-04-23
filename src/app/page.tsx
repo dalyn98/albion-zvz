@@ -66,10 +66,11 @@ function classifyScheduled(event: Event): HomeEventKind {
 // Layout-level gate (src/app/layout.tsx) blocks non-members before this
 // component runs — by the time HomePage renders, the viewer is a guild member.
 export default async function HomePage() {
-  const [t, locale, noticeMessage, session] = await Promise.all([
+  const [t, locale, noticeMessage, noticeImageUrl, session] = await Promise.all([
     getTranslations(),
     getLocale(),
     getAppSetting('events_notice_message', ''),
+    getAppSetting('events_notice_image_url', ''),
     getSession(),
   ])
 
@@ -111,7 +112,7 @@ export default async function HomePage() {
         )}
       </div>
 
-      <DismissibleNoticeBanner storageKey="events" message={noticeMessage} />
+      <DismissibleNoticeBanner storageKey="events" message={noticeMessage} imageUrl={noticeImageUrl} />
 
       {events.length === 0 ? (
         <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center">

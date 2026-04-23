@@ -182,7 +182,9 @@ export async function listGuildMembers(): Promise<{
         is_admin: a.is_admin ?? false,
         updated_at: a.updated_at,
         participation_count: agg?.events.size ?? 0,
-        top_roles: roles.slice(0, 3),
+        // Full per-role breakdown so the client can filter/sort by any role.
+        // UI only renders the first few as badges.
+        top_roles: roles,
         preferred_language: isLocale(a.preferred_language) ? a.preferred_language : null,
       }
     })

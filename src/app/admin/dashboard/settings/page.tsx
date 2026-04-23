@@ -14,11 +14,12 @@ export const dynamic = 'force-dynamic'
 export default async function SettingsPage() {
   const [
     message,
-    notificationImageUrl,
     bannerUrl,
     ctaText,
     regearNoticeMessage,
+    regearNoticeImageUrl,
     eventsNoticeMessage,
+    eventsNoticeImageUrl,
     eventCreatorRoleIdsRaw,
     bombSquadCallerRoleIdsRaw,
     activeMemberRoleIdsRaw,
@@ -35,11 +36,12 @@ export default async function SettingsPage() {
     t,
   ] = await Promise.all([
     getAppSetting('event_notification_message', DEFAULT_EVENT_NOTIFICATION_MESSAGE),
-    getAppSetting('event_notification_image_url', ''),
     getAppSetting('landing_banner_url', ''),
     getAppSetting('landing_cta_text', ''),
     getAppSetting('regear_notice_message', ''),
+    getAppSetting('regear_notice_image_url', ''),
     getAppSetting('events_notice_message', ''),
+    getAppSetting('events_notice_image_url', ''),
     getAppSetting('event_creator_role_ids', '[]'),
     getAppSetting('bomb_squad_caller_role_ids', '[]'),
     getAppSetting('active_member_role_ids', '[]'),
@@ -122,14 +124,15 @@ export default async function SettingsPage() {
 
       <SettingsTabs
         notificationMessage={message}
-        notificationImageUrl={notificationImageUrl}
         rewards={rewards}
         rewardsError={rewardsError}
         landingBannerUrl={bannerUrl}
         landingCtaText={ctaText}
         defaultLandingCtaText={tLanding('defaultCta')}
         regearNoticeMessage={regearNoticeMessage}
+        regearNoticeImageUrl={regearNoticeImageUrl}
         eventsNoticeMessage={eventsNoticeMessage}
+        eventsNoticeImageUrl={eventsNoticeImageUrl}
         eventCreatorRoleIds={eventCreatorRoleIds}
         bombSquadCallerRoleIds={bombSquadCallerRoleIds}
         activeMemberRoleIds={activeMemberRoleIds}

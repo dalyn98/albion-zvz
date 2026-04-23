@@ -47,14 +47,15 @@ const DEFAULT_TAB: TabKey = 'notices'
 
 interface Props {
   notificationMessage: string
-  notificationImageUrl: string
   rewards: RoleReward[]
   rewardsError?: string
   landingBannerUrl: string
   landingCtaText: string
   defaultLandingCtaText: string
   regearNoticeMessage: string
+  regearNoticeImageUrl: string
   eventsNoticeMessage: string
+  eventsNoticeImageUrl: string
   eventCreatorRoleIds: string[]
   bombSquadCallerRoleIds: string[]
   activeMemberRoleIds: string[]
@@ -79,14 +80,15 @@ function isTabKey(value: string | null): value is TabKey {
 
 export default function SettingsTabs({
   notificationMessage,
-  notificationImageUrl,
   rewards,
   rewardsError,
   landingBannerUrl,
   landingCtaText,
   defaultLandingCtaText,
   regearNoticeMessage,
+  regearNoticeImageUrl,
   eventsNoticeMessage,
+  eventsNoticeImageUrl,
   eventCreatorRoleIds,
   bombSquadCallerRoleIds,
   activeMemberRoleIds,
@@ -191,13 +193,12 @@ export default function SettingsTabs({
         )}
         {active === 'notices' && (
           <div className="space-y-4">
-            <NotificationSettingsForm
-              initialMessage={notificationMessage}
-              initialImageUrl={notificationImageUrl}
-            />
+            <NotificationSettingsForm initialMessage={notificationMessage} />
             <NoticeSettingForm
               settingKey="events_notice_message"
+              target="events"
               initialMessage={eventsNoticeMessage}
+              initialImageUrl={eventsNoticeImageUrl}
               title={tEventsNotice('title')}
               description={tEventsNotice('description')}
               label={tEventsNotice('label')}
@@ -208,7 +209,9 @@ export default function SettingsTabs({
             />
             <NoticeSettingForm
               settingKey="regear_notice_message"
+              target="regear"
               initialMessage={regearNoticeMessage}
+              initialImageUrl={regearNoticeImageUrl}
               title={tRegearNotice('title')}
               description={tRegearNotice('description')}
               label={tRegearNotice('label')}

@@ -2,7 +2,8 @@ import { getAdminClient } from '@/lib/supabase-admin'
 
 export type AppSettingKey =
   | 'event_notification_message'
-  | 'event_notification_image_url'
+  | 'events_notice_image_url'
+  | 'regear_notice_image_url'
   | 'landing_banner_url'
   | 'landing_cta_text'
   // Admin-authored notice shown at the top of `/regear`. Empty string = hide.
