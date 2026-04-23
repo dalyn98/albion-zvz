@@ -94,6 +94,15 @@ export type AppSettingKey =
   // 를 `/onboarding/albion` 으로 강제 리디렉트. 관리자/게스트/공개 경로/OAuth
   // 콜백은 항상 제외.
   | 'allow_unverified_member_access'
+  // Boolean 문자열. 'true' 이면 수동 리기어 신청 시 알비온 닉네임 인증을 요구.
+  // 미인증 멤버에겐 /onboarding/albion 으로 안내하는 CTA 를 포함한 에러가 반환.
+  // 기본 'true' (migration 070 이전의 항상-ON 동작 유지). 'false' 면 게이트 해제.
+  | 'regear_require_verification'
+  // 정수 문자열. 배틀 시작(`events.battle_started_at`) 이후 몇 분 뒤에 자동
+  // 리기어 크론이 해당 이벤트를 처리할지. regear_window_minutes(수동 신청 오픈
+  // 시점) 와 분리돼 있어 자동이 먼저 "pending" 행을 선점할 수 있게 한다.
+  // 기본 '15'. killboard sync 지연 체크에도 이 값을 사용.
+  | 'auto_regear_delay_minutes'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

@@ -884,7 +884,8 @@
     "deathCountBack": "← 횟수 변경",
     "screenshotPrimaryLabel": "스크린샷 1",
     "screenshotSecondaryLabel": "스크린샷 2 (선택)",
-    "allEntriesRequired": "모든 데스의 청구 금액과 스크린샷을 입력해 주세요."
+    "allEntriesRequired": "모든 데스의 청구 금액과 스크린샷을 입력해 주세요.",
+    "verifyCtaLabel": "알비온 닉네임 인증하러 가기"
   },
   "donation": {
     "openButton": "기부 신청",

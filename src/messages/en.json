@@ -884,7 +884,8 @@
     "deathCountBack": "← Change count",
     "screenshotPrimaryLabel": "Screenshot 1",
     "screenshotSecondaryLabel": "Screenshot 2 (optional)",
-    "allEntriesRequired": "Please fill in the claim amount and screenshot for every death."
+    "allEntriesRequired": "Please fill in the claim amount and screenshot for every death.",
+    "verifyCtaLabel": "Verify Albion nickname"
   },
   "donation": {
     "openButton": "Submit donation",

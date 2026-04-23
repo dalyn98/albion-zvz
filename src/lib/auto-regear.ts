@@ -165,12 +165,19 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
     }
   }
 
-  const { data: windowRow } = await db
+  // auto_regear_delay_minutes(기본 15) = 배틀 시작 후 몇 분 뒤에 자동 리기어가
+  // 이벤트를 처리할지. regear_window_minutes(수동 신청 오픈 시각, 기본 60) 와
+  // 분리돼 있어 자동이 수동보다 먼저 pending 행을 만들 수 있다.
+  const { data: delayRow } = await db
     .from('app_settings')
     .select('value')
-    .eq('key', 'regear_window_minutes')
+    .eq('key', 'auto_regear_delay_minutes')
     .maybeSingle()
-  const regearWindowMinutes = Number(windowRow?.value ?? '60') || 60
+  const parsedDelay = Number(delayRow?.value ?? '15')
+  const autoDelayMinutes =
+    Number.isFinite(parsedDelay) && parsedDelay >= 5 && parsedDelay <= 120
+      ? Math.trunc(parsedDelay)
+      : 15
 
   const { data: rateRow } = await db
     .from('app_settings')
@@ -181,8 +188,8 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
   const payoutRatePercent =
     Number.isFinite(parsedRate) && parsedRate >= 1 && parsedRate <= 100 ? Math.trunc(parsedRate) : 100
 
-  // 이벤트 종료(= battle_started_at + window 경과) 이고 아직 처리되지 않은 건만.
-  const cutoffIso = new Date(Date.now() - regearWindowMinutes * 60 * 1000).toISOString()
+  // battle_started_at + autoDelay 경과한 이벤트 중 아직 처리되지 않은 것.
+  const cutoffIso = new Date(Date.now() - autoDelayMinutes * 60 * 1000).toISOString()
   const { data: events, error: eventsErr } = await db
     .from('events')
     .select('id, title, battle_started_at, created_at, auto_regear_processed_at')
@@ -260,11 +267,11 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
         continue
       }
 
-      // killboard sync 지연 가드: 배틀 종료 시점(= battle_started_at + window)
-      // 이후로 sync 가 한 번이라도 돌았어야 victim 목록이 완결됐다고 판단.
-      // 못 돌았으면 다음 cron 에서 재시도 (mark-processed 하지 않음).
-      const battleEndMs = battleMs + regearWindowMinutes * 60 * 1000
-      if (!Number.isFinite(lastKillboardSyncMs) || lastKillboardSyncMs < battleEndMs) {
+      // killboard sync 지연 가드: 배틀 시작 + autoDelay 이후로 sync 가 한 번이라도
+      // 돌았어야 victim 목록이 충분히 indexed 됐다고 간주. 못 돌았으면 다음 cron
+      // 에서 재시도 (mark-processed 하지 않음).
+      const autoCutoffMs = battleMs + autoDelayMinutes * 60 * 1000
+      if (!Number.isFinite(lastKillboardSyncMs) || lastKillboardSyncMs < autoCutoffMs) {
         deferredSyncLag += 1
         continue
       }
@@ -297,16 +304,15 @@ export async function processAutoRegear(db: SupabaseClient): Promise<AutoRegearR
         continue
       }
 
-      // battle 창 안에서 victim 이벤트만 조회. occurred_at 이 일반적으로
-      // battle_started_at ± window 범위에 들어온다.
-      const battleEndIso = new Date(battleEndMs).toISOString()
+      // battle_started_at 부터 현재까지 victim 이벤트를 조회. 배틀이 autoDelay
+      // 를 초과해 이어질 수 있으므로 창 상한을 "지금" 까지 열어둔다 — 재실행
+      // idempotent(RPC 의 killboard_event_id 단위 dedup) 로 중복 생성 방지.
       const { data: victims, error: victimsErr } = await db
         .from('killboard_events')
         .select('event_id, discord_id, player_name, occurred_at, equipment')
         .eq('role', 'victim')
         .in('discord_id', Array.from(slotByDiscord.keys()))
         .gte('occurred_at', event.battle_started_at)
-        .lte('occurred_at', battleEndIso)
       if (victimsErr) throw new Error(`killboard: ${victimsErr.message}`)
       const victimRows = (victims ?? []) as KillboardVictimRow[]
 

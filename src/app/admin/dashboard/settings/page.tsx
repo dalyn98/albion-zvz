@@ -31,6 +31,8 @@ export default async function SettingsPage() {
     albionServerRaw,
     albionHomeGuildId,
     autoRegearEnabledRaw,
+    autoRegearDelayRaw,
+    regearRequireVerificationRaw,
     cdBadgeRolesRaw,
     allowUnverifiedMemberAccessRaw,
     { rewards, error: rewardsError },
@@ -55,6 +57,8 @@ export default async function SettingsPage() {
     getAppSetting('albion_server', 'east'),
     getAppSetting('albion_home_guild_id', ''),
     getAppSetting('auto_regear_enabled', 'false'),
+    getAppSetting('auto_regear_delay_minutes', '15'),
+    getAppSetting('regear_require_verification', 'true'),
     getAppSetting('cd_badge_roles', '["Dps"]'),
     // 기본값 'true' — 기존 동작(미인증 멤버도 접근 가능) 유지. 관리자가 끌
     // 때만 layout 게이트가 /onboarding/albion 으로 강제 리다이렉트.
@@ -105,6 +109,16 @@ export default async function SettingsPage() {
       : 'east'
 
   const autoRegearEnabled = autoRegearEnabledRaw === 'true'
+  const parsedAutoDelay = Number(autoRegearDelayRaw)
+  const autoRegearDelayMinutes =
+    Number.isFinite(parsedAutoDelay) &&
+    Number.isInteger(parsedAutoDelay) &&
+    parsedAutoDelay >= 5 &&
+    parsedAutoDelay <= 120
+      ? parsedAutoDelay
+      : 15
+  // 기본값 'true' — 인증 게이트가 켜진 상태로 시작. 'false' 만 OFF 로 해석.
+  const regearRequireVerification = regearRequireVerificationRaw !== 'false'
   // 'true' 이외는 모두 false 로 해석 — 유일한 opt-out 경로는 명시적 'false'.
   const allowUnverifiedMemberAccess = allowUnverifiedMemberAccessRaw !== 'false'
 
@@ -159,6 +173,8 @@ export default async function SettingsPage() {
         albionHomeGuildId={albionHomeGuildId}
         albionHomeGuildName={initialHomeGuildName}
         autoRegearEnabled={autoRegearEnabled}
+        autoRegearDelayMinutes={autoRegearDelayMinutes}
+        regearRequireVerification={regearRequireVerification}
         cdBadgeRoles={cdBadgeRoles}
         allowUnverifiedMemberAccess={allowUnverifiedMemberAccess}
       />

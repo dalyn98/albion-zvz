@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { ShieldCheck, X, Upload, Clipboard } from 'lucide-react'
-import { requestRegear } from '@/app/actions/regear'
+import { ShieldCheck, X, Upload, Clipboard, ArrowRight } from 'lucide-react'
+import { requestRegear, REGEAR_VERIFICATION_ERROR_PREFIX } from '@/app/actions/regear'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
 import { useToast } from './ToastProvider'
@@ -76,6 +77,9 @@ export default function RegearRequestButton({
   const [entries, setEntries] = useState<EntryState[]>([])
   const [entryErrors, setEntryErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
+  // 알비온 닉네임 인증이 필요해 서버가 차단한 경우 true. UI 는 에러 대신
+  // 온보딩 CTA 를 노출한다. 닫기/뒤로 가기/입력 변경 시 초기화.
+  const [needsVerification, setNeedsVerification] = useState(false)
   const [pending, startTransition] = useTransition()
 
   const notStarted = !battleStartedAt
@@ -113,12 +117,14 @@ export default function RegearRequestButton({
     setEntries([])
     setEntryErrors({})
     setError('')
+    setNeedsVerification(false)
   }
 
   const pickDeathCount = (count: number) => {
     setEntries(createEntries(count))
     setEntryErrors({})
     setError('')
+    setNeedsVerification(false)
     setPhase('entries')
   }
 
@@ -126,6 +132,7 @@ export default function RegearRequestButton({
     setEntries([])
     setEntryErrors({})
     setError('')
+    setNeedsVerification(false)
     setPhase('count')
   }
 
@@ -204,8 +211,10 @@ export default function RegearRequestButton({
     }
     setEntryErrors({})
     setError('')
+    setNeedsVerification(false)
     startTransition(async () => {
       const results: { id: string; error?: string }[] = []
+      let verificationMessage: string | null = null
       for (const { entry, parsedClaim } of validated) {
         const form = new FormData()
         form.append('eventId', eventId)
@@ -215,7 +224,24 @@ export default function RegearRequestButton({
         }
         form.append('claimedSilver', parsedClaim.toString())
         const r = await requestRegear(form)
+        if (r.error && r.error.startsWith(REGEAR_VERIFICATION_ERROR_PREFIX)) {
+          // 후속 entry 도 동일 사유로 실패할 것 — 남은 요청은 보내지 않고
+          // 인증 CTA 를 띄운다. 이미 성공한 entry 는 그대로 유지.
+          verificationMessage = r.error.slice(REGEAR_VERIFICATION_ERROR_PREFIX.length)
+          break
+        }
         results.push({ id: entry.id, error: r.error })
+      }
+      if (verificationMessage !== null) {
+        const succeededIds = new Set(
+          results.filter((r) => !r.error).map((r) => r.id),
+        )
+        setEntries((prev) => prev.filter((e) => !succeededIds.has(e.id)))
+        setEntryErrors({})
+        setError(verificationMessage)
+        setNeedsVerification(true)
+        router.refresh()
+        return
       }
       const succeededIds = new Set(results.filter((r) => !r.error).map((r) => r.id))
       const failed = results.filter((r) => r.error)
@@ -357,6 +383,17 @@ export default function RegearRequestButton({
                 <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
                   <p className="text-red-400 text-xs">{error}</p>
                 </div>
+              )}
+              {needsVerification && (
+                <Link
+                  href="/onboarding/albion"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-sm rounded-lg px-4 py-2.5"
+                >
+                  <ShieldCheck size={14} />
+                  {t('verifyCtaLabel')}
+                  <ArrowRight size={14} />
+                </Link>
               )}
             </div>
             {phase === 'entries' && (

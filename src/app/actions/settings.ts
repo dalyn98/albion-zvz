@@ -30,6 +30,8 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'cd_badge_roles',
   'active_member_role_ids',
   'allow_unverified_member_access',
+  'regear_require_verification',
+  'auto_regear_delay_minutes',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -73,6 +75,9 @@ const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
   regear_window_minutes: { min: 1, max: 240 },
   regear_max_deaths_per_event: { min: 1, max: 10 },
   regear_payout_rate_percent: { min: 1, max: 100 },
+  // 자동 리기어 cron 이 배틀 시작 후 몇 분 뒤에 이벤트를 처리할지. 너무 짧으면
+  // killboard sync 가 victim 을 놓치고, 너무 길면 수동 신청과 경합. 5~120분.
+  auto_regear_delay_minutes: { min: 5, max: 120 },
   // 1 Normal, 2 Good, 3 Outstanding, 4 Excellent, 5 Masterpiece.
   aodp_min_quality: { min: 1, max: 5 },
 }
@@ -88,6 +93,7 @@ const BOOLEAN_KEYS: readonly AppSettingKey[] = [
   'events_auto_start_enabled',
   'auto_regear_enabled',
   'allow_unverified_member_access',
+  'regear_require_verification',
 ] as const
 
 // Enum-string keys. Value must be exactly one of the listed members.

@@ -96,6 +96,10 @@ export async function getRegearLimits(): Promise<RegearLimits> {
   return loadRegearLimits()
 }
 
+// 인증 필요 에러 앞에 붙는 프리픽스. 클라이언트가 이 프리픽스를 보고 온보딩
+// 으로 안내하는 CTA 버튼을 렌더한다. 사용자에겐 프리픽스 뒤의 문자열만 노출.
+export const REGEAR_VERIFICATION_ERROR_PREFIX = 'ALBION_VERIFICATION_REQUIRED:'
+
 export async function requestRegear(
   formData: FormData,
 ): Promise<{ error?: string; id?: string }> {
@@ -103,8 +107,11 @@ export async function requestRegear(
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
-  const albionError = await requireAlbionVerified(session.discordId)
-  if (albionError) return { error: albionError }
+  const requireVerification = (await getAppSetting('regear_require_verification', 'true')) !== 'false'
+  if (requireVerification) {
+    const albionError = await requireAlbionVerified(session.discordId)
+    if (albionError) return { error: `${REGEAR_VERIFICATION_ERROR_PREFIX}${albionError}` }
+  }
 
   const eventId = String(formData.get('eventId') ?? '')
   const file = formData.get('screenshot')
@@ -144,6 +151,23 @@ export async function requestRegear(
   const buildSnapshot = buildSnapshotFromSlot(slot as unknown as SlotGearDisplay, roleName)
 
   const { windowMinutes, maxDeaths } = await loadRegearLimits()
+
+  // 1a) Supersede policy: pending 자동 리기어 행이 있으면 반려로 밀어내고 수동을
+  //     받는다. 자동이 cron 에서 선행되어 pending 으로 자리 잡았더라도, 실제
+  //     사망한 유저가 직접 신청서를 올리는 쪽을 최종 소스 오브 트루스로 취급.
+  //     비고 컬럼에 사유를 남겨 관리자/청구자가 내역에서 구분 가능.
+  const { error: supersedeError } = await db
+    .from('regear_requests')
+    .update({
+      status: 'rejected',
+      resolved_at: new Date().toISOString(),
+      admin_notes: '수동 리기어 신청으로 자동 대체됨',
+    })
+    .eq('event_id', eventId)
+    .eq('discord_id', session.discordId)
+    .eq('auto_generated', true)
+    .eq('status', 'pending')
+  if (supersedeError) return { error: supersedeError.message }
 
   // 2) Per-event death cap. Non-rejected rows count toward the limit so a user
   //    can re-submit after a rejection but can't spam past the admin-configured

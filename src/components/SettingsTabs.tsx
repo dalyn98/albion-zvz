@@ -18,6 +18,7 @@ import AlbionHomeGuildForm from './AlbionHomeGuildForm'
 import AllowUnverifiedAccessForm from './AllowUnverifiedAccessForm'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
 import AutoRegearToggleForm from './AutoRegearToggleForm'
+import RegearRequireVerificationForm from './RegearRequireVerificationForm'
 import CdBadgeRolesForm from './CdBadgeRolesForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
 import type { SlotRole } from '@/types'
@@ -73,6 +74,8 @@ interface Props {
   albionHomeGuildId: string
   albionHomeGuildName: string | null
   autoRegearEnabled: boolean
+  autoRegearDelayMinutes: number
+  regearRequireVerification: boolean
   cdBadgeRoles: SlotRole[]
   allowUnverifiedMemberAccess: boolean
 }
@@ -110,6 +113,8 @@ export default function SettingsTabs({
   albionHomeGuildId,
   albionHomeGuildName,
   autoRegearEnabled,
+  autoRegearDelayMinutes,
+  regearRequireVerification,
   cdBadgeRoles,
   allowUnverifiedMemberAccess,
 }: Props) {
@@ -198,7 +203,11 @@ export default function SettingsTabs({
               initialMaxDeaths={regearMaxDeaths}
             />
             <RegearPayoutRateForm initialPercent={regearPayoutRatePercent} />
-            <AutoRegearToggleForm initialEnabled={autoRegearEnabled} />
+            <RegearRequireVerificationForm initialEnabled={regearRequireVerification} />
+            <AutoRegearToggleForm
+              initialEnabled={autoRegearEnabled}
+              initialDelayMinutes={autoRegearDelayMinutes}
+            />
             <EventAutoStartForm initialEnabled={eventsAutoStartEnabled} />
             <CdBadgeRolesForm initialRoles={cdBadgeRoles} />
             <div className="space-y-3">

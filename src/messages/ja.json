@@ -884,7 +884,8 @@
     "deathCountBack": "← 回数を変更",
     "screenshotPrimaryLabel": "スクリーンショット 1",
     "screenshotSecondaryLabel": "スクリーンショット 2 (任意)",
-    "allEntriesRequired": "すべての死亡について請求金額とスクリーンショットを入力してください。"
+    "allEntriesRequired": "すべての死亡について請求金額とスクリーンショットを入力してください。",
+    "verifyCtaLabel": "アルビオン認証ページへ"
   },
   "donation": {
     "openButton": "寄付申請",
