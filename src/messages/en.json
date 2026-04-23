@@ -142,7 +142,9 @@
     "notifyChannelError": "Couldn't load channel list.",
     "confirmTitle": "Create this event?",
     "confirmHint": "A new event will be created with the details below. You can configure parties, slots, and the notification channel on the edit page after creation.",
-    "createEvent": "Create event →"
+    "createEvent": "Create event →",
+    "draftFormHint": "Pick a title first. On the next screen, build your parties and slots; when you're ready, fill in the date, location, and announcement channel, then hit \"Publish\" to go live. Drafts aren't shown on the home page until published.",
+    "draftFormSubmit": "Save draft & continue"
   },
   "adminRegearReview": {
     "pageTitle": "Regear requests",
@@ -1093,6 +1095,7 @@
   },
   "memberActionError": {
     "loginRequired": "Login required.",
+    "invalidInput": "Invalid request.",
     "memberOnly": "Only guild members can apply.",
     "memberOnlyRegear": "Only guild members can submit regear requests.",
     "missingEventInfo": "Event info is missing.",

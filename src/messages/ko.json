@@ -142,7 +142,9 @@
     "notifyChannelError": "채널 목록을 불러오지 못했습니다.",
     "confirmTitle": "이벤트를 생성하시겠습니까?",
     "confirmHint": "아래 내용으로 새 이벤트가 생성됩니다. 생성 후 편집 화면에서 파티·슬롯·공지 채널을 설정할 수 있습니다.",
-    "createEvent": "이벤트 생성 →"
+    "createEvent": "이벤트 생성 →",
+    "draftFormHint": "제목만 먼저 정하고 넘어가요. 다음 화면에서 빌드 / 파티를 구성한 뒤, 준비되면 날짜·장소·공지 채널을 채워 \"발행\" 버튼으로 공개합니다. 발행 전까지는 홈에 노출되지 않아요.",
+    "draftFormSubmit": "임시 저장 후 편집으로"
   },
   "adminRegearReview": {
     "pageTitle": "리기어 신청",
@@ -1097,6 +1099,7 @@
   },
   "memberActionError": {
     "loginRequired": "로그인이 필요합니다.",
+    "invalidInput": "잘못된 요청입니다.",
     "memberOnly": "길드원만 신청할 수 있습니다.",
     "memberOnlyRegear": "길드원만 리기어 신청이 가능합니다.",
     "missingEventInfo": "이벤트 정보가 없습니다.",

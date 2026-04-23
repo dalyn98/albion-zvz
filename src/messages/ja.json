@@ -142,7 +142,9 @@
     "notifyChannelError": "チャンネル一覧の読み込みに失敗しました。",
     "confirmTitle": "このイベントを作成しますか？",
     "confirmHint": "以下の内容で新しいイベントが作成されます。作成後の編集画面でパーティー・スロット・告知チャンネルを設定できます。",
-    "createEvent": "イベント作成 →"
+    "createEvent": "イベント作成 →",
+    "draftFormHint": "まずはタイトルだけ決めて先に進みましょう。次の画面でビルド／パーティーを構成したら、準備ができ次第、日時・場所・告知チャンネルを入力して「発行」ボタンで公開できます。発行前はホームには表示されません。",
+    "draftFormSubmit": "下書き保存して編集へ"
   },
   "adminRegearReview": {
     "pageTitle": "リギア申請",
@@ -1097,6 +1099,7 @@
   },
   "memberActionError": {
     "loginRequired": "ログインが必要です。",
+    "invalidInput": "不正なリクエストです。",
     "memberOnly": "ギルドメンバーのみ申請できます。",
     "memberOnlyRegear": "ギルドメンバーのみリギア申請ができます。",
     "missingEventInfo": "イベント情報がありません。",

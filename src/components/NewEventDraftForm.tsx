@@ -76,11 +76,7 @@ export default function NewEventDraftForm() {
         <p className="text-xs text-gray-500 mt-1.5">{t('categoryHint')}</p>
       </div>
 
-      <p className="text-xs text-gray-500 leading-relaxed">
-        제목만 먼저 정하고 넘어가요. 다음 화면에서 빌드 / 파티를 구성한 뒤,
-        준비되면 날짜·장소·공지 채널을 채워 &quot;발행&quot; 버튼으로 공개합니다.
-        발행 전까지는 홈에 노출되지 않아요.
-      </p>
+      <p className="text-xs text-gray-500 leading-relaxed">{t('draftFormHint')}</p>
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-2">
@@ -94,7 +90,7 @@ export default function NewEventDraftForm() {
         disabled={loading || !title.trim()}
         className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-6 py-2.5 rounded-lg transition-colors"
       >
-        {loading ? tCommon('saving') : '임시 저장 후 편집으로'}
+        {loading ? tCommon('saving') : t('draftFormSubmit')}
       </button>
     </div>
   )

@@ -43,8 +43,9 @@ export function isDiscordDmConfigured(): boolean {
 // guild_avatars 와 guests 두 테이블에 나눠 저장돼 있으므로 둘 다 조회해 합집합.
 //
 // categoryFilter 가 주어지면 해당 카테고리의 개인 옵트아웃
-// (notify_combat / notify_other) 도 함께 AND 조건으로 확인한다. 이벤트 임박 DM
-// 전용. regear/donation 등 카테고리와 무관한 DM 은 categoryFilter 없이 호출.
+// (notify_combat / notify_ff / notify_ganking) 도 함께 AND 조건으로 확인한다.
+// 이벤트 임박 DM 전용. regear/donation 등 카테고리와 무관한 DM 은 categoryFilter
+// 없이 호출한다.
 export async function filterDmOptedIn(
   discordIds: string[],
   categoryFilter?: EventCategory,

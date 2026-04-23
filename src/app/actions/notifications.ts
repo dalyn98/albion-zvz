@@ -5,7 +5,7 @@ import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { requireEventCreator } from '@/lib/auth'
-import { CATEGORY_NOTIFY_COLUMN, type EventCategory } from '@/types'
+import { CATEGORY_NOTIFY_COLUMN, EVENT_CATEGORIES, type EventCategory } from '@/types'
 
 // 사용자(길드원/게스트) 본인의 Discord DM 수신 토글과 관리자용 Discord 역할
 // 목록 조회를 담당. 웹 푸시 스택(actions/push.ts) 을 대체한다.
@@ -100,6 +100,13 @@ export async function setMyCategoryPreference(
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
+
+  // 클라이언트가 보낸 category 가 타입 시스템을 벗어난 값일 수 있어 — 화이트
+  // 리스트 검증. 통과 실패 시 컬럼 매핑이 undefined 로 빠져 Supabase 에 잘못된
+  // SQL 이 전달되는 걸 막는다.
+  if (!EVENT_CATEGORIES.includes(category)) {
+    return { error: tErr('invalidInput') }
+  }
 
   const column = CATEGORY_NOTIFY_COLUMN[category]
   const table = session.isGuest ? 'guests' : 'guild_avatars'
