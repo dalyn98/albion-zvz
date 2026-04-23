@@ -3,6 +3,7 @@
 // 길드원 상점 액션 — 잔액 조회, 주문 제출, 본인 주문 조회.
 
 import { revalidatePath } from 'next/cache'
+import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { computePointPrice, parseShopDiscountRate } from '@/lib/shop/price'
@@ -38,19 +39,20 @@ export async function submitShopOrder(
   lines: OrderLineInput[],
   memberNote: string,
 ): Promise<SubmitOrderResult> {
+  const tErr = await getTranslations('memberActionError')
   try {
     const session = await getSession()
-    if (!session) return { ok: false, error: '로그인이 필요합니다.' }
-    if (!session.isMember) return { ok: false, error: '길드원만 주문할 수 있습니다.' }
+    if (!session) return { ok: false, error: tErr('loginRequired') }
+    if (!session.isMember) return { ok: false, error: tErr('memberOnlyOrder') }
     if (!Array.isArray(lines) || lines.length === 0) {
-      return { ok: false, error: '장바구니가 비어있습니다.' }
+      return { ok: false, error: tErr('cartEmpty') }
     }
     if (lines.length > MAX_LINES) {
-      return { ok: false, error: `한 번에 ${MAX_LINES}개 항목까지만 주문 가능합니다.` }
+      return { ok: false, error: tErr('orderLineLimit', { max: MAX_LINES }) }
     }
     const trimmedNote = memberNote.trim()
     if (trimmedNote.length > MEMO_MAX) {
-      return { ok: false, error: `메모는 ${MEMO_MAX}자까지 입력 가능합니다.` }
+      return { ok: false, error: tErr('shopMemoTooLong', { max: MEMO_MAX }) }
     }
 
     const db = getAdminClient()
@@ -84,14 +86,14 @@ export async function submitShopOrder(
     let total = 0
     for (const l of lines) {
       if (!Number.isInteger(l.quantity) || l.quantity <= 0) {
-        return { ok: false, error: '수량은 1 이상 정수.' }
+        return { ok: false, error: tErr('quantityMustBePositiveInt') }
       }
       const inv = invMap.get(l.inventoryId)
-      if (!inv) return { ok: false, error: '존재하지 않는 아이템이 포함되어 있습니다.' }
+      if (!inv) return { ok: false, error: tErr('unknownItem') }
       if ((inv.stock as number) < l.quantity) {
         return {
           ok: false,
-          error: `재고 부족: ${inv.name_ko} (${inv.stock}개 남음)`,
+          error: tErr('itemStockShort', { name: inv.name_ko as string, stock: inv.stock as number }),
         }
       }
       const unit = computePointPrice({
@@ -100,7 +102,7 @@ export async function submitShopOrder(
         discountRate,
       })
       if (unit === null) {
-        return { ok: false, error: `가격 미정 아이템: ${inv.name_ko}` }
+        return { ok: false, error: tErr('itemPriceNotSet', { name: inv.name_ko as string }) }
       }
       const sub = unit * l.quantity
       total += sub
@@ -115,7 +117,7 @@ export async function submitShopOrder(
       })
     }
 
-    if (total <= 0) return { ok: false, error: '총 금액이 0 이하입니다.' }
+    if (total <= 0) return { ok: false, error: tErr('orderTotalNotPositive') }
 
     // 잔액 체크 (UX 용 사전 검증; approve RPC 에서 재확인함).
     const { data: ledger, error: ledgerErr } = await db
@@ -125,7 +127,7 @@ export async function submitShopOrder(
     if (ledgerErr) return { ok: false, error: ledgerErr.message }
     const balance = (ledger ?? []).reduce((sum, r) => sum + (r.delta as number), 0)
     if (balance < total) {
-      return { ok: false, error: `포인트 부족 (보유 ${balance}p, 필요 ${total}p)` }
+      return { ok: false, error: tErr('insufficientPointsWithDetail', { balance, total }) }
     }
 
     // 주문 + 라인 삽입.
@@ -230,9 +232,10 @@ export async function listMyShopOrders(limit = 20): Promise<MyOrderRow[]> {
 }
 
 export async function cancelMyOrder(orderId: string): Promise<{ error?: string }> {
+  const tErr = await getTranslations('memberActionError')
   try {
     const session = await getSession()
-    if (!session) return { error: '로그인이 필요합니다.' }
+    if (!session) return { error: tErr('loginRequired') }
     const db = getAdminClient()
     const { error } = await db
       .from('shop_orders')

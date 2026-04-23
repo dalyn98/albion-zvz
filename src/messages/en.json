@@ -1197,7 +1197,8 @@
     "partyNameTooLong": "Party name cannot exceed {max} characters.",
     "invalidIntegerRange": "Enter an integer between {min} and {max}.",
     "invalidBoolean": "Only 'true' or 'false' is allowed.",
-    "invalidEnumValue": "Allowed values: {values}"
+    "invalidEnumValue": "Allowed values: {values}",
+    "payoutExceedsClaim": "Payout cannot exceed the claim amount ({claimed}s)."
   },
   "memberActionError": {
     "loginRequired": "Login required.",
@@ -1244,7 +1245,17 @@
     "priceTooLarge": "Price is too large (max {max}s).",
     "slotEmpty": "Slot is empty.",
     "autoOnlyEditable": "Only auto-generated regear can be edited.",
-    "slotNotFound": "Slot not found."
+    "slotNotFound": "Slot not found.",
+    "memberOnlyOrder": "Only guild members can place orders.",
+    "cartEmpty": "Your cart is empty.",
+    "orderLineLimit": "You can order up to {max} items at a time.",
+    "shopMemoTooLong": "Memo must be {max} characters or fewer.",
+    "quantityMustBePositiveInt": "Quantity must be a positive integer.",
+    "unknownItem": "The order contains an item that does not exist.",
+    "itemStockShort": "Insufficient stock: {name} ({stock} left)",
+    "itemPriceNotSet": "Item without price: {name}",
+    "orderTotalNotPositive": "Total must be greater than zero.",
+    "insufficientPointsWithDetail": "Not enough points (have {balance}p, need {total}p)"
   },
   "errors": {
     "title": "Something went wrong",

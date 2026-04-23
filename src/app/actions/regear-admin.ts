@@ -244,12 +244,12 @@ export async function approveRegearRequest(
     let payout = defaultPayout
     if (typeof overrideSilver === 'number') {
       if (!Number.isInteger(overrideSilver) || overrideSilver < 0) {
-        return { error: '지급 금액은 0 이상 정수여야 합니다.' }
+        return { error: tErr('nonNegativeInteger') }
       }
       // 상한은 claimed (원래 청구한 실버) — RPC 가 다시 클램프하지만 사용자에게
       // 명확한 에러를 주기 위해 여기서도 검증.
       if (overrideSilver > claimed) {
-        return { error: `지급 금액은 청구 금액(${claimed.toLocaleString()}s) 을 넘을 수 없습니다.` }
+        return { error: tErr('payoutExceedsClaim', { claimed: claimed.toLocaleString() }) }
       }
       payout = overrideSilver
     }

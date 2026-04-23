@@ -1197,7 +1197,8 @@
     "partyNameTooLong": "パーティー名は {max} 文字以内で入力してください。",
     "invalidIntegerRange": "{min} ~ {max} の整数で入力してください。",
     "invalidBoolean": "true または false のみ指定できます。",
-    "invalidEnumValue": "許可された値: {values}"
+    "invalidEnumValue": "許可された値: {values}",
+    "payoutExceedsClaim": "支給額は請求額 ({claimed}s) を超えることはできません。"
   },
   "memberActionError": {
     "loginRequired": "ログインが必要です。",
@@ -1244,7 +1245,17 @@
     "priceTooLarge": "価格が大きすぎます (最大 {max}s)。",
     "slotEmpty": "スロットが空です。",
     "autoOnlyEditable": "自動生成されたリギアのみ編集できます。",
-    "slotNotFound": "該当のスロットが見つかりません。"
+    "slotNotFound": "該当のスロットが見つかりません。",
+    "memberOnlyOrder": "ギルドメンバーのみ注文できます。",
+    "cartEmpty": "カートが空です。",
+    "orderLineLimit": "一度に注文できるのは最大 {max} 品目までです。",
+    "shopMemoTooLong": "メモは {max} 文字以内で入力してください。",
+    "quantityMustBePositiveInt": "数量は1以上の整数である必要があります。",
+    "unknownItem": "存在しないアイテムが含まれています。",
+    "itemStockShort": "在庫不足: {name} (残り {stock}個)",
+    "itemPriceNotSet": "価格未設定のアイテム: {name}",
+    "orderTotalNotPositive": "合計金額が 0 以下です。",
+    "insufficientPointsWithDetail": "ポイント不足 (所持 {balance}p、必要 {total}p)"
   },
   "errors": {
     "title": "問題が発生しました",

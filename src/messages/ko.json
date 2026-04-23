@@ -1197,7 +1197,8 @@
     "invalidJsonArray": "역할 목록을 올바르게 저장할 수 없습니다.",
     "invalidIntegerRange": "{min} ~ {max} 사이의 정수로 입력해 주세요.",
     "invalidBoolean": "true 또는 false 값만 허용됩니다.",
-    "invalidEnumValue": "허용된 값: {values}"
+    "invalidEnumValue": "허용된 값: {values}",
+    "payoutExceedsClaim": "지급 금액은 청구 금액({claimed}s) 을 넘을 수 없습니다."
   },
   "memberActionError": {
     "loginRequired": "로그인이 필요합니다.",
@@ -1244,7 +1245,17 @@
     "priceTooLarge": "가격이 너무 큽니다 (최대 {max}s).",
     "slotEmpty": "슬롯이 비어있습니다.",
     "autoOnlyEditable": "자동 생성된 리기어만 수정 가능합니다.",
-    "slotNotFound": "해당 슬롯을 찾을 수 없습니다."
+    "slotNotFound": "해당 슬롯을 찾을 수 없습니다.",
+    "memberOnlyOrder": "길드원만 주문할 수 있습니다.",
+    "cartEmpty": "장바구니가 비어있습니다.",
+    "orderLineLimit": "한 번에 {max}개 항목까지만 주문 가능합니다.",
+    "shopMemoTooLong": "메모는 {max}자까지 입력 가능합니다.",
+    "quantityMustBePositiveInt": "수량은 1 이상 정수여야 합니다.",
+    "unknownItem": "존재하지 않는 아이템이 포함되어 있습니다.",
+    "itemStockShort": "재고 부족: {name} ({stock}개 남음)",
+    "itemPriceNotSet": "가격 미정 아이템: {name}",
+    "orderTotalNotPositive": "총 금액이 0 이하입니다.",
+    "insufficientPointsWithDetail": "포인트 부족 (보유 {balance}p, 필요 {total}p)"
   },
   "errors": {
     "title": "문제가 발생했어요",
