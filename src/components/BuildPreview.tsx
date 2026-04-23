@@ -170,7 +170,7 @@ export default function BuildPreview({ slot: input }: { slot: SlotInput }) {
                 {spellIds.length > 0 && (
                   <div className="flex flex-wrap gap-0.5 mt-1">
                     {spellIds.map((sid, i) => (
-                      <SpellImage key={`${sid}-${i}`} spellId={sid} size={20} />
+                      <SpellImage key={`${sid}-${i}`} spellId={sid} size={24} />
                     ))}
                   </div>
                 )}
