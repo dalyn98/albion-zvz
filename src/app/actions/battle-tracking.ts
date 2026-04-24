@@ -100,7 +100,7 @@ export async function saveBattleTrackingConfig(input: {
     }
 
     revalidatePath('/admin/dashboard/settings')
-    revalidatePath('/admin/dashboard/battles')
+    revalidatePath('/battles')
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

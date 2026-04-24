@@ -184,8 +184,15 @@ function BattleRow({ row, sizeLabel, outcomeLabel }: BattleRowProps) {
     row.opponentGuildNames[0] ??
     row.opponentAllianceNames[0] ??
     '-'
-  const extraCount =
+  const extraGuildCount =
     row.opponentGuildNames.length > 1 ? row.opponentGuildNames.length - 1 : 0
+  // 연합 라벨: primary_opponent_name 이 이미 alliance 와 일치하면 중복 노출 생략.
+  // 여러 alliance 가 섞였으면 ", " 로 붙여 컴팩트하게. 없으면 null.
+  const allianceLabel =
+    row.opponentAllianceNames.length > 0 &&
+    !(row.opponentAllianceNames.length === 1 && row.opponentAllianceNames[0] === opponentLabel)
+      ? row.opponentAllianceNames.join(', ')
+      : null
 
   return (
     <tr className="border-t border-gray-800 hover:bg-gray-800/40">
@@ -208,8 +215,11 @@ function BattleRow({ row, sizeLabel, outcomeLabel }: BattleRowProps) {
       </td>
       <td className="px-3 py-2">
         <div className="text-sm text-white">{opponentLabel}</div>
-        {extraCount > 0 && (
-          <div className="text-[10px] text-gray-500">+{extraCount}</div>
+        {allianceLabel && (
+          <div className="text-[11px] text-amber-300/80">[{allianceLabel}]</div>
+        )}
+        {extraGuildCount > 0 && (
+          <div className="text-[10px] text-gray-500">+{extraGuildCount} 길드</div>
         )}
       </td>
       <td className="px-3 py-2 text-right whitespace-nowrap">

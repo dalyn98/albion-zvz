@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { Swords, Info } from 'lucide-react'
 import { getSession } from '@/lib/session'
@@ -17,7 +18,7 @@ interface SearchParams {
 
 const PAGE_LIMIT = 50
 
-export default async function AdminBattlesPage({
+export default async function BattlesPage({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>
@@ -28,7 +29,9 @@ export default async function AdminBattlesPage({
     getTranslations('battleTracking'),
     getTranslations('common'),
   ])
-  if (!session) throw new Error('Unauthorized')
+  if (!session) {
+    redirect('/api/auth/discord/start?returnTo=/battles')
+  }
   const guildId = await getSessionGuildId(session)
 
   const sizeFilter = sp.size && isSizeCategory(sp.size) ? sp.size : null
@@ -37,6 +40,8 @@ export default async function AdminBattlesPage({
       ? sp.outcome
       : null
 
+  // guildId 는 session 에서 내려와 사용자가 자기 tenant 외 데이터를 볼 수 없음.
+  // 관리자 클라이언트는 RLS 를 우회해도 .eq('guild_id') 로 명시적 스코프 유지.
   const db = getAdminClient()
   let query = db
     .from('tenant_battle_records')
@@ -77,7 +82,7 @@ export default async function AdminBattlesPage({
   })
 
   return (
-    <div className="space-y-5">
+    <main className="flex-1 w-full max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 py-6 sm:py-8 space-y-5">
       <div className="flex items-start gap-3">
         <Swords size={20} className="text-amber-400 mt-1" />
         <div>
@@ -132,6 +137,6 @@ export default async function AdminBattlesPage({
           cluster: t('colCluster'),
         }}
       />
-    </div>
+    </main>
   )
 }

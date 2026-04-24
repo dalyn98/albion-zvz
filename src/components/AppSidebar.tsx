@@ -43,6 +43,7 @@ const MEMBER_NAV: NavItem[] = [
   { href: '/', labelKey: 'events', icon: CalendarDays },
   { href: '/regear', labelKey: 'regearRequest', icon: ShieldCheck, memberOnly: true },
   { href: '/shop', labelKey: 'shop', icon: ShoppingBag },
+  { href: '/battles', labelKey: 'battles', icon: Swords },
   { href: '/members', labelKey: 'members', icon: Users },
   { href: '/archive', labelKey: 'archive', icon: Archive },
   { href: '/me', labelKey: 'myWallet', icon: Wallet, exact: true, memberOnly: true },
@@ -56,7 +57,6 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/dashboard/approvals', labelKey: 'approvals', icon: ShieldCheck },
   { href: '/admin/dashboard/shop', labelKey: 'shopAdmin', icon: ShoppingBag },
   { href: '/admin/dashboard/stats', labelKey: 'stats', icon: BarChart3 },
-  { href: '/admin/dashboard/battles', labelKey: 'battles', icon: Swords },
   { href: '/admin/dashboard/settings', labelKey: 'settings', icon: Settings },
   { href: '/admin/dashboard/guide', labelKey: 'guide', icon: BookOpen },
 ]
