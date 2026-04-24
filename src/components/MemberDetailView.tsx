@@ -132,11 +132,26 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
           />
         </StatSubGroup>
 
-        <StatSubGroup label={t('statsGroupCombat')}>
+        <StatSubGroup label={t('statsGroupCombat')} cols={5}>
           <StatCard
             icon={<Target size={14} className="text-amber-400" />}
             label={t('statKd')}
             value={formatKd(detail.killboard.kills, detail.killboard.deaths)}
+            mono
+          />
+          <StatCard
+            icon={<Trophy size={14} className="text-amber-400" />}
+            label={t('statWinRate')}
+            value={formatSurvival(detail.advanced_stats.win_rate)}
+            sub={
+              detail.advanced_stats.evaluated_outcome_events > 0
+                ? t('statWinLossSub', {
+                    wins: detail.advanced_stats.wins,
+                    losses: detail.advanced_stats.losses,
+                  })
+                : undefined
+            }
+            tone={winRateTone(detail.advanced_stats.win_rate)}
             mono
           />
           <StatCard
@@ -220,6 +235,7 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
           survivalRate: detail.advanced_stats.survival_rate,
           evaluatedEvents: detail.advanced_stats.evaluated_events,
           participationLongestStreak: detail.advanced_stats.participation_longest_streak,
+          wins: detail.advanced_stats.wins,
         }}
       />
 
@@ -506,10 +522,15 @@ function StatSubGroup({
   children,
 }: {
   label: string
-  cols?: 3 | 4
+  cols?: 3 | 4 | 5
   children: React.ReactNode
 }) {
-  const grid = cols === 3 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'
+  const grid =
+    cols === 3
+      ? 'grid-cols-2 sm:grid-cols-3'
+      : cols === 5
+        ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
+        : 'grid-cols-2 sm:grid-cols-4'
   return (
     <div className="space-y-1.5">
       <h3 className="text-gray-500 text-[10px] font-semibold uppercase tracking-wider">
@@ -539,6 +560,13 @@ function survivalTone(rate: number | null): StatTone {
   if (rate == null) return 'default'
   if (rate >= 0.8) return 'emerald'
   if (rate >= 0.5) return 'amber'
+  return 'rose'
+}
+
+function winRateTone(rate: number | null): StatTone {
+  if (rate == null) return 'default'
+  if (rate >= 0.6) return 'emerald'
+  if (rate >= 0.4) return 'amber'
   return 'rose'
 }
 

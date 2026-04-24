@@ -10,6 +10,7 @@ import { isLocale } from '@/i18n/locales'
 import { runMemberSync, type RolesSource } from '@/lib/member-sync'
 import { extractWeaponCategory } from '@/lib/weapon-category'
 import {
+  calcOutcomeStats,
   calcParticipationStreak,
   calcRanking,
   calcSurvivalAndDeathlessStreak,
@@ -81,6 +82,8 @@ export interface MemberEventEntry {
   battle_started_at: string | null
   gather_at: string | null
   created_at: string
+  outcome: string | null
+  finalized_at: string | null
 }
 
 export interface MemberRegearEntry {
@@ -155,6 +158,11 @@ export interface MemberAdvancedStats {
   participation_rank: number | null
   participation_rank_percentile: number | null
   participation_rank_total: number
+  // 승/패/승률. outcome 이 finalized 된 이벤트만 집계.
+  wins: number
+  losses: number
+  win_rate: number | null
+  evaluated_outcome_events: number
 }
 
 export interface GuildMemberDetail {
@@ -513,7 +521,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       db
         .from('slots')
         .select(
-          'role_name, weapon_name, weapon_id, assigned_weapon_name, assigned_weapon_id, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at))',
+          'role_name, weapon_name, weapon_id, assigned_weapon_name, assigned_weapon_id, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at, outcome, finalized_at))',
         )
         .eq('guild_id', guildId)
         .eq('assigned_discord_id', discordId),
@@ -571,10 +579,19 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     // id (for icon rendering) and the raw name so the UI can render whichever
     // is available without a second lookup.
     const weaponAgg = new Map<string, { id: string | null; name: string; count: number }>()
+    type EventShape = {
+      id: string
+      title: string
+      created_at: string
+      battle_started_at: string | null
+      gather_at: string | null
+      outcome: string | null
+      finalized_at: string | null
+    }
     for (const row of slotsRes.data ?? []) {
       const party = row.parties as
-        | { event_id: string; events: { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null } | { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null }[] }
-        | { event_id: string; events: { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null } | { id: string; title: string; created_at: string; battle_started_at: string | null; gather_at: string | null }[] }[]
+        | { event_id: string; events: EventShape | EventShape[] }
+        | { event_id: string; events: EventShape | EventShape[] }[]
         | null
       const partyObj = Array.isArray(party) ? party[0] : party
       if (!partyObj) continue
@@ -623,6 +640,8 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
           battle_started_at: event.battle_started_at,
           gather_at: event.gather_at,
           created_at: event.created_at,
+          outcome: event.outcome,
+          finalized_at: event.finalized_at,
         })
       }
     }
@@ -748,6 +767,12 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     const killRanking = calcRanking(killboard.kills, allKills)
     const participationRanking = calcRanking(events.length, allParticipations)
 
+    // 승/패/승률: finalized_at 있고 outcome in ('win','loss') 만. 무확정 이벤트는
+    // denominator 에도 들어가지 않는다.
+    const outcomeStats = calcOutcomeStats(
+      events.map((e) => ({ outcome: e.outcome, finalizedAt: e.finalized_at })),
+    )
+
     const advancedStats: MemberAdvancedStats = {
       survival_rate: survivalAndDeathless.survivalRate,
       evaluated_events: survivalAndDeathless.evaluatedEvents,
@@ -761,6 +786,10 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       participation_rank: participationRanking.rank,
       participation_rank_percentile: participationRanking.percentile,
       participation_rank_total: participationRanking.totalRanked,
+      wins: outcomeStats.wins,
+      losses: outcomeStats.losses,
+      win_rate: outcomeStats.winRate,
+      evaluated_outcome_events: outcomeStats.evaluatedEvents,
     }
 
     return {

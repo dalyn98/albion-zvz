@@ -132,6 +132,7 @@ export default async function MePage() {
             survivalRate: dashboard.survivalRate,
             evaluatedEvents: dashboard.evaluatedEvents,
             participationLongestStreak: dashboard.participationLongestStreak,
+            wins: dashboard.wins,
           }}
         />
       )}

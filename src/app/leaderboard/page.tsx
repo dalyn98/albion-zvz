@@ -106,6 +106,18 @@ export default async function LeaderboardPage({
                 : undefined
             }
           />
+          <LeaderboardCard
+            title={t('winRate')}
+            icon={<Trophy size={16} className="text-amber-400" />}
+            entries={data.winRate}
+            emptyText={t('noEntriesWinRate')}
+            formatValue={(e) => `${e.value}%`}
+            subText={(e) =>
+              e.wins != null && e.losses != null
+                ? t('winLossSub', { wins: e.wins, losses: e.losses })
+                : undefined
+            }
+          />
         </div>
       )}
     </main>

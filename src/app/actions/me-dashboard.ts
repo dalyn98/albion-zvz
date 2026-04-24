@@ -4,6 +4,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import {
+  calcOutcomeStats,
   calcParticipationStreak,
   calcSurvivalAndDeathlessStreak,
 } from '@/lib/member-stats'
@@ -29,6 +30,12 @@ export interface MyDashboardData {
   participationCount: number
   participationCurrentStreak: number
   participationLongestStreak: number
+  // outcome(win/loss) 이 확정된 참여 이벤트만 집계. 미확정/미종료는 evaluated
+  // 에도 포함하지 않음.
+  wins: number
+  losses: number
+  winRate: number | null
+  evaluatedOutcomeEvents: number
   nextUpcomingEvent: {
     id: string
     title: string
@@ -47,6 +54,8 @@ type SlotEvent = {
   gather_at: string | null
   gather_time: string
   battle_started_at: string | null
+  outcome: string | null
+  finalized_at: string | null
 }
 
 type SlotRow = {
@@ -76,7 +85,7 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     db
       .from('slots')
       .select(
-        'role_name, parties!inner(events!inner(id, title, gather_at, gather_time, battle_started_at))',
+        'role_name, parties!inner(events!inner(id, title, gather_at, gather_time, battle_started_at, outcome, finalized_at))',
       )
       .eq('guild_id', guildId)
       .eq('assigned_discord_id', session.discordId),
@@ -119,6 +128,8 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
       gather_at: string | null
       gather_time: string
       battle_started_at: string | null
+      outcome: string | null
+      finalized_at: string | null
     }
   >()
   for (const row of (slotsRes.data ?? []) as SlotRow[]) {
@@ -137,6 +148,8 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
         gather_at: event.gather_at,
         gather_time: event.gather_time,
         battle_started_at: event.battle_started_at,
+        outcome: event.outcome,
+        finalized_at: event.finalized_at,
       })
     } else if (existing.isDpsOnly && !isDps) {
       existing.isDpsOnly = false
@@ -167,6 +180,9 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
   const survival = calcSurvivalAndDeathlessStreak(survivalParticipated, victimOccurrences)
   const participationDates = pastParticipated.map((e) => e.startedAt)
   const streak = calcParticipationStreak(participationDates, Date.now())
+  const outcomeStats = calcOutcomeStats(
+    events.map((e) => ({ outcome: e.outcome, finalizedAt: e.finalized_at })),
+  )
 
   const upcoming = events
     .filter((e) => e.gather_at != null && e.gather_at > nowIso)
@@ -185,6 +201,10 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     participationCount: pastParticipated.length,
     participationCurrentStreak: streak.currentStreak,
     participationLongestStreak: streak.longestStreak,
+    wins: outcomeStats.wins,
+    losses: outcomeStats.losses,
+    winRate: outcomeStats.winRate,
+    evaluatedOutcomeEvents: outcomeStats.evaluatedEvents,
     nextUpcomingEvent: upcoming
       ? {
           id: upcoming.id,

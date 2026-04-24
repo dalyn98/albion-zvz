@@ -160,6 +160,40 @@ function parseDateKey(key: string): number | null {
   return Date.UTC(y, m - 1, d)
 }
 
+export interface OutcomeStats {
+  wins: number
+  losses: number
+  // wins + losses. outcome 이 win/loss 로 확정된 이벤트 수.
+  evaluatedEvents: number
+  // 평가 이벤트가 0이면 null — "0% 승률" 이 아니라 "평가 불가" 를 명시.
+  winRate: number | null
+}
+
+// 참여한 이벤트의 outcome 에서 승/패 집계. finalized_at 이 있고 outcome 이
+// 'win' 또는 'loss' 로 확정된 경우만 카운트. null outcome 이나 미확정 이벤트는
+// 분모에도 포함하지 않는다 — "진행 중" 이나 "미판정" 은 승률을 깎지 않는다.
+export function calcOutcomeStats(
+  events: ReadonlyArray<{
+    outcome: string | null
+    finalizedAt: string | null
+  }>,
+): OutcomeStats {
+  let wins = 0
+  let losses = 0
+  for (const e of events) {
+    if (!e.finalizedAt) continue
+    if (e.outcome === 'win') wins += 1
+    else if (e.outcome === 'loss') losses += 1
+  }
+  const evaluated = wins + losses
+  return {
+    wins,
+    losses,
+    evaluatedEvents: evaluated,
+    winRate: evaluated > 0 ? wins / evaluated : null,
+  }
+}
+
 export interface RankingResult {
   // 1-based rank. null = 본인 카운트 0 또는 랭킹 대상이 없음.
   rank: number | null

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
-import { Bell, Calendar, Coins, Heart, Swords } from 'lucide-react'
+import { Bell, Calendar, Coins, Heart, Swords, Trophy } from 'lucide-react'
 import { formatSilver } from '@/lib/silver'
 import { formatGatherTimeFor } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
@@ -21,6 +21,13 @@ function survivalTone(rate: number | null): string {
   return 'text-rose-300'
 }
 
+function winRateTone(rate: number | null): string {
+  if (rate == null) return 'text-gray-400'
+  if (rate >= 0.6) return 'text-emerald-300'
+  if (rate >= 0.4) return 'text-amber-300'
+  return 'text-rose-300'
+}
+
 interface Props {
   data: MyDashboardData
 }
@@ -34,6 +41,10 @@ export default async function MyHomeDashboardCard({ data }: Props) {
     data.survivalRate == null
       ? '—'
       : `${Math.round(data.survivalRate * 100)}%`
+  const winRateText =
+    data.winRate == null
+      ? '—'
+      : `${Math.round(data.winRate * 100)}%`
   const pendingTotal =
     data.pendingRegearCount + data.pendingExchangeCount + data.pendingDonationCount
 
@@ -70,7 +81,7 @@ export default async function MyHomeDashboardCard({ data }: Props) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <HomeMetric
           icon={<Coins size={14} />}
           label={t('homeMetricPoints')}
@@ -104,6 +115,18 @@ export default async function MyHomeDashboardCard({ data }: Props) {
           sub={
             data.evaluatedEvents > 0
               ? t('homeMetricEvaluatedSub', { count: data.evaluatedEvents })
+              : undefined
+          }
+        />
+        <HomeMetric
+          icon={<Trophy size={14} />}
+          label={t('homeMetricWinRate')}
+          value={winRateText}
+          mono
+          valueClass={winRateTone(data.winRate)}
+          sub={
+            data.evaluatedOutcomeEvents > 0
+              ? t('homeMetricWinLossSub', { wins: data.wins, losses: data.losses })
               : undefined
           }
         />

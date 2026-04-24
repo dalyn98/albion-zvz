@@ -1000,9 +1000,11 @@
     "homeMetricParticipation": "Joined",
     "homeMetricKd": "K/D",
     "homeMetricSurvival": "Survival",
+    "homeMetricWinRate": "Win rate",
     "homeMetricStreakSub": "{days}-day streak",
     "homeMetricKdSub": "K {kills} / D {deaths}",
     "homeMetricEvaluatedSub": "{count} evaluated",
+    "homeMetricWinLossSub": "{wins}W · {losses}L",
     "homePendingPrefix": "Pending",
     "homePendingRegear": "Regear {count}",
     "homePendingExchange": "Exchange {count}",
@@ -1115,7 +1117,11 @@
       "survival_90": "Shadow",
       "survival_95": "Ghost",
       "streak_7": "Week of Passion",
-      "streak_30": "Month of Devotion"
+      "streak_30": "Month of Devotion",
+      "win_10": "First-time Victor",
+      "win_50": "Winning Streak",
+      "win_200": "Battle Dominator",
+      "win_500": "Legendary Champion"
     },
     "descriptions": {
       "participation_10": "Join 10 events",
@@ -1133,7 +1139,11 @@
       "survival_90": "Survival rate ≥90% (evaluated ≥10)",
       "survival_95": "Survival rate ≥95% (evaluated ≥10)",
       "streak_7": "7 consecutive days participating",
-      "streak_30": "30 consecutive days participating"
+      "streak_30": "30 consecutive days participating",
+      "win_10": "10 cumulative wins",
+      "win_50": "50 cumulative wins",
+      "win_200": "200 cumulative wins",
+      "win_500": "500 cumulative wins"
     },
     "survivalDpsExcluded": "DPS roles excluded from this stat"
   },
@@ -1153,10 +1163,13 @@
     "evaluatedSub": "{count} evaluated",
     "kd": "Top 10 K/D",
     "kdSub": "{kills}K · {deaths}D",
+    "winRate": "Top 10 Win Rate",
+    "winLossSub": "{wins}W · {losses}L",
     "empty": "No data yet.",
     "noEntries": "No records for this window",
     "noEntriesSurvival": "Need ≥5 evaluated events",
-    "noEntriesKd": "Need ≥5 total kills+deaths"
+    "noEntriesKd": "Need ≥5 total kills+deaths",
+    "noEntriesWinRate": "Need ≥5 finalized battles"
   },
   "memberDetail": {
     "recentLogin": "Last login: {date}",
@@ -1194,6 +1207,8 @@
     "statsGroupCombat": "Combat",
     "statsGroupActivity": "Activity & rank",
     "statKd": "K/D",
+    "statWinRate": "Win rate",
+    "statWinLossSub": "{wins}W · {losses}L",
     "statSurvival": "Survival",
     "statSurvivalSub": "{count} evaluated",
     "statDeathless": "Deathless streak",

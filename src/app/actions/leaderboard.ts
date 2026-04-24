@@ -3,7 +3,11 @@
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { calcSurvivalAndDeathlessStreak, type ParticipatedEvent } from '@/lib/member-stats'
+import {
+  calcOutcomeStats,
+  calcSurvivalAndDeathlessStreak,
+  type ParticipatedEvent,
+} from '@/lib/member-stats'
 import {
   fetchTrackedBattleWindows,
   isWithinTrackedWindow,
@@ -21,6 +25,9 @@ export interface LeaderboardEntry {
   deaths?: number
   // 생존률 지표일 때만 사용. 작은 표본을 감추는 게 아니라 표본 크기도 함께 노출.
   evaluatedEvents?: number
+  // 승률 지표일 때만 사용. 승/패 원시 카운트도 함께 노출.
+  wins?: number
+  losses?: number
 }
 
 export interface LeaderboardData {
@@ -29,6 +36,7 @@ export interface LeaderboardData {
   participation: LeaderboardEntry[]
   survival: LeaderboardEntry[]
   kd: LeaderboardEntry[]
+  winRate: LeaderboardEntry[]
 }
 
 const TOP_N = 10
@@ -37,6 +45,8 @@ const TOP_N = 10
 const MIN_EVALUATED_FOR_SURVIVAL_RANK = 5
 // K/D 도 단 한 번의 킬로 랭킹 올라오는 것을 막음. 킬+데스 합계 5 이상.
 const MIN_EVENTS_FOR_KD_RANK = 5
+// 승률도 표본이 너무 작으면 의미 없음. 5전 이상 확정된 경우만.
+const MIN_EVALUATED_FOR_WINRATE_RANK = 5
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -55,6 +65,8 @@ type KillboardRow = {
 type SlotEvent = {
   id: string
   battle_started_at: string | null
+  outcome: string | null
+  finalized_at: string | null
 }
 
 type SlotRow = {
@@ -99,7 +111,7 @@ export async function getLeaderboard(
   const slotsQ = db
     .from('slots')
     .select(
-      'assigned_discord_id, role_name, parties!inner(events!inner(id, battle_started_at))',
+      'assigned_discord_id, role_name, parties!inner(events!inner(id, battle_started_at, outcome, finalized_at))',
     )
     .eq('guild_id', guildId)
     .not('assigned_discord_id', 'is', null)
@@ -145,9 +157,12 @@ export async function getLeaderboard(
   // 참여 이벤트 세트. DPS 참여로만 기록된 이벤트는 생존률 계산에서 제외해야
   // 하므로 (member, event) 별로 역할도 함께 추적한다. 한 이벤트에서 여러 역할
   // 슬롯을 맡은 경우(거의 없지만 가능) 비-DPS 역할이 하나라도 있으면 평가 대상.
+  // outcome/finalized_at 은 승률 집계용으로 같이 실어둔다.
   interface MemberEventParticipation {
     startedAt: string
     isDpsOnly: boolean
+    outcome: string | null
+    finalizedAt: string | null
   }
   const participationEvents = new Map<string, Map<string, MemberEventParticipation>>()
   for (const row of (slotsRes.data ?? []) as SlotRow[]) {
@@ -166,7 +181,12 @@ export async function getLeaderboard(
     const isDps = !!row.role_name && SURVIVAL_EXCLUDED_ROLES.has(row.role_name)
     const existing = memberEvents.get(event.id)
     if (!existing) {
-      memberEvents.set(event.id, { startedAt: event.battle_started_at, isDpsOnly: isDps })
+      memberEvents.set(event.id, {
+        startedAt: event.battle_started_at,
+        isDpsOnly: isDps,
+        outcome: event.outcome,
+        finalizedAt: event.finalized_at,
+      })
     } else if (existing.isDpsOnly && !isDps) {
       existing.isDpsOnly = false
     }
@@ -186,6 +206,10 @@ export async function getLeaderboard(
     participations: number
     survivalRate: number | null
     evaluatedEvents: number
+    wins: number
+    losses: number
+    winRate: number | null
+    evaluatedOutcomeEvents: number
   }
   const aggs: Agg[] = []
   for (const discordId of discordIds) {
@@ -200,6 +224,11 @@ export async function getLeaderboard(
       .filter(([, v]) => !v.isDpsOnly)
       .map(([eventId, v]) => ({ eventId, startedAt: v.startedAt }))
     const survival = calcSurvivalAndDeathlessStreak(survivalInput, c.victimTimes)
+    // 승률: finalized_at 있고 outcome in ('win','loss') 만. DPS 제외는 하지 않음
+    // (승/패는 역할 특성과 무관하게 파티 결과 전체에 공유되는 판정).
+    const outcome = calcOutcomeStats(
+      allEntries.map(([, v]) => ({ outcome: v.outcome, finalizedAt: v.finalizedAt })),
+    )
     aggs.push({
       discord_id: discordId,
       username: profile.username,
@@ -209,6 +238,10 @@ export async function getLeaderboard(
       participations: allEntries.length,
       survivalRate: survival.survivalRate,
       evaluatedEvents: survival.evaluatedEvents,
+      wins: outcome.wins,
+      losses: outcome.losses,
+      winRate: outcome.winRate,
+      evaluatedOutcomeEvents: outcome.evaluatedEvents,
     })
   }
 
@@ -268,5 +301,25 @@ export async function getLeaderboard(
       deaths: a.deaths,
     }))
 
-  return { window, kills, participation, survival, kd }
+  const winRate: LeaderboardEntry[] = aggs
+    .filter(
+      (a) =>
+        a.evaluatedOutcomeEvents >= MIN_EVALUATED_FOR_WINRATE_RANK && a.winRate != null,
+    )
+    .sort(
+      (a, b) =>
+        (b.winRate! - a.winRate!) || (b.evaluatedOutcomeEvents - a.evaluatedOutcomeEvents),
+    )
+    .slice(0, TOP_N)
+    .map((a) => ({
+      discord_id: a.discord_id,
+      username: a.username,
+      avatar: a.avatar,
+      value: Math.round((a.winRate ?? 0) * 100),
+      wins: a.wins,
+      losses: a.losses,
+      evaluatedEvents: a.evaluatedOutcomeEvents,
+    }))
+
+  return { window, kills, participation, survival, kd, winRate }
 }

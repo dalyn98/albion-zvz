@@ -6,6 +6,7 @@ import {
   Heart,
   Flame,
   Lock,
+  Trophy,
 } from 'lucide-react'
 import {
   computeBadges,
@@ -45,6 +46,8 @@ function categoryIcon(category: BadgeCategory) {
       return <Heart size={CATEGORY_ICON_SIZE} />
     case 'streak':
       return <Flame size={CATEGORY_ICON_SIZE} />
+    case 'win':
+      return <Trophy size={CATEGORY_ICON_SIZE} />
   }
 }
 

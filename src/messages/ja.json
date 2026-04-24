@@ -1000,9 +1000,11 @@
     "homeMetricParticipation": "参加",
     "homeMetricKd": "K/D",
     "homeMetricSurvival": "生存率",
+    "homeMetricWinRate": "勝率",
     "homeMetricStreakSub": "{days}日連続",
     "homeMetricKdSub": "K {kills} / D {deaths}",
     "homeMetricEvaluatedSub": "{count}回評価",
+    "homeMetricWinLossSub": "勝 {wins} · 敗 {losses}",
     "homePendingPrefix": "保留中",
     "homePendingRegear": "リギア {count}",
     "homePendingExchange": "両替 {count}",
@@ -1115,7 +1117,11 @@
       "survival_90": "影",
       "survival_95": "幽霊",
       "streak_7": "情熱の一週間",
-      "streak_30": "一か月の献身"
+      "streak_30": "一か月の献身",
+      "win_10": "初勝利者",
+      "win_50": "連勝の主役",
+      "win_200": "戦場の支配者",
+      "win_500": "伝説の勝者"
     },
     "descriptions": {
       "participation_10": "イベント10回参加",
@@ -1133,7 +1139,11 @@
       "survival_90": "生存率90%以上 (評価≥10)",
       "survival_95": "生存率95%以上 (評価≥10)",
       "streak_7": "7日連続参加",
-      "streak_30": "30日連続参加"
+      "streak_30": "30日連続参加",
+      "win_10": "累計10勝",
+      "win_50": "累計50勝",
+      "win_200": "累計200勝",
+      "win_500": "累計500勝"
     },
     "survivalDpsExcluded": "DPS役割の参加は集計対象外"
   },
@@ -1153,10 +1163,13 @@
     "evaluatedSub": "評価 {count}回",
     "kd": "K/D Top 10",
     "kdSub": "キル {kills} · デス {deaths}",
+    "winRate": "勝率 Top 10",
+    "winLossSub": "勝 {wins} · 敗 {losses}",
     "empty": "データがありません。",
     "noEntries": "該当期間の記録なし",
     "noEntriesSurvival": "評価イベント5回以上が必要",
-    "noEntriesKd": "キル+デス5回以上が必要"
+    "noEntriesKd": "キル+デス5回以上が必要",
+    "noEntriesWinRate": "確定戦闘5回以上が必要"
   },
   "memberDetail": {
     "recentLogin": "最近のログイン: {date}",
@@ -1194,6 +1207,8 @@
     "statsGroupCombat": "戦闘",
     "statsGroupActivity": "活動・ランキング",
     "statKd": "K/D",
+    "statWinRate": "勝率",
+    "statWinLossSub": "勝 {wins} · 敗 {losses}",
     "statSurvival": "生存率",
     "statSurvivalSub": "{count}件評価",
     "statDeathless": "デスなし連続",

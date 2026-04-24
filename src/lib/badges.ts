@@ -16,6 +16,7 @@ export type BadgeCategory =
   | 'deathless'
   | 'survival'
   | 'streak'
+  | 'win'
 
 export type BadgeTier = 'bronze' | 'silver' | 'gold' | 'diamond'
 
@@ -33,6 +34,8 @@ export interface BadgeInput {
   survivalRate: number | null
   evaluatedEvents: number
   participationLongestStreak: number
+  // outcome='win' 으로 확정된 참여 이벤트 누적 수.
+  wins: number
 }
 
 export interface BadgeStatus {
@@ -68,6 +71,11 @@ export const BADGE_DEFINITIONS: ReadonlyArray<BadgeDefinition> = [
 
   { id: 'streak_7', category: 'streak', tier: 'bronze', threshold: 7 },
   { id: 'streak_30', category: 'streak', tier: 'gold', threshold: 30 },
+
+  { id: 'win_10', category: 'win', tier: 'bronze', threshold: 10 },
+  { id: 'win_50', category: 'win', tier: 'silver', threshold: 50 },
+  { id: 'win_200', category: 'win', tier: 'gold', threshold: 200 },
+  { id: 'win_500', category: 'win', tier: 'diamond', threshold: 500 },
 ]
 
 export function computeBadges(input: BadgeInput): BadgeStatus[] {
@@ -100,6 +108,8 @@ function evaluate(
     }
     case 'streak':
       return makeResult(input.participationLongestStreak, def.threshold)
+    case 'win':
+      return makeResult(input.wins, def.threshold)
   }
 }
 
