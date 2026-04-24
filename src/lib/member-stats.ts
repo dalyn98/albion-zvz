@@ -1,45 +1,33 @@
 // 멤버 프로필 통계 계산 로직 — 순수 함수로 분리하여 fetchMemberDetail 을
 // 얇게 유지. 시간 윈도우, 스트릭 판정 등 비즈니스 규칙을 한 곳에 모아둔다.
 
-// 참여 이벤트의 battle_started_at ± 이 창 내부에 victim killboard 행이 있으면
-// "이 이벤트 중 데스" 로 간주한다. 2h = 집결 + 전투 + 정리까지 넉넉히 커버.
-// ZvZ 는 보통 1h 내 종료되지만 이벤트가 예정보다 지연되는 경우가 있다.
-const DEATH_WINDOW_MS = 2 * 60 * 60 * 1000
 const DAY_MS = 24 * 60 * 60 * 1000
 
-export interface ParticipatedEvent {
-  eventId: string
-  // null = battle_started_at 이 세팅되지 않은 이벤트 — 생존/무데스 판정에서 제외.
-  startedAt: string | null
+export interface BattleParticipationOutcome {
+  // tenant_battle_records.started_at (padding 제외 원본). 일자 스트릭 계산에도
+  // 이 값을 재사용.
+  startedAt: string
+  // 해당 배틀에서 멤버의 killboard 에 victim 기록이 있으면 true. 여러 번 죽었어도
+  // true 1개로 집계 (한 배틀 = 한 번의 "데스 여부").
+  hadDeath: boolean
 }
 
 export interface SurvivalResult {
-  // null = 평가 가능한 이벤트가 0개 (battle_started_at 있는 참여가 없음)
+  // null = 평가 가능한 배틀 참여 0건 (killboard 에 매칭되는 트래킹 배틀 없음)
   survivalRate: number | null
   evaluatedEvents: number
   currentDeathlessStreak: number
   longestDeathlessStreak: number
 }
 
-// 참여 이벤트 각각에 대해 ±2h 창 안의 victim 기록을 검색, 데스/생존을 집계.
-// 이벤트를 시간 오름차순으로 훑으면서 "연속으로 데스 없이 완수한 수" 도 동시에
-// 계산한다 — running 이 current, 전 구간 최댓값이 longest.
-export function calcSurvivalAndDeathlessStreak(
-  events: ReadonlyArray<ParticipatedEvent>,
-  victimOccurrences: ReadonlyArray<string>,
+// 멤버가 참여한 트래킹 배틀 (killboard 에 한 건이라도 있는 배틀) 목록을 받아
+// 생존률 / 무데스 스트릭을 계산. 배틀을 시간 오름차순으로 훑으면서 running 을
+// 누적한다. ±N 시간 창에서 victim 을 재탐색할 필요 없음 — 배틀 단위로 이미
+// hadDeath 가 확정되어 들어온다.
+export function calcSurvivalFromBattles(
+  battles: ReadonlyArray<BattleParticipationOutcome>,
 ): SurvivalResult {
-  const victimTimes = victimOccurrences
-    .map((iso) => Date.parse(iso))
-    .filter((t) => Number.isFinite(t))
-    .sort((a, b) => a - b)
-
-  const evaluable = events
-    .filter((e): e is ParticipatedEvent & { startedAt: string } => e.startedAt != null)
-    .map((e) => ({ eventId: e.eventId, time: Date.parse(e.startedAt) }))
-    .filter((e) => Number.isFinite(e.time))
-    .sort((a, b) => a.time - b.time)
-
-  if (evaluable.length === 0) {
+  if (battles.length === 0) {
     return {
       survivalRate: null,
       evaluatedEvents: 0,
@@ -47,13 +35,12 @@ export function calcSurvivalAndDeathlessStreak(
       longestDeathlessStreak: 0,
     }
   }
-
+  const sorted = [...battles].sort((a, b) => a.startedAt.localeCompare(b.startedAt))
   let deathCount = 0
   let longest = 0
   let running = 0
-  for (const ev of evaluable) {
-    const hasDeath = hasDeathInWindow(ev.time, victimTimes)
-    if (hasDeath) {
+  for (const b of sorted) {
+    if (b.hadDeath) {
       if (running > longest) longest = running
       running = 0
       deathCount += 1
@@ -62,34 +49,13 @@ export function calcSurvivalAndDeathlessStreak(
       if (running > longest) longest = running
     }
   }
-
-  const evaluated = evaluable.length
-  const survivalRate = (evaluated - deathCount) / evaluated
+  const evaluated = sorted.length
   return {
-    survivalRate,
+    survivalRate: (evaluated - deathCount) / evaluated,
     evaluatedEvents: evaluated,
     currentDeathlessStreak: running,
     longestDeathlessStreak: longest,
   }
-}
-
-// 정렬된 victimTimes 에서 eventTime ± DEATH_WINDOW_MS 창에 들어오는 값이 있는지
-// 이분탐색으로 확인. O(log n). victimTimes 가 수백~수천 개여도 성능 안정.
-function hasDeathInWindow(
-  eventTime: number,
-  sortedVictimTimes: ReadonlyArray<number>,
-): boolean {
-  if (sortedVictimTimes.length === 0) return false
-  const lo = eventTime - DEATH_WINDOW_MS
-  const hi = eventTime + DEATH_WINDOW_MS
-  let left = 0
-  let right = sortedVictimTimes.length
-  while (left < right) {
-    const mid = (left + right) >>> 1
-    if (sortedVictimTimes[mid] < lo) left = mid + 1
-    else right = mid
-  }
-  return left < sortedVictimTimes.length && sortedVictimTimes[left] <= hi
 }
 
 export interface StreakResult {

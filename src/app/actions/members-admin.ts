@@ -13,18 +13,14 @@ import {
   calcOutcomeStats,
   calcParticipationStreak,
   calcRanking,
-  calcSurvivalAndDeathlessStreak,
-  type ParticipatedEvent,
+  calcSurvivalFromBattles,
 } from '@/lib/member-stats'
 import {
   fetchTrackedBattleWindows,
-  findTrackedOutcome,
+  groupMemberKillsByBattle,
   isWithinTrackedWindow,
 } from '@/lib/tracked-kills'
 import type { RegearType } from '@/types'
-
-// 생존률 판정에서 제외할 역할. (feedback_albion_zvz_achievement_rules.md 규칙 2)
-const SURVIVAL_EXCLUDED_ROLES: ReadonlySet<string> = new Set(['Dps'])
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
 // 포인트 조정 같은 mutation은 별도로 requireAdmin()을 거치게 둔다.
@@ -520,7 +516,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       db
         .from('slots')
         .select(
-          'role_name, weapon_name, weapon_id, assigned_weapon_name, assigned_weapon_id, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at))',
+          'role_name, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at))',
         )
         .eq('guild_id', guildId)
         .eq('assigned_discord_id', discordId),
@@ -545,7 +541,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
         .eq('discord_id', discordId),
       db
         .from('killboard_events')
-        .select('role, fame, occurred_at')
+        .select('role, fame, occurred_at, equipment')
         .eq('guild_id', guildId)
         .eq('discord_id', discordId),
       // 랭킹 RPC — 길드 전체 멤버의 kills/participations 를 집계해서 반환. 본인
@@ -568,16 +564,11 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
 
     const unassignedRoleLabel = tCommon('unassignedRole')
     const deletedEventLabel = tCommon('deletedEvent')
+    // slots 는 더 이상 통계/무기 소스가 아니다 — 통계는 killboard 에서, 무기도
+    // killboard.equipment.MainHand 에서. 여기서 slots 는 "스케줄 이벤트 목록" 과
+    // role_breakdown 만 뽑는다 (killboard 엔 role 개념이 없음).
     const eventsMap = new Map<string, MemberEventEntry>()
     const roleCounter = new Map<string, number>()
-    // 생존률 계산용: 멤버가 DPS 로만 참여한 event_id 집합. 한 이벤트에서 비-DPS
-    // 역할도 같이 맡으면 false 로 락.
-    const isDpsOnlyByEvent = new Map<string, boolean>()
-    // Weapon aggregation — keyed by weapon_id when bundled, otherwise by a
-    // normalized name so free-text entries still merge. Value tracks both the
-    // id (for icon rendering) and the raw name so the UI can render whichever
-    // is available without a second lookup.
-    const weaponAgg = new Map<string, { id: string | null; name: string; count: number }>()
     type EventShape = {
       id: string
       title: string
@@ -596,39 +587,6 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       if (!event) continue
       const role = row.role_name ?? unassignedRoleLabel
       roleCounter.set(role, (roleCounter.get(role) ?? 0) + 1)
-
-      const isDps = !!row.role_name && SURVIVAL_EXCLUDED_ROLES.has(row.role_name)
-      const prevDpsOnly = isDpsOnlyByEvent.get(event.id)
-      if (prevDpsOnly === undefined) {
-        isDpsOnlyByEvent.set(event.id, isDps)
-      } else if (prevDpsOnly && !isDps) {
-        isDpsOnlyByEvent.set(event.id, false)
-      }
-
-      // Prefer the member's assigned pick; fall back to the template weapon so
-      // fixed-weapon slots (no weapon_options) still count. Skip rows where
-      // neither exists — nothing to aggregate.
-      const weaponId: string | null =
-        (row as { assigned_weapon_id: string | null }).assigned_weapon_id ??
-        (row as { weapon_id: string | null }).weapon_id ??
-        null
-      const weaponName: string | null =
-        (row as { assigned_weapon_name: string | null }).assigned_weapon_name ??
-        (row as { weapon_name: string | null }).weapon_name ??
-        null
-      if (weaponId || (weaponName && weaponName.trim().length > 0)) {
-        const key = weaponId ?? `name:${(weaponName ?? '').trim().toLowerCase()}`
-        const existing = weaponAgg.get(key)
-        if (existing) {
-          existing.count++
-        } else {
-          weaponAgg.set(key, {
-            id: weaponId,
-            name: weaponName?.trim() ?? weaponId ?? '',
-            count: 1,
-          })
-        }
-      }
       if (!eventsMap.has(event.id)) {
         eventsMap.set(event.id, {
           event_id: event.id,
@@ -650,13 +608,6 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     const roleBreakdown: RoleCount[] = Array.from(roleCounter.entries())
       .map(([role, count]) => ({ role, count }))
       .sort((a, b) => b.count - a.count)
-
-    // Cap at 10 so a prolific member's card doesn't scroll forever — the tail
-    // is uninteresting anyway (usually a long tail of one-off pick-ups).
-    const weaponBreakdown: WeaponCount[] = Array.from(weaponAgg.values())
-      .map((w) => ({ weapon_id: w.id, weapon_name: w.name, count: w.count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10)
 
     const regears: MemberRegearEntry[] = (regearsRes.data ?? []).map((row) => {
       const event = row.events as { title?: string } | { title?: string }[] | null
@@ -712,44 +663,59 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       b.created_at.localeCompare(a.created_at),
     )
 
+    // 단일 소스: killboard_events 를 tenant_battle_records 창 단위로 묶어
+    // "참여 배틀" 목록으로 만든다. 이 배열이 kills/deaths/survival/streak/outcome
+    // 모두의 분모이자 분자. 창 밖 이벤트(1:1 갱킹) 는 자동 제외.
+    const battles = groupMemberKillsByBattle(killboardRes.data ?? [], trackedWindows)
+
     const killboard: KillboardStats = { kills: 0, deaths: 0, kill_fame: 0, death_fame: 0 }
-    const victimOccurrences: string[] = []
-    // tenant_battle_records 시간창 안에서 일어난 킬/데스만 업적·통계에 반영.
-    // 창 밖 이벤트(1:1 갱킹, 비활성 size category 전투 등)는 제외.
-    for (const row of killboardRes.data ?? []) {
-      const occurredAt = row.occurred_at as string | null
-      if (!occurredAt) continue
-      if (!isWithinTrackedWindow(occurredAt, trackedWindows)) continue
-      const fame = (row.fame as number | null) ?? 0
-      if (row.role === 'killer') {
-        killboard.kills += 1
-        killboard.kill_fame += fame
-      } else if (row.role === 'victim') {
-        killboard.deaths += 1
-        killboard.death_fame += fame
-        victimOccurrences.push(occurredAt)
+    for (const b of battles) {
+      killboard.kills += b.killCount
+      killboard.deaths += b.deathCount
+    }
+    // fame / weapon 은 groupMemberKillsByBattle 이 노출하지 않으므로 별도 순회.
+    // 창 밖 row (1:1 갱킹 등) 는 isWithinTrackedWindow 로 제외 — battles 와 동일 기준.
+    // Equipment 는 현재 victim row 에만 저장됨 (killboard-sync.ts 규칙). 따라서
+    // weapon_breakdown 은 "죽었을 때 들었던 무기" 에 가깝다.
+    const weaponAgg = new Map<string, { id: string; count: number }>()
+    type KillboardRow = {
+      role: string | null
+      fame: number | null
+      occurred_at: string | null
+      equipment: Record<string, { Type?: string } | null> | null
+    }
+    for (const row of (killboardRes.data ?? []) as KillboardRow[]) {
+      if (!row.occurred_at) continue
+      if (!isWithinTrackedWindow(row.occurred_at, trackedWindows)) continue
+      const fame = row.fame ?? 0
+      if (row.role === 'killer') killboard.kill_fame += fame
+      else if (row.role === 'victim') killboard.death_fame += fame
+      const mainHandType = row.equipment?.MainHand?.Type
+      if (mainHandType) {
+        const existing = weaponAgg.get(mainHandType)
+        if (existing) existing.count++
+        else weaponAgg.set(mainHandType, { id: mainHandType, count: 1 })
       }
     }
 
-    // 참여 이벤트 ↔ victim 시간 매칭으로 생존률/무데스 스트릭, 일자 기준 참여
-    // 스트릭, 길드 내 랭킹을 한 곳에서 집계. 랭킹 RPC 는 실패해도 프로필 자체는
-    // 띄워야 하므로 rankingRes.data 가 null 이어도 빈 배열로 폴백.
-    // 생존률 계산은 DPS 만 맡았던 이벤트를 제외 — 표시용 events 는 그대로 유지.
-    const participatedEvents: ParticipatedEvent[] = events
-      .filter((e) => !isDpsOnlyByEvent.get(e.event_id))
-      .map((e) => ({
-        eventId: e.event_id,
-        startedAt: e.battle_started_at,
-      }))
-    const survivalAndDeathless = calcSurvivalAndDeathlessStreak(
-      participatedEvents,
-      victimOccurrences,
-    )
+    // Cap at 10 so a prolific member's card doesn't scroll forever — the tail
+    // is uninteresting anyway (usually a long tail of one-off pick-ups).
+    const weaponBreakdown: WeaponCount[] = Array.from(weaponAgg.values())
+      .map((w) => ({ weapon_id: w.id, weapon_name: w.id, count: w.count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
 
-    const participationDates = events
-      .map((e) => e.battle_started_at ?? e.gather_at ?? e.created_at)
-      .filter((s): s is string => typeof s === 'string' && s.length > 0)
-    const participationStreak = calcParticipationStreak(participationDates, Date.now())
+    // 생존률/스트릭/승패: 전부 battles 배열에서 파생. DPS 제외는 킬/데스가
+    // 실제로 있는 멤버만 참여로 치는 모델에서 의미가 약해 드롭 — 업적(badges) 의
+    // DPS 제외 규칙은 그쪽에서 별도 유지.
+    const survival = calcSurvivalFromBattles(
+      battles.map((b) => ({ startedAt: b.startedAt, hadDeath: b.hadDeath })),
+    )
+    const participationStreak = calcParticipationStreak(
+      battles.map((b) => b.startedAt),
+      Date.now(),
+    )
+    const outcomeStats = calcOutcomeStats(battles.map((b) => b.outcome))
 
     const rankingRows = (rankingRes.data ?? []) as Array<{
       discord_id: string
@@ -760,22 +726,15 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     const allKills = rankingRows.map((r) => r.kills)
     const allParticipations = rankingRows.map((r) => r.participations)
     const killRanking = calcRanking(killboard.kills, allKills)
-    const participationRanking = calcRanking(events.length, allParticipations)
-
-    // 승/패/승률: 각 참여 이벤트의 battle_started_at 을 tenant_battle_records
-    // 창에 매칭해 outcome 을 꺼낸다. 매칭 실패(공개 전투 없음) 는 null → 분모
-    // 제외. tie/excluded 도 분모에서 빠진다.
-    const outcomeStats = calcOutcomeStats(
-      events.map((e) => findTrackedOutcome(e.battle_started_at, trackedWindows)),
-    )
+    const participationRanking = calcRanking(battles.length, allParticipations)
 
     const advancedStats: MemberAdvancedStats = {
-      survival_rate: survivalAndDeathless.survivalRate,
-      evaluated_events: survivalAndDeathless.evaluatedEvents,
+      survival_rate: survival.survivalRate,
+      evaluated_events: survival.evaluatedEvents,
       participation_current_streak: participationStreak.currentStreak,
       participation_longest_streak: participationStreak.longestStreak,
-      deathless_current_streak: survivalAndDeathless.currentDeathlessStreak,
-      deathless_longest_streak: survivalAndDeathless.longestDeathlessStreak,
+      deathless_current_streak: survival.currentDeathlessStreak,
+      deathless_longest_streak: survival.longestDeathlessStreak,
       kill_rank: killRanking.rank,
       kill_rank_percentile: killRanking.percentile,
       kill_rank_total: killRanking.totalRanked,
@@ -795,7 +754,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
         avatar: avatar.avatar,
         updated_at: avatar.updated_at,
         preferred_language: isLocale(avatar.preferred_language) ? avatar.preferred_language : null,
-        participation_count: events.length,
+        participation_count: battles.length,
         role_breakdown: roleBreakdown,
         weapon_breakdown: weaponBreakdown,
         events,

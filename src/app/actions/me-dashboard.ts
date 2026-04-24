@@ -6,17 +6,13 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import {
   calcOutcomeStats,
   calcParticipationStreak,
-  calcSurvivalAndDeathlessStreak,
+  calcSurvivalFromBattles,
 } from '@/lib/member-stats'
 import {
   fetchTrackedBattleWindows,
-  findTrackedOutcome,
-  isWithinTrackedWindow,
+  groupMemberKillsByBattle,
 } from '@/lib/tracked-kills'
 import { getMyPointsSummary } from '@/app/actions/regear'
-
-// 생존률 판정에서 제외할 역할. (feedback_albion_zvz_achievement_rules.md 규칙 2)
-const SURVIVAL_EXCLUDED_ROLES: ReadonlySet<string> = new Set(['Dps'])
 
 export interface MyDashboardData {
   balance: number
@@ -31,8 +27,7 @@ export interface MyDashboardData {
   participationCount: number
   participationCurrentStreak: number
   participationLongestStreak: number
-  // outcome(win/loss) 이 확정된 참여 이벤트만 집계. 미확정/미종료는 evaluated
-  // 에도 포함하지 않음.
+  // outcome(win/loss) 이 확정된 참여 배틀만 집계. tie 등은 evaluated 에서 제외.
   wins: number
   losses: number
   winRate: number | null
@@ -49,19 +44,18 @@ export interface MyDashboardData {
   pendingDonationCount: number
 }
 
-type SlotEvent = {
+type UpcomingSlotEvent = {
   id: string
   title: string
   gather_at: string | null
   gather_time: string
-  battle_started_at: string | null
 }
 
-type SlotRow = {
+type UpcomingSlotRow = {
   role_name: string | null
   parties:
-    | { events: SlotEvent | SlotEvent[] }
-    | Array<{ events: SlotEvent | SlotEvent[] }>
+    | { events: UpcomingSlotEvent | UpcomingSlotEvent[] }
+    | Array<{ events: UpcomingSlotEvent | UpcomingSlotEvent[] }>
     | null
 }
 
@@ -71,9 +65,11 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
 
+  const nowIso = new Date().toISOString()
+
   const [
     pointsSummary,
-    slotsRes,
+    upcomingSlotsRes,
     killboardRes,
     regearRes,
     exchangeRes,
@@ -81,13 +77,16 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     trackedWindows,
   ] = await Promise.all([
     getMyPointsSummary(),
+    // 스케줄링 UI 용. "다음 이벤트" 카드에만 쓰이므로 gather_at > now() 로 제한해
+    // 과거 참여 이력은 읽지 않는다. 통계는 killboard 에서만 나온다.
     db
       .from('slots')
       .select(
-        'role_name, parties!inner(events!inner(id, title, gather_at, gather_time, battle_started_at))',
+        'role_name, parties!inner(events!inner(id, title, gather_at, gather_time))',
       )
       .eq('guild_id', guildId)
-      .eq('assigned_discord_id', session.discordId),
+      .eq('assigned_discord_id', session.discordId)
+      .gt('parties.events.gather_at', nowIso),
     db
       .from('killboard_events')
       .select('role, occurred_at')
@@ -114,77 +113,50 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     fetchTrackedBattleWindows(db, guildId),
   ])
 
-  const nowIso = new Date().toISOString()
-  const byEvent = new Map<
-    string,
-    {
-      id: string
-      title: string
-      role: string | null
-      // 생존률 집계에서 제외 여부. 한 이벤트에서 DPS 로만 기록되었을 때 true.
-      // 비-DPS 슬롯이 하나라도 있으면 false 로 잠금.
-      isDpsOnly: boolean
-      gather_at: string | null
-      gather_time: string
-      battle_started_at: string | null
-    }
-  >()
-  for (const row of (slotsRes.data ?? []) as SlotRow[]) {
-    const party = Array.isArray(row.parties) ? row.parties[0] : row.parties
-    if (!party) continue
-    const event = Array.isArray(party.events) ? party.events[0] : party.events
-    if (!event) continue
-    const isDps = !!row.role_name && SURVIVAL_EXCLUDED_ROLES.has(row.role_name)
-    const existing = byEvent.get(event.id)
-    if (!existing) {
-      byEvent.set(event.id, {
-        id: event.id,
-        title: event.title,
-        role: row.role_name,
-        isDpsOnly: isDps,
-        gather_at: event.gather_at,
-        gather_time: event.gather_time,
-        battle_started_at: event.battle_started_at,
-      })
-    } else if (existing.isDpsOnly && !isDps) {
-      existing.isDpsOnly = false
-    }
-  }
-
-  const events = Array.from(byEvent.values())
-
-  // 참여 지표는 모든 역할 포함. 생존률 전용으로 DPS-only 참여를 제외한 서브셋.
-  const pastParticipated = events
-    .filter((e): e is typeof e & { battle_started_at: string } => e.battle_started_at != null)
-    .map((e) => ({ eventId: e.id, startedAt: e.battle_started_at, isDpsOnly: e.isDpsOnly }))
-  const survivalParticipated = pastParticipated.filter((e) => !e.isDpsOnly)
+  // 참여 배틀 = 멤버의 killboard 가 한 건이라도 있는 트래킹 배틀. 이 배열이
+  // 모든 통계 (참여수/승패/생존/스트릭/킬/데스) 의 단일 소스.
+  const battles = groupMemberKillsByBattle(killboardRes.data ?? [], trackedWindows)
 
   let kills = 0
   let deaths = 0
-  const victimOccurrences: string[] = []
-  for (const ke of killboardRes.data ?? []) {
-    if (!ke.occurred_at) continue
-    if (!isWithinTrackedWindow(ke.occurred_at, trackedWindows)) continue
-    if (ke.role === 'killer') kills += 1
-    else if (ke.role === 'victim') {
-      deaths += 1
-      victimOccurrences.push(ke.occurred_at)
-    }
+  for (const b of battles) {
+    kills += b.killCount
+    deaths += b.deathCount
   }
 
-  const survival = calcSurvivalAndDeathlessStreak(survivalParticipated, victimOccurrences)
-  const participationDates = pastParticipated.map((e) => e.startedAt)
-  const streak = calcParticipationStreak(participationDates, Date.now())
-  // 승/패: 각 참여 이벤트의 battle_started_at 을 tracked window 에 매칭해
-  // 해당 tenant_battle_records.outcome 을 꺼내 집계. 매칭 실패 (공개 전투 없음)
-  // 는 null 로 들어와 calcOutcomeStats 에서 자동 제외된다.
-  const outcomeStats = calcOutcomeStats(
-    events.map((e) => findTrackedOutcome(e.battle_started_at, trackedWindows)),
+  const survival = calcSurvivalFromBattles(
+    battles.map((b) => ({ startedAt: b.startedAt, hadDeath: b.hadDeath })),
   )
+  const streak = calcParticipationStreak(
+    battles.map((b) => b.startedAt),
+    Date.now(),
+  )
+  const outcomeStats = calcOutcomeStats(battles.map((b) => b.outcome))
 
-  const upcoming = events
-    .filter((e) => e.gather_at != null && e.gather_at > nowIso)
-    .sort((a, b) => (a.gather_at! < b.gather_at! ? -1 : 1))[0]
+  // 다음 이벤트: 이미 gather_at > now() 로 필터했으니 임의의 1건이 아니라
+  // 가장 이른 것만 고르면 된다.
+  let upcoming: {
+    id: string
+    title: string
+    gather_at: string | null
+    gather_time: string
+    role_name: string | null
+  } | null = null
+  for (const row of (upcomingSlotsRes.data ?? []) as UpcomingSlotRow[]) {
+    const party = Array.isArray(row.parties) ? row.parties[0] : row.parties
+    if (!party) continue
+    const event = Array.isArray(party.events) ? party.events[0] : party.events
+    if (!event || !event.gather_at) continue
+    if (!upcoming || event.gather_at < (upcoming.gather_at ?? '')) {
+      upcoming = {
+        id: event.id,
+        title: event.title,
+        gather_at: event.gather_at,
+        gather_time: event.gather_time,
+        role_name: row.role_name,
+      }
+    }
+  }
 
   return {
     balance: pointsSummary.summary?.balance ?? 0,
@@ -196,22 +168,14 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     evaluatedEvents: survival.evaluatedEvents,
     currentDeathlessStreak: survival.currentDeathlessStreak,
     longestDeathlessStreak: survival.longestDeathlessStreak,
-    participationCount: pastParticipated.length,
+    participationCount: battles.length,
     participationCurrentStreak: streak.currentStreak,
     participationLongestStreak: streak.longestStreak,
     wins: outcomeStats.wins,
     losses: outcomeStats.losses,
     winRate: outcomeStats.winRate,
     evaluatedOutcomeEvents: outcomeStats.evaluatedEvents,
-    nextUpcomingEvent: upcoming
-      ? {
-          id: upcoming.id,
-          title: upcoming.title,
-          gather_at: upcoming.gather_at,
-          gather_time: upcoming.gather_time,
-          role_name: upcoming.role,
-        }
-      : null,
+    nextUpcomingEvent: upcoming,
     pendingRegearCount: regearRes.count ?? 0,
     pendingExchangeCount: exchangeRes.count ?? 0,
     pendingDonationCount: donationRes.count ?? 0,
