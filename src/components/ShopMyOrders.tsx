@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronDown, X, History } from 'lucide-react'
 import { cancelMyOrder, type MyOrderRow } from '@/app/actions/shop-member'
+import { formatDateTimeShort } from '@/lib/format-datetime'
 
 interface Props {
   orders: MyOrderRow[]
@@ -84,12 +85,7 @@ function OrderCard({ order }: { order: MyOrderRow }) {
           {order.totalPoints.toLocaleString()}p · {order.items.length}종
         </span>
         <span className="ml-auto text-gray-500 font-mono">
-          {new Date(order.createdAt).toLocaleString('ko-KR', {
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
+          {formatDateTimeShort(order.createdAt)}
         </span>
       </div>
       <div className="text-xs text-gray-400 space-y-0.5">

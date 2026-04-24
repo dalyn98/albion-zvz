@@ -475,6 +475,10 @@
     "batchItemsPotionLabel": "Potion",
     "batchItemsMountLabel": "Mount",
     "batchItemsAffectedCount": "{count} slots affected",
+    "autoRegearExcludeLabel": "Exclude from auto-regear",
+    "autoRegearExcludeHint": "When checked, members assigned to this build are skipped by the automatic post-event regear process.",
+    "manualRegearExcludeLabel": "Exclude from manual regear",
+    "manualRegearExcludeHint": "When checked, members assigned to this build cannot submit screenshot-based regear requests.",
     "bombSquad": {
       "toggleLabel": "Bomb squad",
       "toggleHint": "Approval-only · custom names allowed",

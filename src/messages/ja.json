@@ -475,6 +475,10 @@
     "batchItemsPotionLabel": "ポーション",
     "batchItemsMountLabel": "マウント",
     "batchItemsAffectedCount": "対象スロット {count}件",
+    "autoRegearExcludeLabel": "自動リギア対象外",
+    "autoRegearExcludeHint": "チェックすると、このビルドに割り当てられたメンバーはイベント終了後の自動リギア処理から除外されます。",
+    "manualRegearExcludeLabel": "手動リギア対象外",
+    "manualRegearExcludeHint": "チェックすると、このビルドに割り当てられたメンバーはスクリーンショットベースのリギア申請がブロックされます。",
     "bombSquad": {
       "toggleLabel": "ボムスクワッド",
       "toggleHint": "承認制 · カスタム名可",

@@ -18,6 +18,7 @@ interface KstParts {
   day: number
   hour: number
   minute: number
+  second: number
 }
 
 function toKstParts(iso: string): KstParts {
@@ -29,6 +30,7 @@ function toKstParts(iso: string): KstParts {
     day: shifted.getUTCDate(),
     hour: shifted.getUTCHours(),
     minute: shifted.getUTCMinutes(),
+    second: shifted.getUTCSeconds(),
   }
 }
 
@@ -46,4 +48,16 @@ export function formatDateTime(iso: string): string {
 export function formatDateTimeShort(iso: string): string {
   const p = toKstParts(iso)
   return `${pad2(p.month)}-${pad2(p.day)} ${pad2(p.hour)}:${pad2(p.minute)}`
+}
+
+// Time-only with seconds; used by combat event logs where second precision matters.
+export function formatTime(iso: string): string {
+  const p = toKstParts(iso)
+  return `${pad2(p.hour)}:${pad2(p.minute)}:${pad2(p.second)}`
+}
+
+// Full date+time with seconds; used for confirmation/audit timestamps.
+export function formatDateTimeWithSeconds(iso: string): string {
+  const p = toKstParts(iso)
+  return `${p.year}-${pad2(p.month)}-${pad2(p.day)} ${pad2(p.hour)}:${pad2(p.minute)}:${pad2(p.second)}`
 }

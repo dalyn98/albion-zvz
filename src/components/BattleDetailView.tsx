@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
-import { formatDateTime } from '@/lib/format-datetime'
+import { formatDateTime, formatTime } from '@/lib/format-datetime'
 import type { BattleDetail, BattleKillEvent } from '@/app/actions/battles'
 
 // 참가자 카드는 K/D 요약을 기본 노출하고, 해당 전투에서 찍힌 개별 킬로그(상대/
@@ -346,12 +346,3 @@ function formatFame(n: number): string {
   return String(n)
 }
 
-function formatTime(iso: string): string {
-  return new Intl.DateTimeFormat('ko-KR', {
-    timeZone: 'Asia/Seoul',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).format(new Date(iso))
-}

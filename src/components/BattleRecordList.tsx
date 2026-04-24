@@ -7,6 +7,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Trophy, Skull, Minus } from 'lucide-react'
 import Link from 'next/link'
 import type { SizeCategory } from '@/lib/albion-battles'
+import { formatDateTimeShort } from '@/lib/format-datetime'
 
 export interface BattleRecordRow {
   id: string
@@ -60,15 +61,7 @@ function formatFame(n: number): string {
 }
 
 function formatStartedAt(iso: string): string {
-  const d = new Date(iso)
-  return new Intl.DateTimeFormat('ko-KR', {
-    timeZone: 'Asia/Seoul',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).format(d)
+  return formatDateTimeShort(iso)
 }
 
 export default function BattleRecordList({

@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import ShopBaselineForm from '@/components/ShopBaselineForm'
+import { formatDateTime } from '@/lib/format-datetime'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,22 +66,10 @@ export default async function ShopBaselinePage() {
                   return (
                     <tr key={row.id as string} className="border-t border-zinc-800">
                       <td className="p-2 font-mono">
-                        {new Date(row.confirmed_at as string).toLocaleString('ko-KR', {
-                          year: 'numeric',
-                          month: '2-digit',
-                          day: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                        {formatDateTime(row.confirmed_at as string)}
                       </td>
                       <td className="p-2 font-mono">
-                        {new Date(row.baseline_at as string).toLocaleString('ko-KR', {
-                          year: 'numeric',
-                          month: '2-digit',
-                          day: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                        {formatDateTime(row.baseline_at as string)}
                       </td>
                       <td className="p-2 text-right font-mono">
                         {(row.total_items as number).toLocaleString('ko-KR')} / {row.total_events as number}건

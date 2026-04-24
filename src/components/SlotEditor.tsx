@@ -438,10 +438,10 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, event
                   />
                   <span>
                     <span className="text-[12px] text-white font-semibold">
-                      자동 리기어 제외
+                      {t('autoRegearExcludeLabel')}
                     </span>
                     <span className="block text-[11px] text-gray-500 mt-0.5">
-                      체크하면 이 빌드에 배정된 멤버는 이벤트 종료 후 자동 리기어 처리에서 제외됩니다.
+                      {t('autoRegearExcludeHint')}
                     </span>
                   </span>
                 </label>
@@ -458,10 +458,10 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, event
                 />
                 <span>
                   <span className="text-[12px] text-white font-semibold">
-                    수동 리기어 제외
+                    {t('manualRegearExcludeLabel')}
                   </span>
                   <span className="block text-[11px] text-gray-500 mt-0.5">
-                    체크하면 이 빌드에 배정된 멤버는 스크린샷 기반 리기어 신청이 차단됩니다.
+                    {t('manualRegearExcludeHint')}
                   </span>
                 </span>
               </label>

@@ -7,6 +7,7 @@ import { Save, ChevronDown, Check, Search, RefreshCw } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
 import { listGuildRoles, type DiscordRoleOption } from '@/app/actions/notifications'
 import { syncMembersNow, type SyncMembersNowResult } from '@/app/actions/members-admin'
+import { formatDateTime } from '@/lib/format-datetime'
 
 interface Props {
   initialRoleIds: string[]
@@ -110,14 +111,7 @@ export default function ActiveMemberRolesSetting({
 
   const lastSyncLabel = useMemo(() => {
     if (!lastSyncAt) return t('neverSynced')
-    const formatted = new Date(lastSyncAt).toLocaleString('ko-KR', {
-      year: '2-digit',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-    return t('lastSyncAt', { time: formatted })
+    return t('lastSyncAt', { time: formatDateTime(lastSyncAt) })
   }, [lastSyncAt, t])
 
   return (

@@ -24,6 +24,7 @@ import {
   type BaselineItem,
   type DriftReport,
 } from '@/app/actions/shop-baseline'
+import { formatDateTimeWithSeconds } from '@/lib/format-datetime'
 
 const PLACEHOLDER = `인게임 "은행" 로그에서 복사한 텍스트를 붙여넣으세요. 예시:
 "04/24/2026 10:15:12"\t"GuildMaster"\t"벼락의 사슬"\t"1"\t"3"\t"5"
@@ -32,16 +33,7 @@ const PLACEHOLDER = `인게임 "은행" 로그에서 복사한 텍스트를 붙�
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—'
-  const d = new Date(iso)
-  return d.toLocaleString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  })
+  return formatDateTimeWithSeconds(iso)
 }
 
 function fmtDuration(startIso: string | null, endIso: string | null): string {

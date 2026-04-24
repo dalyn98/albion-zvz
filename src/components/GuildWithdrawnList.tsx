@@ -8,6 +8,7 @@ import MemberAvatar from './MemberAvatar'
 import LanguageBadge from './LanguageBadge'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import { formatDate } from '@/lib/format-datetime'
 import { getRoleStyle } from '@/types'
 import type { WithdrawnMemberSummary } from '@/app/actions/members-admin'
 
@@ -105,11 +106,7 @@ function WithdrawnRow({ member }: { member: WithdrawnMemberSummary }) {
   const t = useTranslations('members')
   const tRole = useTranslations('slotRole')
 
-  const formattedWithdrawnAt = new Date(member.withdrawn_at).toLocaleDateString('ko-KR', {
-    year: '2-digit',
-    month: '2-digit',
-    day: '2-digit',
-  })
+  const formattedWithdrawnAt = formatDate(member.withdrawn_at)
 
   return (
     <li className="bg-gray-900 border border-gray-800 rounded-lg opacity-80">

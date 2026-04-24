@@ -475,6 +475,10 @@
     "batchItemsPotionLabel": "포션",
     "batchItemsMountLabel": "탈것",
     "batchItemsAffectedCount": "대상 슬롯 {count}개",
+    "autoRegearExcludeLabel": "자동 리기어 제외",
+    "autoRegearExcludeHint": "체크하면 이 빌드에 배정된 멤버는 이벤트 종료 후 자동 리기어 처리에서 제외됩니다.",
+    "manualRegearExcludeLabel": "수동 리기어 제외",
+    "manualRegearExcludeHint": "체크하면 이 빌드에 배정된 멤버는 스크린샷 기반 리기어 신청이 차단됩니다.",
     "bombSquad": {
       "toggleLabel": "밤스쿼드",
       "toggleHint": "승인제 · 커스텀 이름 가능",
