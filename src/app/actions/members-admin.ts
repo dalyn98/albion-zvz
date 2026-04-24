@@ -16,9 +16,11 @@ import {
   calcSurvivalFromBattles,
 } from '@/lib/member-stats'
 import {
+  fetchMemberBattleParticipations,
   fetchTrackedBattleWindows,
   groupMemberKillsByBattle,
   isWithinTrackedWindow,
+  mergeMemberBattles,
 } from '@/lib/tracked-kills'
 import type { RegearType } from '@/types'
 
@@ -506,6 +508,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       killboardRes,
       rankingRes,
       trackedWindows,
+      participationsByMember,
     ] = await Promise.all([
       db
         .from('guild_avatars')
@@ -549,6 +552,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       // 내려주지 않고 limit 1000 에 걸리므로 RPC 로 한 번에 수행.
       db.rpc('member_ranking_counts', { p_guild_id: guildId }),
       fetchTrackedBattleWindows(db, guildId),
+      fetchMemberBattleParticipations(db, guildId),
     ])
 
     if (avatarRes.error) return { detail: null, error: avatarRes.error.message }
@@ -663,10 +667,12 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       b.created_at.localeCompare(a.created_at),
     )
 
-    // 단일 소스: killboard_events 를 tenant_battle_records 창 단위로 묶어
-    // "참여 배틀" 목록으로 만든다. 이 배열이 kills/deaths/survival/streak/outcome
+    // 두 소스 합집합: (1) killboard 기반 배틀 — kills/deaths 풍부한 정보,
+    // (2) raw_battle.players 기반 0k0d 참여 — killboard 에는 없지만 배틀에 있던
+    // 케이스(탱커/힐러가 교전 전 종료 등). kills/deaths/survival/streak/outcome
     // 모두의 분모이자 분자. 창 밖 이벤트(1:1 갱킹) 는 자동 제외.
-    const battles = groupMemberKillsByBattle(killboardRes.data ?? [], trackedWindows)
+    const killBattles = groupMemberKillsByBattle(killboardRes.data ?? [], trackedWindows)
+    const battles = mergeMemberBattles(killBattles, participationsByMember.get(discordId))
 
     const killboard: KillboardStats = { kills: 0, deaths: 0, kill_fame: 0, death_fame: 0 }
     for (const b of battles) {

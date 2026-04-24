@@ -8,8 +8,10 @@ import {
   calcSurvivalFromBattles,
 } from '@/lib/member-stats'
 import {
+  fetchMemberBattleParticipations,
   fetchTrackedBattleWindows,
   groupMemberKillsByBattle,
+  mergeMemberBattles,
 } from '@/lib/tracked-kills'
 
 export type LeaderboardWindow = 'week' | 'month' | 'all'
@@ -82,10 +84,11 @@ export async function getLeaderboard(
     .eq('guild_id', guildId)
   if (cutoff) killboardQ = killboardQ.gte('occurred_at', cutoff)
 
-  const [avatarsRes, killboardRes, trackedWindows] = await Promise.all([
+  const [avatarsRes, killboardRes, trackedWindows, participationsByMember] = await Promise.all([
     avatarsQ,
     killboardQ,
     fetchTrackedBattleWindows(db, guildId, cutoff),
+    fetchMemberBattleParticipations(db, guildId, cutoff),
   ])
 
   const avatarMap = new Map<string, { username: string; avatar: string | null }>()
@@ -123,11 +126,19 @@ export async function getLeaderboard(
     evaluatedOutcomeEvents: number
   }
   const aggs: Agg[] = []
-  for (const [discordId, kills] of killsByMember) {
+  // (killboard 기준 멤버) ∪ (raw_battle 기준 참여자). 0k0d 참여자는 killsByMember
+  // 에 없지만 participationsByMember 에는 있으므로 합집합이 필요.
+  const allMemberIds = new Set<string>([
+    ...killsByMember.keys(),
+    ...participationsByMember.keys(),
+  ])
+  for (const discordId of allMemberIds) {
     const profile = avatarMap.get(discordId)
     // 탈퇴자/비멤버는 랭킹에서 제외 (이름이 안 보임).
     if (!profile) continue
-    const battles = groupMemberKillsByBattle(kills, trackedWindows)
+    const kills = killsByMember.get(discordId) ?? []
+    const killBattles = groupMemberKillsByBattle(kills, trackedWindows)
+    const battles = mergeMemberBattles(killBattles, participationsByMember.get(discordId))
     if (battles.length === 0) continue
     let killCount = 0
     let deathCount = 0

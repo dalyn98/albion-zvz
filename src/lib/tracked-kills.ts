@@ -112,10 +112,13 @@ function findTrackedWindow(
 // 반환. 창 밖의 킬은 무시 (1:1 갱킹 등). 참여 배틀 하나에 복수 킬/데스가
 // 있으면 합산.
 //
-// 설계 의도: 업적/통계의 진짜 소스는 killboard + tenant_battle_records. 과거에는
-// events.battle_started_at 으로 참여를 판정했지만 자동시작 등으로 시각이 어긋나
-// 매칭 실패 → 0 통계가 빈발. 이 헬퍼는 killboard 에 하나라도 기록이 있으면 해당
-// 배틀에 참여한 것으로 간주해 위양성보다 위음성을 줄인다.
+// 설계 의도: 업적/통계의 진짜 소스는 killboard + tenant_battle_records + raw_battle.players.
+// 과거에는 events.battle_started_at 으로 참여를 판정했지만 자동시작 등으로
+// 시각이 어긋나 매칭 실패 → 0 통계가 빈발.
+//
+// 0k0d 참여자는 killboard 에 흔적이 없으므로 이 함수만으로는 잡히지 않는다.
+// 완전한 participation 집합을 얻으려면 mergeMemberBattles 로 raw_battle.players
+// 기반 참여자(fetchMemberBattleParticipations 결과) 와 합쳐야 한다.
 export interface MemberBattleOutcome {
   // padding 제외 원본 started_at (일자 기준 스트릭 등에 사용).
   startedAt: string
@@ -157,6 +160,69 @@ export function groupMemberKillsByBattle<
     }
   }
   return Array.from(agg.values()).sort((a, b) => a.startedAt.localeCompare(b.startedAt))
+}
+
+// battle_records.raw_battle.players ↔ guild_avatars 매칭 결과를 멤버별로 그룹.
+// member_battle_participations RPC (마이그 082) 가 (discord_id, raw_started_at,
+// outcome) 쌍을 돌려주면 이 함수가 discord_id → (raw_started_at → outcome) 맵으로
+// 재정리. mergeMemberBattles 에서 killboard 기반 battles 와 합치는 재료.
+//
+// 0k0d 멤버도 raw_battle.players 에 있으면 여기 잡힘 → participation 집계에서
+// 누락 안 됨.
+export interface BattleParticipationRow {
+  discord_id: string | null
+  raw_started_at: string | null
+  outcome: string | null
+}
+
+export async function fetchMemberBattleParticipations(
+  db: Db,
+  guildId: string,
+  sinceIso?: string | null,
+): Promise<Map<string, Map<string, string>>> {
+  const { data } = await db.rpc('member_battle_participations', { p_guild_id: guildId })
+  const byMember = new Map<string, Map<string, string>>()
+  const sinceMs = sinceIso ? Date.parse(sinceIso) : null
+  for (const row of (data ?? []) as BattleParticipationRow[]) {
+    if (!row.discord_id || !row.raw_started_at) continue
+    if (sinceMs !== null) {
+      const t = Date.parse(row.raw_started_at)
+      if (!Number.isFinite(t) || t < sinceMs) continue
+    }
+    let inner = byMember.get(row.discord_id)
+    if (!inner) {
+      inner = new Map<string, string>()
+      byMember.set(row.discord_id, inner)
+    }
+    inner.set(row.raw_started_at, row.outcome ?? '')
+  }
+  return byMember
+}
+
+// killboard 기반 battles 와 raw_battle.players 기반 participation 집합을 합쳐
+// 최종 MemberBattleOutcome 배열을 만든다. killboard 에 기록이 없는 참여(0k0d) 는
+// killCount=0, deathCount=0, hadDeath=false 로 추가. 같은 startedAt 이 양쪽 다
+// 있으면 killboard 쪽을 우선 (더 풍부한 정보).
+export function mergeMemberBattles(
+  killBattles: ReadonlyArray<MemberBattleOutcome>,
+  memberParticipations: ReadonlyMap<string, string> | undefined,
+): MemberBattleOutcome[] {
+  const byStart = new Map<string, MemberBattleOutcome>()
+  for (const b of killBattles) byStart.set(b.startedAt, b)
+  if (memberParticipations) {
+    for (const [rawStart, outcome] of memberParticipations) {
+      if (!byStart.has(rawStart)) {
+        byStart.set(rawStart, {
+          startedAt: rawStart,
+          outcome,
+          hadDeath: false,
+          killCount: 0,
+          deathCount: 0,
+        })
+      }
+    }
+  }
+  return Array.from(byStart.values()).sort((a, b) => a.startedAt.localeCompare(b.startedAt))
 }
 
 function findTrackedWindowIndex(
