@@ -7,6 +7,7 @@ import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
 import LanguageBadge from './LanguageBadge'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { getRoleStyle } from '@/types'
 import type { WithdrawnMemberSummary } from '@/app/actions/members-admin'
 
@@ -102,6 +103,7 @@ function SortChip({
 
 function WithdrawnRow({ member }: { member: WithdrawnMemberSummary }) {
   const t = useTranslations('members')
+  const tRole = useTranslations('slotRole')
 
   const formattedWithdrawnAt = new Date(member.withdrawn_at).toLocaleDateString('ko-KR', {
     year: '2-digit',
@@ -136,7 +138,7 @@ function WithdrawnRow({ member }: { member: WithdrawnMemberSummary }) {
                     style?.badge ?? 'bg-gray-700 text-gray-300'
                   }`}
                 >
-                  {r.role} {r.count}
+                  {translateSlotRole(r.role, tRole)} {r.count}
                 </span>
               )
             })}

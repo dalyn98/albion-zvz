@@ -10,6 +10,7 @@ import {
   type SlotTemplateSummary,
 } from '@/app/actions/slot-templates'
 import { applyTemplateToSlotInput } from '@/lib/slot-template-shape'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { formatDate } from '@/lib/format-datetime'
 import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, getRoleStyle, type EventCategory } from '@/types'
 import type { SlotInput } from './SlotEditor'
@@ -31,6 +32,7 @@ const CATEGORY_FILTER_ALL = '__all__'
 export default function LoadSlotTemplateButton({ slot, onLoad, defaultCategoryFilter }: Props) {
   const t = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
+  const tRole = useTranslations('slotRole')
   const [open, setOpen] = useState(false)
   const [templates, setTemplates] = useState<SlotTemplateSummary[]>([])
   const [selected, setSelected] = useState<string | null>(null)
@@ -189,7 +191,7 @@ export default function LoadSlotTemplateButton({ slot, onLoad, defaultCategoryFi
                         const count = categoryFilteredTemplates.filter((tpl) => tpl.role_name === role).length
                         return (
                           <option key={role} value={role}>
-                            {role} ({count})
+                            {translateSlotRole(role, tRole)} ({count})
                           </option>
                         )
                       })}
@@ -238,7 +240,7 @@ export default function LoadSlotTemplateButton({ slot, onLoad, defaultCategoryFi
                               roleStyle ? roleStyle.badge : 'bg-amber-500/20 text-amber-400'
                             }`}
                           >
-                            {tpl.role_name}
+                            {translateSlotRole(tpl.role_name, tRole)}
                           </span>
                         )}
                         <span className="text-gray-500 text-[10px] font-mono flex-shrink-0">

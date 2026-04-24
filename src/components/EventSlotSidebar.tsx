@@ -7,6 +7,7 @@ import { getLocalizedItemName } from '@/lib/item-names'
 import { getLocale } from '@/lib/locale'
 import type { Locale } from '@/i18n/locales'
 import { getMountDisarray } from '@/lib/battle-mounts'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import ItemImage from './ItemImage'
 import MemberAvatar from './MemberAvatar'
 import { ChevronDown, ChevronUp, Users, Shield, Zap, Swords } from 'lucide-react'
@@ -42,6 +43,7 @@ interface SidebarLabels {
   viewMember: (name: string) => string
   free: string
   armorLabel: (keywords: readonly string[]) => string
+  roleLabel: (role: string) => string
 }
 
 // Icons are our best-guess T8 uniqueNames. Count-matching is by `keywords`, so if an
@@ -148,10 +150,11 @@ function countArmor(parties: PartyWithSlots[], keywords: readonly string[]): num
 }
 
 export default async function EventSlotSidebar({ parties, placement, title, avatars = {} }: Props) {
-  const [t, tArmor, tSlot, locale] = await Promise.all([
+  const [t, tArmor, tSlot, tRole, locale] = await Promise.all([
     getTranslations('eventSidebar'),
     getTranslations('armor'),
     getTranslations('slot'),
+    getTranslations('slotRole'),
     getLocale(),
   ])
   const { assigned, total } = countApplications(parties)
@@ -179,6 +182,7 @@ export default async function EventSlotSidebar({ parties, placement, title, avat
       const entry = TRACKED_ARMORS.find((a) => a.keywords === keywords)
       return entry ? tArmor(entry.labelKey) : ''
     },
+    roleLabel: (role) => translateSlotRole(role, tRole),
   }
 
   if (placement === 'mobile') {
@@ -465,7 +469,7 @@ function SidebarRow({
             : 'bg-gray-700/60 text-gray-300 border border-gray-600/40'
         }`}
       >
-        {slot.role_name || labels.unassigned}
+        {slot.role_name ? labels.roleLabel(slot.role_name) : labels.unassigned}
       </span>
 
       <div className="flex items-center gap-1 flex-1 min-w-0">

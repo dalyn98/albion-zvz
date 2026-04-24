@@ -12,6 +12,7 @@ import {
   isFreeItem,
 } from '@/types'
 import { stripTierPrefix } from '@/lib/weapon-display'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { getLocalizedItemName } from '@/lib/item-names'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import GearPreview from './GearPreview'
@@ -103,6 +104,7 @@ function spellIdsForKey(input: SlotInput, key: SlotKey): string[] {
 
 export default function BuildPreview({ slot: input }: { slot: SlotInput }) {
   const t = useTranslations('adminParty')
+  const tRole = useTranslations('slotRole')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
   const displaySlot = useMemo(() => buildDisplaySlot(input), [input])
@@ -120,7 +122,7 @@ export default function BuildPreview({ slot: input }: { slot: SlotInput }) {
               roleStyle ? roleStyle.badge : 'bg-amber-500/20 text-amber-400'
             }`}
           >
-            {input.role_name}
+            {translateSlotRole(input.role_name, tRole)}
           </span>
         )}
       </div>

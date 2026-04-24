@@ -2,7 +2,9 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { saveTenantRewards } from '@/app/actions/onboard'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 
 interface Labels {
   rewardsRoleColumn: string
@@ -30,6 +32,7 @@ interface Props {
 // /admin/dashboard 로 이동한다.
 export default function TenantRewardsSetupForm({ tenantId, initial, labels }: Props) {
   const router = useRouter()
+  const tRole = useTranslations('slotRole')
   const [values, setValues] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {}
     for (const r of initial) init[r.role_name] = String(r.silver)
@@ -88,7 +91,7 @@ export default function TenantRewardsSetupForm({ tenantId, initial, labels }: Pr
           <tbody className="divide-y divide-white/5">
             {initial.map((r) => (
               <tr key={r.role_name}>
-                <td className="px-3 py-2 text-white font-mono text-xs">{r.role_name}</td>
+                <td className="px-3 py-2 text-white font-mono text-xs">{translateSlotRole(r.role_name, tRole)}</td>
                 <td className="px-3 py-1.5 text-right">
                   <input
                     type="text"

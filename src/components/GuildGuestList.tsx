@@ -8,6 +8,7 @@ import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
 import LanguageBadge from './LanguageBadge'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { getRoleStyle } from '@/types'
 import { revokeGuest } from '@/app/actions/members-admin'
 import type { GuildGuestSummary } from '@/app/actions/members-admin'
@@ -104,6 +105,7 @@ function SortChip({
 
 function GuestRow({ guest, isAdmin }: { guest: GuildGuestSummary; isAdmin: boolean }) {
   const t = useTranslations('members')
+  const tRole = useTranslations('slotRole')
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
@@ -143,7 +145,7 @@ function GuestRow({ guest, isAdmin }: { guest: GuildGuestSummary; isAdmin: boole
                       style?.badge ?? 'bg-gray-700 text-gray-300'
                     }`}
                   >
-                    {r.role} {r.count}
+                    {translateSlotRole(r.role, tRole)} {r.count}
                   </span>
                 )
               })

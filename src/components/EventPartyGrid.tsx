@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Bomb, Eye, EyeOff, Filter, Megaphone, Pencil, X } from 'lucide-react'
 import type { EventCategory, PartyWithSlots, SlotRole } from '@/types'
 import SlotCard from './SlotCard'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 
 interface Props {
   parties: PartyWithSlots[]
@@ -41,6 +42,7 @@ export default function EventPartyGrid({
   eventCategory,
 }: Props) {
   const t = useTranslations('event')
+  const tRole = useTranslations('slotRole')
   const [onlyMyRole, setOnlyMyRole] = useState(false)
   // Load after mount so SSR output matches first client render — avoids hydration
   // mismatch when localStorage has hidden ids saved from a prior visit.
@@ -166,8 +168,8 @@ export default function EventPartyGrid({
             >
               {onlyMyRole ? <X size={12} /> : <Filter size={12} />}
               {onlyMyRole
-                ? t('filterMyRoleActive', { role: myRoleName! })
-                : t('filterMyRole', { role: myRoleName! })}
+                ? t('filterMyRoleActive', { role: translateSlotRole(myRoleName!, tRole) })
+                : t('filterMyRole', { role: translateSlotRole(myRoleName!, tRole) })}
             </button>
           )}
         </div>

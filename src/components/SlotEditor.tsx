@@ -13,6 +13,7 @@ import LoadSlotTemplateButton from './LoadSlotTemplateButton'
 import RecentBuildsDropdown from './RecentBuildsDropdown'
 import BuildPreview from './BuildPreview'
 import { slotInputToTemplateData } from '@/lib/slot-template-shape'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { saveRecentBuild } from '@/lib/recent-builds'
 import type { EventCategory, SlotKey, GearOption, GearSpec } from '@/types'
 import {
@@ -121,6 +122,7 @@ interface Props {
 export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, eventCategory, onChange, onDelete, standaloneMode }: Props) {
   const t = useTranslations('adminParty')
   const tCommon = useTranslations('common')
+  const tRole = useTranslations('slotRole')
   const [open, setOpen] = useState(standaloneMode ? true : false)
   const [saving, setSaving] = useState(false)
 
@@ -310,7 +312,7 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, event
                   roleStyle ? roleStyle.badge : 'bg-amber-500/20 text-amber-400'
                 }`}
               >
-                {slot.role_name}
+                {translateSlotRole(slot.role_name, tRole)}
               </span>
             ) : (
               <span className="text-gray-600 text-xs italic">{t('roleNone')}</span>
@@ -363,7 +365,7 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, event
                       roleStyle ? roleStyle.badge : 'bg-amber-500/20 text-amber-400'
                     }`}
                   >
-                    {slot.role_name}
+                    {translateSlotRole(slot.role_name, tRole)}
                   </span>
                 )}
               </div>
@@ -386,7 +388,7 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, event
               <div className="flex items-center flex-wrap gap-2">
                 <SaveSlotAsTemplateButton
                   slot={slot}
-                  defaultName={slot.role_name ? t('buildName', { role: slot.role_name }) : ''}
+                  defaultName={slot.role_name ? t('buildName', { role: translateSlotRole(slot.role_name, tRole) }) : ''}
                   defaultCategory={eventCategory}
                 />
                 <LoadSlotTemplateButton
@@ -407,7 +409,7 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, event
                   <option value="">{t('noRoleOption')}</option>
                   {SLOT_ROLES.map((r) => (
                     <option key={r} value={r}>
-                      {r}
+                      {translateSlotRole(r, tRole)}
                     </option>
                   ))}
                 </select>

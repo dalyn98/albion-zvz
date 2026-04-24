@@ -12,6 +12,7 @@ import { getLocale } from '@/lib/locale'
 import { getAppSetting } from '@/lib/app-settings'
 import RegearRequestButton from '@/components/RegearRequestButton'
 import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,11 +32,12 @@ export default async function RegearPage() {
     redirect('/')
   }
 
-  const [{ events, error }, limits, payoutRatePercent, t, locale, noticeMessage, noticeImageUrl] = await Promise.all([
+  const [{ events, error }, limits, payoutRatePercent, t, tRole, locale, noticeMessage, noticeImageUrl] = await Promise.all([
     listMyRegearEligibleEvents(),
     getRegearLimits(),
     getRegearPayoutRatePercent(),
     getTranslations('regear'),
+    getTranslations('slotRole'),
     getLocale(),
     getAppSetting('regear_notice_message', ''),
     getAppSetting('regear_notice_image_url', ''),
@@ -98,7 +100,7 @@ export default async function RegearPage() {
               <div className="flex items-center justify-between gap-3 pt-2 border-t border-gray-800">
                 <div className="text-xs text-gray-400 min-w-0">
                   <span className="text-gray-500">{t('role')} </span>
-                  <span className="text-white font-semibold">{event.role_name}</span>
+                  <span className="text-white font-semibold">{translateSlotRole(event.role_name, tRole)}</span>
                   <span className="text-gray-500"> · {t('expectedReward')} </span>
                   <span className="text-amber-400 font-mono font-semibold">{formatSilver(event.role_reward)}</span>
                 </div>

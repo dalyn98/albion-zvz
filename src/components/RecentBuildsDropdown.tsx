@@ -13,6 +13,7 @@ import {
 import { getLocalizedItemName } from '@/lib/item-names'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import { applyTemplateToSlotInput } from '@/lib/slot-template-shape'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import type { SlotInput } from './SlotEditor'
 
 interface Props {
@@ -22,6 +23,7 @@ interface Props {
 
 export default function RecentBuildsDropdown({ slot, onLoad }: Props) {
   const t = useTranslations('adminTemplates')
+  const tRole = useTranslations('slotRole')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
   const [open, setOpen] = useState(false)
@@ -95,7 +97,7 @@ export default function RecentBuildsDropdown({ slot, onLoad }: Props) {
                 const sample = getBuildWeaponSample(b.data)
                 const displayName =
                   getLocalizedItemName(sample.id, locale, sample.name) ??
-                  b.data.role_name ??
+                  (b.data.role_name ? translateSlotRole(b.data.role_name, tRole) : null) ??
                   t('recentBuildsFallbackName')
                 return (
                   <li key={b.id} className="flex items-center gap-2 px-2 py-2 hover:bg-gray-800/60">
@@ -120,7 +122,7 @@ export default function RecentBuildsDropdown({ slot, onLoad }: Props) {
                       <div className="min-w-0 flex-1">
                         <p className="text-white text-xs font-semibold truncate">{displayName}</p>
                         <p className="text-gray-500 text-[10px] truncate">
-                          {b.data.role_name ?? t('recentBuildsNoRole')}
+                          {b.data.role_name ? translateSlotRole(b.data.role_name, tRole) : t('recentBuildsNoRole')}
                         </p>
                       </div>
                     </button>

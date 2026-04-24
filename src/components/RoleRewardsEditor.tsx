@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Save } from 'lucide-react'
 import { updateRoleReward, type RoleReward } from '@/app/actions/regear-admin'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 
 export default function RoleRewardsEditor({ rewards }: { rewards: RoleReward[] }) {
   const t = useTranslations('adminRoleRewards')
@@ -24,6 +25,7 @@ export default function RoleRewardsEditor({ rewards }: { rewards: RoleReward[] }
 function RoleRow({ reward }: { reward: RoleReward }) {
   const t = useTranslations('adminRoleRewards')
   const tCommon = useTranslations('common')
+  const tRole = useTranslations('slotRole')
   const router = useRouter()
   const [value, setValue] = useState(reward.silver.toString())
   const [error, setError] = useState('')
@@ -53,7 +55,7 @@ function RoleRow({ reward }: { reward: RoleReward }) {
 
   return (
     <li className="flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-4 py-3">
-      <span className="w-20 text-white text-sm font-semibold flex-shrink-0">{reward.role_name}</span>
+      <span className="w-20 text-white text-sm font-semibold flex-shrink-0">{translateSlotRole(reward.role_name, tRole)}</span>
       <input
         type="text"
         inputMode="numeric"

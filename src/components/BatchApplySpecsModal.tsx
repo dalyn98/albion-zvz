@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { X } from 'lucide-react'
 import type { SlotInput } from './SlotEditor'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import type { SlotKey, SlotRole, GearSpec } from '@/types'
 import {
   SLOT_ROLES,
@@ -57,6 +58,7 @@ interface Props {
 export default function BatchApplySpecsModal({ slots, onApply, onClose }: Props) {
   const t = useTranslations('adminParty')
   const tCommon = useTranslations('common')
+  const tRole = useTranslations('slotRole')
   const [scope, setScope] = useState<BatchSpecsScope>('all')
   const [groupSpecs, setGroupSpecs] = useState<GroupSpecState>(EMPTY_GROUP_SPECS)
 
@@ -136,7 +138,7 @@ export default function BatchApplySpecsModal({ slots, onApply, onClose }: Props)
               <option value="all">{t('batchSpecScopeAll')}</option>
               {SLOT_ROLES.map((role) => (
                 <option key={role} value={role}>
-                  {role}
+                  {translateSlotRole(role, tRole)}
                 </option>
               ))}
             </select>

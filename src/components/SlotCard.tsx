@@ -16,6 +16,7 @@ import {
   isFreeItem,
 } from '@/types'
 import { stripTierPrefix } from '@/lib/weapon-display'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { getLocalizedItemName } from '@/lib/item-names'
 import type { Locale } from '@/i18n/locales'
 import GearPreview from './GearPreview'
@@ -100,6 +101,7 @@ export default function SlotCard({
   const router = useRouter()
   const t = useTranslations('slot')
   const tGear = useTranslations('gear')
+  const tRole = useTranslations('slotRole')
   const locale = useLocale() as Locale
 
   const isTaken = slot.assigned_discord_id !== null
@@ -223,7 +225,7 @@ export default function SlotCard({
             <span className={`text-[12px] font-bold px-1.5 py-0.5 rounded ${
               roleStyle ? roleStyle.badge : 'bg-amber-500/20 text-amber-400'
             }`}>
-              {slot.role_name}
+              {translateSlotRole(slot.role_name, tRole)}
             </span>
           )}
           {isAdmin && (

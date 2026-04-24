@@ -5,6 +5,7 @@ import { formatSilver } from '@/lib/silver'
 import { formatGatherTimeFor } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
 import type { MyDashboardData } from '@/app/actions/me-dashboard'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 
 function formatKd(kills: number, deaths: number): string {
   if (deaths === 0) {
@@ -34,6 +35,7 @@ interface Props {
 
 export default async function MyHomeDashboardCard({ data }: Props) {
   const t = await getTranslations('me')
+  const tRole = await getTranslations('slotRole')
   const locale = await getLocale()
 
   const kd = formatKd(data.kills, data.deaths)
@@ -70,7 +72,7 @@ export default async function MyHomeDashboardCard({ data }: Props) {
                   : data.nextUpcomingEvent.gather_time}
                 {data.nextUpcomingEvent.role_name && (
                   <span className="ml-2 text-gray-500">
-                    · {data.nextUpcomingEvent.role_name}
+                    · {translateSlotRole(data.nextUpcomingEvent.role_name, tRole)}
                   </span>
                 )}
               </p>

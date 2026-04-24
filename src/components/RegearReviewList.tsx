@@ -26,6 +26,7 @@ import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { useToast } from './ToastProvider'
 
 const STATUS_CLASS: Record<string, string> = {
@@ -229,6 +230,7 @@ function RegearRow({
   const t = useTranslations('adminRegearReview')
   const tCommon = useTranslations('common')
   const tToast = useTranslations('toast')
+  const tRole = useTranslations('slotRole')
   const toast = useToast()
   const [pending, startTransition] = useTransition()
   const [rechecking, setRechecking] = useState(false)
@@ -373,7 +375,7 @@ function RegearRow({
             <span className="text-gray-400 text-xs truncate">· {request.event_title}</span>
           </div>
           <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400">
-            <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded">{request.role_name}</span>
+            <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded">{translateSlotRole(request.role_name, tRole)}</span>
             <span className="font-mono text-amber-400">
               {t('claimed', { amount: formatSilver(claimed) })}
               <span className="text-gray-500"> / {t('cap', { amount: formatSilver(request.silver) })}</span>
@@ -713,6 +715,7 @@ function RegearRow({
 function BuildSnapshotStrip({ snapshot }: { snapshot: BuildSnapshot }) {
   const t = useTranslations('adminRegearReview')
   const tGear = useTranslations('gear')
+  const tRole = useTranslations('slotRole')
   return (
     <div className="space-y-1.5 border-t border-gray-800 pt-2.5">
       <div className="flex items-center gap-2 text-xs text-gray-400">
@@ -720,7 +723,7 @@ function BuildSnapshotStrip({ snapshot }: { snapshot: BuildSnapshot }) {
         <span className="font-semibold text-gray-300">{t('appliedBuild')}</span>
         {snapshot.role_name && (
           <span className="bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded text-[11px] font-semibold">
-            {snapshot.role_name}
+            {translateSlotRole(snapshot.role_name, tRole)}
           </span>
         )}
       </div>

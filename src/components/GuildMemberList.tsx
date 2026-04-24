@@ -9,6 +9,7 @@ import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
 import LanguageBadge from './LanguageBadge'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { SLOT_ROLES, getRoleStyle, type SlotRole } from '@/types'
 import type { GuildMemberSummary } from '@/app/actions/members-admin'
 import { getLocalizedItemName } from '@/lib/item-names'
@@ -51,6 +52,7 @@ const WEAPON_DROPDOWN_THRESHOLD = 8
 
 export default function GuildMemberList({ members }: Props) {
   const t = useTranslations('members')
+  const tRole = useTranslations('slotRole')
   const rawLocale = useLocale()
   const locale: Locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
   const [search, setSearch] = useState('')
@@ -208,7 +210,7 @@ export default function GuildMemberList({ members }: Props) {
                       : 'bg-gray-900 border-gray-700 text-gray-400 hover:text-white hover:border-gray-600'
                   }`}
                 >
-                  {role}
+                  {translateSlotRole(role, tRole)}
                 </button>
               )
             })}
@@ -299,7 +301,7 @@ export default function GuildMemberList({ members }: Props) {
         )}
         {roleFilter && !weaponFilter && (
           <span className="text-[11px] text-amber-300/80">
-            {t('sortByRoleActive', { role: roleFilter })}
+            {t('sortByRoleActive', { role: translateSlotRole(roleFilter, tRole) })}
           </span>
         )}
       </div>
@@ -407,6 +409,7 @@ function MemberRow({
   locale: Locale
 }) {
   const t = useTranslations('members')
+  const tRole = useTranslations('slotRole')
   // When a role filter is active, surface that role's badge first even if it's
   // outside the member's top N — so the user can see exactly what matched.
   const badges = useMemo(() => {
@@ -455,7 +458,7 @@ function MemberRow({
                       style?.badge ?? 'bg-gray-700 text-gray-300'
                     } ${isMatched ? 'ring-1 ring-amber-300/60' : ''}`}
                   >
-                    {r.role} {r.count}
+                    {translateSlotRole(r.role, tRole)} {r.count}
                   </span>
                 )
               })

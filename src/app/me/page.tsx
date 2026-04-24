@@ -16,6 +16,7 @@ import { formatDateTime } from '@/lib/format-datetime'
 import { formatGatherTimeFor } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
 import { regearPayoutSilver } from '@/types'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import MyHomeDashboardCard from '@/components/MyHomeDashboardCard'
 import BadgeGrid from '@/components/BadgeGrid'
 import RequestExchangeForm from '@/components/RequestExchangeForm'
@@ -54,6 +55,7 @@ export default async function MePage() {
     t,
     tStatus,
     tOnboarding,
+    tRole,
     locale,
   ] = await Promise.all([
     getMyDashboard(),
@@ -66,6 +68,7 @@ export default async function MePage() {
     getTranslations('me'),
     getTranslations('status'),
     getTranslations('albionOnboarding'),
+    getTranslations('slotRole'),
     getLocale(),
   ])
 
@@ -258,7 +261,7 @@ export default async function MePage() {
                     <p className="text-white text-sm font-medium truncate">{p.event_title}</p>
                     <p className="text-gray-500 text-xs">
                       {p.gather_at ? formatGatherTimeFor(locale, p.gather_at) : p.gather_time}
-                      {p.role_name && <span className="ml-2 text-gray-400">· {p.role_name}</span>}
+                      {p.role_name && <span className="ml-2 text-gray-400">· {translateSlotRole(p.role_name, tRole)}</span>}
                     </p>
                   </div>
                 </Link>
@@ -286,7 +289,7 @@ export default async function MePage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400">
-                  <span>{r.role_name}</span>
+                  <span>{r.role_name ? translateSlotRole(r.role_name, tRole) : ''}</span>
                   <span className="font-mono text-amber-400">
                     {t('claimed')} {formatSilver(regearPayoutSilver(r))}
                     <span className="text-gray-500"> / {t('ceiling')} {formatSilver(r.silver)}</span>
