@@ -700,7 +700,11 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     // 창 밖 row (1:1 갱킹 등) 는 isWithinTrackedWindow 로 제외 — battles 와 동일 기준.
     // Equipment 는 현재 victim row 에만 저장됨 (killboard-sync.ts 규칙). 따라서
     // weapon_breakdown 은 "죽었을 때 들었던 무기" 에 가깝다.
-    const weaponAgg = new Map<string, { id: string; count: number }>()
+    //
+    // 집계 키는 extractWeaponCategory 결과 (예: HOLYSTAFF). 티어/인챈트/품질/
+    // 아티팩트 변형을 모두 하나로 묶어 "같은 무기군" 이 분리 집계되지 않도록.
+    // 아이콘 렌더용으로 첫 관측된 원본 id (예: T8_2H_HOLYSTAFF@2) 를 보존.
+    const weaponAgg = new Map<string, { sampleId: string; count: number }>()
     type KillboardRow = {
       event_id: number | string | null
       role: string | null
@@ -721,9 +725,12 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
         else if (row.role === 'victim') killboard.death_fame += fame
         const mainHandType = row.equipment?.MainHand?.Type
         if (mainHandType) {
-          const existing = weaponAgg.get(mainHandType)
-          if (existing) existing.count++
-          else weaponAgg.set(mainHandType, { id: mainHandType, count: 1 })
+          const category = extractWeaponCategory(mainHandType)
+          if (category) {
+            const existing = weaponAgg.get(category)
+            if (existing) existing.count++
+            else weaponAgg.set(category, { sampleId: mainHandType, count: 1 })
+          }
         }
       }
       if (row.role === 'killer' || row.role === 'victim') {
@@ -746,8 +753,14 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
 
     // Cap at 10 so a prolific member's card doesn't scroll forever — the tail
     // is uninteresting anyway (usually a long tail of one-off pick-ups).
-    const weaponBreakdown: WeaponCount[] = Array.from(weaponAgg.values())
-      .map((w) => ({ weapon_id: w.id, weapon_name: w.id, count: w.count }))
+    // weapon_id 는 아이콘 렌더링용 샘플, weapon_name 은 category 코드 (UI 에서
+    // locale 이름 없을 때 fallback).
+    const weaponBreakdown: WeaponCount[] = Array.from(weaponAgg.entries())
+      .map(([category, w]) => ({
+        weapon_id: w.sampleId,
+        weapon_name: category,
+        count: w.count,
+      }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10)
 

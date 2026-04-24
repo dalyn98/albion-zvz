@@ -24,6 +24,7 @@ import BadgeGrid from './BadgeGrid'
 import { formatSilver } from '@/lib/silver'
 import { formatDate, formatDateTime } from '@/lib/format-datetime'
 import { getLocalizedItemName } from '@/lib/item-names'
+import { stripTierPrefix } from '@/lib/weapon-display'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import { getRoleStyle, regearPayoutSilver } from '@/types'
 import type {
@@ -277,7 +278,10 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
         ) : (
           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {detail.weapon_breakdown.map((w, idx) => {
-              const displayName = getLocalizedItemName(w.weapon_id, locale, w.weapon_name) ?? w.weapon_name
+              // 샘플 id 로 로케일 이름을 얻고 티어 접두사("장로의 ") 를 벗겨 "같은
+              // 무기군" 표기. 이름이 없으면 category 코드(weapon_name) 를 그대로 보여줌.
+              const localized = getLocalizedItemName(w.weapon_id, locale, null)
+              const displayName = localized ? stripTierPrefix(localized) : w.weapon_name
               return (
                 <li
                   key={`${w.weapon_id ?? 'free'}-${idx}`}
