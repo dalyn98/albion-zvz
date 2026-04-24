@@ -36,6 +36,8 @@ import ForceOnboardButton from '@/components/ForceOnboardButton'
 import CollapsibleList from '@/components/CollapsibleList'
 import { ALBION_SERVER_LABEL } from '@/lib/albion-gameinfo'
 
+type StatsTranslator = Awaited<ReturnType<typeof getTranslations<'adminStats'>>>
+
 // 통계 페이지의 모든 상위 N 목록이 공유하는 기본 접힘 행수. 바꾸려면 여기만.
 const STATS_COLLAPSED_ROWS = 8
 
@@ -49,9 +51,10 @@ function itemImageUrl(uniqueName: string, enchant: number, quality: number): str
 
 export default async function AdminStatsPage() {
   // 다섯 섹션을 병렬로 — 하나가 느려도 다른 섹션이 블로킹되지 않도록.
-  const [tNav, pointRes, eventRes, shopRegearRes, verificationRes, financeRes] =
+  const [tNav, tStats, pointRes, eventRes, shopRegearRes, verificationRes, financeRes] =
     await Promise.all([
       getTranslations('nav'),
+      getTranslations('adminStats'),
       getPointStats(),
       getEventStats(),
       getShopRegearStats(),
@@ -66,7 +69,7 @@ export default async function AdminStatsPage() {
       <div className="space-y-4">
         <h1 className="text-2xl font-bold text-white">{tNav('stats')}</h1>
         <div className="bg-red-500/10 border border-red-500/40 text-red-200 rounded-lg p-4 text-sm">
-          통계를 불러오지 못했습니다: {error ?? '알 수 없는 오류'}
+          {tStats('loadError')}: {error ?? tStats('unknownError')}
         </div>
       </div>
     )
@@ -76,36 +79,36 @@ export default async function AdminStatsPage() {
   // 추후 상점/이벤트 지표도 여기에 쌓아 나간다.
   const cards = [
     {
-      label: '길드원 보유 포인트 총액',
+      label: tStats('cardHeldTotalLabel'),
       value: stats.totalHeld,
-      hint: `${stats.memberCount.toLocaleString()}명의 원장 계정`,
+      hint: tStats('cardHeldTotalHint', { count: stats.memberCount.toLocaleString() }),
       icon: Wallet,
       accent: 'text-amber-400',
       ring: 'border-amber-500/30',
       bg: 'bg-amber-500/5',
     },
     {
-      label: '누적 지급 포인트',
+      label: tStats('cardLifetimeEarnedLabel'),
       value: stats.lifetimeEarned,
-      hint: `${stats.entriesCount.toLocaleString()}건의 원장 기록`,
+      hint: tStats('cardLifetimeEarnedHint', { count: stats.entriesCount.toLocaleString() }),
       icon: TrendingUp,
       accent: 'text-emerald-400',
       ring: 'border-emerald-500/30',
       bg: 'bg-emerald-500/5',
     },
     {
-      label: '누적 소비 포인트',
+      label: tStats('cardLifetimeSpentLabel'),
       value: stats.lifetimeSpent,
-      hint: '환전/상점/관리자 조정 차감 합',
+      hint: tStats('cardLifetimeSpentHint'),
       icon: TrendingDown,
       accent: 'text-rose-400',
       ring: 'border-rose-500/30',
       bg: 'bg-rose-500/5',
     },
     {
-      label: '포인트 보유 길드원',
+      label: tStats('cardHoldersLabel'),
       value: stats.topHolders.length,
-      hint: `총 ${stats.memberCount.toLocaleString()}명 중 잔액 > 0`,
+      hint: tStats('cardHoldersHint', { total: stats.memberCount.toLocaleString() }),
       icon: Users,
       accent: 'text-sky-400',
       ring: 'border-sky-500/30',
@@ -119,10 +122,7 @@ export default async function AdminStatsPage() {
         <BarChart3 size={22} className="text-amber-400" />
         <h1 className="text-2xl font-bold text-white">{tNav('stats')}</h1>
       </div>
-      <p className="text-sm text-gray-400">
-        길드 포인트 원장(point_ledger) 집계. 리기어 승인/기부/환전/상점 구매/관리자 조정이 모두
-        반영됩니다.
-      </p>
+      <p className="text-sm text-gray-400">{tStats('ledgerDescription')}</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {cards.map((card) => {
@@ -147,19 +147,19 @@ export default async function AdminStatsPage() {
 
       <section className="bg-gray-900/60 border border-gray-700 rounded-lg">
         <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white">포인트 보유 상위 길드원</h2>
+          <h2 className="text-sm font-semibold text-white">{tStats('topHoldersTitle')}</h2>
           <span className="text-xs text-gray-500">Top {stats.topHolders.length}</span>
         </header>
         {stats.topHolders.length === 0 ? (
           <div className="px-4 py-8 text-center text-sm text-gray-500">
-            아직 포인트를 보유한 길드원이 없습니다.
+            {tStats('topHoldersEmpty')}
           </div>
         ) : (
           <CollapsibleList
             as="ol"
             className="divide-y divide-gray-800"
             initialCount={STATS_COLLAPSED_ROWS}
-            unit="명"
+            unit="members"
           >
             {stats.topHolders.map((h, idx) => (
               <li
@@ -189,13 +189,14 @@ export default async function AdminStatsPage() {
         )}
       </section>
 
-      <FinanceFlowSection result={financeRes} />
-      <AlbionVerificationSection result={verificationRes} />
-      <EventParticipationSection result={eventRes} />
-      <ShopRegearSection result={shopRegearRes} />
+      <FinanceFlowSection result={financeRes} tStats={tStats} />
+      <AlbionVerificationSection result={verificationRes} tStats={tStats} />
+      <EventParticipationSection result={eventRes} tStats={tStats} />
+      <ShopRegearSection result={shopRegearRes} tStats={tStats} />
       <WithdrawnMembersSection
         withdrawnHeld={stats.withdrawnHeld}
         withdrawnHolders={stats.withdrawnHolders}
+        tStats={tStats}
       />
     </div>
   )
@@ -204,59 +205,60 @@ export default async function AdminStatsPage() {
 function WithdrawnMembersSection({
   withdrawnHeld,
   withdrawnHolders,
+  tStats,
 }: {
   withdrawnHeld: number
   withdrawnHolders: TopHolder[]
+  tStats: StatsTranslator
 }) {
   return (
     <section className="space-y-4">
       <div className="flex items-center gap-2">
         <UserMinus size={18} className="text-gray-400" />
-        <h2 className="text-lg font-semibold text-white">탈퇴한 사용자</h2>
+        <h2 className="text-lg font-semibold text-white">{tStats('withdrawnTitle')}</h2>
       </div>
-      <p className="text-xs text-gray-500">
-        Discord 서버에서 나갔거나 활동 역할을 잃은 구성원입니다. 포인트 원장에 남은 잔액은 회수/정리 시 참고하세요.
-        동기화는 하루 1회(KST 04:00) 자동으로 수행됩니다.
-      </p>
+      <p className="text-xs text-gray-500">{tStats('withdrawnDescription')}</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="bg-gray-800/40 border border-gray-700 rounded-lg p-4 space-y-2">
           <div className="flex items-center gap-2">
             <Wallet size={16} className="text-gray-400" />
-            <span className="text-xs text-gray-300">탈퇴자 보유 포인트 합계</span>
+            <span className="text-xs text-gray-300">{tStats('withdrawnHeldLabel')}</span>
           </div>
           <div className="text-2xl font-bold font-mono text-gray-300">
             {withdrawnHeld.toLocaleString()}
           </div>
-          <div className="text-[11px] text-gray-500">잔액 &gt; 0 인 탈퇴자 포함</div>
+          <div className="text-[11px] text-gray-500">{tStats('withdrawnHeldHint')}</div>
         </div>
         <div className="bg-gray-800/40 border border-gray-700 rounded-lg p-4 space-y-2">
           <div className="flex items-center gap-2">
             <UserMinus size={16} className="text-gray-400" />
-            <span className="text-xs text-gray-300">잔액 보유 탈퇴자 수</span>
+            <span className="text-xs text-gray-300">{tStats('withdrawnHoldersLabel')}</span>
           </div>
           <div className="text-2xl font-bold font-mono text-gray-300">
             {withdrawnHolders.length.toLocaleString()}
           </div>
-          <div className="text-[11px] text-gray-500">현재 잔액이 0보다 큰 사람</div>
+          <div className="text-[11px] text-gray-500">{tStats('withdrawnHoldersHint')}</div>
         </div>
       </div>
 
       <div className="bg-gray-900/60 border border-gray-700 rounded-lg">
         <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white">탈퇴자 잔액 목록</h3>
-          <span className="text-xs text-gray-500">{withdrawnHolders.length}명</span>
+          <h3 className="text-sm font-semibold text-white">{tStats('withdrawnListTitle')}</h3>
+          <span className="text-xs text-gray-500">
+            {tStats('membersCount', { count: withdrawnHolders.length.toLocaleString() })}
+          </span>
         </header>
         {withdrawnHolders.length === 0 ? (
           <div className="px-4 py-8 text-center text-sm text-gray-500">
-            잔액이 남은 탈퇴자가 없습니다.
+            {tStats('withdrawnListEmpty')}
           </div>
         ) : (
           <CollapsibleList
             as="ol"
             className="divide-y divide-gray-800"
             initialCount={STATS_COLLAPSED_ROWS}
-            unit="명"
+            unit="members"
           >
             {withdrawnHolders.map((h, idx) => (
               <li
@@ -289,14 +291,16 @@ function WithdrawnMembersSection({
 
 function EventParticipationSection({
   result,
+  tStats,
 }: {
   result: Awaited<ReturnType<typeof getEventStats>>
+  tStats: StatsTranslator
 }) {
   const { stats, error } = result
   if (error || !stats) {
     return (
       <section className="bg-gray-900/60 border border-gray-700 rounded-lg p-4 text-sm text-red-300">
-        이벤트 참여 통계를 불러오지 못했습니다: {error ?? '알 수 없는 오류'}
+        {tStats('eventLoadError')}: {error ?? tStats('unknownError')}
       </section>
     )
   }
@@ -304,27 +308,27 @@ function EventParticipationSection({
   const ratePercent = Math.round(stats.participationRate * 1000) / 10 // 소수 1자리.
   const cards = [
     {
-      label: `최근 ${stats.windowDays}일 이벤트 수`,
+      label: tStats('eventCardEventsLabel', { days: stats.windowDays }),
       value: stats.totalEvents,
-      hint: '창 내 생성된 이벤트',
+      hint: tStats('eventCardEventsHint'),
       icon: CalendarCheck,
       accent: 'text-indigo-300',
       ring: 'border-indigo-500/30',
       bg: 'bg-indigo-500/5',
     },
     {
-      label: '참여한 길드원',
+      label: tStats('eventCardActiveLabel'),
       value: stats.activeMembers,
-      hint: `전체 ${stats.totalMembers.toLocaleString()}명 중`,
+      hint: tStats('eventCardActiveHint', { total: stats.totalMembers.toLocaleString() }),
       icon: UserCheck,
       accent: 'text-emerald-300',
       ring: 'border-emerald-500/30',
       bg: 'bg-emerald-500/5',
     },
     {
-      label: '참여율',
+      label: tStats('eventCardRateLabel'),
       value: `${ratePercent.toLocaleString()}%`,
-      hint: 'activeMembers / totalMembers',
+      hint: tStats('eventCardRateHint'),
       icon: Users,
       accent: 'text-sky-300',
       ring: 'border-sky-500/30',
@@ -337,7 +341,7 @@ function EventParticipationSection({
       <div className="flex items-center gap-2">
         <CalendarCheck size={18} className="text-indigo-300" />
         <h2 className="text-lg font-semibold text-white">
-          이벤트 참여 · 최근 {stats.windowDays}일
+          {tStats('eventTitle', { days: stats.windowDays })}
         </h2>
       </div>
 
@@ -364,19 +368,19 @@ function EventParticipationSection({
 
       <div className="bg-gray-900/60 border border-gray-700 rounded-lg">
         <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white">최다 참석 길드원</h3>
+          <h3 className="text-sm font-semibold text-white">{tStats('topAttendeesTitle')}</h3>
           <span className="text-xs text-gray-500">Top {stats.topAttendees.length}</span>
         </header>
         {stats.topAttendees.length === 0 ? (
           <div className="px-4 py-8 text-center text-sm text-gray-500">
-            창 내 이벤트 참여 기록이 없습니다.
+            {tStats('topAttendeesEmpty')}
           </div>
         ) : (
           <CollapsibleList
             as="ol"
             className="divide-y divide-gray-800"
             initialCount={STATS_COLLAPSED_ROWS}
-            unit="명"
+            unit="members"
           >
             {stats.topAttendees.map((a, idx) => (
               <li
@@ -398,7 +402,7 @@ function EventParticipationSection({
                   )}
                 </span>
                 <span className="text-sm font-mono text-indigo-300 tabular-nums">
-                  {a.eventCount.toLocaleString()}회
+                  {tStats('eventCountUnit', { count: a.eventCount.toLocaleString() })}
                 </span>
               </li>
             ))}
@@ -411,50 +415,58 @@ function EventParticipationSection({
 
 function ShopRegearSection({
   result,
+  tStats,
 }: {
   result: Awaited<ReturnType<typeof getShopRegearStats>>
+  tStats: StatsTranslator
 }) {
   const { stats, error } = result
   if (error || !stats) {
     return (
       <section className="bg-gray-900/60 border border-gray-700 rounded-lg p-4 text-sm text-red-300">
-        상점/리기어 트렌드를 불러오지 못했습니다: {error ?? '알 수 없는 오류'}
+        {tStats('shopRegearLoadError')}: {error ?? tStats('unknownError')}
       </section>
     )
   }
 
   const cards = [
     {
-      label: `최근 ${stats.windowDays}일 상점 주문`,
+      label: tStats('shopOrdersLabel', { days: stats.windowDays }),
       value: stats.ordersCreated,
-      hint: `승인 ${stats.ordersApproved.toLocaleString()}건 · ${stats.pointsSpent.toLocaleString()}p`,
+      hint: tStats('shopOrdersHint', {
+        approved: stats.ordersApproved.toLocaleString(),
+        points: stats.pointsSpent.toLocaleString(),
+      }),
       icon: ShoppingBag,
       accent: 'text-amber-300',
       ring: 'border-amber-500/30',
       bg: 'bg-amber-500/5',
     },
     {
-      label: `최근 ${stats.windowDays}일 리기어`,
+      label: tStats('regearCreatedLabel', { days: stats.windowDays }),
       value: stats.regearCreated,
-      hint: `승인 ${stats.regearApproved.toLocaleString()}건 · ${stats.silverPaid.toLocaleString()}s`,
+      hint: tStats('regearCreatedHint', {
+        approved: stats.regearApproved.toLocaleString(),
+        silver: stats.silverPaid.toLocaleString(),
+      }),
       icon: ShieldCheck,
       accent: 'text-emerald-300',
       ring: 'border-emerald-500/30',
       bg: 'bg-emerald-500/5',
     },
     {
-      label: '대기중 주문',
+      label: tStats('shopPendingLabel'),
       value: stats.ordersPending,
-      hint: '현재 pending 상점 주문',
+      hint: tStats('shopPendingHint'),
       icon: Clock,
       accent: stats.ordersPending > 0 ? 'text-rose-300' : 'text-gray-400',
       ring: stats.ordersPending > 0 ? 'border-rose-500/30' : 'border-gray-700',
       bg: stats.ordersPending > 0 ? 'bg-rose-500/5' : 'bg-gray-800/40',
     },
     {
-      label: '대기중 리기어',
+      label: tStats('regearPendingLabel'),
       value: stats.regearPending,
-      hint: '현재 pending 리기어 신청',
+      hint: tStats('regearPendingHint'),
       icon: Clock,
       accent: stats.regearPending > 0 ? 'text-rose-300' : 'text-gray-400',
       ring: stats.regearPending > 0 ? 'border-rose-500/30' : 'border-gray-700',
@@ -467,7 +479,7 @@ function ShopRegearSection({
       <div className="flex items-center gap-2">
         <Trophy size={18} className="text-amber-300" />
         <h2 className="text-lg font-semibold text-white">
-          상점 · 리기어 트렌드 · 최근 {stats.windowDays}일
+          {tStats('shopRegearTitle', { days: stats.windowDays })}
         </h2>
       </div>
 
@@ -494,21 +506,21 @@ function ShopRegearSection({
 
       <div className="bg-gray-900/60 border border-gray-700 rounded-lg">
         <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white">최다 판매 아이템</h3>
+          <h3 className="text-sm font-semibold text-white">{tStats('topSoldTitle')}</h3>
           <span className="text-xs text-gray-500">
-            승인 기준 Top {stats.topSoldItems.length}
+            {tStats('topSoldSubtitle', { count: stats.topSoldItems.length })}
           </span>
         </header>
         {stats.topSoldItems.length === 0 ? (
           <div className="px-4 py-8 text-center text-sm text-gray-500">
-            창 내 승인된 주문이 없습니다.
+            {tStats('topSoldEmpty')}
           </div>
         ) : (
           <CollapsibleList
             as="ol"
             className="divide-y divide-gray-800"
             initialCount={STATS_COLLAPSED_ROWS}
-            unit="개"
+            unit="items"
           >
             {stats.topSoldItems.map((item, idx) => (
               <li
@@ -548,50 +560,52 @@ function ShopRegearSection({
 
 function AlbionVerificationSection({
   result,
+  tStats,
 }: {
   result: Awaited<ReturnType<typeof getAlbionVerificationStats>>
+  tStats: StatsTranslator
 }) {
   const { stats, error } = result
   if (error || !stats) {
     return (
       <section className="bg-gray-900/60 border border-gray-700 rounded-lg p-4 text-sm text-red-300">
-        알비온 인증 현황을 불러오지 못했습니다: {error ?? '알 수 없는 오류'}
+        {tStats('verificationLoadError')}: {error ?? tStats('unknownError')}
       </section>
     )
   }
 
   const cards = [
     {
-      label: '활동 멤버',
+      label: tStats('verificationActiveLabel'),
       value: stats.totalActive,
-      hint: 'withdrawn_at IS NULL',
+      hint: tStats('verificationActiveHint'),
       icon: Users,
       accent: 'text-gray-300',
       ring: 'border-gray-700',
       bg: 'bg-gray-800/40',
     },
     {
-      label: '인증 완료',
+      label: tStats('verificationVerifiedLabel'),
       value: stats.verified,
-      hint: 'verified_at NOT NULL · 홈 길드 일치',
+      hint: tStats('verificationVerifiedHint'),
       icon: ShieldCheck,
       accent: 'text-emerald-300',
       ring: 'border-emerald-500/30',
       bg: 'bg-emerald-500/5',
     },
     {
-      label: '미인증',
+      label: tStats('verificationUnverifiedLabel'),
       value: stats.unverified,
-      hint: '수동 입력 또는 홈 길드 불일치',
+      hint: tStats('verificationUnverifiedHint'),
       icon: ShieldAlert,
       accent: stats.unverified > 0 ? 'text-yellow-300' : 'text-gray-400',
       ring: stats.unverified > 0 ? 'border-yellow-500/30' : 'border-gray-700',
       bg: stats.unverified > 0 ? 'bg-yellow-500/5' : 'bg-gray-800/40',
     },
     {
-      label: '온보딩 미완료',
+      label: tStats('verificationOnboardingPendingLabel'),
       value: stats.onboardingPending,
-      hint: 'albion_server IS NULL',
+      hint: tStats('verificationOnboardingPendingHint'),
       icon: ShieldQuestion,
       accent: stats.onboardingPending > 0 ? 'text-rose-300' : 'text-gray-400',
       ring: stats.onboardingPending > 0 ? 'border-rose-500/30' : 'border-gray-700',
@@ -603,14 +617,13 @@ function AlbionVerificationSection({
     <section className="space-y-4">
       <div className="flex items-center gap-2">
         <ShieldCheck size={18} className="text-emerald-300" />
-        <h2 className="text-lg font-semibold text-white">알비온 인증 현황</h2>
+        <h2 className="text-lg font-semibold text-white">{tStats('verificationTitle')}</h2>
       </div>
       <p className="text-xs text-gray-500 leading-relaxed">
-        멤버가 로그인 후 알비온 캐릭터 정보를 등록하고 홈 길드 소속임을 인증한 상태를 집계합니다.
-        미인증 멤버는 리기어/환전/기부 등 인증 필요 기능을 쓸 수 없습니다.
+        {tStats('verificationDescription')}
         {!stats.homeGuildConfigured && (
           <span className="text-amber-300 ml-1">
-            홈 길드 ID 가 설정되어 있지 않아 모든 멤버가 미인증 상태로 저장됩니다.
+            {tStats('verificationNoHomeGuildWarning')}
           </span>
         )}
       </p>
@@ -637,20 +650,22 @@ function AlbionVerificationSection({
       </div>
 
       <VerificationMemberList
-        title="온보딩 미완료 멤버"
+        title={tStats('pendingMembersTitle')}
         icon={UserX}
         accent="text-rose-300"
-        emptyLabel="모든 활동 멤버가 온보딩을 마쳤습니다."
+        emptyLabel={tStats('pendingMembersEmpty')}
         members={stats.pendingMembers}
         mode="pending"
+        tStats={tStats}
       />
       <VerificationMemberList
-        title="미인증 멤버"
+        title={tStats('unverifiedMembersTitle')}
         icon={ShieldAlert}
         accent="text-yellow-300"
-        emptyLabel="미인증 멤버가 없습니다."
+        emptyLabel={tStats('unverifiedMembersEmpty')}
         members={stats.unverifiedMembers}
         mode="unverified"
+        tStats={tStats}
       />
     </section>
   )
@@ -663,6 +678,7 @@ function VerificationMemberList({
   emptyLabel,
   members,
   mode,
+  tStats,
 }: {
   title: string
   icon: React.ComponentType<{ size?: number; className?: string }>
@@ -670,6 +686,7 @@ function VerificationMemberList({
   emptyLabel: string
   members: VerificationMember[]
   mode: 'pending' | 'unverified'
+  tStats: StatsTranslator
 }) {
   return (
     <div className="bg-gray-900/60 border border-gray-700 rounded-lg">
@@ -678,7 +695,9 @@ function VerificationMemberList({
           <Icon size={14} className={accent} />
           {title}
         </h3>
-        <span className="text-xs text-gray-500">{members.length}명</span>
+        <span className="text-xs text-gray-500">
+          {tStats('membersCount', { count: members.length.toLocaleString() })}
+        </span>
       </header>
       {members.length === 0 ? (
         <div className="px-4 py-6 text-center text-sm text-gray-500">{emptyLabel}</div>
@@ -687,7 +706,7 @@ function VerificationMemberList({
           as="ul"
           className="divide-y divide-gray-800"
           initialCount={STATS_COLLAPSED_ROWS}
-          unit="명"
+          unit="members"
         >
           {members.map((m) => (
             <li key={m.discordId} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800/40">
@@ -713,12 +732,18 @@ function VerificationMemberList({
                     {m.server ? ALBION_SERVER_LABEL[m.server] : '—'}
                     {m.guildId ? (
                       m.guildMatchesHome ? (
-                        <span className="ml-1 text-emerald-400">· 길드 일치</span>
+                        <span className="ml-1 text-emerald-400">
+                          · {tStats('verificationGuildMatch')}
+                        </span>
                       ) : (
-                        <span className="ml-1 text-rose-400">· 타 길드</span>
+                        <span className="ml-1 text-rose-400">
+                          · {tStats('verificationGuildMismatch')}
+                        </span>
                       )
                     ) : (
-                      <span className="ml-1 text-gray-600">· 수동입력</span>
+                      <span className="ml-1 text-gray-600">
+                        · {tStats('verificationManualInput')}
+                      </span>
                     )}
                   </span>
                 </div>
@@ -732,33 +757,36 @@ function VerificationMemberList({
   )
 }
 
-// 포인트 원장의 reason 코드 → 한국어 라벨. 원장 CHECK 제약이 migration 별로
+// 포인트 원장의 reason 코드 → i18n 키. 원장 CHECK 제약이 migration 별로
 // 달라 과거 데이터에 남아있는 레거시 reason 도 폴백 없이 그대로 표시해도
 // 운영자가 해석 가능해야 하므로, 알려진 코드만 친화적으로 번역.
-const REASON_LABEL: Record<string, string> = {
-  regear_approved: '리기어 승인',
-  donation_approved: '기부 승인',
-  transfer_in: '양도 수신',
-  admin_adjust: '관리자 조정',
-  exchange_paid: '환전 지급',
-  shop_purchase: '상점 구매',
-  transfer_out: '양도 송신',
+const REASON_KEY: Record<string, string> = {
+  regear_approved: 'reasonRegearApproved',
+  donation_approved: 'reasonDonationApproved',
+  transfer_in: 'reasonTransferIn',
+  admin_adjust: 'reasonAdminAdjust',
+  exchange_paid: 'reasonExchangePaid',
+  shop_purchase: 'reasonShopPurchase',
+  transfer_out: 'reasonTransferOut',
 }
 
-function reasonLabel(reason: string): string {
-  return REASON_LABEL[reason] ?? reason
+function reasonLabel(reason: string, tStats: StatsTranslator): string {
+  const key = REASON_KEY[reason]
+  return key ? tStats(key as Parameters<StatsTranslator>[0]) : reason
 }
 
 function FinanceFlowSection({
   result,
+  tStats,
 }: {
   result: { stats?: FinanceFlowStats; error?: string }
+  tStats: StatsTranslator
 }) {
   const { stats, error } = result
   if (error || !stats) {
     return (
       <section className="bg-gray-900/60 border border-gray-700 rounded-lg p-4 text-sm text-red-300">
-        재정 흐름을 불러오지 못했습니다: {error ?? '알 수 없는 오류'}
+        {tStats('financeLoadError')}: {error ?? tStats('unknownError')}
       </section>
     )
   }
@@ -770,27 +798,28 @@ function FinanceFlowSection({
 
   const cards = [
     {
-      label: `최근 ${stats.windowDays}일 발행`,
+      label: tStats('financeEarnedLabel', { days: stats.windowDays }),
       value: stats.totalEarned,
-      hint: '모든 + delta 합 (리기어/기부/양도수신/관리자+조정)',
+      hint: tStats('financeEarnedHint'),
       icon: TrendingUp,
       accent: 'text-emerald-300',
       ring: 'border-emerald-500/30',
       bg: 'bg-emerald-500/5',
     },
     {
-      label: `최근 ${stats.windowDays}일 소멸`,
+      label: tStats('financeSpentLabel', { days: stats.windowDays }),
       value: stats.totalSpent,
-      hint: '모든 − delta 절대값 합 (환전/상점/양도송신/관리자−조정)',
+      hint: tStats('financeSpentHint'),
       icon: TrendingDown,
       accent: 'text-rose-300',
       ring: 'border-rose-500/30',
       bg: 'bg-rose-500/5',
     },
     {
-      label: `최근 ${stats.windowDays}일 순변화`,
+      label: tStats('financeNetLabel', { days: stats.windowDays }),
       value: stats.netFlow,
-      hint: stats.netFlow >= 0 ? '유통량 증가(길드원 보유 부채 ↑)' : '유통량 감소(길드원 보유 부채 ↓)',
+      hint:
+        stats.netFlow >= 0 ? tStats('financeNetPositive') : tStats('financeNetNegative'),
       icon: netIcon,
       accent: netAccent,
       ring: netRing,
@@ -803,13 +832,10 @@ function FinanceFlowSection({
       <div className="flex items-center gap-2">
         <LineChart size={18} className="text-amber-300" />
         <h2 className="text-lg font-semibold text-white">
-          재정 흐름 · 최근 {stats.windowDays}일
+          {tStats('financeTitle', { days: stats.windowDays })}
         </h2>
       </div>
-      <p className="text-xs text-gray-500 leading-relaxed">
-        포인트 원장(point_ledger)에 기록된 발행/소멸의 일별 흐름과 출처·사용처별 분해.
-        양도(transfer_in/out) 는 길드 내 이동이라 전체 유통량에 영향을 주지 않지만 발행·소멸 양쪽에 각각 집계됩니다.
-      </p>
+      <p className="text-xs text-gray-500 leading-relaxed">{tStats('financeDescription')}</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {cards.map((card) => {
@@ -832,49 +858,59 @@ function FinanceFlowSection({
         })}
       </div>
 
-      <FinanceDailyChart daily={stats.daily} />
+      <FinanceDailyChart daily={stats.daily} tStats={tStats} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <ReasonBreakdownList
-          title="발행 출처"
+          title={tStats('financeSourcesTitle')}
           total={stats.totalEarned}
           items={stats.sources}
           accent="text-emerald-300"
           barColor="bg-emerald-500/60"
-          emptyLabel="창 내 발행 기록이 없습니다."
+          emptyLabel={tStats('financeSourcesEmpty')}
+          tStats={tStats}
         />
         <ReasonBreakdownList
-          title="소멸 사용처"
+          title={tStats('financeSinksTitle')}
           total={stats.totalSpent}
           items={stats.sinks}
           accent="text-rose-300"
           barColor="bg-rose-500/60"
-          emptyLabel="창 내 소멸 기록이 없습니다."
+          emptyLabel={tStats('financeSinksEmpty')}
+          tStats={tStats}
         />
       </div>
     </section>
   )
 }
 
-function FinanceDailyChart({ daily }: { daily: FinanceFlowStats['daily'] }) {
+function FinanceDailyChart({
+  daily,
+  tStats,
+}: {
+  daily: FinanceFlowStats['daily']
+  tStats: StatsTranslator
+}) {
   // 일별 최대 earned / spent 를 공통 스케일로 사용. 한쪽만 크게 튀면 다른 쪽이
   // 납작해지지만 scale 을 공유해야 "발행 > 소멸" 같은 비교가 눈에 들어온다.
   const peak = daily.reduce((m, d) => Math.max(m, d.earned, d.spent), 0)
   return (
     <div className="bg-gray-900/60 border border-gray-700 rounded-lg p-4">
       <header className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-white">일별 발행/소멸</h3>
+        <h3 className="text-sm font-semibold text-white">{tStats('financeDailyTitle')}</h3>
         <div className="flex items-center gap-3 text-[10px] text-gray-400">
           <span className="flex items-center gap-1">
-            <span className="inline-block w-2 h-2 bg-emerald-500/70 rounded-sm" /> 발행
+            <span className="inline-block w-2 h-2 bg-emerald-500/70 rounded-sm" />{' '}
+            {tStats('financeEarnedLegend')}
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-2 h-2 bg-rose-500/70 rounded-sm" /> 소멸
+            <span className="inline-block w-2 h-2 bg-rose-500/70 rounded-sm" />{' '}
+            {tStats('financeSpentLegend')}
           </span>
         </div>
       </header>
       {peak === 0 ? (
-        <p className="text-gray-500 text-xs text-center py-6">창 내 원장 활동이 없습니다.</p>
+        <p className="text-gray-500 text-xs text-center py-6">{tStats('financeDailyEmpty')}</p>
       ) : (
         <div className="flex items-end gap-[2px] h-28">
           {daily.map((d) => {
@@ -914,6 +950,7 @@ function ReasonBreakdownList({
   accent,
   barColor,
   emptyLabel,
+  tStats,
 }: {
   title: string
   total: number
@@ -921,13 +958,14 @@ function ReasonBreakdownList({
   accent: string
   barColor: string
   emptyLabel: string
+  tStats: StatsTranslator
 }) {
   return (
     <div className="bg-gray-900/60 border border-gray-700 rounded-lg">
       <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-white">{title}</h3>
         <span className={`text-xs font-mono tabular-nums ${accent}`}>
-          총 {total.toLocaleString()}p
+          {tStats('financeTotalPoints', { total: total.toLocaleString() })}
         </span>
       </header>
       {items.length === 0 ? (
@@ -939,7 +977,7 @@ function ReasonBreakdownList({
             return (
               <li key={item.reason} className="px-4 py-2 space-y-1">
                 <div className="flex items-center justify-between gap-2 text-xs">
-                  <span className="text-gray-200 truncate">{reasonLabel(item.reason)}</span>
+                  <span className="text-gray-200 truncate">{reasonLabel(item.reason, tStats)}</span>
                   <span className={`font-mono tabular-nums ${accent}`}>
                     {item.total.toLocaleString()}p
                     <span className="ml-2 text-gray-500">· {pct}%</span>
@@ -948,7 +986,9 @@ function ReasonBreakdownList({
                 <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                   <div className={`h-full ${barColor}`} style={{ width: `${pct}%` }} />
                 </div>
-                <p className="text-[10px] text-gray-500 font-mono">건수 {item.count.toLocaleString()}</p>
+                <p className="text-[10px] text-gray-500 font-mono">
+                  {tStats('financeEntryCount', { count: item.count.toLocaleString() })}
+                </p>
               </li>
             )
           })}

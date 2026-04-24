@@ -1,7 +1,10 @@
 'use client'
 
 import { Children, useState, type ReactNode } from 'react'
+import { useTranslations } from 'next-intl'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+
+type CollapsibleListUnit = 'members' | 'items'
 
 interface Props {
   children: ReactNode
@@ -11,10 +14,9 @@ interface Props {
   // ol 은 순위가 있는 상위 N, ul 은 일반 목록.
   as?: 'ol' | 'ul'
   className?: string
-  // "더보기" 문구에 붙는 단위. 예: "명", "개". 미설정 시 단위 없이 "N개 더 보기".
-  unit?: string
-  moreLabel?: string
-  lessLabel?: string
+  // "더보기" 문구에 붙는 단위 키. 'members' = 사람 수, 'items' = 개수 단위.
+  // 미지정 시 일반(generic) 문구로 폴백.
+  unit?: CollapsibleListUnit
 }
 
 export default function CollapsibleList({
@@ -23,9 +25,8 @@ export default function CollapsibleList({
   as = 'ul',
   className = '',
   unit,
-  moreLabel,
-  lessLabel = '접기',
 }: Props) {
+  const t = useTranslations('collapsibleList')
   const items = Children.toArray(children)
   const [expanded, setExpanded] = useState(false)
   const total = items.length
@@ -34,8 +35,10 @@ export default function CollapsibleList({
   const remaining = total - initialCount
   const Tag = as
 
-  const resolvedMore =
-    moreLabel ?? `${remaining.toLocaleString()}${unit ?? '개'} 더 보기`
+  const moreKey =
+    unit === 'members' ? 'moreMembers' : unit === 'items' ? 'moreItems' : 'moreGeneric'
+  const resolvedMore = t(moreKey, { count: remaining.toLocaleString() })
+  const lessLabel = t('less')
 
   return (
     <>
