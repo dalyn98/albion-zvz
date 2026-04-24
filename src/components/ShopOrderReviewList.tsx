@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { Check, X, Loader2 } from 'lucide-react'
 import {
@@ -34,6 +35,7 @@ interface Props {
 }
 
 export default function ShopOrderReviewList({ orders, avatars = {} }: Props) {
+  const t = useTranslations('adminShopOrderReview')
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
     const q = normalizeQuery(search)
@@ -48,9 +50,9 @@ export default function ShopOrderReviewList({ orders, avatars = {} }: Props) {
 
   return (
     <div className="space-y-3">
-      <SearchBox value={search} onChange={setSearch} placeholder="이름/날짜 검색" />
+      <SearchBox value={search} onChange={setSearch} placeholder={t('searchPlaceholder')} />
       {filtered.length === 0 ? (
-        <p className="text-gray-500 text-sm text-center py-6">검색 결과 없음.</p>
+        <p className="text-gray-500 text-sm text-center py-6">{t('searchNoResults')}</p>
       ) : (
         <ul className="space-y-3">
           {filtered.map((o) => (
@@ -64,16 +66,17 @@ export default function ShopOrderReviewList({ orders, avatars = {} }: Props) {
 
 function OrderRow({ order, avatar }: { order: AdminShopOrder; avatar: string | null }) {
   const router = useRouter()
+  const t = useTranslations('adminShopOrderReview')
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [rejectMode, setRejectMode] = useState(false)
   const [note, setNote] = useState('')
 
   const statusLabel = (status: string) => {
-    if (status === 'pending') return '대기'
-    if (status === 'approved') return '승인'
-    if (status === 'rejected') return '거절'
-    return '취소됨'
+    if (status === 'pending') return t('statusPending')
+    if (status === 'approved') return t('statusApproved')
+    if (status === 'rejected') return t('statusRejected')
+    return t('statusCancelled')
   }
 
   const insufficientBalance = order.balance < order.totalPoints
@@ -122,7 +125,7 @@ function OrderRow({ order, avatar }: { order: AdminShopOrder; avatar: string | n
               {order.totalPoints.toLocaleString()}p
             </span>
             <span className="text-gray-500">
-              잔액 {order.balance.toLocaleString()}p
+              {t('balanceLabel', { amount: order.balance.toLocaleString() })}
             </span>
             <span className="font-mono text-gray-600">
               {formatDateTimeShort(order.createdAt)}
@@ -166,7 +169,7 @@ function OrderRow({ order, avatar }: { order: AdminShopOrder; avatar: string | n
               </span>
               <span className="text-gray-400 font-mono">× {it.quantity}</span>
               <span className={`font-mono w-16 text-right ${short ? 'text-red-300' : 'text-gray-500'}`}>
-                재고 {it.stockAvailable}
+                {t('stockShort', { stock: it.stockAvailable })}
               </span>
               <span className="text-amber-300 font-mono w-20 text-right">
                 {it.subtotalPoints.toLocaleString()}p
@@ -183,15 +186,15 @@ function OrderRow({ order, avatar }: { order: AdminShopOrder; avatar: string | n
       )}
       {order.adminNote && (
         <p className="text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/30 rounded px-3 py-2">
-          관리자 메모: {order.adminNote}
+          {t('adminNotePrefix', { note: order.adminNote })}
         </p>
       )}
 
       {insufficientBalance && order.status === 'pending' && (
-        <p className="text-red-400 text-xs">잔액 부족 — 승인 불가.</p>
+        <p className="text-red-400 text-xs">{t('insufficientBalance')}</p>
       )}
       {insufficientStock && order.status === 'pending' && (
-        <p className="text-red-400 text-xs">재고 부족 — 재고 보충 후 재시도하거나 거절하세요.</p>
+        <p className="text-red-400 text-xs">{t('insufficientStock')}</p>
       )}
 
       {order.status === 'pending' && !rejectMode && (
@@ -200,7 +203,7 @@ function OrderRow({ order, avatar }: { order: AdminShopOrder; avatar: string | n
             type="text"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="메모 (선택)"
+            placeholder={t('notePlaceholder')}
             className="flex-1 min-w-[160px] bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
           />
           <button
@@ -210,7 +213,7 @@ function OrderRow({ order, avatar }: { order: AdminShopOrder; avatar: string | n
             className="flex items-center gap-1 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 px-3 py-1.5 rounded disabled:opacity-40"
           >
             {pending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-            승인
+            {t('approveButton')}
           </button>
           <button
             type="button"
@@ -218,7 +221,7 @@ function OrderRow({ order, avatar }: { order: AdminShopOrder; avatar: string | n
             disabled={pending}
             className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded"
           >
-            <X size={13} /> 거절
+            <X size={13} /> {t('rejectButton')}
           </button>
         </div>
       )}
@@ -229,7 +232,7 @@ function OrderRow({ order, avatar }: { order: AdminShopOrder; avatar: string | n
             rows={2}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="거절 사유 (선택)"
+            placeholder={t('rejectPlaceholder')}
             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 resize-none"
           />
           <div className="flex items-center gap-2">
@@ -239,7 +242,7 @@ function OrderRow({ order, avatar }: { order: AdminShopOrder; avatar: string | n
               disabled={pending}
               className="bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white font-semibold px-3 py-1.5 rounded text-xs"
             >
-              거절 확정
+              {t('rejectConfirm')}
             </button>
             <button
               type="button"
@@ -250,7 +253,7 @@ function OrderRow({ order, avatar }: { order: AdminShopOrder; avatar: string | n
               disabled={pending}
               className="text-gray-400 hover:text-white text-xs px-3 py-1.5"
             >
-              취소
+              {t('cancelButton')}
             </button>
           </div>
         </div>
@@ -264,7 +267,10 @@ function OrderRow({ order, avatar }: { order: AdminShopOrder; avatar: string | n
 
       {order.resolvedAt && order.status !== 'pending' && (
         <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2">
-          {statusLabel(order.status)} · {formatDateTimeShort(order.resolvedAt)}
+          {t('statusTimestamp', {
+            status: statusLabel(order.status),
+            datetime: formatDateTimeShort(order.resolvedAt),
+          })}
         </div>
       )}
     </li>

@@ -11,6 +11,7 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import {
   Upload,
   Check,
@@ -28,6 +29,8 @@ import {
   addBlacklist,
   type ImportSummary,
 } from '@/app/actions/shop-admin'
+
+type ImportTranslator = ReturnType<typeof useTranslations<'adminShopImport'>>
 
 const PLACEHOLDER = `예시:
 "04/21/2026 15:59:10"\t"SoonSem"\t"페기물"\t"0"\t"1"\t"-1"
@@ -59,6 +62,7 @@ interface Props {
 
 export default function ShopImportForm({ lastImportAt, isImportStale }: Props) {
   const router = useRouter()
+  const t = useTranslations('adminShopImport')
   const [text, setText] = useState('')
   const [batches, setBatches] = useState<StagedBatch[]>([])
   const [previewing, setPreviewing] = useState(false)
@@ -173,7 +177,7 @@ export default function ShopImportForm({ lastImportAt, isImportStale }: Props) {
       const content = await file.text()
       void runPreview(content)
     } catch {
-      setPreviewError('파일 읽기 실패 — .txt 또는 .rtf 를 드롭하세요.')
+      setPreviewError(t('fileReadFail'))
     }
   }
 
@@ -207,14 +211,10 @@ export default function ShopImportForm({ lastImportAt, isImportStale }: Props) {
       <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="font-bold text-white">로그 임포트</h2>
-            <p className="text-gray-500 text-xs mt-1">
-              인게임 &quot;은행&quot; 로그 복사 → 아래 창에 Ctrl+V 또는 .txt/.rtf
-              파일 드래그. 붙여넣기만으로는 저장되지 않고 미리보기만 누적됩니다.
-              아래 &quot;저장&quot; 버튼을 눌러야 실제 재고/공개 상점에 반영돼요.
-            </p>
+            <h2 className="font-bold text-white">{t('title')}</h2>
+            <p className="text-gray-500 text-xs mt-1">{t('description')}</p>
           </div>
-          <LastImportBadge iso={lastImportAt} stale={isImportStale} />
+          <LastImportBadge iso={lastImportAt} stale={isImportStale} t={t} />
         </div>
 
         <div
@@ -237,13 +237,13 @@ export default function ShopImportForm({ lastImportAt, isImportStale }: Props) {
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center bg-gray-900/70 rounded-lg">
               <div className="flex items-center gap-2 text-amber-300 text-xs font-semibold">
                 <Loader2 size={14} className="animate-spin" />
-                미리보기 중…
+                {t('previewing')}
               </div>
             </div>
           )}
           {dragging && (
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center bg-amber-500/10 rounded-lg">
-              <p className="text-amber-300 text-sm font-semibold">파일 드롭</p>
+              <p className="text-amber-300 text-sm font-semibold">{t('dropHere')}</p>
             </div>
           )}
         </div>
@@ -256,7 +256,7 @@ export default function ShopImportForm({ lastImportAt, isImportStale }: Props) {
             className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors text-xs"
           >
             <Upload size={12} />
-            직접 입력 미리보기
+            {t('manualSubmit')}
           </button>
           <button
             type="button"
@@ -269,7 +269,9 @@ export default function ShopImportForm({ lastImportAt, isImportStale }: Props) {
             ) : (
               <Check size={14} />
             )}
-            저장 {batches.length > 0 && `(${batches.length}배치 · 신규 ${totals.newEntries}건)`}
+            {batches.length > 0
+              ? t('saveButtonWithCount', { batches: batches.length, items: totals.newEntries })
+              : t('saveButton')}
           </button>
           {batches.length > 0 && (
             <button
@@ -279,7 +281,7 @@ export default function ShopImportForm({ lastImportAt, isImportStale }: Props) {
               className="flex items-center gap-1 text-xs text-gray-400 hover:text-rose-300 disabled:text-gray-700"
             >
               <Trash2 size={12} />
-              전부 버리기
+              {t('discardAll')}
             </button>
           )}
         </div>
@@ -291,15 +293,15 @@ export default function ShopImportForm({ lastImportAt, isImportStale }: Props) {
         )}
         {commitError && (
           <div className="bg-red-500/10 border border-red-500/40 rounded-lg px-3 py-2">
-            <p className="text-red-300 text-xs">저장 실패: {commitError}</p>
+            <p className="text-red-300 text-xs">{t('saveFailed', { error: commitError })}</p>
           </div>
         )}
       </div>
 
-      {latestBatch && <StagingStatusCard preview={latestBatch.preview} />}
+      {latestBatch && <StagingStatusCard preview={latestBatch.preview} t={t} />}
 
       {batches.length > 0 && (
-        <StagedBatchesCard batches={batches} onDiscard={handleDiscardBatch} />
+        <StagedBatchesCard batches={batches} onDiscard={handleDiscardBatch} t={t} />
       )}
 
       {batches.length > 0 && (
@@ -308,14 +310,15 @@ export default function ShopImportForm({ lastImportAt, isImportStale }: Props) {
           onBlacklist={handleBlacklist}
           blacklistingName={blacklistingName}
           busy={isBusy}
+          t={t}
         />
       )}
 
       {batches.length > 0 && stockChanges.length > 0 && (
-        <StockPreviewCard stockChanges={stockChanges} />
+        <StockPreviewCard stockChanges={stockChanges} t={t} />
       )}
 
-      {commitResult && <CommitResultCard summary={commitResult} />}
+      {commitResult && <CommitResultCard summary={commitResult} t={t} />}
     </div>
   )
 }
@@ -380,7 +383,7 @@ function aggregateStockChanges(batches: StagedBatch[]): AggregatedStockChange[] 
   return [...byKey.values()].sort((a, b) => b.delta - a.delta)
 }
 
-function StagingStatusCard({ preview }: { preview: ImportSummary }) {
+function StagingStatusCard({ preview, t }: { preview: ImportSummary; t: ImportTranslator }) {
   const {
     lastKnownLoggedAt,
     lastKnownLabel,
@@ -400,40 +403,41 @@ function StagingStatusCard({ preview }: { preview: ImportSummary }) {
 
   if (!lastKnownLoggedAt) {
     tone = 'info'
-    title = '이전 기록 없음'
-    body = `DB 가 비어있습니다. 이 배치의 신규 ${newEntriesAfterLast}건이 첫 기록으로 저장됩니다.`
+    title = t('stagingNoPrevTitle')
+    body = t('stagingNoPrevBody', { count: newEntriesAfterLast })
   } else {
     const when = formatLoggedAt(lastKnownLoggedAt)
     const tail = lastKnownLabel ? ` · ${lastKnownLabel}` : ''
     if (newEntriesAfterLast === 0 && lastKnownInBatch) {
       tone = 'ok'
-      title = '마지막 로그까지 이어짐'
-      body = `DB 마지막 기록 ${when}${tail} 이 이 배치에 포함돼 있고 신규 entry 는 없습니다. 저장할 새 로그가 없어요.`
+      title = t('stagingNoNewTitle')
+      body = t('stagingNoNewBody', { when, tail })
     } else if (newEntriesAfterLast === 0 && !lastKnownInBatch) {
       tone = 'warn'
-      title = '이미 지난 로그로 보입니다'
-      body = `DB 마지막 기록 ${when}${tail} 과 이 배치가 겹치지 않고 신규 entry 도 없어요. 붙여넣은 범위가 DB 최신 시점 이전 구간일 수 있습니다.`
+      title = t('stagingSkippedTitle')
+      body = t('stagingSkippedBody', { when, tail })
     } else if (newEntriesAfterLast > 0 && lastKnownInBatch) {
       tone = 'ok'
-      title = '마지막 로그에 이어지는 신규 감지'
-      body = `DB 마지막 기록 ${when}${tail} 이후로 신규 ${newEntriesAfterLast}건. 저장할 준비가 됐습니다.`
+      title = t('stagingContinuedTitle')
+      body = t('stagingContinuedBody', { when, tail, count: newEntriesAfterLast })
     } else {
       // newEntriesAfterLast > 0 && !lastKnownInBatch — gap 이 있다.
-      const gapLabel = formatGap(gapFromLastKnownMs)
+      const gapLabel = formatGap(gapFromLastKnownMs, t)
       if (gapFromLastKnownMs !== null && gapFromLastKnownMs >= GAP_DANGER_MS) {
         tone = 'danger'
-        title = `로그 공백 ${gapLabel} 감지 (누락 가능성 높음)`
-        body = `DB 마지막 기록 ${when}${tail} 이후 ${gapLabel} 동안의 로그가 이 배치에 없습니다. 인게임 로그가 잘리기 전에 중간 구간을 놓쳤을 가능성이 큽니다 — 베이스라인 재설정을 고려하세요.`
+        title = t('stagingGapDangerTitle', { gap: gapLabel ?? '' })
+        body = t('stagingGapDangerBody', { when, tail, gap: gapLabel ?? '' })
       } else if (gapFromLastKnownMs !== null && gapFromLastKnownMs >= GAP_WARN_MS) {
         tone = 'warn'
-        title = `로그 공백 ${gapLabel} 감지`
-        body = `DB 마지막 기록 ${when}${tail} 이후 ${gapLabel} 동안의 로그가 이 배치에 없어요. 사이 구간에 입출고가 있었다면 재고와 실제가 어긋납니다.`
+        title = t('stagingGapWarnTitle', { gap: gapLabel ?? '' })
+        body = t('stagingGapWarnBody', { when, tail, gap: gapLabel ?? '' })
       } else {
         tone = 'warn'
-        title = '마지막 로그와 겹치지 않음 (누락 가능)'
-        body = `DB 마지막 기록 ${when}${tail} 과 겹치는 행이 이 배치에 없습니다.${gapLabel ? ` 공백 ${gapLabel}.` : ''} 그 사이 로그가 누락됐을 수 있어요.`
+        title = t('stagingGapNoOverlapTitle')
+        const gapSuffix = gapLabel ? t('stagingGapSuffix', { gap: gapLabel }) : ''
+        body = t('stagingGapNoOverlapBody', { when, tail, gapSuffix })
       }
-      gapBody = `저장하면 신규 ${newEntriesAfterLast}건이 추가됩니다.`
+      gapBody = t('stagingGapAddLine', { count: newEntriesAfterLast })
     }
   }
 
@@ -458,26 +462,28 @@ function StagingStatusCard({ preview }: { preview: ImportSummary }) {
   )
 }
 
-function formatGap(ms: number | null): string | null {
+function formatGap(ms: number | null, t: ImportTranslator): string | null {
   if (ms === null || ms <= 0) return null
   const mins = Math.floor(ms / 60_000)
-  if (mins < 60) return `${mins}분`
+  if (mins < 60) return t('gapMinutes', { n: mins })
   const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}시간 ${mins % 60}분`
+  if (hours < 24) return t('gapHours', { hours, mins: mins % 60 })
   const days = Math.floor(hours / 24)
-  return `${days}일 ${hours % 24}시간`
+  return t('gapDays', { days, hours: hours % 24 })
 }
 
 function StagedBatchesCard({
   batches,
   onDiscard,
+  t,
 }: {
   batches: StagedBatch[]
   onDiscard: (id: string) => void
+  t: ImportTranslator
 }) {
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-3">
-      <h3 className="font-bold text-white">대기 중인 배치 ({batches.length})</h3>
+      <h3 className="font-bold text-white">{t('batchListTitle', { count: batches.length })}</h3>
       <ul className="space-y-2">
         {batches.map((b, i) => {
           const p = b.preview
@@ -489,9 +495,15 @@ function StagedBatchesCard({
               <div className="flex items-center gap-3 text-xs">
                 <span className="text-gray-500 font-mono">#{i + 1}</span>
                 <span className="text-gray-300">
-                  파싱 {p.parsed} · 신규 {p.newEntriesAfterLast} · 중복 {p.duplicatesSkipped}
+                  {t('batchStatLine', {
+                    parsed: p.parsed,
+                    newCount: p.newEntriesAfterLast,
+                    dup: p.duplicatesSkipped,
+                  })}
                   {p.unresolvedRows > 0 && (
-                    <span className="text-amber-300"> · 미해결 {p.unresolvedRows}</span>
+                    <span className="text-amber-300">
+                      {t('batchUnresolvedChip', { count: p.unresolvedRows })}
+                    </span>
                   )}
                 </span>
                 <span className="text-gray-500">{formatLoggedAt(b.pastedAtIso)}</span>
@@ -500,7 +512,7 @@ function StagedBatchesCard({
                 type="button"
                 onClick={() => onDiscard(b.id)}
                 className="text-gray-500 hover:text-rose-300 transition-colors"
-                title="이 배치 버리기"
+                title={t('batchDiscardTitle')}
               >
                 <Trash2 size={12} />
               </button>
@@ -512,12 +524,20 @@ function StagedBatchesCard({
   )
 }
 
-function LastImportBadge({ iso, stale }: { iso: string | null; stale: boolean }) {
+function LastImportBadge({
+  iso,
+  stale,
+  t,
+}: {
+  iso: string | null
+  stale: boolean
+  t: ImportTranslator
+}) {
   if (!iso) {
     return (
       <div className="flex items-center gap-1 text-[11px] text-gray-500 shrink-0">
         <Clock size={11} />
-        <span>import 기록 없음</span>
+        <span>{t('importBadgeNone')}</span>
       </div>
     )
   }
@@ -526,8 +546,8 @@ function LastImportBadge({ iso, stale }: { iso: string | null; stale: boolean })
     <div className={`flex items-center gap-1 text-[11px] shrink-0 ${color}`}>
       <Clock size={11} />
       <span>
-        마지막 저장 {formatLoggedAt(iso)}
-        {stale && <span className="ml-1">· 오래됨</span>}
+        {t('importBadgeLast', { when: formatLoggedAt(iso) })}
+        {stale && <span className="ml-1">{t('importBadgeStale')}</span>}
       </span>
     </div>
   )
@@ -538,30 +558,32 @@ function RunningTotalsCard({
   onBlacklist,
   blacklistingName,
   busy,
+  t,
 }: {
   totals: Totals
   onBlacklist: (name: string) => void
   blacklistingName: string | null
   busy: boolean
+  t: ImportTranslator
 }) {
   return (
     <div className="space-y-3">
       <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Check size={16} className="text-emerald-400" />
-          <h3 className="font-bold text-white">누계 (저장 전)</h3>
+          <h3 className="font-bold text-white">{t('runningTotalsTitle')}</h3>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <StatCell label="파싱" value={totals.parsed} />
+          <StatCell label={t('statParsed')} value={totals.parsed} />
           <StatCell
-            label="신규 예상"
+            label={t('statNewEntries')}
             value={totals.newEntries}
             accent="emerald"
           />
-          <StatCell label="중복 스킵" value={totals.duplicatesSkipped} />
-          <StatCell label="블랙리스트" value={totals.blacklistedRows} />
+          <StatCell label={t('statDuplicates')} value={totals.duplicatesSkipped} />
+          <StatCell label={t('statBlacklist')} value={totals.blacklistedRows} />
           <StatCell
-            label="미해결"
+            label={t('statUnresolved')}
             value={totals.unresolvedRows}
             accent={totals.unresolvedRows > 0 ? 'amber' : undefined}
           />
@@ -571,7 +593,7 @@ function RunningTotalsCard({
       {totals.parseErrors.length > 0 && (
         <div className="bg-gray-800/60 border border-gray-700 rounded-xl p-4 text-xs text-gray-400 space-y-1">
           <p className="font-semibold text-gray-300">
-            파싱 실패 {totals.parseErrors.length}행
+            {t('parseErrorsTitle', { count: totals.parseErrors.length })}
           </p>
           {totals.parseErrors.slice(0, 3).map((e, i) => (
             <p key={`${e.line}-${i}`} className="font-mono truncate">
@@ -580,7 +602,7 @@ function RunningTotalsCard({
           ))}
           {totals.parseErrors.length > 3 && (
             <p className="text-gray-500">
-              ... 외 {totals.parseErrors.length - 3}건
+              {t('parseErrorsOverflow', { count: totals.parseErrors.length - 3 })}
             </p>
           )}
         </div>
@@ -591,12 +613,10 @@ function RunningTotalsCard({
           <div className="flex items-center gap-2">
             <AlertCircle size={16} className="text-amber-400" />
             <h3 className="font-bold text-white">
-              미해결 아이템 ({totals.unresolvedNames.length}개)
+              {t('unresolvedTitle', { count: totals.unresolvedNames.length })}
             </h3>
           </div>
-          <p className="text-gray-400 text-xs">
-            번들 사전에서 한글명 매칭에 실패했습니다. 잡템이면 블랙리스트에 추가하세요.
-          </p>
+          <p className="text-gray-400 text-xs">{t('unresolvedHint')}</p>
           <div className="flex flex-wrap gap-2">
             {totals.unresolvedNames.map((name) => (
               <div
@@ -609,7 +629,7 @@ function RunningTotalsCard({
                   onClick={() => onBlacklist(name)}
                   disabled={busy}
                   className="flex items-center gap-1 text-gray-500 hover:text-red-300 disabled:text-gray-700 transition-colors"
-                  title="블랙리스트에 추가"
+                  title={t('blacklistAddTitle')}
                 >
                   {blacklistingName === name ? (
                     <Loader2 size={10} className="animate-spin" />
@@ -626,24 +646,30 @@ function RunningTotalsCard({
   )
 }
 
-function StockPreviewCard({ stockChanges }: { stockChanges: AggregatedStockChange[] }) {
+function StockPreviewCard({
+  stockChanges,
+  t,
+}: {
+  stockChanges: AggregatedStockChange[]
+  t: ImportTranslator
+}) {
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-3">
       <div className="flex items-center gap-2">
         <Package size={16} className="text-emerald-400" />
         <h3 className="font-bold text-white">
-          예상 재고 변동 · 저장 시 반영 ({stockChanges.length}개)
+          {t('stockPreviewTitle', { count: stockChanges.length })}
         </h3>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-gray-500 text-xs border-b border-gray-800">
-              <th className="text-left font-normal pb-2">아이템</th>
+              <th className="text-left font-normal pb-2">{t('stockItemHeader')}</th>
               <th className="text-center font-normal pb-2 w-16">@</th>
               <th className="text-center font-normal pb-2 w-16">Q</th>
-              <th className="text-right font-normal pb-2 w-20">변동</th>
-              <th className="text-right font-normal pb-2 w-24">적용 후</th>
+              <th className="text-right font-normal pb-2 w-20">{t('stockDeltaHeader')}</th>
+              <th className="text-right font-normal pb-2 w-24">{t('stockAfterHeader')}</th>
             </tr>
           </thead>
           <tbody>
@@ -671,7 +697,7 @@ function StockPreviewCard({ stockChanges }: { stockChanges: AggregatedStockChang
         </table>
         {stockChanges.length > 50 && (
           <p className="text-xs text-gray-500 mt-2">
-            ... 외 {stockChanges.length - 50}개 아이템
+            {t('stockOverflow', { count: stockChanges.length - 50 })}
           </p>
         )}
       </div>
@@ -679,19 +705,19 @@ function StockPreviewCard({ stockChanges }: { stockChanges: AggregatedStockChang
   )
 }
 
-function CommitResultCard({ summary }: { summary: ImportSummary }) {
+function CommitResultCard({ summary, t }: { summary: ImportSummary; t: ImportTranslator }) {
   return (
     <div className="bg-emerald-500/10 border border-emerald-500/40 rounded-xl p-5 space-y-3">
       <div className="flex items-center gap-2">
         <Check size={16} className="text-emerald-400" />
-        <h3 className="font-bold text-white">저장 완료</h3>
+        <h3 className="font-bold text-white">{t('commitResultTitle')}</h3>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCell label="신규 저장" value={summary.inserted} accent="emerald" />
-        <StatCell label="중복 스킵" value={summary.duplicatesSkipped} />
-        <StatCell label="재고 변동" value={summary.stockChanges.length} />
+        <StatCell label={t('commitStatNew')} value={summary.inserted} accent="emerald" />
+        <StatCell label={t('commitStatDup')} value={summary.duplicatesSkipped} />
+        <StatCell label={t('commitStatStockChanges')} value={summary.stockChanges.length} />
         <StatCell
-          label="시세 갱신"
+          label={t('commitStatPriceUpdate')}
           value={summary.priceSync?.updated ?? 0}
           accent={summary.priceSync && summary.priceSync.missing > 0 ? 'amber' : undefined}
         />
@@ -700,8 +726,11 @@ function CommitResultCard({ summary }: { summary: ImportSummary }) {
         <div className="flex items-center gap-2 text-xs text-gray-400">
           <Coins size={12} />
           <span>
-            AODP: 요청 {summary.priceSync.requested} · 갱신 {summary.priceSync.updated} · 시세 없음{' '}
-            {summary.priceSync.missing}
+            {t('commitAodpSummary', {
+              requested: summary.priceSync.requested,
+              updated: summary.priceSync.updated,
+              missing: summary.priceSync.missing,
+            })}
           </span>
         </div>
       )}

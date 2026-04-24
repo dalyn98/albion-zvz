@@ -26,12 +26,17 @@ interface AnomalyRow {
   updatedAt: string
 }
 
+type AnomalyTranslator = Awaited<ReturnType<typeof getTranslations<'adminShopAnomaly'>>>
+
 export default async function ShopAnomalyPanel() {
   const db = await requireAdmin()
   const session = await getSession()
   if (!session) return null
   const guildId = await getSessionGuildId(session)
-  const tTime = await getTranslations('time')
+  const [tTime, tAnomaly] = await Promise.all([
+    getTranslations('time'),
+    getTranslations('adminShopAnomaly'),
+  ])
 
   // 서버 컴포넌트 요청 타임에 한 번만 평가되므로 Date.now() 가 idempotent 아닌
   // 건 맞지만 의도된 동작 — purity 룰은 클라 render 전제.
@@ -79,31 +84,31 @@ export default async function ShopAnomalyPanel() {
     <div className="space-y-3 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4">
       <div className="flex items-center gap-2 text-amber-200">
         <AlertTriangle size={16} />
-        <h3 className="text-sm font-semibold">이상 재고 감지</h3>
-        <span className="text-xs font-normal opacity-75">
-          수치가 비정상이거나 오래 묵은 아이템입니다. 베이스라인 재설정으로 정리하세요.
-        </span>
+        <h3 className="text-sm font-semibold">{tAnomaly('title')}</h3>
+        <span className="text-xs font-normal opacity-75">{tAnomaly('hint')}</span>
       </div>
 
       {negatives.length > 0 && (
         <AnomalySection
-          title={`음수 재고 (${negatives.length}종)`}
-          hint="RPC 델타가 꼬이거나 미반영된 입고가 있습니다. 0 으로 내려와야 할 재고가 마이너스."
+          title={tAnomaly('negativeTitle', { count: negatives.length })}
+          hint={tAnomaly('negativeHint')}
           rows={negatives}
           showUpdatedAt={false}
           tone="rose"
           tTime={tTime}
+          tAnomaly={tAnomaly}
         />
       )}
 
       {stales.length > 0 && (
         <AnomalySection
-          title={`${STALE_DAYS}일 이상 미변동 (${stales.length}종)`}
-          hint="장부상 재고는 있지만 오랫동안 입출고가 없었습니다. 실물이 없어진 유령 재고일 수 있어요."
+          title={tAnomaly('staleTitle', { days: STALE_DAYS, count: stales.length })}
+          hint={tAnomaly('staleHint')}
           rows={stales}
           showUpdatedAt={true}
           tone="amber"
           tTime={tTime}
+          tAnomaly={tAnomaly}
         />
       )}
     </div>
@@ -117,9 +122,10 @@ interface AnomalySectionProps {
   showUpdatedAt: boolean
   tone: 'rose' | 'amber'
   tTime: (key: string, values?: Record<string, number | string>) => string
+  tAnomaly: AnomalyTranslator
 }
 
-function AnomalySection({ title, hint, rows, showUpdatedAt, tone, tTime }: AnomalySectionProps) {
+function AnomalySection({ title, hint, rows, showUpdatedAt, tone, tTime, tAnomaly }: AnomalySectionProps) {
   const titleColor = tone === 'rose' ? 'text-rose-200' : 'text-amber-200'
   const stockColor = tone === 'rose' ? 'text-rose-300' : 'text-zinc-200'
   return (
@@ -130,11 +136,11 @@ function AnomalySection({ title, hint, rows, showUpdatedAt, tone, tTime }: Anoma
         <table className="w-full text-xs">
           <thead className="sticky top-0 bg-zinc-900 text-zinc-400">
             <tr>
-              <th className="p-2 text-left">아이템</th>
+              <th className="p-2 text-left">{tAnomaly('itemHeader')}</th>
               <th className="p-2 text-center w-12">E</th>
               <th className="p-2 text-center w-12">Q</th>
-              <th className="p-2 text-right w-20">재고</th>
-              {showUpdatedAt && <th className="p-2 text-right w-32">최근 변동</th>}
+              <th className="p-2 text-right w-20">{tAnomaly('stockHeader')}</th>
+              {showUpdatedAt && <th className="p-2 text-right w-32">{tAnomaly('updatedHeader')}</th>}
             </tr>
           </thead>
           <tbody>
@@ -165,4 +171,3 @@ function AnomalySection({ title, hint, rows, showUpdatedAt, tone, tTime }: Anoma
     </div>
   )
 }
-

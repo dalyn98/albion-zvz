@@ -311,11 +311,11 @@ function RegearRow({
     }
     const n = Number(trimmed)
     if (!Number.isInteger(n) || n < 0) {
-      setError('지급 금액은 0 이상 정수.')
+      setError(t('payoutMustBeNonNegInt'))
       return
     }
     if (n > claimed) {
-      setError(`지급 금액은 청구 금액(${claimed.toLocaleString()}s)을 넘을 수 없습니다.`)
+      setError(t('payoutExceedsClaimed', { amount: claimed.toLocaleString() }))
       return
     }
     approve(n)
@@ -580,9 +580,9 @@ function RegearRow({
               }}
               disabled={pending}
               className="flex items-center gap-1 text-xs bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 px-3 py-1.5 rounded"
-              title="청구 금액을 임의로 조정해서 승인"
+              title={t('adjustAmountTitle')}
             >
-              금액 조정
+              {t('adjustAmountButton')}
             </button>
             <button
               type="button"
@@ -599,8 +599,7 @@ function RegearRow({
       {overrideMode && request.status === 'pending' && (
         <div className="bg-amber-500/5 border border-amber-500/30 rounded-lg px-3 py-2 space-y-2">
           <p className="text-xs text-amber-200/80">
-            지급 실버를 직접 입력합니다. 청구 금액({formatSilver(claimed)}s) 이내, 0 이상 정수.
-            비워두면 기본 요율({ratePercent}%) 로 지급됩니다.
+            {t('adjustPrompt', { amount: formatSilver(claimed), rate: ratePercent })}
           </p>
           <div className="flex items-center gap-2 flex-wrap">
             <input
@@ -617,7 +616,7 @@ function RegearRow({
               autoFocus
               disabled={pending}
             />
-            <span className="text-xs text-gray-400 font-mono">실버</span>
+            <span className="text-xs text-gray-400 font-mono">{t('adjustSilverUnit')}</span>
             <button
               type="button"
               onClick={approveWithOverride}
@@ -625,7 +624,7 @@ function RegearRow({
               className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded disabled:opacity-50"
             >
               <Check size={13} />
-              조정 승인
+              {t('adjustApproveButton')}
             </button>
             <button
               type="button"
@@ -636,7 +635,7 @@ function RegearRow({
               disabled={pending}
               className="text-gray-400 hover:text-white text-xs px-3 py-1.5"
             >
-              취소
+              {tCommon('cancel')}
             </button>
           </div>
         </div>

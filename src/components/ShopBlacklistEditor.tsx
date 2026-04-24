@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Ban, Plus, X, Loader2 } from 'lucide-react'
 import { addBlacklist, removeBlacklist } from '@/app/actions/shop-admin'
 
@@ -11,6 +12,7 @@ interface Props {
 
 export default function ShopBlacklistEditor({ initial }: Props) {
   const router = useRouter()
+  const t = useTranslations('adminShopBlacklist')
   const [items, setItems] = useState(initial)
   const [input, setInput] = useState('')
   const [pending, startTransition] = useTransition()
@@ -20,7 +22,7 @@ export default function ShopBlacklistEditor({ initial }: Props) {
     const name = input.trim()
     if (!name) return
     if (items.includes(name)) {
-      setError('이미 블랙리스트에 있습니다.')
+      setError(t('alreadyExists'))
       return
     }
     setError('')
@@ -52,13 +54,10 @@ export default function ShopBlacklistEditor({ initial }: Props) {
     <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-3">
       <div className="flex items-center gap-2">
         <Ban size={16} className="text-gray-400" />
-        <h2 className="font-bold text-white">잡템 블랙리스트</h2>
+        <h2 className="font-bold text-white">{t('title')}</h2>
         <span className="text-xs text-gray-500">({items.length})</span>
       </div>
-      <p className="text-gray-500 text-xs">
-        블랙리스트의 아이템은 로그 파싱 시 자동으로 건너뛰고 재고에 반영하지 않습니다. 정확히 일치하는
-        한글명으로 지정하세요.
-      </p>
+      <p className="text-gray-500 text-xs">{t('description')}</p>
 
       <div className="flex gap-2">
         <input
@@ -68,7 +67,7 @@ export default function ShopBlacklistEditor({ initial }: Props) {
           onKeyDown={(e) => {
             if (e.key === 'Enter') handleAdd()
           }}
-          placeholder="예: 페기물"
+          placeholder={t('addPlaceholder')}
           className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
           disabled={pending}
         />
@@ -79,7 +78,7 @@ export default function ShopBlacklistEditor({ initial }: Props) {
           className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-3 py-2 rounded-lg transition-colors text-sm"
         >
           {pending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
-          추가
+          {t('addButton')}
         </button>
       </div>
 
@@ -98,7 +97,7 @@ export default function ShopBlacklistEditor({ initial }: Props) {
                 onClick={() => handleRemove(name)}
                 disabled={pending}
                 className="text-gray-500 hover:text-red-300 disabled:text-gray-700 transition-colors"
-                title="제거"
+                title={t('removeTitle')}
               >
                 <X size={10} />
               </button>
@@ -106,7 +105,7 @@ export default function ShopBlacklistEditor({ initial }: Props) {
           ))}
         </div>
       ) : (
-        <p className="text-xs text-gray-500">비어있음</p>
+        <p className="text-xs text-gray-500">{t('empty')}</p>
       )}
     </div>
   )

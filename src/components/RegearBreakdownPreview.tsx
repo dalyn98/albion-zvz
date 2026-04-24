@@ -5,6 +5,7 @@
 // 편집은 청구자용 /me/regear/[id] 에서만 — 여기서는 read-only 뷰.
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { ChevronRight, Package } from 'lucide-react'
 import { formatSilver } from '@/lib/silver'
 import ItemImage from './ItemImage'
@@ -36,6 +37,7 @@ function subtotal(item: BreakdownItem): number {
 }
 
 export default function RegearBreakdownPreview({ items, marketSilver }: Props) {
+  const t = useTranslations('regearBreakdown')
   const [open, setOpen] = useState(false)
   if (items.length === 0) return null
   const editedCount = items.filter((it) => it.user_edited).length
@@ -54,10 +56,10 @@ export default function RegearBreakdownPreview({ items, marketSilver }: Props) {
             className={`text-gray-500 transition-transform ${open ? 'rotate-90' : ''}`}
           />
           <Package size={13} className="text-gray-500" />
-          부위별 시세 내역 ({items.length}슬롯)
+          {t('previewTitle')} {t('slotCount', { count: items.length })}
           {editedCount > 0 && (
             <span className="bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded text-[10px] font-semibold">
-              직접 수정 {editedCount}
+              {t('userEditedBadge', { count: editedCount })}
             </span>
           )}
         </span>
@@ -67,11 +69,11 @@ export default function RegearBreakdownPreview({ items, marketSilver }: Props) {
         <table className="w-full text-xs">
           <thead>
             <tr className="bg-gray-950 border-t border-gray-800 text-gray-500 uppercase tracking-wide">
-              <th className="text-left px-3 py-1.5 font-semibold">슬롯</th>
-              <th className="text-left px-3 py-1.5 font-semibold">아이템</th>
-              <th className="text-right px-3 py-1.5 font-semibold">수량</th>
-              <th className="text-right px-3 py-1.5 font-semibold">단위</th>
-              <th className="text-right px-3 py-1.5 font-semibold">소계</th>
+              <th className="text-left px-3 py-1.5 font-semibold">{t('slotHeader')}</th>
+              <th className="text-left px-3 py-1.5 font-semibold">{t('itemHeader')}</th>
+              <th className="text-right px-3 py-1.5 font-semibold">{t('countHeader')}</th>
+              <th className="text-right px-3 py-1.5 font-semibold">{t('unitHeader')}</th>
+              <th className="text-right px-3 py-1.5 font-semibold">{t('subtotalHeader')}</th>
             </tr>
           </thead>
           <tbody>
@@ -89,7 +91,7 @@ export default function RegearBreakdownPreview({ items, marketSilver }: Props) {
                           {it.enchant > 0 ? `+${it.enchant} · ` : ''}Q{it.quality}
                           {it.city && <span className="ml-1">· {it.city}</span>}
                           {it.user_edited && (
-                            <span className="ml-2 text-amber-400 font-semibold">직접 수정</span>
+                            <span className="ml-2 text-amber-400 font-semibold">{t('userEditedLabel')}</span>
                           )}
                         </p>
                       </div>
@@ -98,7 +100,7 @@ export default function RegearBreakdownPreview({ items, marketSilver }: Props) {
                   <td className="px-3 py-1.5 text-right text-gray-400 font-mono">× {it.count}</td>
                   <td className="px-3 py-1.5 text-right text-gray-300 font-mono">
                     {it.price === null ? (
-                      <span className="text-gray-600">미산정</span>
+                      <span className="text-gray-600">{t('priceUnassigned')}</span>
                     ) : (
                       <>{formatSilver(it.price)}s</>
                     )}

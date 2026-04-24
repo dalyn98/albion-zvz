@@ -36,6 +36,9 @@ export interface InventoryRow {
   updatedAt: string
 }
 
+type InventoryTranslator = ReturnType<typeof useTranslations<'adminShopInventory'>>
+type ShopTranslator = ReturnType<typeof useTranslations<'shop'>>
+
 // 관리자 테이블용 경고 배지 색상. 라벨과 툴팁은 i18n (shop.priceWarning* 키).
 const WARNING_COLOR: Record<NonNullable<InventoryPriceWarning>, string> = {
   quality: 'bg-yellow-400 text-black',
@@ -93,23 +96,24 @@ function fallbackQuality(source: string | null): number | null {
   return parseAodpSource(source)?.fallbackQuality ?? null
 }
 
-// 관리자 전용 툴팁. 본 Batch 1 i18n 범위 외 (admin UI 전체 i18n 은 별도 작업).
-// 품질명 폴백 표기만 한국어 문자열로 남겨둔다.
-const QUALITY_LABELS_KO_ADMIN = ['?', '일반', '좋음', '뛰어남', '우수', '걸작']
-
-function priceSourceTooltip(source: string | null): string {
-  if (!source) return '수동 가격(실버, 할인 전) 수정 · 빈 값 = 자동'
-  if (source === 'manual') return '수동 고정가(실버, 할인 전) · 빈 값 저장 시 자동 시세로 복귀'
+function priceSourceTooltip(source: string | null, t: InventoryTranslator, tShop: ShopTranslator): string {
+  if (!source) return t('priceSourceEmpty')
+  if (source === 'manual') return t('priceSourceManualLocked')
   const info = parseAodpSource(source)
   if (info) {
     const extras: string[] = []
-    if (info.isSpot) extras.push('설정된 평균 기간 내 history 데이터 없어 spot 호가 폴백')
+    if (info.isSpot) extras.push(t('priceSourceSpot'))
     if (info.fallbackQuality !== null) {
       extras.push(
-        `요청 품질에 AODP 데이터가 없어 품질 ${info.fallbackQuality}(${QUALITY_LABELS_KO_ADMIN[info.fallbackQuality] ?? '?'}) 로 폴백 — 실제 시세와 다를 수 있음`,
+        t('priceSourceQualityFallback', {
+          quality: info.fallbackQuality,
+          label: tShop(`quality.${qualityKey(info.fallbackQuality)}`),
+        }),
       )
     }
-    const base = `${info.city} AODP ${info.isSpot ? '현재가' : '평균가'}`
+    const base = info.isSpot
+      ? t('priceSourceCitySpot', { city: info.city })
+      : t('priceSourceCityAvg', { city: info.city })
     return extras.length > 0 ? `${base} · ${extras.join(' · ')}` : base
   }
   return source
@@ -117,6 +121,7 @@ function priceSourceTooltip(source: string | null): string {
 
 export default function ShopInventoryEditor({ rows, discountRate }: Props) {
   const router = useRouter()
+  const t = useTranslations('adminShopInventory')
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [syncSummary, setSyncSummary] = useState<PriceSyncSummary | null>(null)
@@ -157,11 +162,7 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
   }
 
   const handleReset = () => {
-    if (
-      !confirm(
-        '전 재고를 0 으로 초기화하고 원본 상자 로그도 삭제합니다. 수동 가격 / 카테고리 / 주문 내역 / 블랙리스트 / 오버라이드는 유지됩니다. 계속?',
-      )
-    ) {
+    if (!confirm(t('resetConfirm'))) {
       return
     }
     setError('')
@@ -185,9 +186,12 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
     <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
         <Package size={16} className="text-amber-400" />
-        <h2 className="font-bold text-white">재고 / 가격</h2>
+        <h2 className="font-bold text-white">{t('title')}</h2>
         <span className="text-xs text-gray-500">
-          {rows.length.toLocaleString()}종 · 총 {totalStock.toLocaleString()}개
+          {t('rowsAndStock', {
+            rows: rows.length.toLocaleString(),
+            stock: totalStock.toLocaleString(),
+          })}
         </span>
         <button
           type="button"
@@ -196,35 +200,40 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
           className="ml-auto flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-3 py-1.5 rounded-lg transition-colors text-xs"
         >
           {pending ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-          AODP 시세 갱신
+          {t('syncButton')}
         </button>
         <button
           type="button"
           onClick={handleReset}
           disabled={pending}
           className="flex items-center gap-1.5 bg-gray-800 hover:bg-red-900/40 hover:border-red-700 border border-gray-700 disabled:bg-gray-900 disabled:text-gray-600 disabled:border-gray-800 text-red-300 px-3 py-1.5 rounded-lg transition-colors text-xs"
-          title="전 재고를 0 으로 초기화 + 원본 로그 삭제 (가격/카테고리/주문은 보존)"
+          title={t('resetTitle')}
         >
           <RotateCcw size={12} />
-          재고 초기화
+          {t('resetButton')}
         </button>
       </div>
 
       <p className="text-gray-500 text-xs">
-        AODP 시세(관리자 설정의 서버/도시/모드 적용)를 전 재고에 대해 한 번에 조회합니다.
-        수동 가격이 있으면 자동 시세 대신 그 값 사용. 포인트·실버 1:1, 할인율{' '}
-        <code className="text-gray-400">×{discountRate}</code> 적용 후 노출.
+        {t('descriptionPrefix')}{' '}
+        <code className="text-gray-400">×{discountRate}</code> {t('descriptionSuffix')}
       </p>
 
       {syncSummary && !syncSummary.error && (
         <div className="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-1.5">
-          {syncSummary.requested}건 중 {syncSummary.updated}건 갱신 · {syncSummary.missing}건 시세 없음
+          {t('syncSummary', {
+            requested: syncSummary.requested,
+            updated: syncSummary.updated,
+            missing: syncSummary.missing,
+          })}
         </div>
       )}
       {resetSummary !== null && (
         <div className="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-1.5">
-          {resetSummary.stockRowsZeroed.toLocaleString()}개 행의 재고를 0 으로 초기화했습니다. 원본 로그{' '}
-          {resetSummary.logsDeleted.toLocaleString()}행 삭제.
+          {t('resetSummary', {
+            rows: resetSummary.stockRowsZeroed.toLocaleString(),
+            logs: resetSummary.logsDeleted.toLocaleString(),
+          })}
         </div>
       )}
       {error && <p className="text-xs text-red-400">{error}</p>}
@@ -236,7 +245,7 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="이름/UniqueName 검색"
+            placeholder={t('searchPlaceholder')}
             className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-7 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
           />
         </div>
@@ -247,10 +256,10 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
           }
           className="bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
         >
-          <option value="all">전체 Tier</option>
-          {[3, 4, 5, 6, 7, 8].map((t) => (
-            <option key={t} value={t}>
-              T{t}
+          <option value="all">{t('filterAllTiers')}</option>
+          {[3, 4, 5, 6, 7, 8].map((ti) => (
+            <option key={ti} value={ti}>
+              T{ti}
             </option>
           ))}
         </select>
@@ -258,9 +267,7 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
 
       {filtered.length === 0 ? (
         <p className="text-xs text-gray-500 py-6 text-center">
-          {rows.length === 0
-            ? '재고 없음. 로그 임포트로 시작하세요.'
-            : '검색 결과 없음.'}
+          {rows.length === 0 ? t('emptyNoInventory') : t('emptyNoResults')}
         </p>
       ) : (
         <div className="space-y-1.5 max-h-[520px] overflow-y-auto pr-1">
@@ -296,7 +303,8 @@ function InventoryListItem({
   onError: (msg: string) => void
   onDone: () => void
 }) {
-  const t = useTranslations('shop')
+  const t = useTranslations('adminShopInventory')
+  const tShop = useTranslations('shop')
   const tTime = useTranslations('time')
   const [editingStock, setEditingStock] = useState(false)
   const [editingPrice, setEditingPrice] = useState(false)
@@ -314,7 +322,7 @@ function InventoryListItem({
   const commitStock = () => {
     const n = Number(stockInput)
     if (!Number.isInteger(n) || n < 0) {
-      onError('재고는 0 이상 정수.')
+      onError(t('stockMustBeNonNegInt'))
       return
     }
     onError('')
@@ -347,7 +355,7 @@ function InventoryListItem({
     }
     const n = Number(raw)
     if (!Number.isInteger(n) || n < 0) {
-      onError('가격은 0 이상 정수.')
+      onError(t('priceMustBeNonNegInt'))
       return
     }
     onError('')
@@ -363,7 +371,7 @@ function InventoryListItem({
   }
 
   const handleDelete = () => {
-    if (!confirm(`"${row.nameKo}" 재고 행을 삭제합니다. 계속?`)) return
+    if (!confirm(t('deleteConfirm', { name: row.nameKo }))) return
     onStart(async () => {
       const result = await deleteInventoryRow(row.id)
       if (result.error) {
@@ -396,7 +404,7 @@ function InventoryListItem({
           )}
           {row.quality > 1 && (
             <span className="text-[10px] text-gray-400 flex-shrink-0">
-              {t(`quality.${qualityKey(row.quality)}`)}
+              {tShop(`quality.${qualityKey(row.quality)}`)}
             </span>
           )}
         </div>
@@ -428,7 +436,7 @@ function InventoryListItem({
               onClick={commitStock}
               disabled={pending}
               className="text-emerald-400 hover:text-emerald-300"
-              title="저장"
+              title={t('saveTitle')}
             >
               <Check size={12} />
             </button>
@@ -440,7 +448,7 @@ function InventoryListItem({
               }}
               disabled={pending}
               className="text-gray-500 hover:text-gray-300"
-              title="취소"
+              title={t('cancelTitle')}
             >
               <X size={12} />
             </button>
@@ -451,7 +459,7 @@ function InventoryListItem({
             onClick={() => setEditingStock(true)}
             disabled={pending}
             className="flex items-center gap-1 text-xs font-mono text-white hover:text-amber-300"
-            title="재고 수정"
+            title={t('stockEditTitle')}
           >
             {row.stock.toLocaleString()}
             <Pencil size={10} className="text-gray-500" />
@@ -482,7 +490,7 @@ function InventoryListItem({
               onClick={commitPrice}
               disabled={pending}
               className="text-emerald-400 hover:text-emerald-300"
-              title="저장 (빈 값 = 자동)"
+              title={t('saveAutoTitle')}
             >
               <Check size={12} />
             </button>
@@ -494,7 +502,7 @@ function InventoryListItem({
               }}
               disabled={pending}
               className="text-gray-500 hover:text-gray-300"
-              title="취소"
+              title={t('cancelTitle')}
             >
               <X size={12} />
             </button>
@@ -505,7 +513,7 @@ function InventoryListItem({
             onClick={() => setEditingPrice(true)}
             disabled={pending}
             className="flex flex-col items-end hover:text-amber-300 group"
-            title={priceSourceTooltip(row.priceSource)}
+            title={priceSourceTooltip(row.priceSource, t, tShop)}
           >
             <span className="flex items-center gap-1 text-xs font-mono text-white">
               {pointPrice !== null ? `${pointPrice.toLocaleString()}p` : '—'}
@@ -514,24 +522,27 @@ function InventoryListItem({
                   className={`text-[9px] font-bold rounded px-1 leading-tight ${
                     WARNING_COLOR[row.priceWarningLevel]
                   }`}
-                  title={t(`priceWarningAdmin.${row.priceWarningLevel}`)}
+                  title={tShop(`priceWarningAdmin.${row.priceWarningLevel}`)}
                 >
-                  {t('priceWarning')}
+                  {tShop('priceWarning')}
                 </span>
               )}
               <Pencil size={10} className="text-gray-500 group-hover:text-amber-300" />
             </span>
             <span className="text-[9px] text-gray-500 font-mono">
               {row.manualPrice !== null
-                ? 'manual'
+                ? t('sourceLabelManual')
                 : row.autoPriceSilver
                 ? (() => {
                     const fq = fallbackQuality(row.priceSource)
                     const spotTag = isSpotFallback(row.priceSource) ? ' · spot' : ''
                     const qTag = fq !== null ? ` · q${fq}` : ''
-                    return `auto · ${formatRelativeFine(row.priceUpdatedAt, tTime)}${spotTag}${qTag}`
+                    return t('sourceAutoWithTime', {
+                      time: formatRelativeFine(row.priceUpdatedAt, tTime),
+                      suffix: `${spotTag}${qTag}`,
+                    })
                   })()
-                : 'no price'}
+                : t('sourceLabelNone')}
             </span>
           </button>
         )}
@@ -542,7 +553,7 @@ function InventoryListItem({
         onClick={handleDelete}
         disabled={pending || row.stock > 0}
         className="text-gray-600 hover:text-red-400 disabled:text-gray-800 transition-colors flex-shrink-0"
-        title={row.stock > 0 ? '재고가 있는 행은 삭제 불가' : '삭제'}
+        title={row.stock > 0 ? t('deleteBlockedTitle') : t('deleteRowTitle')}
       >
         <Trash2 size={12} />
       </button>
