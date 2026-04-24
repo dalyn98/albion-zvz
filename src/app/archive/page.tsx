@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { getAdminClient } from '@/lib/supabase-admin'
 import type { Event } from '@/types'
 import { getTranslations } from 'next-intl/server'
 import { Archive } from 'lucide-react'
@@ -12,7 +12,8 @@ import ArchiveEventList, { type ArchivedEventCard } from '@/components/ArchiveEv
 export const dynamic = 'force-dynamic'
 
 async function getArchivedEvents(guildId: string): Promise<ArchivedEventCard[]> {
-  const { data: events } = await supabase
+  const db = getAdminClient()
+  const { data: events } = await db
     .from('events')
     .select('*')
     .eq('guild_id', guildId)
@@ -25,7 +26,7 @@ async function getArchivedEvents(guildId: string): Promise<ArchivedEventCard[]> 
   if (ended.length === 0) return []
 
   const ids = ended.map((e) => e.id)
-  const { data: parties } = await supabase
+  const { data: parties } = await db
     .from('parties')
     .select('event_id, slots(id, assigned_discord_id, is_hidden)')
     .eq('guild_id', guildId)

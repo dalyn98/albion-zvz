@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { getAdminClient } from '@/lib/supabase-admin'
 import type { Event } from '@/types'
 import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
@@ -21,7 +21,8 @@ interface EventWithCounts extends Event {
 }
 
 async function getActiveEvents(guildId: string): Promise<EventWithCounts[]> {
-  const { data: events } = await supabase
+  const db = getAdminClient()
+  const { data: events } = await db
     .from('events')
     .select('*')
     .eq('guild_id', guildId)
@@ -39,7 +40,7 @@ async function getActiveEvents(guildId: string): Promise<EventWithCounts[]> {
   if (active.length === 0) return []
 
   const ids = active.map((e) => e.id)
-  const { data: parties } = await supabase
+  const { data: parties } = await db
     .from('parties')
     .select('event_id, slots(id, assigned_discord_id, is_hidden)')
     .eq('guild_id', guildId)

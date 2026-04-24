@@ -1,4 +1,3 @@
-import { supabase } from '@/lib/supabase'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
@@ -25,8 +24,8 @@ async function getData(id: string, guildId: string) {
   // 레이아웃 하위라 service-role 사용이 안전.
   const admin = getAdminClient()
   const [{ data: event }, { data: parties }, { data: directory }] = await Promise.all([
-    supabase.from('events').select('*').eq('guild_id', guildId).eq('id', id).single(),
-    supabase
+    admin.from('events').select('*').eq('guild_id', guildId).eq('id', id).single(),
+    admin
       .from('parties')
       .select('*, slots(*)')
       .eq('guild_id', guildId)

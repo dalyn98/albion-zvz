@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { getAdminClient } from '@/lib/supabase-admin'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import type { Event, PartyWithSlots } from '@/types'
@@ -26,9 +26,10 @@ function formatStartedAt(iso: string): string {
 export const dynamic = 'force-dynamic'
 
 async function getEvent(id: string, guildId: string) {
+  const db = getAdminClient()
   const [{ data: event }, { data: parties }] = await Promise.all([
-    supabase.from('events').select('*').eq('guild_id', guildId).eq('id', id).maybeSingle(),
-    supabase
+    db.from('events').select('*').eq('guild_id', guildId).eq('id', id).maybeSingle(),
+    db
       .from('parties')
       .select('*, slots(*)')
       .eq('guild_id', guildId)

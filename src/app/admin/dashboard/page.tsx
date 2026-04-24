@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Plus, Calendar, CalendarDays, LayoutTemplate } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-import { supabase } from '@/lib/supabase'
+import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import type { Event } from '@/types'
@@ -27,7 +27,8 @@ function resolveSection(v: string | undefined): Section {
 export const dynamic = 'force-dynamic'
 
 async function getEvents(guildId: string): Promise<Event[]> {
-  const { data } = await supabase
+  const db = getAdminClient()
+  const { data } = await db
     .from('events')
     .select('*')
     .eq('guild_id', guildId)
