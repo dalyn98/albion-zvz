@@ -1606,6 +1606,12 @@
     "participantsTitle": "참여 멤버 ({count})",
     "participantsEmpty": "이 전투창에서 우리 길드원의 킬/데스 기록이 없습니다.",
     "participantKills": "킬 {count}",
-    "participantDeaths": "데스 {count}"
+    "participantDeaths": "데스 {count}",
+    "roleKiller": "K",
+    "roleVictim": "D",
+    "eventOpponent": "상대: {name}",
+    "eventOpponentUnknown": "상대 불명",
+    "eventItemPower": "IP {value}",
+    "eventFame": "{fame} 명성"
   }
 }

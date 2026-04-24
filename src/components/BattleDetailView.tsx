@@ -1,13 +1,23 @@
 import Link from 'next/link'
-import { Trophy, Skull, Minus, Swords, MapPin, Clock, Sword } from 'lucide-react'
+import {
+  Trophy,
+  Skull,
+  Minus,
+  Swords,
+  MapPin,
+  Clock,
+  Sword,
+  ChevronDown,
+} from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
 import { formatDateTime } from '@/lib/format-datetime'
 import type { BattleDetail, BattleKillEvent } from '@/app/actions/battles'
 
-// 참가자 카드는 멤버당 "몇 킬 / 몇 데스" 요약만 노출한다. 개별 킬로그(상대·IP·
-// fame) 는 멤버 상세 페이지의 "최근 킬/데스" 섹션에서 이미 볼 수 있고, 여기선
-// 전투 단위 기여도만 한눈에 보이도록 의도적으로 숨겼다.
+// 참가자 카드는 K/D 요약을 기본 노출하고, 해당 전투에서 찍힌 개별 킬로그(상대/
+// IP/fame) 는 <details> 로 접어둔다. 리스트가 길면 페이지가 킬로그로 도배돼
+// 모바일에서 훑기 힘들어지므로 기본은 접힘, 필요할 때만 펼쳐본다.
+// client 컴포넌트 만들 필요 없이 native <details> 로 상태를 브라우저에 맡김.
 
 interface Props {
   detail: BattleDetail
@@ -140,6 +150,12 @@ export default async function BattleDetailView({ detail }: Props) {
                 participant={p}
                 killLabel={(count) => t('participantKills', { count })}
                 deathLabel={(count) => t('participantDeaths', { count })}
+                rolekillerLabel={t('roleKiller')}
+                roleVictimLabel={t('roleVictim')}
+                opponentLabel={(name) => t('eventOpponent', { name })}
+                opponentUnknownLabel={t('eventOpponentUnknown')}
+                itemPowerLabel={(value) => t('eventItemPower', { value })}
+                fameLabel={(fame) => t('eventFame', { fame })}
               />
             ))}
           </ul>
@@ -155,6 +171,7 @@ interface Participant {
   avatar: string | null
   kills: number
   deaths: number
+  events: BattleKillEvent[]
 }
 
 function groupByMember(events: BattleKillEvent[]): Participant[] {
@@ -168,11 +185,13 @@ function groupByMember(events: BattleKillEvent[]): Participant[] {
         avatar: e.avatar,
         kills: 0,
         deaths: 0,
+        events: [],
       }
       map.set(e.discord_id, p)
     }
     if (e.role === 'killer') p.kills++
     else if (e.role === 'victim') p.deaths++
+    p.events.push(e)
   }
   // 킬 많은 순 → 데스 많은 순 → username
   return Array.from(map.values()).sort((a, b) => {
@@ -230,34 +249,93 @@ interface ParticipantRowProps {
   participant: Participant
   killLabel: (count: number) => string
   deathLabel: (count: number) => string
+  rolekillerLabel: string
+  roleVictimLabel: string
+  opponentLabel: (name: string) => string
+  opponentUnknownLabel: string
+  itemPowerLabel: (value: number) => string
+  fameLabel: (fame: string) => string
 }
 
 function ParticipantRow({
   participant,
   killLabel,
   deathLabel,
+  rolekillerLabel,
+  roleVictimLabel,
+  opponentLabel,
+  opponentUnknownLabel,
+  itemPowerLabel,
+  fameLabel,
 }: ParticipantRowProps) {
   return (
-    <li className="bg-gray-900 border border-gray-800 rounded-lg p-3">
-      <div className="flex items-center gap-3">
-        <MemberAvatar
-          discordId={participant.discord_id}
-          avatar={participant.avatar}
-          size={32}
-        />
-        <div className="min-w-0 flex-1">
+    <li className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      {/* native <details> 로 접힘/펼침 상태 관리. summary 는 아바타+유저명+K/D
+          요약 한 줄, 펼치면 아래 이벤트 리스트가 드러남. list-none 으로
+          기본 삼각형을 지우고 우측 ChevronDown 이 open 시 180° 회전. */}
+      <details className="group">
+        <summary className="flex items-center gap-3 p-3 cursor-pointer list-none hover:bg-gray-800/40 transition-colors">
+          <MemberAvatar
+            discordId={participant.discord_id}
+            avatar={participant.avatar}
+            size={32}
+          />
+          <div className="min-w-0 flex-1">
+            <span className="text-white text-sm font-semibold truncate block">
+              {participant.username}
+            </span>
+            <div className="flex items-center gap-3 text-xs font-mono">
+              <span className="text-emerald-400">{killLabel(participant.kills)}</span>
+              <span className="text-red-400">{deathLabel(participant.deaths)}</span>
+            </div>
+          </div>
           <Link
             href={`/members/${participant.discord_id}`}
-            className="text-white text-sm font-semibold hover:text-amber-300 truncate block"
+            className="text-gray-500 hover:text-amber-300 text-[10px] font-mono flex-shrink-0"
           >
-            {participant.username}
+            →
           </Link>
-          <div className="flex items-center gap-3 text-xs font-mono">
-            <span className="text-emerald-400">{killLabel(participant.kills)}</span>
-            <span className="text-red-400">{deathLabel(participant.deaths)}</span>
-          </div>
-        </div>
-      </div>
+          <ChevronDown
+            size={16}
+            className="text-gray-500 flex-shrink-0 transition-transform group-open:rotate-180"
+          />
+        </summary>
+        <ul className="border-t border-gray-800 px-3 py-2 space-y-1 pl-11">
+          {participant.events.map((e) => {
+            const isKiller = e.role === 'killer'
+            const roleBadgeClass = isKiller
+              ? 'bg-emerald-500/20 text-emerald-300'
+              : 'bg-red-500/20 text-red-300'
+            const opponent = e.opponent_name
+              ? opponentLabel(
+                  e.opponent_guild
+                    ? `${e.opponent_name} [${e.opponent_guild}]`
+                    : e.opponent_name,
+                )
+              : opponentUnknownLabel
+            return (
+              <li
+                key={`${e.event_id}-${e.role}`}
+                className="flex items-center gap-2 text-xs"
+              >
+                <span
+                  className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${roleBadgeClass}`}
+                >
+                  {isKiller ? rolekillerLabel : roleVictimLabel}
+                </span>
+                <span className="text-gray-300 truncate flex-1">{opponent}</span>
+                <span className="text-gray-500 font-mono text-[10px] flex-shrink-0">
+                  {formatTime(e.occurred_at)}
+                  {e.item_power != null && (
+                    <span className="ml-2">{itemPowerLabel(e.item_power)}</span>
+                  )}
+                  <span className="ml-2">{fameLabel(e.fame.toLocaleString())}</span>
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      </details>
     </li>
   )
 }
@@ -266,4 +344,14 @@ function formatFame(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
   return String(n)
+}
+
+function formatTime(iso: string): string {
+  return new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(iso))
 }

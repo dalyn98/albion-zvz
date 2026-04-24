@@ -1606,6 +1606,12 @@
     "participantsTitle": "Participants ({count})",
     "participantsEmpty": "No killboard events from guild members in this battle window.",
     "participantKills": "Kills {count}",
-    "participantDeaths": "Deaths {count}"
+    "participantDeaths": "Deaths {count}",
+    "roleKiller": "K",
+    "roleVictim": "D",
+    "eventOpponent": "vs {name}",
+    "eventOpponentUnknown": "Unknown opponent",
+    "eventItemPower": "IP {value}",
+    "eventFame": "{fame} fame"
   }
 }
