@@ -5,6 +5,7 @@
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Trophy, Skull, Minus } from 'lucide-react'
+import Link from 'next/link'
 import type { SizeCategory } from '@/lib/albion-battles'
 
 export interface BattleRecordRow {
@@ -153,6 +154,7 @@ export default function BattleRecordList({
                   row={row}
                   sizeLabel={sizeLabels[row.sizeCategory]}
                   outcomeLabel={outcomeLabels[row.outcome]}
+                  router={router}
                 />
               ))}
             </tbody>
@@ -167,9 +169,10 @@ interface BattleRowProps {
   row: BattleRecordRow
   sizeLabel: string
   outcomeLabel: string
+  router: ReturnType<typeof useRouter>
 }
 
-function BattleRow({ row, sizeLabel, outcomeLabel }: BattleRowProps) {
+function BattleRow({ row, sizeLabel, outcomeLabel, router }: BattleRowProps) {
   const outcomeColor =
     row.outcome === 'win'
       ? 'text-emerald-400'
@@ -194,10 +197,23 @@ function BattleRow({ row, sizeLabel, outcomeLabel }: BattleRowProps) {
       ? row.opponentAllianceNames.join(', ')
       : null
 
+  // table 구조 유지: <tr> 에 onClick 으로 router.push, 첫 셀에도 실제 Link 로
+  // 접근성/middle-click/새 탭 열기 지원. Link 클릭은 stopPropagation 으로
+  // router.push 중복 호출을 막는다.
+  const href = `/battles/${row.id}`
   return (
-    <tr className="border-t border-gray-800 hover:bg-gray-800/40">
+    <tr
+      onClick={() => router.push(href)}
+      className="border-t border-gray-800 hover:bg-gray-800/40 cursor-pointer"
+    >
       <td className="px-3 py-2 text-gray-300 font-mono text-xs whitespace-nowrap">
-        {formatStartedAt(row.startedAt)}
+        <Link
+          href={href}
+          onClick={(e) => e.stopPropagation()}
+          className="hover:text-white"
+        >
+          {formatStartedAt(row.startedAt)}
+        </Link>
       </td>
       <td className="px-3 py-2">
         <span className="inline-flex items-center gap-1 bg-gray-800 border border-gray-700 rounded px-2 py-0.5 text-[11px] text-gray-300">

@@ -1222,7 +1222,18 @@
     "statParticipationRank": "参加ランキング",
     "statRankPercentile": "上位 {percent}%",
     "statRankSub": "{rank}/{total}位",
-    "valueNone": "—"
+    "valueNone": "—",
+    "killHistoryTitle": "最近のキル/デス ({count})",
+    "killHistoryEmpty": "キル/デス記録がありません。",
+    "killHistoryNote": "キルボード sync で保存された原本イベントです。ZvZ 統計には '集計済み' イベントのみ反映されます。",
+    "killRoleKiller": "キル",
+    "killRoleVictim": "デス",
+    "killBadgeTracked": "ZvZ 集計",
+    "killBadgeUntracked": "未集計",
+    "killOpponent": "相手: {name}",
+    "killOpponentUnknown": "相手不明",
+    "killItemPower": "IP {value}",
+    "killFameLabel": "{fame} 名声"
   },
   "requestExchange": {
     "pendingNotice": "処理待ちの両替申請があるため、新規申請はできません。",
@@ -1589,5 +1600,21 @@
     "outcome_loss": "敗",
     "outcome_tie": "分",
     "empty": "条件に合致する戦闘記録はまだありません。設定で収集をオンにし規模を選択すると、15 分ごとのクーロンでホームギルドが戦闘を行い次第自動的に蓄積されます。"
+  },
+  "battleDetail": {
+    "backToList": "戦闘記録一覧",
+    "sideHome": "ホーム",
+    "sideOpponent": "相手",
+    "extraGuilds": "+{count} ギルド",
+    "participantsTitle": "参加メンバー ({count})",
+    "participantsEmpty": "この戦闘ウィンドウ内にギルドメンバーのキル/デス記録がありません。",
+    "participantKills": "キル {count}",
+    "participantDeaths": "デス {count}",
+    "roleKiller": "K",
+    "roleVictim": "D",
+    "eventOpponent": "相手: {name}",
+    "eventOpponentUnknown": "相手不明",
+    "eventItemPower": "IP {value}",
+    "eventFame": "{fame} 名声"
   }
 }

@@ -14,6 +14,7 @@ import {
   Crown,
   Shield,
   Target,
+  Info,
 } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
@@ -25,7 +26,11 @@ import { formatDate, formatDateTime } from '@/lib/format-datetime'
 import { getLocalizedItemName } from '@/lib/item-names'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import { getRoleStyle, regearPayoutSilver } from '@/types'
-import type { GuildMemberDetail, MemberExchangeEntry } from '@/app/actions/members-admin'
+import type {
+  GuildMemberDetail,
+  MemberExchangeEntry,
+  MemberKillEvent,
+} from '@/app/actions/members-admin'
 
 const STATUS_CLASS: Record<string, string> = {
   pending: 'bg-yellow-500/20 text-yellow-300',
@@ -291,6 +296,40 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
       </section>
 
       <section className="space-y-2">
+        <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
+          <Sword size={14} className="text-red-400" />
+          {t('killHistoryTitle', { count: detail.kill_history.length })}
+        </h2>
+        {detail.kill_history.length === 0 ? (
+          <p className="text-gray-500 text-xs">{t('killHistoryEmpty')}</p>
+        ) : (
+          <>
+            <p className="text-gray-500 text-[11px] flex items-start gap-1">
+              <Info size={11} className="mt-0.5 flex-shrink-0" />
+              <span>{t('killHistoryNote')}</span>
+            </p>
+            <ul className="space-y-1.5">
+              {detail.kill_history.map((k) => (
+                <KillHistoryRow
+                  key={`${k.event_id}-${k.role}`}
+                  entry={k}
+                  roleLabel={
+                    k.role === 'killer' ? t('killRoleKiller') : t('killRoleVictim')
+                  }
+                  trackedLabel={t('killBadgeTracked')}
+                  untrackedLabel={t('killBadgeUntracked')}
+                  opponentLabel={(name) => t('killOpponent', { name })}
+                  opponentUnknownLabel={t('killOpponentUnknown')}
+                  itemPowerLabel={(value) => t('killItemPower', { value })}
+                  fameLabel={(fame) => t('killFameLabel', { fame })}
+                />
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
+
+      <section className="space-y-2">
         <h2 className="text-white font-bold text-sm">{t('participatedEvents', { count: detail.events.length })}</h2>
         {detail.events.length === 0 ? (
           <p className="text-gray-500 text-xs">{t('noEvents')}</p>
@@ -469,6 +508,67 @@ function ExchangeRow({
         className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS[statusKey]}`}
       >
         {statusLabels[statusKey]}
+      </span>
+    </li>
+  )
+}
+
+interface KillHistoryRowProps {
+  entry: MemberKillEvent
+  roleLabel: string
+  trackedLabel: string
+  untrackedLabel: string
+  opponentLabel: (name: string) => string
+  opponentUnknownLabel: string
+  itemPowerLabel: (value: number) => string
+  fameLabel: (fame: string) => string
+}
+
+function KillHistoryRow({
+  entry,
+  roleLabel,
+  trackedLabel,
+  untrackedLabel,
+  opponentLabel,
+  opponentUnknownLabel,
+  itemPowerLabel,
+  fameLabel,
+}: KillHistoryRowProps) {
+  const isKiller = entry.role === 'killer'
+  const roleBadgeClass = isKiller
+    ? 'bg-emerald-500/20 text-emerald-300'
+    : 'bg-red-500/20 text-red-300'
+  const trackedBadgeClass = entry.tracked
+    ? 'bg-amber-500/20 text-amber-300'
+    : 'bg-gray-700 text-gray-400'
+  const opponent = entry.opponent_name
+    ? opponentLabel(
+        entry.opponent_guild
+          ? `${entry.opponent_name} [${entry.opponent_guild}]`
+          : entry.opponent_name,
+      )
+    : opponentUnknownLabel
+  return (
+    <li className="flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2">
+      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${roleBadgeClass}`}>
+        {roleLabel}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-white text-sm truncate">{opponent}</p>
+        <p className="text-gray-500 text-[10px] font-mono">
+          {formatDateTime(entry.occurred_at)}
+          {entry.item_power != null && (
+            <span className="ml-2 text-gray-400">{itemPowerLabel(entry.item_power)}</span>
+          )}
+          <span className="ml-2 text-gray-400">
+            {fameLabel(entry.fame.toLocaleString())}
+          </span>
+        </p>
+      </div>
+      <span
+        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${trackedBadgeClass}`}
+      >
+        {entry.tracked ? trackedLabel : untrackedLabel}
       </span>
     </li>
   )

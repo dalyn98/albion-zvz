@@ -133,6 +133,20 @@ export interface KillboardStats {
   death_fame: number
 }
 
+// 멤버 상세 화면의 "최근 킬/데스" 타임라인용. killboard_events 한 행 = 한 이벤트.
+// tracked 는 해당 이벤트가 tenant_battle_records 창에 들어있는지 (= ZvZ 통계에
+// 집계되는지). false 면 1:1 갱킹 등 필터 대상이라는 의미로 UI 에 미집계 배지.
+export interface MemberKillEvent {
+  event_id: string
+  role: 'killer' | 'victim'
+  opponent_name: string | null
+  opponent_guild: string | null
+  fame: number
+  item_power: number | null
+  occurred_at: string
+  tracked: boolean
+}
+
 // 전투 기록, 참여 추이, 길드 내 상대순위 같은 "명예" 지표. 기존 KillboardStats
 // 와 달리 참여 이벤트 ↔ victim 시간 매칭, 일자 단위 스트릭 집계, 멤버 전체
 // 집계 비교 같은 추가 계산이 필요하다.
@@ -182,6 +196,9 @@ export interface GuildMemberDetail {
   lifetime_spent: number
   killboard: KillboardStats
   advanced_stats: MemberAdvancedStats
+  // 최근 킬/데스 이벤트 (tracked 여부 포함). 통계 숫자와 실제 기록을 연결해
+  // 사용자가 "왜 집계가 저렇게 나오는지" 직접 확인할 수 있게 한다.
+  kill_history: MemberKillEvent[]
 }
 
 export async function listGuildMembers(): Promise<{
@@ -544,7 +561,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
         .eq('discord_id', discordId),
       db
         .from('killboard_events')
-        .select('role, fame, occurred_at, equipment')
+        .select('event_id, role, fame, item_power, occurred_at, equipment, opponent_name, opponent_guild')
         .eq('guild_id', guildId)
         .eq('discord_id', discordId),
       // 랭킹 RPC — 길드 전체 멤버의 kills/participations 를 집계해서 반환. 본인
@@ -685,24 +702,47 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     // weapon_breakdown 은 "죽었을 때 들었던 무기" 에 가깝다.
     const weaponAgg = new Map<string, { id: string; count: number }>()
     type KillboardRow = {
+      event_id: number | string | null
       role: string | null
       fame: number | null
+      item_power: number | null
       occurred_at: string | null
       equipment: Record<string, { Type?: string } | null> | null
+      opponent_name: string | null
+      opponent_guild: string | null
     }
+    const killHistory: MemberKillEvent[] = []
     for (const row of (killboardRes.data ?? []) as KillboardRow[]) {
       if (!row.occurred_at) continue
-      if (!isWithinTrackedWindow(row.occurred_at, trackedWindows)) continue
-      const fame = row.fame ?? 0
-      if (row.role === 'killer') killboard.kill_fame += fame
-      else if (row.role === 'victim') killboard.death_fame += fame
-      const mainHandType = row.equipment?.MainHand?.Type
-      if (mainHandType) {
-        const existing = weaponAgg.get(mainHandType)
-        if (existing) existing.count++
-        else weaponAgg.set(mainHandType, { id: mainHandType, count: 1 })
+      const inWindow = isWithinTrackedWindow(row.occurred_at, trackedWindows)
+      if (inWindow) {
+        const fame = row.fame ?? 0
+        if (row.role === 'killer') killboard.kill_fame += fame
+        else if (row.role === 'victim') killboard.death_fame += fame
+        const mainHandType = row.equipment?.MainHand?.Type
+        if (mainHandType) {
+          const existing = weaponAgg.get(mainHandType)
+          if (existing) existing.count++
+          else weaponAgg.set(mainHandType, { id: mainHandType, count: 1 })
+        }
+      }
+      if (row.role === 'killer' || row.role === 'victim') {
+        killHistory.push({
+          event_id: String(row.event_id ?? ''),
+          role: row.role,
+          opponent_name: row.opponent_name,
+          opponent_guild: row.opponent_guild,
+          fame: row.fame ?? 0,
+          item_power: row.item_power,
+          occurred_at: row.occurred_at,
+          tracked: inWindow,
+        })
       }
     }
+    // 최신순 정렬 + 상위 50개. 참여 이벤트와 같은 리듬으로 스크롤 없이 훑을 수
+    // 있는 범위.
+    killHistory.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))
+    const killHistoryTrimmed = killHistory.slice(0, 50)
 
     // Cap at 10 so a prolific member's card doesn't scroll forever — the tail
     // is uninteresting anyway (usually a long tail of one-off pick-ups).
@@ -771,6 +811,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
         lifetime_spent: spent,
         killboard,
         advanced_stats: advancedStats,
+        kill_history: killHistoryTrimmed,
       },
     }
   } catch (e) {
