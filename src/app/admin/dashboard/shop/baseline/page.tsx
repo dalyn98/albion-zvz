@@ -16,7 +16,7 @@ export default async function ShopBaselinePage() {
   // 이력 표시용 — 최근 10건 (confirmed / superseded 모두 포함)
   const { data: history } = await db
     .from('shop_baselines')
-    .select('id, baseline_at, total_items, total_events, confirmed_at, confirmed_by, status, depositor, notes')
+    .select('id, baseline_at, total_items, total_events, confirmed_at, confirmed_by, status, depositor, notes, drift_report')
     .eq('guild_id', guildId)
     .order('confirmed_at', { ascending: false })
     .limit(10)
@@ -50,45 +50,68 @@ export default async function ShopBaselinePage() {
                   <th className="p-2 text-left">베이스라인 시각</th>
                   <th className="p-2 text-right">아이템</th>
                   <th className="p-2 text-left">입고자</th>
+                  <th className="p-2 text-left">드리프트</th>
                   <th className="p-2 text-left">상태</th>
                   <th className="p-2 text-left">메모</th>
                 </tr>
               </thead>
               <tbody>
-                {history.map((row) => (
-                  <tr key={row.id as string} className="border-t border-zinc-800">
-                    <td className="p-2 font-mono">
-                      {new Date(row.confirmed_at as string).toLocaleString('ko-KR', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </td>
-                    <td className="p-2 font-mono">
-                      {new Date(row.baseline_at as string).toLocaleString('ko-KR', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </td>
-                    <td className="p-2 text-right font-mono">
-                      {(row.total_items as number).toLocaleString('ko-KR')} / {row.total_events as number}건
-                    </td>
-                    <td className="p-2">{(row.depositor as string | null) ?? '—'}</td>
-                    <td className="p-2">
-                      {row.status === 'confirmed' ? (
-                        <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-emerald-300">active</span>
-                      ) : (
-                        <span className="rounded bg-zinc-700 px-2 py-0.5 text-zinc-400">superseded</span>
-                      )}
-                    </td>
-                    <td className="p-2 text-zinc-500">{(row.notes as string | null) ?? '—'}</td>
-                  </tr>
-                ))}
+                {history.map((row) => {
+                  const drift = row.drift_report as Record<string, unknown> | null
+                  const changed = drift ? Number(drift.changed_items ?? 0) : null
+                  const before = drift ? Number(drift.before_total ?? 0) : null
+                  const after = drift ? Number(drift.after_total ?? 0) : null
+                  const deltaTotal = before !== null && after !== null ? after - before : null
+                  return (
+                    <tr key={row.id as string} className="border-t border-zinc-800">
+                      <td className="p-2 font-mono">
+                        {new Date(row.confirmed_at as string).toLocaleString('ko-KR', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </td>
+                      <td className="p-2 font-mono">
+                        {new Date(row.baseline_at as string).toLocaleString('ko-KR', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </td>
+                      <td className="p-2 text-right font-mono">
+                        {(row.total_items as number).toLocaleString('ko-KR')} / {row.total_events as number}건
+                      </td>
+                      <td className="p-2">{(row.depositor as string | null) ?? '—'}</td>
+                      <td className="p-2 font-mono text-zinc-400">
+                        {changed === null ? (
+                          '—'
+                        ) : (
+                          <span>
+                            {changed}종
+                            {deltaTotal !== null && (
+                              <span className={`ml-1 ${deltaTotal > 0 ? 'text-emerald-300' : deltaTotal < 0 ? 'text-rose-300' : ''}`}>
+                                ({deltaTotal > 0 ? '+' : ''}
+                                {deltaTotal.toLocaleString('ko-KR')})
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-2">
+                        {row.status === 'confirmed' ? (
+                          <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-emerald-300">active</span>
+                        ) : (
+                          <span className="rounded bg-zinc-700 px-2 py-0.5 text-zinc-400">superseded</span>
+                        )}
+                      </td>
+                      <td className="p-2 text-zinc-500">{(row.notes as string | null) ?? '—'}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

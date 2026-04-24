@@ -64,10 +64,32 @@ export interface BaselinePreview {
   error?: string
 }
 
+export interface DriftChange {
+  uniqueName: string
+  nameKo: string | null
+  enchant: number
+  quality: number
+  beforeStock: number
+  afterStock: number
+  delta: number
+}
+
+export interface DriftReport {
+  beforeTotal: number
+  afterTotal: number
+  changedItems: number
+  restored: number
+  cleared: number
+  increased: number
+  decreased: number
+  topChanges: DriftChange[]
+}
+
 export interface BaselineConfirmResult {
   baselineId?: string
   appliedItems: number
   totalItems: number
+  driftReport: DriftReport | null
   error?: string
 }
 
@@ -239,6 +261,43 @@ export async function previewBaseline(raw: string): Promise<BaselinePreview> {
   }
 }
 
+// RPC 가 저장한 drift_report 를 읽어 카멜케이스로 normalize.
+async function fetchDriftReport(
+  db: Awaited<ReturnType<typeof requireAdmin>>,
+  baselineId: string,
+): Promise<DriftReport | null> {
+  const { data } = await db
+    .from('shop_baselines')
+    .select('drift_report')
+    .eq('id', baselineId)
+    .maybeSingle()
+  const raw = data?.drift_report as Record<string, unknown> | null | undefined
+  if (!raw) return null
+  const topChangesRaw = Array.isArray(raw.top_changes) ? raw.top_changes : []
+  const topChanges: DriftChange[] = topChangesRaw.map((c) => {
+    const obj = c as Record<string, unknown>
+    return {
+      uniqueName: String(obj.unique_name ?? ''),
+      nameKo: (obj.name_ko as string | null) ?? null,
+      enchant: Number(obj.enchant ?? 0),
+      quality: Number(obj.quality ?? 0),
+      beforeStock: Number(obj.before_stock ?? 0),
+      afterStock: Number(obj.after_stock ?? 0),
+      delta: Number(obj.delta ?? 0),
+    }
+  })
+  return {
+    beforeTotal: Number(raw.before_total ?? 0),
+    afterTotal: Number(raw.after_total ?? 0),
+    changedItems: Number(raw.changed_items ?? 0),
+    restored: Number(raw.restored ?? 0),
+    cleared: Number(raw.cleared ?? 0),
+    increased: Number(raw.increased ?? 0),
+    decreased: Number(raw.decreased ?? 0),
+    topChanges,
+  }
+}
+
 export async function confirmBaseline(input: {
   raw: string
   notes?: string
@@ -246,7 +305,8 @@ export async function confirmBaseline(input: {
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session?.isAdmin) return { appliedItems: 0, totalItems: 0, error: 'Unauthorized' }
+    if (!session?.isAdmin)
+      return { appliedItems: 0, totalItems: 0, driftReport: null, error: 'Unauthorized' }
     const db = await requireAdmin()
     const guildId = await getSessionGuildId(session)
 
@@ -254,10 +314,15 @@ export async function confirmBaseline(input: {
     // 클라가 조작한 값을 신뢰하지 않음).
     const preview = await previewBaseline(input.raw)
     if (preview.error) {
-      return { appliedItems: 0, totalItems: 0, error: preview.error }
+      return { appliedItems: 0, totalItems: 0, driftReport: null, error: preview.error }
     }
     if (!preview.baselineAt || !preview.baselineStart || preview.items.length === 0) {
-      return { appliedItems: 0, totalItems: 0, error: tErr('baselineNoDeposits') }
+      return {
+        appliedItems: 0,
+        totalItems: 0,
+        driftReport: null,
+        error: tErr('baselineNoDeposits'),
+      }
     }
 
     const depositor = preview.depositors.length === 1 ? preview.depositors[0] : null
@@ -274,22 +339,27 @@ export async function confirmBaseline(input: {
       p_notes: input.notes?.trim() || null,
     })
     if (error) {
-      return { appliedItems: 0, totalItems: 0, error: error.message }
+      return { appliedItems: 0, totalItems: 0, driftReport: null, error: error.message }
     }
+
+    const id = typeof baselineId === 'string' ? baselineId : undefined
+    const driftReport = id ? await fetchDriftReport(db, id) : null
 
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/admin/dashboard/shop/baseline')
     revalidatePath('/shop')
 
     return {
-      baselineId: typeof baselineId === 'string' ? baselineId : undefined,
+      baselineId: id,
       appliedItems: preview.items.length,
       totalItems: preview.totalItems,
+      driftReport,
     }
   } catch (e) {
     return {
       appliedItems: 0,
       totalItems: 0,
+      driftReport: null,
       error: e instanceof Error ? e.message : 'Server error',
     }
   }

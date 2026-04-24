@@ -22,6 +22,7 @@ import {
   confirmBaseline,
   type BaselinePreview,
   type BaselineItem,
+  type DriftReport,
 } from '@/app/actions/shop-baseline'
 
 const PLACEHOLDER = `인게임 "은행" 로그에서 복사한 텍스트를 붙여넣으세요. 예시:
@@ -60,6 +61,7 @@ export default function ShopBaselineForm() {
   const [previewing, setPreviewing] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [confirmResult, setConfirmResult] = useState<string | null>(null)
+  const [confirmDrift, setConfirmDrift] = useState<DriftReport | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const runPreview = async () => {
@@ -67,6 +69,7 @@ export default function ShopBaselineForm() {
     setPreviewing(true)
     setError(null)
     setConfirmResult(null)
+    setConfirmDrift(null)
     try {
       const result = await previewBaseline(raw)
       if (result.error) {
@@ -100,6 +103,7 @@ export default function ShopBaselineForm() {
       setConfirmResult(
         `베이스라인 저장 완료. ${result.appliedItems}종 / ${result.totalItems.toLocaleString('ko-KR')}개 재고 확정.`,
       )
+      setConfirmDrift(result.driftReport)
       setRaw('')
       setNotes('')
       setPreview(null)
@@ -115,6 +119,7 @@ export default function ShopBaselineForm() {
     setPreview(null)
     setError(null)
     setConfirmResult(null)
+    setConfirmDrift(null)
   }
 
   return (
@@ -196,6 +201,8 @@ export default function ShopBaselineForm() {
           </div>
         </div>
       )}
+
+      {confirmDrift && <DriftPanel drift={confirmDrift} />}
 
       {preview && !confirmResult && <PreviewPanel preview={preview} />}
 
@@ -302,6 +309,116 @@ function MetricCard({
         {label}
       </div>
       <div className="mt-1 text-lg font-semibold text-zinc-100">{value}</div>
+    </div>
+  )
+}
+
+function DriftPanel({ drift }: { drift: DriftReport }) {
+  const deltaTotal = drift.afterTotal - drift.beforeTotal
+  const sign = deltaTotal > 0 ? '+' : deltaTotal < 0 ? '' : '±'
+  const tone =
+    drift.changedItems === 0
+      ? 'border-zinc-700 bg-zinc-900 text-zinc-300'
+      : deltaTotal >= 0
+        ? 'border-emerald-500/40 bg-emerald-500/5 text-emerald-100'
+        : 'border-rose-500/40 bg-rose-500/5 text-rose-100'
+  return (
+    <div className={`rounded-lg border p-4 space-y-3 ${tone}`}>
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <AlertTriangle size={14} />
+        드리프트 리포트
+        <span className="text-xs font-normal opacity-70">
+          리셋 전 재고와 확정 후 재고를 비교한 결과
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+        <DriftStat label="변동 아이템" value={`${drift.changedItems}종`} />
+        <DriftStat label="복원 (0→+)" value={`${drift.restored}종`} accent="emerald" />
+        <DriftStat label="삭제 (+→0)" value={`${drift.cleared}종`} accent="rose" />
+        <DriftStat label="증가" value={`${drift.increased}종`} />
+        <DriftStat label="감소" value={`${drift.decreased}종`} />
+      </div>
+
+      <div className="rounded-md bg-black/30 p-2 text-xs">
+        <span className="opacity-70">총 재고 변화:</span>{' '}
+        <span className="font-mono">
+          {drift.beforeTotal.toLocaleString('ko-KR')} → {drift.afterTotal.toLocaleString('ko-KR')}
+        </span>{' '}
+        <span className="font-mono">
+          ({sign}
+          {deltaTotal.toLocaleString('ko-KR')})
+        </span>
+      </div>
+
+      {drift.topChanges.length > 0 && (
+        <div className="max-h-80 overflow-auto rounded-md border border-zinc-800 bg-zinc-950">
+          <table className="w-full text-xs">
+            <thead className="sticky top-0 bg-zinc-900 text-zinc-400">
+              <tr>
+                <th className="p-2 text-left">아이템</th>
+                <th className="p-2 text-center">E</th>
+                <th className="p-2 text-center">Q</th>
+                <th className="p-2 text-right">이전</th>
+                <th className="p-2 text-right">이후</th>
+                <th className="p-2 text-right">차이</th>
+              </tr>
+            </thead>
+            <tbody>
+              {drift.topChanges.map((c) => (
+                <tr
+                  key={`${c.uniqueName}|${c.enchant}|${c.quality}`}
+                  className="border-t border-zinc-800 text-zinc-200"
+                >
+                  <td className="p-2">
+                    <div>{c.nameKo ?? c.uniqueName}</div>
+                    <div className="text-[10px] text-zinc-600">{c.uniqueName}</div>
+                  </td>
+                  <td className="p-2 text-center">{c.enchant}</td>
+                  <td className="p-2 text-center">{c.quality}</td>
+                  <td className="p-2 text-right font-mono text-zinc-400">
+                    {c.beforeStock.toLocaleString('ko-KR')}
+                  </td>
+                  <td className="p-2 text-right font-mono">
+                    {c.afterStock.toLocaleString('ko-KR')}
+                  </td>
+                  <td
+                    className={`p-2 text-right font-mono ${
+                      c.delta > 0 ? 'text-emerald-300' : c.delta < 0 ? 'text-rose-300' : ''
+                    }`}
+                  >
+                    {c.delta > 0 ? '+' : ''}
+                    {c.delta.toLocaleString('ko-KR')}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DriftStat({
+  label,
+  value,
+  accent,
+}: {
+  label: string
+  value: string
+  accent?: 'emerald' | 'rose'
+}) {
+  const color =
+    accent === 'emerald'
+      ? 'text-emerald-200'
+      : accent === 'rose'
+        ? 'text-rose-200'
+        : 'text-zinc-100'
+  return (
+    <div className="rounded-md border border-zinc-800 bg-zinc-950 p-2">
+      <div className="text-zinc-500">{label}</div>
+      <div className={`mt-0.5 text-sm font-semibold ${color}`}>{value}</div>
     </div>
   )
 }
