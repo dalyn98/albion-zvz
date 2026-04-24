@@ -104,7 +104,7 @@ export default async function EditEventPage({
   const assignedDiscordIds = parties.flatMap((p) =>
     p.slots.map((s) => s.assigned_discord_id).filter((id): id is string => !!id),
   )
-  const avatarMap = await getAvatarsByDiscordIds(assignedDiscordIds)
+  const avatarMap = await getAvatarsByDiscordIds(guildId, assignedDiscordIds)
   const avatars = Object.fromEntries(avatarMap)
 
   return (

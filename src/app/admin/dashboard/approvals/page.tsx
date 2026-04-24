@@ -72,10 +72,10 @@ export default async function ApprovalsPage({
 
       <TypeTabs active={type} tabs={tabs} tabsLabel={tApprovals('tabsLabel')} />
 
-      {type === 'regear' && <RegearSection scope={scope} />}
-      {type === 'exchange' && <ExchangeSection scope={scope} />}
-      {type === 'donation' && <DonationSection scope={scope} />}
-      {type === 'shop' && <ShopSection scope={scope} />}
+      {type === 'regear' && <RegearSection scope={scope} guildId={guildId} />}
+      {type === 'exchange' && <ExchangeSection scope={scope} guildId={guildId} />}
+      {type === 'donation' && <DonationSection scope={scope} guildId={guildId} />}
+      {type === 'shop' && <ShopSection scope={scope} guildId={guildId} />}
     </div>
   )
 }
@@ -177,14 +177,14 @@ function ScopeTabs({ baseHref, active, tKeys, accent }: ScopeTabsProps) {
   )
 }
 
-async function RegearSection({ scope }: { scope: Scope }) {
+async function RegearSection({ scope, guildId }: { scope: Scope; guildId: string }) {
   const [{ requests, error }, t, ratePercent] = await Promise.all([
     listRegearRequests(scope),
     getTranslations('adminRegearReview'),
     getRegearPayoutRatePercent(),
   ])
   const [avatarMap, anomalies] = await Promise.all([
-    getAvatarsByDiscordIds(requests.map((r) => r.discord_id)),
+    getAvatarsByDiscordIds(guildId, requests.map((r) => r.discord_id)),
     getRegearAnomalyMap(requests),
   ])
   const avatars = Object.fromEntries(avatarMap)
@@ -219,12 +219,12 @@ async function RegearSection({ scope }: { scope: Scope }) {
   )
 }
 
-async function ExchangeSection({ scope }: { scope: Scope }) {
+async function ExchangeSection({ scope, guildId }: { scope: Scope; guildId: string }) {
   const [{ requests, error }, t] = await Promise.all([
     listExchangeRequests(scope),
     getTranslations('adminExchangeReview'),
   ])
-  const avatarMap = await getAvatarsByDiscordIds(requests.map((r) => r.discord_id))
+  const avatarMap = await getAvatarsByDiscordIds(guildId, requests.map((r) => r.discord_id))
   const avatars = Object.fromEntries(avatarMap)
 
   return (
@@ -251,9 +251,9 @@ async function ExchangeSection({ scope }: { scope: Scope }) {
   )
 }
 
-async function ShopSection({ scope }: { scope: Scope }) {
+async function ShopSection({ scope, guildId }: { scope: Scope; guildId: string }) {
   const { orders, error } = await listShopOrders(scope)
-  const avatarMap = await getAvatarsByDiscordIds(orders.map((o) => o.discordId))
+  const avatarMap = await getAvatarsByDiscordIds(guildId, orders.map((o) => o.discordId))
   const avatars = Object.fromEntries(avatarMap)
 
   return (
@@ -280,12 +280,12 @@ async function ShopSection({ scope }: { scope: Scope }) {
   )
 }
 
-async function DonationSection({ scope }: { scope: Scope }) {
+async function DonationSection({ scope, guildId }: { scope: Scope; guildId: string }) {
   const [{ requests, error }, t] = await Promise.all([
     listDonationRequests(scope),
     getTranslations('adminDonationReview'),
   ])
-  const avatarMap = await getAvatarsByDiscordIds(requests.map((r) => r.discord_id))
+  const avatarMap = await getAvatarsByDiscordIds(guildId, requests.map((r) => r.discord_id))
   const avatars = Object.fromEntries(avatarMap)
 
   return (

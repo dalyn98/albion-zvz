@@ -108,8 +108,8 @@ export default async function EventDetailPage({
   ])
   const memberIdList = memberIds.filter((id): id is string => !!id)
   const [avatarMap, usernameMap] = await Promise.all([
-    getAvatarsByDiscordIds(memberIdList),
-    getUsernamesByDiscordIds(memberIdList),
+    getAvatarsByDiscordIds(guildId, memberIdList),
+    getUsernamesByDiscordIds(guildId, memberIdList),
   ])
   const avatars = Object.fromEntries(avatarMap)
   const usernames = Object.fromEntries(usernameMap)

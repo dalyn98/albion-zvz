@@ -32,16 +32,26 @@ export function discordAvatarUrl(
 // Server-side batch lookup. Reads from `guild_avatars` (populated on each
 // member login) and `guests` (populated on guest signup) so slot/party views
 // can render an avatar for either class of user. Missing entries return null
-// and the caller falls back to a default icon.
+// and the caller falls back to a default icon. guild_id 필수 — 같은 discord_id
+// 가 여러 tenant 에 존재할 수 있으므로 현재 tenant 로 격리해야 한다.
 export async function getAvatarsByDiscordIds(
+  guildId: string,
   ids: readonly string[],
 ): Promise<Map<string, string | null>> {
   if (ids.length === 0) return new Map()
   const unique = Array.from(new Set(ids))
   const db = getAdminClient()
   const [members, guests] = await Promise.all([
-    db.from('guild_avatars').select('discord_id, avatar').in('discord_id', unique),
-    db.from('guests').select('discord_id, avatar').in('discord_id', unique),
+    db
+      .from('guild_avatars')
+      .select('discord_id, avatar')
+      .eq('guild_id', guildId)
+      .in('discord_id', unique),
+    db
+      .from('guests')
+      .select('discord_id, avatar')
+      .eq('guild_id', guildId)
+      .in('discord_id', unique),
   ])
   const result = new Map<string, string | null>()
   // Guests first, then members — a rare dual-row (shouldn't happen) prefers
@@ -54,14 +64,23 @@ export async function getAvatarsByDiscordIds(
 // Username 조회용 배치 API. 콜러가 파티 슬롯에 배정되지 않아도 이름 표시
 // 하려고 만들었다 — guild_avatars/guests 에서 찾고, 없으면 null.
 export async function getUsernamesByDiscordIds(
+  guildId: string,
   ids: readonly string[],
 ): Promise<Map<string, string | null>> {
   if (ids.length === 0) return new Map()
   const unique = Array.from(new Set(ids))
   const db = getAdminClient()
   const [members, guests] = await Promise.all([
-    db.from('guild_avatars').select('discord_id, username').in('discord_id', unique),
-    db.from('guests').select('discord_id, username').in('discord_id', unique),
+    db
+      .from('guild_avatars')
+      .select('discord_id, username')
+      .eq('guild_id', guildId)
+      .in('discord_id', unique),
+    db
+      .from('guests')
+      .select('discord_id, username')
+      .eq('guild_id', guildId)
+      .in('discord_id', unique),
   ])
   const result = new Map<string, string | null>()
   for (const row of guests.data ?? []) result.set(row.discord_id, row.username ?? null)
@@ -90,6 +109,6 @@ export async function upsertGuildAvatar(
         is_bomb_squad_caller: isBombSquadCaller,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: 'discord_id' },
+      { onConflict: 'guild_id,discord_id' },
     )
 }
