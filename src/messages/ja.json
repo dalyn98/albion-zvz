@@ -1225,11 +1225,8 @@
     "valueNone": "—",
     "killHistoryTitle": "最近のキル/デス ({count})",
     "killHistoryEmpty": "キル/デス記録がありません。",
-    "killHistoryNote": "キルボード sync で保存された原本イベントです。ZvZ 統計には '集計済み' イベントのみ反映されます。",
     "killRoleKiller": "キル",
     "killRoleVictim": "デス",
-    "killBadgeTracked": "ZvZ 集計",
-    "killBadgeUntracked": "未集計",
     "killOpponent": "相手: {name}",
     "killOpponentUnknown": "相手不明",
     "killItemPower": "IP {value}",
@@ -1609,12 +1606,6 @@
     "participantsTitle": "参加メンバー ({count})",
     "participantsEmpty": "この戦闘ウィンドウ内にギルドメンバーのキル/デス記録がありません。",
     "participantKills": "キル {count}",
-    "participantDeaths": "デス {count}",
-    "roleKiller": "K",
-    "roleVictim": "D",
-    "eventOpponent": "相手: {name}",
-    "eventOpponentUnknown": "相手不明",
-    "eventItemPower": "IP {value}",
-    "eventFame": "{fame} 名声"
+    "participantDeaths": "デス {count}"
   }
 }

@@ -14,7 +14,6 @@ import {
   Crown,
   Shield,
   Target,
-  Info,
 } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
@@ -313,11 +312,10 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
         {detail.kill_history.length === 0 ? (
           <p className="text-gray-500 text-xs">{t('killHistoryEmpty')}</p>
         ) : (
-          <>
-            <p className="text-gray-500 text-[11px] flex items-start gap-1">
-              <Info size={11} className="mt-0.5 flex-shrink-0" />
-              <span>{t('killHistoryNote')}</span>
-            </p>
+          // ~5행이 보이는 고정 높이 스크롤 컨테이너. 전체 리스트(최대 50) 를 다
+          // 펼치면 상세 페이지가 킬로그로 도배돼 다른 섹션이 묻혀서, 컨테이너
+          // 높이만 고정하고 안에서 스크롤하게 한다.
+          <div className="max-h-[280px] overflow-y-auto pr-1">
             <ul className="space-y-1.5">
               {detail.kill_history.map((k) => (
                 <KillHistoryRow
@@ -326,8 +324,6 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
                   roleLabel={
                     k.role === 'killer' ? t('killRoleKiller') : t('killRoleVictim')
                   }
-                  trackedLabel={t('killBadgeTracked')}
-                  untrackedLabel={t('killBadgeUntracked')}
                   opponentLabel={(name) => t('killOpponent', { name })}
                   opponentUnknownLabel={t('killOpponentUnknown')}
                   itemPowerLabel={(value) => t('killItemPower', { value })}
@@ -335,7 +331,7 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
                 />
               ))}
             </ul>
-          </>
+          </div>
         )}
       </section>
 
@@ -526,8 +522,6 @@ function ExchangeRow({
 interface KillHistoryRowProps {
   entry: MemberKillEvent
   roleLabel: string
-  trackedLabel: string
-  untrackedLabel: string
   opponentLabel: (name: string) => string
   opponentUnknownLabel: string
   itemPowerLabel: (value: number) => string
@@ -537,8 +531,6 @@ interface KillHistoryRowProps {
 function KillHistoryRow({
   entry,
   roleLabel,
-  trackedLabel,
-  untrackedLabel,
   opponentLabel,
   opponentUnknownLabel,
   itemPowerLabel,
@@ -548,9 +540,6 @@ function KillHistoryRow({
   const roleBadgeClass = isKiller
     ? 'bg-emerald-500/20 text-emerald-300'
     : 'bg-red-500/20 text-red-300'
-  const trackedBadgeClass = entry.tracked
-    ? 'bg-amber-500/20 text-amber-300'
-    : 'bg-gray-700 text-gray-400'
   const opponent = entry.opponent_name
     ? opponentLabel(
         entry.opponent_guild
@@ -575,11 +564,6 @@ function KillHistoryRow({
           </span>
         </p>
       </div>
-      <span
-        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${trackedBadgeClass}`}
-      >
-        {entry.tracked ? trackedLabel : untrackedLabel}
-      </span>
     </li>
   )
 }

@@ -1225,11 +1225,8 @@
     "valueNone": "—",
     "killHistoryTitle": "Recent kills/deaths ({count})",
     "killHistoryEmpty": "No kill/death records.",
-    "killHistoryNote": "Raw events from killboard sync. Only 'tracked' events count toward ZvZ stats.",
     "killRoleKiller": "Kill",
     "killRoleVictim": "Death",
-    "killBadgeTracked": "ZvZ tracked",
-    "killBadgeUntracked": "Untracked",
     "killOpponent": "vs {name}",
     "killOpponentUnknown": "Unknown opponent",
     "killItemPower": "IP {value}",
@@ -1609,12 +1606,6 @@
     "participantsTitle": "Participants ({count})",
     "participantsEmpty": "No killboard events from guild members in this battle window.",
     "participantKills": "Kills {count}",
-    "participantDeaths": "Deaths {count}",
-    "roleKiller": "K",
-    "roleVictim": "D",
-    "eventOpponent": "vs {name}",
-    "eventOpponentUnknown": "Unknown opponent",
-    "eventItemPower": "IP {value}",
-    "eventFame": "{fame} fame"
+    "participantDeaths": "Deaths {count}"
   }
 }

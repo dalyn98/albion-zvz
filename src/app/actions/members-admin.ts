@@ -134,9 +134,9 @@ export interface KillboardStats {
   death_fame: number
 }
 
-// 멤버 상세 화면의 "최근 킬/데스" 타임라인용. killboard_events 한 행 = 한 이벤트.
-// tracked 는 해당 이벤트가 tenant_battle_records 창에 들어있는지 (= ZvZ 통계에
-// 집계되는지). false 면 1:1 갱킹 등 필터 대상이라는 의미로 UI 에 미집계 배지.
+// 멤버 상세 화면의 "최근 킬/데스" 타임라인용. tenant_battle_records 창 안에
+// 떨어진 이벤트(= ZvZ 통계에 집계되는 이벤트) 만 포함 — 1:1 갱킹/창 밖 킬은
+// 목록에 들어오지 않아 "저그전 킬로그" 만 보여준다.
 export interface MemberKillEvent {
   event_id: string
   role: 'killer' | 'victim'
@@ -145,7 +145,6 @@ export interface MemberKillEvent {
   fame: number
   item_power: number | null
   occurred_at: string
-  tracked: boolean
 }
 
 // 전투 기록, 참여 추이, 길드 내 상대순위 같은 "명예" 지표. 기존 KillboardStats
@@ -723,23 +722,22 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     for (const row of (killboardRes.data ?? []) as KillboardRow[]) {
       if (!row.occurred_at) continue
       const inWindow = isWithinTrackedWindow(row.occurred_at, trackedWindows)
-      if (inWindow) {
-        const fame = row.fame ?? 0
-        if (row.role === 'killer') killboard.kill_fame += fame
-        else if (row.role === 'victim') killboard.death_fame += fame
-        const mainHandType = row.equipment?.MainHand?.Type
-        const battleKey = findTrackedBattleKey(row.occurred_at, trackedWindows)
-        if (mainHandType && battleKey) {
-          const category = extractWeaponCategory(mainHandType)
-          if (category) {
-            let entry = weaponAgg.get(category)
-            if (!entry) {
-              entry = { sampleId: mainHandType, battles: new Set() }
-              weaponAgg.set(category, entry)
-            }
-            entry.battles.add(battleKey)
-            entry.sampleId = mainHandType
+      if (!inWindow) continue
+      const fame = row.fame ?? 0
+      if (row.role === 'killer') killboard.kill_fame += fame
+      else if (row.role === 'victim') killboard.death_fame += fame
+      const mainHandType = row.equipment?.MainHand?.Type
+      const battleKey = findTrackedBattleKey(row.occurred_at, trackedWindows)
+      if (mainHandType && battleKey) {
+        const category = extractWeaponCategory(mainHandType)
+        if (category) {
+          let entry = weaponAgg.get(category)
+          if (!entry) {
+            entry = { sampleId: mainHandType, battles: new Set() }
+            weaponAgg.set(category, entry)
           }
+          entry.battles.add(battleKey)
+          entry.sampleId = mainHandType
         }
       }
       if (row.role === 'killer' || row.role === 'victim') {
@@ -751,7 +749,6 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
           fame: row.fame ?? 0,
           item_power: row.item_power,
           occurred_at: row.occurred_at,
-          tracked: inWindow,
         })
       }
     }

@@ -5,6 +5,10 @@ import MemberAvatar from './MemberAvatar'
 import { formatDateTime } from '@/lib/format-datetime'
 import type { BattleDetail, BattleKillEvent } from '@/app/actions/battles'
 
+// 참가자 카드는 멤버당 "몇 킬 / 몇 데스" 요약만 노출한다. 개별 킬로그(상대·IP·
+// fame) 는 멤버 상세 페이지의 "최근 킬/데스" 섹션에서 이미 볼 수 있고, 여기선
+// 전투 단위 기여도만 한눈에 보이도록 의도적으로 숨겼다.
+
 interface Props {
   detail: BattleDetail
 }
@@ -136,12 +140,6 @@ export default async function BattleDetailView({ detail }: Props) {
                 participant={p}
                 killLabel={(count) => t('participantKills', { count })}
                 deathLabel={(count) => t('participantDeaths', { count })}
-                rolekillerLabel={t('roleKiller')}
-                roleVictimLabel={t('roleVictim')}
-                opponentLabel={(name) => t('eventOpponent', { name })}
-                opponentUnknownLabel={t('eventOpponentUnknown')}
-                itemPowerLabel={(value) => t('eventItemPower', { value })}
-                fameLabel={(fame) => t('eventFame', { fame })}
               />
             ))}
           </ul>
@@ -157,7 +155,6 @@ interface Participant {
   avatar: string | null
   kills: number
   deaths: number
-  events: BattleKillEvent[]
 }
 
 function groupByMember(events: BattleKillEvent[]): Participant[] {
@@ -171,13 +168,11 @@ function groupByMember(events: BattleKillEvent[]): Participant[] {
         avatar: e.avatar,
         kills: 0,
         deaths: 0,
-        events: [],
       }
       map.set(e.discord_id, p)
     }
     if (e.role === 'killer') p.kills++
     else if (e.role === 'victim') p.deaths++
-    p.events.push(e)
   }
   // 킬 많은 순 → 데스 많은 순 → username
   return Array.from(map.values()).sort((a, b) => {
@@ -235,27 +230,15 @@ interface ParticipantRowProps {
   participant: Participant
   killLabel: (count: number) => string
   deathLabel: (count: number) => string
-  rolekillerLabel: string
-  roleVictimLabel: string
-  opponentLabel: (name: string) => string
-  opponentUnknownLabel: string
-  itemPowerLabel: (value: number) => string
-  fameLabel: (fame: string) => string
 }
 
 function ParticipantRow({
   participant,
   killLabel,
   deathLabel,
-  rolekillerLabel,
-  roleVictimLabel,
-  opponentLabel,
-  opponentUnknownLabel,
-  itemPowerLabel,
-  fameLabel,
 }: ParticipantRowProps) {
   return (
-    <li className="bg-gray-900 border border-gray-800 rounded-lg p-3 space-y-2">
+    <li className="bg-gray-900 border border-gray-800 rounded-lg p-3">
       <div className="flex items-center gap-3">
         <MemberAvatar
           discordId={participant.discord_id}
@@ -275,41 +258,6 @@ function ParticipantRow({
           </div>
         </div>
       </div>
-      <ul className="space-y-1 pl-11">
-        {participant.events.map((e) => {
-          const isKiller = e.role === 'killer'
-          const roleBadgeClass = isKiller
-            ? 'bg-emerald-500/20 text-emerald-300'
-            : 'bg-red-500/20 text-red-300'
-          const opponent = e.opponent_name
-            ? opponentLabel(
-                e.opponent_guild
-                  ? `${e.opponent_name} [${e.opponent_guild}]`
-                  : e.opponent_name,
-              )
-            : opponentUnknownLabel
-          return (
-            <li
-              key={`${e.event_id}-${e.role}`}
-              className="flex items-center gap-2 text-xs"
-            >
-              <span
-                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${roleBadgeClass}`}
-              >
-                {isKiller ? rolekillerLabel : roleVictimLabel}
-              </span>
-              <span className="text-gray-300 truncate flex-1">{opponent}</span>
-              <span className="text-gray-500 font-mono text-[10px] flex-shrink-0">
-                {formatTime(e.occurred_at)}
-                {e.item_power != null && (
-                  <span className="ml-2">{itemPowerLabel(e.item_power)}</span>
-                )}
-                <span className="ml-2">{fameLabel(e.fame.toLocaleString())}</span>
-              </span>
-            </li>
-          )
-        })}
-      </ul>
     </li>
   )
 }
@@ -318,14 +266,4 @@ function formatFame(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
   return String(n)
-}
-
-function formatTime(iso: string): string {
-  return new Intl.DateTimeFormat('ko-KR', {
-    timeZone: 'Asia/Seoul',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).format(new Date(iso))
 }
