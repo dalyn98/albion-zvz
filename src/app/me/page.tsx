@@ -1,13 +1,14 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Coins, Pencil, ShieldAlert, ShieldCheck } from 'lucide-react'
+import { Pencil, ShieldAlert, ShieldCheck } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
-import { listMyRegearRequests, getMyPointsSummary } from '@/app/actions/regear'
+import { listMyRegearRequests } from '@/app/actions/regear'
 import { listMyExchangeRequests } from '@/app/actions/exchange'
 import { listMyParticipation } from '@/app/actions/member'
 import { listTransferCandidates } from '@/app/actions/transfer'
 import { listMyDonationRequests } from '@/app/actions/donation'
+import { getMyDashboard } from '@/app/actions/me-dashboard'
 import { getMemberAlbionIdentity, isAlbionVerified } from '@/lib/albion-identity'
 import { ALBION_SERVER_LABEL } from '@/lib/albion-gameinfo'
 import { formatSilver } from '@/lib/silver'
@@ -15,6 +16,7 @@ import { formatDateTime } from '@/lib/format-datetime'
 import { formatGatherTimeFor } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
 import { regearPayoutSilver } from '@/types'
+import MyHomeDashboardCard from '@/components/MyHomeDashboardCard'
 import RequestExchangeForm from '@/components/RequestExchangeForm'
 import ExchangeRequestActions from '@/components/ExchangeRequestActions'
 import RegearRequestCancelButton from '@/components/RegearRequestCancelButton'
@@ -41,7 +43,7 @@ export default async function MePage() {
   }
 
   const [
-    { summary },
+    dashboard,
     { requests: regears },
     { requests: exchanges },
     { entries: participation },
@@ -53,7 +55,7 @@ export default async function MePage() {
     tOnboarding,
     locale,
   ] = await Promise.all([
-    getMyPointsSummary(),
+    getMyDashboard(),
     listMyRegearRequests(),
     listMyExchangeRequests(),
     listMyParticipation(),
@@ -68,7 +70,7 @@ export default async function MePage() {
 
   const albionVerified = isAlbionVerified(albionIdentity)
 
-  const balance = summary?.balance ?? 0
+  const balance = dashboard?.balance ?? 0
   const hasPendingExchange = exchanges.some((e) => e.status === 'pending')
 
   return (
@@ -118,30 +120,13 @@ export default async function MePage() {
         </div>
       </section>
 
-      <section className="bg-gray-900 border border-gray-700 rounded-2xl p-5 sm:p-6 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-1">{t('myPoints')}</p>
-            <div className="flex items-baseline gap-2">
-              <Coins size={28} className="text-amber-400" />
-              <span className="text-3xl sm:text-4xl font-bold text-white font-mono">
-                {formatSilver(balance)}
-              </span>
-            </div>
-            {summary && (
-              <p className="text-gray-500 text-xs mt-2">
-                {t('summary', {
-                  earned: formatSilver(summary.lifetimeEarned),
-                  spent: formatSilver(summary.lifetimeSpent),
-                })}
-              </p>
-            )}
-          </div>
-          <div className="flex-shrink-0">
-            <TransferPointsForm balance={balance} candidates={transferCandidates} />
-          </div>
-        </div>
-        <p className="text-gray-500 text-[11px] leading-relaxed">{t('transferDescription')}</p>
+      {dashboard && <MyHomeDashboardCard data={dashboard} />}
+
+      <section className="bg-gray-900 border border-gray-700 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
+        <p className="text-gray-500 text-[11px] leading-relaxed min-w-0 flex-1">
+          {t('transferDescription')}
+        </p>
+        <TransferPointsForm balance={balance} candidates={transferCandidates} />
       </section>
 
       <section className="space-y-3">
