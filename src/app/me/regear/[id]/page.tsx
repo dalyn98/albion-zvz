@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
+import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getMyRegearDetail } from '@/app/actions/regear'
 import MyRegearBreakdownEditor from '@/components/MyRegearBreakdownEditor'
@@ -22,6 +23,8 @@ export default async function MyRegearDetailPage({
   const { detail, error } = await getMyRegearDetail(id)
   if (error || !detail) notFound()
 
+  const t = await getTranslations('common')
+
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-4">
       <Link
@@ -29,7 +32,7 @@ export default async function MyRegearDetailPage({
         className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-200"
       >
         <ArrowLeft size={14} />
-        내 페이지로
+        {t('backToMyPage')}
       </Link>
       <MyRegearBreakdownEditor detail={detail} />
     </main>

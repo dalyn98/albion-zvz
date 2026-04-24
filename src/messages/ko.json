@@ -43,7 +43,8 @@
     "copy": "복사",
     "copied": "복사됨",
     "unknown": "알 수 없음",
-    "other": "기타"
+    "other": "기타",
+    "backToMyPage": "내 페이지로"
   },
   "adminLogin": {
     "title": "관리자 로그인",
@@ -1995,6 +1996,36 @@
       "excellent": "우수",
       "masterpiece": "걸작"
     }
+  },
+  "shopCatalog": {
+    "baseCityLabel": "시세 기준",
+    "aodpAriaLabel": "AODP 설명",
+    "searchPlaceholder": "아이템 검색",
+    "tierAll": "전체 Tier",
+    "balanceLabel": "잔액",
+    "cartButton": "장바구니",
+    "closeAriaLabel": "닫기",
+    "emptyStock": "상점 재고가 비었습니다.",
+    "emptySearch": "검색 결과 없음.",
+    "tile": {
+      "stockPrefix": "재고 {stock}",
+      "cartPrefix": "담긴 수량 {qty}",
+      "resetHint": "클릭 시 비우기"
+    },
+    "cart": {
+      "empty": "타일을 클릭해 담아보세요.",
+      "totalLabel": "총액",
+      "insufficient": "(부족)",
+      "notePlaceholder": "관리자에게 전달할 메모 (선택)",
+      "clearButton": "비우기",
+      "submitButton": "주문 요청",
+      "notMemberHint": "길드원으로 인증된 계정만 주문할 수 있습니다.",
+      "decAriaLabel": "감소",
+      "incAriaLabel": "증가",
+      "removeAriaLabel": "삭제"
+    },
+    "orderSuccess": "주문 요청 완료! 관리자 승인을 기다려주세요.",
+    "orderFailedDefault": "주문 실패"
   },
   "time": {
     "justNow": "방금",

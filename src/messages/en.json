@@ -43,7 +43,8 @@
     "copy": "Copy",
     "copied": "Copied",
     "unknown": "Unknown",
-    "other": "Other"
+    "other": "Other",
+    "backToMyPage": "Back to My Page"
   },
   "adminLogin": {
     "title": "Admin login",
@@ -1995,6 +1996,36 @@
       "excellent": "Excellent",
       "masterpiece": "Masterpiece"
     }
+  },
+  "shopCatalog": {
+    "baseCityLabel": "Price basis",
+    "aodpAriaLabel": "AODP info",
+    "searchPlaceholder": "Search items",
+    "tierAll": "All tiers",
+    "balanceLabel": "Balance",
+    "cartButton": "Cart",
+    "closeAriaLabel": "Close",
+    "emptyStock": "The shop is out of stock.",
+    "emptySearch": "No results.",
+    "tile": {
+      "stockPrefix": "Stock {stock}",
+      "cartPrefix": "In cart {qty}",
+      "resetHint": "Click to clear"
+    },
+    "cart": {
+      "empty": "Click a tile to add it to your cart.",
+      "totalLabel": "Total",
+      "insufficient": "(insufficient)",
+      "notePlaceholder": "Note to admin (optional)",
+      "clearButton": "Clear",
+      "submitButton": "Submit order",
+      "notMemberHint": "Only verified guild members can place orders.",
+      "decAriaLabel": "Decrease",
+      "incAriaLabel": "Increase",
+      "removeAriaLabel": "Remove"
+    },
+    "orderSuccess": "Order submitted! Please wait for admin approval.",
+    "orderFailedDefault": "Order failed"
   },
   "time": {
     "justNow": "just now",

@@ -43,7 +43,8 @@
     "copy": "コピー",
     "copied": "コピーしました",
     "unknown": "不明",
-    "other": "その他"
+    "other": "その他",
+    "backToMyPage": "マイページへ"
   },
   "adminLogin": {
     "title": "管理者ログイン",
@@ -1995,6 +1996,36 @@
       "excellent": "傑出",
       "masterpiece": "傑作"
     }
+  },
+  "shopCatalog": {
+    "baseCityLabel": "相場基準",
+    "aodpAriaLabel": "AODP の説明",
+    "searchPlaceholder": "アイテム検索",
+    "tierAll": "全 Tier",
+    "balanceLabel": "残高",
+    "cartButton": "カート",
+    "closeAriaLabel": "閉じる",
+    "emptyStock": "ショップの在庫が空です。",
+    "emptySearch": "検索結果がありません。",
+    "tile": {
+      "stockPrefix": "在庫 {stock}",
+      "cartPrefix": "カート {qty}",
+      "resetHint": "クリックで空にする"
+    },
+    "cart": {
+      "empty": "タイルをクリックして追加してください。",
+      "totalLabel": "合計",
+      "insufficient": "(不足)",
+      "notePlaceholder": "管理者へのメモ (任意)",
+      "clearButton": "空にする",
+      "submitButton": "注文リクエスト",
+      "notMemberHint": "ギルドメンバーとして認証されたアカウントのみ注文できます。",
+      "decAriaLabel": "減らす",
+      "incAriaLabel": "増やす",
+      "removeAriaLabel": "削除"
+    },
+    "orderSuccess": "注文リクエスト完了!管理者の承認をお待ちください。",
+    "orderFailedDefault": "注文に失敗しました"
   },
   "time": {
     "justNow": "たった今",

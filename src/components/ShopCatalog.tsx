@@ -84,6 +84,7 @@ export default function ShopCatalog({
   baseCityLabel,
 }: Props) {
   const router = useRouter()
+  const t = useTranslations('shopCatalog')
   const [query, setQuery] = useState('')
   const [tier, setTier] = useState<number | 'all'>('all')
   const [cart, setCart] = useState<CartLine[]>([])
@@ -154,10 +155,10 @@ export default function ShopCatalog({
         setCart([])
         setNote('')
         setCartOpen(false)
-        setResult({ ok: true, message: '주문 요청 완료! 관리자 승인을 기다려주세요.' })
+        setResult({ ok: true, message: t('orderSuccess') })
         router.refresh()
       } else {
-        setResult({ ok: false, message: res.error ?? '주문 실패' })
+        setResult({ ok: false, message: res.error ?? t('orderFailedDefault') })
       }
     })
   }
@@ -170,14 +171,14 @@ export default function ShopCatalog({
             AODP 폴백/부정확 사유를 설명하는 툴팁이 뜬다. 상점 전역에 적용되는
             힌트라 검색 툴바 위쪽 한 줄에 배치. */}
         <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
-          <span>시세 기준</span>
+          <span>{t('baseCityLabel')}</span>
           <span className="text-amber-300 font-semibold">{baseCityLabel}</span>
           <HoverTip
             label={AODP_INFO_TOOLTIP}
             placement="bottom"
             triggerClassName="inline-flex items-center cursor-help text-gray-500"
           >
-            <span aria-label="AODP 설명">
+            <span aria-label={t('aodpAriaLabel')}>
               <Info size={12} />
             </span>
           </HoverTip>
@@ -190,7 +191,7 @@ export default function ShopCatalog({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="아이템 검색"
+              placeholder={t('searchPlaceholder')}
               className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
             />
           </div>
@@ -199,7 +200,7 @@ export default function ShopCatalog({
             onChange={(e) => setTier(e.target.value === 'all' ? 'all' : Number(e.target.value))}
             className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
           >
-            <option value="all">전체 Tier</option>
+            <option value="all">{t('tierAll')}</option>
             {[3, 4, 5, 6, 7, 8].map((t) => (
               <option key={t} value={t}>
                 T{t}
@@ -207,7 +208,7 @@ export default function ShopCatalog({
             ))}
           </select>
           <div className="hidden sm:flex items-center gap-1 text-xs text-gray-400 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2">
-            <span className="text-gray-500">잔액</span>
+            <span className="text-gray-500">{t('balanceLabel')}</span>
             <span className="font-mono font-bold text-amber-300">{balance.toLocaleString()}p</span>
           </div>
           <button
@@ -217,7 +218,7 @@ export default function ShopCatalog({
             className="lg:hidden relative flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-4 py-2 rounded-lg text-sm transition-colors"
           >
             <ShoppingCart size={14} />
-            장바구니
+            {t('cartButton')}
             {totalQty > 0 && (
               <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
                 {totalQty}
@@ -251,7 +252,7 @@ export default function ShopCatalog({
         >
           {filtered.length === 0 ? (
             <p className="text-amber-100/50 text-sm text-center py-10">
-              {items.length === 0 ? '상점 재고가 비었습니다.' : '검색 결과 없음.'}
+              {items.length === 0 ? t('emptyStock') : t('emptySearch')}
             </p>
           ) : (
             <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-6 xl:grid-cols-8 gap-1.5 sm:gap-2">
@@ -299,13 +300,13 @@ export default function ShopCatalog({
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
               <h2 className="font-bold text-white text-lg flex items-center gap-2">
                 <ShoppingCart size={18} className="text-amber-400" />
-                장바구니
+                {t('cartButton')}
               </h2>
               <button
                 type="button"
                 onClick={() => setCartOpen(false)}
                 className="text-gray-400 hover:text-white p-1.5"
-                aria-label="닫기"
+                aria-label={t('closeAriaLabel')}
               >
                 <X size={18} />
               </button>
@@ -347,6 +348,7 @@ function ShopTile({
   disabled: boolean
 }) {
   const t = useTranslations('shop')
+  const tc = useTranslations('shopCatalog')
   const quality = t(`quality.${qualityKey(item.quality)}`)
   const qualityRing = QUALITY_RING[item.quality] ?? QUALITY_RING[1]
   const inCart = cartQty > 0
@@ -359,7 +361,10 @@ function ShopTile({
   // 그대로 옮겨온 것 — 스크린 리더 사용자에게는 가격/재고/담긴 수량이 여전히 전달되고,
   // 마우스 호버 시 뜨던 OS 기본 툴팁은 제거된다 (타일 안에 이미 같은 정보가 시각적으로
   // 다 보이므로 시각 사용자에겐 중복이었음).
-  const ariaLabel = `${item.nameKo}${item.enchant > 0 ? ` .${item.enchant}` : ''} / ${quality} / ${item.pointPrice.toLocaleString()}p / 재고 ${item.stock.toLocaleString()}${inCart ? ` / 담긴 수량 ${cartQty}` : ''}${atMax ? ' / 클릭 시 비우기' : ''}`
+  const stockLabel = tc('tile.stockPrefix', { stock: item.stock.toLocaleString() })
+  const cartLabel = inCart ? ` / ${tc('tile.cartPrefix', { qty: cartQty })}` : ''
+  const resetLabel = atMax ? ` / ${tc('tile.resetHint')}` : ''
+  const ariaLabel = `${item.nameKo}${item.enchant > 0 ? ` .${item.enchant}` : ''} / ${quality} / ${item.pointPrice.toLocaleString()}p / ${stockLabel}${cartLabel}${resetLabel}`
 
   return (
     <button
@@ -494,6 +499,7 @@ function CartPanel({
   isMember: boolean
   variant?: 'sidebar' | 'drawer'
 }) {
+  const t = useTranslations('shopCatalog')
   const totalQty = cart.reduce((s, l) => s + l.qty, 0)
   const isSidebar = variant === 'sidebar'
 
@@ -509,7 +515,7 @@ function CartPanel({
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
           <h2 className="font-bold text-white text-sm flex items-center gap-2">
             <ShoppingCart size={16} className="text-amber-400" />
-            장바구니
+            {t('cartButton')}
             {totalQty > 0 && (
               <span className="text-[11px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded px-1.5 py-0.5">
                 {totalQty}
@@ -522,7 +528,7 @@ function CartPanel({
       <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 space-y-1.5">
         {cart.length === 0 ? (
           <p className="text-gray-500 text-xs text-center py-10">
-            타일을 클릭해 담아보세요.
+            {t('cart.empty')}
           </p>
         ) : (
           cart.map((line) => (
@@ -539,16 +545,16 @@ function CartPanel({
 
       <div className="border-t border-gray-800 px-4 py-3 space-y-2">
         <div className="flex justify-between text-sm">
-          <span className="text-gray-400">총액</span>
+          <span className="text-gray-400">{t('cart.totalLabel')}</span>
           <span className="font-mono font-bold text-amber-300">
             {totalPoints.toLocaleString()}p
           </span>
         </div>
         <div className="flex justify-between text-xs">
-          <span className="text-gray-500">잔액</span>
+          <span className="text-gray-500">{t('balanceLabel')}</span>
           <span className={`font-mono ${insufficient ? 'text-red-400' : 'text-gray-300'}`}>
             {balance.toLocaleString()}p
-            {insufficient && <span className="ml-1 text-red-400">(부족)</span>}
+            {insufficient && <span className="ml-1 text-red-400">{t('cart.insufficient')}</span>}
           </span>
         </div>
 
@@ -556,7 +562,7 @@ function CartPanel({
           value={note}
           onChange={(e) => onNoteChange(e.target.value)}
           rows={2}
-          placeholder="관리자에게 전달할 메모 (선택)"
+          placeholder={t('cart.notePlaceholder')}
           className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 resize-none"
         />
 
@@ -567,7 +573,7 @@ function CartPanel({
             disabled={pending || cart.length === 0}
             className="text-[11px] text-gray-400 hover:text-red-300 disabled:text-gray-700 px-2"
           >
-            비우기
+            {t('cart.clearButton')}
           </button>
           <button
             type="button"
@@ -580,13 +586,13 @@ function CartPanel({
             ) : (
               <Send size={12} />
             )}
-            주문 요청
+            {t('cart.submitButton')}
           </button>
         </div>
 
         {!isMember && (
           <p className="text-[11px] text-amber-300/80">
-            길드원으로 인증된 계정만 주문할 수 있습니다.
+            {t('cart.notMemberHint')}
           </p>
         )}
       </div>
@@ -605,6 +611,7 @@ function CartLineRow({
   onDec: () => void
   onRemove: () => void
 }) {
+  const t = useTranslations('shopCatalog.cart')
   return (
     <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-800 rounded-lg px-2 py-1.5">
       <div className="relative w-9 h-9 rounded bg-gray-950 flex-shrink-0">
@@ -635,7 +642,7 @@ function CartLineRow({
           type="button"
           onClick={onDec}
           className="w-6 h-6 flex items-center justify-center bg-gray-900 hover:bg-gray-700 rounded text-gray-300"
-          aria-label="감소"
+          aria-label={t('decAriaLabel')}
         >
           <Minus size={11} />
         </button>
@@ -645,7 +652,7 @@ function CartLineRow({
           onClick={onInc}
           disabled={line.qty >= line.item.stock}
           className="w-6 h-6 flex items-center justify-center bg-gray-900 hover:bg-gray-700 disabled:bg-gray-900/50 disabled:text-gray-700 rounded text-gray-300"
-          aria-label="증가"
+          aria-label={t('incAriaLabel')}
         >
           <Plus size={11} />
         </button>
@@ -653,7 +660,7 @@ function CartLineRow({
           type="button"
           onClick={onRemove}
           className="ml-1 text-gray-500 hover:text-red-400 p-1"
-          aria-label="삭제"
+          aria-label={t('removeAriaLabel')}
         >
           <Trash2 size={11} />
         </button>
