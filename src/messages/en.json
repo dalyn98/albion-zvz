@@ -42,7 +42,8 @@
     "uploading": "Uploading…",
     "copy": "Copy",
     "copied": "Copied",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "other": "Other"
   },
   "adminLogin": {
     "title": "Admin login",
@@ -1620,5 +1621,47 @@
     "loginLink": "sign in with Discord",
     "loginRequiredSuffix": ".",
     "memberOnly": "Browsing is open, but only verified guild members can place orders."
+  },
+  "shop": {
+    "priceWarning": "Price estimate",
+    "priceWarningBuyer": {
+      "quality": "Price estimate: no market data for this item quality, so we substituted a lower-quality price.",
+      "window": "Price estimate: recent market data is sparse, averaged over up to 14 days.",
+      "bluezone": "Price estimate: no price data for the current city, so we used another Royal City's price. Actual trades may incur teleport cost and travel time.",
+      "redzone": "Price estimate: no Royal City data at all — we used Red Zone prices (Caerleon / Brecilien). Actual value may differ significantly due to PvP risk."
+    },
+    "priceWarningAdmin": {
+      "quality": "Price estimate: no data for the requested quality, so we substituted a lower-quality price.",
+      "window": "Price estimate: recent market data is sparse, averaged over up to 14 days.",
+      "bluezone": "Price estimate: no data for the configured city, so we used another Royal City's price.",
+      "redzone": "Price estimate: no Royal City data at all — using Red Zone prices. Actual value may differ significantly; admin review recommended."
+    },
+    "quality": {
+      "unknown": "?",
+      "normal": "Normal",
+      "good": "Good",
+      "outstanding": "Outstanding",
+      "excellent": "Excellent",
+      "masterpiece": "Masterpiece"
+    }
+  },
+  "time": {
+    "justNow": "just now",
+    "minutesAgo": "{n}m ago",
+    "hoursAgo": "{n}h ago",
+    "today": "today",
+    "daysAgo": "{n}d ago",
+    "monthsAgo": "{n}mo ago",
+    "yearsAgo": "{n}y ago"
+  },
+  "slotRole": {
+    "caller": "Caller",
+    "offtank": "Offtank",
+    "deftank": "Deftank",
+    "support": "Support",
+    "healer": "Healer",
+    "dps": "DPS",
+    "battlemount": "Battle mount",
+    "other": "Other"
   }
 }

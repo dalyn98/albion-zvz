@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { Package, RefreshCw, Loader2, Pencil, Check, X, Trash2, Search, RotateCcw } from 'lucide-react'
 import {
@@ -14,6 +15,7 @@ import {
   type PriceSyncSummary,
 } from '@/app/actions/shop-inventory'
 import { computePointPrice } from '@/lib/shop/price'
+import { formatRelativeFine } from '@/lib/relative-time'
 
 export type InventoryPriceWarning = 'quality' | 'window' | 'bluezone' | 'redzone' | null
 
@@ -34,34 +36,12 @@ export interface InventoryRow {
   updatedAt: string
 }
 
-// 관리자 테이블용 경고 배지. 통일 라벨 "시세 부정확" + 색상으로 심각도.
-// 원인은 툴팁에만 — 관리자는 가격 옆 짧은 배지로 빠르게 스캔하고, 상세는
-// 호버해 읽는다.
-const WARNING_LABEL = '시세 부정확'
-const WARNING_META: Record<
-  NonNullable<InventoryPriceWarning>,
-  { color: string; tooltip: string }
-> = {
-  quality: {
-    color: 'bg-yellow-400 text-black',
-    tooltip:
-      '시세 부정확: 요청 품질 데이터가 없어 낮은 품질로 대체 추정된 가격입니다.',
-  },
-  window: {
-    color: 'bg-yellow-400 text-black',
-    tooltip:
-      '시세 부정확: 최근 시세가 부족해 최대 14일 평균으로 추정된 가격입니다.',
-  },
-  bluezone: {
-    color: 'bg-orange-500 text-black',
-    tooltip:
-      '시세 부정확: 설정 도시 시세가 없어 다른 로열 시티 시세로 추정된 가격입니다.',
-  },
-  redzone: {
-    color: 'bg-red-600 text-white',
-    tooltip:
-      '시세 부정확: 로열 시티 시세가 모두 없어 레드존 시세로 추정된 가격입니다. 실가치와 차이가 클 수 있어 관리자 검토를 권장합니다.',
-  },
+// 관리자 테이블용 경고 배지 색상. 라벨과 툴팁은 i18n (shop.priceWarning* 키).
+const WARNING_COLOR: Record<NonNullable<InventoryPriceWarning>, string> = {
+  quality: 'bg-yellow-400 text-black',
+  window: 'bg-yellow-400 text-black',
+  bluezone: 'bg-orange-500 text-black',
+  redzone: 'bg-red-600 text-white',
 }
 
 interface Props {
@@ -70,25 +50,16 @@ interface Props {
   discountRate: number
 }
 
-const QUALITY_LABELS = ['?', '일반', '좋음', '뛰어남', '우수', '걸작']
+const QUALITY_KEYS = ['unknown', 'normal', 'good', 'outstanding', 'excellent', 'masterpiece'] as const
+type QualityKey = (typeof QUALITY_KEYS)[number]
+function qualityKey(idx: number): QualityKey {
+  return QUALITY_KEYS[idx] ?? 'unknown'
+}
 
 function imageUrl(uniqueName: string, enchant: number, quality: number, size = 60): string {
   const id = enchant > 0 ? `${uniqueName}@${enchant}` : uniqueName
   const params = new URLSearchParams({ quality: String(quality), size: String(size) })
   return `https://render.albiononline.com/v1/item/${id}.png?${params.toString()}`
-}
-
-function formatAgo(iso: string | null): string {
-  if (!iso) return '—'
-  const ts = Date.parse(iso)
-  if (!Number.isFinite(ts)) return '—'
-  const diffMin = Math.round((Date.now() - ts) / 60000)
-  if (diffMin < 1) return '방금'
-  if (diffMin < 60) return `${diffMin}분 전`
-  const diffHr = Math.round(diffMin / 60)
-  if (diffHr < 24) return `${diffHr}시간 전`
-  const diffDay = Math.round(diffHr / 24)
-  return `${diffDay}일 전`
 }
 
 // price_source 는 `aodp:{city}[:spot][:q{n}]` 또는 `manual`.
@@ -122,6 +93,10 @@ function fallbackQuality(source: string | null): number | null {
   return parseAodpSource(source)?.fallbackQuality ?? null
 }
 
+// 관리자 전용 툴팁. 본 Batch 1 i18n 범위 외 (admin UI 전체 i18n 은 별도 작업).
+// 품질명 폴백 표기만 한국어 문자열로 남겨둔다.
+const QUALITY_LABELS_KO_ADMIN = ['?', '일반', '좋음', '뛰어남', '우수', '걸작']
+
 function priceSourceTooltip(source: string | null): string {
   if (!source) return '수동 가격(실버, 할인 전) 수정 · 빈 값 = 자동'
   if (source === 'manual') return '수동 고정가(실버, 할인 전) · 빈 값 저장 시 자동 시세로 복귀'
@@ -131,7 +106,7 @@ function priceSourceTooltip(source: string | null): string {
     if (info.isSpot) extras.push('설정된 평균 기간 내 history 데이터 없어 spot 호가 폴백')
     if (info.fallbackQuality !== null) {
       extras.push(
-        `요청 품질에 AODP 데이터가 없어 품질 ${info.fallbackQuality}(${QUALITY_LABELS[info.fallbackQuality] ?? '?'}) 로 폴백 — 실제 시세와 다를 수 있음`,
+        `요청 품질에 AODP 데이터가 없어 품질 ${info.fallbackQuality}(${QUALITY_LABELS_KO_ADMIN[info.fallbackQuality] ?? '?'}) 로 폴백 — 실제 시세와 다를 수 있음`,
       )
     }
     const base = `${info.city} AODP ${info.isSpot ? '현재가' : '평균가'}`
@@ -321,6 +296,8 @@ function InventoryListItem({
   onError: (msg: string) => void
   onDone: () => void
 }) {
+  const t = useTranslations('shop')
+  const tTime = useTranslations('time')
   const [editingStock, setEditingStock] = useState(false)
   const [editingPrice, setEditingPrice] = useState(false)
   const [stockInput, setStockInput] = useState(String(row.stock))
@@ -419,7 +396,7 @@ function InventoryListItem({
           )}
           {row.quality > 1 && (
             <span className="text-[10px] text-gray-400 flex-shrink-0">
-              {QUALITY_LABELS[row.quality]}
+              {t(`quality.${qualityKey(row.quality)}`)}
             </span>
           )}
         </div>
@@ -535,11 +512,11 @@ function InventoryListItem({
               {row.manualPrice === null && row.priceWarningLevel && (
                 <span
                   className={`text-[9px] font-bold rounded px-1 leading-tight ${
-                    WARNING_META[row.priceWarningLevel].color
+                    WARNING_COLOR[row.priceWarningLevel]
                   }`}
-                  title={WARNING_META[row.priceWarningLevel].tooltip}
+                  title={t(`priceWarningAdmin.${row.priceWarningLevel}`)}
                 >
-                  {WARNING_LABEL}
+                  {t('priceWarning')}
                 </span>
               )}
               <Pencil size={10} className="text-gray-500 group-hover:text-amber-300" />
@@ -552,7 +529,7 @@ function InventoryListItem({
                     const fq = fallbackQuality(row.priceSource)
                     const spotTag = isSpotFallback(row.priceSource) ? ' · spot' : ''
                     const qTag = fq !== null ? ` · q${fq}` : ''
-                    return `auto · ${formatAgo(row.priceUpdatedAt)}${spotTag}${qTag}`
+                    return `auto · ${formatRelativeFine(row.priceUpdatedAt, tTime)}${spotTag}${qTag}`
                   })()
                 : 'no price'}
             </span>

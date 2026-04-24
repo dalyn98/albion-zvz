@@ -26,6 +26,7 @@ import { getLocalizedItemName } from '@/lib/item-names'
 import { canonicalT8WeaponId } from '@/lib/weapon-display'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import { getRoleStyle, regearPayoutSilver } from '@/types'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import type {
   GuildMemberDetail,
   MemberExchangeEntry,
@@ -55,6 +56,7 @@ interface Props {
 export default async function MemberDetailView({ detail, showDiscordId = true }: Props) {
   const t = await getTranslations('memberDetail')
   const tStatus = await getTranslations('status')
+  const tRole = await getTranslations('slotRole')
   const rawLocale = await getLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
   const statusLabels: StatusLabels = {
@@ -259,7 +261,7 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
                     style?.badge ?? 'bg-gray-700 text-gray-300'
                   }`}
                 >
-                  {r.role} · {r.count}
+                  {translateSlotRole(r.role, tRole)} · {r.count}
                 </span>
               )
             })}
@@ -355,7 +357,7 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
                         style?.badge ?? 'bg-gray-700 text-gray-300'
                       }`}
                     >
-                      {e.role}
+                      {translateSlotRole(e.role, tRole)}
                     </span>
                     <span className="text-white text-sm truncate flex-1">{e.event_title}</span>
                     <span className="text-gray-500 text-xs font-mono flex-shrink-0">
@@ -392,7 +394,7 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
                     </span>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400">
-                    <span>{r.role_name}</span>
+                    <span>{r.role_name ? translateSlotRole(r.role_name, tRole) : ''}</span>
                     <span className="font-mono text-amber-400">
                       {t('claimedAmount', { amount: formatSilver(regearPayoutSilver(r)) })}
                       <span className="text-gray-500"> / {t('ceilingAmount', { amount: formatSilver(r.silver) })}</span>
@@ -686,3 +688,4 @@ function formatRankSub(
   if (rank == null || total === 0) return undefined
   return render(rank, total)
 }
+

@@ -1,7 +1,9 @@
 import { AlertTriangle } from 'lucide-react'
+import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { formatRelativeCoarse } from '@/lib/relative-time'
 
 // /admin/dashboard/shop 상단에 띄우는 이상 재고 경보 패널.
 // 두 종류의 이상을 감지:
@@ -29,6 +31,7 @@ export default async function ShopAnomalyPanel() {
   const session = await getSession()
   if (!session) return null
   const guildId = await getSessionGuildId(session)
+  const tTime = await getTranslations('time')
 
   // 서버 컴포넌트 요청 타임에 한 번만 평가되므로 Date.now() 가 idempotent 아닌
   // 건 맞지만 의도된 동작 — purity 룰은 클라 render 전제.
@@ -89,6 +92,7 @@ export default async function ShopAnomalyPanel() {
           rows={negatives}
           showUpdatedAt={false}
           tone="rose"
+          tTime={tTime}
         />
       )}
 
@@ -99,6 +103,7 @@ export default async function ShopAnomalyPanel() {
           rows={stales}
           showUpdatedAt={true}
           tone="amber"
+          tTime={tTime}
         />
       )}
     </div>
@@ -111,9 +116,10 @@ interface AnomalySectionProps {
   rows: AnomalyRow[]
   showUpdatedAt: boolean
   tone: 'rose' | 'amber'
+  tTime: (key: string, values?: Record<string, number | string>) => string
 }
 
-function AnomalySection({ title, hint, rows, showUpdatedAt, tone }: AnomalySectionProps) {
+function AnomalySection({ title, hint, rows, showUpdatedAt, tone, tTime }: AnomalySectionProps) {
   const titleColor = tone === 'rose' ? 'text-rose-200' : 'text-amber-200'
   const stockColor = tone === 'rose' ? 'text-rose-300' : 'text-zinc-200'
   return (
@@ -148,7 +154,7 @@ function AnomalySection({ title, hint, rows, showUpdatedAt, tone }: AnomalySecti
                 </td>
                 {showUpdatedAt && (
                   <td className="p-2 text-right font-mono text-zinc-500">
-                    {formatRelative(r.updatedAt)}
+                    {formatRelativeCoarse(r.updatedAt, tTime)}
                   </td>
                 )}
               </tr>
@@ -160,14 +166,3 @@ function AnomalySection({ title, hint, rows, showUpdatedAt, tone }: AnomalySecti
   )
 }
 
-function formatRelative(iso: string): string {
-  const then = new Date(iso).getTime()
-  const now = Date.now()
-  const days = Math.floor((now - then) / (24 * 60 * 60 * 1000))
-  if (days <= 0) return '오늘'
-  if (days < 30) return `${days}일 전`
-  const months = Math.floor(days / 30)
-  if (months < 12) return `${months}달 전`
-  const years = Math.floor(days / 365)
-  return `${years}년 전`
-}

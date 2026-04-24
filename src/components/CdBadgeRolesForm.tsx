@@ -11,15 +11,16 @@ import { Save, Timer } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
 import { SLOT_ROLES, SLOT_ROLE_STYLES, type SlotRole } from '@/types'
 
-const ROLE_LABELS: Record<SlotRole, string> = {
-  Caller: '콜러',
-  OffTanker: '오프탱',
-  DefTanker: '디프탱',
-  Sup: '서포터',
-  Healer: '힐러',
-  Dps: 'DPS',
-  BM: '배틀마운트',
-  '기타': '기타',
+// SLOT_ROLE 내부 키 → messages/{locale}.json 의 slotRole.* 키로 매핑.
+const ROLE_I18N_KEYS: Record<SlotRole, string> = {
+  Caller: 'caller',
+  OffTanker: 'offtank',
+  DefTanker: 'deftank',
+  Sup: 'support',
+  Healer: 'healer',
+  Dps: 'dps',
+  BM: 'battlemount',
+  '기타': 'other',
 }
 
 interface Props {
@@ -29,6 +30,7 @@ interface Props {
 export default function CdBadgeRolesForm({ initialRoles }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
+  const tRole = useTranslations('slotRole')
   const [selected, setSelected] = useState<Set<SlotRole>>(new Set(initialRoles))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -94,7 +96,7 @@ export default function CdBadgeRolesForm({ initialRoles }: Props) {
                 className="h-4 w-4 accent-cyan-500"
               />
               <span className={`inline-block h-2 w-2 rounded-full ${style.dot}`} aria-hidden />
-              <span className="text-sm text-white">{ROLE_LABELS[role]}</span>
+              <span className="text-sm text-white">{tRole(ROLE_I18N_KEYS[role])}</span>
             </label>
           )
         })}

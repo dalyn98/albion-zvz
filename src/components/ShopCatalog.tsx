@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import {
   ShoppingCart,
@@ -33,35 +34,20 @@ export interface CatalogItem {
   priceWarning: ShopPriceWarning
 }
 
-// AODP 폴백 단계별 경고 메타. 공통 라벨은 "시세 부정확" — 구매자 입장에선 왜
-// 정확하지 않은지보다 "믿을 수 없음" 이 먼저 읽혀야 한다. 색상으로 심각도만
-// 차등 (노랑=경미, 주황=주의, 빨강=심각) 하고 구체 원인은 툴팁으로 보조.
-const PRICE_WARNING_LABEL = '시세 부정확'
+// AODP 폴백 단계별 경고 색상. 라벨과 툴팁 문구는 i18n (shop.priceWarning* 키).
+// 색상으로 심각도만 차등 (노랑=경미, 주황=주의, 빨강=심각).
+const PRICE_WARNING_COLOR: Record<NonNullable<ShopPriceWarning>, string> = {
+  quality: 'bg-yellow-400 text-black',
+  window: 'bg-yellow-400 text-black',
+  bluezone: 'bg-orange-500 text-black',
+  redzone: 'bg-red-600 text-white',
+}
 
-const PRICE_WARNING_META: Record<
-  NonNullable<ShopPriceWarning>,
-  { color: string; tooltip: string }
-> = {
-  quality: {
-    color: 'bg-yellow-400 text-black',
-    tooltip:
-      '시세 부정확: 이 아이템 품질의 시세 데이터가 없어 낮은 품질로 대체 추정된 가격입니다.',
-  },
-  window: {
-    color: 'bg-yellow-400 text-black',
-    tooltip:
-      '시세 부정확: 최근 시세가 부족해 최대 14일 평균으로 추정된 가격입니다.',
-  },
-  bluezone: {
-    color: 'bg-orange-500 text-black',
-    tooltip:
-      '시세 부정확: 현재 도시 시세가 없어 다른 로열 시티 시세로 추정된 가격입니다. 실제 거래 시 순간이동 비용·시간이 들 수 있습니다.',
-  },
-  redzone: {
-    color: 'bg-red-600 text-white',
-    tooltip:
-      '시세 부정확: 로열 시티 시세가 모두 없어 레드존(칼레온·브레실리앙) 시세로 추정된 가격입니다. PvP 위험 지역이라 실제 가치와 차이가 클 수 있습니다.',
-  },
+// quality 인덱스(0~5) → i18n 키 매핑. 0 / out-of-range 는 'unknown' 으로 폴백.
+const QUALITY_KEYS = ['unknown', 'normal', 'good', 'outstanding', 'excellent', 'masterpiece'] as const
+type QualityKey = (typeof QUALITY_KEYS)[number]
+function qualityKey(idx: number): QualityKey {
+  return QUALITY_KEYS[idx] ?? 'unknown'
 }
 
 interface Props {
@@ -84,8 +70,6 @@ const QUALITY_RING: Record<number, string> = {
   4: 'ring-purple-400/80',
   5: 'ring-amber-300/90',
 }
-
-const QUALITY_LABELS = ['?', '일반', '좋음', '뛰어남', '우수', '걸작']
 
 function imageUrl(uniqueName: string, enchant: number, quality: number, size = 96): string {
   const id = enchant > 0 ? `${uniqueName}@${enchant}` : uniqueName
@@ -362,7 +346,8 @@ function ShopTile({
   onAdd: () => void
   disabled: boolean
 }) {
-  const quality = QUALITY_LABELS[item.quality] ?? '일반'
+  const t = useTranslations('shop')
+  const quality = t(`quality.${qualityKey(item.quality)}`)
   const qualityRing = QUALITY_RING[item.quality] ?? QUALITY_RING[1]
   const inCart = cartQty > 0
   // 장바구니에 담긴 타일은 quality ring 을 덮어쓰고 에메랄드로 강하게 표시 —
@@ -435,14 +420,14 @@ function ShopTile({
           가격 바 바로 위에 별도 줄로 배치. 가장 눈에 띄는 위치. */}
       {item.priceWarning && (
         <HoverTip
-          label={PRICE_WARNING_META[item.priceWarning].tooltip}
+          label={t(`priceWarningBuyer.${item.priceWarning}`)}
           placement="top"
           triggerClassName="block w-full"
         >
           <span
-            className={`block text-[10px] sm:text-[11px] font-bold text-center leading-tight py-0.5 ${PRICE_WARNING_META[item.priceWarning].color}`}
+            className={`block text-[10px] sm:text-[11px] font-bold text-center leading-tight py-0.5 ${PRICE_WARNING_COLOR[item.priceWarning]}`}
           >
-            ⚠ {PRICE_WARNING_LABEL}
+            ⚠ {t('priceWarning')}
           </span>
         </HoverTip>
       )}
