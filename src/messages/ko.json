@@ -1053,6 +1053,47 @@
     "saved": "언어를 변경했습니다.",
     "saveFailed": "언어 변경에 실패했습니다."
   },
+  "badges": {
+    "sectionTitle": "업적",
+    "unlockedSummary": "{unlocked}/{total} 획득",
+    "empty": "아직 획득한 업적이 없습니다.",
+    "names": {
+      "participation_10": "첫 걸음",
+      "participation_50": "숙련된 용병",
+      "participation_100": "고참",
+      "participation_300": "길드의 기둥",
+      "kill_10": "피의 세례",
+      "kill_50": "토벌꾼",
+      "kill_200": "학살자",
+      "kill_1000": "전장의 재앙",
+      "deathless_5": "불사의 징조",
+      "deathless_15": "무결의 행진",
+      "deathless_30": "완벽의 증명",
+      "survival_80": "노련한 생존자",
+      "survival_90": "그림자",
+      "survival_95": "유령",
+      "streak_7": "열정의 일주일",
+      "streak_30": "한 달의 헌신"
+    },
+    "descriptions": {
+      "participation_10": "이벤트 10회 참여",
+      "participation_50": "이벤트 50회 참여",
+      "participation_100": "이벤트 100회 참여",
+      "participation_300": "이벤트 300회 참여",
+      "kill_10": "누적 10킬",
+      "kill_50": "누적 50킬",
+      "kill_200": "누적 200킬",
+      "kill_1000": "누적 1,000킬",
+      "deathless_5": "연속 5회 무사망",
+      "deathless_15": "연속 15회 무사망",
+      "deathless_30": "연속 30회 무사망",
+      "survival_80": "생존률 80% 이상 (평가 ≥10)",
+      "survival_90": "생존률 90% 이상 (평가 ≥10)",
+      "survival_95": "생존률 95% 이상 (평가 ≥10)",
+      "streak_7": "7일 연속 참여",
+      "streak_30": "30일 연속 참여"
+    }
+  },
   "memberDetail": {
     "recentLogin": "최근 로그인: {date}",
     "statTotalParticipation": "총 참여",

@@ -18,8 +18,10 @@ export interface MyDashboardData {
   survivalRate: number | null
   evaluatedEvents: number
   currentDeathlessStreak: number
+  longestDeathlessStreak: number
   participationCount: number
   participationCurrentStreak: number
+  participationLongestStreak: number
   nextUpcomingEvent: {
     id: string
     title: string
@@ -157,8 +159,10 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     survivalRate: survival.survivalRate,
     evaluatedEvents: survival.evaluatedEvents,
     currentDeathlessStreak: survival.currentDeathlessStreak,
+    longestDeathlessStreak: survival.longestDeathlessStreak,
     participationCount: pastParticipated.length,
     participationCurrentStreak: streak.currentStreak,
+    participationLongestStreak: streak.longestStreak,
     nextUpcomingEvent: upcoming
       ? {
           id: upcoming.id,

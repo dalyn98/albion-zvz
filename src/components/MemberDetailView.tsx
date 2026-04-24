@@ -19,6 +19,7 @@ import { getLocale, getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
 import LanguageBadge from './LanguageBadge'
 import ItemImage from './ItemImage'
+import BadgeGrid from './BadgeGrid'
 import { formatSilver } from '@/lib/silver'
 import { formatDate, formatDateTime } from '@/lib/format-datetime'
 import { getLocalizedItemName } from '@/lib/item-names'
@@ -210,6 +211,17 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
           />
         </StatSubGroup>
       </section>
+
+      <BadgeGrid
+        input={{
+          participationCount: detail.participation_count,
+          kills: detail.killboard.kills,
+          deathlessLongestStreak: detail.advanced_stats.deathless_longest_streak,
+          survivalRate: detail.advanced_stats.survival_rate,
+          evaluatedEvents: detail.advanced_stats.evaluated_events,
+          participationLongestStreak: detail.advanced_stats.participation_longest_streak,
+        }}
+      />
 
       <section className="space-y-2">
         <h2 className="text-white font-bold text-sm">{t('roleBreakdown')}</h2>

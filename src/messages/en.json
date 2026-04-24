@@ -1053,6 +1053,47 @@
     "saved": "Language updated.",
     "saveFailed": "Failed to update language."
   },
+  "badges": {
+    "sectionTitle": "Achievements",
+    "unlockedSummary": "{unlocked}/{total} unlocked",
+    "empty": "No achievements unlocked yet.",
+    "names": {
+      "participation_10": "First Steps",
+      "participation_50": "Seasoned Mercenary",
+      "participation_100": "Veteran",
+      "participation_300": "Pillar of the Guild",
+      "kill_10": "Blood Baptism",
+      "kill_50": "Hunter",
+      "kill_200": "Butcher",
+      "kill_1000": "Battlefield Calamity",
+      "deathless_5": "Untouchable",
+      "deathless_15": "Flawless March",
+      "deathless_30": "Proof of Perfection",
+      "survival_80": "Seasoned Survivor",
+      "survival_90": "Shadow",
+      "survival_95": "Ghost",
+      "streak_7": "Week of Passion",
+      "streak_30": "Month of Devotion"
+    },
+    "descriptions": {
+      "participation_10": "Join 10 events",
+      "participation_50": "Join 50 events",
+      "participation_100": "Join 100 events",
+      "participation_300": "Join 300 events",
+      "kill_10": "10 cumulative kills",
+      "kill_50": "50 cumulative kills",
+      "kill_200": "200 cumulative kills",
+      "kill_1000": "1,000 cumulative kills",
+      "deathless_5": "5 events without dying",
+      "deathless_15": "15 events without dying",
+      "deathless_30": "30 events without dying",
+      "survival_80": "Survival rate ≥80% (evaluated ≥10)",
+      "survival_90": "Survival rate ≥90% (evaluated ≥10)",
+      "survival_95": "Survival rate ≥95% (evaluated ≥10)",
+      "streak_7": "7 consecutive days participating",
+      "streak_30": "30 consecutive days participating"
+    }
+  },
   "memberDetail": {
     "recentLogin": "Last login: {date}",
     "statTotalParticipation": "Total joins",

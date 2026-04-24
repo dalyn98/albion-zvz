@@ -17,6 +17,7 @@ import { formatGatherTimeFor } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
 import { regearPayoutSilver } from '@/types'
 import MyHomeDashboardCard from '@/components/MyHomeDashboardCard'
+import BadgeGrid from '@/components/BadgeGrid'
 import RequestExchangeForm from '@/components/RequestExchangeForm'
 import ExchangeRequestActions from '@/components/ExchangeRequestActions'
 import RegearRequestCancelButton from '@/components/RegearRequestCancelButton'
@@ -121,6 +122,19 @@ export default async function MePage() {
       </section>
 
       {dashboard && <MyHomeDashboardCard data={dashboard} />}
+
+      {dashboard && (
+        <BadgeGrid
+          input={{
+            participationCount: dashboard.participationCount,
+            kills: dashboard.kills,
+            deathlessLongestStreak: dashboard.longestDeathlessStreak,
+            survivalRate: dashboard.survivalRate,
+            evaluatedEvents: dashboard.evaluatedEvents,
+            participationLongestStreak: dashboard.participationLongestStreak,
+          }}
+        />
+      )}
 
       <section className="bg-gray-900 border border-gray-700 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
         <p className="text-gray-500 text-[11px] leading-relaxed min-w-0 flex-1">

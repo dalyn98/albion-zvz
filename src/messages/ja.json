@@ -1053,6 +1053,47 @@
     "saved": "言語を変更しました。",
     "saveFailed": "言語の変更に失敗しました。"
   },
+  "badges": {
+    "sectionTitle": "実績",
+    "unlockedSummary": "{unlocked}/{total} 獲得",
+    "empty": "まだ獲得した実績がありません。",
+    "names": {
+      "participation_10": "第一歩",
+      "participation_50": "熟練の傭兵",
+      "participation_100": "古参兵",
+      "participation_300": "ギルドの柱",
+      "kill_10": "血の洗礼",
+      "kill_50": "討伐者",
+      "kill_200": "虐殺者",
+      "kill_1000": "戦場の災禍",
+      "deathless_5": "不死の兆し",
+      "deathless_15": "無傷の行進",
+      "deathless_30": "完璧の証明",
+      "survival_80": "熟練の生存者",
+      "survival_90": "影",
+      "survival_95": "幽霊",
+      "streak_7": "情熱の一週間",
+      "streak_30": "一か月の献身"
+    },
+    "descriptions": {
+      "participation_10": "イベント10回参加",
+      "participation_50": "イベント50回参加",
+      "participation_100": "イベント100回参加",
+      "participation_300": "イベント300回参加",
+      "kill_10": "累計10キル",
+      "kill_50": "累計50キル",
+      "kill_200": "累計200キル",
+      "kill_1000": "累計1,000キル",
+      "deathless_5": "連続5回無死亡",
+      "deathless_15": "連続15回無死亡",
+      "deathless_30": "連続30回無死亡",
+      "survival_80": "生存率80%以上 (評価≥10)",
+      "survival_90": "生存率90%以上 (評価≥10)",
+      "survival_95": "生存率95%以上 (評価≥10)",
+      "streak_7": "7日連続参加",
+      "streak_30": "30日連続参加"
+    }
+  },
   "memberDetail": {
     "recentLogin": "最近のログイン: {date}",
     "statTotalParticipation": "総参加",
