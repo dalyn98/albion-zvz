@@ -64,8 +64,8 @@ export default async function EventDetailPage({
     getEvent(id, guildId),
     getTranslations('event'),
     getLocale(),
-    getAppSetting('cd_badge_roles', '["Dps"]'),
-    getAppSetting('auto_regear_enabled', 'false'),
+    getAppSetting('cd_badge_roles', '["Dps"]', guildId),
+    getAppSetting('auto_regear_enabled', 'false', guildId),
   ])
   const autoRegearEnabled = autoRegearRaw === 'true'
 

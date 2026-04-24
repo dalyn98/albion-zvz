@@ -23,6 +23,10 @@ export default async function SettingsPage() {
   const tenantConfig = sessionGuildId ? await getTenantDiscordConfig(sessionGuildId) : null
   const adminRoleIds = tenantConfig?.adminRoleIds ?? []
 
+  // getAppSetting 은 guildId 를 명시해야 현재 tenant 의 값을 읽는다 — 미지정 시
+  // primary tenant 로 fallback 되어 다른 길드의 설정이 보일 수 있다.
+  const tenantId = sessionGuildId ?? undefined
+
   const [
     message,
     bannerUrl,
@@ -52,33 +56,33 @@ export default async function SettingsPage() {
     tLanding,
     t,
   ] = await Promise.all([
-    getAppSetting('event_notification_message', DEFAULT_EVENT_NOTIFICATION_MESSAGE),
-    getAppSetting('landing_banner_url', ''),
-    getAppSetting('landing_cta_text', ''),
-    getAppSetting('regear_notice_message', ''),
-    getAppSetting('regear_notice_image_url', ''),
-    getAppSetting('events_notice_message', ''),
-    getAppSetting('events_notice_image_url', ''),
-    getAppSetting('event_creator_role_ids', '[]'),
-    getAppSetting('bomb_squad_caller_role_ids', '[]'),
-    getAppSetting('active_member_role_ids', '[]'),
-    getAppSetting('last_member_sync_at', ''),
-    getAppSetting('regear_window_minutes', '60'),
-    getAppSetting('regear_max_deaths_per_event', '1'),
-    getAppSetting('regear_payout_rate_percent', '100'),
-    getAppSetting('events_auto_start_enabled', 'false'),
-    getAppSetting('albion_server', 'east'),
-    getAppSetting('albion_home_guild_id', ''),
-    getAppSetting('auto_regear_enabled', 'false'),
-    getAppSetting('auto_regear_delay_minutes', '15'),
-    getAppSetting('regear_require_verification', 'true'),
-    getAppSetting('cd_badge_roles', '["Dps"]'),
+    getAppSetting('event_notification_message', DEFAULT_EVENT_NOTIFICATION_MESSAGE, tenantId),
+    getAppSetting('landing_banner_url', '', tenantId),
+    getAppSetting('landing_cta_text', '', tenantId),
+    getAppSetting('regear_notice_message', '', tenantId),
+    getAppSetting('regear_notice_image_url', '', tenantId),
+    getAppSetting('events_notice_message', '', tenantId),
+    getAppSetting('events_notice_image_url', '', tenantId),
+    getAppSetting('event_creator_role_ids', '[]', tenantId),
+    getAppSetting('bomb_squad_caller_role_ids', '[]', tenantId),
+    getAppSetting('active_member_role_ids', '[]', tenantId),
+    getAppSetting('last_member_sync_at', '', tenantId),
+    getAppSetting('regear_window_minutes', '60', tenantId),
+    getAppSetting('regear_max_deaths_per_event', '1', tenantId),
+    getAppSetting('regear_payout_rate_percent', '100', tenantId),
+    getAppSetting('events_auto_start_enabled', 'false', tenantId),
+    getAppSetting('albion_server', 'east', tenantId),
+    getAppSetting('albion_home_guild_id', '', tenantId),
+    getAppSetting('auto_regear_enabled', 'false', tenantId),
+    getAppSetting('auto_regear_delay_minutes', '15', tenantId),
+    getAppSetting('regear_require_verification', 'true', tenantId),
+    getAppSetting('cd_badge_roles', '["Dps"]', tenantId),
     // 기본값 'true' — 기존 동작(미인증 멤버도 접근 가능) 유지. 관리자가 끌
     // 때만 layout 게이트가 /onboarding/albion 으로 강제 리다이렉트.
-    getAppSetting('allow_unverified_member_access', 'true'),
+    getAppSetting('allow_unverified_member_access', 'true', tenantId),
     // 전투기록 수집 기본값 off. 관리자가 켜야 cron 이 해당 tenant 를 처리.
-    getAppSetting('battle_tracking_enabled', 'false'),
-    getAppSetting('battle_tracking_sizes', '[]'),
+    getAppSetting('battle_tracking_enabled', 'false', tenantId),
+    getAppSetting('battle_tracking_sizes', '[]', tenantId),
     listRoleRewards(),
     getTranslations('landing'),
     getTranslations('adminSettings'),

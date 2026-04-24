@@ -226,7 +226,7 @@ export async function processAutoRegear(
     }
   }
 
-  const aodpOptions = await loadAodpOptions()
+  const aodpOptions = await loadAodpOptions(guildId)
 
   // killboard sync 지연 체크용 전역 타임스탬프. sync 가 battle 종료 시점 이후로
   // 돌지 않았다면 victim 목록이 불완전할 수 있어 해당 이벤트는 다음 cron 으로 연기.

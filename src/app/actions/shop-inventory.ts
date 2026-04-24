@@ -51,7 +51,7 @@ export async function syncShopPrices(): Promise<PriceSyncSummary> {
     }))
     if (keys.length === 0) return { requested: 0, updated: 0, missing: 0 }
 
-    const aodpOptions = await loadAodpOptions()
+    const aodpOptions = await loadAodpOptions(guildId)
     const priceMap = await fetchAodpPrices(keys, aodpOptions)
 
     let updated = 0

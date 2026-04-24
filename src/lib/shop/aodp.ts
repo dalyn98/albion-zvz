@@ -224,12 +224,14 @@ function weightedAverage(buckets: AodpHistoryBucket[]): { price: number; sampled
 
 // app_settings 에서 AODP 관련 옵션을 읽어 AodpOptions 로 조립.
 // `albion_server` 를 함께 읽어 AODP 호스트도 맞춘다.
-export async function loadAodpOptions(): Promise<Required<AodpOptions>> {
+// guildId 를 받아 해당 tenant 의 설정을 읽는다. 미지정 시 primary tenant fallback
+// (레거시 호환) — 장기적으로 모든 호출자가 guildId 를 넘기게 되면 제거.
+export async function loadAodpOptions(guildId?: string): Promise<Required<AodpOptions>> {
   const [serverRaw, citiesRaw, modeRaw, minQualityRaw] = await Promise.all([
-    getAppSetting('albion_server', 'east'),
-    getAppSetting('aodp_cities', ''),
-    getAppSetting('aodp_price_mode', 'spot'),
-    getAppSetting('aodp_min_quality', '1'),
+    getAppSetting('albion_server', 'east', guildId),
+    getAppSetting('aodp_cities', '', guildId),
+    getAppSetting('aodp_price_mode', 'spot', guildId),
+    getAppSetting('aodp_min_quality', '1', guildId),
   ])
   const server: AlbionServer =
     serverRaw === 'west' || serverRaw === 'east' || serverRaw === 'europe' ? serverRaw : 'east'

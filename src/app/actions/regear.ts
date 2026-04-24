@@ -21,10 +21,10 @@ const DEFAULT_MAX_DEATHS_PER_EVENT = 1
 
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp'])
 
-async function loadRegearLimits(): Promise<{ windowMinutes: number; maxDeaths: number }> {
+async function loadRegearLimits(guildId: string): Promise<{ windowMinutes: number; maxDeaths: number }> {
   const [windowRaw, maxRaw] = await Promise.all([
-    getAppSetting('regear_window_minutes', String(DEFAULT_REGEAR_WINDOW_MINUTES)),
-    getAppSetting('regear_max_deaths_per_event', String(DEFAULT_MAX_DEATHS_PER_EVENT)),
+    getAppSetting('regear_window_minutes', String(DEFAULT_REGEAR_WINDOW_MINUTES), guildId),
+    getAppSetting('regear_max_deaths_per_event', String(DEFAULT_MAX_DEATHS_PER_EVENT), guildId),
   ])
   const windowParsed = Number(windowRaw)
   const maxParsed = Number(maxRaw)
@@ -94,8 +94,18 @@ export interface RegearLimits {
 
 // Exposed to the regear page so it can render the window/cap labels and
 // decide button state without re-reading app_settings from the client bundle.
+// 세션이 없으면 기본값으로 degrade — /regear 는 session gate 가 리다이렉트하지만
+// 호출 타이밍 상 session 이 비어 있을 수 있는 경로에서도 안전하게 응답.
 export async function getRegearLimits(): Promise<RegearLimits> {
-  return loadRegearLimits()
+  const session = await getSession()
+  if (!session) {
+    return {
+      windowMinutes: DEFAULT_REGEAR_WINDOW_MINUTES,
+      maxDeaths: DEFAULT_MAX_DEATHS_PER_EVENT,
+    }
+  }
+  const guildId = await getSessionGuildId(session)
+  return loadRegearLimits(guildId)
 }
 
 export async function requestRegear(
@@ -105,7 +115,9 @@ export async function requestRegear(
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
-  const requireVerification = (await getAppSetting('regear_require_verification', 'true')) !== 'false'
+  const guildId = await getSessionGuildId(session)
+  const requireVerification =
+    (await getAppSetting('regear_require_verification', 'true', guildId)) !== 'false'
   if (requireVerification) {
     const albionError = await requireAlbionVerified(session.discordId)
     if (albionError) return { error: `${REGEAR_VERIFICATION_ERROR_PREFIX}${albionError}` }
@@ -127,7 +139,6 @@ export async function requestRegear(
   }
 
   const db = getAdminClient()
-  const guildId = await getSessionGuildId(session)
 
   // 1) Must be assigned to a slot with a role in that event. Pull the full
   //    gear so we can snapshot the build — the regear admin uses this to
@@ -150,7 +161,7 @@ export async function requestRegear(
 
   const buildSnapshot = buildSnapshotFromSlot(slot as unknown as SlotGearDisplay, roleName)
 
-  const { windowMinutes, maxDeaths } = await loadRegearLimits()
+  const { windowMinutes, maxDeaths } = await loadRegearLimits(guildId)
 
   // 1a) Supersede policy: pending 자동 리기어 행이 있으면 반려로 밀어내고 수동을
   //     받는다. 자동이 cron 에서 선행되어 pending 으로 자리 잡았더라도, 실제
@@ -262,6 +273,7 @@ export async function requestRegear(
     session.username,
     new Date(battleStartMs).toISOString(),
     new Date().toISOString(),
+    { guildId },
   )
 
   // 7) Insert the request. request_type column defaults to 'death' in the DB

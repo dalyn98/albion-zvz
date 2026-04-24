@@ -90,7 +90,7 @@ export default async function EditEventPage({
     getData(id, guildId),
     listTemplates(),
     getTranslations('adminEditEvent'),
-    getAppSetting('auto_regear_enabled', 'false'),
+    getAppSetting('auto_regear_enabled', 'false', guildId),
   ])
   const autoRegearEnabled = autoRegearRaw === 'true'
 

@@ -107,7 +107,7 @@ export async function GET(request: Request) {
   // 부가 가치가 없고, imminent_notified_at 은 이벤트당 1회라 이미 중복이 없다.
   const { data: events, error: eventsError } = await db
     .from('events')
-    .select('id, title, gather_at, category')
+    .select('id, guild_id, title, gather_at, category')
     .is('imminent_notified_at', null)
     .not('gather_at', 'is', null)
     // draft 이벤트는 임박 DM 대상 아님 — 발행된 이벤트만 DM.
@@ -155,6 +155,7 @@ export async function GET(request: Request) {
       const category = (event.category ?? '전투') as EventCategory
       const result = await sendDiscordDmsToUsers(
         discordIds,
+        event.guild_id as string,
         {
           title: t('eventImminentTitle', { title: event.title }),
           body: t('eventImminentBody', { time }),

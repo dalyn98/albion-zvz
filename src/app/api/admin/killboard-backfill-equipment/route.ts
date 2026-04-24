@@ -86,7 +86,7 @@ export async function POST(req: Request) {
     ),
   )
 
-  const server = await resolveAlbionServer()
+  const server = await resolveAlbionServer(guildId)
   const baseUrl = SERVER_ENDPOINTS[server]
 
   let updated = 0

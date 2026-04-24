@@ -22,8 +22,12 @@ const DEFAULT_PAYOUT_RATE_PERCENT = 100
 // Read once and normalise. Centralised so admin action and UI loaders return
 // the same number even if the DB row is malformed — 100% is the safe default
 // since it matches the legacy "pay the full claim" behaviour.
-async function loadPayoutRatePercent(): Promise<number> {
-  const raw = await getAppSetting('regear_payout_rate_percent', String(DEFAULT_PAYOUT_RATE_PERCENT))
+async function loadPayoutRatePercent(guildId: string): Promise<number> {
+  const raw = await getAppSetting(
+    'regear_payout_rate_percent',
+    String(DEFAULT_PAYOUT_RATE_PERCENT),
+    guildId,
+  )
   const parsed = Number(raw)
   if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 1 || parsed > 100) {
     return DEFAULT_PAYOUT_RATE_PERCENT
@@ -32,9 +36,13 @@ async function loadPayoutRatePercent(): Promise<number> {
 }
 
 // Exposed so the review UI can show "청구 X → 지급 Y (Z%)" without calling
-// the RPC path. The pure rounding helper lives in `@/lib/regear-payout`.
+// the RPC path. 세션이 없으면 기본값으로 degrade — 호출부가 미로그인 경로로
+// 들어온 경우 (예: /regear 는 redirect 로 세션 강제하지만 방어적으로) 안전값.
 export async function getRegearPayoutRatePercent(): Promise<number> {
-  return loadPayoutRatePercent()
+  const session = await getSession()
+  if (!session) return DEFAULT_PAYOUT_RATE_PERCENT
+  const guildId = await getSessionGuildId(session)
+  return loadPayoutRatePercent(guildId)
 }
 
 const SCREENSHOT_BUCKET = 'regear-screenshots'
@@ -251,7 +259,7 @@ export async function approveRegearRequest(
       .eq('status', 'pending')
       .maybeSingle()
     const claimed = pending?.claimed_silver ?? 0
-    const ratePercent = await loadPayoutRatePercent()
+    const ratePercent = await loadPayoutRatePercent(guildId)
     const defaultPayout = calcPayoutSilver(claimed, ratePercent)
     let payout = defaultPayout
     if (typeof overrideSilver === 'number') {
@@ -288,7 +296,7 @@ export async function approveRegearRequest(
       .eq('id', id)
       .maybeSingle()
     if (row?.discord_id) {
-      void sendDiscordDmToUser(row.discord_id, {
+      void sendDiscordDmToUser(row.discord_id, guildId, {
         title: tDm('regearApprovedTitle'),
         body: tDm('regearApprovedBody', {
           event: row.event_title_snapshot ?? '',
@@ -356,6 +364,7 @@ export async function recheckKillboardVerification(
       row.username as string,
       battleStartedAt,
       new Date().toISOString(),
+      { guildId },
     )
 
     // 재확인이 성공하고 equipment 가 있으면 AODP 시세로 추산액을 계산.
@@ -365,7 +374,7 @@ export async function recheckKillboardVerification(
     let breakdown: Record<string, unknown> | null = null
     if (result.verified && result.matchedEquipment) {
       try {
-        const estimate = await estimateSilverFromEquipment(result.matchedEquipment)
+        const estimate = await estimateSilverFromEquipment(result.matchedEquipment, guildId)
         if (estimate.marketSilver > 0) {
           estimatedSilver = estimate.marketSilver
         }
@@ -434,7 +443,7 @@ export async function rejectRegearRequest(
       .eq('id', id)
       .maybeSingle()
     if (row?.discord_id) {
-      void sendDiscordDmToUser(row.discord_id, {
+      void sendDiscordDmToUser(row.discord_id, guildId, {
         title: tDm('regearRejectedTitle'),
         body: tDm('regearRejectedBody', { event: row.event_title_snapshot ?? '' }),
         url: '/me',
@@ -535,7 +544,7 @@ export async function approveExchangeRequest(id: string): Promise<{ error?: stri
       .eq('id', id)
       .maybeSingle()
     if (row?.discord_id) {
-      void sendDiscordDmToUser(row.discord_id, {
+      void sendDiscordDmToUser(row.discord_id, guildId, {
         title: tDm('exchangeApprovedTitle'),
         body: tDm('exchangeApprovedBody', { silver: formatSilver(row.silver ?? 0) }),
         url: '/me',
@@ -580,7 +589,7 @@ export async function rejectExchangeRequest(
       .eq('id', id)
       .maybeSingle()
     if (row?.discord_id) {
-      void sendDiscordDmToUser(row.discord_id, {
+      void sendDiscordDmToUser(row.discord_id, guildId, {
         title: tDm('exchangeRejectedTitle'),
         body: tDm('exchangeRejectedBody', { silver: formatSilver(row.silver ?? 0) }),
         url: '/me',

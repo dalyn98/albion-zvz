@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Clock, MapPin, Swords, ShieldCheck } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { getRegearLimits, listMyRegearEligibleEvents } from '@/app/actions/regear'
 import { getRegearPayoutRatePercent } from '@/app/actions/regear-admin'
 import { formatSilver } from '@/lib/silver'
@@ -32,6 +33,7 @@ export default async function RegearPage() {
     redirect('/')
   }
 
+  const guildId = await getSessionGuildId(session)
   const [{ events, error }, limits, payoutRatePercent, t, tRole, locale, noticeMessage, noticeImageUrl] = await Promise.all([
     listMyRegearEligibleEvents(),
     getRegearLimits(),
@@ -39,8 +41,8 @@ export default async function RegearPage() {
     getTranslations('regear'),
     getTranslations('slotRole'),
     getLocale(),
-    getAppSetting('regear_notice_message', ''),
-    getAppSetting('regear_notice_image_url', ''),
+    getAppSetting('regear_notice_message', '', guildId),
+    getAppSetting('regear_notice_image_url', '', guildId),
   ])
 
   return (

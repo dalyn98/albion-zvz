@@ -62,7 +62,7 @@ export async function submitShopOrder(
     const guildId = await getSessionGuildId(session)
 
     // 할인율 + 재고 + 가격 조회.
-    const rateSetting = await getAppSetting('shop_discount_rate', '1')
+    const rateSetting = await getAppSetting('shop_discount_rate', '1', guildId)
     const discountRate = parseShopDiscountRate(rateSetting)
 
     const ids = Array.from(new Set(lines.map((l) => l.inventoryId)))

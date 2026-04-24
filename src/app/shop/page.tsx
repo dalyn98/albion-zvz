@@ -48,9 +48,9 @@ export default async function PublicShopPage() {
     await Promise.all([
       getTranslations('nav'),
       getTranslations('shopPublic'),
-      getAppSetting('shop_delivery_notice', ''),
-      getAppSetting('shop_discount_rate', '1'),
-      getAppSetting('aodp_cities', ''),
+      getAppSetting('shop_delivery_notice', '', guildId),
+      getAppSetting('shop_discount_rate', '1', guildId),
+      getAppSetting('aodp_cities', '', guildId),
       db
         .from('shop_inventory')
         .select(

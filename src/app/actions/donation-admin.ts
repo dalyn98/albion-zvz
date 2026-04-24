@@ -112,7 +112,7 @@ export async function approveDonationRequest(id: string): Promise<{ error?: stri
       .eq('id', id)
       .maybeSingle()
     if (row?.discord_id) {
-      void sendDiscordDmToUser(row.discord_id, {
+      void sendDiscordDmToUser(row.discord_id, guildId, {
         title: tDm('donationApprovedTitle'),
         body: tDm('donationApprovedBody', { silver: formatSilver(row.silver ?? 0) }),
         url: '/me',
@@ -157,7 +157,7 @@ export async function rejectDonationRequest(
       .eq('id', id)
       .maybeSingle()
     if (row?.discord_id) {
-      void sendDiscordDmToUser(row.discord_id, {
+      void sendDiscordDmToUser(row.discord_id, guildId, {
         title: tDm('donationRejectedTitle'),
         body: tDm('donationRejectedBody', { silver: formatSilver(row.silver ?? 0) }),
         url: '/me',

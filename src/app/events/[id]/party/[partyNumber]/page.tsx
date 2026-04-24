@@ -63,16 +63,18 @@ export default async function CallerPartyEditPage({
     notFound()
   }
 
-  const [session, t, tEvent, autoRegearRaw] = await Promise.all([
+  const [session, t, tEvent] = await Promise.all([
     getSession(),
     getTranslations('adminEditEvent'),
     getTranslations('event'),
-    getAppSetting('auto_regear_enabled', 'false'),
   ])
   if (!session) notFound()
 
   const guildId = await getSessionGuildId(session)
-  const { event, party } = await loadContext(eventId, partyNumber, guildId)
+  const [{ event, party }, autoRegearRaw] = await Promise.all([
+    loadContext(eventId, partyNumber, guildId),
+    getAppSetting('auto_regear_enabled', 'false', guildId),
+  ])
   if (!event || !party) notFound()
 
   const eventCategory = (event.category ?? '전투') as EventCategory

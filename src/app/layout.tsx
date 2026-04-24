@@ -13,7 +13,7 @@ import { getSession } from '@/lib/session'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getMemberAlbionIdentity } from '@/lib/albion-identity'
-import { getSessionGuildId } from '@/lib/tenant'
+import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
 
 // Routes that should render for anyone, even without a session. The proxy
 // forwards the pathname via x-pathname so we can decide here without duplicating
@@ -156,7 +156,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // 경우, 인증되지 않은 멤버를 /onboarding/albion 으로 강제 리디렉트. 관리자
     // 자신은 사이트 관리 접근권이 있어야 하므로 예외 — isAdmin 은 통과.
     if (!session.isAdmin && !avatarRow?.albion_verified_at) {
-      const allowUnverified = await getAppSetting('allow_unverified_member_access', 'true')
+      const allowUnverified = await getAppSetting('allow_unverified_member_access', 'true', guildId)
       if (allowUnverified === 'false') {
         redirect('/onboarding/albion')
       }
@@ -165,7 +165,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     if (!avatarRow?.albion_server) {
       const [identity, homeGuildId] = await Promise.all([
         getMemberAlbionIdentity(session.discordId),
-        getAppSetting('albion_home_guild_id', ''),
+        getAppSetting('albion_home_guild_id', '', guildId),
       ])
       onboardingModalProps = {
         discordNickname: session.username,
@@ -184,9 +184,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   let gateContent: React.ReactNode = null
   if (locked) {
+    // 잠긴 상태 → 사용자는 비로그인/게스트인 경우가 많다. session 이 있으면 해당
+    // tenant, 없으면 현재 요청 host 로 이미 해석된 tenant (layout 외부에서 resolve
+    // 됨) — 그러나 여기선 명시적 host 컨텍스트가 없어 primary tenant fallback.
+    const gateGuildId = session
+      ? await getSessionGuildId(session)
+      : await getPrimaryTenantId()
     const [bannerUrl, ctaText, tLanding, tAuthError] = await Promise.all([
-      getAppSetting('landing_banner_url', ''),
-      getAppSetting('landing_cta_text', ''),
+      getAppSetting('landing_banner_url', '', gateGuildId),
+      getAppSetting('landing_cta_text', '', gateGuildId),
       getTranslations('landing'),
       getTranslations('auth.error'),
     ])

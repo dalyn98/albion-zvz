@@ -39,8 +39,13 @@ export function isDiscordDmConfigured(): boolean {
   return !!process.env.DISCORD_BOT_TOKEN && !!process.env.APP_URL
 }
 
-// 입력받은 Discord ID 들 중 discord_dm_enabled = true 인 것만 통과시킨다.
-// guild_avatars 와 guests 두 테이블에 나눠 저장돼 있으므로 둘 다 조회해 합집합.
+// 입력받은 Discord ID 들 중 해당 tenant(guildId) 에서 discord_dm_enabled = true 인
+// 것만 통과시킨다. guild_avatars 와 guests 두 테이블에 나눠 저장돼 있으므로 둘 다
+// 조회해 합집합.
+//
+// guildId 를 반드시 받아 per-tenant 로 필터링한다 — 한 Discord 유저가 여러 tenant
+// 에 소속돼 있고 tenant A 에서 DM on, tenant B 에서 off 일 때, tenant B 의 DM 이
+// tenant A 의 설정을 근거로 발송되지 않도록 한다 (cross-tenant 누설 방지).
 //
 // categoryFilter 가 주어지면 해당 카테고리의 개인 옵트아웃
 // (notify_combat / notify_ff / notify_ganking) 도 함께 AND 조건으로 확인한다.
@@ -48,6 +53,7 @@ export function isDiscordDmConfigured(): boolean {
 // 없이 호출한다.
 export async function filterDmOptedIn(
   discordIds: string[],
+  guildId: string,
   categoryFilter?: EventCategory,
 ): Promise<string[]> {
   if (discordIds.length === 0) return []
@@ -57,8 +63,16 @@ export async function filterDmOptedIn(
     ? `discord_id, discord_dm_enabled, ${categoryColumn}`
     : 'discord_id, discord_dm_enabled'
   const [avatars, guests] = await Promise.all([
-    db.from('guild_avatars').select(columns).in('discord_id', discordIds),
-    db.from('guests').select(columns).in('discord_id', discordIds),
+    db
+      .from('guild_avatars')
+      .select(columns)
+      .eq('guild_id', guildId)
+      .in('discord_id', discordIds),
+    db
+      .from('guests')
+      .select(columns)
+      .eq('guild_id', guildId)
+      .in('discord_id', discordIds),
   ])
   const enabled = new Set<string>()
   // Supabase 의 dynamic select 는 반환 타입이 GenericStringError[] 로 좁혀져서
@@ -131,8 +145,11 @@ export interface DmResult {
   succeeded: number
 }
 
+// guildId 는 DM 옵트인 여부를 해당 tenant 기준으로만 판정하기 위한 필수 인자.
+// 교차-tenant 누설을 막는다 — filterDmOptedIn 주석 참조.
 export async function sendDiscordDmsToUsers(
   discordIds: string[],
+  guildId: string,
   payload: DiscordDmPayload,
   categoryFilter?: EventCategory,
 ): Promise<DmResult> {
@@ -141,7 +158,7 @@ export async function sendDiscordDmsToUsers(
     console.warn('[discord-dm] DISCORD_BOT_TOKEN not set — skipping send')
     return { attempted: 0, succeeded: 0 }
   }
-  const optedIn = await filterDmOptedIn(discordIds, categoryFilter)
+  const optedIn = await filterDmOptedIn(discordIds, guildId, categoryFilter)
   if (optedIn.length === 0) return { attempted: 0, succeeded: 0 }
 
   let succeeded = 0
@@ -158,7 +175,8 @@ export async function sendDiscordDmsToUsers(
 
 export async function sendDiscordDmToUser(
   discordId: string,
+  guildId: string,
   payload: DiscordDmPayload,
 ): Promise<DmResult> {
-  return sendDiscordDmsToUsers([discordId], payload)
+  return sendDiscordDmsToUsers([discordId], guildId, payload)
 }

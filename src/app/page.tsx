@@ -69,23 +69,26 @@ function classifyScheduled(event: Event): HomeEventKind {
 // Layout-level gate (src/app/layout.tsx) blocks non-members before this
 // component runs — by the time HomePage renders, the viewer is a guild member.
 export default async function HomePage() {
-  const [t, locale, noticeMessage, noticeImageUrl, session] = await Promise.all([
+  const [t, locale, session] = await Promise.all([
     getTranslations(),
     getLocale(),
-    getAppSetting('events_notice_message', ''),
-    getAppSetting('events_notice_image_url', ''),
     getSession(),
+  ])
+
+  // 홈은 공개 게이트가 걸려 있어 사실상 멤버만 들어오지만, 세션이 없어도 primary
+  // tenant 로 fallback 해 레이아웃 상 게이트가 렌더하는 동안 깨지지 않게 한다.
+  const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
+
+  const [noticeMessage, noticeImageUrl, events] = await Promise.all([
+    getAppSetting('events_notice_message', '', guildId),
+    getAppSetting('events_notice_image_url', '', guildId),
+    getActiveEvents(guildId),
   ])
 
   // Prefer gather_at (ISO) for locale-aware formatting; fall back to stored
   // gather_time (always Korean) for legacy rows that predate gather_at.
   const displayGatherTime = (event: Event): string =>
     event.gather_at ? formatGatherTimeFor(locale, event.gather_at) : event.gather_time
-
-  // 홈은 공개 게이트가 걸려 있어 사실상 멤버만 들어오지만, 세션이 없어도 primary
-  // tenant 로 fallback 해 레이아웃 상 게이트가 렌더하는 동안 깨지지 않게 한다.
-  const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
-  const events = await getActiveEvents(guildId)
 
   const toCard = (event: EventWithCounts): HomeEventCardData => ({
     id: event.id,

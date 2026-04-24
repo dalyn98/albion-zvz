@@ -485,7 +485,7 @@ export async function getAlbionVerificationStats(): Promise<{
           'discord_id, username, avatar, is_admin, withdrawn_at, albion_server, albion_nickname, albion_player_id, albion_guild_id, albion_verified_at',
         )
         .eq('guild_id', guildId),
-      getAppSetting('albion_home_guild_id', ''),
+      getAppSetting('albion_home_guild_id', '', guildId),
     ])
     if (avatarsRes.error) return { error: avatarsRes.error.message }
 

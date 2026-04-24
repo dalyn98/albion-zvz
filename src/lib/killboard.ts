@@ -28,13 +28,16 @@ function parseServer(raw: string): AlbionServer {
   return DEFAULT_SERVER
 }
 
-export async function resolveAlbionServer(): Promise<AlbionServer> {
-  const raw = await getAppSetting('albion_server', DEFAULT_SERVER)
+// tenant 별로 albion_server 가 다를 수 있다. guildId 를 받아 해당 tenant 의 값을
+// 읽고, 미지정 시 primary tenant fallback (현재 호출자가 아직 guildId 를 전달하지
+// 않는 레거시 경로 호환).
+export async function resolveAlbionServer(guildId?: string): Promise<AlbionServer> {
+  const raw = await getAppSetting('albion_server', DEFAULT_SERVER, guildId)
   return parseServer(raw)
 }
 
-async function resolveBaseUrl(): Promise<string> {
-  return SERVER_ENDPOINTS[await resolveAlbionServer()]
+async function resolveBaseUrl(guildId?: string): Promise<string> {
+  return SERVER_ENDPOINTS[await resolveAlbionServer(guildId)]
 }
 
 // NEXT_PUBLIC_* names are a Next.js convention for client-accessible env vars;
@@ -121,10 +124,11 @@ export async function verifyDeathInWindow(
   username: string,
   windowStartIso: string,
   windowEndIso: string,
-  guildName: string = DEFAULT_GUILD_NAME,
+  opts: { guildName?: string; guildId?: string } = {},
 ): Promise<VerifyResult> {
+  const guildName = opts.guildName ?? DEFAULT_GUILD_NAME
   try {
-    const baseUrl = await resolveBaseUrl()
+    const baseUrl = await resolveBaseUrl(opts.guildId)
     const player = await searchPlayerByName(baseUrl, username)
     if (!player) {
       return {

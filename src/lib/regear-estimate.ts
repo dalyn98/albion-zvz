@@ -118,8 +118,9 @@ function extractGearKeys(
 // 로 표시할지 "0 으로 추산" 으로 표시할지 자유롭게 판단.
 export async function estimateSilverFromEquipment(
   equipment: Record<string, unknown> | null | undefined,
+  guildId?: string,
 ): Promise<RegearEstimate> {
-  const aodpOptions = await loadAodpOptions()
+  const aodpOptions = await loadAodpOptions(guildId)
   const gearEntries = extractGearKeys(equipment)
   const aodpKeys = gearEntries.map((g) => g.key)
   const priceMap =

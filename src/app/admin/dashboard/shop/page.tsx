@@ -56,11 +56,11 @@ export default async function AdminShopPage() {
       .order('imported_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
-    getAppSetting('shop_delivery_notice', ''),
-    getAppSetting('shop_discount_rate', '1'),
-    getAppSetting('aodp_cities', ''),
-    getAppSetting('aodp_price_mode', 'spot'),
-    getAppSetting('aodp_min_quality', '1'),
+    getAppSetting('shop_delivery_notice', '', guildId),
+    getAppSetting('shop_discount_rate', '1', guildId),
+    getAppSetting('aodp_cities', '', guildId),
+    getAppSetting('aodp_price_mode', 'spot', guildId),
+    getAppSetting('aodp_min_quality', '1', guildId),
   ])
 
   const lastImportAt = (lastLog?.imported_at as string | null | undefined) ?? null

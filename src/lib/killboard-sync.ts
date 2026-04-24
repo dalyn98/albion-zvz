@@ -120,7 +120,7 @@ export async function syncKillboard(
   guildId: string,
 ): Promise<KillboardSyncResult> {
   const startedAt = Date.now()
-  const server = await resolveAlbionServer()
+  const server = await resolveAlbionServer(guildId)
   const baseUrl = SERVER_ENDPOINTS[server]
 
   const errors: Array<{ member: string; step: string; message: string }> = []

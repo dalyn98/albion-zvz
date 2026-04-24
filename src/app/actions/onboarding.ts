@@ -37,9 +37,10 @@ export interface OnboardingState {
 export async function getOnboardingState(): Promise<OnboardingState> {
   const session = await getSession()
   if (!session) return { identity: null, homeGuildConfigured: false }
+  const guildId = await getSessionGuildId(session)
   const [identity, homeGuildId] = await Promise.all([
     getMemberAlbionIdentity(session.discordId),
-    getAppSetting('albion_home_guild_id', ''),
+    getAppSetting('albion_home_guild_id', '', guildId),
   ])
   return {
     identity,
@@ -87,11 +88,12 @@ export async function confirmAlbionIdentity(input: {
   const player = await getPlayer(input.server, playerId)
   if (!player) return { error: tErr('albionGameinfoUnavailable') }
 
-  const homeGuildId = (await getAppSetting('albion_home_guild_id', '')).trim()
+  const sessionGuildId = await getSessionGuildId(session)
+  const homeGuildId = (await getAppSetting('albion_home_guild_id', '', sessionGuildId)).trim()
   // fallback 'east' — 설정 페이지/killboard/AODP 전부 'east' fallback 을 쓰므로
   // 온보딩도 같은 기본값을 써야 관리자가 "UI 에 East 로 보여서 저장 안 했는데
   // 실제 DB 에는 row 가 없어 인증이 항상 실패" 하는 상태가 안 된다.
-  const homeServer = (await getAppSetting('albion_server', 'east')).trim()
+  const homeServer = (await getAppSetting('albion_server', 'east', sessionGuildId)).trim()
   const serverMatch = homeServer === input.server
   const guildMatch = Boolean(homeGuildId) && player.GuildId === homeGuildId
   const verified = serverMatch && guildMatch
@@ -110,7 +112,6 @@ export async function confirmAlbionIdentity(input: {
     })
   }
 
-  const sessionGuildId = await getSessionGuildId(session)
   const updated = await upsertAlbionIdentity(session.discordId, sessionGuildId, {
     server: input.server,
     playerId: player.Id,
