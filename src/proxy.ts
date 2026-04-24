@@ -36,6 +36,12 @@ export async function proxy(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
+  // /api/auth/* 는 legacy-host 308 리다이렉트 후 곧장 원 라우트로 흘려보낸다.
+  // (x-pathname 이나 admin 게이트 대상이 아님)
+  if (pathname.startsWith('/api/auth/')) {
+    return NextResponse.next()
+  }
+
   if (!pathname.startsWith('/admin/dashboard')) {
     return withPathname(NextResponse.next(), pathname)
   }
@@ -57,7 +63,11 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Run on every page route so layouts can read the pathname. Static/API paths
-  // are excluded because neither needs the header.
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|icon|apple-icon|manifest).*)'],
+  // 일반 페이지 라우트(+ OAuth 콜백/start 경로) 에서 실행. 페이지는 x-pathname
+  // 헤더가 필요하고 /api/auth 는 legacy-host 리다이렉트가 필요. 그 외 api/정적
+  // 자원은 제외해 불필요한 proxy 호출을 줄인다.
+  matcher: [
+    '/((?!api|_next/static|_next/image|favicon.ico|icon|apple-icon|manifest).*)',
+    '/api/auth/:path*',
+  ],
 }
