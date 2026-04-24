@@ -730,6 +730,7 @@
     "backToList": "イベント一覧",
     "info": "戦闘情報",
     "inProgress": "戦闘中 · {time} 開始",
+    "viewReport": "事後レポート",
     "ended": "イベント終了",
     "startedNotice": "戦闘はすでに開始されています。スロットの<bold>申請は可能</bold>ですが、<bold>キャンセルはできません</bold>。申請した時点で参加確定とみなされます。リギア申請は左側の<bold>リギア申請</bold>タブから行えます。",
     "applicants": "申請 {assigned}/{total}",
@@ -759,6 +760,31 @@
         "ranged": "遠距離"
       }
     }
+  },
+  "eventReport": {
+    "reportLabel": "事後レポート",
+    "backToEvent": "イベントに戻る",
+    "outcomeWin": "勝利",
+    "outcomeLoss": "敗北",
+    "outcomeUndecided": "未確定",
+    "finalizedAt": "確定 {at}",
+    "battlesTitle": "戦闘ごとの結果",
+    "kpiAttendees": "参加者",
+    "kpiAttendeesSuffix": "スロット {assigned}/{total}",
+    "kpiKills": "総キル",
+    "kpiDeaths": "総デス",
+    "kpiKd": "K/D",
+    "survivalTitle": "生存率",
+    "survivalEmpty": "参加記録がありません。",
+    "survivalSub": "生存 {survived}/{attended} · 戦死 {died}",
+    "regearTitle": "リギア支給",
+    "regearEmpty": "リギア申請がありません。",
+    "regearSub": "承認 {approved} · 保留 {pending} · 却下 {rejected}",
+    "topKillersTitle": "キルMVP",
+    "topKdTitle": "K/D MVP",
+    "leaderEmpty": "集計された戦績がありません。",
+    "killDeathsSub": "キル {kills} · デス {deaths}",
+    "rolesTitle": "ロール分布"
   },
   "slot": {
     "free": "自由",

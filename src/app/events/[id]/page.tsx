@@ -8,7 +8,7 @@ import EventPartyGrid from '@/components/EventPartyGrid'
 import EventSlotSidebar from '@/components/EventSlotSidebar'
 import EventGuestInviteManager from '@/components/EventGuestInviteManager'
 import AutoRefresh from '@/components/AutoRefresh'
-import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil } from 'lucide-react'
+import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
@@ -135,6 +135,7 @@ export default async function EventDetailPage({
   // finished (battle_started_at + 1h), slots are frozen — no reason to keep
   // hammering the DB or draining mobile batteries.
   const shouldPoll = !event.battle_started_at || !isEnded(event.battle_started_at)
+  const battleEnded = !!event.battle_started_at && isEnded(event.battle_started_at)
 
   return (
     <div className="flex-1 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 py-6 sm:py-8 flex flex-col lg:flex-row lg:gap-6 space-y-4 lg:space-y-0">
@@ -159,6 +160,15 @@ export default async function EventDetailPage({
               <h1 className="text-xl sm:text-2xl font-bold text-white">{event.title}</h1>
             </div>
             <div className="flex items-center gap-2">
+              {battleEnded && (
+                <Link
+                  href={`/events/${id}/report`}
+                  className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/40 hover:bg-amber-500/20 text-amber-300 text-sm font-bold px-2.5 py-1 rounded-full transition-colors"
+                >
+                  <FileText size={12} />
+                  {t('viewReport')}
+                </Link>
+              )}
               {event.battle_started_at && (
                 <span className="inline-flex items-center gap-1.5 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-sm font-bold px-2.5 py-1 rounded-full">
                   <Swords size={12} />

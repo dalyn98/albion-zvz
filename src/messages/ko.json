@@ -730,6 +730,7 @@
     "backToList": "이벤트 목록",
     "info": "전투 정보",
     "inProgress": "전투 진행중 · {time} 시작",
+    "viewReport": "사후 리포트",
     "ended": "이벤트 종료",
     "startedNotice": "전투가 이미 시작되었습니다. 슬롯 <bold>신청은 가능</bold>하지만, <bold>취소는 불가능</bold>합니다. 신청 시 참가 확정으로 간주됩니다. 리기어 신청은 좌측 <bold>리기어 신청</bold> 탭에서 하실 수 있습니다.",
     "applicants": "신청 {assigned}/{total}",
@@ -759,6 +760,31 @@
         "ranged": "원거리"
       }
     }
+  },
+  "eventReport": {
+    "reportLabel": "이벤트 사후 리포트",
+    "backToEvent": "이벤트 상세로",
+    "outcomeWin": "승리",
+    "outcomeLoss": "패배",
+    "outcomeUndecided": "미확정",
+    "finalizedAt": "확정 {at}",
+    "battlesTitle": "전투별 결과",
+    "kpiAttendees": "참여자",
+    "kpiAttendeesSuffix": "슬롯 {assigned}/{total}",
+    "kpiKills": "총 킬",
+    "kpiDeaths": "총 데스",
+    "kpiKd": "K/D",
+    "survivalTitle": "생존률",
+    "survivalEmpty": "참여 기록이 없습니다.",
+    "survivalSub": "생존 {survived}/{attended} · 전사 {died}",
+    "regearTitle": "리기어 지급",
+    "regearEmpty": "리기어 청구가 없습니다.",
+    "regearSub": "승인 {approved} · 대기 {pending} · 거절 {rejected}",
+    "topKillersTitle": "킬 MVP",
+    "topKdTitle": "K/D MVP",
+    "leaderEmpty": "집계된 전적이 없습니다.",
+    "killDeathsSub": "킬 {kills} · 데스 {deaths}",
+    "rolesTitle": "역할별 참여 분포"
   },
   "slot": {
     "free": "자유",

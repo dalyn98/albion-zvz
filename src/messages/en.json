@@ -730,6 +730,7 @@
     "backToList": "Event list",
     "info": "Battle info",
     "inProgress": "In battle · started {time}",
+    "viewReport": "View Report",
     "ended": "Event ended",
     "startedNotice": "The battle has already started. You <bold>can still apply</bold> to slots, but you <bold>cannot cancel</bold>. Applying counts as committed participation. Submit regear requests from the <bold>Regear</bold> tab on the left.",
     "applicants": "Applied {assigned}/{total}",
@@ -759,6 +760,31 @@
         "ranged": "Ranged"
       }
     }
+  },
+  "eventReport": {
+    "reportLabel": "Post-Event Report",
+    "backToEvent": "Back to event",
+    "outcomeWin": "Win",
+    "outcomeLoss": "Loss",
+    "outcomeUndecided": "Undecided",
+    "finalizedAt": "Finalized {at}",
+    "battlesTitle": "Battle results",
+    "kpiAttendees": "Attendees",
+    "kpiAttendeesSuffix": "Slots {assigned}/{total}",
+    "kpiKills": "Total kills",
+    "kpiDeaths": "Total deaths",
+    "kpiKd": "K/D",
+    "survivalTitle": "Survival rate",
+    "survivalEmpty": "No participation records.",
+    "survivalSub": "Survived {survived}/{attended} · Fell {died}",
+    "regearTitle": "Regear paid",
+    "regearEmpty": "No regear claims.",
+    "regearSub": "Approved {approved} · Pending {pending} · Rejected {rejected}",
+    "topKillersTitle": "Kill MVPs",
+    "topKdTitle": "K/D MVPs",
+    "leaderEmpty": "No tracked combat.",
+    "killDeathsSub": "Kills {kills} · Deaths {deaths}",
+    "rolesTitle": "Role distribution"
   },
   "slot": {
     "free": "Free",
