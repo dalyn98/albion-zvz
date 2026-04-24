@@ -10,10 +10,15 @@
 -- FK 로 참조하므로 먼저 떼고, PK 변경 후 복합 FK 로 재생성한다.
 
 -- ────────────────────────────────────────────────────────────
--- 1) killboard_events FK 제거 (guild_avatars.discord_id 참조)
+-- 1) killboard_events FK 제거 — 과거 단일 컬럼 FK 와 별도로 추가됐을 수 있는
+--    복합 FK 둘 다 방어적으로 drop. 마이그 중간에 실패해 이전 상태가 섞여
+--    있어도 재실행이 안전하도록.
 -- ────────────────────────────────────────────────────────────
 alter table public.killboard_events
   drop constraint if exists killboard_events_discord_id_fkey;
+
+alter table public.killboard_events
+  drop constraint if exists killboard_events_guild_discord_fkey;
 
 -- ────────────────────────────────────────────────────────────
 -- 2) guild_avatars PK 재구성
