@@ -16,14 +16,19 @@ import {
   ShieldQuestion,
   Clock,
   Trophy,
+  LineChart,
+  ArrowDownRight,
+  ArrowUpRight,
 } from 'lucide-react'
 import {
   getPointStats,
   getEventStats,
   getShopRegearStats,
   getAlbionVerificationStats,
+  getFinanceFlowStats,
   type TopHolder,
   type VerificationMember,
+  type FinanceFlowStats,
 } from '@/app/actions/stats-admin'
 import MemberAvatar from '@/components/MemberAvatar'
 import MemberLink from '@/components/MemberLink'
@@ -43,14 +48,16 @@ function itemImageUrl(uniqueName: string, enchant: number, quality: number): str
 }
 
 export default async function AdminStatsPage() {
-  // 네 섹션을 병렬로 — 하나가 느려도 다른 섹션이 블로킹되지 않도록.
-  const [tNav, pointRes, eventRes, shopRegearRes, verificationRes] = await Promise.all([
-    getTranslations('nav'),
-    getPointStats(),
-    getEventStats(),
-    getShopRegearStats(),
-    getAlbionVerificationStats(),
-  ])
+  // 다섯 섹션을 병렬로 — 하나가 느려도 다른 섹션이 블로킹되지 않도록.
+  const [tNav, pointRes, eventRes, shopRegearRes, verificationRes, financeRes] =
+    await Promise.all([
+      getTranslations('nav'),
+      getPointStats(),
+      getEventStats(),
+      getShopRegearStats(),
+      getAlbionVerificationStats(),
+      getFinanceFlowStats(),
+    ])
 
   const { stats, error } = pointRes
 
@@ -182,6 +189,7 @@ export default async function AdminStatsPage() {
         )}
       </section>
 
+      <FinanceFlowSection result={financeRes} />
       <AlbionVerificationSection result={verificationRes} />
       <EventParticipationSection result={eventRes} />
       <ShopRegearSection result={shopRegearRes} />
@@ -719,6 +727,232 @@ function VerificationMemberList({
             </li>
           ))}
         </CollapsibleList>
+      )}
+    </div>
+  )
+}
+
+// 포인트 원장의 reason 코드 → 한국어 라벨. 원장 CHECK 제약이 migration 별로
+// 달라 과거 데이터에 남아있는 레거시 reason 도 폴백 없이 그대로 표시해도
+// 운영자가 해석 가능해야 하므로, 알려진 코드만 친화적으로 번역.
+const REASON_LABEL: Record<string, string> = {
+  regear_approved: '리기어 승인',
+  donation_approved: '기부 승인',
+  transfer_in: '양도 수신',
+  admin_adjust: '관리자 조정',
+  exchange_paid: '환전 지급',
+  shop_purchase: '상점 구매',
+  transfer_out: '양도 송신',
+}
+
+function reasonLabel(reason: string): string {
+  return REASON_LABEL[reason] ?? reason
+}
+
+function FinanceFlowSection({
+  result,
+}: {
+  result: { stats?: FinanceFlowStats; error?: string }
+}) {
+  const { stats, error } = result
+  if (error || !stats) {
+    return (
+      <section className="bg-gray-900/60 border border-gray-700 rounded-lg p-4 text-sm text-red-300">
+        재정 흐름을 불러오지 못했습니다: {error ?? '알 수 없는 오류'}
+      </section>
+    )
+  }
+
+  const netAccent = stats.netFlow >= 0 ? 'text-emerald-300' : 'text-rose-300'
+  const netRing = stats.netFlow >= 0 ? 'border-emerald-500/30' : 'border-rose-500/30'
+  const netBg = stats.netFlow >= 0 ? 'bg-emerald-500/5' : 'bg-rose-500/5'
+  const netIcon = stats.netFlow >= 0 ? ArrowUpRight : ArrowDownRight
+
+  const cards = [
+    {
+      label: `최근 ${stats.windowDays}일 발행`,
+      value: stats.totalEarned,
+      hint: '모든 + delta 합 (리기어/기부/양도수신/관리자+조정)',
+      icon: TrendingUp,
+      accent: 'text-emerald-300',
+      ring: 'border-emerald-500/30',
+      bg: 'bg-emerald-500/5',
+    },
+    {
+      label: `최근 ${stats.windowDays}일 소멸`,
+      value: stats.totalSpent,
+      hint: '모든 − delta 절대값 합 (환전/상점/양도송신/관리자−조정)',
+      icon: TrendingDown,
+      accent: 'text-rose-300',
+      ring: 'border-rose-500/30',
+      bg: 'bg-rose-500/5',
+    },
+    {
+      label: `최근 ${stats.windowDays}일 순변화`,
+      value: stats.netFlow,
+      hint: stats.netFlow >= 0 ? '유통량 증가(길드원 보유 부채 ↑)' : '유통량 감소(길드원 보유 부채 ↓)',
+      icon: netIcon,
+      accent: netAccent,
+      ring: netRing,
+      bg: netBg,
+    },
+  ]
+
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center gap-2">
+        <LineChart size={18} className="text-amber-300" />
+        <h2 className="text-lg font-semibold text-white">
+          재정 흐름 · 최근 {stats.windowDays}일
+        </h2>
+      </div>
+      <p className="text-xs text-gray-500 leading-relaxed">
+        포인트 원장(point_ledger)에 기록된 발행/소멸의 일별 흐름과 출처·사용처별 분해.
+        양도(transfer_in/out) 는 길드 내 이동이라 전체 유통량에 영향을 주지 않지만 발행·소멸 양쪽에 각각 집계됩니다.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {cards.map((card) => {
+          const Icon = card.icon
+          return (
+            <div
+              key={card.label}
+              className={`${card.bg} ${card.ring} border rounded-lg p-4 space-y-2`}
+            >
+              <div className="flex items-center gap-2">
+                <Icon size={16} className={card.accent} />
+                <span className="text-xs text-gray-300">{card.label}</span>
+              </div>
+              <div className={`text-2xl font-bold font-mono ${card.accent}`}>
+                {card.value >= 0 ? card.value.toLocaleString() : card.value.toLocaleString()}
+              </div>
+              <div className="text-[11px] text-gray-500">{card.hint}</div>
+            </div>
+          )
+        })}
+      </div>
+
+      <FinanceDailyChart daily={stats.daily} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <ReasonBreakdownList
+          title="발행 출처"
+          total={stats.totalEarned}
+          items={stats.sources}
+          accent="text-emerald-300"
+          barColor="bg-emerald-500/60"
+          emptyLabel="창 내 발행 기록이 없습니다."
+        />
+        <ReasonBreakdownList
+          title="소멸 사용처"
+          total={stats.totalSpent}
+          items={stats.sinks}
+          accent="text-rose-300"
+          barColor="bg-rose-500/60"
+          emptyLabel="창 내 소멸 기록이 없습니다."
+        />
+      </div>
+    </section>
+  )
+}
+
+function FinanceDailyChart({ daily }: { daily: FinanceFlowStats['daily'] }) {
+  // 일별 최대 earned / spent 를 공통 스케일로 사용. 한쪽만 크게 튀면 다른 쪽이
+  // 납작해지지만 scale 을 공유해야 "발행 > 소멸" 같은 비교가 눈에 들어온다.
+  const peak = daily.reduce((m, d) => Math.max(m, d.earned, d.spent), 0)
+  return (
+    <div className="bg-gray-900/60 border border-gray-700 rounded-lg p-4">
+      <header className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-white">일별 발행/소멸</h3>
+        <div className="flex items-center gap-3 text-[10px] text-gray-400">
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-2 h-2 bg-emerald-500/70 rounded-sm" /> 발행
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-2 h-2 bg-rose-500/70 rounded-sm" /> 소멸
+          </span>
+        </div>
+      </header>
+      {peak === 0 ? (
+        <p className="text-gray-500 text-xs text-center py-6">창 내 원장 활동이 없습니다.</p>
+      ) : (
+        <div className="flex items-end gap-[2px] h-28">
+          {daily.map((d) => {
+            const earnedH = peak === 0 ? 0 : (d.earned / peak) * 100
+            const spentH = peak === 0 ? 0 : (d.spent / peak) * 100
+            return (
+              <div
+                key={d.date}
+                className="flex-1 flex flex-col justify-end min-w-[4px]"
+                title={`${d.date} · +${d.earned.toLocaleString()} / -${d.spent.toLocaleString()}`}
+              >
+                <div
+                  className="bg-emerald-500/70"
+                  style={{ height: `${earnedH / 2}%` }}
+                />
+                <div
+                  className="bg-rose-500/70 mt-[1px]"
+                  style={{ height: `${spentH / 2}%` }}
+                />
+              </div>
+            )
+          })}
+        </div>
+      )}
+      <div className="flex items-center justify-between text-[10px] text-gray-500 mt-2 font-mono">
+        <span>{daily[0]?.date ?? ''}</span>
+        <span>{daily[daily.length - 1]?.date ?? ''}</span>
+      </div>
+    </div>
+  )
+}
+
+function ReasonBreakdownList({
+  title,
+  total,
+  items,
+  accent,
+  barColor,
+  emptyLabel,
+}: {
+  title: string
+  total: number
+  items: FinanceFlowStats['sources']
+  accent: string
+  barColor: string
+  emptyLabel: string
+}) {
+  return (
+    <div className="bg-gray-900/60 border border-gray-700 rounded-lg">
+      <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-white">{title}</h3>
+        <span className={`text-xs font-mono tabular-nums ${accent}`}>
+          총 {total.toLocaleString()}p
+        </span>
+      </header>
+      {items.length === 0 ? (
+        <div className="px-4 py-6 text-center text-sm text-gray-500">{emptyLabel}</div>
+      ) : (
+        <ul className="divide-y divide-gray-800">
+          {items.map((item) => {
+            const pct = total > 0 ? Math.round((item.total / total) * 1000) / 10 : 0
+            return (
+              <li key={item.reason} className="px-4 py-2 space-y-1">
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-gray-200 truncate">{reasonLabel(item.reason)}</span>
+                  <span className={`font-mono tabular-nums ${accent}`}>
+                    {item.total.toLocaleString()}p
+                    <span className="ml-2 text-gray-500">· {pct}%</span>
+                  </span>
+                </div>
+                <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                  <div className={`h-full ${barColor}`} style={{ width: `${pct}%` }} />
+                </div>
+                <p className="text-[10px] text-gray-500 font-mono">건수 {item.count.toLocaleString()}</p>
+              </li>
+            )
+          })}
+        </ul>
       )}
     </div>
   )

@@ -578,3 +578,148 @@ export async function resetMemberAlbionOnboarding(
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
+
+// 재정 흐름 집계 창: 30일. 월간 부채 추이 감시 용도로 적절한 기간.
+const FINANCE_WINDOW_DAYS = 30
+
+export interface FinanceDayPoint {
+  // Asia/Seoul 기준 YYYY-MM-DD 키. 타임존 일관성을 위해 동일 로직 사용.
+  date: string
+  earned: number
+  spent: number
+}
+
+export interface FinanceReasonBreakdown {
+  reason: string
+  total: number
+  count: number
+}
+
+export interface FinanceFlowStats {
+  windowDays: number
+  // 창 내 발행된 총 포인트 (양수 delta 합).
+  totalEarned: number
+  // 창 내 소멸된 총 포인트 (음수 delta 절대값 합).
+  totalSpent: number
+  // earned - spent. 양수면 창 내 유통량 증가, 음수면 감소.
+  netFlow: number
+  // 일별 in/out 타임라인. 날짜 누락 구간은 0,0 으로 채움.
+  daily: FinanceDayPoint[]
+  // 발행 출처별 분해. 수치 내림차순.
+  sources: FinanceReasonBreakdown[]
+  // 소비처별 분해. 수치 내림차순.
+  sinks: FinanceReasonBreakdown[]
+}
+
+function seoulDateKey(iso: string): string | null {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(d)
+  const y = parts.find((p) => p.type === 'year')?.value
+  const m = parts.find((p) => p.type === 'month')?.value
+  const day = parts.find((p) => p.type === 'day')?.value
+  if (!y || !m || !day) return null
+  return `${y}-${m}-${day}`
+}
+
+function buildDateSpine(days: number): string[] {
+  const spine: string[] = []
+  const now = Date.now()
+  for (let i = days - 1; i >= 0; i--) {
+    const ts = now - i * 24 * 60 * 60 * 1000
+    const key = seoulDateKey(new Date(ts).toISOString())
+    if (key) spine.push(key)
+  }
+  return spine
+}
+
+export async function getFinanceFlowStats(): Promise<{
+  stats?: FinanceFlowStats
+  error?: string
+}> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
+    const since = daysAgoIso(FINANCE_WINDOW_DAYS)
+
+    const ledgerRes = await db
+      .from('point_ledger')
+      .select('delta, reason, created_at')
+      .eq('guild_id', guildId)
+      .gte('created_at', since)
+    if (ledgerRes.error) return { error: ledgerRes.error.message }
+
+    const rows = ledgerRes.data ?? []
+
+    let totalEarned = 0
+    let totalSpent = 0
+    const dayMap = new Map<string, { earned: number; spent: number }>()
+    const sourceMap = new Map<string, { total: number; count: number }>()
+    const sinkMap = new Map<string, { total: number; count: number }>()
+
+    for (const row of rows) {
+      const delta = Number(row.delta ?? 0)
+      if (!Number.isFinite(delta) || delta === 0) continue
+      const reason = typeof row.reason === 'string' ? row.reason : 'unknown'
+      const createdAt = typeof row.created_at === 'string' ? row.created_at : null
+      if (!createdAt) continue
+      const dateKey = seoulDateKey(createdAt)
+      if (!dateKey) continue
+
+      const dayBucket = dayMap.get(dateKey) ?? { earned: 0, spent: 0 }
+      if (delta > 0) {
+        totalEarned += delta
+        dayBucket.earned += delta
+        const s = sourceMap.get(reason) ?? { total: 0, count: 0 }
+        s.total += delta
+        s.count += 1
+        sourceMap.set(reason, s)
+      } else {
+        const abs = -delta
+        totalSpent += abs
+        dayBucket.spent += abs
+        const s = sinkMap.get(reason) ?? { total: 0, count: 0 }
+        s.total += abs
+        s.count += 1
+        sinkMap.set(reason, s)
+      }
+      dayMap.set(dateKey, dayBucket)
+    }
+
+    const daily: FinanceDayPoint[] = buildDateSpine(FINANCE_WINDOW_DAYS).map(
+      (date) => {
+        const b = dayMap.get(date) ?? { earned: 0, spent: 0 }
+        return { date, earned: b.earned, spent: b.spent }
+      },
+    )
+
+    const sources: FinanceReasonBreakdown[] = Array.from(sourceMap.entries())
+      .map(([reason, v]) => ({ reason, total: v.total, count: v.count }))
+      .sort((a, b) => b.total - a.total)
+    const sinks: FinanceReasonBreakdown[] = Array.from(sinkMap.entries())
+      .map(([reason, v]) => ({ reason, total: v.total, count: v.count }))
+      .sort((a, b) => b.total - a.total)
+
+    return {
+      stats: {
+        windowDays: FINANCE_WINDOW_DAYS,
+        totalEarned,
+        totalSpent,
+        netFlow: totalEarned - totalSpent,
+        daily,
+        sources,
+        sinks,
+      },
+    }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
