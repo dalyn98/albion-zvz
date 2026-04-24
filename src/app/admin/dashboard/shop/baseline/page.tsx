@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ArrowLeft, Shield } from 'lucide-react'
+import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
@@ -13,6 +14,7 @@ export default async function ShopBaselinePage() {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
+  const t = await getTranslations('adminShopBaseline')
 
   // 이력 표시용 — 최근 10건 (confirmed / superseded 모두 포함)
   const { data: history } = await db
@@ -27,14 +29,14 @@ export default async function ShopBaselinePage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Shield size={22} className="text-amber-400" />
-          <h1 className="text-2xl font-bold text-white">상자 재고 베이스라인</h1>
+          <h1 className="text-2xl font-bold text-white">{t('title')}</h1>
         </div>
         <Link
           href="/admin/dashboard/shop"
           className="flex items-center gap-1 text-sm text-zinc-400 hover:text-zinc-200"
         >
           <ArrowLeft size={14} />
-          상점 관리로
+          {t('backToShop')}
         </Link>
       </div>
 
@@ -42,18 +44,18 @@ export default async function ShopBaselinePage() {
 
       {history && history.length > 0 && (
         <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-4 space-y-2">
-          <div className="text-sm font-semibold text-zinc-200">이력 (최근 10건)</div>
+          <div className="text-sm font-semibold text-zinc-200">{t('historyTitle')}</div>
           <div className="overflow-auto">
             <table className="w-full text-xs text-zinc-300">
               <thead className="text-zinc-500">
                 <tr>
-                  <th className="p-2 text-left">확정 시각</th>
-                  <th className="p-2 text-left">베이스라인 시각</th>
-                  <th className="p-2 text-right">아이템</th>
-                  <th className="p-2 text-left">입고자</th>
-                  <th className="p-2 text-left">드리프트</th>
-                  <th className="p-2 text-left">상태</th>
-                  <th className="p-2 text-left">메모</th>
+                  <th className="p-2 text-left">{t('colConfirmedAt')}</th>
+                  <th className="p-2 text-left">{t('colBaselineAt')}</th>
+                  <th className="p-2 text-right">{t('colItems')}</th>
+                  <th className="p-2 text-left">{t('colDepositor')}</th>
+                  <th className="p-2 text-left">{t('colDrift')}</th>
+                  <th className="p-2 text-left">{t('colStatus')}</th>
+                  <th className="p-2 text-left">{t('colNotes')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -72,7 +74,10 @@ export default async function ShopBaselinePage() {
                         {formatDateTime(row.baseline_at as string)}
                       </td>
                       <td className="p-2 text-right font-mono">
-                        {(row.total_items as number).toLocaleString('ko-KR')} / {row.total_events as number}건
+                        {t('itemsSummary', {
+                          items: (row.total_items as number).toLocaleString(),
+                          events: row.total_events as number,
+                        })}
                       </td>
                       <td className="p-2">{(row.depositor as string | null) ?? '—'}</td>
                       <td className="p-2 font-mono text-zinc-400">
@@ -80,11 +85,11 @@ export default async function ShopBaselinePage() {
                           '—'
                         ) : (
                           <span>
-                            {changed}종
+                            {t('driftCount', { count: changed })}
                             {deltaTotal !== null && (
                               <span className={`ml-1 ${deltaTotal > 0 ? 'text-emerald-300' : deltaTotal < 0 ? 'text-rose-300' : ''}`}>
                                 ({deltaTotal > 0 ? '+' : ''}
-                                {deltaTotal.toLocaleString('ko-KR')})
+                                {deltaTotal.toLocaleString()})
                               </span>
                             )}
                           </span>
@@ -92,9 +97,9 @@ export default async function ShopBaselinePage() {
                       </td>
                       <td className="p-2">
                         {row.status === 'confirmed' ? (
-                          <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-emerald-300">active</span>
+                          <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-emerald-300">{t('statusActive')}</span>
                         ) : (
-                          <span className="rounded bg-zinc-700 px-2 py-0.5 text-zinc-400">superseded</span>
+                          <span className="rounded bg-zinc-700 px-2 py-0.5 text-zinc-400">{t('statusSuperseded')}</span>
                         )}
                       </td>
                       <td className="p-2 text-zinc-500">{(row.notes as string | null) ?? '—'}</td>

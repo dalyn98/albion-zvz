@@ -2075,5 +2075,47 @@
     "dps": "DPS",
     "battlemount": "Battle mount",
     "other": "Other"
+  },
+  "adminShopBaseline": {
+    "title": "Chest Inventory Baseline",
+    "backToShop": "Back to shop admin",
+    "historyTitle": "History (last 10)",
+    "colConfirmedAt": "Confirmed at",
+    "colBaselineAt": "Baseline at",
+    "colItems": "Items",
+    "colDepositor": "Depositor",
+    "colDrift": "Drift",
+    "colStatus": "Status",
+    "colNotes": "Notes",
+    "itemsSummary": "{items} / {events} events",
+    "driftCount": "{count} types",
+    "statusActive": "active",
+    "statusSuperseded": "superseded"
+  },
+  "adminShopPage": {
+    "baselineLink": "Inventory baseline",
+    "deliveryNoticeTitle": "/shop delivery notice",
+    "deliveryNoticeDescription": "Banner shown at the top of the public shop page. Use it to explain how members pick up orders, when you're online, etc.",
+    "deliveryNoticeLabel": "Notice body",
+    "deliveryNoticePlaceholder": "e.g. After approval you'll get a DM in the Discord #shop channel, delivered via in-game mail.",
+    "deliveryNoticeClearLabel": "Clear banner",
+    "deliveryNoticeClearTooltip": "Empty string hides the banner",
+    "deliveryNoticeTooLong": "Max {max} characters"
+  },
+  "publishEventBanner": {
+    "draftStatus": "Draft status",
+    "draftDescription": "This event is hidden from the home page and the public link returns 404. Once the build / party setup is final, fill in the required fields and publish.",
+    "missingRequired": "Missing: {fields} — save your edits with the bottom \"Save\" button first, then click publish again.",
+    "fieldTitle": "Title",
+    "fieldGatherAt": "Gather time",
+    "fieldGatherLocation": "Gather location",
+    "publishing": "Publishing…",
+    "publishButton": "Publish"
+  },
+  "forceOnboardButton": {
+    "tooltip": "Clears this member's Albion credentials so they're re-prompted for onboarding on their next visit",
+    "confirm": "Confirm",
+    "idle": "Re-onboard",
+    "successMessage": "Reset onboarding for {username}"
   }
 }

@@ -26,7 +26,10 @@ export default async function AdminShopPage() {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
-  const tNav = await getTranslations('nav')
+  const [tNav, tPage] = await Promise.all([
+    getTranslations('nav'),
+    getTranslations('adminShopPage'),
+  ])
   const [
     { data: blacklist },
     { data: inventory },
@@ -148,7 +151,7 @@ export default async function AdminShopPage() {
           className="flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-sm text-amber-200 hover:bg-amber-500/20"
         >
           <Shield size={14} />
-          재고 베이스라인
+          {tPage('baselineLink')}
         </Link>
       </div>
 
@@ -163,13 +166,13 @@ export default async function AdminShopPage() {
           <NoticeSettingForm
             settingKey="shop_delivery_notice"
             initialMessage={deliveryNotice}
-            title="/shop 전달 공지"
-            description="공개 상점 페이지 상단에 뜨는 배너입니다. 아이템 수령 방법, 영업 시간 등을 자유롭게 안내하세요."
-            label="공지 내용"
-            placeholder="예: 주문 승인 후 디스코드 #상점 채널에서 DM 받으면 인게임 우편으로 전달됩니다."
-            clearLabel="배너 비우기"
-            clearTooltip="빈 문자열 = 배너 숨김"
-            tooLongMessage={`최대 ${NOTICE_MAX_LENGTH}자까지 입력 가능`}
+            title={tPage('deliveryNoticeTitle')}
+            description={tPage('deliveryNoticeDescription')}
+            label={tPage('deliveryNoticeLabel')}
+            placeholder={tPage('deliveryNoticePlaceholder')}
+            clearLabel={tPage('deliveryNoticeClearLabel')}
+            clearTooltip={tPage('deliveryNoticeClearTooltip')}
+            tooLongMessage={tPage('deliveryNoticeTooLong', { max: NOTICE_MAX_LENGTH })}
           />
           <ShopSilverRateForm initial={discountRateSetting} />
           <AodpSettingsForm

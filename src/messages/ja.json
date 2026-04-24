@@ -2075,5 +2075,47 @@
     "dps": "DPS",
     "battlemount": "バトルマウント",
     "other": "その他"
+  },
+  "adminShopBaseline": {
+    "title": "チェスト在庫ベースライン",
+    "backToShop": "ショップ管理に戻る",
+    "historyTitle": "履歴 (直近10件)",
+    "colConfirmedAt": "確定時刻",
+    "colBaselineAt": "ベースライン時刻",
+    "colItems": "アイテム",
+    "colDepositor": "預け入れ者",
+    "colDrift": "ドリフト",
+    "colStatus": "状態",
+    "colNotes": "メモ",
+    "itemsSummary": "{items} / {events}件",
+    "driftCount": "{count}種",
+    "statusActive": "active",
+    "statusSuperseded": "superseded"
+  },
+  "adminShopPage": {
+    "baselineLink": "在庫ベースライン",
+    "deliveryNoticeTitle": "/shop 受け渡し案内",
+    "deliveryNoticeDescription": "公開ショップページ上部に表示されるバナーです。受け取り方法・営業時間などを自由に案内してください。",
+    "deliveryNoticeLabel": "案内内容",
+    "deliveryNoticePlaceholder": "例: 注文承認後、Discord #shop チャンネルでDMを送り、ゲーム内メールで配送します。",
+    "deliveryNoticeClearLabel": "バナーを空に",
+    "deliveryNoticeClearTooltip": "空文字列 = バナー非表示",
+    "deliveryNoticeTooLong": "最大 {max} 文字まで"
+  },
+  "publishEventBanner": {
+    "draftStatus": "下書き (draft) 状態",
+    "draftDescription": "このイベントはホームに表示されず、公開リンクも404になります。ビルド / パーティ構成が完了したら必須項目を埋めて公開してください。",
+    "missingRequired": "未入力: {fields} — 下部の「保存」ボタンで DB に反映してから再度押してください。",
+    "fieldTitle": "タイトル",
+    "fieldGatherAt": "集合時間",
+    "fieldGatherLocation": "集合場所",
+    "publishing": "公開中…",
+    "publishButton": "公開する"
+  },
+  "forceOnboardButton": {
+    "tooltip": "このメンバーのアルビオン認証情報を消去し、次回アクセス時にオンボーディングを再表示します",
+    "confirm": "もう一度",
+    "idle": "再オンボード",
+    "successMessage": "{username} さんのオンボーディングをリセットしました"
   }
 }

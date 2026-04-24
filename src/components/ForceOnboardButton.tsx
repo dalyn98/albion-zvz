@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Loader2, RotateCcw } from 'lucide-react'
 import { resetMemberAlbionOnboarding } from '@/app/actions/stats-admin'
 import { useToast } from './ToastProvider'
@@ -16,6 +17,7 @@ interface Props {
 export default function ForceOnboardButton({ discordId, username }: Props) {
   const router = useRouter()
   const toast = useToast()
+  const t = useTranslations('forceOnboardButton')
   const [isPending, startTransition] = useTransition()
   const [confirming, setConfirming] = useState(false)
 
@@ -33,7 +35,7 @@ export default function ForceOnboardButton({ discordId, username }: Props) {
         toast.error(res.error)
         return
       }
-      toast.success(`${username} 님의 온보딩을 초기화했습니다`)
+      toast.success(t('successMessage', { username }))
       router.refresh()
     })
   }
@@ -48,14 +50,14 @@ export default function ForceOnboardButton({ discordId, username }: Props) {
           ? 'bg-rose-500/20 border border-rose-500/60 text-rose-200'
           : 'bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300'
       } disabled:opacity-50`}
-      title="이 멤버의 알비온 인증 정보를 지우고 다음 방문 때 온보딩을 다시 띄웁니다"
+      title={t('tooltip')}
     >
       {isPending ? (
         <Loader2 size={11} className="animate-spin" />
       ) : (
         <RotateCcw size={11} />
       )}
-      {confirming ? '한 번 더' : '재온보딩'}
+      {confirming ? t('confirm') : t('idle')}
     </button>
   )
 }
