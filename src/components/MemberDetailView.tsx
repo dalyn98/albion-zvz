@@ -24,7 +24,7 @@ import BadgeGrid from './BadgeGrid'
 import { formatSilver } from '@/lib/silver'
 import { formatDate, formatDateTime } from '@/lib/format-datetime'
 import { getLocalizedItemName } from '@/lib/item-names'
-import { stripTierPrefix } from '@/lib/weapon-display'
+import { canonicalT8WeaponId } from '@/lib/weapon-display'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import { getRoleStyle, regearPayoutSilver } from '@/types'
 import type {
@@ -278,16 +278,22 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
         ) : (
           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {detail.weapon_breakdown.map((w, idx) => {
-              // 샘플 id 로 로케일 이름을 얻고 티어 접두사("장로의 ") 를 벗겨 "같은
-              // 무기군" 표기. 이름이 없으면 category 코드(weapon_name) 를 그대로 보여줌.
-              const localized = getLocalizedItemName(w.weapon_id, locale, null)
-              const displayName = localized ? stripTierPrefix(localized) : w.weapon_name
+              // 샘플은 T6_MAIN_HOLYSTAFF_AVALON@1 처럼 티어/인챈트가 섞여 있어
+              // 그대로 로컬라이즈하면 "마스터의 할로우폴@1" 같은 중구난방 표기가
+              // 된다. 통계 뷰에서는 T8.0 canonical 로 정규화해서 "장로의 할로우폴"
+              // 처럼 무기군 당 한 가지 표기로 수렴시킨다 (icon 도 동일).
+              const canonicalId = canonicalT8WeaponId(w.weapon_id)
+              const localized = canonicalId
+                ? getLocalizedItemName(canonicalId, locale, null)
+                : null
+              const displayId = localized ? canonicalId : w.weapon_id
+              const displayName = localized ?? w.weapon_name
               return (
                 <li
-                  key={`${w.weapon_id ?? 'free'}-${idx}`}
+                  key={`${displayId ?? 'free'}-${idx}`}
                   className="flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-3 py-2"
                 >
-                  <ItemImage itemId={w.weapon_id} itemName={displayName} size={36} hoverPreview />
+                  <ItemImage itemId={displayId} itemName={displayName} size={36} hoverPreview />
                   <span className="text-white text-sm truncate flex-1">{displayName}</span>
                   <span className="text-amber-300 text-xs font-mono font-bold flex-shrink-0">
                     {t('weaponUsageCount', { count: w.count })}

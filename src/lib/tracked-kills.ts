@@ -84,6 +84,17 @@ export function findTrackedOutcome(
   return findTrackedWindow(occurredAtIso, windows)?.outcome ?? null
 }
 
+// 이벤트가 속한 tracked battle 의 raw started_at 을 돌려준다 — 배틀 단위
+// 그룹핑 키로 사용. 같은 키가 나오는 killboard row 들은 같은 전투이므로,
+// 무기 사용 통계처럼 "1전투당 한 번" 집계가 필요할 때 이 키로 Set 을 만든다.
+export function findTrackedBattleKey(
+  occurredAtIso: string | null,
+  windows: ReadonlyArray<TrackedBattleWindow>,
+): string | null {
+  if (!occurredAtIso) return null
+  return findTrackedWindow(occurredAtIso, windows)?.rawStartedAt ?? null
+}
+
 function findTrackedWindow(
   occurredAtIso: string,
   windows: ReadonlyArray<TrackedBattleWindow>,

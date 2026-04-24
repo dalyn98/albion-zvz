@@ -12,22 +12,31 @@ import { matchesName, normalizeQuery } from '@/lib/search-match'
 import { SLOT_ROLES, getRoleStyle, type SlotRole } from '@/types'
 import type { GuildMemberSummary } from '@/app/actions/members-admin'
 import { getLocalizedItemName } from '@/lib/item-names'
-import { stripTierPrefix } from '@/lib/weapon-display'
+import { canonicalT8WeaponId } from '@/lib/weapon-display'
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/locales'
 
-// 무기군 필터/뱃지에 쓸 라벨. Albion item id 로 번역본을 구하고 앞의 "T4 " 같은
-// 티어 접두사는 제거해서 같은 카테고리의 여러 티어를 한 묶음처럼 보이게 한다.
-// sampleId 가 없거나 번역이 비면 원본 category 코드로 폴백 — UI 가 비어 보이는
-// 것보다 raw id 라도 보여주는 편이 낫다.
+// 무기군 필터/뱃지에 쓸 라벨. 킬보드 샘플(T6_... 등) 을 그대로 로컬라이즈하면
+// "마스터의 ~" 같이 티어별로 쪼개져 보여서, 같은 무기군을 T8.0 canonical 로
+// 정규화해 "장로의 할로우폴" 한 가지 표기로 통일. canonical 로 번역이 안 나오면
+// 원본 sample 로 폴백, 그마저도 없으면 category 코드.
 function resolveWeaponLabel(
   sampleId: string | null,
   category: string,
   locale: Locale,
 ): string {
   if (!sampleId) return category
-  const name = getLocalizedItemName(sampleId, locale, null)
-  if (!name) return category
-  return stripTierPrefix(name)
+  const canonicalId = canonicalT8WeaponId(sampleId) ?? sampleId
+  const name =
+    getLocalizedItemName(canonicalId, locale, null) ??
+    getLocalizedItemName(sampleId, locale, null)
+  return name ?? category
+}
+
+// 필터 뱃지 아이콘도 이름과 동일한 canonical id 로 렌더해야 T6 인챈트 아이콘이
+// 섞이지 않는다. null 이면 render API 에 넘길 수 있도록 원본 id 로 폴백.
+function resolveWeaponIconId(sampleId: string | null): string | null {
+  if (!sampleId) return null
+  return canonicalT8WeaponId(sampleId) ?? sampleId
 }
 
 interface Props {
@@ -237,6 +246,7 @@ export default function GuildMemberList({ members }: Props) {
               {availableWeapons.map(({ category, sampleId }) => {
                 const active = weaponFilter === category
                 const label = resolveWeaponLabel(sampleId, category, locale)
+                const iconId = resolveWeaponIconId(sampleId)
                 return (
                   <button
                     key={category}
@@ -248,9 +258,9 @@ export default function GuildMemberList({ members }: Props) {
                         : 'bg-gray-900 border-gray-700 text-gray-300 hover:text-white hover:border-gray-600'
                     }`}
                   >
-                    {sampleId ? (
+                    {iconId ? (
                       <Image
-                        src={`https://render.albiononline.com/v1/item/${sampleId}.png`}
+                        src={`https://render.albiononline.com/v1/item/${iconId}.png`}
                         alt=""
                         width={20}
                         height={20}
@@ -327,11 +337,12 @@ function WeaponDropdown({
   allLabel: string
 }) {
   const selected = value ? weapons.find((w) => w.category === value) ?? null : null
+  const selectedIconId = resolveWeaponIconId(selected?.sampleId ?? null)
   return (
     <div className="flex items-center gap-2">
-      {selected?.sampleId ? (
+      {selectedIconId ? (
         <Image
-          src={`https://render.albiononline.com/v1/item/${selected.sampleId}.png`}
+          src={`https://render.albiononline.com/v1/item/${selectedIconId}.png`}
           alt=""
           width={24}
           height={24}
@@ -451,16 +462,19 @@ function MemberRow({
             )}
             {matchedWeapon && (
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-200 ring-1 ring-amber-300/60">
-                {matchedWeapon.sample_weapon_id && (
-                  <Image
-                    src={`https://render.albiononline.com/v1/item/${matchedWeapon.sample_weapon_id}.png`}
-                    alt=""
-                    width={14}
-                    height={14}
-                    className="pixel-img"
-                    unoptimized
-                  />
-                )}
+                {(() => {
+                  const iconId = resolveWeaponIconId(matchedWeapon.sample_weapon_id ?? null)
+                  return iconId ? (
+                    <Image
+                      src={`https://render.albiononline.com/v1/item/${iconId}.png`}
+                      alt=""
+                      width={14}
+                      height={14}
+                      className="pixel-img"
+                      unoptimized
+                    />
+                  ) : null
+                })()}
                 {resolveWeaponLabel(
                   matchedWeapon.sample_weapon_id ?? null,
                   matchedWeapon.category,

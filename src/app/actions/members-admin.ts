@@ -18,6 +18,7 @@ import {
 import {
   fetchMemberBattleParticipations,
   fetchTrackedBattleWindows,
+  findTrackedBattleKey,
   groupMemberKillsByBattle,
   isWithinTrackedWindow,
   mergeMemberBattles,
@@ -698,13 +699,16 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     }
     // fame / weapon 은 groupMemberKillsByBattle 이 노출하지 않으므로 별도 순회.
     // 창 밖 row (1:1 갱킹 등) 는 isWithinTrackedWindow 로 제외 — battles 와 동일 기준.
-    // Equipment 는 현재 victim row 에만 저장됨 (killboard-sync.ts 규칙). 따라서
-    // weapon_breakdown 은 "죽었을 때 들었던 무기" 에 가깝다.
+    // Equipment 는 killboard 의 모든 row (killer/victim) 에 저장될 수 있음.
     //
     // 집계 키는 extractWeaponCategory 결과 (예: HOLYSTAFF). 티어/인챈트/품질/
     // 아티팩트 변형을 모두 하나로 묶어 "같은 무기군" 이 분리 집계되지 않도록.
-    // 아이콘 렌더용으로 첫 관측된 원본 id (예: T8_2H_HOLYSTAFF@2) 를 보존.
-    const weaponAgg = new Map<string, { sampleId: string; count: number }>()
+    // 카운트는 **1전투당 1회**: 한 배틀에서 같은 무기로 여러 킬/데스를 내도
+    // 무기군 사용 배틀 수가 1 로 집계된다 (battleKey = tracked window 의
+    // rawStartedAt). 예전엔 row 단위로 세서 한 배틀 10킬짜리 전투 한 번에
+    // 카운트 10 이 찍혀 무기 사용 분포가 심하게 왜곡되던 문제를 수정.
+    // 아이콘 렌더용으로 가장 최근 관측된 원본 id 를 샘플로 저장.
+    const weaponAgg = new Map<string, { sampleId: string; battles: Set<string> }>()
     type KillboardRow = {
       event_id: number | string | null
       role: string | null
@@ -724,12 +728,17 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
         if (row.role === 'killer') killboard.kill_fame += fame
         else if (row.role === 'victim') killboard.death_fame += fame
         const mainHandType = row.equipment?.MainHand?.Type
-        if (mainHandType) {
+        const battleKey = findTrackedBattleKey(row.occurred_at, trackedWindows)
+        if (mainHandType && battleKey) {
           const category = extractWeaponCategory(mainHandType)
           if (category) {
-            const existing = weaponAgg.get(category)
-            if (existing) existing.count++
-            else weaponAgg.set(category, { sampleId: mainHandType, count: 1 })
+            let entry = weaponAgg.get(category)
+            if (!entry) {
+              entry = { sampleId: mainHandType, battles: new Set() }
+              weaponAgg.set(category, entry)
+            }
+            entry.battles.add(battleKey)
+            entry.sampleId = mainHandType
           }
         }
       }
@@ -754,12 +763,13 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     // Cap at 10 so a prolific member's card doesn't scroll forever — the tail
     // is uninteresting anyway (usually a long tail of one-off pick-ups).
     // weapon_id 는 아이콘 렌더링용 샘플, weapon_name 은 category 코드 (UI 에서
-    // locale 이름 없을 때 fallback).
+    // locale 이름 없을 때 fallback). count 는 battles.size = 해당 무기군을
+    // 들고 참여한 배틀 수.
     const weaponBreakdown: WeaponCount[] = Array.from(weaponAgg.entries())
       .map(([category, w]) => ({
         weapon_id: w.sampleId,
         weapon_name: category,
-        count: w.count,
+        count: w.battles.size,
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10)

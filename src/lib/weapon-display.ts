@@ -10,3 +10,18 @@ export function stripTierPrefix(name: string | null | undefined): string {
   }
   return name
 }
+
+// 무기 사용 통계처럼 "같은 무기군" 을 하나로 묶어 보여줘야 하는 뷰에서 사용.
+// 관찰된 킬보드 샘플은 `T6_MAIN_HOLYSTAFF_AVALON@1` 처럼 티어/인챈트가 뒤섞여
+// 있고, 인챈트 변종은 items 번들에 별도 엔트리가 없어 getLocalizedItemName 이
+// null 을 돌려주기 쉽다. 이 함수는 T8.0 base 형태로 정규화해서 로컬라이즈를
+// 보장하고, 유저가 기대하는 "장로의 ~" 표기로 수렴시킨다.
+export function canonicalT8WeaponId(
+  weaponId: string | null | undefined,
+): string | null {
+  if (!weaponId) return null
+  const withoutEnchant = weaponId.split('@')[0]
+  const match = withoutEnchant.match(/^T\d+_(2H|MAIN)_(.+)$/)
+  if (!match) return null
+  return `T8_${match[1]}_${match[2]}`
+}
