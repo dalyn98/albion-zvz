@@ -31,6 +31,7 @@ export default function CdBadgeRolesForm({ initialRoles }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
   const tRole = useTranslations('slotRole')
+  const t = useTranslations('adminCdBadge')
   const [selected, setSelected] = useState<Set<SlotRole>>(new Set(initialRoles))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -67,11 +68,11 @@ export default function CdBadgeRolesForm({ initialRoles }: Props) {
       <div className="flex items-start gap-2">
         <Timer size={16} className="text-cyan-400 mt-0.5" />
         <div>
-          <h2 className="font-bold text-white">CD 뱃지 표시 역할군</h2>
+          <h2 className="font-bold text-white">{t('title')}</h2>
           <p className="text-gray-500 text-xs mt-1">
-            무기 주력 스킬에 붙는 효과 쿨타임(가죽 갑옷/음식 감소 포함)을 어떤 역할군에 표시할지 선택합니다.
+            {t('descriptionLine1')}
             <br />
-            기본은 DPS 만 노출 — 다른 역할군도 필요하면 체크하세요. 선택이 없으면 어느 슬롯에도 뱃지가 뜨지 않습니다.
+            {t('descriptionLine2')}
           </p>
         </div>
       </div>

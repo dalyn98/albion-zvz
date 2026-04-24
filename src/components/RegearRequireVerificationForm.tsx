@@ -18,6 +18,7 @@ interface Props {
 export default function RegearRequireVerificationForm({ initialEnabled }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
+  const t = useTranslations('adminRegearVerify')
   const [enabled, setEnabled] = useState(initialEnabled)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -47,12 +48,11 @@ export default function RegearRequireVerificationForm({ initialEnabled }: Props)
       <div className="flex items-start gap-2">
         <ShieldCheck size={16} className="text-amber-400 mt-0.5" />
         <div>
-          <h2 className="font-bold text-white">리기어 신청 시 알비온 인증 필요</h2>
+          <h2 className="font-bold text-white">{t('title')}</h2>
           <p className="text-gray-500 text-xs mt-1">
-            켜면 알비온 닉네임을 인증하지 않은 길드원은 리기어 신청을 할 수 없고,
-            신청 시도 시 프로필 인증 페이지로 안내하는 버튼이 노출됩니다.
+            {t('descriptionLine1')}
             <br />
-            끄면 미인증 상태로도 리기어 신청이 가능합니다 (기존 기본값으로 되돌리려 할 때).
+            {t('descriptionLine2')}
           </p>
         </div>
       </div>
@@ -68,9 +68,9 @@ export default function RegearRequireVerificationForm({ initialEnabled }: Props)
           className="mt-1 h-4 w-4 accent-amber-500"
         />
         <span>
-          <span className="text-sm text-white font-semibold">인증 필수</span>
+          <span className="text-sm text-white font-semibold">{t('toggleLabel')}</span>
           <span className="block text-[11px] text-gray-500 mt-0.5">
-            미인증 유저의 리기어 신청을 차단합니다.
+            {t('toggleHint')}
           </span>
         </span>
       </label>

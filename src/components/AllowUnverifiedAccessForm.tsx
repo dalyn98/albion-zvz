@@ -17,6 +17,7 @@ interface Props {
 export default function AllowUnverifiedAccessForm({ initialAllowed }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
+  const t = useTranslations('adminAllowUnverified')
   const [allowed, setAllowed] = useState(initialAllowed)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -46,11 +47,9 @@ export default function AllowUnverifiedAccessForm({ initialAllowed }: Props) {
       <div className="flex items-start gap-2">
         <ShieldCheck size={16} className="text-amber-400 mt-0.5" />
         <div>
-          <h2 className="font-bold text-white">미인증 길드원 접속 허용</h2>
+          <h2 className="font-bold text-white">{t('title')}</h2>
           <p className="text-gray-500 text-xs mt-1 leading-relaxed">
-            끄면 알비온 인증을 마치지 않은 길드원은 사이트 진입 시 자동으로 온보딩
-            페이지로 이동되며, 인증 전에는 다른 페이지를 사용할 수 없습니다. 관리자·
-            게스트 초대 링크·공개 경로는 항상 제외됩니다.
+            {t('description')}
           </p>
         </div>
       </div>
@@ -67,10 +66,10 @@ export default function AllowUnverifiedAccessForm({ initialAllowed }: Props) {
         />
         <span>
           <span className="text-sm text-white font-semibold">
-            미인증 멤버도 사이트 이용 허용
+            {t('toggleLabel')}
           </span>
           <span className="block text-[11px] text-gray-500 mt-0.5">
-            끄면 온보딩 완료 전까지 사이트 접근이 차단됩니다.
+            {t('toggleHint')}
           </span>
         </span>
       </label>

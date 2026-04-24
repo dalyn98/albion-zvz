@@ -643,6 +643,79 @@
     "saving": "저장 중…",
     "saved": "저장됨"
   },
+  "adminAutoRegear": {
+    "title": "자동 리기어",
+    "descriptionLine1": "이벤트 종료 후 킬보드에서 사망 기록을 찾아 AODP 시세로 지급액을 계산해 pending 상태로 생성합니다. 관리자 승인 전에는 포인트 지급 없음.",
+    "descriptionLine2": "요율(리기어 지급률)·AODP 설정을 그대로 따르며, 파티에 배정되지 않은 멤버는 제외됩니다. 빌드별 제외 체크박스는 이 옵션이 켜져 있을 때만 슬롯 편집기에 나타납니다.",
+    "toggleLabel": "자동 리기어 활성화",
+    "toggleHint": "끄면 기존 수동 신청 흐름만 동작합니다.",
+    "delayLabel": "처리 지연 (분)",
+    "delayUnit": "분",
+    "delayHint": "배틀 시작 후 이만큼 경과하면 cron 이 해당 이벤트를 처리합니다. 너무 짧으면 killboard sync 가 따라잡지 못해 victim 이 누락될 수 있습니다. 기본 15분, 범위 {min}~{max}.",
+    "delayInvalid": "지연은 {min}~{max} 분 사이 정수여야 합니다."
+  },
+  "adminAllowUnverified": {
+    "title": "미인증 길드원 접속 허용",
+    "description": "끄면 알비온 인증을 마치지 않은 길드원은 사이트 진입 시 자동으로 온보딩 페이지로 이동되며, 인증 전에는 다른 페이지를 사용할 수 없습니다. 관리자·게스트 초대 링크·공개 경로는 항상 제외됩니다.",
+    "toggleLabel": "미인증 멤버도 사이트 이용 허용",
+    "toggleHint": "끄면 온보딩 완료 전까지 사이트 접근이 차단됩니다."
+  },
+  "adminCdBadge": {
+    "title": "CD 뱃지 표시 역할군",
+    "descriptionLine1": "무기 주력 스킬에 붙는 효과 쿨타임(가죽 갑옷/음식 감소 포함)을 어떤 역할군에 표시할지 선택합니다.",
+    "descriptionLine2": "기본은 DPS 만 노출 — 다른 역할군도 필요하면 체크하세요. 선택이 없으면 어느 슬롯에도 뱃지가 뜨지 않습니다."
+  },
+  "adminRegearVerify": {
+    "title": "리기어 신청 시 알비온 인증 필요",
+    "descriptionLine1": "켜면 알비온 닉네임을 인증하지 않은 길드원은 리기어 신청을 할 수 없고, 신청 시도 시 프로필 인증 페이지로 안내하는 버튼이 노출됩니다.",
+    "descriptionLine2": "끄면 미인증 상태로도 리기어 신청이 가능합니다 (기존 기본값으로 되돌리려 할 때).",
+    "toggleLabel": "인증 필수",
+    "toggleHint": "미인증 유저의 리기어 신청을 차단합니다."
+  },
+  "adminShopSilverRate": {
+    "title": "상점 할인율",
+    "description": "수동 가격과 자동 가격(AODP 실버 시세) 에 모두 곱해지는 할인율입니다. 포인트와 실버는 1:1 동일 개념이라, 최종 포인트 = 실버 × 할인율. 범위 (0, 1]. 1 이면 할인 없음, 0.5 면 50% 할인.",
+    "rateLabel": "할인율",
+    "percentPreview": "{percent}% 할인 · 1M실버 → {points}p",
+    "rangeHint": "유효 범위: 0.01 ~ 1"
+  },
+  "adminAodp": {
+    "title": "AODP 시세 설정",
+    "description": "상점 자동 가격 · 자동 리기어 산정에 공용으로 쓰이는 시세 조회 옵션입니다.",
+    "tooltipAria": "AODP 설명",
+    "cityHeading": "기준 도시 (1개)",
+    "cityHint": "길드의 홈 거래소로 쓸 도시 1곳만 고릅니다. 이 도시에 시세가 없으면 자동으로 다른 로열 시티 → 레드존 순으로 폴백해 추정합니다.",
+    "modeHeading": "가격 모드",
+    "modeSpotLabel": "현재가 (spot)",
+    "modeSpotHint": "/stats/prices — 최신 매도 최저가",
+    "modeAvg1dLabel": "1일 평균",
+    "modeAvg1dHint": "/stats/history · 최근 24시간 수량 가중 평균",
+    "modeAvg3dLabel": "3일 평균",
+    "modeAvg3dHint": "변동성 완화 · 최근 72시간 평균",
+    "modeAvg7dLabel": "7일 평균",
+    "modeAvg7dHint": "주간 평균 · 리기어 산정에 권장",
+    "modeAvg14dLabel": "14일 평균",
+    "modeAvg14dHint": "장기 평균 · 시세 격변기 완충",
+    "qualityHeading": "최소 품질 (floor)",
+    "qualityHint": "드랍 아이템 품질이 이 값보다 낮으면 이 품질로 보정해 조회합니다. 기본 1(보정 없음)."
+  },
+  "adminAlbionHomeGuild": {
+    "title": "홈 길드 · 알비온 서버",
+    "description": "알비온 온보딩과 킬보드 자동 검증에 쓸 서버와 \"우리 길드\"를 함께 설정합니다. 길드 UUID 는 서버별로 다르기 때문에 두 값은 항상 쌍으로 저장됩니다. 홈 길드가 비어 있으면 온보딩이 모두 [미인증]으로 저장됩니다.",
+    "serverHeading": "서버",
+    "serverEastLabel": "East (Asia)",
+    "serverEastHint": "gameinfo-sgp · 아시아 서버",
+    "serverWestLabel": "West (Americas)",
+    "serverWestHint": "gameinfo · 아메리카 서버",
+    "serverEuropeLabel": "Europe",
+    "serverEuropeHint": "gameinfo-ams · 유럽 서버",
+    "guildHeading": "홈 길드 (선택된 서버 기준)",
+    "currentSelection": "현재 선택",
+    "clearGuild": "해제",
+    "unsetWarning": "미설정 — 저장하면 모든 온보딩이 [미인증]으로 저장됩니다",
+    "searchPlaceholder": "길드명으로 검색 (2자 이상)",
+    "searchEmpty": "검색 결과 없음"
+  },
   "adminRegearLimits": {
     "title": "리기어 신청 제한",
     "description": "리기어 신청이 열리기까지의 대기 시간과, 한 이벤트에서 한 명이 최대 몇 번까지 신청할 수 있는지를 설정해요. 바꾼 값은 이후 새로 들어오는 신청부터 적용돼요.",

@@ -21,12 +21,12 @@ const SEARCH_DEBOUNCE_MS = 300
 
 const SERVER_OPTIONS: ReadonlyArray<{
   value: AlbionServer
-  label: string
-  hint: string
+  labelKey: 'serverEastLabel' | 'serverWestLabel' | 'serverEuropeLabel'
+  hintKey: 'serverEastHint' | 'serverWestHint' | 'serverEuropeHint'
 }> = [
-  { value: 'east', label: 'East (Asia)', hint: 'gameinfo-sgp · 아시아 서버' },
-  { value: 'west', label: 'West (Americas)', hint: 'gameinfo · 아메리카 서버' },
-  { value: 'europe', label: 'Europe', hint: 'gameinfo-ams · 유럽 서버' },
+  { value: 'east', labelKey: 'serverEastLabel', hintKey: 'serverEastHint' },
+  { value: 'west', labelKey: 'serverWestLabel', hintKey: 'serverWestHint' },
+  { value: 'europe', labelKey: 'serverEuropeLabel', hintKey: 'serverEuropeHint' },
 ]
 
 // 서버 + 홈 길드를 한 폼에서 묶어 저장. 길드 UUID 는 서버별로 다르기 때문에 둘
@@ -40,6 +40,7 @@ export default function AlbionHomeGuildForm({
 }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
+  const t = useTranslations('adminAlbionHomeGuild')
   const [server, setServer] = useState<AlbionServer>(initialServer)
   const [guildId, setGuildId] = useState(initialGuildId)
   const [guildName, setGuildName] = useState(initialGuildName ?? '')
@@ -124,18 +125,16 @@ export default function AlbionHomeGuildForm({
       <div className="flex items-start gap-2">
         <Shield size={16} className="text-amber-400 mt-0.5" />
         <div>
-          <h2 className="font-bold text-white">홈 길드 · 알비온 서버</h2>
+          <h2 className="font-bold text-white">{t('title')}</h2>
           <p className="text-gray-500 text-xs mt-1 leading-relaxed">
-            알비온 온보딩과 킬보드 자동 검증에 쓸 서버와 &quot;우리 길드&quot;를 함께
-            설정합니다. 길드 UUID 는 서버별로 다르기 때문에 두 값은 항상 쌍으로 저장됩니다.
-            홈 길드가 비어 있으면 온보딩이 모두 [미인증]으로 저장됩니다.
+            {t('description')}
           </p>
         </div>
       </div>
 
       <section className="space-y-2">
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
-          <Globe2 size={12} /> 서버
+          <Globe2 size={12} /> {t('serverHeading')}
         </h3>
         {SERVER_OPTIONS.map((opt) => (
           <label
@@ -155,8 +154,8 @@ export default function AlbionHomeGuildForm({
               className="mt-1 accent-amber-500"
             />
             <span className="flex-1">
-              <span className="text-sm text-white font-semibold">{opt.label}</span>
-              <span className="block text-[11px] text-gray-500 mt-0.5 font-mono">{opt.hint}</span>
+              <span className="text-sm text-white font-semibold">{t(opt.labelKey)}</span>
+              <span className="block text-[11px] text-gray-500 mt-0.5 font-mono">{t(opt.hintKey)}</span>
             </span>
           </label>
         ))}
@@ -164,11 +163,11 @@ export default function AlbionHomeGuildForm({
 
       <section className="space-y-3">
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
-          <Shield size={12} /> 홈 길드 (선택된 서버 기준)
+          <Shield size={12} /> {t('guildHeading')}
         </h3>
 
         <div className="rounded-lg border border-gray-800 bg-gray-950 px-3 py-2.5">
-          <p className="text-[11px] text-gray-500 uppercase tracking-wide">현재 선택</p>
+          <p className="text-[11px] text-gray-500 uppercase tracking-wide">{t('currentSelection')}</p>
           {guildId ? (
             <div className="mt-1 flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
@@ -183,12 +182,12 @@ export default function AlbionHomeGuildForm({
                 disabled={isPending}
                 className="flex-shrink-0 flex items-center gap-1 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-400 hover:text-gray-200 px-2 py-1 rounded text-[11px]"
               >
-                <Trash2 size={11} /> 해제
+                <Trash2 size={11} /> {t('clearGuild')}
               </button>
             </div>
           ) : (
             <p className="text-xs text-amber-300 mt-1">
-              미설정 — 저장하면 모든 온보딩이 [미인증]으로 저장됩니다
+              {t('unsetWarning')}
             </p>
           )}
         </div>
@@ -201,7 +200,7 @@ export default function AlbionHomeGuildForm({
               setQuery(e.target.value)
               setSaved(false)
             }}
-            placeholder="길드명으로 검색 (2자 이상)"
+            placeholder={t('searchPlaceholder')}
             className="w-full bg-gray-950 border border-gray-800 focus:border-amber-500/60 rounded-lg pl-9 pr-9 py-2.5 text-sm text-white placeholder:text-gray-600 outline-none"
           />
           <Search
@@ -238,7 +237,7 @@ export default function AlbionHomeGuildForm({
         )}
 
         {query.trim().length >= 2 && !searching && candidates.length === 0 && !error && (
-          <p className="text-xs text-gray-500 text-center py-2">검색 결과 없음</p>
+          <p className="text-xs text-gray-500 text-center py-2">{t('searchEmpty')}</p>
         )}
       </section>
 

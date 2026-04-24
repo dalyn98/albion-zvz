@@ -24,6 +24,7 @@ const DELAY_MAX = 120
 export default function AutoRegearToggleForm({ initialEnabled, initialDelayMinutes }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
+  const t = useTranslations('adminAutoRegear')
   const delayId = useId()
   const [enabled, setEnabled] = useState(initialEnabled)
   const [delayMinutes, setDelayMinutes] = useState(String(initialDelayMinutes))
@@ -42,7 +43,7 @@ export default function AutoRegearToggleForm({ initialEnabled, initialDelayMinut
 
   const handleSave = async () => {
     if (delayInvalid) {
-      setError(`지연은 ${DELAY_MIN}~${DELAY_MAX} 분 사이 정수여야 합니다.`)
+      setError(t('delayInvalid', { min: DELAY_MIN, max: DELAY_MAX }))
       return
     }
     setLoading(true)
@@ -73,13 +74,11 @@ export default function AutoRegearToggleForm({ initialEnabled, initialDelayMinut
       <div className="flex items-start gap-2">
         <BadgeCheck size={16} className="text-amber-400 mt-0.5" />
         <div>
-          <h2 className="font-bold text-white">자동 리기어</h2>
+          <h2 className="font-bold text-white">{t('title')}</h2>
           <p className="text-gray-500 text-xs mt-1">
-            이벤트 종료 후 킬보드에서 사망 기록을 찾아 AODP 시세로 지급액을 계산해
-            pending 상태로 생성합니다. 관리자 승인 전에는 포인트 지급 없음.
+            {t('descriptionLine1')}
             <br />
-            요율(리기어 지급률)·AODP 설정을 그대로 따르며, 파티에 배정되지 않은 멤버는 제외됩니다.
-            빌드별 제외 체크박스는 이 옵션이 켜져 있을 때만 슬롯 편집기에 나타납니다.
+            {t('descriptionLine2')}
           </p>
         </div>
       </div>
@@ -95,15 +94,15 @@ export default function AutoRegearToggleForm({ initialEnabled, initialDelayMinut
           className="mt-1 h-4 w-4 accent-amber-500"
         />
         <span>
-          <span className="text-sm text-white font-semibold">자동 리기어 활성화</span>
+          <span className="text-sm text-white font-semibold">{t('toggleLabel')}</span>
           <span className="block text-[11px] text-gray-500 mt-0.5">
-            끄면 기존 수동 신청 흐름만 동작합니다.
+            {t('toggleHint')}
           </span>
         </span>
       </label>
 
       <div>
-        <label htmlFor={delayId} className="text-gray-400 text-xs mb-1 block">처리 지연 (분)</label>
+        <label htmlFor={delayId} className="text-gray-400 text-xs mb-1 block">{t('delayLabel')}</label>
         <div className="flex items-center gap-2">
           <input
             id={delayId}
@@ -119,11 +118,10 @@ export default function AutoRegearToggleForm({ initialEnabled, initialDelayMinut
             disabled={!enabled}
             className="w-32 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500 disabled:opacity-50"
           />
-          <span className="text-gray-500 text-sm">분</span>
+          <span className="text-gray-500 text-sm">{t('delayUnit')}</span>
         </div>
         <p className={`text-[11px] mt-1 ${delayInvalid ? 'text-red-400' : 'text-gray-500'}`}>
-          배틀 시작 후 이만큼 경과하면 cron 이 해당 이벤트를 처리합니다. 너무 짧으면
-          killboard sync 가 따라잡지 못해 victim 이 누락될 수 있습니다. 기본 15분, 범위 {DELAY_MIN}~{DELAY_MAX}.
+          {t('delayHint', { min: DELAY_MIN, max: DELAY_MAX })}
         </p>
       </div>
 

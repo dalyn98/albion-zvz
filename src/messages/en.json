@@ -643,6 +643,79 @@
     "saving": "Saving…",
     "saved": "Saved"
   },
+  "adminAutoRegear": {
+    "title": "Auto regear",
+    "descriptionLine1": "After an event ends, the cron pulls death records from the killboard, prices them with AODP, and creates pending regear rows. No points are paid until an admin approves each row.",
+    "descriptionLine2": "Uses the existing regear payout rate and AODP settings. Members not assigned to a party are skipped. The per-build exclude checkbox only appears in the slot editor while this option is on.",
+    "toggleLabel": "Enable auto regear",
+    "toggleHint": "When off, only the existing manual request flow runs.",
+    "delayLabel": "Processing delay (minutes)",
+    "delayUnit": "min",
+    "delayHint": "The cron processes the event this many minutes after battle start. Too short and the killboard sync may not catch up, causing victims to be missed. Default 15 minutes, range {min}–{max}.",
+    "delayInvalid": "Delay must be an integer between {min} and {max} minutes."
+  },
+  "adminAllowUnverified": {
+    "title": "Allow unverified members to access the site",
+    "description": "When off, members who haven't completed Albion verification are redirected to the onboarding page on site entry and can't use any other page until verified. Admins, guest invite links, and public paths are always exempt.",
+    "toggleLabel": "Let unverified members use the site",
+    "toggleHint": "When off, site access is blocked until onboarding is complete."
+  },
+  "adminCdBadge": {
+    "title": "CD badge role filter",
+    "descriptionLine1": "Pick which roles show the weapon skill cooldown badge (including leather armor / food reductions).",
+    "descriptionLine2": "Defaults to DPS only — check other roles if needed. If nothing is selected, no slot shows the badge."
+  },
+  "adminRegearVerify": {
+    "title": "Require Albion verification for regear",
+    "descriptionLine1": "When on, members who haven't verified their Albion name can't submit regear requests; they see a button linking to the profile verification page instead.",
+    "descriptionLine2": "When off, unverified members can still submit regear requests (use this to revert to the old default).",
+    "toggleLabel": "Verification required",
+    "toggleHint": "Blocks regear submissions from unverified users."
+  },
+  "adminShopSilverRate": {
+    "title": "Shop discount rate",
+    "description": "Multiplier applied to both manual and automatic (AODP silver) prices. Points and silver are 1:1, so final points = silver × discount rate. Range (0, 1]. 1 means no discount, 0.5 means 50% off.",
+    "rateLabel": "Discount rate",
+    "percentPreview": "{percent}% off · 1M silver → {points}p",
+    "rangeHint": "Valid range: 0.01 ~ 1"
+  },
+  "adminAodp": {
+    "title": "AODP price settings",
+    "description": "Shared price-lookup options used by shop auto-pricing and auto regear.",
+    "tooltipAria": "AODP explanation",
+    "cityHeading": "Base city (1)",
+    "cityHint": "Choose one city to use as your guild's home market. If a price isn't available there, the lookup falls back to other royal cities and then to the red zone.",
+    "modeHeading": "Price mode",
+    "modeSpotLabel": "Spot price",
+    "modeSpotHint": "/stats/prices — most recent minimum ask",
+    "modeAvg1dLabel": "1-day average",
+    "modeAvg1dHint": "/stats/history · last 24h quantity-weighted average",
+    "modeAvg3dLabel": "3-day average",
+    "modeAvg3dHint": "Smoothed volatility · last 72h average",
+    "modeAvg7dLabel": "7-day average",
+    "modeAvg7dHint": "Weekly average · recommended for regear",
+    "modeAvg14dLabel": "14-day average",
+    "modeAvg14dHint": "Long-term average · cushions sudden price swings",
+    "qualityHeading": "Minimum quality (floor)",
+    "qualityHint": "If a dropped item's quality is below this value, the lookup uses this quality instead. Default 1 (no adjustment)."
+  },
+  "adminAlbionHomeGuild": {
+    "title": "Home guild · Albion server",
+    "description": "Sets the server and \"our guild\" used for Albion onboarding and killboard auto-verification. Guild UUIDs differ per server, so the two values are always saved as a pair. If the home guild is empty, all onboardings are saved as [unverified].",
+    "serverHeading": "Server",
+    "serverEastLabel": "East (Asia)",
+    "serverEastHint": "gameinfo-sgp · Asia server",
+    "serverWestLabel": "West (Americas)",
+    "serverWestHint": "gameinfo · Americas server",
+    "serverEuropeLabel": "Europe",
+    "serverEuropeHint": "gameinfo-ams · Europe server",
+    "guildHeading": "Home guild (on the selected server)",
+    "currentSelection": "Current selection",
+    "clearGuild": "Clear",
+    "unsetWarning": "Unset — saving now will mark all onboardings as [unverified]",
+    "searchPlaceholder": "Search by guild name (2+ characters)",
+    "searchEmpty": "No results"
+  },
   "adminRegearLimits": {
     "title": "Regear submission limits",
     "description": "Set how long members must wait before regear requests open, and how many requests one person can file per event. New values apply to requests filed from now on.",

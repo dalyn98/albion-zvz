@@ -19,6 +19,7 @@ const DISCOUNT_MAX = 1
 
 export default function ShopSilverRateForm({ initial }: Props) {
   const tCommon = useTranslations('common')
+  const t = useTranslations('adminShopSilverRate')
   const router = useRouter()
   const [value, setValue] = useState(initial)
   const [pending, startTransition] = useTransition()
@@ -29,8 +30,11 @@ export default function ShopSilverRateForm({ initial }: Props) {
   const parsed = Number(value)
   const percentPreview =
     Number.isFinite(parsed) && parsed > 0 && parsed <= 1
-      ? `${Math.round((1 - parsed) * 100)}% 할인 · 1M실버 → ${Math.ceil(1_000_000 * parsed).toLocaleString()}p`
-      : '유효 범위: 0.01 ~ 1'
+      ? t('percentPreview', {
+          percent: Math.round((1 - parsed) * 100),
+          points: Math.ceil(1_000_000 * parsed).toLocaleString(),
+        })
+      : t('rangeHint')
 
   const handleSave = () => {
     setError('')
@@ -50,15 +54,13 @@ export default function ShopSilverRateForm({ initial }: Props) {
     <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-3">
       <div className="flex items-center gap-2">
         <Percent size={16} className="text-amber-400" />
-        <h2 className="font-bold text-white">상점 할인율</h2>
+        <h2 className="font-bold text-white">{t('title')}</h2>
       </div>
       <p className="text-gray-500 text-xs leading-relaxed">
-        수동 가격과 자동 가격(AODP 실버 시세) 에 모두 곱해지는 할인율입니다.
-        포인트와 실버는 1:1 동일 개념이라, <code className="text-gray-400">최종 포인트 = 실버 × 할인율</code>.
-        범위 <code className="text-gray-400">(0, 1]</code>. 1 이면 할인 없음, 0.5 면 50% 할인.
+        {t('description')}
       </p>
       <div className="flex items-center gap-2">
-        <span className="text-gray-500 text-xs">할인율</span>
+        <span className="text-gray-500 text-xs">{t('rateLabel')}</span>
         <input
           type="text"
           inputMode="decimal"

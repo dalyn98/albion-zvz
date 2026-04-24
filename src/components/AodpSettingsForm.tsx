@@ -25,12 +25,16 @@ interface Props {
   initialMinQuality: Quality
 }
 
-const MODE_OPTIONS: ReadonlyArray<{ value: PriceMode; label: string; hint: string }> = [
-  { value: 'spot', label: '현재가 (spot)', hint: '/stats/prices — 최신 매도 최저가' },
-  { value: 'avg_1d', label: '1일 평균', hint: '/stats/history · 최근 24시간 수량 가중 평균' },
-  { value: 'avg_3d', label: '3일 평균', hint: '변동성 완화 · 최근 72시간 평균' },
-  { value: 'avg_7d', label: '7일 평균', hint: '주간 평균 · 리기어 산정에 권장' },
-  { value: 'avg_14d', label: '14일 평균', hint: '장기 평균 · 시세 격변기 완충' },
+const MODE_OPTIONS: ReadonlyArray<{
+  value: PriceMode
+  labelKey: 'modeSpotLabel' | 'modeAvg1dLabel' | 'modeAvg3dLabel' | 'modeAvg7dLabel' | 'modeAvg14dLabel'
+  hintKey: 'modeSpotHint' | 'modeAvg1dHint' | 'modeAvg3dHint' | 'modeAvg7dHint' | 'modeAvg14dHint'
+}> = [
+  { value: 'spot', labelKey: 'modeSpotLabel', hintKey: 'modeSpotHint' },
+  { value: 'avg_1d', labelKey: 'modeAvg1dLabel', hintKey: 'modeAvg1dHint' },
+  { value: 'avg_3d', labelKey: 'modeAvg3dLabel', hintKey: 'modeAvg3dHint' },
+  { value: 'avg_7d', labelKey: 'modeAvg7dLabel', hintKey: 'modeAvg7dHint' },
+  { value: 'avg_14d', labelKey: 'modeAvg14dLabel', hintKey: 'modeAvg14dHint' },
 ]
 
 const QUALITY_OPTIONS: ReadonlyArray<{ value: Quality; label: string }> = [
@@ -44,6 +48,7 @@ const QUALITY_OPTIONS: ReadonlyArray<{ value: Quality; label: string }> = [
 export default function AodpSettingsForm({ initialCities, initialMode, initialMinQuality }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
+  const t = useTranslations('adminAodp')
   // 기준 도시는 1개만. 기존에 여러 개 저장됐던 값도 첫 항목만 남긴다.
   const [city, setCity] = useState<string>(
     initialCities[0] ?? (AODP_ALLOWED_CITIES[0] as string),
@@ -83,24 +88,24 @@ export default function AodpSettingsForm({ initialCities, initialMode, initialMi
         <LineChart size={16} className="text-amber-400 mt-0.5" />
         <div className="flex-1">
           <div className="flex items-center gap-1.5">
-            <h2 className="font-bold text-white">AODP 시세 설정</h2>
+            <h2 className="font-bold text-white">{t('title')}</h2>
             <span
               className="inline-flex cursor-help text-gray-500"
-              aria-label="AODP 설명"
+              aria-label={t('tooltipAria')}
               title={AODP_INFO_TOOLTIP}
             >
               <Info size={12} />
             </span>
           </div>
           <p className="text-gray-500 text-xs mt-1">
-            상점 자동 가격 · 자동 리기어 산정에 공용으로 쓰이는 시세 조회 옵션입니다.
+            {t('description')}
           </p>
         </div>
       </div>
 
       <section className="space-y-2">
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
-          기준 도시 (1개)
+          {t('cityHeading')}
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {AODP_ALLOWED_CITIES.map((c) => {
@@ -130,13 +135,13 @@ export default function AodpSettingsForm({ initialCities, initialMode, initialMi
           })}
         </div>
         <p className="text-[11px] text-gray-500">
-          길드의 <span className="text-amber-300">홈 거래소</span> 로 쓸 도시 1곳만 고릅니다. 이 도시에 시세가 없으면 자동으로 다른 로열 시티 → 레드존 순으로 폴백해 추정합니다.
+          {t('cityHint')}
         </p>
       </section>
 
       <section className="space-y-2">
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
-          가격 모드
+          {t('modeHeading')}
         </h3>
         <div className="space-y-2">
           {MODE_OPTIONS.map((opt) => (
@@ -160,8 +165,8 @@ export default function AodpSettingsForm({ initialCities, initialMode, initialMi
                 className="mt-1 accent-amber-500"
               />
               <span className="flex-1">
-                <span className="text-sm text-white font-semibold">{opt.label}</span>
-                <span className="block text-[11px] text-gray-500 mt-0.5">{opt.hint}</span>
+                <span className="text-sm text-white font-semibold">{t(opt.labelKey)}</span>
+                <span className="block text-[11px] text-gray-500 mt-0.5">{t(opt.hintKey)}</span>
               </span>
             </label>
           ))}
@@ -170,7 +175,7 @@ export default function AodpSettingsForm({ initialCities, initialMode, initialMi
 
       <section className="space-y-2">
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
-          최소 품질 (floor)
+          {t('qualityHeading')}
         </h3>
         <select
           value={minQuality}
@@ -187,7 +192,7 @@ export default function AodpSettingsForm({ initialCities, initialMode, initialMi
           ))}
         </select>
         <p className="text-[11px] text-gray-500">
-          드랍 아이템 품질이 이 값보다 낮으면 이 품질로 보정해 조회합니다. 기본 1(보정 없음).
+          {t('qualityHint')}
         </p>
       </section>
 
