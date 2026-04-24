@@ -13,7 +13,13 @@ const extraOrigins = (process.env.ALLOWED_ORIGINS ?? '')
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000', '100.83.248.83:3000', ...extraOrigins],
+      allowedOrigins: [
+        'localhost:3000',
+        '100.83.248.83:3000',
+        'albion-guildmanager.com',
+        '*.albion-guildmanager.com',
+        ...extraOrigins,
+      ],
       // 기본 1MB 은 스크린샷(리기어/기부/배너)에 너무 작다. 앱 레벨 상한
       // (10MB) 과 Supabase bucket 제한(10MB) 에 맞춰 10MB 로 확장 — 이보다
       // 큰 파일은 서버 액션의 깔끔한 'screenshotTooLarge' 메시지로 거절된다.

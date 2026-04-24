@@ -1,23 +1,25 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { SESSION_COOKIE_NAME, verifySession } from '@/lib/session'
+import {
+  classifyHost,
+  buildTenantHostUrl,
+  FALLBACK_TENANT_SLUG,
+} from '@/lib/tenant-resolver'
 
-// APP_URL 변경(albion-zvz → albion-guildmanager) 이후에도 기존 유저가 북마크로
-// 옛 호스트를 방문하면 OAuth state 쿠키가 legacy host 에 심기는 반면 callback
-// redirect_uri 는 canonical host 라 세션 만료로 끊겼다. 첫 진입부터 canonical
-// 도메인으로 308 리다이렉트해 전 플로우가 같은 호스트 위에서 돌게 한다.
-const LEGACY_HOSTS = new Set(['albion-zvz.vercel.app'])
-
+// Multi-tenant subdomain migration (Phase A1):
+// legacy vercel.app hosts 308-redirect to `menhera.albion-guildmanager.com/<path>`
+// so existing bookmarks keep working. `/api/auth/*` is exempt so in-flight
+// OAuth callbacks bound to the old redirect_uri still complete while the
+// Discord Developer Portal is being updated.
 function redirectLegacyHost(request: NextRequest): NextResponse | null {
   const host = request.headers.get('host')
-  if (!host || !LEGACY_HOSTS.has(host)) return null
-  const appUrl = process.env.APP_URL
-  if (!appUrl) return null
-  const canonical = new URL(appUrl)
-  if (host === canonical.host) return null
-  const target = new URL(
+  const classification = classifyHost(host)
+  if (classification.kind !== 'legacy') return null
+  if (request.nextUrl.pathname.startsWith('/api/auth/')) return null
+  const target = buildTenantHostUrl(
+    FALLBACK_TENANT_SLUG,
     request.nextUrl.pathname + request.nextUrl.search,
-    canonical.origin,
   )
   return NextResponse.redirect(target, 308)
 }

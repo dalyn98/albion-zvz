@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { buildAuthorizeUrl } from '@/lib/discord'
-
-const STATE_COOKIE = 'discord_oauth_state'
-const RETURN_TO_COOKIE = 'discord_oauth_return_to'
-const INVITE_COOKIE = 'guest_invite'
+import { signOAuthState } from '@/lib/oauth-state'
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
@@ -11,23 +8,20 @@ export async function GET(request: NextRequest) {
   // Only accept relative paths so an attacker can't turn this into an open redirect.
   const returnTo = requested.startsWith('/') && !requested.startsWith('//') ? requested : '/'
 
-  // Carry the invite token into the OAuth round-trip so callback can validate
-  // it after Discord returns. Plain value is fine — security comes from the
-  // token's randomness, not cookie signing.
+  // Guest-invite token carried through the OAuth round-trip so the callback can
+  // validate it. Encoded inside the signed state (cookies can't cross the
+  // canonical-hop subdomains).
   const invite = url.searchParams.get('invite')?.trim() ?? ''
 
-  const state = crypto.randomUUID()
-  const response = NextResponse.redirect(buildAuthorizeUrl(state))
+  // `originHost` lets the callback (running on the canonical domain) decide
+  // which tenant subdomain to hop back to, preserving the subdomain the user
+  // started from.
+  const originHost = request.headers.get('host') ?? ''
 
-  const baseCookie = {
-    httpOnly: true,
-    secure: process.env.COOKIE_SECURE === 'true',
-    sameSite: 'lax' as const,
-    path: '/',
-    maxAge: 60 * 10,
-  }
-  response.cookies.set(STATE_COOKIE, state, baseCookie)
-  response.cookies.set(RETURN_TO_COOKIE, returnTo, baseCookie)
-  if (invite) response.cookies.set(INVITE_COOKIE, invite, baseCookie)
-  return response
+  const state = await signOAuthState({
+    originHost,
+    returnTo,
+    invite: invite || null,
+  })
+  return NextResponse.redirect(buildAuthorizeUrl(state))
 }
