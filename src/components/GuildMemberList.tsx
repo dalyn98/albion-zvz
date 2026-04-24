@@ -36,6 +36,9 @@ interface Props {
 
 type SortKey = 'participation' | 'recent'
 const BADGE_LIMIT = 3
+// 무기군 개수가 이 값을 넘으면 chip 대신 드롭다운으로 렌더. flex-wrap 이
+// 여러 줄로 늘어지면 UI 혼잡해져서 컨벤션(드롭다운/플랫)에 맞춰 전환.
+const WEAPON_DROPDOWN_THRESHOLD = 8
 
 export default function GuildMemberList({ members }: Props) {
   const t = useTranslations('members')
@@ -221,36 +224,46 @@ export default function GuildMemberList({ members }: Props) {
               </button>
             )}
           </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {availableWeapons.map(({ category, sampleId }) => {
-              const active = weaponFilter === category
-              const label = resolveWeaponLabel(sampleId, category, locale)
-              return (
-                <button
-                  key={category}
-                  type="button"
-                  onClick={() => setWeaponFilter(active ? null : category)}
-                  className={`inline-flex items-center gap-1.5 text-[11px] font-semibold pl-1 pr-2.5 py-0.5 rounded-full border transition-colors ${
-                    active
-                      ? 'bg-amber-500/20 border-amber-500/60 text-amber-200'
-                      : 'bg-gray-900 border-gray-700 text-gray-300 hover:text-white hover:border-gray-600'
-                  }`}
-                >
-                  {sampleId ? (
-                    <Image
-                      src={`https://render.albiononline.com/v1/item/${sampleId}.png`}
-                      alt=""
-                      width={20}
-                      height={20}
-                      className="rounded-sm bg-black/40 pixel-img"
-                      unoptimized
-                    />
-                  ) : null}
-                  <span>{label}</span>
-                </button>
-              )
-            })}
-          </div>
+          {availableWeapons.length > WEAPON_DROPDOWN_THRESHOLD ? (
+            <WeaponDropdown
+              weapons={availableWeapons}
+              value={weaponFilter}
+              onChange={setWeaponFilter}
+              locale={locale}
+              allLabel={t('filterAllWeapons')}
+            />
+          ) : (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {availableWeapons.map(({ category, sampleId }) => {
+                const active = weaponFilter === category
+                const label = resolveWeaponLabel(sampleId, category, locale)
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => setWeaponFilter(active ? null : category)}
+                    className={`inline-flex items-center gap-1.5 text-[11px] font-semibold pl-1 pr-2.5 py-0.5 rounded-full border transition-colors ${
+                      active
+                        ? 'bg-amber-500/20 border-amber-500/60 text-amber-200'
+                        : 'bg-gray-900 border-gray-700 text-gray-300 hover:text-white hover:border-gray-600'
+                    }`}
+                  >
+                    {sampleId ? (
+                      <Image
+                        src={`https://render.albiononline.com/v1/item/${sampleId}.png`}
+                        alt=""
+                        width={20}
+                        height={20}
+                        className="rounded-sm bg-black/40 pixel-img"
+                        unoptimized
+                      />
+                    ) : null}
+                    <span>{label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -296,6 +309,48 @@ export default function GuildMemberList({ members }: Props) {
           ))}
         </ul>
       )}
+    </div>
+  )
+}
+
+function WeaponDropdown({
+  weapons,
+  value,
+  onChange,
+  locale,
+  allLabel,
+}: {
+  weapons: Array<{ category: string; count: number; sampleId: string | null }>
+  value: string | null
+  onChange: (v: string | null) => void
+  locale: Locale
+  allLabel: string
+}) {
+  const selected = value ? weapons.find((w) => w.category === value) ?? null : null
+  return (
+    <div className="flex items-center gap-2">
+      {selected?.sampleId ? (
+        <Image
+          src={`https://render.albiononline.com/v1/item/${selected.sampleId}.png`}
+          alt=""
+          width={24}
+          height={24}
+          className="rounded-sm bg-black/40 pixel-img flex-shrink-0"
+          unoptimized
+        />
+      ) : null}
+      <select
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value ? e.target.value : null)}
+        className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-amber-500"
+      >
+        <option value="">{allLabel}</option>
+        {weapons.map(({ category, count, sampleId }) => (
+          <option key={category} value={category}>
+            {resolveWeaponLabel(sampleId, category, locale)} ({count})
+          </option>
+        ))}
+      </select>
     </div>
   )
 }

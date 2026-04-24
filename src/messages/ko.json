@@ -923,6 +923,7 @@
     "sortByWeaponActive": "{weapon} 사용 많은 순으로 정렬 중",
     "filterByRole": "역할군 필터",
     "filterByWeapon": "무기군 필터",
+    "filterAllWeapons": "전체 무기군",
     "filterClear": "전체 보기",
     "noSearchResult": "검색 결과가 없습니다.",
     "adminLabel": "관리자",

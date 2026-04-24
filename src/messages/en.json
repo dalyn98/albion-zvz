@@ -923,6 +923,7 @@
     "sortByWeaponActive": "Sorted by {weapon} usage",
     "filterByRole": "Filter by role",
     "filterByWeapon": "Filter by weapon",
+    "filterAllWeapons": "All weapons",
     "filterClear": "Show all",
     "noSearchResult": "No results.",
     "adminLabel": "Admin",

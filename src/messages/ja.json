@@ -923,6 +923,7 @@
     "sortByWeaponActive": "{weapon} 使用回数順で並び替え中",
     "filterByRole": "役割フィルター",
     "filterByWeapon": "武器フィルター",
+    "filterAllWeapons": "全武器",
     "filterClear": "すべて表示",
     "noSearchResult": "検索結果がありません。",
     "adminLabel": "管理者",
