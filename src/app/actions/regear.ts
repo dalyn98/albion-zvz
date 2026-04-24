@@ -119,7 +119,7 @@ export async function requestRegear(
   const requireVerification =
     (await getAppSetting('regear_require_verification', 'true', guildId)) !== 'false'
   if (requireVerification) {
-    const albionError = await requireAlbionVerified(session.discordId)
+    const albionError = await requireAlbionVerified(session.discordId, guildId)
     if (albionError) return { error: `${REGEAR_VERIFICATION_ERROR_PREFIX}${albionError}` }
   }
 

@@ -1,5 +1,6 @@
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { getSessionGuildId } from '@/lib/tenant'
 
 // Server-action gate: throws if the caller is not a verified guild admin,
 // otherwise returns the service-role client. Use at the top of every admin
@@ -30,10 +31,12 @@ export async function requireEventCreatorForEvent(eventId: string) {
   if (!session) throw new Error('Unauthorized')
   if (session.isAdmin) return getAdminClient()
   if (!session.canCreateEvents) throw new Error('Unauthorized')
+  const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
   const { data, error } = await db
     .from('events')
     .select('created_by')
+    .eq('guild_id', guildId)
     .eq('id', eventId)
     .maybeSingle()
   if (error) throw new Error(error.message)
@@ -56,9 +59,11 @@ export async function requireEventCreatorOrPartyCaller(
   const db = getAdminClient()
   if (session.isAdmin) return { db, isAdminOrOwner: true }
 
+  const guildId = await getSessionGuildId(session)
   const { data: event, error: eventError } = await db
     .from('events')
     .select('created_by')
+    .eq('guild_id', guildId)
     .eq('id', eventId)
     .maybeSingle()
   if (eventError) throw new Error(eventError.message)
@@ -73,6 +78,7 @@ export async function requireEventCreatorOrPartyCaller(
   const { data: party, error: partyError } = await db
     .from('parties')
     .select('event_id, caller_discord_id')
+    .eq('guild_id', guildId)
     .eq('id', partyId)
     .maybeSingle()
   if (partyError) throw new Error(partyError.message)
@@ -91,10 +97,12 @@ export async function requireEventCreatorForSlot(slotId: string) {
   if (!session) throw new Error('Unauthorized')
   if (session.isAdmin) return getAdminClient()
   if (!session.canCreateEvents) throw new Error('Unauthorized')
+  const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
   const { data, error } = await db
     .from('slots')
     .select('parties!inner(events!inner(created_by))')
+    .eq('guild_id', guildId)
     .eq('id', slotId)
     .maybeSingle()
   if (error) throw new Error(error.message)

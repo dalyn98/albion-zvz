@@ -38,7 +38,8 @@ export async function requestDonation(
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
-  const albionError = await requireAlbionVerified(session.discordId)
+  const guildId = await getSessionGuildId(session)
+  const albionError = await requireAlbionVerified(session.discordId, guildId)
   if (albionError) return { error: albionError }
 
   const file = formData.get('screenshot')
@@ -70,7 +71,6 @@ export async function requestDonation(
     return { error: tErr('screenshotUploadFailed', { reason: uploadError.message }) }
   }
 
-  const guildId = await getSessionGuildId(session)
   const { data, error: insertError } = await db
     .from('donation_requests')
     .insert({

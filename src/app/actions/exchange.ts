@@ -22,14 +22,14 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
-  const albionError = await requireAlbionVerified(session.discordId)
+  const guildId = await getSessionGuildId(session)
+  const albionError = await requireAlbionVerified(session.discordId, guildId)
   if (albionError) return { error: albionError }
   if (!Number.isInteger(silver) || silver <= 0) {
     return { error: tErr('invalidAmount') }
   }
 
   const db = getAdminClient()
-  const guildId = await getSessionGuildId(session)
 
   // Check balance — the DB unique-partial index blocks multiple pending
   // requests per user, and approve_exchange_request re-checks under lock,

@@ -164,7 +164,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
     if (!avatarRow?.albion_server) {
       const [identity, homeGuildId] = await Promise.all([
-        getMemberAlbionIdentity(session.discordId),
+        getMemberAlbionIdentity(session.discordId, guildId),
         getAppSetting('albion_home_guild_id', '', guildId),
       ])
       onboardingModalProps = {

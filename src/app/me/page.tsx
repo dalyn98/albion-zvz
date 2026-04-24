@@ -10,6 +10,7 @@ import { listTransferCandidates } from '@/app/actions/transfer'
 import { listMyDonationRequests } from '@/app/actions/donation'
 import { getMyDashboard } from '@/app/actions/me-dashboard'
 import { getMemberAlbionIdentity, isAlbionVerified } from '@/lib/albion-identity'
+import { getSessionGuildId } from '@/lib/tenant'
 import { ALBION_SERVER_LABEL } from '@/lib/albion-gameinfo'
 import { formatSilver } from '@/lib/silver'
 import { formatDateTime } from '@/lib/format-datetime'
@@ -44,6 +45,8 @@ export default async function MePage() {
     redirect('/')
   }
 
+  const guildId = await getSessionGuildId(session)
+
   const [
     dashboard,
     { requests: regears },
@@ -64,7 +67,7 @@ export default async function MePage() {
     listMyParticipation(),
     listTransferCandidates(),
     listMyDonationRequests(),
-    getMemberAlbionIdentity(session.discordId),
+    getMemberAlbionIdentity(session.discordId, guildId),
     getTranslations('me'),
     getTranslations('status'),
     getTranslations('albionOnboarding'),

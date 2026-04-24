@@ -39,7 +39,8 @@ export async function transferPoints(
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
-  const albionError = await requireAlbionVerified(session.discordId)
+  const guildId = await getSessionGuildId(session)
+  const albionError = await requireAlbionVerified(session.discordId, guildId)
   if (albionError) return { error: albionError }
 
   if (!Array.isArray(transfers) || transfers.length === 0) {
@@ -64,7 +65,6 @@ export async function transferPoints(
   }
 
   const db = getAdminClient()
-  const guildId = await getSessionGuildId(session)
 
   // 서버에서 잔액을 먼저 확인 (UX 용 빠른 실패). RPC 가 lock 아래에서 재확인하므로
   // 이 체크가 race 를 유발하진 않는다.

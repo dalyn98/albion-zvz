@@ -39,7 +39,7 @@ export async function getOnboardingState(): Promise<OnboardingState> {
   if (!session) return { identity: null, homeGuildConfigured: false }
   const guildId = await getSessionGuildId(session)
   const [identity, homeGuildId] = await Promise.all([
-    getMemberAlbionIdentity(session.discordId),
+    getMemberAlbionIdentity(session.discordId, guildId),
     getAppSetting('albion_home_guild_id', '', guildId),
   ])
   return {
