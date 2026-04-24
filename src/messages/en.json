@@ -150,6 +150,21 @@
     "draftFormHint": "Pick a title first and move on. On the next screen, build your parties and slots; when you're ready, fill in the date, location, and announcement channel, then press \"Publish\" to go live. It stays off the home page until you publish.",
     "draftFormSubmit": "Save draft & continue"
   },
+  "adminRegearAnomaly": {
+    "bannerTitle": "Anomaly detected",
+    "flag_unverified_manual_title": "Unverified manual claim",
+    "flag_unverified_manual_detail": "Screenshot-only claim. Try the killboard recheck.",
+    "flag_high_frequency_title": "Many approvals in last 7 days",
+    "flag_high_frequency_detail": "This claimant has 5+ approved regears in the past 7 days.",
+    "flag_price_overclaim_title": "Over-claimed vs market",
+    "flag_price_overclaim_detail": "Claimed silver is 1.5x above the estimated market value.",
+    "flag_price_warning_high_title": "AODP price warning",
+    "flag_price_warning_high_detail": "Pricing data is stale or fallback-city-based.",
+    "flag_user_edited_breakdown_title": "Claimant edited gear breakdown",
+    "flag_user_edited_breakdown_detail": "The claimant modified auto-generated slot prices.",
+    "flag_duplicate_event_title": "Multiple claims for the same event",
+    "flag_duplicate_event_detail": "The same claimant has other claims for this event."
+  },
   "adminRegearReview": {
     "pageTitle": "Regear requests",
     "pageDescription": "Review guild members' regear requests and approve or reject them. Approval pays out the claimed amount as points.",

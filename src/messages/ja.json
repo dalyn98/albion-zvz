@@ -150,6 +150,21 @@
     "draftFormHint": "まずはタイトルだけ決めて次に進んでください。次の画面でパーティ・ビルドを組み、準備ができたら日時・場所・通知チャンネルを埋めて「公開」ボタンで公開します。公開するまではホーム画面に表示されません。",
     "draftFormSubmit": "下書き保存して編集へ"
   },
+  "adminRegearAnomaly": {
+    "bannerTitle": "異常を検出",
+    "flag_unverified_manual_title": "キルボード未検証の手動申請",
+    "flag_unverified_manual_detail": "スクリーンショットのみの申請。キルボード再確認を試してください。",
+    "flag_high_frequency_title": "直近7日の承認が多数",
+    "flag_high_frequency_detail": "この申請者は7日以内に5件以上の承認履歴があります。",
+    "flag_price_overclaim_title": "市場価格より過剰請求",
+    "flag_price_overclaim_detail": "請求額が推定市場価格の1.5倍を超えています。",
+    "flag_price_warning_high_title": "AODP 価格の警告",
+    "flag_price_warning_high_detail": "価格データが古いか、代替都市の価格が使われています。",
+    "flag_user_edited_breakdown_title": "申請者が内訳を変更",
+    "flag_user_edited_breakdown_detail": "自動生成されたスロット価格を申請者が変更しました。",
+    "flag_duplicate_event_title": "同一イベントで複数申請",
+    "flag_duplicate_event_detail": "同じ申請者が同じイベントで他の申請を出しています。"
+  },
   "adminRegearReview": {
     "pageTitle": "リギア申請",
     "pageDescription": "ギルドメンバーが申請したリギアを確認して承認/却下できます。承認時にそのロールの固定金額がポイントとして支給されます。",

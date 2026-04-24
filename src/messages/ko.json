@@ -150,6 +150,21 @@
     "draftFormHint": "제목만 먼저 정하고 다음으로 넘어가요. 다음 화면에서 파티와 빌드를 구성한 뒤, 준비가 끝나면 날짜·장소·공지 채널을 채우고 \"발행하기\" 버튼으로 공개해요. 발행하기 전까지는 홈 화면에 보이지 않아요.",
     "draftFormSubmit": "임시 저장 후 편집으로"
   },
+  "adminRegearAnomaly": {
+    "bannerTitle": "이상치 감지됨",
+    "flag_unverified_manual_title": "킬보드 미검증 수동 청구",
+    "flag_unverified_manual_detail": "스크린샷만으로 청구됨. 킬보드 매칭을 다시 시도해 보세요.",
+    "flag_high_frequency_title": "최근 7일 승인 다수",
+    "flag_high_frequency_detail": "같은 청구자에 대해 7일 내 5건 이상 승인 이력이 있습니다.",
+    "flag_price_overclaim_title": "시장가 대비 과다 청구",
+    "flag_price_overclaim_detail": "청구 금액이 추산 시장가의 1.5배를 초과합니다.",
+    "flag_price_warning_high_title": "AODP 시세 경고",
+    "flag_price_warning_high_detail": "가격 데이터가 오래되었거나 대체 도시 시세가 사용되었습니다.",
+    "flag_user_edited_breakdown_title": "청구자가 부위별 금액 수정",
+    "flag_user_edited_breakdown_detail": "자동 생성된 가격 내역을 청구자가 직접 수정했습니다.",
+    "flag_duplicate_event_title": "같은 이벤트에서 다수 청구",
+    "flag_duplicate_event_detail": "같은 이벤트에서 동일 청구자의 다른 건이 존재합니다."
+  },
   "adminRegearReview": {
     "pageTitle": "리기어 신청",
     "pageDescription": "길드원이 신청한 리기어를 검토하고 승인/거절할 수 있습니다. 승인 시 해당 역할의 고정 금액이 포인트로 지급됩니다.",

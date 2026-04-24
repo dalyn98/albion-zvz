@@ -5,6 +5,7 @@ import {
   listRegearRequests,
   listExchangeRequests,
   getRegearPayoutRatePercent,
+  getRegearAnomalyMap,
 } from '@/app/actions/regear-admin'
 import { listDonationRequests } from '@/app/actions/donation-admin'
 import { listShopOrders } from '@/app/actions/shop-admin'
@@ -182,7 +183,10 @@ async function RegearSection({ scope }: { scope: Scope }) {
     getTranslations('adminRegearReview'),
     getRegearPayoutRatePercent(),
   ])
-  const avatarMap = await getAvatarsByDiscordIds(requests.map((r) => r.discord_id))
+  const [avatarMap, anomalies] = await Promise.all([
+    getAvatarsByDiscordIds(requests.map((r) => r.discord_id)),
+    getRegearAnomalyMap(requests),
+  ])
   const avatars = Object.fromEntries(avatarMap)
 
   return (
@@ -208,6 +212,7 @@ async function RegearSection({ scope }: { scope: Scope }) {
           avatars={avatars}
           ratePercent={ratePercent}
           groupByEvent={scope === 'all'}
+          anomalies={anomalies}
         />
       )}
     </div>

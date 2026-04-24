@@ -11,6 +11,10 @@ import { getAppSetting } from '@/lib/app-settings'
 import { calcPayoutSilver } from '@/lib/regear-payout'
 import { verifyDeathInWindow } from '@/lib/killboard'
 import { estimateSilverFromEquipment } from '@/lib/regear-estimate'
+import {
+  computeRegearAnomalies,
+  type RegearAnomalyFlag,
+} from '@/lib/regear-anomaly'
 import type { BuildSnapshot, RegearType } from '@/types'
 
 const DEFAULT_PAYOUT_RATE_PERCENT = 100
@@ -629,5 +633,80 @@ export async function updateRoleReward(
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+// 이상치 감지에 필요한 cross-request context 를 한 번에 조회.
+// pending 요청들에 대해서만 계산 (승인된 건은 이미 처리됐으므로).
+// 반환: 요청 id → RegearAnomalyFlag[]
+const ANOMALY_LOOKBACK_DAYS = 7
+const DAY_MS = 24 * 60 * 60 * 1000
+
+export async function getRegearAnomalyMap(
+  requests: AdminRegearRequest[],
+): Promise<Record<string, RegearAnomalyFlag[]>> {
+  const pending = requests.filter((r) => r.status === 'pending')
+  if (pending.length === 0) return {}
+
+  try {
+    const session = await getSession()
+    if (!session) return {}
+    const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
+
+    // 1) 청구자별 최근 7일 승인 건수. 현재 pending 은 status 필터로 자동 제외.
+    const discordIds = [...new Set(pending.map((r) => r.discord_id))]
+    const cutoff = new Date(Date.now() - ANOMALY_LOOKBACK_DAYS * DAY_MS).toISOString()
+    const { data: recentApprovedRows } = await db
+      .from('regear_requests')
+      .select('discord_id')
+      .eq('guild_id', guildId)
+      .eq('status', 'approved')
+      .in('discord_id', discordIds)
+      .gte('resolved_at', cutoff)
+
+    const approvedCount = new Map<string, number>()
+    for (const row of recentApprovedRows ?? []) {
+      if (!row.discord_id) continue
+      approvedCount.set(row.discord_id, (approvedCount.get(row.discord_id) ?? 0) + 1)
+    }
+
+    // 2) (event_id, discord_id) 조합의 pending+approved 건수. 중복 감지용.
+    const sameEventKey = (eventId: string, discordId: string) =>
+      `${eventId}::${discordId}`
+    const sameEventCount = new Map<string, number>()
+    // pending 은 이미 목록에 있으므로 approved 만 추가로 조회.
+    const eventIds = [...new Set(pending.map((r) => r.event_id).filter(Boolean))]
+    if (eventIds.length > 0) {
+      const { data: sameEventRows } = await db
+        .from('regear_requests')
+        .select('event_id, discord_id, status')
+        .eq('guild_id', guildId)
+        .in('event_id', eventIds)
+        .in('discord_id', discordIds)
+        .in('status', ['pending', 'approved'])
+      for (const row of sameEventRows ?? []) {
+        if (!row.event_id || !row.discord_id) continue
+        const key = sameEventKey(row.event_id, row.discord_id)
+        sameEventCount.set(key, (sameEventCount.get(key) ?? 0) + 1)
+      }
+    }
+
+    const result: Record<string, RegearAnomalyFlag[]> = {}
+    for (const request of pending) {
+      const userApprovedCount7d = approvedCount.get(request.discord_id) ?? 0
+      const sameEvent =
+        request.event_id
+          ? sameEventCount.get(sameEventKey(request.event_id, request.discord_id)) ?? 1
+          : 1
+      const flags = computeRegearAnomalies(request, {
+        userApprovedCount7d,
+        sameEventCount: sameEvent,
+      })
+      if (flags.length > 0) result[request.id] = flags
+    }
+    return result
+  } catch {
+    return {}
   }
 }

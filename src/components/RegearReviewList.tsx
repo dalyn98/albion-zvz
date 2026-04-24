@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Check, X, ShieldCheck, ShieldAlert, ImageIcon, Loader2, ZoomIn, ChevronUp, ChevronRight, Swords, RotateCw } from 'lucide-react'
+import { Check, X, ShieldCheck, ShieldAlert, ImageIcon, Loader2, ZoomIn, ChevronUp, ChevronRight, Swords, RotateCw, AlertTriangle } from 'lucide-react'
 import {
   approveRegearRequest,
   rejectRegearRequest,
@@ -11,6 +11,10 @@ import {
   recheckKillboardVerification,
   type AdminRegearRequest,
 } from '@/app/actions/regear-admin'
+import {
+  ANOMALY_SEVERITY,
+  type RegearAnomalyFlag,
+} from '@/lib/regear-anomaly'
 import { formatSilver } from '@/lib/silver'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { calcPayoutSilver } from '@/lib/regear-payout'
@@ -38,6 +42,8 @@ interface RegearReviewListProps {
   ratePercent: number
   // When true, 이벤트별로 묶어서 아코디언 UI 로 보여준다. `전체` 스코프에서만 켠다.
   groupByEvent?: boolean
+  // pending 요청 id → 이상치 플래그들. 관리자가 승인 전에 한 번 더 확인하도록.
+  anomalies?: Record<string, RegearAnomalyFlag[]>
 }
 
 interface EventGroupRow {
@@ -51,6 +57,7 @@ export default function RegearReviewList({
   avatars = {},
   ratePercent,
   groupByEvent = false,
+  anomalies = {},
 }: RegearReviewListProps) {
   const t = useTranslations('adminRegearReview')
   const tCommon = useTranslations('common')
@@ -99,6 +106,7 @@ export default function RegearReviewList({
               avatars={avatars}
               ratePercent={ratePercent}
               forceExpanded={searchActive}
+              anomalies={anomalies}
             />
           ))}
         </ul>
@@ -110,6 +118,7 @@ export default function RegearReviewList({
               request={r}
               avatar={avatars[r.discord_id] ?? null}
               ratePercent={ratePercent}
+              anomalyFlags={anomalies[r.id]}
             />
           ))}
         </ul>
@@ -123,9 +132,10 @@ interface EventGroupProps {
   avatars: Record<string, string | null>
   ratePercent: number
   forceExpanded: boolean
+  anomalies: Record<string, RegearAnomalyFlag[]>
 }
 
-function EventGroup({ group, avatars, ratePercent, forceExpanded }: EventGroupProps) {
+function EventGroup({ group, avatars, ratePercent, forceExpanded, anomalies }: EventGroupProps) {
   const t = useTranslations('adminRegearReview')
   const [expanded, setExpanded] = useState(false)
   const isOpen = forceExpanded || expanded
@@ -195,6 +205,7 @@ function EventGroup({ group, avatars, ratePercent, forceExpanded }: EventGroupPr
               request={r}
               avatar={avatars[r.discord_id] ?? null}
               ratePercent={ratePercent}
+              anomalyFlags={anomalies[r.id]}
             />
           ))}
         </ul>
@@ -207,10 +218,12 @@ function RegearRow({
   request,
   avatar,
   ratePercent,
+  anomalyFlags,
 }: {
   request: AdminRegearRequest
   avatar: string | null
   ratePercent: number
+  anomalyFlags?: RegearAnomalyFlag[]
 }) {
   const router = useRouter()
   const t = useTranslations('adminRegearReview')
@@ -436,6 +449,10 @@ function RegearRow({
           <p className="text-[11px] text-gray-500">{t('killboardDelayHint')}</p>
         )}
       </div>
+
+      {anomalyFlags && anomalyFlags.length > 0 && (
+        <AnomalyBanner flags={anomalyFlags} />
+      )}
 
       {request.build_snapshot && <BuildSnapshotStrip snapshot={request.build_snapshot} />}
 
@@ -719,6 +736,54 @@ function BuildSnapshotStrip({ snapshot }: { snapshot: BuildSnapshot }) {
           )
         })}
       </div>
+    </div>
+  )
+}
+
+const ANOMALY_TONE: Record<'high' | 'medium' | 'low', { chip: string; label: string }> = {
+  high: {
+    chip: 'bg-red-500/20 text-red-300 border border-red-500/40',
+    label: 'text-red-300',
+  },
+  medium: {
+    chip: 'bg-amber-500/15 text-amber-300 border border-amber-500/40',
+    label: 'text-amber-300',
+  },
+  low: {
+    chip: 'bg-slate-700/50 text-slate-300 border border-slate-600',
+    label: 'text-slate-300',
+  },
+}
+
+function AnomalyBanner({ flags }: { flags: RegearAnomalyFlag[] }) {
+  const t = useTranslations('adminRegearAnomaly')
+  // 가장 높은 severity 를 컨테이너 톤으로 사용. high > medium > low.
+  const severities = flags.map((f) => ANOMALY_SEVERITY[f])
+  const topSeverity: 'high' | 'medium' | 'low' = severities.includes('high')
+    ? 'high'
+    : severities.includes('medium')
+      ? 'medium'
+      : 'low'
+  const tone = ANOMALY_TONE[topSeverity]
+  return (
+    <div
+      className={`rounded-lg px-3 py-2 space-y-1 ${tone.chip}`}
+      role="alert"
+    >
+      <div className="flex items-center gap-1.5 text-xs font-semibold">
+        <AlertTriangle size={13} />
+        <span>{t('bannerTitle')}</span>
+      </div>
+      <ul className="space-y-0.5">
+        {flags.map((flag) => (
+          <li key={flag} className={`text-[11px] ${tone.label}`}>
+            · {t(`flag_${flag}_title`)}
+            <span className="text-[10px] text-gray-400 ml-1">
+              {t(`flag_${flag}_detail`)}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
