@@ -37,6 +37,10 @@ export interface ImportSummary {
   lastKnownInBatch: boolean
   // 이번 배치에서 DB 최신 행 이후로 발생한 신규 entry 개수. 0 이면 저장할 게 없음.
   newEntriesAfterLast: number
+  // DB 최신 logged_at 과 이 배치의 "DB 이후 첫 entry" 사이의 시간 차 (ms).
+  // lastKnownInBatch=false 이고 배치에 DB 이후 entry 가 있을 때만 계산 — 그 외엔 null.
+  // 이 값이 크면 인게임 로그가 잘리기 전에 중간 구간을 놓쳤을 가능성이 큼.
+  gapFromLastKnownMs: number | null
   priceSync?: PriceSyncSummary
   error?: string
 }
@@ -86,6 +90,7 @@ export async function importChestLog(
     lastKnownLabel: null,
     lastKnownInBatch: false,
     newEntriesAfterLast: 0,
+    gapFromLastKnownMs: null,
   }
   try {
     const session = await getSession()
@@ -164,6 +169,7 @@ export async function importChestLog(
     let lastKnownLabel: string | null = null
     let lastKnownInBatch = false
     let newEntriesAfterLast = newEntries.length
+    let gapFromLastKnownMs: number | null = null
     if (latestRow) {
       lastKnownLoggedAt = latestRow.logged_at as string
       const qty = latestRow.quantity as number
@@ -183,6 +189,15 @@ export async function importChestLog(
       newEntriesAfterLast = newEntries.filter(
         (e) => e.loggedAt.getTime() >= latestMs,
       ).length
+      // gap: DB 가 끝난 지점 ~ 이 배치의 "DB 이후 첫 entry" 까지의 공백.
+      // 배치가 DB 최신 행 자체를 포함하면 gap=0 이 맞고 굳이 계산 안함.
+      if (!lastKnownInBatch) {
+        const afterLatest = newEntries.filter((e) => e.loggedAt.getTime() > latestMs)
+        if (afterLatest.length > 0) {
+          const earliestAfter = Math.min(...afterLatest.map((e) => e.loggedAt.getTime()))
+          gapFromLastKnownMs = earliestAfter - latestMs
+        }
+      }
     }
 
     // 집계 (원본 보존 + 재고 델타)
@@ -242,6 +257,7 @@ export async function importChestLog(
         lastKnownLabel,
         lastKnownInBatch,
         newEntriesAfterLast,
+        gapFromLastKnownMs,
       }
     }
 
@@ -297,6 +313,7 @@ export async function importChestLog(
           lastKnownLabel,
           lastKnownInBatch,
           newEntriesAfterLast,
+          gapFromLastKnownMs,
           error: tErr('stockApplyFailed', { uniqueName: d.uniqueName, reason: error.message }),
         }
       }
@@ -329,6 +346,7 @@ export async function importChestLog(
       lastKnownLabel,
       lastKnownInBatch,
       newEntriesAfterLast,
+      gapFromLastKnownMs,
       priceSync,
     }
   } catch (e) {

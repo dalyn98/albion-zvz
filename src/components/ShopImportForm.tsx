@@ -381,11 +381,22 @@ function aggregateStockChanges(batches: StagedBatch[]): AggregatedStockChange[] 
 }
 
 function StagingStatusCard({ preview }: { preview: ImportSummary }) {
-  const { lastKnownLoggedAt, lastKnownLabel, lastKnownInBatch, newEntriesAfterLast } = preview
+  const {
+    lastKnownLoggedAt,
+    lastKnownLabel,
+    lastKnownInBatch,
+    newEntriesAfterLast,
+    gapFromLastKnownMs,
+  } = preview
 
-  let tone: 'ok' | 'warn' | 'info' = 'info'
+  // tone 은 최종 본문을 쓸 때 다시 덮어씀. 초기값은 '이전 기록 없음' 케이스 기준.
+  let tone: 'ok' | 'warn' | 'danger' | 'info' = 'info'
   let title = ''
   let body = ''
+  let gapBody: string | null = null
+
+  const GAP_DANGER_MS = 24 * 60 * 60 * 1000
+  const GAP_WARN_MS = 6 * 60 * 60 * 1000
 
   if (!lastKnownLoggedAt) {
     tone = 'info'
@@ -407,18 +418,33 @@ function StagingStatusCard({ preview }: { preview: ImportSummary }) {
       title = '마지막 로그에 이어지는 신규 감지'
       body = `DB 마지막 기록 ${when}${tail} 이후로 신규 ${newEntriesAfterLast}건. 저장할 준비가 됐습니다.`
     } else {
-      tone = 'warn'
-      title = '마지막 로그와 겹치지 않음 (누락 가능)'
-      body = `DB 마지막 기록 ${when}${tail} 과 겹치는 행이 이 배치에 없습니다. 그 사이 로그가 누락됐을 수 있어요. 저장하면 신규 ${newEntriesAfterLast}건이 추가됩니다.`
+      // newEntriesAfterLast > 0 && !lastKnownInBatch — gap 이 있다.
+      const gapLabel = formatGap(gapFromLastKnownMs)
+      if (gapFromLastKnownMs !== null && gapFromLastKnownMs >= GAP_DANGER_MS) {
+        tone = 'danger'
+        title = `로그 공백 ${gapLabel} 감지 (누락 가능성 높음)`
+        body = `DB 마지막 기록 ${when}${tail} 이후 ${gapLabel} 동안의 로그가 이 배치에 없습니다. 인게임 로그가 잘리기 전에 중간 구간을 놓쳤을 가능성이 큽니다 — 베이스라인 재설정을 고려하세요.`
+      } else if (gapFromLastKnownMs !== null && gapFromLastKnownMs >= GAP_WARN_MS) {
+        tone = 'warn'
+        title = `로그 공백 ${gapLabel} 감지`
+        body = `DB 마지막 기록 ${when}${tail} 이후 ${gapLabel} 동안의 로그가 이 배치에 없어요. 사이 구간에 입출고가 있었다면 재고와 실제가 어긋납니다.`
+      } else {
+        tone = 'warn'
+        title = '마지막 로그와 겹치지 않음 (누락 가능)'
+        body = `DB 마지막 기록 ${when}${tail} 과 겹치는 행이 이 배치에 없습니다.${gapLabel ? ` 공백 ${gapLabel}.` : ''} 그 사이 로그가 누락됐을 수 있어요.`
+      }
+      gapBody = `저장하면 신규 ${newEntriesAfterLast}건이 추가됩니다.`
     }
   }
 
   const styles =
-    tone === 'ok'
-      ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-200'
-      : tone === 'warn'
-        ? 'bg-amber-500/10 border-amber-500/40 text-amber-200'
-        : 'bg-indigo-500/10 border-indigo-500/40 text-indigo-200'
+    tone === 'danger'
+      ? 'bg-red-500/10 border-red-500/50 text-red-200'
+      : tone === 'ok'
+        ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-200'
+        : tone === 'warn'
+          ? 'bg-amber-500/10 border-amber-500/40 text-amber-200'
+          : 'bg-indigo-500/10 border-indigo-500/40 text-indigo-200'
 
   return (
     <div className={`border rounded-xl p-4 flex items-start gap-3 ${styles}`}>
@@ -426,9 +452,20 @@ function StagingStatusCard({ preview }: { preview: ImportSummary }) {
       <div className="space-y-1">
         <p className="text-sm font-semibold">{title}</p>
         <p className="text-xs opacity-90 leading-relaxed">{body}</p>
+        {gapBody && <p className="text-xs opacity-75 leading-relaxed">{gapBody}</p>}
       </div>
     </div>
   )
+}
+
+function formatGap(ms: number | null): string | null {
+  if (ms === null || ms <= 0) return null
+  const mins = Math.floor(ms / 60_000)
+  if (mins < 60) return `${mins}분`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}시간 ${mins % 60}분`
+  const days = Math.floor(hours / 24)
+  return `${days}일 ${hours % 24}시간`
 }
 
 function StagedBatchesCard({
