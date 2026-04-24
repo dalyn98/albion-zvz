@@ -63,12 +63,12 @@ export function buildTenantBattleRow(input: {
   const sides = computeSides(input.battle, input.homeGuildId)
   if (!sides) return null
 
-  // 양측 모두 같은 카테고리여야 매칭(= 스펙). 다른 카테고리면 제외 — e.g. 홈은
-  // 30인 small 인데 상대는 200인 zerg 면 "정상적인 small 전투" 가 아님.
+  // 규모는 홈 측 팀 사이즈 기준으로 분류. 상대가 홈보다 크든 작든(e.g. 홈 80명
+  // large 가 150 zerg 를 상대) 홈 관점의 large 전투로 기록한다. 상대측 최소
+  // 인원(<10) 만 유지 — 1~2명 갱크 같은 건 "전투" 가 아님.
   const homeCategory = categorizeSize(sides.home.teamSize)
-  const opponentCategory = categorizeSize(sides.opponent.teamSize)
-  if (!homeCategory || !opponentCategory) return null
-  if (homeCategory !== opponentCategory) return null
+  if (!homeCategory) return null
+  if (sides.opponent.teamSize < 10) return null
   if (!input.enabledSizes.has(homeCategory)) return null
 
   const outcome = computeOutcome(sides.home, sides.opponent)
