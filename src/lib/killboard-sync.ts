@@ -237,7 +237,9 @@ function toRow(
     fame: e.TotalVictimKillFame ?? 0,
     item_power: self.AverageItemPower ? Math.round(self.AverageItemPower) : null,
     occurred_at: e.TimeStamp,
-    // Equipment 는 victim 행에만 저장 — Phase 3 자동 리기어가 이걸 읽어 AODP 시세 계산.
-    equipment: role === 'victim' ? (e.Victim.Equipment ?? null) : null,
+    // 자기 자신의 Equipment 를 저장. victim 만 저장하던 과거 설계는 자동 리기어
+    // 용도로 충분했지만, 0데스 킬러(항상 살아남는 DPS) 의 무기 통계가 비는
+    // 문제가 있어 양쪽 모두 저장으로 전환.
+    equipment: self.Equipment ?? null,
   }
 }

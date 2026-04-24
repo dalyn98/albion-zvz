@@ -37,19 +37,24 @@ as $$
       and br.ended_at is not null
   ),
   matched as (
-    -- 각 killboard row 를 창과 조인. 겹치는 창이 여러 개일 경우 가장 이른 raw_start
-    -- 를 골라 "하나의 참여 배틀" 로 귀결 (JS groupMemberKillsByBattle 가 인접 후보
-    -- 20개 중 endedAtMs 안에 드는 첫 창을 고르는 것과 동등한 선택).
-    select distinct on (ke.id)
-      ke.id,
+    -- 각 killboard row 를 lateral 로 가장 이른 매칭 창에 고정.
+    -- killboard_events 는 surrogate id 가 없어 (event_id, discord_id, role)
+    -- 자연키를 쓰고, 겹치는 창 중 raw_start 가 가장 이른 것을 택해
+    -- JS helper 의 "인접 20개 중 endedAtMs 안에 드는 첫 창" 선택과 동등한
+    -- 결정을 낸다.
+    select
       ke.discord_id,
       ke.role,
       w.raw_start
     from public.killboard_events ke
-    inner join windows w
-      on ke.occurred_at between w.window_start and w.window_end
+    cross join lateral (
+      select raw_start
+      from windows
+      where ke.occurred_at between window_start and window_end
+      order by raw_start
+      limit 1
+    ) w
     where ke.guild_id = p_guild_id
-    order by ke.id, w.raw_start
   )
   select
     m.discord_id,
