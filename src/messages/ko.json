@@ -1205,6 +1205,7 @@
     "importNoParseableRows": "파싱 가능한 행이 없습니다. 포맷(탭 구분, 6필드)을 확인하세요.",
     "importEmptyLog": "로그가 비어있습니다.",
     "importRowLimit": "한 번에 {max}행까지만 임포트 가능합니다. (현재 {current}행)",
+    "baselineNoDeposits": "입고(+) 이벤트가 없습니다. 모든 아이템을 출고 후 재입고한 로그를 붙여넣으세요.",
     "stockApplyFailed": "재고 반영 실패({uniqueName}): {reason}",
     "itemNameEmpty": "아이템 이름이 비어있습니다.",
     "orderInsufficientStock": "재고가 부족합니다. 재고를 보충하거나 주문을 거절하세요.",

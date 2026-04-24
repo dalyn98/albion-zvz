@@ -1205,6 +1205,7 @@
     "importNoParseableRows": "No parseable rows found. Please check the format (tab-separated, 6 fields).",
     "importEmptyLog": "The log is empty.",
     "importRowLimit": "Only up to {max} rows can be imported at once. (Currently {current} rows)",
+    "baselineNoDeposits": "No deposit (+) events found. Paste a log after taking out and re-depositing all items.",
     "stockApplyFailed": "Stock update failed ({uniqueName}): {reason}",
     "itemNameEmpty": "Item name is empty.",
     "orderInsufficientStock": "Insufficient stock. Replenish inventory or reject the order.",

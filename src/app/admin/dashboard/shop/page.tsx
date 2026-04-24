@@ -1,4 +1,5 @@
-import { ShoppingBag } from 'lucide-react'
+import Link from 'next/link'
+import { Shield, ShoppingBag } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import { getAppSetting } from '@/lib/app-settings'
@@ -136,9 +137,18 @@ export default async function AdminShopPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <ShoppingBag size={22} className="text-amber-400" />
-        <h1 className="text-2xl font-bold text-white">{tNav('shopAdmin')}</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <ShoppingBag size={22} className="text-amber-400" />
+          <h1 className="text-2xl font-bold text-white">{tNav('shopAdmin')}</h1>
+        </div>
+        <Link
+          href="/admin/dashboard/shop/baseline"
+          className="flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-sm text-amber-200 hover:bg-amber-500/20"
+        >
+          <Shield size={14} />
+          재고 베이스라인
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
