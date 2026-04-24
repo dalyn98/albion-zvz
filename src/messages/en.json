@@ -8,6 +8,7 @@
     "regearRequest": "Regear",
     "shop": "Guild shop",
     "members": "Guild members",
+    "leaderboard": "Leaderboard",
     "myWallet": "My wallet",
     "mySettings": "Settings",
     "eventAdmin": "Event admin",
@@ -1093,6 +1094,27 @@
       "streak_7": "7 consecutive days participating",
       "streak_30": "30 consecutive days participating"
     }
+  },
+  "leaderboard": {
+    "title": "Leaderboard",
+    "description": "See top combat, participation, and survival rankings across the guild. Switch between weekly, monthly, and all-time.",
+    "window": {
+      "week": "Week",
+      "month": "Month",
+      "all": "All time"
+    },
+    "kills": "Top 10 Kills",
+    "killsSub": "{kills}K · {deaths}D",
+    "participation": "Top 10 Participation",
+    "participationUnit": "{count}",
+    "survival": "Top 10 Survival",
+    "evaluatedSub": "{count} evaluated",
+    "kd": "Top 10 K/D",
+    "kdSub": "{kills}K · {deaths}D",
+    "empty": "No data yet.",
+    "noEntries": "No records for this window",
+    "noEntriesSurvival": "Need ≥5 evaluated events",
+    "noEntriesKd": "Need ≥5 total kills+deaths"
   },
   "memberDetail": {
     "recentLogin": "Last login: {date}",

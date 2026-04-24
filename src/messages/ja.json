@@ -8,6 +8,7 @@
     "regearRequest": "リギア申請",
     "shop": "ギルドショップ",
     "members": "ギルドメンバー",
+    "leaderboard": "リーダーボード",
     "myWallet": "マイウォレット",
     "mySettings": "設定",
     "eventAdmin": "イベント管理",
@@ -1093,6 +1094,27 @@
       "streak_7": "7日連続参加",
       "streak_30": "30日連続参加"
     }
+  },
+  "leaderboard": {
+    "title": "リーダーボード",
+    "description": "ギルドメンバーの戦闘・参加・生存ランキングを一覧。週間・月間・全期間を切替可能。",
+    "window": {
+      "week": "週間",
+      "month": "月間",
+      "all": "全期間"
+    },
+    "kills": "キル Top 10",
+    "killsSub": "キル {kills} · デス {deaths}",
+    "participation": "参加 Top 10",
+    "participationUnit": "{count}回",
+    "survival": "生存率 Top 10",
+    "evaluatedSub": "評価 {count}回",
+    "kd": "K/D Top 10",
+    "kdSub": "キル {kills} · デス {deaths}",
+    "empty": "データがありません。",
+    "noEntries": "該当期間の記録なし",
+    "noEntriesSurvival": "評価イベント5回以上が必要",
+    "noEntriesKd": "キル+デス5回以上が必要"
   },
   "memberDetail": {
     "recentLogin": "最近のログイン: {date}",

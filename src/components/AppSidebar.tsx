@@ -23,6 +23,7 @@ import {
   BarChart3,
   BookOpen,
   Swords,
+  Trophy,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -45,6 +46,7 @@ const MEMBER_NAV: NavItem[] = [
   { href: '/shop', labelKey: 'shop', icon: ShoppingBag },
   { href: '/battles', labelKey: 'battles', icon: Swords },
   { href: '/members', labelKey: 'members', icon: Users },
+  { href: '/leaderboard', labelKey: 'leaderboard', icon: Trophy },
   { href: '/archive', labelKey: 'archive', icon: Archive },
   { href: '/me', labelKey: 'myWallet', icon: Wallet, exact: true, memberOnly: true },
   { href: '/me/settings', labelKey: 'mySettings', icon: Settings },

@@ -8,6 +8,7 @@
     "regearRequest": "리기어 신청",
     "shop": "길드 상점",
     "members": "길드원",
+    "leaderboard": "리더보드",
     "myWallet": "내 지갑",
     "mySettings": "설정",
     "eventAdmin": "이벤트 관리",
@@ -1093,6 +1094,27 @@
       "streak_7": "7일 연속 참여",
       "streak_30": "30일 연속 참여"
     }
+  },
+  "leaderboard": {
+    "title": "리더보드",
+    "description": "길드원들의 전투·참여·생존 순위를 한눈에. 주간·월간·전체 기간 전환 가능.",
+    "window": {
+      "week": "주간",
+      "month": "월간",
+      "all": "전체"
+    },
+    "kills": "킬 Top 10",
+    "killsSub": "킬 {kills} · 데스 {deaths}",
+    "participation": "참여 Top 10",
+    "participationUnit": "{count}회",
+    "survival": "생존률 Top 10",
+    "evaluatedSub": "평가 {count}회",
+    "kd": "K/D Top 10",
+    "kdSub": "킬 {kills} · 데스 {deaths}",
+    "empty": "데이터가 없습니다.",
+    "noEntries": "해당 기간 기록 없음",
+    "noEntriesSurvival": "평가 이벤트 5회 이상 필요",
+    "noEntriesKd": "킬+데스 5회 이상 필요"
   },
   "memberDetail": {
     "recentLogin": "최근 로그인: {date}",
