@@ -4,6 +4,10 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { calcSurvivalAndDeathlessStreak, type ParticipatedEvent } from '@/lib/member-stats'
+import {
+  fetchTrackedBattleWindows,
+  isWithinTrackedWindow,
+} from '@/lib/tracked-kills'
 
 export type LeaderboardWindow = 'week' | 'month' | 'all'
 
@@ -55,11 +59,17 @@ type SlotEvent = {
 
 type SlotRow = {
   assigned_discord_id: string | null
+  role_name: string | null
   parties:
     | { events: SlotEvent | SlotEvent[] }
     | Array<{ events: SlotEvent | SlotEvent[] }>
     | null
 }
+
+// 생존률 판정에서 제외할 역할. DPS 는 최전방 딜러 특성상 사망률이 높아
+// 생존률 지표에서 구조적으로 불리하다.
+// (feedback_albion_zvz_achievement_rules.md 규칙 2)
+const SURVIVAL_EXCLUDED_ROLES: ReadonlySet<string> = new Set(['Dps'])
 
 export async function getLeaderboard(
   window: LeaderboardWindow = 'week',
@@ -84,19 +94,21 @@ export async function getLeaderboard(
 
   // 참여 집계: slots → parties → events, battle_started_at 있는 것만 "실제 참여"
   // 로 간주. window 가 있으면 JS 에서 cutoff 적용 (nested 필터는 Supabase 에서
-  // 가독성이 떨어지므로 단순화).
+  // 가독성이 떨어지므로 단순화). role_name 은 생존률 집계에서 DPS 를 제외하기
+  // 위해 함께 읽는다.
   const slotsQ = db
     .from('slots')
     .select(
-      'assigned_discord_id, parties!inner(events!inner(id, battle_started_at))',
+      'assigned_discord_id, role_name, parties!inner(events!inner(id, battle_started_at))',
     )
     .eq('guild_id', guildId)
     .not('assigned_discord_id', 'is', null)
 
-  const [avatarsRes, killboardRes, slotsRes] = await Promise.all([
+  const [avatarsRes, killboardRes, slotsRes, trackedWindows] = await Promise.all([
     avatarsQ,
     killboardQ,
     slotsQ,
+    fetchTrackedBattleWindows(db, guildId, cutoff),
   ])
 
   const avatarMap = new Map<string, { username: string; avatar: string | null }>()
@@ -112,8 +124,12 @@ export async function getLeaderboard(
     victimTimes: string[]
   }
   const combat = new Map<string, CombatAgg>()
+  // tenant_battle_records 판정 필터를 통과한 전투 시간창에 속한 킬/데스만
+  // 업적·통계에 반영. 1:1 갱킹/소규모 전투는 여기서 자연스럽게 배제된다.
   for (const ke of (killboardRes.data ?? []) as KillboardRow[]) {
     if (!ke.discord_id) continue
+    if (!ke.occurred_at) continue
+    if (!isWithinTrackedWindow(ke.occurred_at, trackedWindows)) continue
     let entry = combat.get(ke.discord_id)
     if (!entry) {
       entry = { kills: 0, deaths: 0, victimTimes: [] }
@@ -122,12 +138,18 @@ export async function getLeaderboard(
     if (ke.role === 'killer') entry.kills += 1
     else if (ke.role === 'victim') {
       entry.deaths += 1
-      if (ke.occurred_at) entry.victimTimes.push(ke.occurred_at)
+      entry.victimTimes.push(ke.occurred_at)
     }
   }
 
-  // 참여 이벤트 세트 (중복 event_id 제거)
-  const participationEvents = new Map<string, Map<string, string | null>>()
+  // 참여 이벤트 세트. DPS 참여로만 기록된 이벤트는 생존률 계산에서 제외해야
+  // 하므로 (member, event) 별로 역할도 함께 추적한다. 한 이벤트에서 여러 역할
+  // 슬롯을 맡은 경우(거의 없지만 가능) 비-DPS 역할이 하나라도 있으면 평가 대상.
+  interface MemberEventParticipation {
+    startedAt: string
+    isDpsOnly: boolean
+  }
+  const participationEvents = new Map<string, Map<string, MemberEventParticipation>>()
   for (const row of (slotsRes.data ?? []) as SlotRow[]) {
     const discordId = row.assigned_discord_id
     if (!discordId) continue
@@ -141,8 +163,12 @@ export async function getLeaderboard(
       memberEvents = new Map()
       participationEvents.set(discordId, memberEvents)
     }
-    if (!memberEvents.has(event.id)) {
-      memberEvents.set(event.id, event.battle_started_at)
+    const isDps = !!row.role_name && SURVIVAL_EXCLUDED_ROLES.has(row.role_name)
+    const existing = memberEvents.get(event.id)
+    if (!existing) {
+      memberEvents.set(event.id, { startedAt: event.battle_started_at, isDpsOnly: isDps })
+    } else if (existing.isDpsOnly && !isDps) {
+      existing.isDpsOnly = false
     }
   }
 
@@ -167,17 +193,20 @@ export async function getLeaderboard(
     // 탈퇴자/비멤버는 랭킹에서 제외 (이름이 안 보임).
     if (!profile) continue
     const c = combat.get(discordId) ?? { kills: 0, deaths: 0, victimTimes: [] }
-    const events: ParticipatedEvent[] = Array.from(
-      (participationEvents.get(discordId) ?? new Map<string, string | null>()).entries(),
-    ).map(([eventId, startedAt]) => ({ eventId, startedAt }))
-    const survival = calcSurvivalAndDeathlessStreak(events, c.victimTimes)
+    const memberEvents = participationEvents.get(discordId)
+    const allEntries = memberEvents ? Array.from(memberEvents.entries()) : []
+    // 참여 집계는 모든 역할 포함. 생존률 계산만 DPS-only 참여를 제외.
+    const survivalInput: ParticipatedEvent[] = allEntries
+      .filter(([, v]) => !v.isDpsOnly)
+      .map(([eventId, v]) => ({ eventId, startedAt: v.startedAt }))
+    const survival = calcSurvivalAndDeathlessStreak(survivalInput, c.victimTimes)
     aggs.push({
       discord_id: discordId,
       username: profile.username,
       avatar: profile.avatar,
       kills: c.kills,
       deaths: c.deaths,
-      participations: events.length,
+      participations: allEntries.length,
       survivalRate: survival.survivalRate,
       evaluatedEvents: survival.evaluatedEvents,
     })

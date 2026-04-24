@@ -1134,7 +1134,8 @@
       "survival_95": "生存率95%以上 (評価≥10)",
       "streak_7": "7日連続参加",
       "streak_30": "30日連続参加"
-    }
+    },
+    "survivalDpsExcluded": "DPS役割の参加は集計対象外"
   },
   "leaderboard": {
     "title": "リーダーボード",

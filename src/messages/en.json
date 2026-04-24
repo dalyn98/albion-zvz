@@ -1134,7 +1134,8 @@
       "survival_95": "Survival rate ≥95% (evaluated ≥10)",
       "streak_7": "7 consecutive days participating",
       "streak_30": "30 consecutive days participating"
-    }
+    },
+    "survivalDpsExcluded": "DPS roles excluded from this stat"
   },
   "leaderboard": {
     "title": "Leaderboard",

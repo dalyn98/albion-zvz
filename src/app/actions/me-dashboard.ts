@@ -7,7 +7,14 @@ import {
   calcParticipationStreak,
   calcSurvivalAndDeathlessStreak,
 } from '@/lib/member-stats'
+import {
+  fetchTrackedBattleWindows,
+  isWithinTrackedWindow,
+} from '@/lib/tracked-kills'
 import { getMyPointsSummary } from '@/app/actions/regear'
+
+// 생존률 판정에서 제외할 역할. (feedback_albion_zvz_achievement_rules.md 규칙 2)
+const SURVIVAL_EXCLUDED_ROLES: ReadonlySet<string> = new Set(['Dps'])
 
 export interface MyDashboardData {
   balance: number
@@ -63,6 +70,7 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     regearRes,
     exchangeRes,
     donationRes,
+    trackedWindows,
   ] = await Promise.all([
     getMyPointsSummary(),
     db
@@ -95,6 +103,7 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
       .eq('guild_id', guildId)
       .eq('discord_id', session.discordId)
       .eq('status', 'pending'),
+    fetchTrackedBattleWindows(db, guildId),
   ])
 
   const nowIso = new Date().toISOString()
@@ -104,6 +113,9 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
       id: string
       title: string
       role: string | null
+      // 생존률 집계에서 제외 여부. 한 이벤트에서 DPS 로만 기록되었을 때 true.
+      // 비-DPS 슬롯이 하나라도 있으면 false 로 잠금.
+      isDpsOnly: boolean
       gather_at: string | null
       gather_time: string
       battle_started_at: string | null
@@ -114,35 +126,45 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     if (!party) continue
     const event = Array.isArray(party.events) ? party.events[0] : party.events
     if (!event) continue
-    if (byEvent.has(event.id)) continue
-    byEvent.set(event.id, {
-      id: event.id,
-      title: event.title,
-      role: row.role_name,
-      gather_at: event.gather_at,
-      gather_time: event.gather_time,
-      battle_started_at: event.battle_started_at,
-    })
+    const isDps = !!row.role_name && SURVIVAL_EXCLUDED_ROLES.has(row.role_name)
+    const existing = byEvent.get(event.id)
+    if (!existing) {
+      byEvent.set(event.id, {
+        id: event.id,
+        title: event.title,
+        role: row.role_name,
+        isDpsOnly: isDps,
+        gather_at: event.gather_at,
+        gather_time: event.gather_time,
+        battle_started_at: event.battle_started_at,
+      })
+    } else if (existing.isDpsOnly && !isDps) {
+      existing.isDpsOnly = false
+    }
   }
 
   const events = Array.from(byEvent.values())
 
+  // 참여 지표는 모든 역할 포함. 생존률 전용으로 DPS-only 참여를 제외한 서브셋.
   const pastParticipated = events
     .filter((e): e is typeof e & { battle_started_at: string } => e.battle_started_at != null)
-    .map((e) => ({ eventId: e.id, startedAt: e.battle_started_at }))
+    .map((e) => ({ eventId: e.id, startedAt: e.battle_started_at, isDpsOnly: e.isDpsOnly }))
+  const survivalParticipated = pastParticipated.filter((e) => !e.isDpsOnly)
 
   let kills = 0
   let deaths = 0
   const victimOccurrences: string[] = []
   for (const ke of killboardRes.data ?? []) {
+    if (!ke.occurred_at) continue
+    if (!isWithinTrackedWindow(ke.occurred_at, trackedWindows)) continue
     if (ke.role === 'killer') kills += 1
     else if (ke.role === 'victim') {
       deaths += 1
-      if (ke.occurred_at) victimOccurrences.push(ke.occurred_at)
+      victimOccurrences.push(ke.occurred_at)
     }
   }
 
-  const survival = calcSurvivalAndDeathlessStreak(pastParticipated, victimOccurrences)
+  const survival = calcSurvivalAndDeathlessStreak(survivalParticipated, victimOccurrences)
   const participationDates = pastParticipated.map((e) => e.startedAt)
   const streak = calcParticipationStreak(participationDates, Date.now())
 

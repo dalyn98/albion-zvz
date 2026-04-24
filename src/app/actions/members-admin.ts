@@ -15,7 +15,14 @@ import {
   calcSurvivalAndDeathlessStreak,
   type ParticipatedEvent,
 } from '@/lib/member-stats'
+import {
+  fetchTrackedBattleWindows,
+  isWithinTrackedWindow,
+} from '@/lib/tracked-kills'
 import type { RegearType } from '@/types'
+
+// 생존률 판정에서 제외할 역할. (feedback_albion_zvz_achievement_rules.md 규칙 2)
+const SURVIVAL_EXCLUDED_ROLES: ReadonlySet<string> = new Set(['Dps'])
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
 // 포인트 조정 같은 mutation은 별도로 requireAdmin()을 거치게 둔다.
@@ -495,6 +502,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       ledgerRes,
       killboardRes,
       rankingRes,
+      trackedWindows,
     ] = await Promise.all([
       db
         .from('guild_avatars')
@@ -537,6 +545,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       // 카운트와 비교해 상위 percentile 계산. 기존 PostgREST 쿼리는 group by 를
       // 내려주지 않고 limit 1000 에 걸리므로 RPC 로 한 번에 수행.
       db.rpc('member_ranking_counts', { p_guild_id: guildId }),
+      fetchTrackedBattleWindows(db, guildId),
     ])
 
     if (avatarRes.error) return { detail: null, error: avatarRes.error.message }
@@ -554,6 +563,9 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     const deletedEventLabel = tCommon('deletedEvent')
     const eventsMap = new Map<string, MemberEventEntry>()
     const roleCounter = new Map<string, number>()
+    // 생존률 계산용: 멤버가 DPS 로만 참여한 event_id 집합. 한 이벤트에서 비-DPS
+    // 역할도 같이 맡으면 false 로 락.
+    const isDpsOnlyByEvent = new Map<string, boolean>()
     // Weapon aggregation — keyed by weapon_id when bundled, otherwise by a
     // normalized name so free-text entries still merge. Value tracks both the
     // id (for icon rendering) and the raw name so the UI can render whichever
@@ -570,6 +582,14 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       if (!event) continue
       const role = row.role_name ?? unassignedRoleLabel
       roleCounter.set(role, (roleCounter.get(role) ?? 0) + 1)
+
+      const isDps = !!row.role_name && SURVIVAL_EXCLUDED_ROLES.has(row.role_name)
+      const prevDpsOnly = isDpsOnlyByEvent.get(event.id)
+      if (prevDpsOnly === undefined) {
+        isDpsOnlyByEvent.set(event.id, isDps)
+      } else if (prevDpsOnly && !isDps) {
+        isDpsOnlyByEvent.set(event.id, false)
+      }
 
       // Prefer the member's assigned pick; fall back to the template weapon so
       // fixed-weapon slots (no weapon_options) still count. Skip rows where
@@ -680,7 +700,12 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
 
     const killboard: KillboardStats = { kills: 0, deaths: 0, kill_fame: 0, death_fame: 0 }
     const victimOccurrences: string[] = []
+    // tenant_battle_records 시간창 안에서 일어난 킬/데스만 업적·통계에 반영.
+    // 창 밖 이벤트(1:1 갱킹, 비활성 size category 전투 등)는 제외.
     for (const row of killboardRes.data ?? []) {
+      const occurredAt = row.occurred_at as string | null
+      if (!occurredAt) continue
+      if (!isWithinTrackedWindow(occurredAt, trackedWindows)) continue
       const fame = (row.fame as number | null) ?? 0
       if (row.role === 'killer') {
         killboard.kills += 1
@@ -688,18 +713,20 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       } else if (row.role === 'victim') {
         killboard.deaths += 1
         killboard.death_fame += fame
-        const occurredAt = row.occurred_at as string | null
-        if (occurredAt) victimOccurrences.push(occurredAt)
+        victimOccurrences.push(occurredAt)
       }
     }
 
     // 참여 이벤트 ↔ victim 시간 매칭으로 생존률/무데스 스트릭, 일자 기준 참여
     // 스트릭, 길드 내 랭킹을 한 곳에서 집계. 랭킹 RPC 는 실패해도 프로필 자체는
     // 띄워야 하므로 rankingRes.data 가 null 이어도 빈 배열로 폴백.
-    const participatedEvents: ParticipatedEvent[] = events.map((e) => ({
-      eventId: e.event_id,
-      startedAt: e.battle_started_at,
-    }))
+    // 생존률 계산은 DPS 만 맡았던 이벤트를 제외 — 표시용 events 는 그대로 유지.
+    const participatedEvents: ParticipatedEvent[] = events
+      .filter((e) => !isDpsOnlyByEvent.get(e.event_id))
+      .map((e) => ({
+        eventId: e.event_id,
+        startedAt: e.battle_started_at,
+      }))
     const survivalAndDeathless = calcSurvivalAndDeathlessStreak(
       participatedEvents,
       victimOccurrences,
