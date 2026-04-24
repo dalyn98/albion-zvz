@@ -1,0 +1,43 @@
+name: Battle tracker poll
+
+# 공개 Albion 전투 API 를 15분 주기로 폴링해 battle_tracking_enabled 인 tenant 의
+# 홈 길드가 참여한 전투를 tenant_battle_records 에 자동 기록. Vercel Hobby 플랜은
+# 일 1회 cron 제한이라 GitHub Actions 로 돌리고 /api/cron/battle-tracker 를 Bearer
+# 인증으로 호출한다.
+#
+# 지연: GitHub Actions schedule 은 공용 러너 혼잡 시 수 분 지연 가능. /battles
+# 는 기본 limit=100 으로 최근 1시간+ 를 커버하므로 10~15분 지연돼도 누락 위험 작음.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: battle-tracker
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call cron endpoint
+        env:
+          APP_URL: https://albion-zvz.vercel.app
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set"
+            exit 1
+          fi
+          response=$(curl -sS -w "\n%{http_code}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/battle-tracker")
+          body=$(echo "$response" | sed '$d')
+          status=$(echo "$response" | tail -n1)
+          echo "status=$status"
+          echo "body=$body"
+          if [ "$status" != "200" ]; then
+            exit 1
+          fi

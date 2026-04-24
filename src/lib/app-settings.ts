@@ -104,6 +104,13 @@ export type AppSettingKey =
   // 시점) 와 분리돼 있어 자동이 먼저 "pending" 행을 선점할 수 있게 한다.
   // 기본 '15'. killboard sync 지연 체크에도 이 값을 사용.
   | 'auto_regear_delay_minutes'
+  // Boolean 문자열. 'true' 면 15분 폴링 cron 이 이 tenant 의 홈 길드가 참여한
+  // 공개 전투를 tenant_battle_records 에 자동 기록. 기본 'false' (명시적 opt-in).
+  | 'battle_tracking_enabled'
+  // JSON array (string) of SizeCategory. 이 리스트에 포함된 규모의 전투만 기록.
+  // 홈 측 & 상대 측 모두 동일 카테고리일 때만 매칭 (3자 난전 등은 제외). 빈 배열
+  // 이면 수집 자체가 일어나지 않음.
+  | 'battle_tracking_sizes'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.
