@@ -5,6 +5,8 @@ import { getGuild, type AlbionServer } from '@/lib/albion-gameinfo'
 import { getTranslations } from 'next-intl/server'
 import { SLOT_ROLES, type SlotRole } from '@/types'
 import { isSizeCategory, type SizeCategory } from '@/lib/albion-battles'
+import { getSession } from '@/lib/session'
+import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 
 const DEFAULT_EVENT_NOTIFICATION_MESSAGE = '새 이벤트가 등록되었습니다.'
 
@@ -13,6 +15,14 @@ const DEFAULT_EVENT_NOTIFICATION_MESSAGE = '새 이벤트가 등록되었습니�
 export const dynamic = 'force-dynamic'
 
 export default async function SettingsPage() {
+  // 관리자 역할은 app_settings 이 아니라 tenants.admin_role_ids 에 저장된다.
+  // proxy.ts 의 /admin/dashboard 게이트를 통과한 시점에 세션은 유효하지만,
+  // 레거시 세션(guildId 없음) 대비 getSessionGuildId 의 primary-tenant fallback 을 거친다.
+  const session = await getSession()
+  const sessionGuildId = session ? await getSessionGuildId(session) : null
+  const tenantConfig = sessionGuildId ? await getTenantDiscordConfig(sessionGuildId) : null
+  const adminRoleIds = tenantConfig?.adminRoleIds ?? []
+
   const [
     message,
     bannerUrl,
@@ -166,6 +176,7 @@ export default async function SettingsPage() {
       </div>
 
       <SettingsTabs
+        adminRoleIds={adminRoleIds}
         notificationMessage={message}
         rewards={rewards}
         rewardsError={rewardsError}

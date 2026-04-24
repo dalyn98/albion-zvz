@@ -217,6 +217,39 @@ export async function updateAppSetting(
   }
 }
 
+// 관리자 역할은 app_settings 이 아니라 tenants.admin_role_ids 에 저장된다
+// (migration 074). updateAppSetting 의 검증 로직을 재사용할 수 없어서 전용
+// 액션을 둔다. 역할 변경은 다음 로그인부터 반영된다 — isAdmin 은 세션 서명
+// 시점의 snapshot 이기 때문.
+export async function updateTenantAdminRoles(
+  roleIds: string[],
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    if (!Array.isArray(roleIds)) return { error: tErr('invalidJsonArray') }
+    const clean: string[] = []
+    for (const v of roleIds) {
+      if (typeof v !== 'string' || v.length === 0) {
+        return { error: tErr('invalidJsonArray') }
+      }
+      if (!clean.includes(v)) clean.push(v)
+    }
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('serverError') }
+    const guildId = await getSessionGuildId(session)
+    const { error } = await db
+      .from('tenants')
+      .update({ admin_role_ids: clean })
+      .eq('id', guildId)
+    if (error) return { error: error.message }
+    revalidatePath('/admin/dashboard/settings')
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
 // 홈 길드 UUID 는 서버별로 다르기 때문에 albion_server 와 함께 원자적으로 저장
 // 해야 한다. 둘을 따로 업데이트하면 서버는 바꿨는데 길드 UUID 는 구 서버의 값
 // 이 남아서 온보딩 인증이 전부 실패하는 상태가 된다. 이 액션은 한 번의 upsert

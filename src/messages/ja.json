@@ -636,6 +636,21 @@
     "syncSuccess": "完了 · スキャン {scanned}名 · サーバー在籍 {discordMembers}名 · 脱退 {withdrawn} · 復帰 {rejoined}",
     "syncError": "失敗: {error}"
   },
+  "adminAdminRoles": {
+    "title": "管理者ロール",
+    "description": "選択した Discord ロールを持つメンバーは、サイトのすべての管理機能にアクセスできます。空にすると管理者がいなくなるため注意してください。",
+    "reloginHint": "変更は各ユーザーが再度ログインした後に反映されます。",
+    "rolesLoading": "役割一覧を読み込み中…",
+    "rolesError": "役割一覧の取得に失敗しました。",
+    "rolesEmpty": "利用できる役割がありません。",
+    "placeholder": "役割を選択してください…",
+    "searchPlaceholder": "役割名で検索",
+    "clearSelection": "すべて解除",
+    "noMatches": "一致する役割がありません。",
+    "save": "保存",
+    "saving": "保存中…",
+    "saved": "保存しました"
+  },
   "adminBombSquadCallerRoles": {
     "title": "ボムスクワッド コーラー役割",
     "description": "選択した Discord 役割を持つメンバーは、イベント編集画面でボムスクワッド パーティのコーラーに指定できます。指定されたコーラーは自分のパーティの承認リクエストを処理できます。",

@@ -636,6 +636,21 @@
     "syncSuccess": "Done · scanned {scanned} · in server {discordMembers} · withdrawn {withdrawn} · rejoined {rejoined}",
     "syncError": "Failed: {error}"
   },
+  "adminAdminRoles": {
+    "title": "Admin roles",
+    "description": "Members with any of the selected Discord roles can access every admin feature on the site. Be careful — leaving this empty means no one will have admin access.",
+    "reloginHint": "Changes take effect after each user signs in again.",
+    "rolesLoading": "Loading roles…",
+    "rolesError": "Failed to load role list.",
+    "rolesEmpty": "No roles available.",
+    "placeholder": "Select roles…",
+    "searchPlaceholder": "Search roles",
+    "clearSelection": "Clear all",
+    "noMatches": "No matching roles.",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved"
+  },
   "adminBombSquadCallerRoles": {
     "title": "Bomb squad caller roles",
     "description": "Members with any of the selected Discord roles can be assigned as the caller for a bomb squad party on the event editor. Callers can approve join requests for their own party.",

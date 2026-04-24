@@ -8,6 +8,7 @@ import RoleRewardsEditor from './RoleRewardsEditor'
 import LandingBannerForm from './LandingBannerForm'
 import LandingCtaTextForm from './LandingCtaTextForm'
 import NoticeSettingForm, { NOTICE_MAX_LENGTH } from './NoticeSettingForm'
+import AdminRoleSetting from './AdminRoleSetting'
 import EventCreatorRolesSetting from './EventCreatorRolesSetting'
 import BombSquadCallerRolesSetting from './BombSquadCallerRolesSetting'
 import ActiveMemberRolesSetting from './ActiveMemberRolesSetting'
@@ -57,6 +58,7 @@ const TABS: readonly TabDef[] = [
 const DEFAULT_TAB: TabKey = 'basic'
 
 interface Props {
+  adminRoleIds: string[]
   notificationMessage: string
   rewards: RoleReward[]
   rewardsError?: string
@@ -99,6 +101,7 @@ function isTabKey(value: string | null): value is TabKey {
 }
 
 export default function SettingsTabs({
+  adminRoleIds,
   notificationMessage,
   rewards,
   rewardsError,
@@ -202,6 +205,7 @@ export default function SettingsTabs({
         )}
         {active === 'permissions' && (
           <div className="space-y-4">
+            <AdminRoleSetting initialRoleIds={adminRoleIds} />
             <EventCreatorRolesSetting initialRoleIds={eventCreatorRoleIds} />
             <BombSquadCallerRolesSetting initialRoleIds={bombSquadCallerRoleIds} />
           </div>
