@@ -9,6 +9,12 @@ import { requireAdmin } from '@/lib/auth'
 import { isLocale } from '@/i18n/locales'
 import { runMemberSync, type RolesSource } from '@/lib/member-sync'
 import { extractWeaponCategory } from '@/lib/weapon-category'
+import {
+  calcParticipationStreak,
+  calcRanking,
+  calcSurvivalAndDeathlessStreak,
+  type ParticipatedEvent,
+} from '@/lib/member-stats'
 import type { RegearType } from '@/types'
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
@@ -120,6 +126,30 @@ export interface KillboardStats {
   death_fame: number
 }
 
+// 전투 기록, 참여 추이, 길드 내 상대순위 같은 "명예" 지표. 기존 KillboardStats
+// 와 달리 참여 이벤트 ↔ victim 시간 매칭, 일자 단위 스트릭 집계, 멤버 전체
+// 집계 비교 같은 추가 계산이 필요하다.
+export interface MemberAdvancedStats {
+  // 참여 이벤트 중 데스 없이 완수한 비율 (0~1). null = battle_started_at 있는
+  // 참여 이벤트가 0개라 평가 불가.
+  survival_rate: number | null
+  evaluated_events: number
+  // 같은 날 여러 이벤트는 하루로 합산. current 는 오늘/어제에 이어져 있어야
+  // 살아있고, 그보다 오래 전이면 0.
+  participation_current_streak: number
+  participation_longest_streak: number
+  // 데스 없이 연속으로 완수한 이벤트 수. 이벤트 시간 순회 기준.
+  deathless_current_streak: number
+  deathless_longest_streak: number
+  // 길드 내 rank — 1이 가장 많이 기록한 멤버. null = 본인 카운트가 0.
+  kill_rank: number | null
+  kill_rank_percentile: number | null
+  kill_rank_total: number
+  participation_rank: number | null
+  participation_rank_percentile: number | null
+  participation_rank_total: number
+}
+
 export interface GuildMemberDetail {
   discord_id: string
   username: string
@@ -139,6 +169,7 @@ export interface GuildMemberDetail {
   lifetime_earned: number
   lifetime_spent: number
   killboard: KillboardStats
+  advanced_stats: MemberAdvancedStats
 }
 
 export async function listGuildMembers(): Promise<{
@@ -456,46 +487,57 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
   try {
     const db = getAdminClient()
 
-    const [avatarRes, slotsRes, regearsRes, exchangesRes, ledgerRes, killboardRes] =
-      await Promise.all([
-        db
-          .from('guild_avatars')
-          .select('discord_id, username, avatar, updated_at, preferred_language')
-          .eq('guild_id', guildId)
-          .eq('discord_id', discordId)
-          .maybeSingle(),
-        db
-          .from('slots')
-          .select(
-            'role_name, weapon_name, weapon_id, assigned_weapon_name, assigned_weapon_id, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at))',
-          )
-          .eq('guild_id', guildId)
-          .eq('assigned_discord_id', discordId),
-        db
-          .from('regear_requests')
-          .select(
-            'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, status, admin_notes, created_at, resolved_at, handled_by_username, events(title)',
-          )
-          .eq('guild_id', guildId)
-          .eq('discord_id', discordId)
-          .order('created_at', { ascending: false }),
-        db
-          .from('exchange_requests')
-          .select('id, silver, status, admin_notes, created_at, resolved_at, handled_by_username')
-          .eq('guild_id', guildId)
-          .eq('discord_id', discordId)
-          .order('created_at', { ascending: false }),
-        db
-          .from('point_ledger')
-          .select('id, delta, reason, memo, created_at')
-          .eq('guild_id', guildId)
-          .eq('discord_id', discordId),
-        db
-          .from('killboard_events')
-          .select('role, fame')
-          .eq('guild_id', guildId)
-          .eq('discord_id', discordId),
-      ])
+    const [
+      avatarRes,
+      slotsRes,
+      regearsRes,
+      exchangesRes,
+      ledgerRes,
+      killboardRes,
+      rankingRes,
+    ] = await Promise.all([
+      db
+        .from('guild_avatars')
+        .select('discord_id, username, avatar, updated_at, preferred_language')
+        .eq('guild_id', guildId)
+        .eq('discord_id', discordId)
+        .maybeSingle(),
+      db
+        .from('slots')
+        .select(
+          'role_name, weapon_name, weapon_id, assigned_weapon_name, assigned_weapon_id, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at))',
+        )
+        .eq('guild_id', guildId)
+        .eq('assigned_discord_id', discordId),
+      db
+        .from('regear_requests')
+        .select(
+          'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, status, admin_notes, created_at, resolved_at, handled_by_username, events(title)',
+        )
+        .eq('guild_id', guildId)
+        .eq('discord_id', discordId)
+        .order('created_at', { ascending: false }),
+      db
+        .from('exchange_requests')
+        .select('id, silver, status, admin_notes, created_at, resolved_at, handled_by_username')
+        .eq('guild_id', guildId)
+        .eq('discord_id', discordId)
+        .order('created_at', { ascending: false }),
+      db
+        .from('point_ledger')
+        .select('id, delta, reason, memo, created_at')
+        .eq('guild_id', guildId)
+        .eq('discord_id', discordId),
+      db
+        .from('killboard_events')
+        .select('role, fame, occurred_at')
+        .eq('guild_id', guildId)
+        .eq('discord_id', discordId),
+      // 랭킹 RPC — 길드 전체 멤버의 kills/participations 를 집계해서 반환. 본인
+      // 카운트와 비교해 상위 percentile 계산. 기존 PostgREST 쿼리는 group by 를
+      // 내려주지 않고 limit 1000 에 걸리므로 RPC 로 한 번에 수행.
+      db.rpc('member_ranking_counts', { p_guild_id: guildId }),
+    ])
 
     if (avatarRes.error) return { detail: null, error: avatarRes.error.message }
     if (slotsRes.error) return { detail: null, error: slotsRes.error.message }
@@ -637,6 +679,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     )
 
     const killboard: KillboardStats = { kills: 0, deaths: 0, kill_fame: 0, death_fame: 0 }
+    const victimOccurrences: string[] = []
     for (const row of killboardRes.data ?? []) {
       const fame = (row.fame as number | null) ?? 0
       if (row.role === 'killer') {
@@ -645,7 +688,52 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       } else if (row.role === 'victim') {
         killboard.deaths += 1
         killboard.death_fame += fame
+        const occurredAt = row.occurred_at as string | null
+        if (occurredAt) victimOccurrences.push(occurredAt)
       }
+    }
+
+    // 참여 이벤트 ↔ victim 시간 매칭으로 생존률/무데스 스트릭, 일자 기준 참여
+    // 스트릭, 길드 내 랭킹을 한 곳에서 집계. 랭킹 RPC 는 실패해도 프로필 자체는
+    // 띄워야 하므로 rankingRes.data 가 null 이어도 빈 배열로 폴백.
+    const participatedEvents: ParticipatedEvent[] = events.map((e) => ({
+      eventId: e.event_id,
+      startedAt: e.battle_started_at,
+    }))
+    const survivalAndDeathless = calcSurvivalAndDeathlessStreak(
+      participatedEvents,
+      victimOccurrences,
+    )
+
+    const participationDates = events
+      .map((e) => e.battle_started_at ?? e.gather_at ?? e.created_at)
+      .filter((s): s is string => typeof s === 'string' && s.length > 0)
+    const participationStreak = calcParticipationStreak(participationDates, Date.now())
+
+    const rankingRows = (rankingRes.data ?? []) as Array<{
+      discord_id: string
+      kills: number
+      deaths: number
+      participations: number
+    }>
+    const allKills = rankingRows.map((r) => r.kills)
+    const allParticipations = rankingRows.map((r) => r.participations)
+    const killRanking = calcRanking(killboard.kills, allKills)
+    const participationRanking = calcRanking(events.length, allParticipations)
+
+    const advancedStats: MemberAdvancedStats = {
+      survival_rate: survivalAndDeathless.survivalRate,
+      evaluated_events: survivalAndDeathless.evaluatedEvents,
+      participation_current_streak: participationStreak.currentStreak,
+      participation_longest_streak: participationStreak.longestStreak,
+      deathless_current_streak: survivalAndDeathless.currentDeathlessStreak,
+      deathless_longest_streak: survivalAndDeathless.longestDeathlessStreak,
+      kill_rank: killRanking.rank,
+      kill_rank_percentile: killRanking.percentile,
+      kill_rank_total: killRanking.totalRanked,
+      participation_rank: participationRanking.rank,
+      participation_rank_percentile: participationRanking.percentile,
+      participation_rank_total: participationRanking.totalRanked,
     }
 
     return {
@@ -665,6 +753,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
         lifetime_earned: earned,
         lifetime_spent: spent,
         killboard,
+        advanced_stats: advancedStats,
       },
     }
   } catch (e) {

@@ -1,5 +1,20 @@
 import Link from 'next/link'
-import { Coins, Wallet, ShieldCheck, ChevronRight, Sword, Skull, Flame } from 'lucide-react'
+import {
+  Coins,
+  Wallet,
+  ShieldCheck,
+  ChevronRight,
+  Sword,
+  Skull,
+  Flame,
+  TrendingUp,
+  Heart,
+  CalendarCheck,
+  Trophy,
+  Crown,
+  Shield,
+  Target,
+} from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
 import LanguageBadge from './LanguageBadge'
@@ -57,38 +72,39 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
         </div>
       </header>
 
-      <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard
-          icon={<ShieldCheck size={14} className="text-amber-400" />}
-          label={t('statTotalParticipation')}
-          value={t('participationTimes', { count: detail.participation_count })}
-        />
-        <StatCard
-          icon={<Coins size={14} className="text-amber-400" />}
-          label={t('statBalance')}
-          value={formatSilver(detail.balance)}
-          mono
-        />
-        <StatCard
-          icon={<Coins size={14} className="text-green-400" />}
-          label={t('statEarned')}
-          value={formatSilver(detail.lifetime_earned)}
-          mono
-        />
-        <StatCard
-          icon={<Wallet size={14} className="text-red-400" />}
-          label={t('statSpent')}
-          value={formatSilver(detail.lifetime_spent)}
-          mono
-        />
-      </section>
-
-      <section className="space-y-2">
+      <section className="space-y-3">
         <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
-          <Sword size={14} className="text-red-400" />
-          {t('killboardHeading')}
+          <TrendingUp size={14} className="text-amber-400" />
+          {t('statsSectionTitle')}
         </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+
+        <StatSubGroup label={t('statsGroupBasic')}>
+          <StatCard
+            icon={<ShieldCheck size={14} className="text-amber-400" />}
+            label={t('statTotalParticipation')}
+            value={t('participationTimes', { count: detail.participation_count })}
+          />
+          <StatCard
+            icon={<Coins size={14} className="text-amber-400" />}
+            label={t('statBalance')}
+            value={formatSilver(detail.balance)}
+            mono
+          />
+          <StatCard
+            icon={<Coins size={14} className="text-green-400" />}
+            label={t('statEarned')}
+            value={formatSilver(detail.lifetime_earned)}
+            mono
+          />
+          <StatCard
+            icon={<Wallet size={14} className="text-red-400" />}
+            label={t('statSpent')}
+            value={formatSilver(detail.lifetime_spent)}
+            mono
+          />
+        </StatSubGroup>
+
+        <StatSubGroup label={t('statsGroupKillboard')}>
           <StatCard
             icon={<Sword size={14} className="text-red-400" />}
             label={t('statKills')}
@@ -113,7 +129,86 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
             value={detail.killboard.death_fame.toLocaleString()}
             mono
           />
-        </div>
+        </StatSubGroup>
+
+        <StatSubGroup label={t('statsGroupCombat')}>
+          <StatCard
+            icon={<Target size={14} className="text-amber-400" />}
+            label={t('statKd')}
+            value={formatKd(detail.killboard.kills, detail.killboard.deaths)}
+            mono
+          />
+          <StatCard
+            icon={<Heart size={14} className="text-emerald-400" />}
+            label={t('statSurvival')}
+            value={formatSurvival(detail.advanced_stats.survival_rate)}
+            sub={
+              detail.advanced_stats.evaluated_events > 0
+                ? t('statSurvivalSub', { count: detail.advanced_stats.evaluated_events })
+                : undefined
+            }
+            tone={survivalTone(detail.advanced_stats.survival_rate)}
+            mono
+          />
+          <StatCard
+            icon={<Shield size={14} className="text-cyan-400" />}
+            label={t('statDeathless')}
+            value={t('statStreakUnit', { count: detail.advanced_stats.deathless_current_streak })}
+            sub={t('statStreakLongest', {
+              count: detail.advanced_stats.deathless_longest_streak,
+            })}
+            mono
+          />
+          <StatCard
+            icon={<CalendarCheck size={14} className="text-amber-400" />}
+            label={t('statParticipationStreak')}
+            value={t('statStreakDays', {
+              count: detail.advanced_stats.participation_current_streak,
+            })}
+            sub={t('statStreakLongestDays', {
+              count: detail.advanced_stats.participation_longest_streak,
+            })}
+            mono
+          />
+        </StatSubGroup>
+
+        <StatSubGroup label={t('statsGroupActivity')} cols={3}>
+          <StatCard
+            icon={<Shield size={14} className="text-amber-400" />}
+            label={t('statRegearCount')}
+            value={t('participationTimes', { count: detail.regears.length })}
+          />
+          <StatCard
+            icon={<Crown size={14} className="text-red-400" />}
+            label={t('statKillRank')}
+            value={formatRankPercentile(
+              detail.advanced_stats.kill_rank_percentile,
+              t('valueNone'),
+              (percent) => t('statRankPercentile', { percent }),
+            )}
+            sub={formatRankSub(
+              detail.advanced_stats.kill_rank,
+              detail.advanced_stats.kill_rank_total,
+              (rank, total) => t('statRankSub', { rank, total }),
+            )}
+            mono
+          />
+          <StatCard
+            icon={<Trophy size={14} className="text-amber-400" />}
+            label={t('statParticipationRank')}
+            value={formatRankPercentile(
+              detail.advanced_stats.participation_rank_percentile,
+              t('valueNone'),
+              (percent) => t('statRankPercentile', { percent }),
+            )}
+            sub={formatRankSub(
+              detail.advanced_stats.participation_rank,
+              detail.advanced_stats.participation_rank_total,
+              (rank, total) => t('statRankSub', { rank, total }),
+            )}
+            mono
+          />
+        </StatSubGroup>
       </section>
 
       <section className="space-y-2">
@@ -351,26 +446,104 @@ function ExchangeRow({
   )
 }
 
+type StatTone = 'default' | 'emerald' | 'amber' | 'rose'
+
 function StatCard({
   icon,
   label,
   value,
+  sub,
   mono = false,
+  tone = 'default',
 }: {
   icon: React.ReactNode
   label: string
   value: string
+  sub?: string
   mono?: boolean
+  tone?: StatTone
 }) {
+  const toneClass =
+    tone === 'emerald'
+      ? 'text-emerald-300'
+      : tone === 'amber'
+        ? 'text-amber-300'
+        : tone === 'rose'
+          ? 'text-rose-300'
+          : 'text-white'
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-3">
       <div className="flex items-center gap-1.5 text-gray-400 text-[11px] font-semibold uppercase tracking-widest">
         {icon}
         {label}
       </div>
-      <p className={`text-white text-base sm:text-lg font-bold mt-1 ${mono ? 'font-mono' : ''}`}>
+      <p className={`${toneClass} text-base sm:text-lg font-bold mt-1 ${mono ? 'font-mono' : ''}`}>
         {value}
       </p>
+      {sub && <p className="text-gray-500 text-[10px] mt-0.5 truncate">{sub}</p>}
     </div>
   )
+}
+
+// 통계 섹션의 서브 그룹. cols=4 는 기본, cols=3 은 카드 수가 3일 때 마지막 빈
+// 칸이 안 보이게 쓰는 변형. Tailwind 는 동적 클래스를 트리 쉐이킹하지 않으므로
+// 두 클래스 문자열을 그대로 나열해야 한다.
+function StatSubGroup({
+  label,
+  cols = 4,
+  children,
+}: {
+  label: string
+  cols?: 3 | 4
+  children: React.ReactNode
+}) {
+  const grid = cols === 3 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'
+  return (
+    <div className="space-y-1.5">
+      <h3 className="text-gray-500 text-[10px] font-semibold uppercase tracking-wider">
+        {label}
+      </h3>
+      <div className={`grid ${grid} gap-2.5`}>{children}</div>
+    </div>
+  )
+}
+
+function formatKd(kills: number, deaths: number): string {
+  if (deaths === 0) {
+    if (kills === 0) return '-'
+    // 죽지 않은 경우 kills 를 그대로 보여주는 게 "퍼펙트" 의 의미 — 무한대 기호
+    // 보다 수치가 직관적.
+    return `${kills}.00`
+  }
+  return (kills / deaths).toFixed(2)
+}
+
+function formatSurvival(rate: number | null): string {
+  if (rate == null) return '-'
+  return `${Math.round(rate * 100)}%`
+}
+
+function survivalTone(rate: number | null): StatTone {
+  if (rate == null) return 'default'
+  if (rate >= 0.8) return 'emerald'
+  if (rate >= 0.5) return 'amber'
+  return 'rose'
+}
+
+function formatRankPercentile(
+  percentile: number | null,
+  none: string,
+  render: (percent: number) => string,
+): string {
+  if (percentile == null) return none
+  return render(percentile)
+}
+
+function formatRankSub(
+  rank: number | null,
+  total: number,
+  render: (rank: number, total: number) => string,
+): string | undefined {
+  if (rank == null || total === 0) return undefined
+  return render(rank, total)
 }
