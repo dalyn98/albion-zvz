@@ -12,6 +12,8 @@ type Db = ReturnType<typeof getAdminClient>
 export interface TrackedBattleWindow {
   startedAtMs: number
   endedAtMs: number
+  // tenant_battle_records.outcome — 'win' | 'loss' | 'tie'. 승/패 집계에 사용.
+  outcome: string
 }
 
 // battle_records.ended_at 은 정확한 종료 시각. ±0 으로 매칭해도 sync cron 이
@@ -26,13 +28,14 @@ export async function fetchTrackedBattleWindows(
 ): Promise<TrackedBattleWindow[]> {
   let q = db
     .from('tenant_battle_records')
-    .select('started_at, battle_records!inner(ended_at)')
+    .select('started_at, outcome, battle_records!inner(ended_at)')
     .eq('guild_id', guildId)
   if (sinceIso) q = q.gte('started_at', sinceIso)
 
   const { data } = await q
   type Row = {
     started_at: string
+    outcome: string
     battle_records:
       | { ended_at: string | null }
       | { ended_at: string | null }[]
@@ -48,6 +51,7 @@ export async function fetchTrackedBattleWindows(
     windows.push({
       startedAtMs: startMs - WINDOW_PADDING_MS,
       endedAtMs: endMs + WINDOW_PADDING_MS,
+      outcome: row.outcome,
     })
   }
   windows.sort((a, b) => a.startedAtMs - b.startedAtMs)
@@ -62,9 +66,26 @@ export function isWithinTrackedWindow(
   occurredAtIso: string,
   windows: ReadonlyArray<TrackedBattleWindow>,
 ): boolean {
-  if (windows.length === 0) return false
+  return findTrackedWindow(occurredAtIso, windows) !== null
+}
+
+// 이벤트의 battle_started_at 에 매칭되는 tracked window 를 찾아 outcome 을
+// 돌려준다. 없으면 null (공개 전투로 집계된 배틀이 없어 승/패 판정 불가).
+export function findTrackedOutcome(
+  occurredAtIso: string | null,
+  windows: ReadonlyArray<TrackedBattleWindow>,
+): string | null {
+  if (!occurredAtIso) return null
+  return findTrackedWindow(occurredAtIso, windows)?.outcome ?? null
+}
+
+function findTrackedWindow(
+  occurredAtIso: string,
+  windows: ReadonlyArray<TrackedBattleWindow>,
+): TrackedBattleWindow | null {
+  if (windows.length === 0) return null
   const t = Date.parse(occurredAtIso)
-  if (!Number.isFinite(t)) return false
+  if (!Number.isFinite(t)) return null
   // 첫 번째로 startedAtMs > t 인 인덱스. 그 바로 앞까지가 후보.
   let lo = 0
   let hi = windows.length
@@ -77,7 +98,7 @@ export function isWithinTrackedWindow(
   // 인접 몇 개만 스캔하면 충분하다 — 모두 훑지 않아도 되도록 최근 20개로 상한.
   const start = Math.max(0, lo - 20)
   for (let i = start; i < lo; i++) {
-    if (t <= windows[i].endedAtMs) return true
+    if (t <= windows[i].endedAtMs) return windows[i]
   }
-  return false
+  return null
 }

@@ -18,6 +18,7 @@ import {
 } from '@/lib/member-stats'
 import {
   fetchTrackedBattleWindows,
+  findTrackedOutcome,
   isWithinTrackedWindow,
 } from '@/lib/tracked-kills'
 import type { RegearType } from '@/types'
@@ -82,8 +83,6 @@ export interface MemberEventEntry {
   battle_started_at: string | null
   gather_at: string | null
   created_at: string
-  outcome: string | null
-  finalized_at: string | null
 }
 
 export interface MemberRegearEntry {
@@ -521,7 +520,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       db
         .from('slots')
         .select(
-          'role_name, weapon_name, weapon_id, assigned_weapon_name, assigned_weapon_id, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at, outcome, finalized_at))',
+          'role_name, weapon_name, weapon_id, assigned_weapon_name, assigned_weapon_id, parties!inner(event_id, events!inner(id, title, created_at, battle_started_at, gather_at))',
         )
         .eq('guild_id', guildId)
         .eq('assigned_discord_id', discordId),
@@ -585,8 +584,6 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       created_at: string
       battle_started_at: string | null
       gather_at: string | null
-      outcome: string | null
-      finalized_at: string | null
     }
     for (const row of slotsRes.data ?? []) {
       const party = row.parties as
@@ -640,8 +637,6 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
           battle_started_at: event.battle_started_at,
           gather_at: event.gather_at,
           created_at: event.created_at,
-          outcome: event.outcome,
-          finalized_at: event.finalized_at,
         })
       }
     }
@@ -767,10 +762,11 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     const killRanking = calcRanking(killboard.kills, allKills)
     const participationRanking = calcRanking(events.length, allParticipations)
 
-    // 승/패/승률: finalized_at 있고 outcome in ('win','loss') 만. 무확정 이벤트는
-    // denominator 에도 들어가지 않는다.
+    // 승/패/승률: 각 참여 이벤트의 battle_started_at 을 tenant_battle_records
+    // 창에 매칭해 outcome 을 꺼낸다. 매칭 실패(공개 전투 없음) 는 null → 분모
+    // 제외. tie/excluded 도 분모에서 빠진다.
     const outcomeStats = calcOutcomeStats(
-      events.map((e) => ({ outcome: e.outcome, finalizedAt: e.finalized_at })),
+      events.map((e) => findTrackedOutcome(e.battle_started_at, trackedWindows)),
     )
 
     const advancedStats: MemberAdvancedStats = {

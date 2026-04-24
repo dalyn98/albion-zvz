@@ -10,6 +10,7 @@ import {
 } from '@/lib/member-stats'
 import {
   fetchTrackedBattleWindows,
+  findTrackedOutcome,
   isWithinTrackedWindow,
 } from '@/lib/tracked-kills'
 import { getMyPointsSummary } from '@/app/actions/regear'
@@ -54,8 +55,6 @@ type SlotEvent = {
   gather_at: string | null
   gather_time: string
   battle_started_at: string | null
-  outcome: string | null
-  finalized_at: string | null
 }
 
 type SlotRow = {
@@ -85,7 +84,7 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     db
       .from('slots')
       .select(
-        'role_name, parties!inner(events!inner(id, title, gather_at, gather_time, battle_started_at, outcome, finalized_at))',
+        'role_name, parties!inner(events!inner(id, title, gather_at, gather_time, battle_started_at))',
       )
       .eq('guild_id', guildId)
       .eq('assigned_discord_id', session.discordId),
@@ -128,8 +127,6 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
       gather_at: string | null
       gather_time: string
       battle_started_at: string | null
-      outcome: string | null
-      finalized_at: string | null
     }
   >()
   for (const row of (slotsRes.data ?? []) as SlotRow[]) {
@@ -148,8 +145,6 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
         gather_at: event.gather_at,
         gather_time: event.gather_time,
         battle_started_at: event.battle_started_at,
-        outcome: event.outcome,
-        finalized_at: event.finalized_at,
       })
     } else if (existing.isDpsOnly && !isDps) {
       existing.isDpsOnly = false
@@ -180,8 +175,11 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
   const survival = calcSurvivalAndDeathlessStreak(survivalParticipated, victimOccurrences)
   const participationDates = pastParticipated.map((e) => e.startedAt)
   const streak = calcParticipationStreak(participationDates, Date.now())
+  // 승/패: 각 참여 이벤트의 battle_started_at 을 tracked window 에 매칭해
+  // 해당 tenant_battle_records.outcome 을 꺼내 집계. 매칭 실패 (공개 전투 없음)
+  // 는 null 로 들어와 calcOutcomeStats 에서 자동 제외된다.
   const outcomeStats = calcOutcomeStats(
-    events.map((e) => ({ outcome: e.outcome, finalizedAt: e.finalized_at })),
+    events.map((e) => findTrackedOutcome(e.battle_started_at, trackedWindows)),
   )
 
   const upcoming = events

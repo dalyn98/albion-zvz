@@ -169,21 +169,17 @@ export interface OutcomeStats {
   winRate: number | null
 }
 
-// 참여한 이벤트의 outcome 에서 승/패 집계. finalized_at 이 있고 outcome 이
-// 'win' 또는 'loss' 로 확정된 경우만 카운트. null outcome 이나 미확정 이벤트는
-// 분모에도 포함하지 않는다 — "진행 중" 이나 "미판정" 은 승률을 깎지 않는다.
+// 참여한 이벤트의 outcome 에서 승/패 집계. outcome 이 'win' 또는 'loss' 인
+// 경우만 카운트. null(공개 전투 매칭 없음) / 'tie' / 'excluded' 등은 분모에도
+// 포함하지 않는다 — 승률을 깎지 않는다.
 export function calcOutcomeStats(
-  events: ReadonlyArray<{
-    outcome: string | null
-    finalizedAt: string | null
-  }>,
+  outcomes: ReadonlyArray<string | null>,
 ): OutcomeStats {
   let wins = 0
   let losses = 0
-  for (const e of events) {
-    if (!e.finalizedAt) continue
-    if (e.outcome === 'win') wins += 1
-    else if (e.outcome === 'loss') losses += 1
+  for (const o of outcomes) {
+    if (o === 'win') wins += 1
+    else if (o === 'loss') losses += 1
   }
   const evaluated = wins + losses
   return {

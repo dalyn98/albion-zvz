@@ -10,6 +10,7 @@ import {
 } from '@/lib/member-stats'
 import {
   fetchTrackedBattleWindows,
+  findTrackedOutcome,
   isWithinTrackedWindow,
 } from '@/lib/tracked-kills'
 
@@ -65,8 +66,6 @@ type KillboardRow = {
 type SlotEvent = {
   id: string
   battle_started_at: string | null
-  outcome: string | null
-  finalized_at: string | null
 }
 
 type SlotRow = {
@@ -111,7 +110,7 @@ export async function getLeaderboard(
   const slotsQ = db
     .from('slots')
     .select(
-      'assigned_discord_id, role_name, parties!inner(events!inner(id, battle_started_at, outcome, finalized_at))',
+      'assigned_discord_id, role_name, parties!inner(events!inner(id, battle_started_at))',
     )
     .eq('guild_id', guildId)
     .not('assigned_discord_id', 'is', null)
@@ -157,12 +156,9 @@ export async function getLeaderboard(
   // 참여 이벤트 세트. DPS 참여로만 기록된 이벤트는 생존률 계산에서 제외해야
   // 하므로 (member, event) 별로 역할도 함께 추적한다. 한 이벤트에서 여러 역할
   // 슬롯을 맡은 경우(거의 없지만 가능) 비-DPS 역할이 하나라도 있으면 평가 대상.
-  // outcome/finalized_at 은 승률 집계용으로 같이 실어둔다.
   interface MemberEventParticipation {
     startedAt: string
     isDpsOnly: boolean
-    outcome: string | null
-    finalizedAt: string | null
   }
   const participationEvents = new Map<string, Map<string, MemberEventParticipation>>()
   for (const row of (slotsRes.data ?? []) as SlotRow[]) {
@@ -184,8 +180,6 @@ export async function getLeaderboard(
       memberEvents.set(event.id, {
         startedAt: event.battle_started_at,
         isDpsOnly: isDps,
-        outcome: event.outcome,
-        finalizedAt: event.finalized_at,
       })
     } else if (existing.isDpsOnly && !isDps) {
       existing.isDpsOnly = false
@@ -224,10 +218,10 @@ export async function getLeaderboard(
       .filter(([, v]) => !v.isDpsOnly)
       .map(([eventId, v]) => ({ eventId, startedAt: v.startedAt }))
     const survival = calcSurvivalAndDeathlessStreak(survivalInput, c.victimTimes)
-    // 승률: finalized_at 있고 outcome in ('win','loss') 만. DPS 제외는 하지 않음
-    // (승/패는 역할 특성과 무관하게 파티 결과 전체에 공유되는 판정).
+    // 승률: 각 참여 이벤트의 battle_started_at 을 tenant_battle_records 창에
+    // 매칭해 outcome 을 꺼낸다. 역할과 무관하게 파티 전체가 공유하는 판정.
     const outcome = calcOutcomeStats(
-      allEntries.map(([, v]) => ({ outcome: v.outcome, finalizedAt: v.finalizedAt })),
+      allEntries.map(([, v]) => findTrackedOutcome(v.startedAt, trackedWindows)),
     )
     aggs.push({
       discord_id: discordId,
