@@ -269,6 +269,7 @@ export async function approveRegearRequest(
       p_id: id,
       p_admin_id: session.discordId,
       p_admin_username: session.username,
+      p_guild_id: guildId,
       p_payout_silver: payout,
     })
     if (error) {
@@ -416,6 +417,7 @@ export async function rejectRegearRequest(
       p_notes: notes.trim() || null,
       p_admin_id: session.discordId,
       p_admin_username: session.username,
+      p_guild_id: guildId,
     })
     if (error) {
       if (error.message.includes('REGEAR_NOT_PENDING')) {
@@ -513,6 +515,7 @@ export async function approveExchangeRequest(id: string): Promise<{ error?: stri
       p_id: id,
       p_admin_id: session.discordId,
       p_admin_username: session.username,
+      p_guild_id: guildId,
     })
     if (error) {
       if (error.message.includes('EXCHANGE_NOT_PENDING')) {
@@ -560,6 +563,7 @@ export async function rejectExchangeRequest(
       p_notes: notes.trim() || null,
       p_admin_id: session.discordId,
       p_admin_username: session.username,
+      p_guild_id: guildId,
     })
     if (error) {
       if (error.message.includes('EXCHANGE_NOT_PENDING')) {

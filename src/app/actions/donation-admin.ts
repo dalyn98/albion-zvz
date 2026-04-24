@@ -95,6 +95,7 @@ export async function approveDonationRequest(id: string): Promise<{ error?: stri
       p_id: id,
       p_admin_id: session.discordId,
       p_admin_username: session.username,
+      p_guild_id: guildId,
     })
     if (error) {
       if (error.message.includes('DONATION_NOT_PENDING')) {
@@ -139,6 +140,7 @@ export async function rejectDonationRequest(
       p_notes: notes.trim() || null,
       p_admin_id: session.discordId,
       p_admin_username: session.username,
+      p_guild_id: guildId,
     })
     if (error) {
       if (error.message.includes('DONATION_NOT_PENDING')) {
