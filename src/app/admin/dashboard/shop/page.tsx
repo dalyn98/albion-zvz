@@ -11,6 +11,7 @@ import ShopSilverRateForm from '@/components/ShopSilverRateForm'
 import ShopInventoryEditor, { type InventoryRow } from '@/components/ShopInventoryEditor'
 import NoticeSettingForm, { NOTICE_MAX_LENGTH } from '@/components/NoticeSettingForm'
 import AodpSettingsForm from '@/components/AodpSettingsForm'
+import ShopAnomalyPanel from '@/components/ShopAnomalyPanel'
 import { parseShopDiscountRate } from '@/lib/shop/price'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { categoryRank } from '@/lib/shop/category-order'
@@ -150,6 +151,8 @@ export default async function AdminShopPage() {
           재고 베이스라인
         </Link>
       </div>
+
+      <ShopAnomalyPanel />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="space-y-4">
