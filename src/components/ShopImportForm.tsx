@@ -395,7 +395,7 @@ function StagingStatusCard({ preview }: { preview: ImportSummary }) {
   let body = ''
   let gapBody: string | null = null
 
-  const GAP_DANGER_MS = 24 * 60 * 60 * 1000
+  const GAP_DANGER_MS = 7 * 24 * 60 * 60 * 1000
   const GAP_WARN_MS = 6 * 60 * 60 * 1000
 
   if (!lastKnownLoggedAt) {
