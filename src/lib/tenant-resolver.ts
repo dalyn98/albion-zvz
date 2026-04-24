@@ -12,35 +12,11 @@
 // lookups are done in Node runtime routes via resolveTenantBySlug().
 
 import { getAdminClient } from '@/lib/supabase-admin'
+import { RESERVED_SLUGS, isValidTenantSlug } from '@/lib/tenant-slug'
 
-// Subdomains we never hand out as tenant slugs. Onboarding validates against
-// this list, and the proxy refuses to treat a reserved subdomain as a tenant.
-export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
-  'www',
-  'app',
-  'api',
-  'auth',
-  'admin',
-  'onboard',
-  'onboarding',
-  'status',
-  'help',
-  'docs',
-  'blog',
-  'mail',
-  'cdn',
-  'static',
-  'assets',
-  'discord',
-  'bot',
-  'webhook',
-  'support',
-  'billing',
-  'login',
-  'signup',
-  'pricing',
-  'marketing',
-])
+// 하위 호환: 기존에 tenant-resolver 에서 import 하는 코드가 있어 re-export.
+// 순수 검증 로직은 tenant-slug.ts 에 있다 (client-safe).
+export { RESERVED_SLUGS, isValidTenantSlug }
 
 // Legacy Vercel hosts — old deployments that existing users may have bookmarked.
 // These are redirected to menhera.albion-guildmanager.com/<path>.
@@ -144,16 +120,3 @@ export async function resolveTenantBySlug(slug: string): Promise<ResolvedTenant 
   }
 }
 
-// Validates a user-submitted slug during onboarding.
-//   - 2–32 chars, lowercase a–z / 0–9 / hyphen
-//   - no leading/trailing hyphen, no consecutive hyphens
-//   - not reserved
-export function isValidTenantSlug(candidate: string): boolean {
-  if (typeof candidate !== 'string') return false
-  const s = candidate.toLowerCase()
-  if (s.length < 2 || s.length > 32) return false
-  if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(s)) return false
-  if (s.includes('--')) return false
-  if (RESERVED_SLUGS.has(s)) return false
-  return true
-}

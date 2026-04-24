@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { saveTenantRewards } from '@/app/actions/onboard'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
@@ -28,10 +27,10 @@ interface Props {
 }
 
 // 위저드 3단계: 역할별 기본 리기어 실버. 숫자 입력. 0 = 이 역할은 리기어 차단
-// (기존 semantic 과 일치). 저장 성공 시 세션이 admin 으로 재서명되고
-// /admin/dashboard 로 이동한다.
+// (기존 semantic 과 일치). 저장 성공 시 tenant 가 active 로 flip 되고 서버가
+// subdomain hop 용 redirectUrl 을 돌려준다 — window.location 으로 이동해
+// 서브도메인 쿠키가 /api/auth/finish 에서 심어지도록 한다.
 export default function TenantRewardsSetupForm({ tenantId, initial, labels }: Props) {
-  const router = useRouter()
   const tRole = useTranslations('slotRole')
   const [values, setValues] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {}
@@ -69,8 +68,14 @@ export default function TenantRewardsSetupForm({ tenantId, initial, labels }: Pr
         setError(res.error)
         return
       }
-      router.push('/admin/dashboard?onboarded=1')
-      router.refresh()
+      if (res.redirectUrl) {
+        // 서브도메인으로 크로스-오리진 이동이므로 Next 라우터 대신 location 교체.
+        window.location.href = res.redirectUrl
+        return
+      }
+      // redirectUrl 이 없다면 fallback — 완료 처리는 됐으니 최소한 재로드로
+      // 세션 갱신 효과를 본다.
+      window.location.reload()
     })
   }
 

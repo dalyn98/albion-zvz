@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession, signSession, SESSION_COOKIE_NAME, cookieOptions } from '@/lib/session'
 import { getDiscordGuild } from '@/lib/discord'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { isValidTenantSlug } from '@/lib/tenant-resolver'
 import { SLOT_ROLES } from '@/types'
 
 const BOT_INSTALL_STATE_COOKIE = 'discord_bot_install_state'
@@ -27,17 +28,27 @@ function errorRedirect(origin: string, reason: string): NextResponse {
   return response
 }
 
+// guild.name 에서 slug 초안을 뽑는다. 반드시 isValidTenantSlug 를 통과해야 —
+// 통과하지 못하면 `guild-<suffix>` 로 폴백. 충돌은 호출부 retry 로 처리.
+// 제약: a-z0-9/hyphen, 2–32자, 선/후 하이픈 금지, 연속 하이픈 금지, reserved 제외.
 function slugifyGuildName(name: string): string {
+  const suffix = Math.random().toString(36).slice(2, 6)
   const base = name
     .toLowerCase()
-    .replace(/[^a-z0-9가-힣]+/g, '-')
+    .normalize('NFKD')
+    // 비 ASCII (한글/한자 포함) 는 제거 — slug 는 DNS 호스트명으로 쓰이므로.
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '')
-    .slice(0, 40)
-  // slug 충돌은 random suffix 로 분산. 최악의 경우에도 URL path 로 쓰는 용도라
-  // 보안/정확성 요구사항은 없다.
-  const suffix = Math.random().toString(36).slice(2, 6)
-  return (base || 'guild') + '-' + suffix
+    .slice(0, 24)
+
+  const candidate = base.length > 0 ? `${base}-${suffix}` : `guild-${suffix}`
+  if (isValidTenantSlug(candidate)) return candidate
+  // base 가 reserved 와 정확히 일치하는 경우 등에 대비한 보수적 폴백.
+  return `guild-${suffix}`
 }
+
+const MAX_SLUG_ATTEMPTS = 5
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
@@ -81,32 +92,53 @@ export async function GET(request: NextRequest) {
     let tenantId: string
     if (existing) {
       tenantId = existing.id as string
+      // 재설치: name/bot_installed_at 만 갱신. status 는 건드리지 않는다 —
+      // 이미 active 면 active 유지 (라이브 사이트 영향 없음), pending 이면
+      // 위저드 재진입이 자연스럽도록 pending 유지.
       await db
         .from('tenants')
         .update({
           name: guild.name,
           bot_installed_at: new Date().toISOString(),
-          status: 'active',
         })
         .eq('id', tenantId)
     } else {
-      const { data: inserted, error: insertError } = await db
-        .from('tenants')
-        .insert({
-          discord_guild_id: guildId,
-          slug: slugifyGuildName(guild.name),
-          name: guild.name,
-          status: 'active',
-          bot_installed_at: new Date().toISOString(),
-          created_by_discord_id: session.discordId,
-        })
-        .select('id')
-        .single()
-      if (insertError || !inserted) {
-        console.error('[bot-callback] tenant insert failed', insertError)
+      // 신규 INSERT 는 status='pending'. 위저드 3단계 (saveTenantRewards) 가
+      // status='active' 로 flip 해야 subdomain 해상도 (resolveTenantBySlug) 가
+      // 이 tenant 를 인식한다. 위저드 중단 tenant 는 pending 상태로 남아
+      // `{slug}.albion-guildmanager.com` 에 영향을 주지 않는다.
+      //
+      // slug 는 tenants.slug UNIQUE 제약을 받는다. 새 suffix 로 최대 5회
+      // 재시도 — 실제 충돌 확률은 4^36 suffix space 에서 매우 낮지만 방어적.
+      let tenantRow: { id: string } | null = null
+      let lastInsertError: unknown = null
+      for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt += 1) {
+        const { data: inserted, error: insertError } = await db
+          .from('tenants')
+          .insert({
+            discord_guild_id: guildId,
+            slug: slugifyGuildName(guild.name),
+            name: guild.name,
+            status: 'pending',
+            bot_installed_at: new Date().toISOString(),
+            created_by_discord_id: session.discordId,
+          })
+          .select('id')
+          .single()
+        if (inserted && !insertError) {
+          tenantRow = inserted as { id: string }
+          break
+        }
+        lastInsertError = insertError
+        // Postgres unique_violation code = 23505.
+        const code = (insertError as { code?: string } | null)?.code
+        if (code !== '23505') break
+      }
+      if (!tenantRow) {
+        console.error('[bot-callback] tenant insert failed', lastInsertError)
         return errorRedirect(url.origin, 'server_error')
       }
-      tenantId = inserted.id as string
+      tenantId = tenantRow.id
 
       // 새 tenant 에 기본 role_rewards 8개 seed (silver=0 = "미설정, 리기어 차단").
       // onboarding 위저드 3단계에서 관리자가 실버 값을 채운다. 실패해도 tenant

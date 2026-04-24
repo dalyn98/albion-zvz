@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { getCanonicalRootDomain } from '@/lib/tenant-resolver'
 import TenantSetupForm from '@/components/TenantSetupForm'
 
 export const dynamic = 'force-dynamic'
@@ -10,6 +11,8 @@ interface RawDiscordRole {
   color: number
   position: number
   managed?: boolean
+  // Discord permission bitmask as decimal string ("8" = ADMINISTRATOR).
+  permissions?: string
 }
 
 interface RawDiscordChannel {
@@ -25,6 +28,26 @@ interface DiscordRoleOption {
   name: string
   color: number
   position: number
+  // ADMINISTRATOR (0x8) 또는 MANAGE_GUILD (0x20) 이면 true — UI 에서 관리자
+  // 역할로 프리체크할 후보.
+  hasAdminPerm: boolean
+}
+
+// Discord permissions 문자열(10진 정수) 을 BigInt 로 파싱해 관리자 권한 비트를
+// 가지고 있는지 판단. permissions 가 없거나 파싱 실패면 false.
+// ES2020 미만 target 이라 BigInt 리터럴(1n) 대신 BigInt(x) 생성자를 쓴다.
+const ADMINISTRATOR_BIT = BigInt(1) << BigInt(3)
+const MANAGE_GUILD_BIT = BigInt(1) << BigInt(5)
+const ZERO_BIG = BigInt(0)
+
+function hasAdminPermissionBit(permissions?: string): boolean {
+  if (!permissions) return false
+  try {
+    const bits = BigInt(permissions)
+    return (bits & ADMINISTRATOR_BIT) !== ZERO_BIG || (bits & MANAGE_GUILD_BIT) !== ZERO_BIG
+  } catch {
+    return false
+  }
 }
 
 interface DiscordChannelOption {
@@ -48,10 +71,12 @@ export default async function TenantSetupPage({ params }: Props) {
   const db = getAdminClient()
   const { data: tenantRow } = await db
     .from('tenants')
-    .select('discord_guild_id')
+    .select('discord_guild_id, slug')
     .eq('id', id)
     .maybeSingle()
   const discordGuildId = (tenantRow?.discord_guild_id ?? '') as string
+  const initialSlug = (tenantRow?.slug ?? '') as string
+  const rootDomain = getCanonicalRootDomain()
 
   const t = await getTranslations('onboard')
 
@@ -75,7 +100,13 @@ export default async function TenantSetupPage({ params }: Props) {
         const raw = (await rolesRes.json()) as RawDiscordRole[]
         roles = raw
           .filter((r) => r.id !== discordGuildId && !r.managed)
-          .map((r) => ({ id: r.id, name: r.name, color: r.color, position: r.position }))
+          .map((r) => ({
+            id: r.id,
+            name: r.name,
+            color: r.color,
+            position: r.position,
+            hasAdminPerm: hasAdminPermissionBit(r.permissions),
+          }))
           .sort((a, b) => b.position - a.position)
       }
       if (channelsRes.ok) {
@@ -105,11 +136,25 @@ export default async function TenantSetupPage({ params }: Props) {
         tenantId={id}
         roles={roles}
         channels={channels}
+        initialSlug={initialSlug}
+        rootDomain={rootDomain}
         labels={{
+          slugLabel: t('slugLabel'),
+          slugHelp: t('slugHelp'),
+          slugPreviewPrefix: t('slugPreviewPrefix'),
+          slugIssueEmpty: t('slugIssueEmpty'),
+          slugIssueTooShort: t('slugIssueTooShort'),
+          slugIssueTooLong: t('slugIssueTooLong'),
+          slugIssueInvalidChars: t('slugIssueInvalidChars'),
+          slugIssueHyphenEdge: t('slugIssueHyphenEdge'),
+          slugIssueDoubleHyphen: t('slugIssueDoubleHyphen'),
+          slugIssueReserved: t('slugIssueReserved'),
           memberRoleLabel: t('memberRoleLabel'),
           memberRoleHelp: t('memberRoleHelp'),
           adminRoleLabel: t('adminRoleLabel'),
           adminRoleHelp: t('adminRoleHelp'),
+          adminRoleLockoutWarn: t('adminRoleLockoutWarn'),
+          adminRoleAutoPreselectHint: t('adminRoleAutoPreselectHint'),
           channelLabel: t('channelLabel'),
           channelHelp: t('channelHelp'),
           noChannel: t('noChannel'),
@@ -117,6 +162,7 @@ export default async function TenantSetupPage({ params }: Props) {
           savingButton: t('savingButton'),
           errorGeneric: t('errorGeneric'),
           missingRoles: t('missingRoles'),
+          missingAdminRoles: t('missingAdminRoles'),
         }}
       />
     </>
