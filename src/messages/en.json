@@ -1016,6 +1016,7 @@
     "reason": "Reason: {text}",
     "regearListTitle": "Regear request history",
     "noRegears": "No request history.",
+    "regearEditBreakdown": "Edit item prices",
     "claimed": "Claimed",
     "ceiling": "Cap",
     "killboardUnverified": "Killboard unverified",
@@ -1613,5 +1614,11 @@
     "eventOpponentUnknown": "Unknown opponent",
     "eventItemPower": "IP {value}",
     "eventFame": "{fame} fame"
+  },
+  "shopPublic": {
+    "loginRequiredPrefix": "To order items, ",
+    "loginLink": "sign in with Discord",
+    "loginRequiredSuffix": ".",
+    "memberOnly": "Browsing is open, but only verified guild members can place orders."
   }
 }

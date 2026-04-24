@@ -319,7 +319,7 @@ export default async function MePage() {
                         className="inline-flex items-center gap-1 text-xs text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded mt-1"
                       >
                         <Pencil size={11} />
-                        부위별 시세 수정
+                        {t('regearEditBreakdown')}
                       </Link>
                     )}
                     <RegearRequestCancelButton id={r.id} />

@@ -44,9 +44,10 @@ export default async function PublicShopPage() {
   const db = getAdminClient()
   const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
 
-  const [tNav, deliveryNotice, discountRateSetting, aodpCitiesSetting, { data: invRows }] =
+  const [tNav, tShop, deliveryNotice, discountRateSetting, aodpCitiesSetting, { data: invRows }] =
     await Promise.all([
       getTranslations('nav'),
+      getTranslations('shopPublic'),
       getAppSetting('shop_delivery_notice', ''),
       getAppSetting('shop_discount_rate', '1'),
       getAppSetting('aodp_cities', ''),
@@ -115,14 +116,14 @@ export default async function PublicShopPage() {
         <div className="bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 flex items-center gap-2">
           <LogIn size={14} className="text-amber-400" />
           <p className="text-gray-300 text-xs">
-            아이템을 주문하려면{' '}
+            {tShop('loginRequiredPrefix')}
             <Link
               href="/api/auth/discord/start?returnTo=%2Fshop"
               className="text-amber-300 underline"
             >
-              Discord 로그인
-            </Link>{' '}
-            이 필요합니다.
+              {tShop('loginLink')}
+            </Link>
+            {tShop('loginRequiredSuffix')}
           </p>
         </div>
       )}
@@ -130,9 +131,7 @@ export default async function PublicShopPage() {
       {session && !isMember && (
         <div className="bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 flex items-center gap-2">
           <Lock size={14} className="text-amber-400" />
-          <p className="text-gray-300 text-xs">
-            구경은 자유지만 주문은 길드원으로 인증된 계정만 가능합니다.
-          </p>
+          <p className="text-gray-300 text-xs">{tShop('memberOnly')}</p>
         </div>
       )}
 

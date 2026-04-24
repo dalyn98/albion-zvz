@@ -1016,6 +1016,7 @@
     "reason": "理由: {text}",
     "regearListTitle": "リギア申請履歴",
     "noRegears": "申請履歴がありません。",
+    "regearEditBreakdown": "部位別の価格を編集",
     "claimed": "請求",
     "ceiling": "上限",
     "killboardUnverified": "キルボード未確認",
@@ -1613,5 +1614,11 @@
     "eventOpponentUnknown": "相手不明",
     "eventItemPower": "IP {value}",
     "eventFame": "{fame} 名声"
+  },
+  "shopPublic": {
+    "loginRequiredPrefix": "アイテムを注文するには",
+    "loginLink": "Discord ログイン",
+    "loginRequiredSuffix": "が必要です。",
+    "memberOnly": "閲覧は自由ですが、注文はギルドメンバーとして認証されたアカウントのみ可能です。"
   }
 }

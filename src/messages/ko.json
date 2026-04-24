@@ -1016,6 +1016,7 @@
     "reason": "사유: {text}",
     "regearListTitle": "리기어 신청 내역",
     "noRegears": "신청 내역이 없습니다.",
+    "regearEditBreakdown": "부위별 시세 수정",
     "claimed": "청구",
     "ceiling": "상한",
     "killboardUnverified": "킬보드 미확인",
@@ -1613,5 +1614,11 @@
     "eventOpponentUnknown": "상대 불명",
     "eventItemPower": "IP {value}",
     "eventFame": "{fame} 명성"
+  },
+  "shopPublic": {
+    "loginRequiredPrefix": "아이템을 주문하려면 ",
+    "loginLink": "Discord 로그인",
+    "loginRequiredSuffix": "이 필요합니다.",
+    "memberOnly": "구경은 자유지만 주문은 길드원으로 인증된 계정만 가능합니다."
   }
 }
