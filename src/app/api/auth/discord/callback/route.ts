@@ -5,6 +5,7 @@ import {
   getGuildMember,
   identityFromMember,
   listUserGuilds,
+  mapDiscordLocale,
   type DiscordUser,
   type DiscordUserGuild,
 } from '@/lib/discord'
@@ -183,7 +184,26 @@ export async function GET(request: NextRequest) {
           .eq('guild_id', tenant.id)
           .eq('discord_id', user.id)
           .maybeSingle()
-        const preferred = langRow?.preferred_language ?? null
+        let preferred = langRow?.preferred_language ?? null
+        // DB 에 아직 선택된 언어가 없으면 Discord 계정 언어를 초기값으로 사용.
+        // 지원 locale 로 매핑되면 DB 에 저장해 이후 로그인부터 welcome-language
+        // 페이지를 건너뛰게 하고, 그렇지 않으면 preferred=null 로 두어 기존대로
+        // 환영 페이지가 뜨게 한다.
+        if (!isLocale(preferred)) {
+          const fromDiscord = mapDiscordLocale(user.locale)
+          if (fromDiscord) {
+            const { error: langErr } = await db
+              .from('guild_avatars')
+              .update({ preferred_language: fromDiscord })
+              .eq('guild_id', tenant.id)
+              .eq('discord_id', user.id)
+            if (langErr) {
+              console.error('[discord-callback] save preferred_language failed', langErr)
+            } else {
+              preferred = fromDiscord
+            }
+          }
+        }
 
         const sessionCookie = await signSession({
           discordId: user.id,
@@ -290,7 +310,24 @@ export async function GET(request: NextRequest) {
         })
     }
 
-    const guestPreferred = existingGuest?.preferred_language ?? null
+    let guestPreferred = existingGuest?.preferred_language ?? null
+    // 게스트 계정도 동일하게 Discord locale → preferred_language 부트스트랩.
+    // 매핑 실패 시 null 로 남겨 welcome-language 페이지가 최종 선택을 받는다.
+    if (!isLocale(guestPreferred)) {
+      const fromDiscord = mapDiscordLocale(user.locale)
+      if (fromDiscord) {
+        const { error: langErr } = await db
+          .from('guests')
+          .update({ preferred_language: fromDiscord })
+          .eq('guild_id', guestGuildId)
+          .eq('discord_id', user.id)
+        if (langErr) {
+          console.error('[discord-callback] save guest preferred_language failed', langErr)
+        } else {
+          guestPreferred = fromDiscord
+        }
+      }
+    }
 
     const sessionCookie = await signSession({
       discordId: user.id,

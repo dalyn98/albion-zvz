@@ -15,6 +15,10 @@ export interface DiscordUser {
   username: string
   global_name: string | null
   avatar: string | null
+  // Discord 계정 설정의 언어 태그. "ko", "ja", "en-US" 같은 BCP-47 형식.
+  // 미설정/일부 엔드포인트 응답에서 생략될 수 있어 optional. 사이트 진입 시
+  // preferred_language 가 비어있으면 이 값을 매핑해 초기 언어로 쓴다.
+  locale?: string | null
 }
 
 export interface DiscordGuildMember {
@@ -136,6 +140,20 @@ export async function exchangeCode(code: string): Promise<TokenResponse> {
     throw new Error(`Discord token exchange failed (${res.status}): ${text}`)
   }
   return res.json() as Promise<TokenResponse>
+}
+
+// Discord 의 user.locale (BCP-47 태그) 를 사이트에서 지원하는 Locale 로 매핑.
+// 지원하지 않는 언어는 null 을 돌려줘서 호출부가 welcome-language 페이지로
+// 유도하도록 한다. "en-US", "en-GB" 등 지역 변형은 모두 en 으로 모은다.
+export function mapDiscordLocale(
+  locale: string | null | undefined,
+): 'ko' | 'ja' | 'en' | null {
+  if (!locale) return null
+  const lower = locale.toLowerCase()
+  if (lower === 'ko' || lower.startsWith('ko-')) return 'ko'
+  if (lower === 'ja' || lower.startsWith('ja-')) return 'ja'
+  if (lower === 'en' || lower.startsWith('en-')) return 'en'
+  return null
 }
 
 // Falls back to the plain user profile (no guild context) so we can still

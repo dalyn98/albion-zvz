@@ -48,6 +48,8 @@ export async function adjustMemberPoints(
       delta: deltaSilver,
       reason: 'admin_adjust',
       memo: trimmedMemo,
+      handled_by: session.discordId,
+      handled_by_username: session.username,
     })
     if (error) return { error: error.message }
 

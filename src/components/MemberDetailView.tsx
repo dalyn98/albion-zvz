@@ -476,6 +476,11 @@ function ExchangeRow({
           </p>
           <p className="text-gray-600 text-[11px] font-mono">
             {adjustedAtLabel(formatDateTime(entry.created_at))}
+            {entry.handled_by_username && (
+              <span className="ml-1 text-gray-700">
+                · {handledByLabel(entry.handled_by_username)}
+              </span>
+            )}
           </p>
           {entry.memo && (
             <p className="text-gray-400 text-[11px] italic truncate">{entry.memo}</p>

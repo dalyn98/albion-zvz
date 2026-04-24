@@ -121,6 +121,7 @@ export type MemberExchangeEntry =
       delta: number
       memo: string | null
       created_at: string
+      handled_by_username: string | null
     }
 
 // killboard_events 집계. 길드 sync cron 이 폴링하는 Albion 킬보드 행에서
@@ -556,7 +557,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
         .order('created_at', { ascending: false }),
       db
         .from('point_ledger')
-        .select('id, delta, reason, memo, created_at')
+        .select('id, delta, reason, memo, created_at, handled_by_username')
         .eq('guild_id', guildId)
         .eq('discord_id', discordId),
       db
@@ -676,6 +677,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
           delta: row.delta,
           memo: row.memo,
           created_at: row.created_at,
+          handled_by_username: row.handled_by_username ?? null,
         })
       }
     }
