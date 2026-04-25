@@ -12,6 +12,7 @@
 // 관련 메모: feedback_albion_zvz_achievement_rules.md (규칙 1)
 
 import type { getAdminClient } from '@/lib/supabase-admin'
+import { isHighEngagement } from '@/lib/low-engagement-cut'
 
 type Db = ReturnType<typeof getAdminClient>
 
@@ -48,9 +49,13 @@ export async function fetchTrackedBattleWindows(
   guildId: string,
   sinceIso?: string | null,
 ): Promise<TrackedBattles> {
+  // home_kills/deaths/team_size 는 low-engagement 컷 평가용. raw 적재는 그대로
+  // 두고 windows 단계에서만 hide — 통계/업적/킬로그 모든 집계에서 자동 제외.
   let q = db
     .from('tenant_battle_records')
-    .select('started_at, outcome, battle_records!inner(ended_at, albion_battle_id)')
+    .select(
+      'started_at, outcome, home_kills, home_deaths, home_team_size, battle_records!inner(ended_at, albion_battle_id)',
+    )
     .eq('guild_id', guildId)
   if (sinceIso) q = q.gte('started_at', sinceIso)
 
@@ -58,6 +63,9 @@ export async function fetchTrackedBattleWindows(
   type Row = {
     started_at: string
     outcome: string
+    home_kills: number
+    home_deaths: number
+    home_team_size: number
     battle_records:
       | { ended_at: string | null; albion_battle_id: number | string | null }
       | { ended_at: string | null; albion_battle_id: number | string | null }[]
@@ -68,6 +76,15 @@ export async function fetchTrackedBattleWindows(
   for (const row of (data ?? []) as Row[]) {
     const br = Array.isArray(row.battle_records) ? row.battle_records[0] : row.battle_records
     if (!br?.ended_at) continue
+    if (
+      !isHighEngagement({
+        homeKills: row.home_kills,
+        homeDeaths: row.home_deaths,
+        homeTeamSize: row.home_team_size,
+      })
+    ) {
+      continue
+    }
     const startMs = Date.parse(row.started_at)
     const endMs = Date.parse(br.ended_at)
     if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) continue
@@ -280,14 +297,23 @@ export async function fetchMemberBattleParticipations(
 // 최종 MemberBattleOutcome 배열을 만든다. killboard 에 기록이 없는 참여(0k0d) 는
 // killCount=0, deathCount=0, hadDeath=false 로 추가. 같은 startedAt 이 양쪽 다
 // 있으면 killboard 쪽을 우선 (더 풍부한 정보).
+//
+// tracked 인자: low-engagement 컷이 이미 적용된 windows. participations RPC 는
+// 컷 미적용이므로 여기서 tracked.windows 의 rawStartedAt 집합과 교집합만 유지
+// 해야 멤버별 집계도 일관된다 (killBattles 는 이미 groupMemberKillsByBattle 가
+// tracked 로 필터링했으므로 안전).
 export function mergeMemberBattles(
   killBattles: ReadonlyArray<MemberBattleOutcome>,
   memberParticipations: ReadonlyMap<string, string> | undefined,
+  tracked: TrackedBattles,
 ): MemberBattleOutcome[] {
+  const trackedRawStartedAts = new Set<string>()
+  for (const w of tracked.windows) trackedRawStartedAts.add(w.rawStartedAt)
   const byStart = new Map<string, MemberBattleOutcome>()
   for (const b of killBattles) byStart.set(b.startedAt, b)
   if (memberParticipations) {
     for (const [rawStart, outcome] of memberParticipations) {
+      if (!trackedRawStartedAts.has(rawStart)) continue
       if (!byStart.has(rawStart)) {
         byStart.set(rawStart, {
           startedAt: rawStart,

@@ -9,6 +9,7 @@ import BattleRecordList, {
   type BattleListTab,
 } from '@/components/BattleRecordList'
 import { isSizeCategory, SIZE_CATEGORIES } from '@/lib/albion-battles'
+import { isHighEngagement } from '@/lib/low-engagement-cut'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +20,10 @@ interface SearchParams {
 
 const RECENT_LIMIT = 20
 const SIZE_LIMIT = 50
+// low-engagement 컷이 TS-side 라 결과 잘림 보정. 컷 통과 비율을 보수적으로
+// ~30% 가정해 3x fetch 후 슬라이스. 컷 통과 행이 적은 길드는 그래도 limit 미만이
+// 나올 수 있지만, 그건 실제로 표시할 만한 전투가 그만큼 없다는 의미.
+const FETCH_OVERFETCH_MULTIPLIER = 3
 
 function resolveTab(raw: string | undefined): BattleListTab {
   if (raw && isSizeCategory(raw)) return raw
@@ -51,6 +56,9 @@ export default async function BattlesPage({
   // 관리자 클라이언트는 RLS 를 우회해도 .eq('guild_id') 로 명시적 스코프 유지.
   const db = getAdminClient()
   const limit = activeTab === 'recent' ? RECENT_LIMIT : SIZE_LIMIT
+  // low-engagement 컷 통과율을 ~30% 가정하고 3x 로 over-fetch 한 뒤 TS 에서 컷
+  // 적용 → 정렬 유지하면서 limit 만큼 슬라이스. 컷이 RPC/SQL 표현으로 안 들어가는
+  // 이유: PostgREST 가 산술 표현식 (team_size * 0.1) 을 지원하지 않아.
   let query = db
     .from('tenant_battle_records')
     .select(
@@ -59,13 +67,21 @@ export default async function BattlesPage({
     .eq('guild_id', guildId)
     .order('started_at', { ascending: false })
     .order('match_index', { ascending: true })
-    .limit(limit)
+    .limit(limit * FETCH_OVERFETCH_MULTIPLIER)
   if (activeTab !== 'recent') query = query.eq('size_category', activeTab)
   if (outcomeFilter) query = query.eq('outcome', outcomeFilter)
 
   const { data, error } = await query
 
-  const rows: BattleRecordRow[] = (data ?? []).map((r) => {
+  const filteredData = (data ?? []).filter((r) =>
+    isHighEngagement({
+      homeKills: r.home_kills as number,
+      homeDeaths: r.home_deaths as number,
+      homeTeamSize: r.home_team_size as number,
+    }),
+  )
+
+  const rows: BattleRecordRow[] = filteredData.slice(0, limit).map((r) => {
     const battle = Array.isArray(r.battle_records) ? r.battle_records[0] : r.battle_records
     return {
       id: r.id as string,

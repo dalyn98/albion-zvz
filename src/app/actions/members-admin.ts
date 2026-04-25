@@ -798,7 +798,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       ? participationsByMember.byAlbionPlayerId.get(memberAlbionId)
       : undefined
     const killBattles = groupMemberKillsByBattle(killboardRes.data ?? [], trackedBattles)
-    const battles = mergeMemberBattles(killBattles, memberParticipations)
+    const battles = mergeMemberBattles(killBattles, memberParticipations, trackedBattles)
 
     const killboard: KillboardStats = { kills: 0, deaths: 0, kill_fame: 0, death_fame: 0 }
     for (const b of battles) {
@@ -1101,6 +1101,7 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
     const battles = mergeMemberBattles(
       killBattles,
       participationsByMember.byAlbionPlayerId.get(albionPlayerId),
+      trackedBattles,
     )
 
     const killboard: KillboardStats = { kills: 0, deaths: 0, kill_fame: 0, death_fame: 0 }

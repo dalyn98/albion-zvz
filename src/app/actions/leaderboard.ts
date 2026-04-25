@@ -176,7 +176,11 @@ export async function getLeaderboard(
     if (!meta) continue
     const kills = killsByMember.get(albionId) ?? []
     const killBattles = groupMemberKillsByBattle(kills, trackedBattles)
-    const battles = mergeMemberBattles(killBattles, participations.byAlbionPlayerId.get(albionId))
+    const battles = mergeMemberBattles(
+      killBattles,
+      participations.byAlbionPlayerId.get(albionId),
+      trackedBattles,
+    )
     if (battles.length === 0) continue
     let killCount = 0
     let deathCount = 0
