@@ -16,6 +16,9 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'regear_notice_message',
   'events_notice_message',
   'event_creator_role_ids',
+  'event_creator_role_ids_combat',
+  'event_creator_role_ids_ff',
+  'event_creator_role_ids_ganking',
   'bomb_squad_caller_role_ids',
   'regear_window_minutes',
   'regear_max_deaths_per_event',
@@ -49,6 +52,9 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   'shop_delivery_notice',
   // Empty JSON array '[]' = admin-only event creation.
   'event_creator_role_ids',
+  'event_creator_role_ids_combat',
+  'event_creator_role_ids_ff',
+  'event_creator_role_ids_ganking',
   // Empty JSON array '[]' = no member is eligible to be a bomb squad caller;
   // per-party caller picker will be empty and parties can still be created
   // but without a caller (admin/event creator can still approve).
@@ -64,6 +70,9 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
 // JSON array string keys. Must parse to string[] or the upsert is rejected.
 const JSON_ARRAY_KEYS: readonly AppSettingKey[] = [
   'event_creator_role_ids',
+  'event_creator_role_ids_combat',
+  'event_creator_role_ids_ff',
+  'event_creator_role_ids_ganking',
   'bomb_squad_caller_role_ids',
   'aodp_cities',
   'cd_badge_roles',

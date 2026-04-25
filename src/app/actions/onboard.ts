@@ -15,6 +15,7 @@ import { isValidTenantSlug } from '@/lib/tenant-slug'
 import { buildTenantHostUrl } from '@/lib/tenant-resolver'
 import { signHopToken } from '@/lib/oauth-state'
 import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
+import { EVENT_CATEGORIES } from '@/types'
 
 // 온보딩 위저드는 3 단계다. 각 단계별 액션은 세션이 tenant 의 created_by_discord_id
 // 와 일치하는지만 독립적으로 검증하고, 세션 자체(isAdmin 등) 는 bot-callback 에서
@@ -244,7 +245,7 @@ export async function saveTenantRewards(
 
   // canonical 도메인용 세션도 업데이트 (혹시 그대로 canonical 에 남아있어도
   // admin 세션 상태). subdomain 쿠키는 hop token 을 통해 finish 엔드포인트가 심는다.
-  const adminSession = {
+  const adminSession: SessionPayload = {
     discordId: session.discordId,
     username: session.username,
     avatar: session.avatar,
@@ -252,10 +253,11 @@ export async function saveTenantRewards(
     isAdmin: true,
     isGuest: false,
     canCreateEvents: true,
+    eventCreatorCategories: [...EVENT_CATEGORIES],
     eventScope: null,
     guildId: input.tenantId,
     issuedAt: Date.now(),
-  } as const
+  }
 
   const newSession = await signSession(adminSession)
   const cookieStore = await cookies()

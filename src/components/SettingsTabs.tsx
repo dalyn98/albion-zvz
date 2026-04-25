@@ -70,6 +70,9 @@ interface Props {
   eventsNoticeMessage: string
   eventsNoticeImageUrl: string
   eventCreatorRoleIds: string[]
+  eventCreatorCombatRoleIds: string[]
+  eventCreatorFfRoleIds: string[]
+  eventCreatorGankingRoleIds: string[]
   bombSquadCallerRoleIds: string[]
   activeMemberRoleIds: string[]
   lastMemberSyncAt: string | null
@@ -113,6 +116,9 @@ export default function SettingsTabs({
   eventsNoticeMessage,
   eventsNoticeImageUrl,
   eventCreatorRoleIds,
+  eventCreatorCombatRoleIds,
+  eventCreatorFfRoleIds,
+  eventCreatorGankingRoleIds,
   bombSquadCallerRoleIds,
   activeMemberRoleIds,
   lastMemberSyncAt,
@@ -134,6 +140,7 @@ export default function SettingsTabs({
   const t = useTranslations('adminSettings')
   const tEventsNotice = useTranslations('adminEventsNotice')
   const tRegearNotice = useTranslations('adminRegearNotice')
+  const tCategoryRoles = useTranslations('adminEventCreatorCategoryRoles')
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
@@ -207,6 +214,24 @@ export default function SettingsTabs({
           <div className="space-y-4">
             <AdminRoleSetting initialRoleIds={adminRoleIds} />
             <EventCreatorRolesSetting initialRoleIds={eventCreatorRoleIds} />
+            <EventCreatorRolesSetting
+              initialRoleIds={eventCreatorCombatRoleIds}
+              settingKey="event_creator_role_ids_combat"
+              titleOverride={tCategoryRoles('combatTitle')}
+              descriptionOverride={tCategoryRoles('combatDescription')}
+            />
+            <EventCreatorRolesSetting
+              initialRoleIds={eventCreatorFfRoleIds}
+              settingKey="event_creator_role_ids_ff"
+              titleOverride={tCategoryRoles('ffTitle')}
+              descriptionOverride={tCategoryRoles('ffDescription')}
+            />
+            <EventCreatorRolesSetting
+              initialRoleIds={eventCreatorGankingRoleIds}
+              settingKey="event_creator_role_ids_ganking"
+              titleOverride={tCategoryRoles('gankingTitle')}
+              descriptionOverride={tCategoryRoles('gankingDescription')}
+            />
             <BombSquadCallerRolesSetting initialRoleIds={bombSquadCallerRoleIds} />
           </div>
         )}

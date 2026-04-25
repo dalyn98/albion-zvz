@@ -4,7 +4,7 @@ import { getDiscordGuild, exchangeBotInstallCode, getCurrentUser } from '@/lib/d
 import { getAdminClient } from '@/lib/supabase-admin'
 import { isValidTenantSlug } from '@/lib/tenant-resolver'
 import { upsertGuildAvatar } from '@/lib/discord-avatar'
-import { SLOT_ROLES } from '@/types'
+import { SLOT_ROLES, EVENT_CATEGORIES } from '@/types'
 
 const ONBOARD_GUILDS_COOKIE = 'discord_onboard_guilds'
 
@@ -218,6 +218,7 @@ export async function GET(request: NextRequest) {
       isAdmin: true,
       isGuest: false,
       canCreateEvents: true,
+      eventCreatorCategories: [...EVENT_CATEGORIES],
       eventScope: null,
       guildId: tenantId,
       issuedAt: Date.now(),

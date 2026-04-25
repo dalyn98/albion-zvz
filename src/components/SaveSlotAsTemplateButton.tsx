@@ -27,19 +27,31 @@ export default function SaveSlotAsTemplateButton({ slot, defaultName, defaultCat
   const [saved, setSaved] = useState(false)
   const [pending, startTransition] = useTransition()
 
-  const submit = () => {
-    setError('')
-    setSaved(false)
+  const runSave = (data: ReturnType<typeof slotInputToTemplateData>, overwrite: boolean) => {
     startTransition(async () => {
-      const data = slotInputToTemplateData(slot)
-      const result = await saveSlotAsTemplate(name, data, category)
+      const result = await saveSlotAsTemplate(name, data, category, overwrite)
       if (result.error) {
         setError(result.error)
+        return
+      }
+      if (result.requiresConfirmation) {
+        // 같은 이름의 템플릿이 이미 있다 — 사용자가 덮어쓰기를 확정해야만 update 진행.
+        const confirmMsg = t('slotTemplateOverwriteConfirm', { name: name.trim() })
+        if (typeof window !== 'undefined' && window.confirm(confirmMsg)) {
+          runSave(data, true)
+        }
         return
       }
       setSaved(true)
       setOpen(false)
     })
+  }
+
+  const submit = () => {
+    setError('')
+    setSaved(false)
+    const data = slotInputToTemplateData(slot)
+    runSave(data, false)
   }
 
   return (

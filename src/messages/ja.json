@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Menhera",
+    "title": "Albion ZvZ",
     "description": "Albion Online 大規模 PvP 管理ツール"
   },
   "nav": {
@@ -329,6 +329,7 @@
     "slotTemplateCategory_ff": "FF(ファーム)",
     "slotTemplateCategory_ganking": "ガンキング",
     "slotTemplateOverwriteWarn": "適用すると現在のスロット内容が上書きされます。",
+    "slotTemplateOverwriteConfirm": "\"{name}\" という名前のテンプレートは既に存在します。上書きしますか？",
     "slotTemplateNotFound": "テンプレートが見つかりません。",
     "slotTemplateDeleteAria": "{name} を削除",
     "recentBuildsBtn": "最近のビルド",
@@ -599,8 +600,8 @@
     "clearTooltip": "告知を空にしてバナーを非表示にします"
   },
   "adminEventCreatorRoles": {
-    "title": "イベント作成が可能な役割",
-    "description": "選択した Discord 役割を持つメンバーはイベントを作成し、自分が作成したイベントを編集できます。何も選択しない場合は管理者のみがイベントを作成できます。",
+    "title": "イベント作成が可能な役割（全カテゴリ）",
+    "description": "選択した Discord 役割を持つメンバーはすべてのカテゴリでイベントを作成し、自分が作成したイベントを編集できます。何も選択しない場合は管理者のみがイベントを作成できます。カテゴリ別に分けたい場合は下のカテゴリ別設定を使用してください。",
     "reloginHint": "変更は各ユーザーが再度ログインした後に反映されます。",
     "rolesLoading": "役割一覧を読み込み中…",
     "rolesError": "役割一覧の取得に失敗しました。",
@@ -612,6 +613,14 @@
     "save": "保存",
     "saving": "保存中…",
     "saved": "保存しました"
+  },
+  "adminEventCreatorCategoryRoles": {
+    "combatTitle": "戦闘イベント作成が可能な役割",
+    "combatDescription": "この役割を持つメンバーは「戦闘」カテゴリのイベントのみ作成できます。",
+    "ffTitle": "FF イベント作成が可能な役割",
+    "ffDescription": "この役割を持つメンバーは「FF」カテゴリのイベントのみ作成できます。",
+    "gankingTitle": "ガンキングイベント作成が可能な役割",
+    "gankingDescription": "この役割を持つメンバーは「ガンキング」カテゴリのイベントのみ作成できます。"
   },
   "adminActiveMemberRoles": {
     "title": "活動メンバー役割",

@@ -6,12 +6,27 @@ import { useTranslations } from 'next-intl'
 import { Save, ChevronDown, Check, Search } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
 import { listGuildRoles, type DiscordRoleOption } from '@/app/actions/notifications'
+import type { AppSettingKey } from '@/lib/app-settings'
+
+type EventCreatorRolesKey =
+  | 'event_creator_role_ids'
+  | 'event_creator_role_ids_combat'
+  | 'event_creator_role_ids_ff'
+  | 'event_creator_role_ids_ganking'
 
 interface Props {
   initialRoleIds: string[]
+  settingKey?: EventCreatorRolesKey
+  titleOverride?: string
+  descriptionOverride?: string
 }
 
-export default function EventCreatorRolesSetting({ initialRoleIds }: Props) {
+export default function EventCreatorRolesSetting({
+  initialRoleIds,
+  settingKey = 'event_creator_role_ids',
+  titleOverride,
+  descriptionOverride,
+}: Props) {
   const t = useTranslations('adminEventCreatorRoles')
   const router = useRouter()
   const [roles, setRoles] = useState<DiscordRoleOption[] | null>(null)
@@ -75,7 +90,7 @@ export default function EventCreatorRolesSetting({ initialRoleIds }: Props) {
     setSaved(false)
     const ids = [...selected]
     const payload = JSON.stringify(ids)
-    const result = await updateAppSetting('event_creator_role_ids', payload)
+    const result = await updateAppSetting(settingKey as AppSettingKey, payload)
     if (result.error) setError(result.error)
     else {
       setSaved(true)
@@ -87,8 +102,8 @@ export default function EventCreatorRolesSetting({ initialRoleIds }: Props) {
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4">
       <div>
-        <h2 className="font-bold text-white">{t('title')}</h2>
-        <p className="text-gray-500 text-xs mt-1">{t('description')}</p>
+        <h2 className="font-bold text-white">{titleOverride ?? t('title')}</h2>
+        <p className="text-gray-500 text-xs mt-1">{descriptionOverride ?? t('description')}</p>
         <p className="text-amber-400/80 text-xs mt-1">{t('reloginHint')}</p>
       </div>
 

@@ -52,11 +52,17 @@ export interface SlotTemplateRecord {
 
 const MAX_NAME_LENGTH = 80
 
+// 동일 (guild_id, name) 템플릿이 이미 있으면 일단 거부하고 클라이언트에 confirm 을 요구
+// (`requiresConfirmation`). 사용자가 덮어쓰기를 확정하면 `overwrite: true` 로 재호출 →
+// 기존 행을 update. 기본 동작이 silent insert 였던 시절엔 같은 이름 템플릿이 중복 적재되어
+// 로드 다이얼로그가 지저분해졌다. 현재 unique 제약은 없지만 UX 차원에서 한 이름당 한 행만
+// 유지하도록 의도적으로 강제.
 export async function saveSlotAsTemplate(
   name: string,
   data: SlotTemplateData,
   category: EventCategory = '전투',
-): Promise<{ error?: string }> {
+  overwrite: boolean = false,
+): Promise<{ error?: string; requiresConfirmation?: boolean; overwritten?: boolean }> {
   const tErr = await getTranslations('adminActionError')
   try {
     const trimmed = name.trim()
@@ -70,10 +76,32 @@ export async function saveSlotAsTemplate(
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
-    const { error } = await db
+
+    const { data: existing, error: lookupError } = await db
+      .from('slot_templates')
+      .select('id')
+      .eq('guild_id', guildId)
+      .eq('name', trimmed)
+      .maybeSingle()
+    if (lookupError) return { error: lookupError.message }
+
+    if (existing) {
+      if (!overwrite) {
+        return { requiresConfirmation: true }
+      }
+      const { error: updateError } = await db
+        .from('slot_templates')
+        .update({ data, category: resolvedCategory })
+        .eq('guild_id', guildId)
+        .eq('id', existing.id)
+      if (updateError) return { error: updateError.message }
+      return { overwritten: true }
+    }
+
+    const { error: insertError } = await db
       .from('slot_templates')
       .insert({ guild_id: guildId, name: trimmed, data, category: resolvedCategory })
-    if (error) return { error: error.message }
+    if (insertError) return { error: insertError.message }
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

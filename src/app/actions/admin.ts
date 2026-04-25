@@ -94,6 +94,9 @@ export async function createDraftEvent(
       payload.category && EVENT_CATEGORIES.includes(payload.category) ? payload.category : '전투'
     const session = await getSession()
     if (!session?.canCreateEvents) return { error: tErr('unauthorized') }
+    if (!session.isAdmin && !session.eventCreatorCategories.includes(category)) {
+      return { error: tErr('unauthorized') }
+    }
     const db = await requireEventCreator()
     const guildId = await getSessionGuildId(session)
     const { data, error } = await db
@@ -128,6 +131,11 @@ export async function createEvent(payload: EventPayload): Promise<{ id: string }
     if (invalid) return { error: invalid }
     const session = await getSession()
     if (!session?.canCreateEvents) return { error: tErr('unauthorized') }
+    const requestedCategory: EventCategory =
+      payload.category && EVENT_CATEGORIES.includes(payload.category) ? payload.category : '전투'
+    if (!session.isAdmin && !session.eventCreatorCategories.includes(requestedCategory)) {
+      return { error: tErr('unauthorized') }
+    }
     const db = await requireEventCreator()
     const guildId = await getSessionGuildId(session)
     const { data, error } = await db
@@ -153,7 +161,25 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
     const guildId = await getSessionGuildId(session)
-    const { error } = await db.from('events').update(payload).eq('guild_id', guildId).eq('id', id)
+
+    // gather_at 가 바뀌면 자동 시작/임박 DM 의 "이미 처리됨" 표식을 함께 지운다.
+    // 그렇지 않으면 admin 이 시간을 늦춰도 cron 은 옛 발화 기록을 보고 재발동을
+    // 건너뛰어 — DM 이 안 가고 battle_started_at 이 옛 시간으로 굳어진다.
+    const { data: current } = await db
+      .from('events')
+      .select('gather_at')
+      .eq('guild_id', guildId)
+      .eq('id', id)
+      .maybeSingle()
+    const previousGatherAt = (current?.gather_at ?? null) as string | null
+    const gatherAtChanged = previousGatherAt !== payload.gather_at
+    const finalPayload: Record<string, unknown> = { ...payload }
+    if (gatherAtChanged) {
+      finalPayload.battle_started_at = null
+      finalPayload.imminent_notified_at = null
+    }
+
+    const { error } = await db.from('events').update(finalPayload).eq('guild_id', guildId).eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard')
     revalidatePath('/')
@@ -405,9 +431,12 @@ export async function resetBattleStart(id: string): Promise<{ error?: string }> 
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
     const guildId = await getSessionGuildId(session)
+    // imminent_notified_at 도 같이 지운다 — 전투 초기화 후엔 임박 DM 도 재발송
+    // 가능 상태로 되돌리는 게 직관적. gather_at 자체는 그대로 두므로 cron 은
+    // 기존 시간에 다시 발동.
     const { error } = await db
       .from('events')
-      .update({ battle_started_at: null })
+      .update({ battle_started_at: null, imminent_notified_at: null })
       .eq('guild_id', guildId)
       .eq('id', id)
     if (error) return { error: error.message }

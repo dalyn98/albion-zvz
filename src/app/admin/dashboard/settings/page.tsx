@@ -36,6 +36,9 @@ export default async function SettingsPage() {
     eventsNoticeMessage,
     eventsNoticeImageUrl,
     eventCreatorRoleIdsRaw,
+    eventCreatorCombatIdsRaw,
+    eventCreatorFfIdsRaw,
+    eventCreatorGankingIdsRaw,
     bombSquadCallerRoleIdsRaw,
     activeMemberRoleIdsRaw,
     lastMemberSyncAtRaw,
@@ -64,6 +67,9 @@ export default async function SettingsPage() {
     getAppSetting('events_notice_message', '', tenantId),
     getAppSetting('events_notice_image_url', '', tenantId),
     getAppSetting('event_creator_role_ids', '[]', tenantId),
+    getAppSetting('event_creator_role_ids_combat', '[]', tenantId),
+    getAppSetting('event_creator_role_ids_ff', '[]', tenantId),
+    getAppSetting('event_creator_role_ids_ganking', '[]', tenantId),
     getAppSetting('bomb_squad_caller_role_ids', '[]', tenantId),
     getAppSetting('active_member_role_ids', '[]', tenantId),
     getAppSetting('last_member_sync_at', '', tenantId),
@@ -100,6 +106,9 @@ export default async function SettingsPage() {
     }
   }
   const eventCreatorRoleIds = parseRoleIds(eventCreatorRoleIdsRaw)
+  const eventCreatorCombatRoleIds = parseRoleIds(eventCreatorCombatIdsRaw)
+  const eventCreatorFfRoleIds = parseRoleIds(eventCreatorFfIdsRaw)
+  const eventCreatorGankingRoleIds = parseRoleIds(eventCreatorGankingIdsRaw)
   const bombSquadCallerRoleIds = parseRoleIds(bombSquadCallerRoleIdsRaw)
   const activeMemberRoleIds = parseRoleIds(activeMemberRoleIdsRaw)
   const lastMemberSyncAt = lastMemberSyncAtRaw || null
@@ -192,6 +201,9 @@ export default async function SettingsPage() {
         eventsNoticeMessage={eventsNoticeMessage}
         eventsNoticeImageUrl={eventsNoticeImageUrl}
         eventCreatorRoleIds={eventCreatorRoleIds}
+        eventCreatorCombatRoleIds={eventCreatorCombatRoleIds}
+        eventCreatorFfRoleIds={eventCreatorFfRoleIds}
+        eventCreatorGankingRoleIds={eventCreatorGankingRoleIds}
         bombSquadCallerRoleIds={bombSquadCallerRoleIds}
         activeMemberRoleIds={activeMemberRoleIds}
         lastMemberSyncAt={lastMemberSyncAt}

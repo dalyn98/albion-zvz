@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Menhera",
+    "title": "Albion ZvZ",
     "description": "Albion Online 대규모 PvP 관리 도구"
   },
   "nav": {
@@ -329,6 +329,7 @@
     "slotTemplateCategory_ff": "FF(페임파밍)",
     "slotTemplateCategory_ganking": "갱킹",
     "slotTemplateOverwriteWarn": "적용하면 현재 슬롯 내용이 덮어써집니다.",
+    "slotTemplateOverwriteConfirm": "\"{name}\" 라는 이름의 템플릿이 이미 있습니다. 덮어쓰시겠습니까?",
     "slotTemplateNotFound": "템플릿을 찾을 수 없습니다.",
     "slotTemplateDeleteAria": "{name} 삭제",
     "recentBuildsBtn": "최근 빌드",
@@ -599,8 +600,8 @@
     "clearTooltip": "공지를 비워 배너를 숨깁니다"
   },
   "adminEventCreatorRoles": {
-    "title": "이벤트 생성 허용 역할",
-    "description": "선택한 Discord 역할을 가진 구성원은 이벤트를 생성하고, 자신이 만든 이벤트를 편집할 수 있습니다. 아무것도 선택하지 않으면 관리자만 이벤트를 만들 수 있습니다.",
+    "title": "이벤트 생성 허용 역할 (전체)",
+    "description": "선택한 Discord 역할을 가진 구성원은 모든 카테고리의 이벤트를 생성하고, 자신이 만든 이벤트를 편집할 수 있습니다. 아무것도 선택하지 않으면 관리자만 이벤트를 만들 수 있습니다. 카테고리별로 따로 지정하려면 아래 카테고리별 설정을 사용하세요.",
     "reloginHint": "변경 사항은 각 사용자가 다시 로그인한 뒤부터 적용됩니다.",
     "rolesLoading": "역할 목록을 불러오는 중…",
     "rolesError": "역할 목록을 가져오지 못했습니다.",
@@ -612,6 +613,14 @@
     "save": "저장",
     "saving": "저장 중…",
     "saved": "저장됨"
+  },
+  "adminEventCreatorCategoryRoles": {
+    "combatTitle": "전투 이벤트 생성 허용 역할",
+    "combatDescription": "이 역할을 가진 구성원은 '전투' 카테고리 이벤트만 생성할 수 있습니다.",
+    "ffTitle": "FF 이벤트 생성 허용 역할",
+    "ffDescription": "이 역할을 가진 구성원은 'FF' 카테고리 이벤트만 생성할 수 있습니다.",
+    "gankingTitle": "갱킹 이벤트 생성 허용 역할",
+    "gankingDescription": "이 역할을 가진 구성원은 '갱킹' 카테고리 이벤트만 생성할 수 있습니다."
   },
   "adminActiveMemberRoles": {
     "title": "활동 회원 역할",

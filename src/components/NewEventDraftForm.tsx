@@ -13,13 +13,18 @@ import { useTranslations } from 'next-intl'
 import { createDraftEvent } from '@/app/actions/admin'
 import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, type EventCategory } from '@/types'
 
-export default function NewEventDraftForm() {
+interface Props {
+  allowedCategories: EventCategory[]
+}
+
+export default function NewEventDraftForm({ allowedCategories }: Props) {
   const router = useRouter()
   const t = useTranslations('adminEventForm')
   const tCommon = useTranslations('common')
   const titleId = useId()
   const [title, setTitle] = useState('')
-  const [category, setCategory] = useState<EventCategory>('전투')
+  const visibleCategories = allowedCategories.length > 0 ? allowedCategories : [...EVENT_CATEGORIES]
+  const [category, setCategory] = useState<EventCategory>(visibleCategories[0] ?? '전투')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -62,7 +67,7 @@ export default function NewEventDraftForm() {
       <div>
         <label className="text-gray-400 text-xs mb-1 block">{t('categoryLabel')}</label>
         <div className="inline-flex bg-gray-800 border border-gray-700 rounded-lg p-0.5 text-sm font-semibold">
-          {EVENT_CATEGORIES.map((c) => (
+          {visibleCategories.map((c) => (
             <button
               key={c}
               type="button"

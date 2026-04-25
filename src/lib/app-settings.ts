@@ -16,6 +16,14 @@ export type AppSettingKey =
   // `SessionPayload.canCreateEvents` — changes require affected users to
   // re-login before taking effect.
   | 'event_creator_role_ids'
+  // Per-category event creator role IDs (전투/FF/갱킹). 각 키는 JSON array
+  // (string) of Discord role IDs. 비어 있으면 같은 카테고리에 대해 admin 전용.
+  // legacy `event_creator_role_ids` 가 채워져 있으면 그 값이 모든 카테고리에
+  // 대해 추가로 부여 — backward-compat 을 위한 fallback. 세션에 카테고리 단위
+  // 화이트리스트(`SessionPayload.eventCreatorCategories`) 로 baked-in.
+  | 'event_creator_role_ids_combat'
+  | 'event_creator_role_ids_ff'
+  | 'event_creator_role_ids_ganking'
   // JSON array (string) of Discord role IDs. Holders are eligible to be
   // assigned as a bomb squad caller on a per-party basis. The flag is baked
   // into `guild_avatars.is_bomb_squad_caller` at login, so role changes take

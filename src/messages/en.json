@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Menhera",
+    "title": "Albion ZvZ",
     "description": "Albion Online ZvZ management tool"
   },
   "nav": {
@@ -329,6 +329,7 @@
     "slotTemplateCategory_ff": "FF (Fame farm)",
     "slotTemplateCategory_ganking": "Ganking",
     "slotTemplateOverwriteWarn": "Applying will overwrite the current slot contents.",
+    "slotTemplateOverwriteConfirm": "A template named \"{name}\" already exists. Overwrite?",
     "slotTemplateNotFound": "Template not found.",
     "slotTemplateDeleteAria": "Delete {name}",
     "recentBuildsBtn": "Recent builds",
@@ -599,8 +600,8 @@
     "clearTooltip": "Empty the notice to hide the banner"
   },
   "adminEventCreatorRoles": {
-    "title": "Event creator roles",
-    "description": "Members with any of the selected Discord roles can create events and edit the events they created. Leave empty to keep event creation admin-only.",
+    "title": "Event creator roles (all categories)",
+    "description": "Members with any of the selected Discord roles can create events of every category and edit the events they created. Leave empty to keep event creation admin-only. Use the per-category settings below to grant a role only to a specific category.",
     "reloginHint": "Changes take effect after each user signs in again.",
     "rolesLoading": "Loading roles…",
     "rolesError": "Failed to load role list.",
@@ -612,6 +613,14 @@
     "save": "Save",
     "saving": "Saving…",
     "saved": "Saved"
+  },
+  "adminEventCreatorCategoryRoles": {
+    "combatTitle": "Combat event creator roles",
+    "combatDescription": "Members with any of these Discord roles can create only 'Combat' category events.",
+    "ffTitle": "FF event creator roles",
+    "ffDescription": "Members with any of these Discord roles can create only 'FF' category events.",
+    "gankingTitle": "Ganking event creator roles",
+    "gankingDescription": "Members with any of these Discord roles can create only 'Ganking' category events."
   },
   "adminActiveMemberRoles": {
     "title": "Active member roles",

@@ -12,6 +12,7 @@ import {
 import { SESSION_COOKIE_NAME, cookieOptions, signSession, type SessionPayload } from '@/lib/session'
 import { upsertGuildAvatar } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
+import { EVENT_CATEGORIES, type EventCategory } from '@/types'
 import { getAdminClient } from '@/lib/supabase-admin'
 import {
   getPrimaryTenantId,
@@ -45,7 +46,12 @@ function resolvePostLoginPath(
 }
 
 async function loadRoleIdSetting(
-  key: 'event_creator_role_ids' | 'bomb_squad_caller_role_ids',
+  key:
+    | 'event_creator_role_ids'
+    | 'event_creator_role_ids_combat'
+    | 'event_creator_role_ids_ff'
+    | 'event_creator_role_ids_ganking'
+    | 'bomb_squad_caller_role_ids',
   guildId: string,
 ): Promise<string[]> {
   try {
@@ -120,6 +126,7 @@ async function onboardingResponse(
     isAdmin: false,
     isGuest: false,
     canCreateEvents: false,
+    eventCreatorCategories: [],
     eventScope: null,
     guildId: null,
     issuedAt: Date.now(),
@@ -206,13 +213,31 @@ export async function GET(request: NextRequest) {
       const { isAdmin, isMember } = identity
 
       if (isMember) {
-        const [eventCreatorRoleIds, bombSquadCallerRoleIds] = await Promise.all([
-          loadRoleIdSetting('event_creator_role_ids', tenant.id),
-          loadRoleIdSetting('bomb_squad_caller_role_ids', tenant.id),
-        ])
+        const [legacyIds, combatIds, ffIds, gankingIds, bombSquadCallerRoleIds] = await Promise.all(
+          [
+            loadRoleIdSetting('event_creator_role_ids', tenant.id),
+            loadRoleIdSetting('event_creator_role_ids_combat', tenant.id),
+            loadRoleIdSetting('event_creator_role_ids_ff', tenant.id),
+            loadRoleIdSetting('event_creator_role_ids_ganking', tenant.id),
+            loadRoleIdSetting('bomb_squad_caller_role_ids', tenant.id),
+          ],
+        )
         const memberRoleSet = new Set(member.roles)
-        const hasEventCreatorRole = eventCreatorRoleIds.some((id) => memberRoleSet.has(id))
-        const canCreateEvents = isAdmin || hasEventCreatorRole
+        const hasLegacy = legacyIds.some((id) => memberRoleSet.has(id))
+        const eventCreatorCategories: EventCategory[] = isAdmin
+          ? [...EVENT_CATEGORIES]
+          : [
+              ...(hasLegacy || combatIds.some((id) => memberRoleSet.has(id))
+                ? (['전투'] as const)
+                : []),
+              ...(hasLegacy || ffIds.some((id) => memberRoleSet.has(id))
+                ? (['FF'] as const)
+                : []),
+              ...(hasLegacy || gankingIds.some((id) => memberRoleSet.has(id))
+                ? (['갱킹'] as const)
+                : []),
+            ]
+        const canCreateEvents = isAdmin || eventCreatorCategories.length > 0
         const isBombSquadCaller = bombSquadCallerRoleIds.some((id) => memberRoleSet.has(id))
         const displayName = identity.username
 
@@ -261,6 +286,7 @@ export async function GET(request: NextRequest) {
           isAdmin,
           isGuest: false,
           canCreateEvents,
+          eventCreatorCategories,
           eventScope: null,
           guildId: tenant.id,
           issuedAt: Date.now(),
@@ -374,6 +400,7 @@ export async function GET(request: NextRequest) {
       isAdmin: false,
       isGuest: true,
       canCreateEvents: false,
+      eventCreatorCategories: [],
       eventScope,
       guildId: guestGuildId,
       issuedAt: Date.now(),
