@@ -52,7 +52,9 @@ export async function startBotInstall(guildId: string): Promise<void> {
   cookieStore.set(BOT_INSTALL_STATE_COOKIE, state, baseCookie)
   cookieStore.set(BOT_INSTALL_GUILD_COOKIE, guildId, baseCookie)
 
-  redirect(buildBotInstallUrl({ guildId, state }))
+  const installUrl = buildBotInstallUrl({ guildId, state })
+  console.log('[startBotInstall] redirecting to', installUrl)
+  redirect(installUrl)
 }
 
 interface TenantOwnerCheck {
