@@ -2091,7 +2091,13 @@
     "crossPerspectiveBanner": "[{tenant}] の視点で表示中",
     "crossPerspectiveHint": "メンバー情報は非公開で、Albion ニックネームのみ表示されます。",
     "crossPerspectiveAvailable": "他の視点で見る",
-    "crossPerspectiveLink": "[{tenant}] の視点"
+    "crossPerspectiveLink": "[{tenant}] の視点",
+    "opponentGuildsTitle": "相手ギルド内訳 ({count})",
+    "opponentGuildsHint": "10名以上参加したギルドのみ表示されます。",
+    "opponentGuildsEmpty": "集計規模を満たした相手ギルドはありません。",
+    "opponentGuildTeamSize": "{count}名",
+    "opponentGuildKd": "{kills} / {deaths}",
+    "opponentGuildKillFame": "{fame} 名声"
   },
   "shopPublic": {
     "loginRequiredPrefix": "アイテムを注文するには",

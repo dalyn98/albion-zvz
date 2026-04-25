@@ -2091,7 +2091,13 @@
     "crossPerspectiveBanner": "[{tenant}] 시점 보기",
     "crossPerspectiveHint": "멤버 정보는 비공개로 처리되어 Albion 닉네임만 표시됩니다.",
     "crossPerspectiveAvailable": "다른 시점 보기",
-    "crossPerspectiveLink": "[{tenant}] 시점"
+    "crossPerspectiveLink": "[{tenant}] 시점",
+    "opponentGuildsTitle": "상대 길드 분해 ({count})",
+    "opponentGuildsHint": "10명 이상 참가한 길드만 표시됩니다.",
+    "opponentGuildsEmpty": "집계 규모를 만족한 상대 길드가 없습니다.",
+    "opponentGuildTeamSize": "{count}명",
+    "opponentGuildKd": "{kills} / {deaths}",
+    "opponentGuildKillFame": "{fame} 명성"
   },
   "shopPublic": {
     "loginRequiredPrefix": "아이템을 주문하려면 ",

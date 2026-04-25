@@ -194,12 +194,15 @@ function RosterRow({ entry }: { entry: AlbionRosterEntry }) {
 
   // 미연동 (Discord 가입 자체가 없음) 멤버는 albion_player_id 기반 슬림 상세로.
   // 탈퇴 처리된 행은 빠르게 회복할 방법이 없으므로 비활성 div.
+  // hover 시 배경 불투명도를 끌어올려 "연동 카드와 다르지만 누를 수 있다" 가
+  // 시각적으로 분명히 보이도록 — 이전엔 60% opacity 라 회색 진열장처럼 보여
+  // 클릭 어포던스가 약했음.
   if (!isWithdrawn) {
     return (
       <li>
         <Link
           href={`/members/albion/${entry.albion_player_id}`}
-          className="block bg-gray-900/60 border border-gray-800 hover:border-gray-600 rounded-lg transition-colors"
+          className="block bg-gray-900/70 border border-gray-800 hover:bg-gray-900 hover:border-gray-500 rounded-lg transition-colors"
         >
           {inner}
         </Link>

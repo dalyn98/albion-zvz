@@ -2091,7 +2091,13 @@
     "crossPerspectiveBanner": "Viewing as [{tenant}]",
     "crossPerspectiveHint": "Member information is anonymized — only Albion nicknames are shown.",
     "crossPerspectiveAvailable": "Other perspectives",
-    "crossPerspectiveLink": "[{tenant}] perspective"
+    "crossPerspectiveLink": "[{tenant}] perspective",
+    "opponentGuildsTitle": "Opponent guilds ({count})",
+    "opponentGuildsHint": "Only guilds with 10+ participants are shown.",
+    "opponentGuildsEmpty": "No opponent guild met the aggregation threshold.",
+    "opponentGuildTeamSize": "{count} players",
+    "opponentGuildKd": "{kills} / {deaths}",
+    "opponentGuildKillFame": "{fame} fame"
   },
   "shopPublic": {
     "loginRequiredPrefix": "To order items, ",

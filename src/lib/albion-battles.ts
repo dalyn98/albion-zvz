@@ -246,3 +246,64 @@ export function collectInvolvedIds(battle: AlbionBattle): {
   const allianceIds = Object.keys(battle.alliances ?? {}).filter((id) => id !== '')
   return { guildIds, allianceIds }
 }
+
+export interface OpponentGuildBreakdown {
+  guildId: string
+  guildName: string
+  allianceName: string | null
+  teamSize: number
+  kills: number
+  deaths: number
+  killFame: number
+}
+
+// 상대 측의 길드별 분석. 홈 길드/얼라이언스를 제외한 나머지 길드를 개별 행으로
+// 돌려준다. teamSize 는 raw_battle.players 에서 직접 카운트 (battle.guilds 의
+// 통계 필드는 길드 내부 인원 수가 아니라 누적 킬/데스/페임). killFame desc 로 정렬.
+//
+// minTeamSize 인자: 1~2명 갱크/스트래글러 같은 소규모 참가 길드를 잘라낼 때.
+// 기본값 0 (필터 없음). 호출 측에서 "집계 규모에 맞는 길드만" 같은 정책에 따라
+// 컷오프를 지정.
+export function computeOpponentGuildBreakdown(
+  battle: AlbionBattle,
+  homeGuildId: string,
+  options: { minTeamSize?: number } = {},
+): OpponentGuildBreakdown[] {
+  const sides = computeSides(battle, homeGuildId)
+  if (!sides) return []
+  const minTeamSize = options.minTeamSize ?? 0
+
+  const opponentGuildSet = new Set(sides.opponent.guildIds)
+  const teamSizeByGuild = new Map<string, number>()
+  for (const player of Object.values(battle.players ?? {})) {
+    if (!opponentGuildSet.has(player.guildId)) continue
+    teamSizeByGuild.set(player.guildId, (teamSizeByGuild.get(player.guildId) ?? 0) + 1)
+  }
+
+  const rows: OpponentGuildBreakdown[] = []
+  for (const gid of sides.opponent.guildIds) {
+    const g = battle.guilds[gid]
+    if (!g) continue
+    const teamSize = teamSizeByGuild.get(gid) ?? 0
+    if (teamSize < minTeamSize) continue
+    const allianceName =
+      g.allianceId && battle.alliances?.[g.allianceId]?.name
+        ? battle.alliances[g.allianceId].name
+        : null
+    rows.push({
+      guildId: gid,
+      guildName: g.name,
+      allianceName,
+      teamSize,
+      kills: g.kills,
+      deaths: g.deaths,
+      killFame: g.killFame,
+    })
+  }
+
+  rows.sort((a, b) => {
+    if (b.killFame !== a.killFame) return b.killFame - a.killFame
+    return b.teamSize - a.teamSize
+  })
+  return rows
+}

@@ -3,7 +3,18 @@
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
-import type { SizeCategory } from '@/lib/albion-battles'
+import {
+  computeOpponentGuildBreakdown,
+  type AlbionBattle,
+  type OpponentGuildBreakdown,
+  type SizeCategory,
+} from '@/lib/albion-battles'
+
+// 1~2명 스트래글러는 "집계 규모에 맞는 길드" 가 아니다 — small 카테고리 최소
+// 인원 (10) 과 동일한 컷을 적용해 노이즈를 잘라낸다. tenant_battle_records 자체가
+// 이미 opponent 측 합계 인원 < 10 이면 기록되지 않으므로, 같은 임계로 개별 길드도
+// 거른다.
+const OPPONENT_GUILD_MIN_TEAM_SIZE = 10
 
 // 단일 tenant_battle_records 의 상세. 전투 헤더 정보 + 해당 전투 시간창 안에서
 // 길드원이 낸 킬/데스 이벤트 목록. 길드원 판정은 guild_avatars 조인 — 탈퇴자
@@ -53,6 +64,9 @@ export interface BattleDetail {
   primaryOpponentName: string | null
   sizeCategory: SizeCategory
   outcome: 'win' | 'loss' | 'tie'
+  // 상대 측 길드별 분해. raw_battle 에서 직접 계산 — 1~2명 스트래글러 컷오프
+  // (OPPONENT_GUILD_MIN_TEAM_SIZE) 적용. raw_battle 이 없는 구 행이면 빈 배열.
+  opponentGuilds: OpponentGuildBreakdown[]
   // 전투 시간창 안에서 길드원이 낸 killboard 이벤트. occurred_at 오름차순.
   events: BattleKillEvent[]
   // anonymized 보기 (cross-tenant) 에서는 events 의 discord identity 가 가려지고
@@ -100,7 +114,7 @@ export async function getBattleDetail(
     const { data: myRow, error: myErr } = await db
       .from('tenant_battle_records')
       .select(
-        'id, battle_record_id, home_guild_name, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name, ended_at)',
+        'id, battle_record_id, home_guild_id, home_guild_name, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name, ended_at, raw_battle)',
       )
       .eq('guild_id', myGuildId)
       .eq('id', id)
@@ -164,7 +178,7 @@ export async function getBattleDetail(
           const { data: peerFull, error: peerFullErr } = await db
             .from('tenant_battle_records')
             .select(
-              'id, battle_record_id, home_guild_name, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name, ended_at)',
+              'id, battle_record_id, home_guild_id, home_guild_name, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name, ended_at, raw_battle)',
             )
             .eq('guild_id', peerGuildId)
             .eq('battle_record_id', battleRecordId)
@@ -188,6 +202,15 @@ export async function getBattleDetail(
       ? activeRow.battle_records[0]
       : activeRow.battle_records
     const endedAt = (battle?.ended_at as string | null) ?? (activeRow.started_at as string)
+
+    // 상대 길드 분해: raw_battle 이 있으면 Albion API 원본에서 직접 측 분리.
+    // raw_battle 부재(이론상 없음 — battle_records.raw_battle 은 NOT NULL) 시 빈 배열.
+    const rawBattle = (battle?.raw_battle as unknown) as AlbionBattle | null
+    const opponentGuilds: OpponentGuildBreakdown[] = rawBattle
+      ? computeOpponentGuildBreakdown(rawBattle, activeRow.home_guild_id as string, {
+          minTeamSize: OPPONENT_GUILD_MIN_TEAM_SIZE,
+        })
+      : []
 
     const startMs = Date.parse(activeRow.started_at as string)
     const endMs = Date.parse(endedAt)
@@ -272,6 +295,7 @@ export async function getBattleDetail(
       primaryOpponentName: (activeRow.primary_opponent_name as string | null) ?? null,
       sizeCategory: activeRow.size_category as SizeCategory,
       outcome: activeRow.outcome as 'win' | 'loss' | 'tie',
+      opponentGuilds,
       events: battleEvents,
       anonymized,
       crossTenants,

@@ -7,6 +7,7 @@ import {
   MapPin,
   Clock,
   Sword,
+  Shield,
   ChevronDown,
   EyeOff,
   Users,
@@ -174,6 +175,48 @@ export default async function BattleDetailView({ detail, battleId }: Props) {
           />
         </div>
       </header>
+
+      <section className="space-y-2">
+        <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
+          <Shield size={14} className="text-amber-400" />
+          {t('opponentGuildsTitle', { count: detail.opponentGuilds.length })}
+        </h2>
+        {detail.opponentGuilds.length === 0 ? (
+          <p className="text-gray-500 text-xs">{t('opponentGuildsEmpty')}</p>
+        ) : (
+          <>
+            <p className="text-gray-500 text-[11px]">{t('opponentGuildsHint')}</p>
+            <ul className="space-y-1.5">
+              {detail.opponentGuilds.map((g) => (
+                <li
+                  key={g.guildId}
+                  className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 flex items-center gap-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-white text-sm font-semibold truncate">{g.guildName}</p>
+                    {g.allianceName && (
+                      <p className="text-amber-300/80 text-[10px] truncate">[{g.allianceName}]</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs font-mono flex-shrink-0">
+                    <span className="text-gray-400">
+                      {t('opponentGuildTeamSize', { count: g.teamSize })}
+                    </span>
+                    <span>
+                      <span className="text-emerald-400">{g.kills}</span>
+                      <span className="text-gray-600">/</span>
+                      <span className="text-red-400">{g.deaths}</span>
+                    </span>
+                    <span className="text-gray-500">
+                      {t('opponentGuildKillFame', { fame: formatFame(g.killFame) })}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
 
       <section className="space-y-2">
         <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
