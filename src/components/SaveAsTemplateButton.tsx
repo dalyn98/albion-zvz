@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Save, X } from 'lucide-react'
+import { Save, X, AlertTriangle } from 'lucide-react'
 import { saveEventAsTemplate } from '@/app/actions/templates'
 
 interface Props {
@@ -18,19 +18,32 @@ export default function SaveAsTemplateButton({ eventId, defaultName }: Props) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState(defaultName)
   const [error, setError] = useState('')
+  const [conflictName, setConflictName] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
-  const submit = () => {
+  const runSave = (overwrite: boolean) => {
     setError('')
     startTransition(async () => {
-      const result = await saveEventAsTemplate(eventId, name)
+      const result = await saveEventAsTemplate(eventId, name, { overwrite })
       if (result.error) {
         setError(result.error)
+        setConflictName(null)
+        return
+      }
+      if (result.conflictId && !overwrite) {
+        // 같은 이름의 기존 템플릿 발견 — 사용자에게 덮어쓰기 의사 확인.
+        setConflictName(result.conflictName ?? name)
         return
       }
       setOpen(false)
+      setConflictName(null)
       router.refresh()
     })
+  }
+
+  const submit = () => {
+    if (!name.trim()) return
+    runSave(false)
   }
 
   return (
@@ -40,6 +53,7 @@ export default function SaveAsTemplateButton({ eventId, defaultName }: Props) {
         onClick={() => {
           setName(defaultName)
           setError('')
+          setConflictName(null)
           setOpen(true)
         }}
         className="flex items-center gap-1.5 text-xs font-medium text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-lg px-3 py-2 transition-colors"
@@ -77,7 +91,10 @@ export default function SaveAsTemplateButton({ eventId, defaultName }: Props) {
                 <input
                   type="text"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value)
+                    setConflictName(null)
+                  }}
                   placeholder={t('templateNamePlaceholder')}
                   maxLength={80}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
@@ -106,6 +123,46 @@ export default function SaveAsTemplateButton({ eventId, defaultName }: Props) {
                 className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-4 py-2 rounded-lg text-sm"
               >
                 {pending ? t('savingDots') : tCommon('save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {conflictName && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4"
+          onClick={() => !pending && setConflictName(null)}
+        >
+          <div
+            className="bg-gray-900 border border-amber-500/40 rounded-2xl w-full max-w-sm p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={18} className="text-amber-400 mt-0.5 shrink-0" />
+              <div className="space-y-1">
+                <h3 className="font-bold text-white text-base">{t('saveOverwriteTitle')}</h3>
+                <p className="text-gray-300 text-xs leading-relaxed">
+                  {t('saveOverwriteBody', { name: conflictName })}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => !pending && setConflictName(null)}
+                disabled={pending}
+                className="text-gray-400 hover:text-white text-sm px-3 py-2 disabled:opacity-40"
+              >
+                {tCommon('cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => runSave(true)}
+                disabled={pending}
+                className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-4 py-2 rounded-lg text-sm"
+              >
+                {pending ? t('savingDots') : t('saveOverwriteConfirmBtn')}
               </button>
             </div>
           </div>

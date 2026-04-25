@@ -62,10 +62,15 @@ export interface TemplateRecord {
   created_at: string
 }
 
+// 같은 이름의 기존 템플릿이 있을 때 호출자가 의도를 한 번 더 확정하지 않고
+// 무심코 덮어쓰는 사고를 막기 위해, 기본 동작은 "이름 충돌이면 conflictId 만
+// 돌려주고 저장은 미루기". UI 측에서 confirm 후 overwrite=true 로 재호출하면
+// 그때 실제로 기존 row 의 data 만 갱신한다 (이름과 created_at 은 유지).
 export async function saveEventAsTemplate(
   eventId: string,
   name: string,
-): Promise<{ error?: string }> {
+  options: { overwrite?: boolean } = {},
+): Promise<{ error?: string; conflictId?: string; conflictName?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
     const trimmed = name.trim()
@@ -97,10 +102,34 @@ export async function saveEventAsTemplate(
       })),
     }
 
-    const { error: insertError } = await db
+    // name 컬럼에 UNIQUE 제약이 없어 이론상 중복 row 가 있을 수 있으나 평소엔
+    // 같은 이름이 1개 이하다. 가장 최근 row 를 기준으로 충돌 검사.
+    const { data: existingRows, error: existingErr } = await db
       .from('event_templates')
-      .insert({ guild_id: guildId, name: trimmed, data })
-    if (insertError) return { error: insertError.message }
+      .select('id, name')
+      .eq('guild_id', guildId)
+      .eq('name', trimmed)
+      .order('created_at', { ascending: false })
+      .limit(1)
+    if (existingErr) return { error: existingErr.message }
+    const existing = existingRows?.[0]
+
+    if (existing) {
+      if (!options.overwrite) {
+        return { conflictId: existing.id, conflictName: existing.name }
+      }
+      const { error: updateError } = await db
+        .from('event_templates')
+        .update({ data })
+        .eq('guild_id', guildId)
+        .eq('id', existing.id)
+      if (updateError) return { error: updateError.message }
+    } else {
+      const { error: insertError } = await db
+        .from('event_templates')
+        .insert({ guild_id: guildId, name: trimmed, data })
+      if (insertError) return { error: insertError.message }
+    }
 
     revalidatePath('/admin/dashboard')
     return {}
