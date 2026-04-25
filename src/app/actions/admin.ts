@@ -26,8 +26,6 @@ import {
   isSpecLessSlot,
 } from '@/types'
 
-const DEFAULT_EVENT_NOTIFICATION_MESSAGE = '새 이벤트가 등록되었습니다.'
-
 // 카테고리와 무관하게 존재할 수 있는 가장 큰 파티 번호 — 입력이 터무니없이
 // 크면 아래 category-aware 검증 이전에 빠르게 차단.
 const HARD_MAX_PARTIES = Math.max(...Object.values(CATEGORY_PARTY_LIMITS).map((l) => l.max))
@@ -236,11 +234,14 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
       .maybeSingle()
     if (error) return { error: error.message }
     if (!data) return { error: tErr('eventNotFound') }
-    const content = await getAppSetting(
-      'event_notification_message',
-      DEFAULT_EVENT_NOTIFICATION_MESSAGE,
-      guildId,
-    )
+    // 관리자가 설정 화면에서 알림 문구를 저장하지 않은 경우 호출자(관리자)
+    // 의 locale 에 맞는 기본 문구를 사용. 길드별 단일 언어 설정은 없지만,
+    // 알림을 트리거하는 사람의 locale 이 길드 운영 언어일 가능성이 가장 높다.
+    const tEvent = await getTranslations('event')
+    const savedMessage = await getAppSetting('event_notification_message', '', guildId)
+    const content = savedMessage.trim().length > 0
+      ? savedMessage
+      : tEvent('defaultNotificationMessage')
     // notify_channel_id 가 null 이면 tenant 기본 채널로 fallback. tenant 도
     // 안 설정되어 있으면 sendEventNotification 에서 throw — 관리자가 채널 설정
     // 누락을 바로 인지할 수 있게 조용한 실패를 피한다.

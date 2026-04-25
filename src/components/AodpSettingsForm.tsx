@@ -13,7 +13,6 @@ import { updateAppSetting } from '@/app/actions/settings'
 import {
   AODP_ALLOWED_CITIES,
   AODP_CITY_LABEL,
-  AODP_INFO_TOOLTIP,
 } from '@/lib/shop/aodp-constants'
 
 type PriceMode = 'spot' | 'avg_1d' | 'avg_3d' | 'avg_7d' | 'avg_14d'
@@ -49,6 +48,7 @@ export default function AodpSettingsForm({ initialCities, initialMode, initialMi
   const router = useRouter()
   const tc = useTranslations('common')
   const t = useTranslations('adminAodp')
+  const tShop = useTranslations('shop')
   // 기준 도시는 1개만. 기존에 여러 개 저장됐던 값도 첫 항목만 남긴다.
   const [city, setCity] = useState<string>(
     initialCities[0] ?? (AODP_ALLOWED_CITIES[0] as string),
@@ -92,7 +92,7 @@ export default function AodpSettingsForm({ initialCities, initialMode, initialMi
             <span
               className="inline-flex cursor-help text-gray-500"
               aria-label={t('tooltipAria')}
-              title={AODP_INFO_TOOLTIP}
+              title={tShop('aodpTooltip')}
             >
               <Info size={12} />
             </span>

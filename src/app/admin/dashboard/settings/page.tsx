@@ -7,10 +7,10 @@ import { SLOT_ROLES, type SlotRole } from '@/types'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 
-const DEFAULT_EVENT_NOTIFICATION_MESSAGE = '새 이벤트가 등록되었습니다.'
-
-// Never prerender — settings values can change from the admin UI and we want
-// every visit to read the live row, not a snapshot from build time.
+// 알림 메시지의 기본값은 빈 문자열 — 폼은 초기값이 비어 있으면 locale 별
+// `messagePlaceholder` 를 노출하므로, 관리자는 자신이 사용하는 언어의 예시를
+// 본 채로 직접 입력하게 된다. 비-한국어 길드 관리자가 한국어 기본값을 그대로
+// 보던 문제 해결.
 export const dynamic = 'force-dynamic'
 
 export default async function SettingsPage() {
@@ -56,7 +56,7 @@ export default async function SettingsPage() {
     tLanding,
     t,
   ] = await Promise.all([
-    getAppSetting('event_notification_message', DEFAULT_EVENT_NOTIFICATION_MESSAGE, tenantId),
+    getAppSetting('event_notification_message', '', tenantId),
     getAppSetting('landing_banner_url', '', tenantId),
     getAppSetting('landing_cta_text', '', tenantId),
     getAppSetting('regear_notice_message', '', tenantId),

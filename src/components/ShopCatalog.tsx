@@ -16,7 +16,6 @@ import {
   Info,
 } from 'lucide-react'
 import { submitShopOrder } from '@/app/actions/shop-member'
-import { AODP_INFO_TOOLTIP } from '@/lib/shop/aodp-constants'
 import HoverTip from './HoverTip'
 
 export type ShopPriceWarning = 'quality' | 'window' | 'bluezone' | 'redzone' | null
@@ -85,6 +84,7 @@ export default function ShopCatalog({
 }: Props) {
   const router = useRouter()
   const t = useTranslations('shopCatalog')
+  const tShop = useTranslations('shop')
   const [query, setQuery] = useState('')
   const [tier, setTier] = useState<number | 'all'>('all')
   const [cart, setCart] = useState<CartLine[]>([])
@@ -174,7 +174,7 @@ export default function ShopCatalog({
           <span>{t('baseCityLabel')}</span>
           <span className="text-amber-300 font-semibold">{baseCityLabel}</span>
           <HoverTip
-            label={AODP_INFO_TOOLTIP}
+            label={tShop('aodpTooltip')}
             placement="bottom"
             triggerClassName="inline-flex items-center cursor-help text-gray-500"
           >

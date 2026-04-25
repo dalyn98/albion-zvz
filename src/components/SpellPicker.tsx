@@ -114,9 +114,9 @@ export default function SpellPicker({
         setError('')
         setTick((t) => t + 1)
       })
-      .catch((e) => {
+      .catch(() => {
         if (cancelled) return
-        setError(e instanceof Error ? e.message : t('spellLoadFailed'))
+        setError(t('spellLoadFailed'))
       })
     return () => {
       cancelled = true

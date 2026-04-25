@@ -95,11 +95,18 @@
   },
   "adminApprovals": {
     "pageTitle": "승인 관리",
-    "pageDescription": "리기어·환전·기부 신청을 한 곳에서 검토합니다.",
+    "pageDescription": "리기어·환전·기부·상점 주문을 한 곳에서 검토합니다.",
     "tabsLabel": "승인 유형 탭",
     "tabRegear": "리기어",
     "tabExchange": "환전",
-    "tabDonation": "기부"
+    "tabDonation": "기부",
+    "tabShop": "상점 주문"
+  },
+  "adminShopReview": {
+    "scopePending": "대기중",
+    "scopeAll": "전체",
+    "noPending": "대기중인 주문이 없습니다.",
+    "noRequests": "주문 내역이 없습니다."
   },
   "adminNewEvent": {
     "title": "새 이벤트",
@@ -339,7 +346,8 @@
     "recentBuildsEmpty": "최근 빌드가 없습니다. 슬롯을 구성하고 완료를 누르면 자동 저장됩니다.",
     "recentBuildsNoRole": "역할 미지정",
     "recentBuildsFallbackName": "빌드",
-    "recentBuildsRemoveAria": "최근 빌드에서 제거"
+    "recentBuildsRemoveAria": "최근 빌드에서 제거",
+    "loadTemplatesFailed": "템플릿을 불러오지 못했습니다."
   },
   "picker": {
     "itemSearchPlaceholder": "아이템 검색...",
@@ -1143,6 +1151,7 @@
     }
   },
   "event": {
+    "defaultNotificationMessage": "새 이벤트가 등록되었습니다.",
     "backToList": "이벤트 목록",
     "info": "전투 정보",
     "inProgress": "전투 진행중 · {time} 시작",
@@ -2101,6 +2110,7 @@
     "memberOnly": "구경은 자유지만 주문은 길드원으로 인증된 계정만 가능합니다."
   },
   "shop": {
+    "aodpTooltip": "AODP(Albion Online Data Project)는 유저가 게임 클라이언트에서 수집한 시세를 공유하는 크라우드소싱 API입니다. 서버·도시·시간대별 데이터 밀도가 달라, 설정 기준 도시에 최근 시세가 없으면 자동으로 낮은 품질 → 14일 평균 → 다른 로열 시티 → 레드존 순으로 폴백해 추정합니다. 폴백이 발생하면 실제 거래 가치와 차이가 날 수 있어 \"시세 부정확\" 경고가 표시됩니다.",
     "priceWarning": "시세 부정확",
     "priceWarningBuyer": {
       "quality": "시세 부정확: 이 아이템 품질의 시세 데이터가 없어 낮은 품질로 대체 추정된 가격입니다.",

@@ -95,11 +95,18 @@
   },
   "adminApprovals": {
     "pageTitle": "承認管理",
-    "pageDescription": "リギア・両替・寄付の申請を一カ所で審査します。",
+    "pageDescription": "リギア・両替・寄付・ショップ注文の申請を一カ所で審査します。",
     "tabsLabel": "承認タイプタブ",
     "tabRegear": "リギア",
     "tabExchange": "両替",
-    "tabDonation": "寄付"
+    "tabDonation": "寄付",
+    "tabShop": "ショップ注文"
+  },
+  "adminShopReview": {
+    "scopePending": "保留中",
+    "scopeAll": "すべて",
+    "noPending": "保留中の注文はありません。",
+    "noRequests": "注文履歴はありません。"
   },
   "adminNewEvent": {
     "title": "新規イベント",
@@ -339,7 +346,8 @@
     "recentBuildsEmpty": "最近のビルドはまだありません。スロット設定を完了すると自動保存されます。",
     "recentBuildsNoRole": "役割未指定",
     "recentBuildsFallbackName": "ビルド",
-    "recentBuildsRemoveAria": "最近のビルドから削除"
+    "recentBuildsRemoveAria": "最近のビルドから削除",
+    "loadTemplatesFailed": "テンプレートを読み込めませんでした。"
   },
   "picker": {
     "itemSearchPlaceholder": "アイテム検索...",
@@ -1143,6 +1151,7 @@
     }
   },
   "event": {
+    "defaultNotificationMessage": "新しいイベントが登録されました。",
     "backToList": "イベント一覧",
     "info": "戦闘情報",
     "inProgress": "戦闘中 · {time} 開始",
@@ -2101,6 +2110,7 @@
     "memberOnly": "閲覧は自由ですが、注文はギルドメンバーとして認証されたアカウントのみ可能です。"
   },
   "shop": {
+    "aodpTooltip": "AODP（Albion Online Data Project）は、プレイヤーがゲームクライアントから収集した市場価格を共有するクラウドソース API です。サーバー・都市・時間帯によってデータ密度が異なり、設定された基準都市に最近のデータがない場合は、低品質 → 14日間平均 → 他のロイヤルシティ → レッドゾーン の順に自動的にフォールバックして推定します。フォールバックが発生した場合、実際の取引価値とずれが生じることがあるため「価格推定」警告が表示されます。",
     "priceWarning": "価格推定",
     "priceWarningBuyer": {
       "quality": "価格推定: このアイテムの品質データがなく、より低い品質の価格で代用した推定値です。",

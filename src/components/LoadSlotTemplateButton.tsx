@@ -53,9 +53,9 @@ export default function LoadSlotTemplateButton({ slot, onLoad, defaultCategoryFi
         if (result.error) setError(result.error)
         else setTemplates(result.templates)
       })
-      .catch((e) => {
+      .catch(() => {
         if (cancelled) return
-        setError(e instanceof Error ? e.message : 'Failed to load templates')
+        setError(t('loadTemplatesFailed'))
       })
       .finally(() => {
         if (!cancelled) setListLoading(false)

@@ -95,11 +95,18 @@
   },
   "adminApprovals": {
     "pageTitle": "Approvals",
-    "pageDescription": "Review regear, exchange, and donation requests in one place.",
+    "pageDescription": "Review regear, exchange, donation, and shop order requests in one place.",
     "tabsLabel": "Approval type tabs",
     "tabRegear": "Regear",
     "tabExchange": "Exchange",
-    "tabDonation": "Donation"
+    "tabDonation": "Donation",
+    "tabShop": "Shop orders"
+  },
+  "adminShopReview": {
+    "scopePending": "Pending",
+    "scopeAll": "All",
+    "noPending": "No pending orders.",
+    "noRequests": "No order history."
   },
   "adminNewEvent": {
     "title": "New event",
@@ -339,7 +346,8 @@
     "recentBuildsEmpty": "No recent builds yet. Finish configuring a slot and they appear here.",
     "recentBuildsNoRole": "No role",
     "recentBuildsFallbackName": "Build",
-    "recentBuildsRemoveAria": "Remove from recent builds"
+    "recentBuildsRemoveAria": "Remove from recent builds",
+    "loadTemplatesFailed": "Failed to load templates."
   },
   "picker": {
     "itemSearchPlaceholder": "Search items...",
@@ -1143,6 +1151,7 @@
     }
   },
   "event": {
+    "defaultNotificationMessage": "A new event has been scheduled.",
     "backToList": "Event list",
     "info": "Battle info",
     "inProgress": "In battle · started {time}",
@@ -2101,6 +2110,7 @@
     "memberOnly": "Browsing is open, but only verified guild members can place orders."
   },
   "shop": {
+    "aodpTooltip": "AODP (Albion Online Data Project) is a crowd-sourced API where players share market prices captured from the game client. Data density varies by server, city, and time, so when recent prices for the configured base city are unavailable, the system falls back through lower quality → 14-day average → other royal cities → red-zone cities. When that fallback chain runs, the estimate may diverge from real trade value, and a \"Price estimate\" warning is shown.",
     "priceWarning": "Price estimate",
     "priceWarningBuyer": {
       "quality": "Price estimate: no market data for this item quality, so we substituted a lower-quality price.",

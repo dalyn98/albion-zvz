@@ -60,7 +60,7 @@ export default async function ApprovalsPage({
     { key: 'regear', label: tApprovals('tabRegear'), icon: ShieldCheck, badge: badges.regear },
     { key: 'exchange', label: tApprovals('tabExchange'), icon: Wallet, badge: badges.exchange },
     { key: 'donation', label: tApprovals('tabDonation'), icon: Gift, badge: badges.donation },
-    { key: 'shop', label: '상점 주문', icon: ShoppingBag, badge: badges.shop },
+    { key: 'shop', label: tApprovals('tabShop'), icon: ShoppingBag, badge: badges.shop },
   ]
 
   return (
@@ -252,7 +252,10 @@ async function ExchangeSection({ scope, guildId }: { scope: Scope; guildId: stri
 }
 
 async function ShopSection({ scope, guildId }: { scope: Scope; guildId: string }) {
-  const { orders, error } = await listShopOrders(scope)
+  const [{ orders, error }, t] = await Promise.all([
+    listShopOrders(scope),
+    getTranslations('adminShopReview'),
+  ])
   const avatarMap = await getAvatarsByDiscordIds(guildId, orders.map((o) => o.discordId))
   const avatars = Object.fromEntries(avatarMap)
 
@@ -261,7 +264,7 @@ async function ShopSection({ scope, guildId }: { scope: Scope; guildId: string }
       <ScopeTabs
         baseHref="/admin/dashboard/approvals?tab=shop"
         active={scope}
-        tKeys={{ pending: '대기중', all: '전체' }}
+        tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
       />
       {error && (
@@ -271,7 +274,7 @@ async function ShopSection({ scope, guildId }: { scope: Scope; guildId: string }
       )}
       {orders.length === 0 && !error ? (
         <p className="text-gray-500 text-sm text-center py-8">
-          {scope === 'pending' ? '대기중인 주문이 없습니다.' : '주문 내역이 없습니다.'}
+          {scope === 'pending' ? t('noPending') : t('noRequests')}
         </p>
       ) : (
         <ShopOrderReviewList orders={orders} avatars={avatars} />
