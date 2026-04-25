@@ -172,6 +172,24 @@ export async function GET(request: NextRequest) {
     const returnTo =
       state.returnTo.startsWith('/') && !state.returnTo.startsWith('//') ? state.returnTo : '/'
 
+    // /onboard 흐름은 새 길드에 봇을 설치하려는 의도. 사용자가 기존 tenant
+    // 의 멤버여도 그 tenant subdomain 으로 hop 하면 안 된다 — onboard cookie
+    // 와 이후 bot-install state cookie 가 모두 canonical 도메인에 있어야
+    // 일관된다. 기존 멤버 경로를 우회해 곧장 onboarding 응답으로 진입.
+    if (returnTo.startsWith('/onboard')) {
+      const matchedTenantGuildIds = new Set(matchedTenants.map((t) => t.discordGuildId))
+      const onboardableGuilds = userGuilds.filter((g) => {
+        if (matchedTenantGuildIds.has(g.id)) return false
+        try {
+          const perms = BigInt(g.permissions)
+          return g.owner || (perms & MANAGE_GUILD_BIT) === MANAGE_GUILD_BIT
+        } catch {
+          return g.owner
+        }
+      })
+      return onboardingResponse(url.origin, user, onboardableGuilds)
+    }
+
     // ───── Member path ─────
     if (matchedTenants.length > 0) {
       // Prefer the tenant whose slug matches the originating subdomain —
