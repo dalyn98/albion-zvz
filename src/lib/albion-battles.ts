@@ -140,9 +140,10 @@ export function isSizeCategory(v: unknown): v is SizeCategory {
   return v === 'small' || v === 'middle' || v === 'large' || v === 'zerg'
 }
 
-// 10명 미만 전투는 "작은 갱크/1:1" 이라 집계 가치가 낮아 null 을 반환 → 제외.
+// 15명 미만 전투는 "갱크/스트래글러" 라 집계 가치가 낮아 null 을 반환 → 제외.
+// (2026-04-26 컷오프 10 → 15 로 상향. small 시작점 = "정식 ZvZ 의 최소 단위".)
 export function categorizeSize(teamSize: number): SizeCategory | null {
-  if (teamSize < 10) return null
+  if (teamSize < 15) return null
   if (teamSize <= 30) return 'small'
   if (teamSize <= 60) return 'middle'
   if (teamSize <= 100) return 'large'
@@ -150,7 +151,7 @@ export function categorizeSize(teamSize: number): SizeCategory | null {
 }
 
 export const SIZE_RANGES: Record<SizeCategory, { min: number; max: number | null }> = {
-  small: { min: 10, max: 30 },
+  small: { min: 15, max: 30 },
   middle: { min: 31, max: 60 },
   large: { min: 61, max: 100 },
   zerg: { min: 101, max: null },
@@ -272,6 +273,100 @@ export function collectInvolvedIds(battle: AlbionBattle): {
   const guildIds = Object.keys(battle.guilds ?? {})
   const allianceIds = Object.keys(battle.alliances ?? {}).filter((id) => id !== '')
   return { guildIds, allianceIds }
+}
+
+// 상대측 "force" — alliance 단위 또는 단독 길드 단위. 합산 의미가 있는 단위만
+// 묶고 다른 force 와는 별개로 취급한다. 매치업 판정의 기본 단위.
+//
+// alliance_id 가 ''/null 인 길드는 자기 자신이 force 가 됨 (kind='guild').
+// 같은 alliance_id 를 가진 여러 길드는 한 force 로 합산 (kind='alliance').
+// forceKey 는 마이그 098 의 main_opponent_force_key 와 같은 형식.
+export interface OpponentForce {
+  forceKey: string // 'a:'+allianceId | 'g:'+guildId
+  forceKind: 'alliance' | 'guild'
+  forceName: string
+  allianceId: string | null
+  guildIds: string[]
+  guildNames: string[]
+  teamSize: number
+  kills: number
+  deaths: number
+  killFame: number
+}
+
+// 상대측을 alliance 또는 단독 길드 단위로 그룹화. teamSize desc, killFame desc 로
+// 정렬해 첫 항목이 "주 상대 (mainOpponent)".
+export function computeOpposingForces(
+  battle: AlbionBattle,
+  homeGuildId: string,
+): OpponentForce[] {
+  const sides = computeSides(battle, homeGuildId)
+  if (!sides) return []
+
+  const opponentGuildSet = new Set(sides.opponent.guildIds)
+  const teamSizeByGuild = new Map<string, number>()
+  for (const p of Object.values(battle.players ?? {})) {
+    if (!opponentGuildSet.has(p.guildId)) continue
+    teamSizeByGuild.set(p.guildId, (teamSizeByGuild.get(p.guildId) ?? 0) + 1)
+  }
+
+  type ForceAccumulator = {
+    forceKey: string
+    forceKind: 'alliance' | 'guild'
+    forceName: string
+    allianceId: string | null
+    guildIds: string[]
+    guildNames: string[]
+    teamSize: number
+    kills: number
+    deaths: number
+    killFame: number
+  }
+  const forceMap = new Map<string, ForceAccumulator>()
+
+  for (const gid of sides.opponent.guildIds) {
+    const g = battle.guilds[gid]
+    if (!g) continue
+    const teamSize = teamSizeByGuild.get(gid) ?? 0
+    if (teamSize === 0) continue
+
+    const allianceId = g.allianceId && g.allianceId !== '' ? g.allianceId : null
+    const kind: 'alliance' | 'guild' = allianceId ? 'alliance' : 'guild'
+    const forceKey = allianceId ? `a:${allianceId}` : `g:${gid}`
+    const forceName = allianceId
+      ? battle.alliances?.[allianceId]?.name ?? g.name
+      : g.name
+
+    const existing = forceMap.get(forceKey)
+    if (existing) {
+      existing.guildIds.push(gid)
+      existing.guildNames.push(g.name)
+      existing.teamSize += teamSize
+      existing.kills += g.kills
+      existing.deaths += g.deaths
+      existing.killFame += g.killFame
+    } else {
+      forceMap.set(forceKey, {
+        forceKey,
+        forceKind: kind,
+        forceName,
+        allianceId,
+        guildIds: [gid],
+        guildNames: [g.name],
+        teamSize,
+        kills: g.kills,
+        deaths: g.deaths,
+        killFame: g.killFame,
+      })
+    }
+  }
+
+  const forces: OpponentForce[] = Array.from(forceMap.values())
+  forces.sort((a, b) => {
+    if (b.teamSize !== a.teamSize) return b.teamSize - a.teamSize
+    return b.killFame - a.killFame
+  })
+  return forces
 }
 
 export interface OpponentGuildBreakdown {

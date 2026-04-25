@@ -62,6 +62,16 @@ export interface BattleDetail {
   opponentGuildNames: string[]
   opponentAllianceNames: string[]
   primaryOpponentName: string | null
+  // 주 상대 (alliance 또는 단독 길드). UI 의 "v" 표기/카테고리 산정 기준.
+  mainOpponentName: string
+  mainOpponentKind: 'alliance' | 'guild' | 'pending' | 'legacy'
+  mainOpponentTeamSize: number
+  mainOpponentKills: number
+  mainOpponentDeaths: number
+  mainOpponentKillFame: number
+  matchIndex: number
+  matchTotal: number
+  isProvisional: boolean
   sizeCategory: SizeCategory
   outcome: 'win' | 'loss' | 'tie'
   // 상대 측 길드별 분해. raw_battle 에서 직접 계산 — 1~2명 스트래글러 컷오프
@@ -114,7 +124,7 @@ export async function getBattleDetail(
     const { data: myRow, error: myErr } = await db
       .from('tenant_battle_records')
       .select(
-        'id, battle_record_id, home_guild_id, home_guild_name, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name, ended_at, raw_battle)',
+        'id, battle_record_id, home_guild_id, home_guild_name, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, main_opponent_force_kind, main_opponent_force_name, main_opponent_team_size, main_opponent_kills, main_opponent_deaths, main_opponent_kill_fame, match_index, match_total, is_provisional, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name, ended_at, raw_battle)',
       )
       .eq('guild_id', myGuildId)
       .eq('id', id)
@@ -178,7 +188,7 @@ export async function getBattleDetail(
           const { data: peerFull, error: peerFullErr } = await db
             .from('tenant_battle_records')
             .select(
-              'id, battle_record_id, home_guild_id, home_guild_name, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name, ended_at, raw_battle)',
+              'id, battle_record_id, home_guild_id, home_guild_name, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, main_opponent_force_kind, main_opponent_force_name, main_opponent_team_size, main_opponent_kills, main_opponent_deaths, main_opponent_kill_fame, match_index, match_total, is_provisional, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name, ended_at, raw_battle)',
             )
             .eq('guild_id', peerGuildId)
             .eq('battle_record_id', battleRecordId)
@@ -293,6 +303,32 @@ export async function getBattleDetail(
       opponentGuildNames: (activeRow.opponent_guild_names as string[] | null) ?? [],
       opponentAllianceNames: (activeRow.opponent_alliance_names as string[] | null) ?? [],
       primaryOpponentName: (activeRow.primary_opponent_name as string | null) ?? null,
+      mainOpponentName:
+        (activeRow.main_opponent_force_name as string | null) ??
+        (activeRow.primary_opponent_name as string | null) ??
+        '-',
+      mainOpponentKind:
+        (activeRow.main_opponent_force_kind as
+          | 'alliance'
+          | 'guild'
+          | 'pending'
+          | 'legacy'
+          | null) ?? 'legacy',
+      mainOpponentTeamSize:
+        (activeRow.main_opponent_team_size as number | null) ??
+        (activeRow.opponent_team_size as number),
+      mainOpponentKills:
+        (activeRow.main_opponent_kills as number | null) ??
+        (activeRow.opponent_kills as number),
+      mainOpponentDeaths:
+        (activeRow.main_opponent_deaths as number | null) ??
+        (activeRow.opponent_deaths as number),
+      mainOpponentKillFame:
+        (activeRow.main_opponent_kill_fame as number | null) ??
+        (activeRow.opponent_kill_fame as number),
+      matchIndex: (activeRow.match_index as number | null) ?? 1,
+      matchTotal: (activeRow.match_total as number | null) ?? 1,
+      isProvisional: (activeRow.is_provisional as boolean | null) ?? false,
       sizeCategory: activeRow.size_category as SizeCategory,
       outcome: activeRow.outcome as 'win' | 'loss' | 'tie',
       opponentGuilds,

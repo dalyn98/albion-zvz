@@ -12,6 +12,8 @@ import {
   EyeOff,
   Users,
   UserCircle2,
+  GitBranch,
+  Hourglass,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
@@ -59,21 +61,18 @@ export default async function BattleDetailView({ detail, battleId }: Props) {
   const OutcomeIcon =
     detail.outcome === 'win' ? Trophy : detail.outcome === 'loss' ? Skull : Minus
 
-  const opponentLabel =
-    detail.primaryOpponentName ??
-    detail.opponentGuildNames[0] ??
-    detail.opponentAllianceNames[0] ??
-    '-'
-  const extraGuildCount =
-    detail.opponentGuildNames.length > 1 ? detail.opponentGuildNames.length - 1 : 0
-  const allianceLabel =
-    detail.opponentAllianceNames.length > 0 &&
-    !(
-      detail.opponentAllianceNames.length === 1 &&
-      detail.opponentAllianceNames[0] === opponentLabel
-    )
-      ? detail.opponentAllianceNames.join(', ')
-      : null
+  // 헤더 표제 = 주 상대(mainOpponentName). alliance 인 경우엔 알라이언스 명,
+  // 단독 길드는 길드 명. 같은 battle 에 다른 force 가 있어도 매치업 분리 row 가
+  // 따로 생성되므로 여기서는 한 force 만 노출.
+  const opponentLabel = detail.mainOpponentName || '-'
+  const mainOpponentBadgeLabel =
+    detail.mainOpponentKind === 'alliance'
+      ? tList('mainOpponentAlliance')
+      : detail.mainOpponentKind === 'guild'
+        ? tList('mainOpponentGuild')
+        : null
+  const matchSplitLabel = tList('matchSplitLabel')
+  const provisionalLabel = tList('provisionalLabel')
 
   const participants = groupByMember(detail.events)
   const isCross = detail.perspectiveKind === 'cross'
@@ -123,15 +122,30 @@ export default async function BattleDetailView({ detail, battleId }: Props) {
                 <OutcomeIcon size={14} />
                 {outcomeLabel}
               </span>
+              {mainOpponentBadgeLabel && (
+                <span className="inline-flex items-center gap-0.5 bg-gray-800 border border-gray-700 rounded px-1.5 py-0.5 text-[10px] text-gray-300">
+                  {mainOpponentBadgeLabel}
+                </span>
+              )}
+              {detail.matchTotal > 1 && (
+                <span
+                  className="inline-flex items-center gap-0.5 bg-violet-500/15 border border-violet-500/30 rounded px-1.5 py-0.5 text-[10px] text-violet-300"
+                  title={matchSplitLabel}
+                >
+                  <GitBranch size={10} />
+                  {detail.matchIndex}/{detail.matchTotal}
+                </span>
+              )}
+              {detail.isProvisional && (
+                <span
+                  className="inline-flex items-center gap-0.5 bg-amber-500/10 border border-amber-500/30 rounded px-1.5 py-0.5 text-[10px] text-amber-300"
+                  title={provisionalLabel}
+                >
+                  <Hourglass size={10} />
+                  {provisionalLabel}
+                </span>
+              )}
             </div>
-            {allianceLabel && (
-              <p className="text-amber-300/80 text-xs">[{allianceLabel}]</p>
-            )}
-            {extraGuildCount > 0 && (
-              <p className="text-gray-500 text-[11px]">
-                {t('extraGuilds', { count: extraGuildCount })}
-              </p>
-            )}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-400 text-xs mt-2">
               <span className="inline-flex items-center gap-1">
                 <Clock size={11} />
@@ -146,7 +160,7 @@ export default async function BattleDetailView({ detail, battleId }: Props) {
               <span className="inline-flex items-center gap-1 bg-gray-800 border border-gray-700 rounded px-2 py-0.5 text-[11px] text-gray-300">
                 {sizeLabel}
                 <span className="text-gray-500">
-                  {detail.homeTeamSize}v{detail.opponentTeamSize}
+                  {detail.homeTeamSize}v{detail.mainOpponentTeamSize}
                 </span>
               </span>
             </div>
@@ -167,11 +181,11 @@ export default async function BattleDetailView({ detail, battleId }: Props) {
           <SideCard
             label={t('sideOpponent')}
             teamName={opponentLabel}
-            allianceName={allianceLabel}
-            teamSize={detail.opponentTeamSize}
-            kills={detail.opponentKills}
-            deaths={detail.opponentDeaths}
-            killFame={detail.opponentKillFame}
+            allianceName={null}
+            teamSize={detail.mainOpponentTeamSize}
+            kills={detail.mainOpponentKills}
+            deaths={detail.mainOpponentDeaths}
+            killFame={detail.mainOpponentKillFame}
           />
         </div>
       </header>
