@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Eye, EyeOff, Package, Beaker, Bomb, Megaphone } from 'lucide-react'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
@@ -12,7 +12,7 @@ import { BOMB_SQUAD_KINDS, SLOT_KEYS } from '@/types'
 import { savePartySlots } from '@/app/actions/admin'
 import type { PartyWithSlots } from '@/types'
 import { slotToInput } from '@/lib/slot-to-input'
-import { useRegisterSave } from './EventEditSaveRegistry'
+import { useRegisterSave, useReportDirty } from './EventEditSaveRegistry'
 
 interface MemberDirectoryEntry {
   discord_id: string
@@ -172,9 +172,31 @@ export default function PartyEditorPanel({
     setSlots(slots.map((s) => ({ ...s, is_hidden: anyVisibleSlot })))
   }
 
+  // 미저장 변경 추적: 마운트 시점 (또는 마지막 저장 직후) 의 입력을 직렬화해
+  // 보관하고 현재 입력과 문자열 비교. slots/specs 가 깊은 객체라서 깊은 비교
+  // 보다 JSON.stringify 한 줄이 일관성 + 디버그 용이성에서 우월하다.
+  const computeSnapshot = () =>
+    JSON.stringify({
+      slots,
+      isBombSquad,
+      bombSquadKind: isBombSquad ? bombSquadKind : null,
+      partyName: isBombSquad ? partyName.trim() : '',
+      callerDiscordId: isBombSquad ? callerDiscordId.trim() : '',
+    })
+  const cleanSnapshotRef = useRef<string>(computeSnapshot())
+  const currentSnapshot = useMemo(
+    () => computeSnapshot(),
+    // computeSnapshot 은 closure 로 모든 입력을 읽으므로 의존성에 입력을 나열.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [slots, isBombSquad, bombSquadKind, partyName, callerDiscordId],
+  )
+  const isDirty = currentSnapshot !== cleanSnapshotRef.current
+  useReportDirty(`party-${partyNumber}`, isDirty)
+
   // 상위 저장 바에서 호출될 saver. 개별 저장 버튼이 없어졌으므로 에러만
   // 지역 state 에 반영하고 실제 router.refresh 는 저장 바가 처리.
   const persistParty = async (): Promise<{ error?: string }> => {
+    const snapshotAtSave = currentSnapshot
     const result = await savePartySlots(
       eventId,
       partyNumber,
@@ -193,6 +215,8 @@ export default function PartyEditorPanel({
       return { error: result.error }
     }
     setError('')
+    // 저장 성공 — 현재 입력을 새 "clean" 기준으로 채택. 다시 변경하면 다시 dirty.
+    cleanSnapshotRef.current = snapshotAtSave
     return {}
   }
 

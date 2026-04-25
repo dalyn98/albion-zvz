@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 
 // 이벤트 편집 화면의 여러 섹션(EventInfoForm, 파티 편집기)을 하나의 "저장"
 // 버튼으로 커밋하기 위한 공용 레지스트리.
@@ -10,6 +10,11 @@ import { createContext, useCallback, useContext, useEffect, useRef, type ReactNo
 //
 // 에러는 id 라벨과 함께 수집되어 상단 바에 표시. 저장 순서는 등록 순서대로,
 // 직렬 — 병렬로 하면 서버 액션 쪽 revalidate 가 중복·경합될 수 있어서.
+//
+// 미저장 변경 보호: 각 섹션이 useReportDirty(id, isDirty) 로 dirty 상태를
+// 알리면 Provider 가 beforeunload 를 걸어 탭 닫기 / 새로고침 / 외부 이동을
+// 막는다. (Next.js Link 내부 이동은 브라우저 이벤트가 아니라서 잡지 못한다는
+// 한계가 있지만, 현재 가장 흔한 사고 — 닫기·새로고침 — 은 안전하게 막힌다.)
 
 export interface SaveResult {
   error?: string
@@ -20,6 +25,8 @@ type SaveFn = () => Promise<SaveResult>
 interface Ctx {
   register: (id: string, label: string, fn: SaveFn) => () => void
   triggerSaveAll: () => Promise<Array<{ id: string; label: string; error: string }>>
+  reportDirty: (id: string, dirty: boolean) => void
+  hasUnsavedChanges: boolean
 }
 
 const EventEditSaveContext = createContext<Ctx | null>(null)
@@ -28,12 +35,20 @@ export function EventEditSaveProvider({ children }: { children: ReactNode }) {
   // Ref 로 두는 이유: register/unregister 가 렌더를 유발하지 않도록 하기 위함.
   // 저장 실행 시점에 Map 을 스냅샷해 iterate 하므로 중간 변동도 안전.
   const registryRef = useRef<Map<string, { label: string; fn: SaveFn }>>(new Map())
+  const dirtyRef = useRef<Set<string>>(new Set())
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
   const register = useCallback((id: string, label: string, fn: SaveFn) => {
     registryRef.current.set(id, { label, fn })
     return () => {
       registryRef.current.delete(id)
     }
+  }, [])
+
+  const reportDirty = useCallback((id: string, dirty: boolean) => {
+    if (dirty) dirtyRef.current.add(id)
+    else dirtyRef.current.delete(id)
+    setHasUnsavedChanges(dirtyRef.current.size > 0)
   }, [])
 
   const triggerSaveAll = useCallback(async () => {
@@ -48,11 +63,30 @@ export function EventEditSaveProvider({ children }: { children: ReactNode }) {
         errors.push({ id, label, error: e instanceof Error ? e.message : 'unknown error' })
       }
     }
+    // 저장 성공 시 dirty 셋을 비워 beforeunload 를 즉시 해제. 각 섹션의
+    // useReportDirty effect 도 다음 렌더에 같은 결과를 보고하지만, 여기서
+    // 미리 비워야 redirect 직후 confirm 다이얼로그가 안 뜬다.
+    if (errors.length === 0) {
+      dirtyRef.current.clear()
+      setHasUnsavedChanges(false)
+    }
     return errors
   }, [])
 
+  // 미저장 변경이 있을 때만 beforeunload 를 등록. 모든 브라우저는 returnValue
+  // 가 truthy 면 native confirm 다이얼로그를 띄운다 (메시지 텍스트는 무시됨).
+  useEffect(() => {
+    if (!hasUnsavedChanges) return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [hasUnsavedChanges])
+
   return (
-    <EventEditSaveContext.Provider value={{ register, triggerSaveAll }}>
+    <EventEditSaveContext.Provider value={{ register, triggerSaveAll, reportDirty, hasUnsavedChanges }}>
       {children}
     </EventEditSaveContext.Provider>
   )
@@ -75,6 +109,19 @@ export function useRegisterSave(id: string, label: string, fn: SaveFn, enabled =
     const stable: SaveFn = () => fnRef.current()
     return ctx.register(id, label, stable)
   }, [ctx, id, label, enabled])
+}
+
+// 각 섹션이 dirty 상태를 보고. id 는 useRegisterSave 와 동일 키 사용 권장.
+// dirty 가 true 인 섹션이 하나라도 있으면 Provider 가 beforeunload 를 단다.
+export function useReportDirty(id: string, isDirty: boolean): void {
+  const ctx = useContext(EventEditSaveContext)
+  useEffect(() => {
+    if (!ctx) return
+    ctx.reportDirty(id, isDirty)
+    return () => {
+      ctx.reportDirty(id, false)
+    }
+  }, [ctx, id, isDirty])
 }
 
 export function useEventEditSaveAll(): Ctx | null {

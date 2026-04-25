@@ -198,25 +198,32 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
   }
 }
 
-// draft → published 전이. gather_at / gather_location 이 필수 필드로 채워져 있어야
-// 한다. 발행 시점의 payload 를 함께 업데이트해 "편집 후 발행" 을 한 번의 클릭으로.
-// 여기서 Discord notify 는 자동 발송하지 않는다 — 기존 notifyEvent 처럼 명시적 호출
+// draft → published 전이. 호출자(PublishEventBanner)가 먼저 저장 컨텍스트를
+// 통해 모든 폼 섹션을 DB 에 commit 한 뒤 호출하므로, 여기서는 DB 의 현재 값을
+// 읽어 필수 필드(title / gather_at / gather_location)를 검증하고 status 만 전이.
+// 이렇게 두면 stale form payload 가 저장된 값을 덮어쓰는 race 를 원천 차단.
+// Discord notify 는 자동 발송하지 않는다 — 기존 notifyEvent 처럼 명시적 호출
 // 이 필요. 이렇게 두는 건 발행과 채널 공지를 분리해 실수로 알림 폭탄을 막기 위함.
-export async function publishEvent(
-  id: string,
-  payload: EventPayload,
-): Promise<{ error?: string }> {
+export async function publishEvent(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const invalid = validateEventPayload(payload, tErr, { publishing: true })
-    if (invalid) return { error: invalid }
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
     const guildId = await getSessionGuildId(session)
+    const { data: current, error: fetchError } = await db
+      .from('events')
+      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, category')
+      .eq('guild_id', guildId)
+      .eq('id', id)
+      .maybeSingle()
+    if (fetchError) return { error: fetchError.message }
+    if (!current) return { error: tErr('eventNotFound') }
+    const invalid = validateEventPayload(current as EventPayload, tErr, { publishing: true })
+    if (invalid) return { error: invalid }
     const { error } = await db
       .from('events')
-      .update({ ...payload, status: 'published' })
+      .update({ status: 'published' })
       .eq('guild_id', guildId)
       .eq('id', id)
     if (error) return { error: error.message }

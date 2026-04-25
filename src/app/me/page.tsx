@@ -319,15 +319,13 @@ export default async function MePage() {
                 </p>
                 {r.status === 'pending' && (
                   <div className="flex items-center gap-2 flex-wrap">
-                    {r.auto_generated && (
-                      <Link
-                        href={`/me/regear/${r.id}`}
-                        className="inline-flex items-center gap-1 text-xs text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded mt-1"
-                      >
-                        <Pencil size={11} />
-                        {t('regearEditBreakdown')}
-                      </Link>
-                    )}
+                    <Link
+                      href={`/me/regear/${r.id}`}
+                      className="inline-flex items-center gap-1 text-xs text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded mt-1"
+                    >
+                      <Pencil size={11} />
+                      {r.auto_generated ? t('regearEditBreakdown') : t('regearEditClaim')}
+                    </Link>
                     <RegearRequestCancelButton id={r.id} />
                   </div>
                 )}

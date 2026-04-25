@@ -62,6 +62,9 @@ export default function EventEditSaveBar({ eventId, eventStatus }: Props) {
         </ul>
       )}
       <div className="flex items-center justify-end gap-3">
+        {ctx?.hasUnsavedChanges && !saving && !justSaved && (
+          <span className="text-amber-300 text-xs">{t('unsavedChanges')}</span>
+        )}
         {justSaved && (
           <span className="text-green-400 text-xs">{t('saveAllSuccess')}</span>
         )}

@@ -789,3 +789,58 @@ export async function updateMyRegearLineItemPrice(
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
+
+// 수동 제출 리기어의 청구 실버 수정 (pending 한정).
+// 자동 리기어는 슬롯별로 단가를 수정해 market/claimed/payout 을 재계산하지만,
+// 수동은 청구자가 직접 적은 단일 금액 (claimed_silver) 만 갱신하면 된다.
+// payout_silver 는 승인 시점에 RPC 가 채우므로 여기서는 건드리지 않는다.
+export async function updateMyManualRegearClaim(
+  requestId: string,
+  newClaimedSilver: number,
+): Promise<{ error?: string; claimedSilver?: number }> {
+  const tErr = await getTranslations('memberActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { error: tErr('loginRequired') }
+    const guildId = await getSessionGuildId(session)
+
+    if (!Number.isInteger(newClaimedSilver) || newClaimedSilver <= 0) {
+      return { error: tErr('invalidClaimAmount') }
+    }
+
+    const db = getAdminClient()
+    const { data, error } = await db
+      .from('regear_requests')
+      .select('id, status, auto_generated, discord_id, silver')
+      .eq('guild_id', guildId)
+      .eq('id', requestId)
+      .eq('discord_id', session.discordId)
+      .maybeSingle()
+    if (error) return { error: error.message }
+    if (!data) return { error: tErr('requestNotFound') }
+    if (data.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
+    if (data.auto_generated) return { error: tErr('manualOnlyEditable') }
+
+    const ceiling = (data.silver as number | null) ?? 0
+    if (newClaimedSilver > ceiling) {
+      return { error: tErr('claimOverCeiling', { ceiling: ceiling.toLocaleString() }) }
+    }
+
+    const { error: updateError } = await db
+      .from('regear_requests')
+      .update({ claimed_silver: newClaimedSilver })
+      .eq('guild_id', guildId)
+      .eq('id', requestId)
+      .eq('discord_id', session.discordId)
+      .eq('status', 'pending')
+      .eq('auto_generated', false)
+    if (updateError) return { error: updateError.message }
+
+    revalidatePath('/me')
+    revalidatePath('/admin/dashboard/regear')
+    revalidatePath('/admin/dashboard/approvals')
+    return { claimedSilver: newClaimedSilver }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}

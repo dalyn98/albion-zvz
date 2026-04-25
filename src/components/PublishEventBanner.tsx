@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Send, AlertCircle } from 'lucide-react'
 import { publishEvent } from '@/app/actions/admin'
+import { useEventEditSaveAll } from './EventEditSaveRegistry'
 import type { Event } from '@/types'
 
 interface Props {
@@ -26,6 +27,7 @@ interface Props {
 export default function PublishEventBanner({ event }: Props) {
   const router = useRouter()
   const t = useTranslations('publishEventBanner')
+  const saveCtx = useEventEditSaveAll()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,24 +42,27 @@ export default function PublishEventBanner({ event }: Props) {
   const handlePublish = async () => {
     setError(null)
     setLoading(true)
-    // 편집 폼의 dirty 상태가 있을 수 있지만, 발행은 DB 에 저장된 값을 기준으로
-    // 한다. 사용자가 편집 후 저장하지 않고 발행하면 최신 편집은 반영되지 않음 —
-    // 그래서 안내 문구에서 "저장 후 발행" 을 권장하고 있다.
-    const result = await publishEvent(event.id, {
-      title: event.title,
-      gather_at: event.gather_at ?? '',
-      gather_time: event.gather_time,
-      gather_location: event.gather_location,
-      special_notes: event.special_notes,
-      notify_role_id: event.notify_role_id,
-      notify_channel_id: event.notify_channel_id,
-    })
+    // "발행하기" = 현재 편집 중인 모든 섹션을 저장한 뒤 publishEvent 로 상태를
+    // 전이. 사용자가 발행 직전 빠뜨린 변경 사항이 누락되지 않도록 publish 와
+    // save 를 한 번의 사용자 액션으로 묶는다.
+    if (saveCtx) {
+      const errors = await saveCtx.triggerSaveAll()
+      if (errors.length > 0) {
+        setError(errors.map((e) => `${e.label}: ${e.error}`).join(' / '))
+        setLoading(false)
+        return
+      }
+    }
+    const result = await publishEvent(event.id)
     if (result.error) {
       setError(result.error)
       setLoading(false)
       return
     }
-    router.refresh()
+    // 발행 성공 시 이벤트 목록(대시보드)으로 이동 — 편집 화면에 머무르면 발행 후
+    // 또 무엇을 해야 할지 사용자가 망설이게 된다. publishEvent 가 이미 dashboard
+    // 경로를 revalidate 했으므로 새 상태로 바로 표시된다.
+    router.push('/admin/dashboard')
   }
 
   return (

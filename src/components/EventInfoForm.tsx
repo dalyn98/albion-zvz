@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { X } from 'lucide-react'
 import { createEvent, updateEvent } from '@/app/actions/admin'
-import { useRegisterSave } from './EventEditSaveRegistry'
+import { useRegisterSave, useReportDirty } from './EventEditSaveRegistry'
 import {
   listGuildRoles,
   listGuildChannels,
@@ -176,6 +176,30 @@ export default function EventInfoForm({ initialEvent }: Props) {
     }
   }
 
+  // 편집 모드 dirty 추적: 마운트 시점의 입력 (= initialEvent 와 동일) 을
+  // 직렬화해 두고 현재 입력과 비교. 저장 성공 시 ref 를 갱신해 다시 clean 으로
+  // 만든다 — initialEvent prop 은 router.refresh 후에야 새 값을 받으므로
+  // 그 사이의 dirty 오탐을 막는다.
+  const computeSnapshot = (): string =>
+    JSON.stringify({
+      title,
+      parts,
+      gatherLocation,
+      specialNotes,
+      notifyRoleId,
+      notifyChannelId,
+      category,
+    })
+  const cleanSnapshotRef = useRef<string>(computeSnapshot())
+  const currentSnapshot = useMemo(
+    () => computeSnapshot(),
+    // computeSnapshot 은 closure 로 모든 입력을 참조.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [title, parts, gatherLocation, specialNotes, notifyRoleId, notifyChannelId, category],
+  )
+  const isDirty = isEdit && currentSnapshot !== cleanSnapshotRef.current
+  useReportDirty('event-info', isDirty)
+
   // 편집 모드에서만 상위 저장 바에 자신을 등록. 생성 모드는 기존 모달 흐름.
   // draft 이벤트는 날짜 / 장소가 비어 있어도 저장되어야 하므로 validateDraft 사용.
   // published 이벤트는 strict 검증 유지 — 이미 공개된 값이 비는 건 허용 불가.
@@ -184,6 +208,7 @@ export default function EventInfoForm({ initialEvent }: Props) {
     t('sectionTitle'),
     async () => {
       if (!initialEvent) return {}
+      const snapshotAtSave = currentSnapshot
       const isDraft = initialEvent.status === 'draft'
       if (isDraft) {
         const v = validateDraft()
@@ -206,6 +231,7 @@ export default function EventInfoForm({ initialEvent }: Props) {
           return { error: result.error }
         }
         setError('')
+        cleanSnapshotRef.current = snapshotAtSave
         return {}
       }
       const v = validate()
@@ -228,6 +254,7 @@ export default function EventInfoForm({ initialEvent }: Props) {
         return { error: result.error }
       }
       setError('')
+      cleanSnapshotRef.current = snapshotAtSave
       return {}
     },
     isEdit,
