@@ -210,7 +210,16 @@ export async function GET(request: NextRequest) {
       if (!member) return errorRedirect(state, 'not_in_guild')
       const identity = identityFromMember(member, tenant.memberRoleIds, tenant.adminRoleIds)
       if (!identity) return errorRedirect(state, 'no_identity')
-      const { isAdmin, isMember } = identity
+      // 슈퍼어드민이 부여한 admin 오버라이드. 길드 역할 없이도 admin 권한을
+      // 강제 부여한다 — 운영/지원 시나리오용. row 가 있으면 isAdmin=true.
+      const { data: overrideRow } = await getAdminClient()
+        .from('tenant_admin_overrides')
+        .select('discord_id')
+        .eq('tenant_id', tenant.id)
+        .eq('discord_id', user.id)
+        .maybeSingle()
+      const isAdmin = identity.isAdmin || !!overrideRow
+      const isMember = identity.isMember || !!overrideRow
 
       if (isMember) {
         const [legacyIds, combatIds, ffIds, gankingIds, bombSquadCallerRoleIds] = await Promise.all(

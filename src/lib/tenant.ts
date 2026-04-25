@@ -9,6 +9,8 @@
 
 import { getAdminClient } from '@/lib/supabase-admin'
 import type { SessionPayload } from '@/lib/session'
+import { isSuperAdmin } from '@/lib/super-admin'
+import { getImpersonationFromCookies } from '@/lib/super-admin-impersonation'
 
 let primaryTenantCache: { id: string; expiresAt: number } | null = null
 const PRIMARY_TENANT_TTL_MS = 60 * 1000
@@ -51,7 +53,15 @@ export async function getPrimaryTenantId(): Promise<string> {
 // 발급) 는 guildId 가 null 이므로 primary tenant 로 fallback. 이 fallback 은
 // Phase 1 배포 직후 수 일간만 필요하고, 이후 session 만료 주기 (7일) 가 지나면
 // 자연스럽게 사라진다.
+//
+// 슈퍼어드민 임퍼소네이션: 슈퍼어드민이 "이 길드 어드민으로 보기" 를 켰으면
+// 별도 쿠키에서 tenantId 를 꺼내 우선시한다. 일반 사용자는 쿠키가 있어도
+// 슈퍼어드민이 아니면 무시.
 export async function getSessionGuildId(session: SessionPayload): Promise<string> {
+  if (isSuperAdmin(session.discordId)) {
+    const impersonation = await getImpersonationFromCookies()
+    if (impersonation) return impersonation.tenantId
+  }
   if (session.guildId) return session.guildId
   return getPrimaryTenantId()
 }

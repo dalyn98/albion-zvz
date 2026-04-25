@@ -4,6 +4,7 @@ import { getAdminBadgeCounts, type AdminBadgeCounts } from '@/lib/admin-badges'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
 import { classifyHost } from '@/lib/tenant-resolver'
+import { isSuperAdminSession } from '@/lib/super-admin'
 import AppSidebar from './AppSidebar'
 
 // 어떤 tenant 에도 매칭되지 않을 때 표시되는 generic 브랜드명. 과거에 'Menhera'
@@ -41,9 +42,15 @@ export default async function AppShell({ children }: { children: React.ReactNode
       if (derived.length > 0) brandName = derived
     }
   }
+  const superAdmin = isSuperAdminSession(session)
   return (
     <div className="flex flex-col lg:flex-row min-h-screen w-full">
-      <AppSidebar session={session} adminBadges={adminBadges} brandName={brandName} />
+      <AppSidebar
+        session={session}
+        adminBadges={adminBadges}
+        brandName={brandName}
+        isSuperAdmin={superAdmin}
+      />
       <div className="flex-1 min-w-0 flex flex-col">{children}</div>
     </div>
   )

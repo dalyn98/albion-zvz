@@ -8,6 +8,8 @@ import AppShell from '@/components/AppShell'
 import AppGate from '@/components/AppGate'
 import PublicShell from '@/components/PublicShell'
 import AlbionOnboardingModal from '@/components/AlbionOnboardingModal'
+import SystemNoticesBanner from '@/components/SystemNoticesBanner'
+import ImpersonationBanner from '@/components/ImpersonationBanner'
 import { ToastProvider } from '@/components/ToastProvider'
 import { getSession } from '@/lib/session'
 import { getAppSetting } from '@/lib/app-settings'
@@ -55,6 +57,7 @@ function skipAlbionOnboardingModal(pathname: string): boolean {
   if (pathname.startsWith('/welcome-language')) return true
   if (pathname.startsWith('/api/auth/')) return true
   if (pathname.startsWith('/public/')) return true
+  if (pathname.startsWith('/super-admin')) return true
   if (pathname === '/logout') return true
   return false
 }
@@ -289,6 +292,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="min-h-full bg-[#0f1117] text-white">
         <NextIntlClientProvider locale={locale} messages={messages}>
           <ToastProvider>
+            <ImpersonationBanner />
+            <SystemNoticesBanner />
             {body}
             {onboardingModalProps && <AlbionOnboardingModal {...onboardingModalProps} />}
           </ToastProvider>
