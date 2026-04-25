@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Clock, MapPin, Swords, ShieldCheck } from 'lucide-react'
+import { Clock, MapPin, Swords, ShieldCheck, Gift } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
@@ -61,9 +61,20 @@ export default async function RegearPage() {
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">{t('pageTitle')}</h1>
-        <p className="text-gray-400 text-sm">{t('pageDescription')}</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">{t('pageTitle')}</h1>
+          <p className="text-gray-400 text-sm">{t('pageDescription')}</p>
+        </div>
+        {session.isAdmin && (
+          <Link
+            href="/admin/dashboard/regear-windows"
+            className="inline-flex items-center gap-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0"
+          >
+            <Gift size={14} />
+            {t('adminEntry')}
+          </Link>
+        )}
       </div>
 
       <DismissibleNoticeBanner message={noticeMessage} imageUrl={noticeImageUrl} />

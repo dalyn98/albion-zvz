@@ -13,7 +13,6 @@
     "mySettings": "設定",
     "eventAdmin": "イベント管理",
     "approvals": "承認管理",
-    "regearWindows": "自由リギア",
     "shopAdmin": "ギルドショップ",
     "stats": "統計",
     "battles": "戦闘記録",
@@ -1425,7 +1424,8 @@
     "screenshotPrimaryLabel": "スクリーンショット 1",
     "screenshotSecondaryLabel": "スクリーンショット 2 (任意)",
     "allEntriesRequired": "すべての死亡について請求金額とスクリーンショットを入力してください。",
-    "verifyCtaLabel": "アルビオン認証ページへ"
+    "verifyCtaLabel": "アルビオン認証ページへ",
+    "adminEntry": "自由リギア管理"
   },
   "regearWindow": {
     "sectionTitle": "現在受付中の自由申請",

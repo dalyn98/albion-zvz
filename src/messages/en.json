@@ -13,7 +13,6 @@
     "mySettings": "Settings",
     "eventAdmin": "Event admin",
     "approvals": "Approvals",
-    "regearWindows": "Open regear",
     "shopAdmin": "Guild shop",
     "stats": "Stats",
     "battles": "Battles",
@@ -1425,7 +1424,8 @@
     "screenshotPrimaryLabel": "Screenshot 1",
     "screenshotSecondaryLabel": "Screenshot 2 (optional)",
     "allEntriesRequired": "Please fill in the claim amount and screenshot for every death.",
-    "verifyCtaLabel": "Verify Albion nickname"
+    "verifyCtaLabel": "Verify Albion nickname",
+    "adminEntry": "Free regear admin"
   },
   "regearWindow": {
     "sectionTitle": "Open intake windows",

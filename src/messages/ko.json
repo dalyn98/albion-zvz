@@ -13,7 +13,6 @@
     "mySettings": "설정",
     "eventAdmin": "이벤트 관리",
     "approvals": "승인 관리",
-    "regearWindows": "자유 리기어",
     "shopAdmin": "상점 관리",
     "stats": "통계",
     "battles": "전투기록",
@@ -1425,7 +1424,8 @@
     "screenshotPrimaryLabel": "스크린샷 1",
     "screenshotSecondaryLabel": "스크린샷 2 (선택)",
     "allEntriesRequired": "모든 데스의 청구 금액과 스크린샷을 입력해 주세요.",
-    "verifyCtaLabel": "알비온 닉네임 인증하러 가기"
+    "verifyCtaLabel": "알비온 닉네임 인증하러 가기",
+    "adminEntry": "자유 리기어 관리"
   },
   "regearWindow": {
     "sectionTitle": "지금 열려 있는 자유 신청",
