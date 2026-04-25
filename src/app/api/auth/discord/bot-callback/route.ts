@@ -62,7 +62,14 @@ export async function GET(request: NextRequest) {
 
   const guildId = url.searchParams.get('guild_id')
   const returnedState = url.searchParams.get('state')
-  if (!guildId || !returnedState) return errorRedirect(url.origin, 'invalid')
+  if (!returnedState) {
+    console.error('[bot-callback] missing state', { params: url.searchParams.toString() })
+    return errorRedirect(url.origin, 'state_missing')
+  }
+  if (!guildId) {
+    console.error('[bot-callback] missing guild_id', { params: url.searchParams.toString() })
+    return errorRedirect(url.origin, 'guild_id_missing')
+  }
 
   const savedState = request.cookies.get(BOT_INSTALL_STATE_COOKIE)?.value
   const savedGuild = request.cookies.get(BOT_INSTALL_GUILD_COOKIE)?.value

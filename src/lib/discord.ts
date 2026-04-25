@@ -75,13 +75,17 @@ export function buildBotInstallUrl(options: {
 }): string {
   const { clientId, appUrl } = getDiscordOAuthConfig()
   const redirectUri = `${appUrl.replace(/\/$/, '')}/api/auth/discord/bot-callback`
+  // 순수 봇 설치 흐름 — user OAuth 토큰은 필요 없으므로 response_type=code 를
+  // 빼야 한다. 넣으면 Discord 가 user OAuth 코드 그랜트로 처리하면서, 사용자가
+  // 이미 우리 앱을 OAuth 인증한 상태라면 봇 설치 단계를 스킵하고 redirect 에서
+  // guild_id 를 빠뜨릴 수 있다 (실제로 발생). bot scope 만 명시하고 params 가
+  // 봇 설치 동의 화면을 직접 띄우게 한다.
   const params = new URLSearchParams({
     client_id: clientId,
     scope: 'bot applications.commands',
     permissions: BOT_PERMISSIONS,
     guild_id: options.guildId,
     disable_guild_select: 'true',
-    response_type: 'code',
     redirect_uri: redirectUri,
     state: options.state,
   })

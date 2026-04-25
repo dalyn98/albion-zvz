@@ -1914,6 +1914,8 @@
     "relogin": "再ログイン",
     "installErrorDenied": "Discordの認証が拒否されました。もう一度お試しください。",
     "installErrorInvalid": "必要な情報が不足しています。もう一度お試しください。",
+    "installErrorStateMissing": "セキュリティトークンが不足しています。ページを再読み込みしてからお試しください。",
+    "installErrorGuildIdMissing": "DiscordがギルドIDを返しませんでした。Botインストールフローが中断されたようです — もう一度お試しください。",
     "installErrorStateMismatch": "セキュリティトークンが一致しません。ページを再読み込みしてからお試しください。",
     "installErrorGuildMismatch": "選択したギルドが途中で変更されました。最初からやり直してください。",
     "installErrorBotNotInGuild": "Botがそのギルドにインストールされませんでした。権限を確認してもう一度お試しください。",

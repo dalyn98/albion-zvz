@@ -1914,6 +1914,8 @@
     "relogin": "Log in again",
     "installErrorDenied": "Discord authorization was denied. Please try again.",
     "installErrorInvalid": "Required information is missing. Please try again.",
+    "installErrorStateMissing": "Security token was missing. Refresh the page and try again.",
+    "installErrorGuildIdMissing": "Discord did not return a guild ID. The bot install flow appears to have been interrupted — please try again.",
     "installErrorStateMismatch": "Security token mismatch. Refresh the page and try again.",
     "installErrorGuildMismatch": "The selected guild changed mid-flow. Please start over.",
     "installErrorBotNotInGuild": "The bot was not installed in that guild. Check permissions and try again.",

@@ -21,6 +21,8 @@ interface OnboardGuild {
 const INSTALL_ERROR_KEYS: Record<string, string> = {
   denied: 'installErrorDenied',
   invalid: 'installErrorInvalid',
+  state_missing: 'installErrorStateMissing',
+  guild_id_missing: 'installErrorGuildIdMissing',
   state_mismatch: 'installErrorStateMismatch',
   guild_mismatch: 'installErrorGuildMismatch',
   bot_not_in_guild: 'installErrorBotNotInGuild',
