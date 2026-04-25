@@ -15,6 +15,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getMemberAlbionIdentity } from '@/lib/albion-identity'
 import { getSessionGuildId, getPrimaryTenantId, getTenantDiscordConfig } from '@/lib/tenant'
 import { classifyHost, resolveTenantBySlug } from '@/lib/tenant-resolver'
+import { displayNameFromSlug } from '@/lib/tenant-slug'
 
 // Routes that should render for anyone, even without a session. The proxy
 // forwards the pathname via x-pathname so we can decide here without duplicating
@@ -193,21 +194,22 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   if (locked) {
     // 잠긴 상태 → 사용자는 비로그인/게스트인 경우가 많다. session 이 있으면 해당
     // tenant, 없으면 host 의 subdomain 으로 tenant 를 해석. 둘 다 실패하면
-    // primary tenant fallback. tenant.name 을 헤드라인으로 사용해 봇 설치마다
-    // 다른 길드 브랜딩이 자동으로 잡히게 한다.
+    // primary tenant fallback. siteName 은 sidebar/모바일 헤더와 동일하게 slug
+    // 첫 하이픈 앞부분에서 파생 — Discord 길드명(tenant.name) 대신 사용자가
+    // wizard 에서 정한 식별자가 그대로 보이도록.
     const hostHeader = headersList.get('host')
     const classification = classifyHost(hostHeader)
-    let resolvedTenantName: string | null = null
+    let resolvedTenantSlug: string | null = null
     let gateGuildId: string
     if (session) {
       gateGuildId = await getSessionGuildId(session)
       const cfg = await getTenantDiscordConfig(gateGuildId)
-      resolvedTenantName = cfg?.name ?? null
+      resolvedTenantSlug = cfg?.slug ?? null
     } else if (classification.kind === 'tenant') {
       const resolved = await resolveTenantBySlug(classification.slug)
       if (resolved) {
         gateGuildId = resolved.tenantId
-        resolvedTenantName = resolved.name
+        resolvedTenantSlug = resolved.slug
       } else {
         gateGuildId = await getPrimaryTenantId()
       }
@@ -221,7 +223,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       getTranslations('auth.error'),
       getTranslations('publicLanding'),
     ])
-    const siteName = resolvedTenantName ?? tPublicLanding('siteName')
+    const derivedBrandName = resolvedTenantSlug ? displayNameFromSlug(resolvedTenantSlug) : ''
+    const siteName = derivedBrandName.length > 0 ? derivedBrandName : tPublicLanding('siteName')
     gateContent = (
       <AppGate
         reason={session ? 'no_role' : 'not_logged_in'}

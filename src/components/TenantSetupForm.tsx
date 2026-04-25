@@ -3,7 +3,12 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { saveTenantSetup } from '@/app/actions/onboard'
-import { classifySlugIssue, isValidTenantSlug, type SlugValidationIssue } from '@/lib/tenant-slug'
+import {
+  classifySlugIssue,
+  displayNameFromSlug,
+  isValidTenantSlug,
+  type SlugValidationIssue,
+} from '@/lib/tenant-slug'
 
 interface DiscordRoleOption {
   id: string
@@ -24,6 +29,7 @@ interface Labels {
   slugLabel: string
   slugHelp: string
   slugPreviewPrefix: string
+  slugDisplayNamePrefix: string
   slugIssueEmpty: string
   slugIssueTooShort: string
   slugIssueTooLong: string
@@ -107,6 +113,7 @@ export default function TenantSetupForm({
   const slugIssue = useMemo<SlugValidationIssue>(() => classifySlugIssue(slug), [slug])
   const slugValid = useMemo<boolean>(() => isValidTenantSlug(slug), [slug])
   const slugIssueMessage = issueToMessage(slugIssue, labels)
+  const slugDisplayName = useMemo<string>(() => displayNameFromSlug(slug), [slug])
 
   const toggle = (
     id: string,
@@ -175,6 +182,12 @@ export default function TenantSetupForm({
             https://{slug || '...'}.{rootDomain}
           </span>
         </p>
+        {slugValid && slugDisplayName.length > 0 && (
+          <p className="text-xs text-gray-500">
+            {labels.slugDisplayNamePrefix}{' '}
+            <span className="text-amber-400 font-semibold">⚔ {slugDisplayName}</span>
+          </p>
+        )}
         {slug.length > 0 && !slugValid && slugIssueMessage && (
           <p className="text-xs text-amber-400">{slugIssueMessage}</p>
         )}

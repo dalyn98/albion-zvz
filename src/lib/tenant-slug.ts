@@ -77,3 +77,15 @@ export function classifySlugIssue(candidate: string): SlugValidationIssue {
   if (RESERVED_SLUGS.has(s)) return 'reserved'
   return null
 }
+
+// 사이트 좌측 상단/배너 등에 노출할 길드 표시 이름. slug 첫 하이픈 앞부분을
+// 떼서 첫 글자만 대문자화한다 ("jelda-pl9c" → "Jelda"). 신규 tenant 의 자동
+// slug 는 항상 `<base>-<suffix>` 라 base 가 식별자가 되고, 사용자가 직접
+// 정한 slug 도 보통 `이름-임의코드` 형태가 되도록 wizard 에서 안내한다.
+//
+// hyphen 이 없는 slug 는 통째로 사용 (예: "menhera" → "Menhera").
+export function displayNameFromSlug(slug: string): string {
+  const base = (slug ?? '').split('-')[0] ?? ''
+  if (base.length === 0) return ''
+  return base.charAt(0).toUpperCase() + base.slice(1)
+}

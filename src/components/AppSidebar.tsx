@@ -83,9 +83,10 @@ function isActivePath(pathname: string, href: string, exact: boolean = false): b
 interface AppSidebarProps {
   session: SessionPayload | null
   adminBadges: AdminBadgeCounts | null
+  brandName: string
 }
 
-export default function AppSidebar({ session, adminBadges }: AppSidebarProps) {
+export default function AppSidebar({ session, adminBadges, brandName }: AppSidebarProps) {
   const pathname = usePathname()
   const t = useTranslations('sidebar')
   const tNav = useTranslations('nav')
@@ -138,7 +139,7 @@ export default function AppSidebar({ session, adminBadges }: AppSidebarProps) {
         >
           <Menu size={20} />
         </button>
-        <Link href="/" className="text-amber-400 text-base font-bold">⚔ Menhera</Link>
+        <Link href="/" className="text-amber-400 text-base font-bold">⚔ {brandName}</Link>
         {session ? (
           <Link href="/me/profile" aria-label={t('myInfo')} className="flex items-center">
             {url ? (
@@ -175,7 +176,7 @@ export default function AppSidebar({ session, adminBadges }: AppSidebarProps) {
         <div className={`flex items-center ${open ? 'justify-between px-4' : 'justify-center'} h-14 border-b border-white/5 flex-shrink-0`}>
           {open && (
             <Link href="/" className="text-amber-400 font-bold text-[15px] tracking-tight flex items-center gap-2 truncate">
-              ⚔ <span>Menhera</span>
+              ⚔ <span>{brandName}</span>
             </Link>
           )}
           <div className="flex items-center gap-1">
