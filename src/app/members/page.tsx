@@ -5,6 +5,7 @@ import {
   listGuildMembers,
   listGuildGuests,
   listWithdrawnMembers,
+  listAlbionRoster,
 } from '@/app/actions/members-admin'
 import MembersPageTabs from '@/components/MembersPageTabs'
 
@@ -20,11 +21,13 @@ export default async function MembersPage() {
     { members, error: membersError },
     { guests, error: guestsError },
     { members: withdrawnMembers, error: withdrawnError },
+    { roster, error: rosterError },
     t,
   ] = await Promise.all([
     listGuildMembers(),
     listGuildGuests(),
     listWithdrawnMembers(),
+    listAlbionRoster(),
     getTranslations('members'),
   ])
 
@@ -39,9 +42,11 @@ export default async function MembersPage() {
         members={members}
         guests={guests}
         withdrawnMembers={withdrawnMembers}
+        roster={roster}
         membersError={membersError}
         guestsError={guestsError}
         withdrawnError={withdrawnError}
+        rosterError={rosterError}
         isAdmin={session.isAdmin}
       />
     </main>

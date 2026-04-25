@@ -401,6 +401,105 @@ export async function listWithdrawnMembers(): Promise<{
   }
 }
 
+export interface AlbionRosterEntry {
+  albion_player_id: string
+  albion_player_name: string
+  albion_server: 'west' | 'east' | 'europe'
+  kill_fame: number
+  death_fame: number
+  fame_ratio: number
+  average_item_power: number
+  avatar: string | null
+  avatar_ring: string | null
+  last_seen_at: string
+  // Discord 연동 멤버는 guild_avatars 와 player_id 로 join 되는 행. null = 미연동.
+  // 연동된 경우 discord_id 를 클릭해 멤버 상세로 이동할 수 있게 노출.
+  linked_discord_id: string | null
+  linked_username: string | null
+  linked_avatar: string | null
+  // 탈퇴(withdrawn_at) 된 Discord 멤버는 연동되어 있어도 활성 멤버로 카운트
+  // 하지 않는다 — UI 에서 상세 링크 비활성, 배지도 다르게.
+  linked_withdrawn: boolean
+}
+
+// Albion 길드 로스터 (gameinfo /guilds/{id}/members sync 결과). Discord 미연동
+// 멤버까지 포함된 전 멤버 목록. guild_avatars 와 albion_player_id 로 left join 해
+// "Discord 연동" 여부를 노출 — 연동된 멤버 클릭 시 기존 멤버 상세로 이동.
+export async function listAlbionRoster(): Promise<{
+  roster: AlbionRosterEntry[]
+  error?: string
+}> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const { db, guildId } = await requireSessionWithGuild()
+
+    const [rosterRes, avatarsRes] = await Promise.all([
+      db
+        .from('albion_guild_members')
+        .select(
+          'albion_player_id, albion_player_name, albion_server, kill_fame, death_fame, fame_ratio, average_item_power, avatar, avatar_ring, last_seen_at',
+        )
+        .eq('guild_id', guildId)
+        .is('left_at', null),
+      // Discord 멤버는 albion_player_id 가 guild_avatars 에 적힌 경우 onboarding
+      // 을 거친 사람. 같은 길드 안에서 player_id 는 유일하므로 Map 으로 join.
+      db
+        .from('guild_avatars')
+        .select('discord_id, username, avatar, albion_player_id, withdrawn_at')
+        .eq('guild_id', guildId)
+        .not('albion_player_id', 'is', null),
+    ])
+    if (rosterRes.error) return { roster: [], error: rosterRes.error.message }
+    if (avatarsRes.error) return { roster: [], error: avatarsRes.error.message }
+
+    const linkMap = new Map<
+      string,
+      { discordId: string; username: string; avatar: string | null; withdrawn: boolean }
+    >()
+    for (const a of avatarsRes.data ?? []) {
+      const playerId = a.albion_player_id as string | null
+      if (!playerId) continue
+      linkMap.set(playerId, {
+        discordId: a.discord_id as string,
+        username: a.username as string,
+        avatar: (a.avatar as string | null) ?? null,
+        withdrawn: a.withdrawn_at !== null,
+      })
+    }
+
+    const roster: AlbionRosterEntry[] = (rosterRes.data ?? []).map((r) => {
+      const link = linkMap.get(r.albion_player_id as string)
+      return {
+        albion_player_id: r.albion_player_id as string,
+        albion_player_name: r.albion_player_name as string,
+        albion_server: r.albion_server as 'west' | 'east' | 'europe',
+        kill_fame: Number(r.kill_fame ?? 0),
+        death_fame: Number(r.death_fame ?? 0),
+        fame_ratio: Number(r.fame_ratio ?? 0),
+        average_item_power: Number(r.average_item_power ?? 0),
+        avatar: (r.avatar as string | null) ?? null,
+        avatar_ring: (r.avatar_ring as string | null) ?? null,
+        last_seen_at: r.last_seen_at as string,
+        linked_discord_id: link?.discordId ?? null,
+        linked_username: link?.username ?? null,
+        linked_avatar: link?.avatar ?? null,
+        linked_withdrawn: link?.withdrawn ?? false,
+      }
+    })
+
+    // 기본 정렬: kill_fame desc → 동률이면 이름. UI 에서 다른 정렬 키 (참여순)
+    // 도 제공하지만 초기 진입 인상은 "활약하는 멤버 위로".
+    roster.sort((a, b) => {
+      if (b.kill_fame !== a.kill_fame) return b.kill_fame - a.kill_fame
+      return a.albion_player_name.localeCompare(b.albion_player_name)
+    })
+
+    return { roster }
+  } catch (e) {
+    return { roster: [], error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
 export interface GuildGuestSummary {
   discord_id: string
   username: string

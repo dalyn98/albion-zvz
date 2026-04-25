@@ -1,27 +1,33 @@
 'use client'
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { Users, UserPlus, UserMinus } from 'lucide-react'
+import { Users, UserPlus, UserMinus, Globe } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import GuildMemberList from './GuildMemberList'
 import GuildGuestList from './GuildGuestList'
 import GuildWithdrawnList from './GuildWithdrawnList'
+import AlbionRosterList from './AlbionRosterList'
 import type {
   GuildMemberSummary,
   GuildGuestSummary,
   WithdrawnMemberSummary,
+  AlbionRosterEntry,
 } from '@/app/actions/members-admin'
 
-type TabKey = 'members' | 'guests' | 'withdrawn'
+type TabKey = 'members' | 'guests' | 'roster' | 'withdrawn'
 
 interface TabDef {
   key: TabKey
-  labelKey: 'tabMembers' | 'tabGuests' | 'tabWithdrawn'
+  labelKey: 'tabMembers' | 'tabGuests' | 'tabRoster' | 'tabWithdrawn'
   icon: React.ComponentType<{ size?: number; className?: string }>
 }
 
+// 'roster' 는 Albion gameinfo 기반 전 멤버 목록 — Discord 미연동 멤버 포함.
+// guests 와 withdrawn 사이에 두면 "활동 멤버 (Discord) → 전체 명부 → 게스트/
+// 탈퇴" 흐름이 자연스럽다.
 const TABS: readonly TabDef[] = [
   { key: 'members', labelKey: 'tabMembers', icon: Users },
+  { key: 'roster', labelKey: 'tabRoster', icon: Globe },
   { key: 'guests', labelKey: 'tabGuests', icon: UserPlus },
   { key: 'withdrawn', labelKey: 'tabWithdrawn', icon: UserMinus },
 ]
@@ -32,23 +38,32 @@ interface Props {
   members: GuildMemberSummary[]
   guests: GuildGuestSummary[]
   withdrawnMembers: WithdrawnMemberSummary[]
+  roster: AlbionRosterEntry[]
   membersError?: string
   guestsError?: string
   withdrawnError?: string
+  rosterError?: string
   isAdmin: boolean
 }
 
 function isTabKey(value: string | null): value is TabKey {
-  return value === 'members' || value === 'guests' || value === 'withdrawn'
+  return (
+    value === 'members' ||
+    value === 'guests' ||
+    value === 'roster' ||
+    value === 'withdrawn'
+  )
 }
 
 export default function MembersPageTabs({
   members,
   guests,
   withdrawnMembers,
+  roster,
   membersError,
   guestsError,
   withdrawnError,
+  rosterError,
   isAdmin,
 }: Props) {
   const t = useTranslations('members')
@@ -68,6 +83,13 @@ export default function MembersPageTabs({
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
   }
 
+  const tabCount = (key: TabKey): number => {
+    if (key === 'members') return members.length
+    if (key === 'guests') return guests.length
+    if (key === 'roster') return roster.length
+    return withdrawnMembers.length
+  }
+
   return (
     <div className="space-y-4">
       <nav
@@ -77,12 +99,6 @@ export default function MembersPageTabs({
       >
         {TABS.map(({ key, labelKey, icon: Icon }) => {
           const isActive = active === key
-          const count =
-            key === 'members'
-              ? members.length
-              : key === 'guests'
-                ? guests.length
-                : withdrawnMembers.length
           return (
             <button
               key={key}
@@ -98,7 +114,7 @@ export default function MembersPageTabs({
             >
               <Icon size={14} />
               {t(labelKey)}
-              <span className="text-[11px] text-gray-500 font-mono">{count}</span>
+              <span className="text-[11px] text-gray-500 font-mono">{tabCount(key)}</span>
             </button>
           )
         })}
@@ -117,6 +133,16 @@ export default function MembersPageTabs({
             ) : (
               <GuildMemberList members={members} />
             )}
+          </>
+        )}
+        {active === 'roster' && (
+          <>
+            {rosterError && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 mb-3">
+                <p className="text-red-400 text-sm">{rosterError}</p>
+              </div>
+            )}
+            <AlbionRosterList roster={roster} />
           </>
         )}
         {active === 'guests' && (
