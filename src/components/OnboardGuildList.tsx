@@ -1,8 +1,3 @@
-'use client'
-
-import { useState, useTransition } from 'react'
-import { startBotInstall } from '@/app/actions/onboard'
-
 interface OnboardGuild {
   id: string
   name: string
@@ -14,19 +9,10 @@ interface Props {
   installLabel: string
 }
 
-// 각 길드 옆의 Install 버튼을 눌러 Discord 봇 설치 OAuth 로 이동한다. state
-// cookie 는 서버 액션이 심고, redirect 로 Discord 로 보낸다.
+// 각 길드 옆의 Install 버튼은 GET 라우트 핸들러로 이동한다.
+// (server action + Set-Cookie + 외부 redirect 조합이 Next.js 에서 신뢰할 수 없어
+// /api/auth/discord/bot-install 으로 옮겼다.)
 export default function OnboardGuildList({ guilds, installLabel }: Props) {
-  const [pendingId, setPendingId] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
-
-  const onInstall = (guildId: string) => {
-    setPendingId(guildId)
-    startTransition(async () => {
-      await startBotInstall(guildId)
-    })
-  }
-
   return (
     <ul className="flex flex-col gap-2">
       {guilds.map((g) => (
@@ -50,14 +36,12 @@ export default function OnboardGuildList({ guilds, installLabel }: Props) {
               <div className="text-sm font-semibold text-white truncate">{g.name}</div>
             </div>
           </div>
-          <button
-            type="button"
-            disabled={isPending && pendingId === g.id}
-            onClick={() => onInstall(g.id)}
-            className="shrink-0 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-60 text-white text-xs font-semibold px-3 py-1.5"
+          <a
+            href={`/api/auth/discord/bot-install?guild_id=${encodeURIComponent(g.id)}`}
+            className="shrink-0 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-semibold px-3 py-1.5"
           >
             {installLabel}
-          </button>
+          </a>
         </li>
       ))}
     </ul>

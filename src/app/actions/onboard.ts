@@ -1,7 +1,6 @@
 'use server'
 
 import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import {
@@ -11,51 +10,19 @@ import {
   cookieOptions,
   type SessionPayload,
 } from '@/lib/session'
-import { buildBotInstallUrl } from '@/lib/discord'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { isValidTenantSlug } from '@/lib/tenant-slug'
 import { buildTenantHostUrl } from '@/lib/tenant-resolver'
 import { signHopToken } from '@/lib/oauth-state'
 import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 
-const BOT_INSTALL_STATE_COOKIE = 'discord_bot_install_state'
-const BOT_INSTALL_GUILD_COOKIE = 'discord_bot_install_guild'
-const BOT_INSTALL_TTL_SEC = 60 * 10
-
 // 온보딩 위저드는 3 단계다. 각 단계별 액션은 세션이 tenant 의 created_by_discord_id
 // 와 일치하는지만 독립적으로 검증하고, 세션 자체(isAdmin 등) 는 bot-callback 에서
 // 이미 세팅된 값을 그대로 쓴다. 마지막 단계에서만 세션을 재서명해 issuedAt 을
 // 갱신하고 홈 길드 컨텍스트를 확정한다.
-
-// 온보딩 페이지에서 "봇 설치" 버튼을 눌렀을 때 호출. state cookie 를 심고
-// Discord 봇 설치 OAuth 로 리다이렉트한다. 돌아오면 /api/auth/discord/bot-callback
-// 이 state 와 guild_id 를 검증한다.
-export async function startBotInstall(guildId: string): Promise<void> {
-  const session = await getSession()
-  if (!session) redirect('/api/auth/discord/start?returnTo=/onboard')
-
-  // 클라이언트에서 넘어오는 값이라 길드 ID 형태 검증 — Discord snowflake 는
-  // 17~20자리 숫자.
-  if (!/^\d{17,20}$/.test(guildId)) {
-    redirect('/onboard')
-  }
-
-  const state = crypto.randomUUID()
-  const cookieStore = await cookies()
-  const baseCookie = {
-    httpOnly: true,
-    secure: process.env.COOKIE_SECURE === 'true',
-    sameSite: 'lax' as const,
-    path: '/',
-    maxAge: BOT_INSTALL_TTL_SEC,
-  }
-  cookieStore.set(BOT_INSTALL_STATE_COOKIE, state, baseCookie)
-  cookieStore.set(BOT_INSTALL_GUILD_COOKIE, guildId, baseCookie)
-
-  const installUrl = buildBotInstallUrl({ guildId, state })
-  console.log('[startBotInstall] redirecting to', installUrl)
-  redirect(installUrl)
-}
+//
+// (봇 설치 시작점은 /api/auth/discord/bot-install 라우트 핸들러로 옮겼다.
+// server action + Set-Cookie + 외부 redirect 조합이 Next.js 에서 신뢰할 수 없었음.)
 
 interface TenantOwnerCheck {
   id: string
