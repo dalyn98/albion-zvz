@@ -16,14 +16,18 @@ import {
   Users,
 } from 'lucide-react'
 
-export const dynamic = 'force-static'
-
 // 공개 데모 페이지. 누구나 로그인 없이 볼 수 있으며 (layout.tsx 의
 // isPublicPathname 에 등록), 실제 길드 데이터는 보여주지 않고 모든 핵심 기능의
 // UI 만 한 페이지에 담아 마케팅/사이트 소개 용도로 쓴다.
 //
 // 구조: hero → 7 개 feature 섹션 (멤버 메인 / 이벤트 / 리기어 / 환전 /
 // 통계 / 전투 / 관리자) → 풋터 CTA. ko/en/ja 모두 i18n 키로 처리.
+//
+// 주의: `force-static` 을 쓰지 않는다. layout 이 x-pathname 헤더로 isPublic
+// 분기를 결정하는데, static prerender 는 빌드 타임에 헤더 없이 렌더돼 AppGate
+// 가 HTML 에 박혀버린다. 동적 렌더로 둬야 layout 이 매 요청마다 pathname 을
+// 보고 PublicShell/AppShell 도 건너뛰는 분기를 탄다.
+export const dynamic = 'force-dynamic'
 
 export default async function DemoPage() {
   const t = await getTranslations('demo')
