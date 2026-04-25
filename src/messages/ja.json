@@ -545,6 +545,14 @@
     "tabEvents": "イベント/リギア",
     "tabBattles": "戦闘記録",
     "rewardsDescription": "役割ごとのリギア請求上限です。ギルドメンバーはこの金額以下の範囲で直接請求金額を入力して申請し、承認時に請求金額がポイントとして支給されます。上限が 0 の役割はリギア申請がブロックされます。",
+    "regearGroupTitle": "リギア設定",
+    "regearGroupDescription": "リギア申請の受付時間、支給比率、認証要求、自動リギアなど、リギアフロー全体を制御します。",
+    "eventOpsGroupTitle": "イベント運営",
+    "eventOpsGroupDescription": "イベント自動開始、CD バッジ表示役割、役割別リギア上限など、イベント進行に直接関わるオプションです。",
+    "discordNoticeGroupTitle": "Discord 通知",
+    "discordNoticeGroupDescription": "新しいイベントが公開されたときに Discord チャンネルへ自動送信されるメッセージです。",
+    "inPageNoticeGroupTitle": "サイト内バナー告知",
+    "inPageNoticeGroupDescription": "各ページ上部に表示されるバナー告知です。空欄にするとバナーは非表示になります。",
     "notificationsTitle": "イベント作成通知メッセージ",
     "notificationsDescription": "新しいイベントが作成されたときに Discord チャンネルの先頭に表示される文言です。メッセージの下にはサイトのメインリンクが自動的に添付されます。",
     "messageLabel": "メッセージ *",
@@ -615,12 +623,18 @@
     "saved": "保存しました"
   },
   "adminEventCreatorCategoryRoles": {
-    "combatTitle": "戦闘イベント作成が可能な役割",
+    "combatTitle": "戦闘",
     "combatDescription": "この役割を持つメンバーは「戦闘」カテゴリのイベントのみ作成できます。",
-    "ffTitle": "FF イベント作成が可能な役割",
+    "ffTitle": "FF",
     "ffDescription": "この役割を持つメンバーは「FF」カテゴリのイベントのみ作成できます。",
-    "gankingTitle": "ガンキングイベント作成が可能な役割",
+    "gankingTitle": "ガンキング",
     "gankingDescription": "この役割を持つメンバーは「ガンキング」カテゴリのイベントのみ作成できます。"
+  },
+  "adminEventCreatorRolesGroup": {
+    "title": "イベント作成権限",
+    "description": "カテゴリごとにイベントを作成できる Discord 役割を指定します。「全体」に指定した役割はすべてのカテゴリに権限を付与し、カテゴリ別の項目はそのカテゴリにのみ追加で権限を付与します。",
+    "legacyTitle": "全体（すべてのカテゴリ）",
+    "legacyDescription": "選択した役割を持つメンバーはすべてのカテゴリでイベントを作成できます。空にするとカテゴリ別設定のみが適用されます。"
   },
   "adminActiveMemberRoles": {
     "title": "活動メンバー役割",

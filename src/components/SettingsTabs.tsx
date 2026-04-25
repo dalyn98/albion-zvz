@@ -9,8 +9,9 @@ import LandingBannerForm from './LandingBannerForm'
 import LandingCtaTextForm from './LandingCtaTextForm'
 import NoticeSettingForm, { NOTICE_MAX_LENGTH } from './NoticeSettingForm'
 import AdminRoleSetting from './AdminRoleSetting'
-import EventCreatorRolesSetting from './EventCreatorRolesSetting'
+import EventCreatorRolesGroup from './EventCreatorRolesGroup'
 import BombSquadCallerRolesSetting from './BombSquadCallerRolesSetting'
+import SettingsSectionHeader from './SettingsSectionHeader'
 import ActiveMemberRolesSetting from './ActiveMemberRolesSetting'
 import RegearLimitsForm from './RegearLimitsForm'
 import RegearPayoutRateForm from './RegearPayoutRateForm'
@@ -140,7 +141,6 @@ export default function SettingsTabs({
   const t = useTranslations('adminSettings')
   const tEventsNotice = useTranslations('adminEventsNotice')
   const tRegearNotice = useTranslations('adminRegearNotice')
-  const tCategoryRoles = useTranslations('adminEventCreatorCategoryRoles')
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
@@ -213,30 +213,21 @@ export default function SettingsTabs({
         {active === 'permissions' && (
           <div className="space-y-4">
             <AdminRoleSetting initialRoleIds={adminRoleIds} />
-            <EventCreatorRolesSetting initialRoleIds={eventCreatorRoleIds} />
-            <EventCreatorRolesSetting
-              initialRoleIds={eventCreatorCombatRoleIds}
-              settingKey="event_creator_role_ids_combat"
-              titleOverride={tCategoryRoles('combatTitle')}
-              descriptionOverride={tCategoryRoles('combatDescription')}
-            />
-            <EventCreatorRolesSetting
-              initialRoleIds={eventCreatorFfRoleIds}
-              settingKey="event_creator_role_ids_ff"
-              titleOverride={tCategoryRoles('ffTitle')}
-              descriptionOverride={tCategoryRoles('ffDescription')}
-            />
-            <EventCreatorRolesSetting
-              initialRoleIds={eventCreatorGankingRoleIds}
-              settingKey="event_creator_role_ids_ganking"
-              titleOverride={tCategoryRoles('gankingTitle')}
-              descriptionOverride={tCategoryRoles('gankingDescription')}
+            <EventCreatorRolesGroup
+              legacyRoleIds={eventCreatorRoleIds}
+              combatRoleIds={eventCreatorCombatRoleIds}
+              ffRoleIds={eventCreatorFfRoleIds}
+              gankingRoleIds={eventCreatorGankingRoleIds}
             />
             <BombSquadCallerRolesSetting initialRoleIds={bombSquadCallerRoleIds} />
           </div>
         )}
         {active === 'events' && (
           <div className="space-y-4">
+            <SettingsSectionHeader
+              title={t('regearGroupTitle')}
+              description={t('regearGroupDescription')}
+            />
             <RegearLimitsForm
               initialWindowMinutes={regearWindowMinutes}
               initialMaxDeaths={regearMaxDeaths}
@@ -246,6 +237,10 @@ export default function SettingsTabs({
             <AutoRegearToggleForm
               initialEnabled={autoRegearEnabled}
               initialDelayMinutes={autoRegearDelayMinutes}
+            />
+            <SettingsSectionHeader
+              title={t('eventOpsGroupTitle')}
+              description={t('eventOpsGroupDescription')}
             />
             <EventAutoStartForm initialEnabled={eventsAutoStartEnabled} />
             <CdBadgeRolesForm initialRoles={cdBadgeRoles} />
@@ -270,7 +265,15 @@ export default function SettingsTabs({
         )}
         {active === 'notices' && (
           <div className="space-y-4">
+            <SettingsSectionHeader
+              title={t('discordNoticeGroupTitle')}
+              description={t('discordNoticeGroupDescription')}
+            />
             <NotificationSettingsForm initialMessage={notificationMessage} />
+            <SettingsSectionHeader
+              title={t('inPageNoticeGroupTitle')}
+              description={t('inPageNoticeGroupDescription')}
+            />
             <NoticeSettingForm
               settingKey="events_notice_message"
               target="events"

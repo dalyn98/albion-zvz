@@ -19,6 +19,10 @@ interface Props {
   settingKey?: EventCreatorRolesKey
   titleOverride?: string
   descriptionOverride?: string
+  // 그룹 내부에서 렌더될 때 외곽 카드/리로그인 안내를 생략하고
+  // sub-section 스타일로 좁게 표시한다. SettingsGroup 등 상위 카드가
+  // title/reloginHint 를 한 번만 보여주므로 중복 제거 목적.
+  embedded?: boolean
 }
 
 export default function EventCreatorRolesSetting({
@@ -26,6 +30,7 @@ export default function EventCreatorRolesSetting({
   settingKey = 'event_creator_role_ids',
   titleOverride,
   descriptionOverride,
+  embedded = false,
 }: Props) {
   const t = useTranslations('adminEventCreatorRoles')
   const router = useRouter()
@@ -99,12 +104,20 @@ export default function EventCreatorRolesSetting({
     setLoading(false)
   }
 
+  const containerClass = embedded
+    ? 'space-y-3'
+    : 'bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4'
+
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4">
+    <div className={containerClass}>
       <div>
-        <h2 className="font-bold text-white">{titleOverride ?? t('title')}</h2>
+        {embedded ? (
+          <h3 className="font-semibold text-white text-sm">{titleOverride ?? t('title')}</h3>
+        ) : (
+          <h2 className="font-bold text-white">{titleOverride ?? t('title')}</h2>
+        )}
         <p className="text-gray-500 text-xs mt-1">{descriptionOverride ?? t('description')}</p>
-        <p className="text-amber-400/80 text-xs mt-1">{t('reloginHint')}</p>
+        {!embedded && <p className="text-amber-400/80 text-xs mt-1">{t('reloginHint')}</p>}
       </div>
 
       {rolesError && <p className="text-xs text-red-400">{t('rolesError')}</p>}

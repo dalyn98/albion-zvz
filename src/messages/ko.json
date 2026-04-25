@@ -545,6 +545,14 @@
     "tabEvents": "이벤트/리기어",
     "tabBattles": "전투기록",
     "rewardsDescription": "역할별 리기어 청구 상한입니다. 길드원은 이 금액 이하 범위에서 직접 청구 금액을 입력해 신청하고, 승인 시 청구 금액이 포인트로 지급됩니다. 상한이 0인 역할은 리기어 신청이 차단됩니다.",
+    "regearGroupTitle": "리기어 설정",
+    "regearGroupDescription": "리기어 신청 가능 시간, 지급 비율, 인증 요구, 자동 리기어 등 리기어 흐름 전반을 제어합니다.",
+    "eventOpsGroupTitle": "이벤트 운영",
+    "eventOpsGroupDescription": "이벤트 자동 시작, CD 뱃지 노출 역할, 역할별 리기어 상한 등 이벤트 진행과 직접 관련된 옵션입니다.",
+    "discordNoticeGroupTitle": "Discord 알림",
+    "discordNoticeGroupDescription": "새 이벤트가 발행될 때 Discord 채널에 자동 발송되는 메시지입니다.",
+    "inPageNoticeGroupTitle": "사이트 내 배너 공지",
+    "inPageNoticeGroupDescription": "각 페이지 상단에 노출되는 배너 공지입니다. 비워 두면 배너가 숨김 처리됩니다.",
     "notificationsTitle": "이벤트 생성 알림 메시지",
     "notificationsDescription": "새 이벤트가 생성될 때 Discord 채널 상단에 표시되는 문구입니다. 메시지 아래에는 사이트 메인 링크가 자동으로 붙습니다.",
     "messageLabel": "메시지 *",
@@ -615,12 +623,18 @@
     "saved": "저장됨"
   },
   "adminEventCreatorCategoryRoles": {
-    "combatTitle": "전투 이벤트 생성 허용 역할",
+    "combatTitle": "전투",
     "combatDescription": "이 역할을 가진 구성원은 '전투' 카테고리 이벤트만 생성할 수 있습니다.",
-    "ffTitle": "FF 이벤트 생성 허용 역할",
+    "ffTitle": "FF",
     "ffDescription": "이 역할을 가진 구성원은 'FF' 카테고리 이벤트만 생성할 수 있습니다.",
-    "gankingTitle": "갱킹 이벤트 생성 허용 역할",
+    "gankingTitle": "갱킹",
     "gankingDescription": "이 역할을 가진 구성원은 '갱킹' 카테고리 이벤트만 생성할 수 있습니다."
+  },
+  "adminEventCreatorRolesGroup": {
+    "title": "이벤트 생성 권한",
+    "description": "각 카테고리별로 이벤트를 생성할 수 있는 Discord 역할을 지정합니다. '전체' 에 지정한 역할은 모든 카테고리에 권한을 부여하고, 카테고리별 항목은 해당 카테고리에만 권한을 추가로 부여합니다.",
+    "legacyTitle": "전체 (모든 카테고리)",
+    "legacyDescription": "선택한 역할을 가진 구성원은 모든 카테고리의 이벤트를 생성할 수 있습니다. 비어 있으면 카테고리별 설정만 적용됩니다."
   },
   "adminActiveMemberRoles": {
     "title": "활동 회원 역할",

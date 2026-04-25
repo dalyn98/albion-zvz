@@ -545,6 +545,14 @@
     "tabEvents": "Events / Regear",
     "tabBattles": "Battles",
     "rewardsDescription": "Regear claim caps per role. Guild members enter a claim amount up to this cap, and the claimed amount is paid out as points on approval. Roles with a 0 cap cannot submit regear requests.",
+    "regearGroupTitle": "Regear settings",
+    "regearGroupDescription": "Controls the regear flow end-to-end: claim window, payout rate, verification requirement, and auto-regear.",
+    "eventOpsGroupTitle": "Event operations",
+    "eventOpsGroupDescription": "Options tied to running events: auto-start, CD badge roles, and per-role regear caps.",
+    "discordNoticeGroupTitle": "Discord notifications",
+    "discordNoticeGroupDescription": "Message automatically posted to the Discord channel when a new event is published.",
+    "inPageNoticeGroupTitle": "In-site banner notices",
+    "inPageNoticeGroupDescription": "Banner notices shown at the top of each page. Leave blank to hide the banner.",
     "notificationsTitle": "Event-created notification message",
     "notificationsDescription": "The text shown at the top of the Discord channel message when a new event is created. The site's main link is automatically appended below.",
     "messageLabel": "Message *",
@@ -615,12 +623,18 @@
     "saved": "Saved"
   },
   "adminEventCreatorCategoryRoles": {
-    "combatTitle": "Combat event creator roles",
+    "combatTitle": "Combat",
     "combatDescription": "Members with any of these Discord roles can create only 'Combat' category events.",
-    "ffTitle": "FF event creator roles",
+    "ffTitle": "FF",
     "ffDescription": "Members with any of these Discord roles can create only 'FF' category events.",
-    "gankingTitle": "Ganking event creator roles",
+    "gankingTitle": "Ganking",
     "gankingDescription": "Members with any of these Discord roles can create only 'Ganking' category events."
+  },
+  "adminEventCreatorRolesGroup": {
+    "title": "Event creator permissions",
+    "description": "Pick which Discord roles can create events in each category. Roles under 'All' grant permission for every category; category-specific entries add permission for that category only.",
+    "legacyTitle": "All (every category)",
+    "legacyDescription": "Members with any of these roles can create events in every category. Leave empty to fall back to per-category settings only."
   },
   "adminActiveMemberRoles": {
     "title": "Active member roles",
