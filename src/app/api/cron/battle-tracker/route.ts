@@ -53,6 +53,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // pages 쿼리스트링으로 fetchRecentBattles 의 페이지 수 조절. 기본 cron 은
+  // 2페이지(=100건, ~10분 커버) 면 충분하지만 GitHub Actions schedule 지연으로
+  // 60분 갭이 생기는 경우 수동 백필이 필요. ?pages=20 까지 허용 (50*20=1000건).
+  const url = new URL(request.url)
+  const pagesParam = Number.parseInt(url.searchParams.get('pages') ?? '', 10)
+  const pages = Number.isFinite(pagesParam)
+    ? Math.min(Math.max(pagesParam, 1), 20)
+    : 2
+
   const db = getAdminClient()
   const tenants = await listActiveTenants()
 
@@ -91,7 +100,7 @@ export async function GET(request: Request) {
     const errors: string[] = []
     let battles: AlbionBattle[] = []
     try {
-      battles = await fetchRecentBattles(server)
+      battles = await fetchRecentBattles(server, pages)
     } catch (e) {
       errors.push(`fetchRecentBattles: ${e instanceof Error ? e.message : String(e)}`)
       results.push({
@@ -179,6 +188,9 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     tracked_tenants: tracking.length,
+    pages,
     servers: results,
   })
 }
+
+export const maxDuration = 300

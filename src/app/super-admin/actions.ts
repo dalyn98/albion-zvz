@@ -212,8 +212,10 @@ export async function triggerManualSync(): Promise<ManualSyncResult> {
   const headers = { Authorization: `Bearer ${secret}` }
   const startedAt = Date.now()
 
+  // 수동 트리거는 GitHub Actions schedule 이 지연/누락된 케이스를 복구하는 용도라
+  // 기본 2페이지(100건, ~10분 커버) 대신 20페이지(1000건, ~80분 커버) 로 깊게 스캔.
   const [battleRes, killRes] = await Promise.all([
-    fetch(`${appUrl}/api/cron/battle-tracker`, { headers, cache: 'no-store' }),
+    fetch(`${appUrl}/api/cron/battle-tracker?pages=20`, { headers, cache: 'no-store' }),
     fetch(`${appUrl}/api/cron/killboard-sync`, { headers, cache: 'no-store' }),
   ])
   const [battleBody, killBody] = await Promise.all([battleRes.text(), killRes.text()])
