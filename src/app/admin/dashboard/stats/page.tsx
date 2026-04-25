@@ -891,8 +891,12 @@ function FinanceDailyChart({
   daily: FinanceFlowStats['daily']
   tStats: StatsTranslator
 }) {
-  // 일별 최대 earned / spent 를 공통 스케일로 사용. 한쪽만 크게 튀면 다른 쪽이
-  // 납작해지지만 scale 을 공유해야 "발행 > 소멸" 같은 비교가 눈에 들어온다.
+  // 일별 earned 와 spent 를 같은 스케일로 비교하기 위해 peak = max(earned, spent).
+  // 하루가 평소의 수십 배라면 작은 날 막대가 1px 미만이 돼 안 보이는 버그가
+  // 있었음 — min-h-[2px] 로 0 이 아닌 값은 항상 가는 띠라도 보이게 보장.
+  // 하루 칸을 2개 서브컬럼(earned/spent) 으로 분할해 같은 base 에서 위로
+  // 자란다. 이전엔 stacked 형태였는데 둘 다 peak 이면 200% 가 돼 강제로
+  // /2 로 줄였고, 그 결과 작은 날들이 시각적으로 사라졌다.
   const peak = daily.reduce((m, d) => Math.max(m, d.earned, d.spent), 0)
   return (
     <div className="bg-gray-900/60 border border-gray-700 rounded-lg p-4">
@@ -912,23 +916,29 @@ function FinanceDailyChart({
       {peak === 0 ? (
         <p className="text-gray-500 text-xs text-center py-6">{tStats('financeDailyEmpty')}</p>
       ) : (
-        <div className="flex items-end gap-[2px] h-28">
+        <div className="flex items-end gap-[3px] h-28">
           {daily.map((d) => {
-            const earnedH = peak === 0 ? 0 : (d.earned / peak) * 100
-            const spentH = peak === 0 ? 0 : (d.spent / peak) * 100
+            const earnedH = (d.earned / peak) * 100
+            const spentH = (d.spent / peak) * 100
             return (
               <div
                 key={d.date}
-                className="flex-1 flex flex-col justify-end min-w-[4px]"
+                className="flex-1 flex items-end gap-[1px] min-w-[6px] h-full"
                 title={`${d.date} · +${d.earned.toLocaleString()} / -${d.spent.toLocaleString()}`}
               >
                 <div
-                  className="bg-emerald-500/70"
-                  style={{ height: `${earnedH / 2}%` }}
+                  className="flex-1 bg-emerald-500/70"
+                  style={{
+                    height: `${earnedH}%`,
+                    minHeight: d.earned > 0 ? '2px' : '0',
+                  }}
                 />
                 <div
-                  className="bg-rose-500/70 mt-[1px]"
-                  style={{ height: `${spentH / 2}%` }}
+                  className="flex-1 bg-rose-500/70"
+                  style={{
+                    height: `${spentH}%`,
+                    minHeight: d.spent > 0 ? '2px' : '0',
+                  }}
                 />
               </div>
             )
