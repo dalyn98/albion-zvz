@@ -136,6 +136,43 @@ export async function getPlayer(
   }
 }
 
+// 길드 멤버 로스터 조회. /guilds/{id}/members 가 길드의 모든 멤버를 한 번에
+// 반환한다 (페이지네이션 없이 한방). Discord 미연동 멤버까지 포함된 전체
+// 로스터를 sync 하기 위한 유일한 공식 경로.
+//
+// 응답 항목 중 우리에게 필요한 것만 좁혀 쓴다 — Equipment/Inventory 등 무거운
+// 필드는 무시. 1회 호출로 ~107건 반환되며 응답 크기 ~580KB.
+export interface GameinfoGuildMember {
+  Id: string
+  Name: string
+  GuildId: string
+  GuildName: string
+  AllianceId?: string | null
+  AllianceName?: string | null
+  KillFame?: number
+  DeathFame?: number
+  FameRatio?: number
+  AverageItemPower?: number
+  Avatar?: string | null
+  AvatarRing?: string | null
+}
+
+export async function fetchGuildMembers(
+  server: AlbionServer,
+  guildId: string,
+): Promise<GameinfoGuildMember[] | null> {
+  const trimmed = guildId.trim()
+  if (!trimmed) return null
+  const base = SERVER_ENDPOINTS[server]
+  const url = `${base}/guilds/${encodeURIComponent(trimmed)}/members`
+  try {
+    const data = await fetchJson<GameinfoGuildMember[]>(url, { fresh: true })
+    return Array.isArray(data) ? data : []
+  } catch {
+    return null
+  }
+}
+
 // UI 용 라벨. 서버 선택 드롭다운/배지에 같은 문자열을 쓰기 위해 모아 둔다.
 export const ALBION_SERVER_LABEL: Record<AlbionServer, string> = {
   west: 'Americas',

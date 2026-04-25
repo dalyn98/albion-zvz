@@ -1,0 +1,40 @@
+name: Albion roster sync
+
+# Albion 길드 멤버 로스터 sync. /guilds/{id}/members 응답이 ~580KB 라
+# 6시간 주기면 충분 (가입/탈퇴 빈도 + 응답 크기 균형). Discord 미연동 멤버까지
+# 포함된 전체 로스터를 albion_guild_members 에 보존해 ZvZ 통계의 "전 멤버
+# 기준" 화 가능.
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: albion-roster-sync
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call cron endpoint
+        env:
+          APP_URL: https://albion-zvz.vercel.app
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET repo secret is not set"
+            exit 1
+          fi
+          response=$(curl -sS -w "\n%{http_code}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/albion-roster-sync")
+          body=$(echo "$response" | sed '$d')
+          status=$(echo "$response" | tail -n1)
+          echo "status=$status"
+          echo "body=$body"
+          if [ "$status" != "200" ]; then
+            exit 1
+          fi
