@@ -121,6 +121,8 @@ export async function confirmAlbionIdentity(input: {
     // 인증된 경우에만 사이트 닉네임을 알비온 닉으로 동기화. 미인증/수동 입력은
     // 그대로 디스코드 이름을 유지한다.
     syncSiteUsername: verified,
+    fallbackUsername: session.username,
+    fallbackAvatar: session.avatar,
   })
   if (updated.error) return { error: updated.error }
 
@@ -162,6 +164,8 @@ export async function setAlbionIdentityManually(input: {
     nickname,
     guildId: null,
     verifiedAt: null,
+    fallbackUsername: session.username,
+    fallbackAvatar: session.avatar,
   })
   if (updated.error) return { error: updated.error }
 
@@ -202,6 +206,12 @@ interface UpsertPayload {
   // true 면 guild_avatars.username 도 payload.nickname 으로 덮어씀. 인증 성공
   // 플로우에서만 설정되어 사이트 전역에서 알비온 닉으로 보이게 한다.
   syncSiteUsername?: boolean
+  // INSERT 폴백용 — guild_avatars.username 은 NOT NULL 이라 행이 없을 때
+  // 새로 삽입하려면 username 이 필요. OAuth callback 에서 row 를 생성하므로
+  // 정상 멤버는 항상 row 가 있지만, 어떤 이유로든 row 가 누락된 경우(예:
+  // 회원 탈퇴 후 재가입 race) 모달이 영원히 안 사라지는 사고를 방지.
+  fallbackUsername: string
+  fallbackAvatar: string | null
 }
 
 async function upsertAlbionIdentity(
@@ -211,21 +221,25 @@ async function upsertAlbionIdentity(
 ): Promise<{ ok?: true; error?: string }> {
   const tErr = await getTranslations('memberActionError')
   const db = getAdminClient()
-  const update: Record<string, string | null> = {
+
+  // 행이 있으면 update, 없으면 insert. PK 가 (guild_id, discord_id) 이므로
+  // onConflict 로 안전한 upsert 가능. update-only 는 row 누락 시 silent no-op
+  // 으로 모달이 풀리지 않는 사고를 만든다.
+  const upsertRow: Record<string, string | null> = {
+    guild_id: sessionGuildId,
+    discord_id: discordId,
+    username: payload.syncSiteUsername ? payload.nickname : payload.fallbackUsername,
+    avatar: payload.fallbackAvatar,
     albion_server: payload.server,
     albion_player_id: payload.playerId,
     albion_nickname: payload.nickname,
     albion_guild_id: payload.guildId,
     albion_verified_at: payload.verifiedAt,
   }
-  if (payload.syncSiteUsername) {
-    update.username = payload.nickname
-  }
+
   const { error } = await db
     .from('guild_avatars')
-    .update(update)
-    .eq('guild_id', sessionGuildId)
-    .eq('discord_id', discordId)
+    .upsert(upsertRow, { onConflict: 'guild_id,discord_id' })
   if (error) {
     // (server, player_id) 유니크 제약 충돌 — 같은 알비온 캐릭터를 이미 다른
     // 디스코드 계정이 점유한 상태.

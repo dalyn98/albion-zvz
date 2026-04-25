@@ -16,6 +16,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getMemberAlbionIdentity } from '@/lib/albion-identity'
 import { getSessionGuildId, getPrimaryTenantId, getTenantDiscordConfig } from '@/lib/tenant'
+import { isSuperAdminSession } from '@/lib/super-admin'
 import { classifyHost, resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
 
@@ -159,6 +160,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // 알비온 온보딩 강제: 멤버가 아직 서버를 고르지 않았으면 랜딩 위에 모달을
   // 덮는다. 리디렉트 대신 overlay 방식 — 로그인 직후 대문 페이지에서 바로
   // 인증할 수 있게. DB 1회 조회(부분 인덱스로 O(log N)).
+  //
+  // 슈퍼어드민 예외: 슈퍼어드민(개발자/운영자) 은 다른 테넌트를 점검할 때
+  // 해당 테넌트의 guild_avatars 행이 없을 수 있고, 본질적으로 그 테넌트의
+  // 멤버가 아니므로 알비온 인증을 강제할 이유가 없음 → 모달과 강제 리다이렉트
+  // 전부 skip.
   let onboardingModalProps: {
     discordNickname: string
     initialIdentity: Awaited<ReturnType<typeof getMemberAlbionIdentity>>
@@ -167,6 +173,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   if (
     !isPublic &&
     session?.isMember &&
+    !isSuperAdminSession(session) &&
     !skipAlbionOnboardingModal(pathname)
   ) {
     const guildId = await getSessionGuildId(session)

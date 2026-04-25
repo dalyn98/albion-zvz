@@ -10,15 +10,18 @@ import type { AlbionBattle } from '@/lib/albion-battles'
 // 일괄 변환하는 일회성 백필. cron 과 동일하게 Bearer CRON_SECRET 으로 인증.
 //
 // 동작:
-//   1. SELECT legacy rows + raw_battle JOIN. ?limit= 으로 1회 처리량 조절(기본 200).
+//   1. SELECT 대상 rows + raw_battle JOIN. ?limit= 으로 1회 처리량 조절(기본 200).
+//      ?mode=legacy (기본): force_key='__legacy__' 만.
+//      ?mode=stale&before=<ISO>: 이미 finalized (force_kind in alliance/guild) 이지만
+//         match_evaluated_at < before 인 행 — K/D 필터링 로직 변경 후 재처리용.
 //   2. 각 row 에 대해 killboard_events (guild_id, battle_id) 페어 조회.
 //   3. buildLegacyBackfillRows 로 force 별 row 생성 (페어 없으면 raw_battle 의
 //      모든 ≥15 force 를 분리 매치업으로 fallback).
 //   4. 같은 (guild_id, battle_record_id) 기존 row 삭제 후 final row insert.
 //   5. final row 0 이면 (= 새 컷오프 미통과) 그냥 삭제.
 //
-// 멱등 — legacy 가 아닌 행은 SELECT 에서 걸러지므로 여러 번 호출해도 안전.
-// 큰 길드(수천 행) 는 ?limit=500 으로 여러 번 나누어 호출.
+// 멱등 — 처리된 행은 match_evaluated_at 가 현재로 갱신되므로 같은 ?before 로
+// 다시 호출하면 SELECT 에서 걸러진다.
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -41,6 +44,14 @@ export async function GET(request: Request) {
   const limit = Number.isFinite(limitParam)
     ? Math.min(Math.max(limitParam, 1), MAX_LIMIT)
     : DEFAULT_LIMIT
+  const mode = url.searchParams.get('mode') === 'stale' ? 'stale' : 'legacy'
+  const beforeIso = url.searchParams.get('before')
+  if (mode === 'stale' && !beforeIso) {
+    return NextResponse.json(
+      { error: 'mode=stale requires ?before=<ISO timestamp>' },
+      { status: 400 },
+    )
+  }
 
   const db = getAdminClient()
   const errors: string[] = []
@@ -48,23 +59,35 @@ export async function GET(request: Request) {
   let inserted = 0
   let deletedNoEngagement = 0
 
-  const { data: legacyRows, error: selErr } = await db
+  let sel = db
     .from('tenant_battle_records')
     .select(
       'id, guild_id, battle_record_id, started_at, battle_records!inner(albion_battle_id, raw_battle)',
     )
-    .eq('main_opponent_force_key', '__legacy__')
+  if (mode === 'legacy') {
+    sel = sel.eq('main_opponent_force_key', '__legacy__')
+  } else {
+    // stale: 이미 finalized 됐지만 K/D 필터링 로직 변경 전 평가된 행. force_kind
+    // 가 alliance/guild 인 행 = 정상 매치업, match_evaluated_at < before 면 재평가
+    // 대상.
+    sel = sel
+      .in('main_opponent_force_kind', ['alliance', 'guild'])
+      .lt('match_evaluated_at', beforeIso!)
+  }
+
+  const { data: legacyRows, error: selErr } = await sel
     .order('started_at', { ascending: false })
     .limit(limit)
 
   if (selErr) {
     return NextResponse.json(
-      { error: `legacy select: ${selErr.message}` },
+      { error: `select: ${selErr.message}` },
       { status: 500 },
     )
   }
   if (!legacyRows || legacyRows.length === 0) {
     return NextResponse.json({
+      mode,
       processed: 0,
       inserted: 0,
       deleted_no_engagement: 0,
@@ -160,12 +183,20 @@ export async function GET(request: Request) {
   }
 
   // 다음 호출 분의 추정 잔여량 (정확치 X — count(*) 별도 호출 필요한데 비용 절약).
-  const { count: remainingCount } = await db
+  let remainingQuery = db
     .from('tenant_battle_records')
     .select('id', { count: 'exact', head: true })
-    .eq('main_opponent_force_key', '__legacy__')
+  if (mode === 'legacy') {
+    remainingQuery = remainingQuery.eq('main_opponent_force_key', '__legacy__')
+  } else {
+    remainingQuery = remainingQuery
+      .in('main_opponent_force_kind', ['alliance', 'guild'])
+      .lt('match_evaluated_at', beforeIso!)
+  }
+  const { count: remainingCount } = await remainingQuery
 
   return NextResponse.json({
+    mode,
     processed,
     inserted,
     deleted_no_engagement: deletedNoEngagement,

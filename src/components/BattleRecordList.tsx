@@ -6,12 +6,36 @@
 // 표기 규칙: "70v80" 같은 사이즈 표기는 mainOpponentTeamSize 사용 (전체 합산이
 // 아닌 "주 상대 알라이언스/길드" 만). matchTotal>1 일 때 "1/2 분리 매치업" 배지,
 // isProvisional=true 일 때 "판정 중" 배지로 사용자에게 명시.
+//
+// 규모 시각 구분: size_category 별 컬러 토큰 (sky/emerald/orange/rose) 으로
+// 사이즈 배지를 톤 차이로 한눈에 구분. 분리 매치업의 violet 좌측 border 와
+// 색이 안 겹치도록 의도적으로 조합.
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Trophy, Skull, Minus, GitBranch, Hourglass, CornerDownRight } from 'lucide-react'
 import Link from 'next/link'
 import type { SizeCategory } from '@/lib/albion-battles'
 import { formatDateTimeShort } from '@/lib/format-datetime'
+
+// 규모별 톤 — 사이즈 배지 (사이즈 셀의 첫 인라인 박스). dot 은 규모 직관 신호.
+const SIZE_TONE: Record<SizeCategory, { badge: string; dot: string }> = {
+  small: {
+    badge: 'bg-sky-500/10 border-sky-500/30 text-sky-200',
+    dot: 'bg-sky-400',
+  },
+  middle: {
+    badge: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200',
+    dot: 'bg-emerald-400',
+  },
+  large: {
+    badge: 'bg-orange-500/10 border-orange-500/30 text-orange-200',
+    dot: 'bg-orange-400',
+  },
+  zerg: {
+    badge: 'bg-rose-500/15 border-rose-500/40 text-rose-200',
+    dot: 'bg-rose-400',
+  },
+}
 
 export type BattleListTab = 'recent' | SizeCategory
 
@@ -306,9 +330,17 @@ function BattleRow({
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1">
-          <span className="inline-flex items-center gap-1 bg-gray-800 border border-gray-700 rounded px-2 py-0.5 text-[11px] text-gray-300">
+          <span
+            className={`inline-flex items-center gap-1.5 border rounded px-2 py-0.5 text-[11px] font-medium ${
+              SIZE_TONE[row.sizeCategory].badge
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${SIZE_TONE[row.sizeCategory].dot}`}
+              aria-hidden
+            />
             {sizeLabel}
-            <span className="text-gray-500">
+            <span className="opacity-70 font-mono">
               {row.homeTeamSize}v{row.mainOpponentTeamSize}
             </span>
           </span>
