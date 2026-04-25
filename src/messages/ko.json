@@ -1152,6 +1152,10 @@
   },
   "event": {
     "defaultNotificationMessage": "새 이벤트가 등록되었습니다.",
+    "discordFieldGatherAt": "집결 일시",
+    "discordFieldGatherTime": "집결 시간",
+    "discordFieldGatherLocation": "집결 장소",
+    "discordFieldSpecialNotes": "특이사항",
     "backToList": "이벤트 목록",
     "info": "전투 정보",
     "inProgress": "전투 진행중 · {time} 시작",

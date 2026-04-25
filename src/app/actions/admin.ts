@@ -12,6 +12,8 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { sendEventNotification } from '@/lib/discord'
 import { getAppSetting } from '@/lib/app-settings'
+import { getLocale } from '@/lib/locale'
+import type { Locale } from '@/i18n/locales'
 import type { BombSquadKind, EventCategory, SlotKey, SlotSpells, GearOption, GearSpec, GearSpecs } from '@/types'
 import {
   BOMB_SQUAD_KINDS,
@@ -25,6 +27,14 @@ import {
   isTierlessSlot,
   isSpecLessSlot,
 } from '@/types'
+
+// next-intl locale 코드(ko/ja/en) → Intl.DateTimeFormat 이 받는 BCP 47 태그.
+// Discord embed 의 일시 표기 포맷에 사용 — 시간대(Asia/Seoul)는 별도 고정.
+const LOCALE_TO_BCP47: Record<Locale, string> = {
+  ko: 'ko-KR',
+  ja: 'ja-JP',
+  en: 'en-US',
+}
 
 // 카테고리와 무관하게 존재할 수 있는 가장 큰 파티 번호 — 입력이 터무니없이
 // 크면 아래 category-aware 검증 이전에 빠르게 차단.
@@ -247,10 +257,21 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
     // 누락을 바로 인지할 수 있게 조용한 실패를 피한다.
     const tenantConfig = await getTenantDiscordConfig(guildId)
     const channelId = data.notify_channel_id ?? tenantConfig?.eventChannelId ?? null
+    // Discord embed 라벨/날짜 포맷은 알림 트리거 관리자의 locale 로 — 길드별
+    // 단일 운영 언어 컨벤션을 가정한다 (channel 은 1 곳, 라벨은 1 종류).
+    const adminLocale = await getLocale()
+    const dateLocale = LOCALE_TO_BCP47[adminLocale]
     await sendEventNotification(data, {
       content,
       notifyRoleId: data.notify_role_id,
       channelId,
+      fieldLabels: {
+        gatherAt: tEvent('discordFieldGatherAt'),
+        gatherTime: tEvent('discordFieldGatherTime'),
+        gatherLocation: tEvent('discordFieldGatherLocation'),
+        specialNotes: tEvent('discordFieldSpecialNotes'),
+      },
+      dateLocale,
     })
     return {}
   } catch (e) {

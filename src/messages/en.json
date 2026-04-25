@@ -1152,6 +1152,10 @@
   },
   "event": {
     "defaultNotificationMessage": "A new event has been scheduled.",
+    "discordFieldGatherAt": "Date",
+    "discordFieldGatherTime": "Time",
+    "discordFieldGatherLocation": "Location",
+    "discordFieldSpecialNotes": "Notes",
     "backToList": "Event list",
     "info": "Battle info",
     "inProgress": "In battle · started {time}",

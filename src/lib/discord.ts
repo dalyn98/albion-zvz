@@ -332,10 +332,12 @@ export interface EventNotificationPayload {
   notify_channel_id: string | null
 }
 
-function formatGatherAt(iso: string): string {
+// Asia/Seoul 은 의도된 고정값 — Albion KR 서버 시간을 기준으로 알림이 나가야
+// 한다. locale 만 호출자가 넘기는 값(알림을 트리거한 관리자 locale)으로 동적.
+function formatGatherAt(iso: string, locale: string): string {
   const dt = new Date(iso)
   if (Number.isNaN(dt.getTime())) return iso
-  return dt.toLocaleString('ko-KR', {
+  return dt.toLocaleString(locale, {
     timeZone: 'Asia/Seoul',
     year: 'numeric',
     month: '2-digit',
@@ -347,6 +349,13 @@ function formatGatherAt(iso: string): string {
   })
 }
 
+export interface EventNotificationFieldLabels {
+  gatherAt: string
+  gatherTime: string
+  gatherLocation: string
+  specialNotes: string
+}
+
 export interface SendEventNotificationOptions {
   // Admin-editable announcement line shown above the embed.
   content: string
@@ -356,6 +365,11 @@ export interface SendEventNotificationOptions {
   // 로 미리 해석해서 넘긴다. 빈 값이면 여기서 throw — 봇 알림은 조용한 실패로
   // 덮어놓으면 운영자가 "왜 안 오지" 하는 시간이 길어진다.
   channelId: string | null
+  // Discord embed 필드 라벨 — 알림을 트리거하는 관리자 locale 로 결정.
+  // 채널 메시지는 다국적 채널이라도 단일 라벨로 내보내야 하므로 호출자 locale 사용.
+  fieldLabels: EventNotificationFieldLabels
+  // 날짜 포맷용 locale (BCP 47, e.g. 'ko-KR' / 'ja-JP' / 'en-US').
+  dateLocale: string
 }
 
 export async function sendEventNotification(
@@ -372,12 +386,12 @@ export async function sendEventNotification(
   const siteUrl = appUrl.replace(/\/$/, '')
   const eventUrl = `${siteUrl}/events/${event.id}`
   const fields: Array<{ name: string; value: string; inline?: boolean }> = [
-    { name: '집결 일시', value: formatGatherAt(event.gather_at), inline: true },
-    { name: '집결 시간', value: event.gather_time, inline: true },
-    { name: '집결 장소', value: event.gather_location, inline: false },
+    { name: options.fieldLabels.gatherAt, value: formatGatherAt(event.gather_at, options.dateLocale), inline: true },
+    { name: options.fieldLabels.gatherTime, value: event.gather_time, inline: true },
+    { name: options.fieldLabels.gatherLocation, value: event.gather_location, inline: false },
   ]
   if (event.special_notes && event.special_notes.trim()) {
-    fields.push({ name: '특이사항', value: event.special_notes, inline: false })
+    fields.push({ name: options.fieldLabels.specialNotes, value: event.special_notes, inline: false })
   }
 
   const embed = {

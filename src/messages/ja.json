@@ -1152,6 +1152,10 @@
   },
   "event": {
     "defaultNotificationMessage": "新しいイベントが登録されました。",
+    "discordFieldGatherAt": "集合日時",
+    "discordFieldGatherTime": "集合時間",
+    "discordFieldGatherLocation": "集合場所",
+    "discordFieldSpecialNotes": "特記事項",
     "backToList": "イベント一覧",
     "info": "戦闘情報",
     "inProgress": "戦闘中 · {time} 開始",
