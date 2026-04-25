@@ -114,12 +114,17 @@ interface SaveTenantAlbionInput {
   tenantId: string
   server: string
   homeGuildId: string
+  homeGuildName: string
 }
 
 const MAX_HOME_GUILD_ID_LENGTH = 500
+const MAX_HOME_GUILD_NAME_LENGTH = 200
 
-// 단계 2: 알비온 서버 + 홈 길드. 길드 UUID 는 서버별로 다르기 때문에 둘을
+// 단계 2: 알비온 서버 + 홈 길드. 길드 UUID/이름은 서버별로 다르기 때문에 셋을
 // 원자적으로 저장해야 한다 — app_settings PK 는 (guild_id, key) 복합.
+//
+// homeGuildName 은 killboard-sync 의 동명이인 매칭과 verifyDeathInWindow 의 길드
+// 일치 검증에 사용된다 (env 하드코딩 ALBION_GUILD_NAME 대체).
 export async function saveTenantAlbion(
   input: SaveTenantAlbionInput,
 ): Promise<{ error?: string }> {
@@ -138,6 +143,10 @@ export async function saveTenantAlbion(
   if (homeGuildId.length > MAX_HOME_GUILD_ID_LENGTH) {
     return { error: t('errorGeneric') }
   }
+  const homeGuildName = (input.homeGuildName ?? '').trim()
+  if (homeGuildName.length > MAX_HOME_GUILD_NAME_LENGTH) {
+    return { error: t('errorGeneric') }
+  }
 
   const db = getAdminClient()
   const now = new Date().toISOString()
@@ -153,6 +162,12 @@ export async function saveTenantAlbion(
         guild_id: input.tenantId,
         key: 'albion_home_guild_id',
         value: homeGuildId,
+        updated_at: now,
+      },
+      {
+        guild_id: input.tenantId,
+        key: 'albion_home_guild_name',
+        value: homeGuildName,
         updated_at: now,
       },
     ],

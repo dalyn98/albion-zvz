@@ -60,9 +60,20 @@ function skipAlbionOnboardingModal(pathname: string): boolean {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('meta')
+  const [t, headersList] = await Promise.all([
+    getTranslations('meta'),
+    headers(),
+  ])
+  // 브라우저 탭 제목은 길드별로 다르게 — host 가 tenant 서브도메인일 때 slug
+  // 첫 하이픈 앞부분을 그대로 title 로 사용 (사이드바/배너의 brandName 과 동일).
+  // canonical/preview/localhost 는 i18n 의 기본 title("Menhera") 유지.
+  const classification = classifyHost(headersList.get('host'))
+  const tabTitle =
+    classification.kind === 'tenant'
+      ? displayNameFromSlug(classification.slug) || t('title')
+      : t('title')
   return {
-    title: t('title'),
+    title: tabTitle,
     description: t('description'),
     // robots.txt + next.config headers 와 3중 신호. 일부 크롤러는 HTML meta
     // 만 보고 일부는 HTTP header 만 본다. 추후 marketing 도메인 분리 시 그
@@ -80,7 +91,7 @@ export async function generateMetadata(): Promise<Metadata> {
     appleWebApp: {
       capable: true,
       statusBarStyle: 'black-translucent',
-      title: t('title'),
+      title: tabTitle,
     },
     other: {
       'mobile-web-app-capable': 'yes',

@@ -106,6 +106,26 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
         tenantId,
         server,
         homeGuildId: guildId,
+        homeGuildName: guildName,
+      })
+      if (res.error) {
+        setError(res.error)
+        return
+      }
+      router.push(`/onboard/setup/${tenantId}/rewards`)
+    })
+  }
+
+  // 길드 미선택 시에도 다음 단계로 진행 — 알비온 인증/킬보드 sync 는 비활성으로
+  // 시작하고, 관리자가 나중에 설정 페이지에서 채울 수 있다.
+  const handleSkip = () => {
+    setError('')
+    startTransition(async () => {
+      const res = await saveTenantAlbion({
+        tenantId,
+        server,
+        homeGuildId: '',
+        homeGuildName: '',
       })
       if (res.error) {
         setError(res.error)
@@ -245,8 +265,16 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
 
       <div className="flex items-center gap-2 pt-2">
         <button
-          type="submit"
+          type="button"
+          onClick={handleSkip}
           disabled={isPending}
+          className="rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-60 text-gray-300 text-sm font-semibold px-4 py-2.5"
+        >
+          {labels.skipButton}
+        </button>
+        <button
+          type="submit"
+          disabled={isPending || !guildId}
           className="flex-1 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-60 text-white text-sm font-semibold py-2.5"
         >
           {isPending ? labels.savingButton : labels.nextButton}

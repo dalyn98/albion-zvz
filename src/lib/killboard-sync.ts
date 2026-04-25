@@ -13,6 +13,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { resolveAlbionServer, type AlbionServer } from './killboard'
+import { getAppSetting } from './app-settings'
 
 const SERVER_ENDPOINTS: Record<AlbionServer, string> = {
   west: 'https://gameinfo.albiononline.com/api/gameinfo',
@@ -20,7 +21,6 @@ const SERVER_ENDPOINTS: Record<AlbionServer, string> = {
   europe: 'https://gameinfo-ams.albiononline.com/api/gameinfo',
 }
 
-const GUILD_NAME = process.env.ALBION_GUILD_NAME ?? 'Menhera'
 // 동기 1회에서 이름 검색할 수 있는 최대 멤버 수. 나머지는 다음 tick 에서 처리.
 const MAX_SEARCH_PER_RUN = 10
 // Kills/deaths 는 API 가 최신 50건 반환. 5분 주기에서 놓친 기록 최소화.
@@ -73,15 +73,19 @@ async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-async function searchPlayerId(baseUrl: string, username: string): Promise<string | null> {
+async function searchPlayerId(
+  baseUrl: string,
+  username: string,
+  guildName: string,
+): Promise<string | null> {
   const url = `${baseUrl}/search?q=${encodeURIComponent(username)}`
   const data = await fetchJson<SearchResponse>(url)
   const target = username.trim().toLowerCase()
-  // 길드명까지 일치하는 레코드 우선 — 동명이인 중 Menhera 소속을 고른다.
+  // 길드명까지 일치하는 레코드 우선 — 동명이인 중 자기 길드 소속을 고른다.
   const guildMatch = data.players.find(
     (p) =>
       p.Name.toLowerCase() === target &&
-      (p.GuildName ?? '').toLowerCase() === GUILD_NAME.toLowerCase(),
+      (p.GuildName ?? '').toLowerCase() === guildName.toLowerCase(),
   )
   if (guildMatch) return guildMatch.Id
   // 길드명 불일치면 null — 이름만 맞는 건 다른 사람.
@@ -122,8 +126,25 @@ export async function syncKillboard(
   const startedAt = Date.now()
   const server = await resolveAlbionServer(guildId)
   const baseUrl = SERVER_ENDPOINTS[server]
+  // tenant 의 알비온 길드명 — 동명이인 중 자기 길드원을 고르는 데 사용. 위저드
+  // step 2 에서 albion_home_guild_id 와 함께 저장. 미설정이면 매칭 자체를 skip
+  // (잘못된 길드원을 매핑하는 게 더 위험).
+  const guildName = (await getAppSetting('albion_home_guild_name', '', guildId)).trim()
 
   const errors: Array<{ member: string; step: string; message: string }> = []
+
+  if (!guildName) {
+    return {
+      server,
+      members_total: 0,
+      members_resolved: 0,
+      members_newly_resolved: 0,
+      members_unresolved: 0,
+      events_upserted: 0,
+      errors: [{ member: '*', step: 'config', message: 'albion_home_guild_name not configured for tenant' }],
+      duration_ms: Date.now() - startedAt,
+    }
+  }
 
   const { data: members, error: membersError } = await db
     .from('guild_avatars')
@@ -140,7 +161,7 @@ export async function syncKillboard(
   let newlyResolved = 0
   for (const m of needsResolve) {
     try {
-      const id = await searchPlayerId(baseUrl, m.username)
+      const id = await searchPlayerId(baseUrl, m.username, guildName)
       if (id) {
         const { error } = await db
           .from('guild_avatars')

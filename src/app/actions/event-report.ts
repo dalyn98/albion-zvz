@@ -10,7 +10,6 @@ import {
   type EventReportSlot,
   type EventReportKillboard,
   type EventReportRegear,
-  type EventReportBattle,
 } from '@/lib/event-report'
 
 // battle_started_at + 1h 를 "전투 종료" 로 본다. killboard 는 이 시간창 안에
@@ -52,7 +51,10 @@ export async function getEventReport(
   const startedIso = battleStartedAt.toISOString()
   const endedIso = battleEndedAt.toISOString()
 
-  const [partiesRes, killboardRes, regearRes, battlesRes] = await Promise.all([
+  // event_battles 테이블은 더 이상 존재하지 않는다 — 전투 기록은 별도 cron 이
+  // tenant_battle_records 에 적재하고 events 와 1:N 매핑이 있어 이벤트 단위로
+  // 직접 합산하지 않는다. report.battles 는 빈 배열로 유지 (UI 가 length>0 가드).
+  const [partiesRes, killboardRes, regearRes] = await Promise.all([
     db
       .from('parties')
       .select('slots(assigned_discord_id, role_name, is_hidden)')
@@ -68,10 +70,6 @@ export async function getEventReport(
       .from('regear_requests')
       .select('status, payout_silver')
       .eq('guild_id', guildId)
-      .eq('event_id', eventId),
-    db
-      .from('event_battles')
-      .select('battle_number, opponent_guild, outcome')
       .eq('event_id', eventId),
   ])
 
@@ -98,12 +96,6 @@ export async function getEventReport(
     payout_silver: r.payout_silver ?? null,
   }))
 
-  const battles: EventReportBattle[] = (battlesRes.data ?? []).map((b) => ({
-    battle_number: b.battle_number,
-    opponent_guild: b.opponent_guild,
-    outcome: b.outcome as 'win' | 'loss',
-  }))
-
   const discordIds = new Set<string>()
   for (const s of slots) if (s.assigned_discord_id) discordIds.add(s.assigned_discord_id)
   for (const k of killboard) discordIds.add(k.discord_id)
@@ -125,7 +117,7 @@ export async function getEventReport(
     }
   }
 
-  const report = buildEventReport({ slots, killboard, regear, battles, profiles })
+  const report = buildEventReport({ slots, killboard, regear, battles: [], profiles })
 
   return {
     event: {

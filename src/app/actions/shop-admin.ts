@@ -46,6 +46,9 @@ export interface ImportSummary {
 }
 
 const IMPORT_ROW_LIMIT = 5000
+// 승인/거절 시 admin 메모 최대 길이. 컬럼 자체에는 길이 제약이 없지만 UI 와
+// DB 양쪽에서 비정상적으로 큰 입력을 막아 두면 페이지 렌더가 깨지지 않는다.
+const ADMIN_NOTE_MAX_LENGTH = 1000
 
 export interface ImportOptions {
   // true 면 DB insert / 재고 RPC / 시세 동기화 / revalidate 모두 스킵하고
@@ -535,11 +538,17 @@ export async function approveShopOrder(
   try {
     const session = await getSession()
     if (!session?.isAdmin) return { error: 'Unauthorized' }
+    const trimmedNote = adminNote?.trim() || null
+    if (trimmedNote && trimmedNote.length > ADMIN_NOTE_MAX_LENGTH) {
+      return { error: tErr('adminNoteTooLong', { max: ADMIN_NOTE_MAX_LENGTH }) }
+    }
+    const guildId = await getSessionGuildId(session)
     const db = await requireAdmin()
     const { error } = await db.rpc('approve_shop_order', {
       p_id: orderId,
       p_admin_id: session.discordId,
-      p_admin_note: adminNote?.trim() || null,
+      p_guild_id: guildId,
+      p_admin_note: trimmedNote,
     })
     if (error) {
       // RPC raise exception 메시지를 사용자 친화 문구로.
@@ -571,11 +580,17 @@ export async function rejectShopOrder(
   try {
     const session = await getSession()
     if (!session?.isAdmin) return { error: 'Unauthorized' }
+    const trimmedNote = adminNote?.trim() || null
+    if (trimmedNote && trimmedNote.length > ADMIN_NOTE_MAX_LENGTH) {
+      return { error: tErr('adminNoteTooLong', { max: ADMIN_NOTE_MAX_LENGTH }) }
+    }
+    const guildId = await getSessionGuildId(session)
     const db = await requireAdmin()
     const { error } = await db.rpc('reject_shop_order', {
       p_id: orderId,
       p_admin_id: session.discordId,
-      p_admin_note: adminNote?.trim() || null,
+      p_guild_id: guildId,
+      p_admin_note: trimmedNote,
     })
     if (error) {
       if (error.message.includes('ORDER_NOT_PENDING')) {

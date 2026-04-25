@@ -40,9 +40,13 @@ async function resolveBaseUrl(guildId?: string): Promise<string> {
   return SERVER_ENDPOINTS[await resolveAlbionServer(guildId)]
 }
 
-// NEXT_PUBLIC_* names are a Next.js convention for client-accessible env vars;
-// killboard calls are server-only, so plain names are fine.
-const DEFAULT_GUILD_NAME = process.env.ALBION_GUILD_NAME ?? 'Menhera'
+// 길드명은 tenant 별로 다르다. app_settings.albion_home_guild_name 에서 읽고,
+// 미설정이면 검증 자체를 skip — 잘못된 길드명으로 자동 인증 false 가 나가는 게
+// 더 위험. 마이그 088 backfill 로 멘헤라 tenant 는 'Menhera' 가 들어가 있다.
+async function resolveGuildName(guildId?: string): Promise<string> {
+  const raw = await getAppSetting('albion_home_guild_name', '', guildId)
+  return raw.trim()
+}
 
 interface PlayerRef {
   Id: string
@@ -126,7 +130,15 @@ export async function verifyDeathInWindow(
   windowEndIso: string,
   opts: { guildName?: string; guildId?: string } = {},
 ): Promise<VerifyResult> {
-  const guildName = opts.guildName ?? DEFAULT_GUILD_NAME
+  const guildName = (opts.guildName ?? (await resolveGuildName(opts.guildId))).trim()
+  if (!guildName) {
+    return {
+      verified: false,
+      matchedEventId: null,
+      reason: '관리자가 길드명을 설정하지 않아 자동 검증을 건너뜁니다.',
+      matchedEquipment: null,
+    }
+  }
   try {
     const baseUrl = await resolveBaseUrl(opts.guildId)
     const player = await searchPlayerByName(baseUrl, username)

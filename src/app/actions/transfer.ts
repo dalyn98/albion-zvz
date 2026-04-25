@@ -89,6 +89,7 @@ export async function transferPoints(
 
   const { data, error } = await db.rpc('transfer_points', {
     p_from: session.discordId,
+    p_guild_id: guildId,
     p_transfers: payload,
   })
   if (error) return { error: mapRpcError(error.message, tErr, balance) }

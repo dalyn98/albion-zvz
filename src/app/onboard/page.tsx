@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
+import { getAdminClient } from '@/lib/supabase-admin'
 import OnboardGuildList from '@/components/OnboardGuildList'
 
 export const dynamic = 'force-dynamic'
@@ -57,6 +58,18 @@ export default async function OnboardPage({ searchParams }: OnboardPageProps) {
       ? t('installErrorUnknown', { reason: installErrorRaw })
       : null
 
+  // 위저드 도중 닫고 돌아온 사용자: 본인이 시작한 pending tenant 가 있으면
+  // 다시 install 을 누르지 않고도 이어서 진행할 수 있도록 CTA 노출.
+  const db = getAdminClient()
+  const { data: pendingRows } = await db
+    .from('tenants')
+    .select('id, name')
+    .eq('created_by_discord_id', session.discordId)
+    .eq('status', 'pending')
+    .order('bot_installed_at', { ascending: false })
+    .limit(5)
+  const pendingTenants = (pendingRows ?? []) as Array<{ id: string; name: string }>
+
   let guilds: OnboardGuild[] = []
   if (rawCookie) {
     try {
@@ -75,8 +88,60 @@ export default async function OnboardPage({ searchParams }: OnboardPageProps) {
     }
   }
 
-  // 쿠키가 없거나 비어있으면 expired 화면. 다시 로그인으로 리프레시.
+  const pendingResumeBlock = pendingTenants.length > 0 && (
+    <section className="mb-6 rounded-xl border border-emerald-400/30 bg-emerald-500/5 px-4 py-4">
+      <h2 className="text-sm font-semibold text-emerald-200">
+        {t('pendingResumeTitle')}
+      </h2>
+      <p className="mt-1 text-xs text-emerald-100/70">
+        {t('pendingResumeDescription')}
+      </p>
+      <ul className="mt-3 flex flex-col gap-2">
+        {pendingTenants.map((p) => (
+          <li
+            key={p.id}
+            className="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-black/20 px-3 py-2"
+          >
+            <span className="min-w-0 truncate text-sm text-white">{p.name}</span>
+            <Link
+              href={`/onboard/setup/${p.id}`}
+              className="shrink-0 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-semibold px-3 py-1.5"
+            >
+              {t('pendingResumeButton')}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+
+  // 쿠키가 없거나 비어있으면 expired 화면. 단, pending tenant 가 있으면 위저드를
+  // 이어서 진행할 수 있도록 resume CTA 만 노출.
   if (guilds.length === 0) {
+    if (pendingTenants.length > 0) {
+      return (
+        <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-10 sm:py-14">
+          <div className="text-center space-y-2 mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">{t('title')}</h1>
+            <p className="text-sm text-gray-400">{t('description')}</p>
+          </div>
+          {installErrorMessage && (
+            <div className="mb-6 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {installErrorMessage}
+            </div>
+          )}
+          {pendingResumeBlock}
+          <div className="mt-4 text-center">
+            <Link
+              href="/api/auth/discord/start?returnTo=/onboard"
+              className="inline-block px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-200 text-sm font-semibold"
+            >
+              {t('relogin')}
+            </Link>
+          </div>
+        </main>
+      )
+    }
     return (
       <main className="flex-1 w-full max-w-md mx-auto px-4 py-12 sm:py-16">
         <div className="text-center space-y-3">
@@ -104,6 +169,7 @@ export default async function OnboardPage({ searchParams }: OnboardPageProps) {
           {installErrorMessage}
         </div>
       )}
+      {pendingResumeBlock}
       <OnboardGuildList
         guilds={guilds}
         installLabel={t('installButton')}

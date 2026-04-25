@@ -270,7 +270,11 @@ export async function processAutoRegear(
       const battleMs = Date.parse(event.battle_started_at)
       if (Number.isFinite(createdMs) && Number.isFinite(battleMs) && createdMs > battleMs) {
         const nowIso = new Date().toISOString()
-        await db.from('events').update({ auto_regear_processed_at: nowIso }).eq('id', event.id)
+        await db
+          .from('events')
+          .update({ auto_regear_processed_at: nowIso })
+          .eq('id', event.id)
+          .eq('guild_id', guildId)
         skippedRetroactive += 1
         processed += 1
         continue
@@ -309,7 +313,11 @@ export async function processAutoRegear(
       if (slotByDiscord.size === 0) {
         // 이벤트에 아무도 배정되지 않았다 — 자동 리기어 대상이 없으니 처리됨으로 마킹.
         const nowIso = new Date().toISOString()
-        await db.from('events').update({ auto_regear_processed_at: nowIso }).eq('id', event.id)
+        await db
+          .from('events')
+          .update({ auto_regear_processed_at: nowIso })
+          .eq('id', event.id)
+          .eq('guild_id', guildId)
         processed += 1
         continue
       }
@@ -424,6 +432,7 @@ export async function processAutoRegear(
         .from('events')
         .update({ auto_regear_processed_at: nowIso })
         .eq('id', event.id)
+        .eq('guild_id', guildId)
       if (markErr) {
         errors.push({ event_id: event.id, step: 'mark-processed', message: markErr.message })
       } else {
