@@ -1411,17 +1411,12 @@
     "rosterFilterAll": "All",
     "rosterFilterLinked": "Discord linked",
     "rosterFilterUnlinked": "Unlinked",
-    "rosterSortKillFame": "Most kill fame",
-    "rosterSortFameRatio": "Highest K/D ratio",
-    "rosterSortIp": "Highest item power",
+    "rosterSortLinked": "Linked first",
     "rosterSortName": "By name",
     "rosterDiscordLinked": "Linked",
     "rosterDiscordUnlinked": "Unlinked",
     "rosterDiscordWithdrawn": "Withdrawn",
-    "rosterDiscordLinkedHint": "Discord: {username}",
-    "rosterIp": "IP",
-    "rosterFameRatioShort": "K/D",
-    "rosterKillFame": "Kill fame"
+    "rosterDiscordLinkedHint": "Discord: {username}"
   },
   "me": {
     "title": "My wallet",

@@ -1411,17 +1411,12 @@
     "rosterFilterAll": "전체",
     "rosterFilterLinked": "Discord 연동",
     "rosterFilterUnlinked": "미연동",
-    "rosterSortKillFame": "킬 페임 순",
-    "rosterSortFameRatio": "K/D 비율 순",
-    "rosterSortIp": "장비 IP 순",
+    "rosterSortLinked": "연동 우선",
     "rosterSortName": "이름 순",
     "rosterDiscordLinked": "연동",
     "rosterDiscordUnlinked": "미연동",
     "rosterDiscordWithdrawn": "탈퇴",
-    "rosterDiscordLinkedHint": "Discord: {username}",
-    "rosterIp": "IP",
-    "rosterFameRatioShort": "K/D",
-    "rosterKillFame": "킬 페임"
+    "rosterDiscordLinkedHint": "Discord: {username}"
   },
   "me": {
     "title": "내 지갑",

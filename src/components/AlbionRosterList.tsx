@@ -13,13 +13,24 @@ interface Props {
   roster: AlbionRosterEntry[]
 }
 
-type SortKey = 'kill_fame' | 'fame_ratio' | 'average_ip' | 'name'
+type SortKey = 'linked' | 'name'
 type LinkFilter = 'all' | 'linked' | 'unlinked'
+
+// "linked" 정의: 한 번이라도 이 사이트에 로그인해 guild_avatars 행을 만든 멤버.
+// guild_avatars 의 albion_player_id 가 채워진 시점은 killboard sync 가 이름→ID
+// 매칭을 한 직후라 약간의 지연이 있으나, 사실상 "이 사이트에서 본 적 있는 멤버"
+// 와 동치. 한 번도 접속하지 않은 멤버는 albion_guild_members 에만 있고
+// guild_avatars 에는 없어 linked_discord_id == null 로 떨어진다.
+function rankForLinkedSort(entry: AlbionRosterEntry): number {
+  if (entry.linked_discord_id !== null && !entry.linked_withdrawn) return 0
+  if (entry.linked_discord_id === null) return 1
+  return 2 // withdrawn — 죽은 링크라 가장 아래로.
+}
 
 export default function AlbionRosterList({ roster }: Props) {
   const t = useTranslations('members')
   const [search, setSearch] = useState('')
-  const [sortKey, setSortKey] = useState<SortKey>('kill_fame')
+  const [sortKey, setSortKey] = useState<SortKey>('linked')
   const [linkFilter, setLinkFilter] = useState<LinkFilter>('all')
 
   const filtered = useMemo(() => {
@@ -32,12 +43,13 @@ export default function AlbionRosterList({ roster }: Props) {
       base = base.filter((r) => r.linked_discord_id === null || r.linked_withdrawn)
     }
     const sorted = [...base]
-    if (sortKey === 'kill_fame') {
-      sorted.sort((a, b) => b.kill_fame - a.kill_fame)
-    } else if (sortKey === 'fame_ratio') {
-      sorted.sort((a, b) => b.fame_ratio - a.fame_ratio)
-    } else if (sortKey === 'average_ip') {
-      sorted.sort((a, b) => b.average_item_power - a.average_item_power)
+    if (sortKey === 'linked') {
+      sorted.sort((a, b) => {
+        const ra = rankForLinkedSort(a)
+        const rb = rankForLinkedSort(b)
+        if (ra !== rb) return ra - rb
+        return a.albion_player_name.localeCompare(b.albion_player_name)
+      })
     } else {
       sorted.sort((a, b) => a.albion_player_name.localeCompare(b.albion_player_name))
     }
@@ -88,14 +100,8 @@ export default function AlbionRosterList({ roster }: Props) {
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
-        <SortChip active={sortKey === 'kill_fame'} onClick={() => setSortKey('kill_fame')}>
-          {t('rosterSortKillFame')}
-        </SortChip>
-        <SortChip active={sortKey === 'fame_ratio'} onClick={() => setSortKey('fame_ratio')}>
-          {t('rosterSortFameRatio')}
-        </SortChip>
-        <SortChip active={sortKey === 'average_ip'} onClick={() => setSortKey('average_ip')}>
-          {t('rosterSortIp')}
+        <SortChip active={sortKey === 'linked'} onClick={() => setSortKey('linked')}>
+          {t('rosterSortLinked')}
         </SortChip>
         <SortChip active={sortKey === 'name'} onClick={() => setSortKey('name')}>
           {t('rosterSortName')}
@@ -157,23 +163,7 @@ function RosterRow({ entry }: { entry: AlbionRosterEntry }) {
         </div>
         <div className="flex items-center gap-2 mt-1 flex-wrap text-[11px] text-gray-400">
           <span>{ALBION_SERVER_LABEL[entry.albion_server]}</span>
-          <span className="text-gray-600">·</span>
-          <span>
-            {t('rosterIp')}{' '}
-            <span className="text-gray-200 font-mono">{Math.round(entry.average_item_power)}</span>
-          </span>
-          <span className="text-gray-600">·</span>
-          <span>
-            {t('rosterFameRatioShort')}{' '}
-            <span className="text-gray-200 font-mono">{entry.fame_ratio.toFixed(1)}</span>
-          </span>
         </div>
-      </div>
-      <div className="flex-shrink-0 text-right">
-        <p className="text-amber-400 font-mono font-semibold text-sm">
-          {Math.round(entry.kill_fame / 1000)}K
-        </p>
-        <p className="text-gray-500 text-[10px]">{t('rosterKillFame')}</p>
       </div>
       {!isWithdrawn && <ChevronRight size={16} className="text-gray-600 flex-shrink-0" />}
     </div>

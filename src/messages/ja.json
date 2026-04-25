@@ -1411,17 +1411,12 @@
     "rosterFilterAll": "全員",
     "rosterFilterLinked": "Discord連携",
     "rosterFilterUnlinked": "未連携",
-    "rosterSortKillFame": "キルフェイム順",
-    "rosterSortFameRatio": "K/D比順",
-    "rosterSortIp": "装備IP順",
+    "rosterSortLinked": "連携優先",
     "rosterSortName": "名前順",
     "rosterDiscordLinked": "連携",
     "rosterDiscordUnlinked": "未連携",
     "rosterDiscordWithdrawn": "脱退",
-    "rosterDiscordLinkedHint": "Discord: {username}",
-    "rosterIp": "IP",
-    "rosterFameRatioShort": "K/D",
-    "rosterKillFame": "キルフェイム"
+    "rosterDiscordLinkedHint": "Discord: {username}"
   },
   "me": {
     "title": "マイウォレット",
