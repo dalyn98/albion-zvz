@@ -220,8 +220,8 @@ export default function BattleRecordList({
         </div>
       ) : (
         <div className="overflow-x-auto bg-gray-900 border border-gray-700 rounded-xl">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-950/60 text-gray-400 text-xs">
+          <table className="w-full text-base">
+            <thead className="bg-gray-950/60 text-gray-400 text-sm">
               <tr>
                 <th className="text-left px-3 py-2">{columnLabels.startedAt}</th>
                 <th className="text-left px-3 py-2">{columnLabels.size}</th>
@@ -307,7 +307,7 @@ function BattleRow({
   const href = `/battles/${row.id}`
   return (
     <tr onClick={() => router.push(href)} className={rowClass}>
-      <td className="px-3 py-2 text-gray-300 font-mono text-xs whitespace-nowrap">
+      <td className="px-3 py-2 text-gray-300 font-mono text-sm whitespace-nowrap">
         {isContinuation ? (
           <Link
             href={href}
@@ -315,8 +315,8 @@ function BattleRow({
             className="inline-flex items-center gap-1 text-violet-300 hover:text-violet-200"
             title={sameBattleLabel}
           >
-            <CornerDownRight size={12} />
-            <span className="text-[10px] uppercase tracking-wider">{sameBattleLabel}</span>
+            <CornerDownRight size={14} />
+            <span className="text-xs uppercase tracking-wider font-semibold">{sameBattleLabel}</span>
           </Link>
         ) : (
           <Link
@@ -331,7 +331,7 @@ function BattleRow({
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1">
           <span
-            className={`inline-flex items-center gap-1.5 border rounded px-2 py-0.5 text-[11px] font-medium ${
+            className={`inline-flex items-center gap-1.5 border rounded px-2 py-0.5 text-[13px] font-medium ${
               SIZE_TONE[row.sizeCategory].badge
             }`}
           >
@@ -346,44 +346,44 @@ function BattleRow({
           </span>
           {row.matchTotal > 1 && (
             <span
-              className="inline-flex items-center gap-0.5 bg-violet-500/15 border border-violet-500/30 rounded px-1.5 py-0.5 text-[10px] text-violet-300"
+              className="inline-flex items-center gap-0.5 bg-violet-500/15 border border-violet-500/30 rounded px-1.5 py-0.5 text-xs text-violet-300"
               title={matchSplitLabel}
             >
-              <GitBranch size={10} />
+              <GitBranch size={12} />
               {row.matchIndex}/{row.matchTotal}
             </span>
           )}
           {row.isProvisional && (
             <span
-              className="inline-flex items-center gap-0.5 bg-amber-500/10 border border-amber-500/30 rounded px-1.5 py-0.5 text-[10px] text-amber-300"
+              className="inline-flex items-center gap-0.5 bg-amber-500/10 border border-amber-500/30 rounded px-1.5 py-0.5 text-xs text-amber-300"
               title={provisionalLabel}
             >
-              <Hourglass size={10} />
+              <Hourglass size={12} />
               {provisionalLabel}
             </span>
           )}
         </div>
       </td>
       <td className="px-3 py-2">
-        <span className={`inline-flex items-center gap-1 text-xs font-semibold ${outcomeColor}`}>
-          <OutcomeIcon size={12} />
+        <span className={`inline-flex items-center gap-1 text-sm font-semibold ${outcomeColor}`}>
+          <OutcomeIcon size={14} />
           {outcomeLabel}
         </span>
       </td>
       <td className="px-3 py-2">
-        <div className="text-sm text-white">{opponentLabel}</div>
+        <div className="text-base text-white">{opponentLabel}</div>
       </td>
       <td className="px-3 py-2 text-right whitespace-nowrap">
-        <div className="text-xs text-gray-300 font-mono">
+        <div className="text-sm text-gray-300 font-mono">
           <span className="text-emerald-400">{row.homeKills}</span>
           <span className="text-gray-600">/</span>
           <span className="text-red-400">{row.homeDeaths}</span>
         </div>
-        <div className="text-[10px] text-gray-500 font-mono">
+        <div className="text-xs text-gray-500 font-mono">
           {formatFame(row.homeKillFame)} vs {formatFame(row.mainOpponentKillFame)}
         </div>
       </td>
-      <td className="px-3 py-2 text-gray-400 text-xs">
+      <td className="px-3 py-2 text-gray-400 text-sm">
         {row.clusterName ?? '-'}
       </td>
     </tr>
