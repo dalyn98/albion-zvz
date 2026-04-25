@@ -1316,6 +1316,8 @@
   "regear": {
     "pageTitle": "リギア申請",
     "pageDescription": "割り当てられた戦闘が開始されたら、ここからデス画面のスクリーンショットでリギアを申請できます。",
+    "tabEligible": "申請可能な戦闘",
+    "tabHistory": "申請履歴",
     "noEligible": "申請できる戦闘はありません。",
     "noEligibleHint": "戦闘が開始されたイベントに割り当てられると、このページに表示されます。",
     "battleStartedAt": "{time} 開始",

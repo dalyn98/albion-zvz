@@ -1316,6 +1316,8 @@
   "regear": {
     "pageTitle": "리기어 신청",
     "pageDescription": "배정받은 전투가 시작되면 여기서 데스 스크린샷으로 리기어를 신청할 수 있습니다.",
+    "tabEligible": "신청 가능 전투",
+    "tabHistory": "내 신청 내역",
     "noEligible": "신청 가능한 전투가 없습니다.",
     "noEligibleHint": "전투가 시작된 이벤트에 배정되면 이 페이지에 표시됩니다.",
     "battleStartedAt": "{time} 시작",

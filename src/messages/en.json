@@ -1316,6 +1316,8 @@
   "regear": {
     "pageTitle": "Regear",
     "pageDescription": "Once your assigned battle starts, submit your death screenshot here to request a regear.",
+    "tabEligible": "Eligible battles",
+    "tabHistory": "My requests",
     "noEligible": "No battles available for regear.",
     "noEligibleHint": "Once you're assigned to a battle that has started, it will appear here.",
     "battleStartedAt": "Started {time}",

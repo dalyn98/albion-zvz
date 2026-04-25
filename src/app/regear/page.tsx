@@ -14,6 +14,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import RegearRequestButton from '@/components/RegearRequestButton'
 import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
 import MyRegearList from '@/components/MyRegearList'
+import RegearPageTabs from '@/components/RegearPageTabs'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 
 export const dynamic = 'force-dynamic'
@@ -41,7 +42,6 @@ export default async function RegearPage() {
     limits,
     payoutRatePercent,
     t,
-    tMe,
     tRole,
     locale,
     noticeMessage,
@@ -52,7 +52,6 @@ export default async function RegearPage() {
     getRegearLimits(),
     getRegearPayoutRatePercent(),
     getTranslations('regear'),
-    getTranslations('me'),
     getTranslations('slotRole'),
     getLocale(),
     getAppSetting('regear_notice_message', '', guildId),
@@ -74,72 +73,76 @@ export default async function RegearPage() {
         </div>
       )}
 
-      {events.length === 0 ? (
-        <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center space-y-2">
-          <ShieldCheck size={28} className="text-gray-600 mx-auto" />
-          <p className="text-gray-400 text-sm">{t('noEligible')}</p>
-          <p className="text-gray-600 text-xs">{t('noEligibleHint')}</p>
-        </div>
-      ) : (
-        <ul className="space-y-3">
-          {events.map((event) => (
-            <li
-              key={event.id}
-              className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3"
-            >
-              <div className="flex items-start justify-between gap-3 flex-wrap">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <Link
-                      href={`/events/${event.id}`}
-                      className="text-base sm:text-lg font-bold text-white hover:text-amber-300 truncate"
-                    >
-                      {event.title}
-                    </Link>
-                    <span className="inline-flex items-center gap-1 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">
-                      <Swords size={10} />
-                      {t('battleStartedAt', { time: formatStartedAt(event.battle_started_at) })}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                    <div className="flex items-center gap-1.5 text-gray-300">
-                      <Clock size={13} className="text-amber-400" />
-                      {event.gather_at ? formatGatherTimeFor(locale, event.gather_at) : event.gather_time}
+      <RegearPageTabs
+        eligibleLabel={t('tabEligible')}
+        historyLabel={t('tabHistory')}
+        eligibleCount={events.length}
+        historyCount={myRegears.length}
+        eligibleSection={
+          events.length === 0 ? (
+            <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center space-y-2">
+              <ShieldCheck size={28} className="text-gray-600 mx-auto" />
+              <p className="text-gray-400 text-sm">{t('noEligible')}</p>
+              <p className="text-gray-600 text-xs">{t('noEligibleHint')}</p>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {events.map((event) => (
+                <li
+                  key={event.id}
+                  className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <Link
+                          href={`/events/${event.id}`}
+                          className="text-base sm:text-lg font-bold text-white hover:text-amber-300 truncate"
+                        >
+                          {event.title}
+                        </Link>
+                        <span className="inline-flex items-center gap-1 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">
+                          <Swords size={10} />
+                          {t('battleStartedAt', { time: formatStartedAt(event.battle_started_at) })}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                        <div className="flex items-center gap-1.5 text-gray-300">
+                          <Clock size={13} className="text-amber-400" />
+                          {event.gather_at ? formatGatherTimeFor(locale, event.gather_at) : event.gather_time}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-gray-300">
+                          <MapPin size={13} className="text-amber-400" />
+                          {event.gather_location}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 text-gray-300">
-                      <MapPin size={13} className="text-amber-400" />
-                      {event.gather_location}
-                    </div>
                   </div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between gap-3 pt-2 border-t border-gray-800">
-                <div className="text-xs text-gray-400 min-w-0">
-                  <span className="text-gray-500">{t('role')} </span>
-                  <span className="text-white font-semibold">{translateSlotRole(event.role_name, tRole)}</span>
-                  <span className="text-gray-500"> · {t('expectedReward')} </span>
-                  <span className="text-amber-400 font-mono font-semibold">{formatSilver(event.role_reward)}</span>
-                </div>
-                <RegearRequestButton
-                  eventId={event.id}
-                  roleName={event.role_name}
-                  roleReward={event.role_reward}
-                  existingActiveCount={event.existing_active_count}
-                  maxDeaths={limits.maxDeaths}
-                  windowMinutes={limits.windowMinutes}
-                  payoutRatePercent={payoutRatePercent}
-                  battleStartedAt={event.battle_started_at}
-                />
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <section className="space-y-3 pt-6 border-t border-gray-800">
-        <h2 className="text-lg font-bold text-white">{tMe('regearListTitle')}</h2>
-        <MyRegearList requests={myRegears} />
-      </section>
+                  <div className="flex items-center justify-between gap-3 pt-2 border-t border-gray-800">
+                    <div className="text-xs text-gray-400 min-w-0">
+                      <span className="text-gray-500">{t('role')} </span>
+                      <span className="text-white font-semibold">{translateSlotRole(event.role_name, tRole)}</span>
+                      <span className="text-gray-500"> · {t('expectedReward')} </span>
+                      <span className="text-amber-400 font-mono font-semibold">{formatSilver(event.role_reward)}</span>
+                    </div>
+                    <RegearRequestButton
+                      eventId={event.id}
+                      roleName={event.role_name}
+                      roleReward={event.role_reward}
+                      existingActiveCount={event.existing_active_count}
+                      maxDeaths={limits.maxDeaths}
+                      windowMinutes={limits.windowMinutes}
+                      payoutRatePercent={payoutRatePercent}
+                      battleStartedAt={event.battle_started_at}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )
+        }
+        historySection={<MyRegearList requests={myRegears} />}
+      />
     </main>
   )
 }
