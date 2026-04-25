@@ -54,14 +54,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // pages 쿼리스트링으로 fetchRecentBattles 의 페이지 수 조절. 기본 cron 은
-  // 2페이지(=100건, ~10분 커버) 면 충분하지만 GitHub Actions schedule 지연으로
-  // 60분 갭이 생기는 경우 수동 백필이 필요. ?pages=20 까지 허용 (50*20=1000건).
+  // pages 쿼리스트링으로 fetchRecentBattles 의 페이지 수 조절. Albion API 는
+  // 전투가 끝난 직후 즉시 노출하지 않고 5~10분 publishing 지연이 있어, pages=2
+  // (=100건) 로는 피크 시간대에 publishing 지연 동안 100건 이상 신규 전투가
+  // 끼어들면서 누락이 발생함. 기본 6페이지(=300건, ~20-30분 커버) 로 안전 마진
+  // 확보. 수동 백필은 ?pages=20 까지 허용 (50*20=1000건).
   const url = new URL(request.url)
   const pagesParam = Number.parseInt(url.searchParams.get('pages') ?? '', 10)
   const pages = Number.isFinite(pagesParam)
     ? Math.min(Math.max(pagesParam, 1), 20)
-    : 2
+    : 6
 
   const db = getAdminClient()
   const tenants = await listActiveTenants()
