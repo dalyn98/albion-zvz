@@ -62,7 +62,7 @@ export async function GET(request: Request) {
   let sel = db
     .from('tenant_battle_records')
     .select(
-      'id, guild_id, battle_record_id, started_at, battle_records!inner(albion_battle_id, raw_battle)',
+      'id, guild_id, battle_record_id, home_guild_id, started_at, battle_records!inner(albion_battle_id, raw_battle)',
     )
   if (mode === 'legacy') {
     sel = sel.eq('main_opponent_force_key', '__legacy__')
@@ -98,10 +98,25 @@ export async function GET(request: Request) {
 
   const evaluatedAt = new Date().toISOString()
 
+  // stale 모드는 한 battle 당 여러 매치업 행이 있는 케이스가 일반적 (분리된
+  // 매치업). delete 가 (guild_id, battle_record_id) 단위라 같은 키의 다른 행이
+  // 다음 iteration 에 또 들어오면 "이미 삭제됨" 에러가 난다. 같은 키는 한 번만
+  // 처리되도록 dedupe.
+  type RowMeta = {
+    rowId: string
+    guildId: string
+    battleRecordId: string
+    homeGuildId: string
+    startedAt: string
+    albionBattleId: number
+    battle: AlbionBattle
+  }
+  const dedupedRows = new Map<string, RowMeta>()
   for (const row of legacyRows) {
     const guildId = row.guild_id as string
     const battleRecordId = row.battle_record_id as string
-    const startedAt = row.started_at as string
+    const key = `${guildId}::${battleRecordId}`
+    if (dedupedRows.has(key)) continue
     const brJoin = row.battle_records as
       | { albion_battle_id: number; raw_battle: AlbionBattle }
       | { albion_battle_id: number; raw_battle: AlbionBattle }[]
@@ -116,20 +131,19 @@ export async function GET(request: Request) {
       errors.push(`row ${row.id}: raw_battle missing`)
       continue
     }
-    const albionBattleId = br.albion_battle_id
+    dedupedRows.set(key, {
+      rowId: row.id as string,
+      guildId,
+      battleRecordId,
+      homeGuildId: row.home_guild_id as string,
+      startedAt: row.started_at as string,
+      albionBattleId: br.albion_battle_id,
+      battle,
+    })
+  }
 
-    // home_guild_id 는 raw_battle 에서 직접 추출 못 함 — tenant_battle_records 의
-    // home_guild_id 컬럼에서 가져와야 함. SELECT 에 home_guild_id 가 빠졌으니 별도 조회.
-    const { data: meta, error: metaErr } = await db
-      .from('tenant_battle_records')
-      .select('home_guild_id')
-      .eq('id', row.id as string)
-      .maybeSingle()
-    if (metaErr || !meta) {
-      errors.push(`row ${row.id}: meta select: ${metaErr?.message ?? 'not found'}`)
-      continue
-    }
-    const homeGuildId = meta.home_guild_id as string
+  for (const meta of dedupedRows.values()) {
+    const { guildId, battleRecordId, homeGuildId, startedAt, albionBattleId, battle } = meta
 
     const { data: pairRows, error: pairErr } = await db
       .from('killboard_events')
