@@ -82,6 +82,15 @@ export default function RegearRequestButton({
   // 온보딩 CTA 를 노출한다. 닫기/뒤로 가기/입력 변경 시 초기화.
   const [needsVerification, setNeedsVerification] = useState(false)
   const [pending, startTransition] = useTransition()
+  // paste 핸들러가 entries 의 현재 값을 항상 참조할 수 있게 ref 동기화.
+  // useEffect 의 deps 에 entries 를 넣으면 setState → 리스너 재등록 사이에
+  // 클로저 정합성이 깨질 수 있고, 다중 데스 입력 시 paste 가 첫 번째 슬롯
+  // 이후로 동작하지 않는 버그가 보고됨. ref 로 latest 를 읽도록 변경.
+  // 렌더 중 ref 쓰기는 react-compiler 가 금지하므로 effect 에서 갱신.
+  const entriesRef = useRef(entries)
+  useEffect(() => {
+    entriesRef.current = entries
+  })
 
   const notStarted = !battleStartedAt
   const ceilingMissing = roleReward <= 0
@@ -153,8 +162,12 @@ export default function RegearRequestButton({
     }
   }, [open, pending])
 
-  // Paste handler: drop the clipboard image into the first empty primary slot
-  // so a rapid Ctrl-V workflow fills in screenshots without clicking.
+  // Paste handler: 클립보드 이미지를 비어있는 첫 슬롯에 자동 첨부.
+  // 채우는 순서는 row-by-row — entry[0].primary → entry[0].secondary →
+  // entry[1].primary → entry[1].secondary. 이전엔 모든 entry 의 primary 를
+  // 먼저 채우는 방식이었지만, 다중 데스 시 "한 행을 끝내고 다음 행으로" 라는
+  // 직관과 맞지 않았다. 또 ref 를 사용해 entries 변경 시 리스너를 재등록하지
+  // 않고도 항상 latest 를 읽도록 한다.
   useEffect(() => {
     if (!open || phase !== 'entries') return
     const handlePaste = (e: ClipboardEvent) => {
@@ -167,31 +180,31 @@ export default function RegearRequestButton({
         if (!blob) continue
         const ext = item.type.split('/')[1]
         const pasted = new File([blob], `clipboard-${Date.now()}.${ext}`, { type: item.type })
-        // Fill primary first, then secondary, moving down the list.
-        const targetPrimary = entries.find((entry) => !entry.file)
-        if (targetPrimary) {
-          updateEntry(targetPrimary.id, { file: pasted })
-          setEntryErrors((prev) => {
-            if (!(targetPrimary.id in prev)) return prev
-            const next = { ...prev }
-            delete next[targetPrimary.id]
-            return next
-          })
-          e.preventDefault()
-          return
-        }
-        const targetSecondary = entries.find((entry) => !entry.file2)
-        if (targetSecondary) {
-          updateEntry(targetSecondary.id, { file2: pasted })
-          e.preventDefault()
-          return
+        const latest = entriesRef.current
+        for (const entry of latest) {
+          if (!entry.file) {
+            updateEntry(entry.id, { file: pasted })
+            setEntryErrors((prev) => {
+              if (!(entry.id in prev)) return prev
+              const next = { ...prev }
+              delete next[entry.id]
+              return next
+            })
+            e.preventDefault()
+            return
+          }
+          if (!entry.file2) {
+            updateEntry(entry.id, { file2: pasted })
+            e.preventDefault()
+            return
+          }
         }
         return
       }
     }
     document.addEventListener('paste', handlePaste)
     return () => document.removeEventListener('paste', handlePaste)
-  }, [open, phase, entries])
+  }, [open, phase])
 
   const submit = () => {
     if (ceilingMissing) {
