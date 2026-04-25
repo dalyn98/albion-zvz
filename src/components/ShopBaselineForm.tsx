@@ -8,6 +8,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import {
   AlertTriangle,
   Check,
@@ -26,27 +27,26 @@ import {
 } from '@/app/actions/shop-baseline'
 import { formatDateTimeWithSeconds } from '@/lib/format-datetime'
 
-const PLACEHOLDER = `인게임 "은행" 로그에서 복사한 텍스트를 붙여넣으세요. 예시:
-"04/24/2026 10:15:12"\t"GuildMaster"\t"벼락의 사슬"\t"1"\t"3"\t"5"
-"04/24/2026 10:15:08"\t"GuildMaster"\t"신도의 로브"\t"0"\t"1"\t"20"
-`
-
 function fmtDate(iso: string | null): string {
   if (!iso) return '—'
   return formatDateTimeWithSeconds(iso)
 }
 
-function fmtDuration(startIso: string | null, endIso: string | null): string {
-  if (!startIso || !endIso) return '—'
-  const ms = new Date(endIso).getTime() - new Date(startIso).getTime()
-  const mins = Math.floor(ms / 60_000)
-  const secs = Math.floor((ms % 60_000) / 1000)
-  if (mins === 0) return `${secs}초`
-  return `${mins}분 ${secs}초`
+function useFmtDuration() {
+  const t = useTranslations('shopBaselineForm')
+  return (startIso: string | null, endIso: string | null): string => {
+    if (!startIso || !endIso) return '—'
+    const ms = new Date(endIso).getTime() - new Date(startIso).getTime()
+    const mins = Math.floor(ms / 60_000)
+    const secs = Math.floor((ms % 60_000) / 1000)
+    if (mins === 0) return t('durationSec', { s: secs })
+    return t('durationMinSec', { m: mins, s: secs })
+  }
 }
 
 export default function ShopBaselineForm() {
   const router = useRouter()
+  const t = useTranslations('shopBaselineForm')
   const [raw, setRaw] = useState('')
   const [notes, setNotes] = useState('')
   const [preview, setPreview] = useState<BaselinePreview | null>(null)
@@ -76,9 +76,15 @@ export default function ShopBaselineForm() {
   }
 
   const runConfirm = async () => {
-    if (!preview || !confirm(
-      `정말 이 스냅샷으로 상자 재고를 재설정할까요?\n\n- 아이템 종류: ${preview.items.length}개\n- 총 수량: ${preview.totalItems.toLocaleString('ko-KR')}개\n\n이전 재고 데이터는 덮어써지고 복구할 수 없습니다.`,
-    )) {
+    if (
+      !preview ||
+      !confirm(
+        t('confirmDialog', {
+          types: preview.items.length,
+          total: preview.totalItems.toLocaleString(),
+        }),
+      )
+    ) {
       return
     }
     setConfirming(true)
@@ -93,7 +99,10 @@ export default function ShopBaselineForm() {
         return
       }
       setConfirmResult(
-        `베이스라인 저장 완료. ${result.appliedItems}종 / ${result.totalItems.toLocaleString('ko-KR')}개 재고 확정.`,
+        t('confirmResult', {
+          applied: result.appliedItems,
+          total: result.totalItems.toLocaleString(),
+        }),
       )
       setConfirmDrift(result.driftReport)
       setRaw('')
@@ -120,37 +129,34 @@ export default function ShopBaselineForm() {
         <div className="flex items-start gap-2 text-sm text-amber-200">
           <Shield size={16} className="mt-0.5 flex-shrink-0" />
           <div className="space-y-1">
-            <div className="font-semibold">베이스라인이란?</div>
+            <div className="font-semibold">{t('infoTitle')}</div>
             <ol className="list-decimal space-y-1 pl-5 text-amber-100/90">
               <li>
-                인게임 길드 상자에서 <strong>모든 아이템을 출고</strong> → <strong>그대로 재입고</strong>
+                {t.rich('infoStep1', {
+                  strong: (chunks) => <strong>{chunks}</strong>,
+                })}
               </li>
-              <li>약 15분 기다려 게임 내 로그가 갱신되는지 확인 (로그에 내 입고가 보일 때까지)</li>
-              <li>은행 로그 전체를 복사 → 아래에 붙여넣기 → 미리보기 확인 → 확정</li>
+              <li>{t('infoStep2')}</li>
+              <li>{t('infoStep3')}</li>
             </ol>
             <div className="mt-2 text-xs text-amber-100/70">
-              혼자 작업할 때 정확도가 높습니다. 작업 중 다른 길드원이 상자를 건드리면 경고가 표시됩니다.
+              {t('infoFootnote')}
             </div>
           </div>
         </div>
       </div>
 
       {preview?.currentBaseline && (
-        <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-3 text-sm">
-          <div className="flex items-center gap-2 text-zinc-300">
-            <Clock size={14} />
-            현재 베이스라인: {fmtDate(preview.currentBaseline.confirmedAt)} · 총 {preview.currentBaseline.totalItems.toLocaleString('ko-KR')}개
-          </div>
-          <div className="mt-1 text-xs text-zinc-500">
-            새 베이스라인을 확정하면 기존 것은 superseded 처리되고 상자 재고가 다시 계산됩니다.
-          </div>
-        </div>
+        <CurrentBaselineCard
+          confirmedAt={preview.currentBaseline.confirmedAt}
+          totalItems={preview.currentBaseline.totalItems}
+        />
       )}
 
       <textarea
         value={raw}
         onChange={(e) => setRaw(e.target.value)}
-        placeholder={PLACEHOLDER}
+        placeholder={t('placeholder')}
         rows={10}
         className="w-full rounded-lg border border-zinc-700 bg-zinc-950 p-3 font-mono text-xs text-zinc-200 placeholder-zinc-600 focus:border-amber-500 focus:outline-none"
       />
@@ -167,7 +173,7 @@ export default function ShopBaselineForm() {
           ) : (
             <FileText size={14} />
           )}
-          미리보기
+          {t('previewButton')}
         </button>
         <button
           type="button"
@@ -175,7 +181,7 @@ export default function ShopBaselineForm() {
           disabled={previewing || confirming}
           className="rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm text-zinc-300 hover:border-zinc-600 disabled:opacity-50"
         >
-          초기화
+          {t('resetButton')}
         </button>
       </div>
 
@@ -201,12 +207,12 @@ export default function ShopBaselineForm() {
       {preview && !confirmResult && (
         <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-4 space-y-3">
           <label className="block text-sm text-zinc-300">
-            메모 (선택)
+            {t('notesLabel')}
             <input
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="예: 2026-04-24 정기 재고 정리"
+              placeholder={t('notesPlaceholder')}
               className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-sm text-zinc-200 focus:border-amber-500 focus:outline-none"
             />
           </label>
@@ -221,7 +227,7 @@ export default function ShopBaselineForm() {
             ) : (
               <Check size={14} />
             )}
-            이 스냅샷으로 재고 확정
+            {t('confirmButton')}
           </button>
         </div>
       )}
@@ -229,14 +235,38 @@ export default function ShopBaselineForm() {
   )
 }
 
+function CurrentBaselineCard({
+  confirmedAt,
+  totalItems,
+}: {
+  confirmedAt: string | null
+  totalItems: number
+}) {
+  const t = useTranslations('shopBaselineForm')
+  return (
+    <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-3 text-sm">
+      <div className="flex items-center gap-2 text-zinc-300">
+        <Clock size={14} />
+        {t('currentBaselineLine', {
+          at: fmtDate(confirmedAt),
+          total: totalItems.toLocaleString(),
+        })}
+      </div>
+      <div className="mt-1 text-xs text-zinc-500">{t('currentBaselineHint')}</div>
+    </div>
+  )
+}
+
 function PreviewPanel({ preview }: { preview: BaselinePreview }) {
+  const t = useTranslations('shopBaselineForm')
+  const fmtDuration = useFmtDuration()
   return (
     <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-4 space-y-3">
       {preview.warnings.length > 0 && (
         <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm text-yellow-100">
           <div className="flex items-center gap-2 font-semibold">
             <AlertTriangle size={14} />
-            경고
+            {t('warningsTitle')}
           </div>
           <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-yellow-100/90">
             {preview.warnings.map((w, i) => (
@@ -247,28 +277,40 @@ function PreviewPanel({ preview }: { preview: BaselinePreview }) {
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-        <MetricCard icon={<Package size={14} />} label="아이템 종류" value={`${preview.items.length}종`} />
-        <MetricCard icon={<Package size={14} />} label="총 수량" value={preview.totalItems.toLocaleString('ko-KR')} />
-        <MetricCard icon={<Clock size={14} />} label="입고 이벤트" value={`${preview.totalEvents}건`} />
+        <MetricCard
+          icon={<Package size={14} />}
+          label={t('metricItemTypes')}
+          value={t('typesValue', { count: preview.items.length })}
+        />
+        <MetricCard
+          icon={<Package size={14} />}
+          label={t('metricTotalQty')}
+          value={preview.totalItems.toLocaleString()}
+        />
         <MetricCard
           icon={<Clock size={14} />}
-          label="창 길이"
+          label={t('metricEvents')}
+          value={t('eventsValue', { count: preview.totalEvents })}
+        />
+        <MetricCard
+          icon={<Clock size={14} />}
+          label={t('metricWindow')}
           value={fmtDuration(preview.baselineStart, preview.baselineAt)}
         />
       </div>
 
       <div className="rounded-md bg-zinc-950 p-3 text-xs text-zinc-400">
         <div>
-          <span className="text-zinc-500">첫 입고:</span> {fmtDate(preview.firstEvent?.at ?? null)} · {preview.firstEvent?.player} ·{' '}
+          <span className="text-zinc-500">{t('firstDeposit')}</span> {fmtDate(preview.firstEvent?.at ?? null)} · {preview.firstEvent?.player} ·{' '}
           <span className="text-zinc-200">{preview.firstEvent?.itemName}</span> +{preview.firstEvent?.quantity}
         </div>
         <div>
-          <span className="text-zinc-500">마지막 입고:</span> {fmtDate(preview.lastEvent?.at ?? null)} · {preview.lastEvent?.player} ·{' '}
+          <span className="text-zinc-500">{t('lastDeposit')}</span> {fmtDate(preview.lastEvent?.at ?? null)} · {preview.lastEvent?.player} ·{' '}
           <span className="text-zinc-200">{preview.lastEvent?.itemName}</span> +{preview.lastEvent?.quantity}
         </div>
         {preview.depositors.length > 0 && (
           <div>
-            <span className="text-zinc-500">입고자:</span> {preview.depositors.join(', ')}
+            <span className="text-zinc-500">{t('depositors')}</span> {preview.depositors.join(', ')}
           </div>
         )}
       </div>
@@ -277,7 +319,9 @@ function PreviewPanel({ preview }: { preview: BaselinePreview }) {
 
       {preview.unresolvedNames.length > 0 && (
         <div className="rounded-md border border-zinc-700 bg-zinc-950 p-3 text-xs">
-          <div className="text-zinc-400 mb-1">매핑되지 않아 제외된 아이템 ({preview.unresolvedNames.length}종):</div>
+          <div className="text-zinc-400 mb-1">
+            {t('unresolvedTitle', { count: preview.unresolvedNames.length })}
+          </div>
           <div className="text-zinc-500">{preview.unresolvedNames.join(', ')}</div>
         </div>
       )}
@@ -306,6 +350,7 @@ function MetricCard({
 }
 
 function DriftPanel({ drift }: { drift: DriftReport }) {
+  const t = useTranslations('shopBaselineForm')
   const deltaTotal = drift.afterTotal - drift.beforeTotal
   const sign = deltaTotal > 0 ? '+' : deltaTotal < 0 ? '' : '±'
   const tone =
@@ -318,28 +363,26 @@ function DriftPanel({ drift }: { drift: DriftReport }) {
     <div className={`rounded-lg border p-4 space-y-3 ${tone}`}>
       <div className="flex items-center gap-2 text-sm font-semibold">
         <AlertTriangle size={14} />
-        드리프트 리포트
-        <span className="text-xs font-normal opacity-70">
-          리셋 전 재고와 확정 후 재고를 비교한 결과
-        </span>
+        {t('driftTitle')}
+        <span className="text-xs font-normal opacity-70">{t('driftSubtitle')}</span>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
-        <DriftStat label="변동 아이템" value={`${drift.changedItems}종`} />
-        <DriftStat label="복원 (0→+)" value={`${drift.restored}종`} accent="emerald" />
-        <DriftStat label="삭제 (+→0)" value={`${drift.cleared}종`} accent="rose" />
-        <DriftStat label="증가" value={`${drift.increased}종`} />
-        <DriftStat label="감소" value={`${drift.decreased}종`} />
+        <DriftStat label={t('driftChanged')} value={t('typesValue', { count: drift.changedItems })} />
+        <DriftStat label={t('driftRestored')} value={t('typesValue', { count: drift.restored })} accent="emerald" />
+        <DriftStat label={t('driftCleared')} value={t('typesValue', { count: drift.cleared })} accent="rose" />
+        <DriftStat label={t('driftIncreased')} value={t('typesValue', { count: drift.increased })} />
+        <DriftStat label={t('driftDecreased')} value={t('typesValue', { count: drift.decreased })} />
       </div>
 
       <div className="rounded-md bg-black/30 p-2 text-xs">
-        <span className="opacity-70">총 재고 변화:</span>{' '}
+        <span className="opacity-70">{t('driftTotalLabel')}</span>{' '}
         <span className="font-mono">
-          {drift.beforeTotal.toLocaleString('ko-KR')} → {drift.afterTotal.toLocaleString('ko-KR')}
+          {drift.beforeTotal.toLocaleString()} → {drift.afterTotal.toLocaleString()}
         </span>{' '}
         <span className="font-mono">
           ({sign}
-          {deltaTotal.toLocaleString('ko-KR')})
+          {deltaTotal.toLocaleString()})
         </span>
       </div>
 
@@ -348,12 +391,12 @@ function DriftPanel({ drift }: { drift: DriftReport }) {
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-zinc-900 text-zinc-400">
               <tr>
-                <th className="p-2 text-left">아이템</th>
+                <th className="p-2 text-left">{t('colItem')}</th>
                 <th className="p-2 text-center">E</th>
                 <th className="p-2 text-center">Q</th>
-                <th className="p-2 text-right">이전</th>
-                <th className="p-2 text-right">이후</th>
-                <th className="p-2 text-right">차이</th>
+                <th className="p-2 text-right">{t('colBefore')}</th>
+                <th className="p-2 text-right">{t('colAfter')}</th>
+                <th className="p-2 text-right">{t('colDelta')}</th>
               </tr>
             </thead>
             <tbody>
@@ -369,10 +412,10 @@ function DriftPanel({ drift }: { drift: DriftReport }) {
                   <td className="p-2 text-center">{c.enchant}</td>
                   <td className="p-2 text-center">{c.quality}</td>
                   <td className="p-2 text-right font-mono text-zinc-400">
-                    {c.beforeStock.toLocaleString('ko-KR')}
+                    {c.beforeStock.toLocaleString()}
                   </td>
                   <td className="p-2 text-right font-mono">
-                    {c.afterStock.toLocaleString('ko-KR')}
+                    {c.afterStock.toLocaleString()}
                   </td>
                   <td
                     className={`p-2 text-right font-mono ${
@@ -380,7 +423,7 @@ function DriftPanel({ drift }: { drift: DriftReport }) {
                     }`}
                   >
                     {c.delta > 0 ? '+' : ''}
-                    {c.delta.toLocaleString('ko-KR')}
+                    {c.delta.toLocaleString()}
                   </td>
                 </tr>
               ))}
@@ -416,10 +459,11 @@ function DriftStat({
 }
 
 function ItemsTable({ items }: { items: BaselineItem[] }) {
+  const t = useTranslations('shopBaselineForm')
   if (items.length === 0) {
     return (
       <div className="rounded-md border border-zinc-700 bg-zinc-950 p-4 text-center text-sm text-zinc-500">
-        집계된 아이템이 없습니다.
+        {t('emptyItems')}
       </div>
     )
   }
@@ -428,10 +472,10 @@ function ItemsTable({ items }: { items: BaselineItem[] }) {
       <table className="w-full text-xs">
         <thead className="sticky top-0 bg-zinc-900 text-zinc-400">
           <tr>
-            <th className="p-2 text-left">아이템</th>
+            <th className="p-2 text-left">{t('colItem')}</th>
             <th className="p-2 text-center">E</th>
             <th className="p-2 text-center">Q</th>
-            <th className="p-2 text-right">수량</th>
+            <th className="p-2 text-right">{t('colQty')}</th>
           </tr>
         </thead>
         <tbody>
@@ -446,7 +490,7 @@ function ItemsTable({ items }: { items: BaselineItem[] }) {
               </td>
               <td className="p-2 text-center">{item.enchant}</td>
               <td className="p-2 text-center">{item.quality}</td>
-              <td className="p-2 text-right font-mono">{item.quantity.toLocaleString('ko-KR')}</td>
+              <td className="p-2 text-right font-mono">{item.quantity.toLocaleString()}</td>
             </tr>
           ))}
         </tbody>

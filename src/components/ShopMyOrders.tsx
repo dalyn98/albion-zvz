@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { ChevronDown, X, History } from 'lucide-react'
 import { cancelMyOrder, type MyOrderRow } from '@/app/actions/shop-member'
 import { formatDateTimeShort } from '@/lib/format-datetime'
@@ -10,14 +11,22 @@ interface Props {
   orders: MyOrderRow[]
 }
 
-const STATUS_BADGE: Record<MyOrderRow['status'], { label: string; className: string }> = {
-  pending: { label: '대기중', className: 'bg-yellow-500/20 text-yellow-300' },
-  approved: { label: '승인', className: 'bg-emerald-500/20 text-emerald-300' },
-  rejected: { label: '거절', className: 'bg-red-500/20 text-red-300' },
-  cancelled: { label: '취소됨', className: 'bg-gray-700 text-gray-300' },
+const STATUS_BADGE_CLASS: Record<MyOrderRow['status'], string> = {
+  pending: 'bg-yellow-500/20 text-yellow-300',
+  approved: 'bg-emerald-500/20 text-emerald-300',
+  rejected: 'bg-red-500/20 text-red-300',
+  cancelled: 'bg-gray-700 text-gray-300',
+}
+
+const STATUS_LABEL_KEY: Record<MyOrderRow['status'], string> = {
+  pending: 'statusPending',
+  approved: 'statusApproved',
+  rejected: 'statusRejected',
+  cancelled: 'statusCancelled',
 }
 
 export default function ShopMyOrders({ orders }: Props) {
+  const t = useTranslations('shopMyOrders')
   const [expanded, setExpanded] = useState(false)
 
   if (orders.length === 0) return null
@@ -32,11 +41,11 @@ export default function ShopMyOrders({ orders }: Props) {
         className="w-full flex items-center gap-2 px-4 py-3 hover:bg-gray-800/60 transition-colors"
       >
         <History size={14} className="text-gray-400" />
-        <span className="text-sm text-white font-semibold">내 주문</span>
+        <span className="text-sm text-white font-semibold">{t('title')}</span>
         <span className="text-xs text-gray-500">({orders.length})</span>
         {pendingCount > 0 && (
           <span className="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-0.5 rounded-full font-semibold">
-            대기 {pendingCount}
+            {t('pendingBadge', { count: pendingCount })}
           </span>
         )}
         <ChevronDown
@@ -58,12 +67,14 @@ export default function ShopMyOrders({ orders }: Props) {
 
 function OrderCard({ order }: { order: MyOrderRow }) {
   const router = useRouter()
+  const t = useTranslations('shopMyOrders')
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
-  const badge = STATUS_BADGE[order.status]
+  const badgeClass = STATUS_BADGE_CLASS[order.status]
+  const badgeLabel = t(STATUS_LABEL_KEY[order.status])
 
   const handleCancel = () => {
-    if (!confirm('이 주문을 취소합니다. 계속?')) return
+    if (!confirm(t('cancelConfirm'))) return
     setError('')
     startTransition(async () => {
       const result = await cancelMyOrder(order.id)
@@ -78,11 +89,14 @@ function OrderCard({ order }: { order: MyOrderRow }) {
   return (
     <div className="px-4 py-3 space-y-2">
       <div className="flex items-center gap-2 flex-wrap text-xs">
-        <span className={`font-semibold px-2 py-0.5 rounded ${badge.className}`}>
-          {badge.label}
+        <span className={`font-semibold px-2 py-0.5 rounded ${badgeClass}`}>
+          {badgeLabel}
         </span>
         <span className="text-gray-400 font-mono">
-          {order.totalPoints.toLocaleString()}p · {order.items.length}종
+          {t('summary', {
+            points: order.totalPoints.toLocaleString(),
+            types: order.items.length,
+          })}
         </span>
         <span className="ml-auto text-gray-500 font-mono">
           {formatDateTimeShort(order.createdAt)}
@@ -101,15 +115,17 @@ function OrderCard({ order }: { order: MyOrderRow }) {
           </div>
         ))}
         {order.items.length > 4 && (
-          <p className="text-gray-500">... 외 {order.items.length - 4}종</p>
+          <p className="text-gray-500">{t('itemsMore', { count: order.items.length - 4 })}</p>
         )}
       </div>
       {order.memberNote && (
-        <p className="text-[11px] text-gray-500 italic">메모: {order.memberNote}</p>
+        <p className="text-[11px] text-gray-500 italic">
+          {t('memberNotePrefix', { note: order.memberNote })}
+        </p>
       )}
       {order.adminNote && (
         <p className="text-[11px] text-amber-200/80 bg-amber-500/5 border border-amber-500/20 rounded px-2 py-1">
-          관리자: {order.adminNote}
+          {t('adminNotePrefix', { note: order.adminNote })}
         </p>
       )}
       {order.status === 'pending' && (
@@ -120,7 +136,7 @@ function OrderCard({ order }: { order: MyOrderRow }) {
           className="flex items-center gap-1 text-[11px] text-red-400 hover:text-red-300 disabled:text-gray-600"
         >
           <X size={11} />
-          주문 취소
+          {t('cancelButton')}
         </button>
       )}
       {error && <p className="text-[11px] text-red-400">{error}</p>}
