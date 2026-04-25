@@ -23,7 +23,9 @@ import { displayNameFromSlug } from '@/lib/tenant-slug'
 // forwards the pathname via x-pathname so we can decide here without duplicating
 // the matcher logic.
 function isPublicPathname(pathname: string): boolean {
-  return pathname.startsWith('/public/')
+  if (pathname.startsWith('/public/')) return true
+  if (pathname === '/demo' || pathname.startsWith('/demo/')) return true
+  return false
 }
 
 // Tenant 온보딩 경로: 로그인은 됐지만 아직 어떤 tenant 에도 속하지 않은
@@ -58,6 +60,7 @@ function skipAlbionOnboardingModal(pathname: string): boolean {
   if (pathname.startsWith('/api/auth/')) return true
   if (pathname.startsWith('/public/')) return true
   if (pathname.startsWith('/super-admin')) return true
+  if (pathname === '/demo' || pathname.startsWith('/demo/')) return true
   if (pathname === '/logout') return true
   return false
 }
