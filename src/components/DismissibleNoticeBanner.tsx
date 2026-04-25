@@ -1,47 +1,18 @@
-'use client'
-
-import { useEffect, useState } from 'react'
-import { Megaphone, X } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { Megaphone } from 'lucide-react'
 
 interface Props {
-  storageKey: string
   message: string
   imageUrl?: string
 }
 
-// Admin-authored notice banners shared between the events list and the regear
-// page. We re-show the banner whenever the message or image changes by keying
-// the dismissed flag on the content itself — when admins edit the notice,
-// every user sees it once again, then can dismiss.
-export default function DismissibleNoticeBanner({ storageKey, message, imageUrl }: Props) {
-  const t = useTranslations('common')
-  const [dismissed, setDismissed] = useState(false)
+// Admin-authored notice banner shared between the events list and the regear
+// page. Always rendered (no dismiss). 사용자가 임의로 닫지 못하게 해 운영 공지가
+// 항상 보이도록 한다 — 닫기를 추가하려면 별도 정책이 정해진 뒤 다시 이 파일에
+// 상호작용을 추가하는 게 안전.
+export default function DismissibleNoticeBanner({ message, imageUrl }: Props) {
   const trimmed = message.trim()
   const trimmedImage = (imageUrl ?? '').trim()
-  const fullKey = `app.notice.dismissed.${storageKey}`
-  const dismissSignature = `${trimmed}|${trimmedImage}`
-
-  useEffect(() => {
-    if (!trimmed && !trimmedImage) return
-    try {
-      const stored = window.localStorage.getItem(fullKey)
-      if (stored === dismissSignature) setDismissed(true)
-    } catch {
-      // Ignore storage errors (Safari private mode, etc.) — banner stays visible.
-    }
-  }, [fullKey, dismissSignature, trimmed, trimmedImage])
-
-  if ((!trimmed && !trimmedImage) || dismissed) return null
-
-  const handleDismiss = () => {
-    try {
-      window.localStorage.setItem(fullKey, dismissSignature)
-    } catch {
-      // If storage fails, still hide for this session.
-    }
-    setDismissed(true)
-  }
+  if (!trimmed && !trimmedImage) return null
 
   return (
     <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg overflow-hidden">
@@ -62,14 +33,6 @@ export default function DismissibleNoticeBanner({ storageKey, message, imageUrl 
             />
           )}
         </div>
-        <button
-          type="button"
-          onClick={handleDismiss}
-          aria-label={t('close')}
-          className="text-amber-200/60 hover:text-amber-100 flex-shrink-0 -mt-0.5"
-        >
-          <X size={16} />
-        </button>
       </div>
     </div>
   )

@@ -123,7 +123,7 @@ export default async function HomePage() {
         )}
       </div>
 
-      <DismissibleNoticeBanner storageKey="events" message={noticeMessage} imageUrl={noticeImageUrl} />
+      <DismissibleNoticeBanner message={noticeMessage} imageUrl={noticeImageUrl} />
 
       {events.length === 0 ? (
         <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center">
