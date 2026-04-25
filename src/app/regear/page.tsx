@@ -4,7 +4,7 @@ import { Clock, MapPin, Swords, ShieldCheck } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { getRegearLimits, listMyRegearEligibleEvents } from '@/app/actions/regear'
+import { getRegearLimits, listMyRegearEligibleEvents, listMyRegearRequests } from '@/app/actions/regear'
 import { getRegearPayoutRatePercent } from '@/app/actions/regear-admin'
 import { formatSilver } from '@/lib/silver'
 import { formatGatherTimeFor } from '@/lib/gather-time'
@@ -13,6 +13,7 @@ import { getLocale } from '@/lib/locale'
 import { getAppSetting } from '@/lib/app-settings'
 import RegearRequestButton from '@/components/RegearRequestButton'
 import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
+import MyRegearList from '@/components/MyRegearList'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 
 export const dynamic = 'force-dynamic'
@@ -34,11 +35,24 @@ export default async function RegearPage() {
   }
 
   const guildId = await getSessionGuildId(session)
-  const [{ events, error }, limits, payoutRatePercent, t, tRole, locale, noticeMessage, noticeImageUrl] = await Promise.all([
+  const [
+    { events, error },
+    { requests: myRegears },
+    limits,
+    payoutRatePercent,
+    t,
+    tMe,
+    tRole,
+    locale,
+    noticeMessage,
+    noticeImageUrl,
+  ] = await Promise.all([
     listMyRegearEligibleEvents(),
+    listMyRegearRequests(),
     getRegearLimits(),
     getRegearPayoutRatePercent(),
     getTranslations('regear'),
+    getTranslations('me'),
     getTranslations('slotRole'),
     getLocale(),
     getAppSetting('regear_notice_message', '', guildId),
@@ -121,6 +135,11 @@ export default async function RegearPage() {
           ))}
         </ul>
       )}
+
+      <section className="space-y-3 pt-6 border-t border-gray-800">
+        <h2 className="text-lg font-bold text-white">{tMe('regearListTitle')}</h2>
+        <MyRegearList requests={myRegears} />
+      </section>
     </main>
   )
 }
