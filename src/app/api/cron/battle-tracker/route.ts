@@ -27,14 +27,14 @@ import {
 //
 // 동작:
 //   1. tenants 순회 → enabled + sizes + server + homeGuild 를 가진 tenant 목록 수집.
-//   2. server 별로 그룹 → 서버 당 fetchRecentBattles 1회 (limit=100).
+//   2. server 별로 그룹 → 서버 당 fetchRecentBattles (50*pages 건).
 //   3. 각 battle 을 battle_records 에 upsert (tenant 중립, (server,id) UNIQUE).
 //   4. 해당 server 의 각 enabled tenant 에 대해 계산 → 규모 필터 → tenant_
 //      battle_records upsert.
 //
-// Limit=100 이유: /battles 는 기본 sort=recent 이고 15분 tick 에 100건이면
-// 대부분 상황에서 최근 1시간+ 가 커버돼 다음 폴링에서 누락 위험 작음. 부하도
-// 안전한 범위.
+// 페이지 크기: Albion API 가 limit ≤ 51 만 허용해 50/페이지 * 2페이지 = 100건을
+// 매 tick 가져온다. 피크 타임에도 50건이 ~20분을 커버하므로 2페이지면 ~40분 —
+// GitHub Actions schedule 지연(수 분)에도 안전 마진.
 
 export const dynamic = 'force-dynamic'
 
@@ -105,7 +105,7 @@ export async function GET(request: Request) {
     const errors: string[] = []
     let battles: AlbionBattle[] = []
     try {
-      battles = await fetchRecentBattles(server, 100)
+      battles = await fetchRecentBattles(server)
     } catch (e) {
       errors.push(`fetchRecentBattles: ${e instanceof Error ? e.message : String(e)}`)
       results.push({

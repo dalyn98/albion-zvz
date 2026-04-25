@@ -67,26 +67,43 @@ export interface AlbionBattle {
   alliances: Record<string, AlbionBattleAlliance>
 }
 
+// Albion gameinfo `/battles` 는 limit ≤ 51 이라 예전 limit=100 호출은 HTTP 400 으로
+// 실패한다 (silent break). 안전하게 50 으로 고정하고 더 긴 시간을 커버해야 하면
+// pages 인자로 offset 페이지네이션을 돌린다 (50*pages 건).
+const BATTLES_PAGE_SIZE = 50
+
 export async function fetchRecentBattles(
   server: AlbionServer,
-  limit = 100,
+  pages = 2,
 ): Promise<AlbionBattle[]> {
-  const url = `${SERVER_ENDPOINTS[server]}/battles?limit=${limit}&sort=recent`
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 15_000)
-  try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { 'User-Agent': 'albion-zvz-battle-tracker/1.0' },
-      cache: 'no-store',
-    })
-    if (!res.ok) throw new Error(`battles ${res.status}`)
-    const data = (await res.json()) as unknown
-    if (!Array.isArray(data)) return []
-    return data as AlbionBattle[]
-  } finally {
-    clearTimeout(timer)
+  const all: AlbionBattle[] = []
+  const seen = new Set<number>()
+  for (let i = 0; i < pages; i++) {
+    const offset = i * BATTLES_PAGE_SIZE
+    const url = `${SERVER_ENDPOINTS[server]}/battles?limit=${BATTLES_PAGE_SIZE}&offset=${offset}&sort=recent`
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 15_000)
+    let page: AlbionBattle[] = []
+    try {
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { 'User-Agent': 'albion-zvz-battle-tracker/1.0' },
+        cache: 'no-store',
+      })
+      if (!res.ok) throw new Error(`battles ${res.status}`)
+      const data = (await res.json()) as unknown
+      if (Array.isArray(data)) page = data as AlbionBattle[]
+    } finally {
+      clearTimeout(timer)
+    }
+    for (const b of page) {
+      if (seen.has(b.id)) continue
+      seen.add(b.id)
+      all.push(b)
+    }
+    if (page.length < BATTLES_PAGE_SIZE) break
   }
+  return all
 }
 
 export type SizeCategory = 'small' | 'middle' | 'large' | 'zerg'
