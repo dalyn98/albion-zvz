@@ -44,6 +44,8 @@ interface KillboardEvent {
   EventId: number
   TimeStamp: string
   TotalVictimKillFame?: number
+  // Albion API 가 항상 채워주는 필드. 누락된 battle_records 를 채울 때 hint 로 쓴다.
+  BattleId?: number
   Killer: PlayerRef & {
     AverageItemPower?: number
     Equipment?: Record<string, unknown> | null
@@ -343,5 +345,6 @@ function toRow(
     // 용도로 충분했지만, 0데스 킬러(항상 살아남는 DPS) 의 무기 통계가 비는
     // 문제가 있어 양쪽 모두 저장으로 전환.
     equipment: self.Equipment ?? null,
+    battle_id: e.BattleId ?? null,
   }
 }

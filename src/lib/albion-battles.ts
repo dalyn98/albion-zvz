@@ -72,6 +72,33 @@ export interface AlbionBattle {
 // pages 인자로 offset 페이지네이션을 돌린다 (50*pages 건).
 const BATTLES_PAGE_SIZE = 50
 
+// 단일 battle 을 ID 로 fetch. 404 등 "Albion 이 노출 안 함" 인 경우는 null.
+// /battles?sort=recent 가 누락한 battle 을 killboard_events.battle_id hint 로
+// 채울 때 사용. Albion 의 매우 작은 가벼운 교전(1~3명) 일부는 list 와 detail
+// 모두에서 404 가 뜨는 게 정상 — 이 경우는 우리도 집계 대상이 아니라 무시.
+export async function fetchBattleById(
+  server: AlbionServer,
+  battleId: number,
+): Promise<AlbionBattle | null> {
+  const url = `${SERVER_ENDPOINTS[server]}/battles/${battleId}`
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 10_000)
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'albion-zvz-battle-tracker/1.0' },
+      cache: 'no-store',
+    })
+    if (res.status === 404) return null
+    if (!res.ok) throw new Error(`battles/${battleId} ${res.status}`)
+    const data = (await res.json()) as AlbionBattle
+    if (!data || typeof data.id !== 'number') return null
+    return data
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function fetchRecentBattles(
   server: AlbionServer,
   pages = 2,

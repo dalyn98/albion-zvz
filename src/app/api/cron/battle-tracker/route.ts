@@ -8,6 +8,7 @@ import {
   type AlbionServer,
 } from '@/lib/albion-gameinfo'
 import {
+  fetchBattleById,
   fetchRecentBattles,
   type AlbionBattle,
 } from '@/lib/albion-battles'
@@ -16,6 +17,14 @@ import {
   buildTenantBattleRow,
   type TenantBattleRow,
 } from '@/lib/battle-tracking-helpers'
+
+// killboard_events 가 hint 한 battle_id 중 battle_records 에 없는 것을 ID 로
+// 직접 fetch 해 채우는 백필 윈도. /battles?sort=recent 가 인스턴스 간 결과
+// 차이로 일부 battle 을 누락하므로 이 fallback 이 필요. 30분이면 cron 1회당 최대
+// 30~60개 정도라 API 부하는 무시 가능.
+const BACKFILL_LOOKBACK_MS = 30 * 60 * 1000
+// 1 cron tick 에 너무 많은 battle 을 backfill 하면 maxDuration 위협 — 상한.
+const MAX_BACKFILL_PER_TICK = 80
 
 // 5분 주기로 돌면서 home_guild_id + server 가 설정된 모든 테넌트의 홈 길드가
 // 참여한 공개 전투를 수집한다. 규모 카테고리(small/middle/large/zerg) 는
@@ -96,6 +105,10 @@ export async function GET(request: Request) {
     battles_fetched: number
     battle_records_upserted: number
     tenant_records_upserted: number
+    backfill_attempted: number
+    backfill_battle_records_upserted: number
+    backfill_tenant_records_upserted: number
+    backfill_404: number
     errors: string[]
   }> = []
 
@@ -111,6 +124,10 @@ export async function GET(request: Request) {
         battles_fetched: 0,
         battle_records_upserted: 0,
         tenant_records_upserted: 0,
+        backfill_attempted: 0,
+        backfill_battle_records_upserted: 0,
+        backfill_tenant_records_upserted: 0,
+        backfill_404: 0,
         errors,
       })
       continue
@@ -122,6 +139,10 @@ export async function GET(request: Request) {
         battles_fetched: 0,
         battle_records_upserted: 0,
         tenant_records_upserted: 0,
+        backfill_attempted: 0,
+        backfill_battle_records_upserted: 0,
+        backfill_tenant_records_upserted: 0,
+        backfill_404: 0,
         errors,
       })
       continue
@@ -141,6 +162,10 @@ export async function GET(request: Request) {
         battles_fetched: battles.length,
         battle_records_upserted: 0,
         tenant_records_upserted: 0,
+        backfill_attempted: 0,
+        backfill_battle_records_upserted: 0,
+        backfill_tenant_records_upserted: 0,
+        backfill_404: 0,
         errors,
       })
       continue
@@ -180,11 +205,113 @@ export async function GET(request: Request) {
       }
     }
 
+    // === Backfill 패스 ===
+    // killboard_events.battle_id 가 hint 한 battle 중 battle_records 에 없는
+    // 것을 /battles/{id} 로 직접 fetch. /battles?sort=recent 의 인스턴스 간
+    // 결과 차이로 누락된 길드 참여 전투를 잡아낸다.
+    const sinceIso = new Date(Date.now() - BACKFILL_LOOKBACK_MS).toISOString()
+    const tenantIdsForServer = serverTenants.map((t) => t.tenantId)
+    const { data: hintRows, error: hintErr } = await db
+      .from('killboard_events')
+      .select('battle_id, guild_id')
+      .in('guild_id', tenantIdsForServer)
+      .gte('occurred_at', sinceIso)
+      .not('battle_id', 'is', null)
+    let backfillAttempted = 0
+    let backfillBR = 0
+    let backfillTR = 0
+    let backfill404 = 0
+    if (hintErr) {
+      errors.push(`killboard hint query: ${hintErr.message}`)
+    } else if (hintRows && hintRows.length > 0) {
+      const candidateIds = new Set<number>()
+      for (const r of hintRows) {
+        if (typeof r.battle_id === 'number') candidateIds.add(r.battle_id)
+      }
+      // 이미 battle_records 에 있는 것 제거.
+      const candidateArr = [...candidateIds]
+      const { data: existing } = await db
+        .from('battle_records')
+        .select('albion_battle_id')
+        .eq('albion_server', server)
+        .in('albion_battle_id', candidateArr)
+      const existingSet = new Set((existing ?? []).map((r) => r.albion_battle_id as number))
+      const missing = candidateArr
+        .filter((id) => !existingSet.has(id))
+        .slice(0, MAX_BACKFILL_PER_TICK)
+
+      const fetchedBattles: AlbionBattle[] = []
+      for (const id of missing) {
+        backfillAttempted++
+        try {
+          const battle = await fetchBattleById(server, id)
+          if (battle === null) {
+            backfill404++
+            continue
+          }
+          fetchedBattles.push(battle)
+        } catch (e) {
+          errors.push(
+            `backfill battle ${id}: ${e instanceof Error ? e.message : String(e)}`,
+          )
+        }
+      }
+
+      if (fetchedBattles.length > 0) {
+        const rows = fetchedBattles.map((b) => buildBattleRecordRow(b, server))
+        const { data: upBR, error: brErr } = await db
+          .from('battle_records')
+          .upsert(rows, { onConflict: 'albion_server,albion_battle_id' })
+          .select('id, albion_battle_id')
+        if (brErr) {
+          errors.push(`backfill battle_records upsert: ${brErr.message}`)
+        } else {
+          backfillBR = upBR?.length ?? 0
+          const idMap = new Map<number, string>()
+          for (const r of upBR ?? []) {
+            idMap.set(r.albion_battle_id as number, r.id as string)
+          }
+          // 각 tenant 에 대해 backfilled battle 들로 tenant_battle_record 작성.
+          const backfillTenantRows: TenantBattleRow[] = []
+          for (const tenant of serverTenants) {
+            for (const battle of fetchedBattles) {
+              const battleRecordId = idMap.get(battle.id)
+              if (!battleRecordId) continue
+              const row = buildTenantBattleRow({
+                guildId: tenant.tenantId,
+                battleRecordId,
+                battle,
+                homeGuildId: tenant.homeGuildId,
+                startedAt: battle.startTime,
+              })
+              if (row) backfillTenantRows.push(row)
+            }
+          }
+          if (backfillTenantRows.length > 0) {
+            const { error: tErr } = await db
+              .from('tenant_battle_records')
+              .upsert(backfillTenantRows, {
+                onConflict: 'guild_id,battle_record_id',
+              })
+            if (tErr) {
+              errors.push(`backfill tenant_battle_records upsert: ${tErr.message}`)
+            } else {
+              backfillTR = backfillTenantRows.length
+            }
+          }
+        }
+      }
+    }
+
     results.push({
       server,
       battles_fetched: battles.length,
       battle_records_upserted: upserted?.length ?? 0,
       tenant_records_upserted: tenantUpserted,
+      backfill_attempted: backfillAttempted,
+      backfill_battle_records_upserted: backfillBR,
+      backfill_tenant_records_upserted: backfillTR,
+      backfill_404: backfill404,
       errors,
     })
   }
