@@ -1,9 +1,10 @@
 name: Battle tracker poll
 
-# 공개 Albion 전투 API 를 15분 주기로 폴링해 battle_tracking_enabled 인 tenant 의
-# 홈 길드가 참여한 전투를 tenant_battle_records 에 자동 기록. Vercel Hobby 플랜은
-# 일 1회 cron 제한이라 GitHub Actions 로 돌리고 /api/cron/battle-tracker 를 Bearer
-# 인증으로 호출한다.
+# 공개 Albion 전투 API 를 15분 주기로 폴링해 home_guild_id + server 가 설정된
+# 모든 tenant 의 홈 길드가 참여한 전투를 tenant_battle_records 에 자동 기록.
+# 규모(small/middle/large/zerg) 는 buildTenantBattleRow 가 자동 분류 — 어드민
+# 토글 제거됨. Vercel Hobby 플랜은 일 1회 cron 제한이라 GitHub Actions 로 돌리고
+# /api/cron/battle-tracker 를 Bearer 인증으로 호출한다.
 #
 # 지연: GitHub Actions schedule 은 공용 러너 혼잡 시 수 분 지연 가능. /battles
 # 는 기본 limit=100 으로 최근 1시간+ 를 커버하므로 10~15분 지연돼도 누락 위험 작음.

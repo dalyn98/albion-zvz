@@ -9,6 +9,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 import { SLOT_ROLES } from '@/types'
+import { backfillTenantBattleRecords } from '@/app/actions/battle-tracking'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
@@ -290,7 +291,14 @@ export async function updateAlbionHomeGuild(input: {
       { onConflict: 'guild_id,key' },
     )
     if (error) return { error: error.message }
+    // 홈 길드 신규/변경 직후, 이미 cron 이 모아둔 battle_records 를 이 tenant
+    // 관점으로 일괄 반영. guildId 가 빈 문자열인 "해제" 케이스는 backfill 내부에서
+    // 조기 return.
+    if (guildId.length > 0) {
+      await backfillTenantBattleRecords(sessionGuildId)
+    }
     revalidatePath('/admin/dashboard/settings')
+    revalidatePath('/battles')
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

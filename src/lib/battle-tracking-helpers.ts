@@ -50,14 +50,14 @@ export interface BattleRecordRow {
   raw_battle: AlbionBattle
 }
 
-// tenant 1건의 battle row 를 만들어 반환. 홈 길드가 참여 안 했거나 규모 필터에
-// 안 맞으면 null (호출부에서 스킵).
+// tenant 1건의 battle row 를 만들어 반환. 홈 길드가 참여 안 했거나 규모 자체가
+// 카테고리화 불가(home<10 인원) 이면 null. 모든 규모 카테고리(small/middle/large/
+// zerg) 는 자동 기록되며, 어드민이 켜고 끄거나 골라 담는 옵션은 더 이상 없다.
 export function buildTenantBattleRow(input: {
   guildId: string
   battleRecordId: string
   battle: AlbionBattle
   homeGuildId: string
-  enabledSizes: Set<SizeCategory>
   startedAt: string
 }): TenantBattleRow | null {
   const sides = computeSides(input.battle, input.homeGuildId)
@@ -69,7 +69,6 @@ export function buildTenantBattleRow(input: {
   const homeCategory = categorizeSize(sides.home.teamSize)
   if (!homeCategory) return null
   if (sides.opponent.teamSize < 10) return null
-  if (!input.enabledSizes.has(homeCategory)) return null
 
   const outcome = computeOutcome(sides.home, sides.opponent)
 

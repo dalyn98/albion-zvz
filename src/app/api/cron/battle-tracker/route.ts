@@ -9,9 +9,7 @@ import {
 } from '@/lib/albion-gameinfo'
 import {
   fetchRecentBattles,
-  isSizeCategory,
   type AlbionBattle,
-  type SizeCategory,
 } from '@/lib/albion-battles'
 import {
   buildBattleRecordRow,
@@ -19,17 +17,18 @@ import {
   type TenantBattleRow,
 } from '@/lib/battle-tracking-helpers'
 
-// 15분 주기로 돌면서 battle_tracking_enabled = true 인 테넌트들의 홈 길드가 참여한
-// 공개 전투를 수집한다.
+// 15분 주기로 돌면서 home_guild_id + server 가 설정된 모든 테넌트의 홈 길드가
+// 참여한 공개 전투를 수집한다. 규모 카테고리(small/middle/large/zerg) 는
+// buildTenantBattleRow 가 자동 판정 — 어드민 토글/체크박스 제거.
 //
 // 호출 규약: Authorization: Bearer <CRON_SECRET> 로 GET. .github/workflows/
 // battle-tracker.yml (Vercel Hobby 플랜 정책상 GitHub Actions 사용).
 //
 // 동작:
-//   1. tenants 순회 → enabled + sizes + server + homeGuild 를 가진 tenant 목록 수집.
+//   1. tenants 순회 → server + homeGuild 를 가진 tenant 목록 수집.
 //   2. server 별로 그룹 → 서버 당 fetchRecentBattles (50*pages 건).
 //   3. 각 battle 을 battle_records 에 upsert (tenant 중립, (server,id) UNIQUE).
-//   4. 해당 server 의 각 enabled tenant 에 대해 계산 → 규모 필터 → tenant_
+//   4. 해당 server 의 각 tenant 에 대해 계산 → 자동 규모 분류 → tenant_
 //      battle_records upsert.
 //
 // 페이지 크기: Albion API 가 limit ≤ 51 만 허용해 50/페이지 * 2페이지 = 100건을
@@ -42,7 +41,6 @@ interface TenantTrackingInfo {
   tenantId: string
   server: AlbionServer
   homeGuildId: string
-  sizes: Set<SizeCategory>
 }
 
 export async function GET(request: Request) {
@@ -60,33 +58,21 @@ export async function GET(request: Request) {
 
   const tracking: TenantTrackingInfo[] = []
   for (const tenant of tenants) {
-    const [enabledRaw, sizesRaw, homeGuildId, serverRaw] = await Promise.all([
-      getAppSetting('battle_tracking_enabled', 'false', tenant.id),
-      getAppSetting('battle_tracking_sizes', '[]', tenant.id),
+    const [homeGuildId, serverRaw] = await Promise.all([
       getAppSetting('albion_home_guild_id', '', tenant.id),
       getAppSetting('albion_server', 'east', tenant.id),
     ])
-    if (enabledRaw !== 'true') continue
     if (!homeGuildId) continue
     if (!isAlbionServer(serverRaw)) continue
-    let sizes: SizeCategory[] = []
-    try {
-      const parsed = JSON.parse(sizesRaw)
-      if (Array.isArray(parsed)) sizes = parsed.filter(isSizeCategory)
-    } catch {
-      continue
-    }
-    if (sizes.length === 0) continue
     tracking.push({
       tenantId: tenant.id,
       server: serverRaw,
       homeGuildId,
-      sizes: new Set(sizes),
     })
   }
 
   if (tracking.length === 0) {
-    return NextResponse.json({ skipped: 'no-enabled-tenants' })
+    return NextResponse.json({ skipped: 'no-tracked-tenants' })
   }
 
   const serversInUse: AlbionServer[] = ALBION_SERVERS.filter((s) =>
@@ -152,7 +138,7 @@ export async function GET(request: Request) {
       battleRecordIdMap.set(r.albion_battle_id as number, r.id as string)
     }
 
-    // 이 서버를 쓰는 enabled tenant 들에 대해 각 battle 별로 계산 → 필터 → upsert.
+    // 이 서버를 쓰는 tenant 들에 대해 각 battle 별로 계산 → 자동 규모 분류 → upsert.
     const serverTenants = tracking.filter((t) => t.server === server)
     const tenantRows: TenantBattleRow[] = []
     for (const tenant of serverTenants) {
@@ -164,7 +150,6 @@ export async function GET(request: Request) {
           battleRecordId,
           battle,
           homeGuildId: tenant.homeGuildId,
-          enabledSizes: tenant.sizes,
           startedAt: battle.startTime,
         })
         if (row) tenantRows.push(row)
@@ -193,7 +178,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
-    enabled_tenants: tracking.length,
+    tracked_tenants: tracking.length,
     servers: results,
   })
 }

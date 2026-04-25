@@ -1,13 +1,15 @@
 'use client'
 
-// 전투기록 목록 — 서버 컴포넌트가 조회한 행을 받아 필터 드롭다운 + 테이블 렌더.
-// 필터는 searchParams(size, outcome) 로 서버 왕복 → RSC 재조회.
+// 전투기록 목록 — 서버 컴포넌트가 조회한 행을 받아 탭(최근/규모) + 결과 드롭다운
+// + 테이블 렌더. 탭 전환은 ?tab=, 결과 필터는 ?outcome= 으로 RSC 재조회.
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { Trophy, Skull, Minus } from 'lucide-react'
 import Link from 'next/link'
 import type { SizeCategory } from '@/lib/albion-battles'
 import { formatDateTimeShort } from '@/lib/format-datetime'
+
+export type BattleListTab = 'recent' | SizeCategory
 
 export interface BattleRecordRow {
   id: string
@@ -33,12 +35,12 @@ export interface BattleRecordRow {
 
 interface Props {
   rows: BattleRecordRow[]
-  sizeFilter: SizeCategory | null
+  activeTab: BattleListTab
   outcomeFilter: 'win' | 'loss' | 'tie' | null
   emptyLabel: string
-  filterSizeLabel: string
   filterOutcomeLabel: string
   filterAllLabel: string
+  tabLabels: Record<BattleListTab, string>
   sizeLabels: Record<SizeCategory, string>
   outcomeLabels: Record<'win' | 'loss' | 'tie', string>
   columnLabels: {
@@ -51,7 +53,7 @@ interface Props {
   }
 }
 
-const SIZES: SizeCategory[] = ['small', 'middle', 'large', 'zerg']
+const TABS: BattleListTab[] = ['recent', 'small', 'middle', 'large', 'zerg']
 const OUTCOMES: Array<'win' | 'loss' | 'tie'> = ['win', 'loss', 'tie']
 
 function formatFame(n: number): string {
@@ -66,12 +68,12 @@ function formatStartedAt(iso: string): string {
 
 export default function BattleRecordList({
   rows,
-  sizeFilter,
+  activeTab,
   outcomeFilter,
   emptyLabel,
-  filterSizeLabel,
   filterOutcomeLabel,
   filterAllLabel,
+  tabLabels,
   sizeLabels,
   outcomeLabels,
   columnLabels,
@@ -80,37 +82,56 @@ export default function BattleRecordList({
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  const setParam = (key: 'size' | 'outcome', value: string) => {
+  const selectTab = (next: BattleListTab) => {
+    if (next === activeTab) return
     const params = new URLSearchParams(searchParams.toString())
-    if (!value) params.delete(key)
-    else params.set(key, value)
+    if (next === 'recent') params.delete('tab')
+    else params.set('tab', next)
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }
+
+  const setOutcome = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (!value) params.delete('outcome')
+    else params.set('outcome', value)
     const qs = params.toString()
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }
 
   return (
     <div className="space-y-3">
+      <nav
+        role="tablist"
+        className="flex gap-1 border-b border-gray-800 overflow-x-auto"
+      >
+        {TABS.map((key) => {
+          const isActive = activeTab === key
+          return (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => selectTab(key)}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+                isActive
+                  ? 'text-amber-300 border-amber-400'
+                  : 'text-gray-400 border-transparent hover:text-white'
+              }`}
+            >
+              {tabLabels[key]}
+            </button>
+          )
+        })}
+      </nav>
+
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
-          <label className="text-gray-400 text-xs">{filterSizeLabel}</label>
-          <select
-            value={sizeFilter ?? ''}
-            onChange={(e) => setParam('size', e.target.value)}
-            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-amber-500"
-          >
-            <option value="">{filterAllLabel}</option>
-            {SIZES.map((s) => (
-              <option key={s} value={s}>
-                {sizeLabels[s]}
-              </option>
-            ))}
-          </select>
-        </div>
         <div className="flex items-center gap-2">
           <label className="text-gray-400 text-xs">{filterOutcomeLabel}</label>
           <select
             value={outcomeFilter ?? ''}
-            onChange={(e) => setParam('outcome', e.target.value)}
+            onChange={(e) => setOutcome(e.target.value)}
             className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-amber-500"
           >
             <option value="">{filterAllLabel}</option>

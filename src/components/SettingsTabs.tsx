@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { Image as ImageIcon, Megaphone, Settings, Shield, Swords, Timer } from 'lucide-react'
+import { Image as ImageIcon, Megaphone, Settings, Shield, Timer } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import NotificationSettingsForm from './NotificationSettingsForm'
 import RoleRewardsEditor from './RoleRewardsEditor'
@@ -22,10 +22,8 @@ import type { AlbionServer } from '@/lib/albion-gameinfo'
 import AutoRegearToggleForm from './AutoRegearToggleForm'
 import RegearRequireVerificationForm from './RegearRequireVerificationForm'
 import CdBadgeRolesForm from './CdBadgeRolesForm'
-import BattleTrackingSettingsForm from './BattleTrackingSettingsForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
 import type { SlotRole } from '@/types'
-import type { SizeCategory } from '@/lib/albion-battles'
 
 type TabKey =
   | 'basic'
@@ -33,7 +31,6 @@ type TabKey =
   | 'notices'
   | 'permissions'
   | 'events'
-  | 'battles'
 
 interface TabDef {
   key: TabKey
@@ -43,7 +40,6 @@ interface TabDef {
     | 'tabNotices'
     | 'tabPermissions'
     | 'tabEvents'
-    | 'tabBattles'
   icon: React.ComponentType<{ size?: number; className?: string }>
 }
 
@@ -52,7 +48,6 @@ const TABS: readonly TabDef[] = [
   { key: 'notices', labelKey: 'tabNotices', icon: Megaphone },
   { key: 'permissions', labelKey: 'tabPermissions', icon: Shield },
   { key: 'events', labelKey: 'tabEvents', icon: Timer },
-  { key: 'battles', labelKey: 'tabBattles', icon: Swords },
   { key: 'landing', labelKey: 'tabLanding', icon: ImageIcon },
 ]
 
@@ -89,8 +84,6 @@ interface Props {
   regearRequireVerification: boolean
   cdBadgeRoles: SlotRole[]
   allowUnverifiedMemberAccess: boolean
-  battleTrackingEnabled: boolean
-  battleTrackingSizes: SizeCategory[]
 }
 
 function isTabKey(value: string | null): value is TabKey {
@@ -99,8 +92,7 @@ function isTabKey(value: string | null): value is TabKey {
     value === 'landing' ||
     value === 'notices' ||
     value === 'permissions' ||
-    value === 'events' ||
-    value === 'battles'
+    value === 'events'
   )
 }
 
@@ -135,8 +127,6 @@ export default function SettingsTabs({
   regearRequireVerification,
   cdBadgeRoles,
   allowUnverifiedMemberAccess,
-  battleTrackingEnabled,
-  battleTrackingSizes,
 }: Props) {
   const t = useTranslations('adminSettings')
   const tEventsNotice = useTranslations('adminEventsNotice')
@@ -268,14 +258,6 @@ export default function SettingsTabs({
                 <RoleRewardsEditor rewards={rewards} />
               </div>
             </SettingsGroup>
-          </div>
-        )}
-        {active === 'battles' && (
-          <div className="space-y-4">
-            <BattleTrackingSettingsForm
-              initialEnabled={battleTrackingEnabled}
-              initialSizes={battleTrackingSizes}
-            />
           </div>
         )}
         {active === 'notices' && (

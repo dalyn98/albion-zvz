@@ -4,7 +4,6 @@ import SettingsTabs from '@/components/SettingsTabs'
 import { getGuild, type AlbionServer } from '@/lib/albion-gameinfo'
 import { getTranslations } from 'next-intl/server'
 import { SLOT_ROLES, type SlotRole } from '@/types'
-import { isSizeCategory, type SizeCategory } from '@/lib/albion-battles'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 
@@ -53,8 +52,6 @@ export default async function SettingsPage() {
     regearRequireVerificationRaw,
     cdBadgeRolesRaw,
     allowUnverifiedMemberAccessRaw,
-    battleTrackingEnabledRaw,
-    battleTrackingSizesRaw,
     { rewards, error: rewardsError },
     tLanding,
     t,
@@ -86,9 +83,6 @@ export default async function SettingsPage() {
     // 기본값 'true' — 기존 동작(미인증 멤버도 접근 가능) 유지. 관리자가 끌
     // 때만 layout 게이트가 /onboarding/albion 으로 강제 리다이렉트.
     getAppSetting('allow_unverified_member_access', 'true', tenantId),
-    // 전투기록 수집 기본값 off. 관리자가 켜야 cron 이 해당 tenant 를 처리.
-    getAppSetting('battle_tracking_enabled', 'false', tenantId),
-    getAppSetting('battle_tracking_sizes', '[]', tenantId),
     listRoleRewards(),
     getTranslations('landing'),
     getTranslations('adminSettings'),
@@ -172,15 +166,6 @@ export default async function SettingsPage() {
     // 손상된 값 — 기본값으로 degrade.
   }
 
-  const battleTrackingEnabled = battleTrackingEnabledRaw === 'true'
-  let battleTrackingSizes: SizeCategory[] = []
-  try {
-    const parsed = JSON.parse(battleTrackingSizesRaw)
-    if (Array.isArray(parsed)) battleTrackingSizes = parsed.filter(isSizeCategory)
-  } catch {
-    // 손상된 값 — 빈 배열로 degrade. 관리자가 다시 선택 후 저장하면 정상화.
-  }
-
   return (
     <div className="space-y-5">
       <div>
@@ -219,8 +204,6 @@ export default async function SettingsPage() {
         regearRequireVerification={regearRequireVerification}
         cdBadgeRoles={cdBadgeRoles}
         allowUnverifiedMemberAccess={allowUnverifiedMemberAccess}
-        battleTrackingEnabled={battleTrackingEnabled}
-        battleTrackingSizes={battleTrackingSizes}
       />
     </div>
   )

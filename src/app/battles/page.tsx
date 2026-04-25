@@ -6,17 +6,24 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import BattleRecordList, {
   type BattleRecordRow,
+  type BattleListTab,
 } from '@/components/BattleRecordList'
 import { isSizeCategory, SIZE_CATEGORIES } from '@/lib/albion-battles'
 
 export const dynamic = 'force-dynamic'
 
 interface SearchParams {
-  size?: string
+  tab?: string
   outcome?: string
 }
 
-const PAGE_LIMIT = 50
+const RECENT_LIMIT = 20
+const SIZE_LIMIT = 50
+
+function resolveTab(raw: string | undefined): BattleListTab {
+  if (raw && isSizeCategory(raw)) return raw
+  return 'recent'
+}
 
 export default async function BattlesPage({
   searchParams,
@@ -34,7 +41,7 @@ export default async function BattlesPage({
   }
   const guildId = await getSessionGuildId(session)
 
-  const sizeFilter = sp.size && isSizeCategory(sp.size) ? sp.size : null
+  const activeTab = resolveTab(sp.tab)
   const outcomeFilter =
     sp.outcome === 'win' || sp.outcome === 'loss' || sp.outcome === 'tie'
       ? sp.outcome
@@ -43,6 +50,7 @@ export default async function BattlesPage({
   // guildId 는 session 에서 내려와 사용자가 자기 tenant 외 데이터를 볼 수 없음.
   // 관리자 클라이언트는 RLS 를 우회해도 .eq('guild_id') 로 명시적 스코프 유지.
   const db = getAdminClient()
+  const limit = activeTab === 'recent' ? RECENT_LIMIT : SIZE_LIMIT
   let query = db
     .from('tenant_battle_records')
     .select(
@@ -50,8 +58,8 @@ export default async function BattlesPage({
     )
     .eq('guild_id', guildId)
     .order('started_at', { ascending: false })
-    .limit(PAGE_LIMIT)
-  if (sizeFilter) query = query.eq('size_category', sizeFilter)
+    .limit(limit)
+  if (activeTab !== 'recent') query = query.eq('size_category', activeTab)
   if (outcomeFilter) query = query.eq('outcome', outcomeFilter)
 
   const { data, error } = await query
@@ -111,12 +119,18 @@ export default async function BattlesPage({
 
       <BattleRecordList
         rows={rows}
-        sizeFilter={sizeFilter}
+        activeTab={activeTab}
         outcomeFilter={outcomeFilter}
         emptyLabel={t('empty')}
-        filterSizeLabel={t('filterSize')}
         filterOutcomeLabel={t('filterOutcome')}
         filterAllLabel={tCommon('all')}
+        tabLabels={{
+          recent: t('tabRecent'),
+          small: t('size_small'),
+          middle: t('size_middle'),
+          large: t('size_large'),
+          zerg: t('size_zerg'),
+        }}
         sizeLabels={{
           small: t('size_small'),
           middle: t('size_middle'),
