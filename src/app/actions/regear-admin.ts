@@ -52,6 +52,9 @@ const SCREENSHOT_URL_TTL_SECONDS = 10 * 60
 export interface AdminRegearRequest {
   id: string
   event_id: string
+  // 마이그 097: 이벤트가 아닌 "리기어 윈도우" 기반 신청은 event_id 가 비고
+  // regear_window_id 가 채워진다. 그룹/표시용 키로 사용한다.
+  regear_window_id: string | null
   event_title: string
   discord_id: string
   username: string
@@ -134,7 +137,7 @@ export async function listRegearRequests(
     let query = db
       .from('regear_requests')
       .select(
-        'id, event_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, auto_generated, price_warning_level, events(title)',
+        'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, auto_generated, price_warning_level, events(title)',
       )
       .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
@@ -189,6 +192,7 @@ export async function listRegearRequests(
       return {
         id: row.id,
         event_id: row.event_id ?? '',
+        regear_window_id: row.regear_window_id ?? null,
         event_title: liveTitle || row.event_title_snapshot || deletedEventLabel,
         discord_id: row.discord_id,
         username: row.username,

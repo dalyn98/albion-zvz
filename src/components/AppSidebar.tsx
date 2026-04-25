@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import {
   CalendarDays,
   ShieldCheck,
+  Gift,
   Wallet,
   LogIn,
   LogOut,
@@ -58,6 +59,7 @@ const ADMIN_NAV: NavItem[] = [
   // exact 매칭이 없으면 하위 페이지에 있을 때도 "이벤트 관리"가 계속 하이라이트됨.
   { href: '/admin/dashboard', labelKey: 'eventAdmin', icon: CalendarDays, exact: true },
   { href: '/admin/dashboard/approvals', labelKey: 'approvals', icon: ShieldCheck },
+  { href: '/admin/dashboard/regear-windows', labelKey: 'regearWindows', icon: Gift },
   { href: '/admin/dashboard/shop', labelKey: 'shopAdmin', icon: ShoppingBag },
   { href: '/admin/dashboard/stats', labelKey: 'stats', icon: BarChart3 },
   { href: '/admin/dashboard/settings', labelKey: 'settings', icon: Settings },

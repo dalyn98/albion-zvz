@@ -12,6 +12,7 @@ import { formatDateTimeShort } from '@/lib/format-datetime'
 import { getLocale } from '@/lib/locale'
 import { getAppSetting } from '@/lib/app-settings'
 import RegearRequestButton from '@/components/RegearRequestButton'
+import RegearWindowsSection from '@/components/RegearWindowsSection'
 import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
 import MyRegearList from '@/components/MyRegearList'
 import RegearPageTabs from '@/components/RegearPageTabs'
@@ -66,6 +67,8 @@ export default async function RegearPage() {
       </div>
 
       <DismissibleNoticeBanner message={noticeMessage} imageUrl={noticeImageUrl} />
+
+      <RegearWindowsSection />
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">

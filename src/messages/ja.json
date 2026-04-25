@@ -13,6 +13,7 @@
     "mySettings": "設定",
     "eventAdmin": "イベント管理",
     "approvals": "承認管理",
+    "regearWindows": "自由リギア",
     "shopAdmin": "ギルドショップ",
     "stats": "統計",
     "battles": "戦闘記録",
@@ -101,6 +102,33 @@
     "tabExchange": "両替",
     "tabDonation": "寄付",
     "tabShop": "ショップ注文"
+  },
+  "adminRegearWindows": {
+    "pageTitle": "自由リギアの受付",
+    "pageDescription": "イベントに紐付かないリギア申請を受け付ける窓口を開閉します。承認はこれまで通り承認管理ページで行います。",
+    "formTitle": "新しい窓口を開く",
+    "fieldTitle": "窓口タイトル",
+    "fieldTitlePlaceholder": "例: 4月26日 ZvZ 通し申請",
+    "fieldDescription": "説明 (任意)",
+    "fieldDescriptionPlaceholder": "メンバーに案内したい内容があれば記入してください。",
+    "fieldMaxDeaths": "1人あたりの最大申請数",
+    "fieldClosesAt": "締切時刻 (任意)",
+    "fieldClosesAtHint": "空欄にすると、手動でクローズするまで受付状態のままです。",
+    "submitOpen": "窓口を開く",
+    "openListTitle": "受付中の窓口",
+    "openListEmpty": "現在開いている窓口はありません。",
+    "closedListTitle": "クローズ済みの窓口",
+    "statusOpen": "受付中",
+    "statusClosed": "クローズ",
+    "metaMaxDeaths": "1人 {count}回",
+    "metaOpensAt": "開始 {ts}",
+    "metaClosesAt": "締切予定 {ts}",
+    "metaClosedBy": "{ts} {by} がクローズ",
+    "metaCreatedBy": "開設者 {by}",
+    "btnClose": "クローズ",
+    "btnDelete": "削除",
+    "confirmClose": "この窓口をクローズしますか? クローズ後は新規申請を受け付けません。",
+    "confirmDelete": "この窓口を削除しますか? 申請が 1 件でもあると削除できません。"
   },
   "adminShopReview": {
     "scopePending": "保留中",
@@ -1399,6 +1427,17 @@
     "allEntriesRequired": "すべての死亡について請求金額とスクリーンショットを入力してください。",
     "verifyCtaLabel": "アルビオン認証ページへ"
   },
+  "regearWindow": {
+    "sectionTitle": "現在受付中の自由申請",
+    "sectionHint": "イベント割当に関係なく申請できる窓口です。役割と請求金額を入力して提出してください。",
+    "modalTitle": "{title}",
+    "metaLimit": "1人あたり最大 {max} 回",
+    "metaClosesAt": "{ts} 締切",
+    "metaSubmittedCount": "{count}/{max} 申請済み",
+    "btnSubmit": "申請",
+    "btnDone": "申請済み",
+    "btnClosed": "クローズ済み"
+  },
   "donation": {
     "openButton": "寄付申請",
     "modalTitle": "ギルド寄付申請",
@@ -1880,7 +1919,13 @@
     "priceUpdateFailed": "{uniqueName} 更新失敗: {reason}",
     "logDeleteFailed": "ログ削除失敗: {reason}",
     "inventoryNotFound": "存在しない在庫です。",
-    "cannotDeleteNonEmptyInventory": "在庫が残っている行は削除できません。先に 0 に調整してください。"
+    "cannotDeleteNonEmptyInventory": "在庫が残っている行は削除できません。先に 0 に調整してください。",
+    "regearWindowTitleRequired": "ウィンドウのタイトルを入力してください。",
+    "regearWindowTitleTooLong": "ウィンドウのタイトルは 100 文字以内で入力してください。",
+    "regearWindowMaxDeathsInvalid": "1人あたりの最大デス数は 1〜20 の整数で入力してください。",
+    "regearWindowClosesAtInvalid": "締切時刻が正しくありません。",
+    "regearWindowClosesAtPast": "締切時刻は現在時刻より未来である必要があります。",
+    "regearWindowHasRequests": "申請が 1 件以上あるウィンドウは削除できません。クローズのみ可能です。"
   },
   "memberActionError": {
     "loginRequired": "ログインが必要です。",
@@ -1940,7 +1985,10 @@
     "itemStockShort": "在庫不足: {name} (残り {stock}個)",
     "itemPriceNotSet": "価格未設定のアイテム: {name}",
     "orderTotalNotPositive": "合計金額が 0 以下です。",
-    "insufficientPointsWithDetail": "ポイント不足 (所持 {balance}p、必要 {total}p)"
+    "insufficientPointsWithDetail": "ポイント不足 (所持 {balance}p、必要 {total}p)",
+    "regearWindowMissing": "リギア・ウィンドウの情報がありません。",
+    "regearWindowNotFound": "リギア・ウィンドウが見つかりません。",
+    "regearWindowClosed": "現在申請を受け付けていないウィンドウです。"
   },
   "errors": {
     "title": "問題が発生しました",

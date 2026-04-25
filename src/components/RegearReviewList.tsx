@@ -48,6 +48,8 @@ interface RegearReviewListProps {
 }
 
 interface EventGroupRow {
+  // 그룹 식별 키. event_id 또는 regear_window_id, 둘 다 없으면 합성 키.
+  groupKey: string
   eventId: string
   eventTitle: string
   rows: AdminRegearRequest[]
@@ -75,17 +77,18 @@ export default function RegearReviewList({
   }, [requests, search])
 
   // 이벤트 정렬: 그룹 내 최신 신청(= rows[0], DB 쿼리가 created_at desc) 기준 desc.
-  // 삭제된 이벤트(event_id = '') 는 하나의 "미지정" 버킷으로 묶임.
+  // 삭제된 이벤트는 event_title 기준으로 한 버킷에 묶임.
+  // 마이그 097: regear_window 기반 신청은 윈도우 id 기준으로 별도 버킷이 된다.
   const eventGroups = useMemo<EventGroupRow[] | null>(() => {
     if (!groupByEvent) return null
     const map = new Map<string, EventGroupRow>()
     for (const r of filtered) {
-      const key = r.event_id || '__no_event__'
+      const key = r.event_id || r.regear_window_id || '__no_event__'
       const prev = map.get(key)
       if (prev) {
         prev.rows.push(r)
       } else {
-        map.set(key, { eventId: r.event_id, eventTitle: r.event_title, rows: [r] })
+        map.set(key, { groupKey: key, eventId: r.event_id, eventTitle: r.event_title, rows: [r] })
       }
     }
     return [...map.values()].sort((a, b) => b.rows[0].created_at.localeCompare(a.rows[0].created_at))
@@ -102,7 +105,7 @@ export default function RegearReviewList({
         <ul className="space-y-2">
           {eventGroups.map((g) => (
             <EventGroup
-              key={g.eventId || `__no_event__:${g.eventTitle}`}
+              key={g.groupKey}
               group={g}
               avatars={avatars}
               ratePercent={ratePercent}
