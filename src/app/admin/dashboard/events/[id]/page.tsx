@@ -131,9 +131,11 @@ export default async function EditEventPage({
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                {!hasParties && (
-                  <LoadTemplateButton eventId={id} templates={templates} />
-                )}
+                <LoadTemplateButton
+                  eventId={id}
+                  templates={templates}
+                  hasExistingParties={hasParties}
+                />
                 {hasSlots && (
                   <SaveAsTemplateButton eventId={id} defaultName={event.title} />
                 )}

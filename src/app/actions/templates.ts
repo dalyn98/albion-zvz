@@ -205,12 +205,13 @@ export async function deleteTemplate(id: string): Promise<{ error?: string }> {
   }
 }
 
-// Apply template to an event with no existing parties. We refuse to overwrite
-// non-empty events because slots may carry live signups — admin can delete
-// parties first if they want to reset.
+// Apply template to an event. By default refuses to overwrite non-empty events
+// — slots may carry live signups, so admin should opt-in. With overwrite=true
+// we delete existing parties first (slots cascade via FK), then apply.
 export async function applyTemplate(
   eventId: string,
   templateId: string,
+  options: { overwrite?: boolean } = {},
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
@@ -226,7 +227,16 @@ export async function applyTemplate(
       .eq('event_id', eventId)
     if (countError) return { error: countError.message }
     if ((count ?? 0) > 0) {
-      return { error: tErr('eventHasParties') }
+      if (!options.overwrite) {
+        return { error: tErr('eventHasParties') }
+      }
+      // Slots cascade on party delete (FK ON DELETE CASCADE in schema.sql).
+      const { error: deleteError } = await db
+        .from('parties')
+        .delete()
+        .eq('guild_id', guildId)
+        .eq('event_id', eventId)
+      if (deleteError) return { error: deleteError.message }
     }
 
     const { data: template, error: templateError } = await db

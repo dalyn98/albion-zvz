@@ -190,6 +190,10 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
     const { error } = await db.from('events').update(finalPayload).eq('guild_id', guildId).eq('id', id)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard')
+    // 편집 페이지 자체도 invalidate — 그렇지 않으면 router.refresh() 후에도
+    // PublishEventBanner 가 stale event prop 으로 렌더되어 발행 버튼이 비활성
+    // 상태 그대로 남는다.
+    revalidatePath(`/admin/dashboard/events/${id}`)
     revalidatePath('/')
     revalidatePath(`/events/${id}`)
     return {}

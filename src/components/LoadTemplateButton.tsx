@@ -3,36 +3,50 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { FolderDown, X } from 'lucide-react'
+import { FolderDown, X, AlertTriangle } from 'lucide-react'
 import { applyTemplate, type TemplateSummary } from '@/app/actions/templates'
 import { formatDate } from '@/lib/format-datetime'
 
 interface Props {
   eventId: string
   templates: TemplateSummary[]
+  // 이벤트에 이미 파티가 있으면 적용 시 덮어쓰기 확인을 한 번 더 받는다.
+  hasExistingParties: boolean
 }
 
-export default function LoadTemplateButton({ eventId, templates }: Props) {
+export default function LoadTemplateButton({ eventId, templates, hasExistingParties }: Props) {
   const t = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
+  const [confirmingOverwrite, setConfirmingOverwrite] = useState(false)
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
 
-  const submit = () => {
+  const runApply = (overwrite: boolean) => {
     if (!selected) return
     setError('')
     startTransition(async () => {
-      const result = await applyTemplate(eventId, selected)
+      const result = await applyTemplate(eventId, selected, { overwrite })
       if (result.error) {
         setError(result.error)
+        setConfirmingOverwrite(false)
         return
       }
       setOpen(false)
+      setConfirmingOverwrite(false)
       router.refresh()
     })
+  }
+
+  const submit = () => {
+    if (!selected) return
+    if (hasExistingParties) {
+      setConfirmingOverwrite(true)
+      return
+    }
+    runApply(false)
   }
 
   return (
@@ -42,6 +56,7 @@ export default function LoadTemplateButton({ eventId, templates }: Props) {
         onClick={() => {
           setSelected(null)
           setError('')
+          setConfirmingOverwrite(false)
           setOpen(true)
         }}
         className="flex items-center gap-1.5 text-xs font-medium text-sky-300 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 rounded-lg px-3 py-2 transition-colors"
@@ -71,6 +86,14 @@ export default function LoadTemplateButton({ eventId, templates }: Props) {
               </button>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-2">
+              {hasExistingParties && (
+                <div className="bg-amber-500/10 border border-amber-500/40 rounded-lg px-3 py-2 flex items-start gap-2">
+                  <AlertTriangle size={14} className="text-amber-300 mt-0.5 shrink-0" />
+                  <p className="text-amber-200 text-xs leading-relaxed">
+                    {t('applyOverwriteWarning')}
+                  </p>
+                </div>
+              )}
               {templates.length === 0 ? (
                 <p className="text-gray-500 text-xs text-center py-4">
                   {t('noTemplates')}
@@ -116,6 +139,46 @@ export default function LoadTemplateButton({ eventId, templates }: Props) {
                 className="bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-lg text-sm"
               >
                 {pending ? t('applying') : t('apply')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmingOverwrite && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4"
+          onClick={() => !pending && setConfirmingOverwrite(false)}
+        >
+          <div
+            className="bg-gray-900 border border-amber-500/40 rounded-2xl w-full max-w-sm p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={18} className="text-amber-400 mt-0.5 shrink-0" />
+              <div className="space-y-1">
+                <h3 className="font-bold text-white text-base">{t('applyOverwriteTitle')}</h3>
+                <p className="text-gray-300 text-xs leading-relaxed">
+                  {t('applyOverwriteBody')}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => !pending && setConfirmingOverwrite(false)}
+                disabled={pending}
+                className="text-gray-400 hover:text-white text-sm px-3 py-2 disabled:opacity-40"
+              >
+                {tCommon('cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => runApply(true)}
+                disabled={pending}
+                className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-4 py-2 rounded-lg text-sm"
+              >
+                {pending ? t('applying') : t('applyOverwriteConfirmBtn')}
               </button>
             </div>
           </div>
