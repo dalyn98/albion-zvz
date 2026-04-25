@@ -8,8 +8,10 @@ import {
   Heart,
   Users,
   CreditCard,
+  RefreshCw,
 } from 'lucide-react'
 import { getSystemStats } from '@/lib/super-admin-stats'
+import ManualSyncButton from './ManualSyncButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -93,6 +95,21 @@ export default async function SuperAdminDashboardPage() {
           <StatCard label="리기어 신청" value={stats.regearRequests} Icon={ShieldCheck} />
           <StatCard label="환전 신청" value={stats.exchangeRequests} Icon={Coins} />
           <StatCard label="기부" value={stats.donationRequests} Icon={Heart} />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+          <RefreshCw size={14} />
+          수동 동기화
+        </h2>
+        <div className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
+          <p className="text-xs text-gray-400">
+            cron 은 5분 주기로 자동 실행됩니다. "방금 전투했는데 지금 보고 싶다"
+            처럼 즉시성이 필요할 때만 강제 실행하세요. 모든 활성 테넌트의 전투/킬로그를
+            한꺼번에 갱신하므로 최대 2분이 걸릴 수 있습니다.
+          </p>
+          <ManualSyncButton />
         </div>
       </section>
 

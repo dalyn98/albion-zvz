@@ -1,13 +1,13 @@
 name: Killboard sync
 
-# 킬보드 sync cron. GitHub Actions 스케줄로 15분마다 /api/cron/killboard-sync
+# 킬보드 sync cron. GitHub Actions 스케줄로 5분마다 /api/cron/killboard-sync
 # 엔드포인트를 호출한다. 엔드포인트 내부에서 게이트 없이 모든 활성 테넌트에
 # 대해 sync 를 실행. (과거엔 이벤트 중 5분 / 평시 1시간 분기였으나
-# battle-tracker 와 동일한 15분 tick 으로 단순화.)
+# battle-tracker 와 동일한 tick 으로 단순화.)
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 concurrency:

@@ -192,6 +192,63 @@ export async function archiveSystemNotice(formData: FormData): Promise<void> {
   revalidatePath('/', 'layout')
 }
 
+export interface ManualSyncResult {
+  ok: boolean
+  battleTracker: { ok: boolean; status: number; bodyPreview: string }
+  killboardSync: { ok: boolean; status: number; bodyPreview: string }
+  durationMs: number
+}
+
+// 전투/킬로그 cron 을 즉시 강제 실행. cron 은 5분 주기지만 "방금 전투했는데 보고 싶다"
+// 같은 즉시성 요구를 위한 트리거. 내부적으로 같은 cron 라우트를 Bearer 인증으로 호출해
+// 로직 중복을 피한다.
+export async function triggerManualSync(): Promise<ManualSyncResult> {
+  const session = await requireSuperAdmin()
+  const secret = process.env.CRON_SECRET
+  const appUrl = process.env.APP_URL
+  if (!secret) throw new Error('CRON_SECRET not configured')
+  if (!appUrl) throw new Error('APP_URL not configured')
+
+  const headers = { Authorization: `Bearer ${secret}` }
+  const startedAt = Date.now()
+
+  const [battleRes, killRes] = await Promise.all([
+    fetch(`${appUrl}/api/cron/battle-tracker`, { headers, cache: 'no-store' }),
+    fetch(`${appUrl}/api/cron/killboard-sync`, { headers, cache: 'no-store' }),
+  ])
+  const [battleBody, killBody] = await Promise.all([battleRes.text(), killRes.text()])
+  const durationMs = Date.now() - startedAt
+
+  const result: ManualSyncResult = {
+    ok: battleRes.ok && killRes.ok,
+    battleTracker: {
+      ok: battleRes.ok,
+      status: battleRes.status,
+      bodyPreview: battleBody.slice(0, 500),
+    },
+    killboardSync: {
+      ok: killRes.ok,
+      status: killRes.status,
+      bodyPreview: killBody.slice(0, 500),
+    },
+    durationMs,
+  }
+
+  await logSuperAdminAction({
+    superAdminDiscordId: session.discordId,
+    action: 'sync.manual',
+    details: {
+      battleTracker: { ok: result.battleTracker.ok, status: result.battleTracker.status },
+      killboardSync: { ok: result.killboardSync.ok, status: result.killboardSync.status },
+      durationMs,
+    },
+  })
+
+  revalidatePath('/super-admin')
+  revalidatePath('/admin/dashboard/stats')
+  return result
+}
+
 export async function revokeTenantAdmin(formData: FormData): Promise<void> {
   const session = await requireSuperAdmin()
   const tenantId = String(formData.get('tenantId') ?? '').trim()

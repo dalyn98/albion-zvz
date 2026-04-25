@@ -13,6 +13,7 @@ const ACTION_LABEL: Record<string, string> = {
   'notice.archive': '시스템 공지 종료',
   'impersonate.start': '임퍼소네이션 시작',
   'impersonate.end': '임퍼소네이션 종료',
+  'sync.manual': '수동 동기화 실행',
 }
 
 const ACTION_COLOR: Record<string, string> = {
@@ -23,6 +24,7 @@ const ACTION_COLOR: Record<string, string> = {
   'notice.archive': 'bg-gray-500/10 border-gray-500/30 text-gray-300',
   'impersonate.start': 'bg-rose-500/10 border-rose-500/30 text-rose-300',
   'impersonate.end': 'bg-gray-500/10 border-gray-500/30 text-gray-300',
+  'sync.manual': 'bg-sky-500/10 border-sky-500/30 text-sky-300',
 }
 
 export default async function SuperAdminAuditPage() {
