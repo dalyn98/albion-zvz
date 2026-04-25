@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Sword, CalendarCheck, Heart, Target, Trophy } from 'lucide-react'
+import { Sword, CalendarCheck, Heart, Target, Trophy, Swords } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getLeaderboard, type LeaderboardEntry, type LeaderboardWindow } from '@/app/actions/leaderboard'
@@ -154,10 +154,14 @@ function LeaderboardCard({
           {entries.map((entry, idx) => {
             const rank = idx + 1
             const sub = subText?.(entry)
+            // 연동 멤버는 Discord 멤버 상세, 미연동은 albion 슬림 상세로.
+            const href = entry.discord_id
+              ? `/members/${entry.discord_id}`
+              : `/members/albion/${entry.albion_player_id}`
             return (
-              <li key={entry.discord_id}>
+              <li key={entry.albion_player_id}>
                 <Link
-                  href={`/members/${entry.discord_id}`}
+                  href={href}
                   className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-800/70 transition-colors"
                 >
                   <span
@@ -173,7 +177,13 @@ function LeaderboardCard({
                   >
                     {rank}
                   </span>
-                  <MemberAvatar discordId={entry.discord_id} avatar={entry.avatar} size={24} />
+                  {entry.discord_id ? (
+                    <MemberAvatar discordId={entry.discord_id} avatar={entry.avatar} size={24} />
+                  ) : (
+                    <span className="w-6 h-6 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center flex-shrink-0">
+                      <Swords size={12} className="text-gray-500" />
+                    </span>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="text-white text-xs font-medium truncate">{entry.username}</p>
                     {sub && <p className="text-gray-500 text-[10px] truncate">{sub}</p>}

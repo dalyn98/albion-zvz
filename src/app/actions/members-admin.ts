@@ -629,7 +629,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     ] = await Promise.all([
       db
         .from('guild_avatars')
-        .select('discord_id, username, avatar, updated_at, preferred_language')
+        .select('discord_id, username, avatar, albion_player_id, updated_at, preferred_language')
         .eq('guild_id', guildId)
         .eq('discord_id', discordId)
         .maybeSingle(),
@@ -789,8 +789,16 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     // (2) raw_battle.players 기반 0k0d 참여 — killboard 에는 없지만 배틀에 있던
     // 케이스(탱커/힐러가 교전 전 종료 등). kills/deaths/survival/streak/outcome
     // 모두의 분모이자 분자. 창 밖 이벤트(1:1 갱킹) 는 자동 제외.
+    //
+    // mig 093 부터 participation map 키가 albion_player_id. guild_avatars 의
+    // albion_player_id 가 비어 있으면 (Albion 매칭 안 된 Discord 멤버) 빈 맵을
+    // 넘겨 0 fallback — 동작은 기존과 동일.
+    const memberAlbionId = (avatar.albion_player_id as string | null) ?? ''
+    const memberParticipations = memberAlbionId
+      ? participationsByMember.byAlbionPlayerId.get(memberAlbionId)
+      : undefined
     const killBattles = groupMemberKillsByBattle(killboardRes.data ?? [], trackedWindows)
-    const battles = mergeMemberBattles(killBattles, participationsByMember.get(discordId))
+    const battles = mergeMemberBattles(killBattles, memberParticipations)
 
     const killboard: KillboardStats = { kills: 0, deaths: 0, kill_fame: 0, death_fame: 0 }
     for (const b of battles) {
@@ -884,8 +892,12 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     )
     const outcomeStats = calcOutcomeStats(battles.map((b) => b.outcome))
 
+    // mig 093 부터 (discord_id, albion_player_id, kills, deaths, participations).
+    // albion_player_id 만 보장되고 discord_id 는 nullable — percentile 분모는
+    // 모든 활성 멤버 (전 길드) 기준이라 그대로 사용.
     const rankingRows = (rankingRes.data ?? []) as Array<{
-      discord_id: string
+      discord_id: string | null
+      albion_player_id: string
       kills: number
       deaths: number
       participations: number
@@ -1045,7 +1057,7 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
   try {
     const { db, guildId } = await requireSessionWithGuild()
 
-    const [rosterRes, killboardRes, trackedWindows] = await Promise.all([
+    const [rosterRes, killboardRes, trackedWindows, participationsByMember] = await Promise.all([
       db
         .from('albion_guild_members')
         .select(
@@ -1060,6 +1072,7 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
         .eq('guild_id', guildId)
         .eq('albion_player_id', albionPlayerId),
       fetchTrackedBattleWindows(db, guildId),
+      fetchMemberBattleParticipations(db, guildId),
     ])
 
     if (rosterRes.error) return { detail: null, error: rosterRes.error.message }
@@ -1079,10 +1092,14 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
     }
     const rows = (killboardRes.data ?? []) as KillboardRow[]
 
-    // killboard 기반 배틀 그룹. raw_battle.players 기반 0k0d 참여는 RPC 가
-    // discord_id 만 돌려줘 albion-only 멤버에는 적용 못 함 — phase 4 까지는
-    // 킬보드에 흔적이 있는 배틀만 참여로 카운트.
-    const battles = groupMemberKillsByBattle(rows, trackedWindows)
+    // killboard 기반 배틀 + raw_battle.players 기반 0k0d 참여 (mig 093 부터
+    // albion_player_id 키) 합집합. 미연동 멤버도 0K0D 참여 (탱커/힐러) 까지
+    // participation 으로 잡힘.
+    const killBattles = groupMemberKillsByBattle(rows, trackedWindows)
+    const battles = mergeMemberBattles(
+      killBattles,
+      participationsByMember.byAlbionPlayerId.get(albionPlayerId),
+    )
 
     const killboard: KillboardStats = { kills: 0, deaths: 0, kill_fame: 0, death_fame: 0 }
     for (const b of battles) {

@@ -173,41 +173,60 @@ export function groupMemberKillsByBattle<
   return Array.from(agg.values()).sort((a, b) => a.startedAt.localeCompare(b.startedAt))
 }
 
-// battle_records.raw_battle.players ↔ guild_avatars 매칭 결과를 멤버별로 그룹.
-// member_battle_participations RPC (마이그 082) 가 (discord_id, raw_started_at,
-// outcome) 쌍을 돌려주면 이 함수가 discord_id → (raw_started_at → outcome) 맵으로
-// 재정리. mergeMemberBattles 에서 killboard 기반 battles 와 합치는 재료.
+// battle_records.raw_battle.players ↔ albion_guild_members 매칭 결과를 멤버별로 그룹.
+// member_battle_participations RPC (마이그 093) 가 (discord_id, albion_player_id,
+// raw_started_at, outcome) 을 돌려주면 이 함수가 albion_player_id →
+// (raw_started_at → outcome) 맵으로 재정리. mergeMemberBattles 에서 killboard
+// 기반 battles 와 합치는 재료.
+//
+// albion_player_id 키 이유: Phase 4 부터 미연동 (Discord 가입 안 한) Albion
+// 멤버도 통계 모집단에 포함된다. discord_id 는 nullable 이라 키로 못 씀.
+// 호출 측은 (1) leaderboard — 모든 멤버, (2) member detail — 본인의
+// guild_avatars.albion_player_id 로 lookup.
 //
 // 0k0d 멤버도 raw_battle.players 에 있으면 여기 잡힘 → participation 집계에서
 // 누락 안 됨.
 export interface BattleParticipationRow {
   discord_id: string | null
+  albion_player_id: string | null
   raw_started_at: string | null
   outcome: string | null
+}
+
+export interface ParticipationsResult {
+  // albion_player_id → (raw_started_at → outcome). 통계 집계의 주 키.
+  byAlbionPlayerId: Map<string, Map<string, string>>
+  // 보조 룩업: albion_player_id → discord_id (linked 인 경우만). 미연동 멤버는
+  // 키 자체가 없다.
+  discordByAlbionPlayerId: Map<string, string>
 }
 
 export async function fetchMemberBattleParticipations(
   db: Db,
   guildId: string,
   sinceIso?: string | null,
-): Promise<Map<string, Map<string, string>>> {
+): Promise<ParticipationsResult> {
   const { data } = await db.rpc('member_battle_participations', { p_guild_id: guildId })
-  const byMember = new Map<string, Map<string, string>>()
+  const byAlbionPlayerId = new Map<string, Map<string, string>>()
+  const discordByAlbionPlayerId = new Map<string, string>()
   const sinceMs = sinceIso ? Date.parse(sinceIso) : null
   for (const row of (data ?? []) as BattleParticipationRow[]) {
-    if (!row.discord_id || !row.raw_started_at) continue
+    if (!row.albion_player_id || !row.raw_started_at) continue
     if (sinceMs !== null) {
       const t = Date.parse(row.raw_started_at)
       if (!Number.isFinite(t) || t < sinceMs) continue
     }
-    let inner = byMember.get(row.discord_id)
+    let inner = byAlbionPlayerId.get(row.albion_player_id)
     if (!inner) {
       inner = new Map<string, string>()
-      byMember.set(row.discord_id, inner)
+      byAlbionPlayerId.set(row.albion_player_id, inner)
     }
     inner.set(row.raw_started_at, row.outcome ?? '')
+    if (row.discord_id) {
+      discordByAlbionPlayerId.set(row.albion_player_id, row.discord_id)
+    }
   }
-  return byMember
+  return { byAlbionPlayerId, discordByAlbionPlayerId }
 }
 
 // killboard 기반 battles 와 raw_battle.players 기반 participation 집합을 합쳐
