@@ -569,6 +569,9 @@ export interface MyRegearDetail {
   warningLevel: 'quality' | 'window' | 'bluezone' | 'redzone' | null
   createdAt: string
   adminNotes: string | null
+  // 수동 신청에 첨부된 스크린샷 경로 (auto-regear 면 null). UI 가 미리보기 / 교체에 사용.
+  screenshotPath: string | null
+  screenshotPath2: string | null
 }
 
 interface RawBreakdownItem {
@@ -635,7 +638,7 @@ export async function getMyRegearDetail(
   const { data, error } = await db
     .from('regear_requests')
     .select(
-      'id, event_id, event_title_snapshot, role_name, silver, claimed_silver, payout_silver, status, auto_generated, gear_breakdown, price_warning_level, created_at, admin_notes, events(title)',
+      'id, event_id, event_title_snapshot, role_name, silver, claimed_silver, payout_silver, status, auto_generated, gear_breakdown, price_warning_level, created_at, admin_notes, screenshot_path, screenshot_path_2, events(title)',
     )
     .eq('guild_id', guildId)
     .eq('id', id)
@@ -684,8 +687,179 @@ export async function getMyRegearDetail(
     warningLevel,
     createdAt: data.created_at as string,
     adminNotes: (data.admin_notes as string | null) ?? null,
+    screenshotPath: (data.screenshot_path as string | null) ?? null,
+    screenshotPath2: (data.screenshot_path_2 as string | null) ?? null,
   }
   return { detail }
+}
+
+// 멤버 본인의 리기어 스크린샷 signed URL 발급 — 관리자용 getScreenshotUrl 과
+// 같은 버킷이지만 ownership 체크가 다르다 (관리자 권한 X, discord_id 일치 필수).
+export async function getMyRegearScreenshotUrl(
+  requestId: string,
+  slot: 'primary' | 'secondary',
+): Promise<{ url?: string; error?: string }> {
+  const tErr = await getTranslations('memberActionError')
+  const session = await getSession()
+  if (!session) return { error: tErr('loginRequired') }
+  const guildId = await getSessionGuildId(session)
+
+  const db = getAdminClient()
+  const { data, error } = await db
+    .from('regear_requests')
+    .select('discord_id, screenshot_path, screenshot_path_2')
+    .eq('guild_id', guildId)
+    .eq('id', requestId)
+    .maybeSingle()
+  if (error) return { error: error.message }
+  if (!data) return { error: tErr('requestNotFound') }
+  if (data.discord_id !== session.discordId) return { error: tErr('onlyOwnEdit') }
+
+  const path = slot === 'primary' ? data.screenshot_path : data.screenshot_path_2
+  if (!path) return { error: tErr('requestNotFound') }
+
+  const { data: urlData, error: urlError } = await db.storage
+    .from(SCREENSHOT_BUCKET)
+    .createSignedUrl(path as string, 10 * 60)
+  if (urlError) return { error: urlError.message }
+  return { url: urlData.signedUrl }
+}
+
+// 수동 제출 리기어의 스크린샷 교체 (pending 한정). 새 파일 업로드 → DB 갱신
+// → 옛 파일 best-effort 정리. 두 슬롯 중 일부만 교체할 수도 있고, 두 번째는
+// 삭제도 가능(removeSecondary). 새 업로드가 실패하면 이미 올린 파일은 롤백.
+export async function updateMyManualRegearScreenshots(
+  requestId: string,
+  formData: FormData,
+): Promise<{
+  error?: string
+  primaryPath?: string | null
+  secondaryPath?: string | null
+}> {
+  const tErr = await getTranslations('memberActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { error: tErr('loginRequired') }
+    const guildId = await getSessionGuildId(session)
+
+    const newPrimary = formData.get('screenshot')
+    const newSecondary = formData.get('screenshot2')
+    const removeSecondary = formData.get('removeSecondary') === 'true'
+
+    const hasPrimary = newPrimary instanceof File && newPrimary.size > 0
+    const hasSecondary = newSecondary instanceof File && newSecondary.size > 0
+
+    if (hasPrimary) {
+      if (newPrimary.size > MAX_SCREENSHOT_BYTES) return { error: tErr('screenshotTooLarge') }
+      if (!ALLOWED_MIME.has(newPrimary.type)) return { error: tErr('screenshotWrongType') }
+    }
+    if (hasSecondary) {
+      if (newSecondary.size > MAX_SCREENSHOT_BYTES) return { error: tErr('screenshotTooLarge') }
+      if (!ALLOWED_MIME.has(newSecondary.type)) return { error: tErr('screenshotWrongType') }
+    }
+    if (!hasPrimary && !hasSecondary && !removeSecondary) {
+      return { error: tErr('noChange') }
+    }
+
+    const db = getAdminClient()
+    const { data: row, error: fetchError } = await db
+      .from('regear_requests')
+      .select(
+        'id, status, auto_generated, discord_id, event_id, screenshot_path, screenshot_path_2',
+      )
+      .eq('guild_id', guildId)
+      .eq('id', requestId)
+      .maybeSingle()
+    if (fetchError) return { error: fetchError.message }
+    if (!row) return { error: tErr('requestNotFound') }
+    if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnEdit') }
+    if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
+    if (row.auto_generated) return { error: tErr('manualOnlyEditable') }
+
+    const eventId = row.event_id as string
+    const oldPrimary = (row.screenshot_path as string | null) ?? null
+    const oldSecondary = (row.screenshot_path_2 as string | null) ?? null
+
+    let nextPrimary: string | null = oldPrimary
+    let nextSecondary: string | null = oldSecondary
+    const newlyUploaded: string[] = []
+    const toRemove: string[] = []
+
+    if (hasPrimary) {
+      const ext =
+        newPrimary.type === 'image/png'
+          ? 'png'
+          : newPrimary.type === 'image/webp'
+            ? 'webp'
+            : 'jpg'
+      const path = `${session.discordId}/${eventId}-${Date.now()}.${ext}`
+      const { error: upErr } = await db.storage
+        .from(SCREENSHOT_BUCKET)
+        .upload(path, newPrimary, { contentType: newPrimary.type, upsert: false })
+      if (upErr) {
+        return { error: tErr('screenshotUploadFailed', { reason: upErr.message }) }
+      }
+      newlyUploaded.push(path)
+      if (oldPrimary) toRemove.push(oldPrimary)
+      nextPrimary = path
+    }
+
+    if (hasSecondary) {
+      const ext =
+        newSecondary.type === 'image/png'
+          ? 'png'
+          : newSecondary.type === 'image/webp'
+            ? 'webp'
+            : 'jpg'
+      const path = `${session.discordId}/${eventId}-${Date.now()}-2.${ext}`
+      const { error: upErr } = await db.storage
+        .from(SCREENSHOT_BUCKET)
+        .upload(path, newSecondary, { contentType: newSecondary.type, upsert: false })
+      if (upErr) {
+        if (newlyUploaded.length > 0) {
+          await db.storage.from(SCREENSHOT_BUCKET).remove(newlyUploaded)
+        }
+        return { error: tErr('screenshotUploadFailed', { reason: upErr.message }) }
+      }
+      newlyUploaded.push(path)
+      if (oldSecondary) toRemove.push(oldSecondary)
+      nextSecondary = path
+    } else if (removeSecondary && oldSecondary) {
+      toRemove.push(oldSecondary)
+      nextSecondary = null
+    }
+
+    const { error: updateError } = await db
+      .from('regear_requests')
+      .update({
+        screenshot_path: nextPrimary,
+        screenshot_path_2: nextSecondary,
+      })
+      .eq('guild_id', guildId)
+      .eq('id', requestId)
+      .eq('discord_id', session.discordId)
+      .eq('status', 'pending')
+      .eq('auto_generated', false)
+    if (updateError) {
+      if (newlyUploaded.length > 0) {
+        await db.storage.from(SCREENSHOT_BUCKET).remove(newlyUploaded)
+      }
+      return { error: updateError.message }
+    }
+
+    if (toRemove.length > 0) {
+      await db.storage.from(SCREENSHOT_BUCKET).remove(toRemove)
+    }
+
+    revalidatePath(`/me/regear/${requestId}`)
+    revalidatePath('/admin/dashboard/regear')
+    revalidatePath('/admin/dashboard/approvals')
+    revalidatePath('/me')
+
+    return { primaryPath: nextPrimary, secondaryPath: nextSecondary }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
 }
 
 // 단위 실버 상한 — int32 를 넘지 않으면서 시세 오입력 방지. 20M 실버/단위면
