@@ -1505,6 +1505,14 @@
   "myProfile": {
     "notRegistered": "길드원 정보가 아직 등록되지 않았습니다. 다시 로그인하면 자동으로 등록됩니다."
   },
+  "myRequests": {
+    "title": "내 신청 내역",
+    "description": "리기어, 환전, 기부 신청 내역을 한 곳에서 확인하세요.",
+    "descriptionPending": "처리 대기 중인 신청이 {count}건 있습니다.",
+    "cardTitle": "내 신청 내역",
+    "cardSubtitle": "리기어 · 환전 · 기부 내역 보기.",
+    "cardSubtitlePending": "{count}건 대기 중 — 클릭해서 관리"
+  },
   "mySettings": {
     "title": "설정",
     "description": "알림과 개인 설정을 한 곳에서 관리합니다.",

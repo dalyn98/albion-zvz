@@ -1505,6 +1505,14 @@
   "myProfile": {
     "notRegistered": "Your guild member record hasn't been registered yet. Logging in again will register you automatically."
   },
+  "myRequests": {
+    "title": "My submissions",
+    "description": "Review the regear, exchange, and donation requests you've submitted.",
+    "descriptionPending": "{count} requests still pending review.",
+    "cardTitle": "My submissions",
+    "cardSubtitle": "View regear, exchange, and donation history.",
+    "cardSubtitlePending": "{count} pending — tap to manage."
+  },
   "mySettings": {
     "title": "Settings",
     "description": "Manage notifications and personal preferences in one place.",

@@ -1505,6 +1505,14 @@
   "myProfile": {
     "notRegistered": "ギルドメンバー情報がまだ登録されていません。再ログインすると自動的に登録されます。"
   },
+  "myRequests": {
+    "title": "申請履歴",
+    "description": "リギア・両替・寄付の申請をまとめて確認できます。",
+    "descriptionPending": "処理待ちの申請が{count}件あります。",
+    "cardTitle": "申請履歴",
+    "cardSubtitle": "リギア・両替・寄付の履歴を確認。",
+    "cardSubtitlePending": "{count}件保留中 — タップで管理"
+  },
   "mySettings": {
     "title": "設定",
     "description": "通知や個人設定を一箇所で管理します。",
