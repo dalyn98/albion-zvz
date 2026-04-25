@@ -267,17 +267,25 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     )
   }
 
+  // /demo 는 마케팅용 데모 페이지라 로그인 CTA 가 들어간 PublicShell 을
+  // 두르지 않는다 — 페이지 내부에 자체 hero/footer 구성이 있고, 헤더에 로그인
+  // 버튼이 보이면 "로그인이 필요한 페이지" 로 오해될 수 있음. AppShell 도 마찬가지로
+  // 사이드바가 데모 흐름을 깬다.
+  const isDemo = pathname === '/demo' || pathname.startsWith('/demo/')
+
   // Public routes: if the visitor has a real session, give them the normal
   // AppShell so the sidebar stays consistent; otherwise wrap in a minimal
   // PublicShell with a login CTA. 온보딩은 아직 어떤 길드에도 속하지 않은
   // 사용자라 AppSidebar 가 어색해서 PublicShell 로 통일.
   const body = locked
     ? gateContent
-    : isOnboard
-      ? <PublicShell>{children}</PublicShell>
-      : isPublic && !session
+    : isDemo
+      ? children
+      : isOnboard
         ? <PublicShell>{children}</PublicShell>
-        : <AppShell>{children}</AppShell>
+        : isPublic && !session
+          ? <PublicShell>{children}</PublicShell>
+          : <AppShell>{children}</AppShell>
 
   return (
     <html lang={locale} className="h-full antialiased">
