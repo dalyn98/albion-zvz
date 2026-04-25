@@ -150,27 +150,38 @@ export async function verifyDeathInWindow(
         matchedEquipment: null,
       }
     }
-    if ((player.GuildName ?? '').toLowerCase() !== guildName.toLowerCase()) {
-      return {
-        verified: false,
-        matchedEventId: null,
-        reason: `길드가 일치하지 않습니다 (${player.GuildName ?? '길드 없음'}).`,
-        matchedEquipment: null,
-      }
-    }
 
+    // 길드 일치 검증은 사망 시점 기준(Victim.GuildName) 으로 한다.
+    // 검색 endpoint 의 player.GuildName 은 "현재" 길드라 사망 후 길드 이동 / 추방
+    // 시 false 를 내뿜는다 — Albion 길드는 KOEKO 잦아서 이 케이스가 빈번.
     const deaths = await getPlayerDeaths(baseUrl, player.Id)
     const startMs = Date.parse(windowStartIso)
     const endMs = Date.parse(windowEndIso)
-    const match = deaths.find((d) => {
+    const target = guildName.toLowerCase()
+    const inWindow = deaths.filter((d) => {
       const t = Date.parse(d.TimeStamp)
       return Number.isFinite(t) && t >= startMs && t <= endMs
     })
-    if (!match) {
+    if (inWindow.length === 0) {
       return {
         verified: false,
         matchedEventId: null,
         reason: '해당 시간대 내 사망 기록을 찾지 못했습니다.',
+        matchedEquipment: null,
+      }
+    }
+    const match = inWindow.find(
+      (d) => (d.Victim.GuildName ?? '').toLowerCase() === target,
+    )
+    if (!match) {
+      const others = inWindow
+        .map((d) => d.Victim.GuildName ?? '길드 없음')
+        .filter((g, i, arr) => arr.indexOf(g) === i)
+        .join(', ')
+      return {
+        verified: false,
+        matchedEventId: null,
+        reason: `해당 시간대 사망 기록의 길드가 일치하지 않습니다 (${others}).`,
         matchedEquipment: null,
       }
     }
