@@ -1,7 +1,10 @@
 import { Calendar, Coins, ShoppingBag, BarChart3 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 
-export const dynamic = 'force-static'
+// 빌드타임에 layout 의 x-pathname 헤더가 없어 AppGate 가 HTML 에 박혀버리는
+// 함정. dynamic 렌더로 두고 매 요청마다 layout 분기를 정확히 평가시킨다.
+// (feedback_albion_zvz_force_static_pitfall.md 참고)
+export const dynamic = 'force-dynamic'
 
 export default async function PublicLandingPage() {
   const t = await getTranslations('publicLanding')
