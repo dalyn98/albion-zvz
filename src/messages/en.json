@@ -1667,6 +1667,20 @@
     "killItemPower": "IP {value}",
     "killFameLabel": "{fame} fame"
   },
+  "albionMemberDetail": {
+    "backToRoster": "Albion roster",
+    "unlinkedBadge": "Not linked to Discord",
+    "joinedAt": "Joined guild {date}",
+    "lastSeenAt": "Last seen {date}",
+    "unlinkedNotice": "This member has not joined Discord, so guild operations data (points, regears, exchanges) is hidden. Killboard stats only include battles recorded after this guild page was created.",
+    "statsGroupGuildActivity": "Guild activity",
+    "statsGroupCombat": "Combat",
+    "statsGroupLifetime": "Lifetime (Albion official)",
+    "statAverageIp": "Average IP",
+    "statLifetimeKillFame": "Lifetime kill fame",
+    "statLifetimeDeathFame": "Lifetime death fame",
+    "guildActivitySub": "Guild activity only"
+  },
   "requestExchange": {
     "pendingNotice": "You already have a pending exchange request, so you cannot apply again.",
     "amountLabel": "Exchange amount (max {max} silver)",

@@ -1667,6 +1667,20 @@
     "killItemPower": "IP {value}",
     "killFameLabel": "{fame} 名声"
   },
+  "albionMemberDetail": {
+    "backToRoster": "Albion ロスター",
+    "unlinkedBadge": "Discord 未連携",
+    "joinedAt": "ギルド合流 {date}",
+    "lastSeenAt": "最終確認 {date}",
+    "unlinkedNotice": "Discord 未参加メンバーのため、ポイント・再装備・両替などのギルド運営情報は表示されません。キルボード統計はギルドページ作成以降の記録だけ集計されます。",
+    "statsGroupGuildActivity": "ギルド活動",
+    "statsGroupCombat": "戦闘",
+    "statsGroupLifetime": "通算 (Albion 公式)",
+    "statAverageIp": "平均 IP",
+    "statLifetimeKillFame": "通算キル名声",
+    "statLifetimeDeathFame": "通算デス名声",
+    "guildActivitySub": "ギルド活動のみ"
+  },
   "requestExchange": {
     "pendingNotice": "処理待ちの両替申請があるため、新規申請はできません。",
     "amountLabel": "両替金額 (最大 {max} silver)",

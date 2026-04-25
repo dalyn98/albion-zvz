@@ -120,8 +120,9 @@ function RosterRow({ entry }: { entry: AlbionRosterEntry }) {
   const isLinked = entry.linked_discord_id !== null && !entry.linked_withdrawn
   const isWithdrawn = entry.linked_discord_id !== null && entry.linked_withdrawn
 
-  // 연동된 활성 멤버는 기존 멤버 상세 (Discord 기반) 로 이동. 미연동/탈퇴자는
-  // 클릭해도 갈 곳이 없으므로 div 로 렌더한다.
+  // 연동된 활성 멤버는 Discord 기반 상세, 미연동 멤버는 albion_player_id 기반
+  // 슬림 상세 페이지로. Discord 가 탈퇴 처리된 행은 갈 곳이 없으므로 div 로
+  // 비활성 렌더 — 탈퇴자 정보는 /members?tab=withdrawn 에 있다.
   // Albion gameinfo 는 avatar 필드에 내부 코드만 주는데 공식 CDN 경로가 없어
   // 일반 검 아이콘으로 대신한다 — 멤버 식별은 이름/배지로 충분.
   const inner = (
@@ -174,7 +175,7 @@ function RosterRow({ entry }: { entry: AlbionRosterEntry }) {
         </p>
         <p className="text-gray-500 text-[10px]">{t('rosterKillFame')}</p>
       </div>
-      {isLinked && <ChevronRight size={16} className="text-gray-600 flex-shrink-0" />}
+      {!isWithdrawn && <ChevronRight size={16} className="text-gray-600 flex-shrink-0" />}
     </div>
   )
 
@@ -184,6 +185,21 @@ function RosterRow({ entry }: { entry: AlbionRosterEntry }) {
         <Link
           href={`/members/${entry.linked_discord_id}`}
           className="block bg-gray-900 border border-gray-800 hover:border-amber-500/40 rounded-lg transition-colors"
+        >
+          {inner}
+        </Link>
+      </li>
+    )
+  }
+
+  // 미연동 (Discord 가입 자체가 없음) 멤버는 albion_player_id 기반 슬림 상세로.
+  // 탈퇴 처리된 행은 빠르게 회복할 방법이 없으므로 비활성 div.
+  if (!isWithdrawn) {
+    return (
+      <li>
+        <Link
+          href={`/members/albion/${entry.albion_player_id}`}
+          className="block bg-gray-900/60 border border-gray-800 hover:border-gray-600 rounded-lg transition-colors"
         >
           {inner}
         </Link>

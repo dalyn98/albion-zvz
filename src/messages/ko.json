@@ -1667,6 +1667,20 @@
     "killItemPower": "IP {value}",
     "killFameLabel": "{fame} 명성"
   },
+  "albionMemberDetail": {
+    "backToRoster": "Albion 로스터",
+    "unlinkedBadge": "Discord 미연동",
+    "joinedAt": "길드 합류 {date}",
+    "lastSeenAt": "최근 확인 {date}",
+    "unlinkedNotice": "Discord 가입 전 멤버라 포인트·리기어·환전 같은 길드 운영 정보는 표시되지 않아요. 킬보드 통계는 길드 페이지가 만들어진 시점 이후 기록만 집계됩니다.",
+    "statsGroupGuildActivity": "길드 활동",
+    "statsGroupCombat": "전투",
+    "statsGroupLifetime": "누적 (Albion 공식)",
+    "statAverageIp": "평균 IP",
+    "statLifetimeKillFame": "누적 킬 명성",
+    "statLifetimeDeathFame": "누적 데스 명성",
+    "guildActivitySub": "길드 활동 한정"
+  },
   "requestExchange": {
     "pendingNotice": "처리 대기 중인 환전 신청이 있어 새로 신청할 수 없습니다.",
     "amountLabel": "환전 금액 (최대 {max} silver)",

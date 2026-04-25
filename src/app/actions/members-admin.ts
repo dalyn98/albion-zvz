@@ -996,3 +996,184 @@ export async function getMyMemberDetail(): Promise<{
   const guildId = await getSessionGuildId(session)
   return fetchMemberDetail(session.discordId, guildId)
 }
+
+// Discord 미연동 Albion 멤버 상세. albion_guild_members + killboard_events
+// (albion_player_id 매칭) 만으로 구성되는 슬림한 통계 뷰. Discord 의존 항목
+// (slot 참여 이벤트, 리기어, 환전, 포인트, 랭킹, preferred_language, role_breakdown)
+// 은 모두 빠진다 — 가입 자체가 없는 멤버이므로 표시할 데이터가 없다.
+//
+// 랭킹은 phase 4 에서 RPC 가 albion_player_id 모집단으로 확장된 뒤 합류 예정.
+// 지금은 절대 통계(킬/데스/페임/생존률/스트릭/승패) 만 노출.
+export interface AlbionMemberDetail {
+  albion_player_id: string
+  albion_player_name: string
+  albion_server: 'west' | 'east' | 'europe'
+  albion_guild_name: string
+  // 가입 시점은 first_seen_at (Albion 길드 sync 가 이 멤버를 처음 본 시각).
+  first_seen_at: string
+  last_seen_at: string
+  // gameinfo 응답의 누적 명성 — sync 시점 스냅샷. 길드 진입 전 수치까지 포함되므로
+  // 길드 활동 통계와는 별도로 보여준다.
+  lifetime_kill_fame: number
+  lifetime_death_fame: number
+  average_item_power: number
+  // 길드 활동 한정 통계. trackedWindows 안의 killboard 만으로 집계.
+  participation_count: number
+  killboard: KillboardStats
+  weapon_breakdown: WeaponCount[]
+  kill_history: MemberKillEvent[]
+  advanced_stats: Pick<
+    MemberAdvancedStats,
+    | 'survival_rate'
+    | 'evaluated_events'
+    | 'participation_current_streak'
+    | 'participation_longest_streak'
+    | 'deathless_current_streak'
+    | 'deathless_longest_streak'
+    | 'wins'
+    | 'losses'
+    | 'win_rate'
+    | 'evaluated_outcome_events'
+  >
+}
+
+export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
+  detail: AlbionMemberDetail | null
+  error?: string
+}> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const { db, guildId } = await requireSessionWithGuild()
+
+    const [rosterRes, killboardRes, trackedWindows] = await Promise.all([
+      db
+        .from('albion_guild_members')
+        .select(
+          'albion_player_id, albion_player_name, albion_server, albion_guild_name, first_seen_at, last_seen_at, kill_fame, death_fame, average_item_power, left_at',
+        )
+        .eq('guild_id', guildId)
+        .eq('albion_player_id', albionPlayerId)
+        .maybeSingle(),
+      db
+        .from('killboard_events')
+        .select('event_id, role, fame, item_power, occurred_at, equipment, opponent_name, opponent_guild')
+        .eq('guild_id', guildId)
+        .eq('albion_player_id', albionPlayerId),
+      fetchTrackedBattleWindows(db, guildId),
+    ])
+
+    if (rosterRes.error) return { detail: null, error: rosterRes.error.message }
+    const roster = rosterRes.data
+    // 활성 행이 없으면 (탈퇴했거나 다른 길드) 상세는 안 보여준다 — 노이즈 차단.
+    if (!roster || roster.left_at) return { detail: null }
+
+    type KillboardRow = {
+      event_id: number | string | null
+      role: string | null
+      fame: number | null
+      item_power: number | null
+      occurred_at: string | null
+      equipment: Record<string, { Type?: string } | null> | null
+      opponent_name: string | null
+      opponent_guild: string | null
+    }
+    const rows = (killboardRes.data ?? []) as KillboardRow[]
+
+    // killboard 기반 배틀 그룹. raw_battle.players 기반 0k0d 참여는 RPC 가
+    // discord_id 만 돌려줘 albion-only 멤버에는 적용 못 함 — phase 4 까지는
+    // 킬보드에 흔적이 있는 배틀만 참여로 카운트.
+    const battles = groupMemberKillsByBattle(rows, trackedWindows)
+
+    const killboard: KillboardStats = { kills: 0, deaths: 0, kill_fame: 0, death_fame: 0 }
+    for (const b of battles) {
+      killboard.kills += b.killCount
+      killboard.deaths += b.deathCount
+    }
+
+    const weaponAgg = new Map<string, { sampleId: string; battles: Set<string> }>()
+    const killHistory: MemberKillEvent[] = []
+    for (const row of rows) {
+      if (!row.occurred_at) continue
+      if (!isWithinTrackedWindow(row.occurred_at, trackedWindows)) continue
+      const fame = row.fame ?? 0
+      if (row.role === 'killer') killboard.kill_fame += fame
+      else if (row.role === 'victim') killboard.death_fame += fame
+      const mainHandType = row.equipment?.MainHand?.Type
+      const battleKey = findTrackedBattleKey(row.occurred_at, trackedWindows)
+      if (mainHandType && battleKey) {
+        const category = extractWeaponCategory(mainHandType)
+        if (category) {
+          let entry = weaponAgg.get(category)
+          if (!entry) {
+            entry = { sampleId: mainHandType, battles: new Set() }
+            weaponAgg.set(category, entry)
+          }
+          entry.battles.add(battleKey)
+          entry.sampleId = mainHandType
+        }
+      }
+      if (row.role === 'killer' || row.role === 'victim') {
+        killHistory.push({
+          event_id: String(row.event_id ?? ''),
+          role: row.role,
+          opponent_name: row.opponent_name,
+          opponent_guild: row.opponent_guild,
+          fame: row.fame ?? 0,
+          item_power: row.item_power,
+          occurred_at: row.occurred_at,
+        })
+      }
+    }
+    killHistory.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))
+
+    const weaponBreakdown: WeaponCount[] = Array.from(weaponAgg.entries())
+      .map(([category, w]) => ({
+        weapon_id: w.sampleId,
+        weapon_name: category,
+        count: w.battles.size,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+
+    const survival = calcSurvivalFromBattles(
+      battles.map((b) => ({ startedAt: b.startedAt, hadDeath: b.hadDeath })),
+    )
+    const participationStreak = calcParticipationStreak(
+      battles.map((b) => b.startedAt),
+      Date.now(),
+    )
+    const outcomeStats = calcOutcomeStats(battles.map((b) => b.outcome))
+
+    return {
+      detail: {
+        albion_player_id: roster.albion_player_id as string,
+        albion_player_name: roster.albion_player_name as string,
+        albion_server: roster.albion_server as 'west' | 'east' | 'europe',
+        albion_guild_name: roster.albion_guild_name as string,
+        first_seen_at: roster.first_seen_at as string,
+        last_seen_at: roster.last_seen_at as string,
+        lifetime_kill_fame: Number(roster.kill_fame ?? 0),
+        lifetime_death_fame: Number(roster.death_fame ?? 0),
+        average_item_power: Number(roster.average_item_power ?? 0),
+        participation_count: battles.length,
+        killboard,
+        weapon_breakdown: weaponBreakdown,
+        kill_history: killHistory.slice(0, 50),
+        advanced_stats: {
+          survival_rate: survival.survivalRate,
+          evaluated_events: survival.evaluatedEvents,
+          participation_current_streak: participationStreak.currentStreak,
+          participation_longest_streak: participationStreak.longestStreak,
+          deathless_current_streak: survival.currentDeathlessStreak,
+          deathless_longest_streak: survival.longestDeathlessStreak,
+          wins: outcomeStats.wins,
+          losses: outcomeStats.losses,
+          win_rate: outcomeStats.winRate,
+          evaluated_outcome_events: outcomeStats.evaluatedEvents,
+        },
+      },
+    }
+  } catch (e) {
+    return { detail: null, error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
