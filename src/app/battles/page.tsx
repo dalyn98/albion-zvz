@@ -54,10 +54,11 @@ export default async function BattlesPage({
   let query = db
     .from('tenant_battle_records')
     .select(
-      'id, battle_record_id, home_guild_name, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, main_opponent_force_kind, main_opponent_force_name, main_opponent_team_size, match_index, match_total, is_provisional, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name)',
+      'id, battle_record_id, home_guild_name, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, main_opponent_force_kind, main_opponent_force_name, main_opponent_team_size, main_opponent_kill_fame, match_index, match_total, is_provisional, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name)',
     )
     .eq('guild_id', guildId)
     .order('started_at', { ascending: false })
+    .order('match_index', { ascending: true })
     .limit(limit)
   if (activeTab !== 'recent') query = query.eq('size_category', activeTab)
   if (outcomeFilter) query = query.eq('outcome', outcomeFilter)
@@ -85,6 +86,8 @@ export default async function BattlesPage({
       opponentAllianceNames: (r.opponent_alliance_names as string[] | null) ?? [],
       primaryOpponentName: (r.primary_opponent_name as string | null) ?? null,
       mainOpponentTeamSize: (r.main_opponent_team_size as number | null) ?? (r.opponent_team_size as number),
+      mainOpponentKillFame:
+        (r.main_opponent_kill_fame as number | null) ?? (r.opponent_kill_fame as number),
       mainOpponentName:
         (r.main_opponent_force_name as string | null) ??
         (r.primary_opponent_name as string | null) ??
@@ -154,6 +157,7 @@ export default async function BattlesPage({
           tie: t('outcome_tie'),
         }}
         matchSplitLabel={t('matchSplitLabel')}
+        sameBattleLabel={t('sameBattleLabel')}
         provisionalLabel={t('provisionalLabel')}
         columnLabels={{
           startedAt: t('colStartedAt'),

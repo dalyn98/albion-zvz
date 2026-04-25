@@ -112,6 +112,21 @@ export default async function BattleDetailView({ detail, battleId }: Props) {
         </div>
       )}
 
+      {detail.matchTotal > 1 && (
+        <div className="bg-violet-500/10 border border-violet-500/30 rounded-lg px-3 py-2 flex items-start gap-2">
+          <GitBranch size={14} className="text-violet-400 mt-0.5 flex-shrink-0" />
+          <div className="space-y-0.5 min-w-0 flex-1">
+            <p className="text-violet-200 text-xs font-semibold">
+              {t('matchSplitBannerTitle', {
+                index: detail.matchIndex,
+                total: detail.matchTotal,
+              })}
+            </p>
+            <p className="text-violet-300/70 text-[11px]">{t('matchSplitBannerHint')}</p>
+          </div>
+        </div>
+      )}
+
       <header className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 space-y-3">
         <div className="flex items-start gap-3">
           <Swords size={20} className="text-amber-400 mt-1 flex-shrink-0" />

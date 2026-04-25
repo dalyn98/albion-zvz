@@ -73,8 +73,67 @@ export interface BattleRecordRow {
   raw_battle: AlbionBattle
 }
 
+// 매치업 K/D/Fame — force 단위로 home 과의 교전 페어만 필터링한 결과.
+// home_* = 우리 길드원이 force 의 길드원을 상대로 발생시킨 페어만 집계.
+// mainOpponent_* = force 의 길드원이 우리 길드원을 상대로 발생시킨 페어 집계.
+// 양쪽 모두 killboard_events 의 fame 컬럼을 기준으로 합산해 raw_battle 의 길드
+// 합산값(여러 force 와의 교전 합) 과 분리.
+interface MatchupStats {
+  homeKills: number
+  homeDeaths: number
+  homeKillFame: number
+  mainOppKills: number
+  mainOppDeaths: number
+  mainOppKillFame: number
+}
+
+// killboard_events 페어를 force 별로 필터링해 매치업 K/D/Fame 산출.
+//   - role='killer' & opponent_guild ∈ force.guildNames → home 의 force 격파 (kill).
+//   - role='victim' & opponent_guild ∈ force.guildNames → home 의 force 에 의한 사망 (death).
+// fame: killer 페어의 fame 합 = home_kill_fame, victim 페어의 fame 합 = mainOpp_kill_fame
+//       (victim 의 fame 컬럼은 죽은 우리 길드원의 가치 = 상대가 얻은 fame).
+function statsFromPairs(pairs: KillboardPair[], force: OpponentForce): MatchupStats {
+  const guildSet = new Set(force.guildNames)
+  let homeKills = 0
+  let homeDeaths = 0
+  let homeKillFame = 0
+  let mainOppKillFame = 0
+  for (const p of pairs) {
+    if (!p.opponentGuild || !guildSet.has(p.opponentGuild)) continue
+    if (p.role === 'killer') {
+      homeKills++
+      homeKillFame += p.fame
+    } else if (p.role === 'victim') {
+      homeDeaths++
+      mainOppKillFame += p.fame
+    }
+  }
+  return {
+    homeKills,
+    homeDeaths,
+    homeKillFame,
+    mainOppKills: homeDeaths,
+    mainOppDeaths: homeKills,
+    mainOppKillFame,
+  }
+}
+
+// killboard_events 가 없는 legacy 폴백 — raw_battle force 합산값을 그대로 사용.
+// home 측은 force 별 분리가 불가능하므로 sides.home 의 합산값 (= 다른 force 와의
+// 교전까지 포함) 을 그대로 둔다. 정확도 trade-off 를 받아들이는 1회성 백필 경로.
+function statsFromRawForce(force: OpponentForce, sides: NonNullable<ReturnType<typeof computeSides>>): MatchupStats {
+  return {
+    homeKills: sides.home.kills,
+    homeDeaths: sides.home.deaths,
+    homeKillFame: sides.home.killFame,
+    mainOppKills: force.kills,
+    mainOppDeaths: force.deaths,
+    mainOppKillFame: force.killFame,
+  }
+}
+
 // 한 force 와의 매치업 row 1개를 만든다. 호출자는 force 단위로 호출하며
-// match_index/match_total 을 직접 지정.
+// match_index/match_total 과 매치업 stats 를 직접 지정.
 function buildMatchupRow(input: {
   guildId: string
   battleRecordId: string
@@ -83,6 +142,7 @@ function buildMatchupRow(input: {
   startedAt: string
   sides: ReturnType<typeof computeSides>
   force: OpponentForce
+  stats: MatchupStats
   matchIndex: number
   matchTotal: number
   evaluatedAt: string
@@ -95,21 +155,28 @@ function buildMatchupRow(input: {
   const sizeCategory = categorizeSize(scaleSize)
   if (!sizeCategory) return null
 
-  // 승패는 force 단위로 다시 계산. main force 의 killFame 만 비교.
+  // 승패는 매치업 stats (force 와의 교전만) 기준. raw aggregate 가 아닌
+  // 필터링된 fame 으로 비교하므로 같은 battle 의 서로 다른 force 와도 정확.
+  const homeSide: SidePerspective = {
+    ...sides.home,
+    kills: input.stats.homeKills,
+    deaths: input.stats.homeDeaths,
+    killFame: input.stats.homeKillFame,
+  }
   const forceSide: SidePerspective = {
     guildIds: input.force.guildIds,
     allianceIds: input.force.allianceId ? [input.force.allianceId] : [],
     teamSize: input.force.teamSize,
-    kills: input.force.kills,
-    deaths: input.force.deaths,
-    killFame: input.force.killFame,
+    kills: input.stats.mainOppKills,
+    deaths: input.stats.mainOppDeaths,
+    killFame: input.stats.mainOppKillFame,
     guildNames: input.force.guildNames,
     allianceNames: input.force.allianceId
       ? [input.battle.alliances?.[input.force.allianceId]?.name ?? input.force.forceName]
       : [],
     primaryGuildName: input.force.guildNames[0] ?? input.force.forceName,
   }
-  const outcome = computeOutcome(sides.home, forceSide)
+  const outcome = computeOutcome(homeSide, forceSide)
 
   return {
     guild_id: input.guildId,
@@ -119,9 +186,10 @@ function buildMatchupRow(input: {
     home_alliance_id: sides.homeAllianceId,
     home_alliance_name: sides.homeAllianceName,
     home_team_size: sides.home.teamSize,
-    home_kills: sides.home.kills,
-    home_deaths: sides.home.deaths,
-    home_kill_fame: sides.home.killFame,
+    // 매치업 K/D/Fame — force 와의 교전만 집계.
+    home_kills: input.stats.homeKills,
+    home_deaths: input.stats.homeDeaths,
+    home_kill_fame: input.stats.homeKillFame,
     // 합산값은 그대로 (전체 상대 풀의 통계 — 페이지 hover 등에서 사용).
     opponent_team_size: sides.opponent.teamSize,
     opponent_kills: sides.opponent.kills,
@@ -135,9 +203,9 @@ function buildMatchupRow(input: {
     main_opponent_force_name: input.force.forceName,
     main_opponent_alliance_id: input.force.allianceId,
     main_opponent_team_size: input.force.teamSize,
-    main_opponent_kills: input.force.kills,
-    main_opponent_deaths: input.force.deaths,
-    main_opponent_kill_fame: input.force.killFame,
+    main_opponent_kills: input.stats.mainOppKills,
+    main_opponent_deaths: input.stats.mainOppDeaths,
+    main_opponent_kill_fame: input.stats.mainOppKillFame,
     match_index: input.matchIndex,
     match_total: input.matchTotal,
     is_provisional: false,
@@ -232,10 +300,12 @@ export function buildProvisionalTenantRow(input: {
 }
 
 // killboard_events 페어 입력 — opponent_guild 는 Albion 의 길드명(text). guildId
-// 매핑은 raw_battle.guilds 에서 이름으로 역추적.
+// 매핑은 raw_battle.guilds 에서 이름으로 역추적. fame 은 매치업 K/D/Fame 분리에
+// 필요 (killer 페어의 fame = home_kill_fame 기여, victim 페어의 fame = mainOpp_kill_fame).
 export interface KillboardPair {
   role: 'killer' | 'victim'
   opponentGuild: string | null
+  fame: number
 }
 
 // 어떤 force 와 교전했는지 판정. 페어 ≥1 발견된 force 만 통과. mainOpp 컷오프
@@ -264,7 +334,9 @@ function determineEngagedForces(
 }
 
 // 매치업 판정 후 최종 row 들 생성. killboardPairs 가 있으면 페어된 force 만
-// 분리 row 생성. 페어 0건이면 빈 배열 (= placeholder 삭제 신호).
+// 분리 row 생성. 페어 0건이면 빈 배열 (= placeholder 삭제 신호). 각 row 의
+// K/D/Fame 은 force 별 페어 필터링으로 산출 → 같은 battle 의 다른 force 와의
+// 교전이 한 row 에 섞이지 않음.
 export function buildFinalMatchupRows(input: {
   guildId: string
   battleRecordId: string
@@ -288,6 +360,8 @@ export function buildFinalMatchupRows(input: {
   const total = engaged.length
   const rows: TenantBattleRow[] = []
   for (let i = 0; i < engaged.length; i++) {
+    const force = engaged[i]
+    const stats = statsFromPairs(input.killboardPairs, force)
     const row = buildMatchupRow({
       guildId: input.guildId,
       battleRecordId: input.battleRecordId,
@@ -295,7 +369,8 @@ export function buildFinalMatchupRows(input: {
       homeGuildId: input.homeGuildId,
       startedAt: input.startedAt,
       sides,
-      force: engaged[i],
+      force,
+      stats,
       matchIndex: i + 1,
       matchTotal: total,
       evaluatedAt: input.evaluatedAt,
@@ -307,9 +382,10 @@ export function buildFinalMatchupRows(input: {
 
 // 레거시 row backfill — 마이그 098 이전에 저장된 force_key='__legacy__' 행을
 // 새 mainOpponent 모델로 변환. killboard_events 페어 ≥1 인 force 가 있으면
-// 그것만 사용 (분리 매치업), 없으면 raw_battle 의 모든 force ≥15 를 분리 매치업
-// 으로 처리(legacy 데이터는 killboard_events 가 사라진 경우가 있어 페어 없는
-// 경우에도 raw_battle 에서 best-effort 로 복원).
+// 그것만 사용 (분리 매치업, K/D/Fame 도 페어 기반 필터링), 없으면 raw_battle 의
+// 모든 force ≥15 를 분리 매치업으로 처리(legacy 데이터는 killboard_events 가
+// 사라진 경우가 있어 페어 없는 경우에도 raw_battle 에서 best-effort 로 복원,
+// 이 경우 K/D 는 raw aggregate 라 정확도 떨어짐).
 //
 // 새로 계산한 max(home, mainOpp) < 15 이면 (= 새 컷오프 미통과) 빈 배열 → 호출자
 // 가 row 를 삭제. 75 vs 8 같은 옛 데이터가 정리됨.
@@ -332,11 +408,13 @@ export function buildLegacyBackfillRows(input: {
     input.homeGuildId,
     input.killboardPairs,
   )
+  let usePairs = engaged.length > 0
 
   // 2차: 페어 0건이면 raw_battle 의 모든 force ≥15 를 분리 매치업으로.
   if (engaged.length === 0) {
     const forces = computeOpposingForces(input.battle, input.homeGuildId)
     engaged = forces.filter((f) => f.teamSize >= MATCHUP_MIN_SIZE)
+    usePairs = false
   }
 
   if (engaged.length === 0) return []
@@ -344,6 +422,10 @@ export function buildLegacyBackfillRows(input: {
   const total = engaged.length
   const rows: TenantBattleRow[] = []
   for (let i = 0; i < engaged.length; i++) {
+    const force = engaged[i]
+    const stats = usePairs
+      ? statsFromPairs(input.killboardPairs, force)
+      : statsFromRawForce(force, sides)
     const row = buildMatchupRow({
       guildId: input.guildId,
       battleRecordId: input.battleRecordId,
@@ -351,7 +433,8 @@ export function buildLegacyBackfillRows(input: {
       homeGuildId: input.homeGuildId,
       startedAt: input.startedAt,
       sides,
-      force: engaged[i],
+      force,
+      stats,
       matchIndex: i + 1,
       matchTotal: total,
       evaluatedAt: input.evaluatedAt,

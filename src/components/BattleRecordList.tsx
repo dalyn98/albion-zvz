@@ -8,7 +8,7 @@
 // isProvisional=true 일 때 "판정 중" 배지로 사용자에게 명시.
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { Trophy, Skull, Minus, GitBranch, Hourglass } from 'lucide-react'
+import { Trophy, Skull, Minus, GitBranch, Hourglass, CornerDownRight } from 'lucide-react'
 import Link from 'next/link'
 import type { SizeCategory } from '@/lib/albion-battles'
 import { formatDateTimeShort } from '@/lib/format-datetime'
@@ -35,6 +35,7 @@ export interface BattleRecordRow {
   primaryOpponentName: string | null
   // 주 상대 (단일 알라이언스 또는 단독 길드). UI 표기/필터의 기준.
   mainOpponentTeamSize: number
+  mainOpponentKillFame: number
   mainOpponentName: string
   mainOpponentKind: 'alliance' | 'guild' | 'pending' | 'legacy'
   matchIndex: number
@@ -55,6 +56,7 @@ interface Props {
   sizeLabels: Record<SizeCategory, string>
   outcomeLabels: Record<'win' | 'loss' | 'tie', string>
   matchSplitLabel: string
+  sameBattleLabel: string
   provisionalLabel: string
   columnLabels: {
     startedAt: string
@@ -65,6 +67,10 @@ interface Props {
     cluster: string
   }
 }
+
+// 같은 albionBattleId 의 분리 매치업 row 들을 시각적으로 묶기 위한 그룹 역할.
+// 'single' = 단일 매치업, 'first' = 그룹의 첫 행, 'continuation' = 그룹의 이어지는 행.
+type GroupRole = 'single' | 'first' | 'continuation'
 
 const TABS: BattleListTab[] = ['recent', 'small', 'middle', 'large', 'zerg']
 const OUTCOMES: Array<'win' | 'loss' | 'tie'> = ['win', 'loss', 'tie']
@@ -79,6 +85,30 @@ function formatStartedAt(iso: string): string {
   return formatDateTimeShort(iso)
 }
 
+function computeGroupRoles(rows: BattleRecordRow[]): GroupRole[] {
+  // 같은 albionBattleId 의 row 가 1개면 single, 2개 이상이면 첫번째만 first,
+  // 나머지는 continuation. rows 는 page.tsx 에서 (started_at desc, match_index asc)
+  // 로 정렬되어 같은 battle 의 row 가 인접해 있다.
+  const counts = new Map<number, number>()
+  for (const r of rows) counts.set(r.albionBattleId, (counts.get(r.albionBattleId) ?? 0) + 1)
+  const seen = new Set<number>()
+  const roles: GroupRole[] = []
+  for (const r of rows) {
+    const total = counts.get(r.albionBattleId) ?? 1
+    if (total === 1) {
+      roles.push('single')
+      continue
+    }
+    if (!seen.has(r.albionBattleId)) {
+      seen.add(r.albionBattleId)
+      roles.push('first')
+    } else {
+      roles.push('continuation')
+    }
+  }
+  return roles
+}
+
 export default function BattleRecordList({
   rows,
   activeTab,
@@ -90,6 +120,7 @@ export default function BattleRecordList({
   sizeLabels,
   outcomeLabels,
   matchSplitLabel,
+  sameBattleLabel,
   provisionalLabel,
   columnLabels,
 }: Props) {
@@ -177,17 +208,22 @@ export default function BattleRecordList({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <BattleRow
-                  key={row.id}
-                  row={row}
-                  sizeLabel={sizeLabels[row.sizeCategory]}
-                  outcomeLabel={outcomeLabels[row.outcome]}
-                  matchSplitLabel={matchSplitLabel}
-                  provisionalLabel={provisionalLabel}
-                  router={router}
-                />
-              ))}
+              {(() => {
+                const roles = computeGroupRoles(rows)
+                return rows.map((row, i) => (
+                  <BattleRow
+                    key={row.id}
+                    row={row}
+                    groupRole={roles[i]}
+                    sizeLabel={sizeLabels[row.sizeCategory]}
+                    outcomeLabel={outcomeLabels[row.outcome]}
+                    matchSplitLabel={matchSplitLabel}
+                    sameBattleLabel={sameBattleLabel}
+                    provisionalLabel={provisionalLabel}
+                    router={router}
+                  />
+                ))
+              })()}
             </tbody>
           </table>
         </div>
@@ -198,18 +234,22 @@ export default function BattleRecordList({
 
 interface BattleRowProps {
   row: BattleRecordRow
+  groupRole: GroupRole
   sizeLabel: string
   outcomeLabel: string
   matchSplitLabel: string
+  sameBattleLabel: string
   provisionalLabel: string
   router: ReturnType<typeof useRouter>
 }
 
 function BattleRow({
   row,
+  groupRole,
   sizeLabel,
   outcomeLabel,
   matchSplitLabel,
+  sameBattleLabel,
   provisionalLabel,
   router,
 }: BattleRowProps) {
@@ -226,23 +266,43 @@ function BattleRow({
   // 안 함 — 그건 BattleDetailView 의 길드별 분해에서.
   const opponentLabel = row.mainOpponentName || row.primaryOpponentName || '-'
 
+  // 분리 매치업 시각화: 그룹의 모든 row 에 violet 좌측 보더 + 살짝 tint, 첫 행은
+  // 일반 상단 보더, 이어지는 행(continuation) 은 점선 상단 + 시간 셀에 "↳ 같은
+  // 전투" 인디케이터로 명시. 단일 매치업(single) 은 기존 스타일 그대로.
+  const isSplit = groupRole !== 'single'
+  const isContinuation = groupRole === 'continuation'
+  const rowClass = isSplit
+    ? `cursor-pointer hover:bg-gray-800/40 border-l-2 border-l-violet-500/40 bg-violet-500/[0.03] ${
+        isContinuation ? 'border-t border-t-dashed border-violet-500/20' : 'border-t border-gray-800'
+      }`
+    : 'border-t border-gray-800 hover:bg-gray-800/40 cursor-pointer'
+
   // table 구조 유지: <tr> 에 onClick 으로 router.push, 첫 셀에도 실제 Link 로
   // 접근성/middle-click/새 탭 열기 지원. Link 클릭은 stopPropagation 으로
   // router.push 중복 호출을 막는다.
   const href = `/battles/${row.id}`
   return (
-    <tr
-      onClick={() => router.push(href)}
-      className="border-t border-gray-800 hover:bg-gray-800/40 cursor-pointer"
-    >
+    <tr onClick={() => router.push(href)} className={rowClass}>
       <td className="px-3 py-2 text-gray-300 font-mono text-xs whitespace-nowrap">
-        <Link
-          href={href}
-          onClick={(e) => e.stopPropagation()}
-          className="hover:text-white"
-        >
-          {formatStartedAt(row.startedAt)}
-        </Link>
+        {isContinuation ? (
+          <Link
+            href={href}
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1 text-violet-300 hover:text-violet-200"
+            title={sameBattleLabel}
+          >
+            <CornerDownRight size={12} />
+            <span className="text-[10px] uppercase tracking-wider">{sameBattleLabel}</span>
+          </Link>
+        ) : (
+          <Link
+            href={href}
+            onClick={(e) => e.stopPropagation()}
+            className="hover:text-white"
+          >
+            {formatStartedAt(row.startedAt)}
+          </Link>
+        )}
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1">
@@ -288,7 +348,7 @@ function BattleRow({
           <span className="text-red-400">{row.homeDeaths}</span>
         </div>
         <div className="text-[10px] text-gray-500 font-mono">
-          {formatFame(row.homeKillFame)} vs {formatFame(row.opponentKillFame)}
+          {formatFame(row.homeKillFame)} vs {formatFame(row.mainOpponentKillFame)}
         </div>
       </td>
       <td className="px-3 py-2 text-gray-400 text-xs">

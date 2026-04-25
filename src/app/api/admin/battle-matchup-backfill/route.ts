@@ -110,7 +110,7 @@ export async function GET(request: Request) {
 
     const { data: pairRows, error: pairErr } = await db
       .from('killboard_events')
-      .select('role, opponent_guild')
+      .select('role, opponent_guild, fame')
       .eq('guild_id', guildId)
       .eq('battle_id', albionBattleId)
     if (pairErr) {
@@ -120,6 +120,7 @@ export async function GET(request: Request) {
     const pairs: KillboardPair[] = (pairRows ?? []).map((r) => ({
       role: r.role as 'killer' | 'victim',
       opponentGuild: (r.opponent_guild as string | null) ?? null,
+      fame: (r.fame as number | null) ?? 0,
     }))
 
     const finalRows = buildLegacyBackfillRows({
