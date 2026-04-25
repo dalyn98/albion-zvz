@@ -545,6 +545,8 @@
     "tabEvents": "Events / Regear",
     "tabBattles": "Battles",
     "rewardsDescription": "Regear claim caps per role. Guild members enter a claim amount up to this cap, and the claimed amount is paid out as points on approval. Roles with a 0 cap cannot submit regear requests.",
+    "basicGroupTitle": "Albion verification / member management",
+    "basicGroupDescription": "Settings tied to guild verification and membership: Albion server & home guild, unverified-member access, and active-member role tracking.",
     "regearGroupTitle": "Regear settings",
     "regearGroupDescription": "Controls the regear flow end-to-end: claim window, payout rate, verification requirement, and auto-regear.",
     "eventOpsGroupTitle": "Event operations",

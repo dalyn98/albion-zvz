@@ -12,11 +12,13 @@ import { formatDateTime } from '@/lib/format-datetime'
 interface Props {
   initialRoleIds: string[]
   initialLastSyncAt: string | null
+  embedded?: boolean
 }
 
 export default function ActiveMemberRolesSetting({
   initialRoleIds,
   initialLastSyncAt,
+  embedded = false,
 }: Props) {
   const t = useTranslations('adminActiveMemberRoles')
   const router = useRouter()
@@ -114,10 +116,18 @@ export default function ActiveMemberRolesSetting({
     return t('lastSyncAt', { time: formatDateTime(lastSyncAt) })
   }, [lastSyncAt, t])
 
+  const containerClass = embedded
+    ? 'space-y-3'
+    : 'bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4'
+
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4">
+    <div className={containerClass}>
       <div>
-        <h2 className="font-bold text-white">{t('title')}</h2>
+        {embedded ? (
+          <h3 className="font-semibold text-white text-sm">{t('title')}</h3>
+        ) : (
+          <h2 className="font-bold text-white">{t('title')}</h2>
+        )}
         <p className="text-gray-500 text-xs mt-1">{t('description')}</p>
         <p className="text-amber-400/80 text-xs mt-1">{t('cronHint')}</p>
       </div>

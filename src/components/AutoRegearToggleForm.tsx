@@ -16,12 +16,17 @@ import { updateAppSetting } from '@/app/actions/settings'
 interface Props {
   initialEnabled: boolean
   initialDelayMinutes: number
+  embedded?: boolean
 }
 
 const DELAY_MIN = 5
 const DELAY_MAX = 120
 
-export default function AutoRegearToggleForm({ initialEnabled, initialDelayMinutes }: Props) {
+export default function AutoRegearToggleForm({
+  initialEnabled,
+  initialDelayMinutes,
+  embedded = false,
+}: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
   const t = useTranslations('adminAutoRegear')
@@ -69,12 +74,20 @@ export default function AutoRegearToggleForm({ initialEnabled, initialDelayMinut
     setLoading(false)
   }
 
+  const containerClass = embedded
+    ? 'space-y-3'
+    : 'bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4'
+
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4">
+    <div className={containerClass}>
       <div className="flex items-start gap-2">
-        <BadgeCheck size={16} className="text-amber-400 mt-0.5" />
+        {!embedded && <BadgeCheck size={16} className="text-amber-400 mt-0.5" />}
         <div>
-          <h2 className="font-bold text-white">{t('title')}</h2>
+          {embedded ? (
+            <h3 className="font-semibold text-white text-sm">{t('title')}</h3>
+          ) : (
+            <h2 className="font-bold text-white">{t('title')}</h2>
+          )}
           <p className="text-gray-500 text-xs mt-1">
             {t('descriptionLine1')}
             <br />

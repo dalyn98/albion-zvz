@@ -9,9 +9,13 @@ import { listGuildRoles, type DiscordRoleOption } from '@/app/actions/notificati
 
 interface Props {
   initialRoleIds: string[]
+  embedded?: boolean
 }
 
-export default function BombSquadCallerRolesSetting({ initialRoleIds }: Props) {
+export default function BombSquadCallerRolesSetting({
+  initialRoleIds,
+  embedded = false,
+}: Props) {
   const t = useTranslations('adminBombSquadCallerRoles')
   const router = useRouter()
   const [roles, setRoles] = useState<DiscordRoleOption[] | null>(null)
@@ -84,12 +88,20 @@ export default function BombSquadCallerRolesSetting({ initialRoleIds }: Props) {
     setLoading(false)
   }
 
+  const containerClass = embedded
+    ? 'space-y-3'
+    : 'bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4'
+
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4">
+    <div className={containerClass}>
       <div>
-        <h2 className="font-bold text-white">{t('title')}</h2>
+        {embedded ? (
+          <h3 className="font-semibold text-white text-sm">{t('title')}</h3>
+        ) : (
+          <h2 className="font-bold text-white">{t('title')}</h2>
+        )}
         <p className="text-gray-500 text-xs mt-1">{t('description')}</p>
-        <p className="text-amber-400/80 text-xs mt-1">{t('reloginHint')}</p>
+        {!embedded && <p className="text-amber-400/80 text-xs mt-1">{t('reloginHint')}</p>}
       </div>
 
       {rolesError && <p className="text-xs text-red-400">{t('rolesError')}</p>}

@@ -105,7 +105,7 @@ export default function EventCreatorRolesSetting({
   }
 
   const containerClass = embedded
-    ? 'space-y-3'
+    ? 'space-y-2'
     : 'bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4'
 
   return (
@@ -114,10 +114,12 @@ export default function EventCreatorRolesSetting({
         {embedded ? (
           <h3 className="font-semibold text-white text-sm">{titleOverride ?? t('title')}</h3>
         ) : (
-          <h2 className="font-bold text-white">{titleOverride ?? t('title')}</h2>
+          <>
+            <h2 className="font-bold text-white">{titleOverride ?? t('title')}</h2>
+            <p className="text-gray-500 text-xs mt-1">{descriptionOverride ?? t('description')}</p>
+            <p className="text-amber-400/80 text-xs mt-1">{t('reloginHint')}</p>
+          </>
         )}
-        <p className="text-gray-500 text-xs mt-1">{descriptionOverride ?? t('description')}</p>
-        {!embedded && <p className="text-amber-400/80 text-xs mt-1">{t('reloginHint')}</p>}
       </div>
 
       {rolesError && <p className="text-xs text-red-400">{t('rolesError')}</p>}
@@ -125,7 +127,8 @@ export default function EventCreatorRolesSetting({
       {roles && roles.length === 0 && <p className="text-xs text-gray-500">{t('rolesEmpty')}</p>}
 
       {roles && roles.length > 0 && (
-        <div ref={containerRef} className="relative">
+        <div className={embedded ? 'flex items-start gap-2' : ''}>
+        <div ref={containerRef} className={embedded ? 'relative flex-1 min-w-0' : 'relative'}>
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
@@ -155,7 +158,7 @@ export default function EventCreatorRolesSetting({
           </button>
 
           {open && (
-            <div className="absolute z-30 top-full mt-1 w-full bg-gray-950 border border-gray-700 rounded-lg shadow-xl">
+            <div className="absolute z-30 top-full mt-1 left-0 right-0 bg-gray-950 border border-gray-700 rounded-lg shadow-xl">
               <div className="flex items-center gap-2 border-b border-gray-800 px-3 py-2">
                 <Search size={12} className="text-gray-500 flex-shrink-0" />
                 <input
@@ -209,6 +212,19 @@ export default function EventCreatorRolesSetting({
             </div>
           )}
         </div>
+        {embedded && (
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={loading || !dirty || roles === null}
+            className="flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-800 disabled:text-gray-600 text-black font-semibold px-3 py-2 rounded-lg transition-colors text-xs flex-shrink-0"
+            aria-label={t('save')}
+            title={loading ? t('saving') : t('save')}
+          >
+            <Save size={14} />
+          </button>
+        )}
+        </div>
       )}
 
       {error && (
@@ -217,18 +233,24 @@ export default function EventCreatorRolesSetting({
         </div>
       )}
 
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={loading || !dirty || roles === null}
-          className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-4 py-2 rounded-lg transition-colors text-sm"
-        >
-          <Save size={14} />
-          {loading ? t('saving') : t('save')}
-        </button>
-        {saved && !dirty && <span className="text-[11px] text-emerald-400">{t('saved')}</span>}
-      </div>
+      {!embedded && (
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={loading || !dirty || roles === null}
+            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-4 py-2 rounded-lg transition-colors text-sm"
+          >
+            <Save size={14} />
+            {loading ? t('saving') : t('save')}
+          </button>
+          {saved && !dirty && <span className="text-[11px] text-emerald-400">{t('saved')}</span>}
+        </div>
+      )}
+
+      {embedded && saved && !dirty && (
+        <p className="text-[11px] text-emerald-400">{t('saved')}</p>
+      )}
     </div>
   )
 }

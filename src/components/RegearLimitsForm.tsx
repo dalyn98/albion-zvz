@@ -9,6 +9,7 @@ import { Save } from 'lucide-react'
 interface Props {
   initialWindowMinutes: number
   initialMaxDeaths: number
+  embedded?: boolean
 }
 
 const WINDOW_MIN = 1
@@ -16,7 +17,11 @@ const WINDOW_MAX = 240
 const DEATHS_MIN = 1
 const DEATHS_MAX = 10
 
-export default function RegearLimitsForm({ initialWindowMinutes, initialMaxDeaths }: Props) {
+export default function RegearLimitsForm({
+  initialWindowMinutes,
+  initialMaxDeaths,
+  embedded = false,
+}: Props) {
   const t = useTranslations('adminRegearLimits')
   const router = useRouter()
   const windowId = useId()
@@ -67,10 +72,18 @@ export default function RegearLimitsForm({ initialWindowMinutes, initialMaxDeath
     setLoading(false)
   }
 
+  const containerClass = embedded
+    ? 'space-y-3'
+    : 'bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4'
+
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4">
+    <div className={containerClass}>
       <div>
-        <h2 className="font-bold text-white">{t('title')}</h2>
+        {embedded ? (
+          <h3 className="font-semibold text-white text-sm">{t('title')}</h3>
+        ) : (
+          <h2 className="font-bold text-white">{t('title')}</h2>
+        )}
         <p className="text-gray-500 text-xs mt-1">{t('description')}</p>
       </div>
 

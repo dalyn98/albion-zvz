@@ -8,11 +8,12 @@ import { Save } from 'lucide-react'
 
 interface Props {
   initialMessage: string
+  embedded?: boolean
 }
 
 const MAX_LENGTH = 500
 
-export default function NotificationSettingsForm({ initialMessage }: Props) {
+export default function NotificationSettingsForm({ initialMessage, embedded = false }: Props) {
   const t = useTranslations('adminSettings')
   const router = useRouter()
   const messageId = useId()
@@ -46,10 +47,18 @@ export default function NotificationSettingsForm({ initialMessage }: Props) {
     setLoading(false)
   }
 
+  const containerClass = embedded
+    ? 'space-y-3'
+    : 'bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4'
+
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4">
+    <div className={containerClass}>
       <div>
-        <h2 className="font-bold text-white">{t('notificationsTitle')}</h2>
+        {embedded ? (
+          <h3 className="font-semibold text-white text-sm">{t('notificationsTitle')}</h3>
+        ) : (
+          <h2 className="font-bold text-white">{t('notificationsTitle')}</h2>
+        )}
         <p className="text-gray-500 text-xs mt-1">
           {t('notificationsDescription')}
         </p>

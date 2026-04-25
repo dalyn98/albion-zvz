@@ -545,6 +545,8 @@
     "tabEvents": "イベント/リギア",
     "tabBattles": "戦闘記録",
     "rewardsDescription": "役割ごとのリギア請求上限です。ギルドメンバーはこの金額以下の範囲で直接請求金額を入力して申請し、承認時に請求金額がポイントとして支給されます。上限が 0 の役割はリギア申請がブロックされます。",
+    "basicGroupTitle": "Albion 認証 / メンバー管理",
+    "basicGroupDescription": "Albion サーバー・ホームギルド、未認証メンバーのアクセス可否、アクティブメンバー役割追跡など、ギルド認証・メンバーシップに関わる設定です。",
     "regearGroupTitle": "リギア設定",
     "regearGroupDescription": "リギア申請の受付時間、支給比率、認証要求、自動リギアなど、リギアフロー全体を制御します。",
     "eventOpsGroupTitle": "イベント運営",

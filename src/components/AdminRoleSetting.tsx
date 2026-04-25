@@ -9,12 +9,13 @@ import { listGuildRoles, type DiscordRoleOption } from '@/app/actions/notificati
 
 interface Props {
   initialRoleIds: string[]
+  embedded?: boolean
 }
 
 // 관리자 역할 편집 UI. 저장 대상이 app_settings 이 아닌 tenants.admin_role_ids
 // (migration 074) 라서 EventCreator/BombSquadCaller 와 달리 전용 server action
 // `updateTenantAdminRoles` 를 쓴다. 그 외 조작감은 다른 역할 섹션과 동일하다.
-export default function AdminRoleSetting({ initialRoleIds }: Props) {
+export default function AdminRoleSetting({ initialRoleIds, embedded = false }: Props) {
   const t = useTranslations('adminAdminRoles')
   const router = useRouter()
   const [roles, setRoles] = useState<DiscordRoleOption[] | null>(null)
@@ -85,12 +86,20 @@ export default function AdminRoleSetting({ initialRoleIds }: Props) {
     setLoading(false)
   }
 
+  const containerClass = embedded
+    ? 'space-y-3'
+    : 'bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4'
+
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4">
+    <div className={containerClass}>
       <div>
-        <h2 className="font-bold text-white">{t('title')}</h2>
+        {embedded ? (
+          <h3 className="font-semibold text-white text-sm">{t('title')}</h3>
+        ) : (
+          <h2 className="font-bold text-white">{t('title')}</h2>
+        )}
         <p className="text-gray-500 text-xs mt-1">{t('description')}</p>
-        <p className="text-amber-400/80 text-xs mt-1">{t('reloginHint')}</p>
+        {!embedded && <p className="text-amber-400/80 text-xs mt-1">{t('reloginHint')}</p>}
       </div>
 
       {rolesError && <p className="text-xs text-red-400">{t('rolesError')}</p>}

@@ -8,9 +8,10 @@ import { Save } from 'lucide-react'
 
 interface Props {
   initialEnabled: boolean
+  embedded?: boolean
 }
 
-export default function EventAutoStartForm({ initialEnabled }: Props) {
+export default function EventAutoStartForm({ initialEnabled, embedded = false }: Props) {
   const t = useTranslations('adminEventAutoStart')
   const router = useRouter()
   const [enabled, setEnabled] = useState(initialEnabled)
@@ -34,10 +35,18 @@ export default function EventAutoStartForm({ initialEnabled }: Props) {
     setLoading(false)
   }
 
+  const containerClass = embedded
+    ? 'space-y-3'
+    : 'bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4'
+
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4">
+    <div className={containerClass}>
       <div>
-        <h2 className="font-bold text-white">{t('title')}</h2>
+        {embedded ? (
+          <h3 className="font-semibold text-white text-sm">{t('title')}</h3>
+        ) : (
+          <h2 className="font-bold text-white">{t('title')}</h2>
+        )}
         <p className="text-gray-500 text-xs mt-1">{t('description')}</p>
       </div>
 

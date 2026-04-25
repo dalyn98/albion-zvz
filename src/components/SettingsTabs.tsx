@@ -11,7 +11,7 @@ import NoticeSettingForm, { NOTICE_MAX_LENGTH } from './NoticeSettingForm'
 import AdminRoleSetting from './AdminRoleSetting'
 import EventCreatorRolesGroup from './EventCreatorRolesGroup'
 import BombSquadCallerRolesSetting from './BombSquadCallerRolesSetting'
-import SettingsSectionHeader from './SettingsSectionHeader'
+import SettingsGroup from './SettingsGroup'
 import ActiveMemberRolesSetting from './ActiveMemberRolesSetting'
 import RegearLimitsForm from './RegearLimitsForm'
 import RegearPayoutRateForm from './RegearPayoutRateForm'
@@ -188,18 +188,26 @@ export default function SettingsTabs({
 
       <div role="tabpanel">
         {active === 'basic' && (
-          <div className="space-y-4">
+          <SettingsGroup
+            title={t('basicGroupTitle')}
+            description={t('basicGroupDescription')}
+          >
             <AlbionHomeGuildForm
+              embedded
               initialServer={albionServer}
               initialGuildId={albionHomeGuildId}
               initialGuildName={albionHomeGuildName}
             />
-            <AllowUnverifiedAccessForm initialAllowed={allowUnverifiedMemberAccess} />
+            <AllowUnverifiedAccessForm
+              embedded
+              initialAllowed={allowUnverifiedMemberAccess}
+            />
             <ActiveMemberRolesSetting
+              embedded
               initialRoleIds={activeMemberRoleIds}
               initialLastSyncAt={lastMemberSyncAt}
             />
-          </div>
+          </SettingsGroup>
         )}
         {active === 'landing' && (
           <div className="space-y-4">
@@ -224,35 +232,42 @@ export default function SettingsTabs({
         )}
         {active === 'events' && (
           <div className="space-y-4">
-            <SettingsSectionHeader
+            <SettingsGroup
               title={t('regearGroupTitle')}
               description={t('regearGroupDescription')}
-            />
-            <RegearLimitsForm
-              initialWindowMinutes={regearWindowMinutes}
-              initialMaxDeaths={regearMaxDeaths}
-            />
-            <RegearPayoutRateForm initialPercent={regearPayoutRatePercent} />
-            <RegearRequireVerificationForm initialEnabled={regearRequireVerification} />
-            <AutoRegearToggleForm
-              initialEnabled={autoRegearEnabled}
-              initialDelayMinutes={autoRegearDelayMinutes}
-            />
-            <SettingsSectionHeader
+            >
+              <RegearLimitsForm
+                embedded
+                initialWindowMinutes={regearWindowMinutes}
+                initialMaxDeaths={regearMaxDeaths}
+              />
+              <RegearPayoutRateForm embedded initialPercent={regearPayoutRatePercent} />
+              <RegearRequireVerificationForm
+                embedded
+                initialEnabled={regearRequireVerification}
+              />
+              <AutoRegearToggleForm
+                embedded
+                initialEnabled={autoRegearEnabled}
+                initialDelayMinutes={autoRegearDelayMinutes}
+              />
+            </SettingsGroup>
+            <SettingsGroup
               title={t('eventOpsGroupTitle')}
               description={t('eventOpsGroupDescription')}
-            />
-            <EventAutoStartForm initialEnabled={eventsAutoStartEnabled} />
-            <CdBadgeRolesForm initialRoles={cdBadgeRoles} />
-            <div className="space-y-3">
-              <p className="text-gray-500 text-xs">{t('rewardsDescription')}</p>
-              {rewardsError && (
-                <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
-                  <p className="text-red-400 text-sm">{rewardsError}</p>
-                </div>
-              )}
-              <RoleRewardsEditor rewards={rewards} />
-            </div>
+            >
+              <EventAutoStartForm embedded initialEnabled={eventsAutoStartEnabled} />
+              <CdBadgeRolesForm embedded initialRoles={cdBadgeRoles} />
+              <div className="space-y-3">
+                <p className="text-gray-500 text-xs">{t('rewardsDescription')}</p>
+                {rewardsError && (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+                    <p className="text-red-400 text-sm">{rewardsError}</p>
+                  </div>
+                )}
+                <RoleRewardsEditor rewards={rewards} />
+              </div>
+            </SettingsGroup>
           </div>
         )}
         {active === 'battles' && (
@@ -265,41 +280,45 @@ export default function SettingsTabs({
         )}
         {active === 'notices' && (
           <div className="space-y-4">
-            <SettingsSectionHeader
+            <SettingsGroup
               title={t('discordNoticeGroupTitle')}
               description={t('discordNoticeGroupDescription')}
-            />
-            <NotificationSettingsForm initialMessage={notificationMessage} />
-            <SettingsSectionHeader
+            >
+              <NotificationSettingsForm embedded initialMessage={notificationMessage} />
+            </SettingsGroup>
+            <SettingsGroup
               title={t('inPageNoticeGroupTitle')}
               description={t('inPageNoticeGroupDescription')}
-            />
-            <NoticeSettingForm
-              settingKey="events_notice_message"
-              target="events"
-              initialMessage={eventsNoticeMessage}
-              initialImageUrl={eventsNoticeImageUrl}
-              title={tEventsNotice('title')}
-              description={tEventsNotice('description')}
-              label={tEventsNotice('label')}
-              placeholder={tEventsNotice('placeholder')}
-              clearLabel={tEventsNotice('clear')}
-              clearTooltip={tEventsNotice('clearTooltip')}
-              tooLongMessage={tEventsNotice('tooLong', { max: NOTICE_MAX_LENGTH })}
-            />
-            <NoticeSettingForm
-              settingKey="regear_notice_message"
-              target="regear"
-              initialMessage={regearNoticeMessage}
-              initialImageUrl={regearNoticeImageUrl}
-              title={tRegearNotice('title')}
-              description={tRegearNotice('description')}
-              label={tRegearNotice('label')}
-              placeholder={tRegearNotice('placeholder')}
-              clearLabel={tRegearNotice('clear')}
-              clearTooltip={tRegearNotice('clearTooltip')}
-              tooLongMessage={tRegearNotice('tooLong', { max: NOTICE_MAX_LENGTH })}
-            />
+            >
+              <NoticeSettingForm
+                embedded
+                settingKey="events_notice_message"
+                target="events"
+                initialMessage={eventsNoticeMessage}
+                initialImageUrl={eventsNoticeImageUrl}
+                title={tEventsNotice('title')}
+                description={tEventsNotice('description')}
+                label={tEventsNotice('label')}
+                placeholder={tEventsNotice('placeholder')}
+                clearLabel={tEventsNotice('clear')}
+                clearTooltip={tEventsNotice('clearTooltip')}
+                tooLongMessage={tEventsNotice('tooLong', { max: NOTICE_MAX_LENGTH })}
+              />
+              <NoticeSettingForm
+                embedded
+                settingKey="regear_notice_message"
+                target="regear"
+                initialMessage={regearNoticeMessage}
+                initialImageUrl={regearNoticeImageUrl}
+                title={tRegearNotice('title')}
+                description={tRegearNotice('description')}
+                label={tRegearNotice('label')}
+                placeholder={tRegearNotice('placeholder')}
+                clearLabel={tRegearNotice('clear')}
+                clearTooltip={tRegearNotice('clearTooltip')}
+                tooLongMessage={tRegearNotice('tooLong', { max: NOTICE_MAX_LENGTH })}
+              />
+            </SettingsGroup>
           </div>
         )}
       </div>

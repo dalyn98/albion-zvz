@@ -29,6 +29,7 @@ interface Props {
   clearLabel: string
   clearTooltip: string
   tooLongMessage: string
+  embedded?: boolean
 }
 
 export default function NoticeSettingForm({
@@ -43,6 +44,7 @@ export default function NoticeSettingForm({
   clearLabel,
   clearTooltip,
   tooLongMessage,
+  embedded = false,
 }: Props) {
   const tCommon = useTranslations('common')
   const t = useTranslations('adminSettings')
@@ -147,10 +149,18 @@ export default function NoticeSettingForm({
     })
   }
 
+  const containerClass = embedded
+    ? 'space-y-4'
+    : 'bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-5'
+
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-5">
+    <div className={containerClass}>
       <div>
-        <h2 className="font-bold text-white">{title}</h2>
+        {embedded ? (
+          <h3 className="font-semibold text-white text-sm">{title}</h3>
+        ) : (
+          <h2 className="font-bold text-white">{title}</h2>
+        )}
         <p className="text-gray-500 text-xs mt-1">{description}</p>
       </div>
 

@@ -545,6 +545,8 @@
     "tabEvents": "이벤트/리기어",
     "tabBattles": "전투기록",
     "rewardsDescription": "역할별 리기어 청구 상한입니다. 길드원은 이 금액 이하 범위에서 직접 청구 금액을 입력해 신청하고, 승인 시 청구 금액이 포인트로 지급됩니다. 상한이 0인 역할은 리기어 신청이 차단됩니다.",
+    "basicGroupTitle": "Albion 인증 / 멤버 관리",
+    "basicGroupDescription": "Albion 서버·홈 길드, 미인증 멤버 접근 허용 여부, 활성 멤버 역할 추적까지 길드 인증/멤버십과 직접 관련된 설정입니다.",
     "regearGroupTitle": "리기어 설정",
     "regearGroupDescription": "리기어 신청 가능 시간, 지급 비율, 인증 요구, 자동 리기어 등 리기어 흐름 전반을 제어합니다.",
     "eventOpsGroupTitle": "이벤트 운영",
