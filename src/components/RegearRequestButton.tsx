@@ -306,14 +306,12 @@ export default function RegearRequestButton({
       {open && (
         <div
           className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center sm:p-6"
-          onClick={() => !pending && setOpen(false)}
         >
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="regear-modal-title"
             className="bg-gray-900 border border-gray-700 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[92dvh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
               <h3 id="regear-modal-title" className="font-bold text-white text-base">{t('modalTitle')}</h3>
