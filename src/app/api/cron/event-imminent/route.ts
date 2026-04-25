@@ -28,9 +28,15 @@ import type { EventCategory } from '@/types'
 
 const LEAD_MIN = 35 // gather_at - 35분 이내면 임박
 const LOOKBACK_MIN = 5 // 놓친 구간 재캐치용 (크론 누락 대비)
-// 자동 시작은 gather_at 이 지난 이벤트를 최근 구간에서만 스캔. 너무 길게 두면
-// 설정을 처음 켠 순간 과거 이벤트가 한꺼번에 시작 처리될 수 있다.
-const AUTO_START_LOOKBACK_MIN = 30
+// 자동 시작 lookback. 4/21~4/25 운영 중 한 번에 1~2시간씩 cron 이 누락되어
+// 자동 시작이 실패한 사례가 다수 발생 (GitHub Actions schedule 의 공용 러너
+// 지연이 원인). Vercel Pro native cron 으로 옮겨 schedule 자체는 정확해졌지만,
+// 배포 직후 함수 콜드스타트나 일시적 장애로 1~2틱이 밀릴 수 있어 lookback 을
+// 크게 잡아 안전망을 둔다. 너무 길게 두면 토글을 처음 켠 순간 과거 이벤트가
+// 일제히 시작되는 위험이 있는데, 그 케이스는 자체적으로 `battle_started_at
+// IS NULL` 조건이 걸러주므로(이미 종료된 이벤트는 보통 시작 시각이 적혀 있음)
+// 실용상 6시간 정도면 안전한 트레이드오프.
+const AUTO_START_LOOKBACK_MIN = 360
 const DISPLAY_TIMEZONE = 'Asia/Seoul' // 길드가 KST 기준으로 운영
 const DEFAULT_LOCALE = 'ko'
 
@@ -92,6 +98,7 @@ export async function GET(request: Request) {
         console.error('[cron/event-imminent] auto-start update failed:', updateError.message)
         continue
       }
+      console.log(`[cron/event-imminent] auto-started event ${row.id} (gather_at=${gatherAt}) for tenant ${tenant.id}`)
       autoStartResults.push({ event_id: row.id, battle_started_at: gatherAt })
     }
   }
