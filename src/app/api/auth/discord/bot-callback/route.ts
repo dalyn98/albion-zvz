@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession, signSession, SESSION_COOKIE_NAME, cookieOptions } from '@/lib/session'
-import { getDiscordGuild } from '@/lib/discord'
+import { signSession, SESSION_COOKIE_NAME, cookieOptions } from '@/lib/session'
+import { getDiscordGuild, exchangeBotInstallCode, getCurrentUser } from '@/lib/discord'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { isValidTenantSlug } from '@/lib/tenant-resolver'
 import { SLOT_ROLES } from '@/types'
@@ -11,18 +11,18 @@ const ONBOARD_GUILDS_COOKIE = 'discord_onboard_guilds'
 // Query: guild_id=..., permissions=..., code=... (state 는 Discord 가 bot scope +
 // disable_guild_select 조합에서 echo 하지 않음 — 실측으로 확인됨)
 //
-// state 검증을 포기하는 대신 다음 세 가지로 무결성을 보장한다:
-//   1. 세션 (iron-session) 이 있어야 한다 — 세션이 없으면 /api/auth/discord/start
-//      로 회귀시켜 본인 인증 후 돌아오게 한다.
-//   2. guild_id 가 Discord snowflake 포맷 (17–20자리 숫자) 이어야 한다.
-//   3. 봇이 실제로 그 길드에 설치되어 있어야 한다 (getDiscordGuild) — 임의의
-//      guild_id 를 끼워넣어도 봇이 들어있지 않으면 거부.
+// 무결성 보장:
+//   1. code 를 Discord 토큰 엔드포인트로 교환 — Discord 만 발급할 수 있는
+//      authentic 한 인증 토큰을 받아낸다 (state 보다 강한 증거).
+//   2. 그 토큰으로 /users/@me 호출해 *실제 설치자* 신원을 확정. 사이트 세션과
+//      다른 Discord 계정으로 설치한 경우(웹/앱 다중 계정) 도 정확히 잡는다.
+//   3. 봇이 실제로 그 길드에 설치되어 있어야 한다 (getDiscordGuild) — code 가
+//      유효해도 봇이 들어있지 않으면 (브라우저 도중 닫힘 등) 거부.
 //
-// 잔존 위협: 공격자가 자기 길드의 install 링크를 다른 사람한테 클릭시켜 그 사람을
-// 자기 tenant 의 admin 으로 만들 수 있다. 그러나 victim 의 입장에서는 본인 자원이
-// 아닌 attacker 의 길드 admin 이 될 뿐이고 그 admin 권한은 attacker 길드 안에서만
-// 의미가 있어 실효적 피해가 없다 (멘헤라 SaaS 모델 자체가 "당신의 디스코드에
-// 봇을 설치하면 당신이 관리자" 다).
+// 사이트 세션 != 설치자: 설치자(installerDiscordId) 를 tenant 소유자로 박고,
+// 세션도 설치자 신원으로 재발급한다. MANAGE_GUILD 권한을 가진 쪽에 onboarding
+// 권한을 주는 게 맞기 때문 — 사이트에 A 로 로그인했다가 봇은 B 로 설치한 경우,
+// B 가 그 길드의 admin 이고 A 는 그 길드와 무관하다.
 
 function errorRedirect(origin: string, reason: string): NextResponse {
   const url = new URL('/onboard', origin)
@@ -57,10 +57,9 @@ export async function GET(request: NextRequest) {
   const discordError = url.searchParams.get('error')
   if (discordError) return errorRedirect(url.origin, 'denied')
 
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.redirect(new URL('/api/auth/discord/start?returnTo=/onboard', url.origin))
-  }
+  // 사이트 세션은 의도적으로 확인하지 않는다. 사용자가 사이트에서는 A 계정으로
+  // 로그인하고 봇은 B 계정으로 설치하는 경우가 흔하기 때문 (웹/앱 다른 계정).
+  // 모든 신원은 아래에서 code 교환으로 가져오는 installer 한 곳에서 결정한다.
 
   const guildId = url.searchParams.get('guild_id')
   if (!guildId || !/^\d{17,20}$/.test(guildId)) {
@@ -68,12 +67,28 @@ export async function GET(request: NextRequest) {
     return errorRedirect(url.origin, 'guild_id_missing')
   }
 
+  const code = url.searchParams.get('code')
+  if (!code) {
+    console.error('[bot-callback] missing code', { params: url.searchParams.toString() })
+    return errorRedirect(url.origin, 'code_missing')
+  }
+
   try {
+    // code 교환 → /users/@me 로 실제 설치자 확정. 이걸 통과해야 Discord 가
+    // 발급한 진짜 code 라는 게 증명된다 (사이트 세션 위변조와 무관한 확신).
+    const tokenRes = await exchangeBotInstallCode(code)
+    const installer = await getCurrentUser(tokenRes.access_token)
+    if (!installer) {
+      console.error('[bot-callback] /users/@me returned null')
+      return errorRedirect(url.origin, 'identity_unknown')
+    }
+
     // 봇이 실제로 길드에 들어있어야 한다. 들어있지 않으면 설치 실패 또는
     // 브라우저에서 도중 창을 닫은 경우.
     const guild = await getDiscordGuild(guildId)
     if (!guild) return errorRedirect(url.origin, 'bot_not_in_guild')
 
+    const installerDiscordId = installer.id
     const db = getAdminClient()
     // 이미 이 Discord 길드에 대한 tenant 가 있으면 재사용 — 재설치 시나리오.
     // created_by_discord_id 는 건드리지 않는다 (원래 설치자 보존).
@@ -84,8 +99,10 @@ export async function GET(request: NextRequest) {
       .maybeSingle()
 
     let tenantId: string
+    let tenantOwnerDiscordId: string
     if (existing) {
       tenantId = existing.id as string
+      tenantOwnerDiscordId = (existing.created_by_discord_id as string) ?? installerDiscordId
       // 재설치: name/bot_installed_at 만 갱신. status 는 건드리지 않는다 —
       // 이미 active 면 active 유지 (라이브 사이트 영향 없음), pending 이면
       // 위저드 재진입이 자연스럽도록 pending 유지.
@@ -115,7 +132,7 @@ export async function GET(request: NextRequest) {
             name: guild.name,
             status: 'pending',
             bot_installed_at: new Date().toISOString(),
-            created_by_discord_id: session.discordId,
+            created_by_discord_id: installerDiscordId,
           })
           .select('id')
           .single()
@@ -125,14 +142,15 @@ export async function GET(request: NextRequest) {
         }
         lastInsertError = insertError
         // Postgres unique_violation code = 23505.
-        const code = (insertError as { code?: string } | null)?.code
-        if (code !== '23505') break
+        const errorCode = (insertError as { code?: string } | null)?.code
+        if (errorCode !== '23505') break
       }
       if (!tenantRow) {
         console.error('[bot-callback] tenant insert failed', lastInsertError)
         return errorRedirect(url.origin, 'server_error')
       }
       tenantId = tenantRow.id
+      tenantOwnerDiscordId = installerDiscordId
 
       // 새 tenant 에 기본 role_rewards 8개 seed (silver=0 = "미설정, 리기어 차단").
       // onboarding 위저드 3단계에서 관리자가 실버 값을 채운다. 실패해도 tenant
@@ -153,12 +171,28 @@ export async function GET(request: NextRequest) {
     }
 
     // 설치자를 즉시 이 tenant 의 admin 세션으로 설정 — 설정 페이지에서 바로
-    // 역할/채널을 저장할 수 있게. 재설치의 경우에도 원래 관리자라고 가정한다
-    // (본인이 MANAGE_GUILD 로 봇 설치 승인을 한 시점이라).
+    // 역할/채널을 저장할 수 있게. 사이트 세션과 다른 Discord 계정으로 설치한
+    // 경우(웹/앱 다중 계정) 도 여기서 설치자 신원으로 세션을 재발급해 줘서
+    // onboarding 위저드의 verifyTenantOwnership 가 통과되도록 한다.
+    //
+    // 재설치 시 tenantOwnerDiscordId 와 installerDiscordId 가 다르면 — 다른
+    // 사람이 봇을 재설치한 케이스. tenant 소유자는 원래 사람으로 유지하지만
+    // 세션은 발급하지 않는다 (onboarding 권한 없음). 이 경우 /onboard 으로
+    // 돌려보낸다.
+    if (tenantOwnerDiscordId !== installerDiscordId) {
+      console.warn('[bot-callback] reinstall by non-owner', {
+        tenantOwnerDiscordId,
+        installerDiscordId,
+        tenantId,
+      })
+      return errorRedirect(url.origin, 'not_owner')
+    }
+
+    const installerUsername = installer.global_name ?? installer.username
     const newSession = await signSession({
-      discordId: session.discordId,
-      username: session.username,
-      avatar: session.avatar,
+      discordId: installerDiscordId,
+      username: installerUsername,
+      avatar: installer.avatar,
       isMember: true,
       isAdmin: true,
       isGuest: false,

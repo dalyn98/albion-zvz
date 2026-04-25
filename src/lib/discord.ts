@@ -75,14 +75,18 @@ export function buildBotInstallUrl(options: {
 }): string {
   const { clientId, appUrl } = getDiscordOAuthConfig()
   const redirectUri = `${appUrl.replace(/\/$/, '')}/api/auth/discord/bot-callback`
-  // 순수 봇 설치 흐름 — user OAuth 토큰은 필요 없으므로 response_type=code 를
-  // 빼야 한다. 넣으면 Discord 가 user OAuth 코드 그랜트로 처리하면서, 사용자가
-  // 이미 우리 앱을 OAuth 인증한 상태라면 봇 설치 단계를 스킵하고 redirect 에서
-  // guild_id 를 빠뜨릴 수 있다 (실제로 발생). bot scope 만 명시하고 params 가
-  // 봇 설치 동의 화면을 직접 띄우게 한다.
+  // 순수 봇 설치 흐름 — response_type=code 를 빼면 Discord 가 봇 설치 동의 화면을
+  // 띄운다 (response_type=code 를 넣으면 user OAuth 코드 그랜트로 처리되면서 봇
+  // 설치 단계를 스킵하는 사례가 있어 제거).
+  //
+  // identify 스코프를 같이 묶는 이유: 사용자가 사이트와 Discord 앱/웹에서 서로
+  // 다른 계정을 쓸 수 있다. 사이트 세션이 A 계정인데 봇 설치는 B 계정으로 한
+  // 경우 — A 를 tenant 소유자로 박으면 정작 MANAGE_GUILD 를 가진 B 가 사이트에
+  // 접근 못 한다. 이 콜백에서 code 를 토큰으로 바꿔 /users/@me 로 진짜 설치자
+  // (B) 를 확정하고 그 사람을 tenant 소유자/admin 으로 세팅한다.
   const params = new URLSearchParams({
     client_id: clientId,
-    scope: 'bot applications.commands',
+    scope: 'bot applications.commands identify',
     permissions: BOT_PERMISSIONS,
     guild_id: options.guildId,
     disable_guild_select: 'true',
@@ -90,6 +94,31 @@ export function buildBotInstallUrl(options: {
     state: options.state,
   })
   return `https://discord.com/oauth2/authorize?${params.toString()}`
+}
+
+// 봇 설치 OAuth 의 code 를 access_token 으로 교환. user OAuth 와는 redirect_uri
+// 가 달라야 (Discord 의 code 는 redirect_uri 와 정확히 일치해야 교환됨) 별도
+// 함수로 둔다.
+export async function exchangeBotInstallCode(code: string): Promise<TokenResponse> {
+  const { clientId, clientSecret, appUrl } = getDiscordOAuthConfig()
+  const redirectUri = `${appUrl.replace(/\/$/, '')}/api/auth/discord/bot-callback`
+  const body = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    grant_type: 'authorization_code',
+    code,
+    redirect_uri: redirectUri,
+  })
+  const res = await fetch(`${DISCORD_API}/oauth2/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Discord bot install token exchange failed (${res.status}): ${text}`)
+  }
+  return res.json() as Promise<TokenResponse>
 }
 
 // 봇이 길드에 들어있다는 전제로 길드 메타(이름/아이콘)를 읽어온다. 봇 설치

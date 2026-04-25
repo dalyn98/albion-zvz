@@ -23,9 +23,12 @@ const INSTALL_ERROR_KEYS: Record<string, string> = {
   invalid: 'installErrorInvalid',
   state_missing: 'installErrorStateMissing',
   guild_id_missing: 'installErrorGuildIdMissing',
+  code_missing: 'installErrorCodeMissing',
   state_mismatch: 'installErrorStateMismatch',
   guild_mismatch: 'installErrorGuildMismatch',
   bot_not_in_guild: 'installErrorBotNotInGuild',
+  identity_unknown: 'installErrorIdentityUnknown',
+  not_owner: 'installErrorNotOwner',
   server_error: 'installErrorServerError',
 }
 
