@@ -22,7 +22,6 @@ interface Props {
   loginLabel: string
   memberRequiredLabel: string
   logoutLabel: string
-  publicRecordsLabel: string
   learnMoreLabel: string
   authErrorLabels: Record<string, string>
 }
@@ -35,7 +34,6 @@ export default function AppGate({
   loginLabel,
   memberRequiredLabel,
   logoutLabel,
-  publicRecordsLabel,
   learnMoreLabel,
   authErrorLabels,
 }: Props) {
@@ -101,12 +99,6 @@ export default function AppGate({
         {errorMessage && <p className="text-red-300 text-xs drop-shadow">{errorMessage}</p>}
 
         <div className="flex flex-col items-center gap-2">
-          <a
-            href="/public/records"
-            className="inline-block text-gray-300/90 hover:text-white text-xs drop-shadow underline underline-offset-4 decoration-gray-500/60"
-          >
-            {publicRecordsLabel}
-          </a>
           <a
             href="/public/landing"
             className="inline-block text-gray-300/90 hover:text-white text-xs drop-shadow underline underline-offset-4 decoration-gray-500/60"
