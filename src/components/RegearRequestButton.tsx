@@ -91,6 +91,9 @@ export default function RegearRequestButton({
   useEffect(() => {
     entriesRef.current = entries
   })
+  // 마우스가 hover 한 슬롯. 붙여넣기 시 이 슬롯에 우선 채운다 — 없으면
+  // 위에서부터 첫 빈 슬롯 폴백. ref 라 hover 변경에 리렌더 안 함.
+  const hoveredSlotRef = useRef<{ entryId: string; slot: 'primary' | 'secondary' } | null>(null)
 
   const notStarted = !battleStartedAt
   const ceilingMissing = roleReward <= 0
@@ -162,12 +165,10 @@ export default function RegearRequestButton({
     }
   }, [open, pending])
 
-  // Paste handler: 클립보드 이미지를 비어있는 첫 슬롯에 자동 첨부.
-  // 채우는 순서는 row-by-row — entry[0].primary → entry[0].secondary →
-  // entry[1].primary → entry[1].secondary. 이전엔 모든 entry 의 primary 를
-  // 먼저 채우는 방식이었지만, 다중 데스 시 "한 행을 끝내고 다음 행으로" 라는
-  // 직관과 맞지 않았다. 또 ref 를 사용해 entries 변경 시 리스너를 재등록하지
-  // 않고도 항상 latest 를 읽도록 한다.
+  // Paste handler: 마우스가 올라가 있는 슬롯에 우선 붙여넣는다 (overwrite 포함).
+  // hover 가 없으면 row-by-row 첫 빈 슬롯 폴백 — entry[0].primary →
+  // entry[0].secondary → entry[1].primary → entry[1].secondary.
+  // ref 사용으로 entries 변경 시 리스너 재등록 없이 latest 를 읽는다.
   useEffect(() => {
     if (!open || phase !== 'entries') return
     const handlePaste = (e: ClipboardEvent) => {
@@ -181,6 +182,20 @@ export default function RegearRequestButton({
         const ext = item.type.split('/')[1]
         const pasted = new File([blob], `clipboard-${Date.now()}.${ext}`, { type: item.type })
         const latest = entriesRef.current
+        const hover = hoveredSlotRef.current
+        if (hover && latest.some((en) => en.id === hover.entryId)) {
+          const patch: Partial<EntryState> =
+            hover.slot === 'primary' ? { file: pasted } : { file2: pasted }
+          updateEntry(hover.entryId, patch)
+          setEntryErrors((prev) => {
+            if (!(hover.entryId in prev)) return prev
+            const next = { ...prev }
+            delete next[hover.entryId]
+            return next
+          })
+          e.preventDefault()
+          return
+        }
         for (const entry of latest) {
           if (!entry.file) {
             updateEntry(entry.id, { file: pasted })
@@ -205,6 +220,10 @@ export default function RegearRequestButton({
     document.addEventListener('paste', handlePaste)
     return () => document.removeEventListener('paste', handlePaste)
   }, [open, phase])
+
+  const handleSlotHover = (entryId: string, slot: 'primary' | 'secondary' | null) => {
+    hoveredSlotRef.current = slot ? { entryId, slot } : null
+  }
 
   const submit = () => {
     if (ceilingMissing) {
@@ -394,6 +413,7 @@ export default function RegearRequestButton({
                         payoutRatePercent={payoutRatePercent}
                         error={entryErrors[entry.id] ?? ''}
                         showHeader={entries.length > 1}
+                        onSlotHover={handleSlotHover}
                         onChange={(patch) => {
                           updateEntry(entry.id, patch)
                           if (entryErrors[entry.id]) {
@@ -497,6 +517,7 @@ interface RegearEntryRowProps {
   payoutRatePercent: number
   error: string
   showHeader: boolean
+  onSlotHover: (entryId: string, slot: 'primary' | 'secondary' | null) => void
   onChange: (patch: Partial<EntryState>) => void
 }
 
@@ -508,6 +529,7 @@ function RegearEntryRow({
   payoutRatePercent,
   error,
   showHeader,
+  onSlotHover,
   onChange,
 }: RegearEntryRowProps) {
   const t = useTranslations('regear')
@@ -567,6 +589,7 @@ function RegearEntryRow({
         label={t('screenshotPrimaryLabel')}
         file={entry.file}
         onChange={(file) => onChange({ file })}
+        onHover={(active) => onSlotHover(entry.id, active ? 'primary' : null)}
       />
 
       <ScreenshotSlot
@@ -575,6 +598,7 @@ function RegearEntryRow({
         label={t('screenshotSecondaryLabel')}
         file={entry.file2}
         onChange={(file) => onChange({ file2: file })}
+        onHover={(active) => onSlotHover(entry.id, active ? 'secondary' : null)}
       />
 
       {error && (
@@ -592,9 +616,10 @@ interface ScreenshotSlotProps {
   label: string
   file: File | null
   onChange: (file: File | null) => void
+  onHover: (active: boolean) => void
 }
 
-function ScreenshotSlot({ entryId, slot, label, file, onChange }: ScreenshotSlotProps) {
+function ScreenshotSlot({ entryId, slot, label, file, onChange, onHover }: ScreenshotSlotProps) {
   const t = useTranslations('regear')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -612,7 +637,7 @@ function ScreenshotSlot({ entryId, slot, label, file, onChange }: ScreenshotSlot
   }, [file])
 
   return (
-    <div>
+    <div onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)}>
       <label className="text-gray-400 text-[11px] font-semibold block mb-1">{label}</label>
       <label
         htmlFor={inputId}
