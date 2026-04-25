@@ -26,6 +26,12 @@ const MAX_SEARCH_PER_RUN = 10
 // Kills/deaths 는 API 가 최신 50건 반환. 5분 주기에서 놓친 기록 최소화.
 const KILLS_LIMIT = 50
 const API_DELAY_MS = 250
+// 미연동 (Discord 안 가입한) Albion 멤버는 수가 많아 (~수백 명) 매 cron 마다
+// 전부 polling 하면 timeout. 한 사이클에 N 명만 random-sample 로 처리.
+// 15분 주기 × 4 = 1시간 × 24 = 하루 96회 sync × 30명 = 2880회 polling 으로
+// 평균 580명 멤버를 하루에 약 5번씩 커버. 기존 가입자 polling 시간 + 30명 추가 ≈
+// cron maxDuration 안에 안정적으로 들어옴.
+const MAX_ALBION_ONLY_PER_RUN = 30
 
 interface PlayerRef {
   Id: string
@@ -102,7 +108,16 @@ async function fetchEvents(
   return Array.isArray(data) ? data : []
 }
 
-interface GuildMemberRow {
+// killboard_events 행을 만들 때 필요한 멤버 식별자. Discord 가입자(guild_avatars)
+// 와 미연동 Albion 멤버(albion_guild_members) 모두 이 형태로 통일해 toRow 에 전달.
+interface MemberForRow {
+  discord_id: string | null
+  username: string
+  albion_player_id: string | null
+}
+
+// guild_avatars 쿼리 결과 — Discord 가입자라 discord_id 는 항상 NOT NULL.
+interface GuildAvatarMemberRow {
   discord_id: string
   username: string
   albion_player_id: string | null
@@ -114,6 +129,10 @@ export interface KillboardSyncResult {
   members_resolved: number
   members_newly_resolved: number
   members_unresolved: number
+  // 미연동 Albion 멤버 풀 크기 (left_at IS NULL ∧ guild_avatars 미매핑).
+  albion_only_pool: number
+  // 이번 cron 에서 polling 한 미연동 멤버 수 (MAX_ALBION_ONLY_PER_RUN 상한).
+  albion_only_polled: number
   events_upserted: number
   errors: Array<{ member: string; step: string; message: string }>
   duration_ms: number
@@ -140,6 +159,8 @@ export async function syncKillboard(
       members_resolved: 0,
       members_newly_resolved: 0,
       members_unresolved: 0,
+      albion_only_pool: 0,
+      albion_only_polled: 0,
       events_upserted: 0,
       errors: [{ member: '*', step: 'config', message: 'albion_home_guild_name not configured for tenant' }],
       duration_ms: Date.now() - startedAt,
@@ -154,7 +175,7 @@ export async function syncKillboard(
   if (membersError) {
     throw new Error(`guild_avatars query failed: ${membersError.message}`)
   }
-  const memberRows = (members ?? []) as GuildMemberRow[]
+  const memberRows = (members ?? []) as GuildAvatarMemberRow[]
 
   // Phase 1: 매핑되지 않은 멤버 중 일부에 대해 /search 로 Albion player_id 획득.
   const needsResolve = memberRows.filter((m) => !m.albion_player_id).slice(0, MAX_SEARCH_PER_RUN)
@@ -185,40 +206,82 @@ export async function syncKillboard(
     await sleep(API_DELAY_MS)
   }
 
-  // Phase 2: player_id 가 있는 멤버들의 kills/deaths 조회 → upsert.
+  // Phase 2: player_id 가 있는 Discord 가입자들의 kills/deaths 조회 → upsert.
   const resolved = memberRows.filter((m) => !!m.albion_player_id)
   let upserted = 0
   for (const m of resolved) {
     const playerId = m.albion_player_id!
     try {
-      const [kills, deaths] = await Promise.all([
-        fetchEvents(baseUrl, playerId, 'kills'),
-        fetchEvents(baseUrl, playerId, 'deaths'),
-      ])
-
-      const rows = [
-        ...kills.map((e) => toRow(e, 'killer', m, playerId, guildId)),
-        ...deaths.map((e) => toRow(e, 'victim', m, playerId, guildId)),
-      ]
-
-      if (rows.length === 0) {
-        await sleep(API_DELAY_MS)
-        continue
-      }
-
-      // onConflict: (event_id, role) — 기존 행은 그대로 두고 무시.
-      const { error, count } = await db
-        .from('killboard_events')
-        .upsert(rows, { onConflict: 'event_id,role', ignoreDuplicates: true, count: 'exact' })
-      if (error) {
-        errors.push({ member: m.username, step: 'upsert', message: error.message })
-      } else {
-        upserted += count ?? 0
+      const newRows = await pollAndBuildRows(baseUrl, playerId, m, guildId)
+      if (newRows.length > 0) {
+        const { error, count } = await db
+          .from('killboard_events')
+          .upsert(newRows, { onConflict: 'event_id,role', ignoreDuplicates: true, count: 'exact' })
+        if (error) {
+          errors.push({ member: m.username, step: 'upsert', message: error.message })
+        } else {
+          upserted += count ?? 0
+        }
       }
     } catch (e) {
       errors.push({
         member: m.username,
         step: 'fetch-events',
+        message: e instanceof Error ? e.message : String(e),
+      })
+    }
+    await sleep(API_DELAY_MS)
+  }
+
+  // Phase 3: Discord 미연동 Albion 멤버 (albion_guild_members) 의 kills/deaths.
+  // 풀이 클 수 있어 한 사이클에 MAX_ALBION_ONLY_PER_RUN 만 random sampling.
+  // guild_avatars 의 albion_player_id 와 겹치는 행은 Phase 2 에서 이미 처리되므로 제외.
+  const resolvedPlayerIds = new Set(
+    resolved.map((m) => m.albion_player_id).filter((x): x is string => !!x),
+  )
+  const { data: albionOnlyAll, error: albionOnlyError } = await db
+    .from('albion_guild_members')
+    .select('albion_player_id, albion_player_name')
+    .eq('guild_id', guildId)
+    .is('left_at', null)
+  if (albionOnlyError) {
+    errors.push({ member: '*', step: 'fetch-albion-only', message: albionOnlyError.message })
+  }
+  const albionOnlyPool = (albionOnlyAll ?? []).filter(
+    (r) => !resolvedPlayerIds.has(r.albion_player_id),
+  )
+  // Fisher-Yates shuffle 후 상한까지 자른다. cron 마다 다른 N 명을 처리해 시간이
+  // 흐르면 모든 미연동 멤버가 골고루 polling 된다.
+  const shuffled = albionOnlyPool.slice()
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  const albionOnlyTargets = shuffled.slice(0, MAX_ALBION_ONLY_PER_RUN)
+
+  for (const r of albionOnlyTargets) {
+    const playerId = r.albion_player_id
+    const member: MemberForRow = {
+      discord_id: null,
+      username: r.albion_player_name,
+      albion_player_id: playerId,
+    }
+    try {
+      const newRows = await pollAndBuildRows(baseUrl, playerId, member, guildId)
+      if (newRows.length > 0) {
+        const { error, count } = await db
+          .from('killboard_events')
+          .upsert(newRows, { onConflict: 'event_id,role', ignoreDuplicates: true, count: 'exact' })
+        if (error) {
+          errors.push({ member: r.albion_player_name, step: 'upsert-albion-only', message: error.message })
+        } else {
+          upserted += count ?? 0
+        }
+      }
+    } catch (e) {
+      errors.push({
+        member: r.albion_player_name,
+        step: 'fetch-events-albion-only',
         message: e instanceof Error ? e.message : String(e),
       })
     }
@@ -231,16 +294,34 @@ export async function syncKillboard(
     members_resolved: resolved.length,
     members_newly_resolved: newlyResolved,
     members_unresolved: memberRows.length - resolved.length,
+    albion_only_pool: albionOnlyPool.length,
+    albion_only_polled: albionOnlyTargets.length,
     events_upserted: upserted,
     errors,
     duration_ms: Date.now() - startedAt,
   }
 }
 
+async function pollAndBuildRows(
+  baseUrl: string,
+  playerId: string,
+  member: MemberForRow,
+  guildId: string,
+) {
+  const [kills, deaths] = await Promise.all([
+    fetchEvents(baseUrl, playerId, 'kills'),
+    fetchEvents(baseUrl, playerId, 'deaths'),
+  ])
+  return [
+    ...kills.map((e) => toRow(e, 'killer', member, playerId, guildId)),
+    ...deaths.map((e) => toRow(e, 'victim', member, playerId, guildId)),
+  ]
+}
+
 function toRow(
   e: KillboardEvent,
   role: 'killer' | 'victim',
-  member: GuildMemberRow,
+  member: MemberForRow,
   playerId: string,
   guildId: string,
 ) {

@@ -9,7 +9,9 @@ import { listActiveTenants } from '@/lib/tenant'
 // 으로 완화되지만 자동 리기어 처리 지연은 수 분 단위라 실질 영향 없음).
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 120
+// Vercel 의 함수 timeout 기본 300s 활용. 가입자(~200명) + 미연동 30명 sample 폴링이면
+// 약 2분 내외에 끝나지만, 길드 규모가 큰 tenant 가 여럿일 때를 대비해 여유.
+export const maxDuration = 300
 
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET
