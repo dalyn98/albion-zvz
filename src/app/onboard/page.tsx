@@ -15,10 +15,26 @@ interface OnboardGuild {
   icon: string | null
 }
 
+// bot-callback 의 errorRedirect 가 install_error=<reason> 쿼리로 돌아오는데
+// 페이지에서 사용자에게 노출하지 않으면 무한 루프처럼 보인다. reason 코드별
+// 원인이 다르므로 그대로 표시해 디버깅/사용자 안내 둘 다 한다.
+const INSTALL_ERROR_KEYS: Record<string, string> = {
+  denied: 'installErrorDenied',
+  invalid: 'installErrorInvalid',
+  state_mismatch: 'installErrorStateMismatch',
+  guild_mismatch: 'installErrorGuildMismatch',
+  bot_not_in_guild: 'installErrorBotNotInGuild',
+  server_error: 'installErrorServerError',
+}
+
+interface OnboardPageProps {
+  searchParams: Promise<{ install_error?: string }>
+}
+
 // 온보딩 랜딩: 유저가 "서버 관리" 권한을 가진 Discord 길드 목록을 콜백이 쿠키에
 // 심어 두었으므로 여기서 그대로 읽어 표시한다. 쿠키는 30분 TTL 이라 너무 오래
 // 방치하면 다시 로그인 버튼으로 리프레시하게 유도.
-export default async function OnboardPage() {
+export default async function OnboardPage({ searchParams }: OnboardPageProps) {
   const session = await getSession()
   if (!session) {
     redirect('/api/auth/discord/start?returnTo=/onboard')
@@ -27,6 +43,14 @@ export default async function OnboardPage() {
   const t = await getTranslations('onboard')
   const cookieStore = await cookies()
   const rawCookie = cookieStore.get(ONBOARD_GUILDS_COOKIE)?.value
+  const params = await searchParams
+  const installErrorRaw = params.install_error
+  const installErrorKey = installErrorRaw ? INSTALL_ERROR_KEYS[installErrorRaw] : null
+  const installErrorMessage = installErrorKey
+    ? t(installErrorKey)
+    : installErrorRaw
+      ? t('installErrorUnknown', { reason: installErrorRaw })
+      : null
 
   let guilds: OnboardGuild[] = []
   if (rawCookie) {
@@ -70,6 +94,11 @@ export default async function OnboardPage() {
         <h1 className="text-2xl sm:text-3xl font-bold text-white">{t('title')}</h1>
         <p className="text-sm text-gray-400">{t('description')}</p>
       </div>
+      {installErrorMessage && (
+        <div className="mb-6 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {installErrorMessage}
+        </div>
+      )}
       <OnboardGuildList
         guilds={guilds}
         installLabel={t('installButton')}
