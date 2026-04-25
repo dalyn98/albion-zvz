@@ -2068,6 +2068,7 @@
   },
   "battleDetail": {
     "backToList": "戦闘記録一覧",
+    "backToSelf": "自分の視点に戻る",
     "sideHome": "ホーム",
     "sideOpponent": "相手",
     "extraGuilds": "+{count} ギルド",
@@ -2080,7 +2081,11 @@
     "eventOpponent": "相手: {name}",
     "eventOpponentUnknown": "相手不明",
     "eventItemPower": "IP {value}",
-    "eventFame": "{fame} 名声"
+    "eventFame": "{fame} 名声",
+    "crossPerspectiveBanner": "[{tenant}] の視点で表示中",
+    "crossPerspectiveHint": "メンバー情報は非公開で、Albion ニックネームのみ表示されます。",
+    "crossPerspectiveAvailable": "他の視点で見る",
+    "crossPerspectiveLink": "[{tenant}] の視点"
   },
   "shopPublic": {
     "loginRequiredPrefix": "アイテムを注文するには",

@@ -2068,6 +2068,7 @@
   },
   "battleDetail": {
     "backToList": "Back to battles",
+    "backToSelf": "Back to my view",
     "sideHome": "Home",
     "sideOpponent": "Opponent",
     "extraGuilds": "+{count} guilds",
@@ -2080,7 +2081,11 @@
     "eventOpponent": "vs {name}",
     "eventOpponentUnknown": "Unknown opponent",
     "eventItemPower": "IP {value}",
-    "eventFame": "{fame} fame"
+    "eventFame": "{fame} fame",
+    "crossPerspectiveBanner": "Viewing as [{tenant}]",
+    "crossPerspectiveHint": "Member information is anonymized — only Albion nicknames are shown.",
+    "crossPerspectiveAvailable": "Other perspectives",
+    "crossPerspectiveLink": "[{tenant}] perspective"
   },
   "shopPublic": {
     "loginRequiredPrefix": "To order items, ",

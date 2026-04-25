@@ -8,6 +8,9 @@ import {
   Clock,
   Sword,
   ChevronDown,
+  EyeOff,
+  Users,
+  UserCircle2,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
@@ -21,9 +24,12 @@ import type { BattleDetail, BattleKillEvent } from '@/app/actions/battles'
 
 interface Props {
   detail: BattleDetail
+  // /battles/[id] 의 라우팅 id — cross-link 생성에 필요. detail.id 는 활성
+  // tenant 의 row id 라 cross 시점일 땐 다른 값일 수 있어서 별도 prop 으로 받는다.
+  battleId: string
 }
 
-export default async function BattleDetailView({ detail }: Props) {
+export default async function BattleDetailView({ detail, battleId }: Props) {
   const t = await getTranslations('battleDetail')
   const tList = await getTranslations('battleTracking')
 
@@ -69,9 +75,43 @@ export default async function BattleDetailView({ detail }: Props) {
       : null
 
   const participants = groupByMember(detail.events)
+  const isCross = detail.perspectiveKind === 'cross'
 
   return (
     <>
+      {isCross && detail.perspectiveTenantName && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2 flex items-start gap-2">
+          <EyeOff size={14} className="text-amber-400 mt-0.5 flex-shrink-0" />
+          <div className="space-y-0.5 min-w-0 flex-1">
+            <p className="text-amber-200 text-xs font-semibold">
+              {t('crossPerspectiveBanner', { tenant: detail.perspectiveTenantName })}
+            </p>
+            <p className="text-amber-300/70 text-[11px]">{t('crossPerspectiveHint')}</p>
+          </div>
+        </div>
+      )}
+
+      {!isCross && detail.crossTenants.length > 0 && (
+        <div className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 space-y-1.5">
+          <p className="text-gray-400 text-[11px] font-semibold flex items-center gap-1">
+            <Users size={11} />
+            {t('crossPerspectiveAvailable')}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {detail.crossTenants.map((peer) => (
+              <Link
+                key={peer.slug}
+                href={`/battles/${battleId}?perspective=${encodeURIComponent(peer.slug)}`}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20 transition-colors"
+              >
+                <EyeOff size={10} />
+                {t('crossPerspectiveLink', { tenant: peer.name })}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       <header className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 space-y-3">
         <div className="flex items-start gap-3">
           <Swords size={20} className="text-amber-400 mt-1 flex-shrink-0" />
@@ -146,8 +186,9 @@ export default async function BattleDetailView({ detail }: Props) {
           <ul className="space-y-2">
             {participants.map((p) => (
               <ParticipantRow
-                key={p.discord_id}
+                key={p.key}
                 participant={p}
+                anonymized={detail.anonymized}
                 killLabel={(count) => t('participantKills', { count })}
                 deathLabel={(count) => t('participantDeaths', { count })}
                 rolekillerLabel={t('roleKiller')}
@@ -166,7 +207,10 @@ export default async function BattleDetailView({ detail }: Props) {
 }
 
 interface Participant {
-  discord_id: string
+  // self: discord_id, cross: 익명화로 인해 albion 닉네임을 key 로 쓴다.
+  // 양쪽 모두 React list key 로만 사용.
+  key: string
+  discordId: string | null
   username: string
   avatar: string | null
   kills: number
@@ -177,17 +221,21 @@ interface Participant {
 function groupByMember(events: BattleKillEvent[]): Participant[] {
   const map = new Map<string, Participant>()
   for (const e of events) {
-    let p = map.get(e.discord_id)
+    // anonymized 모드는 discord_id 가 null 이므로 albion 닉네임(=username) 으로
+    // 묶는다. 같은 닉네임의 두 멤버가 같은 전투에 잡힐 가능성은 매우 낮음.
+    const key = e.discord_id ?? `albion:${e.username}`
+    let p = map.get(key)
     if (!p) {
       p = {
-        discord_id: e.discord_id,
+        key,
+        discordId: e.discord_id,
         username: e.username,
         avatar: e.avatar,
         kills: 0,
         deaths: 0,
         events: [],
       }
-      map.set(e.discord_id, p)
+      map.set(key, p)
     }
     if (e.role === 'killer') p.kills++
     else if (e.role === 'victim') p.deaths++
@@ -247,6 +295,9 @@ function SideCard({
 
 interface ParticipantRowProps {
   participant: Participant
+  // cross 시점은 멤버 정보 익명화 — Discord 아바타 fetch 도, /members/[id]
+  // 링크도 의미 없으므로 둘 다 끈다. UserCircle2 placeholder + 닉네임만 노출.
+  anonymized: boolean
   killLabel: (count: number) => string
   deathLabel: (count: number) => string
   rolekillerLabel: string
@@ -259,6 +310,7 @@ interface ParticipantRowProps {
 
 function ParticipantRow({
   participant,
+  anonymized,
   killLabel,
   deathLabel,
   rolekillerLabel,
@@ -275,11 +327,17 @@ function ParticipantRow({
           기본 삼각형을 지우고 우측 ChevronDown 이 open 시 180° 회전. */}
       <details className="group">
         <summary className="flex items-center gap-3 p-3 cursor-pointer list-none hover:bg-gray-800/40 transition-colors">
-          <MemberAvatar
-            discordId={participant.discord_id}
-            avatar={participant.avatar}
-            size={32}
-          />
+          {anonymized || !participant.discordId ? (
+            <span className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center flex-shrink-0">
+              <UserCircle2 size={20} className="text-gray-500" />
+            </span>
+          ) : (
+            <MemberAvatar
+              discordId={participant.discordId}
+              avatar={participant.avatar}
+              size={32}
+            />
+          )}
           <div className="min-w-0 flex-1">
             <span className="text-white text-sm font-semibold truncate block">
               {participant.username}
@@ -289,12 +347,14 @@ function ParticipantRow({
               <span className="text-red-400">{deathLabel(participant.deaths)}</span>
             </div>
           </div>
-          <Link
-            href={`/members/${participant.discord_id}`}
-            className="text-gray-500 hover:text-amber-300 text-[10px] font-mono flex-shrink-0"
-          >
-            →
-          </Link>
+          {!anonymized && participant.discordId && (
+            <Link
+              href={`/members/${participant.discordId}`}
+              className="text-gray-500 hover:text-amber-300 text-[10px] font-mono flex-shrink-0"
+            >
+              →
+            </Link>
+          )}
           <ChevronDown
             size={16}
             className="text-gray-500 flex-shrink-0 transition-transform group-open:rotate-180"
