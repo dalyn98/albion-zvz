@@ -43,8 +43,14 @@ function isAllowedForEventScope(pathname: string, eventScope: string): boolean {
 
 // 알비온 온보딩 모달을 띄우지 않을 경로. 전용 온보딩 페이지 자체, 언어 선택,
 // OAuth 콜백 중 등에서는 모달이 겹치거나 세션이 불완전할 수 있으므로 skip.
+//
+// /onboard (테넌트 기본 설정 위저드) 도 skip — 봇을 갓 설치한 사용자에겐 먼저
+// 길드/채널/리워드 등 기본 설정을 끝내게 하고, 그 뒤 자연스러운 흐름으로
+// {slug}.albion-guildmanager.com/admin/dashboard 에 도착했을 때 알비온 인증
+// 모달이 뜨도록 한다. 위저드 위에 모달이 덮이면 위저드를 못 보고 막혀버림.
 function skipAlbionOnboardingModal(pathname: string): boolean {
   if (pathname.startsWith('/onboarding/albion')) return true
+  if (pathname.startsWith('/onboard')) return true
   if (pathname.startsWith('/welcome-language')) return true
   if (pathname.startsWith('/api/auth/')) return true
   if (pathname.startsWith('/public/')) return true
