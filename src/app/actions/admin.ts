@@ -66,7 +66,8 @@ interface EventPayload {
 
 // Final check in case the client bypassed validation — a bad ISO string would
 // otherwise surface as an obscure Postgres error on insert.
-// publishing=true 면 발행 시점 검증 — gather_at + gather_location 필수.
+// publishing=true 면 발행 시점 검증 — gather_at 은 필수, gather_location 은 옵션
+// (사전에 장소를 못 정하는 이벤트도 있어 발행을 막지 않는다).
 // publishing=false 면 draft 편집 중이라 gather_at 은 비어 있어도 OK.
 function validateEventPayload(
   payload: EventPayload,
@@ -75,7 +76,6 @@ function validateEventPayload(
 ): string | null {
   if (!payload.title.trim()) return tErr('missingTitle')
   if (opts.publishing) {
-    if (!payload.gather_location.trim()) return tErr('missingLocation')
     const dt = new Date(payload.gather_at)
     if (Number.isNaN(dt.getTime())) return tErr('invalidGatherTime')
   } else if (payload.gather_at) {

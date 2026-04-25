@@ -58,10 +58,12 @@ export default function ArchiveEventList({ events }: { events: ArchivedEventCard
                         <Clock size={13} className="text-amber-400" />
                         {e.gatherDisplay}
                       </div>
-                      <div className="flex items-center gap-1.5 text-gray-300">
-                        <MapPin size={13} className="text-amber-400" />
-                        {e.gather_location}
-                      </div>
+                      {e.gather_location.trim() && (
+                        <div className="flex items-center gap-1.5 text-gray-300">
+                          <MapPin size={13} className="text-amber-400" />
+                          {e.gather_location}
+                        </div>
+                      )}
                     </div>
                     {e.total > 0 && (
                       <div className="flex items-center gap-1.5 text-xs text-gray-400">

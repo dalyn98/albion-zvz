@@ -149,7 +149,8 @@ export default function DashboardEventList({ events }: { events: Event[] }) {
                     ) : null}
                   </div>
                   <p className="text-gray-400 text-sm truncate">
-                    {event.gather_at ? formatGatherTimeFor(locale, event.gather_at) : event.gather_time} · {event.gather_location}
+                    {event.gather_at ? formatGatherTimeFor(locale, event.gather_at) : event.gather_time}
+                    {event.gather_location.trim() ? ` · ${event.gather_location}` : ''}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:flex-shrink-0">

@@ -18,7 +18,7 @@ export async function GET() {
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
 
-  const [windows, eventsRes, killsRes] = await Promise.all([
+  const [trackedBattles, eventsRes, killsRes] = await Promise.all([
     fetchTrackedBattleWindows(db, guildId),
     db
       .from('events')
@@ -29,18 +29,20 @@ export async function GET() {
       .limit(30),
     db
       .from('killboard_events')
-      .select('event_id, discord_id, role, occurred_at')
+      .select('event_id, discord_id, role, occurred_at, battle_id')
       .eq('guild_id', guildId)
       .order('occurred_at', { ascending: false })
       .limit(30),
   ])
 
+  const { windows, byBattleId } = trackedBattles
   const windowList = windows.map((w) => ({
     started_at: new Date(w.startedAtMs + 15 * 60 * 1000).toISOString(),
     ended_at: new Date(w.endedAtMs - 15 * 60 * 1000).toISOString(),
     window_start_padded: new Date(w.startedAtMs).toISOString(),
     window_end_padded: new Date(w.endedAtMs).toISOString(),
     outcome: w.outcome,
+    albion_battle_id: w.albionBattleId,
   }))
 
   const eventMatches = (eventsRes.data ?? []).map((e) => {
@@ -83,16 +85,26 @@ export async function GET() {
   })
 
   const killMatches = (killsRes.data ?? []).map((k) => {
+    const battleId = (k.battle_id as number | null) ?? null
     const t = Date.parse(k.occurred_at as string)
-    const matched = windows.some(
-      (w) => t >= w.startedAtMs && t <= w.endedAtMs,
-    )
+    let matched = false
+    let matchedBy: 'battle_id' | 'time' | null = null
+    if (battleId !== null && byBattleId.has(battleId)) {
+      matched = true
+      matchedBy = 'battle_id'
+    } else if (battleId === null) {
+      // legacy 행만 시간창 폴백 — 새 데이터 매칭 정확도와 비교용.
+      matched = windows.some((w) => t >= w.startedAtMs && t <= w.endedAtMs)
+      if (matched) matchedBy = 'time'
+    }
     return {
       event_id: k.event_id,
       discord_id: k.discord_id,
       role: k.role,
       occurred_at: k.occurred_at,
+      battle_id: battleId,
       within_tracked_window: matched,
+      matched_by: matchedBy,
     }
   })
 
@@ -104,6 +116,7 @@ export async function GET() {
       guild_id: guildId,
       summary: {
         tracked_windows_count: windows.length,
+        tracked_battle_id_count: byBattleId.size,
         recent_events_count: eventMatches.length,
         events_matched_to_window: eventsMatched,
         recent_kills_count: killMatches.length,

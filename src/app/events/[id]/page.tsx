@@ -210,10 +210,12 @@ export default async function EventDetailPage({
               <Clock size={14} className="text-amber-400" />
               {displayGatherTime}
             </div>
-            <div className="flex items-center gap-1.5 text-gray-300">
-              <MapPin size={14} className="text-amber-400" />
-              {event.gather_location}
-            </div>
+            {event.gather_location.trim() && (
+              <div className="flex items-center gap-1.5 text-gray-300">
+                <MapPin size={14} className="text-amber-400" />
+                {event.gather_location}
+              </div>
+            )}
             {totalSlots > 0 && (
               <div className="text-gray-400">
                 {t('applicants', { assigned: totalAssigned, total: totalSlots })}

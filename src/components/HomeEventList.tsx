@@ -151,10 +151,12 @@ function EventCard({ event }: { event: HomeEventCardData }) {
               <Clock size={13} className="text-amber-400" />
               {event.displayGatherTime}
             </div>
-            <div className="flex items-center gap-1.5 text-gray-300">
-              <MapPin size={13} className="text-amber-400" />
-              {event.gather_location}
-            </div>
+            {event.gather_location.trim() && (
+              <div className="flex items-center gap-1.5 text-gray-300">
+                <MapPin size={13} className="text-amber-400" />
+                {event.gather_location}
+              </div>
+            )}
           </div>
           {event.total > 0 && (
             <div className="flex items-center gap-1.5 text-xs text-gray-400">

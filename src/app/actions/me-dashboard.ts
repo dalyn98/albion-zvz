@@ -74,7 +74,7 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     regearRes,
     exchangeRes,
     donationRes,
-    trackedWindows,
+    trackedBattles,
   ] = await Promise.all([
     getMyPointsSummary(),
     // 스케줄링 UI 용. "다음 이벤트" 카드에만 쓰이므로 gather_at > now() 로 제한해
@@ -89,7 +89,7 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
       .gt('parties.events.gather_at', nowIso),
     db
       .from('killboard_events')
-      .select('role, occurred_at')
+      .select('role, occurred_at, battle_id')
       .eq('guild_id', guildId)
       .eq('discord_id', session.discordId),
     db
@@ -115,7 +115,7 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
 
   // 참여 배틀 = 멤버의 killboard 가 한 건이라도 있는 트래킹 배틀. 이 배열이
   // 모든 통계 (참여수/승패/생존/스트릭/킬/데스) 의 단일 소스.
-  const battles = groupMemberKillsByBattle(killboardRes.data ?? [], trackedWindows)
+  const battles = groupMemberKillsByBattle(killboardRes.data ?? [], trackedBattles)
 
   let kills = 0
   let deaths = 0

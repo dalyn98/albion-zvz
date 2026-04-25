@@ -624,7 +624,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       ledgerRes,
       killboardRes,
       rankingRes,
-      trackedWindows,
+      trackedBattles,
       participationsByMember,
     ] = await Promise.all([
       db
@@ -661,7 +661,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
         .eq('discord_id', discordId),
       db
         .from('killboard_events')
-        .select('event_id, role, fame, item_power, occurred_at, equipment, opponent_name, opponent_guild')
+        .select('event_id, role, fame, item_power, occurred_at, equipment, opponent_name, opponent_guild, battle_id')
         .eq('guild_id', guildId)
         .eq('discord_id', discordId),
       // 랭킹 RPC — 길드 전체 멤버의 kills/participations 를 집계해서 반환. 본인
@@ -797,7 +797,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     const memberParticipations = memberAlbionId
       ? participationsByMember.byAlbionPlayerId.get(memberAlbionId)
       : undefined
-    const killBattles = groupMemberKillsByBattle(killboardRes.data ?? [], trackedWindows)
+    const killBattles = groupMemberKillsByBattle(killboardRes.data ?? [], trackedBattles)
     const battles = mergeMemberBattles(killBattles, memberParticipations)
 
     const killboard: KillboardStats = { kills: 0, deaths: 0, kill_fame: 0, death_fame: 0 }
@@ -826,17 +826,18 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       equipment: Record<string, { Type?: string } | null> | null
       opponent_name: string | null
       opponent_guild: string | null
+      battle_id: number | null
     }
     const killHistory: MemberKillEvent[] = []
     for (const row of (killboardRes.data ?? []) as KillboardRow[]) {
       if (!row.occurred_at) continue
-      const inWindow = isWithinTrackedWindow(row.occurred_at, trackedWindows)
+      const inWindow = isWithinTrackedWindow(row.occurred_at, row.battle_id, trackedBattles)
       if (!inWindow) continue
       const fame = row.fame ?? 0
       if (row.role === 'killer') killboard.kill_fame += fame
       else if (row.role === 'victim') killboard.death_fame += fame
       const mainHandType = row.equipment?.MainHand?.Type
-      const battleKey = findTrackedBattleKey(row.occurred_at, trackedWindows)
+      const battleKey = findTrackedBattleKey(row.occurred_at, row.battle_id, trackedBattles)
       if (mainHandType && battleKey) {
         const category = extractWeaponCategory(mainHandType)
         if (category) {
@@ -1057,7 +1058,7 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
   try {
     const { db, guildId } = await requireSessionWithGuild()
 
-    const [rosterRes, killboardRes, trackedWindows, participationsByMember] = await Promise.all([
+    const [rosterRes, killboardRes, trackedBattles, participationsByMember] = await Promise.all([
       db
         .from('albion_guild_members')
         .select(
@@ -1068,7 +1069,7 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
         .maybeSingle(),
       db
         .from('killboard_events')
-        .select('event_id, role, fame, item_power, occurred_at, equipment, opponent_name, opponent_guild')
+        .select('event_id, role, fame, item_power, occurred_at, equipment, opponent_name, opponent_guild, battle_id')
         .eq('guild_id', guildId)
         .eq('albion_player_id', albionPlayerId),
       fetchTrackedBattleWindows(db, guildId),
@@ -1089,13 +1090,14 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
       equipment: Record<string, { Type?: string } | null> | null
       opponent_name: string | null
       opponent_guild: string | null
+      battle_id: number | null
     }
     const rows = (killboardRes.data ?? []) as KillboardRow[]
 
     // killboard 기반 배틀 + raw_battle.players 기반 0k0d 참여 (mig 093 부터
     // albion_player_id 키) 합집합. 미연동 멤버도 0K0D 참여 (탱커/힐러) 까지
     // participation 으로 잡힘.
-    const killBattles = groupMemberKillsByBattle(rows, trackedWindows)
+    const killBattles = groupMemberKillsByBattle(rows, trackedBattles)
     const battles = mergeMemberBattles(
       killBattles,
       participationsByMember.byAlbionPlayerId.get(albionPlayerId),
@@ -1111,12 +1113,12 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
     const killHistory: MemberKillEvent[] = []
     for (const row of rows) {
       if (!row.occurred_at) continue
-      if (!isWithinTrackedWindow(row.occurred_at, trackedWindows)) continue
+      if (!isWithinTrackedWindow(row.occurred_at, row.battle_id, trackedBattles)) continue
       const fame = row.fame ?? 0
       if (row.role === 'killer') killboard.kill_fame += fame
       else if (row.role === 'victim') killboard.death_fame += fame
       const mainHandType = row.equipment?.MainHand?.Type
-      const battleKey = findTrackedBattleKey(row.occurred_at, trackedWindows)
+      const battleKey = findTrackedBattleKey(row.occurred_at, row.battle_id, trackedBattles)
       if (mainHandType && battleKey) {
         const category = extractWeaponCategory(mainHandType)
         if (category) {

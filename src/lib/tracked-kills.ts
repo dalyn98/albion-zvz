@@ -1,7 +1,13 @@
-// tenant_battle_records 필터를 통과한 "진짜 전투" 의 시간창. 업적/통계
-// (리더보드, 내 홈, 멤버 상세 등) 에 집계할 killboard_events 를 이 창들로
-// 제한하는 용도. 1:1 갱킹/소규모 전투는 애초에 tenant_battle_records 에 못
-// 들어오므로 이 창에도 포함되지 않아 자동으로 제외된다.
+// tenant_battle_records 필터를 통과한 "진짜 전투" 의 시간창 + 정확 매칭 인덱스.
+// 업적/통계 (리더보드, 내 홈, 멤버 상세 등) 에 집계할 killboard_events 를 이
+// 트래킹 배틀들로 제한하는 용도. 1:1 갱킹/소규모 전투는 애초에 tenant_battle_records
+// 에 못 들어오므로 자동으로 제외된다.
+//
+// 매칭 우선순위:
+//   1. killboard_events.battle_id 가 있고 tracked battle_id 집합에 포함되면 정확 매칭.
+//   2. battle_id 가 NULL (legacy: 마이그 096 이전에 sync 된 행) 이면 시간창 폴백.
+// 시간창 폴백은 ±15분 padding 이라 동시간대 1:1 갱킹/소규모 전투의 킬이
+// 트래킹 배틀로 잘못 흡수되는 bug 가 있었음 — battle_id 매칭으로 차단.
 //
 // 관련 메모: feedback_albion_zvz_achievement_rules.md (규칙 1)
 
@@ -10,7 +16,7 @@ import type { getAdminClient } from '@/lib/supabase-admin'
 type Db = ReturnType<typeof getAdminClient>
 
 export interface TrackedBattleWindow {
-  // 창 안/밖 판정용 (padding 포함). isWithinTrackedWindow 가 이 범위로 판단.
+  // 창 안/밖 판정용 (padding 포함). 시간창 폴백 매칭에 사용.
   startedAtMs: number
   endedAtMs: number
   // padding 제외한 원본 tenant_battle_records.started_at. 참여 일자/스트릭
@@ -18,21 +24,33 @@ export interface TrackedBattleWindow {
   rawStartedAt: string
   // tenant_battle_records.outcome — 'win' | 'loss' | 'tie'. 승/패 집계에 사용.
   outcome: string
+  // Albion gameinfo BattleId. battle_records.albion_battle_id 에서 옴.
+  // killboard_events.battle_id (마이그 096) 와 정확 매칭에 사용. 마이그 이전
+  // legacy 데이터에서는 NULL 일 수 있어 그 경우 시간창 폴백.
+  albionBattleId: number | null
 }
 
-// battle_records.ended_at 은 정확한 종료 시각. ±0 으로 매칭해도 sync cron 이
-// 끌어온 killboard 이벤트가 전투 마지막 순간을 간발의 차로 놓치는 일이 생겨
-// 작은 버퍼를 둔다. 15분이면 정리전/리스폰 후 폭딜 같은 꼬리 전투도 커버.
+// fetchTrackedBattleWindows 의 반환 — windows 외에 byBattleId 룩업 Map 을 미리
+// 만들어 caller 가 재계산하지 않게 한다. byBattleId 는 albionBattleId 가 NOT NULL
+// 인 window 만 등록.
+export interface TrackedBattles {
+  windows: TrackedBattleWindow[]
+  byBattleId: Map<number, TrackedBattleWindow>
+}
+
+// battle_records.ended_at 은 정확한 종료 시각. 시간창 폴백을 위한 padding —
+// battle_id 매칭이 안 되는 legacy 행에서만 의미가 있다. 새 데이터는 battle_id
+// 정확 매칭이라 padding 영향을 받지 않는다.
 const WINDOW_PADDING_MS = 15 * 60 * 1000
 
 export async function fetchTrackedBattleWindows(
   db: Db,
   guildId: string,
   sinceIso?: string | null,
-): Promise<TrackedBattleWindow[]> {
+): Promise<TrackedBattles> {
   let q = db
     .from('tenant_battle_records')
-    .select('started_at, outcome, battle_records!inner(ended_at)')
+    .select('started_at, outcome, battle_records!inner(ended_at, albion_battle_id)')
     .eq('guild_id', guildId)
   if (sinceIso) q = q.gte('started_at', sinceIso)
 
@@ -41,61 +59,90 @@ export async function fetchTrackedBattleWindows(
     started_at: string
     outcome: string
     battle_records:
-      | { ended_at: string | null }
-      | { ended_at: string | null }[]
+      | { ended_at: string | null; albion_battle_id: number | string | null }
+      | { ended_at: string | null; albion_battle_id: number | string | null }[]
       | null
   }
   const windows: TrackedBattleWindow[] = []
+  const byBattleId = new Map<number, TrackedBattleWindow>()
   for (const row of (data ?? []) as Row[]) {
     const br = Array.isArray(row.battle_records) ? row.battle_records[0] : row.battle_records
     if (!br?.ended_at) continue
     const startMs = Date.parse(row.started_at)
     const endMs = Date.parse(br.ended_at)
     if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) continue
-    windows.push({
+    // PostgREST 가 bigint 를 string 으로 직렬화할 수 있어 number 로 정규화.
+    const rawBattleId = br.albion_battle_id
+    const albionBattleId =
+      typeof rawBattleId === 'number'
+        ? rawBattleId
+        : typeof rawBattleId === 'string' && rawBattleId.length > 0
+          ? Number(rawBattleId)
+          : null
+    const window: TrackedBattleWindow = {
       startedAtMs: startMs - WINDOW_PADDING_MS,
       endedAtMs: endMs + WINDOW_PADDING_MS,
       rawStartedAt: row.started_at,
       outcome: row.outcome,
-    })
+      albionBattleId: albionBattleId !== null && Number.isFinite(albionBattleId) ? albionBattleId : null,
+    }
+    windows.push(window)
+    if (window.albionBattleId !== null) {
+      byBattleId.set(window.albionBattleId, window)
+    }
   }
   windows.sort((a, b) => a.startedAtMs - b.startedAtMs)
-  return windows
+  return { windows, byBattleId }
 }
 
-// occurredAt(ISO) 이 하나 이상의 tracked window 에 들어오는지 이분탐색.
-// windows 는 startedAtMs 오름차순으로 정렬되어 있어야 하며, 창끼리 겹치는
-// 경우도 있을 수 있으므로 "startedAtMs <= t" 인 마지막 창을 찾아 endedAtMs
-// 와 비교한다.
+// killboard_events 행 한 건이 tracked battle 에 속하는지 판정.
+// battle_id 가 있으면 정확 매칭, 없으면 시간창 폴백.
 export function isWithinTrackedWindow(
-  occurredAtIso: string,
-  windows: ReadonlyArray<TrackedBattleWindow>,
+  occurredAtIso: string | null,
+  battleId: number | null,
+  tracked: TrackedBattles,
 ): boolean {
-  return findTrackedWindow(occurredAtIso, windows) !== null
+  return findTrackedWindow(occurredAtIso, battleId, tracked) !== null
 }
 
-// 이벤트의 battle_started_at 에 매칭되는 tracked window 를 찾아 outcome 을
-// 돌려준다. 없으면 null (공개 전투로 집계된 배틀이 없어 승/패 판정 불가).
+// 이벤트의 battle_started_at 과 (선택) battle_id 로 매칭되는 tracked window 의
+// outcome 을 돌려준다. 없으면 null (공개 전투로 집계된 배틀이 없어 승/패 판정 불가).
 export function findTrackedOutcome(
   occurredAtIso: string | null,
-  windows: ReadonlyArray<TrackedBattleWindow>,
+  battleId: number | null,
+  tracked: TrackedBattles,
 ): string | null {
-  if (!occurredAtIso) return null
-  return findTrackedWindow(occurredAtIso, windows)?.outcome ?? null
+  return findTrackedWindow(occurredAtIso, battleId, tracked)?.outcome ?? null
 }
 
-// 이벤트가 속한 tracked battle 의 raw started_at 을 돌려준다 — 배틀 단위
-// 그룹핑 키로 사용. 같은 키가 나오는 killboard row 들은 같은 전투이므로,
-// 무기 사용 통계처럼 "1전투당 한 번" 집계가 필요할 때 이 키로 Set 을 만든다.
+// 행이 속한 tracked battle 의 그룹핑 키. "1전투당 한 번" 집계가 필요할 때 이 키로
+// Set 을 만든다. 우선순위: albionBattleId(precise) → rawStartedAt(legacy fallback).
 export function findTrackedBattleKey(
   occurredAtIso: string | null,
-  windows: ReadonlyArray<TrackedBattleWindow>,
+  battleId: number | null,
+  tracked: TrackedBattles,
 ): string | null {
-  if (!occurredAtIso) return null
-  return findTrackedWindow(occurredAtIso, windows)?.rawStartedAt ?? null
+  const w = findTrackedWindow(occurredAtIso, battleId, tracked)
+  if (!w) return null
+  return w.albionBattleId !== null ? `albion:${w.albionBattleId}` : `time:${w.rawStartedAt}`
 }
 
 function findTrackedWindow(
+  occurredAtIso: string | null,
+  battleId: number | null,
+  tracked: TrackedBattles,
+): TrackedBattleWindow | null {
+  // Authoritative match — kill 의 battle_id 가 있으면 그걸 우선 신뢰.
+  // 시간창 안에 들어와도 다른 battle_id 면 그건 다른 전투의 이벤트라 집계 X.
+  if (battleId !== null && Number.isFinite(battleId)) {
+    return tracked.byBattleId.get(battleId) ?? null
+  }
+  // Legacy NULL: 시간창 폴백 (마이그 096 이전 sync 된 killboard_events 행).
+  if (!occurredAtIso) return null
+  return findTrackedWindowByTime(occurredAtIso, tracked.windows)
+}
+
+function findTrackedWindowByTime(
   occurredAtIso: string,
   windows: ReadonlyArray<TrackedBattleWindow>,
 ): TrackedBattleWindow | null {
@@ -110,8 +157,8 @@ function findTrackedWindow(
     if (windows[mid].startedAtMs <= t) lo = mid + 1
     else hi = mid
   }
-  // 후보는 [0, lo) 내의 창들. 하지만 overlap 이 있을 수 있어
-  // 인접 몇 개만 스캔하면 충분하다 — 모두 훑지 않아도 되도록 최근 20개로 상한.
+  // 후보는 [0, lo) 내의 창들. 하지만 overlap 이 있을 수 있어 인접 몇 개만
+  // 스캔하면 충분하다 — 모두 훑지 않아도 되도록 최근 20개로 상한.
   const start = Math.max(0, lo - 20)
   for (let i = start; i < lo; i++) {
     if (t <= windows[i].endedAtMs) return windows[i]
@@ -119,8 +166,8 @@ function findTrackedWindow(
   return null
 }
 
-// 멤버의 killboard 이벤트를 트래킹 배틀 창 단위로 묶어 "참여한 배틀" 목록으로
-// 반환. 창 밖의 킬은 무시 (1:1 갱킹 등). 참여 배틀 하나에 복수 킬/데스가
+// 멤버의 killboard 이벤트를 트래킹 배틀 단위로 묶어 "참여한 배틀" 목록으로
+// 반환. 트래킹 외 킬은 무시 (1:1 갱킹 등). 참여 배틀 하나에 복수 킬/데스가
 // 있으면 합산.
 //
 // 설계 의도: 업적/통계의 진짜 소스는 killboard + tenant_battle_records + raw_battle.players.
@@ -140,20 +187,20 @@ export interface MemberBattleOutcome {
 }
 
 export function groupMemberKillsByBattle<
-  K extends { role: string | null; occurred_at: string | null },
+  K extends { role: string | null; occurred_at: string | null; battle_id: number | null },
 >(
   kills: ReadonlyArray<K>,
-  windows: ReadonlyArray<TrackedBattleWindow>,
+  tracked: TrackedBattles,
 ): MemberBattleOutcome[] {
-  if (windows.length === 0 || kills.length === 0) return []
-  // windows 인덱스 기준으로 집계. 정렬은 startedAtMs 오름차순 보장되어 있음.
-  const agg = new Map<number, MemberBattleOutcome>()
+  if (tracked.windows.length === 0 || kills.length === 0) return []
+  // window 의 rawStartedAt 을 키로 집계. 같은 시각의 다른 battle_id 두 개가
+  // 충돌하는 케이스는 거의 없지만, 안전을 위해 albionBattleId 우선 키 사용.
+  const agg = new Map<string, MemberBattleOutcome>()
   for (const k of kills) {
-    if (!k.occurred_at) continue
-    const idx = findTrackedWindowIndex(k.occurred_at, windows)
-    if (idx == null) continue
-    const w = windows[idx]
-    let entry = agg.get(idx)
+    const w = findTrackedWindow(k.occurred_at, k.battle_id, tracked)
+    if (!w) continue
+    const key = w.albionBattleId !== null ? `albion:${w.albionBattleId}` : `time:${w.rawStartedAt}`
+    let entry = agg.get(key)
     if (!entry) {
       entry = {
         startedAt: w.rawStartedAt,
@@ -162,7 +209,7 @@ export function groupMemberKillsByBattle<
         killCount: 0,
         deathCount: 0,
       }
-      agg.set(idx, entry)
+      agg.set(key, entry)
     }
     if (k.role === 'killer') entry.killCount += 1
     else if (k.role === 'victim') {
@@ -253,25 +300,4 @@ export function mergeMemberBattles(
     }
   }
   return Array.from(byStart.values()).sort((a, b) => a.startedAt.localeCompare(b.startedAt))
-}
-
-function findTrackedWindowIndex(
-  occurredAtIso: string,
-  windows: ReadonlyArray<TrackedBattleWindow>,
-): number | null {
-  if (windows.length === 0) return null
-  const t = Date.parse(occurredAtIso)
-  if (!Number.isFinite(t)) return null
-  let lo = 0
-  let hi = windows.length
-  while (lo < hi) {
-    const mid = (lo + hi) >>> 1
-    if (windows[mid].startedAtMs <= t) lo = mid + 1
-    else hi = mid
-  }
-  const start = Math.max(0, lo - 20)
-  for (let i = start; i < lo; i++) {
-    if (t <= windows[i].endedAtMs) return i
-  }
-  return null
 }

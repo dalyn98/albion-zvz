@@ -388,8 +388,12 @@ export async function sendEventNotification(
   const fields: Array<{ name: string; value: string; inline?: boolean }> = [
     { name: options.fieldLabels.gatherAt, value: formatGatherAt(event.gather_at, options.dateLocale), inline: true },
     { name: options.fieldLabels.gatherTime, value: event.gather_time, inline: true },
-    { name: options.fieldLabels.gatherLocation, value: event.gather_location, inline: false },
   ]
+  // gather_location 은 옵션. 비어 있으면 Discord embed 의 빈 string 거부 + UX
+  // 노이즈 방지를 위해 통째로 생략.
+  if (event.gather_location && event.gather_location.trim()) {
+    fields.push({ name: options.fieldLabels.gatherLocation, value: event.gather_location, inline: false })
+  }
   if (event.special_notes && event.special_notes.trim()) {
     fields.push({ name: options.fieldLabels.specialNotes, value: event.special_notes, inline: false })
   }

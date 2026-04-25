@@ -33,10 +33,12 @@ export default function PublishEventBanner({ event }: Props) {
 
   // 서버 검증이 publishEvent 내부에서 이루어지지만, 최소한의 로컬 힌트를 위해
   // 누락 필드를 표시해 사용자가 "왜 발행이 안되는지" 를 바로 알 수 있게 한다.
+  // gather_location 은 옵션 — 사전에 장소가 정해지지 않은 이벤트(즉석 결정,
+  // TBD)도 발행 가능. 비어 있으면 공개 페이지/Discord embed 에서 위치 줄을
+  // 통째로 숨긴다.
   const missing: string[] = []
   if (!event.title.trim()) missing.push(t('fieldTitle'))
   if (!event.gather_at) missing.push(t('fieldGatherAt'))
-  if (!event.gather_location.trim()) missing.push(t('fieldGatherLocation'))
   const canPublishLocally = missing.length === 0
 
   const handlePublish = async () => {

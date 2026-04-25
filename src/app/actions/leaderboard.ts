@@ -67,6 +67,7 @@ type KillboardRow = {
   albion_player_id: string | null
   role: string | null
   occurred_at: string | null
+  battle_id: number | null
 }
 
 export async function getLeaderboard(
@@ -96,11 +97,11 @@ export async function getLeaderboard(
 
   let killboardQ = db
     .from('killboard_events')
-    .select('albion_player_id, role, occurred_at')
+    .select('albion_player_id, role, occurred_at, battle_id')
     .eq('guild_id', guildId)
   if (cutoff) killboardQ = killboardQ.gte('occurred_at', cutoff)
 
-  const [rosterRes, avatarsRes, killboardRes, trackedWindows, participations] = await Promise.all([
+  const [rosterRes, avatarsRes, killboardRes, trackedBattles, participations] = await Promise.all([
     rosterQ,
     avatarsQ,
     killboardQ,
@@ -174,7 +175,7 @@ export async function getLeaderboard(
     // 로스터/아바타 둘 다에 없으면 이미 길드 탈퇴자 — 랭킹에서 제외.
     if (!meta) continue
     const kills = killsByMember.get(albionId) ?? []
-    const killBattles = groupMemberKillsByBattle(kills, trackedWindows)
+    const killBattles = groupMemberKillsByBattle(kills, trackedBattles)
     const battles = mergeMemberBattles(killBattles, participations.byAlbionPlayerId.get(albionId))
     if (battles.length === 0) continue
     let killCount = 0
