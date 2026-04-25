@@ -3,6 +3,7 @@ import { signSession, SESSION_COOKIE_NAME, cookieOptions } from '@/lib/session'
 import { getDiscordGuild, exchangeBotInstallCode, getCurrentUser } from '@/lib/discord'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { isValidTenantSlug } from '@/lib/tenant-resolver'
+import { upsertGuildAvatar } from '@/lib/discord-avatar'
 import { SLOT_ROLES } from '@/types'
 
 const ONBOARD_GUILDS_COOKIE = 'discord_onboard_guilds'
@@ -189,6 +190,26 @@ export async function GET(request: NextRequest) {
     }
 
     const installerUsername = installer.global_name ?? installer.username
+
+    // 정상 OAuth 콜백(/api/auth/discord/callback) 은 로그인 시점에 guild_avatars
+    // 행을 upsert 한다. 봇 설치자는 그 경로를 거치지 않을 수 있으므로 (다른
+    // Discord 계정으로 사이트에 들어왔다거나, 사이트 로그인 없이 바로 봇 설치
+    // 링크를 클릭했거나) 여기서 보장. albion_server 등 알비온 식별자 컬럼은
+    // 빈 상태로 유지되어 onboarding 모달이 자연스럽게 한 번 뜨고 manual save 등
+    // UPDATE 가 0 rows 가 되지 않는다.
+    try {
+      await upsertGuildAvatar(
+        tenantId,
+        installerDiscordId,
+        installerUsername,
+        installer.avatar,
+        true,
+        false,
+      )
+    } catch (e) {
+      console.error('[bot-callback] upsertGuildAvatar failed', e)
+    }
+
     const newSession = await signSession({
       discordId: installerDiscordId,
       username: installerUsername,
