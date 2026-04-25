@@ -3,10 +3,9 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { syncKillboard } from '@/lib/killboard-sync'
 import { listActiveTenants } from '@/lib/tenant'
 
-// 킬보드 동기화 cron. GitHub Actions 가 15분 주기로 호출하면 모든 활성 테넌트에
-// 대해 sync 를 실행한다. 과거엔 "이벤트 중 5분 / 평시 1시간" 분기 로직이 있었으나
-// battle-tracker 와 동일한 15분 tick 으로 단순화했다 (이벤트 중 실시간성이 5→15분
-// 으로 완화되지만 자동 리기어 처리 지연은 수 분 단위라 실질 영향 없음).
+// 킬보드 동기화 cron. Vercel Pro native cron (vercel.json) 으로 5분 주기 호출 →
+// 모든 활성 테넌트에 대해 sync 를 실행한다. battle-tracker 와 동일한 tick 으로
+// 묶어서 자동 리기어 처리 지연을 최소화.
 
 export const dynamic = 'force-dynamic'
 // Vercel 의 함수 timeout 기본 300s 활용. 가입자(~200명) + 미연동 30명 sample 폴링이면

@@ -17,12 +17,13 @@ import {
   type TenantBattleRow,
 } from '@/lib/battle-tracking-helpers'
 
-// 15분 주기로 돌면서 home_guild_id + server 가 설정된 모든 테넌트의 홈 길드가
+// 5분 주기로 돌면서 home_guild_id + server 가 설정된 모든 테넌트의 홈 길드가
 // 참여한 공개 전투를 수집한다. 규모 카테고리(small/middle/large/zerg) 는
 // buildTenantBattleRow 가 자동 판정 — 어드민 토글/체크박스 제거.
 //
-// 호출 규약: Authorization: Bearer <CRON_SECRET> 로 GET. .github/workflows/
-// battle-tracker.yml (Vercel Hobby 플랜 정책상 GitHub Actions 사용).
+// 호출 규약: Authorization: Bearer <CRON_SECRET>. Vercel Pro native cron 으로
+// 등록 (vercel.json) — Vercel 이 자동으로 Bearer 헤더를 붙인다. 수동 백필은
+// /super-admin 의 "지금 동기화" 버튼이 ?pages=20 으로 깊게 호출.
 //
 // 동작:
 //   1. tenants 순회 → server + homeGuild 를 가진 tenant 목록 수집.
@@ -31,9 +32,9 @@ import {
 //   4. 해당 server 의 각 tenant 에 대해 계산 → 자동 규모 분류 → tenant_
 //      battle_records upsert.
 //
-// 페이지 크기: Albion API 가 limit ≤ 51 만 허용해 50/페이지 * 2페이지 = 100건을
-// 매 tick 가져온다. 피크 타임에도 50건이 ~20분을 커버하므로 2페이지면 ~40분 —
-// GitHub Actions schedule 지연(수 분)에도 안전 마진.
+// 페이지 크기: Albion API 가 limit ≤ 51 만 허용해 50/페이지. 기본 2페이지(=100건,
+// 피크 타임 ~10분 커버) → 5분 주기 cron 에 안전 마진. 수동 백필 시 ?pages=N
+// (1~20) 로 더 깊게 가져올 수 있음.
 
 export const dynamic = 'force-dynamic'
 
