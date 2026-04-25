@@ -1080,7 +1080,31 @@
     "discordLogin": "Log in with Discord",
     "memberRequired": "You must be a member of the guild to view this site.\nAsk an admin for an invite, then log in again.",
     "logout": "Sign in with another account",
-    "publicRecords": "View public records"
+    "publicRecords": "View public records",
+    "learnMore": "Try this with my own guild"
+  },
+  "publicLanding": {
+    "siteName": "Albion Guild Manager",
+    "tagline": "Run your Albion Online guild from one place.",
+    "subheading": "Event scheduling, automatic regear payouts, a guild shop, and member analytics — install one Discord bot and let it handle the busywork.",
+    "ctaPrimary": "Install the bot on my Discord",
+    "ctaSecondary": "View public records",
+    "featuresTitle": "What you get",
+    "feature1Title": "Event builds + Discord pings",
+    "feature1Body": "Compose party/slot builds, publish, and the channel gets an @everyone notification automatically. Members sign up for slots from the web and check in.",
+    "feature2Title": "Automatic regear payouts",
+    "feature2Body": "Killboard plus AODP market data feed an auto-payout flow that compensates fallen members after each fight. Manual claims and admin approval workflows are built in.",
+    "feature3Title": "Guild shop + point exchange",
+    "feature3Body": "Sell in-game items for points at automatically-priced rates. Baseline check-in/out tracking and drift reports keep stock honest.",
+    "feature4Title": "Battle records + member stats",
+    "feature4Body": "Killboard polling captures guild battles. Per-member K/D, weapon usage, and attendance roll up automatically.",
+    "howTitle": "How does setup work?",
+    "howStep1": "Sign in with Discord and pick the guild that should host the bot.",
+    "howStep2": "Wire up member/admin roles, an announcement channel, and your Albion guild ID.",
+    "howStep3": "You're live at <slug>your-guild.albion-guildmanager.com</slug> and ready to run events.",
+    "footerNote": "Made by Monkku · Guild operations automation",
+    "alreadyHaveGuild": "Already running a guild here?",
+    "loginInstead": "Sign in with Discord"
   },
   "auth": {
     "error": {
@@ -2100,7 +2124,22 @@
     "deliveryNoticePlaceholder": "e.g. After approval you'll get a DM in the Discord #shop channel, delivered via in-game mail.",
     "deliveryNoticeClearLabel": "Clear banner",
     "deliveryNoticeClearTooltip": "Empty string hides the banner",
-    "deliveryNoticeTooLong": "Max {max} characters"
+    "deliveryNoticeTooLong": "Max {max} characters",
+    "aodpInfoTitle": "How does AODP pricing work?",
+    "aodpInfoBody": "Auto shop prices come from AODP (Albion Online Data Project) market data, anchored to one guild city. The auto price tracks your actual trading rate only when the city, price mode, and minimum quality are tuned correctly.",
+    "aodpInfoCityHint": "Pick the city your members buy and sell at most often.",
+    "aodpInfoModeHint": "Use an averaged mode (avg_3d / avg_7d) to reduce regear payout volatility."
+  },
+  "setupChecklist": {
+    "title": "Finish your setup ({count} left)",
+    "description": "Complete these so event notifications and member verification work correctly.",
+    "eventChannelLabel": "Connect event announcement channel",
+    "eventChannelDescription": "Discord channel that receives the @everyone notification when you publish an event.",
+    "eventChannelHint": "Without this, the \"Notify\" button has nowhere to post.",
+    "albionHomeGuildIdLabel": "Register your Albion guild ID",
+    "albionHomeGuildIdDescription": "In-game guild ID used to verify member nicknames.",
+    "albionHomeGuildIdHint": "Until this is set, every member is treated as [unverified].",
+    "configureLink": "Open settings page"
   },
   "publishEventBanner": {
     "draftStatus": "Draft status",

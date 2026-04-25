@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Shield, ShoppingBag } from 'lucide-react'
+import { Shield, ShoppingBag, Info } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import { getAppSetting } from '@/lib/app-settings'
@@ -153,6 +153,18 @@ export default async function AdminShopPage() {
           <Shield size={14} />
           {tPage('baselineLink')}
         </Link>
+      </div>
+
+      <div className="rounded-xl border border-sky-400/30 bg-sky-500/5 p-4 sm:p-5 flex items-start gap-3">
+        <Info size={16} className="text-sky-300 mt-0.5 flex-shrink-0" />
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <h2 className="text-sm font-semibold text-sky-100">{tPage('aodpInfoTitle')}</h2>
+          <p className="text-xs text-sky-100/80 leading-relaxed">{tPage('aodpInfoBody')}</p>
+          <ul className="text-xs text-sky-100/70 list-disc pl-5 space-y-0.5 mt-1">
+            <li>{tPage('aodpInfoCityHint')}</li>
+            <li>{tPage('aodpInfoModeHint')}</li>
+          </ul>
+        </div>
       </div>
 
       <ShopAnomalyPanel />

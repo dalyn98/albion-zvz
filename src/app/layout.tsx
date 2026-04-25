@@ -13,7 +13,8 @@ import { getSession } from '@/lib/session'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getMemberAlbionIdentity } from '@/lib/albion-identity'
-import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
+import { getSessionGuildId, getPrimaryTenantId, getTenantDiscordConfig } from '@/lib/tenant'
+import { classifyHost, resolveTenantBySlug } from '@/lib/tenant-resolver'
 
 // Routes that should render for anyone, even without a session. The proxy
 // forwards the pathname via x-pathname so we can decide here without duplicating
@@ -185,26 +186,47 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   let gateContent: React.ReactNode = null
   if (locked) {
     // 잠긴 상태 → 사용자는 비로그인/게스트인 경우가 많다. session 이 있으면 해당
-    // tenant, 없으면 현재 요청 host 로 이미 해석된 tenant (layout 외부에서 resolve
-    // 됨) — 그러나 여기선 명시적 host 컨텍스트가 없어 primary tenant fallback.
-    const gateGuildId = session
-      ? await getSessionGuildId(session)
-      : await getPrimaryTenantId()
-    const [bannerUrl, ctaText, tLanding, tAuthError] = await Promise.all([
+    // tenant, 없으면 host 의 subdomain 으로 tenant 를 해석. 둘 다 실패하면
+    // primary tenant fallback. tenant.name 을 헤드라인으로 사용해 봇 설치마다
+    // 다른 길드 브랜딩이 자동으로 잡히게 한다.
+    const hostHeader = headersList.get('host')
+    const classification = classifyHost(hostHeader)
+    let resolvedTenantName: string | null = null
+    let gateGuildId: string
+    if (session) {
+      gateGuildId = await getSessionGuildId(session)
+      const cfg = await getTenantDiscordConfig(gateGuildId)
+      resolvedTenantName = cfg?.name ?? null
+    } else if (classification.kind === 'tenant') {
+      const resolved = await resolveTenantBySlug(classification.slug)
+      if (resolved) {
+        gateGuildId = resolved.tenantId
+        resolvedTenantName = resolved.name
+      } else {
+        gateGuildId = await getPrimaryTenantId()
+      }
+    } else {
+      gateGuildId = await getPrimaryTenantId()
+    }
+    const [bannerUrl, ctaText, tLanding, tAuthError, tPublicLanding] = await Promise.all([
       getAppSetting('landing_banner_url', '', gateGuildId),
       getAppSetting('landing_cta_text', '', gateGuildId),
       getTranslations('landing'),
       getTranslations('auth.error'),
+      getTranslations('publicLanding'),
     ])
+    const siteName = resolvedTenantName ?? tPublicLanding('siteName')
     gateContent = (
       <AppGate
         reason={session ? 'no_role' : 'not_logged_in'}
+        siteName={siteName}
         bannerUrl={bannerUrl}
         ctaText={ctaText || tLanding('defaultCta')}
         loginLabel={tLanding('discordLogin')}
         memberRequiredLabel={tLanding('memberRequired')}
         logoutLabel={tLanding('logout')}
         publicRecordsLabel={tLanding('publicRecords')}
+        learnMoreLabel={tLanding('learnMore')}
         authErrorLabels={{
           denied: tAuthError('denied'),
           invalid: tAuthError('invalid'),

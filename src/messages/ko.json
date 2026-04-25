@@ -1080,7 +1080,31 @@
     "discordLogin": "Discord로 로그인",
     "memberRequired": "길드에 가입되어 있지 않아 사이트를 볼 수 없습니다.\n길드 관리자에게 초대를 요청한 뒤 다시 로그인해주세요.",
     "logout": "다른 계정으로 로그인",
-    "publicRecords": "로그인 없이 전적 보기"
+    "publicRecords": "로그인 없이 전적 보기",
+    "learnMore": "내 길드에서 사용해보기"
+  },
+  "publicLanding": {
+    "siteName": "Albion Guild Manager",
+    "tagline": "Albion Online 길드 운영, 한 곳에서.",
+    "subheading": "이벤트 알림, 자동 리기어, 길드 상점, 멤버 통계까지 — Discord 봇 한 번 설치로 길드 운영을 자동화합니다.",
+    "ctaPrimary": "내 디스코드 서버에 봇 설치",
+    "ctaSecondary": "공개 전적 보기",
+    "featuresTitle": "주요 기능",
+    "feature1Title": "이벤트 빌드 + Discord 알림",
+    "feature1Body": "파티/슬롯 빌드를 만들고 발행하면 길드 채널에 @everyone 알림이 자동으로 갑니다. 길드원은 웹에서 슬롯 신청 → 출석 체크.",
+    "feature2Title": "자동 리기어 보상",
+    "feature2Body": "킬보드 + AODP 시세를 연동해 전투 후 죽은 멤버에게 자동으로 보상 포인트를 지급. 수동 신청 / 관리자 승인 워크플로우도 함께.",
+    "feature3Title": "길드 상점 + 포인트 환전",
+    "feature3Body": "포인트로 살 수 있는 인게임 아이템을 자동 가격으로 운영. 베이스라인 입고/출고 트래킹과 변동 리포트 포함.",
+    "feature4Title": "전투 기록 + 멤버 통계",
+    "feature4Body": "킬보드를 폴링해 길드 전투를 자동 기록하고, 멤버별 K/D · 무기 통계 · 출석률을 모아 표시.",
+    "howTitle": "어떻게 시작하나요?",
+    "howStep1": "Discord 로그인으로 봇을 설치할 길드를 선택합니다.",
+    "howStep2": "멤버/관리자 역할과 알림 채널, 알비온 길드 ID 를 연결합니다.",
+    "howStep3": "곧바로 <slug>your-guild.albion-guildmanager.com</slug> 주소에서 길드 운영을 시작하세요.",
+    "footerNote": "Made by Monkku · 길드 운영 자동화 도구",
+    "alreadyHaveGuild": "이미 길드를 운영중이신가요?",
+    "loginInstead": "Discord로 로그인"
   },
   "auth": {
     "error": {
@@ -2100,7 +2124,22 @@
     "deliveryNoticePlaceholder": "예: 주문 승인 후 디스코드 #상점 채널에서 DM 받으면 인게임 우편으로 전달됩니다.",
     "deliveryNoticeClearLabel": "배너 비우기",
     "deliveryNoticeClearTooltip": "빈 문자열 = 배너 숨김",
-    "deliveryNoticeTooLong": "최대 {max}자까지 입력 가능"
+    "deliveryNoticeTooLong": "최대 {max}자까지 입력 가능",
+    "aodpInfoTitle": "AODP 시세는 어떻게 동작하나요?",
+    "aodpInfoBody": "상점 자동 가격은 AODP(Albion Online Data Project) 의 거래소 시세를 길드 도시 1곳을 기준으로 가져옵니다. 도시·가격 모드·최소 품질을 정확히 맞춰야 자동 가격이 길드의 실제 거래 시세에 가까워집니다.",
+    "aodpInfoCityHint": "기준 도시는 길드의 주요 거래 거점으로 — 길드원이 가장 많이 사고/파는 곳을 고르세요.",
+    "aodpInfoModeHint": "리기어 보상 변동성을 줄이려면 평균 모드(avg_3d / avg_7d)가 안전합니다."
+  },
+  "setupChecklist": {
+    "title": "설정 마무리하기 ({count}개 남음)",
+    "description": "이 항목들을 채워야 이벤트 알림과 길드원 인증이 정상 동작합니다.",
+    "eventChannelLabel": "이벤트 공지 채널 연결",
+    "eventChannelDescription": "이벤트 발행 시 @everyone 알림이 갈 Discord 채널.",
+    "eventChannelHint": "비어 있으면 \"알림 보내기\" 버튼이 동작하지 않습니다.",
+    "albionHomeGuildIdLabel": "알비온 길드 ID 등록",
+    "albionHomeGuildIdDescription": "길드원 알비온 닉네임 인증의 기준이 되는 인게임 길드 ID.",
+    "albionHomeGuildIdHint": "비어 있으면 모든 길드원이 [미인증] 상태로 처리됩니다.",
+    "configureLink": "설정 페이지로 이동"
   },
   "publishEventBanner": {
     "draftStatus": "임시 저장 (draft) 상태",

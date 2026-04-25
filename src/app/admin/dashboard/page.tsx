@@ -7,6 +7,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import type { Event } from '@/types'
 import DashboardEventList from '@/components/DashboardEventList'
 import OnboardCompletionBanner from '@/components/OnboardCompletionBanner'
+import SetupChecklist from '@/components/SetupChecklist'
 import TemplateList from '@/components/TemplateList'
 import { listTemplates } from '@/app/actions/templates'
 
@@ -45,6 +46,10 @@ export default async function DashboardPage({
   const section = resolveSection(sp.section)
   const showOnboardedBanner = sp.onboarded === '1'
 
+  const session = await getSession()
+  if (!session) throw new Error('Unauthorized')
+  const guildId = await getSessionGuildId(session)
+
   const [tDashboard, tTemplates, tOnboard] = await Promise.all([
     getTranslations('adminDashboard'),
     getTranslations('adminTemplates'),
@@ -61,6 +66,8 @@ export default async function DashboardPage({
           dismissLabel={tOnboard('completionBannerDismiss')}
         />
       )}
+
+      <SetupChecklist guildId={guildId} />
 
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-white">

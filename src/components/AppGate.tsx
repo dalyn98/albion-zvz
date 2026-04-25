@@ -16,23 +16,27 @@ export type GateReason = 'not_logged_in' | 'no_role'
 
 interface Props {
   reason: GateReason
+  siteName: string
   bannerUrl: string
   ctaText: string
   loginLabel: string
   memberRequiredLabel: string
   logoutLabel: string
   publicRecordsLabel: string
+  learnMoreLabel: string
   authErrorLabels: Record<string, string>
 }
 
 export default function AppGate({
   reason,
+  siteName,
   bannerUrl,
   ctaText,
   loginLabel,
   memberRequiredLabel,
   logoutLabel,
   publicRecordsLabel,
+  learnMoreLabel,
   authErrorLabels,
 }: Props) {
   const searchParams = useSearchParams()
@@ -70,7 +74,7 @@ export default function AppGate({
       <div className="relative z-10 w-full max-w-sm text-center space-y-8">
         <div className="space-y-3">
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
-            Menhera
+            {siteName}
           </h1>
           <p className="text-gray-200/90 text-sm leading-relaxed drop-shadow whitespace-pre-wrap">
             {reason === 'no_role' ? memberRequiredLabel : ctaText}
@@ -96,12 +100,20 @@ export default function AppGate({
 
         {errorMessage && <p className="text-red-300 text-xs drop-shadow">{errorMessage}</p>}
 
-        <a
-          href="/public/records"
-          className="inline-block text-gray-300/90 hover:text-white text-xs drop-shadow underline underline-offset-4 decoration-gray-500/60"
-        >
-          {publicRecordsLabel}
-        </a>
+        <div className="flex flex-col items-center gap-2">
+          <a
+            href="/public/records"
+            className="inline-block text-gray-300/90 hover:text-white text-xs drop-shadow underline underline-offset-4 decoration-gray-500/60"
+          >
+            {publicRecordsLabel}
+          </a>
+          <a
+            href="/public/landing"
+            className="inline-block text-gray-300/90 hover:text-white text-xs drop-shadow underline underline-offset-4 decoration-gray-500/60"
+          >
+            {learnMoreLabel}
+          </a>
+        </div>
       </div>
 
       <p className="absolute bottom-4 left-0 right-0 text-center text-[11px] text-gray-400/80 drop-shadow z-10 tracking-wide">

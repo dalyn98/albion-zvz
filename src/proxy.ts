@@ -24,6 +24,17 @@ function redirectLegacyHost(request: NextRequest): NextResponse | null {
   return NextResponse.redirect(target, 308)
 }
 
+// Root domain root path (`albion-guildmanager.com/`) goes to the public landing
+// page so first-time visitors see marketing instead of the AppGate. Tenant
+// subdomains keep the existing flow — their root is the events list.
+function redirectRootDomainHome(request: NextRequest): NextResponse | null {
+  if (request.nextUrl.pathname !== '/') return null
+  const host = request.headers.get('host')
+  const classification = classifyHost(host)
+  if (classification.kind !== 'root') return null
+  return NextResponse.redirect(new URL('/public/landing', request.url), 307)
+}
+
 function withPathname(response: NextResponse, pathname: string): NextResponse {
   // Forwards the current pathname so the root layout can decide whether to
   // render the AppGate — layouts can't read nextUrl directly. Any response
@@ -35,6 +46,9 @@ function withPathname(response: NextResponse, pathname: string): NextResponse {
 export async function proxy(request: NextRequest) {
   const legacyRedirect = redirectLegacyHost(request)
   if (legacyRedirect) return legacyRedirect
+
+  const rootHomeRedirect = redirectRootDomainHome(request)
+  if (rootHomeRedirect) return rootHomeRedirect
 
   const pathname = request.nextUrl.pathname
 

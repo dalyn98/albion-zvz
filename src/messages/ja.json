@@ -1080,7 +1080,31 @@
     "discordLogin": "Discord でログイン",
     "memberRequired": "ギルドに加入していないためサイトを閲覧できません。\nギルド管理者に招待を依頼してから再度ログインしてください。",
     "logout": "別のアカウントでログイン",
-    "publicRecords": "ログインなしで戦績を見る"
+    "publicRecords": "ログインなしで戦績を見る",
+    "learnMore": "自分のギルドでも使ってみる"
+  },
+  "publicLanding": {
+    "siteName": "Albion Guild Manager",
+    "tagline": "アルビオンオンラインのギルド運営を、ひとつの場所で。",
+    "subheading": "イベント告知・自動リギア支給・ギルドショップ・メンバー統計まで — Discord ボットをひとつ入れるだけで、ギルド運営を自動化します。",
+    "ctaPrimary": "自分の Discord サーバーにボットを導入",
+    "ctaSecondary": "公開戦績を見る",
+    "featuresTitle": "主な機能",
+    "feature1Title": "イベントビルド + Discord 通知",
+    "feature1Body": "パーティ/スロット構成を作成して公開すると、ギルドチャンネルに @everyone 通知が自動で送られます。メンバーは Web からスロット申請して出席。",
+    "feature2Title": "自動リギア支給",
+    "feature2Body": "Killboard と AODP の相場データを連携し、戦闘後に倒れたメンバーへ自動でポイントを支給。手動申請・管理者承認のワークフローも完備。",
+    "feature3Title": "ギルドショップ + ポイント交換",
+    "feature3Body": "ポイントで購入できるゲーム内アイテムを自動価格で運営。ベースライン入庫/出庫トラッキングと変動レポートで在庫管理を確実に。",
+    "feature4Title": "戦闘記録 + メンバー統計",
+    "feature4Body": "Killboard をポーリングしてギルド戦闘を自動記録。メンバー別 K/D・武器統計・出席率がまとめて表示されます。",
+    "howTitle": "導入の流れは?",
+    "howStep1": "Discord でログインし、ボットを導入するギルドを選びます。",
+    "howStep2": "メンバー/管理者ロール・告知チャンネル・アルビオンギルド ID を接続。",
+    "howStep3": "そのまま <slug>your-guild.albion-guildmanager.com</slug> の URL でギルド運営を開始できます。",
+    "footerNote": "Made by Monkku · ギルド運営自動化ツール",
+    "alreadyHaveGuild": "すでにギルドを運営中ですか?",
+    "loginInstead": "Discord でログイン"
   },
   "auth": {
     "error": {
@@ -2100,7 +2124,22 @@
     "deliveryNoticePlaceholder": "例: 注文承認後、Discord #shop チャンネルでDMを送り、ゲーム内メールで配送します。",
     "deliveryNoticeClearLabel": "バナーを空に",
     "deliveryNoticeClearTooltip": "空文字列 = バナー非表示",
-    "deliveryNoticeTooLong": "最大 {max} 文字まで"
+    "deliveryNoticeTooLong": "最大 {max} 文字まで",
+    "aodpInfoTitle": "AODP 価格はどう動くの?",
+    "aodpInfoBody": "ショップ自動価格は AODP (Albion Online Data Project) のマーケットデータを、ギルド拠点の都市1つを基準に取得します。都市・価格モード・最低品質を適切に設定すると、自動価格が実際の取引相場に近づきます。",
+    "aodpInfoCityHint": "ギルドメンバーが最もよく売買する都市を基準に選んでください。",
+    "aodpInfoModeHint": "リギア報酬の変動を抑えたい場合は平均モード (avg_3d / avg_7d) が安全です。"
+  },
+  "setupChecklist": {
+    "title": "セットアップを仕上げる (残り {count} 件)",
+    "description": "これらを設定すると、イベント通知とメンバー認証が正しく動作します。",
+    "eventChannelLabel": "イベント告知チャンネルを接続",
+    "eventChannelDescription": "イベント公開時に @everyone 通知を送る Discord チャンネル。",
+    "eventChannelHint": "未設定だと「通知」ボタンが投稿先を持ちません。",
+    "albionHomeGuildIdLabel": "アルビオンギルド ID を登録",
+    "albionHomeGuildIdDescription": "メンバーのアルビオンニックネーム認証で使うゲーム内ギルド ID。",
+    "albionHomeGuildIdHint": "未登録の間、すべてのメンバーが [未認証] 扱いになります。",
+    "configureLink": "設定ページへ"
   },
   "publishEventBanner": {
     "draftStatus": "下書き (draft) 状態",
