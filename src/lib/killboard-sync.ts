@@ -14,12 +14,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { resolveAlbionServer, type AlbionServer } from './killboard'
 import { getAppSetting } from './app-settings'
+import { ALBION_GAMEINFO_ENDPOINTS } from './albion-endpoints'
 
-const SERVER_ENDPOINTS: Record<AlbionServer, string> = {
-  west: 'https://gameinfo.albiononline.com/api/gameinfo',
-  east: 'https://gameinfo-sgp.albiononline.com/api/gameinfo',
-  europe: 'https://gameinfo-ams.albiononline.com/api/gameinfo',
-}
+const SERVER_ENDPOINTS = ALBION_GAMEINFO_ENDPOINTS
 
 // 동기 1회에서 이름 검색할 수 있는 최대 멤버 수. 나머지는 다음 tick 에서 처리.
 const MAX_SEARCH_PER_RUN = 10

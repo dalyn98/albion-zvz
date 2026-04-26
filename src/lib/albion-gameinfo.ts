@@ -5,13 +5,11 @@
 // - /search?q={nick}  → 플레이어/길드 후보 (drop-down 용)
 // - /players/{id}     → 상세 (인증 시점에 길드 ID 확정용)
 
+import { ALBION_GAMEINFO_ENDPOINTS } from '@/lib/albion-endpoints'
+
 export type AlbionServer = 'west' | 'east' | 'europe'
 
-const SERVER_ENDPOINTS: Record<AlbionServer, string> = {
-  west: 'https://gameinfo.albiononline.com/api/gameinfo',
-  east: 'https://gameinfo-sgp.albiononline.com/api/gameinfo',
-  europe: 'https://gameinfo-ams.albiononline.com/api/gameinfo',
-}
+const SERVER_ENDPOINTS = ALBION_GAMEINFO_ENDPOINTS
 
 export const ALBION_SERVERS: AlbionServer[] = ['west', 'east', 'europe']
 

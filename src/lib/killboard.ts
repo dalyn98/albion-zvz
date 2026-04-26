@@ -9,17 +9,14 @@
 // just flags suspicious requests to the admin.
 
 import { getAppSetting } from '@/lib/app-settings'
+import { ALBION_GAMEINFO_ENDPOINTS } from '@/lib/albion-endpoints'
 
 export type AlbionServer = 'west' | 'east' | 'europe'
 
 // Mapping matches Albion Online's official API hostnames. 'east' is the
 // Asia/Pacific server (Singapore DC) — naming follows albionbb.com's scheme
 // which most admins are already using to eyeball battles.
-const SERVER_ENDPOINTS: Record<AlbionServer, string> = {
-  west: 'https://gameinfo.albiononline.com/api/gameinfo',
-  east: 'https://gameinfo-sgp.albiononline.com/api/gameinfo',
-  europe: 'https://gameinfo-ams.albiononline.com/api/gameinfo',
-}
+const SERVER_ENDPOINTS = ALBION_GAMEINFO_ENDPOINTS
 
 const DEFAULT_SERVER: AlbionServer = 'east'
 

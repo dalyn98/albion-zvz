@@ -15,15 +15,10 @@
 // 승/패: 각 측 killFame 합산 비교. 같으면 tie.
 
 import type { AlbionServer } from '@/lib/albion-gameinfo'
+import { ALBION_GAMEINFO_ENDPOINTS } from '@/lib/albion-endpoints'
 
-// /battles 는 gameinfo 서버와 다른 base 도메인을 쓴다(같은 호스트, /api/gameinfo
-// prefix 동일). 온보딩용 gameinfo 클라이언트와 분리해 base 를 이 파일에서 별도
-// 관리 — 추후 전투 API 만 다른 CDN/리소스로 옮겨가는 경우에도 영향 최소.
-const SERVER_ENDPOINTS: Record<AlbionServer, string> = {
-  west: 'https://gameinfo.albiononline.com/api/gameinfo',
-  east: 'https://gameinfo-sgp.albiononline.com/api/gameinfo',
-  europe: 'https://gameinfo-ams.albiononline.com/api/gameinfo',
-}
+// /battles 는 gameinfo 서버와 같은 base 도메인 + /api/gameinfo prefix 를 쓴다.
+const SERVER_ENDPOINTS = ALBION_GAMEINFO_ENDPOINTS
 
 export interface AlbionBattlePlayer {
   name: string

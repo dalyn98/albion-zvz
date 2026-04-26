@@ -337,6 +337,18 @@ export async function processAutoRegear(
 
       // 같은 discord_id + 창 안에 여러 사망이 있어도 전부 별개의 killboard_event.
       // RPC 가 (event_id, killboard_event_id) 단위로 idempotent 하므로 그냥 순회.
+      //
+      // 1단계: 자격 필터링 + 모든 victim 의 gear key 합집합을 만들어 AODP 한 번 호출.
+      // (이전에는 victim 별 호출 → zerg 패배 시 N×fallback chain 으로 cron 타임아웃 위험)
+      type EligibleVictim = {
+        victim: KillboardVictimRow
+        slot: SlotRow
+        roleCap: number
+        gearEntries: ReturnType<typeof extractGearKeys>
+      }
+      const eligible: EligibleVictim[] = []
+      const allKeys: AodpPriceKey[] = []
+      const seenKeys = new Set<string>()
       for (const v of victimRows) {
         const slot = slotByDiscord.get(v.discord_id)
         if (!slot) {
@@ -347,7 +359,6 @@ export async function processAutoRegear(
           skippedExcluded += 1
           continue
         }
-
         // 역할 상한 적용. 수동 flow 와 동일 semantic — role_rewards.silver 가
         // 0 또는 미등록이면 "이 역할은 리기어 차단" 의미로 스킵.
         const roleCap = slot.role_name ? roleCapByName.get(slot.role_name) : undefined
@@ -355,12 +366,24 @@ export async function processAutoRegear(
           skippedNoRoleCap += 1
           continue
         }
-
         const gearEntries = extractGearKeys(v.equipment)
-        const aodpKeys = gearEntries.map((g) => g.key)
-        const priceMap =
-          aodpKeys.length > 0 ? await fetchAodpPrices(aodpKeys, aodpOptions) : new Map()
+        for (const entry of gearEntries) {
+          const dedupe = `${entry.key.uniqueName}|${entry.key.enchant}|${entry.key.quality}`
+          if (seenKeys.has(dedupe)) continue
+          seenKeys.add(dedupe)
+          allKeys.push(entry.key)
+        }
+        eligible.push({ victim: v, slot, roleCap, gearEntries })
+      }
 
+      // 2단계: 한 번의 AODP fetch 로 모든 victim 가격 해결. fetchAodpPrices 가
+      // 내부에서 100건 단위 청킹 + fallback chain 을 처리하므로 호출자는 단일
+      // await 만 신경쓰면 된다.
+      const priceMap =
+        allKeys.length > 0 ? await fetchAodpPrices(allKeys, aodpOptions) : new Map()
+
+      // 3단계: victim 별 line item 조립 + RPC 호출.
+      for (const { victim: v, slot, roleCap, gearEntries } of eligible) {
         const lineItems: GearLineItem[] = []
         let marketSilver = 0
         for (const entry of gearEntries) {
