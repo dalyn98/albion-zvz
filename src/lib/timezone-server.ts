@@ -13,9 +13,12 @@ import { getAppSetting } from '@/lib/app-settings'
 import { DEFAULT_TENANT_TIMEZONE, isValidTenantTimezone } from '@/lib/timezone'
 
 // Fetches the configured timezone for a tenant from app_settings. Falls back
-// to DEFAULT_TENANT_TIMEZONE when unset (existing menhera tenant silently
-// inherits Asia/Seoul, preserving current behavior).
-export async function getTenantTimezone(guildId?: string): Promise<string> {
+// to DEFAULT_TENANT_TIMEZONE when unset/corrupt — degrade is safe (UI labels
+// still render) and avoids breaking existing menhera tenant on Asia/Seoul.
+//
+// guildId 는 필수 — multi-tenant 환경에서 묵시적 primary-tenant fallback 은
+// cross-tenant 누설 위험.
+export async function getTenantTimezone(guildId: string): Promise<string> {
   const value = await getAppSetting('tenant_timezone', DEFAULT_TENANT_TIMEZONE, guildId)
   return isValidTenantTimezone(value) ? value : DEFAULT_TENANT_TIMEZONE
 }

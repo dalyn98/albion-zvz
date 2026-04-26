@@ -16,16 +16,13 @@ export const dynamic = 'force-dynamic'
 
 export default async function SettingsPage() {
   // 관리자 역할은 app_settings 이 아니라 tenants.admin_role_ids 에 저장된다.
-  // proxy.ts 의 /admin/dashboard 게이트를 통과한 시점에 세션은 유효하지만,
-  // 레거시 세션(guildId 없음) 대비 getSessionGuildId 의 primary-tenant fallback 을 거친다.
+  // proxy.ts 의 /admin/dashboard 게이트가 admin 세션을 강제하므로 여기서
+  // session 부재는 비정상 — throw 로 명시적 실패.
   const session = await getSession()
-  const sessionGuildId = session ? await getSessionGuildId(session) : null
-  const tenantConfig = sessionGuildId ? await getTenantDiscordConfig(sessionGuildId) : null
+  if (!session) throw new Error('Unauthorized')
+  const tenantId = await getSessionGuildId(session)
+  const tenantConfig = await getTenantDiscordConfig(tenantId)
   const adminRoleIds = tenantConfig?.adminRoleIds ?? []
-
-  // getAppSetting 은 guildId 를 명시해야 현재 tenant 의 값을 읽는다 — 미지정 시
-  // primary tenant 로 fallback 되어 다른 길드의 설정이 보일 수 있다.
-  const tenantId = sessionGuildId ?? undefined
 
   const [
     message,

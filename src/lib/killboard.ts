@@ -29,21 +29,20 @@ function parseServer(raw: string): AlbionServer {
 }
 
 // tenant 별로 albion_server 가 다를 수 있다. guildId 를 받아 해당 tenant 의 값을
-// 읽고, 미지정 시 primary tenant fallback (현재 호출자가 아직 guildId 를 전달하지
-// 않는 레거시 경로 호환).
-export async function resolveAlbionServer(guildId?: string): Promise<AlbionServer> {
+// 읽는다. 호출자는 항상 명시 — 미지정 fallback 은 cross-tenant 누설 위험.
+export async function resolveAlbionServer(guildId: string): Promise<AlbionServer> {
   const raw = await getAppSetting('albion_server', DEFAULT_SERVER, guildId)
   return parseServer(raw)
 }
 
-async function resolveBaseUrl(guildId?: string): Promise<string> {
+async function resolveBaseUrl(guildId: string): Promise<string> {
   return SERVER_ENDPOINTS[await resolveAlbionServer(guildId)]
 }
 
 // 길드명은 tenant 별로 다르다. app_settings.albion_home_guild_name 에서 읽고,
 // 미설정이면 검증 자체를 skip — 잘못된 길드명으로 자동 인증 false 가 나가는 게
 // 더 위험. 마이그 088 backfill 로 멘헤라 tenant 는 'Menhera' 가 들어가 있다.
-async function resolveGuildName(guildId?: string): Promise<string> {
+async function resolveGuildName(guildId: string): Promise<string> {
   const raw = await getAppSetting('albion_home_guild_name', '', guildId)
   return raw.trim()
 }
@@ -128,7 +127,7 @@ export async function verifyDeathInWindow(
   username: string,
   windowStartIso: string,
   windowEndIso: string,
-  opts: { guildName?: string; guildId?: string } = {},
+  opts: { guildId: string; guildName?: string },
 ): Promise<VerifyResult> {
   const guildName = (opts.guildName ?? (await resolveGuildName(opts.guildId))).trim()
   if (!guildName) {

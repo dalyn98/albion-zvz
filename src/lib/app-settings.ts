@@ -1,5 +1,4 @@
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getPrimaryTenantId } from '@/lib/tenant'
 
 export type AppSettingKey =
   | 'event_notification_message'
@@ -131,21 +130,20 @@ export type AppSettingKey =
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.
 //
-// Multi-tenant: 세 번째 인자 guildId 를 넘기면 해당 테넌트의 설정을 읽는다.
-// 생략하면 primary tenant (DISCORD_GUILD_ID 매핑) 로 fallback. Phase 2 마이그
-// 기간 동안 기존 호출자가 깨지지 않도록 하는 임시 호환성이며, 모든 호출 경로가
-// guildId 를 명시하게 되면 default 를 제거한다.
+// guildId 는 필수 — multi-tenant 환경에서 묵시적 primary-tenant fallback 은
+// cross-tenant 누설 위험이 있다. 모든 호출자는 명시적으로 현재 tenant 의
+// guildId 를 넘겨야 한다 (세션 → getSessionGuildId, 비로그인 공개 페이지 →
+// getPrimaryTenantId 명시 호출, cron → 루프 중 tenant.id).
 export async function getAppSetting(
   key: AppSettingKey,
   fallback: string,
-  guildId?: string,
+  guildId: string,
 ): Promise<string> {
-  const resolvedGuildId = guildId ?? (await getPrimaryTenantId())
   const db = getAdminClient()
   const { data, error } = await db
     .from('app_settings')
     .select('value')
-    .eq('guild_id', resolvedGuildId)
+    .eq('guild_id', guildId)
     .eq('key', key)
     .maybeSingle()
   if (error || !data) return fallback

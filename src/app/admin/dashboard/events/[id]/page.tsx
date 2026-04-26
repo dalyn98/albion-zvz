@@ -93,7 +93,7 @@ export default async function EditEventPage({
     listTemplates(),
     getTranslations('adminEditEvent'),
     getAppSetting('auto_regear_enabled', 'false', guildId),
-    getTenantTimezone(),
+    getTenantTimezone(guildId),
   ])
   const autoRegearEnabled = autoRegearRaw === 'true'
 

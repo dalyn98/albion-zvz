@@ -24,7 +24,7 @@ export default async function RegearWindowsSection() {
     listRegearRoleOptions(),
     getRegearPayoutRatePercent(),
     getTranslations('regearWindow'),
-    getTenantTimezone(),
+    getTenantTimezone(guildId),
   ])
 
   if (windows.length === 0) return null

@@ -5,7 +5,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import {
   computeOpponentGuildBreakdown,
-  type AlbionBattle,
+  parseRawBattle,
   type OpponentGuildBreakdown,
   type SizeCategory,
 } from '@/lib/albion-battles'
@@ -214,8 +214,9 @@ export async function getBattleDetail(
     const endedAt = (battle?.ended_at as string | null) ?? (activeRow.started_at as string)
 
     // 상대 길드 분해: raw_battle 이 있으면 Albion API 원본에서 직접 측 분리.
-    // raw_battle 부재(이론상 없음 — battle_records.raw_battle 은 NOT NULL) 시 빈 배열.
-    const rawBattle = (battle?.raw_battle as unknown) as AlbionBattle | null
+    // parseRawBattle 로 read-time 검증 — 손상된/구버전 JSONB 가 들어와도
+    // 페이지가 깨지지 않고 빈 배열로 degrade.
+    const rawBattle = parseRawBattle(battle?.raw_battle)
     const opponentGuilds: OpponentGuildBreakdown[] = rawBattle
       ? computeOpponentGuildBreakdown(rawBattle, activeRow.home_guild_id as string, {
           minTeamSize: OPPONENT_GUILD_MIN_TEAM_SIZE,

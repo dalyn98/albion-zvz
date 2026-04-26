@@ -67,6 +67,20 @@ export interface AlbionBattle {
   alliances: Record<string, AlbionBattleAlliance>
 }
 
+// battle_records.raw_battle JSONB 는 우리 cron 이 Albion API 응답을 그대로
+// 적재한 값이라 평소엔 AlbionBattle 모양이지만, 손상된 마이그레이션/구버전
+// 행을 읽었을 때를 대비해 read-time 에 핵심 필드 (id 숫자, guilds 객체) 만
+// 가볍게 검증한다. 실패하면 null 을 반환해 호출부가 빈 배열 fallback 하도록.
+export function parseRawBattle(raw: unknown): AlbionBattle | null {
+  if (!raw || typeof raw !== 'object') return null
+  const b = raw as Record<string, unknown>
+  if (typeof b.id !== 'number') return null
+  if (!b.guilds || typeof b.guilds !== 'object') return null
+  if (!b.players || typeof b.players !== 'object') return null
+  if (!b.alliances || typeof b.alliances !== 'object') return null
+  return raw as AlbionBattle
+}
+
 // Albion gameinfo `/battles` 는 limit ≤ 51 이라 예전 limit=100 호출은 HTTP 400 으로
 // 실패한다 (silent break). 안전하게 50 으로 고정하고 더 긴 시간을 커버해야 하면
 // pages 인자로 offset 페이지네이션을 돌린다 (50*pages 건).
