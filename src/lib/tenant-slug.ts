@@ -89,3 +89,20 @@ export function displayNameFromSlug(slug: string): string {
   if (base.length === 0) return ''
   return base.charAt(0).toUpperCase() + base.slice(1)
 }
+
+// 알비온 길드명에서 slug base 를 추출한다. 비ASCII (한글/한자) 는 DNS 호스트명에
+// 못 들어가므로 제거되고, 그래서 한글 길드명은 빈 문자열이 나올 수 있다 — 호출부
+// 에서 isValidTenantSlug 로 결과 후처리하고 폴백 할 것.
+//
+// suffix 는 붙이지 않는다 — 호출부의 findUniqueSlug 가 충돌 검사 후 suffix 를
+// 결정한다. bot-callback 의 slugifyGuildName(name) 은 항상 base+suffix 형태로
+// 즉시 INSERT 시도가 목적이라 별도. 두 함수의 base 추출 로직은 동일하게 유지.
+export function slugBaseFromAlbionGuildName(name: string): string {
+  return (name ?? '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 24)
+}

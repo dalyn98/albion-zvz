@@ -1998,7 +1998,8 @@
     "regearWindowClosesAtPast": "Closing time must be in the future.",
     "regearWindowHasRequests": "Cannot delete a window with submitted requests; close it instead.",
     "eventPayoutEventNotEnded": "Bulk payout is only available for ended events.",
-    "eventPayoutNoParticipants": "No slot assignees to pay out."
+    "eventPayoutNoParticipants": "No slot assignees to pay out.",
+    "homeGuildAlreadyRegistered": "This guild is already registered. The same Albion home guild can only link to one site — please contact the developer."
   },
   "memberActionError": {
     "loginRequired": "Login required.",
@@ -2173,6 +2174,7 @@
     "slugDisplayNamePrefix": "Display name:",
     "slugInvalid": "Subdomain format is invalid.",
     "slugTaken": "Another guild is already using this address. Please choose a different one.",
+    "slugAutoUpdateHint": "After verifying your Albion home guild in the next step, the display name and address will update to match the guild name automatically. The current value is just a placeholder — you can leave it as-is.",
     "slugIssueEmpty": "Please enter a subdomain.",
     "slugIssueTooShort": "Must be at least 2 characters.",
     "slugIssueTooLong": "Must be 32 characters or fewer.",
@@ -2222,6 +2224,7 @@
     "albionSelectedGuild": "Selected",
     "albionClearGuild": "Clear",
     "albionNoHomeGuild": "Not set — all onboardings will be saved as [unverified].",
+    "homeGuildAlreadyRegistered": "This guild is already registered. The same Albion home guild can only link to one site — please contact the developer.",
     "albionServerWest": "West (Americas)",
     "albionServerEast": "East (Asia)",
     "albionServerEurope": "Europe",

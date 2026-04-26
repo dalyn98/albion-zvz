@@ -32,6 +32,7 @@ interface DiscordChannelOption {
 interface Labels {
   slugLabel: string
   slugHelp: string
+  slugAutoUpdateHint: string
   slugPreviewPrefix: string
   slugDisplayNamePrefix: string
   slugIssueEmpty: string
@@ -217,6 +218,9 @@ export default function TenantSetupForm({
         {slug.length > 0 && !slugValid && slugIssueMessage && (
           <p className="text-xs text-amber-400">{slugIssueMessage}</p>
         )}
+        <p className="text-[11px] text-amber-300/80 leading-relaxed bg-amber-500/10 border border-amber-500/20 rounded-md px-2.5 py-1.5">
+          {labels.slugAutoUpdateHint}
+        </p>
       </div>
 
       {/* 시간대는 사이트 전반(이벤트 시각/스트릭/Discord 알림 등) 동작에 직접

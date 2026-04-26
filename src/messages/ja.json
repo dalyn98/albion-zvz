@@ -1998,7 +1998,8 @@
     "regearWindowClosesAtPast": "締切時刻は現在時刻より未来である必要があります。",
     "regearWindowHasRequests": "申請が 1 件以上あるウィンドウは削除できません。クローズのみ可能です。",
     "eventPayoutEventNotEnded": "終了したイベントのみ一括報酬を申請できます。",
-    "eventPayoutNoParticipants": "支給対象のスロット割当者がいません。"
+    "eventPayoutNoParticipants": "支給対象のスロット割当者がいません。",
+    "homeGuildAlreadyRegistered": "既に登録されているギルドです。同じアルビオンのホームギルドは一つのサイトにしか連携できません — 開発者にお問い合わせください。"
   },
   "memberActionError": {
     "loginRequired": "ログインが必要です。",
@@ -2173,6 +2174,7 @@
     "slugDisplayNamePrefix": "表示名:",
     "slugInvalid": "サブドメインの形式が正しくありません。",
     "slugTaken": "他のギルドが既に使用しているアドレスです。別の値を入力してください。",
+    "slugAutoUpdateHint": "次のステップでアルビオンのホームギルドを認証すると、表示名とアドレスがギルド名で自動更新されます。今入力した値は仮なのでそのままで構いません。",
     "slugIssueEmpty": "サブドメインを入力してください。",
     "slugIssueTooShort": "2文字以上で入力してください。",
     "slugIssueTooLong": "32文字以内にしてください。",
@@ -2222,6 +2224,7 @@
     "albionSelectedGuild": "選択中",
     "albionClearGuild": "解除",
     "albionNoHomeGuild": "未設定 — 全てのオンボーディングが[未認証]として保存されます。",
+    "homeGuildAlreadyRegistered": "既に登録されているギルドです。同じアルビオンのホームギルドは一つのサイトにしか連携できません — 開発者にお問い合わせください。",
     "albionServerWest": "West (Americas)",
     "albionServerEast": "East (Asia)",
     "albionServerEurope": "Europe",

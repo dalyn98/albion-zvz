@@ -299,6 +299,11 @@ export async function updateTenantTimezone(
 // 해야 한다. 둘을 따로 업데이트하면 서버는 바꿨는데 길드 UUID 는 구 서버의 값
 // 이 남아서 온보딩 인증이 전부 실패하는 상태가 된다. 이 액션은 한 번의 upsert
 // 로 두 값을 같이 쓴다. guildId 는 빈 문자열 허용(= 홈 길드 해제).
+//
+// 추가로 한 알비온 길드(UUID) 는 한 사이트에만 연결될 수 있다 (mig 101). 다른
+// tenant 가 같은 UUID 를 등록한 상태면 차단 + 사용자 친화 에러 메시지 반환.
+// 위저드 단계와 달리 이 액션은 slug 를 손대지 않는다 — 이미 active 상태인
+// tenant 의 URL 은 보존(SEO/북마크 등). 슬러그 변경은 별도 마이그레이션 흐름.
 export async function updateAlbionHomeGuild(input: {
   server: string
   guildId: string
@@ -317,6 +322,20 @@ export async function updateAlbionHomeGuild(input: {
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const sessionGuildId = await getSessionGuildId(session)
+
+    if (guildId.length > 0) {
+      const { data: conflict } = await db
+        .from('app_settings')
+        .select('guild_id')
+        .eq('key', 'albion_home_guild_id')
+        .eq('value', guildId)
+        .neq('guild_id', sessionGuildId)
+        .limit(1)
+      if (Array.isArray(conflict) && conflict.length > 0) {
+        return { error: tErr('homeGuildAlreadyRegistered') }
+      }
+    }
+
     const now = new Date().toISOString()
     const { error } = await db.from('app_settings').upsert(
       [
@@ -325,7 +344,12 @@ export async function updateAlbionHomeGuild(input: {
       ],
       { onConflict: 'guild_id,key' },
     )
-    if (error) return { error: error.message }
+    if (error) {
+      if ((error as { code?: string }).code === '23505') {
+        return { error: tErr('homeGuildAlreadyRegistered') }
+      }
+      return { error: error.message }
+    }
     revalidatePath('/admin/dashboard/settings')
     return {}
   } catch (e) {

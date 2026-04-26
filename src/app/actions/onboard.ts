@@ -11,7 +11,7 @@ import {
   type SessionPayload,
 } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { isValidTenantSlug } from '@/lib/tenant-slug'
+import { isValidTenantSlug, slugBaseFromAlbionGuildName } from '@/lib/tenant-slug'
 import { buildTenantHostUrl } from '@/lib/tenant-resolver'
 import { signHopToken } from '@/lib/oauth-state'
 import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
@@ -141,12 +141,76 @@ interface SaveTenantAlbionInput {
 
 const MAX_HOME_GUILD_ID_LENGTH = 500
 const MAX_HOME_GUILD_NAME_LENGTH = 200
+const SLUG_FALLBACK_RETRIES = 5
+
+// 다른 tenant 가 같은 알비온 홈 길드(UUID) 를 등록한 상태인지 확인한다. 인덱스
+// (mig 101) 가 DB 레벨에서도 강제하지만, 사용자 친화적인 에러 메시지를 주려면
+// 먼저 SELECT 로 확인하는 게 깔끔. 자기 자신은 결과에서 제외.
+async function findHomeGuildConflict(
+  db: ReturnType<typeof getAdminClient>,
+  homeGuildId: string,
+  excludeTenantId: string,
+): Promise<boolean> {
+  const { data, error } = await db
+    .from('app_settings')
+    .select('guild_id')
+    .eq('key', 'albion_home_guild_id')
+    .eq('value', homeGuildId)
+    .neq('guild_id', excludeTenantId)
+    .limit(1)
+  if (error) {
+    // 조회 실패 시 보수적으로 false (= 충돌 없음으로 가정). DB unique index 가
+    // 최종 안전망이라 false 양성이라도 INSERT 단계에서 23505 로 거부됨.
+    console.warn('[saveTenantAlbion] conflict check failed', error)
+    return false
+  }
+  return Array.isArray(data) && data.length > 0
+}
+
+// 알비온 길드명 base 부터 시작해 충돌 없는 tenants.slug 를 찾는다. 호출 패턴:
+//   1차: base 단독 ("jelda") — 사용자가 가장 원하는 깨끗한 형태
+//   2~6차: base-{random4} ("jelda-a1b2") — 충돌 시 4글자 random suffix 로 회피
+// 모두 실패하면 null 반환 → 호출부가 slug 갱신을 skip 하고 기존 slug 유지.
+async function findUniqueSlug(
+  db: ReturnType<typeof getAdminClient>,
+  base: string,
+  excludeTenantId: string,
+): Promise<string | null> {
+  const isAvailable = async (candidate: string): Promise<boolean> => {
+    if (!isValidTenantSlug(candidate)) return false
+    const { data, error } = await db
+      .from('tenants')
+      .select('id')
+      .eq('slug', candidate)
+      .neq('id', excludeTenantId)
+      .maybeSingle()
+    if (error) {
+      console.warn('[saveTenantAlbion] slug availability check failed', error)
+      return false
+    }
+    return !data
+  }
+
+  if (await isAvailable(base)) return base
+
+  for (let i = 0; i < SLUG_FALLBACK_RETRIES; i += 1) {
+    const suffix = Math.random().toString(36).slice(2, 6)
+    const candidate = `${base}-${suffix}`
+    if (await isAvailable(candidate)) return candidate
+  }
+  return null
+}
 
 // 단계 2: 알비온 서버 + 홈 길드. 길드 UUID/이름은 서버별로 다르기 때문에 셋을
 // 원자적으로 저장해야 한다 — app_settings PK 는 (guild_id, key) 복합.
 //
 // homeGuildName 은 killboard-sync 의 동명이인 매칭과 verifyDeathInWindow 의 길드
 // 일치 검증에 사용된다 (env 하드코딩 ALBION_GUILD_NAME 대체).
+//
+// 추가로 (사용자 요청 2026-04-26) 홈 길드 인증이 끝나는 이 시점에 서브도메인
+// slug 도 길드 이름 기반으로 자동 갱신된다 — 사이트 곳곳에 표시되는 식별자가
+// 알비온 길드 이름과 일치하도록. 한 알비온 길드는 한 사이트에만 연결될 수 있어
+// (mig 101 unique index) 동일 UUID 가 다른 tenant 에 이미 등록된 상태면 에러.
 export async function saveTenantAlbion(
   input: SaveTenantAlbionInput,
 ): Promise<{ error?: string }> {
@@ -171,6 +235,34 @@ export async function saveTenantAlbion(
   }
 
   const db = getAdminClient()
+
+  // 길드를 실제로 선택했을 때만 (skip 흐름 아닐 때) 중복 검사 + slug 갱신.
+  if (homeGuildId.length > 0) {
+    const conflict = await findHomeGuildConflict(db, homeGuildId, input.tenantId)
+    if (conflict) return { error: t('homeGuildAlreadyRegistered') }
+
+    if (homeGuildName.length > 0) {
+      const base = slugBaseFromAlbionGuildName(homeGuildName)
+      // base 가 비었거나 reserved 단어와 매칭되는 등 invalid 라면 slug 갱신을
+      // 포기하고 기존 자동 slug ("guild-xxxx") 그대로 유지. 한글/한자 길드명이
+      // 흔히 이 케이스 — 그래도 사이트 동작에는 문제 없음.
+      if (base.length > 0) {
+        const newSlug = await findUniqueSlug(db, base, input.tenantId)
+        if (newSlug) {
+          const { error: slugError } = await db
+            .from('tenants')
+            .update({ slug: newSlug })
+            .eq('id', input.tenantId)
+          if (slugError) {
+            // race 로 인한 충돌 — 다음 시도에서 새 random suffix 로 회피 가능.
+            // 위저드 진행을 막지 않기 위해 로그만 남기고 통과.
+            console.warn('[saveTenantAlbion] slug update failed', slugError)
+          }
+        }
+      }
+    }
+  }
+
   const now = new Date().toISOString()
   const { error } = await db.from('app_settings').upsert(
     [
@@ -195,7 +287,14 @@ export async function saveTenantAlbion(
     ],
     { onConflict: 'guild_id,key' },
   )
-  if (error) return { error: error.message }
+  if (error) {
+    // unique index (mig 101) 가 race 로 막은 경우 — 위에서 SELECT 후 다른 tenant
+    // 가 같은 UUID 를 등록했을 때. 사용자에겐 동일 메시지로 안내.
+    if ((error as { code?: string }).code === '23505') {
+      return { error: t('homeGuildAlreadyRegistered') }
+    }
+    return { error: error.message }
+  }
   return {}
 }
 

@@ -141,6 +141,7 @@ export default async function TenantSetupPage({ params }: Props) {
         labels={{
           slugLabel: t('slugLabel'),
           slugHelp: t('slugHelp'),
+          slugAutoUpdateHint: t('slugAutoUpdateHint'),
           slugPreviewPrefix: t('slugPreviewPrefix'),
           slugDisplayNamePrefix: t('slugDisplayNamePrefix'),
           slugIssueEmpty: t('slugIssueEmpty'),
