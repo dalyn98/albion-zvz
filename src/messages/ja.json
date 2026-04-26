@@ -48,7 +48,7 @@
   },
   "adminLogin": {
     "title": "管理者ログイン",
-    "subtitle": "Menhera 管理者専用",
+    "subtitle": "管理者のみアクセス可能です",
     "noAdminRole": "{username} さんには管理者ロールがありません。",
     "signInAsDifferent": "別のアカウントでログイン",
     "loginWithDiscord": "Discord でログイン",
@@ -1265,7 +1265,6 @@
     "discordLogin": "Discord でログイン",
     "memberRequired": "ギルドに加入していないためサイトを閲覧できません。\nギルド管理者に招待を依頼してから再度ログインしてください。",
     "logout": "別のアカウントでログイン",
-    "publicRecords": "ログインなしで戦績を見る",
     "learnMore": "自分のギルドでも使ってみる"
   },
   "publicLanding": {
@@ -1931,18 +1930,6 @@
     "memberWithdrawn": "脱退したメンバーは指定できません。",
     "eventNotFound": "イベントが見つかりません。",
     "serverError": "サーバーエラーが発生しました。"
-  },
-  "publicRecords": {
-    "title": "メンヘラ戦績",
-    "description": "ログインなしで閲覧できる、相手ギルド別の通算勝敗記録です。",
-    "empty": "まだ記録された戦闘がありません。",
-    "statOpponents": "相手ギルド",
-    "statFights": "戦闘数",
-    "statWinRate": "勝率",
-    "percent": "{value}%",
-    "ctaHeadline": "もっと詳しい記録を見たい?",
-    "ctaBody": "Discord でログインすると、イベント・パーティー・MVP 記録まで閲覧できます。",
-    "ctaLogin": "Discord でログイン"
   },
   "adminActionError": {
     "serverError": "サーバーエラー",
