@@ -100,7 +100,8 @@
     "tabRegear": "Regear",
     "tabExchange": "Exchange",
     "tabDonation": "Donation",
-    "tabShop": "Shop orders"
+    "tabShop": "Shop orders",
+    "tabEventPayout": "Event payout"
   },
   "adminRegearWindows": {
     "pageTitle": "Open regear windows",
@@ -308,6 +309,44 @@
     "resolvedAt": "{status} at {datetime}",
     "handledBy": "{status} by {handler}"
   },
+  "adminEventPayoutCreate": {
+    "openButton": "Pay out to participants",
+    "modalTitle": "Bulk event payout",
+    "hint": "Pay every slot assignee of an ended event a fixed silver amount each. Another admin must approve before silver is credited.",
+    "silverPerMemberLabel": "Silver per member",
+    "silverPerMemberPlaceholder": "e.g. 100000",
+    "memoLabel": "Memo (optional)",
+    "memoPlaceholder": "e.g. April 26 ZvZ MVP bonus",
+    "participantsLabel": "Recipients",
+    "participantCount": "{count} member(s)",
+    "noParticipants": "No slot assignees to pay out.",
+    "totalPreview": "{perMember} × {count} = {total} silver total",
+    "submit": "Submit request",
+    "submitting": "Submitting…"
+  },
+  "adminEventPayoutReview": {
+    "scopePending": "Pending",
+    "scopeAll": "All",
+    "noPending": "No pending event payout requests.",
+    "noRequests": "No payout requests yet.",
+    "searchPlaceholder": "Search by event title, requester, or date",
+    "statusPending": "Pending",
+    "statusApproved": "Approved",
+    "statusRejected": "Rejected",
+    "perMember": "Per member {amount}",
+    "participantCount": "{count} member(s)",
+    "total": "Total {amount}",
+    "requestedBy": "Requested by {by} · {datetime}",
+    "memoLabel": "Memo",
+    "showParticipants": "Show recipients",
+    "hideParticipants": "Hide recipients",
+    "approveWithPayout": "Approve (+{amount} total)",
+    "reject": "Reject",
+    "rejectPlaceholder": "Reason (optional)",
+    "rejectConfirm": "Confirm reject",
+    "resolvedAt": "{status} at {datetime}",
+    "handledBy": "{status} by {handler}"
+  },
   "adminPointAdjust": {
     "openButton": "Adjust points",
     "dialogTitle": "Manual point adjustment",
@@ -351,6 +390,13 @@
     "saveOverwriteBody": "A template named \"{name}\" already exists. Overwriting will replace its party/slot configuration with this event's build. The name and creation date are kept.",
     "saveOverwriteConfirmBtn": "Overwrite",
     "templateNamePlaceholder": "e.g. Saturday weekly ZvZ",
+    "saveModeNew": "Save as new template",
+    "saveModeOverwrite": "Overwrite existing template",
+    "saveOverwriteListEmpty": "No saved templates yet. Create one above.",
+    "saveOverwriteListHint": "Click a template to overwrite it. The name is preserved; only the party/slot layout is replaced with the current build.",
+    "saveOverwriteByIdConfirmTitle": "Overwrite this template?",
+    "saveOverwriteByIdConfirmBody": "\"{name}\" template's party/slot layout will be replaced with the current event build. This action cannot be undone.",
+    "saveOverwriteByIdSavedAt": "Last saved {when}",
     "loadFromTemplate": "Load from template",
     "applying": "Applying...",
     "apply": "Apply",
@@ -1950,7 +1996,9 @@
     "regearWindowMaxDeathsInvalid": "Max deaths per member must be an integer between 1 and 20.",
     "regearWindowClosesAtInvalid": "Closing time is invalid.",
     "regearWindowClosesAtPast": "Closing time must be in the future.",
-    "regearWindowHasRequests": "Cannot delete a window with submitted requests; close it instead."
+    "regearWindowHasRequests": "Cannot delete a window with submitted requests; close it instead.",
+    "eventPayoutEventNotEnded": "Bulk payout is only available for ended events.",
+    "eventPayoutNoParticipants": "No slot assignees to pay out."
   },
   "memberActionError": {
     "loginRequired": "Login required.",
@@ -2038,6 +2086,9 @@
     "donationCancelled": "Donation request cancelled.",
     "donationApproved": "Donation request approved.",
     "donationRejected": "Donation request rejected.",
+    "eventPayoutSubmitted": "Event payout request submitted.",
+    "eventPayoutApproved": "Event payout request approved.",
+    "eventPayoutRejected": "Event payout request rejected.",
     "slotApplied": "Signed up for the slot.",
     "slotCancelled": "Slot sign-up cancelled.",
     "slotKicked": "Removed from the slot.",
@@ -2078,6 +2129,8 @@
     "donationApprovedBody": "Your guild donation was approved (+{silver} silver).",
     "donationRejectedTitle": "Donation rejected",
     "donationRejectedBody": "Your {silver} silver donation request was rejected.",
+    "eventPayoutApprovedTitle": "Event payout",
+    "eventPayoutApprovedBody": "Your event payout for {event} was approved (+{silver} silver).",
     "eventImminentTitle": "Event starting soon: {title}",
     "eventImminentBody": "Gather at {time} — prep your gear."
   },

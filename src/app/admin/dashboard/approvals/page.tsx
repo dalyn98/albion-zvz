@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ShieldCheck, Wallet, Gift, ShoppingBag } from 'lucide-react'
+import { ShieldCheck, Wallet, Gift, ShoppingBag, Coins } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import {
   listRegearRequests,
@@ -9,16 +9,19 @@ import {
 } from '@/app/actions/regear-admin'
 import { listDonationRequests } from '@/app/actions/donation-admin'
 import { listShopOrders } from '@/app/actions/shop-admin'
+import { listEventPayoutRequests } from '@/app/actions/event-payout-admin'
 import RegearReviewList from '@/components/RegearReviewList'
 import ExchangeReviewList from '@/components/ExchangeReviewList'
 import DonationReviewList from '@/components/DonationReviewList'
 import ShopOrderReviewList from '@/components/ShopOrderReviewList'
+import EventPayoutReviewList from '@/components/EventPayoutReviewList'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 import { getAdminBadgeCounts } from '@/lib/admin-badges'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
-type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop'
+type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop' | 'event_payout'
 type Scope = 'pending' | 'all'
 
 interface SearchParams {
@@ -27,7 +30,7 @@ interface SearchParams {
 }
 
 function resolveType(v: string | undefined): TypeKey {
-  if (v === 'exchange' || v === 'donation' || v === 'shop') return v
+  if (v === 'exchange' || v === 'donation' || v === 'shop' || v === 'event_payout') return v
   return 'regear'
 }
 
@@ -61,6 +64,7 @@ export default async function ApprovalsPage({
     { key: 'exchange', label: tApprovals('tabExchange'), icon: Wallet, badge: badges.exchange },
     { key: 'donation', label: tApprovals('tabDonation'), icon: Gift, badge: badges.donation },
     { key: 'shop', label: tApprovals('tabShop'), icon: ShoppingBag, badge: badges.shop },
+    { key: 'event_payout', label: tApprovals('tabEventPayout'), icon: Coins, badge: badges.eventPayout },
   ]
 
   return (
@@ -76,6 +80,7 @@ export default async function ApprovalsPage({
       {type === 'exchange' && <ExchangeSection scope={scope} guildId={guildId} />}
       {type === 'donation' && <DonationSection scope={scope} guildId={guildId} />}
       {type === 'shop' && <ShopSection scope={scope} guildId={guildId} />}
+      {type === 'event_payout' && <EventPayoutSection scope={scope} guildId={guildId} />}
     </div>
   )
 }
@@ -278,6 +283,37 @@ async function ShopSection({ scope, guildId }: { scope: Scope; guildId: string }
         </p>
       ) : (
         <ShopOrderReviewList orders={orders} avatars={avatars} />
+      )}
+    </div>
+  )
+}
+
+async function EventPayoutSection({ scope, guildId }: { scope: Scope; guildId: string }) {
+  const [{ requests, error }, t, tz] = await Promise.all([
+    listEventPayoutRequests(scope),
+    getTranslations('adminEventPayoutReview'),
+    getTenantTimezone(guildId),
+  ])
+
+  return (
+    <div className="space-y-4">
+      <ScopeTabs
+        baseHref="/admin/dashboard/approvals?tab=event_payout"
+        active={scope}
+        tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
+        accent="amber"
+      />
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+          <p className="text-red-400 text-sm">{error}</p>
+        </div>
+      )}
+      {requests.length === 0 && !error ? (
+        <p className="text-gray-500 text-sm text-center py-8">
+          {scope === 'pending' ? t('noPending') : t('noRequests')}
+        </p>
+      ) : (
+        <EventPayoutReviewList requests={requests} tz={tz} />
       )}
     </div>
   )

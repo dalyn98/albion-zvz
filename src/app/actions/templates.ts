@@ -62,21 +62,19 @@ export interface TemplateRecord {
   created_at: string
 }
 
-// 같은 이름의 기존 템플릿이 있을 때 호출자가 의도를 한 번 더 확정하지 않고
-// 무심코 덮어쓰는 사고를 막기 위해, 기본 동작은 "이름 충돌이면 conflictId 만
-// 돌려주고 저장은 미루기". UI 측에서 confirm 후 overwrite=true 로 재호출하면
-// 그때 실제로 기존 row 의 data 만 갱신한다 (이름과 created_at 은 유지).
+// 호출 모드 두 가지:
+//   1) overwriteId 지정 — 사용자가 목록에서 골라 명시적으로 덮어쓰기. 이름은
+//      유지하고 data 만 교체. 이름 입력은 무시한다.
+//   2) overwriteId 없음 — 새 이름으로 저장. 같은 이름이 이미 있으면
+//      conflictId/conflictName 만 돌려주고 실제 저장은 미룬다 (UX 안전장치).
+//      UI 가 confirm 후 overwrite=true 로 재호출하면 그때 실제 update.
 export async function saveEventAsTemplate(
   eventId: string,
   name: string,
-  options: { overwrite?: boolean } = {},
+  options: { overwrite?: boolean; overwriteId?: string } = {},
 ): Promise<{ error?: string; conflictId?: string; conflictName?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const trimmed = name.trim()
-    if (!trimmed) return { error: tErr('templateNameRequired') }
-    if (trimmed.length > 80) return { error: tErr('templateNameTooLong', { max: 80 }) }
-
     const db = await requireAdmin()
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
@@ -101,6 +99,30 @@ export async function saveEventAsTemplate(
           .sort((a, b) => a.slot_number - b.slot_number),
       })),
     }
+
+    if (options.overwriteId) {
+      // 명시적 덮어쓰기 — 이름은 손대지 않고 data 만 갱신.
+      const { data: target, error: targetErr } = await db
+        .from('event_templates')
+        .select('id')
+        .eq('guild_id', guildId)
+        .eq('id', options.overwriteId)
+        .maybeSingle()
+      if (targetErr) return { error: targetErr.message }
+      if (!target) return { error: tErr('templateNotFound') }
+      const { error: updateError } = await db
+        .from('event_templates')
+        .update({ data })
+        .eq('guild_id', guildId)
+        .eq('id', options.overwriteId)
+      if (updateError) return { error: updateError.message }
+      revalidatePath('/admin/dashboard')
+      return {}
+    }
+
+    const trimmed = name.trim()
+    if (!trimmed) return { error: tErr('templateNameRequired') }
+    if (trimmed.length > 80) return { error: tErr('templateNameTooLong', { max: 80 }) }
 
     // name 컬럼에 UNIQUE 제약이 없어 이론상 중복 row 가 있을 수 있으나 평소엔
     // 같은 이름이 1개 이하다. 가장 최근 row 를 기준으로 충돌 검사.
