@@ -184,7 +184,12 @@ export async function GET(request: NextRequest) {
     // 의 멤버여도 그 tenant subdomain 으로 hop 하면 안 된다 — onboard cookie
     // 와 이후 bot-install state cookie 가 모두 canonical 도메인에 있어야
     // 일관된다. 기존 멤버 경로를 우회해 곧장 onboarding 응답으로 진입.
-    if (returnTo.startsWith('/onboard')) {
+    //
+    // 주의: '/onboard' 와 그 하위 경로만 매칭. 단순 startsWith('/onboard')
+    // 는 '/onboarding/albion' (멤버 알비온 인증 위저드) 까지 잡아버려서
+    // 길드원 초대 링크로 들어온 사용자를 admin onboarding 으로 잘못 보낸다.
+    const isAdminOnboard = returnTo === '/onboard' || returnTo.startsWith('/onboard/')
+    if (isAdminOnboard) {
       const matchedTenantGuildIds = new Set(matchedTenants.map((t) => t.discordGuildId))
       const onboardableGuilds = userGuilds.filter((g) => {
         if (matchedTenantGuildIds.has(g.id)) return false
