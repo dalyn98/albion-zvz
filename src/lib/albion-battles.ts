@@ -140,10 +140,11 @@ export function isSizeCategory(v: unknown): v is SizeCategory {
   return v === 'small' || v === 'middle' || v === 'large' || v === 'zerg'
 }
 
-// 15명 미만 전투는 "갱크/스트래글러" 라 집계 가치가 낮아 null 을 반환 → 제외.
-// (2026-04-26 컷오프 10 → 15 로 상향. small 시작점 = "정식 ZvZ 의 최소 단위".)
+// 10명 미만 전투는 "갱크/스트래글러" 라 집계 가치가 낮아 null 을 반환 → 제외.
+// (2026-04-26 15 → 10 환원. 15 floor 는 정식 ZvZ 만 잡아내는 데에는 적절했지만
+// 10-14 명짜리 진성 소규모 교전을 모두 잘라 사용자가 누락 호소 → 10 으로 복귀.)
 export function categorizeSize(teamSize: number): SizeCategory | null {
-  if (teamSize < 15) return null
+  if (teamSize < 10) return null
   if (teamSize <= 30) return 'small'
   if (teamSize <= 60) return 'middle'
   if (teamSize <= 100) return 'large'
@@ -151,7 +152,7 @@ export function categorizeSize(teamSize: number): SizeCategory | null {
 }
 
 export const SIZE_RANGES: Record<SizeCategory, { min: number; max: number | null }> = {
-  small: { min: 15, max: 30 },
+  small: { min: 10, max: 30 },
   middle: { min: 31, max: 60 },
   large: { min: 61, max: 100 },
   zerg: { min: 101, max: null },

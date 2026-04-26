@@ -15,8 +15,8 @@ import {
 } from '@/lib/albion-battles'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
 
-// 매치업 컷오프. small 시작점(15) 과 동일.
-const MATCHUP_MIN_SIZE = 15
+// 매치업 컷오프. small 시작점(10) 과 동일.
+const MATCHUP_MIN_SIZE = 10
 
 export interface TenantBattleRow {
   guild_id: string
@@ -223,8 +223,8 @@ function buildMatchupRow(input: {
 // row insert.
 //
 // 컷오프 통과 조건:
-//   1. 홈 사이즈 ≥ 15
-//   2. mainOpp (= 가장 큰 force) 사이즈 ≥ 15
+//   1. 홈 사이즈 ≥ 10
+//   2. mainOpp (= 가장 큰 force) 사이즈 ≥ 10
 //   3. categorizeSize(max(home, mainOpp)) ≠ null (자동 만족)
 // 미통과 시 null — 행 미저장.
 export function buildProvisionalTenantRow(input: {
@@ -309,7 +309,7 @@ export interface KillboardPair {
 }
 
 // 어떤 force 와 교전했는지 판정. 페어 ≥1 발견된 force 만 통과. mainOpp 컷오프
-// (15) 미통과 force 는 제외.
+// (10) 미통과 force 는 제외.
 function determineEngagedForces(
   battle: AlbionBattle,
   homeGuildId: string,
@@ -383,11 +383,11 @@ export function buildFinalMatchupRows(input: {
 // 레거시 row backfill — 마이그 098 이전에 저장된 force_key='__legacy__' 행을
 // 새 mainOpponent 모델로 변환. killboard_events 페어 ≥1 인 force 가 있으면
 // 그것만 사용 (분리 매치업, K/D/Fame 도 페어 기반 필터링), 없으면 raw_battle 의
-// 모든 force ≥15 를 분리 매치업으로 처리(legacy 데이터는 killboard_events 가
+// 모든 force ≥10 를 분리 매치업으로 처리(legacy 데이터는 killboard_events 가
 // 사라진 경우가 있어 페어 없는 경우에도 raw_battle 에서 best-effort 로 복원,
 // 이 경우 K/D 는 raw aggregate 라 정확도 떨어짐).
 //
-// 새로 계산한 max(home, mainOpp) < 15 이면 (= 새 컷오프 미통과) 빈 배열 → 호출자
+// 새로 계산한 max(home, mainOpp) < 10 이면 (= 새 컷오프 미통과) 빈 배열 → 호출자
 // 가 row 를 삭제. 75 vs 8 같은 옛 데이터가 정리됨.
 export function buildLegacyBackfillRows(input: {
   guildId: string
@@ -410,7 +410,7 @@ export function buildLegacyBackfillRows(input: {
   )
   let usePairs = engaged.length > 0
 
-  // 2차: 페어 0건이면 raw_battle 의 모든 force ≥15 를 분리 매치업으로.
+  // 2차: 페어 0건이면 raw_battle 의 모든 force ≥10 를 분리 매치업으로.
   if (engaged.length === 0) {
     const forces = computeOpposingForces(input.battle, input.homeGuildId)
     engaged = forces.filter((f) => f.teamSize >= MATCHUP_MIN_SIZE)
