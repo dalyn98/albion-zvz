@@ -9,9 +9,30 @@ import {
   deleteRegearWindow,
   type RegearWindow,
 } from '@/app/actions/regear-windows'
+import {
+  parseGatherTime,
+  formatGatherTimeKo,
+  type GatherTimeParts,
+} from '@/lib/gather-time'
 
 interface RegearWindowsAdminProps {
   initialWindows: RegearWindow[]
+}
+
+type PartKey = keyof GatherTimeParts
+
+const PART_BOUNDS: Record<PartKey, { min: number; max: number }> = {
+  month:  { min: 1, max: 12 },
+  day:    { min: 1, max: 31 },
+  hour:   { min: 0, max: 23 },
+  minute: { min: 0, max: 59 },
+}
+
+const BLANK_PARTS: GatherTimeParts = {
+  month: Number.NaN,
+  day: Number.NaN,
+  hour: Number.NaN,
+  minute: Number.NaN,
 }
 
 export default function RegearWindowsAdmin({ initialWindows }: RegearWindowsAdminProps) {
@@ -19,6 +40,25 @@ export default function RegearWindowsAdmin({ initialWindows }: RegearWindowsAdmi
   const [windows, setWindows] = useState<RegearWindow[]>(initialWindows)
   const [isPending, startTransition] = useTransition()
   const [formError, setFormError] = useState<string | null>(null)
+  const [parts, setParts] = useState<GatherTimeParts>(BLANK_PARTS)
+
+  const allBlank = (Object.keys(parts) as PartKey[]).every((k) =>
+    Number.isNaN(parts[k]),
+  )
+  const parsed = allBlank ? null : parseGatherTime(parts)
+  const preview = parsed ? formatGatherTimeKo(parsed) : null
+
+  const partSuffix = (key: PartKey): string => {
+    if (key === 'month') return t('partMonth')
+    if (key === 'day') return t('partDay')
+    if (key === 'hour') return t('partHour')
+    return t('partMinute')
+  }
+
+  const handlePartChange = (key: PartKey, raw: string) => {
+    const next = raw === '' ? Number.NaN : Number(raw)
+    setParts((prev) => ({ ...prev, [key]: next }))
+  }
 
   function refreshFromServer() {
     fetch('/admin/dashboard/regear-windows', { cache: 'no-store' })
@@ -31,6 +71,18 @@ export default function RegearWindowsAdmin({ initialWindows }: RegearWindowsAdmi
 
   async function handleSubmit(formData: FormData) {
     setFormError(null)
+
+    // closesAt 은 선택. 4칸 모두 빈 채로 두면 무기한 (직접 마감) 으로 간주.
+    // 일부만 입력된 상태는 사용자 실수로 보고 차단한다.
+    if (allBlank) {
+      formData.set('closesAt', '')
+    } else if (parsed) {
+      formData.set('closesAt', parsed.toISOString())
+    } else {
+      setFormError(t('closesAtIncomplete'))
+      return
+    }
+
     startTransition(async () => {
       const res = await openRegearWindow(formData)
       if (res.error) {
@@ -39,6 +91,7 @@ export default function RegearWindowsAdmin({ initialWindows }: RegearWindowsAdmi
       }
       const form = document.getElementById('regear-window-form') as HTMLFormElement | null
       form?.reset()
+      setParts(BLANK_PARTS)
       refreshFromServer()
       if (typeof window !== 'undefined') window.location.reload()
     })
@@ -76,6 +129,19 @@ export default function RegearWindowsAdmin({ initialWindows }: RegearWindowsAdmi
 
   const openWindows = windows.filter((w) => w.isOpen)
   const closedWindows = windows.filter((w) => !w.isOpen)
+
+  const closesAtMessage = (() => {
+    if (preview) return { tone: 'preview' as const, text: t('closesAtPreview', { value: preview }) }
+    if (allBlank) return { tone: 'hint' as const, text: t('fieldClosesAtHint') }
+    return { tone: 'error' as const, text: t('closesAtIncomplete') }
+  })()
+
+  const closesAtToneClass =
+    closesAtMessage.tone === 'preview'
+      ? 'text-amber-300'
+      : closesAtMessage.tone === 'error'
+        ? 'text-red-400'
+        : 'text-gray-500'
 
   return (
     <div className="space-y-6">
@@ -129,16 +195,36 @@ export default function RegearWindowsAdmin({ initialWindows }: RegearWindowsAdmi
               />
             </div>
             <div>
-              <label htmlFor="rw-closes-at" className="block text-xs font-medium text-gray-400 mb-1">
+              <label className="block text-xs font-medium text-gray-400 mb-1">
                 {t('fieldClosesAt')}
               </label>
-              <input
-                id="rw-closes-at"
-                name="closesAt"
-                type="datetime-local"
-                className="w-full rounded-md bg-gray-950 border border-gray-700 px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-400"
-              />
-              <p className="text-[11px] text-gray-500 mt-1">{t('fieldClosesAtHint')}</p>
+              <div className="grid grid-cols-4 gap-1.5">
+                {(Object.keys(PART_BOUNDS) as PartKey[]).map((key) => {
+                  const bounds = PART_BOUNDS[key]
+                  const value = parts[key]
+                  const suffix = partSuffix(key)
+                  return (
+                    <div key={key} className="relative">
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={bounds.min}
+                        max={bounds.max}
+                        value={Number.isNaN(value) ? '' : value}
+                        onChange={(e) => handlePartChange(key, e.target.value)}
+                        className="w-full rounded-md bg-gray-950 border border-gray-700 pl-2 pr-5 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        aria-label={suffix}
+                      />
+                      <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none">
+                        {suffix}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+              <p className={`text-[11px] mt-1 ${closesAtToneClass}`}>
+                {closesAtMessage.text}
+              </p>
             </div>
           </div>
           {formError && (
