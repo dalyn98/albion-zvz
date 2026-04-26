@@ -116,6 +116,13 @@ export type AppSettingKey =
   // 시점) 와 분리돼 있어 자동이 먼저 "pending" 행을 선점할 수 있게 한다.
   // 기본 '15'. killboard sync 지연 체크에도 이 값을 사용.
   | 'auto_regear_delay_minutes'
+  // 길드 운영 시간대 (IANA timezone string). 알비온 4개 서버 프리셋 중 하나
+  // ('Asia/Seoul'|'Europe/Berlin'|'America/New_York'|'America/Sao_Paulo') 만
+  // 허용 — 검증은 lib/timezone.ts isValidTenantTimezone. 미설정/손상값은
+  // 'Asia/Seoul' 로 fallback (기존 멘헤라 동작 유지).
+  // 영향 범위: 이벤트 집결시간 표시, 리더보드/streak/재정 stats 의 일자 경계,
+  // Discord 공지 본문의 시각 라벨.
+  | 'tenant_timezone'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

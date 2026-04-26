@@ -1061,6 +1061,15 @@
     "toggleLabel": "未認証メンバーでもサイトを利用可能にする",
     "toggleHint": "OFF にするとオンボーディング完了までサイトへのアクセスがブロックされます。"
   },
+  "adminTimezone": {
+    "title": "運営タイムゾーン",
+    "description": "イベントの集合時刻表示、リーダーボード/連続参加の日次区切り、Discord通知本文の時刻表記はすべてこのタイムゾーンで描画されます。",
+    "hint": "変更すると次のSSRページから新しいタイムゾーンで表示されます。不正な値は自動で韓国 (KST) に復元されます。",
+    "option_kr": "韓国 (KR)",
+    "option_eu": "ヨーロッパ (EU)",
+    "option_na": "北米 (NA)",
+    "option_sa": "南米 (SA)"
+  },
   "adminCdBadge": {
     "title": "CD バッジ表示の役割",
     "descriptionLine1": "武器の主要スキルに表示される効果クールタイム(レザーアーマー/食事による短縮を含む)を、どの役割に表示するかを選びます。",
@@ -2127,6 +2136,13 @@
     "channelLabel": "イベント告知チャンネル",
     "channelHelp": "イベント作成時にデフォルトで告知するDiscordチャンネル（イベントごとに変更可能）。",
     "noChannel": "(後で設定)",
+    "timezoneLabel": "運営タイムゾーン",
+    "timezoneHelp": "イベントの集合時刻、リーダーボードの日次区切り、Discord通知の表示時刻はすべてこのタイムゾーンで表示されます。アルビオンの4サーバーに対応する4つのプリセットから選択してください。管理画面でいつでも変更できます。",
+    "timezoneRequired": "運営タイムゾーンを選択してください。",
+    "timezone_kr": "韓国 (KR)",
+    "timezone_eu": "ヨーロッパ (EU)",
+    "timezone_na": "北米 (NA)",
+    "timezone_sa": "南米 (SA)",
     "saveButton": "保存して開始",
     "savingButton": "保存中...",
     "errorGeneric": "設定の保存に失敗しました。",

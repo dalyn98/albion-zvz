@@ -7,11 +7,12 @@ import { formatDateTime } from '@/lib/format-datetime'
 import { getLocale } from '@/lib/locale'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
+import { getTenantTimezone } from '@/lib/timezone'
 import ArchiveEventList, { type ArchivedEventCard } from '@/components/ArchiveEventList'
 
 export const dynamic = 'force-dynamic'
 
-async function getArchivedEvents(guildId: string): Promise<ArchivedEventCard[]> {
+async function getArchivedEvents(guildId: string, tz: string): Promise<ArchivedEventCard[]> {
   const db = getAdminClient()
   const { data: events } = await db
     .from('events')
@@ -51,9 +52,9 @@ async function getArchivedEvents(guildId: string): Promise<ArchivedEventCard[]> 
       id: e.id,
       title: e.title,
       gather_location: e.gather_location,
-      gatherDisplay: e.gather_at ? formatGatherTimeFor(locale, e.gather_at) : e.gather_time,
+      gatherDisplay: e.gather_at ? formatGatherTimeFor(locale, e.gather_at, tz) : e.gather_time,
       battleStartedAt: e.battle_started_at,
-      battleStartedDisplay: e.battle_started_at ? formatDateTime(e.battle_started_at) : null,
+      battleStartedDisplay: e.battle_started_at ? formatDateTime(e.battle_started_at, tz) : null,
       total: t.total,
       assigned: t.assigned,
       searchDate: e.battle_started_at ?? e.gather_at,
@@ -64,9 +65,10 @@ async function getArchivedEvents(guildId: string): Promise<ArchivedEventCard[]> 
 export default async function ArchivePage() {
   const session = await getSession()
   const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
+  const tz = await getTenantTimezone(guildId)
   const [t, events] = await Promise.all([
     getTranslations('archive'),
-    getArchivedEvents(guildId),
+    getArchivedEvents(guildId, tz),
   ])
   return (
     <main className="flex-1 px-4 py-6 sm:py-8 max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto w-full space-y-6">

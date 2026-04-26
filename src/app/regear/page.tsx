@@ -11,6 +11,7 @@ import { formatGatherTimeFor } from '@/lib/gather-time'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { getLocale } from '@/lib/locale'
 import { getAppSetting } from '@/lib/app-settings'
+import { getTenantTimezone } from '@/lib/timezone'
 import RegearRequestButton from '@/components/RegearRequestButton'
 import RegearWindowsSection from '@/components/RegearWindowsSection'
 import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
@@ -20,9 +21,9 @@ import { translateSlotRole } from '@/lib/slot-role-i18n'
 
 export const dynamic = 'force-dynamic'
 
-function formatStartedAt(iso: string): string {
-  // "MM-DD HH:mm" → "MM/DD HH:mm" (KST, via formatDateTimeShort).
-  return formatDateTimeShort(iso).replace('-', '/')
+function formatStartedAt(iso: string, tz: string): string {
+  // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
+  return formatDateTimeShort(iso, tz).replace('-', '/')
 }
 
 export default async function RegearPage() {
@@ -47,6 +48,7 @@ export default async function RegearPage() {
     locale,
     noticeMessage,
     noticeImageUrl,
+    tz,
   ] = await Promise.all([
     listMyRegearEligibleEvents(),
     listMyRegearRequests(),
@@ -57,6 +59,7 @@ export default async function RegearPage() {
     getLocale(),
     getAppSetting('regear_notice_message', '', guildId),
     getAppSetting('regear_notice_image_url', '', guildId),
+    getTenantTimezone(guildId),
   ])
 
   return (
@@ -117,13 +120,13 @@ export default async function RegearPage() {
                         </Link>
                         <span className="inline-flex items-center gap-1 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">
                           <Swords size={10} />
-                          {t('battleStartedAt', { time: formatStartedAt(event.battle_started_at) })}
+                          {t('battleStartedAt', { time: formatStartedAt(event.battle_started_at, tz) })}
                         </span>
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
                         <div className="flex items-center gap-1.5 text-gray-300">
                           <Clock size={13} className="text-amber-400" />
-                          {event.gather_at ? formatGatherTimeFor(locale, event.gather_at) : event.gather_time}
+                          {event.gather_at ? formatGatherTimeFor(locale, event.gather_at, tz) : event.gather_time}
                         </div>
                         {event.gather_location.trim() && (
                           <div className="flex items-center gap-1.5 text-gray-300">

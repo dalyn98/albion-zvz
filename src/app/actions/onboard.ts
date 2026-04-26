@@ -15,6 +15,7 @@ import { isValidTenantSlug } from '@/lib/tenant-slug'
 import { buildTenantHostUrl } from '@/lib/tenant-resolver'
 import { signHopToken } from '@/lib/oauth-state'
 import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
+import { isValidTenantTimezone } from '@/lib/timezone'
 import { EVENT_CATEGORIES } from '@/types'
 
 // 온보딩 위저드는 3 단계다. 각 단계별 액션은 세션이 tenant 의 created_by_discord_id
@@ -58,6 +59,7 @@ interface SaveTenantSetupInput {
   memberRoleIds: string[]
   adminRoleIds: string[]
   eventChannelId: string | null
+  timezone: string
 }
 
 // 단계 1: slug + Discord 역할 + 공지 채널. 저장 후 세션은 건드리지 않고
@@ -87,6 +89,10 @@ export async function saveTenantSetup(
     return { error: t('missingAdminRoles') }
   }
 
+  if (!isValidTenantTimezone(input.timezone)) {
+    return { error: t('errorGeneric') }
+  }
+
   const tenant = await verifyTenantOwnership(input.tenantId, session)
   if (!tenant) return { error: t('unauthorized') }
 
@@ -107,6 +113,21 @@ export async function saveTenantSetup(
     }
     return { error: error.message }
   }
+
+  // 시간대는 app_settings 에 저장 — tenants 테이블에는 안 둠 (다른 timezone 관련
+  // 동작도 app_settings 를 단일 진실원천으로). 이 단계 실패는 ignore — 위저드
+  // 진행은 계속하고 admin settings 에서 다시 저장 가능.
+  await db.from('app_settings').upsert(
+    [
+      {
+        guild_id: input.tenantId,
+        key: 'tenant_timezone',
+        value: input.timezone,
+        updated_at: new Date().toISOString(),
+      },
+    ],
+    { onConflict: 'guild_id,key' },
+  )
 
   return {}
 }

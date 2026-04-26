@@ -4,6 +4,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { isDiscordDmConfigured, sendDiscordDmsToUsers } from '@/lib/discord-dm'
 import { getAppSetting } from '@/lib/app-settings'
 import { listActiveTenants } from '@/lib/tenant'
+import { getTenantTimezone } from '@/lib/timezone'
 import type { EventCategory } from '@/types'
 
 // 이벤트 집결 시간이 다가오면 파티에 편성된 멤버들에게 Discord DM 을 보낸다.
@@ -37,14 +38,15 @@ const LOOKBACK_MIN = 5 // 놓친 구간 재캐치용 (크론 누락 대비)
 // IS NULL` 조건이 걸러주므로(이미 종료된 이벤트는 보통 시작 시각이 적혀 있음)
 // 실용상 6시간 정도면 안전한 트레이드오프.
 const AUTO_START_LOOKBACK_MIN = 360
-const DISPLAY_TIMEZONE = 'Asia/Seoul' // 길드가 KST 기준으로 운영
 const DEFAULT_LOCALE = 'ko'
 
 export const dynamic = 'force-dynamic'
 
-function formatGatherTime(gatherAtIso: string): string {
+// gather_at 표시는 테넌트별 운영 시간대를 따른다. 잘못된 IANA 가 박혀 있어도
+// getTenantTimezone 이 'Asia/Seoul' 로 degrade 하므로 DM 본문은 절대 깨지지 않음.
+function formatGatherTimeIn(gatherAtIso: string, tz: string): string {
   return new Intl.DateTimeFormat('en-GB', {
-    timeZone: DISPLAY_TIMEZONE,
+    timeZone: tz,
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
@@ -156,7 +158,8 @@ export async function GET(request: Request) {
     let succeeded = 0
 
     if (discordIds.length > 0) {
-      const time = formatGatherTime(event.gather_at as string)
+      const tz = await getTenantTimezone(event.guild_id as string)
+      const time = formatGatherTimeIn(event.gather_at as string, tz)
       // event.category 는 migration 063+064 이후 NOT NULL. 개인 옵트아웃
       // (notify_combat / notify_ff / notify_ganking) 과 AND.
       const category = (event.category ?? '전투') as EventCategory

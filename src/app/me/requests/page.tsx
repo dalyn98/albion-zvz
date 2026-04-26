@@ -6,8 +6,10 @@ import { getSession } from '@/lib/session'
 import { listMyRegearRequests } from '@/app/actions/regear'
 import { listMyExchangeRequests } from '@/app/actions/exchange'
 import { listMyDonationRequests } from '@/app/actions/donation'
+import { getSessionGuildId } from '@/lib/tenant'
 import { formatSilver } from '@/lib/silver'
 import { formatDateTime } from '@/lib/format-datetime'
+import { getTenantTimezone } from '@/lib/timezone'
 import ExchangeRequestActions from '@/components/ExchangeRequestActions'
 import DonationRequestCancelButton from '@/components/DonationRequestCancelButton'
 import MyRegearList from '@/components/MyRegearList'
@@ -38,6 +40,7 @@ export default async function MyRequestsPage() {
     redirect('/')
   }
 
+  const guildId = await getSessionGuildId(session)
   const [
     { requests: regears },
     { requests: exchanges },
@@ -46,6 +49,7 @@ export default async function MyRequestsPage() {
     tMe,
     tCommon,
     tStatus,
+    tz,
   ] = await Promise.all([
     listMyRegearRequests(),
     listMyExchangeRequests(),
@@ -54,6 +58,7 @@ export default async function MyRequestsPage() {
     getTranslations('me'),
     getTranslations('common'),
     getTranslations('status'),
+    getTenantTimezone(guildId),
   ])
 
   const sortedExchanges = sortPendingFirst(exchanges)
@@ -98,10 +103,10 @@ export default async function MyRequestsPage() {
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-white text-sm font-mono">{formatSilver(e.silver)}</p>
-                  <p className="text-gray-500 text-xs">{tMe('requestedAt', { when: formatDateTime(e.created_at) })}</p>
+                  <p className="text-gray-500 text-xs">{tMe('requestedAt', { when: formatDateTime(e.created_at, tz) })}</p>
                   {e.resolved_at && e.status !== 'pending' && (
                     <p className="text-gray-500 text-xs">
-                      {tStatus(e.status)} {formatDateTime(e.resolved_at)}
+                      {tStatus(e.status)} {formatDateTime(e.resolved_at, tz)}
                       {e.handled_by_username && (
                         <span className="ml-2 text-gray-600">
                           · {tMe('handledBy', { handler: e.handled_by_username })}
@@ -151,10 +156,10 @@ export default async function MyRequestsPage() {
                   <p className="text-gray-500 text-xs truncate">{d.admin_notes}</p>
                 )}
                 <p className="text-gray-600 text-xs font-mono">
-                  {tMe('requestedAt', { when: formatDateTime(d.created_at) })}
+                  {tMe('requestedAt', { when: formatDateTime(d.created_at, tz) })}
                   {d.resolved_at && d.status !== 'pending' && (
                     <span className="ml-2">
-                      · {tStatus(d.status)} {formatDateTime(d.resolved_at)}
+                      · {tStatus(d.status)} {formatDateTime(d.resolved_at, tz)}
                       {d.handled_by_username && (
                         <span className="ml-1 text-gray-700">
                           · {tMe('handledBy', { handler: d.handled_by_username })}

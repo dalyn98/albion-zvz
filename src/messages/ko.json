@@ -1061,6 +1061,15 @@
     "toggleLabel": "미인증 멤버도 사이트 이용 허용",
     "toggleHint": "끄면 온보딩 완료 전까지 사이트 접근이 차단됩니다."
   },
+  "adminTimezone": {
+    "title": "운영 시간대",
+    "description": "이벤트 집결 시간 표시, 리더보드/스트릭 일자 경계, Discord 공지 본문 시각이 모두 이 시간대로 렌더링됩니다.",
+    "hint": "변경하면 다음 SSR 페이지부터 새 시간대로 표시됩니다. 잘못된 값은 자동으로 한국(KST) 으로 복원됩니다.",
+    "option_kr": "한국 (KR)",
+    "option_eu": "유럽 (EU)",
+    "option_na": "북미 (NA)",
+    "option_sa": "남미 (SA)"
+  },
   "adminCdBadge": {
     "title": "CD 뱃지 표시 역할군",
     "descriptionLine1": "무기 주력 스킬에 붙는 효과 쿨타임(가죽 갑옷/음식 감소 포함)을 어떤 역할군에 표시할지 선택합니다.",
@@ -2127,6 +2136,13 @@
     "channelLabel": "이벤트 공지 채널",
     "channelHelp": "이벤트 생성 시 기본으로 알림을 보낼 Discord 채널 (추후 이벤트별 변경 가능).",
     "noChannel": "(나중에 설정)",
+    "timezoneLabel": "운영 시간대",
+    "timezoneHelp": "이벤트 집결 시간, 리더보드 일자 경계, Discord 공지 본문 시각이 모두 이 시간대로 표시됩니다. 알비온 4개 서버에 맞춰 4개 프리셋 중 하나를 고르세요. 관리자 설정에서 언제든 변경할 수 있습니다.",
+    "timezoneRequired": "운영 시간대를 선택해 주세요.",
+    "timezone_kr": "한국 (KR)",
+    "timezone_eu": "유럽 (EU)",
+    "timezone_na": "북미 (NA)",
+    "timezone_sa": "남미 (SA)",
     "saveButton": "설정 저장하고 시작",
     "savingButton": "저장 중...",
     "errorGeneric": "설정 저장에 실패했습니다.",
