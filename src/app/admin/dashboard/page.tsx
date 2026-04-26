@@ -9,6 +9,7 @@ import DashboardEventList from '@/components/DashboardEventList'
 import OnboardCompletionBanner from '@/components/OnboardCompletionBanner'
 import SetupChecklist from '@/components/SetupChecklist'
 import TemplateList from '@/components/TemplateList'
+import CreateTemplateButton from '@/components/CreateTemplateButton'
 import { listTemplates } from '@/app/actions/templates'
 
 type Section = 'events' | 'templates'
@@ -126,7 +127,10 @@ async function TemplatesSection() {
 
   return (
     <div className="space-y-3">
-      <p className="text-gray-400 text-xs sm:text-sm">{t('pageDescription')}</p>
+      <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
+        <p className="text-gray-400 text-xs sm:text-sm flex-1">{t('pageDescription')}</p>
+        <CreateTemplateButton />
+      </div>
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
           <p className="text-red-400 text-sm">{error}</p>

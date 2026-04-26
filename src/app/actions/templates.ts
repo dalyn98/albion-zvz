@@ -160,6 +160,51 @@ export async function saveEventAsTemplate(
   }
 }
 
+// 빈 템플릿을 처음부터 생성. 이벤트 없이 템플릿만 만들고 싶은 경우용 — 생성
+// 직후 편집 화면(`/admin/dashboard/templates/{id}`) 으로 보내 파티/슬롯을 채우게
+// 한다. 같은 이름이 이미 있으면 conflict 처리 — saveEventAsTemplate 의 비-overwrite
+// 분기와 동일한 시그니처를 유지해 클라이언트가 쉽게 confirm 흐름을 붙일 수 있다.
+export async function createTemplate(
+  name: string,
+): Promise<{ id?: string; error?: string; conflictId?: string; conflictName?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const trimmed = name.trim()
+    if (!trimmed) return { error: tErr('templateNameRequired') }
+    if (trimmed.length > 80) return { error: tErr('templateNameTooLong', { max: 80 }) }
+
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+
+    const { data: existingRows, error: existingErr } = await db
+      .from('event_templates')
+      .select('id, name')
+      .eq('guild_id', guildId)
+      .eq('name', trimmed)
+      .order('created_at', { ascending: false })
+      .limit(1)
+    if (existingErr) return { error: existingErr.message }
+    const existing = existingRows?.[0]
+    if (existing) {
+      return { conflictId: existing.id, conflictName: existing.name }
+    }
+
+    const emptyData: TemplateData = { parties: [] }
+    const { data: inserted, error: insertError } = await db
+      .from('event_templates')
+      .insert({ guild_id: guildId, name: trimmed, data: emptyData })
+      .select('id')
+      .single()
+    if (insertError) return { error: insertError.message }
+    revalidatePath('/admin/dashboard')
+    return { id: inserted.id as string }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
 export async function listTemplates(): Promise<{
   templates: TemplateSummary[]
   error?: string
