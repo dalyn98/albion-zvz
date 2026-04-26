@@ -95,7 +95,7 @@
   },
   "memberInvite": {
     "title": "Guild member invite link",
-    "description": "Share this link in your Discord server — members can join with a single Discord login.",
+    "description": "Share this link in your Discord server — members complete Discord login and Albion in-game name verification in one flow.",
     "urlAriaLabel": "Invite link URL",
     "messageAriaLabel": "Discord message template",
     "copyUrl": "Copy URL",
@@ -103,7 +103,7 @@
     "copied": "Copied",
     "copyFailed": "Could not copy automatically. Please select the text manually.",
     "toggleMessage": "Show Discord announcement template",
-    "messageTemplate": "🎮 The **{guildName}** guild management page is live!\nManage event sign-ups, gear loadouts, and regear requests in one place.\n\n👉 {inviteUrl}\n\n* One Discord login signs you in automatically."
+    "messageTemplate": "🎮 The **{guildName}** guild management page is live!\nManage event sign-ups, gear loadouts, and regear requests in one place.\n\n👉 {inviteUrl}\n\n* Click the link → Discord login → verify your Albion in-game name, all in one flow."
   },
   "adminApprovals": {
     "pageTitle": "Approvals",

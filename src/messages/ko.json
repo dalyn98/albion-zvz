@@ -95,7 +95,7 @@
   },
   "memberInvite": {
     "title": "길드원 초대 링크",
-    "description": "Discord 서버에 이 링크를 공유하면 길드원이 디스코드 로그인 한 번으로 가입해요.",
+    "description": "Discord 서버에 이 링크를 공유하면 길드원이 디스코드 로그인 + 알비온 닉네임 인증을 한 번에 끝낼 수 있어요.",
     "urlAriaLabel": "초대 링크 URL",
     "messageAriaLabel": "Discord 메시지 템플릿",
     "copyUrl": "URL 복사",
@@ -103,7 +103,7 @@
     "copied": "복사됨",
     "copyFailed": "복사하지 못했어요. 직접 선택해서 복사해주세요.",
     "toggleMessage": "Discord 공지 메시지 템플릿 보기",
-    "messageTemplate": "🎮 **{guildName}** 길드 관리 페이지가 열렸어요!\n이벤트 신청, 무기 등록, 리기어 신청을 한 곳에서 관리할 수 있어요.\n\n👉 {inviteUrl}\n\n* Discord 로그인 한 번이면 자동으로 가입됩니다."
+    "messageTemplate": "🎮 **{guildName}** 길드 관리 페이지가 열렸어요!\n이벤트 신청, 무기 등록, 리기어 신청을 한 곳에서 관리할 수 있어요.\n\n👉 {inviteUrl}\n\n* 링크 클릭 → Discord 로그인 → 알비온 인게임 닉네임 인증까지 한 번에 진행돼요."
   },
   "adminApprovals": {
     "pageTitle": "승인 관리",

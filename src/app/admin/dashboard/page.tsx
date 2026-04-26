@@ -60,7 +60,12 @@ export default async function DashboardPage({
     getTenantDiscordConfig(guildId),
   ])
 
-  const inviteUrl = tenantConfig ? buildTenantHostUrl(tenantConfig.slug, '/') : null
+  // 초대 링크는 /onboarding/albion 으로 보낸다 — 신규 길드원이 Discord 로그인
+  // + 알비온 닉네임 인증을 한 번에 끝낼 수 있도록. 이미 인증된 사람이 다시 눌러도
+  // 위저드가 'done' 단계로 진입해 짧게 확인 후 /me 로 빠져나간다.
+  const inviteUrl = tenantConfig
+    ? buildTenantHostUrl(tenantConfig.slug, '/onboarding/albion')
+    : null
   const inviteGuildName = tenantConfig?.name ?? ''
 
   return (
