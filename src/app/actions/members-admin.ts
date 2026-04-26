@@ -23,6 +23,7 @@ import {
   isWithinTrackedWindow,
   mergeMemberBattles,
 } from '@/lib/tracked-kills'
+import { getTenantTimezone } from '@/lib/timezone'
 import type { RegearType } from '@/types'
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
@@ -887,9 +888,11 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     const survival = calcSurvivalFromBattles(
       battles.map((b) => ({ startedAt: b.startedAt, hadDeath: b.hadDeath })),
     )
+    const tz = await getTenantTimezone(guildId)
     const participationStreak = calcParticipationStreak(
       battles.map((b) => b.startedAt),
       Date.now(),
+      tz,
     )
     const outcomeStats = calcOutcomeStats(battles.map((b) => b.outcome))
 
@@ -1158,9 +1161,11 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
     const survival = calcSurvivalFromBattles(
       battles.map((b) => ({ startedAt: b.startedAt, hadDeath: b.hadDeath })),
     )
+    const tz = await getTenantTimezone(guildId)
     const participationStreak = calcParticipationStreak(
       battles.map((b) => b.startedAt),
       Date.now(),
+      tz,
     )
     const outcomeStats = calcOutcomeStats(battles.map((b) => b.outcome))
 

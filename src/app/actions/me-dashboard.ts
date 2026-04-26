@@ -15,6 +15,7 @@ import {
   mergeMemberBattles,
 } from '@/lib/tracked-kills'
 import { getMyPointsSummary } from '@/app/actions/regear'
+import { getTenantTimezone } from '@/lib/timezone'
 
 export interface MyDashboardData {
   balance: number
@@ -147,9 +148,11 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
   const survival = calcSurvivalFromBattles(
     battles.map((b) => ({ startedAt: b.startedAt, hadDeath: b.hadDeath })),
   )
+  const tz = await getTenantTimezone(guildId)
   const streak = calcParticipationStreak(
     battles.map((b) => b.startedAt),
     Date.now(),
+    tz,
   )
   const outcomeStats = calcOutcomeStats(battles.map((b) => b.outcome))
 
