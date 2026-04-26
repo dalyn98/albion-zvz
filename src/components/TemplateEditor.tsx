@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Plus, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown } from 'lucide-react'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
 import TemplatePartyListSidebar from './TemplatePartyListSidebar'
 import type { GearOption, GearSpec, GearSpecs, SlotKey, SlotSpells } from '@/types'
@@ -179,6 +179,16 @@ export default function TemplateEditor({ template }: { template: TemplateRecord 
     }))
   }
 
+  const moveSlot = (partyNumber: number, idx: number, dir: -1 | 1) => {
+    updateParty(partyNumber, (p) => {
+      const target = idx + dir
+      if (target < 0 || target >= p.slots.length) return p
+      const next = [...p.slots]
+      ;[next[idx], next[target]] = [next[target], next[idx]]
+      return { ...p, slots: next }
+    })
+  }
+
   const save = () => {
     setError('')
     setSavedAt(null)
@@ -229,6 +239,7 @@ export default function TemplateEditor({ template }: { template: TemplateRecord 
                 onAddSlot={() => addSlot(party.party_number)}
                 onUpdateSlot={(idx, updated) => updateSlot(party.party_number, idx, updated)}
                 onDeleteSlot={(idx) => deleteSlot(party.party_number, idx)}
+                onMoveSlot={(idx, dir) => moveSlot(party.party_number, idx, dir)}
               />
             ))}
           </div>
@@ -269,10 +280,12 @@ interface PartyPanelProps {
   onAddSlot: () => void
   onUpdateSlot: (idx: number, updated: SlotInput) => void
   onDeleteSlot: (idx: number) => void
+  onMoveSlot: (idx: number, dir: -1 | 1) => void
 }
 
-function PartyPanel({ party, onAddSlot, onUpdateSlot, onDeleteSlot }: PartyPanelProps) {
+function PartyPanel({ party, onAddSlot, onUpdateSlot, onDeleteSlot, onMoveSlot }: PartyPanelProps) {
   const t = useTranslations('adminTemplates')
+  const tParty = useTranslations('adminParty')
   // 리컨실러가 매 렌더마다 open 을 강제 동기화하면 유저가 수동으로 닫아도
   // 슬롯 추가시 다시 열려버림 — PartyEditorPanel 과 동일 패턴으로 controlled.
   const [isOpen, setIsOpen] = useState(party.slots.length > 0)
@@ -303,14 +316,37 @@ function PartyPanel({ party, onAddSlot, onUpdateSlot, onDeleteSlot }: PartyPanel
         )}
 
         {party.slots.map((slot, idx) => (
-          <SlotEditor
-            key={idx}
-            slot={slot}
-            partyNumber={party.party_number}
-            autoRegearEnabled={false}
-            onChange={(updated) => onUpdateSlot(idx, updated)}
-            onDelete={() => onDeleteSlot(idx)}
-          />
+          <div key={idx}>
+            <div className="flex items-center gap-1 px-1 pb-1">
+              <button
+                type="button"
+                onClick={() => onMoveSlot(idx, -1)}
+                disabled={idx === 0}
+                aria-label={tParty('moveUp')}
+                title={tParty('moveUp')}
+                className="p-1 rounded text-gray-400 hover:text-amber-300 hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
+              >
+                <ArrowUp size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => onMoveSlot(idx, 1)}
+                disabled={idx === party.slots.length - 1}
+                aria-label={tParty('moveDown')}
+                title={tParty('moveDown')}
+                className="p-1 rounded text-gray-400 hover:text-amber-300 hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
+              >
+                <ArrowDown size={14} />
+              </button>
+            </div>
+            <SlotEditor
+              slot={slot}
+              partyNumber={party.party_number}
+              autoRegearEnabled={false}
+              onChange={(updated) => onUpdateSlot(idx, updated)}
+              onDelete={() => onDeleteSlot(idx)}
+            />
+          </div>
         ))}
 
         <div className="flex items-center gap-2 pt-1">
