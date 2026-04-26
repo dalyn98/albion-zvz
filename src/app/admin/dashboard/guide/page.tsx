@@ -64,6 +64,7 @@ export default async function AdminGuidePage() {
           <li>{t('regear.bullet2')}</li>
           <li>{t('regear.bullet3')}</li>
           <li>{t('regear.bullet4')}</li>
+          <li>{t('regear.bullet5')}</li>
         </ul>
       </GuideSection>
 
