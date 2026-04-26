@@ -16,7 +16,7 @@ import { getAvatarsByDiscordIds, getUsernamesByDiscordIds } from '@/lib/discord-
 import { formatGatherTimeFor, isEnded } from '@/lib/gather-time'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { getLocale } from '@/lib/locale'
-import { getTenantTimezone } from '@/lib/timezone'
+import { getTenantTimezone } from '@/lib/timezone-server'
 import { listEventGuestTokens } from '@/app/actions/event-invites'
 
 function formatStartedAt(iso: string, tz: string): string {

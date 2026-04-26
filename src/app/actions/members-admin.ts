@@ -23,7 +23,7 @@ import {
   isWithinTrackedWindow,
   mergeMemberBattles,
 } from '@/lib/tracked-kills'
-import { getTenantTimezone } from '@/lib/timezone'
+import { getTenantTimezone } from '@/lib/timezone-server'
 import type { RegearType } from '@/types'
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,

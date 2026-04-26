@@ -8,7 +8,7 @@ import { getLocale } from '@/lib/locale'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
-import { getTenantTimezone } from '@/lib/timezone'
+import { getTenantTimezone } from '@/lib/timezone-server'
 import HomeEventList, { type HomeEventCardData, type HomeEventKind } from '@/components/HomeEventList'
 import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
 

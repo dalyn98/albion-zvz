@@ -5,7 +5,7 @@ import { requireAdmin } from '@/lib/auth'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { getTenantTimezone } from '@/lib/timezone'
+import { getTenantTimezone } from '@/lib/timezone-server'
 import { getTranslations } from 'next-intl/server'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
 

@@ -4,7 +4,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { isDiscordDmConfigured, sendDiscordDmsToUsers } from '@/lib/discord-dm'
 import { getAppSetting } from '@/lib/app-settings'
 import { listActiveTenants } from '@/lib/tenant'
-import { getTenantTimezone } from '@/lib/timezone'
+import { getTenantTimezone } from '@/lib/timezone-server'
 import type { EventCategory } from '@/types'
 
 // 이벤트 집결 시간이 다가오면 파티에 편성된 멤버들에게 Discord DM 을 보낸다.

@@ -15,7 +15,7 @@ import {
   mergeMemberBattles,
 } from '@/lib/tracked-kills'
 import { getMyPointsSummary } from '@/app/actions/regear'
-import { getTenantTimezone } from '@/lib/timezone'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 export interface MyDashboardData {
   balance: number

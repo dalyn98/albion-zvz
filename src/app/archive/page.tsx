@@ -7,7 +7,7 @@ import { formatDateTime } from '@/lib/format-datetime'
 import { getLocale } from '@/lib/locale'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
-import { getTenantTimezone } from '@/lib/timezone'
+import { getTenantTimezone } from '@/lib/timezone-server'
 import ArchiveEventList, { type ArchivedEventCard } from '@/components/ArchiveEventList'
 
 export const dynamic = 'force-dynamic'
