@@ -130,7 +130,12 @@ export default function DashboardEventList({ events }: { events: Event[] }) {
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h2 className="font-bold text-white truncate">{event.title}</h2>
+                    <Link
+                      href={`/admin/dashboard/events/${event.id}`}
+                      className="font-bold text-white truncate hover:text-amber-300 transition-colors"
+                    >
+                      {event.title}
+                    </Link>
                     {event.battle_started_at && isEnded(event.battle_started_at) ? (
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-700 text-gray-300">
                         <Archive size={10} />
