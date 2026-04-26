@@ -98,16 +98,11 @@ export function zonedPartsToUtc(
   return new Date(guessUtc - offsetMs)
 }
 
-// Server-only — fetches the configured timezone for a tenant from app_settings.
-// Falls back to DEFAULT_TENANT_TIMEZONE when unset (existing menhera tenant
-// silently inherits Asia/Seoul, preserving current behavior).
-export async function getTenantTimezone(guildId?: string): Promise<string> {
-  // Imported lazily to avoid pulling supabase-admin into client bundles when
-  // this module is imported by display helpers in shared code.
-  const { getAppSetting } = await import('@/lib/app-settings')
-  const value = await getAppSetting('tenant_timezone', DEFAULT_TENANT_TIMEZONE, guildId)
-  return isValidTenantTimezone(value) ? value : DEFAULT_TENANT_TIMEZONE
-}
+// `getTenantTimezone` lives in `@/lib/timezone-server` so the lazy `app-settings`
+// import (which transitively pulls `next/headers` via super-admin impersonation)
+// cannot leak into client bundles. Turbopack still tracks `await import()` as a
+// static dep, so we keep this module pure and import the async fetcher
+// explicitly from server code.
 
 // Returns YYYY-MM-DD as observed in `tz`. Used by streak and finance day-key
 // computations — replaces the old `seoulDateKey` hardcoded helper.
