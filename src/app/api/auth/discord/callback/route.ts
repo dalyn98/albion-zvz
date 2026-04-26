@@ -21,6 +21,7 @@ import {
   type TenantDiscordConfig,
 } from '@/lib/tenant'
 import { isLocale } from '@/i18n/locales'
+import { recordAdminLogin } from '@/lib/tenant-activity'
 import { signHopToken, verifyOAuthState, type OAuthStatePayload } from '@/lib/oauth-state'
 import {
   buildTenantHostUrl,
@@ -299,6 +300,10 @@ export async function GET(request: NextRequest) {
           eventScope: null,
           guildId: tenant.id,
           issuedAt: Date.now(),
+        }
+        if (isAdmin) {
+          // 무활동 테넌트 식별 신호 — 슈퍼어드민 UI 에서만 사용. 실패해도 로그인은 계속.
+          await recordAdminLogin(tenant.id)
         }
         const destination = resolvePostLoginPath(returnTo, preferred)
         return buildHopRedirect(

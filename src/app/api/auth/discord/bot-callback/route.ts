@@ -4,6 +4,7 @@ import { getDiscordGuild, exchangeBotInstallCode, getCurrentUser } from '@/lib/d
 import { getAdminClient } from '@/lib/supabase-admin'
 import { isValidTenantSlug } from '@/lib/tenant-resolver'
 import { upsertGuildAvatar } from '@/lib/discord-avatar'
+import { recordAdminLogin } from '@/lib/tenant-activity'
 import { SLOT_ROLES, EVENT_CATEGORIES } from '@/types'
 
 const ONBOARD_GUILDS_COOKIE = 'discord_onboard_guilds'
@@ -223,6 +224,9 @@ export async function GET(request: NextRequest) {
       guildId: tenantId,
       issuedAt: Date.now(),
     })
+
+    // 무활동 테넌트 식별 신호 — 슈퍼어드민 UI 에서만 사용. 실패해도 흐름은 계속.
+    await recordAdminLogin(tenantId)
 
     const response = NextResponse.redirect(new URL(`/onboard/setup/${tenantId}`, url.origin))
     response.cookies.set(SESSION_COOKIE_NAME, newSession, cookieOptions())

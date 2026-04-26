@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Bot, ExternalLink, Trash2, UserPlus, Eye } from 'lucide-react'
+import { ArrowLeft, Bot, Clock, ExternalLink, Trash2, UserPlus, Eye } from 'lucide-react'
 import { getTenantDetail } from '@/lib/super-admin-stats'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { getSuperAdminPath } from '@/lib/super-admin-path'
@@ -120,6 +120,16 @@ export default async function SuperAdminTenantDetailPage({ params }: PageProps) 
                 {tenant.botInstalled
                   ? formatDateTimeShort(tenant.botInstalledAt!)
                   : '미설치'}
+              </span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-gray-400 inline-flex items-center gap-1">
+                <Clock size={12} />마지막 어드민 로그인
+              </span>
+              <span className="text-white text-xs">
+                {tenant.lastAdminLoginAt
+                  ? formatDateTimeShort(tenant.lastAdminLoginAt)
+                  : '기록 없음'}
               </span>
             </div>
             <div className="flex justify-between gap-3">

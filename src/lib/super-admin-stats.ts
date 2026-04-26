@@ -75,6 +75,7 @@ export interface TenantSummary {
   botInstalled: boolean
   botInstalledAt: string | null
   createdAt: string
+  lastAdminLoginAt: string | null
   memberCount: number
   eventCount: number
 }
@@ -84,7 +85,7 @@ export async function listAllTenantsWithStats(): Promise<TenantSummary[]> {
   const { data: tenants } = await db
     .from('tenants')
     .select(
-      'id, slug, name, discord_guild_id, status, owner_discord_id, bot_installed_at, created_at',
+      'id, slug, name, discord_guild_id, status, owner_discord_id, bot_installed_at, created_at, last_admin_login_at',
     )
     .order('created_at', { ascending: false })
   if (!tenants || tenants.length === 0) return []
@@ -113,6 +114,7 @@ export async function listAllTenantsWithStats(): Promise<TenantSummary[]> {
         botInstalled: !!t.bot_installed_at,
         botInstalledAt: (t.bot_installed_at as string | null) ?? null,
         createdAt: t.created_at as string,
+        lastAdminLoginAt: (t.last_admin_login_at as string | null) ?? null,
         memberCount: memberCount.count ?? 0,
         eventCount: eventCount.count ?? 0,
       }
@@ -144,7 +146,7 @@ export async function getTenantDetail(tenantId: string): Promise<TenantDetail | 
   const { data: t } = await db
     .from('tenants')
     .select(
-      'id, slug, name, discord_guild_id, status, owner_discord_id, bot_installed_at, created_at, member_role_ids, admin_role_ids, event_channel_id, settings',
+      'id, slug, name, discord_guild_id, status, owner_discord_id, bot_installed_at, created_at, last_admin_login_at, member_role_ids, admin_role_ids, event_channel_id, settings',
     )
     .eq('id', tenantId)
     .maybeSingle()
@@ -189,6 +191,7 @@ export async function getTenantDetail(tenantId: string): Promise<TenantDetail | 
     botInstalled: !!t.bot_installed_at,
     botInstalledAt: (t.bot_installed_at as string | null) ?? null,
     createdAt: t.created_at as string,
+    lastAdminLoginAt: (t.last_admin_login_at as string | null) ?? null,
     memberCount: memberCount.count ?? 0,
     eventCount: eventCount.count ?? 0,
     memberRoleIds: (t.member_role_ids as string[] | null) ?? [],

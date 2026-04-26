@@ -16,6 +16,7 @@ import { buildTenantHostUrl } from '@/lib/tenant-resolver'
 import { signHopToken } from '@/lib/oauth-state'
 import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 import { isValidTenantTimezone } from '@/lib/timezone'
+import { recordAdminLogin } from '@/lib/tenant-activity'
 import { EVENT_CATEGORIES } from '@/types'
 
 // 온보딩 위저드는 3 단계다. 각 단계별 액션은 세션이 tenant 의 created_by_discord_id
@@ -372,6 +373,9 @@ export async function saveTenantRewards(
   const newSession = await signSession(adminSession)
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE_NAME, newSession, cookieOptions())
+
+  // 무활동 테넌트 식별 신호 — 슈퍼어드민 UI 에서만 사용. 실패해도 흐름은 계속.
+  await recordAdminLogin(input.tenantId)
 
   const hopToken = await signHopToken({
     session: adminSession,
