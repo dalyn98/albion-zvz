@@ -93,6 +93,18 @@
     "sectionEvents": "イベント",
     "sectionTemplates": "テンプレート"
   },
+  "memberInvite": {
+    "title": "ギルドメンバー招待リンク",
+    "description": "Discord サーバーにこのリンクを共有すると、メンバーは Discord ログイン一回で参加できます。",
+    "urlAriaLabel": "招待リンク URL",
+    "messageAriaLabel": "Discord メッセージテンプレート",
+    "copyUrl": "URL をコピー",
+    "copyMessage": "メッセージをコピー",
+    "copied": "コピー済み",
+    "copyFailed": "自動コピーに失敗しました。手動で選択してコピーしてください。",
+    "toggleMessage": "Discord 告知メッセージのテンプレートを表示",
+    "messageTemplate": "🎮 **{guildName}** ギルド管理ページが公開されました！\nイベント申請・装備登録・リギア申請をひとつにまとめて管理できます。\n\n👉 {inviteUrl}\n\n* Discord ログインだけで自動的に参加できます。"
+  },
   "adminApprovals": {
     "pageTitle": "承認管理",
     "pageDescription": "リギア・両替・寄付・ショップ注文の申請を一カ所で審査します。",

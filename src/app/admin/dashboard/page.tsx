@@ -3,11 +3,13 @@ import { Plus, Calendar, CalendarDays, LayoutTemplate } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
-import { getSessionGuildId } from '@/lib/tenant'
+import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
+import { buildTenantHostUrl } from '@/lib/tenant-resolver'
 import type { Event } from '@/types'
 import DashboardEventList from '@/components/DashboardEventList'
 import OnboardCompletionBanner from '@/components/OnboardCompletionBanner'
 import SetupChecklist from '@/components/SetupChecklist'
+import MemberInviteCard from '@/components/MemberInviteCard'
 import TemplateList from '@/components/TemplateList'
 import CreateTemplateButton from '@/components/CreateTemplateButton'
 import { listTemplates } from '@/app/actions/templates'
@@ -51,11 +53,15 @@ export default async function DashboardPage({
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
 
-  const [tDashboard, tTemplates, tOnboard] = await Promise.all([
+  const [tDashboard, tTemplates, tOnboard, tenantConfig] = await Promise.all([
     getTranslations('adminDashboard'),
     getTranslations('adminTemplates'),
     getTranslations('onboard'),
+    getTenantDiscordConfig(guildId),
   ])
+
+  const inviteUrl = tenantConfig ? buildTenantHostUrl(tenantConfig.slug, '/') : null
+  const inviteGuildName = tenantConfig?.name ?? ''
 
   return (
     <div className="space-y-6">
@@ -69,6 +75,10 @@ export default async function DashboardPage({
       )}
 
       <SetupChecklist guildId={guildId} />
+
+      {inviteUrl && (
+        <MemberInviteCard inviteUrl={inviteUrl} guildName={inviteGuildName} />
+      )}
 
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-white">

@@ -93,6 +93,18 @@
     "sectionEvents": "Events",
     "sectionTemplates": "Templates"
   },
+  "memberInvite": {
+    "title": "Guild member invite link",
+    "description": "Share this link in your Discord server — members can join with a single Discord login.",
+    "urlAriaLabel": "Invite link URL",
+    "messageAriaLabel": "Discord message template",
+    "copyUrl": "Copy URL",
+    "copyMessage": "Copy message",
+    "copied": "Copied",
+    "copyFailed": "Could not copy automatically. Please select the text manually.",
+    "toggleMessage": "Show Discord announcement template",
+    "messageTemplate": "🎮 The **{guildName}** guild management page is live!\nManage event sign-ups, gear loadouts, and regear requests in one place.\n\n👉 {inviteUrl}\n\n* One Discord login signs you in automatically."
+  },
   "adminApprovals": {
     "pageTitle": "Approvals",
     "pageDescription": "Review regear, exchange, donation, and shop order requests in one place.",
