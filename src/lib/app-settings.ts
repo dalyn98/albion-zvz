@@ -123,6 +123,10 @@ export type AppSettingKey =
   // 영향 범위: 이벤트 집결시간 표시, 리더보드/streak/재정 stats 의 일자 경계,
   // Discord 공지 본문의 시각 라벨.
   | 'tenant_timezone'
+  // 정수 문자열 (5..1440). 이벤트 집결 시각으로부터 몇 분 전에 임박 DM 을 보낼지
+  // 정하는 길드 기본값. 개인이 guild_avatars/guests.dm_lead_minutes 로 override
+  // 하지 않은 경우 이 값을 사용. 기본 '35' = 기존 하드코딩 동작 유지.
+  | 'event_dm_lead_minutes'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

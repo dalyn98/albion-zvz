@@ -503,7 +503,7 @@
     "notifications": {
       "title": "Discord 通知",
       "cta": "通知設定を開く",
-      "body": "イベントチャンネル告知と個人 DM の 2 つで配信されます。\n\n- イベントチャンネル: 設定の notify_channel_id + notify_role_id(役割メンション)。イベント作成/編集時に手動ボタンで送信。\n- 個人 DM: イベント 35 分前に割り当てメンバーへ自動送信。/me/settings で個人が無効化可能。\n- リギア/交換の承認・却下時にも申請者へ DM。\n\nDISCORD_BOT_TOKEN、DISCORD_EVENT_CHANNEL_ID、DISCORD_GUILD_ID 環境変数が必要です。"
+      "body": "イベントチャンネル告知と個人 DM の 2 つで配信されます。\n\n- イベントチャンネル: 設定の notify_channel_id + notify_role_id(役割メンション)。イベント作成/編集時に手動ボタンで送信。\n- 個人 DM: イベント集合時刻からギルド既定値(初期は 35 分前、設定 → 公知 → Discord 通知 で変更可能)分前に割り当てメンバーへ自動送信。各メンバーは /me/settings で個人タイミングに上書き、もしくは無効化できます。\n- リギア/交換の承認・却下時にも申請者へ DM。\n\nDISCORD_BOT_TOKEN、DISCORD_EVENT_CHANNEL_ID、DISCORD_GUILD_ID 環境変数が必要です。"
     },
     "battles": {
       "title": "戦闘記録(自動集計)",
@@ -526,7 +526,8 @@
       "tip3": "パーティ編集の「パーティ非表示」ボタンで作成中のパーティを公開ページから一括で隠せます。",
       "tip4": "エラー・データ関連の問題は Supabase Dashboard の SQL エディタで直接確認。guild_avatars / regear_requests / point_ledger の3テーブルが中心です。",
       "tip5": "ギルドメンバーへ Bot の初期案内をするときは albion-guildmanager.com/invite の短縮 URL を共有してください — Discord の Bot 招待ページに直接遷移します。",
-      "tip6": "イベントの集合時刻やリギアウィンドウの期限はどこも 4 分割(月・日・時・分)入力に統一しました。モバイルでもキー操作が一定で、運営タイムゾーンに自動換算されます。"
+      "tip6": "イベントの集合時刻やリギアウィンドウの期限はどこも 4 分割(月・日・時・分)入力に統一しました。モバイルでもキー操作が一定で、運営タイムゾーンに自動換算されます。",
+      "tip7": "イベント間近 DM のタイミングはギルド既定値(設定 → 公知 → Discord 通知)に加えて、各メンバーが /me/settings で 5〜1440 分の範囲で個別に上書きできます。出勤時間帯がバラバラなギルドや、サブキャラ運用が多い人に案内しておくと声かけが減ります。"
     }
   },
   "adminParty": {
@@ -711,6 +712,17 @@
     "tooLong": "告知は最大 {max} 文字まで入力できます。",
     "clear": "消去",
     "clearTooltip": "告知を空にしてバナーを非表示にします"
+  },
+  "adminEventDmLead": {
+    "title": "イベント間近DMの既定タイミング",
+    "description": "イベント集合時刻の何分前にギルドメンバーへ Discord DM を送るかを設定します。各メンバーは自身の設定ページで個別に上書きでき、未設定ならこの既定値が使われます。",
+    "label": "既定タイミング (分単位、5〜1440)",
+    "unit": "分前",
+    "preset": "{minutes}分前",
+    "invalidRange": "{min} 以上 {max} 以下の整数で入力してください。",
+    "saved": "保存済み",
+    "save": "保存",
+    "saving": "保存中…"
   },
   "adminEventsNotice": {
     "title": "イベント告知",
@@ -2109,7 +2121,7 @@
   },
   "discordDm": {
     "title": "Discord DM通知",
-    "description": "リギア/両替の承認通知と、イベント集合30分前の通知を Discord DM で受け取ります。ボットがDMを送れない(DM拒否など)場合、届かないことがあります。",
+    "description": "リギア/両替の承認通知と、イベント集合間近の通知を Discord DM で受け取ります。ボットがDMを送れない(DM拒否など)場合、届かないことがあります。",
     "enableButton": "DMを受け取る",
     "disableButton": "DMを停止",
     "enabledBadge": "受信中",
@@ -2140,7 +2152,13 @@
     "eventPayoutApprovedTitle": "イベント報酬支給",
     "eventPayoutApprovedBody": "{event} のイベント報酬が承認されました (+{silver} silver)。",
     "eventImminentTitle": "イベント間近: {title}",
-    "eventImminentBody": "{time} 集合 — 装備の準備をお願いします。"
+    "eventImminentBody": "{time} 集合 — 装備の準備をお願いします。",
+    "leadTitle": "イベント間近DMの通知タイミング",
+    "leadDescription": "集合時刻の何分前にDMを受け取るか個別に設定できます。空のままだとギルド既定値({minutes}分前)に従います。",
+    "leadFollowGuildDefault": "ギルド既定値に従う ({minutes}分前)",
+    "leadOption": "{minutes}分前",
+    "leadDisabledHint": "上の「DMを受け取る」がオフのため、通知タイミングは反映されません。",
+    "leadSavedMessage": "通知タイミングを保存しました。"
   },
   "archive": {
     "title": "戦闘アーカイブ",

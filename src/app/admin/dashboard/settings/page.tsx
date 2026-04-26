@@ -54,6 +54,7 @@ export default async function SettingsPage() {
     cdBadgeRolesRaw,
     allowUnverifiedMemberAccessRaw,
     tenantTimezoneRaw,
+    eventDmLeadMinutesRaw,
     { rewards, error: rewardsError },
     tLanding,
     t,
@@ -88,6 +89,7 @@ export default async function SettingsPage() {
     // 기본값 'Asia/Seoul' — 기존 멘헤라 동작 유지. 잘못된 값이 박혀 있으면
     // 아래 isValidTenantTimezone 으로 다시 한 번 정규화한다.
     getAppSetting('tenant_timezone', 'Asia/Seoul', tenantId),
+    getAppSetting('event_dm_lead_minutes', '35', tenantId),
     listRoleRewards(),
     getTranslations('landing'),
     getTranslations('adminSettings'),
@@ -153,6 +155,12 @@ export default async function SettingsPage() {
   const tenantTimezone = isValidTenantTimezone(tenantTimezoneRaw)
     ? tenantTimezoneRaw
     : DEFAULT_TENANT_TIMEZONE
+  // DM 임박 알림 lead 분 — 5~1440 분 범위 밖이면 35로 degrade.
+  const parsedDmLead = Number(eventDmLeadMinutesRaw)
+  const eventDmLeadMinutes =
+    Number.isFinite(parsedDmLead) && Number.isInteger(parsedDmLead) && parsedDmLead >= 5 && parsedDmLead <= 1440
+      ? parsedDmLead
+      : 35
 
   // 저장돼 있는 홈 길드 UUID 를 이름으로 역조회. Gameinfo 장애/삭제된 길드는
   // null 로 폴백해 UI 가 ID 만 노출하도록 둔다 — 실패해도 저장 흐름은 막지 않는다.
@@ -214,6 +222,7 @@ export default async function SettingsPage() {
         cdBadgeRoles={cdBadgeRoles}
         allowUnverifiedMemberAccess={allowUnverifiedMemberAccess}
         tenantTimezone={tenantTimezone}
+        eventDmLeadMinutes={eventDmLeadMinutes}
       />
     </div>
   )

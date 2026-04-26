@@ -9,26 +9,31 @@ import type { EventCategory } from '@/types'
 
 // 이벤트 집결 시간이 다가오면 파티에 편성된 멤버들에게 Discord DM 을 보낸다.
 //
-// 호출 규약: 스케줄러가 Authorization: Bearer <CRON_SECRET> 로 GET 을 날려
+// 호출 규약: Vercel cron 이 Authorization: Bearer <CRON_SECRET> 로 GET 을 날려
 // 이 라우트를 호출. 수동 트리거도 같은 헤더로 가능.
 //
-// 동작:
-//   1. gather_at 이 이후 LEAD_MIN 분 이내이고 아직 imminent_notified_at 이
-//      NULL 인 이벤트를 찾음.
-//   2. 해당 이벤트의 slots.assigned_discord_id 를 수집해 중복 제거.
-//   3. discord_dm_enabled = true 인 수신자에게 DM 발송.
-//   4. events.imminent_notified_at 를 현재 시각으로 표시해 중복 발송 방지.
+// 동작 (per-user lead time, migration 102 이후):
+//   1. gather_at 이 [now - LOOKBACK_MIN, now + MAX_LEAD_MIN] 안의 published 이벤트
+//      를 스캔.
+//   2. 각 이벤트의 assigned 멤버 + 개인 dm_lead_minutes (NULL 이면 길드 기본값)
+//      를 조회.
+//   3. 각 멤버에 대해 (gather_at - 개인 lead) 가 [now - LOOKBACK_MIN, now] 에
+//      들어오면 발송 대상.
+//   4. event_dm_sent (event_id, discord_id) 에 행이 없는 경우만 실제 발송 후
+//      바로 insert (중복 방지). PK 충돌은 무시.
 //
-// 스케줄링: Vercel Hobby 플랜은 일 1회 제한이라 cron 을 걸 수 없어,
-// .github/workflows/event-imminent.yml 의 GitHub Actions 가 5분 주기로 이 엔드포인트를
-// 호출한다. Pro 로 업그레이드하면 vercel.json 에 다시 옮길 수 있음.
+// auto-start (events_auto_start_enabled) 동작은 분리. lead time 과 무관하게
+// gather_at 이 지난 이벤트의 battle_started_at 을 자동 마킹.
 //
-// locale: 이전 Web Push 때는 구독별 locale 을 저장했지만 DM 으로 바뀌면서
-// 개인 locale 을 따로 저장하지 않는다. 길드가 KST 한국어 기준이라 기본 'ko'
-// 로 발송. 향후 필요하면 guild_avatars.locale 을 추가해 개인화할 수 있음.
+// imminent_notified_at 컬럼은 더 이상 새 로직에서 사용하지 않는다 (legacy 데이터
+// 호환을 위해 남겨둠). 새 dedupe 는 event_dm_sent 만으로 처리.
 
-const LEAD_MIN = 35 // gather_at - 35분 이내면 임박
-const LOOKBACK_MIN = 5 // 놓친 구간 재캐치용 (크론 누락 대비)
+// 길드 기본값(app_settings.event_dm_lead_minutes) 의 폴백.
+const DEFAULT_GUILD_LEAD_MIN = 35
+// 1440분(24h) 이전부터 조회. 개인이 24시간 전 알림으로 설정한 경우를 커버.
+const MAX_LEAD_MIN = 1440
+// 놓친 구간 재캐치용 (크론 누락 대비). cron 주기가 5분이라 5분 정도면 충분.
+const LOOKBACK_MIN = 5
 // 자동 시작 lookback. 4/21~4/25 운영 중 한 번에 1~2시간씩 cron 이 누락되어
 // 자동 시작이 실패한 사례가 다수 발생 (GitHub Actions schedule 의 공용 러너
 // 지연이 원인). Vercel Pro native cron 으로 옮겨 schedule 자체는 정확해졌지만,
@@ -51,6 +56,23 @@ function formatGatherTimeIn(gatherAtIso: string, tz: string): string {
     minute: '2-digit',
     hourCycle: 'h23',
   }).format(new Date(gatherAtIso))
+}
+
+// 길드 기본 lead 분 — 잘못된 값/없음은 35로 degrade.
+function parseGuildDefaultLead(raw: string | null | undefined): number {
+  const n = Number(raw)
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1 || n > MAX_LEAD_MIN) {
+    return DEFAULT_GUILD_LEAD_MIN
+  }
+  return n
+}
+
+// 개인 override 가 NULL/유효 범위 밖이면 길드 기본값을 사용.
+function effectiveLead(override: number | null | undefined, guildDefault: number): number {
+  if (override === null || override === undefined) return guildDefault
+  if (!Number.isFinite(override) || !Number.isInteger(override)) return guildDefault
+  if (override < 1 || override > MAX_LEAD_MIN) return guildDefault
+  return override
 }
 
 export async function GET(request: Request) {
@@ -109,15 +131,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ skipped: 'discord-dm-not-configured', auto_started: autoStartResults })
   }
 
-  const upperBound = new Date(now.getTime() + LEAD_MIN * 60 * 1000).toISOString()
+  // 가장 큰 lead 까지 미리 스캔 — 24h 전부터 발송 대상이 될 수 있다.
+  const upperBound = new Date(now.getTime() + MAX_LEAD_MIN * 60 * 1000).toISOString()
   const lowerBound = new Date(now.getTime() - LOOKBACK_MIN * 60 * 1000).toISOString()
 
-  // 임박 이벤트는 tenant 무관하게 한 번에 스캔한다 — DM 은 개인 단위라 tenant 격리가
-  // 부가 가치가 없고, imminent_notified_at 은 이벤트당 1회라 이미 중복이 없다.
+  // 임박 이벤트는 tenant 무관하게 한 번에 스캔. 발송 단위가 (event, member) 이라
+  // 길드 기본 lead 는 per-event 로 lookup 해야 하지만, 그 외 dedupe/필터는 동일.
   const { data: events, error: eventsError } = await db
     .from('events')
     .select('id, guild_id, title, gather_at, category')
-    .is('imminent_notified_at', null)
     .not('gather_at', 'is', null)
     // draft 이벤트는 임박 DM 대상 아님 — 발행된 이벤트만 DM.
     .eq('status', 'published')
@@ -134,8 +156,24 @@ export async function GET(request: Request) {
   const t = await getTranslations({ locale: DEFAULT_LOCALE, namespace: 'discordDm' })
   const results: Array<{ event_id: string; attempted: number; succeeded: number }> = []
 
+  // 길드 기본 lead 를 같은 cron 틱 안에서 캐시 — 동일 tenant 의 여러 이벤트가
+  // 같은 호출을 반복하지 않도록.
+  const guildDefaultLeadCache = new Map<string, number>()
+
   for (const event of events) {
-    // 이벤트당 편성된 멤버 모두 — 중복 제거 후 DM 발송.
+    const guildId = event.guild_id as string
+    let guildDefault = guildDefaultLeadCache.get(guildId)
+    if (guildDefault === undefined) {
+      const raw = await getAppSetting(
+        'event_dm_lead_minutes',
+        String(DEFAULT_GUILD_LEAD_MIN),
+        guildId,
+      )
+      guildDefault = parseGuildDefaultLead(raw)
+      guildDefaultLeadCache.set(guildId, guildDefault)
+    }
+
+    // 이벤트당 편성된 멤버 모두 — 중복 제거.
     const { data: slots, error: slotsError } = await db
       .from('slots')
       .select('assigned_discord_id, parties!inner(event_id)')
@@ -154,18 +192,69 @@ export async function GET(request: Request) {
       ),
     )
 
+    if (discordIds.length === 0) {
+      results.push({ event_id: event.id, attempted: 0, succeeded: 0 })
+      continue
+    }
+
+    // 각 멤버의 개인 lead override 조회 — guild_avatars + guests 합집합.
+    const [{ data: avatars }, { data: guests }, { data: alreadySent }] = await Promise.all([
+      db
+        .from('guild_avatars')
+        .select('discord_id, dm_lead_minutes')
+        .eq('guild_id', guildId)
+        .in('discord_id', discordIds),
+      db
+        .from('guests')
+        .select('discord_id, dm_lead_minutes')
+        .eq('guild_id', guildId)
+        .in('discord_id', discordIds),
+      db
+        .from('event_dm_sent')
+        .select('discord_id')
+        .eq('event_id', event.id)
+        .in('discord_id', discordIds),
+    ])
+
+    const overrideMap = new Map<string, number | null>()
+    for (const row of [...(avatars ?? []), ...(guests ?? [])] as Array<{
+      discord_id: string
+      dm_lead_minutes: number | null
+    }>) {
+      // 같은 Discord ID 가 guild_avatars 와 guests 양쪽에 있으면 (이론상 드물지만
+      // 게스트 → 정규 멤버 전환 잔재 등) 첫 진입을 우선. 둘 다 NULL 이면 어차피
+      // 길드 기본을 따른다.
+      if (!overrideMap.has(row.discord_id)) overrideMap.set(row.discord_id, row.dm_lead_minutes)
+    }
+    const sentSet = new Set((alreadySent ?? []).map((r) => r.discord_id as string))
+
+    const fireWindowEnd = now.getTime()
+    const fireWindowStart = now.getTime() - LOOKBACK_MIN * 60 * 1000
+    const gatherAtMs = new Date(event.gather_at as string).getTime()
+
+    // 발송 대상 = override 적용 후 (gather_at - lead) 가 fire window 안 + 미발송.
+    const eligible: string[] = []
+    for (const id of discordIds) {
+      if (sentSet.has(id)) continue
+      const lead = effectiveLead(overrideMap.get(id) ?? null, guildDefault)
+      const fireAt = gatherAtMs - lead * 60 * 1000
+      if (fireAt >= fireWindowStart && fireAt <= fireWindowEnd) {
+        eligible.push(id)
+      }
+    }
+
     let attempted = 0
     let succeeded = 0
 
-    if (discordIds.length > 0) {
-      const tz = await getTenantTimezone(event.guild_id as string)
+    if (eligible.length > 0) {
+      const tz = await getTenantTimezone(guildId)
       const time = formatGatherTimeIn(event.gather_at as string, tz)
       // event.category 는 migration 063+064 이후 NOT NULL. 개인 옵트아웃
       // (notify_combat / notify_ff / notify_ganking) 과 AND.
       const category = (event.category ?? '전투') as EventCategory
       const result = await sendDiscordDmsToUsers(
-        discordIds,
-        event.guild_id as string,
+        eligible,
+        guildId,
         {
           title: t('eventImminentTitle', { title: event.title }),
           body: t('eventImminentBody', { time }),
@@ -175,17 +264,24 @@ export async function GET(request: Request) {
       )
       attempted = result.attempted
       succeeded = result.succeeded
-    }
 
-    // 멤버가 없어도 notified 로 표시 — 다음 크론에서 같은 이벤트를 다시 스캔하지
-    // 않도록 한다.
-    const { error: markError } = await db
-      .from('events')
-      .update({ imminent_notified_at: now.toISOString() })
-      .eq('id', event.id)
-      .is('imminent_notified_at', null)
-    if (markError) {
-      console.error('[cron/event-imminent] mark failed:', markError.message)
+      // sendDiscordDmsToUsers 가 옵트아웃을 한 번 더 거른다 — 실제 attempted 만
+      // event_dm_sent 에 마킹해서, 옵트인 후에는 다시 발송할 수 있도록 한다.
+      // (옵트아웃 상태라면 사실상 영원히 못 받는 거라 마킹할 필요도 없음)
+      // 하지만 그렇게 하면 옵트아웃 → 옵트인 전환 사이에 누가 받지 못한 채로
+      // 시간이 흐를 수 있어, 차라리 모든 eligible 을 마킹해 한 번만 시도되도록
+      // 하는 편이 단순. 아래는 후자 정책 — 모든 eligible 을 마킹.
+      const rows = eligible.map((discord_id) => ({
+        event_id: event.id,
+        guild_id: guildId,
+        discord_id,
+      }))
+      const { error: insertError } = await db
+        .from('event_dm_sent')
+        .upsert(rows, { onConflict: 'event_id,discord_id', ignoreDuplicates: true })
+      if (insertError) {
+        console.error('[cron/event-imminent] event_dm_sent upsert failed:', insertError.message)
+      }
     }
 
     results.push({

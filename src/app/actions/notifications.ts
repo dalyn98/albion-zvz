@@ -5,8 +5,23 @@ import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { getAppSetting } from '@/lib/app-settings'
 import { requireEventCreator } from '@/lib/auth'
 import { CATEGORY_NOTIFY_COLUMN, EVENT_CATEGORIES, type EventCategory } from '@/types'
+
+// 길드 기본값. 개인이 NULL 로 두면 이 값을 따른다.
+const DEFAULT_DM_LEAD_MINUTES = 35
+// 개인 override 허용 최소/최대 — 너무 짧으면 cron 5분 주기를 못 맞추고,
+// 너무 길면 데이터 의미가 흐려진다.
+const DM_LEAD_MIN_MINUTES = 5
+const DM_LEAD_MAX_MINUTES = 1440
+
+// 'use server' 파일은 async 함수만 export 가능 — 헬퍼/상수는 모듈 내부 전용.
+function clampLeadMinutes(value: number, fallback: number): number {
+  if (!Number.isFinite(value) || !Number.isInteger(value)) return fallback
+  if (value < DM_LEAD_MIN_MINUTES || value > DM_LEAD_MAX_MINUTES) return fallback
+  return value
+}
 
 // 사용자(길드원/게스트) 본인의 Discord DM 수신 토글과 관리자용 Discord 역할
 // 목록 조회를 담당. 웹 푸시 스택(actions/push.ts) 을 대체한다.
@@ -15,6 +30,10 @@ export interface DmPreference {
   enabled: boolean
   // 카테고리별 옵트아웃 (migration 063+064). EventCategory 별 key.
   categories: Record<EventCategory, boolean>
+  // 개인 lead 분(NULL = 길드 기본값 사용). UI 에서 "기본값 사용" 옵션과 함께 노출.
+  leadMinutesOverride: number | null
+  // 길드 기본 lead 분 — 개인이 NULL 일 때 적용되는 값. UI 에 안내용으로 노출.
+  guildDefaultLeadMinutes: number
   error?: string
 }
 
@@ -24,26 +43,42 @@ const DEFAULT_CATEGORIES: Record<EventCategory, boolean> = {
   '갱킹': true,
 }
 
+// 길드 기본 lead 분을 app_settings 에서 읽는다. 잘못된 값/없을 때는 35로 degrade.
+async function getGuildDefaultLeadMinutes(guildId: string): Promise<number> {
+  const raw = await getAppSetting('event_dm_lead_minutes', String(DEFAULT_DM_LEAD_MINUTES), guildId)
+  return clampLeadMinutes(Number(raw), DEFAULT_DM_LEAD_MINUTES)
+}
+
 // 현재 세션 사용자의 DM 수신 설정을 한 번에 가져온다.
 //   - enabled: discord_dm_enabled (마스터 스위치, 기본 false = 옵트인)
 //   - categories: 카테고리별 옵트아웃 (기본 true = 기존 동작 유지)
+//   - leadMinutesOverride: 개인 lead 분 override (NULL = 길드 기본값)
+//   - guildDefaultLeadMinutes: 길드 기본 lead 분 (UI 안내용)
 // DB 의 DEFAULT 를 그대로 따른다.
 export async function getMyDmPreference(): Promise<DmPreference> {
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) {
-    return { enabled: false, categories: { ...DEFAULT_CATEGORIES }, error: tErr('loginRequired') }
+    return {
+      enabled: false,
+      categories: { ...DEFAULT_CATEGORIES },
+      leadMinutesOverride: null,
+      guildDefaultLeadMinutes: DEFAULT_DM_LEAD_MINUTES,
+      error: tErr('loginRequired'),
+    }
   }
   const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
-  const columns = 'discord_dm_enabled, notify_combat, notify_ff, notify_ganking'
+  const columns = 'discord_dm_enabled, notify_combat, notify_ff, notify_ganking, dm_lead_minutes'
   type Row = {
     discord_dm_enabled: boolean | null
     notify_combat: boolean | null
     notify_ff: boolean | null
     notify_ganking: boolean | null
+    dm_lead_minutes: number | null
   }
+  const guildDefault = await getGuildDefaultLeadMinutes(guildId)
   const toPref = (row: Row): DmPreference => ({
     enabled: row.discord_dm_enabled ?? false,
     categories: {
@@ -51,6 +86,8 @@ export async function getMyDmPreference(): Promise<DmPreference> {
       'FF': row.notify_ff ?? true,
       '갱킹': row.notify_ganking ?? true,
     },
+    leadMinutesOverride: row.dm_lead_minutes,
+    guildDefaultLeadMinutes: guildDefault,
   })
 
   // 길드원(guild_avatars) 우선, 없으면 게스트(guests) 확인. 둘 다 없는 경우는
@@ -71,7 +108,40 @@ export async function getMyDmPreference(): Promise<DmPreference> {
     .maybeSingle()
   if (guest) return toPref(guest as Row)
 
-  return { enabled: false, categories: { ...DEFAULT_CATEGORIES } }
+  return {
+    enabled: false,
+    categories: { ...DEFAULT_CATEGORIES },
+    leadMinutesOverride: null,
+    guildDefaultLeadMinutes: guildDefault,
+  }
+}
+
+// 개인 lead 분 override 저장. null 을 보내면 길드 기본값을 사용하도록 리셋.
+export async function setMyDmLeadMinutes(
+  override: number | null,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('memberActionError')
+  const session = await getSession()
+  if (!session) return { error: tErr('loginRequired') }
+  const guildId = await getSessionGuildId(session)
+
+  if (override !== null) {
+    if (!Number.isInteger(override) || override < DM_LEAD_MIN_MINUTES || override > DM_LEAD_MAX_MINUTES) {
+      return { error: tErr('invalidInput') }
+    }
+  }
+
+  const db = getAdminClient()
+  const table = session.isGuest ? 'guests' : 'guild_avatars'
+  const { error } = await db
+    .from(table)
+    .update({ dm_lead_minutes: override })
+    .eq('guild_id', guildId)
+    .eq('discord_id', session.discordId)
+  if (error) return { error: error.message }
+
+  revalidatePath('/me/settings')
+  return {}
 }
 
 export async function setMyDmPreference(

@@ -4,6 +4,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { Image as ImageIcon, Megaphone, Settings, Shield, Timer } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import NotificationSettingsForm from './NotificationSettingsForm'
+import EventDmLeadMinutesForm from './EventDmLeadMinutesForm'
 import RoleRewardsEditor from './RoleRewardsEditor'
 import LandingBannerForm from './LandingBannerForm'
 import LandingCtaTextForm from './LandingCtaTextForm'
@@ -86,6 +87,7 @@ interface Props {
   cdBadgeRoles: SlotRole[]
   allowUnverifiedMemberAccess: boolean
   tenantTimezone: string
+  eventDmLeadMinutes: number
 }
 
 function isTabKey(value: string | null): value is TabKey {
@@ -130,6 +132,7 @@ export default function SettingsTabs({
   cdBadgeRoles,
   allowUnverifiedMemberAccess,
   tenantTimezone,
+  eventDmLeadMinutes,
 }: Props) {
   const t = useTranslations('adminSettings')
   const tEventsNotice = useTranslations('adminEventsNotice')
@@ -274,6 +277,7 @@ export default function SettingsTabs({
               description={t('discordNoticeGroupDescription')}
             >
               <NotificationSettingsForm embedded initialMessage={notificationMessage} />
+              <EventDmLeadMinutesForm embedded initialMinutes={eventDmLeadMinutes} />
             </SettingsGroup>
             <SettingsGroup
               title={t('inPageNoticeGroupTitle')}

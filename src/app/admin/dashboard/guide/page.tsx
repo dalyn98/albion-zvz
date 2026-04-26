@@ -163,6 +163,7 @@ export default async function AdminGuidePage() {
           <li>{t('tips.tip4')}</li>
           <li>{t('tips.tip5')}</li>
           <li>{t('tips.tip6')}</li>
+          <li>{t('tips.tip7')}</li>
         </ul>
       </GuideSection>
     </div>

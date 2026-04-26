@@ -186,11 +186,24 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
     const finalPayload: Record<string, unknown> = { ...payload }
     if (gatherAtChanged) {
       finalPayload.battle_started_at = null
+      // legacy 컬럼이지만 운영 데이터가 남아 있어 같이 비워준다 (기존 cron 잔재).
       finalPayload.imminent_notified_at = null
     }
 
     const { error } = await db.from('events').update(finalPayload).eq('guild_id', guildId).eq('id', id)
     if (error) return { error: error.message }
+    // gather_at 이 바뀌면 (event, member) 단위 DM 발송 기록도 비워 — 새 시간 기준
+    // 으로 다시 발송될 수 있도록. event_dm_sent 가 비어있어도 cron 이 정상 동작
+    // 하므로 실패는 무시.
+    if (gatherAtChanged) {
+      const { error: clearError } = await db
+        .from('event_dm_sent')
+        .delete()
+        .eq('event_id', id)
+      if (clearError) {
+        console.error('[admin/updateEvent] event_dm_sent clear failed:', clearError.message)
+      }
+    }
     revalidatePath('/admin/dashboard')
     // 편집 페이지 자체도 invalidate — 그렇지 않으면 router.refresh() 후에도
     // PublishEventBanner 가 stale event prop 으로 렌더되어 발행 버튼이 비활성
@@ -468,15 +481,23 @@ export async function resetBattleStart(id: string): Promise<{ error?: string }> 
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
     const guildId = await getSessionGuildId(session)
-    // imminent_notified_at 도 같이 지운다 — 전투 초기화 후엔 임박 DM 도 재발송
-    // 가능 상태로 되돌리는 게 직관적. gather_at 자체는 그대로 두므로 cron 은
-    // 기존 시간에 다시 발동.
+    // 전투 초기화 후엔 임박 DM 도 재발송 가능 상태로 되돌리는 게 직관적.
+    // gather_at 자체는 그대로 두므로 cron 은 기존 시간에 다시 발동.
+    // imminent_notified_at 은 legacy 컬럼이지만 운영 데이터 남아 있어 같이 비움.
     const { error } = await db
       .from('events')
       .update({ battle_started_at: null, imminent_notified_at: null })
       .eq('guild_id', guildId)
       .eq('id', id)
     if (error) return { error: error.message }
+    // 새 dedupe 인 event_dm_sent 도 비워야 cron 이 같은 멤버에게 다시 시도한다.
+    const { error: clearError } = await db
+      .from('event_dm_sent')
+      .delete()
+      .eq('event_id', id)
+    if (clearError) {
+      console.error('[admin/resetBattleStart] event_dm_sent clear failed:', clearError.message)
+    }
     revalidatePath(`/admin/dashboard/events/${id}`)
     revalidatePath(`/events/${id}`)
     return {}

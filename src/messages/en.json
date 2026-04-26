@@ -503,7 +503,7 @@
     "notifications": {
       "title": "Discord notifications",
       "cta": "Open notification settings",
-      "body": "Two delivery channels: event channel announcements and personal DMs.\n\n- Event channel: configured via notify_channel_id + notify_role_id (role mention). Sent via a manual button on event create/edit.\n- Personal DM: auto-sent 35 min before event to assigned members. Users can opt out in /me/settings.\n- Regear/exchange approvals also DM the requester.\n\nRequires DISCORD_BOT_TOKEN, DISCORD_EVENT_CHANNEL_ID, DISCORD_GUILD_ID env vars."
+      "body": "Two delivery channels: event channel announcements and personal DMs.\n\n- Event channel: configured via notify_channel_id + notify_role_id (role mention). Sent via a manual button on event create/edit.\n- Personal DM: auto-sent before event gather time to assigned members. The lead time follows the guild default (initially 35 min, configurable in the 'Notices' tab → 'Discord notifications'); each member can override it in /me/settings, or opt out entirely.\n- Regear/exchange approvals also DM the requester.\n\nRequires DISCORD_BOT_TOKEN, DISCORD_EVENT_CHANNEL_ID, DISCORD_GUILD_ID env vars."
     },
     "battles": {
       "title": "Battle records (auto-aggregated)",
@@ -526,7 +526,8 @@
       "tip3": "Use the party editor's 'Hide party' button to hide in-progress parties from the public page.",
       "tip4": "For data issues, query Supabase Dashboard SQL editor directly. The 3 core tables: guild_avatars, regear_requests, point_ledger.",
       "tip5": "Share albion-guildmanager.com/invite as a one-click bot install link with your guild — it lands directly on the Discord bot invite page.",
-      "tip6": "Event gather time and regear-window deadlines now use the same 4-part (month/day/hour/minute) inputs everywhere, so mobile keypads stay consistent. Times convert to your operating timezone automatically."
+      "tip6": "Event gather time and regear-window deadlines now use the same 4-part (month/day/hour/minute) inputs everywhere, so mobile keypads stay consistent. Times convert to your operating timezone automatically.",
+      "tip7": "Reminder DMs use a guild-wide default (Settings → Notices → Discord notifications), and members can override their personal lead time anywhere from 5 to 1440 minutes in /me/settings. Useful when commute schedules differ across the roster."
     }
   },
   "adminParty": {
@@ -711,6 +712,17 @@
     "tooLong": "Notice must be {max} characters or fewer.",
     "clear": "Clear",
     "clearTooltip": "Empty the notice to hide the banner"
+  },
+  "adminEventDmLead": {
+    "title": "Default reminder lead time",
+    "description": "How many minutes before an event's gather time members receive their reminder DM. Members can override this on their own settings page; leaving the override empty falls back to this guild default.",
+    "label": "Default lead time (minutes, 5–1440)",
+    "unit": "min before",
+    "preset": "{minutes} min",
+    "invalidRange": "Enter an integer between {min} and {max}.",
+    "saved": "Saved",
+    "save": "Save",
+    "saving": "Saving…"
   },
   "adminEventsNotice": {
     "title": "Events notice",
@@ -2109,7 +2121,7 @@
   },
   "discordDm": {
     "title": "Discord DM notifications",
-    "description": "Receive regear/exchange decisions and a 30-minute gather reminder via Discord DM. Messages may not arrive if the bot can't DM you (server DM blocks, etc.).",
+    "description": "Receive regear/exchange decisions and a gather reminder via Discord DM. Messages may not arrive if the bot can't DM you (server DM blocks, etc.).",
     "enableButton": "Turn on DMs",
     "disableButton": "Turn off DMs",
     "enabledBadge": "On",
@@ -2140,7 +2152,13 @@
     "eventPayoutApprovedTitle": "Event payout",
     "eventPayoutApprovedBody": "Your event payout for {event} was approved (+{silver} silver).",
     "eventImminentTitle": "Event starting soon: {title}",
-    "eventImminentBody": "Gather at {time} — prep your gear."
+    "eventImminentBody": "Gather at {time} — prep your gear.",
+    "leadTitle": "Reminder lead time",
+    "leadDescription": "Choose how many minutes before gather time you want the DM. Leave on default to follow the guild setting ({minutes} minutes before).",
+    "leadFollowGuildDefault": "Use guild default ({minutes} min before)",
+    "leadOption": "{minutes} min before",
+    "leadDisabledHint": "Reminder lead time has no effect while \"Receive DMs\" above is off.",
+    "leadSavedMessage": "Reminder lead time saved."
   },
   "archive": {
     "title": "Battle Archive",
