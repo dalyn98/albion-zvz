@@ -11,6 +11,7 @@ import { Globe } from 'lucide-react'
 import { setMyTimezone } from '@/app/actions/notifications'
 import {
   TENANT_TIMEZONE_OPTIONS,
+  getUtcOffsetLabel,
   type TenantTimezoneOption,
 } from '@/lib/timezone'
 import { useToast } from './ToastProvider'
@@ -35,6 +36,11 @@ export default function MyTimezoneSetting({
   const [isPending, startTransition] = useTransition()
 
   const effective = override ?? guildDefaultTimezone
+  // 상태/링크 문구에 들어가는 시간대 라벨은 IANA + UTC 오프셋으로 합쳐서 한 번에
+  // 보여줘 사용자가 시차를 즉시 인지할 수 있게 함.
+  const guildDefaultLabel = `${guildDefaultTimezone} (${getUtcOffsetLabel(guildDefaultTimezone)})`
+  const overrideLabel =
+    override !== null ? `${override} (${getUtcOffsetLabel(override)})` : null
 
   const labelFor = (option: TenantTimezoneOption): string => {
     if (option.id === 'kr') return tAdmin('option_kr')
@@ -106,6 +112,9 @@ export default function MyTimezoneSetting({
                 className="accent-amber-500"
               />
               <span className="flex-1">{labelFor(option)}</span>
+              <span className="text-[11px] font-mono text-amber-300/80">
+                {getUtcOffsetLabel(option.iana)}
+              </span>
               <span className="text-[11px] text-gray-500">{option.iana}</span>
             </label>
           )
@@ -120,15 +129,15 @@ export default function MyTimezoneSetting({
             disabled={disabled}
             className="text-[11px] text-gray-500 hover:text-amber-300 underline disabled:opacity-50"
           >
-            {t('resetToGuildDefault', { tz: guildDefaultTimezone })}
+            {t('resetToGuildDefault', { tz: guildDefaultLabel })}
           </button>
         )}
       </div>
 
       <p className="text-[11px] text-gray-500">
-        {override === null
-          ? t('statusFollowingGuildDefault', { tz: guildDefaultTimezone })
-          : t('statusPersonal', { tz: override })}
+        {overrideLabel === null
+          ? t('statusFollowingGuildDefault', { tz: guildDefaultLabel })
+          : t('statusPersonal', { tz: overrideLabel })}
       </p>
 
       {!masterEnabled && (

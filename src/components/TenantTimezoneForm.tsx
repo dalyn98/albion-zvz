@@ -12,6 +12,7 @@ import { Save, Clock } from 'lucide-react'
 import { updateTenantTimezone } from '@/app/actions/settings'
 import {
   TENANT_TIMEZONE_OPTIONS,
+  getUtcOffsetLabel,
   type TenantTimezoneOption,
 } from '@/lib/timezone'
 
@@ -95,6 +96,9 @@ export default function TenantTimezoneForm({ initialTimezone, embedded = false }
                 className="accent-amber-500"
               />
               <span className="flex-1">{labelFor(option)}</span>
+              <span className="text-[11px] font-mono text-amber-300/80">
+                {getUtcOffsetLabel(option.iana)}
+              </span>
               <span className="text-[11px] text-gray-500">{option.iana}</span>
             </label>
           )

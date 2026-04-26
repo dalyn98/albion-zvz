@@ -11,6 +11,7 @@ import {
 } from '@/lib/tenant-slug'
 import {
   TENANT_TIMEZONE_OPTIONS,
+  getUtcOffsetLabel,
   type TenantTimezoneOption,
 } from '@/lib/timezone'
 
@@ -248,6 +249,9 @@ export default function TenantSetupForm({
                 className="accent-[#5865F2]"
               />
               <span className="flex-1">{timezoneLabelFor(option)}</span>
+              <span className="text-xs font-mono text-[#5865F2]/80">
+                {getUtcOffsetLabel(option.iana)}
+              </span>
               <span className="text-xs text-gray-500">{option.iana}</span>
             </label>
           ))}

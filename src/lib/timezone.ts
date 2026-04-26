@@ -111,3 +111,25 @@ export function tenantDateKey(input: string | Date | number, tz: string): string
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${p.year}-${pad(p.month)}-${pad(p.day)}`
 }
+
+// "UTC+9", "UTC-5", "UTC+5:30" 형태의 라벨 반환. 시간대 선택 UI 에 노출해
+// 사용자가 자기 지역과 시차를 즉시 인지할 수 있도록 한다. DST 가 적용되는
+// EU/NA/SA 는 현재 시각(when) 기준으로 동적으로 계산되므로, 6개월 후엔 1시간
+// 차이가 나게 표시된다 — 이게 의도된 동작.
+export function getUtcOffsetLabel(tz: string, when: Date = new Date()): string {
+  const parts = toZonedParts(when, tz)
+  const tzAsUtcMs = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  )
+  const diffMin = Math.round((tzAsUtcMs - when.getTime()) / 60000)
+  const sign = diffMin >= 0 ? '+' : '-'
+  const abs = Math.abs(diffMin)
+  const h = Math.floor(abs / 60)
+  const m = abs % 60
+  return m === 0 ? `UTC${sign}${h}` : `UTC${sign}${h}:${String(m).padStart(2, '0')}`
+}
