@@ -4,12 +4,6 @@ import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { saveTenantSetup } from '@/app/actions/onboard'
 import {
-  classifySlugIssue,
-  displayNameFromSlug,
-  isValidTenantSlug,
-  type SlugValidationIssue,
-} from '@/lib/tenant-slug'
-import {
   TENANT_TIMEZONE_OPTIONS,
   getUtcOffsetLabel,
   type TenantTimezoneOption,
@@ -31,18 +25,6 @@ interface DiscordChannelOption {
 }
 
 interface Labels {
-  slugLabel: string
-  slugHelp: string
-  slugAutoUpdateHint: string
-  slugPreviewPrefix: string
-  slugDisplayNamePrefix: string
-  slugIssueEmpty: string
-  slugIssueTooShort: string
-  slugIssueTooLong: string
-  slugIssueInvalidChars: string
-  slugIssueHyphenEdge: string
-  slugIssueDoubleHyphen: string
-  slugIssueReserved: string
   memberRoleLabel: string
   memberRoleHelp: string
   adminRoleLabel: string
@@ -70,45 +52,20 @@ interface Props {
   tenantId: string
   roles: DiscordRoleOption[]
   channels: DiscordChannelOption[]
-  initialSlug: string
-  rootDomain: string
   labels: Labels
 }
 
-function issueToMessage(issue: SlugValidationIssue, labels: Labels): string | null {
-  switch (issue) {
-    case 'empty':
-      return labels.slugIssueEmpty
-    case 'too_short':
-      return labels.slugIssueTooShort
-    case 'too_long':
-      return labels.slugIssueTooLong
-    case 'invalid_chars':
-      return labels.slugIssueInvalidChars
-    case 'leading_trailing_hyphen':
-      return labels.slugIssueHyphenEdge
-    case 'double_hyphen':
-      return labels.slugIssueDoubleHyphen
-    case 'reserved':
-      return labels.slugIssueReserved
-    default:
-      return null
-  }
-}
-
-// 초기 tenant 설정 폼 (위저드 1단계). slug 커스터마이즈 + Discord 역할/채널 선택.
-// slug 는 bot-callback 에서 자동 생성된 값을 초기값으로 보여주고, 유저가 원하면
-// 바꾼다. 저장 시 서버에서 isValidTenantSlug + UNIQUE 제약 재검증.
+// 초기 tenant 설정 폼 (위저드 1단계). Discord 역할/채널/시간대만 받는다.
+// 서브도메인 slug 는 이 단계에서 입력받지 않는다 — 다음 단계의 알비온 홈 길드
+// 인증 시 길드 이름 기반으로 자동 갱신되며, skip 흐름이라면 봇 설치 시 자동
+// 생성된 임시 slug 가 그대로 유지된다.
 export default function TenantSetupForm({
   tenantId,
   roles,
   channels,
-  initialSlug,
-  rootDomain,
   labels,
 }: Props) {
   const router = useRouter()
-  const [slug, setSlug] = useState<string>(initialSlug)
   const [memberIds, setMemberIds] = useState<string[]>([])
   // 관리자 역할 self-lockout 방어: Discord 에서 ADMINISTRATOR/MANAGE_GUILD 권한을
   // 가진 역할을 초기값으로 프리체크해둔다. 유저는 조정 가능하지만 전부 해제하면
@@ -126,26 +83,9 @@ export default function TenantSetupForm({
   const [isPending, startTransition] = useTransition()
   const hasAutoPreselect = autoPreselectAdmin.length > 0
 
-  const slugIssue = useMemo<SlugValidationIssue>(() => classifySlugIssue(slug), [slug])
-  const slugValid = useMemo<boolean>(() => isValidTenantSlug(slug), [slug])
-  const slugIssueMessage = issueToMessage(slugIssue, labels)
-  const slugDisplayName = useMemo<string>(() => displayNameFromSlug(slug), [slug])
-
-  const toggle = (
-    id: string,
-    current: string[],
-    setter: (v: string[]) => void,
-  ) => {
-    setter(current.includes(id) ? current.filter((x) => x !== id) : [...current, id])
-  }
-
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    if (!slugValid) {
-      setError(slugIssueMessage ?? labels.errorGeneric)
-      return
-    }
     if (memberIds.length === 0) {
       setError(labels.missingRoles)
       return
@@ -161,7 +101,6 @@ export default function TenantSetupForm({
     startTransition(async () => {
       const result = await saveTenantSetup({
         tenantId,
-        slug,
         memberRoleIds: memberIds,
         adminRoleIds: adminIds,
         eventChannelId: channelId || null,
@@ -184,48 +123,8 @@ export default function TenantSetupForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
-      <div className="space-y-2">
-        <label htmlFor="tenant-slug" className="text-sm font-semibold text-white block">
-          {labels.slugLabel}
-        </label>
-        <p className="text-xs text-gray-400">{labels.slugHelp}</p>
-        <div className="flex items-stretch rounded-lg border border-white/10 bg-white/5 focus-within:ring-2 focus-within:ring-[#5865F2]">
-          <input
-            id="tenant-slug"
-            type="text"
-            value={slug}
-            onChange={(e) => setSlug(e.target.value.toLowerCase().trim())}
-            autoComplete="off"
-            spellCheck={false}
-            maxLength={32}
-            className="flex-1 bg-transparent px-3 py-2 text-sm text-white focus:outline-none"
-          />
-          <span className="flex items-center px-3 text-xs text-gray-400 border-l border-white/10 select-none">
-            .{rootDomain}
-          </span>
-        </div>
-        <p className="text-xs text-gray-500">
-          {labels.slugPreviewPrefix}{' '}
-          <span className="text-gray-300">
-            https://{slug || '...'}.{rootDomain}
-          </span>
-        </p>
-        {slugValid && slugDisplayName.length > 0 && (
-          <p className="text-xs text-gray-500">
-            {labels.slugDisplayNamePrefix}{' '}
-            <span className="text-amber-400 font-semibold">⚔ {slugDisplayName}</span>
-          </p>
-        )}
-        {slug.length > 0 && !slugValid && slugIssueMessage && (
-          <p className="text-xs text-amber-400">{slugIssueMessage}</p>
-        )}
-        <p className="text-[11px] text-amber-300/80 leading-relaxed bg-amber-500/10 border border-amber-500/20 rounded-md px-2.5 py-1.5">
-          {labels.slugAutoUpdateHint}
-        </p>
-      </div>
-
       {/* 시간대는 사이트 전반(이벤트 시각/스트릭/Discord 알림 등) 동작에 직접
-          영향이라 폼 상단(슬러그 다음)에 둔다. 하단에 두면 채널 설정 아래로 밀려
+          영향이라 폼 상단에 둔다. 하단에 두면 채널 설정 아래로 밀려
           사용자가 스크롤하지 않으면 못 본다는 피드백이 있어 위치 변경. */}
       <fieldset className="space-y-2">
         <legend className="text-sm font-semibold text-white">{labels.timezoneLabel}</legend>
@@ -267,7 +166,11 @@ export default function TenantSetupForm({
               <input
                 type="checkbox"
                 checked={memberIds.includes(r.id)}
-                onChange={() => toggle(r.id, memberIds, setMemberIds)}
+                onChange={() =>
+                  setMemberIds((prev) =>
+                    prev.includes(r.id) ? prev.filter((x) => x !== r.id) : [...prev, r.id],
+                  )
+                }
                 className="accent-[#5865F2]"
               />
               <span>{r.name}</span>
@@ -289,7 +192,11 @@ export default function TenantSetupForm({
               <input
                 type="checkbox"
                 checked={adminIds.includes(r.id)}
-                onChange={() => toggle(r.id, adminIds, setAdminIds)}
+                onChange={() =>
+                  setAdminIds((prev) =>
+                    prev.includes(r.id) ? prev.filter((x) => x !== r.id) : [...prev, r.id],
+                  )
+                }
                 className="accent-[#5865F2]"
               />
               <span className={r.hasAdminPerm ? 'text-amber-200' : undefined}>
@@ -325,7 +232,7 @@ export default function TenantSetupForm({
 
       <button
         type="submit"
-        disabled={isPending || !slugValid}
+        disabled={isPending}
         className="w-full rounded-lg bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-60 text-white text-sm font-semibold py-2.5"
       >
         {isPending ? labels.savingButton : labels.nextButton}

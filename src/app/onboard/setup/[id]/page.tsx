@@ -1,6 +1,5 @@
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getCanonicalRootDomain } from '@/lib/tenant-resolver'
 import TenantSetupForm from '@/components/TenantSetupForm'
 
 export const dynamic = 'force-dynamic'
@@ -71,12 +70,10 @@ export default async function TenantSetupPage({ params }: Props) {
   const db = getAdminClient()
   const { data: tenantRow } = await db
     .from('tenants')
-    .select('discord_guild_id, slug')
+    .select('discord_guild_id')
     .eq('id', id)
     .maybeSingle()
   const discordGuildId = (tenantRow?.discord_guild_id ?? '') as string
-  const initialSlug = (tenantRow?.slug ?? '') as string
-  const rootDomain = getCanonicalRootDomain()
 
   const t = await getTranslations('onboard')
 
@@ -136,21 +133,7 @@ export default async function TenantSetupPage({ params }: Props) {
         tenantId={id}
         roles={roles}
         channels={channels}
-        initialSlug={initialSlug}
-        rootDomain={rootDomain}
         labels={{
-          slugLabel: t('slugLabel'),
-          slugHelp: t('slugHelp'),
-          slugAutoUpdateHint: t('slugAutoUpdateHint'),
-          slugPreviewPrefix: t('slugPreviewPrefix'),
-          slugDisplayNamePrefix: t('slugDisplayNamePrefix'),
-          slugIssueEmpty: t('slugIssueEmpty'),
-          slugIssueTooShort: t('slugIssueTooShort'),
-          slugIssueTooLong: t('slugIssueTooLong'),
-          slugIssueInvalidChars: t('slugIssueInvalidChars'),
-          slugIssueHyphenEdge: t('slugIssueHyphenEdge'),
-          slugIssueDoubleHyphen: t('slugIssueDoubleHyphen'),
-          slugIssueReserved: t('slugIssueReserved'),
           memberRoleLabel: t('memberRoleLabel'),
           memberRoleHelp: t('memberRoleHelp'),
           adminRoleLabel: t('adminRoleLabel'),

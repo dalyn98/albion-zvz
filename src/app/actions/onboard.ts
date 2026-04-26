@@ -55,29 +55,24 @@ async function verifyTenantOwnership(
 
 interface SaveTenantSetupInput {
   tenantId: string
-  slug: string
   memberRoleIds: string[]
   adminRoleIds: string[]
   eventChannelId: string | null
   timezone: string
 }
 
-// 단계 1: slug + Discord 역할 + 공지 채널. 저장 후 세션은 건드리지 않고
+// 단계 1: Discord 역할 + 공지 채널 + 시간대. 저장 후 세션은 건드리지 않고
 // 클라이언트가 다음 단계로 네비게이트.
 //
-// slug 는 tenants.slug UNIQUE 제약 대상. 서버에서 isValidTenantSlug 로
-// 포맷/예약어 재검증하고, DB 충돌(23505) 은 slugTaken 으로 안내.
+// 서브도메인 slug 는 이 단계에서 받지 않는다 — 봇 설치 시 자동 생성된 임시
+// slug ("guild-xxxx") 가 그대로 들어가 있고, 단계 2(saveTenantAlbion) 에서
+// 알비온 홈 길드 이름 기반으로 자동 갱신된다.
 export async function saveTenantSetup(
   input: SaveTenantSetupInput,
 ): Promise<{ error?: string }> {
   const t = await getTranslations('onboard')
   const session = await getSession()
   if (!session) return { error: t('unauthorized') }
-
-  const slug = typeof input.slug === 'string' ? input.slug.trim().toLowerCase() : ''
-  if (!isValidTenantSlug(slug)) {
-    return { error: t('slugInvalid') }
-  }
 
   if (input.memberRoleIds.length === 0) {
     return { error: t('missingRoles') }
@@ -100,17 +95,12 @@ export async function saveTenantSetup(
   const { error } = await db
     .from('tenants')
     .update({
-      slug,
       member_role_ids: input.memberRoleIds,
       admin_role_ids: input.adminRoleIds,
       event_channel_id: input.eventChannelId,
     })
     .eq('id', input.tenantId)
   if (error) {
-    // Postgres unique_violation — 다른 tenant 가 같은 slug 를 이미 쓰고 있다.
-    if ((error as { code?: string }).code === '23505') {
-      return { error: t('slugTaken') }
-    }
     return { error: error.message }
   }
 
