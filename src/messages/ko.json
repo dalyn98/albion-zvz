@@ -2152,19 +2152,17 @@
     "eventPayoutApprovedTitle": "이벤트 보상 지급",
     "eventPayoutApprovedBody": "{event} 이벤트 보상이 승인됐어요 (+{silver} silver).",
     "eventImminentTitle": "이벤트 임박: {title}",
-    "eventImminentBody": "{time} 집결 — 장비를 미리 준비해 두세요.",
-    "leadTitle": "이벤트 임박 알림 시점",
-    "leadDescription": "이벤트 집결 시각에서 몇 분 전에 DM 을 받을지 직접 정할 수 있어요. 길드 기본값은 {minutes}분 전이에요.",
-    "leadInputLabel": "내 알림 시점 (분 단위, 5~1440)",
-    "leadUnit": "분 전",
-    "leadOption": "{minutes}분 전",
-    "leadStatusFollowingGuildDefault": "현재 길드 기본값({minutes}분 전)을 따르고 있어요.",
-    "leadStatusPersonal": "현재 개인 설정 적용 중 — 집결 {minutes}분 전에 DM 이 와요.",
-    "leadResetToGuildDefault": "길드 기본값({minutes}분 전)으로 되돌리기",
-    "leadSave": "저장",
-    "leadSaving": "저장 중…",
-    "leadDisabledHint": "위의 \"DM 받기\" 가 꺼져 있어 알림 시점 설정이 적용되지 않아요.",
-    "leadSavedMessage": "알림 시점이 저장됐어요."
+    "eventImminentBody": "{time} 집결 — 장비를 미리 준비해 두세요."
+  },
+  "myTimezone": {
+    "title": "내 시간대",
+    "description": "이벤트 임박 DM 의 집결 시각이 이 시간대로 표시돼요. 한국이 아닌 지역에 거주하면 본인 지역 기준으로 알람을 받을 수 있어요.",
+    "hint": "선택하면 즉시 저장돼요. 미설정이면 길드 운영 시간대를 따라요.",
+    "statusFollowingGuildDefault": "현재 길드 운영 시간대({tz})를 따르고 있어요.",
+    "statusPersonal": "현재 개인 설정 적용 중 — DM 시각이 {tz} 기준으로 표시돼요.",
+    "resetToGuildDefault": "길드 운영 시간대({tz})로 되돌리기",
+    "savedMessage": "시간대가 저장됐어요.",
+    "disabledHint": "위의 \"DM 받기\" 가 꺼져 있어 시간대 설정이 적용되지 않아요."
   },
   "archive": {
     "title": "종료된 전투 아카이브",

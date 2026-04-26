@@ -2152,19 +2152,17 @@
     "eventPayoutApprovedTitle": "Event payout",
     "eventPayoutApprovedBody": "Your event payout for {event} was approved (+{silver} silver).",
     "eventImminentTitle": "Event starting soon: {title}",
-    "eventImminentBody": "Gather at {time} — prep your gear.",
-    "leadTitle": "Reminder lead time",
-    "leadDescription": "Choose how many minutes before gather time you want the DM. The guild default is {minutes} minutes before.",
-    "leadInputLabel": "My lead time (minutes, 5–1440)",
-    "leadUnit": "min before",
-    "leadOption": "{minutes} min",
-    "leadStatusFollowingGuildDefault": "Currently following the guild default ({minutes} min before).",
-    "leadStatusPersonal": "Personal setting active — DM arrives {minutes} min before gather.",
-    "leadResetToGuildDefault": "Reset to guild default ({minutes} min before)",
-    "leadSave": "Save",
-    "leadSaving": "Saving…",
-    "leadDisabledHint": "Reminder lead time has no effect while \"Receive DMs\" above is off.",
-    "leadSavedMessage": "Reminder lead time saved."
+    "eventImminentBody": "Gather at {time} — prep your gear."
+  },
+  "myTimezone": {
+    "title": "My timezone",
+    "description": "Gather time in event reminder DMs will be shown in this timezone. Members outside Korea can receive alerts in their local time.",
+    "hint": "Selecting saves immediately. If unset, your guild's operating timezone applies.",
+    "statusFollowingGuildDefault": "Currently following the guild's operating timezone ({tz}).",
+    "statusPersonal": "Personal setting active — DM times shown in {tz}.",
+    "resetToGuildDefault": "Reset to guild timezone ({tz})",
+    "savedMessage": "Timezone saved.",
+    "disabledHint": "Timezone setting has no effect while \"Receive DMs\" above is off."
   },
   "archive": {
     "title": "Battle Archive",

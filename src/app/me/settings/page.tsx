@@ -7,7 +7,7 @@ import { getMyPreferredLanguage } from '@/app/actions/language'
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/locales'
 import DmToggle from '@/components/DmToggle'
 import CategoryDmPrefs from '@/components/CategoryDmPrefs'
-import DmLeadMinutesSetting from '@/components/DmLeadMinutesSetting'
+import MyTimezoneSetting from '@/components/MyTimezoneSetting'
 import LanguageSetting from '@/components/LanguageSetting'
 
 export const dynamic = 'force-dynamic'
@@ -27,8 +27,8 @@ export default async function MySettingsPage() {
   const {
     enabled,
     categories: categoryPrefs,
-    leadMinutesOverride,
-    guildDefaultLeadMinutes,
+    timezoneOverride,
+    guildDefaultTimezone,
   } = dmPref
   // DB 값 > 현재 활성 로케일 > 기본값 순으로 fallback. 마이그레이션 직후
   // preferred_language 가 null 인 기존 사용자는 활성 로케일이 표시되어야 한다.
@@ -60,9 +60,9 @@ export default async function MySettingsPage() {
           initialCategories={categoryPrefs}
           masterEnabled={enabled}
         />
-        <DmLeadMinutesSetting
-          initialOverride={leadMinutesOverride}
-          guildDefaultMinutes={guildDefaultLeadMinutes}
+        <MyTimezoneSetting
+          initialOverride={timezoneOverride}
+          guildDefaultTimezone={guildDefaultTimezone}
           masterEnabled={enabled}
         />
       </section>
