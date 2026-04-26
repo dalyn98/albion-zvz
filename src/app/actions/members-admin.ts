@@ -617,8 +617,27 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
   try {
     const db = getAdminClient()
 
+    // avatar 를 먼저 단건 조회 — albion_player_id 를 확보해야 killboard_events
+    // 를 albion_player_id 기준으로 조회할 수 있다. (guild_id, discord_id) PK
+    // 인덱스라 1 roundtrip 비용은 무시해도 됨.
+    //
+    // 과거에는 killboard_events 를 discord_id 기준으로 조회했는데, "Albion 길드
+    // 가입 후 한참 뒤 Discord 연동" 순서인 멤버는 연동 전 Phase 3 에서 sync 된
+    // 이벤트가 discord_id=NULL 로 남아 멤버 상세 K/D 가 누락. 리더보드 RPC 와
+    // 수치가 어긋나는 원인. albion_player_id 는 sync 시 항상 set 되므로 이쪽이
+    // 정합성 있는 키.
+    const avatarRes = await db
+      .from('guild_avatars')
+      .select('discord_id, username, avatar, albion_player_id, updated_at, preferred_language')
+      .eq('guild_id', guildId)
+      .eq('discord_id', discordId)
+      .maybeSingle()
+    if (avatarRes.error) return { detail: null, error: avatarRes.error.message }
+    const avatar = avatarRes.data
+    if (!avatar) return { detail: null }
+    const memberAlbionId = (avatar.albion_player_id as string | null) ?? ''
+
     const [
-      avatarRes,
       slotsRes,
       regearsRes,
       exchangesRes,
@@ -628,12 +647,6 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       trackedBattles,
       participationsByMember,
     ] = await Promise.all([
-      db
-        .from('guild_avatars')
-        .select('discord_id, username, avatar, albion_player_id, updated_at, preferred_language')
-        .eq('guild_id', guildId)
-        .eq('discord_id', discordId)
-        .maybeSingle(),
       db
         .from('slots')
         .select(
@@ -660,11 +673,15 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
         .select('id, delta, reason, memo, created_at, handled_by_username')
         .eq('guild_id', guildId)
         .eq('discord_id', discordId),
-      db
-        .from('killboard_events')
-        .select('event_id, role, fame, item_power, occurred_at, equipment, opponent_name, opponent_guild, battle_id')
-        .eq('guild_id', guildId)
-        .eq('discord_id', discordId),
+      // killboard_events 는 albion_player_id 가 비어있는 (resolve 전) 멤버에는
+      // 행이 없으므로 빈 결과로 안전하게 떨어진다.
+      memberAlbionId
+        ? db
+            .from('killboard_events')
+            .select('event_id, role, fame, item_power, occurred_at, equipment, opponent_name, opponent_guild, battle_id')
+            .eq('guild_id', guildId)
+            .eq('albion_player_id', memberAlbionId)
+        : Promise.resolve({ data: [], error: null } as const),
       // 랭킹 RPC — 길드 전체 멤버의 kills/participations 를 집계해서 반환. 본인
       // 카운트와 비교해 상위 percentile 계산. 기존 PostgREST 쿼리는 group by 를
       // 내려주지 않고 limit 1000 에 걸리므로 RPC 로 한 번에 수행.
@@ -673,16 +690,12 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       fetchMemberBattleParticipations(db, guildId),
     ])
 
-    if (avatarRes.error) return { detail: null, error: avatarRes.error.message }
     if (slotsRes.error) return { detail: null, error: slotsRes.error.message }
     if (regearsRes.error) return { detail: null, error: regearsRes.error.message }
     if (exchangesRes.error) return { detail: null, error: exchangesRes.error.message }
     if (ledgerRes.error) return { detail: null, error: ledgerRes.error.message }
     // killboard_events 는 cron sync 실패·지연 등으로 비어 있을 수 있으므로
     // 오류가 나더라도 상세 페이지 자체를 막지 않고 0 으로 fallback.
-
-    const avatar = avatarRes.data
-    if (!avatar) return { detail: null }
 
     const unassignedRoleLabel = tCommon('unassignedRole')
     const deletedEventLabel = tCommon('deletedEvent')
@@ -794,7 +807,6 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     // mig 093 부터 participation map 키가 albion_player_id. guild_avatars 의
     // albion_player_id 가 비어 있으면 (Albion 매칭 안 된 Discord 멤버) 빈 맵을
     // 넘겨 0 fallback — 동작은 기존과 동일.
-    const memberAlbionId = (avatar.albion_player_id as string | null) ?? ''
     const memberParticipations = memberAlbionId
       ? participationsByMember.byAlbionPlayerId.get(memberAlbionId)
       : undefined
