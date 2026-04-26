@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
-import { Swords, Info } from 'lucide-react'
+import { Swords, Info, ChevronRight } from 'lucide-react'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -129,16 +129,72 @@ export default async function BattlesPage({
         </div>
       </div>
 
-      <div className="bg-gray-950/50 border border-gray-800 rounded-lg p-3 space-y-1.5">
+      <div className="bg-gray-950/50 border border-gray-800 rounded-lg p-3 space-y-2">
         <p className="text-[11px] text-gray-400 flex items-center gap-1.5">
           <Info size={12} />
           <span className="font-semibold text-amber-300">{t('tipTitle')}</span>
         </p>
         <ul className="text-[11px] text-gray-500 list-disc list-inside space-y-1">
           <li>{t('tipMatch')}</li>
+          <li>{t('tipEngagement')}</li>
           <li>{t('tipOutcome')}</li>
           <li>{t('tipLimitation')}</li>
         </ul>
+        <details className="group pt-1">
+          <summary className="cursor-pointer text-[11px] text-amber-300/80 hover:text-amber-300 list-none flex items-center gap-1 select-none">
+            <ChevronRight
+              size={12}
+              className="transition-transform group-open:rotate-90"
+            />
+            <span className="underline-offset-2 group-hover:underline">
+              {t('rulesShowMore')}
+            </span>
+          </summary>
+          <div className="mt-3 space-y-3 text-[11px] text-gray-400 leading-relaxed">
+            <p className="text-gray-500">{t('rulesIntro')}</p>
+            <div className="space-y-1">
+              <h4 className="text-amber-200/90 font-semibold">{t('rule1Title')}</h4>
+              <p>{t('rule1Body')}</p>
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-amber-200/90 font-semibold">{t('rule2Title')}</h4>
+              <p>{t('rule2Intro')}</p>
+              <ul className="list-disc list-inside ml-2 space-y-0.5 text-gray-500">
+                <li>{t('rule2Small')}</li>
+                <li>{t('rule2Middle')}</li>
+                <li>{t('rule2Large')}</li>
+                <li>{t('rule2Zerg')}</li>
+              </ul>
+              <p className="text-gray-500 italic">{t('rule2CutOff')}</p>
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-amber-200/90 font-semibold">{t('rule3Title')}</h4>
+              <p>{t('rule3Body')}</p>
+              <p className="text-gray-500 italic">{t('rule3Why')}</p>
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-amber-200/90 font-semibold">{t('rule4Title')}</h4>
+              <p>{t('rule4Body')}</p>
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-amber-200/90 font-semibold">{t('rule5Title')}</h4>
+              <p>{t('rule5Body')}</p>
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-amber-200/90 font-semibold">{t('rule6Title')}</h4>
+              <p>{t('rule6Body')}</p>
+            </div>
+            <div className="space-y-1 border-t border-gray-800 pt-2">
+              <h4 className="text-amber-200/90 font-semibold">
+                {t('rulesLimitTitle')}
+              </h4>
+              <ul className="list-disc list-inside ml-2 space-y-0.5 text-gray-500">
+                <li>{t('rulesLimit1')}</li>
+                <li>{t('rulesLimit2')}</li>
+              </ul>
+            </div>
+          </div>
+        </details>
       </div>
 
       {error && (
