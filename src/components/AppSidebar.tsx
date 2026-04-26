@@ -67,17 +67,24 @@ const ADMIN_NAV: NavItem[] = [
 // 슈퍼어드민 (멀티테넌트 운영자) 메뉴. SUPER_ADMIN_DISCORD_IDS env 에 등록된
 // 사용자에게만 노출. 라벨은 i18n 통합 전이라 한글 하드코딩 — Phase 5 에서
 // nav.* 키로 이전 예정.
-const SUPER_ADMIN_NAV: Array<{
+//
+// href 는 SUPER_ADMIN_PATH env 로 randomize 가능 — superAdminPath prop 으로
+// 받아 동적 빌드. AppShell 이 슈퍼어드민 세션에만 path 를 prop 으로 넘긴다.
+interface SuperAdminNavItem {
   href: string
   label: string
   icon: React.ComponentType<{ size?: number; className?: string }>
   exact?: boolean
-}> = [
-  { href: '/super-admin', label: '시스템 대시보드', icon: BarChart3, exact: true },
-  { href: '/super-admin/tenants', label: '테넌트', icon: Users },
-  { href: '/super-admin/notices', label: '시스템 공지', icon: ShieldAlert },
-  { href: '/super-admin/audit', label: '감사 로그', icon: BookOpen },
-]
+}
+
+function buildSuperAdminNav(basePath: string): SuperAdminNavItem[] {
+  return [
+    { href: basePath, label: '시스템 대시보드', icon: BarChart3, exact: true },
+    { href: `${basePath}/tenants`, label: '테넌트', icon: Users },
+    { href: `${basePath}/notices`, label: '시스템 공지', icon: ShieldAlert },
+    { href: `${basePath}/audit`, label: '감사 로그', icon: BookOpen },
+  ]
+}
 
 const STORAGE_KEY = 'app.sidebar.open'
 const MEMBER_GROUP_KEY = 'app.sidebar.memberOpen'
@@ -102,9 +109,18 @@ interface AppSidebarProps {
   adminBadges: AdminBadgeCounts | null
   brandName: string
   isSuperAdmin: boolean
+  // 슈퍼어드민 외부 path. 슈퍼어드민 세션이 아니면 null — randomized path 가
+  // 일반 클라이언트 HTML 에 노출되지 않도록 AppShell 이 게이팅한다.
+  superAdminPath: string | null
 }
 
-export default function AppSidebar({ session, adminBadges, brandName, isSuperAdmin }: AppSidebarProps) {
+export default function AppSidebar({
+  session,
+  adminBadges,
+  brandName,
+  isSuperAdmin,
+  superAdminPath,
+}: AppSidebarProps) {
   const pathname = usePathname()
   const t = useTranslations('sidebar')
   const tNav = useTranslations('nav')
@@ -249,10 +265,10 @@ export default function AppSidebar({ session, adminBadges, brandName, isSuperAdm
               setCollapsible={setAdminOpen}
             />
           )}
-          {isSuperAdmin && (
+          {isSuperAdmin && superAdminPath && (
             <NavGroup
               title="SUPER ADMIN"
-              items={SUPER_ADMIN_NAV.map((i) => ({
+              items={buildSuperAdminNav(superAdminPath).map((i) => ({
                 href: i.href,
                 labelKey: i.label,
                 label: i.label,

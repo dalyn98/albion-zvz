@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ArrowRight, Bot, Users, CalendarDays } from 'lucide-react'
 import { listAllTenantsWithStats } from '@/lib/super-admin-stats'
 import { formatDateTimeShort } from '@/lib/format-datetime'
+import { getSuperAdminPath } from '@/lib/super-admin-path'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,6 +36,7 @@ export default async function SuperAdminTenantsPage({
   const statusFilter = sp.status ?? ALL_FILTER
   const query = (sp.q ?? '').trim().toLowerCase()
   const tenants = await listAllTenantsWithStats()
+  const basePath = getSuperAdminPath()
 
   const filtered = tenants.filter((t) => {
     if (statusFilter !== ALL_FILTER && t.status !== statusFilter) return false
@@ -65,7 +67,7 @@ export default async function SuperAdminTenantsPage({
         {filters.map((f) => (
           <Link
             key={f.key}
-            href={`/super-admin/tenants?status=${f.key}${query ? `&q=${encodeURIComponent(query)}` : ''}`}
+            href={`${basePath}/tenants?status=${f.key}${query ? `&q=${encodeURIComponent(query)}` : ''}`}
             className={`px-3 py-1.5 rounded-lg text-xs border ${
               statusFilter === f.key
                 ? 'bg-amber-500/20 border-amber-500/40 text-amber-200'
@@ -96,7 +98,7 @@ export default async function SuperAdminTenantsPage({
               key={t.id}
               className="bg-gray-900 border border-gray-700 rounded-2xl p-4 hover:border-gray-600 transition-colors"
             >
-              <Link href={`/super-admin/tenants/${t.id}`} className="flex items-start gap-3">
+              <Link href={`${basePath}/tenants/${t.id}`} className="flex items-start gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <span className="text-base font-bold text-white truncate">{t.name}</span>

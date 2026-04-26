@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ScrollText } from 'lucide-react'
 import { listAuditLog } from '@/lib/super-admin-audit'
 import { formatDateTimeShort } from '@/lib/format-datetime'
+import { getSuperAdminPath } from '@/lib/super-admin-path'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,6 +30,7 @@ const ACTION_COLOR: Record<string, string> = {
 
 export default async function SuperAdminAuditPage() {
   const entries = await listAuditLog(100)
+  const basePath = getSuperAdminPath()
 
   return (
     <div className="space-y-5">
@@ -67,7 +69,7 @@ export default async function SuperAdminAuditPage() {
                   <span>
                     테넌트:{' '}
                     <Link
-                      href={`/super-admin/tenants/${e.targetTenantId}`}
+                      href={`${basePath}/tenants/${e.targetTenantId}`}
                       className="font-mono text-amber-400 hover:text-amber-300"
                     >
                       {e.targetTenantId}

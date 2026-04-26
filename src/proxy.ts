@@ -6,6 +6,10 @@ import {
   buildTenantHostUrl,
   FALLBACK_TENANT_SLUG,
 } from '@/lib/tenant-resolver'
+import {
+  getSuperAdminPath,
+  SUPER_ADMIN_INTERNAL_PATH,
+} from '@/lib/super-admin-path'
 
 // Multi-tenant subdomain migration (Phase A1):
 // legacy vercel.app hosts 308-redirect to `menhera.albion-guildmanager.com/<path>`
@@ -43,12 +47,43 @@ function withPathname(response: NextResponse, pathname: string): NextResponse {
   return response
 }
 
+// 슈퍼어드민 path randomization. SUPER_ADMIN_PATH env 가 기본값과 다를 때:
+//   - 외부 path (env 값) 는 내부 /super-admin/* 로 rewrite 후 렌더
+//   - 직접 /super-admin/* 접근은 404 (존재 자체를 숨김)
+// env 가 미설정이면 기본 path 를 그대로 노출 — 기존 동작.
+function handleSuperAdminPath(request: NextRequest): NextResponse | null {
+  const ext = getSuperAdminPath()
+  const internal = SUPER_ADMIN_INTERNAL_PATH
+  if (ext === internal) return null
+
+  const pathname = request.nextUrl.pathname
+
+  if (pathname === internal || pathname.startsWith(`${internal}/`)) {
+    return new NextResponse('Not Found', { status: 404 })
+  }
+
+  if (pathname === ext || pathname.startsWith(`${ext}/`)) {
+    const rest = pathname.slice(ext.length)
+    const rewritten = new URL(`${internal}${rest}`, request.url)
+    rewritten.search = request.nextUrl.search
+    const response = NextResponse.rewrite(rewritten)
+    // layout 의 path 분기는 canonical 기준이므로 x-pathname 도 canonical 로.
+    response.headers.set('x-pathname', `${internal}${rest}`)
+    return response
+  }
+
+  return null
+}
+
 export async function proxy(request: NextRequest) {
   const legacyRedirect = redirectLegacyHost(request)
   if (legacyRedirect) return legacyRedirect
 
   const rootHomeRedirect = redirectRootDomainHome(request)
   if (rootHomeRedirect) return rootHomeRedirect
+
+  const superAdminResponse = handleSuperAdminPath(request)
+  if (superAdminResponse) return superAdminResponse
 
   const pathname = request.nextUrl.pathname
 

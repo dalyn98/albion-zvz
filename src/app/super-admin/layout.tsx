@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { LayoutDashboard, Building2, Megaphone, ScrollText, ShieldAlert } from 'lucide-react'
 import { requireSuperAdmin } from '@/lib/super-admin'
+import { getSuperAdminPath } from '@/lib/super-admin-path'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,15 +11,19 @@ interface NavItem {
   Icon: typeof LayoutDashboard
 }
 
-const NAV: NavItem[] = [
-  { href: '/super-admin', label: '대시보드', Icon: LayoutDashboard },
-  { href: '/super-admin/tenants', label: '테넌트', Icon: Building2 },
-  { href: '/super-admin/notices', label: '시스템 공지', Icon: Megaphone },
-  { href: '/super-admin/audit', label: '감사 로그', Icon: ScrollText },
-]
+function buildNav(basePath: string): NavItem[] {
+  return [
+    { href: basePath, label: '대시보드', Icon: LayoutDashboard },
+    { href: `${basePath}/tenants`, label: '테넌트', Icon: Building2 },
+    { href: `${basePath}/notices`, label: '시스템 공지', Icon: Megaphone },
+    { href: `${basePath}/audit`, label: '감사 로그', Icon: ScrollText },
+  ]
+}
 
 export default async function SuperAdminLayout({ children }: { children: React.ReactNode }) {
   await requireSuperAdmin()
+  const basePath = getSuperAdminPath()
+  const nav = buildNav(basePath)
 
   return (
     <div className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 sm:py-8">
@@ -29,7 +34,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
       <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-6">
         <nav className="bg-gray-900 border border-gray-700 rounded-2xl p-3 h-fit">
           <ul className="space-y-1">
-            {NAV.map(({ href, label, Icon }) => (
+            {nav.map(({ href, label, Icon }) => (
               <li key={href}>
                 <Link
                   href={href}

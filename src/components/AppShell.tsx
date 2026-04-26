@@ -5,6 +5,7 @@ import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
 import { classifyHost } from '@/lib/tenant-resolver'
 import { isSuperAdminSession } from '@/lib/super-admin'
+import { getSuperAdminPath } from '@/lib/super-admin-path'
 import AppSidebar from './AppSidebar'
 
 // 어떤 tenant 에도 매칭되지 않을 때 표시되는 generic 브랜드명. 과거에 'Menhera'
@@ -43,6 +44,9 @@ export default async function AppShell({ children }: { children: React.ReactNode
     }
   }
   const superAdmin = isSuperAdminSession(session)
+  // path 는 슈퍼어드민에게만 prop 으로 전달 — 일반 세션 HTML 에는 baked-in 시키지
+  // 않아 정찰 표면을 더 줄인다 (env randomized path 를 클라에 노출 안 함).
+  const superAdminPath = superAdmin ? getSuperAdminPath() : null
   return (
     <div className="flex flex-col lg:flex-row min-h-screen w-full">
       <AppSidebar
@@ -50,6 +54,7 @@ export default async function AppShell({ children }: { children: React.ReactNode
         adminBadges={adminBadges}
         brandName={brandName}
         isSuperAdmin={superAdmin}
+        superAdminPath={superAdminPath}
       />
       <div className="flex-1 min-w-0 flex flex-col">{children}</div>
     </div>

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft, Bot, ExternalLink, Trash2, UserPlus, Eye } from 'lucide-react'
 import { getTenantDetail } from '@/lib/super-admin-stats'
 import { formatDateTimeShort } from '@/lib/format-datetime'
+import { getSuperAdminPath } from '@/lib/super-admin-path'
 import {
   setTenantStatus,
   grantTenantAdmin,
@@ -51,6 +52,7 @@ export default async function SuperAdminTenantDetailPage({ params }: PageProps) 
   const tenant = await getTenantDetail(id)
   if (!tenant) notFound()
 
+  const basePath = getSuperAdminPath()
   const subdomainBaseUrl = process.env.NEXT_PUBLIC_TENANT_BASE_URL ?? ''
   const tenantUrl = subdomainBaseUrl
     ? `https://${tenant.slug}.${subdomainBaseUrl}`
@@ -63,7 +65,7 @@ export default async function SuperAdminTenantDetailPage({ params }: PageProps) 
   return (
     <div className="space-y-5">
       <Link
-        href="/super-admin/tenants"
+        href={`${basePath}/tenants`}
         className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-white"
       >
         <ArrowLeft size={14} />

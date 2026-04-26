@@ -11,6 +11,7 @@ import { revalidatePath } from 'next/cache'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { requireSuperAdmin } from '@/lib/super-admin'
 import { logSuperAdminAction } from '@/lib/super-admin-audit'
+import { getSuperAdminPath } from '@/lib/super-admin-path'
 import {
   IMPERSONATION_COOKIE_NAME,
   impersonationCookieOptions,
@@ -54,8 +55,9 @@ export async function setTenantStatus(formData: FormData): Promise<void> {
     details: { from: prevStatus, to: next, reason },
   })
 
-  revalidatePath('/super-admin/tenants')
-  revalidatePath(`/super-admin/tenants/${tenantId}`)
+  const basePath = getSuperAdminPath()
+  revalidatePath(`${basePath}/tenants`)
+  revalidatePath(`${basePath}/tenants/${tenantId}`)
 }
 
 export async function grantTenantAdmin(formData: FormData): Promise<void> {
@@ -88,7 +90,7 @@ export async function grantTenantAdmin(formData: FormData): Promise<void> {
     details: { reason },
   })
 
-  revalidatePath(`/super-admin/tenants/${tenantId}`)
+  revalidatePath(`${getSuperAdminPath()}/tenants/${tenantId}`)
 }
 
 export async function createSystemNotice(formData: FormData): Promise<void> {
@@ -125,7 +127,7 @@ export async function createSystemNotice(formData: FormData): Promise<void> {
     details: { id: data?.id, message, imageUrl, expiresAt },
   })
 
-  revalidatePath('/super-admin/notices')
+  revalidatePath(`${getSuperAdminPath()}/notices`)
   revalidatePath('/', 'layout')
 }
 
@@ -167,7 +169,7 @@ export async function endImpersonation(): Promise<void> {
     details: { hadCookie: !!existing },
   })
 
-  redirect('/super-admin/tenants')
+  redirect(`${getSuperAdminPath()}/tenants`)
 }
 
 export async function archiveSystemNotice(formData: FormData): Promise<void> {
@@ -188,7 +190,7 @@ export async function archiveSystemNotice(formData: FormData): Promise<void> {
     details: { id: noticeId },
   })
 
-  revalidatePath('/super-admin/notices')
+  revalidatePath(`${getSuperAdminPath()}/notices`)
   revalidatePath('/', 'layout')
 }
 
@@ -246,7 +248,7 @@ export async function triggerManualSync(): Promise<ManualSyncResult> {
     },
   })
 
-  revalidatePath('/super-admin')
+  revalidatePath(getSuperAdminPath())
   revalidatePath('/admin/dashboard/stats')
   return result
 }
@@ -274,5 +276,5 @@ export async function revokeTenantAdmin(formData: FormData): Promise<void> {
     targetDiscordId: discordId,
   })
 
-  revalidatePath(`/super-admin/tenants/${tenantId}`)
+  revalidatePath(`${getSuperAdminPath()}/tenants/${tenantId}`)
 }
