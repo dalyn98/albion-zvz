@@ -332,13 +332,14 @@ export interface EventNotificationPayload {
   notify_channel_id: string | null
 }
 
-// Asia/Seoul 은 의도된 고정값 — Albion KR 서버 시간을 기준으로 알림이 나가야
-// 한다. locale 만 호출자가 넘기는 값(알림을 트리거한 관리자 locale)으로 동적.
-function formatGatherAt(iso: string, locale: string): string {
+// 시간대는 길드 설정(KR/EU/NA/SA) 을 반영. locale 은 알림을 트리거한 관리자
+// 의 BCP-47 (날짜/시간 포맷용). 잘못된 IANA 가 들어와도 toLocaleString 이
+// fallback 하므로 데이터는 깨지지 않는다.
+function formatGatherAt(iso: string, locale: string, tz: string): string {
   const dt = new Date(iso)
   if (Number.isNaN(dt.getTime())) return iso
   return dt.toLocaleString(locale, {
-    timeZone: 'Asia/Seoul',
+    timeZone: tz,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -370,6 +371,8 @@ export interface SendEventNotificationOptions {
   fieldLabels: EventNotificationFieldLabels
   // 날짜 포맷용 locale (BCP 47, e.g. 'ko-KR' / 'ja-JP' / 'en-US').
   dateLocale: string
+  // 길드 운영 시간대 (IANA). 잘못된 값이면 호출자가 'Asia/Seoul' 로 degrade.
+  tenantTimezone: string
 }
 
 export async function sendEventNotification(
@@ -386,7 +389,7 @@ export async function sendEventNotification(
   const siteUrl = appUrl.replace(/\/$/, '')
   const eventUrl = `${siteUrl}/events/${event.id}`
   const fields: Array<{ name: string; value: string; inline?: boolean }> = [
-    { name: options.fieldLabels.gatherAt, value: formatGatherAt(event.gather_at, options.dateLocale), inline: true },
+    { name: options.fieldLabels.gatherAt, value: formatGatherAt(event.gather_at, options.dateLocale, options.tenantTimezone), inline: true },
     { name: options.fieldLabels.gatherTime, value: event.gather_time, inline: true },
   ]
   // gather_location 은 옵션. 비어 있으면 Discord embed 의 빈 string 거부 + UX

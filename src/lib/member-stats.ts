@@ -63,16 +63,20 @@ export interface StreakResult {
   longestStreak: number
 }
 
-// 참여 날짜(Asia/Seoul) 를 기준으로 연속 일자 스트릭을 집계. 같은 날 여러 이벤트
-// 참여는 하루로 합산. 마지막 참여가 오늘/어제면 current 가 살아있고, 그보다 오래
-// 전이면 current = 0 (스트릭 끊김).
+// 참여 날짜(테넌트 시간대) 를 기준으로 연속 일자 스트릭을 집계. 같은 날 여러
+// 이벤트 참여는 하루로 합산. 마지막 참여가 오늘/어제면 current 가 살아있고,
+// 그보다 오래 전이면 current = 0 (스트릭 끊김).
+//
+// tz 는 IANA 문자열. 기본값은 'Asia/Seoul' — 호출자가 명시하지 않으면 기존
+// 멘헤라 동작 유지. EU/NA 길드 호출 시에는 자정 기준이 그쪽 기준으로 잡힌다.
 export function calcParticipationStreak(
   eventIsoDates: ReadonlyArray<string>,
   nowMs: number,
+  tz: string = 'Asia/Seoul',
 ): StreakResult {
   const dayKeys = new Set<string>()
   for (const iso of eventIsoDates) {
-    const k = toSeoulDateKey(new Date(iso))
+    const k = toTenantDateKey(new Date(iso), tz)
     if (k) dayKeys.add(k)
   }
   const sorted = Array.from(dayKeys).sort()
@@ -93,7 +97,7 @@ export function calcParticipationStreak(
   }
 
   const lastKey = sorted[sorted.length - 1]
-  const todayKey = toSeoulDateKey(new Date(nowMs))
+  const todayKey = toTenantDateKey(new Date(nowMs), tz)
   if (!todayKey) return { currentStreak: 0, longestStreak: longest }
   const lastMs = parseDateKey(lastKey)
   const todayMs = parseDateKey(todayKey)
@@ -105,10 +109,10 @@ export function calcParticipationStreak(
   return { currentStreak: current, longestStreak: longest }
 }
 
-function toSeoulDateKey(d: Date): string | null {
+function toTenantDateKey(d: Date, tz: string): string | null {
   if (Number.isNaN(d.getTime())) return null
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Seoul',
+    timeZone: tz,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

@@ -13,6 +13,7 @@ import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { sendEventNotification } from '@/lib/discord'
 import { getAppSetting } from '@/lib/app-settings'
 import { getLocale } from '@/lib/locale'
+import { getTenantTimezone } from '@/lib/timezone'
 import type { Locale } from '@/i18n/locales'
 import type { BombSquadKind, EventCategory, SlotKey, SlotSpells, GearOption, GearSpec, GearSpecs } from '@/types'
 import {
@@ -29,7 +30,8 @@ import {
 } from '@/types'
 
 // next-intl locale 코드(ko/ja/en) → Intl.DateTimeFormat 이 받는 BCP 47 태그.
-// Discord embed 의 일시 표기 포맷에 사용 — 시간대(Asia/Seoul)는 별도 고정.
+// Discord embed 의 일시 표기 포맷에 사용 — 시간대는 길드 설정(getTenantTimezone)
+// 으로 결정.
 const LOCALE_TO_BCP47: Record<Locale, string> = {
   ko: 'ko-KR',
   ja: 'ja-JP',
@@ -272,6 +274,7 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
     // 단일 운영 언어 컨벤션을 가정한다 (channel 은 1 곳, 라벨은 1 종류).
     const adminLocale = await getLocale()
     const dateLocale = LOCALE_TO_BCP47[adminLocale]
+    const tenantTimezone = await getTenantTimezone(guildId)
     await sendEventNotification(data, {
       content,
       notifyRoleId: data.notify_role_id,
@@ -283,6 +286,7 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
         specialNotes: tEvent('discordFieldSpecialNotes'),
       },
       dateLocale,
+      tenantTimezone,
     })
     return {}
   } catch (e) {

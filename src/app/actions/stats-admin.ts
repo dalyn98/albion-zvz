@@ -5,6 +5,7 @@ import { requireAdmin } from '@/lib/auth'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { getTenantTimezone } from '@/lib/timezone'
 import { getTranslations } from 'next-intl/server'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
 
@@ -583,7 +584,8 @@ export async function resetMemberAlbionOnboarding(
 const FINANCE_WINDOW_DAYS = 30
 
 export interface FinanceDayPoint {
-  // Asia/Seoul 기준 YYYY-MM-DD 키. 타임존 일관성을 위해 동일 로직 사용.
+  // 테넌트 시간대 기준 YYYY-MM-DD 키. 길드 운영 시간대(KR/EU/NA/SA) 의 자정으로
+  // 일자가 끊긴다. 타임존 일관성을 위해 차트 라벨/누적 키가 동일 로직 사용.
   date: string
   earned: number
   spent: number
@@ -611,11 +613,11 @@ export interface FinanceFlowStats {
   sinks: FinanceReasonBreakdown[]
 }
 
-function seoulDateKey(iso: string): string | null {
+function tenantDateKey(iso: string, tz: string): string | null {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return null
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Seoul',
+    timeZone: tz,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -627,12 +629,12 @@ function seoulDateKey(iso: string): string | null {
   return `${y}-${m}-${day}`
 }
 
-function buildDateSpine(days: number): string[] {
+function buildDateSpine(days: number, tz: string): string[] {
   const spine: string[] = []
   const now = Date.now()
   for (let i = days - 1; i >= 0; i--) {
     const ts = now - i * 24 * 60 * 60 * 1000
-    const key = seoulDateKey(new Date(ts).toISOString())
+    const key = tenantDateKey(new Date(ts).toISOString(), tz)
     if (key) spine.push(key)
   }
   return spine
@@ -648,6 +650,7 @@ export async function getFinanceFlowStats(): Promise<{
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireAdmin()
     const guildId = await getSessionGuildId(session)
+    const tz = await getTenantTimezone(guildId)
     const since = daysAgoIso(FINANCE_WINDOW_DAYS)
 
     const ledgerRes = await db
@@ -671,7 +674,7 @@ export async function getFinanceFlowStats(): Promise<{
       const reason = typeof row.reason === 'string' ? row.reason : 'unknown'
       const createdAt = typeof row.created_at === 'string' ? row.created_at : null
       if (!createdAt) continue
-      const dateKey = seoulDateKey(createdAt)
+      const dateKey = tenantDateKey(createdAt, tz)
       if (!dateKey) continue
 
       const dayBucket = dayMap.get(dateKey) ?? { earned: 0, spent: 0 }
@@ -694,7 +697,7 @@ export async function getFinanceFlowStats(): Promise<{
       dayMap.set(dateKey, dayBucket)
     }
 
-    const daily: FinanceDayPoint[] = buildDateSpine(FINANCE_WINDOW_DAYS).map(
+    const daily: FinanceDayPoint[] = buildDateSpine(FINANCE_WINDOW_DAYS, tz).map(
       (date) => {
         const b = dayMap.get(date) ?? { earned: 0, spent: 0 }
         return { date, earned: b.earned, spent: b.spent }
