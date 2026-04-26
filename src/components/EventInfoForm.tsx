@@ -13,23 +13,16 @@ import {
   type DiscordChannelOption,
 } from '@/app/actions/notifications'
 import { defaultGatherParts, parseGatherTime, formatGatherTimeKo, type GatherTimeParts } from '@/lib/gather-time'
+import FourPartTimeInput from './FourPartTimeInput'
 import type { Event, EventCategory } from '@/types'
 import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES } from '@/types'
 
 interface Props {
   initialEvent?: Event
+  tenantTimezone: string
 }
 
-type PartKey = keyof GatherTimeParts
-
-const PART_BOUNDS: Record<PartKey, { min: number; max: number }> = {
-  month:  { min: 1, max: 12 },
-  day:    { min: 1, max: 31 },
-  hour:   { min: 0, max: 23 },
-  minute: { min: 0, max: 59 },
-}
-
-export default function EventInfoForm({ initialEvent }: Props) {
+export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
   const router = useRouter()
   const t = useTranslations('adminEventForm')
   const tCommon = useTranslations('common')
@@ -90,20 +83,14 @@ export default function EventInfoForm({ initialEvent }: Props) {
     }
   }, [confirmOpen, loading])
 
-  const parsed = parseGatherTime(parts)
-  const preview = parsed ? formatGatherTimeKo(parsed) : null
+  const parsed = parseGatherTime(parts, { timezone: tenantTimezone })
+  const preview = parsed ? formatGatherTimeKo(parsed, tenantTimezone) : null
 
-  const partSuffix = (key: PartKey): string => {
-    if (key === 'month') return t('partMonth')
-    if (key === 'day') return t('partDay')
-    if (key === 'hour') return t('partHour')
-    return t('partMinute')
-  }
-
-  const handlePartChange = (key: PartKey, raw: string) => {
-    // Allow empty string while the user is typing — parse validates on save.
-    const next = raw === '' ? Number.NaN : Number(raw)
-    setParts((prev) => ({ ...prev, [key]: next }))
+  const partLabels = {
+    month: t('partMonth'),
+    day: t('partDay'),
+    hour: t('partHour'),
+    minute: t('partMinute'),
   }
 
   // 폼 → 실제 DB 호출에 쓰는 payload 를 한번에 조립. validate 에서 파싱한
@@ -113,6 +100,7 @@ export default function EventInfoForm({ initialEvent }: Props) {
     if (!title.trim()) return { error: t('titleRequired') }
     const dt = parseGatherTime(parts, {
       referenceIso: initialEvent?.gather_at ?? null,
+      timezone: tenantTimezone,
     })
     if (!dt) return { error: t('gatherTimeInvalid') }
     if (!gatherLocation.trim()) return { error: t('gatherLocationRequired') }
@@ -129,10 +117,11 @@ export default function EventInfoForm({ initialEvent }: Props) {
     if (!title.trim()) return { error: t('titleRequired') }
     const dt = parseGatherTime(parts, {
       referenceIso: initialEvent?.gather_at ?? null,
+      timezone: tenantTimezone,
     })
     // dt 가 NaN 이면 아예 날짜를 비워 저장. 유효한 date 가 있으면 같이 저장.
     const dtIso = dt ? dt.toISOString() : ''
-    const gatherTimeKo = dt ? formatGatherTimeKo(dt) : ''
+    const gatherTimeKo = dt ? formatGatherTimeKo(dt, tenantTimezone) : ''
     return { title: title.trim(), dtIso, gatherTimeKo, location: gatherLocation.trim() }
   }
 
@@ -161,7 +150,7 @@ export default function EventInfoForm({ initialEvent }: Props) {
     const result = await createEvent({
       title: title.trim(),
       gather_at: v.dt.toISOString(),
-      gather_time: formatGatherTimeKo(v.dt),
+      gather_time: formatGatherTimeKo(v.dt, tenantTimezone),
       gather_location: gatherLocation.trim(),
       special_notes: specialNotes.trim() || null,
     })
@@ -242,7 +231,7 @@ export default function EventInfoForm({ initialEvent }: Props) {
       const result = await updateEvent(initialEvent.id, {
         title: title.trim(),
         gather_at: v.dt.toISOString(),
-        gather_time: formatGatherTimeKo(v.dt),
+        gather_time: formatGatherTimeKo(v.dt, tenantTimezone),
         gather_location: gatherLocation.trim(),
         special_notes: specialNotes.trim() || null,
         notify_role_id: notifyRoleId || null,
@@ -296,30 +285,7 @@ export default function EventInfoForm({ initialEvent }: Props) {
 
       <div>
         <label className="text-gray-400 text-xs mb-1 block">{t('gatherTimeLabel')}</label>
-        <div className="grid grid-cols-4 gap-2">
-          {(Object.keys(PART_BOUNDS) as PartKey[]).map((key) => {
-            const bounds = PART_BOUNDS[key]
-            const value = parts[key]
-            const suffix = partSuffix(key)
-            return (
-              <div key={key} className="relative">
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={bounds.min}
-                  max={bounds.max}
-                  value={Number.isNaN(value) ? '' : value}
-                  onChange={(e) => handlePartChange(key, e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-3 pr-7 py-2.5 text-base text-white focus:outline-none focus:border-amber-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  aria-label={suffix}
-                />
-                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">
-                  {suffix}
-                </span>
-              </div>
-            )
-          })}
-        </div>
+        <FourPartTimeInput parts={parts} onChange={setParts} labels={partLabels} />
         <p className={`text-xs mt-1.5 ${preview ? 'text-amber-300' : 'text-red-400'}`}>
           {preview ? t('previewPrefix', { value: preview }) : t('gatherTimeIncomplete')}
         </p>

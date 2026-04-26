@@ -8,6 +8,8 @@ import { getRegearPayoutRatePercent } from '@/app/actions/regear-admin'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { getTenantTimezone } from '@/lib/timezone-server'
+import { formatDateTime } from '@/lib/format-datetime'
 import RegearWindowSubmitButton from './RegearWindowSubmitButton'
 
 // /regear 페이지에 열려 있는 윈도우들을 카드 리스트로 노출. 멤버는 카드의
@@ -17,11 +19,12 @@ export default async function RegearWindowsSection() {
   if (!session) return null
   const guildId = await getSessionGuildId(session)
 
-  const [{ windows }, { options }, payoutRatePercent, t] = await Promise.all([
+  const [{ windows }, { options }, payoutRatePercent, t, tenantTimezone] = await Promise.all([
     listRegearWindows('open'),
     listRegearRoleOptions(),
     getRegearPayoutRatePercent(),
     getTranslations('regearWindow'),
+    getTenantTimezone(),
   ])
 
   if (windows.length === 0) return null
@@ -69,7 +72,7 @@ export default async function RegearWindowsSection() {
                     {w.closesAt && (
                       <span className="inline-flex items-center gap-1">
                         <Clock size={11} />
-                        {t('metaClosesAt', { ts: new Date(w.closesAt).toLocaleString() })}
+                        {t('metaClosesAt', { ts: formatDateTime(w.closesAt, tenantTimezone) })}
                       </span>
                     )}
                     {existingActive > 0 && (

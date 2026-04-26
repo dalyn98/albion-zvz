@@ -14,50 +14,30 @@ import {
   formatGatherTimeKo,
   type GatherTimeParts,
 } from '@/lib/gather-time'
+import FourPartTimeInput, { BLANK_GATHER_PARTS, isAllBlank } from './FourPartTimeInput'
+import { formatDateTime } from '@/lib/format-datetime'
 
 interface RegearWindowsAdminProps {
   initialWindows: RegearWindow[]
+  tenantTimezone: string
 }
 
-type PartKey = keyof GatherTimeParts
-
-const PART_BOUNDS: Record<PartKey, { min: number; max: number }> = {
-  month:  { min: 1, max: 12 },
-  day:    { min: 1, max: 31 },
-  hour:   { min: 0, max: 23 },
-  minute: { min: 0, max: 59 },
-}
-
-const BLANK_PARTS: GatherTimeParts = {
-  month: Number.NaN,
-  day: Number.NaN,
-  hour: Number.NaN,
-  minute: Number.NaN,
-}
-
-export default function RegearWindowsAdmin({ initialWindows }: RegearWindowsAdminProps) {
+export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: RegearWindowsAdminProps) {
   const t = useTranslations('adminRegearWindows')
   const [windows, setWindows] = useState<RegearWindow[]>(initialWindows)
   const [isPending, startTransition] = useTransition()
   const [formError, setFormError] = useState<string | null>(null)
-  const [parts, setParts] = useState<GatherTimeParts>(BLANK_PARTS)
+  const [parts, setParts] = useState<GatherTimeParts>(BLANK_GATHER_PARTS)
 
-  const allBlank = (Object.keys(parts) as PartKey[]).every((k) =>
-    Number.isNaN(parts[k]),
-  )
-  const parsed = allBlank ? null : parseGatherTime(parts)
-  const preview = parsed ? formatGatherTimeKo(parsed) : null
+  const allBlank = isAllBlank(parts)
+  const parsed = allBlank ? null : parseGatherTime(parts, { timezone: tenantTimezone })
+  const preview = parsed ? formatGatherTimeKo(parsed, tenantTimezone) : null
 
-  const partSuffix = (key: PartKey): string => {
-    if (key === 'month') return t('partMonth')
-    if (key === 'day') return t('partDay')
-    if (key === 'hour') return t('partHour')
-    return t('partMinute')
-  }
-
-  const handlePartChange = (key: PartKey, raw: string) => {
-    const next = raw === '' ? Number.NaN : Number(raw)
-    setParts((prev) => ({ ...prev, [key]: next }))
+  const partLabels = {
+    month: t('partMonth'),
+    day: t('partDay'),
+    hour: t('partHour'),
+    minute: t('partMinute'),
   }
 
   function refreshFromServer() {
@@ -91,7 +71,7 @@ export default function RegearWindowsAdmin({ initialWindows }: RegearWindowsAdmi
       }
       const form = document.getElementById('regear-window-form') as HTMLFormElement | null
       form?.reset()
-      setParts(BLANK_PARTS)
+      setParts(BLANK_GATHER_PARTS)
       refreshFromServer()
       if (typeof window !== 'undefined') window.location.reload()
     })
@@ -198,30 +178,7 @@ export default function RegearWindowsAdmin({ initialWindows }: RegearWindowsAdmi
               <label className="block text-xs font-medium text-gray-400 mb-1">
                 {t('fieldClosesAt')}
               </label>
-              <div className="grid grid-cols-4 gap-1.5">
-                {(Object.keys(PART_BOUNDS) as PartKey[]).map((key) => {
-                  const bounds = PART_BOUNDS[key]
-                  const value = parts[key]
-                  const suffix = partSuffix(key)
-                  return (
-                    <div key={key} className="relative">
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min={bounds.min}
-                        max={bounds.max}
-                        value={Number.isNaN(value) ? '' : value}
-                        onChange={(e) => handlePartChange(key, e.target.value)}
-                        className="w-full rounded-md bg-gray-950 border border-gray-700 pl-2 pr-5 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-amber-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        aria-label={suffix}
-                      />
-                      <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs pointer-events-none">
-                        {suffix}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
+              <FourPartTimeInput parts={parts} onChange={setParts} labels={partLabels} size="compact" />
               <p className={`text-[11px] mt-1 ${closesAtToneClass}`}>
                 {closesAtMessage.text}
               </p>
@@ -257,6 +214,7 @@ export default function RegearWindowsAdmin({ initialWindows }: RegearWindowsAdmi
                 onClose={handleClose}
                 onDelete={handleDelete}
                 disabled={isPending}
+                tenantTimezone={tenantTimezone}
               />
             ))}
           </ul>
@@ -277,6 +235,7 @@ export default function RegearWindowsAdmin({ initialWindows }: RegearWindowsAdmi
                 onClose={handleClose}
                 onDelete={handleDelete}
                 disabled={isPending}
+                tenantTimezone={tenantTimezone}
               />
             ))}
           </ul>
@@ -291,9 +250,10 @@ interface WindowRowProps {
   onClose: (id: string) => void
   onDelete: (id: string) => void
   disabled: boolean
+  tenantTimezone: string
 }
 
-function WindowRow({ window: w, onClose, onDelete, disabled }: WindowRowProps) {
+function WindowRow({ window: w, onClose, onDelete, disabled, tenantTimezone }: WindowRowProps) {
   const t = useTranslations('adminRegearWindows')
 
   return (
@@ -320,20 +280,20 @@ function WindowRow({ window: w, onClose, onDelete, disabled }: WindowRowProps) {
           </span>
           <span>
             {t('metaOpensAt', {
-              ts: new Date(w.opensAt).toLocaleString(),
+              ts: formatDateTime(w.opensAt, tenantTimezone),
             })}
           </span>
           {w.closesAt && (
             <span>
               {t('metaClosesAt', {
-                ts: new Date(w.closesAt).toLocaleString(),
+                ts: formatDateTime(w.closesAt, tenantTimezone),
               })}
             </span>
           )}
           {w.closedAt && (
             <span>
               {t('metaClosedBy', {
-                ts: new Date(w.closedAt).toLocaleString(),
+                ts: formatDateTime(w.closedAt, tenantTimezone),
                 by: w.closedByUsername ?? '?',
               })}
             </span>

@@ -468,7 +468,7 @@
       "step2": "Configure parties/slots: load a template or add parties → set role, gear, and spec per slot.",
       "step3": "Publish: use the banner button to move the event to a state where members can apply.",
       "step4": "Mark battle started: press the 'Battle Started' button to lock battle_started_at. Regear window timer begins from this moment.",
-      "step5": "After the event: the auto-regear cron reads killboard and generates approvals. Members can submit manual regear once the window opens."
+      "step5": "After the event: the auto-regear cron reads killboard and generates approvals. Members can submit manual regear once the window opens. Use the 'Bulk payout' button at the top of the event page to grant a fixed attendance point to every assigned member in one click."
     },
     "regear": {
       "title": "Regear system",
@@ -478,12 +478,17 @@
       "bullet2": "Slot editor has 'Exclude from auto-regear' (visible only when global ON) and 'Exclude from manual regear' (always) checkboxes for per-build opt-out.",
       "bullet3": "Event-tied manual regear opens N minutes after battle start. Max screenshot 10MB, PNG/JPEG/WebP only.",
       "bullet4": "Auto-generated pending rows let the claimant edit per-slot prices. Admins review at /admin/dashboard/regear.",
-      "bullet5": "Event-independent free regear is accepted via 'regear windows'. Open and close them at /admin/dashboard/regear-windows (or via the admin-only button on the top right of /regear) — set a title, deadline, and per-user cap."
+      "bullet5": "Event-independent free regear is accepted via 'regear windows'. Open and close them at /admin/dashboard/regear-windows (or via the admin-only button on the top right of /regear) — set a title, deadline, and per-user cap. The deadline uses the same 4-part (month/day/hour/minute) input as events for mobile-friendly entry."
     },
     "onboarding": {
       "title": "Albion nickname verification",
       "cta": "Configure home guild",
-      "body": "New members see an Albion server/nickname onboarding modal after login. On successful verification, both the site and Discord guild nicknames sync to the Albion name.\n\nVerification requires an 'Albion home guild ID' set in Settings → Events tab. Without it, identities are stored but left unverified (verifiedAt=null).\n\nThe Stats page shows unverified/pending members. The 'Re-onboard' button clears a member's albion_* fields so the modal shows again."
+      "body": "New members see an Albion server/nickname onboarding modal after login. On successful verification, both the site and Discord guild nicknames sync to the Albion name.\n\nVerification requires an 'Albion home guild ID' set in Settings → Events tab. Without it, identities are stored but left unverified (verifiedAt=null).\n\nA single Albion home guild can only belong to one site at a time — if another site has already claimed the same guild, that one must release it before you can verify here. During initial setup, choosing the home guild also auto-syncs the subdomain slug to the guild name. Changing the home guild later does NOT rename the subdomain.\n\nThe Stats page shows unverified/pending members. The 'Re-onboard' button clears a member's albion_* fields so the modal shows again."
+    },
+    "timezone": {
+      "title": "Operating timezone",
+      "cta": "Open timezone settings",
+      "body": "The site-wide reference timezone for displaying and entering all times. During initial setup, pick KR (KST) / EU (CET·CEST) / NA (EST·EDT) / SA (BRT). All gather times, battle starts, regear deadlines, and stats follow this zone.\n\nThe same timezone drives auto-regear day boundaries, the 'today/this week' grouping in stats, and the 35-min Discord DM alert. Setting it to where the majority of your members live cuts down on \"what time is that?\" confusion.\n\nYou can change it any time in Settings → Events tab. Stored absolute timestamps stay the same — only how they're displayed changes."
     },
     "bombSquad": {
       "title": "Bomb-squad party & caller",
@@ -517,9 +522,11 @@
     "tips": {
       "title": "Operation tips",
       "tip1": "Before big changes, review global toggles (auto-regear, auto-start) in Settings.",
-      "tip2": "Save slot layouts as templates at /admin/dashboard/templates. Load quickly from the event editor.",
+      "tip2": "Save slot layouts as templates at /admin/dashboard/templates. Load quickly from the event editor. Re-saving with the same name now prompts to overwrite the existing template.",
       "tip3": "Use the party editor's 'Hide party' button to hide in-progress parties from the public page.",
-      "tip4": "For data issues, query Supabase Dashboard SQL editor directly. The 3 core tables: guild_avatars, regear_requests, point_ledger."
+      "tip4": "For data issues, query Supabase Dashboard SQL editor directly. The 3 core tables: guild_avatars, regear_requests, point_ledger.",
+      "tip5": "Share albion-guildmanager.com/invite as a one-click bot install link with your guild — it lands directly on the Discord bot invite page.",
+      "tip6": "Event gather time and regear-window deadlines now use the same 4-part (month/day/hour/minute) inputs everywhere, so mobile keypads stay consistent. Times convert to your operating timezone automatically."
     }
   },
   "adminParty": {

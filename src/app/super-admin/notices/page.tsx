@@ -1,7 +1,8 @@
 import { Megaphone, Trash2, Plus } from 'lucide-react'
 import { listAllSystemNotices } from '@/lib/super-admin-notices'
-import { createSystemNotice, archiveSystemNotice } from '@/app/super-admin/actions'
+import { archiveSystemNotice } from '@/app/super-admin/actions'
 import { formatDateTimeShort } from '@/lib/format-datetime'
+import SystemNoticeForm from './SystemNoticeForm'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,42 +33,7 @@ export default async function SuperAdminNoticesPage() {
         <h2 className="text-sm font-semibold text-gray-300 inline-flex items-center gap-2">
           <Plus size={14} /> 새 공지 작성
         </h2>
-        <form action={createSystemNotice} className="space-y-3">
-          <div>
-            <label className="text-xs text-gray-500 block mb-1">메시지</label>
-            <textarea
-              name="message"
-              rows={3}
-              placeholder="모든 테넌트에 표시될 메시지"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white"
-            />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">이미지 URL (선택)</label>
-              <input
-                type="url"
-                name="imageUrl"
-                placeholder="https://..."
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">만료 시각 (KST, 선택)</label>
-              <input
-                type="datetime-local"
-                name="expiresAt"
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white"
-              />
-            </div>
-          </div>
-          <button
-            type="submit"
-            className="bg-amber-500 hover:bg-amber-400 text-black font-bold text-sm px-4 py-2 rounded-lg"
-          >
-            발행
-          </button>
-        </form>
+        <SystemNoticeForm />
       </section>
 
       <section>

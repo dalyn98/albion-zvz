@@ -10,6 +10,7 @@ import {
   Bell,
   BarChart3,
   Swords,
+  Globe,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
@@ -76,6 +77,17 @@ export default async function AdminGuidePage() {
       >
         <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
           {t('onboarding.body')}
+        </p>
+      </GuideSection>
+
+      <GuideSection
+        icon={<Globe size={18} className="text-amber-400" />}
+        title={t('timezone.title')}
+        href="/admin/dashboard/settings?tab=events"
+        linkLabel={t('timezone.cta')}
+      >
+        <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
+          {t('timezone.body')}
         </p>
       </GuideSection>
 
@@ -149,6 +161,8 @@ export default async function AdminGuidePage() {
           <li>{t('tips.tip2')}</li>
           <li>{t('tips.tip3')}</li>
           <li>{t('tips.tip4')}</li>
+          <li>{t('tips.tip5')}</li>
+          <li>{t('tips.tip6')}</li>
         </ul>
       </GuideSection>
     </div>

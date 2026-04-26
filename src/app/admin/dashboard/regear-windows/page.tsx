@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server'
 import { listRegearWindows } from '@/app/actions/regear-windows'
 import RegearWindowsAdmin from '@/components/RegearWindowsAdmin'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 // 이벤트와 무관한 자유 리기어 신청 창구 관리. 관리자는 윈도우를 열고 (open),
 // 마감 시각이 오거나 직접 닫을 (close) 수 있으며, 멤버는 열려 있는 윈도우에
@@ -8,9 +9,10 @@ import RegearWindowsAdmin from '@/components/RegearWindowsAdmin'
 export const dynamic = 'force-dynamic'
 
 export default async function RegearWindowsPage() {
-  const [{ windows, error }, t] = await Promise.all([
+  const [{ windows, error }, t, tenantTimezone] = await Promise.all([
     listRegearWindows('all'),
     getTranslations('adminRegearWindows'),
+    getTenantTimezone(),
   ])
 
   return (
@@ -24,7 +26,7 @@ export default async function RegearWindowsPage() {
           {error}
         </div>
       ) : (
-        <RegearWindowsAdmin initialWindows={windows} />
+        <RegearWindowsAdmin initialWindows={windows} tenantTimezone={tenantTimezone} />
       )}
     </div>
   )

@@ -183,6 +183,7 @@ export default async function EventDetailPage({
                   eventId={id}
                   initialTokens={[...(guestTokens ?? [])]}
                   origin={origin}
+                  tenantTimezone={tz}
                 />
               )}
               {canEdit && (

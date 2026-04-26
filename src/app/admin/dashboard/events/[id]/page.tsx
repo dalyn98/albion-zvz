@@ -19,6 +19,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { isEnded } from '@/lib/gather-time'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 async function getData(id: string, guildId: string) {
   // guild_avatars 는 anon/authenticated 에 revoke 되어 있어 (migration 008)
@@ -87,11 +88,12 @@ export default async function EditEventPage({
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
-  const [{ event, parties, memberDirectory }, { templates }, t, autoRegearRaw] = await Promise.all([
+  const [{ event, parties, memberDirectory }, { templates }, t, autoRegearRaw, tenantTimezone] = await Promise.all([
     getData(id, guildId),
     listTemplates(),
     getTranslations('adminEditEvent'),
     getAppSetting('auto_regear_enabled', 'false', guildId),
+    getTenantTimezone(),
   ])
   const autoRegearEnabled = autoRegearRaw === 'true'
 
@@ -122,7 +124,7 @@ export default async function EditEventPage({
             </div>
           </div>
           {event.status === 'draft' && <PublishEventBanner event={event} />}
-          <EventInfoForm initialEvent={event} />
+          <EventInfoForm initialEvent={event} tenantTimezone={tenantTimezone} />
 
           <div className="lg:hidden">
             <EventSlotSidebar placement="mobile" parties={parties} avatars={avatars} />

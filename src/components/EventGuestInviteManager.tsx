@@ -10,11 +10,13 @@ import {
   revokeEventGuestToken,
   type EventGuestToken,
 } from '@/app/actions/event-invites'
+import { formatDateTime } from '@/lib/format-datetime'
 
 interface Props {
   eventId: string
   initialTokens: EventGuestToken[]
   origin: string
+  tenantTimezone: string
 }
 
 function buildInviteUrl(origin: string, eventId: string, token: string): string {
@@ -28,7 +30,7 @@ function isActive(token: EventGuestToken, nowIso: string): boolean {
   return true
 }
 
-export default function EventGuestInviteManager({ eventId, initialTokens, origin }: Props) {
+export default function EventGuestInviteManager({ eventId, initialTokens, origin, tenantTimezone }: Props) {
   const t = useTranslations('eventGuestInvite')
   const tCommon = useTranslations('common')
   const router = useRouter()
@@ -194,7 +196,7 @@ export default function EventGuestInviteManager({ eventId, initialTokens, origin
                       {token.expires_at && (
                         <span>
                           {t('expiresAt', {
-                            at: new Date(token.expires_at).toLocaleString(),
+                            at: formatDateTime(token.expires_at, tenantTimezone),
                           })}
                         </span>
                       )}
