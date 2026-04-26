@@ -12,6 +12,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { ALBION_SERVER_LABEL } from '@/lib/albion-gameinfo'
 import { formatGatherTimeFor } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
+import { getTenantTimezone } from '@/lib/timezone'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import MyHomeDashboardCard from '@/components/MyHomeDashboardCard'
 import BadgeGrid from '@/components/BadgeGrid'
@@ -44,6 +45,7 @@ export default async function MePage() {
     tOnboarding,
     tRole,
     locale,
+    tz,
   ] = await Promise.all([
     getMyDashboard(),
     listMyExchangeRequests(),
@@ -55,6 +57,7 @@ export default async function MePage() {
     getTranslations('albionOnboarding'),
     getTranslations('slotRole'),
     getLocale(),
+    getTenantTimezone(guildId),
   ])
 
   const albionVerified = isAlbionVerified(albionIdentity)
@@ -187,7 +190,7 @@ export default async function MePage() {
                   <div className="min-w-0 flex-1">
                     <p className="text-white text-sm font-medium truncate">{p.event_title}</p>
                     <p className="text-gray-500 text-xs">
-                      {p.gather_at ? formatGatherTimeFor(locale, p.gather_at) : p.gather_time}
+                      {p.gather_at ? formatGatherTimeFor(locale, p.gather_at, tz) : p.gather_time}
                       {p.role_name && <span className="ml-2 text-gray-400">· {translateSlotRole(p.role_name, tRole)}</span>}
                     </p>
                   </div>

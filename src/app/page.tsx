@@ -8,6 +8,7 @@ import { getLocale } from '@/lib/locale'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
+import { getTenantTimezone } from '@/lib/timezone'
 import HomeEventList, { type HomeEventCardData, type HomeEventKind } from '@/components/HomeEventList'
 import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
 
@@ -80,16 +81,17 @@ export default async function HomePage() {
   // tenant 로 fallback 해 레이아웃 상 게이트가 렌더하는 동안 깨지지 않게 한다.
   const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
 
-  const [noticeMessage, noticeImageUrl, events] = await Promise.all([
+  const [noticeMessage, noticeImageUrl, events, tz] = await Promise.all([
     getAppSetting('events_notice_message', '', guildId),
     getAppSetting('events_notice_image_url', '', guildId),
     getActiveEvents(guildId),
+    getTenantTimezone(guildId),
   ])
 
   // Prefer gather_at (ISO) for locale-aware formatting; fall back to stored
   // gather_time (always Korean) for legacy rows that predate gather_at.
   const displayGatherTime = (event: Event): string =>
-    event.gather_at ? formatGatherTimeFor(locale, event.gather_at) : event.gather_time
+    event.gather_at ? formatGatherTimeFor(locale, event.gather_at, tz) : event.gather_time
 
   const toCard = (event: EventWithCounts): HomeEventCardData => ({
     id: event.id,

@@ -16,11 +16,12 @@ import { getAvatarsByDiscordIds, getUsernamesByDiscordIds } from '@/lib/discord-
 import { formatGatherTimeFor, isEnded } from '@/lib/gather-time'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { getLocale } from '@/lib/locale'
+import { getTenantTimezone } from '@/lib/timezone'
 import { listEventGuestTokens } from '@/app/actions/event-invites'
 
-function formatStartedAt(iso: string): string {
-  // "MM-DD HH:mm" → "MM/DD HH:mm" (KST, via formatDateTimeShort).
-  return formatDateTimeShort(iso).replace('-', '/')
+function formatStartedAt(iso: string, tz: string): string {
+  // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
+  return formatDateTimeShort(iso, tz).replace('-', '/')
 }
 
 export const dynamic = 'force-dynamic'
@@ -61,12 +62,13 @@ export default async function EventDetailPage({
   // fallback. 이벤트 상세는 layout gate 가 자기 이벤트 외 접근을 차단하므로
   // guildId 미스매치는 유효 경로에서 발생하지 않는다.
   const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
-  const [{ event, parties }, t, locale, cdBadgeRolesRaw, autoRegearRaw] = await Promise.all([
+  const [{ event, parties }, t, locale, cdBadgeRolesRaw, autoRegearRaw, tz] = await Promise.all([
     getEvent(id, guildId),
     getTranslations('event'),
     getLocale(),
     getAppSetting('cd_badge_roles', '["Dps"]', guildId),
     getAppSetting('auto_regear_enabled', 'false', guildId),
+    getTenantTimezone(guildId),
   ])
   const autoRegearEnabled = autoRegearRaw === 'true'
 
@@ -91,7 +93,7 @@ export default async function EventDetailPage({
   if (!event || event.status === 'draft') notFound()
 
   const displayGatherTime = event.gather_at
-    ? formatGatherTimeFor(locale, event.gather_at)
+    ? formatGatherTimeFor(locale, event.gather_at, tz)
     : event.gather_time
 
   const totalSlots = parties.reduce((sum, p) => sum + p.slots.length, 0)
@@ -173,7 +175,7 @@ export default async function EventDetailPage({
               {event.battle_started_at && (
                 <span className="inline-flex items-center gap-1.5 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-sm font-bold px-2.5 py-1 rounded-full">
                   <Swords size={12} />
-                  {t('inProgress', { time: formatStartedAt(event.battle_started_at) })}
+                  {t('inProgress', { time: formatStartedAt(event.battle_started_at, tz) })}
                 </span>
               )}
               {canEdit && (

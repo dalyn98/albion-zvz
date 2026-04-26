@@ -18,6 +18,7 @@ import RegearPayoutRateForm from './RegearPayoutRateForm'
 import EventAutoStartForm from './EventAutoStartForm'
 import AlbionHomeGuildForm from './AlbionHomeGuildForm'
 import AllowUnverifiedAccessForm from './AllowUnverifiedAccessForm'
+import TenantTimezoneForm from './TenantTimezoneForm'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
 import AutoRegearToggleForm from './AutoRegearToggleForm'
 import RegearRequireVerificationForm from './RegearRequireVerificationForm'
@@ -84,6 +85,7 @@ interface Props {
   regearRequireVerification: boolean
   cdBadgeRoles: SlotRole[]
   allowUnverifiedMemberAccess: boolean
+  tenantTimezone: string
 }
 
 function isTabKey(value: string | null): value is TabKey {
@@ -127,6 +129,7 @@ export default function SettingsTabs({
   regearRequireVerification,
   cdBadgeRoles,
   allowUnverifiedMemberAccess,
+  tenantTimezone,
 }: Props) {
   const t = useTranslations('adminSettings')
   const tEventsNotice = useTranslations('adminEventsNotice')
@@ -187,6 +190,10 @@ export default function SettingsTabs({
               initialServer={albionServer}
               initialGuildId={albionHomeGuildId}
               initialGuildName={albionHomeGuildName}
+            />
+            <TenantTimezoneForm
+              embedded
+              initialTimezone={tenantTimezone}
             />
             <AllowUnverifiedAccessForm
               embedded

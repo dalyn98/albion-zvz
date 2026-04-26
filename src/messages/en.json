@@ -1061,6 +1061,15 @@
     "toggleLabel": "Let unverified members use the site",
     "toggleHint": "When off, site access is blocked until onboarding is complete."
   },
+  "adminTimezone": {
+    "title": "Guild timezone",
+    "description": "Event gather times, leaderboard/streak day boundaries, and Discord notification timestamps are all rendered in this timezone.",
+    "hint": "Changes take effect on the next server-rendered page load. Invalid values silently fall back to Korea (KST).",
+    "option_kr": "Korea (KR)",
+    "option_eu": "Europe (EU)",
+    "option_na": "North America (NA)",
+    "option_sa": "South America (SA)"
+  },
   "adminCdBadge": {
     "title": "CD badge role filter",
     "descriptionLine1": "Pick which roles show the weapon skill cooldown badge (including leather armor / food reductions).",
@@ -2127,6 +2136,13 @@
     "channelLabel": "Event announcement channel",
     "channelHelp": "Default Discord channel used when announcing new events (overridable per event).",
     "noChannel": "(configure later)",
+    "timezoneLabel": "Guild timezone",
+    "timezoneHelp": "Event gather times, leaderboard day boundaries, and Discord notification timestamps are all rendered in this timezone. Pick one of four presets matching the four Albion server regions. You can change this any time from admin settings.",
+    "timezoneRequired": "Please select your guild timezone.",
+    "timezone_kr": "Korea (KR)",
+    "timezone_eu": "Europe (EU)",
+    "timezone_na": "North America (NA)",
+    "timezone_sa": "South America (SA)",
     "saveButton": "Save and continue",
     "savingButton": "Saving...",
     "errorGeneric": "Failed to save settings.",

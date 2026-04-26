@@ -9,6 +9,10 @@ import {
   isValidTenantSlug,
   type SlugValidationIssue,
 } from '@/lib/tenant-slug'
+import {
+  TENANT_TIMEZONE_OPTIONS,
+  type TenantTimezoneOption,
+} from '@/lib/timezone'
 
 interface DiscordRoleOption {
   id: string
@@ -46,6 +50,13 @@ interface Labels {
   channelLabel: string
   channelHelp: string
   noChannel: string
+  timezoneLabel: string
+  timezoneHelp: string
+  timezoneRequired: string
+  timezone_kr: string
+  timezone_eu: string
+  timezone_na: string
+  timezone_sa: string
   nextButton: string
   savingButton: string
   errorGeneric: string
@@ -106,6 +117,9 @@ export default function TenantSetupForm({
   )
   const [adminIds, setAdminIds] = useState<string[]>(autoPreselectAdmin)
   const [channelId, setChannelId] = useState<string>('')
+  // 시간대는 명시 선택 강제 — multi-tenant SaaS 라 KR 외 서버 길드도 정확하게
+  // 잡히도록. 기본값 없이 빈 문자열로 시작, 미선택 시 제출 차단.
+  const [timezone, setTimezone] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const hasAutoPreselect = autoPreselectAdmin.length > 0
@@ -138,6 +152,10 @@ export default function TenantSetupForm({
       setError(labels.missingAdminRoles)
       return
     }
+    if (!timezone) {
+      setError(labels.timezoneRequired)
+      return
+    }
     startTransition(async () => {
       const result = await saveTenantSetup({
         tenantId,
@@ -145,6 +163,7 @@ export default function TenantSetupForm({
         memberRoleIds: memberIds,
         adminRoleIds: adminIds,
         eventChannelId: channelId || null,
+        timezone,
       })
       if (result.error) {
         setError(result.error)
@@ -152,6 +171,13 @@ export default function TenantSetupForm({
       }
       router.push(`/onboard/setup/${tenantId}/albion`)
     })
+  }
+
+  const timezoneLabelFor = (option: TenantTimezoneOption): string => {
+    if (option.id === 'kr') return labels.timezone_kr
+    if (option.id === 'eu') return labels.timezone_eu
+    if (option.id === 'na') return labels.timezone_na
+    return labels.timezone_sa
   }
 
   return (
@@ -255,6 +281,34 @@ export default function TenantSetupForm({
           ))}
         </select>
       </div>
+
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-semibold text-white">{labels.timezoneLabel}</legend>
+        <p className="text-xs text-gray-400">{labels.timezoneHelp}</p>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {TENANT_TIMEZONE_OPTIONS.map((option) => (
+            <label
+              key={option.id}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors ${
+                timezone === option.iana
+                  ? 'border-[#5865F2] bg-[#5865F2]/10 text-white'
+                  : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
+              }`}
+            >
+              <input
+                type="radio"
+                name="tenant-timezone"
+                value={option.iana}
+                checked={timezone === option.iana}
+                onChange={() => setTimezone(option.iana)}
+                className="accent-[#5865F2]"
+              />
+              <span className="flex-1">{timezoneLabelFor(option)}</span>
+              <span className="text-xs text-gray-500">{option.iana}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 

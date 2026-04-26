@@ -6,6 +6,7 @@ import { getTranslations } from 'next-intl/server'
 import { SLOT_ROLES, type SlotRole } from '@/types'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
+import { DEFAULT_TENANT_TIMEZONE, isValidTenantTimezone } from '@/lib/timezone'
 
 // 알림 메시지의 기본값은 빈 문자열 — 폼은 초기값이 비어 있으면 locale 별
 // `messagePlaceholder` 를 노출하므로, 관리자는 자신이 사용하는 언어의 예시를
@@ -52,6 +53,7 @@ export default async function SettingsPage() {
     regearRequireVerificationRaw,
     cdBadgeRolesRaw,
     allowUnverifiedMemberAccessRaw,
+    tenantTimezoneRaw,
     { rewards, error: rewardsError },
     tLanding,
     t,
@@ -83,6 +85,9 @@ export default async function SettingsPage() {
     // 기본값 'true' — 기존 동작(미인증 멤버도 접근 가능) 유지. 관리자가 끌
     // 때만 layout 게이트가 /onboarding/albion 으로 강제 리다이렉트.
     getAppSetting('allow_unverified_member_access', 'true', tenantId),
+    // 기본값 'Asia/Seoul' — 기존 멘헤라 동작 유지. 잘못된 값이 박혀 있으면
+    // 아래 isValidTenantTimezone 으로 다시 한 번 정규화한다.
+    getAppSetting('tenant_timezone', 'Asia/Seoul', tenantId),
     listRoleRewards(),
     getTranslations('landing'),
     getTranslations('adminSettings'),
@@ -144,6 +149,10 @@ export default async function SettingsPage() {
   const regearRequireVerification = regearRequireVerificationRaw !== 'false'
   // 'true' 이외는 모두 false 로 해석 — 유일한 opt-out 경로는 명시적 'false'.
   const allowUnverifiedMemberAccess = allowUnverifiedMemberAccessRaw !== 'false'
+  // 손상된 IANA 가 박혀 있어도 화면이 깨지진 않도록 기본값으로 정규화.
+  const tenantTimezone = isValidTenantTimezone(tenantTimezoneRaw)
+    ? tenantTimezoneRaw
+    : DEFAULT_TENANT_TIMEZONE
 
   // 저장돼 있는 홈 길드 UUID 를 이름으로 역조회. Gameinfo 장애/삭제된 길드는
   // null 로 폴백해 UI 가 ID 만 노출하도록 둔다 — 실패해도 저장 흐름은 막지 않는다.
@@ -204,6 +213,7 @@ export default async function SettingsPage() {
         regearRequireVerification={regearRequireVerification}
         cdBadgeRoles={cdBadgeRoles}
         allowUnverifiedMemberAccess={allowUnverifiedMemberAccess}
+        tenantTimezone={tenantTimezone}
       />
     </div>
   )

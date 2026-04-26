@@ -8,6 +8,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
+import { isValidTenantTimezone } from '@/lib/timezone'
 import { SLOT_ROLES } from '@/types'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
@@ -253,6 +254,41 @@ export async function updateTenantAdminRoles(
       .eq('id', guildId)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/settings')
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+// tenant_timezone 은 IANA 문자열이라 ENUM_VALUES 검증으로 처리하기엔 fallback
+// 의미가 너무 강해 (잘못된 값은 reject 가 아니라 'Asia/Seoul' 로 degrade 가 맞음).
+// 별도 액션으로 두고 isValidTenantTimezone 으로 4개 프리셋 중 하나만 통과시킨다.
+export async function updateTenantTimezone(
+  iana: string,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    if (!isValidTenantTimezone(iana)) {
+      return { error: tErr('invalidEnumValue', { values: 'Asia/Seoul, Europe/Berlin, America/New_York, America/Sao_Paulo' }) }
+    }
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('serverError') }
+    const guildId = await getSessionGuildId(session)
+    const { error } = await db.from('app_settings').upsert(
+      {
+        guild_id: guildId,
+        key: 'tenant_timezone',
+        value: iana,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'guild_id,key' },
+    )
+    if (error) return { error: error.message }
+    revalidatePath('/admin/dashboard/settings')
+    // 시간대 변경은 거의 모든 표시 화면(events, regear, leaderboard 등) 에 영향
+    // 가지만 layout 단위로 한 번에 무효화하면 hot path 도 같이 깨진다 — 관리자
+    // 가 다음 페이지 진입 시 자연 갱신되도록 둔다 (주요 화면 next-intl SSR).
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
