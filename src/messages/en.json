@@ -421,11 +421,12 @@
     "regear": {
       "title": "Regear system",
       "cta": "Open regear settings",
-      "body": "Auto (killboard-based) and manual (screenshot-based) regear coexist. Per-role cap (role_rewards.silver) of 0 blocks all regear for that role.",
+      "body": "Three regear modes coexist: auto (killboard-based), event-tied manual (screenshot-based), and 'regear windows' (event-independent open intake). Per-role cap (role_rewards.silver) of 0 blocks all regear for that role.",
       "bullet1": "The auto-regear toggle is a global switch. It must be ON for the cron to convert killboard deaths into approvals.",
       "bullet2": "Slot editor has 'Exclude from auto-regear' (visible only when global ON) and 'Exclude from manual regear' (always) checkboxes for per-build opt-out.",
-      "bullet3": "Regear window = N minutes after battle start. Max screenshot 10MB, PNG/JPEG/WebP only.",
-      "bullet4": "Auto-generated pending rows let the claimant edit per-slot prices. Admins review at /admin/dashboard/regear."
+      "bullet3": "Event-tied manual regear opens N minutes after battle start. Max screenshot 10MB, PNG/JPEG/WebP only.",
+      "bullet4": "Auto-generated pending rows let the claimant edit per-slot prices. Admins review at /admin/dashboard/regear.",
+      "bullet5": "Event-independent free regear is accepted via 'regear windows'. Open and close them at /admin/dashboard/regear-windows (or via the admin-only button on the top right of /regear) — set a title, deadline, and per-user cap."
     },
     "onboarding": {
       "title": "Albion nickname verification",
@@ -1379,7 +1380,7 @@
   },
   "regear": {
     "pageTitle": "Regear",
-    "pageDescription": "Once your assigned battle starts, submit your death screenshot here to request a regear.",
+    "pageDescription": "Submit a regear here once your assigned battle starts, or via an open free-intake window if one is available.",
     "tabEligible": "Eligible battles",
     "tabHistory": "My requests",
     "noEligible": "No battles available for regear.",
@@ -2185,7 +2186,7 @@
     "rule2Zerg": "Zerg: 101+ players",
     "rule2CutOff": "Anything under 10 is treated as ganking/stragglers and excluded entirely (the small floor = the minimum unit for proper small-scale combat).",
     "rule3Title": "3. Low-engagement cut",
-    "rule3Body": "A battle is hidden from display and stats if BOTH apply (raw data is preserved, so re-classification is possible if the threshold changes). (1) Home (kills + deaths) < 10% of your team size. (2) Home deaths < 3.",
+    "rule3Body": "A battle is hidden from display and stats only when BOTH conditions hold simultaneously — if only one applies, the battle is shown. Raw data is preserved, so re-classification is possible if the threshold changes. (1) Home (kills + deaths) < 10% of your team size. (2) Home deaths < 3.",
     "rule3Why": "Why? To prevent meaningless drive-by participation (e.g. a 70-player guild with K1/D0) from inflating win rate and stats. If deaths ≥ 3, the loss is real (\"positioning failed and we wiped\") so the row is kept.",
     "rule4Title": "4. Win/loss judgment",
     "rule4Body": "Compare each side's total kill fame. More fame = win, less = loss, equal = tie. We use fame instead of raw kill count because it weights core kills against 8.3 solo trash kills correctly.",
