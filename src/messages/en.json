@@ -447,6 +447,15 @@
       "cta": "Open notification settings",
       "body": "Two delivery channels: event channel announcements and personal DMs.\n\n- Event channel: configured via notify_channel_id + notify_role_id (role mention). Sent via a manual button on event create/edit.\n- Personal DM: auto-sent 35 min before event to assigned members. Users can opt out in /me/settings.\n- Regear/exchange approvals also DM the requester.\n\nRequires DISCORD_BOT_TOKEN, DISCORD_EVENT_CHANNEL_ID, DISCORD_GUILD_ID env vars."
     },
+    "battles": {
+      "title": "Battle records (auto-aggregated)",
+      "cta": "Open battle records",
+      "body": "Guild-vs-guild ZvZ fights are auto-fetched from the Albion API hourly — no manual entry or screenshots required. Battles appear in the list shortly after they end. Keep these classification rules in mind so you can answer members asking why their fight isn't shown. Full ruleset lives behind the 'Show classification rules' disclosure on the /battles page.",
+      "bullet1": "Size buckets are based on the main opponent (single alliance or standalone guild) headcount: small 10-30, middle 31-60, large 61-100, zerg 101+.",
+      "bullet2": "Encounters with fewer than 10 players (ganks, straggler kills) are not ZvZ and are filtered out (10-player cutoff).",
+      "bullet3": "Low-engagement events (scouting, retreats, failed escapes) where K+D is far below team size are filtered too — the same Albion battle id may exist upstream but won't appear here.",
+      "bullet4": "A single large battle in which we fight two alliances back-to-back is split into per-opponent rows."
+    },
     "stats": {
       "title": "Stats & monitoring",
       "cta": "Open stats",

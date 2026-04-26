@@ -9,6 +9,7 @@ import {
   Package,
   Bell,
   BarChart3,
+  Swords,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
@@ -108,6 +109,23 @@ export default async function AdminGuidePage() {
         <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
           {t('notifications.body')}
         </p>
+      </GuideSection>
+
+      <GuideSection
+        icon={<Swords size={18} className="text-amber-400" />}
+        title={t('battles.title')}
+        href="/battles"
+        linkLabel={t('battles.cta')}
+      >
+        <p className="text-sm text-gray-300 leading-relaxed">
+          {t('battles.body')}
+        </p>
+        <ul className="list-disc pl-5 space-y-1.5 text-sm text-gray-300 mt-2">
+          <li>{t('battles.bullet1')}</li>
+          <li>{t('battles.bullet2')}</li>
+          <li>{t('battles.bullet3')}</li>
+          <li>{t('battles.bullet4')}</li>
+        </ul>
       </GuideSection>
 
       <GuideSection
