@@ -324,7 +324,7 @@ interface ResolvedNavItem extends NavItem {
 function badgeCountFor(href: string, badges: AdminBadgeCounts | null): number {
   if (!badges) return 0
   if (href === '/admin/dashboard/approvals') {
-    return badges.regear + badges.exchange + badges.donation + badges.shop
+    return badges.regear + badges.exchange + badges.donation + badges.shop + badges.eventPayout
   }
   return 0
 }

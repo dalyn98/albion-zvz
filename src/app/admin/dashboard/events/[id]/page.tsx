@@ -10,6 +10,7 @@ import EventSlotSidebar from '@/components/EventSlotSidebar'
 import SaveAsTemplateButton from '@/components/SaveAsTemplateButton'
 import LoadTemplateButton from '@/components/LoadTemplateButton'
 import DeleteEventButton from '@/components/DeleteEventButton'
+import EventPayoutRequestButton from '@/components/EventPayoutRequestButton'
 import { EventEditSaveProvider } from '@/components/EventEditSaveRegistry'
 import EventEditSaveBar from '@/components/EventEditSaveBar'
 import { listTemplates } from '@/app/actions/templates'
@@ -17,6 +18,7 @@ import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { isEnded } from '@/lib/gather-time'
 
 async function getData(id: string, guildId: string) {
   // guild_avatars 는 anon/authenticated 에 revoke 되어 있어 (migration 008)
@@ -110,9 +112,14 @@ export default async function EditEventPage({
     <EventEditSaveProvider>
       <div className="flex flex-col lg:flex-row lg:gap-6 space-y-4 lg:space-y-0">
         <div className="flex-1 min-w-0 space-y-6 sm:space-y-8">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <h1 className="text-xl sm:text-2xl font-bold text-white">{t('title')}</h1>
-            <DeleteEventButton eventId={event.id} redirectTo="/admin/dashboard" variant="labeled" />
+            <div className="flex items-center gap-2 flex-wrap">
+              {isEnded(event.battle_started_at) && hasSlots && (
+                <EventPayoutRequestButton eventId={event.id} />
+              )}
+              <DeleteEventButton eventId={event.id} redirectTo="/admin/dashboard" variant="labeled" />
+            </div>
           </div>
           {event.status === 'draft' && <PublishEventBanner event={event} />}
           <EventInfoForm initialEvent={event} />
@@ -137,7 +144,11 @@ export default async function EditEventPage({
                   hasExistingParties={hasParties}
                 />
                 {hasSlots && (
-                  <SaveAsTemplateButton eventId={id} defaultName={event.title} />
+                  <SaveAsTemplateButton
+                    eventId={id}
+                    defaultName={event.title}
+                    templates={templates}
+                  />
                 )}
               </div>
             </div>

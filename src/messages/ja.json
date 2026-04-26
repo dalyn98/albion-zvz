@@ -100,7 +100,8 @@
     "tabRegear": "リギア",
     "tabExchange": "両替",
     "tabDonation": "寄付",
-    "tabShop": "ショップ注文"
+    "tabShop": "ショップ注文",
+    "tabEventPayout": "イベント報酬"
   },
   "adminRegearWindows": {
     "pageTitle": "自由リギアの受付",
@@ -308,6 +309,44 @@
     "resolvedAt": "{status} 処理: {datetime}",
     "handledBy": "{status} 処理者: {handler}"
   },
+  "adminEventPayoutCreate": {
+    "openButton": "イベント報酬を支給",
+    "modalTitle": "イベント参加者へ一括報酬",
+    "hint": "終了したイベントのスロット割当者に、1人あたり同額の silver を一括支給します。申請後、別の管理者の承認を経て実際に積み立てられます。",
+    "silverPerMemberLabel": "1人あたりの支給額 (silver)",
+    "silverPerMemberPlaceholder": "例: 100000",
+    "memoLabel": "メモ (任意)",
+    "memoPlaceholder": "例: 4月26日 ZvZ MVP 報酬",
+    "participantsLabel": "支給対象",
+    "participantCount": "{count}人",
+    "noParticipants": "支給対象のスロット割当者がいません。",
+    "totalPreview": "{perMember} × {count}人 = 合計 {total} silver",
+    "submit": "支給申請",
+    "submitting": "申請中..."
+  },
+  "adminEventPayoutReview": {
+    "scopePending": "待機中",
+    "scopeAll": "すべて",
+    "noPending": "待機中のイベント報酬申請はありません。",
+    "noRequests": "申請履歴がありません。",
+    "searchPlaceholder": "イベント名・申請者・日付で検索",
+    "statusPending": "待機",
+    "statusApproved": "承認",
+    "statusRejected": "却下",
+    "perMember": "1人 {amount}",
+    "participantCount": "{count}人",
+    "total": "合計 {amount}",
+    "requestedBy": "申請 {by} · {datetime}",
+    "memoLabel": "メモ",
+    "showParticipants": "支給対象を表示",
+    "hideParticipants": "支給対象を隠す",
+    "approveWithPayout": "承認 (合計 +{amount})",
+    "reject": "却下",
+    "rejectPlaceholder": "却下理由 (任意)",
+    "rejectConfirm": "却下を確定",
+    "resolvedAt": "{status} 処理: {datetime}",
+    "handledBy": "{status} 処理者: {handler}"
+  },
   "adminPointAdjust": {
     "openButton": "ポイント手動調整",
     "dialogTitle": "ポイント手動調整",
@@ -351,6 +390,13 @@
     "saveOverwriteBody": "「{name}」という名前のテンプレートが既に存在します。上書きするとそのテンプレートのパーティ/スロット構成が現在のイベントのビルドに置き換わります。名前と作成日時は維持されます。",
     "saveOverwriteConfirmBtn": "上書き保存",
     "templateNamePlaceholder": "例: 土曜定期 ZvZ",
+    "saveModeNew": "新しいテンプレートとして保存",
+    "saveModeOverwrite": "既存のテンプレートを上書き",
+    "saveOverwriteListEmpty": "保存済みのテンプレートがありません。上で新規作成してください。",
+    "saveOverwriteListHint": "上書きするテンプレートをクリックしてください。名前は維持され、パーティ/スロット構成のみ現在のビルドに置き換わります。",
+    "saveOverwriteByIdConfirmTitle": "このテンプレートを上書きしますか?",
+    "saveOverwriteByIdConfirmBody": "「{name}」テンプレートのパーティ/スロット構成が現在のイベントビルドに置き換わります。元には戻せません。",
+    "saveOverwriteByIdSavedAt": "最終保存 {when}",
     "loadFromTemplate": "テンプレートから読み込む",
     "applying": "適用中...",
     "apply": "適用",
@@ -1950,7 +1996,9 @@
     "regearWindowMaxDeathsInvalid": "1人あたりの最大デス数は 1〜20 の整数で入力してください。",
     "regearWindowClosesAtInvalid": "締切時刻が正しくありません。",
     "regearWindowClosesAtPast": "締切時刻は現在時刻より未来である必要があります。",
-    "regearWindowHasRequests": "申請が 1 件以上あるウィンドウは削除できません。クローズのみ可能です。"
+    "regearWindowHasRequests": "申請が 1 件以上あるウィンドウは削除できません。クローズのみ可能です。",
+    "eventPayoutEventNotEnded": "終了したイベントのみ一括報酬を申請できます。",
+    "eventPayoutNoParticipants": "支給対象のスロット割当者がいません。"
   },
   "memberActionError": {
     "loginRequired": "ログインが必要です。",
@@ -2038,6 +2086,9 @@
     "donationCancelled": "寄付申請をキャンセルしました。",
     "donationApproved": "寄付申請を承認しました。",
     "donationRejected": "寄付申請を却下しました。",
+    "eventPayoutSubmitted": "イベント報酬の支給を申請しました。",
+    "eventPayoutApproved": "イベント報酬の支給を承認しました。",
+    "eventPayoutRejected": "イベント報酬の支給を却下しました。",
     "slotApplied": "スロットに申請しました。",
     "slotCancelled": "スロット申請をキャンセルしました。",
     "slotKicked": "スロットから外しました。",
@@ -2078,6 +2129,8 @@
     "donationApprovedBody": "ギルド寄付が承認されました (+{silver} silver)。",
     "donationRejectedTitle": "寄付却下",
     "donationRejectedBody": "{silver} silver の寄付申請が却下されました。",
+    "eventPayoutApprovedTitle": "イベント報酬支給",
+    "eventPayoutApprovedBody": "{event} のイベント報酬が承認されました (+{silver} silver)。",
     "eventImminentTitle": "イベント間近: {title}",
     "eventImminentBody": "{time} 集合 — 装備の準備をお願いします。"
   },
