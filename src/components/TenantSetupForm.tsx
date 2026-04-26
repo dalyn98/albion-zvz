@@ -219,6 +219,37 @@ export default function TenantSetupForm({
         )}
       </div>
 
+      {/* 시간대는 사이트 전반(이벤트 시각/스트릭/Discord 알림 등) 동작에 직접
+          영향이라 폼 상단(슬러그 다음)에 둔다. 하단에 두면 채널 설정 아래로 밀려
+          사용자가 스크롤하지 않으면 못 본다는 피드백이 있어 위치 변경. */}
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-semibold text-white">{labels.timezoneLabel}</legend>
+        <p className="text-xs text-gray-400">{labels.timezoneHelp}</p>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {TENANT_TIMEZONE_OPTIONS.map((option) => (
+            <label
+              key={option.id}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors ${
+                timezone === option.iana
+                  ? 'border-[#5865F2] bg-[#5865F2]/10 text-white'
+                  : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
+              }`}
+            >
+              <input
+                type="radio"
+                name="tenant-timezone"
+                value={option.iana}
+                checked={timezone === option.iana}
+                onChange={() => setTimezone(option.iana)}
+                className="accent-[#5865F2]"
+              />
+              <span className="flex-1">{timezoneLabelFor(option)}</span>
+              <span className="text-xs text-gray-500">{option.iana}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
       <fieldset className="space-y-2">
         <legend className="text-sm font-semibold text-white">{labels.memberRoleLabel}</legend>
         <p className="text-xs text-gray-400">{labels.memberRoleHelp}</p>
@@ -281,34 +312,6 @@ export default function TenantSetupForm({
           ))}
         </select>
       </div>
-
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-semibold text-white">{labels.timezoneLabel}</legend>
-        <p className="text-xs text-gray-400">{labels.timezoneHelp}</p>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          {TENANT_TIMEZONE_OPTIONS.map((option) => (
-            <label
-              key={option.id}
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors ${
-                timezone === option.iana
-                  ? 'border-[#5865F2] bg-[#5865F2]/10 text-white'
-                  : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
-              }`}
-            >
-              <input
-                type="radio"
-                name="tenant-timezone"
-                value={option.iana}
-                checked={timezone === option.iana}
-                onChange={() => setTimezone(option.iana)}
-                className="accent-[#5865F2]"
-              />
-              <span className="flex-1">{timezoneLabelFor(option)}</span>
-              <span className="text-xs text-gray-500">{option.iana}</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
