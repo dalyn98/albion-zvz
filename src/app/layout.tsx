@@ -70,7 +70,11 @@ function isAllowedForEventScope(pathname: string, eventScope: string): boolean {
 // 모달이 뜨도록 한다. 위저드 위에 모달이 덮이면 위저드를 못 보고 막혀버림.
 function skipAlbionOnboardingModal(pathname: string): boolean {
   if (pathname.startsWith('/onboarding/albion')) return true
-  if (pathname.startsWith('/onboard')) return true
+  // '/onboard' (admin install) 와 '/onboard/setup/...' 만 매칭. 그냥
+  // startsWith('/onboard') 는 '/onboarding/...' 까지 잡아버려 미래에 새 멤버용
+  // /onboarding/* 라우트가 추가되면 의도치 않게 모달이 죽음. 현재는 line 72 가
+  // /onboarding/albion 을 먼저 처리해서 안전하지만 패턴 자체를 견고하게 둔다.
+  if (pathname === '/onboard' || pathname.startsWith('/onboard/')) return true
   if (pathname.startsWith('/welcome-language')) return true
   if (pathname.startsWith('/api/auth/')) return true
   if (pathname.startsWith('/public/')) return true
