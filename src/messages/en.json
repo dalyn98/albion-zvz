@@ -1175,10 +1175,10 @@
   },
   "adminShopSilverRate": {
     "title": "Shop discount rate",
-    "description": "Multiplier applied to both manual and automatic (AODP silver) prices. Points and silver are 1:1, so final points = silver × discount rate. Range (0, 1]. 1 means no discount, 0.5 means 50% off.",
+    "description": "Enter the discount percentage (%).\n• 0 → no discount (1M silver → 1,000,000p)\n• 10 → 10% off (1M silver → 900,000p)\n• 50 → half price (1M silver → 500,000p)\nApplies to both manual prices and automatic (AODP silver) prices.",
     "rateLabel": "Discount rate",
     "percentPreview": "{percent}% off · 1M silver → {points}p",
-    "rangeHint": "Valid range: 0.01 ~ 1"
+    "rangeHint": "Valid range: 0 ~ 99"
   },
   "adminAodp": {
     "title": "AODP price settings",

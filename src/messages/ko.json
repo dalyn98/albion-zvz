@@ -1175,10 +1175,10 @@
   },
   "adminShopSilverRate": {
     "title": "상점 할인율",
-    "description": "수동 가격과 자동 가격(AODP 실버 시세) 에 모두 곱해지는 할인율입니다. 포인트와 실버는 1:1 동일 개념이라, 최종 포인트 = 실버 × 할인율. 범위 (0, 1]. 1 이면 할인 없음, 0.5 면 50% 할인.",
+    "description": "할인 퍼센트 (%) 를 입력하세요.\n• 0 → 할인 없음 (1M실버 → 1,000,000p)\n• 10 → 10% 할인 (1M실버 → 900,000p)\n• 50 → 반값 (1M실버 → 500,000p)\n수동 가격과 자동 가격(AODP 실버 시세) 모두에 적용됩니다.",
     "rateLabel": "할인율",
     "percentPreview": "{percent}% 할인 · 1M실버 → {points}p",
-    "rangeHint": "유효 범위: 0.01 ~ 1"
+    "rangeHint": "유효 범위: 0 ~ 99"
   },
   "adminAodp": {
     "title": "AODP 시세 설정",
