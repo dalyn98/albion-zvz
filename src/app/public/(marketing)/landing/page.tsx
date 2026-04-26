@@ -59,6 +59,9 @@ export default async function PublicLandingPage() {
                 <ArrowRight size={16} />
               </Link>
             </div>
+            <p className="text-[11px] text-gray-500 leading-relaxed pt-1 max-w-md mx-auto">
+              {tMkt('installPermissionNote')}
+            </p>
           </section>
 
           <section className="space-y-5">
@@ -144,6 +147,9 @@ export default async function PublicLandingPage() {
                 {t('loginInstead')}
               </a>
             </div>
+            <p className="text-[11px] text-amber-100/60 leading-relaxed pt-1">
+              {tMkt('installPermissionNote')}
+            </p>
           </section>
 
           <p className="text-center text-[11px] text-gray-500 tracking-wide">{t('footerNote')}</p>

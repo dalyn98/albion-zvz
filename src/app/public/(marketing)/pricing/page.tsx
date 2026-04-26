@@ -5,7 +5,10 @@ import MarketingNav from '@/components/MarketingNav'
 export const dynamic = 'force-dynamic'
 
 export default async function PublicPricingPage() {
-  const t = await getTranslations('publicPricing')
+  const [t, tMkt] = await Promise.all([
+    getTranslations('publicPricing'),
+    getTranslations('publicMarketing'),
+  ])
 
   // {slug} 같은 i18n placeholder 가 들어간 값은 .rich 로도 처리 가능하지만 현재는
   // 단순 문자열로 보여주는 게 충분하다. 추후 동적 슬러그 데모를 넣고 싶을 때 교체.
@@ -70,6 +73,9 @@ export default async function PublicPricingPage() {
               >
                 {t('betaPlanCta')}
               </a>
+              <p className="text-[11px] text-amber-100/60 leading-relaxed">
+                {tMkt('installPermissionNote')}
+              </p>
             </div>
 
             {/* ─── Pro plan (Coming soon) ─── */}
