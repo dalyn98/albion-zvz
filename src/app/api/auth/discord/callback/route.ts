@@ -52,7 +52,8 @@ async function loadRoleIdSetting(
     | 'event_creator_role_ids_combat'
     | 'event_creator_role_ids_ff'
     | 'event_creator_role_ids_ganking'
-    | 'bomb_squad_caller_role_ids',
+    | 'bomb_squad_caller_role_ids'
+    | 'active_member_role_ids',
   guildId: string,
 ): Promise<string[]> {
   try {
@@ -214,7 +215,13 @@ export async function GET(request: NextRequest) {
 
       const member = await getGuildMember(token.access_token, tenant.discordGuildId)
       if (!member) return errorRedirect(state, 'not_in_guild')
-      const identity = identityFromMember(member, tenant.memberRoleIds, tenant.adminRoleIds)
+      // 멤버 역할 판정은 admin 이 설정 UI 에서 바꾼 active_member_role_ids 를
+      // 우선 적용 — 비어있으면 onboarding 시점 시드된 tenant.member_role_ids
+      // 로 폴백. member-sync.ts 와 동일한 우선순위.
+      const activeMemberRoleIds = await loadRoleIdSetting('active_member_role_ids', tenant.id)
+      const effectiveMemberRoleIds =
+        activeMemberRoleIds.length > 0 ? activeMemberRoleIds : tenant.memberRoleIds
+      const identity = identityFromMember(member, effectiveMemberRoleIds, tenant.adminRoleIds)
       if (!identity) return errorRedirect(state, 'no_identity')
       // 슈퍼어드민이 부여한 admin 오버라이드. 길드 역할 없이도 admin 권한을
       // 강제 부여한다 — 운영/지원 시나리오용. row 가 있으면 isAdmin=true.
