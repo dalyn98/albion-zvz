@@ -1,0 +1,41 @@
+import Link from 'next/link'
+import { getTranslations } from 'next-intl/server'
+
+export default async function MarketingFooter() {
+  const t = await getTranslations('publicNav')
+  const year = new Date().getFullYear()
+
+  return (
+    <footer className="border-t border-white/5 bg-[#0a0c11] mt-16">
+      <div className="max-w-5xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-gray-500">
+        <div className="flex items-center gap-2">
+          <span className="text-amber-400/80">⚔</span>
+          <span className="font-semibold text-gray-300">Albion Guild Manager</span>
+          <span className="text-gray-600">© {year}</span>
+        </div>
+        <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <li>
+            <Link href="/" className="hover:text-white transition-colors">
+              {t('home')}
+            </Link>
+          </li>
+          <li>
+            <Link href="/features" className="hover:text-white transition-colors">
+              {t('features')}
+            </Link>
+          </li>
+          <li>
+            <Link href="/pricing" className="hover:text-white transition-colors">
+              {t('pricing')}
+            </Link>
+          </li>
+          <li>
+            <Link href="/faq" className="hover:text-white transition-colors">
+              {t('faq')}
+            </Link>
+          </li>
+        </ul>
+      </div>
+    </footer>
+  )
+}

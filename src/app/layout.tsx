@@ -29,6 +29,20 @@ function isPublicPathname(pathname: string): boolean {
   return false
 }
 
+// 마케팅 페이지(/public/(marketing)/*) 는 자체 헤더(MarketingNav) + 푸터를
+// 갖고 있어 PublicShell/AppShell 의 sticky 헤더를 한 번 더 깔면 시각적 충돌이
+// 생긴다(두 줄짜리 헤더, 언어 스위처/CTA 중복). children 만 그대로 렌더해
+// 마케팅 페이지 내부 컴포넌트가 풀 컨트롤을 갖게 한다. proxy 에서 canonical
+// /, /features, /pricing, /faq 가 이 경로들로 rewrite 된다.
+function isMarketingPathname(pathname: string): boolean {
+  return (
+    pathname === '/public/landing' ||
+    pathname === '/public/features' ||
+    pathname === '/public/pricing' ||
+    pathname === '/public/faq'
+  )
+}
+
 // Tenant 온보딩 경로: 로그인은 됐지만 아직 어떤 tenant 에도 속하지 않은
 // 사용자가 봇을 설치하고 초기 설정을 하는 흐름. role 이 없으므로 layout 의
 // gate 를 우회하고, 자체 페이지에서 session.discordId 로 검증한다.
@@ -127,6 +141,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   const pathname = headersList.get('x-pathname') ?? ''
   const isPublic = isPublicPathname(pathname)
+  const isMarketing = isMarketingPathname(pathname)
   const isOnboard = isOnboardPathname(pathname)
 
   // Verify guests still exist in the DB so admin deletions take effect on the
@@ -283,9 +298,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // AppShell so the sidebar stays consistent; otherwise wrap in a minimal
   // PublicShell with a login CTA. 온보딩은 아직 어떤 길드에도 속하지 않은
   // 사용자라 AppSidebar 가 어색해서 PublicShell 로 통일.
+  // 마케팅 페이지는 자체 헤더/푸터를 갖고 있어 children 만 렌더 — isDemo 와
+  // 동일한 처리. AppShell 사이드바나 PublicShell 의 sticky 헤더가 들어가면
+  // 디자인이 무너진다.
   const body = locked
     ? gateContent
-    : isDemo
+    : isDemo || isMarketing
       ? children
       : isOnboard
         ? <PublicShell>{children}</PublicShell>

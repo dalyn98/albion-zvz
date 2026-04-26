@@ -1,0 +1,154 @@
+import { Calendar, Coins, ShoppingBag, BarChart3, ArrowRight } from 'lucide-react'
+import { getTranslations } from 'next-intl/server'
+import Link from 'next/link'
+import MarketingNav from '@/components/MarketingNav'
+import ScreenshotPlaceholder from '@/components/ScreenshotPlaceholder'
+
+// 빌드타임에 layout 의 x-pathname 헤더가 없어 AppGate 가 HTML 에 박혀버리는
+// 함정. dynamic 렌더로 두고 매 요청마다 layout 분기를 정확히 평가시킨다.
+// (feedback_albion_zvz_force_static_pitfall.md 참고)
+export const dynamic = 'force-dynamic'
+
+export default async function PublicLandingPage() {
+  const [t, tFeat, tMkt] = await Promise.all([
+    getTranslations('publicLanding'),
+    getTranslations('publicFeatures'),
+    getTranslations('publicMarketing'),
+  ])
+  const installHref = '/api/auth/discord/start?returnTo=%2Fonboard'
+
+  const features: Array<{
+    icon: typeof Calendar
+    title: string
+    body: string
+  }> = [
+    { icon: Calendar, title: t('feature1Title'), body: t('feature1Body') },
+    { icon: Coins, title: t('feature2Title'), body: t('feature2Body') },
+    { icon: ShoppingBag, title: t('feature3Title'), body: t('feature3Body') },
+    { icon: BarChart3, title: t('feature4Title'), body: t('feature4Body') },
+  ]
+
+  return (
+    <>
+      <MarketingNav active="home" />
+      <div className="bg-[#0f1117] text-white">
+        <div className="mx-auto max-w-5xl px-5 sm:px-8 py-12 sm:py-16 space-y-16 sm:space-y-20">
+          <section className="text-center space-y-5">
+            <span className="inline-block text-[10px] font-bold tracking-[0.25em] text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
+              {tMkt('heroBadge')}
+            </span>
+            <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-amber-300/80">
+              {t('siteName')}
+            </p>
+            <h1 className="text-3xl sm:text-5xl font-bold leading-tight">{t('tagline')}</h1>
+            <p className="text-sm sm:text-base text-gray-300 max-w-2xl mx-auto leading-relaxed">
+              {t('subheading')}
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-2 pt-2">
+              <a
+                href={installHref}
+                className="inline-flex items-center justify-center bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold px-6 py-3 rounded-xl shadow-[0_10px_30px_-10px_rgba(88,101,242,0.6)] transition-colors"
+              >
+                {t('ctaPrimary')}
+              </a>
+              <Link
+                href="/features"
+                className="inline-flex items-center justify-center gap-1.5 bg-gray-800/60 hover:bg-gray-800 border border-gray-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
+              >
+                {tFeat('pageTitle')}
+                <ArrowRight size={16} />
+              </Link>
+            </div>
+          </section>
+
+          <section className="space-y-5">
+            <div className="text-center space-y-1.5">
+              <h2 className="text-xl sm:text-2xl font-bold">{tMkt('screenshotsTitle')}</h2>
+              <p className="text-xs text-gray-500 max-w-xl mx-auto">{tMkt('screenshotsCaption')}</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <ScreenshotPlaceholder label={tFeat('f1ScreenshotLabel')} aspect="16/9" />
+              <ScreenshotPlaceholder label={tFeat('f2ScreenshotLabel')} aspect="16/9" />
+              <ScreenshotPlaceholder label={tFeat('f3ScreenshotLabel')} aspect="16/9" />
+              <ScreenshotPlaceholder label={tFeat('f4ScreenshotLabel')} aspect="16/9" />
+            </div>
+          </section>
+
+          <section className="space-y-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-center">{t('featuresTitle')}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {features.map((f) => (
+                <div
+                  key={f.title}
+                  className="rounded-xl border border-gray-800 bg-gray-900/60 p-5 space-y-2"
+                >
+                  <div className="flex items-center gap-2 text-amber-300">
+                    <f.icon size={18} />
+                    <h3 className="text-sm font-semibold text-white">{f.title}</h3>
+                  </div>
+                  <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">{f.body}</p>
+                </div>
+              ))}
+            </div>
+            <div className="text-center pt-2">
+              <Link
+                href="/features"
+                className="inline-flex items-center gap-1 text-sm text-amber-300 hover:text-amber-200"
+              >
+                {tFeat('pageTitle')} <ArrowRight size={14} />
+              </Link>
+            </div>
+          </section>
+
+          <section className="space-y-5">
+            <h2 className="text-xl sm:text-2xl font-bold text-center">{t('howTitle')}</h2>
+            <ol className="space-y-3 max-w-2xl mx-auto">
+              {(['howStep1', 'howStep2', 'howStep3'] as const).map((key, idx) => (
+                <li
+                  key={key}
+                  className="flex items-start gap-3 rounded-xl border border-gray-800 bg-gray-900/60 p-4"
+                >
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/20 text-amber-200 text-xs font-bold flex-shrink-0">
+                    {idx + 1}
+                  </span>
+                  <p className="text-sm text-gray-200 leading-relaxed">
+                    {key === 'howStep3'
+                      ? t.rich(key, {
+                          slug: (chunks) => (
+                            <code className="rounded bg-gray-800 px-1.5 py-0.5 text-amber-200 text-xs font-mono">
+                              {chunks}
+                            </code>
+                          ),
+                        })
+                      : t(key)}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <section className="rounded-2xl border border-amber-400/30 bg-amber-500/5 p-6 sm:p-8 text-center space-y-3">
+            <h2 className="text-base sm:text-lg font-bold text-white">{tMkt('ctaBoxTitle')}</h2>
+            <p className="text-sm text-amber-100/80">{tMkt('ctaBoxBody')}</p>
+            <div className="flex flex-col sm:flex-row justify-center gap-2 pt-1">
+              <a
+                href={installHref}
+                className="inline-flex items-center justify-center bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold px-5 py-2.5 rounded-lg transition-colors"
+              >
+                {t('ctaPrimary')}
+              </a>
+              <a
+                href="/api/auth/discord/start?returnTo=%2F"
+                className="inline-flex items-center justify-center bg-gray-800/60 hover:bg-gray-800 border border-gray-700 text-white font-semibold px-5 py-2.5 rounded-lg transition-colors"
+              >
+                {t('loginInstead')}
+              </a>
+            </div>
+          </section>
+
+          <p className="text-center text-[11px] text-gray-500 tracking-wide">{t('footerNote')}</p>
+        </div>
+      </div>
+    </>
+  )
+}

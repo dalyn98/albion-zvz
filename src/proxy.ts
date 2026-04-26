@@ -28,15 +28,31 @@ function redirectLegacyHost(request: NextRequest): NextResponse | null {
   return NextResponse.redirect(target, 308)
 }
 
-// Root domain root path (`albion-guildmanager.com/`) goes to the public landing
-// page so first-time visitors see marketing instead of the AppGate. Tenant
-// subdomains keep the existing flow — their root is the events list.
-function redirectRootDomainHome(request: NextRequest): NextResponse | null {
-  if (request.nextUrl.pathname !== '/') return null
+// Canonical 도메인 (albion-guildmanager.com) 의 마케팅 라우트는 깔끔한 URL 로
+// 노출하기 위해 내부 /public/(marketing)/* 로 rewrite. URL 바는 그대로 유지되며
+// (`/`, `/features`, `/pricing`, `/faq`) 서버는 마케팅 페이지를 렌더한다.
+// 서브도메인 ({slug}.albion-guildmanager.com) 은 같은 path 라도 영향 없음 —
+// canonical kind 일 때만 분기한다. 마케팅 페이지가 추가될 때 매핑만 늘리면 된다.
+const CANONICAL_MARKETING_REWRITES: Record<string, string> = {
+  '/': '/public/landing',
+  '/features': '/public/features',
+  '/pricing': '/public/pricing',
+  '/faq': '/public/faq',
+}
+
+function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
+  const target = CANONICAL_MARKETING_REWRITES[request.nextUrl.pathname]
+  if (!target) return null
   const host = request.headers.get('host')
   const classification = classifyHost(host)
   if (classification.kind !== 'root') return null
-  return NextResponse.redirect(new URL('/public/landing', request.url), 307)
+  const rewritten = new URL(target, request.url)
+  rewritten.search = request.nextUrl.search
+  const response = NextResponse.rewrite(rewritten)
+  // layout 의 isPublicPathname 분기는 x-pathname 헤더를 본다. rewrite target 인
+  // /public/* 으로 보내야 PublicShell + AppGate 우회가 정확히 동작한다.
+  response.headers.set('x-pathname', target)
+  return response
 }
 
 function withPathname(response: NextResponse, pathname: string): NextResponse {
@@ -79,8 +95,8 @@ export async function proxy(request: NextRequest) {
   const legacyRedirect = redirectLegacyHost(request)
   if (legacyRedirect) return legacyRedirect
 
-  const rootHomeRedirect = redirectRootDomainHome(request)
-  if (rootHomeRedirect) return rootHomeRedirect
+  const marketingRewrite = rewriteCanonicalMarketing(request)
+  if (marketingRewrite) return marketingRewrite
 
   const superAdminResponse = handleSuperAdminPath(request)
   if (superAdminResponse) return superAdminResponse
