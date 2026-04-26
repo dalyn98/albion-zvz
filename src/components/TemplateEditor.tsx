@@ -10,12 +10,33 @@ import type { GearOption, GearSpec, GearSpecs, SlotKey, SlotSpells } from '@/typ
 import { GEAR_ENCHANT_MAX, GEAR_ENCHANT_MIN, GEAR_TIER_MAX, GEAR_TIER_MIN, SLOT_KEYS, isTierlessSlot, isSpecLessSlot } from '@/types'
 import { updateTemplate, type TemplateData, type TemplateRecord } from '@/app/actions/templates'
 
+// 옵션별 스킬을 dedupe + trim. 비어있으면 undefined 반환해 JSONB 용량 절감
+// (호출부가 `opt.spells ?? []` 패턴으로 읽으므로 undefined/[] 동등).
+function sanitizeOptionSpells(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const v of raw) {
+    if (typeof v !== 'string') continue
+    const trimmed = v.trim()
+    if (!trimmed || seen.has(trimmed)) continue
+    seen.add(trimmed)
+    out.push(trimmed)
+  }
+  return out.length > 0 ? out : undefined
+}
+
 function sanitizeGearOptions(opts: GearOption[] | null | undefined): GearOption[] | null {
   if (!Array.isArray(opts)) return null
-  const clean = opts.filter((o) => o && typeof o.id === 'string' && o.id && typeof o.name === 'string' && o.name)
+  const clean = opts
+    .filter((o) => o && typeof o.id === 'string' && o.id && typeof o.name === 'string' && o.name)
+    .map((o) => {
+      const spells = sanitizeOptionSpells(o.spells)
+      return spells ? { name: o.name, id: o.id, spells } : { name: o.name, id: o.id }
+    })
   const seen = new Set<string>()
   const deduped = clean.filter((o) => (seen.has(o.id) ? false : (seen.add(o.id), true)))
-  return deduped.length > 0 ? deduped.map((o) => ({ name: o.name, id: o.id })) : null
+  return deduped.length > 0 ? deduped : null
 }
 
 // Mirrors sanitizeSpells in admin.ts; keeping client-side too because the
