@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Plus, ChevronDown, ChevronUp } from 'lucide-react'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
+import TemplatePartyListSidebar from './TemplatePartyListSidebar'
 import type { GearOption, GearSpec, GearSpecs, SlotKey, SlotSpells } from '@/types'
 import { GEAR_ENCHANT_MAX, GEAR_ENCHANT_MIN, GEAR_TIER_MAX, GEAR_TIER_MIN, SLOT_KEYS, isTierlessSlot, isSpecLessSlot } from '@/types'
 import { updateTemplate, type TemplateData, type TemplateRecord } from '@/app/actions/templates'
@@ -194,59 +195,69 @@ export default function TemplateEditor({ template }: { template: TemplateRecord 
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      <div>
-        <label className="text-gray-400 text-[11px] font-semibold block mb-1">{t('nameLabel')}</label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={80}
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-base text-white focus:outline-none focus:border-amber-500"
-        />
-      </div>
-
-      <hr className="border-gray-700" />
-
-      <section className="space-y-3 sm:space-y-4">
+    <div className="flex flex-col lg:flex-row lg:gap-6 space-y-4 lg:space-y-0">
+      <div className="flex-1 min-w-0 space-y-6 sm:space-y-8">
         <div>
-          <h2 className="text-lg font-bold text-white">{t('partyConfigTitle')}</h2>
-          <p className="text-gray-400 text-xs sm:text-sm mt-1">
-            {t('partyConfigDescription', { max: MAX_PARTIES })}
-          </p>
+          <label className="text-gray-400 text-[11px] font-semibold block mb-1">{t('nameLabel')}</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={80}
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-base text-white focus:outline-none focus:border-amber-500"
+          />
         </div>
-        <div className="space-y-3">
-          {parties.map((party) => (
-            <PartyPanel
-              key={party.party_number}
-              party={party}
-              onAddSlot={() => addSlot(party.party_number)}
-              onUpdateSlot={(idx, updated) => updateSlot(party.party_number, idx, updated)}
-              onDeleteSlot={(idx) => deleteSlot(party.party_number, idx)}
-            />
-          ))}
-        </div>
-      </section>
 
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
-          <p className="text-red-400 text-sm">{error}</p>
+        <div className="lg:hidden">
+          <TemplatePartyListSidebar parties={parties} placement="mobile" />
         </div>
-      )}
 
-      <div className="sticky bottom-0 bg-black/80 backdrop-blur-sm -mx-4 px-4 py-3 border-t border-gray-800 flex items-center gap-3">
-        {savedAt && !pending && (
-          <span className="text-green-400 text-xs">{t('savedMessage')}</span>
+        <hr className="border-gray-700" />
+
+        <section className="space-y-3 sm:space-y-4">
+          <div>
+            <h2 className="text-lg font-bold text-white">{t('partyConfigTitle')}</h2>
+            <p className="text-gray-400 text-xs sm:text-sm mt-1">
+              {t('partyConfigDescription', { max: MAX_PARTIES })}
+            </p>
+          </div>
+          <div className="space-y-3">
+            {parties.map((party) => (
+              <PartyPanel
+                key={party.party_number}
+                party={party}
+                onAddSlot={() => addSlot(party.party_number)}
+                onUpdateSlot={(idx, updated) => updateSlot(party.party_number, idx, updated)}
+                onDeleteSlot={(idx) => deleteSlot(party.party_number, idx)}
+              />
+            ))}
+          </div>
+        </section>
+
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+            <p className="text-red-400 text-sm">{error}</p>
+          </div>
         )}
-        <button
-          type="button"
-          onClick={save}
-          disabled={pending}
-          className="ml-auto bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-6 py-2.5 rounded-xl text-sm transition-colors"
-        >
-          {pending ? t('savingDots') : t('saveButton')}
-        </button>
+
+        <div className="sticky bottom-0 left-0 right-0 z-30 -mx-4 sm:mx-0 mt-6 bg-gray-950/95 backdrop-blur border-t border-gray-800 px-4 py-3 flex items-center gap-3">
+          {savedAt && !pending && (
+            <span className="text-green-400 text-xs">{t('savedMessage')}</span>
+          )}
+          <button
+            type="button"
+            onClick={save}
+            disabled={pending}
+            className="ml-auto bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-6 py-2.5 rounded-xl text-sm transition-colors"
+          >
+            {pending ? t('savingDots') : t('saveButton')}
+          </button>
+        </div>
       </div>
+
+      <aside className="hidden lg:block w-72 flex-shrink-0">
+        <TemplatePartyListSidebar parties={parties} placement="desktop" />
+      </aside>
     </div>
   )
 }
