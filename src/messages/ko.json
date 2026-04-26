@@ -183,6 +183,8 @@
     "notifyRoleNone": "역할 없음 (조용한 공지)",
     "notifyRoleLoading": "역할 불러오는 중…",
     "notifyRoleError": "역할 목록을 불러오지 못했습니다.",
+    "notifyEveryoneLabel": "@everyone 태그하기",
+    "notifyEveryoneHint": "체크하면 디스코드 공지 메시지에 @everyone 이 함께 붙어 길드 전체에게 푸시 알림이 갑니다. 알림 역할과 독립 동작 — 둘 다 켜면 둘 다 멘션됩니다.",
     "notifyChannelLabel": "공지 채널",
     "notifyChannelHint": "이벤트 디스코드 공지를 올릴 채널을 고르세요. 선택하지 않으면 기본 이벤트 채널에 올라갑니다.",
     "notifyChannelNone": "기본 채널 사용",

@@ -183,6 +183,8 @@
     "notifyRoleNone": "No role (silent post)",
     "notifyRoleLoading": "Loading roles…",
     "notifyRoleError": "Couldn't load role list.",
+    "notifyEveryoneLabel": "Tag @everyone",
+    "notifyEveryoneHint": "When checked, the Discord announcement prepends @everyone so the whole guild gets pinged. Independent of the notification role — if both are set, both are mentioned.",
     "notifyChannelLabel": "Notification channel",
     "notifyChannelHint": "Pick a channel for the Discord announcement. Leave blank to post to the default event channel.",
     "notifyChannelNone": "Use default channel",

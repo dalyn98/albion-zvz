@@ -13,6 +13,9 @@ export interface Event {
   // Migration 032: 공지를 올릴 Discord 채널 ID. NULL 이면 env 기반 기본 채널
   // (DISCORD_EVENT_CHANNEL_ID) 로 fallback.
   notify_channel_id: string | null
+  // Migration 105: true 면 채널 공지에 @everyone 을 함께 멘션한다.
+  // notify_role_id 와 독립 동작 — 둘 다 켜져 있으면 둘 다 멘션된다.
+  notify_everyone: boolean
   // Migration 039: Discord ID of the event creator. NULL for legacy events
   // created before this column existed — those remain admin-only for edits.
   created_by: string | null

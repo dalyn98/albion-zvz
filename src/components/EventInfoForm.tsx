@@ -40,6 +40,7 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
   const [specialNotes, setSpecialNotes] = useState(initialEvent?.special_notes ?? '')
   const [notifyRoleId, setNotifyRoleId] = useState<string>(initialEvent?.notify_role_id ?? '')
   const [notifyChannelId, setNotifyChannelId] = useState<string>(initialEvent?.notify_channel_id ?? '')
+  const [notifyEveryone, setNotifyEveryone] = useState<boolean>(initialEvent?.notify_everyone ?? false)
   const [category, setCategory] = useState<EventCategory>(initialEvent?.category ?? '전투')
   const [roles, setRoles] = useState<DiscordRoleOption[] | null>(null)
   const [rolesError, setRolesError] = useState(false)
@@ -177,6 +178,7 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
       specialNotes,
       notifyRoleId,
       notifyChannelId,
+      notifyEveryone,
       category,
     })
   const cleanSnapshotRef = useRef<string>(computeSnapshot())
@@ -184,7 +186,7 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
     () => computeSnapshot(),
     // computeSnapshot 은 closure 로 모든 입력을 참조.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [title, parts, gatherLocation, specialNotes, notifyRoleId, notifyChannelId, category],
+    [title, parts, gatherLocation, specialNotes, notifyRoleId, notifyChannelId, notifyEveryone, category],
   )
   const isDirty = isEdit && currentSnapshot !== cleanSnapshotRef.current
   useReportDirty('event-info', isDirty)
@@ -213,6 +215,7 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
           special_notes: specialNotes.trim() || null,
           notify_role_id: notifyRoleId || null,
           notify_channel_id: notifyChannelId || null,
+          notify_everyone: notifyEveryone,
           category,
         })
         if ('error' in result && result.error) {
@@ -371,6 +374,19 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
               <p className="text-xs text-gray-500 mt-1.5">{t('notifyRoleHint')}</p>
             )}
           </div>
+
+          <label className="flex items-start gap-2.5 cursor-pointer select-none bg-gray-800/40 border border-gray-700 rounded-lg px-3 py-2.5">
+            <input
+              type="checkbox"
+              checked={notifyEveryone}
+              onChange={(e) => setNotifyEveryone(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-amber-500"
+            />
+            <span className="flex-1 text-sm">
+              <span className="text-white font-semibold block">{t('notifyEveryoneLabel')}</span>
+              <span className="text-gray-400 text-xs block mt-0.5">{t('notifyEveryoneHint')}</span>
+            </span>
+          </label>
         </>
       )}
 

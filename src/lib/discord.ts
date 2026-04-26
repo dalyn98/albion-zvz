@@ -330,6 +330,8 @@ export interface EventNotificationPayload {
   notify_role_id: string | null
   // 이벤트가 지정한 공지 채널. NULL 이면 호출부가 env fallback 을 넘긴다.
   notify_channel_id: string | null
+  // Migration 105: true 면 채널 알림에 @everyone 도 함께 멘션한다.
+  notify_everyone: boolean
 }
 
 // 시간대는 길드 설정(KR/EU/NA/SA) 을 반영. locale 은 알림을 트리거한 관리자
@@ -362,6 +364,9 @@ export interface SendEventNotificationOptions {
   content: string
   // 이벤트에 설정된 역할 ID. NULL 이면 멘션 없이 채널에만 올린다.
   notifyRoleId: string | null
+  // true 면 메시지 상단에 @everyone 을 추가하고 allowed_mentions 에 'everyone'
+  // 을 허용. notifyRoleId 와 독립 — 둘 다 켜져 있으면 둘 다 멘션된다.
+  notifyEveryone: boolean
   // 최종 전송 채널 ID. 호출부가 event.notify_channel_id ?? tenant.event_channel_id
   // 로 미리 해석해서 넘긴다. 빈 값이면 여기서 throw — 봇 알림은 조용한 실패로
   // 덮어놓으면 운영자가 "왜 안 오지" 하는 시간이 길어진다.
@@ -411,11 +416,23 @@ export async function sendEventNotification(
   }
 
   // 역할 멘션 전략:
-  //   - notify_role_id 지정: `<@&id>` 로 해당 역할만 태그하고 allowed_mentions
-  //     로 허용 역할을 좁힌다. @everyone 스팸 대신 선택된 역할만 ping.
-  //   - NULL: 멘션 없이 채널 메시지만. 기존처럼 모든 멤버에게 ping 하지 않는다.
-  const mentionLine = options.notifyRoleId ? `<@&${options.notifyRoleId}>\n` : ''
+  //   - notify_everyone: `@everyone` 을 prepend 하고 allowed_mentions.parse
+  //     에 'everyone' 을 허용. 길드 전체 멤버 ping.
+  //   - notify_role_id: `<@&id>` 로 해당 역할만 태그하고 allowed_mentions.roles
+  //     로 허용 역할을 좁힌다. 선택된 역할만 ping.
+  //   - 둘 다 지정 가능 (독립). 둘 다 NULL/false 이면 조용한 채널 메시지.
+  const mentionParts: string[] = []
+  if (options.notifyEveryone) mentionParts.push('@everyone')
+  if (options.notifyRoleId) mentionParts.push(`<@&${options.notifyRoleId}>`)
+  const mentionLine = mentionParts.length > 0 ? `${mentionParts.join(' ')}\n` : ''
   const content = `${mentionLine}${options.content}\n${siteUrl}`
+
+  const allowedMentions: {
+    parse?: ('everyone' | 'roles' | 'users')[]
+    roles?: string[]
+  } = { parse: [] }
+  if (options.notifyEveryone) allowedMentions.parse = ['everyone']
+  if (options.notifyRoleId) allowedMentions.roles = [options.notifyRoleId]
 
   const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
     method: 'POST',
@@ -426,9 +443,7 @@ export async function sendEventNotification(
     body: JSON.stringify({
       content,
       embeds: [embed],
-      allowed_mentions: options.notifyRoleId
-        ? { roles: [options.notifyRoleId] }
-        : { parse: [] },
+      allowed_mentions: allowedMentions,
     }),
   })
 

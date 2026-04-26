@@ -61,6 +61,9 @@ interface EventPayload {
   // 채널(DISCORD_EVENT_CHANNEL_ID) 로 fallback. 생성 폼은 이 필드를 보내지
   // 않으며 편집 단계에서만 채널을 고른다.
   notify_channel_id?: string | null
+  // Migration 105: 채널 공지에 @everyone 을 함께 붙일지 여부. 편집 화면에서만
+  // 토글하며, 생성 폼은 이 필드를 보내지 않는다 (DB DEFAULT false 적용).
+  notify_everyone?: boolean
   // Migration 063: 이벤트 카테고리. 생성 시 선택하고 편집에서도 변경 가능.
   // 생략하면 DB 기본값 '전투' 가 적용된다.
   category?: EventCategory
@@ -264,7 +267,7 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
     const guildId = await getSessionGuildId(session)
     const { data, error } = await db
       .from('events')
-      .select('id, title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id')
+      .select('id, title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone')
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
@@ -291,6 +294,7 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
     await sendEventNotification(data, {
       content,
       notifyRoleId: data.notify_role_id,
+      notifyEveryone: data.notify_everyone === true,
       channelId,
       fieldLabels: {
         gatherAt: tEvent('discordFieldGatherAt'),
@@ -318,7 +322,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
 
     const { data: source, error: sourceErr } = await db
       .from('events')
-      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id')
+      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone')
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
@@ -345,6 +349,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
         special_notes: source.special_notes,
         notify_role_id: source.notify_role_id,
         notify_channel_id: source.notify_channel_id,
+        notify_everyone: source.notify_everyone,
         // 복제는 늘 draft 로 시작 — 관리자가 날짜/공지 확인 후 명시적으로 발행.
         status: 'draft',
         created_by: session.discordId,

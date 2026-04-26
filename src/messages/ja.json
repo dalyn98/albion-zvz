@@ -183,6 +183,8 @@
     "notifyRoleNone": "ロールなし (サイレント告知)",
     "notifyRoleLoading": "ロールを読み込み中…",
     "notifyRoleError": "ロール一覧の読み込みに失敗しました。",
+    "notifyEveryoneLabel": "@everyone をタグ付け",
+    "notifyEveryoneHint": "チェックすると Discord 告知メッセージの先頭に @everyone が付き、ギルド全員にプッシュ通知が届きます。通知ロールとは独立して動作 — 両方有効なら両方ともメンションされます。",
     "notifyChannelLabel": "告知チャンネル",
     "notifyChannelHint": "Discord告知を投稿するチャンネルを選択。未選択ならデフォルトのイベントチャンネルへ投稿します。",
     "notifyChannelNone": "デフォルトチャンネルを使用",
