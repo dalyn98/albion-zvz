@@ -1,8 +1,10 @@
-import Link from 'next/link'
 import { Calendar, Coins, ShoppingBag, BarChart3 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 
-export const dynamic = 'force-static'
+// 빌드타임에 layout 의 x-pathname 헤더가 없어 AppGate 가 HTML 에 박혀버리는
+// 함정. dynamic 렌더로 두고 매 요청마다 layout 분기를 정확히 평가시킨다.
+// (feedback_albion_zvz_force_static_pitfall.md 참고)
+export const dynamic = 'force-dynamic'
 
 export default async function PublicLandingPage() {
   const t = await getTranslations('publicLanding')
@@ -30,19 +32,13 @@ export default async function PublicLandingPage() {
           <p className="text-sm sm:text-base text-gray-300 max-w-2xl mx-auto leading-relaxed">
             {t('subheading')}
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+          <div className="flex justify-center pt-2">
             <a
               href={installHref}
               className="inline-flex items-center justify-center w-full sm:w-auto bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold px-6 py-3 rounded-xl shadow-[0_10px_30px_-10px_rgba(88,101,242,0.6)] transition-colors"
             >
               {t('ctaPrimary')}
             </a>
-            <Link
-              href="/public/records"
-              className="inline-flex items-center justify-center w-full sm:w-auto border border-gray-700 hover:border-gray-500 text-gray-200 font-medium px-6 py-3 rounded-xl transition-colors"
-            >
-              {t('ctaSecondary')}
-            </Link>
           </div>
         </section>
 

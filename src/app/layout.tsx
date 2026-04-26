@@ -258,7 +258,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         loginLabel={tLanding('discordLogin')}
         memberRequiredLabel={tLanding('memberRequired')}
         logoutLabel={tLanding('logout')}
-        publicRecordsLabel={tLanding('publicRecords')}
         learnMoreLabel={tLanding('learnMore')}
         authErrorLabels={{
           denied: tAuthError('denied'),

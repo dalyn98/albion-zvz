@@ -9,8 +9,10 @@ import {
   calcSurvivalFromBattles,
 } from '@/lib/member-stats'
 import {
+  fetchMemberBattleParticipations,
   fetchTrackedBattleWindows,
   groupMemberKillsByBattle,
+  mergeMemberBattles,
 } from '@/lib/tracked-kills'
 import { getMyPointsSummary } from '@/app/actions/regear'
 
@@ -70,11 +72,13 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
   const [
     pointsSummary,
     upcomingSlotsRes,
+    avatarRes,
     killboardRes,
     regearRes,
     exchangeRes,
     donationRes,
     trackedBattles,
+    participationsByMember,
   ] = await Promise.all([
     getMyPointsSummary(),
     // 스케줄링 UI 용. "다음 이벤트" 카드에만 쓰이므로 gather_at > now() 로 제한해
@@ -87,6 +91,15 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
       .eq('guild_id', guildId)
       .eq('assigned_discord_id', session.discordId)
       .gt('parties.events.gather_at', nowIso),
+    // mergeMemberBattles 의 키가 albion_player_id 라 본인 매핑을 먼저 얻어야
+    // 0K0D 참여(탱커/힐러) 까지 합쳐진다. 미연동(Albion 인증 미완료) 멤버는
+    // null → killBattles 만으로 fallback (기존 동작과 동일).
+    db
+      .from('guild_avatars')
+      .select('albion_player_id')
+      .eq('guild_id', guildId)
+      .eq('discord_id', session.discordId)
+      .maybeSingle(),
     db
       .from('killboard_events')
       .select('role, occurred_at, battle_id')
@@ -111,11 +124,18 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
       .eq('discord_id', session.discordId)
       .eq('status', 'pending'),
     fetchTrackedBattleWindows(db, guildId),
+    fetchMemberBattleParticipations(db, guildId),
   ])
 
-  // 참여 배틀 = 멤버의 killboard 가 한 건이라도 있는 트래킹 배틀. 이 배열이
-  // 모든 통계 (참여수/승패/생존/스트릭/킬/데스) 의 단일 소스.
-  const battles = groupMemberKillsByBattle(killboardRes.data ?? [], trackedBattles)
+  // killboard 기반 배틀 + raw_battle.players 기반 0K0D 참여 합집합. /members/[id]
+  // 와 /leaderboard 가 같은 방식으로 집계하므로 /me 도 동일해야 페이지 간
+  // 통계 (참여수/승패/생존/스트릭) 가 일치한다. (members-admin / leaderboard 와 동기화)
+  const memberAlbionId = (avatarRes.data?.albion_player_id as string | null) ?? null
+  const memberParticipations = memberAlbionId
+    ? participationsByMember.byAlbionPlayerId.get(memberAlbionId)
+    : undefined
+  const killBattles = groupMemberKillsByBattle(killboardRes.data ?? [], trackedBattles)
+  const battles = mergeMemberBattles(killBattles, memberParticipations, trackedBattles)
 
   let kills = 0
   let deaths = 0
