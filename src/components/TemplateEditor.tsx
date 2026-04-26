@@ -240,15 +240,17 @@ export default function TemplateEditor({ template }: { template: TemplateRecord 
           </div>
         )}
 
-        <div className="sticky bottom-0 left-0 right-0 z-30 -mx-4 sm:mx-0 mt-6 bg-gray-950/95 backdrop-blur border-t border-gray-800 px-4 py-3 flex items-center gap-3">
+        <div className="sticky bottom-4 z-30 flex items-center justify-end gap-3 pointer-events-none">
           {savedAt && !pending && (
-            <span className="text-green-400 text-xs">{t('savedMessage')}</span>
+            <span className="pointer-events-auto bg-gray-900/90 backdrop-blur border border-gray-700 text-green-400 text-xs px-2.5 py-1.5 rounded-lg shadow-lg">
+              {t('savedMessage')}
+            </span>
           )}
           <button
             type="button"
             onClick={save}
             disabled={pending}
-            className="ml-auto bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-6 py-2.5 rounded-xl text-sm transition-colors"
+            className="pointer-events-auto bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-6 py-2.5 rounded-xl text-sm transition-colors shadow-lg shadow-black/40"
           >
             {pending ? t('savingDots') : t('saveButton')}
           </button>
