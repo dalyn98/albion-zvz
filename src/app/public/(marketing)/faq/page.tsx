@@ -4,13 +4,19 @@ import MarketingNav from '@/components/MarketingNav'
 
 export const dynamic = 'force-dynamic'
 
-const QUESTION_KEYS = ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7', 'q8'] as const
+const QUESTION_KEYS = [
+  'q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7', 'q8',
+  'q9', 'q10', 'q11', 'q12',
+] as const
 type QuestionKey = (typeof QUESTION_KEYS)[number]
-type AnswerKey = `a${'1' | '2' | '3' | '4' | '5' | '6' | '7' | '8'}`
+type AnswerKey =
+  | 'a1' | 'a2' | 'a3' | 'a4' | 'a5' | 'a6' | 'a7' | 'a8'
+  | 'a9' | 'a10' | 'a11' | 'a12'
 
 const ANSWER_KEY_FOR: Record<QuestionKey, AnswerKey> = {
   q1: 'a1', q2: 'a2', q3: 'a3', q4: 'a4',
   q5: 'a5', q6: 'a6', q7: 'a7', q8: 'a8',
+  q9: 'a9', q10: 'a10', q11: 'a11', q12: 'a12',
 }
 
 export default async function PublicFaqPage() {

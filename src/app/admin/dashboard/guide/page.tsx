@@ -11,6 +11,8 @@ import {
   BarChart3,
   Swords,
   Globe,
+  ListChecks,
+  AlertCircle,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
@@ -35,6 +37,26 @@ export default async function AdminGuidePage() {
           {t('intro')}
         </p>
       </header>
+
+      <GuideSection
+        icon={<ListChecks size={18} className="text-emerald-400" />}
+        title={t('quickStart.title')}
+        href="/admin/dashboard/settings?tab=events"
+        linkLabel={t('quickStart.cta')}
+      >
+        <p className="text-sm text-gray-300 leading-relaxed mb-3">
+          {t('quickStart.intro')}
+        </p>
+        <ol className="list-decimal pl-5 space-y-1.5 text-sm text-gray-300">
+          <li>{t('quickStart.step1')}</li>
+          <li>{t('quickStart.step2')}</li>
+          <li>{t('quickStart.step3')}</li>
+          <li>{t('quickStart.step4')}</li>
+          <li>{t('quickStart.step5')}</li>
+          <li>{t('quickStart.step6')}</li>
+          <li>{t('quickStart.step7')}</li>
+        </ol>
+      </GuideSection>
 
       <GuideSection
         icon={<CalendarDays size={18} className="text-amber-400" />}
@@ -166,6 +188,38 @@ export default async function AdminGuidePage() {
           <li>{t('tips.tip7')}</li>
         </ul>
       </GuideSection>
+
+      <GuideSection
+        icon={<AlertCircle size={18} className="text-rose-400" />}
+        title={t('troubleshooting.title')}
+      >
+        <p className="text-sm text-gray-300 leading-relaxed mb-3">
+          {t('troubleshooting.intro')}
+        </p>
+        <dl className="space-y-3 text-sm">
+          <TroubleEntry term={t('troubleshooting.p1Title')} desc={t('troubleshooting.p1Body')} />
+          <TroubleEntry term={t('troubleshooting.p2Title')} desc={t('troubleshooting.p2Body')} />
+          <TroubleEntry term={t('troubleshooting.p3Title')} desc={t('troubleshooting.p3Body')} />
+          <TroubleEntry term={t('troubleshooting.p4Title')} desc={t('troubleshooting.p4Body')} />
+          <TroubleEntry term={t('troubleshooting.p5Title')} desc={t('troubleshooting.p5Body')} />
+          <TroubleEntry term={t('troubleshooting.p6Title')} desc={t('troubleshooting.p6Body')} />
+          <TroubleEntry term={t('troubleshooting.p7Title')} desc={t('troubleshooting.p7Body')} />
+        </dl>
+      </GuideSection>
+    </div>
+  )
+}
+
+interface TroubleEntryProps {
+  term: string
+  desc: string
+}
+
+function TroubleEntry({ term, desc }: TroubleEntryProps) {
+  return (
+    <div className="rounded-lg border border-gray-800 bg-gray-950/40 p-3">
+      <dt className="text-white font-semibold mb-1">{term}</dt>
+      <dd className="text-gray-300 leading-relaxed">{desc}</dd>
     </div>
   )
 }
