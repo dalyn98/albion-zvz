@@ -1,5 +1,13 @@
 import Link from 'next/link'
-import { LayoutDashboard, Building2, Megaphone, ScrollText, ShieldAlert } from 'lucide-react'
+import {
+  LayoutDashboard,
+  Building2,
+  Megaphone,
+  ScrollText,
+  ShieldAlert,
+  Globe,
+  ExternalLink,
+} from 'lucide-react'
 import { requireSuperAdmin } from '@/lib/super-admin'
 import { getSuperAdminPath } from '@/lib/super-admin-path'
 
@@ -9,7 +17,13 @@ interface NavItem {
   href: string
   label: string
   Icon: typeof LayoutDashboard
+  external?: boolean
 }
+
+// 슈퍼어드민이 마케팅 랜딩을 빠르게 점검할 수 있도록 새 탭으로 띄우는 경로.
+// /public/* 는 layout 의 isPublic 분기로 인해 어떤 호스트에서도 AppGate 우회 →
+// 테넌트 서브도메인에 있어도 동일 도메인에서 그대로 열린다.
+const PUBLIC_LANDING_HREF = '/public/landing'
 
 function buildNav(basePath: string): NavItem[] {
   return [
@@ -17,6 +31,7 @@ function buildNav(basePath: string): NavItem[] {
     { href: `${basePath}/tenants`, label: '테넌트', Icon: Building2 },
     { href: `${basePath}/notices`, label: '시스템 공지', Icon: Megaphone },
     { href: `${basePath}/audit`, label: '감사 로그', Icon: ScrollText },
+    { href: PUBLIC_LANDING_HREF, label: '공개 랜딩', Icon: Globe, external: true },
   ]
 }
 
@@ -34,14 +49,16 @@ export default async function SuperAdminLayout({ children }: { children: React.R
       <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-6">
         <nav className="bg-gray-900 border border-gray-700 rounded-2xl p-3 h-fit">
           <ul className="space-y-1">
-            {nav.map(({ href, label, Icon }) => (
+            {nav.map(({ href, label, Icon, external }) => (
               <li key={href}>
                 <Link
                   href={href}
+                  {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                   className="flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
                 >
                   <Icon size={14} />
-                  {label}
+                  <span className="flex-1">{label}</span>
+                  {external && <ExternalLink size={12} className="opacity-60" />}
                 </Link>
               </li>
             ))}
