@@ -127,14 +127,12 @@ export async function requestRegear(
   const file = formData.get('screenshot')
   const file2 = formData.get('screenshot2')
   const claimedSilverRaw = String(formData.get('claimedSilver') ?? '')
-  const fulfillmentModeRaw = String(formData.get('fulfillmentMode') ?? 'silver')
-  const fulfillmentMode: 'silver' | 'crafted' =
-    fulfillmentModeRaw === 'crafted' ? 'crafted' : 'silver'
-  if (fulfillmentMode === 'crafted') {
-    const craftEnabled =
-      (await getAppSetting('craft_regear_enabled', 'false', guildId)) === 'true'
-    if (!craftEnabled) return { error: tErr('craftRegearDisabled') }
-  }
+  // 청구 방식은 길드 단위 강제. craft_regear_enabled='true' 면 모든 신규 요청이
+  // 'crafted', 'false' 면 'silver'. 멤버는 모드를 선택할 수 없다 (기존 form
+  // 'fulfillmentMode' 필드는 무시).
+  const craftEnabled =
+    (await getAppSetting('craft_regear_enabled', 'false', guildId)) === 'true'
+  const fulfillmentMode: 'silver' | 'crafted' = craftEnabled ? 'crafted' : 'silver'
   if (!eventId) return { error: tErr('missingEventInfo') }
   if (!(file instanceof File) || file.size === 0) return { error: tErr('screenshotMissing') }
   if (file.size > MAX_SCREENSHOT_BYTES) return { error: tErr('screenshotTooLarge') }

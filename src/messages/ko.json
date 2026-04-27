@@ -1672,10 +1672,11 @@
     "verifyCtaLabel": "알비온 닉네임 인증하러 가기",
     "adminEntry": "자유 리기어 관리",
     "modeLabel": "지급 방식",
+    "modeNoticeLabel": "이 길드의 리기어 지급 방식",
     "modeSilverLabel": "실버 지급",
-    "modeSilverHint": "기존 방식 — 승인 후 포인트로 받기",
+    "modeSilverHint": "승인 후 포인트로 받음 (관리자가 길드 설정에서 변경)",
     "modeCraftedLabel": "제작 지급",
-    "modeCraftedHint": "길드 제작자가 만들어 보관함에 넣어 줘요"
+    "modeCraftedHint": "길드 제작자가 만들어 보관함에 넣어 줌 (관리자가 길드 설정에서 변경)"
   },
   "regearWindow": {
     "sectionTitle": "지금 열려 있는 자유 신청",
@@ -1787,9 +1788,9 @@
     "pageTitle": "제작 리기어 관리",
     "pageDescription": "길드 보관함에 부품을 만들어 넣어주는 제작 지급 시스템을 관리합니다.",
     "settingsTitle": "기본 설정",
-    "settingsHint": "토글이 OFF 면 멤버는 제작 모드를 선택할 수 없어요.",
-    "enabledLabel": "제작 지급 사용",
-    "enabledHint": "켜면 리기어 신청 시 멤버가 '실버 / 제작' 중 선택 가능.",
+    "settingsHint": "켜면 모든 신규 리기어가 제작 모드로 처리됩니다 (멤버는 선택 불가). 끄면 모두 실버 모드.",
+    "enabledLabel": "제작 모드로 운영",
+    "enabledHint": "ON: 길드 제작자가 만들어 회차 박스로 전달 / OFF: 승인 후 포인트로 지급. 멤버는 모드를 선택할 수 없고, 길드가 일괄 강제합니다.",
     "rangeMinLabel": "보관함 번호 최소",
     "rangeMaxLabel": "보관함 번호 최대",
     "expiryDaysLabel": "납품 후 만료 (일)",

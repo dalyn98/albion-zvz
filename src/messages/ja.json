@@ -1672,10 +1672,11 @@
     "verifyCtaLabel": "アルビオン認証ページへ",
     "adminEntry": "自由リギア管理",
     "modeLabel": "支給方法",
+    "modeNoticeLabel": "このギルドのリギア支給方法",
     "modeSilverLabel": "シルバー支給",
-    "modeSilverHint": "従来通り — 承認後にポイントで受け取り",
+    "modeSilverHint": "承認後にポイントで受け取り (管理者がギルド設定で変更)",
     "modeCraftedLabel": "製作支給",
-    "modeCraftedHint": "ギルドの製作者が作って保管箱に入れてくれます"
+    "modeCraftedHint": "ギルドの製作者が作って保管箱に入れる (管理者がギルド設定で変更)"
   },
   "regearWindow": {
     "sectionTitle": "現在受付中の自由申請",
@@ -1787,9 +1788,9 @@
     "pageTitle": "クラフトリギア管理",
     "pageDescription": "ギルド保管庫に装備を作って入れる、クラフト支給システムを管理します。",
     "settingsTitle": "基本設定",
-    "settingsHint": "OFF にするとメンバーはクラフトモードを選択できません。",
-    "enabledLabel": "クラフト支給を有効化",
-    "enabledHint": "ONにすると、リギア申請時にメンバーが「シルバー / クラフト」を選べます。",
+    "settingsHint": "ON にすると新規リギアはすべてクラフト支給扱い (メンバーは選択不可)。OFF ならすべてシルバー支給。",
+    "enabledLabel": "クラフト支給モードで運用",
+    "enabledHint": "ON: ギルド製作者が作って保管箱で渡す / OFF: 承認後にポイント支給。メンバーは支給方法を選べず、ギルド単位で一律強制されます。",
     "rangeMinLabel": "ボックス番号 最小",
     "rangeMaxLabel": "ボックス番号 最大",
     "expiryDaysLabel": "納品後の有効期限 (日)",

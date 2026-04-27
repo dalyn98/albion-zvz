@@ -1672,10 +1672,11 @@
     "verifyCtaLabel": "Verify Albion nickname",
     "adminEntry": "Free regear admin",
     "modeLabel": "Payout type",
+    "modeNoticeLabel": "This guild's regear payout mode",
     "modeSilverLabel": "Silver payout",
-    "modeSilverHint": "Default — paid as points after approval",
+    "modeSilverHint": "Paid as points after approval (admins change in guild settings)",
     "modeCraftedLabel": "Crafted gear",
-    "modeCraftedHint": "A guild crafter makes it and drops it in a box for you"
+    "modeCraftedHint": "A guild crafter makes it and drops it in a box for you (admins change in guild settings)"
   },
   "regearWindow": {
     "sectionTitle": "Open intake windows",
@@ -1787,9 +1788,9 @@
     "pageTitle": "Craft regear admin",
     "pageDescription": "Manage the craft-payout system that builds gear into numbered guild island boxes.",
     "settingsTitle": "Basic settings",
-    "settingsHint": "When the toggle is off, members can't pick the craft fulfillment mode.",
-    "enabledLabel": "Enable craft fulfillment",
-    "enabledHint": "When on, members can choose between silver and craft when filing regear.",
+    "settingsHint": "When on, every new regear is processed as crafted (members can't choose). When off, everything is silver.",
+    "enabledLabel": "Run guild in crafted mode",
+    "enabledHint": "On: a guild crafter makes the gear and drops it in a box. Off: members are paid as points after approval. Members can't pick the mode — the guild enforces it for everyone.",
     "rangeMinLabel": "Box number min",
     "rangeMaxLabel": "Box number max",
     "expiryDaysLabel": "Expiry after delivery (days)",

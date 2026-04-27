@@ -126,9 +126,10 @@ export type AppSettingKey =
   // 정하는 길드 기본값. 개인이 guild_avatars/guests.dm_lead_minutes 로 override
   // 하지 않은 경우 이 값을 사용. 기본 '35' = 기존 하드코딩 동작 유지.
   | 'event_dm_lead_minutes'
-  // Boolean 문자열. 'true' 면 멤버가 리기어 신청 시 'crafted' 모드(아이템 직접
-  // 제작 후 회차 박스로 전달)를 선택할 수 있다. 기본 'false' — 신규 테넌트는
-  // 기존 silver-only 흐름을 유지. 멘헤라 길드 검증 후 전체 활성화 검토.
+  // Boolean 문자열. 길드 단위 리기어 지급 모드 — 'true' 면 모든 신규 요청이
+  // 'crafted' (제작자가 회차 박스로 전달), 'false' 면 'silver' (포인트 지급).
+  // 멤버는 모드를 선택할 수 없고 길드 설정이 강제. 기본 'false'. /craft/queue 탭
+  // 노출 여부도 이 값에 묶여 있어, 'false' 면 제작자/관리자에게도 탭이 숨겨진다.
   | 'craft_regear_enabled'
   // 정수 문자열. 길드섬에 비치된 회차 박스 번호 범위 [min..max]. 기본 1..30.
   // 제작자가 delivered 시점에 직접 박스 번호를 입력하면 이 범위 안에서만 허용.
