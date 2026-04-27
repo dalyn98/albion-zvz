@@ -85,6 +85,10 @@ export interface RegearEligibleEvent {
   // Non-rejected regear requests the current user already has for this event.
   // Button disables when this hits `maxDeaths` (loaded separately on the page).
   existing_active_count: number
+  // Most recent active auto-generated request id for this event/member.
+  // When set, the page renders a read-only "auto submitted" card variant —
+  // members aren't expected to file a manual claim on top of an auto pending.
+  auto_request_id: string | null
 }
 
 export interface RegearLimits {
@@ -481,19 +485,26 @@ export async function listMyRegearEligibleEvents(): Promise<{
       : Promise.resolve({ data: [] as { role_name: string; silver: number }[], error: null }),
     db
       .from('regear_requests')
-      .select('event_id')
+      .select('id, event_id, auto_generated, created_at')
       .eq('guild_id', guildId)
       .eq('discord_id', session.discordId)
       .neq('status', 'rejected')
-      .in('event_id', Array.from(eventIdSet)),
+      .in('event_id', Array.from(eventIdSet))
+      .order('created_at', { ascending: false }),
   ])
   if (rewardRes.error) return { events: [], error: rewardRes.error.message }
   if (requestRes.error) return { events: [], error: requestRes.error.message }
 
   const rewardMap = new Map((rewardRes.data ?? []).map((r) => [r.role_name, r.silver]))
   const countByEvent = new Map<string, number>()
+  // 가장 최근 auto-generated active 요청 id 만 보존 (rows 가 created_at desc 로
+  // 정렬돼 있으므로 첫 매칭이 곧 최신).
+  const autoRequestByEvent = new Map<string, string>()
   for (const row of requestRes.data ?? []) {
     countByEvent.set(row.event_id, (countByEvent.get(row.event_id) ?? 0) + 1)
+    if (row.auto_generated && !autoRequestByEvent.has(row.event_id)) {
+      autoRequestByEvent.set(row.event_id, row.id)
+    }
   }
 
   const result: RegearEligibleEvent[] = events
@@ -510,6 +521,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
         role_name: role,
         role_reward: rewardMap.get(role) ?? 0,
         existing_active_count: countByEvent.get(e.id) ?? 0,
+        auto_request_id: autoRequestByEvent.get(e.id) ?? null,
       }
     })
 

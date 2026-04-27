@@ -63,8 +63,7 @@ export function lookupRecipe(itemId: string): RawRecipe | null {
 }
 
 export function isItemCraftable(itemId: string): boolean {
-  const r = RECIPES[itemId]
-  return r != null && !r.isArtifact
+  return RECIPES[itemId] != null
 }
 
 export interface ComputeRecipeCostOptions {
@@ -198,10 +197,11 @@ export async function computeBuildCraftCost(
     if (!recipe) {
       return { slot, itemId, itemName, recipe: null, status: 'no_recipe' }
     }
-    if (recipe.isArtifact) {
-      return { slot, itemId, itemName, recipe, status: 'artifact' }
-    }
-    return { slot, itemId, itemName, recipe, status: 'craftable' }
+    // 유물도 craftable 로 취급해 재료 합산에 포함시킨다 (T?_ARTEFACT_* 가 그대로
+    // material 라인으로 잡혀 박스 픽업 합산에 들어가도록). 'artifact' 플래그는
+    // 정보용으로만 남겨 UI 가 "유물 워크벤치 필요" 류 안내를 띄울 수 있게 한다.
+    const status: BuildCostSlot['recipeStatus'] = recipe.isArtifact ? 'artifact' : 'craftable'
+    return { slot, itemId, itemName, recipe, status }
   })
 
   const keysWithDup: AodpPriceKey[] = []
@@ -234,7 +234,8 @@ export async function computeBuildCraftCost(
   const slots: BuildCostSlot[] = prepared.map((p) => {
     if (p.status === 'no_recipe' && p.itemId) hasUnknownItem = true
     if (p.status === 'artifact') hasArtifact = true
-    if (!p.recipe || p.status !== 'craftable') {
+    // craftable 과 artifact 둘 다 material 합산 대상. no_recipe / empty 만 skip.
+    if (!p.recipe || (p.status !== 'craftable' && p.status !== 'artifact')) {
       return {
         slot: p.slot,
         itemId: p.itemId,

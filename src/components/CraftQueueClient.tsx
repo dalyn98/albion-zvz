@@ -633,7 +633,7 @@ function DeliverDialog({ item, config, locations, onClose, onSuccess }: DeliverD
       {breakdown && (
         <div className="space-y-2 bg-gray-950 border border-gray-800 rounded-lg p-3">
           {breakdown.hasArtifact && (
-            <p className="text-rose-300 text-[11px]">{t('artifactWarning')}</p>
+            <p className="text-amber-300 text-[11px]">{t('artifactWarning')}</p>
           )}
           {breakdown.hasMissingPrice && (
             <p className="text-amber-300 text-[11px]">{t('missingPriceWarning')}</p>

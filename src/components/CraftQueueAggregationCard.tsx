@@ -90,7 +90,7 @@ export default function CraftQueueAggregationCard({
                 <p className="text-[11px] text-white font-mono truncate">{item.itemId}</p>
                 <p className="text-[10px] text-gray-500">
                   {item.isArtifact ? (
-                    <span className="text-rose-400">{t('aggregateArtifactTag')}</span>
+                    <span className="text-amber-400">{t('aggregateArtifactTag')}</span>
                   ) : !item.hasRecipe ? (
                     <span className="text-amber-400">{t('aggregateNoRecipeTag')}</span>
                   ) : (
@@ -107,7 +107,7 @@ export default function CraftQueueAggregationCard({
         {(breakdown.unknownItemCount > 0 || breakdown.artifactCount > 0) && (
           <p className="text-[10px] text-gray-500 leading-relaxed">
             {breakdown.artifactCount > 0 && (
-              <span className="mr-2 text-rose-400/80">
+              <span className="mr-2 text-amber-400/80">
                 {t('aggregateArtifactWarn', { count: breakdown.artifactCount })}
               </span>
             )}

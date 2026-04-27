@@ -38,8 +38,9 @@ export interface CraftAggregateBreakdown {
   // Items present in snapshots but not in our recipe bundle (free-text,
   // mounts, food/potions). Reported as a count for the UI to render a hint.
   unknownItemCount: number
-  // Items flagged isArtifact — excluded from materials list since the guild
-  // can't standard-craft them. Count is shown so the UI can warn.
+  // Items flagged isArtifact — included in the material list (T?_ARTEFACT_*
+  // appears as a regular line). Count is shown so the UI can flag the
+  // workbench requirement.
   artifactCount: number
 }
 
@@ -104,8 +105,9 @@ export function aggregateBuildSnapshots(
     }
     if (isArtifact) {
       artifactCount += info.count
-      continue
     }
+    // 유물도 일반 craftable 처럼 재료 라인으로 합산 — T?_ARTEFACT_* 가 박스에
+    // 같이 들어가 한 번에 픽업 / 청부제작에 활용된다.
     for (const m of recipe.materials) {
       materialMap.set(m.id, (materialMap.get(m.id) ?? 0) + m.count * info.count)
     }

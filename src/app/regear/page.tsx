@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Clock, MapPin, Swords, ShieldCheck, Gift } from 'lucide-react'
+import { Clock, MapPin, Swords, ShieldCheck, Gift, Sparkles, ArrowRight } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
@@ -147,18 +147,37 @@ export default async function RegearPage() {
                       <span className="text-gray-500"> · {t('expectedReward')} </span>
                       <span className="text-amber-400 font-mono font-semibold">{formatSilver(event.role_reward)}</span>
                     </div>
-                    <RegearRequestButton
-                      eventId={event.id}
-                      roleName={event.role_name}
-                      roleReward={event.role_reward}
-                      existingActiveCount={event.existing_active_count}
-                      maxDeaths={limits.maxDeaths}
-                      windowMinutes={limits.windowMinutes}
-                      payoutRatePercent={payoutRatePercent}
-                      battleStartedAt={event.battle_started_at}
-                      craftEnabled={craftEnabled}
-                    />
+                    {event.auto_request_id ? (
+                      <Link
+                        href={`/me/regear/${event.auto_request_id}`}
+                        className="flex items-center gap-1.5 text-xs font-medium text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg px-3 py-2"
+                      >
+                        <Sparkles size={13} />
+                        {t('autoClaimedView')}
+                        <ArrowRight size={12} />
+                      </Link>
+                    ) : (
+                      <RegearRequestButton
+                        eventId={event.id}
+                        roleName={event.role_name}
+                        roleReward={event.role_reward}
+                        existingActiveCount={event.existing_active_count}
+                        maxDeaths={limits.maxDeaths}
+                        windowMinutes={limits.windowMinutes}
+                        payoutRatePercent={payoutRatePercent}
+                        battleStartedAt={event.battle_started_at}
+                        craftEnabled={craftEnabled}
+                      />
+                    )}
                   </div>
+                  {event.auto_request_id && (
+                    <div className="-mt-1 flex items-center gap-2 text-[11px] text-emerald-300/80">
+                      <Sparkles size={12} />
+                      <span>{t('autoClaimedLabel')}</span>
+                      <span className="text-gray-500">·</span>
+                      <span className="text-gray-400 leading-snug">{t('autoClaimedHint')}</span>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
