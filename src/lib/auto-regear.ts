@@ -25,6 +25,49 @@ import {
   type AodpPriceKey,
 } from '@/lib/shop/aodp'
 import { worstWarningLevel } from '@/lib/regear-estimate'
+import { SLOT_KEYS, type BuildSnapshot, type SlotKey } from '@/types'
+
+// 알비온 killboard equipment 슬롯명 → BuildSnapshot 슬롯 키 매핑.
+// MainHand/OffHand 가 weapon/offhand 로 변환되며, Bag 은 BuildSnapshot 에 슬롯이
+// 없어 무시. 빈 항목은 { name: null, id: null } 로 초기화 후 데이터 발견 시 덮어씀.
+const KILLBOARD_TO_SNAPSHOT_SLOT: Partial<Record<string, SlotKey>> = {
+  MainHand: 'weapon',
+  OffHand: 'offhand',
+  Head: 'head',
+  Armor: 'armor',
+  Shoes: 'shoes',
+  Cape: 'cape',
+  Mount: 'mount',
+  Potion: 'potion',
+  Food: 'food',
+}
+
+// killboard equipment JSONB → BuildSnapshot. id 에 enchant 접미사(@N) 포함된
+// Albion Type 문자열을 그대로 박는다 — craft-recipes 의 RECIPES 키도 같은 포맷.
+// Quality 는 craft 모드와 무관(품질 X) 이라 BuildSnapshot 에 보존하지 않는다.
+function equipmentToBuildSnapshot(
+  equipment: Record<string, EquipmentItem | null> | null,
+  roleName: string | null,
+): BuildSnapshot {
+  const snapshot = SLOT_KEYS.reduce(
+    (acc, k) => {
+      acc[k] = { name: null, id: null }
+      return acc
+    },
+    {} as Record<SlotKey, { name: string | null; id: string | null }>,
+  )
+  if (equipment) {
+    for (const [killboardSlot, raw] of Object.entries(equipment)) {
+      const target = KILLBOARD_TO_SNAPSHOT_SLOT[killboardSlot]
+      if (!target) continue
+      if (!raw || typeof raw !== 'object' || typeof raw.Type !== 'string') continue
+      const trimmed = raw.Type.trim()
+      if (!trimmed) continue
+      snapshot[target] = { name: null, id: trimmed }
+    }
+  }
+  return { role_name: roleName, ...snapshot }
+}
 
 export interface AutoRegearResult {
   events_considered: number
@@ -193,6 +236,18 @@ export async function processAutoRegear(
   const parsedRate = Number(rateRow?.value ?? '100')
   const payoutRatePercent =
     Number.isFinite(parsedRate) && parsedRate >= 1 && parsedRate <= 100 ? Math.trunc(parsedRate) : 100
+
+  // 길드 단위 리기어 모드. craft_regear_enabled='true' 면 자동 생성도 'crafted'
+  // 모드로 들어가고 victim 의 killboard equipment 에서 build_snapshot 을 추출해
+  // 박는다. 'false' 면 silver 모드(기존 동작).
+  const { data: craftRow } = await db
+    .from('app_settings')
+    .select('value')
+    .eq('guild_id', guildId)
+    .eq('key', 'craft_regear_enabled')
+    .maybeSingle()
+  const craftMode = (craftRow?.value ?? 'false') === 'true'
+  const fulfillmentMode: 'silver' | 'crafted' = craftMode ? 'crafted' : 'silver'
 
   // battle_started_at + autoDelay 경과한 이벤트 중 아직 처리되지 않은 것.
   const cutoffIso = new Date(Date.now() - autoDelayMinutes * 60 * 1000).toISOString()
@@ -426,6 +481,12 @@ export async function processAutoRegear(
           warning_level: warningLevel,
         }
 
+        // crafted 모드에서만 build_snapshot 을 만들어 넘긴다 — silver 모드에선
+        // 어차피 사용되지 않고 NULL 이 의미상 더 명확.
+        const buildSnapshot: BuildSnapshot | null = craftMode
+          ? equipmentToBuildSnapshot(v.equipment, slot.role_name)
+          : null
+
         const { data: rpcData, error: rpcErr } = await db.rpc('create_auto_regear_request', {
           p_guild_id: guildId,
           p_event_id: event.id,
@@ -439,6 +500,8 @@ export async function processAutoRegear(
           p_killboard_event_id: v.event_id,
           p_gear_breakdown: breakdown,
           p_price_warning_level: warningLevel,
+          p_fulfillment_mode: fulfillmentMode,
+          p_build_snapshot: buildSnapshot,
         })
         if (rpcErr) {
           errors.push({ event_id: event.id, step: 'rpc', message: rpcErr.message })
