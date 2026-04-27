@@ -60,6 +60,11 @@ export type AppSettingKey =
   // 마지막 killboard-sync cron 성공 시각(ISO). 평시엔 1시간 쿨다운으로 API
   // 부하를 낮추고, 이벤트 진행 중엔 이 값을 무시하고 매 tick sync.
   | 'last_killboard_sync_at'
+  // 마지막 battle-tracker cron 성공 시각(ISO). 자동 리기어가 tracked battle 매칭
+  // (`auto-regear-matching.ts`) 을 사용하므로, battle-tracker 가 이벤트 종료 후
+  // 한 번도 안 돌았으면 tenant_battle_records 가 비어 있어 stage 1 매칭이 항상 0.
+  // → 그 케이스를 mark-processed 가 아닌 defer 로 처리하기 위한 가드값.
+  | 'last_battle_tracker_sync_at'
   // AODP 시세 조회에 쓸 도시 목록 (JSON array 문자열). 관리자가 체크박스로
   // 고르며, 비어 있으면 서버 측 DEFAULT_CITIES 로 fallback. Black Market 은
   // 매수 호가가 많아 sell_price_min 이 왜곡되므로 후보에서 제외.

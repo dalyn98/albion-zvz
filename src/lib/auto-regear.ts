@@ -85,12 +85,17 @@ export interface AutoRegearResult {
   // killboard sync 가 battle 종료 시점을 따라잡지 못한 이벤트. 다음 cron 에
   // 재시도하도록 mark-processed 하지 않고 연기.
   events_deferred_sync_lag: number
+  // battle-tracker cron 이 battle 종료 시점을 따라잡지 못한 이벤트. tracked
+  // battle 매칭이 0이지만 그게 진짜 0인지 단순 sync 지연인지 분간 못 하므로
+  // 안전하게 다음 cron 에 재시도. mark-processed 하지 않음.
+  events_deferred_battle_tracker_lag: number
   // 관리자가 retroactive 로 만든 이벤트 (created_at > battle_started_at).
   // 자동 처리 대신 park — admin 이 수동 검토했을 거라고 가정.
   events_skipped_retroactive: number
   // tenant_battle_records 매칭이 0건인 이벤트 — 8명 갱크 같이 low-engagement
-  // 컷에 걸려 tracked 안 된 전투, battle-tracker cron 이 아직 안 따라잡은 상태,
-  // 또는 비전투 이벤트. mark-processed 하고 자동 청구는 0건.
+  // 컷에 걸려 tracked 안 된 전투, 또는 비전투 이벤트. mark-processed 하고 자동
+  // 청구는 0건. (battle-tracker sync 자체가 늦은 케이스는 위
+  // events_deferred_battle_tracker_lag 로 분리되므로 여기엔 안 포함.)
   events_skipped_no_tracked_battle: number
   errors: Array<{ event_id: string; step: string; message: string }>
   duration_ms: number
@@ -211,6 +216,7 @@ export async function processAutoRegear(
       requests_skipped_manual_exists: 0,
       requests_skipped_no_role_cap: 0,
       events_deferred_sync_lag: 0,
+      events_deferred_battle_tracker_lag: 0,
       events_skipped_retroactive: 0,
       events_skipped_no_tracked_battle: 0,
       errors,
@@ -281,6 +287,7 @@ export async function processAutoRegear(
       requests_skipped_manual_exists: 0,
       requests_skipped_no_role_cap: 0,
       events_deferred_sync_lag: 0,
+      events_deferred_battle_tracker_lag: 0,
       events_skipped_retroactive: 0,
       events_skipped_no_tracked_battle: 0,
       errors,
@@ -299,6 +306,17 @@ export async function processAutoRegear(
     .eq('key', 'last_killboard_sync_at')
     .maybeSingle()
   const lastKillboardSyncMs = syncRow?.value ? Date.parse(syncRow.value) : NaN
+
+  // battle-tracker sync 지연 체크. tracked battle 매칭(stage 1) 의 입력인
+  // tenant_battle_records 가 battle 종료 후 한 번이라도 sync 됐는지 확인.
+  // 안 됐으면 stage 1 이 항상 0건이라 mark-processed 위험 → 연기.
+  const { data: btSyncRow } = await db
+    .from('app_settings')
+    .select('value')
+    .eq('guild_id', guildId)
+    .eq('key', 'last_battle_tracker_sync_at')
+    .maybeSingle()
+  const lastBattleTrackerSyncMs = btSyncRow?.value ? Date.parse(btSyncRow.value) : NaN
 
   // 역할별 상한을 한 번에 로드. 수동 flow 와 동일한 cap 을 자동에도 적용.
   // 0 또는 미등록 = "리기어 차단" 의도이므로 해당 역할 victim 은 스킵.
@@ -320,6 +338,7 @@ export async function processAutoRegear(
   let skippedManualExists = 0
   let skippedNoRoleCap = 0
   let deferredSyncLag = 0
+  let deferredBattleTrackerLag = 0
   let skippedRetroactive = 0
   let skippedNoTrackedBattle = 0
   let processed = 0
@@ -349,6 +368,15 @@ export async function processAutoRegear(
       const autoCutoffMs = battleMs + autoDelayMinutes * 60 * 1000
       if (!Number.isFinite(lastKillboardSyncMs) || lastKillboardSyncMs < autoCutoffMs) {
         deferredSyncLag += 1
+        continue
+      }
+
+      // battle-tracker sync 지연 가드: 같은 cutoff 기준. tenant_battle_records
+      // 가 안 만들어져 있으면 stage 1 이 0건으로 보여 mark-processed 될 위험.
+      // 두 cron 모두 같은 5분 tick 으로 돌지만 길드 규모/페이지 수에 따라 한쪽이
+      // 늦게 끝날 수 있고, killboard 만 빠르게 끝난 경우를 분리해서 처리.
+      if (!Number.isFinite(lastBattleTrackerSyncMs) || lastBattleTrackerSyncMs < autoCutoffMs) {
+        deferredBattleTrackerLag += 1
         continue
       }
 
@@ -572,6 +600,7 @@ export async function processAutoRegear(
     requests_skipped_manual_exists: skippedManualExists,
     requests_skipped_no_role_cap: skippedNoRoleCap,
     events_deferred_sync_lag: deferredSyncLag,
+    events_deferred_battle_tracker_lag: deferredBattleTrackerLag,
     events_skipped_retroactive: skippedRetroactive,
     events_skipped_no_tracked_battle: skippedNoTrackedBattle,
     errors,

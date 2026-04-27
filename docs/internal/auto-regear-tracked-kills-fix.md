@@ -106,15 +106,15 @@ export async function findTrackedBattleIdsForEvent(
 | 멀티 얼라이언스 분리 (1 이벤트 = N tracked battles) | 모든 battle_id 의 victim 합쳐서 처리 |
 | 같은 battle_id 가 두 이벤트의 시간창에 모두 매칭 | 이론상 발생 가능 (이벤트 45분 간격) — `events_processed` 순서대로 먼저 처리되는 이벤트가 가져감. unique constraint 때문에 두 번째는 RPC NULL → `skipped_manual_exists` 카운터에 +1. 이 케이스는 운영자가 이벤트 시각을 너무 가깝게 잡은 결과로 흔치 않음 |
 | killboard_events.battle_id = NULL (legacy sync) | 매칭 불가 → 자동 청구 X (안전) |
-| tenant_battle_records 가 아직 sync 안 됨 (battle-tracker cron 보다 빨리 auto-regear cron 실행) | stage 1 결과 0 → `events_skipped_no_tracked_battle` 카운터 +1 + mark-processed. 다음 cron 에 재시도 안 됨 |
+| tenant_battle_records 가 아직 sync 안 됨 (battle-tracker cron 보다 빨리 auto-regear cron 실행) | `last_battle_tracker_sync_at < battle_started_at + autoDelay` → `events_deferred_battle_tracker_lag` +1, mark-processed 안 함, 다음 cron 에 재시도 |
 
-### 4-A. 마지막 케이스 보강
+### 4-A. 마지막 케이스 보강 (구현 완료)
 
-`events_deferred_sync_lag` 와 유사한 패턴이 필요. battle-tracker cron 은 별도 주기로 도는데, auto-regear 가 너무 빨리 처리하면 tracked battle 이 아직 안 들어와 있을 수 있다.
+`events_deferred_sync_lag` 와 유사한 패턴. battle-tracker cron 이 5분 tick 안에서 늦게 끝나거나 한 번도 안 돌았다면 tenant_battle_records 가 비어 있어 stage 1 이 0건으로 보인다 — 그 경우 mark-processed 위험.
 
-→ `last_battle_tracker_sync_at` (또는 그 비슷한 게 있다면) 을 체크하는 가드를 추가하는 것을 spec 에 포함. 없으면 `events_deferred_sync_lag` 가드를 재사용 (killboard sync 와 battle-tracker sync 가 모두 해당 이벤트 종료 후로 돌았을 때만 진행).
+→ **구현됨**: battle-tracker cron 의 성공 run 마다 `last_battle_tracker_sync_at` 을 per-tenant upsert (killboard-sync 와 동일 패턴). auto-regear 는 killboard sync 가드와 같은 cutoff (`battle_started_at + autoDelay`) 로 비교. 둘 다 통과해야 stage 1 진입.
 
-→ **결정**: 일단 killboard sync 가드만 유지하고, battle-tracker 늦으면 stage 1 비어서 `events_skipped_no_tracked_battle` 카운터로 빠지게 둔다. 그 카운터가 운영 중 빈번하면 가드 추가 검토.
+→ 새 카운터 `events_deferred_battle_tracker_lag` — 운영 중 폭증하면 두 cron 의 maxDuration 이나 처리 순서를 점검.
 
 ## 5. 테스트 시나리오
 

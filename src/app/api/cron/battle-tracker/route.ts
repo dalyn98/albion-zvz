@@ -339,6 +339,26 @@ export async function GET(request: Request) {
     })
   }
 
+  // 자동 리기어의 stage 1 (tracked battle 매칭) 가드를 위한 sync 시각 기록.
+  // 한 번이라도 fetch 가 성공한 이번 run 의 시작 시각(nowIso) 을 저장 — server 별
+  // 일부 errors 가 있어도 tenant_battle_records upsert 는 시도된 상태이므로
+  // auto-regear 가 "이번 cron 이후 데이터로 판단해도 됨" 으로 받아들인다.
+  // killboard-sync 와 동일한 패턴(per-tenant upsert with onConflict).
+  const nowIso = new Date().toISOString()
+  for (const t of tracking) {
+    await db
+      .from('app_settings')
+      .upsert(
+        {
+          guild_id: t.tenantId,
+          key: 'last_battle_tracker_sync_at',
+          value: nowIso,
+          updated_at: nowIso,
+        },
+        { onConflict: 'guild_id,key' },
+      )
+  }
+
   return NextResponse.json({
     tracked_tenants: tracking.length,
     pages,
