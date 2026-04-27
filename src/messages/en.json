@@ -1747,7 +1747,7 @@
     "modePaid": "Paid",
     "modeVolunteer": "Volunteer",
     "modePaidHint": "Receive material cost + premium.",
-    "modeVolunteerHint": "Reimbursed for material cost only.",
+    "modeVolunteerHint": "No compensation. Crafted by the guild itself.",
     "premiumLabel": "Premium (%)",
     "premiumHint": "Integer between 0 and 200.",
     "premiumOutOfRange": "Premium must be an integer between 0 and 200.",

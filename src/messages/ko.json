@@ -1747,7 +1747,7 @@
     "modePaid": "유료",
     "modeVolunteer": "자원봉사",
     "modePaidHint": "재료비 + 프리미엄을 받아요.",
-    "modeVolunteerHint": "재료비만 환급받아요.",
+    "modeVolunteerHint": "보상 없음. 길드 자체 제작이라 지급받는 게 없어요.",
     "premiumLabel": "프리미엄 (%)",
     "premiumHint": "0~200 사이 정수.",
     "premiumOutOfRange": "프리미엄은 0~200 정수여야 해요.",

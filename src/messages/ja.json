@@ -1747,7 +1747,7 @@
     "modePaid": "有料",
     "modeVolunteer": "ボランティア",
     "modePaidHint": "材料費 + プレミアムを受け取ります。",
-    "modeVolunteerHint": "材料費のみ払い戻しを受けます。",
+    "modeVolunteerHint": "報酬なし。ギルド自体での制作のため支給はありません。",
     "premiumLabel": "プレミアム (%)",
     "premiumHint": "0~200 の整数。",
     "premiumOutOfRange": "プレミアムは 0~200 の整数で入力してください。",

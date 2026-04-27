@@ -1,13 +1,15 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { Package } from 'lucide-react'
 import {
   applyReturnRate,
   effectiveReturnRate,
 } from '@/lib/albion-return-rates'
 import type { CraftAggregateBreakdown } from '@/lib/craft-aggregation'
+import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
+import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import ItemImage from './ItemImage'
 
 interface LocationPreset {
@@ -32,6 +34,8 @@ export default function CraftQueueAggregationCard({
 }: Props) {
   const t = useTranslations('craftQueue')
   const tLoc = useTranslations('craftLocation')
+  const rawLocale = useLocale()
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
 
   const [locationId, setLocationId] = useState<string>(locations[0]?.id ?? 'royal_city')
   const [customReturnPct, setCustomReturnPct] = useState('15')
@@ -74,35 +78,39 @@ export default function CraftQueueAggregationCard({
           {t('aggregateItemsTitle')}
         </p>
         <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {breakdown.items.map((item) => (
-            <li
-              key={item.itemId}
-              className="bg-gray-950 border border-gray-800 rounded-lg p-2 flex items-center gap-2"
-              title={item.itemName ?? item.itemId}
-            >
-              <ItemImage
-                itemId={item.itemId}
-                itemName={item.itemName}
-                size={32}
-                hoverPreview
-              />
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] text-white font-mono truncate">{item.itemId}</p>
-                <p className="text-[10px] text-gray-500">
-                  {item.isArtifact ? (
-                    <span className="text-amber-400">{t('aggregateArtifactTag')}</span>
-                  ) : !item.hasRecipe ? (
-                    <span className="text-amber-400">{t('aggregateNoRecipeTag')}</span>
-                  ) : (
-                    t('aggregateSlotsTag', { count: item.slots.length })
-                  )}
-                </p>
-              </div>
-              <span className="text-amber-300 font-bold font-mono text-sm flex-shrink-0">
-                ×{item.count}
-              </span>
-            </li>
-          ))}
+          {breakdown.items.map((item) => {
+            const displayName =
+              getLocalizedItemNameWithEnchant(item.itemId, locale, item.itemName) ?? item.itemId
+            return (
+              <li
+                key={item.itemId}
+                className="bg-gray-950 border border-gray-800 rounded-lg p-2 flex items-center gap-2"
+                title={displayName}
+              >
+                <ItemImage
+                  itemId={item.itemId}
+                  itemName={item.itemName}
+                  size={32}
+                  hoverPreview
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] text-white truncate">{displayName}</p>
+                  <p className="text-[10px] text-gray-500">
+                    {item.isArtifact ? (
+                      <span className="text-amber-400">{t('aggregateArtifactTag')}</span>
+                    ) : !item.hasRecipe ? (
+                      <span className="text-amber-400">{t('aggregateNoRecipeTag')}</span>
+                    ) : (
+                      t('aggregateSlotsTag', { count: item.slots.length })
+                    )}
+                  </p>
+                </div>
+                <span className="text-amber-300 font-bold font-mono text-sm flex-shrink-0">
+                  ×{item.count}
+                </span>
+              </li>
+            )
+          })}
         </ul>
         {(breakdown.unknownItemCount > 0 || breakdown.artifactCount > 0) && (
           <p className="text-[10px] text-gray-500 leading-relaxed">
@@ -169,24 +177,28 @@ export default function CraftQueueAggregationCard({
             {t('aggregateMaterialsTitle')}
           </p>
           <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {netMaterials.map((m) => (
-              <li
-                key={m.uniqueName}
-                className="bg-gray-950 border border-gray-800 rounded-lg p-2 flex items-center gap-2"
-                title={m.uniqueName}
-              >
-                <ItemImage itemId={m.uniqueName} itemName={null} size={28} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] text-white font-mono truncate">{m.uniqueName}</p>
-                  <p className="text-[10px] text-gray-500">
-                    {t('aggregateMaterialGross', { gross: m.count.toLocaleString() })}
-                  </p>
-                </div>
-                <span className="text-emerald-300 font-bold font-mono text-sm flex-shrink-0">
-                  {m.netCount.toLocaleString()}
-                </span>
-              </li>
-            ))}
+            {netMaterials.map((m) => {
+              const displayName =
+                getLocalizedItemNameWithEnchant(m.uniqueName, locale, null) ?? m.uniqueName
+              return (
+                <li
+                  key={m.uniqueName}
+                  className="bg-gray-950 border border-gray-800 rounded-lg p-2 flex items-center gap-2"
+                  title={displayName}
+                >
+                  <ItemImage itemId={m.uniqueName} itemName={null} size={28} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] text-white truncate">{displayName}</p>
+                    <p className="text-[10px] text-gray-500">
+                      {t('aggregateMaterialGross', { gross: m.count.toLocaleString() })}
+                    </p>
+                  </div>
+                  <span className="text-emerald-300 font-bold font-mono text-sm flex-shrink-0">
+                    {m.netCount.toLocaleString()}
+                  </span>
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}
