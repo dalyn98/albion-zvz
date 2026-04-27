@@ -344,6 +344,86 @@ export async function listCraftQueueForCrafter(): Promise<{
   return { queued, mine, isCrafter }
 }
 
+export interface CraftQueueTaskEvent {
+  id: string
+  title: string
+  gatherAt: string | null
+}
+
+export interface CraftQueueTaskDetail {
+  task: CraftQueueItem
+  event: CraftQueueTaskEvent | null
+  // 현재 로그인한 크래프터가 잡고 있는 task 인지. claimed 상태인 task 의 액션
+  // 버튼 노출 여부 결정에 쓰인다.
+  isMine: boolean
+}
+
+// 단일 craft task 의 디테일 (큐 카드의 "상세" 링크 → /craft/queue/[taskId]).
+// 이벤트 / 청구자 / 빌드 / 청구금액 등 전부 노출. 권한 검사는 큐 listing 과 동일.
+export async function getCraftQueueTaskDetail(
+  taskId: string,
+): Promise<{ detail: CraftQueueTaskDetail | null; error?: string }> {
+  const tErr = await getTranslations('memberActionError')
+  const session = await getSession()
+  if (!session) return { detail: null, error: tErr('loginRequired') }
+  const guildId = await getSessionGuildId(session)
+
+  const isCrafter = await loadIsCrafter(guildId, session.discordId)
+  if (!isCrafter && !session.isAdmin) {
+    return { detail: null, error: tErr('crafterOnly') }
+  }
+
+  const db = getAdminClient()
+  const { data, error } = await db
+    .from('craft_tasks')
+    .select(
+      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, craft_focus_used, material_silver_cost, premium_silver, reimbursement_silver, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_title_snapshot, claimed_silver, build_snapshot, event_id)',
+    )
+    .eq('guild_id', guildId)
+    .eq('id', taskId)
+    .maybeSingle()
+  if (error) return { detail: null, error: error.message }
+  if (!data) return { detail: null, error: tErr('craftTaskNotFound') }
+
+  const tCommon = await getTranslations('common')
+  const fallback = tCommon('deletedEvent')
+  const row = data as unknown as CraftTaskJoinedRow & {
+    regear_requests: (RegearRequestJoin & { event_id: string | null }) | (RegearRequestJoin & { event_id: string | null })[] | null
+  }
+  const task = toQueueItem(row, fallback)
+
+  // 다른 크래프터가 잡고 있는 task 는 본인 task 아니면 노출 안 한다 (큐 페이지와
+  // 동일 정책). admin 은 모든 task 조회 허용.
+  if (
+    task.status === 'claimed' &&
+    task.crafterDiscordId !== session.discordId &&
+    !session.isAdmin
+  ) {
+    return { detail: null, error: tErr('craftTaskNotFound') }
+  }
+
+  const reg = pickRegearJoin(row)
+  const eventId = (reg as (RegearRequestJoin & { event_id?: string | null }) | null)?.event_id ?? null
+  let event: CraftQueueTaskEvent | null = null
+  if (eventId) {
+    const { data: ev } = await db
+      .from('events')
+      .select('id, title, gather_at')
+      .eq('id', eventId)
+      .maybeSingle()
+    if (ev) {
+      event = {
+        id: ev.id as string,
+        title: (ev.title as string | null) ?? task.eventTitle,
+        gatherAt: (ev.gather_at as string | null) ?? null,
+      }
+    }
+  }
+
+  const isMine = task.crafterDiscordId === session.discordId
+  return { detail: { task, event, isMine } }
+}
+
 export interface ClaimCraftQueueInput {
   taskId: string
   compensationMode: CraftCompensationMode
@@ -535,24 +615,23 @@ export async function previewCraftMaterialCost(
     return { breakdown: null, error: tErr('invalidInput') }
   }
 
+  // 큐 디테일 페이지에서 잡기 전에도 재료비 미리보기를 띄워야 하므로 isCrafter
+  // 라면 같은 길드의 어떤 task 든 preview 허용. admin 도 통과.
+  const isAdmin = session.isAdmin
+  const isCrafter = isAdmin ? true : await loadIsCrafter(guildId, session.discordId)
+  if (!isCrafter && !isAdmin) {
+    return { breakdown: null, error: tErr('crafterOnly') }
+  }
+
   const db = getAdminClient()
   const { data, error } = await db
     .from('craft_tasks')
-    .select(
-      'id, status, crafter_discord_id, regear_requests!inner(build_snapshot)',
-    )
+    .select('id, status, crafter_discord_id, regear_requests!inner(build_snapshot)')
     .eq('guild_id', guildId)
     .eq('id', input.taskId)
     .maybeSingle()
   if (error) return { breakdown: null, error: error.message }
   if (!data) return { breakdown: null, error: tErr('craftTaskNotFound') }
-  // Either the assigned crafter, or admin can preview. Other members can't
-  // peek at item costs for someone else's task.
-  const isAdmin = session.isAdmin
-  const isAssigned = data.crafter_discord_id === session.discordId
-  if (!isAdmin && !isAssigned) {
-    return { breakdown: null, error: tErr('craftTaskNotClaimedByYou') }
-  }
   const r = Array.isArray(data.regear_requests)
     ? data.regear_requests[0]
     : data.regear_requests

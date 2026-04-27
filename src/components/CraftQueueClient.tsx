@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { Box, Hammer, X, RefreshCw, Coins, Settings2 } from 'lucide-react'
 import {
@@ -168,7 +169,13 @@ export default function CraftQueueClient({ queued, mine, profile, config, locati
                       <div className="flex-1 min-w-0 space-y-3">
                         <TaskHeader item={item} tRole={tRole} />
                         <BuildPreview snapshot={item.buildSnapshot} />
-                        <div className="flex items-center justify-end">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            href={`/craft/queue/${item.taskId}`}
+                            className="text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-amber-500/40 rounded-lg px-3 py-2"
+                          >
+                            {t('detailButton')}
+                          </Link>
                           <button
                             type="button"
                             onClick={() => setClaimTarget(item)}
@@ -261,6 +268,12 @@ export default function CraftQueueClient({ queued, mine, profile, config, locati
                       · {t('materialSpent', { silver: formatSilver(item.materialSilverCost) })}
                     </span>
                   )}
+                  <Link
+                    href={`/craft/queue/${item.taskId}`}
+                    className="ml-auto text-gray-400 hover:text-white border border-gray-700 hover:border-amber-500/40 rounded-lg px-2 py-1"
+                  >
+                    {t('detailButton')}
+                  </Link>
                 </div>
               </li>
             ))}
@@ -365,6 +378,12 @@ function ClaimedActions({ item, onDeliver, onAfter }: ClaimedActionsProps) {
 
   return (
     <div className="flex items-center justify-end gap-2">
+      <Link
+        href={`/craft/queue/${item.taskId}`}
+        className="text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-amber-500/40 rounded-lg px-3 py-2"
+      >
+        {t('detailButton')}
+      </Link>
       <button
         type="button"
         onClick={handleRelease}
