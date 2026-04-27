@@ -1834,7 +1834,14 @@
     "detailSlotNoRecipe": "No recipe",
     "detailSlotArtifact": "Artifact",
     "detailDeliveredSummaryTitle": "Delivery Info",
-    "detailFocusUsed": "Focus used"
+    "detailFocusUsed": "Focus used",
+    "groupGatherAt": "Gather {time}",
+    "groupGatherAtUnset": "Gather time TBD",
+    "groupNoEvent": "No event linked",
+    "groupCount": "{count} tasks",
+    "groupSilverTotal": "Total {silver}",
+    "groupCollapse": "Collapse",
+    "groupExpand": "Expand"
   },
   "craftLocation": {
     "royalCity": "Royal City",

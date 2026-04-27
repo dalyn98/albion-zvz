@@ -1834,7 +1834,14 @@
     "detailSlotNoRecipe": "レシピなし",
     "detailSlotArtifact": "アーティファクト",
     "detailDeliveredSummaryTitle": "納品情報",
-    "detailFocusUsed": "フォーカス使用"
+    "detailFocusUsed": "フォーカス使用",
+    "groupGatherAt": "集合 {time}",
+    "groupGatherAtUnset": "集合時刻 未定",
+    "groupNoEvent": "イベント未連携",
+    "groupCount": "{count}件",
+    "groupSilverTotal": "合計 {silver}",
+    "groupCollapse": "折りたたむ",
+    "groupExpand": "展開"
   },
   "craftLocation": {
     "royalCity": "ロイヤルシティ",

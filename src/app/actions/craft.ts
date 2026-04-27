@@ -59,7 +59,12 @@ export interface CraftQueueItem {
   // requester info — denormalized so the UI can render without an extra join
   requesterDiscordId: string
   requesterUsername: string
+  // 큐 카드 이벤트별 그룹화에 사용. event_id 가 null 인 경우(과거 데이터/삭제) 는
+  // "이벤트 미연결" 그룹으로 분리한다.
+  eventId: string | null
   eventTitle: string
+  // 이벤트 모임 시각 — 그룹 헤더에 노출. 게시 안 된 이벤트는 null.
+  gatherAt: string | null
   roleName: string
   buildSnapshot: BuildSnapshot | null
   claimedSilver: number | null
@@ -111,6 +116,7 @@ interface RegearRequestJoin {
   discord_id: string
   username: string
   role_name: string
+  event_id: string | null
   event_title_snapshot: string | null
   claimed_silver: number | null
   build_snapshot: unknown
@@ -128,15 +134,22 @@ function pickRegearJoin(
   return Array.isArray(j) ? j[0] ?? null : j
 }
 
-function toQueueItem(row: CraftTaskJoinedRow, fallbackEventTitle: string): CraftQueueItem {
+function toQueueItem(
+  row: CraftTaskJoinedRow,
+  fallbackEventTitle: string,
+  gatherAtByEventId?: Map<string, string | null>,
+): CraftQueueItem {
   const r = pickRegearJoin(row)
+  const eventId = r?.event_id ?? null
   return {
     taskId: row.id,
     status: row.status,
     regearRequestId: row.regear_request_id,
     requesterDiscordId: r?.discord_id ?? '',
     requesterUsername: r?.username ?? '',
+    eventId,
     eventTitle: r?.event_title_snapshot ?? fallbackEventTitle,
+    gatherAt: eventId ? gatherAtByEventId?.get(eventId) ?? null : null,
     roleName: r?.role_name ?? '',
     buildSnapshot: (r?.build_snapshot as BuildSnapshot | null) ?? null,
     claimedSilver: r?.claimed_silver ?? null,
@@ -318,7 +331,7 @@ export async function listCraftQueueForCrafter(): Promise<{
   const { data, error } = await db
     .from('craft_tasks')
     .select(
-      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, craft_focus_used, material_silver_cost, premium_silver, reimbursement_silver, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_title_snapshot, claimed_silver, build_snapshot)',
+      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, craft_focus_used, material_silver_cost, premium_silver, reimbursement_silver, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot)',
     )
     .eq('guild_id', guildId)
     .in('status', ['queued', 'claimed', 'delivered'])
@@ -330,10 +343,31 @@ export async function listCraftQueueForCrafter(): Promise<{
   const tCommon = await getTranslations('common')
   const fallback = tCommon('deletedEvent')
   const rows = (data ?? []) as unknown as CraftTaskJoinedRow[]
+
+  // 그룹 헤더에 모임 시각을 노출하기 위한 events 배치 조회.
+  const eventIds = new Set<string>()
+  for (const row of rows) {
+    const r = pickRegearJoin(row)
+    if (r?.event_id) eventIds.add(r.event_id)
+  }
+  const gatherAtByEventId = new Map<string, string | null>()
+  if (eventIds.size > 0) {
+    const { data: evs } = await db
+      .from('events')
+      .select('id, gather_at')
+      .in('id', Array.from(eventIds))
+    for (const ev of evs ?? []) {
+      gatherAtByEventId.set(
+        (ev.id as string),
+        ((ev as { gather_at?: string | null }).gather_at ?? null),
+      )
+    }
+  }
+
   const queued: CraftQueueItem[] = []
   const mine: CraftQueueItem[] = []
   for (const row of rows) {
-    const item = toQueueItem(row, fallback)
+    const item = toQueueItem(row, fallback, gatherAtByEventId)
     if (row.status === 'queued') {
       queued.push(item)
     } else if (row.crafter_discord_id === session.discordId) {
@@ -871,7 +905,7 @@ export async function listAllCraftTasksAdmin(
     let query = db
       .from('craft_tasks')
       .select(
-        'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, craft_focus_used, material_silver_cost, premium_silver, reimbursement_silver, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_title_snapshot, claimed_silver, build_snapshot)',
+        'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, craft_focus_used, material_silver_cost, premium_silver, reimbursement_silver, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot)',
       )
       .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
@@ -882,7 +916,28 @@ export async function listAllCraftTasksAdmin(
 
     const fallback = tCommon('deletedEvent')
     const rows = (data ?? []) as unknown as CraftTaskJoinedRow[]
-    const tasks = rows.map((r) => toQueueItem(r, fallback))
+
+    // 어드민 화면에서도 그룹 헤더용 모임 시각이 필요할 수 있어 events 배치 조회.
+    const eventIds = new Set<string>()
+    for (const row of rows) {
+      const r = pickRegearJoin(row)
+      if (r?.event_id) eventIds.add(r.event_id)
+    }
+    const gatherAtByEventId = new Map<string, string | null>()
+    if (eventIds.size > 0) {
+      const { data: evs } = await db
+        .from('events')
+        .select('id, gather_at')
+        .in('id', Array.from(eventIds))
+      for (const ev of evs ?? []) {
+        gatherAtByEventId.set(
+          (ev.id as string),
+          ((ev as { gather_at?: string | null }).gather_at ?? null),
+        )
+      }
+    }
+
+    const tasks = rows.map((r) => toQueueItem(r, fallback, gatherAtByEventId))
     return { tasks }
   } catch (e) {
     return { tasks: [], error: e instanceof Error ? e.message : tErr('serverError') }

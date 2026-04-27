@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { Box, Hammer, X, RefreshCw, Coins, Settings2 } from 'lucide-react'
+import { Box, Hammer, X, RefreshCw, Coins, Settings2, ChevronDown } from 'lucide-react'
 import {
   claimCraftQueueItem,
   releaseCraftQueueItem,
@@ -39,6 +39,57 @@ interface Props {
   locations: LocationPreset[]
 }
 
+interface EventGroup {
+  // group key: eventId 또는 '__none__' (이벤트 미연결)
+  key: string
+  eventId: string | null
+  eventTitle: string
+  gatherAt: string | null
+  items: CraftQueueItem[]
+  totalClaimedSilver: number
+}
+
+const NO_EVENT_KEY = '__none__'
+
+// 같은 event_id 끼리 묶고, 모임 시각 오름차순(미정/미연결은 뒤)으로 정렬한다.
+function groupByEvent(items: CraftQueueItem[]): EventGroup[] {
+  const map = new Map<string, EventGroup>()
+  for (const item of items) {
+    const key = item.eventId ?? NO_EVENT_KEY
+    let g = map.get(key)
+    if (!g) {
+      g = {
+        key,
+        eventId: item.eventId,
+        eventTitle: item.eventTitle,
+        gatherAt: item.gatherAt,
+        items: [],
+        totalClaimedSilver: 0,
+      }
+      map.set(key, g)
+    }
+    g.items.push(item)
+    if (item.claimedSilver != null) g.totalClaimedSilver += item.claimedSilver
+  }
+  return Array.from(map.values()).sort((a, b) => {
+    if (a.key === NO_EVENT_KEY) return 1
+    if (b.key === NO_EVENT_KEY) return -1
+    if (!a.gatherAt && !b.gatherAt) return a.eventTitle.localeCompare(b.eventTitle)
+    if (!a.gatherAt) return 1
+    if (!b.gatherAt) return -1
+    return new Date(a.gatherAt).getTime() - new Date(b.gatherAt).getTime()
+  })
+}
+
+function formatGatherTime(iso: string): string {
+  const d = new Date(iso)
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${m}/${day} ${hh}:${mm}`
+}
+
 export default function CraftQueueClient({ queued, mine, profile, config, locations }: Props) {
   const t = useTranslations('craftQueue')
   const tRole = useTranslations('slotRole')
@@ -56,6 +107,21 @@ export default function CraftQueueClient({ queued, mine, profile, config, locati
 
   const queuedIds = useMemo(() => queued.map((q) => q.taskId), [queued])
   const claimedIds = useMemo(() => claimedTasks.map((m) => m.taskId), [claimedTasks])
+
+  const queuedGroups = useMemo(() => groupByEvent(queued), [queued])
+  const claimedGroups = useMemo(() => groupByEvent(claimedTasks), [claimedTasks])
+  const deliveredGroups = useMemo(() => groupByEvent(deliveredTasks), [deliveredTasks])
+
+  // 사용자가 명시적으로 접은 그룹 키만 저장 (기본값은 펼침).
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+  const toggleGroupCollapsed = (key: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   // 체크 / 해제 토글. 새 Set 으로 만들어 상태 변경.
   const toggleSelected = (set: Set<string>, setSet: (s: Set<string>) => void, id: string) => {
@@ -75,6 +141,23 @@ export default function CraftQueueClient({ queued, mine, profile, config, locati
     } else {
       setSet(new Set(ids))
     }
+  }
+
+  // 그룹 헤더의 select-all 토글: 그룹 안의 모든 task 선택/해제.
+  const toggleGroupSelected = (
+    set: Set<string>,
+    setSet: (s: Set<string>) => void,
+    groupItemIds: string[],
+  ) => {
+    const allChecked =
+      groupItemIds.length > 0 && groupItemIds.every((id) => set.has(id))
+    const next = new Set(set)
+    if (allChecked) {
+      groupItemIds.forEach((id) => next.delete(id))
+    } else {
+      groupItemIds.forEach((id) => next.add(id))
+    }
+    setSet(next)
   }
 
   const handleBulkClaim = () => {
@@ -145,52 +228,81 @@ export default function CraftQueueClient({ queued, mine, profile, config, locati
               pending={bulkPending}
               t={t}
             />
-            <ul className="space-y-3">
-              {queued.map((item) => {
-                const checked = selectedQueued.has(item.taskId)
+            <div className="space-y-4">
+              {queuedGroups.map((group) => {
+                const groupItemIds = group.items.map((i) => i.taskId)
+                const isCollapsed = collapsedGroups.has(group.key)
+                const allChecked =
+                  groupItemIds.length > 0 &&
+                  groupItemIds.every((id) => selectedQueued.has(id))
                 return (
-                  <li
-                    key={item.taskId}
-                    className={`bg-gray-900 border rounded-2xl p-4 space-y-3 ${
-                      checked ? 'border-amber-400/60' : 'border-gray-700'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() =>
-                          toggleSelected(selectedQueued, setSelectedQueued, item.taskId)
-                        }
-                        disabled={bulkPending}
-                        className="mt-1 rounded border-gray-700 bg-gray-950 flex-shrink-0"
-                        aria-label={t('selectTask')}
-                      />
-                      <div className="flex-1 min-w-0 space-y-3">
-                        <TaskHeader item={item} tRole={tRole} />
-                        <BuildPreview snapshot={item.buildSnapshot} />
-                        <div className="flex items-center justify-end gap-2">
-                          <Link
-                            href={`/craft/queue/${item.taskId}`}
-                            className="text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-amber-500/40 rounded-lg px-3 py-2"
-                          >
-                            {t('detailButton')}
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => setClaimTarget(item)}
-                            disabled={bulkPending}
-                            className="text-xs font-bold bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black rounded-lg px-3 py-2"
-                          >
-                            {t('claimButton')}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </li>
+                  <div key={group.key} className="space-y-2">
+                    <EventGroupHeader
+                      group={group}
+                      isCollapsed={isCollapsed}
+                      onToggleCollapse={() => toggleGroupCollapsed(group.key)}
+                      allChecked={allChecked}
+                      onToggleAll={() =>
+                        toggleGroupSelected(
+                          selectedQueued,
+                          setSelectedQueued,
+                          groupItemIds,
+                        )
+                      }
+                      disabled={bulkPending}
+                    />
+                    {!isCollapsed && (
+                      <ul className="space-y-3">
+                        {group.items.map((item) => {
+                          const checked = selectedQueued.has(item.taskId)
+                          return (
+                            <li
+                              key={item.taskId}
+                              className={`bg-gray-900 border rounded-2xl p-4 space-y-3 ${
+                                checked ? 'border-amber-400/60' : 'border-gray-700'
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() =>
+                                    toggleSelected(selectedQueued, setSelectedQueued, item.taskId)
+                                  }
+                                  disabled={bulkPending}
+                                  className="mt-1 rounded border-gray-700 bg-gray-950 flex-shrink-0"
+                                  aria-label={t('selectTask')}
+                                />
+                                <div className="flex-1 min-w-0 space-y-3">
+                                  <TaskHeader item={item} tRole={tRole} />
+                                  <BuildPreview snapshot={item.buildSnapshot} />
+                                  <div className="flex items-center justify-end gap-2">
+                                    <Link
+                                      href={`/craft/queue/${item.taskId}`}
+                                      className="text-xs text-gray-400 hover:text-white border border-gray-700 hover:border-amber-500/40 rounded-lg px-3 py-2"
+                                    >
+                                      {t('detailButton')}
+                                    </Link>
+                                    <button
+                                      type="button"
+                                      onClick={() => setClaimTarget(item)}
+                                      disabled={bulkPending}
+                                      className="text-xs font-bold bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black rounded-lg px-3 py-2"
+                                    >
+                                      {t('claimButton')}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    )}
+                  </div>
                 )
               })}
-            </ul>
+            </div>
           </>
         )}
       </section>
@@ -206,7 +318,7 @@ export default function CraftQueueClient({ queued, mine, profile, config, locati
             {t('mineEmpty')}
           </p>
         ) : (
-          <ul className="space-y-3">
+          <div className="space-y-4">
             {claimedTasks.length > 0 && (
               <BulkActionBar
                 selectedCount={selectedMine.size}
@@ -220,64 +332,108 @@ export default function CraftQueueClient({ queued, mine, profile, config, locati
                 t={t}
               />
             )}
-            {claimedTasks.map((item) => {
-              const checked = selectedMine.has(item.taskId)
+            {claimedGroups.map((group) => {
+              const groupItemIds = group.items.map((i) => i.taskId)
+              const isCollapsed = collapsedGroups.has(`mine:${group.key}`)
+              const allChecked =
+                groupItemIds.length > 0 &&
+                groupItemIds.every((id) => selectedMine.has(id))
               return (
-                <li
-                  key={item.taskId}
-                  className={`bg-gray-900 border rounded-2xl p-4 space-y-3 ${
-                    checked ? 'border-rose-400/60' : 'border-amber-500/30'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleSelected(selectedMine, setSelectedMine, item.taskId)}
-                      disabled={bulkPending}
-                      className="mt-1 rounded border-gray-700 bg-gray-950 flex-shrink-0"
-                      aria-label={t('selectTask')}
-                    />
-                    <div className="flex-1 min-w-0 space-y-3">
-                      <TaskHeader item={item} tRole={tRole} />
-                      <BuildPreview snapshot={item.buildSnapshot} />
-                      <ClaimedActions
-                        item={item}
-                        onDeliver={() => setDeliverTarget(item)}
-                        onAfter={() => router.refresh()}
-                      />
-                    </div>
-                  </div>
-                </li>
+                <div key={`mine:${group.key}`} className="space-y-2">
+                  <EventGroupHeader
+                    group={group}
+                    isCollapsed={isCollapsed}
+                    onToggleCollapse={() => toggleGroupCollapsed(`mine:${group.key}`)}
+                    allChecked={allChecked}
+                    onToggleAll={() =>
+                      toggleGroupSelected(selectedMine, setSelectedMine, groupItemIds)
+                    }
+                    disabled={bulkPending}
+                  />
+                  {!isCollapsed && (
+                    <ul className="space-y-3">
+                      {group.items.map((item) => {
+                        const checked = selectedMine.has(item.taskId)
+                        return (
+                          <li
+                            key={item.taskId}
+                            className={`bg-gray-900 border rounded-2xl p-4 space-y-3 ${
+                              checked ? 'border-rose-400/60' : 'border-amber-500/30'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() =>
+                                  toggleSelected(selectedMine, setSelectedMine, item.taskId)
+                                }
+                                disabled={bulkPending}
+                                className="mt-1 rounded border-gray-700 bg-gray-950 flex-shrink-0"
+                                aria-label={t('selectTask')}
+                              />
+                              <div className="flex-1 min-w-0 space-y-3">
+                                <TaskHeader item={item} tRole={tRole} />
+                                <BuildPreview snapshot={item.buildSnapshot} />
+                                <ClaimedActions
+                                  item={item}
+                                  onDeliver={() => setDeliverTarget(item)}
+                                  onAfter={() => router.refresh()}
+                                />
+                              </div>
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </div>
               )
             })}
-            {deliveredTasks.map((item) => (
-              <li
-                key={item.taskId}
-                className="bg-gray-900 border border-emerald-500/30 rounded-2xl p-4 space-y-3"
-              >
-                <TaskHeader item={item} tRole={tRole} />
-                <BuildPreview snapshot={item.buildSnapshot} />
-                <div className="flex flex-wrap items-center gap-3 text-[11px] text-gray-400">
-                  <span className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 rounded px-2 py-0.5 font-mono">
-                    {t('boxLabel', { n: item.boxNumber ?? 0 })}
-                  </span>
-                  {item.craftCity && <span className="text-gray-500">· {item.craftCity}</span>}
-                  {item.materialSilverCost != null && (
-                    <span className="text-gray-500">
-                      · {t('materialSpent', { silver: formatSilver(item.materialSilverCost) })}
-                    </span>
+            {deliveredGroups.map((group) => {
+              const isCollapsed = collapsedGroups.has(`delivered:${group.key}`)
+              return (
+                <div key={`delivered:${group.key}`} className="space-y-2">
+                  <EventGroupHeader
+                    group={group}
+                    isCollapsed={isCollapsed}
+                    onToggleCollapse={() => toggleGroupCollapsed(`delivered:${group.key}`)}
+                    disabled={bulkPending}
+                  />
+                  {!isCollapsed && (
+                    <ul className="space-y-3">
+                      {group.items.map((item) => (
+                        <li
+                          key={item.taskId}
+                          className="bg-gray-900 border border-emerald-500/30 rounded-2xl p-4 space-y-3"
+                        >
+                          <TaskHeader item={item} tRole={tRole} />
+                          <BuildPreview snapshot={item.buildSnapshot} />
+                          <div className="flex flex-wrap items-center gap-3 text-[11px] text-gray-400">
+                            <span className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 rounded px-2 py-0.5 font-mono">
+                              {t('boxLabel', { n: item.boxNumber ?? 0 })}
+                            </span>
+                            {item.craftCity && <span className="text-gray-500">· {item.craftCity}</span>}
+                            {item.materialSilverCost != null && (
+                              <span className="text-gray-500">
+                                · {t('materialSpent', { silver: formatSilver(item.materialSilverCost) })}
+                              </span>
+                            )}
+                            <Link
+                              href={`/craft/queue/${item.taskId}`}
+                              className="ml-auto text-gray-400 hover:text-white border border-gray-700 hover:border-amber-500/40 rounded-lg px-2 py-1"
+                            >
+                              {t('detailButton')}
+                            </Link>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
                   )}
-                  <Link
-                    href={`/craft/queue/${item.taskId}`}
-                    className="ml-auto text-gray-400 hover:text-white border border-gray-700 hover:border-amber-500/40 rounded-lg px-2 py-1"
-                  >
-                    {t('detailButton')}
-                  </Link>
                 </div>
-              </li>
-            ))}
-          </ul>
+              )
+            })}
+          </div>
         )}
       </section>
 
@@ -308,6 +464,69 @@ export default function CraftQueueClient({ queued, mine, profile, config, locati
           }}
         />
       )}
+    </div>
+  )
+}
+
+interface EventGroupHeaderProps {
+  group: EventGroup
+  isCollapsed: boolean
+  onToggleCollapse: () => void
+  // 선택 토글이 의미 없는 그룹(deliveredGroups 등)에서는 모두 생략 가능.
+  allChecked?: boolean
+  onToggleAll?: () => void
+  disabled?: boolean
+}
+
+function EventGroupHeader({
+  group,
+  isCollapsed,
+  onToggleCollapse,
+  allChecked,
+  onToggleAll,
+  disabled,
+}: EventGroupHeaderProps) {
+  const t = useTranslations('craftQueue')
+  const showSelectAll = onToggleAll != null
+  const title = group.eventId ? group.eventTitle : t('groupNoEvent')
+  const gatherLabel = group.gatherAt
+    ? t('groupGatherAt', { time: formatGatherTime(group.gatherAt) })
+    : t('groupGatherAtUnset')
+  return (
+    <div className="flex items-center gap-3 px-3 py-2 bg-gray-900/60 border border-gray-800 rounded-xl">
+      <button
+        type="button"
+        onClick={onToggleCollapse}
+        aria-label={isCollapsed ? t('groupExpand') : t('groupCollapse')}
+        className="text-gray-500 hover:text-white flex-shrink-0"
+      >
+        <ChevronDown
+          size={14}
+          className={`transition-transform ${isCollapsed ? '-rotate-90' : ''}`}
+        />
+      </button>
+      {showSelectAll && (
+        <input
+          type="checkbox"
+          checked={allChecked ?? false}
+          onChange={onToggleAll}
+          disabled={disabled}
+          className="rounded border-gray-700 bg-gray-950 flex-shrink-0"
+          aria-label={t('selectAllLabel')}
+        />
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="text-white text-sm font-semibold truncate">{title}</p>
+        <p className="text-[11px] text-gray-400 mt-0.5 flex flex-wrap gap-x-2">
+          <span>{gatherLabel}</span>
+          <span className="text-gray-500">· {t('groupCount', { count: group.items.length })}</span>
+          {group.totalClaimedSilver > 0 && (
+            <span className="text-amber-300 font-mono">
+              · {t('groupSilverTotal', { silver: formatSilver(group.totalClaimedSilver) })}
+            </span>
+          )}
+        </p>
+      </div>
     </div>
   )
 }

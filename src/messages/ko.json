@@ -1834,7 +1834,14 @@
     "detailSlotNoRecipe": "레시피 없음",
     "detailSlotArtifact": "유물",
     "detailDeliveredSummaryTitle": "납품 정보",
-    "detailFocusUsed": "포커스 사용"
+    "detailFocusUsed": "포커스 사용",
+    "groupGatherAt": "모임 {time}",
+    "groupGatherAtUnset": "모임 시각 미정",
+    "groupNoEvent": "이벤트 미연결",
+    "groupCount": "{count}건",
+    "groupSilverTotal": "합계 {silver}",
+    "groupCollapse": "접기",
+    "groupExpand": "펼치기"
   },
   "craftLocation": {
     "royalCity": "로열 시티",
