@@ -1,23 +1,37 @@
 import { ImageIcon } from 'lucide-react'
 
 interface ScreenshotPlaceholderProps {
-  // 라벨은 "어떤 페이지/기능의 스크린샷인지" 를 명시한다 — 나중에 실제 이미지로
-  // 교체할 때 어디에 어떤 캡쳐가 들어가야 하는지 즉시 알 수 있도록.
   label: string
-  // tailwind aspect-* 유틸 키워드 ('video' | 'square' | '4/3' 등) 또는 직접 비율.
   aspect?: 'video' | 'square' | '4/3' | '16/9' | '3/2'
+  src?: string | null
 }
 
-// 마케팅 페이지의 스크린샷 자리. 멤버 게이트 때문에 Playwright 로 캡쳐할 수
-// 없는 화면(/admin/dashboard, /regear, /shop 등) 은 이 placeholder 로 자리만
-// 잡아두고 사용자가 PNG 를 떨어뜨리면 즉시 교체할 수 있게 한다.
-export default function ScreenshotPlaceholder({ label, aspect = 'video' }: ScreenshotPlaceholderProps) {
+export default function ScreenshotPlaceholder({
+  label,
+  aspect = 'video',
+  src,
+}: ScreenshotPlaceholderProps) {
   const aspectClass =
     aspect === 'video' ? 'aspect-video' :
     aspect === 'square' ? 'aspect-square' :
     aspect === '4/3' ? 'aspect-[4/3]' :
     aspect === '3/2' ? 'aspect-[3/2]' :
     'aspect-[16/9]'
+
+  if (src) {
+    return (
+      // 마케팅 페이지에서만 사용. next/image 의 placeholder/blur 가 필요해지면
+      // 그때 next/image 로 교체해도 동선이 동일하다 (아래 placeholder 와 props 호환).
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt={label}
+        loading="lazy"
+        className={`${aspectClass} w-full rounded-xl border border-gray-800 object-cover`}
+      />
+    )
+  }
+
   return (
     <div
       className={`${aspectClass} w-full rounded-xl border border-dashed border-gray-700 bg-gradient-to-br from-gray-900 to-gray-950 flex items-center justify-center text-center px-6`}

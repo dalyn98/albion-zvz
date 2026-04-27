@@ -2,18 +2,21 @@ import { Calendar, Coins, ShoppingBag, BarChart3, Check } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import MarketingNav from '@/components/MarketingNav'
 import ScreenshotPlaceholder from '@/components/ScreenshotPlaceholder'
+import {
+  MARKETING_SCREENSHOTS,
+  type MarketingScreenshotKey,
+} from '@/lib/marketing-screenshots'
 
 export const dynamic = 'force-dynamic'
 
 interface FeatureSection {
-  // 텍스트가 좌측에 오는지 우측에 오는지. 4개 섹션을 번갈아 배치해 시각적
-  // 단조로움을 줄인다.
   imagePosition: 'left' | 'right'
   icon: typeof Calendar
   title: string
   body: string
   bullets: string[]
   screenshotLabel: string
+  screenshotKey: MarketingScreenshotKey
 }
 
 export default async function PublicFeaturesPage() {
@@ -27,6 +30,7 @@ export default async function PublicFeaturesPage() {
       body: t('f1Body'),
       bullets: [t('f1Bullet1'), t('f1Bullet2'), t('f1Bullet3')],
       screenshotLabel: t('f1ScreenshotLabel'),
+      screenshotKey: 'events',
     },
     {
       imagePosition: 'left',
@@ -35,6 +39,7 @@ export default async function PublicFeaturesPage() {
       body: t('f2Body'),
       bullets: [t('f2Bullet1'), t('f2Bullet2'), t('f2Bullet3')],
       screenshotLabel: t('f2ScreenshotLabel'),
+      screenshotKey: 'regear',
     },
     {
       imagePosition: 'right',
@@ -43,6 +48,7 @@ export default async function PublicFeaturesPage() {
       body: t('f3Body'),
       bullets: [t('f3Bullet1'), t('f3Bullet2'), t('f3Bullet3')],
       screenshotLabel: t('f3ScreenshotLabel'),
+      screenshotKey: 'shop',
     },
     {
       imagePosition: 'left',
@@ -51,6 +57,7 @@ export default async function PublicFeaturesPage() {
       body: t('f4Body'),
       bullets: [t('f4Bullet1'), t('f4Bullet2'), t('f4Bullet3')],
       screenshotLabel: t('f4ScreenshotLabel'),
+      screenshotKey: 'stats',
     },
   ]
 
@@ -97,7 +104,11 @@ export default async function PublicFeaturesPage() {
                 </ul>
               </div>
               <div className={section.imagePosition === 'left' ? 'md:order-1' : ''}>
-                <ScreenshotPlaceholder label={section.screenshotLabel} aspect="4/3" />
+                <ScreenshotPlaceholder
+                  label={section.screenshotLabel}
+                  aspect="4/3"
+                  src={MARKETING_SCREENSHOTS[section.screenshotKey]}
+                />
               </div>
             </section>
           ))}

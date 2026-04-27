@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import MarketingNav from '@/components/MarketingNav'
 import ScreenshotPlaceholder from '@/components/ScreenshotPlaceholder'
+import { MARKETING_SCREENSHOTS } from '@/lib/marketing-screenshots'
 
 // 빌드타임에 layout 의 x-pathname 헤더가 없어 AppGate 가 HTML 에 박혀버리는
 // 함정. dynamic 렌더로 두고 매 요청마다 layout 분기를 정확히 평가시킨다.
@@ -70,10 +71,26 @@ export default async function PublicLandingPage() {
               <p className="text-xs text-gray-500 max-w-xl mx-auto">{tMkt('screenshotsCaption')}</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <ScreenshotPlaceholder label={tFeat('f1ScreenshotLabel')} aspect="16/9" />
-              <ScreenshotPlaceholder label={tFeat('f2ScreenshotLabel')} aspect="16/9" />
-              <ScreenshotPlaceholder label={tFeat('f3ScreenshotLabel')} aspect="16/9" />
-              <ScreenshotPlaceholder label={tFeat('f4ScreenshotLabel')} aspect="16/9" />
+              <ScreenshotPlaceholder
+                label={tFeat('f1ScreenshotLabel')}
+                aspect="16/9"
+                src={MARKETING_SCREENSHOTS.events}
+              />
+              <ScreenshotPlaceholder
+                label={tFeat('f2ScreenshotLabel')}
+                aspect="16/9"
+                src={MARKETING_SCREENSHOTS.regear}
+              />
+              <ScreenshotPlaceholder
+                label={tFeat('f3ScreenshotLabel')}
+                aspect="16/9"
+                src={MARKETING_SCREENSHOTS.shop}
+              />
+              <ScreenshotPlaceholder
+                label={tFeat('f4ScreenshotLabel')}
+                aspect="16/9"
+                src={MARKETING_SCREENSHOTS.stats}
+              />
             </div>
           </section>
 
