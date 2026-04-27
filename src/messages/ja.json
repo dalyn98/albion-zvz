@@ -1749,7 +1749,21 @@
     "materialInvalid": "材料費は 0 以上の整数で入力してください。",
     "delivering": "納品中...",
     "confirmDeliver": "納品確定",
-    "releasing": "解除中..."
+    "releasing": "解除中...",
+    "aggregateTitle": "必要装備の集計",
+    "aggregateTaskCount": "({count}件)",
+    "aggregateHint": "キューに溜まっている全ての製作依頼の装備と素材を合計して表示します。まとめて製作するときの参考にどうぞ。",
+    "aggregateItemsTitle": "必要装備",
+    "aggregateMaterialsTitle": "必要素材 (リターン率反映)",
+    "aggregateRatesTitle": "リターン率設定",
+    "aggregateSlotsTag": "{count}スロット",
+    "aggregateArtifactTag": "アーティファクト (別工房)",
+    "aggregateNoRecipeTag": "レシピなし",
+    "aggregateArtifactWarn": "アーティファクト {count}個は専用工房が必要なため素材集計から除外されました。",
+    "aggregateUnknownWarn": "レシピのない項目 {count}個は集計から除外されました。",
+    "aggregateFocusToggle": "フォーカス使用 (+{bonus}%)",
+    "aggregateEffectiveReturn": "実効リターン率 {pct}%",
+    "aggregateMaterialGross": "基準 {gross}"
   },
   "craftLocation": {
     "royalCity": "ロイヤルシティ",

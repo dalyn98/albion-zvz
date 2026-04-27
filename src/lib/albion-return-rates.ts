@@ -53,3 +53,11 @@ export function effectiveReturnRate(
   const combined = locationPct + (focusUsed ? focusBonusPct : 0)
   return clampReturnRate(combined)
 }
+
+// Apply an effective return rate to a gross material count. The crafter has
+// to gather only `count × (1 − rate%)` of the material since the rest comes
+// back from the crafting station roll. Ceil so we never under-recommend.
+export function applyReturnRate(grossCount: number, effectiveReturnPct: number): number {
+  const factor = Math.max(0, 1 - effectiveReturnPct / 100)
+  return Math.ceil(grossCount * factor)
+}

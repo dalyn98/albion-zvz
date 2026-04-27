@@ -1749,7 +1749,21 @@
     "materialInvalid": "Material cost must be a non-negative integer.",
     "delivering": "Delivering...",
     "confirmDeliver": "Confirm Delivery",
-    "releasing": "Releasing..."
+    "releasing": "Releasing...",
+    "aggregateTitle": "Required Gear Summary",
+    "aggregateTaskCount": "({count} tasks)",
+    "aggregateHint": "Aggregates equipment and materials from every craft task currently in the queue. Use this when planning a batch craft.",
+    "aggregateItemsTitle": "Required Gear",
+    "aggregateMaterialsTitle": "Required Materials (with return rate)",
+    "aggregateRatesTitle": "Return Rate",
+    "aggregateSlotsTag": "{count} slots",
+    "aggregateArtifactTag": "Artifact (separate station)",
+    "aggregateNoRecipeTag": "No recipe",
+    "aggregateArtifactWarn": "{count} artifact item(s) excluded from material totals — they need a dedicated station.",
+    "aggregateUnknownWarn": "{count} item(s) without a recipe were excluded.",
+    "aggregateFocusToggle": "Focus used (+{bonus}%)",
+    "aggregateEffectiveReturn": "Effective return {pct}%",
+    "aggregateMaterialGross": "Base {gross}"
   },
   "craftLocation": {
     "royalCity": "Royal City",

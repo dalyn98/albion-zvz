@@ -8,7 +8,9 @@ import {
   getCraftConfig,
   getCraftLocationPresets,
 } from '@/app/actions/craft'
+import { aggregateBuildSnapshots } from '@/lib/craft-aggregation'
 import CraftQueueClient from '@/components/CraftQueueClient'
+import CraftQueueAggregationCard from '@/components/CraftQueueAggregationCard'
 
 // 제작 리기어 큐 — 길드의 is_crafter=true 권한이 있는 사람이 들어와 queued
 // 항목을 잡아 제작·납품하는 화면. 제작자가 아닌 사람은 안내 카드만 보고 끝.
@@ -62,6 +64,15 @@ export default async function CraftQueuePage() {
     )
   }
 
+  // 길드 단위 집계: queued task 들의 buildSnapshot 합산. claimed/delivered 는
+  // 이미 다른 제작자가 잡았거나 마무리됐으므로 "지금 만들어야 할 것" 만 보여준다.
+  const aggregateBreakdown = aggregateBuildSnapshots(queued.map((q) => q.buildSnapshot))
+  const locationPresets = locations.map((l) => ({
+    id: l.id,
+    i18nKey: l.i18nKey,
+    defaultReturnRatePct: l.defaultReturnRatePct,
+  }))
+
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
       <div>
@@ -78,12 +89,18 @@ export default async function CraftQueuePage() {
         </div>
       )}
 
+      <CraftQueueAggregationCard
+        breakdown={aggregateBreakdown}
+        focusBonusPct={config.focusBonusPct}
+        locations={locationPresets}
+      />
+
       <CraftQueueClient
         queued={queued}
         mine={mine}
         profile={profile}
         config={config}
-        locations={locations.map((l) => ({ id: l.id, i18nKey: l.i18nKey, defaultReturnRatePct: l.defaultReturnRatePct }))}
+        locations={locationPresets}
       />
     </main>
   )

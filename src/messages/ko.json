@@ -1749,7 +1749,21 @@
     "materialInvalid": "재료비를 0 이상의 정수로 입력해 주세요.",
     "delivering": "납품 중...",
     "confirmDeliver": "납품 확정",
-    "releasing": "놓는 중..."
+    "releasing": "놓는 중...",
+    "aggregateTitle": "필요 장비 집계",
+    "aggregateTaskCount": "({count}건)",
+    "aggregateHint": "현재 큐에 쌓인 모든 제작 의뢰의 장비와 재료를 합산해서 보여줘요. 한 번에 묶어 제작할 때 참고하세요.",
+    "aggregateItemsTitle": "필요 장비",
+    "aggregateMaterialsTitle": "필요 재료 (반환율 반영)",
+    "aggregateRatesTitle": "반환율 설정",
+    "aggregateSlotsTag": "{count}슬롯",
+    "aggregateArtifactTag": "유물 (별도 제작)",
+    "aggregateNoRecipeTag": "레시피 없음",
+    "aggregateArtifactWarn": "유물 {count}개는 별도 제작소가 필요해 재료 합산에서 제외됐어요.",
+    "aggregateUnknownWarn": "레시피 없는 항목 {count}개는 합산에서 제외됐어요.",
+    "aggregateFocusToggle": "포커스 사용 (+{bonus}%)",
+    "aggregateEffectiveReturn": "유효 반환율 {pct}%",
+    "aggregateMaterialGross": "기준 {gross}"
   },
   "craftLocation": {
     "royalCity": "로열 시티",
