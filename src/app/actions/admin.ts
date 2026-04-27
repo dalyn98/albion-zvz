@@ -746,6 +746,7 @@ export async function savePartySlots(
     }
 
     let resolvedPartyId: string
+    let recoveredSlotIds: string[] | null = null
     if (partyId) {
       resolvedPartyId = partyId
       // 콜러(= !isAdminOrOwner)는 is_bomb_squad / bomb_squad_kind / name /
@@ -769,13 +770,48 @@ export async function savePartySlots(
         if (error.code === '23503') {
           return { error: tErr('eventMissingForParty') }
         }
-        return { error: error.message }
+        // 23505 = (event_id, party_number) 충돌. router.refresh 가 props 에
+        // 새 partyId 를 전파하기 전 Save 가 다시 발화한 경우(Save 직후 Publish,
+        // 빠른 더블 클릭 등). 기존 row 의 id 로 fallback 하고 prior 슬롯은
+        // recoveredSlotIds 로 합쳐 아래 cleanup 단계에서 한 번에 정리한다.
+        if (error.code !== '23505') {
+          return { error: error.message }
+        }
+        const { data: existing, error: lookupErr } = await db
+          .from('parties')
+          .select('id')
+          .eq('guild_id', guildId)
+          .eq('event_id', eventId)
+          .eq('party_number', partyNumber)
+          .maybeSingle()
+        if (lookupErr) return { error: lookupErr.message }
+        if (!existing) return { error: error.message }
+        resolvedPartyId = existing.id
+        if (isAdminOrOwner) {
+          const { error: metaUpdErr } = await db
+            .from('parties')
+            .update(metaRow)
+            .eq('guild_id', guildId)
+            .eq('id', existing.id)
+          if (metaUpdErr) return { error: metaUpdErr.message }
+        }
+        const { data: existingSlots, error: existingSlotErr } = await db
+          .from('slots')
+          .select('id')
+          .eq('guild_id', guildId)
+          .eq('party_id', existing.id)
+        if (existingSlotErr) return { error: existingSlotErr.message }
+        recoveredSlotIds = (existingSlots ?? []).map((s) => s.id as string)
+      } else {
+        resolvedPartyId = data.id
       }
-      resolvedPartyId = data.id
     }
 
+    const effectiveOriginalSlotIds = recoveredSlotIds
+      ? Array.from(new Set([...originalSlotIds, ...recoveredSlotIds]))
+      : originalSlotIds
     const keptIds = new Set(slots.map((s) => s.id).filter(Boolean) as string[])
-    const removedIds = originalSlotIds.filter((id) => !keptIds.has(id))
+    const removedIds = effectiveOriginalSlotIds.filter((id) => !keptIds.has(id))
 
     // Delete removed slots first so their slot_numbers free up before we renumber kept ones
     if (removedIds.length > 0) {
