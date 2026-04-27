@@ -1796,7 +1796,18 @@
     "aggregateUnknownWarn": "レシピのない項目 {count}個は集計から除外されました。",
     "aggregateFocusToggle": "フォーカス使用 (+{bonus}%)",
     "aggregateEffectiveReturn": "実効リターン率 {pct}%",
-    "aggregateMaterialGross": "基準 {gross}"
+    "aggregateMaterialGross": "基準 {gross}",
+    "selectTask": "タスクを選択",
+    "selectAllLabel": "全て選択",
+    "clearSelectionLabel": "選択を解除",
+    "selectedCount": "{count}件選択中",
+    "bulkClaimButton": "選択した{count}件を引き受け",
+    "bulkReleaseButton": "選択した{count}件を離す",
+    "bulkClaimDone": "{ok}件のタスクを引き受けました。",
+    "bulkClaimPartial": "{ok}件成功、{failed}件失敗。",
+    "bulkReleaseDone": "{ok}件のタスクを離しました。",
+    "bulkReleasePartial": "{ok}件成功、{failed}件失敗。",
+    "bulkLimitExceeded": "一度に最大{limit}件まで処理できます。"
   },
   "craftLocation": {
     "royalCity": "ロイヤルシティ",

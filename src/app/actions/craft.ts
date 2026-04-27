@@ -415,6 +415,95 @@ export async function releaseCraftQueueItem(
   return {}
 }
 
+export interface BulkClaimResult {
+  ok: number
+  failed: number
+  error?: string
+}
+
+// 큐에서 여러 task 를 사용자의 default compensation_mode + premium 으로 한 번에
+// 잡는다. 개별 RPC 호출이라 race condition 으로 일부가 실패해도 (이미 다른 사람
+// 이 잡은 경우) 나머지는 계속 진행. 마지막에 (성공, 실패) 카운트만 반환한다.
+const BULK_LIMIT = 50
+
+export async function bulkClaimCraftQueueItems(
+  taskIds: string[],
+  compensationMode: CraftCompensationMode,
+  premiumPct: number,
+): Promise<BulkClaimResult> {
+  const tErr = await getTranslations('memberActionError')
+  const session = await getSession()
+  if (!session) return { ok: 0, failed: 0, error: tErr('loginRequired') }
+  const guildId = await getSessionGuildId(session)
+
+  const isCrafter = await loadIsCrafter(guildId, session.discordId)
+  if (!isCrafter && !session.isAdmin) return { ok: 0, failed: 0, error: tErr('crafterOnly') }
+
+  if (!Array.isArray(taskIds) || taskIds.length === 0) {
+    return { ok: 0, failed: 0, error: tErr('invalidInput') }
+  }
+  if (taskIds.length > BULK_LIMIT) {
+    return { ok: 0, failed: 0, error: tErr('invalidInput') }
+  }
+  if (compensationMode !== 'volunteer' && compensationMode !== 'paid') {
+    return { ok: 0, failed: 0, error: tErr('invalidInput') }
+  }
+  if (!Number.isInteger(premiumPct) || premiumPct < 0 || premiumPct > 200) {
+    return { ok: 0, failed: 0, error: tErr('craftPremiumOutOfRange') }
+  }
+
+  let ok = 0
+  let failed = 0
+  for (const taskId of taskIds) {
+    try {
+      await claimCraftTask({
+        taskId,
+        guildId,
+        crafterDiscordId: session.discordId,
+        crafterUsername: session.username,
+        compensationMode,
+        premiumPct,
+      })
+      ok += 1
+    } catch {
+      failed += 1
+    }
+  }
+
+  if (ok > 0) revalidatePath('/craft/queue')
+  return { ok, failed }
+}
+
+export async function bulkReleaseCraftQueueItems(
+  taskIds: string[],
+): Promise<BulkClaimResult> {
+  const tErr = await getTranslations('memberActionError')
+  const session = await getSession()
+  if (!session) return { ok: 0, failed: 0, error: tErr('loginRequired') }
+  const guildId = await getSessionGuildId(session)
+
+  if (!Array.isArray(taskIds) || taskIds.length === 0) {
+    return { ok: 0, failed: 0, error: tErr('invalidInput') }
+  }
+  if (taskIds.length > BULK_LIMIT) {
+    return { ok: 0, failed: 0, error: tErr('invalidInput') }
+  }
+
+  let ok = 0
+  let failed = 0
+  for (const taskId of taskIds) {
+    try {
+      await releaseCraftTask(taskId, guildId, session.discordId)
+      ok += 1
+    } catch {
+      failed += 1
+    }
+  }
+
+  if (ok > 0) revalidatePath('/craft/queue')
+  return { ok, failed }
+}
+
 export interface PreviewCraftMaterialCostInput {
   taskId: string
   locationReturnPct: number

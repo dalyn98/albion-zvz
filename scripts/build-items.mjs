@@ -31,14 +31,25 @@ const CATEGORY_PATTERNS = {
   // battle mounts (UNIQUE_MOUNT_*) are handled separately via MOUNT_OVERRIDES
   // since they don't carry tier prefixes.
   mount:   /^T\d+_MOUNT_/,
+  // 제작 리기어 집계 카드는 raw 재료(PLANKS/CLOTH/LEATHER/METALBAR/...) 와
+  // ARTEFACT, QUESTITEM_TOKEN 도 표시하므로 lookup 용으로 같이 번들에 담는다.
+  // 검색 picker 에는 안 노출돼도 getLocalizedItemName 만 통하면 충분.
+  material: /^T\d+_(PLANKS|WOOD|ORE|METALBAR|LEATHER|HIDE|FIBER|CLOTH|ROCK|STONEBLOCK)($|_)/,
+  artifact: /^T\d+_ARTEFACT_/,
+  token:    /^QUESTITEM_TOKEN_/,
 }
 // Tier coverage per category. Default covers T4-T8 — the full range of
 // equippable gear players deposit in the guild bank. Potions/food go down to
 // T3 because common PvP consumables (소형 진정 포션 T3) show up in logs.
+// material/artifact 는 제작 재료 라인에 등장하는 모든 티어를 취급하므로 T2 부터.
+// token 은 티어 prefix 없이 QUESTITEM_TOKEN_ 으로 시작 — 빈 regex 로 대체한다.
 const CATEGORY_TIER_REGEX = {
   food:  /^T[3-8]_/,
   potion:/^T[3-8]_/,
   mount: /^T[3-8]_/,
+  material: /^T[2-8]_/,
+  artifact: /^T[2-8]_/,
+  token: /^/,
 }
 const DEFAULT_TIER_REGEX = /^T[4-8]_/
 

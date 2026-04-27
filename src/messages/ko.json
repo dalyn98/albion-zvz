@@ -1796,7 +1796,18 @@
     "aggregateUnknownWarn": "레시피 없는 항목 {count}개는 합산에서 제외됐어요.",
     "aggregateFocusToggle": "포커스 사용 (+{bonus}%)",
     "aggregateEffectiveReturn": "유효 반환율 {pct}%",
-    "aggregateMaterialGross": "기준 {gross}"
+    "aggregateMaterialGross": "기준 {gross}",
+    "selectTask": "작업 선택",
+    "selectAllLabel": "전체 선택",
+    "clearSelectionLabel": "선택 해제",
+    "selectedCount": "{count}개 선택",
+    "bulkClaimButton": "선택 {count}개 잡기",
+    "bulkReleaseButton": "선택 {count}개 놓기",
+    "bulkClaimDone": "{ok}개 작업을 잡았어요.",
+    "bulkClaimPartial": "{ok}개 잡기 성공, {failed}개 실패.",
+    "bulkReleaseDone": "{ok}개 작업을 놓았어요.",
+    "bulkReleasePartial": "{ok}개 놓기 성공, {failed}개 실패.",
+    "bulkLimitExceeded": "한 번에 최대 {limit}개까지만 처리할 수 있어요."
   },
   "craftLocation": {
     "royalCity": "로열 시티",

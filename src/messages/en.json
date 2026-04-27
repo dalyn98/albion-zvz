@@ -1796,7 +1796,18 @@
     "aggregateUnknownWarn": "{count} item(s) without a recipe were excluded.",
     "aggregateFocusToggle": "Focus used (+{bonus}%)",
     "aggregateEffectiveReturn": "Effective return {pct}%",
-    "aggregateMaterialGross": "Base {gross}"
+    "aggregateMaterialGross": "Base {gross}",
+    "selectTask": "Select task",
+    "selectAllLabel": "Select all",
+    "clearSelectionLabel": "Clear selection",
+    "selectedCount": "{count} selected",
+    "bulkClaimButton": "Claim {count} selected",
+    "bulkReleaseButton": "Release {count} selected",
+    "bulkClaimDone": "Claimed {ok} task(s).",
+    "bulkClaimPartial": "{ok} claimed, {failed} failed.",
+    "bulkReleaseDone": "Released {ok} task(s).",
+    "bulkReleasePartial": "{ok} released, {failed} failed.",
+    "bulkLimitExceeded": "At most {limit} tasks can be processed at once."
   },
   "craftLocation": {
     "royalCity": "Royal City",

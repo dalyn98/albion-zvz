@@ -10,6 +10,8 @@ import {
   deliverCraftQueueItem,
   previewCraftMaterialCost,
   setMyCrafterDefaults,
+  bulkClaimCraftQueueItems,
+  bulkReleaseCraftQueueItems,
   type CraftQueueItem,
   type CraftBoxConfig,
   type CrafterProfile,
@@ -44,9 +46,73 @@ export default function CraftQueueClient({ queued, mine, profile, config, locati
 
   const [claimTarget, setClaimTarget] = useState<CraftQueueItem | null>(null)
   const [deliverTarget, setDeliverTarget] = useState<CraftQueueItem | null>(null)
+  const [selectedQueued, setSelectedQueued] = useState<Set<string>>(new Set())
+  const [selectedMine, setSelectedMine] = useState<Set<string>>(new Set())
+  const [bulkPending, startBulk] = useTransition()
 
   const claimedTasks = useMemo(() => mine.filter((m) => m.status === 'claimed'), [mine])
   const deliveredTasks = useMemo(() => mine.filter((m) => m.status === 'delivered'), [mine])
+
+  const queuedIds = useMemo(() => queued.map((q) => q.taskId), [queued])
+  const claimedIds = useMemo(() => claimedTasks.map((m) => m.taskId), [claimedTasks])
+
+  // 체크 / 해제 토글. 새 Set 으로 만들어 상태 변경.
+  const toggleSelected = (set: Set<string>, setSet: (s: Set<string>) => void, id: string) => {
+    const next = new Set(set)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    setSet(next)
+  }
+
+  const setAllSelected = (
+    set: Set<string>,
+    setSet: (s: Set<string>) => void,
+    ids: string[],
+  ) => {
+    if (set.size === ids.length && ids.every((id) => set.has(id))) {
+      setSet(new Set())
+    } else {
+      setSet(new Set(ids))
+    }
+  }
+
+  const handleBulkClaim = () => {
+    if (selectedQueued.size === 0) return
+    const mode: CraftCompensationMode = profile?.compensationMode ?? 'volunteer'
+    const premium = profile?.premiumPct ?? 0
+    startBulk(async () => {
+      const r = await bulkClaimCraftQueueItems(Array.from(selectedQueued), mode, premium)
+      if (r.error) {
+        toast.error(r.error)
+        return
+      }
+      if (r.failed > 0) {
+        toast.error(t('bulkClaimPartial', { ok: r.ok, failed: r.failed }))
+      } else {
+        toast.success(t('bulkClaimDone', { ok: r.ok }))
+      }
+      setSelectedQueued(new Set())
+      router.refresh()
+    })
+  }
+
+  const handleBulkRelease = () => {
+    if (selectedMine.size === 0) return
+    startBulk(async () => {
+      const r = await bulkReleaseCraftQueueItems(Array.from(selectedMine))
+      if (r.error) {
+        toast.error(r.error)
+        return
+      }
+      if (r.failed > 0) {
+        toast.error(t('bulkReleasePartial', { ok: r.ok, failed: r.failed }))
+      } else {
+        toast.success(t('bulkReleaseDone', { ok: r.ok }))
+      }
+      setSelectedMine(new Set())
+      router.refresh()
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -66,26 +132,59 @@ export default function CraftQueueClient({ queued, mine, profile, config, locati
             {t('queueEmpty')}
           </p>
         ) : (
-          <ul className="space-y-3">
-            {queued.map((item) => (
-              <li
-                key={item.taskId}
-                className="bg-gray-900 border border-gray-700 rounded-2xl p-4 space-y-3"
-              >
-                <TaskHeader item={item} tRole={tRole} />
-                <BuildPreview snapshot={item.buildSnapshot} />
-                <div className="flex items-center justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setClaimTarget(item)}
-                    className="text-xs font-bold bg-amber-500 hover:bg-amber-400 text-black rounded-lg px-3 py-2"
+          <>
+            <BulkActionBar
+              selectedCount={selectedQueued.size}
+              totalCount={queued.length}
+              onToggleAll={() => setAllSelected(selectedQueued, setSelectedQueued, queuedIds)}
+              onClear={() => setSelectedQueued(new Set())}
+              actionLabel={t('bulkClaimButton', { count: selectedQueued.size })}
+              onAction={handleBulkClaim}
+              actionTone="amber"
+              pending={bulkPending}
+              t={t}
+            />
+            <ul className="space-y-3">
+              {queued.map((item) => {
+                const checked = selectedQueued.has(item.taskId)
+                return (
+                  <li
+                    key={item.taskId}
+                    className={`bg-gray-900 border rounded-2xl p-4 space-y-3 ${
+                      checked ? 'border-amber-400/60' : 'border-gray-700'
+                    }`}
                   >
-                    {t('claimButton')}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          toggleSelected(selectedQueued, setSelectedQueued, item.taskId)
+                        }
+                        disabled={bulkPending}
+                        className="mt-1 rounded border-gray-700 bg-gray-950 flex-shrink-0"
+                        aria-label={t('selectTask')}
+                      />
+                      <div className="flex-1 min-w-0 space-y-3">
+                        <TaskHeader item={item} tRole={tRole} />
+                        <BuildPreview snapshot={item.buildSnapshot} />
+                        <div className="flex items-center justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setClaimTarget(item)}
+                            disabled={bulkPending}
+                            className="text-xs font-bold bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black rounded-lg px-3 py-2"
+                          >
+                            {t('claimButton')}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          </>
         )}
       </section>
 
@@ -101,20 +200,50 @@ export default function CraftQueueClient({ queued, mine, profile, config, locati
           </p>
         ) : (
           <ul className="space-y-3">
-            {claimedTasks.map((item) => (
-              <li
-                key={item.taskId}
-                className="bg-gray-900 border border-amber-500/30 rounded-2xl p-4 space-y-3"
-              >
-                <TaskHeader item={item} tRole={tRole} />
-                <BuildPreview snapshot={item.buildSnapshot} />
-                <ClaimedActions
-                  item={item}
-                  onDeliver={() => setDeliverTarget(item)}
-                  onAfter={() => router.refresh()}
-                />
-              </li>
-            ))}
+            {claimedTasks.length > 0 && (
+              <BulkActionBar
+                selectedCount={selectedMine.size}
+                totalCount={claimedTasks.length}
+                onToggleAll={() => setAllSelected(selectedMine, setSelectedMine, claimedIds)}
+                onClear={() => setSelectedMine(new Set())}
+                actionLabel={t('bulkReleaseButton', { count: selectedMine.size })}
+                onAction={handleBulkRelease}
+                actionTone="rose"
+                pending={bulkPending}
+                t={t}
+              />
+            )}
+            {claimedTasks.map((item) => {
+              const checked = selectedMine.has(item.taskId)
+              return (
+                <li
+                  key={item.taskId}
+                  className={`bg-gray-900 border rounded-2xl p-4 space-y-3 ${
+                    checked ? 'border-rose-400/60' : 'border-amber-500/30'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleSelected(selectedMine, setSelectedMine, item.taskId)}
+                      disabled={bulkPending}
+                      className="mt-1 rounded border-gray-700 bg-gray-950 flex-shrink-0"
+                      aria-label={t('selectTask')}
+                    />
+                    <div className="flex-1 min-w-0 space-y-3">
+                      <TaskHeader item={item} tRole={tRole} />
+                      <BuildPreview snapshot={item.buildSnapshot} />
+                      <ClaimedActions
+                        item={item}
+                        onDeliver={() => setDeliverTarget(item)}
+                        onAfter={() => router.refresh()}
+                      />
+                    </div>
+                  </div>
+                </li>
+              )
+            })}
             {deliveredTasks.map((item) => (
               <li
                 key={item.taskId}
@@ -692,6 +821,74 @@ function DeliverDialog({ item, config, locations, onClose, onSuccess }: DeliverD
         </button>
       </div>
     </ModalShell>
+  )
+}
+
+interface BulkActionBarProps {
+  selectedCount: number
+  totalCount: number
+  onToggleAll: () => void
+  onClear: () => void
+  actionLabel: string
+  onAction: () => void
+  actionTone: 'amber' | 'rose'
+  pending: boolean
+  t: ReturnType<typeof useTranslations>
+}
+
+function BulkActionBar({
+  selectedCount,
+  totalCount,
+  onToggleAll,
+  onClear,
+  actionLabel,
+  onAction,
+  actionTone,
+  pending,
+  t,
+}: BulkActionBarProps) {
+  const allChecked = selectedCount > 0 && selectedCount === totalCount
+  const actionClass =
+    actionTone === 'amber'
+      ? 'bg-amber-500 hover:bg-amber-400 text-black'
+      : 'bg-rose-500 hover:bg-rose-400 text-white'
+  return (
+    <div className="bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 flex flex-wrap items-center gap-3">
+      <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={allChecked}
+          onChange={onToggleAll}
+          disabled={pending || totalCount === 0}
+          className="rounded border-gray-700 bg-gray-950"
+          aria-label={t('selectAllLabel')}
+        />
+        {t('selectAllLabel')}
+      </label>
+      <span className="text-[11px] text-gray-500">
+        {t('selectedCount', { count: selectedCount })}
+      </span>
+      <div className="ml-auto flex items-center gap-2">
+        {selectedCount > 0 && (
+          <button
+            type="button"
+            onClick={onClear}
+            disabled={pending}
+            className="text-[11px] text-gray-400 hover:text-white px-2 py-1 disabled:opacity-50"
+          >
+            {t('clearSelectionLabel')}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onAction}
+          disabled={pending || selectedCount === 0}
+          className={`text-xs font-bold rounded-lg px-3 py-1.5 disabled:opacity-50 ${actionClass}`}
+        >
+          {actionLabel}
+        </button>
+      </div>
+    </div>
   )
 }
 
