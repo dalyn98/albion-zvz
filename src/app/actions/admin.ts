@@ -10,7 +10,7 @@ import {
 } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
-import { sendEventNotification } from '@/lib/discord'
+import { sendEventNotification, DiscordChannelMessageError } from '@/lib/discord'
 import { getAppSetting } from '@/lib/app-settings'
 import { getLocale } from '@/lib/locale'
 import { getTenantTimezone } from '@/lib/timezone-server'
@@ -307,6 +307,27 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
     })
     return {}
   } catch (e) {
+    if (e instanceof DiscordChannelMessageError) {
+      // 디스코드 에러 코드 참고: https://discord.com/developers/docs/topics/opcodes-and-status-codes
+      // 50001 Missing Access — 봇이 채널을 못 봄 (다른 길드 채널이거나 권한 차단)
+      // 50013 Missing Permissions — 채널은 보이지만 메시지 보낼 권한 없음
+      // 10003 Unknown Channel — 채널 ID 자체가 무효 (삭제됨/오타)
+      // 50007 Cannot send messages to this user — DM 차단 (DM 헬퍼 쪽)
+      // 그 외 코드/상태는 generic 메시지 + raw 본문 노출.
+      const tNotify = await getTranslations('adminNotifyError')
+      if (e.discordCode === 50001) return { error: tNotify('missingAccess') }
+      if (e.discordCode === 50013) return { error: tNotify('missingPermissions') }
+      if (e.discordCode === 10003) return { error: tNotify('unknownChannel') }
+      if (e.status === 401 || e.status === 403) {
+        return { error: tNotify('forbidden', { status: e.status }) }
+      }
+      return {
+        error: tNotify('generic', {
+          status: e.status,
+          message: e.discordMessage ?? e.raw.slice(0, 200),
+        }),
+      }
+    }
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }

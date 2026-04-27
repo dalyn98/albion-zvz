@@ -95,6 +95,13 @@
     "sectionEvents": "イベント",
     "sectionTemplates": "テンプレート"
   },
+  "adminNotifyError": {
+    "missingAccess": "Botが通知チャンネルにアクセスできません。Botが該当のDiscordサーバーに招待されているか、チャンネルにBot表示・メッセージ送信権限があるかを確認してください。",
+    "missingPermissions": "Botに通知チャンネルへのメッセージ送信権限がありません。チャンネル権限設定でBotに「メッセージを送信」権限を付与してください。",
+    "unknownChannel": "通知チャンネルが見つかりませんでした。イベントまたはギルド設定のチャンネルIDが正しいか確認してください。",
+    "forbidden": "Discordが通知の送信を拒否しました (HTTP {status})。Bot権限とチャンネル設定を確認してください。",
+    "generic": "通知の送信に失敗しました (HTTP {status}): {message}"
+  },
   "memberInvite": {
     "title": "ギルドメンバー招待リンク",
     "description": "Discord サーバーにこのリンクを共有すると、Discord ログインとアルビオンのキャラ名認証をまとめて完了できます。",

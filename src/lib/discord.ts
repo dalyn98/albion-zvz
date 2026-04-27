@@ -425,7 +425,9 @@ export async function sendEventNotification(
   if (options.notifyEveryone) mentionParts.push('@everyone')
   if (options.notifyRoleId) mentionParts.push(`<@&${options.notifyRoleId}>`)
   const mentionLine = mentionParts.length > 0 ? `${mentionParts.join(' ')}\n` : ''
-  const content = `${mentionLine}${options.content}\n${siteUrl}`
+  // eventUrl 을 본문 끝에 붙여 멤버가 한 번에 해당 이벤트 페이지로 이동.
+  // siteUrl(루트) 만 붙이면 마케팅/landing 으로 빠져 "공식 문서 링크" 처럼 보임.
+  const content = `${mentionLine}${options.content}\n${eventUrl}`
 
   const allowedMentions: {
     parse?: ('everyone' | 'roles' | 'users')[]
@@ -449,7 +451,36 @@ export async function sendEventNotification(
 
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(`Discord channel message failed (${res.status}): ${text}`)
+    throw DiscordChannelMessageError.fromResponse(res.status, text)
+  }
+}
+
+// Discord 채널 발송 실패를 구조화된 형태로 표현 — action 레이어가 status 와
+// 디스코드 에러 코드만으로 친절한 메시지로 매핑할 수 있게 한다. raw 응답
+// 본문도 보존해 디버깅 시 그대로 로그로 찍을 수 있게 둠.
+export class DiscordChannelMessageError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly discordCode: number | null,
+    public readonly discordMessage: string | null,
+    public readonly raw: string,
+  ) {
+    super(`Discord channel message failed (${status})`)
+    this.name = 'DiscordChannelMessageError'
+  }
+
+  static fromResponse(status: number, body: string): DiscordChannelMessageError {
+    let discordCode: number | null = null
+    let discordMessage: string | null = null
+    try {
+      const parsed = JSON.parse(body) as { code?: unknown; message?: unknown }
+      if (typeof parsed.code === 'number') discordCode = parsed.code
+      if (typeof parsed.message === 'string') discordMessage = parsed.message
+    } catch {
+      // body 가 JSON 이 아닐 수도 있음 (Discord 가 평소엔 JSON 으로 답하지만
+      // 게이트웨이/CDN 단에서 HTML 을 주는 케이스 등). raw 만 보존.
+    }
+    return new DiscordChannelMessageError(status, discordCode, discordMessage, body)
   }
 }
 
