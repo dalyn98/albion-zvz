@@ -579,6 +579,11 @@ export interface MyRegearDetail {
   // 수동 신청에 첨부된 스크린샷 경로 (auto-regear 면 null). UI 가 미리보기 / 교체에 사용.
   screenshotPath: string | null
   screenshotPath2: string | null
+  // 길드 단위 청구 모드. 'crafted' 면 청구자가 build_snapshot 을 보강해야
+  // 제작자가 작업할 수 있다 — 자동 생성된 행은 killboard equipment 에서
+  // 추출되어 들어오지만 sync 지연 시 빈 슬롯이 있을 수 있다.
+  fulfillmentMode: 'silver' | 'crafted'
+  buildSnapshot: BuildSnapshot | null
 }
 
 interface RawBreakdownItem {
@@ -645,7 +650,7 @@ export async function getMyRegearDetail(
   const { data, error } = await db
     .from('regear_requests')
     .select(
-      'id, event_id, event_title_snapshot, role_name, silver, claimed_silver, payout_silver, status, auto_generated, gear_breakdown, price_warning_level, created_at, admin_notes, screenshot_path, screenshot_path_2, events(title)',
+      'id, event_id, event_title_snapshot, role_name, silver, claimed_silver, payout_silver, status, auto_generated, gear_breakdown, price_warning_level, created_at, admin_notes, screenshot_path, screenshot_path_2, fulfillment_mode, build_snapshot, events(title)',
     )
     .eq('guild_id', guildId)
     .eq('id', id)
@@ -678,6 +683,9 @@ export async function getMyRegearDetail(
       ? breakdown.warning_level
       : null
 
+  const rawMode = data.fulfillment_mode as string | null
+  const fulfillmentMode: 'silver' | 'crafted' = rawMode === 'crafted' ? 'crafted' : 'silver'
+
   const detail: MyRegearDetail = {
     id: data.id as string,
     eventId: (data.event_id as string | null) ?? '',
@@ -696,8 +704,80 @@ export async function getMyRegearDetail(
     adminNotes: (data.admin_notes as string | null) ?? null,
     screenshotPath: (data.screenshot_path as string | null) ?? null,
     screenshotPath2: (data.screenshot_path_2 as string | null) ?? null,
+    fulfillmentMode,
+    buildSnapshot: (data.build_snapshot as BuildSnapshot | null) ?? null,
   }
   return { detail }
+}
+
+// 제작 모드 자동 리기어 본인 빌드 한 슬롯 갱신. tier+enchant 만 다르고 base 가
+// 같은 아이템(예: T5_2H_ARCANESTAFF → T7_2H_ARCANESTAFF@2) 으로 바꿔달라는 케이스가
+// 대부분이지만, killboard sync 지연으로 슬롯이 비어있던 경우 새로 채우는 호출도
+// 같은 액션을 재사용한다 — 차이는 입력 값(name/id) 의 채워짐 여부일 뿐.
+//
+// 빈 슬롯으로 되돌리는 케이스는 명시적으로 name=id=null 호출. 클라이언트에서 슬롯
+// "비우기" 버튼을 누른 경우 UI 가 그렇게 부른다.
+export async function updateMyRegearBuildSnapshotSlot(
+  requestId: string,
+  slotKey: SlotKey,
+  name: string | null,
+  id: string | null,
+): Promise<{ error?: string; buildSnapshot?: BuildSnapshot }> {
+  const tErr = await getTranslations('memberActionError')
+  if (!SLOT_KEYS.includes(slotKey)) {
+    return { error: tErr('slotNotFound') }
+  }
+  const trimmedId = typeof id === 'string' ? id.trim() : null
+  const trimmedName = typeof name === 'string' ? name.trim() : null
+  // (id null, name 채워짐) 같은 일관성 없는 입력은 막는다 — 둘 다 null 이거나 둘 다 truthy.
+  if ((trimmedId && !trimmedName) || (!trimmedId && trimmedName)) {
+    return { error: tErr('invalidInput') }
+  }
+
+  const session = await getSession()
+  if (!session) return { error: tErr('loginRequired') }
+  const guildId = await getSessionGuildId(session)
+
+  const db = getAdminClient()
+  const { data: row, error: fetchErr } = await db
+    .from('regear_requests')
+    .select('id, discord_id, status, auto_generated, fulfillment_mode, build_snapshot, role_name')
+    .eq('guild_id', guildId)
+    .eq('id', requestId)
+    .maybeSingle()
+  if (fetchErr) return { error: fetchErr.message }
+  if (!row) return { error: tErr('requestNotFound') }
+  if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnEdit') }
+  if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
+  if (!row.auto_generated) return { error: tErr('autoOnlyEditable') }
+  if (row.fulfillment_mode !== 'crafted') return { error: tErr('craftedOnlyEditable') }
+
+  // 비어 있던 snapshot 도 한 슬롯만 들고 들어와도 일관된 BuildSnapshot 으로
+  // 정규화 — UI 가 9개 슬롯을 항상 보여주기 위해 누락된 슬롯에 null 들을 박아둔다.
+  const current = (row.build_snapshot as BuildSnapshot | null) ?? null
+  const next: BuildSnapshot = {
+    role_name: current?.role_name ?? ((row.role_name as string | null) ?? null),
+    weapon: current?.weapon ?? { name: null, id: null },
+    head: current?.head ?? { name: null, id: null },
+    armor: current?.armor ?? { name: null, id: null },
+    shoes: current?.shoes ?? { name: null, id: null },
+    offhand: current?.offhand ?? { name: null, id: null },
+    potion: current?.potion ?? { name: null, id: null },
+    food: current?.food ?? { name: null, id: null },
+    cape: current?.cape ?? { name: null, id: null },
+    mount: current?.mount ?? { name: null, id: null },
+  }
+  next[slotKey] = { name: trimmedName, id: trimmedId }
+
+  const { error: updateErr } = await db
+    .from('regear_requests')
+    .update({ build_snapshot: next })
+    .eq('guild_id', guildId)
+    .eq('id', requestId)
+  if (updateErr) return { error: updateErr.message }
+
+  revalidatePath(`/me/regear/${requestId}`)
+  return { buildSnapshot: next }
 }
 
 // 멤버 본인의 리기어 스크린샷 signed URL 발급 — 관리자용 getScreenshotUrl 과

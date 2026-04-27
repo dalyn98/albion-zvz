@@ -1167,6 +1167,17 @@
     "invalidNumber": "유효한 숫자를 입력하세요.",
     "editHint": "클릭해서 수정"
   },
+  "regearBuildSnapshot": {
+    "title": "제작 빌드 정보",
+    "description": "제작자가 정확히 만들 수 있도록 부위별 티어/인챈트를 확인해주세요. 자동으로 채워진 슬롯은 강화 수치만 조정하면 됩니다. 데스로그가 비어있는 경우 직접 아이템을 선택할 수도 있어요.",
+    "tierLabel": "티어",
+    "enchantLabel": "인챈트",
+    "pickItem": "아이템 선택",
+    "changeItem": "아이템 변경",
+    "slotEmpty": "슬롯이 비어있습니다 — 직접 선택해주세요.",
+    "clearLabel": "비우기",
+    "readOnlyHint": "이미 처리된 청구는 빌드를 수정할 수 없습니다."
+  },
   "adminAutoRegear": {
     "title": "자동 리기어",
     "descriptionLine1": "이벤트 종료 후 킬보드에서 사망 기록을 찾아 AODP 시세로 지급액을 계산해 pending 상태로 생성합니다. 관리자 승인 전에는 포인트 지급 없음.",
@@ -2366,6 +2377,7 @@
     "priceTooLarge": "가격이 너무 큽니다 (최대 {max}s).",
     "slotEmpty": "슬롯이 비어있습니다.",
     "autoOnlyEditable": "자동 생성된 리기어만 수정 가능합니다.",
+    "craftedOnlyEditable": "제작 모드 청구만 빌드 정보를 수정할 수 있습니다.",
     "manualOnlyEditable": "이 작업은 수동으로 제출한 리기어에만 적용됩니다.",
     "noChange": "변경 사항이 없습니다.",
     "serverError": "서버 오류가 발생했습니다.",

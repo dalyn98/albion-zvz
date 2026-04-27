@@ -1167,6 +1167,17 @@
     "invalidNumber": "有効な数値を入力してください。",
     "editHint": "クリックして編集"
   },
+  "regearBuildSnapshot": {
+    "title": "クラフトビルド情報",
+    "description": "クラフターが正しく製作できるよう、部位ごとのティア/エンチャントを確認してください。自動入力済みのスロットは強化値の調整だけで OK です。デスログが空のスロットは直接アイテムを選択できます。",
+    "tierLabel": "ティア",
+    "enchantLabel": "エンチャント",
+    "pickItem": "アイテム選択",
+    "changeItem": "アイテム変更",
+    "slotEmpty": "スロットが空です — 直接選択してください。",
+    "clearLabel": "クリア",
+    "readOnlyHint": "処理済みの申請はビルドを編集できません。"
+  },
   "adminAutoRegear": {
     "title": "自動リギア",
     "descriptionLine1": "イベント終了後にキルボードから死亡記録を取得し、AODP 価格で支給額を計算して pending 状態で作成します。管理者が承認するまでポイントは付与されません。",
@@ -2366,6 +2377,7 @@
     "priceTooLarge": "価格が大きすぎます (最大 {max}s)。",
     "slotEmpty": "スロットが空です。",
     "autoOnlyEditable": "自動生成されたリギアのみ編集できます。",
+    "craftedOnlyEditable": "クラフトモードの申請のみビルド情報を編集できます。",
     "manualOnlyEditable": "この操作は手動で提出したリギアにのみ適用されます。",
     "noChange": "変更がありません。",
     "serverError": "サーバーエラーが発生しました。",

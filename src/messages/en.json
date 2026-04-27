@@ -1167,6 +1167,17 @@
     "invalidNumber": "Enter a valid number.",
     "editHint": "Click to edit"
   },
+  "regearBuildSnapshot": {
+    "title": "Craft build info",
+    "description": "Confirm tier/enchant for each slot so the crafter can build the right items. Auto-filled slots only need their enchant tweaked. If the death log was missing a slot, pick the item yourself.",
+    "tierLabel": "Tier",
+    "enchantLabel": "Enchant",
+    "pickItem": "Pick item",
+    "changeItem": "Change item",
+    "slotEmpty": "Slot is empty — pick an item.",
+    "clearLabel": "Clear",
+    "readOnlyHint": "Build info can no longer be edited on a processed request."
+  },
   "adminAutoRegear": {
     "title": "Auto regear",
     "descriptionLine1": "After an event ends, the cron pulls death records from the killboard, prices them with AODP, and creates pending regear rows. No points are paid until an admin approves each row.",
@@ -2366,6 +2377,7 @@
     "priceTooLarge": "Price is too large (max {max}s).",
     "slotEmpty": "Slot is empty.",
     "autoOnlyEditable": "Only auto-generated regear can be edited.",
+    "craftedOnlyEditable": "Only craft-mode requests can edit build info.",
     "manualOnlyEditable": "This action only applies to manually submitted regear.",
     "noChange": "No change to apply.",
     "serverError": "A server error occurred.",
