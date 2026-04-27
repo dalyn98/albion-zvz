@@ -1,8 +1,12 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
+import { getMarketingPaths } from '@/lib/marketing-paths'
 
 export default async function MarketingFooter() {
-  const t = await getTranslations('publicNav')
+  const [t, paths] = await Promise.all([
+    getTranslations('publicNav'),
+    getMarketingPaths(),
+  ])
   const year = new Date().getFullYear()
 
   return (
@@ -15,22 +19,22 @@ export default async function MarketingFooter() {
         </div>
         <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <li>
-            <Link href="/" className="hover:text-white transition-colors">
+            <Link href={paths.home} className="hover:text-white transition-colors">
               {t('home')}
             </Link>
           </li>
           <li>
-            <Link href="/features" className="hover:text-white transition-colors">
+            <Link href={paths.features} className="hover:text-white transition-colors">
               {t('features')}
             </Link>
           </li>
           <li>
-            <Link href="/pricing" className="hover:text-white transition-colors">
+            <Link href={paths.pricing} className="hover:text-white transition-colors">
               {t('pricing')}
             </Link>
           </li>
           <li>
-            <Link href="/faq" className="hover:text-white transition-colors">
+            <Link href={paths.faq} className="hover:text-white transition-colors">
               {t('faq')}
             </Link>
           </li>

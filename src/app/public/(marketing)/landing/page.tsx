@@ -4,6 +4,7 @@ import Link from 'next/link'
 import MarketingNav from '@/components/MarketingNav'
 import ScreenshotPlaceholder from '@/components/ScreenshotPlaceholder'
 import { MARKETING_SCREENSHOTS } from '@/lib/marketing-screenshots'
+import { getMarketingPaths } from '@/lib/marketing-paths'
 
 // 빌드타임에 layout 의 x-pathname 헤더가 없어 AppGate 가 HTML 에 박혀버리는
 // 함정. dynamic 렌더로 두고 매 요청마다 layout 분기를 정확히 평가시킨다.
@@ -11,10 +12,11 @@ import { MARKETING_SCREENSHOTS } from '@/lib/marketing-screenshots'
 export const dynamic = 'force-dynamic'
 
 export default async function PublicLandingPage() {
-  const [t, tFeat, tMkt] = await Promise.all([
+  const [t, tFeat, tMkt, paths] = await Promise.all([
     getTranslations('publicLanding'),
     getTranslations('publicFeatures'),
     getTranslations('publicMarketing'),
+    getMarketingPaths(),
   ])
   const installHref = '/api/auth/discord/start?returnTo=%2Fonboard'
 
@@ -53,7 +55,7 @@ export default async function PublicLandingPage() {
                 {t('ctaPrimary')}
               </a>
               <Link
-                href="/features"
+                href={paths.features}
                 className="inline-flex items-center justify-center gap-1.5 bg-gray-800/60 hover:bg-gray-800 border border-gray-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
               >
                 {tFeat('pageTitle')}
@@ -112,7 +114,7 @@ export default async function PublicLandingPage() {
             </div>
             <div className="text-center pt-2">
               <Link
-                href="/features"
+                href={paths.features}
                 className="inline-flex items-center gap-1 text-sm text-amber-300 hover:text-amber-200"
               >
                 {tFeat('pageTitle')} <ArrowRight size={14} />
