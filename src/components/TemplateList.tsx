@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { Pencil } from 'lucide-react'
 import DeleteTemplateButton from './DeleteTemplateButton'
+import DuplicateTemplateButton from './DuplicateTemplateButton'
 import SearchBox from './SearchBox'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
 import { formatDate } from '@/lib/format-datetime'
@@ -47,6 +48,7 @@ export default function TemplateList({ templates }: { templates: TemplateSummary
                 <Pencil size={13} />
                 <span className="hidden sm:inline">{t('editAction')}</span>
               </Link>
+              <DuplicateTemplateButton id={tpl.id} />
               <div className="pr-2">
                 <DeleteTemplateButton id={tpl.id} name={tpl.name} />
               </div>

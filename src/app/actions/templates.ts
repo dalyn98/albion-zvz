@@ -309,6 +309,60 @@ export async function updateTemplate(
   }
 }
 
+// 기존 템플릿을 통째로 복제. data 는 그대로 복사하고 이름은 "{원본} {suffix}"
+// 로 시작해 같은 이름이 이미 있으면 "{원본} {suffix} 2", "{원본} {suffix} 3"
+// 식으로 비어 있는 슬롯을 찾아 채운다. UNIQUE 제약은 없지만 사용자가 목록에서
+// 같은 이름을 보지 않게 하는 UX 차원의 충돌 회피다. 80자 한도는 잘라서 강제.
+const DUPLICATE_NAME_MAX_TRIES = 50
+
+export async function duplicateTemplate(
+  id: string,
+): Promise<{ id?: string; error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  const tTpl = await getTranslations('adminTemplates')
+  try {
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+
+    const { data: source, error: fetchErr } = await db
+      .from('event_templates')
+      .select('name, data')
+      .eq('guild_id', guildId)
+      .eq('id', id)
+      .maybeSingle()
+    if (fetchErr) return { error: fetchErr.message }
+    if (!source) return { error: tErr('templateNotFound') }
+
+    const suffix = tTpl('duplicateSuffix')
+    const baseName = `${source.name} ${suffix}`.trim()
+    const truncate = (s: string) => (s.length > 80 ? s.slice(0, 80) : s)
+    let candidate = truncate(baseName)
+    for (let n = 2; n <= DUPLICATE_NAME_MAX_TRIES; n++) {
+      const { count, error: countErr } = await db
+        .from('event_templates')
+        .select('id', { count: 'exact', head: true })
+        .eq('guild_id', guildId)
+        .eq('name', candidate)
+      if (countErr) return { error: countErr.message }
+      if ((count ?? 0) === 0) break
+      candidate = truncate(`${baseName} ${n}`)
+    }
+
+    const { data: inserted, error: insertErr } = await db
+      .from('event_templates')
+      .insert({ guild_id: guildId, name: candidate, data: source.data })
+      .select('id')
+      .single()
+    if (insertErr) return { error: insertErr.message }
+    revalidatePath('/admin/dashboard')
+    return { id: inserted.id as string }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
 export async function deleteTemplate(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
