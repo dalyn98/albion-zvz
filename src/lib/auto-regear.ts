@@ -224,6 +224,33 @@ export async function processAutoRegear(
     }
   }
 
+  // home_guild 미설정이면 battle-tracker cron 이 이 테넌트를 아예 건너뛰므로
+  // last_battle_tracker_sync_at 가 영원히 NULL → 아래 deferral 가드가 모든
+  // 이벤트를 무한 연기한다. self-serve 함정이라 여기서 단락한다.
+  const { data: homeGuildRow } = await db
+    .from('app_settings')
+    .select('value')
+    .eq('guild_id', guildId)
+    .eq('key', 'albion_home_guild_id')
+    .maybeSingle()
+  if (!homeGuildRow?.value) {
+    return {
+      events_considered: 0,
+      events_processed: 0,
+      requests_created: 0,
+      requests_skipped_excluded: 0,
+      requests_skipped_no_slot: 0,
+      requests_skipped_manual_exists: 0,
+      requests_skipped_no_role_cap: 0,
+      events_deferred_sync_lag: 0,
+      events_deferred_battle_tracker_lag: 0,
+      events_skipped_retroactive: 0,
+      events_skipped_no_tracked_battle: 0,
+      errors,
+      duration_ms: Date.now() - startedAt,
+    }
+  }
+
   // auto_regear_delay_minutes(기본 15) = 배틀 시작 후 몇 분 뒤에 자동 리기어가
   // 이벤트를 처리할지. regear_window_minutes(수동 신청 오픈 시각, 기본 60) 와
   // 분리돼 있어 자동이 수동보다 먼저 pending 행을 만들 수 있다.
