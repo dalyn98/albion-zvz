@@ -1710,7 +1710,10 @@
     "metaSubmittedCount": "{count}/{max} 申請済み",
     "btnSubmit": "申請",
     "btnDone": "申請済み",
-    "btnClosed": "クローズ済み"
+    "btnClosed": "クローズ済み",
+    "gearLabel": "装備情報 (任意)",
+    "gearHintCraft": "クラフト支給モードでは部位ごとの装備を入力してください。クラフターが正確に作れます。",
+    "gearHintSilver": "装備情報を入力すると、管理者がビルドを確認して素早く承認できます。"
   },
   "craftQueue": {
     "disabledTitle": "クラフトリギアは無効です",

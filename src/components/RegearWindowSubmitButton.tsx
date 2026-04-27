@@ -15,6 +15,11 @@ import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
 import { useToast } from './ToastProvider'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import RegearBuildSnapshotPicker, {
+  emptyBuildSnapshot,
+  isBuildSnapshotPopulated,
+} from './RegearBuildSnapshotPicker'
+import type { BuildSnapshot } from '@/types'
 
 interface Props {
   window: RegearWindow
@@ -47,18 +52,25 @@ export default function RegearWindowSubmitButton({
   const [error, setError] = useState('')
   const [needsVerification, setNeedsVerification] = useState(false)
   const [pending, startTransition] = useTransition()
+  // role 이 바뀌면 role_name 만 동기화 — 슬롯 입력은 그대로 유지해 멤버가
+  // 역할 잘못 골랐다 다시 바꿔도 입력값을 잃지 않도록.
+  const [buildSnapshot, setBuildSnapshot] = useState<BuildSnapshot>(() =>
+    emptyBuildSnapshot(roleOptions[0]?.roleName ?? null),
+  )
 
   const selectedReward = roleOptions.find((o) => o.roleName === roleName)?.silver ?? 0
   const atLimit = existingActiveCount >= w.maxDeathsPerMember
   const canSubmit = w.isOpen && roleOptions.length > 0 && !atLimit
 
   const reset = () => {
-    setRoleName(roleOptions[0]?.roleName ?? '')
+    const initialRole = roleOptions[0]?.roleName ?? ''
+    setRoleName(initialRole)
     setFile(null)
     setFile2(null)
     setClaimedInput('')
     setError('')
     setNeedsVerification(false)
+    setBuildSnapshot(emptyBuildSnapshot(initialRole || null))
   }
 
   useEffect(() => {
@@ -132,6 +144,9 @@ export default function RegearWindowSubmitButton({
       form.append('claimedSilver', parsed.toString())
       form.append('screenshot', file)
       if (file2) form.append('screenshot2', file2)
+      if (isBuildSnapshotPopulated(buildSnapshot)) {
+        form.append('buildSnapshot', JSON.stringify({ ...buildSnapshot, role_name: roleName }))
+      }
       const r = await requestWindowRegear(form)
       if (r.error) {
         if (r.error.startsWith(REGEAR_VERIFICATION_ERROR_PREFIX)) {
@@ -271,6 +286,20 @@ export default function RegearWindowSubmitButton({
                     />
                   </div>
                   <p className="text-[11px] text-gray-500">{t('pasteHint')}</p>
+
+                  <div className="pt-2 border-t border-gray-800">
+                    <label className="block text-xs text-gray-400 mb-1">
+                      {tWin('gearLabel')}
+                    </label>
+                    <p className="text-[11px] text-gray-500 mb-2">
+                      {craftEnabled ? tWin('gearHintCraft') : tWin('gearHintSilver')}
+                    </p>
+                    <RegearBuildSnapshotPicker
+                      value={buildSnapshot}
+                      onChange={setBuildSnapshot}
+                      disabled={pending}
+                    />
+                  </div>
                 </>
               )}
 

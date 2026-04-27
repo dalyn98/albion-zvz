@@ -1710,7 +1710,10 @@
     "metaSubmittedCount": "{count}/{max} submitted",
     "btnSubmit": "Submit",
     "btnDone": "Done",
-    "btnClosed": "Closed"
+    "btnClosed": "Closed",
+    "gearLabel": "Gear breakdown (optional)",
+    "gearHintCraft": "When craft payouts are on, fill in the per-slot gear so crafters can build the right items.",
+    "gearHintSilver": "Filling gear lets admins verify the build at a glance and approve faster."
   },
   "craftQueue": {
     "disabledTitle": "Craft regear is disabled",

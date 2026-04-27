@@ -9,7 +9,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import { requireAlbionVerified } from '@/lib/albion-identity'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
-import { SLOT_ROLES, type SlotRole } from '@/types'
+import { SLOT_KEYS, SLOT_ROLES, type BuildSnapshot, type SlotRole } from '@/types'
 
 // 이벤트와 무관한 자유 신청 창구 (regear_windows). 관리자가 윈도우를 열고
 // (open) / 닫고 (close), 멤버는 열려 있는 윈도우에 manual flow 로 신청한다.
@@ -21,6 +21,50 @@ const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp'])
 
 const DEFAULT_MAX_DEATHS_PER_WINDOW = 1
+
+// 클라이언트가 보낸 buildSnapshot JSON 을 검증·정규화. 슬롯 키는 SLOT_KEYS 로
+// 한정하고 각 슬롯은 { name, id } 두 필드만 허용. 둘 다 null 이거나 둘 다 string
+// 이어야 한다 — 혼합 입력은 invalidInput. 빈 스냅샷 (모든 슬롯 null) 은 null 반환.
+function parseBuildSnapshotInput(raw: string, roleName: string): BuildSnapshot | 'invalid' | null {
+  if (!raw) return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return 'invalid'
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return 'invalid'
+  const obj = parsed as Record<string, unknown>
+  const next: BuildSnapshot = {
+    role_name: roleName,
+    weapon: { name: null, id: null },
+    head: { name: null, id: null },
+    armor: { name: null, id: null },
+    shoes: { name: null, id: null },
+    offhand: { name: null, id: null },
+    potion: { name: null, id: null },
+    food: { name: null, id: null },
+    cape: { name: null, id: null },
+    mount: { name: null, id: null },
+  }
+  let populated = false
+  for (const slot of SLOT_KEYS) {
+    const slotValue = obj[slot]
+    if (slotValue == null) continue
+    if (typeof slotValue !== 'object' || Array.isArray(slotValue)) return 'invalid'
+    const sv = slotValue as Record<string, unknown>
+    const rawName = sv.name
+    const rawId = sv.id
+    const name = typeof rawName === 'string' && rawName.trim().length > 0 ? rawName.trim() : null
+    const id = typeof rawId === 'string' && rawId.trim().length > 0 ? rawId.trim() : null
+    if ((name && !id) || (!name && id)) return 'invalid'
+    if (name && id) {
+      next[slot] = { name, id }
+      populated = true
+    }
+  }
+  return populated ? next : null
+}
 
 export interface RegearWindow {
   id: string
@@ -256,6 +300,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   const claimedSilverRaw = String(formData.get('claimedSilver') ?? '')
   const file = formData.get('screenshot')
   const file2 = formData.get('screenshot2')
+  const buildSnapshotRaw = String(formData.get('buildSnapshot') ?? '')
   // 청구 방식은 길드 단위 강제. craft_regear_enabled='true' 면 모든 신규 요청이
   // 'crafted', 'false' 면 'silver'. 멤버는 모드를 선택할 수 없다.
   const craftEnabled =
@@ -266,6 +311,8 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   if (!roleName || !(SLOT_ROLES as readonly string[]).includes(roleName)) {
     return { error: tErr('slotRoleMissing') }
   }
+  const parsedBuildSnapshot = parseBuildSnapshotInput(buildSnapshotRaw, roleName)
+  if (parsedBuildSnapshot === 'invalid') return { error: tErr('invalidInput') }
   if (!(file instanceof File) || file.size === 0) return { error: tErr('screenshotMissing') }
   if (file.size > MAX_SCREENSHOT_BYTES) return { error: tErr('screenshotTooLarge') }
   if (!ALLOWED_MIME.has(file.type)) return { error: tErr('screenshotWrongType') }
@@ -366,7 +413,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
       killboard_verified: false,
       killboard_event_id: null,
       admin_notes: null,
-      build_snapshot: null,
+      build_snapshot: parsedBuildSnapshot,
       auto_generated: false,
       fulfillment_mode: fulfillmentMode,
     })

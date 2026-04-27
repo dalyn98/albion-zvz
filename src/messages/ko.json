@@ -1710,7 +1710,10 @@
     "metaSubmittedCount": "{count}/{max}회 신청 완료",
     "btnSubmit": "신청",
     "btnDone": "신청 완료",
-    "btnClosed": "마감됨"
+    "btnClosed": "마감됨",
+    "gearLabel": "장비 정보 (선택)",
+    "gearHintCraft": "제작 지급 모드에서는 부위별 장비를 채워주세요. 제작자가 정확히 만들 수 있어요.",
+    "gearHintSilver": "장비 정보를 채우면 관리자가 빌드를 보고 빠르게 검토할 수 있어요."
   },
   "craftQueue": {
     "disabledTitle": "제작 리기어가 비활성화 상태입니다",
