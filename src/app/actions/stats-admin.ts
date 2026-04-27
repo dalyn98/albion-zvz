@@ -467,6 +467,9 @@ export interface VerificationStats {
   // 온보딩 미완료 + 미인증 멤버 목록 — 관리자가 바로 식별할 수 있게 탑 N.
   pendingMembers: VerificationMember[]
   unverifiedMembers: VerificationMember[]
+  // 인증 완료 멤버 — 관리자가 "다른 캐릭터로 갈아타고 싶다" 같은 케이스에서
+  // 재인증 트리거할 수 있도록 노출. CollapsibleList 가 기본 collapse 처리.
+  verifiedMembers: VerificationMember[]
 }
 
 export async function getAlbionVerificationStats(): Promise<{
@@ -498,6 +501,7 @@ export async function getAlbionVerificationStats(): Promise<{
     let verified = 0
     const pendingMembers: VerificationMember[] = []
     const unverifiedMembers: VerificationMember[] = []
+    const verifiedMembers: VerificationMember[] = []
 
     for (const a of rows) {
       const server = (a.albion_server ?? null) as AlbionServer | null
@@ -521,6 +525,7 @@ export async function getAlbionVerificationStats(): Promise<{
       }
       if (entry.verifiedAt) {
         verified += 1
+        verifiedMembers.push(entry)
       } else {
         unverified += 1
         unverifiedMembers.push(entry)
@@ -530,6 +535,7 @@ export async function getAlbionVerificationStats(): Promise<{
     // 관리자가 상단에서 즉시 식별할 수 있도록 이름순 정렬.
     pendingMembers.sort((a, b) => a.username.localeCompare(b.username))
     unverifiedMembers.sort((a, b) => a.username.localeCompare(b.username))
+    verifiedMembers.sort((a, b) => a.username.localeCompare(b.username))
 
     return {
       stats: {
@@ -540,6 +546,9 @@ export async function getAlbionVerificationStats(): Promise<{
         homeGuildConfigured: home.length > 0,
         pendingMembers: pendingMembers.slice(0, 50),
         unverifiedMembers: unverifiedMembers.slice(0, 50),
+        // 인증 완료 멤버는 길드 규모에 따라 100+ 가능 — 200 cap 으로 페이로드
+        // 보호. CollapsibleList 가 기본 8행으로 접어 노출 부담 줄인다.
+        verifiedMembers: verifiedMembers.slice(0, 200),
       },
     }
   } catch (e) {

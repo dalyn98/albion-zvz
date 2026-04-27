@@ -943,6 +943,8 @@
     "pendingMembersEmpty": "すべての活動メンバーがオンボーディングを完了しています。",
     "unverifiedMembersTitle": "未認証メンバー",
     "unverifiedMembersEmpty": "未認証メンバーはいません。",
+    "verifiedMembersTitle": "認証済みメンバー",
+    "verifiedMembersEmpty": "認証済みメンバーはいません。",
     "verificationGuildMatch": "ギルド一致",
     "verificationGuildMismatch": "他ギルド",
     "verificationManualInput": "手動入力",
@@ -2798,8 +2800,10 @@
   },
   "forceOnboardButton": {
     "tooltip": "このメンバーのアルビオン認証情報を消去し、次回アクセス時にオンボーディングを再表示します",
+    "tooltipVerified": "このメンバーはすでに認証済みです。キャラクター変更など正当な理由がある場合のみリセットしてください。もう一度押すと実行されます",
     "confirm": "もう一度",
     "idle": "再オンボード",
+    "idleVerified": "再認証",
     "successMessage": "{username} さんのオンボーディングをリセットしました"
   },
   "shopBaselineForm": {

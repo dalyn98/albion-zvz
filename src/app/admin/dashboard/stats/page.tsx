@@ -667,6 +667,15 @@ function AlbionVerificationSection({
         mode="unverified"
         tStats={tStats}
       />
+      <VerificationMemberList
+        title={tStats('verifiedMembersTitle')}
+        icon={ShieldCheck}
+        accent="text-emerald-300"
+        emptyLabel={tStats('verifiedMembersEmpty')}
+        members={stats.verifiedMembers}
+        mode="verified"
+        tStats={tStats}
+      />
     </section>
   )
 }
@@ -685,7 +694,7 @@ function VerificationMemberList({
   accent: string
   emptyLabel: string
   members: VerificationMember[]
-  mode: 'pending' | 'unverified'
+  mode: 'pending' | 'unverified' | 'verified'
   tStats: StatsTranslator
 }) {
   return (
@@ -723,7 +732,7 @@ function VerificationMemberList({
                   </span>
                 )}
               </div>
-              {mode === 'unverified' && (
+              {(mode === 'unverified' || mode === 'verified') && (
                 <div className="hidden sm:flex flex-col items-end text-[11px] text-gray-500 min-w-0">
                   <span className="text-gray-300 truncate max-w-[140px]">
                     {m.nickname ?? '—'}
@@ -748,7 +757,11 @@ function VerificationMemberList({
                   </span>
                 </div>
               )}
-              <ForceOnboardButton discordId={m.discordId} username={m.username} />
+              <ForceOnboardButton
+                discordId={m.discordId}
+                username={m.username}
+                isVerified={mode === 'verified'}
+              />
             </li>
           ))}
         </CollapsibleList>

@@ -943,6 +943,8 @@
     "pendingMembersEmpty": "All active members have finished onboarding.",
     "unverifiedMembersTitle": "Unverified members",
     "unverifiedMembersEmpty": "No unverified members.",
+    "verifiedMembersTitle": "Verified members",
+    "verifiedMembersEmpty": "No verified members.",
     "verificationGuildMatch": "Guild match",
     "verificationGuildMismatch": "Other guild",
     "verificationManualInput": "Manual input",
@@ -2798,8 +2800,10 @@
   },
   "forceOnboardButton": {
     "tooltip": "Clears this member's Albion credentials so they're re-prompted for onboarding on their next visit",
+    "tooltipVerified": "This member is already verified. Reset only when there is a legitimate reason (character change, etc.). Click again to confirm.",
     "confirm": "Confirm",
     "idle": "Re-onboard",
+    "idleVerified": "Re-verify",
     "successMessage": "Reset onboarding for {username}"
   },
   "shopBaselineForm": {

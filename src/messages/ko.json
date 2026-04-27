@@ -943,6 +943,8 @@
     "pendingMembersEmpty": "모든 활동 멤버가 온보딩을 마쳤습니다.",
     "unverifiedMembersTitle": "미인증 멤버",
     "unverifiedMembersEmpty": "미인증 멤버가 없습니다.",
+    "verifiedMembersTitle": "인증 완료 멤버",
+    "verifiedMembersEmpty": "인증된 멤버가 없습니다.",
     "verificationGuildMatch": "길드 일치",
     "verificationGuildMismatch": "타 길드",
     "verificationManualInput": "수동입력",
@@ -2798,8 +2800,10 @@
   },
   "forceOnboardButton": {
     "tooltip": "이 멤버의 알비온 인증 정보를 지우고 다음 방문 때 온보딩을 다시 띄웁니다",
+    "tooltipVerified": "이 멤버는 이미 인증 완료 상태입니다. 캐릭터 변경 등 정당한 사유가 있을 때만 초기화하세요. 한 번 더 누르면 실행됩니다",
     "confirm": "한 번 더",
     "idle": "재온보딩",
+    "idleVerified": "재인증",
     "successMessage": "{username} 님의 온보딩을 초기화했습니다"
   },
   "shopBaselineForm": {
