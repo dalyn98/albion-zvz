@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown } from 'lucide-react'
+import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown, AlertTriangle } from 'lucide-react'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
 import TemplatePartyListSidebar from './TemplatePartyListSidebar'
 import type { GearOption, GearSpec, GearSpecs, SlotKey, SlotSpells } from '@/types'
@@ -167,12 +167,17 @@ function partyStatesToTemplateData(parties: PartyState[]): TemplateData {
 
 export default function TemplateEditor({ template }: { template: TemplateRecord }) {
   const t = useTranslations('adminTemplates')
+  const tCommon = useTranslations('common')
   const router = useRouter()
   const [name, setName] = useState(template.name)
   const [parties, setParties] = useState<PartyState[]>(() => templateToPartyStates(template.data))
   const [error, setError] = useState('')
   const [savedAt, setSavedAt] = useState<number | null>(null)
   const [pending, startTransition] = useTransition()
+  // 다른 템플릿이 같은 이름을 점유 중이면 서버가 conflictId/conflictName 을
+  // 돌려준다. 사용자가 confirm 시 overwrite=true 로 재호출 — 충돌 row 를
+  // 삭제한 뒤 현재 row 를 갱신해 같은 이름의 템플릿이 한 개만 남게 한다.
+  const [conflict, setConflict] = useState<{ id: string; name: string } | null>(null)
 
   const updateParty = (partyNumber: number, updater: (prev: PartyState) => PartyState) => {
     setParties((prev) => prev.map((p) => (p.party_number === partyNumber ? updater(p) : p)))
@@ -210,20 +215,28 @@ export default function TemplateEditor({ template }: { template: TemplateRecord 
     })
   }
 
-  const save = () => {
+  const runSave = (overwrite: boolean) => {
     setError('')
     setSavedAt(null)
     startTransition(async () => {
       const data = partyStatesToTemplateData(parties)
-      const result = await updateTemplate(template.id, name, data)
+      const result = await updateTemplate(template.id, name, data, { overwrite })
       if (result.error) {
         setError(result.error)
+        setConflict(null)
         return
       }
+      if (result.conflictId && result.conflictName && !overwrite) {
+        setConflict({ id: result.conflictId, name: result.conflictName })
+        return
+      }
+      setConflict(null)
       setSavedAt(Date.now())
       router.refresh()
     })
   }
+
+  const save = () => runSave(false)
 
   return (
     <div className="flex flex-col lg:flex-row lg:gap-6 space-y-4 lg:space-y-0">
@@ -292,6 +305,46 @@ export default function TemplateEditor({ template }: { template: TemplateRecord 
       <aside className="hidden lg:block w-72 flex-shrink-0">
         <TemplatePartyListSidebar parties={parties} placement="desktop" />
       </aside>
+
+      {conflict && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4"
+          onClick={() => !pending && setConflict(null)}
+        >
+          <div
+            className="bg-gray-900 border border-amber-500/40 rounded-2xl w-full max-w-sm p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={18} className="text-amber-400 mt-0.5 shrink-0" />
+              <div className="space-y-1">
+                <h3 className="font-bold text-white text-base">{t('editorSaveOverwriteTitle')}</h3>
+                <p className="text-gray-300 text-xs leading-relaxed">
+                  {t('editorSaveOverwriteBody', { name: conflict.name })}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => !pending && setConflict(null)}
+                disabled={pending}
+                className="text-gray-400 hover:text-white text-sm px-3 py-2 disabled:opacity-40"
+              >
+                {tCommon('cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => runSave(true)}
+                disabled={pending}
+                className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-4 py-2 rounded-lg text-sm"
+              >
+                {pending ? t('savingDots') : t('editorSaveOverwriteConfirmBtn')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -250,11 +250,16 @@ export async function getTemplate(id: string): Promise<{
   }
 }
 
+// 빌드 템플릿 편집기 저장. 다른 템플릿이 같은 이름을 점유하면 conflictId/
+// conflictName 을 돌려 client 가 confirm 흐름을 띄우게 한다. overwrite=true 로
+// 재호출되면 충돌 row 를 먼저 삭제한 뒤 현재 row 를 갱신해 같은 이름의 템플릿이
+// 한 개만 남게 한다.
 export async function updateTemplate(
   id: string,
   name: string,
   data: TemplateData,
-): Promise<{ error?: string }> {
+  options: { overwrite?: boolean } = {},
+): Promise<{ error?: string; conflictId?: string; conflictName?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
     const trimmed = name.trim()
@@ -266,6 +271,29 @@ export async function updateTemplate(
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
+
+    const { data: conflictRows, error: conflictErr } = await db
+      .from('event_templates')
+      .select('id, name')
+      .eq('guild_id', guildId)
+      .eq('name', trimmed)
+      .neq('id', id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+    if (conflictErr) return { error: conflictErr.message }
+    const conflict = conflictRows?.[0]
+    if (conflict) {
+      if (!options.overwrite) {
+        return { conflictId: conflict.id, conflictName: conflict.name }
+      }
+      const { error: deleteErr } = await db
+        .from('event_templates')
+        .delete()
+        .eq('guild_id', guildId)
+        .eq('id', conflict.id)
+      if (deleteErr) return { error: deleteErr.message }
+    }
+
     const { error } = await db
       .from('event_templates')
       .update({ name: trimmed, data })
