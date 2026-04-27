@@ -25,6 +25,7 @@ import {
   type AodpPriceKey,
 } from '@/lib/shop/aodp'
 import { worstWarningLevel } from '@/lib/regear-estimate'
+import { findTrackedBattleIdsForEvent } from '@/lib/auto-regear-matching'
 import { SLOT_KEYS, type BuildSnapshot, type SlotKey } from '@/types'
 
 // 알비온 killboard equipment 슬롯명 → BuildSnapshot 슬롯 키 매핑.
@@ -87,6 +88,10 @@ export interface AutoRegearResult {
   // 관리자가 retroactive 로 만든 이벤트 (created_at > battle_started_at).
   // 자동 처리 대신 park — admin 이 수동 검토했을 거라고 가정.
   events_skipped_retroactive: number
+  // tenant_battle_records 매칭이 0건인 이벤트 — 8명 갱크 같이 low-engagement
+  // 컷에 걸려 tracked 안 된 전투, battle-tracker cron 이 아직 안 따라잡은 상태,
+  // 또는 비전투 이벤트. mark-processed 하고 자동 청구는 0건.
+  events_skipped_no_tracked_battle: number
   errors: Array<{ event_id: string; step: string; message: string }>
   duration_ms: number
 }
@@ -207,6 +212,7 @@ export async function processAutoRegear(
       requests_skipped_no_role_cap: 0,
       events_deferred_sync_lag: 0,
       events_skipped_retroactive: 0,
+      events_skipped_no_tracked_battle: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
@@ -276,6 +282,7 @@ export async function processAutoRegear(
       requests_skipped_no_role_cap: 0,
       events_deferred_sync_lag: 0,
       events_skipped_retroactive: 0,
+      events_skipped_no_tracked_battle: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
@@ -314,6 +321,7 @@ export async function processAutoRegear(
   let skippedNoRoleCap = 0
   let deferredSyncLag = 0
   let skippedRetroactive = 0
+  let skippedNoTrackedBattle = 0
   let processed = 0
 
   for (const event of eventRows) {
@@ -377,16 +385,38 @@ export async function processAutoRegear(
         continue
       }
 
-      // battle_started_at 부터 현재까지 victim 이벤트를 조회. 배틀이 autoDelay
-      // 를 초과해 이어질 수 있으므로 창 상한을 "지금" 까지 열어둔다 — 재실행
-      // idempotent(RPC 의 killboard_event_id 단위 dedup) 로 중복 생성 방지.
+      // tracked battle 매칭. event 시간창 (battle_started_at ± tolerance) 안에
+      // 들어오는 tenant_battle_records 의 albion_battle_id 집합 → 이걸로 killboard
+      // 필터링. 통계 모듈과 같은 기준 (low-engagement 컷 적용) 이라 일관성 확보.
+      // 매칭 0건이면 솔로 갱크/비전투/8명 갱크 등 — 자동 청구 0건 + 처리 완료 마킹.
+      const trackedBattles = await findTrackedBattleIdsForEvent(
+        db,
+        guildId,
+        event.battle_started_at,
+      )
+      if (trackedBattles.length === 0) {
+        const nowIso = new Date().toISOString()
+        await db
+          .from('events')
+          .update({ auto_regear_processed_at: nowIso })
+          .eq('id', event.id)
+          .eq('guild_id', guildId)
+        skippedNoTrackedBattle += 1
+        processed += 1
+        continue
+      }
+      const trackedBattleIds = trackedBattles.map((b) => b.albionBattleId)
+
+      // 매칭된 albion_battle_id 의 victim 만 조회. 솔로 갱크/딴 전투 사망은
+      // battle_id 가 다르므로 자동 제외. legacy NULL battle_id (마이그 096 이전
+      // sync) 행도 .in('battle_id', ...) 매칭 실패로 자동 제외 — 안전 우선.
       const { data: victims, error: victimsErr } = await db
         .from('killboard_events')
         .select('event_id, discord_id, player_name, occurred_at, equipment')
         .eq('guild_id', guildId)
         .eq('role', 'victim')
         .in('discord_id', Array.from(slotByDiscord.keys()))
-        .gte('occurred_at', event.battle_started_at)
+        .in('battle_id', trackedBattleIds)
       if (victimsErr) throw new Error(`killboard: ${victimsErr.message}`)
       const victimRows = (victims ?? []) as KillboardVictimRow[]
 
@@ -543,6 +573,7 @@ export async function processAutoRegear(
     requests_skipped_no_role_cap: skippedNoRoleCap,
     events_deferred_sync_lag: deferredSyncLag,
     events_skipped_retroactive: skippedRetroactive,
+    events_skipped_no_tracked_battle: skippedNoTrackedBattle,
     errors,
     duration_ms: Date.now() - startedAt,
   }
