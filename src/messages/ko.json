@@ -1721,6 +1721,18 @@
     "gearHintCraft": "제작 지급 모드에서는 부위별 장비를 채워주세요. 제작자가 정확히 만들 수 있어요.",
     "gearHintSilver": "장비 정보를 채우면 관리자가 빌드를 보고 빠르게 검토할 수 있어요."
   },
+  "regearTrackedDeaths": {
+    "sectionTitle": "이벤트 외 트래킹 사망",
+    "sectionHint": "정모(이벤트) 가 만들어지지 않은 트래킹 전투에서 죽었다면 여기서 직접 신청할 수 있어요. 최근 14일 이내 사망만 표시됩니다.",
+    "btnSubmit": "리기어 신청",
+    "modalTitle": "트래킹 전투 사망 신청",
+    "modalContextBattleAt": "전투 시각: {time}",
+    "modalContextOpponent": "상대: {name}",
+    "opponentLabel": "상대",
+    "opponentUnknown": "(상대 정보 없음)",
+    "gearLabel": "사망 시점 장비",
+    "gearHint": "킬보드에 기록된 부위별 장비예요. 변경할 수 없습니다."
+  },
   "craftQueue": {
     "disabledTitle": "제작 리기어가 비활성화 상태입니다",
     "disabledHint": "관리자가 제작 지급을 켜야 이 페이지를 사용할 수 있어요.",
@@ -2473,7 +2485,10 @@
     "craftBoxInvalid": "박스 번호는 1 이상의 정수여야 합니다.",
     "craftBoxOutOfRange": "박스 번호가 설정된 범위를 벗어났습니다.",
     "craftBoxTaken": "이미 사용 중인 박스 번호입니다. 다른 번호를 선택해 주세요.",
-    "craftMaterialCostInvalid": "재료 비용은 0 이상의 정수여야 합니다."
+    "craftMaterialCostInvalid": "재료 비용은 0 이상의 정수여야 합니다.",
+    "trackedDeathNotFound": "해당 사망 기록을 찾을 수 없습니다.",
+    "trackedDeathNotEligible": "이 사망은 트래킹 전투 집계에 포함되지 않거나 14일을 넘겼습니다.",
+    "trackedDeathAlreadyClaimed": "이미 이 사망에 대한 리기어 신청이 있습니다."
   },
   "errors": {
     "title": "문제가 발생했어요",

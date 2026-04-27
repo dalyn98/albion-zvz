@@ -1721,6 +1721,18 @@
     "gearHintCraft": "クラフト支給モードでは部位ごとの装備を入力してください。クラフターが正確に作れます。",
     "gearHintSilver": "装備情報を入力すると、管理者がビルドを確認して素早く承認できます。"
   },
+  "regearTrackedDeaths": {
+    "sectionTitle": "イベント外のトラッキング戦死",
+    "sectionHint": "ギルド集会(イベント)が作られていないトラッキング戦闘で死亡した場合、ここから直接申請できます。直近14日以内の戦死のみ表示されます。",
+    "btnSubmit": "リギア申請",
+    "modalTitle": "トラッキング戦闘 戦死申請",
+    "modalContextBattleAt": "戦闘時刻: {time}",
+    "modalContextOpponent": "相手: {name}",
+    "opponentLabel": "相手",
+    "opponentUnknown": "(相手情報なし)",
+    "gearLabel": "戦死時点の装備",
+    "gearHint": "キルボードに記録された部位別装備です。変更できません。"
+  },
   "craftQueue": {
     "disabledTitle": "クラフトリギアは無効です",
     "disabledHint": "管理者がクラフト支給を有効にすると利用できます。",
@@ -2473,7 +2485,10 @@
     "craftBoxInvalid": "ボックス番号は1以上の整数で入力してください。",
     "craftBoxOutOfRange": "ボックス番号が設定範囲を超えています。",
     "craftBoxTaken": "そのボックス番号は既に使用中です。別の番号を選んでください。",
-    "craftMaterialCostInvalid": "材料費は0以上の整数で入力してください。"
+    "craftMaterialCostInvalid": "材料費は0以上の整数で入力してください。",
+    "trackedDeathNotFound": "該当する戦死記録が見つかりません。",
+    "trackedDeathNotEligible": "この戦死はトラッキング戦闘の集計に含まれていないか、14日を超過しています。",
+    "trackedDeathAlreadyClaimed": "この戦死に対するリギア申請が既に存在します。"
   },
   "errors": {
     "title": "問題が発生しました",

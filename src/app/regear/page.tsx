@@ -14,6 +14,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import RegearRequestButton from '@/components/RegearRequestButton'
 import RegearWindowsSection from '@/components/RegearWindowsSection'
+import AdHocDeathsSection from '@/components/AdHocDeathsSection'
 import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
 import MyRegearList from '@/components/MyRegearList'
 import RegearPageTabs from '@/components/RegearPageTabs'
@@ -86,6 +87,8 @@ export default async function RegearPage() {
       <DismissibleNoticeBanner message={noticeMessage} imageUrl={noticeImageUrl} />
 
       <RegearWindowsSection />
+
+      <AdHocDeathsSection />
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">

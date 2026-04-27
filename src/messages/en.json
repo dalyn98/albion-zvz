@@ -1721,6 +1721,18 @@
     "gearHintCraft": "When craft payouts are on, fill in the per-slot gear so crafters can build the right items.",
     "gearHintSilver": "Filling gear lets admins verify the build at a glance and approve faster."
   },
+  "regearTrackedDeaths": {
+    "sectionTitle": "Tracked deaths outside events",
+    "sectionHint": "If you died in a tracked battle that was never set up as an event, claim regear here. Only deaths from the last 14 days are listed.",
+    "btnSubmit": "Submit regear",
+    "modalTitle": "Tracked battle death claim",
+    "modalContextBattleAt": "Battle time: {time}",
+    "modalContextOpponent": "Opponent: {name}",
+    "opponentLabel": "Opponent",
+    "opponentUnknown": "(opponent unknown)",
+    "gearLabel": "Gear at time of death",
+    "gearHint": "Equipment recorded by the killboard. This cannot be edited."
+  },
   "craftQueue": {
     "disabledTitle": "Craft regear is disabled",
     "disabledHint": "An admin needs to enable craft payouts before you can use this page.",
@@ -2473,7 +2485,10 @@
     "craftBoxInvalid": "Box number must be a positive integer.",
     "craftBoxOutOfRange": "Box number is outside the configured range.",
     "craftBoxTaken": "That box number is already in use. Pick another.",
-    "craftMaterialCostInvalid": "Material cost must be a non-negative integer."
+    "craftMaterialCostInvalid": "Material cost must be a non-negative integer.",
+    "trackedDeathNotFound": "That death record could not be found.",
+    "trackedDeathNotEligible": "This death isn't part of the tracked battle set, or it's older than 14 days.",
+    "trackedDeathAlreadyClaimed": "A regear request already exists for this death."
   },
   "errors": {
     "title": "Something went wrong",
