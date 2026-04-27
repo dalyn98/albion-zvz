@@ -361,7 +361,7 @@ export async function claimCraftQueueItem(
   const guildId = await getSessionGuildId(session)
 
   const isCrafter = await loadIsCrafter(guildId, session.discordId)
-  if (!isCrafter) return { error: tErr('crafterOnly') }
+  if (!isCrafter && !session.isAdmin) return { error: tErr('crafterOnly') }
 
   if (input.compensationMode !== 'volunteer' && input.compensationMode !== 'paid') {
     return { error: tErr('invalidInput') }
@@ -499,7 +499,7 @@ export async function deliverCraftQueueItem(
   const guildId = await getSessionGuildId(session)
 
   const isCrafter = await loadIsCrafter(guildId, session.discordId)
-  if (!isCrafter) return { error: tErr('crafterOnly') }
+  if (!isCrafter && !session.isAdmin) return { error: tErr('crafterOnly') }
 
   if (
     !Number.isInteger(input.boxNumber) ||
@@ -600,7 +600,7 @@ export async function setMyCrafterDefaults(
     return { error: tErr('craftPremiumOutOfRange') }
   }
   const isCrafter = await loadIsCrafter(guildId, session.discordId)
-  if (!isCrafter) return { error: tErr('crafterOnly') }
+  if (!isCrafter && !session.isAdmin) return { error: tErr('crafterOnly') }
 
   const db = getAdminClient()
   const { error } = await db
