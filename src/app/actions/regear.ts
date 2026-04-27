@@ -127,6 +127,14 @@ export async function requestRegear(
   const file = formData.get('screenshot')
   const file2 = formData.get('screenshot2')
   const claimedSilverRaw = String(formData.get('claimedSilver') ?? '')
+  const fulfillmentModeRaw = String(formData.get('fulfillmentMode') ?? 'silver')
+  const fulfillmentMode: 'silver' | 'crafted' =
+    fulfillmentModeRaw === 'crafted' ? 'crafted' : 'silver'
+  if (fulfillmentMode === 'crafted') {
+    const craftEnabled =
+      (await getAppSetting('craft_regear_enabled', 'false', guildId)) === 'true'
+    if (!craftEnabled) return { error: tErr('craftRegearDisabled') }
+  }
   if (!eventId) return { error: tErr('missingEventInfo') }
   if (!(file instanceof File) || file.size === 0) return { error: tErr('screenshotMissing') }
   if (file.size > MAX_SCREENSHOT_BYTES) return { error: tErr('screenshotTooLarge') }
@@ -296,6 +304,7 @@ export async function requestRegear(
       killboard_event_id: kbResult.matchedEventId,
       admin_notes: kbResult.reason, // Shown to admin as the killboard hint.
       build_snapshot: buildSnapshot,
+      fulfillment_mode: fulfillmentMode,
     })
     .select('id')
     .single()

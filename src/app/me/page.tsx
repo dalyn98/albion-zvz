@@ -19,6 +19,7 @@ import BadgeGrid from '@/components/BadgeGrid'
 import RequestExchangeForm from '@/components/RequestExchangeForm'
 import TransferPointsForm from '@/components/TransferPointsForm'
 import DonationRequestButton from '@/components/DonationRequestButton'
+import MyCraftPickupsSection from '@/components/MyCraftPickupsSection'
 
 export const dynamic = 'force-dynamic'
 
@@ -117,6 +118,8 @@ export default async function MePage() {
       </section>
 
       {dashboard && <MyHomeDashboardCard data={dashboard} />}
+
+      <MyCraftPickupsSection />
 
       {dashboard && (
         <BadgeGrid

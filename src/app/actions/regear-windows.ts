@@ -256,6 +256,14 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   const claimedSilverRaw = String(formData.get('claimedSilver') ?? '')
   const file = formData.get('screenshot')
   const file2 = formData.get('screenshot2')
+  const fulfillmentModeRaw = String(formData.get('fulfillmentMode') ?? 'silver')
+  const fulfillmentMode: 'silver' | 'crafted' =
+    fulfillmentModeRaw === 'crafted' ? 'crafted' : 'silver'
+  if (fulfillmentMode === 'crafted') {
+    const craftEnabled =
+      (await getAppSetting('craft_regear_enabled', 'false', guildId)) === 'true'
+    if (!craftEnabled) return { error: tErr('craftRegearDisabled') }
+  }
 
   if (!windowId) return { error: tErr('regearWindowMissing') }
   if (!roleName || !(SLOT_ROLES as readonly string[]).includes(roleName)) {
@@ -363,6 +371,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
       admin_notes: null,
       build_snapshot: null,
       auto_generated: false,
+      fulfillment_mode: fulfillmentMode,
     })
     .select('id')
     .single()

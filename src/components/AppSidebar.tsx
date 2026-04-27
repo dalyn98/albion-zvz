@@ -25,6 +25,7 @@ import {
   Swords,
   Trophy,
   ShieldAlert,
+  Hammer,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -39,11 +40,14 @@ interface NavItem {
   // Hidden from guests — these pages are about regear points and wouldn't
   // do anything useful for a non-member session.
   memberOnly?: boolean
+  // 제작자/관리자 + 길드의 craft_regear_enabled 가 켜진 경우에만 표시.
+  crafterOnly?: boolean
 }
 
 const MEMBER_NAV: NavItem[] = [
   { href: '/', labelKey: 'events', icon: CalendarDays },
   { href: '/regear', labelKey: 'regearRequest', icon: ShieldCheck, memberOnly: true },
+  { href: '/craft/queue', labelKey: 'craftQueue', icon: Hammer, memberOnly: true, crafterOnly: true },
   { href: '/shop', labelKey: 'shop', icon: ShoppingBag },
   { href: '/battles', labelKey: 'battles', icon: Swords },
   { href: '/members', labelKey: 'members', icon: Users },
@@ -59,6 +63,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/dashboard', labelKey: 'eventAdmin', icon: CalendarDays, exact: true },
   { href: '/admin/dashboard/approvals', labelKey: 'approvals', icon: ShieldCheck },
   { href: '/admin/dashboard/shop', labelKey: 'shopAdmin', icon: ShoppingBag },
+  { href: '/admin/dashboard/craft', labelKey: 'craftAdmin', icon: Hammer },
   { href: '/admin/dashboard/stats', labelKey: 'stats', icon: BarChart3 },
   { href: '/admin/dashboard/settings', labelKey: 'settings', icon: Settings },
   { href: '/admin/dashboard/guide', labelKey: 'guide', icon: BookOpen },
@@ -112,6 +117,8 @@ interface AppSidebarProps {
   // 슈퍼어드민 외부 path. 슈퍼어드민 세션이 아니면 null — randomized path 가
   // 일반 클라이언트 HTML 에 노출되지 않도록 AppShell 이 게이팅한다.
   superAdminPath: string | null
+  // craft_regear_enabled = true 이고, 본인이 is_crafter 또는 admin 인 경우에만 true.
+  craftQueueVisible: boolean
 }
 
 export default function AppSidebar({
@@ -120,6 +127,7 @@ export default function AppSidebar({
   brandName,
   isSuperAdmin,
   superAdminPath,
+  craftQueueVisible,
 }: AppSidebarProps) {
   const pathname = usePathname()
   const t = useTranslations('sidebar')
@@ -245,6 +253,7 @@ export default function AppSidebar({
             title={t('memberGroup')}
             items={MEMBER_NAV
               .filter((i) => !i.memberOnly || session?.isMember)
+              .filter((i) => !i.crafterOnly || craftQueueVisible)
               .map((i) => ({ ...i, label: tNav(i.labelKey) }))}
             pathname={pathname || '/'}
             expanded={open}

@@ -49,6 +49,7 @@ export default async function RegearPage() {
     noticeMessage,
     noticeImageUrl,
     tz,
+    craftEnabledRaw,
   ] = await Promise.all([
     listMyRegearEligibleEvents(),
     listMyRegearRequests(),
@@ -60,7 +61,9 @@ export default async function RegearPage() {
     getAppSetting('regear_notice_message', '', guildId),
     getAppSetting('regear_notice_image_url', '', guildId),
     getTenantTimezone(guildId),
+    getAppSetting('craft_regear_enabled', 'false', guildId),
   ])
+  const craftEnabled = craftEnabledRaw === 'true'
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -153,6 +156,7 @@ export default async function RegearPage() {
                       windowMinutes={limits.windowMinutes}
                       payoutRatePercent={payoutRatePercent}
                       battleStartedAt={event.battle_started_at}
+                      craftEnabled={craftEnabled}
                     />
                   </div>
                 </li>

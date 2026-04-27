@@ -21,7 +21,10 @@ interface Props {
   roleOptions: WindowRoleOption[]
   payoutRatePercent: number
   existingActiveCount: number
+  craftEnabled: boolean
 }
+
+type FulfillmentMode = 'silver' | 'crafted'
 
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
 
@@ -30,6 +33,7 @@ export default function RegearWindowSubmitButton({
   roleOptions,
   payoutRatePercent,
   existingActiveCount,
+  craftEnabled,
 }: Props) {
   const router = useRouter()
   const t = useTranslations('regear')
@@ -44,6 +48,7 @@ export default function RegearWindowSubmitButton({
   const [claimedInput, setClaimedInput] = useState('')
   const [error, setError] = useState('')
   const [needsVerification, setNeedsVerification] = useState(false)
+  const [fulfillmentMode, setFulfillmentMode] = useState<FulfillmentMode>('silver')
   const [pending, startTransition] = useTransition()
 
   const selectedReward = roleOptions.find((o) => o.roleName === roleName)?.silver ?? 0
@@ -57,6 +62,7 @@ export default function RegearWindowSubmitButton({
     setClaimedInput('')
     setError('')
     setNeedsVerification(false)
+    setFulfillmentMode('silver')
   }
 
   useEffect(() => {
@@ -130,6 +136,7 @@ export default function RegearWindowSubmitButton({
       form.append('claimedSilver', parsed.toString())
       form.append('screenshot', file)
       if (file2) form.append('screenshot2', file2)
+      form.append('fulfillmentMode', fulfillmentMode)
       const r = await requestWindowRegear(form)
       if (r.error) {
         if (r.error.startsWith(REGEAR_VERIFICATION_ERROR_PREFIX)) {
@@ -194,6 +201,13 @@ export default function RegearWindowSubmitButton({
                 <p className="text-rose-300 text-xs">{t('ceilingNotSet')}</p>
               ) : (
                 <>
+                  {craftEnabled && (
+                    <FulfillmentModeToggle
+                      value={fulfillmentMode}
+                      onChange={setFulfillmentMode}
+                      disabled={pending}
+                    />
+                  )}
                   <div>
                     <label htmlFor="rw-modal-role" className="block text-xs text-gray-400 mb-1">
                       {t('role')}
@@ -316,6 +330,48 @@ interface FileSlotProps {
   placeholder: string
   disabled: boolean
   removeLabel: string
+}
+
+interface FulfillmentModeToggleProps {
+  value: FulfillmentMode
+  onChange: (next: FulfillmentMode) => void
+  disabled: boolean
+}
+
+function FulfillmentModeToggle({ value, onChange, disabled }: FulfillmentModeToggleProps) {
+  const t = useTranslations('regear')
+  const options: { key: FulfillmentMode; label: string; hint: string }[] = [
+    { key: 'silver', label: t('modeSilverLabel'), hint: t('modeSilverHint') },
+    { key: 'crafted', label: t('modeCraftedLabel'), hint: t('modeCraftedHint') },
+  ]
+  return (
+    <div className="bg-gray-800/60 border border-gray-700 rounded-xl p-3 space-y-2">
+      <p className="text-amber-300 text-[11px] font-semibold">{t('modeLabel')}</p>
+      <div className="grid grid-cols-2 gap-2">
+        {options.map((opt) => {
+          const active = value === opt.key
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => onChange(opt.key)}
+              disabled={disabled}
+              className={`text-left rounded-lg border px-3 py-2 transition-colors ${
+                active
+                  ? 'border-amber-400 bg-amber-500/10'
+                  : 'border-gray-700 bg-gray-900 hover:border-gray-500'
+              } disabled:opacity-50`}
+            >
+              <p className={`text-xs font-bold ${active ? 'text-amber-200' : 'text-gray-200'}`}>
+                {opt.label}
+              </p>
+              <p className="text-[10px] text-gray-400 mt-0.5 leading-relaxed">{opt.hint}</p>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 function FileSlot({ file, onChange, placeholder, disabled, removeLabel }: FileSlotProps) {

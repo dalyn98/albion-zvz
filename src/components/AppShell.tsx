@@ -6,6 +6,8 @@ import { displayNameFromSlug } from '@/lib/tenant-slug'
 import { classifyHost } from '@/lib/tenant-resolver'
 import { isSuperAdminSession } from '@/lib/super-admin'
 import { getSuperAdminPath } from '@/lib/super-admin-path'
+import { getAppSetting } from '@/lib/app-settings'
+import { getAdminClient } from '@/lib/supabase-admin'
 import AppSidebar from './AppSidebar'
 
 // 어떤 tenant 에도 매칭되지 않을 때 표시되는 generic 브랜드명. 과거에 'Menhera'
@@ -28,11 +30,16 @@ export default async function AppShell({ children }: { children: React.ReactNode
     if (derived.length > 0) brandName = derived
   }
 
+  let craftQueueVisible = false
   if (session) {
     const guildId = await getSessionGuildId(session)
-    const [badges, tenantCfg] = await Promise.all([
+    const [badges, tenantCfg, craftEnabledRaw, isCrafter] = await Promise.all([
       session.isAdmin ? getAdminBadgeCounts(guildId) : Promise.resolve(null),
       getTenantDiscordConfig(guildId),
+      session.isMember
+        ? getAppSetting('craft_regear_enabled', 'false', guildId)
+        : Promise.resolve('false'),
+      session.isMember ? loadIsCrafter(guildId, session.discordId) : Promise.resolve(false),
     ])
     adminBadges = badges
     // 좌측 상단 표시 이름은 tenant slug 첫 하이픈 앞부분 — onboarding wizard 에서
@@ -42,6 +49,7 @@ export default async function AppShell({ children }: { children: React.ReactNode
       const derived = displayNameFromSlug(tenantCfg.slug)
       if (derived.length > 0) brandName = derived
     }
+    craftQueueVisible = craftEnabledRaw === 'true' && (isCrafter || session.isAdmin)
   }
   const superAdmin = isSuperAdminSession(session)
   // path 는 슈퍼어드민에게만 prop 으로 전달 — 일반 세션 HTML 에는 baked-in 시키지
@@ -55,8 +63,22 @@ export default async function AppShell({ children }: { children: React.ReactNode
         brandName={brandName}
         isSuperAdmin={superAdmin}
         superAdminPath={superAdminPath}
+        craftQueueVisible={craftQueueVisible}
       />
       <div className="flex-1 min-w-0 flex flex-col">{children}</div>
     </div>
   )
+}
+
+// guild_avatars.is_crafter 직접 조회. craft.ts 의 loadIsCrafter 와 동일 — 'use server'
+// 모듈을 client wrapper 인 AppShell 에서 import 하지 않으려 inline 사본을 둔다.
+async function loadIsCrafter(guildId: string, discordId: string): Promise<boolean> {
+  const db = getAdminClient()
+  const { data } = await db
+    .from('guild_avatars')
+    .select('is_crafter')
+    .eq('guild_id', guildId)
+    .eq('discord_id', discordId)
+    .maybeSingle()
+  return (data?.is_crafter as boolean | undefined) === true
 }

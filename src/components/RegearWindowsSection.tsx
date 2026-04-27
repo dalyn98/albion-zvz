@@ -9,6 +9,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import { getAppSetting } from '@/lib/app-settings'
 import { formatDateTime } from '@/lib/format-datetime'
 import RegearWindowSubmitButton from './RegearWindowSubmitButton'
 
@@ -19,13 +20,16 @@ export default async function RegearWindowsSection() {
   if (!session) return null
   const guildId = await getSessionGuildId(session)
 
-  const [{ windows }, { options }, payoutRatePercent, t, tenantTimezone] = await Promise.all([
-    listRegearWindows('open'),
-    listRegearRoleOptions(),
-    getRegearPayoutRatePercent(),
-    getTranslations('regearWindow'),
-    getTenantTimezone(guildId),
-  ])
+  const [{ windows }, { options }, payoutRatePercent, t, tenantTimezone, craftEnabledRaw] =
+    await Promise.all([
+      listRegearWindows('open'),
+      listRegearRoleOptions(),
+      getRegearPayoutRatePercent(),
+      getTranslations('regearWindow'),
+      getTenantTimezone(guildId),
+      getAppSetting('craft_regear_enabled', 'false', guildId),
+    ])
+  const craftEnabled = craftEnabledRaw === 'true'
 
   if (windows.length === 0) return null
 
@@ -90,6 +94,7 @@ export default async function RegearWindowsSection() {
                   roleOptions={options}
                   payoutRatePercent={payoutRatePercent}
                   existingActiveCount={existingActive}
+                  craftEnabled={craftEnabled}
                 />
               </div>
             </li>

@@ -23,7 +23,11 @@ interface Props {
   // their claim.
   payoutRatePercent: number
   battleStartedAt: string | null
+  // 길드의 craft regear 토글이 켜져 있을 때만 모달에 모드 선택 UI 가 노출된다.
+  craftEnabled: boolean
 }
+
+type FulfillmentMode = 'silver' | 'crafted'
 
 interface EntryState {
   id: string
@@ -68,6 +72,7 @@ export default function RegearRequestButton({
   windowMinutes,
   payoutRatePercent,
   battleStartedAt,
+  craftEnabled,
 }: Props) {
   const router = useRouter()
   const t = useTranslations('regear')
@@ -78,6 +83,9 @@ export default function RegearRequestButton({
   const [entries, setEntries] = useState<EntryState[]>([])
   const [entryErrors, setEntryErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
+  // 모드 선택은 모든 사망 entry 에 동일하게 적용된다 — 한 번의 신청에 silver
+  // 와 crafted 가 섞여 있으면 청구자/관리자 모두 혼동된다.
+  const [fulfillmentMode, setFulfillmentMode] = useState<FulfillmentMode>('silver')
   // 알비온 닉네임 인증이 필요해 서버가 차단한 경우 true. UI 는 에러 대신
   // 온보딩 CTA 를 노출한다. 닫기/뒤로 가기/입력 변경 시 초기화.
   const [needsVerification, setNeedsVerification] = useState(false)
@@ -131,6 +139,7 @@ export default function RegearRequestButton({
     setEntryErrors({})
     setError('')
     setNeedsVerification(false)
+    setFulfillmentMode('silver')
   }
 
   const pickDeathCount = (count: number) => {
@@ -272,6 +281,7 @@ export default function RegearRequestButton({
           form.append('screenshot2', entry.file2)
         }
         form.append('claimedSilver', parsedClaim.toString())
+        form.append('fulfillmentMode', fulfillmentMode)
         const r = await requestRegear(form)
         if (r.error && r.error.startsWith(REGEAR_VERIFICATION_ERROR_PREFIX)) {
           // 후속 entry 도 동일 사유로 실패할 것 — 남은 요청은 보내지 않고
@@ -402,6 +412,13 @@ export default function RegearRequestButton({
                       {t('deathCountBack')}
                     </button>
                   </div>
+                  {craftEnabled && (
+                    <FulfillmentModeToggle
+                      value={fulfillmentMode}
+                      onChange={setFulfillmentMode}
+                      disabled={pending}
+                    />
+                  )}
                   <div className="space-y-5">
                     {entries.map((entry, idx) => (
                       <RegearEntryRow
@@ -701,6 +718,48 @@ function ScreenshotSlot({ entryId, slot, label, file, onChange, onHover }: Scree
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+interface FulfillmentModeToggleProps {
+  value: FulfillmentMode
+  onChange: (next: FulfillmentMode) => void
+  disabled: boolean
+}
+
+function FulfillmentModeToggle({ value, onChange, disabled }: FulfillmentModeToggleProps) {
+  const t = useTranslations('regear')
+  const options: { key: FulfillmentMode; label: string; hint: string }[] = [
+    { key: 'silver', label: t('modeSilverLabel'), hint: t('modeSilverHint') },
+    { key: 'crafted', label: t('modeCraftedLabel'), hint: t('modeCraftedHint') },
+  ]
+  return (
+    <div className="bg-gray-800/60 border border-gray-700 rounded-xl p-3 space-y-2">
+      <p className="text-amber-300 text-[11px] font-semibold">{t('modeLabel')}</p>
+      <div className="grid grid-cols-2 gap-2">
+        {options.map((opt) => {
+          const active = value === opt.key
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => onChange(opt.key)}
+              disabled={disabled}
+              className={`text-left rounded-lg border px-3 py-2 transition-colors ${
+                active
+                  ? 'border-amber-400 bg-amber-500/10'
+                  : 'border-gray-700 bg-gray-900 hover:border-gray-500'
+              } disabled:opacity-50`}
+            >
+              <p className={`text-xs font-bold ${active ? 'text-amber-200' : 'text-gray-200'}`}>
+                {opt.label}
+              </p>
+              <p className="text-[10px] text-gray-400 mt-0.5 leading-relaxed">{opt.hint}</p>
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

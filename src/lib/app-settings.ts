@@ -126,6 +126,20 @@ export type AppSettingKey =
   // 정하는 길드 기본값. 개인이 guild_avatars/guests.dm_lead_minutes 로 override
   // 하지 않은 경우 이 값을 사용. 기본 '35' = 기존 하드코딩 동작 유지.
   | 'event_dm_lead_minutes'
+  // Boolean 문자열. 'true' 면 멤버가 리기어 신청 시 'crafted' 모드(아이템 직접
+  // 제작 후 회차 박스로 전달)를 선택할 수 있다. 기본 'false' — 신규 테넌트는
+  // 기존 silver-only 흐름을 유지. 멘헤라 길드 검증 후 전체 활성화 검토.
+  | 'craft_regear_enabled'
+  // 정수 문자열. 길드섬에 비치된 회차 박스 번호 범위 [min..max]. 기본 1..30.
+  // 제작자가 delivered 시점에 직접 박스 번호를 입력하면 이 범위 안에서만 허용.
+  | 'craft_box_range_min'
+  | 'craft_box_range_max'
+  // 정수 문자열 (1..30). 박스에 들어간 아이템이 회수되지 않으면 expired 처리되어
+  // 박스 풀에서 해제될 때까지의 일수. 기본 '7'.
+  | 'craft_box_expiry_days'
+  // 정수 문자열 (0..200). 집중 사용 시 추가로 적용되는 반환율 보너스 % 기본값.
+  // 길드의 마스터리 분포에 따라 35~53 정도. 기본 '35'.
+  | 'craft_focus_bonus_pct'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.
