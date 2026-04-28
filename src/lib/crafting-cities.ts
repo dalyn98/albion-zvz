@@ -230,10 +230,12 @@ const ARMOR_CITY: Record<string, CraftCity> = {
   SHOES_CLOTH: 'bridgewatch',
 }
 
-const ARMOR_RE = /^T\d+_(HEAD|ARMOR|SHOES)_(PLATE|LEATHER|CLOTH)\b/
+// `\b` 는 underscore 가 word char 라 `_PLATE_SET1` 같은 패턴에서 매칭 실패한다
+// (`E` 와 `_` 둘 다 word char → 경계 없음). 끝 또는 `_` 로 명시적 구분.
+const ARMOR_RE = /^T\d+_(HEAD|ARMOR|SHOES)_(PLATE|LEATHER|CLOTH)(?:_|$)/
 const OFF_RE = /^T\d+_OFF_/
-const CAPE_RE = /^T\d+_(CAPE|CAPEITEM)\b/
-const BAG_RE = /^T\d+_BAG\b/
+const CAPE_RE = /^T\d+_(?:CAPE|CAPEITEM)(?:_|$)/
+const BAG_RE = /^T\d+_BAG(?:_|$)/
 
 // 입력: 인챈트(@N) 가 붙은 itemId 도 안전하게 처리.
 // 매핑 안 되는 카테고리(마운트/포션/푸드/툴/T1-2 잡템 등) 은 null 반환 → 배지 미표시.
