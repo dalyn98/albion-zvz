@@ -48,6 +48,7 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
   const [draft, setDraft] = useState<string>('')
   const [pickerName, setPickerName] = useState<string | null>(null)
   const [pickerId, setPickerId] = useState<string | null>(null)
+  const [pickerEnchant, setPickerEnchant] = useState<0 | 1 | 2 | 3 | 4>(0)
   const [slotFilter, setSlotFilter] = useState<GearSlot | 'all'>('all')
   const [, startTransition] = useTransition()
 
@@ -140,14 +141,18 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
       toast.error(t('errPickItemFirst'))
       return
     }
+    // ItemPicker 가 돌려주는 itemId 는 base (티어 포함, 인챈트 미포함). 사용자가 고른 인챈트만 @N 으로 합친다.
+    const base = pickerId.split('@')[0]
+    const finalId = pickerEnchant > 0 ? `${base}@${pickerEnchant}` : base
     startTransition(async () => {
-      const r = await adjustGearAction({ itemId: pickerId, delta: 1 })
+      const r = await adjustGearAction({ itemId: finalId, delta: 1 })
       if (r.error) {
         toast.error(r.error)
         return
       }
       setPickerName(null)
       setPickerId(null)
+      setPickerEnchant(0)
       router.refresh()
     })
   }
@@ -168,9 +173,10 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
         <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide">
           {t('addGearLabel')}
         </p>
-        <div className="grid sm:grid-cols-[1fr_auto] gap-2 items-end">
+        <div className="grid sm:grid-cols-[1fr_auto_auto] gap-2 items-end">
           <ItemPicker
             label={t('addGearPickerLabel')}
+            category="weapon,offhand,head,armor,shoes,cape,bag"
             itemName={pickerName}
             itemId={pickerId}
             onChange={(name, id) => {
@@ -182,6 +188,22 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
               setPickerId(null)
             }}
           />
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">
+              {t('addGearEnchantLabel')}
+            </label>
+            <select
+              value={pickerEnchant}
+              onChange={(e) => setPickerEnchant(Number(e.target.value) as 0 | 1 | 2 | 3 | 4)}
+              className="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg px-3 py-2 focus:border-amber-500 focus:outline-none"
+            >
+              <option value={0}>@0</option>
+              <option value={1}>@1</option>
+              <option value={2}>@2</option>
+              <option value={3}>@3</option>
+              <option value={4}>@4</option>
+            </select>
+          </div>
           <button
             type="button"
             onClick={onAddSelected}

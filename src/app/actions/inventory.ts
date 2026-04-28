@@ -24,12 +24,21 @@ import {
   isInventoryMaterialType,
   isInventoryTier,
   isInventoryEnchantment,
+  categorizeGearItem,
   type InventoryMaterialRow,
   type InventoryGearRow,
   type InventoryMaterialType,
   type InventoryTier,
   type InventoryEnchantment,
 } from '@/lib/inventory'
+
+// 완제품 재고는 진짜 "장비" 만 허용. 재료·아티팩트·토큰·마운트·식량은
+// 별도 체계 (정련 재료 테이블 / 마켓 / 마운트 슬롯) 가 있거나 도메인 밖이라
+// 같은 테이블에 섞이면 카운트가 의미를 잃는다.
+function isGearItemId(itemId: string): boolean {
+  const cat = categorizeGearItem(itemId)
+  return cat.slot !== 'other'
+}
 
 const REVALIDATE_PATH = '/admin/dashboard/inventory'
 
@@ -146,6 +155,9 @@ export async function adjustGearAction(input: {
     if (!input.itemId || input.itemId.trim().length === 0) {
       return { error: tErr('inventoryItemEmpty') }
     }
+    if (!isGearItemId(input.itemId.trim())) {
+      return { error: tErr('inventoryNotGearItem') }
+    }
     if (!Number.isInteger(input.delta) || input.delta === 0) {
       return { error: tErr('inventoryInvalidDelta') }
     }
@@ -171,6 +183,9 @@ export async function setGearAction(input: {
 
     if (!input.itemId || input.itemId.trim().length === 0) {
       return { error: tErr('inventoryItemEmpty') }
+    }
+    if (!isGearItemId(input.itemId.trim())) {
+      return { error: tErr('inventoryNotGearItem') }
     }
     if (!Number.isInteger(input.quantity) || input.quantity < 0) {
       return { error: tErr('inventoryInvalidQuantity') }
