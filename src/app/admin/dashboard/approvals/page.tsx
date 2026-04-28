@@ -7,6 +7,8 @@ import {
   getRegearPayoutRatePercent,
   getRegearAnomalyMap,
 } from '@/app/actions/regear-admin'
+import { checkBuildSnapshotStockBatch } from '@/lib/inventory'
+import type { BuildSnapshot } from '@/types'
 import { listDonationRequests } from '@/app/actions/donation-admin'
 import { listShopOrders } from '@/app/actions/shop-admin'
 import { listEventPayoutRequests } from '@/app/actions/event-payout-admin'
@@ -188,9 +190,16 @@ async function RegearSection({ scope, guildId }: { scope: Scope; guildId: string
     getTranslations('adminRegearReview'),
     getRegearPayoutRatePercent(),
   ])
-  const [avatarMap, anomalies] = await Promise.all([
+  // pending+crafted+build_snapshot 만 재고 체크 대상. 한 번의 묶인 쿼리로 N+1 회피.
+  const stockEntries: Array<{ regearId: string; snapshot: BuildSnapshot }> = requests
+    .filter((r) => r.status === 'pending' && r.fulfillment_mode === 'crafted' && r.build_snapshot)
+    .map((r) => ({ regearId: r.id, snapshot: r.build_snapshot as BuildSnapshot }))
+  const [avatarMap, anomalies, stockChecks] = await Promise.all([
     getAvatarsByDiscordIds(guildId, requests.map((r) => r.discord_id)),
     getRegearAnomalyMap(requests),
+    stockEntries.length > 0
+      ? checkBuildSnapshotStockBatch(guildId, stockEntries)
+      : Promise.resolve({}),
   ])
   const avatars = Object.fromEntries(avatarMap)
 
@@ -218,6 +227,7 @@ async function RegearSection({ scope, guildId }: { scope: Scope; guildId: string
           ratePercent={ratePercent}
           groupByEvent={scope === 'all'}
           anomalies={anomalies}
+          stockChecks={stockChecks}
         />
       )}
     </div>

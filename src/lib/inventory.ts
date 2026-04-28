@@ -307,3 +307,130 @@ export async function applyBuildSnapshotToInventory(
     }
   }
 }
+
+// ────────────────────────────────────────────────────────────
+// Stock availability check (Phase 3)
+// ────────────────────────────────────────────────────────────
+
+export interface StockAvailability {
+  itemId: string
+  required: number
+  available: number
+  sufficient: boolean
+}
+
+export interface StockCheckResult {
+  perItem: StockAvailability[]
+  allSufficient: boolean
+  // 재고 출고 RPC 에 그대로 넘길 인자 — 부족 시에도 채워서 반환 (UI 가 미리보기용으로 쓸 수 있게).
+  itemIdsForRpc: string[]
+}
+
+/**
+ * build_snapshot 의 장비 itemId 들에 대해 길드 재고 충분 여부를 확인.
+ * 동일 itemId 가 여러 슬롯에 (이론상) 등장하면 카운트를 합산해서 비교.
+ */
+export async function checkBuildSnapshotStock(
+  guildId: string,
+  snapshot: BuildSnapshot,
+): Promise<StockCheckResult> {
+  const itemIds = extractGearItemIdsFromBuild(snapshot)
+  // itemId 별 필요 수량 집계 (현재 빌드 스냅샷 구조상 슬롯당 1개씩이라 보통 1)
+  const required = new Map<string, number>()
+  for (const id of itemIds) {
+    required.set(id, (required.get(id) ?? 0) + 1)
+  }
+  const uniqueIds = [...required.keys()]
+  if (uniqueIds.length === 0) {
+    return { perItem: [], allSufficient: false, itemIdsForRpc: [] }
+  }
+
+  const db = getAdminClient()
+  const { data, error } = await db
+    .from('guild_inventory_gear')
+    .select('item_id, quantity')
+    .eq('guild_id', guildId)
+    .in('item_id', uniqueIds)
+  if (error) throw new Error(error.message)
+
+  const stockMap = new Map<string, number>()
+  for (const row of data ?? []) {
+    stockMap.set(row.item_id as string, Number(row.quantity ?? 0))
+  }
+
+  const perItem: StockAvailability[] = uniqueIds.map((itemId) => {
+    const req = required.get(itemId) ?? 0
+    const have = stockMap.get(itemId) ?? 0
+    return { itemId, required: req, available: have, sufficient: have >= req }
+  })
+
+  return {
+    perItem,
+    allSufficient: perItem.every((p) => p.sufficient),
+    itemIdsForRpc: itemIds,
+  }
+}
+
+/**
+ * 여러 build_snapshot 의 재고 가용성을 한 번의 쿼리로 묶어서 확인.
+ * 어드민 리기어 목록 페이지가 N+1 회피용으로 사용. 입력은
+ * (regearId, snapshot) 쌍 — 동일 itemId 가 여러 regear 에 등장해도 길드
+ * 재고 한 번 조회 후 로컬에서 매칭한다.
+ */
+export async function checkBuildSnapshotStockBatch(
+  guildId: string,
+  entries: ReadonlyArray<{ regearId: string; snapshot: BuildSnapshot }>,
+): Promise<Record<string, StockCheckResult>> {
+  if (entries.length === 0) return {}
+
+  // 모든 itemId 수집
+  const allItemIds = new Set<string>()
+  const perRegear = new Map<string, string[]>()
+  for (const { regearId, snapshot } of entries) {
+    const ids = extractGearItemIdsFromBuild(snapshot)
+    perRegear.set(regearId, ids)
+    for (const id of ids) allItemIds.add(id)
+  }
+  if (allItemIds.size === 0) {
+    return Object.fromEntries(
+      entries.map(({ regearId }) => [
+        regearId,
+        { perItem: [], allSufficient: false, itemIdsForRpc: [] } satisfies StockCheckResult,
+      ]),
+    )
+  }
+
+  // 한 번에 조회
+  const db = getAdminClient()
+  const { data, error } = await db
+    .from('guild_inventory_gear')
+    .select('item_id, quantity')
+    .eq('guild_id', guildId)
+    .in('item_id', [...allItemIds])
+  if (error) throw new Error(error.message)
+
+  const stockMap = new Map<string, number>()
+  for (const row of data ?? []) {
+    stockMap.set(row.item_id as string, Number(row.quantity ?? 0))
+  }
+
+  const result: Record<string, StockCheckResult> = {}
+  for (const { regearId } of entries) {
+    const ids = perRegear.get(regearId) ?? []
+    const required = new Map<string, number>()
+    for (const id of ids) {
+      required.set(id, (required.get(id) ?? 0) + 1)
+    }
+    const perItem: StockAvailability[] = [...required.keys()].map((itemId) => {
+      const req = required.get(itemId) ?? 0
+      const have = stockMap.get(itemId) ?? 0
+      return { itemId, required: req, available: have, sufficient: have >= req }
+    })
+    result[regearId] = {
+      perItem,
+      allSufficient: perItem.length > 0 && perItem.every((p) => p.sufficient),
+      itemIdsForRpc: ids,
+    }
+  }
+  return result
+}

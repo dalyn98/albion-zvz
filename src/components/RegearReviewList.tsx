@@ -3,9 +3,10 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Check, X, ShieldCheck, ShieldAlert, ImageIcon, Loader2, ZoomIn, ChevronUp, ChevronRight, Swords, RotateCw, AlertTriangle } from 'lucide-react'
+import { Check, X, ShieldCheck, ShieldAlert, ImageIcon, Loader2, ZoomIn, ChevronUp, ChevronRight, Swords, RotateCw, AlertTriangle, Package } from 'lucide-react'
 import {
   approveRegearRequest,
+  approveRegearFromStock,
   rejectRegearRequest,
   getScreenshotUrl,
   recheckKillboardVerification,
@@ -15,6 +16,7 @@ import {
   ANOMALY_SEVERITY,
   type RegearAnomalyFlag,
 } from '@/lib/regear-anomaly'
+import type { StockCheckResult } from '@/lib/inventory'
 import { formatSilver } from '@/lib/silver'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { calcPayoutSilver } from '@/lib/regear-payout'
@@ -45,6 +47,9 @@ interface RegearReviewListProps {
   groupByEvent?: boolean
   // pending 요청 id → 이상치 플래그들. 관리자가 승인 전에 한 번 더 확인하도록.
   anomalies?: Record<string, RegearAnomalyFlag[]>
+  // pending+crafted 리기어 id → 길드 재고 가용성. 마이그 111 이후 추가.
+  // 키가 없거나 result.itemIdsForRpc 가 비면 "재고로 지급" 버튼은 안 보인다.
+  stockChecks?: Record<string, StockCheckResult>
 }
 
 interface EventGroupRow {
@@ -61,6 +66,7 @@ export default function RegearReviewList({
   ratePercent,
   groupByEvent = false,
   anomalies = {},
+  stockChecks = {},
 }: RegearReviewListProps) {
   const t = useTranslations('adminRegearReview')
   const tCommon = useTranslations('common')
@@ -111,6 +117,7 @@ export default function RegearReviewList({
               ratePercent={ratePercent}
               forceExpanded={searchActive}
               anomalies={anomalies}
+              stockChecks={stockChecks}
             />
           ))}
         </ul>
@@ -123,6 +130,7 @@ export default function RegearReviewList({
               avatar={avatars[r.discord_id] ?? null}
               ratePercent={ratePercent}
               anomalyFlags={anomalies[r.id]}
+              stockCheck={stockChecks[r.id]}
             />
           ))}
         </ul>
@@ -137,9 +145,10 @@ interface EventGroupProps {
   ratePercent: number
   forceExpanded: boolean
   anomalies: Record<string, RegearAnomalyFlag[]>
+  stockChecks: Record<string, StockCheckResult>
 }
 
-function EventGroup({ group, avatars, ratePercent, forceExpanded, anomalies }: EventGroupProps) {
+function EventGroup({ group, avatars, ratePercent, forceExpanded, anomalies, stockChecks }: EventGroupProps) {
   const t = useTranslations('adminRegearReview')
   const [expanded, setExpanded] = useState(false)
   const isOpen = forceExpanded || expanded
@@ -210,6 +219,7 @@ function EventGroup({ group, avatars, ratePercent, forceExpanded, anomalies }: E
               avatar={avatars[r.discord_id] ?? null}
               ratePercent={ratePercent}
               anomalyFlags={anomalies[r.id]}
+              stockCheck={stockChecks[r.id]}
             />
           ))}
         </ul>
@@ -223,11 +233,13 @@ function RegearRow({
   avatar,
   ratePercent,
   anomalyFlags,
+  stockCheck,
 }: {
   request: AdminRegearRequest
   avatar: string | null
   ratePercent: number
   anomalyFlags?: RegearAnomalyFlag[]
+  stockCheck?: StockCheckResult
 }) {
   const router = useRouter()
   const t = useTranslations('adminRegearReview')
@@ -297,6 +309,19 @@ function RegearRow({
     setError('')
     startTransition(async () => {
       const result = await approveRegearRequest(request.id, override)
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      toast.success(tToast('regearApproved'))
+      router.refresh()
+    })
+  }
+
+  const approveFromStock = () => {
+    setError('')
+    startTransition(async () => {
+      const result = await approveRegearFromStock(request.id)
       if (result.error) {
         setError(result.error)
         return
@@ -558,6 +583,18 @@ function RegearRow({
         </button>
       ) : null}
 
+      {request.status === 'pending'
+        && request.fulfillment_mode === 'crafted'
+        && stockCheck
+        && stockCheck.perItem.length > 0 && (
+          <StockSection
+            stockCheck={stockCheck}
+            payoutSilver={pendingPayout}
+            onIssue={approveFromStock}
+            disabled={pending || rejectMode || overrideMode}
+          />
+        )}
+
       <div className="flex items-center gap-2 flex-wrap">
         {request.status === 'pending' && !rejectMode && !overrideMode && (
           <>
@@ -709,6 +746,79 @@ function RegearRow({
         />
       )}
     </li>
+  )
+}
+
+function StockSection({
+  stockCheck,
+  payoutSilver,
+  onIssue,
+  disabled,
+}: {
+  stockCheck: StockCheckResult
+  payoutSilver: number
+  onIssue: () => void
+  disabled: boolean
+}) {
+  const t = useTranslations('adminRegearReview')
+  const allSufficient = stockCheck.allSufficient
+  return (
+    <div
+      className={`rounded-lg border px-3 py-2 space-y-2 ${
+        allSufficient
+          ? 'bg-emerald-500/5 border-emerald-500/30'
+          : 'bg-gray-900/40 border-gray-800'
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 text-xs font-semibold">
+          <Package size={13} className={allSufficient ? 'text-emerald-300' : 'text-gray-400'} />
+          <span className={allSufficient ? 'text-emerald-300' : 'text-gray-300'}>
+            {t('stockSectionLabel')}
+          </span>
+          <span
+            className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${
+              allSufficient
+                ? 'bg-emerald-500/20 text-emerald-300'
+                : 'bg-gray-700 text-gray-300'
+            }`}
+          >
+            {allSufficient ? t('stockSufficient') : t('stockInsufficient')}
+          </span>
+        </div>
+      </div>
+      <ul className="flex flex-wrap gap-1.5">
+        {stockCheck.perItem.map((p) => (
+          <li
+            key={p.itemId}
+            className={`flex items-center gap-1 text-[11px] ${
+              p.sufficient ? 'text-emerald-300/80' : 'text-rose-300'
+            }`}
+            title={t('stockItemRow', { required: p.required, available: p.available })}
+          >
+            <ItemImage itemId={p.itemId} itemName={null} size={28} hoverPreview />
+            <span className="font-mono text-[10px]">
+              {p.available}/{p.required}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          onClick={onIssue}
+          disabled={disabled || !allSufficient}
+          className="flex items-center gap-1 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 disabled:hover:bg-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed border border-emerald-500/40 text-emerald-300 px-3 py-1.5 rounded"
+          title={allSufficient ? t('issueFromStockTitle') : t('issueFromStockDisabledHint')}
+        >
+          <Package size={13} />
+          {t('issueFromStockButton', { amount: formatSilver(payoutSilver) })}
+        </button>
+        {!allSufficient && (
+          <span className="text-[10px] text-gray-500">{t('issueFromStockDisabledHint')}</span>
+        )}
+      </div>
+    </div>
   )
 }
 

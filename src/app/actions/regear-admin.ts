@@ -15,6 +15,7 @@ import {
   computeRegearAnomalies,
   type RegearAnomalyFlag,
 } from '@/lib/regear-anomaly'
+import { checkBuildSnapshotStock } from '@/lib/inventory'
 import type { BuildSnapshot, RegearType } from '@/types'
 
 const DEFAULT_PAYOUT_RATE_PERCENT = 100
@@ -103,6 +104,9 @@ export interface AdminRegearRequest {
     fallback_tier: string | null
     user_edited: boolean
   }>
+  // 어떻게 처리됐는지 — silver(실버 적립) / crafted(크래프트 큐) / stocked(재고 출고).
+  // 'stocked' 는 마이그 111 이후에만 등장. UI 가 "재고로 지급" 버튼을 보일지 결정.
+  fulfillment_mode: 'silver' | 'crafted' | 'stocked'
 }
 
 export interface AdminExchangeRequest {
@@ -137,7 +141,7 @@ export async function listRegearRequests(
     let query = db
       .from('regear_requests')
       .select(
-        'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, auto_generated, price_warning_level, events(title)',
+        'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
       )
       .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
@@ -217,6 +221,10 @@ export async function listRegearRequests(
           (row.price_warning_level as AdminRegearRequest['price_warning_level']) ?? null,
         auto_generated: Boolean(row.auto_generated),
         breakdown_items: breakdownItems,
+        fulfillment_mode:
+          row.fulfillment_mode === 'crafted' || row.fulfillment_mode === 'stocked'
+            ? row.fulfillment_mode
+            : 'silver',
       }
     })
     return { requests }
@@ -305,6 +313,103 @@ export async function approveRegearRequest(
         body: tDm('regearApprovedBody', {
           event: row.event_title_snapshot ?? '',
           silver: formatSilver(row.payout_silver ?? payout),
+        }),
+        url: '/me',
+      })
+    }
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+// 재고 직출고 승인 — crafted 모드 리기어를 craft_task 큐잉 없이 바로 길드
+// 재고에서 출고. RPC 가 모든 itemId 의 재고를 잠그면서 검증 → 부족 시 전체 롤백.
+export async function approveRegearFromStock(
+  id: string,
+  overrideSilver?: number,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  const tDm = await getTranslations('discordDm')
+  try {
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+
+    const { data: pending } = await db
+      .from('regear_requests')
+      .select('claimed_silver, build_snapshot, fulfillment_mode, status')
+      .eq('guild_id', guildId)
+      .eq('id', id)
+      .maybeSingle()
+    if (!pending || pending.status !== 'pending') {
+      return { error: tErr('alreadyHandled') }
+    }
+    if (pending.fulfillment_mode !== 'crafted') {
+      return { error: tErr('regearNotCraftedMode') }
+    }
+    const buildSnapshot = (pending.build_snapshot as BuildSnapshot | null) ?? null
+    if (!buildSnapshot) {
+      return { error: tErr('regearMissingBuildSnapshot') }
+    }
+
+    // 사전 충분 여부 체크 — 어차피 RPC 가 또 한 번 검증하지만 명확한 에러를 내려고.
+    const stockCheck = await checkBuildSnapshotStock(guildId, buildSnapshot)
+    if (!stockCheck.allSufficient) {
+      const missing = stockCheck.perItem.filter((p) => !p.sufficient).map((p) => p.itemId)
+      return { error: tErr('regearInsufficientStock', { items: missing.join(', ') }) }
+    }
+
+    const claimed = pending.claimed_silver ?? 0
+    const ratePercent = await loadPayoutRatePercent(guildId)
+    const defaultPayout = calcPayoutSilver(claimed, ratePercent)
+    let payout = defaultPayout
+    if (typeof overrideSilver === 'number') {
+      if (!Number.isInteger(overrideSilver) || overrideSilver < 0) {
+        return { error: tErr('nonNegativeInteger') }
+      }
+      if (overrideSilver > claimed) {
+        return { error: tErr('payoutExceedsClaim', { claimed: claimed.toLocaleString() }) }
+      }
+      payout = overrideSilver
+    }
+
+    const { error } = await db.rpc('approve_regear_from_stock', {
+      p_id: id,
+      p_admin_id: session.discordId,
+      p_admin_username: session.username,
+      p_guild_id: guildId,
+      p_payout_silver: payout,
+      p_item_ids: stockCheck.itemIdsForRpc,
+    })
+    if (error) {
+      const msg = error.message
+      if (msg.includes('REGEAR_NOT_PENDING')) return { error: tErr('alreadyHandled') }
+      if (msg.includes('REGEAR_NOT_CRAFTED_MODE')) return { error: tErr('regearNotCraftedMode') }
+      if (msg.includes('INSUFFICIENT_STOCK')) {
+        const itemId = msg.split('INSUFFICIENT_STOCK:')[1]?.trim() ?? ''
+        return { error: tErr('regearInsufficientStock', { items: itemId }) }
+      }
+      return { error: msg }
+    }
+
+    revalidatePath('/admin/dashboard/regear')
+    revalidatePath('/admin/dashboard/inventory')
+    revalidatePath('/me')
+
+    // 승인 DM — 재고 출고 사실을 본문에 명시.
+    const { data: row } = await db
+      .from('regear_requests')
+      .select('discord_id, event_title_snapshot')
+      .eq('guild_id', guildId)
+      .eq('id', id)
+      .maybeSingle()
+    if (row?.discord_id) {
+      void sendDiscordDmToUser(row.discord_id, guildId, {
+        title: tDm('regearStockedTitle'),
+        body: tDm('regearStockedBody', {
+          event: row.event_title_snapshot ?? '',
         }),
         url: '/me',
       })
