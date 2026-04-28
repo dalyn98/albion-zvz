@@ -1,8 +1,9 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
-import { Package, MapPin, List } from 'lucide-react'
+import { Package, MapPin, List, ArrowUpRight } from 'lucide-react'
 import {
   applyReturnRate,
   effectiveReturnRate,
@@ -331,19 +332,41 @@ function CityGroupedItems({ groupedByCity, locale }: CityGroupedItemsProps) {
       {sections.map(({ key, label, badgeClass }) => {
         const items = groupedByCity.buckets.get(key) ?? []
         const count = groupedByCity.counts.get(key) ?? 0
+        // unmapped 버킷은 링크 대상이 없음 — 도시 키만 라우트로 연결.
+        const linkable = key !== 'unmapped'
+        const headerInner = (
+          <>
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-bold rounded border ${badgeClass}`}
+            >
+              <MapPin size={11} />
+              {label}
+            </span>
+            <span className="text-[10px] text-gray-500 font-mono">
+              {t('aggregateCityBucketCount', { count })}
+            </span>
+            {linkable && (
+              <span className="text-[10px] text-amber-300 inline-flex items-center gap-0.5 ml-auto">
+                {t('aggregateCityMaterialsLink')}
+                <ArrowUpRight size={11} />
+              </span>
+            )}
+          </>
+        )
         return (
           <div key={key} className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <span
-                className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-bold rounded border ${badgeClass}`}
+            {linkable ? (
+              <Link
+                href={`/craft/cities/${key}`}
+                className="flex items-center gap-2 hover:bg-gray-800/40 rounded px-1 -mx-1 py-0.5 transition-colors"
               >
-                <MapPin size={11} />
-                {label}
-              </span>
-              <span className="text-[10px] text-gray-500 font-mono">
-                {t('aggregateCityBucketCount', { count })}
-              </span>
-            </div>
+                {headerInner}
+              </Link>
+            ) : (
+              <div className="flex items-center gap-2 px-1 -mx-1 py-0.5">
+                {headerInner}
+              </div>
+            )}
             <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {items.map((item) => (
                 <AggregateItemTile key={item.itemId} item={item} locale={locale} />

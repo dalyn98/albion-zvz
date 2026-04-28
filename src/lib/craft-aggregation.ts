@@ -5,6 +5,7 @@
 // only — `applyReturnRate` reduces gross to net once the rate is known.
 
 import { lookupRecipe } from '@/lib/craft-recipes'
+import { getCraftBonusCity, type CraftCity } from '@/lib/crafting-cities'
 import { SLOT_KEYS, type BuildSnapshot, type SlotKey } from '@/types'
 
 export interface CraftItemAggregateRow {
@@ -135,4 +136,29 @@ export function aggregateBuildSnapshots(
 function tierFromMaterialId(id: string): number {
   const m = /^T(\d)/.exec(id)
   return m ? Number(m[1]) : 0
+}
+
+// 도시별 페이지에서 사용. 빌드 스냅샷에서 해당 도시 보너스를 받는 아이템만 골라
+// 재집계. 한 빌드 안에서도 무기는 LH, 신발은 BW 처럼 도시가 흩어지므로 슬롯
+// 단위로 필터링한다.
+export function aggregateBuildSnapshotsForCity(
+  snapshots: readonly (BuildSnapshot | null)[],
+  city: CraftCity,
+  options: AggregateOptions = {},
+): CraftAggregateBreakdown {
+  const filtered: (BuildSnapshot | null)[] = []
+  for (const snap of snapshots) {
+    if (!snap) continue
+    const next: BuildSnapshot = {} as BuildSnapshot
+    let hasAny = false
+    for (const slot of SLOT_KEYS) {
+      const item = snap[slot]
+      if (!item || !item.id) continue
+      if (getCraftBonusCity(item.id) !== city) continue
+      next[slot] = item
+      hasAny = true
+    }
+    if (hasAny) filtered.push(next)
+  }
+  return aggregateBuildSnapshots(filtered, options)
 }

@@ -186,6 +186,46 @@ export async function setInventoryGear(
 }
 
 // ────────────────────────────────────────────────────────────
+// Material id parsing
+// ────────────────────────────────────────────────────────────
+
+// craft-aggregation 이 산출하는 재료 itemId 를 inventory 키 (type, tier, enchant)
+// 로 파싱. T8_PLANKS / T7_METALBAR@2 / T6_LEATHER@1 같은 정련 재료만 매칭.
+// T?_ARTEFACT_* 같은 비정련 재료는 inventory 추적 대상이 아니므로 null.
+const MATERIAL_ID_RE =
+  /^T(\d+)_(METALBAR|PLANKS|LEATHER|CLOTH|STONEBLOCK)(?:@(\d+))?$/
+
+export function parseMaterialId(id: string): MaterialKey | null {
+  const m = MATERIAL_ID_RE.exec(id)
+  if (!m) return null
+  const tier = Number(m[1])
+  const enchantment = m[3] ? Number(m[3]) : 0
+  if (!isInventoryTier(tier)) return null
+  if (!isInventoryEnchantment(enchantment)) return null
+  return {
+    materialType: m[2] as InventoryMaterialType,
+    tier,
+    enchantment,
+  }
+}
+
+// 동일 (type, tier, enchant) 조합을 빠르게 lookup 하기 위한 키 문자열.
+export function materialKeyString(key: MaterialKey): string {
+  return `${key.materialType}_T${key.tier}_E${key.enchantment}`
+}
+
+// inventory 행 리스트 → quantity lookup 맵.
+export function buildMaterialInventoryMap(
+  rows: readonly InventoryMaterialRow[],
+): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const r of rows) {
+    out.set(materialKeyString(r), r.quantity)
+  }
+  return out
+}
+
+// ────────────────────────────────────────────────────────────
 // Gear slot / material categorization
 // ────────────────────────────────────────────────────────────
 
