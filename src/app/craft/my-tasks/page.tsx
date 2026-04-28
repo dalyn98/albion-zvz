@@ -107,8 +107,6 @@ export default async function CraftMyTasksPage() {
 
       <CraftQueueAggregationCard
         breakdown={myAggregateBreakdown}
-        focusBonusPct={config.focusBonusPct}
-        locations={locationPresets}
         variant="mine"
       />
 

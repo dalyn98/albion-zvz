@@ -1,11 +1,9 @@
 // Aggregates active craft tasks into "what equipment does the guild need to
-// produce in total?" + "which raw materials does the crafter have to gather?"
-// answers. The actual return-rate adjustment happens on the client (the
-// crafter toggles location/focus there), so this module returns gross totals
-// only — `applyReturnRate` reduces gross to net once the rate is known.
+// produce in total?" answers. 정련 재료 트래킹이 폐기된 후 (마이그 112), 이
+// 모듈은 itemId 단위 합산만 책임지고, 재료 BoM 은 호출자가 필요할 때만
+// lookupRecipe 로 직접 조회한다.
 
 import { lookupRecipe } from '@/lib/craft-recipes'
-import { getCraftBonusCity, type CraftCity } from '@/lib/crafting-cities'
 import { SLOT_KEYS, type BuildSnapshot, type SlotKey } from '@/types'
 
 export interface CraftItemAggregateRow {
@@ -136,56 +134,4 @@ export function aggregateBuildSnapshots(
 function tierFromMaterialId(id: string): number {
   const m = /^T(\d)/.exec(id)
   return m ? Number(m[1]) : 0
-}
-
-// 도시별 페이지에서 사용. 전체 합산을 한 번에 한 뒤, items 를 도시별로 거르고
-// 재료는 필터된 items 만으로 재계산. 스냅샷 단위 필터링이 아니라 item 단위 필터
-// 라서 byCity 그룹뷰 ({@link getCraftBonusCity} 호출) 와 동일한 분류 결과를 보장.
-export function aggregateBuildSnapshotsForCity(
-  snapshots: readonly (BuildSnapshot | null)[],
-  city: CraftCity,
-  options: AggregateOptions = {},
-): CraftAggregateBreakdown {
-  const full = aggregateBuildSnapshots(snapshots, options)
-  const items = full.items.filter((it) => getCraftBonusCity(it.itemId) === city)
-  if (items.length === 0) {
-    return {
-      taskCount: full.taskCount,
-      items: [],
-      materials: [],
-      unknownItemCount: 0,
-      artifactCount: 0,
-    }
-  }
-
-  const materialMap = new Map<string, number>()
-  let unknownItemCount = 0
-  let artifactCount = 0
-  for (const item of items) {
-    const recipe = lookupRecipe(item.itemId)
-    if (!recipe) {
-      unknownItemCount += item.count
-      continue
-    }
-    if (item.isArtifact) artifactCount += item.count
-    for (const m of recipe.materials) {
-      materialMap.set(m.id, (materialMap.get(m.id) ?? 0) + m.count * item.count)
-    }
-  }
-
-  const materials: CraftMaterialAggregateRow[] = Array.from(materialMap.entries())
-    .map(([uniqueName, count]) => ({
-      uniqueName,
-      count,
-      tier: tierFromMaterialId(uniqueName),
-    }))
-    .sort((a, b) => b.tier - a.tier || a.uniqueName.localeCompare(b.uniqueName))
-
-  return {
-    taskCount: full.taskCount,
-    items,
-    materials,
-    unknownItemCount,
-    artifactCount,
-  }
 }

@@ -2,12 +2,11 @@ import { getTranslations } from 'next-intl/server'
 import { Boxes } from 'lucide-react'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { listInventoryMaterials, listInventoryGear } from '@/lib/inventory'
-import AdminInventoryMaterialsPanel from '@/components/AdminInventoryMaterialsPanel'
+import { listInventoryGear } from '@/lib/inventory'
 import AdminInventoryGearPanel from '@/components/AdminInventoryGearPanel'
 
-// 길드 재고 관리 (Phase 1). 정련 재료 + 완제품 두 섹션. 수동 +/- 와 절대값
-// 설정만 지원. 자동 +/- (제작 납품/리기어 지급 시) 는 P2 로 분리.
+// 길드 장비 재고 관리. 수동 +/- 와 절대값 설정. 자동 -1 (제작 deliver 시) 은
+// craft.ts 의 deliverCraftQueueItem 에서 처리.
 export const dynamic = 'force-dynamic'
 
 export default async function AdminInventoryPage() {
@@ -15,8 +14,7 @@ export default async function AdminInventoryPage() {
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
 
-  const [materials, gear, t] = await Promise.all([
-    listInventoryMaterials(guildId),
+  const [gear, t] = await Promise.all([
     listInventoryGear(guildId),
     getTranslations('adminInventory'),
   ])
@@ -31,7 +29,6 @@ export default async function AdminInventoryPage() {
         <p className="text-gray-400 text-xs sm:text-sm mt-1">{t('pageDescription')}</p>
       </div>
 
-      <AdminInventoryMaterialsPanel initialMaterials={materials} />
       <AdminInventoryGearPanel initialGear={gear} />
     </div>
   )

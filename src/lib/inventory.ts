@@ -1,43 +1,19 @@
-// Guild inventory data layer.
+// Guild equipment inventory data layer.
 //
-// Reads/writes the two inventory tables introduced in migration 110. All
-// functions take an explicit guildId so they're safe to call from any tenant
-// context (cron, server action, etc.).
+// 정련 재료 (materials) 트래킹은 인게임 자동 연동이 없어 ROI 가 마이너스라
+// 폐기됐고 (마이그 112), 이 모듈은 완제품 장비 (guild_inventory_gear / 마이그
+// 110) 만 다룬다. 모든 함수는 guildId 를 명시적으로 받아 cron / 서버 액션
+// 어디서든 호출 가능.
 //
-// Phase 1 surface: list + adjust(+/-) + set(absolute) + categorization.
-// Phase 2 surface: applyBuildSnapshotToInventory — best-effort hook fed from
-// craft delivery (+1) and craft pickup (-1). RPC floor=0, so re-firing a
-// pickup hook on stock=0 is a no-op, not an error.
+// 흐름:
+//   - 수동 +/- 또는 절대값 설정: AdminInventoryGearPanel → adjustGearAction /
+//     setGearAction → adjustInventoryGear / setInventoryGear (RPC).
+//   - 제작 deliver 시 자동 -1: deliverCraftQueueItem →
+//     decrementBuildForDelivery. 재고가 0 인 itemId 가 있으면 inventory_warned
+//     플래그용 정보를 반환하지만 실제 차감은 RPC floor=0 에 맡겨 0 에서 멈춘다.
 
 import type { BuildSnapshot, SlotKey } from '@/types'
 import { getAdminClient } from './supabase-admin'
-
-export const INVENTORY_MATERIAL_TYPES = [
-  'METALBAR',
-  'PLANKS',
-  'LEATHER',
-  'CLOTH',
-  'STONEBLOCK',
-] as const
-
-export type InventoryMaterialType = (typeof INVENTORY_MATERIAL_TYPES)[number]
-
-// ZvZ 범위에서 의미 있는 티어. T1-T3 은 채취 단계라 길드 재고로 잡지 않는다.
-export const INVENTORY_TIERS = [4, 5, 6, 7, 8] as const
-export type InventoryTier = (typeof INVENTORY_TIERS)[number]
-
-// 정련 재료의 인챈트는 0..3 까지가 일반적. 추가 변종이 등장해도 4 까지 허용.
-export const INVENTORY_ENCHANTMENTS = [0, 1, 2, 3, 4] as const
-export type InventoryEnchantment = (typeof INVENTORY_ENCHANTMENTS)[number]
-
-export interface InventoryMaterialRow {
-  materialType: InventoryMaterialType
-  tier: InventoryTier
-  enchantment: InventoryEnchantment
-  quantity: number
-  updatedAt: string
-  updatedByDiscordId: string | null
-}
 
 export interface InventoryGearRow {
   itemId: string
@@ -46,44 +22,9 @@ export interface InventoryGearRow {
   updatedByDiscordId: string | null
 }
 
-export function isInventoryMaterialType(v: unknown): v is InventoryMaterialType {
-  return typeof v === 'string' && (INVENTORY_MATERIAL_TYPES as readonly string[]).includes(v)
-}
-
-export function isInventoryTier(v: unknown): v is InventoryTier {
-  return typeof v === 'number' && (INVENTORY_TIERS as readonly number[]).includes(v)
-}
-
-export function isInventoryEnchantment(v: unknown): v is InventoryEnchantment {
-  return typeof v === 'number' && (INVENTORY_ENCHANTMENTS as readonly number[]).includes(v)
-}
-
 // ────────────────────────────────────────────────────────────
 // Reads
 // ────────────────────────────────────────────────────────────
-
-export async function listInventoryMaterials(
-  guildId: string,
-): Promise<InventoryMaterialRow[]> {
-  const db = getAdminClient()
-  const { data, error } = await db
-    .from('guild_inventory_materials')
-    .select('material_type, tier, enchantment, quantity, updated_at, updated_by_discord_id')
-    .eq('guild_id', guildId)
-  if (error) throw new Error(error.message)
-  return (data ?? [])
-    .filter((r) => isInventoryMaterialType(r.material_type)
-      && isInventoryTier(r.tier)
-      && isInventoryEnchantment(r.enchantment))
-    .map((r) => ({
-      materialType: r.material_type as InventoryMaterialType,
-      tier: r.tier as InventoryTier,
-      enchantment: r.enchantment as InventoryEnchantment,
-      quantity: Number(r.quantity ?? 0),
-      updatedAt: r.updated_at as string,
-      updatedByDiscordId: (r.updated_by_discord_id as string | null) ?? null,
-    }))
-}
 
 export async function listInventoryGear(
   guildId: string,
@@ -106,50 +47,6 @@ export async function listInventoryGear(
 // ────────────────────────────────────────────────────────────
 // Writes (RPC wrappers)
 // ────────────────────────────────────────────────────────────
-
-export interface MaterialKey {
-  materialType: InventoryMaterialType
-  tier: InventoryTier
-  enchantment: InventoryEnchantment
-}
-
-export async function adjustInventoryMaterial(
-  guildId: string,
-  key: MaterialKey,
-  delta: number,
-  actorDiscordId: string,
-): Promise<number> {
-  const db = getAdminClient()
-  const { data, error } = await db.rpc('adjust_inventory_material', {
-    p_guild_id: guildId,
-    p_material_type: key.materialType,
-    p_tier: key.tier,
-    p_enchantment: key.enchantment,
-    p_delta: delta,
-    p_actor_discord_id: actorDiscordId,
-  })
-  if (error) throw new Error(error.message)
-  return Number(data ?? 0)
-}
-
-export async function setInventoryMaterial(
-  guildId: string,
-  key: MaterialKey,
-  quantity: number,
-  actorDiscordId: string,
-): Promise<number> {
-  const db = getAdminClient()
-  const { data, error } = await db.rpc('set_inventory_material', {
-    p_guild_id: guildId,
-    p_material_type: key.materialType,
-    p_tier: key.tier,
-    p_enchantment: key.enchantment,
-    p_quantity: quantity,
-    p_actor_discord_id: actorDiscordId,
-  })
-  if (error) throw new Error(error.message)
-  return Number(data ?? 0)
-}
 
 export async function adjustInventoryGear(
   guildId: string,
@@ -186,47 +83,7 @@ export async function setInventoryGear(
 }
 
 // ────────────────────────────────────────────────────────────
-// Material id parsing
-// ────────────────────────────────────────────────────────────
-
-// craft-aggregation 이 산출하는 재료 itemId 를 inventory 키 (type, tier, enchant)
-// 로 파싱. T8_PLANKS / T7_METALBAR@2 / T6_LEATHER@1 같은 정련 재료만 매칭.
-// T?_ARTEFACT_* 같은 비정련 재료는 inventory 추적 대상이 아니므로 null.
-const MATERIAL_ID_RE =
-  /^T(\d+)_(METALBAR|PLANKS|LEATHER|CLOTH|STONEBLOCK)(?:@(\d+))?$/
-
-export function parseMaterialId(id: string): MaterialKey | null {
-  const m = MATERIAL_ID_RE.exec(id)
-  if (!m) return null
-  const tier = Number(m[1])
-  const enchantment = m[3] ? Number(m[3]) : 0
-  if (!isInventoryTier(tier)) return null
-  if (!isInventoryEnchantment(enchantment)) return null
-  return {
-    materialType: m[2] as InventoryMaterialType,
-    tier,
-    enchantment,
-  }
-}
-
-// 동일 (type, tier, enchant) 조합을 빠르게 lookup 하기 위한 키 문자열.
-export function materialKeyString(key: MaterialKey): string {
-  return `${key.materialType}_T${key.tier}_E${key.enchantment}`
-}
-
-// inventory 행 리스트 → quantity lookup 맵.
-export function buildMaterialInventoryMap(
-  rows: readonly InventoryMaterialRow[],
-): Map<string, number> {
-  const out = new Map<string, number>()
-  for (const r of rows) {
-    out.set(materialKeyString(r), r.quantity)
-  }
-  return out
-}
-
-// ────────────────────────────────────────────────────────────
-// Gear slot / material categorization
+// Gear slot categorization
 // ────────────────────────────────────────────────────────────
 
 export const GEAR_SLOTS = [
@@ -301,7 +158,8 @@ export function categorizeGearItem(itemId: string): GearCategorization {
 // Build-snapshot → gear inventory hook
 // ────────────────────────────────────────────────────────────
 
-// 크래프트 납품/픽업 자동 훅이 추적할 슬롯. potion/food/mount 는 장비 재고가 아니다.
+// 크래프트 deliver 자동 훅이 추적할 슬롯. potion/food/mount/bag 은 장비 재고가
+// 아니다 (소모품 / 마운트 / 가방). 무기·머리·갑옷·신발·보조·망토 6개만 추적.
 const INVENTORY_TRACKED_BUILD_SLOTS: readonly SlotKey[] = [
   'weapon', 'head', 'armor', 'shoes', 'offhand', 'cape',
 ] as const
@@ -321,35 +179,88 @@ export function extractGearItemIdsFromBuild(snapshot: BuildSnapshot): string[] {
   return out
 }
 
+export interface DeliveryDecrementResult {
+  // 추적 대상 itemId 가 build_snapshot 에 하나도 없을 때 true. 호출자가
+  // "이 deliver 는 재고에 영향을 주지 않는다" 를 빠르게 판별할 수 있게.
+  empty: boolean
+  // build_snapshot 의 itemId 중 사전 재고가 부족했던 (deliver 시 0 에서
+  // 멈춘) 항목들. 비어 있지 않으면 craft_tasks.inventory_warned = true.
+  warnedItemIds: string[]
+}
+
 /**
- * 베스트 에포트 훅. 스냅샷 안의 장비 itemId 들에 대해 +1 또는 -1 을 적용.
- * 한 슬롯 갱신이 실패해도 다음 슬롯은 계속 시도하고, 호출자에게 throw 하지 않는다.
- * (이미 craft 트랜지션은 성공한 상태라 재고 측 실패가 도메인 상태를 깰 수 없도록.)
+ * 제작 deliver 시 자동 재고 차감 + 경고 납품 감지.
+ *
+ * 1) build_snapshot 의 추적 슬롯 itemId 들을 모은다 (개수 = 1 슬롯당 1개).
+ * 2) 한 번의 select 로 모든 itemId 의 현재 재고를 읽어 부족분을 식별.
+ * 3) 부족 여부와 무관하게 모든 itemId 에 -1 RPC 호출. floor=0 RPC 라 0 에서
+ *    멈추므로 음수가 되지 않는다.
+ *
+ * 베스트 에포트 — RPC 한 줄이 실패해도 다음 itemId 는 계속 시도하고, 호출자
+ * 에게 throw 하지 않는다 (이미 deliver 트랜지션은 성공한 상태이므로 재고
+ * 측 일시 실패가 도메인 상태를 깨선 안 됨).
  */
-export async function applyBuildSnapshotToInventory(
+export async function decrementBuildForDelivery(
   guildId: string,
   snapshot: BuildSnapshot,
-  deltaSign: 1 | -1,
   actorDiscordId: string,
-): Promise<void> {
+): Promise<DeliveryDecrementResult> {
   const itemIds = extractGearItemIdsFromBuild(snapshot)
+  if (itemIds.length === 0) {
+    return { empty: true, warnedItemIds: [] }
+  }
+
+  // 슬롯별로 1 개씩이라 보통 unique 지만, 만약 중복되면 합산 필요분으로 비교.
+  const required = new Map<string, number>()
+  for (const id of itemIds) {
+    required.set(id, (required.get(id) ?? 0) + 1)
+  }
+  const uniqueIds = [...required.keys()]
+
+  const db = getAdminClient()
+  const { data, error } = await db
+    .from('guild_inventory_gear')
+    .select('item_id, quantity')
+    .eq('guild_id', guildId)
+    .in('item_id', uniqueIds)
+  if (error) {
+    // 사전 재고 조회 실패 → 경고 판정 불가. deliver 자체는 이미 성공한 상태
+    // 이고 floor=0 RPC 에 맡겨도 0 에서 멈추므로 단순히 차감만 시도한다.
+    console.error('[inventory hook] pre-check failed', {
+      guildId,
+      error: error.message,
+    })
+  }
+  const stockMap = new Map<string, number>()
+  for (const row of data ?? []) {
+    stockMap.set(row.item_id as string, Number(row.quantity ?? 0))
+  }
+
+  const warnedItemIds: string[] = []
+  for (const itemId of uniqueIds) {
+    const req = required.get(itemId) ?? 0
+    const have = stockMap.get(itemId) ?? 0
+    if (have < req) warnedItemIds.push(itemId)
+  }
+
   for (const itemId of itemIds) {
     try {
-      await adjustInventoryGear(guildId, itemId, deltaSign, actorDiscordId)
+      await adjustInventoryGear(guildId, itemId, -1, actorDiscordId)
     } catch (e) {
-      // 베스트 에포트: 한 줄 로그만 남기고 다음으로. 실패가 craft 흐름을 막지 않는다.
       console.error('[inventory hook] adjustInventoryGear failed', {
         guildId,
         itemId,
-        delta: deltaSign,
+        delta: -1,
         error: e instanceof Error ? e.message : String(e),
       })
     }
   }
+
+  return { empty: false, warnedItemIds }
 }
 
 // ────────────────────────────────────────────────────────────
-// Stock availability check (Phase 3)
+// Stock availability check
 // ────────────────────────────────────────────────────────────
 
 export interface StockAvailability {

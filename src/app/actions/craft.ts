@@ -41,7 +41,7 @@ import {
   type CraftLocationPreset,
 } from '@/lib/albion-return-rates'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
-import { applyBuildSnapshotToInventory } from '@/lib/inventory'
+import { decrementBuildForDelivery } from '@/lib/inventory'
 import { formatSilver } from '@/lib/silver'
 import type { BuildSnapshot } from '@/types'
 
@@ -303,21 +303,6 @@ export async function markCraftPickupCollected(taskId: string): Promise<{ error?
   if (!session) return { error: tErr('loginRequired') }
   const guildId = await getSessionGuildId(session)
 
-  // 픽업 RPC 가 status 를 collected 로 바꾸기 전에 build_snapshot 을 미리 가져와
-  // 둔다. 트랜지션 후에도 같은 쿼리는 가능하지만, 미리 잡아두면 RPC 가 status 를
-  // 어떻게 바꾸든 후속 훅이 동일하게 동작.
-  const db = getAdminClient()
-  const { data: snapRow } = await db
-    .from('craft_tasks')
-    .select('regear_requests!inner(build_snapshot)')
-    .eq('guild_id', guildId)
-    .eq('id', taskId)
-    .maybeSingle()
-  const snapJoin = Array.isArray(snapRow?.regear_requests)
-    ? snapRow?.regear_requests[0]
-    : snapRow?.regear_requests
-  const buildSnapshot = (snapJoin?.build_snapshot as BuildSnapshot | null) ?? null
-
   try {
     await collectCraftTask(taskId, guildId, session.discordId)
   } catch (e) {
@@ -331,15 +316,11 @@ export async function markCraftPickupCollected(taskId: string): Promise<{ error?
     return { error: msg }
   }
 
-  // 자동 재고 -1: 길드 소유 → 멤버 손으로 이동. RPC 가 floor=0 이라 재고가
-  // 동기화 어긋나 음수로 가더라도 0 에서 멈춘다.
-  if (buildSnapshot) {
-    void applyBuildSnapshotToInventory(guildId, buildSnapshot, -1, session.discordId)
-  }
+  // collect 단계는 재고 변동 없음. 재고 차감은 deliver 시점에 이미 끝남.
+  // (이전 모델: deliver 시 +1, collect 시 -1 → 새 모델: deliver 시 -1, collect 무변동.)
 
   revalidatePath('/me')
   revalidatePath('/craft/queue')
-  revalidatePath('/admin/dashboard/inventory')
   return {}
 }
 
@@ -817,16 +798,38 @@ export async function deliverCraftQueueItem(
     })
   }
 
-  // 자동 재고 +1: 크래프터가 박스에 넣어둔 장비는 길드 소유 상태.
-  // 베스트 에포트 — 실패해도 납품 트랜지션은 이미 성공이라 throw 하지 않는다.
+  // 자동 재고 -1: 박스에 들어가는 장비는 길드 재고에서 빠져나간 상태로 본다.
+  // 베스트 에포트 — RPC floor=0 라 음수가 되지 않고, 사전 재고가 부족했던
+  // itemId 가 한 개라도 있으면 craft_tasks.inventory_warned=true 로 마킹해
+  // "경고 납품" (시장 구매로 즉시 리기어) 으로 통계에서 분리한다.
   const buildSnapshot = (r?.build_snapshot as BuildSnapshot | null) ?? null
   if (buildSnapshot) {
-    void applyBuildSnapshotToInventory(guildId, buildSnapshot, 1, session.discordId)
+    try {
+      const result = await decrementBuildForDelivery(
+        guildId,
+        buildSnapshot,
+        session.discordId,
+      )
+      if (!result.empty && result.warnedItemIds.length > 0) {
+        await db
+          .from('craft_tasks')
+          .update({ inventory_warned: true })
+          .eq('guild_id', guildId)
+          .eq('id', input.taskId)
+      }
+    } catch (e) {
+      console.error('[craft.deliver] inventory hook failed', {
+        guildId,
+        taskId: input.taskId,
+        error: e instanceof Error ? e.message : String(e),
+      })
+    }
   }
 
   revalidatePath('/craft/queue')
   revalidatePath('/me')
   revalidatePath('/admin/dashboard/inventory')
+  revalidatePath('/craft/inventory')
   return {}
 }
 

@@ -193,8 +193,6 @@ export default async function EditEventPage({
           {craftConfig.enabled && craftAggregate && (
             <EventCraftAggregateCard
               breakdown={craftAggregate.breakdown}
-              focusBonusPct={craftConfig.focusBonusPct}
-              locations={craftLocationPresets}
               queuedCount={craftAggregate.queuedCount}
               claimedCount={craftAggregate.claimedCount}
               deliveredCount={craftAggregate.deliveredCount}

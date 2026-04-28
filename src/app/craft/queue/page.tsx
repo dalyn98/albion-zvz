@@ -105,11 +105,7 @@ export default async function CraftQueuePage() {
         <span className="text-xs text-amber-300 flex-shrink-0">{t('myTasksLinkAction')}</span>
       </Link>
 
-      <CraftQueueAggregationCard
-        breakdown={aggregateBreakdown}
-        focusBonusPct={config.focusBonusPct}
-        locations={locationPresets}
-      />
+      <CraftQueueAggregationCard breakdown={aggregateBreakdown} />
 
       <CraftQueueClient
         queued={queued}
