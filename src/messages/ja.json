@@ -272,8 +272,8 @@
     "reject": "却下",
     "rejectPlaceholder": "却下理由 (任意)",
     "rejectConfirm": "却下確定",
-    "resolvedAt": "{status} 処理: {datetime}",
-    "handledBy": "{status} 処理者: {handler}",
+    "resolvedAt": "{status} 日時: {datetime}",
+    "handledBy": "{status} 担当: {handler}",
     "appliedBuild": "申請ビルド",
     "groupLatest": "最新 {datetime}",
     "groupPending": "待機 {n}",
@@ -305,8 +305,8 @@
     "reject": "却下",
     "rejectPlaceholder": "却下理由 (任意)",
     "rejectConfirm": "却下確定",
-    "resolvedAt": "{status} 処理: {datetime}",
-    "handledBy": "{status} 処理者: {handler}"
+    "resolvedAt": "{status} 日時: {datetime}",
+    "handledBy": "{status} 担当: {handler}"
   },
   "adminDonationReview": {
     "pageTitle": "寄付審査",
@@ -329,8 +329,8 @@
     "reject": "却下",
     "rejectPlaceholder": "却下理由 (任意)",
     "rejectConfirm": "却下確定",
-    "resolvedAt": "{status} 処理: {datetime}",
-    "handledBy": "{status} 処理者: {handler}"
+    "resolvedAt": "{status} 日時: {datetime}",
+    "handledBy": "{status} 担当: {handler}"
   },
   "adminEventPayoutCreate": {
     "openButton": "イベント報酬を支給",
@@ -367,8 +367,8 @@
     "reject": "却下",
     "rejectPlaceholder": "却下理由 (任意)",
     "rejectConfirm": "却下を確定",
-    "resolvedAt": "{status} 処理: {datetime}",
-    "handledBy": "{status} 処理者: {handler}"
+    "resolvedAt": "{status} 日時: {datetime}",
+    "handledBy": "{status} 担当: {handler}"
   },
   "adminPointAdjust": {
     "openButton": "ポイント手動調整",
@@ -1934,8 +1934,8 @@
     "taskMaterial": "材料費 {silver}",
     "status_queued": "未割当",
     "status_claimed": "対応中",
-    "status_delivered": "納品済",
-    "status_collected": "完了",
+    "status_delivered": "受取待ち",
+    "status_collected": "受取済",
     "status_cancelled": "キャンセル",
     "status_expired": "失効",
     "convertToSilver": "シルバーに変換",
