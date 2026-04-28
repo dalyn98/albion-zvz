@@ -1,12 +1,15 @@
-// Guild inventory data layer (Phase 1).
+// Guild inventory data layer.
 //
 // Reads/writes the two inventory tables introduced in migration 110. All
 // functions take an explicit guildId so they're safe to call from any tenant
 // context (cron, server action, etc.).
 //
-// Phase 1 surface: list + adjust(+/-) + set(absolute). Phase 2 will add
-// auto-update hooks driven by craft delivery / regear collection.
+// Phase 1 surface: list + adjust(+/-) + set(absolute) + categorization.
+// Phase 2 surface: applyBuildSnapshotToInventory — best-effort hook fed from
+// craft delivery (+1) and craft pickup (-1). RPC floor=0, so re-firing a
+// pickup hook on stock=0 is a no-op, not an error.
 
+import type { BuildSnapshot, SlotKey } from '@/types'
 import { getAdminClient } from './supabase-admin'
 
 export const INVENTORY_MATERIAL_TYPES = [
@@ -251,5 +254,56 @@ export function categorizeGearItem(itemId: string): GearCategorization {
     slot: 'other',
     armorMaterial: null,
     tier: tierMatch ? Number(tierMatch[1]) : null,
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// Build-snapshot → gear inventory hook
+// ────────────────────────────────────────────────────────────
+
+// 크래프트 납품/픽업 자동 훅이 추적할 슬롯. potion/food/mount 는 장비 재고가 아니다.
+const INVENTORY_TRACKED_BUILD_SLOTS: readonly SlotKey[] = [
+  'weapon', 'head', 'armor', 'shoes', 'offhand', 'cape',
+] as const
+
+/**
+ * 빌드 스냅샷에서 장비로 인정되는 itemId 만 골라낸다. id 가 없거나(자유 슬롯)
+ * 정련 재료/마운트 등 장비 패턴이 아닌 itemId 는 제외.
+ */
+export function extractGearItemIdsFromBuild(snapshot: BuildSnapshot): string[] {
+  const out: string[] = []
+  for (const slot of INVENTORY_TRACKED_BUILD_SLOTS) {
+    const id = snapshot[slot]?.id?.trim()
+    if (!id) continue
+    if (categorizeGearItem(id).slot === 'other') continue
+    out.push(id)
+  }
+  return out
+}
+
+/**
+ * 베스트 에포트 훅. 스냅샷 안의 장비 itemId 들에 대해 +1 또는 -1 을 적용.
+ * 한 슬롯 갱신이 실패해도 다음 슬롯은 계속 시도하고, 호출자에게 throw 하지 않는다.
+ * (이미 craft 트랜지션은 성공한 상태라 재고 측 실패가 도메인 상태를 깰 수 없도록.)
+ */
+export async function applyBuildSnapshotToInventory(
+  guildId: string,
+  snapshot: BuildSnapshot,
+  deltaSign: 1 | -1,
+  actorDiscordId: string,
+): Promise<void> {
+  const itemIds = extractGearItemIdsFromBuild(snapshot)
+  for (const itemId of itemIds) {
+    try {
+      await adjustInventoryGear(guildId, itemId, deltaSign, actorDiscordId)
+    } catch (e) {
+      // 베스트 에포트: 한 줄 로그만 남기고 다음으로. 실패가 craft 흐름을 막지 않는다.
+      console.error('[inventory hook] adjustInventoryGear failed', {
+        guildId,
+        itemId,
+        delta: deltaSign,
+        error: e instanceof Error ? e.message : String(e),
+      })
+    }
   }
 }
