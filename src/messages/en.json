@@ -3030,7 +3030,8 @@
     "fieldGatherAt": "Gather time",
     "fieldGatherLocation": "Gather location",
     "publishing": "Publishing…",
-    "publishButton": "Publish"
+    "publishButton": "Publish",
+    "publishedNotifyFailed": "The event was published, but the auto Discord notification failed: {error}\nYou can retry from the bell icon on the dashboard."
   },
   "forceOnboardButton": {
     "tooltip": "Clears this member's Albion credentials so they're re-prompted for onboarding on their next visit",

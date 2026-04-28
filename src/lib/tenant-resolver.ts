@@ -66,6 +66,39 @@ export function getCanonicalRootDomain(): string {
   return 'albion-guildmanager.com'
 }
 
+// 테넌트 서브도메인이 적용된 절대 URL 을 만든다. Discord 알림/임베드처럼
+// 길드 컨텍스트가 필요한 외부 링크에서 사용. APP_URL 의 hostname 앞에 slug 을
+// prepend 한다 ("albion-guildmanager.com" → "menhera.albion-guildmanager.com").
+//
+// 폴백 규칙:
+//   - slug 이 비어 있으면 APP_URL + path 그대로 (root 도메인)
+//   - APP_URL 이 비었거나 파싱 실패 → path 만 (절대 URL 보장 X 지만 로그용은 OK)
+//   - host 가 *.vercel.app / localhost → 와일드카드 서브도메인이 없으니 bare URL
+//
+// path 는 '/events/<id>' 처럼 leading slash 를 포함해 넘기는 걸 권장하지만
+// 누락돼도 자동 보정한다.
+export function tenantUrl(slug: string | null | undefined, path: string): string {
+  const appUrl = process.env.APP_URL ?? ''
+  const trimmedPath = path.startsWith('/') ? path : `/${path}`
+  const bare = `${appUrl.replace(/\/$/, '')}${trimmedPath}`
+  if (!slug) return bare
+  if (!appUrl) return trimmedPath
+  try {
+    const u = new URL(appUrl)
+    const host = u.hostname.toLowerCase()
+    if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.vercel.app')) {
+      return bare
+    }
+    u.hostname = `${slug}.${host}`
+    u.pathname = trimmedPath
+    u.search = ''
+    u.hash = ''
+    return u.toString().replace(/\/$/, '')
+  } catch {
+    return bare
+  }
+}
+
 export function classifyHost(hostHeader: string | null | undefined): HostClassification {
   if (!hostHeader) return { kind: 'root' }
   const host = hostHeader.toLowerCase().split(':')[0]

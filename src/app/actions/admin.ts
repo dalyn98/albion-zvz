@@ -224,9 +224,11 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
 // 통해 모든 폼 섹션을 DB 에 commit 한 뒤 호출하므로, 여기서는 DB 의 현재 값을
 // 읽어 필수 필드(title / gather_at / gather_location)를 검증하고 status 만 전이.
 // 이렇게 두면 stale form payload 가 저장된 값을 덮어쓰는 race 를 원천 차단.
-// Discord notify 는 자동 발송하지 않는다 — 기존 notifyEvent 처럼 명시적 호출
-// 이 필요. 이렇게 두는 건 발행과 채널 공지를 분리해 실수로 알림 폭탄을 막기 위함.
-export async function publishEvent(id: string): Promise<{ error?: string }> {
+// 발행 직후에는 길드의 Discord 알림 채널이 설정되어 있으면 자동으로 알림을
+// 발송한다 — 마케팅 카피와 사용자 멘탈 모델("발행=공지") 에 맞추기 위함. 알림이
+// 실패해도 발행 자체는 성공시키고, 실패 사유는 warning 으로 회신해 UI 에서
+// 표시할 수 있게 한다.
+export async function publishEvent(id: string): Promise<{ error?: string; warning?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
@@ -252,6 +254,16 @@ export async function publishEvent(id: string): Promise<{ error?: string }> {
     revalidatePath('/admin/dashboard')
     revalidatePath('/')
     revalidatePath(`/events/${id}`)
+
+    // 자동 알림 — 채널이 해석되지 않으면 조용히 skip (Discord 미연동 길드는
+    // 발행만 정상 동작). 실패는 warning 으로 surface 해서 관리자가 종 버튼으로
+    // 수동 재시도 할 수 있게 한다.
+    const tenantConfig = await getTenantDiscordConfig(guildId)
+    const channelId = current.notify_channel_id ?? tenantConfig?.eventChannelId ?? null
+    if (channelId) {
+      const dispatch = await dispatchEventNotification(db, guildId, id, tenantConfig)
+      if (dispatch.error) return { warning: dispatch.error }
+    }
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -265,11 +277,33 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
     const guildId = await getSessionGuildId(session)
+    return await dispatchEventNotification(db, guildId, id)
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+// 이벤트 알림을 빌드해서 Discord 로 발송한다. publishEvent (자동) /
+// notifyEvent (수동) 가 공통으로 사용. 채널 ID 가 null 이면 sendEventNotification
+// 이 throw 하므로, 자동 발송 경로는 호출 전에 channelId 를 직접 확인하고 skip
+// 할 책임이 있다. 수동 발송은 throw 를 그대로 사용자에게 보여줘 채널 설정
+// 누락을 인지하게 한다.
+type EventCreatorDb = Awaited<ReturnType<typeof requireEventCreatorForEvent>>
+type CachedTenantConfig = Awaited<ReturnType<typeof getTenantDiscordConfig>>
+
+async function dispatchEventNotification(
+  db: EventCreatorDb,
+  guildId: string,
+  eventId: string,
+  cachedTenantConfig?: CachedTenantConfig,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
     const { data, error } = await db
       .from('events')
       .select('id, title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone')
       .eq('guild_id', guildId)
-      .eq('id', id)
+      .eq('id', eventId)
       .maybeSingle()
     if (error) return { error: error.message }
     if (!data) return { error: tErr('eventNotFound') }
@@ -282,9 +316,9 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
       ? savedMessage
       : tEvent('defaultNotificationMessage')
     // notify_channel_id 가 null 이면 tenant 기본 채널로 fallback. tenant 도
-    // 안 설정되어 있으면 sendEventNotification 에서 throw — 관리자가 채널 설정
-    // 누락을 바로 인지할 수 있게 조용한 실패를 피한다.
-    const tenantConfig = await getTenantDiscordConfig(guildId)
+    // 안 설정되어 있으면 sendEventNotification 에서 throw — 수동 발송 경로는
+    // 이 throw 로 채널 설정 누락을 사용자에게 즉시 알린다.
+    const tenantConfig = cachedTenantConfig ?? await getTenantDiscordConfig(guildId)
     const channelId = data.notify_channel_id ?? tenantConfig?.eventChannelId ?? null
     // Discord embed 라벨/날짜 포맷은 알림 트리거 관리자의 locale 로 — 길드별
     // 단일 운영 언어 컨벤션을 가정한다 (channel 은 1 곳, 라벨은 1 종류).
@@ -304,6 +338,7 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
       },
       dateLocale,
       tenantTimezone,
+      tenantSlug: tenantConfig?.slug ?? null,
     })
     return {}
   } catch (e) {

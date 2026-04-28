@@ -3030,7 +3030,8 @@
     "fieldGatherAt": "集合時間",
     "fieldGatherLocation": "集合場所",
     "publishing": "公開中…",
-    "publishButton": "公開する"
+    "publishButton": "公開する",
+    "publishedNotifyFailed": "イベントは公開されましたが、Discord 通知の自動送信に失敗しました: {error}\nダッシュボードのベルアイコンから再送できます。"
   },
   "forceOnboardButton": {
     "tooltip": "このメンバーのアルビオン認証情報を消去し、次回アクセス時にオンボーディングを再表示します",

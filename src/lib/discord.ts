@@ -5,6 +5,8 @@
 // in *our* guild to confirm they actually belong and carry the right role.
 // `guilds.members.read` is the scope that lets us fetch roles without a bot.
 
+import { tenantUrl } from '@/lib/tenant-resolver'
+
 const DISCORD_API = 'https://discord.com/api/v10'
 // identify: 유저 기본 프로필. guilds: 유저의 길드 목록 (tenant 매칭).
 // guilds.members.read: 선택된 길드 내 역할 조회.
@@ -378,6 +380,10 @@ export interface SendEventNotificationOptions {
   dateLocale: string
   // 길드 운영 시간대 (IANA). 잘못된 값이면 호출자가 'Asia/Seoul' 로 degrade.
   tenantTimezone: string
+  // 테넌트 slug — 알림에 들어갈 이벤트 URL 을 길드 서브도메인으로 만든다.
+  // 예: "menhera" → https://menhera.albion-guildmanager.com/events/<id>.
+  // null 이면 root APP_URL 그대로 (멀티테넌트 이전 길드/migration 안전망).
+  tenantSlug: string | null
 }
 
 export async function sendEventNotification(
@@ -391,8 +397,10 @@ export async function sendEventNotification(
     throw new Error('Discord bot notification not configured (DISCORD_BOT_TOKEN/APP_URL env + tenant event_channel_id)')
   }
 
-  const siteUrl = appUrl.replace(/\/$/, '')
-  const eventUrl = `${siteUrl}/events/${event.id}`
+  // 멀티테넌트 라우팅 — 알림 URL 은 항상 길드 서브도메인으로 보내야 한다.
+  // root 도메인으로 보내면 다른 테넌트의 AppGate 가 걸려 길드원이 본인
+  // 길드 페이지에 접근 못한다.
+  const eventUrl = tenantUrl(options.tenantSlug, `/events/${event.id}`)
   const fields: Array<{ name: string; value: string; inline?: boolean }> = [
     { name: options.fieldLabels.gatherAt, value: formatGatherAt(event.gather_at, options.dateLocale, options.tenantTimezone), inline: true },
     { name: options.fieldLabels.gatherTime, value: event.gather_time, inline: true },

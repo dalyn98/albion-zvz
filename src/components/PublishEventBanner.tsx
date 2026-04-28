@@ -61,6 +61,12 @@ export default function PublishEventBanner({ event }: Props) {
       setLoading(false)
       return
     }
+    // 발행은 성공했지만 자동 알림이 실패한 경우 — 발행 자체는 막지 않고
+    // 사용자에게 알림 실패 사유를 alert 로 알려준다. 종 버튼으로 수동 재시도
+    // 가능하므로 페이지 이동은 정상 진행.
+    if (result.warning) {
+      alert(t('publishedNotifyFailed', { error: result.warning }))
+    }
     // 발행 성공 시 이벤트 목록(대시보드)으로 이동 — 편집 화면에 머무르면 발행 후
     // 또 무엇을 해야 할지 사용자가 망설이게 된다. publishEvent 가 이미 dashboard
     // 경로를 revalidate 했으므로 새 상태로 바로 표시된다.
