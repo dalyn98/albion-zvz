@@ -47,7 +47,7 @@ export default async function CityMaterialsPage({
   const guildId = await getSessionGuildId(session)
 
   const [
-    { queued, isCrafter, error },
+    { queued, mine, isCrafter, error },
     config,
     locations,
     inventoryMaterials,
@@ -84,10 +84,14 @@ export default async function CityMaterialsPage({
     )
   }
 
-  const breakdown = aggregateBuildSnapshotsForCity(
-    queued.map((q) => q.buildSnapshot),
-    cityParam,
-  )
+  // queued (대기) + 내가 claim 한 task 둘 다 포함. claimed 는 박스에 아직 안 넣었으니
+  // 재료를 사야 하고, queued 는 곧 잡힐 task. 큐/내 작업 양쪽 어느 카드에서 들어와도
+  // 같은 도시 자료를 보여주려면 합쳐서 집계해야 한다.
+  const activeSnapshots = [
+    ...queued.map((q) => q.buildSnapshot),
+    ...mine.filter((m) => m.status === 'claimed').map((m) => m.buildSnapshot),
+  ]
+  const breakdown = aggregateBuildSnapshotsForCity(activeSnapshots, cityParam)
 
   const inventoryEntries = Array.from(
     buildMaterialInventoryMap(inventoryMaterials).entries(),
