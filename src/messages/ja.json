@@ -1850,6 +1850,7 @@
     "groupGatherAt": "集合 {time}",
     "groupGatherAtUnset": "集合時刻 未定",
     "groupNoEvent": "イベント未連携",
+    "groupNoEventHint": "イベントとは無関係に、トラッキング戦死から直接申請された依頼です。",
     "groupCount": "{count}件",
     "groupSilverTotal": "合計 {silver}",
     "groupCollapse": "折りたたむ",

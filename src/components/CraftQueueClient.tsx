@@ -443,10 +443,13 @@ function EventGroupHeader({
 }: EventGroupHeaderProps) {
   const t = useTranslations('craftQueue')
   const showSelectAll = onToggleAll != null
-  const title = group.eventId ? group.eventTitle : t('groupNoEvent')
-  const gatherLabel = group.gatherAt
-    ? t('groupGatherAt', { time: formatGatherTime(group.gatherAt) })
-    : t('groupGatherAtUnset')
+  const isNoEvent = !group.eventId
+  const title = isNoEvent ? t('groupNoEvent') : group.eventTitle
+  const gatherLabel = isNoEvent
+    ? null
+    : group.gatherAt
+      ? t('groupGatherAt', { time: formatGatherTime(group.gatherAt) })
+      : t('groupGatherAtUnset')
   return (
     <div className="flex items-center gap-3 px-3 py-2 bg-gray-900/60 border border-gray-800 rounded-xl">
       <button
@@ -473,14 +476,19 @@ function EventGroupHeader({
       <div className="flex-1 min-w-0">
         <p className="text-white text-sm font-semibold truncate">{title}</p>
         <p className="text-[11px] text-gray-400 mt-0.5 flex flex-wrap gap-x-2">
-          <span>{gatherLabel}</span>
-          <span className="text-gray-500">· {t('groupCount', { count: group.items.length })}</span>
+          {gatherLabel && <span>{gatherLabel}</span>}
+          <span className={gatherLabel ? 'text-gray-500' : ''}>
+            {gatherLabel ? '· ' : ''}{t('groupCount', { count: group.items.length })}
+          </span>
           {group.totalClaimedSilver > 0 && (
             <span className="text-amber-300 font-mono">
               · {t('groupSilverTotal', { silver: formatSilver(group.totalClaimedSilver) })}
             </span>
           )}
         </p>
+        {isNoEvent && (
+          <p className="text-[10px] text-amber-300/70 mt-0.5">{t('groupNoEventHint')}</p>
+        )}
       </div>
     </div>
   )

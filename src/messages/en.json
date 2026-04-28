@@ -1850,6 +1850,7 @@
     "groupGatherAt": "Gather {time}",
     "groupGatherAtUnset": "Gather time TBD",
     "groupNoEvent": "No event linked",
+    "groupNoEventHint": "Claims members filed directly from tracked deaths, unrelated to any event.",
     "groupCount": "{count} tasks",
     "groupSilverTotal": "Total {silver}",
     "groupCollapse": "Collapse",

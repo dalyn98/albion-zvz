@@ -1850,6 +1850,7 @@
     "groupGatherAt": "모임 {time}",
     "groupGatherAtUnset": "모임 시각 미정",
     "groupNoEvent": "이벤트 미연결",
+    "groupNoEventHint": "이벤트와 무관하게 트래킹 사망에서 직접 신청한 청구입니다.",
     "groupCount": "{count}건",
     "groupSilverTotal": "합계 {silver}",
     "groupCollapse": "접기",
