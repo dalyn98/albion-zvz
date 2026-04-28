@@ -43,9 +43,19 @@ interface Props {
   profile: CrafterProfile | null
   config: CraftBoxConfig
   locations: LocationPreset[]
+  // 'browse' = 큐 수주 화면(/craft/queue), 'mine' = 내 작업 관리(/craft/my-tasks).
+  // 두 화면이 같은 컴포넌트를 공유하되 어떤 섹션을 렌더링할지만 다르다.
+  mode?: 'browse' | 'mine'
 }
 
-export default function CraftQueueClient({ queued, mine, profile, config, locations }: Props) {
+export default function CraftQueueClient({
+  queued,
+  mine,
+  profile,
+  config,
+  locations,
+  mode = 'browse',
+}: Props) {
   const t = useTranslations('craftQueue')
   const tRole = useTranslations('slotRole')
   const router = useRouter()
@@ -160,6 +170,7 @@ export default function CraftQueueClient({ queued, mine, profile, config, locati
         onUpdated={() => router.refresh()}
       />
 
+      {mode === 'browse' && (
       <section className="space-y-3">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
           <Hammer size={16} className="text-amber-400" />
@@ -261,7 +272,9 @@ export default function CraftQueueClient({ queued, mine, profile, config, locati
           </>
         )}
       </section>
+      )}
 
+      {mode === 'mine' && (
       <section className="space-y-3">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
           <Box size={16} className="text-emerald-400" />
@@ -391,6 +404,7 @@ export default function CraftQueueClient({ queued, mine, profile, config, locati
           </div>
         )}
       </section>
+      )}
 
       {claimTarget && (
         <ClaimDialog

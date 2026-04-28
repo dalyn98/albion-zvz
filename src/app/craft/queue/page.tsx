@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
-import { Hammer } from 'lucide-react'
+import { Hammer, Box } from 'lucide-react'
 import { getSession } from '@/lib/session'
 import {
   listCraftQueueForCrafter,
@@ -67,12 +68,7 @@ export default async function CraftQueuePage() {
   // 길드 단위 집계: queued task 들의 buildSnapshot 합산. claimed/delivered 는
   // 이미 다른 제작자가 잡았거나 마무리됐으므로 "지금 만들어야 할 것" 만 보여준다.
   const aggregateBreakdown = aggregateBuildSnapshots(queued.map((q) => q.buildSnapshot))
-  // 본인이 잡은 (claimed) 작업 집계: 자기가 다음에 박스에 넣어야 할 장비/재료. 이미
-  // delivered 된 건은 재료가 소진되어 새로 사야 할 게 없으므로 제외.
-  const myClaimedSnapshots = mine
-    .filter((m) => m.status === 'claimed')
-    .map((m) => m.buildSnapshot)
-  const myAggregateBreakdown = aggregateBuildSnapshots(myClaimedSnapshots)
+  const myClaimedCount = mine.filter((m) => m.status === 'claimed').length
   const locationPresets = locations.map((l) => ({
     id: l.id,
     i18nKey: l.i18nKey,
@@ -95,17 +91,24 @@ export default async function CraftQueuePage() {
         </div>
       )}
 
+      <Link
+        href="/craft/my-tasks"
+        className="flex items-center gap-3 bg-gray-900 border border-gray-700 hover:border-amber-500/40 rounded-2xl px-4 py-3 transition-colors"
+      >
+        <Box size={18} className="text-emerald-400 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-white">{t('myTasksLinkTitle')}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">
+            {t('myTasksLinkHint', { count: myClaimedCount })}
+          </p>
+        </div>
+        <span className="text-xs text-amber-300 flex-shrink-0">{t('myTasksLinkAction')}</span>
+      </Link>
+
       <CraftQueueAggregationCard
         breakdown={aggregateBreakdown}
         focusBonusPct={config.focusBonusPct}
         locations={locationPresets}
-      />
-
-      <CraftQueueAggregationCard
-        breakdown={myAggregateBreakdown}
-        focusBonusPct={config.focusBonusPct}
-        locations={locationPresets}
-        variant="mine"
       />
 
       <CraftQueueClient
@@ -114,6 +117,7 @@ export default async function CraftQueuePage() {
         profile={profile}
         config={config}
         locations={locationPresets}
+        mode="browse"
       />
     </main>
   )
