@@ -46,8 +46,8 @@ export const CITY_BADGE_STYLE: Record<CraftCity, string> = {
 // T8_2H_DUALCROSSBOW_HELL 은 "DUALCROSSBOW" 로 lookup. 신규 아티팩트가 추가될 때
 // 빠지면 카드의 도시 배지가 안 뜨므로 항목별 family 트리를 보고 채워야 한다.
 //
-// SHAPESHIFTER 패밀리(Bloodmoon/Prowling/Rootbound/Primal Staff) 는 family 분류가
-// 모호해 일단 비워뒀다 — 잘못된 도시로 매핑하느니 배지 미표시 쪽이 안전.
+// SHAPESHIFTER 패밀리(Bloodmoon/Prowling/Rootbound/Primal Staff) 는 Caerleon 보너스
+// (사용자 확인). 4 종 모두 Caerleon 매핑.
 const WEAPON_CITY: Record<string, CraftCity> = {
   // ── Bridgewatch (크로스보우 / 단검 / 커스드 스태프)
   CROSSBOW: 'bridgewatch',
@@ -189,7 +189,7 @@ const WEAPON_CITY: Record<string, CraftCity> = {
   BRIMSTONESTAFF: 'thetford',
   FIRE_RINGPAIR: 'thetford',
 
-  // ── Caerleon (워글러브)
+  // ── Caerleon (워글러브 + 셰이프시프터 스태프)
   GLOVES: 'caerleon',
   KNUCKLES: 'caerleon',
   KNUCKLES_SET1: 'caerleon',
@@ -203,6 +203,10 @@ const WEAPON_CITY: Record<string, CraftCity> = {
   FISTSOFAVALON: 'caerleon',
   CRYPTCANDLE: 'caerleon',
   ROCKMAGNETS: 'caerleon',
+  SHAPESHIFTER: 'caerleon',
+  SHAPESHIFTER_SET1: 'caerleon',
+  SHAPESHIFTER_SET2: 'caerleon',
+  SHAPESHIFTER_SET3: 'caerleon',
 }
 
 // 새 아티팩트 변형이 추가돼도 어미가 같으면 도시는 동일하므로, 직접 매핑 미스 시
