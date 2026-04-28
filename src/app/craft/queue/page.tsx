@@ -105,7 +105,7 @@ export default async function CraftQueuePage() {
         <span className="text-xs text-amber-300 flex-shrink-0">{t('myTasksLinkAction')}</span>
       </Link>
 
-      <CraftQueueAggregationCard breakdown={aggregateBreakdown} />
+      <CraftQueueAggregationCard breakdown={aggregateBreakdown} stockByItemId={stockByItemId} />
 
       <CraftQueueClient
         queued={queued}

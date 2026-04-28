@@ -1861,6 +1861,8 @@
     "aggregateNoRecipeTag": "No recipe",
     "aggregateArtifactWarn": "{count} artifact item(s) require the Artifact workbench. Materials are included in the box totals.",
     "aggregateUnknownWarn": "{count} item(s) without a recipe were excluded.",
+    "aggregateStockBadge": "Stock {count}",
+    "aggregateStockBadgeAria": "Guild stock {count} (needed {needed})",
     "selectTask": "Select task",
     "selectAllLabel": "Select all",
     "clearSelectionLabel": "Clear selection",

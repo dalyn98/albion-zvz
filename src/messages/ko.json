@@ -1861,6 +1861,8 @@
     "aggregateNoRecipeTag": "레시피 없음",
     "aggregateArtifactWarn": "유물 {count}개는 유물 워크벤치에서 제작해야 해요. 재료는 박스 합산에 포함됐어요.",
     "aggregateUnknownWarn": "레시피 없는 항목 {count}개는 합산에서 제외됐어요.",
+    "aggregateStockBadge": "재고 {count}",
+    "aggregateStockBadgeAria": "길드 재고 {count}개 (필요 {needed}개)",
     "selectTask": "작업 선택",
     "selectAllLabel": "전체 선택",
     "clearSelectionLabel": "선택 해제",

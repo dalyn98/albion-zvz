@@ -21,6 +21,9 @@ interface Props {
   breakdown: CraftAggregateBreakdown
   // 큐 전체(기본) / 내가 잡은 것 두 가지 컨텍스트로 재사용. 변형은 헤더 카피만 다름.
   variant?: 'queue' | 'mine'
+  // itemId → 길드 재고 수량. 추적 슬롯 (무기/머리/갑옷/신발/보조/망토) 만 키가
+  // 깔리고, 가방·소모품 등은 키 자체가 없다 (= 배지 미노출).
+  stockByItemId: Record<string, number>
 }
 
 // 진행 중 task 들의 buildSnapshot 합산 → 길드가 통째로 만들어야 할 장비 목록.
@@ -29,6 +32,7 @@ interface Props {
 export default function CraftQueueAggregationCard({
   breakdown,
   variant = 'queue',
+  stockByItemId,
 }: Props) {
   const t = useTranslations('craftQueue')
   const titleKey = variant === 'mine' ? 'aggregateMineTitle' : 'aggregateTitle'
@@ -110,11 +114,20 @@ export default function CraftQueueAggregationCard({
         {itemViewMode === 'flat' ? (
           <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {breakdown.items.map((item) => (
-              <AggregateItemTile key={item.itemId} item={item} locale={locale} />
+              <AggregateItemTile
+                key={item.itemId}
+                item={item}
+                locale={locale}
+                stockByItemId={stockByItemId}
+              />
             ))}
           </ul>
         ) : (
-          <CityGroupedItems groupedByCity={groupedByCity} locale={locale} />
+          <CityGroupedItems
+            groupedByCity={groupedByCity}
+            locale={locale}
+            stockByItemId={stockByItemId}
+          />
         )}
         {(breakdown.unknownItemCount > 0 || breakdown.artifactCount > 0) && (
           <p className="text-[10px] text-gray-500 leading-relaxed">
@@ -138,6 +151,7 @@ export default function CraftQueueAggregationCard({
 interface AggregateItemTileProps {
   item: CraftItemAggregateRow
   locale: Locale
+  stockByItemId: Record<string, number>
 }
 
 // 티어/인챈트는 itemId 에서 직접 파싱. 같은 베이스 아이템이라도 인챈트가 다르면
@@ -152,11 +166,22 @@ function parseTierEnchant(itemId: string): { tier: number | null; enchant: numbe
   return { tier, enchant }
 }
 
-function AggregateItemTile({ item, locale }: AggregateItemTileProps) {
+function AggregateItemTile({ item, locale, stockByItemId }: AggregateItemTileProps) {
   const t = useTranslations('craftQueue')
   const displayName =
     getLocalizedItemNameWithEnchant(item.itemId, locale, item.itemName) ?? item.itemId
   const { tier, enchant } = parseTierEnchant(item.itemId)
+  // 추적되지 않는 itemId (가방/소모품 등) 는 키 자체가 없어서 배지 미노출.
+  // stock ≥ 필요 = emerald (충분), 0 < stock < 필요 = amber (부분), 0 = 회색 (없음).
+  const stock = stockByItemId[item.itemId]
+  const tracked = stock != null
+  const stockClass = !tracked
+    ? ''
+    : stock >= item.count
+      ? 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/30'
+      : stock > 0
+        ? 'text-amber-300 bg-amber-500/10 border border-amber-500/30'
+        : 'text-gray-500 bg-gray-950 border border-gray-800'
   return (
     <li
       className="bg-gray-950 border border-gray-800 rounded-lg p-2 flex items-center gap-2"
@@ -182,9 +207,19 @@ function AggregateItemTile({ item, locale }: AggregateItemTileProps) {
           )}
         </p>
       </div>
-      <span className="text-amber-300 font-bold font-mono text-sm flex-shrink-0">
-        ×{item.count}
-      </span>
+      <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+        <span className="text-amber-300 font-bold font-mono text-sm">
+          ×{item.count}
+        </span>
+        {tracked && (
+          <span
+            className={`text-[10px] font-mono px-1 rounded leading-none py-0.5 ${stockClass}`}
+            aria-label={t('aggregateStockBadgeAria', { count: stock, needed: item.count })}
+          >
+            {t('aggregateStockBadge', { count: stock })}
+          </span>
+        )}
+      </div>
     </li>
   )
 }
@@ -195,10 +230,11 @@ interface CityGroupedItemsProps {
     counts: Map<CraftCity | 'unmapped', number>
   }
   locale: Locale
+  stockByItemId: Record<string, number>
 }
 
 // 도시별 섹션을 CRAFT_CITIES 순서대로 + unmapped 섹션은 마지막에. 빈 버킷은 스킵.
-function CityGroupedItems({ groupedByCity, locale }: CityGroupedItemsProps) {
+function CityGroupedItems({ groupedByCity, locale, stockByItemId }: CityGroupedItemsProps) {
   const t = useTranslations('craftQueue')
   const tCity = useTranslations('craftQueue.cityBonus')
   const sections: Array<{ key: CraftCity | 'unmapped'; label: string; badgeClass: string }> = []
@@ -236,7 +272,12 @@ function CityGroupedItems({ groupedByCity, locale }: CityGroupedItemsProps) {
             </div>
             <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {items.map((item) => (
-                <AggregateItemTile key={item.itemId} item={item} locale={locale} />
+                <AggregateItemTile
+                  key={item.itemId}
+                  item={item}
+                  locale={locale}
+                  stockByItemId={stockByItemId}
+                />
               ))}
             </ul>
           </div>

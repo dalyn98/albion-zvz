@@ -1861,6 +1861,8 @@
     "aggregateNoRecipeTag": "レシピなし",
     "aggregateArtifactWarn": "アーティファクト {count}個はアーティファクト工房での製作が必要です。素材はボックス合算に含まれています。",
     "aggregateUnknownWarn": "レシピのない項目 {count}個は集計から除外されました。",
+    "aggregateStockBadge": "在庫 {count}",
+    "aggregateStockBadgeAria": "ギルド在庫 {count} 個 (必要 {needed} 個)",
     "selectTask": "タスクを選択",
     "selectAllLabel": "全て選択",
     "clearSelectionLabel": "選択を解除",

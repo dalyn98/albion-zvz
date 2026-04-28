@@ -108,6 +108,7 @@ export default async function CraftMyTasksPage() {
       <CraftQueueAggregationCard
         breakdown={myAggregateBreakdown}
         variant="mine"
+        stockByItemId={stockByItemId}
       />
 
       <CraftQueueClient
