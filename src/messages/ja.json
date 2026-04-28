@@ -1858,6 +1858,7 @@
     "aggregateMaterialsTitle": "必要素材 (リターン率反映)",
     "aggregateRatesTitle": "リターン率設定",
     "aggregateSlotsTag": "{count}スロット",
+    "aggregateEnchantLabel": "エンチャント +{level}",
     "aggregateArtifactTag": "アーティファクト工房",
     "aggregateNoRecipeTag": "レシピなし",
     "aggregateArtifactWarn": "アーティファクト {count}個はアーティファクト工房での製作が必要です。素材はボックス合算に含まれています。",

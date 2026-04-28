@@ -1858,6 +1858,7 @@
     "aggregateMaterialsTitle": "필요 재료 (반환율 반영)",
     "aggregateRatesTitle": "반환율 설정",
     "aggregateSlotsTag": "{count}슬롯",
+    "aggregateEnchantLabel": "인챈트 +{level}",
     "aggregateArtifactTag": "유물 워크벤치",
     "aggregateNoRecipeTag": "레시피 없음",
     "aggregateArtifactWarn": "유물 {count}개는 유물 워크벤치에서 제작해야 해요. 재료는 박스 합산에 포함됐어요.",

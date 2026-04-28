@@ -250,10 +250,23 @@ interface AggregateItemTileProps {
   locale: Locale
 }
 
+// 티어/인챈트는 itemId 에서 직접 파싱. 같은 베이스 아이템이라도 인챈트가 다르면
+// 별개 itemId 로 집계되므로 (인챈트별 재료가 다름) 카드별로 정확히 표기됨.
+function parseTierEnchant(itemId: string): { tier: number | null; enchant: number } {
+  const at = itemId.lastIndexOf('@')
+  const base = at === -1 ? itemId : itemId.slice(0, at)
+  const enchantRaw = at === -1 ? 0 : Number(itemId.slice(at + 1))
+  const enchant = Number.isFinite(enchantRaw) && enchantRaw > 0 ? enchantRaw : 0
+  const m = base.match(/^T(\d)_/)
+  const tier = m ? Number(m[1]) : null
+  return { tier, enchant }
+}
+
 function AggregateItemTile({ item, locale }: AggregateItemTileProps) {
   const t = useTranslations('craftQueue')
   const displayName =
     getLocalizedItemNameWithEnchant(item.itemId, locale, item.itemName) ?? item.itemId
+  const { tier, enchant } = parseTierEnchant(item.itemId)
   return (
     <li
       className="bg-gray-950 border border-gray-800 rounded-lg p-2 flex items-center gap-2"
@@ -262,13 +275,20 @@ function AggregateItemTile({ item, locale }: AggregateItemTileProps) {
       <ItemImage itemId={item.itemId} itemName={item.itemName} size={32} hoverPreview />
       <div className="min-w-0 flex-1">
         <p className="text-[11px] text-white truncate">{displayName}</p>
-        <p className="text-[10px] text-gray-500">
-          {item.isArtifact ? (
-            <span className="text-amber-400">{t('aggregateArtifactTag')}</span>
-          ) : !item.hasRecipe ? (
-            <span className="text-amber-400">{t('aggregateNoRecipeTag')}</span>
-          ) : (
-            t('aggregateSlotsTag', { count: item.slots.length })
+        <p className="text-[10px] text-gray-500 flex items-center gap-1 flex-wrap">
+          {tier !== null && (
+            <span className="text-gray-300 font-mono">T{tier}</span>
+          )}
+          {enchant > 0 && (
+            <span className="text-emerald-400 font-mono">
+              {t('aggregateEnchantLabel', { level: enchant })}
+            </span>
+          )}
+          {item.isArtifact && (
+            <span className="text-amber-400">· {t('aggregateArtifactTag')}</span>
+          )}
+          {!item.hasRecipe && !item.isArtifact && (
+            <span className="text-amber-400">· {t('aggregateNoRecipeTag')}</span>
           )}
         </p>
       </div>
