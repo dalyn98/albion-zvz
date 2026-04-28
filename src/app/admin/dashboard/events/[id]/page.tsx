@@ -14,6 +14,12 @@ import EventPayoutRequestButton from '@/components/EventPayoutRequestButton'
 import { EventEditSaveProvider } from '@/components/EventEditSaveRegistry'
 import EventEditSaveBar from '@/components/EventEditSaveBar'
 import { listTemplates } from '@/app/actions/templates'
+import {
+  getCraftConfig,
+  getCraftLocationPresets,
+  getEventCraftAggregate,
+} from '@/app/actions/craft'
+import EventCraftAggregateCard from '@/components/EventCraftAggregateCard'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
@@ -88,12 +94,24 @@ export default async function EditEventPage({
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
-  const [{ event, parties, memberDirectory }, { templates }, t, autoRegearRaw, tenantTimezone] = await Promise.all([
+  const [
+    { event, parties, memberDirectory },
+    { templates },
+    t,
+    autoRegearRaw,
+    tenantTimezone,
+    craftAggregateRes,
+    craftConfig,
+    craftLocations,
+  ] = await Promise.all([
     getData(id, guildId),
     listTemplates(),
     getTranslations('adminEditEvent'),
     getAppSetting('auto_regear_enabled', 'false', guildId),
     getTenantTimezone(guildId),
+    getEventCraftAggregate(id),
+    getCraftConfig(),
+    getCraftLocationPresets(),
   ])
   const autoRegearEnabled = autoRegearRaw === 'true'
 
@@ -109,6 +127,15 @@ export default async function EditEventPage({
   )
   const avatarMap = await getAvatarsByDiscordIds(guildId, assignedDiscordIds)
   const avatars = Object.fromEntries(avatarMap)
+
+  // 길드가 craft regear 를 켜고 + 이 이벤트의 청구 데이터가 있을 때만 위젯
+  // 노출. craftConfig.enabled 가 false 면 craft 자체가 작동 안 하니 위젯도 숨김.
+  const craftAggregate = craftAggregateRes.result
+  const craftLocationPresets = craftLocations.map((l) => ({
+    id: l.id,
+    i18nKey: l.i18nKey,
+    defaultReturnRatePct: l.defaultReturnRatePct,
+  }))
 
   return (
     <EventEditSaveProvider>
@@ -162,6 +189,17 @@ export default async function EditEventPage({
               eventCategory={eventCategory}
             />
           </section>
+
+          {craftConfig.enabled && craftAggregate && (
+            <EventCraftAggregateCard
+              breakdown={craftAggregate.breakdown}
+              focusBonusPct={craftConfig.focusBonusPct}
+              locations={craftLocationPresets}
+              queuedCount={craftAggregate.queuedCount}
+              claimedCount={craftAggregate.claimedCount}
+              deliveredCount={craftAggregate.deliveredCount}
+            />
+          )}
 
           <EventEditSaveBar eventId={event.id} eventStatus={event.status} />
         </div>

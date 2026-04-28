@@ -1855,6 +1855,26 @@
     "groupCollapse": "접기",
     "groupExpand": "펼치기"
   },
+  "eventCraftAggregate": {
+    "sectionTitle": "제작 리기어 집계",
+    "sectionHint": "이 이벤트에서 청구된 제작 리기어를 합산해서 보여줘요. 길드가 만들어야 할 장비와 필요 재료입니다.",
+    "emptyHint": "이 이벤트에는 아직 제작 리기어 청구가 없어요.",
+    "taskCount": "({count}건)",
+    "statusQueued": "대기 {count}",
+    "statusClaimed": "작업중 {count}",
+    "statusDelivered": "납품완료 {count}",
+    "itemsTitle": "만들 장비",
+    "materialsTitle": "필요 재료 (반환율 반영)",
+    "ratesTitle": "반환율 설정",
+    "slotsTag": "{count}슬롯",
+    "artifactTag": "유물 워크벤치",
+    "noRecipeTag": "레시피 없음",
+    "artifactWarn": "유물 {count}개는 유물 워크벤치에서 제작해야 해요. 재료는 합산에 포함됐어요.",
+    "unknownWarn": "레시피 없는 항목 {count}개는 합산에서 제외됐어요.",
+    "focusToggle": "포커스 사용 (+{bonus}%)",
+    "effectiveReturn": "유효 반환율 {pct}%",
+    "materialGross": "기준 {gross}"
+  },
   "craftLocation": {
     "royalCity": "로열 시티",
     "caerleon": "케어리언",
