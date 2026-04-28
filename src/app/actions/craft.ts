@@ -414,7 +414,11 @@ export async function listCraftQueueForCrafter(): Promise<{
       allItemIds.add(id)
     }
   }
+  // 사전에 모든 trackable id 를 0 으로 깔아두고 DB row 가 있는 것만 덮어쓴다.
+  // 길드가 한 번도 입출고를 안 한 itemId 는 row 자체가 없는데 (mig 110 의 upsert
+  // 패턴), 그런 경우에도 클라이언트가 "tracked·stock 0" 으로 배지를 노출하게.
   const stockByItemId: Record<string, number> = {}
+  for (const id of allItemIds) stockByItemId[id] = 0
   if (allItemIds.size > 0) {
     const { data: stock } = await db
       .from('guild_inventory_gear')
