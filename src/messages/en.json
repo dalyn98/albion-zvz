@@ -1927,7 +1927,7 @@
     "toastCrafterAdded": "Crafter assigned.",
     "toastCrafterRemoved": "Crafter permission revoked.",
     "tasksTitle": "Active tasks",
-    "tasksHint": "Tasks in queued / claimed / delivered state.",
+    "tasksHint": "Grouped by event. Claims from tracked deaths without an event appear in a separate group at the bottom.",
     "tasksEmpty": "No active tasks.",
     "taskRequester": "Requested by {name}",
     "taskCrafter": "Crafted by {name}",
@@ -1943,7 +1943,18 @@
     "confirmCancelTask": "Force-cancel this task? The member receives no compensation.",
     "confirmConvertTask": "Convert this task to a silver payout? The requester immediately receives the claimed amount as points.",
     "toastTaskCancelled": "Task cancelled.",
-    "toastTaskConverted": "Converted to silver payout."
+    "toastTaskConverted": "Converted to silver payout.",
+    "groupNoEvent": "No event link (tracked-death claims)",
+    "groupNoEventHint": "Claims members filed directly from tracked battles where no event was created.",
+    "groupGatherAt": "Gathered {time}",
+    "groupTaskCount": "{count} tasks",
+    "boxStatusTitle": "Box number status",
+    "boxStatusHint": "Only delivered tasks holding a box are shown. Boxes free up automatically when collected or expired.",
+    "boxStatusRangeLine": "Box range #{min} – #{max} · {used} in use / {available} free",
+    "boxStatusInUseTitle": "Currently held",
+    "boxStatusEmpty": "No box is currently held.",
+    "boxStatusEntry": "#{box} · {role} ({requester})",
+    "boxStatusDisabled": "Craft mode is off. Turn it on in \"General settings\" above to enable."
   },
   "donation": {
     "openButton": "Submit donation",

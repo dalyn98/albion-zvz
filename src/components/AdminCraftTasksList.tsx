@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Box, ListChecks, X, Coins } from 'lucide-react'
+import { Box, ListChecks, X, Coins, ChevronDown } from 'lucide-react'
 import {
   cancelCraftTaskAdmin,
   convertCraftTaskToSilverAdmin,
@@ -12,6 +12,12 @@ import {
 import { SLOT_KEYS, type SlotKey } from '@/types'
 import { formatSilver } from '@/lib/silver'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import {
+  groupByEvent,
+  formatGatherTime,
+  NO_EVENT_KEY,
+  type EventGroup,
+} from '@/lib/craft-grouping'
 import ItemImage from './ItemImage'
 import { useToast } from './ToastProvider'
 
@@ -20,8 +26,9 @@ interface Props {
 }
 
 // 진행 중 (queued/claimed/delivered) 작업 + 강제 취소 / 실버 변환 버튼.
-// 실버 변환은 RPC 가 craft_tasks 취소 + regear_requests 모드 전환 + ledger insert
-// 를 atomic 하게 처리하므로 부분 실패가 발생하지 않는다.
+// 멤버용 큐 클라이언트와 동일하게 이벤트별로 그룹화해서 어드민이 한 이벤트의
+// 청구 묶음을 한눈에 볼 수 있게 한다. event_id 가 null 인 청구(트래킹 사망 직접
+// 신청 또는 이벤트 삭제됨) 는 맨 뒤 "이벤트 미연결" 그룹으로 분리.
 export default function AdminCraftTasksList({ initialTasks }: Props) {
   const t = useTranslations('adminCraft')
   const tRole = useTranslations('slotRole')
@@ -29,6 +36,18 @@ export default function AdminCraftTasksList({ initialTasks }: Props) {
   const router = useRouter()
   const [pendingTarget, setPendingTarget] = useState<string | null>(null)
   const [, startTransition] = useTransition()
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+
+  const groups = useMemo(() => groupByEvent(initialTasks), [initialTasks])
+
+  const toggleGroupCollapsed = (key: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   const onCancel = (taskId: string) => {
     if (!window.confirm(t('confirmCancelTask'))) return
@@ -75,19 +94,98 @@ export default function AdminCraftTasksList({ initialTasks }: Props) {
           {t('tasksEmpty')}
         </p>
       ) : (
-        <ul className="space-y-2">
-          {initialTasks.map((task) => {
+        <ul className="space-y-3">
+          {groups.map((group) => (
+            <GroupSection
+              key={group.key}
+              group={group}
+              collapsed={collapsedGroups.has(group.key)}
+              onToggle={() => toggleGroupCollapsed(group.key)}
+              pendingTarget={pendingTarget}
+              onCancel={onCancel}
+              onConvert={onConvert}
+              tRole={tRole}
+              t={t}
+            />
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+interface GroupSectionProps {
+  group: EventGroup
+  collapsed: boolean
+  onToggle: () => void
+  pendingTarget: string | null
+  onCancel: (id: string) => void
+  onConvert: (id: string) => void
+  tRole: ReturnType<typeof useTranslations>
+  t: ReturnType<typeof useTranslations>
+}
+
+function GroupSection({
+  group,
+  collapsed,
+  onToggle,
+  pendingTarget,
+  onCancel,
+  onConvert,
+  tRole,
+  t,
+}: GroupSectionProps) {
+  const isNoEvent = group.key === NO_EVENT_KEY
+  const title = isNoEvent ? t('groupNoEvent') : group.eventTitle
+  const subtitle = group.gatherAt
+    ? t('groupGatherAt', { time: formatGatherTime(group.gatherAt) })
+    : null
+
+  return (
+    <li
+      className={`rounded-xl border ${isNoEvent ? 'border-amber-700/40 bg-amber-950/10' : 'border-gray-800 bg-gray-950/50'} overflow-hidden`}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-gray-900/50 transition-colors text-left"
+      >
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold text-white truncate">{title}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-2 flex-wrap">
+            {subtitle && <span>{subtitle}</span>}
+            {subtitle && <span className="text-gray-600">·</span>}
+            <span>{t('groupTaskCount', { count: group.items.length })}</span>
+            {group.totalClaimedSilver > 0 && (
+              <>
+                <span className="text-gray-600">·</span>
+                <span className="text-amber-300 font-mono">
+                  {formatSilver(group.totalClaimedSilver)}
+                </span>
+              </>
+            )}
+          </p>
+          {isNoEvent && (
+            <p className="text-[10px] text-amber-300/70 mt-1">{t('groupNoEventHint')}</p>
+          )}
+        </div>
+        <ChevronDown
+          size={18}
+          className={`text-gray-400 flex-shrink-0 transition-transform ${collapsed ? '' : 'rotate-180'}`}
+        />
+      </button>
+
+      {!collapsed && (
+        <ul className="border-t border-gray-800 divide-y divide-gray-800">
+          {group.items.map((task) => {
             const isPending = pendingTarget === task.taskId
-            const canCancelOrConvert = task.status === 'queued' || task.status === 'claimed'
+            const canCancelOrConvert =
+              task.status === 'queued' || task.status === 'claimed'
             return (
-              <li
-                key={task.taskId}
-                className="bg-gray-950 border border-gray-800 rounded-lg p-3 space-y-2"
-              >
+              <li key={task.taskId} className="bg-gray-950 p-3 space-y-2">
                 <div className="flex items-start justify-between gap-2 flex-wrap">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-white font-semibold truncate">{task.eventTitle}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
+                    <p className="text-[11px] text-gray-400">
                       {t('taskRequester', { name: task.requesterUsername })}
                       <span className="ml-2 text-gray-500">
                         · {translateSlotRole(task.roleName, tRole)}
@@ -169,7 +267,7 @@ export default function AdminCraftTasksList({ initialTasks }: Props) {
           })}
         </ul>
       )}
-    </section>
+    </li>
   )
 }
 

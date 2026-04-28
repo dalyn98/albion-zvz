@@ -1927,7 +1927,7 @@
     "toastCrafterAdded": "クラフターに指定しました。",
     "toastCrafterRemoved": "クラフター権限を解除しました。",
     "tasksTitle": "進行中のタスク",
-    "tasksHint": "queued / claimed / delivered ステータスのタスク一覧。",
+    "tasksHint": "イベントごとにまとめて表示します。イベント未連結のトラッキング戦死申請は最下部に別グループで表示されます。",
     "tasksEmpty": "進行中のタスクはありません。",
     "taskRequester": "{name} さんの依頼",
     "taskCrafter": "クラフト: {name}",
@@ -1943,7 +1943,18 @@
     "confirmCancelTask": "このタスクを強制キャンセルしますか?メンバーは別の補償を受け取りません。",
     "confirmConvertTask": "このタスクをシルバー支給に変換しますか?申請者に申請額がポイントとして即時付与されます。",
     "toastTaskCancelled": "タスクをキャンセルしました。",
-    "toastTaskConverted": "シルバー支給に変換しました。"
+    "toastTaskConverted": "シルバー支給に変換しました。",
+    "groupNoEvent": "イベント未連結 (トラッキング戦死申請)",
+    "groupNoEventHint": "イベントが作られていないトラッキング戦闘で、メンバーが直接申請した依頼です。",
+    "groupGatherAt": "集合時刻 {time}",
+    "groupTaskCount": "{count}件",
+    "boxStatusTitle": "保管箱番号の状況",
+    "boxStatusHint": "納品済みのタスクが占有している保管箱のみ表示されます。回収(collected)または失効すると自動で空きます。",
+    "boxStatusRangeLine": "保管箱範囲 #{min} 〜 #{max} · 使用中 {used}個 / 空き {available}個",
+    "boxStatusInUseTitle": "現在使用中",
+    "boxStatusEmpty": "現在占有されている保管箱はありません。",
+    "boxStatusEntry": "#{box} · {role} 申請 ({requester})",
+    "boxStatusDisabled": "製作モードがOFFです。上の「基本設定」でONにすると有効化されます。"
   },
   "donation": {
     "openButton": "寄付申請",
