@@ -1906,7 +1906,9 @@
     "groupCount": "{count}件",
     "groupSilverTotal": "合計 {silver}",
     "groupCollapse": "折りたたむ",
-    "groupExpand": "展開"
+    "groupExpand": "展開",
+    "stockBadge": "{count}",
+    "stockBadgeAria": "ギルド在庫 {count} 個"
   },
   "eventCraftAggregate": {
     "sectionTitle": "製作リギア集計",

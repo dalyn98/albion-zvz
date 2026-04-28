@@ -1906,7 +1906,9 @@
     "groupCount": "{count} tasks",
     "groupSilverTotal": "Total {silver}",
     "groupCollapse": "Collapse",
-    "groupExpand": "Expand"
+    "groupExpand": "Expand",
+    "stockBadge": "{count}",
+    "stockBadgeAria": "Guild stock {count}"
   },
   "eventCraftAggregate": {
     "sectionTitle": "Craft regear summary",

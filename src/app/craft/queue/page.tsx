@@ -27,7 +27,7 @@ export default async function CraftQueuePage() {
   }
 
   const [
-    { queued, mine, isCrafter, error },
+    { queued, mine, isCrafter, stockByItemId, error },
     profile,
     config,
     locations,
@@ -113,6 +113,7 @@ export default async function CraftQueuePage() {
         profile={profile}
         config={config}
         locations={locationPresets}
+        stockByItemId={stockByItemId}
         mode="browse"
       />
     </main>

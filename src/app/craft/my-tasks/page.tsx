@@ -28,7 +28,7 @@ export default async function CraftMyTasksPage() {
   }
 
   const [
-    { mine, isCrafter, error },
+    { mine, isCrafter, stockByItemId, error },
     profile,
     config,
     locations,
@@ -116,6 +116,7 @@ export default async function CraftMyTasksPage() {
         profile={profile}
         config={config}
         locations={locationPresets}
+        stockByItemId={stockByItemId}
         mode="mine"
       />
     </main>

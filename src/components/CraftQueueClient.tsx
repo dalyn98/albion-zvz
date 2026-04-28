@@ -53,6 +53,9 @@ interface Props {
   profile: CrafterProfile | null
   config: CraftBoxConfig
   locations: LocationPreset[]
+  // 길드 재고 (장비) — itemId → 수량. BuildPreview 의 부위별 재고 배지 노출용.
+  // tracked 안 되는 부위 (가방 등) 는 키 자체가 없을 수 있고 그건 배지 미노출.
+  stockByItemId: Record<string, number>
   // 'browse' = 큐 수주 화면(/craft/queue), 'mine' = 내 작업 관리(/craft/my-tasks).
   // 두 화면이 같은 컴포넌트를 공유하되 어떤 섹션을 렌더링할지만 다르다.
   mode?: 'browse' | 'mine'
@@ -64,6 +67,7 @@ export default function CraftQueueClient({
   profile,
   config,
   locations,
+  stockByItemId,
   mode = 'browse',
 }: Props) {
   const t = useTranslations('craftQueue')
@@ -326,7 +330,10 @@ export default function CraftQueueClient({
                                 />
                                 <div className="flex-1 min-w-0 space-y-3">
                                   <TaskHeader item={item} tRole={tRole} />
-                                  <BuildPreview snapshot={item.buildSnapshot} />
+                                  <BuildPreview
+                                    snapshot={item.buildSnapshot}
+                                    stockByItemId={stockByItemId}
+                                  />
                                   <div className="flex items-center justify-end gap-2">
                                     <Link
                                       href={`/craft/queue/${item.taskId}`}
@@ -429,7 +436,10 @@ export default function CraftQueueClient({
                               />
                               <div className="flex-1 min-w-0 space-y-3">
                                 <TaskHeader item={item} tRole={tRole} />
-                                <BuildPreview snapshot={item.buildSnapshot} />
+                                <BuildPreview
+                                  snapshot={item.buildSnapshot}
+                                  stockByItemId={stockByItemId}
+                                />
                                 <ClaimedActions
                                   item={item}
                                   onDeliver={() => setDeliverTarget(item)}
@@ -463,7 +473,10 @@ export default function CraftQueueClient({
                           className="bg-gray-900 border border-emerald-500/30 rounded-2xl p-4 space-y-3"
                         >
                           <TaskHeader item={item} tRole={tRole} />
-                          <BuildPreview snapshot={item.buildSnapshot} />
+                          <BuildPreview
+                            snapshot={item.buildSnapshot}
+                            stockByItemId={stockByItemId}
+                          />
                           <div className="flex flex-wrap items-center gap-3 text-[11px] text-gray-400">
                             <span className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 rounded px-2 py-0.5 font-mono">
                               {t('boxLabel', { n: item.boxNumber ?? 0 })}
@@ -703,17 +716,41 @@ function CityFilterBar({
   )
 }
 
-function BuildPreview({ snapshot }: { snapshot: BuildSnapshot | null }) {
+interface BuildPreviewProps {
+  snapshot: BuildSnapshot | null
+  stockByItemId: Record<string, number>
+}
+
+function BuildPreview({ snapshot, stockByItemId }: BuildPreviewProps) {
   const tGear = useTranslations('gear')
+  const t = useTranslations('craftQueue')
   if (!snapshot) return null
   return (
     <div className="flex items-center gap-1.5 flex-wrap border-t border-gray-800 pt-2.5">
       {SLOT_KEYS.map((key: SlotKey) => {
         const item = snapshot[key]
         if (!item) return null
+        // 재고 키 자체가 없으면 tracked 안 되는 부위 (가방 등) — 배지 미노출.
+        // 0 이상이면 항상 표시 (색은 stock 0 이면 회색, > 0 이면 emerald).
+        // item.id 가 null 인 경우 (자유 선택 슬롯) 도 배지 미노출.
+        const stock = item.id ? stockByItemId[item.id] : undefined
+        const tracked = stock != null
+        const inStock = tracked && stock > 0
         return (
           <div key={key} className="flex flex-col items-center" title={tGear(key)}>
             <ItemImage itemId={item.id} itemName={item.name} size={36} hoverPreview />
+            {tracked && (
+              <span
+                className={`text-[10px] font-mono mt-0.5 px-1 rounded leading-none py-0.5 ${
+                  inStock
+                    ? 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/30'
+                    : 'text-gray-500 bg-gray-950 border border-gray-800'
+                }`}
+                aria-label={t('stockBadgeAria', { count: stock })}
+              >
+                {t('stockBadge', { count: stock })}
+              </span>
+            )}
           </div>
         )
       })}

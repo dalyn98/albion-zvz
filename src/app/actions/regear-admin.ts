@@ -265,12 +265,15 @@ export async function approveRegearRequest(
     // too — 재고 없는 신청은 위에서 거르고 들어옴).
     const { data: pending } = await db
       .from('regear_requests')
-      .select('claimed_silver')
+      .select('claimed_silver, fulfillment_mode')
       .eq('guild_id', guildId)
       .eq('id', id)
       .eq('status', 'pending')
       .maybeSingle()
     const claimed = pending?.claimed_silver ?? 0
+    // 사전 모드 — RPC 호출 후엔 'approved' 라 다시 못 읽으므로 미리 캡처.
+    // 'crafted' 였다면 RPC 가 craft_task 을 만들어 둔 상태가 된다.
+    const originalMode = pending?.fulfillment_mode as string | null
     const ratePercent = await loadPayoutRatePercent(guildId)
     const defaultPayout = calcPayoutSilver(claimed, ratePercent)
     let payout = defaultPayout
@@ -297,6 +300,29 @@ export async function approveRegearRequest(
         return { error: tErr('alreadyHandled') }
       }
       return { error: error.message }
+    }
+    // "approve with payout" = 포인트(실버) 지급 의도이므로, 원래 'crafted' 모드였던
+    // 경우 RPC 가 만든 craft_task 을 즉시 취소하고 모드를 silver 로 돌려 point_ledger
+    // 에 credit 한다. convert_craft_task_to_silver RPC 가 한 트랜잭션에서 처리.
+    // craft_task 가 없으면 skip — 이미 silver 모드라 RPC 가 그대로 ledger credit 했음.
+    if (originalMode === 'crafted') {
+      const { data: task } = await db
+        .from('craft_tasks')
+        .select('id')
+        .eq('regear_request_id', id)
+        .eq('guild_id', guildId)
+        .in('status', ['queued', 'claimed'])
+        .maybeSingle()
+      if (task?.id) {
+        const { error: convertError } = await db.rpc('convert_craft_task_to_silver', {
+          p_task_id: task.id,
+          p_guild_id: guildId,
+        })
+        if (convertError) return { error: convertError.message }
+        revalidatePath('/admin/dashboard/craft')
+        revalidatePath('/craft/queue')
+        revalidatePath('/craft/my-tasks')
+      }
     }
     revalidatePath('/admin/dashboard/regear')
     revalidatePath('/me')

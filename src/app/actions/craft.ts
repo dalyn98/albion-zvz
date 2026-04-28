@@ -41,7 +41,10 @@ import {
   type CraftLocationPreset,
 } from '@/lib/albion-return-rates'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
-import { decrementBuildForDelivery } from '@/lib/inventory'
+import {
+  decrementBuildForDelivery,
+  extractGearItemIdsFromBuild,
+} from '@/lib/inventory'
 import { formatSilver } from '@/lib/silver'
 import type { BuildSnapshot } from '@/types'
 
@@ -334,18 +337,22 @@ export async function listCraftQueueForCrafter(): Promise<{
   queued: CraftQueueItem[]
   mine: CraftQueueItem[]
   isCrafter: boolean
+  // 큐 카드에 itemId 별 길드 재고 수량을 표시하기 위한 lookup. 모든 task 의
+  // build_snapshot 에서 등장하는 itemId 들의 현재 재고를 한 번에 묶어서 조회.
+  // 재고 0/미관리 itemId 는 누락(=undefined) 로 둔다.
+  stockByItemId: Record<string, number>
   error?: string
 }> {
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) {
-    return { queued: [], mine: [], isCrafter: false, error: tErr('loginRequired') }
+    return { queued: [], mine: [], isCrafter: false, stockByItemId: {}, error: tErr('loginRequired') }
   }
   const guildId = await getSessionGuildId(session)
 
   const isCrafter = await loadIsCrafter(guildId, session.discordId)
   if (!isCrafter && !session.isAdmin) {
-    return { queued: [], mine: [], isCrafter: false, error: tErr('crafterOnly') }
+    return { queued: [], mine: [], isCrafter: false, stockByItemId: {}, error: tErr('crafterOnly') }
   }
 
   const db = getAdminClient()
@@ -358,7 +365,7 @@ export async function listCraftQueueForCrafter(): Promise<{
     .in('status', ['queued', 'claimed', 'delivered'])
     .order('created_at', { ascending: true })
   if (error) {
-    return { queued: [], mine: [], isCrafter, error: error.message }
+    return { queued: [], mine: [], isCrafter, stockByItemId: {}, error: error.message }
   }
 
   const tCommon = await getTranslations('common')
@@ -396,7 +403,30 @@ export async function listCraftQueueForCrafter(): Promise<{
     }
     // 다른 크래프터가 잡고 있는 task 는 노출하지 않는다 (혼동 방지).
   }
-  return { queued, mine, isCrafter }
+
+  // build_snapshot 에 등장하는 모든 itemId 의 현재 재고를 한 번에 조회. 큐 카드
+  // 에서 "이 부위 재고 N 개" 배지를 띄우는 용도. listing 자체는 queued + mine
+  // 만 보여주지만, 재고 정보는 두 리스트 합쳐서 한 번의 select 으로 처리.
+  const allItemIds = new Set<string>()
+  for (const item of [...queued, ...mine]) {
+    if (!item.buildSnapshot) continue
+    for (const id of extractGearItemIdsFromBuild(item.buildSnapshot)) {
+      allItemIds.add(id)
+    }
+  }
+  const stockByItemId: Record<string, number> = {}
+  if (allItemIds.size > 0) {
+    const { data: stock } = await db
+      .from('guild_inventory_gear')
+      .select('item_id, quantity')
+      .eq('guild_id', guildId)
+      .in('item_id', Array.from(allItemIds))
+    for (const row of stock ?? []) {
+      stockByItemId[row.item_id as string] = Number(row.quantity ?? 0)
+    }
+  }
+
+  return { queued, mine, isCrafter, stockByItemId }
 }
 
 export interface CraftQueueTaskEvent {

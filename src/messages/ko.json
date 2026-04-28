@@ -1906,7 +1906,9 @@
     "groupCount": "{count}건",
     "groupSilverTotal": "합계 {silver}",
     "groupCollapse": "접기",
-    "groupExpand": "펼치기"
+    "groupExpand": "펼치기",
+    "stockBadge": "{count}",
+    "stockBadgeAria": "길드 재고 {count}개"
   },
   "eventCraftAggregate": {
     "sectionTitle": "제작 리기어 집계",
