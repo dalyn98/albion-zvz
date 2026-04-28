@@ -34,20 +34,10 @@ import {
 } from '@/lib/craft-grouping'
 import {
   CRAFT_CITIES,
+  CITY_BADGE_STYLE,
   getTaskCities,
   type CraftCity,
 } from '@/lib/crafting-cities'
-
-// Tailwind 클래스는 컴파일 타임에 정적 분석되어야 purge 되므로 도시별 스타일을
-// switch/case 가 아닌 정적 매핑으로 보관. 새 도시 추가 시 여기도 같이 추가.
-const CITY_BADGE_STYLE: Record<CraftCity, string> = {
-  bridgewatch: 'bg-amber-500/15 text-amber-200 border-amber-500/40',
-  lymhurst: 'bg-emerald-500/15 text-emerald-200 border-emerald-500/40',
-  martlock: 'bg-cyan-500/15 text-cyan-200 border-cyan-500/40',
-  fortsterling: 'bg-slate-400/15 text-slate-200 border-slate-400/40',
-  thetford: 'bg-violet-500/15 text-violet-200 border-violet-500/40',
-  caerleon: 'bg-yellow-500/15 text-yellow-200 border-yellow-500/40',
-}
 
 const CITY_FILTER_STORAGE_KEY = 'albion-zvz:craft-city-filter'
 

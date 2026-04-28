@@ -27,36 +27,67 @@ export const CRAFT_CITIES: readonly CraftCity[] = [
   'caerleon',
 ] as const
 
+// Tailwind 클래스는 컴파일 타임에 정적 분석되어야 purge 되지 않으므로 도시별
+// 스타일을 정적 매핑으로 한곳에서 관리. CraftQueueClient / 집계 카드가 공유.
+export const CITY_BADGE_STYLE: Record<CraftCity, string> = {
+  bridgewatch: 'bg-amber-500/15 text-amber-200 border-amber-500/40',
+  lymhurst: 'bg-emerald-500/15 text-emerald-200 border-emerald-500/40',
+  martlock: 'bg-cyan-500/15 text-cyan-200 border-cyan-500/40',
+  fortsterling: 'bg-slate-400/15 text-slate-200 border-slate-400/40',
+  thetford: 'bg-violet-500/15 text-violet-200 border-violet-500/40',
+  caerleon: 'bg-yellow-500/15 text-yellow-200 border-yellow-500/40',
+}
+
 // Weapon family → 도시. extractWeaponCategory() 결과로 직접 lookup.
 // 매핑되지 않은 카테고리는 STAFF_SUFFIX fallback 후 null 반환.
+//
+// 카테고리 이름은 extractWeaponCategory 가 artifact suffix(_AVALON/_HELL/_KEEPER/
+// _MORGANA/_UNDEAD/_CRYSTAL/_DEMON) 를 떼어낸 결과 기준이다. 예를 들어
+// T8_2H_DUALCROSSBOW_HELL 은 "DUALCROSSBOW" 로 lookup. 신규 아티팩트가 추가될 때
+// 빠지면 카드의 도시 배지가 안 뜨므로 항목별 family 트리를 보고 채워야 한다.
+//
+// SHAPESHIFTER 패밀리(Bloodmoon/Prowling/Rootbound/Primal Staff) 는 family 분류가
+// 모호해 일단 비워뒀다 — 잘못된 도시로 매핑하느니 배지 미표시 쪽이 안전.
 const WEAPON_CITY: Record<string, CraftCity> = {
   // ── Bridgewatch (크로스보우 / 단검 / 커스드 스태프)
   CROSSBOW: 'bridgewatch',
   HEAVYCROSSBOW: 'bridgewatch',
   LIGHTCROSSBOW: 'bridgewatch',
   CROSSBOWLARGE: 'bridgewatch',
+  '1HCROSSBOW': 'bridgewatch',
+  DUALCROSSBOW: 'bridgewatch',
+  REPEATINGCROSSBOW: 'bridgewatch',
+  CROSSBOW_CANNON: 'bridgewatch',
   BOLTCASTERS: 'bridgewatch',
   WEEPINGREPEATER: 'bridgewatch',
   ENERGYSHAPER: 'bridgewatch',
   DAGGER: 'bridgewatch',
   DAGGERPAIR: 'bridgewatch',
+  DAGGER_KATAR: 'bridgewatch',
+  DUALSICKLE: 'bridgewatch',
+  TWINSCYTHE: 'bridgewatch',
   CLAWS: 'bridgewatch',
+  CLAWPAIR: 'bridgewatch',
   RAPIER: 'bridgewatch',
   BLOODLETTER: 'bridgewatch',
   DEATHGIVERS: 'bridgewatch',
   BLACKHANDS: 'bridgewatch',
+  IRONGAUNTLETS: 'bridgewatch',
   CURSEDSTAFF: 'bridgewatch',
   GREATCURSEDSTAFF: 'bridgewatch',
   DEMONICSTAFF: 'bridgewatch',
   LIFECURSESTAFF: 'bridgewatch',
   SHADOWCALLER: 'bridgewatch',
   CURSEDSKULL: 'bridgewatch',
+  SKULLORB: 'bridgewatch',
   DAMNATIONSTAFF: 'bridgewatch',
 
   // ── Lymhurst (소드 / 보우 / 아케인 스태프)
   SWORD: 'lymhurst',
   CLAYMORE: 'lymhurst',
   DUALSWORD: 'lymhurst',
+  DUALSCIMITAR: 'lymhurst',
+  SCIMITAR: 'lymhurst',
   CLEAVER: 'lymhurst',
   CARVINGSWORD: 'lymhurst',
   KINGMAKER: 'lymhurst',
@@ -72,6 +103,8 @@ const WEAPON_CITY: Record<string, CraftCity> = {
   ARCANESTAFF: 'lymhurst',
   GREATARCANESTAFF: 'lymhurst',
   ENIGMATICSTAFF: 'lymhurst',
+  ENIGMATICORB: 'lymhurst',
+  ARCANE_RINGPAIR: 'lymhurst',
   OCCULTSTAFF: 'lymhurst',
   MALEVOLENTLOCUS: 'lymhurst',
   LOCUSPOCUS: 'lymhurst',
@@ -80,6 +113,8 @@ const WEAPON_CITY: Record<string, CraftCity> = {
   AXE: 'martlock',
   BATTLEAXE: 'martlock',
   GREATAXE: 'martlock',
+  DUALAXE: 'martlock',
+  SCYTHE: 'martlock',
   HALBERD: 'martlock',
   HALBERDAXE: 'martlock',
   INFERNALSCYTHE: 'martlock',
@@ -87,9 +122,11 @@ const WEAPON_CITY: Record<string, CraftCity> = {
   CARRIONCALLER: 'martlock',
   BEARPAWS: 'martlock',
   QUARTERSTAFF: 'martlock',
+  COMBATSTAFF: 'martlock',
   IRONCLADEDSTAFF: 'martlock',
   DOUBLEBLADEDSTAFF: 'martlock',
   BLACKMONKSTAVE: 'martlock',
+  ROCKSTAFF: 'martlock',
   STAFFOFBALANCE: 'martlock',
   GRAVEGUARD: 'martlock',
   FROSTSTAFF: 'martlock',
@@ -97,6 +134,8 @@ const WEAPON_CITY: Record<string, CraftCity> = {
   GLACIALSTAFF: 'martlock',
   HOARFROSTSTAFF: 'martlock',
   ICICLESTAFF: 'martlock',
+  ICEGAUNTLETS: 'martlock',
+  ICECRYSTAL: 'martlock',
   PERMAFROSTPRISM: 'martlock',
   CHILLHOWL: 'martlock',
 
@@ -104,13 +143,18 @@ const WEAPON_CITY: Record<string, CraftCity> = {
   HAMMER: 'fortsterling',
   POLEHAMMER: 'fortsterling',
   GREATHAMMER: 'fortsterling',
+  DUALHAMMER: 'fortsterling',
+  RAM: 'fortsterling',
   TOMBHAMMER: 'fortsterling',
   FORGEHAMMERS: 'fortsterling',
   GROVEKEEPER: 'fortsterling',
   HANDOFJUSTICE: 'fortsterling',
   SPEAR: 'fortsterling',
+  SPEAR_LANCE: 'fortsterling',
   PIKE: 'fortsterling',
   GLAIVE: 'fortsterling',
+  HARPOON: 'fortsterling',
+  TRIDENT: 'fortsterling',
   HERONSPEAR: 'fortsterling',
   TRINITYSPEAR: 'fortsterling',
   SPIRITHUNTER: 'fortsterling',
@@ -125,6 +169,9 @@ const WEAPON_CITY: Record<string, CraftCity> = {
   MACE: 'thetford',
   HEAVYMACE: 'thetford',
   MORNINGSTAR: 'thetford',
+  FLAIL: 'thetford',
+  DUALMACE: 'thetford',
+  ROCKMACE: 'thetford',
   BEDROCKMACE: 'thetford',
   CAMLANNMACE: 'thetford',
   INCUBUSMACE: 'thetford',
@@ -140,9 +187,14 @@ const WEAPON_CITY: Record<string, CraftCity> = {
   WILDFIRESTAFF: 'thetford',
   BLAZINGSTAFF: 'thetford',
   BRIMSTONESTAFF: 'thetford',
+  FIRE_RINGPAIR: 'thetford',
 
   // ── Caerleon (워글러브)
   GLOVES: 'caerleon',
+  KNUCKLES: 'caerleon',
+  KNUCKLES_SET1: 'caerleon',
+  KNUCKLES_SET2: 'caerleon',
+  KNUCKLES_SET3: 'caerleon',
   BRAWLERGLOVES: 'caerleon',
   BATTLEGLOVES: 'caerleon',
   HELLFIREHAND: 'caerleon',
