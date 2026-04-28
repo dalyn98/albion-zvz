@@ -138,27 +138,54 @@ function tierFromMaterialId(id: string): number {
   return m ? Number(m[1]) : 0
 }
 
-// 도시별 페이지에서 사용. 빌드 스냅샷에서 해당 도시 보너스를 받는 아이템만 골라
-// 재집계. 한 빌드 안에서도 무기는 LH, 신발은 BW 처럼 도시가 흩어지므로 슬롯
-// 단위로 필터링한다.
+// 도시별 페이지에서 사용. 전체 합산을 한 번에 한 뒤, items 를 도시별로 거르고
+// 재료는 필터된 items 만으로 재계산. 스냅샷 단위 필터링이 아니라 item 단위 필터
+// 라서 byCity 그룹뷰 ({@link getCraftBonusCity} 호출) 와 동일한 분류 결과를 보장.
 export function aggregateBuildSnapshotsForCity(
   snapshots: readonly (BuildSnapshot | null)[],
   city: CraftCity,
   options: AggregateOptions = {},
 ): CraftAggregateBreakdown {
-  const filtered: (BuildSnapshot | null)[] = []
-  for (const snap of snapshots) {
-    if (!snap) continue
-    const next: BuildSnapshot = {} as BuildSnapshot
-    let hasAny = false
-    for (const slot of SLOT_KEYS) {
-      const item = snap[slot]
-      if (!item || !item.id) continue
-      if (getCraftBonusCity(item.id) !== city) continue
-      next[slot] = item
-      hasAny = true
+  const full = aggregateBuildSnapshots(snapshots, options)
+  const items = full.items.filter((it) => getCraftBonusCity(it.itemId) === city)
+  if (items.length === 0) {
+    return {
+      taskCount: full.taskCount,
+      items: [],
+      materials: [],
+      unknownItemCount: 0,
+      artifactCount: 0,
     }
-    if (hasAny) filtered.push(next)
   }
-  return aggregateBuildSnapshots(filtered, options)
+
+  const materialMap = new Map<string, number>()
+  let unknownItemCount = 0
+  let artifactCount = 0
+  for (const item of items) {
+    const recipe = lookupRecipe(item.itemId)
+    if (!recipe) {
+      unknownItemCount += item.count
+      continue
+    }
+    if (item.isArtifact) artifactCount += item.count
+    for (const m of recipe.materials) {
+      materialMap.set(m.id, (materialMap.get(m.id) ?? 0) + m.count * item.count)
+    }
+  }
+
+  const materials: CraftMaterialAggregateRow[] = Array.from(materialMap.entries())
+    .map(([uniqueName, count]) => ({
+      uniqueName,
+      count,
+      tier: tierFromMaterialId(uniqueName),
+    }))
+    .sort((a, b) => b.tier - a.tier || a.uniqueName.localeCompare(b.uniqueName))
+
+  return {
+    taskCount: full.taskCount,
+    items,
+    materials,
+    unknownItemCount,
+    artifactCount,
+  }
 }
