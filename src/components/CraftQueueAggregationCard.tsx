@@ -54,8 +54,9 @@ export default function CraftQueueAggregationCard({
   const [locationId, setLocationId] = useState<string>(locations[0]?.id ?? 'royal_city')
   const [customReturnPct, setCustomReturnPct] = useState('15')
   const [focusUsed, setFocusUsed] = useState(false)
-  // 'flat' = 카운트 정렬된 평면 리스트 (기존). 'byCity' = 6 개 도시별 그룹.
-  const [itemViewMode, setItemViewMode] = useState<'flat' | 'byCity'>('flat')
+  // 'flat' = 카운트 정렬된 평면 리스트. 'byCity' = 6 개 도시별 그룹 (기본값 — 박스
+  // 픽업 / 도시 분담 제작이 주된 사용 시나리오라서).
+  const [itemViewMode, setItemViewMode] = useState<'flat' | 'byCity'>('byCity')
 
   const isCustom = locationId === 'custom'
   const selectedLocation = locations.find((l) => l.id === locationId)
