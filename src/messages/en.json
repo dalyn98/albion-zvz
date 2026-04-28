@@ -1796,6 +1796,8 @@
     "confirmDeliver": "Confirm Delivery",
     "releasing": "Releasing...",
     "aggregateTitle": "Required Gear Summary",
+    "aggregateMineTitle": "Materials for tasks you claimed",
+    "aggregateMineHint": "Aggregates the gear and raw materials for tasks you've claimed but not yet delivered. Use this to plan a single shopping run for the batch.",
     "aggregateTaskCount": "({count} tasks)",
     "aggregateHint": "Aggregates equipment and materials from every craft task currently in the queue. Use this when planning a batch craft.",
     "aggregateItemsTitle": "Required Gear",

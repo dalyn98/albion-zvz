@@ -1796,6 +1796,8 @@
     "confirmDeliver": "納品確定",
     "releasing": "解除中...",
     "aggregateTitle": "必要装備の集計",
+    "aggregateMineTitle": "自分が引き受けた依頼の素材",
+    "aggregateMineHint": "自分が引き受けたものの、まだ箱に入れていないタスクの装備・素材を合計して表示します。まとめて製作するときに、どの素材をいくつ買えばよいか参考にどうぞ。",
     "aggregateTaskCount": "({count}件)",
     "aggregateHint": "キューに溜まっている全ての製作依頼の装備と素材を合計して表示します。まとめて製作するときの参考にどうぞ。",
     "aggregateItemsTitle": "必要装備",

@@ -22,6 +22,8 @@ interface Props {
   breakdown: CraftAggregateBreakdown
   focusBonusPct: number
   locations: LocationPreset[]
+  // 큐 전체(기본) / 내가 잡은 것 두 가지 컨텍스트로 재사용. 변형은 헤더 카피만 다름.
+  variant?: 'queue' | 'mine'
 }
 
 // 진행 중 task 들의 buildSnapshot 합산 → 길드가 통째로 만들어야 할 장비 + 필요
@@ -31,8 +33,11 @@ export default function CraftQueueAggregationCard({
   breakdown,
   focusBonusPct,
   locations,
+  variant = 'queue',
 }: Props) {
   const t = useTranslations('craftQueue')
+  const titleKey = variant === 'mine' ? 'aggregateMineTitle' : 'aggregateTitle'
+  const hintKey = variant === 'mine' ? 'aggregateMineHint' : 'aggregateHint'
   const tLoc = useTranslations('craftLocation')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
@@ -65,12 +70,12 @@ export default function CraftQueueAggregationCard({
       <header className="space-y-1">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
           <Package size={16} className="text-amber-400" />
-          {t('aggregateTitle')}
+          {t(titleKey as 'aggregateTitle')}
           <span className="text-xs text-gray-500">
             {t('aggregateTaskCount', { count: breakdown.taskCount })}
           </span>
         </h2>
-        <p className="text-[11px] text-gray-500">{t('aggregateHint')}</p>
+        <p className="text-[11px] text-gray-500">{t(hintKey as 'aggregateHint')}</p>
       </header>
 
       <div className="space-y-2">

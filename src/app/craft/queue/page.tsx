@@ -67,6 +67,12 @@ export default async function CraftQueuePage() {
   // 길드 단위 집계: queued task 들의 buildSnapshot 합산. claimed/delivered 는
   // 이미 다른 제작자가 잡았거나 마무리됐으므로 "지금 만들어야 할 것" 만 보여준다.
   const aggregateBreakdown = aggregateBuildSnapshots(queued.map((q) => q.buildSnapshot))
+  // 본인이 잡은 (claimed) 작업 집계: 자기가 다음에 박스에 넣어야 할 장비/재료. 이미
+  // delivered 된 건은 재료가 소진되어 새로 사야 할 게 없으므로 제외.
+  const myClaimedSnapshots = mine
+    .filter((m) => m.status === 'claimed')
+    .map((m) => m.buildSnapshot)
+  const myAggregateBreakdown = aggregateBuildSnapshots(myClaimedSnapshots)
   const locationPresets = locations.map((l) => ({
     id: l.id,
     i18nKey: l.i18nKey,
@@ -93,6 +99,13 @@ export default async function CraftQueuePage() {
         breakdown={aggregateBreakdown}
         focusBonusPct={config.focusBonusPct}
         locations={locationPresets}
+      />
+
+      <CraftQueueAggregationCard
+        breakdown={myAggregateBreakdown}
+        focusBonusPct={config.focusBonusPct}
+        locations={locationPresets}
+        variant="mine"
       />
 
       <CraftQueueClient
