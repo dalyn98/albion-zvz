@@ -1761,8 +1761,10 @@
     "queueLinkAction": "Go →",
     "queueTitle": "Open Tasks",
     "queueEmpty": "No tasks available right now.",
+    "queueEmptyFiltered": "No tasks match your selected cities. Try other cities.",
     "mineTitle": "My Tasks",
     "mineEmpty": "You haven't claimed any tasks yet.",
+    "mineEmptyFiltered": "No claimed tasks match your selected city bonus.",
     "claimButton": "Claim",
     "releaseButton": "Release",
     "deliverButton": "Deliver",
@@ -1789,6 +1791,19 @@
       "rangeFree": "Picked the smallest free box in your assigned range.",
       "rangeFull": "All boxes in your range are taken by other requesters. Enter a different box number manually.",
       "noRange": "No box range assigned yet. Ask an admin to assign one, or enter a box number manually."
+    },
+    "cityBonus": {
+      "bridgewatch": "Bridgewatch",
+      "lymhurst": "Lymhurst",
+      "martlock": "Martlock",
+      "fortsterling": "Fort Sterling",
+      "thetford": "Thetford",
+      "caerleon": "Caerleon"
+    },
+    "cityFilter": {
+      "title": "Craft bonus city",
+      "clear": "Clear filter",
+      "matchCount": "Showing {matched} / {total} tasks"
     },
     "edit": "Edit",
     "cancel": "Cancel",

@@ -1761,8 +1761,10 @@
     "queueLinkAction": "이동 →",
     "queueTitle": "대기 중인 작업",
     "queueEmpty": "현재 잡을 수 있는 제작 작업이 없어요.",
+    "queueEmptyFiltered": "선택한 도시에서 제작할 작업이 없어요. 다른 도시를 선택해 보세요.",
     "mineTitle": "내가 잡은 작업",
     "mineEmpty": "아직 잡은 작업이 없습니다.",
+    "mineEmptyFiltered": "선택한 도시 보너스에 해당하는 잡은 작업이 없어요.",
     "claimButton": "잡기",
     "releaseButton": "놓기",
     "deliverButton": "납품",
@@ -1789,6 +1791,19 @@
       "rangeFree": "내 범위 안에서 비어 있는 가장 작은 박스를 골라뒀어요.",
       "rangeFull": "내 범위 안 박스가 모두 다른 청구자에게 사용 중이에요. 다른 박스 번호를 직접 입력하세요.",
       "noRange": "박스 범위가 미지정 상태예요. 관리자에게 할당을 요청하거나 직접 박스 번호를 입력하세요."
+    },
+    "cityBonus": {
+      "bridgewatch": "Bridgewatch",
+      "lymhurst": "Lymhurst",
+      "martlock": "Martlock",
+      "fortsterling": "Fort Sterling",
+      "thetford": "Thetford",
+      "caerleon": "Caerleon"
+    },
+    "cityFilter": {
+      "title": "제작 보너스 도시",
+      "clear": "필터 해제",
+      "matchCount": "{matched} / {total} 작업 표시 중"
     },
     "edit": "편집",
     "cancel": "취소",

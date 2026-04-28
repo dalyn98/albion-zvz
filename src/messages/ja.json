@@ -1761,8 +1761,10 @@
     "queueLinkAction": "移動 →",
     "queueTitle": "未割り当てのタスク",
     "queueEmpty": "現在引き受けられるタスクはありません。",
+    "queueEmptyFiltered": "選択した都市でクラフトできるタスクがありません。別の都市を選んでみてください。",
     "mineTitle": "自分の担当タスク",
     "mineEmpty": "まだ引き受けたタスクはありません。",
+    "mineEmptyFiltered": "選択した都市ボーナスに該当する担当タスクがありません。",
     "claimButton": "引き受ける",
     "releaseButton": "離す",
     "deliverButton": "納品",
@@ -1789,6 +1791,19 @@
       "rangeFree": "あなたの範囲内で空いている最小番号の箱を選びました。",
       "rangeFull": "あなたの範囲内の箱がすべて他の申請者に使用されています。別の番号を直接入力してください。",
       "noRange": "箱の範囲が未指定です。管理者に割り当てを依頼するか、直接箱番号を入力してください。"
+    },
+    "cityBonus": {
+      "bridgewatch": "Bridgewatch",
+      "lymhurst": "Lymhurst",
+      "martlock": "Martlock",
+      "fortsterling": "Fort Sterling",
+      "thetford": "Thetford",
+      "caerleon": "Caerleon"
+    },
+    "cityFilter": {
+      "title": "クラフトボーナス都市",
+      "clear": "フィルタ解除",
+      "matchCount": "{matched} / {total} 件表示中"
     },
     "edit": "編集",
     "cancel": "キャンセル",

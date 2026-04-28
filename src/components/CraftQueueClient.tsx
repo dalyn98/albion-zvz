@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { Box, Hammer, X, RefreshCw, Coins, Settings2, ChevronDown } from 'lucide-react'
+import { Box, Hammer, X, RefreshCw, Coins, Settings2, ChevronDown, MapPin } from 'lucide-react'
 import {
   claimCraftQueueItem,
   releaseCraftQueueItem,
@@ -32,6 +32,24 @@ import {
   NO_EVENT_KEY,
   type EventGroup,
 } from '@/lib/craft-grouping'
+import {
+  CRAFT_CITIES,
+  getTaskCities,
+  type CraftCity,
+} from '@/lib/crafting-cities'
+
+// Tailwind 클래스는 컴파일 타임에 정적 분석되어야 purge 되므로 도시별 스타일을
+// switch/case 가 아닌 정적 매핑으로 보관. 새 도시 추가 시 여기도 같이 추가.
+const CITY_BADGE_STYLE: Record<CraftCity, string> = {
+  bridgewatch: 'bg-amber-500/15 text-amber-200 border-amber-500/40',
+  lymhurst: 'bg-emerald-500/15 text-emerald-200 border-emerald-500/40',
+  martlock: 'bg-cyan-500/15 text-cyan-200 border-cyan-500/40',
+  fortsterling: 'bg-slate-400/15 text-slate-200 border-slate-400/40',
+  thetford: 'bg-violet-500/15 text-violet-200 border-violet-500/40',
+  caerleon: 'bg-yellow-500/15 text-yellow-200 border-yellow-500/40',
+}
+
+const CITY_FILTER_STORAGE_KEY = 'albion-zvz:craft-city-filter'
 
 interface LocationPreset {
   id: string
@@ -68,14 +86,75 @@ export default function CraftQueueClient({
   const [selectedQueued, setSelectedQueued] = useState<Set<string>>(new Set())
   const [selectedMine, setSelectedMine] = useState<Set<string>>(new Set())
   const [bulkPending, startBulk] = useTransition()
+  // 도시 필터 — 비어 있으면 전체 표시. localStorage 에 저장해서 새로고침/재방문에도
+  // 유지. SSR hydration mismatch 방지를 위해 빈 Set 으로 시작 후 useEffect 로 로드.
+  const [cityFilter, setCityFilter] = useState<Set<CraftCity>>(new Set())
 
-  const claimedTasks = useMemo(() => mine.filter((m) => m.status === 'claimed'), [mine])
-  const deliveredTasks = useMemo(() => mine.filter((m) => m.status === 'delivered'), [mine])
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(CITY_FILTER_STORAGE_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as unknown
+      if (!Array.isArray(parsed)) return
+      const valid = parsed.filter(
+        (c): c is CraftCity =>
+          typeof c === 'string' && (CRAFT_CITIES as readonly string[]).includes(c),
+      )
+      if (valid.length > 0) setCityFilter(new Set(valid))
+    } catch {
+      // 망가진 JSON 은 무시 — 기본값(전체) 으로 가는 게 안전.
+    }
+  }, [])
 
-  const queuedIds = useMemo(() => queued.map((q) => q.taskId), [queued])
+  const updateCityFilter = (next: Set<CraftCity>) => {
+    setCityFilter(next)
+    try {
+      localStorage.setItem(CITY_FILTER_STORAGE_KEY, JSON.stringify([...next]))
+    } catch {
+      // localStorage 가 막혀 있어도 페이지 작동은 계속.
+    }
+  }
+
+  const toggleCityFilter = (city: CraftCity) => {
+    const next = new Set(cityFilter)
+    if (next.has(city)) next.delete(city)
+    else next.add(city)
+    updateCityFilter(next)
+  }
+
+  const clearCityFilter = () => updateCityFilter(new Set())
+
+  const filteredQueued = useMemo(() => {
+    if (cityFilter.size === 0) return queued
+    return queued.filter((item) => {
+      const cities = getTaskCities(item.buildSnapshot)
+      for (const c of cities) if (cityFilter.has(c)) return true
+      return false
+    })
+  }, [queued, cityFilter])
+
+  const filteredMine = useMemo(() => {
+    if (cityFilter.size === 0) return mine
+    return mine.filter((item) => {
+      const cities = getTaskCities(item.buildSnapshot)
+      for (const c of cities) if (cityFilter.has(c)) return true
+      return false
+    })
+  }, [mine, cityFilter])
+
+  const claimedTasks = useMemo(
+    () => filteredMine.filter((m) => m.status === 'claimed'),
+    [filteredMine],
+  )
+  const deliveredTasks = useMemo(
+    () => filteredMine.filter((m) => m.status === 'delivered'),
+    [filteredMine],
+  )
+
+  const queuedIds = useMemo(() => filteredQueued.map((q) => q.taskId), [filteredQueued])
   const claimedIds = useMemo(() => claimedTasks.map((m) => m.taskId), [claimedTasks])
 
-  const queuedGroups = useMemo(() => groupByEvent(queued), [queued])
+  const queuedGroups = useMemo(() => groupByEvent(filteredQueued), [filteredQueued])
   const claimedGroups = useMemo(() => groupByEvent(claimedTasks), [claimedTasks])
   const deliveredGroups = useMemo(() => groupByEvent(deliveredTasks), [deliveredTasks])
 
@@ -165,6 +244,10 @@ export default function CraftQueueClient({
     })
   }
 
+  // 필터링 전 원본 카운트 — "x / y" 표시 및 "필터 적용 중" 헤더 노출에 사용.
+  const totalRaw = mode === 'browse' ? queued.length : mine.length
+  const totalFiltered = mode === 'browse' ? filteredQueued.length : filteredMine.length
+
   return (
     <div className="space-y-6">
       <CrafterDefaultsCard
@@ -172,22 +255,32 @@ export default function CraftQueueClient({
         onUpdated={() => router.refresh()}
       />
 
+      <CityFilterBar
+        selected={cityFilter}
+        onToggle={toggleCityFilter}
+        onClear={clearCityFilter}
+        totalRaw={totalRaw}
+        totalFiltered={totalFiltered}
+      />
+
       {mode === 'browse' && (
       <section className="space-y-3">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
           <Hammer size={16} className="text-amber-400" />
           {t('queueTitle')}
-          <span className="text-xs text-gray-500">({queued.length})</span>
+          <span className="text-xs text-gray-500">({filteredQueued.length})</span>
         </h2>
-        {queued.length === 0 ? (
+        {filteredQueued.length === 0 ? (
           <p className="text-gray-500 text-sm bg-gray-900 border border-gray-800 rounded-2xl px-4 py-6 text-center">
-            {t('queueEmpty')}
+            {cityFilter.size > 0 && queued.length > 0
+              ? t('queueEmptyFiltered')
+              : t('queueEmpty')}
           </p>
         ) : (
           <>
             <BulkActionBar
               selectedCount={selectedQueued.size}
-              totalCount={queued.length}
+              totalCount={filteredQueued.length}
               onToggleAll={() => setAllSelected(selectedQueued, setSelectedQueued, queuedIds)}
               onClear={() => setSelectedQueued(new Set())}
               actionLabel={t('bulkClaimButton', { count: selectedQueued.size })}
@@ -281,11 +374,13 @@ export default function CraftQueueClient({
         <h2 className="text-base font-bold text-white flex items-center gap-2">
           <Box size={16} className="text-emerald-400" />
           {t('mineTitle')}
-          <span className="text-xs text-gray-500">({mine.length})</span>
+          <span className="text-xs text-gray-500">({filteredMine.length})</span>
         </h2>
-        {mine.length === 0 ? (
+        {filteredMine.length === 0 ? (
           <p className="text-gray-500 text-sm bg-gray-900 border border-gray-800 rounded-2xl px-4 py-6 text-center">
-            {t('mineEmpty')}
+            {cityFilter.size > 0 && mine.length > 0
+              ? t('mineEmptyFiltered')
+              : t('mineEmpty')}
           </p>
         ) : (
           <div className="space-y-4">
@@ -517,19 +612,104 @@ interface TaskHeaderProps {
 
 function TaskHeader({ item, tRole }: TaskHeaderProps) {
   const t = useTranslations('craftQueue')
+  const cities = useMemo(() => getTaskCities(item.buildSnapshot), [item.buildSnapshot])
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="min-w-0 flex-1">
-        <p className="text-white text-sm font-semibold truncate">{item.eventTitle}</p>
-        <p className="text-[11px] text-gray-400 mt-0.5">
-          {t('requesterLine', { name: item.requesterUsername })}
-          <span className="ml-2 text-gray-500">· {translateSlotRole(item.roleName, tRole)}</span>
-          {item.claimedSilver != null && (
-            <span className="ml-2 text-amber-300 font-mono">{formatSilver(item.claimedSilver)}</span>
-          )}
-        </p>
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-white text-sm font-semibold truncate">{item.eventTitle}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">
+            {t('requesterLine', { name: item.requesterUsername })}
+            <span className="ml-2 text-gray-500">· {translateSlotRole(item.roleName, tRole)}</span>
+            {item.claimedSilver != null && (
+              <span className="ml-2 text-amber-300 font-mono">{formatSilver(item.claimedSilver)}</span>
+            )}
+          </p>
+        </div>
       </div>
+      {cities.size > 0 && <TaskCityBadges cities={cities} />}
     </div>
+  )
+}
+
+function TaskCityBadges({ cities }: { cities: Set<CraftCity> }) {
+  const t = useTranslations('craftQueue')
+  // 표시 순서를 CRAFT_CITIES 의 정의 순으로 고정 → 카드 간 일관된 정렬.
+  const ordered = CRAFT_CITIES.filter((c) => cities.has(c))
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      <MapPin size={10} className="text-gray-500 mr-0.5 flex-shrink-0" />
+      {ordered.map((city) => (
+        <span
+          key={city}
+          className={`text-[10px] font-bold border rounded px-1.5 py-0.5 ${CITY_BADGE_STYLE[city]}`}
+        >
+          {t(`cityBonus.${city}`)}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+interface CityFilterBarProps {
+  selected: Set<CraftCity>
+  onToggle: (city: CraftCity) => void
+  onClear: () => void
+  totalRaw: number
+  totalFiltered: number
+}
+
+function CityFilterBar({
+  selected,
+  onToggle,
+  onClear,
+  totalRaw,
+  totalFiltered,
+}: CityFilterBarProps) {
+  const t = useTranslations('craftQueue')
+  const isFiltering = selected.size > 0
+  return (
+    <section className="bg-gray-900 border border-gray-800 rounded-2xl p-3 sm:p-4 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+          <MapPin size={12} className="text-amber-400" />
+          {t('cityFilter.title')}
+        </p>
+        {isFiltering && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="text-[11px] text-gray-400 hover:text-white border border-gray-700 hover:border-amber-500/40 rounded-lg px-2 py-1"
+          >
+            {t('cityFilter.clear')}
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {CRAFT_CITIES.map((city) => {
+          const active = selected.has(city)
+          return (
+            <button
+              key={city}
+              type="button"
+              onClick={() => onToggle(city)}
+              className={`text-[11px] font-bold border rounded-lg px-2.5 py-1 transition ${
+                active
+                  ? CITY_BADGE_STYLE[city]
+                  : 'border-gray-700 bg-gray-950 text-gray-400 hover:text-white hover:border-gray-500'
+              }`}
+            >
+              {t(`cityBonus.${city}`)}
+            </button>
+          )
+        })}
+      </div>
+      {isFiltering && (
+        <p className="text-[10px] text-gray-500">
+          {t('cityFilter.matchCount', { matched: totalFiltered, total: totalRaw })}
+        </p>
+      )}
+    </section>
   )
 }
 
