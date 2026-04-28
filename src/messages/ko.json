@@ -1723,7 +1723,7 @@
   },
   "regearTrackedDeaths": {
     "sectionTitle": "이벤트 외 트래킹 사망",
-    "sectionHint": "정모(이벤트) 가 만들어지지 않은 트래킹 전투에서 죽었다면 여기서 직접 신청할 수 있어요. 최근 14일 이내 사망만 표시됩니다.",
+    "sectionHint": "이벤트가 만들어지지 않은 트래킹 전투에서 죽었다면 여기서 직접 신청할 수 있어요. 최근 14일 이내 사망만 표시됩니다.",
     "btnSubmit": "리기어 신청",
     "modalTitle": "트래킹 전투 사망 신청",
     "modalContextBattleAt": "전투 시각: {time}",

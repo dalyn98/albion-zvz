@@ -10,7 +10,7 @@ import AdHocDeathSubmitButton from './AdHocDeathSubmitButton'
 import AdHocDeathBuildStrip from './AdHocDeathBuildStrip'
 
 // /regear 페이지에서 이벤트 외 트래킹 사망(예외 흐름) 을 카드 리스트로 노출.
-// 길드 정모 이벤트가 안 만들어진 일반 트래킹 전투에서 죽은 멤버가 본인 사망
+// 이벤트가 만들어지지 않은 일반 트래킹 전투에서 죽은 멤버가 본인 사망
 // 기록을 보고 직접 신청한다. 자동 리기어 cron 은 이벤트 종료 트리거라 이
 // 흐름은 자동 처리에 닿지 않은 사망에 대한 안전 그물.
 export default async function AdHocDeathsSection() {
