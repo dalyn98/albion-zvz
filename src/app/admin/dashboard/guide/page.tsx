@@ -13,6 +13,7 @@ import {
   Globe,
   ListChecks,
   AlertCircle,
+  Hammer,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
@@ -88,6 +89,24 @@ export default async function AdminGuidePage() {
           <li>{t('regear.bullet3')}</li>
           <li>{t('regear.bullet4')}</li>
           <li>{t('regear.bullet5')}</li>
+        </ul>
+      </GuideSection>
+
+      <GuideSection
+        icon={<Hammer size={18} className="text-amber-400" />}
+        title={t('craftRegear.title')}
+        href="/admin/dashboard/craft"
+        linkLabel={t('craftRegear.cta')}
+      >
+        <p className="text-sm text-gray-300 leading-relaxed">
+          {t('craftRegear.body')}
+        </p>
+        <ul className="list-disc pl-5 space-y-1.5 text-sm text-gray-300 mt-2">
+          <li>{t('craftRegear.bullet1')}</li>
+          <li>{t('craftRegear.bullet2')}</li>
+          <li>{t('craftRegear.bullet3')}</li>
+          <li>{t('craftRegear.bullet4')}</li>
+          <li>{t('craftRegear.bullet5')}</li>
         </ul>
       </GuideSection>
 

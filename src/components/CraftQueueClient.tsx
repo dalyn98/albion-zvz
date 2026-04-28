@@ -13,10 +13,12 @@ import {
   setMyCrafterDefaults,
   bulkClaimCraftQueueItems,
   bulkReleaseCraftQueueItems,
+  computeAutoAssignBox,
   type CraftQueueItem,
   type CraftBoxConfig,
   type CrafterProfile,
   type CraftCompensationMode,
+  type AutoAssignReason,
 } from '@/app/actions/craft'
 import type { BuildCostBreakdown } from '@/lib/craft-recipes'
 import { SLOT_KEYS, type BuildSnapshot, type SlotKey } from '@/types'
@@ -167,7 +169,6 @@ export default function CraftQueueClient({
     <div className="space-y-6">
       <CrafterDefaultsCard
         profile={profile}
-        config={config}
         onUpdated={() => router.refresh()}
       />
 
@@ -426,7 +427,6 @@ export default function CraftQueueClient({
           item={deliverTarget}
           config={config}
           locations={locations}
-          profile={profile}
           onClose={() => setDeliverTarget(null)}
           onSuccess={() => {
             setDeliverTarget(null)
@@ -603,20 +603,15 @@ function ClaimedActions({ item, onDeliver, onAfter }: ClaimedActionsProps) {
 
 interface CrafterDefaultsCardProps {
   profile: CrafterProfile | null
-  config: CraftBoxConfig
   onUpdated: () => void
 }
 
-function CrafterDefaultsCard({ profile, config, onUpdated }: CrafterDefaultsCardProps) {
+function CrafterDefaultsCard({ profile, onUpdated }: CrafterDefaultsCardProps) {
   const t = useTranslations('craftQueue')
   const toast = useToast()
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<CraftCompensationMode>(profile?.compensationMode ?? 'volunteer')
   const [premiumPct, setPremiumPct] = useState(String(profile?.premiumPct ?? 0))
-  const [boxAutoAssign, setBoxAutoAssign] = useState(profile?.boxAutoAssign ?? false)
-  const [preferredBoxNumber, setPreferredBoxNumber] = useState(
-    profile?.preferredBoxNumber != null ? String(profile.preferredBoxNumber) : '',
-  )
   const [pending, startTransition] = useTransition()
 
   if (!profile) return null
@@ -627,26 +622,8 @@ function CrafterDefaultsCard({ profile, config, onUpdated }: CrafterDefaultsCard
       toast.error(t('premiumOutOfRange'))
       return
     }
-    let parsedBox: number | null = null
-    const trimmedBox = preferredBoxNumber.trim()
-    if (trimmedBox) {
-      const n = Number(trimmedBox)
-      if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) {
-        toast.error(t('preferredBoxInvalid'))
-        return
-      }
-      if (n < config.rangeMin || n > config.rangeMax) {
-        toast.error(t('boxOutOfRange', { min: config.rangeMin, max: config.rangeMax }))
-        return
-      }
-      parsedBox = n
-    }
-    if (boxAutoAssign && parsedBox == null) {
-      toast.error(t('preferredBoxRequiredForAutoAssign'))
-      return
-    }
     startTransition(async () => {
-      const r = await setMyCrafterDefaults(mode, parsed, parsedBox, boxAutoAssign)
+      const r = await setMyCrafterDefaults(mode, parsed)
       if (r.error) {
         toast.error(r.error)
         return
@@ -656,6 +633,8 @@ function CrafterDefaultsCard({ profile, config, onUpdated }: CrafterDefaultsCard
       onUpdated()
     })
   }
+
+  const hasRange = profile.boxRangeStart != null && profile.boxRangeEnd != null
 
   return (
     <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4">
@@ -679,6 +658,19 @@ function CrafterDefaultsCard({ profile, config, onUpdated }: CrafterDefaultsCard
         >
           {open ? t('cancel') : t('edit')}
         </button>
+      </div>
+      <div className="mt-3 flex items-center gap-2 text-[11px] text-gray-400">
+        <Box size={12} className="text-emerald-400" />
+        {hasRange ? (
+          <span>
+            {t('boxRangeAssigned', {
+              start: profile.boxRangeStart!,
+              end: profile.boxRangeEnd!,
+            })}
+          </span>
+        ) : (
+          <span className="text-amber-300/80">{t('boxRangeUnassigned')}</span>
+        )}
       </div>
       {open && (
         <div className="mt-3 space-y-2">
@@ -722,39 +714,6 @@ function CrafterDefaultsCard({ profile, config, onUpdated }: CrafterDefaultsCard
               <p className="text-[10px] text-gray-500 mt-1">{t('premiumHint')}</p>
             </div>
           )}
-          <div className="border-t border-gray-800 pt-3 space-y-2">
-            <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
-              {t('preferredBoxTitle')}
-            </p>
-            <div>
-              <label className="block text-[11px] text-gray-400 mb-1">
-                {t('preferredBoxLabel', { min: config.rangeMin, max: config.rangeMax })}
-              </label>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={config.rangeMin}
-                max={config.rangeMax}
-                value={preferredBoxNumber}
-                onChange={(e) => setPreferredBoxNumber(e.target.value)}
-                disabled={pending}
-                placeholder={t('preferredBoxPlaceholder')}
-                className="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
-              />
-              <p className="text-[10px] text-gray-500 mt-1">{t('preferredBoxHint')}</p>
-            </div>
-            <label className="flex items-center gap-2 text-xs text-gray-300">
-              <input
-                type="checkbox"
-                checked={boxAutoAssign}
-                onChange={(e) => setBoxAutoAssign(e.target.checked)}
-                disabled={pending}
-                className="rounded border-gray-700 bg-gray-950"
-              />
-              {t('boxAutoAssignLabel')}
-            </label>
-            <p className="text-[10px] text-gray-500">{t('boxAutoAssignHint')}</p>
-          </div>
           <button
             type="button"
             onClick={save}
@@ -881,21 +840,15 @@ interface DeliverDialogProps {
   item: CraftQueueItem
   config: CraftBoxConfig
   locations: LocationPreset[]
-  profile: CrafterProfile | null
   onClose: () => void
   onSuccess: () => void
 }
 
-function DeliverDialog({ item, config, locations, profile, onClose, onSuccess }: DeliverDialogProps) {
+function DeliverDialog({ item, config, locations, onClose, onSuccess }: DeliverDialogProps) {
   const t = useTranslations('craftQueue')
   const toast = useToast()
-  // 박스 자동 배정 토글이 ON 이고 선호 박스가 지정돼 있으면 그 값으로 채워둔다.
-  // 사용자는 여전히 수동으로 변경 가능 — 자동 배정은 입력 부담만 덜어주는 용도.
-  const initialBox =
-    profile?.boxAutoAssign && profile.preferredBoxNumber != null
-      ? String(profile.preferredBoxNumber)
-      : ''
-  const [boxNumber, setBoxNumber] = useState(initialBox)
+  const [boxNumber, setBoxNumber] = useState('')
+  const [autoAssignReason, setAutoAssignReason] = useState<AutoAssignReason | null>(null)
   const [locationId, setLocationId] = useState(locations[0]?.id ?? 'royal_city')
   const [customReturnPct, setCustomReturnPct] = useState('15')
   const [focusUsed, setFocusUsed] = useState(false)
@@ -903,6 +856,21 @@ function DeliverDialog({ item, config, locations, profile, onClose, onSuccess }:
   const [materialOverride, setMaterialOverride] = useState<string>('')
   const [previewing, startPreview] = useTransition()
   const [submitting, startSubmit] = useTransition()
+
+  // 모달이 열리면 서버에서 자동 박스 배정을 시도한다 — 같은 요청자가 이미 점유한
+  // 박스가 있으면 재사용, 없으면 크래프터 범위 안 빈 번호. 실패해도 수동 입력은
+  // 항상 가능하다.
+  useEffect(() => {
+    let cancelled = false
+    void computeAutoAssignBox(item.taskId).then((res) => {
+      if (cancelled) return
+      setAutoAssignReason(res.reason)
+      if (res.boxNumber != null) setBoxNumber(String(res.boxNumber))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [item.taskId])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -988,6 +956,17 @@ function DeliverDialog({ item, config, locations, profile, onClose, onSuccess }:
           placeholder={t('boxPlaceholder')}
           className="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
         />
+        {autoAssignReason && (
+          <p
+            className={`text-[10px] mt-1 ${
+              autoAssignReason === 'rangeFull' || autoAssignReason === 'noRange'
+                ? 'text-amber-300/80'
+                : 'text-emerald-300/80'
+            }`}
+          >
+            {t(`autoAssignReason.${autoAssignReason}`)}
+          </p>
+        )}
       </div>
 
       <div>

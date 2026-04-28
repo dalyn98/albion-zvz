@@ -54,8 +54,10 @@ export interface CrafterProfile {
   isCrafter: boolean
   compensationMode: CraftCompensationMode
   premiumPct: number
-  preferredBoxNumber: number | null
-  boxAutoAssign: boolean
+  // 관리자가 할당한 박스 범위. NULL/NULL = 미지정. 둘 다 not-null 이어야만
+  // 자동 배정이 동작한다 (DB constraint 로 보장).
+  boxRangeStart: number | null
+  boxRangeEnd: number | null
 }
 
 export interface CraftQueueItem {
@@ -227,22 +229,24 @@ export async function getMyCrafterProfile(): Promise<CrafterProfile | null> {
   const { data } = await db
     .from('guild_avatars')
     .select(
-      'is_crafter, craft_compensation_mode, craft_premium_pct, craft_preferred_box_number, craft_box_auto_assign',
+      'is_crafter, craft_compensation_mode, craft_premium_pct, craft_box_range_start, craft_box_range_end',
     )
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
     .maybeSingle()
   if (!data) return null
   const mode = (data.craft_compensation_mode as CraftCompensationMode | null) ?? 'volunteer'
-  const rawBox = data.craft_preferred_box_number
   return {
     isCrafter: (data.is_crafter as boolean | undefined) === true,
     compensationMode: mode === 'paid' ? 'paid' : 'volunteer',
     premiumPct: typeof data.craft_premium_pct === 'number' ? data.craft_premium_pct : 0,
-    preferredBoxNumber:
-      typeof rawBox === 'number' && Number.isFinite(rawBox) && rawBox >= 1 ? rawBox : null,
-    boxAutoAssign: (data.craft_box_auto_assign as boolean | undefined) === true,
+    boxRangeStart: parseRangeBoundary(data.craft_box_range_start),
+    boxRangeEnd: parseRangeBoundary(data.craft_box_range_end),
   }
+}
+
+function parseRangeBoundary(raw: unknown): number | null {
+  return typeof raw === 'number' && Number.isFinite(raw) && raw >= 1 ? raw : null
 }
 
 export async function getCraftLocationPresets(): Promise<readonly CraftLocationPreset[]> {
@@ -801,8 +805,6 @@ export async function deliverCraftQueueItem(
 export async function setMyCrafterDefaults(
   compensationMode: CraftCompensationMode,
   premiumPct: number,
-  preferredBoxNumber: number | null,
-  boxAutoAssign: boolean,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
@@ -815,16 +817,6 @@ export async function setMyCrafterDefaults(
   if (!Number.isInteger(premiumPct) || premiumPct < 0 || premiumPct > 200) {
     return { error: tErr('craftPremiumOutOfRange') }
   }
-  // 박스 번호는 길드 설정의 rangeMin..rangeMax 안이어야 한다 (DeliverDialog 와 동일 룰).
-  if (preferredBoxNumber != null) {
-    if (!Number.isInteger(preferredBoxNumber) || preferredBoxNumber < 1) {
-      return { error: tErr('invalidInput') }
-    }
-    const cfg = await getCraftConfig()
-    if (preferredBoxNumber < cfg.rangeMin || preferredBoxNumber > cfg.rangeMax) {
-      return { error: tErr('craftBoxOutOfRange') }
-    }
-  }
   const isCrafter = await loadIsCrafter(guildId, session.discordId)
   if (!isCrafter && !session.isAdmin) return { error: tErr('crafterOnly') }
 
@@ -834,8 +826,6 @@ export async function setMyCrafterDefaults(
     .update({
       craft_compensation_mode: compensationMode,
       craft_premium_pct: premiumPct,
-      craft_preferred_box_number: preferredBoxNumber,
-      craft_box_auto_assign: boxAutoAssign,
     })
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
@@ -855,6 +845,8 @@ export interface AdminCrafterRow {
   isCrafter: boolean
   compensationMode: CraftCompensationMode
   premiumPct: number
+  boxRangeStart: number | null
+  boxRangeEnd: number | null
 }
 
 export async function listGuildCrafters(): Promise<{
@@ -870,7 +862,9 @@ export async function listGuildCrafters(): Promise<{
 
     const { data, error } = await db
       .from('guild_avatars')
-      .select('discord_id, username, is_crafter, craft_compensation_mode, craft_premium_pct')
+      .select(
+        'discord_id, username, is_crafter, craft_compensation_mode, craft_premium_pct, craft_box_range_start, craft_box_range_end',
+      )
       .eq('guild_id', guildId)
       .eq('is_crafter', true)
       .is('withdrawn_at', null)
@@ -886,6 +880,8 @@ export async function listGuildCrafters(): Promise<{
           : 'volunteer',
       premiumPct:
         typeof r.craft_premium_pct === 'number' ? r.craft_premium_pct : 0,
+      boxRangeStart: parseRangeBoundary(r.craft_box_range_start),
+      boxRangeEnd: parseRangeBoundary(r.craft_box_range_end),
     }))
     return { crafters }
   } catch (e) {
@@ -915,6 +911,192 @@ export async function setMemberCrafterFlag(
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
+}
+
+// 관리자가 크래프터별 박스 범위 [start, end] 를 지정하거나 (둘 다 number) 해제
+// (둘 다 null) 한다. 길드 내 다른 크래프터의 범위와 겹치면 거부 — 실수로 같은
+// 박스를 두 명에게 할당해서 충돌 나는 것을 방지한다.
+export async function setCrafterBoxRange(
+  discordId: string,
+  start: number | null,
+  end: number | null,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  const tCraft = await getTranslations('memberActionError')
+  try {
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+
+    // 둘 다 null (해제) or 둘 다 not-null (할당) — 한쪽만 들어오면 입력 오류.
+    if ((start == null) !== (end == null)) return { error: tErr('invalidInput') }
+    if (start != null && end != null) {
+      if (
+        !Number.isInteger(start) ||
+        !Number.isInteger(end) ||
+        start < 1 ||
+        end < start
+      ) {
+        return { error: tErr('invalidInput') }
+      }
+      // 길드 설정 박스 범위 안인지 검사 — 어드민 설정에서 정한 rangeMin/rangeMax 를 벗어난
+      // 번호는 의미 없음 (DeliverDialog 자체가 그 범위 밖 박스 번호를 거부한다).
+      const cfg = await getCraftConfig()
+      if (start < cfg.rangeMin || end > cfg.rangeMax) {
+        return { error: tCraft('craftBoxOutOfRange') }
+      }
+      // 겹침 검사 — 같은 길드의 다른 크래프터 중에 (other.start ≤ end) AND
+      // (other.end ≥ start) 인 행이 있으면 거부.
+      const { data: overlaps, error: overlapErr } = await db
+        .from('guild_avatars')
+        .select('discord_id, username, craft_box_range_start, craft_box_range_end')
+        .eq('guild_id', guildId)
+        .neq('discord_id', discordId)
+        .eq('is_crafter', true)
+        .is('withdrawn_at', null)
+        .not('craft_box_range_start', 'is', null)
+        .not('craft_box_range_end', 'is', null)
+        .lte('craft_box_range_start', end)
+        .gte('craft_box_range_end', start)
+      if (overlapErr) return { error: overlapErr.message }
+      if (overlaps && overlaps.length > 0) {
+        const conflict = overlaps[0] as {
+          username: string
+          craft_box_range_start: number
+          craft_box_range_end: number
+        }
+        return {
+          error: tErr('craftBoxRangeOverlap', {
+            user: conflict.username,
+            start: conflict.craft_box_range_start,
+            end: conflict.craft_box_range_end,
+          }),
+        }
+      }
+    }
+
+    const { error } = await db
+      .from('guild_avatars')
+      .update({
+        craft_box_range_start: start,
+        craft_box_range_end: end,
+      })
+      .eq('guild_id', guildId)
+      .eq('discord_id', discordId)
+    if (error) return { error: error.message }
+    revalidatePath('/admin/dashboard/craft')
+    revalidatePath('/craft/queue')
+    revalidatePath('/craft/my-tasks')
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+// 자동 박스 배정 — DeliverDialog 가 열릴 때 호출해 모달의 박스 칸을 미리
+// 채운다. 알고리즘:
+//   1) 이 task 의 요청자(R) 가 이미 점유 중인 박스 N 이 있으면 → N 재사용.
+//      "점유 중" = 그 박스에 status='delivered' 인 task 가 하나라도 있음.
+//   2) 없으면 → 이 크래프터의 범위 [start, end] 안에서 다른 요청자가 점유
+//      안 한 가장 작은 박스. ("다른 요청자가 점유" = 그 박스에 다른 사람의
+//      delivered task 가 있음.)
+//   3) 범위 미지정 / 범위 안 박스가 모두 다른 요청자 점유 → null + reason.
+//
+// 반환되는 reason 으로 클라이언트가 적절한 안내를 띄운다 (예: "범위 미지정,
+// 관리자에게 요청하세요" / "범위 박스가 모두 사용 중").
+export type AutoAssignReason =
+  | 'requesterReuse' // 요청자가 이미 사용 중인 박스 — 같이 모음
+  | 'rangeFree' // 범위 안 빈 박스 자동 선택
+  | 'rangeFull' // 범위 안 박스가 모두 다른 요청자 점유
+  | 'noRange' // 크래프터 범위 미지정
+
+export interface AutoAssignResult {
+  boxNumber: number | null
+  reason: AutoAssignReason
+}
+
+export async function computeAutoAssignBox(
+  taskId: string,
+): Promise<AutoAssignResult & { error?: string }> {
+  const tErr = await getTranslations('memberActionError')
+  const session = await getSession()
+  if (!session) {
+    return { boxNumber: null, reason: 'noRange', error: tErr('loginRequired') }
+  }
+  const guildId = await getSessionGuildId(session)
+  const db = getAdminClient()
+
+  const { data: task, error: taskErr } = await db
+    .from('craft_tasks')
+    .select(
+      'id, guild_id, crafter_discord_id, regear_request_id, regear_requests!inner(discord_id)',
+    )
+    .eq('id', taskId)
+    .eq('guild_id', guildId)
+    .maybeSingle()
+  if (taskErr || !task) {
+    return { boxNumber: null, reason: 'noRange', error: tErr('craftTaskNotFound') }
+  }
+  if (task.crafter_discord_id !== session.discordId && !session.isAdmin) {
+    return { boxNumber: null, reason: 'noRange', error: tErr('craftNotClaimer') }
+  }
+  const requesterDiscordId = (
+    task.regear_requests as unknown as { discord_id: string }
+  ).discord_id
+
+  // 1) 이 요청자가 이미 점유 중인 박스가 있는지 — 같은 길드의 status='delivered'
+  //    + 같은 요청자 + 박스 번호 not-null. 있으면 그 박스 그대로 사용.
+  const { data: requesterOccupied } = await db
+    .from('craft_tasks')
+    .select('box_number, regear_requests!inner(discord_id)')
+    .eq('guild_id', guildId)
+    .eq('status', 'delivered')
+    .eq('regear_requests.discord_id', requesterDiscordId)
+    .not('box_number', 'is', null)
+    .order('delivered_at', { ascending: false })
+    .limit(1)
+  if (requesterOccupied && requesterOccupied.length > 0) {
+    const n = requesterOccupied[0].box_number as number | null
+    if (typeof n === 'number') {
+      return { boxNumber: n, reason: 'requesterReuse' }
+    }
+  }
+
+  // 2) 크래프터의 범위 조회. 미지정이면 noRange.
+  const { data: crafter } = await db
+    .from('guild_avatars')
+    .select('craft_box_range_start, craft_box_range_end')
+    .eq('guild_id', guildId)
+    .eq('discord_id', session.discordId)
+    .maybeSingle()
+  const rangeStart = parseRangeBoundary(crafter?.craft_box_range_start)
+  const rangeEnd = parseRangeBoundary(crafter?.craft_box_range_end)
+  if (rangeStart == null || rangeEnd == null) {
+    return { boxNumber: null, reason: 'noRange' }
+  }
+
+  // 다른 요청자가 점유 중인 박스 번호들. (같은 요청자가 이미 점유 중인 케이스는
+  // 위에서 처리됐으므로 여기 도달했다는 건 이 요청자는 점유 중인 박스 없음.)
+  const { data: occupiedRows } = await db
+    .from('craft_tasks')
+    .select('box_number')
+    .eq('guild_id', guildId)
+    .eq('status', 'delivered')
+    .gte('box_number', rangeStart)
+    .lte('box_number', rangeEnd)
+  const occupied = new Set<number>()
+  for (const row of occupiedRows ?? []) {
+    const n = row.box_number as number | null
+    if (typeof n === 'number') occupied.add(n)
+  }
+
+  for (let n = rangeStart; n <= rangeEnd; n++) {
+    if (!occupied.has(n)) {
+      return { boxNumber: n, reason: 'rangeFree' }
+    }
+  }
+  return { boxNumber: null, reason: 'rangeFull' }
 }
 
 export async function listAllCraftTasksAdmin(
