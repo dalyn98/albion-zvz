@@ -110,9 +110,11 @@ export interface GearCategorization {
 
 const WEAPON_RE = /^T(\d+)_(?:2H|MAIN)_/
 const OFFHAND_RE = /^T(\d+)_OFF_/
-const ARMOR_PIECE_RE = /^T(\d+)_(HEAD|ARMOR|SHOES)_(PLATE|LEATHER|CLOTH)\b/
-const CAPE_RE = /^T(\d+)_(?:CAPEITEM|CAPE)\b/
-const BAG_RE = /^T(\d+)_BAG\b/
+// `\b` 는 `_` 가 word char 라 SET1·KEEPER·AVALON 같은 접미사 앞에서 boundary
+// 가 안 잡힌다. `(?:_|$)` 로 명시적으로 접미사 또는 끝 매칭.
+const ARMOR_PIECE_RE = /^T(\d+)_(HEAD|ARMOR|SHOES)_(PLATE|LEATHER|CLOTH)(?:_|$)/
+const CAPE_RE = /^T(\d+)_(?:CAPEITEM|CAPE)(?:_|$)/
+const BAG_RE = /^T(\d+)_BAG(?:_|$)/
 
 export function categorizeGearItem(itemId: string): GearCategorization {
   const id = itemId.split('@')[0]
