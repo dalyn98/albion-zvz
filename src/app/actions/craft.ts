@@ -54,6 +54,8 @@ export interface CrafterProfile {
   isCrafter: boolean
   compensationMode: CraftCompensationMode
   premiumPct: number
+  preferredBoxNumber: number | null
+  boxAutoAssign: boolean
 }
 
 export interface CraftQueueItem {
@@ -224,16 +226,22 @@ export async function getMyCrafterProfile(): Promise<CrafterProfile | null> {
   const db = getAdminClient()
   const { data } = await db
     .from('guild_avatars')
-    .select('is_crafter, craft_compensation_mode, craft_premium_pct')
+    .select(
+      'is_crafter, craft_compensation_mode, craft_premium_pct, craft_preferred_box_number, craft_box_auto_assign',
+    )
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
     .maybeSingle()
   if (!data) return null
   const mode = (data.craft_compensation_mode as CraftCompensationMode | null) ?? 'volunteer'
+  const rawBox = data.craft_preferred_box_number
   return {
     isCrafter: (data.is_crafter as boolean | undefined) === true,
     compensationMode: mode === 'paid' ? 'paid' : 'volunteer',
     premiumPct: typeof data.craft_premium_pct === 'number' ? data.craft_premium_pct : 0,
+    preferredBoxNumber:
+      typeof rawBox === 'number' && Number.isFinite(rawBox) && rawBox >= 1 ? rawBox : null,
+    boxAutoAssign: (data.craft_box_auto_assign as boolean | undefined) === true,
   }
 }
 
@@ -793,6 +801,8 @@ export async function deliverCraftQueueItem(
 export async function setMyCrafterDefaults(
   compensationMode: CraftCompensationMode,
   premiumPct: number,
+  preferredBoxNumber: number | null,
+  boxAutoAssign: boolean,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
@@ -805,6 +815,16 @@ export async function setMyCrafterDefaults(
   if (!Number.isInteger(premiumPct) || premiumPct < 0 || premiumPct > 200) {
     return { error: tErr('craftPremiumOutOfRange') }
   }
+  // 박스 번호는 길드 설정의 rangeMin..rangeMax 안이어야 한다 (DeliverDialog 와 동일 룰).
+  if (preferredBoxNumber != null) {
+    if (!Number.isInteger(preferredBoxNumber) || preferredBoxNumber < 1) {
+      return { error: tErr('invalidInput') }
+    }
+    const cfg = await getCraftConfig()
+    if (preferredBoxNumber < cfg.rangeMin || preferredBoxNumber > cfg.rangeMax) {
+      return { error: tErr('craftBoxOutOfRange') }
+    }
+  }
   const isCrafter = await loadIsCrafter(guildId, session.discordId)
   if (!isCrafter && !session.isAdmin) return { error: tErr('crafterOnly') }
 
@@ -814,11 +834,14 @@ export async function setMyCrafterDefaults(
     .update({
       craft_compensation_mode: compensationMode,
       craft_premium_pct: premiumPct,
+      craft_preferred_box_number: preferredBoxNumber,
+      craft_box_auto_assign: boxAutoAssign,
     })
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
   if (error) return { error: error.message }
   revalidatePath('/craft/queue')
+  revalidatePath('/craft/my-tasks')
   return {}
 }
 
