@@ -124,7 +124,7 @@ export default async function SuperAdminTenantDetailPage({ params }: PageProps) 
             </div>
             <div className="flex justify-between gap-3">
               <span className="text-gray-400 inline-flex items-center gap-1">
-                <Clock size={12} />마지막 어드민 로그인
+                <Clock size={12} />마지막 관리자 로그인
               </span>
               <span className="text-white text-xs">
                 {tenant.lastAdminLoginAt
@@ -206,10 +206,10 @@ export default async function SuperAdminTenantDetailPage({ params }: PageProps) 
           <div>
             <h2 className="text-sm font-semibold text-rose-300 inline-flex items-center gap-1">
               <Eye size={14} />
-              이 길드 어드민으로 보기
+              이 길드 관리자로 보기
             </h2>
             <p className="text-xs text-rose-200/70 mt-1">
-              해당 테넌트의 어드민 시점으로 전체 사이트를 확인합니다. 종료 전까지 모든 페이지가 이
+              해당 테넌트의 관리자 시점으로 전체 사이트를 확인합니다. 종료 전까지 모든 페이지가 이
               테넌트 컨텍스트로 표시되며, 상단에 빨간 배너가 유지됩니다 (1시간 후 자동 만료).
             </p>
           </div>
@@ -252,10 +252,10 @@ export default async function SuperAdminTenantDetailPage({ params }: PageProps) 
         </div>
       </section>
 
-      {/* ─── 어드민 권한 오버라이드 ─── */}
+      {/* ─── 관리자 권한 오버라이드 ─── */}
       <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 space-y-3">
         <div>
-          <h2 className="text-sm font-semibold text-gray-300">어드민 권한 오버라이드</h2>
+          <h2 className="text-sm font-semibold text-gray-300">관리자 권한 오버라이드</h2>
           <p className="text-xs text-gray-500 mt-1">
             길드 역할 없이도 admin 권한을 강제 부여합니다. 변경은 다음 로그인부터 적용됩니다.
           </p>

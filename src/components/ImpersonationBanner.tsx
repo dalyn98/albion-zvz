@@ -24,7 +24,7 @@ export default async function ImpersonationBanner() {
         <div className="flex items-center gap-2 text-xs sm:text-sm">
           <Eye size={14} />
           <span>
-            <strong>임퍼소네이션 모드</strong> · {tenantLabel} 의 어드민으로 보고 있습니다
+            <strong>임퍼소네이션 모드</strong> · {tenantLabel} 의 관리자로 보고 있습니다
           </span>
         </div>
         <form action={endImpersonation}>

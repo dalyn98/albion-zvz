@@ -8,8 +8,8 @@ export const dynamic = 'force-dynamic'
 
 const ACTION_LABEL: Record<string, string> = {
   'tenant.status.update': '테넌트 상태 변경',
-  'tenant.admin.grant': '어드민 권한 부여',
-  'tenant.admin.revoke': '어드민 권한 회수',
+  'tenant.admin.grant': '관리자 권한 부여',
+  'tenant.admin.revoke': '관리자 권한 회수',
   'notice.create': '시스템 공지 발행',
   'notice.archive': '시스템 공지 종료',
   'impersonate.start': '임퍼소네이션 시작',

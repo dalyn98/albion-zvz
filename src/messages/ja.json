@@ -462,7 +462,7 @@
     "slotTemplateCategoryFilter": "カテゴリー",
     "slotTemplateCategoryAll": "すべて ({count})",
     "slotTemplateCategory_combat": "戦闘",
-    "slotTemplateCategory_ff": "FF(ファーム)",
+    "slotTemplateCategory_ff": "FF (フェイムファーミング)",
     "slotTemplateCategory_ganking": "ガンキング",
     "slotTemplateOverwriteWarn": "適用すると現在のスロット内容が上書きされます。",
     "slotTemplateOverwriteConfirm": "\"{name}\" という名前のテンプレートは既に存在します。上書きしますか？",
