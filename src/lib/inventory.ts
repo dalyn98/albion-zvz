@@ -181,3 +181,75 @@ export async function setInventoryGear(
   if (error) throw new Error(error.message)
   return Number(data ?? 0)
 }
+
+// ────────────────────────────────────────────────────────────
+// Gear slot / material categorization
+// ────────────────────────────────────────────────────────────
+
+export const GEAR_SLOTS = [
+  'weapon',
+  'head',
+  'armor',
+  'shoes',
+  'offhand',
+  'cape',
+  'bag',
+  'other',
+] as const
+
+export type GearSlot = (typeof GEAR_SLOTS)[number]
+
+// 갑옷류 부위에서만 의미 있음. 무기·보조·망토·가방·기타는 null.
+export type GearArmorMaterial = 'PLATE' | 'LEATHER' | 'CLOTH'
+
+export interface GearCategorization {
+  slot: GearSlot
+  armorMaterial: GearArmorMaterial | null
+  tier: number | null
+}
+
+const WEAPON_RE = /^T(\d+)_(?:2H|MAIN)_/
+const OFFHAND_RE = /^T(\d+)_OFF_/
+const ARMOR_PIECE_RE = /^T(\d+)_(HEAD|ARMOR|SHOES)_(PLATE|LEATHER|CLOTH)\b/
+const CAPE_RE = /^T(\d+)_(?:CAPEITEM|CAPE)\b/
+const BAG_RE = /^T(\d+)_BAG\b/
+
+export function categorizeGearItem(itemId: string): GearCategorization {
+  const id = itemId.split('@')[0]
+  const armor = id.match(ARMOR_PIECE_RE)
+  if (armor) {
+    const slotMap: Record<string, GearSlot> = {
+      HEAD: 'head',
+      ARMOR: 'armor',
+      SHOES: 'shoes',
+    }
+    return {
+      slot: slotMap[armor[2]] ?? 'other',
+      armorMaterial: armor[3] as GearArmorMaterial,
+      tier: Number(armor[1]),
+    }
+  }
+  const weapon = id.match(WEAPON_RE)
+  if (weapon) {
+    return { slot: 'weapon', armorMaterial: null, tier: Number(weapon[1]) }
+  }
+  const off = id.match(OFFHAND_RE)
+  if (off) {
+    return { slot: 'offhand', armorMaterial: null, tier: Number(off[1]) }
+  }
+  const cape = id.match(CAPE_RE)
+  if (cape) {
+    return { slot: 'cape', armorMaterial: null, tier: Number(cape[1]) }
+  }
+  const bag = id.match(BAG_RE)
+  if (bag) {
+    return { slot: 'bag', armorMaterial: null, tier: Number(bag[1]) }
+  }
+  // Fallback: pull tier if present, slot 'other'
+  const tierMatch = id.match(/^T(\d+)_/)
+  return {
+    slot: 'other',
+    armorMaterial: null,
+    tier: tierMatch ? Number(tierMatch[1]) : null,
+  }
+}

@@ -2031,6 +2031,7 @@
     "thTier": "Tier",
     "thEnchBase": "Base",
     "gearEmpty": "No finished gear in stock yet. Add one with the picker above.",
+    "gearEmptyFiltered": "No stock in this slot.",
     "errInvalidQty": "Enter a non-negative integer.",
     "errPickItemFirst": "Select an item first.",
     "materialType": {
@@ -2039,6 +2040,22 @@
       "LEATHER": "Leather",
       "CLOTH": "Cloth",
       "STONEBLOCK": "Stone block"
+    },
+    "gearSlot": {
+      "all": "All",
+      "weapon": "Weapon",
+      "head": "Head",
+      "armor": "Armor",
+      "shoes": "Shoes",
+      "offhand": "Offhand",
+      "cape": "Cape",
+      "bag": "Bag",
+      "other": "Other"
+    },
+    "armorMaterial": {
+      "PLATE": "Plate",
+      "LEATHER": "Leather",
+      "CLOTH": "Cloth"
     }
   },
   "donation": {

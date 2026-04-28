@@ -2031,6 +2031,7 @@
     "thTier": "ティア",
     "thEnchBase": "基本",
     "gearEmpty": "保有中の完成装備はありません。上の検索からアイテムを追加してください。",
+    "gearEmptyFiltered": "このスロットに該当する在庫はありません。",
     "errInvalidQty": "0以上の整数を入力してください。",
     "errPickItemFirst": "先にアイテムを選択してください。",
     "materialType": {
@@ -2039,6 +2040,22 @@
       "LEATHER": "加工革",
       "CLOTH": "布",
       "STONEBLOCK": "石ブロック"
+    },
+    "gearSlot": {
+      "all": "すべて",
+      "weapon": "武器",
+      "head": "頭",
+      "armor": "鎧",
+      "shoes": "靴",
+      "offhand": "副武器",
+      "cape": "マント",
+      "bag": "バッグ",
+      "other": "その他"
+    },
+    "armorMaterial": {
+      "PLATE": "プレート",
+      "LEATHER": "レザー",
+      "CLOTH": "クロス"
     }
   },
   "donation": {

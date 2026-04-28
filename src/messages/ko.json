@@ -2031,6 +2031,7 @@
     "thTier": "티어",
     "thEnchBase": "기본",
     "gearEmpty": "보유 중인 완제품이 없어요. 위의 검색에서 아이템을 추가하세요.",
+    "gearEmptyFiltered": "이 슬롯에 해당하는 재고가 없어요.",
     "errInvalidQty": "0 이상의 정수를 입력하세요.",
     "errPickItemFirst": "먼저 아이템을 선택하세요.",
     "materialType": {
@@ -2039,6 +2040,22 @@
       "LEATHER": "가공 가죽",
       "CLOTH": "직물",
       "STONEBLOCK": "석재 블록"
+    },
+    "gearSlot": {
+      "all": "전체",
+      "weapon": "무기",
+      "head": "머리",
+      "armor": "갑옷",
+      "shoes": "신발",
+      "offhand": "보조무기",
+      "cape": "망토",
+      "bag": "가방",
+      "other": "기타"
+    },
+    "armorMaterial": {
+      "PLATE": "플레이트",
+      "LEATHER": "가죽",
+      "CLOTH": "천"
     }
   },
   "donation": {
