@@ -12,7 +12,7 @@ Multi-tenant SaaS for Albion Online ZvZ guild operations. Production: <https://a
 
 ## 핵심 컨벤션 / hard rules
 
-1. **다국어 필수** — `src/messages/{ko,ja,en}.json` 은 항상 키가 동등해야 한다. 어드민 전용 화면도 ja/en 까지 동일하게 작성. 하드코딩된 한국어 라벨/placeholder 금지.
+1. **다국어 필수** — `src/messages/{ko,ja,en}.json` 은 항상 키가 동등해야 한다. 어드민 전용 화면도 ja/en 까지 동일하게 작성. 하드코딩된 한국어 라벨/placeholder 금지. **예외:** `/super-admin/*` (운영자 본인 전용, 외부 path 로 숨김 처리되어 있음) 는 ko 단일언어 허용 — `useTranslations()` 없이 한국어 리터럴 사용 가능.
 2. **`export const dynamic = 'force-static'` 금지** — 빌드타임에 layout 의 `x-pathname` 헤더가 비어 AppGate 가 HTML 에 박혀버린다. 새 라우트는 `force-dynamic` 또는 ISR 로 둘 것.
 3. **RSC → Client 컴포넌트에 `t()` 함수 prop 으로 넘기지 말 것** — 배포 후 500 가능. Server 측에서 미리 string 으로 풀어 prop 으로 넘기거나, Client 측에서 `useTranslations()` 를 직접 호출.
 4. **Supabase 마이그는 번호 누적** — `supabase/migrations/<3자리>_<설명>.sql` 형태로만 추가. 적용은 `supabase db push --linked`.
