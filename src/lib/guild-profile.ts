@@ -51,6 +51,10 @@ interface AccentClasses {
   border: string
   // dot
   dot: string
+  // hero 좌측 수직 액센트 바 (위→아래 페이드).
+  bar: string
+  // 섹션 구분 수평 라인 (좌우 페이드).
+  divider: string
 }
 
 export const ACCENT_CLASS_MAP: Record<AccentColor, AccentClasses> = {
@@ -64,6 +68,8 @@ export const ACCENT_CLASS_MAP: Record<AccentColor, AccentClasses> = {
     badgeRing: 'ring-amber-500/40',
     border: 'border-amber-500/30',
     dot: 'bg-amber-400',
+    bar: 'bg-gradient-to-b from-amber-400 via-amber-500/40 to-transparent',
+    divider: 'bg-gradient-to-r from-transparent via-amber-500/40 to-transparent',
   },
   rose: {
     heroGradient: 'bg-gradient-to-br from-rose-500/30 via-rose-800/20 to-black',
@@ -75,6 +81,8 @@ export const ACCENT_CLASS_MAP: Record<AccentColor, AccentClasses> = {
     badgeRing: 'ring-rose-500/40',
     border: 'border-rose-500/30',
     dot: 'bg-rose-400',
+    bar: 'bg-gradient-to-b from-rose-400 via-rose-500/40 to-transparent',
+    divider: 'bg-gradient-to-r from-transparent via-rose-500/40 to-transparent',
   },
   emerald: {
     heroGradient: 'bg-gradient-to-br from-emerald-500/30 via-teal-800/20 to-black',
@@ -86,6 +94,8 @@ export const ACCENT_CLASS_MAP: Record<AccentColor, AccentClasses> = {
     badgeRing: 'ring-emerald-500/40',
     border: 'border-emerald-500/30',
     dot: 'bg-emerald-400',
+    bar: 'bg-gradient-to-b from-emerald-400 via-emerald-500/40 to-transparent',
+    divider: 'bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent',
   },
   sky: {
     heroGradient: 'bg-gradient-to-br from-sky-500/30 via-blue-800/20 to-black',
@@ -97,6 +107,8 @@ export const ACCENT_CLASS_MAP: Record<AccentColor, AccentClasses> = {
     badgeRing: 'ring-sky-500/40',
     border: 'border-sky-500/30',
     dot: 'bg-sky-400',
+    bar: 'bg-gradient-to-b from-sky-400 via-sky-500/40 to-transparent',
+    divider: 'bg-gradient-to-r from-transparent via-sky-500/40 to-transparent',
   },
   violet: {
     heroGradient: 'bg-gradient-to-br from-violet-500/30 via-purple-800/20 to-black',
@@ -108,6 +120,8 @@ export const ACCENT_CLASS_MAP: Record<AccentColor, AccentClasses> = {
     badgeRing: 'ring-violet-500/40',
     border: 'border-violet-500/30',
     dot: 'bg-violet-400',
+    bar: 'bg-gradient-to-b from-violet-400 via-violet-500/40 to-transparent',
+    divider: 'bg-gradient-to-r from-transparent via-violet-500/40 to-transparent',
   },
   orange: {
     heroGradient: 'bg-gradient-to-br from-orange-500/30 via-red-800/20 to-black',
@@ -119,6 +133,8 @@ export const ACCENT_CLASS_MAP: Record<AccentColor, AccentClasses> = {
     badgeRing: 'ring-orange-500/40',
     border: 'border-orange-500/30',
     dot: 'bg-orange-400',
+    bar: 'bg-gradient-to-b from-orange-400 via-orange-500/40 to-transparent',
+    divider: 'bg-gradient-to-r from-transparent via-orange-500/40 to-transparent',
   },
   pink: {
     heroGradient: 'bg-gradient-to-br from-pink-500/30 via-fuchsia-800/20 to-black',
@@ -130,6 +146,8 @@ export const ACCENT_CLASS_MAP: Record<AccentColor, AccentClasses> = {
     badgeRing: 'ring-pink-500/40',
     border: 'border-pink-500/30',
     dot: 'bg-pink-400',
+    bar: 'bg-gradient-to-b from-pink-400 via-pink-500/40 to-transparent',
+    divider: 'bg-gradient-to-r from-transparent via-pink-500/40 to-transparent',
   },
   slate: {
     heroGradient: 'bg-gradient-to-br from-slate-500/30 via-gray-800/20 to-black',
@@ -141,6 +159,8 @@ export const ACCENT_CLASS_MAP: Record<AccentColor, AccentClasses> = {
     badgeRing: 'ring-slate-500/40',
     border: 'border-slate-500/30',
     dot: 'bg-slate-400',
+    bar: 'bg-gradient-to-b from-slate-300 via-slate-500/40 to-transparent',
+    divider: 'bg-gradient-to-r from-transparent via-slate-500/40 to-transparent',
   },
 }
 

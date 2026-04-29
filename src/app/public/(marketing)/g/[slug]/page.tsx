@@ -2,11 +2,19 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
-import { ExternalLink, Users, Swords, ShieldCheck, Trophy } from 'lucide-react'
+import {
+  ExternalLink,
+  Users,
+  Swords,
+  ShieldCheck,
+  Trophy,
+  Image as ImageIcon,
+  BarChart3,
+} from 'lucide-react'
 import MarketingNav from '@/components/MarketingNav'
 import { resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { loadGuildProfileSettings, ACCENT_CLASS_MAP } from '@/lib/guild-profile'
-import { loadGalleryItems } from '@/lib/guild-profile-gallery'
+import { loadGalleryItems, type GalleryItem } from '@/lib/guild-profile-gallery'
 import { getAdminClient } from '@/lib/supabase-admin'
 
 export const dynamic = 'force-dynamic'
@@ -102,15 +110,21 @@ export default async function GuildProfilePage({
   const accent = ACCENT_CLASS_MAP[settings.accentColor]
   const showCta =
     settings.recruitmentStatus !== 'closed' && settings.discordInviteUrl.length > 0
+  const hasStats =
+    settings.showMembers ||
+    settings.showBattles ||
+    settings.showRegearStats ||
+    settings.showLeaderboard
 
   return (
-    <div className="min-h-screen bg-[#0b0d12] text-white">
+    <div className="min-h-screen bg-[#08090d] text-white">
       <MarketingNav />
 
-      <header className="relative">
+      {/* HERO — 좌측 수직 액센트 바 + 배너 + 글로우. 모집 open 일 때 도트가 ping. */}
+      <header className="relative overflow-hidden">
         <div className={`absolute inset-0 ${accent.heroGradient}`} />
         <div
-          className={`absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full ${accent.heroGlow} blur-3xl pointer-events-none`}
+          className={`absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full ${accent.heroGlow} blur-3xl pointer-events-none`}
         />
         {settings.bannerUrl && (
           <div className="absolute inset-0 overflow-hidden">
@@ -118,23 +132,37 @@ export default async function GuildProfilePage({
             <img
               src={settings.bannerUrl}
               alt=""
-              className="w-full h-full object-cover opacity-50"
+              className="w-full h-full object-cover opacity-40"
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/40 to-[#0b0d12]" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-[#08090d]" />
           </div>
         )}
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
-          <div className="space-y-5">
-            <div className="flex items-center gap-2 flex-wrap">
+        <div className={`absolute top-0 left-0 bottom-0 w-[3px] ${accent.bar}`} />
+        <div className={`absolute bottom-0 left-0 right-0 h-px ${accent.divider}`} />
+
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-20 sm:py-32">
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 flex-wrap">
               <span
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ring-1 ${accent.badgeBg} ${accent.badgeText} ${accent.badgeRing}`}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold ring-1 backdrop-blur-sm ${accent.badgeBg} ${accent.badgeText} ${accent.badgeRing}`}
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${accent.dot}`} />
+                <span className="relative flex w-2 h-2">
+                  {settings.recruitmentStatus === 'open' && (
+                    <span
+                      className={`absolute inline-flex w-full h-full rounded-full ${accent.dot} opacity-75 animate-ping`}
+                    />
+                  )}
+                  <span className={`relative inline-flex w-2 h-2 rounded-full ${accent.dot}`} />
+                </span>
                 {t(`recruitment_${settings.recruitmentStatus}`)}
               </span>
-              <span className="text-gray-400 text-xs">/g/{tenant.slug}</span>
+              <span className="text-gray-500 text-xs font-mono tracking-wider">
+                /g/{tenant.slug}
+              </span>
             </div>
-            <h1 className={`text-4xl sm:text-5xl font-black tracking-tight ${accent.heading}`}>
+            <h1
+              className={`text-5xl sm:text-7xl font-black tracking-tighter ${accent.heading} drop-shadow-2xl`}
+            >
               {tenant.name}
             </h1>
             {settings.description && (
@@ -143,15 +171,18 @@ export default async function GuildProfilePage({
               </p>
             )}
             {showCta && (
-              <div className="pt-2">
+              <div className="pt-3">
                 <a
                   href={settings.discordInviteUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`inline-flex items-center gap-2 ${accent.ctaBg} font-bold px-5 py-3 rounded-lg transition-colors text-sm`}
+                  className={`group inline-flex items-center gap-2 ${accent.ctaBg} font-bold px-6 py-3.5 rounded-lg transition-all text-sm shadow-lg hover:shadow-2xl hover:-translate-y-0.5`}
                 >
                   {t('joinCta')}
-                  <ExternalLink size={14} />
+                  <ExternalLink
+                    size={14}
+                    className="transition-transform group-hover:translate-x-0.5"
+                  />
                 </a>
               </div>
             )}
@@ -159,48 +190,28 @@ export default async function GuildProfilePage({
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
-        {/* 갤러리 그리드 — 항목이 있을 때만 노출 */}
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-12">
+        {/* 갤러리 — 항목 수에 따라 1열 / 2열 / editorial(1+rest) 자동 전환 */}
         {galleryItems.length > 0 && (
-          <section className="space-y-3">
-            <h2 className="text-gray-400 text-sm font-bold uppercase tracking-widest">
-              {t('galleryHeading')}
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {galleryItems.map((item) => (
-                <figure
-                  key={item.id}
-                  className={`rounded-xl overflow-hidden border ${accent.border} bg-gray-900/50`}
-                >
-                  <div className="aspect-[16/9] bg-black">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={item.imageUrl}
-                      alt={item.caption || tenant.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  {item.caption && (
-                    <figcaption className="px-3 py-2 text-xs text-gray-300">
-                      {item.caption}
-                    </figcaption>
-                  )}
-                </figure>
-              ))}
-            </div>
+          <section className="space-y-4">
+            <SectionHeader
+              icon={<ImageIcon size={14} />}
+              label={t('galleryHeading')}
+              accent={accent}
+            />
+            <GalleryGrid items={galleryItems} fallbackAlt={tenant.name} accent={accent} />
           </section>
         )}
 
-        {/* 통계 카드 그리드 */}
-        {(settings.showMembers ||
-          settings.showBattles ||
-          settings.showRegearStats ||
-          settings.showLeaderboard) && (
-          <section className="space-y-3">
-            <h2 className="text-gray-400 text-sm font-bold uppercase tracking-widest">
-              {t('statsHeading')}
-            </h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* 통계 카드 — 큰 숫자 + 아이콘 칩 + 코너 글로우 */}
+        {hasStats && (
+          <section className="space-y-4">
+            <SectionHeader
+              icon={<BarChart3 size={14} />}
+              label={t('statsHeading')}
+              accent={accent}
+            />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {settings.showMembers && (
                 <StatCard
                   icon={<Users size={16} />}
@@ -241,26 +252,125 @@ export default async function GuildProfilePage({
           </section>
         )}
 
-        {/* 어떤 섹션도 켜져있지 않을 때 (갤러리도 비어있을 때) */}
-        {!settings.showMembers &&
-          !settings.showBattles &&
-          !settings.showRegearStats &&
-          !settings.showLeaderboard &&
-          galleryItems.length === 0 && (
-            <p className="text-gray-500 text-sm text-center py-12">{t('emptySections')}</p>
-          )}
+        {/* 섹션이 모두 꺼져있을 때 (갤러리도 비어있을 때) */}
+        {!hasStats && galleryItems.length === 0 && (
+          <p className="text-gray-500 text-sm text-center py-12">{t('emptySections')}</p>
+        )}
 
-        <div className="border-t border-gray-800 pt-6 flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-gray-500 text-xs">{t('poweredBy')}</p>
+        <div className="border-t border-gray-900 pt-6 flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-gray-600 text-xs flex items-center gap-2">
+            <span className={`inline-block w-1 h-1 rounded-full ${accent.dot}`} />
+            {t('poweredBy')}
+          </p>
           <Link
             href="/"
-            className="text-gray-400 hover:text-amber-300 text-xs font-semibold transition-colors"
+            className="text-gray-500 hover:text-gray-200 text-xs font-semibold transition-colors"
           >
             albion-guildmanager.com
           </Link>
         </div>
       </main>
     </div>
+  )
+}
+
+interface SectionHeaderProps {
+  icon: React.ReactNode
+  label: string
+  accent: (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
+}
+
+function SectionHeader({ icon, label, accent }: SectionHeaderProps) {
+  return (
+    <div className="flex items-center gap-3">
+      <div
+        className={`flex items-center gap-2 ${accent.heading} text-xs font-bold uppercase tracking-[0.25em]`}
+      >
+        {icon}
+        <span>{label}</span>
+      </div>
+      <div className={`flex-1 h-px ${accent.divider}`} />
+    </div>
+  )
+}
+
+interface GalleryGridProps {
+  items: GalleryItem[]
+  fallbackAlt: string
+  accent: (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
+}
+
+// 항목 수 기반 분기. 1장 = 풀 카드, 2장 = 동일 그리드, 3장+ = editorial (첫
+// 사진을 2x2 로 키우고 나머지는 1x1). 4장 이상부터는 sm:auto-rows 가 자연스럽게
+// 확장한다.
+function GalleryGrid({ items, fallbackAlt, accent }: GalleryGridProps) {
+  if (items.length === 1) {
+    return (
+      <div className="grid grid-cols-1">
+        <GalleryFigure item={items[0]} fallbackAlt={fallbackAlt} accent={accent} />
+      </div>
+    )
+  }
+  if (items.length === 2) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {items.map((item) => (
+          <GalleryFigure
+            key={item.id}
+            item={item}
+            fallbackAlt={fallbackAlt}
+            accent={accent}
+          />
+        ))}
+      </div>
+    )
+  }
+  const [first, ...rest] = items
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 sm:auto-rows-[160px] gap-3">
+      <div className="sm:col-span-2 sm:row-span-2 sm:h-auto h-64">
+        <GalleryFigure
+          item={first}
+          fallbackAlt={fallbackAlt}
+          accent={accent}
+          fillParent
+        />
+      </div>
+      {rest.map((item) => (
+        <div key={item.id} className="sm:h-auto h-44">
+          <GalleryFigure item={item} fallbackAlt={fallbackAlt} accent={accent} fillParent />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+interface GalleryFigureProps {
+  item: GalleryItem
+  fallbackAlt: string
+  accent: (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
+  // editorial 그리드에서 부모 박스 크기에 맞춰야 할 때.
+  fillParent?: boolean
+}
+
+function GalleryFigure({ item, fallbackAlt, accent, fillParent }: GalleryFigureProps) {
+  const sizing = fillParent ? 'h-full' : 'aspect-[16/9]'
+  return (
+    <figure
+      className={`group relative rounded-xl overflow-hidden border ${accent.border} bg-gray-900/50 ${sizing} transition-all hover:-translate-y-0.5 hover:shadow-2xl`}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={item.imageUrl}
+        alt={item.caption || fallbackAlt}
+        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+      />
+      {item.caption && (
+        <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent px-4 py-3 text-sm text-white font-medium">
+          {item.caption}
+        </figcaption>
+      )}
+    </figure>
   )
 }
 
@@ -275,20 +385,36 @@ interface StatCardProps {
 function StatCard({ icon, label, value, unit, accent }: StatCardProps) {
   return (
     <div
-      className={`rounded-xl border ${accent.border} bg-gray-900/50 px-4 py-4 space-y-2`}
+      className={`relative rounded-xl border ${accent.border} bg-gray-900/40 px-5 py-5 backdrop-blur-sm overflow-hidden transition-colors hover:bg-gray-900/60`}
     >
-      <div className={`flex items-center gap-1.5 text-xs font-semibold ${accent.heading}`}>
-        {icon}
-        {label}
+      {/* 코너 글로우 — 카드에 약한 입체감을 주기 위한 단일 블러 원. */}
+      <div
+        className={`absolute -top-12 -right-12 w-32 h-32 rounded-full ${accent.heroGlow} blur-2xl pointer-events-none`}
+      />
+      <div className="relative flex items-center justify-between mb-3">
+        <span
+          className={`flex items-center justify-center w-9 h-9 rounded-lg ${accent.badgeBg} ${accent.heading}`}
+        >
+          {icon}
+        </span>
+        <span
+          className={`text-[10px] uppercase tracking-[0.18em] font-bold ${accent.heading}`}
+        >
+          {label}
+        </span>
       </div>
-      {value !== null ? (
-        <div>
-          <span className="text-2xl font-black text-white">{value.toLocaleString()}</span>
-          <span className="text-gray-500 text-xs ml-1">{unit}</span>
-        </div>
-      ) : (
-        <div className="text-gray-300 text-sm">{unit}</div>
-      )}
+      <div className="relative">
+        {value !== null ? (
+          <div className="flex items-baseline gap-1.5">
+            <span className={`text-3xl font-black ${accent.heading}`}>
+              {value.toLocaleString()}
+            </span>
+            <span className="text-gray-500 text-xs">{unit}</span>
+          </div>
+        ) : (
+          <div className="text-gray-300 text-sm">{unit}</div>
+        )}
+      </div>
     </div>
   )
 }
