@@ -85,7 +85,7 @@ export interface AutoRegearResult {
   // role_rewards.silver 가 0 또는 미등록인 역할 (= "리기어 차단" 의도).
   // 수동 flow 와 동일하게 자동도 지급 없이 스킵.
   requests_skipped_no_role_cap: number
-  // 매칭된 블랙존 전투의 ended_at + 10분 이 아직 안 지났거나, 그 시각 이후로
+  // 매칭된 블랙존 전투의 ended_at + 30분 이 아직 안 지났거나, 그 시각 이후로
   // killboard/battle-tracker sync 가 한 번도 안 돈 이벤트. 다음 cron 에 재시도
   // 하도록 mark-processed 하지 않고 연기.
   events_deferred_sync_lag: number
@@ -107,9 +107,10 @@ export interface AutoRegearResult {
 }
 
 // 매칭된 battle_records.ended_at 이후 몇 분 뒤에 자동 리기어를 처리할지.
-// killboard sync 가 종료 시점을 indexing 할 때까지의 buffer. 10분이면 일반
-// killboard sync (5분 tick) 가 1~2회 돌고 남는 여유.
-export const AUTO_REGEAR_ENDED_BUFFER_MS = 10 * 60 * 1000
+// killboard sync 가 종료 시점을 indexing 할 때까지의 buffer. 실측상 모든
+// 사망 이벤트가 indexing 되는데 30분쯤 걸려서 그만큼 여유를 둔다 — 너무 짧게
+// 잡으면 일부 victim 이 누락된 상태로 mark-processed 되어 자동 청구가 빠진다.
+export const AUTO_REGEAR_ENDED_BUFFER_MS = 30 * 60 * 1000
 
 // 매칭된 tracked battle 이 0건일 때 진짜 0건인지 sync 지연인지 분간하는 timeout.
 // battle_started_at + 6시간이 지나도 매칭이 0이고 battle-tracker sync 도 그
@@ -447,7 +448,7 @@ export async function processAutoRegear(
       const trackedBattleIds = blackzoneBattles.map((b) => b.albionBattleId)
 
       // ended_at + buffer + sync 게이트:
-      //   - 매칭된 블랙존 전투 중 가장 늦게 끝난 시각 + 10분 이 지났고
+      //   - 매칭된 블랙존 전투 중 가장 늦게 끝난 시각 + 30분 이 지났고
       //   - 그 시각 이후로 killboard sync 와 battle-tracker sync 가 한 번이라도 돌았어야
       //   victim 목록과 매칭이 완전하다고 간주. 못 됐으면 mark 하지 않고 다음 cron 으로
       //   연기 — 호스트가 set 한 battle_started_at 의 부정확성과 무관하게 작동한다.

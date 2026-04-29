@@ -17,12 +17,14 @@ interface Props {
   roleReward: number
   existingActiveCount: number
   maxDeaths: number
-  windowMinutes: number
   // Current payout rate (1..100). If <100 we surface an "expected payout"
   // hint so the member isn't surprised when the credited amount differs from
   // their claim.
   payoutRatePercent: number
-  battleStartedAt: string | null
+  // ISO 시각: 신청 오픈 시점. 서버에서 매칭된 tracked battle 의 ended_at
+  // (없으면 battle_started_at 폴백) + windowMinutes 으로 사전 계산해서 박는다.
+  // 이 시점 이전엔 button disabled + 모달에서 안내.
+  windowOpenAt: string
   // 길드 모드. true 면 모든 신규 요청이 'crafted' 로 강제, false 면 'silver'.
   // 멤버는 모드를 선택할 수 없고, UI 에는 안내 배너로만 표시된다.
   craftEnabled: boolean
@@ -55,10 +57,9 @@ function createEntries(count: number): EntryState[] {
   return Array.from({ length: count }, () => newEntry())
 }
 
-function formatWindowOpen(iso: string, windowMinutes: number): string {
-  const openMs = new Date(iso).getTime() + windowMinutes * 60 * 1000
+function formatWindowOpen(iso: string): string {
   // KST (UTC+9, no DST). Extract HH:mm by shifting into UTC+9.
-  const shifted = new Date(openMs + 9 * 60 * 60 * 1000)
+  const shifted = new Date(new Date(iso).getTime() + 9 * 60 * 60 * 1000)
   return `${String(shifted.getUTCHours()).padStart(2, '0')}:${String(shifted.getUTCMinutes()).padStart(2, '0')}`
 }
 
@@ -68,9 +69,8 @@ export default function RegearRequestButton({
   roleReward,
   existingActiveCount,
   maxDeaths,
-  windowMinutes,
   payoutRatePercent,
-  battleStartedAt,
+  windowOpenAt,
   craftEnabled,
 }: Props) {
   const router = useRouter()
@@ -99,7 +99,6 @@ export default function RegearRequestButton({
   // 위에서부터 첫 빈 슬롯 폴백. ref 라 hover 변경에 리렌더 안 함.
   const hoveredSlotRef = useRef<{ entryId: string; slot: 'primary' | 'secondary' } | null>(null)
 
-  const notStarted = !battleStartedAt
   const ceilingMissing = roleReward <= 0
   const atLimit = existingActiveCount >= maxDeaths
   const remaining = Math.max(0, maxDeaths - existingActiveCount)
@@ -108,22 +107,18 @@ export default function RegearRequestButton({
   const maxEntries = Math.max(1, Math.min(MAX_ENTRIES, remaining))
   // Client-side "waiting for killboard" check. Server re-validates; this is
   // just to keep the button from opening a modal that will error on submit.
-  const windowOpenMs = battleStartedAt
-    ? new Date(battleStartedAt).getTime() + windowMinutes * 60 * 1000
-    : null
-  const windowPending = windowOpenMs !== null && Date.now() < windowOpenMs
-  const disabled = atLimit || !roleName || notStarted || ceilingMissing || windowPending
+  const windowOpenMs = new Date(windowOpenAt).getTime()
+  const windowPending = Number.isFinite(windowOpenMs) && Date.now() < windowOpenMs
+  const disabled = atLimit || !roleName || ceilingMissing || windowPending
   const buttonLabel = atLimit
     ? t('buttonDone')
-    : notStarted
-      ? t('buttonNotStarted')
-      : windowPending && battleStartedAt
-        ? t('buttonWindowPending', { opensAt: formatWindowOpen(battleStartedAt, windowMinutes) })
-        : ceilingMissing
-          ? t('buttonCeilingMissing')
-          : maxDeaths > 1 && existingActiveCount > 0
-            ? t('buttonRequestRemaining', { remaining })
-            : t('buttonRequest')
+    : windowPending
+      ? t('buttonWindowPending', { opensAt: formatWindowOpen(windowOpenAt) })
+      : ceilingMissing
+        ? t('buttonCeilingMissing')
+        : maxDeaths > 1 && existingActiveCount > 0
+          ? t('buttonRequestRemaining', { remaining })
+          : t('buttonRequest')
 
   const updateEntry = (id: string, patch: Partial<EntryState>) => {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)))
@@ -370,12 +365,10 @@ export default function RegearRequestButton({
                   <span className="text-gray-400">{t('roleCeiling')}</span>
                   <span className="text-amber-400 font-mono font-semibold">{formatSilver(roleReward)}</span>
                 </div>
-                {battleStartedAt && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400">{t('windowOpensAt')}</span>
-                    <span className="text-gray-200 font-mono text-xs">{formatWindowOpen(battleStartedAt, windowMinutes)}</span>
-                  </div>
-                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">{t('windowOpensAt')}</span>
+                  <span className="text-gray-200 font-mono text-xs">{formatWindowOpen(windowOpenAt)}</span>
+                </div>
                 {maxDeaths > 1 && (
                   <div className="flex items-center justify-between">
                     <span className="text-gray-400">{t('deathsRemaining')}</span>

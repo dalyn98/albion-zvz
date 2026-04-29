@@ -166,9 +166,8 @@ export default async function RegearPage() {
                         roleReward={event.role_reward}
                         existingActiveCount={event.existing_active_count}
                         maxDeaths={limits.maxDeaths}
-                        windowMinutes={limits.windowMinutes}
                         payoutRatePercent={payoutRatePercent}
-                        battleStartedAt={event.battle_started_at}
+                        windowOpenAt={event.window_open_at}
                         craftEnabled={craftEnabled}
                       />
                     )}

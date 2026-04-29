@@ -10,6 +10,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { calcPayoutSilver } from '@/lib/regear-payout'
 import { requireAlbionVerified } from '@/lib/albion-identity'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
+import { findTrackedBattleIdsForEvent } from '@/lib/auto-regear-matching'
 import { SLOT_KEYS, getDisplayGear, type BuildSnapshot, type RegearType, type SlotGearDisplay, type SlotKey } from '@/types'
 
 // User-facing regear actions. Admin-side lives in `regear-admin.ts`.
@@ -89,6 +90,10 @@ export interface RegearEligibleEvent {
   // When set, the page renders a read-only "auto submitted" card variant —
   // members aren't expected to file a manual claim on top of an auto pending.
   auto_request_id: string | null
+  // ISO 시각: 이 시점 이후로 신청 가능. 매칭된 tracked battle 의 가장 늦은
+  // ended_at + windowMinutes 으로 계산 (정확). 매칭이 0건이면 battle_started_at
+  // + windowMinutes 으로 폴백 (솔로 갱크/sync 지연 케이스 — 약간 빠를 수 있음).
+  window_open_at: string
 }
 
 export interface RegearLimits {
@@ -207,11 +212,11 @@ export async function requestRegear(
     return { error: tErr('regearDeathsLimitReached', { max: maxDeaths }) }
   }
 
-  // 3) Submission gate — `regear_window_minutes` is the killboard-collection
-  //    delay, not a deadline. Submissions open at `battle_started_at + N` so
-  //    the killboard has time to index the death; no upper bound. `gather_time`
-  //    is free-text so we anchor off `battle_started_at`. Title is snapshotted
-  //    here so history survives if the event is later deleted.
+  // 3) Submission gate — `regear_window_minutes` 은 킬보드 indexing 대기 시간이며
+  //    상한이 아니다. 호스트가 누른 battle_started_at 은 부정확하므로 매칭된
+  //    tracked battle 의 ended_at (Albion /battles 가 보고하는 실측치) 을
+  //    anchor 로 쓴다. 매칭 0건(솔로 갱크/sync 지연) 은 battle_started_at 으로
+  //    폴백. Title 은 여기서 스냅샷해 이벤트 삭제돼도 이력에 남게 한다.
   const { data: event, error: eventError } = await db
     .from('events')
     .select('id, title, battle_started_at')
@@ -223,7 +228,17 @@ export async function requestRegear(
     return { error: tErr('battleNotStarted') }
   }
   const battleStartMs = new Date(event.battle_started_at).getTime()
-  const windowOpenMs = battleStartMs + windowMinutes * 60 * 1000
+  const matchedBattles = await findTrackedBattleIdsForEvent(
+    db,
+    guildId,
+    event.battle_started_at,
+  )
+  const latestEndedMs = matchedBattles.reduce((acc, b) => {
+    const ms = Date.parse(b.endedAtIso)
+    return Number.isFinite(ms) && ms > acc ? ms : acc
+  }, 0)
+  const anchorMs = latestEndedMs > 0 ? latestEndedMs : battleStartMs
+  const windowOpenMs = anchorMs + windowMinutes * 60 * 1000
   if (Date.now() < windowOpenMs) {
     return { error: tErr('regearWindowNotOpen', { minutes: windowMinutes }) }
   }
@@ -507,23 +522,47 @@ export async function listMyRegearEligibleEvents(): Promise<{
     }
   }
 
-  const result: RegearEligibleEvent[] = events
-    .filter((e) => eventToRole.has(e.id))
-    .map((e) => {
-      const role = eventToRole.get(e.id) ?? ''
-      return {
-        id: e.id,
-        title: e.title,
-        gather_time: e.gather_time,
-        gather_at: e.gather_at,
-        gather_location: e.gather_location,
-        battle_started_at: e.battle_started_at as string,
-        role_name: role,
-        role_reward: rewardMap.get(role) ?? 0,
-        existing_active_count: countByEvent.get(e.id) ?? 0,
-        auto_request_id: autoRequestByEvent.get(e.id) ?? null,
-      }
-    })
+  // 이벤트별 신청 오픈 시각 사전 계산. submission gate 와 동일한 anchor 규칙
+  // (matched ended_at 우선, 없으면 battle_started_at 폴백) 으로 클라이언트가
+  // 별도 로직 없이 바로 표시·비활성화 판단할 수 있게 한다. N 개 이벤트에 대해
+  // tenant_battle_records 쿼리가 N 번 발생하므로 Promise.all 로 병렬화.
+  const { windowMinutes } = await loadRegearLimits(guildId)
+  const windowMinutesMs = windowMinutes * 60 * 1000
+  const eligibleEvents = events.filter((e) => eventToRole.has(e.id))
+  const matchedByEvent = await Promise.all(
+    eligibleEvents.map((e) =>
+      findTrackedBattleIdsForEvent(db, guildId, e.battle_started_at as string),
+    ),
+  )
+  const windowOpenByEvent = new Map<string, string>()
+  eligibleEvents.forEach((e, i) => {
+    const matched = matchedByEvent[i]
+    const battleStartMs = new Date(e.battle_started_at as string).getTime()
+    const latestEndedMs = matched.reduce((acc, b) => {
+      const ms = Date.parse(b.endedAtIso)
+      return Number.isFinite(ms) && ms > acc ? ms : acc
+    }, 0)
+    const anchorMs = latestEndedMs > 0 ? latestEndedMs : battleStartMs
+    windowOpenByEvent.set(e.id, new Date(anchorMs + windowMinutesMs).toISOString())
+  })
+
+  const result: RegearEligibleEvent[] = eligibleEvents.map((e) => {
+    const role = eventToRole.get(e.id) ?? ''
+    return {
+      id: e.id,
+      title: e.title,
+      gather_time: e.gather_time,
+      gather_at: e.gather_at,
+      gather_location: e.gather_location,
+      battle_started_at: e.battle_started_at as string,
+      role_name: role,
+      role_reward: rewardMap.get(role) ?? 0,
+      existing_active_count: countByEvent.get(e.id) ?? 0,
+      auto_request_id: autoRequestByEvent.get(e.id) ?? null,
+      window_open_at:
+        windowOpenByEvent.get(e.id) ?? (e.battle_started_at as string),
+    }
+  })
 
   return { events: result }
 }
