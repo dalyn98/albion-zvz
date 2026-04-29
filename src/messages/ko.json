@@ -1398,7 +1398,26 @@
     "features": "기능",
     "pricing": "요금제",
     "faq": "FAQ",
+    "docs": "문서",
     "install": "봇 설치"
+  },
+  "docsNav": {
+    "sectionGettingStarted": "시작하기",
+    "sectionFeatures": "기능",
+    "intro": "소개·빠른 시작",
+    "onboarding": "봇 초대 & 첫 셋업",
+    "members": "멤버 관리 & 길드 동기화",
+    "killboard": "킬보드 트래킹",
+    "battles": "전투 집계 & 이벤트 리포트",
+    "regear": "리기어 청구",
+    "shop": "길드 상점",
+    "craft": "제작 리기어",
+    "leaderboard": "업적 · 통계 · 리더보드",
+    "dashboard": "개인 대시보드",
+    "admin": "어드민 설정",
+    "mobileMenuLabel": "문서 메뉴",
+    "nonKoBannerTitle": "한국어 우선 문서",
+    "nonKoBannerBody": "이 페이지는 한국어 본문만 제공됩니다. 번역은 준비 중입니다."
   },
   "publicMarketing": {
     "heroBadge": "BETA",

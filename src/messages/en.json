@@ -1398,7 +1398,26 @@
     "features": "Features",
     "pricing": "Pricing",
     "faq": "FAQ",
+    "docs": "Docs",
     "install": "Install bot"
+  },
+  "docsNav": {
+    "sectionGettingStarted": "Getting Started",
+    "sectionFeatures": "Features",
+    "intro": "Intro & quick start",
+    "onboarding": "Bot install & first setup",
+    "members": "Member management & guild sync",
+    "killboard": "Killboard tracking",
+    "battles": "Battle aggregation & event report",
+    "regear": "Regear claims",
+    "shop": "Guild shop",
+    "craft": "Craft regear",
+    "leaderboard": "Achievements · stats · leaderboard",
+    "dashboard": "Personal dashboard",
+    "admin": "Admin settings",
+    "mobileMenuLabel": "Docs menu",
+    "nonKoBannerTitle": "Korean-first docs",
+    "nonKoBannerBody": "This page is currently Korean-only. Translations are in progress."
   },
   "publicMarketing": {
     "heroBadge": "BETA",

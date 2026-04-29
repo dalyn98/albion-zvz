@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next'
 import createNextIntlPlugin from 'next-intl/plugin'
+import createMDX from '@next/mdx'
 
 // Server Actions compare the incoming `origin` header against the request host
 // to block CSRF. When the site is reached via a Tailscale IP (100.x.x.x) or any
@@ -11,6 +12,9 @@ const extraOrigins = (process.env.ALLOWED_ORIGINS ?? '')
   .filter(Boolean)
 
 const nextConfig: NextConfig = {
+  // MDX 페이지 (`/docs/*` 의 page.mdx) 를 라우트로 인식시킨다. .md 는 사용 안
+  // 함 — 모든 docs 본문은 .mdx 로 통일.
+  pageExtensions: ['ts', 'tsx', 'mdx'],
   experimental: {
     serverActions: {
       allowedOrigins: [
@@ -66,5 +70,6 @@ const nextConfig: NextConfig = {
 }
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts')
+const withMDX = createMDX({})
 
-export default withNextIntl(nextConfig)
+export default withNextIntl(withMDX(nextConfig))

@@ -5,7 +5,7 @@ import { getSession } from '@/lib/session'
 import { getMarketingPaths } from '@/lib/marketing-paths'
 import MarketingLanguageSwitcher from './MarketingLanguageSwitcher'
 
-type NavKey = 'home' | 'features' | 'pricing' | 'faq'
+type NavKey = 'home' | 'features' | 'pricing' | 'faq' | 'docs'
 
 interface MarketingNavProps {
   active?: NavKey
@@ -25,6 +25,7 @@ export default async function MarketingNav({ active }: MarketingNavProps) {
     { href: paths.home, key: 'home' },
     { href: paths.features, key: 'features' },
     { href: paths.pricing, key: 'pricing' },
+    { href: paths.docs, key: 'docs' },
     { href: paths.faq, key: 'faq' },
   ]
   return (
