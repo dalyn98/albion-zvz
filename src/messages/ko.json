@@ -1481,6 +1481,15 @@
       "winLossSub": "{wins}승 {losses}패",
       "kills": "킬",
       "deaths": "데스"
+    },
+    "adminPending": {
+      "title": "처리 대기",
+      "totalCount": "총 {count}건",
+      "regear": "리기어 청구",
+      "exchange": "환전 요청",
+      "donation": "기부 요청",
+      "shop": "상점 주문",
+      "eventPayout": "이벤트 정산"
     }
   },
   "landing": {

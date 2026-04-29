@@ -1481,6 +1481,15 @@
       "winLossSub": "{wins}W / {losses}L",
       "kills": "Kills",
       "deaths": "Deaths"
+    },
+    "adminPending": {
+      "title": "Pending review",
+      "totalCount": "{count} total",
+      "regear": "Regear claims",
+      "exchange": "Exchange requests",
+      "donation": "Donation requests",
+      "shop": "Shop orders",
+      "eventPayout": "Event payouts"
     }
   },
   "landing": {

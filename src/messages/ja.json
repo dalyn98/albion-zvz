@@ -1481,6 +1481,15 @@
       "winLossSub": "{wins}勝 {losses}敗",
       "kills": "キル",
       "deaths": "デス"
+    },
+    "adminPending": {
+      "title": "対応待ち",
+      "totalCount": "合計{count}件",
+      "regear": "リギア申請",
+      "exchange": "換金リクエスト",
+      "donation": "寄付リクエスト",
+      "shop": "ショップ注文",
+      "eventPayout": "イベント精算"
     }
   },
   "landing": {

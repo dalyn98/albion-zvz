@@ -12,7 +12,9 @@ import { getTenantTimezone } from '@/lib/timezone-server'
 import HomeEventList, { type HomeEventCardData, type HomeEventKind } from '@/components/HomeEventList'
 import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
 import HomeGuildWeeklyStats from '@/components/HomeGuildWeeklyStats'
+import HomeAdminPendingCard from '@/components/HomeAdminPendingCard'
 import { loadGuildWeeklyStats } from '@/lib/guild-weekly-stats'
+import { getAdminBadgeCounts } from '@/lib/admin-badges'
 
 // Homepage reflects the live DB, so never prerender at build — a static
 // snapshot would show stale or deleted events.
@@ -83,7 +85,14 @@ export default async function HomePage() {
   // tenant 로 fallback 해 레이아웃 상 게이트가 렌더하는 동안 깨지지 않게 한다.
   const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
 
-  const [noticeMessage, noticeImageUrl, events, tz, weeklyStatsEnabledRaw] = await Promise.all([
+  const [
+    noticeMessage,
+    noticeImageUrl,
+    events,
+    tz,
+    weeklyStatsEnabledRaw,
+    adminPendingEnabledRaw,
+  ] = await Promise.all([
     getAppSetting('events_notice_message', '', guildId),
     getAppSetting('events_notice_image_url', '', guildId),
     getActiveEvents(guildId),
@@ -91,10 +100,14 @@ export default async function HomePage() {
     // 길드별 토글 — 기본 OFF. SaaS 다른 테넌트에는 노출하지 않는다. 우리 길드는
     // 별도 SQL upsert 로 'true' 설정.
     getAppSetting('home_weekly_stats_enabled', 'false', guildId),
+    getAppSetting('home_admin_pending_card_enabled', 'false', guildId),
   ])
 
   const weeklyStatsEnabled = weeklyStatsEnabledRaw === 'true'
   const weeklyStats = weeklyStatsEnabled ? await loadGuildWeeklyStats(guildId) : null
+
+  const adminPendingEnabled = adminPendingEnabledRaw === 'true' && (session?.isAdmin ?? false)
+  const adminBadges = adminPendingEnabled ? await getAdminBadgeCounts(guildId) : null
 
   // Prefer gather_at (ISO) for locale-aware formatting; fall back to stored
   // gather_time (always Korean) for legacy rows that predate gather_at.
@@ -145,6 +158,8 @@ export default async function HomePage() {
       </div>
 
       <DismissibleNoticeBanner message={noticeMessage} imageUrl={noticeImageUrl} />
+
+      {adminBadges && <HomeAdminPendingCard badges={adminBadges} />}
 
       {weeklyStats && <HomeGuildWeeklyStats stats={weeklyStats} />}
 
