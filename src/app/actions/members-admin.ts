@@ -24,6 +24,7 @@ import {
   mergeMemberBattles,
 } from '@/lib/tracked-kills'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import { getAppSetting } from '@/lib/app-settings'
 import type { RegearType } from '@/types'
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
@@ -616,6 +617,8 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
   const tErr = await getTranslations('adminActionError')
   try {
     const db = getAdminClient()
+    const bundleSplits =
+      (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
 
     // avatar 를 먼저 단건 조회 — albion_player_id 를 확보해야 killboard_events
     // 를 albion_player_id 기준으로 조회할 수 있다. (guild_id, discord_id) PK
@@ -686,7 +689,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       // 카운트와 비교해 상위 percentile 계산. 기존 PostgREST 쿼리는 group by 를
       // 내려주지 않고 limit 1000 에 걸리므로 RPC 로 한 번에 수행.
       db.rpc('member_ranking_counts', { p_guild_id: guildId }),
-      fetchTrackedBattleWindows(db, guildId),
+      fetchTrackedBattleWindows(db, guildId, null, { bundleSplits }),
       fetchMemberBattleParticipations(db, guildId),
     ])
 
@@ -1072,6 +1075,8 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
   const tErr = await getTranslations('adminActionError')
   try {
     const { db, guildId } = await requireSessionWithGuild()
+    const bundleSplits =
+      (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
 
     const [rosterRes, killboardRes, trackedBattles, participationsByMember] = await Promise.all([
       db
@@ -1087,7 +1092,7 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
         .select('event_id, role, fame, item_power, occurred_at, equipment, opponent_name, opponent_guild, battle_id')
         .eq('guild_id', guildId)
         .eq('albion_player_id', albionPlayerId),
-      fetchTrackedBattleWindows(db, guildId),
+      fetchTrackedBattleWindows(db, guildId, null, { bundleSplits }),
       fetchMemberBattleParticipations(db, guildId),
     ])
 

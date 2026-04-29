@@ -13,6 +13,7 @@ import {
   groupMemberKillsByBattle,
   mergeMemberBattles,
 } from '@/lib/tracked-kills'
+import { getAppSetting } from '@/lib/app-settings'
 
 export type LeaderboardWindow = 'week' | 'month' | 'all'
 
@@ -78,6 +79,8 @@ export async function getLeaderboard(
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
   const cutoff = cutoffFor(window)
+  const bundleSplits =
+    (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
 
   // 모집단: albion_guild_members (left_at IS NULL = 활성). guild_avatars 는
   // Discord username/avatar 를 채우기 위한 LEFT JOIN — 미연동 멤버는 albion
@@ -105,7 +108,7 @@ export async function getLeaderboard(
     rosterQ,
     avatarsQ,
     killboardQ,
-    fetchTrackedBattleWindows(db, guildId, cutoff),
+    fetchTrackedBattleWindows(db, guildId, cutoff, { bundleSplits }),
     fetchMemberBattleParticipations(db, guildId, cutoff),
   ])
 

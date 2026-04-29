@@ -16,6 +16,7 @@ import {
 } from '@/lib/tracked-kills'
 import { getMyPointsSummary } from '@/app/actions/regear'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import { getAppSetting } from '@/lib/app-settings'
 
 export interface MyDashboardData {
   balance: number
@@ -78,6 +79,8 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
   const db = getAdminClient()
 
   const nowIso = new Date().toISOString()
+  const bundleSplits =
+    (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
 
   const [
     pointsSummary,
@@ -133,7 +136,7 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
       .eq('guild_id', guildId)
       .eq('discord_id', session.discordId)
       .eq('status', 'pending'),
-    fetchTrackedBattleWindows(db, guildId),
+    fetchTrackedBattleWindows(db, guildId, null, { bundleSplits }),
     fetchMemberBattleParticipations(db, guildId),
   ])
 

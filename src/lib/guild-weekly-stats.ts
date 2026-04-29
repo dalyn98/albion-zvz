@@ -6,7 +6,9 @@
 // 그 두 값이 필요해 별도로 같은 컷 로직을 적용하면서 raw 합계를 유지한다.
 
 import { getAdminClient } from '@/lib/supabase-admin'
+import { getAppSetting } from '@/lib/app-settings'
 import { isHighEngagement } from '@/lib/low-engagement-cut'
+import { bundleSplitBattles, type BundleableRow } from '@/lib/battle-bundling'
 
 export interface GuildWeeklyStats {
   battleCount: number
@@ -25,18 +27,15 @@ export async function loadGuildWeeklyStats(guildId: string): Promise<GuildWeekly
   const db = getAdminClient()
   const { data } = await db
     .from('tenant_battle_records')
-    .select('outcome, home_kills, home_deaths, home_team_size')
+    .select(
+      'battle_record_id, outcome, home_kills, home_deaths, home_team_size, main_opponent_team_size',
+    )
     .eq('guild_id', guildId)
     .gte('started_at', sinceIso)
 
-  type Row = {
-    outcome: string
-    home_kills: number
-    home_deaths: number
-    home_team_size: number
-  }
-
-  const rows = (data ?? []) as Row[]
+  const rows = (data ?? []) as BundleableRow[]
+  const bundleEnabled =
+    (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
 
   const stats: GuildWeeklyStats = {
     battleCount: 0,
@@ -46,6 +45,28 @@ export async function loadGuildWeeklyStats(guildId: string): Promise<GuildWeekly
     totalKills: 0,
     totalDeaths: 0,
     sinceIso,
+  }
+
+  if (bundleEnabled) {
+    const bundled = bundleSplitBattles(rows)
+    for (const b of bundled) {
+      if (
+        !isHighEngagement({
+          homeKills: b.homeKills,
+          homeDeaths: b.homeDeaths,
+          homeTeamSize: b.homeTeamSize,
+        })
+      ) {
+        continue
+      }
+      stats.battleCount += 1
+      stats.totalKills += b.homeKills
+      stats.totalDeaths += b.homeDeaths
+      if (b.outcome === 'win') stats.winCount += 1
+      else if (b.outcome === 'loss') stats.lossCount += 1
+      else if (b.outcome === 'tie') stats.tieCount += 1
+    }
+    return stats
   }
 
   for (const row of rows) {

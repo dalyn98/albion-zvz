@@ -176,6 +176,13 @@ export type AppSettingKey =
   // /me 페이지 "이번 주 내 활동" 미니 섹션 토글. 'true' 일 때만 렌더.
   // 길드별 단계적 롤아웃 — 기본 OFF, 검증된 길드만 'true'.
   | 'me_weekly_stats_enabled'
+  // 매치업 분리 row 들을 통계/업적의 "전투 카운트" 류 메트릭에서 albion_battle_id
+  // 단위로 묶어 1전투로 계산할지 토글. 'true' 면 묶음, 'false' 면 분리 카운트
+  // (legacy). /battles 목록 표시는 영향 없음 — 어디까지나 카운트 메트릭에만
+  // 적용. K/D/Fame 은 그룹 합산, outcome 은 main_opponent (가장 큰 force) 매치업
+  // row 의 outcome 채택, low-engagement 컷은 그룹 합산값으로 재평가. 길드별
+  // 단계적 롤아웃 — 기본 OFF, 검증된 길드만 'true'.
+  | 'bundle_split_battles_in_stats'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

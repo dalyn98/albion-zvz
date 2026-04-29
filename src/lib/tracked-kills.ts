@@ -44,17 +44,29 @@ export interface TrackedBattles {
 // 정확 매칭이라 padding 영향을 받지 않는다.
 const WINDOW_PADDING_MS = 15 * 60 * 1000
 
+export interface FetchTrackedBattleWindowsOptions {
+  // 'true' 면 같은 albion_battle_id 의 매치업 분리 row 들을 1개의 window 로 묶어
+  // 통계/업적의 outcome / engagement 판정을 main_opponent (가장 큰 force) 매치업
+  // 기준으로 결정. tracked.windows 는 albion_battle_id 당 1개씩만 포함되며,
+  // tracked.byBattleId 도 그 canonical row 만 가진다. 호출자(stats/achievements
+  // 류) 가 길드별 `bundle_split_battles_in_stats` flag 값을 읽어 넘긴다. 'false'
+  // (기본) 면 legacy: row 당 window 1개.
+  bundleSplits?: boolean
+}
+
 export async function fetchTrackedBattleWindows(
   db: Db,
   guildId: string,
   sinceIso?: string | null,
+  options?: FetchTrackedBattleWindowsOptions,
 ): Promise<TrackedBattles> {
   // home_kills/deaths/team_size 는 low-engagement 컷 평가용. raw 적재는 그대로
   // 두고 windows 단계에서만 hide — 통계/업적/킬로그 모든 집계에서 자동 제외.
+  // main_opponent_team_size 는 bundleSplits=true 일 때 canonical row 선정용.
   let q = db
     .from('tenant_battle_records')
     .select(
-      'started_at, outcome, home_kills, home_deaths, home_team_size, battle_records!inner(ended_at, albion_battle_id)',
+      'started_at, outcome, home_kills, home_deaths, home_team_size, main_opponent_team_size, battle_records!inner(ended_at, albion_battle_id)',
     )
     .eq('guild_id', guildId)
   if (sinceIso) q = q.gte('started_at', sinceIso)
@@ -66,14 +78,21 @@ export async function fetchTrackedBattleWindows(
     home_kills: number
     home_deaths: number
     home_team_size: number
+    main_opponent_team_size: number | null
     battle_records:
       | { ended_at: string | null; albion_battle_id: number | string | null }
       | { ended_at: string | null; albion_battle_id: number | string | null }[]
       | null
   }
+  const rows = (data ?? []) as Row[]
+
+  if (options?.bundleSplits) {
+    return buildBundledTrackedBattles(rows)
+  }
+
   const windows: TrackedBattleWindow[] = []
   const byBattleId = new Map<number, TrackedBattleWindow>()
-  for (const row of (data ?? []) as Row[]) {
+  for (const row of rows) {
     const br = Array.isArray(row.battle_records) ? row.battle_records[0] : row.battle_records
     if (!br?.ended_at) continue
     if (
@@ -108,6 +127,127 @@ export async function fetchTrackedBattleWindows(
       byBattleId.set(window.albionBattleId, window)
     }
   }
+  windows.sort((a, b) => a.startedAtMs - b.startedAtMs)
+  return { windows, byBattleId }
+}
+
+// bundleSplits=true 분기 — 같은 albion_battle_id 안의 row 들을 묶어
+// 1 window/1 byBattleId entry 로 변환. canonical row 는 main_opponent_team_size
+// 가 가장 큰 row (가장 큰 상대 force 와의 매치업). engagement 컷은 묶음 K/D
+// 합산에 max(home_team_size) 로 재평가. albion_battle_id 가 NULL 인 legacy row
+// 는 묶을 키가 없어 row 별 독립 window 로 유지 (시간창 폴백 매칭이 살아있도록).
+function buildBundledTrackedBattles(
+  rows: ReadonlyArray<{
+    started_at: string
+    outcome: string
+    home_kills: number
+    home_deaths: number
+    home_team_size: number
+    main_opponent_team_size: number | null
+    battle_records:
+      | { ended_at: string | null; albion_battle_id: number | string | null }
+      | { ended_at: string | null; albion_battle_id: number | string | null }[]
+      | null
+  }>,
+): TrackedBattles {
+  type RowGroup = {
+    canonical: (typeof rows)[number]
+    canonicalMainSize: number
+    canonicalEndedAt: string
+    homeKillsSum: number
+    homeDeathsSum: number
+    homeTeamSizeMax: number
+  }
+  const grouped = new Map<number, RowGroup>()
+  const looseWindows: TrackedBattleWindow[] = []
+
+  for (const row of rows) {
+    const br = Array.isArray(row.battle_records) ? row.battle_records[0] : row.battle_records
+    if (!br?.ended_at) continue
+    const rawBattleId = br.albion_battle_id
+    const albionBattleId =
+      typeof rawBattleId === 'number'
+        ? rawBattleId
+        : typeof rawBattleId === 'string' && rawBattleId.length > 0
+          ? Number(rawBattleId)
+          : null
+    if (albionBattleId === null || !Number.isFinite(albionBattleId)) {
+      // legacy NULL: 묶을 키가 없으니 row 별로 처리 (engagement 컷은 row 단위).
+      if (
+        !isHighEngagement({
+          homeKills: row.home_kills,
+          homeDeaths: row.home_deaths,
+          homeTeamSize: row.home_team_size,
+        })
+      ) {
+        continue
+      }
+      const startMs = Date.parse(row.started_at)
+      const endMs = Date.parse(br.ended_at)
+      if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) continue
+      looseWindows.push({
+        startedAtMs: startMs - WINDOW_PADDING_MS,
+        endedAtMs: endMs + WINDOW_PADDING_MS,
+        rawStartedAt: row.started_at,
+        outcome: row.outcome,
+        albionBattleId: null,
+      })
+      continue
+    }
+
+    const mainSize = row.main_opponent_team_size ?? 0
+    const existing = grouped.get(albionBattleId)
+    if (!existing) {
+      grouped.set(albionBattleId, {
+        canonical: row,
+        canonicalMainSize: mainSize,
+        canonicalEndedAt: br.ended_at,
+        homeKillsSum: row.home_kills ?? 0,
+        homeDeathsSum: row.home_deaths ?? 0,
+        homeTeamSizeMax: row.home_team_size ?? 0,
+      })
+      continue
+    }
+    existing.homeKillsSum += row.home_kills ?? 0
+    existing.homeDeathsSum += row.home_deaths ?? 0
+    if ((row.home_team_size ?? 0) > existing.homeTeamSizeMax) {
+      existing.homeTeamSizeMax = row.home_team_size ?? 0
+    }
+    if (mainSize > existing.canonicalMainSize) {
+      existing.canonical = row
+      existing.canonicalMainSize = mainSize
+      existing.canonicalEndedAt = br.ended_at
+    }
+  }
+
+  const windows: TrackedBattleWindow[] = []
+  const byBattleId = new Map<number, TrackedBattleWindow>()
+
+  for (const [albionBattleId, group] of grouped) {
+    if (
+      !isHighEngagement({
+        homeKills: group.homeKillsSum,
+        homeDeaths: group.homeDeathsSum,
+        homeTeamSize: group.homeTeamSizeMax,
+      })
+    ) {
+      continue
+    }
+    const startMs = Date.parse(group.canonical.started_at)
+    const endMs = Date.parse(group.canonicalEndedAt)
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) continue
+    const window: TrackedBattleWindow = {
+      startedAtMs: startMs - WINDOW_PADDING_MS,
+      endedAtMs: endMs + WINDOW_PADDING_MS,
+      rawStartedAt: group.canonical.started_at,
+      outcome: group.canonical.outcome,
+      albionBattleId,
+    }
+    windows.push(window)
+    byBattleId.set(albionBattleId, window)
+  }
+
+  windows.push(...looseWindows)
   windows.sort((a, b) => a.startedAtMs - b.startedAtMs)
   return { windows, byBattleId }
 }
@@ -307,17 +447,23 @@ export function mergeMemberBattles(
   memberParticipations: ReadonlyMap<string, string> | undefined,
   tracked: TrackedBattles,
 ): MemberBattleOutcome[] {
-  const trackedRawStartedAts = new Set<string>()
-  for (const w of tracked.windows) trackedRawStartedAts.add(w.rawStartedAt)
+  // tracked.windows 가 진실 — bundleSplits=true 일 때 main_opponent canonical
+  // outcome 을 들고 있고, 그 외 케이스에서도 engagement 컷이 적용된 결과다.
+  // RPC 의 outcome 은 매치업 분리 row 들 중 임의의 한 개 (순서 보장 없음) 라
+  // 일관성을 위해 windows 측을 우선 채택. windows 에 없는 rawStartedAt 은
+  // engagement 컷 제외 → skip.
+  const trackedOutcomeByRawStart = new Map<string, string>()
+  for (const w of tracked.windows) trackedOutcomeByRawStart.set(w.rawStartedAt, w.outcome)
   const byStart = new Map<string, MemberBattleOutcome>()
   for (const b of killBattles) byStart.set(b.startedAt, b)
   if (memberParticipations) {
-    for (const [rawStart, outcome] of memberParticipations) {
-      if (!trackedRawStartedAts.has(rawStart)) continue
+    for (const [rawStart] of memberParticipations) {
+      const canonicalOutcome = trackedOutcomeByRawStart.get(rawStart)
+      if (canonicalOutcome === undefined) continue
       if (!byStart.has(rawStart)) {
         byStart.set(rawStart, {
           startedAt: rawStart,
-          outcome,
+          outcome: canonicalOutcome,
           hadDeath: false,
           killCount: 0,
           deathCount: 0,
