@@ -3,12 +3,9 @@
 // (페이지 폴더 자체는 별도로 만들어야 함 — 라우팅 자체는 파일 시스템 기반).
 
 export interface DocsNavItem {
-  // '' 면 인덱스 (`/docs`), 그 외는 `/docs/<slug>`. 슬래시는 항상 layout 의
-  // marketing-paths 와 합쳐서 host 에 맞는 prefix 를 붙인다.
   slug: string
-  // src/messages/{ko,ja,en}.json 의 docsNav namespace 키. 본문은 ko 우선이지만
-  // sidebar 라벨은 사이트 chrome 이라 i18n 동등 키 유지.
   itemKey: string
+  subItems?: DocsNavItem[]
 }
 
 export interface DocsNavSection {
@@ -24,20 +21,113 @@ export const DOCS_NAV: DocsNavSection[] = [
   {
     sectionKey: 'sectionFeatures',
     items: [
-      { slug: 'onboarding', itemKey: 'onboarding' },
-      { slug: 'members', itemKey: 'members' },
-      { slug: 'killboard', itemKey: 'killboard' },
-      { slug: 'battles', itemKey: 'battles' },
-      { slug: 'regear', itemKey: 'regear' },
-      { slug: 'shop', itemKey: 'shop' },
-      { slug: 'craft', itemKey: 'craft' },
-      { slug: 'leaderboard', itemKey: 'leaderboard' },
-      { slug: 'dashboard', itemKey: 'dashboard' },
-      { slug: 'admin', itemKey: 'admin' },
+      {
+        slug: 'onboarding',
+        itemKey: 'onboarding',
+        subItems: [
+          { slug: 'onboarding/invite', itemKey: 'onboardingInvite' },
+          { slug: 'onboarding/login', itemKey: 'onboardingLogin' },
+          { slug: 'onboarding/setup-wizard', itemKey: 'onboardingWizard' },
+          { slug: 'onboarding/character-link', itemKey: 'onboardingCharacterLink' },
+        ],
+      },
+      {
+        slug: 'members',
+        itemKey: 'members',
+        subItems: [
+          { slug: 'members/list', itemKey: 'membersList' },
+          { slug: 'members/detail', itemKey: 'membersDetail' },
+          { slug: 'members/sync', itemKey: 'membersSync' },
+          { slug: 'members/guest', itemKey: 'membersGuest' },
+        ],
+      },
+      {
+        slug: 'killboard',
+        itemKey: 'killboard',
+        subItems: [
+          { slug: 'killboard/sync', itemKey: 'killboardSync' },
+          { slug: 'killboard/scope', itemKey: 'killboardScope' },
+          { slug: 'killboard/member-view', itemKey: 'killboardMemberView' },
+          { slug: 'killboard/battle-view', itemKey: 'killboardBattleView' },
+        ],
+      },
+      {
+        slug: 'battles',
+        itemKey: 'battles',
+        subItems: [
+          { slug: 'battles/list', itemKey: 'battlesList' },
+          { slug: 'battles/detail', itemKey: 'battlesDetail' },
+          { slug: 'battles/event-report', itemKey: 'battlesEventReport' },
+          { slug: 'battles/party', itemKey: 'battlesParty' },
+        ],
+      },
+      {
+        slug: 'regear',
+        itemKey: 'regear',
+        subItems: [
+          { slug: 'regear/auto', itemKey: 'regearAuto' },
+          { slug: 'regear/manual', itemKey: 'regearManual' },
+          { slug: 'regear/dual-mode', itemKey: 'regearDualMode' },
+          { slug: 'regear/verification', itemKey: 'regearVerification' },
+          { slug: 'regear/admin-approval', itemKey: 'regearAdminApproval' },
+        ],
+      },
+      {
+        slug: 'shop',
+        itemKey: 'shop',
+        subItems: [
+          { slug: 'shop/storefront', itemKey: 'shopStorefront' },
+          { slug: 'shop/exchange-rate', itemKey: 'shopExchangeRate' },
+          { slug: 'shop/points', itemKey: 'shopPoints' },
+          { slug: 'shop/box-pickup', itemKey: 'shopBoxPickup' },
+        ],
+      },
+      {
+        slug: 'craft',
+        itemKey: 'craft',
+        subItems: [
+          { slug: 'craft/queue', itemKey: 'craftQueue' },
+          { slug: 'craft/my-tasks', itemKey: 'craftMyTasks' },
+          { slug: 'craft/inventory', itemKey: 'craftInventory' },
+          { slug: 'craft/box-pickup', itemKey: 'craftBoxPickup' },
+        ],
+      },
+      {
+        slug: 'leaderboard',
+        itemKey: 'leaderboard',
+        subItems: [
+          { slug: 'leaderboard/badges', itemKey: 'leaderboardBadges' },
+          { slug: 'leaderboard/weapon-stats', itemKey: 'leaderboardWeaponStats' },
+          { slug: 'leaderboard/ranking', itemKey: 'leaderboardRanking' },
+        ],
+      },
+      {
+        slug: 'dashboard',
+        itemKey: 'dashboard',
+        subItems: [
+          { slug: 'dashboard/home', itemKey: 'dashboardHome' },
+          { slug: 'dashboard/profile', itemKey: 'dashboardProfile' },
+          { slug: 'dashboard/settings', itemKey: 'dashboardSettings' },
+          { slug: 'dashboard/regear-detail', itemKey: 'dashboardRegearDetail' },
+          { slug: 'dashboard/requests', itemKey: 'dashboardRequests' },
+        ],
+      },
+      {
+        slug: 'admin',
+        itemKey: 'admin',
+        subItems: [
+          { slug: 'admin/dashboard', itemKey: 'adminDashboard' },
+          { slug: 'admin/global-toggles', itemKey: 'adminGlobalToggles' },
+          { slug: 'admin/permissions', itemKey: 'adminPermissions' },
+          { slug: 'admin/in-app-guide', itemKey: 'adminInAppGuide' },
+        ],
+      },
     ],
   },
 ]
 
 export function flattenDocsNav(): DocsNavItem[] {
-  return DOCS_NAV.flatMap((section) => section.items)
+  return DOCS_NAV.flatMap((section) =>
+    section.items.flatMap((item) => [item, ...(item.subItems ?? [])]),
+  )
 }
