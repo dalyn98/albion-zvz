@@ -143,7 +143,9 @@ export default async function GuildProfilePage({
     <div className="min-h-screen bg-[#08090d] text-white">
       <MarketingNav />
 
-      {/* HERO — 좌측 수직 액센트 바 + 배너 + 글로우. 모집 open 일 때 도트가 ping. */}
+      {/* HERO — 좌측 수직 액센트 바 + 배너 + 글로우 + 미세 노이즈 텍스처.
+          모집 open 일 때 도트가 ping. 길드명은 모바일/데스크탑 4xl→6xl→7xl 로
+          반응형 점진 확대. */}
       <header className="relative overflow-hidden">
         <div className={`absolute inset-0 ${accent.heroGradient}`} />
         <div
@@ -160,10 +162,20 @@ export default async function GuildProfilePage({
             <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-[#08090d]" />
           </div>
         )}
+        {/* 미세한 도트 노이즈 — 단조로운 그라디언트에 결을 입힌다. 4% 투명도라
+            텍스처는 거의 인지되지 않지만 hero 가 "재질감" 을 갖는다. */}
+        <div
+          className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay"
+          style={{
+            backgroundImage:
+              'radial-gradient(rgba(255,255,255,0.9) 1px, transparent 1px)',
+            backgroundSize: '3px 3px',
+          }}
+        />
         <div className={`absolute top-0 left-0 bottom-0 w-[3px] ${accent.bar}`} />
         <div className={`absolute bottom-0 left-0 right-0 h-px ${accent.divider}`} />
 
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-20 sm:py-32">
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-20 sm:py-28 lg:py-32">
           <div className="space-y-6">
             <div className="flex items-center gap-3 flex-wrap">
               <span
@@ -179,12 +191,12 @@ export default async function GuildProfilePage({
                 </span>
                 {t(`recruitment_${settings.recruitmentStatus}`)}
               </span>
-              <span className="text-gray-500 text-xs font-mono tracking-wider">
+              <span className="text-gray-500 text-[11px] font-mono tracking-[0.2em] uppercase">
                 /g/{tenant.slug}
               </span>
             </div>
             <h1
-              className={`text-5xl sm:text-7xl font-black tracking-tighter ${accent.heading} drop-shadow-2xl`}
+              className={`text-4xl sm:text-6xl lg:text-7xl font-black tracking-tighter ${accent.heading} drop-shadow-[0_4px_20px_rgba(0,0,0,0.6)] break-words`}
             >
               {tenant.name}
             </h1>
@@ -229,7 +241,7 @@ export default async function GuildProfilePage({
                 <div
                   className={`${
                     topContributors.length > 0 ? 'lg:col-span-3' : 'lg:col-span-5'
-                  } rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm`}
+                  } rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm transition-colors hover:bg-gray-900/60`}
                 >
                   <RecentBattleCard
                     battle={recentBattle}
@@ -250,7 +262,7 @@ export default async function GuildProfilePage({
                 <div
                   className={`${
                     recentBattle ? 'lg:col-span-2' : 'lg:col-span-5'
-                  } rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm`}
+                  } rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm transition-colors hover:bg-gray-900/60`}
                 >
                   <TopContributorsCard
                     contributors={topContributors}
@@ -363,6 +375,9 @@ function SectionHeader({ icon, label, accent }: SectionHeaderProps) {
         <span>{label}</span>
       </div>
       <div className={`flex-1 h-px ${accent.divider}`} />
+      <span
+        className={`inline-block w-1 h-1 rounded-full ${accent.dot} shrink-0 opacity-70`}
+      />
     </div>
   )
 }
@@ -505,15 +520,15 @@ interface RecentBattleCardProps {
 // 결과(승/패/무) 색은 액센트와 무관하게 universal 매핑. 길드 액센트가 rose 인
 // 경우 패배 카드까지 분홍이면 결과를 못 읽으니 분리.
 const OUTCOME_BADGE: Record<BattleOutcome, string> = {
-  win: 'bg-emerald-500/15 text-emerald-200 ring-emerald-500/40',
-  loss: 'bg-rose-500/15 text-rose-200 ring-rose-500/40',
-  tie: 'bg-slate-500/15 text-slate-200 ring-slate-500/40',
+  win: 'bg-emerald-500/20 text-emerald-200 ring-emerald-500/50',
+  loss: 'bg-rose-500/20 text-rose-200 ring-rose-500/50',
+  tie: 'bg-slate-500/20 text-slate-200 ring-slate-500/50',
 }
 
 const OUTCOME_ICON: Record<BattleOutcome, React.ReactNode> = {
-  win: <ShieldCheck size={11} />,
-  loss: <Skull size={11} />,
-  tie: <ShieldAlert size={11} />,
+  win: <ShieldCheck size={12} />,
+  loss: <Skull size={12} />,
+  tie: <ShieldAlert size={12} />,
 }
 
 function RecentBattleCard({
@@ -526,34 +541,46 @@ function RecentBattleCard({
   opponentLabel,
 }: RecentBattleCardProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <span
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ring-1 uppercase tracking-wider ${OUTCOME_BADGE[battle.outcome]}`}
+          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold ring-1 uppercase tracking-[0.15em] ${OUTCOME_BADGE[battle.outcome]}`}
         >
           {OUTCOME_ICON[battle.outcome]}
           <span>{outcomeLabel}</span>
         </span>
-        <span className="text-[10px] text-gray-500 font-mono shrink-0">{relativeLabel}</span>
+        <span className="text-[11px] text-gray-500 font-mono shrink-0 tabular-nums">
+          {relativeLabel}
+        </span>
       </div>
       <div>
         <p
-          className={`text-[10px] uppercase tracking-[0.18em] font-bold mb-1.5 ${accent.heading}`}
+          className={`text-[10px] uppercase tracking-[0.22em] font-bold mb-2 ${accent.heading}`}
         >
           {titleLabel}
         </p>
-        <p className="text-base sm:text-lg font-bold text-white truncate">{opponentLabel}</p>
+        <p className="text-lg sm:text-xl font-bold text-white truncate leading-tight">
+          {opponentLabel}
+        </p>
       </div>
-      <div className="flex items-center gap-5 pt-3 border-t border-gray-800">
-        <div className="flex items-center gap-1.5">
-          <Swords size={14} className={accent.heading} />
-          <span className={`text-2xl font-black ${accent.heading}`}>{battle.homeKills}</span>
-          <span className="text-gray-600 text-xs font-mono">K</span>
+      <div className="flex items-center gap-6 pt-4 border-t border-gray-800">
+        <div className="flex items-baseline gap-1.5">
+          <Swords size={15} className={`${accent.heading} self-center`} />
+          <span className={`text-3xl font-black ${accent.heading} tabular-nums`}>
+            {battle.homeKills}
+          </span>
+          <span className="text-gray-600 text-[11px] font-mono uppercase tracking-wider">
+            K
+          </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <Skull size={14} className="text-gray-500" />
-          <span className="text-2xl font-black text-gray-300">{battle.homeDeaths}</span>
-          <span className="text-gray-600 text-xs font-mono">D</span>
+        <div className="flex items-baseline gap-1.5">
+          <Skull size={15} className="text-gray-500 self-center" />
+          <span className="text-3xl font-black text-gray-300 tabular-nums">
+            {battle.homeDeaths}
+          </span>
+          <span className="text-gray-600 text-[11px] font-mono uppercase tracking-wider">
+            D
+          </span>
         </div>
         <div className="ml-auto flex items-center gap-1.5">
           <Users size={11} className="text-gray-600" />
