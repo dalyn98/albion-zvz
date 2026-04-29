@@ -26,6 +26,7 @@ import {
 } from '@/lib/shop/aodp'
 import { worstWarningLevel } from '@/lib/regear-estimate'
 import { findTrackedBattleIdsForEvent } from '@/lib/auto-regear-matching'
+import { isLikelyRoyalCluster } from '@/lib/albion-zone'
 import { SLOT_KEYS, type BuildSnapshot, type SlotKey } from '@/types'
 
 // 알비온 killboard equipment 슬롯명 → BuildSnapshot 슬롯 키 매핑.
@@ -99,6 +100,9 @@ export interface AutoRegearResult {
   // 청구는 0건. (battle-tracker sync 자체가 늦은 케이스는 위
   // events_deferred_battle_tracker_lag 로 분리되므로 여기엔 안 포함.)
   events_skipped_no_tracked_battle: number
+  // tracked battle 의 cluster_name 이 Royal Continent 로 분류된 이벤트 (도시/외곽
+  // /Brecilien/Crystal League). AGENTS.md hard rule #5 의 "블랙존 한정" 가드.
+  events_skipped_royal_zone: number
   errors: Array<{ event_id: string; step: string; message: string }>
   duration_ms: number
 }
@@ -232,6 +236,7 @@ export async function processAutoRegear(
       events_deferred_battle_tracker_lag: 0,
       events_skipped_retroactive: 0,
       events_skipped_no_tracked_battle: 0,
+      events_skipped_royal_zone: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
@@ -253,6 +258,7 @@ export async function processAutoRegear(
       events_deferred_battle_tracker_lag: 0,
       events_skipped_retroactive: 0,
       events_skipped_no_tracked_battle: 0,
+      events_skipped_royal_zone: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
@@ -306,6 +312,7 @@ export async function processAutoRegear(
       events_deferred_battle_tracker_lag: 0,
       events_skipped_retroactive: 0,
       events_skipped_no_tracked_battle: 0,
+      events_skipped_royal_zone: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
@@ -357,6 +364,7 @@ export async function processAutoRegear(
   let deferredBattleTrackerLag = 0
   let skippedRetroactive = 0
   let skippedNoTrackedBattle = 0
+  let skippedRoyalZone = 0
   let processed = 0
 
   for (const event of eventRows) {
@@ -449,7 +457,27 @@ export async function processAutoRegear(
         processed += 1
         continue
       }
-      const trackedBattleIds = trackedBattles.map((b) => b.albionBattleId)
+
+      // 블랙존 한정 가드 (AGENTS.md hard rule #5). 매칭된 모든 tracked battle 의
+      // cluster_name 이 Royal Continent 식별자 (도시/외곽/Brecilien/Crystal League)
+      // 면 자동 청구 0건 + 처리 완료 마킹. 부분적으로만 Royal 인 케이스(드물지만
+      // event 창 안에 두 다른 zone 의 후속 전투가 섞인 경우) 는 Royal 매칭만 빼고
+      // 나머지로 진행한다.
+      const blackzoneBattles = trackedBattles.filter(
+        (b) => !isLikelyRoyalCluster(b.clusterName),
+      )
+      if (blackzoneBattles.length === 0) {
+        const nowIso = new Date().toISOString()
+        await db
+          .from('events')
+          .update({ auto_regear_processed_at: nowIso })
+          .eq('id', event.id)
+          .eq('guild_id', guildId)
+        skippedRoyalZone += 1
+        processed += 1
+        continue
+      }
+      const trackedBattleIds = blackzoneBattles.map((b) => b.albionBattleId)
 
       // 매칭된 albion_battle_id 의 victim 만 조회. 솔로 갱크/딴 전투 사망은
       // battle_id 가 다르므로 자동 제외. legacy NULL battle_id (마이그 096 이전
@@ -619,6 +647,7 @@ export async function processAutoRegear(
     events_deferred_battle_tracker_lag: deferredBattleTrackerLag,
     events_skipped_retroactive: skippedRetroactive,
     events_skipped_no_tracked_battle: skippedNoTrackedBattle,
+    events_skipped_royal_zone: skippedRoyalZone,
     errors,
     duration_ms: Date.now() - startedAt,
   }

@@ -25,6 +25,8 @@ export interface MatchedTrackedBattle {
   albionBattleId: number
   startedAtIso: string
   homeTeamSize: number
+  // 자동 리기어가 "블랙존 한정" 가드를 적용하기 위해 함께 노출.
+  clusterName: string | null
 }
 
 interface TenantBattleRow {
@@ -33,8 +35,8 @@ interface TenantBattleRow {
   home_deaths: number
   home_team_size: number
   battle_records:
-    | { albion_battle_id: number | string | null }
-    | { albion_battle_id: number | string | null }[]
+    | { albion_battle_id: number | string | null; cluster_name: string | null }
+    | { albion_battle_id: number | string | null; cluster_name: string | null }[]
     | null
 }
 
@@ -62,7 +64,7 @@ export async function findTrackedBattleIdsForEvent(
   const { data, error } = await db
     .from('tenant_battle_records')
     .select(
-      'started_at, home_kills, home_deaths, home_team_size, battle_records!inner(albion_battle_id)',
+      'started_at, home_kills, home_deaths, home_team_size, battle_records!inner(albion_battle_id, cluster_name)',
     )
     .eq('guild_id', guildId)
     .gte('started_at', lowerIso)
@@ -90,6 +92,7 @@ export async function findTrackedBattleIdsForEvent(
       albionBattleId,
       startedAtIso: row.started_at,
       homeTeamSize: row.home_team_size,
+      clusterName: br.cluster_name ?? null,
     })
   }
   return out
