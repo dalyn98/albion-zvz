@@ -31,17 +31,24 @@ export default async function AppShell({ children }: { children: React.ReactNode
   }
 
   let craftQueueVisible = false
+  // craft_regear_enabled 의 raw 값. 어드민 사이드바 (craft / inventory 탭 가시성)
+  // 와 멤버 사이드바 (craft 큐 탭 가시성) 가 모두 이 값에 의존한다.
+  let craftAdminVisible = false
   // 길드원이 자기 길드 공개 프로필 (`/g/<slug>`) 로 이동할 수 있도록 사이드바에
   // 노출할 href. guild_profile_enabled 가 켜진 길드만 — 비활성화된 길드는 어차피
   // 페이지가 404 라 죽은 링크가 된다.
   let publicProfileHref: string | null = null
   if (session) {
     const guildId = await getSessionGuildId(session)
+    // craft 탭 노출은 어드민/멤버 둘 다 영향. 멤버는 toggle on + is_crafter
+    // 또는 admin 일 때만 큐가 보이고, 어드민은 toggle on 하나로 craft 운영 탭이
+    // 보인다. 어느 쪽이든 craft_regear_enabled 가 OFF 면 craft 관련 탭은 다 숨김.
+    const needsCraftSetting = session.isMember || session.isAdmin
     const [badges, tenantCfg, craftEnabledRaw, isCrafter, guildProfileEnabledRaw] =
       await Promise.all([
         session.isAdmin ? getAdminBadgeCounts(guildId) : Promise.resolve(null),
         getTenantDiscordConfig(guildId),
-        session.isMember
+        needsCraftSetting
           ? getAppSetting('craft_regear_enabled', 'false', guildId)
           : Promise.resolve('false'),
         session.isMember ? loadIsCrafter(guildId, session.discordId) : Promise.resolve(false),
@@ -58,7 +65,11 @@ export default async function AppShell({ children }: { children: React.ReactNode
         publicProfileHref = `/g/${tenantCfg.slug}`
       }
     }
-    craftQueueVisible = craftEnabledRaw === 'true' && (isCrafter || session.isAdmin)
+    const craftEnabled = craftEnabledRaw === 'true'
+    craftQueueVisible = craftEnabled && (isCrafter || session.isAdmin)
+    // 어드민 craft / inventory 탭은 toggle on 인 경우에만 사이드바에 노출.
+    // OFF 면 admin 은 settings → events 탭에서 다시 켤 수 있다 (entry 보장).
+    craftAdminVisible = craftEnabled && session.isAdmin
   }
   const superAdmin = isSuperAdminSession(session)
   // path 는 슈퍼어드민에게만 prop 으로 전달 — 일반 세션 HTML 에는 baked-in 시키지
@@ -73,6 +84,7 @@ export default async function AppShell({ children }: { children: React.ReactNode
         isSuperAdmin={superAdmin}
         superAdminPath={superAdminPath}
         craftQueueVisible={craftQueueVisible}
+        craftAdminVisible={craftAdminVisible}
         publicProfileHref={publicProfileHref}
       />
       <div className="flex-1 min-w-0 flex flex-col">{children}</div>

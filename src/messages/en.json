@@ -1315,6 +1315,13 @@
     "delayHint": "The cron processes the event this many minutes after battle start. Too short and the killboard sync may not catch up, causing victims to be missed. Default 15 minutes, range {min}–{max}.",
     "delayInvalid": "Delay must be an integer between {min} and {max} minutes."
   },
+  "adminCraftToggle": {
+    "title": "Crafted regear",
+    "descriptionLine1": "A mode where guild crafters build the gear and drop it into numbered boxes. When on, every new regear is treated as crafted and the sidebar shows the Craft admin and Inventory tabs.",
+    "descriptionLine2": "Crafter assignments, box-number ranges, and expiry are managed in the admin Craft tab. When off, every regear is paid out in silver. Admins can still flip an individual claim to silver at approval time.",
+    "toggleLabel": "Enable crafted regear",
+    "toggleHint": "When off, every new regear is paid in silver and the related sidebar tabs disappear."
+  },
   "adminAllowUnverified": {
     "title": "Allow unverified members to access the site",
     "description": "When off, members who haven't completed Albion verification are redirected to the onboarding page on site entry and can't use any other page until verified. Admins, guest invite links, and public paths are always exempt.",

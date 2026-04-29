@@ -46,6 +46,9 @@ interface NavItem {
   memberOnly?: boolean
   // 제작자/관리자 + 길드의 craft_regear_enabled 가 켜진 경우에만 표시.
   crafterOnly?: boolean
+  // 어드민 + 길드의 craft_regear_enabled 가 켜진 경우에만 표시.
+  // 토글 OFF 면 craft 운영 탭 (운영, 재고) 자체가 숨김.
+  craftAdminOnly?: boolean
 }
 
 const MEMBER_NAV: NavItem[] = [
@@ -68,8 +71,8 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/dashboard', labelKey: 'eventAdmin', icon: CalendarDays, exact: true },
   { href: '/admin/dashboard/approvals', labelKey: 'approvals', icon: ShieldCheck },
   { href: '/admin/dashboard/shop', labelKey: 'shopAdmin', icon: ShoppingBag },
-  { href: '/admin/dashboard/craft', labelKey: 'craftAdmin', icon: Hammer },
-  { href: '/admin/dashboard/inventory', labelKey: 'inventoryAdmin', icon: Boxes },
+  { href: '/admin/dashboard/craft', labelKey: 'craftAdmin', icon: Hammer, craftAdminOnly: true },
+  { href: '/admin/dashboard/inventory', labelKey: 'inventoryAdmin', icon: Boxes, craftAdminOnly: true },
   { href: '/admin/dashboard/stats', labelKey: 'stats', icon: BarChart3 },
   { href: '/admin/dashboard/settings', labelKey: 'settings', icon: Settings },
   { href: '/admin/dashboard/guild-profile', labelKey: 'guildProfile', icon: Sparkles },
@@ -126,6 +129,9 @@ interface AppSidebarProps {
   superAdminPath: string | null
   // craft_regear_enabled = true 이고, 본인이 is_crafter 또는 admin 인 경우에만 true.
   craftQueueVisible: boolean
+  // craft_regear_enabled = true 이고, 본인이 admin 인 경우에만 true.
+  // 어드민 nav 의 craft / inventory 탭 가시성에 영향.
+  craftAdminVisible: boolean
   // 공개 프로필 (`/g/<slug>`) 진입용 사이드바 링크. guild_profile_enabled 가
   // 꺼져 있거나 slug 가 없으면 null — AppShell 이 게이팅한다.
   publicProfileHref: string | null
@@ -138,6 +144,7 @@ export default function AppSidebar({
   isSuperAdmin,
   superAdminPath,
   craftQueueVisible,
+  craftAdminVisible,
   publicProfileHref,
 }: AppSidebarProps) {
   const pathname = usePathname()
@@ -285,11 +292,13 @@ export default function AppSidebar({
           {session?.isAdmin && (
             <NavGroup
               title={t('adminGroup')}
-              items={ADMIN_NAV.map((i) => ({
-                ...i,
-                label: tNav(i.labelKey),
-                badge: badgeCountFor(i.href, adminBadges),
-              }))}
+              items={ADMIN_NAV
+                .filter((i) => !i.craftAdminOnly || craftAdminVisible)
+                .map((i) => ({
+                  ...i,
+                  label: tNav(i.labelKey),
+                  badge: badgeCountFor(i.href, adminBadges),
+                }))}
               pathname={pathname || '/'}
               expanded={open}
               collapsible={adminOpen}

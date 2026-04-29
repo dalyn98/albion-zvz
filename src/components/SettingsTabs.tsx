@@ -22,6 +22,7 @@ import AllowUnverifiedAccessForm from './AllowUnverifiedAccessForm'
 import TenantTimezoneForm from './TenantTimezoneForm'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
 import AutoRegearToggleForm from './AutoRegearToggleForm'
+import CraftRegearToggleForm from './CraftRegearToggleForm'
 import RegearRequireVerificationForm from './RegearRequireVerificationForm'
 import CdBadgeRolesForm from './CdBadgeRolesForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
@@ -83,6 +84,7 @@ interface Props {
   albionHomeGuildName: string | null
   autoRegearEnabled: boolean
   autoRegearDelayMinutes: number
+  craftRegearEnabled: boolean
   regearRequireVerification: boolean
   cdBadgeRoles: SlotRole[]
   allowUnverifiedMemberAccess: boolean
@@ -128,6 +130,7 @@ export default function SettingsTabs({
   albionHomeGuildName,
   autoRegearEnabled,
   autoRegearDelayMinutes,
+  craftRegearEnabled,
   regearRequireVerification,
   cdBadgeRoles,
   allowUnverifiedMemberAccess,
@@ -250,6 +253,10 @@ export default function SettingsTabs({
                 embedded
                 initialEnabled={autoRegearEnabled}
                 initialDelayMinutes={autoRegearDelayMinutes}
+              />
+              <CraftRegearToggleForm
+                embedded
+                initialEnabled={craftRegearEnabled}
               />
             </SettingsGroup>
             <SettingsGroup

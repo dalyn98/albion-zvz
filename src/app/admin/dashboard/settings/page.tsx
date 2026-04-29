@@ -47,6 +47,7 @@ export default async function SettingsPage() {
     albionHomeGuildId,
     autoRegearEnabledRaw,
     autoRegearDelayRaw,
+    craftRegearEnabledRaw,
     regearRequireVerificationRaw,
     cdBadgeRolesRaw,
     allowUnverifiedMemberAccessRaw,
@@ -78,6 +79,7 @@ export default async function SettingsPage() {
     getAppSetting('albion_home_guild_id', '', tenantId),
     getAppSetting('auto_regear_enabled', 'false', tenantId),
     getAppSetting('auto_regear_delay_minutes', '15', tenantId),
+    getAppSetting('craft_regear_enabled', 'false', tenantId),
     getAppSetting('regear_require_verification', 'true', tenantId),
     getAppSetting('cd_badge_roles', '["Dps"]', tenantId),
     // 기본값 'true' — 기존 동작(미인증 멤버도 접근 가능) 유지. 관리자가 끌
@@ -136,6 +138,7 @@ export default async function SettingsPage() {
       : 'east'
 
   const autoRegearEnabled = autoRegearEnabledRaw === 'true'
+  const craftRegearEnabled = craftRegearEnabledRaw === 'true'
   const parsedAutoDelay = Number(autoRegearDelayRaw)
   const autoRegearDelayMinutes =
     Number.isFinite(parsedAutoDelay) &&
@@ -215,6 +218,7 @@ export default async function SettingsPage() {
         albionHomeGuildName={initialHomeGuildName}
         autoRegearEnabled={autoRegearEnabled}
         autoRegearDelayMinutes={autoRegearDelayMinutes}
+        craftRegearEnabled={craftRegearEnabled}
         regearRequireVerification={regearRequireVerification}
         cdBadgeRoles={cdBadgeRoles}
         allowUnverifiedMemberAccess={allowUnverifiedMemberAccess}
