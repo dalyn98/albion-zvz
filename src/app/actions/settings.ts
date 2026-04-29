@@ -38,6 +38,14 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'allow_unverified_member_access',
   'regear_require_verification',
   'auto_regear_delay_minutes',
+  'guild_profile_description',
+  'guild_profile_accent_color',
+  'guild_profile_show_members',
+  'guild_profile_show_battles',
+  'guild_profile_show_regear_stats',
+  'guild_profile_show_leaderboard',
+  'guild_profile_recruitment_status',
+  'guild_profile_discord_invite_url',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -66,6 +74,10 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   'active_member_role_ids',
   // 빈 문자열 = 홈 길드 미설정. 모든 온보딩이 [미인증] 으로만 저장된다.
   'albion_home_guild_id',
+  // 빈 값 = 길드 소개 섹션 숨김.
+  'guild_profile_description',
+  // 빈 값 = CTA 비활성. 모집 상태 배지는 그대로 노출.
+  'guild_profile_discord_invite_url',
 ] as const
 
 // JSON array string keys. Must parse to string[] or the upsert is rejected.
@@ -106,6 +118,10 @@ const BOOLEAN_KEYS: readonly AppSettingKey[] = [
   'auto_regear_enabled',
   'allow_unverified_member_access',
   'regear_require_verification',
+  'guild_profile_show_members',
+  'guild_profile_show_battles',
+  'guild_profile_show_regear_stats',
+  'guild_profile_show_leaderboard',
 ] as const
 
 // Enum-string keys. Value must be exactly one of the listed members.
@@ -113,6 +129,19 @@ const ENUM_VALUES: Partial<Record<AppSettingKey, readonly string[]>> = {
   albion_server: ['west', 'east', 'europe'] as const,
   // spot = 현재가, avg_Nd = 최근 N 일 평균(aodp history 엔드포인트).
   aodp_price_mode: ['spot', 'avg_1d', 'avg_3d', 'avg_7d', 'avg_14d'] as const,
+  // 큐레이션된 8색 팔레트. 자유 hex 입력 차단으로 시각 품질 보장.
+  guild_profile_accent_color: [
+    'amber',
+    'rose',
+    'emerald',
+    'sky',
+    'violet',
+    'orange',
+    'pink',
+    'slate',
+  ] as const,
+  // 모집 상태 — open / selective / closed. closed 면 CTA 미표시.
+  guild_profile_recruitment_status: ['open', 'selective', 'closed'] as const,
 }
 
 export async function updateAppSetting(
@@ -216,6 +245,12 @@ export async function updateAppSetting(
     if (key === 'auto_regear_enabled') {
       // 슬롯 편집기의 opt-out 체크박스 가시성이 이 값에 의존.
       revalidatePath('/admin/dashboard/events', 'layout')
+    }
+    if (key.startsWith('guild_profile_')) {
+      // 공개 프로필 페이지가 이 값들을 직접 읽어 표시 — 어드민 저장 즉시 반영.
+      revalidatePath('/admin/dashboard/guild-profile')
+      // /g/<slug> 는 동적 라우트라 layout 단위 무효화로 처리.
+      revalidatePath('/public/g/[slug]', 'page')
     }
     if (key === 'cd_badge_roles') {
       // 이벤트 상세의 파티 그리드에서 CD 뱃지 표시가 이 값에 의존.

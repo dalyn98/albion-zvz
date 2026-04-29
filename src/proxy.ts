@@ -48,9 +48,19 @@ function resolveDocsRewriteTarget(pathname: string): string | null {
   return null
 }
 
+// `/g/<slug>` → `/public/g/<slug>`. 공개 길드 프로필 — 비로그인 방문자가 모집/
+// 자랑용으로 공유하는 URL. 동적 segment 라 별도 함수로 분리.
+function resolveGuildProfileRewriteTarget(pathname: string): string | null {
+  if (pathname === '/g' || pathname.startsWith('/g/')) return `/public${pathname}`
+  return null
+}
+
 function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
   const pathname = request.nextUrl.pathname
-  const target = CANONICAL_MARKETING_REWRITES[pathname] ?? resolveDocsRewriteTarget(pathname)
+  const target =
+    CANONICAL_MARKETING_REWRITES[pathname] ??
+    resolveDocsRewriteTarget(pathname) ??
+    resolveGuildProfileRewriteTarget(pathname)
   if (!target) return null
   const host = request.headers.get('host')
   const classification = classifyHost(host)

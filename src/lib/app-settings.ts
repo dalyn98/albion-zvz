@@ -146,6 +146,32 @@ export type AppSettingKey =
   // 정수 문자열 (0..200). 집중 사용 시 추가로 적용되는 반환율 보너스 % 기본값.
   // 길드의 마스터리 분포에 따라 35~53 정도. 기본 '35'.
   | 'craft_focus_bonus_pct'
+  // 공개 길드 프로필 (`/g/<slug>`) 활성화 토글. 'true' 일 때만 라우트가 렌더되고
+  // 어드민 편집 화면이 켜진다. 단계적 롤아웃을 위한 길드 단위 게이트 — v1 은
+  // 멘헤라만 'true', 나머지는 미설정(=false) 로 두고 사전 동의 후 전환.
+  | 'guild_profile_enabled'
+  // 프로필 페이지 hero 배경 배너 URL. 빈 문자열이면 단색 fallback. 파일은
+  // 'guild-profiles' 스토리지 버킷에 업로드, 여기엔 공개 URL 을 저장한다.
+  | 'guild_profile_banner_url'
+  // 길드 한 줄 / 단락 소개. 최대 500자, 일반 텍스트 (마크다운 렌더 X — 공개
+  // 페이지의 시각 일관성을 위해). 빈 문자열이면 섹션 자체 숨김.
+  | 'guild_profile_description'
+  // hero / 강조 색상의 사전 정의 팔레트 키. 'amber' (기본) | 'rose' | 'emerald'
+  // | 'sky' | 'violet' | 'orange' | 'pink' | 'slate'. hex 자유 입력 X — 8 색
+  // 큐레이션으로 시각 품질을 보장.
+  | 'guild_profile_accent_color'
+  // 4 개 섹션 노출 토글. 'true' / 'false' 문자열. 어떤 섹션을 외부에 보여줄지
+  // 어드민이 결정 — 일부 길드는 멤버 명단/리기어 통계 노출을 원치 않을 수 있다.
+  | 'guild_profile_show_members'
+  | 'guild_profile_show_battles'
+  | 'guild_profile_show_regear_stats'
+  | 'guild_profile_show_leaderboard'
+  // 모집 상태. 'open' | 'selective' | 'closed'. open / selective 일 때만 모집
+  // CTA 버튼이 표시된다 (Discord 초대 링크 또는 가이드 페이지로 연결).
+  | 'guild_profile_recruitment_status'
+  // 모집 상태가 closed 가 아닐 때 CTA 버튼이 가리킬 Discord 초대 URL. 빈 값이면
+  // CTA 가 비활성으로 노출 (배지만 표시).
+  | 'guild_profile_discord_invite_url'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

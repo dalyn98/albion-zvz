@@ -28,6 +28,7 @@ import {
   Trophy,
   ShieldAlert,
   Hammer,
+  Sparkles,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -70,6 +71,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/dashboard/inventory', labelKey: 'inventoryAdmin', icon: Boxes },
   { href: '/admin/dashboard/stats', labelKey: 'stats', icon: BarChart3 },
   { href: '/admin/dashboard/settings', labelKey: 'settings', icon: Settings },
+  { href: '/admin/dashboard/guild-profile', labelKey: 'guildProfile', icon: Sparkles },
   { href: '/admin/dashboard/guide', labelKey: 'guide', icon: BookOpen },
 ]
 
