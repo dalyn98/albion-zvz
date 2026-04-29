@@ -29,6 +29,7 @@ import {
   ShieldAlert,
   Hammer,
   Sparkles,
+  Globe,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -125,6 +126,9 @@ interface AppSidebarProps {
   superAdminPath: string | null
   // craft_regear_enabled = true 이고, 본인이 is_crafter 또는 admin 인 경우에만 true.
   craftQueueVisible: boolean
+  // 공개 프로필 (`/g/<slug>`) 진입용 사이드바 링크. guild_profile_enabled 가
+  // 꺼져 있거나 slug 가 없으면 null — AppShell 이 게이팅한다.
+  publicProfileHref: string | null
 }
 
 export default function AppSidebar({
@@ -134,6 +138,7 @@ export default function AppSidebar({
   isSuperAdmin,
   superAdminPath,
   craftQueueVisible,
+  publicProfileHref,
 }: AppSidebarProps) {
   const pathname = usePathname()
   const t = useTranslations('sidebar')
@@ -180,6 +185,17 @@ export default function AppSidebar({
 
   const loginHref = `/api/auth/discord/start?returnTo=${encodeURIComponent(pathname || '/')}`
   const url = session ? avatarUrl(session.discordId, session.avatar) : null
+
+  // 공개 프로필 항목은 events 바로 아래에 끼워넣는다 — 길드원이 모집/공유용 URL
+  // 을 한 클릭으로 열 수 있게. AppShell 이 enable + slug 둘 다 충족해야 href 를
+  // 채워준다 (그 외엔 null → 항목 자체를 숨김).
+  const memberNavItems: NavItem[] = publicProfileHref
+    ? [
+        MEMBER_NAV[0],
+        { href: publicProfileHref, labelKey: 'publicProfile', icon: Globe },
+        ...MEMBER_NAV.slice(1),
+      ]
+    : MEMBER_NAV
 
   return (
     <>
@@ -257,7 +273,7 @@ export default function AppSidebar({
         <nav className="flex-1 overflow-y-auto py-3 space-y-4">
           <NavGroup
             title={t('memberGroup')}
-            items={MEMBER_NAV
+            items={memberNavItems
               .filter((i) => !i.memberOnly || session?.isMember)
               .filter((i) => !i.crafterOnly || craftQueueVisible)
               .map((i) => ({ ...i, label: tNav(i.labelKey) }))}

@@ -23,7 +23,8 @@
     "settings": "Settings",
     "guide": "Guide",
     "archive": "Archive",
-    "guildProfile": "Public profile"
+    "publicProfile": "Public profile",
+    "guildProfile": "Edit profile"
   },
   "common": {
     "close": "Close",

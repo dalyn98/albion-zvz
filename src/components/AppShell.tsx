@@ -31,16 +31,22 @@ export default async function AppShell({ children }: { children: React.ReactNode
   }
 
   let craftQueueVisible = false
+  // 길드원이 자기 길드 공개 프로필 (`/g/<slug>`) 로 이동할 수 있도록 사이드바에
+  // 노출할 href. guild_profile_enabled 가 켜진 길드만 — 비활성화된 길드는 어차피
+  // 페이지가 404 라 죽은 링크가 된다.
+  let publicProfileHref: string | null = null
   if (session) {
     const guildId = await getSessionGuildId(session)
-    const [badges, tenantCfg, craftEnabledRaw, isCrafter] = await Promise.all([
-      session.isAdmin ? getAdminBadgeCounts(guildId) : Promise.resolve(null),
-      getTenantDiscordConfig(guildId),
-      session.isMember
-        ? getAppSetting('craft_regear_enabled', 'false', guildId)
-        : Promise.resolve('false'),
-      session.isMember ? loadIsCrafter(guildId, session.discordId) : Promise.resolve(false),
-    ])
+    const [badges, tenantCfg, craftEnabledRaw, isCrafter, guildProfileEnabledRaw] =
+      await Promise.all([
+        session.isAdmin ? getAdminBadgeCounts(guildId) : Promise.resolve(null),
+        getTenantDiscordConfig(guildId),
+        session.isMember
+          ? getAppSetting('craft_regear_enabled', 'false', guildId)
+          : Promise.resolve('false'),
+        session.isMember ? loadIsCrafter(guildId, session.discordId) : Promise.resolve(false),
+        getAppSetting('guild_profile_enabled', 'false', guildId),
+      ])
     adminBadges = badges
     // 좌측 상단 표시 이름은 tenant slug 첫 하이픈 앞부분 — onboarding wizard 에서
     // 사용자가 정한 식별자가 그대로 노출된다. session 의 tenant 가 있으면
@@ -48,6 +54,9 @@ export default async function AppShell({ children }: { children: React.ReactNode
     if (tenantCfg?.slug) {
       const derived = displayNameFromSlug(tenantCfg.slug)
       if (derived.length > 0) brandName = derived
+      if (guildProfileEnabledRaw === 'true') {
+        publicProfileHref = `/g/${tenantCfg.slug}`
+      }
     }
     craftQueueVisible = craftEnabledRaw === 'true' && (isCrafter || session.isAdmin)
   }
@@ -64,6 +73,7 @@ export default async function AppShell({ children }: { children: React.ReactNode
         isSuperAdmin={superAdmin}
         superAdminPath={superAdminPath}
         craftQueueVisible={craftQueueVisible}
+        publicProfileHref={publicProfileHref}
       />
       <div className="flex-1 min-w-0 flex flex-col">{children}</div>
     </div>

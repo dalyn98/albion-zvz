@@ -23,7 +23,8 @@
     "settings": "설정",
     "guide": "가이드",
     "archive": "아카이브",
-    "guildProfile": "공개 프로필"
+    "publicProfile": "공개 프로필",
+    "guildProfile": "프로필 편집"
   },
   "common": {
     "close": "닫기",

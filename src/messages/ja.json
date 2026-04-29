@@ -23,7 +23,8 @@
     "settings": "設定",
     "guide": "ガイド",
     "archive": "アーカイブ",
-    "guildProfile": "公開プロフィール"
+    "publicProfile": "公開プロフィール",
+    "guildProfile": "プロフィール編集"
   },
   "common": {
     "close": "閉じる",
