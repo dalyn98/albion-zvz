@@ -1473,7 +1473,15 @@
     },
     "applicants": "申請 {assigned}/{total}",
     "newEvent": "新しいイベント",
-    "viewArchive": "過去のイベント"
+    "viewArchive": "過去のイベント",
+    "weeklyStats": {
+      "title": "今週のアクティビティ",
+      "battles": "戦闘",
+      "winRate": "勝率",
+      "winLossSub": "{wins}勝 {losses}敗",
+      "kills": "キル",
+      "deaths": "デス"
+    }
   },
   "landing": {
     "defaultCta": "Discord でログインすると、イベントとパーティーにアクセスできます。",

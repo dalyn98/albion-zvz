@@ -172,6 +172,9 @@ export type AppSettingKey =
   // 모집 상태가 closed 가 아닐 때 CTA 버튼이 가리킬 Discord 초대 URL. 빈 값이면
   // CTA 가 비활성으로 노출 (배지만 표시).
   | 'guild_profile_discord_invite_url'
+  // 홈 페이지 상단 "이번 주 활동" 미니 위젯 토글. 'true' 일 때만 위젯이 렌더된다.
+  // 길드별 단계적 롤아웃 — 기본 OFF, 검증된 길드만 'true'.
+  | 'home_weekly_stats_enabled'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

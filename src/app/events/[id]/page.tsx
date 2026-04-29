@@ -162,7 +162,7 @@ export default async function EventDetailPage({
               </p>
               <h1 className="text-xl sm:text-2xl font-bold text-white">{event.title}</h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {battleEnded && (
                 <Link
                   href={`/events/${id}/report`}

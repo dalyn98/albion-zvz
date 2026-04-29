@@ -11,6 +11,8 @@ import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import HomeEventList, { type HomeEventCardData, type HomeEventKind } from '@/components/HomeEventList'
 import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
+import HomeGuildWeeklyStats from '@/components/HomeGuildWeeklyStats'
+import { loadGuildWeeklyStats } from '@/lib/guild-weekly-stats'
 
 // Homepage reflects the live DB, so never prerender at build — a static
 // snapshot would show stale or deleted events.
@@ -81,12 +83,18 @@ export default async function HomePage() {
   // tenant 로 fallback 해 레이아웃 상 게이트가 렌더하는 동안 깨지지 않게 한다.
   const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
 
-  const [noticeMessage, noticeImageUrl, events, tz] = await Promise.all([
+  const [noticeMessage, noticeImageUrl, events, tz, weeklyStatsEnabledRaw] = await Promise.all([
     getAppSetting('events_notice_message', '', guildId),
     getAppSetting('events_notice_image_url', '', guildId),
     getActiveEvents(guildId),
     getTenantTimezone(guildId),
+    // 길드별 토글 — 기본 OFF. SaaS 다른 테넌트에는 노출하지 않는다. 우리 길드는
+    // 별도 SQL upsert 로 'true' 설정.
+    getAppSetting('home_weekly_stats_enabled', 'false', guildId),
   ])
+
+  const weeklyStatsEnabled = weeklyStatsEnabledRaw === 'true'
+  const weeklyStats = weeklyStatsEnabled ? await loadGuildWeeklyStats(guildId) : null
 
   // Prefer gather_at (ISO) for locale-aware formatting; fall back to stored
   // gather_time (always Korean) for legacy rows that predate gather_at.
@@ -109,17 +117,17 @@ export default async function HomePage() {
 
   return (
     <main className="flex-1 px-4 py-6 sm:py-8 max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto w-full space-y-6">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1.5">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">{t('home.title')}</h1>
           <p className="text-gray-400 text-sm">{t('home.subtitle')}</p>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 sm:flex-shrink-0">
           {/* `/archive` 사이드바 링크가 빠진 후 유일한 진입점 — 종료된 전투 회고가
               필요한 시점은 결국 events 페이지에서 시작하는 흐름이라 자연스럽다. */}
           <Link
             href="/archive"
-            className="flex items-center gap-1.5 text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-2 rounded-lg transition-colors text-sm whitespace-nowrap"
+            className="flex items-center justify-center gap-1.5 text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-2 rounded-lg transition-colors text-sm whitespace-nowrap flex-1 sm:flex-initial"
           >
             <Archive size={14} />
             {t('home.viewArchive')}
@@ -127,7 +135,7 @@ export default async function HomePage() {
           {session?.canCreateEvents && (
             <Link
               href="/admin/dashboard/events/new"
-              className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-3 py-2 rounded-lg transition-colors text-sm whitespace-nowrap"
+              className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-3 py-2 rounded-lg transition-colors text-sm whitespace-nowrap flex-1 sm:flex-initial"
             >
               <Plus size={16} />
               {t('home.newEvent')}
@@ -137,6 +145,8 @@ export default async function HomePage() {
       </div>
 
       <DismissibleNoticeBanner message={noticeMessage} imageUrl={noticeImageUrl} />
+
+      {weeklyStats && <HomeGuildWeeklyStats stats={weeklyStats} />}
 
       {events.length === 0 ? (
         <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center">

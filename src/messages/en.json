@@ -1473,7 +1473,15 @@
     },
     "applicants": "Applied {assigned}/{total}",
     "newEvent": "New event",
-    "viewArchive": "Past events"
+    "viewArchive": "Past events",
+    "weeklyStats": {
+      "title": "This week's activity",
+      "battles": "Battles",
+      "winRate": "Win rate",
+      "winLossSub": "{wins}W / {losses}L",
+      "kills": "Kills",
+      "deaths": "Deaths"
+    }
   },
   "landing": {
     "defaultCta": "Log in with Discord to access events and parties.",

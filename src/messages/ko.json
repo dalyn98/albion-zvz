@@ -1473,7 +1473,15 @@
     },
     "applicants": "신청 {assigned}/{total}",
     "newEvent": "새 이벤트",
-    "viewArchive": "지난 이벤트"
+    "viewArchive": "지난 이벤트",
+    "weeklyStats": {
+      "title": "이번 주 활동",
+      "battles": "전투",
+      "winRate": "승률",
+      "winLossSub": "{wins}승 {losses}패",
+      "kills": "킬",
+      "deaths": "데스"
+    }
   },
   "landing": {
     "defaultCta": "Discord로 로그인하면 이벤트와 파티에 접근할 수 있습니다.",
