@@ -1,6 +1,9 @@
-// Host-aware path helpers for marketing pages (/landing, /features, /pricing,
-// /faq). canonical 도메인(`albion-guildmanager.com`) 에서는 proxy 가 깔끔한
-// canonical path 를 내부 `/public/*` 로 rewrite 하지만, 테넌트 서브도메인
+// Host-aware path helpers for marketing pages. /landing 한 페이지로 통합돼서
+// features/pricing/faq 는 /landing 의 anchor 로만 노출된다 (전용 라우트는
+// redirect-only 로 보존돼 기존 인바운드 링크가 안 깨진다).
+//
+// canonical 도메인(`albion-guildmanager.com`) 에서는 proxy 가 깔끔한 canonical
+// path 를 내부 `/public/*` 로 rewrite 하지만, 테넌트 서브도메인
 // (`{slug}.albion-guildmanager.com`) 이나 preview/localhost 에서는 같은 path 가
 // rewrite 되지 않아 AppGate 로 떨어진다.
 //
@@ -22,17 +25,17 @@ export interface MarketingPaths {
 
 const CANONICAL_PATHS: MarketingPaths = {
   home: '/',
-  features: '/features',
-  pricing: '/pricing',
-  faq: '/faq',
+  features: '/#features',
+  pricing: '/#pricing',
+  faq: '/#faq',
   docs: '/docs',
 }
 
 const PUBLIC_PATHS: MarketingPaths = {
   home: '/public/landing',
-  features: '/public/features',
-  pricing: '/public/pricing',
-  faq: '/public/faq',
+  features: '/public/landing#features',
+  pricing: '/public/landing#pricing',
+  faq: '/public/landing#faq',
   docs: '/public/docs',
 }
 

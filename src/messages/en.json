@@ -1391,7 +1391,8 @@
     "howStep3": "You're live at <slug>your-guild.albion-guildmanager.com</slug> and ready to run events.",
     "footerNote": "Made by Monkku · Guild operations automation",
     "alreadyHaveGuild": "Already running a guild here?",
-    "loginInstead": "Sign in with Discord"
+    "loginInstead": "Sign in with Discord",
+    "docsCta": "Read the full feature docs"
   },
   "publicNav": {
     "home": "Home",
