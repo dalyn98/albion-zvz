@@ -24,6 +24,10 @@ export const MATCH_WINDOW_AFTER_MS = 60 * 60 * 1000
 export interface MatchedTrackedBattle {
   albionBattleId: number
   startedAtIso: string
+  // Albion `/battles` API 가 보고하는 실제 전투 종료 시각. 자동 리기어가
+  // "킬보드 indexing 완료" 게이트로 사용 (events.battle_started_at 은 호스트
+  // 버튼이라 부정확).
+  endedAtIso: string
   homeTeamSize: number
   // 자동 리기어가 "블랙존 한정" 가드를 적용하기 위해 함께 노출.
   clusterName: string | null
@@ -35,8 +39,16 @@ interface TenantBattleRow {
   home_deaths: number
   home_team_size: number
   battle_records:
-    | { albion_battle_id: number | string | null; cluster_name: string | null }
-    | { albion_battle_id: number | string | null; cluster_name: string | null }[]
+    | {
+        albion_battle_id: number | string | null
+        cluster_name: string | null
+        ended_at: string | null
+      }
+    | Array<{
+        albion_battle_id: number | string | null
+        cluster_name: string | null
+        ended_at: string | null
+      }>
     | null
 }
 
@@ -64,7 +76,7 @@ export async function findTrackedBattleIdsForEvent(
   const { data, error } = await db
     .from('tenant_battle_records')
     .select(
-      'started_at, home_kills, home_deaths, home_team_size, battle_records!inner(albion_battle_id, cluster_name)',
+      'started_at, home_kills, home_deaths, home_team_size, battle_records!inner(albion_battle_id, cluster_name, ended_at)',
     )
     .eq('guild_id', guildId)
     .gte('started_at', lowerIso)
@@ -88,9 +100,12 @@ export async function findTrackedBattleIdsForEvent(
     if (!br) continue
     const albionBattleId = normalizeAlbionBattleId(br.albion_battle_id)
     if (albionBattleId === null) continue
+    // ended_at 은 schema 상 NOT NULL 이라 항상 존재. 방어적으로 fallback.
+    const endedAtIso = br.ended_at ?? row.started_at
     out.push({
       albionBattleId,
       startedAtIso: row.started_at,
+      endedAtIso,
       homeTeamSize: row.home_team_size,
       clusterName: br.cluster_name ?? null,
     })

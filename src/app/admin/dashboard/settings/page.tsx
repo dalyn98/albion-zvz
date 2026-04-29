@@ -46,7 +46,6 @@ export default async function SettingsPage() {
     albionServerRaw,
     albionHomeGuildId,
     autoRegearEnabledRaw,
-    autoRegearDelayRaw,
     craftRegearEnabledRaw,
     regearRequireVerificationRaw,
     cdBadgeRolesRaw,
@@ -78,7 +77,6 @@ export default async function SettingsPage() {
     getAppSetting('albion_server', 'east', tenantId),
     getAppSetting('albion_home_guild_id', '', tenantId),
     getAppSetting('auto_regear_enabled', 'false', tenantId),
-    getAppSetting('auto_regear_delay_minutes', '15', tenantId),
     getAppSetting('craft_regear_enabled', 'false', tenantId),
     getAppSetting('regear_require_verification', 'true', tenantId),
     getAppSetting('cd_badge_roles', '["Dps"]', tenantId),
@@ -139,14 +137,6 @@ export default async function SettingsPage() {
 
   const autoRegearEnabled = autoRegearEnabledRaw === 'true'
   const craftRegearEnabled = craftRegearEnabledRaw === 'true'
-  const parsedAutoDelay = Number(autoRegearDelayRaw)
-  const autoRegearDelayMinutes =
-    Number.isFinite(parsedAutoDelay) &&
-    Number.isInteger(parsedAutoDelay) &&
-    parsedAutoDelay >= 5 &&
-    parsedAutoDelay <= 120
-      ? parsedAutoDelay
-      : 15
   // 기본값 'true' — 인증 게이트가 켜진 상태로 시작. 'false' 만 OFF 로 해석.
   const regearRequireVerification = regearRequireVerificationRaw !== 'false'
   // 'true' 이외는 모두 false 로 해석 — 유일한 opt-out 경로는 명시적 'false'.
@@ -217,7 +207,6 @@ export default async function SettingsPage() {
         albionHomeGuildId={albionHomeGuildId}
         albionHomeGuildName={initialHomeGuildName}
         autoRegearEnabled={autoRegearEnabled}
-        autoRegearDelayMinutes={autoRegearDelayMinutes}
         craftRegearEnabled={craftRegearEnabled}
         regearRequireVerification={regearRequireVerification}
         cdBadgeRoles={cdBadgeRoles}

@@ -1327,11 +1327,7 @@
     "descriptionLine1": "After an event ends, the cron pulls death records from the killboard, prices them with AODP, and creates pending regear rows. No points are paid until an admin approves each row.",
     "descriptionLine2": "Uses the existing regear payout rate and AODP settings. Members not assigned to a party are skipped. The per-build exclude checkbox only appears in the slot editor while this option is on.",
     "toggleLabel": "Enable auto regear",
-    "toggleHint": "When off, only the existing manual request flow runs.",
-    "delayLabel": "Processing delay (minutes)",
-    "delayUnit": "min",
-    "delayHint": "The cron processes the event this many minutes after battle start. Too short and the killboard sync may not catch up, causing victims to be missed. Default 15 minutes, range {min}–{max}.",
-    "delayInvalid": "Delay must be an integer between {min} and {max} minutes."
+    "toggleHint": "When off, only the existing manual request flow runs."
   },
   "adminCraftToggle": {
     "title": "Crafted regear",

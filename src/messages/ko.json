@@ -1327,11 +1327,7 @@
     "descriptionLine1": "이벤트 종료 후 킬보드에서 사망 기록을 찾아 AODP 시세로 지급액을 계산해 pending 상태로 생성합니다. 관리자 승인 전에는 포인트 지급 없음.",
     "descriptionLine2": "요율(리기어 지급률)·AODP 설정을 그대로 따르며, 파티에 배정되지 않은 멤버는 제외됩니다. 빌드별 제외 체크박스는 이 옵션이 켜져 있을 때만 슬롯 편집기에 나타납니다.",
     "toggleLabel": "자동 리기어 활성화",
-    "toggleHint": "끄면 기존 수동 신청 흐름만 동작합니다.",
-    "delayLabel": "처리 지연 (분)",
-    "delayUnit": "분",
-    "delayHint": "배틀 시작 후 이만큼 경과하면 cron 이 해당 이벤트를 처리합니다. 너무 짧으면 killboard sync 가 따라잡지 못해 victim 이 누락될 수 있습니다. 기본 15분, 범위 {min}~{max}.",
-    "delayInvalid": "지연은 {min}~{max} 분 사이 정수여야 합니다."
+    "toggleHint": "끄면 기존 수동 신청 흐름만 동작합니다."
   },
   "adminCraftToggle": {
     "title": "제작 리기어",

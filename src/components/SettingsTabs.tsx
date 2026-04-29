@@ -83,7 +83,6 @@ interface Props {
   albionHomeGuildId: string
   albionHomeGuildName: string | null
   autoRegearEnabled: boolean
-  autoRegearDelayMinutes: number
   craftRegearEnabled: boolean
   regearRequireVerification: boolean
   cdBadgeRoles: SlotRole[]
@@ -129,7 +128,6 @@ export default function SettingsTabs({
   albionHomeGuildId,
   albionHomeGuildName,
   autoRegearEnabled,
-  autoRegearDelayMinutes,
   craftRegearEnabled,
   regearRequireVerification,
   cdBadgeRoles,
@@ -252,7 +250,6 @@ export default function SettingsTabs({
               <AutoRegearToggleForm
                 embedded
                 initialEnabled={autoRegearEnabled}
-                initialDelayMinutes={autoRegearDelayMinutes}
               />
               <CraftRegearToggleForm
                 embedded

@@ -85,20 +85,19 @@ export interface AutoRegearResult {
   // role_rewards.silver 가 0 또는 미등록인 역할 (= "리기어 차단" 의도).
   // 수동 flow 와 동일하게 자동도 지급 없이 스킵.
   requests_skipped_no_role_cap: number
-  // killboard sync 가 battle 종료 시점을 따라잡지 못한 이벤트. 다음 cron 에
-  // 재시도하도록 mark-processed 하지 않고 연기.
+  // 매칭된 블랙존 전투의 ended_at + 10분 이 아직 안 지났거나, 그 시각 이후로
+  // killboard/battle-tracker sync 가 한 번도 안 돈 이벤트. 다음 cron 에 재시도
+  // 하도록 mark-processed 하지 않고 연기.
   events_deferred_sync_lag: number
-  // battle-tracker cron 이 battle 종료 시점을 따라잡지 못한 이벤트. tracked
-  // battle 매칭이 0이지만 그게 진짜 0인지 단순 sync 지연인지 분간 못 하므로
-  // 안전하게 다음 cron 에 재시도. mark-processed 하지 않음.
+  // 매칭이 0건인데 battle_started_at + 6시간 timeout 이 아직 지나지 않은 이벤트.
+  // 진짜 비전투인지 단순 sync 지연인지 아직 분간 못 함. mark 하지 않고 연기.
   events_deferred_battle_tracker_lag: number
   // 관리자가 retroactive 로 만든 이벤트 (created_at > battle_started_at).
   // 자동 처리 대신 park — admin 이 수동 검토했을 거라고 가정.
   events_skipped_retroactive: number
-  // tenant_battle_records 매칭이 0건인 이벤트 — 8명 갱크 같이 low-engagement
-  // 컷에 걸려 tracked 안 된 전투, 또는 비전투 이벤트. mark-processed 하고 자동
-  // 청구는 0건. (battle-tracker sync 자체가 늦은 케이스는 위
-  // events_deferred_battle_tracker_lag 로 분리되므로 여기엔 안 포함.)
+  // tenant_battle_records 매칭이 0건이고 battle_started_at + 6시간 timeout 이
+  // 지난 (= sync 지연이 아닌 진짜 0건으로 확정된) 이벤트. 8명 갱크 같이
+  // low-engagement 컷에 걸린 전투, 또는 비전투 이벤트. mark-processed.
   events_skipped_no_tracked_battle: number
   // tracked battle 의 cluster_name 이 Royal Continent 로 분류된 이벤트 (도시/외곽
   // /Brecilien/Crystal League). AGENTS.md hard rule #5 의 "블랙존 한정" 가드.
@@ -106,6 +105,21 @@ export interface AutoRegearResult {
   errors: Array<{ event_id: string; step: string; message: string }>
   duration_ms: number
 }
+
+// 매칭된 battle_records.ended_at 이후 몇 분 뒤에 자동 리기어를 처리할지.
+// killboard sync 가 종료 시점을 indexing 할 때까지의 buffer. 10분이면 일반
+// killboard sync (5분 tick) 가 1~2회 돌고 남는 여유.
+export const AUTO_REGEAR_ENDED_BUFFER_MS = 10 * 60 * 1000
+
+// 매칭된 tracked battle 이 0건일 때 진짜 0건인지 sync 지연인지 분간하는 timeout.
+// battle_started_at + 6시간이 지나도 매칭이 0이고 battle-tracker sync 도 그
+// 시점 이후로 한 번이라도 돌았으면 "진짜 비전투/솔로 갱크" 로 확정 → mark-processed.
+// 그 전엔 mark 하지 않고 다음 cron 으로 연기 (sync 가 따라잡을 시간 부여).
+export const AUTO_REGEAR_MATCH_TIMEOUT_MS = 6 * 60 * 60 * 1000
+
+// 매우 신선한 이벤트(5분 미만) 는 어차피 ended_at 게이트를 통과할 수 없으므로
+// 쿼리 단계에서 미리 컷. 정확한 ready 판정은 per-event 게이트가 한다.
+export const AUTO_REGEAR_PRE_PICK_MS = 5 * 60 * 1000
 
 // Albion 킬보드 Equipment JSONB 는 이 키들 중 일부를 갖는다. 빈/null 값은 장비
 // 없음(예: 물약을 안 먹고 죽음) 이므로 정상 케이스.
@@ -205,11 +219,10 @@ export async function processAutoRegear(
   const startedAt = Date.now()
   const errors: AutoRegearResult['errors'] = []
 
-  // 5개 app_settings 를 1번의 round-trip 으로 읽는다 (이전엔 5×maybeSingle 직렬).
+  // 4개 app_settings 를 1번의 round-trip 으로 읽는다.
   const SETTING_KEYS = [
     'auto_regear_enabled',
     'albion_home_guild_id',
-    'auto_regear_delay_minutes',
     'regear_payout_rate_percent',
     'craft_regear_enabled',
   ] as const
@@ -264,15 +277,6 @@ export async function processAutoRegear(
     }
   }
 
-  // auto_regear_delay_minutes(기본 15) = 배틀 시작 후 몇 분 뒤에 자동 리기어가
-  // 이벤트를 처리할지. regear_window_minutes(수동 신청 오픈 시각, 기본 60) 와
-  // 분리돼 있어 자동이 수동보다 먼저 pending 행을 만들 수 있다.
-  const parsedDelay = Number(settings.get('auto_regear_delay_minutes') ?? '15')
-  const autoDelayMinutes =
-    Number.isFinite(parsedDelay) && parsedDelay >= 5 && parsedDelay <= 120
-      ? Math.trunc(parsedDelay)
-      : 15
-
   const parsedRate = Number(settings.get('regear_payout_rate_percent') ?? '100')
   const payoutRatePercent =
     Number.isFinite(parsedRate) && parsedRate >= 1 && parsedRate <= 100 ? Math.trunc(parsedRate) : 100
@@ -283,8 +287,9 @@ export async function processAutoRegear(
   const craftMode = (settings.get('craft_regear_enabled') ?? 'false') === 'true'
   const fulfillmentMode: 'silver' | 'crafted' = craftMode ? 'crafted' : 'silver'
 
-  // battle_started_at + autoDelay 경과한 이벤트 중 아직 처리되지 않은 것.
-  const cutoffIso = new Date(Date.now() - autoDelayMinutes * 60 * 1000).toISOString()
+  // 매우 신선한 이벤트(5분 미만) 는 미리 컷. 정확한 ready 판정은 per-event 의
+  // ended_at + buffer + sync 게이트가 한다 (autoDelayMinutes 노브는 폐기됨).
+  const cutoffIso = new Date(Date.now() - AUTO_REGEAR_PRE_PICK_MS).toISOString()
   const { data: events, error: eventsErr } = await db
     .from('events')
     .select('id, title, battle_started_at, created_at, auto_regear_processed_at')
@@ -386,21 +391,77 @@ export async function processAutoRegear(
         continue
       }
 
-      // killboard sync 지연 가드: 배틀 시작 + autoDelay 이후로 sync 가 한 번이라도
-      // 돌았어야 victim 목록이 충분히 indexed 됐다고 간주. 못 돌았으면 다음 cron
-      // 에서 재시도 (mark-processed 하지 않음).
-      const autoCutoffMs = battleMs + autoDelayMinutes * 60 * 1000
-      if (!Number.isFinite(lastKillboardSyncMs) || lastKillboardSyncMs < autoCutoffMs) {
-        deferredSyncLag += 1
+      // tracked battle 매칭. event 시간창 (battle_started_at ± tolerance) 안에
+      // 들어오는 tenant_battle_records 의 albion_battle_id 집합. low-engagement
+      // 컷 적용. 비싼 부분(슬롯/victim 조회) 은 ended_at 게이트 통과 후로 미룬다.
+      const trackedBattles = await findTrackedBattleIdsForEvent(
+        db,
+        guildId,
+        event.battle_started_at,
+      )
+
+      // 매칭 0건 처리: 진짜 비전투/솔로 갱크 vs 단순 sync 지연 분간.
+      // - battle_started_at + 6시간 이 지났고
+      // - battle-tracker sync 도 그 이후로 한 번이라도 돌았다면
+      // → 진짜 0건 (mark-processed). 그 외에는 sync 가 따라잡을 시간을 부여하기
+      //   위해 mark 하지 않고 다음 cron 으로 연기.
+      if (trackedBattles.length === 0) {
+        const matchTimeoutMs = battleMs + AUTO_REGEAR_MATCH_TIMEOUT_MS
+        const nowMs = Date.now()
+        const trackerCaughtUp =
+          Number.isFinite(lastBattleTrackerSyncMs) && lastBattleTrackerSyncMs > matchTimeoutMs
+        if (nowMs > matchTimeoutMs && trackerCaughtUp) {
+          const nowIso = new Date().toISOString()
+          await db
+            .from('events')
+            .update({ auto_regear_processed_at: nowIso })
+            .eq('id', event.id)
+            .eq('guild_id', guildId)
+          skippedNoTrackedBattle += 1
+          processed += 1
+        } else {
+          deferredBattleTrackerLag += 1
+        }
         continue
       }
 
-      // battle-tracker sync 지연 가드: 같은 cutoff 기준. tenant_battle_records
-      // 가 안 만들어져 있으면 stage 1 이 0건으로 보여 mark-processed 될 위험.
-      // 두 cron 모두 같은 5분 tick 으로 돌지만 길드 규모/페이지 수에 따라 한쪽이
-      // 늦게 끝날 수 있고, killboard 만 빠르게 끝난 경우를 분리해서 처리.
-      if (!Number.isFinite(lastBattleTrackerSyncMs) || lastBattleTrackerSyncMs < autoCutoffMs) {
-        deferredBattleTrackerLag += 1
+      // 블랙존 한정 가드 (AGENTS.md hard rule #5). 매칭된 모든 tracked battle 의
+      // cluster_name 이 Royal Continent 식별자 (도시/외곽/Brecilien/Crystal League)
+      // 면 자동 청구 0건 + 처리 완료 마킹. 부분적으로만 Royal 인 케이스(드물지만
+      // event 창 안에 두 다른 zone 의 후속 전투가 섞인 경우) 는 Royal 매칭만 빼고
+      // 나머지로 진행한다.
+      const blackzoneBattles = trackedBattles.filter(
+        (b) => !isLikelyRoyalCluster(b.clusterName),
+      )
+      if (blackzoneBattles.length === 0) {
+        const nowIso = new Date().toISOString()
+        await db
+          .from('events')
+          .update({ auto_regear_processed_at: nowIso })
+          .eq('id', event.id)
+          .eq('guild_id', guildId)
+        skippedRoyalZone += 1
+        processed += 1
+        continue
+      }
+      const trackedBattleIds = blackzoneBattles.map((b) => b.albionBattleId)
+
+      // ended_at + buffer + sync 게이트:
+      //   - 매칭된 블랙존 전투 중 가장 늦게 끝난 시각 + 10분 이 지났고
+      //   - 그 시각 이후로 killboard sync 와 battle-tracker sync 가 한 번이라도 돌았어야
+      //   victim 목록과 매칭이 완전하다고 간주. 못 됐으면 mark 하지 않고 다음 cron 으로
+      //   연기 — 호스트가 set 한 battle_started_at 의 부정확성과 무관하게 작동한다.
+      const latestEndedMs = blackzoneBattles.reduce((acc, b) => {
+        const ms = Date.parse(b.endedAtIso)
+        return Number.isFinite(ms) && ms > acc ? ms : acc
+      }, 0)
+      const readyAtMs = latestEndedMs + AUTO_REGEAR_ENDED_BUFFER_MS
+      const killboardCaughtUp =
+        Number.isFinite(lastKillboardSyncMs) && lastKillboardSyncMs >= readyAtMs
+      const trackerCaughtUpForReady =
+        Number.isFinite(lastBattleTrackerSyncMs) && lastBattleTrackerSyncMs >= readyAtMs
+      if (Date.now() < readyAtMs || !killboardCaughtUp || !trackerCaughtUpForReady) {
+        deferredSyncLag += 1
         continue
       }
 
@@ -436,48 +497,6 @@ export async function processAutoRegear(
         processed += 1
         continue
       }
-
-      // tracked battle 매칭. event 시간창 (battle_started_at ± tolerance) 안에
-      // 들어오는 tenant_battle_records 의 albion_battle_id 집합 → 이걸로 killboard
-      // 필터링. 통계 모듈과 같은 기준 (low-engagement 컷 적용) 이라 일관성 확보.
-      // 매칭 0건이면 솔로 갱크/비전투/8명 갱크 등 — 자동 청구 0건 + 처리 완료 마킹.
-      const trackedBattles = await findTrackedBattleIdsForEvent(
-        db,
-        guildId,
-        event.battle_started_at,
-      )
-      if (trackedBattles.length === 0) {
-        const nowIso = new Date().toISOString()
-        await db
-          .from('events')
-          .update({ auto_regear_processed_at: nowIso })
-          .eq('id', event.id)
-          .eq('guild_id', guildId)
-        skippedNoTrackedBattle += 1
-        processed += 1
-        continue
-      }
-
-      // 블랙존 한정 가드 (AGENTS.md hard rule #5). 매칭된 모든 tracked battle 의
-      // cluster_name 이 Royal Continent 식별자 (도시/외곽/Brecilien/Crystal League)
-      // 면 자동 청구 0건 + 처리 완료 마킹. 부분적으로만 Royal 인 케이스(드물지만
-      // event 창 안에 두 다른 zone 의 후속 전투가 섞인 경우) 는 Royal 매칭만 빼고
-      // 나머지로 진행한다.
-      const blackzoneBattles = trackedBattles.filter(
-        (b) => !isLikelyRoyalCluster(b.clusterName),
-      )
-      if (blackzoneBattles.length === 0) {
-        const nowIso = new Date().toISOString()
-        await db
-          .from('events')
-          .update({ auto_regear_processed_at: nowIso })
-          .eq('id', event.id)
-          .eq('guild_id', guildId)
-        skippedRoyalZone += 1
-        processed += 1
-        continue
-      }
-      const trackedBattleIds = blackzoneBattles.map((b) => b.albionBattleId)
 
       // 매칭된 albion_battle_id 의 victim 만 조회. 솔로 갱크/딴 전투 사망은
       // battle_id 가 다르므로 자동 제외. legacy NULL battle_id (마이그 096 이전

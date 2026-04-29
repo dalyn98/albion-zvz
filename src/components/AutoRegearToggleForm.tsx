@@ -1,13 +1,16 @@
 'use client'
 
-// Phase 3 자동 리기어 전역 toggle + 처리 지연 설정.
-// - 토글 ON: 이벤트 종료 후 cron 이 killboard victim → AODP → pending 자동 생성.
-//           슬롯 편집기에 "자동 리기어 제외" 체크박스가 노출.
+// Phase 3 자동 리기어 전역 toggle.
+// - 토글 ON: 매칭된 battle_records.ended_at + 10분 + sync 완료 후 cron 이
+//           killboard victim → AODP → pending 자동 생성. 슬롯 편집기에
+//           "자동 리기어 제외" 체크박스가 노출.
 // - 토글 OFF: 기존 수동 리기어만 동작. 제외 체크박스도 숨겨짐.
-// - 지연(분): 배틀 시작 후 몇 분 뒤 cron 이 이벤트를 처리할지. regear_window_minutes
-//            (수동 신청 오픈 시각) 와 분리돼 있어 자동이 먼저 pending 행을 선점.
+//
+// 처리 시점은 events.battle_started_at(호스트가 누른 버튼) 이 아닌 알비온
+// /battles 가 보고하는 실제 전투 종료시각 기준이라 호스트 버튼 부정확성과
+// 무관하게 정확히 작동한다 (별도 노브 없음).
 
-import { useId, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Save, BadgeCheck } from 'lucide-react'
@@ -15,42 +18,21 @@ import { updateAppSetting } from '@/app/actions/settings'
 
 interface Props {
   initialEnabled: boolean
-  initialDelayMinutes: number
   embedded?: boolean
 }
 
-const DELAY_MIN = 5
-const DELAY_MAX = 120
-
-export default function AutoRegearToggleForm({
-  initialEnabled,
-  initialDelayMinutes,
-  embedded = false,
-}: Props) {
+export default function AutoRegearToggleForm({ initialEnabled, embedded = false }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
   const t = useTranslations('adminAutoRegear')
-  const delayId = useId()
   const [enabled, setEnabled] = useState(initialEnabled)
-  const [delayMinutes, setDelayMinutes] = useState(String(initialDelayMinutes))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
 
-  const delayNum = Number(delayMinutes)
-  const delayInvalid =
-    !Number.isFinite(delayNum) ||
-    !Number.isInteger(delayNum) ||
-    delayNum < DELAY_MIN ||
-    delayNum > DELAY_MAX
-  const dirty =
-    enabled !== initialEnabled || delayMinutes !== String(initialDelayMinutes)
+  const dirty = enabled !== initialEnabled
 
   const handleSave = async () => {
-    if (delayInvalid) {
-      setError(t('delayInvalid', { min: DELAY_MIN, max: DELAY_MAX }))
-      return
-    }
     setLoading(true)
     setError('')
     setSaved(false)
@@ -60,12 +42,6 @@ export default function AutoRegearToggleForm({
     )
     if (toggleResult.error) {
       setError(toggleResult.error)
-      setLoading(false)
-      return
-    }
-    const delayResult = await updateAppSetting('auto_regear_delay_minutes', delayMinutes)
-    if (delayResult.error) {
-      setError(delayResult.error)
       setLoading(false)
       return
     }
@@ -114,30 +90,6 @@ export default function AutoRegearToggleForm({
         </span>
       </label>
 
-      <div>
-        <label htmlFor={delayId} className="text-gray-400 text-xs mb-1 block">{t('delayLabel')}</label>
-        <div className="flex items-center gap-2">
-          <input
-            id={delayId}
-            type="number"
-            inputMode="numeric"
-            min={DELAY_MIN}
-            max={DELAY_MAX}
-            value={delayMinutes}
-            onChange={(e) => {
-              setDelayMinutes(e.target.value)
-              setSaved(false)
-            }}
-            disabled={!enabled}
-            className="w-32 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500 disabled:opacity-50"
-          />
-          <span className="text-gray-500 text-sm">{t('delayUnit')}</span>
-        </div>
-        <p className={`text-[11px] mt-1 ${delayInvalid ? 'text-red-400' : 'text-gray-500'}`}>
-          {t('delayHint', { min: DELAY_MIN, max: DELAY_MAX })}
-        </p>
-      </div>
-
       {error && (
         <div className="bg-red-900/30 border border-red-700 rounded-lg px-3 py-2 text-red-300 text-xs">
           {error}
@@ -148,7 +100,7 @@ export default function AutoRegearToggleForm({
         <button
           type="button"
           onClick={handleSave}
-          disabled={loading || !dirty || delayInvalid}
+          disabled={loading || !dirty}
           className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-4 py-2 rounded-lg transition-colors text-sm"
         >
           <Save size={14} />

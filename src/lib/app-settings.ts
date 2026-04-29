@@ -115,11 +115,6 @@ export type AppSettingKey =
   // 미인증 멤버에겐 /onboarding/albion 으로 안내하는 CTA 를 포함한 에러가 반환.
   // 기본 'true' (migration 070 이전의 항상-ON 동작 유지). 'false' 면 게이트 해제.
   | 'regear_require_verification'
-  // 정수 문자열. 배틀 시작(`events.battle_started_at`) 이후 몇 분 뒤에 자동
-  // 리기어 크론이 해당 이벤트를 처리할지. regear_window_minutes(수동 신청 오픈
-  // 시점) 와 분리돼 있어 자동이 먼저 "pending" 행을 선점할 수 있게 한다.
-  // 기본 '15'. killboard sync 지연 체크에도 이 값을 사용.
-  | 'auto_regear_delay_minutes'
   // 길드 운영 시간대 (IANA timezone string). 알비온 4개 서버 프리셋 중 하나
   // ('Asia/Seoul'|'Europe/Berlin'|'America/New_York'|'America/Sao_Paulo') 만
   // 허용 — 검증은 lib/timezone.ts isValidTenantTimezone. 미설정/손상값은
