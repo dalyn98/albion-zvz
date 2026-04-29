@@ -52,19 +52,47 @@ export interface SlotTemplateRecord {
 
 const MAX_NAME_LENGTH = 80
 
-// 동일 (guild_id, name) 템플릿이 이미 있으면 일단 거부하고 클라이언트에 confirm 을 요구
-// (`requiresConfirmation`). 사용자가 덮어쓰기를 확정하면 `overwrite: true` 로 재호출 →
-// 기존 행을 update. 기본 동작이 silent insert 였던 시절엔 같은 이름 템플릿이 중복 적재되어
-// 로드 다이얼로그가 지저분해졌다. 현재 unique 제약은 없지만 UX 차원에서 한 이름당 한 행만
-// 유지하도록 의도적으로 강제.
+// 호출 모드 두 가지 (saveEventAsTemplate 와 동일 패턴):
+//   1) overwriteId 지정 — 사용자가 목록에서 골라 명시적으로 덮어쓰기. 이름·카테고리는
+//      유지하고 data 만 교체. name/category 입력은 무시.
+//   2) overwriteId 없음 — 새 이름으로 저장. 같은 이름이 이미 있으면 conflictId/
+//      conflictName 만 돌려주고 실제 저장은 미룬다 (UX 안전장치). UI 가 confirm 후
+//      overwrite=true 로 재호출하면 그때 실제 update.
+//
+// 같은 이름 + overwrite=true 의 의도: 이름 input 으로 들어온 값과 같은 행을 in-place
+// update. 1) 와 다른 점은 1) 가 id 로 고정해 이름 변경에 강하다는 것.
 export async function saveSlotAsTemplate(
   name: string,
   data: SlotTemplateData,
   category: EventCategory = '전투',
-  overwrite: boolean = false,
-): Promise<{ error?: string; requiresConfirmation?: boolean; overwritten?: boolean }> {
+  options: { overwrite?: boolean; overwriteId?: string } = {},
+): Promise<{ error?: string; conflictId?: string; conflictName?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+
+    if (options.overwriteId) {
+      // 명시적 덮어쓰기 — 이름·카테고리는 손대지 않고 data 만 갱신.
+      const { data: target, error: targetErr } = await db
+        .from('slot_templates')
+        .select('id')
+        .eq('guild_id', guildId)
+        .eq('id', options.overwriteId)
+        .maybeSingle()
+      if (targetErr) return { error: targetErr.message }
+      if (!target) return { error: tErr('templateNotFound') }
+      const { error: updateError } = await db
+        .from('slot_templates')
+        .update({ data })
+        .eq('guild_id', guildId)
+        .eq('id', options.overwriteId)
+      if (updateError) return { error: updateError.message }
+      return {}
+    }
+
     const trimmed = name.trim()
     if (!trimmed) return { error: tErr('templateNameRequired') }
     if (trimmed.length > MAX_NAME_LENGTH) {
@@ -72,22 +100,17 @@ export async function saveSlotAsTemplate(
     }
     const resolvedCategory: EventCategory = EVENT_CATEGORIES.includes(category) ? category : '전투'
 
-    const db = await requireAdmin()
-    const session = await getSession()
-    if (!session) return { error: tErr('unauthorized') }
-    const guildId = await getSessionGuildId(session)
-
     const { data: existing, error: lookupError } = await db
       .from('slot_templates')
-      .select('id')
+      .select('id, name')
       .eq('guild_id', guildId)
       .eq('name', trimmed)
       .maybeSingle()
     if (lookupError) return { error: lookupError.message }
 
     if (existing) {
-      if (!overwrite) {
-        return { requiresConfirmation: true }
+      if (!options.overwrite) {
+        return { conflictId: existing.id, conflictName: existing.name }
       }
       const { error: updateError } = await db
         .from('slot_templates')
@@ -95,7 +118,7 @@ export async function saveSlotAsTemplate(
         .eq('guild_id', guildId)
         .eq('id', existing.id)
       if (updateError) return { error: updateError.message }
-      return { overwritten: true }
+      return {}
     }
 
     const { error: insertError } = await db
