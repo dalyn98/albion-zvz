@@ -1391,7 +1391,8 @@
     "howStep3": "そのまま <slug>your-guild.albion-guildmanager.com</slug> の URL でギルド運営を開始できます。",
     "footerNote": "Made by Monkku · ギルド運営自動化ツール",
     "alreadyHaveGuild": "すでにギルドを運営中ですか?",
-    "loginInstead": "Discord でログイン"
+    "loginInstead": "Discord でログイン",
+    "docsCta": "詳細な機能ドキュメントを見る"
   },
   "publicNav": {
     "home": "ホーム",

@@ -1391,7 +1391,8 @@
     "howStep3": "곧바로 <slug>your-guild.albion-guildmanager.com</slug> 주소에서 길드 운영을 시작하세요.",
     "footerNote": "Made by Monkku · 길드 운영 자동화 도구",
     "alreadyHaveGuild": "이미 길드를 운영중이신가요?",
-    "loginInstead": "Discord로 로그인"
+    "loginInstead": "Discord로 로그인",
+    "docsCta": "전체 기능 문서 보기"
   },
   "publicNav": {
     "home": "홈",
