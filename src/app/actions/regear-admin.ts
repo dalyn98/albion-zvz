@@ -107,6 +107,16 @@ export interface AdminRegearRequest {
   // 어떻게 처리됐는지 — silver(실버 적립) / crafted(크래프트 큐) / stocked(재고 출고).
   // 'stocked' 는 마이그 111 이후에만 등장. UI 가 "재고로 지급" 버튼을 보일지 결정.
   fulfillment_mode: 'silver' | 'crafted' | 'stocked'
+  // killboard_event_id 로 조인한 victim 행의 요약. 자동/추적사망 건은 스크린샷이
+  // 없어 검토자가 어떤 사망인지 한눈에 파악하기 어렵다 — 상대/길드/Fame/IP 를
+  // 카드에 같이 노출. null 이면 매핑 실패(legacy 등) 또는 victim row 미존재.
+  kill_summary: {
+    opponent_name: string | null
+    opponent_guild: string | null
+    fame: number
+    item_power: number | null
+    occurred_at: string
+  } | null
 }
 
 export interface AdminExchangeRequest {
@@ -150,6 +160,43 @@ export async function listRegearRequests(
 
     const { data, error } = await query
     if (error) return { requests: [], error: error.message }
+
+    // killboard_event_id → victim row 의 핵심 컬럼만 보조 fetch. 자동·추적사망
+    // 건은 screenshot 이 없어 카드에 "어떤 사망인지" 단서가 부족했다.
+    // killboard_events PK 는 (event_id, role) 라 role='victim' 으로 좁힌 후
+    // event_id 로 합집합을 만든다.
+    const kbEventIds = Array.from(
+      new Set(
+        (data ?? [])
+          .map((r) => r.killboard_event_id as number | null)
+          .filter((v): v is number => typeof v === 'number'),
+      ),
+    )
+    const killSummaryByEventId = new Map<number, AdminRegearRequest['kill_summary']>()
+    if (kbEventIds.length > 0) {
+      const { data: kbRows } = await db
+        .from('killboard_events')
+        .select('event_id, opponent_name, opponent_guild, fame, item_power, occurred_at')
+        .eq('guild_id', guildId)
+        .eq('role', 'victim')
+        .in('event_id', kbEventIds)
+      for (const kb of (kbRows ?? []) as Array<{
+        event_id: number
+        opponent_name: string | null
+        opponent_guild: string | null
+        fame: number
+        item_power: number | null
+        occurred_at: string
+      }>) {
+        killSummaryByEventId.set(kb.event_id, {
+          opponent_name: kb.opponent_name,
+          opponent_guild: kb.opponent_guild,
+          fame: kb.fame,
+          item_power: kb.item_power,
+          occurred_at: kb.occurred_at,
+        })
+      }
+    }
 
     const deletedEventLabel = tErr('deletedEvent')
     const requests: AdminRegearRequest[] = (data ?? []).map((row) => {
@@ -225,6 +272,10 @@ export async function listRegearRequests(
           row.fulfillment_mode === 'crafted' || row.fulfillment_mode === 'stocked'
             ? row.fulfillment_mode
             : 'silver',
+        kill_summary:
+          typeof row.killboard_event_id === 'number'
+            ? killSummaryByEventId.get(row.killboard_event_id) ?? null
+            : null,
       }
     })
     return { requests }

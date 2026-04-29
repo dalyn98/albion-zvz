@@ -538,8 +538,57 @@ function RegearRow({
           {loadingScreenshot ? <Loader2 size={13} className="animate-spin" /> : <ImageIcon size={13} />}
           {loadingScreenshot ? tCommon('loadingDots') : t('viewScreenshot')}
         </button>
-      ) : (
+      ) : request.resolved_at ? (
+        // 처리 완료 후 48시간 cleanup cron 으로 path 가 NULL 된 행. 신청 당시
+        // 스크린샷이 있었음을 시사 — 기존 메시지 유지.
         <p className="text-xs text-gray-500 italic">{t('screenshotDeleted')}</p>
+      ) : request.killboard_verified ? (
+        // 킬보드로 즉시 검증된 신청은 스크린샷 자체가 없다 (자동 리기어 + 추적
+        // 사망 청구 모두 동일). 검토자에게는 아래 kill_summary 가 단서가 된다.
+        <p className="text-xs text-gray-500 italic">{t('screenshotNotRequired')}</p>
+      ) : (
+        // killboard_verified=false + 스크린샷 미업로드. 정상 흐름이라면 발생하지
+        // 않는 상태지만 방어적으로 처리.
+        <p className="text-xs text-gray-500 italic">{t('screenshotMissing')}</p>
+      )}
+
+      {request.kill_summary && (
+        <div className="bg-gray-800/40 border border-gray-700 rounded-lg px-3 py-2 text-xs space-y-1">
+          <div className="flex items-center gap-1.5 text-gray-400 font-semibold uppercase tracking-wide text-[10px]">
+            <ShieldCheck size={12} className="text-emerald-400" />
+            {t('killSummaryTitle')}
+          </div>
+          <div className="text-gray-200 flex flex-wrap gap-x-3 gap-y-0.5">
+            {request.kill_summary.opponent_name && (
+              <span>
+                {t('killSummaryOpponent')}{' '}
+                <span className="font-mono">{request.kill_summary.opponent_name}</span>
+                {request.kill_summary.opponent_guild && (
+                  <span className="text-gray-500 ml-1">
+                    ({request.kill_summary.opponent_guild})
+                  </span>
+                )}
+              </span>
+            )}
+            <span className="text-gray-400">
+              {t('killSummaryFame')}{' '}
+              <span className="font-mono text-gray-200">
+                {request.kill_summary.fame.toLocaleString()}
+              </span>
+            </span>
+            {request.kill_summary.item_power != null && (
+              <span className="text-gray-400">
+                {t('killSummaryItemPower')}{' '}
+                <span className="font-mono text-gray-200">
+                  {request.kill_summary.item_power.toLocaleString()}
+                </span>
+              </span>
+            )}
+          </div>
+          <p className="text-gray-500 font-mono text-[10px]">
+            {formatDateTimeShort(request.kill_summary.occurred_at)}
+          </p>
+        </div>
       )}
 
       {screenshot2Url ? (
