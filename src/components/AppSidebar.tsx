@@ -123,6 +123,8 @@ const STORAGE_KEY = 'app.sidebar.open'
 const MEMBER_GROUP_KEY = 'app.sidebar.memberOpen'
 const ADMIN_GROUP_KEY = 'app.sidebar.adminOpen'
 const SUPER_ADMIN_GROUP_KEY = 'app.sidebar.superAdminOpen'
+// 접힌 sub-section 들의 SectionKey 집합을 JSON 배열로 직렬화. 비어 있으면 모두 펼친 상태.
+const SECTION_COLLAPSED_KEY = 'app.sidebar.sectionCollapsed'
 
 function avatarUrl(discordId: string, avatar: string | null): string | null {
   if (!avatar) return null
@@ -179,17 +181,30 @@ export default function AppSidebar({
   const [superAdminOpen, setSuperAdminOpen] = useState(true)
   const [mobileDrawer, setMobileDrawer] = useState(false)
   const [hydrated, setHydrated] = useState(false)
+  // sub-section 접힘 상태. 기본은 모두 펼침 (빈 Set). 사용자가 한 번 접으면 다시
+  // 열 때까지 같은 키로 기억. localStorage 에 직렬화된 SectionKey 배열로 저장.
+  const [collapsedSections, setCollapsedSections] = useState<Set<SectionKey>>(() => new Set())
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY)
     const memberStored = window.localStorage.getItem(MEMBER_GROUP_KEY)
     const adminStored = window.localStorage.getItem(ADMIN_GROUP_KEY)
     const superAdminStored = window.localStorage.getItem(SUPER_ADMIN_GROUP_KEY)
+    const sectionStored = window.localStorage.getItem(SECTION_COLLAPSED_KEY)
     const wideScreen = window.matchMedia('(min-width: 1024px)').matches
     setOpen(stored === null ? wideScreen : stored === 'true')
     if (memberStored !== null) setMemberOpen(memberStored === 'true')
     if (adminStored !== null) setAdminOpen(adminStored === 'true')
     if (superAdminStored !== null) setSuperAdminOpen(superAdminStored === 'true')
+    // 잘못된 JSON 이거나 알 수 없는 키가 들어 있어도 무시 — 다음 토글 때 깨끗한 상태로 덮어쓴다.
+    if (sectionStored !== null) {
+      try {
+        const parsed = JSON.parse(sectionStored)
+        if (Array.isArray(parsed)) {
+          setCollapsedSections(new Set(parsed.filter((k): k is SectionKey => typeof k === 'string')))
+        }
+      } catch {}
+    }
     setHydrated(true)
   }, [])
 
@@ -205,6 +220,21 @@ export default function AppSidebar({
   useEffect(() => {
     if (hydrated) window.localStorage.setItem(SUPER_ADMIN_GROUP_KEY, String(superAdminOpen))
   }, [superAdminOpen, hydrated])
+  useEffect(() => {
+    if (hydrated) {
+      window.localStorage.setItem(SECTION_COLLAPSED_KEY, JSON.stringify([...collapsedSections]))
+    }
+  }, [collapsedSections, hydrated])
+
+  // sub-section 토글. 같은 key 가 이미 있으면 제거 (펼침), 없으면 추가 (접힘).
+  const toggleSection = (key: SectionKey) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   useEffect(() => {
     // Auto-close the drawer on route change so taps on mobile feel responsive.
@@ -310,6 +340,8 @@ export default function AppSidebar({
             collapsible={memberOpen}
             setCollapsible={setMemberOpen}
             sectionLabel={(key) => tSection(key)}
+            collapsedSections={collapsedSections}
+            onToggleSection={toggleSection}
           />
           {session?.isAdmin && (
             <NavGroup
@@ -326,6 +358,8 @@ export default function AppSidebar({
               collapsible={adminOpen}
               setCollapsible={setAdminOpen}
               sectionLabel={(key) => tSection(key)}
+              collapsedSections={collapsedSections}
+              onToggleSection={toggleSection}
             />
           )}
           {isSuperAdmin && superAdminPath && (
@@ -337,7 +371,7 @@ export default function AppSidebar({
                 label: i.label,
                 icon: i.icon,
                 exact: i.exact,
-                // 슈퍼어드민 nav 는 단일 섹션 — 헤더 분기 안 일어나도록 더미.
+                // 슈퍼어드민 nav 는 단일 섹션 — NavGroup 이 sub-section 헤더를 자동 생략.
                 section: 'system' as SectionKey,
               }))}
               pathname={pathname || '/'}
@@ -345,6 +379,8 @@ export default function AppSidebar({
               collapsible={superAdminOpen}
               setCollapsible={setSuperAdminOpen}
               sectionLabel={(key) => tSection(key)}
+              collapsedSections={collapsedSections}
+              onToggleSection={toggleSection}
             />
           )}
         </nav>
@@ -439,13 +475,92 @@ interface NavGroupProps {
   expanded: boolean
   collapsible: boolean
   setCollapsible: (next: boolean) => void
-  // sub-section 헤더 라벨. 섹션이 바뀔 때마다 작은 구분 헤더를 그린다.
-  // 펼쳐진 상태에서만 노출 — 접힌 상태에선 그룹 자체가 한 줄 구분선으로 압축돼
-  // 섹션 헤더가 끼어들면 오히려 어수선해진다.
+  // sub-section 헤더 라벨 (활동/리기어/...).
   sectionLabel: (key: SectionKey) => string
+  // 접힌 sub-section 들의 SectionKey Set. 헤더 chevron 회전과 항목 hide 에 사용.
+  collapsedSections: Set<SectionKey>
+  onToggleSection: (key: SectionKey) => void
 }
 
-function NavGroup({ title, items, pathname, expanded, collapsible, setCollapsible, sectionLabel }: NavGroupProps) {
+interface SectionBucket {
+  section: SectionKey
+  items: ResolvedNavItem[]
+}
+
+// items 의 인접한 같은 section 끼리 연속으로 묶어 하나의 bucket 으로 만든다.
+// section 끼리 비연속으로 끼어 있으면 두 번째 등장은 별도 bucket — 하지만
+// 현재 데이터에선 이런 케이스가 없도록 MEMBER_NAV / ADMIN_NAV 가 정렬돼 있다.
+function bucketBySection(items: ResolvedNavItem[]): SectionBucket[] {
+  const buckets: SectionBucket[] = []
+  for (const item of items) {
+    const last = buckets[buckets.length - 1]
+    if (last && last.section === item.section) {
+      last.items.push(item)
+    } else {
+      buckets.push({ section: item.section, items: [item] })
+    }
+  }
+  return buckets
+}
+
+// nav 항목 한 줄. 접힘/펼침 상태에 따라 라벨 또는 아이콘만.
+function NavLink({
+  item,
+  pathname,
+  expanded,
+}: {
+  item: ResolvedNavItem
+  pathname: string
+  expanded: boolean
+}) {
+  const { href, label, icon: Icon, exact, badge } = item
+  const active = isActivePath(pathname, href, exact)
+  const hasBadge = typeof badge === 'number' && badge > 0
+  return (
+    <Link
+      href={href}
+      title={expanded ? undefined : label}
+      className={`relative flex items-center gap-3 rounded-lg transition-colors ${
+        expanded ? 'px-3 py-2 text-sm' : 'justify-center p-2'
+      } ${
+        active
+          ? 'bg-amber-500/20 text-amber-300'
+          : 'text-gray-400 hover:text-white hover:bg-gray-800'
+      }`}
+    >
+      <span className="relative flex-shrink-0">
+        <Icon size={expanded ? 15 : 18} />
+        {hasBadge && !expanded && (
+          <span className="absolute -top-1 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none flex items-center justify-center">
+            {badge > 99 ? '99+' : badge}
+          </span>
+        )}
+      </span>
+      {expanded && <span className="truncate flex-1">{label}</span>}
+      {hasBadge && expanded && (
+        <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none flex items-center justify-center flex-shrink-0">
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
+    </Link>
+  )
+}
+
+function NavGroup({
+  title,
+  items,
+  pathname,
+  expanded,
+  collapsible,
+  setCollapsible,
+  sectionLabel,
+  collapsedSections,
+  onToggleSection,
+}: NavGroupProps) {
+  const buckets = bucketBySection(items)
+  // 그룹 안에 sub-section 이 1개면 헤더를 표시할 의미가 없다 (super-admin nav 케이스).
+  // 또 사이드바를 접은 상태 (좁은 폭) 에선 sub-section 헤더를 숨기고 아이콘만.
+  const showSubHeaders = expanded && buckets.length > 1
   return (
     <div className="px-2 space-y-1">
       {expanded ? (
@@ -464,54 +579,32 @@ function NavGroup({ title, items, pathname, expanded, collapsible, setCollapsibl
         <div className="border-t border-gray-800 mx-2 my-1" aria-label={title} />
       )}
       {(collapsible || !expanded) &&
-        (() => {
-          // 섹션 전환 추적용 — map 콜백이 클로저 안에서 mutate 하므로 ref 가 아닌
-          // 단순 변수로 충분. 첫 항목엔 헤더가 안 나와야 해서 null 로 시작.
-          let lastSection: SectionKey | null = null
-          return items.map((item) => {
-            const { href, label, icon: Icon, exact, badge, section } = item
-            const showSectionHeader =
-              expanded && lastSection !== null && section !== lastSection
-            lastSection = section
-            const active = isActivePath(pathname, href, exact)
-            const hasBadge = typeof badge === 'number' && badge > 0
-            return (
-              <Fragment key={href}>
-                {showSectionHeader && (
-                  <div className="px-3 pt-2 pb-1 text-[9px] font-semibold text-gray-600 uppercase tracking-wider">
-                    {sectionLabel(section)}
-                  </div>
-                )}
-                <Link
-                  href={href}
-                  title={expanded ? undefined : label}
-                  className={`relative flex items-center gap-3 rounded-lg transition-colors ${
-                    expanded ? 'px-3 py-2 text-sm' : 'justify-center p-2'
-                  } ${
-                    active
-                      ? 'bg-amber-500/20 text-amber-300'
-                      : 'text-gray-400 hover:text-white hover:bg-gray-800'
-                  }`}
-                >
-                  <span className="relative flex-shrink-0">
-                    <Icon size={expanded ? 15 : 18} />
-                    {hasBadge && !expanded && (
-                      <span className="absolute -top-1 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none flex items-center justify-center">
-                        {badge > 99 ? '99+' : badge}
-                      </span>
-                    )}
-                  </span>
-                  {expanded && <span className="truncate flex-1">{label}</span>}
-                  {hasBadge && expanded && (
-                    <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none flex items-center justify-center flex-shrink-0">
-                      {badge > 99 ? '99+' : badge}
-                    </span>
-                  )}
-                </Link>
-              </Fragment>
-            )
-          })
-        })()}
+        (showSubHeaders
+          ? buckets.map((bucket) => {
+              const sectionCollapsed = collapsedSections.has(bucket.section)
+              return (
+                <Fragment key={bucket.section}>
+                  <button
+                    type="button"
+                    onClick={() => onToggleSection(bucket.section)}
+                    className="w-full flex items-center justify-between px-3 pt-2 pb-1 text-[11px] font-semibold text-gray-300 hover:text-white tracking-wide transition-colors"
+                  >
+                    <span>{sectionLabel(bucket.section)}</span>
+                    <ChevronDown
+                      size={12}
+                      className={`transition-transform text-gray-500 ${sectionCollapsed ? '-rotate-90' : ''}`}
+                    />
+                  </button>
+                  {!sectionCollapsed &&
+                    bucket.items.map((item) => (
+                      <NavLink key={item.href} item={item} pathname={pathname} expanded={expanded} />
+                    ))}
+                </Fragment>
+              )
+            })
+          : items.map((item) => (
+              <NavLink key={item.href} item={item} pathname={pathname} expanded={expanded} />
+            )))}
     </div>
   )
 }
