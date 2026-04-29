@@ -136,25 +136,9 @@ export async function submitShopOrder(
       return { ok: false, error: tErr('insufficientPointsWithDetail', { balance, total }) }
     }
 
-    // 주문 + 라인 삽입.
-    const { data: orderRow, error: insertErr } = await db
-      .from('shop_orders')
-      .insert({
-        guild_id: guildId,
-        discord_id: session.discordId,
-        username: session.username,
-        total_points: total,
-        status: 'pending',
-        member_note: trimmedNote || null,
-      })
-      .select('id')
-      .single()
-    if (insertErr) return { ok: false, error: insertErr.message }
-    const orderId = orderRow.id as string
-
-    const lineRows = orderLines.map((l) => ({
-      guild_id: guildId,
-      order_id: orderId,
+    // 주문 + 라인 원자적 삽입 (마이그 119). 두 단계가 한 트랜잭션이라 부분 성공
+    // 으로 인한 좀비 주문 위험 없음.
+    const linesPayload = orderLines.map((l) => ({
       unique_name: l.uniqueName,
       enchant: l.enchant,
       quality: l.quality,
@@ -163,17 +147,21 @@ export async function submitShopOrder(
       unit_points: l.unitPoints,
       subtotal_points: l.subtotalPoints,
     }))
-    const { error: lineErr } = await db.from('shop_order_items').insert(lineRows)
-    if (lineErr) {
-      // 라인 삽입 실패 시 주문 롤백.
-      await db.from('shop_orders').delete().eq('guild_id', guildId).eq('id', orderId)
-      return { ok: false, error: lineErr.message }
-    }
+    const { data: orderId, error: rpcErr } = await db.rpc('submit_shop_order', {
+      p_guild_id: guildId,
+      p_discord_id: session.discordId,
+      p_username: session.username,
+      p_total_points: total,
+      p_member_note: trimmedNote || null,
+      p_lines: linesPayload,
+    })
+    if (rpcErr) return { ok: false, error: rpcErr.message }
+    if (!orderId) return { ok: false, error: 'Server error' }
 
     revalidatePath('/shop')
     revalidatePath('/me')
     revalidatePath('/admin/dashboard/approvals')
-    return { ok: true, orderId }
+    return { ok: true, orderId: orderId as string }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Server error' }
   }
