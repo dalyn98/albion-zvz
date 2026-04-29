@@ -16,6 +16,8 @@ export interface MarketingPaths {
   features: string
   pricing: string
   faq: string
+  // docs 는 단일 prefix. nested 페이지는 `${paths.docs}/onboarding` 처럼 조합.
+  docs: string
 }
 
 const CANONICAL_PATHS: MarketingPaths = {
@@ -23,6 +25,7 @@ const CANONICAL_PATHS: MarketingPaths = {
   features: '/features',
   pricing: '/pricing',
   faq: '/faq',
+  docs: '/docs',
 }
 
 const PUBLIC_PATHS: MarketingPaths = {
@@ -30,6 +33,7 @@ const PUBLIC_PATHS: MarketingPaths = {
   features: '/public/features',
   pricing: '/public/pricing',
   faq: '/public/faq',
+  docs: '/public/docs',
 }
 
 // Returns the canonical short paths only when we're actually on the canonical

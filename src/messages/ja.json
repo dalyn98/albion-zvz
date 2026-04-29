@@ -1398,7 +1398,26 @@
     "features": "機能",
     "pricing": "料金",
     "faq": "FAQ",
+    "docs": "ドキュメント",
     "install": "ボットを導入"
+  },
+  "docsNav": {
+    "sectionGettingStarted": "はじめに",
+    "sectionFeatures": "機能",
+    "intro": "概要・クイックスタート",
+    "onboarding": "ボット導入と初期設定",
+    "members": "メンバー管理・ギルド同期",
+    "killboard": "キルボードトラッキング",
+    "battles": "戦闘集計・イベントレポート",
+    "regear": "リギア請求",
+    "shop": "ギルドショップ",
+    "craft": "クラフトリギア",
+    "leaderboard": "実績・統計・リーダーボード",
+    "dashboard": "個人ダッシュボード",
+    "admin": "管理者設定",
+    "mobileMenuLabel": "ドキュメントメニュー",
+    "nonKoBannerTitle": "韓国語優先ドキュメント",
+    "nonKoBannerBody": "このページは現在韓国語のみで提供されています。翻訳は準備中です。"
   },
   "publicMarketing": {
     "heroBadge": "BETA",
