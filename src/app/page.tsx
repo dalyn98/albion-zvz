@@ -2,7 +2,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import type { Event } from '@/types'
 import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
-import { Plus } from 'lucide-react'
+import { Archive, Plus } from 'lucide-react'
 import { formatGatherTimeFor, isImminent, isEnded } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
 import { getAppSetting } from '@/lib/app-settings'
@@ -114,15 +114,26 @@ export default async function HomePage() {
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">{t('home.title')}</h1>
           <p className="text-gray-400 text-sm">{t('home.subtitle')}</p>
         </div>
-        {session?.canCreateEvents && (
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* `/archive` 사이드바 링크가 빠진 후 유일한 진입점 — 종료된 전투 회고가
+              필요한 시점은 결국 events 페이지에서 시작하는 흐름이라 자연스럽다. */}
           <Link
-            href="/admin/dashboard/events/new"
-            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-3 py-2 rounded-lg transition-colors text-sm whitespace-nowrap"
+            href="/archive"
+            className="flex items-center gap-1.5 text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-2 rounded-lg transition-colors text-sm whitespace-nowrap"
           >
-            <Plus size={16} />
-            {t('home.newEvent')}
+            <Archive size={14} />
+            {t('home.viewArchive')}
           </Link>
-        )}
+          {session?.canCreateEvents && (
+            <Link
+              href="/admin/dashboard/events/new"
+              className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-3 py-2 rounded-lg transition-colors text-sm whitespace-nowrap"
+            >
+              <Plus size={16} />
+              {t('home.newEvent')}
+            </Link>
+          )}
+        </div>
       </div>
 
       <DismissibleNoticeBanner message={noticeMessage} imageUrl={noticeImageUrl} />

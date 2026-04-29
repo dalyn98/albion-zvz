@@ -24,7 +24,16 @@
     "guide": "ガイド",
     "archive": "アーカイブ",
     "publicProfile": "公開プロフィール",
-    "guildProfile": "プロフィール編集"
+    "guildProfile": "プロフィール編集",
+    "section": {
+      "activity": "アクティビティ",
+      "regear": "リギア",
+      "community": "コミュニティ",
+      "profile": "マイページ",
+      "ops": "運営",
+      "features": "機能",
+      "system": "システム"
+    }
   },
   "common": {
     "close": "閉じる",
@@ -1460,7 +1469,8 @@
       "count": "({count})"
     },
     "applicants": "申請 {assigned}/{total}",
-    "newEvent": "新しいイベント"
+    "newEvent": "新しいイベント",
+    "viewArchive": "過去のイベント"
   },
   "landing": {
     "defaultCta": "Discord でログインすると、イベントとパーティーにアクセスできます。",

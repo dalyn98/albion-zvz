@@ -24,7 +24,16 @@
     "guide": "Guide",
     "archive": "Archive",
     "publicProfile": "Public profile",
-    "guildProfile": "Edit profile"
+    "guildProfile": "Edit profile",
+    "section": {
+      "activity": "Activity",
+      "regear": "Regear",
+      "community": "Community",
+      "profile": "My page",
+      "ops": "Operations",
+      "features": "Features",
+      "system": "System"
+    }
   },
   "common": {
     "close": "Close",
@@ -1460,7 +1469,8 @@
       "count": "({count})"
     },
     "applicants": "Applied {assigned}/{total}",
-    "newEvent": "New event"
+    "newEvent": "New event",
+    "viewArchive": "Past events"
   },
   "landing": {
     "defaultCta": "Log in with Discord to access events and parties.",

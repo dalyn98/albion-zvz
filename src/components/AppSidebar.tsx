@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -18,7 +18,6 @@ import {
   X,
   ChevronDown,
   Settings,
-  Archive,
   Box,
   Boxes,
   ShoppingBag,
@@ -33,6 +32,17 @@ import {
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
+
+// 사이드바 한 그룹 안의 sub-section. labelKey 없으면 헤더 없이 첫 번째 섹션
+// 으로 취급. nav.section.<key> 로 i18n.
+type SectionKey =
+  | 'activity'
+  | 'regear'
+  | 'community'
+  | 'profile'
+  | 'ops'
+  | 'features'
+  | 'system'
 
 interface NavItem {
   href: string
@@ -49,34 +59,42 @@ interface NavItem {
   // 어드민 + 길드의 craft_regear_enabled 가 켜진 경우에만 표시.
   // 토글 OFF 면 craft 운영 탭 (운영, 재고) 자체가 숨김.
   craftAdminOnly?: boolean
+  // 사이드바 sub-section. NavGroup 이 섹션 전환 시점에 작은 헤더를 끼워넣는다.
+  section: SectionKey
 }
 
 const MEMBER_NAV: NavItem[] = [
-  { href: '/', labelKey: 'events', icon: CalendarDays },
-  { href: '/regear', labelKey: 'regearRequest', icon: ShieldCheck, memberOnly: true },
-  { href: '/craft/queue', labelKey: 'craftQueue', icon: Hammer, memberOnly: true, crafterOnly: true },
-  { href: '/craft/my-tasks', labelKey: 'craftMyTasks', icon: Box, memberOnly: true, crafterOnly: true },
-  { href: '/shop', labelKey: 'shop', icon: ShoppingBag },
-  { href: '/battles', labelKey: 'battles', icon: Swords },
-  { href: '/members', labelKey: 'members', icon: Users },
-  { href: '/leaderboard', labelKey: 'leaderboard', icon: Trophy },
-  { href: '/archive', labelKey: 'archive', icon: Archive },
-  { href: '/me', labelKey: 'myWallet', icon: Wallet, exact: true, memberOnly: true },
-  { href: '/me/settings', labelKey: 'mySettings', icon: Settings },
+  // 활동 — `/archive` 는 사이드바에서 제외하고 events 페이지 헤더의 "지난 이벤트"
+  // 링크로만 진입. 기존 점유 라인을 줄여 사이드바를 가볍게.
+  { href: '/', labelKey: 'events', icon: CalendarDays, section: 'activity' },
+  { href: '/battles', labelKey: 'battles', icon: Swords, section: 'activity' },
+  // 리기어
+  { href: '/regear', labelKey: 'regearRequest', icon: ShieldCheck, memberOnly: true, section: 'regear' },
+  { href: '/craft/queue', labelKey: 'craftQueue', icon: Hammer, memberOnly: true, crafterOnly: true, section: 'regear' },
+  { href: '/craft/my-tasks', labelKey: 'craftMyTasks', icon: Box, memberOnly: true, crafterOnly: true, section: 'regear' },
+  // 커뮤니티
+  { href: '/shop', labelKey: 'shop', icon: ShoppingBag, section: 'community' },
+  { href: '/members', labelKey: 'members', icon: Users, section: 'community' },
+  { href: '/leaderboard', labelKey: 'leaderboard', icon: Trophy, section: 'community' },
+  // 내 정보
+  { href: '/me', labelKey: 'myWallet', icon: Wallet, exact: true, memberOnly: true, section: 'profile' },
+  { href: '/me/settings', labelKey: 'mySettings', icon: Settings, section: 'profile' },
 ]
 
 const ADMIN_NAV: NavItem[] = [
+  // 운영
   // `/admin/dashboard`는 다른 모든 관리자 라우트의 부모이기도 해서,
   // exact 매칭이 없으면 하위 페이지에 있을 때도 "이벤트 관리"가 계속 하이라이트됨.
-  { href: '/admin/dashboard', labelKey: 'eventAdmin', icon: CalendarDays, exact: true },
-  { href: '/admin/dashboard/approvals', labelKey: 'approvals', icon: ShieldCheck },
-  { href: '/admin/dashboard/shop', labelKey: 'shopAdmin', icon: ShoppingBag },
-  { href: '/admin/dashboard/craft', labelKey: 'craftAdmin', icon: Hammer, craftAdminOnly: true },
-  { href: '/admin/dashboard/inventory', labelKey: 'inventoryAdmin', icon: Boxes, craftAdminOnly: true },
-  { href: '/admin/dashboard/stats', labelKey: 'stats', icon: BarChart3 },
-  { href: '/admin/dashboard/settings', labelKey: 'settings', icon: Settings },
-  { href: '/admin/dashboard/guild-profile', labelKey: 'guildProfile', icon: Sparkles },
-  { href: '/admin/dashboard/guide', labelKey: 'guide', icon: BookOpen },
+  { href: '/admin/dashboard', labelKey: 'eventAdmin', icon: CalendarDays, exact: true, section: 'ops' },
+  { href: '/admin/dashboard/approvals', labelKey: 'approvals', icon: ShieldCheck, section: 'ops' },
+  // 기능
+  { href: '/admin/dashboard/shop', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'features' },
+  { href: '/admin/dashboard/craft', labelKey: 'craftAdmin', icon: Hammer, craftAdminOnly: true, section: 'features' },
+  { href: '/admin/dashboard/inventory', labelKey: 'inventoryAdmin', icon: Boxes, craftAdminOnly: true, section: 'features' },
+  { href: '/admin/dashboard/guild-profile', labelKey: 'guildProfile', icon: Sparkles, section: 'features' },
+  // 시스템
+  { href: '/admin/dashboard/stats', labelKey: 'stats', icon: BarChart3, section: 'system' },
+  { href: '/admin/dashboard/settings', labelKey: 'settings', icon: Settings, section: 'system' },
 ]
 
 // 슈퍼어드민 (멀티테넌트 운영자) 메뉴. SUPER_ADMIN_DISCORD_IDS env 에 등록된
@@ -150,6 +168,9 @@ export default function AppSidebar({
   const pathname = usePathname()
   const t = useTranslations('sidebar')
   const tNav = useTranslations('nav')
+  // 섹션 헤더 (활동/리기어/...) 라벨. NavGroup 안에서만 쓰지만 hook 은
+  // 컴포넌트 최상위에서 호출해야 해서 여기서 prop 으로 내려준다.
+  const tSection = useTranslations('nav.section')
   // Default collapsed on mobile, expanded on desktop. We hydrate from
   // localStorage after mount so the first paint matches the viewport.
   const [open, setOpen] = useState(false)
@@ -193,13 +214,13 @@ export default function AppSidebar({
   const loginHref = `/api/auth/discord/start?returnTo=${encodeURIComponent(pathname || '/')}`
   const url = session ? avatarUrl(session.discordId, session.avatar) : null
 
-  // 공개 프로필 항목은 events 바로 아래에 끼워넣는다 — 길드원이 모집/공유용 URL
-  // 을 한 클릭으로 열 수 있게. AppShell 이 enable + slug 둘 다 충족해야 href 를
-  // 채워준다 (그 외엔 null → 항목 자체를 숨김).
+  // 공개 프로필 항목은 활동 섹션 (events 바로 아래) 에 끼워넣는다 — 길드원이
+  // 모집/공유용 URL 을 한 클릭으로 열 수 있게. AppShell 이 enable + slug 둘 다
+  // 충족해야 href 를 채워준다 (그 외엔 null → 항목 자체를 숨김).
   const memberNavItems: NavItem[] = publicProfileHref
     ? [
         MEMBER_NAV[0],
-        { href: publicProfileHref, labelKey: 'publicProfile', icon: Globe },
+        { href: publicProfileHref, labelKey: 'publicProfile', icon: Globe, section: 'activity' },
         ...MEMBER_NAV.slice(1),
       ]
     : MEMBER_NAV
@@ -288,6 +309,7 @@ export default function AppSidebar({
             expanded={open}
             collapsible={memberOpen}
             setCollapsible={setMemberOpen}
+            sectionLabel={(key) => tSection(key)}
           />
           {session?.isAdmin && (
             <NavGroup
@@ -303,6 +325,7 @@ export default function AppSidebar({
               expanded={open}
               collapsible={adminOpen}
               setCollapsible={setAdminOpen}
+              sectionLabel={(key) => tSection(key)}
             />
           )}
           {isSuperAdmin && superAdminPath && (
@@ -314,14 +337,38 @@ export default function AppSidebar({
                 label: i.label,
                 icon: i.icon,
                 exact: i.exact,
+                // 슈퍼어드민 nav 는 단일 섹션 — 헤더 분기 안 일어나도록 더미.
+                section: 'system' as SectionKey,
               }))}
               pathname={pathname || '/'}
               expanded={open}
               collapsible={superAdminOpen}
               setCollapsible={setSuperAdminOpen}
+              sectionLabel={(key) => tSection(key)}
             />
           )}
         </nav>
+
+        {/* Admin guide link — 사이드바 메인 nav 의 빈도 낮은 항목을 footer 로 옮긴 것.
+            관리자만 노출 (`session.isAdmin`). 펼쳤을 땐 라벨, 접었을 땐 아이콘만. */}
+        {session?.isAdmin && (
+          <div className={`border-t border-white/5 flex-shrink-0 ${open ? 'px-3 pt-2 pb-1' : 'px-2 pt-2 pb-1'}`}>
+            <Link
+              href="/admin/dashboard/guide"
+              title={open ? undefined : tNav('guide')}
+              className={`flex items-center rounded-lg text-gray-500 hover:text-gray-200 hover:bg-gray-800/60 transition-colors ${
+                open ? 'gap-2 px-3 py-1.5 text-xs' : 'justify-center p-2'
+              } ${
+                isActivePath(pathname || '/', '/admin/dashboard/guide')
+                  ? 'text-amber-300 bg-amber-500/10'
+                  : ''
+              }`}
+            >
+              <BookOpen size={open ? 13 : 16} className="flex-shrink-0" />
+              {open && <span className="truncate">{tNav('guide')}</span>}
+            </Link>
+          </div>
+        )}
 
         {/* Footer — session info */}
         <div className={`border-t border-white/5 flex-shrink-0 ${open ? 'px-3 py-3' : 'px-2 py-3'}`}>
@@ -392,9 +439,13 @@ interface NavGroupProps {
   expanded: boolean
   collapsible: boolean
   setCollapsible: (next: boolean) => void
+  // sub-section 헤더 라벨. 섹션이 바뀔 때마다 작은 구분 헤더를 그린다.
+  // 펼쳐진 상태에서만 노출 — 접힌 상태에선 그룹 자체가 한 줄 구분선으로 압축돼
+  // 섹션 헤더가 끼어들면 오히려 어수선해진다.
+  sectionLabel: (key: SectionKey) => string
 }
 
-function NavGroup({ title, items, pathname, expanded, collapsible, setCollapsible }: NavGroupProps) {
+function NavGroup({ title, items, pathname, expanded, collapsible, setCollapsible, sectionLabel }: NavGroupProps) {
   return (
     <div className="px-2 space-y-1">
       {expanded ? (
@@ -413,39 +464,54 @@ function NavGroup({ title, items, pathname, expanded, collapsible, setCollapsibl
         <div className="border-t border-gray-800 mx-2 my-1" aria-label={title} />
       )}
       {(collapsible || !expanded) &&
-        items.map(({ href, label, icon: Icon, exact, badge }) => {
-          const active = isActivePath(pathname, href, exact)
-          const hasBadge = typeof badge === 'number' && badge > 0
-          return (
-            <Link
-              key={href}
-              href={href}
-              title={expanded ? undefined : label}
-              className={`relative flex items-center gap-3 rounded-lg transition-colors ${
-                expanded ? 'px-3 py-2 text-sm' : 'justify-center p-2'
-              } ${
-                active
-                  ? 'bg-amber-500/20 text-amber-300'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
-              }`}
-            >
-              <span className="relative flex-shrink-0">
-                <Icon size={expanded ? 15 : 18} />
-                {hasBadge && !expanded && (
-                  <span className="absolute -top-1 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none flex items-center justify-center">
-                    {badge > 99 ? '99+' : badge}
-                  </span>
+        (() => {
+          // 섹션 전환 추적용 — map 콜백이 클로저 안에서 mutate 하므로 ref 가 아닌
+          // 단순 변수로 충분. 첫 항목엔 헤더가 안 나와야 해서 null 로 시작.
+          let lastSection: SectionKey | null = null
+          return items.map((item) => {
+            const { href, label, icon: Icon, exact, badge, section } = item
+            const showSectionHeader =
+              expanded && lastSection !== null && section !== lastSection
+            lastSection = section
+            const active = isActivePath(pathname, href, exact)
+            const hasBadge = typeof badge === 'number' && badge > 0
+            return (
+              <Fragment key={href}>
+                {showSectionHeader && (
+                  <div className="px-3 pt-2 pb-1 text-[9px] font-semibold text-gray-600 uppercase tracking-wider">
+                    {sectionLabel(section)}
+                  </div>
                 )}
-              </span>
-              {expanded && <span className="truncate flex-1">{label}</span>}
-              {hasBadge && expanded && (
-                <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none flex items-center justify-center flex-shrink-0">
-                  {badge > 99 ? '99+' : badge}
-                </span>
-              )}
-            </Link>
-          )
-        })}
+                <Link
+                  href={href}
+                  title={expanded ? undefined : label}
+                  className={`relative flex items-center gap-3 rounded-lg transition-colors ${
+                    expanded ? 'px-3 py-2 text-sm' : 'justify-center p-2'
+                  } ${
+                    active
+                      ? 'bg-amber-500/20 text-amber-300'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                  }`}
+                >
+                  <span className="relative flex-shrink-0">
+                    <Icon size={expanded ? 15 : 18} />
+                    {hasBadge && !expanded && (
+                      <span className="absolute -top-1 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none flex items-center justify-center">
+                        {badge > 99 ? '99+' : badge}
+                      </span>
+                    )}
+                  </span>
+                  {expanded && <span className="truncate flex-1">{label}</span>}
+                  {hasBadge && expanded && (
+                    <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none flex items-center justify-center flex-shrink-0">
+                      {badge > 99 ? '99+' : badge}
+                    </span>
+                  )}
+                </Link>
+              </Fragment>
+            )
+          })
+        })()}
     </div>
   )
 }

@@ -24,7 +24,16 @@
     "guide": "가이드",
     "archive": "아카이브",
     "publicProfile": "공개 프로필",
-    "guildProfile": "프로필 편집"
+    "guildProfile": "프로필 편집",
+    "section": {
+      "activity": "활동",
+      "regear": "리기어",
+      "community": "커뮤니티",
+      "profile": "내 정보",
+      "ops": "운영",
+      "features": "기능",
+      "system": "시스템"
+    }
   },
   "common": {
     "close": "닫기",
@@ -1460,7 +1469,8 @@
       "count": "({count})"
     },
     "applicants": "신청 {assigned}/{total}",
-    "newEvent": "새 이벤트"
+    "newEvent": "새 이벤트",
+    "viewArchive": "지난 이벤트"
   },
   "landing": {
     "defaultCta": "Discord로 로그인하면 이벤트와 파티에 접근할 수 있습니다.",
