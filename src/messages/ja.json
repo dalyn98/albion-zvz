@@ -777,7 +777,18 @@
     "recruitment_open": "募集中",
     "recruitment_selective": "選抜募集",
     "recruitment_closed": "募集終了",
-    "discordInviteLabel": "Discord 招待リンク"
+    "discordInviteLabel": "Discord 招待リンク",
+    "galleryTitle": "ギャラリー画像",
+    "galleryDescription": "プロフィールページの hero 下にグリッド表示される画像 (最大 {max} 枚)。募集ポスター・集会/キルショット・戦闘ハイライトなどに最適。",
+    "galleryEmpty": "まだ追加された画像はありません。",
+    "galleryAdd": "画像を追加",
+    "galleryRemove": "削除",
+    "galleryRemoveConfirm": "この画像を削除しますか?",
+    "galleryMoveUp": "上へ",
+    "galleryMoveDown": "下へ",
+    "galleryItemAlt": "ギャラリー画像",
+    "galleryCaptionPlaceholder": "キャプション (任意)",
+    "galleryAtMaxLabel": "最大 {max} 枚まで追加できます。新しい画像を入れるには既存の画像を先に削除してください。"
   },
   "publicGuildProfile": {
     "recruitment_open": "募集中",
@@ -793,6 +804,7 @@
     "statRegearUnit": "件",
     "statLeaderboard": "リーダーボード",
     "statLeaderboardCta": "ランキングを見る",
+    "galleryHeading": "ギャラリー",
     "emptySections": "表示するセクションがありません。",
     "poweredBy": "Albion Guild Manager で作成したギルドプロフィール"
   },
@@ -2629,6 +2641,7 @@
     "bannerFileTooLarge": "ファイルサイズは 5MB を超えることはできません。",
     "bannerWrongType": "PNG、JPG、WEBP、GIF ファイルのみアップロードできます。",
     "bannerUploadFailed": "アップロードに失敗しました: {reason}",
+    "galleryAtMax": "ギャラリーには最大 {max} 枚まで追加できます。",
     "invalidDateFormat": "日付は YYYY-MM-DD 形式で入力してください。",
     "unauthorized": "この操作を実行する権限がありません。",
     "invalidJsonArray": "役割一覧を保存できませんでした。",

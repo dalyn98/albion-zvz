@@ -777,7 +777,18 @@
     "recruitment_open": "Open",
     "recruitment_selective": "Selective",
     "recruitment_closed": "Closed",
-    "discordInviteLabel": "Discord invite URL"
+    "discordInviteLabel": "Discord invite URL",
+    "galleryTitle": "Gallery images",
+    "galleryDescription": "Images shown in a grid below the hero (up to {max}). Great for recruitment posters, raid screenshots, and battle highlights.",
+    "galleryEmpty": "No images added yet.",
+    "galleryAdd": "Add image",
+    "galleryRemove": "Remove",
+    "galleryRemoveConfirm": "Remove this image?",
+    "galleryMoveUp": "Move up",
+    "galleryMoveDown": "Move down",
+    "galleryItemAlt": "Gallery image",
+    "galleryCaptionPlaceholder": "Caption (optional)",
+    "galleryAtMaxLabel": "You can add up to {max} images. Remove an existing one to add a new one."
   },
   "publicGuildProfile": {
     "recruitment_open": "Recruiting",
@@ -793,6 +804,7 @@
     "statRegearUnit": "approved",
     "statLeaderboard": "Leaderboard",
     "statLeaderboardCta": "View rankings",
+    "galleryHeading": "Gallery",
     "emptySections": "No sections to display.",
     "poweredBy": "Profile by Albion Guild Manager"
   },
@@ -2629,6 +2641,7 @@
     "bannerFileTooLarge": "File size cannot exceed 5 MB.",
     "bannerWrongType": "Only PNG, JPG, WEBP, GIF files can be uploaded.",
     "bannerUploadFailed": "Upload failed: {reason}",
+    "galleryAtMax": "Gallery can have up to {max} images.",
     "invalidDateFormat": "Dates must be in YYYY-MM-DD format.",
     "unauthorized": "You don't have permission to perform this action.",
     "invalidJsonArray": "Could not save the role list.",

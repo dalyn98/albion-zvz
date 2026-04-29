@@ -777,7 +777,18 @@
     "recruitment_open": "모집중",
     "recruitment_selective": "선별 모집",
     "recruitment_closed": "모집 마감",
-    "discordInviteLabel": "Discord 초대 링크"
+    "discordInviteLabel": "Discord 초대 링크",
+    "galleryTitle": "갤러리 이미지",
+    "galleryDescription": "프로필 페이지 hero 아래에 그리드로 노출되는 이미지 (최대 {max}장). 모집 포스터·정모/킬샷·전투 하이라이트 등을 보여주기 좋아요.",
+    "galleryEmpty": "아직 추가된 이미지가 없습니다.",
+    "galleryAdd": "이미지 추가",
+    "galleryRemove": "삭제",
+    "galleryRemoveConfirm": "이 이미지를 삭제할까요?",
+    "galleryMoveUp": "위로",
+    "galleryMoveDown": "아래로",
+    "galleryItemAlt": "갤러리 이미지",
+    "galleryCaptionPlaceholder": "캡션 (선택)",
+    "galleryAtMaxLabel": "최대 {max}장까지 추가할 수 있어요. 새 이미지를 넣으려면 기존 이미지를 먼저 삭제해 주세요."
   },
   "publicGuildProfile": {
     "recruitment_open": "모집중",
@@ -793,6 +804,7 @@
     "statRegearUnit": "건",
     "statLeaderboard": "리더보드",
     "statLeaderboardCta": "랭킹 보기",
+    "galleryHeading": "갤러리",
     "emptySections": "표시할 섹션이 없습니다.",
     "poweredBy": "Albion Guild Manager 로 만든 길드 프로필"
   },
@@ -2631,6 +2643,7 @@
     "bannerFileTooLarge": "파일 크기는 5MB를 넘을 수 없습니다.",
     "bannerWrongType": "PNG, JPG, WEBP, GIF 파일만 업로드할 수 있습니다.",
     "bannerUploadFailed": "업로드 실패: {reason}",
+    "galleryAtMax": "갤러리에는 최대 {max}장까지 추가할 수 있습니다.",
     "invalidDateFormat": "날짜는 YYYY-MM-DD 형식으로 입력해 주세요.",
     "unauthorized": "이 작업을 수행할 권한이 없습니다.",
     "invalidJsonArray": "역할 목록을 올바르게 저장할 수 없습니다.",
