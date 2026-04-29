@@ -10,11 +10,23 @@ import {
   Trophy,
   Image as ImageIcon,
   BarChart3,
+  Activity,
+  Crown,
+  Skull,
+  ShieldAlert,
 } from 'lucide-react'
 import MarketingNav from '@/components/MarketingNav'
 import { resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { loadGuildProfileSettings, ACCENT_CLASS_MAP } from '@/lib/guild-profile'
 import { loadGalleryItems, type GalleryItem } from '@/lib/guild-profile-gallery'
+import {
+  loadRecentTrackedBattle,
+  loadTopContributorsThisWeek,
+  type RecentBattleSummary,
+  type TopContributorSummary,
+  type BattleOutcome,
+} from '@/lib/guild-profile-activity'
+import { formatRelativeFine } from '@/lib/relative-time'
 import { getAdminClient } from '@/lib/supabase-admin'
 
 export const dynamic = 'force-dynamic'
@@ -54,26 +66,28 @@ async function loadSectionStats(
 }> {
   const db = getAdminClient()
 
+  // 멀티테넌트 마이그레이션 (072) 에서 이 테이블들의 컬럼이 guild_id 로 통일됐다.
+  // 이전 코드에서 tenant_id 로 잘못 필터해 silent 0 으로 떨어지던 버그 수정.
   const [members, battles, regear] = await Promise.all([
     flags.showMembers
       ? db
           .from('guild_avatars')
           .select('id', { count: 'exact', head: true })
-          .eq('tenant_id', guildId)
+          .eq('guild_id', guildId)
           .is('withdrawn_at', null)
       : Promise.resolve({ count: null }),
     flags.showBattles
       ? db
           .from('events')
           .select('id', { count: 'exact', head: true })
-          .eq('tenant_id', guildId)
+          .eq('guild_id', guildId)
           .not('battle_started_at', 'is', null)
       : Promise.resolve({ count: null }),
     flags.showRegearStats
       ? db
           .from('regear_requests')
           .select('id', { count: 'exact', head: true })
-          .eq('tenant_id', guildId)
+          .eq('guild_id', guildId)
           .eq('status', 'approved')
       : Promise.resolve({ count: null }),
   ])
@@ -97,16 +111,24 @@ export default async function GuildProfilePage({
   const settings = await loadGuildProfileSettings(tenant.tenantId)
   if (!settings.enabled) notFound()
 
-  const [stats, galleryItems] = await Promise.all([
+  const [stats, galleryItems, recentBattle, topContributors] = await Promise.all([
     loadSectionStats(tenant.tenantId, {
       showMembers: settings.showMembers,
       showBattles: settings.showBattles,
       showRegearStats: settings.showRegearStats,
     }),
     loadGalleryItems(tenant.tenantId),
+    settings.showBattles
+      ? loadRecentTrackedBattle(tenant.tenantId)
+      : Promise.resolve(null),
+    settings.showLeaderboard
+      ? loadTopContributorsThisWeek(tenant.tenantId, 3)
+      : Promise.resolve([]),
   ])
 
   const t = await getTranslations('publicGuildProfile')
+  const tTime = await getTranslations('time')
+  const tBattle = await getTranslations('battleTracking')
   const accent = ACCENT_CLASS_MAP[settings.accentColor]
   const showCta =
     settings.recruitmentStatus !== 'closed' && settings.discordInviteUrl.length > 0
@@ -115,6 +137,7 @@ export default async function GuildProfilePage({
     settings.showBattles ||
     settings.showRegearStats ||
     settings.showLeaderboard
+  const hasActivity = recentBattle !== null || topContributors.length > 0
 
   return (
     <div className="min-h-screen bg-[#08090d] text-white">
@@ -191,6 +214,56 @@ export default async function GuildProfilePage({
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-12">
+        {/* 활동 — 최근 추적된 전투 + 이번 주 탑 킬러. 가입을 고민 중인 사람에게
+            "지금 살아있는 길드" 라는 인상을 주는 핵심 섹션. 둘 중 하나만 있을
+            때도 자연스럽게 풀카드로 확장. */}
+        {hasActivity && (
+          <section className="space-y-4">
+            <SectionHeader
+              icon={<Activity size={14} />}
+              label={t('activityHeading')}
+              accent={accent}
+            />
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+              {recentBattle && (
+                <div
+                  className={`${
+                    topContributors.length > 0 ? 'lg:col-span-3' : 'lg:col-span-5'
+                  } rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm`}
+                >
+                  <RecentBattleCard
+                    battle={recentBattle}
+                    accent={accent}
+                    sizeLabel={tBattle(`size_${recentBattle.sizeCategory}`)}
+                    outcomeLabel={t(`outcome_${recentBattle.outcome}`)}
+                    relativeLabel={formatRelativeFine(recentBattle.startedAt, tTime)}
+                    titleLabel={t('recentBattleLabel')}
+                    opponentLabel={
+                      recentBattle.primaryOpponentName
+                        ? t('vsOpponent', { name: recentBattle.primaryOpponentName })
+                        : t('battleNoOpponent')
+                    }
+                  />
+                </div>
+              )}
+              {topContributors.length > 0 && (
+                <div
+                  className={`${
+                    recentBattle ? 'lg:col-span-2' : 'lg:col-span-5'
+                  } rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm`}
+                >
+                  <TopContributorsCard
+                    contributors={topContributors}
+                    accent={accent}
+                    titleLabel={t('topContributorsLabel')}
+                    killsUnit={t('killsUnit')}
+                  />
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* 갤러리 — 항목 수에 따라 1열 / 2열 / editorial(1+rest) 자동 전환 */}
         {galleryItems.length > 0 && (
           <section className="space-y-4">
@@ -415,6 +488,134 @@ function StatCard({ icon, label, value, unit, accent }: StatCardProps) {
           <div className="text-gray-300 text-sm">{unit}</div>
         )}
       </div>
+    </div>
+  )
+}
+
+interface RecentBattleCardProps {
+  battle: RecentBattleSummary
+  accent: (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
+  sizeLabel: string
+  outcomeLabel: string
+  relativeLabel: string
+  titleLabel: string
+  opponentLabel: string
+}
+
+// 결과(승/패/무) 색은 액센트와 무관하게 universal 매핑. 길드 액센트가 rose 인
+// 경우 패배 카드까지 분홍이면 결과를 못 읽으니 분리.
+const OUTCOME_BADGE: Record<BattleOutcome, string> = {
+  win: 'bg-emerald-500/15 text-emerald-200 ring-emerald-500/40',
+  loss: 'bg-rose-500/15 text-rose-200 ring-rose-500/40',
+  tie: 'bg-slate-500/15 text-slate-200 ring-slate-500/40',
+}
+
+const OUTCOME_ICON: Record<BattleOutcome, React.ReactNode> = {
+  win: <ShieldCheck size={11} />,
+  loss: <Skull size={11} />,
+  tie: <ShieldAlert size={11} />,
+}
+
+function RecentBattleCard({
+  battle,
+  accent,
+  sizeLabel,
+  outcomeLabel,
+  relativeLabel,
+  titleLabel,
+  opponentLabel,
+}: RecentBattleCardProps) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <span
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ring-1 uppercase tracking-wider ${OUTCOME_BADGE[battle.outcome]}`}
+        >
+          {OUTCOME_ICON[battle.outcome]}
+          <span>{outcomeLabel}</span>
+        </span>
+        <span className="text-[10px] text-gray-500 font-mono shrink-0">{relativeLabel}</span>
+      </div>
+      <div>
+        <p
+          className={`text-[10px] uppercase tracking-[0.18em] font-bold mb-1.5 ${accent.heading}`}
+        >
+          {titleLabel}
+        </p>
+        <p className="text-base sm:text-lg font-bold text-white truncate">{opponentLabel}</p>
+      </div>
+      <div className="flex items-center gap-5 pt-3 border-t border-gray-800">
+        <div className="flex items-center gap-1.5">
+          <Swords size={14} className={accent.heading} />
+          <span className={`text-2xl font-black ${accent.heading}`}>{battle.homeKills}</span>
+          <span className="text-gray-600 text-xs font-mono">K</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Skull size={14} className="text-gray-500" />
+          <span className="text-2xl font-black text-gray-300">{battle.homeDeaths}</span>
+          <span className="text-gray-600 text-xs font-mono">D</span>
+        </div>
+        <div className="ml-auto flex items-center gap-1.5">
+          <Users size={11} className="text-gray-600" />
+          <span className="text-[11px] text-gray-500 font-mono">
+            {battle.homeTeamSize} · {sizeLabel}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface TopContributorsCardProps {
+  contributors: TopContributorSummary[]
+  accent: (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
+  titleLabel: string
+  killsUnit: string
+}
+
+function TopContributorsCard({
+  contributors,
+  accent,
+  titleLabel,
+  killsUnit,
+}: TopContributorsCardProps) {
+  return (
+    <div className="space-y-4 h-full flex flex-col">
+      <p className={`text-[10px] uppercase tracking-[0.18em] font-bold ${accent.heading}`}>
+        {titleLabel}
+      </p>
+      <ul className="space-y-2.5 flex-1">
+        {contributors.map((c, idx) => (
+          <li key={c.discordId} className="flex items-center gap-3">
+            <div className="relative shrink-0">
+              {c.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={c.avatarUrl}
+                  alt=""
+                  className="w-9 h-9 rounded-full bg-gray-800 object-cover"
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center">
+                  <Users size={14} className="text-gray-600" />
+                </div>
+              )}
+              {idx === 0 && (
+                <Crown
+                  size={14}
+                  className={`absolute -top-1 -right-1 ${accent.heading} drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]`}
+                  fill="currentColor"
+                />
+              )}
+            </div>
+            <span className="flex-1 text-sm text-white font-medium truncate">{c.name}</span>
+            <span className="flex items-baseline gap-1 shrink-0">
+              <span className={`text-base font-black ${accent.heading}`}>{c.kills}</span>
+              <span className="text-gray-500 text-[11px]">{killsUnit}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
