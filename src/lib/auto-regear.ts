@@ -201,14 +201,25 @@ export async function processAutoRegear(
   const startedAt = Date.now()
   const errors: AutoRegearResult['errors'] = []
 
-  // 전역 스위치: OFF 면 바로 반환. cron 이 돌아도 side effect 없음.
-  const { data: settingRow } = await db
+  // 5개 app_settings 를 1번의 round-trip 으로 읽는다 (이전엔 5×maybeSingle 직렬).
+  const SETTING_KEYS = [
+    'auto_regear_enabled',
+    'albion_home_guild_id',
+    'auto_regear_delay_minutes',
+    'regear_payout_rate_percent',
+    'craft_regear_enabled',
+  ] as const
+  const { data: settingRows } = await db
     .from('app_settings')
-    .select('value')
+    .select('key, value')
     .eq('guild_id', guildId)
-    .eq('key', 'auto_regear_enabled')
-    .maybeSingle()
-  if ((settingRow?.value ?? 'false') !== 'true') {
+    .in('key', SETTING_KEYS as unknown as string[])
+  const settings = new Map<string, string>(
+    (settingRows ?? []).map((r) => [r.key as string, r.value as string]),
+  )
+
+  // 전역 스위치: OFF 면 바로 반환. cron 이 돌아도 side effect 없음.
+  if ((settings.get('auto_regear_enabled') ?? 'false') !== 'true') {
     return {
       events_considered: 0,
       events_processed: 0,
@@ -229,13 +240,7 @@ export async function processAutoRegear(
   // home_guild 미설정이면 battle-tracker cron 이 이 테넌트를 아예 건너뛰므로
   // last_battle_tracker_sync_at 가 영원히 NULL → 아래 deferral 가드가 모든
   // 이벤트를 무한 연기한다. self-serve 함정이라 여기서 단락한다.
-  const { data: homeGuildRow } = await db
-    .from('app_settings')
-    .select('value')
-    .eq('guild_id', guildId)
-    .eq('key', 'albion_home_guild_id')
-    .maybeSingle()
-  if (!homeGuildRow?.value) {
+  if (!settings.get('albion_home_guild_id')) {
     return {
       events_considered: 0,
       events_processed: 0,
@@ -256,38 +261,20 @@ export async function processAutoRegear(
   // auto_regear_delay_minutes(기본 15) = 배틀 시작 후 몇 분 뒤에 자동 리기어가
   // 이벤트를 처리할지. regear_window_minutes(수동 신청 오픈 시각, 기본 60) 와
   // 분리돼 있어 자동이 수동보다 먼저 pending 행을 만들 수 있다.
-  const { data: delayRow } = await db
-    .from('app_settings')
-    .select('value')
-    .eq('guild_id', guildId)
-    .eq('key', 'auto_regear_delay_minutes')
-    .maybeSingle()
-  const parsedDelay = Number(delayRow?.value ?? '15')
+  const parsedDelay = Number(settings.get('auto_regear_delay_minutes') ?? '15')
   const autoDelayMinutes =
     Number.isFinite(parsedDelay) && parsedDelay >= 5 && parsedDelay <= 120
       ? Math.trunc(parsedDelay)
       : 15
 
-  const { data: rateRow } = await db
-    .from('app_settings')
-    .select('value')
-    .eq('guild_id', guildId)
-    .eq('key', 'regear_payout_rate_percent')
-    .maybeSingle()
-  const parsedRate = Number(rateRow?.value ?? '100')
+  const parsedRate = Number(settings.get('regear_payout_rate_percent') ?? '100')
   const payoutRatePercent =
     Number.isFinite(parsedRate) && parsedRate >= 1 && parsedRate <= 100 ? Math.trunc(parsedRate) : 100
 
   // 길드 단위 리기어 모드. craft_regear_enabled='true' 면 자동 생성도 'crafted'
   // 모드로 들어가고 victim 의 killboard equipment 에서 build_snapshot 을 추출해
   // 박는다. 'false' 면 silver 모드(기존 동작).
-  const { data: craftRow } = await db
-    .from('app_settings')
-    .select('value')
-    .eq('guild_id', guildId)
-    .eq('key', 'craft_regear_enabled')
-    .maybeSingle()
-  const craftMode = (craftRow?.value ?? 'false') === 'true'
+  const craftMode = (settings.get('craft_regear_enabled') ?? 'false') === 'true'
   const fulfillmentMode: 'silver' | 'crafted' = craftMode ? 'crafted' : 'silver'
 
   // battle_started_at + autoDelay 경과한 이벤트 중 아직 처리되지 않은 것.
