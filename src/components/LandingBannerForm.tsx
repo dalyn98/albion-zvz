@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Image as ImageIcon, Upload, Trash2 } from 'lucide-react'
 import { uploadLandingBanner, clearLandingBanner } from '@/app/actions/landing-banner'
+import ImageCropModal from '@/components/ImageCropModal'
 
 interface Props {
   currentUrl: string
@@ -17,6 +18,8 @@ export default function LandingBannerForm({ currentUrl }: Props) {
   const tCommon = useTranslations('common')
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [croppedFile, setCroppedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -24,12 +27,20 @@ export default function LandingBannerForm({ currentUrl }: Props) {
 
   const displayUrl = previewUrl || currentUrl
 
+  const resetSelection = () => {
+    setPendingFile(null)
+    setCroppedFile(null)
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(null)
+    setSelectedName(null)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
     setError('')
     if (!file) {
-      setPreviewUrl(null)
-      setSelectedName(null)
+      resetSelection()
       return
     }
     if (file.size > MAX_FILE_SIZE) {
@@ -37,13 +48,23 @@ export default function LandingBannerForm({ currentUrl }: Props) {
       event.target.value = ''
       return
     }
-    setPreviewUrl(URL.createObjectURL(file))
-    setSelectedName(file.name)
+    setPendingFile(file)
+  }
+
+  const handleCropApply = (cropped: File) => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setCroppedFile(cropped)
+    setPreviewUrl(URL.createObjectURL(cropped))
+    setSelectedName(cropped.name)
+    setPendingFile(null)
+  }
+
+  const handleCropCancel = () => {
+    resetSelection()
   }
 
   const handleUpload = () => {
-    const input = fileRef.current
-    const file = input?.files?.[0]
+    const file = croppedFile
     if (!file) {
       setError(t('bannerSelectFirst'))
       return
@@ -58,9 +79,7 @@ export default function LandingBannerForm({ currentUrl }: Props) {
         setError(result.error)
         return
       }
-      setPreviewUrl(null)
-      setSelectedName(null)
-      if (input) input.value = ''
+      resetSelection()
       router.refresh()
     })
   }
@@ -76,9 +95,7 @@ export default function LandingBannerForm({ currentUrl }: Props) {
         setError(result.error)
         return
       }
-      setPreviewUrl(null)
-      setSelectedName(null)
-      if (fileRef.current) fileRef.current.value = ''
+      resetSelection()
       router.refresh()
     })
   }
@@ -151,6 +168,12 @@ export default function LandingBannerForm({ currentUrl }: Props) {
       <p className="text-gray-600 text-[11px]">
         {t('bannerFileHint')}
       </p>
+
+      <ImageCropModal
+        file={pendingFile}
+        onApply={handleCropApply}
+        onCancel={handleCropCancel}
+      />
     </div>
   )
 }

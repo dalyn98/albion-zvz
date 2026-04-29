@@ -11,9 +11,12 @@ import {
   updateGalleryCaption,
 } from '@/app/actions/guild-profile-gallery'
 import { GALLERY_MAX_ITEMS, type GalleryItem } from '@/lib/guild-profile-gallery'
+import ImageCropModal from '@/components/ImageCropModal'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const CAPTION_MAX_LENGTH = 120
+// 갤러리 카드 표시 비율 (16:9) 에 맞춰 자른다.
+const GALLERY_ASPECT = 16 / 9
 
 interface Props {
   items: GalleryItem[]
@@ -24,6 +27,8 @@ export default function GuildProfileGalleryEditor({ items }: Props) {
   const tCommon = useTranslations('common')
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [croppedFile, setCroppedFile] = useState<File | null>(null)
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [caption, setCaption] = useState('')
   const [error, setError] = useState('')
@@ -32,11 +37,18 @@ export default function GuildProfileGalleryEditor({ items }: Props) {
 
   const atMax = items.length >= GALLERY_MAX_ITEMS
 
+  const resetSelection = () => {
+    setPendingFile(null)
+    setCroppedFile(null)
+    setSelectedName(null)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
     setError('')
     if (!file) {
-      setSelectedName(null)
+      resetSelection()
       return
     }
     if (file.size > MAX_FILE_SIZE) {
@@ -45,12 +57,21 @@ export default function GuildProfileGalleryEditor({ items }: Props) {
       setSelectedName(null)
       return
     }
-    setSelectedName(file.name)
+    setPendingFile(file)
+  }
+
+  const handleCropApply = (cropped: File) => {
+    setCroppedFile(cropped)
+    setSelectedName(cropped.name)
+    setPendingFile(null)
+  }
+
+  const handleCropCancel = () => {
+    resetSelection()
   }
 
   const handleUpload = () => {
-    const input = fileRef.current
-    const file = input?.files?.[0]
+    const file = croppedFile
     if (!file) {
       setError(t('bannerSelectFirst'))
       return
@@ -66,8 +87,7 @@ export default function GuildProfileGalleryEditor({ items }: Props) {
         setError(result.error)
         return
       }
-      if (input) input.value = ''
-      setSelectedName(null)
+      resetSelection()
       setCaption('')
       router.refresh()
     })
@@ -182,6 +202,13 @@ export default function GuildProfileGalleryEditor({ items }: Props) {
 
       {error && <p className="text-red-400 text-xs">{error}</p>}
       <p className="text-gray-600 text-[11px]">{t('bannerFileHint')}</p>
+
+      <ImageCropModal
+        file={pendingFile}
+        aspect={GALLERY_ASPECT}
+        onApply={handleCropApply}
+        onCancel={handleCropCancel}
+      />
     </section>
   )
 }

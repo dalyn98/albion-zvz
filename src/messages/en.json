@@ -52,6 +52,16 @@
     "other": "Other",
     "backToMyPage": "Back to My Page"
   },
+  "imageCrop": {
+    "title": "Crop image",
+    "cancel": "Cancel",
+    "apply": "Apply",
+    "applying": "Applying…",
+    "zoom": "Zoom",
+    "rotate": "Rotate 90°",
+    "hint": "Drag to reposition, slider to zoom",
+    "cropFailed": "Failed to crop image."
+  },
   "adminLogin": {
     "title": "Admin login",
     "subtitle": "Restricted to admins",

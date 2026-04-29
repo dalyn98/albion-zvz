@@ -11,6 +11,7 @@ import {
 } from '@/app/actions/notice-image'
 import type { AppSettingKey } from '@/lib/app-settings'
 import { Image as ImageIcon, Save, Eraser, Upload, Trash2 } from 'lucide-react'
+import ImageCropModal from '@/components/ImageCropModal'
 
 export const NOTICE_MAX_LENGTH = 500
 const MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -56,6 +57,8 @@ export default function NoticeSettingForm({
   const [saved, setSaved] = useState(false)
 
   const fileRef = useRef<HTMLInputElement>(null)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [croppedFile, setCroppedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [imgError, setImgError] = useState('')
@@ -88,12 +91,20 @@ export default function NoticeSettingForm({
     setSaved(false)
   }
 
+  const resetSelection = () => {
+    setPendingFile(null)
+    setCroppedFile(null)
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(null)
+    setSelectedName(null)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
     setImgError('')
     if (!file) {
-      setPreviewUrl(null)
-      setSelectedName(null)
+      resetSelection()
       return
     }
     if (file.size > MAX_FILE_SIZE) {
@@ -101,14 +112,24 @@ export default function NoticeSettingForm({
       event.target.value = ''
       return
     }
-    setPreviewUrl(URL.createObjectURL(file))
-    setSelectedName(file.name)
+    setPendingFile(file)
+  }
+
+  const handleCropApply = (cropped: File) => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setCroppedFile(cropped)
+    setPreviewUrl(URL.createObjectURL(cropped))
+    setSelectedName(cropped.name)
+    setPendingFile(null)
+  }
+
+  const handleCropCancel = () => {
+    resetSelection()
   }
 
   const handleUploadImage = () => {
     if (!target) return
-    const input = fileRef.current
-    const file = input?.files?.[0]
+    const file = croppedFile
     if (!file) {
       setImgError(t('noticeImageSelectFirst'))
       return
@@ -123,9 +144,7 @@ export default function NoticeSettingForm({
         setImgError(result.error)
         return
       }
-      setPreviewUrl(null)
-      setSelectedName(null)
-      if (input) input.value = ''
+      resetSelection()
       router.refresh()
     })
   }
@@ -142,9 +161,7 @@ export default function NoticeSettingForm({
         setImgError(result.error)
         return
       }
-      setPreviewUrl(null)
-      setSelectedName(null)
-      if (fileRef.current) fileRef.current.value = ''
+      resetSelection()
       router.refresh()
     })
   }
@@ -280,6 +297,14 @@ export default function NoticeSettingForm({
 
         <p className="text-gray-600 text-[11px]">{t('noticeImageFileHint')}</p>
       </div>
+      )}
+
+      {target && (
+        <ImageCropModal
+          file={pendingFile}
+          onApply={handleCropApply}
+          onCancel={handleCropCancel}
+        />
       )}
     </div>
   )

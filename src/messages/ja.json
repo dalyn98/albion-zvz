@@ -52,6 +52,16 @@
     "other": "その他",
     "backToMyPage": "マイページへ"
   },
+  "imageCrop": {
+    "title": "画像をトリミング",
+    "cancel": "キャンセル",
+    "apply": "適用",
+    "applying": "適用中…",
+    "zoom": "ズーム",
+    "rotate": "90°回転",
+    "hint": "ドラッグで位置調整、スライダーでズーム",
+    "cropFailed": "画像のトリミングに失敗しました。"
+  },
   "adminLogin": {
     "title": "管理者ログイン",
     "subtitle": "管理者のみアクセス可能です",

@@ -8,18 +8,23 @@ import {
   uploadGuildProfileBanner,
   clearGuildProfileBanner,
 } from '@/app/actions/guild-profile'
+import ImageCropModal from '@/components/ImageCropModal'
 
 interface Props {
   currentUrl: string
 }
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
+// 데스크탑은 21:9 로 출력하므로 21:9 로 잘라 양 시점 모두 자연스럽게 보이도록.
+const BANNER_ASPECT = 21 / 9
 
 export default function GuildProfileBannerForm({ currentUrl }: Props) {
   const t = useTranslations('adminGuildProfile')
   const tCommon = useTranslations('common')
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [croppedFile, setCroppedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -27,12 +32,20 @@ export default function GuildProfileBannerForm({ currentUrl }: Props) {
 
   const displayUrl = previewUrl || currentUrl
 
+  const resetSelection = () => {
+    setPendingFile(null)
+    setCroppedFile(null)
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(null)
+    setSelectedName(null)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
     setError('')
     if (!file) {
-      setPreviewUrl(null)
-      setSelectedName(null)
+      resetSelection()
       return
     }
     if (file.size > MAX_FILE_SIZE) {
@@ -40,13 +53,23 @@ export default function GuildProfileBannerForm({ currentUrl }: Props) {
       event.target.value = ''
       return
     }
-    setPreviewUrl(URL.createObjectURL(file))
-    setSelectedName(file.name)
+    setPendingFile(file)
+  }
+
+  const handleCropApply = (cropped: File) => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setCroppedFile(cropped)
+    setPreviewUrl(URL.createObjectURL(cropped))
+    setSelectedName(cropped.name)
+    setPendingFile(null)
+  }
+
+  const handleCropCancel = () => {
+    resetSelection()
   }
 
   const handleUpload = () => {
-    const input = fileRef.current
-    const file = input?.files?.[0]
+    const file = croppedFile
     if (!file) {
       setError(t('bannerSelectFirst'))
       return
@@ -61,9 +84,7 @@ export default function GuildProfileBannerForm({ currentUrl }: Props) {
         setError(result.error)
         return
       }
-      setPreviewUrl(null)
-      setSelectedName(null)
-      if (input) input.value = ''
+      resetSelection()
       router.refresh()
     })
   }
@@ -79,9 +100,7 @@ export default function GuildProfileBannerForm({ currentUrl }: Props) {
         setError(result.error)
         return
       }
-      setPreviewUrl(null)
-      setSelectedName(null)
-      if (fileRef.current) fileRef.current.value = ''
+      resetSelection()
       router.refresh()
     })
   }
@@ -152,6 +171,13 @@ export default function GuildProfileBannerForm({ currentUrl }: Props) {
       </div>
 
       <p className="text-gray-600 text-[11px]">{t('bannerFileHint')}</p>
+
+      <ImageCropModal
+        file={pendingFile}
+        aspect={BANNER_ASPECT}
+        onApply={handleCropApply}
+        onCancel={handleCropCancel}
+      />
     </div>
   )
 }
