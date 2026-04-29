@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
-import { Bell, Calendar, Coins, Heart, Swords, Trophy } from 'lucide-react'
+import { Activity, Bell, Calendar, Coins, Heart, Skull, Swords, Trophy } from 'lucide-react'
 import { formatSilver } from '@/lib/silver'
 import { formatGatherTimeFor } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
@@ -31,12 +31,22 @@ function winRateTone(rate: number | null): string {
 
 interface Props {
   data: MyDashboardData
+  // app_settings.me_weekly_stats_enabled — false 거나 weekBattleCount 가 0 이면
+  // 위젯 자체를 숨긴다. 빈 섹션이 보이면 더 시끄럽다.
+  weeklyStatsEnabled?: boolean
 }
 
-export default async function MyHomeDashboardCard({ data }: Props) {
+export default async function MyHomeDashboardCard({ data, weeklyStatsEnabled = false }: Props) {
   const t = await getTranslations('me')
+  const tWeekly = await getTranslations('me.weekly')
   const tRole = await getTranslations('slotRole')
   const locale = await getLocale()
+
+  const showWeekly = weeklyStatsEnabled && data.weekBattleCount > 0
+  const weekWinRatePercent =
+    data.weekWins + data.weekLosses > 0
+      ? Math.round((data.weekWins / (data.weekWins + data.weekLosses)) * 100)
+      : null
 
   const kd = formatKd(data.kills, data.deaths)
   const survivalText =
@@ -141,6 +151,44 @@ export default async function MyHomeDashboardCard({ data }: Props) {
         })}
       </div>
 
+      {showWeekly && (
+        <div className="border-t border-gray-800 pt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Activity size={14} className="text-amber-400" />
+            <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
+              {tWeekly('title')}
+            </h3>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <WeeklyStat
+              icon={<Swords size={14} className="text-amber-400" />}
+              label={tWeekly('battles')}
+              value={data.weekBattleCount.toLocaleString()}
+            />
+            <WeeklyStat
+              icon={<Trophy size={14} className="text-emerald-400" />}
+              label={tWeekly('winRate')}
+              value={weekWinRatePercent == null ? '—' : `${weekWinRatePercent}%`}
+              sub={
+                data.weekWins + data.weekLosses > 0
+                  ? tWeekly('winLossSub', { wins: data.weekWins, losses: data.weekLosses })
+                  : undefined
+              }
+            />
+            <WeeklyStat
+              icon={<Swords size={14} className="text-emerald-400" />}
+              label={tWeekly('kills')}
+              value={data.weekKills.toLocaleString()}
+            />
+            <WeeklyStat
+              icon={<Skull size={14} className="text-rose-400" />}
+              label={tWeekly('deaths')}
+              value={data.weekDeaths.toLocaleString()}
+            />
+          </div>
+        </div>
+      )}
+
       {pendingTotal > 0 && (
         <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-200 rounded-lg px-3 py-2 text-xs">
           <Bell size={14} className="flex-shrink-0" />
@@ -205,6 +253,29 @@ function HomeMetric({
         {value}
       </p>
       {sub && <p className="text-gray-500 text-[10px] mt-0.5 truncate">{sub}</p>}
+    </div>
+  )
+}
+
+function WeeklyStat({
+  icon,
+  label,
+  value,
+  sub,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string
+  sub?: string
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-1.5 text-[11px] text-gray-400 uppercase tracking-wide">
+        {icon}
+        {label}
+      </div>
+      <p className="text-white text-xl font-bold tabular-nums">{value}</p>
+      {sub && <p className="text-gray-500 text-[11px] font-mono">{sub}</p>}
     </div>
   )
 }

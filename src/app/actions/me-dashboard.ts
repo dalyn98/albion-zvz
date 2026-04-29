@@ -35,6 +35,13 @@ export interface MyDashboardData {
   losses: number
   winRate: number | null
   evaluatedOutcomeEvents: number
+  // 지난 7일 서브셋 — battles 배열에서 startedAt 으로 필터해 같은 판정 규칙(low-engagement
+  // 컷 + tracked window) 을 그대로 받는다. 위젯에서 0이면 숨김 처리.
+  weekBattleCount: number
+  weekKills: number
+  weekDeaths: number
+  weekWins: number
+  weekLosses: number
   nextUpcomingEvent: {
     id: string
     title: string
@@ -46,6 +53,8 @@ export interface MyDashboardData {
   pendingExchangeCount: number
   pendingDonationCount: number
 }
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000
 
 type UpcomingSlotEvent = {
   id: string
@@ -145,6 +154,22 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     deaths += b.deathCount
   }
 
+  const weekCutoffMs = Date.now() - WEEK_MS
+  let weekBattleCount = 0
+  let weekKills = 0
+  let weekDeaths = 0
+  let weekWins = 0
+  let weekLosses = 0
+  for (const b of battles) {
+    const ts = Date.parse(b.startedAt)
+    if (Number.isNaN(ts) || ts < weekCutoffMs) continue
+    weekBattleCount += 1
+    weekKills += b.killCount
+    weekDeaths += b.deathCount
+    if (b.outcome === 'win') weekWins += 1
+    else if (b.outcome === 'loss') weekLosses += 1
+  }
+
   const survival = calcSurvivalFromBattles(
     battles.map((b) => ({ startedAt: b.startedAt, hadDeath: b.hadDeath })),
   )
@@ -198,6 +223,11 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     losses: outcomeStats.losses,
     winRate: outcomeStats.winRate,
     evaluatedOutcomeEvents: outcomeStats.evaluatedEvents,
+    weekBattleCount,
+    weekKills,
+    weekDeaths,
+    weekWins,
+    weekLosses,
     nextUpcomingEvent: upcoming,
     pendingRegearCount: regearRes.count ?? 0,
     pendingExchangeCount: exchangeRes.count ?? 0,

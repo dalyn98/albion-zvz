@@ -178,6 +178,9 @@ export type AppSettingKey =
   // 홈 페이지 어드민 전용 "처리 대기" 카드 토글. admin 세션 + 'true' 일 때만 렌더.
   // 모바일에서 사이드바 햄버거를 열지 않아도 처리할 일을 한눈에 볼 수 있게.
   | 'home_admin_pending_card_enabled'
+  // /me 페이지 "이번 주 내 활동" 미니 섹션 토글. 'true' 일 때만 렌더.
+  // 길드별 단계적 롤아웃 — 기본 OFF, 검증된 길드만 'true'.
+  | 'me_weekly_stats_enabled'
 
 // 빈 문자열은 "아직 미설정" 의미로 쓰인다(예: landing_banner_url). 호출부에서
 // 빈 값을 허용할지 fallback을 돌려줄지 결정.

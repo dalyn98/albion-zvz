@@ -2336,6 +2336,14 @@
     "homePendingRegear": "リギア {count}",
     "homePendingExchange": "両替 {count}",
     "homePendingDonation": "寄付 {count}",
+    "weekly": {
+      "title": "今週の活動",
+      "battles": "戦闘",
+      "kills": "キル",
+      "deaths": "デス",
+      "winRate": "勝率",
+      "winLossSub": "{wins}勝 {losses}敗"
+    },
     "exchangeTitle": "両替申請",
     "exchangeDescription": "ポイントをシルバーに両替します。申請後、管理者がゲーム内で直接シルバーを支給し承認処理します。",
     "noExchanges": "両替履歴がありません。",

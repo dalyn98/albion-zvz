@@ -8,6 +8,7 @@ import { listMyParticipation } from '@/app/actions/member'
 import { listTransferCandidates } from '@/app/actions/transfer'
 import { getMyDashboard } from '@/app/actions/me-dashboard'
 import { getMemberAlbionIdentity, isAlbionVerified } from '@/lib/albion-identity'
+import { getAppSetting } from '@/lib/app-settings'
 import { getSessionGuildId } from '@/lib/tenant'
 import { ALBION_SERVER_LABEL } from '@/lib/albion-gameinfo'
 import { formatGatherTimeFor } from '@/lib/gather-time'
@@ -41,6 +42,7 @@ export default async function MePage() {
     { entries: participation },
     { candidates: transferCandidates },
     albionIdentity,
+    weeklyStatsEnabledRaw,
     t,
     tRequests,
     tOnboarding,
@@ -53,6 +55,9 @@ export default async function MePage() {
     listMyParticipation(),
     listTransferCandidates(),
     getMemberAlbionIdentity(session.discordId, guildId),
+    // 길드별 토글 — 기본 OFF. SaaS 다른 테넌트에는 노출하지 않는다. 우리 길드는
+    // 별도 SQL upsert 로 'true' 설정.
+    getAppSetting('me_weekly_stats_enabled', 'false', guildId),
     getTranslations('me'),
     getTranslations('myRequests'),
     getTranslations('albionOnboarding'),
@@ -60,6 +65,8 @@ export default async function MePage() {
     getLocale(),
     getTenantTimezone(guildId),
   ])
+
+  const weeklyStatsEnabled = weeklyStatsEnabledRaw === 'true'
 
   const albionVerified = isAlbionVerified(albionIdentity)
 
@@ -117,7 +124,9 @@ export default async function MePage() {
         </div>
       </section>
 
-      {dashboard && <MyHomeDashboardCard data={dashboard} />}
+      {dashboard && (
+        <MyHomeDashboardCard data={dashboard} weeklyStatsEnabled={weeklyStatsEnabled} />
+      )}
 
       <MyCraftPickupsSection />
 

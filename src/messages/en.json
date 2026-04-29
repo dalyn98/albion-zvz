@@ -2336,6 +2336,14 @@
     "homePendingRegear": "Regear {count}",
     "homePendingExchange": "Exchange {count}",
     "homePendingDonation": "Donation {count}",
+    "weekly": {
+      "title": "This week's activity",
+      "battles": "Battles",
+      "kills": "Kills",
+      "deaths": "Deaths",
+      "winRate": "Win rate",
+      "winLossSub": "{wins}W {losses}L"
+    },
     "exchangeTitle": "Exchange request",
     "exchangeDescription": "Exchange points for silver. After you apply, an admin pays silver in-game and approves the request.",
     "noExchanges": "No exchange history.",

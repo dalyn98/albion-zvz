@@ -2336,6 +2336,14 @@
     "homePendingRegear": "리기어 {count}",
     "homePendingExchange": "환전 {count}",
     "homePendingDonation": "기부 {count}",
+    "weekly": {
+      "title": "이번 주 내 활동",
+      "battles": "전투",
+      "kills": "킬",
+      "deaths": "데스",
+      "winRate": "승률",
+      "winLossSub": "{wins}승 {losses}패"
+    },
     "exchangeTitle": "환전 신청",
     "exchangeDescription": "포인트를 실버로 환전합니다. 신청 후 관리자가 인게임에서 직접 실버를 지급하고 승인 처리합니다.",
     "noExchanges": "환전 내역이 없습니다.",
