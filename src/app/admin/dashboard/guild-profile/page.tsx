@@ -6,8 +6,10 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { loadGuildProfileSettings } from '@/lib/guild-profile'
+import { loadGalleryItems } from '@/lib/guild-profile-gallery'
 import GuildProfileBannerForm from '@/components/GuildProfileBannerForm'
 import GuildProfileEditor from '@/components/GuildProfileEditor'
+import GuildProfileGalleryEditor from '@/components/GuildProfileGalleryEditor'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +24,7 @@ export default async function GuildProfileAdminPage() {
   const t = await getTranslations('adminGuildProfile')
 
   const settings = await loadGuildProfileSettings(tenantId)
+  const galleryItems = settings.enabled ? await loadGalleryItems(tenantId) : []
 
   // 슬러그 미리보기 — 어드민이 "내 프로필 보기" 링크로 새 탭에서 확인할 수 있게.
   const db = getAdminClient()
@@ -70,6 +73,8 @@ export default async function GuildProfileAdminPage() {
       </div>
 
       <GuildProfileBannerForm currentUrl={settings.bannerUrl} />
+
+      <GuildProfileGalleryEditor items={galleryItems} />
 
       <GuildProfileEditor
         initialDescription={settings.description}

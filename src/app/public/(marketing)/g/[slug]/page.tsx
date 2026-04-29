@@ -6,6 +6,7 @@ import { ExternalLink, Users, Swords, ShieldCheck, Trophy } from 'lucide-react'
 import MarketingNav from '@/components/MarketingNav'
 import { resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { loadGuildProfileSettings, ACCENT_CLASS_MAP } from '@/lib/guild-profile'
+import { loadGalleryItems } from '@/lib/guild-profile-gallery'
 import { getAdminClient } from '@/lib/supabase-admin'
 
 export const dynamic = 'force-dynamic'
@@ -88,11 +89,14 @@ export default async function GuildProfilePage({
   const settings = await loadGuildProfileSettings(tenant.tenantId)
   if (!settings.enabled) notFound()
 
-  const stats = await loadSectionStats(tenant.tenantId, {
-    showMembers: settings.showMembers,
-    showBattles: settings.showBattles,
-    showRegearStats: settings.showRegearStats,
-  })
+  const [stats, galleryItems] = await Promise.all([
+    loadSectionStats(tenant.tenantId, {
+      showMembers: settings.showMembers,
+      showBattles: settings.showBattles,
+      showRegearStats: settings.showRegearStats,
+    }),
+    loadGalleryItems(tenant.tenantId),
+  ])
 
   const t = await getTranslations('publicGuildProfile')
   const accent = ACCENT_CLASS_MAP[settings.accentColor]
@@ -156,6 +160,37 @@ export default async function GuildProfilePage({
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+        {/* 갤러리 그리드 — 항목이 있을 때만 노출 */}
+        {galleryItems.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="text-gray-400 text-sm font-bold uppercase tracking-widest">
+              {t('galleryHeading')}
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {galleryItems.map((item) => (
+                <figure
+                  key={item.id}
+                  className={`rounded-xl overflow-hidden border ${accent.border} bg-gray-900/50`}
+                >
+                  <div className="aspect-[16/9] bg-black">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.imageUrl}
+                      alt={item.caption || tenant.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  {item.caption && (
+                    <figcaption className="px-3 py-2 text-xs text-gray-300">
+                      {item.caption}
+                    </figcaption>
+                  )}
+                </figure>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* 통계 카드 그리드 */}
         {(settings.showMembers ||
           settings.showBattles ||
@@ -206,11 +241,12 @@ export default async function GuildProfilePage({
           </section>
         )}
 
-        {/* 어떤 섹션도 켜져있지 않을 때 */}
+        {/* 어떤 섹션도 켜져있지 않을 때 (갤러리도 비어있을 때) */}
         {!settings.showMembers &&
           !settings.showBattles &&
           !settings.showRegearStats &&
-          !settings.showLeaderboard && (
+          !settings.showLeaderboard &&
+          galleryItems.length === 0 && (
             <p className="text-gray-500 text-sm text-center py-12">{t('emptySections')}</p>
           )}
 
