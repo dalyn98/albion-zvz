@@ -1,6 +1,11 @@
+import DocImage from '@/components/DocImage'
+import DocCardGrid from '@/components/DocCardGrid'
+
 # Albion Guild Manager 사용 안내서
 
 알비온 길드 운영을 한 곳에서 자동화하는 서비스입니다. 디스코드 봇을 길드 서버에 초대하면 킬보드 추적, 자동 리기어 보상, 길드 상점, 통계와 업적까지 모두 사용할 수 있습니다.
+
+<DocImage caption="Albion Guild Manager 메인 화면 / 디스코드 봇 연동" />
 
 ## 빠른 시작
 
@@ -9,17 +14,20 @@
 3. **알비온 캐릭터 연결** — 길드원이 사이트에 처음 들어오면 본인의 알비온 캐릭터를 연결합니다.
 4. **첫 ZvZ 후** — 킬보드가 자동으로 들어오고, 블랙존 사망은 리기어 청구가 자동으로 만들어집니다.
 
-## 어떤 기능이 있나
+## 기능 둘러보기
 
-- **디스코드 봇 + 길드 전용 사이트** — 봇 1개로 길드별로 독립된 사이트와 데이터.
-- **알비온 킬보드 자동 추적** — 길드원의 킬·데스를 정기적으로 가져와 사이트에 누적.
-- **ZvZ 전투 집계 + 이벤트 보고서** — 한 판마다 참가자·결과 정리, 이벤트(정기 ZvZ 등) 단위 묶음.
-- **자동/수동 리기어** — 사망 시 청구 자동 생성, 실버 또는 길드 제작으로 보상.
-- **길드 상점** — 포인트로 길드 금고 장비를 살 수 있는 내부 상점, 환율 조정으로 할인 운영.
-- **업적 · 통계 · 리더보드** — 무기 사용 패턴, 생존률, 길드 안 순위.
-- **어드민 설정** — 가격, 권한, 자동화 토글 등 운영 정책 관리.
-
-좌측 목차에서 각 기능의 자세한 안내와 **왜 이렇게 만들어졌는지** 를 볼 수 있습니다.
+<DocCardGrid cards={[
+  { href: '/docs/onboarding', title: '봇 초대 & 첫 설정', description: '디스코드 봇 초대, 사이트 주소 / 홈 길드 / 보상 정책 설정.' },
+  { href: '/docs/members', title: '멤버 관리 & 길드 동기화', description: '디스코드와 알비온 캐릭터 1:1 연결, 알비온 길드 명단 자동 동기화.' },
+  { href: '/docs/killboard', title: '킬보드 추적', description: '알비온 공식 데이터에서 길드원 킬·데스 자동 누적.' },
+  { href: '/docs/battles', title: '전투 집계 & 이벤트 보고서', description: 'ZvZ 한 판 단위 정리와 길드 이벤트 보고서.' },
+  { href: '/docs/regear', title: '리기어 청구', description: '자동 / 수동 청구, 실버 / 제작 듀얼 모드, 어드민 승인 흐름.' },
+  { href: '/docs/shop', title: '길드 상점', description: '포인트로 길드 금고 장비를 사는 내부 상점, 환율로 일관 운영.' },
+  { href: '/docs/craft', title: '제작 리기어', description: '제작 모드 청구를 길드 제작자가 만들어 박스로 전달.' },
+  { href: '/docs/leaderboard', title: '업적 · 통계 · 리더보드', description: '무기 사용 패턴, 생존률 업적, 길드 안 순위.' },
+  { href: '/docs/dashboard', title: '개인 대시보드', description: '본인 청구 / 보상 / 설정을 한 화면에서 관리.' },
+  { href: '/docs/admin', title: '어드민 설정', description: '운영 정책 토글, 권한 체계, 인앱 운영 가이드.' },
+]} />
 
 ## 이 문서가 답하는 질문
 

@@ -5,9 +5,15 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { ChevronDown, Menu } from 'lucide-react'
 
+interface SidebarSubItem {
+  href: string
+  label: string
+}
+
 interface SidebarItem {
   href: string
   label: string
+  subItems?: SidebarSubItem[]
 }
 
 interface SidebarSection {
@@ -17,14 +23,15 @@ interface SidebarSection {
 
 interface Props {
   sections: SidebarSection[]
-  // i18n string for the mobile collapsed-state toggle. 서버에서 미리 풀어 prop
-  // 으로 받음 — RSC → client 에 t 함수 prop 전달 금지 컨벤션.
   mobileMenuLabel: string
 }
 
-// docs 자체 sidebar. 데스크탑은 좌측 고정, 모바일은 위쪽 토글로 접힘.
-// active 표시는 client 의 usePathname 으로 정확히 매칭 — server-side x-pathname
-// 만으로는 client side navigation 이후 active 가 갱신되지 않는다.
+function isItemActive(pathname: string, item: SidebarItem): boolean {
+  if (pathname === item.href) return true
+  if (item.subItems?.some((sub) => sub.href === pathname)) return true
+  return pathname.startsWith(`${item.href}/`)
+}
+
 export default function DocsSidebar({ sections, mobileMenuLabel }: Props) {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -58,6 +65,8 @@ export default function DocsSidebar({ sections, mobileMenuLabel }: Props) {
             <ul className="space-y-0.5">
               {section.items.map((item) => {
                 const isActive = pathname === item.href
+                const hasActiveSub = isItemActive(pathname, item) && !isActive
+                const showSubItems = item.subItems && (isActive || hasActiveSub)
                 return (
                   <li key={item.href}>
                     <Link
@@ -66,11 +75,35 @@ export default function DocsSidebar({ sections, mobileMenuLabel }: Props) {
                       className={`block px-3 py-1.5 rounded-md text-sm transition-colors ${
                         isActive
                           ? 'bg-amber-500/15 text-amber-200 font-semibold'
+                          : hasActiveSub
+                          ? 'text-amber-200 font-semibold'
                           : 'text-gray-400 hover:text-white hover:bg-gray-800/60'
                       }`}
                     >
                       {item.label}
                     </Link>
+                    {showSubItems && item.subItems && (
+                      <ul className="mt-0.5 ml-3 border-l border-gray-800 pl-2 space-y-0.5">
+                        {item.subItems.map((sub) => {
+                          const subActive = pathname === sub.href
+                          return (
+                            <li key={sub.href}>
+                              <Link
+                                href={sub.href}
+                                onClick={() => setMobileOpen(false)}
+                                className={`block px-3 py-1 rounded-md text-xs transition-colors ${
+                                  subActive
+                                    ? 'bg-amber-500/15 text-amber-200 font-semibold'
+                                    : 'text-gray-500 hover:text-white hover:bg-gray-800/60'
+                                }`}
+                              >
+                                {sub.label}
+                              </Link>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    )}
                   </li>
                 )
               })}
