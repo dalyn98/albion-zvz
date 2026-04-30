@@ -2,8 +2,16 @@
 // 시간창에서 tenant_battle_records 를 찾아 albion_battle_id 집합을 돌려준다.
 //
 // killboard_events 는 이 albion_battle_id 와 정확 매칭 (`.in('battle_id', ...)`) 으로
-// 필터링되므로, 솔로 갱크/던전/딴 전투 사망은 자동으로 제외된다. low-engagement
-// 컷도 동일하게 적용 — 통계 모듈과 일관된 기준.
+// 필터링되므로, 솔로 갱크/던전/딴 전투 사망은 자동으로 제외된다. tenant_battle_records
+// insert 시 `buildProvisionalTenantRow` 가 `MATCHUP_MIN_SIZE = 10` 을 양쪽에 적용 —
+// 홈/메인 상대 둘 다 10명 이상이어야 행이 생성되므로 갱크 행은 애초에 들어오지 않는다.
+//
+// **per-row low-engagement 컷은 적용하지 않는다**: 한 전투에 다중 알라이언스가 있을 때
+// `tenant_battle_records` 는 main_opponent_force_key 별로 행이 분리되어 들어가서
+// 한 행의 home_kills/home_deaths 가 "특정 상대와의 매치업" 만 잡는다. 다섯 진영 전투에서
+// 우리 길드가 실제로 22 데스를 봐도 메인 상대 한 진영 행에는 1 데스만 잡혀
+// `isLowEngagement` 컷에 걸려 자동 리기어가 누락되는 사례 발생 (2026-04-30 진단,
+// 배틀 465454579). MATCHUP_MIN_SIZE 가 이미 갱크를 거른다.
 //
 // 시간창 선택:
 //   - lower bound: battle_started_at - 15min (호스트가 직전에 마킹 못한 경우 보호)
@@ -20,7 +28,6 @@
 // 관련 메모: feedback_albion_zvz_achievement_rules.md (규칙 1, /battles 판정 규칙)
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { isHighEngagement } from '@/lib/low-engagement-cut'
 
 export const MATCH_WINDOW_BEFORE_MS = 15 * 60 * 1000
 export const MATCH_WINDOW_AFTER_MS = 4 * 60 * 60 * 1000
@@ -39,8 +46,6 @@ export interface MatchedTrackedBattle {
 
 interface TenantBattleRow {
   started_at: string
-  home_kills: number
-  home_deaths: number
   home_team_size: number
   battle_records:
     | {
@@ -66,7 +71,8 @@ function normalizeAlbionBattleId(raw: number | string | null): number | null {
 }
 
 // 한 이벤트의 battle_started_at 주변에서 tracked battle 후보를 찾는다.
-// low-engagement 컷 통과한 것만 반환. 빈 배열 = 자동 리기어 0건 발생해야 함.
+// per-row low-engagement 컷은 적용하지 않음 (위 주석 참조).
+// 같은 albion_battle_id 가 다중 매치업으로 여러 행에 들어갈 수 있어 dedupe 한다.
 export async function findTrackedBattleIdsForEvent(
   db: SupabaseClient,
   guildId: string,
@@ -80,7 +86,7 @@ export async function findTrackedBattleIdsForEvent(
   const { data, error } = await db
     .from('tenant_battle_records')
     .select(
-      'started_at, home_kills, home_deaths, home_team_size, battle_records!inner(albion_battle_id, cluster_name, ended_at)',
+      'started_at, home_team_size, battle_records!inner(albion_battle_id, cluster_name, ended_at)',
     )
     .eq('guild_id', guildId)
     .gte('started_at', lowerIso)
@@ -89,21 +95,15 @@ export async function findTrackedBattleIdsForEvent(
     throw new Error(`tenant_battle_records query failed: ${error.message}`)
   }
 
+  const seen = new Set<number>()
   const out: MatchedTrackedBattle[] = []
   for (const row of (data ?? []) as TenantBattleRow[]) {
-    if (
-      !isHighEngagement({
-        homeKills: row.home_kills,
-        homeDeaths: row.home_deaths,
-        homeTeamSize: row.home_team_size,
-      })
-    ) {
-      continue
-    }
     const br = Array.isArray(row.battle_records) ? row.battle_records[0] : row.battle_records
     if (!br) continue
     const albionBattleId = normalizeAlbionBattleId(br.albion_battle_id)
     if (albionBattleId === null) continue
+    if (seen.has(albionBattleId)) continue
+    seen.add(albionBattleId)
     // ended_at 은 schema 상 NOT NULL 이라 항상 존재. 방어적으로 fallback.
     const endedAtIso = br.ended_at ?? row.started_at
     out.push({
