@@ -850,24 +850,22 @@
     "pageTitle": "設定",
     "pageDescription": "サイト全体の設定をカテゴリ別に管理します。",
     "categoryLabel": "設定カテゴリ",
-    "tabNotifications": "イベント通知",
-    "tabRewards": "役割別リギア金額",
-    "tabBasic": "基本設定",
     "tabLanding": "ランディングページ",
-    "tabNotices": "告知",
     "tabPermissions": "権限",
-    "tabEvents": "イベント/リギア",
+    "tabEvents": "イベント",
+    "tabRegear": "リギア",
+    "tabGuild": "ギルド",
     "rewardsDescription": "役割ごとのリギア請求上限です。ギルドメンバーはこの金額以下の範囲で直接請求金額を入力して申請し、承認時に請求金額がポイントとして支給されます。上限が 0 の役割はリギア申請がブロックされます。",
-    "basicGroupTitle": "Albion 認証 / メンバー管理",
-    "basicGroupDescription": "Albion サーバー・ホームギルド、未認証メンバーのアクセス可否、アクティブメンバー役割追跡など、ギルド認証・メンバーシップに関わる設定です。",
-    "regearGroupTitle": "リギア設定",
-    "regearGroupDescription": "リギア申請の受付時間、支給比率、認証要求、自動リギアなど、リギアフロー全体を制御します。",
+    "guildGroupTitle": "ギルド情報",
+    "guildGroupDescription": "Albion サーバー・ホームギルド、タイムゾーン、未認証メンバーのアクセス許可など、ギルドそのものに紐づく設定です。",
+    "regearGroupTitle": "リギア運営",
+    "regearGroupDescription": "リギアモード(自動/制作/認証)、申請制限、支給比率、役割別上限など、リギアフロー全体を制御します。",
+    "regearNoticeGroupTitle": "リギアページのお知らせ",
+    "regearNoticeGroupDescription": "/regear ページ上部に表示されるバナー告知です。空欄にすると非表示になります。",
     "eventOpsGroupTitle": "イベント運営",
-    "eventOpsGroupDescription": "イベント自動開始、CD バッジ表示役割、役割別リギア上限など、イベント進行に直接関わるオプションです。",
-    "discordNoticeGroupTitle": "Discord 通知",
-    "discordNoticeGroupDescription": "新しいイベントが公開されたときに Discord チャンネルへ自動送信されるメッセージです。",
-    "inPageNoticeGroupTitle": "サイト内バナー告知",
-    "inPageNoticeGroupDescription": "各ページ上部に表示されるバナー告知です。空欄にするとバナーは非表示になります。",
+    "eventOpsGroupDescription": "イベント自動開始、CD バッジ表示役割など、イベント進行に直接関わるオプションです。",
+    "eventNoticeGroupTitle": "イベント通知 / お知らせ",
+    "eventNoticeGroupDescription": "新規イベント登録時の Discord 通知、開始前 DM、/events ページ上部のバナー告知です。",
     "notificationsTitle": "イベント作成通知メッセージ",
     "notificationsDescription": "新しいイベントが作成されたときに Discord チャンネルの先頭に表示される文言です。メッセージの下にはサイトのメインリンクが自動的に添付されます。",
     "messageLabel": "メッセージ *",
@@ -960,7 +958,18 @@
     "title": "イベント作成権限",
     "description": "カテゴリごとにイベントを作成できる Discord 役割を指定します。「全体」に指定した役割はすべてのカテゴリに権限を付与し、カテゴリ別の項目はそのカテゴリにのみ追加で権限を付与します。",
     "legacyTitle": "全体（すべてのカテゴリ）",
-    "legacyDescription": "選択した役割を持つメンバーはすべてのカテゴリでイベントを作成できます。空にするとカテゴリ別設定のみが適用されます。"
+    "legacyDescription": "選択した役割を持つメンバーはすべてのカテゴリでイベントを作成できます。空にするとカテゴリ別設定のみが適用されます。",
+    "categoryDisclosureLabel": "カテゴリ別の権限委任"
+  },
+  "adminRegearMode": {
+    "title": "リギア運営モード",
+    "description": "リギアフローの主要スイッチ 3 種 — 自動生成、制作モード、認証ゲート。それぞれ独立して切り替えられます。",
+    "autoLabel": "自動リギア",
+    "autoHint": "イベント終了後にキルログの戦死を AODP 価格で換算し、pending 請求を自動生成します。OFF にすると手動申請のみ可能。",
+    "craftLabel": "制作リギア",
+    "craftHint": "新規請求を制作者ボックスのピックアップフローで処理します。OFF にするとすべての請求がシルバー支給になります。",
+    "verifyLabel": "認証ゲート",
+    "verifyHint": "ON にすると Albion ニックネーム未認証のギルドメンバーはリギア申請をブロックされ、認証ページへ案内されます。"
   },
   "adminActiveMemberRoles": {
     "title": "活動メンバー役割",
@@ -1322,20 +1331,6 @@
     "clearLabel": "クリア",
     "readOnlyHint": "処理済みの申請はビルドを編集できません。"
   },
-  "adminAutoRegear": {
-    "title": "自動リギア",
-    "descriptionLine1": "イベント終了後にキルボードから死亡記録を取得し、AODP 価格で支給額を計算して pending 状態で作成します。管理者が承認するまでポイントは付与されません。",
-    "descriptionLine2": "料率(リギア支給率)・AODP 設定をそのまま使用し、パーティに割り当てられていないメンバーは除外されます。ビルドごとの除外チェックボックスは、このオプションが ON の時だけスロット編集画面に表示されます。",
-    "toggleLabel": "自動リギアを有効化",
-    "toggleHint": "OFF にすると従来の手動申請フローのみが動作します。"
-  },
-  "adminCraftToggle": {
-    "title": "クラフトリギア",
-    "descriptionLine1": "ギルドの製作者が装備を作って保管箱で渡すモードです。ON にすると新規リギアはすべてクラフト支給扱いになり、サイドバーに「クラフト運用」「在庫」タブが表示されます。",
-    "descriptionLine2": "製作者の登録・保管箱の番号範囲・有効期限などの詳細設定は管理者の [クラフトリギア] タブで行います。OFF の場合はすべてシルバー支給で処理され、管理者が個別の申請をシルバーへ切り替えることは常に可能です。",
-    "toggleLabel": "クラフトリギアを有効化",
-    "toggleHint": "OFF にすると新規リギアはすべてシルバー支給になり、関連サイドバータブも消えます。"
-  },
   "adminAllowUnverified": {
     "title": "未認証メンバーのサイトアクセス許可",
     "description": "OFF にすると、アルビオン認証を完了していないメンバーはサイトに入ると自動でオンボーディングページに飛ばされ、認証前は他のページを利用できません。管理者・ゲスト招待リンク・公開パスは常に対象外です。",
@@ -1355,13 +1350,6 @@
     "title": "CD バッジ表示の役割",
     "descriptionLine1": "武器の主要スキルに表示される効果クールタイム(レザーアーマー/食事による短縮を含む)を、どの役割に表示するかを選びます。",
     "descriptionLine2": "既定は DPS のみ表示 — 他の役割も必要ならチェックしてください。何も選ばないとどのスロットにもバッジは表示されません。"
-  },
-  "adminRegearVerify": {
-    "title": "リギア申請にアルビオン認証を必須化",
-    "descriptionLine1": "ON にすると、アルビオン ID を認証していないメンバーはリギア申請ができず、申請を試みるとプロフィール認証ページへ誘導するボタンが表示されます。",
-    "descriptionLine2": "OFF にすると未認証のままでもリギア申請が可能になります(従来の既定値に戻したい場合)。",
-    "toggleLabel": "認証必須",
-    "toggleHint": "未認証ユーザーのリギア申請をブロックします。"
   },
   "adminShopSilverRate": {
     "title": "ショップ割引率",

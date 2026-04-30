@@ -850,24 +850,22 @@
     "pageTitle": "설정",
     "pageDescription": "사이트 전역 설정을 카테고리별로 관리합니다.",
     "categoryLabel": "설정 카테고리",
-    "tabNotifications": "이벤트 알림",
-    "tabRewards": "역할별 리기어 금액",
-    "tabBasic": "기본 설정",
     "tabLanding": "대문 페이지",
-    "tabNotices": "공지",
     "tabPermissions": "권한",
-    "tabEvents": "이벤트/리기어",
+    "tabEvents": "이벤트",
+    "tabRegear": "리기어",
+    "tabGuild": "길드",
     "rewardsDescription": "역할별 리기어 청구 상한입니다. 길드원은 이 금액 이하 범위에서 직접 청구 금액을 입력해 신청하고, 승인 시 청구 금액이 포인트로 지급됩니다. 상한이 0인 역할은 리기어 신청이 차단됩니다.",
-    "basicGroupTitle": "Albion 인증 / 멤버 관리",
-    "basicGroupDescription": "Albion 서버·홈 길드, 미인증 멤버 접근 허용 여부, 활성 멤버 역할 추적까지 길드 인증/멤버십과 직접 관련된 설정입니다.",
-    "regearGroupTitle": "리기어 설정",
-    "regearGroupDescription": "리기어 신청 가능 시간, 지급 비율, 인증 요구, 자동 리기어 등 리기어 흐름 전반을 제어합니다.",
+    "guildGroupTitle": "길드 정보",
+    "guildGroupDescription": "Albion 서버·홈 길드, 시간대, 미인증 멤버 접근 등 길드 자체에 묶인 설정입니다.",
+    "regearGroupTitle": "리기어 운영",
+    "regearGroupDescription": "리기어 모드(자동/제작/인증), 신청 제한, 지급 비율, 역할별 상한 등 리기어 흐름을 제어합니다.",
+    "regearNoticeGroupTitle": "리기어 페이지 공지",
+    "regearNoticeGroupDescription": "/regear 페이지 상단에 노출되는 배너 공지입니다. 비워 두면 숨김 처리됩니다.",
     "eventOpsGroupTitle": "이벤트 운영",
-    "eventOpsGroupDescription": "이벤트 자동 시작, CD 뱃지 노출 역할, 역할별 리기어 상한 등 이벤트 진행과 직접 관련된 옵션입니다.",
-    "discordNoticeGroupTitle": "Discord 알림",
-    "discordNoticeGroupDescription": "새 이벤트가 발행될 때 Discord 채널에 자동 발송되는 메시지입니다.",
-    "inPageNoticeGroupTitle": "사이트 내 배너 공지",
-    "inPageNoticeGroupDescription": "각 페이지 상단에 노출되는 배너 공지입니다. 비워 두면 배너가 숨김 처리됩니다.",
+    "eventOpsGroupDescription": "이벤트 자동 시작, CD 뱃지 노출 역할 등 이벤트 진행과 직접 관련된 옵션입니다.",
+    "eventNoticeGroupTitle": "이벤트 알림 / 공지",
+    "eventNoticeGroupDescription": "새 이벤트 등록 시 Discord 알림과 임박 DM, /events 페이지 상단 배너입니다.",
     "notificationsTitle": "이벤트 생성 알림 메시지",
     "notificationsDescription": "새 이벤트가 생성될 때 Discord 채널 상단에 표시되는 문구입니다. 메시지 아래에는 사이트 메인 링크가 자동으로 붙습니다.",
     "messageLabel": "메시지 *",
@@ -960,7 +958,18 @@
     "title": "이벤트 생성 권한",
     "description": "각 카테고리별로 이벤트를 생성할 수 있는 Discord 역할을 지정합니다. '전체' 에 지정한 역할은 모든 카테고리에 권한을 부여하고, 카테고리별 항목은 해당 카테고리에만 권한을 추가로 부여합니다.",
     "legacyTitle": "전체 (모든 카테고리)",
-    "legacyDescription": "선택한 역할을 가진 구성원은 모든 카테고리의 이벤트를 생성할 수 있습니다. 비어 있으면 카테고리별 설정만 적용됩니다."
+    "legacyDescription": "선택한 역할을 가진 구성원은 모든 카테고리의 이벤트를 생성할 수 있습니다. 비어 있으면 카테고리별 설정만 적용됩니다.",
+    "categoryDisclosureLabel": "카테고리별 권한 위임"
+  },
+  "adminRegearMode": {
+    "title": "리기어 운영 모드",
+    "description": "리기어 흐름의 큰 스위치 3개 — 자동 생성, 제작자 모드, 인증 게이트. 각각 독립적으로 켜고 끌 수 있어요.",
+    "autoLabel": "자동 리기어",
+    "autoHint": "이벤트 종료 후 킬로그 사망을 AODP 시세로 환산해 pending 청구를 자동 생성합니다. 끄면 수동 신청만 가능.",
+    "craftLabel": "제작 리기어",
+    "craftHint": "신규 청구를 제작자 박스 픽업 흐름으로 처리합니다. 끄면 모든 청구가 실버 지급으로 처리됩니다.",
+    "verifyLabel": "인증 게이트",
+    "verifyHint": "켜면 알비온 닉네임 미인증 길드원의 리기어 신청을 차단하고 인증 페이지로 안내합니다."
   },
   "adminActiveMemberRoles": {
     "title": "활동 회원 역할",
@@ -1322,20 +1331,6 @@
     "clearLabel": "비우기",
     "readOnlyHint": "이미 처리된 청구는 빌드를 수정할 수 없습니다."
   },
-  "adminAutoRegear": {
-    "title": "자동 리기어",
-    "descriptionLine1": "이벤트 종료 후 킬보드에서 사망 기록을 찾아 AODP 시세로 지급액을 계산해 pending 상태로 생성합니다. 관리자 승인 전에는 포인트 지급 없음.",
-    "descriptionLine2": "요율(리기어 지급률)·AODP 설정을 그대로 따르며, 파티에 배정되지 않은 멤버는 제외됩니다. 빌드별 제외 체크박스는 이 옵션이 켜져 있을 때만 슬롯 편집기에 나타납니다.",
-    "toggleLabel": "자동 리기어 활성화",
-    "toggleHint": "끄면 기존 수동 신청 흐름만 동작합니다."
-  },
-  "adminCraftToggle": {
-    "title": "제작 리기어",
-    "descriptionLine1": "길드 제작자가 부품을 만들어 보관함으로 전달하는 모드. 켜면 모든 신규 리기어가 제작 모드로 처리되고, 사이드바에 제작 운영·재고 탭이 노출됩니다.",
-    "descriptionLine2": "제작자 등록·보관함 번호 범위·만료 일수 등 세부 설정은 어드민의 [제작 리기어] 탭에서 관리합니다. 토글이 OFF 면 모든 리기어가 실버 지급으로 처리되며, 관리자가 개별 청구를 실버로 변환하는 것은 항상 가능합니다.",
-    "toggleLabel": "제작 리기어 활성화",
-    "toggleHint": "끄면 모든 신규 리기어가 실버로 처리되고, 관련 사이드바 탭이 사라집니다."
-  },
   "adminAllowUnverified": {
     "title": "미인증 길드원 접속 허용",
     "description": "끄면 알비온 인증을 마치지 않은 길드원은 사이트 진입 시 자동으로 온보딩 페이지로 이동되며, 인증 전에는 다른 페이지를 사용할 수 없습니다. 관리자·게스트 초대 링크·공개 경로는 항상 제외됩니다.",
@@ -1355,13 +1350,6 @@
     "title": "CD 뱃지 표시 역할군",
     "descriptionLine1": "무기 주력 스킬에 붙는 효과 쿨타임(가죽 갑옷/음식 감소 포함)을 어떤 역할군에 표시할지 선택합니다.",
     "descriptionLine2": "기본은 DPS 만 노출 — 다른 역할군도 필요하면 체크하세요. 선택이 없으면 어느 슬롯에도 뱃지가 뜨지 않습니다."
-  },
-  "adminRegearVerify": {
-    "title": "리기어 신청 시 알비온 인증 필요",
-    "descriptionLine1": "켜면 알비온 닉네임을 인증하지 않은 길드원은 리기어 신청을 할 수 없고, 신청 시도 시 프로필 인증 페이지로 안내하는 버튼이 노출됩니다.",
-    "descriptionLine2": "끄면 미인증 상태로도 리기어 신청이 가능합니다 (기존 기본값으로 되돌리려 할 때).",
-    "toggleLabel": "인증 필수",
-    "toggleHint": "미인증 유저의 리기어 신청을 차단합니다."
   },
   "adminShopSilverRate": {
     "title": "상점 할인율",

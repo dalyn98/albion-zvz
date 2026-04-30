@@ -850,24 +850,22 @@
     "pageTitle": "Settings",
     "pageDescription": "Manage site-wide settings by category.",
     "categoryLabel": "Settings category",
-    "tabNotifications": "Event notifications",
-    "tabRewards": "Role regear caps",
-    "tabBasic": "Basic",
     "tabLanding": "Landing page",
-    "tabNotices": "Notices",
     "tabPermissions": "Permissions",
-    "tabEvents": "Events / Regear",
+    "tabEvents": "Events",
+    "tabRegear": "Regear",
+    "tabGuild": "Guild",
     "rewardsDescription": "Regear claim caps per role. Guild members enter a claim amount up to this cap, and the claimed amount is paid out as points on approval. Roles with a 0 cap cannot submit regear requests.",
-    "basicGroupTitle": "Albion verification / member management",
-    "basicGroupDescription": "Settings tied to guild verification and membership: Albion server & home guild, unverified-member access, and active-member role tracking.",
-    "regearGroupTitle": "Regear settings",
-    "regearGroupDescription": "Controls the regear flow end-to-end: claim window, payout rate, verification requirement, and auto-regear.",
+    "guildGroupTitle": "Guild info",
+    "guildGroupDescription": "Settings bound to the guild itself: Albion server & home guild, timezone, and unverified-member access.",
+    "regearGroupTitle": "Regear operations",
+    "regearGroupDescription": "Controls the regear flow: mode (auto/craft/verification), claim limits, payout rate, and per-role caps.",
+    "regearNoticeGroupTitle": "Regear page notice",
+    "regearNoticeGroupDescription": "Banner notice shown at the top of /regear. Leave blank to hide.",
     "eventOpsGroupTitle": "Event operations",
-    "eventOpsGroupDescription": "Options tied to running events: auto-start, CD badge roles, and per-role regear caps.",
-    "discordNoticeGroupTitle": "Discord notifications",
-    "discordNoticeGroupDescription": "Message automatically posted to the Discord channel when a new event is published.",
-    "inPageNoticeGroupTitle": "In-site banner notices",
-    "inPageNoticeGroupDescription": "Banner notices shown at the top of each page. Leave blank to hide the banner.",
+    "eventOpsGroupDescription": "Options tied to running events: auto-start and CD badge roles.",
+    "eventNoticeGroupTitle": "Event notifications / notices",
+    "eventNoticeGroupDescription": "Discord notifications when a new event is published, reminder DMs, and the banner at the top of /events.",
     "notificationsTitle": "Event-created notification message",
     "notificationsDescription": "The text shown at the top of the Discord channel message when a new event is created. The site's main link is automatically appended below.",
     "messageLabel": "Message *",
@@ -960,7 +958,18 @@
     "title": "Event creator permissions",
     "description": "Pick which Discord roles can create events in each category. Roles under 'All' grant permission for every category; category-specific entries add permission for that category only.",
     "legacyTitle": "All (every category)",
-    "legacyDescription": "Members with any of these roles can create events in every category. Leave empty to fall back to per-category settings only."
+    "legacyDescription": "Members with any of these roles can create events in every category. Leave empty to fall back to per-category settings only.",
+    "categoryDisclosureLabel": "Per-category permission delegation"
+  },
+  "adminRegearMode": {
+    "title": "Regear operating modes",
+    "description": "Three master switches for the regear flow — auto-create, craft mode, and the verification gate. Each toggles independently.",
+    "autoLabel": "Auto regear",
+    "autoHint": "After events end, auto-creates pending claims by reading killboard deaths and pricing them at AODP rates. Off = manual claims only.",
+    "craftLabel": "Craft regear",
+    "craftHint": "Routes new claims through the crafter box pickup flow. Off = all claims pay out in silver.",
+    "verifyLabel": "Verification gate",
+    "verifyHint": "On = unverified guild members are blocked from claiming and routed to the Albion verification page."
   },
   "adminActiveMemberRoles": {
     "title": "Active member roles",
@@ -1322,20 +1331,6 @@
     "clearLabel": "Clear",
     "readOnlyHint": "Build info can no longer be edited on a processed request."
   },
-  "adminAutoRegear": {
-    "title": "Auto regear",
-    "descriptionLine1": "After an event ends, the cron pulls death records from the killboard, prices them with AODP, and creates pending regear rows. No points are paid until an admin approves each row.",
-    "descriptionLine2": "Uses the existing regear payout rate and AODP settings. Members not assigned to a party are skipped. The per-build exclude checkbox only appears in the slot editor while this option is on.",
-    "toggleLabel": "Enable auto regear",
-    "toggleHint": "When off, only the existing manual request flow runs."
-  },
-  "adminCraftToggle": {
-    "title": "Crafted regear",
-    "descriptionLine1": "A mode where guild crafters build the gear and drop it into numbered boxes. When on, every new regear is treated as crafted and the sidebar shows the Craft admin and Inventory tabs.",
-    "descriptionLine2": "Crafter assignments, box-number ranges, and expiry are managed in the admin Craft tab. When off, every regear is paid out in silver. Admins can still flip an individual claim to silver at approval time.",
-    "toggleLabel": "Enable crafted regear",
-    "toggleHint": "When off, every new regear is paid in silver and the related sidebar tabs disappear."
-  },
   "adminAllowUnverified": {
     "title": "Allow unverified members to access the site",
     "description": "When off, members who haven't completed Albion verification are redirected to the onboarding page on site entry and can't use any other page until verified. Admins, guest invite links, and public paths are always exempt.",
@@ -1355,13 +1350,6 @@
     "title": "CD badge role filter",
     "descriptionLine1": "Pick which roles show the weapon skill cooldown badge (including leather armor / food reductions).",
     "descriptionLine2": "Defaults to DPS only — check other roles if needed. If nothing is selected, no slot shows the badge."
-  },
-  "adminRegearVerify": {
-    "title": "Require Albion verification for regear",
-    "descriptionLine1": "When on, members who haven't verified their Albion name can't submit regear requests; they see a button linking to the profile verification page instead.",
-    "descriptionLine2": "When off, unverified members can still submit regear requests (use this to revert to the old default).",
-    "toggleLabel": "Verification required",
-    "toggleHint": "Blocks regear submissions from unverified users."
   },
   "adminShopSilverRate": {
     "title": "Shop discount rate",

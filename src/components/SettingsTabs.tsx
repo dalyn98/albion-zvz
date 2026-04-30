@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { Image as ImageIcon, Megaphone, Settings, Shield, Timer } from 'lucide-react'
+import { Image as ImageIcon, Shield, Timer, Coins, Building2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import NotificationSettingsForm from './NotificationSettingsForm'
 import EventDmLeadMinutesForm from './EventDmLeadMinutesForm'
@@ -21,40 +21,38 @@ import AlbionHomeGuildForm from './AlbionHomeGuildForm'
 import AllowUnverifiedAccessForm from './AllowUnverifiedAccessForm'
 import TenantTimezoneForm from './TenantTimezoneForm'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
-import AutoRegearToggleForm from './AutoRegearToggleForm'
-import CraftRegearToggleForm from './CraftRegearToggleForm'
-import RegearRequireVerificationForm from './RegearRequireVerificationForm'
+import RegearModeCard from './RegearModeCard'
 import CdBadgeRolesForm from './CdBadgeRolesForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
 import type { SlotRole } from '@/types'
 
 type TabKey =
-  | 'basic'
-  | 'landing'
-  | 'notices'
+  | 'guild'
   | 'permissions'
   | 'events'
+  | 'regear'
+  | 'landing'
 
 interface TabDef {
   key: TabKey
   labelKey:
-    | 'tabBasic'
-    | 'tabLanding'
-    | 'tabNotices'
+    | 'tabGuild'
     | 'tabPermissions'
     | 'tabEvents'
+    | 'tabRegear'
+    | 'tabLanding'
   icon: React.ComponentType<{ size?: number; className?: string }>
 }
 
 const TABS: readonly TabDef[] = [
-  { key: 'basic', labelKey: 'tabBasic', icon: Settings },
-  { key: 'notices', labelKey: 'tabNotices', icon: Megaphone },
+  { key: 'guild', labelKey: 'tabGuild', icon: Building2 },
   { key: 'permissions', labelKey: 'tabPermissions', icon: Shield },
   { key: 'events', labelKey: 'tabEvents', icon: Timer },
+  { key: 'regear', labelKey: 'tabRegear', icon: Coins },
   { key: 'landing', labelKey: 'tabLanding', icon: ImageIcon },
 ]
 
-const DEFAULT_TAB: TabKey = 'basic'
+const DEFAULT_TAB: TabKey = 'guild'
 
 interface Props {
   adminRoleIds: string[]
@@ -94,11 +92,11 @@ interface Props {
 
 function isTabKey(value: string | null): value is TabKey {
   return (
-    value === 'basic' ||
-    value === 'landing' ||
-    value === 'notices' ||
+    value === 'guild' ||
     value === 'permissions' ||
-    value === 'events'
+    value === 'events' ||
+    value === 'regear' ||
+    value === 'landing'
   )
 }
 
@@ -186,10 +184,10 @@ export default function SettingsTabs({
       </nav>
 
       <div role="tabpanel">
-        {active === 'basic' && (
+        {active === 'guild' && (
           <SettingsGroup
-            title={t('basicGroupTitle')}
-            description={t('basicGroupDescription')}
+            title={t('guildGroupTitle')}
+            description={t('guildGroupDescription')}
           >
             <AlbionHomeGuildForm
               embedded
@@ -197,29 +195,12 @@ export default function SettingsTabs({
               initialGuildId={albionHomeGuildId}
               initialGuildName={albionHomeGuildName}
             />
-            <TenantTimezoneForm
-              embedded
-              initialTimezone={tenantTimezone}
-            />
+            <TenantTimezoneForm embedded initialTimezone={tenantTimezone} />
             <AllowUnverifiedAccessForm
               embedded
               initialAllowed={allowUnverifiedMemberAccess}
             />
-            <ActiveMemberRolesSetting
-              embedded
-              initialRoleIds={activeMemberRoleIds}
-              initialLastSyncAt={lastMemberSyncAt}
-            />
           </SettingsGroup>
-        )}
-        {active === 'landing' && (
-          <div className="space-y-4">
-            <LandingCtaTextForm
-              initialText={landingCtaText}
-              defaultText={defaultLandingCtaText}
-            />
-            <LandingBannerForm currentUrl={landingBannerUrl} />
-          </div>
         )}
         {active === 'permissions' && (
           <div className="space-y-4">
@@ -231,65 +212,27 @@ export default function SettingsTabs({
               gankingRoleIds={eventCreatorGankingRoleIds}
             />
             <BombSquadCallerRolesSetting initialRoleIds={bombSquadCallerRoleIds} />
+            <ActiveMemberRolesSetting
+              initialRoleIds={activeMemberRoleIds}
+              initialLastSyncAt={lastMemberSyncAt}
+            />
           </div>
         )}
         {active === 'events' && (
           <div className="space-y-4">
-            <SettingsGroup
-              title={t('regearGroupTitle')}
-              description={t('regearGroupDescription')}
-            >
-              <RegearLimitsForm
-                embedded
-                initialWindowMinutes={regearWindowMinutes}
-                initialMaxDeaths={regearMaxDeaths}
-                initialEligibilityDays={regearEligibilityDays}
-              />
-              <RegearPayoutRateForm embedded initialPercent={regearPayoutRatePercent} />
-              <RegearRequireVerificationForm
-                embedded
-                initialEnabled={regearRequireVerification}
-              />
-              <AutoRegearToggleForm
-                embedded
-                initialEnabled={autoRegearEnabled}
-              />
-              <CraftRegearToggleForm
-                embedded
-                initialEnabled={craftRegearEnabled}
-              />
-            </SettingsGroup>
             <SettingsGroup
               title={t('eventOpsGroupTitle')}
               description={t('eventOpsGroupDescription')}
             >
               <EventAutoStartForm embedded initialEnabled={eventsAutoStartEnabled} />
               <CdBadgeRolesForm embedded initialRoles={cdBadgeRoles} />
-              <div className="space-y-3">
-                <p className="text-gray-500 text-xs">{t('rewardsDescription')}</p>
-                {rewardsError && (
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
-                    <p className="text-red-400 text-sm">{rewardsError}</p>
-                  </div>
-                )}
-                <RoleRewardsEditor rewards={rewards} />
-              </div>
             </SettingsGroup>
-          </div>
-        )}
-        {active === 'notices' && (
-          <div className="space-y-4">
             <SettingsGroup
-              title={t('discordNoticeGroupTitle')}
-              description={t('discordNoticeGroupDescription')}
+              title={t('eventNoticeGroupTitle')}
+              description={t('eventNoticeGroupDescription')}
             >
               <NotificationSettingsForm embedded initialMessage={notificationMessage} />
               <EventDmLeadMinutesForm embedded initialMinutes={eventDmLeadMinutes} />
-            </SettingsGroup>
-            <SettingsGroup
-              title={t('inPageNoticeGroupTitle')}
-              description={t('inPageNoticeGroupDescription')}
-            >
               <NoticeSettingForm
                 embedded
                 settingKey="events_notice_message"
@@ -304,6 +247,42 @@ export default function SettingsTabs({
                 clearTooltip={tEventsNotice('clearTooltip')}
                 tooLongMessage={tEventsNotice('tooLong', { max: NOTICE_MAX_LENGTH })}
               />
+            </SettingsGroup>
+          </div>
+        )}
+        {active === 'regear' && (
+          <div className="space-y-4">
+            <SettingsGroup
+              title={t('regearGroupTitle')}
+              description={t('regearGroupDescription')}
+            >
+              <RegearModeCard
+                embedded
+                initialAutoEnabled={autoRegearEnabled}
+                initialCraftEnabled={craftRegearEnabled}
+                initialRequireVerification={regearRequireVerification}
+              />
+              <RegearLimitsForm
+                embedded
+                initialWindowMinutes={regearWindowMinutes}
+                initialMaxDeaths={regearMaxDeaths}
+                initialEligibilityDays={regearEligibilityDays}
+              />
+              <RegearPayoutRateForm embedded initialPercent={regearPayoutRatePercent} />
+              <div className="space-y-3">
+                <p className="text-gray-500 text-xs">{t('rewardsDescription')}</p>
+                {rewardsError && (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+                    <p className="text-red-400 text-sm">{rewardsError}</p>
+                  </div>
+                )}
+                <RoleRewardsEditor rewards={rewards} />
+              </div>
+            </SettingsGroup>
+            <SettingsGroup
+              title={t('regearNoticeGroupTitle')}
+              description={t('regearNoticeGroupDescription')}
+            >
               <NoticeSettingForm
                 embedded
                 settingKey="regear_notice_message"
@@ -319,6 +298,15 @@ export default function SettingsTabs({
                 tooLongMessage={tRegearNotice('tooLong', { max: NOTICE_MAX_LENGTH })}
               />
             </SettingsGroup>
+          </div>
+        )}
+        {active === 'landing' && (
+          <div className="space-y-4">
+            <LandingCtaTextForm
+              initialText={landingCtaText}
+              defaultText={defaultLandingCtaText}
+            />
+            <LandingBannerForm currentUrl={landingBannerUrl} />
           </div>
         )}
       </div>
