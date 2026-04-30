@@ -3171,7 +3171,7 @@
     "rulesShowMore": "See full classification rules",
     "rulesIntro": "Battles shown here are auto-classified and filtered by the rules below. Stats, achievements, and leaderboards use the same rules.",
     "rule1Title": "1. Side classification (home / opponent)",
-    "rule1Body": "Home = your guild + every guild in the same alliance. If your guild has no alliance, only your guild is home, and everyone else is grouped as the opponent.",
+    "rule1Body": "Home = your guild (required) + every guild in the same alliance. If your guild has no alliance, only your guild is home, and everyone else is grouped as the opponent. Battles your guild did not participate in are not tracked or aggregated, even if other guilds in the same alliance fought.",
     "rule2Title": "2. Size category",
     "rule2Intro": "Decided by whichever is larger between home and the main opponent (the largest single alliance or standalone guild).",
     "rule2Small": "Small: 10–30 players",
