@@ -66,7 +66,10 @@ export default async function AppShell({ children }: { children: React.ReactNode
       }
     }
     const craftEnabled = craftEnabledRaw === 'true'
-    craftQueueVisible = craftEnabled && (isCrafter || session.isAdmin)
+    // 멤버용 craft 큐/내 박스는 is_crafter 가 부여된 경우만 노출. 어드민이라도
+    // 본인이 제작자가 아니면 큐를 잡을 일이 없어 사이드바에서 숨긴다 (관리는
+    // /admin/dashboard/craft 에서 따로 함). 제작자 권한 없으면 사이드바 깔끔하게.
+    craftQueueVisible = craftEnabled && isCrafter
     // 어드민 craft / inventory 탭은 toggle on 인 경우에만 사이드바에 노출.
     // OFF 면 admin 은 settings → events 탭에서 다시 켤 수 있다 (entry 보장).
     craftAdminVisible = craftEnabled && session.isAdmin
