@@ -54,5 +54,8 @@ export async function GET(request: Request) {
     revalidatePath('/admin/dashboard/approvals')
   }
 
+  // Vercel runtime 로그에 한 줄로 직렬화. "왜 청구가 안 만들어지나" 디버그
+  // 시 vercel logs -q "/api/cron/auto-regear" -x 로 즉시 카운트를 볼 수 있다.
+  console.log(JSON.stringify({ cron: 'auto-regear', tenants: results }))
   return NextResponse.json({ tenants: results })
 }
