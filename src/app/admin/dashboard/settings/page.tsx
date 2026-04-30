@@ -7,6 +7,7 @@ import { SLOT_ROLES, type SlotRole } from '@/types'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { DEFAULT_TENANT_TIMEZONE, isValidTenantTimezone } from '@/lib/timezone'
+import { isSuperAdminSession } from '@/lib/super-admin'
 
 // 알림 메시지의 기본값은 빈 문자열 — 폼은 초기값이 비어 있으면 locale 별
 // `messagePlaceholder` 를 노출하므로, 관리자는 자신이 사용하는 언어의 예시를
@@ -23,6 +24,7 @@ export default async function SettingsPage() {
   const tenantId = await getSessionGuildId(session)
   const tenantConfig = await getTenantDiscordConfig(tenantId)
   const adminRoleIds = tenantConfig?.adminRoleIds ?? []
+  const isSuperAdmin = isSuperAdminSession(session)
 
   const [
     message,
@@ -213,6 +215,7 @@ export default async function SettingsPage() {
         allowUnverifiedMemberAccess={allowUnverifiedMemberAccess}
         tenantTimezone={tenantTimezone}
         eventDmLeadMinutes={eventDmLeadMinutes}
+        isSuperAdmin={isSuperAdmin}
       />
     </div>
   )

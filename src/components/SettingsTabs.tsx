@@ -83,6 +83,7 @@ interface Props {
   allowUnverifiedMemberAccess: boolean
   tenantTimezone: string
   eventDmLeadMinutes: number
+  isSuperAdmin: boolean
 }
 
 function isTabKey(value: string | null): value is TabKey {
@@ -125,6 +126,7 @@ export default function SettingsTabs({
   allowUnverifiedMemberAccess,
   tenantTimezone,
   eventDmLeadMinutes,
+  isSuperAdmin,
 }: Props) {
   const t = useTranslations('adminSettings')
   const searchParams = useSearchParams()
@@ -183,6 +185,9 @@ export default function SettingsTabs({
               initialServer={albionServer}
               initialGuildId={albionHomeGuildId}
               initialGuildName={albionHomeGuildName}
+              editable={!albionHomeGuildId.trim() || isSuperAdmin}
+              showFirstTimeWarning={!albionHomeGuildId.trim()}
+              isSuperAdmin={isSuperAdmin}
             />
             <TenantTimezoneForm embedded initialTimezone={tenantTimezone} />
             <AllowUnverifiedAccessForm

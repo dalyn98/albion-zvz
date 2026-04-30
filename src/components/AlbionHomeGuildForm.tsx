@@ -3,7 +3,18 @@
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ChevronRight, Globe2, Loader2, Save, Search, Shield, Trash2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  ChevronRight,
+  Globe2,
+  Loader2,
+  Lock,
+  Save,
+  Search,
+  Shield,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react'
 import {
   searchAlbionGuildCandidates,
   type AlbionGuildCandidate,
@@ -16,6 +27,13 @@ interface Props {
   initialGuildId: string
   initialGuildName?: string | null
   embedded?: boolean
+  // 홈 길드 잠금 상태 (mig-less, app_settings 기반).
+  // - editable=false: 일반 admin 이 이미 설정된 홈 길드를 보는 상태 — 읽기 전용.
+  // - editable=true + showFirstTimeWarning=true: 초기 설정. 변경 불가 경고 노출.
+  // - editable=true + isSuperAdmin=true: 슈퍼어드민 우회 모드. 슈퍼어드민 배지 표시.
+  editable?: boolean
+  showFirstTimeWarning?: boolean
+  isSuperAdmin?: boolean
 }
 
 const SEARCH_DEBOUNCE_MS = 300
@@ -39,6 +57,9 @@ export default function AlbionHomeGuildForm({
   initialGuildId,
   initialGuildName,
   embedded = false,
+  editable = true,
+  showFirstTimeWarning = false,
+  isSuperAdmin = false,
 }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
@@ -126,21 +147,103 @@ export default function AlbionHomeGuildForm({
     ? 'space-y-4'
     : 'bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-5'
 
+  if (!editable) {
+    return (
+      <div className={containerClass}>
+        <div className="flex items-start gap-2">
+          {!embedded && <Shield size={16} className="text-amber-400 mt-0.5" />}
+          <div>
+            {embedded ? (
+              <h3 className="font-semibold text-white text-sm">{t('title')}</h3>
+            ) : (
+              <h2 className="font-bold text-white">{t('title')}</h2>
+            )}
+            <p className="text-gray-500 text-xs mt-1 leading-relaxed">
+              {t('description')}
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2.5">
+          <p className="text-[11px] text-gray-500 uppercase tracking-wide">
+            {t('currentSelection')}
+          </p>
+          <div className="mt-1">
+            {guildName && (
+              <p className="text-sm text-white font-semibold truncate">{guildName}</p>
+            )}
+            <p className="text-xs text-gray-400 font-mono break-all">{guildId}</p>
+            <p className="text-[11px] text-gray-500 mt-1 font-mono">
+              {t(
+                server === 'east'
+                  ? 'serverEastLabel'
+                  : server === 'west'
+                  ? 'serverWestLabel'
+                  : 'serverEuropeLabel',
+              )}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
+          <Lock size={14} className="text-amber-300 mt-0.5 flex-shrink-0" />
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-amber-200">{t('lockedTitle')}</p>
+            <p className="text-[11px] text-amber-100/80 leading-relaxed">
+              {t('lockedBody')}
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={containerClass}>
       <div className="flex items-start gap-2">
         {!embedded && <Shield size={16} className="text-amber-400 mt-0.5" />}
-        <div>
-          {embedded ? (
-            <h3 className="font-semibold text-white text-sm">{t('title')}</h3>
-          ) : (
-            <h2 className="font-bold text-white">{t('title')}</h2>
-          )}
+        <div className="flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            {embedded ? (
+              <h3 className="font-semibold text-white text-sm">{t('title')}</h3>
+            ) : (
+              <h2 className="font-bold text-white">{t('title')}</h2>
+            )}
+            {isSuperAdmin && initialGuildId && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-fuchsia-500/15 border border-fuchsia-400/40 px-1.5 py-0.5 text-[10px] font-semibold text-fuchsia-200 uppercase tracking-wide">
+                <ShieldCheck size={10} />
+                {t('superAdminBadge')}
+              </span>
+            )}
+          </div>
           <p className="text-gray-500 text-xs mt-1 leading-relaxed">
             {t('description')}
           </p>
         </div>
       </div>
+
+      {showFirstTimeWarning && (
+        <div className="flex items-start gap-2 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2.5">
+          <AlertTriangle size={14} className="text-rose-300 mt-0.5 flex-shrink-0" />
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-rose-200">
+              {t('firstTimeWarningTitle')}
+            </p>
+            <p className="text-[11px] text-rose-100/80 leading-relaxed">
+              {t('firstTimeWarningBody')}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isSuperAdmin && initialGuildId && (
+        <div className="flex items-start gap-2 rounded-lg border border-fuchsia-400/30 bg-fuchsia-500/10 px-3 py-2.5">
+          <ShieldCheck size={14} className="text-fuchsia-300 mt-0.5 flex-shrink-0" />
+          <p className="text-[11px] text-fuchsia-100/90 leading-relaxed">
+            {t('superAdminHint')}
+          </p>
+        </div>
+      )}
 
       <section className="space-y-2">
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">

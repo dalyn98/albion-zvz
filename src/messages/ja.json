@@ -1497,7 +1497,13 @@
     "clearGuild": "解除",
     "unsetWarning": "未設定 — 保存するとすべてのオンボーディングが [未認証] として保存されます",
     "searchPlaceholder": "ギルド名で検索 (2 文字以上)",
-    "searchEmpty": "検索結果がありません"
+    "searchEmpty": "検索結果がありません",
+    "firstTimeWarningTitle": "注意 — 一度保存すると変更できません",
+    "firstTimeWarningBody": "ホームギルドはメンバー認証・キルボード・リギアデータの基準となるため、初回保存後は一般管理者では変更できないようロックされます。設定を間違えた場合はスーパー管理者 (開発者) にお問い合わせください。",
+    "lockedTitle": "ホームギルドロック中",
+    "lockedBody": "このサイトのホームギルドは既に設定されており変更できません。誤ったギルドが登録されている場合はスーパー管理者 (開発者) にお問い合わせください。",
+    "superAdminBadge": "スーパー管理者モード",
+    "superAdminHint": "スーパー管理者権限でロックを回避しています。変更すると、メンバー認証・キルボード・リギアが新しいギルド基準で再評価されます。"
   },
   "adminRegearLimits": {
     "title": "リギア申請の制限",
@@ -2876,6 +2882,7 @@
     "eventPayoutEventNotEnded": "終了したイベントのみ一括報酬を申請できます。",
     "eventPayoutNoParticipants": "支給対象のスロット割当者がいません。",
     "homeGuildAlreadyRegistered": "既に登録されているギルドです。同じアルビオンのホームギルドは一つのサイトにしか連携できません — 開発者にお問い合わせください。",
+    "homeGuildLocked": "ホームギルドは既に設定済みのため変更できません。スーパー管理者 (開発者) にお問い合わせください。",
     "craftTaskNotCancellable": "この製作タスクはキャンセルできません。",
     "craftTaskNotFound": "製作タスクが見つかりません。",
     "craftBoxRangeInvalid": "ボックス範囲が不正です（最小値は1以上、最大値は最小値より大きい必要があります）。",

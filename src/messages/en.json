@@ -1497,7 +1497,13 @@
     "clearGuild": "Clear",
     "unsetWarning": "Unset — saving now will mark all onboardings as [unverified]",
     "searchPlaceholder": "Search by guild name (2+ characters)",
-    "searchEmpty": "No results"
+    "searchEmpty": "No results",
+    "firstTimeWarningTitle": "Warning — once saved, this can't be changed",
+    "firstTimeWarningBody": "The home guild anchors member verification, killboard, and regear data. After the first save, regular admins can no longer change it. If the wrong guild is registered, contact a super admin (the developer).",
+    "lockedTitle": "Home guild locked",
+    "lockedBody": "This site's home guild is already set and can't be changed. If the wrong guild is registered, please contact a super admin (the developer).",
+    "superAdminBadge": "Super admin mode",
+    "superAdminHint": "You're bypassing the lock with super admin privileges. Changing the guild will re-evaluate member verification, killboards, and regear against the new guild."
   },
   "adminRegearLimits": {
     "title": "Regear submission limits",
@@ -2876,6 +2882,7 @@
     "eventPayoutEventNotEnded": "Bulk payout is only available for ended events.",
     "eventPayoutNoParticipants": "No slot assignees to pay out.",
     "homeGuildAlreadyRegistered": "This guild is already registered. The same Albion home guild can only link to one site — please contact the developer.",
+    "homeGuildLocked": "The home guild is already set and can't be changed. Please contact a super admin (the developer).",
     "craftTaskNotCancellable": "This craft task can no longer be cancelled.",
     "craftTaskNotFound": "Craft task not found.",
     "craftBoxRangeInvalid": "Box range is invalid (min must be 1 or higher and max must be greater than min).",

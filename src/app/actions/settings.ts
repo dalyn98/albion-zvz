@@ -3,12 +3,13 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
-import type { AppSettingKey } from '@/lib/app-settings'
+import { getAppSetting, type AppSettingKey } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 import { isValidTenantTimezone } from '@/lib/timezone'
+import { isSuperAdminSession } from '@/lib/super-admin'
 import { SLOT_ROLES } from '@/types'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
@@ -403,6 +404,16 @@ export async function updateAlbionHomeGuild(input: {
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const sessionGuildId = await getSessionGuildId(session)
+
+    // 홈 길드는 한 번 설정되면 잠금 — 이후엔 슈퍼어드민만 변경/해제 가능.
+    // 일반 admin 이 알비온 길드 UUID 를 임의로 바꾸면 멤버 인증/킬보드/리기어
+    // 데이터가 모두 무효화되기 때문. 초기 설정(현재값 빈 문자열) 은 누구나 가능.
+    const currentHomeGuildId = (
+      await getAppSetting('albion_home_guild_id', '', sessionGuildId)
+    ).trim()
+    if (currentHomeGuildId.length > 0 && !isSuperAdminSession(session)) {
+      return { error: tErr('homeGuildLocked') }
+    }
 
     if (guildId.length > 0) {
       const { data: conflict } = await db
