@@ -28,7 +28,7 @@ import {
   ShieldAlert,
   Hammer,
   Sparkles,
-  Globe,
+  Home,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -250,14 +250,13 @@ export default function AppSidebar({
   const loginHref = `/api/auth/discord/start?returnTo=${encodeURIComponent(pathname || '/')}`
   const url = session ? avatarUrl(session.discordId, session.avatar) : null
 
-  // 공개 프로필 항목은 활동 섹션 (events 바로 아래) 에 끼워넣는다 — 길드원이
-  // 모집/공유용 URL 을 한 클릭으로 열 수 있게. AppShell 이 enable + slug 둘 다
-  // 충족해야 href 를 채워준다 (그 외엔 null → 항목 자체를 숨김).
+  // "홈" 항목은 사이드바 최상단 — 길드의 캐노니컬 진입점 역할 (헤더 브랜드
+  // 클릭과 동일 경로). AppShell 이 enable + slug 둘 다 충족해야 href 를 채워주고
+  // (그 외엔 null → 항목 자체를 숨김), 활동 섹션의 첫 행으로 끼워 넣는다.
   const memberNavItems: NavItem[] = publicProfileHref
     ? [
-        MEMBER_NAV[0],
-        { href: publicProfileHref, labelKey: 'publicProfile', icon: Globe, section: 'activity' },
-        ...MEMBER_NAV.slice(1),
+        { href: publicProfileHref, labelKey: 'publicProfile', icon: Home, section: 'activity' },
+        ...MEMBER_NAV,
       ]
     : MEMBER_NAV
 
@@ -273,7 +272,7 @@ export default function AppSidebar({
         >
           <Menu size={20} />
         </button>
-        <Link href="/" className="text-amber-400 text-base font-bold">⚔ {brandName}</Link>
+        <Link href={publicProfileHref ?? '/'} className="text-amber-400 text-base font-bold">⚔ {brandName}</Link>
         {session ? (
           <Link href="/me/profile" aria-label={t('myInfo')} className="flex items-center">
             {url ? (
@@ -309,7 +308,7 @@ export default function AppSidebar({
         {/* Brand + collapse toggle */}
         <div className={`flex items-center ${navExpanded ? 'justify-between px-4' : 'justify-center'} h-14 border-b border-white/5 flex-shrink-0`}>
           {navExpanded && (
-            <Link href="/" className="text-amber-400 font-bold text-[15px] tracking-tight flex items-center gap-2 truncate">
+            <Link href={publicProfileHref ?? '/'} className="text-amber-400 font-bold text-[15px] tracking-tight flex items-center gap-2 truncate">
               ⚔ <span>{brandName}</span>
             </Link>
           )}
