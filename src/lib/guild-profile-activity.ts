@@ -8,6 +8,9 @@
 
 import { getAdminClient } from '@/lib/supabase-admin'
 import { discordAvatarUrl } from '@/lib/discord-avatar'
+import { getAppSetting } from '@/lib/app-settings'
+import { isHighEngagement } from '@/lib/low-engagement-cut'
+import { bundleSplitBattles, type BundleableRow } from '@/lib/battle-bundling'
 
 export type BattleOutcome = 'win' | 'loss' | 'tie'
 
@@ -29,6 +32,56 @@ export interface TopContributorSummary {
 }
 
 const TOP_CONTRIBUTORS_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+
+// 공개 페이지 "전투기록" 카운트. /battles 와 동일하게 low-engagement 컷 + 길드별
+// bundle_split_battles_in_stats 토글을 적용한다. 기존에 events 테이블을 세던
+// 로직은 자동시작 이벤트가 모두 잡혀 실제 전투 수와 어긋났음 — tenant_battle_records
+// 가 진실 소스. 라이프타임 수라 row 가 많아질 수 있지만 force-dynamic 페이지라
+// 매 요청 페치 + JS 필터로 충분 (대부분 길드는 수백 row 미만).
+export async function loadTrackedBattleLifetimeCount(guildId: string): Promise<number> {
+  const db = getAdminClient()
+  const { data } = await db
+    .from('tenant_battle_records')
+    .select(
+      'battle_record_id, outcome, home_kills, home_deaths, home_team_size, main_opponent_team_size',
+    )
+    .eq('guild_id', guildId)
+
+  const rows = (data ?? []) as BundleableRow[]
+  const bundleEnabled =
+    (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
+
+  if (bundleEnabled) {
+    const bundled = bundleSplitBattles(rows)
+    let count = 0
+    for (const b of bundled) {
+      if (
+        isHighEngagement({
+          homeKills: b.homeKills,
+          homeDeaths: b.homeDeaths,
+          homeTeamSize: b.homeTeamSize,
+        })
+      ) {
+        count += 1
+      }
+    }
+    return count
+  }
+
+  let count = 0
+  for (const row of rows) {
+    if (
+      isHighEngagement({
+        homeKills: row.home_kills,
+        homeDeaths: row.home_deaths,
+        homeTeamSize: row.home_team_size,
+      })
+    ) {
+      count += 1
+    }
+  }
+  return count
+}
 
 export async function loadRecentTrackedBattle(
   guildId: string,

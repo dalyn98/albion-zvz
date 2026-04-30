@@ -23,6 +23,7 @@ import { loadGalleryItems, type GalleryItem } from '@/lib/guild-profile-gallery'
 import {
   loadRecentTrackedBattle,
   loadTopContributorsThisWeek,
+  loadTrackedBattleLifetimeCount,
   type RecentBattleSummary,
   type TopContributorSummary,
   type BattleOutcome,
@@ -77,7 +78,9 @@ async function loadSectionStats(
   // 이전 코드에서 tenant_id 로 잘못 필터해 silent 0 으로 떨어지던 버그 수정.
   // guild_avatars 는 PK 가 (guild_id, discord_id) 복합으로 바뀌어 (084) 단일
   // 'id' 컬럼이 없다 — head:true 카운트는 select 컬럼이 존재해야 하므로 '*' 사용.
-  const [members, battles, regear] = await Promise.all([
+  // battles 카운트는 events.battle_started_at 이 아니라 tenant_battle_records 기반
+  // (low-engagement 컷 + bundle_split 토글 적용) 으로 /battles 페이지와 일치시킴.
+  const [members, battlesCount, regear] = await Promise.all([
     flags.showMembers
       ? db
           .from('guild_avatars')
@@ -86,12 +89,8 @@ async function loadSectionStats(
           .is('withdrawn_at', null)
       : Promise.resolve({ count: null }),
     flags.showBattles
-      ? db
-          .from('events')
-          .select('*', { count: 'exact', head: true })
-          .eq('guild_id', guildId)
-          .not('battle_started_at', 'is', null)
-      : Promise.resolve({ count: null }),
+      ? loadTrackedBattleLifetimeCount(guildId)
+      : Promise.resolve(null),
     flags.showRegearStats
       ? db
           .from('regear_requests')
@@ -103,7 +102,7 @@ async function loadSectionStats(
 
   return {
     members: typeof members.count === 'number' ? { count: members.count } : null,
-    battles: typeof battles.count === 'number' ? { count: battles.count } : null,
+    battles: typeof battlesCount === 'number' ? { count: battlesCount } : null,
     regear: typeof regear.count === 'number' ? { count: regear.count } : null,
   }
 }
