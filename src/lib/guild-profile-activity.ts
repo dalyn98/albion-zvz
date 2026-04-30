@@ -11,6 +11,7 @@ import { discordAvatarUrl } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
 import { isHighEngagement } from '@/lib/low-engagement-cut'
 import { bundleSplitBattles, type BundleableRow } from '@/lib/battle-bundling'
+import { getCurrentWeekStartIso } from '@/lib/timezone'
 
 export type BattleOutcome = 'win' | 'loss' | 'tie'
 
@@ -30,8 +31,6 @@ export interface TopContributorSummary {
   avatarUrl: string | null
   kills: number
 }
-
-const TOP_CONTRIBUTORS_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 
 // 공개 페이지 "전투기록" 카운트. /battles 와 동일하게 low-engagement 컷 + 길드별
 // bundle_split_battles_in_stats 토글을 적용한다. 기존에 events 테이블을 세던
@@ -109,16 +108,16 @@ export async function loadRecentTrackedBattle(
   }
 }
 
-// 이번 주(롤링 7일) 길드원 킬 카운트 상위 N명. killboard_events 에서 이 길드의
-// killer 행만 끌어와 메모리에서 grouping — leaderboard 랑 같은 패턴.
-// 7일치 row 수가 큰 길드는 한 번 더 인덱스 활용을 위해 (guild_id, occurred_at)
-// 으로 좁히고 시작 시각을 gte 로 자른다.
+// 이번 주 (PT 월요일 00:00 ~ 현재) 길드원 킬 카운트 상위 N명. killboard_events
+// 에서 이 길드의 killer 행만 끌어와 메모리에서 grouping — leaderboard 랑 같은
+// 패턴. row 수가 큰 길드는 한 번 더 인덱스 활용을 위해 (guild_id, occurred_at)
+// 으로 좁히고 시작 시각을 gte 로 자른다. 주 경계는 timezone.ts:getCurrentWeekStartIso.
 export async function loadTopContributorsThisWeek(
   guildId: string,
   limit: number = 3,
 ): Promise<TopContributorSummary[]> {
   const db = getAdminClient()
-  const sinceIso = new Date(Date.now() - TOP_CONTRIBUTORS_WINDOW_MS).toISOString()
+  const sinceIso = getCurrentWeekStartIso()
 
   const { data: kills } = await db
     .from('killboard_events')

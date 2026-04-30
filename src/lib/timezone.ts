@@ -112,6 +112,36 @@ export function tenantDateKey(input: string | Date | number, tz: string): string
   return `${p.year}-${pad(p.month)}-${pad(p.day)}`
 }
 
+// 통계/대시보드 위젯의 "이번 주" 경계. 미국 태평양 시간(America/Los_Angeles) 기준
+// 가장 최근 월요일 00:00 의 UTC 인스턴트 ISO 문자열을 돌려준다. 길드별 timezone
+// 과 무관하게 사이트 전역에서 동일한 주 경계를 쓰기 위함 — 길드원 분포가 NA/EU/KR
+// 로 흩어져 있어도 모두 같은 "이번 주" 데이터를 본다 (Discord 길드 운영팀의
+// 일반적 관행).
+//
+// DST 처리: zonedPartsToUtc 가 LA 의 DST 전환을 자동 보정한다. 봄 forward 직후
+// 첫 일요일 → 월요일 자정 경계도 정확히 잡힌다.
+const WEEKLY_TZ = 'America/Los_Angeles'
+
+export function getCurrentWeekStartIso(now: Date = new Date()): string {
+  const parts = toZonedParts(now, WEEKLY_TZ)
+  // year/month/day 자체를 UTC 의 같은 날짜로 본 뒤 getUTCDay() 로 해당 LA 캘린더
+  // 일자의 요일을 얻는다 (시각 무관). 0=Sun … 6=Sat → daysSinceMonday 계산.
+  const synthetic = new Date(Date.UTC(parts.year, parts.month - 1, parts.day))
+  const dow = synthetic.getUTCDay()
+  const daysSinceMonday = (dow + 6) % 7
+  synthetic.setUTCDate(synthetic.getUTCDate() - daysSinceMonday)
+  return zonedPartsToUtc(
+    {
+      year: synthetic.getUTCFullYear(),
+      month: synthetic.getUTCMonth() + 1,
+      day: synthetic.getUTCDate(),
+      hour: 0,
+      minute: 0,
+    },
+    WEEKLY_TZ,
+  ).toISOString()
+}
+
 // "UTC+9", "UTC-5", "UTC+5:30" 형태의 라벨 반환. 시간대 선택 UI 에 노출해
 // 사용자가 자기 지역과 시차를 즉시 인지할 수 있도록 한다. DST 가 적용되는
 // EU/NA/SA 는 현재 시각(when) 기준으로 동적으로 계산되므로, 6개월 후엔 1시간

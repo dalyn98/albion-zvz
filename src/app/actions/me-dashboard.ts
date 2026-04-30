@@ -16,6 +16,7 @@ import {
 } from '@/lib/tracked-kills'
 import { getMyPointsSummary } from '@/app/actions/regear'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import { getCurrentWeekStartIso } from '@/lib/timezone'
 import { getAppSetting } from '@/lib/app-settings'
 
 export interface MyDashboardData {
@@ -36,8 +37,9 @@ export interface MyDashboardData {
   losses: number
   winRate: number | null
   evaluatedOutcomeEvents: number
-  // 지난 7일 서브셋 — battles 배열에서 startedAt 으로 필터해 같은 판정 규칙(low-engagement
-  // 컷 + tracked window) 을 그대로 받는다. 위젯에서 0이면 숨김 처리.
+  // 이번 주 서브셋 (PT 월요일 00:00 ~ 현재) — battles 배열에서 startedAt 으로 필터해
+  // 같은 판정 규칙(low-engagement 컷 + tracked window) 을 그대로 받는다. 위젯에서
+  // 0이면 숨김 처리. 주 경계는 timezone.ts:getCurrentWeekStartIso (PT 기반).
   weekBattleCount: number
   weekKills: number
   weekDeaths: number
@@ -54,8 +56,6 @@ export interface MyDashboardData {
   pendingExchangeCount: number
   pendingDonationCount: number
 }
-
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000
 
 type UpcomingSlotEvent = {
   id: string
@@ -157,7 +157,7 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     deaths += b.deathCount
   }
 
-  const weekCutoffMs = Date.now() - WEEK_MS
+  const weekCutoffMs = Date.parse(getCurrentWeekStartIso())
   let weekBattleCount = 0
   let weekKills = 0
   let weekDeaths = 0
