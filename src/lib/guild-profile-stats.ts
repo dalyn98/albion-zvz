@@ -153,12 +153,17 @@ export async function loadTopWeaponCategoriesLast30d(
   })
   if (tracked.windows.length === 0) return []
 
+  // discord_id NOT NULL — 사이트에 가입(Discord OAuth)한 길드원의 무기만 집계.
+  // killboard_events 는 mig 091 부터 미연동 Albion 멤버 행도 담을 수 있어
+  // 필터 없으면 사이트에 한 번도 들른 적 없는 길드원의 무기까지 섞인다.
+  // 정책은 리더보드/탑킬러 (6d38235) 와 동일 — "앱 내 가입한 길드원 표시".
   const { data } = await db
     .from('killboard_events')
     .select('equipment, occurred_at, battle_id')
     .eq('guild_id', guildId)
     .eq('role', 'killer')
     .gte('occurred_at', cutoffIso)
+    .not('discord_id', 'is', null)
 
   type Row = {
     equipment: { MainHand?: { Type?: string } | null } | null
