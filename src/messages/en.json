@@ -888,8 +888,6 @@
     "statLifetimeKd": "Lifetime K/D",
     "statLifetimeNotEnoughData": "Not enough data",
     "statWinRate": "Win rate",
-    "statAvgIp": "Avg IP",
-    "statAvgIpUnit": "across {count} members",
     "recruitmentInfoHeading": "Recruitment",
     "recruitingRolesLabel": "Recruiting roles",
     "joinStepsLabel": "How to join",

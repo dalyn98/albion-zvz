@@ -888,8 +888,6 @@
     "statLifetimeKd": "通算 K/D",
     "statLifetimeNotEnoughData": "データ不足",
     "statWinRate": "勝率",
-    "statAvgIp": "平均 IP",
-    "statAvgIpUnit": "{count}人を基準",
     "recruitmentInfoHeading": "募集案内",
     "recruitingRolesLabel": "募集ポジション",
     "joinStepsLabel": "加入手順",

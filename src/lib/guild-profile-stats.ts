@@ -97,38 +97,6 @@ export async function loadLifetimeBattleStats(
   }
 }
 
-export interface AverageItemPowerStats {
-  // 활성 (left_at IS NULL) 알비온 길드원의 평균 IP. 멤버 0 또는 평균 0 이면 null.
-  avgIp: number | null
-  // 평균 산정에 들어간 멤버 수 (UI 신뢰도 라벨 — "N명 기준").
-  sampleSize: number
-}
-
-export async function loadAverageItemPower(
-  guildId: string,
-): Promise<AverageItemPowerStats> {
-  const db = getAdminClient()
-  const { data } = await db
-    .from('albion_guild_members')
-    .select('average_item_power')
-    .eq('guild_id', guildId)
-    .is('left_at', null)
-
-  const rows = (data ?? []) as Array<{ average_item_power: number | null }>
-  let total = 0
-  let n = 0
-  for (const r of rows) {
-    const ip = r.average_item_power ?? 0
-    if (ip <= 0) continue
-    total += ip
-    n += 1
-  }
-  return {
-    avgIp: n === 0 ? null : Math.round(total / n),
-    sampleSize: n,
-  }
-}
-
 export interface WeaponCategoryUsage {
   // extractWeaponCategory 결과 — 예: 'HOLYSTAFF', 'FIRESTAFF'. UI 가 i18n 라벨로 변환.
   category: string

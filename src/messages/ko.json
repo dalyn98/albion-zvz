@@ -888,8 +888,6 @@
     "statLifetimeKd": "라이프타임 K/D",
     "statLifetimeNotEnoughData": "데이터 부족",
     "statWinRate": "승률",
-    "statAvgIp": "평균 IP",
-    "statAvgIpUnit": "{count}명 기준",
     "recruitmentInfoHeading": "모집 안내",
     "recruitingRolesLabel": "모집 포지션",
     "joinStepsLabel": "가입 절차",

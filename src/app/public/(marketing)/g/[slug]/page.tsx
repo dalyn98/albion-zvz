@@ -22,7 +22,6 @@ import {
   Calendar,
   Target,
   Sword,
-  Gauge,
 } from 'lucide-react'
 import MarketingNav from '@/components/MarketingNav'
 import { resolveTenantBySlug } from '@/lib/tenant-resolver'
@@ -39,7 +38,6 @@ import {
 } from '@/lib/guild-profile-activity'
 import {
   loadLifetimeBattleStats,
-  loadAverageItemPower,
   loadTopWeaponCategoriesLast30d,
   loadTopRivalsLast30d,
   loadAdminTeam,
@@ -199,7 +197,6 @@ export default async function GuildProfilePage({
     weeklyStats,
     serverCode,
     lifetimeStats,
-    avgIp,
     weaponDistribution,
     rivals,
     adminTeam,
@@ -231,10 +228,6 @@ export default async function GuildProfilePage({
     settings.showBattles
       ? loadLifetimeBattleStats(tenant.tenantId)
       : Promise.resolve(null),
-    // 평균 IP 는 멤버 시그널 — showMembers 토글 (섹션 분류상 가까움).
-    settings.showMembers
-      ? loadAverageItemPower(tenant.tenantId)
-      : Promise.resolve(null),
     // 무기 분포 + 라이벌 — 활동 시그널, showBattles 토글.
     settings.showBattles
       ? loadTopWeaponCategoriesLast30d(tenant.tenantId)
@@ -250,18 +243,16 @@ export default async function GuildProfilePage({
   const tTime = await getTranslations('time')
   const tBattle = await getTranslations('battleTracking')
   const accent = ACCENT_CLASS_MAP[settings.accentColor]
-  // 라이프타임 / 평균 IP 카드는 데이터가 충분할 때만 노출 — 작은 표본이 도리어
-  // 길드를 약해 보이게 만든다. 임계값은 의미 단위: 5전투 = 가벼운 스파링 이상.
+  // 라이프타임 카드는 데이터가 충분할 때만 노출 — 작은 표본이 도리어 길드를
+  // 약해 보이게 만든다. 임계값은 의미 단위: 5전투 = 가벼운 스파링 이상.
   const showLifetimeStats =
     lifetimeStats !== null && lifetimeStats.evaluatedBattles >= 5
-  const showAvgIp = avgIp !== null && avgIp.avgIp !== null && avgIp.sampleSize > 0
   const hasStats =
     settings.showMembers ||
     settings.showBattles ||
     settings.showRegearStats ||
     settings.showLeaderboard ||
-    showLifetimeStats ||
-    showAvgIp
+    showLifetimeStats
   // 위젯이 비활성이거나 (battleCount === 0) 인 길드는 weekly KPI 줄을 렌더하지
   // 않는다. activity 섹션 렌더 여부는 KPI 줄까지 함께 본다.
   const showWeeklyStats =
@@ -641,16 +632,6 @@ export default async function GuildProfilePage({
                   label={t('statWinRate')}
                   value={null}
                   unit={`${Math.round(lifetimeStats.winRate * 100)}% (${lifetimeStats.wins}W / ${lifetimeStats.losses}L)`}
-                  accent={accent}
-                />
-              )}
-              {/* 평균 IP 카드 — 활성 길드원 평균 IP. */}
-              {showAvgIp && avgIp && avgIp.avgIp !== null && (
-                <StatCard
-                  icon={<Gauge size={16} />}
-                  label={t('statAvgIp')}
-                  value={avgIp.avgIp}
-                  unit={t('statAvgIpUnit', { count: avgIp.sampleSize })}
                   accent={accent}
                 />
               )}
