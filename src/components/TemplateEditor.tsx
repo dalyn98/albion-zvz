@@ -3,8 +3,10 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown, AlertTriangle } from 'lucide-react'
+import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown, AlertTriangle, Beaker, Package } from 'lucide-react'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
+import BatchApplySpecsModal, { type BatchSpecsScope } from './BatchApplySpecsModal'
+import BatchApplyItemsModal from './BatchApplyItemsModal'
 import TemplatePartyListSidebar from './TemplatePartyListSidebar'
 import type { GearOption, GearSpec, GearSpecs, SlotKey, SlotSpells } from '@/types'
 import { GEAR_ENCHANT_MAX, GEAR_ENCHANT_MIN, GEAR_TIER_MAX, GEAR_TIER_MIN, SLOT_KEYS, isTierlessSlot, isSpecLessSlot } from '@/types'
@@ -198,6 +200,11 @@ export default function TemplateEditor({ template }: { template: TemplateRecord 
     }))
   }
 
+  // 파티 일괄 적용용 — 슬롯 배열 전체 교체. PartyEditorPanel 의 setSlots 와 동일 의미.
+  const replaceSlots = (partyNumber: number, next: SlotInput[]) => {
+    updateParty(partyNumber, (p) => ({ ...p, slots: next }))
+  }
+
   const deleteSlot = (partyNumber: number, idx: number) => {
     updateParty(partyNumber, (p) => ({
       ...p,
@@ -274,6 +281,7 @@ export default function TemplateEditor({ template }: { template: TemplateRecord 
                 onUpdateSlot={(idx, updated) => updateSlot(party.party_number, idx, updated)}
                 onDeleteSlot={(idx) => deleteSlot(party.party_number, idx)}
                 onMoveSlot={(idx, dir) => moveSlot(party.party_number, idx, dir)}
+                onReplaceSlots={(next) => replaceSlots(party.party_number, next)}
               />
             ))}
           </div>
@@ -355,14 +363,72 @@ interface PartyPanelProps {
   onUpdateSlot: (idx: number, updated: SlotInput) => void
   onDeleteSlot: (idx: number) => void
   onMoveSlot: (idx: number, dir: -1 | 1) => void
+  onReplaceSlots: (next: SlotInput[]) => void
 }
 
-function PartyPanel({ party, onAddSlot, onUpdateSlot, onDeleteSlot, onMoveSlot }: PartyPanelProps) {
+function PartyPanel({ party, onAddSlot, onUpdateSlot, onDeleteSlot, onMoveSlot, onReplaceSlots }: PartyPanelProps) {
   const t = useTranslations('adminTemplates')
   const tParty = useTranslations('adminParty')
   // 리컨실러가 매 렌더마다 open 을 강제 동기화하면 유저가 수동으로 닫아도
   // 슬롯 추가시 다시 열려버림 — PartyEditorPanel 과 동일 패턴으로 controlled.
   const [isOpen, setIsOpen] = useState(party.slots.length > 0)
+  const [batchModalOpen, setBatchModalOpen] = useState(false)
+  const [batchItemsModalOpen, setBatchItemsModalOpen] = useState(false)
+
+  // PartyEditorPanel 의 applyBatchItems 와 동일 시맨틱: option(multi) 슬롯은 건드리지
+  // 않고, fixed 슬롯만 덮어쓴다. potion/mount 는 파티 단위로 동일한 게 일반적이라
+  // 빈 칸만 채우는 fill-empty 가 아니라 강제 덮어쓰기로 둔다.
+  const applyBatchItems = (picks: {
+    potion: { name: string; id: string } | null
+    mount: { name: string; id: string } | null
+  }) => {
+    onReplaceSlots(
+      party.slots.map((s) => {
+        const nextItems = { ...s.items }
+        let changed = false
+        if (picks.potion && s.options.potion.length === 0) {
+          nextItems.potion = { name: picks.potion.name, id: picks.potion.id }
+          changed = true
+        }
+        if (picks.mount && s.options.mount.length === 0) {
+          nextItems.mount = { name: picks.mount.name, id: picks.mount.id }
+          changed = true
+        }
+        return changed ? { ...s, items: nextItems } : s
+      }),
+    )
+  }
+
+  // PartyEditorPanel.applyBatchSpecs 와 동일 — fill-empty-only 로 어드민의 명시
+  // spec 을 절대 덮어쓰지 않는다. scope 가 'all' 이면 전체, 아니면 role_name 일치 슬롯만.
+  const applyBatchSpecs = (
+    scope: BatchSpecsScope,
+    incoming: Partial<Record<SlotKey, GearSpec>>,
+  ) => {
+    onReplaceSlots(
+      party.slots.map((s) => {
+        if (scope !== 'all' && s.role_name !== scope) return s
+        const nextSpecs = { ...s.specs }
+        let changed = false
+        for (const key of SLOT_KEYS) {
+          const patch = incoming[key]
+          if (!patch) continue
+          const current = nextSpecs[key] ?? {}
+          const merged: GearSpec = { ...current }
+          if (patch.tier != null && merged.tier == null) {
+            merged.tier = patch.tier
+            changed = true
+          }
+          if (patch.enchant != null && merged.enchant == null) {
+            merged.enchant = patch.enchant
+            changed = true
+          }
+          nextSpecs[key] = merged
+        }
+        return changed ? { ...s, specs: nextSpecs } : s
+      }),
+    )
+  }
   return (
     <details
       className="group border border-gray-700 rounded-xl overflow-hidden"
@@ -387,6 +453,27 @@ function PartyPanel({ party, onAddSlot, onUpdateSlot, onDeleteSlot, onMoveSlot }
           <p className="text-gray-500 text-sm text-center py-4">
             {t('noSlotsHint')}
           </p>
+        )}
+
+        {party.slots.length > 0 && (
+          <div className="flex items-center justify-end gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setBatchItemsModalOpen(true)}
+              className="flex items-center gap-1 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 text-amber-300 px-3 py-1.5 rounded-lg"
+            >
+              <Beaker size={12} />
+              {tParty('batchItemsButton')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setBatchModalOpen(true)}
+              className="flex items-center gap-1 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 text-amber-300 px-3 py-1.5 rounded-lg"
+            >
+              <Package size={12} />
+              {tParty('batchSpecButton')}
+            </button>
+          </div>
         )}
 
         {party.slots.map((slot, idx) => (
@@ -434,6 +521,21 @@ function PartyPanel({ party, onAddSlot, onUpdateSlot, onDeleteSlot, onMoveSlot }
           </button>
         </div>
       </div>
+
+      {batchModalOpen && (
+        <BatchApplySpecsModal
+          slots={party.slots}
+          onApply={applyBatchSpecs}
+          onClose={() => setBatchModalOpen(false)}
+        />
+      )}
+      {batchItemsModalOpen && (
+        <BatchApplyItemsModal
+          slots={party.slots}
+          onApply={applyBatchItems}
+          onClose={() => setBatchItemsModalOpen(false)}
+        />
+      )}
     </details>
   )
 }

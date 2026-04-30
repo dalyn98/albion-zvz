@@ -21,6 +21,7 @@ import {
   SLOT_LABELS,
   SLOT_PICKER_CATEGORY,
   SLOT_ROLES,
+  T8_ONLY_SLOT_KEYS,
   GEAR_ENCHANT_MIN,
   GEAR_ENCHANT_MAX,
   GEAR_FLAT_MIN,
@@ -208,6 +209,30 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, event
     if (next.enchant == null) delete next.enchant
     onChange({ ...slot, specs: { ...slot.specs, [key]: next } })
   }
+
+  // 한 슬롯 안 spec-있는 장비(`T8_ONLY_SLOT_KEYS`: weapon/offhand/head/armor/shoes/cape) 6개에
+  // 같은 플랫을 한 번에 적용. 음식/포션은 인챈트 단독, 탈것은 spec 자체 없음 — 모두 제외.
+  // flat=null 이면 전체 클리어. 호출 한 번으로 specs 객체를 통째 갱신해 React 리렌더 1회만 발생.
+  const setAllGearFlat = (flat: number | null) => {
+    const nextSpecs: Record<SlotKey, GearSpec> = { ...slot.specs }
+    for (const key of T8_ONLY_SLOT_KEYS) {
+      nextSpecs[key] = flat == null ? {} : flatToSpec(flat)
+    }
+    onChange({ ...slot, specs: nextSpecs })
+  }
+
+  // 6개 장비가 같은 플랫을 공유하는지 검사 — 공통값이면 그 값을, 섞여 있으면 null.
+  // dropdown 의 "현재값" 표시에 쓰인다 (mixed 면 빈 옵션 = "Any").
+  const commonGearFlat = (() => {
+    let shared: number | null = null
+    for (const key of T8_ONLY_SLOT_KEYS) {
+      const f = specToFlat(slot.specs[key] ?? {})
+      if (f == null) return null
+      if (shared == null) shared = f
+      else if (shared !== f) return null
+    }
+    return shared
+  })()
 
   const addSpell = (key: SlotKey, spellId: string) => {
     const current = slot.spells[key] ?? []
@@ -465,6 +490,33 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, event
                   </span>
                 </span>
               </label>
+
+              <div className="flex items-center gap-2 flex-wrap rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2">
+                <span className="text-amber-400 text-[11px] font-semibold">
+                  {t('slotAllGearFlatLabel')}
+                </span>
+                <select
+                  value={commonGearFlat ?? ''}
+                  onChange={(e) =>
+                    setAllGearFlat(e.target.value ? Number(e.target.value) : null)
+                  }
+                  className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-amber-500"
+                  aria-label={t('slotAllGearFlatLabel')}
+                >
+                  <option value="">{t('slotAllGearFlatAny')}</option>
+                  {Array.from(
+                    { length: GEAR_FLAT_MAX - GEAR_FLAT_MIN + 1 },
+                    (_, i) => GEAR_FLAT_MIN + i,
+                  ).map((flat) => (
+                    <option key={flat} value={flat}>
+                      {flat}F
+                    </option>
+                  ))}
+                </select>
+                <span className="text-gray-500 text-[10px]">
+                  {t('slotAllGearFlatHint')}
+                </span>
+              </div>
 
               <div className="space-y-3">
                 <GearSection
