@@ -19,20 +19,51 @@ const SCREENSHOT_BUCKET = 'regear-screenshots'
 const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024 // 10 MiB — must match bucket limit in migration 003
 const DEFAULT_REGEAR_WINDOW_MINUTES = 60
 const DEFAULT_MAX_DEATHS_PER_EVENT = 1
+// 신청 가능한 리기어가 적격 리스트에 머무는 기간(일). 이 시간이 지난 사망/이벤트는
+// /regear 의 "신청 가능" 섹션에서 사라진다 (행 자체는 지우지 않음 — 통계·이력
+// 보존). 기본 14일.
+const DEFAULT_ELIGIBILITY_DAYS = 14
+const MIN_ELIGIBILITY_DAYS = 1
+const MAX_ELIGIBILITY_DAYS = 90
 
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp'])
 
-async function loadRegearLimits(guildId: string): Promise<{ windowMinutes: number; maxDeaths: number }> {
-  const [windowRaw, maxRaw] = await Promise.all([
+async function loadRegearLimits(
+  guildId: string,
+): Promise<{ windowMinutes: number; maxDeaths: number; eligibilityDays: number }> {
+  const [windowRaw, maxRaw, eligibilityRaw] = await Promise.all([
     getAppSetting('regear_window_minutes', String(DEFAULT_REGEAR_WINDOW_MINUTES), guildId),
     getAppSetting('regear_max_deaths_per_event', String(DEFAULT_MAX_DEATHS_PER_EVENT), guildId),
+    getAppSetting('regear_eligibility_days', String(DEFAULT_ELIGIBILITY_DAYS), guildId),
   ])
   const windowParsed = Number(windowRaw)
   const maxParsed = Number(maxRaw)
+  const eligibilityParsed = Number(eligibilityRaw)
+  const eligibilityDays =
+    Number.isFinite(eligibilityParsed) &&
+    eligibilityParsed >= MIN_ELIGIBILITY_DAYS &&
+    eligibilityParsed <= MAX_ELIGIBILITY_DAYS
+      ? Math.floor(eligibilityParsed)
+      : DEFAULT_ELIGIBILITY_DAYS
   return {
     windowMinutes: Number.isFinite(windowParsed) && windowParsed >= 1 ? Math.floor(windowParsed) : DEFAULT_REGEAR_WINDOW_MINUTES,
     maxDeaths: Number.isFinite(maxParsed) && maxParsed >= 1 ? Math.floor(maxParsed) : DEFAULT_MAX_DEATHS_PER_EVENT,
+    eligibilityDays,
   }
+}
+
+// 길드 unauthenticated/세션 부재 fallback 에서 사용. UI 가 정상 토글 값을 알 수
+// 없을 때 안전 기본값으로 degrade.
+const DEFAULT_REGEAR_LIMITS: RegearLimits = {
+  windowMinutes: DEFAULT_REGEAR_WINDOW_MINUTES,
+  maxDeaths: DEFAULT_MAX_DEATHS_PER_EVENT,
+  eligibilityDays: DEFAULT_ELIGIBILITY_DAYS,
+}
+
+// regear-tracked-deaths.ts 에서 동일 컷을 적용해야 하므로 export.
+export async function getRegearEligibilityDays(guildId: string): Promise<number> {
+  const { eligibilityDays } = await loadRegearLimits(guildId)
+  return eligibilityDays
 }
 
 function buildSnapshotFromSlot(slot: SlotGearDisplay, roleName: string): BuildSnapshot {
@@ -99,6 +130,9 @@ export interface RegearEligibleEvent {
 export interface RegearLimits {
   windowMinutes: number
   maxDeaths: number
+  // /regear 적격 리스트(이벤트 매칭/이벤트 외 트래킹 사망)에서 항목이 사라지기까지의
+  // 일 수. 행을 삭제하지는 않고 클라이언트에 노출되는 "신청 가능" 컬렉션만 컷.
+  eligibilityDays: number
 }
 
 // Exposed to the regear page so it can render the window/cap labels and
@@ -108,10 +142,7 @@ export interface RegearLimits {
 export async function getRegearLimits(): Promise<RegearLimits> {
   const session = await getSession()
   if (!session) {
-    return {
-      windowMinutes: DEFAULT_REGEAR_WINDOW_MINUTES,
-      maxDeaths: DEFAULT_MAX_DEATHS_PER_EVENT,
-    }
+    return DEFAULT_REGEAR_LIMITS
   }
   const guildId = await getSessionGuildId(session)
   return loadRegearLimits(guildId)
@@ -439,6 +470,13 @@ export async function listMyRegearEligibleEvents(): Promise<{
 
   const db = getAdminClient()
 
+  // 적격 컷오프: regear_eligibility_days 가 지난 이벤트는 "신청 가능" 리스트에서
+  // 사라진다. 행 자체는 events 테이블에 남아 통계/이력 추적이 깨지지 않게 한다.
+  const eligibilityDays = await getRegearEligibilityDays(guildId)
+  const eligibilityCutoffIso = new Date(
+    Date.now() - eligibilityDays * 24 * 60 * 60 * 1000,
+  ).toISOString()
+
   // Find slots I'm assigned to, joined through parties to events with a battle
   // start. Battle start is the gate — no start means no regear window yet.
   // We don't gate by isEnded here: members can still submit from the site after
@@ -472,6 +510,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
     .eq('guild_id', guildId)
     .in('id', eventIds)
     .not('battle_started_at', 'is', null)
+    .gte('battle_started_at', eligibilityCutoffIso)
     .order('battle_started_at', { ascending: false })
   if (eventsError) return { events: [], error: eventsError.message }
   if (!events || events.length === 0) return { events: [] }

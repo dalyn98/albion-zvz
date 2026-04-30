@@ -1414,6 +1414,8 @@
     "windowMinutesHint": "{min}–{max} minutes. Members can file regear requests this many minutes after the battle ends. The delay exists because Albion's killboard needs time to process death records.",
     "maxDeathsLabel": "Max requests per event",
     "maxDeathsHint": "{min}–{max}. The maximum number of requests one member can file for the same event. Rejected requests don't count, so they can retry.",
+    "eligibilityDaysLabel": "Eligibility window (days)",
+    "eligibilityDaysHint": "{min}–{max} days. Events and tracked deaths older than this disappear from the \"eligible regear\" list. Already-submitted requests are not affected.",
     "invalidRange": "Value out of allowed range.",
     "save": "Save",
     "saving": "Saving…",

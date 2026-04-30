@@ -41,6 +41,7 @@ export default async function SettingsPage() {
     lastMemberSyncAtRaw,
     regearWindowMinutesRaw,
     regearMaxDeathsRaw,
+    regearEligibilityDaysRaw,
     regearPayoutRatePercentRaw,
     eventsAutoStartRaw,
     albionServerRaw,
@@ -72,6 +73,7 @@ export default async function SettingsPage() {
     getAppSetting('last_member_sync_at', '', tenantId),
     getAppSetting('regear_window_minutes', '60', tenantId),
     getAppSetting('regear_max_deaths_per_event', '1', tenantId),
+    getAppSetting('regear_eligibility_days', '14', tenantId),
     getAppSetting('regear_payout_rate_percent', '100', tenantId),
     getAppSetting('events_auto_start_enabled', 'false', tenantId),
     getAppSetting('albion_server', 'east', tenantId),
@@ -119,6 +121,15 @@ export default async function SettingsPage() {
   }
   const regearWindowMinutes = parseInteger(regearWindowMinutesRaw, 60)
   const regearMaxDeaths = parseInteger(regearMaxDeathsRaw, 1)
+  // 1-90 일 범위. 손상된 값은 14 (멘헤라 검증된 기본) 로 degrade.
+  const parsedEligibility = Number(regearEligibilityDaysRaw)
+  const regearEligibilityDays =
+    Number.isFinite(parsedEligibility) &&
+    Number.isInteger(parsedEligibility) &&
+    parsedEligibility >= 1 &&
+    parsedEligibility <= 90
+      ? parsedEligibility
+      : 14
   const parsedPayoutRate = Number(regearPayoutRatePercentRaw)
   const regearPayoutRatePercent =
     Number.isFinite(parsedPayoutRate) &&
@@ -201,6 +212,7 @@ export default async function SettingsPage() {
         lastMemberSyncAt={lastMemberSyncAt}
         regearWindowMinutes={regearWindowMinutes}
         regearMaxDeaths={regearMaxDeaths}
+        regearEligibilityDays={regearEligibilityDays}
         regearPayoutRatePercent={regearPayoutRatePercent}
         eventsAutoStartEnabled={eventsAutoStartEnabled}
         albionServer={albionServer}

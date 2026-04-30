@@ -77,6 +77,7 @@ interface Props {
   lastMemberSyncAt: string | null
   regearWindowMinutes: number
   regearMaxDeaths: number
+  regearEligibilityDays: number
   regearPayoutRatePercent: number
   eventsAutoStartEnabled: boolean
   albionServer: AlbionServer
@@ -122,6 +123,7 @@ export default function SettingsTabs({
   lastMemberSyncAt,
   regearWindowMinutes,
   regearMaxDeaths,
+  regearEligibilityDays,
   regearPayoutRatePercent,
   eventsAutoStartEnabled,
   albionServer,
@@ -241,6 +243,7 @@ export default function SettingsTabs({
                 embedded
                 initialWindowMinutes={regearWindowMinutes}
                 initialMaxDeaths={regearMaxDeaths}
+                initialEligibilityDays={regearEligibilityDays}
               />
               <RegearPayoutRateForm embedded initialPercent={regearPayoutRatePercent} />
               <RegearRequireVerificationForm

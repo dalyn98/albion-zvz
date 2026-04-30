@@ -25,11 +25,8 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { fetchTrackedBattleWindows } from '@/lib/tracked-kills'
 import { equipmentToBuildSnapshot, type EquipmentItem } from '@/lib/auto-regear'
+import { getRegearEligibilityDays } from '@/app/actions/regear'
 import type { BuildSnapshot } from '@/types'
-
-// 적격 사망 조회 윈도: 14일. 너무 길면 UI 가 시끄러워지고, 너무 짧으면 점심에
-// 한 번 죽고 며칠 잊어버리는 케이스를 못 잡는다.
-const ELIGIBILITY_DAYS = 14
 
 // 스크린샷은 옵션 — killboard_verified=true 가 이미 검증 소스라 필수가 아니지만,
 // 청구자가 갱크 상황·잔여 인원·아이템 등 추가 컨텍스트를 첨부할 수 있게 한다.
@@ -81,7 +78,8 @@ export async function listMyTrackedAdHocDeaths(): Promise<{
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
 
-  const sinceMs = Date.now() - ELIGIBILITY_DAYS * 24 * 60 * 60 * 1000
+  const eligibilityDays = await getRegearEligibilityDays(guildId)
+  const sinceMs = Date.now() - eligibilityDays * 24 * 60 * 60 * 1000
   const sinceIso = new Date(sinceMs).toISOString()
 
   const tracked = await fetchTrackedBattleWindows(db, guildId, sinceIso)
@@ -201,8 +199,9 @@ export async function submitTrackedAdHocRegear(
   )
   if (battleId == null) return { error: tErr('trackedDeathNotFound') }
 
+  const eligibilityDays = await getRegearEligibilityDays(guildId)
   const sinceIso = new Date(
-    Date.now() - ELIGIBILITY_DAYS * 24 * 60 * 60 * 1000,
+    Date.now() - eligibilityDays * 24 * 60 * 60 * 1000,
   ).toISOString()
   const tracked = await fetchTrackedBattleWindows(db, guildId, sinceIso)
   if (!tracked.byBattleId.has(battleId)) {
