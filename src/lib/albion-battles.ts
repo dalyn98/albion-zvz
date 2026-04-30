@@ -188,40 +188,11 @@ export interface BattleSides {
 }
 
 // 홈 길드가 battle 에 없으면 null 반환. 있으면 두 측 집계.
-//
-// homeAllianceIdOverride (optional):
-//   - 전달 시 홈 길드가 없어도 같은 alliance 길드가 1개 이상 있으면 그들을 홈
-//     측으로 묶어 집계 (alliance-level battle tracking). 홈 길드는 0명이지만
-//     같은 알라이언스의 다른 길드가 싸운 전투를 추적하기 위함.
-//   - 미전달이거나 빈 값이면 기존 동작 (홈 길드 미참여 → null).
-//   - 홈 길드가 battle 에 있으면 이 인자는 무시되고 battle 자체의 allianceId 가
-//     쓰인다 (가장 최신 정보).
-export function computeSides(
-  battle: AlbionBattle,
-  homeGuildId: string,
-  homeAllianceIdOverride?: string | null,
-): BattleSides | null {
+export function computeSides(battle: AlbionBattle, homeGuildId: string): BattleSides | null {
   const homeGuild = battle.guilds?.[homeGuildId]
-  const overrideAllianceId =
-    homeAllianceIdOverride && homeAllianceIdOverride !== ''
-      ? homeAllianceIdOverride
-      : null
+  if (!homeGuild) return null
 
-  // home 길드가 battle 에 없는 경우: alliance override 가 있고 같은 alliance
-  // 길드가 1개 이상 있어야 진행. 그렇지 않으면 기존 null 반환 유지.
-  if (!homeGuild) {
-    if (!overrideAllianceId) return null
-    const hasAllianceMate = Object.values(battle.guilds ?? {}).some(
-      (g) => g.allianceId === overrideAllianceId,
-    )
-    if (!hasAllianceMate) return null
-  }
-
-  const homeAllianceId = homeGuild
-    ? homeGuild.allianceId && homeGuild.allianceId !== ''
-      ? homeGuild.allianceId
-      : null
-    : overrideAllianceId
+  const homeAllianceId = homeGuild.allianceId && homeGuild.allianceId !== '' ? homeGuild.allianceId : null
 
   const homeGuildIds = new Set<string>()
   const homeAllianceIds = new Set<string>()
@@ -239,25 +210,10 @@ export function computeSides(
     }
   }
 
-  // homeGuildName 은 home 길드가 있으면 그 이름, 없으면 같은 알라이언스에서
-  // killFame 가장 큰 길드 이름으로 fallback (UI 라벨 비어 보이지 않게).
-  let homeGuildName = homeGuild?.name ?? ''
-  if (!homeGuild) {
-    let bestFame = -1
-    for (const gid of homeGuildIds) {
-      const g = battle.guilds[gid]
-      if (!g) continue
-      if (g.killFame > bestFame) {
-        bestFame = g.killFame
-        homeGuildName = g.name
-      }
-    }
-  }
-
   return {
     home: aggregateSide(battle, homeGuildIds, homeAllianceIds),
     opponent: aggregateSide(battle, opponentGuildIds, opponentAllianceIds),
-    homeGuildName,
+    homeGuildName: homeGuild.name,
     homeAllianceId,
     homeAllianceName: homeAllianceId ? battle.alliances?.[homeAllianceId]?.name ?? null : null,
   }
@@ -350,14 +306,11 @@ export interface OpponentForce {
 
 // 상대측을 alliance 또는 단독 길드 단위로 그룹화. teamSize desc, killFame desc 로
 // 정렬해 첫 항목이 "주 상대 (mainOpponent)".
-//
-// homeAllianceIdOverride: computeSides 와 동일 — alliance-level battle tracking 용.
 export function computeOpposingForces(
   battle: AlbionBattle,
   homeGuildId: string,
-  homeAllianceIdOverride?: string | null,
 ): OpponentForce[] {
-  const sides = computeSides(battle, homeGuildId, homeAllianceIdOverride)
+  const sides = computeSides(battle, homeGuildId)
   if (!sides) return []
 
   const opponentGuildSet = new Set(sides.opponent.guildIds)
@@ -446,9 +399,9 @@ export interface OpponentGuildBreakdown {
 export function computeOpponentGuildBreakdown(
   battle: AlbionBattle,
   homeGuildId: string,
-  options: { minTeamSize?: number; homeAllianceIdOverride?: string | null } = {},
+  options: { minTeamSize?: number } = {},
 ): OpponentGuildBreakdown[] {
-  const sides = computeSides(battle, homeGuildId, options.homeAllianceIdOverride)
+  const sides = computeSides(battle, homeGuildId)
   if (!sides) return []
   const minTeamSize = options.minTeamSize ?? 0
 

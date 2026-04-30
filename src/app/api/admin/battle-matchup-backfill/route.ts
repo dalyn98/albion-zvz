@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getAppSetting } from '@/lib/app-settings'
 import {
   buildLegacyBackfillRows,
   type KillboardPair,
@@ -143,19 +142,8 @@ export async function GET(request: Request) {
     })
   }
 
-  // 알라이언스 ID 캐시 — tenant 당 1 회만 setting 조회. backfill 도 cron 과 같은
-  // alliance-level 규칙을 적용해 홈 길드 0명 + 알라이언스 동맹만 참여한 전투도
-  // 매치업으로 복원되도록.
-  const allianceIdByTenant = new Map<string, string | null>()
-
   for (const meta of dedupedRows.values()) {
     const { guildId, battleRecordId, homeGuildId, startedAt, albionBattleId, battle } = meta
-
-    if (!allianceIdByTenant.has(guildId)) {
-      const aid = await getAppSetting('albion_home_alliance_id', '', guildId)
-      allianceIdByTenant.set(guildId, aid && aid !== '' ? aid : null)
-    }
-    const homeAllianceIdOverride = allianceIdByTenant.get(guildId) ?? null
 
     const { data: pairRows, error: pairErr } = await db
       .from('killboard_events')
@@ -180,7 +168,6 @@ export async function GET(request: Request) {
       startedAt,
       killboardPairs: pairs,
       evaluatedAt,
-      homeAllianceIdOverride,
     })
 
     const { error: delErr } = await db

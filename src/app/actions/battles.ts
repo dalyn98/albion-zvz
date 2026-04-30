@@ -125,7 +125,7 @@ export async function getBattleDetail(
     const { data: myRow, error: myErr } = await db
       .from('tenant_battle_records')
       .select(
-        'id, battle_record_id, home_guild_id, home_guild_name, home_alliance_id, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, main_opponent_force_kind, main_opponent_force_name, main_opponent_team_size, main_opponent_kills, main_opponent_deaths, main_opponent_kill_fame, match_index, match_total, is_provisional, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name, ended_at, raw_battle)',
+        'id, battle_record_id, home_guild_id, home_guild_name, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, main_opponent_force_kind, main_opponent_force_name, main_opponent_team_size, main_opponent_kills, main_opponent_deaths, main_opponent_kill_fame, match_index, match_total, is_provisional, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name, ended_at, raw_battle)',
       )
       .eq('guild_id', myGuildId)
       .eq('id', id)
@@ -189,7 +189,7 @@ export async function getBattleDetail(
           const { data: peerFull, error: peerFullErr } = await db
             .from('tenant_battle_records')
             .select(
-              'id, battle_record_id, home_guild_id, home_guild_name, home_alliance_id, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, main_opponent_force_kind, main_opponent_force_name, main_opponent_team_size, main_opponent_kills, main_opponent_deaths, main_opponent_kill_fame, match_index, match_total, is_provisional, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name, ended_at, raw_battle)',
+              'id, battle_record_id, home_guild_id, home_guild_name, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, main_opponent_force_kind, main_opponent_force_name, main_opponent_team_size, main_opponent_kills, main_opponent_deaths, main_opponent_kill_fame, match_index, match_total, is_provisional, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name, ended_at, raw_battle)',
             )
             .eq('guild_id', peerGuildId)
             .eq('battle_record_id', battleRecordId)
@@ -221,7 +221,6 @@ export async function getBattleDetail(
     const opponentGuilds: OpponentGuildBreakdown[] = rawBattle
       ? computeOpponentGuildBreakdown(rawBattle, activeRow.home_guild_id as string, {
           minTeamSize: OPPONENT_GUILD_MIN_TEAM_SIZE,
-          homeAllianceIdOverride: (activeRow.home_alliance_id as string | null) ?? null,
         })
       : []
 

@@ -233,13 +233,12 @@ export function buildProvisionalTenantRow(input: {
   battle: AlbionBattle
   homeGuildId: string
   startedAt: string
-  homeAllianceIdOverride?: string | null
 }): TenantBattleRow | null {
-  const sides = computeSides(input.battle, input.homeGuildId, input.homeAllianceIdOverride)
+  const sides = computeSides(input.battle, input.homeGuildId)
   if (!sides) return null
   if (sides.home.teamSize < MATCHUP_MIN_SIZE) return null
 
-  const forces = computeOpposingForces(input.battle, input.homeGuildId, input.homeAllianceIdOverride)
+  const forces = computeOpposingForces(input.battle, input.homeGuildId)
   const mainForce = forces[0]
   if (!mainForce || mainForce.teamSize < MATCHUP_MIN_SIZE) return null
 
@@ -315,9 +314,8 @@ function determineEngagedForces(
   battle: AlbionBattle,
   homeGuildId: string,
   pairs: KillboardPair[],
-  homeAllianceIdOverride?: string | null,
 ): OpponentForce[] {
-  const forces = computeOpposingForces(battle, homeGuildId, homeAllianceIdOverride)
+  const forces = computeOpposingForces(battle, homeGuildId)
   if (forces.length === 0) return []
 
   // opponent_guild 이름 set
@@ -347,9 +345,8 @@ export function buildFinalMatchupRows(input: {
   startedAt: string
   killboardPairs: KillboardPair[]
   evaluatedAt: string
-  homeAllianceIdOverride?: string | null
 }): TenantBattleRow[] {
-  const sides = computeSides(input.battle, input.homeGuildId, input.homeAllianceIdOverride)
+  const sides = computeSides(input.battle, input.homeGuildId)
   if (!sides) return []
   if (sides.home.teamSize < MATCHUP_MIN_SIZE) return []
 
@@ -357,7 +354,6 @@ export function buildFinalMatchupRows(input: {
     input.battle,
     input.homeGuildId,
     input.killboardPairs,
-    input.homeAllianceIdOverride,
   )
   if (engaged.length === 0) return []
 
@@ -401,9 +397,8 @@ export function buildLegacyBackfillRows(input: {
   startedAt: string
   killboardPairs: KillboardPair[]
   evaluatedAt: string
-  homeAllianceIdOverride?: string | null
 }): TenantBattleRow[] {
-  const sides = computeSides(input.battle, input.homeGuildId, input.homeAllianceIdOverride)
+  const sides = computeSides(input.battle, input.homeGuildId)
   if (!sides) return []
   if (sides.home.teamSize < MATCHUP_MIN_SIZE) return []
 
@@ -412,13 +407,12 @@ export function buildLegacyBackfillRows(input: {
     input.battle,
     input.homeGuildId,
     input.killboardPairs,
-    input.homeAllianceIdOverride,
   )
   let usePairs = engaged.length > 0
 
   // 2차: 페어 0건이면 raw_battle 의 모든 force ≥10 를 분리 매치업으로.
   if (engaged.length === 0) {
-    const forces = computeOpposingForces(input.battle, input.homeGuildId, input.homeAllianceIdOverride)
+    const forces = computeOpposingForces(input.battle, input.homeGuildId)
     engaged = forces.filter((f) => f.teamSize >= MATCHUP_MIN_SIZE)
     usePairs = false
   }

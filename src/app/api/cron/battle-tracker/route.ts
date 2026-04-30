@@ -59,9 +59,6 @@ interface TenantTrackingInfo {
   tenantId: string
   server: AlbionServer
   homeGuildId: string
-  // 홈 길드의 현재 알라이언스 ID. 빈 값이면 솔로 길드 또는 아직 자동 감지
-  // 못함. 매 cron run 마다 raw_battle 에서 갱신되어 setting 으로 저장.
-  homeAllianceId: string | null
 }
 
 export async function GET(request: Request) {
@@ -90,10 +87,9 @@ export async function GET(request: Request) {
 
   const tracking: TenantTrackingInfo[] = []
   for (const tenant of tenants) {
-    const [homeGuildId, serverRaw, allianceIdRaw] = await Promise.all([
+    const [homeGuildId, serverRaw] = await Promise.all([
       getAppSetting('albion_home_guild_id', '', tenant.id),
       getAppSetting('albion_server', 'east', tenant.id),
-      getAppSetting('albion_home_alliance_id', '', tenant.id),
     ])
     if (!homeGuildId) continue
     if (!isAlbionServer(serverRaw)) continue
@@ -101,7 +97,6 @@ export async function GET(request: Request) {
       tenantId: tenant.id,
       server: serverRaw,
       homeGuildId,
-      homeAllianceId: allianceIdRaw && allianceIdRaw !== '' ? allianceIdRaw : null,
     })
   }
 
@@ -163,23 +158,6 @@ export async function GET(request: Request) {
     let matchupsDeleted = 0
 
     if (battles.length > 0) {
-      // 알라이언스 ID 자동 감지: 이번 run 의 battles 중 홈 길드가 등장한 battle
-      // 에서 길드의 allianceId 를 추출. 솔로 길드면 빈 문자열로 정규화. 다음
-      // 단계의 buildProvisionalTenantRow 가 곧장 새 값을 사용하도록 in-memory
-      // tracking 도 함께 갱신.
-      const serverTenantsForDetect = tracking.filter((t) => t.server === server)
-      for (const tenant of serverTenantsForDetect) {
-        for (const battle of battles) {
-          const g = battle.guilds?.[tenant.homeGuildId]
-          if (!g) continue
-          const detected = g.allianceId && g.allianceId !== '' ? g.allianceId : null
-          if (detected !== tenant.homeAllianceId) {
-            tenant.homeAllianceId = detected
-          }
-          break
-        }
-      }
-
       // battle_records 에 먼저 upsert (tenant 무관). onConflict (server, id) 로
       // 중복 방지. 반환된 id 는 tenant row 작성에 필요.
       const battleRows = battles.map((b) => buildBattleRecordRow(b, server))
@@ -209,7 +187,6 @@ export async function GET(request: Request) {
               battle,
               homeGuildId: tenant.homeGuildId,
               startedAt: battle.startTime,
-              homeAllianceIdOverride: tenant.homeAllianceId,
             })
             if (row) provisionalRows.push(row)
           }
@@ -306,7 +283,6 @@ export async function GET(request: Request) {
                 battle,
                 homeGuildId: tenant.homeGuildId,
                 startedAt: battle.startTime,
-                homeAllianceIdOverride: tenant.homeAllianceId,
               })
               if (row) backfillRows.push(row)
             }
@@ -368,11 +344,6 @@ export async function GET(request: Request) {
   // 일부 errors 가 있어도 tenant_battle_records upsert 는 시도된 상태이므로
   // auto-regear 가 "이번 cron 이후 데이터로 판단해도 됨" 으로 받아들인다.
   // killboard-sync 와 동일한 패턴(per-tenant upsert with onConflict).
-  //
-  // 함께 albion_home_alliance_id 도 갱신 — 이번 run 에서 감지한 값으로. 솔로
-  // 길드(빈 값) 도 다음 run 에 그대로 빈 값을 읽도록 명시 저장 (이전에 알라이언스
-  // 가입 → 탈퇴한 경우 stale 값이 남지 않게). 길드가 어떤 battle 에도 등장하지
-  // 않은 run 에서는 in-memory 값을 그대로 다시 저장 (= 변화 없음).
   const nowIso = new Date().toISOString()
   for (const t of tracking) {
     await db
@@ -382,17 +353,6 @@ export async function GET(request: Request) {
           guild_id: t.tenantId,
           key: 'last_battle_tracker_sync_at',
           value: nowIso,
-          updated_at: nowIso,
-        },
-        { onConflict: 'guild_id,key' },
-      )
-    await db
-      .from('app_settings')
-      .upsert(
-        {
-          guild_id: t.tenantId,
-          key: 'albion_home_alliance_id',
-          value: t.homeAllianceId ?? '',
           updated_at: nowIso,
         },
         { onConflict: 'guild_id,key' },
@@ -430,9 +390,6 @@ async function reevaluateMatchups(input: {
   const tenantIds = tenantTracking.map((t) => t.tenantId)
   const homeGuildByTenant = new Map(
     tenantTracking.map((t) => [t.tenantId, t.homeGuildId] as const),
-  )
-  const homeAllianceByTenant = new Map(
-    tenantTracking.map((t) => [t.tenantId, t.homeAllianceId] as const),
   )
 
   // provisional row 조회 — 같은 (guild_id, battle_record_id) 가 1번씩만 나오게
@@ -500,7 +457,6 @@ async function reevaluateMatchups(input: {
       startedAt: prov.started_at as string,
       killboardPairs: pairs,
       evaluatedAt,
-      homeAllianceIdOverride: homeAllianceByTenant.get(tenantId) ?? null,
     })
 
     // 같은 (guild_id, battle_record_id) 의 모든 row 삭제 (provisional 포함)
