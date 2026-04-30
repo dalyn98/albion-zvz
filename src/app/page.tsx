@@ -11,9 +11,7 @@ import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import HomeEventList, { type HomeEventCardData, type HomeEventKind } from '@/components/HomeEventList'
 import NoticeBannerWithAdmin from '@/components/NoticeBannerWithAdmin'
-import HomeGuildWeeklyStats from '@/components/HomeGuildWeeklyStats'
 import HomeAdminPendingCard from '@/components/HomeAdminPendingCard'
-import { loadGuildWeeklyStats } from '@/lib/guild-weekly-stats'
 import { getAdminBadgeCounts } from '@/lib/admin-badges'
 
 // Homepage reflects the live DB, so never prerender at build — a static
@@ -90,21 +88,14 @@ export default async function HomePage() {
     noticeImageUrl,
     events,
     tz,
-    weeklyStatsEnabledRaw,
     adminPendingEnabledRaw,
   ] = await Promise.all([
     getAppSetting('events_notice_message', '', guildId),
     getAppSetting('events_notice_image_url', '', guildId),
     getActiveEvents(guildId),
     getTenantTimezone(guildId),
-    // 길드별 토글 — 기본 OFF. SaaS 다른 테넌트에는 노출하지 않는다. 우리 길드는
-    // 별도 SQL upsert 로 'true' 설정.
-    getAppSetting('home_weekly_stats_enabled', 'false', guildId),
     getAppSetting('home_admin_pending_card_enabled', 'false', guildId),
   ])
-
-  const weeklyStatsEnabled = weeklyStatsEnabledRaw === 'true'
-  const weeklyStats = weeklyStatsEnabled ? await loadGuildWeeklyStats(guildId) : null
 
   const adminPendingEnabled = adminPendingEnabledRaw === 'true' && (session?.isAdmin ?? false)
   const adminBadges = adminPendingEnabled ? await getAdminBadgeCounts(guildId) : null
@@ -165,8 +156,6 @@ export default async function HomePage() {
       />
 
       {adminBadges && <HomeAdminPendingCard badges={adminBadges} />}
-
-      {weeklyStats && <HomeGuildWeeklyStats stats={weeklyStats} />}
 
       {events.length === 0 ? (
         <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center">

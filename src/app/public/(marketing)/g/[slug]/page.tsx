@@ -36,6 +36,8 @@ import { getSession } from '@/lib/session'
 import MemberDashboardSection from '@/components/guild/MemberDashboardSection'
 import SignedOutCta from '@/components/guild/SignedOutCta'
 import HomeAdminPendingCard from '@/components/HomeAdminPendingCard'
+import GuildPublicWeeklyStats from '@/components/GuildPublicWeeklyStats'
+import { loadGuildWeeklyStats, type GuildWeeklyStats } from '@/lib/guild-weekly-stats'
 
 export const dynamic = 'force-dynamic'
 
@@ -125,6 +127,12 @@ export default async function GuildProfilePage({
   const memberDashboardEnabled =
     (await getAppSetting('member_dashboard_enabled', 'false', tenant.tenantId)) === 'true'
 
+  // 이번 주 활동 KPI 위젯도 같은 길드별 토글(`home_weekly_stats_enabled`) — 원래
+  // 홈(`/`) 페이지에 있던 위젯이 길드 공개 페이지로 이동했다 (#208). 설정 키는
+  // 그대로 유지해 기존 길드의 'true' 가 즉시 반영되게 한다.
+  const weeklyStatsEnabled =
+    (await getAppSetting('home_weekly_stats_enabled', 'false', tenant.tenantId)) === 'true'
+
   // 세션이 보고 있는 길드 = 페이지 길드 + isMember 일 때만 멤버 카드 데이터를
   // 페치한다. 다른 길드의 멤버나 비로그인은 페치 자체를 건너뛰어 비용 0.
   // 어드민 처리 대기 카드 (HomeAdminPendingCard) 도 같은 토글 + isAdmin 게이트
@@ -149,27 +157,37 @@ export default async function GuildProfilePage({
     session.guildId === tenant.tenantId &&
     (session.isMember || session.isAdmin)
 
-  const [stats, galleryItems, recentBattle, topContributors, memberSummary, adminBadges] =
-    await Promise.all([
-      loadSectionStats(tenant.tenantId, {
-        showMembers: settings.showMembers,
-        showBattles: settings.showBattles,
-        showRegearStats: settings.showRegearStats,
-      }),
-      loadGalleryItems(tenant.tenantId),
-      settings.showBattles
-        ? loadRecentTrackedBattle(tenant.tenantId)
-        : Promise.resolve(null),
-      settings.showLeaderboard
-        ? loadTopContributorsThisWeek(tenant.tenantId, 3)
-        : Promise.resolve([]),
-      isThisGuildMember && session
-        ? loadMemberDashboardSummary(session.discordId, tenant.tenantId)
-        : Promise.resolve(null),
-      isThisGuildAdmin
-        ? getAdminBadgeCounts(tenant.tenantId)
-        : Promise.resolve(null),
-    ])
+  const [
+    stats,
+    galleryItems,
+    recentBattle,
+    topContributors,
+    memberSummary,
+    adminBadges,
+    weeklyStats,
+  ] = await Promise.all([
+    loadSectionStats(tenant.tenantId, {
+      showMembers: settings.showMembers,
+      showBattles: settings.showBattles,
+      showRegearStats: settings.showRegearStats,
+    }),
+    loadGalleryItems(tenant.tenantId),
+    settings.showBattles
+      ? loadRecentTrackedBattle(tenant.tenantId)
+      : Promise.resolve(null),
+    settings.showLeaderboard
+      ? loadTopContributorsThisWeek(tenant.tenantId, 3)
+      : Promise.resolve([]),
+    isThisGuildMember && session
+      ? loadMemberDashboardSummary(session.discordId, tenant.tenantId)
+      : Promise.resolve(null),
+    isThisGuildAdmin
+      ? getAdminBadgeCounts(tenant.tenantId)
+      : Promise.resolve(null),
+    weeklyStatsEnabled
+      ? loadGuildWeeklyStats(tenant.tenantId)
+      : Promise.resolve<GuildWeeklyStats | null>(null),
+  ])
 
   const t = await getTranslations('publicGuildProfile')
   const tTime = await getTranslations('time')
@@ -182,7 +200,12 @@ export default async function GuildProfilePage({
     settings.showBattles ||
     settings.showRegearStats ||
     settings.showLeaderboard
-  const hasActivity = recentBattle !== null || topContributors.length > 0
+  // 위젯이 비활성이거나 (battleCount === 0) 인 길드는 weekly KPI 줄을 렌더하지
+  // 않는다. activity 섹션 렌더 여부는 KPI 줄까지 함께 본다.
+  const showWeeklyStats =
+    weeklyStats !== null && weeklyStats.battleCount > 0
+  const hasActivity =
+    recentBattle !== null || topContributors.length > 0 || showWeeklyStats
 
   return (
     <div className="min-h-screen bg-[#08090d] text-white">
@@ -289,9 +312,10 @@ export default async function GuildProfilePage({
           <SignedOutCta accent={accent} returnTo={`/g/${tenant.slug}`} />
         )}
 
-        {/* 활동 — 최근 추적된 전투 + 이번 주 탑 킬러. 가입을 고민 중인 사람에게
-            "지금 살아있는 길드" 라는 인상을 주는 핵심 섹션. 둘 중 하나만 있을
-            때도 자연스럽게 풀카드로 확장. */}
+        {/* 활동 — 이번 주 KPI 줄 + 최근 추적된 전투 + 이번 주 탑 킬러. 가입을
+            고민 중인 사람에게 "지금 살아있는 길드" 라는 인상을 주는 핵심 섹션.
+            KPI 줄은 home_weekly_stats_enabled 가 켜진 길드에서만 노출. 다른
+            카드(전투/탑 킬러) 둘 중 하나만 있어도 자연스럽게 풀카드로 확장. */}
         {hasActivity && (
           <section className="space-y-4">
             <SectionHeader
@@ -299,43 +323,48 @@ export default async function GuildProfilePage({
               label={t('activityHeading')}
               accent={accent}
             />
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-              {recentBattle && (
-                <div
-                  className={`${
-                    topContributors.length > 0 ? 'lg:col-span-3' : 'lg:col-span-5'
-                  } rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm transition-colors hover:bg-gray-900/60`}
-                >
-                  <RecentBattleCard
-                    battle={recentBattle}
-                    accent={accent}
-                    sizeLabel={tBattle(`size_${recentBattle.sizeCategory}`)}
-                    outcomeLabel={t(`outcome_${recentBattle.outcome}`)}
-                    relativeLabel={formatRelativeFine(recentBattle.startedAt, tTime)}
-                    titleLabel={t('recentBattleLabel')}
-                    opponentLabel={
-                      recentBattle.primaryOpponentName
-                        ? t('vsOpponent', { name: recentBattle.primaryOpponentName })
-                        : t('battleNoOpponent')
-                    }
-                  />
-                </div>
-              )}
-              {topContributors.length > 0 && (
-                <div
-                  className={`${
-                    recentBattle ? 'lg:col-span-2' : 'lg:col-span-5'
-                  } rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm transition-colors hover:bg-gray-900/60`}
-                >
-                  <TopContributorsCard
-                    contributors={topContributors}
-                    accent={accent}
-                    titleLabel={t('topContributorsLabel')}
-                    killsUnit={t('killsUnit')}
-                  />
-                </div>
-              )}
-            </div>
+            {showWeeklyStats && weeklyStats && (
+              <GuildPublicWeeklyStats stats={weeklyStats} accent={accent} />
+            )}
+            {(recentBattle !== null || topContributors.length > 0) && (
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+                {recentBattle && (
+                  <div
+                    className={`${
+                      topContributors.length > 0 ? 'lg:col-span-3' : 'lg:col-span-5'
+                    } rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm transition-colors hover:bg-gray-900/60`}
+                  >
+                    <RecentBattleCard
+                      battle={recentBattle}
+                      accent={accent}
+                      sizeLabel={tBattle(`size_${recentBattle.sizeCategory}`)}
+                      outcomeLabel={t(`outcome_${recentBattle.outcome}`)}
+                      relativeLabel={formatRelativeFine(recentBattle.startedAt, tTime)}
+                      titleLabel={t('recentBattleLabel')}
+                      opponentLabel={
+                        recentBattle.primaryOpponentName
+                          ? t('vsOpponent', { name: recentBattle.primaryOpponentName })
+                          : t('battleNoOpponent')
+                      }
+                    />
+                  </div>
+                )}
+                {topContributors.length > 0 && (
+                  <div
+                    className={`${
+                      recentBattle ? 'lg:col-span-2' : 'lg:col-span-5'
+                    } rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm transition-colors hover:bg-gray-900/60`}
+                  >
+                    <TopContributorsCard
+                      contributors={topContributors}
+                      accent={accent}
+                      titleLabel={t('topContributorsLabel')}
+                      killsUnit={t('killsUnit')}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </section>
         )}
 
@@ -676,7 +705,7 @@ function TopContributorsCard({
       </p>
       <ul className="space-y-2.5 flex-1">
         {contributors.map((c, idx) => (
-          <li key={c.discordId} className="flex items-center gap-3">
+          <li key={c.albionPlayerId} className="flex items-center gap-3">
             <div className="relative shrink-0">
               {c.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
