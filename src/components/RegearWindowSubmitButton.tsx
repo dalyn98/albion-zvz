@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useId, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -368,7 +368,7 @@ function FulfillmentModeNotice({ craftEnabled }: FulfillmentModeNoticeProps) {
 }
 
 function FileSlot({ file, onChange, placeholder, disabled, removeLabel }: FileSlotProps) {
-  const inputId = `rw-file-${Math.random().toString(36).slice(2, 8)}`
+  const inputId = useId()
   return (
     <div className="relative">
       {file ? (
