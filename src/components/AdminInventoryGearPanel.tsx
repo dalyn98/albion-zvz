@@ -19,6 +19,7 @@ import {
 } from '@/lib/inventory-catalog'
 import { adjustGearAction, setGearAction } from '@/app/actions/inventory'
 import { extractWeaponCategory } from '@/lib/weapon-category'
+import { canonicalT8WeaponId, stripTierPrefix } from '@/lib/weapon-display'
 import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import { useToast } from './ToastProvider'
@@ -58,8 +59,6 @@ const GRID_SLOT_FILTERS: ReadonlyArray<GearSlot> = [
   'head',
   'armor',
   'shoes',
-  'cape',
-  'bag',
 ]
 
 export default function AdminInventoryGearPanel({ initialGear }: Props) {
@@ -68,12 +67,23 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
   const router = useRouter()
 
-  const [tierFilter, setTierFilter] = useState<TierLevel>(8)
-  const [slotFilter, setSlotFilter] = useState<GearSlot>('weapon')
+  const [tierFilter, setTierFilterRaw] = useState<TierLevel>(8)
+  const [slotFilter, setSlotFilterRaw] = useState<GearSlot>('weapon')
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [hideEmpty, setHideEmpty] = useState<boolean>(false)
+  // 무기 슬롯에서만 의미 있음. 슬롯/티어 변경 시 자동 null.
+  const [weaponCategoryFilter, setWeaponCategoryFilter] = useState<string | null>(null)
   const [, startTransition] = useTransition()
   const gridRef = useRef<HTMLDivElement | null>(null)
+
+  const setTierFilter = (tier: TierLevel) => {
+    setTierFilterRaw(tier)
+    setWeaponCategoryFilter(null)
+  }
+  const setSlotFilter = (slot: GearSlot) => {
+    setSlotFilterRaw(slot)
+    setWeaponCategoryFilter(null)
+  }
 
   const rows = useMemo<CategorizedRow[]>(() => {
     return initialGear
@@ -104,13 +114,51 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
     return rows.filter((r) => {
       if (r.tier !== tierFilter) return false
       if (r.slot !== slotFilter) return false
+      if (
+        slotFilter === 'weapon' &&
+        weaponCategoryFilter &&
+        r.weaponCategory !== weaponCategoryFilter
+      ) {
+        return false
+      }
       if (hideEmpty && r.totalQty === 0) return false
       if (!matchesSearch(r)) return false
       return true
     })
     // matchesSearch 는 trimmedQuery 의존
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, tierFilter, slotFilter, hideEmpty, trimmedQuery])
+  }, [rows, tierFilter, slotFilter, weaponCategoryFilter, hideEmpty, trimmedQuery])
+
+  // 무기 슬롯에서 보유/카탈로그에 등장하는 카테고리들 — 칩 라벨은 T8 canonical
+  // 의 로컬라이즈 이름에서 "장로의 " 접두사를 떼서 표시.
+  const weaponCategoryOptions = useMemo(() => {
+    if (slotFilter !== 'weapon') return []
+    const map = new Map<
+      string,
+      { count: number; sample: CategorizedRow }
+    >()
+    for (const r of rows) {
+      if (r.tier !== tierFilter) continue
+      if (r.slot !== 'weapon') continue
+      if (!r.weaponCategory) continue
+      const existing = map.get(r.weaponCategory)
+      if (existing) {
+        existing.count += r.totalQty
+      } else {
+        map.set(r.weaponCategory, { count: r.totalQty, sample: r })
+      }
+    }
+    const out: Array<{ code: string; label: string; count: number }> = []
+    for (const [code, data] of map) {
+      const canonId =
+        canonicalT8WeaponId(data.sample.baseItemId) ?? data.sample.baseItemId
+      const localized =
+        getLocalizedItemNameWithEnchant(canonId, locale, null) ?? code
+      out.push({ code, label: stripTierPrefix(localized), count: data.count })
+    }
+    out.sort((a, b) => a.label.localeCompare(b.label))
+    return out
+  }, [rows, tierFilter, slotFilter, locale])
 
   // 슬롯 칩의 보유 합계 (현재 티어 한정)
   const countsBySlot = useMemo(() => {
@@ -245,6 +293,47 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
             {hideEmpty ? t('hideEmptyOn') : t('hideEmptyOff')}
           </button>
         </div>
+
+        {slotFilter === 'weapon' && weaponCategoryOptions.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            <span className="text-[11px] text-gray-500 self-center mr-1 font-semibold uppercase tracking-wide">
+              {t('weaponCategoryLabel')}
+            </span>
+            <button
+              type="button"
+              onClick={() => setWeaponCategoryFilter(null)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                weaponCategoryFilter === null
+                  ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40'
+                  : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700'
+              }`}
+            >
+              {t('weaponCategoryAll')}
+            </button>
+            {weaponCategoryOptions.map((opt) => {
+              const active = weaponCategoryFilter === opt.code
+              return (
+                <button
+                  key={opt.code}
+                  type="button"
+                  onClick={() => setWeaponCategoryFilter(opt.code)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                    active
+                      ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40'
+                      : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700'
+                  }`}
+                >
+                  <span>{opt.label}</span>
+                  <span
+                    className={`text-[10px] tabular-nums ${active ? 'text-amber-300/80' : 'text-gray-500'}`}
+                  >
+                    {opt.count}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         {trimmedQuery && (
           <p className="text-xs text-gray-500 tabular-nums">

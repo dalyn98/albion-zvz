@@ -4,6 +4,9 @@
 // 아이템 (T4~T8) 만 추출. 인챈트 변형 (@N) 은 카드 안에서 mini-bar 로 노출
 // 하기 때문에 카탈로그는 베이스 단위로만 보관한다.
 //
+// 망토·가방은 길드 재고 관리 대상이 아니라 (cape: 도시 보너스라 짐 별도 관리,
+// bag: 단일 슬롯이라 의미 없음) 카탈로그에서 아예 제외.
+//
 // 결과는 모듈 로드 시 한 번 계산되어 캐시된다 (~1400 entries).
 
 import items from '@/data/albion-items.json'
@@ -27,6 +30,8 @@ export const ENCHANT_LEVELS: readonly EnchantLevel[] = [0, 1, 2, 3, 4] as const
 export const TIER_LEVELS = [4, 5, 6, 7, 8] as const
 export type TierLevel = (typeof TIER_LEVELS)[number]
 
+const EXCLUDED_GRID_SLOTS: ReadonlySet<GearSlot> = new Set(['cape', 'bag'])
+
 interface BundledItem {
   u: string
 }
@@ -42,6 +47,7 @@ export function getGearCatalog(): readonly GearCatalogEntry[] {
     if (uid.includes('@')) continue
     const cat = categorizeGearItem(uid)
     if (cat.slot === 'other') continue
+    if (EXCLUDED_GRID_SLOTS.has(cat.slot)) continue
     if (cat.tier == null) continue
     if (cat.tier < 4 || cat.tier > 8) continue
     out.push({

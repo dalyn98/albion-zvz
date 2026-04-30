@@ -2314,6 +2314,8 @@
     "gearHintCatalog": "T4~T8 전체 장비 카탈로그 + 인챈트 @0~@4. 카드를 클릭하면 인챈트별로 +/- 또는 절대값을 편집할 수 있어요.",
     "tierLabel": "티어",
     "slotLabel": "슬롯",
+    "weaponCategoryLabel": "무기 종류",
+    "weaponCategoryAll": "전체",
     "hideEmptyOn": "보유 중만",
     "hideEmptyOff": "0개 포함",
     "emptyAfterFilter": "현재 필터에서 보유 중인 장비가 없어요.",

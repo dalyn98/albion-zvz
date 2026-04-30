@@ -2314,6 +2314,8 @@
     "gearHintCatalog": "T4–T8 全装備カタログ + エンチャント @0–@4。カードをクリックするとエンチャントごとに +/- や絶対値を編集できます。",
     "tierLabel": "ティア",
     "slotLabel": "スロット",
+    "weaponCategoryLabel": "武器種類",
+    "weaponCategoryAll": "すべて",
     "hideEmptyOn": "保有中のみ",
     "hideEmptyOff": "0 を含む",
     "emptyAfterFilter": "現在のフィルタに保有中の装備がありません。",
