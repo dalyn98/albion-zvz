@@ -54,6 +54,20 @@ function isOnboardPathname(pathname: string): boolean {
   return pathname === '/onboard' || pathname.startsWith('/onboard/')
 }
 
+// `/public/g/<slug>` 는 길드 공개 프로필이라 기본은 marketing 처리(자체
+// MarketingNav, 사이드바 없음). 하지만 그 길드의 멤버 본인이 보고 있다면
+// "내 길드 홈" 이 되므로 AppShell 의 사이드바를 둘러줘야 길드 내 다른 페이지
+// 와 일관성이 유지된다. slug 를 추출해 tenant 를 해석한 뒤 세션과 매칭.
+function extractGuildSlugFromPathname(pathname: string): string | null {
+  if (!pathname.startsWith('/public/g/')) return null
+  const segments = pathname.split('/').filter(Boolean)
+  if (segments.length < 3 || segments[0] !== 'public' || segments[1] !== 'g') {
+    return null
+  }
+  const slug = segments[2]
+  return slug.length > 0 ? slug : null
+}
+
 // 이벤트 스코프 게스트가 접근 가능한 경로. 자기 이벤트 + welcome 외엔 모두
 // 본인 이벤트로 리다이렉트된다. (API 라우트는 이 layout 으로 wrap 되지 않아
 // 별도 제어 불변.)
@@ -149,8 +163,29 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   const pathname = headersList.get('x-pathname') ?? ''
   const isPublic = isPublicPathname(pathname)
-  const isMarketing = isMarketingPathname(pathname)
+  const isMarketingRaw = isMarketingPathname(pathname)
   const isOnboard = isOnboardPathname(pathname)
+
+  // `/public/g/<slug>` 페이지에서, 그 길드의 멤버 본인이 접속한 경우에만 marketing
+  // 처리를 끄고 AppShell(사이드바) 을 둘러준다. 다른 길드 멤버나 비로그인 방문자는
+  // 기존 marketing 페이지(자체 MarketingNav) 그대로 — 사이드바는 자기 길드 컨텍스트
+  // 일 때만 의미가 있다.
+  let viewingOwnGuildProfile = false
+  if (
+    isMarketingRaw &&
+    session &&
+    (session.isMember || session.isAdmin) &&
+    session.guildId
+  ) {
+    const slug = extractGuildSlugFromPathname(pathname)
+    if (slug) {
+      const tenant = await resolveTenantBySlug(slug)
+      if (tenant && tenant.tenantId === session.guildId) {
+        viewingOwnGuildProfile = true
+      }
+    }
+  }
+  const isMarketing = isMarketingRaw && !viewingOwnGuildProfile
 
   // Verify guests still exist in the DB so admin deletions take effect on the
   // next request rather than waiting for the 7-day cookie to expire. Public

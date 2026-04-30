@@ -142,6 +142,14 @@ export default async function GuildProfilePage({
     session.guildId === tenant.tenantId &&
     session.isAdmin
 
+  // 본인 길드를 보고 있을 때(memberDashboardEnabled 무관) 는 layout 이 AppShell
+  // 사이드바를 둘러주므로, 페이지 상단의 MarketingNav 는 중복이라 숨긴다. 다른
+  // 길드 방문이거나 비로그인이면 기존 marketing 헤더 그대로 노출.
+  const viewingOwnGuild =
+    session !== null &&
+    session.guildId === tenant.tenantId &&
+    (session.isMember || session.isAdmin)
+
   const [stats, galleryItems, recentBattle, topContributors, memberSummary, adminBadges] =
     await Promise.all([
       loadSectionStats(tenant.tenantId, {
@@ -179,7 +187,7 @@ export default async function GuildProfilePage({
 
   return (
     <div className="min-h-screen bg-[#08090d] text-white">
-      <MarketingNav />
+      {!viewingOwnGuild && <MarketingNav />}
 
       {/* HERO — 좌측 수직 액센트 바 + 배너 + 글로우 + 미세 노이즈 텍스처.
           모집 open 일 때 도트가 ping. 길드명은 모바일/데스크탑 4xl→6xl→7xl 로
