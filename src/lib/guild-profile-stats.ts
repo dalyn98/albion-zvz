@@ -16,6 +16,7 @@ import { bundleSplitBattles, type BundleableRow } from '@/lib/battle-bundling'
 import { discordAvatarUrl } from '@/lib/discord-avatar'
 import { extractWeaponCategory } from '@/lib/weapon-category'
 import { fetchTrackedBattleWindows, isWithinTrackedWindow } from '@/lib/tracked-kills'
+import { getGuild, isAlbionServer } from '@/lib/albion-gameinfo'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const ROLLING_WINDOW_DAYS = 30
@@ -263,4 +264,32 @@ export async function resolveProfileServer(
   const raw = await getAppSetting('albion_server', 'east', guildId)
   if (raw === 'east' || raw === 'west' || raw === 'europe') return raw
   return 'east'
+}
+
+export interface AllianceInfo {
+  // 게임 내 표시 태그 (3-5자 대문자, 예: "MGM"). pill 텍스트.
+  tag: string
+  // 풀네임. API 응답이 자주 null 이라 optional. 호버 tooltip / aria 용도.
+  name: string | null
+}
+
+// Albion Gameinfo `/guilds/{id}` 응답에서 alliance 정보 추출. 홈 길드 ID 가
+// 미설정이거나 길드가 alliance 미가입이면 null 반환 — 호출 측에서 hero pill
+// 자체를 안 그린다.
+//
+// fetchJson 내부 캐시(5분 revalidate) 에 의존 — 페이지가 force-dynamic 이라
+// 매 요청 새로 풀리지만 같은 길드 ID 의 호출은 그 윈도우 안에서 캐시 히트.
+export async function loadAllianceInfo(
+  guildId: string,
+  override: string,
+): Promise<AllianceInfo | null> {
+  const homeGuildId = (await getAppSetting('albion_home_guild_id', '', guildId)).trim()
+  if (!homeGuildId) return null
+  const server = await resolveProfileServer(guildId, override)
+  if (!isAlbionServer(server)) return null
+  const guild = await getGuild(server, homeGuildId)
+  const tag = guild?.AllianceTag?.trim()
+  if (!tag) return null
+  const rawName = guild?.AllianceName?.trim()
+  return { tag, name: rawName && rawName.length > 0 ? rawName : null }
 }

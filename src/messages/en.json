@@ -899,6 +899,7 @@
     "recruitingRolesLabel": "Recruiting roles",
     "joinStepsLabel": "How to join",
     "eventScheduleHeading": "Event schedule",
+    "allianceLabel": "Alliance",
     "adminTeamHeading": "Admin team",
     "adminTeamCopied": "Discord handle copied: {handle}",
     "adminTeamCopyFailed": "Failed to copy. Please try again.",

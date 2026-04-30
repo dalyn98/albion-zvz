@@ -41,6 +41,7 @@ import {
   loadTopWeaponCategoriesLast30d,
   loadTopRivalsLast30d,
   loadAdminTeam,
+  loadAllianceInfo,
   resolveProfileServer,
   type WeaponCategoryUsage,
   type RivalGuild,
@@ -200,6 +201,7 @@ export default async function GuildProfilePage({
     weaponDistribution,
     rivals,
     adminTeam,
+    alliance,
   ] = await Promise.all([
     loadSectionStats(tenant.tenantId, {
       showMembers: settings.showMembers,
@@ -237,6 +239,9 @@ export default async function GuildProfilePage({
       : Promise.resolve<RivalGuild[]>([]),
     // 어드민 팀 — guild_avatars.is_admin 자동 추출. 토글 없음 (멤버 모집 정보로 항상 유용).
     loadAdminTeam(tenant.tenantId),
+    // 연합 태그 — Albion Gameinfo API `/guilds/{id}` 의 AllianceTag. 홈 길드 ID
+    // 가 미설정이거나 길드가 alliance 미가입이면 null. 항상 hero 에 노출 (토글 없음).
+    loadAllianceInfo(tenant.tenantId, settings.serverOverride),
   ])
 
   const t = await getTranslations('publicGuildProfile')
@@ -342,6 +347,25 @@ export default async function GuildProfilePage({
 
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-20 sm:py-28 lg:py-32">
           <div className="space-y-6">
+            {/* 연합 태그 — 게임 내 alliance 표시. recruitment pill 보다 한 단계 큰
+                pill (text-sm + ring-2) + 명시 라벨로 시각 비중 강조. 미가입 길드는
+                자연스레 숨김. AllianceName 은 hover tooltip 으로만 노출. */}
+            {alliance && (
+              <div className="flex items-center gap-2">
+                <span
+                  className={`inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-lg text-sm font-bold ring-2 backdrop-blur-sm ${accent.badgeBg} ${accent.badgeText} ${accent.badgeRing}`}
+                  title={alliance.name ?? undefined}
+                >
+                  <ShieldCheck size={14} />
+                  <span className="text-[10px] uppercase tracking-[0.25em] opacity-80">
+                    {t('allianceLabel')}
+                  </span>
+                  <span className="font-mono tracking-wider text-base">
+                    [{alliance.tag}]
+                  </span>
+                </span>
+              </div>
+            )}
             <div className="flex items-center gap-3 flex-wrap">
               <InlineEditableField
                 enabled={isOwnGuildAdmin}

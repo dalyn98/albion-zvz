@@ -79,6 +79,16 @@ export async function searchPlayers(
 export interface GameinfoGuild {
   Id: string
   Name: string
+  // 연합 정보 — 길드가 alliance 에 속해 있을 때 채워진다. 미가입은 빈 문자열/null.
+  // hero 영역 노출용 (`/g/<slug>` 페이지). API 응답이 일관되지 않아 모두 optional.
+  AllianceTag?: string | null
+  AllianceId?: string | null
+  AllianceName?: string | null
+  // 부가 메타 — 길드 상세 (`/guilds/{id}`) 응답에만 있고 search 결과엔 없다.
+  // 향후 hero 메타정보 확장 (창립일/멤버수) 용으로 미리 노출.
+  FounderName?: string | null
+  Founded?: string | null
+  MemberCount?: number | null
 }
 
 export async function searchGuilds(

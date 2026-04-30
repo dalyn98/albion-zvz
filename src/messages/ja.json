@@ -899,6 +899,7 @@
     "recruitingRolesLabel": "募集ポジション",
     "joinStepsLabel": "加入手順",
     "eventScheduleHeading": "定期イベントスケジュール",
+    "allianceLabel": "連合",
     "adminTeamHeading": "運営陣",
     "adminTeamCopied": "Discord ハンドルをコピーしました：{handle}",
     "adminTeamCopyFailed": "コピーに失敗しました。少し待ってから再試行してください。",

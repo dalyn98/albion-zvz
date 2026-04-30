@@ -899,6 +899,7 @@
     "recruitingRolesLabel": "모집 포지션",
     "joinStepsLabel": "가입 절차",
     "eventScheduleHeading": "정기 이벤트 일정",
+    "allianceLabel": "연합",
     "adminTeamHeading": "운영진",
     "adminTeamCopied": "디스코드 핸들 복사됨: {handle}",
     "adminTeamCopyFailed": "복사에 실패했어요. 잠시 후 다시 시도해 주세요.",
