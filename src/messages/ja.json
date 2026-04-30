@@ -58,6 +58,7 @@
     "copy": "コピー",
     "copied": "コピーしました",
     "unknown": "不明",
+    "unknownName": "名前不明",
     "other": "その他",
     "backToMyPage": "マイページへ"
   },
@@ -2046,7 +2047,8 @@
     "screenshotLabel": "スクリーンショット (任意)",
     "screenshotHint": "キルボード行が検証ソースとなっているため添付は任意です。ガンク状況・残存人数など追加情報があるときのみ添付してください。",
     "gearLabel": "戦死時点の装備",
-    "gearHint": "キルボードに記録された部位別装備です。変更できません。"
+    "gearHint": "キルボードに記録された部位別装備です。変更できません。",
+    "snapshotTitle": "[トラッキング戦闘] {date}"
   },
   "craftQueue": {
     "disabledTitle": "クラフトリギアは無効です",
@@ -3418,7 +3420,10 @@
     "colAfter": "後",
     "colDelta": "差分",
     "durationMinSec": "{m}分 {s}秒",
-    "durationSec": "{s}秒"
+    "durationSec": "{s}秒",
+    "warnMultipleDepositors": "預け入れたメンバーが {count}人 ({names})。ベースラインは1人で預け入れる時が最も正確です。",
+    "warnWithdrawalsInWindow": "預け入れウィンドウ中に {count} 件の引き出しを検出。他メンバーが途中でアイテムを取り出した可能性があり、精度が下がる場合があります。",
+    "warnUnresolvedItems": "{count} 個のアイテム名がマッピングされず、スナップショットから除外されました。/admin/dashboard/shop で name override を追加してから再試行してください。"
   },
   "shopMyOrders": {
     "title": "マイ注文",

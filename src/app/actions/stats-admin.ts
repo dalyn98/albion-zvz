@@ -95,6 +95,7 @@ export interface ShopRegearStats {
 
 export async function getPointStats(): Promise<{ stats?: PointStats; error?: string }> {
   const tErr = await getTranslations('adminActionError')
+  const tCommon = await getTranslations('common')
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
@@ -149,7 +150,7 @@ export async function getPointStats(): Promise<{ stats?: PointStats; error?: str
       const a = avatarsByDiscord.get(discordId)
       const entry: TopHolder = {
         discordId,
-        username: a?.username ?? '이름 미상',
+        username: a?.username ?? tCommon('unknownName'),
         avatar: a?.avatar ?? null,
         isAdmin: a?.is_admin ?? false,
         balance: v.balance,
@@ -190,6 +191,7 @@ function daysAgoIso(days: number): string {
 
 export async function getEventStats(): Promise<{ stats?: EventStats; error?: string }> {
   const tErr = await getTranslations('adminActionError')
+  const tCommon = await getTranslations('common')
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
@@ -270,7 +272,7 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
       if (a?.withdrawn_at) continue
       topAttendees.push({
         discordId,
-        username: a?.username ?? '이름 미상',
+        username: a?.username ?? tCommon('unknownName'),
         avatar: a?.avatar ?? null,
         isAdmin: a?.is_admin ?? false,
         eventCount: events.size,
@@ -477,6 +479,7 @@ export async function getAlbionVerificationStats(): Promise<{
   error?: string
 }> {
   const tErr = await getTranslations('adminActionError')
+  const tCommon = await getTranslations('common')
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
@@ -509,7 +512,7 @@ export async function getAlbionVerificationStats(): Promise<{
       const guildMatchesHome = Boolean(home) && guildId === home
       const entry: VerificationMember = {
         discordId: a.discord_id as string,
-        username: (a.username as string) ?? '이름 미상',
+        username: (a.username as string) ?? tCommon('unknownName'),
         avatar: (a.avatar as string | null) ?? null,
         isAdmin: Boolean(a.is_admin),
         server,

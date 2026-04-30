@@ -253,7 +253,8 @@ export async function submitTrackedAdHocRegear(
 
   // 5) Insert. event_id/regear_window_id 모두 NULL, killboard_verified=true.
   const occurred = new Date(kb.occurred_at as string)
-  const titleSnapshot = formatTrackedTitle(occurred)
+  const tTitle = await getTranslations('regearTrackedDeaths')
+  const titleSnapshot = tTitle('snapshotTitle', { date: formatTrackedDate(occurred) })
   const buildSnapshot = equipmentToBuildSnapshot(
     kb.equipment as Record<string, EquipmentItem | null> | null,
     roleName,
@@ -295,12 +296,13 @@ export async function submitTrackedAdHocRegear(
   return { id: inserted.id as string }
 }
 
-// "트래킹 전투 사망 — MM/DD HH:mm" 형태. UI 의 event_title_snapshot 자리에
-// 들어가 admin/member 모두 한눈에 자유 신청 출처임을 알 수 있게 한다.
-function formatTrackedTitle(d: Date): string {
+// "MM/DD HH:mm" 형태. regearTrackedDeaths.snapshotTitle 의 {date} 인자로 들어가
+// 신청자 locale 의 prefix 가 붙는다 (event_title_snapshot 으로 DB 에 저장 — 다른
+// 멤버 view 에는 신청자 locale 의 문자열이 그대로 노출).
+function formatTrackedDate(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   const hh = String(d.getHours()).padStart(2, '0')
   const mm = String(d.getMinutes()).padStart(2, '0')
-  return `[트래킹 전투] ${m}/${day} ${hh}:${mm}`
+  return `${m}/${day} ${hh}:${mm}`
 }

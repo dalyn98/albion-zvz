@@ -136,6 +136,7 @@ function aggregateDeposits(entries: ChestLogEntry[]): {
 
 export async function previewBaseline(raw: string): Promise<BaselinePreview> {
   const tErr = await getTranslations('adminActionError')
+  const tWarn = await getTranslations('shopBaselineForm')
   const empty: BaselinePreview = {
     baselineStart: null,
     baselineAt: null,
@@ -195,8 +196,9 @@ export async function previewBaseline(raw: string): Promise<BaselinePreview> {
 
     const warnings: string[] = []
     if (depositors.length > 1) {
+      const sample = depositors.slice(0, 3).join(', ') + (depositors.length > 3 ? '...' : '')
       warnings.push(
-        `입고한 길드원이 ${depositors.length}명 (${depositors.slice(0, 3).join(', ')}${depositors.length > 3 ? '...' : ''}). 베이스라인은 혼자 입고할 때 가장 정확.`,
+        tWarn('warnMultipleDepositors', { count: depositors.length, names: sample }),
       )
     }
     // deposit 창 사이의 withdraw = 누군가 중간에 아이템 뺐다는 뜻
@@ -208,13 +210,11 @@ export async function previewBaseline(raw: string): Promise<BaselinePreview> {
     })
     if (withdrawalsInWindow.length > 0) {
       warnings.push(
-        `입고 창 사이에 ${withdrawalsInWindow.length}건의 출고 감지. 다른 길드원이 중간에 아이템을 꺼냈을 수 있어 베이스라인 정확도가 떨어질 수 있음.`,
+        tWarn('warnWithdrawalsInWindow', { count: withdrawalsInWindow.length }),
       )
     }
     if (unresolved.size > 0) {
-      warnings.push(
-        `${unresolved.size}개 아이템 이름이 매핑되지 않아 스냅샷에서 제외됨. /admin/dashboard/shop 에서 name override 추가 후 다시 시도하세요.`,
-      )
+      warnings.push(tWarn('warnUnresolvedItems', { count: unresolved.size }))
     }
 
     const { data: current } = await db

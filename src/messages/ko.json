@@ -58,6 +58,7 @@
     "copy": "복사",
     "copied": "복사됨",
     "unknown": "알 수 없음",
+    "unknownName": "이름 미상",
     "other": "기타",
     "backToMyPage": "내 페이지로"
   },
@@ -2046,7 +2047,8 @@
     "screenshotLabel": "스크린샷 (선택)",
     "screenshotHint": "킬보드 행이 이미 검증 소스라 첨부는 옵션이에요. 갱크 상황·잔여 인원 등 추가 컨텍스트가 있을 때만 첨부하세요.",
     "gearLabel": "사망 시점 장비",
-    "gearHint": "킬보드에 기록된 부위별 장비예요. 변경할 수 없습니다."
+    "gearHint": "킬보드에 기록된 부위별 장비예요. 변경할 수 없습니다.",
+    "snapshotTitle": "[트래킹 전투] {date}"
   },
   "craftQueue": {
     "disabledTitle": "제작 리기어가 비활성화 상태입니다",
@@ -3418,7 +3420,10 @@
     "colAfter": "이후",
     "colDelta": "차이",
     "durationMinSec": "{m}분 {s}초",
-    "durationSec": "{s}초"
+    "durationSec": "{s}초",
+    "warnMultipleDepositors": "입고한 길드원이 {count}명 ({names}). 베이스라인은 혼자 입고할 때 가장 정확.",
+    "warnWithdrawalsInWindow": "입고 창 사이에 {count}건의 출고 감지. 다른 길드원이 중간에 아이템을 꺼냈을 수 있어 베이스라인 정확도가 떨어질 수 있음.",
+    "warnUnresolvedItems": "{count}개 아이템 이름이 매핑되지 않아 스냅샷에서 제외됨. /admin/dashboard/shop 에서 name override 추가 후 다시 시도하세요."
   },
   "shopMyOrders": {
     "title": "내 주문",

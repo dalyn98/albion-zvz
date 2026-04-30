@@ -58,6 +58,7 @@
     "copy": "Copy",
     "copied": "Copied",
     "unknown": "Unknown",
+    "unknownName": "Unknown name",
     "other": "Other",
     "backToMyPage": "Back to My Page"
   },
@@ -2046,7 +2047,8 @@
     "screenshotLabel": "Screenshot (optional)",
     "screenshotHint": "The killboard row already serves as verification, so attaching a screenshot is optional. Use it only when there is extra context like gank framing or remaining headcount.",
     "gearLabel": "Gear at time of death",
-    "gearHint": "Equipment recorded by the killboard. This cannot be edited."
+    "gearHint": "Equipment recorded by the killboard. This cannot be edited.",
+    "snapshotTitle": "[Tracked battle] {date}"
   },
   "craftQueue": {
     "disabledTitle": "Craft regear is disabled",
@@ -3418,7 +3420,10 @@
     "colAfter": "After",
     "colDelta": "Delta",
     "durationMinSec": "{m}m {s}s",
-    "durationSec": "{s}s"
+    "durationSec": "{s}s",
+    "warnMultipleDepositors": "Deposits came from {count} members ({names}). Baselines are most accurate when one person handles the deposit alone.",
+    "warnWithdrawalsInWindow": "{count} withdrawals detected during the deposit window. Another member may have pulled items mid-process, which can reduce baseline accuracy.",
+    "warnUnresolvedItems": "{count} item names could not be mapped and were excluded from the snapshot. Add a name override at /admin/dashboard/shop and retry."
   },
   "shopMyOrders": {
     "title": "My orders",
