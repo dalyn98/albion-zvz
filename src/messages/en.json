@@ -860,12 +860,10 @@
     "guildGroupDescription": "Settings bound to the guild itself: Albion server & home guild, timezone, and unverified-member access.",
     "regearGroupTitle": "Regear operations",
     "regearGroupDescription": "Controls the regear flow: mode (auto/craft/verification), claim limits, payout rate, and per-role caps.",
-    "regearNoticeGroupTitle": "Regear page notice",
-    "regearNoticeGroupDescription": "Banner notice shown at the top of /regear. Leave blank to hide.",
     "eventOpsGroupTitle": "Event operations",
     "eventOpsGroupDescription": "Options tied to running events: auto-start and CD badge roles.",
-    "eventNoticeGroupTitle": "Event notifications / notices",
-    "eventNoticeGroupDescription": "Discord notifications when a new event is published, reminder DMs, and the banner at the top of /events.",
+    "eventNoticeGroupTitle": "Event notifications",
+    "eventNoticeGroupDescription": "Discord channel message posted when a new event is published, and the reminder DM lead time. Page banners are edited directly on /events and /regear.",
     "notificationsTitle": "Event-created notification message",
     "notificationsDescription": "The text shown at the top of the Discord channel message when a new event is created. The site's main link is automatically appended below.",
     "messageLabel": "Message *",
@@ -901,6 +899,10 @@
     "statusExpired": "Expired",
     "activeCount": "{count} active link(s)",
     "copyFailed": "Couldn't copy to the clipboard."
+  },
+  "noticeBannerAdmin": {
+    "addLabel": "Add notice",
+    "editTooltip": "Edit notice"
   },
   "adminRegearNotice": {
     "title": "Regear notice",

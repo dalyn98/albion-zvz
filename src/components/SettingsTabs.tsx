@@ -8,7 +8,6 @@ import EventDmLeadMinutesForm from './EventDmLeadMinutesForm'
 import RoleRewardsEditor from './RoleRewardsEditor'
 import LandingBannerForm from './LandingBannerForm'
 import LandingCtaTextForm from './LandingCtaTextForm'
-import NoticeSettingForm, { NOTICE_MAX_LENGTH } from './NoticeSettingForm'
 import AdminRoleSetting from './AdminRoleSetting'
 import EventCreatorRolesGroup from './EventCreatorRolesGroup'
 import BombSquadCallerRolesSetting from './BombSquadCallerRolesSetting'
@@ -62,10 +61,6 @@ interface Props {
   landingBannerUrl: string
   landingCtaText: string
   defaultLandingCtaText: string
-  regearNoticeMessage: string
-  regearNoticeImageUrl: string
-  eventsNoticeMessage: string
-  eventsNoticeImageUrl: string
   eventCreatorRoleIds: string[]
   eventCreatorCombatRoleIds: string[]
   eventCreatorFfRoleIds: string[]
@@ -108,10 +103,6 @@ export default function SettingsTabs({
   landingBannerUrl,
   landingCtaText,
   defaultLandingCtaText,
-  regearNoticeMessage,
-  regearNoticeImageUrl,
-  eventsNoticeMessage,
-  eventsNoticeImageUrl,
   eventCreatorRoleIds,
   eventCreatorCombatRoleIds,
   eventCreatorFfRoleIds,
@@ -136,8 +127,6 @@ export default function SettingsTabs({
   eventDmLeadMinutes,
 }: Props) {
   const t = useTranslations('adminSettings')
-  const tEventsNotice = useTranslations('adminEventsNotice')
-  const tRegearNotice = useTranslations('adminRegearNotice')
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
@@ -233,20 +222,6 @@ export default function SettingsTabs({
             >
               <NotificationSettingsForm embedded initialMessage={notificationMessage} />
               <EventDmLeadMinutesForm embedded initialMinutes={eventDmLeadMinutes} />
-              <NoticeSettingForm
-                embedded
-                settingKey="events_notice_message"
-                target="events"
-                initialMessage={eventsNoticeMessage}
-                initialImageUrl={eventsNoticeImageUrl}
-                title={tEventsNotice('title')}
-                description={tEventsNotice('description')}
-                label={tEventsNotice('label')}
-                placeholder={tEventsNotice('placeholder')}
-                clearLabel={tEventsNotice('clear')}
-                clearTooltip={tEventsNotice('clearTooltip')}
-                tooLongMessage={tEventsNotice('tooLong', { max: NOTICE_MAX_LENGTH })}
-              />
             </SettingsGroup>
           </div>
         )}
@@ -278,25 +253,6 @@ export default function SettingsTabs({
                 )}
                 <RoleRewardsEditor rewards={rewards} />
               </div>
-            </SettingsGroup>
-            <SettingsGroup
-              title={t('regearNoticeGroupTitle')}
-              description={t('regearNoticeGroupDescription')}
-            >
-              <NoticeSettingForm
-                embedded
-                settingKey="regear_notice_message"
-                target="regear"
-                initialMessage={regearNoticeMessage}
-                initialImageUrl={regearNoticeImageUrl}
-                title={tRegearNotice('title')}
-                description={tRegearNotice('description')}
-                label={tRegearNotice('label')}
-                placeholder={tRegearNotice('placeholder')}
-                clearLabel={tRegearNotice('clear')}
-                clearTooltip={tRegearNotice('clearTooltip')}
-                tooLongMessage={tRegearNotice('tooLong', { max: NOTICE_MAX_LENGTH })}
-              />
             </SettingsGroup>
           </div>
         )}

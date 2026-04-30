@@ -15,7 +15,7 @@ import { getTenantTimezone } from '@/lib/timezone-server'
 import RegearRequestButton from '@/components/RegearRequestButton'
 import RegearWindowsSection from '@/components/RegearWindowsSection'
 import AdHocDeathsSection from '@/components/AdHocDeathsSection'
-import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
+import NoticeBannerWithAdmin from '@/components/NoticeBannerWithAdmin'
 import MyRegearList from '@/components/MyRegearList'
 import RegearPageTabs from '@/components/RegearPageTabs'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
@@ -84,7 +84,12 @@ export default async function RegearPage() {
         )}
       </div>
 
-      <DismissibleNoticeBanner message={noticeMessage} imageUrl={noticeImageUrl} />
+      <NoticeBannerWithAdmin
+        message={noticeMessage}
+        imageUrl={noticeImageUrl}
+        target="regear"
+        isAdmin={session.isAdmin}
+      />
 
       <RegearWindowsSection />
 

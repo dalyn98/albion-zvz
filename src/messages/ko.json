@@ -860,12 +860,10 @@
     "guildGroupDescription": "Albion 서버·홈 길드, 시간대, 미인증 멤버 접근 등 길드 자체에 묶인 설정입니다.",
     "regearGroupTitle": "리기어 운영",
     "regearGroupDescription": "리기어 모드(자동/제작/인증), 신청 제한, 지급 비율, 역할별 상한 등 리기어 흐름을 제어합니다.",
-    "regearNoticeGroupTitle": "리기어 페이지 공지",
-    "regearNoticeGroupDescription": "/regear 페이지 상단에 노출되는 배너 공지입니다. 비워 두면 숨김 처리됩니다.",
     "eventOpsGroupTitle": "이벤트 운영",
     "eventOpsGroupDescription": "이벤트 자동 시작, CD 뱃지 노출 역할 등 이벤트 진행과 직접 관련된 옵션입니다.",
-    "eventNoticeGroupTitle": "이벤트 알림 / 공지",
-    "eventNoticeGroupDescription": "새 이벤트 등록 시 Discord 알림과 임박 DM, /events 페이지 상단 배너입니다.",
+    "eventNoticeGroupTitle": "이벤트 알림",
+    "eventNoticeGroupDescription": "새 이벤트 등록 시 Discord 채널 발송 메시지와 시작 임박 DM 시점입니다. 페이지 상단 배너 공지는 /events·/regear 페이지에서 직접 편집합니다.",
     "notificationsTitle": "이벤트 생성 알림 메시지",
     "notificationsDescription": "새 이벤트가 생성될 때 Discord 채널 상단에 표시되는 문구입니다. 메시지 아래에는 사이트 메인 링크가 자동으로 붙습니다.",
     "messageLabel": "메시지 *",
@@ -901,6 +899,10 @@
     "statusExpired": "만료됨",
     "activeCount": "활성 링크 {count}개",
     "copyFailed": "클립보드 복사에 실패했습니다."
+  },
+  "noticeBannerAdmin": {
+    "addLabel": "공지 추가",
+    "editTooltip": "공지 편집"
   },
   "adminRegearNotice": {
     "title": "리기어 공지",

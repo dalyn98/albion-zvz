@@ -10,7 +10,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import HomeEventList, { type HomeEventCardData, type HomeEventKind } from '@/components/HomeEventList'
-import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
+import NoticeBannerWithAdmin from '@/components/NoticeBannerWithAdmin'
 import HomeGuildWeeklyStats from '@/components/HomeGuildWeeklyStats'
 import HomeAdminPendingCard from '@/components/HomeAdminPendingCard'
 import { loadGuildWeeklyStats } from '@/lib/guild-weekly-stats'
@@ -157,7 +157,12 @@ export default async function HomePage() {
         </div>
       </div>
 
-      <DismissibleNoticeBanner message={noticeMessage} imageUrl={noticeImageUrl} />
+      <NoticeBannerWithAdmin
+        message={noticeMessage}
+        imageUrl={noticeImageUrl}
+        target="events"
+        isAdmin={session?.isAdmin ?? false}
+      />
 
       {adminBadges && <HomeAdminPendingCard badges={adminBadges} />}
 

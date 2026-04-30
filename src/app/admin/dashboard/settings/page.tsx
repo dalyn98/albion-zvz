@@ -28,10 +28,6 @@ export default async function SettingsPage() {
     message,
     bannerUrl,
     ctaText,
-    regearNoticeMessage,
-    regearNoticeImageUrl,
-    eventsNoticeMessage,
-    eventsNoticeImageUrl,
     eventCreatorRoleIdsRaw,
     eventCreatorCombatIdsRaw,
     eventCreatorFfIdsRaw,
@@ -60,10 +56,6 @@ export default async function SettingsPage() {
     getAppSetting('event_notification_message', '', tenantId),
     getAppSetting('landing_banner_url', '', tenantId),
     getAppSetting('landing_cta_text', '', tenantId),
-    getAppSetting('regear_notice_message', '', tenantId),
-    getAppSetting('regear_notice_image_url', '', tenantId),
-    getAppSetting('events_notice_message', '', tenantId),
-    getAppSetting('events_notice_image_url', '', tenantId),
     getAppSetting('event_creator_role_ids', '[]', tenantId),
     getAppSetting('event_creator_role_ids_combat', '[]', tenantId),
     getAppSetting('event_creator_role_ids_ff', '[]', tenantId),
@@ -199,10 +191,6 @@ export default async function SettingsPage() {
         landingBannerUrl={bannerUrl}
         landingCtaText={ctaText}
         defaultLandingCtaText={tLanding('defaultCta')}
-        regearNoticeMessage={regearNoticeMessage}
-        regearNoticeImageUrl={regearNoticeImageUrl}
-        eventsNoticeMessage={eventsNoticeMessage}
-        eventsNoticeImageUrl={eventsNoticeImageUrl}
         eventCreatorRoleIds={eventCreatorRoleIds}
         eventCreatorCombatRoleIds={eventCreatorCombatRoleIds}
         eventCreatorFfRoleIds={eventCreatorFfRoleIds}

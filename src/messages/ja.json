@@ -860,12 +860,10 @@
     "guildGroupDescription": "Albion サーバー・ホームギルド、タイムゾーン、未認証メンバーのアクセス許可など、ギルドそのものに紐づく設定です。",
     "regearGroupTitle": "リギア運営",
     "regearGroupDescription": "リギアモード(自動/制作/認証)、申請制限、支給比率、役割別上限など、リギアフロー全体を制御します。",
-    "regearNoticeGroupTitle": "リギアページのお知らせ",
-    "regearNoticeGroupDescription": "/regear ページ上部に表示されるバナー告知です。空欄にすると非表示になります。",
     "eventOpsGroupTitle": "イベント運営",
     "eventOpsGroupDescription": "イベント自動開始、CD バッジ表示役割など、イベント進行に直接関わるオプションです。",
-    "eventNoticeGroupTitle": "イベント通知 / お知らせ",
-    "eventNoticeGroupDescription": "新規イベント登録時の Discord 通知、開始前 DM、/events ページ上部のバナー告知です。",
+    "eventNoticeGroupTitle": "イベント通知",
+    "eventNoticeGroupDescription": "新規イベント登録時に Discord チャンネルへ送信されるメッセージと、開始前 DM の時点です。ページ上部のバナーお知らせは /events・/regear ページから直接編集します。",
     "notificationsTitle": "イベント作成通知メッセージ",
     "notificationsDescription": "新しいイベントが作成されたときに Discord チャンネルの先頭に表示される文言です。メッセージの下にはサイトのメインリンクが自動的に添付されます。",
     "messageLabel": "メッセージ *",
@@ -901,6 +899,10 @@
     "statusExpired": "期限切れ",
     "activeCount": "有効なリンク {count} 件",
     "copyFailed": "クリップボードへのコピーに失敗しました。"
+  },
+  "noticeBannerAdmin": {
+    "addLabel": "お知らせを追加",
+    "editTooltip": "お知らせを編集"
   },
   "adminRegearNotice": {
     "title": "リギア告知",
