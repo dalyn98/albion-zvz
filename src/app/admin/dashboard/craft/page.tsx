@@ -12,6 +12,7 @@ import AdminCraftSettingsForm from '@/components/AdminCraftSettingsForm'
 import AdminCraftCraftersPanel from '@/components/AdminCraftCraftersPanel'
 import AdminCraftTasksList from '@/components/AdminCraftTasksList'
 import AdminCraftBoxStatusPanel from '@/components/AdminCraftBoxStatusPanel'
+import AdminCraftStatsPanel from '@/components/AdminCraftStatsPanel'
 
 // 제작 리기어 운영 화면. 토글, 보관함 번호 범위 / 만료일 / 포커스 보너스, 제작자
 // 권한 부여 (guild_avatars.is_crafter), 진행 중 작업 모니터링 + 강제 취소 / 실버 변환.
@@ -53,6 +54,8 @@ export default async function AdminCraftPage() {
       />
 
       <AdminCraftBoxStatusPanel config={config} tasks={tasks} />
+
+      <AdminCraftStatsPanel />
 
       <AdminCraftTasksList initialTasks={tasks} />
     </div>

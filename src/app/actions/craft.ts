@@ -46,6 +46,7 @@ import {
   extractGearItemIdsFromBuild,
 } from '@/lib/inventory'
 import { formatSilver } from '@/lib/silver'
+import { getCurrentWeekStartIso } from '@/lib/timezone'
 import type { BuildSnapshot } from '@/types'
 
 // ────────────────────────────────────────────────────────────
@@ -1447,6 +1448,167 @@ export async function getEventCraftAggregate(eventId: string): Promise<{
   } catch (e) {
     return {
       result: null,
+      error: e instanceof Error ? e.message : tErr('serverError'),
+    }
+  }
+}
+
+// 어드민 화면용 제작 작업 누적 통계. lifetime 과 "이번 주" (PT 월요일 00:00 ~)
+// 두 시점에 대해 완료/만료/지급 실버 합계 + 제작자별 breakdown 을 돌려준다.
+// 주 경계는 timezone.ts:getCurrentWeekStartIso — 사이트 다른 위젯과 동일.
+//
+// craft_tasks 행수가 큰 길드라도 guild_id 인덱스로 좁히면 수천 row 수준이라
+// JS 집계로 충분 (대시보드 트래픽 적음). pagination 없음.
+export interface CrafterStatsRow {
+  discordId: string
+  username: string
+  collectedCount: number
+  volunteerCount: number
+  paidCount: number
+  reimbursementSilver: number
+  focusUsedCount: number
+  lastTaskAt: string | null
+}
+
+export interface CraftStatsBucket {
+  collectedCount: number
+  inProgressCount: number
+  expiredCount: number
+  cancelledCount: number
+  reimbursementSilver: number
+}
+
+export interface CraftStatsResult {
+  lifetime: CraftStatsBucket
+  weekly: CraftStatsBucket
+  byCrafter: CrafterStatsRow[]
+  weekSinceIso: string
+}
+
+export async function loadCraftStatsAdmin(): Promise<{
+  stats: CraftStatsResult | null
+  error?: string
+}> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { stats: null, error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+
+    const weekSinceIso = getCurrentWeekStartIso()
+
+    const { data, error } = await db
+      .from('craft_tasks')
+      .select(
+        'status, crafter_discord_id, crafter_username, craft_focus_used, reimbursement_silver, compensation_mode, collected_at, expired_at, cancelled_at, created_at',
+      )
+      .eq('guild_id', guildId)
+    if (error) return { stats: null, error: error.message }
+
+    const rows = (data ?? []) as Array<{
+      status: CraftTaskStatus
+      crafter_discord_id: string | null
+      crafter_username: string | null
+      craft_focus_used: boolean
+      reimbursement_silver: number | null
+      compensation_mode: 'volunteer' | 'paid' | null
+      collected_at: string | null
+      expired_at: string | null
+      cancelled_at: string | null
+      created_at: string
+    }>
+
+    const lifetime: CraftStatsBucket = {
+      collectedCount: 0,
+      inProgressCount: 0,
+      expiredCount: 0,
+      cancelledCount: 0,
+      reimbursementSilver: 0,
+    }
+    const weekly: CraftStatsBucket = {
+      collectedCount: 0,
+      inProgressCount: 0,
+      expiredCount: 0,
+      cancelledCount: 0,
+      reimbursementSilver: 0,
+    }
+    const byCrafterMap = new Map<string, CrafterStatsRow>()
+
+    for (const row of rows) {
+      const isInProgress =
+        row.status === 'queued' || row.status === 'claimed' || row.status === 'delivered'
+
+      // lifetime 카운트.
+      if (row.status === 'collected') {
+        lifetime.collectedCount += 1
+        lifetime.reimbursementSilver += row.reimbursement_silver ?? 0
+      } else if (row.status === 'expired') {
+        lifetime.expiredCount += 1
+      } else if (row.status === 'cancelled') {
+        lifetime.cancelledCount += 1
+      } else if (isInProgress) {
+        lifetime.inProgressCount += 1
+      }
+
+      // 이번 주 카운트 — 각 종결 상태의 종결 시각으로 판정. in-progress 는 created_at.
+      const weekTs = (() => {
+        if (row.status === 'collected' && row.collected_at) return row.collected_at
+        if (row.status === 'expired' && row.expired_at) return row.expired_at
+        if (row.status === 'cancelled' && row.cancelled_at) return row.cancelled_at
+        if (isInProgress) return row.created_at
+        return null
+      })()
+      if (weekTs && weekTs >= weekSinceIso) {
+        if (row.status === 'collected') {
+          weekly.collectedCount += 1
+          weekly.reimbursementSilver += row.reimbursement_silver ?? 0
+        } else if (row.status === 'expired') {
+          weekly.expiredCount += 1
+        } else if (row.status === 'cancelled') {
+          weekly.cancelledCount += 1
+        } else if (isInProgress) {
+          weekly.inProgressCount += 1
+        }
+      }
+
+      // 제작자별 누계 — 완료(collected) 만 집계해서 "실제로 제작해서 전달한" 작업
+      // 으로 한정. claimed/delivered 는 아직 회수 안 된 상태라 제작자 보상도 미정.
+      if (row.status === 'collected' && row.crafter_discord_id) {
+        const id = row.crafter_discord_id
+        const existing = byCrafterMap.get(id) ?? {
+          discordId: id,
+          username: row.crafter_username ?? '???',
+          collectedCount: 0,
+          volunteerCount: 0,
+          paidCount: 0,
+          reimbursementSilver: 0,
+          focusUsedCount: 0,
+          lastTaskAt: null,
+        }
+        existing.collectedCount += 1
+        existing.reimbursementSilver += row.reimbursement_silver ?? 0
+        if (row.craft_focus_used) existing.focusUsedCount += 1
+        if (row.compensation_mode === 'volunteer') existing.volunteerCount += 1
+        else if (row.compensation_mode === 'paid') existing.paidCount += 1
+        const ts = row.collected_at
+        if (ts && (!existing.lastTaskAt || ts > existing.lastTaskAt)) {
+          existing.lastTaskAt = ts
+        }
+        // 가장 최근 username 으로 갱신 (제작자 닉 변경 추적).
+        if (row.crafter_username) existing.username = row.crafter_username
+        byCrafterMap.set(id, existing)
+      }
+    }
+
+    const byCrafter = [...byCrafterMap.values()].sort(
+      (a, b) => b.collectedCount - a.collectedCount,
+    )
+
+    return { stats: { lifetime, weekly, byCrafter, weekSinceIso } }
+  } catch (e) {
+    return {
+      stats: null,
       error: e instanceof Error ? e.message : tErr('serverError'),
     }
   }
