@@ -19,14 +19,14 @@ import { getCurrentWeekStartIso } from '@/lib/timezone'
 export type LeaderboardWindow = 'week' | 'month' | 'all'
 
 export interface LeaderboardEntry {
-  // 모든 길드 멤버를 식별하는 안정 키. UI 라우팅의 fallback 도 이 ID 로.
+  // Albion 캐릭터 ID. UI 라우팅 fallback 으로 사용.
   albion_player_id: string
-  // Discord 연동 멤버만 채워짐. null = 미연동 → /members/albion/[albion_player_id]
-  // 로 라우팅, 풀 이미지 없음.
+  // 본 액션의 모집단은 "Discord 로그인 한 길드원" 이라 항상 채워짐. 타입 호환성을
+  // 위해 nullable 시그니처는 유지 (LeaderboardEntry consumer 가 null 분기 가짐).
   discord_id: string | null
-  // 연동 멤버는 Discord username, 미연동은 albion_player_name.
+  // Discord username.
   username: string
-  // Discord 아바타 hash. 미연동은 null.
+  // Discord 아바타 hash.
   avatar: string | null
   value: number
   // 전투 지표일 때만 사용. K/D 카드에서 kills/deaths 를 함께 보여주기 위함.
@@ -86,15 +86,10 @@ export async function getLeaderboard(
   const bundleSplits =
     (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
 
-  // 모집단: albion_guild_members (left_at IS NULL = 활성). guild_avatars 는
-  // Discord username/avatar 를 채우기 위한 LEFT JOIN — 미연동 멤버는 albion
-  // 닉네임을 username 으로 사용한다.
-  const rosterQ = db
-    .from('albion_guild_members')
-    .select('albion_player_id, albion_player_name')
-    .eq('guild_id', guildId)
-    .is('left_at', null)
-
+  // 모집단: Discord 로그인 한 활성 길드원만 (guild_avatars where withdrawn_at IS NULL).
+  // 정책: 업적/통계/리더보드는 "앱 내 가입한 길드원" 만 표시 — Albion API 로
+  // 동기화된 길드원이어도 OAuth 로 앱에 가입하지 않았다면 노출하지 않는다. 길드
+  // 공개 페이지의 길드원 카운트(guild_avatars)와 분모를 일치시키기 위함.
   const avatarsQ = db
     .from('guild_avatars')
     .select('discord_id, username, avatar, albion_player_id')
@@ -108,33 +103,23 @@ export async function getLeaderboard(
     .eq('guild_id', guildId)
   if (cutoff) killboardQ = killboardQ.gte('occurred_at', cutoff)
 
-  const [rosterRes, avatarsRes, killboardRes, trackedBattles, participations] = await Promise.all([
-    rosterQ,
+  const [avatarsRes, killboardRes, trackedBattles, participations] = await Promise.all([
     avatarsQ,
     killboardQ,
     fetchTrackedBattleWindows(db, guildId, cutoff, { bundleSplits }),
     fetchMemberBattleParticipations(db, guildId, cutoff),
   ])
 
-  // albion_player_id → 표시용 메타 (username/avatar/discord_id). 연동 멤버는
-  // guild_avatars 우선, 미연동은 albion_player_name fallback.
+  // albion_player_id → 표시용 메타 (Discord username/avatar). 모집단에서 이미
+  // Discord 연동 멤버만 남았으므로 단일 패스로 채운다.
   interface MemberMeta {
-    discord_id: string | null
+    discord_id: string
     username: string
     avatar: string | null
   }
   const metaByAlbionId = new Map<string, MemberMeta>()
-  for (const row of rosterRes.data ?? []) {
-    if (!row.albion_player_id) continue
-    metaByAlbionId.set(row.albion_player_id, {
-      discord_id: null,
-      username: row.albion_player_name as string,
-      avatar: null,
-    })
-  }
   for (const av of avatarsRes.data ?? []) {
     if (!av.albion_player_id || !av.discord_id || !av.username) continue
-    // 로스터에 없는 행이라도 (sync timing 차이로) Discord 멤버는 신뢰.
     metaByAlbionId.set(av.albion_player_id as string, {
       discord_id: av.discord_id,
       username: av.username,
@@ -179,7 +164,8 @@ export async function getLeaderboard(
   ])
   for (const albionId of allAlbionIds) {
     const meta = metaByAlbionId.get(albionId)
-    // 로스터/아바타 둘 다에 없으면 이미 길드 탈퇴자 — 랭킹에서 제외.
+    // 탈퇴자 + Discord 미연동 Albion 멤버 모두 제외 — guild_avatars 에 활성 행이
+    // 없는 albion_player_id 는 랭킹에 노출하지 않는다 (정책: 앱 가입 길드원만).
     if (!meta) continue
     const kills = killsByMember.get(albionId) ?? []
     const killBattles = groupMemberKillsByBattle(kills, trackedBattles)

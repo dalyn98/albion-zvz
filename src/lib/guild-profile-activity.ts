@@ -32,10 +32,10 @@ export interface RecentBattleSummary {
 }
 
 export interface TopContributorSummary {
-  // 안정 키 — Albion 캐릭터 ID. Discord 미연동 멤버도 랭킹에 들어가도록 이걸
-  // primary 로 쓴다 (리더보드와 동일).
+  // 안정 키 — Albion 캐릭터 ID. UI 라우팅 fallback 으로 사용.
   albionPlayerId: string
-  // Discord 연동 멤버만 채워짐. UI 라우팅이나 디스코드 아바타에 사용.
+  // 본 함수의 모집단은 "Discord 로그인 한 길드원" 이므로 항상 채워짐.
+  // 타입 호환성을 위해 nullable 시그니처는 유지.
   discordId: string | null
   name: string
   avatarUrl: string | null
@@ -134,14 +134,12 @@ export async function loadTopContributorsThisWeek(
   const bundleSplits =
     (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
 
-  // 모집단: 활성 멤버 + 디스코드 아바타. leaderboard 와 동일한 join 패턴.
-  const [rosterRes, avatarsRes, killboardRes, trackedBattles, participations] =
+  // 모집단: Discord 로그인 한 활성 길드원만 (guild_avatars). 정책: 업적/통계/
+  // 리더보드는 "앱 내 가입한 길드원" 만 표시 — Albion API 로 동기화된 길드원이어도
+  // Discord OAuth 로 앱에 가입하지 않았다면 노출하지 않는다. 길드원 카운트
+  // (`길드원 N명`) 와 동일한 분모를 쓰기 위함.
+  const [avatarsRes, killboardRes, trackedBattles, participations] =
     await Promise.all([
-      db
-        .from('albion_guild_members')
-        .select('albion_player_id, albion_player_name')
-        .eq('guild_id', guildId)
-        .is('left_at', null),
       db
         .from('guild_avatars')
         .select('discord_id, username, avatar, albion_player_id')
@@ -158,19 +156,11 @@ export async function loadTopContributorsThisWeek(
     ])
 
   interface MemberMeta {
-    discordId: string | null
+    discordId: string
     username: string
     avatar: string | null
   }
   const metaByAlbionId = new Map<string, MemberMeta>()
-  for (const row of rosterRes.data ?? []) {
-    if (!row.albion_player_id) continue
-    metaByAlbionId.set(row.albion_player_id as string, {
-      discordId: null,
-      username: row.albion_player_name as string,
-      avatar: null,
-    })
-  }
   for (const av of avatarsRes.data ?? []) {
     if (!av.albion_player_id || !av.discord_id || !av.username) continue
     metaByAlbionId.set(av.albion_player_id as string, {
@@ -208,7 +198,9 @@ export async function loadTopContributorsThisWeek(
   const aggs: Array<{ albionPlayerId: string; meta: MemberMeta; kills: number }> = []
   for (const albionId of allAlbionIds) {
     const meta = metaByAlbionId.get(albionId)
-    if (!meta) continue // 탈퇴자 제외
+    // 탈퇴자 + Discord 미연동 Albion 멤버 모두 제외 — guild_avatars 에 활성 행이
+    // 없는 albion_player_id 는 표시하지 않는다 (정책: 앱 가입 길드원만 노출).
+    if (!meta) continue
     const kills = killsByMember.get(albionId) ?? []
     const killBattles = groupMemberKillsByBattle(kills, trackedBattles)
     const battles = mergeMemberBattles(
@@ -230,9 +222,7 @@ export async function loadTopContributorsThisWeek(
       albionPlayerId: a.albionPlayerId,
       discordId: a.meta.discordId,
       name: a.meta.username,
-      avatarUrl: a.meta.discordId
-        ? discordAvatarUrl(a.meta.discordId, a.meta.avatar, 64)
-        : null,
+      avatarUrl: discordAvatarUrl(a.meta.discordId, a.meta.avatar, 64),
       kills: a.kills,
     }))
 }
