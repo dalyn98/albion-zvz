@@ -19,7 +19,7 @@ import {
 } from '@/lib/inventory-catalog'
 import { adjustGearAction, setGearAction } from '@/app/actions/inventory'
 import { extractWeaponCategory } from '@/lib/weapon-category'
-import { canonicalT8WeaponId, stripTierPrefix } from '@/lib/weapon-display'
+import { getWeaponFamilyRank } from '@/lib/weapon-family'
 import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import { useToast } from './ToastProvider'
@@ -30,6 +30,9 @@ interface Props {
 
 interface CategorizedRow extends InventoryGearBaseRow {
   weaponCategory: string | null
+  // 무기는 디스티니 보드 family rank, 그 외는 0 (모든 갑옷이 같은 rank).
+  // 같은 family 는 같은 숫자라 정렬 시 자연스럽게 한 묶음으로 모인다.
+  familyRank: number
   localizedName: string
   totalQty: number
 }
@@ -40,10 +43,15 @@ const MATERIAL_BADGE_STYLE: Record<GearArmorMaterial, string> = {
   CLOTH: 'bg-violet-500/15 text-violet-200 border-violet-500/40',
 }
 
-// 카탈로그 사이드는 고정이라 정렬은 슬롯 → 무기카테고리/재질 → 티어 desc → 이름.
+// 카탈로그 사이드는 고정이라 정렬은 슬롯 → 무기 family rank → 카테고리 코드
+// → 티어 desc → 이름. 무기는 family rank (소드/도끼/메이스/...) 로 묶여서
+// "메이스 종류 다음 소드 종류" 같이 흐른다. 갑옷류는 family rank 가 모두 0
+// 이라 카테고리 코드 (= armorMaterial) 로 자연스럽게 정렬.
 function compareRows(a: CategorizedRow, b: CategorizedRow): number {
   const slotDiff = GEAR_SLOTS.indexOf(a.slot) - GEAR_SLOTS.indexOf(b.slot)
   if (slotDiff !== 0) return slotDiff
+  const rankDiff = a.familyRank - b.familyRank
+  if (rankDiff !== 0) return rankDiff
   const subA = a.weaponCategory ?? a.armorMaterial ?? ''
   const subB = b.weaponCategory ?? b.armorMaterial ?? ''
   if (subA < subB) return -1
@@ -67,23 +75,12 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
   const router = useRouter()
 
-  const [tierFilter, setTierFilterRaw] = useState<TierLevel>(8)
-  const [slotFilter, setSlotFilterRaw] = useState<GearSlot>('weapon')
+  const [tierFilter, setTierFilter] = useState<TierLevel>(8)
+  const [slotFilter, setSlotFilter] = useState<GearSlot>('weapon')
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [hideEmpty, setHideEmpty] = useState<boolean>(false)
-  // 무기 슬롯에서만 의미 있음. 슬롯/티어 변경 시 자동 null.
-  const [weaponCategoryFilter, setWeaponCategoryFilter] = useState<string | null>(null)
   const [, startTransition] = useTransition()
   const gridRef = useRef<HTMLDivElement | null>(null)
-
-  const setTierFilter = (tier: TierLevel) => {
-    setTierFilterRaw(tier)
-    setWeaponCategoryFilter(null)
-  }
-  const setSlotFilter = (slot: GearSlot) => {
-    setSlotFilterRaw(slot)
-    setWeaponCategoryFilter(null)
-  }
 
   const rows = useMemo<CategorizedRow[]>(() => {
     return initialGear
@@ -95,11 +92,21 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
           r.slot === 'weapon' || r.slot === 'offhand'
             ? extractWeaponCategory(r.baseItemId)
             : null
+        // 무기는 family rank, 갑옷·기타는 0 (정렬 시 카테고리 코드로 fall-through).
+        const familyRank = r.slot === 'weapon'
+          ? getWeaponFamilyRank(weaponCategory)
+          : 0
         const totalQty = ENCHANT_LEVELS.reduce<number>(
           (acc, lvl) => acc + r.quantities[lvl],
           0,
         )
-        return { ...r, weaponCategory, localizedName, totalQty }
+        return {
+          ...r,
+          weaponCategory,
+          familyRank,
+          localizedName,
+          totalQty,
+        }
       })
       .sort(compareRows)
   }, [initialGear, locale])
@@ -114,51 +121,13 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
     return rows.filter((r) => {
       if (r.tier !== tierFilter) return false
       if (r.slot !== slotFilter) return false
-      if (
-        slotFilter === 'weapon' &&
-        weaponCategoryFilter &&
-        r.weaponCategory !== weaponCategoryFilter
-      ) {
-        return false
-      }
       if (hideEmpty && r.totalQty === 0) return false
       if (!matchesSearch(r)) return false
       return true
     })
     // matchesSearch 는 trimmedQuery 의존
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, tierFilter, slotFilter, weaponCategoryFilter, hideEmpty, trimmedQuery])
-
-  // 무기 슬롯에서 보유/카탈로그에 등장하는 카테고리들 — 칩 라벨은 T8 canonical
-  // 의 로컬라이즈 이름에서 "장로의 " 접두사를 떼서 표시.
-  const weaponCategoryOptions = useMemo(() => {
-    if (slotFilter !== 'weapon') return []
-    const map = new Map<
-      string,
-      { count: number; sample: CategorizedRow }
-    >()
-    for (const r of rows) {
-      if (r.tier !== tierFilter) continue
-      if (r.slot !== 'weapon') continue
-      if (!r.weaponCategory) continue
-      const existing = map.get(r.weaponCategory)
-      if (existing) {
-        existing.count += r.totalQty
-      } else {
-        map.set(r.weaponCategory, { count: r.totalQty, sample: r })
-      }
-    }
-    const out: Array<{ code: string; label: string; count: number }> = []
-    for (const [code, data] of map) {
-      const canonId =
-        canonicalT8WeaponId(data.sample.baseItemId) ?? data.sample.baseItemId
-      const localized =
-        getLocalizedItemNameWithEnchant(canonId, locale, null) ?? code
-      out.push({ code, label: stripTierPrefix(localized), count: data.count })
-    }
-    out.sort((a, b) => a.label.localeCompare(b.label))
-    return out
-  }, [rows, tierFilter, slotFilter, locale])
+  }, [rows, tierFilter, slotFilter, hideEmpty, trimmedQuery])
 
   // 슬롯 칩의 보유 합계 (현재 티어 한정)
   const countsBySlot = useMemo(() => {
@@ -293,47 +262,6 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
             {hideEmpty ? t('hideEmptyOn') : t('hideEmptyOff')}
           </button>
         </div>
-
-        {slotFilter === 'weapon' && weaponCategoryOptions.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            <span className="text-[11px] text-gray-500 self-center mr-1 font-semibold uppercase tracking-wide">
-              {t('weaponCategoryLabel')}
-            </span>
-            <button
-              type="button"
-              onClick={() => setWeaponCategoryFilter(null)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                weaponCategoryFilter === null
-                  ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40'
-                  : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700'
-              }`}
-            >
-              {t('weaponCategoryAll')}
-            </button>
-            {weaponCategoryOptions.map((opt) => {
-              const active = weaponCategoryFilter === opt.code
-              return (
-                <button
-                  key={opt.code}
-                  type="button"
-                  onClick={() => setWeaponCategoryFilter(opt.code)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-                    active
-                      ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40'
-                      : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700'
-                  }`}
-                >
-                  <span>{opt.label}</span>
-                  <span
-                    className={`text-[10px] tabular-nums ${active ? 'text-amber-300/80' : 'text-gray-500'}`}
-                  >
-                    {opt.count}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        )}
 
         {trimmedQuery && (
           <p className="text-xs text-gray-500 tabular-nums">

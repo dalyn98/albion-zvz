@@ -2314,8 +2314,6 @@
     "gearHintCatalog": "Full T4–T8 gear catalog with enchants @0–@4. Click any card to adjust quantities for each enchant level.",
     "tierLabel": "Tier",
     "slotLabel": "Slot",
-    "weaponCategoryLabel": "Weapon type",
-    "weaponCategoryAll": "All",
     "hideEmptyOn": "Owned only",
     "hideEmptyOff": "Include zero",
     "emptyAfterFilter": "No owned items match the current filter.",
