@@ -110,6 +110,13 @@ export type AppSettingKey =
   // 동명이인 매칭 + verifyDeathInWindow 의 길드 일치 검증에 사용.
   // 비어 있으면 자동 검증/sync 가 skip — 환경변수 ALBION_GUILD_NAME 대체.
   | 'albion_home_guild_name'
+  // 홈 길드의 현재 얼라이언스 ID (UUID 문자열). battle-tracker cron 이 매 run
+  // 마다 홈 길드가 등장한 raw_battle 에서 자동 감지해 갱신한다. 빈 값 = "솔로
+  // 길드 또는 아직 한 번도 검출 못함". 이 값이 있으면 홈 길드가 0명인 전투에서도
+  // 같은 얼라이언스의 다른 길드만 참여한 케이스를 우리 측 전투로 집계한다
+  // (alliance-level battle tracking). 어드민이 직접 만질 필요 없음 — cron 이
+  // 자동 동기화. 알라이언스 가입/탈퇴/이전 후 1 cron 주기 안에 반영.
+  | 'albion_home_alliance_id'
   // Boolean 문자열. 'true' 이면 알비온 인증을 하지 않은 길드원도 사이트 전역에
   // 접근 가능 (현재 기본 동작). 'false' 이면 `layout.tsx` 게이트가 미인증 멤버
   // 를 `/onboarding/albion` 으로 강제 리디렉트. 관리자/게스트/공개 경로/OAuth
