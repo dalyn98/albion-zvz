@@ -3,10 +3,11 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Box, ListChecks, X, Coins, ChevronDown } from 'lucide-react'
+import { Box, ListChecks, X, Coins, ChevronDown, Undo2 } from 'lucide-react'
 import {
   cancelCraftTaskAdmin,
   convertCraftTaskToSilverAdmin,
+  revertCraftTaskToPendingAdmin,
   type CraftQueueItem,
 } from '@/app/actions/craft'
 import { SLOT_KEYS, type SlotKey } from '@/types'
@@ -79,6 +80,21 @@ export default function AdminCraftTasksList({ initialTasks }: Props) {
     })
   }
 
+  const onRevert = (taskId: string) => {
+    if (!window.confirm(t('confirmRevertTask'))) return
+    setPendingTarget(taskId)
+    startTransition(async () => {
+      const r = await revertCraftTaskToPendingAdmin(taskId)
+      setPendingTarget(null)
+      if (r.error) {
+        toast.error(r.error)
+        return
+      }
+      toast.success(t('toastTaskReverted'))
+      router.refresh()
+    })
+  }
+
   return (
     <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
       <div>
@@ -104,6 +120,7 @@ export default function AdminCraftTasksList({ initialTasks }: Props) {
               pendingTarget={pendingTarget}
               onCancel={onCancel}
               onConvert={onConvert}
+              onRevert={onRevert}
               tRole={tRole}
               t={t}
             />
@@ -121,6 +138,7 @@ interface GroupSectionProps {
   pendingTarget: string | null
   onCancel: (id: string) => void
   onConvert: (id: string) => void
+  onRevert: (id: string) => void
   tRole: ReturnType<typeof useTranslations>
   t: ReturnType<typeof useTranslations>
 }
@@ -132,6 +150,7 @@ function GroupSection({
   pendingTarget,
   onCancel,
   onConvert,
+  onRevert,
   tRole,
   t,
 }: GroupSectionProps) {
@@ -242,6 +261,16 @@ function GroupSection({
 
                 {canCancelOrConvert && (
                   <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => onRevert(task.taskId)}
+                      disabled={isPending}
+                      className="text-[11px] text-sky-300 hover:text-sky-200 border border-sky-500/30 hover:border-sky-500/60 rounded px-2 py-1 inline-flex items-center gap-1 disabled:opacity-50"
+                      title={t('revertTaskTitle')}
+                    >
+                      <Undo2 size={11} />
+                      {t('revertTask')}
+                    </button>
                     <button
                       type="button"
                       onClick={() => onConvert(task.taskId)}

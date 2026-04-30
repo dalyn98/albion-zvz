@@ -1318,6 +1318,45 @@ export async function convertCraftTaskToSilverAdmin(
   }
 }
 
+// "되돌리기" — admin 이 "제작 의뢰로 보내기" 결정을 취소하고 청구를 다시
+// 처음 pending 상태로 복구. craft_task 는 cancelled 처리되고 regear_requests
+// 는 status=pending 으로 되돌아가서 admin 이 다시 (silver / crafted / reject)
+// 중 하나를 고를 수 있게 된다. 마이그 128 RPC 위임.
+export async function revertCraftTaskToPendingAdmin(
+  taskId: string,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+
+    const { error } = await db.rpc('revert_crafted_to_pending', {
+      p_task_id: taskId,
+      p_guild_id: guildId,
+    })
+    if (error) {
+      const msg = error.message
+      if (msg.includes('CRAFT_TASK_NOT_FOUND')) {
+        return { error: tErr('craftTaskNotFound') }
+      }
+      if (msg.includes('CRAFT_TASK_NOT_REVERTIBLE')) {
+        return { error: tErr('craftTaskNotCancellable') }
+      }
+      return { error: msg }
+    }
+
+    revalidatePath('/admin/dashboard/craft')
+    revalidatePath('/admin/dashboard/approvals')
+    revalidatePath('/craft/queue')
+    revalidatePath('/me')
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
 // Tenant-wide settings setter (admin only). Validation here mirrors the SQL
 // constraints; UI passes already-coerced numbers.
 export interface UpdateCraftSettingsInput {
