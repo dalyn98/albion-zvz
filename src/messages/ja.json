@@ -323,7 +323,10 @@
     "stockItemRow": "必要 {required} / 在庫 {available}",
     "issueFromStockButton": "在庫から出庫 ({amount})",
     "issueFromStockTitle": "ギルド在庫から即時出庫し承認します",
-    "issueFromStockDisabledHint": "在庫が不足しているため出庫できません。一部部位のみ保有している場合は通常の承認をご利用ください。"
+    "issueFromStockDisabledHint": "在庫が不足しているため出庫できません。一部部位のみ保有している場合は通常の承認をご利用ください。",
+    "queueAsCraftedButton": "製作依頼に送る",
+    "queueAsCraftedTitle": "製作者が作れるように製作キューへ追加します (シルバーは製作者の納品時に reimbursement として支給)",
+    "queueAsCraftedToast": "製作キューに登録しました"
   },
   "adminExchangeReview": {
     "pageTitle": "両替申請",
@@ -3038,6 +3041,8 @@
     "regearApprovedBody": "{event} のリギアが承認されました (+{silver} silver)。",
     "regearStockedTitle": "リギア — 在庫から出庫",
     "regearStockedBody": "{event} のリギアがギルド在庫から出庫されました。装備の受け取り方法は管理者にご確認ください。",
+    "regearQueuedTitle": "リギア — 製作キューに追加",
+    "regearQueuedBody": "{event} のリギアが製作依頼として登録されました。製作者がボックスに装備を入れたら再度通知が届きます。",
     "regearRejectedTitle": "リギア却下",
     "regearRejectedBody": "{event} のリギア申請が却下されました。",
     "exchangeApprovedTitle": "両替承認",

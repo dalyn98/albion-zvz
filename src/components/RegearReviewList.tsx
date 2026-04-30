@@ -3,10 +3,11 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Check, X, ShieldCheck, ShieldAlert, ImageIcon, Loader2, ZoomIn, ChevronUp, ChevronRight, Swords, RotateCw, AlertTriangle, Package } from 'lucide-react'
+import { Check, X, ShieldCheck, ShieldAlert, ImageIcon, Loader2, ZoomIn, ChevronUp, ChevronRight, Swords, RotateCw, AlertTriangle, Package, Hammer } from 'lucide-react'
 import {
   approveRegearRequest,
   approveRegearFromStock,
+  approveRegearAsCrafted,
   rejectRegearRequest,
   getScreenshotUrl,
   recheckKillboardVerification,
@@ -327,6 +328,19 @@ function RegearRow({
         return
       }
       toast.success(tToast('regearApproved'))
+      router.refresh()
+    })
+  }
+
+  const approveAsCrafted = () => {
+    setError('')
+    startTransition(async () => {
+      const result = await approveRegearAsCrafted(request.id)
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      toast.success(t('queueAsCraftedToast'))
       router.refresh()
     })
   }
@@ -661,6 +675,18 @@ function RegearRow({
                     rate: ratePercent,
                   })}
             </button>
+            {request.fulfillment_mode === 'crafted' && request.build_snapshot && (
+              <button
+                type="button"
+                onClick={approveAsCrafted}
+                disabled={pending}
+                className="flex items-center gap-1 text-xs bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 px-3 py-1.5 rounded"
+                title={t('queueAsCraftedTitle')}
+              >
+                <Hammer size={13} />
+                {t('queueAsCraftedButton')}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {

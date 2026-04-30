@@ -476,6 +476,97 @@ export async function approveRegearFromStock(
   }
 }
 
+// 제작 의뢰로 보내기 — crafted 모드 리기어를 craft_tasks 큐에 명시적으로
+// 진입시킨다. 마이그 116 의 approve_regear_request 가 항상 silver 로 flip
+// 하기 때문에, 어드민이 "제작 큐로 보내기" 의도를 분리해서 누를 수 있게 별도
+// RPC + 액션으로 갈렸다 (마이그 127).
+export async function approveRegearAsCrafted(
+  id: string,
+  overrideSilver?: number,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  const tDm = await getTranslations('discordDm')
+  try {
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+
+    const { data: pending } = await db
+      .from('regear_requests')
+      .select('claimed_silver, build_snapshot, fulfillment_mode, status')
+      .eq('guild_id', guildId)
+      .eq('id', id)
+      .maybeSingle()
+    if (!pending || pending.status !== 'pending') {
+      return { error: tErr('alreadyHandled') }
+    }
+    if (pending.fulfillment_mode !== 'crafted') {
+      return { error: tErr('regearNotCraftedMode') }
+    }
+    const buildSnapshot = (pending.build_snapshot as BuildSnapshot | null) ?? null
+    if (!buildSnapshot) {
+      return { error: tErr('regearMissingBuildSnapshot') }
+    }
+
+    const claimed = pending.claimed_silver ?? 0
+    const ratePercent = await loadPayoutRatePercent(guildId)
+    const defaultPayout = calcPayoutSilver(claimed, ratePercent)
+    let payout = defaultPayout
+    if (typeof overrideSilver === 'number') {
+      if (!Number.isInteger(overrideSilver) || overrideSilver < 0) {
+        return { error: tErr('nonNegativeInteger') }
+      }
+      if (overrideSilver > claimed) {
+        return { error: tErr('payoutExceedsClaim', { claimed: claimed.toLocaleString() }) }
+      }
+      payout = overrideSilver
+    }
+
+    const { error } = await db.rpc('approve_regear_as_crafted', {
+      p_id: id,
+      p_admin_id: session.discordId,
+      p_admin_username: session.username,
+      p_guild_id: guildId,
+      p_payout_silver: payout,
+    })
+    if (error) {
+      const msg = error.message
+      if (msg.includes('REGEAR_NOT_PENDING')) return { error: tErr('alreadyHandled') }
+      if (msg.includes('REGEAR_NOT_CRAFTED_MODE')) return { error: tErr('regearNotCraftedMode') }
+      if (msg.includes('REGEAR_NO_BUILD_SNAPSHOT')) {
+        return { error: tErr('regearMissingBuildSnapshot') }
+      }
+      return { error: msg }
+    }
+
+    revalidatePath('/admin/dashboard/regear')
+    revalidatePath('/admin/dashboard/approvals')
+    revalidatePath('/admin/dashboard/craft')
+    revalidatePath('/craft/queue')
+    revalidatePath('/me')
+
+    const { data: row } = await db
+      .from('regear_requests')
+      .select('discord_id, event_title_snapshot')
+      .eq('guild_id', guildId)
+      .eq('id', id)
+      .maybeSingle()
+    if (row?.discord_id) {
+      void sendDiscordDmToUser(row.discord_id, guildId, {
+        title: tDm('regearQueuedTitle'),
+        body: tDm('regearQueuedBody', {
+          event: row.event_title_snapshot ?? '',
+        }),
+        url: '/me',
+      })
+    }
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
 // 제출 시점엔 Albion API 가 아직 사망을 인덱싱하지 않아 killboard_verified 가
 // false 로 굳는 경우가 흔하다 (API 지연 ~30분). 관리자가 시간 지난 뒤 이 액션을
 // 눌러 최신 결과로 다시 채워넣을 수 있게 한다. pending 상태만 재확인 허용 —

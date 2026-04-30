@@ -323,7 +323,10 @@
     "stockItemRow": "Need {required} / Have {available}",
     "issueFromStockButton": "Issue from stock ({amount})",
     "issueFromStockTitle": "Issue gear from guild stock and approve immediately",
-    "issueFromStockDisabledHint": "Some pieces are out of stock. Use the regular approve button if you want to fall back to crafting."
+    "issueFromStockDisabledHint": "Some pieces are out of stock. Use the regular approve button if you want to fall back to crafting.",
+    "queueAsCraftedButton": "Send to craft queue",
+    "queueAsCraftedTitle": "Add to the craft queue so a crafter can pick it up (silver is reimbursed to the crafter on delivery)",
+    "queueAsCraftedToast": "Sent to the craft queue"
   },
   "adminExchangeReview": {
     "pageTitle": "Exchange requests",
@@ -3038,6 +3041,8 @@
     "regearApprovedBody": "{event} regear approved (+{silver} silver).",
     "regearStockedTitle": "Regear — issued from stock",
     "regearStockedBody": "{event} regear has been issued from the guild stock. Ask your admin how to pick up the gear.",
+    "regearQueuedTitle": "Regear — added to craft queue",
+    "regearQueuedBody": "{event} regear was sent to the craft queue. You'll get another DM when a crafter has stocked the box.",
     "regearRejectedTitle": "Regear rejected",
     "regearRejectedBody": "{event} regear request was rejected.",
     "exchangeApprovedTitle": "Exchange approved",
