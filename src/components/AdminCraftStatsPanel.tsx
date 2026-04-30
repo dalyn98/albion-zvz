@@ -1,237 +1,220 @@
 import { getTranslations } from 'next-intl/server'
+import { Hammer, TrendingUp } from 'lucide-react'
 import {
-  BarChart3,
-  CheckCircle2,
-  Clock,
-  XOctagon,
-  Coins,
-  Sparkles,
-} from 'lucide-react'
-import { loadCraftStatsAdmin } from '@/app/actions/craft'
-import { formatSilver } from '@/lib/silver'
-import { formatRelativeFine } from '@/lib/relative-time'
-import { getAdminClient } from '@/lib/supabase-admin'
-import { getSession } from '@/lib/session'
-import { getSessionGuildId } from '@/lib/tenant'
-import MemberAvatar from './MemberAvatar'
+  loadCraftDemandStatsAdmin,
+  type CraftDemandBucket,
+  type CraftDemandTopItem,
+} from '@/app/actions/craft'
+import { getLocale } from '@/lib/locale'
+import { getLocalizedItemName } from '@/lib/item-names'
+import { SLOT_LABELS } from '@/types'
+import type { SlotKey } from '@/types'
 
-// 제작 리기어 운영 통계 패널. lifetime + 이번 주 (PT 월요일~) KPI 4종 + 제작자별
-// 누적 표. 어드민이 "이번 주 누가 얼마나 만들었나" / "지금 적체된 작업 / 만료
-// 되어 손실 발생한 작업" 을 한 화면에서 비교할 수 있게 한다. RSC — 데이터 로드 +
-// 정렬은 server action 에서 끝나서 클라이언트 JS 부담은 없음.
+// 어드민 제작 대시보드 통계 패널. 운영 KPI (회수/만료/실버 합계) 가 아니라 인게임
+// 수요 — "어떤 장비가 가장 많이 청구됐나" — 를 노출. 데이터는
+// regear_requests.build_snapshot 을 lifetime / 이번 주 (PT 월요일 00:00~) 두
+// 윈도우로 집계.
+//
+// 슬롯은 craft-aggregation.ts 의 기본 제외 규칙으로 mount/food/potion 을 제거 —
+// 제작자가 만들 수 없는 슬롯은 통계에 의미가 없다.
+
+const SLOT_LABEL_KEYS: Record<string, string> = {
+  weapon: 'slotWeapon',
+  head: 'slotHead',
+  armor: 'slotArmor',
+  shoes: 'slotShoes',
+  offhand: 'slotOffhand',
+  cape: 'slotCape',
+}
 
 export default async function AdminCraftStatsPanel() {
-  const [{ stats, error }, t, tTime] = await Promise.all([
-    loadCraftStatsAdmin(),
+  const [{ stats, error }, t, locale] = await Promise.all([
+    loadCraftDemandStatsAdmin(),
     getTranslations('adminCraft'),
-    getTranslations('time'),
+    getLocale(),
   ])
 
   if (error || !stats) {
     return (
       <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-2">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
-          <BarChart3 size={16} className="text-amber-400" />
-          {t('statsTitle')}
+          <Hammer size={16} className="text-amber-400" />
+          {t('demandTitle')}
         </h2>
-        <p className="text-xs text-rose-300">{error ?? t('statsError')}</p>
+        <p className="text-xs text-rose-300">{error ?? t('demandError')}</p>
       </section>
     )
   }
 
-  // 제작자 아바타. byCrafter 가 비어있으면 join 자체를 스킵.
-  const avatarMap = await loadCrafterAvatars(stats.byCrafter.map((c) => c.discordId))
-
   return (
-    <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4">
+    <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-5">
       <div>
         <h2 className="text-base font-bold text-white flex items-center gap-2">
-          <BarChart3 size={16} className="text-amber-400" />
-          {t('statsTitle')}
+          <Hammer size={16} className="text-amber-400" />
+          {t('demandTitle')}
         </h2>
-        <p className="text-xs text-gray-500 mt-1">{t('statsHint')}</p>
+        <p className="text-xs text-gray-500 mt-1">{t('demandHint')}</p>
       </div>
 
-      {/* 이번 주 카드 4종. */}
-      <div className="space-y-2">
-        <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
-          {t('statsWeeklyTitle')}
-        </p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-          <KpiCard
-            icon={<CheckCircle2 size={14} className="text-emerald-300" />}
-            label={t('statsCollected')}
-            value={stats.weekly.collectedCount.toLocaleString('en-US')}
-          />
-          <KpiCard
-            icon={<Clock size={14} className="text-sky-300" />}
-            label={t('statsInProgress')}
-            value={stats.weekly.inProgressCount.toLocaleString('en-US')}
-          />
-          <KpiCard
-            icon={<XOctagon size={14} className="text-rose-300" />}
-            label={t('statsExpired')}
-            value={stats.weekly.expiredCount.toLocaleString('en-US')}
-          />
-          <KpiCard
-            icon={<Coins size={14} className="text-amber-300" />}
-            label={t('statsReimbursementSilver')}
-            value={formatSilver(stats.weekly.reimbursementSilver)}
-          />
-        </div>
-      </div>
+      <DemandBucket
+        title={t('demandWeeklyTitle')}
+        bucket={stats.weekly}
+        emptyLabel={t('demandWeeklyEmpty')}
+        countLabel={t('demandRequestCount', { count: stats.weekly.taskCount })}
+        slotPrefix={t('demandSlotsLabel')}
+        topPrefix={t('demandTopItemsLabel')}
+        slotEmpty={t('demandSlotsEmpty')}
+        slotTranslate={(slot) => slotLabel(t, slot)}
+        nameTranslate={(item) =>
+          getLocalizedItemName(item.itemId, locale, item.itemName) ??
+          item.itemName ??
+          item.itemId
+        }
+        unitLabel={t('demandUnit')}
+      />
 
-      {/* lifetime 카드 4종. */}
-      <div className="space-y-2">
-        <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
-          {t('statsLifetimeTitle')}
-        </p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-          <KpiCard
-            icon={<CheckCircle2 size={14} className="text-emerald-300" />}
-            label={t('statsCollected')}
-            value={stats.lifetime.collectedCount.toLocaleString('en-US')}
-          />
-          <KpiCard
-            icon={<Clock size={14} className="text-sky-300" />}
-            label={t('statsInProgress')}
-            value={stats.lifetime.inProgressCount.toLocaleString('en-US')}
-          />
-          <KpiCard
-            icon={<XOctagon size={14} className="text-rose-300" />}
-            label={t('statsExpired')}
-            value={stats.lifetime.expiredCount.toLocaleString('en-US')}
-          />
-          <KpiCard
-            icon={<Coins size={14} className="text-amber-300" />}
-            label={t('statsReimbursementSilver')}
-            value={formatSilver(stats.lifetime.reimbursementSilver)}
-          />
-        </div>
-      </div>
-
-      {/* 제작자별 표. lifetime collected 기준 — 한 번도 회수 안 된 제작자는 없음. */}
-      <div className="space-y-2">
-        <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
-          {t('statsByCrafterTitle')}
-        </p>
-        {stats.byCrafter.length === 0 ? (
-          <p className="text-gray-500 text-sm bg-gray-950 border border-gray-800 rounded-lg px-3 py-4 text-center">
-            {t('statsByCrafterEmpty')}
-          </p>
-        ) : (
-          <div className="overflow-x-auto rounded-lg border border-gray-800 bg-gray-950">
-            <table className="min-w-full text-xs">
-              <thead className="bg-gray-900/70 text-gray-400 uppercase tracking-wider">
-                <tr>
-                  <th className="px-3 py-2 text-left font-semibold">
-                    {t('statsCrafterCol')}
-                  </th>
-                  <th className="px-3 py-2 text-right font-semibold">
-                    {t('statsCollectedCol')}
-                  </th>
-                  <th className="px-3 py-2 text-right font-semibold">
-                    {t('statsModeMixCol')}
-                  </th>
-                  <th className="px-3 py-2 text-right font-semibold">
-                    {t('statsReimbursementSilverCol')}
-                  </th>
-                  <th className="px-3 py-2 text-right font-semibold">
-                    {t('statsFocusRateCol')}
-                  </th>
-                  <th className="px-3 py-2 text-right font-semibold">
-                    {t('statsLastTaskCol')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800">
-                {stats.byCrafter.map((c) => {
-                  const avatarHash = avatarMap.get(c.discordId) ?? null
-                  const focusRate =
-                    c.collectedCount === 0
-                      ? 0
-                      : Math.round((c.focusUsedCount / c.collectedCount) * 100)
-                  return (
-                    <tr key={c.discordId} className="text-gray-200">
-                      <td className="px-3 py-2">
-                        <span className="flex items-center gap-2">
-                          <MemberAvatar
-                            discordId={c.discordId}
-                            avatar={avatarHash}
-                            size={24}
-                          />
-                          <span className="truncate">{c.username}</span>
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {c.collectedCount.toLocaleString('en-US')}
-                      </td>
-                      <td className="px-3 py-2 text-right text-gray-400 whitespace-nowrap">
-                        {t('statsModeMixValue', {
-                          volunteer: c.volunteerCount,
-                          paid: c.paidCount,
-                        })}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-amber-200">
-                        {formatSilver(c.reimbursementSilver)}
-                      </td>
-                      <td className="px-3 py-2 text-right text-gray-300 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1">
-                          <Sparkles size={11} className="text-amber-300" />
-                          {focusRate}%
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-right text-gray-400 whitespace-nowrap">
-                        {formatRelativeFine(c.lastTaskAt, tTime)}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <DemandBucket
+        title={t('demandLifetimeTitle')}
+        bucket={stats.lifetime}
+        emptyLabel={t('demandLifetimeEmpty')}
+        countLabel={t('demandRequestCount', { count: stats.lifetime.taskCount })}
+        slotPrefix={t('demandSlotsLabel')}
+        topPrefix={t('demandTopItemsLabel')}
+        slotEmpty={t('demandSlotsEmpty')}
+        slotTranslate={(slot) => slotLabel(t, slot)}
+        nameTranslate={(item) =>
+          getLocalizedItemName(item.itemId, locale, item.itemName) ??
+          item.itemName ??
+          item.itemId
+        }
+        unitLabel={t('demandUnit')}
+      />
     </section>
   )
 }
 
-interface KpiCardProps {
-  icon: React.ReactNode
-  label: string
-  value: string
+interface DemandBucketProps {
+  title: string
+  bucket: CraftDemandBucket
+  emptyLabel: string
+  countLabel: string
+  slotPrefix: string
+  topPrefix: string
+  slotEmpty: string
+  unitLabel: string
+  slotTranslate: (slot: string) => string
+  nameTranslate: (item: CraftDemandTopItem) => string
 }
 
-function KpiCard({ icon, label, value }: KpiCardProps) {
+function DemandBucket({
+  title,
+  bucket,
+  emptyLabel,
+  countLabel,
+  slotPrefix,
+  topPrefix,
+  slotEmpty,
+  unitLabel,
+  slotTranslate,
+  nameTranslate,
+}: DemandBucketProps) {
+  const isEmpty = bucket.topItems.length === 0
+  const topMaxCount = isEmpty ? 0 : bucket.topItems[0].count
+
   return (
-    <div className="bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 space-y-1">
-      <div className="text-[11px] text-gray-400 flex items-center gap-1">
-        {icon}
-        <span className="truncate">{label}</span>
+    <div className="space-y-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+          {title}
+        </p>
+        <p className="text-[11px] text-gray-500 tabular-nums">{countLabel}</p>
       </div>
-      <div className="text-sm font-bold text-white tabular-nums">{value}</div>
+
+      {isEmpty ? (
+        <p className="text-gray-500 text-sm bg-gray-950 border border-gray-800 rounded-lg px-3 py-4 text-center">
+          {emptyLabel}
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-3">
+          {/* 좌측: 아이템 Top N */}
+          <div className="bg-gray-950 border border-gray-800 rounded-lg p-3 space-y-2">
+            <p className="text-[11px] text-gray-500 flex items-center gap-1">
+              <TrendingUp size={11} className="text-amber-300" />
+              {topPrefix}
+            </p>
+            <ul className="space-y-1.5">
+              {bucket.topItems.map((item) => {
+                const widthPct =
+                  topMaxCount === 0 ? 0 : Math.round((item.count / topMaxCount) * 100)
+                const slots = item.slots
+                  .filter((s) => s in SLOT_LABEL_KEYS)
+                  .map((s) => slotTranslate(s))
+                return (
+                  <li key={item.itemId} className="space-y-0.5">
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="truncate text-gray-100">
+                        {nameTranslate(item)}
+                      </span>
+                      <span className="tabular-nums text-amber-200 whitespace-nowrap">
+                        {item.count.toLocaleString('en-US')}
+                        <span className="text-gray-500 ml-1">{unitLabel}</span>
+                      </span>
+                    </div>
+                    {/* 막대로 상대 비율 시각화 — top 1 기준 정규화 */}
+                    <div className="relative h-1.5 bg-gray-900 rounded-full overflow-hidden">
+                      <div
+                        className="absolute inset-y-0 left-0 bg-amber-500/70"
+                        style={{ width: `${widthPct}%` }}
+                      />
+                    </div>
+                    {slots.length > 0 && (
+                      <p className="text-[10px] text-gray-500">{slots.join(' · ')}</p>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+
+          {/* 우측: 슬롯별 합계 */}
+          <div className="bg-gray-950 border border-gray-800 rounded-lg p-3 space-y-2">
+            <p className="text-[11px] text-gray-500">{slotPrefix}</p>
+            {bucket.slotTotals.length === 0 ? (
+              <p className="text-xs text-gray-600">{slotEmpty}</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {bucket.slotTotals.map((s) => (
+                  <li
+                    key={s.slotKey}
+                    className="flex items-center justify-between gap-2 text-xs"
+                  >
+                    <span className="text-gray-300">{slotTranslate(s.slotKey)}</span>
+                    <span className="tabular-nums text-gray-100">
+                      {s.count.toLocaleString('en-US')}
+                      <span className="text-gray-500 ml-1">{unitLabel}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-// 제작자별 표 행 옆 아바타용. guild_avatars.avatar 는 Discord 의 hash 라
-// MemberAvatar 가 Discord CDN URL 을 직접 합성한다 (broken hash 면 fallback).
-async function loadCrafterAvatars(
-  discordIds: readonly string[],
-): Promise<Map<string, string | null>> {
-  if (discordIds.length === 0) return new Map()
-  const session = await getSession()
-  if (!session) return new Map()
-  const guildId = await getSessionGuildId(session)
-  const db = getAdminClient()
-  const { data } = await db
-    .from('guild_avatars')
-    .select('discord_id, avatar')
-    .eq('guild_id', guildId)
-    .in('discord_id', [...discordIds])
-  const map = new Map<string, string | null>()
-  for (const row of (data ?? []) as { discord_id: string; avatar: string | null }[]) {
-    map.set(row.discord_id, row.avatar)
+function slotLabel(
+  t: Awaited<ReturnType<typeof getTranslations<'adminCraft'>>>,
+  slot: string,
+): string {
+  const i18nKey = SLOT_LABEL_KEYS[slot]
+  if (i18nKey) {
+    try {
+      return t(i18nKey as Parameters<typeof t>[0])
+    } catch {
+      // fallthrough to korean default below
+    }
   }
-  return map
+  return SLOT_LABELS[slot as SlotKey] ?? slot
 }

@@ -1453,40 +1453,49 @@ export async function getEventCraftAggregate(eventId: string): Promise<{
   }
 }
 
-// 어드민 화면용 제작 작업 누적 통계. lifetime 과 "이번 주" (PT 월요일 00:00 ~)
-// 두 시점에 대해 완료/만료/지급 실버 합계 + 제작자별 breakdown 을 돌려준다.
-// 주 경계는 timezone.ts:getCurrentWeekStartIso — 사이트 다른 위젯과 동일.
+// 어드민 화면용 "제작 수요" 통계. 운영 KPI (회수/만료/실버) 가 아니라 인게임에
+// 가까운 질문 — "지금 길드원들이 어떤 장비를 가장 많이 청구하나" — 에 답한다.
+// 데이터 소스는 regear_requests.build_snapshot. craft_tasks 가 아니라 모든 리기어
+// 신청을 포함한다 (실버/제작 모드 무관). 자동 리기어도 포함되어 ZvZ 손실 추세를
+// 그대로 보여준다.
 //
-// craft_tasks 행수가 큰 길드라도 guild_id 인덱스로 좁히면 수천 row 수준이라
-// JS 집계로 충분 (대시보드 트래픽 적음). pagination 없음.
-export interface CrafterStatsRow {
-  discordId: string
-  username: string
-  collectedCount: number
-  volunteerCount: number
-  paidCount: number
-  reimbursementSilver: number
-  focusUsedCount: number
-  lastTaskAt: string | null
+// 두 윈도우: lifetime (가입 이후 전체) + weekly (PT 월요일 00:00~). 주 경계는
+// timezone.ts:getCurrentWeekStartIso — 사이트 다른 위젯과 동일.
+//
+// 슬롯 필터: 제작자가 만들 수 없는 mount/food/potion 은 craft-aggregation 의
+// 기본 제외 규칙으로 자동 제거. 결과는 무기/머리/갑옷/신발/보조무기/망토.
+export interface CraftDemandTopItem {
+  itemId: string
+  itemName: string | null
+  count: number
+  // 같은 itemId 가 여러 슬롯에 등장한 경우 — 예: 한 손 단도가 weapon 과 offhand
+  // 양쪽에 나오면 ['weapon','offhand']. UI 가 "주무기 외 보조무기로도 쓰임"
+  // 같은 힌트를 표시할 때 활용.
+  slots: string[]
 }
 
-export interface CraftStatsBucket {
-  collectedCount: number
-  inProgressCount: number
-  expiredCount: number
-  cancelledCount: number
-  reimbursementSilver: number
+export interface CraftDemandSlotBucket {
+  // SLOT_KEYS 와 동일 (mount/food/potion 제외) — 표시 라벨은 i18n 측에서 매핑.
+  slotKey: string
+  count: number
 }
 
-export interface CraftStatsResult {
-  lifetime: CraftStatsBucket
-  weekly: CraftStatsBucket
-  byCrafter: CrafterStatsRow[]
+export interface CraftDemandBucket {
+  taskCount: number
+  topItems: CraftDemandTopItem[]
+  slotTotals: CraftDemandSlotBucket[]
+}
+
+export interface CraftDemandStatsResult {
+  lifetime: CraftDemandBucket
+  weekly: CraftDemandBucket
   weekSinceIso: string
 }
 
-export async function loadCraftStatsAdmin(): Promise<{
-  stats: CraftStatsResult | null
+const DEMAND_TOP_ITEM_LIMIT = 8
+
+export async function loadCraftDemandStatsAdmin(): Promise<{
+  stats: CraftDemandStatsResult | null
   error?: string
 }> {
   const tErr = await getTranslations('adminActionError')
@@ -1498,118 +1507,65 @@ export async function loadCraftStatsAdmin(): Promise<{
 
     const weekSinceIso = getCurrentWeekStartIso()
 
+    // 자동 리기어 (auto_generated=true) 도 포함해야 사망 트래킹 흐름의 수요까지
+    // 한 그래프로 보인다. 어드민이 거절·취소한 건도 "그 시점 수요" 로는 유효 —
+    // status 필터를 걸지 않는다.
     const { data, error } = await db
-      .from('craft_tasks')
-      .select(
-        'status, crafter_discord_id, crafter_username, craft_focus_used, reimbursement_silver, compensation_mode, collected_at, expired_at, cancelled_at, created_at',
-      )
+      .from('regear_requests')
+      .select('build_snapshot, created_at')
       .eq('guild_id', guildId)
     if (error) return { stats: null, error: error.message }
 
     const rows = (data ?? []) as Array<{
-      status: CraftTaskStatus
-      crafter_discord_id: string | null
-      crafter_username: string | null
-      craft_focus_used: boolean
-      reimbursement_silver: number | null
-      compensation_mode: 'volunteer' | 'paid' | null
-      collected_at: string | null
-      expired_at: string | null
-      cancelled_at: string | null
+      build_snapshot: unknown
       created_at: string
     }>
 
-    const lifetime: CraftStatsBucket = {
-      collectedCount: 0,
-      inProgressCount: 0,
-      expiredCount: 0,
-      cancelledCount: 0,
-      reimbursementSilver: 0,
-    }
-    const weekly: CraftStatsBucket = {
-      collectedCount: 0,
-      inProgressCount: 0,
-      expiredCount: 0,
-      cancelledCount: 0,
-      reimbursementSilver: 0,
-    }
-    const byCrafterMap = new Map<string, CrafterStatsRow>()
-
+    const lifetimeSnapshots: (BuildSnapshot | null)[] = []
+    const weeklySnapshots: (BuildSnapshot | null)[] = []
     for (const row of rows) {
-      const isInProgress =
-        row.status === 'queued' || row.status === 'claimed' || row.status === 'delivered'
-
-      // lifetime 카운트.
-      if (row.status === 'collected') {
-        lifetime.collectedCount += 1
-        lifetime.reimbursementSilver += row.reimbursement_silver ?? 0
-      } else if (row.status === 'expired') {
-        lifetime.expiredCount += 1
-      } else if (row.status === 'cancelled') {
-        lifetime.cancelledCount += 1
-      } else if (isInProgress) {
-        lifetime.inProgressCount += 1
-      }
-
-      // 이번 주 카운트 — 각 종결 상태의 종결 시각으로 판정. in-progress 는 created_at.
-      const weekTs = (() => {
-        if (row.status === 'collected' && row.collected_at) return row.collected_at
-        if (row.status === 'expired' && row.expired_at) return row.expired_at
-        if (row.status === 'cancelled' && row.cancelled_at) return row.cancelled_at
-        if (isInProgress) return row.created_at
-        return null
-      })()
-      if (weekTs && weekTs >= weekSinceIso) {
-        if (row.status === 'collected') {
-          weekly.collectedCount += 1
-          weekly.reimbursementSilver += row.reimbursement_silver ?? 0
-        } else if (row.status === 'expired') {
-          weekly.expiredCount += 1
-        } else if (row.status === 'cancelled') {
-          weekly.cancelledCount += 1
-        } else if (isInProgress) {
-          weekly.inProgressCount += 1
-        }
-      }
-
-      // 제작자별 누계 — 완료(collected) 만 집계해서 "실제로 제작해서 전달한" 작업
-      // 으로 한정. claimed/delivered 는 아직 회수 안 된 상태라 제작자 보상도 미정.
-      if (row.status === 'collected' && row.crafter_discord_id) {
-        const id = row.crafter_discord_id
-        const existing = byCrafterMap.get(id) ?? {
-          discordId: id,
-          username: row.crafter_username ?? '???',
-          collectedCount: 0,
-          volunteerCount: 0,
-          paidCount: 0,
-          reimbursementSilver: 0,
-          focusUsedCount: 0,
-          lastTaskAt: null,
-        }
-        existing.collectedCount += 1
-        existing.reimbursementSilver += row.reimbursement_silver ?? 0
-        if (row.craft_focus_used) existing.focusUsedCount += 1
-        if (row.compensation_mode === 'volunteer') existing.volunteerCount += 1
-        else if (row.compensation_mode === 'paid') existing.paidCount += 1
-        const ts = row.collected_at
-        if (ts && (!existing.lastTaskAt || ts > existing.lastTaskAt)) {
-          existing.lastTaskAt = ts
-        }
-        // 가장 최근 username 으로 갱신 (제작자 닉 변경 추적).
-        if (row.crafter_username) existing.username = row.crafter_username
-        byCrafterMap.set(id, existing)
-      }
+      const snap = (row.build_snapshot as BuildSnapshot | null) ?? null
+      lifetimeSnapshots.push(snap)
+      if (row.created_at >= weekSinceIso) weeklySnapshots.push(snap)
     }
 
-    const byCrafter = [...byCrafterMap.values()].sort(
-      (a, b) => b.collectedCount - a.collectedCount,
-    )
-
-    return { stats: { lifetime, weekly, byCrafter, weekSinceIso } }
+    return {
+      stats: {
+        lifetime: bucketFromSnapshots(lifetimeSnapshots),
+        weekly: bucketFromSnapshots(weeklySnapshots),
+        weekSinceIso,
+      },
+    }
   } catch (e) {
     return {
       stats: null,
       error: e instanceof Error ? e.message : tErr('serverError'),
     }
+  }
+}
+
+function bucketFromSnapshots(snapshots: (BuildSnapshot | null)[]): CraftDemandBucket {
+  const breakdown = aggregateBuildSnapshots(snapshots)
+  const slotTotalsMap = new Map<string, number>()
+  for (const item of breakdown.items) {
+    for (const slot of item.slots) {
+      slotTotalsMap.set(slot, (slotTotalsMap.get(slot) ?? 0) + item.count)
+    }
+  }
+  const slotTotals = [...slotTotalsMap.entries()]
+    .map(([slotKey, count]) => ({ slotKey, count }))
+    .sort((a, b) => b.count - a.count)
+
+  const topItems = breakdown.items.slice(0, DEMAND_TOP_ITEM_LIMIT).map((item) => ({
+    itemId: item.itemId,
+    itemName: item.itemName,
+    count: item.count,
+    slots: [...item.slots],
+  }))
+
+  return {
+    taskCount: breakdown.taskCount,
+    topItems,
+    slotTotals,
   }
 }
