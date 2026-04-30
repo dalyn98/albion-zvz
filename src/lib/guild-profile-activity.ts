@@ -12,6 +12,12 @@ import { getAppSetting } from '@/lib/app-settings'
 import { isHighEngagement } from '@/lib/low-engagement-cut'
 import { bundleSplitBattles, type BundleableRow } from '@/lib/battle-bundling'
 import { getCurrentWeekStartIso } from '@/lib/timezone'
+import {
+  fetchMemberBattleParticipations,
+  fetchTrackedBattleWindows,
+  groupMemberKillsByBattle,
+  mergeMemberBattles,
+} from '@/lib/tracked-kills'
 
 export type BattleOutcome = 'win' | 'loss' | 'tie'
 
@@ -26,7 +32,11 @@ export interface RecentBattleSummary {
 }
 
 export interface TopContributorSummary {
-  discordId: string
+  // 안정 키 — Albion 캐릭터 ID. Discord 미연동 멤버도 랭킹에 들어가도록 이걸
+  // primary 로 쓴다 (리더보드와 동일).
+  albionPlayerId: string
+  // Discord 연동 멤버만 채워짐. UI 라우팅이나 디스코드 아바타에 사용.
+  discordId: string | null
   name: string
   avatarUrl: string | null
   kills: number
@@ -108,56 +118,121 @@ export async function loadRecentTrackedBattle(
   }
 }
 
-// 이번 주 (PT 월요일 00:00 ~ 현재) 길드원 킬 카운트 상위 N명. killboard_events
-// 에서 이 길드의 killer 행만 끌어와 메모리에서 grouping — leaderboard 랑 같은
-// 패턴. row 수가 큰 길드는 한 번 더 인덱스 활용을 위해 (guild_id, occurred_at)
-// 으로 좁히고 시작 시각을 gte 로 자른다. 주 경계는 timezone.ts:getCurrentWeekStartIso.
+// 이번 주 (PT 월요일 00:00 ~ 현재) 길드원 킬 카운트 상위 N명. /leaderboard 와
+// 동일한 판정 규칙을 적용 — tracked battle window 안의 killboard_events 만
+// 인정해 1:1 갱킹/저인게이지 전투는 자동 제외된다. row 수가 큰 길드라도 cutoff
+// 으로 이미 좁혀져 메모리 집계로 충분.
+//
+// 길드 공개 페이지와 /leaderboard 가 다른 숫자를 보여주던 버그(공개 페이지가
+// 모든 killboard 이벤트를 셌음) 의 고정. 주 경계는 PT 월요일 00:00 (#204).
 export async function loadTopContributorsThisWeek(
   guildId: string,
   limit: number = 3,
 ): Promise<TopContributorSummary[]> {
   const db = getAdminClient()
   const sinceIso = getCurrentWeekStartIso()
+  const bundleSplits =
+    (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
 
-  const { data: kills } = await db
-    .from('killboard_events')
-    .select('discord_id')
-    .eq('guild_id', guildId)
-    .eq('role', 'killer')
-    .gte('occurred_at', sinceIso)
+  // 모집단: 활성 멤버 + 디스코드 아바타. leaderboard 와 동일한 join 패턴.
+  const [rosterRes, avatarsRes, killboardRes, trackedBattles, participations] =
+    await Promise.all([
+      db
+        .from('albion_guild_members')
+        .select('albion_player_id, albion_player_name')
+        .eq('guild_id', guildId)
+        .is('left_at', null),
+      db
+        .from('guild_avatars')
+        .select('discord_id, username, avatar, albion_player_id')
+        .eq('guild_id', guildId)
+        .is('withdrawn_at', null)
+        .not('albion_player_id', 'is', null),
+      db
+        .from('killboard_events')
+        .select('albion_player_id, role, occurred_at, battle_id')
+        .eq('guild_id', guildId)
+        .gte('occurred_at', sinceIso),
+      fetchTrackedBattleWindows(db, guildId, sinceIso, { bundleSplits }),
+      fetchMemberBattleParticipations(db, guildId, sinceIso),
+    ])
 
-  const counts = new Map<string, number>()
-  for (const row of (kills ?? []) as { discord_id: string | null }[]) {
-    const id = row.discord_id
-    if (!id) continue
-    counts.set(id, (counts.get(id) ?? 0) + 1)
-  }
-  const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit)
-  if (top.length === 0) return []
-
-  const ids = top.map(([id]) => id)
-  const { data: avatars } = await db
-    .from('guild_avatars')
-    .select('discord_id, username, avatar')
-    .eq('guild_id', guildId)
-    .in('discord_id', ids)
-
-  const avatarMap = new Map<string, { username: string | null; avatar: string | null }>()
-  for (const row of (avatars ?? []) as {
-    discord_id: string
-    username: string | null
+  interface MemberMeta {
+    discordId: string | null
+    username: string
     avatar: string | null
-  }[]) {
-    avatarMap.set(row.discord_id, { username: row.username, avatar: row.avatar })
+  }
+  const metaByAlbionId = new Map<string, MemberMeta>()
+  for (const row of rosterRes.data ?? []) {
+    if (!row.albion_player_id) continue
+    metaByAlbionId.set(row.albion_player_id as string, {
+      discordId: null,
+      username: row.albion_player_name as string,
+      avatar: null,
+    })
+  }
+  for (const av of avatarsRes.data ?? []) {
+    if (!av.albion_player_id || !av.discord_id || !av.username) continue
+    metaByAlbionId.set(av.albion_player_id as string, {
+      discordId: av.discord_id as string,
+      username: av.username as string,
+      avatar: (av.avatar as string | null) ?? null,
+    })
   }
 
-  return top.map(([discordId, kills]) => {
-    const av = avatarMap.get(discordId)
-    return {
-      discordId,
-      name: av?.username ?? '???',
-      avatarUrl: discordAvatarUrl(discordId, av?.avatar ?? null, 64),
-      kills,
+  type KillRow = {
+    albion_player_id: string | null
+    role: string | null
+    occurred_at: string | null
+    battle_id: number | null
+  }
+  const killsByMember = new Map<string, KillRow[]>()
+  for (const ke of (killboardRes.data ?? []) as KillRow[]) {
+    if (!ke.albion_player_id) continue
+    let list = killsByMember.get(ke.albion_player_id)
+    if (!list) {
+      list = []
+      killsByMember.set(ke.albion_player_id, list)
     }
-  })
+    list.push(ke)
+  }
+
+  // killboard 만 보면 0K 멤버가 빠지지만 탑 킬러는 어차피 1킬 이상이라 굳이
+  // 합집합을 쓰지 않아도 결과가 같다. 하지만 leaderboard 와 같은 코드 경로를
+  // 쓰는 게 가독성/일관성 면에서 좋아 같은 패턴으로 작성.
+  const allAlbionIds = new Set<string>([
+    ...killsByMember.keys(),
+    ...participations.byAlbionPlayerId.keys(),
+  ])
+
+  const aggs: Array<{ albionPlayerId: string; meta: MemberMeta; kills: number }> = []
+  for (const albionId of allAlbionIds) {
+    const meta = metaByAlbionId.get(albionId)
+    if (!meta) continue // 탈퇴자 제외
+    const kills = killsByMember.get(albionId) ?? []
+    const killBattles = groupMemberKillsByBattle(kills, trackedBattles)
+    const battles = mergeMemberBattles(
+      killBattles,
+      participations.byAlbionPlayerId.get(albionId),
+      trackedBattles,
+    )
+    if (battles.length === 0) continue
+    let killCount = 0
+    for (const b of battles) killCount += b.killCount
+    if (killCount === 0) continue
+    aggs.push({ albionPlayerId: albionId, meta, kills: killCount })
+  }
+
+  return aggs
+    .sort((a, b) => b.kills - a.kills)
+    .slice(0, limit)
+    .map((a) => ({
+      albionPlayerId: a.albionPlayerId,
+      discordId: a.meta.discordId,
+      name: a.meta.username,
+      avatarUrl: a.meta.discordId
+        ? discordAvatarUrl(a.meta.discordId, a.meta.avatar, 64)
+        : null,
+      kills: a.kills,
+    }))
 }

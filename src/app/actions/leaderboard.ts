@@ -14,6 +14,7 @@ import {
   mergeMemberBattles,
 } from '@/lib/tracked-kills'
 import { getAppSetting } from '@/lib/app-settings'
+import { getCurrentWeekStartIso } from '@/lib/timezone'
 
 export type LeaderboardWindow = 'week' | 'month' | 'all'
 
@@ -58,10 +59,13 @@ const MIN_EVALUATED_FOR_WINRATE_RANK = 5
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
+// 'week' 는 PT 월요일 00:00 (사이트 전역 #204) — 길드 공개 페이지의 "이번 주
+// 탑 킬러" 와 같은 경계를 보게 한다. 'month' 는 직관적인 30일 롤링 (월 경계가
+// 아니라 "최근 한 달" 의 의미 그대로).
 function cutoffFor(window: LeaderboardWindow): string | null {
   if (window === 'all') return null
-  const days = window === 'week' ? 7 : 30
-  return new Date(Date.now() - days * DAY_MS).toISOString()
+  if (window === 'week') return getCurrentWeekStartIso()
+  return new Date(Date.now() - 30 * DAY_MS).toISOString()
 }
 
 type KillboardRow = {
