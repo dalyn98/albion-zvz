@@ -214,26 +214,36 @@ export interface AdminTeamMember {
   discordId: string
   username: string
   avatarUrl: string | null
+  // 어드민이 명시 입력한 디스코드 핸들 (친구추가/DM 용). NULL 또는 빈 값이면
+  // username 으로 fallback. 카드 클릭 시 클립보드 복사 대상.
+  publicDiscordHandle: string | null
 }
 
 export async function loadAdminTeam(guildId: string): Promise<AdminTeamMember[]> {
   const db = getAdminClient()
   const { data } = await db
     .from('guild_avatars')
-    .select('discord_id, username, avatar')
+    .select('discord_id, username, avatar, public_discord_handle')
     .eq('guild_id', guildId)
     .eq('is_admin', true)
     .is('withdrawn_at', null)
     .order('username', { ascending: true })
 
-  type Row = { discord_id: string | null; username: string | null; avatar: string | null }
+  type Row = {
+    discord_id: string | null
+    username: string | null
+    avatar: string | null
+    public_discord_handle: string | null
+  }
   const out: AdminTeamMember[] = []
   for (const row of (data ?? []) as Row[]) {
     if (!row.discord_id || !row.username) continue
+    const handle = (row.public_discord_handle ?? '').trim()
     out.push({
       discordId: row.discord_id,
       username: row.username,
       avatarUrl: discordAvatarUrl(row.discord_id, row.avatar, 64),
+      publicDiscordHandle: handle.length > 0 ? handle : null,
     })
   }
   return out

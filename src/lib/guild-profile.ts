@@ -209,6 +209,15 @@ export interface GuildProfileSettings {
   showBattles: boolean
   showRegearStats: boolean
   showLeaderboard: boolean
+  // 큰 통계 섹션 자체 노출. 하위 4개 (members/battles/regear/leaderboard) 가
+  // 모두 켜져있어도 이 토글이 false 면 섹션 자체 숨김.
+  showStats: boolean
+  // 운영진 카드 (자동 추출되는 is_admin 멤버 목록) 노출.
+  showAdminTeam: boolean
+  // 무기 분포 카드 (최근 30일 카테고리 사용 비율).
+  showWeapons: boolean
+  // 라이벌 길드 카드 (최근 30일 빈도).
+  showRivals: boolean
   recruitmentStatus: RecruitmentStatus
   discordInviteUrl: string
   // 어드민이 명시한 서버 override. 빈 문자열이면 자동 감지(majority).
@@ -236,6 +245,10 @@ export const DEFAULT_GUILD_PROFILE: GuildProfileSettings = {
   showBattles: true,
   showRegearStats: false,
   showLeaderboard: true,
+  showStats: true,
+  showAdminTeam: true,
+  showWeapons: true,
+  showRivals: true,
   recruitmentStatus: 'closed',
   discordInviteUrl: '',
   serverOverride: '',
@@ -272,6 +285,10 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
     showBattlesRaw,
     showRegearStatsRaw,
     showLeaderboardRaw,
+    showStatsRaw,
+    showAdminTeamRaw,
+    showWeaponsRaw,
+    showRivalsRaw,
     recruitmentStatusRaw,
     discordInviteUrl,
     serverOverrideRaw,
@@ -289,6 +306,10 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
     getAppSetting('guild_profile_show_battles', 'true', guildId),
     getAppSetting('guild_profile_show_regear_stats', 'false', guildId),
     getAppSetting('guild_profile_show_leaderboard', 'true', guildId),
+    getAppSetting('guild_profile_show_stats', 'true', guildId),
+    getAppSetting('guild_profile_show_admin_team', 'true', guildId),
+    getAppSetting('guild_profile_show_weapons', 'true', guildId),
+    getAppSetting('guild_profile_show_rivals', 'true', guildId),
     getAppSetting('guild_profile_recruitment_status', 'closed', guildId),
     getAppSetting('guild_profile_discord_invite_url', '', guildId),
     getAppSetting('guild_profile_server', '', guildId),
@@ -308,6 +329,10 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
     showBattles: showBattlesRaw !== 'false',
     showRegearStats: showRegearStatsRaw === 'true',
     showLeaderboard: showLeaderboardRaw !== 'false',
+    showStats: showStatsRaw !== 'false',
+    showAdminTeam: showAdminTeamRaw !== 'false',
+    showWeapons: showWeaponsRaw !== 'false',
+    showRivals: showRivalsRaw !== 'false',
     recruitmentStatus: isRecruitmentStatus(recruitmentStatusRaw) ? recruitmentStatusRaw : 'closed',
     discordInviteUrl,
     serverOverride: isProfileServerOverride(serverOverrideRaw) ? serverOverrideRaw : '',

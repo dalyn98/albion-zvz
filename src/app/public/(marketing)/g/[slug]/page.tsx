@@ -44,7 +44,6 @@ import {
   resolveProfileServer,
   type WeaponCategoryUsage,
   type RivalGuild,
-  type AdminTeamMember,
 } from '@/lib/guild-profile-stats'
 import { loadMemberDashboardSummary } from '@/lib/guild-profile-member-dashboard'
 import { getAdminBadgeCounts } from '@/lib/admin-badges'
@@ -61,6 +60,7 @@ import { isLocale } from '@/i18n/locales'
 import { getLocalizedItemName } from '@/lib/item-names'
 import { canonicalT8WeaponId, stripTierPrefix } from '@/lib/weapon-display'
 import InlineEditableField, { type EditorOption } from '@/components/guild/InlineEditableField'
+import AdminTeamGridClient from '@/components/AdminTeamGridClient'
 
 export const dynamic = 'force-dynamic'
 
@@ -247,12 +247,15 @@ export default async function GuildProfilePage({
   // 약해 보이게 만든다. 임계값은 의미 단위: 5전투 = 가벼운 스파링 이상.
   const showLifetimeStats =
     lifetimeStats !== null && lifetimeStats.evaluatedBattles >= 5
+  // showStats 는 큰 통계 섹션(멤버/전투/리기어/리더보드/라이프타임 K/D) 전체 마스터
+  // 토글. 어드민이 OFF 하면 하위 토글이 켜져있어도 섹션이 렌더되지 않는다.
   const hasStats =
-    settings.showMembers ||
-    settings.showBattles ||
-    settings.showRegearStats ||
-    settings.showLeaderboard ||
-    showLifetimeStats
+    settings.showStats &&
+    (settings.showMembers ||
+      settings.showBattles ||
+      settings.showRegearStats ||
+      settings.showLeaderboard ||
+      showLifetimeStats)
   // 위젯이 비활성이거나 (battleCount === 0) 인 길드는 weekly KPI 줄을 렌더하지
   // 않는다. activity 섹션 렌더 여부는 KPI 줄까지 함께 본다.
   const showWeeklyStats =
@@ -269,9 +272,11 @@ export default async function GuildProfilePage({
       settings.joinSteps.length > 0)
   // eventSchedule 섹션도 동일 — 어드민이면 빈 슬롯으로 노출.
   const showEventSchedule = isOwnGuildAdmin || settings.eventSchedule.length > 0
-  const showAdminTeam = adminTeam.length > 0
-  const showWeapons = weaponDistribution.length > 0
-  const showRivals = rivals.length > 0
+  // 운영진/무기/라이벌 토글 — 어드민이 명시적으로 OFF 하지 않은 한 데이터 있으면
+  // 노출. settings.show* 는 기본 true 라 기존 길드는 변경 없음.
+  const showAdminTeam = settings.showAdminTeam && adminTeam.length > 0
+  const showWeapons = settings.showWeapons && weaponDistribution.length > 0
+  const showRivals = settings.showRivals && rivals.length > 0
   // 무기 분포 비율 계산용 — UI 에서 progress bar 채우기.
   const weaponTotalCount = showWeapons
     ? weaponDistribution.reduce((sum, w) => sum + w.count, 0)
@@ -732,7 +737,11 @@ export default async function GuildProfilePage({
               label={t('adminTeamHeading')}
               accent={accent}
             />
-            <AdminTeamGrid members={adminTeam} accent={accent} />
+            <AdminTeamGridClient
+              members={adminTeam}
+              accent={accent}
+              isOwnGuildAdmin={isOwnGuildAdmin}
+            />
           </section>
         )}
 
@@ -1128,38 +1137,6 @@ function InfoCard({ icon, title, body, accent }: InfoCardProps) {
         <span>{title}</span>
       </div>
       <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-line">{body}</p>
-    </div>
-  )
-}
-
-interface AdminTeamGridProps {
-  members: AdminTeamMember[]
-  accent: (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
-}
-
-function AdminTeamGrid({ members, accent }: AdminTeamGridProps) {
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-      {members.map((m) => (
-        <div
-          key={m.discordId}
-          className={`flex items-center gap-3 rounded-xl border ${accent.border} bg-gray-900/40 px-3 py-2.5 backdrop-blur-sm`}
-        >
-          {m.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={m.avatarUrl}
-              alt=""
-              className="w-9 h-9 rounded-full bg-gray-800 object-cover shrink-0"
-            />
-          ) : (
-            <div className="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center shrink-0">
-              <Users size={14} className="text-gray-600" />
-            </div>
-          )}
-          <span className="text-sm text-white font-medium truncate">{m.username}</span>
-        </div>
-      ))}
     </div>
   )
 }

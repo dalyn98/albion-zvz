@@ -83,6 +83,10 @@ export default async function GuildProfileAdminPage() {
         initialShowBattles={settings.showBattles}
         initialShowRegearStats={settings.showRegearStats}
         initialShowLeaderboard={settings.showLeaderboard}
+        initialShowStats={settings.showStats}
+        initialShowAdminTeam={settings.showAdminTeam}
+        initialShowWeapons={settings.showWeapons}
+        initialShowRivals={settings.showRivals}
         initialRecruitmentStatus={settings.recruitmentStatus}
         initialDiscordInviteUrl={settings.discordInviteUrl}
       />

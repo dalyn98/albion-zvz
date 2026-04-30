@@ -165,6 +165,12 @@ export type AppSettingKey =
   | 'guild_profile_show_battles'
   | 'guild_profile_show_regear_stats'
   | 'guild_profile_show_leaderboard'
+  // 추가 섹션 토글 (운영진 / 통계 섹션 wrapping / 무기 분포 / 라이벌 길드).
+  // showStats 는 sub-toggle 4개를 묶는 래퍼. false 면 통계 섹션 자체 숨김.
+  | 'guild_profile_show_admin_team'
+  | 'guild_profile_show_stats'
+  | 'guild_profile_show_weapons'
+  | 'guild_profile_show_rivals'
   // 모집 상태. 'open' | 'selective' | 'closed'. open / selective 일 때만 모집
   // CTA 버튼이 표시된다 (Discord 초대 링크 또는 가이드 페이지로 연결).
   | 'guild_profile_recruitment_status'

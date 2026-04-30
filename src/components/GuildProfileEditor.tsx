@@ -23,6 +23,10 @@ interface Props {
   initialShowBattles: boolean
   initialShowRegearStats: boolean
   initialShowLeaderboard: boolean
+  initialShowStats: boolean
+  initialShowAdminTeam: boolean
+  initialShowWeapons: boolean
+  initialShowRivals: boolean
   initialRecruitmentStatus: RecruitmentStatus
   initialDiscordInviteUrl: string
 }
@@ -34,6 +38,10 @@ export default function GuildProfileEditor({
   initialShowBattles,
   initialShowRegearStats,
   initialShowLeaderboard,
+  initialShowStats,
+  initialShowAdminTeam,
+  initialShowWeapons,
+  initialShowRivals,
   initialRecruitmentStatus,
   initialDiscordInviteUrl,
 }: Props) {
@@ -47,6 +55,10 @@ export default function GuildProfileEditor({
   const [showBattles, setShowBattles] = useState(initialShowBattles)
   const [showRegearStats, setShowRegearStats] = useState(initialShowRegearStats)
   const [showLeaderboard, setShowLeaderboard] = useState(initialShowLeaderboard)
+  const [showStats, setShowStats] = useState(initialShowStats)
+  const [showAdminTeam, setShowAdminTeam] = useState(initialShowAdminTeam)
+  const [showWeapons, setShowWeapons] = useState(initialShowWeapons)
+  const [showRivals, setShowRivals] = useState(initialShowRivals)
   const [recruitmentStatus, setRecruitmentStatus] = useState<RecruitmentStatus>(
     initialRecruitmentStatus,
   )
@@ -224,6 +236,32 @@ export default function GuildProfileEditor({
           onChange={(v) =>
             toggle('section', 'guild_profile_show_leaderboard', v, setShowLeaderboard)
           }
+          disabled={savingKey !== null}
+        />
+        <ToggleRow
+          label={t('sectionStats')}
+          checked={showStats}
+          onChange={(v) => toggle('section', 'guild_profile_show_stats', v, setShowStats)}
+          disabled={savingKey !== null}
+        />
+        <ToggleRow
+          label={t('sectionAdminTeam')}
+          checked={showAdminTeam}
+          onChange={(v) =>
+            toggle('section', 'guild_profile_show_admin_team', v, setShowAdminTeam)
+          }
+          disabled={savingKey !== null}
+        />
+        <ToggleRow
+          label={t('sectionWeapons')}
+          checked={showWeapons}
+          onChange={(v) => toggle('section', 'guild_profile_show_weapons', v, setShowWeapons)}
+          disabled={savingKey !== null}
+        />
+        <ToggleRow
+          label={t('sectionRivals')}
+          checked={showRivals}
+          onChange={(v) => toggle('section', 'guild_profile_show_rivals', v, setShowRivals)}
           disabled={savingKey !== null}
         />
         {savedKey === 'section' && (
