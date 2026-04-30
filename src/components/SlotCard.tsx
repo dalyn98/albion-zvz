@@ -115,11 +115,13 @@ export default function SlotCard({
   const isCallerOrAdmin =
     isLoggedIn &&
     (isAdmin || (!!bombSquadCallerId && bombSquadCallerId === currentDiscordId))
-  const canReviewPending = hasPendingRequest && !battleStarted && isCallerOrAdmin
+  // 콜러/관리자는 전투 시작 후에도 승인/거절이 가능 (admin kick 과 동일 정책).
+  // 단 사후 변경은 통계/리기어 자격에 영향을 주므로 한 번 더 확인.
+  const canReviewPending = hasPendingRequest && isCallerOrAdmin
   // 빈 슬롯에 한해 콜러/관리자가 "멤버 지정" 모달을 열 수 있게 한다.
   // 신청(requested_*) 이 걸려 있으면 먼저 승인/거절을 처리해야 한다.
   const canCallerAssign =
-    !isTaken && !hasPendingRequest && isBombSquadParty && !battleStarted && isCallerOrAdmin
+    !isTaken && !hasPendingRequest && isBombSquadParty && isCallerOrAdmin
 
   // Slot kinds that need a choice at signup time: the admin marked them multi
   // and the member hasn't been assigned yet.
@@ -178,6 +180,12 @@ export default function SlotCard({
   }
 
   const handleApproveRequest = () => {
+    if (battleStarted && slot.requested_username) {
+      const ok = confirm(
+        t('bombSquad.confirmApproveAfterStart', { name: slot.requested_username }),
+      )
+      if (!ok) return
+    }
     setError('')
     startTransition(async () => {
       const result = await approveSlotRequest(slot.id)
@@ -188,13 +196,24 @@ export default function SlotCard({
 
   const handleRejectRequest = () => {
     if (!slot.requested_username) return
-    if (!confirm(t('bombSquad.confirmReject', { name: slot.requested_username }))) return
+    const confirmKey = battleStarted
+      ? 'bombSquad.confirmRejectAfterStart'
+      : 'bombSquad.confirmReject'
+    if (!confirm(t(confirmKey, { name: slot.requested_username }))) return
     setError('')
     startTransition(async () => {
       const result = await rejectSlotRequest(slot.id)
       if (result.error) setError(result.error)
       else router.refresh()
     })
+  }
+
+  const handleOpenAssignModal = () => {
+    if (battleStarted) {
+      const ok = confirm(t('bombSquad.confirmAssignAfterStart'))
+      if (!ok) return
+    }
+    setAssignModalOpen(true)
   }
 
   const otherKeys = SLOT_KEYS.filter((k) => k !== primaryKind)
@@ -302,7 +321,8 @@ export default function SlotCard({
       {canCallerAssign && (
         <button
           type="button"
-          onClick={() => setAssignModalOpen(true)}
+          onClick={handleOpenAssignModal}
+          title={battleStarted ? t('bombSquad.callerAssignAfterStartTooltip') : undefined}
           className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[12px] font-semibold bg-gray-800/80 hover:bg-rose-500/15 text-rose-200 border border-rose-500/40 transition-colors"
         >
           <UserPlus size={11} />
