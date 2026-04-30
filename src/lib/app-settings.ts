@@ -180,6 +180,11 @@ export type AppSettingKey =
   // /me 페이지 "이번 주 내 활동" 미니 섹션 토글. 'true' 일 때만 렌더.
   // 길드별 단계적 롤아웃 — 기본 OFF, 검증된 길드만 'true'.
   | 'me_weekly_stats_enabled'
+  // 길드 공개 페이지(`/g/<slug>`) 의 길드원 본인 대시보드 섹션 토글.
+  // 'true' 일 때만 hero 직후에 4 카드 (잔액/킬·데스/리기어/거래) 가 노출된다.
+  // 길드별 단계적 롤아웃 — 기본 OFF, 검증된 길드만 'true' 로 전환. OFF 일 때는
+  // 비로그인 CTA 배너도 함께 숨겨 페이지 톤을 유지한다.
+  | 'member_dashboard_enabled'
   // 매치업 분리 row 들을 통계/업적의 "전투 카운트" 류 메트릭에서 albion_battle_id
   // 단위로 묶어 1전투로 계산할지 토글. 'true' 면 묶음, 'false' 면 분리 카운트
   // (legacy). /battles 목록 표시는 영향 없음 — 어디까지나 카운트 메트릭에만

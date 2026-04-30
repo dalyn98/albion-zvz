@@ -41,8 +41,7 @@ const KNOWN_REASONS: ReadonlySet<string> = new Set([
 const REGEAR_STATUS_BADGE: Record<RegearStatusSummary, string> = {
   pending: 'bg-amber-500/15 text-amber-200 ring-amber-500/40',
   approved: 'bg-emerald-500/15 text-emerald-200 ring-emerald-500/40',
-  denied: 'bg-rose-500/15 text-rose-200 ring-rose-500/40',
-  cancelled: 'bg-slate-500/15 text-slate-300 ring-slate-500/40',
+  rejected: 'bg-rose-500/15 text-rose-200 ring-rose-500/40',
 }
 
 export default async function MemberDashboardSection({

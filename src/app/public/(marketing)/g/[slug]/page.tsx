@@ -18,6 +18,7 @@ import {
 import MarketingNav from '@/components/MarketingNav'
 import { resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { loadGuildProfileSettings, ACCENT_CLASS_MAP } from '@/lib/guild-profile'
+import { getAppSetting } from '@/lib/app-settings'
 import { loadGalleryItems, type GalleryItem } from '@/lib/guild-profile-gallery'
 import {
   loadRecentTrackedBattle,
@@ -27,11 +28,13 @@ import {
   type BattleOutcome,
 } from '@/lib/guild-profile-activity'
 import { loadMemberDashboardSummary } from '@/lib/guild-profile-member-dashboard'
+import { getAdminBadgeCounts } from '@/lib/admin-badges'
 import { formatRelativeFine } from '@/lib/relative-time'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import MemberDashboardSection from '@/components/guild/MemberDashboardSection'
 import SignedOutCta from '@/components/guild/SignedOutCta'
+import HomeAdminPendingCard from '@/components/HomeAdminPendingCard'
 
 export const dynamic = 'force-dynamic'
 
@@ -117,29 +120,49 @@ export default async function GuildProfilePage({
   const settings = await loadGuildProfileSettings(tenant.tenantId)
   if (!settings.enabled) notFound()
 
+  // 멤버 대시보드 섹션은 길드별 staged rollout 토글(`member_dashboard_enabled`)
+  // 로 게이트한다. 'true' 인 길드만 본인 카드 + 비로그인 CTA 배너 노출. v1 은
+  // 멘헤라만 활성, 나머지는 기존 공개 페이지 동작 그대로 유지.
+  const memberDashboardEnabled =
+    (await getAppSetting('member_dashboard_enabled', 'false', tenant.tenantId)) === 'true'
+
   // 세션이 보고 있는 길드 = 페이지 길드 + isMember 일 때만 멤버 카드 데이터를
   // 페치한다. 다른 길드의 멤버나 비로그인은 페치 자체를 건너뛰어 비용 0.
+  // 어드민 처리 대기 카드 (HomeAdminPendingCard) 도 같은 토글 + isAdmin 게이트
+  // — 길드 공개 페이지가 곧 길드의 홈 페이지 역할을 한다는 전제.
   const session = await getSession()
   const isThisGuildMember =
-    session !== null && session.guildId === tenant.tenantId && session.isMember
+    memberDashboardEnabled &&
+    session !== null &&
+    session.guildId === tenant.tenantId &&
+    session.isMember
+  const isThisGuildAdmin =
+    memberDashboardEnabled &&
+    session !== null &&
+    session.guildId === tenant.tenantId &&
+    session.isAdmin
 
-  const [stats, galleryItems, recentBattle, topContributors, memberSummary] = await Promise.all([
-    loadSectionStats(tenant.tenantId, {
-      showMembers: settings.showMembers,
-      showBattles: settings.showBattles,
-      showRegearStats: settings.showRegearStats,
-    }),
-    loadGalleryItems(tenant.tenantId),
-    settings.showBattles
-      ? loadRecentTrackedBattle(tenant.tenantId)
-      : Promise.resolve(null),
-    settings.showLeaderboard
-      ? loadTopContributorsThisWeek(tenant.tenantId, 3)
-      : Promise.resolve([]),
-    isThisGuildMember && session
-      ? loadMemberDashboardSummary(session.discordId, tenant.tenantId)
-      : Promise.resolve(null),
-  ])
+  const [stats, galleryItems, recentBattle, topContributors, memberSummary, adminBadges] =
+    await Promise.all([
+      loadSectionStats(tenant.tenantId, {
+        showMembers: settings.showMembers,
+        showBattles: settings.showBattles,
+        showRegearStats: settings.showRegearStats,
+      }),
+      loadGalleryItems(tenant.tenantId),
+      settings.showBattles
+        ? loadRecentTrackedBattle(tenant.tenantId)
+        : Promise.resolve(null),
+      settings.showLeaderboard
+        ? loadTopContributorsThisWeek(tenant.tenantId, 3)
+        : Promise.resolve([]),
+      isThisGuildMember && session
+        ? loadMemberDashboardSummary(session.discordId, tenant.tenantId)
+        : Promise.resolve(null),
+      isThisGuildAdmin
+        ? getAdminBadgeCounts(tenant.tenantId)
+        : Promise.resolve(null),
+    ])
 
   const t = await getTranslations('publicGuildProfile')
   const tTime = await getTranslations('time')
@@ -241,6 +264,10 @@ export default async function GuildProfilePage({
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-12">
+        {/* 어드민 처리 대기 카드 — 길드 어드민이 본인 길드 페이지를 볼 때만 노출.
+            홈(`/`) 의 동일 카드와 중복되지 않게 멘헤라는 홈쪽을 OFF (mig 122). */}
+        {adminBadges && <HomeAdminPendingCard badges={adminBadges} />}
+
         {/* 길드원 본인 대시보드 — 활동 섹션 위에 노출. 비로그인 / 다른 길드 멤버
             에게는 작은 로그인 안내 배너만 (디자인 톤을 깨지 않게 1줄). */}
         {memberSummary && session && (
@@ -251,7 +278,7 @@ export default async function GuildProfilePage({
             accent={accent}
           />
         )}
-        {!session && (
+        {memberDashboardEnabled && !session && (
           <SignedOutCta accent={accent} returnTo={`/g/${tenant.slug}`} />
         )}
 

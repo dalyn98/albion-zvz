@@ -9,7 +9,7 @@ const RECENT_LEDGER_LIMIT = 3
 const RECENT_REGEAR_LIMIT = 3
 const RECENT_KILL_LIMIT = 5
 
-export type RegearStatusSummary = 'pending' | 'approved' | 'denied' | 'cancelled'
+export type RegearStatusSummary = 'pending' | 'approved' | 'rejected'
 
 export interface MemberLedgerEntry {
   id: string
