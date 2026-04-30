@@ -3041,8 +3041,6 @@
     "regearApprovedBody": "{event} 리기어가 승인됐어요 (+{silver} silver).",
     "regearStockedTitle": "리기어 — 재고에서 출고",
     "regearStockedBody": "{event} 리기어가 길드 재고에서 출고되었어요. 관리자에게 장비 수령 방법을 확인하세요.",
-    "regearQueuedTitle": "리기어 — 제작 큐 진입",
-    "regearQueuedBody": "{event} 리기어가 제작 의뢰로 등록됐어요. 제작자가 박스에 장비를 채우면 알림이 다시 갑니다.",
     "regearRejectedTitle": "리기어 거절",
     "regearRejectedBody": "{event} 리기어 신청이 거절됐어요.",
     "exchangeApprovedTitle": "환전 승인",

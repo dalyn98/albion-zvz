@@ -485,7 +485,6 @@ export async function approveRegearAsCrafted(
   overrideSilver?: number,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
-  const tDm = await getTranslations('discordDm')
   try {
     const db = await requireAdmin()
     const session = await getSession()
@@ -546,21 +545,9 @@ export async function approveRegearAsCrafted(
     revalidatePath('/craft/queue')
     revalidatePath('/me')
 
-    const { data: row } = await db
-      .from('regear_requests')
-      .select('discord_id, event_title_snapshot')
-      .eq('guild_id', guildId)
-      .eq('id', id)
-      .maybeSingle()
-    if (row?.discord_id) {
-      void sendDiscordDmToUser(row.discord_id, guildId, {
-        title: tDm('regearQueuedTitle'),
-        body: tDm('regearQueuedBody', {
-          event: row.event_title_snapshot ?? '',
-        }),
-        url: '/me',
-      })
-    }
+    // DM 은 보내지 않는다 — 청구자 입장에서는 큐 진입 자체가 의미 있는
+    // 상태 변화가 아니라, 제작자가 박스에 장비를 채운 시점 (delivery) 에만
+    // 알림이 가치 있다.
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

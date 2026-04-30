@@ -3041,8 +3041,6 @@
     "regearApprovedBody": "{event} regear approved (+{silver} silver).",
     "regearStockedTitle": "Regear — issued from stock",
     "regearStockedBody": "{event} regear has been issued from the guild stock. Ask your admin how to pick up the gear.",
-    "regearQueuedTitle": "Regear — added to craft queue",
-    "regearQueuedBody": "{event} regear was sent to the craft queue. You'll get another DM when a crafter has stocked the box.",
     "regearRejectedTitle": "Regear rejected",
     "regearRejectedBody": "{event} regear request was rejected.",
     "exchangeApprovedTitle": "Exchange approved",
