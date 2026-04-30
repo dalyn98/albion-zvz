@@ -1,9 +1,10 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { Minus, Plus, Save, Search, Shield, Trash2 } from 'lucide-react'
+import { Lock, Minus, Plus, Save, Search, Shield, Trash2 } from 'lucide-react'
 import {
   GEAR_SLOTS,
   categorizeGearItem,
@@ -11,13 +12,10 @@ import {
   type GearSlot,
   type InventoryGearRow,
 } from '@/lib/inventory'
-import {
-  adjustGearAction,
-  setGearAction,
-} from '@/app/actions/inventory'
+import { adjustGearAction, setGearAction } from '@/app/actions/inventory'
+import { extractWeaponCategory } from '@/lib/weapon-category'
 import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
-import ItemImage from './ItemImage'
 import ItemPicker from './ItemPicker'
 import { useToast } from './ToastProvider'
 
@@ -30,37 +28,16 @@ interface CategorizedRow extends InventoryGearRow {
   armorMaterial: GearArmorMaterial | null
   tier: number | null
   enchant: number
+  // 무기/오프핸드 정렬 보조 — 같은 카테고리 (도끼/검/...) 끼리 시각적으로 모이게.
+  weaponCategory: string | null
   localizedName: string
 }
 
-// Tailwind purge 안전을 위한 정적 매핑. 클래스를 동적으로 조합하지 않는다.
+// Tailwind purge 안전한 정적 매핑.
 const MATERIAL_BADGE_STYLE: Record<GearArmorMaterial, string> = {
   PLATE: 'bg-slate-500/15 text-slate-200 border-slate-500/40',
   LEATHER: 'bg-emerald-500/15 text-emerald-200 border-emerald-500/40',
   CLOTH: 'bg-violet-500/15 text-violet-200 border-violet-500/40',
-}
-
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function HighlightedText({ text, query }: { text: string; query: string }) {
-  if (!query) return <>{text}</>
-  const re = new RegExp(`(${escapeRegex(query)})`, 'gi')
-  const parts = text.split(re)
-  return (
-    <>
-      {parts.map((p, i) =>
-        i % 2 === 1 ? (
-          <mark key={i} className="bg-amber-300/40 text-amber-100 rounded px-0.5">
-            {p}
-          </mark>
-        ) : (
-          <span key={i}>{p}</span>
-        ),
-      )}
-    </>
-  )
 }
 
 function extractEnchant(itemId: string): number {
@@ -69,47 +46,65 @@ function extractEnchant(itemId: string): number {
   return 0
 }
 
+// 정렬: 슬롯 → (무기카테고리|재질) → 티어 desc → 인챈트 asc → 이름.
+// 같은 카테고리/재질끼리 그룹지어 보이도록 sub-key 를 1차 정렬에 포함.
+function compareRows(a: CategorizedRow, b: CategorizedRow): number {
+  const slotDiff = GEAR_SLOTS.indexOf(a.slot) - GEAR_SLOTS.indexOf(b.slot)
+  if (slotDiff !== 0) return slotDiff
+  const subA = a.weaponCategory ?? a.armorMaterial ?? ''
+  const subB = b.weaponCategory ?? b.armorMaterial ?? ''
+  if (subA < subB) return -1
+  if (subA > subB) return 1
+  const tierDiff = (b.tier ?? 0) - (a.tier ?? 0)
+  if (tierDiff !== 0) return tierDiff
+  if (a.enchant !== b.enchant) return a.enchant - b.enchant
+  return a.localizedName.localeCompare(b.localizedName)
+}
+
 export default function AdminInventoryGearPanel({ initialGear }: Props) {
   const t = useTranslations('adminInventory')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
   const toast = useToast()
   const router = useRouter()
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [draft, setDraft] = useState<string>('')
   const [pickerName, setPickerName] = useState<string | null>(null)
   const [pickerId, setPickerId] = useState<string | null>(null)
   const [pickerEnchant, setPickerEnchant] = useState<0 | 1 | 2 | 3 | 4>(0)
   const [slotFilter, setSlotFilter] = useState<GearSlot | 'all'>('all')
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [, startTransition] = useTransition()
+  const gridRef = useRef<HTMLDivElement | null>(null)
 
+  // quantity 0 행도 포함 (한 번이라도 보유했던 아이템 카탈로그). 0 표시는 카드
+  // 스타일링으로 구분.
   const rows = useMemo<CategorizedRow[]>(() => {
     return initialGear
-      .filter((r) => r.quantity > 0)
       .map((r) => {
         const cat = categorizeGearItem(r.itemId)
-        const localizedName = getLocalizedItemNameWithEnchant(r.itemId, locale, null) ?? r.itemId
+        const localizedName =
+          getLocalizedItemNameWithEnchant(r.itemId, locale, null) ?? r.itemId
+        const weaponCategory =
+          cat.slot === 'weapon' || cat.slot === 'offhand'
+            ? extractWeaponCategory(r.itemId)
+            : null
         return {
           ...r,
           ...cat,
           enchant: extractEnchant(r.itemId),
+          weaponCategory,
           localizedName,
         }
       })
-      .sort((a, b) => {
-        // GEAR_SLOTS 순서로 1차 정렬, 그 안에서 tier desc → name asc.
-        const sa = GEAR_SLOTS.indexOf(a.slot)
-        const sb = GEAR_SLOTS.indexOf(b.slot)
-        if (sa !== sb) return sa - sb
-        const ta = a.tier ?? 0
-        const tb = b.tier ?? 0
-        if (ta !== tb) return tb - ta
-        return a.localizedName.localeCompare(b.localizedName)
-      })
+      .sort(compareRows)
   }, [initialGear, locale])
 
-  // 슬롯별 카운트 — 칩 배지에 표시.
+  const trimmedQuery = searchQuery.trim().toLowerCase()
+  const matches = (r: CategorizedRow) =>
+    !trimmedQuery ||
+    r.itemId.toLowerCase().includes(trimmedQuery) ||
+    r.localizedName.toLowerCase().includes(trimmedQuery)
+
+  // 슬롯 chip 의 "갯수" 배지 — 수량 합계 (갯수 = 보유 합).
   const countsBySlot = useMemo(() => {
     const counts: Record<GearSlot | 'all', number> = {
       all: 0,
@@ -129,21 +124,37 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
     return counts
   }, [rows])
 
-  const trimmedQuery = searchQuery.trim()
-
-  const filtered = useMemo<CategorizedRow[]>(() => {
-    let out = rows
-    if (slotFilter !== 'all') out = out.filter((r) => r.slot === slotFilter)
-    if (trimmedQuery) {
-      const q = trimmedQuery.toLowerCase()
-      out = out.filter(
-        (r) =>
-          r.itemId.toLowerCase().includes(q) ||
-          r.localizedName.toLowerCase().includes(q),
-      )
+  // 슬롯별 그룹 — 헤더 + 카드 그리드 렌더 용.
+  const rowsBySlot = useMemo(() => {
+    const grouped: Record<GearSlot, CategorizedRow[]> = {
+      weapon: [],
+      head: [],
+      armor: [],
+      shoes: [],
+      offhand: [],
+      cape: [],
+      bag: [],
+      other: [],
     }
-    return out
-  }, [rows, slotFilter, trimmedQuery])
+    for (const r of rows) grouped[r.slot].push(r)
+    return grouped
+  }, [rows])
+
+  const matchedTotal = useMemo(
+    () => (trimmedQuery ? rows.filter(matches).length : rows.length),
+    // matches 는 trimmedQuery 에 의존하므로 deps 에 포함.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, trimmedQuery],
+  )
+
+  // 검색 시 첫 매치 카드로 스크롤 — 그리드에서 핀포인트 조회를 가능하게.
+  useEffect(() => {
+    if (!trimmedQuery || !gridRef.current) return
+    const el = gridRef.current.querySelector<HTMLElement>(
+      '[data-search-match="true"]',
+    )
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [trimmedQuery])
 
   const onAdjust = (itemId: string, delta: number) => {
     startTransition(async () => {
@@ -153,21 +164,11 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
     })
   }
 
-  const onSet = (itemId: string, raw: string) => {
-    const qty = Number(raw)
-    if (!Number.isInteger(qty) || qty < 0) {
-      toast.error(t('errInvalidQty'))
-      return
-    }
+  const onSet = (itemId: string, qty: number) => {
     startTransition(async () => {
       const r = await setGearAction({ itemId, quantity: qty })
-      if (r.error) {
-        toast.error(r.error)
-        return
-      }
-      setEditingId(null)
-      setDraft('')
-      router.refresh()
+      if (r.error) toast.error(r.error)
+      else router.refresh()
     })
   }
 
@@ -176,7 +177,6 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
       toast.error(t('errPickItemFirst'))
       return
     }
-    // ItemPicker 가 돌려주는 itemId 는 base (티어 포함, 인챈트 미포함). 사용자가 고른 인챈트만 @N 으로 합친다.
     const base = pickerId.split('@')[0]
     const finalId = pickerEnchant > 0 ? `${base}@${pickerEnchant}` : base
     startTransition(async () => {
@@ -193,6 +193,7 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
   }
 
   const slotChips: Array<GearSlot | 'all'> = ['all', ...GEAR_SLOTS]
+  const isSearching = Boolean(trimmedQuery)
 
   return (
     <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4">
@@ -229,7 +230,9 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
             </label>
             <select
               value={pickerEnchant}
-              onChange={(e) => setPickerEnchant(Number(e.target.value) as 0 | 1 | 2 | 3 | 4)}
+              onChange={(e) =>
+                setPickerEnchant(Number(e.target.value) as 0 | 1 | 2 | 3 | 4)
+              }
               className="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg px-3 py-2 focus:border-amber-500 focus:outline-none"
             >
               <option value={0}>@0</option>
@@ -273,7 +276,9 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
             {slotChips.map((s) => {
               const active = slotFilter === s
               const count = countsBySlot[s]
-              if (s !== 'all' && count === 0) return null
+              const slotHasRows =
+                s === 'all' ? rows.length > 0 : rowsBySlot[s].length > 0
+              if (!slotHasRows) return null
               return (
                 <button
                   key={s}
@@ -296,146 +301,321 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
             })}
           </div>
 
-          <p className="text-xs text-gray-500 tabular-nums">
-            {t('matchCount', { matched: filtered.length, total: rows.length })}
+          {isSearching && (
+            <p className="text-xs text-gray-500 tabular-nums">
+              {t('matchCount', { matched: matchedTotal, total: rows.length })}
+            </p>
+          )}
+
+          <p className="sm:hidden flex items-center gap-1.5 text-[11px] text-gray-500 bg-gray-950/40 border border-gray-800 rounded-lg px-3 py-2">
+            <Lock size={12} />
+            {t('mobileHint')}
           </p>
 
-          {filtered.length === 0 ? (
-            <p className="text-center text-gray-500 text-sm py-6">{t('gearEmptyFiltered')}</p>
-          ) : (
-            <div className="overflow-x-auto border border-gray-800 rounded-xl bg-gray-950/30">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead className="bg-gray-900/60 border-b border-gray-800">
-                  <tr className="text-left text-xs uppercase tracking-wide text-gray-400">
-                    <th className="px-3 py-2 font-semibold w-[72px]">{t('colImage')}</th>
-                    <th className="px-3 py-2 font-semibold">{t('colName')}</th>
-                    <th className="px-3 py-2 font-semibold">{t('colSlot')}</th>
-                    <th className="px-3 py-2 font-semibold">{t('colTier')}</th>
-                    <th className="px-3 py-2 font-semibold">{t('colEnchant')}</th>
-                    <th className="px-3 py-2 font-semibold">{t('colMaterial')}</th>
-                    <th className="px-3 py-2 font-semibold text-right">{t('colQuantity')}</th>
-                    <th className="px-3 py-2 font-semibold text-right">{t('colActions')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800">
-                  {filtered.map((row) => {
-                    const isEditing = editingId === row.itemId
-                    return (
-                      <tr key={row.itemId} className="hover:bg-gray-800/30">
-                        <td className="px-3 py-2 align-middle">
-                          <ItemImage itemId={row.itemId} itemName={row.localizedName} size={48} />
-                        </td>
-                        <td className="px-3 py-2 align-middle min-w-[200px]">
-                          <p className="text-white text-sm font-medium leading-tight">
-                            <HighlightedText text={row.localizedName} query={trimmedQuery} />
-                          </p>
-                          <p className="text-gray-500 text-xs font-mono mt-0.5 leading-tight">
-                            <HighlightedText text={row.itemId} query={trimmedQuery} />
-                          </p>
-                        </td>
-                        <td className="px-3 py-2 align-middle text-gray-300 text-xs whitespace-nowrap">
-                          {t(`gearSlot.${row.slot}`)}
-                        </td>
-                        <td className="px-3 py-2 align-middle text-gray-300 text-xs tabular-nums">
-                          {row.tier ? `T${row.tier}` : '—'}
-                        </td>
-                        <td className="px-3 py-2 align-middle text-gray-300 text-xs tabular-nums whitespace-nowrap">
-                          {row.enchant > 0 ? `@${row.enchant}` : t('thEnchBase')}
-                        </td>
-                        <td className="px-3 py-2 align-middle">
-                          {row.armorMaterial ? (
-                            <span
-                              className={`text-xs font-semibold px-1.5 py-0.5 rounded border inline-block whitespace-nowrap ${MATERIAL_BADGE_STYLE[row.armorMaterial]}`}
-                            >
-                              {t(`armorMaterial.${row.armorMaterial}`)}
-                            </span>
-                          ) : (
-                            <span className="text-gray-600 text-xs">—</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 align-middle text-right">
-                          {isEditing ? (
-                            <div className="flex items-center gap-1 justify-end">
-                              <input
-                                type="number"
-                                min={0}
-                                value={draft}
-                                onChange={(e) => setDraft(e.target.value)}
-                                className="w-20 bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm"
-                                autoFocus
-                              />
-                              <button
-                                type="button"
-                                onClick={() => onSet(row.itemId, draft)}
-                                className="p-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300"
-                                aria-label={t('btnSave')}
-                              >
-                                <Save size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingId(null)
-                                  setDraft('')
-                                }}
-                                className="px-1.5 py-0.5 text-xs text-gray-400 hover:text-white"
-                              >
-                                {t('btnCancel')}
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingId(row.itemId)
-                                setDraft(String(row.quantity))
-                              }}
-                              className="px-2 py-0.5 rounded font-mono font-bold text-amber-200 hover:bg-amber-500/10 tabular-nums min-w-[44px] text-center text-base"
-                            >
-                              {row.quantity}
-                            </button>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 align-middle">
-                          {!isEditing && (
-                            <div className="flex items-center gap-1 justify-end">
-                              <button
-                                type="button"
-                                onClick={() => onAdjust(row.itemId, -1)}
-                                className="p-1.5 rounded text-gray-500 hover:text-rose-300 hover:bg-rose-500/10"
-                                aria-label={t('btnMinus')}
-                              >
-                                <Minus size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => onAdjust(row.itemId, 1)}
-                                className="p-1.5 rounded text-gray-500 hover:text-emerald-300 hover:bg-emerald-500/10"
-                                aria-label={t('btnPlus')}
-                              >
-                                <Plus size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => onSet(row.itemId, '0')}
-                                className="ml-1 p-1.5 rounded text-gray-600 hover:text-rose-400 hover:bg-rose-500/10"
-                                aria-label={t('btnRemove')}
-                                title={t('btnRemove')}
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <div ref={gridRef} className="space-y-5">
+            {GEAR_SLOTS.map((slot) => {
+              const slotRows = rowsBySlot[slot]
+              if (slotRows.length === 0) return null
+              if (slotFilter !== 'all' && slotFilter !== slot) return null
+              return (
+                <div key={slot} className="space-y-2">
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-2 border-b border-gray-800 pb-1">
+                    <span>{t(`gearSlot.${slot}`)}</span>
+                    <span className="text-[10px] text-gray-600 tabular-nums">
+                      {t('kindCount', { count: slotRows.length })}
+                    </span>
+                  </h3>
+                  <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+                    {slotRows.map((row, idx) => (
+                      <InventoryCard
+                        key={row.itemId}
+                        row={row}
+                        matched={matches(row)}
+                        searching={isSearching}
+                        // 슬롯별 첫 매칭 카드만 scrollIntoView 타겟. 슬롯 0번이
+                        // 매칭 안 되면 1번이 첫 매치이므로 idx 검사 X — querySelector
+                        // 가 첫 [data-search-match="true"] 만 잡는 동작에 의존.
+                        firstMatchInSlot={idx === slotRows.findIndex(matches)}
+                        onAdjust={onAdjust}
+                        onSet={onSet}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
     </section>
+  )
+}
+
+interface CardProps {
+  row: CategorizedRow
+  matched: boolean
+  searching: boolean
+  firstMatchInSlot: boolean
+  onAdjust: (itemId: string, delta: number) => void
+  onSet: (itemId: string, qty: number) => void
+}
+
+const POPOVER_GAP = 8
+const POPOVER_WIDTH = 280
+// 팝오버 높이는 콘텐츠에 따라 가변 (~280-320). 화면 하단 클립 방지용 추정치만
+// 잡아 lower bound 클램프에 사용.
+const POPOVER_EST_HEIGHT = 320
+
+function InventoryCard({
+  row,
+  matched,
+  searching,
+  firstMatchInSlot,
+  onAdjust,
+  onSet,
+}: CardProps) {
+  const t = useTranslations('adminInventory')
+  const toast = useToast()
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(String(row.quantity))
+  const [coords, setCoords] = useState<{ top: number; left: number }>({
+    top: 0,
+    left: 0,
+  })
+  const wrapperRef = useRef<HTMLButtonElement | null>(null)
+
+  const isZero = row.quantity === 0
+  const dimByMissedSearch = searching && !matched
+
+  function placePopover() {
+    if (!wrapperRef.current) return
+    const rect = wrapperRef.current.getBoundingClientRect()
+    const rightEdge = rect.right + POPOVER_GAP + POPOVER_WIDTH
+    const showOnLeft = rightEdge > window.innerWidth
+    const rawLeft = showOnLeft
+      ? rect.left - POPOVER_GAP - POPOVER_WIDTH
+      : rect.right + POPOVER_GAP
+    const rawTop = rect.top
+    setCoords({
+      left: Math.max(8, Math.min(window.innerWidth - POPOVER_WIDTH - 8, rawLeft)),
+      top: Math.max(
+        8,
+        Math.min(window.innerHeight - POPOVER_EST_HEIGHT - 8, rawTop),
+      ),
+    })
+  }
+
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false)
+        setEditing(false)
+      }
+    }
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node | null
+      if (!target) return
+      if (wrapperRef.current?.contains(target)) return
+      const popover = document.querySelector(
+        `[data-inventory-popover="${row.itemId}"]`,
+      )
+      if (popover && popover.contains(target)) return
+      setOpen(false)
+      setEditing(false)
+    }
+    window.addEventListener('keydown', onKey)
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('touchstart', onDown)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('touchstart', onDown)
+    }
+  }, [open, row.itemId])
+
+  const handleClick = () => {
+    if (open) {
+      setOpen(false)
+      setEditing(false)
+      return
+    }
+    placePopover()
+    setOpen(true)
+  }
+
+  const handleSave = () => {
+    const qty = Number(draft)
+    if (!Number.isInteger(qty) || qty < 0) {
+      toast.error(t('errInvalidQty'))
+      return
+    }
+    onSet(row.itemId, qty)
+    setEditing(false)
+  }
+
+  const imageUrl = `https://render.albiononline.com/v1/item/${row.itemId}.png`
+
+  return (
+    <>
+      <button
+        ref={wrapperRef}
+        type="button"
+        onClick={handleClick}
+        data-search-match={searching && matched && firstMatchInSlot ? 'true' : undefined}
+        className={`relative aspect-square rounded-lg border transition-colors ${
+          searching && matched
+            ? 'border-amber-400/80 ring-2 ring-amber-400/30'
+            : isZero
+              ? 'border-gray-800 bg-gray-950/50'
+              : 'border-gray-700 bg-gray-950'
+        } ${dimByMissedSearch ? 'opacity-30' : ''} hover:border-amber-500/60`}
+        aria-label={`${row.localizedName} (${row.quantity})`}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={imageUrl}
+          alt={row.localizedName}
+          className={`absolute inset-0 w-full h-full object-contain p-1 pixel-img ${
+            isZero ? 'opacity-40 grayscale' : ''
+          }`}
+          loading="lazy"
+        />
+        <span
+          className={`absolute bottom-0.5 right-0.5 rounded px-1.5 py-0.5 text-sm font-bold tabular-nums leading-none ${
+            isZero
+              ? 'bg-gray-800/80 text-gray-500'
+              : 'bg-black/75 text-amber-200'
+          }`}
+        >
+          {row.quantity}
+        </span>
+      </button>
+
+      {open && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              data-inventory-popover={row.itemId}
+              role="dialog"
+              aria-label={row.localizedName}
+              className="fixed z-[100] rounded-xl bg-gray-900 border border-gray-700 shadow-2xl p-3 space-y-3"
+              style={{
+                top: coords.top,
+                left: coords.left,
+                width: POPOVER_WIDTH,
+              }}
+            >
+              <div className="space-y-1">
+                <p className="text-white text-sm font-medium leading-tight">
+                  {row.localizedName}
+                </p>
+                <p className="text-gray-500 text-[11px] font-mono leading-tight break-all">
+                  {row.itemId}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5 text-[10px]">
+                <span className="px-1.5 py-0.5 rounded border border-gray-700 text-gray-300">
+                  {t(`gearSlot.${row.slot}`)}
+                </span>
+                {row.tier !== null && (
+                  <span className="px-1.5 py-0.5 rounded border border-gray-700 text-gray-300 tabular-nums">
+                    T{row.tier}
+                  </span>
+                )}
+                {row.enchant > 0 ? (
+                  <span className="px-1.5 py-0.5 rounded border border-amber-700/60 text-amber-300 tabular-nums">
+                    @{row.enchant}
+                  </span>
+                ) : (
+                  <span className="px-1.5 py-0.5 rounded border border-gray-700 text-gray-500">
+                    {t('thEnchBase')}
+                  </span>
+                )}
+                {row.armorMaterial && (
+                  <span
+                    className={`px-1.5 py-0.5 rounded border ${MATERIAL_BADGE_STYLE[row.armorMaterial]}`}
+                  >
+                    {t(`armorMaterial.${row.armorMaterial}`)}
+                  </span>
+                )}
+              </div>
+
+              <div className="hidden sm:block border-t border-gray-800 pt-3">
+                <div className="flex items-center gap-1.5 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => onAdjust(row.itemId, -1)}
+                    className="p-1.5 rounded text-gray-400 hover:text-rose-300 hover:bg-rose-500/10 border border-gray-700"
+                    aria-label={t('btnMinus')}
+                  >
+                    <Minus size={14} />
+                  </button>
+                  {editing ? (
+                    <>
+                      <input
+                        type="number"
+                        min={0}
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSave()
+                        }}
+                        className="w-16 bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm text-center"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSave}
+                        className="p-1.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300"
+                        aria-label={t('btnSave')}
+                      >
+                        <Save size={14} />
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditing(true)
+                        setDraft(String(row.quantity))
+                      }}
+                      className="px-3 py-1 rounded font-mono font-bold text-amber-200 hover:bg-amber-500/10 tabular-nums min-w-[44px] text-center text-base border border-gray-700"
+                    >
+                      {row.quantity}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onAdjust(row.itemId, 1)}
+                    className="p-1.5 rounded text-gray-400 hover:text-emerald-300 hover:bg-emerald-500/10 border border-gray-700"
+                    aria-label={t('btnPlus')}
+                  >
+                    <Plus size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onSet(row.itemId, 0)}
+                    className="p-1.5 rounded text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 border border-gray-700"
+                    aria-label={t('btnRemove')}
+                    title={t('btnRemove')}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="sm:hidden border-t border-gray-800 pt-3">
+                <p className="text-[11px] text-gray-500 flex items-center gap-1.5">
+                  <Lock size={12} />
+                  {t('mobileEditDisabled')}
+                </p>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   )
 }
