@@ -177,9 +177,11 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
   return {}
 }
 
-// Admin can remove anyone from a slot. Same event-state guards as self-cancel
-// (no post-battle kicks to keep participation tracking intact), but bypasses
-// the ownership check that blocks regular cancelSlot.
+// Admin can remove anyone from a slot. Bypasses both the ownership check
+// (regular cancelSlot only allows the slot owner to cancel) and the battle-
+// started gate (regular members can't cancel after the battle starts to keep
+// participation tracking intact). Admins sometimes need to remove a no-show
+// after the battle has already begun, so the gate doesn't apply to them.
 export async function adminCancelSlot(slotId: string): Promise<{ error?: string }> {
   const tAction = await getTranslations('slotAction')
   const session = await getSession()
@@ -191,27 +193,13 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
 
   const { data: slotRow, error: slotLookupError } = await db
     .from('slots')
-    .select('party_id, assigned_discord_id')
+    .select('assigned_discord_id')
     .eq('guild_id', guildId)
     .eq('id', slotId)
     .maybeSingle()
   if (slotLookupError) return { error: slotLookupError.message }
   if (!slotRow) return { error: tAction('slotNotFound') }
   if (!slotRow.assigned_discord_id) return { error: tAction('slotEmpty') }
-
-  const { data: partyRow, error: partyLookupError } = await db
-    .from('parties')
-    .select('events(battle_started_at)')
-    .eq('guild_id', guildId)
-    .eq('id', slotRow.party_id)
-    .maybeSingle()
-  if (partyLookupError) return { error: partyLookupError.message }
-  const eventJoin = partyRow?.events as
-    | { battle_started_at: string | null }
-    | { battle_started_at: string | null }[]
-    | null
-  const eventState = Array.isArray(eventJoin) ? eventJoin[0] : eventJoin
-  if (eventState?.battle_started_at) return { error: tAction('battleAlreadyStarted') }
 
   // Pass the current owner's discord id to cancel_slot so the RPC's
   // NOT_OWNER guard passes while we keep a single code path for the update.

@@ -1872,6 +1872,8 @@
     "adminKick": "신청자 빼기",
     "kicking": "빼는 중…",
     "confirmAdminKick": "{name} 님을 이 슬롯에서 빼시겠어요?",
+    "confirmAdminKickAfterStart": "전투가 이미 시작된 이벤트입니다.\n{name} 님을 이 슬롯에서 빼면 참여 기록·통계·리기어 자격에 영향을 줄 수 있어요. 계속 진행할까요?",
+    "adminKickAfterStartTooltip": "전투 시작 후에도 신청자를 뺄 수 있어요. 단, 참여 기록과 통계에 영향을 줄 수 있습니다.",
     "applying": "신청 중...",
     "pickThenApply": "장비 선택 후 신청",
     "apply": "신청",

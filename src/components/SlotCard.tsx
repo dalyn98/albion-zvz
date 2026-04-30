@@ -166,7 +166,9 @@ export default function SlotCard({
 
   const handleAdminKick = () => {
     if (!slot.assigned_username) return
-    if (!confirm(t('confirmAdminKick', { name: slot.assigned_username }))) return
+    // 전투 시작 후 킥은 참여 기록(통계/리기어 자격) 에 영향을 줄 수 있어 별도 경고.
+    const confirmKey = battleStarted ? 'confirmAdminKickAfterStart' : 'confirmAdminKick'
+    if (!confirm(t(confirmKey, { name: slot.assigned_username }))) return
     setError('')
     startTransition(async () => {
       const result = await adminCancelSlot(slot.id)
@@ -379,12 +381,13 @@ export default function SlotCard({
       )
     }
     if (isTaken) {
-      if (isAdmin && !battleStarted) {
+      if (isAdmin) {
         return (
           <button
             onClick={handleAdminKick}
             disabled={pending}
             className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 transition-colors disabled:opacity-50"
+            title={battleStarted ? t('adminKickAfterStartTooltip') : undefined}
           >
             <UserX size={11} />
             {pending ? t('kicking') : t('adminKick')}

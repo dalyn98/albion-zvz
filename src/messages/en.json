@@ -1872,6 +1872,8 @@
     "adminKick": "Remove applicant",
     "kicking": "Removing…",
     "confirmAdminKick": "Remove {name} from this slot?",
+    "confirmAdminKickAfterStart": "Battle has already started for this event.\nRemoving {name} from this slot may affect participation records, stats, and regear eligibility. Continue?",
+    "adminKickAfterStartTooltip": "You can remove applicants even after the battle starts, but it may affect participation records and stats.",
     "applying": "Applying...",
     "pickThenApply": "Pick gear then apply",
     "apply": "Apply",
