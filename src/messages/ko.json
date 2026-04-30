@@ -1618,6 +1618,10 @@
     "nonKoBannerTitle": "한국어 우선 문서",
     "nonKoBannerBody": "이 페이지는 한국어 본문만 제공됩니다. 번역은 준비 중입니다."
   },
+  "docsHome": {
+    "myGuildLinkTitle": "{name} 길드 페이지로 이동",
+    "myGuildLinkDescription": "본인 길드의 공개 활동 페이지를 새 탭에서 열지 않고 바로 확인할 수 있어요."
+  },
   "publicMarketing": {
     "heroBadge": "BETA",
     "installPermissionNote": "봇을 설치하려면 디스코드 서버에서 \"서버 관리\" 권한이 있어야 합니다.",

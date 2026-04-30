@@ -1618,6 +1618,10 @@
     "nonKoBannerTitle": "韓国語優先ドキュメント",
     "nonKoBannerBody": "このページは現在韓国語のみで提供されています。翻訳は準備中です。"
   },
+  "docsHome": {
+    "myGuildLinkTitle": "{name} ギルドページへ移動",
+    "myGuildLinkDescription": "ご自身のギルド公開ページに新しいタブを開かずに直接アクセスできます。"
+  },
   "publicMarketing": {
     "heroBadge": "BETA",
     "installPermissionNote": "Bot をインストールするには、対象 Discord サーバーで「サーバーの管理」権限が必要です。",

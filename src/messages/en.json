@@ -1618,6 +1618,10 @@
     "nonKoBannerTitle": "Korean-first docs",
     "nonKoBannerBody": "This page is currently Korean-only. Translations are in progress."
   },
+  "docsHome": {
+    "myGuildLinkTitle": "Go to {name}'s guild page",
+    "myGuildLinkDescription": "Jump straight to your guild's public activity page — no new tab needed."
+  },
   "publicMarketing": {
     "heroBadge": "BETA",
     "installPermissionNote": "Installing the bot requires the \"Manage Server\" permission on your Discord server.",

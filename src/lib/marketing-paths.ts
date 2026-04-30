@@ -21,6 +21,8 @@ export interface MarketingPaths {
   faq: string
   // docs 는 단일 prefix. nested 페이지는 `${paths.docs}/onboarding` 처럼 조합.
   docs: string
+  // 길드 공개 페이지 prefix. 실제 링크는 `${paths.guildPage}/<slug>` 로 합성.
+  guildPage: string
 }
 
 const CANONICAL_PATHS: MarketingPaths = {
@@ -29,6 +31,7 @@ const CANONICAL_PATHS: MarketingPaths = {
   pricing: '/#pricing',
   faq: '/#faq',
   docs: '/docs',
+  guildPage: '/g',
 }
 
 const PUBLIC_PATHS: MarketingPaths = {
@@ -37,6 +40,7 @@ const PUBLIC_PATHS: MarketingPaths = {
   pricing: '/public/landing#pricing',
   faq: '/public/landing#faq',
   docs: '/public/docs',
+  guildPage: '/public/g',
 }
 
 // Returns the canonical short paths only when we're actually on the canonical
