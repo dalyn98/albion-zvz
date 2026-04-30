@@ -15,6 +15,7 @@ import { isHighEngagement } from '@/lib/low-engagement-cut'
 import { bundleSplitBattles, type BundleableRow } from '@/lib/battle-bundling'
 import { discordAvatarUrl } from '@/lib/discord-avatar'
 import { extractWeaponCategory } from '@/lib/weapon-category'
+import { fetchTrackedBattleWindows, isWithinTrackedWindow } from '@/lib/tracked-kills'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const ROLLING_WINDOW_DAYS = 30
@@ -141,19 +142,40 @@ export async function loadTopWeaponCategoriesLast30d(
   guildId: string,
 ): Promise<WeaponCategoryUsage[]> {
   const db = getAdminClient()
-  const cutoff = new Date(Date.now() - ROLLING_WINDOW_DAYS * DAY_MS).toISOString()
+  const cutoffIso = new Date(Date.now() - ROLLING_WINDOW_DAYS * DAY_MS).toISOString()
+  // tracked battle 안에서 발생한 killer 이벤트만 집계 — /battles 에 잡히지 않는
+  // 1:1 갱킹·소규모 전투의 무기는 "주력 무기" 라기엔 노이즈에 가깝다. 통계 카운트
+  // 과 동일하게 bundle_split 토글을 따라 매치업 분리 row 들을 1전투로 묶는다.
+  const bundleEnabled =
+    (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
+  const tracked = await fetchTrackedBattleWindows(db, guildId, cutoffIso, {
+    bundleSplits: bundleEnabled,
+  })
+  if (tracked.windows.length === 0) return []
+
   const { data } = await db
     .from('killboard_events')
-    .select('equipment, occurred_at')
+    .select('equipment, occurred_at, battle_id')
     .eq('guild_id', guildId)
     .eq('role', 'killer')
-    .gte('occurred_at', cutoff)
+    .gte('occurred_at', cutoffIso)
 
-  type Row = { equipment: { MainHand?: { Type?: string } | null } | null }
+  type Row = {
+    equipment: { MainHand?: { Type?: string } | null } | null
+    occurred_at: string | null
+    battle_id: number | string | null
+  }
   const agg = new Map<string, { sampleId: string; count: number }>()
   for (const row of (data ?? []) as Row[]) {
     const mainHandType = row.equipment?.MainHand?.Type
     if (!mainHandType) continue
+    const battleId =
+      typeof row.battle_id === 'number'
+        ? row.battle_id
+        : typeof row.battle_id === 'string' && row.battle_id.length > 0
+          ? Number(row.battle_id)
+          : null
+    if (!isWithinTrackedWindow(row.occurred_at, battleId, tracked)) continue
     const category = extractWeaponCategory(mainHandType)
     if (!category) continue
     const cur = agg.get(category)
