@@ -241,6 +241,12 @@ export default function AppSidebar({
     setMobileDrawer(false)
   }, [pathname])
 
+  // 모바일 드로어가 열려있을 땐 항상 풀 폭으로 노출 — 햄버거를 눌렀다는 건
+  // "메뉴를 펼쳐서 보고 싶다" 는 명시적 신호이기 때문에, 데스크탑 collapse
+  // 토글의 `open` 상태와 분리한다. 데스크탑(lg+) 에서는 mobileDrawer 가 항상
+  // false 라 `open` 그대로 평가된다.
+  const navExpanded = mobileDrawer || open
+
   const loginHref = `/api/auth/discord/start?returnTo=${encodeURIComponent(pathname || '/')}`
   const url = session ? avatarUrl(session.discordId, session.avatar) : null
 
@@ -297,12 +303,12 @@ export default function AppSidebar({
         className={`${
           mobileDrawer ? 'translate-x-0' : '-translate-x-full'
         } lg:translate-x-0 fixed lg:sticky top-0 left-0 z-50 h-dvh lg:h-screen flex-shrink-0 border-r border-white/5 bg-[#0a0c11]/95 backdrop-blur-xl transition-[transform,width] duration-200 ease-out ${
-          open ? 'w-64' : 'w-[64px]'
+          navExpanded ? 'w-64' : 'w-[64px]'
         } lg:w-auto ${open ? 'lg:w-64' : 'lg:w-[64px]'} flex flex-col overflow-hidden`}
       >
         {/* Brand + collapse toggle */}
-        <div className={`flex items-center ${open ? 'justify-between px-4' : 'justify-center'} h-14 border-b border-white/5 flex-shrink-0`}>
-          {open && (
+        <div className={`flex items-center ${navExpanded ? 'justify-between px-4' : 'justify-center'} h-14 border-b border-white/5 flex-shrink-0`}>
+          {navExpanded && (
             <Link href="/" className="text-amber-400 font-bold text-[15px] tracking-tight flex items-center gap-2 truncate">
               ⚔ <span>{brandName}</span>
             </Link>
@@ -336,7 +342,7 @@ export default function AppSidebar({
               .filter((i) => !i.crafterOnly || craftQueueVisible)
               .map((i) => ({ ...i, label: tNav(i.labelKey) }))}
             pathname={pathname || '/'}
-            expanded={open}
+            expanded={navExpanded}
             collapsible={memberOpen}
             setCollapsible={setMemberOpen}
             sectionLabel={(key) => tSection(key)}
@@ -354,7 +360,7 @@ export default function AppSidebar({
                   badge: badgeCountFor(i.href, adminBadges),
                 }))}
               pathname={pathname || '/'}
-              expanded={open}
+              expanded={navExpanded}
               collapsible={adminOpen}
               setCollapsible={setAdminOpen}
               sectionLabel={(key) => tSection(key)}
@@ -375,7 +381,7 @@ export default function AppSidebar({
                 section: 'system' as SectionKey,
               }))}
               pathname={pathname || '/'}
-              expanded={open}
+              expanded={navExpanded}
               collapsible={superAdminOpen}
               setCollapsible={setSuperAdminOpen}
               sectionLabel={(key) => tSection(key)}
@@ -388,31 +394,31 @@ export default function AppSidebar({
         {/* Admin guide link — 사이드바 메인 nav 의 빈도 낮은 항목을 footer 로 옮긴 것.
             관리자만 노출 (`session.isAdmin`). 펼쳤을 땐 라벨, 접었을 땐 아이콘만. */}
         {session?.isAdmin && (
-          <div className={`border-t border-white/5 flex-shrink-0 ${open ? 'px-3 pt-2 pb-1' : 'px-2 pt-2 pb-1'}`}>
+          <div className={`border-t border-white/5 flex-shrink-0 ${navExpanded ? 'px-3 pt-2 pb-1' : 'px-2 pt-2 pb-1'}`}>
             <Link
               href="/admin/dashboard/guide"
-              title={open ? undefined : tNav('guide')}
+              title={navExpanded ? undefined : tNav('guide')}
               className={`flex items-center rounded-lg text-gray-500 hover:text-gray-200 hover:bg-gray-800/60 transition-colors ${
-                open ? 'gap-2 px-3 py-1.5 text-xs' : 'justify-center p-2'
+                navExpanded ? 'gap-2 px-3 py-1.5 text-xs' : 'justify-center p-2'
               } ${
                 isActivePath(pathname || '/', '/admin/dashboard/guide')
                   ? 'text-amber-300 bg-amber-500/10'
                   : ''
               }`}
             >
-              <BookOpen size={open ? 13 : 16} className="flex-shrink-0" />
-              {open && <span className="truncate">{tNav('guide')}</span>}
+              <BookOpen size={navExpanded ? 13 : 16} className="flex-shrink-0" />
+              {navExpanded && <span className="truncate">{tNav('guide')}</span>}
             </Link>
           </div>
         )}
 
         {/* Footer — session info */}
-        <div className={`border-t border-white/5 flex-shrink-0 ${open ? 'px-3 py-3' : 'px-2 py-3'}`}>
+        <div className={`border-t border-white/5 flex-shrink-0 ${navExpanded ? 'px-3 py-3' : 'px-2 py-3'}`}>
           {session ? (
-            <div className={`flex ${open ? 'items-center justify-between gap-2' : 'flex-col items-center gap-2'}`}>
+            <div className={`flex ${navExpanded ? 'items-center justify-between gap-2' : 'flex-col items-center gap-2'}`}>
               <Link
                 href="/me/profile"
-                className={`flex items-center gap-2 min-w-0 flex-1 hover:text-white ${open ? '' : 'justify-center'}`}
+                className={`flex items-center gap-2 min-w-0 flex-1 hover:text-white ${navExpanded ? '' : 'justify-center'}`}
                 aria-label={t('myInfo')}
                 title={t('myInfo')}
               >
@@ -422,14 +428,14 @@ export default function AppSidebar({
                 ) : (
                   <UserCircle2 size={24} className="text-gray-400 flex-shrink-0" />
                 )}
-                {open && (
+                {navExpanded && (
                   <span className="text-gray-200 text-xs font-medium truncate">{session.username}</span>
                 )}
               </Link>
               <form action="/api/auth/logout" method="post">
                 <button
                   type="submit"
-                  className={`flex items-center gap-1 text-gray-500 hover:text-red-400 p-1.5 ${open ? '' : ''}`}
+                  className="flex items-center gap-1 text-gray-500 hover:text-red-400 p-1.5"
                   aria-label={t('logout')}
                   title={t('logout')}
                 >
@@ -440,10 +446,10 @@ export default function AppSidebar({
           ) : (
             <a
               href={loginHref}
-              className={`flex items-center gap-2 bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold rounded-lg transition-colors ${open ? 'text-xs px-3 py-2 justify-center' : 'justify-center p-2'}`}
+              className={`flex items-center gap-2 bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold rounded-lg transition-colors ${navExpanded ? 'text-xs px-3 py-2 justify-center' : 'justify-center p-2'}`}
             >
               <LogIn size={13} />
-              {open && <span>{t('discordLogin')}</span>}
+              {navExpanded && <span>{t('discordLogin')}</span>}
             </a>
           )}
         </div>
