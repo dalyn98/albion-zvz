@@ -352,6 +352,125 @@ export async function GET(request: Request) {
     },
   })
 
+  // 8) 이 이벤트의 regear_requests 분포 (RPC NULL 의 진짜 원인 추적)
+  const { data: rrRows } = await db
+    .from('regear_requests')
+    .select(
+      'id, discord_id, username, role_name, status, auto_generated, killboard_event_id, created_at, admin_notes',
+    )
+    .eq('guild_id', guildId)
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: true })
+  type RrRow = {
+    id: string
+    discord_id: string
+    username: string
+    role_name: string
+    status: string
+    auto_generated: boolean
+    killboard_event_id: number | null
+    created_at: string
+    admin_notes: string | null
+  }
+  const rrAll = (rrRows ?? []) as RrRow[]
+  const rrAuto = rrAll.filter((r) => r.auto_generated)
+  const rrManual = rrAll.filter((r) => !r.auto_generated)
+  stages.push({
+    stage: 'regear_requests_for_event',
+    ok: true,
+    detail: {
+      total: rrAll.length,
+      auto_count: rrAuto.length,
+      manual_count: rrManual.length,
+      auto_by_status: rrAuto.reduce<Record<string, number>>((acc, r) => {
+        acc[r.status] = (acc[r.status] ?? 0) + 1
+        return acc
+      }, {}),
+      manual_by_status: rrManual.reduce<Record<string, number>>((acc, r) => {
+        acc[r.status] = (acc[r.status] ?? 0) + 1
+        return acc
+      }, {}),
+      manual_sample: rrManual.slice(0, 10).map((r) => ({
+        id: r.id,
+        discord_id: r.discord_id,
+        username: r.username,
+        status: r.status,
+        role_name: r.role_name,
+        killboard_event_id: r.killboard_event_id,
+        created_at: r.created_at,
+      })),
+      auto_sample: rrAuto.slice(0, 10).map((r) => ({
+        id: r.id,
+        discord_id: r.discord_id,
+        username: r.username,
+        status: r.status,
+        role_name: r.role_name,
+        killboard_event_id: r.killboard_event_id,
+        created_at: r.created_at,
+        admin_notes: r.admin_notes,
+      })),
+    },
+  })
+
+  // 9) 각 eligible victim 별로 RPC 가 NULL 반환할지 시뮬레이션
+  const manualNonRejectedByDiscord = new Map<string, number>()
+  for (const r of rrManual) {
+    if (r.status === 'rejected') continue
+    manualNonRejectedByDiscord.set(r.discord_id, (manualNonRejectedByDiscord.get(r.discord_id) ?? 0) + 1)
+  }
+  const existingAutoByEventKbid = new Set<string>()
+  for (const r of rrAuto) {
+    if (r.killboard_event_id !== null) {
+      existingAutoByEventKbid.add(`${r.killboard_event_id}`)
+    }
+  }
+  type EligibleV = {
+    decision: string
+    role_name: string | null
+    role_cap: number | undefined
+    event_id: number
+    discord_id: string
+    player_name: string
+    battle_id: number | null
+    occurred_at: string
+  }
+  const eligibleVictims = victimAnalysis.filter((v): v is EligibleV => v.decision === 'eligible')
+  const rpcSimulation = eligibleVictims.map((v) => {
+    const hasManual = (manualNonRejectedByDiscord.get(v.discord_id) ?? 0) > 0
+    const hasAutoRow = existingAutoByEventKbid.has(`${v.event_id}`)
+    let rpcOutcome: string
+    if (hasAutoRow) {
+      rpcOutcome = 'existing_auto_returned'
+    } else if (hasManual) {
+      rpcOutcome = 'null_manual_exists'
+    } else {
+      rpcOutcome = 'would_insert'
+    }
+    return {
+      killboard_event_id: v.event_id,
+      discord_id: v.discord_id,
+      player_name: v.player_name,
+      role_name: v.role_name,
+      role_cap: v.role_cap,
+      has_manual_non_rejected: hasManual,
+      has_auto_row: hasAutoRow,
+      rpc_outcome: rpcOutcome,
+    }
+  })
+  const outcomeCounts = rpcSimulation.reduce<Record<string, number>>((acc, r) => {
+    acc[r.rpc_outcome] = (acc[r.rpc_outcome] ?? 0) + 1
+    return acc
+  }, {})
+  stages.push({
+    stage: 'rpc_outcome_simulation',
+    ok: (outcomeCounts.would_insert ?? 0) > 0,
+    detail: {
+      eligible_total: eligibleVictims.length,
+      outcome_counts: outcomeCounts,
+      detail: rpcSimulation.slice(0, 30),
+    },
+  })
+
   return NextResponse.json(
     {
       event_id: eventId,
