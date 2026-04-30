@@ -35,6 +35,8 @@ interface PlayerRef {
   Name: string
   GuildId: string | null
   GuildName: string | null
+  AllianceId?: string | null
+  AllianceName?: string | null
 }
 
 interface KillboardEvent {
@@ -335,6 +337,7 @@ function toRow(
     player_name: self.Name,
     opponent_name: opponent.Name,
     opponent_guild: opponent.GuildName,
+    opponent_alliance: opponent.AllianceName ?? null,
     fame: e.TotalVictimKillFame ?? 0,
     item_power: self.AverageItemPower ? Math.round(self.AverageItemPower) : null,
     occurred_at: e.TimeStamp,

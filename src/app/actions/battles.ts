@@ -30,6 +30,7 @@ export interface BattleKillEvent {
   role: 'killer' | 'victim'
   opponent_name: string | null
   opponent_guild: string | null
+  opponent_alliance: string | null
   fame: number
   item_power: number | null
   occurred_at: string
@@ -234,7 +235,7 @@ export async function getBattleDetail(
     const { data: events, error: eventsErr } = await db
       .from('killboard_events')
       .select(
-        'event_id, role, fame, item_power, occurred_at, opponent_name, opponent_guild, discord_id, guild_avatars!inner(username, avatar, albion_nickname)',
+        'event_id, role, fame, item_power, occurred_at, opponent_name, opponent_guild, opponent_alliance, discord_id, guild_avatars!inner(username, avatar, albion_nickname)',
       )
       .eq('guild_id', activeGuildId)
       .gte('occurred_at', windowStart)
@@ -250,6 +251,7 @@ export async function getBattleDetail(
       occurred_at: string | null
       opponent_name: string | null
       opponent_guild: string | null
+      opponent_alliance: string | null
       discord_id: string | null
       guild_avatars:
         | { username: string | null; avatar: string | null; albion_nickname: string | null }
@@ -279,6 +281,7 @@ export async function getBattleDetail(
         role: row.role,
         opponent_name: row.opponent_name,
         opponent_guild: row.opponent_guild,
+        opponent_alliance: row.opponent_alliance,
         fame: row.fame ?? 0,
         item_power: row.item_power,
         occurred_at: row.occurred_at,

@@ -41,6 +41,7 @@ export interface TrackedDeath {
   occurredAt: string
   opponentName: string | null
   opponentGuild: string | null
+  opponentAlliance: string | null
   fame: number
   itemPower: number | null
   buildSnapshot: BuildSnapshot
@@ -52,6 +53,7 @@ interface KillboardVictimRow {
   occurred_at: string
   opponent_name: string | null
   opponent_guild: string | null
+  opponent_alliance: string | null
   fame: number | null
   item_power: number | null
   equipment: Record<string, EquipmentItem | null> | null
@@ -90,7 +92,7 @@ export async function listMyTrackedAdHocDeaths(): Promise<{
   const { data: rows, error } = await db
     .from('killboard_events')
     .select(
-      'event_id, battle_id, occurred_at, opponent_name, opponent_guild, fame, item_power, equipment',
+      'event_id, battle_id, occurred_at, opponent_name, opponent_guild, opponent_alliance, fame, item_power, equipment',
     )
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
@@ -135,6 +137,7 @@ export async function listMyTrackedAdHocDeaths(): Promise<{
       occurredAt: r.occurred_at,
       opponentName: r.opponent_name,
       opponentGuild: r.opponent_guild,
+      opponentAlliance: r.opponent_alliance,
       fame: r.fame ?? 0,
       itemPower: r.item_power,
       buildSnapshot: equipmentToBuildSnapshot(r.equipment, null),

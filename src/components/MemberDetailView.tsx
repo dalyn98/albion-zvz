@@ -39,6 +39,20 @@ const STATUS_CLASS: Record<string, string> = {
   rejected: 'bg-gray-700 text-gray-300',
 }
 
+// 상대 라벨 포맷터: 길드/연합 둘 다 있으면 `Name [Guild] [Alliance]`, 길드만
+// 있으면 `Name [Guild]`. 연합은 알비온 API 가 nullable 로 내려주는 필드 (무소속/
+// 언게임 캐릭터) 라 부재 시 해당 브래킷만 빠진다.
+function formatOpponentLabel(
+  name: string,
+  guild: string | null,
+  alliance: string | null,
+): string {
+  let label = name
+  if (guild) label += ` [${guild}]`
+  if (alliance) label += ` [${alliance}]`
+  return label
+}
+
 type StatusKey = 'pending' | 'approved' | 'rejected'
 
 interface StatusLabels {
@@ -549,9 +563,11 @@ function KillHistoryRow({
     : 'bg-red-500/20 text-red-300'
   const opponent = entry.opponent_name
     ? opponentLabel(
-        entry.opponent_guild
-          ? `${entry.opponent_name} [${entry.opponent_guild}]`
-          : entry.opponent_name,
+        formatOpponentLabel(
+          entry.opponent_name,
+          entry.opponent_guild,
+          entry.opponent_alliance,
+        ),
       )
     : opponentUnknownLabel
   return (

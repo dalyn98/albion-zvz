@@ -145,6 +145,7 @@ export interface MemberKillEvent {
   role: 'killer' | 'victim'
   opponent_name: string | null
   opponent_guild: string | null
+  opponent_alliance: string | null
   fame: number
   item_power: number | null
   occurred_at: string
@@ -681,7 +682,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       memberAlbionId
         ? db
             .from('killboard_events')
-            .select('event_id, role, fame, item_power, occurred_at, equipment, opponent_name, opponent_guild, battle_id')
+            .select('event_id, role, fame, item_power, occurred_at, equipment, opponent_name, opponent_guild, opponent_alliance, battle_id')
             .eq('guild_id', guildId)
             .eq('albion_player_id', memberAlbionId)
         : Promise.resolve({ data: [], error: null } as const),
@@ -842,6 +843,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       equipment: Record<string, { Type?: string } | null> | null
       opponent_name: string | null
       opponent_guild: string | null
+      opponent_alliance: string | null
       battle_id: number | null
     }
     const killHistory: MemberKillEvent[] = []
@@ -872,6 +874,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
           role: row.role,
           opponent_name: row.opponent_name,
           opponent_guild: row.opponent_guild,
+          opponent_alliance: row.opponent_alliance,
           fame: row.fame ?? 0,
           item_power: row.item_power,
           occurred_at: row.occurred_at,
@@ -1089,7 +1092,7 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
         .maybeSingle(),
       db
         .from('killboard_events')
-        .select('event_id, role, fame, item_power, occurred_at, equipment, opponent_name, opponent_guild, battle_id')
+        .select('event_id, role, fame, item_power, occurred_at, equipment, opponent_name, opponent_guild, opponent_alliance, battle_id')
         .eq('guild_id', guildId)
         .eq('albion_player_id', albionPlayerId),
       fetchTrackedBattleWindows(db, guildId, null, { bundleSplits }),
@@ -1110,6 +1113,7 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
       equipment: Record<string, { Type?: string } | null> | null
       opponent_name: string | null
       opponent_guild: string | null
+      opponent_alliance: string | null
       battle_id: number | null
     }
     const rows = (killboardRes.data ?? []) as KillboardRow[]
@@ -1158,6 +1162,7 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
           role: row.role,
           opponent_name: row.opponent_name,
           opponent_guild: row.opponent_guild,
+          opponent_alliance: row.opponent_alliance,
           fame: row.fame ?? 0,
           item_power: row.item_power,
           occurred_at: row.occurred_at,

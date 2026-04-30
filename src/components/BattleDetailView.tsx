@@ -25,6 +25,20 @@ import type { BattleDetail, BattleKillEvent } from '@/app/actions/battles'
 // 모바일에서 훑기 힘들어지므로 기본은 접힘, 필요할 때만 펼쳐본다.
 // client 컴포넌트 만들 필요 없이 native <details> 로 상태를 브라우저에 맡김.
 
+// 상대 라벨: 길드/연합 둘 다 있으면 `Name [Guild] [Alliance]`, 길드만 있으면
+// `Name [Guild]`. 연합은 알비온 API 가 nullable 로 내려주는 필드 (무소속/언게임
+// 캐릭터) 라 부재 시 해당 브래킷만 빠진다.
+function formatOpponentLabel(
+  name: string,
+  guild: string | null,
+  alliance: string | null,
+): string {
+  let label = name
+  if (guild) label += ` [${guild}]`
+  if (alliance) label += ` [${alliance}]`
+  return label
+}
+
 interface Props {
   detail: BattleDetail
   // /battles/[id] 의 라우팅 id — cross-link 생성에 필요. detail.id 는 활성
@@ -440,9 +454,11 @@ function ParticipantRow({
               : 'bg-red-500/20 text-red-300'
             const opponent = e.opponent_name
               ? opponentLabel(
-                  e.opponent_guild
-                    ? `${e.opponent_name} [${e.opponent_guild}]`
-                    : e.opponent_name,
+                  formatOpponentLabel(
+                    e.opponent_name,
+                    e.opponent_guild,
+                    e.opponent_alliance,
+                  ),
                 )
               : opponentUnknownLabel
             return (

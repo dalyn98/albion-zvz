@@ -128,6 +128,9 @@ export default async function AdHocDeathsSection() {
                     {d.opponentName && d.opponentGuild && (
                       <span className="text-gray-500 ml-1">[{d.opponentGuild}]</span>
                     )}
+                    {d.opponentName && d.opponentAlliance && (
+                      <span className="text-amber-300/70 ml-1">[{d.opponentAlliance}]</span>
+                    )}
                   </p>
                 </div>
                 <AdHocDeathSubmitButton
