@@ -239,24 +239,17 @@ export function computeSides(
     }
   }
 
-  // homeGuildName: home 길드가 있으면 그 이름. 없으면 (alliance-only 케이스)
-  // 알라이언스 이름으로 fallback — UI 에서 "동맹길드 ○ (얼라이언스 X) 가 싸운
-  // 전투" 임을 분명히 드러내기 위함. 알라이언스 이름까지 비어 있으면 동맹길드
-  // 중 killFame 가장 큰 길드 이름으로 최종 fallback.
+  // homeGuildName 은 home 길드가 있으면 그 이름, 없으면 같은 알라이언스에서
+  // killFame 가장 큰 길드 이름으로 fallback (UI 라벨 비어 보이지 않게).
   let homeGuildName = homeGuild?.name ?? ''
   if (!homeGuild) {
-    const allianceName = homeAllianceId ? battle.alliances?.[homeAllianceId]?.name ?? '' : ''
-    if (allianceName !== '') {
-      homeGuildName = allianceName
-    } else {
-      let bestFame = -1
-      for (const gid of homeGuildIds) {
-        const g = battle.guilds[gid]
-        if (!g) continue
-        if (g.killFame > bestFame) {
-          bestFame = g.killFame
-          homeGuildName = g.name
-        }
+    let bestFame = -1
+    for (const gid of homeGuildIds) {
+      const g = battle.guilds[gid]
+      if (!g) continue
+      if (g.killFame > bestFame) {
+        bestFame = g.killFame
+        homeGuildName = g.name
       }
     }
   }
