@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { Lock, Minus, Plus, Save, Search, Shield } from 'lucide-react'
+import { AlertTriangle, Lock, Minus, Plus, Save, Search, Shield } from 'lucide-react'
 import {
   GEAR_SLOTS,
   type GearArmorMaterial,
@@ -18,6 +18,7 @@ import {
   type TierLevel,
 } from '@/lib/inventory-catalog'
 import { adjustGearAction, setGearAction } from '@/app/actions/inventory'
+import { removeTrackedItemAction } from '@/app/actions/inventory-tracked'
 import { extractWeaponCategory } from '@/lib/weapon-category'
 import { getWeaponFamilyRank } from '@/lib/weapon-family'
 import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
@@ -191,6 +192,14 @@ export default function AdminInventoryGearPanel({
     })
   }
 
+  const onRemoveTracked = (baseSuffix: string) => {
+    startTransition(async () => {
+      const r = await removeTrackedItemAction({ baseSuffix })
+      if (r.error) toast.error(r.error)
+      else router.refresh()
+    })
+  }
+
   const toast = useToast()
 
   return (
@@ -312,6 +321,7 @@ export default function AdminInventoryGearPanel({
                 firstMatch={idx === 0}
                 onAdjust={onAdjust}
                 onSet={onSet}
+                onRemoveTracked={onRemoveTracked}
               />
             ))}
           </div>
@@ -329,11 +339,12 @@ interface CardProps {
   firstMatch: boolean
   onAdjust: (itemId: string, delta: number) => void
   onSet: (itemId: string, qty: number) => void
+  onRemoveTracked: (baseSuffix: string) => void
 }
 
 const POPOVER_GAP = 8
 const POPOVER_WIDTH = 320
-const POPOVER_EST_HEIGHT = 380
+const POPOVER_EST_HEIGHT = 480
 
 function InventoryCard({
   row,
@@ -342,6 +353,7 @@ function InventoryCard({
   firstMatch,
   onAdjust,
   onSet,
+  onRemoveTracked,
 }: CardProps) {
   const t = useTranslations('adminInventory')
   const [open, setOpen] = useState(false)
@@ -469,6 +481,8 @@ function InventoryCard({
               coords={coords}
               onAdjust={onAdjust}
               onSet={onSet}
+              onRemoveTracked={onRemoveTracked}
+              onClose={() => setOpen(false)}
               t={t}
             />,
             document.body,
@@ -483,10 +497,20 @@ interface PopoverProps {
   coords: { top: number; left: number }
   onAdjust: (itemId: string, delta: number) => void
   onSet: (itemId: string, qty: number) => void
+  onRemoveTracked: (baseSuffix: string) => void
+  onClose: () => void
   t: ReturnType<typeof useTranslations<'adminInventory'>>
 }
 
-function CardPopover({ row, coords, onAdjust, onSet, t }: PopoverProps) {
+function CardPopover({
+  row,
+  coords,
+  onAdjust,
+  onSet,
+  onRemoveTracked,
+  onClose,
+  t,
+}: PopoverProps) {
   return (
     <div
       data-inventory-popover={row.baseItemId}
@@ -539,6 +563,27 @@ function CardPopover({ row, coords, onAdjust, onSet, t }: PopoverProps) {
           <Lock size={12} />
           {t('mobileEditDisabled')}
         </p>
+      </div>
+
+      <div className="border-t border-gray-800 pt-3 space-y-2">
+        <div className="flex items-start gap-1.5 text-[11px] text-amber-200 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2 leading-snug">
+          <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
+          <span>{t('removeTrackedWarning')}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            const ok = window.confirm(t('removeTrackedConfirm'))
+            if (!ok) return
+            const suffix = row.baseItemId.replace(/^T\d+_/, '')
+            onRemoveTracked(suffix)
+            onClose()
+          }}
+          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-200 text-xs font-semibold border border-rose-500/40"
+        >
+          <AlertTriangle size={12} />
+          {t('btnRemoveTrackedFromCard')}
+        </button>
       </div>
     </div>
   )

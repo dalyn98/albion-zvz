@@ -2344,6 +2344,9 @@
     "trackedEmptyHint": "Search to add a part one at a time, or import everything from your existing inventory.",
     "importFromExisting": "Import from existing inventory",
     "btnRemoveTracked": "Stop tracking",
+    "btnRemoveTrackedFromCard": "Stop tracking this base",
+    "removeTrackedWarning": "Stopping tracking removes all 5 cards (T4–T8) for this base from the grid. Quantity data itself is preserved.",
+    "removeTrackedConfirm": "Stop tracking this base? T4–T8 cards will disappear from the grid (quantities are preserved).",
     "importDoneMessage": "Imported {count} items.",
     "gearSlot": {
       "all": "All",

@@ -2344,6 +2344,9 @@
     "trackedEmptyHint": "검색해서 한 부위씩 추가하거나, 기존 재고에서 한번에 가져올 수 있어요.",
     "importFromExisting": "기존 재고에서 가져오기",
     "btnRemoveTracked": "추적 해제",
+    "btnRemoveTrackedFromCard": "이 베이스 추적 해제",
+    "removeTrackedWarning": "추적을 해제하면 이 베이스의 T4~T8 카드 5장이 그리드에서 모두 사라집니다. 재고 수량 자체는 유지돼요.",
+    "removeTrackedConfirm": "이 베이스를 추적 해제할까요? T4~T8 카드가 그리드에서 사라집니다 (재고 수량은 유지).",
     "importDoneMessage": "{count}종 가져왔어요.",
     "gearSlot": {
       "all": "전체",

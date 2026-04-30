@@ -2344,6 +2344,9 @@
     "trackedEmptyHint": "検索して 1 部位ずつ追加するか、既存の在庫から一括で取り込めます。",
     "importFromExisting": "既存の在庫から取り込む",
     "btnRemoveTracked": "追跡解除",
+    "btnRemoveTrackedFromCard": "このベースの追跡を解除",
+    "removeTrackedWarning": "追跡を解除すると、このベースの T4〜T8 カード 5 枚がグリッドから消えます。在庫数自体は保持されます。",
+    "removeTrackedConfirm": "このベースの追跡を解除しますか？ T4〜T8 カードがグリッドから消えます (在庫数は保持)。",
     "importDoneMessage": "{count}種を取り込みました。",
     "gearSlot": {
       "all": "すべて",
