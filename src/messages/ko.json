@@ -1940,6 +1940,9 @@
     "modalContextOpponent": "상대: {name}",
     "opponentLabel": "상대",
     "opponentUnknown": "(상대 정보 없음)",
+    "sameBattleLabel": "동일 전투 {index}/{total}",
+    "screenshotLabel": "스크린샷 (선택)",
+    "screenshotHint": "킬보드 행이 이미 검증 소스라 첨부는 옵션이에요. 갱크 상황·잔여 인원 등 추가 컨텍스트가 있을 때만 첨부하세요.",
     "gearLabel": "사망 시점 장비",
     "gearHint": "킬보드에 기록된 부위별 장비예요. 변경할 수 없습니다."
   },

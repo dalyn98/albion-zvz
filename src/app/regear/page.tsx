@@ -88,8 +88,6 @@ export default async function RegearPage() {
 
       <RegearWindowsSection />
 
-      <AdHocDeathsSection />
-
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
           <p className="text-red-300 text-sm">{error}</p>
@@ -187,6 +185,8 @@ export default async function RegearPage() {
         }
         historySection={<MyRegearList requests={myRegears} />}
       />
+
+      <AdHocDeathsSection />
     </main>
   )
 }

@@ -1940,6 +1940,9 @@
     "modalContextOpponent": "相手: {name}",
     "opponentLabel": "相手",
     "opponentUnknown": "(相手情報なし)",
+    "sameBattleLabel": "同一戦闘 {index}/{total}",
+    "screenshotLabel": "スクリーンショット (任意)",
+    "screenshotHint": "キルボード行が検証ソースとなっているため添付は任意です。ガンク状況・残存人数など追加情報があるときのみ添付してください。",
     "gearLabel": "戦死時点の装備",
     "gearHint": "キルボードに記録された部位別装備です。変更できません。"
   },

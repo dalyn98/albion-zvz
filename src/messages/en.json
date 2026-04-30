@@ -1940,6 +1940,9 @@
     "modalContextOpponent": "Opponent: {name}",
     "opponentLabel": "Opponent",
     "opponentUnknown": "(opponent unknown)",
+    "sameBattleLabel": "Same battle {index}/{total}",
+    "screenshotLabel": "Screenshot (optional)",
+    "screenshotHint": "The killboard row already serves as verification, so attaching a screenshot is optional. Use it only when there is extra context like gank framing or remaining headcount.",
     "gearLabel": "Gear at time of death",
     "gearHint": "Equipment recorded by the killboard. This cannot be edited."
   },

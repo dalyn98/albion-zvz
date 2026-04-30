@@ -31,6 +31,13 @@ import type { BuildSnapshot } from '@/types'
 // 한 번 죽고 며칠 잊어버리는 케이스를 못 잡는다.
 const ELIGIBILITY_DAYS = 14
 
+// 스크린샷은 옵션 — killboard_verified=true 가 이미 검증 소스라 필수가 아니지만,
+// 청구자가 갱크 상황·잔여 인원·아이템 등 추가 컨텍스트를 첨부할 수 있게 한다.
+// 윈도우 신청 흐름과 동일한 버킷을 공유.
+const SCREENSHOT_BUCKET = 'regear-screenshots'
+const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp'])
+const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024
+
 export interface TrackedDeath {
   killboardEventId: number
   battleId: number | null
@@ -138,17 +145,17 @@ export async function listMyTrackedAdHocDeaths(): Promise<{
   return { deaths }
 }
 
-export interface SubmitTrackedAdHocInput {
-  killboardEventId: number
-  roleName: string
-  claimedSilver: number
-}
-
 // 이벤트 외 트래킹 사망 직접 신청.
 // 동일 killboard_event_id 의 non-rejected regear_request 가 이미 있으면 거부.
 // role_rewards.silver=0 또는 미등록 역할이면 거부 (다른 신청 흐름과 동일 게이트).
+//
+// FormData 필드:
+//   - killboardEventId (string, number)
+//   - roleName (string)
+//   - claimedSilver (string, integer)
+//   - screenshot (File, optional) — 첨부 시에만 storage 업로드
 export async function submitTrackedAdHocRegear(
-  input: SubmitTrackedAdHocInput,
+  formData: FormData,
 ): Promise<{ id?: string; error?: string }> {
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
@@ -158,15 +165,23 @@ export async function submitTrackedAdHocRegear(
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
 
-  const kbId = Math.trunc(input.killboardEventId)
+  const kbId = Math.trunc(Number(formData.get('killboardEventId') ?? 0))
   if (!Number.isFinite(kbId) || kbId <= 0) return { error: tErr('invalidInput') }
 
-  const roleName = input.roleName.trim()
+  const roleName = String(formData.get('roleName') ?? '').trim()
   if (!roleName) return { error: tErr('invalidInput') }
 
-  const claimedSilver = Math.trunc(input.claimedSilver)
-  if (!Number.isFinite(claimedSilver) || claimedSilver <= 0) {
+  const claimedSilverRaw = String(formData.get('claimedSilver') ?? '')
+  const claimedSilver = Number(claimedSilverRaw.replace(/,/g, '').trim())
+  if (!Number.isFinite(claimedSilver) || !Number.isInteger(claimedSilver) || claimedSilver <= 0) {
     return { error: tErr('invalidClaimAmount') }
+  }
+
+  const file = formData.get('screenshot')
+  const hasFile = file instanceof File && file.size > 0
+  if (hasFile) {
+    if (file.size > MAX_SCREENSHOT_BYTES) return { error: tErr('screenshotTooLarge') }
+    if (!ALLOWED_MIME.has(file.type)) return { error: tErr('screenshotWrongType') }
   }
 
   // 1) killboard_events 에 victim 으로 존재하는지, 본인 사망인지, 트래킹 전투인지 확인.
@@ -221,7 +236,20 @@ export async function submitTrackedAdHocRegear(
     return { error: tErr('trackedDeathAlreadyClaimed') }
   }
 
-  // 4) Insert. event_id/regear_window_id 모두 NULL, killboard_verified=true.
+  // 4) 스크린샷이 있으면 storage 업로드 (DB insert 실패 시 롤백).
+  let screenshotPath: string | null = null
+  if (hasFile) {
+    const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
+    screenshotPath = `${session.discordId}/adhoc-${kbId}-${Date.now()}.${ext}`
+    const { error: uploadError } = await db.storage
+      .from(SCREENSHOT_BUCKET)
+      .upload(screenshotPath, file, { contentType: file.type, upsert: false })
+    if (uploadError) {
+      return { error: tErr('screenshotUploadFailed', { reason: uploadError.message }) }
+    }
+  }
+
+  // 5) Insert. event_id/regear_window_id 모두 NULL, killboard_verified=true.
   const occurred = new Date(kb.occurred_at as string)
   const titleSnapshot = formatTrackedTitle(occurred)
   const buildSnapshot = equipmentToBuildSnapshot(
@@ -241,7 +269,7 @@ export async function submitTrackedAdHocRegear(
       role_name: roleName,
       silver: ceiling,
       claimed_silver: claimedSilver,
-      screenshot_path: null,
+      screenshot_path: screenshotPath,
       screenshot_path_2: null,
       killboard_verified: true,
       killboard_event_id: kbId,
@@ -252,7 +280,12 @@ export async function submitTrackedAdHocRegear(
     })
     .select('id')
     .single()
-  if (insertError) return { error: insertError.message }
+  if (insertError) {
+    if (screenshotPath) {
+      await db.storage.from(SCREENSHOT_BUCKET).remove([screenshotPath])
+    }
+    return { error: insertError.message }
+  }
 
   revalidatePath('/regear')
   revalidatePath('/me')

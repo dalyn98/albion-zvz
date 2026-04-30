@@ -1,13 +1,10 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useId, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ShieldCheck, X } from 'lucide-react'
-import {
-  submitTrackedAdHocRegear,
-  type SubmitTrackedAdHocInput,
-} from '@/app/actions/regear-tracked-deaths'
+import { ShieldCheck, Upload, X } from 'lucide-react'
+import { submitTrackedAdHocRegear } from '@/app/actions/regear-tracked-deaths'
 import type { WindowRoleOption } from '@/app/actions/regear-windows'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
@@ -23,8 +20,11 @@ interface Props {
   opponentLabel: string
 }
 
-// 트래킹 사망 직접 신청 모달. 스크린샷은 받지 않는다 — killboard 행이 곧
-// 검증 소스라 서버 액션 쪽에서 killboard_verified=true 로 박아준다.
+const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
+
+// 트래킹 사망 직접 신청 모달. killboard_verified=true 가 검증 소스이므로
+// 스크린샷은 옵션 — 청구자가 갱크 상황·잔여 인원 등 추가 컨텍스트를 첨부하고
+// 싶을 때만 사용한다.
 export default function AdHocDeathSubmitButton({
   killboardEventId,
   buildSnapshot,
@@ -41,6 +41,7 @@ export default function AdHocDeathSubmitButton({
   const [open, setOpen] = useState(false)
   const [roleName, setRoleName] = useState<string>(roleOptions[0]?.roleName ?? '')
   const [claimedInput, setClaimedInput] = useState('')
+  const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
 
@@ -50,6 +51,7 @@ export default function AdHocDeathSubmitButton({
   const reset = () => {
     setRoleName(roleOptions[0]?.roleName ?? '')
     setClaimedInput('')
+    setFile(null)
     setError('')
   }
 
@@ -67,6 +69,29 @@ export default function AdHocDeathSubmitButton({
     }
   }, [open, pending])
 
+  // 모달 안 paste 처리 — 빈 슬롯에만 채운다 (이미 첨부된 파일 덮어쓰기 방지).
+  useEffect(() => {
+    if (!open) return
+    const handlePaste = (e: ClipboardEvent) => {
+      if (file) return
+      const items = e.clipboardData?.items
+      if (!items) return
+      for (const item of items) {
+        if (item.kind !== 'file') continue
+        if (!ACCEPTED_TYPES.includes(item.type)) continue
+        const blob = item.getAsFile()
+        if (!blob) continue
+        const ext = item.type.split('/')[1]
+        const pasted = new File([blob], `clipboard-${Date.now()}.${ext}`, { type: item.type })
+        setFile(pasted)
+        e.preventDefault()
+        return
+      }
+    }
+    document.addEventListener('paste', handlePaste)
+    return () => document.removeEventListener('paste', handlePaste)
+  }, [open, file])
+
   const submit = () => {
     if (!roleName) {
       setError(t('ceilingNotSet'))
@@ -83,12 +108,12 @@ export default function AdHocDeathSubmitButton({
     }
     setError('')
     startTransition(async () => {
-      const input: SubmitTrackedAdHocInput = {
-        killboardEventId,
-        roleName,
-        claimedSilver: parsed,
-      }
-      const r = await submitTrackedAdHocRegear(input)
+      const form = new FormData()
+      form.append('killboardEventId', String(killboardEventId))
+      form.append('roleName', roleName)
+      form.append('claimedSilver', String(parsed))
+      if (file) form.append('screenshot', file)
+      const r = await submitTrackedAdHocRegear(form)
       if (r.error) {
         setError(r.error)
         return
@@ -195,6 +220,23 @@ export default function AdHocDeathSubmitButton({
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">
+                      {tDeath('screenshotLabel')}
+                    </label>
+                    <p className="text-[11px] text-gray-500 mb-2">
+                      {tDeath('screenshotHint')}
+                    </p>
+                    <FileSlot
+                      file={file}
+                      onChange={setFile}
+                      placeholder={t('pickOrPaste')}
+                      disabled={pending}
+                      removeLabel={t('remove')}
+                    />
+                    <p className="text-[11px] text-gray-500 mt-1">{t('pasteHint')}</p>
+                  </div>
+
                   <div className="pt-2 border-t border-gray-800">
                     <p className="text-xs text-gray-400 mb-2">{tDeath('gearLabel')}</p>
                     <p className="text-[11px] text-gray-500 mb-2">{tDeath('gearHint')}</p>
@@ -231,5 +273,53 @@ export default function AdHocDeathSubmitButton({
         </div>
       )}
     </>
+  )
+}
+
+interface FileSlotProps {
+  file: File | null
+  onChange: (file: File | null) => void
+  placeholder: string
+  disabled: boolean
+  removeLabel: string
+}
+
+function FileSlot({ file, onChange, placeholder, disabled, removeLabel }: FileSlotProps) {
+  const inputId = useId()
+  return (
+    <div className="relative">
+      {file ? (
+        <div className="flex items-center justify-between gap-2 rounded-md bg-gray-950 border border-gray-700 px-3 py-2">
+          <span className="text-xs text-gray-300 truncate flex-1">{file.name}</span>
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            disabled={disabled}
+            className="text-[11px] text-rose-300 hover:text-rose-200 disabled:opacity-50"
+          >
+            {removeLabel}
+          </button>
+        </div>
+      ) : (
+        <label
+          htmlFor={inputId}
+          className="flex items-center justify-center gap-2 rounded-md bg-gray-950 border border-dashed border-gray-700 hover:border-amber-400 px-3 py-4 cursor-pointer text-xs text-gray-400 hover:text-amber-300"
+        >
+          <Upload size={14} />
+          {placeholder}
+          <input
+            id={inputId}
+            type="file"
+            accept={ACCEPTED_TYPES.join(',')}
+            disabled={disabled}
+            onChange={(e) => {
+              const f = e.target.files?.[0] ?? null
+              if (f && ACCEPTED_TYPES.includes(f.type)) onChange(f)
+            }}
+            className="hidden"
+          />
+        </label>
+      )}
+    </div>
   )
 }
