@@ -147,9 +147,16 @@ const OFFHAND_RE = /^T(\d+)_OFF_/
 const ARMOR_PIECE_RE = /^T(\d+)_(HEAD|ARMOR|SHOES)_(PLATE|LEATHER|CLOTH)(?:_|$)/
 const CAPE_RE = /^T(\d+)_(?:CAPEITEM|CAPE)(?:_|$)/
 const BAG_RE = /^T(\d+)_BAG(?:_|$)/
+// 채집·생활 도구 (곡괭이/도끼/낫/스키닝/돌망치/낚싯대/추적기/시즈해머).
+// `T{n}_2H_TOOL_*` 는 WEAPON_RE 에 먼저 잡혀버려서 위쪽에서 분기시켜야 한다.
+const TOOL_RE = /^T(\d+)_2H_TOOL_/
 
 export function categorizeGearItem(itemId: string): GearCategorization {
   const id = itemId.split('@')[0]
+  const tool = id.match(TOOL_RE)
+  if (tool) {
+    return { slot: 'other', armorMaterial: null, tier: Number(tool[1]) }
+  }
   const armor = id.match(ARMOR_PIECE_RE)
   if (armor) {
     const slotMap: Record<string, GearSlot> = {
