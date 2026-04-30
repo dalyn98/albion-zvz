@@ -171,6 +171,24 @@ export type AppSettingKey =
   // 모집 상태가 closed 가 아닐 때 CTA 버튼이 가리킬 Discord 초대 URL. 빈 값이면
   // CTA 가 비활성으로 노출 (배지만 표시).
   | 'guild_profile_discord_invite_url'
+  // 공개 프로필 hero 칩에 표시할 알비온 서버. ''(자동 — albion_guild_members 의
+  // majority server) | 'east' | 'west' | 'europe'. 어드민이 명시적으로 override
+  // 하지 않으면 빈 문자열이고 자동 감지 사용.
+  | 'guild_profile_server'
+  // 활동 시간대. 자유 텍스트 — 예: "KST 21시 ~ 24시", "주말 오후 + 평일 22시 이후".
+  // 빈 문자열이면 hero 칩에서 숨김. 최대 100자 권장 (UI 칩 폭 제약).
+  | 'guild_profile_active_hours'
+  // 사용 언어 (csv: 'ko', 'ja', 'en' 중 하나 이상). 비어 있으면 hero 칩 숨김.
+  // 입력은 어드민 폼이 csv 로 직렬화. 표시 시 i18n 라벨로 풀어 칩으로 노출.
+  | 'guild_profile_languages'
+  // 모집 중인 포지션 자유 텍스트. 예: "탱커/힐러 우선 모집". 모집 상태가 'closed'
+  // 가 아닐 때만 노출. 빈 문자열이면 카드 숨김.
+  | 'guild_profile_recruiting_roles'
+  // 가입 절차 한 줄 요약. 예: "디코 입장 → 면접 → 본가입". 빈 값 = 카드 숨김.
+  | 'guild_profile_join_steps'
+  // 정기 이벤트 일정 자유 텍스트 (멀티라인 허용). 예: "화/목 22시 ZvZ\n토요일
+  // 21시 갱킹". 빈 값 = 섹션 숨김.
+  | 'guild_profile_event_schedule'
   // 길드 공개 페이지(`/g/<slug>`) 활동 섹션의 "이번 주 활동" KPI 줄 토글. 원래
   // 홈(`/`) 상단에 있던 위젯이 길드 공개 페이지로 이동했지만 (#208) 설정 키는
   // 그대로 유지 — 기존 길드의 'true' 가 즉시 새 위치에 반영되도록.

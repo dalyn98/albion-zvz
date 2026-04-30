@@ -45,6 +45,12 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'guild_profile_show_leaderboard',
   'guild_profile_recruitment_status',
   'guild_profile_discord_invite_url',
+  'guild_profile_server',
+  'guild_profile_active_hours',
+  'guild_profile_languages',
+  'guild_profile_recruiting_roles',
+  'guild_profile_join_steps',
+  'guild_profile_event_schedule',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -77,6 +83,18 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   'guild_profile_description',
   // 빈 값 = CTA 비활성. 모집 상태 배지는 그대로 노출.
   'guild_profile_discord_invite_url',
+  // 빈 값 = 자동 감지(albion_guild_members.albion_server majority).
+  'guild_profile_server',
+  // 빈 값 = hero 칩에서 활동 시간대 숨김.
+  'guild_profile_active_hours',
+  // 빈 값 = hero 칩에서 언어 숨김.
+  'guild_profile_languages',
+  // 빈 값 = 모집 포지션 카드 숨김.
+  'guild_profile_recruiting_roles',
+  // 빈 값 = 가입 절차 카드 숨김.
+  'guild_profile_join_steps',
+  // 빈 값 = 정기 이벤트 일정 섹션 숨김.
+  'guild_profile_event_schedule',
 ] as const
 
 // JSON array string keys. Must parse to string[] or the upsert is rejected.
@@ -138,6 +156,16 @@ const ENUM_VALUES: Partial<Record<AppSettingKey, readonly string[]>> = {
   ] as const,
   // 모집 상태 — open / selective / closed. closed 면 CTA 미표시.
   guild_profile_recruitment_status: ['open', 'selective', 'closed'] as const,
+  // hero 칩 서버 override. '' = 자동 감지(majority). albion_server 와 달리
+  // 빈 문자열을 별도 값으로 취급해 enum 에 포함시킨다 — 어드민이 빈 값으로
+  // 명시 저장하면 자동 감지로 돌아감.
+  guild_profile_server: ['', 'east', 'west', 'europe'] as const,
+}
+
+// csv 직렬화 키. 콤마로 split 한 각 토큰이 화이트리스트에 들어 있어야 한다.
+// 빈 문자열은 ALLOW_EMPTY_KEYS 가 처리.
+const CSV_ENUM_VALUES: Partial<Record<AppSettingKey, readonly string[]>> = {
+  guild_profile_languages: ['ko', 'ja', 'en', 'zh', 'es', 'fr', 'de', 'pt'] as const,
 }
 
 export async function updateAppSetting(
@@ -215,6 +243,20 @@ export async function updateAppSetting(
     const allowedEnum = ENUM_VALUES[key]
     if (trimmed && allowedEnum && !allowedEnum.includes(trimmed)) {
       return { error: tErr('invalidEnumValue', { values: allowedEnum.join(', ') }) }
+    }
+    const csvEnum = CSV_ENUM_VALUES[key]
+    if (trimmed && csvEnum) {
+      const tokens = trimmed
+        .split(',')
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0)
+      if (tokens.length === 0) {
+        return { error: tErr('emptyValue') }
+      }
+      const unknown = tokens.filter((t) => !csvEnum.includes(t))
+      if (unknown.length > 0) {
+        return { error: tErr('invalidEnumValue', { values: csvEnum.join(', ') }) }
+      }
     }
     const db = await requireAdmin()
     // Multi-tenant: app_settings PK 가 (guild_id, key) 복합이므로 upsert 타겟도

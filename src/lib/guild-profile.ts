@@ -172,6 +172,34 @@ export function isRecruitmentStatus(value: string): value is RecruitmentStatus {
   return (RECRUITMENT_STATUSES as readonly string[]).includes(value)
 }
 
+// 사용 언어 코드 — 길드 공개 페이지 hero 칩에 풀어 노출. 알비온이 공식
+// 지원하는 언어 + 한국어 (지역 길드 운영 환경 반영). 어드민이 csv 로 저장,
+// 표시 시 i18n 라벨로 변환.
+export type ProfileLanguage = 'ko' | 'ja' | 'en' | 'zh' | 'es' | 'fr' | 'de' | 'pt'
+
+export const PROFILE_LANGUAGES: readonly ProfileLanguage[] = [
+  'ko',
+  'ja',
+  'en',
+  'zh',
+  'es',
+  'fr',
+  'de',
+  'pt',
+] as const
+
+export function isProfileLanguage(value: string): value is ProfileLanguage {
+  return (PROFILE_LANGUAGES as readonly string[]).includes(value)
+}
+
+// 어드민이 명시 override 하지 않으면 빈 문자열. 빈 값일 때 호출자는
+// albion_guild_members.albion_server 의 majority 를 자동 감지해 채운다.
+export type ProfileServerOverride = '' | 'east' | 'west' | 'europe'
+
+export function isProfileServerOverride(value: string): value is ProfileServerOverride {
+  return value === '' || value === 'east' || value === 'west' || value === 'europe'
+}
+
 export interface GuildProfileSettings {
   enabled: boolean
   bannerUrl: string
@@ -183,6 +211,20 @@ export interface GuildProfileSettings {
   showLeaderboard: boolean
   recruitmentStatus: RecruitmentStatus
   discordInviteUrl: string
+  // 어드민이 명시한 서버 override. 빈 문자열이면 자동 감지(majority).
+  serverOverride: ProfileServerOverride
+  // 활동 시간대 자유 텍스트. 빈 값 = hero 칩 숨김.
+  activeHours: string
+  // 사용 언어 화이트리스트. 어드민이 csv 로 저장하지만 로더에서 배열로 풀어서
+  // 반환 — 호출자가 직접 split 하지 않게 한다.
+  languages: ProfileLanguage[]
+  // 모집 중인 포지션 자유 텍스트. recruitment_status === 'closed' 면 호출자가
+  // UI 에서 숨김.
+  recruitingRoles: string
+  // 가입 절차 한 줄 요약. 빈 값 = 카드 숨김.
+  joinSteps: string
+  // 정기 이벤트 일정 자유 텍스트 (멀티라인 허용). 빈 값 = 섹션 숨김.
+  eventSchedule: string
 }
 
 export const DEFAULT_GUILD_PROFILE: GuildProfileSettings = {
@@ -196,6 +238,26 @@ export const DEFAULT_GUILD_PROFILE: GuildProfileSettings = {
   showLeaderboard: true,
   recruitmentStatus: 'closed',
   discordInviteUrl: '',
+  serverOverride: '',
+  activeHours: '',
+  languages: [],
+  recruitingRoles: '',
+  joinSteps: '',
+  eventSchedule: '',
+}
+
+// csv → string[]. 알 수 없는 코드는 무시 (저장 시점 검증을 통과한 값만 들어와야
+// 정상이지만, 누군가 SQL 직접 수정한 경우에 대비).
+function parseLanguagesCsv(raw: string): ProfileLanguage[] {
+  if (!raw) return []
+  const out: ProfileLanguage[] = []
+  for (const piece of raw.split(',')) {
+    const trimmed = piece.trim()
+    if (isProfileLanguage(trimmed) && !out.includes(trimmed)) {
+      out.push(trimmed)
+    }
+  }
+  return out
 }
 
 // 모든 길드 프로필 설정을 한 번의 병렬 조회로 모은다. /g/<slug> 와 어드민 폼이
@@ -212,6 +274,12 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
     showLeaderboardRaw,
     recruitmentStatusRaw,
     discordInviteUrl,
+    serverOverrideRaw,
+    activeHours,
+    languagesRaw,
+    recruitingRoles,
+    joinSteps,
+    eventSchedule,
   ] = await Promise.all([
     getAppSetting('guild_profile_enabled', 'false', guildId),
     getAppSetting('guild_profile_banner_url', '', guildId),
@@ -223,6 +291,12 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
     getAppSetting('guild_profile_show_leaderboard', 'true', guildId),
     getAppSetting('guild_profile_recruitment_status', 'closed', guildId),
     getAppSetting('guild_profile_discord_invite_url', '', guildId),
+    getAppSetting('guild_profile_server', '', guildId),
+    getAppSetting('guild_profile_active_hours', '', guildId),
+    getAppSetting('guild_profile_languages', '', guildId),
+    getAppSetting('guild_profile_recruiting_roles', '', guildId),
+    getAppSetting('guild_profile_join_steps', '', guildId),
+    getAppSetting('guild_profile_event_schedule', '', guildId),
   ])
 
   return {
@@ -236,5 +310,11 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
     showLeaderboard: showLeaderboardRaw !== 'false',
     recruitmentStatus: isRecruitmentStatus(recruitmentStatusRaw) ? recruitmentStatusRaw : 'closed',
     discordInviteUrl,
+    serverOverride: isProfileServerOverride(serverOverrideRaw) ? serverOverrideRaw : '',
+    activeHours,
+    languages: parseLanguagesCsv(languagesRaw),
+    recruitingRoles,
+    joinSteps,
+    eventSchedule,
   }
 }
