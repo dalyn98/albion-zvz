@@ -109,6 +109,22 @@ export interface AutoRegearResult {
     events_with_null_battle_started: number
     events_already_processed: number
     events_too_fresh: number
+    // 이미 처리된 이벤트 상세 (timeline + 자동 청구 생성 수). 청구 0개 = mark-and-skip
+    // 경로(royal/no-tracked-battle/no-slot/retroactive). N개 = 정상 처리.
+    processed_detail: Array<{
+      id: string
+      title: string
+      battle_started_at: string | null
+      auto_regear_processed_at: string | null
+      created_at: string
+      auto_requests_count: number
+    }>
+    // battle_started_at NULL 이벤트 상세 (호스트가 전투 시작 안 누른/매칭 실패).
+    null_battle_started_detail: Array<{
+      id: string
+      title: string
+      created_at: string
+    }>
   }
   errors: Array<{ event_id: string; step: string; message: string }>
   duration_ms: number
@@ -320,26 +336,66 @@ export async function processAutoRegear(
     const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
     const { data: recentEvents } = await db
       .from('events')
-      .select('id, battle_started_at, auto_regear_processed_at')
+      .select('id, title, battle_started_at, auto_regear_processed_at, created_at')
       .eq('guild_id', guildId)
       .gte('created_at', sevenDaysAgoIso)
+      .order('created_at', { ascending: false })
     const recentRows = (recentEvents ?? []) as Array<{
       id: string
+      title: string
       battle_started_at: string | null
       auto_regear_processed_at: string | null
+      created_at: string
     }>
     const cutoffMs = Date.now() - AUTO_REGEAR_PRE_PICK_MS
     let nullBattleStarted = 0
     let alreadyProcessed = 0
     let tooFresh = 0
+    const processedRows: typeof recentRows = []
+    const nullStartedRows: typeof recentRows = []
     for (const r of recentRows) {
-      if (!r.battle_started_at) nullBattleStarted += 1
-      if (r.auto_regear_processed_at !== null) alreadyProcessed += 1
+      if (!r.battle_started_at) {
+        nullBattleStarted += 1
+        nullStartedRows.push(r)
+      }
+      if (r.auto_regear_processed_at !== null) {
+        alreadyProcessed += 1
+        processedRows.push(r)
+      }
       if (r.battle_started_at) {
         const ms = Date.parse(r.battle_started_at)
         if (Number.isFinite(ms) && ms > cutoffMs) tooFresh += 1
       }
     }
+    // 처리된 이벤트들의 자동 청구 수 한 번에 조회. 청구 0 = mark-and-skip 경로.
+    const requestCountById = new Map<string, number>()
+    if (processedRows.length > 0) {
+      const { data: autoReqs } = await db
+        .from('regear_requests')
+        .select('event_id')
+        .eq('guild_id', guildId)
+        .eq('auto_generated', true)
+        .in(
+          'event_id',
+          processedRows.map((r) => r.id),
+        )
+      for (const row of (autoReqs ?? []) as Array<{ event_id: string }>) {
+        requestCountById.set(row.event_id, (requestCountById.get(row.event_id) ?? 0) + 1)
+      }
+    }
+    const processedDetail = processedRows.slice(0, 10).map((r) => ({
+      id: r.id,
+      title: r.title.slice(0, 40),
+      battle_started_at: r.battle_started_at,
+      auto_regear_processed_at: r.auto_regear_processed_at,
+      created_at: r.created_at,
+      auto_requests_count: requestCountById.get(r.id) ?? 0,
+    }))
+    const nullStartedDetail = nullStartedRows.slice(0, 10).map((r) => ({
+      id: r.id,
+      title: r.title.slice(0, 40),
+      created_at: r.created_at,
+    }))
     return {
       events_considered: 0,
       events_processed: 0,
@@ -358,6 +414,8 @@ export async function processAutoRegear(
         events_with_null_battle_started: nullBattleStarted,
         events_already_processed: alreadyProcessed,
         events_too_fresh: tooFresh,
+        processed_detail: processedDetail,
+        null_battle_started_detail: nullStartedDetail,
       },
       errors,
       duration_ms: Date.now() - startedAt,
