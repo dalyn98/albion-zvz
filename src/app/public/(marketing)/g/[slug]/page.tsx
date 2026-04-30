@@ -26,8 +26,12 @@ import {
   type TopContributorSummary,
   type BattleOutcome,
 } from '@/lib/guild-profile-activity'
+import { loadMemberDashboardSummary } from '@/lib/guild-profile-member-dashboard'
 import { formatRelativeFine } from '@/lib/relative-time'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { getSession } from '@/lib/session'
+import MemberDashboardSection from '@/components/guild/MemberDashboardSection'
+import SignedOutCta from '@/components/guild/SignedOutCta'
 
 export const dynamic = 'force-dynamic'
 
@@ -113,7 +117,13 @@ export default async function GuildProfilePage({
   const settings = await loadGuildProfileSettings(tenant.tenantId)
   if (!settings.enabled) notFound()
 
-  const [stats, galleryItems, recentBattle, topContributors] = await Promise.all([
+  // 세션이 보고 있는 길드 = 페이지 길드 + isMember 일 때만 멤버 카드 데이터를
+  // 페치한다. 다른 길드의 멤버나 비로그인은 페치 자체를 건너뛰어 비용 0.
+  const session = await getSession()
+  const isThisGuildMember =
+    session !== null && session.guildId === tenant.tenantId && session.isMember
+
+  const [stats, galleryItems, recentBattle, topContributors, memberSummary] = await Promise.all([
     loadSectionStats(tenant.tenantId, {
       showMembers: settings.showMembers,
       showBattles: settings.showBattles,
@@ -126,6 +136,9 @@ export default async function GuildProfilePage({
     settings.showLeaderboard
       ? loadTopContributorsThisWeek(tenant.tenantId, 3)
       : Promise.resolve([]),
+    isThisGuildMember && session
+      ? loadMemberDashboardSummary(session.discordId, tenant.tenantId)
+      : Promise.resolve(null),
   ])
 
   const t = await getTranslations('publicGuildProfile')
@@ -228,6 +241,20 @@ export default async function GuildProfilePage({
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-12">
+        {/* 길드원 본인 대시보드 — 활동 섹션 위에 노출. 비로그인 / 다른 길드 멤버
+            에게는 작은 로그인 안내 배너만 (디자인 톤을 깨지 않게 1줄). */}
+        {memberSummary && session && (
+          <MemberDashboardSection
+            summary={memberSummary}
+            username={session.username}
+            discordId={session.discordId}
+            accent={accent}
+          />
+        )}
+        {!session && (
+          <SignedOutCta accent={accent} returnTo={`/g/${tenant.slug}`} />
+        )}
+
         {/* 활동 — 최근 추적된 전투 + 이번 주 탑 킬러. 가입을 고민 중인 사람에게
             "지금 살아있는 길드" 라는 인상을 주는 핵심 섹션. 둘 중 하나만 있을
             때도 자연스럽게 풀카드로 확장. */}
