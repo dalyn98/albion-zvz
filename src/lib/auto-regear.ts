@@ -102,6 +102,14 @@ export interface AutoRegearResult {
   // tracked battle 의 cluster_name 이 Royal Continent 로 분류된 이벤트 (도시/외곽
   // /Brecilien/Crystal League). AGENTS.md hard rule #5 의 "블랙존 한정" 가드.
   events_skipped_royal_zone: number
+  // 진단 breakdown: events_considered=0 일 때 왜 0 인지 분리. 최근 7일 events
+  // 기준으로 각 필터 통과/탈락을 카운팅한다. 운영 디버그 전용 — 로직에는 영향 X.
+  diag?: {
+    events_recent_total: number
+    events_with_null_battle_started: number
+    events_already_processed: number
+    events_too_fresh: number
+  }
   errors: Array<{ event_id: string; step: string; message: string }>
   duration_ms: number
 }
@@ -306,6 +314,32 @@ export async function processAutoRegear(
   const eventRows = (events ?? []) as EventRow[]
 
   if (eventRows.length === 0) {
+    // events_considered=0 일 때 왜 0 인지 분리. 최근 7일 events 를 각 필터별로
+    // 분류 (mutually exclusive 가 아니라 누적 카운트). 운영자가 "자동 리기어가
+    // 안 떠요" 신고 시 카운터 한 줄로 원인 좁힌다.
+    const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: recentEvents } = await db
+      .from('events')
+      .select('id, battle_started_at, auto_regear_processed_at')
+      .eq('guild_id', guildId)
+      .gte('created_at', sevenDaysAgoIso)
+    const recentRows = (recentEvents ?? []) as Array<{
+      id: string
+      battle_started_at: string | null
+      auto_regear_processed_at: string | null
+    }>
+    const cutoffMs = Date.now() - AUTO_REGEAR_PRE_PICK_MS
+    let nullBattleStarted = 0
+    let alreadyProcessed = 0
+    let tooFresh = 0
+    for (const r of recentRows) {
+      if (!r.battle_started_at) nullBattleStarted += 1
+      if (r.auto_regear_processed_at !== null) alreadyProcessed += 1
+      if (r.battle_started_at) {
+        const ms = Date.parse(r.battle_started_at)
+        if (Number.isFinite(ms) && ms > cutoffMs) tooFresh += 1
+      }
+    }
     return {
       events_considered: 0,
       events_processed: 0,
@@ -319,6 +353,12 @@ export async function processAutoRegear(
       events_skipped_retroactive: 0,
       events_skipped_no_tracked_battle: 0,
       events_skipped_royal_zone: 0,
+      diag: {
+        events_recent_total: recentRows.length,
+        events_with_null_battle_started: nullBattleStarted,
+        events_already_processed: alreadyProcessed,
+        events_too_fresh: tooFresh,
+      },
       errors,
       duration_ms: Date.now() - startedAt,
     }
