@@ -5,7 +5,7 @@ import { ArrowLeft, Boxes } from 'lucide-react'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { listInventoryGear } from '@/lib/inventory'
+import { listInventoryGearBaseCatalog } from '@/lib/inventory'
 import AdminInventoryGearPanel from '@/components/AdminInventoryGearPanel'
 
 // 제작자/어드민이 길드 장비 재고를 직접 손볼 수 있는 페이지. 어드민의
@@ -49,7 +49,7 @@ export default async function CraftInventoryPage() {
     )
   }
 
-  const gear = await listInventoryGear(guildId)
+  const gear = await listInventoryGearBaseCatalog(guildId)
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-4">

@@ -16,11 +16,9 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import {
-  listInventoryGear,
   adjustInventoryGear,
   setInventoryGear,
   categorizeGearItem,
-  type InventoryGearRow,
 } from '@/lib/inventory'
 
 // 완제품 재고는 진짜 "장비" 만 허용. 재료·아티팩트·토큰·마운트·식량은
@@ -58,25 +56,6 @@ const REVALIDATE_PATHS = ['/admin/dashboard/inventory', '/inventory'] as const
 
 function revalidateAll() {
   for (const path of REVALIDATE_PATHS) revalidatePath(path)
-}
-
-export interface InventorySnapshot {
-  gear: InventoryGearRow[]
-}
-
-export async function loadInventorySnapshot(): Promise<{
-  data?: InventorySnapshot
-  error?: string
-}> {
-  const tErr = await getTranslations('adminActionError')
-  try {
-    const auth = await requireCrafterOrAdmin()
-    if ('error' in auth) return { error: auth.error }
-    const gear = await listInventoryGear(auth.guildId)
-    return { data: { gear } }
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
-  }
 }
 
 export async function adjustGearAction(input: {

@@ -14,34 +14,66 @@
 
 import type { BuildSnapshot, SlotKey } from '@/types'
 import { getAdminClient } from './supabase-admin'
+import {
+  getGearCatalog,
+  ENCHANT_LEVELS,
+  type EnchantLevel,
+} from './inventory-catalog'
 
-export interface InventoryGearRow {
-  itemId: string
-  quantity: number
-  updatedAt: string
-  updatedByDiscordId: string | null
+// 베이스 아이템 단위 카탈로그 행. 인챈트 @0~@4 별 수량을 한 묶음으로 보관해
+// 그리드 카드 1장 = 베이스 1개 매핑. DB 에 row 가 없는 인챈트는 0 으로 채움.
+export interface InventoryGearBaseRow {
+  baseItemId: string
+  slot: GearSlot
+  tier: number
+  armorMaterial: GearArmorMaterial | null
+  quantities: Record<EnchantLevel, number>
 }
 
 // ────────────────────────────────────────────────────────────
 // Reads
 // ────────────────────────────────────────────────────────────
 
-export async function listInventoryGear(
+// 정적 카탈로그 (T4~T8 모든 장비 베이스) × 길드 현재 보유량을 머지해 반환.
+// 그리드는 카탈로그를 기준으로 항상 같은 장수의 카드를 그린다 — DB 에 row 가
+// 없는 베이스/인챈트도 quantity 0 으로 노출.
+export async function listInventoryGearBaseCatalog(
   guildId: string,
-): Promise<InventoryGearRow[]> {
+): Promise<InventoryGearBaseRow[]> {
+  const catalog = getGearCatalog()
+
   const db = getAdminClient()
   const { data, error } = await db
     .from('guild_inventory_gear')
-    .select('item_id, quantity, updated_at, updated_by_discord_id')
+    .select('item_id, quantity')
     .eq('guild_id', guildId)
-    .order('updated_at', { ascending: false })
   if (error) throw new Error(error.message)
-  return (data ?? []).map((r) => ({
-    itemId: r.item_id as string,
-    quantity: Number(r.quantity ?? 0),
-    updatedAt: r.updated_at as string,
-    updatedByDiscordId: (r.updated_by_discord_id as string | null) ?? null,
-  }))
+
+  const qtyMap = new Map<string, number>()
+  for (const row of data ?? []) {
+    qtyMap.set(row.item_id as string, Number(row.quantity ?? 0))
+  }
+
+  return catalog.map((entry) => {
+    const quantities: Record<EnchantLevel, number> = {
+      0: 0,
+      1: 0,
+      2: 0,
+      3: 0,
+      4: 0,
+    }
+    for (const lvl of ENCHANT_LEVELS) {
+      const itemId = lvl === 0 ? entry.baseItemId : `${entry.baseItemId}@${lvl}`
+      quantities[lvl] = qtyMap.get(itemId) ?? 0
+    }
+    return {
+      baseItemId: entry.baseItemId,
+      slot: entry.slot,
+      tier: entry.tier,
+      armorMaterial: entry.armorMaterial,
+      quantities,
+    }
+  })
 }
 
 // ────────────────────────────────────────────────────────────

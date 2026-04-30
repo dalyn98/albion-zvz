@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server'
 import { Boxes } from 'lucide-react'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { listInventoryGear } from '@/lib/inventory'
+import { listInventoryGearBaseCatalog } from '@/lib/inventory'
 import AdminInventoryGearPanel from '@/components/AdminInventoryGearPanel'
 
 // 길드 장비 재고 관리. 수동 +/- 와 절대값 설정. 자동 -1 (제작 deliver 시) 은
@@ -15,7 +15,7 @@ export default async function AdminInventoryPage() {
   const guildId = await getSessionGuildId(session)
 
   const [gear, t] = await Promise.all([
-    listInventoryGear(guildId),
+    listInventoryGearBaseCatalog(guildId),
     getTranslations('adminInventory'),
   ])
 
