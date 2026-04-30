@@ -7,8 +7,12 @@
 //
 // 시간창 선택:
 //   - lower bound: battle_started_at - 15min (호스트가 직전에 마킹 못한 경우 보호)
-//   - upper bound: battle_started_at + 60min (멀티 얼라이언스 분리 시 후속 부분 전투 포함)
-// 경계값은 매직 넘버지만 일반 ZvZ 5-30분 + 분리 전투 고려한 합리적 default.
+//   - upper bound: battle_started_at + 4h (한 이벤트 동안 발생하는 모든 후속 전투 포함)
+// 호스트가 "Started" 버튼을 실제 ZvZ 보다 1h 정도 일찍 누르고 이벤트가 2-3h 진행되는
+// 일반 패턴을 커버. 이전 +60min 은 너무 좁아 14:50 시작 전투처럼 "이벤트 후반부"
+// 가 자동 매칭에서 누락됐다 (2026-04-30 진단). cross-event 오염은 manual claim
+// supersede 와 per-victim role_cap 으로 방어된다.
+// AUTO_REGEAR_MATCH_TIMEOUT_MS (6h) 와도 정합 — 이벤트 종료 인정 시각 안에 든다.
 //
 // legacy NULL battle_id (마이그 096 이전 sync) 행은 정확 매칭에서 제외. 마이그
 // 적용 후 sync 된 모든 행은 battle_id 채워져 있으므로 운영 영향 없음.
@@ -19,7 +23,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { isHighEngagement } from '@/lib/low-engagement-cut'
 
 export const MATCH_WINDOW_BEFORE_MS = 15 * 60 * 1000
-export const MATCH_WINDOW_AFTER_MS = 60 * 60 * 1000
+export const MATCH_WINDOW_AFTER_MS = 4 * 60 * 60 * 1000
 
 export interface MatchedTrackedBattle {
   albionBattleId: number
