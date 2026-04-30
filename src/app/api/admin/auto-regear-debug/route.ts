@@ -133,6 +133,48 @@ export async function GET(request: Request) {
     },
   })
 
+  // 보조 진단: 같은 시간창 (battle_started_at - 15min ~ +4h) 안의 모든
+  // tenant_battle_records 를 isHighEngagement 컷 없이 조회. 위 매칭에서
+  // 빠진 후보 (low-engagement / provisional / albion_battle_id null 등) 식별.
+  const lowerIso = new Date(battleStartedMs - 15 * 60 * 1000).toISOString()
+  const upperIso = new Date(battleStartedMs + 4 * 60 * 60 * 1000).toISOString()
+  const { data: allTbr } = await db
+    .from('tenant_battle_records')
+    .select(
+      'started_at, home_kills, home_deaths, home_team_size, is_provisional, battle_records(albion_battle_id, cluster_name, ended_at)',
+    )
+    .eq('guild_id', guildId)
+    .gte('started_at', lowerIso)
+    .lte('started_at', upperIso)
+  type TbrRow = {
+    started_at: string
+    home_kills: number
+    home_deaths: number
+    home_team_size: number
+    is_provisional: boolean
+    battle_records: { albion_battle_id: number | string | null; cluster_name: string | null; ended_at: string | null } | Array<{ albion_battle_id: number | string | null; cluster_name: string | null; ended_at: string | null }> | null
+  }
+  stages.push({
+    stage: 'tenant_battle_records_in_window_unfiltered',
+    ok: (allTbr ?? []).length > 0,
+    detail: {
+      count: (allTbr ?? []).length,
+      rows: ((allTbr ?? []) as TbrRow[]).map((r) => {
+        const br = Array.isArray(r.battle_records) ? r.battle_records[0] : r.battle_records
+        return {
+          started_at: r.started_at,
+          home_kills: r.home_kills,
+          home_deaths: r.home_deaths,
+          home_team_size: r.home_team_size,
+          is_provisional: r.is_provisional,
+          albion_battle_id: br?.albion_battle_id ?? null,
+          cluster_name: br?.cluster_name ?? null,
+          ended_at: br?.ended_at ?? null,
+        }
+      }),
+    },
+  })
+
   if (trackedBattles.length === 0) {
     const matchTimeoutMs = battleStartedMs + AUTO_REGEAR_MATCH_TIMEOUT_MS
     return NextResponse.json({
