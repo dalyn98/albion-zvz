@@ -297,7 +297,50 @@ export async function decrementBuildForDelivery(
     }
   }
 
+  // 차감과 함께 베이스 suffix 를 추적 리스트에 자동 등록 — 길드가 처음 쓰는
+  // 무기/갑옷이 deliver 들어오면 그리드에 자동으로 노출된다 (어드민이 따로
+  // 등록할 필요 X). 이미 등록돼 있으면 ignoreDuplicates 로 noop.
+  await autoTrackSuffixesFromItemIds(guildId, uniqueIds)
+
   return { empty: false, warnedItemIds }
+}
+
+// 본 함수만 이 파일 안에서 호출. itemId → base_suffix 변환 후 idempotent upsert.
+// 실패해도 throw 하지 않는다 (deliver 자체의 도메인 상태가 깨져선 안 되므로).
+async function autoTrackSuffixesFromItemIds(
+  guildId: string,
+  itemIds: readonly string[],
+): Promise<void> {
+  const suffixes = new Set<string>()
+  for (const itemId of itemIds) {
+    const baseId = itemId.split('@')[0]
+    const cat = categorizeGearItem(baseId)
+    if (cat.slot === 'other') continue
+    if (cat.slot === 'cape' || cat.slot === 'bag') continue
+    const suffix = baseId.replace(/^T\d+_/, '')
+    if (!suffix) continue
+    suffixes.add(suffix)
+  }
+  if (suffixes.size === 0) return
+
+  const db = getAdminClient()
+  const rows = [...suffixes].map((suffix) => ({
+    guild_id: guildId,
+    base_suffix: suffix,
+    sort_order: 0,
+  }))
+  const { error } = await db
+    .from('guild_tracked_inventory_items')
+    .upsert(rows, {
+      onConflict: 'guild_id,base_suffix',
+      ignoreDuplicates: true,
+    })
+  if (error) {
+    console.error('[inventory hook] auto-track failed', {
+      guildId,
+      error: error.message,
+    })
+  }
 }
 
 // ────────────────────────────────────────────────────────────

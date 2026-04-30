@@ -21,11 +21,16 @@ import { adjustGearAction, setGearAction } from '@/app/actions/inventory'
 import { extractWeaponCategory } from '@/lib/weapon-category'
 import { getWeaponFamilyRank } from '@/lib/weapon-family'
 import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
+import type { TrackedItemSearchEntry } from '@/lib/inventory-name-search'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import { useToast } from './ToastProvider'
+import TrackedItemManager from './TrackedItemManager'
+
+type Tracked = TrackedItemSearchEntry & { sortOrder: number }
 
 interface Props {
   initialGear: InventoryGearBaseRow[]
+  initialTracked: Tracked[]
 }
 
 interface CategorizedRow extends InventoryGearBaseRow {
@@ -69,7 +74,14 @@ const GRID_SLOT_FILTERS: ReadonlyArray<GearSlot> = [
   'shoes',
 ]
 
-export default function AdminInventoryGearPanel({ initialGear }: Props) {
+function suffixOfBaseId(baseItemId: string): string {
+  return baseItemId.replace(/^T\d+_/, '')
+}
+
+export default function AdminInventoryGearPanel({
+  initialGear,
+  initialTracked,
+}: Props) {
   const t = useTranslations('adminInventory')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
@@ -82,8 +94,14 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
   const [, startTransition] = useTransition()
   const gridRef = useRef<HTMLDivElement | null>(null)
 
+  const trackedSuffixSet = useMemo(
+    () => new Set(initialTracked.map((tr) => tr.baseSuffix)),
+    [initialTracked],
+  )
+
   const rows = useMemo<CategorizedRow[]>(() => {
     return initialGear
+      .filter((r) => trackedSuffixSet.has(suffixOfBaseId(r.baseItemId)))
       .map((r) => {
         const localizedName =
           getLocalizedItemNameWithEnchant(r.baseItemId, locale, null) ??
@@ -109,7 +127,7 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
         }
       })
       .sort(compareRows)
-  }, [initialGear, locale])
+  }, [initialGear, locale, trackedSuffixSet])
 
   const trimmedQuery = searchQuery.trim().toLowerCase()
   const matchesSearch = (r: CategorizedRow) =>
@@ -176,14 +194,16 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
   const toast = useToast()
 
   return (
-    <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4">
-      <div>
-        <h2 className="text-base font-bold text-white flex items-center gap-2">
-          <Shield size={16} className="text-amber-400" />
-          {t('gearTitle')}
-        </h2>
-        <p className="text-xs text-gray-500 mt-1">{t('gearHintCatalog')}</p>
-      </div>
+    <div className="space-y-4">
+      <TrackedItemManager initialTracked={initialTracked} />
+      <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4">
+        <div>
+          <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <Shield size={16} className="text-amber-400" />
+            {t('gearTitle')}
+          </h2>
+          <p className="text-xs text-gray-500 mt-1">{t('gearHintCatalog')}</p>
+        </div>
 
       <div className="space-y-3">
         <div className="relative">
@@ -297,7 +317,8 @@ export default function AdminInventoryGearPanel({ initialGear }: Props) {
           </div>
         )}
       </div>
-    </section>
+      </section>
+    </div>
   )
 }
 

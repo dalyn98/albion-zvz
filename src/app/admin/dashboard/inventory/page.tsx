@@ -3,6 +3,7 @@ import { Boxes } from 'lucide-react'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { listInventoryGearBaseCatalog } from '@/lib/inventory'
+import { listTrackedItems } from '@/app/actions/inventory-tracked'
 import AdminInventoryGearPanel from '@/components/AdminInventoryGearPanel'
 
 // 길드 장비 재고 관리. 수동 +/- 와 절대값 설정. 자동 -1 (제작 deliver 시) 은
@@ -14,8 +15,9 @@ export default async function AdminInventoryPage() {
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
 
-  const [gear, t] = await Promise.all([
+  const [gear, tracked, t] = await Promise.all([
     listInventoryGearBaseCatalog(guildId),
+    listTrackedItems(guildId),
     getTranslations('adminInventory'),
   ])
 
@@ -29,7 +31,7 @@ export default async function AdminInventoryPage() {
         <p className="text-gray-400 text-xs sm:text-sm mt-1">{t('pageDescription')}</p>
       </div>
 
-      <AdminInventoryGearPanel initialGear={gear} />
+      <AdminInventoryGearPanel initialGear={gear} initialTracked={tracked} />
     </div>
   )
 }

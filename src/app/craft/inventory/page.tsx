@@ -6,6 +6,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { listInventoryGearBaseCatalog } from '@/lib/inventory'
+import { listTrackedItems } from '@/app/actions/inventory-tracked'
 import AdminInventoryGearPanel from '@/components/AdminInventoryGearPanel'
 
 // 제작자/어드민이 길드 장비 재고를 직접 손볼 수 있는 페이지. 어드민의
@@ -49,7 +50,10 @@ export default async function CraftInventoryPage() {
     )
   }
 
-  const gear = await listInventoryGearBaseCatalog(guildId)
+  const [gear, tracked] = await Promise.all([
+    listInventoryGearBaseCatalog(guildId),
+    listTrackedItems(guildId),
+  ])
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-4">
@@ -69,7 +73,7 @@ export default async function CraftInventoryPage() {
         <p className="text-gray-400 text-xs sm:text-sm mt-1">{t('pageDescription')}</p>
       </div>
 
-      <AdminInventoryGearPanel initialGear={gear} />
+      <AdminInventoryGearPanel initialGear={gear} initialTracked={tracked} />
     </main>
   )
 }
