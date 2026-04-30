@@ -1,17 +1,26 @@
 // 길드 공개 페이지(/g/[slug])에서 길드원 본인이 보는 대시보드 섹션. 4개 카드:
-// 포인트 잔액 / 최근 거래 / 리기어 청구 / 최근 킬·데스. RSC 로 데이터 페치 후
+// 포인트 잔액 / 최근 거래 / 리기어 청구 / 최근 참여 전투. RSC 로 데이터 페치 후
 // 모든 라벨을 미리 풀어서 자식 카드에 prop 으로 넘긴다 (t() 함수 prop 금지 룰).
 
 import Link from 'next/link'
-import { Coins, ScrollText, Swords, Skull, ArrowRight, ShieldCheck } from 'lucide-react'
+import {
+  Coins,
+  ScrollText,
+  Swords,
+  ShieldCheck,
+  ShieldAlert,
+  Skull,
+  ArrowRight,
+} from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { ACCENT_CLASS_MAP } from '@/lib/guild-profile'
 import { formatRelativeFine } from '@/lib/relative-time'
+import type { BattleOutcome } from '@/lib/guild-profile-activity'
 import type {
   MemberDashboardSummary,
   MemberLedgerEntry,
   MemberRegearEntry,
-  MemberKillEntry,
+  MemberRecentBattleEntry,
   RegearStatusSummary,
 } from '@/lib/guild-profile-member-dashboard'
 
@@ -42,6 +51,18 @@ const REGEAR_STATUS_BADGE: Record<RegearStatusSummary, string> = {
   pending: 'bg-amber-500/15 text-amber-200 ring-amber-500/40',
   approved: 'bg-emerald-500/15 text-emerald-200 ring-emerald-500/40',
   rejected: 'bg-rose-500/15 text-rose-200 ring-rose-500/40',
+}
+
+const OUTCOME_BADGE: Record<BattleOutcome, string> = {
+  win: 'bg-emerald-500/15 text-emerald-200 ring-emerald-500/40',
+  loss: 'bg-rose-500/15 text-rose-200 ring-rose-500/40',
+  tie: 'bg-slate-500/15 text-slate-200 ring-slate-500/40',
+}
+
+const OUTCOME_ICON: Record<BattleOutcome, React.ReactNode> = {
+  win: <ShieldCheck size={11} />,
+  loss: <Skull size={11} />,
+  tie: <ShieldAlert size={11} />,
 }
 
 export default async function MemberDashboardSection({
@@ -85,23 +106,25 @@ export default async function MemberDashboardSection({
           pendingLabel={t('memberPendingRegearsLabel')}
           pendingUnit={t('memberPendingRegearsUnit')}
         />
-        <KillsCard
-          entries={summary.recentKills}
+        <BattlesCard
+          entries={summary.recentBattles}
           accent={accent}
-          titleLabel={t('memberKillsLabel')}
-          emptyLabel={t('memberKillsEmpty')}
-          unitFame={t('killsUnit')}
+          titleLabel={t('memberBattlesLabel')}
+          emptyLabel={t('memberBattlesEmpty')}
+          unknownOpponentLabel={t('memberBattleUnknownOpponent')}
           formatTime={(iso) => formatRelativeFine(iso, tTime)}
-          formatOpponent={(entry) =>
-            entry.opponent_guild
-              ? t('memberKillsVsGuild', {
-                  opponent: entry.opponent_name ?? '—',
-                  guild: entry.opponent_guild,
-                })
-              : entry.opponent_name
-                ? t('memberKillsVs', { opponent: entry.opponent_name })
-                : t('memberKillsUnknown')
+          formatOpponent={(opponent) =>
+            opponent
+              ? t('memberBattleVs', { opponent })
+              : t('memberBattleUnknownOpponent')
           }
+          formatMyKD={(kills, deaths) =>
+            t('memberBattleMyKD', { kills, deaths })
+          }
+          formatTeamKD={(kills, deaths) =>
+            t('memberBattleTeamKD', { kills, deaths })
+          }
+          outcomeLabel={(outcome) => t(`memberBattleOutcome_${outcome}`)}
         />
         <RegearsCard
           entries={summary.recentRegears}
@@ -183,25 +206,30 @@ function BalanceCard({
   )
 }
 
-interface KillsCardProps {
-  entries: MemberKillEntry[]
+interface BattlesCardProps {
+  entries: MemberRecentBattleEntry[]
   accent: Accent
   titleLabel: string
   emptyLabel: string
-  unitFame: string
+  unknownOpponentLabel: string
   formatTime: (iso: string) => string
-  formatOpponent: (entry: MemberKillEntry) => string
+  formatOpponent: (opponent: string | null) => string
+  formatMyKD: (kills: number, deaths: number) => string
+  formatTeamKD: (kills: number, deaths: number) => string
+  outcomeLabel: (outcome: BattleOutcome) => string
 }
 
-function KillsCard({
+function BattlesCard({
   entries,
   accent,
   titleLabel,
   emptyLabel,
-  unitFame,
   formatTime,
   formatOpponent,
-}: KillsCardProps) {
+  formatMyKD,
+  formatTeamKD,
+  outcomeLabel,
+}: BattlesCardProps) {
   return (
     <div className={`rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm`}>
       <div className="flex items-center gap-2 mb-4">
@@ -219,29 +247,34 @@ function KillsCard({
       {entries.length === 0 ? (
         <p className="text-gray-500 text-xs">{emptyLabel}</p>
       ) : (
-        <ul className="space-y-2">
-          {entries.map((entry, idx) => (
-            <li
-              key={`${entry.event_id}-${idx}`}
-              className="flex items-center gap-3 text-xs"
-            >
-              <span
-                className={`shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-md text-[10px] font-bold ${
-                  entry.role === 'kill'
-                    ? 'bg-emerald-500/15 text-emerald-300'
-                    : 'bg-rose-500/15 text-rose-300'
-                }`}
-                aria-hidden
+        <ul className="space-y-2.5">
+          {entries.map((entry) => (
+            <li key={entry.battleId}>
+              <Link
+                href={`/battles/${entry.battleId}`}
+                className="flex items-center gap-2.5 text-xs hover:bg-white/[0.03] -mx-1 px-1 py-1 rounded-md transition-colors"
               >
-                {entry.role === 'kill' ? <Swords size={11} /> : <Skull size={11} />}
-              </span>
-              <span className="flex-1 truncate text-gray-300">{formatOpponent(entry)}</span>
-              <span className="text-gray-500 tabular-nums shrink-0">
-                {entry.fame.toLocaleString()} {unitFame}
-              </span>
-              <span className="text-gray-600 font-mono text-[10px] shrink-0">
-                {formatTime(entry.occurred_at)}
-              </span>
+                <span
+                  className={`shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold ring-1 ${OUTCOME_BADGE[entry.outcome]}`}
+                  aria-hidden
+                >
+                  {OUTCOME_ICON[entry.outcome]}
+                  <span>{outcomeLabel(entry.outcome)}</span>
+                </span>
+                <span className="flex-1 min-w-0 space-y-0.5">
+                  <span className="block truncate text-gray-300">
+                    {formatOpponent(entry.primaryOpponentName)}
+                  </span>
+                  <span className="block text-gray-500 text-[10px] tabular-nums">
+                    <span className="text-gray-300">{formatMyKD(entry.myKills, entry.myDeaths)}</span>
+                    <span className="mx-1.5 text-gray-700">·</span>
+                    {formatTeamKD(entry.homeKills, entry.homeDeaths)}
+                  </span>
+                </span>
+                <span className="text-gray-600 font-mono text-[10px] shrink-0">
+                  {formatTime(entry.startedAt)}
+                </span>
+              </Link>
             </li>
           ))}
         </ul>

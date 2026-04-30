@@ -4,12 +4,22 @@
 // 4종에 필요한 최소 컬럼만 가져온다.
 
 import { getAdminClient } from './supabase-admin'
+import { getAppSetting } from './app-settings'
+import {
+  fetchTrackedBattleWindows,
+  fetchMemberBattleParticipations,
+  groupMemberKillsByBattle,
+  mergeMemberBattles,
+} from './tracked-kills'
+import type { BattleOutcome } from './guild-profile-activity'
 
 const RECENT_LEDGER_LIMIT = 3
 const RECENT_REGEAR_LIMIT = 3
-const RECENT_KILL_LIMIT = 5
+const RECENT_BATTLE_LIMIT = 5
 
 export type RegearStatusSummary = 'pending' | 'approved' | 'rejected'
+
+export type BattleSizeCategory = 'small' | 'middle' | 'large' | 'zerg'
 
 export interface MemberLedgerEntry {
   id: string
@@ -29,13 +39,20 @@ export interface MemberRegearEntry {
   created_at: string
 }
 
-export interface MemberKillEntry {
-  event_id: string
-  role: 'kill' | 'death'
-  fame: number
-  occurred_at: string
-  opponent_name: string | null
-  opponent_guild: string | null
+// 본인 참여 최근 전투 한 건. battleId 는 tenant_battle_records.id 로,
+// /battles/[id] 라우팅 키. myKills/myDeaths 는 본인의 K/D, homeKills/Deaths
+// 는 길드 전체 합산 — 카드에서 둘 다 노출.
+export interface MemberRecentBattleEntry {
+  battleId: string
+  startedAt: string
+  outcome: BattleOutcome
+  myKills: number
+  myDeaths: number
+  homeKills: number
+  homeDeaths: number
+  homeTeamSize: number
+  primaryOpponentName: string | null
+  sizeCategory: BattleSizeCategory
 }
 
 export interface MemberDashboardSummary {
@@ -43,7 +60,7 @@ export interface MemberDashboardSummary {
   pendingRegearCount: number
   recentLedger: MemberLedgerEntry[]
   recentRegears: MemberRegearEntry[]
-  recentKills: MemberKillEntry[]
+  recentBattles: MemberRecentBattleEntry[]
 }
 
 // 멤버가 길드에 등록되어 있지 않으면 null. 등록되어 있어도 활동이 없으면
@@ -61,9 +78,12 @@ export async function loadMemberDashboardSummary(
     .eq('discord_id', discordId)
     .maybeSingle()
   if (avatarRes.error || !avatarRes.data) return null
-  const albionPlayerId = (avatarRes.data.albion_player_id as string | null) ?? ''
+  const albionPlayerId = (avatarRes.data.albion_player_id as string | null) ?? null
 
-  const [ledgerSum, recentLedgerRes, regearAggRes, recentRegearRes, recentKillRes] =
+  const bundleSplits =
+    (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
+
+  const [ledgerSum, recentLedgerRes, regearAggRes, recentRegearRes, recentBattles] =
     await Promise.all([
       // balance = sum(delta). point_ledger 는 append-only 라 delta 합이 곧 잔액.
       db.from('point_ledger').select('delta').eq('guild_id', guildId).eq('discord_id', discordId),
@@ -89,15 +109,7 @@ export async function loadMemberDashboardSummary(
         .eq('discord_id', discordId)
         .order('created_at', { ascending: false })
         .limit(RECENT_REGEAR_LIMIT),
-      albionPlayerId
-        ? db
-            .from('killboard_events')
-            .select('event_id, role, fame, occurred_at, opponent_name, opponent_guild')
-            .eq('guild_id', guildId)
-            .eq('albion_player_id', albionPlayerId)
-            .order('occurred_at', { ascending: false })
-            .limit(RECENT_KILL_LIMIT)
-        : Promise.resolve({ data: [], error: null } as const),
+      loadRecentMemberBattles(guildId, discordId, albionPlayerId, bundleSplits),
     ])
 
   let balance = 0
@@ -124,20 +136,112 @@ export async function loadMemberDashboardSummary(
     created_at: r.created_at as string,
   }))
 
-  const recentKills: MemberKillEntry[] = (recentKillRes.data ?? []).map((r) => ({
-    event_id: r.event_id as string,
-    role: r.role as 'kill' | 'death',
-    fame: Number(r.fame) || 0,
-    occurred_at: r.occurred_at as string,
-    opponent_name: (r.opponent_name as string | null) ?? null,
-    opponent_guild: (r.opponent_guild as string | null) ?? null,
-  }))
-
   return {
     balance,
     pendingRegearCount: regearAggRes.data?.length ?? 0,
     recentLedger,
     recentRegears,
-    recentKills,
+    recentBattles,
   }
+}
+
+// 본인 참여 최근 트래킹 전투를 멤버별 K/D + 길드 전체 K/D + 상대 정보로 합쳐
+// 반환. 계산 흐름은 me-dashboard / members-admin / leaderboard 와 동일하게
+// (1) tracked windows 로 engagement 컷 + bundleSplits 처리, (2) killboard 로
+// 본인 K/D, (3) raw_battle.players RPC 로 0K0D 참여까지 수합. 그 뒤 최근 5건만
+// tenant_battle_records 에서 길드 K/D · 상대 정보를 보강. 본인 참여가 없는 길드
+// 전투는 자동 제외.
+async function loadRecentMemberBattles(
+  guildId: string,
+  discordId: string,
+  albionPlayerId: string | null,
+  bundleSplits: boolean,
+): Promise<MemberRecentBattleEntry[]> {
+  const db = getAdminClient()
+
+  const [trackedBattles, killboardRes, participationsByMember] = await Promise.all([
+    fetchTrackedBattleWindows(db, guildId, null, { bundleSplits }),
+    db
+      .from('killboard_events')
+      .select('role, occurred_at, battle_id')
+      .eq('guild_id', guildId)
+      .eq('discord_id', discordId),
+    fetchMemberBattleParticipations(db, guildId),
+  ])
+
+  const memberParticipations = albionPlayerId
+    ? participationsByMember.byAlbionPlayerId.get(albionPlayerId)
+    : undefined
+  const killBattles = groupMemberKillsByBattle(killboardRes.data ?? [], trackedBattles)
+  const battles = mergeMemberBattles(killBattles, memberParticipations, trackedBattles)
+  if (battles.length === 0) return []
+
+  // mergeMemberBattles 는 startedAt asc 정렬. 최근 5건만 추려서 enrichment.
+  const topN = [...battles]
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+    .slice(0, RECENT_BATTLE_LIMIT)
+
+  const startedAts = topN.map((b) => b.startedAt)
+  const { data: enrichRaw } = await db
+    .from('tenant_battle_records')
+    .select(
+      'id, started_at, home_kills, home_deaths, home_team_size, primary_opponent_name, size_category, main_opponent_team_size',
+    )
+    .eq('guild_id', guildId)
+    .in('started_at', startedAts)
+
+  type EnrichRow = {
+    id: string
+    started_at: string
+    home_kills: number | null
+    home_deaths: number | null
+    home_team_size: number | null
+    primary_opponent_name: string | null
+    size_category: string | null
+    main_opponent_team_size: number | null
+  }
+
+  // 같은 started_at 에 split row 가 여러 개 있을 수 있다. canonical 기준으로
+  // main_opponent_team_size 가 가장 큰 row 를 채택 — bundleSplits=true 의 windows
+  // 와 일치하고, false 일 때도 가장 큰 매치업 (= 본 전투의 주적) 을 보여주는 게
+  // "최근 전투 카드" 의 정보 손실이 적다.
+  const enrichByStartedAt = new Map<string, EnrichRow>()
+  for (const row of (enrichRaw ?? []) as EnrichRow[]) {
+    const existing = enrichByStartedAt.get(row.started_at)
+    if (
+      !existing ||
+      (row.main_opponent_team_size ?? 0) > (existing.main_opponent_team_size ?? 0)
+    ) {
+      enrichByStartedAt.set(row.started_at, row)
+    }
+  }
+
+  const result: MemberRecentBattleEntry[] = []
+  for (const b of topN) {
+    const enrich = enrichByStartedAt.get(b.startedAt)
+    if (!enrich) continue
+    result.push({
+      battleId: enrich.id,
+      startedAt: b.startedAt,
+      outcome: normalizeBattleOutcome(b.outcome),
+      myKills: b.killCount,
+      myDeaths: b.deathCount,
+      homeKills: enrich.home_kills ?? 0,
+      homeDeaths: enrich.home_deaths ?? 0,
+      homeTeamSize: enrich.home_team_size ?? 0,
+      primaryOpponentName: enrich.primary_opponent_name,
+      sizeCategory: normalizeSizeCategory(enrich.size_category),
+    })
+  }
+  return result
+}
+
+function normalizeBattleOutcome(raw: string): BattleOutcome {
+  if (raw === 'win' || raw === 'loss' || raw === 'tie') return raw
+  return 'tie'
+}
+
+function normalizeSizeCategory(raw: string | null): BattleSizeCategory {
+  if (raw === 'small' || raw === 'middle' || raw === 'large' || raw === 'zerg') return raw
+  return 'small'
 }
