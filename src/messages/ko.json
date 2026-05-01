@@ -835,7 +835,12 @@
     "galleryMoveDown": "아래로",
     "galleryItemAlt": "갤러리 이미지",
     "galleryCaptionPlaceholder": "캡션 (선택)",
-    "galleryAtMaxLabel": "최대 {max}장까지 추가할 수 있어요. 새 이미지를 넣으려면 기존 이미지를 먼저 삭제해 주세요."
+    "galleryAtMaxLabel": "최대 {max}장까지 추가할 수 있어요. 새 이미지를 넣으려면 기존 이미지를 먼저 삭제해 주세요.",
+    "bannerInlineButton": "배너 편집",
+    "galleryInlineButton": "갤러리 편집",
+    "inlineEditNoticeTitle": "배너 / 갤러리 / 섹션 노출 토글은 공개 페이지에서 직접 편집",
+    "inlineEditNoticeBody": "내 길드 공개 프로필에 들어가면 어드민 본인에게만 보이는 편집 핀이 카드마다 떠 있습니다. 배너 이미지 자체는 hero 우측 상단의 \"배너 편집\" 버튼으로, 통계/운영진/무기/라이벌 등 섹션은 우측 상단의 눈 아이콘으로 끄고 켤 수 있어요.",
+    "inlineEditNoticeLink": "공개 프로필에서 편집하기"
   },
   "publicGuildProfile": {
     "recruitment_open": "모집중",
@@ -869,6 +874,10 @@
     "killsUnit": "킬",
     "emptySections": "표시할 섹션이 없습니다.",
     "poweredBy": "Albion Guild Manager 로 만든 길드 프로필",
+    "hideSectionTitle": "이 섹션 숨기기",
+    "hideSectionConfirm": "이 섹션을 공개 페이지에서 숨길까요? 어드민 영역에서 다시 켤 수 있어요.",
+    "hiddenSectionsTitle": "어드민 전용 — 숨겨진 섹션을 다시 켜기",
+    "galleryEmptyAdmin": "아직 추가된 갤러리 이미지가 없어요. 우측 상단의 편집 버튼으로 추가해 보세요.",
     "memberHeading": "내 활동",
     "memberSubheading": "{username}님의 길드 활동 요약",
     "memberSeeMoreLink": "전체 통계 보기",

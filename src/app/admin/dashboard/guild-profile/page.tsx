@@ -1,20 +1,18 @@
 import Link from 'next/link'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, Info } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { loadGuildProfileSettings } from '@/lib/guild-profile'
-import { loadGalleryItems } from '@/lib/guild-profile-gallery'
-import GuildProfileBannerForm from '@/components/GuildProfileBannerForm'
 import GuildProfileEditor from '@/components/GuildProfileEditor'
-import GuildProfileGalleryEditor from '@/components/GuildProfileGalleryEditor'
 
 export const dynamic = 'force-dynamic'
 
-// 어드민이 공개 길드 프로필 (/g/<slug>) 의 hero 배너, 소개글, 색상 테마, 섹션
-// 노출 토글, 모집 상태 / Discord 초대 링크를 한 화면에서 편집한다.
+// 어드민이 공개 길드 프로필 (/g/<슬러그>) 의 색상 테마, 모집 상태, Discord
+// 초대 링크를 편집한다. 배너·갤러리·섹션 노출 토글은 인라인 편집으로 옮겨갔다
+// (어드민이 공개 페이지에서 직접 편집).
 // guild_profile_enabled 플래그가 false 면 "기능 미활성화" 라벨로 가린다 — 단계적
 // 롤아웃을 위한 길드 단위 게이트.
 export default async function GuildProfileAdminPage() {
@@ -24,7 +22,6 @@ export default async function GuildProfileAdminPage() {
   const t = await getTranslations('adminGuildProfile')
 
   const settings = await loadGuildProfileSettings(tenantId)
-  const galleryItems = settings.enabled ? await loadGalleryItems(tenantId) : []
 
   // 슬러그 미리보기 — 어드민이 "내 프로필 보기" 링크로 새 탭에서 확인할 수 있게.
   const db = getAdminClient()
@@ -72,21 +69,28 @@ export default async function GuildProfileAdminPage() {
         )}
       </div>
 
-      <GuildProfileBannerForm currentUrl={settings.bannerUrl} />
-
-      <GuildProfileGalleryEditor items={galleryItems} />
+      {previewHref && (
+        <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl px-4 py-3 flex items-start gap-3">
+          <Info size={16} className="text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1.5 min-w-0">
+            <p className="text-amber-200 text-xs font-bold">{t('inlineEditNoticeTitle')}</p>
+            <p className="text-gray-400 text-xs leading-relaxed">{t('inlineEditNoticeBody')}</p>
+            <Link
+              href={previewHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-amber-300 hover:text-amber-200 text-xs font-semibold mt-1"
+            >
+              {t('inlineEditNoticeLink')}
+              <ExternalLink size={11} />
+            </Link>
+          </div>
+        </div>
+      )}
 
       <GuildProfileEditor
         initialDescription={settings.description}
         initialAccentColor={settings.accentColor}
-        initialShowMembers={settings.showMembers}
-        initialShowBattles={settings.showBattles}
-        initialShowRegearStats={settings.showRegearStats}
-        initialShowLeaderboard={settings.showLeaderboard}
-        initialShowStats={settings.showStats}
-        initialShowAdminTeam={settings.showAdminTeam}
-        initialShowWeapons={settings.showWeapons}
-        initialShowRivals={settings.showRivals}
         initialRecruitmentStatus={settings.recruitmentStatus}
         initialDiscordInviteUrl={settings.discordInviteUrl}
       />

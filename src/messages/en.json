@@ -835,7 +835,12 @@
     "galleryMoveDown": "Move down",
     "galleryItemAlt": "Gallery image",
     "galleryCaptionPlaceholder": "Caption (optional)",
-    "galleryAtMaxLabel": "You can add up to {max} images. Remove an existing one to add a new one."
+    "galleryAtMaxLabel": "You can add up to {max} images. Remove an existing one to add a new one.",
+    "bannerInlineButton": "Edit banner",
+    "galleryInlineButton": "Edit gallery",
+    "inlineEditNoticeTitle": "Edit banner / gallery / section visibility on the public page",
+    "inlineEditNoticeBody": "Open your guild's public profile and you'll see admin-only edit pins on each card. The hero banner has an \"Edit banner\" button in its top-right corner, and sections like stats, admin team, weapons, and rivals can be hidden or shown via the eye icon at the top-right of each card.",
+    "inlineEditNoticeLink": "Edit on public profile"
   },
   "publicGuildProfile": {
     "recruitment_open": "Recruiting",
@@ -869,6 +874,10 @@
     "killsUnit": "kills",
     "emptySections": "No sections to display.",
     "poweredBy": "Profile by Albion Guild Manager",
+    "hideSectionTitle": "Hide this section",
+    "hideSectionConfirm": "Hide this section from the public page? You can show it again from the admin area.",
+    "hiddenSectionsTitle": "Admin only — show hidden sections again",
+    "galleryEmptyAdmin": "No gallery images added yet. Use the edit button in the top-right to add the first one.",
     "memberHeading": "Your activity",
     "memberSubheading": "Guild activity summary for {username}",
     "memberSeeMoreLink": "View full stats",

@@ -62,6 +62,12 @@ import { getLocalizedItemName } from '@/lib/item-names'
 import { canonicalT8WeaponId, stripTierPrefix } from '@/lib/weapon-display'
 import InlineEditableField, { type EditorOption } from '@/components/guild/InlineEditableField'
 import AdminTeamGridClient from '@/components/AdminTeamGridClient'
+import BannerInlineEdit from '@/components/guild/BannerInlineEdit'
+import SectionVisibilityPin from '@/components/guild/SectionVisibilityPin'
+import GalleryInlineEdit from '@/components/guild/GalleryInlineEdit'
+import HiddenSectionsAdminBar, {
+  type HiddenSectionEntry,
+} from '@/components/guild/HiddenSectionsAdminBar'
 
 export const dynamic = 'force-dynamic'
 
@@ -309,6 +315,24 @@ export default async function GuildProfilePage({
     ['ko', 'ja', 'en', 'zh', 'es', 'fr', 'de', 'pt'] as const
   ).map((code) => ({ value: code, label: t(`language_${code}`) }))
 
+  // 어드민이 인라인 핀으로 끈 섹션 모음. 페이지 하단의 "다시 보이기" 위젯이
+  // 이 목록을 받아 다시 켜는 단일 진입점을 제공. 어드민 외에는 빈 배열 처리.
+  const hiddenSectionCandidates: Array<HiddenSectionEntry | null> = isOwnGuildAdmin
+    ? [
+        settings.showStats ? null : { settingKey: 'guild_profile_show_stats', label: t('statsHeading') },
+        settings.showAdminTeam ? null : { settingKey: 'guild_profile_show_admin_team', label: t('adminTeamHeading') },
+        settings.showWeapons ? null : { settingKey: 'guild_profile_show_weapons', label: t('weaponDistributionLabel') },
+        settings.showRivals ? null : { settingKey: 'guild_profile_show_rivals', label: t('rivalsLabel') },
+        settings.showMembers ? null : { settingKey: 'guild_profile_show_members', label: t('statMembers') },
+        settings.showBattles ? null : { settingKey: 'guild_profile_show_battles', label: t('statBattles') },
+        settings.showRegearStats ? null : { settingKey: 'guild_profile_show_regear_stats', label: t('statRegear') },
+        settings.showLeaderboard ? null : { settingKey: 'guild_profile_show_leaderboard', label: t('statLeaderboard') },
+      ]
+    : []
+  const hiddenSections: HiddenSectionEntry[] = hiddenSectionCandidates.filter(
+    (entry): entry is HiddenSectionEntry => entry !== null,
+  )
+
   return (
     <div className="min-h-screen bg-[#08090d] text-white">
       {!viewingOwnGuild && <MarketingNav />}
@@ -317,6 +341,7 @@ export default async function GuildProfilePage({
           모집 open 일 때 도트가 ping. 길드명은 모바일/데스크탑 4xl→6xl→7xl 로
           반응형 점진 확대. */}
       <header className="relative overflow-hidden">
+        <BannerInlineEdit enabled={isOwnGuildAdmin} currentUrl={settings.bannerUrl} />
         <div className={`absolute inset-0 ${accent.heroGradient}`} />
         <div
           className={`absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full ${accent.heroGlow} blur-3xl pointer-events-none`}
@@ -582,21 +607,34 @@ export default async function GuildProfilePage({
           </section>
         )}
 
-        {/* 갤러리 — 항목 수에 따라 1열 / 2열 / editorial(1+rest) 자동 전환 */}
-        {galleryItems.length > 0 && (
-          <section className="space-y-4">
+        {/* 갤러리 — 항목 수에 따라 1열 / 2열 / editorial(1+rest) 자동 전환.
+            어드민 본인이면 비어 있어도 "편집" 핀을 노출해 첫 항목을 추가할 수 있게 한다. */}
+        {(galleryItems.length > 0 || isOwnGuildAdmin) && (
+          <section className="relative group space-y-4">
+            <GalleryInlineEdit enabled={isOwnGuildAdmin} items={galleryItems} />
             <SectionHeader
               icon={<ImageIcon size={14} />}
               label={t('galleryHeading')}
               accent={accent}
             />
-            <GalleryGrid items={galleryItems} fallbackAlt={tenant.name} accent={accent} />
+            {galleryItems.length > 0 ? (
+              <GalleryGrid items={galleryItems} fallbackAlt={tenant.name} accent={accent} />
+            ) : (
+              <div className="rounded-xl border border-dashed border-gray-700 bg-gray-950/40 px-4 py-12 text-center">
+                <ImageIcon size={28} className="mx-auto text-gray-600" />
+                <p className="text-gray-500 text-xs mt-2">{t('galleryEmptyAdmin')}</p>
+              </div>
+            )}
           </section>
         )}
 
         {/* 통계 카드 — 큰 숫자 + 아이콘 칩 + 코너 글로우 */}
         {hasStats && (
-          <section className="space-y-4">
+          <section className="relative group space-y-4">
+            <SectionVisibilityPin
+              enabled={isOwnGuildAdmin}
+              settingKey="guild_profile_show_stats"
+            />
             <SectionHeader
               icon={<BarChart3 size={14} />}
               label={t('statsHeading')}
@@ -755,7 +793,11 @@ export default async function GuildProfilePage({
 
         {/* 어드민 팀 — guild_avatars.is_admin = true 인 활성 길드원. 자동 추출. */}
         {showAdminTeam && (
-          <section className="space-y-4">
+          <section className="relative group space-y-4">
+            <SectionVisibilityPin
+              enabled={isOwnGuildAdmin}
+              settingKey="guild_profile_show_admin_team"
+            />
             <SectionHeader
               icon={<ShieldHalf size={14} />}
               label={t('adminTeamHeading')}
@@ -780,8 +822,14 @@ export default async function GuildProfilePage({
             />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {showWeapons && (
-                <WeaponDistributionCard
-                  weapons={weaponDistribution.map((w) => {
+                <div className="relative group">
+                  <SectionVisibilityPin
+                    enabled={isOwnGuildAdmin}
+                    settingKey="guild_profile_show_weapons"
+                    size="sm"
+                  />
+                  <WeaponDistributionCard
+                    weapons={weaponDistribution.map((w) => {
                     // 카테고리를 T8.0 base id 로 정규화해 albion-items 번들에서
                     // 로컬라이즈된 이름을 가져온다. 인챈트/티어 변종은 번들에 없는
                     // 경우가 있어 base 형으로 수렴 — 한국어면 "장로의 X" 가 되므로
@@ -795,29 +843,39 @@ export default async function GuildProfilePage({
                       label: stripTierPrefix(localized) || w.category,
                     }
                   })}
-                  totalCount={weaponTotalCount}
-                  accent={accent}
-                  titleLabel={t('weaponDistributionLabel')}
-                  windowLabel={t('rolling30dLabel')}
-                />
+                    totalCount={weaponTotalCount}
+                    accent={accent}
+                    titleLabel={t('weaponDistributionLabel')}
+                    windowLabel={t('rolling30dLabel')}
+                  />
+                </div>
               )}
               {showRivals && (
-                <RivalsCard
-                  rivals={rivals}
-                  accent={accent}
-                  titleLabel={t('rivalsLabel')}
-                  windowLabel={t('rolling30dLabel')}
-                  battlesUnit={t('battlesUnit')}
-                />
+                <div className="relative group">
+                  <SectionVisibilityPin
+                    enabled={isOwnGuildAdmin}
+                    settingKey="guild_profile_show_rivals"
+                    size="sm"
+                  />
+                  <RivalsCard
+                    rivals={rivals}
+                    accent={accent}
+                    titleLabel={t('rivalsLabel')}
+                    windowLabel={t('rolling30dLabel')}
+                    battlesUnit={t('battlesUnit')}
+                  />
+                </div>
               )}
             </div>
           </section>
         )}
 
         {/* 섹션이 모두 꺼져있을 때 (갤러리도 비어있을 때) */}
-        {!hasStats && galleryItems.length === 0 && (
+        {!hasStats && galleryItems.length === 0 && !isOwnGuildAdmin && (
           <p className="text-gray-500 text-sm text-center py-12">{t('emptySections')}</p>
         )}
+
+        <HiddenSectionsAdminBar enabled={isOwnGuildAdmin} hiddenSections={hiddenSections} />
 
         <div className="border-t border-gray-900 pt-6 flex items-center justify-between gap-3 flex-wrap">
           <p className="text-gray-600 text-xs flex items-center gap-2">

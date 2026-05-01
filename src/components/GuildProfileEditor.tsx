@@ -19,14 +19,6 @@ const URL_MAX_LENGTH = 500
 interface Props {
   initialDescription: string
   initialAccentColor: AccentColor
-  initialShowMembers: boolean
-  initialShowBattles: boolean
-  initialShowRegearStats: boolean
-  initialShowLeaderboard: boolean
-  initialShowStats: boolean
-  initialShowAdminTeam: boolean
-  initialShowWeapons: boolean
-  initialShowRivals: boolean
   initialRecruitmentStatus: RecruitmentStatus
   initialDiscordInviteUrl: string
 }
@@ -34,14 +26,6 @@ interface Props {
 export default function GuildProfileEditor({
   initialDescription,
   initialAccentColor,
-  initialShowMembers,
-  initialShowBattles,
-  initialShowRegearStats,
-  initialShowLeaderboard,
-  initialShowStats,
-  initialShowAdminTeam,
-  initialShowWeapons,
-  initialShowRivals,
   initialRecruitmentStatus,
   initialDiscordInviteUrl,
 }: Props) {
@@ -51,14 +35,6 @@ export default function GuildProfileEditor({
 
   const [description, setDescription] = useState(initialDescription)
   const [accentColor, setAccentColor] = useState<AccentColor>(initialAccentColor)
-  const [showMembers, setShowMembers] = useState(initialShowMembers)
-  const [showBattles, setShowBattles] = useState(initialShowBattles)
-  const [showRegearStats, setShowRegearStats] = useState(initialShowRegearStats)
-  const [showLeaderboard, setShowLeaderboard] = useState(initialShowLeaderboard)
-  const [showStats, setShowStats] = useState(initialShowStats)
-  const [showAdminTeam, setShowAdminTeam] = useState(initialShowAdminTeam)
-  const [showWeapons, setShowWeapons] = useState(initialShowWeapons)
-  const [showRivals, setShowRivals] = useState(initialShowRivals)
   const [recruitmentStatus, setRecruitmentStatus] = useState<RecruitmentStatus>(
     initialRecruitmentStatus,
   )
@@ -102,16 +78,6 @@ export default function GuildProfileEditor({
     if (next === accentColor) return
     setAccentColor(next)
     save('accent', 'guild_profile_accent_color', next)
-  }
-
-  const toggle = (
-    label: string,
-    key: Parameters<typeof updateAppSetting>[0],
-    next: boolean,
-    setter: (v: boolean) => void,
-  ) => {
-    setter(next)
-    save(label, key, next ? 'true' : 'false')
   }
 
   const handleRecruitmentSelect = (next: RecruitmentStatus) => {
@@ -204,74 +170,6 @@ export default function GuildProfileEditor({
         )}
       </section>
 
-      {/* 섹션 노출 토글 */}
-      <section className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-3">
-        <div>
-          <h2 className="font-bold text-white text-base">{t('sectionsTitle')}</h2>
-          <p className="text-gray-500 text-xs mt-1">{t('sectionsDescription')}</p>
-        </div>
-        <ToggleRow
-          label={t('sectionMembers')}
-          checked={showMembers}
-          onChange={(v) => toggle('section', 'guild_profile_show_members', v, setShowMembers)}
-          disabled={savingKey !== null}
-        />
-        <ToggleRow
-          label={t('sectionBattles')}
-          checked={showBattles}
-          onChange={(v) => toggle('section', 'guild_profile_show_battles', v, setShowBattles)}
-          disabled={savingKey !== null}
-        />
-        <ToggleRow
-          label={t('sectionRegearStats')}
-          checked={showRegearStats}
-          onChange={(v) =>
-            toggle('section', 'guild_profile_show_regear_stats', v, setShowRegearStats)
-          }
-          disabled={savingKey !== null}
-        />
-        <ToggleRow
-          label={t('sectionLeaderboard')}
-          checked={showLeaderboard}
-          onChange={(v) =>
-            toggle('section', 'guild_profile_show_leaderboard', v, setShowLeaderboard)
-          }
-          disabled={savingKey !== null}
-        />
-        <ToggleRow
-          label={t('sectionStats')}
-          checked={showStats}
-          onChange={(v) => toggle('section', 'guild_profile_show_stats', v, setShowStats)}
-          disabled={savingKey !== null}
-        />
-        <ToggleRow
-          label={t('sectionAdminTeam')}
-          checked={showAdminTeam}
-          onChange={(v) =>
-            toggle('section', 'guild_profile_show_admin_team', v, setShowAdminTeam)
-          }
-          disabled={savingKey !== null}
-        />
-        <ToggleRow
-          label={t('sectionWeapons')}
-          checked={showWeapons}
-          onChange={(v) => toggle('section', 'guild_profile_show_weapons', v, setShowWeapons)}
-          disabled={savingKey !== null}
-        />
-        <ToggleRow
-          label={t('sectionRivals')}
-          checked={showRivals}
-          onChange={(v) => toggle('section', 'guild_profile_show_rivals', v, setShowRivals)}
-          disabled={savingKey !== null}
-        />
-        {savedKey === 'section' && (
-          <p className="text-[11px] text-emerald-400 flex items-center gap-1">
-            <Check size={10} />
-            {tCommon('saved')}
-          </p>
-        )}
-      </section>
-
       {/* 모집 상태 + Discord */}
       <section className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4">
         <div>
@@ -349,31 +247,5 @@ export default function GuildProfileEditor({
         </div>
       )}
     </div>
-  )
-}
-
-interface ToggleRowProps {
-  label: string
-  checked: boolean
-  onChange: (next: boolean) => void
-  disabled?: boolean
-}
-
-function ToggleRow({ label, checked, onChange, disabled }: ToggleRowProps) {
-  return (
-    <label
-      className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-gray-800/60 hover:bg-gray-800 transition-colors cursor-pointer ${
-        disabled ? 'opacity-50 cursor-not-allowed' : ''
-      }`}
-    >
-      <span className="text-sm text-gray-200">{label}</span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        disabled={disabled}
-        className="w-4 h-4 accent-amber-500"
-      />
-    </label>
   )
 }
