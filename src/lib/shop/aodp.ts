@@ -86,6 +86,11 @@ export interface AodpOptions {
   mode?: AodpPriceMode
   // 실제 아이템 품질이 이 값보다 낮으면 이 값으로 끌어올려 조회.
   minQuality?: number
+  // true 면 결과 집계에서 품질 축을 제거. 같은 (uniqueName, enchant) 의 모든
+  // 품질 변종이 동일 가격을 공유한다 (item|location 단위 가중 중앙값). AODP
+  // 호출은 여전히 모든 품질 데이터를 가져오지만 응답에서 품질을 무시하고 통합.
+  // 길드 운영 맥락에서 품질이 가격 의사결정에 거의 영향 없다는 도메인 가정.
+  qualityAgnostic?: boolean
 }
 
 export interface AodpPriceKey {
@@ -321,11 +326,12 @@ function computeConfidence(
 // `albion_server` 를 함께 읽어 AODP 호스트도 맞춘다.
 // guildId 는 필수 — 호출자가 항상 명시해 cross-tenant 누설을 막는다.
 export async function loadAodpOptions(guildId: string): Promise<Required<AodpOptions>> {
-  const [serverRaw, citiesRaw, modeRaw, minQualityRaw] = await Promise.all([
+  const [serverRaw, citiesRaw, modeRaw, minQualityRaw, qualityAgnosticRaw] = await Promise.all([
     getAppSetting('albion_server', 'east', guildId),
     getAppSetting('aodp_cities', '', guildId),
     getAppSetting('aodp_price_mode', 'spot', guildId),
     getAppSetting('aodp_min_quality', '1', guildId),
+    getAppSetting('aodp_quality_agnostic', 'false', guildId),
   ])
   const server: AlbionServer =
     serverRaw === 'west' || serverRaw === 'east' || serverRaw === 'europe' ? serverRaw : 'east'
@@ -363,7 +369,9 @@ export async function loadAodpOptions(guildId: string): Promise<Required<AodpOpt
       ? minQualityParsed
       : 1
 
-  return { cities, server, mode, minQuality }
+  const qualityAgnostic = qualityAgnosticRaw === 'true'
+
+  return { cities, server, mode, minQuality, qualityAgnostic }
 }
 
 // AODP 폴백 체인의 한 단계. 사용자 설정(또는 widen 된 설정) 으로 한 번
@@ -376,7 +384,7 @@ async function fetchAodpPricesExact(
   options: Required<AodpOptions>,
 ): Promise<Map<string, AodpPriceResult>> {
   if (keys.length === 0) return new Map()
-  const { cities, server, mode, minQuality } = options
+  const { cities, server, mode, minQuality, qualityAgnostic } = options
   const host = AODP_HOSTS[server]
 
   const uniqIds = Array.from(new Set(keys.map(itemId)))
@@ -420,6 +428,125 @@ async function fetchAodpPricesExact(
       sampleCount: hit?.sampleCount ?? null,
       confidence: computeConfidence(hit, tier, hit ? source : null, now),
     }
+  }
+
+  // 품질 무관 모드용 결과 빌더 — 품질 폴백 차원이 없으므로 tier 는 exact|none
+  // 만 가능. usedQuality 는 항상 요청 품질을 그대로 반환 (가격은 모든 품질
+  // 변종이 공유하지만, 호출자가 요청한 품질 자체는 보존해야 후속 매핑에서
+  // 같은 inventoryKey 로 잡히기 때문).
+  const buildResultAgnostic = (
+    k: AodpPriceKey,
+    hit:
+      | { price: number; city: string; sampledAt: string; sampleCount: number | null }
+      | null,
+    source: 'history' | 'spot' | null,
+  ): AodpPriceResult => {
+    const tier: AodpFallbackTier = hit ? 'exact' : 'none'
+    return {
+      uniqueName: k.uniqueName,
+      enchant: k.enchant,
+      quality: k.quality,
+      price: hit?.price ?? null,
+      city: hit?.city ?? null,
+      sampledAt: hit?.sampledAt ?? null,
+      source: hit ? source : null,
+      usedQuality: hit ? k.quality : null,
+      fallbackTier: tier,
+      sampleCount: hit?.sampleCount ?? null,
+      confidence: computeConfidence(hit, tier, hit ? source : null, now),
+    }
+  }
+
+  if (qualityAgnostic) {
+    // 품질을 결과 집계 축에서 제거. spot 은 (item, location, quality) 행을
+    // item 으로 collapse 해 최저가 채택. history 는 (item, location) 단위로
+    // 모든 품질의 bucket 을 합쳐 weightedMedian.
+    if (mode === 'spot') {
+      const spotMap = await fetchSpotBestByKey(host, uniqIds, qualities, cities, CHUNK)
+      const itemBest = new Map<
+        string,
+        { price: number; city: string; sampledAt: string; sampleCount: number | null }
+      >()
+      for (const [mk, v] of spotMap) {
+        const id = mk.split('|')[0]
+        const prev = itemBest.get(id)
+        if (!prev || v.price < prev.price) itemBest.set(id, v)
+      }
+      for (const k of keys) {
+        const id = itemId(k)
+        const best = itemBest.get(id) ?? null
+        const outKey = `${k.uniqueName}|${k.enchant}|${k.quality}`
+        result.set(outKey, buildResultAgnostic(k, best, 'spot'))
+      }
+      return result
+    }
+
+    // history 모드 — bucket 들을 (item, location) 단위로 모은 뒤 weightedMedian,
+    // 그 다음 도시 중 최저가 채택.
+    const days = modeToDays(mode)
+    const all: AodpHistoryRow[] = []
+    for (let i = 0; i < uniqIds.length; i += CHUNK) {
+      const slice = uniqIds.slice(i, i + CHUNK)
+      all.push(...(await fetchHistoryBatch(host, slice, qualities, cities, days)))
+    }
+    // `${item_id} ${location}` — `|` 가 itemId 안에 안 쓰여서 쓰는 곳도
+    // 있지만 location 명에 `|` 가 들어갈 일은 없어도 일단 null-byte 로 안전.
+    const bucketsByItemLoc = new Map<string, AodpHistoryBucket[]>()
+    for (const row of all) {
+      const k = `${row.item_id} ${row.location}`
+      const list = bucketsByItemLoc.get(k) ?? []
+      list.push(...(row.data ?? []))
+      bucketsByItemLoc.set(k, list)
+    }
+    const historyBestByItem = new Map<
+      string,
+      { price: number; city: string; sampledAt: string; sampleCount: number }
+    >()
+    for (const [k, buckets] of bucketsByItemLoc) {
+      const [item_id, location] = k.split(' ')
+      const aggregate = weightedMedian(buckets)
+      if (!aggregate) continue
+      const prev = historyBestByItem.get(item_id)
+      if (!prev || aggregate.price < prev.price) {
+        historyBestByItem.set(item_id, {
+          price: aggregate.price,
+          city: location,
+          sampledAt: aggregate.sampledAt,
+          sampleCount: aggregate.sampleCount,
+        })
+      }
+    }
+
+    // history 미스인 item 만 spot 폴백으로 보강.
+    const missingItems = new Set<string>()
+    for (const k of keys) {
+      if (!historyBestByItem.has(itemId(k))) missingItems.add(itemId(k))
+    }
+    let spotBestByItem = new Map<
+      string,
+      { price: number; city: string; sampledAt: string; sampleCount: null }
+    >()
+    if (missingItems.size > 0) {
+      const spotMap = await fetchSpotBestByKey(host, uniqIds, qualities, cities, CHUNK)
+      for (const [mk, v] of spotMap) {
+        const id = mk.split('|')[0]
+        const prev = spotBestByItem.get(id)
+        if (!prev || v.price < prev.price) spotBestByItem.set(id, v)
+      }
+    }
+
+    for (const k of keys) {
+      const id = itemId(k)
+      const historyHit = historyBestByItem.get(id) ?? null
+      const spotHit = historyHit ? null : (spotBestByItem.get(id) ?? null)
+      const hit = historyHit ?? spotHit
+      const outKey = `${k.uniqueName}|${k.enchant}|${k.quality}`
+      result.set(
+        outKey,
+        buildResultAgnostic(k, hit, historyHit ? 'history' : spotHit ? 'spot' : null),
+      )
+    }
+    return result
   }
 
   if (mode === 'spot') {
@@ -527,6 +654,7 @@ export async function fetchAodpPrices(
     server: options.server ?? 'east',
     mode: options.mode ?? 'spot',
     minQuality: options.minQuality && options.minQuality > 0 ? options.minQuality : 1,
+    qualityAgnostic: options.qualityAgnostic === true,
   }
 
   // 1단계: exact (사용자 설정). buildResult 가 이미 'exact' 또는 'quality' 태그.

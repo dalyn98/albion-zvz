@@ -81,6 +81,14 @@ export type AppSettingKey =
   // 이 값으로 끌어올려 조회 → "Normal 드랍도 Good 가치로 보정" 같은 정책
   // 구현. 기본 '1' (모든 품질 그대로).
   | 'aodp_min_quality'
+  // Boolean 문자열. 'true' 면 품질을 시세 산정 축에서 제거 — 같은 (uniqueName,
+  // enchant) 의 모든 품질 변종이 동일 자동가격을 공유한다. AODP 조회는 여전히
+  // 모든 품질 데이터를 받지만, 결과 집계 시 품질 무시하고 (item, location) 단위
+  // 가중 중앙값을 산출해 모든 품질 변종에 적용. 알비온 ZvZ 운영상 길드원이 품질
+  // 차이에 별로 신경쓰지 않는다는 도메인 합의에 맞춤. 인벤토리 행 자체는 품질별
+  // 로 유지 (재고 추적용). 자동 리기어도 같은 로직을 공유하므로 함께 적용된다.
+  // 'false' (기본) 면 기존 동작 — 품질별 별도 가격 + quality fallback 체인.
+  | 'aodp_quality_agnostic'
   // Phase 3 자동 리기어 전역 스위치. 'true' 면 이벤트 종료 후 cron 이 killboard
   // victim 이벤트 → AODP 시세 → 즉시 승인. 빌드별 opt-out 체크박스(slots.
   // auto_regear_excluded) 도 이 toggle 이 켜져 있을 때만 UI 에 노출.
