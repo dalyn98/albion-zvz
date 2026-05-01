@@ -732,6 +732,10 @@
     "autoRegearExcludeHint": "チェックすると、このビルドに割り当てられたメンバーはイベント終了後の自動リギア処理から除外されます。",
     "manualRegearExcludeLabel": "手動リギア対象外",
     "manualRegearExcludeHint": "チェックすると、このビルドに割り当てられたメンバーはスクリーンショットベースのリギア申請がブロックされます。",
+    "soloBomb": {
+      "label": "ソロボム",
+      "hint": "コーラーなしで本人が直接ビルドを作成して申請するスロット（ボムスクワッド専用）"
+    },
     "bombSquad": {
       "toggleLabel": "ボムスクワッド",
       "toggleHint": "承認制 · カスタム名可",
@@ -1959,6 +1963,13 @@
       "cancel": "キャンセル",
       "submit": "申請する"
     },
+    "soloBomb": {
+      "badge": "ソロボム",
+      "modalTitle": "ソロボムビルド申請",
+      "modalHint": "自分で使うビルドを入力してください。武器は必須、その他は空欄なら自由選択として扱われます。",
+      "weaponRequired": "武器は必須です。",
+      "submit": "ビルドで申請"
+    },
     "spell": {
       "label": "スキル",
       "view": "装着スキルを見る",
@@ -2849,6 +2860,8 @@
     "adminOnly": "管理者のみ実行できます。",
     "slotPending": "すでに承認待ちの申請があります。",
     "noPendingRequest": "保留中の申請はありません。",
+    "gearPicksRequired": "ソロボムスロットは自分が使うビルドを直接入力する必要があります。",
+    "soloBombRequiresRequest": "ソロボムスロットは本人が直接申請する必要があります。コーラーが指定して埋めることはできません。",
     "notBombSquad": "ボムスクワッド専用の操作です。",
     "bombSquadNotAuthorized": "コーラーまたは管理者のみ処理できます。",
     "memberNotFound": "対象のメンバーが見つかりません。",

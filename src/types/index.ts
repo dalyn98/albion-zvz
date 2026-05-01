@@ -219,6 +219,10 @@ export interface Slot {
   requested_username: string | null
   requested_picks: Record<string, { name: string | null; id: string | null }> | null
   requested_at: string | null
+  // Migration 134: 솔로밤 슬롯. is_bomb_squad 파티 안에서만 true 가능. 멤버가
+  // 신청 시 자기 빌드를 free-form 으로 직접 입력하고 (어드민이 미리 옵션을
+  // 안 채워둠), 콜러는 승인에서 제외 — 어드민/이벤트 작성자만 승인.
+  is_solo_bomb: boolean
 }
 
 // Pick<Slot, ...> helpers for callers that only need the gear-display subset —

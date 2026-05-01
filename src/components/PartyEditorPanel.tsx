@@ -77,6 +77,12 @@ export default function PartyEditorPanel({
       return
     }
     setIsBombSquad(checked)
+    // 밤스쿼드 OFF 로 전환하면 솔로밤 슬롯도 함께 해제 — DB 트리거가
+    // is_solo_bomb=true 인 슬롯에 대해 party.is_bomb_squad=true 를 강제하므로
+    // 미해제 상태로 저장하면 SOLO_BOMB_REQUIRES_BOMB_SQUAD_PARTY 로 실패.
+    if (!checked) {
+      setSlots((prev) => prev.map((s) => (s.is_solo_bomb ? { ...s, is_solo_bomb: false } : s)))
+    }
   }
   // <details> 의 open 을 prop 값으로 직접 제어하면 (open={false}) React 가 매
   // 리렌더마다 DOM 의 open 속성을 강제 제거해, 사용자가 열어 둔 패널이 다른
@@ -426,6 +432,7 @@ export default function PartyEditorPanel({
               slot={slot}
               partyNumber={partyNumber}
               autoRegearEnabled={autoRegearEnabled}
+              isBombSquadParty={isBombSquad}
               eventCategory={eventCategory}
               onChange={(updated) => updateSlot(idx, updated)}
               onDelete={() => deleteSlot(idx)}

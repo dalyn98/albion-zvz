@@ -26,7 +26,7 @@ async function authorizeBombSquadAction(slotId: string): Promise<
   const { data, error } = await db
     .from('slots')
     .select(
-      'id, requested_discord_id, parties!inner(is_bomb_squad, caller_discord_id, events!inner(id, created_by))',
+      'id, requested_discord_id, is_solo_bomb, parties!inner(is_bomb_squad, caller_discord_id, events!inner(id, created_by))',
     )
     .eq('guild_id', guildId)
     .eq('id', slotId)
@@ -44,10 +44,11 @@ async function authorizeBombSquadAction(slotId: string): Promise<
   if (!event) return { ok: false, error: tAction('slotNotFound') }
 
   // 관리자·이벤트 소유자·콜러는 전투 시작 후에도 승인/거절/직접 지정이 가능해야
-  // 한다 (admin kick 과 동등). 일반 멤버 신청 플로우(assign_slot) 는 별도 가드라
-  // 여기서 차단을 풀어도 멤버가 우회 신청을 할 수는 없다.
+  // 한다 (admin kick 과 동등). 단, 솔로밤 슬롯은 콜러를 제외 — "콜러 없이
+  // 운영" 가능한 역할이라 승인 권한은 어드민/이벤트 작성자에 한정한다.
   const isEventOwner = !!event.created_by && event.created_by === session.discordId
-  const isCaller = !!party.caller_discord_id && party.caller_discord_id === session.discordId
+  const isSoloBomb = !!data.is_solo_bomb
+  const isCaller = !isSoloBomb && !!party.caller_discord_id && party.caller_discord_id === session.discordId
   if (!session.isAdmin && !isEventOwner && !isCaller) {
     return { ok: false, error: tAction('bombSquadNotAuthorized') }
   }
@@ -122,6 +123,7 @@ export async function directAssignMember(
     const message = error.message ?? ''
     if (message.includes('SLOT_NOT_FOUND')) return { error: tAction('slotNotFound') }
     if (message.includes('NOT_BOMB_SQUAD')) return { error: tAction('notBombSquad') }
+    if (message.includes('SOLO_BOMB_REQUIRES_REQUEST')) return { error: tAction('soloBombRequiresRequest') }
     if (message.includes('SLOT_TAKEN')) return { error: tAction('slotTaken') }
     if (message.includes('SLOT_PENDING')) return { error: tAction('slotPending') }
     if (message.includes('ALREADY_IN_EVENT')) return { error: tAction('alreadyInEvent') }

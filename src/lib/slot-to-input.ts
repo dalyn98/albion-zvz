@@ -14,6 +14,7 @@ export function slotToInput(s: Slot): SlotInput {
     notes: s.notes ?? '',
     auto_regear_excluded: s.auto_regear_excluded,
     manual_regear_excluded: s.manual_regear_excluded,
+    is_solo_bomb: s.is_solo_bomb,
     assigned_username: s.assigned_username,
     items: SLOT_KEYS.reduce((acc, k) => ({
       ...acc,

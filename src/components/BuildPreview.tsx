@@ -37,6 +37,7 @@ function buildDisplaySlot(input: SlotInput): Slot {
     notes: input.notes || null,
     auto_regear_excluded: input.auto_regear_excluded,
     manual_regear_excluded: input.manual_regear_excluded,
+    is_solo_bomb: input.is_solo_bomb,
     assigned_discord_id: null,
     assigned_username: null,
     requested_discord_id: null,

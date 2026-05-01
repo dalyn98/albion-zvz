@@ -14,13 +14,16 @@ import {
   getRoleStyle,
   hasGearOptions,
   isFreeItem,
+  isT8OnlySlot,
 } from '@/types'
 import { stripTierPrefix } from '@/lib/weapon-display'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { getLocalizedItemName } from '@/lib/item-names'
 import type { Locale } from '@/i18n/locales'
+import { SLOT_PICKER_CATEGORY } from '@/types'
 import GearPreview from './GearPreview'
 import ItemImage from './ItemImage'
+import ItemPicker from './ItemPicker'
 import SlotSpellPanel, { SlotCooldownBadge } from './SlotSpellPanel'
 import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
@@ -129,7 +132,10 @@ export default function SlotCard({
     () => SLOT_KEYS.filter((k) => hasGearOptions(slot, k)),
     [slot],
   )
-  const needsPicks = multiOptionKinds.length > 0
+  const isSoloBomb = !!slot.is_solo_bomb
+  // 솔로밤 슬롯은 항상 멤버가 자기 빌드를 직접 입력 → 옵션이 비어 있어도
+  // free-form 모달을 열어야 한다.
+  const needsPicks = multiOptionKinds.length > 0 || isSoloBomb
   // BM role's defining item is the battle mount, not the weapon — swap the
   // hero preview + name line accordingly so the card reads naturally.
   const primaryKind = getPrimaryGearKind(slot.role_name)
@@ -249,6 +255,11 @@ export default function SlotCard({
               {translateSlotRole(slot.role_name, tRole)}
             </span>
           )}
+          {isSoloBomb && (
+            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/40">
+              {t('soloBomb.badge')}
+            </span>
+          )}
           {isAdmin && (
             <button
               type="button"
@@ -332,15 +343,25 @@ export default function SlotCard({
       {error && <p className="text-red-400 text-[12px] leading-tight">{error}</p>}
 
       {pickerOpen && (
-        <GearChoiceModal
-          slot={slot}
-          kinds={multiOptionKinds}
-          onCancel={() => setPickerOpen(false)}
-          onConfirm={(picks) => {
-            setPickerOpen(false)
-            doAssign(picks)
-          }}
-        />
+        isSoloBomb ? (
+          <SoloBombGearModal
+            onCancel={() => setPickerOpen(false)}
+            onConfirm={(picks) => {
+              setPickerOpen(false)
+              doAssign(picks)
+            }}
+          />
+        ) : (
+          <GearChoiceModal
+            slot={slot}
+            kinds={multiOptionKinds}
+            onCancel={() => setPickerOpen(false)}
+            onConfirm={(picks) => {
+              setPickerOpen(false)
+              doAssign(picks)
+            }}
+          />
+        )
       )}
 
       {assignModalOpen && (
@@ -614,6 +635,130 @@ function GearChoiceModal({
             className="ml-auto bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black font-bold px-6 py-2 rounded-lg text-sm transition-colors"
           >
             {t('submit')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// 솔로밤 슬롯 신청 모달. 멤버가 ItemPicker 로 9개 슬롯 카테고리 빌드를 직접
+// 만든다. 주무기 1개만 필수 (위치/콤보를 결정하는 핵심), 나머지는 선택 — 빈
+// 슬롯은 신청 페이로드에서 자동 누락되어 RPC 가 그대로 통과시킨다.
+function SoloBombGearModal({
+  onCancel,
+  onConfirm,
+}: {
+  onCancel: () => void
+  onConfirm: (picks: SlotPicks) => void
+}) {
+  const t = useTranslations('slot.picker')
+  const tSolo = useTranslations('slot.soloBomb')
+  const tGear = useTranslations('gear')
+  const [picks, setPicks] = useState<Record<SlotKey, { name: string; id: string }>>(
+    () =>
+      SLOT_KEYS.reduce(
+        (acc, k) => ({ ...acc, [k]: { name: '', id: '' } }),
+        {} as Record<SlotKey, { name: string; id: string }>,
+      ),
+  )
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = ''
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [onCancel])
+
+  const updateKind = (kind: SlotKey, name: string, id: string) =>
+    setPicks((prev) => ({ ...prev, [kind]: { name, id } }))
+
+  const clearKind = (kind: SlotKey) =>
+    setPicks((prev) => ({ ...prev, [kind]: { name: '', id: '' } }))
+
+  // 주무기는 솔로밤 빌드의 정체성 (Mage / DPS / Battle Mount 결정), 최소 한 개는
+  // 채워야 신청을 받는다. 나머지는 선택 — 캡/마운트/포션은 본인이 알아서.
+  const weapon = picks.weapon
+  const canSubmit = !!weapon.name
+
+  const buildPicksPayload = (): SlotPicks => {
+    const payload: SlotPicks = {}
+    for (const k of SLOT_KEYS) {
+      const { name, id } = picks[k]
+      if (!name) continue
+      payload[k] = { name, id }
+    }
+    return payload
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center sm:p-6"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-gray-900 border border-rose-500/40 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl flex flex-col max-h-[92dvh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Bomb size={14} className="text-rose-400 flex-shrink-0" />
+            <h3 className="font-bold text-white text-base">{tSolo('modalTitle')}</h3>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="p-1 text-gray-400 hover:text-white"
+            aria-label={t('close')}
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="flex-shrink-0 px-4 py-2 text-[11px] text-gray-400 leading-snug border-b border-gray-800 bg-gray-950/40">
+          {tSolo('modalHint')}
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
+          {SLOT_KEYS.map((kind) => (
+            <ItemPicker
+              key={kind}
+              label={tGear(kind)}
+              category={SLOT_PICKER_CATEGORY[kind]}
+              tier={isT8OnlySlot(kind) ? 8 : undefined}
+              itemName={picks[kind].name || null}
+              itemId={picks[kind].id || null}
+              onChange={(name, id) => updateKind(kind, name, id)}
+              onClear={() => clearKind(kind)}
+            />
+          ))}
+        </div>
+        <div className="flex-shrink-0 border-t border-gray-700 px-4 py-3 flex gap-2 items-center">
+          {!canSubmit && (
+            <span className="text-rose-300 text-[11px] flex-1">
+              {tSolo('weaponRequired')}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={onCancel}
+            className="text-gray-400 hover:text-white text-sm font-medium px-3 py-2"
+          >
+            {t('cancel')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!canSubmit) return
+              onConfirm(buildPicksPayload())
+            }}
+            disabled={!canSubmit}
+            className="ml-auto bg-rose-500 hover:bg-rose-400 disabled:opacity-40 text-white font-bold px-6 py-2 rounded-lg text-sm transition-colors"
+          >
+            {tSolo('submit')}
           </button>
         </div>
       </div>

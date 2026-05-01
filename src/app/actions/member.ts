@@ -20,6 +20,7 @@ type RpcCodeKey =
   | 'slotEmpty'
   | 'notOwner'
   | 'noPendingRequest'
+  | 'gearPicksRequired'
 
 const RPC_CODE_KEYS: Record<string, RpcCodeKey> = {
   SLOT_NOT_FOUND: 'slotNotFound',
@@ -29,6 +30,7 @@ const RPC_CODE_KEYS: Record<string, RpcCodeKey> = {
   SLOT_EMPTY: 'slotEmpty',
   NOT_OWNER: 'notOwner',
   NO_PENDING_REQUEST: 'noPendingRequest',
+  GEAR_PICKS_REQUIRED: 'gearPicksRequired',
 }
 
 function mapRpcError(
@@ -76,11 +78,13 @@ export async function assignSlot(
 
   // Filter out empty picks before sending — the RPC treats a missing kind the
   // same as an explicit null, so trimming keeps the payload minimal.
+  // 솔로밤은 free-form 픽이라 id 가 비어 있는 "자유" 픽도 허용 — name 만
+  // 채워져 있으면 유효한 입력으로 취급.
   const cleanPicks: Record<string, GearOption> = {}
   for (const key of Object.keys(picks) as SlotKey[]) {
     const pick = picks[key]
-    if (pick && pick.id && pick.name) {
-      cleanPicks[key] = { name: pick.name, id: pick.id }
+    if (pick && pick.name) {
+      cleanPicks[key] = { name: pick.name, id: pick.id ?? '' }
     }
   }
   const payload = Object.keys(cleanPicks).length > 0 ? cleanPicks : null

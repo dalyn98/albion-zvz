@@ -60,6 +60,10 @@ export interface SlotInput {
   // Migration 069: per-slot opt-out for manual regear submissions. No global
   // toggle — always editable.
   manual_regear_excluded: boolean
+  // Migration 134: 솔로밤 슬롯. 파티가 밤스쿼드일 때만 토글 가능 (UI 에서만
+  // 노출, 비-밤스쿼드 파티에서는 항상 false 로 유지). DB 트리거가 invariants
+  // 를 강제한다.
+  is_solo_bomb: boolean
   assigned_username: string | null
 }
 
@@ -82,6 +86,7 @@ export function emptySlotInput(slotNumber: number): SlotInput {
     specs: emptyPerSlot(() => ({}) as GearSpec),
     auto_regear_excluded: false,
     manual_regear_excluded: false,
+    is_solo_bomb: false,
     assigned_username: null,
   }
 }
@@ -101,6 +106,10 @@ interface Props {
   // 제외" 체크박스 노출 여부를 결정하며, OFF 일 땐 슬롯에 이미 저장된 값이
   // 있어도 UI 로 건드릴 수 없게 감춘다.
   autoRegearEnabled: boolean
+  // 부모 파티가 밤스쿼드일 때만 솔로밤 토글을 노출. 비-밤스쿼드 파티에서는
+  // is_solo_bomb 이 항상 false 여야 하며 (DB 트리거가 강제), UI 에서도 토글
+  // 자체를 감춰 잘못된 입력을 차단.
+  isBombSquadParty?: boolean
   // 편집 중인 이벤트의 카테고리. 전달되면 Save/Load 템플릿 다이얼로그에서
   // 카테고리 기본값/필터로 사용한다. 관리자 템플릿 페이지처럼 이벤트 컨텍스트가
   // 없는 곳에서는 생략 가능.
@@ -120,7 +129,7 @@ interface Props {
   }
 }
 
-export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, eventCategory, onChange, onDelete, standaloneMode }: Props) {
+export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, isBombSquadParty = false, eventCategory, onChange, onDelete, standaloneMode }: Props) {
   const t = useTranslations('adminParty')
   const tCommon = useTranslations('common')
   const tRole = useTranslations('slotRole')
@@ -490,6 +499,27 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, event
                   </span>
                 </span>
               </label>
+
+              {isBombSquadParty && (
+                <label className="flex items-start gap-2 cursor-pointer select-none bg-rose-950/30 border border-rose-900/50 rounded-lg px-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={slot.is_solo_bomb}
+                    onChange={(e) =>
+                      onChange({ ...slot, is_solo_bomb: e.target.checked })
+                    }
+                    className="mt-0.5 h-4 w-4 accent-rose-500"
+                  />
+                  <span>
+                    <span className="text-[12px] text-rose-300 font-semibold">
+                      {t('soloBomb.label')}
+                    </span>
+                    <span className="block text-[11px] text-gray-500 mt-0.5">
+                      {t('soloBomb.hint')}
+                    </span>
+                  </span>
+                </label>
+              )}
 
               <div className="flex items-center gap-2 flex-wrap rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2">
                 <span className="text-amber-400 text-[11px] font-semibold">

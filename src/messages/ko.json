@@ -732,6 +732,10 @@
     "autoRegearExcludeHint": "체크하면 이 빌드에 배정된 멤버는 이벤트 종료 후 자동 리기어 처리에서 제외됩니다.",
     "manualRegearExcludeLabel": "수동 리기어 제외",
     "manualRegearExcludeHint": "체크하면 이 빌드에 배정된 멤버는 스크린샷 기반 리기어 신청이 차단됩니다.",
+    "soloBomb": {
+      "label": "솔로밤",
+      "hint": "콜러 없이 본인이 직접 빌드를 만들어 신청하는 슬롯 (밤스쿼드 전용)"
+    },
     "bombSquad": {
       "toggleLabel": "밤스쿼드",
       "toggleHint": "승인제 · 커스텀 이름 가능",
@@ -1959,6 +1963,13 @@
       "cancel": "취소",
       "submit": "신청하기"
     },
+    "soloBomb": {
+      "badge": "솔로밤",
+      "modalTitle": "솔로밤 빌드 신청",
+      "modalHint": "직접 사용할 빌드를 입력해 주세요. 무기는 필수, 나머지는 비워두면 자유 선택으로 처리됩니다.",
+      "weaponRequired": "무기는 필수입니다.",
+      "submit": "빌드로 신청"
+    },
     "spell": {
       "label": "스킬",
       "view": "장착 스킬 보기",
@@ -2844,6 +2855,8 @@
     "slotEmpty": "신청되지 않은 슬롯입니다.",
     "notOwner": "본인이 신청한 슬롯만 취소할 수 있습니다.",
     "noPendingRequest": "대기중인 신청이 없습니다.",
+    "gearPicksRequired": "솔로밤 슬롯은 본인이 사용할 빌드를 직접 입력해야 합니다.",
+    "soloBombRequiresRequest": "솔로밤 슬롯은 직접 신청해야 합니다. 콜러 지정으로 채울 수 없습니다.",
     "notBombSquad": "밤스쿼드 전용 동작입니다.",
     "bombSquadNotAuthorized": "콜러 또는 관리자만 처리할 수 있습니다.",
     "loginRequired": "로그인이 필요합니다.",

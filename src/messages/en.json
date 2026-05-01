@@ -732,6 +732,10 @@
     "autoRegearExcludeHint": "When checked, members assigned to this build are skipped by the automatic post-event regear process.",
     "manualRegearExcludeLabel": "Exclude from manual regear",
     "manualRegearExcludeHint": "When checked, members assigned to this build cannot submit screenshot-based regear requests.",
+    "soloBomb": {
+      "label": "Solo bomb",
+      "hint": "Slot signed up without a caller — applicants build their own loadout (bomb squad only)"
+    },
     "bombSquad": {
       "toggleLabel": "Bomb squad",
       "toggleHint": "Approval-only · custom names allowed",
@@ -1959,6 +1963,13 @@
       "cancel": "Cancel",
       "submit": "Apply"
     },
+    "soloBomb": {
+      "badge": "Solo bomb",
+      "modalTitle": "Solo bomb signup",
+      "modalHint": "Enter the build you'll bring. Weapon is required; leave others blank to mark them as free choice.",
+      "weaponRequired": "Weapon is required.",
+      "submit": "Sign up with build"
+    },
     "spell": {
       "label": "Spells",
       "view": "View equipped spells",
@@ -2849,6 +2860,8 @@
     "adminOnly": "Admin only.",
     "slotPending": "An approval request is already pending for this slot.",
     "noPendingRequest": "No pending request to act on.",
+    "gearPicksRequired": "Solo bomb slots require you to enter the build you'll bring yourself.",
+    "soloBombRequiresRequest": "Solo bomb slots must be signed up by the applicant — caller assignment is not available.",
     "notBombSquad": "Bomb squad action only.",
     "bombSquadNotAuthorized": "Only the caller or an admin can act on this request.",
     "memberNotFound": "Target member not found.",

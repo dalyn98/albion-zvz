@@ -584,6 +584,10 @@ interface SlotPayload {
   auto_regear_excluded?: boolean
   // Migration 069: per-slot manual regear opt-out.
   manual_regear_excluded?: boolean
+  // Migration 134: 솔로밤 슬롯. 파티가 밤스쿼드일 때만 의미 있음 (DB 트리거가
+  // 검증). 솔로밤이면 슬롯 옵션은 비어 있을 수 있고 멤버가 free-form 으로
+  // 빌드를 채워 신청한다.
+  is_solo_bomb?: boolean
 }
 
 // Migration 041: party-level bomb-squad metadata. All fields optional on input
@@ -741,6 +745,7 @@ function slotToRow(partyId: string, slot: SlotPayload, guildId?: string) {
     gear_specs: sanitizeGearSpecs(slot.specs),
     auto_regear_excluded: slot.auto_regear_excluded === true,
     manual_regear_excluded: slot.manual_regear_excluded === true,
+    is_solo_bomb: slot.is_solo_bomb === true,
     ...SLOT_KEYS.reduce((acc, k) => {
       const hasOptions = cleanedOptions[k] !== null
       return {
