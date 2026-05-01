@@ -3,7 +3,7 @@ import { listRoleRewards } from '@/app/actions/regear-admin'
 import SettingsTabs from '@/components/SettingsTabs'
 import { getGuild, type AlbionServer } from '@/lib/albion-gameinfo'
 import { getTranslations } from 'next-intl/server'
-import { SLOT_ROLES, type SlotRole } from '@/types'
+import { SLOT_ROLES, SLOT_KEYS, type SlotRole, type SlotKey } from '@/types'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { DEFAULT_TENANT_TIMEZONE, isValidTenantTimezone } from '@/lib/timezone'
@@ -45,6 +45,7 @@ export default async function SettingsPage() {
     albionServerRaw,
     albionHomeGuildId,
     autoRegearEnabledRaw,
+    autoRegearExcludedSlotsRaw,
     craftRegearEnabledRaw,
     regearRequireVerificationRaw,
     cdBadgeRolesRaw,
@@ -73,6 +74,7 @@ export default async function SettingsPage() {
     getAppSetting('albion_server', 'east', tenantId),
     getAppSetting('albion_home_guild_id', '', tenantId),
     getAppSetting('auto_regear_enabled', 'false', tenantId),
+    getAppSetting('auto_regear_excluded_slots', '[]', tenantId),
     getAppSetting('craft_regear_enabled', 'false', tenantId),
     getAppSetting('regear_require_verification', 'true', tenantId),
     getAppSetting('cd_badge_roles', '["Dps"]', tenantId),
@@ -178,6 +180,19 @@ export default async function SettingsPage() {
     // 손상된 값 — 기본값으로 degrade.
   }
 
+  const slotKeySet: ReadonlySet<string> = new Set(SLOT_KEYS)
+  let autoRegearExcludedSlots: SlotKey[] = []
+  try {
+    const parsed = JSON.parse(autoRegearExcludedSlotsRaw)
+    if (Array.isArray(parsed)) {
+      autoRegearExcludedSlots = parsed.filter(
+        (v): v is SlotKey => typeof v === 'string' && slotKeySet.has(v),
+      )
+    }
+  } catch {
+    // 손상된 값 — 빈 배열(전부 포함) 로 degrade.
+  }
+
   return (
     <div className="space-y-5">
       <div>
@@ -209,6 +224,7 @@ export default async function SettingsPage() {
         albionHomeGuildId={albionHomeGuildId}
         albionHomeGuildName={initialHomeGuildName}
         autoRegearEnabled={autoRegearEnabled}
+        autoRegearExcludedSlots={autoRegearExcludedSlots}
         craftRegearEnabled={craftRegearEnabled}
         regearRequireVerification={regearRequireVerification}
         cdBadgeRoles={cdBadgeRoles}

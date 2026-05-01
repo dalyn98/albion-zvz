@@ -216,12 +216,19 @@ function parseItemType(type: string): { uniqueName: string; enchant: number } | 
 // 장비 JSONB 에서 AODP 조회에 필요한 키 목록을 뽑는다. 동일 item 이 여러 슬롯에
 // 걸칠 수 있지만 AODP 는 키 기준으로 결과를 반환하므로 uniq 처리는 fetchAodpPrices
 // 내부에 맡기고 여기선 슬롯 단위로 중복 포함.
+//
+// excludedSnapshotSlots: 길드 설정 auto_regear_excluded_slots 에서 파싱한 SlotKey
+// 집합. 매칭되는 killboard 슬롯은 시세 합산/breakdown 에서 제외된다 (Bag 은 매핑
+// 없어 자동 제외).
 function extractGearKeys(
   equipment: Record<string, EquipmentItem | null> | null,
+  excludedSnapshotSlots: ReadonlySet<SlotKey>,
 ): Array<{ slot: string; key: AodpPriceKey; count: number }> {
   if (!equipment) return []
   const out: Array<{ slot: string; key: AodpPriceKey; count: number }> = []
   for (const slot of EQUIPMENT_SLOTS) {
+    const snapshotSlot = KILLBOARD_TO_SNAPSHOT_SLOT[slot]
+    if (snapshotSlot && excludedSnapshotSlots.has(snapshotSlot)) continue
     const raw = equipment[slot]
     if (!raw || typeof raw !== 'object' || typeof raw.Type !== 'string') continue
     const parsed = parseItemType(raw.Type)
@@ -237,6 +244,25 @@ function extractGearKeys(
   return out
 }
 
+// JSON 배열 문자열 → SlotKey 집합. 잘못된 형식이면 빈 집합(=전부 포함)으로 graceful
+// fallback. settings.ts 의 검증으로 정상 케이스에선 SlotKey 외 값이 안 들어오지만,
+// 직접 SQL 로 손상된 데이터가 들어와도 자동 리기어가 멈추진 않게 한다.
+function parseExcludedSlots(raw: string): ReadonlySet<SlotKey> {
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return new Set()
+    const out = new Set<SlotKey>()
+    for (const v of parsed) {
+      if (typeof v === 'string' && (SLOT_KEYS as readonly string[]).includes(v)) {
+        out.add(v as SlotKey)
+      }
+    }
+    return out
+  } catch {
+    return new Set()
+  }
+}
+
 export async function processAutoRegear(
   db: SupabaseClient,
   guildId: string,
@@ -244,12 +270,13 @@ export async function processAutoRegear(
   const startedAt = Date.now()
   const errors: AutoRegearResult['errors'] = []
 
-  // 4개 app_settings 를 1번의 round-trip 으로 읽는다.
+  // 5개 app_settings 를 1번의 round-trip 으로 읽는다.
   const SETTING_KEYS = [
     'auto_regear_enabled',
     'albion_home_guild_id',
     'regear_payout_rate_percent',
     'craft_regear_enabled',
+    'auto_regear_excluded_slots',
   ] as const
   const { data: settingRows } = await db
     .from('app_settings')
@@ -311,6 +338,11 @@ export async function processAutoRegear(
   // 박는다. 'false' 면 silver 모드(기존 동작).
   const craftMode = (settings.get('craft_regear_enabled') ?? 'false') === 'true'
   const fulfillmentMode: 'silver' | 'crafted' = craftMode ? 'crafted' : 'silver'
+
+  // 자동 리기어 제외 슬롯. 잘못된 JSON 은 무시(전부 포함 = 안전한 fallback).
+  const excludedSnapshotSlots = parseExcludedSlots(
+    settings.get('auto_regear_excluded_slots') ?? '[]',
+  )
 
   // 매우 신선한 이벤트(5분 미만) 는 미리 컷. 정확한 ready 판정은 per-event 의
   // ended_at + buffer + sync 게이트가 한다 (autoDelayMinutes 노브는 폐기됨).
@@ -641,7 +673,13 @@ export async function processAutoRegear(
           skippedNoRoleCap += 1
           continue
         }
-        const gearEntries = extractGearKeys(v.equipment)
+        const gearEntries = extractGearKeys(v.equipment, excludedSnapshotSlots)
+        // 슬롯 필터 후 남는 장비가 없으면 노이즈 신청(claimed=0/payout=0) 방지를
+        // 위해 victim 스킵. 빈 장비(equipment 자체 없음) 케이스도 동일 경로.
+        if (gearEntries.length === 0) {
+          skippedNoSlot += 1
+          continue
+        }
         for (const entry of gearEntries) {
           const dedupe = `${entry.key.uniqueName}|${entry.key.enchant}|${entry.key.quality}`
           if (seenKeys.has(dedupe)) continue

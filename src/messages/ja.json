@@ -1545,6 +1545,11 @@
     "saving": "保存中…",
     "saved": "保存しました"
   },
+  "adminAutoRegearSlots": {
+    "title": "自動リギア対象スロット",
+    "descriptionLine1": "自動リギアが市場価格を合算するスロットを選びます。チェックを外すとそのスロットは estimated/支給額の対象外になります。",
+    "descriptionLine2": "例: 食料・ポーション・マウントを外すと武器/防具のみで請求額が算出されます。手動リギアやマッチング判定には影響しません。"
+  },
   "sidebar": {
     "memberGroup": "ギルドメンバー",
     "adminGroup": "管理者",

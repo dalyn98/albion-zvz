@@ -1545,6 +1545,11 @@
     "saving": "저장 중…",
     "saved": "저장됨"
   },
+  "adminAutoRegearSlots": {
+    "title": "자동 리기어 포함 슬롯",
+    "descriptionLine1": "자동 리기어가 시세를 합산할 슬롯을 선택해요. 체크 해제하면 해당 슬롯은 estimated/지급 금액에서 제외돼요.",
+    "descriptionLine2": "예: 음식·포션·탈것을 빼면 무기/방어구만으로 청구 금액이 산정돼요. 수동 리기어와 매칭 규칙에는 영향이 없어요."
+  },
   "sidebar": {
     "memberGroup": "길드원",
     "adminGroup": "관리자",

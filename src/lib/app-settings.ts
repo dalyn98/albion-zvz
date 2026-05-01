@@ -85,6 +85,11 @@ export type AppSettingKey =
   // victim 이벤트 → AODP 시세 → 즉시 승인. 빌드별 opt-out 체크박스(slots.
   // auto_regear_excluded) 도 이 toggle 이 켜져 있을 때만 UI 에 노출.
   | 'auto_regear_enabled'
+  // 자동 리기어 합산에서 제외할 슬롯 키 목록 (JSON array of SlotKey). 빈 배열
+  // '[]' 면 모든 슬롯 포함 (기본). 음식/포션/탈것 등 길드 정책상 리기어 비대상
+  // 슬롯을 골라 비우면 estimated_silver / gear_breakdown.items 양쪽에서 제외된다.
+  // 매칭/판정 규칙(/battles 통과 여부) 자체는 영향 없음 — 합산 대상만 좁힘.
+  | 'auto_regear_excluded_slots'
   // 마지막 auto-regear cron 성공 시각(ISO). killboard-sync 와 유사한 throttle
   // 용이지만 auto-regear 는 "event 별로 1회" idempotent 가 더 강한 gate 라
   // 이 값은 모니터링/디버깅 용도에 가깝다.

@@ -1545,6 +1545,11 @@
     "saving": "Saving…",
     "saved": "Saved"
   },
+  "adminAutoRegearSlots": {
+    "title": "Auto-regear included slots",
+    "descriptionLine1": "Choose which slots auto-regear sums when estimating market price. Unchecked slots are excluded from estimated/payout amounts.",
+    "descriptionLine2": "Example: unchecking food/potion/mount limits the claim to weapon and armor. Manual regear and matching rules are unaffected."
+  },
   "sidebar": {
     "memberGroup": "Guild members",
     "adminGroup": "Admin",

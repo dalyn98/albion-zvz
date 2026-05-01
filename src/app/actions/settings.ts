@@ -10,7 +10,7 @@ import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 import { isValidTenantTimezone } from '@/lib/timezone'
 import { isSuperAdminSession } from '@/lib/super-admin'
-import { SLOT_ROLES } from '@/types'
+import { SLOT_ROLES, SLOT_KEYS } from '@/types'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
@@ -34,6 +34,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'aodp_price_mode',
   'aodp_min_quality',
   'auto_regear_enabled',
+  'auto_regear_excluded_slots',
   'cd_badge_roles',
   'active_member_role_ids',
   'allow_unverified_member_access',
@@ -80,6 +81,8 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   'bomb_squad_caller_role_ids',
   // 빈 배열 = 어떤 역할군에도 CD 뱃지 표시 안 함 (기능 전체 off 에 가까움).
   'cd_badge_roles',
+  // 빈 배열 = 어떤 슬롯도 자동 리기어에서 제외하지 않음 (= 모든 슬롯 합산).
+  'auto_regear_excluded_slots',
   // 빈 배열 = 역할 검사 생략, 디스코드 서버 재적 여부만으로 탈퇴 판정.
   'active_member_role_ids',
   // 빈 문자열 = 홈 길드 미설정. 모든 온보딩이 [미인증] 으로만 저장된다.
@@ -112,6 +115,7 @@ const JSON_ARRAY_KEYS: readonly AppSettingKey[] = [
   'aodp_cities',
   'cd_badge_roles',
   'active_member_role_ids',
+  'auto_regear_excluded_slots',
 ] as const
 
 // Integer-string keys. Must parse as a positive integer within the declared
@@ -217,6 +221,14 @@ export async function updateAppSetting(
             return { error: tErr('invalidEnumValue', { values: SLOT_ROLES.join(', ') }) }
           }
         }
+        if (key === 'auto_regear_excluded_slots') {
+          const unknown = (parsed as string[]).filter(
+            (s) => !(SLOT_KEYS as readonly string[]).includes(s),
+          )
+          if (unknown.length > 0) {
+            return { error: tErr('invalidEnumValue', { values: SLOT_KEYS.join(', ') }) }
+          }
+        }
       } catch {
         return { error: tErr('invalidJsonArray') }
       }
@@ -292,6 +304,9 @@ export async function updateAppSetting(
     if (key === 'auto_regear_enabled') {
       // 슬롯 편집기의 opt-out 체크박스 가시성이 이 값에 의존.
       revalidatePath('/admin/dashboard/events', 'layout')
+    }
+    if (key === 'auto_regear_excluded_slots') {
+      revalidatePath('/admin/dashboard/settings')
     }
     if (key.startsWith('guild_profile_')) {
       // 공개 프로필 페이지가 이 값들을 직접 읽어 표시 — 어드민 저장 즉시 반영.

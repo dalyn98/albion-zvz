@@ -22,8 +22,9 @@ import TenantTimezoneForm from './TenantTimezoneForm'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
 import RegearModeCard from './RegearModeCard'
 import CdBadgeRolesForm from './CdBadgeRolesForm'
+import AutoRegearSlotsForm from './AutoRegearSlotsForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
-import type { SlotRole } from '@/types'
+import type { SlotRole, SlotKey } from '@/types'
 
 type TabKey =
   | 'guild'
@@ -77,6 +78,7 @@ interface Props {
   albionHomeGuildId: string
   albionHomeGuildName: string | null
   autoRegearEnabled: boolean
+  autoRegearExcludedSlots: SlotKey[]
   craftRegearEnabled: boolean
   regearRequireVerification: boolean
   cdBadgeRoles: SlotRole[]
@@ -120,6 +122,7 @@ export default function SettingsTabs({
   albionHomeGuildId,
   albionHomeGuildName,
   autoRegearEnabled,
+  autoRegearExcludedSlots,
   craftRegearEnabled,
   regearRequireVerification,
   cdBadgeRoles,
@@ -249,6 +252,7 @@ export default function SettingsTabs({
                 initialEligibilityDays={regearEligibilityDays}
               />
               <RegearPayoutRateForm embedded initialPercent={regearPayoutRatePercent} />
+              <AutoRegearSlotsForm embedded initialExcluded={autoRegearExcludedSlots} />
               <div className="space-y-3">
                 <p className="text-gray-500 text-xs">{t('rewardsDescription')}</p>
                 {rewardsError && (
