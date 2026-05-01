@@ -223,7 +223,19 @@ export interface Slot {
   // 신청 시 자기 빌드를 free-form 으로 직접 입력하고 (어드민이 미리 옵션을
   // 안 채워둠), 콜러는 승인에서 제외 — 어드민/이벤트 작성자만 승인.
   is_solo_bomb: boolean
+  // Migration 139: 무기 픽이 다른 종류 (armor/shoes/...) 후보를 좁히는 룰.
+  // shape: { armor: { "<weapon_id>": [{name,id}], ... }, shoes: { ... }, ... }
+  // 매핑이 있으면 베이스 *_options 대신 이걸로 검증. 없으면 베이스 폴백.
+  conditional_options: ConditionalSlotOptions | null
 }
+
+// 슬롯 conditional options: 한 종류 (현재는 weapon) 의 픽이 결정되면 거기에
+// 의존하는 다른 종류의 후보를 좁힌다. weapon 자체는 키에 들어가지 않음
+// (의존성 시작점이라).
+export type DependentSlotKey = Exclude<SlotKey, 'weapon'>
+export type ConditionalSlotOptions = Partial<
+  Record<DependentSlotKey, Record<string, GearOption[]>>
+>
 
 // Pick<Slot, ...> helpers for callers that only need the gear-display subset —
 // avoids forcing tests/helpers to fabricate the full Slot shape.
@@ -270,6 +282,23 @@ export function hasGearOptions(
 ): boolean {
   const opts = slot[`${key}_options`]
   return Array.isArray(opts) && opts.length > 0
+}
+
+// Migration 139: 무기 픽 ID 가 주어지면 conditional_options 매핑이 있는 종류는
+// 좁힌 후보를, 없으면 베이스 *_options 를 반환한다. weapon 자체는 의존성 시작점
+// 이므로 conditional 미적용 (항상 베이스). RPC assign_slot 의 검증 룩업과 동일.
+export function getEffectiveGearOptions(
+  slot: SlotGearOptionsFields & { conditional_options: ConditionalSlotOptions | null },
+  key: SlotKey,
+  weaponId: string | null | undefined,
+): GearOption[] | null {
+  const base = getGearOptions(slot, key)
+  if (key === 'weapon' || !weaponId || !slot.conditional_options) return base
+  const perWeapon = slot.conditional_options[key as DependentSlotKey]
+  if (!perWeapon) return base
+  const narrowed = perWeapon[weaponId]
+  if (!Array.isArray(narrowed)) return base
+  return narrowed
 }
 
 // Legacy weapon-only helpers — still used by pieces that haven't migrated yet.

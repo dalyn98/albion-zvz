@@ -8,7 +8,15 @@ import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
 import BatchApplySpecsModal, { type BatchSpecsScope } from './BatchApplySpecsModal'
 import BatchApplyItemsModal from './BatchApplyItemsModal'
 import TemplatePartyListSidebar from './TemplatePartyListSidebar'
-import type { GearOption, GearSpec, GearSpecs, SlotKey, SlotSpells } from '@/types'
+import type {
+  ConditionalSlotOptions,
+  DependentSlotKey,
+  GearOption,
+  GearSpec,
+  GearSpecs,
+  SlotKey,
+  SlotSpells,
+} from '@/types'
 import { GEAR_ENCHANT_MAX, GEAR_ENCHANT_MIN, GEAR_TIER_MAX, GEAR_TIER_MIN, SLOT_KEYS, isTierlessSlot, isSpecLessSlot } from '@/types'
 import { updateTemplate, type TemplateData, type TemplateRecord } from '@/app/actions/templates'
 
@@ -62,6 +70,46 @@ function sanitizeSpells(spells: Record<SlotKey, string[]>): SlotSpells | null {
   return Object.keys(out).length > 0 ? out : null
 }
 
+// Migration 139: 클라이언트도 baseOptions 와 어긋나는 매핑을 잘라낸다
+// (admin.ts/sanitizeConditionalOptions 와 동일 규칙). 템플릿 저장 경로는
+// slotToRow 를 거치지 않고 JSONB 를 직접 쓰므로 여기에서 정리.
+function sanitizeConditionalOptions(
+  raw: ConditionalSlotOptions | null | undefined,
+  baseOptions: Record<SlotKey, GearOption[] | null>,
+): ConditionalSlotOptions | null {
+  if (!raw || typeof raw !== 'object') return null
+  const weaponBase = baseOptions.weapon ?? []
+  if (weaponBase.length === 0) return null
+  const weaponIds = new Set(weaponBase.map((o) => o.id))
+  const out: ConditionalSlotOptions = {}
+  for (const key of SLOT_KEYS) {
+    if (key === 'weapon') continue
+    const dependentBase = baseOptions[key]
+    if (!Array.isArray(dependentBase) || dependentBase.length === 0) continue
+    const baseIds = new Set(dependentBase.map((o) => o.id))
+    const perWeapon = raw[key as DependentSlotKey]
+    if (!perWeapon || typeof perWeapon !== 'object') continue
+    const cleanPerWeapon: Record<string, GearOption[]> = {}
+    for (const [weaponId, narrowed] of Object.entries(perWeapon)) {
+      if (!weaponIds.has(weaponId) || !Array.isArray(narrowed)) continue
+      const seen = new Set<string>()
+      const cleaned: GearOption[] = []
+      for (const opt of narrowed) {
+        if (!opt || typeof opt.id !== 'string' || typeof opt.name !== 'string') continue
+        if (!opt.id || !opt.name) continue
+        if (!baseIds.has(opt.id) || seen.has(opt.id)) continue
+        seen.add(opt.id)
+        cleaned.push({ name: opt.name, id: opt.id })
+      }
+      if (cleaned.length > 0) cleanPerWeapon[weaponId] = cleaned
+    }
+    if (Object.keys(cleanPerWeapon).length > 0) {
+      out[key as DependentSlotKey] = cleanPerWeapon
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null
+}
+
 function sanitizeGearSpecs(specs: Record<SlotKey, GearSpec>): GearSpecs | null {
   const out: GearSpecs = {}
   for (const key of SLOT_KEYS) {
@@ -107,6 +155,7 @@ function templateToPartyStates(data: TemplateData): PartyState[] {
         auto_regear_excluded: false,
         manual_regear_excluded: false,
         is_solo_bomb: false,
+        conditional_options: (s.conditional_options as ConditionalSlotOptions | null | undefined) ?? {},
         assigned_username: null,
         items: SLOT_KEYS.reduce((acc, k) => ({
           ...acc,
@@ -161,6 +210,10 @@ function partyStatesToTemplateData(parties: PartyState[]): TemplateData {
             notes: s.notes || null,
             spells: sanitizeSpells(s.spells),
             gear_specs: sanitizeGearSpecs(s.specs),
+            conditional_options: sanitizeConditionalOptions(
+              s.conditional_options ?? null,
+              cleanedOptions,
+            ),
             ...perSlot,
           } as TemplateData['parties'][number]['slots'][number]
         }),

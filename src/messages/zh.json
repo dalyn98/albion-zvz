@@ -740,6 +740,15 @@
       "label": "Solo Bomb",
       "hint": "无指挥的报名槽位 — 报名者自行构建配装（仅爆装组）"
     },
+    "conditionalOptions": {
+      "sectionTitle": "条件候选（按武器收窄）",
+      "sectionHint": "选定武器后再收窄其他部位的候选。留空则沿用基础候选。",
+      "kindLabel": "{kind}",
+      "usingDefault": "使用基础候选",
+      "resetButton": "恢复默认",
+      "includedHint": "已允许 — 点击移除",
+      "excludedHint": "已排除 — 点击允许"
+    },
     "bombSquad": {
       "toggleLabel": "爆装组",
       "toggleHint": "仅审核制 · 允许自定义名称",
@@ -1993,7 +2002,10 @@
       "close": "关闭",
       "selected": "已选",
       "cancel": "取消",
-      "submit": "申请"
+      "submit": "申请",
+      "narrowedByWeapon": "已根据武器选择收窄",
+      "pickWeaponFirst": "请先选择武器",
+      "noOptionsForWeapon": "此武器没有可用候选,请联系管理员。"
     },
     "soloBomb": {
       "badge": "单人爆装",

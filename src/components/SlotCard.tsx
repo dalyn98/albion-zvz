@@ -9,6 +9,7 @@ import type { EventCategory, Slot, SlotKey, SlotRole } from '@/types'
 import {
   SLOT_KEYS,
   getDisplayGear,
+  getEffectiveGearOptions,
   getGearOptions,
   getPrimaryGearKind,
   getRoleStyle,
@@ -543,6 +544,29 @@ function GearChoiceModal({
     }
   }, [onCancel])
 
+  // 무기 픽이 다른 종류 후보를 좁힐 수 있다 (Migration 139). 무기가 바뀔 때마다
+  // 의존하는 종류의 effective 옵션을 다시 계산하고, 더 이상 후보에 없는 픽은
+  // 자동으로 비운다 — 사용자가 무기를 바꾸면 옛 방어구 픽이 묵묵히 남아
+  // 잘못 제출되는 걸 막기 위해서.
+  const weaponPickId = picks.weapon ?? null
+  useEffect(() => {
+    setPicks((prev) => {
+      let changed = false
+      const next: Record<string, string> = { ...prev }
+      for (const k of kinds) {
+        if (k === 'weapon') continue
+        const chosenId = next[k]
+        if (!chosenId) continue
+        const effective = getEffectiveGearOptions(slot, k, weaponPickId) ?? []
+        if (!effective.some((o) => o.id === chosenId)) {
+          delete next[k]
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [weaponPickId, kinds, slot])
+
   const allSelected = kinds.every((k) => picks[k])
 
   const buildPicksPayload = (): SlotPicks => {
@@ -550,7 +574,8 @@ function GearChoiceModal({
     for (const k of kinds) {
       const chosenId = picks[k]
       if (!chosenId) continue
-      const opt = getGearOptions(slot, k)?.find((o) => o.id === chosenId)
+      const opt = getEffectiveGearOptions(slot, k, weaponPickId)?.find((o) => o.id === chosenId)
+        ?? getGearOptions(slot, k)?.find((o) => o.id === chosenId)
       if (opt) payload[k] = { name: opt.name, id: opt.id }
     }
     return payload
@@ -578,41 +603,70 @@ function GearChoiceModal({
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-4">
           {kinds.map((kind) => {
-            const options = getGearOptions(slot, kind) ?? []
+            const options = getEffectiveGearOptions(slot, kind, weaponPickId) ?? []
             const selectedId = picks[kind]
+            // 베이스 옵션과 effective 옵션이 다르면 conditional 룰이 작동 중 —
+            // 사용자에게 "무기 픽 때문에 후보가 좁혀졌다" 는 신호를 준다.
+            const baseOptions = getGearOptions(slot, kind) ?? []
+            const isNarrowed =
+              kind !== 'weapon' &&
+              !!weaponPickId &&
+              options.length !== baseOptions.length
+            const needsWeaponFirst =
+              kind !== 'weapon' &&
+              !weaponPickId &&
+              !!slot.conditional_options?.[kind as Exclude<SlotKey, 'weapon'>]
             return (
               <section key={kind} className="space-y-1.5">
-                <h4 className="text-amber-400 text-sm font-semibold">
-                  {tGear(kind)}
-                </h4>
-                <div className="space-y-1">
-                  {options.map((opt) => {
-                    const isSel = opt.id === selectedId
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setPicks((prev) => ({ ...prev, [kind]: opt.id }))}
-                        className={`w-full flex items-center gap-2 rounded-lg p-2 border transition-colors text-left ${
-                          isSel
-                            ? 'bg-amber-500/10 border-amber-500/50'
-                            : 'bg-gray-800 border-gray-700 hover:border-gray-600'
-                        }`}
-                      >
-                        <ItemImage itemId={opt.id} itemName={stripTierPrefix(opt.name)} size={35} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-white text-sm font-medium truncate">
-                            {stripTierPrefix(getLocalizedItemName(opt.id, locale, opt.name) ?? opt.name)}
-                          </p>
-                          <p className="text-gray-500 text-[12px] font-mono truncate">{opt.id}</p>
-                        </div>
-                        {isSel && (
-                          <span className="text-amber-400 text-[12px] font-bold flex-shrink-0">{t('selected')}</span>
-                        )}
-                      </button>
-                    )
-                  })}
+                <div className="flex items-baseline justify-between gap-2">
+                  <h4 className="text-amber-400 text-sm font-semibold">
+                    {tGear(kind)}
+                  </h4>
+                  {isNarrowed && (
+                    <span className="text-[10px] text-amber-300/70 font-medium">
+                      {t('narrowedByWeapon')}
+                    </span>
+                  )}
+                  {needsWeaponFirst && (
+                    <span className="text-[10px] text-gray-400 font-medium">
+                      {t('pickWeaponFirst')}
+                    </span>
+                  )}
                 </div>
+                {options.length === 0 ? (
+                  <p className="text-rose-300 text-[12px] py-2 px-2 bg-rose-500/5 border border-rose-500/30 rounded-lg">
+                    {t('noOptionsForWeapon')}
+                  </p>
+                ) : (
+                  <div className="space-y-1">
+                    {options.map((opt) => {
+                      const isSel = opt.id === selectedId
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setPicks((prev) => ({ ...prev, [kind]: opt.id }))}
+                          className={`w-full flex items-center gap-2 rounded-lg p-2 border transition-colors text-left ${
+                            isSel
+                              ? 'bg-amber-500/10 border-amber-500/50'
+                              : 'bg-gray-800 border-gray-700 hover:border-gray-600'
+                          }`}
+                        >
+                          <ItemImage itemId={opt.id} itemName={stripTierPrefix(opt.name)} size={35} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-sm font-medium truncate">
+                              {stripTierPrefix(getLocalizedItemName(opt.id, locale, opt.name) ?? opt.name)}
+                            </p>
+                            <p className="text-gray-500 text-[12px] font-mono truncate">{opt.id}</p>
+                          </div>
+                          {isSel && (
+                            <span className="text-amber-400 text-[12px] font-bold flex-shrink-0">{t('selected')}</span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </section>
             )
           })}

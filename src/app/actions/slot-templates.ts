@@ -4,7 +4,7 @@ import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { EVENT_CATEGORIES, type EventCategory, type GearOption, type GearSpecs, type SlotSpells } from '@/types'
+import { EVENT_CATEGORIES, type ConditionalSlotOptions, type EventCategory, type GearOption, type GearSpecs, type SlotSpells } from '@/types'
 
 // Slot-level template data: role + notes + 8 gear slots + per-slot multi-option
 // lists + per-item spells. No slot_number (templates are position-agnostic) and
@@ -28,6 +28,9 @@ export interface SlotTemplateData {
   // Mount is optional so templates saved before migration 036 still load.
   // Missing → applyTemplateToSlotInput defaults to empty.
   mount_name?: string | null;  mount_id?: string | null;  mount_options?: GearOption[] | null
+  // Migration 139: 무기 픽이 다른 종류 후보를 좁히는 룰. 기존 템플릿은 누락
+  // 가능 (applyTemplateToSlotInput 이 빈 객체로 폴백).
+  conditional_options?: ConditionalSlotOptions | null
 }
 
 export interface SlotTemplateSummary {

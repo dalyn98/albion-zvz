@@ -1,4 +1,12 @@
-import type { GearOption, GearSpec, GearSpecs, SlotKey, SlotSpells } from '@/types'
+import type {
+  ConditionalSlotOptions,
+  DependentSlotKey,
+  GearOption,
+  GearSpec,
+  GearSpecs,
+  SlotKey,
+  SlotSpells,
+} from '@/types'
 import { SLOT_KEYS } from '@/types'
 import type { SlotInput } from '@/components/SlotEditor'
 import type { SlotTemplateData } from '@/app/actions/slot-templates'
@@ -50,11 +58,19 @@ export function slotInputToTemplateData(slot: SlotInput): SlotTemplateData {
   }
   const specsOrNull = Object.keys(specs).length > 0 ? specs : null
 
+  // Migration 139: conditional_options 도 템플릿에 함께 저장. 베이스 옵션이
+  // 없는 종류 / 무기 ID 가 사라진 매핑은 drop 해 정합성을 맞춘다.
+  const conditional = sanitizeConditionalForTemplate(
+    slot.conditional_options ?? {},
+    cleanedOptions,
+  )
+
   return {
     role_name: slot.role_name.trim() || null,
     notes: slot.notes.trim() || null,
     spells: spellsOrNull,
     gear_specs: specsOrNull,
+    conditional_options: conditional,
     weapon_name: fixedValue('weapon', 'name'),  weapon_id: fixedValue('weapon', 'id'),   weapon_options: cleanedOptions.weapon,
     head_name: fixedValue('head', 'name'),       head_id: fixedValue('head', 'id'),       head_options: cleanedOptions.head,
     armor_name: fixedValue('armor', 'name'),     armor_id: fixedValue('armor', 'id'),     armor_options: cleanedOptions.armor,
@@ -65,6 +81,44 @@ export function slotInputToTemplateData(slot: SlotInput): SlotTemplateData {
     cape_name: fixedValue('cape', 'name'),       cape_id: fixedValue('cape', 'id'),       cape_options: cleanedOptions.cape,
     mount_name: fixedValue('mount', 'name'),     mount_id: fixedValue('mount', 'id'),     mount_options: cleanedOptions.mount,
   }
+}
+
+// 템플릿용 conditional 정리 — admin.ts 의 sanitizeConditionalOptions 와 같은
+// 규칙. 차이점은 입력이 빈 객체일 수 있고, 매핑이 없으면 null 반환.
+function sanitizeConditionalForTemplate(
+  raw: ConditionalSlotOptions,
+  baseOptions: Record<SlotKey, GearOption[] | null>,
+): ConditionalSlotOptions | null {
+  const weaponBase = baseOptions.weapon ?? []
+  if (weaponBase.length === 0) return null
+  const weaponIds = new Set(weaponBase.map((o) => o.id))
+  const out: ConditionalSlotOptions = {}
+  for (const key of SLOT_KEYS) {
+    if (key === 'weapon') continue
+    const dependentBase = baseOptions[key]
+    if (!Array.isArray(dependentBase) || dependentBase.length === 0) continue
+    const baseIds = new Set(dependentBase.map((o) => o.id))
+    const perWeapon = raw[key as DependentSlotKey]
+    if (!perWeapon || typeof perWeapon !== 'object') continue
+    const cleanPerWeapon: Record<string, GearOption[]> = {}
+    for (const [weaponId, narrowed] of Object.entries(perWeapon)) {
+      if (!weaponIds.has(weaponId) || !Array.isArray(narrowed)) continue
+      const seen = new Set<string>()
+      const cleaned: GearOption[] = []
+      for (const opt of narrowed) {
+        if (!opt || typeof opt.id !== 'string' || typeof opt.name !== 'string') continue
+        if (!opt.id || !opt.name) continue
+        if (!baseIds.has(opt.id) || seen.has(opt.id)) continue
+        seen.add(opt.id)
+        cleaned.push({ name: opt.name, id: opt.id })
+      }
+      if (cleaned.length > 0) cleanPerWeapon[weaponId] = cleaned
+    }
+    if (Object.keys(cleanPerWeapon).length > 0) {
+      out[key as DependentSlotKey] = cleanPerWeapon
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null
 }
 
 // Applies a loaded template over an existing SlotInput. Preserves slot_number
@@ -121,5 +175,6 @@ export function applyTemplateToSlotInput(
     options: optionsRecord,
     spells,
     specs,
+    conditional_options: data.conditional_options ?? {},
   }
 }

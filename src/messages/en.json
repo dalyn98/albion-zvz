@@ -740,6 +740,15 @@
       "label": "Solo bomb",
       "hint": "Slot signed up without a caller — applicants build their own loadout (bomb squad only)"
     },
+    "conditionalOptions": {
+      "sectionTitle": "Conditional choices (narrow by weapon pick)",
+      "sectionHint": "Once the weapon is picked, narrow other gear candidates. Leave empty to keep the base options.",
+      "kindLabel": "{kind}",
+      "usingDefault": "Using base options",
+      "resetButton": "Reset",
+      "includedHint": "Allowed — click to exclude",
+      "excludedHint": "Excluded — click to allow"
+    },
     "bombSquad": {
       "toggleLabel": "Bomb squad",
       "toggleHint": "Approval-only · custom names allowed",
@@ -1993,7 +2002,10 @@
       "close": "Close",
       "selected": "Selected",
       "cancel": "Cancel",
-      "submit": "Apply"
+      "submit": "Apply",
+      "narrowedByWeapon": "Narrowed by weapon pick",
+      "pickWeaponFirst": "Pick the weapon first",
+      "noOptionsForWeapon": "No candidates allowed with this weapon. Please contact an admin."
     },
     "soloBomb": {
       "badge": "Solo bomb",

@@ -740,6 +740,15 @@
       "label": "솔로밤",
       "hint": "콜러 없이 본인이 직접 빌드를 만들어 신청하는 슬롯 (밤스쿼드 전용)"
     },
+    "conditionalOptions": {
+      "sectionTitle": "조건부 후보 (무기에 따라 좁히기)",
+      "sectionHint": "무기 픽이 정해지면 다른 종류의 후보를 좁힙니다. 비워 두면 기본 후보 그대로 사용",
+      "kindLabel": "{kind}",
+      "usingDefault": "기본 후보 사용",
+      "resetButton": "기본으로",
+      "includedHint": "허용 — 클릭해서 제외",
+      "excludedHint": "제외 — 클릭해서 허용"
+    },
     "bombSquad": {
       "toggleLabel": "밤스쿼드",
       "toggleHint": "승인제 · 커스텀 이름 가능",
@@ -1993,7 +2002,10 @@
       "close": "닫기",
       "selected": "선택",
       "cancel": "취소",
-      "submit": "신청하기"
+      "submit": "신청하기",
+      "narrowedByWeapon": "무기 픽 기준으로 좁혀졌습니다",
+      "pickWeaponFirst": "무기를 먼저 골라 주세요",
+      "noOptionsForWeapon": "이 무기에 허용된 후보가 없습니다. 관리자에게 문의해 주세요."
     },
     "soloBomb": {
       "badge": "솔로밤",

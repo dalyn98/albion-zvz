@@ -15,7 +15,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { getLocale } from '@/lib/locale'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import type { Locale } from '@/i18n/locales'
-import type { BombSquadKind, EventCategory, SlotKey, SlotSpells, GearOption, GearSpec, GearSpecs } from '@/types'
+import type { BombSquadKind, ConditionalSlotOptions, DependentSlotKey, EventCategory, SlotKey, SlotSpells, GearOption, GearSpec, GearSpecs } from '@/types'
 import {
   BOMB_SQUAD_KINDS,
   CATEGORY_PARTY_LIMITS,
@@ -589,6 +589,9 @@ interface SlotPayload {
   // 검증). 솔로밤이면 슬롯 옵션은 비어 있을 수 있고 멤버가 free-form 으로
   // 빌드를 채워 신청한다.
   is_solo_bomb?: boolean
+  // Migration 139: 무기 픽이 다른 종류 후보를 좁히는 룰. 비어 있거나 누락이면
+  // 기존 *_options 가 그대로 후보로 쓰인다.
+  conditional_options?: ConditionalSlotOptions | null
 }
 
 // Migration 041: party-level bomb-squad metadata. All fields optional on input
@@ -724,11 +727,55 @@ function sanitizeGearSpecs(specs: Partial<Record<SlotKey, GearSpec>> | null | un
   return Object.keys(out).length > 0 ? out : null
 }
 
+// Migration 139: conditional_options 의 매핑이 베이스 후보 집합과 어긋나지
+// 않도록 정리한다. (1) 기준 무기 ID 가 현재 weapon_options 에 없으면 매핑 자체
+// drop, (2) 좁힌 후보 중 base 의 *_options 에 없는 항목 drop, (3) 빈 매핑/빈
+// 종류는 모두 제거. 베이스 옵션이 비어 있는 종류 (single/free 모드) 도 매핑
+// 의미가 없으니 drop. 결과가 완전히 비면 null 을 반환해 jsonb 컬럼을 비운다.
+function sanitizeConditionalOptions(
+  raw: ConditionalSlotOptions | null | undefined,
+  baseOptions: Record<SlotKey, GearOption[] | null>,
+): ConditionalSlotOptions | null {
+  if (!raw || typeof raw !== 'object') return null
+  const weaponBase = baseOptions.weapon ?? []
+  if (weaponBase.length === 0) return null
+  const weaponIds = new Set(weaponBase.map((o) => o.id))
+  const out: ConditionalSlotOptions = {}
+  for (const key of SLOT_KEYS) {
+    if (key === 'weapon') continue
+    const dependentBase = baseOptions[key]
+    if (!Array.isArray(dependentBase) || dependentBase.length === 0) continue
+    const baseIds = new Set(dependentBase.map((o) => o.id))
+    const perWeapon = raw[key as DependentSlotKey]
+    if (!perWeapon || typeof perWeapon !== 'object') continue
+    const cleanPerWeapon: Record<string, GearOption[]> = {}
+    for (const [weaponId, narrowed] of Object.entries(perWeapon)) {
+      if (!weaponIds.has(weaponId)) continue
+      if (!Array.isArray(narrowed)) continue
+      const seen = new Set<string>()
+      const cleaned: GearOption[] = []
+      for (const opt of narrowed) {
+        if (!opt || typeof opt.id !== 'string' || typeof opt.name !== 'string') continue
+        if (!opt.id || !opt.name) continue
+        if (!baseIds.has(opt.id) || seen.has(opt.id)) continue
+        seen.add(opt.id)
+        cleaned.push({ name: opt.name, id: opt.id })
+      }
+      if (cleaned.length > 0) cleanPerWeapon[weaponId] = cleaned
+    }
+    if (Object.keys(cleanPerWeapon).length > 0) {
+      out[key as DependentSlotKey] = cleanPerWeapon
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null
+}
+
 function slotToRow(partyId: string, slot: SlotPayload, guildId?: string) {
   const cleanedOptions = SLOT_KEYS.reduce(
     (acc, k) => ({ ...acc, [k]: sanitizeGearOptions(slot.options[k] ?? []) }),
     {} as Record<SlotKey, GearOption[] | null>,
   )
+  const cleanedConditional = sanitizeConditionalOptions(slot.conditional_options ?? null, cleanedOptions)
   // When a slot kind has multi-options, the fixed {kind}_name/id columns must
   // be cleared — the member's pick lands in assigned_{kind}_* at assign time.
   // Holding both a fixed item and an option list would let stale fixed data
@@ -747,6 +794,7 @@ function slotToRow(partyId: string, slot: SlotPayload, guildId?: string) {
     auto_regear_excluded: slot.auto_regear_excluded === true,
     manual_regear_excluded: slot.manual_regear_excluded === true,
     is_solo_bomb: slot.is_solo_bomb === true,
+    conditional_options: cleanedConditional,
     ...SLOT_KEYS.reduce((acc, k) => {
       const hasOptions = cleanedOptions[k] !== null
       return {

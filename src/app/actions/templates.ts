@@ -5,14 +5,14 @@ import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import type { GearOption, GearSpecs, SlotSpells } from '@/types'
+import type { ConditionalSlotOptions, GearOption, GearSpecs, SlotSpells } from '@/types'
 
 // Columns saved per slot: role + notes + all 8 gear slots + per-slot options
 // + per-item spells, no assignment data (per product spec: templates store
 // configuration only). Must be a string literal — the Supabase typegen parser
 // can't narrow a dynamically joined column list.
 const TEMPLATE_SLOT_COLUMNS =
-  'slot_number, role_name, notes, spells, gear_specs, ' +
+  'slot_number, role_name, notes, spells, gear_specs, conditional_options, ' +
   'weapon_name, weapon_id, weapon_options, ' +
   'head_name, head_id, head_options, ' +
   'armor_name, armor_id, armor_options, ' +
@@ -29,6 +29,9 @@ interface TemplateSlot {
   notes: string | null
   spells: SlotSpells | null
   gear_specs: GearSpecs | null
+  // Migration 139: 무기 픽이 다른 종류 후보를 좁히는 룰. 누락/null 가능 (기존
+  // 템플릿 호환).
+  conditional_options?: ConditionalSlotOptions | null
   weapon_name: string | null;  weapon_id: string | null;  weapon_options: GearOption[] | null
   head_name: string | null;    head_id: string | null;    head_options: GearOption[] | null
   armor_name: string | null;   armor_id: string | null;   armor_options: GearOption[] | null
@@ -457,6 +460,7 @@ export async function applyTemplate(
         notes: s.notes,
         spells: s.spells ?? null,
         gear_specs: s.gear_specs ?? null,
+        conditional_options: s.conditional_options ?? null,
         weapon_name: s.weapon_name,   weapon_id: s.weapon_id,   weapon_options: s.weapon_options ?? null,
         head_name: s.head_name,       head_id: s.head_id,       head_options: s.head_options ?? null,
         armor_name: s.armor_name,     armor_id: s.armor_id,     armor_options: s.armor_options ?? null,
