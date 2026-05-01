@@ -9,6 +9,11 @@ import {
 } from '@/app/actions/onboarding'
 import { saveTenantAlbion } from '@/app/actions/onboard'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
+import {
+  AODP_ALLOWED_CITIES,
+  AODP_CITY_LABEL,
+  type AodpCity,
+} from '@/lib/shop/aodp-constants'
 
 interface Labels {
   albionServerLabel: string
@@ -23,6 +28,8 @@ interface Labels {
   albionServerWest: string
   albionServerEast: string
   albionServerEurope: string
+  albionAodpCityLabel: string
+  albionAodpCityHelp: string
   nextButton: string
   skipButton: string
   savingButton: string
@@ -49,6 +56,7 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState('')
   const [isPending, startTransition] = useTransition()
+  const [aodpCity, setAodpCity] = useState<AodpCity>(AODP_ALLOWED_CITIES[0])
 
   const latestRequestRef = useRef(0)
   useEffect(() => {
@@ -107,6 +115,7 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
         server,
         homeGuildId: guildId,
         homeGuildName: guildName,
+        aodpCity,
       })
       if (res.error) {
         setError(res.error)
@@ -126,6 +135,7 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
         server,
         homeGuildId: '',
         homeGuildName: '',
+        aodpCity,
       })
       if (res.error) {
         setError(res.error)
@@ -259,6 +269,38 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
             {labels.albionGuildNoResults}
           </p>
         )}
+      </fieldset>
+
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-semibold text-white">
+          {labels.albionAodpCityLabel}
+        </legend>
+        <p className="text-xs text-gray-400">{labels.albionAodpCityHelp}</p>
+        <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {AODP_ALLOWED_CITIES.map((c) => {
+            const active = c === aodpCity
+            return (
+              <label
+                key={c}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer select-none transition-colors ${
+                  active
+                    ? 'border-[#5865F2] bg-[#5865F2]/10'
+                    : 'border-white/10 bg-white/5 hover:border-white/20'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="onboard-aodp-city"
+                  value={c}
+                  checked={active}
+                  onChange={() => setAodpCity(c)}
+                  className="accent-[#5865F2]"
+                />
+                <span className="text-sm text-white">{AODP_CITY_LABEL[c]}</span>
+              </label>
+            )
+          })}
+        </div>
       </fieldset>
 
       {error && <p className="text-sm text-red-400">{error}</p>}

@@ -82,6 +82,12 @@ export const RED_ZONE_CITIES = ['Caerleon', 'Brecilien'] as const
 
 export interface AodpOptions {
   cities?: readonly string[]
+  // 단일 "기준 도시" 모드. 빈 문자열이 아니면 해당 도시 시세를 1순위로 채택,
+  // 그 도시에 데이터 없을 때만 5개 royal city bucket 을 pool 한 가중 중앙값으로
+  // 폴백한다 (인게임 추정가에 가장 근접). cities 가 단일 원소면 자동 추론.
+  // 명시 폴백 chain (window/bluezone/redzone) 단계에서 cities 가 확장돼도
+  // primaryCity 는 보존되어 1순위 유지.
+  primaryCity?: string
   server?: AlbionServer
   mode?: AodpPriceMode
   // 실제 아이템 품질이 이 값보다 낮으면 이 값으로 끌어올려 조회.
@@ -371,7 +377,11 @@ export async function loadAodpOptions(guildId: string): Promise<Required<AodpOpt
 
   const qualityAgnostic = qualityAgnosticRaw === 'true'
 
-  return { cities, server, mode, minQuality, qualityAgnostic }
+  // cities 배열이 단일 원소면 자동으로 "기준 도시" 모드로 인식. AodpSettingsForm
+  // 이 항상 [city] 한 개로 저장하고, 다중 도시는 직접 SQL 시드한 case 만 가능.
+  const primaryCity = cities.length === 1 ? cities[0] : ''
+
+  return { cities, primaryCity, server, mode, minQuality, qualityAgnostic }
 }
 
 // AODP 폴백 체인의 한 단계. 사용자 설정(또는 widen 된 설정) 으로 한 번
@@ -384,8 +394,20 @@ async function fetchAodpPricesExact(
   options: Required<AodpOptions>,
 ): Promise<Map<string, AodpPriceResult>> {
   if (keys.length === 0) return new Map()
-  const { cities, server, mode, minQuality, qualityAgnostic } = options
+  const { cities, primaryCity, server, mode, minQuality, qualityAgnostic } = options
   const host = AODP_HOSTS[server]
+
+  // 기준 도시 모드: cities 설정과 무관하게 항상 5 royal city + primary 를 함께
+  // 조회해 폴백 pool 을 확보. wrapper 가 widen 한 cities (bluezone/redzone) 도
+  // unionCities 로 흡수되므로 단계별 cities 변화에 따라 자연스럽게 pool 이 늘어난다.
+  // primaryCity 가 빈 문자열이면 기존 multi-city min 동작 그대로.
+  const hasPrimary = primaryCity.length > 0
+  const effectiveCities = hasPrimary
+    ? unionCities([primaryCity], unionCities(cities, BLUE_ZONE_CITIES))
+    : cities
+  const fallbackPool: readonly string[] = hasPrimary
+    ? effectiveCities.filter((c) => c !== primaryCity)
+    : []
 
   const uniqIds = Array.from(new Set(keys.map(itemId)))
   const qualities = qualityList(keys, minQuality)
@@ -462,7 +484,15 @@ async function fetchAodpPricesExact(
     // item 으로 collapse 해 최저가 채택. history 는 (item, location) 단위로
     // 모든 품질의 bucket 을 합쳐 weightedMedian.
     if (mode === 'spot') {
-      const spotMap = await fetchSpotBestByKey(host, uniqIds, qualities, cities, CHUNK)
+      const spotMap = await fetchSpotBestByKey(
+        host,
+        uniqIds,
+        qualities,
+        effectiveCities,
+        CHUNK,
+      )
+      // 행 (item, quality, city) → (item) 로 collapse. primary 모드면 기준 도시
+      // 우선; 그렇지 않으면 최저 도시.
       const itemBest = new Map<
         string,
         { price: number; city: string; sampledAt: string; sampleCount: number | null }
@@ -470,6 +500,11 @@ async function fetchAodpPricesExact(
       for (const [mk, v] of spotMap) {
         const id = mk.split('|')[0]
         const prev = itemBest.get(id)
+        if (hasPrimary && v.city === primaryCity) {
+          itemBest.set(id, v)
+          continue
+        }
+        if (prev && hasPrimary && prev.city === primaryCity) continue
         if (!prev || v.price < prev.price) itemBest.set(id, v)
       }
       for (const k of keys) {
@@ -481,39 +516,69 @@ async function fetchAodpPricesExact(
       return result
     }
 
-    // history 모드 — bucket 들을 (item, location) 단위로 모은 뒤 weightedMedian,
-    // 그 다음 도시 중 최저가 채택.
+    // history 모드 — bucket 들을 (item, location) 단위로 모은 뒤 weightedMedian.
+    // primary 모드: 기준 도시의 중앙값을 1순위로, 데이터 미스 시 fallbackPool
+    // (기준 도시를 제외한 나머지 royal cities) 의 bucket 을 합쳐 통합 weightedMedian
+    // 으로 폴백 — 한 도시 데이터가 비어 인게임 추정가보다 너무 낮게 잡히는 문제 방지.
+    // primary 미설정: 기존대로 도시 중 최저가 채택.
     const days = modeToDays(mode)
     const all: AodpHistoryRow[] = []
     for (let i = 0; i < uniqIds.length; i += CHUNK) {
       const slice = uniqIds.slice(i, i + CHUNK)
-      all.push(...(await fetchHistoryBatch(host, slice, qualities, cities, days)))
+      all.push(...(await fetchHistoryBatch(host, slice, qualities, effectiveCities, days)))
     }
-    // `${item_id} ${location}` — `|` 가 itemId 안에 안 쓰여서 쓰는 곳도
-    // 있지만 location 명에 `|` 가 들어갈 일은 없어도 일단 null-byte 로 안전.
-    const bucketsByItemLoc = new Map<string, AodpHistoryBucket[]>()
+    const bucketsByItem = new Map<string, Map<string, AodpHistoryBucket[]>>()
     for (const row of all) {
-      const k = `${row.item_id} ${row.location}`
-      const list = bucketsByItemLoc.get(k) ?? []
+      const byLoc = bucketsByItem.get(row.item_id) ?? new Map<string, AodpHistoryBucket[]>()
+      const list = byLoc.get(row.location) ?? []
       list.push(...(row.data ?? []))
-      bucketsByItemLoc.set(k, list)
+      byLoc.set(row.location, list)
+      bucketsByItem.set(row.item_id, byLoc)
     }
     const historyBestByItem = new Map<
       string,
       { price: number; city: string; sampledAt: string; sampleCount: number }
     >()
-    for (const [k, buckets] of bucketsByItemLoc) {
-      const [item_id, location] = k.split(' ')
-      const aggregate = weightedMedian(buckets)
-      if (!aggregate) continue
-      const prev = historyBestByItem.get(item_id)
-      if (!prev || aggregate.price < prev.price) {
+    for (const [item_id, byLoc] of bucketsByItem) {
+      if (hasPrimary) {
+        const primaryBuckets = byLoc.get(primaryCity)
+        const primaryAggregate = primaryBuckets ? weightedMedian(primaryBuckets) : null
+        if (primaryAggregate) {
+          historyBestByItem.set(item_id, {
+            price: primaryAggregate.price,
+            city: primaryCity,
+            sampledAt: primaryAggregate.sampledAt,
+            sampleCount: primaryAggregate.sampleCount,
+          })
+          continue
+        }
+        const pooled: AodpHistoryBucket[] = []
+        for (const c of fallbackPool) {
+          const bucketsForCity = byLoc.get(c)
+          if (bucketsForCity) pooled.push(...bucketsForCity)
+        }
+        const pooledAggregate = pooled.length > 0 ? weightedMedian(pooled) : null
+        if (!pooledAggregate) continue
         historyBestByItem.set(item_id, {
-          price: aggregate.price,
-          city: location,
-          sampledAt: aggregate.sampledAt,
-          sampleCount: aggregate.sampleCount,
+          price: pooledAggregate.price,
+          city: 'pooled',
+          sampledAt: pooledAggregate.sampledAt,
+          sampleCount: pooledAggregate.sampleCount,
         })
+        continue
+      }
+      for (const [location, buckets] of byLoc) {
+        const aggregate = weightedMedian(buckets)
+        if (!aggregate) continue
+        const prev = historyBestByItem.get(item_id)
+        if (!prev || aggregate.price < prev.price) {
+          historyBestByItem.set(item_id, {
+            price: aggregate.price,
+            city: location,
+            sampledAt: aggregate.sampledAt,
+            sampleCount: aggregate.sampleCount,
+          })
+        }
       }
     }
 
@@ -527,10 +592,15 @@ async function fetchAodpPricesExact(
       { price: number; city: string; sampledAt: string; sampleCount: null }
     >()
     if (missingItems.size > 0) {
-      const spotMap = await fetchSpotBestByKey(host, uniqIds, qualities, cities, CHUNK)
+      const spotMap = await fetchSpotBestByKey(host, uniqIds, qualities, effectiveCities, CHUNK)
       for (const [mk, v] of spotMap) {
         const id = mk.split('|')[0]
         const prev = spotBestByItem.get(id)
+        if (hasPrimary && v.city === primaryCity) {
+          spotBestByItem.set(id, v)
+          continue
+        }
+        if (prev && hasPrimary && prev.city === primaryCity) continue
         if (!prev || v.price < prev.price) spotBestByItem.set(id, v)
       }
     }
@@ -649,8 +719,15 @@ export async function fetchAodpPrices(
   options: AodpOptions = {},
 ): Promise<Map<string, AodpPriceResult>> {
   if (keys.length === 0) return new Map()
+  const baseCities = options.cities && options.cities.length > 0 ? options.cities : DEFAULT_CITIES
   const userOpts: Required<AodpOptions> = {
-    cities: options.cities && options.cities.length > 0 ? options.cities : DEFAULT_CITIES,
+    cities: baseCities,
+    primaryCity:
+      options.primaryCity && options.primaryCity.length > 0
+        ? options.primaryCity
+        : baseCities.length === 1
+          ? baseCities[0]
+          : '',
     server: options.server ?? 'east',
     mode: options.mode ?? 'spot',
     minQuality: options.minQuality && options.minQuality > 0 ? options.minQuality : 1,

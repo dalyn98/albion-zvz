@@ -36,6 +36,8 @@ export default async function TenantAlbionSetupPage({ params }: Props) {
           albionServerWest: t('albionServerWest'),
           albionServerEast: t('albionServerEast'),
           albionServerEurope: t('albionServerEurope'),
+          albionAodpCityLabel: t('albionAodpCityLabel'),
+          albionAodpCityHelp: t('albionAodpCityHelp'),
           nextButton: t('nextButton'),
           skipButton: t('skipButton'),
           savingButton: t('savingButton'),

@@ -15,6 +15,7 @@ import { isValidTenantSlug, slugBaseFromAlbionGuildName } from '@/lib/tenant-slu
 import { buildTenantHostUrl } from '@/lib/tenant-resolver'
 import { signHopToken } from '@/lib/oauth-state'
 import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
+import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { isValidTenantTimezone } from '@/lib/timezone'
 import { recordAdminLogin } from '@/lib/tenant-activity'
 import { EVENT_CATEGORIES } from '@/types'
@@ -128,6 +129,8 @@ interface SaveTenantAlbionInput {
   server: string
   homeGuildId: string
   homeGuildName: string
+  // 기준 거래소 도시. 빈 문자열이면 저장 생략 (기존 default 유지).
+  aodpCity?: string
 }
 
 const MAX_HOME_GUILD_ID_LENGTH = 500
@@ -255,29 +258,43 @@ export async function saveTenantAlbion(
   }
 
   const now = new Date().toISOString()
-  const { error } = await db.from('app_settings').upsert(
-    [
-      {
-        guild_id: input.tenantId,
-        key: 'albion_server',
-        value: server,
-        updated_at: now,
-      },
-      {
-        guild_id: input.tenantId,
-        key: 'albion_home_guild_id',
-        value: homeGuildId,
-        updated_at: now,
-      },
-      {
-        guild_id: input.tenantId,
-        key: 'albion_home_guild_name',
-        value: homeGuildName,
-        updated_at: now,
-      },
-    ],
-    { onConflict: 'guild_id,key' },
-  )
+  const rows = [
+    {
+      guild_id: input.tenantId,
+      key: 'albion_server',
+      value: server,
+      updated_at: now,
+    },
+    {
+      guild_id: input.tenantId,
+      key: 'albion_home_guild_id',
+      value: homeGuildId,
+      updated_at: now,
+    },
+    {
+      guild_id: input.tenantId,
+      key: 'albion_home_guild_name',
+      value: homeGuildName,
+      updated_at: now,
+    },
+  ]
+
+  // 기준 도시는 선택 사항 — 명시 입력했고 화이트리스트 안에 있을 때만 저장.
+  // 잘못된 값이 와도 위저드 진행은 막지 않고 그냥 무시 (관리자가 어드민 설정에서
+  // 다시 고를 수 있다).
+  const aodpCity = (input.aodpCity ?? '').trim()
+  if (aodpCity.length > 0 && (AODP_ALLOWED_CITIES as readonly string[]).includes(aodpCity)) {
+    rows.push({
+      guild_id: input.tenantId,
+      key: 'aodp_cities',
+      value: JSON.stringify([aodpCity]),
+      updated_at: now,
+    })
+  }
+
+  const { error } = await db.from('app_settings').upsert(rows, {
+    onConflict: 'guild_id,key',
+  })
   if (error) {
     // unique index (mig 101) 가 race 로 막은 경우 — 위에서 SELECT 후 다른 tenant
     // 가 같은 UUID 를 등록했을 때. 사용자에겐 동일 메시지로 안내.
