@@ -3005,7 +3005,7 @@
     "slotRoleMissing": "The slot has no role assigned. Please contact an admin.",
     "manualRegearExcluded": "Manual regear requests are blocked for this build. Please contact an admin.",
     "alreadyRequestedForEvent": "You've already submitted a regear request for this event.",
-    "regearWindowNotOpen": "Waiting for the killboard to index deaths. Please retry {minutes} minutes after battle end.",
+    "regearWindowNotOpen": "Waiting for the killboard to index deaths. Please retry {minutes} minutes after the battle ends.",
     "regearDeathsLimitReached": "You've already submitted the max ({max}) regear requests for this event.",
     "ceilingNotSetForRole": "This role's regear cap isn't set. Please contact an admin.",
     "invalidClaimAmount": "Claim amount must be an integer.",
@@ -3118,7 +3118,7 @@
     "enabledMessage": "Discord DM notifications enabled.",
     "disabledMessage": "Discord DM notifications disabled.",
     "categoryTitle": "Event category alerts",
-    "categoryDescription": "Mute imminent-event DMs for categories you don't care about. Only applies when DM notifications are enabled.",
+    "categoryDescription": "Mute imminent-event DMs for categories you don't care about. Only applies when DMs are enabled.",
     "categoryMasterOff": "Enable \"Receive DMs\" above first — category settings take effect only when DMs are on.",
     "categoryOn": "On",
     "categoryOff": "Muted",
@@ -3128,7 +3128,7 @@
     "regearApprovedTitle": "Regear approved",
     "regearApprovedBody": "{event} regear approved (+{silver} silver).",
     "regearStockedTitle": "Regear — issued from stock",
-    "regearStockedBody": "{event} regear has been issued from the guild stock. Ask your admin how to pick up the gear.",
+    "regearStockedBody": "{event} regear has been issued from guild stock. Ask your admin how to pick up the gear.",
     "regearRejectedTitle": "Regear rejected",
     "regearRejectedBody": "{event} regear request was rejected.",
     "exchangeApprovedTitle": "Exchange approved",
@@ -3226,7 +3226,7 @@
     "albionServerHelp": "Select the shard your guild actually plays on. Changing server clears the selected guild.",
     "albionHomeGuildLabel": "Home guild",
     "albionHomeGuildHelp": "Search by guild name and pick from the list. Leaving this empty saves all members as [unverified]; you can change it later in settings.",
-    "albionGuildSearchPlaceholder": "Search guild name (2+ chars)",
+    "albionGuildSearchPlaceholder": "Search guild name (2+ characters)",
     "albionGuildNoResults": "No results",
     "albionSelectedGuild": "Selected",
     "albionClearGuild": "Clear",
@@ -3300,7 +3300,7 @@
     "provisionalLabel": "Pending",
     "mainOpponentAlliance": "Alliance",
     "mainOpponentGuild": "Standalone guild",
-    "empty": "No battle records yet. New battles your home guild fights in show up automatically within 15 minutes."
+    "empty": "No battle records yet. New battles your home guild fights in will show up automatically within 15 minutes."
   },
   "battleDetail": {
     "backToList": "Back to battles",
@@ -3317,13 +3317,13 @@
     "eventOpponentUnknown": "Unknown opponent",
     "eventItemPower": "IP {value}",
     "eventFame": "{fame} fame",
-    "crossPerspectiveBanner": "Viewing as [{tenant}]",
+    "crossPerspectiveBanner": "Viewing from [{tenant}]'s perspective",
     "crossPerspectiveHint": "Member information is anonymized — only Albion nicknames are shown.",
     "crossPerspectiveAvailable": "Other perspectives",
     "crossPerspectiveLink": "[{tenant}] perspective",
     "matchSplitBannerTitle": "This battle is split into {total} matchups (showing {index}/{total})",
     "matchSplitBannerHint": "When your home engaged two alliances/guilds in the same battle, the record is split into separate rows so K/D reflects each matchup accurately. Other matchups of the same battle are grouped in the battle list with a violet left border.",
-    "opponentGuildsTitle": "Opponent guilds ({count})",
+    "opponentGuildsTitle": "Opponent guild breakdown ({count})",
     "opponentGuildsHint": "Only guilds with 10+ participants are shown.",
     "opponentGuildsEmpty": "No opponent guild met the aggregation threshold.",
     "opponentGuildTeamSize": "{count} players",
@@ -3371,8 +3371,8 @@
     "emptyStock": "The shop is out of stock.",
     "emptySearch": "No results.",
     "tile": {
-      "stockPrefix": "Stock {stock}",
-      "cartPrefix": "In cart {qty}",
+      "stockPrefix": "Stock: {stock}",
+      "cartPrefix": "In cart: {qty}",
       "resetHint": "Click to clear"
     },
     "cart": {
@@ -3519,7 +3519,7 @@
   "shopMyOrders": {
     "title": "My orders",
     "pendingBadge": "Pending {count}",
-    "summary": "{points}p · {types} types",
+    "summary": "{points}p · {types} item types",
     "statusPending": "Pending",
     "statusApproved": "Approved",
     "statusRejected": "Rejected",
@@ -3528,7 +3528,7 @@
     "memberNotePrefix": "Note: {note}",
     "adminNotePrefix": "Admin: {note}",
     "cancelButton": "Cancel order",
-    "cancelConfirm": "Cancel this order. Continue?"
+    "cancelConfirm": "Cancel this order?"
   },
   "demo": {
     "banner": "Demo screen — UI preview only, not real data.",
@@ -3572,7 +3572,7 @@
     },
     "events": {
       "title": "Events & party builder",
-      "subtitle": "The Discord bot handles signup and reminders. Slot-based composition lets anyone glance and grab an open seat.",
+      "subtitle": "The Discord bot handles signups and reminders. Slot-based composition lets anyone glance at the roster and grab an open seat.",
       "scheduledFor": "Today 22:00 KST · Recruiting",
       "eventName": "Roads 7v7 — Ore run",
       "callerLabel": "Caller",
@@ -3590,7 +3590,7 @@
     },
     "regear": {
       "title": "Auto regear",
-      "subtitle": "Die in a tracked battle? A regear ticket is auto-created. The claimer edits per-slot, the admin approves with one click.",
+      "subtitle": "Die in a tracked battle? A regear ticket is auto-created — the claimer edits each slot, the admin approves with one click.",
       "statusPending": "Pending",
       "statusApproved": "Approved",
       "rowItem": "Item",
@@ -3626,7 +3626,7 @@
       "title": "Member stats & badges",
       "subtitle": "Auto-aggregated per battle: weapon-category usage, K/D, survival rate, cumulative trophies.",
       "memberName": "Eternia",
-      "memberRole": "Tank · 4 months in",
+      "memberRole": "Tank · 4 months active",
       "kdLabel": "K/D ratio",
       "survivalLabel": "Survival",
       "totalBattles": "Battles fought",
@@ -3641,7 +3641,7 @@
       "trophy1": "Wall of Tanks",
       "trophy2": "100 Battles",
       "trophy3": "MVP of the Month",
-      "trophy4": "5-win Unbeaten"
+      "trophy4": "5-Game Win Streak"
     },
     "battles": {
       "title": "Battle records",
@@ -3649,7 +3649,7 @@
       "battleTitle": "Black Zone — Mercia (yesterday 22:14)",
       "outcomeWin": "Win",
       "outcomeLoss": "Loss",
-      "scaleLabel": "Scale",
+      "scaleLabel": "Size",
       "scaleLarge": "Large (45 vs 38)",
       "homeLabel": "Our guild",
       "oppLabel": "Opponent",

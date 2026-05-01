@@ -543,9 +543,9 @@
     "staleSpells": "之前已选（不在当前池中）：",
     "spellRemoveAria": "移除 {id}",
     "bucketActive": "主动",
-    "bucketActiveSlot": "槽位 {slot}",
+    "bucketActiveSlot": "{slot}号主动技能",
     "bucketPassive": "被动",
-    "bucketPassiveSlot": "被动 {slot}"
+    "bucketPassiveSlot": "{slot}号被动技能"
   },
   "adminGuide": {
     "eyebrow": "管理员指南",
@@ -668,8 +668,8 @@
     "addSlot": "添加槽位（{count}/20）",
     "saveParty": "保存{num}号小队",
     "savingDots": "保存中...",
-    "slotBreadcrumb": "小队 {party} · 槽位 {slot}",
-    "slotTitle": "小队 {party} 槽位 {slot}",
+    "slotBreadcrumb": "{party}号小队 · {slot}号槽位",
+    "slotTitle": "{party}号小队 {slot}号槽位",
     "roleNone": "未选择角色",
     "deleteSlot": "删除槽位",
     "done": "完成",
@@ -1948,8 +1948,8 @@
     "applying": "申请中...",
     "pickThenApply": "选择装备后申请",
     "apply": "申请",
-    "partyLabel": "小队 {party} · 槽位 {slot}",
-    "partyLabelCustom": "{name} · 槽位 {slot}",
+    "partyLabel": "{party}号小队 · {slot}号槽位",
+    "partyLabelCustom": "{name} · {slot}号槽位",
     "bombSquad": {
       "requestApply": "申请批准",
       "withdrawRequest": "撤回申请",
@@ -2033,7 +2033,7 @@
   "regear": {
     "pageTitle": "装备补偿",
     "pageDescription": "在您所属战斗开始后,或在开放的自由申请窗口期内,可在此提交补装申请。",
-    "tabEligible": "可申请战斗",
+    "tabEligible": "可申请的战斗",
     "tabHistory": "我的申请",
     "noEligible": "暂无可补装的战斗。",
     "noEligibleHint": "一旦您所属的战斗开始,它将显示在这里。",
@@ -2093,7 +2093,7 @@
     "modeLabel": "发放方式",
     "modeNoticeLabel": "本公会的补装发放模式",
     "modeSilverLabel": "银币发放",
-    "modeSilverHint": "审批后以积分发放(管理员可在公会设置中更改)",
+    "modeSilverHint": "审批后以银币发放（管理员可在公会设置中更改）",
     "modeCraftedLabel": "制作装备",
     "modeCraftedHint": "由公会制作者制作并放入装备箱供您领取(管理员可在公会设置中更改)",
     "typeChooseTitle": "申请类型",
@@ -2110,7 +2110,7 @@
     "modalTitle": "{title}",
     "metaLimit": "每位成员 {max} 次",
     "metaClosesAt": "{ts} 关闭",
-    "metaSubmittedCount": "已提交 {count}/{max}",
+    "metaSubmittedCount": "已提交 {count}/{max} 次",
     "btnSubmit": "提交",
     "btnDone": "已完成",
     "btnClosed": "已关闭",
@@ -2160,7 +2160,7 @@
     "deliverButton": "交付",
     "boxLabel": "箱号 #{n}",
     "materialSpent": "材料 {silver}",
-    "requesterLine": "申请人:{name}",
+    "requesterLine": "申请人：{name}",
     "toastClaimed": "任务已认领。",
     "toastDelivered": "已交付。",
     "toastReleased": "任务已释放。",
@@ -2866,7 +2866,7 @@
     "mount": "坐骑"
   },
   "armor": {
-    "keeper": "审判者护甲",
+    "keeper": "守卫者护甲",
     "hell": "恶魔护甲",
     "knight": "骑士护甲",
     "fey": "暮编织者护甲",
@@ -3371,7 +3371,7 @@
     "emptyStock": "商店暂无库存。",
     "emptySearch": "无搜索结果。",
     "tile": {
-      "stockPrefix": "库存 {stock}",
+      "stockPrefix": "库存 {stock} 件",
       "cartPrefix": "购物车中 {qty}",
       "resetHint": "点击清除"
     },
