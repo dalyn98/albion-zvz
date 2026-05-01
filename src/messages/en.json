@@ -331,7 +331,8 @@
     "queueAsCraftedTitle": "Add to the craft queue so a crafter can pick it up (silver is reimbursed to the crafter on delivery)",
     "queueAsCraftedToast": "Sent to the craft queue",
     "requestTypeOverchargeBadge": "Overcharge",
-    "overchargeNoKillboard": "Overcharge — killboard verification skipped"
+    "overchargeNoKillboard": "Overcharge — killboard verification skipped",
+    "userEditedRowBadge": "Edited"
   },
   "adminExchangeReview": {
     "pageTitle": "Exchange requests",

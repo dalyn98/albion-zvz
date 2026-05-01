@@ -64,8 +64,17 @@ interface EventGroupRow {
   rows: AdminRegearRequest[]
 }
 
+// 청구자가 부위별 가격을 직접 수정한 자동 리기어 행. 자동 청구는 AODP 추정으로
+// 가격이 매겨지지만 사망자가 실제 장비/품질로 수정해 둔 행은 관리자가 우선
+// 검토해야 한다 (편집 자체가 "AODP 가 잘못됐다" 는 신호이기 때문). 수동 청구는
+// breakdown_items 가 비어 false 가 자연스럽게 나온다.
+function hasUserEdits(request: AdminRegearRequest): boolean {
+  return request.breakdown_items.some((item) => item.user_edited)
+}
+
 // 같은 멤버의 신청을 인접하게 묶고, 멤버 그룹들끼리는 그 멤버의 가장 최근 신청
 // 시각 기준 desc. 한 멤버 안에서는 created_at desc. 동률은 discord_id 로 안정화.
+// 1차 키로 hasUserEdits 를 두어 청구자가 가격을 수정한 행을 그룹 최상단에 띄운다.
 function clusterRowsByMember(rows: AdminRegearRequest[]): AdminRegearRequest[] {
   const memberLatest = new Map<string, string>()
   for (const r of rows) {
@@ -73,6 +82,9 @@ function clusterRowsByMember(rows: AdminRegearRequest[]): AdminRegearRequest[] {
     if (!cur || r.created_at > cur) memberLatest.set(r.discord_id, r.created_at)
   }
   return [...rows].sort((a, b) => {
+    const aEdited = hasUserEdits(a) ? 1 : 0
+    const bEdited = hasUserEdits(b) ? 1 : 0
+    if (aEdited !== bEdited) return bEdited - aEdited
     if (a.discord_id !== b.discord_id) {
       const al = memberLatest.get(a.discord_id) ?? ''
       const bl = memberLatest.get(b.discord_id) ?? ''
@@ -445,6 +457,11 @@ function RegearRow({
             {request.request_type === 'overcharge' && (
               <span className="inline-flex items-center gap-1 bg-orange-500 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded">
                 {t('requestTypeOverchargeBadge')}
+              </span>
+            )}
+            {hasUserEdits(request) && (
+              <span className="inline-flex items-center gap-1 bg-sky-400 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded">
+                {t('userEditedRowBadge')}
               </span>
             )}
             <span className="text-gray-400 text-xs truncate">· {request.event_title}</span>

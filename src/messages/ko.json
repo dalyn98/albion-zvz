@@ -331,7 +331,8 @@
     "queueAsCraftedTitle": "제작자가 만들 수 있도록 제작 큐에 추가합니다 (실버는 제작자 납품 시 reimbursement 로 지급됩니다)",
     "queueAsCraftedToast": "제작 큐에 등록됐어요",
     "requestTypeOverchargeBadge": "오버차지",
-    "overchargeNoKillboard": "오버차지 — 킬보드 검증 미사용"
+    "overchargeNoKillboard": "오버차지 — 킬보드 검증 미사용",
+    "userEditedRowBadge": "수정됨"
   },
   "adminExchangeReview": {
     "pageTitle": "환전 신청",
