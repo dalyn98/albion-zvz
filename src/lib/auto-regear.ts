@@ -340,8 +340,9 @@ export async function processAutoRegear(
   const fulfillmentMode: 'silver' | 'crafted' = craftMode ? 'crafted' : 'silver'
 
   // 자동 리기어 제외 슬롯. 잘못된 JSON 은 무시(전부 포함 = 안전한 fallback).
+  // 기본값은 음식·망토·탈것·포션 — 길드 표준 운영상 리기어 비대상 슬롯.
   const excludedSnapshotSlots = parseExcludedSlots(
-    settings.get('auto_regear_excluded_slots') ?? '[]',
+    settings.get('auto_regear_excluded_slots') ?? '["food","cape","mount","potion"]',
   )
 
   // 매우 신선한 이벤트(5분 미만) 는 미리 컷. 정확한 ready 판정은 per-event 의

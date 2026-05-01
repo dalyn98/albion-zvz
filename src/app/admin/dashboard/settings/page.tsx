@@ -74,7 +74,7 @@ export default async function SettingsPage() {
     getAppSetting('albion_server', 'east', tenantId),
     getAppSetting('albion_home_guild_id', '', tenantId),
     getAppSetting('auto_regear_enabled', 'false', tenantId),
-    getAppSetting('auto_regear_excluded_slots', '[]', tenantId),
+    getAppSetting('auto_regear_excluded_slots', '["food","cape","mount","potion"]', tenantId),
     getAppSetting('craft_regear_enabled', 'false', tenantId),
     getAppSetting('regear_require_verification', 'true', tenantId),
     getAppSetting('cd_badge_roles', '["Dps"]', tenantId),

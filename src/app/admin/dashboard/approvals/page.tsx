@@ -254,7 +254,7 @@ async function RegearSection({
           requests={requests}
           avatars={avatars}
           ratePercent={ratePercent}
-          groupByEvent={scope === 'all'}
+          groupByEvent={scope === 'all' || origin === 'auto'}
           anomalies={anomalies}
           stockChecks={stockChecks}
         />
