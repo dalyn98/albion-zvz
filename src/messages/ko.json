@@ -1611,6 +1611,7 @@
     "applicants": "신청 {assigned}/{total}",
     "newEvent": "새 이벤트",
     "viewArchive": "지난 이벤트",
+    "viewDocs": "사용법",
     "adminPending": {
       "title": "처리 대기",
       "totalCount": "총 {count}건",

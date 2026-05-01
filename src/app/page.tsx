@@ -2,13 +2,14 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import type { Event } from '@/types'
 import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
-import { Archive, Plus } from 'lucide-react'
+import { Archive, BookOpen, Plus } from 'lucide-react'
 import { formatGatherTimeFor, isImminent, isEnded } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import { getMarketingPaths } from '@/lib/marketing-paths'
 import HomeEventList, { type HomeEventCardData, type HomeEventKind } from '@/components/HomeEventList'
 import NoticeBannerWithAdmin from '@/components/NoticeBannerWithAdmin'
 import HomeAdminPendingCard from '@/components/HomeAdminPendingCard'
@@ -73,10 +74,11 @@ function classifyScheduled(event: Event): HomeEventKind {
 // Layout-level gate (src/app/layout.tsx) blocks non-members before this
 // component runs — by the time HomePage renders, the viewer is a guild member.
 export default async function HomePage() {
-  const [t, locale, session] = await Promise.all([
+  const [t, locale, session, marketingPaths] = await Promise.all([
     getTranslations(),
     getLocale(),
     getSession(),
+    getMarketingPaths(),
   ])
 
   // 홈은 공개 게이트가 걸려 있어 사실상 멤버만 들어오지만, 세션이 없어도 primary
@@ -127,6 +129,16 @@ export default async function HomePage() {
           <p className="text-gray-400 text-sm">{t('home.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2 sm:flex-shrink-0">
+          {/* 길드원이 사이트 사용법을 찾을 수 있는 유일한 진입점. 사이드바는
+              어드민 전용이라 일반 멤버는 docs 로 도달할 경로가 없다. host-aware
+              path 라 canonical/subdomain 모두 동작. */}
+          <Link
+            href={marketingPaths.docs}
+            className="flex items-center justify-center gap-1.5 text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-2 rounded-lg transition-colors text-sm whitespace-nowrap flex-1 sm:flex-initial"
+          >
+            <BookOpen size={14} />
+            {t('home.viewDocs')}
+          </Link>
           {/* `/archive` 사이드바 링크가 빠진 후 유일한 진입점 — 종료된 전투 회고가
               필요한 시점은 결국 events 페이지에서 시작하는 흐름이라 자연스럽다. */}
           <Link

@@ -1611,6 +1611,7 @@
     "applicants": "已报名 {assigned}/{total}",
     "newEvent": "新建活动",
     "viewArchive": "过往活动",
+    "viewDocs": "使用指南",
     "adminPending": {
       "title": "待审核",
       "totalCount": "共 {count} 项",

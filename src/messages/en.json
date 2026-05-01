@@ -1611,6 +1611,7 @@
     "applicants": "Applied {assigned}/{total}",
     "newEvent": "New event",
     "viewArchive": "Past events",
+    "viewDocs": "Docs",
     "adminPending": {
       "title": "Pending review",
       "totalCount": "{count} total",

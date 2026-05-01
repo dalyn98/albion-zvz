@@ -1611,6 +1611,7 @@
     "applicants": "申請 {assigned}/{total}",
     "newEvent": "新しいイベント",
     "viewArchive": "過去のイベント",
+    "viewDocs": "使い方",
     "adminPending": {
       "title": "対応待ち",
       "totalCount": "合計{count}件",
