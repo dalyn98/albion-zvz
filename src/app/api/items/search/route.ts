@@ -13,9 +13,11 @@ interface BundledItem {
   e: string // lowercased EN-US
   k: string // lowercased KO-KR
   j: string // lowercased JA-JP
+  z: string // lowercased ZH-CN
   d: string // displayName (KO > EN > id)
   dj: string // displayName (JA > EN > id)
   de: string // displayName (EN > id)
+  dz: string // displayName (ZH-CN > EN > id)
 }
 
 const ITEMS = items as BundledItem[]
@@ -43,15 +45,16 @@ export function GET(request: NextRequest) {
   for (const item of ITEMS) {
     if (categories.length && !categories.includes(item.c)) continue
     if (tierPrefix && !item.u.toLowerCase().startsWith(tierPrefix)) continue
-    // Match across EN + KO + JA so a ko user searching an EN/JA name still
-    // hits, and vice versa. Display name follows the active locale.
-    if (!item.e.includes(q) && !item.k.includes(q) && !item.j.includes(q)) continue
-    // zh users get English item names — no Chinese bundle exists.
+    // Match across EN + KO + JA + ZH so any-locale user searching any-locale
+    // name still hits. Display name follows the active locale.
+    if (!item.e.includes(q) && !item.k.includes(q) && !item.j.includes(q) && !item.z.includes(q)) continue
     const displayName = locale === 'ja'
       ? item.dj
-      : locale === 'en' || locale === 'zh'
+      : locale === 'en'
         ? item.de
-        : item.d
+        : locale === 'zh'
+          ? item.dz
+          : item.d
     results.push({ uniqueName: item.u, displayName })
     if (results.length >= MAX_RESULTS) break
   }

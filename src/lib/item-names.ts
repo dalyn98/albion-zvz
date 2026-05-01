@@ -7,9 +7,11 @@ interface BundledItem {
   e: string
   k: string
   j: string
+  z: string
   d: string
   dj: string
   de: string
+  dz: string
 }
 
 const ITEMS = items as BundledItem[]
@@ -28,9 +30,8 @@ export function getLocalizedItemName(
   const bundled = BY_ID.get(uniqueName)
   if (!bundled) return fallback ?? null
   if (locale === 'ja') return bundled.dj
-  // zh users see English item names — Albion has no Chinese item bundle and
-  // English is the lingua franca in international Albion communities.
-  if (locale === 'en' || locale === 'zh') return bundled.de
+  if (locale === 'en') return bundled.de
+  if (locale === 'zh') return bundled.dz
   return bundled.d
 }
 

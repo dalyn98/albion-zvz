@@ -13,6 +13,7 @@
 //   - 한국어:  "장로의 갤러틴 페어" → "갤러틴 페어"
 //   - 영어:    "elder's galatine pair" → "galatine pair"
 //   - 일본어:  "ガラティーンペア（老熟）" → "ガラティーンペア"
+//   - 중국어:  "禅师级拥王阔刃大剑" → "拥王阔刃大剑"
 // T8 엔트리를 canonical 로 잡고 거기서 prefix/suffix 만 떼낸다.
 //
 // 검색 키는 공백·기호 제거 후 lower-case 로 정규화한다 ("갤러틴페어" /
@@ -31,6 +32,7 @@ interface BundledItem {
   e: string
   k: string
   j: string
+  z: string
 }
 
 export interface TrackedItemSearchEntry {
@@ -43,12 +45,14 @@ export interface TrackedItemSearchEntry {
   displayKo: string
   displayEn: string
   displayJa: string
+  displayZh: string
 }
 
 interface IndexedEntry extends TrackedItemSearchEntry {
   searchKeyKo: string
   searchKeyEn: string
   searchKeyJa: string
+  searchKeyZh: string
 }
 
 // 한국어 티어 prefix.
@@ -72,6 +76,15 @@ const EN_TIER_PREFIXES: readonly string[] = [
 // 일본어 티어 suffix (괄호 안에 들어감). 정규식으로 한 번에 제거.
 const JA_TIER_SUFFIX_RE = /（(?:名人|達人|マスター|グランドマスター|老熟)）$/
 
+// 중국어(간체) 티어 prefix. 老手级(T4)/专家级(T5)/大师级(T6)/宗师级(T7)/禅师级(T8).
+const ZH_TIER_PREFIXES: readonly string[] = [
+  '老手级',
+  '专家级',
+  '大师级',
+  '宗师级',
+  '禅师级',
+]
+
 function stripKoTier(name: string): string {
   for (const p of KO_TIER_PREFIXES) {
     if (name.startsWith(p)) return name.slice(p.length)
@@ -89,6 +102,13 @@ function stripEnTier(name: string): string {
 
 function stripJaTier(name: string): string {
   return name.replace(JA_TIER_SUFFIX_RE, '')
+}
+
+function stripZhTier(name: string): string {
+  for (const p of ZH_TIER_PREFIXES) {
+    if (name.startsWith(p)) return name.slice(p.length)
+  }
+  return name
 }
 
 // 검색 키 정규화 — 공백/구두점/특수문자 제거 + lower-case. "갤러틴 페어" 와
@@ -141,6 +161,7 @@ function buildIndex(): IndexedEntry[] {
     const displayKo = stripKoTier(item.k ?? '')
     const displayEn = stripEnTier(item.e ?? '')
     const displayJa = stripJaTier(item.j ?? '')
+    const displayZh = stripZhTier(item.z ?? '')
     out.push({
       baseSuffix: suffix,
       sampleItemId: item.u,
@@ -149,9 +170,11 @@ function buildIndex(): IndexedEntry[] {
       displayKo,
       displayEn,
       displayJa,
+      displayZh,
       searchKeyKo: normalizeSearchKey(displayKo),
       searchKeyEn: normalizeSearchKey(displayEn),
       searchKeyJa: normalizeSearchKey(displayJa),
+      searchKeyZh: normalizeSearchKey(displayZh),
     })
   }
   return out
@@ -168,17 +191,24 @@ export function getEntryBySuffix(
 ): TrackedItemSearchEntry | null {
   for (const e of getIndex()) {
     if (e.baseSuffix === suffix) {
-      const { searchKeyKo: _ko, searchKeyEn: _en, searchKeyJa: _ja, ...rest } = e
+      const {
+        searchKeyKo: _ko,
+        searchKeyEn: _en,
+        searchKeyJa: _ja,
+        searchKeyZh: _zh,
+        ...rest
+      } = e
       void _ko
       void _en
       void _ja
+      void _zh
       return rest
     }
   }
   return null
 }
 
-// 사용자 입력 검색. 부분 일치 (substring) 로 한·일·영 모두 검사.
+// 사용자 입력 검색. 부분 일치 (substring) 로 한·일·영·중 모두 검사.
 // 결과는 Korean 표시명 알파벳순으로 안정 정렬.
 export function searchTrackedItems(
   query: string,
@@ -191,12 +221,20 @@ export function searchTrackedItems(
     if (
       e.searchKeyKo.includes(normalized) ||
       e.searchKeyEn.includes(normalized) ||
-      e.searchKeyJa.includes(normalized)
+      e.searchKeyJa.includes(normalized) ||
+      e.searchKeyZh.includes(normalized)
     ) {
-      const { searchKeyKo: _ko, searchKeyEn: _en, searchKeyJa: _ja, ...rest } = e
+      const {
+        searchKeyKo: _ko,
+        searchKeyEn: _en,
+        searchKeyJa: _ja,
+        searchKeyZh: _zh,
+        ...rest
+      } = e
       void _ko
       void _en
       void _ja
+      void _zh
       matches.push(rest)
       if (matches.length >= limit * 2) break
     }

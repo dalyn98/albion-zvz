@@ -109,15 +109,18 @@ async function main() {
       const en = names?.['EN-US'] ?? ''
       const ko = names?.['KO-KR'] ?? ''
       const ja = names?.['JA-JP'] ?? ''
+      const zh = names?.['ZH-CN'] ?? ''
       processed.push({
         u: uniqueName,
         c: 'mount',
         e: [en, mountOverride.d, uniqueName].join(' ').toLowerCase(),
         k: [ko, mountOverride.d, mountOverride.kExtra].join(' ').toLowerCase(),
         j: ja ? ja.toLowerCase() : '',
+        z: zh ? zh.toLowerCase() : '',
         d: mountOverride.d,
         dj: ja || en || uniqueName,
         de: en || uniqueName,
+        dz: zh || en || uniqueName,
       })
       seenMountIds.add(uniqueName)
       continue
@@ -137,7 +140,8 @@ async function main() {
     const en = names['EN-US']
     const ko = names['KO-KR']
     const ja = names['JA-JP']
-    if (!en && !ko && !ja) continue
+    const zh = names['ZH-CN']
+    if (!en && !ko && !ja && !zh) continue
     processed.push({
       u: uniqueName,
       c: category,
@@ -145,12 +149,15 @@ async function main() {
       e: en ? en.toLowerCase() : '',
       k: ko ? ko.toLowerCase() : '',
       j: ja ? ja.toLowerCase() : '',
+      z: zh ? zh.toLowerCase() : '',
       // Display name prefers Korean, falls back to English, then raw id.
       d: ko || en || uniqueName,
       // Japanese display prefers JA, then EN, then raw id. Serves ja locale.
       dj: ja || en || uniqueName,
       // English display prefers EN, falls back to raw id. Serves en locale.
       de: en || uniqueName,
+      // Simplified Chinese display prefers ZH-CN, then EN, then raw id.
+      dz: zh || en || uniqueName,
     })
   }
 
