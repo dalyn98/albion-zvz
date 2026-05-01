@@ -6,7 +6,9 @@ import {
   listExchangeRequests,
   getRegearPayoutRatePercent,
   getRegearAnomalyMap,
+  getRegearOriginCounts,
   type RegearOrigin,
+  type RegearOriginCounts,
 } from '@/app/actions/regear-admin'
 import { checkBuildSnapshotStockBatch } from '@/lib/inventory'
 import type { BuildSnapshot } from '@/types'
@@ -201,10 +203,11 @@ async function RegearSection({
   origin: RegearOrigin
   guildId: string
 }) {
-  const [{ requests, error }, t, ratePercent] = await Promise.all([
+  const [{ requests, error }, t, ratePercent, { counts }] = await Promise.all([
     listRegearRequests(scope, origin),
     getTranslations('adminRegearReview'),
     getRegearPayoutRatePercent(),
+    getRegearOriginCounts(scope),
   ])
   // pending+crafted+build_snapshot 만 재고 체크 대상. 한 번의 묶인 쿼리로 N+1 회피.
   const stockEntries: Array<{ regearId: string; snapshot: BuildSnapshot }> = requests
@@ -224,6 +227,7 @@ async function RegearSection({
       <RegearOriginTabs
         active={origin}
         scope={scope}
+        counts={counts}
         tKeys={{
           auto: t('originAuto'),
           manual: t('originManual'),
@@ -269,6 +273,7 @@ function originBaseHref(origin: RegearOrigin): string {
 interface RegearOriginTabsProps {
   active: RegearOrigin
   scope: Scope
+  counts: RegearOriginCounts
   tKeys: {
     auto: string
     manual: string
@@ -276,15 +281,15 @@ interface RegearOriginTabsProps {
   }
 }
 
-function RegearOriginTabs({ active, scope, tKeys }: RegearOriginTabsProps) {
-  const origins: Array<{ value: RegearOrigin; label: string }> = [
-    { value: 'auto', label: tKeys.auto },
-    { value: 'manual', label: tKeys.manual },
-    { value: 'all', label: tKeys.all },
+function RegearOriginTabs({ active, scope, counts, tKeys }: RegearOriginTabsProps) {
+  const origins: Array<{ value: RegearOrigin; label: string; count: number }> = [
+    { value: 'auto', label: tKeys.auto, count: counts.auto },
+    { value: 'manual', label: tKeys.manual, count: counts.manual },
+    { value: 'all', label: tKeys.all, count: counts.all },
   ]
   return (
     <nav className="flex items-center gap-2">
-      {origins.map(({ value, label }) => {
+      {origins.map(({ value, label, count }) => {
         const isActive = active === value
         const params = new URLSearchParams()
         if (value !== 'auto') params.set('origin', value)
@@ -295,13 +300,22 @@ function RegearOriginTabs({ active, scope, tKeys }: RegearOriginTabsProps) {
           <Link
             key={value}
             href={href}
-            className={`text-xs font-medium px-3 py-1.5 rounded-full border ${
+            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border ${
               isActive
                 ? 'bg-sky-500/20 border-sky-500/50 text-sky-300'
                 : 'bg-gray-900 border-gray-700 text-gray-400 hover:text-white'
             }`}
           >
-            {label}
+            <span>{label}</span>
+            <span
+              className={`text-[10px] font-semibold rounded px-1.5 py-px ${
+                isActive
+                  ? 'bg-sky-500/30 text-sky-200'
+                  : 'bg-gray-800 text-gray-300'
+              }`}
+            >
+              {count}
+            </span>
           </Link>
         )
       })}

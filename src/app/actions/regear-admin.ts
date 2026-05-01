@@ -289,6 +289,48 @@ export async function listRegearRequests(
   }
 }
 
+export interface RegearOriginCounts {
+  auto: number
+  manual: number
+  all: number
+}
+
+// 어드민 승인 화면 origin 탭 라벨에 표시할 건수. 현재 scope (pending/all) 와
+// 동일한 필터를 적용해 "지금 보고 있는 목록 기준의 분포" 가 되도록 한다.
+export async function getRegearOriginCounts(
+  scope: 'pending' | 'all' = 'pending',
+): Promise<{ counts: RegearOriginCounts; error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { counts: { auto: 0, manual: 0, all: 0 }, error: tErr('unauthorized') }
+    const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
+    const baseQuery = () => {
+      let q = db
+        .from('regear_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('guild_id', guildId)
+      if (scope === 'pending') q = q.eq('status', 'pending')
+      return q
+    }
+    const [autoRes, manualRes] = await Promise.all([
+      baseQuery().eq('auto_generated', true),
+      baseQuery().eq('auto_generated', false),
+    ])
+    if (autoRes.error) return { counts: { auto: 0, manual: 0, all: 0 }, error: autoRes.error.message }
+    if (manualRes.error) return { counts: { auto: 0, manual: 0, all: 0 }, error: manualRes.error.message }
+    const auto = autoRes.count ?? 0
+    const manual = manualRes.count ?? 0
+    return { counts: { auto, manual, all: auto + manual } }
+  } catch (e) {
+    return {
+      counts: { auto: 0, manual: 0, all: 0 },
+      error: e instanceof Error ? e.message : tErr('serverError'),
+    }
+  }
+}
+
 export async function getScreenshotUrl(path: string): Promise<{ url?: string; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
