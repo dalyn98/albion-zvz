@@ -11,12 +11,7 @@ import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import {
-  fetchAodpPrices,
-  inventoryKey,
-  loadAodpOptions,
-  type AodpPriceKey,
-} from '@/lib/shop/aodp'
+import { syncTenantShopPrices } from '@/lib/shop/price-sync'
 
 export interface PriceSyncSummary {
   requested: number
@@ -24,8 +19,6 @@ export interface PriceSyncSummary {
   missing: number
   error?: string
 }
-
-const MAX_SYNC_ROWS = 500
 
 export async function syncShopPrices(): Promise<PriceSyncSummary> {
   const tErr = await getTranslations('adminActionError')
@@ -37,73 +30,16 @@ export async function syncShopPrices(): Promise<PriceSyncSummary> {
     const guildId = await getSessionGuildId(session)
     const db = await requireAdmin()
 
-    const { data: rows, error: rowErr } = await db
-      .from('shop_inventory')
-      .select('unique_name, enchant, quality')
-      .eq('guild_id', guildId)
-      .limit(MAX_SYNC_ROWS)
-    if (rowErr) return { requested: 0, updated: 0, missing: 0, error: rowErr.message }
-
-    const keys: AodpPriceKey[] = (rows ?? []).map((r) => ({
-      uniqueName: r.unique_name as string,
-      enchant: r.enchant as number,
-      quality: r.quality as number,
-    }))
-    if (keys.length === 0) return { requested: 0, updated: 0, missing: 0 }
-
-    const aodpOptions = await loadAodpOptions(guildId)
-    const priceMap = await fetchAodpPrices(keys, aodpOptions)
-
-    let updated = 0
-    let missing = 0
-    const now = new Date().toISOString()
-
-    for (const k of keys) {
-      const mk = inventoryKey(k.uniqueName, k.enchant, k.quality)
-      const hit = priceMap.get(mk)
-      if (!hit || hit.price === null) {
-        missing += 1
-        continue
+    const result = await syncTenantShopPrices(db, guildId)
+    if (result.error) {
+      return {
+        ...result,
+        error: tErr('priceUpdateFailed', { uniqueName: '', reason: result.error }),
       }
-      // source 가 'spot' 이면 평균 모드에서 폴백된 현재가. 관리자가 원본 설정 (avg_7d)
-      // 과 실제 반영된 값이 다르다는 걸 알 수 있게 접미사로 덧붙인다.
-      // usedQuality 가 원래 요청 품질보다 낮으면 AODP 에 해당 품질 데이터가 없어
-      // 낮은 품질로 fallback 했다는 뜻이라 `:q{usedQuality}` 도 덧붙인다.
-      const parts = [`aodp:${hit.city}`]
-      if (hit.source === 'spot') parts.push('spot')
-      if (hit.usedQuality !== null && hit.usedQuality !== k.quality) {
-        parts.push(`q${hit.usedQuality}`)
-      }
-      const sourceTag = parts.join(':')
-      // exact hit 은 경고 없음(null); 나머지는 fallbackTier 그대로 저장해 UI 배지로 활용.
-      const warningLevel = hit.fallbackTier === 'exact' ? null : hit.fallbackTier
-      const { error } = await db
-        .from('shop_inventory')
-        .update({
-          auto_price_silver: hit.price,
-          price_source: sourceTag,
-          price_warning_level: warningLevel,
-          price_updated_at: now,
-          updated_at: now,
-        })
-        .eq('guild_id', guildId)
-        .eq('unique_name', k.uniqueName)
-        .eq('enchant', k.enchant)
-        .eq('quality', k.quality)
-      if (error) {
-        return {
-          requested: keys.length,
-          updated,
-          missing,
-          error: tErr('priceUpdateFailed', { uniqueName: k.uniqueName, reason: error.message }),
-        }
-      }
-      updated += 1
     }
-
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')
-    return { requested: keys.length, updated, missing }
+    return result
   } catch (e) {
     return {
       requested: 0,

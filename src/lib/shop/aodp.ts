@@ -30,12 +30,14 @@ const STALE_HOURS = 24 * 7
 const HISTORY_TIME_SCALE_HOURS = 24
 
 // 통계적 견고화 상수.
-// - OUTLIER_TRIM_RATIO: avg_Nd 모드에서 bucket >= 3 개일 때 상/하위 N% 를 가격 기준으로 잘라냄.
-//   AODP 는 한 명의 던지기 매물이나 매크로 가격이 평균을 왜곡할 수 있어 보수적으로 컷.
 // - MIN_HIGH_SAMPLES: confidence='high' 로 분류되는 history bucket item_count 합 최소치.
 //   동아시아 서버 데이터 희소성 고려해 5 개 미만이면 'medium' 으로 강등.
 // - SPOT_RECENT_HOURS: spot 모드에서 'high' 로 분류되는 sampledAt 최대 경과 시간.
-const OUTLIER_TRIM_RATIO = 0.1
+//
+// 집계 방식: avg_Nd 모드는 bucket 들의 item_count 가중 중앙값을 사용. 알비온
+// 인게임 "Estimated Market Value" 가 royal cities 의 체결가 주간 중앙값을 쓴다는
+// 커뮤니티 합의에 맞춤. 가중 평균 + outlier trim 보다 단발 이상치(fire-sale,
+// 매크로) 에 더 둔감.
 const MIN_HIGH_SAMPLES = 5
 const SPOT_RECENT_HOURS = 48
 
@@ -229,10 +231,14 @@ async function fetchHistoryBatch(
   return fetchJson<AodpHistoryRow[]>(url.toString())
 }
 
-// 가중 평균 (item_count 가중) + outlier trim. AODP 는 던지기 매물이나 매크로
-// 가격으로 평균이 왜곡되는 경우가 잦아, bucket 이 3 개 이상이면 가격 기준
-// 상/하위 OUTLIER_TRIM_RATIO 를 컷한 뒤 평균을 낸다.
-function weightedAverage(
+// 가중 중앙값 (item_count 가중). bucket 을 가격 오름차순 정렬한 뒤, 누적
+// item_count 가 전체의 절반에 도달하는 가격을 채택. 평균이나 trim-mean 보다
+// 단발 fire-sale/매크로 매물에 둔감해 알비온 인게임 추정 시장 가치(royal city
+// 주간 중앙값) 동작에 더 가깝다.
+//
+// 짝수개 동률 가격으로 절반 경계가 갈라지면 두 값을 평균. 단일 bucket 이면
+// 그 가격 그대로.
+function weightedMedian(
   buckets: AodpHistoryBucket[],
 ): { price: number; sampledAt: string; sampleCount: number } | null {
   const valid = buckets.filter(
@@ -245,25 +251,35 @@ function weightedAverage(
   if (valid.length === 0) return null
 
   const sorted = [...valid].sort((a, b) => a.avg_price - b.avg_price)
-  let trimmed = sorted
-  if (sorted.length >= 3) {
-    const trim = Math.floor(sorted.length * OUTLIER_TRIM_RATIO)
-    if (trim > 0) trimmed = sorted.slice(trim, sorted.length - trim)
-    // trim 후 0 개가 되는 일은 floor 특성상 안 일어나지만 방어적으로 fallback.
-    if (trimmed.length === 0) trimmed = sorted
+  const totalCount = sorted.reduce((acc, b) => acc + b.item_count, 0)
+  if (totalCount === 0) return null
+
+  // 누적 weight 가 totalCount/2 를 처음 넘는 bucket. 정확히 절반에서 떨어지면
+  // 다음 bucket 과 평균.
+  const half = totalCount / 2
+  let cumulative = 0
+  let medianPrice = sorted[0].avg_price
+  for (let i = 0; i < sorted.length; i += 1) {
+    const next = cumulative + sorted[i].item_count
+    if (next > half) {
+      medianPrice = sorted[i].avg_price
+      break
+    }
+    if (next === half && i + 1 < sorted.length) {
+      medianPrice = (sorted[i].avg_price + sorted[i + 1].avg_price) / 2
+      break
+    }
+    cumulative = next
+    medianPrice = sorted[i].avg_price
   }
 
-  let totalCount = 0
-  let totalValue = 0
   let latest = ''
-  for (const b of trimmed) {
-    totalCount += b.item_count
-    totalValue += b.avg_price * b.item_count
+  for (const b of valid) {
     if (b.timestamp > latest) latest = b.timestamp
   }
-  if (totalCount === 0) return null
+
   return {
-    price: Math.round(totalValue / totalCount),
+    price: Math.round(medianPrice),
     sampledAt: latest,
     sampleCount: totalCount,
   }
@@ -432,16 +448,16 @@ async function fetchAodpPricesExact(
     { price: number; city: string; sampledAt: string; sampleCount: number }
   >()
   for (const row of all) {
-    const avg = weightedAverage(row.data ?? [])
-    if (!avg) continue
+    const aggregate = weightedMedian(row.data ?? [])
+    if (!aggregate) continue
     const key = `${row.item_id}|${row.quality}`
     const prev = historyBestByKey.get(key)
-    if (!prev || avg.price < prev.price) {
+    if (!prev || aggregate.price < prev.price) {
       historyBestByKey.set(key, {
-        price: avg.price,
+        price: aggregate.price,
         city: row.location,
-        sampledAt: avg.sampledAt,
-        sampleCount: avg.sampleCount,
+        sampledAt: aggregate.sampledAt,
+        sampleCount: aggregate.sampleCount,
       })
     }
   }
