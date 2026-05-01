@@ -1,6 +1,7 @@
 import {
   Calendar,
   Coins,
+  Hammer,
   ShoppingBag,
   BarChart3,
   Check,
@@ -79,6 +80,15 @@ export default async function PublicLandingPage() {
     },
     {
       imagePosition: 'right',
+      icon: Hammer,
+      title: tFeat('f5Title'),
+      body: tFeat('f5Body'),
+      bullets: [tFeat('f5Bullet1'), tFeat('f5Bullet2'), tFeat('f5Bullet3')],
+      screenshotLabel: tFeat('f5ScreenshotLabel'),
+      screenshotKey: 'craft',
+    },
+    {
+      imagePosition: 'left',
       icon: ShoppingBag,
       title: tFeat('f3Title'),
       body: tFeat('f3Body'),
@@ -87,7 +97,7 @@ export default async function PublicLandingPage() {
       screenshotKey: 'shop',
     },
     {
-      imagePosition: 'left',
+      imagePosition: 'right',
       icon: BarChart3,
       title: tFeat('f4Title'),
       body: tFeat('f4Body'),
@@ -162,6 +172,11 @@ export default async function PublicLandingPage() {
                 label={tFeat('f2ScreenshotLabel')}
                 aspect="16/9"
                 src={MARKETING_SCREENSHOTS.regear}
+              />
+              <ScreenshotPlaceholder
+                label={tFeat('f5ScreenshotLabel')}
+                aspect="16/9"
+                src={MARKETING_SCREENSHOTS.craft}
               />
               <ScreenshotPlaceholder
                 label={tFeat('f3ScreenshotLabel')}

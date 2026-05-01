@@ -8,11 +8,12 @@
 //
 // 슬롯을 비워 두면(null) 점선 + 라벨 박스로 자리만 잡혀 있어 길드원이 봐도 어색하지 않다.
 
-export type MarketingScreenshotKey = 'events' | 'regear' | 'shop' | 'stats'
+export type MarketingScreenshotKey = 'events' | 'regear' | 'craft' | 'shop' | 'stats'
 
 export const MARKETING_SCREENSHOTS: Record<MarketingScreenshotKey, string | null> = {
   events: null, // /public/screenshots/events.png
   regear: null, // /public/screenshots/regear.png
+  craft: null,  // /public/screenshots/craft.png
   shop: null,   // /public/screenshots/shop.png
   stats: null,  // /public/screenshots/stats.png
 }

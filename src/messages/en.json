@@ -1760,7 +1760,13 @@
     "f4Bullet1": "K/D and survival rate from tracked battles",
     "f4Bullet2": "Weapon category stats · attendance · ranks",
     "f4Bullet3": "Leaderboards + achievement system (monthly/weekly)",
-    "f4ScreenshotLabel": "[Member stats screenshot]"
+    "f4ScreenshotLabel": "[Member stats screenshot]",
+    "f5Title": "Crafted regear — silver / craft dual mode",
+    "f5Body": "Claimants choose silver reimbursement or a craft request per slot. Craft requests flow through an in-site queue: guild crafters build the gear in-game and deliver it as a pickup box.",
+    "f5Bullet1": "Pick silver or craft mode per slot",
+    "f5Bullet2": "Craft queue + auto material / return-rate calc",
+    "f5Bullet3": "Pickup-box notifications + expiry policy",
+    "f5ScreenshotLabel": "[Crafted regear queue screenshot]"
   },
   "publicPricing": {
     "pageTitle": "Pricing",
