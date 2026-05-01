@@ -329,7 +329,9 @@
     "issueFromStockDisabledHint": "在庫が不足しているため出庫できません。一部部位のみ保有している場合は通常の承認をご利用ください。",
     "queueAsCraftedButton": "製作依頼に送る",
     "queueAsCraftedTitle": "製作者が作れるように製作キューへ追加します (シルバーは製作者の納品時に reimbursement として支給)",
-    "queueAsCraftedToast": "製作キューに登録しました"
+    "queueAsCraftedToast": "製作キューに登録しました",
+    "requestTypeOverchargeBadge": "オーバーチャージ",
+    "overchargeNoKillboard": "オーバーチャージ — キルボード検証なし"
   },
   "adminExchangeReview": {
     "pageTitle": "両替申請",
@@ -1093,7 +1095,9 @@
     "craftLabel": "制作リギア",
     "craftHint": "新規請求を制作者ボックスのピックアップフローで処理します。OFF にするとすべての請求がシルバー支給になります。",
     "verifyLabel": "認証ゲート",
-    "verifyHint": "ON にすると Albion ニックネーム未認証のギルドメンバーはリギア申請をブロックされ、認証ページへ案内されます。"
+    "verifyHint": "ON にすると Albion ニックネーム未認証のギルドメンバーはリギア申請をブロックされ、認証ページへ案内されます。",
+    "overchargeLabel": "オーバーチャージリギア許可",
+    "overchargeHint": "ギルド指示でオーバーチャージし装備が破壊された場合の申請を受け付けます。OFFにするとメンバーのフォームに種別選択が表示されません。"
   },
   "adminActiveMemberRoles": {
     "title": "活動メンバー役割",
@@ -2084,7 +2088,14 @@
     "modeSilverLabel": "シルバー支給",
     "modeSilverHint": "承認後にポイントで受け取り (管理者がギルド設定で変更)",
     "modeCraftedLabel": "製作支給",
-    "modeCraftedHint": "ギルドの製作者が作って保管箱に入れる (管理者がギルド設定で変更)"
+    "modeCraftedHint": "ギルドの製作者が作って保管箱に入れる (管理者がギルド設定で変更)",
+    "typeChooseTitle": "申請種別",
+    "typeChooseHint": "装備喪失の理由を選択してください。",
+    "typeDeathLabel": "戦闘死亡",
+    "typeDeathHint": "戦闘中に死亡して装備を喪失",
+    "typeOverchargeLabel": "オーバーチャージ",
+    "typeOverchargeHint": "ギルド指示によるオーバーチャージで装備が破壊",
+    "typeBack": "← 種別を選び直す"
   },
   "regearWindow": {
     "sectionTitle": "現在受付中の自由申請",
@@ -3050,7 +3061,8 @@
     "craftMaterialCostInvalid": "材料費は0以上の整数で入力してください。",
     "trackedDeathNotFound": "該当する戦死記録が見つかりません。",
     "trackedDeathNotEligible": "この戦死はトラッキング戦闘の集計に含まれていないか、14日を超過しています。",
-    "trackedDeathAlreadyClaimed": "この戦死に対するリギア申請が既に存在します。"
+    "trackedDeathAlreadyClaimed": "この戦死に対するリギア申請が既に存在します。",
+    "overchargeDisabled": "このギルドではオーバーチャージリギア申請を受け付けていません。"
   },
   "errors": {
     "title": "問題が発生しました",

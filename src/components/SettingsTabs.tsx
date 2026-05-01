@@ -81,6 +81,7 @@ interface Props {
   autoRegearExcludedSlots: SlotKey[]
   craftRegearEnabled: boolean
   regearRequireVerification: boolean
+  regearOverchargeEnabled: boolean
   cdBadgeRoles: SlotRole[]
   allowUnverifiedMemberAccess: boolean
   tenantTimezone: string
@@ -125,6 +126,7 @@ export default function SettingsTabs({
   autoRegearExcludedSlots,
   craftRegearEnabled,
   regearRequireVerification,
+  regearOverchargeEnabled,
   cdBadgeRoles,
   allowUnverifiedMemberAccess,
   tenantTimezone,
@@ -244,6 +246,7 @@ export default function SettingsTabs({
                 initialAutoEnabled={autoRegearEnabled}
                 initialCraftEnabled={craftRegearEnabled}
                 initialRequireVerification={regearRequireVerification}
+                initialOverchargeEnabled={regearOverchargeEnabled}
               />
               <RegearLimitsForm
                 embedded

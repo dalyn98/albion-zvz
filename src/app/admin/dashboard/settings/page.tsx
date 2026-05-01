@@ -48,6 +48,7 @@ export default async function SettingsPage() {
     autoRegearExcludedSlotsRaw,
     craftRegearEnabledRaw,
     regearRequireVerificationRaw,
+    regearOverchargeEnabledRaw,
     cdBadgeRolesRaw,
     allowUnverifiedMemberAccessRaw,
     tenantTimezoneRaw,
@@ -77,6 +78,7 @@ export default async function SettingsPage() {
     getAppSetting('auto_regear_excluded_slots', '["food","cape","mount","potion"]', tenantId),
     getAppSetting('craft_regear_enabled', 'false', tenantId),
     getAppSetting('regear_require_verification', 'true', tenantId),
+    getAppSetting('regear_overcharge_enabled', 'false', tenantId),
     getAppSetting('cd_badge_roles', '["Dps"]', tenantId),
     // 기본값 'true' — 기존 동작(미인증 멤버도 접근 가능) 유지. 관리자가 끌
     // 때만 layout 게이트가 /onboarding/albion 으로 강제 리다이렉트.
@@ -146,6 +148,8 @@ export default async function SettingsPage() {
   const craftRegearEnabled = craftRegearEnabledRaw === 'true'
   // 기본값 'true' — 인증 게이트가 켜진 상태로 시작. 'false' 만 OFF 로 해석.
   const regearRequireVerification = regearRequireVerificationRaw !== 'false'
+  // 기본값 'false' — 오버차지 신청은 길드가 명시적으로 켜야 멤버 폼에 노출.
+  const regearOverchargeEnabled = regearOverchargeEnabledRaw === 'true'
   // 'true' 이외는 모두 false 로 해석 — 유일한 opt-out 경로는 명시적 'false'.
   const allowUnverifiedMemberAccess = allowUnverifiedMemberAccessRaw !== 'false'
   // 손상된 IANA 가 박혀 있어도 화면이 깨지진 않도록 기본값으로 정규화.
@@ -227,6 +231,7 @@ export default async function SettingsPage() {
         autoRegearExcludedSlots={autoRegearExcludedSlots}
         craftRegearEnabled={craftRegearEnabled}
         regearRequireVerification={regearRequireVerification}
+        regearOverchargeEnabled={regearOverchargeEnabled}
         cdBadgeRoles={cdBadgeRoles}
         allowUnverifiedMemberAccess={allowUnverifiedMemberAccess}
         tenantTimezone={tenantTimezone}

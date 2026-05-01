@@ -329,7 +329,9 @@
     "issueFromStockDisabledHint": "Some pieces are out of stock. Use the regular approve button if you want to fall back to crafting.",
     "queueAsCraftedButton": "Send to craft queue",
     "queueAsCraftedTitle": "Add to the craft queue so a crafter can pick it up (silver is reimbursed to the crafter on delivery)",
-    "queueAsCraftedToast": "Sent to the craft queue"
+    "queueAsCraftedToast": "Sent to the craft queue",
+    "requestTypeOverchargeBadge": "Overcharge",
+    "overchargeNoKillboard": "Overcharge — killboard verification skipped"
   },
   "adminExchangeReview": {
     "pageTitle": "Exchange requests",
@@ -1093,7 +1095,9 @@
     "craftLabel": "Craft regear",
     "craftHint": "Routes new claims through the crafter box pickup flow. Off = all claims pay out in silver.",
     "verifyLabel": "Verification gate",
-    "verifyHint": "On = unverified guild members are blocked from claiming and routed to the Albion verification page."
+    "verifyHint": "On = unverified guild members are blocked from claiming and routed to the Albion verification page.",
+    "overchargeLabel": "Allow overcharge claims",
+    "overchargeHint": "Accept claims when members destroy their own gear via overcharge under guild orders. Disabled by default; the claim type picker is hidden when off."
   },
   "adminActiveMemberRoles": {
     "title": "Active member roles",
@@ -2084,7 +2088,14 @@
     "modeSilverLabel": "Silver payout",
     "modeSilverHint": "Paid as points after approval (admins change in guild settings)",
     "modeCraftedLabel": "Crafted gear",
-    "modeCraftedHint": "A guild crafter makes it and drops it in a box for you (admins change in guild settings)"
+    "modeCraftedHint": "A guild crafter makes it and drops it in a box for you (admins change in guild settings)",
+    "typeChooseTitle": "Claim type",
+    "typeChooseHint": "Pick the reason your gear was lost.",
+    "typeDeathLabel": "Battle death",
+    "typeDeathHint": "Lost gear by dying in battle",
+    "typeOverchargeLabel": "Overcharge",
+    "typeOverchargeHint": "Gear destroyed by overcharge under guild orders",
+    "typeBack": "← Pick a different type"
   },
   "regearWindow": {
     "sectionTitle": "Open intake windows",
@@ -3050,7 +3061,8 @@
     "craftMaterialCostInvalid": "Material cost must be a non-negative integer.",
     "trackedDeathNotFound": "That death record could not be found.",
     "trackedDeathNotEligible": "This death isn't part of the tracked battle set, or it's older than 14 days.",
-    "trackedDeathAlreadyClaimed": "A regear request already exists for this death."
+    "trackedDeathAlreadyClaimed": "A regear request already exists for this death.",
+    "overchargeDisabled": "Overcharge regear claims are not accepted in this guild."
   },
   "errors": {
     "title": "Something went wrong",

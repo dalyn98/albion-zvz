@@ -435,13 +435,18 @@ function RegearRow({
     <li className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <MemberAvatar discordId={request.discord_id} avatar={avatar} size={20} />
             <MemberLink
               discordId={request.discord_id}
               username={request.username}
               className="text-white text-sm font-semibold truncate"
             />
+            {request.request_type === 'overcharge' && (
+              <span className="inline-flex items-center gap-1 bg-orange-500 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded">
+                {t('requestTypeOverchargeBadge')}
+              </span>
+            )}
             <span className="text-gray-400 text-xs truncate">· {request.event_title}</span>
           </div>
           <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400">
@@ -488,7 +493,11 @@ function RegearRow({
 
       <div className="flex flex-col gap-1 text-xs">
         <div className="flex items-center gap-2 flex-wrap">
-          {request.killboard_verified ? (
+          {request.request_type === 'overcharge' ? (
+            <span className="flex items-center gap-1 text-orange-300">
+              <ShieldAlert size={13} /> {t('overchargeNoKillboard')}
+            </span>
+          ) : request.killboard_verified ? (
             <span className="flex items-center gap-1 text-green-400">
               <ShieldCheck size={13} /> {t('killboardVerified')}
               {request.killboard_event_id && (

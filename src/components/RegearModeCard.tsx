@@ -1,9 +1,10 @@
 'use client'
 
-// 리기어 운영 모드 3토글을 한 카드로 묶음.
+// 리기어 운영 모드 토글을 한 카드로 묶음.
 //   - 자동 리기어 (auto_regear_enabled): cron 이 victim → AODP → pending 자동 생성
 //   - 제작 리기어 (craft_regear_enabled): 박스 픽업 모드 활성화
 //   - 인증 게이트 (regear_require_verification): 미인증 길드원 신청 차단
+//   - 오버차지 리기어 (regear_overcharge_enabled): 오버차지로 장비 파괴 시 신청 받기
 // 각 토글은 독립 app_setting 이라 Save 버튼은 변경된 키만 일괄 update.
 
 import { useState } from 'react'
@@ -16,6 +17,7 @@ interface Props {
   initialAutoEnabled: boolean
   initialCraftEnabled: boolean
   initialRequireVerification: boolean
+  initialOverchargeEnabled: boolean
   embedded?: boolean
 }
 
@@ -23,6 +25,7 @@ export default function RegearModeCard({
   initialAutoEnabled,
   initialCraftEnabled,
   initialRequireVerification,
+  initialOverchargeEnabled,
   embedded = false,
 }: Props) {
   const router = useRouter()
@@ -31,6 +34,7 @@ export default function RegearModeCard({
   const [autoEnabled, setAutoEnabled] = useState(initialAutoEnabled)
   const [craftEnabled, setCraftEnabled] = useState(initialCraftEnabled)
   const [requireVerification, setRequireVerification] = useState(initialRequireVerification)
+  const [overchargeEnabled, setOverchargeEnabled] = useState(initialOverchargeEnabled)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
@@ -38,7 +42,8 @@ export default function RegearModeCard({
   const dirty =
     autoEnabled !== initialAutoEnabled ||
     craftEnabled !== initialCraftEnabled ||
-    requireVerification !== initialRequireVerification
+    requireVerification !== initialRequireVerification ||
+    overchargeEnabled !== initialOverchargeEnabled
 
   const handleSave = async () => {
     setLoading(true)
@@ -64,6 +69,17 @@ export default function RegearModeCard({
       const r = await updateAppSetting(
         'regear_require_verification',
         requireVerification ? 'true' : 'false',
+      )
+      if (r.error) {
+        setError(r.error)
+        setLoading(false)
+        return
+      }
+    }
+    if (overchargeEnabled !== initialOverchargeEnabled) {
+      const r = await updateAppSetting(
+        'regear_overcharge_enabled',
+        overchargeEnabled ? 'true' : 'false',
       )
       if (r.error) {
         setError(r.error)
@@ -121,6 +137,15 @@ export default function RegearModeCard({
           }}
           label={t('verifyLabel')}
           hint={t('verifyHint')}
+        />
+        <ToggleRow
+          checked={overchargeEnabled}
+          onChange={(v) => {
+            setOverchargeEnabled(v)
+            setSaved(false)
+          }}
+          label={t('overchargeLabel')}
+          hint={t('overchargeHint')}
         />
       </div>
 

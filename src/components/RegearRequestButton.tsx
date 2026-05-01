@@ -28,7 +28,13 @@ interface Props {
   // 길드 모드. true 면 모든 신규 요청이 'crafted' 로 강제, false 면 'silver'.
   // 멤버는 모드를 선택할 수 없고, UI 에는 안내 배너로만 표시된다.
   craftEnabled: boolean
+  // 길드 정책: 오버차지 리기어 허용 여부. true 면 모달 시작 phase 에서
+  // "전투 사망" / "오버차지" 종류를 먼저 고르고, false 면 그 phase 를 건너뛰어
+  // 항상 'death' 로 처리한다.
+  overchargeEnabled: boolean
 }
+
+type RequestType = 'death' | 'overcharge'
 
 interface EntryState {
   id: string
@@ -37,7 +43,7 @@ interface EntryState {
   claimedInput: string
 }
 
-type Phase = 'count' | 'entries'
+type Phase = 'type' | 'count' | 'entries'
 
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
 const MAX_ENTRIES = 3
@@ -72,13 +78,17 @@ export default function RegearRequestButton({
   payoutRatePercent,
   windowOpenAt,
   craftEnabled,
+  overchargeEnabled,
 }: Props) {
   const router = useRouter()
   const t = useTranslations('regear')
   const tToast = useTranslations('toast')
   const toast = useToast()
   const [open, setOpen] = useState(false)
-  const [phase, setPhase] = useState<Phase>('count')
+  // overcharge 비활성 길드는 종류 선택 phase 자체를 건너뛰고 바로 count.
+  const initialPhase: Phase = overchargeEnabled ? 'type' : 'count'
+  const [phase, setPhase] = useState<Phase>(initialPhase)
+  const [requestType, setRequestType] = useState<RequestType>('death')
   const [entries, setEntries] = useState<EntryState[]>([])
   const [entryErrors, setEntryErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
@@ -125,11 +135,20 @@ export default function RegearRequestButton({
   }
 
   const resetModal = () => {
-    setPhase('count')
+    setPhase(initialPhase)
+    setRequestType('death')
     setEntries([])
     setEntryErrors({})
     setError('')
     setNeedsVerification(false)
+  }
+
+  const pickRequestType = (type: RequestType) => {
+    setRequestType(type)
+    setEntryErrors({})
+    setError('')
+    setNeedsVerification(false)
+    setPhase('count')
   }
 
   const pickDeathCount = (count: number) => {
@@ -146,6 +165,14 @@ export default function RegearRequestButton({
     setError('')
     setNeedsVerification(false)
     setPhase('count')
+  }
+
+  const backToType = () => {
+    setEntries([])
+    setEntryErrors({})
+    setError('')
+    setNeedsVerification(false)
+    setPhase('type')
   }
 
   // 모달 a11y: ESC 로 닫기 + body scroll lock. 제출 중(pending)엔 ESC 무시
@@ -271,6 +298,7 @@ export default function RegearRequestButton({
           form.append('screenshot2', entry.file2)
         }
         form.append('claimedSilver', parsedClaim.toString())
+        form.append('requestType', requestType)
         const r = await requestRegear(form)
         if (r.error && r.error.startsWith(REGEAR_VERIFICATION_ERROR_PREFIX)) {
           // 후속 entry 도 동일 사유로 실패할 것 — 남은 요청은 보내지 않고
@@ -379,16 +407,35 @@ export default function RegearRequestButton({
                 )}
               </div>
 
-              {phase === 'count' ? (
-                <DeathCountPicker
-                  maxEntries={maxEntries}
-                  onPick={pickDeathCount}
-                />
+              {phase === 'type' ? (
+                <RequestTypePicker onPick={pickRequestType} />
+              ) : phase === 'count' ? (
+                <>
+                  {overchargeEnabled && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-gray-500">
+                        {requestType === 'overcharge'
+                          ? t('typeOverchargeLabel')
+                          : t('typeDeathLabel')}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={backToType}
+                        className="text-[11px] text-gray-500 hover:text-amber-400"
+                      >
+                        {t('typeBack')}
+                      </button>
+                    </div>
+                  )}
+                  <DeathCountPicker maxEntries={maxEntries} onPick={pickDeathCount} />
+                </>
               ) : (
                 <>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <p className="text-gray-400 text-[11px]">
-                      {t('deathCountOption', { n: entries.length })}
+                      {overchargeEnabled && requestType === 'overcharge'
+                        ? `${t('typeOverchargeLabel')} · ${t('deathCountOption', { n: entries.length })}`
+                        : t('deathCountOption', { n: entries.length })}
                     </p>
                     <button
                       type="button"
@@ -469,6 +516,40 @@ export default function RegearRequestButton({
         </div>
       )}
     </>
+  )
+}
+
+interface RequestTypePickerProps {
+  onPick: (type: RequestType) => void
+}
+
+function RequestTypePicker({ onPick }: RequestTypePickerProps) {
+  const t = useTranslations('regear')
+  return (
+    <div className="space-y-3">
+      <div>
+        <p className="text-white text-base font-semibold">{t('typeChooseTitle')}</p>
+        <p className="text-gray-400 text-[11px] mt-1 leading-relaxed">{t('typeChooseHint')}</p>
+      </div>
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => onPick('death')}
+          className="w-full text-left rounded-lg border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 px-4 py-3 transition-colors"
+        >
+          <div className="text-rose-200 font-bold text-sm">{t('typeDeathLabel')}</div>
+          <div className="text-rose-300/70 text-[11px] mt-0.5">{t('typeDeathHint')}</div>
+        </button>
+        <button
+          type="button"
+          onClick={() => onPick('overcharge')}
+          className="w-full text-left rounded-lg border border-orange-500/40 bg-orange-500/10 hover:bg-orange-500/20 px-4 py-3 transition-colors"
+        >
+          <div className="text-orange-200 font-bold text-sm">{t('typeOverchargeLabel')}</div>
+          <div className="text-orange-300/70 text-[11px] mt-0.5">{t('typeOverchargeHint')}</div>
+        </button>
+      </div>
+    </div>
   )
 }
 

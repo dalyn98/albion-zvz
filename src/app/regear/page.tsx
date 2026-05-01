@@ -51,6 +51,7 @@ export default async function RegearPage() {
     noticeImageUrl,
     tz,
     craftEnabledRaw,
+    overchargeEnabledRaw,
   ] = await Promise.all([
     listMyRegearEligibleEvents(),
     listMyRegearRequests(),
@@ -63,8 +64,10 @@ export default async function RegearPage() {
     getAppSetting('regear_notice_image_url', '', guildId),
     getTenantTimezone(guildId),
     getAppSetting('craft_regear_enabled', 'false', guildId),
+    getAppSetting('regear_overcharge_enabled', 'false', guildId),
   ])
   const craftEnabled = craftEnabledRaw === 'true'
+  const overchargeEnabled = overchargeEnabledRaw === 'true'
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -172,6 +175,7 @@ export default async function RegearPage() {
                         payoutRatePercent={payoutRatePercent}
                         windowOpenAt={event.window_open_at}
                         craftEnabled={craftEnabled}
+                        overchargeEnabled={overchargeEnabled}
                       />
                     )}
                   </div>

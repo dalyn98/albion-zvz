@@ -124,6 +124,10 @@ export type AppSettingKey =
   // 미인증 멤버에겐 /onboarding/albion 으로 안내하는 CTA 를 포함한 에러가 반환.
   // 기본 'true' (migration 070 이전의 항상-ON 동작 유지). 'false' 면 게이트 해제.
   | 'regear_require_verification'
+  // Boolean 문자열. 'true' 면 길드원이 "오버차지" 종류로 리기어 신청 가능 —
+  // 길드 명령에 따른 오버차지로 장비가 파괴된 경우. 'false' 면 멤버 폼에 종류
+  // 선택 자체가 안 보이고 모든 신청이 'death' 로 처리. 기본 'false'.
+  | 'regear_overcharge_enabled'
   // 길드 운영 시간대 (IANA timezone string). 알비온 4개 서버 프리셋 중 하나
   // ('Asia/Seoul'|'Europe/Berlin'|'America/New_York'|'America/Sao_Paulo') 만
   // 허용 — 검증은 lib/timezone.ts isValidTenantTimezone. 미설정/손상값은

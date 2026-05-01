@@ -167,6 +167,16 @@ export async function requestRegear(
   const file = formData.get('screenshot')
   const file2 = formData.get('screenshot2')
   const claimedSilverRaw = String(formData.get('claimedSilver') ?? '')
+  // 'death' (default) | 'overcharge'. overcharge 는 길드 정책 토글이 켜져
+  // 있을 때만 허용 — UI 가 옵션을 숨기더라도 직접 폼 조작을 막기 위해 서버에서
+  // 재검증한다. 다른 값은 silently 'death' 로 fallback.
+  const requestTypeRaw = String(formData.get('requestType') ?? 'death')
+  const requestType: RegearType = requestTypeRaw === 'overcharge' ? 'overcharge' : 'death'
+  if (requestType === 'overcharge') {
+    const overchargeEnabled =
+      (await getAppSetting('regear_overcharge_enabled', 'false', guildId)) === 'true'
+    if (!overchargeEnabled) return { error: tErr('overchargeDisabled') }
+  }
   // 청구 방식은 길드 단위 강제. craft_regear_enabled='true' 면 모든 신규 요청이
   // 'crafted', 'false' 면 'silver'. 멤버는 모드를 선택할 수 없다 (기존 form
   // 'fulfillmentMode' 필드는 무시).
@@ -325,16 +335,21 @@ export async function requestRegear(
   // 6) Killboard verification (hint-only — admin still reviews). We look from
   //    battle start up to now; the submission itself is already gated behind
   //    the collection delay, so the killboard should have the death indexed.
-  const kbResult = await verifyDeathInWindow(
-    session.username,
-    new Date(battleStartMs).toISOString(),
-    new Date().toISOString(),
-    { guildId },
-  )
+  //    overcharge 신청은 죽음이 발생하지 않으므로 검증을 건너뛴다 — killboard 에
+  //    매치될 일이 없고, false negative 가 admin_notes 로 노이즈를 만든다.
+  const kbResult =
+    requestType === 'overcharge'
+      ? { verified: false, matchedEventId: null, reason: null }
+      : await verifyDeathInWindow(
+          session.username,
+          new Date(battleStartMs).toISOString(),
+          new Date().toISOString(),
+          { guildId },
+        )
 
-  // 7) Insert the request. request_type column defaults to 'death' in the DB
-  //    for backwards compatibility; application code no longer branches on it
-  //    after migration 018 unified the flow.
+  // 7) Insert the request. request_type 는 mig 010 에서 추가된 컬럼.
+  //    mig 018 이 type-branched check 를 풀어서 application 흐름은 통일됐고,
+  //    이 컬럼은 라벨/감사용으로 보존된다.
   const { data: inserted, error: insertError } = await db
     .from('regear_requests')
     .insert({
@@ -346,6 +361,7 @@ export async function requestRegear(
       role_name: roleName,
       silver,
       claimed_silver: claimedSilver,
+      request_type: requestType,
       screenshot_path: path,
       screenshot_path_2: path2,
       killboard_verified: kbResult.verified,
