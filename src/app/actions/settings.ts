@@ -50,6 +50,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'guild_profile_show_stats',
   'guild_profile_show_weapons',
   'guild_profile_show_rivals',
+  'guild_profile_show_activity',
   'guild_profile_recruitment_status',
   'guild_profile_discord_invite_url',
   'guild_profile_server',
@@ -151,6 +152,7 @@ const BOOLEAN_KEYS: readonly AppSettingKey[] = [
   'guild_profile_show_stats',
   'guild_profile_show_weapons',
   'guild_profile_show_rivals',
+  'guild_profile_show_activity',
 ] as const
 
 // Enum-string keys. Value must be exactly one of the listed members.

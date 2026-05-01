@@ -218,6 +218,8 @@ export interface GuildProfileSettings {
   showWeapons: boolean
   // 라이벌 길드 카드 (최근 30일 빈도).
   showRivals: boolean
+  // "지금 길드는" 활동 섹션 (이번 주 KPI + 최근 전투 + 탑 킬러) 마스터 토글.
+  showActivity: boolean
   recruitmentStatus: RecruitmentStatus
   discordInviteUrl: string
   // 어드민이 명시한 서버 override. 빈 문자열이면 자동 감지(majority).
@@ -247,6 +249,7 @@ export const DEFAULT_GUILD_PROFILE: GuildProfileSettings = {
   showLeaderboard: true,
   showStats: true,
   showAdminTeam: true,
+  showActivity: true,
   showWeapons: true,
   showRivals: true,
   recruitmentStatus: 'closed',
@@ -289,6 +292,7 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
     showAdminTeamRaw,
     showWeaponsRaw,
     showRivalsRaw,
+    showActivityRaw,
     recruitmentStatusRaw,
     discordInviteUrl,
     serverOverrideRaw,
@@ -310,6 +314,7 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
     getAppSetting('guild_profile_show_admin_team', 'true', guildId),
     getAppSetting('guild_profile_show_weapons', 'true', guildId),
     getAppSetting('guild_profile_show_rivals', 'true', guildId),
+    getAppSetting('guild_profile_show_activity', 'true', guildId),
     getAppSetting('guild_profile_recruitment_status', 'closed', guildId),
     getAppSetting('guild_profile_discord_invite_url', '', guildId),
     getAppSetting('guild_profile_server', '', guildId),
@@ -333,6 +338,7 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
     showAdminTeam: showAdminTeamRaw !== 'false',
     showWeapons: showWeaponsRaw !== 'false',
     showRivals: showRivalsRaw !== 'false',
+    showActivity: showActivityRaw !== 'false',
     recruitmentStatus: isRecruitmentStatus(recruitmentStatusRaw) ? recruitmentStatusRaw : 'closed',
     discordInviteUrl,
     serverOverride: isProfileServerOverride(serverOverrideRaw) ? serverOverrideRaw : '',

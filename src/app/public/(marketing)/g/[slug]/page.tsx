@@ -271,8 +271,11 @@ export default async function GuildProfilePage({
   // 않는다. activity 섹션 렌더 여부는 KPI 줄까지 함께 본다.
   const showWeeklyStats =
     weeklyStats !== null && weeklyStats.battleCount > 0
+  // 활동 섹션 마스터 토글. 어드민이 명시적으로 끄면 데이터가 있어도 섹션 자체 숨김.
+  // settings.showActivity 의 기본은 true 라 기존 길드 가시성에 변화 없음.
   const hasActivity =
-    recentBattle !== null || topContributors.length > 0 || showWeeklyStats
+    settings.showActivity &&
+    (recentBattle !== null || topContributors.length > 0 || showWeeklyStats)
   // 모집 정보 카드 — 모집 상태가 closed 가 아니고 (recruiting roles 또는 join steps)
   // 둘 중 하나라도 채워졌을 때만. closed 면 모집 자체가 닫혀 있어 표시 X.
   // 어드민 본인일 때는 빈 카드라도 "+ 추가" 슬롯으로 노출해 직접 채우게 한다.
@@ -319,6 +322,7 @@ export default async function GuildProfilePage({
   // 이 목록을 받아 다시 켜는 단일 진입점을 제공. 어드민 외에는 빈 배열 처리.
   const hiddenSectionCandidates: Array<HiddenSectionEntry | null> = isOwnGuildAdmin
     ? [
+        settings.showActivity ? null : { settingKey: 'guild_profile_show_activity', label: t('activityHeading') },
         settings.showStats ? null : { settingKey: 'guild_profile_show_stats', label: t('statsHeading') },
         settings.showAdminTeam ? null : { settingKey: 'guild_profile_show_admin_team', label: t('adminTeamHeading') },
         settings.showWeapons ? null : { settingKey: 'guild_profile_show_weapons', label: t('weaponDistributionLabel') },
@@ -556,7 +560,11 @@ export default async function GuildProfilePage({
             KPI 줄은 home_weekly_stats_enabled 가 켜진 길드에서만 노출. 다른
             카드(전투/탑 킬러) 둘 중 하나만 있어도 자연스럽게 풀카드로 확장. */}
         {hasActivity && (
-          <section className="space-y-4">
+          <section className="relative group space-y-4">
+            <SectionVisibilityPin
+              enabled={isOwnGuildAdmin}
+              settingKey="guild_profile_show_activity"
+            />
             <SectionHeader
               icon={<Activity size={14} />}
               label={t('activityHeading')}

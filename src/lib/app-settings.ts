@@ -180,6 +180,10 @@ export type AppSettingKey =
   | 'guild_profile_show_stats'
   | 'guild_profile_show_weapons'
   | 'guild_profile_show_rivals'
+  // "지금 길드는" 활동 섹션 (이번 주 KPI + 최근 추적된 전투 + 이번 주 탑 킬러)
+  // 마스터 토글. false 면 데이터가 있어도 섹션 자체 숨김. 기존 길드의 가시성을
+  // 깨지 않도록 기본 'true'.
+  | 'guild_profile_show_activity'
   // 모집 상태. 'open' | 'selective' | 'closed'. open / selective 일 때만 모집
   // CTA 버튼이 표시된다 (Discord 초대 링크 또는 가이드 페이지로 연결).
   | 'guild_profile_recruitment_status'
