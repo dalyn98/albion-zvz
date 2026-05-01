@@ -239,6 +239,7 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
         special_notes: specialNotes.trim() || null,
         notify_role_id: notifyRoleId || null,
         notify_channel_id: notifyChannelId || null,
+        notify_everyone: notifyEveryone,
         category,
       })
       if ('error' in result && result.error) {
