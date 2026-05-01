@@ -17,7 +17,6 @@ import { classifyHost } from '@/lib/tenant-resolver'
 export interface MarketingPaths {
   home: string
   features: string
-  pricing: string
   faq: string
   // docs 는 단일 prefix. nested 페이지는 `${paths.docs}/onboarding` 처럼 조합.
   docs: string
@@ -28,7 +27,6 @@ export interface MarketingPaths {
 const CANONICAL_PATHS: MarketingPaths = {
   home: '/',
   features: '/#features',
-  pricing: '/#pricing',
   faq: '/#faq',
   docs: '/docs',
   guildPage: '/g',
@@ -37,7 +35,6 @@ const CANONICAL_PATHS: MarketingPaths = {
 const PUBLIC_PATHS: MarketingPaths = {
   home: '/public/landing',
   features: '/public/landing#features',
-  pricing: '/public/landing#pricing',
   faq: '/public/landing#faq',
   docs: '/public/docs',
   guildPage: '/public/g',

@@ -5,8 +5,6 @@ import {
   ShoppingBag,
   BarChart3,
   Check,
-  Sparkles,
-  Hourglass,
   HelpCircle,
   ArrowRight,
 } from 'lucide-react'
@@ -49,10 +47,9 @@ const FAQ_ANSWER_KEY: Record<FaqKey, FaqAnswerKey> = {
 }
 
 export default async function PublicLandingPage() {
-  const [t, tFeat, tPrice, tFaq, tMkt, paths] = await Promise.all([
+  const [t, tFeat, tFaq, tMkt, paths] = await Promise.all([
     getTranslations('publicLanding'),
     getTranslations('publicFeatures'),
-    getTranslations('publicPricing'),
     getTranslations('publicFaq'),
     getTranslations('publicMarketing'),
     getMarketingPaths(),
@@ -105,20 +102,6 @@ export default async function PublicLandingPage() {
       screenshotLabel: tFeat('f4ScreenshotLabel'),
       screenshotKey: 'stats',
     },
-  ]
-
-  const betaFeatures = [
-    tPrice('betaFeature1'),
-    tPrice('betaFeature2'),
-    tPrice('betaFeature3'),
-    tPrice('betaFeature4', { slug: 'your-guild' }),
-    tPrice('betaFeature5'),
-  ]
-  const proFeatures = [
-    tPrice('proFeature1'),
-    tPrice('proFeature2'),
-    tPrice('proFeature3'),
-    tPrice('proFeature4'),
   ]
 
   return (
@@ -274,93 +257,6 @@ export default async function PublicLandingPage() {
                 </li>
               ))}
             </ol>
-          </section>
-
-          <section id="pricing" className="space-y-8 scroll-mt-20">
-            <div className="text-center space-y-3">
-              <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-amber-300/80">
-                {tPrice('pageTitle')}
-              </p>
-              <h2 className="text-2xl sm:text-3xl font-bold leading-tight">{tPrice('pageSubtitle')}</h2>
-              <p className="text-sm sm:text-base text-gray-300 max-w-2xl mx-auto leading-relaxed">
-                {tPrice('pageLead')}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 max-w-4xl mx-auto w-full">
-              <div className="rounded-2xl border border-amber-400/40 bg-amber-500/5 p-6 space-y-4 relative">
-                <span className="absolute -top-2 left-6 text-[10px] font-bold tracking-[0.2em] text-amber-300 bg-[#0f1117] border border-amber-400/40 px-2 py-0.5 rounded-full">
-                  BETA
-                </span>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-amber-300">
-                    <Sparkles size={16} />
-                    <span className="text-xs uppercase tracking-wider font-semibold">
-                      {tPrice('betaPlanLabel')}
-                    </span>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl sm:text-4xl font-bold text-white">{tPrice('betaPlanPrice')}</span>
-                  </div>
-                  <p className="text-xs text-gray-400">{tPrice('betaPlanPriceNote')}</p>
-                </div>
-                <ul className="space-y-2 pt-1">
-                  {betaFeatures.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm text-gray-200">
-                      <Check size={14} className="text-amber-300 mt-0.5 flex-shrink-0" />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  href={installHref}
-                  className="block text-center bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold px-5 py-2.5 rounded-lg transition-colors"
-                >
-                  {tPrice('betaPlanCta')}
-                </a>
-                <p className="text-[11px] text-amber-100/60 leading-relaxed">
-                  {tMkt('installPermissionNote')}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-gray-700 bg-gray-900/40 p-6 space-y-4 relative">
-                <span className="absolute -top-2 left-6 text-[10px] font-bold tracking-[0.2em] text-gray-400 bg-[#0f1117] border border-gray-700 px-2 py-0.5 rounded-full">
-                  COMING SOON
-                </span>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-gray-400">
-                    <Hourglass size={16} />
-                    <span className="text-xs uppercase tracking-wider font-semibold">
-                      {tPrice('proPlanLabel')}
-                    </span>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl sm:text-4xl font-bold text-gray-300">{tPrice('proPlanPrice')}</span>
-                  </div>
-                  <p className="text-xs text-gray-500">{tPrice('proPlanPriceNote')}</p>
-                </div>
-                <ul className="space-y-2 pt-1">
-                  {proFeatures.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm text-gray-300">
-                      <Check size={14} className="text-gray-500 mt-0.5 flex-shrink-0" />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  type="button"
-                  disabled
-                  className="block w-full text-center bg-gray-800/50 text-gray-500 font-semibold px-5 py-2.5 rounded-lg cursor-not-allowed"
-                >
-                  {tPrice('proPlanCtaNote')}
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-gray-800 bg-gray-900/60 p-5 sm:p-6 max-w-3xl mx-auto space-y-2">
-              <h3 className="text-sm font-semibold text-amber-300">{tPrice('noteTitle')}</h3>
-              <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">{tPrice('noteBody')}</p>
-            </div>
           </section>
 
           <section id="faq" className="space-y-6 scroll-mt-20">

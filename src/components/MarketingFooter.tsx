@@ -29,11 +29,6 @@ export default async function MarketingFooter() {
             </Link>
           </li>
           <li>
-            <Link href={paths.pricing} className="hover:text-white transition-colors">
-              {t('pricing')}
-            </Link>
-          </li>
-          <li>
             <Link href={paths.faq} className="hover:text-white transition-colors">
               {t('faq')}
             </Link>
