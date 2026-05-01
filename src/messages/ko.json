@@ -1803,6 +1803,41 @@
       "default": "로그인에 실패했습니다."
     }
   },
+  "eventTentative": {
+    "title": "참가예정",
+    "description": "여러 역할군을 할 수 있는 멤버가 슬롯이 정해지기 전 가능 역할군과 이름만 미리 알리는 곳입니다.",
+    "countSummary": "{n}명",
+    "selfBadge": "내 신청",
+    "loginToSignup": "참가예정으로 등록하려면 로그인하세요.",
+    "loginButton": "로그인",
+    "guestNotAllowed": "게스트는 참가예정 등록이 불가합니다.",
+    "battleStartedReadOnly": "전투가 시작되어 더 이상 참가예정을 등록할 수 없습니다.",
+    "selfSignupHint": "조합이 정해지지 않았다면 가능 역할군만 등록해두세요. 슬롯이 채워지면 자동 정리됩니다.",
+    "signupButton": "참가예정 등록",
+    "editButton": "역할 수정",
+    "cancelButton": "취소",
+    "formPickRoles": "가능 역할군을 모두 선택하세요 (복수)",
+    "notesLabel": "메모 (선택)",
+    "notesPlaceholder": "예: 힐러 우선, 탱 가능 등",
+    "saveAddButton": "등록",
+    "saveEditButton": "수정",
+    "toastAdded": "참가예정으로 등록되었습니다.",
+    "toastUpdated": "참가예정 정보가 갱신되었습니다.",
+    "toastRemoved": "참가예정이 취소되었습니다.",
+    "adminAddButton": "다른 멤버 대신 등록",
+    "adminAddTitle": "다른 멤버 참가예정 등록",
+    "adminMemberLabel": "멤버",
+    "adminMemberPlaceholder": "멤버를 선택하세요"
+  },
+  "eventTentativeAction": {
+    "loginRequired": "로그인이 필요합니다.",
+    "guestNotAllowed": "게스트는 참가예정 등록이 불가합니다.",
+    "eventNotFound": "이벤트를 찾을 수 없습니다.",
+    "rolesRequired": "가능 역할군을 1개 이상 선택해야 합니다.",
+    "notAuthorized": "권한이 없습니다.",
+    "memberRequired": "멤버를 선택해야 합니다.",
+    "confirmRemove": "{name} 님의 참가예정을 취소할까요?"
+  },
   "event": {
     "defaultNotificationMessage": "새 이벤트가 등록되었습니다.",
     "discordFieldGatherAt": "집결 일시",

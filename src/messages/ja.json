@@ -1803,6 +1803,41 @@
       "default": "ログインに失敗しました。"
     }
   },
+  "eventTentative": {
+    "title": "参加予定",
+    "description": "複数の役割をこなせるメンバーが、スロット確定前に対応可能なロールと名前だけ事前に共有する場所です。",
+    "countSummary": "{n}人",
+    "selfBadge": "自分の登録",
+    "loginToSignup": "参加予定に登録するにはログインしてください。",
+    "loginButton": "ログイン",
+    "guestNotAllowed": "ゲストは参加予定に登録できません。",
+    "battleStartedReadOnly": "戦闘が開始されたため、参加予定を登録できません。",
+    "selfSignupHint": "編成が決まっていない場合は対応可能なロールだけ先に登録してください。スロットが埋まれば自動で整理されます。",
+    "signupButton": "参加予定を登録",
+    "editButton": "ロールを変更",
+    "cancelButton": "取消",
+    "formPickRoles": "対応可能なロールをすべて選択してください (複数)",
+    "notesLabel": "メモ (任意)",
+    "notesPlaceholder": "例: ヒーラー優先、タンク可など",
+    "saveAddButton": "登録",
+    "saveEditButton": "更新",
+    "toastAdded": "参加予定に登録しました。",
+    "toastUpdated": "参加予定の情報を更新しました。",
+    "toastRemoved": "参加予定を取り消しました。",
+    "adminAddButton": "他メンバーを代理登録",
+    "adminAddTitle": "他メンバーの参加予定を登録",
+    "adminMemberLabel": "メンバー",
+    "adminMemberPlaceholder": "メンバーを選択してください"
+  },
+  "eventTentativeAction": {
+    "loginRequired": "ログインが必要です。",
+    "guestNotAllowed": "ゲストは参加予定に登録できません。",
+    "eventNotFound": "イベントが見つかりません。",
+    "rolesRequired": "対応可能なロールを1つ以上選択してください。",
+    "notAuthorized": "権限がありません。",
+    "memberRequired": "メンバーを選択してください。",
+    "confirmRemove": "{name} さんの参加予定を取り消しますか？"
+  },
   "event": {
     "defaultNotificationMessage": "新しいイベントが登録されました。",
     "discordFieldGatherAt": "集合日時",

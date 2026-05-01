@@ -20,6 +20,8 @@ import {
   getEventCraftAggregate,
 } from '@/app/actions/craft'
 import EventCraftAggregateCard from '@/components/EventCraftAggregateCard'
+import TentativeSignupSection from '@/components/TentativeSignupSection'
+import { listTentativeSignups } from '@/app/actions/event-tentative'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
@@ -103,6 +105,7 @@ export default async function EditEventPage({
     craftAggregateRes,
     craftConfig,
     craftLocations,
+    tentativeRes,
   ] = await Promise.all([
     getData(id, guildId),
     listTemplates(),
@@ -112,6 +115,7 @@ export default async function EditEventPage({
     getEventCraftAggregate(id),
     getCraftConfig(),
     getCraftLocationPresets(),
+    listTentativeSignups(id),
   ])
   const autoRegearEnabled = autoRegearRaw === 'true'
 
@@ -125,7 +129,24 @@ export default async function EditEventPage({
   const assignedDiscordIds = parties.flatMap((p) =>
     p.slots.map((s) => s.assigned_discord_id).filter((id): id is string => !!id),
   )
-  const avatarMap = await getAvatarsByDiscordIds(guildId, assignedDiscordIds)
+  const tentativeRows = tentativeRes.rows
+  // 어드민이 다른 멤버를 대신 참가예정에 등록할 수 있도록 활성 멤버 디렉터리를
+  // 한 번 더 조회. 탈퇴자(withdrawn_at not null) 는 제외.
+  const adminClient = getAdminClient()
+  const { data: tentativeDirectoryRows } = await adminClient
+    .from('guild_avatars')
+    .select('discord_id, username')
+    .eq('guild_id', guildId)
+    .is('withdrawn_at', null)
+    .order('username')
+  const tentativeDirectory = (tentativeDirectoryRows ?? []).map((m) => ({
+    discord_id: m.discord_id,
+    username: m.username,
+  }))
+  const avatarMap = await getAvatarsByDiscordIds(guildId, [
+    ...assignedDiscordIds,
+    ...tentativeRows.map((r) => r.discord_id),
+  ])
   const avatars = Object.fromEntries(avatarMap)
 
   // 길드가 craft regear 를 켜고 + 이 이벤트의 청구 데이터가 있을 때만 위젯
@@ -152,6 +173,22 @@ export default async function EditEventPage({
           </div>
           {event.status === 'draft' && <PublishEventBanner event={event} />}
           <EventInfoForm initialEvent={event} tenantTimezone={tenantTimezone} />
+
+          <TentativeSignupSection
+            eventId={id}
+            rows={tentativeRows}
+            avatars={avatars}
+            currentDiscordId={session.discordId}
+            isAdmin={session.isAdmin}
+            isEventOwner={
+              !!session.canCreateEvents
+              && !!event.created_by
+              && event.created_by === session.discordId
+            }
+            loginHref="/api/auth/discord/start"
+            battleStarted={!!event.battle_started_at}
+            memberDirectory={tentativeDirectory}
+          />
 
           <div className="lg:hidden">
             <EventSlotSidebar placement="mobile" parties={parties} avatars={avatars} />

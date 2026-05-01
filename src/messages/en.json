@@ -1803,6 +1803,41 @@
       "default": "Login failed."
     }
   },
+  "eventTentative": {
+    "title": "Tentative attendance",
+    "description": "Members who can play multiple roles can pre-register here with their available roles before slots are finalized.",
+    "countSummary": "{n} member(s)",
+    "selfBadge": "Your entry",
+    "loginToSignup": "Log in to mark yourself as tentative.",
+    "loginButton": "Log in",
+    "guestNotAllowed": "Guests cannot register tentative attendance.",
+    "battleStartedReadOnly": "Battle has started — tentative registration is closed.",
+    "selfSignupHint": "If your slot isn't decided yet, register the roles you can play. The entry is auto-removed once you're assigned to a slot.",
+    "signupButton": "Register tentative",
+    "editButton": "Edit roles",
+    "cancelButton": "Cancel",
+    "formPickRoles": "Select all roles you can play (multiple)",
+    "notesLabel": "Notes (optional)",
+    "notesPlaceholder": "e.g. Healer preferred, can tank",
+    "saveAddButton": "Register",
+    "saveEditButton": "Update",
+    "toastAdded": "Tentative attendance saved.",
+    "toastUpdated": "Tentative attendance updated.",
+    "toastRemoved": "Tentative attendance cancelled.",
+    "adminAddButton": "Add another member",
+    "adminAddTitle": "Register tentative attendance for another member",
+    "adminMemberLabel": "Member",
+    "adminMemberPlaceholder": "Select a member"
+  },
+  "eventTentativeAction": {
+    "loginRequired": "Login required.",
+    "guestNotAllowed": "Guests cannot register tentative attendance.",
+    "eventNotFound": "Event not found.",
+    "rolesRequired": "Select at least one role.",
+    "notAuthorized": "Not authorized.",
+    "memberRequired": "Select a member.",
+    "confirmRemove": "Cancel tentative attendance for {name}?"
+  },
   "event": {
     "defaultNotificationMessage": "A new event has been scheduled.",
     "discordFieldGatherAt": "Date",

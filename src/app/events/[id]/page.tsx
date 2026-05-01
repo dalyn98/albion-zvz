@@ -7,6 +7,8 @@ import { getAppSetting } from '@/lib/app-settings'
 import EventPartyGrid from '@/components/EventPartyGrid'
 import EventSlotSidebar from '@/components/EventSlotSidebar'
 import EventGuestInviteManager from '@/components/EventGuestInviteManager'
+import TentativeSignupSection from '@/components/TentativeSignupSection'
+import { listTentativeSignups } from '@/app/actions/event-tentative'
 import AutoRefresh from '@/components/AutoRefresh'
 import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil, FileText } from 'lucide-react'
 import Link from 'next/link'
@@ -62,13 +64,14 @@ export default async function EventDetailPage({
   // fallback. 이벤트 상세는 layout gate 가 자기 이벤트 외 접근을 차단하므로
   // guildId 미스매치는 유효 경로에서 발생하지 않는다.
   const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
-  const [{ event, parties }, t, locale, cdBadgeRolesRaw, autoRegearRaw, tz] = await Promise.all([
+  const [{ event, parties }, t, locale, cdBadgeRolesRaw, autoRegearRaw, tz, tentativeRes] = await Promise.all([
     getEvent(id, guildId),
     getTranslations('event'),
     getLocale(),
     getAppSetting('cd_badge_roles', '["Dps"]', guildId),
     getAppSetting('auto_regear_enabled', 'false', guildId),
     getTenantTimezone(guildId),
+    listTentativeSignups(id),
   ])
   const autoRegearEnabled = autoRegearRaw === 'true'
 
@@ -109,7 +112,11 @@ export default async function EventDetailPage({
     ...p.slots.map((s) => s.requested_discord_id),
     p.caller_discord_id,
   ])
-  const memberIdList = memberIds.filter((id): id is string => !!id)
+  const tentativeRows = tentativeRes.rows
+  const memberIdList = [
+    ...memberIds.filter((id): id is string => !!id),
+    ...tentativeRows.map((r) => r.discord_id),
+  ]
   const [avatarMap, usernameMap] = await Promise.all([
     getAvatarsByDiscordIds(guildId, memberIdList),
     getUsernamesByDiscordIds(guildId, memberIdList),
@@ -237,6 +244,21 @@ export default async function EventDetailPage({
         <div className="lg:hidden">
           <EventSlotSidebar placement="mobile" parties={parties} avatars={avatars} />
         </div>
+
+        <TentativeSignupSection
+          eventId={id}
+          rows={tentativeRows}
+          avatars={avatars}
+          currentDiscordId={session?.discordId ?? null}
+          isAdmin={session?.isAdmin ?? false}
+          isEventOwner={
+            !!session?.canCreateEvents
+            && !!event.created_by
+            && event.created_by === session.discordId
+          }
+          loginHref={loginHref}
+          battleStarted={!!event.battle_started_at}
+        />
 
         <EventPartyGrid
           parties={parties}
