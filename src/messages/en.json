@@ -3401,8 +3401,8 @@
   },
   "slotRole": {
     "caller": "Caller",
-    "offtank": "Offtank",
-    "deftank": "Deftank",
+    "offtank": "Offense Tanker",
+    "deftank": "Defense Tanker",
     "support": "Support",
     "healer": "Healer",
     "dps": "DPS",

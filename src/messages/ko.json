@@ -3401,8 +3401,8 @@
   },
   "slotRole": {
     "caller": "콜러",
-    "offtank": "오프탱",
-    "deftank": "디프탱",
+    "offtank": "오펜스 탱커",
+    "deftank": "디펜스 탱커",
     "support": "서포터",
     "healer": "힐러",
     "dps": "DPS",

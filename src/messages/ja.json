@@ -3401,8 +3401,8 @@
   },
   "slotRole": {
     "caller": "コーラー",
-    "offtank": "オフタンク",
-    "deftank": "デフタンク",
+    "offtank": "オフェンスタンカー",
+    "deftank": "ディフェンスタンカー",
     "support": "サポート",
     "healer": "ヒーラー",
     "dps": "DPS",
