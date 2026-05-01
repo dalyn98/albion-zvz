@@ -46,6 +46,9 @@ interface RegearReviewListProps {
   ratePercent: number
   // When true, 이벤트별로 묶어서 아코디언 UI 로 보여준다. `전체` 스코프에서만 켠다.
   groupByEvent?: boolean
+  // 자동 리기어 탭에서 켠다. true 면 각 이벤트 그룹 내부를 멤버별로 클러스터 정렬해서
+  // 한 사람이 여러 번 죽었을 때 카드들이 흩어지지 않고 모여 보이도록 한다.
+  sortRowsByMember?: boolean
   // pending 요청 id → 이상치 플래그들. 관리자가 승인 전에 한 번 더 확인하도록.
   anomalies?: Record<string, RegearAnomalyFlag[]>
   // pending+crafted 리기어 id → 길드 재고 가용성. 마이그 111 이후 추가.
@@ -61,11 +64,31 @@ interface EventGroupRow {
   rows: AdminRegearRequest[]
 }
 
+// 같은 멤버의 신청을 인접하게 묶고, 멤버 그룹들끼리는 그 멤버의 가장 최근 신청
+// 시각 기준 desc. 한 멤버 안에서는 created_at desc. 동률은 discord_id 로 안정화.
+function clusterRowsByMember(rows: AdminRegearRequest[]): AdminRegearRequest[] {
+  const memberLatest = new Map<string, string>()
+  for (const r of rows) {
+    const cur = memberLatest.get(r.discord_id)
+    if (!cur || r.created_at > cur) memberLatest.set(r.discord_id, r.created_at)
+  }
+  return [...rows].sort((a, b) => {
+    if (a.discord_id !== b.discord_id) {
+      const al = memberLatest.get(a.discord_id) ?? ''
+      const bl = memberLatest.get(b.discord_id) ?? ''
+      if (al !== bl) return bl.localeCompare(al)
+      return a.discord_id.localeCompare(b.discord_id)
+    }
+    return b.created_at.localeCompare(a.created_at)
+  })
+}
+
 export default function RegearReviewList({
   requests,
   avatars = {},
   ratePercent,
   groupByEvent = false,
+  sortRowsByMember = false,
   anomalies = {},
   stockChecks = {},
 }: RegearReviewListProps) {
@@ -86,6 +109,8 @@ export default function RegearReviewList({
   // 이벤트 정렬: 그룹 내 최신 신청(= rows[0], DB 쿼리가 created_at desc) 기준 desc.
   // 삭제된 이벤트는 event_title 기준으로 한 버킷에 묶임.
   // 마이그 097: regear_window 기반 신청은 윈도우 id 기준으로 별도 버킷이 된다.
+  // sortRowsByMember=true (자동 리기어 탭) 면 각 그룹 내부를 멤버별로 묶어 정렬한다 —
+  // 한 사람이 한 이벤트에서 여러 번 죽었을 때 카드들이 흩어지지 않게.
   const eventGroups = useMemo<EventGroupRow[] | null>(() => {
     if (!groupByEvent) return null
     const map = new Map<string, EventGroupRow>()
@@ -98,8 +123,11 @@ export default function RegearReviewList({
         map.set(key, { groupKey: key, eventId: r.event_id, eventTitle: r.event_title, rows: [r] })
       }
     }
+    if (sortRowsByMember) {
+      for (const g of map.values()) g.rows = clusterRowsByMember(g.rows)
+    }
     return [...map.values()].sort((a, b) => b.rows[0].created_at.localeCompare(a.rows[0].created_at))
-  }, [filtered, groupByEvent])
+  }, [filtered, groupByEvent, sortRowsByMember])
 
   const searchActive = normalizeQuery(search).length > 0
 
