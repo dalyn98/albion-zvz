@@ -1098,7 +1098,9 @@
     "verifyLabel": "인증 게이트",
     "verifyHint": "켜면 알비온 닉네임 미인증 길드원의 리기어 신청을 차단하고 인증 페이지로 안내합니다.",
     "overchargeLabel": "오버차지 리기어 허용",
-    "overchargeHint": "길드 명령으로 오버차지하여 장비가 파괴된 경우 신청을 받습니다. 끄면 멤버 폼에 종류 선택이 안 보입니다."
+    "overchargeHint": "길드 명령으로 오버차지하여 장비가 파괴된 경우 신청을 받습니다. 끄면 멤버 폼에 종류 선택이 안 보입니다.",
+    "skipLowConfidenceLabel": "신뢰도 낮은 슬롯 자동 제외",
+    "skipLowConfidenceHint": "AODP 시세를 못 구해 redzone/bluezone 또는 단일 표본으로 폴백한 슬롯은 자동 청구에서 제외하고, 청구자가 직접 입력하도록 합니다. 합산 가격이 인게임 시세와 동떨어지는 것을 막아요."
   },
   "adminActiveMemberRoles": {
     "title": "활동 회원 역할",
@@ -1395,6 +1397,8 @@
     "slotCount": "({count}슬롯)",
     "userEditedBadge": "직접 수정 {count}",
     "userEditedLabel": "직접 수정",
+    "lowConfidenceLabel": "시세 신뢰도 낮음",
+    "lowConfidenceHint": "시세 신뢰도가 낮은 부위가 {count}개 있습니다. 게임 내 추정 시장가치를 참고해 직접 입력해 주세요. 자동 추정값은 합산에서 제외되어 있을 수 있습니다.",
     "slotHeader": "슬롯",
     "itemHeader": "아이템",
     "countHeader": "수량",

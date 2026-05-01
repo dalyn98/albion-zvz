@@ -21,6 +21,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   fetchAodpPrices,
   loadAodpOptions,
+  type AodpConfidence,
   type AodpFallbackTier,
   type AodpPriceKey,
 } from '@/lib/shop/aodp'
@@ -198,6 +199,10 @@ interface GearLineItem {
   price: number | null
   city: string | null
   fallbackTier: AodpFallbackTier
+  // AODP 결과의 신뢰도. 'low' 면 청구자가 직접 입력하라고 UI 에 배지를 띄운다.
+  // 길드 설정 auto_regear_skip_low_confidence='true' 면 'low' 슬롯은 price=null 로
+  // 강제 — marketSilver 합산에서 제외되고 청구자 편집 대상이 된다.
+  confidence: AodpConfidence
 }
 
 // Type 문자열은 `T5_ARMOR_CLOTH_SET2@1` 같은 포맷. @N 접미는 있을 수도 없을 수도.
@@ -277,6 +282,7 @@ export async function processAutoRegear(
     'regear_payout_rate_percent',
     'craft_regear_enabled',
     'auto_regear_excluded_slots',
+    'auto_regear_skip_low_confidence',
   ] as const
   const { data: settingRows } = await db
     .from('app_settings')
@@ -344,6 +350,12 @@ export async function processAutoRegear(
   const excludedSnapshotSlots = parseExcludedSlots(
     settings.get('auto_regear_excluded_slots') ?? '["food","cape","mount","potion"]',
   )
+
+  // AODP 신뢰도가 'low' (redzone/bluezone 폴백, 또는 history 표본<=1) 인 슬롯을
+  // marketSilver 합산에서 제외할지 여부. true 면 청구자가 직접 입력하도록 price=null
+  // 로 떨어뜨린다 (gear_breakdown.items 에는 그대로 남아 UI 배지로 노출).
+  const skipLowConfidence =
+    (settings.get('auto_regear_skip_low_confidence') ?? 'false') === 'true'
 
   // 매우 신선한 이벤트(5분 미만) 는 미리 컷. 정확한 ready 판정은 per-event 의
   // ended_at + buffer + sync 게이트가 한다 (autoDelayMinutes 노브는 폐기됨).
@@ -703,7 +715,12 @@ export async function processAutoRegear(
         for (const entry of gearEntries) {
           const lookupKey = `${entry.key.uniqueName}|${entry.key.enchant}|${entry.key.quality}`
           const hit = priceMap.get(lookupKey)
-          const unit = hit?.price ?? null
+          const confidence = hit?.confidence ?? 'none'
+          // skipLowConfidence 가 true 면 confidence='low' 슬롯은 price 자체를 null
+          // 로 떨어뜨려 marketSilver 합산에서 제외. 청구자가 편집기에서 직접 입력해야
+          // 지급 대상이 된다 (claimed/payout 재계산은 update action 이 담당).
+          const dropForLowConfidence = skipLowConfidence && confidence === 'low'
+          const unit = dropForLowConfidence ? null : hit?.price ?? null
           if (unit && unit > 0) {
             marketSilver += unit * entry.count
           }
@@ -714,8 +731,9 @@ export async function processAutoRegear(
             quality: entry.key.quality,
             count: entry.count,
             price: unit,
-            city: hit?.city ?? null,
+            city: dropForLowConfidence ? null : hit?.city ?? null,
             fallbackTier: hit?.fallbackTier ?? 'none',
+            confidence,
           })
         }
 
@@ -723,6 +741,13 @@ export async function processAutoRegear(
         // 모든 자동 건은 status='pending' 으로 생성되므로 warning_level 은
         // status 결정에 영향을 주지 않는다.
         const warningLevel = worstWarningLevel(lineItems.map((i) => i.fallbackTier))
+
+        // 청구자가 즉시 편집해야 할 슬롯 목록. UI 가 강조 배지를 그릴 때 사용한다.
+        // skipLowConfidence 와 무관하게 confidence='low' 슬롯을 모두 기록한다 —
+        // 토글이 OFF 라도 청구자에게 "신뢰도 낮음" 시그널은 노출하는 게 안전.
+        const lowConfidenceSlots = lineItems
+          .filter((i) => i.confidence === 'low')
+          .map((i) => i.slot)
 
         // 수동 flow 와 schema 대칭: silver = 역할상한, claimed = min(시장가, 상한),
         // payout = floor(claimed * rate%). gear_breakdown 에는 원본 시장가 유지(감사용).
@@ -738,6 +763,8 @@ export async function processAutoRegear(
           market_silver: marketSilver,
           items: lineItems,
           warning_level: warningLevel,
+          low_confidence_slots: lowConfidenceSlots,
+          skip_low_confidence: skipLowConfidence,
         }
 
         // crafted 모드에서만 build_snapshot 을 만들어 넘긴다 — silver 모드에선

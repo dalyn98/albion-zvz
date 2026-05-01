@@ -1098,7 +1098,9 @@
     "verifyLabel": "認証ゲート",
     "verifyHint": "ON にすると Albion ニックネーム未認証のギルドメンバーはリギア申請をブロックされ、認証ページへ案内されます。",
     "overchargeLabel": "オーバーチャージリギア許可",
-    "overchargeHint": "ギルド指示でオーバーチャージし装備が破壊された場合の申請を受け付けます。OFFにするとメンバーのフォームに種別選択が表示されません。"
+    "overchargeHint": "ギルド指示でオーバーチャージし装備が破壊された場合の申請を受け付けます。OFFにするとメンバーのフォームに種別選択が表示されません。",
+    "skipLowConfidenceLabel": "信頼度の低いスロットを自動除外",
+    "skipLowConfidenceHint": "AODP 相場が取得できず redzone/bluezone または単一サンプルにフォールバックしたスロットを自動請求から除外し、申請者が手入力します。合算金額がゲーム内相場とかけ離れるのを防ぎます。"
   },
   "adminActiveMemberRoles": {
     "title": "活動メンバー役割",
@@ -1395,6 +1397,8 @@
     "slotCount": "({count}スロット)",
     "userEditedBadge": "直接編集 {count}",
     "userEditedLabel": "直接編集",
+    "lowConfidenceLabel": "相場の信頼度低め",
+    "lowConfidenceHint": "相場の信頼度が低い部位が {count} 件あります。ゲーム内の推定市場価値を参考に、直接入力してください。自動推定値は合算から除外されている場合があります。",
     "slotHeader": "スロット",
     "itemHeader": "アイテム",
     "countHeader": "数量",

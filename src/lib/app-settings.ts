@@ -85,6 +85,11 @@ export type AppSettingKey =
   // victim 이벤트 → AODP 시세 → 즉시 승인. 빌드별 opt-out 체크박스(slots.
   // auto_regear_excluded) 도 이 toggle 이 켜져 있을 때만 UI 에 노출.
   | 'auto_regear_enabled'
+  // Boolean 문자열. 'true' 면 cron 이 AODP fallback 체인의 'low confidence' 슬롯
+  // (redzone/bluezone 폴백 또는 history 표본<=1) 의 price 를 null 로 떨어뜨려
+  // marketSilver 합산에서 제외하고 청구자가 직접 입력하도록 한다. 'false' (기본)
+  // 면 기존 동작 유지 — confidence 정보만 UI 배지로 표시.
+  | 'auto_regear_skip_low_confidence'
   // 자동 리기어 합산에서 제외할 슬롯 키 목록 (JSON array of SlotKey). 빈 배열
   // '[]' 면 모든 슬롯 포함 (기본). 음식/포션/탈것 등 길드 정책상 리기어 비대상
   // 슬롯을 골라 비우면 estimated_silver / gear_breakdown.items 양쪽에서 제외된다.

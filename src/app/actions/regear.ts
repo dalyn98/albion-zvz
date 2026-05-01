@@ -663,6 +663,9 @@ export interface RegearLineItem {
   // true 면 청구자가 직접 수정한 슬롯. 관리자 UI 에 배지로 노출해 AODP 자동
   // 추정과 구분할 수 있게 한다.
   userEdited: boolean
+  // AODP 결과 신뢰도. 'low' 면 청구자에게 "직접 입력해 주세요" 안내 배지를
+  // 띄운다. 옛 행은 confidence 가 없을 수 있어 nullable.
+  confidence: 'high' | 'medium' | 'low' | 'none' | null
 }
 
 export interface MyRegearDetail {
@@ -702,6 +705,7 @@ interface RawBreakdownItem {
   city?: unknown
   fallbackTier?: unknown
   userEdited?: unknown
+  confidence?: unknown
 }
 
 interface RawBreakdown {
@@ -716,20 +720,39 @@ function normalizeBreakdownItems(raw: unknown): RegearLineItem[] {
   if (!Array.isArray(raw)) return []
   return raw
     .filter((v): v is RawBreakdownItem => typeof v === 'object' && v !== null)
-    .map((v) => ({
-      slot: typeof v.slot === 'string' ? v.slot : '',
-      uniqueName: typeof v.uniqueName === 'string' ? v.uniqueName : '',
-      enchant: typeof v.enchant === 'number' && Number.isFinite(v.enchant) ? Math.trunc(v.enchant) : 0,
-      quality: typeof v.quality === 'number' && Number.isFinite(v.quality) ? Math.trunc(v.quality) : 1,
-      count: typeof v.count === 'number' && Number.isFinite(v.count) && v.count > 0 ? Math.trunc(v.count) : 1,
-      price:
-        typeof v.price === 'number' && Number.isFinite(v.price) && v.price >= 0
-          ? Math.trunc(v.price)
-          : null,
-      city: typeof v.city === 'string' ? v.city : null,
-      fallbackTier: typeof v.fallbackTier === 'string' ? v.fallbackTier : null,
-      userEdited: v.userEdited === true,
-    }))
+    .map((v): RegearLineItem => {
+      const confidence: 'high' | 'medium' | 'low' | 'none' | null =
+        v.confidence === 'high' ||
+        v.confidence === 'medium' ||
+        v.confidence === 'low' ||
+        v.confidence === 'none'
+          ? v.confidence
+          : null
+      return {
+        slot: typeof v.slot === 'string' ? v.slot : '',
+        uniqueName: typeof v.uniqueName === 'string' ? v.uniqueName : '',
+        enchant:
+          typeof v.enchant === 'number' && Number.isFinite(v.enchant)
+            ? Math.trunc(v.enchant)
+            : 0,
+        quality:
+          typeof v.quality === 'number' && Number.isFinite(v.quality)
+            ? Math.trunc(v.quality)
+            : 1,
+        count:
+          typeof v.count === 'number' && Number.isFinite(v.count) && v.count > 0
+            ? Math.trunc(v.count)
+            : 1,
+        price:
+          typeof v.price === 'number' && Number.isFinite(v.price) && v.price >= 0
+            ? Math.trunc(v.price)
+            : null,
+        city: typeof v.city === 'string' ? v.city : null,
+        fallbackTier: typeof v.fallbackTier === 'string' ? v.fallbackTier : null,
+        userEdited: v.userEdited === true,
+        confidence,
+      }
+    })
     .filter((v) => v.slot.length > 0)
 }
 

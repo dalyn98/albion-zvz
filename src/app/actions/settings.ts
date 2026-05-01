@@ -34,6 +34,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'aodp_price_mode',
   'aodp_min_quality',
   'auto_regear_enabled',
+  'auto_regear_skip_low_confidence',
   'auto_regear_excluded_slots',
   'cd_badge_roles',
   'active_member_role_ids',
@@ -141,6 +142,7 @@ const DECIMAL_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
 const BOOLEAN_KEYS: readonly AppSettingKey[] = [
   'events_auto_start_enabled',
   'auto_regear_enabled',
+  'auto_regear_skip_low_confidence',
   'allow_unverified_member_access',
   'regear_require_verification',
   'regear_overcharge_enabled',

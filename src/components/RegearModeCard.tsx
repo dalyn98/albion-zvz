@@ -18,6 +18,7 @@ interface Props {
   initialCraftEnabled: boolean
   initialRequireVerification: boolean
   initialOverchargeEnabled: boolean
+  initialSkipLowConfidence: boolean
   embedded?: boolean
 }
 
@@ -26,6 +27,7 @@ export default function RegearModeCard({
   initialCraftEnabled,
   initialRequireVerification,
   initialOverchargeEnabled,
+  initialSkipLowConfidence,
   embedded = false,
 }: Props) {
   const router = useRouter()
@@ -35,6 +37,7 @@ export default function RegearModeCard({
   const [craftEnabled, setCraftEnabled] = useState(initialCraftEnabled)
   const [requireVerification, setRequireVerification] = useState(initialRequireVerification)
   const [overchargeEnabled, setOverchargeEnabled] = useState(initialOverchargeEnabled)
+  const [skipLowConfidence, setSkipLowConfidence] = useState(initialSkipLowConfidence)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
@@ -43,7 +46,8 @@ export default function RegearModeCard({
     autoEnabled !== initialAutoEnabled ||
     craftEnabled !== initialCraftEnabled ||
     requireVerification !== initialRequireVerification ||
-    overchargeEnabled !== initialOverchargeEnabled
+    overchargeEnabled !== initialOverchargeEnabled ||
+    skipLowConfidence !== initialSkipLowConfidence
 
   const handleSave = async () => {
     setLoading(true)
@@ -80,6 +84,17 @@ export default function RegearModeCard({
       const r = await updateAppSetting(
         'regear_overcharge_enabled',
         overchargeEnabled ? 'true' : 'false',
+      )
+      if (r.error) {
+        setError(r.error)
+        setLoading(false)
+        return
+      }
+    }
+    if (skipLowConfidence !== initialSkipLowConfidence) {
+      const r = await updateAppSetting(
+        'auto_regear_skip_low_confidence',
+        skipLowConfidence ? 'true' : 'false',
       )
       if (r.error) {
         setError(r.error)
@@ -146,6 +161,15 @@ export default function RegearModeCard({
           }}
           label={t('overchargeLabel')}
           hint={t('overchargeHint')}
+        />
+        <ToggleRow
+          checked={skipLowConfidence}
+          onChange={(v) => {
+            setSkipLowConfidence(v)
+            setSaved(false)
+          }}
+          label={t('skipLowConfidenceLabel')}
+          hint={t('skipLowConfidenceHint')}
         />
       </div>
 

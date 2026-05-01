@@ -1098,7 +1098,9 @@
     "verifyLabel": "验证门",
     "verifyHint": "开启 = 未验证的公会成员无法申请，将被引导至阿尔比恩验证页面。",
     "overchargeLabel": "允许超额申请",
-    "overchargeHint": "接受成员按公会指令使用超载毁坏自有装备的申请。默认关闭；关闭时申请类型选择器会隐藏。"
+    "overchargeHint": "接受成员按公会指令使用超载毁坏自有装备的申请。默认关闭；关闭时申请类型选择器会隐藏。",
+    "skipLowConfidenceLabel": "自动排除低置信度槽位",
+    "skipLowConfidenceHint": "当 AODP 仅返回 redzone/bluezone 回退或单样本历史时，将该槽位从自动申请中剔除，由申请人手动输入。可避免合计金额与游戏内市场相差过大。"
   },
   "adminActiveMemberRoles": {
     "title": "活跃成员角色",
@@ -1395,6 +1397,8 @@
     "slotCount": "（{count} 个槽位）",
     "userEditedBadge": "用户已修改 {count}",
     "userEditedLabel": "用户已修改",
+    "lowConfidenceLabel": "价格置信度低",
+    "lowConfidenceHint": "有 {count} 个槽位的价格置信度较低。请参考游戏内的估计市场价值手动输入。自动估算值可能已从合计中排除。",
     "slotHeader": "槽位",
     "itemHeader": "物品",
     "countHeader": "数量",

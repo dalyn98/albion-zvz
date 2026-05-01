@@ -29,6 +29,16 @@ const STALE_HOURS = 24 * 7
 // 평균 모드에서 일(day) 단위 bucket 사용. AODP history 는 1/6/24 허용.
 const HISTORY_TIME_SCALE_HOURS = 24
 
+// 통계적 견고화 상수.
+// - OUTLIER_TRIM_RATIO: avg_Nd 모드에서 bucket >= 3 개일 때 상/하위 N% 를 가격 기준으로 잘라냄.
+//   AODP 는 한 명의 던지기 매물이나 매크로 가격이 평균을 왜곡할 수 있어 보수적으로 컷.
+// - MIN_HIGH_SAMPLES: confidence='high' 로 분류되는 history bucket item_count 합 최소치.
+//   동아시아 서버 데이터 희소성 고려해 5 개 미만이면 'medium' 으로 강등.
+// - SPOT_RECENT_HOURS: spot 모드에서 'high' 로 분류되는 sampledAt 최대 경과 시간.
+const OUTLIER_TRIM_RATIO = 0.1
+const MIN_HIGH_SAMPLES = 5
+const SPOT_RECENT_HOURS = 48
+
 export type AodpPriceMode = 'spot' | 'avg_1d' | 'avg_3d' | 'avg_7d' | 'avg_14d'
 
 // AODP 폴백 단계. 사용자 설정으로 못 찾을 때 점진적으로 범위를 넓힌다.
@@ -47,6 +57,13 @@ export type AodpFallbackTier =
   | 'bluezone'
   | 'redzone'
   | 'none'
+
+// 시세 신뢰도 등급. 자동 리기어가 'low' 슬롯을 자동 청구에서 제외하는 게이트로 사용한다.
+//   high   — exact 폴백 + (history 모드면 sampleCount >= MIN_HIGH_SAMPLES, spot 이면 < SPOT_RECENT_HOURS).
+//   medium — quality/window 폴백, 또는 sample/시간 부족.
+//   low    — bluezone/redzone 폴백, 또는 history 모드인데 sampleCount 가 1 이하.
+//   none   — 시세 자체 없음.
+export type AodpConfidence = 'high' | 'medium' | 'low' | 'none'
 
 // 알비온 온라인 로열 시티(블루존). PvP 위험 없이 거래 가능.
 export const BLUE_ZONE_CITIES = [
@@ -92,6 +109,11 @@ export interface AodpPriceResult {
   usedQuality: number | null
   // 어느 폴백 단계에서 시세가 나왔는지. UI 경고 색·자동 리기어 게이트 결정에 사용.
   fallbackTier: AodpFallbackTier
+  // 종합 신뢰도. fallbackTier + sampleCount + recency 를 묶은 단일 등급.
+  // 자동 리기어는 'low' 슬롯을 marketSilver 에서 제외(opt-in 토글)할 수 있다.
+  confidence: AodpConfidence
+  // 평균 모드에서 가중 평균에 사용된 item_count 합. spot 모드는 null.
+  sampleCount: number | null
 }
 
 interface AodpSpotRow {
@@ -207,19 +229,76 @@ async function fetchHistoryBatch(
   return fetchJson<AodpHistoryRow[]>(url.toString())
 }
 
-function weightedAverage(buckets: AodpHistoryBucket[]): { price: number; sampledAt: string } | null {
+// 가중 평균 (item_count 가중) + outlier trim. AODP 는 던지기 매물이나 매크로
+// 가격으로 평균이 왜곡되는 경우가 잦아, bucket 이 3 개 이상이면 가격 기준
+// 상/하위 OUTLIER_TRIM_RATIO 를 컷한 뒤 평균을 낸다.
+function weightedAverage(
+  buckets: AodpHistoryBucket[],
+): { price: number; sampledAt: string; sampleCount: number } | null {
+  const valid = buckets.filter(
+    (b) =>
+      Number.isFinite(b.avg_price) &&
+      b.avg_price > 0 &&
+      Number.isFinite(b.item_count) &&
+      b.item_count > 0,
+  )
+  if (valid.length === 0) return null
+
+  const sorted = [...valid].sort((a, b) => a.avg_price - b.avg_price)
+  let trimmed = sorted
+  if (sorted.length >= 3) {
+    const trim = Math.floor(sorted.length * OUTLIER_TRIM_RATIO)
+    if (trim > 0) trimmed = sorted.slice(trim, sorted.length - trim)
+    // trim 후 0 개가 되는 일은 floor 특성상 안 일어나지만 방어적으로 fallback.
+    if (trimmed.length === 0) trimmed = sorted
+  }
+
   let totalCount = 0
   let totalValue = 0
   let latest = ''
-  for (const b of buckets) {
-    if (!Number.isFinite(b.avg_price) || b.avg_price <= 0) continue
-    if (!Number.isFinite(b.item_count) || b.item_count <= 0) continue
+  for (const b of trimmed) {
     totalCount += b.item_count
     totalValue += b.avg_price * b.item_count
     if (b.timestamp > latest) latest = b.timestamp
   }
   if (totalCount === 0) return null
-  return { price: Math.round(totalValue / totalCount), sampledAt: latest }
+  return {
+    price: Math.round(totalValue / totalCount),
+    sampledAt: latest,
+    sampleCount: totalCount,
+  }
+}
+
+// fallbackTier + sampleCount + recency 를 종합해 confidence 등급을 매긴다.
+// hit === null 이면 'none'. 자세한 분기 규칙은 AodpConfidence 타입 docstring 참고.
+function computeConfidence(
+  hit: { sampledAt: string; sampleCount: number | null } | null,
+  tier: AodpFallbackTier,
+  source: 'history' | 'spot' | null,
+  now: Date,
+): AodpConfidence {
+  if (!hit || tier === 'none') return 'none'
+  if (tier === 'redzone' || tier === 'bluezone') return 'low'
+
+  // history 모드: sampleCount 부족하면 강등. 1 이하면 low, MIN_HIGH_SAMPLES 미만이면 medium.
+  if (source === 'history') {
+    const samples = hit.sampleCount ?? 0
+    if (samples <= 1) return 'low'
+    if (samples < MIN_HIGH_SAMPLES) return 'medium'
+  }
+
+  // spot 모드: 너무 오래된 가격이면 medium. STALE_HOURS 안이라 일단 가격은 채택했지만
+  // SPOT_RECENT_HOURS (48h) 넘으면 변동 위험 있으니 high 까지 주진 않는다.
+  if (source === 'spot' && hit.sampledAt) {
+    const ts = Date.parse(hit.sampledAt)
+    if (Number.isFinite(ts)) {
+      const hours = (now.getTime() - ts) / (1000 * 60 * 60)
+      if (hours > SPOT_RECENT_HOURS) return 'medium'
+    }
+  }
+
+  if (tier === 'quality' || tier === 'window') return 'medium'
+  return 'high'
 }
 
 // app_settings 에서 AODP 관련 옵션을 읽어 AodpOptions 로 조립.
@@ -290,26 +369,42 @@ async function fetchAodpPricesExact(
   // URL 길이 제한(약 2KB) 감안 청크당 100개.
   const CHUNK = 100
 
+  const now = new Date()
   const result = new Map<string, AodpPriceResult>()
   const buildResult = (
     k: AodpPriceKey,
-    hit: { price: number; city: string; sampledAt: string; quality: number } | null,
+    hit:
+      | {
+          price: number
+          city: string
+          sampledAt: string
+          quality: number
+          sampleCount: number | null
+        }
+      | null,
     source: 'history' | 'spot' | null,
-  ): AodpPriceResult => ({
-    uniqueName: k.uniqueName,
-    enchant: k.enchant,
-    quality: k.quality,
-    price: hit?.price ?? null,
-    city: hit?.city ?? null,
-    sampledAt: hit?.sampledAt ?? null,
-    source: hit ? source : null,
-    usedQuality: hit?.quality ?? null,
-    // tier 는 hit 의 usedQuality 가 요청 품질과 다르면 'quality', 같으면 'exact'.
-    // 호출 시점에 widen 된 mode/cities 였다면 wrapper 가 덮어쓴다.
-    fallbackTier: hit
-      ? hit.quality === k.quality ? 'exact' : 'quality'
-      : 'none',
-  })
+  ): AodpPriceResult => {
+    const tier: AodpFallbackTier = hit
+      ? hit.quality === k.quality
+        ? 'exact'
+        : 'quality'
+      : 'none'
+    return {
+      uniqueName: k.uniqueName,
+      enchant: k.enchant,
+      quality: k.quality,
+      price: hit?.price ?? null,
+      city: hit?.city ?? null,
+      sampledAt: hit?.sampledAt ?? null,
+      source: hit ? source : null,
+      usedQuality: hit?.quality ?? null,
+      // tier 는 hit 의 usedQuality 가 요청 품질과 다르면 'quality', 같으면 'exact'.
+      // 호출 시점에 widen 된 mode/cities 였다면 wrapper 가 덮어쓴다.
+      fallbackTier: tier,
+      sampleCount: hit?.sampleCount ?? null,
+      confidence: computeConfidence(hit, tier, hit ? source : null, now),
+    }
+  }
 
   if (mode === 'spot') {
     const spotMap = await fetchSpotBestByKey(host, uniqIds, qualities, cities, CHUNK)
@@ -332,14 +427,22 @@ async function fetchAodpPricesExact(
     const slice = uniqIds.slice(i, i + CHUNK)
     all.push(...(await fetchHistoryBatch(host, slice, qualities, cities, days)))
   }
-  const historyBestByKey = new Map<string, { price: number; city: string; sampledAt: string }>()
+  const historyBestByKey = new Map<
+    string,
+    { price: number; city: string; sampledAt: string; sampleCount: number }
+  >()
   for (const row of all) {
     const avg = weightedAverage(row.data ?? [])
     if (!avg) continue
     const key = `${row.item_id}|${row.quality}`
     const prev = historyBestByKey.get(key)
     if (!prev || avg.price < prev.price) {
-      historyBestByKey.set(key, { price: avg.price, city: row.location, sampledAt: avg.sampledAt })
+      historyBestByKey.set(key, {
+        price: avg.price,
+        city: row.location,
+        sampledAt: avg.sampledAt,
+        sampleCount: avg.sampleCount,
+      })
     }
   }
 
@@ -353,7 +456,10 @@ async function fetchAodpPricesExact(
     }
   }
 
-  let spotBestByKey = new Map<string, { price: number; city: string; sampledAt: string }>()
+  let spotBestByKey = new Map<
+    string,
+    { price: number; city: string; sampledAt: string; sampleCount: null }
+  >()
   if (missingLookupKeys.size > 0) {
     // 폴백 spot 은 원본 keys 와 같은 도시/품질로만 조회. 사용자 설정을 벗어나진 않음.
     spotBestByKey = await fetchSpotBestByKey(host, uniqIds, qualities, cities, CHUNK)
@@ -417,6 +523,30 @@ export async function fetchAodpPrices(
       return !r || r.price === null
     })
 
+  // 폴백 단계에서 tier 를 덮어쓸 때 confidence 도 함께 다시 산출.
+  // bluezone/redzone 은 항상 'low' 로 떨어지고, window 는 sample/source 에 따라 medium/high.
+  const now = new Date()
+  const overrideTier = (
+    misses: AodpPriceKey[],
+    tier: AodpFallbackTier,
+    fetchedOpts: Required<AodpOptions>,
+  ) => {
+    if (misses.length === 0) return Promise.resolve()
+    return fetchAodpPricesExact(misses, fetchedOpts).then((m) => {
+      for (const [mk, r] of m) {
+        if (r.price === null) continue
+        r.fallbackTier = tier
+        r.confidence = computeConfidence(
+          { sampledAt: r.sampledAt ?? '', sampleCount: r.sampleCount },
+          tier,
+          r.source,
+          now,
+        )
+        out.set(mk, r)
+      }
+    })
+  }
+
   // 2단계: window — avg_14d + minQuality=1. 이미 14d 면 skip.
   const widenedOpts: Required<AodpOptions> = {
     ...userOpts,
@@ -424,46 +554,19 @@ export async function fetchAodpPrices(
     minQuality: 1,
   }
   if (userOpts.mode !== 'avg_14d' || userOpts.minQuality !== 1) {
-    const misses = collectMisses()
-    if (misses.length > 0) {
-      const m = await fetchAodpPricesExact(misses, widenedOpts)
-      for (const [mk, r] of m) {
-        if (r.price !== null) {
-          r.fallbackTier = 'window'
-          out.set(mk, r)
-        }
-      }
-    }
+    await overrideTier(collectMisses(), 'window', widenedOpts)
   }
 
   // 3단계: bluezone — cities 에 블루존 union. 이미 모든 블루존이 포함돼 있으면 skip.
   const bzCities = unionCities(userOpts.cities, BLUE_ZONE_CITIES)
   if (!sameCities(bzCities, userOpts.cities)) {
-    const misses = collectMisses()
-    if (misses.length > 0) {
-      const m = await fetchAodpPricesExact(misses, { ...widenedOpts, cities: bzCities })
-      for (const [mk, r] of m) {
-        if (r.price !== null) {
-          r.fallbackTier = 'bluezone'
-          out.set(mk, r)
-        }
-      }
-    }
+    await overrideTier(collectMisses(), 'bluezone', { ...widenedOpts, cities: bzCities })
   }
 
   // 4단계: redzone — cities 에 레드존도 union.
   const allCities = unionCities(bzCities, RED_ZONE_CITIES)
   if (!sameCities(allCities, bzCities)) {
-    const misses = collectMisses()
-    if (misses.length > 0) {
-      const m = await fetchAodpPricesExact(misses, { ...widenedOpts, cities: allCities })
-      for (const [mk, r] of m) {
-        if (r.price !== null) {
-          r.fallbackTier = 'redzone'
-          out.set(mk, r)
-        }
-      }
-    }
+    await overrideTier(collectMisses(), 'redzone', { ...widenedOpts, cities: allCities })
   }
 
   // 5단계: none — 마지막까지 못 찾은 key 는 null + tier='none'. 기존 result 에
@@ -483,9 +586,12 @@ export async function fetchAodpPrices(
         source: null,
         usedQuality: null,
         fallbackTier: 'none',
+        sampleCount: null,
+        confidence: 'none',
       })
     } else if (r.price === null) {
       r.fallbackTier = 'none'
+      r.confidence = 'none'
     }
   }
 
@@ -495,12 +601,12 @@ export async function fetchAodpPrices(
 // 맵 키는 `${itemId}|${quality}`. 요청 품질에서 데이터가 없으면 quality-1,
 // quality-2 … minQuality 까지 내려가며 가장 높은 품질의 데이터를 반환한다.
 // AODP 데이터가 일부 품질만 비는 경우 (East 서버 우수함 등) 실용적 근사치.
-function findBestByQuality(
-  map: Map<string, { price: number; city: string; sampledAt: string }>,
+function findBestByQuality<T extends { price: number; city: string; sampledAt: string }>(
+  map: Map<string, T>,
   id: string,
   requestedQuality: number,
   minQuality: number,
-): { price: number; city: string; sampledAt: string; quality: number } | null {
+): (T & { quality: number }) | null {
   const floor = Math.max(1, Math.min(5, minQuality))
   for (let q = requestedQuality; q >= floor; q -= 1) {
     const hit = map.get(`${id}|${q}`)
@@ -518,13 +624,13 @@ async function fetchSpotBestByKey(
   qualities: string,
   cities: readonly string[],
   chunk: number,
-): Promise<Map<string, { price: number; city: string; sampledAt: string }>> {
+): Promise<Map<string, { price: number; city: string; sampledAt: string; sampleCount: null }>> {
   const all: AodpSpotRow[] = []
   for (let i = 0; i < uniqIds.length; i += chunk) {
     const slice = uniqIds.slice(i, i + chunk)
     all.push(...(await fetchSpotBatch(host, slice, qualities, cities)))
   }
-  const best = new Map<string, { price: number; city: string; sampledAt: string }>()
+  const best = new Map<string, { price: number; city: string; sampledAt: string; sampleCount: null }>()
   const now = new Date()
   for (const row of all) {
     if (!row.sell_price_min || row.sell_price_min <= 0) continue
@@ -536,6 +642,7 @@ async function fetchSpotBestByKey(
         price: row.sell_price_min,
         city: row.city,
         sampledAt: row.sell_price_min_date,
+        sampleCount: null,
       })
     }
   }

@@ -6,6 +6,7 @@
 import {
   fetchAodpPrices,
   loadAodpOptions,
+  type AodpConfidence,
   type AodpFallbackTier,
   type AodpPriceKey,
 } from '@/lib/shop/aodp'
@@ -53,6 +54,7 @@ export interface RegearEstimateLineItem {
   price: number | null
   city: string | null
   fallbackTier: AodpFallbackTier
+  confidence: AodpConfidence
 }
 
 export interface RegearEstimateBreakdown {
@@ -64,6 +66,9 @@ export interface RegearEstimateBreakdown {
   items: RegearEstimateLineItem[]
   // 품목 전체를 요약한 가장 나쁜 경고 단계. null = 모두 exact hit 또는 경고 없음.
   warning_level: RegearWarningLevel
+  // 신뢰도가 'low' 인 슬롯 키 목록. UI 가 청구자에게 "직접 입력해 주세요"
+  // 배지를 띄울 때 사용한다.
+  low_confidence_slots: string[]
 }
 
 export interface RegearEstimate {
@@ -142,10 +147,14 @@ export async function estimateSilverFromEquipment(
       price: unit,
       city: hit?.city ?? null,
       fallbackTier: hit?.fallbackTier ?? 'none',
+      confidence: hit?.confidence ?? 'none',
     })
   }
 
   const warningLevel = worstWarningLevel(lineItems.map((i) => i.fallbackTier))
+  const lowConfidenceSlots = lineItems
+    .filter((i) => i.confidence === 'low')
+    .map((i) => i.slot)
 
   return {
     marketSilver,
@@ -158,6 +167,7 @@ export async function estimateSilverFromEquipment(
       market_silver: marketSilver,
       items: lineItems,
       warning_level: warningLevel,
+      low_confidence_slots: lowConfidenceSlots,
     },
   }
 }

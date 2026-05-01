@@ -46,6 +46,7 @@ export default async function SettingsPage() {
     albionHomeGuildId,
     autoRegearEnabledRaw,
     autoRegearExcludedSlotsRaw,
+    autoRegearSkipLowConfidenceRaw,
     craftRegearEnabledRaw,
     regearRequireVerificationRaw,
     regearOverchargeEnabledRaw,
@@ -76,6 +77,7 @@ export default async function SettingsPage() {
     getAppSetting('albion_home_guild_id', '', tenantId),
     getAppSetting('auto_regear_enabled', 'false', tenantId),
     getAppSetting('auto_regear_excluded_slots', '["food","cape","mount","potion"]', tenantId),
+    getAppSetting('auto_regear_skip_low_confidence', 'false', tenantId),
     getAppSetting('craft_regear_enabled', 'false', tenantId),
     getAppSetting('regear_require_verification', 'true', tenantId),
     getAppSetting('regear_overcharge_enabled', 'false', tenantId),
@@ -145,6 +147,7 @@ export default async function SettingsPage() {
       : 'east'
 
   const autoRegearEnabled = autoRegearEnabledRaw === 'true'
+  const autoRegearSkipLowConfidence = autoRegearSkipLowConfidenceRaw === 'true'
   const craftRegearEnabled = craftRegearEnabledRaw === 'true'
   // 기본값 'true' — 인증 게이트가 켜진 상태로 시작. 'false' 만 OFF 로 해석.
   const regearRequireVerification = regearRequireVerificationRaw !== 'false'
@@ -232,6 +235,7 @@ export default async function SettingsPage() {
         craftRegearEnabled={craftRegearEnabled}
         regearRequireVerification={regearRequireVerification}
         regearOverchargeEnabled={regearOverchargeEnabled}
+        autoRegearSkipLowConfidence={autoRegearSkipLowConfidence}
         cdBadgeRoles={cdBadgeRoles}
         allowUnverifiedMemberAccess={allowUnverifiedMemberAccess}
         tenantTimezone={tenantTimezone}

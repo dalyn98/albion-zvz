@@ -1098,7 +1098,9 @@
     "verifyLabel": "Verification gate",
     "verifyHint": "On = unverified guild members are blocked from claiming and routed to the Albion verification page.",
     "overchargeLabel": "Allow overcharge claims",
-    "overchargeHint": "Accept claims when members destroy their own gear via overcharge under guild orders. Disabled by default; the claim type picker is hidden when off."
+    "overchargeHint": "Accept claims when members destroy their own gear via overcharge under guild orders. Disabled by default; the claim type picker is hidden when off.",
+    "skipLowConfidenceLabel": "Skip low-confidence slots",
+    "skipLowConfidenceHint": "Drop slots where AODP could only return redzone/bluezone fallback or a single-sample history out of the auto claim — the member enters those prices manually. Prevents the total from drifting far off the in-game market."
   },
   "adminActiveMemberRoles": {
     "title": "Active member roles",
@@ -1395,6 +1397,8 @@
     "slotCount": "({count} slot(s))",
     "userEditedBadge": "User-edited {count}",
     "userEditedLabel": "User-edited",
+    "lowConfidenceLabel": "Low confidence",
+    "lowConfidenceHint": "{count} slot(s) have low-confidence price data. Please enter the value manually using the in-game estimated market value as a reference. The auto-estimate may be excluded from the total.",
     "slotHeader": "Slot",
     "itemHeader": "Item",
     "countHeader": "Count",
