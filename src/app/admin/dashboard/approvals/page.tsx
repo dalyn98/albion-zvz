@@ -6,6 +6,7 @@ import {
   listExchangeRequests,
   getRegearPayoutRatePercent,
   getRegearAnomalyMap,
+  type RegearOrigin,
 } from '@/app/actions/regear-admin'
 import { checkBuildSnapshotStockBatch } from '@/lib/inventory'
 import type { BuildSnapshot } from '@/types'
@@ -29,6 +30,7 @@ type Scope = 'pending' | 'all'
 interface SearchParams {
   tab?: string
   scope?: string
+  origin?: string
 }
 
 function resolveType(v: string | undefined): TypeKey {
@@ -38,6 +40,11 @@ function resolveType(v: string | undefined): TypeKey {
 
 function resolveScope(v: string | undefined): Scope {
   return v === 'all' ? 'all' : 'pending'
+}
+
+function resolveOrigin(v: string | undefined): RegearOrigin {
+  if (v === 'manual' || v === 'all') return v
+  return 'auto'
 }
 
 export const dynamic = 'force-dynamic'
@@ -50,6 +57,7 @@ export default async function ApprovalsPage({
   const sp = await searchParams
   const type = resolveType(sp.tab)
   const scope = resolveScope(sp.scope)
+  const origin = resolveOrigin(sp.origin)
 
   const session = await getSession()
   if (!session) {
@@ -78,7 +86,7 @@ export default async function ApprovalsPage({
 
       <TypeTabs active={type} tabs={tabs} tabsLabel={tApprovals('tabsLabel')} />
 
-      {type === 'regear' && <RegearSection scope={scope} guildId={guildId} />}
+      {type === 'regear' && <RegearSection scope={scope} origin={origin} guildId={guildId} />}
       {type === 'exchange' && <ExchangeSection scope={scope} guildId={guildId} />}
       {type === 'donation' && <DonationSection scope={scope} guildId={guildId} />}
       {type === 'shop' && <ShopSection scope={scope} guildId={guildId} />}
@@ -184,9 +192,17 @@ function ScopeTabs({ baseHref, active, tKeys, accent }: ScopeTabsProps) {
   )
 }
 
-async function RegearSection({ scope, guildId }: { scope: Scope; guildId: string }) {
+async function RegearSection({
+  scope,
+  origin,
+  guildId,
+}: {
+  scope: Scope
+  origin: RegearOrigin
+  guildId: string
+}) {
   const [{ requests, error }, t, ratePercent] = await Promise.all([
-    listRegearRequests(scope),
+    listRegearRequests(scope, origin),
     getTranslations('adminRegearReview'),
     getRegearPayoutRatePercent(),
   ])
@@ -205,8 +221,17 @@ async function RegearSection({ scope, guildId }: { scope: Scope; guildId: string
 
   return (
     <div className="space-y-4">
+      <RegearOriginTabs
+        active={origin}
+        scope={scope}
+        tKeys={{
+          auto: t('originAuto'),
+          manual: t('originManual'),
+          all: t('originAll'),
+        }}
+      />
       <ScopeTabs
-        baseHref="/admin/dashboard/approvals"
+        baseHref={originBaseHref(origin)}
         active={scope}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
@@ -231,6 +256,56 @@ async function RegearSection({ scope, guildId }: { scope: Scope; guildId: string
         />
       )}
     </div>
+  )
+}
+
+function originBaseHref(origin: RegearOrigin): string {
+  // origin=auto 가 기본값이라 URL 에 명시 X — 다른 값일 때만 쿼리 추가.
+  return origin === 'auto'
+    ? '/admin/dashboard/approvals'
+    : `/admin/dashboard/approvals?origin=${origin}`
+}
+
+interface RegearOriginTabsProps {
+  active: RegearOrigin
+  scope: Scope
+  tKeys: {
+    auto: string
+    manual: string
+    all: string
+  }
+}
+
+function RegearOriginTabs({ active, scope, tKeys }: RegearOriginTabsProps) {
+  const origins: Array<{ value: RegearOrigin; label: string }> = [
+    { value: 'auto', label: tKeys.auto },
+    { value: 'manual', label: tKeys.manual },
+    { value: 'all', label: tKeys.all },
+  ]
+  return (
+    <nav className="flex items-center gap-2">
+      {origins.map(({ value, label }) => {
+        const isActive = active === value
+        const params = new URLSearchParams()
+        if (value !== 'auto') params.set('origin', value)
+        if (scope === 'all') params.set('scope', 'all')
+        const qs = params.toString()
+        const href = qs ? `/admin/dashboard/approvals?${qs}` : '/admin/dashboard/approvals'
+        return (
+          <Link
+            key={value}
+            href={href}
+            className={`text-xs font-medium px-3 py-1.5 rounded-full border ${
+              isActive
+                ? 'bg-sky-500/20 border-sky-500/50 text-sky-300'
+                : 'bg-gray-900 border-gray-700 text-gray-400 hover:text-white'
+            }`}
+          >
+            {label}
+          </Link>
+        )
+      })}
+    </nav>
   )
 }
 

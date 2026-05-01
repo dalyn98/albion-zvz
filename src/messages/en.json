@@ -259,6 +259,9 @@
   "adminRegearReview": {
     "pageTitle": "Regear requests",
     "pageDescription": "Review guild members' regear requests and approve or reject them. Approval pays out the claimed amount as points.",
+    "originAuto": "Auto",
+    "originManual": "Manual",
+    "originAll": "All",
     "scopePending": "Pending",
     "scopeAll": "All",
     "noPending": "No pending regear requests.",

@@ -259,6 +259,9 @@
   "adminRegearReview": {
     "pageTitle": "リギア申請",
     "pageDescription": "ギルドメンバーが申請したリギアを確認して承認/却下できます。承認時にそのロールの固定金額がポイントとして支給されます。",
+    "originAuto": "自動",
+    "originManual": "手動",
+    "originAll": "全て",
     "scopePending": "保留中",
     "scopeAll": "全て",
     "noPending": "保留中のリギア申請はありません。",

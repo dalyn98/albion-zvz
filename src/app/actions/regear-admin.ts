@@ -139,8 +139,11 @@ export interface RoleReward {
   updated_at: string
 }
 
+export type RegearOrigin = 'auto' | 'manual' | 'all'
+
 export async function listRegearRequests(
   scope: 'pending' | 'all' = 'pending',
+  origin: RegearOrigin = 'all',
 ): Promise<{ requests: AdminRegearRequest[]; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
@@ -157,6 +160,8 @@ export async function listRegearRequests(
       .order('created_at', { ascending: false })
       .limit(500)
     if (scope === 'pending') query = query.eq('status', 'pending')
+    if (origin === 'auto') query = query.eq('auto_generated', true)
+    if (origin === 'manual') query = query.eq('auto_generated', false)
 
     const { data, error } = await query
     if (error) return { requests: [], error: error.message }

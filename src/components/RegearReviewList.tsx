@@ -430,20 +430,21 @@ function RegearRow({
                 {t('estimatedMarket', { amount: formatSilver(request.estimated_silver) })}
               </span>
             )}
-            {request.price_warning_level && (
-              <span
-                className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${
-                  request.price_warning_level === 'redzone'
-                    ? 'bg-red-600 text-white'
-                    : request.price_warning_level === 'bluezone'
-                    ? 'bg-orange-500/90 text-black'
-                    : 'bg-yellow-500/80 text-black'
-                }`}
-                title={t(`priceWarningTooltip_${request.price_warning_level}` as const)}
-              >
-                {t(`priceWarningLabel_${request.price_warning_level}` as const)}
-              </span>
-            )}
+            {request.price_warning_level &&
+              !(request.auto_generated && request.price_warning_level === 'redzone') && (
+                <span
+                  className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${
+                    request.price_warning_level === 'redzone'
+                      ? 'bg-red-600 text-white'
+                      : request.price_warning_level === 'bluezone'
+                      ? 'bg-orange-500/90 text-black'
+                      : 'bg-yellow-500/80 text-black'
+                  }`}
+                  title={t(`priceWarningTooltip_${request.price_warning_level}` as const)}
+                >
+                  {t(`priceWarningLabel_${request.price_warning_level}` as const)}
+                </span>
+              )}
             {request.status === 'approved' && approvedPayout !== null && approvedPayout !== claimed && (
               <span className="font-mono text-emerald-400">
                 {t('paidOut', { amount: formatSilver(approvedPayout) })}
