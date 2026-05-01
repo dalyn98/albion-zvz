@@ -29,13 +29,14 @@ import {
   isSpecLessSlot,
 } from '@/types'
 
-// next-intl locale 코드(ko/ja/en) → Intl.DateTimeFormat 이 받는 BCP 47 태그.
+// next-intl locale 코드(ko/ja/en/zh) → Intl.DateTimeFormat 이 받는 BCP 47 태그.
 // Discord embed 의 일시 표기 포맷에 사용 — 시간대는 길드 설정(getTenantTimezone)
 // 으로 결정.
 const LOCALE_TO_BCP47: Record<Locale, string> = {
   ko: 'ko-KR',
   ja: 'ja-JP',
   en: 'en-US',
+  zh: 'zh-CN',
 }
 
 // 카테고리와 무관하게 존재할 수 있는 가장 큰 파티 번호 — 입력이 터무니없이

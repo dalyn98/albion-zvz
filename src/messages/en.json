@@ -249,7 +249,7 @@
     "flag_high_frequency_detail": "This claimant has 5+ approved regears in the past 7 days.",
     "flag_price_overclaim_title": "Over-claimed vs market",
     "flag_price_overclaim_detail": "Claimed silver is 1.5x above the estimated market value.",
-    "flag_price_warning_high_title": "AODP price warning",
+    "flag_price_warning_high_title": "Market price warning",
     "flag_price_warning_high_detail": "Pricing data is stale or fallback-city-based.",
     "flag_user_edited_breakdown_title": "Claimant edited gear breakdown",
     "flag_user_edited_breakdown_detail": "The claimant modified auto-generated slot prices.",
@@ -570,13 +570,13 @@
       "step2": "Configure parties/slots: load a template or add parties → set role, gear, and spec per slot.",
       "step3": "Publish: use the banner button to move the event to a state where members can apply.",
       "step4": "Mark battle started: press the 'Battle Started' button to lock battle_started_at. Regear window timer begins from this moment.",
-      "step5": "After the event: the auto-regear cron reads killboard and generates approvals. Members can submit manual regear once the window opens. Use the 'Bulk payout' button at the top of the event page to grant a fixed attendance point to every assigned member in one click."
+      "step5": "After the event: the auto-regear job reads killboard and generates approvals. Members can submit manual regear once the window opens. Use the 'Bulk payout' button at the top of the event page to grant a fixed attendance point to every assigned member in one click."
     },
     "regear": {
       "title": "Regear system",
       "cta": "Open regear settings",
-      "body": "Three regear modes coexist: auto (killboard-based), event-tied manual (screenshot-based), and 'regear windows' (event-independent open intake). Per-role cap (role_rewards.silver) of 0 blocks all regear for that role.",
-      "bullet1": "The auto-regear toggle is a global switch. It must be ON for the cron to convert killboard deaths into approvals.",
+      "body": "Three regear modes coexist: auto (killboard-based), event-tied manual (screenshot-based), and 'regear windows' (event-independent open intake). Setting the per-role reward cap to 0 blocks all regear claims from that role.",
+      "bullet1": "The auto-regear toggle is a global switch. It must be ON for killboard deaths to be converted into approvals automatically.",
       "bullet2": "Slot editor has 'Exclude from auto-regear' (visible only when global ON) and 'Exclude from manual regear' (always) checkboxes for per-build opt-out.",
       "bullet3": "Event-tied manual regear opens N minutes after battle start. Max screenshot 10MB, PNG/JPEG/WebP only.",
       "bullet4": "Auto-generated pending rows let the claimant edit per-slot prices. Admins review at /admin/dashboard/regear.",
@@ -610,12 +610,12 @@
     "shop": {
       "title": "Guild shop",
       "cta": "Open shop admin",
-      "body": "Members exchange points for gear. Stock syncs via manual 'log paste' (ShopImportForm).\n\nSilver↔point exchange rate (discount_rate) is a discount on a 1:1 base. 100% means silver price = point price; 50% sells for half.\n\nAODP price warnings (quality/window/bluezone/redzone) surface when auto-regear suspects a problematic row."
+      "body": "Members exchange points they earned for gear. Stock syncs by copying and pasting the Albion log into the import form.\n\nThe 'discount rate' converts silver prices into point prices. 100% means silver price equals point price; 50% sells at half price.\n\nWhen item prices diverge sharply from current market or look unusual, an automatic warning appears. Review and adjust those rows manually."
     },
     "notifications": {
       "title": "Discord notifications",
       "cta": "Open notification settings",
-      "body": "Two delivery channels: event channel announcements and personal DMs.\n\n- Event channel: configured via notify_channel_id + notify_role_id (role mention). Sent via a manual button on event create/edit.\n- Personal DM: auto-sent before event gather time to assigned members. The lead time follows the guild default (initially 35 min, configurable in the 'Notices' tab → 'Discord notifications'); each member can override it in /me/settings, or opt out entirely.\n- Regear/exchange approvals also DM the requester.\n\nRequires DISCORD_BOT_TOKEN, DISCORD_EVENT_CHANNEL_ID, DISCORD_GUILD_ID env vars."
+      "body": "Notifications are delivered two ways:\n\n- Channel announcement: posted to the event channel with a role mention. Goes out only when you press the manual button after creating or editing an event.\n- Personal DM: auto-sent to assigned members before the event gather time. The lead time follows the guild default (initially 35 min, configurable in the 'Notices' tab → 'Discord notifications'); each member can override it in 'My settings', or opt out entirely.\n- Approval / rejection of regear or point exchange also triggers a DM to the requester.\n\nThis requires the Discord bot to be connected first. If it isn't set up, contact the developer."
     },
     "battles": {
       "title": "Battle records (auto-aggregated)",
@@ -633,10 +633,10 @@
     },
     "tips": {
       "title": "Operation tips",
-      "tip1": "Before big changes, review global toggles (auto-regear, auto-start) in Settings.",
-      "tip2": "Save slot layouts as templates at /admin/dashboard/templates. Load quickly from the event editor. Re-saving with the same name now prompts to overwrite the existing template.",
-      "tip3": "Use the party editor's 'Hide party' button to hide in-progress parties from the public page.",
-      "tip4": "For data issues, query Supabase Dashboard SQL editor directly. The 3 core tables: guild_avatars, regear_requests, point_ledger.",
+      "tip1": "Before making big changes, run through the global toggles on the Settings page (auto-regear, auto-start, etc.) once.",
+      "tip2": "Save your common party layouts as templates so you can reuse them when building events. Re-saving with the same name prompts whether to overwrite the existing template.",
+      "tip3": "Use the party editor's 'Hide party' button to hide work-in-progress parties from members.",
+      "tip4": "If unexplained errors keep happening, it can be hard to fix alone — contact the developer directly.",
       "tip5": "Share albion-guildmanager.com/invite as a one-click bot install link with your guild — it lands directly on the Discord bot invite page.",
       "tip6": "Event gather time and regear-window deadlines now use the same 4-part (month/day/hour/minute) inputs everywhere, so mobile keypads stay consistent. Times convert to your operating timezone automatically.",
       "tip7": "Reminder DMs use a guild-wide default (Settings → Notices → Discord notifications), and members can override their personal lead time anywhere from 5 to 1440 minutes in /me/settings. Useful when commute schedules differ across the roster."
@@ -657,7 +657,7 @@
       "p6Title": "Members can't access the site",
       "p6Body": "First confirm they're logging in with their own Discord account and are members of a Discord server the bot is in. If they aren't recognized as admin, verify the admin role configured in Settings → Permissions is actually granted to them.",
       "p7Title": "Shop prices look off",
-      "p7Body": "'Discount rate' converts silver to points: 100% means silver-equals-points, 50% means half-price. Large divergence from market triggers an automatic warning. AODP price refresh can lag, so re-check after a few minutes."
+      "p7Body": "'Discount rate' converts silver to points: 100% means silver-equals-points, 50% means half-price. Large divergence from market triggers an automatic warning. Market price refresh can lag, so re-check after a few minutes."
     }
   },
   "adminParty": {
@@ -1092,7 +1092,7 @@
     "title": "Regear operating modes",
     "description": "Three master switches for the regear flow — auto-create, craft mode, and the verification gate. Each toggles independently.",
     "autoLabel": "Auto regear",
-    "autoHint": "After events end, auto-creates pending claims by reading killboard deaths and pricing them at AODP rates. Off = manual claims only.",
+    "autoHint": "After events end, auto-creates pending claims by reading killboard deaths and pricing them at current market rates. Off = manual claims only.",
     "craftLabel": "Craft regear",
     "craftHint": "Routes new claims through the crafter box pickup flow. Off = all claims pay out in silver.",
     "verifyLabel": "Verification gate",
@@ -1218,7 +1218,7 @@
     "verificationUnverifiedLabel": "Unverified",
     "verificationUnverifiedHint": "Manually entered or home guild mismatch",
     "verificationOnboardingPendingLabel": "Onboarding pending",
-    "verificationOnboardingPendingHint": "albion_server IS NULL",
+    "verificationOnboardingPendingHint": "Albion server not selected",
     "pendingMembersTitle": "Members with onboarding pending",
     "pendingMembersEmpty": "All active members have finished onboarding.",
     "unverifiedMembersTitle": "Unverified members",
@@ -1259,7 +1259,7 @@
     "title": "Stock anomalies detected",
     "hint": "Items with irregular or stale numbers. Clear them up with a baseline reset.",
     "negativeTitle": "Negative stock ({count} item(s))",
-    "negativeHint": "RPC deltas are out of sync, or an intake wasn't recorded. Stock that should sit at 0 has dropped below zero.",
+    "negativeHint": "Stock sync is off, or an intake wasn't recorded. Stock that should sit at 0 has dropped below zero.",
     "staleTitle": "No change in {days}+ days ({count} item(s))",
     "staleHint": "The ledger shows stock but there have been no transactions for a while. Could be a ghost entry for an item that's no longer there.",
     "itemHeader": "Item",
@@ -1268,8 +1268,8 @@
   },
   "adminShopBlacklist": {
     "title": "Junk blacklist",
-    "description": "Items on the blacklist are skipped during log parsing and never added to stock. Use the exact Korean name.",
-    "addPlaceholder": "e.g. 페기물",
+    "description": "Items on the blacklist are skipped during log parsing and never added to stock. Use the exact name as it appears in the game log.",
+    "addPlaceholder": "e.g. Refuse",
     "addButton": "Add",
     "alreadyExists": "Already on the blacklist.",
     "removeTitle": "Remove",
@@ -1278,10 +1278,10 @@
   "adminShopInventory": {
     "title": "Stock / price",
     "rowsAndStock": "{rows} item(s) · {stock} total",
-    "syncButton": "Refresh AODP prices",
+    "syncButton": "Refresh market prices",
     "resetButton": "Reset stock",
     "resetTitle": "Zero out all stock + delete raw logs (prices/categories/orders preserved)",
-    "descriptionPrefix": "Pulls AODP prices (using admin server/city/mode settings) for the entire stock in one batch. Manual prices take precedence over auto. Points·silver are 1:1, shown after the discount rate",
+    "descriptionPrefix": "Pulls market prices (using admin server/city/mode settings) for the entire stock in one batch. Manual prices take precedence over auto. Points·silver are 1:1, shown after the discount rate",
     "descriptionSuffix": "is applied.",
     "syncSummary": "Updated {updated} of {requested} · {missing} missing",
     "resetSummary": "Zeroed out {rows} rows. Deleted {logs} log entries.",
@@ -1296,9 +1296,9 @@
     "priceSourceEmpty": "Edit manual price (silver, pre-discount) · blank = auto",
     "priceSourceManualLocked": "Manual fixed price (silver, pre-discount) · save blank to revert to auto",
     "priceSourceSpot": "No history in the configured average window, falling back to spot quote",
-    "priceSourceQualityFallback": "No AODP data for the requested quality, falling back to quality {quality} ({label}) — actual price may differ",
-    "priceSourceCityAvg": "{city} AODP average",
-    "priceSourceCitySpot": "{city} AODP current",
+    "priceSourceQualityFallback": "No market data for the requested quality, falling back to quality {quality} ({label}) — actual price may differ",
+    "priceSourceCityAvg": "{city} average price",
+    "priceSourceCitySpot": "{city} current price",
     "saveTitle": "Save",
     "cancelTitle": "Cancel",
     "saveAutoTitle": "Save (blank = auto)",
@@ -1388,7 +1388,7 @@
     "commitStatDup": "Dup skipped",
     "commitStatStockChanges": "Stock changes",
     "commitStatPriceUpdate": "Price updates",
-    "commitAodpSummary": "AODP: requested {requested} · updated {updated} · missing {missing}"
+    "commitAodpSummary": "Price refresh: requested {requested} · updated {updated} · missing {missing}"
   },
   "regearBreakdown": {
     "previewTitle": "Per-slot price breakdown",
@@ -1482,15 +1482,15 @@
   },
   "adminShopSilverRate": {
     "title": "Shop discount rate",
-    "description": "Enter the discount percentage (%).\n• 0 → no discount (1M silver → 1,000,000p)\n• 10 → 10% off (1M silver → 900,000p)\n• 50 → half price (1M silver → 500,000p)\nApplies to both manual prices and automatic (AODP silver) prices.",
+    "description": "Enter the discount percentage (%).\n• 0 → no discount (1M silver → 1,000,000p)\n• 10 → 10% off (1M silver → 900,000p)\n• 50 → half price (1M silver → 500,000p)\nApplies to both manual prices and automatic (market silver) prices.",
     "rateLabel": "Discount rate",
     "percentPreview": "{percent}% off · 1M silver → {points}p",
     "rangeHint": "Valid range: 0 ~ 99"
   },
   "adminAodp": {
-    "title": "AODP price settings",
+    "title": "Market price settings",
     "description": "Shared price-lookup options used by shop auto-pricing and auto regear.",
-    "tooltipAria": "AODP explanation",
+    "tooltipAria": "Market data explanation",
     "cityHeading": "Base city (1)",
     "cityHint": "Choose one city to use as your guild's home market. If a price isn't available there, the lookup falls back to other royal cities and then to the red zone.",
     "modeHeading": "Price mode",
@@ -1509,14 +1509,14 @@
   },
   "adminAlbionHomeGuild": {
     "title": "Home guild · Albion server",
-    "description": "Sets the server and \"our guild\" used for Albion onboarding and killboard auto-verification. Guild UUIDs differ per server, so the two values are always saved as a pair. If the home guild is empty, all onboardings are saved as [unverified].",
+    "description": "Sets the server and \"our guild\" used for Albion onboarding and killboard auto-verification. Guild IDs differ per server, so the two values are always saved as a pair. If the home guild is empty, all onboardings are saved as [unverified].",
     "serverHeading": "Server",
     "serverEastLabel": "East (Asia)",
-    "serverEastHint": "gameinfo-sgp · Asia server",
+    "serverEastHint": "Asia server (Singapore)",
     "serverWestLabel": "West (Americas)",
-    "serverWestHint": "gameinfo · Americas server",
+    "serverWestHint": "Americas server",
     "serverEuropeLabel": "Europe",
-    "serverEuropeHint": "gameinfo-ams · Europe server",
+    "serverEuropeHint": "Europe server (Amsterdam)",
     "guildHeading": "Home guild (on the selected server)",
     "currentSelection": "Current selection",
     "clearGuild": "Clear",
@@ -1633,11 +1633,11 @@
     "feature1Title": "Event builds + Discord pings",
     "feature1Body": "Compose party/slot builds, publish, and the channel gets an @everyone notification automatically. Members sign up for slots from the web and check in.",
     "feature2Title": "Automatic regear payouts",
-    "feature2Body": "Killboard plus AODP market data feed an auto-payout flow that compensates fallen members after each fight. Manual claims and admin approval workflows are built in.",
+    "feature2Body": "Killboard plus market price data feed an auto-payout flow that compensates fallen members after each fight. Manual claims and admin approval workflows are built in.",
     "feature3Title": "Guild shop + point exchange",
     "feature3Body": "Sell in-game items for points at automatically-priced rates. Baseline check-in/out tracking and drift reports keep stock honest.",
     "feature4Title": "Battle records + member stats",
-    "feature4Body": "Killboard polling captures guild battles. Per-member K/D, weapon usage, and attendance roll up automatically.",
+    "feature4Body": "Killboard syncs every few minutes to capture guild battles. Per-member K/D, weapon usage, and attendance roll up automatically.",
     "howTitle": "How does setup work?",
     "howStep1": "Sign in with Discord and pick the guild that should host the bot.",
     "howStep2": "Wire up member/admin roles, an announcement channel, and your Albion guild ID.",
@@ -1738,8 +1738,8 @@
     "f1Bullet3": "Auto-aggregated attendance & results post-event",
     "f1ScreenshotLabel": "[Event roster screenshot]",
     "f2Title": "Automatic Regear Payouts",
-    "f2Body": "The bot polls Albion's killboard every 5 minutes to identify dead members. AODP price feeds compute the loss and create regear claims automatically.",
-    "f2Bullet1": "Killboard + AODP price feed integration",
+    "f2Body": "The bot syncs Albion's killboard every 5 minutes to identify dead members. Market price feeds compute the loss and create regear claims automatically.",
+    "f2Bullet1": "Killboard + market price feed integration",
     "f2Bullet2": "Per-slot price edit, re-issue, reject workflow",
     "f2Bullet3": "Blackzone-only / auto-approve / manual review policies",
     "f2ScreenshotLabel": "[Regear claim screenshot]",
@@ -1766,7 +1766,7 @@
     "betaPlanCta": "Install bot",
     "betaFeature1": "Every feature included",
     "betaFeature2": "Unlimited members per Discord guild",
-    "betaFeature3": "Killboard + AODP price feed",
+    "betaFeature3": "Killboard + market price feed",
     "betaFeature4": "Dedicated subdomain ({slug}.albion-guildmanager.com)",
     "betaFeature5": "Free data migration at GA",
     "proPlanLabel": "Coming soon — Pro",
@@ -1787,7 +1787,7 @@
     "q1": "What Discord permissions does the bot need?",
     "a1": "Anyone with Manage Server permission can install. The bot uses only message-send, member-read, and role-read scopes.",
     "q2": "How does it pull Albion guild data?",
-    "a2": "It polls Albion's official gameinfo API every 5 minutes for killboard data. Loss values come from AODP (Albion Online Data Project)'s public price API.",
+    "a2": "We sync Albion's official API every 5 minutes for killboard data. Loss values come from AODP (Albion Online Data Project) — a public dataset where players share market prices they capture from the game.",
     "q3": "Is it free?",
     "a3": "Yes — every feature is free during beta. We move to a reasonable pricing model at GA, with priority support for beta users.",
     "q4": "Where is data stored?",
@@ -1807,7 +1807,13 @@
     "q11": "How is this different from other Albion tools (Battle Tabs, standalone Discord bots, etc.)?",
     "a11": "Event ops (party building, DM reminders, attendance points), reward automation (auto regear, guild shop, point exchange), and ZvZ stats are unified in one site, so you don't need spreadsheets or multiple Discord bots. Discord and the Albion killboard are first-class data sources, so manual input is minimal.",
     "q12": "Aren't the bot's permissions too broad?",
-    "a12": "The bot uses only message-send, member/role read, and DM-send. It doesn't read message content or touch voice channels. If permissions feel too broad, an admin can further constrain the bot role directly from Discord server settings."
+    "a12": "The bot uses only message-send, member/role read, and DM-send. It doesn't read message content or touch voice channels. If permissions feel too broad, an admin can further constrain the bot role directly from Discord server settings.",
+    "q13": "What should I do first after installing the bot?",
+    "a13": "1) Sign in with Discord after inviting the bot, 2) set your guild's address (slug), 3) pick your Albion home guild, 4) assign the event-announcement channel and the active-member role, 5) review policy toggles like auto-regear and the guild shop — once these five are done, members can sign in and link their Albion characters.",
+    "q14": "What does a member do the first time they visit the site?",
+    "a14": "Signing in with Discord starts the verification flow automatically. Enter your Albion character name to match the guild roster — once verified, your kill log, claims, and reward points start accumulating automatically. Entering a character that isn't on the guild roster leaves you in [unverified] state and some features will be limited.",
+    "q15": "My death isn't getting picked up by auto-regear. Why?",
+    "a15": "1) Albion's killboard takes about 30 minutes to index death records — wait a moment and press 'Recheck' on the regear page. 2) Auto-regear only catches deaths in the black zone. Yellow/red-zone or non-ZvZ deaths must be submitted manually. 3) Make sure your Albion character is verified and that your guild matches the site's home guild."
   },
   "auth": {
     "error": {
@@ -3215,7 +3221,7 @@
     "pendingResumeDescription": "Resume the bot install wizard you started earlier.",
     "pendingResumeButton": "Resume",
     "albionStepTitle": "Albion server · home guild",
-    "albionStepDescription": "Pick the server and \"our guild\" used for killboard verification and member onboarding. Guild UUIDs differ per server, so these two values are saved as a pair.",
+    "albionStepDescription": "Pick the server and \"our guild\" used for killboard verification and member onboarding. Guild IDs differ per server, so these two values are saved as a pair.",
     "albionServerLabel": "Albion server",
     "albionServerHelp": "Select the shard your guild actually plays on. Changing server clears the selected guild.",
     "albionHomeGuildLabel": "Home guild",
@@ -3331,7 +3337,7 @@
     "memberOnly": "Browsing is open, but only verified guild members can place orders."
   },
   "shop": {
-    "aodpTooltip": "AODP (Albion Online Data Project) is a crowd-sourced API where players share market prices captured from the game client. Data density varies by server, city, and time, so when recent prices for the configured base city are unavailable, the system falls back through lower quality → 14-day average → other royal cities → red-zone cities. When that fallback chain runs, the estimate may diverge from real trade value, and a \"Price estimate\" warning is shown.",
+    "aodpTooltip": "Market prices come from AODP (Albion Online Data Project) — a public dataset where players share market prices they capture from the game. Data density varies by server, city, and time, so when recent prices aren't available for the configured base city, the system falls back through lower quality → 14-day average → other royal cities → red-zone cities. When that fallback chain runs, the estimate may diverge from real trade value, and a \"Price estimate\" warning is shown.",
     "priceWarning": "Price estimate",
     "priceWarningBuyer": {
       "quality": "Price estimate: no market data for this item quality, so we substituted a lower-quality price.",
@@ -3356,7 +3362,7 @@
   },
   "shopCatalog": {
     "baseCityLabel": "Price basis",
-    "aodpAriaLabel": "AODP info",
+    "aodpAriaLabel": "Market price data info",
     "searchPlaceholder": "Search items",
     "tierAll": "All tiers",
     "balanceLabel": "Balance",
@@ -3428,8 +3434,8 @@
     "deliveryNoticeClearLabel": "Clear banner",
     "deliveryNoticeClearTooltip": "Empty string hides the banner",
     "deliveryNoticeTooLong": "Max {max} characters",
-    "aodpInfoTitle": "How does AODP pricing work?",
-    "aodpInfoBody": "Auto shop prices come from AODP (Albion Online Data Project) market data, anchored to one guild city. The auto price tracks your actual trading rate only when the city, price mode, and minimum quality are tuned correctly.",
+    "aodpInfoTitle": "How are market prices determined?",
+    "aodpInfoBody": "Auto shop prices come from AODP — a public Albion player-shared market dataset — anchored to one guild city. The auto price tracks your actual trading rate only when the city, price mode, and minimum quality are tuned correctly.",
     "aodpInfoCityHint": "Pick the city your members buy and sell at most often.",
     "aodpInfoModeHint": "Use an averaged mode (avg_3d / avg_7d) to reduce regear payout volatility."
   },

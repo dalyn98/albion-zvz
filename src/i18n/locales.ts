@@ -1,4 +1,4 @@
-export const SUPPORTED_LOCALES = ['ko', 'ja', 'en'] as const
+export const SUPPORTED_LOCALES = ['ko', 'ja', 'en', 'zh'] as const
 
 export type Locale = (typeof SUPPORTED_LOCALES)[number]
 
@@ -14,4 +14,5 @@ export const LOCALE_LABELS: Record<Locale, string> = {
   ko: '한국어',
   ja: '日本語',
   en: 'English',
+  zh: '中文',
 }

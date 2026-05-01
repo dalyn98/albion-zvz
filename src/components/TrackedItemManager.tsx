@@ -107,7 +107,7 @@ export default function TrackedItemManager({ initialTracked }: Props) {
       : results.filter((r) => !trackedSuffixSet.has(r.baseSuffix))
 
   function getDisplayName(entry: TrackedItemSearchEntry): string {
-    if (locale === 'en') return entry.displayEn
+    if (locale === 'en' || locale === 'zh') return entry.displayEn
     if (locale === 'ja') return entry.displayJa
     return entry.displayKo
   }

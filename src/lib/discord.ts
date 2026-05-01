@@ -6,6 +6,7 @@
 // `guilds.members.read` is the scope that lets us fetch roles without a bot.
 
 import { tenantUrl } from '@/lib/tenant-resolver'
+import type { Locale } from '@/i18n/locales'
 
 const DISCORD_API = 'https://discord.com/api/v10'
 // identify: 유저 기본 프로필. guilds: 유저의 길드 목록 (tenant 매칭).
@@ -180,14 +181,17 @@ export async function exchangeCode(code: string): Promise<TokenResponse> {
 // Discord 의 user.locale (BCP-47 태그) 를 사이트에서 지원하는 Locale 로 매핑.
 // 지원하지 않는 언어는 null 을 돌려줘서 호출부가 welcome-language 페이지로
 // 유도하도록 한다. "en-US", "en-GB" 등 지역 변형은 모두 en 으로 모은다.
+// 중국어는 간체 (zh-CN) / 번체 (zh-TW) 모두 zh 로 모은다 — 사이트는 간체만
+// 제공하지만 zh-TW 사용자도 영어보다 zh 가 더 가깝다고 판단.
 export function mapDiscordLocale(
   locale: string | null | undefined,
-): 'ko' | 'ja' | 'en' | null {
+): Locale | null {
   if (!locale) return null
   const lower = locale.toLowerCase()
   if (lower === 'ko' || lower.startsWith('ko-')) return 'ko'
   if (lower === 'ja' || lower.startsWith('ja-')) return 'ja'
   if (lower === 'en' || lower.startsWith('en-')) return 'en'
+  if (lower === 'zh' || lower.startsWith('zh-')) return 'zh'
   return null
 }
 

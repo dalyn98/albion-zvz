@@ -1,4 +1,5 @@
 import { DEFAULT_TENANT_TIMEZONE, toZonedParts, zonedPartsToUtc } from '@/lib/timezone'
+import type { Locale } from '@/i18n/locales'
 
 export interface GatherTimeParts {
   month: number
@@ -87,16 +88,22 @@ export function formatGatherTimeEn(iso: string | Date, tz: string = DEFAULT_TENA
   return `${EN_MONTHS[p.month - 1]} ${p.day} ${pad2(p.hour)}:${pad2(p.minute)} ${label}`
 }
 
+export function formatGatherTimeZh(iso: string | Date, tz: string = DEFAULT_TENANT_TIMEZONE): string {
+  const p = toZonedParts(iso, tz)
+  return `${p.month}月${p.day}日 ${pad2(p.hour)}时${pad2(p.minute)}分`
+}
+
 // Locale dispatcher for runtime rendering. Use when you have the ISO
 // timestamp (Event.gather_at). For legacy rows without gather_at, the
 // caller should fall back to Event.gather_time (stored Korean string).
 export function formatGatherTimeFor(
-  locale: 'ko' | 'ja' | 'en',
+  locale: Locale,
   iso: string | Date,
   tz: string = DEFAULT_TENANT_TIMEZONE,
 ): string {
   if (locale === 'ja') return formatGatherTimeJa(iso, tz)
   if (locale === 'en') return formatGatherTimeEn(iso, tz)
+  if (locale === 'zh') return formatGatherTimeZh(iso, tz)
   return formatGatherTimeKo(iso, tz)
 }
 

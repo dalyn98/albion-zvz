@@ -46,7 +46,12 @@ export function GET(request: NextRequest) {
     // Match across EN + KO + JA so a ko user searching an EN/JA name still
     // hits, and vice versa. Display name follows the active locale.
     if (!item.e.includes(q) && !item.k.includes(q) && !item.j.includes(q)) continue
-    const displayName = locale === 'ja' ? item.dj : locale === 'en' ? item.de : item.d
+    // zh users get English item names — no Chinese bundle exists.
+    const displayName = locale === 'ja'
+      ? item.dj
+      : locale === 'en' || locale === 'zh'
+        ? item.de
+        : item.d
     results.push({ uniqueName: item.u, displayName })
     if (results.length >= MAX_RESULTS) break
   }

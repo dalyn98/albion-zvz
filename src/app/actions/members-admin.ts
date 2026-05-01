@@ -6,7 +6,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { requireAdmin } from '@/lib/auth'
-import { isLocale } from '@/i18n/locales'
+import { isLocale, type Locale } from '@/i18n/locales'
 import { runMemberSync, type RolesSource } from '@/lib/member-sync'
 import { extractWeaponCategory } from '@/lib/weapon-category'
 import {
@@ -74,7 +74,7 @@ export interface GuildMemberSummary {
   top_roles: RoleCount[]
   top_weapons: WeaponCategoryCount[]
   // null = 아직 언어 선택 안한 사용자 (환영 페이지 유도 대상)
-  preferred_language: 'ko' | 'en' | 'ja' | null
+  preferred_language: Locale | null
 }
 
 export interface MemberEventEntry {
@@ -185,7 +185,7 @@ export interface GuildMemberDetail {
   username: string
   avatar: string | null
   updated_at: string
-  preferred_language: 'ko' | 'en' | 'ja' | null
+  preferred_language: Locale | null
   participation_count: number
   role_breakdown: RoleCount[]
   events: MemberEventEntry[]
@@ -326,7 +326,7 @@ export interface WithdrawnMemberSummary {
   updated_at: string
   participation_count: number
   top_roles: RoleCount[]
-  preferred_language: 'ko' | 'en' | 'ja' | null
+  preferred_language: Locale | null
 }
 
 // 탈퇴 처리(member-sync 로 withdrawn_at 이 찍힌 행) 된 길드원 목록.
@@ -510,7 +510,7 @@ export interface GuildGuestSummary {
   joined_at: string
   participation_count: number
   top_roles: RoleCount[]
-  preferred_language: 'ko' | 'en' | 'ja' | null
+  preferred_language: Locale | null
 }
 
 // Lists everyone in the `guests` table with their slot participation counts.

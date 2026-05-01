@@ -27,7 +27,7 @@ import type { BuildCostBreakdown, BuildCostSlot } from '@/lib/craft-recipes'
 import { SLOT_KEYS, type BuildSnapshot, type SlotKey } from '@/types'
 import { formatSilver } from '@/lib/silver'
 import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
-import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
+import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/locales'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import ItemImage from './ItemImage'
 import { useToast } from './ToastProvider'
@@ -292,7 +292,7 @@ function SlotsCard({
   t,
 }: {
   buildSnapshot: BuildSnapshot | null
-  locale: 'ko' | 'ja' | 'en'
+  locale: Locale
   t: ReturnType<typeof useTranslations>
 }) {
   const tGear = useTranslations('gear')
@@ -354,7 +354,7 @@ function MaterialsCard({
   taskId: string
   locations: LocationPreset[]
   focusBonusPct: number
-  locale: 'ko' | 'ja' | 'en'
+  locale: Locale
   t: ReturnType<typeof useTranslations>
 }) {
   const tLoc = useTranslations('craftLocation')
@@ -489,7 +489,7 @@ function SlotCostRow({
   t,
 }: {
   slot: BuildCostSlot
-  locale: 'ko' | 'ja' | 'en'
+  locale: Locale
   t: ReturnType<typeof useTranslations>
 }) {
   const tGear = useTranslations('gear')
