@@ -332,7 +332,8 @@
     "queueAsCraftedToast": "Sent to the craft queue",
     "requestTypeOverchargeBadge": "Overcharge",
     "overchargeNoKillboard": "Overcharge — killboard verification skipped",
-    "userEditedRowBadge": "Edited"
+    "userEditedRowBadge": "Edited",
+    "memberSelfClaimBadge": "Self-claim"
   },
   "adminExchangeReview": {
     "pageTitle": "Exchange requests",

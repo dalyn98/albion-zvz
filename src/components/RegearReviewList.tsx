@@ -72,6 +72,21 @@ function hasUserEdits(request: AdminRegearRequest): boolean {
   return request.breakdown_items.some((item) => item.user_edited)
 }
 
+// 멤버가 `/regear` 의 트래킹 사망 자가신청 흐름으로 직접 등록한 행. cron 자동
+// 청구가 아니라 본인이 누른 청구지만, 킬보드로 자동 검증되어 스크린샷이 없고
+// 제목이 "[트래킹 전투] ..." 라 cron 자동 청구로 오인되기 쉽다. 어드민이
+// 한눈에 구분할 수 있도록 별도 배지를 띄운다. event_id/regear_window_id 가
+// 모두 비고 killboard_event_id 가 채워진 게 자가신청의 시그니처다 (그 외
+// 이벤트 윈도우/일반 청구는 둘 중 하나가 채워진다).
+function isMemberSelfClaim(request: AdminRegearRequest): boolean {
+  return (
+    !request.auto_generated &&
+    !request.event_id &&
+    !request.regear_window_id &&
+    request.killboard_event_id !== null
+  )
+}
+
 // 같은 멤버의 신청을 인접하게 묶고, 멤버 그룹들끼리는 그 멤버의 가장 최근 신청
 // 시각 기준 desc. 한 멤버 안에서는 created_at desc. 동률은 discord_id 로 안정화.
 // 1차 키로 hasUserEdits 를 두어 청구자가 가격을 수정한 행을 그룹 최상단에 띄운다.
@@ -462,6 +477,11 @@ function RegearRow({
             {hasUserEdits(request) && (
               <span className="inline-flex items-center gap-1 bg-sky-400 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded">
                 {t('userEditedRowBadge')}
+              </span>
+            )}
+            {isMemberSelfClaim(request) && (
+              <span className="inline-flex items-center gap-1 bg-violet-400 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded">
+                {t('memberSelfClaimBadge')}
               </span>
             )}
             <span className="text-gray-400 text-xs truncate">· {request.event_title}</span>

@@ -332,7 +332,8 @@
     "queueAsCraftedToast": "製作キューに登録しました",
     "requestTypeOverchargeBadge": "オーバーチャージ",
     "overchargeNoKillboard": "オーバーチャージ — キルボード検証なし",
-    "userEditedRowBadge": "編集済み"
+    "userEditedRowBadge": "編集済み",
+    "memberSelfClaimBadge": "本人申請"
   },
   "adminExchangeReview": {
     "pageTitle": "両替申請",

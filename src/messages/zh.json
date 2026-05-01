@@ -332,7 +332,8 @@
     "queueAsCraftedToast": "已加入制作队列",
     "requestTypeOverchargeBadge": "超额申请",
     "overchargeNoKillboard": "超额申请 — 已跳过击杀榜验证",
-    "userEditedRowBadge": "已修改"
+    "userEditedRowBadge": "已修改",
+    "memberSelfClaimBadge": "本人申请"
   },
   "adminExchangeReview": {
     "pageTitle": "兑换申请",
