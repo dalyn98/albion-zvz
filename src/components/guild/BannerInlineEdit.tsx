@@ -25,18 +25,20 @@ interface Props {
 // 클릭하면 모달이 열려 업로드 / 비우기 가능. 별도 admin 폼을 안 거치고
 // 보고 있는 페이지에서 직접 고친다.
 export default function BannerInlineEdit({ enabled, currentUrl, currentOpacity }: Props) {
+  const t = useTranslations('adminGuildProfile')
   const [open, setOpen] = useState(false)
   if (!enabled) return null
+  const label = t('bannerInlineButton')
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
         className="absolute top-3 right-3 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-gray-900/80 hover:bg-gray-800 text-amber-200 ring-1 ring-amber-500/40 backdrop-blur-sm text-xs font-semibold transition-colors shadow-lg"
-        aria-label="edit banner"
+        aria-label={label}
       >
         <Pencil size={12} />
-        <BannerEditLabel />
+        <span>{label}</span>
       </button>
       {open && (
         <BannerEditModal
@@ -47,11 +49,6 @@ export default function BannerInlineEdit({ enabled, currentUrl, currentOpacity }
       )}
     </>
   )
-}
-
-function BannerEditLabel() {
-  const t = useTranslations('adminGuildProfile')
-  return <span>{t('bannerInlineButton')}</span>
 }
 
 interface ModalProps {

@@ -26,15 +26,16 @@ export default function GalleryInlineEdit({ enabled, items }: Props) {
 
 function EditPin({ onClick }: { onClick: () => void }) {
   const t = useTranslations('adminGuildProfile')
+  const label = t('galleryInlineButton')
   return (
     <button
       type="button"
       onClick={onClick}
       className="absolute top-2 right-2 z-10 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gray-900/80 hover:bg-gray-800 text-amber-200 ring-1 ring-amber-500/40 backdrop-blur-sm text-[11px] font-semibold transition-colors shadow"
-      aria-label="edit gallery"
+      aria-label={label}
     >
       <Pencil size={11} />
-      <span>{t('galleryInlineButton')}</span>
+      <span>{label}</span>
     </button>
   )
 }

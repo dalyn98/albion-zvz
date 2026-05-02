@@ -10,6 +10,7 @@
 
 import { useState, useTransition, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Pencil, Check, X, Plus, Loader2 } from 'lucide-react'
 import type { AppSettingKey } from '@/lib/app-settings'
 import { updateAppSetting } from '@/app/actions/settings'
@@ -59,6 +60,7 @@ export default function InlineEditableField({
   display = 'block',
 }: Props) {
   const router = useRouter()
+  const tCommon = useTranslations('common')
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(currentValue)
   const [csvSelected, setCsvSelected] = useState<string[]>(() => parseCsv(currentValue))
@@ -106,7 +108,7 @@ export default function InlineEditableField({
               onClick={onCancel}
               disabled={isPending}
               className="inline-flex items-center justify-center w-7 h-7 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-50 transition-colors"
-              aria-label="cancel"
+              aria-label={tCommon('cancel')}
             >
               <X size={14} />
             </button>
@@ -115,7 +117,7 @@ export default function InlineEditableField({
               onClick={onSave}
               disabled={isPending}
               className="inline-flex items-center justify-center w-7 h-7 rounded-md text-amber-300 hover:text-amber-200 hover:bg-amber-500/20 disabled:opacity-50 transition-colors"
-              aria-label="save"
+              aria-label={tCommon('save')}
             >
               {isPending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
             </button>
@@ -164,7 +166,7 @@ export default function InlineEditableField({
         type="button"
         onClick={() => setEditing(true)}
         className="absolute top-0 right-0 -translate-y-2 translate-x-2 inline-flex items-center justify-center w-7 h-7 rounded-md bg-gray-900/90 text-amber-300 ring-1 ring-amber-500/40 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-        aria-label={`${label} 편집`}
+        aria-label={`${label} ${tCommon('edit')}`}
       >
         <Pencil size={12} />
       </button>
