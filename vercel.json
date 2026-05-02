@@ -1,9 +1,9 @@
 {
   "crons": [
     { "path": "/api/cron/battle-tracker", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/killboard-sync", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/auto-regear", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/event-imminent", "schedule": "*/5 * * * *" },
+    { "path": "/api/cron/killboard-sync", "schedule": "1-59/5 * * * *" },
+    { "path": "/api/cron/auto-regear", "schedule": "2-59/5 * * * *" },
+    { "path": "/api/cron/event-imminent", "schedule": "3-59/5 * * * *" },
     { "path": "/api/cron/albion-roster-sync", "schedule": "0 */6 * * *" },
     { "path": "/api/cron/member-sync", "schedule": "0 19 * * *" },
     { "path": "/api/cron/cleanup-screenshots", "schedule": "0 17 * * *" },

@@ -15,6 +15,9 @@ import { getImpersonationFromCookies } from '@/lib/super-admin-impersonation'
 let primaryTenantCache: { id: string; expiresAt: number } | null = null
 const PRIMARY_TENANT_TTL_MS = 60 * 1000
 
+let activeTenantsCache: { tenants: TenantDiscordConfig[]; expiresAt: number } | null = null
+const ACTIVE_TENANTS_TTL_MS = 60 * 1000
+
 export async function getTenantIdByDiscordGuildId(
   discordGuildId: string,
 ): Promise<string | null> {
@@ -128,6 +131,10 @@ export async function getTenantDiscordConfigByDiscordGuildId(
 }
 
 export async function listActiveTenants(): Promise<TenantDiscordConfig[]> {
+  const now = Date.now()
+  if (activeTenantsCache && activeTenantsCache.expiresAt > now) {
+    return activeTenantsCache.tenants
+  }
   const db = getAdminClient()
   const { data } = await db
     .from('tenants')
@@ -135,7 +142,7 @@ export async function listActiveTenants(): Promise<TenantDiscordConfig[]> {
       'id, discord_guild_id, slug, name, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at',
     )
     .eq('status', 'active')
-  return (data ?? []).map((r) => ({
+  const tenants = (data ?? []).map((r) => ({
     id: r.id as string,
     discordGuildId: r.discord_guild_id as string,
     slug: r.slug as string,
@@ -145,4 +152,6 @@ export async function listActiveTenants(): Promise<TenantDiscordConfig[]> {
     eventChannelId: (r.event_channel_id as string | null) ?? null,
     botInstalled: !!r.bot_installed_at,
   }))
+  activeTenantsCache = { tenants, expiresAt: now + ACTIVE_TENANTS_TTL_MS }
+  return tenants
 }
