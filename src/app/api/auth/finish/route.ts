@@ -14,8 +14,7 @@ import { verifyHopToken } from '@/lib/oauth-state'
 import { classifyHost } from '@/lib/tenant-resolver'
 import { getTenantDiscordConfig } from '@/lib/tenant'
 import { LOCALE_COOKIE, isLocale } from '@/i18n/locales'
-
-const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365
+import { localeCookieOptions } from '@/lib/locale-cookie'
 
 function errorRedirect(origin: string, reason: string): NextResponse {
   const target = new URL('/', origin)
@@ -55,11 +54,11 @@ export async function GET(request: NextRequest) {
   response.cookies.set(SESSION_COOKIE_NAME, cookieValue, cookieOptions())
 
   if (hop.preferredLocale && isLocale(hop.preferredLocale)) {
-    response.cookies.set(LOCALE_COOKIE, hop.preferredLocale, {
-      path: '/',
-      maxAge: LOCALE_COOKIE_MAX_AGE,
-      sameSite: 'lax',
-    })
+    response.cookies.set(
+      LOCALE_COOKIE,
+      hop.preferredLocale,
+      localeCookieOptions(request.headers.get('host')),
+    )
   }
 
   return response

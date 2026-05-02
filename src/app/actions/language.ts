@@ -1,14 +1,12 @@
 'use server'
 
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { LOCALE_COOKIE, isLocale, type Locale } from '@/i18n/locales'
-
-// 쿠키 만료 1년 — /app/actions/locale.ts 의 setLocaleAction 과 동일.
-const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
+import { localeCookieOptions } from '@/lib/locale-cookie'
 
 // 세션 사용자의 preferred_language 조회. guild_avatars 먼저, 없으면 guests.
 // null 반환은 "아직 선택 안함" — 환영 페이지로 유도하는 시그널.
@@ -59,12 +57,8 @@ export async function setMyPreferredLanguage(
     .eq('discord_id', session.discordId)
   if (error) return { error: error.message }
 
-  const cookieStore = await cookies()
-  cookieStore.set(LOCALE_COOKIE, locale, {
-    path: '/',
-    maxAge: COOKIE_MAX_AGE_SECONDS,
-    sameSite: 'lax',
-  })
+  const [cookieStore, headerStore] = await Promise.all([cookies(), headers()])
+  cookieStore.set(LOCALE_COOKIE, locale, localeCookieOptions(headerStore.get('host')))
   revalidatePath('/', 'layout')
   return {}
 }

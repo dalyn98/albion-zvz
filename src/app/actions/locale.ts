@@ -1,20 +1,15 @@
 'use server'
 
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { LOCALE_COOKIE, isLocale } from '@/i18n/locales'
-
-const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
+import { localeCookieOptions } from '@/lib/locale-cookie'
 
 export async function setLocaleAction(formData: FormData): Promise<void> {
   const next = formData.get('locale')
   if (typeof next !== 'string' || !isLocale(next)) return
 
-  const cookieStore = await cookies()
-  cookieStore.set(LOCALE_COOKIE, next, {
-    path: '/',
-    maxAge: COOKIE_MAX_AGE_SECONDS,
-    sameSite: 'lax',
-  })
+  const [cookieStore, headerStore] = await Promise.all([cookies(), headers()])
+  cookieStore.set(LOCALE_COOKIE, next, localeCookieOptions(headerStore.get('host')))
   revalidatePath('/', 'layout')
 }
