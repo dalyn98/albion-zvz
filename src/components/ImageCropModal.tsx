@@ -79,6 +79,12 @@ function ImageCropModalInner({ file, aspect, onApply, onCancel }: InnerProps) {
       onKeyDown={(e) => {
         if (e.key === 'Escape' && !busy) onCancel()
       }}
+      // 부모 모달의 backdrop onClose 로 click 이 bubble 되어 모달이 함께 닫히는
+      // 문제 회피 — 크롭 영역 드래그 후 mouseup 이 click 으로 변환되어 부모를
+      // 닫아버린다.
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
     >
       <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800">
