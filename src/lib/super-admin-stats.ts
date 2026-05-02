@@ -82,45 +82,48 @@ export interface TenantSummary {
 
 export async function listAllTenantsWithStats(): Promise<TenantSummary[]> {
   const db = getAdminClient()
-  const { data: tenants } = await db
-    .from('tenants')
-    .select(
-      'id, slug, name, discord_guild_id, status, owner_discord_id, bot_installed_at, created_at, last_admin_login_at',
-    )
-    .order('created_at', { ascending: false })
-  if (!tenants || tenants.length === 0) return []
+  const [tenantsRes, countsRes] = await Promise.all([
+    db
+      .from('tenants')
+      .select(
+        'id, slug, name, discord_guild_id, status, owner_discord_id, bot_installed_at, created_at, last_admin_login_at',
+      )
+      .order('created_at', { ascending: false }),
+    db.rpc('tenant_summary_counts'),
+  ])
+  const tenants = tenantsRes.data ?? []
+  if (tenants.length === 0) return []
 
-  // 테넌트 수가 많아지면 N+1 쿼리는 부담. 일단 phase 1 운영 (수십 개) 기준으론
-  // 서버 측 sequential 도 충분. 백 단위 넘어가면 한 번에 group by 로 모아야 한다.
-  const summaries = await Promise.all(
-    tenants.map(async (t) => {
-      const [memberCount, eventCount] = await Promise.all([
-        db
-          .from('guild_avatars')
-          .select('*', { count: 'exact', head: true })
-          .eq('guild_id', t.id as string),
-        db
-          .from('events')
-          .select('*', { count: 'exact', head: true })
-          .eq('guild_id', t.id as string),
-      ])
-      return {
-        id: t.id as string,
-        slug: t.slug as string,
-        name: t.name as string,
-        discordGuildId: t.discord_guild_id as string,
-        status: (t.status as string) ?? 'unknown',
-        ownerDiscordId: (t.owner_discord_id as string | null) ?? null,
-        botInstalled: !!t.bot_installed_at,
-        botInstalledAt: (t.bot_installed_at as string | null) ?? null,
-        createdAt: t.created_at as string,
-        lastAdminLoginAt: (t.last_admin_login_at as string | null) ?? null,
-        memberCount: memberCount.count ?? 0,
-        eventCount: eventCount.count ?? 0,
-      }
-    }),
-  )
-  return summaries
+  const countsMap = new Map<string, { memberCount: number; eventCount: number }>()
+  const rows = (countsRes.data ?? []) as Array<{
+    guild_id: string
+    member_count: number
+    event_count: number
+  }>
+  for (const r of rows) {
+    countsMap.set(r.guild_id, {
+      memberCount: Number(r.member_count) || 0,
+      eventCount: Number(r.event_count) || 0,
+    })
+  }
+
+  return tenants.map((t) => {
+    const c = countsMap.get(t.id as string)
+    return {
+      id: t.id as string,
+      slug: t.slug as string,
+      name: t.name as string,
+      discordGuildId: t.discord_guild_id as string,
+      status: (t.status as string) ?? 'unknown',
+      ownerDiscordId: (t.owner_discord_id as string | null) ?? null,
+      botInstalled: !!t.bot_installed_at,
+      botInstalledAt: (t.bot_installed_at as string | null) ?? null,
+      createdAt: t.created_at as string,
+      lastAdminLoginAt: (t.last_admin_login_at as string | null) ?? null,
+      memberCount: c?.memberCount ?? 0,
+      eventCount: c?.eventCount ?? 0,
+    }
+  })
 }
 
 export interface TenantDetail extends TenantSummary {
