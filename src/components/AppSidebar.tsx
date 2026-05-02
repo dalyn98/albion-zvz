@@ -30,6 +30,7 @@ import {
   Sparkles,
   Home,
   ClipboardList,
+  Archive,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -97,6 +98,7 @@ const ADMIN_NAV: NavItem[] = [
   // 시스템
   { href: '/admin/dashboard/stats', labelKey: 'stats', icon: BarChart3, section: 'system' },
   { href: '/admin/dashboard/settings', labelKey: 'settings', icon: Settings, section: 'system' },
+  { href: '/admin/dashboard/backup', labelKey: 'backup', icon: Archive, section: 'system' },
 ]
 
 // 슈퍼어드민 (멀티테넌트 운영자) 메뉴. SUPER_ADMIN_DISCORD_IDS env 에 등록된
