@@ -10,7 +10,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { Loader2 } from 'lucide-react'
 import { updateMyRegearBuildSnapshotSlot } from '@/app/actions/regear'
 import {
@@ -25,6 +25,8 @@ import {
   type BuildSnapshot,
   type SlotKey,
 } from '@/types'
+import { getLocalizedItemName } from '@/lib/item-names'
+import type { Locale } from '@/i18n/locales'
 import ItemImage from './ItemImage'
 import ItemPicker from './ItemPicker'
 
@@ -97,6 +99,7 @@ export default function MyRegearBuildSnapshotEditor({
   const router = useRouter()
   const t = useTranslations('regearBuildSnapshot')
   const tGear = useTranslations('gear')
+  const locale = useLocale() as Locale
   const [snapshot, setSnapshot] = useState<BuildSnapshot>(
     buildSnapshot ?? emptySnapshot(roleName || null),
   )
@@ -178,13 +181,19 @@ export default function MyRegearBuildSnapshotEditor({
                     onClear={() => handleClear(slot)}
                   />
                 ) : item.id ? (
-                  <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-2">
-                    <ItemImage itemId={item.id} itemName={item.name} size={40} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white text-xs truncate">{item.name || item.id}</p>
-                      <p className="text-gray-500 text-[10px] font-mono truncate">{item.id}</p>
-                    </div>
-                  </div>
+                  (() => {
+                    const displayName =
+                      getLocalizedItemName(item.id, locale, item.name) ?? item.name ?? item.id
+                    return (
+                      <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-2">
+                        <ItemImage itemId={item.id} itemName={displayName} size={40} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-xs truncate">{displayName}</p>
+                          <p className="text-gray-500 text-[10px] font-mono truncate">{item.id}</p>
+                        </div>
+                      </div>
+                    )
+                  })()
                 ) : (
                   <p className="text-xs text-gray-600 px-2 py-3 bg-gray-900 border border-dashed border-gray-700 rounded">
                     {t('slotEmpty')}

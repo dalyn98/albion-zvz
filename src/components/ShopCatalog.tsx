@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import Image from 'next/image'
 import {
   ShoppingCart,
@@ -16,6 +16,8 @@ import {
   Info,
 } from 'lucide-react'
 import { submitShopOrder } from '@/app/actions/shop-member'
+import { getLocalizedItemName } from '@/lib/item-names'
+import type { Locale } from '@/i18n/locales'
 import HoverTip from './HoverTip'
 
 export type ShopPriceWarning = 'quality' | 'window' | 'bluezone' | 'redzone' | null
@@ -83,6 +85,7 @@ export default function ShopCatalog({
   baseCityLabel,
 }: Props) {
   const router = useRouter()
+  const locale = useLocale() as Locale
   const t = useTranslations('shopCatalog')
   const tShop = useTranslations('shop')
   const [query, setQuery] = useState('')
@@ -93,9 +96,16 @@ export default function ShopCatalog({
   const [pending, startTransition] = useTransition()
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
 
+  const localizedItems = useMemo<CatalogItem[]>(() => {
+    return items.map((it) => ({
+      ...it,
+      nameKo: getLocalizedItemName(it.uniqueName, locale, it.nameKo) ?? it.nameKo,
+    }))
+  }, [items, locale])
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return items.filter((it) => {
+    return localizedItems.filter((it) => {
       if (tier !== 'all' && it.tier !== tier) return false
       if (!q) return true
       return (
@@ -103,7 +113,7 @@ export default function ShopCatalog({
         it.uniqueName.toLowerCase().includes(q)
       )
     })
-  }, [items, query, tier])
+  }, [localizedItems, query, tier])
 
   const totalQty = cart.reduce((s, l) => s + l.qty, 0)
   const totalPoints = cart.reduce((s, l) => s + l.qty * l.item.pointPrice, 0)
@@ -612,12 +622,15 @@ function CartLineRow({
   onRemove: () => void
 }) {
   const t = useTranslations('shopCatalog.cart')
+  const locale = useLocale() as Locale
+  const displayName =
+    getLocalizedItemName(line.item.uniqueName, locale, line.item.nameKo) ?? line.item.nameKo
   return (
     <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-800 rounded-lg px-2 py-1.5">
       <div className="relative w-9 h-9 rounded bg-gray-950 flex-shrink-0">
         <Image
           src={imageUrl(line.item.uniqueName, line.item.enchant, line.item.quality, 48)}
-          alt={line.item.nameKo}
+          alt={displayName}
           fill
           className="object-contain pixel-img"
           unoptimized
@@ -625,7 +638,7 @@ function CartLineRow({
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[11px] text-white truncate font-medium">
-          {line.item.nameKo}
+          {displayName}
           {line.item.enchant > 0 && (
             <span className="text-cyan-300 ml-1 font-mono">.{line.item.enchant}</span>
           )}

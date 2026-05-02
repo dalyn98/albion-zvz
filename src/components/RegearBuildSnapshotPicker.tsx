@@ -7,7 +7,7 @@
 // JSON 으로 직렬화한다. 이미 처리된(=in-flight) 요청 편집 흐름이 아니므로
 // disabled 는 단순히 form pending 상태를 받기만 한다.
 
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import {
   GEAR_ENCHANT_COLOR_CLASS,
   GEAR_ENCHANT_MAX,
@@ -20,6 +20,8 @@ import {
   type BuildSnapshot,
   type SlotKey,
 } from '@/types'
+import { getLocalizedItemName } from '@/lib/item-names'
+import type { Locale } from '@/i18n/locales'
 import ItemImage from './ItemImage'
 import ItemPicker from './ItemPicker'
 
@@ -89,6 +91,7 @@ const ENCHANT_OPTIONS: number[] = (() => {
 export default function RegearBuildSnapshotPicker({ value, onChange, disabled }: Props) {
   const t = useTranslations('regearBuildSnapshot')
   const tGear = useTranslations('gear')
+  const locale = useLocale() as Locale
 
   const setSlot = (slot: SlotKey, name: string | null, id: string | null) => {
     onChange({ ...value, [slot]: { name, id } })
@@ -163,12 +166,16 @@ export default function RegearBuildSnapshotPicker({ value, onChange, disabled }:
                 </div>
               )}
 
-              {item.id && !showSpecs && (
-                <div className="flex items-center gap-2 bg-gray-800 rounded p-2">
-                  <ItemImage itemId={item.id} itemName={item.name} size={32} />
-                  <span className="text-xs text-gray-300 truncate flex-1">{item.name || item.id}</span>
-                </div>
-              )}
+              {item.id && !showSpecs && (() => {
+                const displayName =
+                  getLocalizedItemName(item.id, locale, item.name) ?? item.name ?? item.id
+                return (
+                  <div className="flex items-center gap-2 bg-gray-800 rounded p-2">
+                    <ItemImage itemId={item.id} itemName={displayName} size={32} />
+                    <span className="text-xs text-gray-300 truncate flex-1">{displayName}</span>
+                  </div>
+                )
+              })()}
             </div>
           </div>
         )

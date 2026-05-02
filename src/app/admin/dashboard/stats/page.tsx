@@ -1,5 +1,8 @@
 import Image from 'next/image'
 import { getTranslations } from 'next-intl/server'
+import { getLocale } from '@/lib/locale'
+import { getLocalizedItemName } from '@/lib/item-names'
+import type { Locale } from '@/i18n/locales'
 import {
   BarChart3,
   Wallet,
@@ -51,10 +54,11 @@ function itemImageUrl(uniqueName: string, enchant: number, quality: number): str
 
 export default async function AdminStatsPage() {
   // 다섯 섹션을 병렬로 — 하나가 느려도 다른 섹션이 블로킹되지 않도록.
-  const [tNav, tStats, pointRes, eventRes, shopRegearRes, verificationRes, financeRes] =
+  const [tNav, tStats, locale, pointRes, eventRes, shopRegearRes, verificationRes, financeRes] =
     await Promise.all([
       getTranslations('nav'),
       getTranslations('adminStats'),
+      getLocale(),
       getPointStats(),
       getEventStats(),
       getShopRegearStats(),
@@ -192,7 +196,7 @@ export default async function AdminStatsPage() {
       <FinanceFlowSection result={financeRes} tStats={tStats} />
       <AlbionVerificationSection result={verificationRes} tStats={tStats} />
       <EventParticipationSection result={eventRes} tStats={tStats} />
-      <ShopRegearSection result={shopRegearRes} tStats={tStats} />
+      <ShopRegearSection result={shopRegearRes} tStats={tStats} locale={locale} />
       <WithdrawnMembersSection
         withdrawnHeld={stats.withdrawnHeld}
         withdrawnHolders={stats.withdrawnHolders}
@@ -416,9 +420,11 @@ function EventParticipationSection({
 function ShopRegearSection({
   result,
   tStats,
+  locale,
 }: {
   result: Awaited<ReturnType<typeof getShopRegearStats>>
   tStats: StatsTranslator
+  locale: Locale
 }) {
   const { stats, error } = result
   if (error || !stats) {
@@ -522,7 +528,10 @@ function ShopRegearSection({
             initialCount={STATS_COLLAPSED_ROWS}
             unit="items"
           >
-            {stats.topSoldItems.map((item, idx) => (
+            {stats.topSoldItems.map((item, idx) => {
+              const displayName =
+                getLocalizedItemName(item.uniqueName, locale, item.nameKo) ?? item.nameKo
+              return (
               <li
                 key={`${item.uniqueName}@${item.enchant}#${item.quality}`}
                 className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800/40"
@@ -531,14 +540,14 @@ function ShopRegearSection({
                 <div className="relative w-8 h-8 rounded bg-gray-950 flex-shrink-0">
                   <Image
                     src={itemImageUrl(item.uniqueName, item.enchant, item.quality)}
-                    alt={item.nameKo}
+                    alt={displayName}
                     fill
                     className="object-contain pixel-img"
                     unoptimized
                   />
                 </div>
                 <span className="flex-1 text-sm text-gray-200 truncate">
-                  {item.nameKo}
+                  {displayName}
                   {item.enchant > 0 && (
                     <span className="text-amber-300 ml-1 font-mono">.{item.enchant}</span>
                   )}
@@ -550,7 +559,8 @@ function ShopRegearSection({
                   {item.points.toLocaleString()}p
                 </span>
               </li>
-            ))}
+              )
+            })}
           </CollapsibleList>
         )}
       </div>

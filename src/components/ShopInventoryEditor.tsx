@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { Package, RefreshCw, Loader2, Pencil, Check, X, Trash2, Search, RotateCcw } from 'lucide-react'
 import {
@@ -16,6 +16,8 @@ import {
 } from '@/app/actions/shop-inventory'
 import { computePointPrice } from '@/lib/shop/price'
 import { formatRelativeFine } from '@/lib/relative-time'
+import { getLocalizedItemName } from '@/lib/item-names'
+import type { Locale } from '@/i18n/locales'
 
 export type InventoryPriceWarning = 'quality' | 'window' | 'bluezone' | 'redzone' | null
 
@@ -122,6 +124,7 @@ function priceSourceTooltip(source: string | null, t: InventoryTranslator, tShop
 export default function ShopInventoryEditor({ rows, discountRate }: Props) {
   const router = useRouter()
   const t = useTranslations('adminShopInventory')
+  const locale = useLocale() as Locale
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [syncSummary, setSyncSummary] = useState<PriceSyncSummary | null>(null)
@@ -132,9 +135,16 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
   const [query, setQuery] = useState('')
   const [filterTier, setFilterTier] = useState<number | 'all'>('all')
 
+  const localizedRows = useMemo<InventoryRow[]>(() => {
+    return rows.map((r) => ({
+      ...r,
+      nameKo: getLocalizedItemName(r.uniqueName, locale, r.nameKo) ?? r.nameKo,
+    }))
+  }, [rows, locale])
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return rows.filter((r) => {
+    return localizedRows.filter((r) => {
       if (filterTier !== 'all' && r.tier !== filterTier) return false
       if (!q) return true
       return (
@@ -142,7 +152,7 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
         r.uniqueName.toLowerCase().includes(q)
       )
     })
-  }, [rows, query, filterTier])
+  }, [localizedRows, query, filterTier])
 
   const totalStock = useMemo(
     () => rows.reduce((sum, r) => sum + (r.stock > 0 ? r.stock : 0), 0),

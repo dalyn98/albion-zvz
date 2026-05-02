@@ -11,7 +11,9 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
+import { getLocalizedItemName } from '@/lib/item-names'
+import type { Locale } from '@/i18n/locales'
 import {
   Upload,
   Check,
@@ -653,6 +655,7 @@ function StockPreviewCard({
   stockChanges: AggregatedStockChange[]
   t: ImportTranslator
 }) {
+  const locale = useLocale() as Locale
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-3">
       <div className="flex items-center gap-2">
@@ -673,12 +676,15 @@ function StockPreviewCard({
             </tr>
           </thead>
           <tbody>
-            {stockChanges.slice(0, 50).map((c) => (
+            {stockChanges.slice(0, 50).map((c) => {
+              const displayName =
+                getLocalizedItemName(c.uniqueName, locale, c.nameKo) ?? c.nameKo
+              return (
               <tr
                 key={`${c.uniqueName}|${c.enchant}|${c.quality}`}
                 className="border-b border-gray-800/50"
               >
-                <td className="py-1.5 text-gray-200 text-xs">{c.nameKo}</td>
+                <td className="py-1.5 text-gray-200 text-xs">{displayName}</td>
                 <td className="py-1.5 text-gray-500 text-center text-xs">{c.enchant}</td>
                 <td className="py-1.5 text-gray-500 text-center text-xs">{c.quality}</td>
                 <td
@@ -692,7 +698,8 @@ function StockPreviewCard({
                   {c.newStock}
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
         {stockChanges.length > 50 && (

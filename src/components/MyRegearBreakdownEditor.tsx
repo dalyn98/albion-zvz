@@ -10,7 +10,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { Save, Loader2, Pencil } from 'lucide-react'
 import {
   updateMyRegearLineItemPrice,
@@ -19,6 +19,8 @@ import {
 } from '@/app/actions/regear'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
+import { getLocalizedItemName } from '@/lib/item-names'
+import type { Locale } from '@/i18n/locales'
 import ItemImage from './ItemImage'
 import MyRegearBuildSnapshotEditor from './MyRegearBuildSnapshotEditor'
 
@@ -47,6 +49,7 @@ function lineSubtotal(item: RegearLineItem): number {
 export default function MyRegearBreakdownEditor({ detail }: Props) {
   const router = useRouter()
   const t = useTranslations('regearBreakdown')
+  const locale = useLocale() as Locale
   const [items, setItems] = useState<RegearLineItem[]>(detail.items)
   const [marketSilver, setMarketSilver] = useState<number>(detail.marketSilver)
   const [claimedSilver, setClaimedSilver] = useState<number>(detail.claimedSilver)
@@ -181,14 +184,16 @@ export default function MyRegearBreakdownEditor({ detail }: Props) {
                 const isEditingRow = editing?.slot === it.slot
                 const isSaving = savingSlot === it.slot
                 const itemId = buildItemId(it.uniqueName, it.enchant)
+                const displayName =
+                  getLocalizedItemName(it.uniqueName, locale, it.uniqueName) ?? it.uniqueName
                 return (
                   <tr key={it.slot} className="border-t border-gray-800">
                     <td className="px-3 py-2 text-gray-400 font-mono text-xs">{it.slot}</td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2 min-w-0">
-                        <ItemImage itemId={itemId} itemName={it.uniqueName} size={36} />
+                        <ItemImage itemId={itemId} itemName={displayName} size={36} />
                         <div className="min-w-0">
-                          <p className="text-white text-xs truncate">{it.uniqueName}</p>
+                          <p className="text-white text-xs truncate">{displayName}</p>
                           <p className="text-gray-500 text-[10px]">
                             {it.enchant > 0 ? `+${it.enchant} · ` : ''}Q{it.quality}
                             {it.city && <span className="ml-1 text-gray-600">· {it.city}</span>}

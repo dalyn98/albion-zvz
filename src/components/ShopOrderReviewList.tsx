@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { Check, X, Loader2 } from 'lucide-react'
 import {
@@ -15,6 +15,8 @@ import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
+import { getLocalizedItemName } from '@/lib/item-names'
+import type { Locale } from '@/i18n/locales'
 
 const STATUS_CLASS: Record<string, string> = {
   pending: 'bg-yellow-500/20 text-yellow-300',
@@ -67,6 +69,7 @@ export default function ShopOrderReviewList({ orders, avatars = {} }: Props) {
 function OrderRow({ order, avatar }: { order: AdminShopOrder; avatar: string | null }) {
   const router = useRouter()
   const t = useTranslations('adminShopOrderReview')
+  const locale = useLocale() as Locale
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [rejectMode, setRejectMode] = useState(false)
@@ -145,6 +148,8 @@ function OrderRow({ order, avatar }: { order: AdminShopOrder; avatar: string | n
       <div className="space-y-1">
         {order.items.map((it, idx) => {
           const short = insufficientStock && it.stockAvailable < it.quantity
+          const displayName =
+            getLocalizedItemName(it.uniqueName, locale, it.nameKo) ?? it.nameKo
           return (
             <div
               key={idx}
@@ -155,14 +160,14 @@ function OrderRow({ order, avatar }: { order: AdminShopOrder; avatar: string | n
               <div className="relative w-7 h-7 rounded bg-gray-950 flex-shrink-0">
                 <Image
                   src={imageUrl(it.uniqueName, it.enchant, it.quality)}
-                  alt={it.nameKo}
+                  alt={displayName}
                   fill
                   className="object-contain pixel-img"
                   unoptimized
                 />
               </div>
               <span className="text-gray-200 flex-1 truncate">
-                {it.nameKo}
+                {displayName}
                 {it.enchant > 0 && (
                   <span className="text-amber-300 ml-1 font-mono">.{it.enchant}</span>
                 )}

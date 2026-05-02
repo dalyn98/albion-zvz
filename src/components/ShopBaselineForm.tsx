@@ -8,7 +8,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import {
   AlertTriangle,
   Check,
@@ -26,6 +26,8 @@ import {
   type DriftReport,
 } from '@/app/actions/shop-baseline'
 import { formatDateTimeWithSeconds } from '@/lib/format-datetime'
+import { getLocalizedItemName } from '@/lib/item-names'
+import type { Locale } from '@/i18n/locales'
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—'
@@ -351,6 +353,7 @@ function MetricCard({
 
 function DriftPanel({ drift }: { drift: DriftReport }) {
   const t = useTranslations('shopBaselineForm')
+  const locale = useLocale() as Locale
   const deltaTotal = drift.afterTotal - drift.beforeTotal
   const sign = deltaTotal > 0 ? '+' : deltaTotal < 0 ? '' : '±'
   const tone =
@@ -400,13 +403,18 @@ function DriftPanel({ drift }: { drift: DriftReport }) {
               </tr>
             </thead>
             <tbody>
-              {drift.topChanges.map((c) => (
+              {drift.topChanges.map((c) => {
+                const displayName =
+                  getLocalizedItemName(c.uniqueName, locale, c.nameKo ?? c.uniqueName) ??
+                  c.nameKo ??
+                  c.uniqueName
+                return (
                 <tr
                   key={`${c.uniqueName}|${c.enchant}|${c.quality}`}
                   className="border-t border-zinc-800 text-zinc-200"
                 >
                   <td className="p-2">
-                    <div>{c.nameKo ?? c.uniqueName}</div>
+                    <div>{displayName}</div>
                     <div className="text-[10px] text-zinc-600">{c.uniqueName}</div>
                   </td>
                   <td className="p-2 text-center">{c.enchant}</td>
@@ -426,7 +434,8 @@ function DriftPanel({ drift }: { drift: DriftReport }) {
                     {c.delta.toLocaleString()}
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -460,6 +469,7 @@ function DriftStat({
 
 function ItemsTable({ items }: { items: BaselineItem[] }) {
   const t = useTranslations('shopBaselineForm')
+  const locale = useLocale() as Locale
   if (items.length === 0) {
     return (
       <div className="rounded-md border border-zinc-700 bg-zinc-950 p-4 text-center text-sm text-zinc-500">
@@ -479,20 +489,24 @@ function ItemsTable({ items }: { items: BaselineItem[] }) {
           </tr>
         </thead>
         <tbody>
-          {items.map((item) => (
-            <tr
-              key={`${item.uniqueName}|${item.enchant}|${item.quality}`}
-              className="border-t border-zinc-800 text-zinc-200"
-            >
-              <td className="p-2">
-                <div>{item.nameKo}</div>
-                <div className="text-[10px] text-zinc-600">{item.uniqueName}</div>
-              </td>
-              <td className="p-2 text-center">{item.enchant}</td>
-              <td className="p-2 text-center">{item.quality}</td>
-              <td className="p-2 text-right font-mono">{item.quantity.toLocaleString()}</td>
-            </tr>
-          ))}
+          {items.map((item) => {
+            const displayName =
+              getLocalizedItemName(item.uniqueName, locale, item.nameKo) ?? item.nameKo
+            return (
+              <tr
+                key={`${item.uniqueName}|${item.enchant}|${item.quality}`}
+                className="border-t border-zinc-800 text-zinc-200"
+              >
+                <td className="p-2">
+                  <div>{displayName}</div>
+                  <div className="text-[10px] text-zinc-600">{item.uniqueName}</div>
+                </td>
+                <td className="p-2 text-center">{item.enchant}</td>
+                <td className="p-2 text-center">{item.quality}</td>
+                <td className="p-2 text-right font-mono">{item.quantity.toLocaleString()}</td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>

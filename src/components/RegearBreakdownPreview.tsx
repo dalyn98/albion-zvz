@@ -5,9 +5,11 @@
 // 편집은 청구자용 /me/regear/[id] 에서만 — 여기서는 read-only 뷰.
 
 import { useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { ChevronRight, Package } from 'lucide-react'
 import { formatSilver } from '@/lib/silver'
+import { getLocalizedItemName } from '@/lib/item-names'
+import type { Locale } from '@/i18n/locales'
 import ItemImage from './ItemImage'
 
 export interface BreakdownItem {
@@ -38,6 +40,7 @@ function subtotal(item: BreakdownItem): number {
 
 export default function RegearBreakdownPreview({ items, marketSilver }: Props) {
   const t = useTranslations('regearBreakdown')
+  const locale = useLocale() as Locale
   const [open, setOpen] = useState(false)
   if (items.length === 0) return null
   const editedCount = items.filter((it) => it.user_edited).length
@@ -79,14 +82,16 @@ export default function RegearBreakdownPreview({ items, marketSilver }: Props) {
           <tbody>
             {items.map((it) => {
               const itemId = buildItemId(it.unique_name, it.enchant)
+              const displayName =
+                getLocalizedItemName(it.unique_name, locale, it.unique_name) ?? it.unique_name
               return (
                 <tr key={it.slot} className="border-t border-gray-900">
                   <td className="px-3 py-1.5 text-gray-500 font-mono">{it.slot}</td>
                   <td className="px-3 py-1.5">
                     <div className="flex items-center gap-2 min-w-0">
-                      <ItemImage itemId={itemId} itemName={it.unique_name} size={28} />
+                      <ItemImage itemId={itemId} itemName={displayName} size={28} />
                       <div className="min-w-0">
-                        <p className="text-gray-200 truncate">{it.unique_name}</p>
+                        <p className="text-gray-200 truncate">{displayName}</p>
                         <p className="text-gray-600 text-[10px]">
                           {it.enchant > 0 ? `+${it.enchant} · ` : ''}Q{it.quality}
                           {it.city && <span className="ml-1">· {it.city}</span>}

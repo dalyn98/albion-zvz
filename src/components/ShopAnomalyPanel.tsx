@@ -4,6 +4,8 @@ import { requireAdmin } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { formatRelativeCoarse } from '@/lib/relative-time'
+import { getLocale } from '@/lib/locale'
+import { getLocalizedItemName } from '@/lib/item-names'
 
 // /admin/dashboard/shop 상단에 띄우는 이상 재고 경보 패널.
 // 두 종류의 이상을 감지:
@@ -33,9 +35,10 @@ export default async function ShopAnomalyPanel() {
   const session = await getSession()
   if (!session) return null
   const guildId = await getSessionGuildId(session)
-  const [tTime, tAnomaly] = await Promise.all([
+  const [tTime, tAnomaly, locale] = await Promise.all([
     getTranslations('time'),
     getTranslations('adminShopAnomaly'),
+    getLocale(),
   ])
 
   // 서버 컴포넌트 요청 타임에 한 번만 평가되므로 Date.now() 가 idempotent 아닌
@@ -61,22 +64,20 @@ export default async function ShopAnomalyPanel() {
       .limit(MAX_LIST),
   ])
 
-  const negatives: AnomalyRow[] = (negativeRes.data ?? []).map((r) => ({
-    uniqueName: r.unique_name as string,
-    nameKo: (r.name_ko as string | null) ?? (r.unique_name as string),
-    enchant: r.enchant as number,
-    quality: r.quality as number,
-    stock: r.stock as number,
-    updatedAt: r.updated_at as string,
-  }))
-  const stales: AnomalyRow[] = (staleRes.data ?? []).map((r) => ({
-    uniqueName: r.unique_name as string,
-    nameKo: (r.name_ko as string | null) ?? (r.unique_name as string),
-    enchant: r.enchant as number,
-    quality: r.quality as number,
-    stock: r.stock as number,
-    updatedAt: r.updated_at as string,
-  }))
+  const toRow = (r: Record<string, unknown>): AnomalyRow => {
+    const uniqueName = r.unique_name as string
+    const fallback = (r.name_ko as string | null) ?? uniqueName
+    return {
+      uniqueName,
+      nameKo: getLocalizedItemName(uniqueName, locale, fallback) ?? fallback,
+      enchant: r.enchant as number,
+      quality: r.quality as number,
+      stock: r.stock as number,
+      updatedAt: r.updated_at as string,
+    }
+  }
+  const negatives: AnomalyRow[] = (negativeRes.data ?? []).map(toRow)
+  const stales: AnomalyRow[] = (staleRes.data ?? []).map(toRow)
 
   if (negatives.length === 0 && stales.length === 0) return null
 
