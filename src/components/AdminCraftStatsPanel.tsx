@@ -1,8 +1,10 @@
+import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import { Hammer, TrendingUp } from 'lucide-react'
 import {
   loadCraftDemandStatsAdmin,
   type CraftDemandBucket,
+  type CraftDemandStatsMode,
   type CraftDemandTopItem,
 } from '@/app/actions/craft'
 import { getLocale } from '@/lib/locale'
@@ -11,9 +13,9 @@ import { SLOT_LABELS } from '@/types'
 import type { SlotKey } from '@/types'
 
 // 어드민 제작 대시보드 통계 패널. 운영 KPI (회수/만료/실버 합계) 가 아니라 인게임
-// 수요 — "어떤 장비가 가장 많이 청구됐나" — 를 노출. 데이터는
-// regear_requests.build_snapshot 을 lifetime / 이번 주 (PT 월요일 00:00~) 두
-// 윈도우로 집계.
+// 수요 — "어떤 장비가 가장 많이 청구됐나" — 를 노출. mode='delivered' (기본) 면
+// 실제 제작 납품된 작업 (craft_tasks delivered/collected), mode='all' 이면 모든
+// 청구 — lifetime / 이번 주 (PT 월요일 00:00~) 두 윈도우로 집계.
 //
 // 슬롯은 craft-aggregation.ts 의 기본 제외 규칙으로 mount/food/potion 을 제거 —
 // 제작자가 만들 수 없는 슬롯은 통계에 의미가 없다.
@@ -27,9 +29,18 @@ const SLOT_LABEL_KEYS: Record<string, string> = {
   cape: 'slotCape',
 }
 
-export default async function AdminCraftStatsPanel() {
+interface AdminCraftStatsPanelProps {
+  mode: CraftDemandStatsMode
+  // 다른 searchParams (bomLoc, bomFocus) 를 모드 토글 링크에서 유지하기 위함.
+  preservedParams: Record<string, string>
+}
+
+export default async function AdminCraftStatsPanel({
+  mode,
+  preservedParams,
+}: AdminCraftStatsPanelProps) {
   const [{ stats, error }, t, locale] = await Promise.all([
-    loadCraftDemandStatsAdmin(),
+    loadCraftDemandStatsAdmin(mode),
     getTranslations('adminCraft'),
     getLocale(),
   ])
@@ -48,12 +59,17 @@ export default async function AdminCraftStatsPanel() {
 
   return (
     <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-5">
-      <div>
-        <h2 className="text-base font-bold text-white flex items-center gap-2">
-          <Hammer size={16} className="text-amber-400" />
-          {t('demandTitle')}
-        </h2>
-        <p className="text-xs text-gray-500 mt-1">{t('demandHint')}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <Hammer size={16} className="text-amber-400" />
+            {t('demandTitle')}
+          </h2>
+          <p className="text-xs text-gray-500 mt-1">
+            {mode === 'delivered' ? t('demandHintDelivered') : t('demandHintAll')}
+          </p>
+        </div>
+        <ModeToggle mode={mode} preservedParams={preservedParams} t={t} />
       </div>
 
       <DemandBucket
@@ -217,4 +233,56 @@ function slotLabel(
     }
   }
   return SLOT_LABELS[slot as SlotKey] ?? slot
+}
+
+interface ModeToggleProps {
+  mode: CraftDemandStatsMode
+  preservedParams: Record<string, string>
+  t: Awaited<ReturnType<typeof getTranslations<'adminCraft'>>>
+}
+
+// scroll={false} 로 패널 위치를 유지한 채 토글. 두 모드만 있어 라디오 한 쌍.
+function ModeToggle({ mode, preservedParams, t }: ModeToggleProps) {
+  const options: { id: CraftDemandStatsMode; label: string }[] = [
+    { id: 'delivered', label: t('demandModeDelivered') },
+    { id: 'all', label: t('demandModeAll') },
+  ]
+  return (
+    <div
+      role="tablist"
+      aria-label={t('demandModeLabel')}
+      className="inline-flex rounded-lg border border-gray-800 bg-gray-950 p-0.5 text-[11px]"
+    >
+      {options.map((opt) => {
+        const active = opt.id === mode
+        return (
+          <Link
+            key={opt.id}
+            role="tab"
+            aria-selected={active}
+            href={buildStatsHref(preservedParams, opt.id)}
+            scroll={false}
+            className={`px-2.5 py-1 rounded-md transition-colors ${
+              active
+                ? 'bg-amber-500/20 text-amber-200 border border-amber-500/30'
+                : 'text-gray-400 border border-transparent hover:text-gray-200'
+            }`}
+          >
+            {opt.label}
+          </Link>
+        )
+      })}
+    </div>
+  )
+}
+
+function buildStatsHref(
+  preservedParams: Record<string, string>,
+  targetMode: CraftDemandStatsMode,
+): string {
+  const params = new URLSearchParams(preservedParams)
+  if (targetMode === 'all') params.set('statsMode', 'all')
+  else params.delete('statsMode')
+  const qs = params.toString()
+  return qs ? `/admin/dashboard/craft?${qs}` : '/admin/dashboard/craft'
 }

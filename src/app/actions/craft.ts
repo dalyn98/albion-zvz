@@ -38,6 +38,8 @@ import {
 } from '@/lib/craft-aggregation'
 import {
   CRAFT_LOCATION_PRESETS,
+  applyReturnRate,
+  clampReturnRate,
   type CraftLocationPreset,
 } from '@/lib/albion-return-rates'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
@@ -1529,11 +1531,19 @@ export interface CraftDemandStatsResult {
   lifetime: CraftDemandBucket
   weekly: CraftDemandBucket
   weekSinceIso: string
+  mode: CraftDemandStatsMode
 }
+
+// 'all' = 모든 청구 (예전 동작) — 거절/취소 포함, "그 시점 수요" 관점.
+// 'delivered' = 실제로 제작 납품된 작업 (craft_tasks.status in ('delivered','collected'))
+//   기준 — "운영자가 정말로 만들어 채운 분량" 관점. 기본값은 'delivered'.
+export type CraftDemandStatsMode = 'all' | 'delivered'
 
 const DEMAND_TOP_ITEM_LIMIT = 8
 
-export async function loadCraftDemandStatsAdmin(): Promise<{
+export async function loadCraftDemandStatsAdmin(
+  mode: CraftDemandStatsMode = 'delivered',
+): Promise<{
   stats: CraftDemandStatsResult | null
   error?: string
 }> {
@@ -1546,33 +1556,18 @@ export async function loadCraftDemandStatsAdmin(): Promise<{
 
     const weekSinceIso = getCurrentWeekStartIso()
 
-    // 자동 리기어 (auto_generated=true) 도 포함해야 사망 트래킹 흐름의 수요까지
-    // 한 그래프로 보인다. 어드민이 거절·취소한 건도 "그 시점 수요" 로는 유효 —
-    // status 필터를 걸지 않는다.
-    const { data, error } = await db
-      .from('regear_requests')
-      .select('build_snapshot, created_at')
-      .eq('guild_id', guildId)
-    if (error) return { stats: null, error: error.message }
-
-    const rows = (data ?? []) as Array<{
-      build_snapshot: unknown
-      created_at: string
-    }>
-
-    const lifetimeSnapshots: (BuildSnapshot | null)[] = []
-    const weeklySnapshots: (BuildSnapshot | null)[] = []
-    for (const row of rows) {
-      const snap = (row.build_snapshot as BuildSnapshot | null) ?? null
-      lifetimeSnapshots.push(snap)
-      if (row.created_at >= weekSinceIso) weeklySnapshots.push(snap)
-    }
+    const { lifetimeSnapshots, weeklySnapshots, error: queryError } =
+      mode === 'delivered'
+        ? await fetchDeliveredDemandSnapshots(db, guildId, weekSinceIso)
+        : await fetchAllDemandSnapshots(db, guildId, weekSinceIso)
+    if (queryError) return { stats: null, error: queryError }
 
     return {
       stats: {
         lifetime: bucketFromSnapshots(lifetimeSnapshots),
         weekly: bucketFromSnapshots(weeklySnapshots),
         weekSinceIso,
+        mode,
       },
     }
   } catch (e) {
@@ -1581,6 +1576,86 @@ export async function loadCraftDemandStatsAdmin(): Promise<{
       error: e instanceof Error ? e.message : tErr('serverError'),
     }
   }
+}
+
+interface DemandSnapshotResult {
+  lifetimeSnapshots: (BuildSnapshot | null)[]
+  weeklySnapshots: (BuildSnapshot | null)[]
+  error?: string
+}
+
+async function fetchAllDemandSnapshots(
+  db: Awaited<ReturnType<typeof requireAdmin>>,
+  guildId: string,
+  weekSinceIso: string,
+): Promise<DemandSnapshotResult> {
+  // 자동 리기어 (auto_generated=true) 도 포함해야 사망 트래킹 흐름의 수요까지
+  // 한 그래프로 보인다. 어드민이 거절·취소한 건도 "그 시점 수요" 로는 유효 —
+  // status 필터를 걸지 않는다.
+  const { data, error } = await db
+    .from('regear_requests')
+    .select('build_snapshot, created_at')
+    .eq('guild_id', guildId)
+  if (error) {
+    return { lifetimeSnapshots: [], weeklySnapshots: [], error: error.message }
+  }
+
+  const rows = (data ?? []) as Array<{
+    build_snapshot: unknown
+    created_at: string
+  }>
+
+  const lifetimeSnapshots: (BuildSnapshot | null)[] = []
+  const weeklySnapshots: (BuildSnapshot | null)[] = []
+  for (const row of rows) {
+    const snap = (row.build_snapshot as BuildSnapshot | null) ?? null
+    lifetimeSnapshots.push(snap)
+    if (row.created_at >= weekSinceIso) weeklySnapshots.push(snap)
+  }
+
+  return { lifetimeSnapshots, weeklySnapshots }
+}
+
+async function fetchDeliveredDemandSnapshots(
+  db: Awaited<ReturnType<typeof requireAdmin>>,
+  guildId: string,
+  weekSinceIso: string,
+): Promise<DemandSnapshotResult> {
+  // 'delivered' 모드: 제작자가 실제로 박스에 납품한 작업 (status delivered/collected)
+  // 만 집계. 시간 기준은 craft_tasks.delivered_at — "이번 주에 만들어진 분량"
+  // 의미를 살리기 위해 regear_requests.created_at 대신 사용.
+  const { data, error } = await db
+    .from('craft_tasks')
+    .select('delivered_at, regear_requests!inner(build_snapshot)')
+    .eq('guild_id', guildId)
+    .in('status', ['delivered', 'collected'])
+    .not('delivered_at', 'is', null)
+  if (error) {
+    return { lifetimeSnapshots: [], weeklySnapshots: [], error: error.message }
+  }
+
+  const rows = (data ?? []) as Array<{
+    delivered_at: string | null
+    regear_requests:
+      | { build_snapshot: unknown }
+      | { build_snapshot: unknown }[]
+      | null
+  }>
+
+  const lifetimeSnapshots: (BuildSnapshot | null)[] = []
+  const weeklySnapshots: (BuildSnapshot | null)[] = []
+  for (const row of rows) {
+    const r = Array.isArray(row.regear_requests)
+      ? row.regear_requests[0]
+      : row.regear_requests
+    const snap = (r?.build_snapshot as BuildSnapshot | null) ?? null
+    lifetimeSnapshots.push(snap)
+    if (row.delivered_at && row.delivered_at >= weekSinceIso) {
+      weeklySnapshots.push(snap)
+    }
+  }
+
+  return { lifetimeSnapshots, weeklySnapshots }
 }
 
 function bucketFromSnapshots(snapshots: (BuildSnapshot | null)[]): CraftDemandBucket {
@@ -1611,8 +1686,10 @@ function bucketFromSnapshots(snapshots: (BuildSnapshot | null)[]): CraftDemandBu
 
 // 진행 중인 제작 작업 (queued + claimed) 의 재료 BoM. delivered 는 이미 박스에
 // 들어갔으니 재료비가 끝난 상태라 제외한다. 운영자가 "지금 길드 창고에서 무엇을
-// 빼두면 제작자들이 일을 멈추지 않을까" 를 한 눈에 보기 위한 집계 — return-rate
-// 적용 전 gross 수치라 제작자가 본인 포커스/도시 보너스로 절감을 추정한다.
+// 빼두면 제작자들이 일을 멈추지 않을까" 를 한 눈에 보기 위한 집계.
+//
+// returnRatePct (선택) — 제작자가 알려준 위치/포커스 반환율. 적용하면 net 수치
+// (실제로 길드 창고에서 빼야 할 양). 미지정 시 gross — 길드 창고 출고 상한선.
 export interface CraftActiveMaterialRow {
   uniqueName: string
   count: number
@@ -1630,9 +1707,18 @@ export interface CraftActiveMaterialStatsResult {
   unknownItemCount: number
   // T?_ARTEFACT_* 가 포함된 작업 수. 청부제작 안내 배지에 사용.
   artifactCount: number
+  // 적용된 effective 반환율(%) — 0 이면 gross. 클라이언트가 표시 라벨 만들 때 참조.
+  appliedReturnPct: number
 }
 
-export async function loadCraftActiveMaterialStatsAdmin(): Promise<{
+export interface LoadCraftActiveMaterialStatsInput {
+  // 0~95 범위. clampReturnRate 적용 후 net 수치로 변환.
+  returnRatePct?: number
+}
+
+export async function loadCraftActiveMaterialStatsAdmin(
+  input: LoadCraftActiveMaterialStatsInput = {},
+): Promise<{
   result: CraftActiveMaterialStatsResult | null
   error?: string
 }> {
@@ -1670,9 +1756,13 @@ export async function loadCraftActiveMaterialStatsAdmin(): Promise<{
     }
 
     const breakdown = aggregateBuildSnapshots(snapshots)
+    const appliedReturnPct = clampReturnRate(input.returnRatePct ?? 0)
     const materials: CraftActiveMaterialRow[] = breakdown.materials.map((m) => ({
       uniqueName: m.uniqueName,
-      count: m.count,
+      count:
+        appliedReturnPct > 0
+          ? applyReturnRate(m.count, appliedReturnPct)
+          : m.count,
       tier: m.tier,
     }))
 
@@ -1684,6 +1774,7 @@ export async function loadCraftActiveMaterialStatsAdmin(): Promise<{
         materials,
         unknownItemCount: breakdown.unknownItemCount,
         artifactCount: breakdown.artifactCount,
+        appliedReturnPct,
       },
     }
   } catch (e) {
