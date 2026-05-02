@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { getAdminClient } from '@/lib/supabase-admin'
 
 export type AppSettingKey =
@@ -253,18 +254,37 @@ export type AppSettingKey =
 // cross-tenant 누설 위험이 있다. 모든 호출자는 명시적으로 현재 tenant 의
 // guildId 를 넘겨야 한다 (세션 → getSessionGuildId, 비로그인 공개 페이지 →
 // getPrimaryTenantId 명시 호출, cron → 루프 중 tenant.id).
+//
+// 한 request 안에서 같은 tenant 의 키를 여러 번 읽는 패턴이 압도적이라
+// (예: /g/<slug> 22 키, /admin/dashboard/settings 27 키), key 단위 SELECT 대신
+// (guild_id) 단위로 모든 키를 한 번에 가져와 React cache() 로 메모이즈한다.
+// 콜사이트 시그니처는 보존 — getAppSetting 호출만 하는 코드는 그대로 동작.
+// write 경로(server action)는 revalidatePath 로 다음 render cycle 의 cache 가
+// 새로 만들어지므로 stale 우려 없음.
+const getAllAppSettings = cache(
+  async (guildId: string): Promise<Map<string, string> | null> => {
+    const db = getAdminClient()
+    const { data, error } = await db
+      .from('app_settings')
+      .select('key, value')
+      .eq('guild_id', guildId)
+    if (error || !data) return null
+    const map = new Map<string, string>()
+    for (const row of data) {
+      if (typeof row.key === 'string' && typeof row.value === 'string') {
+        map.set(row.key, row.value)
+      }
+    }
+    return map
+  },
+)
+
 export async function getAppSetting(
   key: AppSettingKey,
   fallback: string,
   guildId: string,
 ): Promise<string> {
-  const db = getAdminClient()
-  const { data, error } = await db
-    .from('app_settings')
-    .select('value')
-    .eq('guild_id', guildId)
-    .eq('key', key)
-    .maybeSingle()
-  if (error || !data) return fallback
-  return data.value
+  const all = await getAllAppSettings(guildId)
+  if (!all) return fallback
+  return all.get(key) ?? fallback
 }
