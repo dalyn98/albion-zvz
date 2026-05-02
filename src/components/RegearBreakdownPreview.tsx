@@ -69,7 +69,8 @@ export default function RegearBreakdownPreview({ items, marketSilver }: Props) {
         <span className="text-[11px] text-gray-500 font-mono">{formatSilver(marketSilver)}s</span>
       </button>
       {open && (
-        <table className="w-full text-xs">
+        <div className="overflow-x-auto">
+        <table className="w-full text-xs min-w-[480px]">
           <thead>
             <tr className="bg-gray-950 border-t border-gray-800 text-gray-500 uppercase tracking-wide">
               <th className="text-left px-3 py-1.5 font-semibold">{t('slotHeader')}</th>
@@ -118,6 +119,7 @@ export default function RegearBreakdownPreview({ items, marketSilver }: Props) {
             })}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   )
