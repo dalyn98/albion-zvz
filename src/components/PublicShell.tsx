@@ -41,7 +41,7 @@ export default async function PublicShell({ children }: { children: React.ReactN
             <span>{brandName}</span>
           </Link>
           <div className="flex items-center gap-3">
-            <LanguageSwitcher expanded />
+            <LanguageSwitcher />
             {!session && (
               <a
                 href="/api/auth/discord/start?returnTo=/"
