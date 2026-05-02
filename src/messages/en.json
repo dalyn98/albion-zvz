@@ -2402,7 +2402,16 @@
     "adminSelfCraftSuccess": "Inventory updated (now {qty}).",
     "adminOrdersEmpty": "No orders posted yet.",
     "adminOrderHeader": "{item} × {quantity}",
-    "adminTaskHeader": "{name} — {quantity}"
+    "adminTaskHeader": "{name} — {quantity}",
+    "adminPostFormHint": "You can post multiple items at once. Use \"Add item\" below to insert rows.",
+    "adminItemPickerLabel": "Item",
+    "adminItemRequired": "Pick at least one item.",
+    "adminAddOrderRow": "Add item",
+    "adminRemoveOrderRow": "Remove",
+    "adminOrderRowIndex": "Order #{index}",
+    "adminPostBulkSubmit": "Post {count} order(s)",
+    "adminPostBulkAllSuccess": "Posted {count} order(s)",
+    "adminPostBulkPartialSuccess": "Posted {success}, {failed} failed. Failed rows are kept for retry."
   },
   "adminCraft": {
     "pageTitle": "Craft regear admin",

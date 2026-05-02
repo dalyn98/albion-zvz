@@ -17,9 +17,10 @@ interface Props {
   itemId: string | null
   onChange: (name: string, id: string) => void
   onClear: () => void
+  hideFree?: boolean
 }
 
-export default function ItemPicker({ label, category, tier, itemName, itemId, onChange, onClear }: Props) {
+export default function ItemPicker({ label, category, tier, itemName, itemId, onChange, onClear, hideFree }: Props) {
   const t = useTranslations('picker')
   const rawLocale = useLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
@@ -96,7 +97,7 @@ export default function ItemPicker({ label, category, tier, itemName, itemId, on
             <X size={12} />
           </button>
         </div>
-      ) : isFree ? (
+      ) : isFree && !hideFree ? (
         <div className="flex items-center gap-2 bg-emerald-900/20 border border-emerald-700/40 rounded-lg p-2">
           <div className="flex items-center justify-center w-10 h-10 rounded-md bg-emerald-900/40 border border-emerald-600/50 text-emerald-300 font-bold text-xs flex-shrink-0">
             {t('free')}
@@ -128,15 +129,17 @@ export default function ItemPicker({ label, category, tier, itemName, itemId, on
             {searching && (
               <div className="w-3 h-3 border border-amber-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
             )}
-            <button
-              type="button"
-              onClick={setFree}
-              className="flex items-center gap-1 text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-700/40 hover:border-emerald-500 flex-shrink-0 transition-colors"
-              aria-label={t('freeSelectAria')}
-            >
-              <Sparkles size={10} />
-              {t('free')}
-            </button>
+            {!hideFree && (
+              <button
+                type="button"
+                onClick={setFree}
+                className="flex items-center gap-1 text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-700/40 hover:border-emerald-500 flex-shrink-0 transition-colors"
+                aria-label={t('freeSelectAria')}
+              >
+                <Sparkles size={10} />
+                {t('free')}
+              </button>
+            )}
           </div>
 
           {open && results.length > 0 && (

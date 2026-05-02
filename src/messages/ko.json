@@ -2402,7 +2402,16 @@
     "adminSelfCraftSuccess": "재고가 갱신됐어요 (현재 {qty}개).",
     "adminOrdersEmpty": "아직 등록된 발주가 없어요.",
     "adminOrderHeader": "{item} × {quantity}",
-    "adminTaskHeader": "{name} — {quantity}개"
+    "adminTaskHeader": "{name} — {quantity}개",
+    "adminPostFormHint": "한 번에 여러 아이템을 등록할 수 있어요. 아래 \"항목 추가\" 로 행을 늘리세요.",
+    "adminItemPickerLabel": "아이템",
+    "adminItemRequired": "최소 한 개 이상의 아이템을 선택해주세요.",
+    "adminAddOrderRow": "항목 추가",
+    "adminRemoveOrderRow": "삭제",
+    "adminOrderRowIndex": "#{index} 발주",
+    "adminPostBulkSubmit": "발주 등록 ({count}건)",
+    "adminPostBulkAllSuccess": "{count}건 발주 등록 완료",
+    "adminPostBulkPartialSuccess": "{success}건 등록 완료, {failed}건 실패. 실패한 항목은 그대로 남겨뒀어요."
   },
   "adminCraft": {
     "pageTitle": "제작 리기어 관리",

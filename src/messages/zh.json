@@ -2402,7 +2402,16 @@
     "adminSelfCraftSuccess": "库存已更新(当前 {qty})。",
     "adminOrdersEmpty": "尚无订单。",
     "adminOrderHeader": "{item} × {quantity}",
-    "adminTaskHeader": "{name} — {quantity}"
+    "adminTaskHeader": "{name} — {quantity}",
+    "adminPostFormHint": "可一次注册多个物品。点击下方\"添加条目\"增加行。",
+    "adminItemPickerLabel": "物品",
+    "adminItemRequired": "请至少选择一个物品。",
+    "adminAddOrderRow": "添加条目",
+    "adminRemoveOrderRow": "删除",
+    "adminOrderRowIndex": "订单 #{index}",
+    "adminPostBulkSubmit": "发布订单 ({count}件)",
+    "adminPostBulkAllSuccess": "{count}件订单已发布",
+    "adminPostBulkPartialSuccess": "{success}件成功，{failed}件失败。失败的条目已保留以便重试。"
   },
   "adminCraft": {
     "pageTitle": "制作补装管理",

@@ -2402,7 +2402,16 @@
     "adminSelfCraftSuccess": "在庫が更新されました (現在 {qty} 個)。",
     "adminOrdersEmpty": "まだ登録された発注がありません。",
     "adminOrderHeader": "{item} × {quantity}",
-    "adminTaskHeader": "{name} — {quantity}個"
+    "adminTaskHeader": "{name} — {quantity}個",
+    "adminPostFormHint": "一度に複数のアイテムを登録できます。下の「項目を追加」で行を追加してください。",
+    "adminItemPickerLabel": "アイテム",
+    "adminItemRequired": "アイテムを少なくとも1つ選択してください。",
+    "adminAddOrderRow": "項目を追加",
+    "adminRemoveOrderRow": "削除",
+    "adminOrderRowIndex": "#{index} 発注",
+    "adminPostBulkSubmit": "発注登録 ({count}件)",
+    "adminPostBulkAllSuccess": "{count}件の発注を登録しました",
+    "adminPostBulkPartialSuccess": "{success}件登録、{failed}件失敗。失敗した項目はそのまま残してあります。"
   },
   "adminCraft": {
     "pageTitle": "クラフトリギア管理",

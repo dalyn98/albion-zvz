@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
-import { ClipboardList, Boxes, ExternalLink } from 'lucide-react'
+import { ClipboardList, Boxes, ExternalLink, Plus, Trash2 } from 'lucide-react'
 import {
   postCraftOrderAdmin,
   cancelCraftOrderAdmin,
@@ -13,6 +13,7 @@ import {
   type CraftOrderWithTasks,
 } from '@/app/actions/craft-orders'
 import { useToast } from './ToastProvider'
+import ItemPicker from './ItemPicker'
 
 interface Props {
   initialOrders: CraftOrderWithTasks[]
@@ -94,6 +95,26 @@ export default function AdminCraftOrdersPanel({ initialOrders }: Props) {
   )
 }
 
+interface OrderRow {
+  id: string
+  itemId: string
+  itemName: string
+  quantity: string
+  unitPrice: string
+  notes: string
+}
+
+function makeBlankRow(id: string): OrderRow {
+  return {
+    id,
+    itemId: '',
+    itemName: '',
+    quantity: '1',
+    unitPrice: '0',
+    notes: '',
+  }
+}
+
 function PostOrderForm({
   onPosted,
 }: {
@@ -101,120 +122,199 @@ function PostOrderForm({
 }) {
   const t = useTranslations('craftOrders')
   const toast = useToast()
-  const [itemId, setItemId] = useState('')
-  const [itemName, setItemName] = useState('')
-  const [quantity, setQuantity] = useState('1')
-  const [unitPrice, setUnitPrice] = useState('0')
-  const [notes, setNotes] = useState('')
+  // Deterministic counter-based ids — stable across SSR/CSR, unique within form lifetime.
+  const idCounterRef = useRef(1)
+  const nextRowId = () => `row-${idCounterRef.current++}`
+  const [rows, setRows] = useState<OrderRow[]>(() => [makeBlankRow('row-0')])
   const [pending, startTransition] = useTransition()
 
-  const submit = () => {
-    const qty = Number(quantity)
-    const price = Number(unitPrice)
-    if (!itemId.trim()) return toast.error(t('adminItemIdLabel'))
-    if (!Number.isInteger(qty) || qty < 1) return toast.error(t('adminQuantityLabel'))
-    if (!Number.isFinite(price) || price < 0) return toast.error(t('adminUnitPriceLabel'))
+  const updateRow = (id: string, patch: Partial<OrderRow>) => {
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)))
+  }
+  const addRow = () => setRows((prev) => [...prev, makeBlankRow(nextRowId())])
+  const removeRow = (id: string) =>
+    setRows((prev) => (prev.length === 1 ? prev : prev.filter((r) => r.id !== id)))
 
-    startTransition(async () => {
-      const res = await postCraftOrderAdmin({
-        itemId: itemId.trim(),
-        itemName: itemName.trim() || null,
-        quantity: qty,
-        unitPriceSilver: price,
-        notes: notes.trim() || null,
-      })
-      if (res.error) {
-        toast.error(res.error)
+  const filledRows = rows.filter((r) => r.itemId.trim() !== '')
+  const canSubmit = filledRows.length > 0 && !pending
+
+  const submit = () => {
+    if (filledRows.length === 0) {
+      toast.error(t('adminItemRequired'))
+      return
+    }
+    for (const row of filledRows) {
+      const qty = Number(row.quantity)
+      const price = Number(row.unitPrice)
+      if (!Number.isInteger(qty) || qty < 1) {
+        toast.error(t('adminQuantityLabel'))
         return
       }
-      setItemId('')
-      setItemName('')
-      setQuantity('1')
-      setUnitPrice('0')
-      setNotes('')
-      onPosted({
-        order: {
-          id: res.orderId ?? '',
-          itemId: itemId.trim(),
-          itemName: itemName.trim() || null,
+      if (!Number.isFinite(price) || price < 0) {
+        toast.error(t('adminUnitPriceLabel'))
+        return
+      }
+    }
+
+    startTransition(async () => {
+      const failedIds = new Set<string>()
+      let successCount = 0
+      for (const row of filledRows) {
+        const qty = Number(row.quantity)
+        const price = Number(row.unitPrice)
+        const trimmedId = row.itemId.trim()
+        const trimmedName = row.itemName.trim() || null
+        const trimmedNotes = row.notes.trim() || null
+        const res = await postCraftOrderAdmin({
+          itemId: trimmedId,
+          itemName: trimmedName,
           quantity: qty,
-          fulfilledQuantity: 0,
-          claimedQuantity: 0,
           unitPriceSilver: price,
-          notes: notes.trim() || null,
-          status: 'open',
-          postedByDiscordId: '',
-          postedByUsername: null,
-          createdAt: new Date().toISOString(),
-          closedAt: null,
-          cancelledAt: null,
-        },
-        tasks: [],
-      })
+          notes: trimmedNotes,
+        })
+        if (res.error) {
+          failedIds.add(row.id)
+          toast.error(res.error)
+          continue
+        }
+        successCount++
+        onPosted({
+          order: {
+            id: res.orderId ?? '',
+            itemId: trimmedId,
+            itemName: trimmedName,
+            quantity: qty,
+            fulfilledQuantity: 0,
+            claimedQuantity: 0,
+            unitPriceSilver: price,
+            notes: trimmedNotes,
+            status: 'open',
+            postedByDiscordId: '',
+            postedByUsername: null,
+            createdAt: new Date().toISOString(),
+            closedAt: null,
+            cancelledAt: null,
+          },
+          tasks: [],
+        })
+      }
+
+      // Keep failed rows + any blank rows (placeholders); reset successes.
+      const remaining = rows.filter(
+        (r) => failedIds.has(r.id) || r.itemId.trim() === '',
+      )
+      setRows(remaining.length > 0 ? remaining : [makeBlankRow(nextRowId())])
+
+      if (successCount > 0 && failedIds.size === 0) {
+        toast.success(t('adminPostBulkAllSuccess', { count: successCount }))
+      } else if (successCount > 0 && failedIds.size > 0) {
+        toast.error(
+          t('adminPostBulkPartialSuccess', {
+            success: successCount,
+            failed: failedIds.size,
+          }),
+        )
+      }
     })
   }
 
   return (
     <div className="border border-gray-700 rounded-xl p-3 sm:p-4 bg-gray-950 space-y-3">
       <p className="text-xs font-semibold text-amber-200">{t('adminPostFormTitle')}</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <label className="text-xs text-gray-300">
-          <span className="block mb-1">{t('adminItemIdLabel')}</span>
-          <input
-            value={itemId}
-            onChange={(e) => setItemId(e.target.value)}
-            placeholder={t('adminItemIdPlaceholder')}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-white text-sm"
-          />
-        </label>
-        <label className="text-xs text-gray-300">
-          <span className="block mb-1">{t('adminItemNameLabel')}</span>
-          <input
-            value={itemName}
-            onChange={(e) => setItemName(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-white text-sm"
-          />
-        </label>
-        <label className="text-xs text-gray-300">
-          <span className="block mb-1">{t('adminQuantityLabel')}</span>
-          <input
-            type="number"
-            min={1}
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-white text-sm"
-          />
-        </label>
-        <label className="text-xs text-gray-300">
-          <span className="block mb-1">{t('adminUnitPriceLabel')}</span>
-          <input
-            type="number"
-            min={0}
-            step={1000}
-            value={unitPrice}
-            onChange={(e) => setUnitPrice(e.target.value)}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-white text-sm"
-          />
-        </label>
-        <label className="text-xs text-gray-300 sm:col-span-2">
-          <span className="block mb-1">{t('adminNotesLabel')}</span>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder={t('adminNotesPlaceholder')}
-            rows={2}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-white text-sm"
-          />
-        </label>
+      <p className="text-[11px] text-gray-500">{t('adminPostFormHint')}</p>
+
+      <ul className="space-y-3">
+        {rows.map((row, idx) => (
+          <li
+            key={row.id}
+            className="border border-gray-800 rounded-lg p-3 bg-gray-900/40 space-y-2"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-gray-400 font-medium">
+                {t('adminOrderRowIndex', { index: idx + 1 })}
+              </span>
+              {rows.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeRow(row.id)}
+                  disabled={pending}
+                  className="inline-flex items-center gap-1 text-[11px] text-rose-300 hover:text-rose-200 disabled:opacity-50"
+                  aria-label={t('adminRemoveOrderRow')}
+                >
+                  <Trash2 size={12} />
+                  {t('adminRemoveOrderRow')}
+                </button>
+              )}
+            </div>
+
+            <ItemPicker
+              label={t('adminItemPickerLabel')}
+              itemId={row.itemId || null}
+              itemName={row.itemName || null}
+              onChange={(name, id) => updateRow(row.id, { itemId: id, itemName: name })}
+              onClear={() => updateRow(row.id, { itemId: '', itemName: '' })}
+              hideFree
+            />
+
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-xs text-gray-300">
+                <span className="block mb-1">{t('adminQuantityLabel')}</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={row.quantity}
+                  onChange={(e) => updateRow(row.id, { quantity: e.target.value })}
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-white text-sm"
+                />
+              </label>
+              <label className="text-xs text-gray-300">
+                <span className="block mb-1">{t('adminUnitPriceLabel')}</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={1000}
+                  value={row.unitPrice}
+                  onChange={(e) => updateRow(row.id, { unitPrice: e.target.value })}
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-white text-sm"
+                />
+              </label>
+            </div>
+
+            <label className="text-xs text-gray-300 block">
+              <span className="block mb-1">{t('adminNotesLabel')}</span>
+              <textarea
+                value={row.notes}
+                onChange={(e) => updateRow(row.id, { notes: e.target.value })}
+                placeholder={t('adminNotesPlaceholder')}
+                rows={2}
+                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-white text-sm"
+              />
+            </label>
+          </li>
+        ))}
+      </ul>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={addRow}
+          disabled={pending}
+          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs text-amber-200 border border-amber-700/50 hover:border-amber-500 hover:bg-amber-900/20 rounded disabled:opacity-50"
+        >
+          <Plus size={12} />
+          {t('adminAddOrderRow')}
+        </button>
+        <button
+          type="button"
+          onClick={submit}
+          disabled={!canSubmit}
+          className="ml-auto px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 rounded text-white text-sm font-medium"
+        >
+          {pending
+            ? t('adminPosting')
+            : t('adminPostBulkSubmit', { count: filledRows.length })}
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={submit}
-        disabled={pending}
-        className="w-full sm:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 rounded text-white text-sm font-medium"
-      >
-        {pending ? t('adminPosting') : t('adminPostSubmit')}
-      </button>
     </div>
   )
 }
