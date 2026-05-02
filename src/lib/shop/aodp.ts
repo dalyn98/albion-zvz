@@ -296,6 +296,59 @@ function weightedMedian(
   }
 }
 
+// 한 (item|quality) 에 대해 도시별 bucket 맵에서 대표 시세를 뽑는다.
+//   - primaryCity 가 있고 그 도시 데이터가 있으면 그 도시의 weightedMedian.
+//   - primaryCity 데이터가 없으면 fallbackPool 도시들의 bucket 을 합쳐 통합 weightedMedian
+//     (city 태그는 'pooled') — 한 도시 표본이 비어 인게임 추정가 대비 너무 낮게 잡히는 문제 방지.
+//   - primaryCity 미설정이면 도시별 weightedMedian 중 최저가 채택 (legacy multi-city min).
+// qualityAgnostic 여부와 무관하게 같은 키 모양으로 호출 가능.
+function selectHistoryFromCities(
+  byLoc: Map<string, AodpHistoryBucket[]>,
+  primaryCity: string,
+  fallbackPool: readonly string[],
+): { price: number; city: string; sampledAt: string; sampleCount: number } | null {
+  const hasPrimary = primaryCity.length > 0
+  if (hasPrimary) {
+    const primaryBuckets = byLoc.get(primaryCity)
+    const primaryAggregate = primaryBuckets ? weightedMedian(primaryBuckets) : null
+    if (primaryAggregate) {
+      return {
+        price: primaryAggregate.price,
+        city: primaryCity,
+        sampledAt: primaryAggregate.sampledAt,
+        sampleCount: primaryAggregate.sampleCount,
+      }
+    }
+    const pooled: AodpHistoryBucket[] = []
+    for (const c of fallbackPool) {
+      const bucketsForCity = byLoc.get(c)
+      if (bucketsForCity) pooled.push(...bucketsForCity)
+    }
+    const pooledAggregate = pooled.length > 0 ? weightedMedian(pooled) : null
+    if (!pooledAggregate) return null
+    return {
+      price: pooledAggregate.price,
+      city: 'pooled',
+      sampledAt: pooledAggregate.sampledAt,
+      sampleCount: pooledAggregate.sampleCount,
+    }
+  }
+  let best: { price: number; city: string; sampledAt: string; sampleCount: number } | null = null
+  for (const [location, buckets] of byLoc) {
+    const aggregate = weightedMedian(buckets)
+    if (!aggregate) continue
+    if (!best || aggregate.price < best.price) {
+      best = {
+        price: aggregate.price,
+        city: location,
+        sampledAt: aggregate.sampledAt,
+        sampleCount: aggregate.sampleCount,
+      }
+    }
+  }
+  return best
+}
+
 // fallbackTier + sampleCount + recency 를 종합해 confidence 등급을 매긴다.
 // hit === null 이면 'none'. 자세한 분기 규칙은 AodpConfidence 타입 docstring 참고.
 function computeConfidence(
@@ -377,9 +430,10 @@ export async function loadAodpOptions(guildId: string): Promise<Required<AodpOpt
 
   const qualityAgnostic = qualityAgnosticRaw === 'true'
 
-  // cities 배열이 단일 원소면 자동으로 "기준 도시" 모드로 인식. AodpSettingsForm
-  // 이 항상 [city] 한 개로 저장하고, 다중 도시는 직접 SQL 시드한 case 만 가능.
-  const primaryCity = cities.length === 1 ? cities[0] : ''
+  // cities 배열의 첫 도시를 자동으로 "기준 도시" 로 인식. AodpSettingsForm 은
+  // 항상 [city] 한 개로 저장하고, 다중 도시 시드(mig 137 등) 도 첫 도시가
+  // 자연스러운 1순위가 된다 — 나머지 도시는 fallbackPool 로 재사용.
+  const primaryCity = cities[0] ?? ''
 
   return { cities, primaryCity, server, mode, minQuality, qualityAgnostic }
 }
@@ -540,46 +594,8 @@ async function fetchAodpPricesExact(
       { price: number; city: string; sampledAt: string; sampleCount: number }
     >()
     for (const [item_id, byLoc] of bucketsByItem) {
-      if (hasPrimary) {
-        const primaryBuckets = byLoc.get(primaryCity)
-        const primaryAggregate = primaryBuckets ? weightedMedian(primaryBuckets) : null
-        if (primaryAggregate) {
-          historyBestByItem.set(item_id, {
-            price: primaryAggregate.price,
-            city: primaryCity,
-            sampledAt: primaryAggregate.sampledAt,
-            sampleCount: primaryAggregate.sampleCount,
-          })
-          continue
-        }
-        const pooled: AodpHistoryBucket[] = []
-        for (const c of fallbackPool) {
-          const bucketsForCity = byLoc.get(c)
-          if (bucketsForCity) pooled.push(...bucketsForCity)
-        }
-        const pooledAggregate = pooled.length > 0 ? weightedMedian(pooled) : null
-        if (!pooledAggregate) continue
-        historyBestByItem.set(item_id, {
-          price: pooledAggregate.price,
-          city: 'pooled',
-          sampledAt: pooledAggregate.sampledAt,
-          sampleCount: pooledAggregate.sampleCount,
-        })
-        continue
-      }
-      for (const [location, buckets] of byLoc) {
-        const aggregate = weightedMedian(buckets)
-        if (!aggregate) continue
-        const prev = historyBestByItem.get(item_id)
-        if (!prev || aggregate.price < prev.price) {
-          historyBestByItem.set(item_id, {
-            price: aggregate.price,
-            city: location,
-            sampledAt: aggregate.sampledAt,
-            sampleCount: aggregate.sampleCount,
-          })
-        }
-      }
+      const picked = selectHistoryFromCities(byLoc, primaryCity, fallbackPool)
+      if (picked) historyBestByItem.set(item_id, picked)
     }
 
     // history 미스인 item 만 spot 폴백으로 보강.
@@ -631,32 +647,32 @@ async function fetchAodpPricesExact(
     return result
   }
 
-  // avg_Nd 모드 — history 를 가져와 도시별로 수량 가중 평균 후 최저 도시 선택.
-  // AODP 는 crowdsourced 라 동아시아 서버는 history 데이터가 비어 있는 경우가
-  // 많다. 히스토리 미스 → spot 폴백으로 확장해 최소한 현재가는 보장.
+  // avg_Nd 모드 — history 를 가져와 (item, quality) 별로 selectHistoryFromCities
+  // 를 통해 primary 모드 / multi-city min 모드를 분기. AODP 는 crowdsourced 라
+  // 동아시아 서버는 history 데이터가 비어 있는 경우가 많다. 히스토리 미스 →
+  // spot 폴백으로 확장해 최소한 현재가는 보장.
   const days = modeToDays(mode)
   const all: AodpHistoryRow[] = []
   for (let i = 0; i < uniqIds.length; i += CHUNK) {
     const slice = uniqIds.slice(i, i + CHUNK)
-    all.push(...(await fetchHistoryBatch(host, slice, qualities, cities, days)))
+    all.push(...(await fetchHistoryBatch(host, slice, qualities, effectiveCities, days)))
+  }
+  const bucketsByKey = new Map<string, Map<string, AodpHistoryBucket[]>>()
+  for (const row of all) {
+    const key = `${row.item_id}|${row.quality}`
+    const byLoc = bucketsByKey.get(key) ?? new Map<string, AodpHistoryBucket[]>()
+    const list = byLoc.get(row.location) ?? []
+    list.push(...(row.data ?? []))
+    byLoc.set(row.location, list)
+    bucketsByKey.set(key, byLoc)
   }
   const historyBestByKey = new Map<
     string,
     { price: number; city: string; sampledAt: string; sampleCount: number }
   >()
-  for (const row of all) {
-    const aggregate = weightedMedian(row.data ?? [])
-    if (!aggregate) continue
-    const key = `${row.item_id}|${row.quality}`
-    const prev = historyBestByKey.get(key)
-    if (!prev || aggregate.price < prev.price) {
-      historyBestByKey.set(key, {
-        price: aggregate.price,
-        city: row.location,
-        sampledAt: aggregate.sampledAt,
-        sampleCount: aggregate.sampleCount,
-      })
-    }
+  for (const [key, byLoc] of bucketsByKey) {
+    const picked = selectHistoryFromCities(byLoc, primaryCity, fallbackPool)
+    if (picked) historyBestByKey.set(key, picked)
   }
 
   // 히스토리에서 못 찾은 key (요청 품질 + 낮은 품질 어느 것도 없는 경우) → spot 폴백.
