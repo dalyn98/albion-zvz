@@ -57,8 +57,6 @@ export const DOCS_NAV: DocsNavSection[] = [
         subItems: [
           { slug: 'battles/list', itemKey: 'battlesList' },
           { slug: 'battles/detail', itemKey: 'battlesDetail' },
-          { slug: 'battles/event-report', itemKey: 'battlesEventReport' },
-          { slug: 'battles/party', itemKey: 'battlesParty' },
         ],
       },
       {
