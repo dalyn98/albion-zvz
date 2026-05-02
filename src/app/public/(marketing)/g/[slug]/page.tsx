@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import MarketingNav from '@/components/MarketingNav'
 import { resolveTenantBySlug } from '@/lib/tenant-resolver'
+import { displayNameFromSlug } from '@/lib/tenant-slug'
 import { loadGuildProfileSettings, ACCENT_CLASS_MAP } from '@/lib/guild-profile'
 import { getAppSetting } from '@/lib/app-settings'
 import { loadGalleryItems, type GalleryItem } from '@/lib/guild-profile-gallery'
@@ -78,6 +79,22 @@ interface Params {
 // 같은 슬러그가 metadata 와 page 에서 두 번 호출되는 것을 피하지 않고, force-dynamic
 // 이라 매 요청 새로 풀린다 — count 쿼리 묶음만큼 부하지만 비로그인 페이지라
 // 캐시 비용보다 단순함이 이득.
+// 알비온 길드명은 항상 영어 (인게임 제약). tenants.name 은 Discord 길드명이라
+// 한국어("멘헤라") 일 수 있어 공개 프로필에는 부적합 — 어드민이 위저드에서
+// 입력한 albion_home_guild_name 을 우선, 미설정 시 slug 파생, 마지막 폴백으로
+// Discord 명을 사용한다.
+async function resolveAlbionDisplayName(
+  tenantId: string,
+  slug: string,
+  fallback: string,
+): Promise<string> {
+  const albionName = (await getAppSetting('albion_home_guild_name', '', tenantId)).trim()
+  if (albionName) return albionName
+  const derived = displayNameFromSlug(slug)
+  if (derived) return derived
+  return fallback
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -86,9 +103,10 @@ export async function generateMetadata({
   const { slug } = await params
   const tenant = await resolveTenantBySlug(slug)
   if (!tenant) return { title: '404' }
+  const displayName = await resolveAlbionDisplayName(tenant.tenantId, tenant.slug, tenant.name)
   return {
-    title: `${tenant.name} — Albion Guild Manager`,
-    description: `${tenant.name} 길드의 공개 프로필. 멤버, 전투기록, 모집 상태를 확인할 수 있습니다.`,
+    title: `${displayName} — Albion Guild Manager`,
+    description: `${displayName} 길드의 공개 프로필. 멤버, 전투기록, 모집 상태를 확인할 수 있습니다.`,
   }
 }
 
@@ -150,6 +168,8 @@ export default async function GuildProfilePage({
 
   const settings = await loadGuildProfileSettings(tenant.tenantId)
   if (!settings.enabled) notFound()
+
+  const displayName = await resolveAlbionDisplayName(tenant.tenantId, tenant.slug, tenant.name)
 
   // 멤버 대시보드 섹션은 길드별 staged rollout 토글(`member_dashboard_enabled`)
   // 로 게이트한다. 'true' 인 길드만 본인 카드 + 비로그인 CTA 배너 노출. v1 은
@@ -426,7 +446,7 @@ export default async function GuildProfilePage({
             <h1
               className={`text-4xl sm:text-6xl lg:text-7xl font-black tracking-tighter ${accent.heading} drop-shadow-[0_4px_20px_rgba(0,0,0,0.6)] break-words`}
             >
-              {tenant.name}
+              {displayName}
             </h1>
             <InlineEditableField
               enabled={isOwnGuildAdmin}
@@ -626,7 +646,7 @@ export default async function GuildProfilePage({
               accent={accent}
             />
             {galleryItems.length > 0 ? (
-              <GalleryGrid items={galleryItems} fallbackAlt={tenant.name} accent={accent} />
+              <GalleryGrid items={galleryItems} fallbackAlt={displayName} accent={accent} />
             ) : (
               <div className="rounded-xl border border-dashed border-gray-700 bg-gray-950/40 px-4 py-12 text-center">
                 <ImageIcon size={28} className="mx-auto text-gray-600" />
