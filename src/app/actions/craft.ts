@@ -1608,3 +1608,88 @@ function bucketFromSnapshots(snapshots: (BuildSnapshot | null)[]): CraftDemandBu
     slotTotals,
   }
 }
+
+// 진행 중인 제작 작업 (queued + claimed) 의 재료 BoM. delivered 는 이미 박스에
+// 들어갔으니 재료비가 끝난 상태라 제외한다. 운영자가 "지금 길드 창고에서 무엇을
+// 빼두면 제작자들이 일을 멈추지 않을까" 를 한 눈에 보기 위한 집계 — return-rate
+// 적용 전 gross 수치라 제작자가 본인 포커스/도시 보너스로 절감을 추정한다.
+export interface CraftActiveMaterialRow {
+  uniqueName: string
+  count: number
+  tier: number
+}
+
+export interface CraftActiveMaterialStatsResult {
+  // queued + claimed 합계.
+  taskCount: number
+  queuedCount: number
+  claimedCount: number
+  materials: CraftActiveMaterialRow[]
+  // 레시피 매핑이 안 되는 슬롯 (free-text / mount / food / potion). UI 가
+  // "재료 추정 불가" 힌트를 띄울 때 사용.
+  unknownItemCount: number
+  // T?_ARTEFACT_* 가 포함된 작업 수. 청부제작 안내 배지에 사용.
+  artifactCount: number
+}
+
+export async function loadCraftActiveMaterialStatsAdmin(): Promise<{
+  result: CraftActiveMaterialStatsResult | null
+  error?: string
+}> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    await requireAdmin()
+    const session = await getSession()
+    if (!session) return { result: null, error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+
+    const db = getAdminClient()
+    const { data, error } = await db
+      .from('craft_tasks')
+      .select('status, regear_requests!inner(build_snapshot)')
+      .eq('guild_id', guildId)
+      .in('status', ['queued', 'claimed'])
+    if (error) return { result: null, error: error.message }
+
+    const snapshots: (BuildSnapshot | null)[] = []
+    let queuedCount = 0
+    let claimedCount = 0
+    for (const row of (data ?? []) as Array<{
+      status: CraftTaskStatus
+      regear_requests:
+        | { build_snapshot: unknown }
+        | { build_snapshot: unknown }[]
+        | null
+    }>) {
+      const r = Array.isArray(row.regear_requests)
+        ? row.regear_requests[0]
+        : row.regear_requests
+      snapshots.push((r?.build_snapshot as BuildSnapshot | null) ?? null)
+      if (row.status === 'queued') queuedCount++
+      else if (row.status === 'claimed') claimedCount++
+    }
+
+    const breakdown = aggregateBuildSnapshots(snapshots)
+    const materials: CraftActiveMaterialRow[] = breakdown.materials.map((m) => ({
+      uniqueName: m.uniqueName,
+      count: m.count,
+      tier: m.tier,
+    }))
+
+    return {
+      result: {
+        taskCount: breakdown.taskCount,
+        queuedCount,
+        claimedCount,
+        materials,
+        unknownItemCount: breakdown.unknownItemCount,
+        artifactCount: breakdown.artifactCount,
+      },
+    }
+  } catch (e) {
+    return {
+      result: null,
+      error: e instanceof Error ? e.message : tErr('serverError'),
+    }
+  }
+}
