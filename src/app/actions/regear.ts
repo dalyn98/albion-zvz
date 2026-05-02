@@ -584,14 +584,18 @@ export async function listMyRegearEligibleEvents(): Promise<{
   const { windowMinutes } = await loadRegearLimits(guildId)
   const windowMinutesMs = windowMinutes * 60 * 1000
   const eligibleEvents = events.filter((e) => eventToRole.has(e.id))
-  const matchedByEvent = await Promise.all(
+  // tenant_battle_records 쿼리가 일시적으로 실패해도 /regear 페이지 전체가 죽지
+  // 않도록 allSettled 로 감싼다. 실패한 이벤트는 battle_started_at 기준으로
+  // 폴백되어 클라이언트는 정상 표시.
+  const matchedSettled = await Promise.allSettled(
     eligibleEvents.map((e) =>
       findTrackedBattleIdsForEvent(db, guildId, e.battle_started_at as string),
     ),
   )
   const windowOpenByEvent = new Map<string, string>()
   eligibleEvents.forEach((e, i) => {
-    const matched = matchedByEvent[i]
+    const settled = matchedSettled[i]
+    const matched = settled.status === 'fulfilled' ? settled.value : []
     const battleStartMs = new Date(e.battle_started_at as string).getTime()
     const latestEndedMs = matched.reduce((acc, b) => {
       const ms = Date.parse(b.endedAtIso)
