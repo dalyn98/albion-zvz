@@ -171,6 +171,10 @@ export type AppSettingKey =
   // 프로필 페이지 hero 배경 배너 URL. 빈 문자열이면 단색 fallback. 파일은
   // 'guild-profiles' 스토리지 버킷에 업로드, 여기엔 공개 URL 을 저장한다.
   | 'guild_profile_banner_url'
+  // hero 영역에서 배너 이미지의 가시성. 정수 0-100 문자열. 위에 깔리는 어두운
+  // 그라데이션은 텍스트 가독성을 위해 그대로 두고, 배너 자체의 opacity 만 조정.
+  // 기본 '50' (이전 하드코드 0.4 보다 약간 밝게 — 다수 길드 배너가 묻혀 보였음).
+  | 'guild_profile_banner_opacity'
   // 길드 한 줄 / 단락 소개. 최대 500자, 일반 텍스트 (마크다운 렌더 X — 공개
   // 페이지의 시각 일관성을 위해). 빈 문자열이면 섹션 자체 숨김.
   | 'guild_profile_description'

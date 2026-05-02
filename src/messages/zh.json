@@ -899,6 +899,8 @@
     "galleryCaptionPlaceholder": "说明（可选）",
     "galleryAtMaxLabel": "最多可添加 {max} 张图片。请先移除现有图片再添加。",
     "bannerInlineButton": "编辑横幅",
+    "bannerOpacityLabel": "横幅显示度",
+    "bannerOpacityHint": "数值越高，横幅图像越清晰。为保留标题和标签的可读性，上方的暗色渐变会保持不变。",
     "galleryInlineButton": "编辑画廊",
     "inlineEditNoticeTitle": "在公开页面编辑横幅 / 画廊 / 区块可见性",
     "inlineEditNoticeBody": "打开您公会的公开资料页，每张卡片上会显示仅管理员可见的编辑钉。头部横幅右上角有「编辑横幅」按钮，统计、管理团队、武器、对手等区块也可通过卡片右上角的眼睛图标隐藏或显示。",

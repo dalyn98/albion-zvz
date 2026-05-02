@@ -899,6 +899,8 @@
     "galleryCaptionPlaceholder": "Caption (optional)",
     "galleryAtMaxLabel": "You can add up to {max} images. Remove an existing one to add a new one.",
     "bannerInlineButton": "Edit banner",
+    "bannerOpacityLabel": "Banner visibility",
+    "bannerOpacityHint": "Higher values make the banner image more visible. The dark gradient on top stays so headings and chips remain legible.",
     "galleryInlineButton": "Edit gallery",
     "inlineEditNoticeTitle": "Edit banner / gallery / section visibility on the public page",
     "inlineEditNoticeBody": "Open your guild's public profile and you'll see admin-only edit pins on each card. The hero banner has an \"Edit banner\" button in its top-right corner, and sections like stats, admin team, weapons, and rivals can be hidden or shown via the eye icon at the top-right of each card.",

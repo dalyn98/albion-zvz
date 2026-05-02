@@ -7,7 +7,9 @@ import { Pencil, Upload, Trash2, X, Loader2, Image as ImageIcon } from 'lucide-r
 import {
   uploadGuildProfileBanner,
   clearGuildProfileBanner,
+  updateGuildProfileBannerOpacity,
 } from '@/app/actions/guild-profile'
+import { BANNER_OPACITY_OPTIONS } from '@/lib/guild-profile'
 import ImageCropModal from '@/components/ImageCropModal'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -16,12 +18,13 @@ const BANNER_ASPECT = 21 / 9
 interface Props {
   enabled: boolean
   currentUrl: string
+  currentOpacity: number
 }
 
 // 공개 길드 페이지 hero 영역 우측 상단에 떠 있는 어드민용 "배너 편집" 버튼.
 // 클릭하면 모달이 열려 업로드 / 비우기 가능. 별도 admin 폼을 안 거치고
 // 보고 있는 페이지에서 직접 고친다.
-export default function BannerInlineEdit({ enabled, currentUrl }: Props) {
+export default function BannerInlineEdit({ enabled, currentUrl, currentOpacity }: Props) {
   const [open, setOpen] = useState(false)
   if (!enabled) return null
   return (
@@ -35,7 +38,13 @@ export default function BannerInlineEdit({ enabled, currentUrl }: Props) {
         <Pencil size={12} />
         <BannerEditLabel />
       </button>
-      {open && <BannerEditModal currentUrl={currentUrl} onClose={() => setOpen(false)} />}
+      {open && (
+        <BannerEditModal
+          currentUrl={currentUrl}
+          currentOpacity={currentOpacity}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </>
   )
 }
@@ -47,10 +56,11 @@ function BannerEditLabel() {
 
 interface ModalProps {
   currentUrl: string
+  currentOpacity: number
   onClose: () => void
 }
 
-function BannerEditModal({ currentUrl, onClose }: ModalProps) {
+function BannerEditModal({ currentUrl, currentOpacity, onClose }: ModalProps) {
   const t = useTranslations('adminGuildProfile')
   const tCommon = useTranslations('common')
   const router = useRouter()
@@ -61,6 +71,10 @@ function BannerEditModal({ currentUrl, onClose }: ModalProps) {
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
+  // 옵티미스틱 미리보기 — 사용자가 select 를 바꾸면 즉시 미리보기 이미지 opacity
+  // 가 따라간다. 서버 저장은 startTransition 안에서 이뤄지고 router.refresh() 로
+  // 최종값과 sync. 저장 실패 시 재페치된 settings 값으로 자동 복구된다.
+  const [opacityPreview, setOpacityPreview] = useState(currentOpacity)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -152,6 +166,21 @@ function BannerEditModal({ currentUrl, onClose }: ModalProps) {
     })
   }
 
+  const handleOpacityChange = (next: number) => {
+    setOpacityPreview(next)
+    if (next === currentOpacity) return
+    setError('')
+    startTransition(async () => {
+      const result = await updateGuildProfileBannerOpacity(next)
+      if (result.error) {
+        setError(result.error)
+        setOpacityPreview(currentOpacity)
+        return
+      }
+      router.refresh()
+    })
+  }
+
   return (
     <div
       className="fixed inset-0 z-[60] bg-black/70 flex items-end sm:items-center justify-center sm:p-6"
@@ -186,12 +215,51 @@ function BannerEditModal({ currentUrl, onClose }: ModalProps) {
                 src={displayUrl}
                 alt={t('bannerPreviewAlt')}
                 className="w-full h-full object-cover block"
+                style={{ opacity: opacityPreview / 100 }}
               />
+              {/* 공개 페이지와 동일한 어두운 그라데이션을 미리보기에도 깔아 실제
+                  hero 에서 어떻게 보일지 비슷하게 보여준다. 텍스트는 가짜로
+                  넣지 않고 톤만 일치. */}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/95 pointer-events-none" />
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-gray-700 bg-gray-950 px-4 py-12 text-center">
               <ImageIcon size={28} className="mx-auto text-gray-600" />
               <p className="text-gray-500 text-xs mt-2">{t('bannerEmpty')}</p>
+            </div>
+          )}
+
+          {currentUrl && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-gray-400 text-xs font-semibold">
+                  {t('bannerOpacityLabel')}
+                </label>
+                <span className="text-amber-300 text-xs font-mono">
+                  {opacityPreview}%
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {BANNER_OPACITY_OPTIONS.map((opt) => {
+                  const active = opacityPreview === opt
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => handleOpacityChange(opt)}
+                      disabled={pending}
+                      className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
+                        active
+                          ? 'bg-amber-500 text-black ring-1 ring-amber-300'
+                          : 'bg-gray-800 hover:bg-gray-700 text-gray-200 ring-1 ring-gray-700'
+                      } disabled:opacity-50`}
+                    >
+                      {opt}%
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-gray-600 text-[11px]">{t('bannerOpacityHint')}</p>
             </div>
           )}
 

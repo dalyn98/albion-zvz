@@ -365,7 +365,11 @@ export default async function GuildProfilePage({
           모집 open 일 때 도트가 ping. 길드명은 모바일/데스크탑 4xl→6xl→7xl 로
           반응형 점진 확대. */}
       <header className="relative overflow-hidden">
-        <BannerInlineEdit enabled={isOwnGuildAdmin} currentUrl={settings.bannerUrl} />
+        <BannerInlineEdit
+          enabled={isOwnGuildAdmin}
+          currentUrl={settings.bannerUrl}
+          currentOpacity={settings.bannerOpacity}
+        />
         <div className={`absolute inset-0 ${accent.heroGradient}`} />
         <div
           className={`absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full ${accent.heroGlow} blur-3xl pointer-events-none`}
@@ -376,7 +380,8 @@ export default async function GuildProfilePage({
             <img
               src={settings.bannerUrl}
               alt=""
-              className="w-full h-full object-cover opacity-40"
+              className="w-full h-full object-cover"
+              style={{ opacity: settings.bannerOpacity / 100 }}
             />
             <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-[#08090d]" />
           </div>

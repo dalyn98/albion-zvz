@@ -200,9 +200,27 @@ export function isProfileServerOverride(value: string): value is ProfileServerOv
   return value === '' || value === 'east' || value === 'west' || value === 'europe'
 }
 
+// hero 배너 image opacity 의 사용 가능한 단계. 0 ~ 100 사이라면 클라이언트 측
+// inline style 로 무엇이든 적용 가능하지만, 어드민이 빠르게 고를 수 있도록
+// discrete 옵션으로 제한 — 슬라이더보다 클릭 한 번이 빠르고 결과가 예측 가능.
+export const BANNER_OPACITY_OPTIONS: readonly number[] = [30, 50, 70, 90, 100] as const
+
+export const DEFAULT_BANNER_OPACITY = 50
+
+function parseBannerOpacity(raw: string): number {
+  const n = Number.parseInt(raw, 10)
+  if (!Number.isFinite(n)) return DEFAULT_BANNER_OPACITY
+  if (n < 0) return 0
+  if (n > 100) return 100
+  return n
+}
+
 export interface GuildProfileSettings {
   enabled: boolean
   bannerUrl: string
+  // 배너 이미지의 가시성 (0~100). hero 위에 깔리는 어두운 그라데이션은 그대로
+  // 두고 배너 자체의 opacity 만 조정한다 — 텍스트 가독성을 깨지 않도록.
+  bannerOpacity: number
   description: string
   accentColor: AccentColor
   showMembers: boolean
@@ -241,6 +259,7 @@ export interface GuildProfileSettings {
 export const DEFAULT_GUILD_PROFILE: GuildProfileSettings = {
   enabled: false,
   bannerUrl: '',
+  bannerOpacity: DEFAULT_BANNER_OPACITY,
   description: '',
   accentColor: 'amber',
   showMembers: true,
@@ -282,6 +301,7 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
   const [
     enabledRaw,
     bannerUrl,
+    bannerOpacityRaw,
     description,
     accentColorRaw,
     showMembersRaw,
@@ -304,6 +324,7 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
   ] = await Promise.all([
     getAppSetting('guild_profile_enabled', 'false', guildId),
     getAppSetting('guild_profile_banner_url', '', guildId),
+    getAppSetting('guild_profile_banner_opacity', String(DEFAULT_BANNER_OPACITY), guildId),
     getAppSetting('guild_profile_description', '', guildId),
     getAppSetting('guild_profile_accent_color', 'amber', guildId),
     getAppSetting('guild_profile_show_members', 'true', guildId),
@@ -328,6 +349,7 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
   return {
     enabled: enabledRaw === 'true',
     bannerUrl,
+    bannerOpacity: parseBannerOpacity(bannerOpacityRaw),
     description,
     accentColor: isAccentColor(accentColorRaw) ? accentColorRaw : 'amber',
     showMembers: showMembersRaw !== 'false',

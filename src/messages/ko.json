@@ -899,6 +899,8 @@
     "galleryCaptionPlaceholder": "캡션 (선택)",
     "galleryAtMaxLabel": "최대 {max}장까지 추가할 수 있어요. 새 이미지를 넣으려면 기존 이미지를 먼저 삭제해 주세요.",
     "bannerInlineButton": "배너 편집",
+    "bannerOpacityLabel": "배너 가시성",
+    "bannerOpacityHint": "값이 클수록 배너 이미지가 또렷이 보입니다. 글자 가독성을 위해 어두운 그라데이션은 그대로 유지됩니다.",
     "galleryInlineButton": "갤러리 편집",
     "inlineEditNoticeTitle": "배너 / 갤러리 / 섹션 노출 토글은 공개 페이지에서 직접 편집",
     "inlineEditNoticeBody": "내 길드 공개 프로필에 들어가면 어드민 본인에게만 보이는 편집 핀이 카드마다 떠 있습니다. 배너 이미지 자체는 hero 우측 상단의 \"배너 편집\" 버튼으로, 통계/운영진/무기/라이벌 등 섹션은 우측 상단의 눈 아이콘으로 끄고 켤 수 있어요.",

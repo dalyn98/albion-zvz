@@ -899,6 +899,8 @@
     "galleryCaptionPlaceholder": "キャプション (任意)",
     "galleryAtMaxLabel": "最大 {max} 枚まで追加できます。新しい画像を入れるには既存の画像を先に削除してください。",
     "bannerInlineButton": "バナーを編集",
+    "bannerOpacityLabel": "バナーの濃さ",
+    "bannerOpacityHint": "値が大きいほどバナー画像がはっきり見えます。文字の可読性を保つため上に重なる暗いグラデーションはそのままです。",
     "galleryInlineButton": "ギャラリーを編集",
     "inlineEditNoticeTitle": "バナー / ギャラリー / セクション表示は公開ページで直接編集",
     "inlineEditNoticeBody": "自ギルドの公開プロフィールを開くと、管理者だけに見える編集ピンが各カードに表示されます。バナー画像は hero 右上の「バナーを編集」ボタンから、統計・運営陣・武器・ライバルなどのセクションは右上の目アイコンで非表示／表示を切り替えられます。",

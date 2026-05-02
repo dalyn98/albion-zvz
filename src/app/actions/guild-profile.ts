@@ -31,10 +31,12 @@ function extFromMime(mime: string): string {
   }
 }
 
+type BannerSettingKey = 'guild_profile_banner_url' | 'guild_profile_banner_opacity'
+
 async function readSettingValue(
   db: ReturnType<typeof getAdminClient>,
   guildId: string,
-  key: 'guild_profile_banner_url',
+  key: BannerSettingKey,
 ): Promise<string> {
   const { data } = await db
     .from('app_settings')
@@ -48,7 +50,7 @@ async function readSettingValue(
 async function writeSettingValue(
   db: ReturnType<typeof getAdminClient>,
   guildId: string,
-  key: 'guild_profile_banner_url',
+  key: BannerSettingKey,
   value: string,
 ): Promise<string | null> {
   const { error } = await db.from('app_settings').upsert(
@@ -101,6 +103,32 @@ export async function uploadGuildProfileBanner(
     revalidatePath('/admin/dashboard/guild-profile')
     revalidatePath('/public/g/[slug]', 'page')
     return { url: publicUrl }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function updateGuildProfileBannerOpacity(
+  value: number,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    if (!Number.isFinite(value)) return { error: tErr('serverError') }
+    const clamped = Math.max(0, Math.min(100, Math.round(value)))
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('serverError') }
+    const guildId = await getSessionGuildId(session)
+    const writeErr = await writeSettingValue(
+      db,
+      guildId,
+      'guild_profile_banner_opacity',
+      String(clamped),
+    )
+    if (writeErr) return { error: writeErr }
+    revalidatePath('/admin/dashboard/guild-profile')
+    revalidatePath('/public/g/[slug]', 'page')
+    return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
