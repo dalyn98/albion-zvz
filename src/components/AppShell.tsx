@@ -34,6 +34,9 @@ export default async function AppShell({ children }: { children: React.ReactNode
   // craft_regear_enabled 의 raw 값. 어드민 사이드바 (craft / inventory 탭 가시성)
   // 와 멤버 사이드바 (craft 큐 탭 가시성) 가 모두 이 값에 의존한다.
   let craftAdminVisible = false
+  // /craft/orders (멤버용 발주 보드) 가시성 — craft_regear_enabled 만 보고
+  // is_crafter 는 보지 않는다 (모든 멤버가 발주 수주 가능). 토글 OFF 면 숨김.
+  let craftOrdersVisible = false
   // 길드원이 자기 길드 공개 프로필 (`/g/<slug>`) 로 이동할 수 있도록 사이드바에
   // 노출할 href. guild_profile_enabled 가 켜진 길드만 — 비활성화된 길드는 어차피
   // 페이지가 404 라 죽은 링크가 된다.
@@ -73,6 +76,8 @@ export default async function AppShell({ children }: { children: React.ReactNode
     // 어드민 craft / inventory 탭은 toggle on 인 경우에만 사이드바에 노출.
     // OFF 면 admin 은 settings → events 탭에서 다시 켤 수 있다 (entry 보장).
     craftAdminVisible = craftEnabled && session.isAdmin
+    // 발주 보드는 모든 멤버 (제작자 + 일반 멤버) 에게 가시 — 토글이 핵심 게이트.
+    craftOrdersVisible = craftEnabled && (session.isMember || session.isAdmin)
   }
   const superAdmin = isSuperAdminSession(session)
   // path 는 슈퍼어드민에게만 prop 으로 전달 — 일반 세션 HTML 에는 baked-in 시키지
@@ -88,6 +93,7 @@ export default async function AppShell({ children }: { children: React.ReactNode
         superAdminPath={superAdminPath}
         craftQueueVisible={craftQueueVisible}
         craftAdminVisible={craftAdminVisible}
+        craftOrdersVisible={craftOrdersVisible}
         publicProfileHref={publicProfileHref}
       />
       <div className="flex-1 min-w-0 flex flex-col">{children}</div>

@@ -61,6 +61,9 @@ interface NavItem {
   // 어드민 + 길드의 craft_regear_enabled 가 켜진 경우에만 표시.
   // 토글 OFF 면 craft 운영 탭 (운영, 재고) 자체가 숨김.
   craftAdminOnly?: boolean
+  // 멤버 (제작자 + 일반) + 길드의 craft_regear_enabled 가 켜진 경우에만 표시.
+  // /craft/orders 처럼 크래프터 권한 없이도 발주 수주는 가능한 페이지에 사용.
+  craftOrdersOnly?: boolean
   // 사이드바 sub-section. NavGroup 이 섹션 전환 시점에 작은 헤더를 끼워넣는다.
   section: SectionKey
 }
@@ -74,7 +77,7 @@ const MEMBER_NAV: NavItem[] = [
   { href: '/regear', labelKey: 'regearRequest', icon: ShieldCheck, memberOnly: true, section: 'regear' },
   { href: '/craft/queue', labelKey: 'craftQueue', icon: Hammer, memberOnly: true, crafterOnly: true, section: 'regear' },
   { href: '/craft/my-tasks', labelKey: 'craftMyTasks', icon: Box, memberOnly: true, crafterOnly: true, section: 'regear' },
-  { href: '/craft/orders', labelKey: 'craftOrders', icon: ClipboardList, memberOnly: true, section: 'regear' },
+  { href: '/craft/orders', labelKey: 'craftOrders', icon: ClipboardList, memberOnly: true, craftOrdersOnly: true, section: 'regear' },
   // 커뮤니티
   { href: '/shop', labelKey: 'shop', icon: ShoppingBag, section: 'community' },
   { href: '/members', labelKey: 'members', icon: Users, section: 'community' },
@@ -156,6 +159,9 @@ interface AppSidebarProps {
   // craft_regear_enabled = true 이고, 본인이 admin 인 경우에만 true.
   // 어드민 nav 의 craft / inventory 탭 가시성에 영향.
   craftAdminVisible: boolean
+  // craft_regear_enabled = true 이고, 본인이 member 또는 admin 인 경우에만 true.
+  // 멤버 nav 의 /craft/orders 탭 가시성. 토글 OFF 면 발주 보드 자체가 숨김.
+  craftOrdersVisible: boolean
   // 공개 프로필 (`/g/<slug>`) 진입용 사이드바 링크. guild_profile_enabled 가
   // 꺼져 있거나 slug 가 없으면 null — AppShell 이 게이팅한다.
   publicProfileHref: string | null
@@ -169,6 +175,7 @@ export default function AppSidebar({
   superAdminPath,
   craftQueueVisible,
   craftAdminVisible,
+  craftOrdersVisible,
   publicProfileHref,
 }: AppSidebarProps) {
   const pathname = usePathname()
@@ -343,6 +350,7 @@ export default function AppSidebar({
             items={memberNavItems
               .filter((i) => !i.memberOnly || session?.isMember)
               .filter((i) => !i.crafterOnly || craftQueueVisible)
+              .filter((i) => !i.craftOrdersOnly || craftOrdersVisible)
               .map((i) => ({ ...i, label: tNav(i.labelKey) }))}
             pathname={pathname || '/'}
             expanded={navExpanded}
