@@ -15,6 +15,8 @@ import AdminCraftTasksList from '@/components/AdminCraftTasksList'
 import AdminCraftBoxStatusPanel from '@/components/AdminCraftBoxStatusPanel'
 import AdminCraftStatsPanel from '@/components/AdminCraftStatsPanel'
 import AdminCraftMaterialsPanel from '@/components/AdminCraftMaterialsPanel'
+import AdminCraftOrdersPanel from '@/components/AdminCraftOrdersPanel'
+import { listCraftOrders } from '@/app/actions/craft-orders'
 
 // 제작 리기어 운영 화면. 토글, 보관함 번호 범위 / 만료일 / 포커스 보너스, 제작자
 // 권한 부여 (guild_avatars.is_crafter), 진행 중 작업 모니터링 + 강제 취소 / 실버 변환.
@@ -57,11 +59,12 @@ export default async function AdminCraftPage({
   if (bomLocation) preservedForStats.bomLoc = bomLocation
   if (bomFocus) preservedForStats.bomFocus = 'on'
 
-  const [config, { crafters }, { tasks }, { members }, t] = await Promise.all([
+  const [config, { crafters }, { tasks }, { members }, { orders }, t] = await Promise.all([
     getCraftConfig(),
     listGuildCrafters(),
     listAllCraftTasksAdmin('active'),
     listGuildMembers(),
+    listCraftOrders(),
     getTranslations('adminCraft'),
   ])
 
@@ -95,6 +98,8 @@ export default async function AdminCraftPage({
       />
 
       <AdminCraftStatsPanel mode={statsMode} preservedParams={preservedForStats} />
+
+      <AdminCraftOrdersPanel initialOrders={orders} />
 
       <AdminCraftTasksList initialTasks={tasks} />
     </div>

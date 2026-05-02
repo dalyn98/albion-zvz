@@ -1,0 +1,576 @@
+'use server'
+
+// Guild orders — 관리자가 임의 아이템을 발주하면 길드원이 일부 수량을 수주해
+// 직접 제작·납품, 관리자 승인 시 길드 재고 입고 + 수주자에게 포인트 지급하는
+// 흐름. craft.ts (regear-craft 흐름) 와 같은 craft_tasks 테이블을 공유하지만
+// task_kind='guild_order' 로 구분된다. 박스 번호 네임스페이스도 공유.
+
+import { revalidatePath } from 'next/cache'
+import { getTranslations } from 'next-intl/server'
+import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
+import { requireAdmin } from '@/lib/auth'
+import { getAdminClient } from '@/lib/supabase-admin'
+import { sendDiscordDmToUser } from '@/lib/discord-dm'
+
+// ────────────────────────────────────────────────────────────
+// Types
+// ────────────────────────────────────────────────────────────
+
+export type CraftOrderStatus = 'open' | 'closed' | 'cancelled'
+
+export type CraftOrderTaskStatus =
+  | 'claimed'
+  | 'delivered'
+  | 'approved'
+  | 'rejected'
+  | 'cancelled'
+
+export interface CraftOrderRow {
+  id: string
+  itemId: string
+  itemName: string | null
+  quantity: number
+  fulfilledQuantity: number
+  claimedQuantity: number
+  unitPriceSilver: number
+  notes: string | null
+  status: CraftOrderStatus
+  postedByDiscordId: string
+  postedByUsername: string | null
+  createdAt: string
+  closedAt: string | null
+  cancelledAt: string | null
+}
+
+export interface CraftOrderTaskRow {
+  taskId: string
+  orderId: string
+  status: CraftOrderTaskStatus
+  crafterDiscordId: string
+  crafterUsername: string | null
+  orderQuantity: number
+  boxNumber: number | null
+  craftCity: string | null
+  craftFocusUsed: boolean
+  reimbursementSilver: number | null
+  claimedAt: string | null
+  deliveredAt: string | null
+  collectedAt: string | null
+  cancelledAt: string | null
+}
+
+export interface CraftOrderWithTasks {
+  order: CraftOrderRow
+  tasks: CraftOrderTaskRow[]
+}
+
+interface RawOrderRow {
+  id: string
+  item_id: string
+  item_name: string | null
+  quantity: number
+  unit_price_silver: number | string
+  notes: string | null
+  status: string
+  posted_by_discord_id: string
+  posted_by_username: string | null
+  created_at: string
+  closed_at: string | null
+  cancelled_at: string | null
+}
+
+interface RawTaskRow {
+  id: string
+  craft_order_id: string
+  status: string
+  crafter_discord_id: string
+  crafter_username: string | null
+  order_quantity: number
+  box_number: number | null
+  craft_city: string | null
+  craft_focus_used: boolean
+  reimbursement_silver: number | string | null
+  claimed_at: string | null
+  delivered_at: string | null
+  collected_at: string | null
+  cancelled_at: string | null
+}
+
+function toBigintNumber(value: number | string | null): number {
+  if (value === null) return 0
+  if (typeof value === 'number') return value
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function mapOrder(row: RawOrderRow, tasks: RawTaskRow[]): CraftOrderRow {
+  const claimedQuantity = tasks
+    .filter(t => t.status === 'claimed' || t.status === 'delivered' || t.status === 'approved')
+    .reduce((acc, t) => acc + t.order_quantity, 0)
+  const fulfilledQuantity = tasks
+    .filter(t => t.status === 'approved')
+    .reduce((acc, t) => acc + t.order_quantity, 0)
+  return {
+    id: row.id,
+    itemId: row.item_id,
+    itemName: row.item_name,
+    quantity: row.quantity,
+    fulfilledQuantity,
+    claimedQuantity,
+    unitPriceSilver: toBigintNumber(row.unit_price_silver),
+    notes: row.notes,
+    status: (row.status as CraftOrderStatus),
+    postedByDiscordId: row.posted_by_discord_id,
+    postedByUsername: row.posted_by_username,
+    createdAt: row.created_at,
+    closedAt: row.closed_at,
+    cancelledAt: row.cancelled_at,
+  }
+}
+
+function mapTask(row: RawTaskRow): CraftOrderTaskRow {
+  return {
+    taskId: row.id,
+    orderId: row.craft_order_id,
+    status: row.status as CraftOrderTaskStatus,
+    crafterDiscordId: row.crafter_discord_id,
+    crafterUsername: row.crafter_username,
+    orderQuantity: row.order_quantity,
+    boxNumber: row.box_number,
+    craftCity: row.craft_city,
+    craftFocusUsed: row.craft_focus_used,
+    reimbursementSilver:
+      row.reimbursement_silver !== null ? toBigintNumber(row.reimbursement_silver) : null,
+    claimedAt: row.claimed_at,
+    deliveredAt: row.delivered_at,
+    collectedAt: row.collected_at,
+    cancelledAt: row.cancelled_at,
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// Reads
+// ────────────────────────────────────────────────────────────
+
+export async function listCraftOrders(): Promise<{
+  orders: CraftOrderWithTasks[]
+  error?: string
+}> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { orders: [], error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+    const db = getAdminClient()
+
+    const { data: orderRows, error: orderError } = await db
+      .from('craft_orders')
+      .select(
+        'id, item_id, item_name, quantity, unit_price_silver, notes, status, posted_by_discord_id, posted_by_username, created_at, closed_at, cancelled_at',
+      )
+      .eq('guild_id', guildId)
+      .order('created_at', { ascending: false })
+      .limit(200)
+
+    if (orderError) return { orders: [], error: orderError.message }
+    const orders = (orderRows ?? []) as RawOrderRow[]
+    if (orders.length === 0) return { orders: [] }
+
+    const orderIds = orders.map(o => o.id)
+    const { data: taskRows, error: taskError } = await db
+      .from('craft_tasks')
+      .select(
+        'id, craft_order_id, status, crafter_discord_id, crafter_username, order_quantity, box_number, craft_city, craft_focus_used, reimbursement_silver, claimed_at, delivered_at, collected_at, cancelled_at',
+      )
+      .eq('guild_id', guildId)
+      .eq('task_kind', 'guild_order')
+      .in('craft_order_id', orderIds)
+
+    if (taskError) return { orders: [], error: taskError.message }
+    const allTasks = ((taskRows ?? []) as RawTaskRow[])
+
+    const tasksByOrder = new Map<string, RawTaskRow[]>()
+    for (const t of allTasks) {
+      const list = tasksByOrder.get(t.craft_order_id) ?? []
+      list.push(t)
+      tasksByOrder.set(t.craft_order_id, list)
+    }
+
+    const result = orders.map(o => {
+      const taskList = tasksByOrder.get(o.id) ?? []
+      return {
+        order: mapOrder(o, taskList),
+        tasks: taskList
+          .sort((a, b) => (a.claimed_at ?? '').localeCompare(b.claimed_at ?? ''))
+          .map(mapTask),
+      }
+    })
+    return { orders: result }
+  } catch (e) {
+    return { orders: [], error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function listOpenCraftOrdersForMember(): Promise<{
+  orders: CraftOrderWithTasks[]
+  error?: string
+}> {
+  const { orders, error } = await listCraftOrders()
+  if (error) return { orders: [], error }
+  return { orders: orders.filter(o => o.order.status === 'open') }
+}
+
+// ────────────────────────────────────────────────────────────
+// Admin — post / cancel / approve / reject
+// ────────────────────────────────────────────────────────────
+
+export interface PostCraftOrderInput {
+  itemId: string
+  itemName: string | null
+  quantity: number
+  unitPriceSilver: number
+  notes: string | null
+}
+
+export async function postCraftOrderAdmin(
+  input: PostCraftOrderInput,
+): Promise<{ orderId?: string; error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+
+    const trimmedId = input.itemId?.trim() ?? ''
+    if (!trimmedId) return { error: tErr('craftOrderItemRequired') }
+    if (!Number.isInteger(input.quantity) || input.quantity < 1) {
+      return { error: tErr('craftOrderQuantityInvalid') }
+    }
+    if (!Number.isFinite(input.unitPriceSilver) || input.unitPriceSilver < 0) {
+      return { error: tErr('craftOrderPriceInvalid') }
+    }
+
+    const { data, error } = await db.rpc('post_craft_order', {
+      p_guild_id: guildId,
+      p_actor_discord_id: session.discordId,
+      p_actor_username: session.username,
+      p_item_id: trimmedId,
+      p_item_name: input.itemName?.trim() || null,
+      p_quantity: input.quantity,
+      p_unit_price_silver: input.unitPriceSilver,
+      p_notes: input.notes?.trim() || null,
+    })
+    if (error) return { error: error.message }
+    revalidatePath('/admin/dashboard/craft')
+    revalidatePath('/craft/orders')
+    return { orderId: data as string }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function cancelCraftOrderAdmin(orderId: string): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+
+    const { error } = await db.rpc('cancel_craft_order', {
+      p_order_id: orderId,
+      p_guild_id: guildId,
+      p_admin_discord_id: session.discordId,
+    })
+    if (error) {
+      if (error.message.includes('CRAFT_ORDER_NOT_FOUND')) {
+        return { error: tErr('craftOrderNotFound') }
+      }
+      if (error.message.includes('CRAFT_ORDER_NOT_OPEN')) {
+        return { error: tErr('craftOrderNotOpen') }
+      }
+      return { error: error.message }
+    }
+    revalidatePath('/admin/dashboard/craft')
+    revalidatePath('/craft/orders')
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function approveCraftOrderTaskAdmin(
+  taskId: string,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  const tDm = await getTranslations('discordDm')
+  try {
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+
+    // DM 위해 task 미리 조회 (수주자 + 단가 + 수량)
+    const { data: task } = await db
+      .from('craft_tasks')
+      .select(
+        'crafter_discord_id, order_quantity, craft_order_id, craft_orders!inner(item_name, item_id, unit_price_silver)',
+      )
+      .eq('guild_id', guildId)
+      .eq('id', taskId)
+      .maybeSingle()
+
+    const { error } = await db.rpc('approve_craft_order_task', {
+      p_task_id: taskId,
+      p_guild_id: guildId,
+      p_admin_discord_id: session.discordId,
+    })
+    if (error) {
+      if (error.message.includes('CRAFT_TASK_NOT_FOUND')) {
+        return { error: tErr('craftTaskNotFound') }
+      }
+      if (error.message.includes('CRAFT_TASK_NOT_DELIVERED')) {
+        return { error: tErr('craftTaskNotDeliverable') }
+      }
+      if (error.message.includes('CRAFT_TASK_NOT_GUILD_ORDER')) {
+        return { error: tErr('craftTaskKindMismatch') }
+      }
+      return { error: error.message }
+    }
+
+    if (task?.crafter_discord_id) {
+      const order = Array.isArray(task.craft_orders)
+        ? task.craft_orders[0]
+        : task.craft_orders
+      const payout =
+        order && typeof order.unit_price_silver !== 'undefined'
+          ? Number(order.unit_price_silver) * Number(task.order_quantity ?? 0)
+          : 0
+      const itemLabel = order?.item_name ?? order?.item_id ?? ''
+      void sendDiscordDmToUser(task.crafter_discord_id as string, guildId, {
+        title: tDm('craftOrderApprovedTitle'),
+        body: tDm('craftOrderApprovedBody', {
+          item: itemLabel,
+          quantity: String(task.order_quantity ?? 0),
+          silver: String(payout),
+        }),
+        url: '/me',
+      })
+    }
+
+    revalidatePath('/admin/dashboard/craft')
+    revalidatePath('/craft/orders')
+    revalidatePath('/me')
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function rejectCraftOrderTaskAdmin(
+  taskId: string,
+  reason: string,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  const tDm = await getTranslations('discordDm')
+  try {
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+
+    const { data: task } = await db
+      .from('craft_tasks')
+      .select(
+        'crafter_discord_id, craft_orders!inner(item_name, item_id)',
+      )
+      .eq('guild_id', guildId)
+      .eq('id', taskId)
+      .maybeSingle()
+
+    const { error } = await db.rpc('reject_craft_order_task', {
+      p_task_id: taskId,
+      p_guild_id: guildId,
+      p_admin_discord_id: session.discordId,
+      p_reason: reason?.trim() || null,
+    })
+    if (error) {
+      if (error.message.includes('CRAFT_TASK_NOT_FOUND')) {
+        return { error: tErr('craftTaskNotFound') }
+      }
+      if (error.message.includes('CRAFT_TASK_NOT_DELIVERED')) {
+        return { error: tErr('craftTaskNotDeliverable') }
+      }
+      if (error.message.includes('CRAFT_TASK_NOT_GUILD_ORDER')) {
+        return { error: tErr('craftTaskKindMismatch') }
+      }
+      return { error: error.message }
+    }
+
+    if (task?.crafter_discord_id) {
+      const order = Array.isArray(task.craft_orders)
+        ? task.craft_orders[0]
+        : task.craft_orders
+      const itemLabel = order?.item_name ?? order?.item_id ?? ''
+      void sendDiscordDmToUser(task.crafter_discord_id as string, guildId, {
+        title: tDm('craftOrderRejectedTitle'),
+        body: tDm('craftOrderRejectedBody', {
+          item: itemLabel,
+          reason: reason?.trim() || '-',
+        }),
+        url: '/craft/orders',
+      })
+    }
+
+    revalidatePath('/admin/dashboard/craft')
+    revalidatePath('/craft/orders')
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// Member — claim / release / deliver
+// ────────────────────────────────────────────────────────────
+
+export interface ClaimCraftOrderInput {
+  orderId: string
+  quantity: number
+}
+
+export async function claimCraftOrder(
+  input: ClaimCraftOrderInput,
+): Promise<{ taskId?: string; error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+    const db = getAdminClient()
+
+    if (!Number.isInteger(input.quantity) || input.quantity < 1) {
+      return { error: tErr('craftOrderQuantityInvalid') }
+    }
+
+    const { data, error } = await db.rpc('claim_craft_order', {
+      p_order_id: input.orderId,
+      p_guild_id: guildId,
+      p_crafter_discord_id: session.discordId,
+      p_crafter_username: session.username,
+      p_quantity: input.quantity,
+    })
+    if (error) {
+      if (error.message.includes('CRAFT_ORDER_NOT_FOUND')) {
+        return { error: tErr('craftOrderNotFound') }
+      }
+      if (error.message.includes('CRAFT_ORDER_NOT_OPEN')) {
+        return { error: tErr('craftOrderNotOpen') }
+      }
+      if (error.message.includes('CRAFT_ORDER_OVERSUBSCRIBED')) {
+        return { error: tErr('craftOrderOversubscribed') }
+      }
+      return { error: error.message }
+    }
+    revalidatePath('/craft/orders')
+    revalidatePath('/admin/dashboard/craft')
+    return { taskId: data as string }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function releaseCraftOrderTask(
+  taskId: string,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+    const db = getAdminClient()
+
+    const { error } = await db.rpc('release_craft_order_task', {
+      p_task_id: taskId,
+      p_guild_id: guildId,
+      p_crafter_discord_id: session.discordId,
+    })
+    if (error) {
+      if (error.message.includes('CRAFT_TASK_RELEASE_FAILED')) {
+        return { error: tErr('craftTaskReleaseFailed') }
+      }
+      return { error: error.message }
+    }
+    revalidatePath('/craft/orders')
+    revalidatePath('/admin/dashboard/craft')
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export interface DeliverCraftOrderInput {
+  taskId: string
+  boxNumber: number
+  craftCity: string
+  craftFocusUsed: boolean
+}
+
+export async function deliverCraftOrderTask(
+  input: DeliverCraftOrderInput,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+    const db = getAdminClient()
+
+    if (!Number.isInteger(input.boxNumber) || input.boxNumber < 1) {
+      return { error: tErr('craftBoxOutOfRange') }
+    }
+
+    const expirySetting = await db
+      .from('app_settings')
+      .select('value')
+      .eq('guild_id', guildId)
+      .eq('key', 'craft_box_expiry_days')
+      .maybeSingle()
+    const expiryDays = (() => {
+      const raw = expirySetting.data?.value
+      const parsed = typeof raw === 'string' ? Number.parseInt(raw, 10) : NaN
+      return Number.isInteger(parsed) && parsed >= 1 && parsed <= 30 ? parsed : 7
+    })()
+
+    const { error } = await db.rpc('deliver_craft_order_task', {
+      p_task_id: input.taskId,
+      p_guild_id: guildId,
+      p_crafter_discord_id: session.discordId,
+      p_box_number: input.boxNumber,
+      p_craft_city: input.craftCity?.trim() || null,
+      p_craft_focus_used: input.craftFocusUsed === true,
+      p_expiry_days: expiryDays,
+    })
+    if (error) {
+      if (error.message.includes('BOX_OUT_OF_RANGE')) {
+        return { error: tErr('craftBoxOutOfRange') }
+      }
+      if (error.message.includes('CRAFT_TASK_DELIVER_FAILED')) {
+        return { error: tErr('craftTaskDeliverFailed') }
+      }
+      // 박스 unique 충돌 (이미 점유)
+      if (error.message.includes('craft_tasks_box_unique_delivered')) {
+        return { error: tErr('craftBoxAlreadyTaken') }
+      }
+      return { error: error.message }
+    }
+    revalidatePath('/craft/orders')
+    revalidatePath('/admin/dashboard/craft')
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+

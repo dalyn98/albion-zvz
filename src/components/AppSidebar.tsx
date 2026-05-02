@@ -29,6 +29,7 @@ import {
   Hammer,
   Sparkles,
   Home,
+  ClipboardList,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -72,6 +73,7 @@ const MEMBER_NAV: NavItem[] = [
   { href: '/regear', labelKey: 'regearRequest', icon: ShieldCheck, memberOnly: true, section: 'regear' },
   { href: '/craft/queue', labelKey: 'craftQueue', icon: Hammer, memberOnly: true, crafterOnly: true, section: 'regear' },
   { href: '/craft/my-tasks', labelKey: 'craftMyTasks', icon: Box, memberOnly: true, crafterOnly: true, section: 'regear' },
+  { href: '/craft/orders', labelKey: 'craftOrders', icon: ClipboardList, memberOnly: true, section: 'regear' },
   // 커뮤니티
   { href: '/shop', labelKey: 'shop', icon: ShoppingBag, section: 'community' },
   { href: '/members', labelKey: 'members', icon: Users, section: 'community' },
