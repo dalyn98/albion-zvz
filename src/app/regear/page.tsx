@@ -174,6 +174,7 @@ export default async function RegearPage() {
                         maxDeaths={limits.maxDeaths}
                         payoutRatePercent={payoutRatePercent}
                         windowOpenAt={event.window_open_at}
+                        windowMinutes={limits.windowMinutes}
                         craftEnabled={craftEnabled}
                         overchargeEnabled={overchargeEnabled}
                       />

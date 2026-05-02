@@ -121,9 +121,10 @@ export interface RegearEligibleEvent {
   // When set, the page renders a read-only "auto submitted" card variant —
   // members aren't expected to file a manual claim on top of an auto pending.
   auto_request_id: string | null
-  // ISO 시각: 이 시점 이후로 신청 가능. 매칭된 tracked battle 의 가장 늦은
-  // ended_at + windowMinutes 으로 계산 (정확). 매칭이 0건이면 battle_started_at
-  // + windowMinutes 으로 폴백 (솔로 갱크/sync 지연 케이스 — 약간 빠를 수 있음).
+  // ISO 시각: 이 시점 이후로 신청 가능. 규칙은 min(battle_started_at +
+  // windowMinutes, latest matched ended_at) — 즉 전투 시작 후 windowMinutes 가
+  // 지나거나 전투가 종료되는 시점 둘 중 빠른 쪽. 매칭이 0건이면 start +
+  // windowMinutes 으로 폴백.
   window_open_at: string
 }
 
@@ -284,9 +285,8 @@ async function requestRegearInner(
   }
   const battleStartMs = new Date(event.battle_started_at).getTime()
   // tenant_battle_records 쿼리가 일시 실패해도 신청 자체가 throw 되지 않도록
-  // 폴백: 매칭이 없으면 battle_started_at 을 anchor 로 쓴다 (정확도 약간 손해
-  // 하지만 사용자 신청이 막히는 것보다 낫다). cron 측 (auto-regear.ts) 은
-  // 별도 try/catch 없이 throw 그대로 유지.
+  // 폴백: 매칭이 없으면 battle_started_at + windowMinutes 만 사용. cron 측
+  // (auto-regear.ts) 은 별도 try/catch 없이 throw 그대로 유지.
   let matchedBattles: Awaited<ReturnType<typeof findTrackedBattleIdsForEvent>> = []
   try {
     matchedBattles = await findTrackedBattleIdsForEvent(
@@ -301,8 +301,11 @@ async function requestRegearInner(
     const ms = Date.parse(b.endedAtIso)
     return Number.isFinite(ms) && ms > acc ? ms : acc
   }, 0)
-  const anchorMs = latestEndedMs > 0 ? latestEndedMs : battleStartMs
-  const windowOpenMs = anchorMs + windowMinutes * 60 * 1000
+  // 신청 오픈 규칙: 전투 시작 + windowMinutes (기본 60분) 이 지나거나, 매칭된
+  // 전투가 종료(ended_at 보유) 되면 즉시 오픈. 둘 중 빠른 시점.
+  const startPlusBufferMs = battleStartMs + windowMinutes * 60 * 1000
+  const windowOpenMs =
+    latestEndedMs > 0 ? Math.min(startPlusBufferMs, latestEndedMs) : startPlusBufferMs
   if (Date.now() < windowOpenMs) {
     return { error: tErr('regearWindowNotOpen', { minutes: windowMinutes }) }
   }
@@ -600,10 +603,10 @@ export async function listMyRegearEligibleEvents(): Promise<{
     }
   }
 
-  // 이벤트별 신청 오픈 시각 사전 계산. submission gate 와 동일한 anchor 규칙
-  // (matched ended_at 우선, 없으면 battle_started_at 폴백) 으로 클라이언트가
-  // 별도 로직 없이 바로 표시·비활성화 판단할 수 있게 한다. N 개 이벤트에 대해
-  // tenant_battle_records 쿼리가 N 번 발생하므로 Promise.all 로 병렬화.
+  // 이벤트별 신청 오픈 시각 사전 계산. submission gate 와 동일한 규칙:
+  // min(battle_started_at + windowMinutes, latest matched ended_at) — 즉
+  // 전투 시작 후 windowMinutes 가 지나거나 전투 종료 시 둘 중 빠른 시점.
+  // 매칭이 0건이면 start + windowMinutes 폴백.
   const { windowMinutes } = await loadRegearLimits(guildId)
   const windowMinutesMs = windowMinutes * 60 * 1000
   const eligibleEvents = events.filter((e) => eventToRole.has(e.id))
@@ -624,8 +627,10 @@ export async function listMyRegearEligibleEvents(): Promise<{
       const ms = Date.parse(b.endedAtIso)
       return Number.isFinite(ms) && ms > acc ? ms : acc
     }, 0)
-    const anchorMs = latestEndedMs > 0 ? latestEndedMs : battleStartMs
-    windowOpenByEvent.set(e.id, new Date(anchorMs + windowMinutesMs).toISOString())
+    const startPlusBufferMs = battleStartMs + windowMinutesMs
+    const windowOpenMs =
+      latestEndedMs > 0 ? Math.min(startPlusBufferMs, latestEndedMs) : startPlusBufferMs
+    windowOpenByEvent.set(e.id, new Date(windowOpenMs).toISOString())
   })
 
   const result: RegearEligibleEvent[] = eligibleEvents.map((e) => {

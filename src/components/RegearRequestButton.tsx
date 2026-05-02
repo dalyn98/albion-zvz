@@ -21,10 +21,14 @@ interface Props {
   // hint so the member isn't surprised when the credited amount differs from
   // their claim.
   payoutRatePercent: number
-  // ISO 시각: 신청 오픈 시점. 서버에서 매칭된 tracked battle 의 ended_at
-  // (없으면 battle_started_at 폴백) + windowMinutes 으로 사전 계산해서 박는다.
+  // ISO 시각: 신청 오픈 시점. 서버에서 min(battle_started_at + windowMinutes,
+  // matched ended_at) 으로 사전 계산해서 박는다 — 즉 전투 시작 후
+  // windowMinutes 가 지나거나 전투가 종료되면 그 시점 부터 신청 가능.
   // 이 시점 이전엔 button disabled + 모달에서 안내.
   windowOpenAt: string
+  // 길드 설정 regear_window_minutes (기본 60). UI 에 규칙 안내 ("전투 시작
+  // 후 {minutes}분 또는 전투 종료 시점 중 빠른 쪽") 표시에 사용.
+  windowMinutes: number
   // 길드 모드. true 면 모든 신규 요청이 'crafted' 로 강제, false 면 'silver'.
   // 멤버는 모드를 선택할 수 없고, UI 에는 안내 배너로만 표시된다.
   craftEnabled: boolean
@@ -77,6 +81,7 @@ export default function RegearRequestButton({
   maxDeaths,
   payoutRatePercent,
   windowOpenAt,
+  windowMinutes,
   craftEnabled,
   overchargeEnabled,
 }: Props) {
@@ -396,6 +401,9 @@ export default function RegearRequestButton({
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">{t('windowOpensAt')}</span>
                   <span className="text-gray-200 font-mono text-xs">{formatWindowOpen(windowOpenAt)}</span>
+                </div>
+                <div className="text-[11px] text-gray-500 leading-snug">
+                  {t('windowRule', { minutes: windowMinutes })}
                 </div>
                 {maxDeaths > 1 && (
                   <div className="flex items-center justify-between">
