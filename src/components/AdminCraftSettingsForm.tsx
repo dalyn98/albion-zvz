@@ -11,9 +11,9 @@ interface Props {
   initial: CraftBoxConfig
 }
 
-// craft_regear_enabled 토글 + 보관함 번호 범위 + 작업 만료 일수 + 포커스 보너스
-// (%). 모든 필드는 app_settings 에 한 번에 upsert. validation 은 DB 와 server
-// action 양쪽이 한 번 더 검사한다.
+// craft_regear_enabled 토글 + 보관함 번호 범위 + 작업 만료 일수. 모든 필드는
+// app_settings 에 한 번에 upsert. validation 은 DB 와 server action 양쪽이
+// 한 번 더 검사한다.
 export default function AdminCraftSettingsForm({ initial }: Props) {
   const t = useTranslations('adminCraft')
   const toast = useToast()
@@ -22,14 +22,12 @@ export default function AdminCraftSettingsForm({ initial }: Props) {
   const [rangeMin, setRangeMin] = useState(String(initial.rangeMin))
   const [rangeMax, setRangeMax] = useState(String(initial.rangeMax))
   const [expiryDays, setExpiryDays] = useState(String(initial.expiryDays))
-  const [focusBonusPct, setFocusBonusPct] = useState(String(initial.focusBonusPct))
   const [pending, startTransition] = useTransition()
 
   const submit = () => {
     const min = Number(rangeMin)
     const max = Number(rangeMax)
     const expiry = Number(expiryDays)
-    const focus = Number(focusBonusPct)
     if (
       !Number.isInteger(min) ||
       !Number.isInteger(max) ||
@@ -44,17 +42,12 @@ export default function AdminCraftSettingsForm({ initial }: Props) {
       toast.error(t('errExpiry'))
       return
     }
-    if (!Number.isInteger(focus) || focus < 0 || focus > 200) {
-      toast.error(t('errFocus'))
-      return
-    }
     startTransition(async () => {
       const r = await updateCraftSettingsAdmin({
         enabled,
         rangeMin: min,
         rangeMax: max,
         expiryDays: expiry,
-        focusBonusPct: focus,
       })
       if (r.error) {
         toast.error(r.error)
@@ -126,20 +119,6 @@ export default function AdminCraftSettingsForm({ initial }: Props) {
             className="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
           />
           <p className="text-[10px] text-gray-500 mt-1">{t('expiryDaysHint')}</p>
-        </div>
-        <div>
-          <label className="block text-[11px] text-gray-400 mb-1">{t('focusBonusLabel')}</label>
-          <input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            max={200}
-            value={focusBonusPct}
-            onChange={(e) => setFocusBonusPct(e.target.value)}
-            disabled={pending}
-            className="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
-          />
-          <p className="text-[10px] text-gray-500 mt-1">{t('focusBonusHint')}</p>
         </div>
       </div>
 

@@ -21,7 +21,6 @@ export interface CraftTaskRow {
   crafter_username: string | null
   box_number: number | null
   craft_city: string | null
-  craft_focus_used: boolean
   material_silver_cost: number | null
   premium_silver: number
   reimbursement_silver: number | null

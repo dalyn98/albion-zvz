@@ -378,7 +378,6 @@ function OrderCard({
                 <p className="mt-1 text-[11px] text-gray-500">
                   {task.boxNumber !== null ? `Box #${task.boxNumber}` : ''}
                   {task.craftCity ? ` · ${task.craftCity}` : ''}
-                  {task.craftFocusUsed ? ' · focus' : ''}
                 </p>
               )}
               {task.status === 'delivered' && (

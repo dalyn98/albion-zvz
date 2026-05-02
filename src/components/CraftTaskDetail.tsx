@@ -577,7 +577,6 @@ function DeliveredSummary({ task }: { task: CraftQueueTaskDetail['task'] }) {
           {t('boxLabel', { n: task.boxNumber ?? 0 })}
         </span>
         {task.craftCity && <span className="text-gray-300">{task.craftCity}</span>}
-        {task.craftFocusUsed && <span className="text-amber-300 text-xs">{t('detailFocusUsed')}</span>}
       </div>
       {task.materialSilverCost != null && (
         <p className="text-xs text-gray-400 font-mono">

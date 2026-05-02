@@ -147,7 +147,6 @@ function MyTaskRow({
   const [pending, startTransition] = useTransition()
   const [boxNumber, setBoxNumber] = useState('')
   const [craftCity, setCraftCity] = useState('')
-  const [craftFocusUsed, setCraftFocusUsed] = useState(false)
 
   const release = () => {
     startTransition(async () => {
@@ -172,7 +171,6 @@ function MyTaskRow({
         taskId: task.taskId,
         boxNumber: box,
         craftCity: craftCity.trim(),
-        craftFocusUsed,
       })
       if (res.error) {
         toast.error(res.error)
@@ -198,7 +196,7 @@ function MyTaskRow({
 
       {task.status === 'claimed' && (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <label>
               <span className="block mb-1">{t('boxNumberLabel')}</span>
               <input
@@ -216,14 +214,6 @@ function MyTaskRow({
                 onChange={(e) => setCraftCity(e.target.value)}
                 className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-white"
               />
-            </label>
-            <label className="flex items-center gap-2 mt-4 sm:mt-0 sm:self-end">
-              <input
-                type="checkbox"
-                checked={craftFocusUsed}
-                onChange={(e) => setCraftFocusUsed(e.target.checked)}
-              />
-              <span>{t('craftFocusLabel')}</span>
             </label>
           </div>
           <div className="flex flex-wrap gap-2">

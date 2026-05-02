@@ -52,7 +52,6 @@ export interface CraftOrderTaskRow {
   orderQuantity: number
   boxNumber: number | null
   craftCity: string | null
-  craftFocusUsed: boolean
   reimbursementSilver: number | null
   claimedAt: string | null
   deliveredAt: string | null
@@ -89,7 +88,6 @@ interface RawTaskRow {
   order_quantity: number
   box_number: number | null
   craft_city: string | null
-  craft_focus_used: boolean
   reimbursement_silver: number | string | null
   claimed_at: string | null
   delivered_at: string | null
@@ -139,7 +137,6 @@ function mapTask(row: RawTaskRow): CraftOrderTaskRow {
     orderQuantity: row.order_quantity,
     boxNumber: row.box_number,
     craftCity: row.craft_city,
-    craftFocusUsed: row.craft_focus_used,
     reimbursementSilver:
       row.reimbursement_silver !== null ? toBigintNumber(row.reimbursement_silver) : null,
     claimedAt: row.claimed_at,
@@ -181,7 +178,7 @@ export async function listCraftOrders(): Promise<{
     const { data: taskRows, error: taskError } = await db
       .from('craft_tasks')
       .select(
-        'id, craft_order_id, status, crafter_discord_id, crafter_username, order_quantity, box_number, craft_city, craft_focus_used, reimbursement_silver, claimed_at, delivered_at, collected_at, cancelled_at',
+        'id, craft_order_id, status, crafter_discord_id, crafter_username, order_quantity, box_number, craft_city, reimbursement_silver, claimed_at, delivered_at, collected_at, cancelled_at',
       )
       .eq('guild_id', guildId)
       .eq('task_kind', 'guild_order')
@@ -515,7 +512,6 @@ export interface DeliverCraftOrderInput {
   taskId: string
   boxNumber: number
   craftCity: string
-  craftFocusUsed: boolean
 }
 
 export async function deliverCraftOrderTask(
@@ -550,7 +546,7 @@ export async function deliverCraftOrderTask(
       p_crafter_discord_id: session.discordId,
       p_box_number: input.boxNumber,
       p_craft_city: input.craftCity?.trim() || null,
-      p_craft_focus_used: input.craftFocusUsed === true,
+      p_craft_focus_used: false,
       p_expiry_days: expiryDays,
     })
     if (error) {

@@ -86,7 +86,6 @@ export interface CraftQueueItem {
   // Filled in at delivery time
   boxNumber: number | null
   craftCity: string | null
-  craftFocusUsed: boolean
   materialSilverCost: number | null
   premiumSilver: number
   reimbursementSilver: number | null
@@ -109,7 +108,6 @@ export interface CraftBoxConfig {
   rangeMin: number
   rangeMax: number
   expiryDays: number
-  focusBonusPct: number
   enabled: boolean
 }
 
@@ -167,7 +165,6 @@ function toQueueItem(
     crafterUsername: row.crafter_username,
     boxNumber: row.box_number,
     craftCity: row.craft_city,
-    craftFocusUsed: row.craft_focus_used,
     materialSilverCost: row.material_silver_cost,
     premiumSilver: row.premium_silver,
     reimbursementSilver: row.reimbursement_silver,
@@ -200,22 +197,20 @@ export async function getCraftConfig(): Promise<CraftBoxConfig> {
   const session = await getSession()
   // Defaults match the migration's documented defaults.
   if (!session) {
-    return { rangeMin: 1, rangeMax: 30, expiryDays: 7, focusBonusPct: 35, enabled: false }
+    return { rangeMin: 1, rangeMax: 30, expiryDays: 7, enabled: false }
   }
   const guildId = await getSessionGuildId(session)
-  const [enabledRaw, minRaw, maxRaw, expiryRaw, focusRaw] = await Promise.all([
+  const [enabledRaw, minRaw, maxRaw, expiryRaw] = await Promise.all([
     getAppSetting('craft_regear_enabled', 'false', guildId),
     getAppSetting('craft_box_range_min', '1', guildId),
     getAppSetting('craft_box_range_max', '30', guildId),
     getAppSetting('craft_box_expiry_days', '7', guildId),
-    getAppSetting('craft_focus_bonus_pct', '35', guildId),
   ])
   return {
     enabled: enabledRaw === 'true',
     rangeMin: parseIntegerSetting(minRaw, 1, 1, 999),
     rangeMax: parseIntegerSetting(maxRaw, 30, 1, 999),
     expiryDays: parseIntegerSetting(expiryRaw, 7, 1, 30),
-    focusBonusPct: parseIntegerSetting(focusRaw, 35, 0, 200),
   }
 }
 
@@ -349,7 +344,7 @@ export async function listCraftQueueForCrafter(): Promise<{
   const { data, error } = await db
     .from('craft_tasks')
     .select(
-      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, craft_focus_used, material_silver_cost, premium_silver, reimbursement_silver, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot)',
+      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot)',
     )
     .eq('guild_id', guildId)
     .in('status', ['queued', 'claimed', 'delivered'])
@@ -456,7 +451,7 @@ export async function getCraftQueueTaskDetail(
   const { data, error } = await db
     .from('craft_tasks')
     .select(
-      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, craft_focus_used, material_silver_cost, premium_silver, reimbursement_silver, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_title_snapshot, claimed_silver, build_snapshot, event_id)',
+      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_title_snapshot, claimed_silver, build_snapshot, event_id)',
     )
     .eq('guild_id', guildId)
     .eq('id', taskId)
@@ -1101,7 +1096,7 @@ export async function listAllCraftTasksAdmin(
     let query = db
       .from('craft_tasks')
       .select(
-        'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, craft_focus_used, material_silver_cost, premium_silver, reimbursement_silver, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot)',
+        'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot)',
       )
       .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
@@ -1281,7 +1276,6 @@ export interface UpdateCraftSettingsInput {
   rangeMin: number
   rangeMax: number
   expiryDays: number
-  focusBonusPct: number
 }
 
 export async function updateCraftSettingsAdmin(
@@ -1310,20 +1304,12 @@ export async function updateCraftSettingsAdmin(
     ) {
       return { error: tErr('craftExpiryInvalid') }
     }
-    if (
-      !Number.isInteger(input.focusBonusPct) ||
-      input.focusBonusPct < 0 ||
-      input.focusBonusPct > 200
-    ) {
-      return { error: tErr('craftFocusBonusInvalid') }
-    }
 
     const rows = [
       { key: 'craft_regear_enabled', value: input.enabled ? 'true' : 'false' },
       { key: 'craft_box_range_min', value: String(input.rangeMin) },
       { key: 'craft_box_range_max', value: String(input.rangeMax) },
       { key: 'craft_box_expiry_days', value: String(input.expiryDays) },
-      { key: 'craft_focus_bonus_pct', value: String(input.focusBonusPct) },
     ].map((r) => ({ ...r, guild_id: guildId, updated_at: new Date().toISOString() }))
 
     const { error } = await db
