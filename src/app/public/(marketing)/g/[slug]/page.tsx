@@ -103,7 +103,19 @@ export async function generateMetadata({
   const { slug } = await params
   const tenant = await resolveTenantBySlug(slug)
   if (!tenant) return { title: '404' }
-  const displayName = await resolveAlbionDisplayName(tenant.tenantId, tenant.slug, tenant.name)
+  const [displayName, settings] = await Promise.all([
+    resolveAlbionDisplayName(tenant.tenantId, tenant.slug, tenant.name),
+    loadGuildProfileSettings(tenant.tenantId),
+  ])
+  // 공개 프로필이 꺼진 길드 (가입자만 있고 페이지를 아직 켜지 않은 상태) 는
+  // 슬러그가 살아있어도 검색 인덱싱 대상이 아니다 — 어드민이 ON 한 후에만
+  // SEO surface 로 노출.
+  if (!settings.enabled) {
+    return {
+      title: `${displayName} — Albion Guild Manager`,
+      robots: { index: false, follow: false },
+    }
+  }
   return {
     title: `${displayName} — Albion Guild Manager`,
     description: `${displayName} 길드의 공개 프로필. 멤버, 전투기록, 모집 상태를 확인할 수 있습니다.`,
@@ -166,10 +178,18 @@ export default async function GuildProfilePage({
   const tenant = await resolveTenantBySlug(slug)
   if (!tenant) notFound()
 
-  const settings = await loadGuildProfileSettings(tenant.tenantId)
-  if (!settings.enabled) notFound()
+  const [settings, displayName] = await Promise.all([
+    loadGuildProfileSettings(tenant.tenantId),
+    resolveAlbionDisplayName(tenant.tenantId, tenant.slug, tenant.name),
+  ])
 
-  const displayName = await resolveAlbionDisplayName(tenant.tenantId, tenant.slug, tenant.name)
+  // 토글이 꺼져 있으면 404 대신 친화적인 "아직 활성화되지 않음" 안내 페이지를
+  // 띄운다 — 슬러그를 안 길드원이 처음 들어와 404 만 보고 떠나는 패턴을 막고,
+  // 어드민이라면 곧장 활성화 화면으로 이동할 수 있게 한다. 검색 인덱싱은
+  // generateMetadata 에서 noindex 처리.
+  if (!settings.enabled) {
+    return <DisabledStatePage displayName={displayName} />
+  }
 
   // 멤버 대시보드 섹션은 길드별 staged rollout 토글(`member_dashboard_enabled`)
   // 로 게이트한다. 'true' 인 길드만 본인 카드 + 비로그인 CTA 배너 노출. v1 은
@@ -1366,5 +1386,50 @@ function formatRatio(ratio: number): string {
   if (ratio >= 10) return ratio.toFixed(0)
   if (ratio >= 1) return ratio.toFixed(2)
   return ratio.toFixed(2)
+}
+
+// 공개 프로필 토글이 OFF 인 길드의 안내 화면. 어드민용 활성화 CTA 와 메인 링크
+// 두 개. 디자인 톤은 본 페이지 hero 의 amber 액센트를 그대로 빌려와 사이트
+// 안의 페이지라는 인상을 유지한다.
+async function DisabledStatePage({ displayName }: { displayName: string }) {
+  const t = await getTranslations('publicGuildProfile')
+  return (
+    <>
+      <MarketingNav />
+      <div className="min-h-screen bg-[#08090d] text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/15 via-orange-700/10 to-black pointer-events-none" />
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+        <div className="relative max-w-2xl mx-auto px-4 sm:px-6 py-24 sm:py-32 text-center space-y-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-500/15 ring-1 ring-amber-500/30">
+            <Globe size={28} className="text-amber-300" />
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight break-words">
+            {displayName}
+          </h1>
+          <p className="text-[10px] uppercase tracking-[0.25em] font-bold text-amber-300/90">
+            {t('disabledHeading')}
+          </p>
+          <p className="text-gray-300 text-sm sm:text-base leading-relaxed max-w-lg mx-auto">
+            {t('disabledBody')}
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+            <Link
+              href="/admin/dashboard/guild-profile"
+              className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-5 py-3 rounded-lg text-sm shadow-lg hover:shadow-2xl hover:-translate-y-0.5 transition-all"
+            >
+              {t('disabledAdminCta')}
+              <ExternalLink size={14} />
+            </Link>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 border border-gray-700 hover:border-gray-500 text-gray-200 font-semibold px-5 py-3 rounded-lg text-sm transition-colors"
+            >
+              {t('disabledHomeCta')}
+            </Link>
+          </div>
+        </div>
+      </div>
+    </>
+  )
 }
 
