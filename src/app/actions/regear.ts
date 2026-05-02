@@ -151,6 +151,20 @@ export async function getRegearLimits(): Promise<RegearLimits> {
 export async function requestRegear(
   formData: FormData,
 ): Promise<{ error?: string; id?: string }> {
+  try {
+    return await requestRegearInner(formData)
+  } catch (err) {
+    // /regear/error.tsx 가 뜨는 회귀 방지 — 예상 못한 throw 는 로그만 남기고
+    // 일반 에러 토스트로 전환. 발생 시 로그에서 진단 가능.
+    console.error('[requestRegear] unhandled error', err)
+    const tErr = await getTranslations('memberActionError')
+    return { error: tErr('serverError') }
+  }
+}
+
+async function requestRegearInner(
+  formData: FormData,
+): Promise<{ error?: string; id?: string }> {
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
@@ -269,11 +283,20 @@ export async function requestRegear(
     return { error: tErr('battleNotStarted') }
   }
   const battleStartMs = new Date(event.battle_started_at).getTime()
-  const matchedBattles = await findTrackedBattleIdsForEvent(
-    db,
-    guildId,
-    event.battle_started_at,
-  )
+  // tenant_battle_records 쿼리가 일시 실패해도 신청 자체가 throw 되지 않도록
+  // 폴백: 매칭이 없으면 battle_started_at 을 anchor 로 쓴다 (정확도 약간 손해
+  // 하지만 사용자 신청이 막히는 것보다 낫다). cron 측 (auto-regear.ts) 은
+  // 별도 try/catch 없이 throw 그대로 유지.
+  let matchedBattles: Awaited<ReturnType<typeof findTrackedBattleIdsForEvent>> = []
+  try {
+    matchedBattles = await findTrackedBattleIdsForEvent(
+      db,
+      guildId,
+      event.battle_started_at,
+    )
+  } catch (err) {
+    console.error('[requestRegear] findTrackedBattleIdsForEvent failed', err)
+  }
   const latestEndedMs = matchedBattles.reduce((acc, b) => {
     const ms = Date.parse(b.endedAtIso)
     return Number.isFinite(ms) && ms > acc ? ms : acc
