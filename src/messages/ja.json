@@ -1667,7 +1667,8 @@
     "features": "機能",
     "faq": "FAQ",
     "docs": "ドキュメント",
-    "install": "ボットを導入"
+    "install": "ボットを導入",
+    "myGuild": "マイギルド"
   },
   "docsNav": {
     "sectionGettingStarted": "はじめに",

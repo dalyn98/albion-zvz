@@ -1,8 +1,10 @@
 import Link from 'next/link'
-import { LogIn } from 'lucide-react'
+import { Home, LogIn } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getMarketingPaths } from '@/lib/marketing-paths'
+import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
+import { tenantUrl } from '@/lib/tenant-resolver'
 import MarketingLanguageSwitcher from './MarketingLanguageSwitcher'
 
 type NavKey = 'home' | 'docs'
@@ -21,6 +23,22 @@ export default async function MarketingNav({ active }: MarketingNavProps) {
     getSession(),
     getMarketingPaths(),
   ])
+
+  // 로그인 + 길드 멤버 컨텍스트가 있으면 본인 길드 홈으로 진입 버튼을 노출한다.
+  // canonical 호스트에서 보든 다른 테넌트 서브도메인에서 보든 tenantUrl 이 항상
+  // 본인 slug 의 절대 URL 로 hop 시켜 준다. 게스트 (eventScope only) 는 길드 멤버
+  // 가 아니므로 제외 — install 버튼은 어차피 가려진다.
+  let myGuildHref: string | null = null
+  if (session && (session.isMember || session.isAdmin)) {
+    try {
+      const tenantId = await getSessionGuildId(session)
+      const config = await getTenantDiscordConfig(tenantId)
+      if (config?.slug) myGuildHref = tenantUrl(config.slug, '/')
+    } catch {
+      myGuildHref = null
+    }
+  }
+
   const navItems: Array<{ href: string; key: NavKey }> = [
     { href: paths.home, key: 'home' },
     { href: paths.docs, key: 'docs' },
@@ -49,14 +67,24 @@ export default async function MarketingNav({ active }: MarketingNavProps) {
         </ul>
         <div className="flex items-center gap-2">
           <MarketingLanguageSwitcher />
-          {!session && (
+          {myGuildHref ? (
             <a
-              href="/api/auth/discord/start?returnTo=/onboard"
-              className="inline-flex items-center gap-1 bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-semibold px-3 py-1.5 rounded-md"
+              href={myGuildHref}
+              className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold px-3 py-1.5 rounded-md"
             >
-              <LogIn size={12} />
-              {t('install')}
+              <Home size={12} />
+              {t('myGuild')}
             </a>
+          ) : (
+            !session && (
+              <a
+                href="/api/auth/discord/start?returnTo=/onboard"
+                className="inline-flex items-center gap-1 bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-semibold px-3 py-1.5 rounded-md"
+              >
+                <LogIn size={12} />
+                {t('install')}
+              </a>
+            )
           )}
         </div>
       </div>

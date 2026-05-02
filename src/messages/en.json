@@ -1667,7 +1667,8 @@
     "features": "Features",
     "faq": "FAQ",
     "docs": "Docs",
-    "install": "Install bot"
+    "install": "Install bot",
+    "myGuild": "My guild"
   },
   "docsNav": {
     "sectionGettingStarted": "Getting Started",

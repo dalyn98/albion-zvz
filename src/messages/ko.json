@@ -1667,7 +1667,8 @@
     "features": "기능",
     "faq": "FAQ",
     "docs": "문서",
-    "install": "봇 설치"
+    "install": "봇 설치",
+    "myGuild": "내 길드"
   },
   "docsNav": {
     "sectionGettingStarted": "시작하기",
