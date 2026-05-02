@@ -12,7 +12,7 @@
 export interface CraftLocationPreset {
   // Stable id used in UI dropdowns + craft_tasks.craft_city.
   id: string
-  // i18n key under `craftRegear.location.{id}`.
+  // i18n key under `craftLocation.{i18nKey}`.
   i18nKey: string
   // Effective material return rate in percent (without focus). Crafters can
   // override at submit time if their actual location differs.

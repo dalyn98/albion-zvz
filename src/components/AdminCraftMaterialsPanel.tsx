@@ -40,7 +40,7 @@ export default async function AdminCraftMaterialsPanel({
     getTranslations('adminCraft'),
     getLocale(),
   ])
-  const tLoc = await getTranslations('craftRegear.location')
+  const tLoc = await getTranslations('craftLocation')
 
   const preset = locationId
     ? CRAFT_LOCATION_PRESETS.find((p) => p.id === locationId) ?? null
@@ -195,7 +195,7 @@ interface ReturnRateSelectorProps {
   focusBonusPct: number
   preservedParams: Record<string, string>
   t: Awaited<ReturnType<typeof getTranslations<'adminCraft'>>>
-  tLoc: Awaited<ReturnType<typeof getTranslations<'craftRegear.location'>>>
+  tLoc: Awaited<ReturnType<typeof getTranslations<'craftLocation'>>>
 }
 
 // 제작자가 자기 도시·포커스 입력. URL searchParams 로 sticky — 새로고침해도 유지.
