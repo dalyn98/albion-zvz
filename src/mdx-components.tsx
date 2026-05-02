@@ -4,6 +4,13 @@ import Link from 'next/link'
 // docs MDX 본문에 매핑되는 dark-theme 컴포넌트. tailwind typography 플러그인을
 // 쓰지 않고 직접 매핑한다 — 사이트 톤 (gray-900 배경, amber accent) 과 prose
 // 기본 광택이 안 맞고, 길이가 긴 docs 에서 폰트/여백을 정확히 컨트롤하기 위함.
+
+// next.config.ts 에서 외부 도메인으로 308 redirect 되는 path 들. Next <Link>
+// 가 hover 시 RSC prefetch 를 보내면 redirect → discord.com preflight 가
+// 콘솔에 CORS 에러로 박힌다. 같은 색/텍스트지만 plain <a target="_blank"> 로
+// 렌더해 prefetch 를 막는다.
+const REDIRECT_TO_EXTERNAL = new Set(['/invite'])
+
 const components: MDXComponents = {
   h1: ({ children }) => (
     <h1 className="text-2xl sm:text-3xl font-bold text-white mt-8 mb-4 pb-2 border-b border-gray-800">
@@ -29,7 +36,8 @@ const components: MDXComponents = {
   li: ({ children }) => <li className="leading-relaxed">{children}</li>,
   a: ({ href, children }) => {
     const isExternal = typeof href === 'string' && /^https?:\/\//.test(href)
-    if (isExternal) {
+    const redirectsExternal = typeof href === 'string' && REDIRECT_TO_EXTERNAL.has(href)
+    if (isExternal || redirectsExternal) {
       return (
         <a
           href={href}

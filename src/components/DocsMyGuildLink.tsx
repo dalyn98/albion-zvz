@@ -5,6 +5,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getMarketingPaths } from '@/lib/marketing-paths'
+import { resolveAlbionDisplayName } from '@/lib/albion-display-name'
 
 // 문서 홈에서 "내 길드 페이지" 로 바로 이동하는 배너. 로그인 + 길드 멤버 인 경우에만
 // 노출 (비로그인/길드 미연결 사용자에게는 의미 없는 경로). 슬러그는 tenants 테이블
@@ -13,6 +14,10 @@ import { getMarketingPaths } from '@/lib/marketing-paths'
 //
 // 호스트별 path 차이는 getMarketingPaths(guildPage) 가 흡수: canonical 도메인이면
 // `/g/<slug>`, 테넌트 서브도메인/preview 면 `/public/g/<slug>` 로 조합된다.
+//
+// 표시 이름은 resolveAlbionDisplayName 으로 — `/g/<slug>` 페이지와 동일한 우선순위
+// (albion_home_guild_name → slug → Discord 폴백). Discord 길드명을 그대로 쓰면
+// 한국어 ("멘헤라") 가 zh/en/ja 화면에 박혀 공개 surface 일관성을 깬다.
 export default async function DocsMyGuildLink() {
   const session = await getSession()
   if (!session || !session.isMember) return null
@@ -32,7 +37,7 @@ export default async function DocsMyGuildLink() {
   if (!data) return null
 
   const slug = data.slug as string
-  const name = data.name as string
+  const name = await resolveAlbionDisplayName(guildId, slug, data.name as string)
 
   return (
     <Link

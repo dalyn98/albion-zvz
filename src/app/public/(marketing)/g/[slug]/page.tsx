@@ -25,9 +25,9 @@ import {
 } from 'lucide-react'
 import MarketingNav from '@/components/MarketingNav'
 import { resolveTenantBySlugAnyStatus } from '@/lib/tenant-resolver'
-import { displayNameFromSlug } from '@/lib/tenant-slug'
 import { loadGuildProfileSettings, ACCENT_CLASS_MAP } from '@/lib/guild-profile'
 import { getAppSetting } from '@/lib/app-settings'
+import { resolveAlbionDisplayName } from '@/lib/albion-display-name'
 import { loadGalleryItems, type GalleryItem } from '@/lib/guild-profile-gallery'
 import {
   loadRecentTrackedBattle,
@@ -79,21 +79,6 @@ interface Params {
 // 같은 슬러그가 metadata 와 page 에서 두 번 호출되는 것을 피하지 않고, force-dynamic
 // 이라 매 요청 새로 풀린다 — count 쿼리 묶음만큼 부하지만 비로그인 페이지라
 // 캐시 비용보다 단순함이 이득.
-// 알비온 길드명은 항상 영어 (인게임 제약). tenants.name 은 Discord 길드명이라
-// 한국어("멘헤라") 일 수 있어 공개 프로필에는 부적합 — 어드민이 위저드에서
-// 입력한 albion_home_guild_name 을 우선, 미설정 시 slug 파생, 마지막 폴백으로
-// Discord 명을 사용한다.
-async function resolveAlbionDisplayName(
-  tenantId: string,
-  slug: string,
-  fallback: string,
-): Promise<string> {
-  const albionName = (await getAppSetting('albion_home_guild_name', '', tenantId)).trim()
-  if (albionName) return albionName
-  const derived = displayNameFromSlug(slug)
-  if (derived) return derived
-  return fallback
-}
 
 export async function generateMetadata({
   params,
