@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next'
 import createNextIntlPlugin from 'next-intl/plugin'
 import createMDX from '@next/mdx'
+import { withSentryConfig } from '@sentry/nextjs'
 
 // Server Actions compare the incoming `origin` header against the request host
 // to block CSRF. When the site is reached via a Tailscale IP (100.x.x.x) or any
@@ -77,4 +78,21 @@ const nextConfig: NextConfig = {
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts')
 const withMDX = createMDX({})
 
-export default withNextIntl(withMDX(nextConfig))
+// Sentry 는 배포 시 source map 업로드 (SENTRY_AUTH_TOKEN 있을 때만), 클라이언트
+// 번들에 SDK 주입 등을 webpack/turbopack 단계에서 처리한다. silent=true 면
+// 로컬 빌드에서 토큰 없을 때 경고가 줄어든다.
+export default withSentryConfig(withNextIntl(withMDX(nextConfig)), {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: !process.env.CI,
+  // 토큰 없으면 source map 업로드 자동 skip — DSN 이 비어 있어도 빌드는 통과.
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  // 클라이언트 번들에 ad-blocker 가 보내는 요청을 막지 않도록 tunnel route 활성.
+  // 실제 효과는 NEXT_PUBLIC_SENTRY_DSN 이 set 됐을 때만 발생.
+  tunnelRoute: '/monitoring',
+  // 빌드 시 Vercel 의 Cron Monitor 자동 연동을 끈다 — 우리는 자체 vercel.json
+  // cron 을 쓰고, Sentry Cron 은 별도 기능 (선택 도입).
+  webpack: {
+    automaticVercelMonitors: false,
+  },
+})
