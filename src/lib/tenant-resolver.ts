@@ -153,3 +153,30 @@ export async function resolveTenantBySlug(slug: string): Promise<ResolvedTenant 
   }
 }
 
+// status 필터 없이 slug 만으로 lookup. 공개 길드 페이지 (`/g/<slug>`) 에서 봇 설치는
+// 끝났지만 onboarding 위저드를 완료하지 못한 pending tenant 도 "아직 설정 중" 안내
+// 페이지로 살리기 위해 사용한다. subdomain routing / cron / API 같은 다른 surface 는
+// 여전히 active 만 보는 resolveTenantBySlug() 를 써야 한다.
+export interface ResolvedTenantWithStatus extends ResolvedTenant {
+  status: string
+}
+
+export async function resolveTenantBySlugAnyStatus(
+  slug: string,
+): Promise<ResolvedTenantWithStatus | null> {
+  const db = getAdminClient()
+  const { data } = await db
+    .from('tenants')
+    .select('id, slug, name, discord_guild_id, status')
+    .eq('slug', slug)
+    .maybeSingle()
+  if (!data) return null
+  return {
+    tenantId: data.id as string,
+    slug: data.slug as string,
+    name: data.name as string,
+    discordGuildId: data.discord_guild_id as string,
+    status: data.status as string,
+  }
+}
+

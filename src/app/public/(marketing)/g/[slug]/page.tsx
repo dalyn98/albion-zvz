@@ -24,7 +24,7 @@ import {
   Sword,
 } from 'lucide-react'
 import MarketingNav from '@/components/MarketingNav'
-import { resolveTenantBySlug } from '@/lib/tenant-resolver'
+import { resolveTenantBySlugAnyStatus } from '@/lib/tenant-resolver'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
 import { loadGuildProfileSettings, ACCENT_CLASS_MAP } from '@/lib/guild-profile'
 import { getAppSetting } from '@/lib/app-settings'
@@ -101,16 +101,24 @@ export async function generateMetadata({
   params: Promise<Params>
 }): Promise<Metadata> {
   const { slug } = await params
-  const tenant = await resolveTenantBySlug(slug)
-  if (!tenant) return { title: '404' }
+  // pending tenant 도 metadata 생성을 위해 lookup — 봇만 초대하고 위저드를
+  // 끝내지 못한 길드는 status='pending' 으로 남고, active-only resolver 로는
+  // null 이 떨어져 404 메타가 박힌다. 페이지 본문에서 pending/active+disabled
+  // 모두 안내 화면을 보여주므로 메타도 같이 noindex 로 맞춘다.
+  const tenant = await resolveTenantBySlugAnyStatus(slug)
+  if (!tenant || (tenant.status !== 'active' && tenant.status !== 'pending')) {
+    return { title: '404' }
+  }
   const [displayName, settings] = await Promise.all([
     resolveAlbionDisplayName(tenant.tenantId, tenant.slug, tenant.name),
-    loadGuildProfileSettings(tenant.tenantId),
+    tenant.status === 'active'
+      ? loadGuildProfileSettings(tenant.tenantId)
+      : Promise.resolve(null),
   ])
-  // 공개 프로필이 꺼진 길드 (가입자만 있고 페이지를 아직 켜지 않은 상태) 는
+  // 공개 프로필이 꺼졌거나 (active+disabled), 위저드 미완료 (pending) 길드는
   // 슬러그가 살아있어도 검색 인덱싱 대상이 아니다 — 어드민이 ON 한 후에만
   // SEO surface 로 노출.
-  if (!settings.enabled) {
+  if (tenant.status === 'pending' || !settings || !settings.enabled) {
     return {
       title: `${displayName} — Albion Guild Manager`,
       robots: { index: false, follow: false },
@@ -175,13 +183,22 @@ export default async function GuildProfilePage({
   params: Promise<Params>
 }) {
   const { slug } = await params
-  const tenant = await resolveTenantBySlug(slug)
+  // 봇만 초대하고 온보딩 위저드를 미완료 (status='pending') 한 길드도 슬러그는
+  // 살아있다. active-only resolver 는 pending 을 null 로 떨궈 notFound() →
+  // 404 로 직행했다 — 여기는 "아직 설정 중" 안내 페이지로 살리고 admin 이라면
+  // /onboard 에서 위저드를 이어 진행할 수 있게 CTA 를 노출한다. 'archived' 등
+  // 그 외 상태는 정말 사라진 길드라 그대로 404.
+  const tenant = await resolveTenantBySlugAnyStatus(slug)
   if (!tenant) notFound()
+  if (tenant.status !== 'active' && tenant.status !== 'pending') notFound()
 
-  const [settings, displayName] = await Promise.all([
-    loadGuildProfileSettings(tenant.tenantId),
-    resolveAlbionDisplayName(tenant.tenantId, tenant.slug, tenant.name),
-  ])
+  const displayName = await resolveAlbionDisplayName(tenant.tenantId, tenant.slug, tenant.name)
+
+  if (tenant.status === 'pending') {
+    return <DisabledStatePage displayName={displayName} pending />
+  }
+
+  const settings = await loadGuildProfileSettings(tenant.tenantId)
 
   // 토글이 꺼져 있으면 404 대신 친화적인 "아직 활성화되지 않음" 안내 페이지를
   // 띄운다 — 슬러그를 안 길드원이 처음 들어와 404 만 보고 떠나는 패턴을 막고,
@@ -1388,11 +1405,22 @@ function formatRatio(ratio: number): string {
   return ratio.toFixed(2)
 }
 
-// 공개 프로필 토글이 OFF 인 길드의 안내 화면. 어드민용 활성화 CTA 와 메인 링크
-// 두 개. 디자인 톤은 본 페이지 hero 의 amber 액센트를 그대로 빌려와 사이트
-// 안의 페이지라는 인상을 유지한다.
-async function DisabledStatePage({ displayName }: { displayName: string }) {
+// 공개 프로필이 비활성/미설정 상태인 길드의 안내 화면. 두 케이스 동일 구조:
+//   - active + showProfile=false  → "아직 켜지지 않음" / 어드민 CTA → /admin/dashboard/guild-profile
+//   - pending (위저드 미완료)       → "아직 설정 중" / 어드민 CTA → /onboard (위저드 이어 진행)
+// 둘 다 amber 액센트로 사이트 톤 유지. generateMetadata 가 이 두 케이스에 noindex 처리.
+async function DisabledStatePage({
+  displayName,
+  pending,
+}: {
+  displayName: string
+  pending?: boolean
+}) {
   const t = await getTranslations('publicGuildProfile')
+  const heading = pending ? t('pendingHeading') : t('disabledHeading')
+  const body = pending ? t('pendingBody') : t('disabledBody')
+  const adminCta = pending ? t('pendingAdminCta') : t('disabledAdminCta')
+  const adminHref = pending ? '/onboard' : '/admin/dashboard/guild-profile'
   return (
     <>
       <MarketingNav />
@@ -1407,17 +1435,17 @@ async function DisabledStatePage({ displayName }: { displayName: string }) {
             {displayName}
           </h1>
           <p className="text-[10px] uppercase tracking-[0.25em] font-bold text-amber-300/90">
-            {t('disabledHeading')}
+            {heading}
           </p>
           <p className="text-gray-300 text-sm sm:text-base leading-relaxed max-w-lg mx-auto">
-            {t('disabledBody')}
+            {body}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
             <Link
-              href="/admin/dashboard/guild-profile"
+              href={adminHref}
               className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-5 py-3 rounded-lg text-sm shadow-lg hover:shadow-2xl hover:-translate-y-0.5 transition-all"
             >
-              {t('disabledAdminCta')}
+              {adminCta}
               <ExternalLink size={14} />
             </Link>
             <Link
