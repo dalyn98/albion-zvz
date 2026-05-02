@@ -1,29 +1,25 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   ArrowLeft,
   Calendar,
-  Coins,
   Hammer,
   Package,
-  RefreshCw,
   User,
 } from 'lucide-react'
 import {
   claimCraftQueueItem,
   releaseCraftQueueItem,
   deliverCraftQueueItem,
-  previewCraftMaterialCost,
   type CraftBoxConfig,
   type CraftCompensationMode,
   type CraftQueueTaskDetail,
   type CrafterProfile,
 } from '@/app/actions/craft'
-import type { BuildCostBreakdown, BuildCostSlot } from '@/lib/craft-recipes'
 import { SLOT_KEYS, type BuildSnapshot, type SlotKey } from '@/types'
 import { formatSilver } from '@/lib/silver'
 import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
@@ -32,20 +28,13 @@ import { translateSlotRole } from '@/lib/slot-role-i18n'
 import ItemImage from './ItemImage'
 import { useToast } from './ToastProvider'
 
-interface LocationPreset {
-  id: string
-  i18nKey: string
-  defaultReturnRatePct: number
-}
-
 interface Props {
   detail: CraftQueueTaskDetail
   profile: CrafterProfile | null
   config: CraftBoxConfig
-  locations: LocationPreset[]
 }
 
-export default function CraftTaskDetail({ detail, profile, config, locations }: Props) {
+export default function CraftTaskDetail({ detail, profile, config }: Props) {
   const t = useTranslations('craftQueue')
   const tRole = useTranslations('slotRole')
   const router = useRouter()
@@ -84,20 +73,11 @@ export default function CraftTaskDetail({ detail, profile, config, locations }: 
         t={t}
       />
 
-      <MaterialsCard
-        taskId={task.taskId}
-        locations={locations}
-        focusBonusPct={config.focusBonusPct}
-        locale={locale}
-        t={t}
-      />
-
       <ActionsCard
         task={task}
         isMine={isMine}
         profile={profile}
         config={config}
-        locations={locations}
         onAfter={() => router.refresh()}
       />
     </>
@@ -344,204 +324,24 @@ function SlotsCard({
   )
 }
 
-function MaterialsCard({
-  taskId,
-  locations,
-  focusBonusPct,
-  locale,
-  t,
-}: {
-  taskId: string
-  locations: LocationPreset[]
-  focusBonusPct: number
-  locale: Locale
-  t: ReturnType<typeof useTranslations>
-}) {
-  const tLoc = useTranslations('craftLocation')
-  const toast = useToast()
-  const [locationId, setLocationId] = useState<string>(locations[0]?.id ?? 'royal_city')
-  const [customReturnPct, setCustomReturnPct] = useState('15')
-  const [focusUsed, setFocusUsed] = useState(false)
-  const [breakdown, setBreakdown] = useState<BuildCostBreakdown | null>(null)
-  const [pending, startTransition] = useTransition()
-
-  const isCustom = locationId === 'custom'
-  const selected = locations.find((l) => l.id === locationId)
-  const returnPct = isCustom ? Number(customReturnPct) : selected?.defaultReturnRatePct ?? 0
-
-  const refresh = () => {
-    if (!Number.isFinite(returnPct) || returnPct < 0 || returnPct > 100) {
-      toast.error(t('returnPctOutOfRange'))
-      return
-    }
-    startTransition(async () => {
-      const r = await previewCraftMaterialCost({
-        taskId,
-        locationReturnPct: returnPct,
-        focusUsed,
-      })
-      if (r.error) {
-        toast.error(r.error)
-        return
-      }
-      setBreakdown(r.breakdown)
-    })
-  }
-
-  return (
-    <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 space-y-3">
-      <h2 className="text-[11px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-2">
-        <Coins size={12} /> {t('detailMaterialsTitle')}
-      </h2>
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          value={locationId}
-          onChange={(e) => setLocationId(e.target.value)}
-          disabled={pending}
-          className="bg-gray-950 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
-        >
-          {locations.map((loc) => (
-            <option key={loc.id} value={loc.id}>
-              {tLoc(loc.i18nKey)} ({loc.defaultReturnRatePct}%)
-            </option>
-          ))}
-        </select>
-        {isCustom && (
-          <input
-            type="number"
-            inputMode="decimal"
-            min={0}
-            max={100}
-            step={0.1}
-            value={customReturnPct}
-            onChange={(e) => setCustomReturnPct(e.target.value)}
-            disabled={pending}
-            className="w-24 bg-gray-950 border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-amber-500"
-          />
-        )}
-        <label className="flex items-center gap-1.5 text-xs text-gray-300">
-          <input
-            type="checkbox"
-            checked={focusUsed}
-            onChange={(e) => setFocusUsed(e.target.checked)}
-            disabled={pending}
-            className="rounded border-gray-700 bg-gray-950"
-          />
-          {t('focusUsedLabel', { bonus: focusBonusPct })}
-        </label>
-        <button
-          type="button"
-          onClick={refresh}
-          disabled={pending}
-          className="ml-auto text-xs text-amber-300 hover:text-amber-200 border border-amber-500/30 rounded-lg px-2.5 py-1.5 inline-flex items-center gap-1 disabled:opacity-50"
-        >
-          <RefreshCw size={12} className={pending ? 'animate-spin' : ''} />
-          {pending ? t('previewing') : t('previewMaterialCost')}
-        </button>
-      </div>
-
-      {breakdown && (
-        <div className="space-y-2">
-          {breakdown.hasArtifact && (
-            <p className="text-amber-300 text-[11px]">{t('artifactWarning')}</p>
-          )}
-          {breakdown.hasMissingPrice && (
-            <p className="text-amber-300 text-[11px]">{t('missingPriceWarning')}</p>
-          )}
-          <div className="grid grid-cols-3 gap-2 text-[11px] bg-gray-950 border border-gray-800 rounded-lg p-3">
-            <Stat label={t('previewEffectiveReturn')} value={`${breakdown.effectiveReturnPct.toFixed(1)}%`} />
-            <Stat label={t('previewGross')} value={formatSilver(breakdown.totalGrossSilver)} />
-            <Stat label={t('previewNet')} value={formatSilver(breakdown.totalNetSilver)} accent />
-          </div>
-          <ul className="space-y-1.5">
-            {breakdown.slots.map((s) => (
-              <SlotCostRow key={s.slot} slot={s} locale={locale} t={t} />
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {!breakdown && !pending && (
-        <p className="text-[11px] text-gray-500">{t('detailMaterialsEmpty')}</p>
-      )}
-    </section>
-  )
-}
-
-function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <div className="space-y-0.5">
-      <p className="text-[10px] text-gray-500 uppercase tracking-wider">{label}</p>
-      <p
-        className={`font-mono text-sm ${
-          accent ? 'text-amber-300 font-bold' : 'text-gray-200'
-        }`}
-      >
-        {value}
-      </p>
-    </div>
-  )
-}
-
-function SlotCostRow({
-  slot,
-  locale,
-  t,
-}: {
-  slot: BuildCostSlot
-  locale: Locale
-  t: ReturnType<typeof useTranslations>
-}) {
-  const tGear = useTranslations('gear')
-  const displayName = slot.itemId
-    ? getLocalizedItemNameWithEnchant(slot.itemId, locale, slot.itemName) ?? slot.itemId
-    : '—'
-  const statusTag = (() => {
-    if (slot.recipeStatus === 'empty') return null
-    if (slot.recipeStatus === 'no_recipe')
-      return <span className="text-amber-400/80 text-[10px]">{t('detailSlotNoRecipe')}</span>
-    if (slot.recipeStatus === 'artifact')
-      return <span className="text-amber-400 text-[10px]">{t('detailSlotArtifact')}</span>
-    return null
-  })()
-  return (
-    <li className="flex items-center gap-2 text-[11px] bg-gray-950 border border-gray-800 rounded-lg px-2 py-1.5">
-      <span className="text-[10px] text-gray-500 uppercase tracking-wider w-12 flex-shrink-0">
-        {tGear(slot.slot)}
-      </span>
-      <span className="flex-1 min-w-0 text-gray-200 truncate" title={displayName}>
-        {displayName}
-      </span>
-      {statusTag}
-      <span className="font-mono text-emerald-300 flex-shrink-0">
-        {slot.recipeStatus === 'craftable' || slot.recipeStatus === 'artifact'
-          ? formatSilver(slot.netSilver)
-          : '—'}
-      </span>
-    </li>
-  )
-}
-
 function ActionsCard({
   task,
   isMine,
   profile,
   config,
-  locations,
   onAfter,
 }: {
   task: CraftQueueTaskDetail['task']
   isMine: boolean
   profile: CrafterProfile | null
   config: CraftBoxConfig
-  locations: LocationPreset[]
   onAfter: () => void
 }) {
   if (task.status === 'queued') {
     return <ClaimSection task={task} profile={profile} onAfter={onAfter} />
   }
   if (task.status === 'claimed' && isMine) {
-    return <DeliverSection task={task} config={config} locations={locations} onAfter={onAfter} />
+    return <DeliverSection task={task} config={config} onAfter={onAfter} />
   }
   if (task.status === 'delivered' || task.status === 'collected') {
     return <DeliveredSummary task={task} />
@@ -646,39 +446,19 @@ function ClaimSection({
 function DeliverSection({
   task,
   config,
-  locations,
   onAfter,
 }: {
   task: CraftQueueTaskDetail['task']
   config: CraftBoxConfig
-  locations: LocationPreset[]
   onAfter: () => void
 }) {
   const t = useTranslations('craftQueue')
-  const tLoc = useTranslations('craftLocation')
   const toast = useToast()
   const router = useRouter()
   const [boxNumber, setBoxNumber] = useState('')
-  const [locationId, setLocationId] = useState(locations[0]?.id ?? 'royal_city')
-  const [customReturnPct, setCustomReturnPct] = useState('15')
-  const [focusUsed, setFocusUsed] = useState(false)
   const [materialCost, setMaterialCost] = useState('')
   const [releasing, startRelease] = useTransition()
   const [submitting, startSubmit] = useTransition()
-
-  const isCustom = locationId === 'custom'
-  const selected = locations.find((l) => l.id === locationId)
-  const locLabel = useMemo(() => {
-    const presetMap: Record<string, string> = {
-      royal_city: 'royalCity',
-      caerleon: 'caerleon',
-      hideout_t5: 'hideoutT5',
-      hideout_t8: 'hideoutT8',
-      custom: 'custom',
-    }
-    return tLoc(presetMap[locationId] ?? 'custom')
-  }, [locationId, tLoc])
-  const returnPct = isCustom ? Number(customReturnPct) : selected?.defaultReturnRatePct ?? 0
 
   const handleRelease = () => {
     startRelease(async () => {
@@ -689,25 +469,6 @@ function DeliverSection({
       }
       toast.info(t('toastReleased'))
       router.push('/craft/queue')
-    })
-  }
-
-  const previewAndFill = () => {
-    if (!Number.isFinite(returnPct) || returnPct < 0 || returnPct > 100) {
-      toast.error(t('returnPctOutOfRange'))
-      return
-    }
-    startSubmit(async () => {
-      const r = await previewCraftMaterialCost({
-        taskId: task.taskId,
-        locationReturnPct: returnPct,
-        focusUsed,
-      })
-      if (r.error) {
-        toast.error(r.error)
-        return
-      }
-      if (r.breakdown) setMaterialCost(String(r.breakdown.totalNetSilver))
     })
   }
 
@@ -730,8 +491,6 @@ function DeliverSection({
       const r = await deliverCraftQueueItem({
         taskId: task.taskId,
         boxNumber: box,
-        craftCity: locLabel,
-        craftFocusUsed: focusUsed,
         materialSilverCost: material,
       })
       if (r.error) {
@@ -770,69 +529,17 @@ function DeliverSection({
       </div>
 
       <div>
-        <label className="block text-[11px] text-gray-400 mb-1">{t('locationLabel')}</label>
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={locationId}
-            onChange={(e) => setLocationId(e.target.value)}
-            disabled={pending}
-            className="bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
-          >
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {tLoc(loc.i18nKey)} ({loc.defaultReturnRatePct}%)
-              </option>
-            ))}
-          </select>
-          {isCustom && (
-            <input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              max={100}
-              step={0.1}
-              value={customReturnPct}
-              onChange={(e) => setCustomReturnPct(e.target.value)}
-              disabled={pending}
-              className="w-24 bg-gray-950 border border-gray-700 rounded-lg px-2 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
-            />
-          )}
-          <label className="flex items-center gap-2 text-xs text-gray-300">
-            <input
-              type="checkbox"
-              checked={focusUsed}
-              onChange={(e) => setFocusUsed(e.target.checked)}
-              disabled={pending}
-              className="rounded border-gray-700 bg-gray-950"
-            />
-            {t('focusUsedLabel', { bonus: config.focusBonusPct })}
-          </label>
-        </div>
-      </div>
-
-      <div>
         <label className="block text-[11px] text-gray-400 mb-1">{t('materialLabel')}</label>
-        <div className="flex items-center gap-2">
-          <input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            value={materialCost}
-            onChange={(e) => setMaterialCost(e.target.value)}
-            disabled={pending}
-            placeholder={t('materialPlaceholder')}
-            className="flex-1 bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
-          />
-          <button
-            type="button"
-            onClick={previewAndFill}
-            disabled={pending}
-            className="text-xs text-amber-300 hover:text-amber-200 border border-amber-500/30 rounded-lg px-2.5 py-2 inline-flex items-center gap-1 disabled:opacity-50"
-          >
-            <RefreshCw size={12} />
-            {t('previewMaterialCost')}
-          </button>
-        </div>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          value={materialCost}
+          onChange={(e) => setMaterialCost(e.target.value)}
+          disabled={pending}
+          placeholder={t('materialPlaceholder')}
+          className="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
+        />
         <p className="text-[10px] text-gray-500 mt-1">{t('materialHint')}</p>
       </div>
 

@@ -31,7 +31,8 @@ const SLOT_LABEL_KEYS: Record<string, string> = {
 
 interface AdminCraftStatsPanelProps {
   mode: CraftDemandStatsMode
-  // 다른 searchParams (bomLoc, bomFocus) 를 모드 토글 링크에서 유지하기 위함.
+  // 다른 searchParams 를 모드 토글 링크에서 유지하기 위함. 현재는 빈 객체로
+  // 호출되지만 향후 패널 추가 시 키 보존을 위해 인터페이스 유지.
   preservedParams: Record<string, string>
 }
 

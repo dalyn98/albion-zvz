@@ -129,20 +129,6 @@ export default function CraftQueueAggregationCard({
             stockByItemId={stockByItemId}
           />
         )}
-        {(breakdown.unknownItemCount > 0 || breakdown.artifactCount > 0) && (
-          <p className="text-[10px] text-gray-500 leading-relaxed">
-            {breakdown.artifactCount > 0 && (
-              <span className="mr-2 text-amber-400/80">
-                {t('aggregateArtifactWarn', { count: breakdown.artifactCount })}
-              </span>
-            )}
-            {breakdown.unknownItemCount > 0 && (
-              <span className="text-amber-400/80">
-                {t('aggregateUnknownWarn', { count: breakdown.unknownItemCount })}
-              </span>
-            )}
-          </p>
-        )}
       </div>
     </section>
   )
@@ -198,12 +184,6 @@ function AggregateItemTile({ item, locale, stockByItemId }: AggregateItemTilePro
             <span className="text-emerald-400 font-mono">
               {t('aggregateEnchantLabel', { level: enchant })}
             </span>
-          )}
-          {item.isArtifact && (
-            <span className="text-amber-400">· {t('aggregateArtifactTag')}</span>
-          )}
-          {!item.hasRecipe && !item.isArtifact && (
-            <span className="text-amber-400">· {t('aggregateNoRecipeTag')}</span>
           )}
         </p>
       </div>

@@ -122,12 +122,12 @@ export interface DeliverTaskInput {
   guildId: string
   crafterDiscordId: string
   boxNumber: number
-  craftCity: string
-  craftFocusUsed: boolean
   materialSilverCost: number
   expiryDays: number
 }
 
+// craft_city / craft_focus_used 칼럼은 정련 재료 반환율 계산 폐기 (2026-05-02)
+// 후 더 이상 입력받지 않지만 RPC 시그니처는 유지. 빈 문자열 + false 로 호출.
 export async function deliverCraftTask(input: DeliverTaskInput): Promise<void> {
   const supabase = getAdminClient()
   const { error } = await supabase.rpc('deliver_craft_task', {
@@ -135,8 +135,8 @@ export async function deliverCraftTask(input: DeliverTaskInput): Promise<void> {
     p_guild_id: input.guildId,
     p_crafter_discord_id: input.crafterDiscordId,
     p_box_number: input.boxNumber,
-    p_craft_city: input.craftCity,
-    p_craft_focus_used: input.craftFocusUsed,
+    p_craft_city: '',
+    p_craft_focus_used: false,
     p_material_silver_cost: input.materialSilverCost,
     p_expiry_days: input.expiryDays,
   })

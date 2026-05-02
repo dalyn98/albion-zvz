@@ -7,7 +7,6 @@ import {
   listCraftQueueForCrafter,
   getMyCrafterProfile,
   getCraftConfig,
-  getCraftLocationPresets,
 } from '@/app/actions/craft'
 import { aggregateBuildSnapshots } from '@/lib/craft-aggregation'
 import CraftQueueClient from '@/components/CraftQueueClient'
@@ -31,13 +30,11 @@ export default async function CraftMyTasksPage() {
     { mine, isCrafter, stockByItemId, error },
     profile,
     config,
-    locations,
     t,
   ] = await Promise.all([
     listCraftQueueForCrafter(),
     getMyCrafterProfile(),
     getCraftConfig(),
-    getCraftLocationPresets(),
     getTranslations('craftQueue'),
   ])
 
@@ -71,11 +68,6 @@ export default async function CraftMyTasksPage() {
     .filter((m) => m.status === 'claimed')
     .map((m) => m.buildSnapshot)
   const myAggregateBreakdown = aggregateBuildSnapshots(myClaimedSnapshots)
-  const locationPresets = locations.map((l) => ({
-    id: l.id,
-    i18nKey: l.i18nKey,
-    defaultReturnRatePct: l.defaultReturnRatePct,
-  }))
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -116,7 +108,6 @@ export default async function CraftMyTasksPage() {
         mine={mine}
         profile={profile}
         config={config}
-        locations={locationPresets}
         stockByItemId={stockByItemId}
         mode="mine"
       />

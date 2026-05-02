@@ -29,19 +29,10 @@ import {
   type CraftTaskStatus,
 } from '@/lib/craft-tasks'
 import {
-  computeBuildCraftCost,
-  type BuildCostBreakdown,
-} from '@/lib/craft-recipes'
-import {
   aggregateBuildSnapshots,
   type CraftAggregateBreakdown,
+  type CraftItemAggregateRow,
 } from '@/lib/craft-aggregation'
-import {
-  CRAFT_LOCATION_PRESETS,
-  applyReturnRate,
-  clampReturnRate,
-  type CraftLocationPreset,
-} from '@/lib/albion-return-rates'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import {
   decrementBuildForDelivery,
@@ -254,10 +245,6 @@ export async function getMyCrafterProfile(): Promise<CrafterProfile | null> {
 
 function parseRangeBoundary(raw: unknown): number | null {
   return typeof raw === 'number' && Number.isFinite(raw) && raw >= 1 ? raw : null
-}
-
-export async function getCraftLocationPresets(): Promise<readonly CraftLocationPreset[]> {
-  return CRAFT_LOCATION_PRESETS
 }
 
 // ────────────────────────────────────────────────────────────
@@ -676,76 +663,9 @@ export async function bulkReleaseCraftQueueItems(
   return { ok, failed }
 }
 
-export interface PreviewCraftMaterialCostInput {
-  taskId: string
-  locationReturnPct: number
-  focusUsed: boolean
-}
-
-export interface PreviewCraftMaterialCostResult {
-  breakdown: BuildCostBreakdown | null
-  error?: string
-}
-
-// Pure read — computes net silver cost the crafter would pay for materials.
-// Crafter calls this after claim, before deliver, to figure out how much to
-// claim back as material_silver_cost.
-export async function previewCraftMaterialCost(
-  input: PreviewCraftMaterialCostInput,
-): Promise<PreviewCraftMaterialCostResult> {
-  const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
-  if (!session) return { breakdown: null, error: tErr('loginRequired') }
-  const guildId = await getSessionGuildId(session)
-
-  if (
-    typeof input.locationReturnPct !== 'number' ||
-    !Number.isFinite(input.locationReturnPct) ||
-    input.locationReturnPct < 0 ||
-    input.locationReturnPct > 100
-  ) {
-    return { breakdown: null, error: tErr('invalidInput') }
-  }
-
-  // 큐 디테일 페이지에서 잡기 전에도 재료비 미리보기를 띄워야 하므로 isCrafter
-  // 라면 같은 길드의 어떤 task 든 preview 허용. admin 도 통과.
-  const isAdmin = session.isAdmin
-  const isCrafter = isAdmin ? true : await loadIsCrafter(guildId, session.discordId)
-  if (!isCrafter && !isAdmin) {
-    return { breakdown: null, error: tErr('crafterOnly') }
-  }
-
-  const db = getAdminClient()
-  const { data, error } = await db
-    .from('craft_tasks')
-    .select('id, status, crafter_discord_id, regear_requests!inner(build_snapshot)')
-    .eq('guild_id', guildId)
-    .eq('id', input.taskId)
-    .maybeSingle()
-  if (error) return { breakdown: null, error: error.message }
-  if (!data) return { breakdown: null, error: tErr('craftTaskNotFound') }
-  const r = Array.isArray(data.regear_requests)
-    ? data.regear_requests[0]
-    : data.regear_requests
-  const buildSnapshot = (r?.build_snapshot as BuildSnapshot | null) ?? null
-  if (!buildSnapshot) return { breakdown: null, error: tErr('craftTaskNoBuild') }
-
-  const cfg = await getCraftConfig()
-  const breakdown = await computeBuildCraftCost({
-    buildSnapshot,
-    guildId,
-    locationReturnPct: input.locationReturnPct,
-    focusUsed: input.focusUsed,
-    focusBonusPct: cfg.focusBonusPct,
-  })
-  return { breakdown }
-}
-
 export interface DeliverCraftQueueInput {
   taskId: string
   boxNumber: number
-  craftCity: string
-  craftFocusUsed: boolean
   materialSilverCost: number
 }
 
@@ -773,9 +693,6 @@ export async function deliverCraftQueueItem(
   ) {
     return { error: tErr('craftMaterialCostInvalid') }
   }
-  if (typeof input.craftCity !== 'string' || input.craftCity.length === 0) {
-    return { error: tErr('invalidInput') }
-  }
 
   const cfg = await getCraftConfig()
   if (input.boxNumber < cfg.rangeMin || input.boxNumber > cfg.rangeMax) {
@@ -788,8 +705,6 @@ export async function deliverCraftQueueItem(
       guildId,
       crafterDiscordId: session.discordId,
       boxNumber: input.boxNumber,
-      craftCity: input.craftCity,
-      craftFocusUsed: input.craftFocusUsed,
       materialSilverCost: input.materialSilverCost,
       expiryDays: cfg.expiryDays,
     })
@@ -1684,16 +1599,16 @@ function bucketFromSnapshots(snapshots: (BuildSnapshot | null)[]): CraftDemandBu
   }
 }
 
-// 진행 중인 제작 작업 (queued + claimed) 의 재료 BoM. delivered 는 이미 박스에
-// 들어갔으니 재료비가 끝난 상태라 제외한다. 운영자가 "지금 길드 창고에서 무엇을
-// 빼두면 제작자들이 일을 멈추지 않을까" 를 한 눈에 보기 위한 집계.
+// 진행 중인 제작 작업 (queued + claimed) 의 itemId 별 합산. delivered 는 이미
+// 박스에 들어갔으니 작업 끝난 상태라 제외한다. 운영자가 "지금 길드 창고에서 어떤
+// 장비를 미리 빼두면 제작자들이 일을 멈추지 않을까" 를 보기 위한 집계.
 //
-// returnRatePct (선택) — 제작자가 알려준 위치/포커스 반환율. 적용하면 net 수치
-// (실제로 길드 창고에서 빼야 할 양). 미지정 시 gross — 길드 창고 출고 상한선.
-export interface CraftActiveMaterialRow {
-  uniqueName: string
+// 정련 재료 분해는 폐기 (마이그 112 + 2026-05-02 recipe 데이터 폐기). 완제품
+// itemId 단위만 카운트한다.
+export interface CraftActiveItemRow {
+  itemId: string
+  itemName: string | null
   count: number
-  tier: number
 }
 
 export interface CraftActiveMaterialStatsResult {
@@ -1701,24 +1616,10 @@ export interface CraftActiveMaterialStatsResult {
   taskCount: number
   queuedCount: number
   claimedCount: number
-  materials: CraftActiveMaterialRow[]
-  // 레시피 매핑이 안 되는 슬롯 (free-text / mount / food / potion). UI 가
-  // "재료 추정 불가" 힌트를 띄울 때 사용.
-  unknownItemCount: number
-  // T?_ARTEFACT_* 가 포함된 작업 수. 청부제작 안내 배지에 사용.
-  artifactCount: number
-  // 적용된 effective 반환율(%) — 0 이면 gross. 클라이언트가 표시 라벨 만들 때 참조.
-  appliedReturnPct: number
+  items: CraftActiveItemRow[]
 }
 
-export interface LoadCraftActiveMaterialStatsInput {
-  // 0~95 범위. clampReturnRate 적용 후 net 수치로 변환.
-  returnRatePct?: number
-}
-
-export async function loadCraftActiveMaterialStatsAdmin(
-  input: LoadCraftActiveMaterialStatsInput = {},
-): Promise<{
+export async function loadCraftActiveMaterialStatsAdmin(): Promise<{
   result: CraftActiveMaterialStatsResult | null
   error?: string
 }> {
@@ -1756,25 +1657,20 @@ export async function loadCraftActiveMaterialStatsAdmin(
     }
 
     const breakdown = aggregateBuildSnapshots(snapshots)
-    const appliedReturnPct = clampReturnRate(input.returnRatePct ?? 0)
-    const materials: CraftActiveMaterialRow[] = breakdown.materials.map((m) => ({
-      uniqueName: m.uniqueName,
-      count:
-        appliedReturnPct > 0
-          ? applyReturnRate(m.count, appliedReturnPct)
-          : m.count,
-      tier: m.tier,
-    }))
+    const items: CraftActiveItemRow[] = breakdown.items.map(
+      (it: CraftItemAggregateRow) => ({
+        itemId: it.itemId,
+        itemName: it.itemName,
+        count: it.count,
+      }),
+    )
 
     return {
       result: {
         taskCount: breakdown.taskCount,
         queuedCount,
         claimedCount,
-        materials,
-        unknownItemCount: breakdown.unknownItemCount,
-        artifactCount: breakdown.artifactCount,
-        appliedReturnPct,
+        items,
       },
     }
   } catch (e) {

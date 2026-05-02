@@ -95,13 +95,7 @@ export default function EventCraftAggregateCard({
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] text-white truncate">{displayName}</p>
                   <p className="text-[10px] text-gray-500">
-                    {item.isArtifact ? (
-                      <span className="text-amber-400">{t('artifactTag')}</span>
-                    ) : !item.hasRecipe ? (
-                      <span className="text-amber-400">{t('noRecipeTag')}</span>
-                    ) : (
-                      t('slotsTag', { count: item.slots.length })
-                    )}
+                    {t('slotsTag', { count: item.slots.length })}
                   </p>
                 </div>
                 <span className="text-amber-300 font-bold font-mono text-sm flex-shrink-0">
@@ -111,20 +105,6 @@ export default function EventCraftAggregateCard({
             )
           })}
         </ul>
-        {(breakdown.unknownItemCount > 0 || breakdown.artifactCount > 0) && (
-          <p className="text-[10px] text-gray-500 leading-relaxed">
-            {breakdown.artifactCount > 0 && (
-              <span className="mr-2 text-amber-400/80">
-                {t('artifactWarn', { count: breakdown.artifactCount })}
-              </span>
-            )}
-            {breakdown.unknownItemCount > 0 && (
-              <span className="text-amber-400/80">
-                {t('unknownWarn', { count: breakdown.unknownItemCount })}
-              </span>
-            )}
-          </p>
-        )}
       </div>
     </section>
   )

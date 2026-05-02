@@ -7,7 +7,6 @@ import {
   listCraftQueueForCrafter,
   getMyCrafterProfile,
   getCraftConfig,
-  getCraftLocationPresets,
 } from '@/app/actions/craft'
 import { aggregateBuildSnapshots } from '@/lib/craft-aggregation'
 import CraftQueueClient from '@/components/CraftQueueClient'
@@ -30,13 +29,11 @@ export default async function CraftQueuePage() {
     { queued, mine, isCrafter, stockByItemId, error },
     profile,
     config,
-    locations,
     t,
   ] = await Promise.all([
     listCraftQueueForCrafter(),
     getMyCrafterProfile(),
     getCraftConfig(),
-    getCraftLocationPresets(),
     getTranslations('craftQueue'),
   ])
 
@@ -69,11 +66,6 @@ export default async function CraftQueuePage() {
   // 이미 다른 제작자가 잡았거나 마무리됐으므로 "지금 만들어야 할 것" 만 보여준다.
   const aggregateBreakdown = aggregateBuildSnapshots(queued.map((q) => q.buildSnapshot))
   const myClaimedCount = mine.filter((m) => m.status === 'claimed').length
-  const locationPresets = locations.map((l) => ({
-    id: l.id,
-    i18nKey: l.i18nKey,
-    defaultReturnRatePct: l.defaultReturnRatePct,
-  }))
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -112,7 +104,6 @@ export default async function CraftQueuePage() {
         mine={mine}
         profile={profile}
         config={config}
-        locations={locationPresets}
         stockByItemId={stockByItemId}
         mode="browse"
       />

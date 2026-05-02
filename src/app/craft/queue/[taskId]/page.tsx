@@ -6,7 +6,6 @@ import {
   getCraftQueueTaskDetail,
   getMyCrafterProfile,
   getCraftConfig,
-  getCraftLocationPresets,
 } from '@/app/actions/craft'
 import CraftTaskDetail from '@/components/CraftTaskDetail'
 
@@ -28,11 +27,10 @@ export default async function CraftQueueTaskDetailPage({ params }: PageProps) {
     redirect('/')
   }
 
-  const [{ detail, error }, profile, config, locations, t] = await Promise.all([
+  const [{ detail, error }, profile, config, t] = await Promise.all([
     getCraftQueueTaskDetail(taskId),
     getMyCrafterProfile(),
     getCraftConfig(),
-    getCraftLocationPresets(),
     getTranslations('craftQueue'),
   ])
 
@@ -62,19 +60,12 @@ export default async function CraftQueueTaskDetailPage({ params }: PageProps) {
     notFound()
   }
 
-  const locationPresets = locations.map((l) => ({
-    id: l.id,
-    i18nKey: l.i18nKey,
-    defaultReturnRatePct: l.defaultReturnRatePct,
-  }))
-
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
       <CraftTaskDetail
         detail={detail}
         profile={profile}
         config={config}
-        locations={locationPresets}
       />
     </main>
   )

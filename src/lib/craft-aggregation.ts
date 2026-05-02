@@ -1,29 +1,17 @@
 // Aggregates active craft tasks into "what equipment does the guild need to
-// produce in total?" answers. 정련 재료 트래킹이 폐기된 후 (마이그 112), 이
-// 모듈은 itemId 단위 합산만 책임지고, 재료 BoM 은 호출자가 필요할 때만
-// lookupRecipe 로 직접 조회한다.
+// produce in total?" answers. 정련 재료 분해는 폐기됐고 (마이그 112 + 2026-05-02
+// recipe 데이터 폐기), 이 모듈은 itemId 단위 합산만 책임진다 — 완제품 장비를
+// 카운트해 보여주는 게 끝이다. 청부 제작 시 재료 BoM 은 사이트가 계산하지 않는다.
 
-import { lookupRecipe } from '@/lib/craft-recipes'
 import { SLOT_KEYS, type BuildSnapshot, type SlotKey } from '@/types'
 
 export interface CraftItemAggregateRow {
   itemId: string
   itemName: string | null
   count: number
-  hasRecipe: boolean
-  isArtifact: boolean
   // Slots this item appeared in across all snapshots — useful so the UI can
   // hint "weapon × 3, offhand × 2" without recomputing.
   slots: SlotKey[]
-}
-
-export interface CraftMaterialAggregateRow {
-  uniqueName: string
-  // Gross count summed across every (item × quantity) recipe. Pre-return-rate.
-  count: number
-  // Tier extracted from the material id (T4_PLANKS → 4). 0 when no tier.
-  // Lets the UI group materials by tier without re-parsing on render.
-  tier: number
 }
 
 export interface CraftAggregateBreakdown {
@@ -31,16 +19,6 @@ export interface CraftAggregateBreakdown {
   taskCount: number
   // Items the guild must produce, sorted by count desc.
   items: CraftItemAggregateRow[]
-  // Materials needed gross (sum of recipe × item count). Sorted by tier desc
-  // then unique name asc so T8 materials are at the top.
-  materials: CraftMaterialAggregateRow[]
-  // Items present in snapshots but not in our recipe bundle (free-text,
-  // mounts, food/potions). Reported as a count for the UI to render a hint.
-  unknownItemCount: number
-  // Items flagged isArtifact — included in the material list (T?_ARTEFACT_*
-  // appears as a regular line). Count is shown so the UI can flag the
-  // workbench requirement.
-  artifactCount: number
 }
 
 interface AggregateOptions {
@@ -56,7 +34,6 @@ export function aggregateBuildSnapshots(
   options: AggregateOptions = {},
 ): CraftAggregateBreakdown {
   const excluded = new Set<SlotKey>(options.excludeSlots ?? DEFAULT_EXCLUDED_SLOTS)
-  // itemId → aggregate state
   const itemMap = new Map<
     string,
     { count: number; slots: Set<SlotKey>; itemName: string | null }
@@ -82,56 +59,17 @@ export function aggregateBuildSnapshots(
     }
   }
 
-  const items: CraftItemAggregateRow[] = []
-  const materialMap = new Map<string, number>()
-  let unknownItemCount = 0
-  let artifactCount = 0
-
-  for (const [itemId, info] of itemMap) {
-    const recipe = lookupRecipe(itemId)
-    const isArtifact = recipe?.isArtifact ?? false
-    items.push({
+  const items: CraftItemAggregateRow[] = Array.from(itemMap.entries())
+    .map(([itemId, info]) => ({
       itemId,
       itemName: info.itemName,
       count: info.count,
-      hasRecipe: recipe != null,
-      isArtifact,
       slots: Array.from(info.slots),
-    })
-    if (!recipe) {
-      unknownItemCount += info.count
-      continue
-    }
-    if (isArtifact) {
-      artifactCount += info.count
-    }
-    // 유물도 일반 craftable 처럼 재료 라인으로 합산 — T?_ARTEFACT_* 가 박스에
-    // 같이 들어가 한 번에 픽업 / 청부제작에 활용된다.
-    for (const m of recipe.materials) {
-      materialMap.set(m.id, (materialMap.get(m.id) ?? 0) + m.count * info.count)
-    }
-  }
-
-  items.sort((a, b) => b.count - a.count || a.itemId.localeCompare(b.itemId))
-
-  const materials: CraftMaterialAggregateRow[] = Array.from(materialMap.entries())
-    .map(([uniqueName, count]) => ({
-      uniqueName,
-      count,
-      tier: tierFromMaterialId(uniqueName),
     }))
-    .sort((a, b) => b.tier - a.tier || a.uniqueName.localeCompare(b.uniqueName))
+    .sort((a, b) => b.count - a.count || a.itemId.localeCompare(b.itemId))
 
   return {
     taskCount: snapshots.length,
     items,
-    materials,
-    unknownItemCount,
-    artifactCount,
   }
-}
-
-function tierFromMaterialId(id: string): number {
-  const m = /^T(\d)/.exec(id)
-  return m ? Number(m[1]) : 0
 }

@@ -46,7 +46,7 @@ const KILLBOARD_TO_SNAPSHOT_SLOT: Partial<Record<string, SlotKey>> = {
 }
 
 // killboard equipment JSONB → BuildSnapshot. id 에 enchant 접미사(@N) 포함된
-// Albion Type 문자열을 그대로 박는다 — craft-recipes 의 RECIPES 키도 같은 포맷.
+// Albion Type 문자열을 그대로 박는다.
 // Quality 는 craft 모드와 무관(품질 X) 이라 BuildSnapshot 에 보존하지 않는다.
 //
 // 트래킹 사망 직접 신청(이벤트 외) flow 에서도 같은 변환을 쓰므로 export.

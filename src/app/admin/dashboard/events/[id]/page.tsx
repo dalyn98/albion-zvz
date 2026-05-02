@@ -16,7 +16,6 @@ import EventEditSaveBar from '@/components/EventEditSaveBar'
 import { listTemplates } from '@/app/actions/templates'
 import {
   getCraftConfig,
-  getCraftLocationPresets,
   getEventCraftAggregate,
 } from '@/app/actions/craft'
 import EventCraftAggregateCard from '@/components/EventCraftAggregateCard'
@@ -104,7 +103,6 @@ export default async function EditEventPage({
     tenantTimezone,
     craftAggregateRes,
     craftConfig,
-    craftLocations,
     tentativeRes,
   ] = await Promise.all([
     getData(id, guildId),
@@ -114,7 +112,6 @@ export default async function EditEventPage({
     getTenantTimezone(guildId),
     getEventCraftAggregate(id),
     getCraftConfig(),
-    getCraftLocationPresets(),
     listTentativeSignups(id),
   ])
   const autoRegearEnabled = autoRegearRaw === 'true'
@@ -152,11 +149,6 @@ export default async function EditEventPage({
   // 길드가 craft regear 를 켜고 + 이 이벤트의 청구 데이터가 있을 때만 위젯
   // 노출. craftConfig.enabled 가 false 면 craft 자체가 작동 안 하니 위젯도 숨김.
   const craftAggregate = craftAggregateRes.result
-  const craftLocationPresets = craftLocations.map((l) => ({
-    id: l.id,
-    i18nKey: l.i18nKey,
-    defaultReturnRatePct: l.defaultReturnRatePct,
-  }))
 
   return (
     <EventEditSaveProvider>

@@ -4,12 +4,11 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { Box, Hammer, X, RefreshCw, Coins, Settings2, ChevronDown, MapPin } from 'lucide-react'
+import { Box, Hammer, X, Settings2, ChevronDown, MapPin } from 'lucide-react'
 import {
   claimCraftQueueItem,
   releaseCraftQueueItem,
   deliverCraftQueueItem,
-  previewCraftMaterialCost,
   setMyCrafterDefaults,
   bulkClaimCraftQueueItems,
   bulkReleaseCraftQueueItems,
@@ -20,7 +19,6 @@ import {
   type CraftCompensationMode,
   type AutoAssignReason,
 } from '@/app/actions/craft'
-import type { BuildCostBreakdown } from '@/lib/craft-recipes'
 import { SLOT_KEYS, type BuildSnapshot, type SlotKey } from '@/types'
 import { formatSilver } from '@/lib/silver'
 import ItemImage from './ItemImage'
@@ -41,18 +39,11 @@ import {
 
 const CITY_FILTER_STORAGE_KEY = 'albion-zvz:craft-city-filter'
 
-interface LocationPreset {
-  id: string
-  i18nKey: string
-  defaultReturnRatePct: number
-}
-
 interface Props {
   queued: CraftQueueItem[]
   mine: CraftQueueItem[]
   profile: CrafterProfile | null
   config: CraftBoxConfig
-  locations: LocationPreset[]
   // 길드 재고 (장비) — itemId → 수량. BuildPreview 의 부위별 재고 배지 노출용.
   // tracked 안 되는 부위 (가방 등) 는 키 자체가 없을 수 있고 그건 배지 미노출.
   stockByItemId: Record<string, number>
@@ -66,7 +57,6 @@ export default function CraftQueueClient({
   mine,
   profile,
   config,
-  locations,
   stockByItemId,
   mode = 'browse',
 }: Props) {
@@ -524,7 +514,6 @@ export default function CraftQueueClient({
         <DeliverDialog
           item={deliverTarget}
           config={config}
-          locations={locations}
           onClose={() => setDeliverTarget(null)}
           onSuccess={() => {
             setDeliverTarget(null)
@@ -1046,22 +1035,16 @@ function ClaimDialog({ item, defaultMode, defaultPremiumPct, onClose, onSuccess 
 interface DeliverDialogProps {
   item: CraftQueueItem
   config: CraftBoxConfig
-  locations: LocationPreset[]
   onClose: () => void
   onSuccess: () => void
 }
 
-function DeliverDialog({ item, config, locations, onClose, onSuccess }: DeliverDialogProps) {
+function DeliverDialog({ item, config, onClose, onSuccess }: DeliverDialogProps) {
   const t = useTranslations('craftQueue')
   const toast = useToast()
   const [boxNumber, setBoxNumber] = useState('')
   const [autoAssignReason, setAutoAssignReason] = useState<AutoAssignReason | null>(null)
-  const [locationId, setLocationId] = useState(locations[0]?.id ?? 'royal_city')
-  const [customReturnPct, setCustomReturnPct] = useState('15')
-  const [focusUsed, setFocusUsed] = useState(false)
-  const [breakdown, setBreakdown] = useState<BuildCostBreakdown | null>(null)
-  const [materialOverride, setMaterialOverride] = useState<string>('')
-  const [previewing, startPreview] = useTransition()
+  const [materialCost, setMaterialCost] = useState<string>('')
   const [submitting, startSubmit] = useTransition()
 
   // 모달이 열리면 서버에서 자동 박스 배정을 시도한다 — 같은 요청자가 이미 점유한
@@ -1081,36 +1064,11 @@ function DeliverDialog({ item, config, locations, onClose, onSuccess }: DeliverD
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !previewing && !submitting) onClose()
+      if (e.key === 'Escape' && !submitting) onClose()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [onClose, previewing, submitting])
-
-  const isCustom = locationId === 'custom'
-  const selectedLocation = locations.find((l) => l.id === locationId)
-  const locationLabel = useLocationLabel(locationId)
-  const returnPct = isCustom ? Number(customReturnPct) : selectedLocation?.defaultReturnRatePct ?? 0
-
-  const previewCost = () => {
-    if (!Number.isFinite(returnPct) || returnPct < 0 || returnPct > 100) {
-      toast.error(t('returnPctOutOfRange'))
-      return
-    }
-    startPreview(async () => {
-      const r = await previewCraftMaterialCost({
-        taskId: item.taskId,
-        locationReturnPct: returnPct,
-        focusUsed,
-      })
-      if (r.error) {
-        toast.error(r.error)
-        return
-      }
-      setBreakdown(r.breakdown)
-      if (r.breakdown) setMaterialOverride(String(r.breakdown.totalNetSilver))
-    })
-  }
+  }, [onClose, submitting])
 
   const submit = () => {
     const box = Number(boxNumber)
@@ -1122,7 +1080,7 @@ function DeliverDialog({ item, config, locations, onClose, onSuccess }: DeliverD
       toast.error(t('boxOutOfRange', { min: config.rangeMin, max: config.rangeMax }))
       return
     }
-    const material = Number(materialOverride)
+    const material = Number(materialCost)
     if (!Number.isFinite(material) || !Number.isInteger(material) || material < 0) {
       toast.error(t('materialInvalid'))
       return
@@ -1131,8 +1089,6 @@ function DeliverDialog({ item, config, locations, onClose, onSuccess }: DeliverD
       const r = await deliverCraftQueueItem({
         taskId: item.taskId,
         boxNumber: box,
-        craftCity: locationLabel,
-        craftFocusUsed: focusUsed,
         materialSilverCost: material,
       })
       if (r.error) {
@@ -1143,7 +1099,7 @@ function DeliverDialog({ item, config, locations, onClose, onSuccess }: DeliverD
     })
   }
 
-  const pending = previewing || submitting
+  const pending = submitting
   return (
     <ModalShell onClose={() => !pending && onClose()} title={t('deliverDialogTitle')}>
       <p className="text-[11px] text-gray-400">{t('deliverDialogHint')}</p>
@@ -1177,90 +1133,13 @@ function DeliverDialog({ item, config, locations, onClose, onSuccess }: DeliverD
       </div>
 
       <div>
-        <label className="block text-[11px] text-gray-400 mb-1">{t('locationLabel')}</label>
-        <select
-          value={locationId}
-          onChange={(e) => setLocationId(e.target.value)}
-          disabled={pending}
-          className="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
-        >
-          {locations.map((loc) => (
-            <LocationOption key={loc.id} loc={loc} />
-          ))}
-        </select>
-        {isCustom && (
-          <input
-            type="number"
-            inputMode="decimal"
-            min={0}
-            max={100}
-            step={0.1}
-            value={customReturnPct}
-            onChange={(e) => setCustomReturnPct(e.target.value)}
-            disabled={pending}
-            placeholder={t('customReturnPctPlaceholder')}
-            className="mt-2 w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
-          />
-        )}
-      </div>
-
-      <label className="flex items-center gap-2 text-xs text-gray-300">
-        <input
-          type="checkbox"
-          checked={focusUsed}
-          onChange={(e) => setFocusUsed(e.target.checked)}
-          disabled={pending}
-          className="rounded border-gray-700 bg-gray-950"
-        />
-        {t('focusUsedLabel', { bonus: config.focusBonusPct })}
-      </label>
-
-      <button
-        type="button"
-        onClick={previewCost}
-        disabled={pending}
-        className="w-full text-xs text-amber-300 hover:text-amber-200 border border-amber-500/30 rounded-lg px-3 py-2 flex items-center justify-center gap-2 disabled:opacity-50"
-      >
-        <RefreshCw size={12} />
-        {previewing ? t('previewing') : t('previewMaterialCost')}
-      </button>
-
-      {breakdown && (
-        <div className="space-y-2 bg-gray-950 border border-gray-800 rounded-lg p-3">
-          {breakdown.hasArtifact && (
-            <p className="text-amber-300 text-[11px]">{t('artifactWarning')}</p>
-          )}
-          {breakdown.hasMissingPrice && (
-            <p className="text-amber-300 text-[11px]">{t('missingPriceWarning')}</p>
-          )}
-          <div className="flex items-center justify-between text-[11px] text-gray-400">
-            <span>{t('previewEffectiveReturn')}</span>
-            <span className="font-mono text-gray-300">{breakdown.effectiveReturnPct.toFixed(1)}%</span>
-          </div>
-          <div className="flex items-center justify-between text-[11px] text-gray-400">
-            <span>{t('previewGross')}</span>
-            <span className="font-mono text-gray-300">{formatSilver(breakdown.totalGrossSilver)}</span>
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-amber-300 font-semibold flex items-center gap-1">
-              <Coins size={12} />
-              {t('previewNet')}
-            </span>
-            <span className="font-mono text-amber-300 font-bold">
-              {formatSilver(breakdown.totalNetSilver)}
-            </span>
-          </div>
-        </div>
-      )}
-
-      <div>
         <label className="block text-[11px] text-gray-400 mb-1">{t('materialLabel')}</label>
         <input
           type="number"
           inputMode="numeric"
           min={0}
-          value={materialOverride}
-          onChange={(e) => setMaterialOverride(e.target.value)}
+          value={materialCost}
+          onChange={(e) => setMaterialCost(e.target.value)}
           disabled={pending}
           placeholder={t('materialPlaceholder')}
           className="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
@@ -1356,28 +1235,6 @@ function BulkActionBar({
       </div>
     </div>
   )
-}
-
-function LocationOption({ loc }: { loc: LocationPreset }) {
-  const t = useTranslations('craftLocation')
-  return (
-    <option value={loc.id}>
-      {t(loc.i18nKey)} ({loc.defaultReturnRatePct}%)
-    </option>
-  )
-}
-
-function useLocationLabel(locationId: string): string {
-  const t = useTranslations('craftLocation')
-  const presetMap: Record<string, string> = {
-    royal_city: 'royalCity',
-    caerleon: 'caerleon',
-    hideout_t5: 'hideoutT5',
-    hideout_t8: 'hideoutT8',
-    custom: 'custom',
-  }
-  const k = presetMap[locationId] ?? 'custom'
-  return t(k)
 }
 
 interface ModalShellProps {
