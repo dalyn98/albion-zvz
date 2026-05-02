@@ -8,8 +8,6 @@ import { ClipboardList, Boxes, ExternalLink, Plus, Trash2 } from 'lucide-react'
 import {
   postCraftOrderAdmin,
   cancelCraftOrderAdmin,
-  approveCraftOrderTaskAdmin,
-  rejectCraftOrderTaskAdmin,
   type CraftOrderWithTasks,
 } from '@/app/actions/craft-orders'
 import { useToast } from './ToastProvider'
@@ -73,6 +71,8 @@ export default function AdminCraftOrdersPanel({ initialOrders }: Props) {
         }}
       />
 
+      <p className="text-[11px] text-gray-500 -mt-1">{t('adminApprovalsHint')}</p>
+
       <div className="space-y-3">
         {orders.length === 0 ? (
           <p className="text-xs text-gray-500">{t('adminOrdersEmpty')}</p>
@@ -86,21 +86,6 @@ export default function AdminCraftOrdersPanel({ initialOrders }: Props) {
                 if (!confirm(t('adminConfirmCancelOrder'))) return
                 startTransition(async () => {
                   const res = await cancelCraftOrderAdmin(entry.order.id)
-                  if (res.error) toast.error(res.error)
-                  else refresh()
-                })
-              }}
-              onApprove={(taskId) => {
-                startTransition(async () => {
-                  const res = await approveCraftOrderTaskAdmin(taskId)
-                  if (res.error) toast.error(res.error)
-                  else refresh()
-                })
-              }}
-              onReject={(taskId) => {
-                const reason = prompt(t('adminRejectReasonPrompt')) ?? ''
-                startTransition(async () => {
-                  const res = await rejectCraftOrderTaskAdmin(taskId, reason)
                   if (res.error) toast.error(res.error)
                   else refresh()
                 })
@@ -361,14 +346,10 @@ function OrderCard({
   entry,
   pending,
   onCancel,
-  onApprove,
-  onReject,
 }: {
   entry: CraftOrderWithTasks
   pending: boolean
   onCancel: () => void
-  onApprove: (taskId: string) => void
-  onReject: (taskId: string) => void
 }) {
   const t = useTranslations('craftOrders')
   const { order, tasks } = entry
@@ -420,31 +401,10 @@ function OrderCard({
                   {t(`status${capitalize(task.status)}` as 'statusClaimed' | 'statusDelivered' | 'statusApproved' | 'statusRejected' | 'statusCancelled')}
                 </span>
               </div>
-              {(task.boxNumber !== null || task.craftCity) && (
-                <p className="mt-1 text-[11px] text-gray-500">
-                  {task.boxNumber !== null ? `Box #${task.boxNumber}` : ''}
-                  {task.craftCity ? ` · ${task.craftCity}` : ''}
+              {task.deliveryMemo && (
+                <p className="mt-1 text-[11px] text-gray-500 whitespace-pre-line">
+                  {t('deliveryMemoLabel')}: {task.deliveryMemo}
                 </p>
-              )}
-              {task.status === 'delivered' && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onApprove(task.taskId)}
-                    disabled={pending}
-                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded text-white text-xs font-medium"
-                  >
-                    {pending ? t('adminApproving') : t('adminApprove')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onReject(task.taskId)}
-                    disabled={pending}
-                    className="px-3 py-1 bg-rose-700 hover:bg-rose-600 disabled:opacity-50 rounded text-white text-xs font-medium"
-                  >
-                    {pending ? t('adminRejecting') : t('adminReject')}
-                  </button>
-                </div>
               )}
             </li>
           ))}

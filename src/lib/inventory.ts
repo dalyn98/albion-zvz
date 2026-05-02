@@ -305,9 +305,11 @@ export async function decrementBuildForDelivery(
   return { empty: false, warnedItemIds }
 }
 
-// 본 함수만 이 파일 안에서 호출. itemId → base_suffix 변환 후 idempotent upsert.
+// itemId → base_suffix 변환 후 idempotent upsert. craft 발주 승인 등 RPC 가
+// 직접 inventory 를 건드리는 경로에서도 호출 — 새 아이템이 처음 들어왔을 때
+// 그리드 카탈로그 필터에 자동 등록된다.
 // 실패해도 throw 하지 않는다 (deliver 자체의 도메인 상태가 깨져선 안 되므로).
-async function autoTrackSuffixesFromItemIds(
+export async function autoTrackSuffixesFromItemIds(
   guildId: string,
   itemIds: readonly string[],
 ): Promise<void> {

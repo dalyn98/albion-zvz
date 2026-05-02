@@ -12,6 +12,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { requireAdmin } from '@/lib/auth'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
+import { autoTrackSuffixesFromItemIds } from '@/lib/inventory'
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -50,8 +51,10 @@ export interface CraftOrderTaskRow {
   crafterDiscordId: string
   crafterUsername: string | null
   orderQuantity: number
+  // 박스 시스템 없이 메모만 쓰는 길드도 있어서 box_number 는 null 가능.
+  // craft_city 컬럼은 자유 메모로도 재사용 (도시명 + 보관함 위치 등).
   boxNumber: number | null
-  craftCity: string | null
+  deliveryMemo: string | null
   reimbursementSilver: number | null
   claimedAt: string | null
   deliveredAt: string | null
@@ -136,7 +139,7 @@ function mapTask(row: RawTaskRow): CraftOrderTaskRow {
     crafterUsername: row.crafter_username,
     orderQuantity: row.order_quantity,
     boxNumber: row.box_number,
-    craftCity: row.craft_city,
+    deliveryMemo: row.craft_city,
     reimbursementSilver:
       row.reimbursement_silver !== null ? toBigintNumber(row.reimbursement_silver) : null,
     claimedAt: row.claimed_at,
@@ -216,6 +219,135 @@ export async function listOpenCraftOrdersForMember(): Promise<{
   const { orders, error } = await listCraftOrders()
   if (error) return { orders: [], error }
   return { orders: orders.filter(o => o.order.status === 'open') }
+}
+
+// ────────────────────────────────────────────────────────────
+// Admin reviews — 승인 관리 페이지용
+// ────────────────────────────────────────────────────────────
+
+export interface CraftOrderTaskReviewRow {
+  taskId: string
+  orderId: string
+  status: CraftOrderTaskStatus
+  crafterDiscordId: string
+  crafterUsername: string | null
+  orderQuantity: number
+  deliveryMemo: string | null
+  reimbursementSilver: number | null
+  claimedAt: string | null
+  deliveredAt: string | null
+  collectedAt: string | null
+  cancelledAt: string | null
+  itemId: string
+  itemName: string | null
+  unitPriceSilver: number
+  notes: string | null
+  postedByDiscordId: string
+  postedByUsername: string | null
+}
+
+export async function listCraftOrderTasksForReview(scope: 'pending' | 'all'): Promise<{
+  tasks: CraftOrderTaskReviewRow[]
+  error?: string
+}> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { tasks: [], error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+    const db = getAdminClient()
+
+    let query = db
+      .from('craft_tasks')
+      .select(
+        'id, craft_order_id, status, crafter_discord_id, crafter_username, order_quantity, box_number, craft_city, reimbursement_silver, claimed_at, delivered_at, collected_at, cancelled_at, craft_orders!inner(item_id, item_name, unit_price_silver, notes, posted_by_discord_id, posted_by_username)',
+      )
+      .eq('guild_id', guildId)
+      .eq('task_kind', 'guild_order')
+      .order('delivered_at', { ascending: false, nullsFirst: false })
+      .order('claimed_at', { ascending: false })
+      .limit(200)
+    if (scope === 'pending') {
+      query = query.eq('status', 'delivered')
+    }
+
+    const { data, error } = await query
+    if (error) return { tasks: [], error: error.message }
+
+    type Row = {
+      id: string
+      craft_order_id: string
+      status: string
+      crafter_discord_id: string
+      crafter_username: string | null
+      order_quantity: number
+      box_number: number | null
+      craft_city: string | null
+      reimbursement_silver: number | string | null
+      claimed_at: string | null
+      delivered_at: string | null
+      collected_at: string | null
+      cancelled_at: string | null
+      craft_orders:
+        | {
+            item_id: string
+            item_name: string | null
+            unit_price_silver: number | string
+            notes: string | null
+            posted_by_discord_id: string
+            posted_by_username: string | null
+          }
+        | Array<{
+            item_id: string
+            item_name: string | null
+            unit_price_silver: number | string
+            notes: string | null
+            posted_by_discord_id: string
+            posted_by_username: string | null
+          }>
+    }
+
+    const tasks: CraftOrderTaskReviewRow[] = ((data ?? []) as Row[]).map((row) => {
+      const order = Array.isArray(row.craft_orders)
+        ? row.craft_orders[0]
+        : row.craft_orders
+      return {
+        taskId: row.id,
+        orderId: row.craft_order_id,
+        status: row.status as CraftOrderTaskStatus,
+        crafterDiscordId: row.crafter_discord_id,
+        crafterUsername: row.crafter_username,
+        orderQuantity: row.order_quantity,
+        deliveryMemo: row.craft_city,
+        reimbursementSilver:
+          row.reimbursement_silver !== null ? toBigintNumber(row.reimbursement_silver) : null,
+        claimedAt: row.claimed_at,
+        deliveredAt: row.delivered_at,
+        collectedAt: row.collected_at,
+        cancelledAt: row.cancelled_at,
+        itemId: order?.item_id ?? '',
+        itemName: order?.item_name ?? null,
+        unitPriceSilver: order ? toBigintNumber(order.unit_price_silver) : 0,
+        notes: order?.notes ?? null,
+        postedByDiscordId: order?.posted_by_discord_id ?? '',
+        postedByUsername: order?.posted_by_username ?? null,
+      }
+    })
+    return { tasks }
+  } catch (e) {
+    return { tasks: [], error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function countPendingCraftOrderApprovals(guildId: string): Promise<number> {
+  const db = getAdminClient()
+  const { count } = await db
+    .from('craft_tasks')
+    .select('id', { count: 'exact', head: true })
+    .eq('guild_id', guildId)
+    .eq('task_kind', 'guild_order')
+    .eq('status', 'delivered')
+  return count ?? 0
 }
 
 // ────────────────────────────────────────────────────────────
@@ -337,10 +469,18 @@ export async function approveCraftOrderTaskAdmin(
       return { error: error.message }
     }
 
+    // 신규 아이템이 처음 입고된 경우 그리드 카탈로그 (guild_tracked_inventory_items)
+    // 에 자동 등록. 안 하면 RPC 가 guild_inventory_gear 에는 +n 해도 어드민
+    // 재고 페이지의 trackedSuffixSet 필터에 걸려서 화면에 안 나타난다.
+    const order = task?.craft_orders
+      ? Array.isArray(task.craft_orders) ? task.craft_orders[0] : task.craft_orders
+      : null
+    const orderItemId = order?.item_id as string | undefined
+    if (orderItemId) {
+      void autoTrackSuffixesFromItemIds(guildId, [orderItemId])
+    }
+
     if (task?.crafter_discord_id) {
-      const order = Array.isArray(task.craft_orders)
-        ? task.craft_orders[0]
-        : task.craft_orders
       const payout =
         order && typeof order.unit_price_silver !== 'undefined'
           ? Number(order.unit_price_silver) * Number(task.order_quantity ?? 0)
@@ -358,6 +498,8 @@ export async function approveCraftOrderTaskAdmin(
     }
 
     revalidatePath('/admin/dashboard/craft')
+    revalidatePath('/admin/dashboard/approvals')
+    revalidatePath('/admin/dashboard/inventory')
     revalidatePath('/craft/orders')
     revalidatePath('/me')
     return {}
@@ -422,6 +564,7 @@ export async function rejectCraftOrderTaskAdmin(
     }
 
     revalidatePath('/admin/dashboard/craft')
+    revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/craft/orders')
     return {}
   } catch (e) {
@@ -510,8 +653,9 @@ export async function releaseCraftOrderTask(
 
 export interface DeliverCraftOrderInput {
   taskId: string
-  boxNumber: number
-  craftCity: string
+  // 자유 메모 — "Lymhurst, 9번 보관함" 같이 도시 + 위치를 한 줄에 쓴다.
+  // craft_city 컬럼을 그대로 재사용 (박스/도시 구조 입력은 폐기).
+  memo: string
 }
 
 export async function deliverCraftOrderTask(
@@ -523,10 +667,6 @@ export async function deliverCraftOrderTask(
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
-
-    if (!Number.isInteger(input.boxNumber) || input.boxNumber < 1) {
-      return { error: tErr('craftBoxOutOfRange') }
-    }
 
     const expirySetting = await db
       .from('app_settings')
@@ -544,26 +684,20 @@ export async function deliverCraftOrderTask(
       p_task_id: input.taskId,
       p_guild_id: guildId,
       p_crafter_discord_id: session.discordId,
-      p_box_number: input.boxNumber,
-      p_craft_city: input.craftCity?.trim() || null,
+      p_box_number: null,
+      p_craft_city: input.memo?.trim() || null,
       p_craft_focus_used: false,
       p_expiry_days: expiryDays,
     })
     if (error) {
-      if (error.message.includes('BOX_OUT_OF_RANGE')) {
-        return { error: tErr('craftBoxOutOfRange') }
-      }
       if (error.message.includes('CRAFT_TASK_DELIVER_FAILED')) {
         return { error: tErr('craftTaskDeliverFailed') }
-      }
-      // 박스 unique 충돌 (이미 점유)
-      if (error.message.includes('craft_tasks_box_unique_delivered')) {
-        return { error: tErr('craftBoxAlreadyTaken') }
       }
       return { error: error.message }
     }
     revalidatePath('/craft/orders')
     revalidatePath('/admin/dashboard/craft')
+    revalidatePath('/admin/dashboard/approvals')
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

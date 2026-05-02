@@ -6,6 +6,7 @@ export interface AdminBadgeCounts {
   donation: number
   shop: number
   eventPayout: number
+  craft: number
 }
 
 // Lightweight pending counts shown next to the admin sidebar links.
@@ -14,7 +15,7 @@ export interface AdminBadgeCounts {
 // (layout-level gate enforces this before render).
 export async function getAdminBadgeCounts(guildId: string): Promise<AdminBadgeCounts> {
   const db = getAdminClient()
-  const [regearRes, exchangeRes, donationRes, shopRes, eventPayoutRes] = await Promise.all([
+  const [regearRes, exchangeRes, donationRes, shopRes, eventPayoutRes, craftRes] = await Promise.all([
     db
       .from('regear_requests')
       .select('id', { count: 'exact', head: true })
@@ -40,6 +41,12 @@ export async function getAdminBadgeCounts(guildId: string): Promise<AdminBadgeCo
       .select('id', { count: 'exact', head: true })
       .eq('guild_id', guildId)
       .eq('status', 'pending'),
+    db
+      .from('craft_tasks')
+      .select('id', { count: 'exact', head: true })
+      .eq('guild_id', guildId)
+      .eq('task_kind', 'guild_order')
+      .eq('status', 'delivered'),
   ])
   return {
     regear: regearRes.count ?? 0,
@@ -47,5 +54,6 @@ export async function getAdminBadgeCounts(guildId: string): Promise<AdminBadgeCo
     donation: donationRes.count ?? 0,
     shop: shopRes.count ?? 0,
     eventPayout: eventPayoutRes.count ?? 0,
+    craft: craftRes.count ?? 0,
   }
 }

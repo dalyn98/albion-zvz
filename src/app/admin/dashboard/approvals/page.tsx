@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ShieldCheck, Wallet, Gift, ShoppingBag, Coins } from 'lucide-react'
+import { ShieldCheck, Wallet, Gift, ShoppingBag, Coins, ClipboardList } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import {
   listRegearRequests,
@@ -15,18 +15,20 @@ import type { BuildSnapshot } from '@/types'
 import { listDonationRequests } from '@/app/actions/donation-admin'
 import { listShopOrders } from '@/app/actions/shop-admin'
 import { listEventPayoutRequests } from '@/app/actions/event-payout-admin'
+import { listCraftOrderTasksForReview } from '@/app/actions/craft-orders'
 import RegearReviewList from '@/components/RegearReviewList'
 import ExchangeReviewList from '@/components/ExchangeReviewList'
 import DonationReviewList from '@/components/DonationReviewList'
 import ShopOrderReviewList from '@/components/ShopOrderReviewList'
 import EventPayoutReviewList from '@/components/EventPayoutReviewList'
+import CraftOrderReviewList from '@/components/CraftOrderReviewList'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 import { getAdminBadgeCounts } from '@/lib/admin-badges'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
 
-type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop' | 'event_payout'
+type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop' | 'event_payout' | 'craft'
 type Scope = 'pending' | 'all'
 
 interface SearchParams {
@@ -36,7 +38,15 @@ interface SearchParams {
 }
 
 function resolveType(v: string | undefined): TypeKey {
-  if (v === 'exchange' || v === 'donation' || v === 'shop' || v === 'event_payout') return v
+  if (
+    v === 'exchange' ||
+    v === 'donation' ||
+    v === 'shop' ||
+    v === 'event_payout' ||
+    v === 'craft'
+  ) {
+    return v
+  }
   return 'regear'
 }
 
@@ -77,6 +87,7 @@ export default async function ApprovalsPage({
     { key: 'donation', label: tApprovals('tabDonation'), icon: Gift, badge: badges.donation },
     { key: 'shop', label: tApprovals('tabShop'), icon: ShoppingBag, badge: badges.shop },
     { key: 'event_payout', label: tApprovals('tabEventPayout'), icon: Coins, badge: badges.eventPayout },
+    { key: 'craft', label: tApprovals('tabCraft'), icon: ClipboardList, badge: badges.craft },
   ]
 
   return (
@@ -93,6 +104,7 @@ export default async function ApprovalsPage({
       {type === 'donation' && <DonationSection scope={scope} guildId={guildId} />}
       {type === 'shop' && <ShopSection scope={scope} guildId={guildId} />}
       {type === 'event_payout' && <EventPayoutSection scope={scope} guildId={guildId} />}
+      {type === 'craft' && <CraftSection scope={scope} guildId={guildId} />}
     </div>
   )
 }
@@ -414,6 +426,41 @@ async function EventPayoutSection({ scope, guildId }: { scope: Scope; guildId: s
         </p>
       ) : (
         <EventPayoutReviewList requests={requests} tz={tz} />
+      )}
+    </div>
+  )
+}
+
+async function CraftSection({ scope, guildId }: { scope: Scope; guildId: string }) {
+  const [{ tasks, error }, t] = await Promise.all([
+    listCraftOrderTasksForReview(scope),
+    getTranslations('adminCraftOrderReview'),
+  ])
+  const avatarMap = await getAvatarsByDiscordIds(
+    guildId,
+    tasks.map((task) => task.crafterDiscordId),
+  )
+  const avatars = Object.fromEntries(avatarMap)
+
+  return (
+    <div className="space-y-4">
+      <ScopeTabs
+        baseHref="/admin/dashboard/approvals?tab=craft"
+        active={scope}
+        tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
+        accent="amber"
+      />
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+          <p className="text-red-400 text-sm">{error}</p>
+        </div>
+      )}
+      {tasks.length === 0 && !error ? (
+        <p className="text-gray-500 text-sm text-center py-8">
+          {scope === 'pending' ? t('noPending') : t('noRequests')}
+        </p>
+      ) : (
+        <CraftOrderReviewList tasks={tasks} avatars={avatars} />
       )}
     </div>
   )

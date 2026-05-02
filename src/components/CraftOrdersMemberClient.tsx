@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
@@ -25,36 +25,115 @@ interface Props {
   currentUserDiscordId: string
 }
 
-// 길드원 — 발주 목록을 보고 일부 수량 수주, 직접 제작 후 박스 번호 지정해 납품.
+type Tab = 'available' | 'mine'
+
+// 길드원 — 발주 목록을 보고 일부 수량 수주, 직접 제작 후 메모와 함께 납품.
 export default function CraftOrdersMemberClient({
   initialOrders,
   currentUserDiscordId,
 }: Props) {
   const t = useTranslations('craftOrders')
+  const [tab, setTab] = useState<Tab>('available')
 
-  if (initialOrders.length === 0) {
-    return <p className="text-sm text-gray-500">{t('memberEmpty')}</p>
-  }
+  const myActiveOrders = useMemo(
+    () =>
+      initialOrders.filter((entry) =>
+        entry.tasks.some(
+          (task) =>
+            task.crafterDiscordId === currentUserDiscordId &&
+            (task.status === 'claimed' || task.status === 'delivered'),
+        ),
+      ),
+    [initialOrders, currentUserDiscordId],
+  )
+
+  const visibleOrders = tab === 'available' ? initialOrders : myActiveOrders
+  const myCount = myActiveOrders.length
 
   return (
     <div className="space-y-4">
-      {initialOrders.map((entry) => (
-        <OrderCard
-          key={entry.order.id}
-          entry={entry}
-          currentUserDiscordId={currentUserDiscordId}
+      <nav
+        role="tablist"
+        aria-label={t('memberTabsLabel')}
+        className="flex gap-1 border-b border-gray-800 overflow-x-auto"
+      >
+        <TabButton
+          active={tab === 'available'}
+          onClick={() => setTab('available')}
+          label={t('memberTabAvailable')}
+          count={initialOrders.length}
         />
-      ))}
+        <TabButton
+          active={tab === 'mine'}
+          onClick={() => setTab('mine')}
+          label={t('memberTabMine')}
+          count={myCount}
+        />
+      </nav>
+
+      {visibleOrders.length === 0 ? (
+        <p className="text-sm text-gray-500">
+          {tab === 'available' ? t('memberEmpty') : t('memberMineEmpty')}
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {visibleOrders.map((entry) => (
+            <OrderCard
+              key={entry.order.id}
+              entry={entry}
+              currentUserDiscordId={currentUserDiscordId}
+              hideClaimForm={tab === 'mine'}
+            />
+          ))}
+        </div>
+      )}
     </div>
+  )
+}
+
+function TabButton({
+  active,
+  onClick,
+  label,
+  count,
+}: {
+  active: boolean
+  onClick: () => void
+  label: string
+  count: number
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+        active
+          ? 'text-amber-300 border-amber-400'
+          : 'text-gray-400 border-transparent hover:text-white'
+      }`}
+    >
+      <span>{label}</span>
+      <span
+        className={`min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold leading-none flex items-center justify-center ${
+          active ? 'bg-amber-500/30 text-amber-100' : 'bg-gray-800 text-gray-300'
+        }`}
+      >
+        {count}
+      </span>
+    </button>
   )
 }
 
 function OrderCard({
   entry,
   currentUserDiscordId,
+  hideClaimForm,
 }: {
   entry: CraftOrderWithTasks
   currentUserDiscordId: string
+  hideClaimForm: boolean
 }) {
   const t = useTranslations('craftOrders')
   const toast = useToast()
@@ -64,7 +143,12 @@ function OrderCard({
 
   const { order, tasks } = entry
   const remaining = order.quantity - order.claimedQuantity
-  const myTasks = tasks.filter((t) => t.crafterDiscordId === currentUserDiscordId)
+  // 승인/거절/취소된 task 는 노이즈가 되어 자기 작업 목록에서 숨긴다.
+  const myActiveTasks = tasks.filter(
+    (task) =>
+      task.crafterDiscordId === currentUserDiscordId &&
+      (task.status === 'claimed' || task.status === 'delivered'),
+  )
   const label = order.itemName || order.itemId
   const enchant = parseEnchant(order.itemId)
   const totalPayout = order.unitPriceSilver * order.quantity
@@ -116,7 +200,7 @@ function OrderCard({
         <Stat label={t('totalPayoutLabel')} value={formatSilver(totalPayout)} />
       </div>
 
-      {remaining > 0 && (
+      {!hideClaimForm && remaining > 0 && (
         <div className="flex flex-wrap items-end gap-2 border-t border-gray-800 pt-3">
           <label className="text-xs text-gray-300 flex-1 min-w-[120px]">
             <span className="block mb-1">{t('claimQuantityLabel')}</span>
@@ -140,10 +224,10 @@ function OrderCard({
         </div>
       )}
 
-      {myTasks.length > 0 && (
+      {myActiveTasks.length > 0 && (
         <div className="border-t border-gray-800 pt-3 space-y-2">
           <p className="text-xs font-semibold text-amber-200">{t('myClaimsHeader')}</p>
-          {myTasks.map((task) => (
+          {myActiveTasks.map((task) => (
             <MyTaskRow key={task.taskId} task={task} order={entry.order} />
           ))}
         </div>
@@ -163,8 +247,7 @@ function MyTaskRow({
   const toast = useToast()
   const router = useRouter()
   const [pending, startTransition] = useTransition()
-  const [boxNumber, setBoxNumber] = useState('')
-  const [craftCity, setCraftCity] = useState('')
+  const [memo, setMemo] = useState('')
 
   const release = () => {
     startTransition(async () => {
@@ -179,16 +262,10 @@ function MyTaskRow({
   }
 
   const deliver = () => {
-    const box = Number(boxNumber)
-    if (!Number.isInteger(box) || box < 1) {
-      toast.error(t('boxNumberLabel'))
-      return
-    }
     startTransition(async () => {
       const res = await deliverCraftOrderTask({
         taskId: task.taskId,
-        boxNumber: box,
-        craftCity: craftCity.trim(),
+        memo: memo.trim(),
       })
       if (res.error) {
         toast.error(res.error)
@@ -214,26 +291,16 @@ function MyTaskRow({
 
       {task.status === 'claimed' && (
         <>
-          <div className="grid grid-cols-2 gap-2">
-            <label>
-              <span className="block mb-1">{t('boxNumberLabel')}</span>
-              <input
-                type="number"
-                min={1}
-                value={boxNumber}
-                onChange={(e) => setBoxNumber(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-white"
-              />
-            </label>
-            <label>
-              <span className="block mb-1">{t('craftCityLabel')}</span>
-              <input
-                value={craftCity}
-                onChange={(e) => setCraftCity(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-white"
-              />
-            </label>
-          </div>
+          <label className="block">
+            <span className="block mb-1">{t('deliveryMemoLabel')}</span>
+            <textarea
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              placeholder={t('deliveryMemoPlaceholder')}
+              rows={2}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-white"
+            />
+          </label>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -255,10 +322,9 @@ function MyTaskRow({
         </>
       )}
 
-      {task.status === 'delivered' && task.boxNumber !== null && (
-        <p className="text-[11px] text-gray-400">
-          Box #{task.boxNumber}
-          {task.craftCity ? ` · ${task.craftCity}` : ''}
+      {task.status === 'delivered' && task.deliveryMemo && (
+        <p className="text-[11px] text-gray-400 whitespace-pre-line">
+          {t('deliveryMemoLabel')}: {task.deliveryMemo}
         </p>
       )}
     </div>
