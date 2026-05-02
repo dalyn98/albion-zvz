@@ -6,6 +6,7 @@
 // - /players/{id}     → 상세 (인증 시점에 길드 ID 확정용)
 
 import { ALBION_GAMEINFO_ENDPOINTS } from '@/lib/albion-endpoints'
+import { fetchJsonWithRetry } from '@/lib/http-retry'
 
 export type AlbionServer = 'west' | 'east' | 'europe'
 
@@ -35,23 +36,15 @@ interface SearchResponse {
 }
 
 async function fetchJson<T>(url: string, opts: { fresh?: boolean } = {}): Promise<T> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 10_000)
-  try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { 'User-Agent': 'albion-zvz-onboarding/1.0' },
-      // fresh=true: 인증 확정 시점처럼 실시간 데이터가 필요한 호출. 드롭다운 검색
-      // 처럼 동일 쿼리가 연달아 발생하는 경로만 5분 캐시를 쓴다.
-      ...(opts.fresh
-        ? { cache: 'no-store' as const }
-        : { next: { revalidate: 300 } }),
-    })
-    if (!res.ok) throw new Error(`gameinfo ${res.status}`)
-    return (await res.json()) as T
-  } finally {
-    clearTimeout(timer)
-  }
+  // fresh=true: 인증 확정 시점처럼 실시간 데이터가 필요한 호출. 드롭다운 검색
+  // 처럼 동일 쿼리가 연달아 발생하는 경로만 5분 캐시를 쓴다.
+  return fetchJsonWithRetry<T>(url, {
+    label: 'gameinfo',
+    userAgent: 'albion-zvz-onboarding/1.0',
+    fetchInit: opts.fresh
+      ? { cache: 'no-store' }
+      : { next: { revalidate: 300 } },
+  })
 }
 
 // 닉네임 prefix/substring 으로 후보 플레이어 리스트 조회. Gameinfo 공식

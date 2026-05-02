@@ -10,6 +10,7 @@
 
 import { getAppSetting } from '@/lib/app-settings'
 import { ALBION_GAMEINFO_ENDPOINTS } from '@/lib/albion-endpoints'
+import { fetchJsonWithRetry } from '@/lib/http-retry'
 
 export type AlbionServer = 'west' | 'east' | 'europe'
 
@@ -68,23 +69,15 @@ export interface KillboardDeath {
 type FetchOpts = Pick<RequestInit, 'cache'> & { revalidate?: number }
 
 async function fetchJson<T>(url: string, opts: FetchOpts = {}): Promise<T> {
-  // 10s timeout — killboard occasionally stalls and we don't want server
-  // actions hanging on it.
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 10_000)
-  try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { 'User-Agent': 'albion-zvz-regear/1.0' },
-      // Caller decides cache strategy. Default: don't cache.
+  // Caller decides cache strategy. Default: don't cache.
+  return fetchJsonWithRetry<T>(url, {
+    label: 'killboard',
+    userAgent: 'albion-zvz-regear/1.0',
+    fetchInit: {
       cache: opts.cache ?? 'no-store',
       ...(opts.revalidate ? { next: { revalidate: opts.revalidate } } : {}),
-    })
-    if (!res.ok) throw new Error(`killboard ${res.status}`)
-    return (await res.json()) as T
-  } finally {
-    clearTimeout(timer)
-  }
+    },
+  })
 }
 
 async function searchPlayerByName(baseUrl: string, name: string): Promise<PlayerRef | null> {

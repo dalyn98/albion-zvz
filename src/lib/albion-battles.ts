@@ -16,6 +16,7 @@
 
 import type { AlbionServer } from '@/lib/albion-gameinfo'
 import { ALBION_GAMEINFO_ENDPOINTS } from '@/lib/albion-endpoints'
+import { fetchJsonWithRetry, HttpFetchError } from '@/lib/http-retry'
 
 // /battles 는 gameinfo 서버와 같은 base 도메인 + /api/gameinfo prefix 를 쓴다.
 const SERVER_ENDPOINTS = ALBION_GAMEINFO_ENDPOINTS
@@ -90,21 +91,17 @@ export async function fetchBattleById(
   battleId: number,
 ): Promise<AlbionBattle | null> {
   const url = `${SERVER_ENDPOINTS[server]}/battles/${battleId}`
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 10_000)
   try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { 'User-Agent': 'albion-zvz-battle-tracker/1.0' },
-      cache: 'no-store',
+    const data = await fetchJsonWithRetry<AlbionBattle>(url, {
+      label: `battles/${battleId}`,
+      userAgent: 'albion-zvz-battle-tracker/1.0',
+      fetchInit: { cache: 'no-store' },
     })
-    if (res.status === 404) return null
-    if (!res.ok) throw new Error(`battles/${battleId} ${res.status}`)
-    const data = (await res.json()) as AlbionBattle
     if (!data || typeof data.id !== 'number') return null
     return data
-  } finally {
-    clearTimeout(timer)
+  } catch (err) {
+    if (err instanceof HttpFetchError && err.status === 404) return null
+    throw err
   }
 }
 
@@ -117,21 +114,13 @@ export async function fetchRecentBattles(
   for (let i = 0; i < pages; i++) {
     const offset = i * BATTLES_PAGE_SIZE
     const url = `${SERVER_ENDPOINTS[server]}/battles?limit=${BATTLES_PAGE_SIZE}&offset=${offset}&sort=recent`
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 15_000)
-    let page: AlbionBattle[] = []
-    try {
-      const res = await fetch(url, {
-        signal: controller.signal,
-        headers: { 'User-Agent': 'albion-zvz-battle-tracker/1.0' },
-        cache: 'no-store',
-      })
-      if (!res.ok) throw new Error(`battles ${res.status}`)
-      const data = (await res.json()) as unknown
-      if (Array.isArray(data)) page = data as AlbionBattle[]
-    } finally {
-      clearTimeout(timer)
-    }
+    const data = await fetchJsonWithRetry<unknown>(url, {
+      label: 'battles',
+      userAgent: 'albion-zvz-battle-tracker/1.0',
+      timeoutMs: 15_000,
+      fetchInit: { cache: 'no-store' },
+    })
+    const page: AlbionBattle[] = Array.isArray(data) ? (data as AlbionBattle[]) : []
     for (const b of page) {
       if (seen.has(b.id)) continue
       seen.add(b.id)

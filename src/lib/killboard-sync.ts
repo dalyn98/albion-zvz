@@ -13,6 +13,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { resolveAlbionServer, type AlbionServer } from './killboard'
+import { fetchJsonWithRetry } from '@/lib/http-retry'
 import { getAppSetting } from './app-settings'
 import { ALBION_GAMEINFO_ENDPOINTS } from './albion-endpoints'
 
@@ -61,19 +62,11 @@ interface SearchResponse {
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 10_000)
-  try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { 'User-Agent': 'albion-zvz-killboard-sync/1.0' },
-      cache: 'no-store',
-    })
-    if (!res.ok) throw new Error(`killboard ${res.status}`)
-    return (await res.json()) as T
-  } finally {
-    clearTimeout(timer)
-  }
+  return fetchJsonWithRetry<T>(url, {
+    label: 'killboard',
+    userAgent: 'albion-zvz-killboard-sync/1.0',
+    fetchInit: { cache: 'no-store' },
+  })
 }
 
 async function sleep(ms: number): Promise<void> {

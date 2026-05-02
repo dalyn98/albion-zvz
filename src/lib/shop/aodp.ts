@@ -11,6 +11,7 @@
 import type { AlbionServer } from '@/lib/killboard'
 import { getAppSetting } from '@/lib/app-settings'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
+import { fetchJsonWithRetry } from '@/lib/http-retry'
 
 export { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 
@@ -199,12 +200,11 @@ function modeToDays(mode: AodpPriceMode): number {
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'albion-guildmanager/1.0' },
-    cache: 'no-store',
+  return fetchJsonWithRetry<T>(url, {
+    label: 'AODP',
+    userAgent: 'albion-guildmanager/1.0',
+    fetchInit: { cache: 'no-store' },
   })
-  if (!res.ok) throw new Error(`AODP ${res.status}: ${url}`)
-  return (await res.json()) as T
 }
 
 async function fetchSpotBatch(
