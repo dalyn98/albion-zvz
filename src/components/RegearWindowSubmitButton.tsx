@@ -13,6 +13,7 @@ import {
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
+import { compressImageIfLarge } from '@/lib/image-compress'
 import { useToast } from './ToastProvider'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import RegearBuildSnapshotPicker, {
@@ -87,7 +88,8 @@ export default function RegearWindowSubmitButton({
     }
   }, [open, pending])
 
-  // 모달 안 paste 처리: file → file2 순서로 빈 슬롯에 채운다.
+  // 모달 안 paste 처리: file → file2 순서로 빈 슬롯에 채운다. 큰 이미지는
+  // compressImageIfLarge 로 다운스케일 후 저장해 server action 한도에 걸리지 않게.
   useEffect(() => {
     if (!open) return
     const handlePaste = (e: ClipboardEvent) => {
@@ -100,16 +102,13 @@ export default function RegearWindowSubmitButton({
         if (!blob) continue
         const ext = item.type.split('/')[1]
         const pasted = new File([blob], `clipboard-${Date.now()}.${ext}`, { type: item.type })
-        if (!file) {
-          setFile(pasted)
-          e.preventDefault()
-          return
-        }
-        if (!file2) {
-          setFile2(pasted)
-          e.preventDefault()
-          return
-        }
+        const target: 'file' | 'file2' | null = !file ? 'file' : !file2 ? 'file2' : null
+        if (!target) return
+        e.preventDefault()
+        compressImageIfLarge(pasted).then((compressed) => {
+          if (target === 'file') setFile(compressed)
+          else setFile2(compressed)
+        })
         return
       }
     }
@@ -397,7 +396,8 @@ function FileSlot({ file, onChange, placeholder, disabled, removeLabel }: FileSl
             disabled={disabled}
             onChange={(e) => {
               const f = e.target.files?.[0] ?? null
-              if (f && ACCEPTED_TYPES.includes(f.type)) onChange(f)
+              if (!f || !ACCEPTED_TYPES.includes(f.type)) return
+              compressImageIfLarge(f).then(onChange)
             }}
             className="hidden"
           />

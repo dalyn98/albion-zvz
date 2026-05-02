@@ -8,6 +8,7 @@ import { submitTrackedAdHocRegear } from '@/app/actions/regear-tracked-deaths'
 import type { WindowRoleOption } from '@/app/actions/regear-windows'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import { compressImageIfLarge } from '@/lib/image-compress'
 import { useToast } from './ToastProvider'
 import AdHocDeathBuildStrip from './AdHocDeathBuildStrip'
 import type { BuildSnapshot } from '@/types'
@@ -83,8 +84,8 @@ export default function AdHocDeathSubmitButton({
         if (!blob) continue
         const ext = item.type.split('/')[1]
         const pasted = new File([blob], `clipboard-${Date.now()}.${ext}`, { type: item.type })
-        setFile(pasted)
         e.preventDefault()
+        compressImageIfLarge(pasted).then(setFile)
         return
       }
     }
@@ -314,7 +315,8 @@ function FileSlot({ file, onChange, placeholder, disabled, removeLabel }: FileSl
             disabled={disabled}
             onChange={(e) => {
               const f = e.target.files?.[0] ?? null
-              if (f && ACCEPTED_TYPES.includes(f.type)) onChange(f)
+              if (!f || !ACCEPTED_TYPES.includes(f.type)) return
+              compressImageIfLarge(f).then(onChange)
             }}
             className="hidden"
           />

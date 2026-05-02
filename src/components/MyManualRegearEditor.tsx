@@ -17,6 +17,7 @@ import {
 } from '@/app/actions/regear'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
+import { compressImageIfLarge } from '@/lib/image-compress'
 
 interface Props {
   detail: MyRegearDetail
@@ -78,12 +79,14 @@ export default function MyManualRegearEditor({ detail }: Props) {
         // 2) 그 외엔 secondary.
         const primaryEffectivelyEmpty =
           !primarySlot.pendingFile && !primarySlot.currentPath
-        if (primaryEffectivelyEmpty) {
-          setPrimarySlot((s) => ({ ...s, pendingFile: file }))
-        } else {
-          setSecondarySlot((s) => ({ ...s, pendingFile: file, pendingRemove: false }))
-        }
         e.preventDefault()
+        compressImageIfLarge(file).then((compressed) => {
+          if (primaryEffectivelyEmpty) {
+            setPrimarySlot((s) => ({ ...s, pendingFile: compressed }))
+          } else {
+            setSecondarySlot((s) => ({ ...s, pendingFile: compressed, pendingRemove: false }))
+          }
+        })
         return
       }
     }
@@ -381,7 +384,7 @@ function ScreenshotSlotEditor({
     const file = files?.[0]
     if (!file) return
     if (!ACCEPTED_TYPES.includes(file.type)) return
-    onSelectFile(file)
+    compressImageIfLarge(file).then(onSelectFile)
   }
 
   const showPending = state.pendingFile !== null

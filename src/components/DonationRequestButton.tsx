@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Gift, X, Upload, Clipboard } from 'lucide-react'
 import { requestDonation } from '@/app/actions/donation'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
+import { compressImageIfLarge } from '@/lib/image-compress'
 import { useToast } from './ToastProvider'
 
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
@@ -71,9 +72,11 @@ export default function DonationRequestButton() {
         if (!blob) continue
         const ext = item.type.split('/')[1]
         const pasted = new File([blob], `clipboard-${Date.now()}.${ext}`, { type: item.type })
-        setFile(pasted)
-        setError('')
         e.preventDefault()
+        compressImageIfLarge(pasted).then((compressed) => {
+          setFile(compressed)
+          setError('')
+        })
         return
       }
     }
@@ -197,8 +200,10 @@ export default function DonationRequestButton() {
                     setDragging(false)
                     const dropped = e.dataTransfer.files?.[0]
                     if (dropped && ACCEPTED_TYPES.includes(dropped.type)) {
-                      setFile(dropped)
-                      setError('')
+                      compressImageIfLarge(dropped).then((compressed) => {
+                        setFile(compressed)
+                        setError('')
+                      })
                     }
                   }}
                   className={`flex flex-col items-center justify-center gap-2 w-full rounded-lg cursor-pointer transition-colors overflow-hidden ${
@@ -229,8 +234,14 @@ export default function DonationRequestButton() {
                   className="hidden"
                   onChange={(e) => {
                     const picked = e.target.files?.[0] ?? null
-                    setFile(picked)
-                    if (picked) setError('')
+                    if (!picked) {
+                      setFile(null)
+                      return
+                    }
+                    compressImageIfLarge(picked).then((compressed) => {
+                      setFile(compressed)
+                      setError('')
+                    })
                   }}
                 />
                 {file && (

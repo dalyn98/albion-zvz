@@ -9,6 +9,7 @@ import { requestRegear } from '@/app/actions/regear'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
+import { compressImageIfLarge } from '@/lib/image-compress'
 import { useToast } from './ToastProvider'
 
 interface Props {
@@ -215,36 +216,45 @@ export default function RegearRequestButton({
         const latest = entriesRef.current
         const hover = hoveredSlotRef.current
         if (hover && latest.some((en) => en.id === hover.entryId)) {
-          const patch: Partial<EntryState> =
-            hover.slot === 'primary' ? { file: pasted } : { file2: pasted }
-          updateEntry(hover.entryId, patch)
-          setEntryErrors((prev) => {
-            if (!(hover.entryId in prev)) return prev
-            const next = { ...prev }
-            delete next[hover.entryId]
-            return next
-          })
           e.preventDefault()
-          return
-        }
-        for (const entry of latest) {
-          if (!entry.file) {
-            updateEntry(entry.id, { file: pasted })
+          compressImageIfLarge(pasted).then((compressed) => {
+            const patch: Partial<EntryState> =
+              hover.slot === 'primary' ? { file: compressed } : { file2: compressed }
+            updateEntry(hover.entryId, patch)
             setEntryErrors((prev) => {
-              if (!(entry.id in prev)) return prev
+              if (!(hover.entryId in prev)) return prev
               const next = { ...prev }
-              delete next[entry.id]
+              delete next[hover.entryId]
               return next
             })
-            e.preventDefault()
-            return
+          })
+          return
+        }
+        let target: { entryId: string; slot: 'primary' | 'secondary' } | null = null
+        for (const entry of latest) {
+          if (!entry.file) {
+            target = { entryId: entry.id, slot: 'primary' }
+            break
           }
           if (!entry.file2) {
-            updateEntry(entry.id, { file2: pasted })
-            e.preventDefault()
-            return
+            target = { entryId: entry.id, slot: 'secondary' }
+            break
           }
         }
+        if (!target) return
+        const finalTarget = target
+        e.preventDefault()
+        compressImageIfLarge(pasted).then((compressed) => {
+          const patch: Partial<EntryState> =
+            finalTarget.slot === 'primary' ? { file: compressed } : { file2: compressed }
+          updateEntry(finalTarget.entryId, patch)
+          setEntryErrors((prev) => {
+            if (!(finalTarget.entryId in prev)) return prev
+            const next = { ...prev }
+            delete next[finalTarget.entryId]
+            return next
+          })
+        })
         return
       }
     }
@@ -738,7 +748,7 @@ function ScreenshotSlot({ entryId, slot, label, file, onChange, onHover }: Scree
           setDragging(false)
           const dropped = e.dataTransfer.files?.[0]
           if (dropped && ACCEPTED_TYPES.includes(dropped.type)) {
-            onChange(dropped)
+            compressImageIfLarge(dropped).then(onChange)
           }
         }}
         className={`flex flex-col items-center justify-center gap-2 w-full rounded-lg cursor-pointer transition-colors overflow-hidden ${
@@ -768,7 +778,11 @@ function ScreenshotSlot({ entryId, slot, label, file, onChange, onHover }: Scree
         className="hidden"
         onChange={(e) => {
           const picked = e.target.files?.[0] ?? null
-          onChange(picked)
+          if (!picked) {
+            onChange(null)
+            return
+          }
+          compressImageIfLarge(picked).then(onChange)
         }}
       />
       {file && (
