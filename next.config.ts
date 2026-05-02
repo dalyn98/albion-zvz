@@ -52,10 +52,8 @@ const nextConfig: NextConfig = {
       },
       { source: '/features', destination: '/#features', permanent: true },
       { source: '/pricing', destination: '/#pricing', permanent: true },
-      { source: '/faq', destination: '/#faq', permanent: true },
       { source: '/public/features', destination: '/public/landing#features', permanent: true },
       { source: '/public/pricing', destination: '/public/landing#pricing', permanent: true },
-      { source: '/public/faq', destination: '/public/landing#faq', permanent: true },
     ]
   },
   // 전역 noindex/nofollow. robots.txt 와 이중 신호 — 일부 봇은 meta/header 만
