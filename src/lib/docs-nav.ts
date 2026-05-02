@@ -111,6 +111,10 @@ export const DOCS_NAV: DocsNavSection[] = [
         ],
       },
       {
+        slug: 'public-profile',
+        itemKey: 'publicProfile',
+      },
+      {
         slug: 'admin',
         itemKey: 'admin',
         subItems: [

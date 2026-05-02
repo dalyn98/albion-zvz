@@ -1734,6 +1734,7 @@
     "craft": "Craft regear",
     "leaderboard": "Achievements · stats · leaderboard",
     "dashboard": "Personal dashboard",
+    "publicProfile": "Public guild page",
     "admin": "Admin settings",
     "onboardingInvite": "Bot invite",
     "onboardingLogin": "Discord login",
@@ -1803,9 +1804,9 @@
     "f1ScreenshotLabel": "[Event roster screenshot]",
     "f2Title": "Automatic Regear Payouts",
     "f2Body": "Killboard syncs every 5 minutes to identify fallen members, AODP market data computes the loss, and a draft claim appears for review. One admin click finishes it — covering AODP imprecision without manual price work.",
-    "f2Bullet1": "Killboard + market price feed integration",
+    "f2Bullet1": "5-minute killboard sync + AODP pricing from your primary city",
     "f2Bullet2": "Per-slot price edit, re-issue, reject workflow",
-    "f2Bullet3": "Blackzone-only / auto-approve / manual review policies",
+    "f2Bullet3": "Blackzone-only · claimant review + admin approval (two-stage) · global off toggle",
     "f2ScreenshotLabel": "[Regear claim screenshot]",
     "f3Title": "Guild Shop + Point Exchange",
     "f3Body": "Run an internal shop where regear / event points buy in-game items. Exchange rate equals discount — silver and points are 1:1, so the math stays intuitive.",
@@ -1858,7 +1859,13 @@
     "q14": "What does a member do the first time they visit the site?",
     "a14": "Signing in with Discord starts the verification flow automatically. Enter your Albion character name to match the guild roster — once verified, your kill log, claims, and reward points start accumulating automatically. Entering a character that isn't on the guild roster leaves you in [unverified] state and some features will be limited.",
     "q15": "My death isn't getting picked up by auto-regear. Why?",
-    "a15": "1) Albion's kill records take about 30 minutes to appear in the official feed after a death — wait a moment and press 'Recheck' on the regear page. 2) Auto-regear only catches deaths in the black zone. Yellow/red-zone or non-ZvZ deaths must be submitted manually. 3) Make sure your Albion character is verified and that your guild matches the site's home guild."
+    "a15": "1) Albion's kill records take about 30 minutes to appear in the official feed after a death — wait a moment and press 'Recheck' on the regear page. 2) Auto-regear only catches deaths in the black zone. Yellow/red-zone or non-ZvZ deaths must be submitted manually. 3) Make sure your Albion character is verified and that your guild matches the site's home guild.",
+    "q16": "How do I customize my guild’s public page?",
+    "a16": "Admins can edit the `/g/<slug>` page directly — banner image, banner opacity, accent color, description, recruitment status, Discord invite link, active hours, and supported languages. You can also toggle individual sections on or off (member count, battle records, weapon mix, rival guilds, admin team, and more). Use the \"Edit banner\" button at the top of the public page, or open the public profile settings in the admin panel.",
+    "q17": "Which languages does the site support?",
+    "a17": "The site UI ships in Korean, Japanese, English, and Simplified Chinese. Switch language from the top-right language menu and every page updates immediately. Note that the documentation pages (`/docs`) themselves are currently written in Korean only — additional translations are rolling out gradually.",
+    "q18": "The public page shows the Albion English guild name. Can I show our Discord name instead?",
+    "a18": "The public page (`/g/<slug>`) and SEO metadata always prefer your in-game Albion guild name (English) — Albion only permits English characters in guild names, and matching that name keeps the page consistent with how other players search for you or track you on the killboard. The localized Discord name is only used inside admin surfaces. To change your home guild after first setup, contact the operator (super-admin)."
   },
   "auth": {
     "error": {
@@ -3818,7 +3825,7 @@
       "card1Title": "Role permissions",
       "card1Body": "Auto-map admin / caller / member Discord roles",
       "card2Title": "Regear policy",
-      "card2Body": "Black-zone only · auto-approve threshold · per-slot price caps",
+      "card2Body": "Black-zone only · two-stage claimant + admin approval · global off toggle",
       "card3Title": "Exchange rate",
       "card3Body": "Silver ↔ Points ratio · discount · daily caps",
       "card4Title": "Audit log",
