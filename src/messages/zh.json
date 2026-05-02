@@ -590,6 +590,17 @@
     "eyebrow": "管理员指南",
     "title": "站点运营指南",
     "intro": "公会运营者经常忽略的常用设置和工作流程。每个章节会直接链接到对应的编辑位置。",
+    "toc": {
+      "title": "分类目录"
+    },
+    "category": {
+      "gettingStarted": "开始使用",
+      "events": "活动运营",
+      "regear": "补装系统",
+      "community": "社区 & 通知",
+      "data": "战斗数据",
+      "reference": "参考资料"
+    },
     "quickStart": {
       "title": "首次设置 — 7 步清单",
       "cta": "打开设置",

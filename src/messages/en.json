@@ -590,6 +590,17 @@
     "eyebrow": "Admin guide",
     "title": "Site operations guide",
     "intro": "Common settings and workflows that guild operators often miss. Each section links directly to where you can edit it.",
+    "toc": {
+      "title": "Category jump"
+    },
+    "category": {
+      "gettingStarted": "Getting started",
+      "events": "Event operations",
+      "regear": "Regear system",
+      "community": "Community & notifications",
+      "data": "Battle data",
+      "reference": "Reference"
+    },
     "quickStart": {
       "title": "First-time setup — 7-step checklist",
       "cta": "Open settings",
