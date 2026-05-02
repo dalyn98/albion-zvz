@@ -56,15 +56,17 @@ export default async function PublicLandingPage() {
   ])
   const installHref = '/api/auth/discord/start?returnTo=%2Fonboard'
 
+  // 카드 순서 = USP 우선순위. 통계(f4) 가 가장 강한 차별화이므로 메인,
+  // 다음으로 자동 리기어(f2), 통합 운영 흐름(f1), 보조 기능(상점/제작) 순.
   const featureSections: FeatureSection[] = [
     {
       imagePosition: 'right',
-      icon: Calendar,
-      title: tFeat('f1Title'),
-      body: tFeat('f1Body'),
-      bullets: [tFeat('f1Bullet1'), tFeat('f1Bullet2'), tFeat('f1Bullet3')],
-      screenshotLabel: tFeat('f1ScreenshotLabel'),
-      screenshotKey: 'events',
+      icon: BarChart3,
+      title: tFeat('f4Title'),
+      body: tFeat('f4Body'),
+      bullets: [tFeat('f4Bullet1'), tFeat('f4Bullet2'), tFeat('f4Bullet3')],
+      screenshotLabel: tFeat('f4ScreenshotLabel'),
+      screenshotKey: 'stats',
     },
     {
       imagePosition: 'left',
@@ -77,12 +79,12 @@ export default async function PublicLandingPage() {
     },
     {
       imagePosition: 'right',
-      icon: Hammer,
-      title: tFeat('f5Title'),
-      body: tFeat('f5Body'),
-      bullets: [tFeat('f5Bullet1'), tFeat('f5Bullet2'), tFeat('f5Bullet3')],
-      screenshotLabel: tFeat('f5ScreenshotLabel'),
-      screenshotKey: 'craft',
+      icon: Calendar,
+      title: tFeat('f1Title'),
+      body: tFeat('f1Body'),
+      bullets: [tFeat('f1Bullet1'), tFeat('f1Bullet2'), tFeat('f1Bullet3')],
+      screenshotLabel: tFeat('f1ScreenshotLabel'),
+      screenshotKey: 'events',
     },
     {
       imagePosition: 'left',
@@ -95,12 +97,12 @@ export default async function PublicLandingPage() {
     },
     {
       imagePosition: 'right',
-      icon: BarChart3,
-      title: tFeat('f4Title'),
-      body: tFeat('f4Body'),
-      bullets: [tFeat('f4Bullet1'), tFeat('f4Bullet2'), tFeat('f4Bullet3')],
-      screenshotLabel: tFeat('f4ScreenshotLabel'),
-      screenshotKey: 'stats',
+      icon: Hammer,
+      title: tFeat('f5Title'),
+      body: tFeat('f5Body'),
+      bullets: [tFeat('f5Bullet1'), tFeat('f5Bullet2'), tFeat('f5Bullet3')],
+      screenshotLabel: tFeat('f5ScreenshotLabel'),
+      screenshotKey: 'craft',
     },
   ]
 
@@ -147,9 +149,9 @@ export default async function PublicLandingPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <ScreenshotPlaceholder
-                label={tFeat('f1ScreenshotLabel')}
+                label={tFeat('f4ScreenshotLabel')}
                 aspect="16/9"
-                src={MARKETING_SCREENSHOTS.events}
+                src={MARKETING_SCREENSHOTS.stats}
               />
               <ScreenshotPlaceholder
                 label={tFeat('f2ScreenshotLabel')}
@@ -157,9 +159,9 @@ export default async function PublicLandingPage() {
                 src={MARKETING_SCREENSHOTS.regear}
               />
               <ScreenshotPlaceholder
-                label={tFeat('f5ScreenshotLabel')}
+                label={tFeat('f1ScreenshotLabel')}
                 aspect="16/9"
-                src={MARKETING_SCREENSHOTS.craft}
+                src={MARKETING_SCREENSHOTS.events}
               />
               <ScreenshotPlaceholder
                 label={tFeat('f3ScreenshotLabel')}
@@ -167,9 +169,9 @@ export default async function PublicLandingPage() {
                 src={MARKETING_SCREENSHOTS.shop}
               />
               <ScreenshotPlaceholder
-                label={tFeat('f4ScreenshotLabel')}
+                label={tFeat('f5ScreenshotLabel')}
                 aspect="16/9"
-                src={MARKETING_SCREENSHOTS.stats}
+                src={MARKETING_SCREENSHOTS.craft}
               />
             </div>
           </section>
