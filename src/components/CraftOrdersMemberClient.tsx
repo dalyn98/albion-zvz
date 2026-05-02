@@ -11,6 +11,14 @@ import {
   type CraftOrderTaskRow,
 } from '@/app/actions/craft-orders'
 import { useToast } from './ToastProvider'
+import { GEAR_ENCHANT_COLOR_CLASS } from '@/types'
+
+function parseEnchant(itemId: string): number {
+  const at = itemId.lastIndexOf('@')
+  if (at === -1) return 0
+  const n = Number(itemId.slice(at + 1))
+  return Number.isFinite(n) && n > 0 ? n : 0
+}
 
 interface Props {
   initialOrders: CraftOrderWithTasks[]
@@ -58,6 +66,7 @@ function OrderCard({
   const remaining = order.quantity - order.claimedQuantity
   const myTasks = tasks.filter((t) => t.crafterDiscordId === currentUserDiscordId)
   const label = order.itemName || order.itemId
+  const enchant = parseEnchant(order.itemId)
   const totalPayout = order.unitPriceSilver * order.quantity
 
   const claim = () => {
@@ -81,7 +90,16 @@ function OrderCard({
   return (
     <section className="border border-gray-700 rounded-2xl p-4 bg-gray-900 space-y-3">
       <header>
-        <p className="text-sm font-semibold text-white">{label}</p>
+        <p className="text-sm font-semibold text-white flex items-center gap-1.5">
+          <span>{label}</span>
+          {enchant > 0 && (
+            <span
+              className={`text-[11px] font-mono ${GEAR_ENCHANT_COLOR_CLASS[enchant] ?? 'text-white'}`}
+            >
+              +{enchant}
+            </span>
+          )}
+        </p>
         <p className="text-[11px] text-gray-400 mt-1">
           {t('postedByLabel', { name: order.postedByUsername ?? order.postedByDiscordId })} ·{' '}
           {new Date(order.createdAt).toLocaleString()}

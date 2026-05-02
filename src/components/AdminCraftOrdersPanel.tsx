@@ -14,6 +14,24 @@ import {
 } from '@/app/actions/craft-orders'
 import { useToast } from './ToastProvider'
 import ItemPicker from './ItemPicker'
+import { GEAR_ENCHANT_MIN, GEAR_ENCHANT_MAX, GEAR_ENCHANT_COLOR_CLASS } from '@/types'
+
+const ENCHANT_OPTIONS = Array.from(
+  { length: GEAR_ENCHANT_MAX - GEAR_ENCHANT_MIN + 1 },
+  (_, i) => GEAR_ENCHANT_MIN + i,
+)
+
+function parseEnchant(itemId: string): number {
+  const at = itemId.lastIndexOf('@')
+  if (at === -1) return 0
+  const n = Number(itemId.slice(at + 1))
+  return Number.isFinite(n) && n > 0 ? n : 0
+}
+
+function withEnchant(itemId: string, enchant: number): string {
+  const base = itemId.includes('@') ? itemId.slice(0, itemId.lastIndexOf('@')) : itemId
+  return enchant > 0 ? `${base}@${enchant}` : base
+}
 
 interface Props {
   initialOrders: CraftOrderWithTasks[]
@@ -99,6 +117,7 @@ interface OrderRow {
   id: string
   itemId: string
   itemName: string
+  enchant: string
   quantity: string
   unitPrice: string
   notes: string
@@ -109,6 +128,7 @@ function makeBlankRow(id: string): OrderRow {
     id,
     itemId: '',
     itemName: '',
+    enchant: '0',
     quantity: '1',
     unitPrice: '0',
     notes: '',
@@ -162,7 +182,9 @@ function PostOrderForm({
       for (const row of filledRows) {
         const qty = Number(row.quantity)
         const price = Number(row.unitPrice)
-        const trimmedId = row.itemId.trim()
+        const enchant = Number(row.enchant)
+        const baseId = row.itemId.trim()
+        const trimmedId = withEnchant(baseId, enchant)
         const trimmedName = row.itemName.trim() || null
         const trimmedNotes = row.notes.trim() || null
         const res = await postCraftOrderAdmin({
@@ -256,7 +278,23 @@ function PostOrderForm({
               hideFree
             />
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
+              <label className="text-xs text-gray-300">
+                <span className="block mb-1">{t('adminEnchantLabel')}</span>
+                <select
+                  value={row.enchant}
+                  onChange={(e) => updateRow(row.id, { enchant: e.target.value })}
+                  className={`w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm font-mono focus:outline-none focus:border-amber-500 ${
+                    GEAR_ENCHANT_COLOR_CLASS[Number(row.enchant)] ?? 'text-white'
+                  }`}
+                >
+                  {ENCHANT_OPTIONS.map((ench) => (
+                    <option key={ench} value={String(ench)}>
+                      +{ench}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <label className="text-xs text-gray-300">
                 <span className="block mb-1">{t('adminQuantityLabel')}</span>
                 <input
@@ -336,13 +374,21 @@ function OrderCard({
   const { order, tasks } = entry
   const remaining = order.quantity - order.claimedQuantity
   const label = order.itemName || order.itemId
+  const enchant = parseEnchant(order.itemId)
 
   return (
     <div className="border border-gray-700 rounded-xl p-3 sm:p-4 bg-gray-950 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-white">
-            {t('adminOrderHeader', { item: label, quantity: order.quantity })}
+          <p className="text-sm font-semibold text-white flex items-center gap-1.5">
+            <span>{t('adminOrderHeader', { item: label, quantity: order.quantity })}</span>
+            {enchant > 0 && (
+              <span
+                className={`text-[11px] font-mono ${GEAR_ENCHANT_COLOR_CLASS[enchant] ?? 'text-white'}`}
+              >
+                +{enchant}
+              </span>
+            )}
           </p>
           <p className="text-[11px] text-gray-500 mt-0.5">
             {t('unitPriceLabel')}: {formatSilver(order.unitPriceSilver)} · {t('remainingLabel')}: {remaining} · {t('fulfilledLabel')}: {order.fulfilledQuantity}

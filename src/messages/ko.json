@@ -2403,6 +2403,7 @@
     "adminTaskHeader": "{name} — {quantity}개",
     "adminPostFormHint": "한 번에 여러 아이템을 등록할 수 있어요. 아래 \"항목 추가\" 로 행을 늘리세요.",
     "adminItemPickerLabel": "아이템",
+    "adminEnchantLabel": "인챈트",
     "adminItemRequired": "최소 한 개 이상의 아이템을 선택해주세요.",
     "adminAddOrderRow": "항목 추가",
     "adminRemoveOrderRow": "삭제",

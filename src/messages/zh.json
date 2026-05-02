@@ -2403,6 +2403,7 @@
     "adminTaskHeader": "{name} — {quantity}",
     "adminPostFormHint": "可一次注册多个物品。点击下方\"添加条目\"增加行。",
     "adminItemPickerLabel": "物品",
+    "adminEnchantLabel": "附魔",
     "adminItemRequired": "请至少选择一个物品。",
     "adminAddOrderRow": "添加条目",
     "adminRemoveOrderRow": "删除",

@@ -2403,6 +2403,7 @@
     "adminTaskHeader": "{name} — {quantity}",
     "adminPostFormHint": "You can post multiple items at once. Use \"Add item\" below to insert rows.",
     "adminItemPickerLabel": "Item",
+    "adminEnchantLabel": "Enchant",
     "adminItemRequired": "Pick at least one item.",
     "adminAddOrderRow": "Add item",
     "adminRemoveOrderRow": "Remove",
