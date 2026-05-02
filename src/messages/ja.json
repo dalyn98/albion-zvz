@@ -1640,8 +1640,8 @@
   },
   "publicLanding": {
     "siteName": "Albion Guild Manager",
-    "tagline": "どのギルドメンバーがどの武器を得意とするか、ひと目で。",
-    "subheading": "散らばったギルド運営ツールをひとつに。ZvZ 統計で運営を次のレベルへ — Discord ボットひとつでギルドリーダーの負担をデータに基づく意思決定へ。",
+    "tagline": "強いギルド、楽しむギルドリーダー。",
+    "subheading": "ZvZ 統計と運営の自動化をひとつに。Discord ボットひとつでギルドはデータで強くなり、ギルドリーダーはまたギルドを楽しめます。",
     "ctaPrimary": "自分の Discord サーバーにボットを導入",
     "ctaSecondary": "公開戦績を見る",
     "featuresTitle": "主な機能",

@@ -1640,8 +1640,8 @@
   },
   "publicLanding": {
     "siteName": "Albion Guild Manager",
-    "tagline": "어떤 길드원이 어떤 무기를 잘하는지, 한눈에.",
-    "subheading": "흩어진 길드 운영 도구를 한 곳에. ZvZ 통계로 운영의 다음 단계를 — Discord 봇 하나로 길드장의 부담을 데이터 기반 의사결정으로.",
+    "tagline": "강한 길드, 즐기는 길드장.",
+    "subheading": "ZvZ 통계와 운영 자동화를 한 곳에. Discord 봇 하나로 길드는 데이터로 강해지고, 길드장은 다시 길드를 즐기세요.",
     "ctaPrimary": "내 디스코드 서버에 봇 설치",
     "ctaSecondary": "공개 전적 보기",
     "featuresTitle": "주요 기능",
