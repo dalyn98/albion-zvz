@@ -4,8 +4,10 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import {
+  computeHomeAllianceStats,
   computeOpponentGuildBreakdown,
   parseRawBattle,
+  type HomeAllianceStats,
   type OpponentGuildBreakdown,
   type SizeCategory,
 } from '@/lib/albion-battles'
@@ -78,6 +80,9 @@ export interface BattleDetail {
   // 상대 측 길드별 분해. raw_battle 에서 직접 계산 — 1~2명 스트래글러 컷오프
   // (OPPONENT_GUILD_MIN_TEAM_SIZE) 적용. raw_battle 이 없는 구 행이면 빈 배열.
   opponentGuilds: OpponentGuildBreakdown[]
+  // 홈 길드가 alliance 에 가입되어 있고 alliance 안에 다른 길드가 있을 때만 채워짐.
+  // raw_battle 의 alliance 합산값 — 매치업 분리 X (전체 전투 합산). 단독 가입이면 null.
+  homeAllianceStats: HomeAllianceStats | null
   // 전투 시간창 안에서 길드원이 낸 killboard 이벤트. occurred_at 오름차순.
   events: BattleKillEvent[]
   // anonymized 보기 (cross-tenant) 에서는 events 의 discord identity 가 가려지고
@@ -223,6 +228,10 @@ export async function getBattleDetail(
           minTeamSize: OPPONENT_GUILD_MIN_TEAM_SIZE,
         })
       : []
+    // 홈 alliance 합산. alliance 미가입/단독 가입/raw 없음 시 null.
+    const homeAllianceStats: HomeAllianceStats | null = rawBattle
+      ? computeHomeAllianceStats(rawBattle, activeRow.home_guild_id as string)
+      : null
 
     const startMs = Date.parse(activeRow.started_at as string)
     const endMs = Date.parse(endedAt)
@@ -336,6 +345,7 @@ export async function getBattleDetail(
       sizeCategory: activeRow.size_category as SizeCategory,
       outcome: activeRow.outcome as 'win' | 'loss' | 'tie',
       opponentGuilds,
+      homeAllianceStats,
       events: battleEvents,
       anonymized,
       crossTenants,

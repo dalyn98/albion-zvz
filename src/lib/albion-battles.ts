@@ -389,6 +389,64 @@ export interface OpponentGuildBreakdown {
   killFame: number
 }
 
+export interface HomeAllianceStats {
+  allianceName: string
+  teamSize: number
+  kills: number
+  deaths: number
+  killFame: number
+  guildCount: number
+}
+
+// 홈 길드가 alliance 에 속해 있을 때, raw_battle 에서 같은 alliance 의 모든 길드
+// 합산 K/D/Fame/teamSize 를 산출. matchup 분리 없이 전투 전체 합산이라
+// "우리 연합이 이 전투에 통째로 얼마나 싸웠는지" 의 의미. 다른 force 와의 교전
+// 까지 포함되므로 home_kills (= 매치업 분리값) 와 다를 수 있음.
+//
+// 반환 null 의 의미:
+//   - 홈 길드가 alliance 미가입 (allianceId 없음 또는 빈 문자열)
+//   - alliance 정보가 raw_battle 에 없음 (구버전/손상 행)
+//   - 같은 alliance 안 길드가 홈 단독 1개 (= 홈 카드와 중복돼 표시 의미 없음)
+export function computeHomeAllianceStats(
+  battle: AlbionBattle,
+  homeGuildId: string,
+): HomeAllianceStats | null {
+  const homeGuild = battle.guilds?.[homeGuildId]
+  if (!homeGuild) return null
+  const allianceId =
+    homeGuild.allianceId && homeGuild.allianceId !== '' ? homeGuild.allianceId : null
+  if (!allianceId) return null
+  const alliance = battle.alliances?.[allianceId]
+  if (!alliance) return null
+
+  const allyGuildIds = new Set<string>()
+  let kills = 0
+  let deaths = 0
+  let killFame = 0
+  for (const [gid, g] of Object.entries(battle.guilds ?? {})) {
+    if (g.allianceId !== allianceId) continue
+    allyGuildIds.add(gid)
+    kills += g.kills
+    deaths += g.deaths
+    killFame += g.killFame
+  }
+  if (allyGuildIds.size <= 1) return null
+
+  let teamSize = 0
+  for (const p of Object.values(battle.players ?? {})) {
+    if (allyGuildIds.has(p.guildId)) teamSize++
+  }
+
+  return {
+    allianceName: alliance.name,
+    teamSize,
+    kills,
+    deaths,
+    killFame,
+    guildCount: allyGuildIds.size,
+  }
+}
+
 // 상대 측의 길드별 분석. 홈 길드/얼라이언스를 제외한 나머지 길드를 개별 행으로
 // 돌려준다. teamSize 는 raw_battle.players 에서 직접 카운트 (battle.guilds 의
 // 통계 필드는 길드 내부 인원 수가 아니라 누적 킬/데스/페임). killFame desc 로 정렬.

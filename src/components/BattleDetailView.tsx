@@ -14,6 +14,7 @@ import {
   UserCircle2,
   GitBranch,
   Hourglass,
+  Flag,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
@@ -217,6 +218,32 @@ export default async function BattleDetailView({ detail, battleId }: Props) {
             killFame={detail.mainOpponentKillFame}
           />
         </div>
+        {detail.homeAllianceStats && (
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+            <div className="flex items-center gap-2">
+              <Flag size={12} className="text-amber-300/80 flex-shrink-0" />
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-300/80">
+                {t('homeAllianceTitle')}
+              </p>
+              <span className="text-[10px] text-gray-500">
+                {t('homeAllianceGuildCount', { count: detail.homeAllianceStats.guildCount })}
+              </span>
+            </div>
+            <p className="text-white text-sm font-bold truncate mt-0.5">
+              [{detail.homeAllianceStats.allianceName}]
+            </p>
+            <div className="flex items-center gap-3 mt-1 text-xs font-mono">
+              <span className="text-gray-400">{detail.homeAllianceStats.teamSize}p</span>
+              <span>
+                <span className="text-emerald-400">{detail.homeAllianceStats.kills}</span>
+                <span className="text-gray-600">/</span>
+                <span className="text-red-400">{detail.homeAllianceStats.deaths}</span>
+              </span>
+              <span className="text-gray-500">{formatFame(detail.homeAllianceStats.killFame)}</span>
+            </div>
+            <p className="text-[10px] text-gray-500 mt-1">{t('homeAllianceHint')}</p>
+          </div>
+        )}
       </header>
 
       <section className="space-y-2">
