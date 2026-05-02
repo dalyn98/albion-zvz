@@ -7,6 +7,7 @@
 //
 // Format: `base64url(payloadJson).base64url(signatureBytes)`
 
+import { cache } from 'react'
 import { cookies } from 'next/headers'
 import { EVENT_CATEGORIES, type EventCategory } from '@/types'
 
@@ -141,10 +142,15 @@ export async function verifySession(cookieValue: string | undefined): Promise<Se
 }
 
 // Convenience for server components / actions running inside a request.
-export async function getSession(): Promise<SessionPayload | null> {
+//
+// React cache() 로 per-request 메모이즈 — 같은 render/action invocation 안에서
+// 여러 번 호출돼도 HMAC verify 와 세션 디코드는 1회만. 동일 SessionPayload 참조를
+// 반환하므로 getSessionGuildId(session) 같은 reference-keyed 캐시도 함께 효과를
+//본다. write 경로는 setCookie 후 다음 request 부터 새 cache scope 라 stale 우려 없음.
+export const getSession = cache(async (): Promise<SessionPayload | null> => {
   const store = await cookies()
   return verifySession(store.get(SESSION_COOKIE_NAME)?.value)
-}
+})
 
 export function cookieOptions() {
   return {
