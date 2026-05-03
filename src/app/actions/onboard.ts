@@ -309,11 +309,22 @@ export async function saveTenantAlbion(
 interface SaveTenantRewardsInput {
   tenantId: string
   rewards: Array<{ role_name: string; silver: number }>
+  policy: {
+    autoRegearEnabled: boolean
+    craftRegearEnabled: boolean
+    regearRequireVerification: boolean
+    regearPayoutRatePercent: number
+    eventsAutoStartEnabled: boolean
+  }
 }
 
-// 단계 3 (최종): 역할별 기본 리기어 실버. bot-callback 이 seed 를 못 했거나
+// 단계 3 (최종): 리기어 정책 + 역할별 기본 실버. bot-callback 이 seed 를 못 했거나
 // 실패한 경우를 대비해 upsert 로 저장 — mig 075 이후 PK=(guild_id, role_name)
 // 이므로 conflict target 지정 가능.
+//
+// 정책 토글 (auto/craft/verification/payout/events_auto_start) 은 app_settings 에
+// 저장. 어드민이 나중에 동일 키를 수정할 수 있으며, 저장 실패 시 도메인 기본값
+// 으로 폴백 (admin 페이지에서 재설정 가능).
 //
 // 저장 성공 시:
 //   1) tenants.status='pending' → 'active' 로 flip (이제 subdomain 해상도 가능)
@@ -343,6 +354,15 @@ export async function saveTenantRewards(
     }
   }
 
+  const payoutPercent = input.policy.regearPayoutRatePercent
+  if (
+    !Number.isInteger(payoutPercent) ||
+    payoutPercent < 1 ||
+    payoutPercent > 100
+  ) {
+    return { error: t('policyErrorInvalidPayout') }
+  }
+
   const db = getAdminClient()
   const now = new Date().toISOString()
   const rows = input.rewards.map((r) => ({
@@ -355,6 +375,46 @@ export async function saveTenantRewards(
     .from('role_rewards')
     .upsert(rows, { onConflict: 'guild_id,role_name' })
   if (rewardsError) return { error: rewardsError.message }
+
+  const policyRows = [
+    {
+      guild_id: input.tenantId,
+      key: 'auto_regear_enabled',
+      value: input.policy.autoRegearEnabled ? 'true' : 'false',
+      updated_at: now,
+    },
+    {
+      guild_id: input.tenantId,
+      key: 'craft_regear_enabled',
+      value: input.policy.craftRegearEnabled ? 'true' : 'false',
+      updated_at: now,
+    },
+    {
+      guild_id: input.tenantId,
+      key: 'regear_require_verification',
+      value: input.policy.regearRequireVerification ? 'true' : 'false',
+      updated_at: now,
+    },
+    {
+      guild_id: input.tenantId,
+      key: 'regear_payout_rate_percent',
+      value: String(payoutPercent),
+      updated_at: now,
+    },
+    {
+      guild_id: input.tenantId,
+      key: 'events_auto_start_enabled',
+      value: input.policy.eventsAutoStartEnabled ? 'true' : 'false',
+      updated_at: now,
+    },
+  ]
+  const { error: policyError } = await db
+    .from('app_settings')
+    .upsert(policyRows, { onConflict: 'guild_id,key' })
+  if (policyError) {
+    console.error('[saveTenantRewards] policy upsert failed', policyError)
+    return { error: t('errorGeneric') }
+  }
 
   // 온보딩 완료 — tenant 를 active 로 flip 하고 slug 를 한 번에 조회.
   // 이미 active (재온보딩) 면 status 업데이트가 no-op 이지만 select 로
