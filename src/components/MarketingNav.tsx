@@ -7,7 +7,7 @@ import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { tenantUrl } from '@/lib/tenant-resolver'
 import MarketingLanguageSwitcher from './MarketingLanguageSwitcher'
 
-type NavKey = 'home' | 'docs'
+type NavKey = 'home' | 'features' | 'docs'
 
 interface MarketingNavProps {
   active?: NavKey
@@ -39,8 +39,11 @@ export default async function MarketingNav({ active }: MarketingNavProps) {
     }
   }
 
+  // home / features / docs 3개. features 는 /landing#features 앵커로 가서
+  // 기능 카드 섹션을 직접 보여주고, docs 는 별도의 사용 안내서 페이지로 분리.
   const navItems: Array<{ href: string; key: NavKey }> = [
     { href: paths.home, key: 'home' },
+    { href: paths.features, key: 'features' },
     { href: paths.docs, key: 'docs' },
   ]
   return (

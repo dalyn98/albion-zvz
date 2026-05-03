@@ -1,7 +1,14 @@
 {
   "meta": {
-    "title": "Albion ZvZ",
-    "description": "Albion Online 대규모 PvP 관리 도구"
+    "title": "AlbionGuildManager — Albion Online 길드 운영 도구",
+    "description": "AlbionGuildManager는 알비온 온라인 길드의 ZvZ 킬보드 추적, 자동 리기어, 길드 상점, 통계·업적까지 한 번에 자동화합니다.",
+    "ogSiteName": "AlbionGuildManager",
+    "ogDefaultTitle": "AlbionGuildManager — Albion Online 길드 운영 도구",
+    "ogDefaultDescription": "디스코드 봇으로 시작하는 알비온 길드 운영 자동화 — 킬보드, 자동 리기어, 길드 상점, 통계까지.",
+    "ogGuildTitle": "{name} — AlbionGuildManager",
+    "ogGuildDescription": "{name} 길드의 공개 프로필. 멤버, 전투기록, 모집 상태를 한 화면에서 확인하세요.",
+    "ogDocsTitle": "사용 안내서 — AlbionGuildManager",
+    "ogDocsDescription": "AlbionGuildManager 의 모든 기능을 한 페이지에서 안내합니다 — 봇 초대, 자동 리기어, 길드 상점, 통계까지."
   },
   "nav": {
     "events": "이벤트",

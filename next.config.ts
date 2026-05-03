@@ -57,20 +57,40 @@ const nextConfig: NextConfig = {
       { source: '/public/pricing', destination: '/public/landing#pricing', permanent: true },
     ]
   },
-  // 전역 noindex/nofollow. robots.txt 와 이중 신호 — 일부 봇은 meta/header 만
-  // 본다. multi-tenant SaaS 로 확장 시 marketing 도메인만 인덱싱 허용하고
-  // 이 길드 인스턴스는 계속 차단 유지하는 전제.
+  // 인덱싱 정책 (robots.txt + meta robots 와 3중 신호):
+  //   - 마케팅/공개 path (/, /landing, /faq, /docs, /g/*) 와 그 직접 형식
+  //     (/public/*) 은 검색 인덱싱 허용
+  //   - 그 외 모든 path 는 noindex (앱 path /admin /shop /events /api 등)
+  //
+  // Next.js 의 header override 규칙 — 같은 path 에 같은 key 가 여러 번 매칭되면
+  // **마지막** 규칙이 이긴다. 따라서 wildcard noindex 를 먼저 두고, 마케팅 path
+  // 별 indexable 규칙을 뒤에 두면 충돌 없이 정확히 분기된다.
+  // 호스트 단위 분기는 generateMetadata 가 robots meta 로 한 번 더 덮어 쓰므로
+  // (테넌트 서브도메인은 결국 noindex 로 모인다), 여기서는 path 만 본다.
   async headers() {
+    const indexHeader = {
+      key: 'X-Robots-Tag',
+      value: 'index, follow',
+    }
+    const noindexHeader = {
+      key: 'X-Robots-Tag',
+      value: 'noindex, nofollow, noarchive, nosnippet, notranslate, noimageindex',
+    }
     return [
-      {
-        source: '/:path*',
-        headers: [
-          {
-            key: 'X-Robots-Tag',
-            value: 'noindex, nofollow, noarchive, nosnippet, notranslate, noimageindex',
-          },
-        ],
-      },
+      // 1) 기본값 — 모든 path 차단
+      { source: '/:path*', headers: [noindexHeader] },
+      // 2) 마케팅/공개 surface — 인덱싱 허용 (위 wildcard 를 override)
+      { source: '/', headers: [indexHeader] },
+      { source: '/landing', headers: [indexHeader] },
+      { source: '/faq', headers: [indexHeader] },
+      { source: '/docs', headers: [indexHeader] },
+      { source: '/docs/:path*', headers: [indexHeader] },
+      { source: '/g/:slug', headers: [indexHeader] },
+      { source: '/public/landing', headers: [indexHeader] },
+      { source: '/public/faq', headers: [indexHeader] },
+      { source: '/public/docs', headers: [indexHeader] },
+      { source: '/public/docs/:path*', headers: [indexHeader] },
+      { source: '/public/g/:slug', headers: [indexHeader] },
     ]
   },
 }

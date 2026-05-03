@@ -102,6 +102,20 @@ function skipAlbionOnboardingModal(pathname: string): boolean {
   return false
 }
 
+// canonical 루트 도메인의 마케팅 surface 만 검색 인덱싱·OG 임베드 허용.
+// /g/<slug> 는 별도 페이지 generateMetadata 가 openGraph 까지 덮어쓰므로
+// 여기서는 robots 만 풀어 주면 충분하다.
+function isIndexablePathname(pathname: string): boolean {
+  if (pathname === '/' || pathname === '/landing') return true
+  if (pathname === '/faq' || pathname === '/docs' || pathname.startsWith('/docs/')) return true
+  if (pathname === '/g' || pathname.startsWith('/g/')) return true
+  // 캐노니컬 호스트에서 proxy rewrite 가 안 걸린 직접 path 도 동일하게 허용.
+  if (pathname === '/public/landing' || pathname === '/public/faq') return true
+  if (pathname === '/public/docs' || pathname.startsWith('/public/docs/')) return true
+  if (pathname === '/public/g' || pathname.startsWith('/public/g/')) return true
+  return false
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const [t, headersList] = await Promise.all([
     getTranslations('meta'),
@@ -109,27 +123,61 @@ export async function generateMetadata(): Promise<Metadata> {
   ])
   // 브라우저 탭 제목은 길드별로 다르게 — host 가 tenant 서브도메인일 때 slug
   // 첫 하이픈 앞부분을 그대로 title 로 사용 (사이드바/배너의 brandName 과 동일).
-  // canonical/preview/localhost 는 i18n 의 기본 title("Menhera") 유지.
+  // canonical/preview/localhost 는 i18n 의 기본 title 유지.
   const classification = classifyHost(headersList.get('host'))
+  const pathname = headersList.get('x-pathname') ?? ''
   const tabTitle =
     classification.kind === 'tenant'
       ? displayNameFromSlug(classification.slug) || t('title')
       : t('title')
-  return {
-    title: tabTitle,
-    description: t('description'),
-    // robots.txt + next.config headers 와 3중 신호. 일부 크롤러는 HTML meta
-    // 만 보고 일부는 HTTP header 만 본다. 추후 marketing 도메인 분리 시 그
-    // 도메인만 index:true 로 오버라이드.
-    robots: {
-      index: false,
-      follow: false,
-      nocache: true,
-      googleBot: {
+
+  // 인덱싱 정책:
+  //  - canonical root host (`albion-guildmanager.com`) 의 마케팅/공개 path → index, follow
+  //  - 그 외 (테넌트 서브도메인, 프리뷰, 로컬, 앱 path) → noindex, nofollow
+  //
+  // 테넌트 서브도메인의 동일 path 는 noindex 로 두어 중복 인덱싱을 막고,
+  // 검색 결과는 항상 root 도메인의 canonical URL 로 모은다.
+  const indexable =
+    classification.kind === 'root' && isIndexablePathname(pathname)
+  const robots = indexable
+    ? { index: true, follow: true }
+    : {
         index: false,
         follow: false,
-        noimageindex: true,
-      },
+        nocache: true,
+        googleBot: { index: false, follow: false, noimageindex: true },
+      }
+
+  // OG/Twitter 카드 — Discord/Slack/Twitter 임베드 시 노출. 페이지 단위
+  // generateMetadata (예: /g/<slug>) 가 같은 키를 다시 export 하면 자동
+  // 오버라이드된다. 여기서는 사이트 전체 기본값.
+  return {
+    metadataBase: new URL('https://albion-guildmanager.com'),
+    title: tabTitle,
+    description: t('description'),
+    keywords: [
+      'AlbionGuildManager',
+      'Albion Guild Manager',
+      'Albion Online guild',
+      'Albion ZvZ',
+      'Albion killboard',
+      'Albion regear',
+      'Albion guild bot',
+      'Discord guild bot',
+    ],
+    applicationName: t('ogSiteName'),
+    robots,
+    openGraph: {
+      type: 'website',
+      siteName: t('ogSiteName'),
+      title: t('ogDefaultTitle'),
+      description: t('ogDefaultDescription'),
+      url: 'https://albion-guildmanager.com',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: t('ogDefaultTitle'),
+      description: t('ogDefaultDescription'),
     },
     appleWebApp: {
       capable: true,

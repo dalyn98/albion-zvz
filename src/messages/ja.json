@@ -1,7 +1,14 @@
 {
   "meta": {
-    "title": "Albion ZvZ",
-    "description": "Albion Online 大規模 PvP 管理ツール"
+    "title": "AlbionGuildManager — Albion Online ギルド運営ツール",
+    "description": "AlbionGuildManagerはアルビオンオンラインギルドのZvZキルボード追跡、自動リギア、ギルドショップ、統計・実績までまとめて自動化します。",
+    "ogSiteName": "AlbionGuildManager",
+    "ogDefaultTitle": "AlbionGuildManager — Albion Online ギルド運営ツール",
+    "ogDefaultDescription": "Discordボットで始めるアルビオンギルド運営自動化 — キルボード、自動リギア、ギルドショップ、統計まで。",
+    "ogGuildTitle": "{name} — AlbionGuildManager",
+    "ogGuildDescription": "{name} ギルドの公開プロフィール。メンバー、戦闘記録、募集状況をまとめて確認できます。",
+    "ogDocsTitle": "ドキュメント — AlbionGuildManager",
+    "ogDocsDescription": "AlbionGuildManager の全機能を1ページで案内 — ボット導入、自動リギア、ギルドショップ、統計まで。"
   },
   "nav": {
     "events": "イベント",

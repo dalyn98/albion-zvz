@@ -1,9 +1,15 @@
-# albion-zvz (길드 관리 시스템) — 비공개 운영 인스턴스.
-# AI 학습 / 웹 크롤러 일체 차단. 정상 봇은 자발적으로 이 선언을 따르지만
-# 악의적 스크레이퍼는 우회한다 — 추가 보호(서버 auth, X-Robots-Tag header,
-# 저작권 고지)와 병행 필요.
+# albion-guildmanager.com (Albion Guild Manager — 알비온 길드 운영 SaaS)
+#
+# 정책:
+#   - 일반 검색 엔진(Google/Bing/Naver 등) → 마케팅 surface 만 인덱싱 허용
+#       /, /landing, /faq, /docs/*, /g/<slug> + /public/ 직접 변형
+#       길드 운영 데이터(/admin /shop /events /api 등) 는 차단
+#   - AI 학습용 크롤러 → 전부 차단 (저작권 보호)
+#
+# 메타 robots + X-Robots-Tag 와 3중 신호. 일부 봇은 robots.txt 만, 일부는
+# meta 만, 일부는 HTTP header 만 본다.
 
-# ── AI 학습용 크롤러 ──
+# ── AI 학습용 크롤러 — 전부 차단 ──
 User-agent: GPTBot
 Disallow: /
 
@@ -85,7 +91,37 @@ Disallow: /
 User-agent: Yeti
 Disallow: /
 
-# ── 일반 검색 엔진 인덱싱 ──
-# 길드 내부 데이터라 공개 검색 노출 불필요.
+# ── 일반 검색 엔진 ──
+# 마케팅 / 공개 페이지만 인덱싱 허용. 그 외 길드 운영 path 는 차단.
 User-agent: *
-Disallow: /
+Allow: /$
+Allow: /landing
+Allow: /faq
+Allow: /docs
+Allow: /docs/
+Allow: /g/
+Allow: /public/landing
+Allow: /public/faq
+Allow: /public/docs
+Allow: /public/docs/
+Allow: /public/g/
+Allow: /opengraph-image
+Allow: /icon
+Allow: /favicon.ico
+Disallow: /admin/
+Disallow: /super-admin/
+Disallow: /api/
+Disallow: /onboard
+Disallow: /onboarding/
+Disallow: /events/
+Disallow: /shop
+Disallow: /shop/
+Disallow: /members
+Disallow: /battles
+Disallow: /leaderboard
+Disallow: /me
+Disallow: /welcome-language
+Disallow: /demo
+Disallow: /logout
+
+Sitemap: https://albion-guildmanager.com/sitemap.xml

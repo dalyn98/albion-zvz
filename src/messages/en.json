@@ -1,7 +1,14 @@
 {
   "meta": {
-    "title": "Albion ZvZ",
-    "description": "Albion Online ZvZ management tool"
+    "title": "AlbionGuildManager — Albion Online guild operations",
+    "description": "AlbionGuildManager automates Albion Online guild ZvZ killboard tracking, regear payouts, the guild shop, and stats/achievements in one place.",
+    "ogSiteName": "AlbionGuildManager",
+    "ogDefaultTitle": "AlbionGuildManager — Albion Online guild operations",
+    "ogDefaultDescription": "Albion guild operations on autopilot — Discord bot, killboard, auto-regear, guild shop, and stats from a single dashboard.",
+    "ogGuildTitle": "{name} — AlbionGuildManager",
+    "ogGuildDescription": "Public profile for the {name} guild. Members, recent battles, and recruitment status at a glance.",
+    "ogDocsTitle": "Docs — AlbionGuildManager",
+    "ogDocsDescription": "Every AlbionGuildManager feature explained in one place — bot install, auto-regear, guild shop, and stats."
   },
   "nav": {
     "events": "Events",

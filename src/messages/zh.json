@@ -1,7 +1,14 @@
 {
   "meta": {
-    "title": "Albion ZvZ",
-    "description": "阿尔比恩 ZvZ 管理工具"
+    "title": "AlbionGuildManager — 阿尔比恩公会运营工具",
+    "description": "AlbionGuildManager 一站式自动化阿尔比恩在线公会的 ZvZ 击杀板追踪、自动 Regear、公会商店与战绩统计。",
+    "ogSiteName": "AlbionGuildManager",
+    "ogDefaultTitle": "AlbionGuildManager — 阿尔比恩公会运营工具",
+    "ogDefaultDescription": "Discord 机器人 + 击杀板追踪 + 自动 Regear + 公会商店 + 战绩统计,一个面板搞定阿尔比恩公会运营。",
+    "ogGuildTitle": "{name} — AlbionGuildManager",
+    "ogGuildDescription": "{name} 公会的公开主页。成员、最近战斗、招募状态一目了然。",
+    "ogDocsTitle": "文档 — AlbionGuildManager",
+    "ogDocsDescription": "AlbionGuildManager 全部功能一页讲清 —— 机器人安装、自动 Regear、公会商店、战绩统计。"
   },
   "nav": {
     "events": "活动",

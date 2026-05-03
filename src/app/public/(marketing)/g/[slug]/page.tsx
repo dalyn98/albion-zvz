@@ -94,24 +94,48 @@ export async function generateMetadata({
   if (!tenant || (tenant.status !== 'active' && tenant.status !== 'pending')) {
     return { title: '404' }
   }
-  const [displayName, settings] = await Promise.all([
+  const [displayName, settings, tMeta] = await Promise.all([
     resolveAlbionDisplayName(tenant.tenantId, tenant.slug, tenant.name),
     tenant.status === 'active'
       ? loadGuildProfileSettings(tenant.tenantId)
       : Promise.resolve(null),
+    getTranslations('meta'),
   ])
+  const ogTitle = tMeta('ogGuildTitle', { name: displayName })
   // 공개 프로필이 꺼졌거나 (active+disabled), 위저드 미완료 (pending) 길드는
   // 슬러그가 살아있어도 검색 인덱싱 대상이 아니다 — 어드민이 ON 한 후에만
   // SEO surface 로 노출.
   if (tenant.status === 'pending' || !settings || !settings.enabled) {
     return {
-      title: `${displayName} — Albion Guild Manager`,
+      title: ogTitle,
       robots: { index: false, follow: false },
     }
   }
+  const ogDescription = tMeta('ogGuildDescription', { name: displayName })
+  // Discord/Slack 임베드의 큰 이미지로 길드 배너를 그대로 노출. 미설정 길드는
+  // openGraph.images 를 비워 root layout 의 default OG image 가 fallback 된다.
+  const guildOgImages = settings.bannerUrl
+    ? [{ url: settings.bannerUrl, alt: displayName }]
+    : undefined
+  const canonicalUrl = `https://albion-guildmanager.com/g/${tenant.slug}`
   return {
-    title: `${displayName} — Albion Guild Manager`,
-    description: `${displayName} 길드의 공개 프로필. 멤버, 전투기록, 모집 상태를 확인할 수 있습니다.`,
+    title: ogTitle,
+    description: ogDescription,
+    alternates: { canonical: canonicalUrl },
+    openGraph: {
+      type: 'profile',
+      siteName: tMeta('ogSiteName'),
+      title: ogTitle,
+      description: ogDescription,
+      url: canonicalUrl,
+      ...(guildOgImages && { images: guildOgImages }),
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: ogTitle,
+      description: ogDescription,
+      ...(guildOgImages && { images: guildOgImages.map((i) => i.url) }),
+    },
   }
 }
 
