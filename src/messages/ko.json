@@ -1820,6 +1820,7 @@
     "installPermissionNote": "봇을 설치하려면 디스코드 서버에서 \"서버 관리\" 권한이 있어야 합니다.",
     "screenshotsTitle": "실제 사용 화면",
     "screenshotsCaption": "공개 페이지 외 게이트된 화면은 길드원만 볼 수 있어 일부는 자리만 잡혀 있습니다.",
+    "screenshotsAdminOnlyBadge": "슈퍼어드민 전용 — 일반 방문자에겐 숨겨집니다",
     "ctaBoxTitle": "지금 베타 무료로 사용해보세요",
     "ctaBoxBody": "정식 출시 전까지 모든 기능을 무료로 사용할 수 있습니다.",
     "carouselPrev": "이전 이미지",

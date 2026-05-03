@@ -1820,6 +1820,7 @@
     "installPermissionNote": "Installing the bot requires the \"Manage Server\" permission on your Discord server.",
     "screenshotsTitle": "See it in action",
     "screenshotsCaption": "Some screens are member-gated, so a few placeholders stand in until they're swapped for live captures.",
+    "screenshotsAdminOnlyBadge": "Super-admin only — hidden from regular visitors",
     "ctaBoxTitle": "Free during beta",
     "ctaBoxBody": "Use every feature for free until general availability.",
     "carouselPrev": "Previous image",

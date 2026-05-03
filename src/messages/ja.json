@@ -1820,6 +1820,7 @@
     "installPermissionNote": "Bot をインストールするには、対象 Discord サーバーで「サーバーの管理」権限が必要です。",
     "screenshotsTitle": "実際の利用画面",
     "screenshotsCaption": "公開ページ以外はメンバー限定のため、一部スクリーンショットはプレースホルダのままです。",
+    "screenshotsAdminOnlyBadge": "スーパー管理者専用 — 一般訪問者には非表示",
     "ctaBoxTitle": "ベータ期間中は無料で利用可能",
     "ctaBoxBody": "正式リリースまですべての機能を無料でご利用いただけます。",
     "carouselPrev": "前の画像",

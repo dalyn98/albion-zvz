@@ -129,49 +129,54 @@ export default async function PublicLandingPage() {
             </p>
           </section>
 
-          <section className="space-y-5 scroll-mt-20">
-            <div className="text-center space-y-1.5">
-              <h2 className="text-xl sm:text-2xl font-bold">{tMkt('screenshotsTitle')}</h2>
-              <p className="text-xs text-gray-500 max-w-xl mx-auto">{tMkt('screenshotsCaption')}</p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <MarketingScreenshotCarousel
-                images={screenshots.stats}
-                fallbackLabel={tFeat('f4ScreenshotLabel')}
-                aspect="16/9"
-                editable={isAdmin}
-                slot="stats"
-              />
-              <MarketingScreenshotCarousel
-                images={screenshots.regear}
-                fallbackLabel={tFeat('f2ScreenshotLabel')}
-                aspect="16/9"
-                editable={isAdmin}
-                slot="regear"
-              />
-              <MarketingScreenshotCarousel
-                images={screenshots.events}
-                fallbackLabel={tFeat('f1ScreenshotLabel')}
-                aspect="16/9"
-                editable={isAdmin}
-                slot="events"
-              />
-              <MarketingScreenshotCarousel
-                images={screenshots.shop}
-                fallbackLabel={tFeat('f3ScreenshotLabel')}
-                aspect="16/9"
-                editable={isAdmin}
-                slot="shop"
-              />
-              <MarketingScreenshotCarousel
-                images={screenshots.craft}
-                fallbackLabel={tFeat('f5ScreenshotLabel')}
-                aspect="16/9"
-                editable={isAdmin}
-                slot="craft"
-              />
-            </div>
-          </section>
+          {isAdmin && (
+            <section className="space-y-5 scroll-mt-20">
+              <div className="text-center space-y-1.5">
+                <h2 className="text-xl sm:text-2xl font-bold">{tMkt('screenshotsTitle')}</h2>
+                <p className="text-xs text-gray-500 max-w-xl mx-auto">{tMkt('screenshotsCaption')}</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-amber-300/70">
+                  {tMkt('screenshotsAdminOnlyBadge')}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <MarketingScreenshotCarousel
+                  images={screenshots.stats}
+                  fallbackLabel={tFeat('f4ScreenshotLabel')}
+                  aspect="16/9"
+                  editable={isAdmin}
+                  slot="stats"
+                />
+                <MarketingScreenshotCarousel
+                  images={screenshots.regear}
+                  fallbackLabel={tFeat('f2ScreenshotLabel')}
+                  aspect="16/9"
+                  editable={isAdmin}
+                  slot="regear"
+                />
+                <MarketingScreenshotCarousel
+                  images={screenshots.events}
+                  fallbackLabel={tFeat('f1ScreenshotLabel')}
+                  aspect="16/9"
+                  editable={isAdmin}
+                  slot="events"
+                />
+                <MarketingScreenshotCarousel
+                  images={screenshots.shop}
+                  fallbackLabel={tFeat('f3ScreenshotLabel')}
+                  aspect="16/9"
+                  editable={isAdmin}
+                  slot="shop"
+                />
+                <MarketingScreenshotCarousel
+                  images={screenshots.craft}
+                  fallbackLabel={tFeat('f5ScreenshotLabel')}
+                  aspect="16/9"
+                  editable={isAdmin}
+                  slot="craft"
+                />
+              </div>
+            </section>
+          )}
 
           <section id="features" className="space-y-12 sm:space-y-16 scroll-mt-20">
             <div className="text-center space-y-3">
