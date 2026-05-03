@@ -1752,8 +1752,9 @@
     "features": "기능",
     "faq": "FAQ",
     "docs": "문서",
-    "install": "봇 설치",
-    "myGuild": "내 길드"
+    "install": "내 길드 만들기",
+    "myGuild": "내 길드",
+    "discord": "공식 디스코드"
   },
   "docsNav": {
     "sectionGettingStarted": "시작하기",

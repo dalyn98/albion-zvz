@@ -1752,8 +1752,9 @@
     "features": "Features",
     "faq": "FAQ",
     "docs": "Docs",
-    "install": "Install bot",
-    "myGuild": "My guild"
+    "install": "Create my guild",
+    "myGuild": "My guild",
+    "discord": "Official Discord"
   },
   "docsNav": {
     "sectionGettingStarted": "Getting Started",

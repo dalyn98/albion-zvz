@@ -1752,8 +1752,9 @@
     "features": "機能",
     "faq": "FAQ",
     "docs": "ドキュメント",
-    "install": "ボットを導入",
-    "myGuild": "マイギルド"
+    "install": "ギルドを作成",
+    "myGuild": "マイギルド",
+    "discord": "公式Discord"
   },
   "docsNav": {
     "sectionGettingStarted": "はじめに",

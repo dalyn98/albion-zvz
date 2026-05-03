@@ -1752,8 +1752,9 @@
     "features": "功能",
     "faq": "常见问题",
     "docs": "文档",
-    "install": "安装机器人",
-    "myGuild": "我的公会"
+    "install": "创建我的公会",
+    "myGuild": "我的公会",
+    "discord": "官方 Discord"
   },
   "docsNav": {
     "sectionGettingStarted": "入门",

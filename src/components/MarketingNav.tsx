@@ -6,6 +6,11 @@ import { getMarketingPaths } from '@/lib/marketing-paths'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { tenantUrl } from '@/lib/tenant-resolver'
 import MarketingLanguageSwitcher from './MarketingLanguageSwitcher'
+import DiscordIcon from './DiscordIcon'
+
+// 앱 운영자가 직접 관리하는 공식 커뮤니티 invite. 길드별 길드 디스코드와 다른
+// "AlbionGuildManager 사용자/제보 채널" 이라 host 와 무관하게 동일.
+const APP_DISCORD_INVITE_URL = 'https://discord.gg/pJ8EsybBjm'
 
 type NavKey = 'home' | 'features' | 'docs'
 
@@ -70,6 +75,16 @@ export default async function MarketingNav({ active }: MarketingNavProps) {
         </ul>
         <div className="flex items-center gap-2">
           <MarketingLanguageSwitcher />
+          <a
+            href={APP_DISCORD_INVITE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={t('discord')}
+            title={t('discord')}
+            className="inline-flex items-center justify-center text-gray-300 hover:text-white bg-gray-800/60 hover:bg-[#5865F2] border border-gray-700 hover:border-[#5865F2] rounded-md w-8 h-8 transition-colors"
+          >
+            <DiscordIcon size={14} />
+          </a>
           {myGuildHref ? (
             <a
               href={myGuildHref}
