@@ -8,11 +8,7 @@ import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
 import { computePointPrice, parseShopDiscountRate } from '@/lib/shop/price'
 import { categoryRank } from '@/lib/shop/category-order'
 import { getMyPointBalance, listMyShopOrders } from '@/app/actions/shop-member'
-import {
-  AODP_ALLOWED_CITIES,
-  AODP_CITY_LABEL,
-  type AodpCity,
-} from '@/lib/shop/aodp-constants'
+import { AODP_ALLOWED_CITIES, type AodpCity } from '@/lib/shop/aodp-constants'
 import ShopCatalog, {
   type CatalogItem,
   type ShopPriceWarning,
@@ -141,7 +137,7 @@ export default async function PublicShopPage() {
         items={items}
         balance={balance}
         isMember={isMember}
-        baseCityLabel={AODP_CITY_LABEL[baseCity]}
+        baseCityLabel={baseCity}
       />
     </div>
   )

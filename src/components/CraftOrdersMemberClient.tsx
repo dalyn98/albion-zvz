@@ -2,7 +2,9 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
+import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
+import type { Locale } from '@/i18n/locales'
 import {
   claimCraftOrder,
   releaseCraftOrderTask,
@@ -136,6 +138,7 @@ function OrderCard({
   hideClaimForm: boolean
 }) {
   const t = useTranslations('craftOrders')
+  const locale = useLocale() as Locale
   const toast = useToast()
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -149,7 +152,9 @@ function OrderCard({
       task.crafterDiscordId === currentUserDiscordId &&
       (task.status === 'claimed' || task.status === 'delivered'),
   )
-  const label = order.itemName || order.itemId
+  const label =
+    getLocalizedItemNameWithEnchant(order.itemId, locale, order.itemName) ??
+    order.itemId
   const enchant = parseEnchant(order.itemId)
   const totalPayout = order.unitPriceSilver * order.quantity
 

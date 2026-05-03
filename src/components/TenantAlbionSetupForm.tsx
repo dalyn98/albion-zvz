@@ -9,11 +9,7 @@ import {
 } from '@/app/actions/onboarding'
 import { saveTenantAlbion } from '@/app/actions/onboard'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
-import {
-  AODP_ALLOWED_CITIES,
-  AODP_CITY_LABEL,
-  type AodpCity,
-} from '@/lib/shop/aodp-constants'
+import { AODP_ALLOWED_CITIES, type AodpCity } from '@/lib/shop/aodp-constants'
 
 interface Labels {
   albionServerLabel: string
@@ -296,7 +292,7 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
                   onChange={() => setAodpCity(c)}
                   className="accent-[#5865F2]"
                 />
-                <span className="text-sm text-white">{AODP_CITY_LABEL[c]}</span>
+                <span className="text-sm text-white">{c}</span>
               </label>
             )
           })}

@@ -2,7 +2,9 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
+import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
+import type { Locale } from '@/i18n/locales'
 import { Check, X, Loader2 } from 'lucide-react'
 import {
   approveCraftOrderTaskAdmin,
@@ -79,12 +81,15 @@ function TaskRow({
 }) {
   const router = useRouter()
   const t = useTranslations('adminCraftOrderReview')
+  const locale = useLocale() as Locale
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [rejectMode, setRejectMode] = useState(false)
   const [reason, setReason] = useState('')
 
-  const itemLabel = task.itemName || task.itemId
+  const itemLabel =
+    getLocalizedItemNameWithEnchant(task.itemId, locale, task.itemName) ??
+    task.itemId
   const enchant = parseEnchant(task.itemId)
   const payout = task.unitPriceSilver * task.orderQuantity
 

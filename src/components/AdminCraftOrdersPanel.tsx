@@ -2,7 +2,9 @@
 
 import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
+import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
+import type { Locale } from '@/i18n/locales'
 import Link from 'next/link'
 import { ClipboardList, Boxes, ExternalLink, Plus, Trash2 } from 'lucide-react'
 import {
@@ -352,9 +354,12 @@ function OrderCard({
   onCancel: () => void
 }) {
   const t = useTranslations('craftOrders')
+  const locale = useLocale() as Locale
   const { order, tasks } = entry
   const remaining = order.quantity - order.claimedQuantity
-  const label = order.itemName || order.itemId
+  const label =
+    getLocalizedItemNameWithEnchant(order.itemId, locale, order.itemName) ??
+    order.itemId
   const enchant = parseEnchant(order.itemId)
 
   return (

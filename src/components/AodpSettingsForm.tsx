@@ -10,10 +10,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Save, LineChart, Info } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
-import {
-  AODP_ALLOWED_CITIES,
-  AODP_CITY_LABEL,
-} from '@/lib/shop/aodp-constants'
+import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 
 type PriceMode = 'spot' | 'avg_1d' | 'avg_3d' | 'avg_7d' | 'avg_14d'
 type Quality = 1 | 2 | 3 | 4 | 5
@@ -129,7 +126,7 @@ export default function AodpSettingsForm({ initialCities, initialMode, initialMi
                   }}
                   className="accent-amber-500"
                 />
-                <span className="text-sm text-white">{AODP_CITY_LABEL[c]}</span>
+                <span className="text-sm text-white">{c}</span>
               </label>
             )
           })}
