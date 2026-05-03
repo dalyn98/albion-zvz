@@ -3434,8 +3434,8 @@
     "finishButton": "Finish and go to dashboard",
     "finishingButton": "Saving...",
     "completionBannerTitle": "Onboarding complete",
-    "completionBannerDescription": "Basic setup is saved. You can fine-tune more knobs in the settings page.",
-    "completionBannerLink": "Open settings",
+    "completionBannerDescription": "Basic setup is saved. Use the checklist below to activate optional features (public profile, auto regear, member dashboard, …) or dive into admin settings to fine-tune.",
+    "completionBannerLink": "Open admin settings",
     "completionBannerDismiss": "Dismiss"
   },
   "battleTracking": {
@@ -3632,15 +3632,34 @@
     "aodpInfoModeHint": "Use an averaged mode (avg_3d / avg_7d) to reduce regear payout volatility."
   },
   "setupChecklist": {
-    "title": "Finish your setup ({count} left)",
-    "description": "Complete these so event notifications and member verification work correctly.",
+    "requiredTitle": "Finish your setup ({count} left)",
+    "requiredDescription": "Complete these so event notifications and member verification work correctly.",
+    "recommendedTitle": "Optional features to activate ({count})",
+    "recommendedDescription": "Toggle these to match how your guild operates.",
     "eventChannelLabel": "Connect event announcement channel",
     "eventChannelDescription": "Discord channel that receives the @everyone notification when you publish an event.",
     "eventChannelHint": "Without this, the \"Notify\" button has nowhere to post.",
+    "configureEventChannel": "Configure announcement channel",
     "albionHomeGuildIdLabel": "Register your Albion guild ID",
     "albionHomeGuildIdDescription": "In-game guild ID used to verify member nicknames.",
     "albionHomeGuildIdHint": "Until this is set, every member is treated as [unverified].",
-    "configureLink": "Open settings page"
+    "configureHomeGuild": "Configure home guild",
+    "guildProfileEnabledLabel": "Enable public guild profile",
+    "guildProfileEnabledDescription": "Make your guild page (/g/<slug>) public so it shows up on Google search and as a Discord embed.",
+    "guildProfileEnabledHint": "Edit banner, description, recruitment status directly. Toggling off makes it private again.",
+    "configureGuildProfile": "Configure public profile",
+    "autoRegearEnabledLabel": "Enable auto regear",
+    "autoRegearEnabledDescription": "After events end, a cron reads killboard data and auto-creates regear claims for blackzone deaths.",
+    "autoRegearEnabledHint": "When this global toggle is off, the cron does not run at all. Core switch for regear automation.",
+    "configureAutoRegear": "Configure auto regear",
+    "craftRegearEnabledLabel": "Enable craft-regear mode",
+    "craftRegearEnabledDescription": "Activates the guild commission-craft pickup flow alongside silver claims.",
+    "craftRegearEnabledHint": "Off = silver-only mode. On = dual mode (silver / craft choice).",
+    "configureCraftRegear": "Configure craft regear",
+    "memberDashboardEnabledLabel": "Enable member dashboard",
+    "memberDashboardEnabledDescription": "Lets members view their own stats, achievements, and kill history on a member-only dashboard.",
+    "memberDashboardEnabledHint": "When off, members only see their slots/votes; stats pages stay admin-only.",
+    "configureMemberDashboard": "Configure member dashboard"
   },
   "publishEventBanner": {
     "draftStatus": "Draft status",

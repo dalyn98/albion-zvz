@@ -3434,8 +3434,8 @@
     "finishButton": "完成并前往面板",
     "finishingButton": "保存中...",
     "completionBannerTitle": "入会流程已完成",
-    "completionBannerDescription": "基础设置已保存。可在设置页面进一步调整。",
-    "completionBannerLink": "打开设置",
+    "completionBannerDescription": "基础设置已保存。可在下方清单激活可选功能(公开公会页、自动 Regear、成员面板等),或前往管理员设置页继续微调。",
+    "completionBannerLink": "打开管理员设置",
     "completionBannerDismiss": "关闭"
   },
   "battleTracking": {
@@ -3632,15 +3632,34 @@
     "aodpInfoModeHint": "使用平均模式(avg_3d / avg_7d)可降低装备补偿支出的波动。"
   },
   "setupChecklist": {
-    "title": "完成初始设置(剩余 {count} 项)",
-    "description": "完成以下步骤,事件通知与成员验证才能正常工作。",
+    "requiredTitle": "完成初始设置(剩余 {count} 项)",
+    "requiredDescription": "完成以下步骤,事件通知与成员验证才能正常工作。",
+    "recommendedTitle": "可选功能可激活({count} 项)",
+    "recommendedDescription": "根据公会运营方式自由开启或关闭。",
     "eventChannelLabel": "绑定事件通告频道",
     "eventChannelDescription": "发布事件时接收 @everyone 通知的 Discord 频道。",
     "eventChannelHint": "未绑定时,「通知」按钮无处可发。",
+    "configureEventChannel": "配置通告频道",
     "albionHomeGuildIdLabel": "注册 Albion 公会 ID",
     "albionHomeGuildIdDescription": "用于验证成员昵称的游戏内公会 ID。",
     "albionHomeGuildIdHint": "未设置前,所有成员都会被视作 [未验证]。",
-    "configureLink": "打开设置页"
+    "configureHomeGuild": "配置主公会",
+    "guildProfileEnabledLabel": "启用公开公会页",
+    "guildProfileEnabledDescription": "公开公会页(/g/<slug>),让其出现在 Google 搜索与 Discord 嵌入预览中。",
+    "guildProfileEnabledHint": "可直接编辑横幅、说明与招募状态;关闭后会重新隐藏。",
+    "configureGuildProfile": "配置公开页",
+    "autoRegearEnabledLabel": "启用自动 Regear",
+    "autoRegearEnabledDescription": "活动结束后,定时任务读取击杀日志,为黑区死亡自动生成 Regear 申请。",
+    "autoRegearEnabledHint": "全局开关关闭时,定时任务完全不运行。这是申请自动化的核心开关。",
+    "configureAutoRegear": "配置自动 Regear",
+    "craftRegearEnabledLabel": "启用制作 Regear 模式",
+    "craftRegearEnabledDescription": "在白银申请之外,启用公会委托制作的装备领取流程。",
+    "craftRegearEnabledHint": "关闭 = 仅白银模式;开启 = 双模式(白银 / 制作可选)。",
+    "configureCraftRegear": "配置制作 Regear",
+    "memberDashboardEnabledLabel": "启用成员面板",
+    "memberDashboardEnabledDescription": "为成员开放查看自身统计、成就、击杀历史的专属面板。",
+    "memberDashboardEnabledHint": "关闭时,成员仅能看到自己的位置/投票,统计页保持管理员专用。",
+    "configureMemberDashboard": "配置成员面板"
   },
   "publishEventBanner": {
     "draftStatus": "草稿状态",

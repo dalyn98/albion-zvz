@@ -3434,8 +3434,8 @@
     "finishButton": "완료하고 대시보드로",
     "finishingButton": "저장 중...",
     "completionBannerTitle": "온보딩 완료",
-    "completionBannerDescription": "기본 설정이 저장됐습니다. 더 세밀한 조정은 설정 페이지에서 이어서 할 수 있습니다.",
-    "completionBannerLink": "설정 페이지 열기",
+    "completionBannerDescription": "기본 설정이 저장됐습니다. 아래 체크리스트에서 추가 기능 (공개 프로필, 자동 리기어, 멤버 대시보드 등) 을 활성화하거나, 어드민 설정 페이지에서 세밀한 조정을 이어가세요.",
+    "completionBannerLink": "어드민 설정 열기",
     "completionBannerDismiss": "닫기"
   },
   "battleTracking": {
@@ -3632,15 +3632,34 @@
     "aodpInfoModeHint": "리기어 보상 변동성을 줄이려면 평균 모드(avg_3d / avg_7d)가 안전합니다."
   },
   "setupChecklist": {
-    "title": "설정 마무리하기 ({count}개 남음)",
-    "description": "이 항목들을 채워야 이벤트 알림과 길드원 인증이 정상 동작합니다.",
+    "requiredTitle": "설정 마무리하기 ({count}개 남음)",
+    "requiredDescription": "이 항목들을 채워야 이벤트 알림과 길드원 인증이 정상 동작합니다.",
+    "recommendedTitle": "추가로 활성화 가능 ({count}개)",
+    "recommendedDescription": "선택 기능들 — 길드 운영 패턴에 맞게 켜고 끄세요.",
     "eventChannelLabel": "이벤트 공지 채널 연결",
     "eventChannelDescription": "이벤트 발행 시 @everyone 알림이 갈 Discord 채널.",
     "eventChannelHint": "비어 있으면 \"알림 보내기\" 버튼이 동작하지 않습니다.",
+    "configureEventChannel": "공지 채널 설정",
     "albionHomeGuildIdLabel": "알비온 길드 ID 등록",
     "albionHomeGuildIdDescription": "길드원 알비온 닉네임 인증의 기준이 되는 인게임 길드 ID.",
     "albionHomeGuildIdHint": "비어 있으면 모든 길드원이 [미인증] 상태로 처리됩니다.",
-    "configureLink": "설정 페이지로 이동"
+    "configureHomeGuild": "홈 길드 설정",
+    "guildProfileEnabledLabel": "공개 길드 프로필 활성화",
+    "guildProfileEnabledDescription": "길드 페이지(/g/<슬러그>) 를 공개해 Google 검색 + Discord 임베드에 노출합니다.",
+    "guildProfileEnabledHint": "배너·설명·모집상태를 직접 편집할 수 있고, 끄면 비공개로 돌아갑니다.",
+    "configureGuildProfile": "공개 프로필 설정",
+    "autoRegearEnabledLabel": "자동 리기어 활성화",
+    "autoRegearEnabledDescription": "이벤트 종료 후 cron 이 킬로그를 읽어 블랙존 사망건의 리기어 청구를 자동 생성합니다.",
+    "autoRegearEnabledHint": "글로벌 토글이 OFF 면 cron 자체가 돌지 않습니다. 청부 자동화의 핵심 스위치.",
+    "configureAutoRegear": "자동 리기어 설정",
+    "craftRegearEnabledLabel": "제작 리기어 모드 활성화",
+    "craftRegearEnabledDescription": "실버 청구와 함께 길드 청부제작 박스 픽업 흐름을 활성화합니다.",
+    "craftRegearEnabledHint": "끄면 실버 단일 모드. 켜면 듀얼 모드 (실버/제작 선택).",
+    "configureCraftRegear": "제작 리기어 설정",
+    "memberDashboardEnabledLabel": "멤버 대시보드 활성화",
+    "memberDashboardEnabledDescription": "길드원이 자기 통계·업적·킬 히스토리를 볼 수 있는 멤버 전용 대시보드를 켭니다.",
+    "memberDashboardEnabledHint": "끄면 길드원은 본인 슬롯/투표만 보고 통계 페이지는 어드민 전용으로 유지됩니다.",
+    "configureMemberDashboard": "멤버 대시보드 설정"
   },
   "publishEventBanner": {
     "draftStatus": "임시 저장 (draft) 상태",

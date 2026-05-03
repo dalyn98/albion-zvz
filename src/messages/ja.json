@@ -3434,8 +3434,8 @@
     "finishButton": "完了してダッシュボードへ",
     "finishingButton": "保存中...",
     "completionBannerTitle": "オンボーディング完了",
-    "completionBannerDescription": "基本設定が保存されました。詳細な調整は設定ページから続けて行えます。",
-    "completionBannerLink": "設定ページを開く",
+    "completionBannerDescription": "基本設定が保存されました。下のチェックリストから追加機能 (公開プロフィール・自動リギア・メンバーダッシュボードなど) を有効化したり、アドミン設定で詳細な調整を続けられます。",
+    "completionBannerLink": "アドミン設定を開く",
     "completionBannerDismiss": "閉じる"
   },
   "battleTracking": {
@@ -3632,15 +3632,34 @@
     "aodpInfoModeHint": "リギア報酬の変動を抑えたい場合は平均モード (avg_3d / avg_7d) が安全です。"
   },
   "setupChecklist": {
-    "title": "セットアップを仕上げる (残り {count} 件)",
-    "description": "これらを設定すると、イベント通知とメンバー認証が正しく動作します。",
+    "requiredTitle": "セットアップを仕上げる (残り {count} 件)",
+    "requiredDescription": "これらを設定すると、イベント通知とメンバー認証が正しく動作します。",
+    "recommendedTitle": "追加で有効化できます ({count} 件)",
+    "recommendedDescription": "オプション機能 — ギルド運用に合わせてオン/オフを選んでください。",
     "eventChannelLabel": "イベント告知チャンネルを接続",
     "eventChannelDescription": "イベント公開時に @everyone 通知を送る Discord チャンネル。",
     "eventChannelHint": "未設定だと「通知」ボタンが投稿先を持ちません。",
+    "configureEventChannel": "告知チャンネルを設定",
     "albionHomeGuildIdLabel": "アルビオンギルド ID を登録",
     "albionHomeGuildIdDescription": "メンバーのアルビオンニックネーム認証で使うゲーム内ギルド ID。",
     "albionHomeGuildIdHint": "未登録の間、すべてのメンバーが [未認証] 扱いになります。",
-    "configureLink": "設定ページへ"
+    "configureHomeGuild": "ホームギルドを設定",
+    "guildProfileEnabledLabel": "公開ギルドプロフィールを有効化",
+    "guildProfileEnabledDescription": "ギルドページ (/g/<slug>) を公開し、Google 検索 + Discord 埋め込みに表示します。",
+    "guildProfileEnabledHint": "バナー・説明・募集ステータスを直接編集でき、オフにすると非公開に戻ります。",
+    "configureGuildProfile": "公開プロフィールを設定",
+    "autoRegearEnabledLabel": "自動リギアを有効化",
+    "autoRegearEnabledDescription": "イベント終了後に cron がキルログを読み、ブラックゾーンの戦死分のリギア請求を自動生成します。",
+    "autoRegearEnabledHint": "グローバルトグルが OFF の場合、cron 自体が動きません。請求自動化の中心スイッチ。",
+    "configureAutoRegear": "自動リギアを設定",
+    "craftRegearEnabledLabel": "クラフトリギアモードを有効化",
+    "craftRegearEnabledDescription": "シルバー請求と並行して、ギルド受注クラフトの装備受け取りフローを有効化します。",
+    "craftRegearEnabledHint": "オフ = シルバー単独モード。オン = デュアルモード (シルバー / クラフト選択可)。",
+    "configureCraftRegear": "クラフトリギアを設定",
+    "memberDashboardEnabledLabel": "メンバーダッシュボードを有効化",
+    "memberDashboardEnabledDescription": "メンバーが自分の統計・実績・キル履歴を確認できる専用ダッシュボードを表示します。",
+    "memberDashboardEnabledHint": "オフの間、メンバーは自分のスロット/投票のみ閲覧でき、統計はアドミン専用のままです。",
+    "configureMemberDashboard": "メンバーダッシュボードを設定"
   },
   "publishEventBanner": {
     "draftStatus": "下書き (draft) 状態",
