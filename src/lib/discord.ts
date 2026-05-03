@@ -78,17 +78,20 @@ export function buildBotInstallUrl(options: {
 }): string {
   const { clientId, appUrl } = getDiscordOAuthConfig()
   const redirectUri = `${appUrl.replace(/\/$/, '')}/api/auth/discord/bot-callback`
-  // 순수 봇 설치 흐름 — response_type=code 를 빼면 Discord 가 봇 설치 동의 화면을
-  // 띄운다 (response_type=code 를 넣으면 user OAuth 코드 그랜트로 처리되면서 봇
-  // 설치 단계를 스킵하는 사례가 있어 제거).
-  //
   // identify 스코프를 같이 묶는 이유: 사용자가 사이트와 Discord 앱/웹에서 서로
   // 다른 계정을 쓸 수 있다. 사이트 세션이 A 계정인데 봇 설치는 B 계정으로 한
   // 경우 — A 를 tenant 소유자로 박으면 정작 MANAGE_GUILD 를 가진 B 가 사이트에
   // 접근 못 한다. 이 콜백에서 code 를 토큰으로 바꿔 /users/@me 로 진짜 설치자
   // (B) 를 확정하고 그 사람을 tenant 소유자/admin 으로 세팅한다.
+  //
+  // response_type=code 는 identify 가 묶이면 필수다 — Discord 의 "Requires
+  // OAuth2 Code Grant" 토글이 ON 이면 이게 빠진 요청을 invalid_request 로
+  // 거부한다 ("Integration requires code grant"). 이전에 빼두었을 때 봇 설치
+  // 단계가 스킵된다고 오진단했지만, 실제 원인은 다른 데 있었던 듯 (Discord 가
+  // bot scope + code grant 조합에서도 항상 봇 설치 동의 화면을 띄운다).
   const params = new URLSearchParams({
     client_id: clientId,
+    response_type: 'code',
     scope: 'bot applications.commands identify',
     permissions: BOT_PERMISSIONS,
     guild_id: options.guildId,
