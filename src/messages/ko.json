@@ -906,6 +906,24 @@
     "inlineEditNoticeBody": "내 길드 공개 프로필에 들어가면 어드민 본인에게만 보이는 편집 핀이 카드마다 떠 있습니다. 배너 이미지 자체는 hero 우측 상단의 \"배너 편집\" 버튼으로, 통계/운영진/무기/라이벌 등 섹션은 우측 상단의 눈 아이콘으로 끄고 켤 수 있어요.",
     "inlineEditNoticeLink": "공개 프로필에서 편집하기"
   },
+  "adminGuildProfileToggle": {
+    "enableTitle": "공개 길드 프로필 활성화",
+    "enableBody": "이 기능을 켜면 albion-guildmanager.com/g/<슬러그> 주소로 누구나 우리 길드 페이지를 볼 수 있게 됩니다. 모집·홍보용으로 활용하기에 좋아요.",
+    "enableWarningTitle": "활성화 전에 확인해 주세요",
+    "enableWarning1": "길드원 목록·전투기록·통계가 비로그인 방문자에게도 노출됩니다.",
+    "enableWarning2": "검색 엔진(구글 등) 에 인덱싱될 수 있어, 길드명·소개 글이 외부 검색에 노출될 수 있습니다.",
+    "enableWarning3": "활성화 후에도 어드민 페이지에서 언제든 비활성화할 수 있고, 섹션별 노출 여부도 세부 조정 가능합니다.",
+    "enableButton": "공개 프로필 활성화",
+    "enableSaving": "활성화 중…",
+    "enableConfirm": "공개 프로필을 활성화하시겠습니까? 우리 길드 페이지가 누구에게나 공개됩니다.",
+    "advancedTitle": "고급 토글",
+    "advancedDescription": "공개 페이지의 부가 섹션을 켜고 끕니다.",
+    "memberDashboardLabel": "길드원 본인 대시보드 섹션 표시",
+    "memberDashboardHint": "켜면 길드원이 자기 길드 페이지에 들어올 때 hero 아래에 본인 잔액·K/D·리기어·거래 카드가 보이고, 비로그인 방문자에게는 가입 CTA 배너가 노출됩니다.",
+    "disableButton": "공개 프로필 비활성화",
+    "disableSaving": "비활성화 중…",
+    "disableConfirm": "공개 프로필을 비활성화할까요? 입력해두신 배너·소개·갤러리 등은 그대로 보관되며, 페이지 자체만 숨겨집니다."
+  },
   "publicGuildProfile": {
     "recruitment_open": "모집중",
     "recruitment_selective": "선별 모집",

@@ -5,8 +5,10 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { getAppSetting } from '@/lib/app-settings'
 import { loadGuildProfileSettings } from '@/lib/guild-profile'
 import GuildProfileEditor from '@/components/GuildProfileEditor'
+import GuildProfileEnableToggle from '@/components/GuildProfileEnableToggle'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,7 +23,11 @@ export default async function GuildProfileAdminPage() {
   const tenantId = await getSessionGuildId(session)
   const t = await getTranslations('adminGuildProfile')
 
-  const settings = await loadGuildProfileSettings(tenantId)
+  const [settings, memberDashboardEnabledRaw] = await Promise.all([
+    loadGuildProfileSettings(tenantId),
+    getAppSetting('member_dashboard_enabled', 'false', tenantId),
+  ])
+  const memberDashboardEnabled = memberDashboardEnabledRaw === 'true'
 
   // 슬러그 미리보기 — 어드민이 "내 프로필 보기" 링크로 새 탭에서 확인할 수 있게.
   const db = getAdminClient()
@@ -41,10 +47,10 @@ export default async function GuildProfileAdminPage() {
           <h1 className="text-2xl font-bold text-white">{t('pageTitle')}</h1>
           <p className="text-gray-500 text-sm mt-1">{t('pageDescription')}</p>
         </div>
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-5 py-6 space-y-2">
-          <h2 className="text-amber-200 font-bold">{t('disabledTitle')}</h2>
-          <p className="text-gray-300 text-sm">{t('disabledDescription')}</p>
-        </div>
+        <GuildProfileEnableToggle
+          enabled={false}
+          memberDashboardEnabled={memberDashboardEnabled}
+        />
       </div>
     )
   }
@@ -93,6 +99,11 @@ export default async function GuildProfileAdminPage() {
         initialAccentColor={settings.accentColor}
         initialRecruitmentStatus={settings.recruitmentStatus}
         initialDiscordInviteUrl={settings.discordInviteUrl}
+      />
+
+      <GuildProfileEnableToggle
+        enabled={true}
+        memberDashboardEnabled={memberDashboardEnabled}
       />
     </div>
   )

@@ -906,6 +906,24 @@
     "inlineEditNoticeBody": "Open your guild's public profile and you'll see admin-only edit pins on each card. The hero banner has an \"Edit banner\" button in its top-right corner, and sections like stats, admin team, weapons, and rivals can be hidden or shown via the eye icon at the top-right of each card.",
     "inlineEditNoticeLink": "Edit on public profile"
   },
+  "adminGuildProfileToggle": {
+    "enableTitle": "Enable public guild profile",
+    "enableBody": "Turning this on makes your guild page accessible at albion-guildmanager.com/g/<slug> for any visitor — perfect for recruitment and outreach.",
+    "enableWarningTitle": "Before enabling, please review",
+    "enableWarning1": "Member list, battle history, and statistics will be visible to logged-out visitors.",
+    "enableWarning2": "Search engines (Google, etc.) may index the page — your guild name and description could appear in external search results.",
+    "enableWarning3": "You can disable it again anytime from this admin page, and fine-tune which sections are shown.",
+    "enableButton": "Enable public profile",
+    "enableSaving": "Enabling…",
+    "enableConfirm": "Enable the public profile? Your guild page will become accessible to anyone.",
+    "advancedTitle": "Advanced toggles",
+    "advancedDescription": "Toggle additional sections on the public page.",
+    "memberDashboardLabel": "Show member self-dashboard section",
+    "memberDashboardHint": "When on, your guild members see their balance, K/D, regear, and trade cards under the hero on their own guild page, and logged-out visitors see a join CTA banner.",
+    "disableButton": "Disable public profile",
+    "disableSaving": "Disabling…",
+    "disableConfirm": "Disable the public profile? Your saved banner, description, and gallery are kept — only the page itself becomes hidden."
+  },
   "publicGuildProfile": {
     "recruitment_open": "Recruiting",
     "recruitment_selective": "Selective",

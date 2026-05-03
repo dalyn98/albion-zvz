@@ -906,6 +906,24 @@
     "inlineEditNoticeBody": "打开您公会的公开资料页，每张卡片上会显示仅管理员可见的编辑钉。头部横幅右上角有「编辑横幅」按钮，统计、管理团队、武器、对手等区块也可通过卡片右上角的眼睛图标隐藏或显示。",
     "inlineEditNoticeLink": "在公开资料页面编辑"
   },
+  "adminGuildProfileToggle": {
+    "enableTitle": "启用公开公会资料",
+    "enableBody": "开启此功能后，访客可通过 albion-guildmanager.com/g/<slug> 访问您的公会页面，适合招募与宣传。",
+    "enableWarningTitle": "启用前请确认",
+    "enableWarning1": "公会成员列表、战斗记录与统计将对未登录访客公开。",
+    "enableWarning2": "搜索引擎 (Google 等) 可能会索引此页面，公会名与简介可能出现在外部搜索结果中。",
+    "enableWarning3": "启用后可随时在管理页面再次关闭，且可细致调整每个区块的显示。",
+    "enableButton": "启用公开资料",
+    "enableSaving": "启用中…",
+    "enableConfirm": "确认启用公开资料？公会页面将对任何人开放。",
+    "advancedTitle": "高级开关",
+    "advancedDescription": "切换公开页面的附加区块。",
+    "memberDashboardLabel": "显示成员个人仪表盘区块",
+    "memberDashboardHint": "开启后，公会成员访问自家公会页面时会在 hero 下方看到余额、K/D、补给、交易卡片，未登录访客会看到加入 CTA 横幅。",
+    "disableButton": "停用公开资料",
+    "disableSaving": "停用中…",
+    "disableConfirm": "确定停用公开资料？已保存的横幅、简介、画廊都会保留，只是页面本身被隐藏。"
+  },
   "publicGuildProfile": {
     "recruitment_open": "招募中",
     "recruitment_selective": "择优招募",

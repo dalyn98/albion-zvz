@@ -906,6 +906,24 @@
     "inlineEditNoticeBody": "自ギルドの公開プロフィールを開くと、管理者だけに見える編集ピンが各カードに表示されます。バナー画像は hero 右上の「バナーを編集」ボタンから、統計・運営陣・武器・ライバルなどのセクションは右上の目アイコンで非表示／表示を切り替えられます。",
     "inlineEditNoticeLink": "公開プロフィールで編集"
   },
+  "adminGuildProfileToggle": {
+    "enableTitle": "公開ギルドプロフィールを有効化",
+    "enableBody": "この機能を有効にすると、albion-guildmanager.com/g/<スラッグ> でログインしていない訪問者にもギルドページが公開されます。募集・宣伝に活用できます。",
+    "enableWarningTitle": "有効化前にご確認ください",
+    "enableWarning1": "ギルドメンバー一覧・戦闘記録・統計が未ログイン訪問者にも公開されます。",
+    "enableWarning2": "検索エンジン (Google など) にインデックスされる可能性があり、ギルド名・紹介文が外部検索に表示されることがあります。",
+    "enableWarning3": "有効化後も管理画面でいつでも無効化でき、セクションごとの表示も細かく調整できます。",
+    "enableButton": "公開プロフィールを有効化",
+    "enableSaving": "有効化中…",
+    "enableConfirm": "公開プロフィールを有効化しますか？ギルドページが誰でも閲覧可能になります。",
+    "advancedTitle": "詳細トグル",
+    "advancedDescription": "公開ページの追加セクションを切り替えます。",
+    "memberDashboardLabel": "メンバー本人ダッシュボードセクションを表示",
+    "memberDashboardHint": "ON にすると、ギルドメンバーが自身のギルドページを訪れた際に hero 直下に残高・K/D・リギア・取引のカードが表示され、未ログイン訪問者には参加 CTA バナーが表示されます。",
+    "disableButton": "公開プロフィールを無効化",
+    "disableSaving": "無効化中…",
+    "disableConfirm": "公開プロフィールを無効化しますか？ 入力済みのバナー・紹介文・ギャラリーはそのまま保持され、ページ自体だけが非表示になります。"
+  },
   "publicGuildProfile": {
     "recruitment_open": "募集中",
     "recruitment_selective": "選抜募集",
