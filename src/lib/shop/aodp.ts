@@ -21,8 +21,26 @@ const AODP_HOSTS: Record<AlbionServer, string> = {
   europe: 'https://europe.albion-online-data.com',
 }
 
+// 알비온 온라인 로열 시티(블루존). PvP 위험 없이 거래 가능.
+// DEFAULT_CITIES 가 참조하므로 파일 위쪽에 선언.
+export const BLUE_ZONE_CITIES = [
+  'Lymhurst',
+  'Martlock',
+  'Thetford',
+  'Bridgewatch',
+  'Fort Sterling',
+] as const
+
+// 레드존 도시. 거래량 많지만 레드존 안으로 가야 해서 아이템 분실 리스크.
+// 폴백 최후 단계로만 사용.
+export const RED_ZONE_CITIES = ['Caerleon', 'Brecilien'] as const
+
 // 기본 후보 도시 — 관리자가 `aodp_cities` 를 비우면 이 목록으로 fallback.
-const DEFAULT_CITIES = AODP_ALLOWED_CITIES
+// 5개 royal corner (블루존) 만 사용. red zone (Caerleon, Brecilien) 은 거래량
+// 많지만 가격 변동성 커서 'high' confidence 풀에서 제외. red zone 가격이
+// 필요한 경우 fetchAodpPrices 의 redzone fallback tier 가 'low' confidence 로
+// 별도 추가 — auto_regear_skip_low_confidence 게이트가 자동 청구에서 걸러낸다.
+const DEFAULT_CITIES: readonly string[] = BLUE_ZONE_CITIES
 
 // 7일 넘게 업데이트 안된 spot 데이터는 시세가 움직였을 가능성 크므로 무시.
 const STALE_HOURS = 24 * 7
@@ -67,19 +85,6 @@ export type AodpFallbackTier =
 //   low    — bluezone/redzone 폴백, 또는 history 모드인데 sampleCount 가 1 이하.
 //   none   — 시세 자체 없음.
 export type AodpConfidence = 'high' | 'medium' | 'low' | 'none'
-
-// 알비온 온라인 로열 시티(블루존). PvP 위험 없이 거래 가능.
-export const BLUE_ZONE_CITIES = [
-  'Lymhurst',
-  'Martlock',
-  'Thetford',
-  'Bridgewatch',
-  'Fort Sterling',
-] as const
-
-// 레드존 도시. 거래량 많지만 레드존 안으로 가야 해서 아이템 분실 리스크.
-// 폴백 최후 단계로만 사용.
-export const RED_ZONE_CITIES = ['Caerleon', 'Brecilien'] as const
 
 export interface AodpOptions {
   cities?: readonly string[]
