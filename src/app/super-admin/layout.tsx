@@ -7,6 +7,7 @@ import {
   ShieldAlert,
   Globe,
   ExternalLink,
+  ImageIcon,
 } from 'lucide-react'
 import { requireSuperAdmin } from '@/lib/super-admin'
 import { getSuperAdminPath } from '@/lib/super-admin-path'
@@ -30,6 +31,7 @@ function buildNav(basePath: string): NavItem[] {
     { href: basePath, label: '대시보드', Icon: LayoutDashboard },
     { href: `${basePath}/tenants`, label: '테넌트', Icon: Building2 },
     { href: `${basePath}/notices`, label: '시스템 공지', Icon: Megaphone },
+    { href: `${basePath}/marketing-screenshots`, label: '마케팅 스크린샷', Icon: ImageIcon },
     { href: `${basePath}/audit`, label: '감사 로그', Icon: ScrollText },
     { href: PUBLIC_LANDING_HREF, label: '공개 랜딩', Icon: Globe, external: true },
   ]

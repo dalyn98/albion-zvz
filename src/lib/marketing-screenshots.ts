@@ -1,19 +1,70 @@
-// 마케팅 페이지(`/landing`, `/features`)의 스크린샷 슬롯 → 파일 경로 매핑.
-//
-// 스크린샷을 새로 추가하거나 교체하려면:
-//   1. PNG/JPG 를 `/public/screenshots/<slot>.png` 에 저장한다.
-//      (권장 사양: 16:9, 1920x1080 — 사이트가 어두운 배경이라 다크모드 캡쳐가 자연스럽다)
-//   2. 아래의 해당 슬롯 값을 `null` → `'/screenshots/<slot>.png'` 으로 바꾼다.
-//   3. 저장하면 ScreenshotPlaceholder 가 점선 placeholder → 실제 이미지로 자동 전환된다.
-//
-// 슬롯을 비워 두면(null) 점선 + 라벨 박스로 자리만 잡혀 있어 길드원이 봐도 어색하지 않다.
+// 마케팅 페이지(`/landing`, `/features`)의 스크린샷 슬롯.
+// DB 백킹 — 슈퍼어드민이 `/super-admin/marketing-screenshots` 에서 업로드/관리.
+// 슬롯당 여러 장 허용, position 으로 정렬, 캐러셀로 표시.
+
+import { getAdminClient } from '@/lib/supabase-admin'
 
 export type MarketingScreenshotKey = 'events' | 'regear' | 'craft' | 'shop' | 'stats'
 
-export const MARKETING_SCREENSHOTS: Record<MarketingScreenshotKey, string | null> = {
-  events: null, // /public/screenshots/events.png
-  regear: null, // /public/screenshots/regear.png
-  craft: null,  // /public/screenshots/craft.png
-  shop: null,   // /public/screenshots/shop.png
-  stats: null,  // /public/screenshots/stats.png
+export const MARKETING_SCREENSHOT_KEYS: MarketingScreenshotKey[] = [
+  'events',
+  'regear',
+  'craft',
+  'shop',
+  'stats',
+]
+
+export interface MarketingScreenshotImage {
+  id: string
+  url: string
+  alt: string | null
+  position: number
+}
+
+export type MarketingScreenshotsBySlot = Record<MarketingScreenshotKey, MarketingScreenshotImage[]>
+
+function emptyMap(): MarketingScreenshotsBySlot {
+  return {
+    events: [],
+    regear: [],
+    craft: [],
+    shop: [],
+    stats: [],
+  }
+}
+
+function isValidSlot(value: unknown): value is MarketingScreenshotKey {
+  return (
+    typeof value === 'string' &&
+    (MARKETING_SCREENSHOT_KEYS as readonly string[]).includes(value)
+  )
+}
+
+export async function loadMarketingScreenshots(): Promise<MarketingScreenshotsBySlot> {
+  const db = getAdminClient()
+  const { data, error } = await db
+    .from('marketing_screenshots')
+    .select('id, slot, position, image_url, alt_text')
+    .order('slot', { ascending: true })
+    .order('position', { ascending: true })
+    .order('created_at', { ascending: true })
+  if (error || !data) return emptyMap()
+
+  const map = emptyMap()
+  for (const row of data as Array<{
+    id: string
+    slot: string
+    position: number
+    image_url: string
+    alt_text: string | null
+  }>) {
+    if (!isValidSlot(row.slot)) continue
+    map[row.slot].push({
+      id: row.id,
+      url: row.image_url,
+      alt: row.alt_text,
+      position: row.position,
+    })
+  }
+  return map
 }

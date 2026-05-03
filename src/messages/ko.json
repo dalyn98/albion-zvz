@@ -1796,7 +1796,10 @@
     "screenshotsTitle": "실제 사용 화면",
     "screenshotsCaption": "공개 페이지 외 게이트된 화면은 길드원만 볼 수 있어 일부는 자리만 잡혀 있습니다.",
     "ctaBoxTitle": "지금 베타 무료로 사용해보세요",
-    "ctaBoxBody": "정식 출시 전까지 모든 기능을 무료로 사용할 수 있습니다."
+    "ctaBoxBody": "정식 출시 전까지 모든 기능을 무료로 사용할 수 있습니다.",
+    "carouselPrev": "이전 이미지",
+    "carouselNext": "다음 이미지",
+    "carouselDot": "{n}번째 이미지"
   },
   "publicFeatures": {
     "pageTitle": "기능",

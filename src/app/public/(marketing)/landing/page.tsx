@@ -10,9 +10,9 @@ import {
 import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import MarketingNav from '@/components/MarketingNav'
-import ScreenshotPlaceholder from '@/components/ScreenshotPlaceholder'
+import MarketingScreenshotCarousel from '@/components/MarketingScreenshotCarousel'
 import {
-  MARKETING_SCREENSHOTS,
+  loadMarketingScreenshots,
   type MarketingScreenshotKey,
 } from '@/lib/marketing-screenshots'
 import { getMarketingPaths } from '@/lib/marketing-paths'
@@ -30,11 +30,12 @@ interface FeatureSection {
 }
 
 export default async function PublicLandingPage() {
-  const [t, tFeat, tMkt, paths] = await Promise.all([
+  const [t, tFeat, tMkt, paths, screenshots] = await Promise.all([
     getTranslations('publicLanding'),
     getTranslations('publicFeatures'),
     getTranslations('publicMarketing'),
     getMarketingPaths(),
+    loadMarketingScreenshots(),
   ])
   const installHref = '/api/auth/discord/start?returnTo=%2Fonboard'
 
@@ -130,30 +131,30 @@ export default async function PublicLandingPage() {
               <p className="text-xs text-gray-500 max-w-xl mx-auto">{tMkt('screenshotsCaption')}</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <ScreenshotPlaceholder
-                label={tFeat('f4ScreenshotLabel')}
+              <MarketingScreenshotCarousel
+                images={screenshots.stats}
+                fallbackLabel={tFeat('f4ScreenshotLabel')}
                 aspect="16/9"
-                src={MARKETING_SCREENSHOTS.stats}
               />
-              <ScreenshotPlaceholder
-                label={tFeat('f2ScreenshotLabel')}
+              <MarketingScreenshotCarousel
+                images={screenshots.regear}
+                fallbackLabel={tFeat('f2ScreenshotLabel')}
                 aspect="16/9"
-                src={MARKETING_SCREENSHOTS.regear}
               />
-              <ScreenshotPlaceholder
-                label={tFeat('f1ScreenshotLabel')}
+              <MarketingScreenshotCarousel
+                images={screenshots.events}
+                fallbackLabel={tFeat('f1ScreenshotLabel')}
                 aspect="16/9"
-                src={MARKETING_SCREENSHOTS.events}
               />
-              <ScreenshotPlaceholder
-                label={tFeat('f3ScreenshotLabel')}
+              <MarketingScreenshotCarousel
+                images={screenshots.shop}
+                fallbackLabel={tFeat('f3ScreenshotLabel')}
                 aspect="16/9"
-                src={MARKETING_SCREENSHOTS.shop}
               />
-              <ScreenshotPlaceholder
-                label={tFeat('f5ScreenshotLabel')}
+              <MarketingScreenshotCarousel
+                images={screenshots.craft}
+                fallbackLabel={tFeat('f5ScreenshotLabel')}
                 aspect="16/9"
-                src={MARKETING_SCREENSHOTS.craft}
               />
             </div>
           </section>
@@ -197,10 +198,10 @@ export default async function PublicLandingPage() {
                   </ul>
                 </div>
                 <div className={section.imagePosition === 'left' ? 'md:order-1' : ''}>
-                  <ScreenshotPlaceholder
-                    label={section.screenshotLabel}
+                  <MarketingScreenshotCarousel
+                    images={screenshots[section.screenshotKey]}
+                    fallbackLabel={section.screenshotLabel}
                     aspect="4/3"
-                    src={MARKETING_SCREENSHOTS[section.screenshotKey]}
                   />
                 </div>
               </div>

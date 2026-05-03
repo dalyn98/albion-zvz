@@ -1796,7 +1796,10 @@
     "screenshotsTitle": "See it in action",
     "screenshotsCaption": "Some screens are member-gated, so a few placeholders stand in until they're swapped for live captures.",
     "ctaBoxTitle": "Free during beta",
-    "ctaBoxBody": "Use every feature for free until general availability."
+    "ctaBoxBody": "Use every feature for free until general availability.",
+    "carouselPrev": "Previous image",
+    "carouselNext": "Next image",
+    "carouselDot": "Image {n}"
   },
   "publicFeatures": {
     "pageTitle": "Features",
