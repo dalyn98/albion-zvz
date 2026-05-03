@@ -7,6 +7,8 @@
     "ogDefaultDescription": "Albion guild operations on autopilot — Discord bot, killboard, auto-regear, guild shop, and stats from a single dashboard.",
     "ogGuildTitle": "{name} — AlbionGuildManager",
     "ogGuildDescription": "Public profile for the {name} guild. Members, recent battles, and recruitment status at a glance.",
+    "ogEventTitle": "{event} · {name}",
+    "ogEventDescription": "{name} guild event — gather time, location, and recruitment status at a glance.",
     "ogDocsTitle": "Docs — AlbionGuildManager",
     "ogDocsDescription": "Every AlbionGuildManager feature explained in one place — bot install, auto-regear, guild shop, and stats."
   },

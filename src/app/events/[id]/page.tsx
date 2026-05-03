@@ -1,6 +1,8 @@
 import { getAdminClient } from '@/lib/supabase-admin'
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
+import { headers } from 'next/headers'
+import type { Metadata } from 'next'
 import type { Event, PartyWithSlots } from '@/types'
 import { SLOT_ROLES, type SlotRole } from '@/types'
 import { getAppSetting } from '@/lib/app-settings'
@@ -20,6 +22,9 @@ import { formatDateTimeShort } from '@/lib/format-datetime'
 import { getLocale } from '@/lib/locale'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { listEventGuestTokens } from '@/app/actions/event-invites'
+import { classifyHost, resolveTenantBySlug } from '@/lib/tenant-resolver'
+import { resolveAlbionDisplayName } from '@/lib/albion-display-name'
+import { loadGuildProfileSettings } from '@/lib/guild-profile'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -27,6 +32,76 @@ function formatStartedAt(iso: string, tz: string): string {
 }
 
 export const dynamic = 'force-dynamic'
+
+// Discord/Slack 임베드 봇은 비로그인으로 페이지를 fetch 하므로 host 헤더의
+// 서브도메인으로 tenant 를 잡아내야 한다. 세션 기반 해소는 비로그인 봇에서
+// primary tenant 로 폴백해 다른 길드의 배너가 임베드되는 사고가 난다.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}): Promise<Metadata> {
+  const [{ id }, headersList, tMeta] = await Promise.all([
+    params,
+    headers(),
+    getTranslations('meta'),
+  ])
+  const classification = classifyHost(headersList.get('host'))
+  const tenant =
+    classification.kind === 'tenant'
+      ? await resolveTenantBySlug(classification.slug)
+      : null
+  // 캐노니컬 루트/프리뷰/로컬 호스트에서 직접 /events/<id> 를 열어도 OG 가
+  // 깨지지 않도록 root layout 의 default metadata 를 그대로 유지한다.
+  if (!tenant) return {}
+
+  const db = getAdminClient()
+  const [{ data: eventRow }, displayName, settings] = await Promise.all([
+    db
+      .from('events')
+      .select('title, status')
+      .eq('guild_id', tenant.tenantId)
+      .eq('id', id)
+      .maybeSingle(),
+    resolveAlbionDisplayName(tenant.tenantId, tenant.slug, tenant.name),
+    loadGuildProfileSettings(tenant.tenantId),
+  ])
+
+  // Draft 이벤트는 페이지 본문에서 notFound() — 메타도 노출하지 않는다.
+  const eventTitle =
+    eventRow && eventRow.status !== 'draft'
+      ? (eventRow.title as string | null) ?? null
+      : null
+
+  const ogTitle = eventTitle
+    ? tMeta('ogEventTitle', { event: eventTitle, name: displayName })
+    : tMeta('ogGuildTitle', { name: displayName })
+  const ogDescription = tMeta('ogEventDescription', { name: displayName })
+  const ogImages = settings.bannerUrl
+    ? [{ url: settings.bannerUrl, alt: displayName }]
+    : undefined
+  const canonicalUrl = `https://${tenant.slug}.albion-guildmanager.com/events/${id}`
+
+  return {
+    title: ogTitle,
+    description: ogDescription,
+    alternates: { canonical: canonicalUrl },
+    openGraph: {
+      type: 'article',
+      siteName: tMeta('ogSiteName'),
+      title: ogTitle,
+      description: ogDescription,
+      url: canonicalUrl,
+      ...(ogImages && { images: ogImages }),
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: ogTitle,
+      description: ogDescription,
+      ...(ogImages && { images: ogImages.map((i) => i.url) }),
+    },
+  }
+}
 
 async function getEvent(id: string, guildId: string) {
   const db = getAdminClient()

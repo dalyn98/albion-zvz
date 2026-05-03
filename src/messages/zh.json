@@ -7,6 +7,8 @@
     "ogDefaultDescription": "Discord 机器人 + 击杀板追踪 + 自动 Regear + 公会商店 + 战绩统计,一个面板搞定阿尔比恩公会运营。",
     "ogGuildTitle": "{name} — AlbionGuildManager",
     "ogGuildDescription": "{name} 公会的公开主页。成员、最近战斗、招募状态一目了然。",
+    "ogEventTitle": "{event} · {name}",
+    "ogEventDescription": "{name} 公会活动 —— 集合时间、集合地点与招募状态一页查看。",
     "ogDocsTitle": "文档 — AlbionGuildManager",
     "ogDocsDescription": "AlbionGuildManager 全部功能一页讲清 —— 机器人安装、自动 Regear、公会商店、战绩统计。"
   },

@@ -7,6 +7,8 @@
     "ogDefaultDescription": "Discordボットで始めるアルビオンギルド運営自動化 — キルボード、自動リギア、ギルドショップ、統計まで。",
     "ogGuildTitle": "{name} — AlbionGuildManager",
     "ogGuildDescription": "{name} ギルドの公開プロフィール。メンバー、戦闘記録、募集状況をまとめて確認できます。",
+    "ogEventTitle": "{event} · {name}",
+    "ogEventDescription": "{name} ギルドイベント — 集合時刻・集合地・募集状況をまとめて確認できます。",
     "ogDocsTitle": "ドキュメント — AlbionGuildManager",
     "ogDocsDescription": "AlbionGuildManager の全機能を1ページで案内 — ボット導入、自動リギア、ギルドショップ、統計まで。"
   },
