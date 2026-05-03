@@ -205,7 +205,7 @@ export default function MarketingScreenshotCarousel({
       <div className="relative group">
         <div
           ref={scrollerRef}
-          className={`${aspectClass} overflow-x-auto snap-x snap-mandatory rounded-xl border border-gray-800 select-none ${
+          className={`${aspectClass} overflow-x-auto snap-x snap-mandatory rounded-xl border border-gray-800 bg-gray-950 select-none ${
             showControls ? 'cursor-grab active:cursor-grabbing' : ''
           }`}
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
@@ -226,7 +226,7 @@ export default function MarketingScreenshotCarousel({
                   alt={img.alt ?? fallbackLabel}
                   draggable={false}
                   loading="lazy"
-                  className="w-full h-full object-cover pointer-events-none"
+                  className="w-full h-full object-contain pointer-events-none"
                 />
               </div>
             ))}
