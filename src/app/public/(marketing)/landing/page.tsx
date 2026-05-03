@@ -16,6 +16,8 @@ import {
   type MarketingScreenshotKey,
 } from '@/lib/marketing-screenshots'
 import { getMarketingPaths } from '@/lib/marketing-paths'
+import { getSession } from '@/lib/session'
+import { isSuperAdminSession } from '@/lib/super-admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,14 +32,16 @@ interface FeatureSection {
 }
 
 export default async function PublicLandingPage() {
-  const [t, tFeat, tMkt, paths, screenshots] = await Promise.all([
+  const [t, tFeat, tMkt, paths, screenshots, session] = await Promise.all([
     getTranslations('publicLanding'),
     getTranslations('publicFeatures'),
     getTranslations('publicMarketing'),
     getMarketingPaths(),
     loadMarketingScreenshots(),
+    getSession(),
   ])
   const installHref = '/api/auth/discord/start?returnTo=%2Fonboard'
+  const isAdmin = isSuperAdminSession(session)
 
   // 카드 순서 = USP 우선순위. 통계(f4) 가 가장 강한 차별화이므로 메인,
   // 다음으로 자동 리기어(f2), 통합 운영 흐름(f1), 보조 기능(상점/제작) 순.
@@ -135,26 +139,36 @@ export default async function PublicLandingPage() {
                 images={screenshots.stats}
                 fallbackLabel={tFeat('f4ScreenshotLabel')}
                 aspect="16/9"
+                editable={isAdmin}
+                slot="stats"
               />
               <MarketingScreenshotCarousel
                 images={screenshots.regear}
                 fallbackLabel={tFeat('f2ScreenshotLabel')}
                 aspect="16/9"
+                editable={isAdmin}
+                slot="regear"
               />
               <MarketingScreenshotCarousel
                 images={screenshots.events}
                 fallbackLabel={tFeat('f1ScreenshotLabel')}
                 aspect="16/9"
+                editable={isAdmin}
+                slot="events"
               />
               <MarketingScreenshotCarousel
                 images={screenshots.shop}
                 fallbackLabel={tFeat('f3ScreenshotLabel')}
                 aspect="16/9"
+                editable={isAdmin}
+                slot="shop"
               />
               <MarketingScreenshotCarousel
                 images={screenshots.craft}
                 fallbackLabel={tFeat('f5ScreenshotLabel')}
                 aspect="16/9"
+                editable={isAdmin}
+                slot="craft"
               />
             </div>
           </section>
@@ -202,6 +216,8 @@ export default async function PublicLandingPage() {
                     images={screenshots[section.screenshotKey]}
                     fallbackLabel={section.screenshotLabel}
                     aspect="4/3"
+                    editable={isAdmin}
+                    slot={section.screenshotKey}
                   />
                 </div>
               </div>
