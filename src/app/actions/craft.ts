@@ -30,7 +30,6 @@ import {
 } from '@/lib/craft-tasks'
 import {
   aggregateBuildSnapshots,
-  type CraftAggregateBreakdown,
   type CraftItemAggregateRow,
 } from '@/lib/craft-aggregation'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
@@ -1320,78 +1319,6 @@ export async function updateCraftSettingsAdmin(
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
-  }
-}
-
-// ────────────────────────────────────────────────────────────
-// Admin — per-event craft regear aggregation
-// ────────────────────────────────────────────────────────────
-
-export interface EventCraftAggregateResult {
-  breakdown: CraftAggregateBreakdown
-  // 진행 단계별 카운트 — 어드민이 "재료 얼마나 더 사야 하나" 가늠.
-  // queued = 아직 크래프터가 안 잡음, claimed = 잡고 작업 중,
-  // delivered = 박스에 넣어둠 (청구자 픽업 대기). collected/expired/cancelled 는
-  // 합산에서 제외 (이미 가져갔거나 무효).
-  queuedCount: number
-  claimedCount: number
-  deliveredCount: number
-}
-
-// 이벤트 상세 페이지 위젯에 노출할 집계. 해당 이벤트에서 발생한 제작 리기어 청구
-// (regear_requests.event_id + craft_tasks 가 이미 만들어진 = admin 승인됨) 의
-// build_snapshot 들을 모아 aggregateBuildSnapshots() 에 넘긴다. fulfillment_mode
-// 별도 필터 불필요 — craft_tasks 가 존재한다는 사실 자체가 'crafted' 모드 임을
-// 보장 (104/106 마이그레이션의 RPC 가 그렇게만 만든다).
-export async function getEventCraftAggregate(eventId: string): Promise<{
-  result: EventCraftAggregateResult | null
-  error?: string
-}> {
-  const tErr = await getTranslations('adminActionError')
-  try {
-    await requireAdmin()
-    const session = await getSession()
-    if (!session) return { result: null, error: tErr('unauthorized') }
-    const guildId = await getSessionGuildId(session)
-
-    const db = getAdminClient()
-    const { data, error } = await db
-      .from('craft_tasks')
-      .select(
-        'status, regear_requests!inner(event_id, build_snapshot)',
-      )
-      .eq('guild_id', guildId)
-      .eq('regear_requests.event_id', eventId)
-      .in('status', ['queued', 'claimed', 'delivered'])
-    if (error) return { result: null, error: error.message }
-
-    const snapshots: (BuildSnapshot | null)[] = []
-    let queuedCount = 0
-    let claimedCount = 0
-    let deliveredCount = 0
-    for (const row of (data ?? []) as Array<{
-      status: CraftTaskStatus
-      regear_requests:
-        | { build_snapshot: unknown }
-        | { build_snapshot: unknown }[]
-        | null
-    }>) {
-      const r = Array.isArray(row.regear_requests)
-        ? row.regear_requests[0]
-        : row.regear_requests
-      snapshots.push((r?.build_snapshot as BuildSnapshot | null) ?? null)
-      if (row.status === 'queued') queuedCount++
-      else if (row.status === 'claimed') claimedCount++
-      else if (row.status === 'delivered') deliveredCount++
-    }
-
-    const breakdown = aggregateBuildSnapshots(snapshots)
-    return { result: { breakdown, queuedCount, claimedCount, deliveredCount } }
-  } catch (e) {
-    return {
-      result: null,
-      error: e instanceof Error ? e.message : tErr('serverError'),
-    }
   }
 }
 

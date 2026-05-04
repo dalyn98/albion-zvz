@@ -2373,21 +2373,6 @@
     "stockBadge": "{count}",
     "stockBadgeAria": "Guild stock {count}"
   },
-  "eventCraftAggregate": {
-    "sectionTitle": "Craft regear summary",
-    "sectionHint": "Aggregates all crafted regear claims for this event — what the guild needs to produce and which materials are required.",
-    "emptyHint": "No crafted regear claims yet for this event.",
-    "taskCount": "({count})",
-    "statusQueued": "Queued {count}",
-    "statusClaimed": "In progress {count}",
-    "statusDelivered": "Delivered {count}",
-    "itemsTitle": "Items to craft",
-    "slotsTag": "{count} slots",
-    "artifactTag": "Artifact bench",
-    "noRecipeTag": "No recipe",
-    "artifactWarn": "{count} artifact item(s) require an artifact bench. Materials are included in the totals.",
-    "unknownWarn": "{count} item(s) without a recipe were excluded from the totals."
-  },
   "craftPickup": {
     "sectionTitle": "Pending box pickups",
     "sectionHint": "A crafter dropped your gear into a numbered box on the guild island. Mark as collected once you've grabbed it.",

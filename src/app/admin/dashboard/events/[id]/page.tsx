@@ -14,11 +14,6 @@ import EventPayoutRequestButton from '@/components/EventPayoutRequestButton'
 import { EventEditSaveProvider } from '@/components/EventEditSaveRegistry'
 import EventEditSaveBar from '@/components/EventEditSaveBar'
 import { listTemplates } from '@/app/actions/templates'
-import {
-  getCraftConfig,
-  getEventCraftAggregate,
-} from '@/app/actions/craft'
-import EventCraftAggregateCard from '@/components/EventCraftAggregateCard'
 import TentativeSignupSection from '@/components/TentativeSignupSection'
 import { listTentativeSignups } from '@/app/actions/event-tentative'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
@@ -101,8 +96,6 @@ export default async function EditEventPage({
     t,
     autoRegearRaw,
     tenantTimezone,
-    craftAggregateRes,
-    craftConfig,
     tentativeRes,
   ] = await Promise.all([
     getData(id, guildId),
@@ -110,8 +103,6 @@ export default async function EditEventPage({
     getTranslations('adminEditEvent'),
     getAppSetting('auto_regear_enabled', 'false', guildId),
     getTenantTimezone(guildId),
-    getEventCraftAggregate(id),
-    getCraftConfig(),
     listTentativeSignups(id),
   ])
   const autoRegearEnabled = autoRegearRaw === 'true'
@@ -145,10 +136,6 @@ export default async function EditEventPage({
     ...tentativeRows.map((r) => r.discord_id),
   ])
   const avatars = Object.fromEntries(avatarMap)
-
-  // 길드가 craft regear 를 켜고 + 이 이벤트의 청구 데이터가 있을 때만 위젯
-  // 노출. craftConfig.enabled 가 false 면 craft 자체가 작동 안 하니 위젯도 숨김.
-  const craftAggregate = craftAggregateRes.result
 
   return (
     <EventEditSaveProvider>
@@ -218,15 +205,6 @@ export default async function EditEventPage({
               eventCategory={eventCategory}
             />
           </section>
-
-          {craftConfig.enabled && craftAggregate && (
-            <EventCraftAggregateCard
-              breakdown={craftAggregate.breakdown}
-              queuedCount={craftAggregate.queuedCount}
-              claimedCount={craftAggregate.claimedCount}
-              deliveredCount={craftAggregate.deliveredCount}
-            />
-          )}
 
           <EventEditSaveBar eventId={event.id} eventStatus={event.status} />
         </div>

@@ -2373,21 +2373,6 @@
     "stockBadge": "{count}",
     "stockBadgeAria": "ギルド在庫 {count} 個"
   },
-  "eventCraftAggregate": {
-    "sectionTitle": "製作リギア集計",
-    "sectionHint": "このイベントで申請された製作リギアを合算して表示します。ギルドが作るべき装備と必要素材です。",
-    "emptyHint": "このイベントにはまだ製作リギアの申請がありません。",
-    "taskCount": "({count}件)",
-    "statusQueued": "待機 {count}",
-    "statusClaimed": "作業中 {count}",
-    "statusDelivered": "納品完了 {count}",
-    "itemsTitle": "作る装備",
-    "slotsTag": "{count}スロット",
-    "artifactTag": "アーティファクト工房",
-    "noRecipeTag": "レシピなし",
-    "artifactWarn": "アーティファクト {count}個はアーティファクト工房で製作が必要です。素材は合算に含まれています。",
-    "unknownWarn": "レシピのない項目 {count}個は合算から除外されました。"
-  },
   "craftPickup": {
     "sectionTitle": "ボックス受取待ち",
     "sectionHint": "クラフターがギルド保管庫の指定ボックスに装備を入れました。受け取ったら下のボタンを押してください。",
