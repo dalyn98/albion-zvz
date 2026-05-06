@@ -6,6 +6,7 @@ import {
   BarChart3,
   Check,
   ArrowRight,
+  PlayCircle,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
@@ -116,13 +117,13 @@ export default async function PublicLandingPage() {
               >
                 {t('ctaPrimary')}
               </a>
-              <a
-                href="#features"
+              <Link
+                href="/demo"
                 className="inline-flex items-center justify-center gap-1.5 bg-gray-800/60 hover:bg-gray-800 border border-gray-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
               >
-                {tFeat('pageTitle')}
-                <ArrowRight size={16} />
-              </a>
+                <PlayCircle size={16} />
+                {t('tryDemoButton')}
+              </Link>
             </div>
             <p className="text-[11px] text-gray-500 leading-relaxed pt-1 max-w-md mx-auto">
               {tMkt('installPermissionNote')}
