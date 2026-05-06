@@ -4080,6 +4080,29 @@
       "sortParticipation": "参加順",
       "sortRecent": "最近の活動",
       "memberCounter": "{memberCount}名 · 累計出陣 {total}回"
+    },
+    "tour": {
+      "startButton": "ツアーを開始",
+      "skipButton": "スキップ",
+      "nextButton": "次へ",
+      "backButton": "戻る",
+      "doneButton": "完了",
+      "restartButton": "ツアーをもう一度",
+      "stepCounter": "{current} / {total}",
+      "step1Title": "公開ギルドプロフィール",
+      "step1Body": "募集状況・アライアンス・タイムゾーンを即座に表示。Discord 共有と SEO インデックスにそのまま使われるページです。",
+      "step2Title": "管理者キュー",
+      "step2Body": "リギア・両替・寄付・ショップ・支払い・製作が一つのカードに集約。チャンネルを一つずつ見る必要がありません。",
+      "step3Title": "メンバーダッシュボード",
+      "step3Body": "Discord + Albion 連携後、自分の K/D・出席・リギア履歴が一画面に。精算トラブルが消えます。",
+      "step4Title": "週間 KPI",
+      "step4Body": "イベント・勝敗・キル/デスが自動更新。Excel を回さなくてもギルドの傾向が一目で分かります。",
+      "step5Title": "戦闘の自動追跡",
+      "step5Body": "参加した ZvZ のみ自動分類し、K/D とマッチアップを自動表記。キルボードを直接確認する必要がありません。",
+      "step6Title": "メタ分析",
+      "step6Body": "ギルド武器カテゴリ分布でビルド決定の根拠を提供します。",
+      "completedTitle": "ツアー完了",
+      "completedBody": "サイドバーのイベント・ギルドメンバー・設定・バックアップも直接ご覧ください。"
     }
   }
 }

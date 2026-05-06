@@ -4080,6 +4080,29 @@
       "sortParticipation": "按参与度",
       "sortRecent": "最近活动",
       "memberCounter": "{memberCount} 名成员 · 累计出战 {total} 次"
+    },
+    "tour": {
+      "startButton": "开始导览",
+      "skipButton": "跳过",
+      "nextButton": "下一步",
+      "backButton": "上一步",
+      "doneButton": "完成",
+      "restartButton": "重新导览",
+      "stepCounter": "{current} / {total}",
+      "step1Title": "公开公会主页",
+      "step1Body": "招募状态、联盟与时区一目了然。Discord 分享和 SEO 索引使用的就是这个页面。",
+      "step2Title": "管理员队列",
+      "step2Body": "补给、兑换、捐赠、商店、结算、制作集中在一张卡片。无需逐个频道查看。",
+      "step3Title": "成员仪表板",
+      "step3Body": "Discord 与 Albion 关联后，成员可在同一界面查看自己的 K/D、出席与补给记录。结算纠纷消失。",
+      "step4Title": "周度 KPI",
+      "step4Body": "活动、胜负、击杀/死亡自动更新。无需使用 Excel 也能掌握公会趋势。",
+      "step5Title": "战斗自动追踪",
+      "step5Body": "仅自动归类参与的 ZvZ 战斗，并自动标注 K/D 与对战阵营。无需手动翻查 killboard。",
+      "step6Title": "Meta 分析",
+      "step6Body": "通过公会武器类别分布，为 build 决策提供依据。",
+      "completedTitle": "导览完成",
+      "completedBody": "现在请直接查看侧边栏的活动、公会成员、设置与备份。"
     }
   }
 }

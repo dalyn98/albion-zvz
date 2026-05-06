@@ -18,6 +18,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { DEMO_MEMBERS, DEMO_WEEKLY_STATS, DEMO_ADMIN_BADGES } from '@/data/demo-seed'
+import DemoGuidedTour from './_components/DemoGuidedTour'
 
 const ALLIANCE_TAG = 'MGM'
 const SLUG = 'menhera'
@@ -81,7 +82,8 @@ export default async function DemoHomePage() {
 
   return (
     <div className="-m-4 sm:-m-6 lg:-m-8 min-h-screen bg-[#08090d] text-white">
-      <header className="relative overflow-hidden">
+      <DemoGuidedTour />
+      <header data-tour-id="hero" className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-amber-500/15 via-amber-500/5 to-transparent" />
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
         <div
@@ -152,14 +154,18 @@ export default async function DemoHomePage() {
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-10">
         <p className="text-[11px] text-amber-300/70 italic">{tHome('demoNote')}</p>
 
-        <AdminPendingCard totalPending={adminPendingTotal} tHome={tHome} />
+        <div data-tour-id="admin-pending">
+          <AdminPendingCard totalPending={adminPendingTotal} tHome={tHome} />
+        </div>
 
-        <MemberDashboardSection
-          member={meDashboard}
-          tHome={tHome}
-        />
+        <div data-tour-id="member-dashboard">
+          <MemberDashboardSection
+            member={meDashboard}
+            tHome={tHome}
+          />
+        </div>
 
-        <section className="space-y-3">
+        <section data-tour-id="weekly-kpi" className="space-y-3">
           <SectionHeader icon={<Activity size={14} />} label={tHome('weeklyHeading')} />
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <KpiCard label={tHome('weeklyEvents')} value={DEMO_WEEKLY_STATS.events} />
@@ -194,7 +200,7 @@ export default async function DemoHomePage() {
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          <div className="lg:col-span-3 space-y-3">
+          <div data-tour-id="recent-battle" className="lg:col-span-3 space-y-3">
             <SectionHeader icon={<Calendar size={14} />} label={tHome('recentBattleHeading')} />
             <RecentBattleCard tHome={tHome} />
           </div>
@@ -208,7 +214,7 @@ export default async function DemoHomePage() {
           </div>
         </section>
 
-        <section className="space-y-3">
+        <section data-tour-id="weapon-distribution" className="space-y-3">
           <SectionHeader icon={<Swords size={14} />} label={tHome('weaponsHeading')} />
           <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-2.5">
             {weaponDistribution.map(({ weapon, count }) => (

@@ -4080,6 +4080,29 @@
       "sortParticipation": "참여순",
       "sortRecent": "최근활동",
       "memberCounter": "{memberCount}명 · 누적 출전 {total}회"
+    },
+    "tour": {
+      "startButton": "둘러보기 시작",
+      "skipButton": "건너뛰기",
+      "nextButton": "다음",
+      "backButton": "이전",
+      "doneButton": "완료",
+      "restartButton": "투어 다시 보기",
+      "stepCounter": "{current} / {total}",
+      "step1Title": "공개 길드 프로필",
+      "step1Body": "모집 상태 · 동맹 · 시간대를 즉시 노출. Discord 공유와 SEO 색인에 그대로 사용되는 페이지입니다.",
+      "step2Title": "관리자 대기열",
+      "step2Body": "리기어 · 환전 · 기부 · 상점 · 결제 · 제작이 한 카드에 모입니다. 채널을 일일이 안 봐도 됩니다.",
+      "step3Title": "멤버 대시보드",
+      "step3Body": "Discord + Albion 연동 후 본인의 K/D · 출석 · 리기어 내역을 한 화면에. 정산 분쟁이 사라집니다.",
+      "step4Title": "주간 KPI",
+      "step4Body": "이벤트 · 승패 · 킬뎃이 자동 갱신. 엑셀을 굴리지 않아도 길드 추세가 한눈에 보입니다.",
+      "step5Title": "전투 자동 추적",
+      "step5Body": "참여한 ZvZ만 자동 분류해 K/D와 매칭업을 자동 표기. 킬보드 직접 확인할 필요가 없습니다.",
+      "step6Title": "메타 분석",
+      "step6Body": "길드 무기 카테고리 분포로 빌드 결정의 근거를 제공합니다.",
+      "completedTitle": "둘러보기 완료",
+      "completedBody": "이제 사이드바의 이벤트 · 길드원 · 설정 · 백업도 직접 살펴보세요."
     }
   }
 }

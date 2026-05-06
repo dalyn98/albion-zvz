@@ -4080,6 +4080,29 @@
       "sortParticipation": "By participation",
       "sortRecent": "Recent activity",
       "memberCounter": "{memberCount} members · {total} total participations"
+    },
+    "tour": {
+      "startButton": "Start tour",
+      "skipButton": "Skip",
+      "nextButton": "Next",
+      "backButton": "Back",
+      "doneButton": "Done",
+      "restartButton": "Replay tour",
+      "stepCounter": "{current} / {total}",
+      "step1Title": "Public guild profile",
+      "step1Body": "Recruitment status, alliance and timezone surfaced instantly. The same page used for Discord shares and SEO indexing.",
+      "step2Title": "Admin queue",
+      "step2Body": "Regear, exchange, donation, shop, payout, and craft requests collected into one card. No more channel hopping.",
+      "step3Title": "Member dashboard",
+      "step3Body": "Once Discord + Albion are linked, members see their own K/D, attendance, and regear history in one view. No more payout disputes.",
+      "step4Title": "Weekly KPI",
+      "step4Body": "Events, wins/losses, and K/D refresh automatically. Guild trends visible without spreadsheets.",
+      "step5Title": "Auto battle tracking",
+      "step5Body": "Only the ZvZ battles your guild joined are auto-classified, with K/D and matchup labelled automatically. No need to dig through the killboard.",
+      "step6Title": "Meta analytics",
+      "step6Body": "Weapon category distribution gives evidence-based build decisions.",
+      "completedTitle": "Tour complete",
+      "completedBody": "Now explore Events, Members, Settings and Backup from the sidebar."
     }
   }
 }
