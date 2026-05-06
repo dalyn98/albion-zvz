@@ -7,23 +7,22 @@ import { useTranslations } from 'next-intl'
 import {
   CalendarDays,
   ShieldCheck,
-  Wallet,
   Users,
   Menu,
   X,
   ChevronDown,
   Settings,
-  Box,
+  Boxes,
   ShoppingBag,
-  Swords,
-  Trophy,
+  BarChart3,
   Hammer,
-  ClipboardList,
+  Sparkles,
+  Archive,
   Lock,
   ExternalLink,
 } from 'lucide-react'
 
-type SectionKey = 'activity' | 'regear' | 'community' | 'profile'
+type SectionKey = 'ops' | 'features' | 'community' | 'system'
 
 interface DemoNavItem {
   href: string
@@ -32,25 +31,44 @@ interface DemoNavItem {
   section: SectionKey
   active: boolean
   exact?: boolean
+  badge?: number
 }
 
-// 데모는 멤버 시점만 노출 — events/regear/members 가 진짜 시드 기반.
-// 나머지는 "잠금" 으로 표시해 실제 앱 범위는 보여주되 클릭은 막는다.
+// 데모는 어드민 시점 — 길드 운영자가 보는 화면. 운영/기능/커뮤니티/시스템 섹션을
+// 실제 ADMIN_NAV 와 동일 구조로 보여주되, 진짜 시드 데이터가 있는 4개 항목만
+// active 로 두고 나머지는 잠금 표시. 데모지만 SaaS 기능 범위는 모두 노출.
 const DEMO_NAV: DemoNavItem[] = [
-  { href: '/demo', labelKey: 'events', icon: CalendarDays, section: 'activity', active: true, exact: true },
-  { href: '/demo/battles', labelKey: 'battles', icon: Swords, section: 'activity', active: false },
+  // 운영
+  {
+    href: '/demo',
+    labelKey: 'eventAdmin',
+    icon: CalendarDays,
+    section: 'ops',
+    active: true,
+    exact: true,
+  },
+  {
+    href: '/demo/regear',
+    labelKey: 'approvals',
+    icon: ShieldCheck,
+    section: 'ops',
+    active: true,
+    badge: 3,
+  },
 
-  { href: '/demo/regear', labelKey: 'regearRequest', icon: ShieldCheck, section: 'regear', active: true },
-  { href: '/demo/craft/queue', labelKey: 'craftQueue', icon: Hammer, section: 'regear', active: false },
-  { href: '/demo/craft/my-tasks', labelKey: 'craftMyTasks', icon: Box, section: 'regear', active: false },
-  { href: '/demo/craft/orders', labelKey: 'craftOrders', icon: ClipboardList, section: 'regear', active: false },
+  // 기능
+  { href: '/demo/shop', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'features', active: false },
+  { href: '/demo/craft', labelKey: 'craftAdmin', icon: Hammer, section: 'features', active: false },
+  { href: '/demo/inventory', labelKey: 'inventoryAdmin', icon: Boxes, section: 'features', active: false },
+  { href: '/demo/guild-profile', labelKey: 'guildProfile', icon: Sparkles, section: 'features', active: false },
 
-  { href: '/demo/shop', labelKey: 'shop', icon: ShoppingBag, section: 'community', active: false },
+  // 커뮤니티
   { href: '/demo/members', labelKey: 'members', icon: Users, section: 'community', active: true },
-  { href: '/demo/leaderboard', labelKey: 'leaderboard', icon: Trophy, section: 'community', active: false },
 
-  { href: '/demo/me', labelKey: 'myWallet', icon: Wallet, section: 'profile', active: false, exact: true },
-  { href: '/demo/me/settings', labelKey: 'mySettings', icon: Settings, section: 'profile', active: false },
+  // 시스템
+  { href: '/demo/stats', labelKey: 'stats', icon: BarChart3, section: 'system', active: true },
+  { href: '/demo/settings', labelKey: 'settings', icon: Settings, section: 'system', active: false },
+  { href: '/demo/backup', labelKey: 'backup', icon: Archive, section: 'system', active: false },
 ]
 
 function isActivePath(pathname: string, href: string, exact = false): boolean {
@@ -132,7 +150,7 @@ export default function DemoSidebar({ brandName }: { brandName: string }) {
 
         <nav className="flex-1 overflow-y-auto py-3">
           <DemoNavGroup
-            title={t('memberGroup')}
+            title={t('adminGroup')}
             items={DEMO_NAV}
             pathname={pathname}
             collapsed={collapsed}
@@ -248,6 +266,7 @@ function DemoNavLink({
 }) {
   const Icon = item.icon
   const active = item.active && isActivePath(pathname, item.href, item.exact)
+  const hasBadge = typeof item.badge === 'number' && item.badge > 0
 
   if (!item.active) {
     return (
@@ -273,6 +292,11 @@ function DemoNavLink({
     >
       <Icon size={15} className="flex-shrink-0" />
       <span className="truncate flex-1">{label}</span>
+      {hasBadge && (
+        <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none flex items-center justify-center flex-shrink-0">
+          {item.badge}
+        </span>
+      )}
     </Link>
   )
 }

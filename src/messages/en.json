@@ -3920,6 +3920,24 @@
       "back": "← Claims",
       "demoOnlyDetail": "Demo: only the first claim has full detail."
     },
+    "approvals": {
+      "title": "Approvals",
+      "subtitle": "Review regear, exchange, donation, and shop claims in one place.",
+      "tabPending": "Pending",
+      "tabApproved": "Approved",
+      "tabRejected": "Rejected",
+      "typeRegear": "Regear",
+      "typeExchange": "Exchange",
+      "typeDonation": "Donation",
+      "typeShop": "Shop",
+      "actionApprove": "Approve",
+      "actionReject": "Reject",
+      "actionsDemoNote": "Demo — actual approval is not applied.",
+      "emptyPending": "No pending claims.",
+      "emptyApproved": "No approved claims.",
+      "emptyRejected": "No rejected claims.",
+      "demoOnlyDetail": "Demo — only the first auto-claimed item has a detail view."
+    },
     "members": {
       "title": "Members",
       "subtitle": "Points · attendance · achievements.",
@@ -3951,6 +3969,26 @@
       "eventDeath": "Death",
       "back": "← Members",
       "demoOnlyDetail": "Demo: only Eternia has full detail."
+    },
+    "stats": {
+      "title": "Guild Stats",
+      "subtitle": "Detailed breakdown of this week's guild activity.",
+      "kdRanking": "K/D Leaderboard",
+      "kdRankingHint": "Members with 50+ battles only.",
+      "weaponDistribution": "Primary Weapon Distribution",
+      "weaponDistributionHint": "Weapons most commonly used by members.",
+      "attendance": "Weekly Attendance",
+      "attendanceHint": "Event participation this week.",
+      "achievementSummary": "Achievement Holders",
+      "achievementCount": "{n} members",
+      "colRank": "#",
+      "colMember": "Member",
+      "colKills": "Kills",
+      "colDeaths": "Deaths",
+      "colKd": "K/D",
+      "colSurvival": "Survival",
+      "colAttend": "Attend",
+      "demoOnlyDetail": "Demo stats — based on sample data from the Menhera guild."
     }
   }
 }

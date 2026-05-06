@@ -3920,6 +3920,24 @@
       "back": "← 請求一覧",
       "demoOnlyDetail": "デモ: 詳細は最初の請求のみ表示できます。"
     },
+    "approvals": {
+      "title": "承認管理",
+      "subtitle": "リギア・両替・寄付・ショップ請求を一箇所で確認。",
+      "tabPending": "承認待ち",
+      "tabApproved": "承認済み",
+      "tabRejected": "却下",
+      "typeRegear": "リギア",
+      "typeExchange": "両替",
+      "typeDonation": "寄付",
+      "typeShop": "ショップ注文",
+      "actionApprove": "承認",
+      "actionReject": "却下",
+      "actionsDemoNote": "デモ — 実際の承認は反映されません。",
+      "emptyPending": "承認待ちの請求はありません。",
+      "emptyApproved": "承認済みの請求はありません。",
+      "emptyRejected": "却下された請求はありません。",
+      "demoOnlyDetail": "デモ — 自動請求の最初の1件のみ詳細表示可能。"
+    },
     "members": {
       "title": "ギルドメンバー",
       "subtitle": "ポイント · 出席 · トロフィー。",
@@ -3951,6 +3969,26 @@
       "eventDeath": "デス",
       "back": "← メンバー一覧",
       "demoOnlyDetail": "デモ: 詳細は Eternia のみ表示できます。"
+    },
+    "stats": {
+      "title": "ギルド統計",
+      "subtitle": "今週のギルド活動の詳細分析。",
+      "kdRanking": "K/Dランキング",
+      "kdRankingHint": "戦闘50回以上のメンバーのみ表示。",
+      "weaponDistribution": "メイン武器分布",
+      "weaponDistributionHint": "メンバーが主に使用する武器。",
+      "attendance": "週間出席率",
+      "attendanceHint": "今週のイベント参加状況。",
+      "achievementSummary": "実績累計",
+      "achievementCount": "{n}名",
+      "colRank": "#",
+      "colMember": "メンバー",
+      "colKills": "キル",
+      "colDeaths": "デス",
+      "colKd": "K/D",
+      "colSurvival": "生存率",
+      "colAttend": "出席",
+      "demoOnlyDetail": "デモ統計 — メンヘラギルドのサンプルデータ。"
     }
   }
 }

@@ -3920,6 +3920,24 @@
       "back": "← 청구 목록",
       "demoOnlyDetail": "데모: 상세는 첫 청구만 미리볼 수 있어요."
     },
+    "approvals": {
+      "title": "승인 관리",
+      "subtitle": "리기어·환전·기부·상점 청구를 한곳에서 검토합니다.",
+      "tabPending": "대기 중",
+      "tabApproved": "승인 완료",
+      "tabRejected": "반려",
+      "typeRegear": "리기어",
+      "typeExchange": "환전",
+      "typeDonation": "기부",
+      "typeShop": "상점 주문",
+      "actionApprove": "승인",
+      "actionReject": "반려",
+      "actionsDemoNote": "데모 — 실제 승인은 적용되지 않습니다.",
+      "emptyPending": "대기 중 청구가 없습니다.",
+      "emptyApproved": "승인된 청구가 없습니다.",
+      "emptyRejected": "반려된 청구가 없습니다.",
+      "demoOnlyDetail": "데모 — 자동 청구된 첫 건만 상세 진입 가능."
+    },
     "members": {
       "title": "길드원",
       "subtitle": "포인트 · 출석 · 트로피.",
@@ -3951,6 +3969,26 @@
       "eventDeath": "데스",
       "back": "← 길드원 목록",
       "demoOnlyDetail": "데모: 상세는 Eternia 만 미리볼 수 있어요."
+    },
+    "stats": {
+      "title": "길드 통계",
+      "subtitle": "이번 주 길드 활동의 자세한 분석.",
+      "kdRanking": "K/D 랭킹",
+      "kdRankingHint": "전투 50건 이상 길드원만 노출.",
+      "weaponDistribution": "주 무기 분포",
+      "weaponDistributionHint": "길드원이 주로 사용하는 무기.",
+      "attendance": "주간 출석률",
+      "attendanceHint": "이번 주 이벤트 참여 현황.",
+      "achievementSummary": "업적 누적",
+      "achievementCount": "{n}명",
+      "colRank": "#",
+      "colMember": "길드원",
+      "colKills": "킬",
+      "colDeaths": "데스",
+      "colKd": "K/D",
+      "colSurvival": "생존률",
+      "colAttend": "출석",
+      "demoOnlyDetail": "데모 통계 — 멘헤라 길드 샘플 데이터 기반."
     }
   }
 }

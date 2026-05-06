@@ -30,7 +30,7 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
         </a>
       </div>
 
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-col lg:flex-row flex-1 min-h-0">
         <DemoSidebar brandName={t('brand.name')} />
         <div className="flex-1 min-w-0 flex flex-col">
           <main className="flex-1 px-4 py-6 sm:py-8 max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto w-full">

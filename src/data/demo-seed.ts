@@ -465,6 +465,17 @@ export const DEMO_REGEAR_LIST: DemoRegearListItem[] = [
     totalSilver: 512_000,
   },
   {
+    id: 'rg-7',
+    victim: 'Mochi',
+    battleLabel: 'Black Zone — Mercia',
+    diedAt: { day: 'today', time: '12:11' },
+    killerName: 'Bloodfang',
+    killerWeapon: 'Camlann Mace',
+    status: 'pending',
+    origin: 'manual',
+    totalSilver: 318_000,
+  },
+  {
     id: 'rg-3',
     victim: 'ShadowAce',
     battleLabel: 'Black Zone — Mercia',

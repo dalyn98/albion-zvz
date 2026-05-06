@@ -3920,6 +3920,24 @@
       "back": "← 申请列表",
       "demoOnlyDetail": "演示:仅首个申请可查看完整详情。"
     },
+    "approvals": {
+      "title": "审批管理",
+      "subtitle": "一站式审核装备返还·兑换·捐赠·商店申请。",
+      "tabPending": "待审核",
+      "tabApproved": "已批准",
+      "tabRejected": "已拒绝",
+      "typeRegear": "装备返还",
+      "typeExchange": "兑换",
+      "typeDonation": "捐赠",
+      "typeShop": "商店订单",
+      "actionApprove": "批准",
+      "actionReject": "拒绝",
+      "actionsDemoNote": "演示 — 实际审批不会应用。",
+      "emptyPending": "没有待审核的申请。",
+      "emptyApproved": "没有已批准的申请。",
+      "emptyRejected": "没有已拒绝的申请。",
+      "demoOnlyDetail": "演示 — 仅自动申请的首项可查看详情。"
+    },
     "members": {
       "title": "公会成员",
       "subtitle": "积分 · 出席 · 成就。",
@@ -3951,6 +3969,26 @@
       "eventDeath": "死亡",
       "back": "← 成员列表",
       "demoOnlyDetail": "演示:仅 Eternia 可查看完整详情。"
+    },
+    "stats": {
+      "title": "公会统计",
+      "subtitle": "本周公会活动详细分析。",
+      "kdRanking": "K/D 排行榜",
+      "kdRankingHint": "仅显示参战 50 次以上成员。",
+      "weaponDistribution": "主武器分布",
+      "weaponDistributionHint": "成员主要使用的武器。",
+      "attendance": "周出席率",
+      "attendanceHint": "本周活动参与情况。",
+      "achievementSummary": "成就累计",
+      "achievementCount": "{n}人",
+      "colRank": "#",
+      "colMember": "成员",
+      "colKills": "击杀",
+      "colDeaths": "阵亡",
+      "colKd": "K/D",
+      "colSurvival": "生存率",
+      "colAttend": "出席",
+      "demoOnlyDetail": "演示统计 — 基于 Menhera 公会样本数据。"
     }
   }
 }
