@@ -1,215 +1,274 @@
 import { getTranslations } from 'next-intl/server'
-import { ChevronRight, ExternalLink, Sparkles } from 'lucide-react'
-import { DemoEventEditor } from './_components/DemoEventEditor'
-import { DemoAutoRegear } from './_components/DemoAutoRegear'
-import { DemoCraftRegear } from './_components/DemoCraftRegear'
-import { DemoStats } from './_components/DemoStats'
-import { DemoMembers } from './_components/DemoMembers'
+import Link from 'next/link'
+import { Calendar, ShieldAlert, Activity } from 'lucide-react'
+import {
+  DEMO_WEEKLY_STATS,
+  DEMO_EVENTS,
+  DEMO_REGEAR_LIST,
+  DEMO_MEMBER_RECENT_EVENTS,
+} from '@/data/demo-seed'
+import { formatTimeLabel, formatSilver } from './_lib/format'
+import { EventStatusPill, RegearStatusPill } from './_components/Pills'
 
-// 공개 데모 페이지. 누구나 로그인 없이 볼 수 있으며 (layout.tsx 의
-// isPublicPathname 에 등록), 5 개 핵심 기능을 인터랙티브하게 체험.
-//
-// 데이터: 멘헤라스러운 inline mock (`src/data/demo-seed.ts`). 모든 인터랙션은
-// 클라이언트 React state 로만 발생하며 서버 mutation 0. 새로고침하면 시드로 리셋.
-//
-// 디자인: 실제 admin 화면 톤 (bg-gray-900 카드 / amber 액센트 / gray-700 보더)
-// 을 그대로 사용. 마케팅 톤 (gradient hero, white/0.05) 사용 금지.
-//
-// 주의: `force-static` 을 쓰지 않는다. layout 이 x-pathname 헤더로 isPublic
-// 분기를 결정하는데, static prerender 는 빌드 타임에 헤더 없이 렌더돼 AppGate
-// 가 HTML 에 박혀버린다.
-export const dynamic = 'force-dynamic'
-
-export default async function DemoPage() {
+// 데모 대시보드. layout.tsx 가 force-dynamic 으로 잡고 있어 children 도 동적.
+export default async function DemoDashboardPage() {
   const t = await getTranslations('demo')
 
-  const navItems = [
-    { id: 'events', label: t('nav.events') },
-    { id: 'auto-regear', label: t('nav.autoRegear') },
-    { id: 'craft-regear', label: t('nav.craftRegear') },
-    { id: 'stats', label: t('nav.stats') },
-    { id: 'members', label: t('nav.members') },
-  ]
+  const upcoming = DEMO_EVENTS.filter((e) => e.status === 'scheduled').slice(0, 3)
+  const pending = DEMO_REGEAR_LIST.filter((r) => r.status === 'pending').slice(0, 3)
+  const recent = (DEMO_MEMBER_RECENT_EVENTS.Eternia ?? []).slice(0, 5)
+  const kd = DEMO_WEEKLY_STATS.deaths > 0
+    ? (DEMO_WEEKLY_STATS.kills / DEMO_WEEKLY_STATS.deaths).toFixed(2)
+    : '∞'
 
   return (
-    <div className="min-h-screen bg-[#0b0d12] text-white">
-      <div className="sticky top-0 z-40 bg-amber-500 text-black text-center text-xs sm:text-sm font-semibold py-2 px-4">
-        <span className="inline-flex items-center gap-1.5">
-          <Sparkles size={14} />
-          {t('banner')}
-        </span>
+    <div className="space-y-6">
+      <header className="space-y-1">
+        <h1 className="text-xl sm:text-2xl font-bold text-white">{t('dashboard.title')}</h1>
+        <p className="text-xs sm:text-sm text-gray-500">{t('dashboard.subtitle')}</p>
+      </header>
+
+      <section>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+          {t('dashboard.weeklyTitle')}
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          <StatCard label={t('dashboard.weeklyEvents')} value={String(DEMO_WEEKLY_STATS.events)} />
+          <StatCard label={t('dashboard.weeklyKills')} value={String(DEMO_WEEKLY_STATS.kills)} />
+          <StatCard label={t('dashboard.weeklyDeaths')} value={String(DEMO_WEEKLY_STATS.deaths)} />
+          <StatCard label={t('dashboard.weeklyKd')} value={kd} />
+          <StatCard
+            label={t('dashboard.weeklyActiveMembers')}
+            value={String(DEMO_WEEKLY_STATS.activeMembers)}
+          />
+          <StatCard
+            label={t('dashboard.weeklyRegearsApproved')}
+            value={String(DEMO_WEEKLY_STATS.regearsApproved)}
+          />
+        </div>
+        <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <StatCard
+            label={t('dashboard.weeklySilverPaid')}
+            value={`${formatSilver(DEMO_WEEKLY_STATS.silverPaid)} ${t('common.silver')}`}
+          />
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Panel
+          icon={<Calendar size={14} />}
+          title={t('dashboard.upcomingTitle')}
+          viewAllLabel={t('dashboard.upcomingViewAll')}
+          viewAllHref="/demo/events"
+        >
+          {upcoming.length === 0 ? (
+            <EmptyRow text={t('dashboard.upcomingEmpty')} />
+          ) : (
+            <ul className="divide-y divide-gray-800">
+              {upcoming.map((evt) => (
+                <li key={evt.id}>
+                  <DashEventRow
+                    name={evt.name}
+                    when={formatTimeLabel(t, evt.scheduledAt)}
+                    zone={evt.zone}
+                    filled={t('events.filledFraction', {
+                      filled: evt.filledCount,
+                      total: evt.totalCount,
+                    })}
+                    statusPill={<EventStatusPill status={evt.status} t={t} />}
+                    href={evt.id === 'evt-1' ? `/demo/events/${evt.id}` : undefined}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
+        <Panel
+          icon={<ShieldAlert size={14} />}
+          title={t('dashboard.pendingTitle')}
+          viewAllLabel={t('dashboard.pendingViewAll')}
+          viewAllHref="/demo/regear"
+        >
+          {pending.length === 0 ? (
+            <EmptyRow text={t('dashboard.pendingEmpty')} />
+          ) : (
+            <ul className="divide-y divide-gray-800">
+              {pending.map((rg) => (
+                <li key={rg.id}>
+                  <DashRegearRow
+                    victim={rg.victim}
+                    battle={rg.battleLabel}
+                    when={formatTimeLabel(t, rg.diedAt)}
+                    total={`${formatSilver(rg.totalSilver)} ${t('common.silver')}`}
+                    statusPill={<RegearStatusPill status={rg.status} t={t} />}
+                    href={rg.id === 'rg-1' ? `/demo/regear/${rg.id}` : undefined}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
       </div>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 pb-24">
-        <Hero
-          eyebrow={t('hero.eyebrow')}
-          title={t('hero.title')}
-          subtitle={t('hero.subtitle')}
-          ctaPrimary={t('hero.ctaPrimary')}
-          jumpLabel={t('nav.events')}
-          stats={[
-            { label: t('hero.stat1Label'), value: t('hero.stat1Value') },
-            { label: t('hero.stat2Label'), value: t('hero.stat2Value') },
-            { label: t('hero.stat3Label'), value: t('hero.stat3Value') },
-          ]}
-        />
-
-        <SectionNav items={navItems} />
-
-        <Section id="events" title={t('events.title')} subtitle={t('events.subtitle')}>
-          <DemoEventEditor />
-        </Section>
-
-        <Section id="auto-regear" title={t('autoRegear.title')} subtitle={t('autoRegear.subtitle')}>
-          <DemoAutoRegear />
-        </Section>
-
-        <Section
-          id="craft-regear"
-          title={t('craftRegear.title')}
-          subtitle={t('craftRegear.subtitle')}
-        >
-          <DemoCraftRegear />
-        </Section>
-
-        <Section id="stats" title={t('stats.title')} subtitle={t('stats.subtitle')}>
-          <DemoStats />
-        </Section>
-
-        <Section id="members" title={t('members.title')} subtitle={t('members.subtitle')}>
-          <DemoMembers />
-        </Section>
-
-        <Footer
-          title={t('footer.title')}
-          subtitle={t('footer.subtitle')}
-          cta={t('footer.cta')}
-          note={t('footer.note')}
-        />
-      </main>
+      <Panel icon={<Activity size={14} />} title={t('dashboard.recentActivityTitle')}>
+        {recent.length === 0 ? (
+          <EmptyRow text={t('dashboard.recentActivityEmpty')} />
+        ) : (
+          <ul className="divide-y divide-gray-800">
+            {recent.map((ev) => (
+              <li key={ev.id} className="px-3 py-2 flex items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={`shrink-0 inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      ev.type === 'kill'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        : 'bg-red-500/20 text-red-300 border border-red-500/40'
+                    }`}
+                  >
+                    {ev.type === 'kill' ? t('members.eventKill') : t('members.eventDeath')}
+                  </span>
+                  <span className="truncate text-gray-200">
+                    {ev.type === 'kill'
+                      ? t('dashboard.recentActivityKill', {
+                          member: 'Eternia',
+                          opponent: ev.opponentName,
+                        })
+                      : t('dashboard.recentActivityDeath', {
+                          member: 'Eternia',
+                          opponent: ev.opponentName,
+                        })}
+                  </span>
+                </div>
+                <span className="shrink-0 text-gray-500 font-mono text-[11px]">
+                  {formatTimeLabel(t, ev.time)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
     </div>
   )
 }
 
-function Hero({
-  eyebrow,
-  title,
-  subtitle,
-  ctaPrimary,
-  jumpLabel,
-  stats,
-}: {
-  eyebrow: string
-  title: string
-  subtitle: string
-  ctaPrimary: string
-  jumpLabel: string
-  stats: Array<{ label: string; value: string }>
-}) {
+function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <section className="pt-12 sm:pt-16 pb-8">
-      <div className="max-w-3xl">
-        <p className="text-[11px] sm:text-xs text-amber-400 uppercase tracking-[0.2em] font-semibold mb-3">
-          {eyebrow}
-        </p>
-        <h1 className="text-2xl sm:text-4xl font-bold text-white leading-tight mb-4">{title}</h1>
-        <p className="text-sm sm:text-base text-gray-400 leading-relaxed mb-6">{subtitle}</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <a
-            href="/api/auth/discord/start?returnTo=/"
-            className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 transition-colors px-5 py-2.5 rounded-lg text-sm font-bold text-black"
-          >
-            <Sparkles size={16} />
-            {ctaPrimary}
-          </a>
-          <a
-            href="#events"
-            className="inline-flex items-center gap-1.5 bg-gray-900 hover:bg-gray-800 border border-gray-700 hover:border-gray-600 transition-colors text-gray-300 hover:text-white text-sm font-medium px-4 py-2.5 rounded-lg"
-          >
-            <ChevronRight size={16} />
-            {jumpLabel}
-          </a>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-3 mt-10 sm:mt-12 max-w-2xl">
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            className="bg-gray-900 border border-gray-800 rounded-lg px-3 sm:px-4 py-3"
-          >
-            <div className="text-lg sm:text-2xl font-bold text-amber-400 font-mono">{s.value}</div>
-            <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5">{s.label}</div>
-          </div>
-        ))}
-      </div>
-    </section>
+    <div className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2">
+      <div className="text-base sm:text-lg font-bold text-amber-400 font-mono">{value}</div>
+      <div className="text-[10px] text-gray-500 mt-0.5 truncate">{label}</div>
+    </div>
   )
 }
 
-function SectionNav({ items }: { items: Array<{ id: string; label: string }> }) {
-  return (
-    <nav className="my-6 flex flex-wrap gap-2 sticky top-9 z-30 bg-[#0b0d12]/95 backdrop-blur py-2 -mx-4 px-4 border-b border-gray-800">
-      {items.map((item) => (
-        <a
-          key={item.id}
-          href={`#${item.id}`}
-          className="text-xs sm:text-sm bg-gray-900 hover:bg-gray-800 border border-gray-700 hover:border-amber-500/40 hover:text-amber-300 rounded-full px-3 py-1.5 text-gray-300 transition-colors"
-        >
-          {item.label}
-        </a>
-      ))}
-    </nav>
-  )
-}
-
-function Section({
-  id,
+function Panel({
+  icon,
   title,
-  subtitle,
+  viewAllLabel,
+  viewAllHref,
   children,
 }: {
-  id: string
+  icon: React.ReactNode
   title: string
-  subtitle: string
+  viewAllLabel?: string
+  viewAllHref?: string
   children: React.ReactNode
 }) {
   return (
-    <section id={id} className="scroll-mt-28 py-8 sm:py-10">
-      <div className="flex items-center justify-between gap-2 border-b border-gray-800 pb-2 mb-4">
-        <div>
-          <h2 className="text-base sm:text-lg font-bold text-white">{title}</h2>
-          <p className="text-xs text-gray-500 leading-relaxed mt-1">{subtitle}</p>
+    <section className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <header className="flex items-center justify-between gap-2 px-3 py-2 border-b border-gray-800 bg-gray-950">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-200">
+          {icon}
+          <span>{title}</span>
         </div>
-      </div>
-      <div>{children}</div>
+        {viewAllLabel && viewAllHref ? (
+          <Link
+            href={viewAllHref}
+            className="text-[11px] text-amber-400 hover:text-amber-300 transition-colors"
+          >
+            {viewAllLabel} →
+          </Link>
+        ) : null}
+      </header>
+      {children}
     </section>
   )
 }
 
-function Footer({
-  title,
-  subtitle,
-  cta,
-  note,
+function EmptyRow({ text }: { text: string }) {
+  return <div className="px-3 py-6 text-center text-xs text-gray-600">{text}</div>
+}
+
+function DashEventRow({
+  name,
+  when,
+  zone,
+  filled,
+  statusPill,
+  href,
 }: {
-  title: string
-  subtitle: string
-  cta: string
-  note: string
+  name: string
+  when: string
+  zone: string
+  filled: string
+  statusPill: React.ReactNode
+  href?: string
 }) {
+  const inner = (
+    <div className="px-3 py-2 flex items-center justify-between gap-3">
+      <div className="min-w-0 flex-1">
+        <div className="text-xs font-semibold text-white truncate">{name}</div>
+        <div className="text-[11px] text-gray-500 truncate">
+          {when} · {zone}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className="font-mono text-[11px] text-gray-400">{filled}</span>
+        {statusPill}
+      </div>
+    </div>
+  )
+  if (!href) return inner
   return (
-    <section className="mt-16 bg-gray-900 border border-gray-800 rounded-xl p-6 sm:p-10">
-      <h3 className="text-lg sm:text-xl font-bold text-white mb-2">{title}</h3>
-      <p className="text-sm text-gray-400 mb-5 max-w-md">{subtitle}</p>
-      <a
-        href="/api/auth/discord/start?returnTo=/"
-        className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 transition-colors px-5 py-2.5 rounded-lg text-sm font-bold text-black"
-      >
-        <ExternalLink size={16} />
-        {cta}
-      </a>
-      <p className="text-[11px] text-gray-500 mt-5">{note}</p>
-    </section>
+    <Link href={href} className="block hover:bg-gray-800/40 transition-colors">
+      {inner}
+    </Link>
+  )
+}
+
+function DashRegearRow({
+  victim,
+  battle,
+  when,
+  total,
+  statusPill,
+  href,
+}: {
+  victim: string
+  battle: string
+  when: string
+  total: string
+  statusPill: React.ReactNode
+  href?: string
+}) {
+  const inner = (
+    <div className="px-3 py-2 flex items-center justify-between gap-3">
+      <div className="min-w-0 flex-1">
+        <div className="text-xs font-semibold text-white truncate">{victim}</div>
+        <div className="text-[11px] text-gray-500 truncate">
+          {battle} · {when}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className="font-mono text-[11px] text-amber-400">{total}</span>
+        {statusPill}
+      </div>
+    </div>
+  )
+  if (!href) return inner
+  return (
+    <Link href={href} className="block hover:bg-gray-800/40 transition-colors">
+      {inner}
+    </Link>
   )
 }
