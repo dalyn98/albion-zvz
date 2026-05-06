@@ -222,6 +222,13 @@ export const DEMO_MEMBERS: DemoMember[] = [
 
 export type DemoEventStatus = 'scheduled' | 'live' | 'ended'
 
+// 실제 src/types EventCategory 와 동일한 라벨 셋 — 데모 카드도 home 의
+// `home.sections.combat / .ff / .ganking` 키로 라벨링되어 같은 그루핑을 보여준다.
+export type DemoEventCategory = '전투' | 'FF' | '갱킹'
+
+// 실제 home 카드의 imminent/upcoming 분기. 데모 시드는 시간 계산 없이 명시적으로 선언.
+export type DemoEventKind = 'imminent' | 'upcoming'
+
 export type DemoEventSlot = {
   role: DemoSlotRoleKey
   buildLabel: string
@@ -247,6 +254,9 @@ export type DemoEventListItem = {
   filledCount: number
   totalCount: number
   zone: string
+  category: DemoEventCategory
+  kind: DemoEventKind
+  battleStarted?: boolean
 }
 
 export type DemoEventDetail = DemoEventListItem & {
@@ -265,6 +275,8 @@ export const DEMO_EVENTS: DemoEventListItem[] = [
     filledCount: 5,
     totalCount: 7,
     zone: 'Black Zone — Mercia',
+    category: '전투',
+    kind: 'imminent',
   },
   {
     id: 'evt-2',
@@ -275,16 +287,32 @@ export const DEMO_EVENTS: DemoEventListItem[] = [
     filledCount: 12,
     totalCount: 20,
     zone: 'Black Zone — Caerleon',
+    category: '전투',
+    kind: 'upcoming',
   },
   {
     id: 'evt-3',
-    name: 'Hellgate 4v4',
+    name: 'Hellgate 4v4 — Fame Farm',
     scheduledAt: { day: 'tomorrow', time: '21:00' },
     templateLabel: 'Hellgate 4v4',
     status: 'scheduled',
     filledCount: 4,
     totalCount: 4,
-    zone: 'Hellgate',
+    zone: 'Hellgate — 4v4',
+    category: 'FF',
+    kind: 'upcoming',
+  },
+  {
+    id: 'evt-6',
+    name: 'Mercia Ganking 5v5',
+    scheduledAt: { day: 'tomorrow', time: '20:00' },
+    templateLabel: 'Ganking — Light',
+    status: 'scheduled',
+    filledCount: 3,
+    totalCount: 5,
+    zone: 'Black Zone — Mercia Roads',
+    category: '갱킹',
+    kind: 'upcoming',
   },
   {
     id: 'evt-4',
@@ -295,6 +323,8 @@ export const DEMO_EVENTS: DemoEventListItem[] = [
     filledCount: 7,
     totalCount: 7,
     zone: 'Black Zone — Mercia',
+    category: '전투',
+    kind: 'upcoming',
   },
   {
     id: 'evt-5',
@@ -305,6 +335,8 @@ export const DEMO_EVENTS: DemoEventListItem[] = [
     filledCount: 4,
     totalCount: 4,
     zone: 'Hellgate',
+    category: 'FF',
+    kind: 'upcoming',
   },
 ]
 
@@ -317,6 +349,8 @@ export const DEMO_EVENT_DETAIL: DemoEventDetail = {
   filledCount: 5,
   totalCount: 7,
   zone: 'Black Zone — Mercia',
+  category: '전투',
+  kind: 'imminent',
   description: 'Mercia ore route — rally at 22:00 sharp.',
   organizer: 'Daewi',
   parties: [

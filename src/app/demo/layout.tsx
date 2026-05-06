@@ -1,14 +1,13 @@
 import { getTranslations } from 'next-intl/server'
 import { Sparkles, ExternalLink } from 'lucide-react'
-import { DemoSidebar, DemoSidebarMobile } from './_components/DemoSidebar'
+import DemoSidebar from './_components/DemoSidebar'
 
 // `/demo/*` 공개 라우트의 shell.
-// - 좌측: DemoSidebar (실제 앱 사이드바 모방, 활성 4 / 비활성 5).
-// - 상단: sticky banner "DEMO 미리보기" + Discord 봇 초대 CTA.
-// - 모바일: DemoSidebarMobile (chip 가로 스크롤).
+// - 좌측: DemoSidebar (실제 AppSidebar 비주얼 클론, 활성 3 / 비활성 8).
+// - 상단 sticky banner: "DEMO 미리보기" + Discord 봇 초대 CTA.
+// - 모바일: DemoSidebar 안에 햄버거 + 드로어 직접 포함.
 //
-// 주의: `force-static` 금지. 이 라우트는 layout.tsx 의 isPublicPathname 분기로
-// AppGate/PublicShell 을 우회하므로 동적 렌더링 필수.
+// 주의: `force-static` 금지. layout.tsx 의 isPublicPathname 분기로 AppGate/PublicShell 우회 → 동적 렌더링 필수.
 export const dynamic = 'force-dynamic'
 
 export default async function DemoLayout({ children }: { children: React.ReactNode }) {
@@ -31,11 +30,12 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
         </a>
       </div>
 
-      <div className="flex flex-col lg:flex-row flex-1 min-h-0">
-        <DemoSidebar />
+      <div className="flex flex-1 min-h-0">
+        <DemoSidebar brandName={t('brand.name')} />
         <div className="flex-1 min-w-0 flex flex-col">
-          <DemoSidebarMobile />
-          <main className="flex-1 px-4 sm:px-6 py-4 sm:py-6 max-w-6xl w-full">{children}</main>
+          <main className="flex-1 px-4 py-6 sm:py-8 max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto w-full">
+            {children}
+          </main>
         </div>
       </div>
     </div>

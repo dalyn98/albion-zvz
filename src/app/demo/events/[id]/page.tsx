@@ -20,7 +20,7 @@ export default async function DemoEventDetailPage({
   return (
     <div className="space-y-4">
       <Link
-        href="/demo/events"
+        href="/demo"
         className="inline-block text-xs text-gray-500 hover:text-amber-400 transition-colors"
       >
         {t('events.back')}
