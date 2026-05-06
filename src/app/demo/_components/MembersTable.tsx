@@ -3,120 +3,287 @@
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
-import type { DemoMember } from '@/data/demo-seed'
+import { ChevronRight, Crown, Users, X } from 'lucide-react'
+import type { DemoMember, DemoMemberRoleKey, DemoWeaponKey } from '@/data/demo-seed'
 
 type Props = {
   members: DemoMember[]
 }
 
+type SortKey = 'participation' | 'recent'
+
 export function DemoMembersTable({ members }: Props) {
-  const t = useTranslations('demo')
-  const [query, setQuery] = useState('')
+  const t = useTranslations('members')
+  const tDemo = useTranslations('demo')
+  const [search, setSearch] = useState('')
+  const [sortKey, setSortKey] = useState<SortKey>('participation')
+  const [roleFilter, setRoleFilter] = useState<DemoMemberRoleKey | null>(null)
+  const [weaponFilter, setWeaponFilter] = useState<DemoWeaponKey | null>(null)
+
+  const totalParticipation = useMemo(
+    () => members.reduce((acc, m) => acc + m.weeklyAttendance.attended, 0),
+    [members],
+  )
+
+  const availableRoles = useMemo(() => {
+    const seen = new Set<DemoMemberRoleKey>()
+    for (const m of members) seen.add(m.role)
+    return (['admin', 'caller', 'member', 'intern'] as const).filter((r) => seen.has(r))
+  }, [members])
+
+  const availableWeapons = useMemo(() => {
+    const tally = new Map<DemoWeaponKey, number>()
+    for (const m of members) {
+      tally.set(m.primaryWeapon, (tally.get(m.primaryWeapon) ?? 0) + 1)
+    }
+    return Array.from(tally.entries())
+      .map(([weapon, count]) => ({ weapon, count }))
+      .sort((a, b) => b.count - a.count)
+  }, [members])
+
+  const hasFilter = !!roleFilter || !!weaponFilter
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return members
-    return members.filter((m) => {
-      const role = t(`roles.${m.role}`).toLowerCase()
-      return m.ign.toLowerCase().includes(q) || role.includes(q)
+    const q = search.trim().toLowerCase()
+    let base = q
+      ? members.filter((m) => m.ign.toLowerCase().includes(q))
+      : members.slice()
+    if (roleFilter) base = base.filter((m) => m.role === roleFilter)
+    if (weaponFilter) base = base.filter((m) => m.primaryWeapon === weaponFilter)
+    if (sortKey === 'recent') {
+      return [...base].sort((a, b) => a.joinedDaysAgo - b.joinedDaysAgo)
+    }
+    return [...base].sort((a, b) => {
+      if (b.weeklyAttendance.attended !== a.weeklyAttendance.attended) {
+        return b.weeklyAttendance.attended - a.weeklyAttendance.attended
+      }
+      return a.ign.localeCompare(b.ign)
     })
-  }, [query, members, t])
+  }, [members, search, sortKey, roleFilter, weaponFilter])
 
   return (
     <div className="space-y-3">
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={t('members.searchPlaceholder')}
-        className="w-full sm:max-w-sm bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-xs text-white placeholder:text-gray-600 focus:border-amber-500/60 focus:outline-none"
-      />
-
-      <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead className="bg-gray-950 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-              <tr>
-                <th className="text-left px-3 py-2">{t('members.colName')}</th>
-                <th className="text-left px-3 py-2 hidden sm:table-cell">{t('members.colRole')}</th>
-                <th className="text-left px-3 py-2 hidden md:table-cell">{t('members.colWeapon')}</th>
-                <th className="text-right px-3 py-2 hidden lg:table-cell">{t('members.colPoints')}</th>
-                <th className="text-right px-3 py-2">{t('members.colKd')}</th>
-                <th className="text-right px-3 py-2 hidden md:table-cell">{t('members.colBattles')}</th>
-                <th className="text-right px-3 py-2 hidden sm:table-cell">{t('members.colSurvival')}</th>
-                <th className="text-right px-3 py-2 pr-4">{t('members.colAttend')}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800">
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-3 py-6 text-center text-xs text-gray-600">
-                    {t('members.emptySearch')}
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((m) => <MemberRow key={m.ign} member={m} />)
-              )}
-            </tbody>
-          </table>
+      <div className="flex flex-wrap items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-4 py-3">
+        <Users size={18} className="text-amber-400" />
+        <div className="text-xs text-gray-400">
+          {t.rich('counter', {
+            memberCount: members.length,
+            total: totalParticipation,
+            bold: (chunks) => <span className="text-white font-semibold">{chunks}</span>,
+          })}
         </div>
       </div>
+
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder={t('searchPlaceholder')}
+        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder:text-gray-600 focus:border-amber-500/60 focus:outline-none"
+      />
+
+      {availableRoles.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500 text-[11px] font-semibold uppercase tracking-wider">
+              {t('filterByRole')}
+            </span>
+            {roleFilter && (
+              <button
+                type="button"
+                onClick={() => setRoleFilter(null)}
+                className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-white"
+              >
+                <X size={11} />
+                {t('filterClear')}
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {availableRoles.map((role) => {
+              const active = roleFilter === role
+              return (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => setRoleFilter(active ? null : role)}
+                  className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${
+                    active
+                      ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                      : 'bg-gray-900 border-gray-700 text-gray-400 hover:text-white hover:border-gray-600'
+                  }`}
+                >
+                  {tDemo(`roles.${role}`)}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {availableWeapons.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500 text-[11px] font-semibold uppercase tracking-wider">
+              {t('filterByWeapon')}
+            </span>
+            {weaponFilter && (
+              <button
+                type="button"
+                onClick={() => setWeaponFilter(null)}
+                className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-white"
+              >
+                <X size={11} />
+                {t('filterClear')}
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {availableWeapons.map(({ weapon, count }) => {
+              const active = weaponFilter === weapon
+              return (
+                <button
+                  key={weapon}
+                  type="button"
+                  onClick={() => setWeaponFilter(active ? null : weapon)}
+                  className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-colors ${
+                    active
+                      ? 'bg-amber-500/20 border-amber-500/60 text-amber-200'
+                      : 'bg-gray-900 border-gray-700 text-gray-300 hover:text-white hover:border-gray-600'
+                  }`}
+                >
+                  <span>{tDemo(`weapons.${weapon}`)}</span>
+                  <span className="text-gray-500">{count}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <SortChip
+          active={!hasFilter && sortKey === 'participation'}
+          disabled={hasFilter}
+          onClick={() => setSortKey('participation')}
+        >
+          {t('sortByParticipation')}
+        </SortChip>
+        <SortChip
+          active={!hasFilter && sortKey === 'recent'}
+          disabled={hasFilter}
+          onClick={() => setSortKey('recent')}
+        >
+          {t('sortByRecent')}
+        </SortChip>
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="text-gray-500 text-sm text-center py-6">{t('noSearchResult')}</p>
+      ) : (
+        <ul className="space-y-2 xl:grid xl:grid-cols-2 xl:gap-2 xl:space-y-0 2xl:grid-cols-3">
+          {filtered.map((m) => (
+            <DemoMemberRow key={m.ign} member={m} />
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
 
-function MemberRow({ member: m }: { member: DemoMember }) {
-  const t = useTranslations('demo')
-  const linkable = m.ign === 'Eternia'
-  const kd = m.deaths > 0 ? (m.kills / m.deaths).toFixed(2) : '∞'
-  const cells = (
-    <>
-      <td className="px-3 py-2.5">
-        <div className="font-semibold text-white">{m.ign}</div>
-        <div className="text-[10px] text-gray-500 sm:hidden mt-0.5">
-          {t(`roles.${m.role}`)} · {t(`weapons.${m.primaryWeapon}`)}
+function SortChip({
+  active,
+  onClick,
+  children,
+  disabled,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+        active
+          ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+          : disabled
+            ? 'bg-gray-900/50 border-gray-800 text-gray-600 cursor-not-allowed'
+            : 'bg-gray-900 border-gray-700 text-gray-400 hover:text-white'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function DemoMemberRow({ member }: { member: DemoMember }) {
+  const t = useTranslations('members')
+  const tDemo = useTranslations('demo')
+  const linkable = member.ign === 'Eternia'
+  const isAdmin = member.role === 'admin'
+
+  const content = (
+    <div
+      className={`flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 transition-colors ${
+        linkable ? 'hover:border-amber-500/40' : ''
+      }`}
+    >
+      <DemoAvatar ign={member.ign} />
+      <div className="min-w-0 flex-1">
+        <div className="text-white text-sm font-semibold flex items-center gap-1.5 min-w-0">
+          {isAdmin && (
+            <Crown
+              size={13}
+              className="text-amber-300 flex-shrink-0"
+              aria-label={t('adminLabel')}
+            />
+          )}
+          <span className="truncate min-w-0">{member.ign}</span>
         </div>
-      </td>
-      <td className="px-3 py-2.5 hidden sm:table-cell text-gray-300">{t(`roles.${m.role}`)}</td>
-      <td className="px-3 py-2.5 hidden md:table-cell text-gray-400">
-        {t(`weapons.${m.primaryWeapon}`)}
-      </td>
-      <td className="px-3 py-2.5 hidden lg:table-cell text-right font-mono text-amber-400">
-        {m.points.toLocaleString()}
-      </td>
-      <td className="px-3 py-2.5 text-right font-mono text-gray-200 whitespace-nowrap">
-        {m.kills}/{m.deaths}{' '}
-        <span className="text-[10px] text-gray-500">({kd})</span>
-      </td>
-      <td className="px-3 py-2.5 hidden md:table-cell text-right font-mono text-gray-300">
-        {m.battles}
-      </td>
-      <td className="px-3 py-2.5 hidden sm:table-cell text-right font-mono text-emerald-400">
-        {m.survivalPct}%
-      </td>
-      <td className="px-3 py-2.5 pr-4 text-right font-mono text-gray-300">
-        {t('members.fractionAttend', {
-          a: m.weeklyAttendance.attended,
-          b: m.weeklyAttendance.total,
-        })}
-      </td>
-    </>
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-700 text-gray-300">
+            {tDemo(`roles.${member.role}`)}
+          </span>
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-200">
+            {tDemo(`weapons.${member.primaryWeapon}`)}
+          </span>
+        </div>
+      </div>
+      <div className="flex-shrink-0 text-right">
+        <p className="text-amber-400 font-mono font-semibold text-sm">
+          {member.weeklyAttendance.attended}
+        </p>
+        <p className="text-gray-500 text-[10px]">{t('participation')}</p>
+      </div>
+      <ChevronRight size={16} className="text-gray-600 flex-shrink-0" />
+    </div>
   )
 
-  if (!linkable) {
-    return <tr className="text-gray-200">{cells}</tr>
-  }
   return (
-    <tr className="text-gray-200 hover:bg-gray-800/40 transition-colors cursor-pointer">
-      <td colSpan={8} className="p-0">
-        <Link href={`/demo/members/${m.ign}`} className="block">
-          <table className="w-full text-xs">
-            <tbody>
-              <tr>{cells}</tr>
-            </tbody>
-          </table>
+    <li>
+      {linkable ? (
+        <Link href={`/demo/members/${member.ign}`} className="block">
+          {content}
         </Link>
-      </td>
-    </tr>
+      ) : (
+        content
+      )}
+    </li>
+  )
+}
+
+function DemoAvatar({ ign }: { ign: string }) {
+  const initial = ign.charAt(0).toUpperCase()
+  return (
+    <div
+      className="flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-amber-500/30 to-amber-500/10 border border-amber-500/30 flex items-center justify-center text-xs font-bold text-amber-200"
+      aria-hidden
+    >
+      {initial}
+    </div>
   )
 }

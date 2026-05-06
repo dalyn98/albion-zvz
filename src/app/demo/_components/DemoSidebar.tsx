@@ -55,7 +55,7 @@ interface NavItem {
 
 // 멤버 nav — 어드민도 "멤버 시점 + 어드민 시점" 둘 다 보이게 노출. 실제 AppSidebar 와 동일 순서.
 const MEMBER_NAV: NavItem[] = [
-  { href: '/demo', labelKey: 'publicProfile', icon: Home, section: 'activity' },
+  { href: '/demo', labelKey: 'publicProfile', icon: Home, exact: true, section: 'activity' },
   { href: '/demo/events', labelKey: 'events', icon: CalendarDays, section: 'activity' },
   { href: '/demo/battles', labelKey: 'battles', icon: Swords, section: 'activity' },
   { href: '/demo/regear', labelKey: 'regearRequest', icon: ShieldCheck, section: 'regear' },
@@ -71,7 +71,7 @@ const MEMBER_NAV: NavItem[] = [
 
 const ADMIN_NAV: NavItem[] = [
   // 운영
-  { href: '/demo', labelKey: 'eventAdmin', icon: CalendarDays, exact: true, section: 'ops' },
+  { href: '/demo/events', labelKey: 'eventAdmin', icon: CalendarDays, exact: true, section: 'ops' },
   {
     href: '/demo/regear',
     labelKey: 'approvals',
