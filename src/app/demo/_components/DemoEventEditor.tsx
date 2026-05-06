@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Sparkles, Target, Shield, Sword, UserCircle2, X, Plus } from 'lucide-react'
+import { Target, X, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { DEMO_INITIAL_EVENT, DEMO_TEMPLATES, type DemoEvent, type DemoSlot } from '@/data/demo-seed'
 
@@ -25,13 +25,6 @@ function eventFromTemplate(templateId: string): DemoEvent {
       id: `slot-tmpl-${idx}`,
     })),
   }
-}
-
-function roleIcon(slot: DemoSlot) {
-  if (slot.isCaller) return <Target size={14} />
-  if (slot.role === '탱커') return <Shield size={14} />
-  if (slot.role === '힐러' || slot.role === '서폿') return <Sparkles size={14} />
-  return <Sword size={14} />
 }
 
 export function DemoEventEditor() {
@@ -63,10 +56,10 @@ export function DemoEventEditor() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <div className="text-base sm:text-lg font-bold mb-1">{event.name}</div>
-          <div className="text-xs text-emerald-400 font-medium">
+      <div className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-sm sm:text-base font-bold text-white truncate">{event.name}</div>
+          <div className="text-xs text-gray-400 mt-0.5">
             {event.scheduledLabel} · {t('templateLabel')}: {event.templateLabel}
           </div>
         </div>
@@ -77,7 +70,7 @@ export function DemoEventEditor() {
               if (e.target.value) handleTemplateChange(e.target.value)
               e.target.value = ''
             }}
-            className="text-xs bg-white/5 border border-white/10 rounded-md px-2.5 py-1.5 text-white/80 focus:border-amber-400/50 outline-none"
+            className="text-xs bg-gray-800 border border-gray-700 rounded px-2 py-1.5 text-white focus:outline-none focus:border-amber-500"
           >
             <option value="">{t('chooseTemplate')}</option>
             {DEMO_TEMPLATES.map((tmpl) => (
@@ -86,17 +79,18 @@ export function DemoEventEditor() {
               </option>
             ))}
           </select>
-          <span className="text-xs bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 rounded-full px-3 py-1">
+          <span className="text-xs font-mono font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-full px-3 py-1">
             {filledCount} / {totalCount}
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {event.slots.map((slot) => (
+      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
+        {event.slots.map((slot, idx) => (
           <SlotCard
             key={slot.id}
             slot={slot}
+            slotNumber={idx + 1}
             onOpenAssign={() => {
               setOpenSlotId(slot.id)
               setPendingName('')
@@ -106,18 +100,18 @@ export function DemoEventEditor() {
         ))}
       </div>
 
-      <div className="text-xs text-white/50 italic">{t('hint')}</div>
+      <div className="text-xs text-gray-500 italic">{t('hint')}</div>
 
       {openSlotId && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
+          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center px-4"
           onClick={() => setOpenSlotId(null)}
         >
           <div
-            className="bg-[#11141b] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-xl"
+            className="bg-gray-900 border border-gray-700 rounded-xl p-5 w-full max-w-sm shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="text-sm font-semibold mb-3">{t('modalTitle')}</div>
+            <div className="text-sm font-semibold text-white mb-3">{t('modalTitle')}</div>
             <input
               type="text"
               autoFocus
@@ -130,7 +124,7 @@ export function DemoEventEditor() {
                 }
               }}
               placeholder={t('namePlaceholder')}
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm focus:border-amber-400/60 outline-none mb-3"
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 mb-3"
             />
             <div className="flex gap-2">
               <button
@@ -141,13 +135,13 @@ export function DemoEventEditor() {
                   }
                 }}
                 disabled={!pendingName.trim()}
-                className="flex-1 bg-emerald-500/15 hover:bg-emerald-500/25 disabled:opacity-40 disabled:cursor-not-allowed border border-emerald-500/30 text-emerald-300 text-sm font-semibold rounded-lg py-2"
+                className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed text-black text-sm font-bold rounded py-2"
               >
                 {t('assignButton')}
               </button>
               <button
                 onClick={() => setOpenSlotId(null)}
-                className="px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 text-sm rounded-lg py-2"
+                className="px-4 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-sm rounded py-2"
               >
                 {t('cancel')}
               </button>
@@ -161,56 +155,70 @@ export function DemoEventEditor() {
 
 function SlotCard({
   slot,
+  slotNumber,
   onOpenAssign,
   onClear,
 }: {
   slot: DemoSlot
+  slotNumber: number
   onOpenAssign: () => void
   onClear: () => void
 }) {
   const t = useTranslations('demo.events')
-  if (!slot.assigned) {
-    return (
-      <button
-        onClick={onOpenAssign}
-        className="rounded-lg border border-dashed border-white/15 p-3 text-left hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-colors w-full"
-      >
-        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-white/40 mb-1">
-          {slot.isCaller && <Target size={11} />}
-          <span>{slot.role}</span>
-        </div>
-        <div className="text-xs text-white/60 mb-2">{slot.buildLabel}</div>
-        <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-400">
-          <Plus size={12} />
-          {t('joinButton')}
-        </div>
-      </button>
-    )
-  }
+  const isAssigned = !!slot.assigned
+
+  const cardClass = isAssigned
+    ? 'bg-gray-900/60 border-gray-700'
+    : 'bg-gray-900 border-gray-600 hover:border-gray-500'
 
   return (
-    <div
-      className={`rounded-lg border p-3 group relative ${
-        slot.isCaller ? 'bg-amber-500/10 border-amber-500/30' : 'bg-white/5 border-white/10'
-      }`}
-    >
-      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-white/50 mb-1">
-        {roleIcon(slot)}
-        <span className="truncate">{slot.role}</span>
-        {slot.isCaller && <span className="text-amber-300/80 font-bold">{t('callerBadge')}</span>}
+    <div className={`rounded-xl p-2.5 space-y-2 border transition-colors group relative ${cardClass}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-gray-500 text-[12px] font-mono">#{slotNumber}</span>
+        <span
+          className={`text-[12px] font-bold px-1.5 py-0.5 rounded inline-flex items-center gap-1 ${
+            slot.isCaller
+              ? 'bg-amber-500/20 text-amber-400'
+              : 'bg-gray-800 text-gray-300'
+          }`}
+        >
+          {slot.isCaller && <Target size={10} />}
+          {slot.role}
+        </span>
       </div>
-      <div className="text-xs text-white/60 mb-2">{slot.buildLabel}</div>
-      <div className="flex items-center gap-1.5">
-        <UserCircle2 size={14} className="text-white/40 shrink-0" />
-        <span className="text-sm font-medium truncate">{slot.assigned}</span>
+
+      <div className="text-[11px] text-gray-400 truncate">{slot.buildLabel}</div>
+
+      <div className="grid grid-cols-4 gap-1">
+        <div className="col-span-2 row-span-2 aspect-square bg-gray-800/60 border border-gray-700 rounded flex items-center justify-center text-[9px] text-gray-500 uppercase tracking-wider">
+          {slot.weapon.split(' ')[0]}
+        </div>
+        <div className="aspect-square bg-gray-800/60 border border-gray-700 rounded" />
+        <div className="aspect-square bg-gray-800/60 border border-gray-700 rounded" />
+        <div className="aspect-square bg-gray-800/60 border border-gray-700 rounded" />
+        <div className="aspect-square bg-gray-800/60 border border-gray-700 rounded" />
       </div>
-      <button
-        onClick={onClear}
-        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-white/40 hover:text-rose-400"
-        aria-label={t('clearSlot')}
-      >
-        <X size={12} />
-      </button>
+
+      {isAssigned ? (
+        <div className="flex items-center justify-between gap-1 pt-1">
+          <span className="text-green-400 text-sm font-semibold truncate">{slot.assigned}</span>
+          <button
+            onClick={onClear}
+            className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-red-400 shrink-0"
+            aria-label={t('clearSlot')}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={onOpenAssign}
+          className="w-full inline-flex items-center justify-center gap-1 text-[12px] font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 rounded px-2 py-1"
+        >
+          <Plus size={12} />
+          {t('joinButton')}
+        </button>
+      )}
     </div>
   )
 }

@@ -3847,7 +3847,9 @@
       "colSurvival": "生存率",
       "emptyFilter": "この武器で参戦したメンバーはいません。",
       "weaponDistribution": "武器分布",
-      "hint": "* 武器カテゴリは Type 文字列から自動抽出 (extractWeaponCategory)。"
+      "hint": "* 武器カテゴリは Type 文字列から自動抽出 (extractWeaponCategory)。",
+      "sortLabel": "並び替え",
+      "weaponFilterLabel": "武器"
     },
     "members": {
       "title": "ギルドメンバー情報",
@@ -3860,7 +3862,8 @@
       "regears": "最近のリギア",
       "lastEvent": "最近のイベント",
       "achievements": "獲得トロフィー",
-      "noAchievements": "まだ獲得したトロフィーはありません。"
+      "noAchievements": "まだ獲得したトロフィーはありません。",
+      "memberCount": "計 {count} 人"
     },
     "footer": {
       "title": "今すぐギルドに導入",

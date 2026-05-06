@@ -12,10 +12,12 @@ import { DemoMembers } from './_components/DemoMembers'
 // 데이터: 멘헤라스러운 inline mock (`src/data/demo-seed.ts`). 모든 인터랙션은
 // 클라이언트 React state 로만 발생하며 서버 mutation 0. 새로고침하면 시드로 리셋.
 //
+// 디자인: 실제 admin 화면 톤 (bg-gray-900 카드 / amber 액센트 / gray-700 보더)
+// 을 그대로 사용. 마케팅 톤 (gradient hero, white/0.05) 사용 금지.
+//
 // 주의: `force-static` 을 쓰지 않는다. layout 이 x-pathname 헤더로 isPublic
 // 분기를 결정하는데, static prerender 는 빌드 타임에 헤더 없이 렌더돼 AppGate
-// 가 HTML 에 박혀버린다. 동적 렌더로 둬야 layout 이 매 요청마다 pathname 을
-// 보고 PublicShell/AppShell 도 건너뛰는 분기를 탄다.
+// 가 HTML 에 박혀버린다.
 export const dynamic = 'force-dynamic'
 
 export default async function DemoPage() {
@@ -30,8 +32,8 @@ export default async function DemoPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-[#0f1117] text-white">
-      <div className="sticky top-0 z-40 bg-amber-500/95 text-black text-center text-xs sm:text-sm font-semibold py-2 px-4 backdrop-blur">
+    <div className="min-h-screen bg-[#0b0d12] text-white">
+      <div className="sticky top-0 z-40 bg-amber-500 text-black text-center text-xs sm:text-sm font-semibold py-2 px-4">
         <span className="inline-flex items-center gap-1.5">
           <Sparkles size={14} />
           {t('banner')}
@@ -105,26 +107,24 @@ function Hero({
   stats: Array<{ label: string; value: string }>
 }) {
   return (
-    <section className="pt-12 sm:pt-20 pb-10">
-      <div className="text-center max-w-3xl mx-auto">
-        <p className="text-xs sm:text-sm text-amber-400 uppercase tracking-[0.2em] font-semibold mb-4">
+    <section className="pt-12 sm:pt-16 pb-8">
+      <div className="max-w-3xl">
+        <p className="text-[11px] sm:text-xs text-amber-400 uppercase tracking-[0.2em] font-semibold mb-3">
           {eyebrow}
         </p>
-        <h1 className="text-3xl sm:text-5xl font-bold leading-tight mb-5 bg-gradient-to-br from-white to-white/60 bg-clip-text text-transparent">
-          {title}
-        </h1>
-        <p className="text-sm sm:text-base text-white/70 leading-relaxed mb-8">{subtitle}</p>
-        <div className="flex flex-wrap items-center justify-center gap-3">
+        <h1 className="text-2xl sm:text-4xl font-bold text-white leading-tight mb-4">{title}</h1>
+        <p className="text-sm sm:text-base text-gray-400 leading-relaxed mb-6">{subtitle}</p>
+        <div className="flex flex-wrap items-center gap-3">
           <a
             href="/api/auth/discord/start?returnTo=/"
-            className="inline-flex items-center gap-2 bg-[#5865F2] hover:bg-[#4752c4] transition-colors px-5 py-2.5 rounded-lg text-sm font-semibold"
+            className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 transition-colors px-5 py-2.5 rounded-lg text-sm font-bold text-black"
           >
             <Sparkles size={16} />
             {ctaPrimary}
           </a>
           <a
             href="#events"
-            className="inline-flex items-center gap-1.5 text-white/70 hover:text-white text-sm font-medium px-3 py-2"
+            className="inline-flex items-center gap-1.5 bg-gray-900 hover:bg-gray-800 border border-gray-700 hover:border-gray-600 transition-colors text-gray-300 hover:text-white text-sm font-medium px-4 py-2.5 rounded-lg"
           >
             <ChevronRight size={16} />
             {jumpLabel}
@@ -132,14 +132,14 @@ function Hero({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 sm:gap-6 max-w-2xl mx-auto mt-12 sm:mt-16">
+      <div className="grid grid-cols-3 gap-3 mt-10 sm:mt-12 max-w-2xl">
         {stats.map((s) => (
           <div
             key={s.label}
-            className="rounded-xl bg-white/5 border border-white/10 px-3 sm:px-5 py-3 sm:py-4 text-center"
+            className="bg-gray-900 border border-gray-800 rounded-lg px-3 sm:px-4 py-3"
           >
-            <div className="text-xl sm:text-3xl font-bold text-amber-400">{s.value}</div>
-            <div className="text-[10px] sm:text-xs text-white/50 mt-1">{s.label}</div>
+            <div className="text-lg sm:text-2xl font-bold text-amber-400 font-mono">{s.value}</div>
+            <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5">{s.label}</div>
           </div>
         ))}
       </div>
@@ -149,12 +149,12 @@ function Hero({
 
 function SectionNav({ items }: { items: Array<{ id: string; label: string }> }) {
   return (
-    <nav className="my-8 flex flex-wrap gap-2 justify-center sticky top-9 z-30 bg-[#0f1117]/80 backdrop-blur py-2 -mx-4 px-4">
+    <nav className="my-6 flex flex-wrap gap-2 sticky top-9 z-30 bg-[#0b0d12]/95 backdrop-blur py-2 -mx-4 px-4 border-b border-gray-800">
       {items.map((item) => (
         <a
           key={item.id}
           href={`#${item.id}`}
-          className="text-xs sm:text-sm bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-full px-3 py-1.5 text-white/80 hover:text-white transition-colors"
+          className="text-xs sm:text-sm bg-gray-900 hover:bg-gray-800 border border-gray-700 hover:border-amber-500/40 hover:text-amber-300 rounded-full px-3 py-1.5 text-gray-300 transition-colors"
         >
           {item.label}
         </a>
@@ -175,12 +175,14 @@ function Section({
   children: React.ReactNode
 }) {
   return (
-    <section id={id} className="scroll-mt-28 py-12 border-t border-white/5">
-      <div className="mb-6">
-        <h2 className="text-xl sm:text-2xl font-bold mb-2">{title}</h2>
-        <p className="text-sm text-white/60 leading-relaxed">{subtitle}</p>
+    <section id={id} className="scroll-mt-28 py-8 sm:py-10">
+      <div className="flex items-center justify-between gap-2 border-b border-gray-800 pb-2 mb-4">
+        <div>
+          <h2 className="text-base sm:text-lg font-bold text-white">{title}</h2>
+          <p className="text-xs text-gray-500 leading-relaxed mt-1">{subtitle}</p>
+        </div>
       </div>
-      <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-4 sm:p-6">{children}</div>
+      <div>{children}</div>
     </section>
   )
 }
@@ -197,17 +199,17 @@ function Footer({
   note: string
 }) {
   return (
-    <section className="mt-16 rounded-2xl bg-gradient-to-br from-amber-500/15 via-transparent to-amber-500/5 border border-amber-500/20 p-8 sm:p-12 text-center">
-      <h3 className="text-xl sm:text-2xl font-bold mb-2">{title}</h3>
-      <p className="text-sm text-white/60 mb-6 max-w-md mx-auto">{subtitle}</p>
+    <section className="mt-16 bg-gray-900 border border-gray-800 rounded-xl p-6 sm:p-10">
+      <h3 className="text-lg sm:text-xl font-bold text-white mb-2">{title}</h3>
+      <p className="text-sm text-gray-400 mb-5 max-w-md">{subtitle}</p>
       <a
         href="/api/auth/discord/start?returnTo=/"
-        className="inline-flex items-center gap-2 bg-[#5865F2] hover:bg-[#4752c4] transition-colors px-6 py-3 rounded-lg text-sm font-semibold"
+        className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 transition-colors px-5 py-2.5 rounded-lg text-sm font-bold text-black"
       >
         <ExternalLink size={16} />
         {cta}
       </a>
-      <p className="text-[10px] text-white/40 mt-6">{note}</p>
+      <p className="text-[11px] text-gray-500 mt-5">{note}</p>
     </section>
   )
 }

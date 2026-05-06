@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Box, Hammer, MapPin } from 'lucide-react'
+import { Hammer, MapPin } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import {
   DEMO_CITY_LABELS,
@@ -30,7 +30,10 @@ export function DemoCraftRegear() {
   const [city, setCity] = useState<DemoCity>('bridgewatch')
 
   const aggregated = useMemo(() => {
-    const acc: Record<string, { resource: DemoCraftMaterial['resource']; tier: number; quantity: number }> = {}
+    const acc: Record<
+      string,
+      { resource: DemoCraftMaterial['resource']; tier: number; quantity: number }
+    > = {}
     for (const piece of DEMO_CRAFT_PIECES) {
       for (const m of piece.materials) {
         const key = `${m.resource}-${m.tier}`
@@ -57,101 +60,112 @@ export function DemoCraftRegear() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl bg-[#0b0d12] border border-white/10 p-5">
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-          <div>
-            <div className="text-sm font-semibold flex items-center gap-2">
-              <Hammer size={14} className="text-amber-400" />
-              {t('weeklyBom')}
-            </div>
-            <div className="text-[11px] text-white/50 mt-0.5">{t('weeklyHint')}</div>
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="inline-flex items-center gap-2">
+            <Hammer size={16} className="text-amber-400" />
+            <h3 className="text-sm font-bold text-white">{t('weeklyBom')}</h3>
           </div>
-          <div className="text-xs">
-            <span className="text-white/50">{t('totalDeaths')}: </span>
-            <span className="font-semibold text-amber-300">
+          <div className="text-xs text-gray-400">
+            {t('totalDeaths')}:{' '}
+            <span className="font-mono font-semibold text-amber-400">
               {DEMO_CRAFT_PIECES.reduce((acc, p) => acc + p.count, 0)}
             </span>
           </div>
         </div>
+        <p className="text-[11px] text-gray-500">{t('weeklyHint')}</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {DEMO_CRAFT_PIECES.map((piece) => (
             <div
               key={piece.itemLabel}
-              className="rounded-lg bg-white/[0.03] border border-white/10 px-3 py-2.5 flex items-center justify-between gap-3"
+              className="bg-gray-950 border border-gray-800 rounded px-3 py-2 flex items-center justify-between gap-3"
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <Hammer size={11} className="text-white/30 shrink-0" />
-                <div className="text-xs truncate">{piece.itemLabel}</div>
-              </div>
-              <div className="text-xs text-white/60 shrink-0">×{piece.count}</div>
+              <span className="text-xs text-white truncate">{piece.itemLabel}</span>
+              <span className="text-xs font-mono text-amber-400 shrink-0">×{piece.count}</span>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="rounded-xl bg-[#0b0d12] border border-white/10 p-5">
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-          <div className="text-sm font-semibold flex items-center gap-2">
-            <MapPin size={14} className="text-amber-400" />
-            {t('cityLabel')}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="inline-flex items-center gap-2">
+            <MapPin size={16} className="text-amber-400" />
+            <h3 className="text-sm font-bold text-white">{t('cityLabel')}</h3>
           </div>
-          <div className="text-[11px] text-white/50">
+          <div className="text-xs text-gray-400">
             {t('returnRate')}:{' '}
-            <span className="font-semibold text-amber-300">{returnRate.toFixed(1)}%</span>
+            <span className="font-mono font-semibold text-amber-400">
+              {returnRate.toFixed(1)}%
+            </span>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 mb-5">
+        <div className="flex flex-wrap gap-1.5">
           {(Object.keys(DEMO_CITY_LABELS) as DemoCity[]).map((c) => (
             <button
               key={c}
               onClick={() => setCity(c)}
-              className={`text-xs rounded-full px-3 py-1.5 border transition-colors ${
+              className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${
                 city === c
-                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-100'
-                  : 'bg-white/5 border-white/10 hover:border-white/20 text-white/70'
+                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                  : 'bg-gray-900 border-gray-700 text-gray-400 hover:text-white hover:border-gray-600'
               }`}
             >
               {DEMO_CITY_LABELS[c]}
             </button>
           ))}
         </div>
-
-        <div className="rounded-lg border border-white/10 overflow-hidden mb-4">
-          <div className="grid grid-cols-[1fr,80px,80px,90px] text-[10px] uppercase tracking-wider text-white/40 bg-white/[0.03] px-3 py-2 border-b border-white/10 gap-2">
-            <div>{t('rowResource')}</div>
-            <div className="text-right">{t('rowGross')}</div>
-            <div className="text-right">{t('rowNet')}</div>
-            <div className="text-right">{t('rowCost')}</div>
-          </div>
-          {aggregated.map((row) => {
-            const adjustedQty = Math.ceil(row.quantity * (1 - returnRate / 100))
-            const cost = adjustedQty * resourcePrices[row.resource]
-            return (
-              <div
-                key={`${row.resource}-${row.tier}`}
-                className="grid grid-cols-[1fr,80px,80px,90px] text-xs px-3 py-2.5 border-b border-white/5 last:border-b-0 items-center gap-2"
-              >
-                <div className="flex items-center gap-2">
-                  <Box size={11} className="text-white/30" />
-                  T{row.tier} {t(RESOURCE_KEY[row.resource])}
-                </div>
-                <div className="text-right text-white/60">{row.quantity}</div>
-                <div className="text-right font-medium">{adjustedQty}</div>
-                <div className="text-right font-medium text-amber-300">{formatSilver(cost)}</div>
-              </div>
-            )
-          })}
-          <div className="grid grid-cols-[1fr,80px,80px,90px] text-xs px-3 py-2 bg-white/[0.03] border-t border-white/10 gap-2">
-            <div className="font-semibold col-span-2">{t('totalLabel')}</div>
-            <div className="text-right font-semibold">{stats.totalResources}</div>
-            <div className="text-right font-bold text-amber-400">{formatSilver(stats.totalCost)}</div>
-          </div>
-        </div>
-
-        <div className="text-[11px] text-white/40 italic">{t('hint')}</div>
       </div>
+
+      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-950 text-xs text-gray-400 uppercase tracking-wide">
+            <tr>
+              <th className="px-3 py-2 text-left font-semibold">{t('rowResource')}</th>
+              <th className="px-3 py-2 text-right font-semibold">{t('rowGross')}</th>
+              <th className="px-3 py-2 text-right font-semibold">{t('rowNet')}</th>
+              <th className="px-3 py-2 text-right font-semibold">{t('rowCost')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {aggregated.map((row) => {
+              const adjustedQty = Math.ceil(row.quantity * (1 - returnRate / 100))
+              const cost = adjustedQty * resourcePrices[row.resource]
+              return (
+                <tr key={`${row.resource}-${row.tier}`} className="border-t border-gray-800">
+                  <td className="px-3 py-2 text-white text-xs">
+                    T{row.tier} {t(RESOURCE_KEY[row.resource])}
+                  </td>
+                  <td className="px-3 py-2 text-right text-gray-400 font-mono text-xs">
+                    {row.quantity}
+                  </td>
+                  <td className="px-3 py-2 text-right text-white font-mono text-xs">
+                    {adjustedQty}
+                  </td>
+                  <td className="px-3 py-2 text-right text-amber-300 font-mono text-xs">
+                    {formatSilver(cost)}
+                  </td>
+                </tr>
+              )
+            })}
+            <tr className="border-t-2 border-gray-700 bg-gray-950">
+              <td className="px-3 py-2.5 text-xs uppercase tracking-wide text-gray-400 font-semibold" colSpan={2}>
+                {t('totalLabel')}
+              </td>
+              <td className="px-3 py-2.5 text-right font-mono font-semibold text-white text-xs">
+                {stats.totalResources}
+              </td>
+              <td className="px-3 py-2.5 text-right font-mono font-bold text-amber-400">
+                {formatSilver(stats.totalCost)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="text-xs text-gray-500 italic">{t('hint')}</div>
     </div>
   )
 }

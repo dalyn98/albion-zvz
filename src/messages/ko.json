@@ -3847,7 +3847,9 @@
       "colSurvival": "생존률",
       "emptyFilter": "이 무기로 참전한 길드원이 없습니다.",
       "weaponDistribution": "무기 분포",
-      "hint": "* 무기 카테고리는 Type 문자열에서 자동 추출 (extractWeaponCategory)."
+      "hint": "* 무기 카테고리는 Type 문자열에서 자동 추출 (extractWeaponCategory).",
+      "sortLabel": "정렬 기준",
+      "weaponFilterLabel": "주무기"
     },
     "members": {
       "title": "길드원 정보",
@@ -3860,7 +3862,8 @@
       "regears": "최근 리기어",
       "lastEvent": "최근 참여 이벤트",
       "achievements": "획득 트로피",
-      "noAchievements": "아직 획득한 트로피가 없습니다."
+      "noAchievements": "아직 획득한 트로피가 없습니다.",
+      "memberCount": "총 {count}명"
     },
     "footer": {
       "title": "지금 길드에 도입해보세요",

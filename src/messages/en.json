@@ -3847,7 +3847,9 @@
       "colSurvival": "Survival",
       "emptyFilter": "No member fought with this weapon.",
       "weaponDistribution": "Weapon distribution",
-      "hint": "* Weapon category is auto-extracted from Type strings (extractWeaponCategory)."
+      "hint": "* Weapon category is auto-extracted from Type strings (extractWeaponCategory).",
+      "sortLabel": "Sort by",
+      "weaponFilterLabel": "Weapon"
     },
     "members": {
       "title": "Member info",
@@ -3860,7 +3862,8 @@
       "regears": "Recent regears",
       "lastEvent": "Last event",
       "achievements": "Trophies",
-      "noAchievements": "No trophies earned yet."
+      "noAchievements": "No trophies earned yet.",
+      "memberCount": "{count} members"
     },
     "footer": {
       "title": "Try it in your guild today",

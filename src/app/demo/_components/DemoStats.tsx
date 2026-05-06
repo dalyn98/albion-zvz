@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Sword, UserCircle2, ArrowUpDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { DEMO_STATS_ROWS, type DemoStatsRow } from '@/data/demo-seed'
 
@@ -15,6 +14,23 @@ const WEAPON_KEY: Record<DemoStatsRow['primaryWeapon'], string> = {
   dagger: 'weaponDagger',
   crossbow: 'weaponCrossbow',
 }
+
+const SORT_OPTIONS: Array<{ key: SortKey; labelKey: string }> = [
+  { key: 'kills', labelKey: 'sortKills' },
+  { key: 'deaths', labelKey: 'sortDeaths' },
+  { key: 'kd', labelKey: 'sortKd' },
+  { key: 'survival', labelKey: 'sortSurvival' },
+  { key: 'battles', labelKey: 'sortBattles' },
+]
+
+const WEAPON_OPTIONS: Array<{ key: WeaponFilter; labelKey: string }> = [
+  { key: 'all', labelKey: 'filterAll' },
+  { key: 'mace', labelKey: 'weaponMace' },
+  { key: 'fire', labelKey: 'weaponFire' },
+  { key: 'lifestaff', labelKey: 'weaponLifestaff' },
+  { key: 'dagger', labelKey: 'weaponDagger' },
+  { key: 'crossbow', labelKey: 'weaponCrossbow' },
+]
 
 function kdRatio(row: DemoStatsRow): number {
   if (row.deaths === 0) return row.kills
@@ -67,95 +83,113 @@ export function DemoStats() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <div className="lg:col-span-2 rounded-xl bg-[#0b0d12] border border-white/10 p-5">
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-          <div className="text-sm font-semibold flex items-center gap-2">
-            <ArrowUpDown size={14} />
-            {t('rosterTitle')}
+      <div className="lg:col-span-2 space-y-3">
+        <div className="space-y-2">
+          <div className="text-gray-500 text-[11px] font-semibold uppercase tracking-wider">
+            {t('sortLabel')}
           </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={sortKey}
-              onChange={(e) => setSortKey(e.target.value as SortKey)}
-              className="text-xs bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-white/80 focus:border-amber-400/50 outline-none"
-            >
-              <option value="kills">{t('sortKills')}</option>
-              <option value="deaths">{t('sortDeaths')}</option>
-              <option value="kd">{t('sortKd')}</option>
-              <option value="survival">{t('sortSurvival')}</option>
-              <option value="battles">{t('sortBattles')}</option>
-            </select>
-            <select
-              value={weaponFilter}
-              onChange={(e) => setWeaponFilter(e.target.value as WeaponFilter)}
-              className="text-xs bg-white/5 border border-white/10 rounded-md px-2 py-1.5 text-white/80 focus:border-amber-400/50 outline-none"
-            >
-              <option value="all">{t('filterAll')}</option>
-              <option value="mace">{t('weaponMace')}</option>
-              <option value="fire">{t('weaponFire')}</option>
-              <option value="lifestaff">{t('weaponLifestaff')}</option>
-              <option value="dagger">{t('weaponDagger')}</option>
-              <option value="crossbow">{t('weaponCrossbow')}</option>
-            </select>
+          <div className="flex flex-wrap gap-1.5">
+            {SORT_OPTIONS.map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => setSortKey(opt.key)}
+                className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                  sortKey === opt.key
+                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                    : 'bg-gray-900 border-gray-700 text-gray-400 hover:text-white hover:border-gray-600'
+                }`}
+              >
+                {t(opt.labelKey)}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="rounded-lg border border-white/10 overflow-hidden">
-          <div className="grid grid-cols-[1.4fr,60px,60px,60px,60px] text-[10px] uppercase tracking-wider text-white/40 bg-white/[0.03] px-3 py-2 border-b border-white/10 gap-2">
-            <div>{t('colName')}</div>
-            <div className="text-right">{t('colKills')}</div>
-            <div className="text-right">{t('colDeaths')}</div>
-            <div className="text-right">{t('colKd')}</div>
-            <div className="text-right">{t('colSurvival')}</div>
+        <div className="space-y-2">
+          <div className="text-gray-500 text-[11px] font-semibold uppercase tracking-wider">
+            {t('weaponFilterLabel')}
           </div>
-          {visible.map((row) => (
-            <div
-              key={row.ign}
-              className="grid grid-cols-[1.4fr,60px,60px,60px,60px] text-xs px-3 py-2.5 border-b border-white/5 last:border-b-0 items-center gap-2"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <UserCircle2 size={14} className="text-white/40 shrink-0" />
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{row.ign}</div>
-                  <div className="text-[10px] text-white/40">{row.role}</div>
-                </div>
-              </div>
-              <div className="text-right font-medium text-emerald-300">{row.kills}</div>
-              <div className="text-right text-rose-300/80">{row.deaths}</div>
-              <div className="text-right font-medium">{kdRatio(row).toFixed(2)}</div>
-              <div className="text-right text-white/70">{row.survivalPct}%</div>
-            </div>
-          ))}
-          {visible.length === 0 && (
-            <div className="px-3 py-6 text-center text-xs text-white/40">{t('emptyFilter')}</div>
-          )}
+          <div className="flex flex-wrap gap-1.5">
+            {WEAPON_OPTIONS.map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => setWeaponFilter(opt.key)}
+                className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${
+                  weaponFilter === opt.key
+                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                    : 'bg-gray-900 border-gray-700 text-gray-400 hover:text-white hover:border-gray-600'
+                }`}
+              >
+                {t(opt.labelKey)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-950 text-xs text-gray-400 uppercase tracking-wide">
+              <tr>
+                <th className="px-3 py-2 text-left font-semibold">{t('colName')}</th>
+                <th className="px-3 py-2 text-right font-semibold">{t('colKills')}</th>
+                <th className="px-3 py-2 text-right font-semibold">{t('colDeaths')}</th>
+                <th className="px-3 py-2 text-right font-semibold">{t('colKd')}</th>
+                <th className="px-3 py-2 text-right font-semibold">{t('colSurvival')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((row) => (
+                <tr key={row.ign} className="border-t border-gray-800 hover:bg-gray-800/30">
+                  <td className="px-3 py-2.5">
+                    <div className="text-white text-sm font-semibold truncate">{row.ign}</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">{row.role}</div>
+                  </td>
+                  <td className="px-3 py-2.5 text-right font-mono text-amber-400 text-sm">
+                    {row.kills}
+                  </td>
+                  <td className="px-3 py-2.5 text-right font-mono text-gray-400 text-sm">
+                    {row.deaths}
+                  </td>
+                  <td className="px-3 py-2.5 text-right font-mono text-white text-sm">
+                    {kdRatio(row).toFixed(2)}
+                  </td>
+                  <td className="px-3 py-2.5 text-right font-mono text-gray-300 text-sm">
+                    {row.survivalPct}%
+                  </td>
+                </tr>
+              ))}
+              {visible.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-3 py-6 text-center text-gray-500 text-sm">
+                    {t('emptyFilter')}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <div className="rounded-xl bg-[#0b0d12] border border-white/10 p-5">
-        <div className="text-sm font-semibold flex items-center gap-2 mb-4">
-          <Sword size={14} className="text-amber-400" />
-          {t('weaponDistribution')}
-        </div>
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
+        <h3 className="text-sm font-bold text-white">{t('weaponDistribution')}</h3>
         <div className="space-y-3">
           {weaponDistribution.map((row) => (
             <div key={row.weapon}>
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-white/80">{t(WEAPON_KEY[row.weapon])}</span>
-                <span className="text-white/50">
-                  {row.count}명 · {row.pct}%
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className="text-gray-300 font-medium">{t(WEAPON_KEY[row.weapon])}</span>
+                <span className="text-gray-500 font-mono">
+                  {row.count} · {row.pct}%
                 </span>
               </div>
-              <div className="h-2 rounded-full bg-white/5 overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-amber-400 to-amber-500"
-                  style={{ width: `${row.pct}%` }}
-                />
+              <div className="h-1.5 rounded-full bg-gray-800 overflow-hidden">
+                <div className="h-full bg-amber-500" style={{ width: `${row.pct}%` }} />
               </div>
             </div>
           ))}
         </div>
-        <div className="text-[11px] text-white/40 italic mt-4">{t('hint')}</div>
+        <div className="text-[11px] text-gray-500 italic pt-2 border-t border-gray-800">
+          {t('hint')}
+        </div>
       </div>
     </div>
   )

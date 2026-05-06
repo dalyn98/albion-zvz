@@ -3847,7 +3847,9 @@
       "colSurvival": "生存率",
       "emptyFilter": "没有成员使用该武器参战。",
       "weaponDistribution": "武器分布",
-      "hint": "* 武器类别从 Type 字符串自动提取 (extractWeaponCategory)。"
+      "hint": "* 武器类别从 Type 字符串自动提取 (extractWeaponCategory)。",
+      "sortLabel": "排序",
+      "weaponFilterLabel": "武器"
     },
     "members": {
       "title": "公会成员信息",
@@ -3860,7 +3862,8 @@
       "regears": "最近补装",
       "lastEvent": "最近活动",
       "achievements": "获得奖杯",
-      "noAchievements": "尚未获得奖杯。"
+      "noAchievements": "尚未获得奖杯。",
+      "memberCount": "共 {count} 人"
     },
     "footer": {
       "title": "立即在公会试用",
