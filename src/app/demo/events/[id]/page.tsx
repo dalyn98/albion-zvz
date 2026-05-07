@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Crown } from 'lucide-react'
-import { DEMO_EVENT_DETAIL, type DemoEventSlot } from '@/data/demo-seed'
+import { DEMO_EVENTS, DEMO_EVENT_DETAIL, type DemoEventSlot } from '@/data/demo-seed'
 import { formatTimeLabel } from '../../_lib/format'
 import { EventStatusPill } from '../../_components/Pills'
 
@@ -12,15 +12,18 @@ export default async function DemoEventDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  if (id !== DEMO_EVENT_DETAIL.id) notFound()
+  const listEvent = DEMO_EVENTS.find((e) => e.id === id)
+  if (!listEvent) notFound()
 
   const t = await getTranslations('demo')
-  const evt = DEMO_EVENT_DETAIL
+  const isPrimary = listEvent.id === DEMO_EVENT_DETAIL.id
+  const description = isPrimary ? DEMO_EVENT_DETAIL.description : null
+  const organizer = isPrimary ? DEMO_EVENT_DETAIL.organizer : '—'
 
   return (
     <div className="space-y-4">
       <Link
-        href="/demo"
+        href="/demo/events"
         className="inline-block text-xs text-gray-500 hover:text-amber-400 transition-colors"
       >
         {t('events.back')}
@@ -28,20 +31,20 @@ export default async function DemoEventDetailPage({
 
       <header className="space-y-2">
         <div className="flex items-center gap-2">
-          <h1 className="text-xl sm:text-2xl font-bold text-white">{evt.name}</h1>
-          <EventStatusPill status={evt.status} t={t} />
+          <h1 className="text-xl sm:text-2xl font-bold text-white">{listEvent.name}</h1>
+          <EventStatusPill status={listEvent.status} t={t} />
         </div>
-        <p className="text-xs text-gray-500">{evt.description}</p>
+        {description && <p className="text-xs text-gray-500">{description}</p>}
       </header>
 
       <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-gray-900 border border-gray-800 rounded-lg p-3">
-        <Field label={t('events.detailWhen')} value={formatTimeLabel(t, evt.scheduledAt)} />
-        <Field label={t('events.detailTemplate')} value={evt.templateLabel} />
-        <Field label={t('events.detailZone')} value={evt.zone} />
-        <Field label={t('events.detailOrganizer')} value={evt.organizer} />
+        <Field label={t('events.detailWhen')} value={formatTimeLabel(t, listEvent.scheduledAt)} />
+        <Field label={t('events.detailTemplate')} value={listEvent.templateLabel} />
+        <Field label={t('events.detailZone')} value={listEvent.zone} />
+        <Field label={t('events.detailOrganizer')} value={organizer} />
       </dl>
 
-      {evt.parties.map((party) => (
+      {DEMO_EVENT_DETAIL.parties.map((party) => (
         <section key={party.id} className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
           <header className="bg-gray-950 px-3 py-2 border-b border-gray-800 flex items-center justify-between">
             <div className="text-xs font-semibold text-gray-200">{t('events.partyMain')}</div>

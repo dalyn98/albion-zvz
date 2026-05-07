@@ -130,9 +130,6 @@ function EventCard({ event }: { event: DemoEventListItem }) {
       ? 'border-amber-500/40 hover:border-amber-400/70 hover:shadow-[0_12px_28px_-12px_rgba(245,158,11,0.4)]'
       : 'border-white/5 hover:border-amber-500/40 hover:shadow-[0_12px_28px_-12px_rgba(0,0,0,0.5)]'
 
-  // 데모는 evt-1 만 디테일 페이지가 있다. 나머지는 카드 자체로 노출만.
-  const linkable = event.id === 'evt-1'
-
   const inner = (
     <>
       <div className="flex items-start justify-between gap-3">
@@ -170,15 +167,11 @@ function EventCard({ event }: { event: DemoEventListItem }) {
 
   const baseClass = `group block bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-sm border rounded-2xl p-4 sm:p-5 transition-all duration-200 hover:-translate-y-0.5 ${stateClass}`
 
-  if (linkable) {
-    return (
-      <Link href={`/demo/events/${event.id}`} className={baseClass}>
-        {inner}
-      </Link>
-    )
-  }
-
-  return <div className={baseClass}>{inner}</div>
+  return (
+    <Link href={`/demo/events/${event.id}`} className={baseClass}>
+      {inner}
+    </Link>
+  )
 }
 
 function KindBadge({

@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import {
   Pencil,
@@ -129,10 +130,15 @@ function EventRow({
   tDemo: (key: string) => string
 }) {
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-      <div className="flex-1 min-w-0">
+    <div className="bg-gray-900 border border-gray-700 hover:border-amber-500/40 transition-colors rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+      <Link
+        href={`/demo/events/${event.id}`}
+        className="flex-1 min-w-0 group cursor-pointer"
+      >
         <div className="flex items-center gap-2 mb-1 flex-wrap">
-          <span className="font-bold text-white truncate">{event.name}</span>
+          <span className="font-bold text-white truncate group-hover:text-amber-300 transition-colors">
+            {event.name}
+          </span>
           {event.status === 'ended' ? (
             <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-700 text-gray-300">
               <Archive size={10} />
@@ -153,7 +159,7 @@ function EventRow({
         <p className="text-gray-400 text-sm truncate">
           {formatTimeLabel(tDemo, event.scheduledAt)} · {event.zone}
         </p>
-      </div>
+      </Link>
       <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:flex-shrink-0">
         <DemoIconButton
           ariaLabel={t('battleStart')}
