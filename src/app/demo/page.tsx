@@ -43,6 +43,15 @@ const RECENT_BATTLE = {
   daysAgo: 1,
 }
 
+const HOME_TOUR_STEPS = [
+  { id: 'hero' },
+  { id: 'admin-pending' },
+  { id: 'member-dashboard' },
+  { id: 'weekly-kpi' },
+  { id: 'recent-battle' },
+  { id: 'weapon-distribution' },
+] as const
+
 export default async function DemoHomePage() {
   const [tHome, tDemo] = await Promise.all([
     getTranslations('demo.home'),
@@ -82,7 +91,7 @@ export default async function DemoHomePage() {
 
   return (
     <div className="-m-4 sm:-m-6 lg:-m-8 min-h-screen bg-[#08090d] text-white">
-      <DemoGuidedTour />
+      <DemoGuidedTour steps={HOME_TOUR_STEPS} namespace="home" autoStart />
       <header data-tour-id="hero" className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-amber-500/15 via-amber-500/5 to-transparent" />
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />

@@ -4082,27 +4082,67 @@
       "memberCounter": "{memberCount} 名成员 · 累计出战 {total} 次"
     },
     "tour": {
-      "startButton": "开始导览",
-      "skipButton": "跳过",
-      "nextButton": "下一步",
-      "backButton": "上一步",
-      "doneButton": "完成",
-      "restartButton": "重新导览",
-      "stepCounter": "{current} / {total}",
-      "step1Title": "公开公会主页",
-      "step1Body": "招募状态、联盟与时区一目了然。Discord 分享和 SEO 索引使用的就是这个页面。",
-      "step2Title": "管理员队列",
-      "step2Body": "补给、兑换、捐赠、商店、结算、制作集中在一张卡片。无需逐个频道查看。",
-      "step3Title": "成员仪表板",
-      "step3Body": "Discord 与 Albion 关联后，成员可在同一界面查看自己的 K/D、出席与补给记录。结算纠纷消失。",
-      "step4Title": "周度 KPI",
-      "step4Body": "活动、胜负、击杀/死亡自动更新。无需使用 Excel 也能掌握公会趋势。",
-      "step5Title": "战斗自动追踪",
-      "step5Body": "仅自动归类参与的 ZvZ 战斗，并自动标注 K/D 与对战阵营。无需手动翻查 killboard。",
-      "step6Title": "Meta 分析",
-      "step6Body": "通过公会武器类别分布，为 build 决策提供依据。",
-      "completedTitle": "导览完成",
-      "completedBody": "现在请直接查看侧边栏的活动、公会成员、设置与备份。"
+      "ui": {
+        "startButton": "开始导览",
+        "skipButton": "跳过",
+        "nextButton": "下一步",
+        "backButton": "上一步",
+        "doneButton": "完成",
+        "restartButton": "重新导览",
+        "stepCounter": "{current} / {total}",
+        "completedTitle": "导览完成"
+      },
+      "pages": {
+        "home": {
+          "step1Title": "公开公会主页",
+          "step1Body": "招募状态、联盟与时区一目了然。Discord 分享和 SEO 索引使用的就是这个页面。",
+          "step2Title": "管理员队列",
+          "step2Body": "补给、兑换、捐赠、商店、结算、制作集中在一张卡片。无需逐个频道查看。",
+          "step3Title": "成员仪表板",
+          "step3Body": "Discord 与 Albion 关联后，成员可在同一界面查看自己的 K/D、出席与补给记录。结算纠纷消失。",
+          "step4Title": "周度 KPI",
+          "step4Body": "活动、胜负、击杀/死亡自动更新。无需使用 Excel 也能掌握公会趋势。",
+          "step5Title": "战斗自动追踪",
+          "step5Body": "仅自动归类参与的 ZvZ 战斗，并自动标注 K/D 与对战阵营。无需手动翻查 killboard。",
+          "step6Title": "Meta 分析",
+          "step6Body": "通过公会武器类别分布，为 build 决策提供依据。",
+          "completedBody": "现在请直接查看侧边栏的活动、公会成员、设置与备份。"
+        },
+        "events": {
+          "step1Title": "活动编排",
+          "step1Body": "预定的 ZvZ 活动以卡片形式整理。一键新建活动，可直接用于公会公告。",
+          "step2Title": "活动 vs 模板",
+          "step2Body": "重复性聚会先做成模板，下次活动一键作为种子重用。",
+          "step3Title": "参与者 + 队伍编排",
+          "step3Body": "每个活动卡片可一并管理参与者、武器/装备栏位分配与日程。",
+          "completedBody": "打开任意活动卡片即可查看队伍编排面板。"
+        },
+        "regear": {
+          "step1Title": "六类审批统一",
+          "step1Body": "补给、兑换、捐赠、商店订单、结算、制作 — 所有管理员审批集中在一页。徽章显示待处理数量。",
+          "step2Title": "自动 vs 手动补给",
+          "step2Body": "自动补给由 cron 从战报自动生成；手动则由成员申请。可独立筛选分别审核。",
+          "step3Title": "按部位编辑价格",
+          "step3Body": "每张补给卡可分别调整头/胸/手/脚/武器/盾/坐骑等部位单价。申请人按市场行情自行修改。",
+          "completedBody": "其他审批类型（兑换/捐赠/商店）使用相同流程。"
+        },
+        "members": {
+          "step1Title": "公会人数概览",
+          "step1Body": "总成员数 + 本周累计出席次数直接显示在页眉。",
+          "step2Title": "四层成员分类",
+          "step2Body": "Members · Roster · Guests · Withdrawn 四个标签页分别管理正式成员 / 名册 / 临时访客 / 退会者。",
+          "completedBody": "点击任意成员行可查看个人统计与补给历史。"
+        },
+        "stats": {
+          "step1Title": "积分系统指标",
+          "step1Body": "持有积分总和、累计收支、持有者数量 — 四张 KPI 卡片概览公会经济。",
+          "step2Title": "积分前列持有者",
+          "step2Body": "按积分余额排名，立即识别最活跃成员，并标注管理员徽章。",
+          "step3Title": "资金流向分析",
+          "step3Body": "最近 N 天的每日收支图 + 按来源/用途的细分。追踪积分从何而来、流向何处。",
+          "completedBody": "继续向下滚动可查看认证 / 活动参与率 / 商店与补给统计。"
+        }
+      }
     }
   }
 }

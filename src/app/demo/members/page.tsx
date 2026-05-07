@@ -2,6 +2,12 @@ import { getTranslations } from 'next-intl/server'
 import { DEMO_MEMBERS } from '@/data/demo-seed'
 import { DemoMembersTable } from '../_components/MembersTable'
 import DemoMembersPageTabs from '../_components/DemoMembersPageTabs'
+import DemoGuidedTour from '../_components/DemoGuidedTour'
+
+const MEMBERS_TOUR_STEPS = [
+  { id: 'members-header' },
+  { id: 'members-tabs' },
+] as const
 
 // 실제 /members 페이지 비주얼 클론 — 4탭 (members/roster/guests/withdrawn).
 // members 탭만 진짜 시드, 나머지 3탭은 기능 범위를 보여주는 정적 placeholder.
@@ -28,7 +34,8 @@ export default async function DemoMembersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <DemoGuidedTour steps={MEMBERS_TOUR_STEPS} namespace="members" />
+      <div data-tour-id="members-header" className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
           <h1 className="text-xl sm:text-2xl font-bold text-white">{t('title')}</h1>
           <p className="text-gray-400 text-sm">{t('description')}</p>
@@ -42,16 +49,18 @@ export default async function DemoMembersPage() {
         </p>
       </div>
 
-      <DemoMembersPageTabs
-        membersCount={DEMO_MEMBERS.length}
-        rosterCount={DEMO_MEMBERS.length}
-        guestsCount={guests.length}
-        withdrawnCount={withdrawn.length}
-        membersSection={<DemoMembersTable members={DEMO_MEMBERS} />}
-        rosterSection={<DemoRoster />}
-        guestsSection={<DemoGuests guests={guests} />}
-        withdrawnSection={<DemoWithdrawn withdrawn={withdrawn} />}
-      />
+      <div data-tour-id="members-tabs">
+        <DemoMembersPageTabs
+          membersCount={DEMO_MEMBERS.length}
+          rosterCount={DEMO_MEMBERS.length}
+          guestsCount={guests.length}
+          withdrawnCount={withdrawn.length}
+          membersSection={<DemoMembersTable members={DEMO_MEMBERS} />}
+          rosterSection={<DemoRoster />}
+          guestsSection={<DemoGuests guests={guests} />}
+          withdrawnSection={<DemoWithdrawn withdrawn={withdrawn} />}
+        />
+      </div>
 
       <p className="text-[11px] text-gray-600 italic px-1">{tDemo('members.demoOnlyDetail')}</p>
     </div>

@@ -34,6 +34,13 @@ import {
   type DemoFinanceFlowStats,
 } from '@/data/demo-seed'
 import CollapsibleList from '@/components/CollapsibleList'
+import DemoGuidedTour from '../_components/DemoGuidedTour'
+
+const STATS_TOUR_STEPS = [
+  { id: 'stats-kpi' },
+  { id: 'stats-holders' },
+  { id: 'stats-finance' },
+] as const
 
 type StatsTranslator = Awaited<ReturnType<typeof getTranslations<'adminStats'>>>
 
@@ -111,13 +118,14 @@ export default async function DemoStatsPage() {
 
   return (
     <div className="space-y-6">
+      <DemoGuidedTour steps={STATS_TOUR_STEPS} namespace="stats" />
       <div className="flex items-center gap-2">
         <BarChart3 size={22} className="text-amber-400" />
         <h1 className="text-2xl font-bold text-white">{tNav('stats')}</h1>
       </div>
       <p className="text-sm text-gray-400">{tStats('ledgerDescription')}</p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div data-tour-id="stats-kpi" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {cards.map((card) => {
           const Icon = card.icon
           return (
@@ -138,7 +146,7 @@ export default async function DemoStatsPage() {
         })}
       </div>
 
-      <section className="bg-gray-900/60 border border-gray-700 rounded-lg">
+      <section data-tour-id="stats-holders" className="bg-gray-900/60 border border-gray-700 rounded-lg">
         <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-white">{tStats('topHoldersTitle')}</h2>
           <span className="text-xs text-gray-500">Top {topHolders.length}</span>
@@ -178,7 +186,9 @@ export default async function DemoStatsPage() {
         )}
       </section>
 
-      <FinanceFlowSection stats={DEMO_FINANCE_FLOW_STATS} tStats={tStats} />
+      <div data-tour-id="stats-finance">
+        <FinanceFlowSection stats={DEMO_FINANCE_FLOW_STATS} tStats={tStats} />
+      </div>
       <AlbionVerificationSection tStats={tStats} />
       <EventParticipationSection tStats={tStats} />
       <ShopRegearSection tStats={tStats} locale={locale} />

@@ -4,7 +4,14 @@ import { getTranslations } from 'next-intl/server'
 import MemberInviteCard from '@/components/MemberInviteCard'
 import DemoDashboardEventList from '../_components/DemoDashboardEventList'
 import DemoTemplateList from '../_components/DemoTemplateList'
+import DemoGuidedTour from '../_components/DemoGuidedTour'
 import { DEMO_EVENTS, DEMO_TEMPLATES } from '@/data/demo-seed'
+
+const EVENTS_TOUR_STEPS = [
+  { id: 'events-header' },
+  { id: 'events-tabs' },
+  { id: 'events-content' },
+] as const
 
 type Section = 'events' | 'templates'
 
@@ -34,9 +41,10 @@ export default async function DemoEventsPage({
 
   return (
     <div className="space-y-6">
+      <DemoGuidedTour steps={EVENTS_TOUR_STEPS} namespace="events" />
       <MemberInviteCard inviteUrl={DEMO_INVITE_URL} guildName={DEMO_GUILD_NAME} />
 
-      <div className="flex items-center justify-between gap-3">
+      <div data-tour-id="events-header" className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-white">
           {section === 'templates' ? tTemplates('pageTitle') : tDashboard('pageTitle')}
         </h1>
@@ -52,18 +60,22 @@ export default async function DemoEventsPage({
         )}
       </div>
 
-      <SectionTabs
-        active={section}
-        tabsLabel={tDashboard('sectionTabsLabel')}
-        eventsLabel={tDashboard('sectionEvents')}
-        templatesLabel={tDashboard('sectionTemplates')}
-      />
+      <div data-tour-id="events-tabs">
+        <SectionTabs
+          active={section}
+          tabsLabel={tDashboard('sectionTabsLabel')}
+          eventsLabel={tDashboard('sectionEvents')}
+          templatesLabel={tDashboard('sectionTemplates')}
+        />
+      </div>
 
-      {section === 'events' ? (
-        <EventsSection tDashboard={tDashboard} />
-      ) : (
-        <TemplatesSection tTemplates={tTemplates} />
-      )}
+      <div data-tour-id="events-content">
+        {section === 'events' ? (
+          <EventsSection tDashboard={tDashboard} />
+        ) : (
+          <TemplatesSection tTemplates={tTemplates} />
+        )}
+      </div>
     </div>
   )
 }

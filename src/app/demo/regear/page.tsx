@@ -19,6 +19,13 @@ import {
   DemoEventPayoutReviewList,
   DemoCraftOrderReviewList,
 } from '../_components/DemoApprovalLists'
+import DemoGuidedTour from '../_components/DemoGuidedTour'
+
+const REGEAR_TOUR_STEPS = [
+  { id: 'regear-types' },
+  { id: 'regear-origin' },
+  { id: 'regear-list' },
+] as const
 
 // `/admin/dashboard/approvals` 의 1:1 비주얼 클론.
 // - 6 TYPE 탭 (regear/exchange/donation/shop/event_payout/craft) + 배지 카운트.
@@ -81,12 +88,15 @@ export default async function DemoApprovalsPage({
 
   return (
     <div className="space-y-4">
+      <DemoGuidedTour steps={REGEAR_TOUR_STEPS} namespace="regear" />
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-white">{tApprovals('pageTitle')}</h1>
         <p className="text-gray-400 text-xs sm:text-sm mt-1">{tApprovals('pageDescription')}</p>
       </div>
 
-      <TypeTabs active={type} tabs={tabs} tabsLabel={tApprovals('tabsLabel')} />
+      <div data-tour-id="regear-types">
+        <TypeTabs active={type} tabs={tabs} tabsLabel={tApprovals('tabsLabel')} />
+      </div>
 
       {type === 'regear' && <RegearSection scope={scope} origin={origin} />}
       {type === 'exchange' && <ExchangeSection scope={scope} />}
@@ -197,16 +207,18 @@ async function RegearSection({ scope, origin }: { scope: Scope; origin: RegearOr
 
   return (
     <div className="space-y-4">
-      <RegearOriginTabs
-        active={origin}
-        scope={scope}
-        counts={counts}
-        tKeys={{
-          auto: t('originAuto'),
-          manual: t('originManual'),
-          all: t('originAll'),
-        }}
-      />
+      <div data-tour-id="regear-origin">
+        <RegearOriginTabs
+          active={origin}
+          scope={scope}
+          counts={counts}
+          tKeys={{
+            auto: t('originAuto'),
+            manual: t('originManual'),
+            all: t('originAll'),
+          }}
+        />
+      </div>
       <ScopeTabs
         baseHref={originBaseHref(origin)}
         active={scope}
@@ -218,7 +230,9 @@ async function RegearSection({ scope, origin }: { scope: Scope; origin: RegearOr
           {scope === 'pending' ? t('noPending') : t('noRequests')}
         </p>
       ) : (
-        <DemoRegearReviewList requests={filtered} />
+        <div data-tour-id="regear-list">
+          <DemoRegearReviewList requests={filtered} />
+        </div>
       )}
     </div>
   )

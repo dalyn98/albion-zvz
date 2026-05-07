@@ -4082,27 +4082,67 @@
       "memberCounter": "{memberCount}명 · 누적 출전 {total}회"
     },
     "tour": {
-      "startButton": "둘러보기 시작",
-      "skipButton": "건너뛰기",
-      "nextButton": "다음",
-      "backButton": "이전",
-      "doneButton": "완료",
-      "restartButton": "투어 다시 보기",
-      "stepCounter": "{current} / {total}",
-      "step1Title": "공개 길드 프로필",
-      "step1Body": "모집 상태 · 동맹 · 시간대를 즉시 노출. Discord 공유와 SEO 색인에 그대로 사용되는 페이지입니다.",
-      "step2Title": "관리자 대기열",
-      "step2Body": "리기어 · 환전 · 기부 · 상점 · 결제 · 제작이 한 카드에 모입니다. 채널을 일일이 안 봐도 됩니다.",
-      "step3Title": "멤버 대시보드",
-      "step3Body": "Discord + Albion 연동 후 본인의 K/D · 출석 · 리기어 내역을 한 화면에. 정산 분쟁이 사라집니다.",
-      "step4Title": "주간 KPI",
-      "step4Body": "이벤트 · 승패 · 킬뎃이 자동 갱신. 엑셀을 굴리지 않아도 길드 추세가 한눈에 보입니다.",
-      "step5Title": "전투 자동 추적",
-      "step5Body": "참여한 ZvZ만 자동 분류해 K/D와 매칭업을 자동 표기. 킬보드 직접 확인할 필요가 없습니다.",
-      "step6Title": "메타 분석",
-      "step6Body": "길드 무기 카테고리 분포로 빌드 결정의 근거를 제공합니다.",
-      "completedTitle": "둘러보기 완료",
-      "completedBody": "이제 사이드바의 이벤트 · 길드원 · 설정 · 백업도 직접 살펴보세요."
+      "ui": {
+        "startButton": "둘러보기 시작",
+        "skipButton": "건너뛰기",
+        "nextButton": "다음",
+        "backButton": "이전",
+        "doneButton": "완료",
+        "restartButton": "투어 다시 보기",
+        "stepCounter": "{current} / {total}",
+        "completedTitle": "둘러보기 완료"
+      },
+      "pages": {
+        "home": {
+          "step1Title": "공개 길드 프로필",
+          "step1Body": "모집 상태 · 동맹 · 시간대를 즉시 노출. Discord 공유와 SEO 색인에 그대로 사용되는 페이지입니다.",
+          "step2Title": "관리자 대기열",
+          "step2Body": "리기어 · 환전 · 기부 · 상점 · 결제 · 제작이 한 카드에 모입니다. 채널을 일일이 안 봐도 됩니다.",
+          "step3Title": "멤버 대시보드",
+          "step3Body": "Discord + Albion 연동 후 본인의 K/D · 출석 · 리기어 내역을 한 화면에. 정산 분쟁이 사라집니다.",
+          "step4Title": "주간 KPI",
+          "step4Body": "이벤트 · 승패 · 킬뎃이 자동 갱신. 엑셀을 굴리지 않아도 길드 추세가 한눈에 보입니다.",
+          "step5Title": "전투 자동 추적",
+          "step5Body": "참여한 ZvZ만 자동 분류해 K/D와 매칭업을 자동 표기. 킬보드 직접 확인할 필요가 없습니다.",
+          "step6Title": "메타 분석",
+          "step6Body": "길드 무기 카테고리 분포로 빌드 결정의 근거를 제공합니다.",
+          "completedBody": "이제 사이드바의 이벤트 · 길드원 · 설정 · 백업도 직접 살펴보세요."
+        },
+        "events": {
+          "step1Title": "이벤트 편성",
+          "step1Body": "예정된 ZvZ를 카드로 정리. 클릭 한 번으로 새 이벤트 작성, 길드 전체 공지에 그대로 사용됩니다.",
+          "step2Title": "이벤트 vs 템플릿",
+          "step2Body": "반복되는 정모는 템플릿으로 한 번만 만들어 두고, 클릭 한 번으로 다음 이벤트 시드에 재사용하세요.",
+          "step3Title": "참가자 + 파티 편성",
+          "step3Body": "각 이벤트 카드에서 참가 인원, 무기/장비 슬롯 편성, 일정을 한 번에 관리합니다.",
+          "completedBody": "이벤트 카드를 열어 파티 편성 패널까지 확인해 보세요."
+        },
+        "regear": {
+          "step1Title": "6가지 승인 통합",
+          "step1Body": "리기어 · 환전 · 기부 · 상점 주문 · 결제 · 제작 — 모든 어드민 결재가 한 페이지에 모입니다. 배지로 처리 대기 건수가 표시됩니다.",
+          "step2Title": "자동 vs 수동 리기어",
+          "step2Body": "자동 리기어는 cron이 킬로그에서 자동 생성, 수동은 길드원이 직접 신청. 별도 필터로 분리해서 검토하세요.",
+          "step3Title": "부위별 가격 편집",
+          "step3Body": "각 리기어 카드는 머리/가슴/장갑/신발/무기/방패/마운트 슬롯별로 단가 편집 가능. 청구자가 시세에 맞춰 조정합니다.",
+          "completedBody": "다른 승인 유형 탭(환전/기부/상점)도 동일한 흐름으로 처리됩니다."
+        },
+        "members": {
+          "step1Title": "길드 인원 현황",
+          "step1Body": "전체 인원 + 이번 주 누적 출전 수가 헤더에 한눈에 표시됩니다.",
+          "step2Title": "4단계 멤버십 분류",
+          "step2Body": "Members · Roster · Guests · Withdrawn 4탭으로 정식 길드원 / 명단 / 임시 게스트 / 탈퇴자를 분리 관리합니다.",
+          "completedBody": "각 길드원 행을 클릭하면 개인 통계와 리기어 이력을 볼 수 있어요."
+        },
+        "stats": {
+          "step1Title": "포인트 시스템 지표",
+          "step1Body": "보유 포인트 총합, 누적 수입/지출, 상위 보유자 수 — 길드 경제의 핵심 KPI 4개가 카드로 정리됩니다.",
+          "step2Title": "상위 포인트 보유자",
+          "step2Body": "포인트 잔액 기준 순위로 가장 활발한 멤버를 즉시 식별. 어드민 배지도 같이 표시됩니다.",
+          "step3Title": "재정 흐름 분석",
+          "step3Body": "최근 N일간 일별 수입/지출 차트 + 출처별·용도별 분해. 포인트가 어디서 들어오고 어디로 빠지는지 추적 가능.",
+          "completedBody": "검증 / 이벤트 참여율 / 상점 · 리기어 통계도 아래로 스크롤하면 볼 수 있어요."
+        }
+      }
     }
   }
 }
