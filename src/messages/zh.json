@@ -4144,5 +4144,14 @@
         }
       }
     }
+  },
+  "discordBot": {
+    "notInGuild": "此命令只能在 Discord 服务器内使用。",
+    "guildNotLinked": "此公会尚未与 AlbionGuildManager 绑定。请先查看官方指南\n{docsUrl}",
+    "guildNotLinkedDocs": "此公会尚未与 AlbionGuildManager 绑定。官方指南\n{docsUrl}",
+    "homeReady": "🏠 打开 **{name}** 主页\n{url}",
+    "docsReady": "📖 官方指南\n{url}",
+    "upcomingNone": "📭 暂无即将开始的活动。活动列表\n{url}",
+    "upcoming": "⏰ 最临近的活动\n**{title}**\n🕒 {when}\n🔗 {url}"
   }
 }

@@ -4144,5 +4144,14 @@
         }
       }
     }
+  },
+  "discordBot": {
+    "notInGuild": "이 명령어는 디스코드 서버 안에서만 쓸 수 있어요.",
+    "guildNotLinked": "이 길드는 아직 AlbionGuildManager 와 연동되지 않았어요. 공식 가이드를 먼저 확인해 주세요\n{docsUrl}",
+    "guildNotLinkedDocs": "이 길드는 아직 AlbionGuildManager 와 연동되지 않았어요. 공식 가이드\n{docsUrl}",
+    "homeReady": "🏠 **{name}** 홈으로 이동\n{url}",
+    "docsReady": "📖 공식 가이드\n{url}",
+    "upcomingNone": "📭 예정된 이벤트가 없어요. 이벤트 목록\n{url}",
+    "upcoming": "⏰ 가장 임박한 이벤트\n**{title}**\n🕒 {when}\n🔗 {url}"
   }
 }
