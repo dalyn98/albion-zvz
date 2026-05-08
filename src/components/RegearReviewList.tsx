@@ -9,6 +9,7 @@ import {
   approveRegearFromStock,
   approveRegearAsCrafted,
   rejectRegearRequest,
+  bulkApproveRegear,
   getScreenshotUrl,
   recheckKillboardVerification,
   type AdminRegearRequest,
@@ -204,9 +205,74 @@ interface EventGroupProps {
   stockChecks: Record<string, StockCheckResult>
 }
 
+// 한 (event_id, discord_id) 의 묶음. EventGroup 안에서 한 청구자가 같은
+// 이벤트에 N번 죽었을 때 카드들을 한 청구자 단위로 묶어 노출. DB 스키마는
+// 그대로 — UI 상의 그룹핑일 뿐. 일괄 승인 버튼은 pendingIds 만 사용한다.
+interface ClaimerSubGroup {
+  discordId: string
+  username: string
+  rows: AdminRegearRequest[]
+  pendingIds: string[]
+  pendingCount: number
+  totalClaimed: number
+  pendingPayout: number
+  screenshotCount: number
+}
+
+function buildClaimerGroups(
+  rows: AdminRegearRequest[],
+  ratePercent: number,
+): ClaimerSubGroup[] {
+  const map = new Map<string, ClaimerSubGroup>()
+  for (const r of rows) {
+    let g = map.get(r.discord_id)
+    if (!g) {
+      g = {
+        discordId: r.discord_id,
+        username: r.username,
+        rows: [],
+        pendingIds: [],
+        pendingCount: 0,
+        totalClaimed: 0,
+        pendingPayout: 0,
+        screenshotCount: 0,
+      }
+      map.set(r.discord_id, g)
+    }
+    g.rows.push(r)
+    if (r.screenshot_path) g.screenshotCount += 1
+    if (r.screenshot_path_2) g.screenshotCount += 1
+    if (r.status === 'pending') {
+      g.pendingCount += 1
+      g.pendingIds.push(r.id)
+      const claimed = r.claimed_silver ?? r.silver
+      g.totalClaimed += claimed
+      g.pendingPayout += calcPayoutSilver(claimed, ratePercent)
+    }
+  }
+  for (const g of map.values()) {
+    // hasUserEdits 우선, 그 다음 created_at desc — RegearRow 단일 노출 케이스와
+    // 동일한 정렬을 그룹 안에도 적용해 친숙하게.
+    g.rows.sort((a, b) => {
+      const aE = hasUserEdits(a) ? 1 : 0
+      const bE = hasUserEdits(b) ? 1 : 0
+      if (aE !== bE) return bE - aE
+      return b.created_at.localeCompare(a.created_at)
+    })
+  }
+  return [...map.values()].sort((a, b) =>
+    b.rows[0].created_at.localeCompare(a.rows[0].created_at),
+  )
+}
+
 function EventGroup({ group, avatars, ratePercent, forceExpanded, anomalies, stockChecks }: EventGroupProps) {
   const t = useTranslations('adminRegearReview')
+  const tToast = useTranslations('toast')
+  const router = useRouter()
+  const toast = useToast()
   const [expanded, setExpanded] = useState(false)
+  const [bulkPending, startBulkTransition] = useTransition()
+  const [bulkError, setBulkError] = useState('')
   const isOpen = forceExpanded || expanded
 
   const counts = useMemo(() => {
@@ -221,58 +287,256 @@ function EventGroup({ group, avatars, ratePercent, forceExpanded, anomalies, sto
     return { pending, approved, rejected, total: group.rows.length }
   }, [group.rows])
 
+  const claimerGroups = useMemo(
+    () => buildClaimerGroups(group.rows, ratePercent),
+    [group.rows, ratePercent],
+  )
+  const hasMultiDeathClaimer = claimerGroups.some((c) => c.rows.length >= 2)
+
+  const eventPendingIds = useMemo(
+    () => group.rows.filter((r) => r.status === 'pending').map((r) => r.id),
+    [group.rows],
+  )
+  const eventPendingPayout = useMemo(
+    () =>
+      group.rows
+        .filter((r) => r.status === 'pending')
+        .reduce(
+          (sum, r) => sum + calcPayoutSilver(r.claimed_silver ?? r.silver, ratePercent),
+          0,
+        ),
+    [group.rows, ratePercent],
+  )
+
+  const runBulkApprove = (ids: string[]) => {
+    if (ids.length === 0) return
+    setBulkError('')
+    startBulkTransition(async () => {
+      const result = await bulkApproveRegear(ids)
+      if (result.fatalError) {
+        setBulkError(result.fatalError)
+        return
+      }
+      if (result.succeeded > 0 && result.failed === 0) {
+        toast.success(tToast('regearBulkApproved', { n: result.succeeded }))
+      } else if (result.succeeded > 0 && result.failed > 0) {
+        toast.info(
+          tToast('regearBulkApprovedPartial', {
+            success: result.succeeded,
+            total: result.total,
+          }),
+        )
+        if (result.errors[0]) setBulkError(result.errors[0].error)
+      } else {
+        toast.error(tToast('regearBulkApproveFailed'))
+        if (result.errors[0]) setBulkError(result.errors[0].error)
+      }
+      router.refresh()
+    })
+  }
+
   const latestAt = group.rows[0]?.created_at ?? null
 
   return (
     <li className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-start justify-between gap-3 px-4 py-3 hover:bg-gray-800/40 text-left"
-        aria-expanded={isOpen}
-      >
-        <div className="min-w-0 flex-1 flex items-start gap-2">
-          <ChevronRight
-            size={16}
-            className={`text-gray-500 mt-0.5 flex-shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`}
-          />
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold text-white truncate">{group.eventTitle}</div>
-            {latestAt && (
-              <div className="text-[11px] text-gray-500 mt-0.5 font-mono">
-                {t('groupLatest', { datetime: formatDateTimeShort(latestAt) })}
-              </div>
-            )}
+      <div className="flex items-stretch">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex-1 flex items-start justify-between gap-3 px-4 py-3 hover:bg-gray-800/40 text-left min-w-0"
+          aria-expanded={isOpen}
+        >
+          <div className="min-w-0 flex-1 flex items-start gap-2">
+            <ChevronRight
+              size={16}
+              className={`text-gray-500 mt-0.5 flex-shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`}
+            />
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold text-white truncate">{group.eventTitle}</div>
+              {latestAt && (
+                <div className="text-[11px] text-gray-500 mt-0.5 font-mono">
+                  {t('groupLatest', { datetime: formatDateTimeShort(latestAt) })}
+                </div>
+              )}
+            </div>
           </div>
+          <div className="flex items-center gap-1.5 flex-wrap flex-shrink-0">
+            {counts.pending > 0 && (
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-300">
+                {t('groupPending', { n: counts.pending })}
+              </span>
+            )}
+            {counts.approved > 0 && (
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-green-500/20 text-green-300">
+                {t('groupApproved', { n: counts.approved })}
+              </span>
+            )}
+            {counts.rejected > 0 && (
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-gray-700 text-gray-300">
+                {t('groupRejected', { n: counts.rejected })}
+              </span>
+            )}
+            <span className="text-[11px] text-gray-500 font-mono">
+              {t('groupTotal', { n: counts.total })}
+            </span>
+          </div>
+        </button>
+        {counts.pending >= 2 && (
+          <button
+            type="button"
+            onClick={() => runBulkApprove(eventPendingIds)}
+            disabled={bulkPending}
+            className="flex items-center gap-1 px-3 text-xs bg-green-500/15 hover:bg-green-500/25 border-l border-gray-800 text-green-300 disabled:opacity-50 flex-shrink-0"
+            title={t('groupBulkApproveTitle', {
+              n: counts.pending,
+              amount: formatSilver(eventPendingPayout),
+            })}
+          >
+            {bulkPending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+            <span className="font-semibold">{t('groupBulkApproveButton')}</span>
+            <span className="font-mono text-[10px] hidden sm:inline">
+              ({formatSilver(eventPendingPayout)})
+            </span>
+          </button>
+        )}
+      </div>
+      {bulkError && (
+        <div className="px-4 py-2 bg-red-500/10 border-t border-red-500/30">
+          <p className="text-red-400 text-xs">{bulkError}</p>
         </div>
-        <div className="flex items-center gap-1.5 flex-wrap flex-shrink-0">
-          {counts.pending > 0 && (
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-300">
-              {t('groupPending', { n: counts.pending })}
-            </span>
-          )}
-          {counts.approved > 0 && (
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-green-500/20 text-green-300">
-              {t('groupApproved', { n: counts.approved })}
-            </span>
-          )}
-          {counts.rejected > 0 && (
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-gray-700 text-gray-300">
-              {t('groupRejected', { n: counts.rejected })}
-            </span>
-          )}
-          <span className="text-[11px] text-gray-500 font-mono">
-            {t('groupTotal', { n: counts.total })}
-          </span>
-        </div>
-      </button>
+      )}
       {isOpen && (
-        <ul className="border-t border-gray-800 p-3 space-y-3 bg-gray-950/40">
+        <div className="border-t border-gray-800 p-3 bg-gray-950/40">
+          {hasMultiDeathClaimer ? (
+            <ul className="space-y-2">
+              {claimerGroups.map((c) =>
+                c.rows.length === 1 ? (
+                  <li key={c.discordId}>
+                    <RegearRow
+                      request={c.rows[0]}
+                      avatar={avatars[c.discordId] ?? null}
+                      ratePercent={ratePercent}
+                      anomalyFlags={anomalies[c.rows[0].id]}
+                      stockCheck={stockChecks[c.rows[0].id]}
+                    />
+                  </li>
+                ) : (
+                  <ClaimerGroup
+                    key={c.discordId}
+                    group={c}
+                    avatar={avatars[c.discordId] ?? null}
+                    ratePercent={ratePercent}
+                    anomalies={anomalies}
+                    stockChecks={stockChecks}
+                    forceExpanded={forceExpanded}
+                    onBulkApprove={runBulkApprove}
+                    bulkPending={bulkPending}
+                  />
+                ),
+              )}
+            </ul>
+          ) : (
+            <ul className="space-y-3">
+              {group.rows.map((r) => (
+                <RegearRow
+                  key={r.id}
+                  request={r}
+                  avatar={avatars[r.discord_id] ?? null}
+                  ratePercent={ratePercent}
+                  anomalyFlags={anomalies[r.id]}
+                  stockCheck={stockChecks[r.id]}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </li>
+  )
+}
+
+interface ClaimerGroupProps {
+  group: ClaimerSubGroup
+  avatar: string | null
+  ratePercent: number
+  anomalies: Record<string, RegearAnomalyFlag[]>
+  stockChecks: Record<string, StockCheckResult>
+  forceExpanded: boolean
+  onBulkApprove: (ids: string[]) => void
+  bulkPending: boolean
+}
+
+function ClaimerGroup({
+  group,
+  avatar,
+  ratePercent,
+  anomalies,
+  stockChecks,
+  forceExpanded,
+  onBulkApprove,
+  bulkPending,
+}: ClaimerGroupProps) {
+  const t = useTranslations('adminRegearReview')
+  const [expanded, setExpanded] = useState(false)
+  const isOpen = forceExpanded || expanded
+  const canBulk = group.pendingCount >= 2
+
+  return (
+    <li className="bg-gray-900/50 border border-gray-800 rounded-lg overflow-hidden">
+      <div className="flex items-stretch">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex-1 flex items-center gap-2 px-3 py-2.5 hover:bg-gray-800/40 text-left min-w-0 flex-wrap"
+          aria-expanded={isOpen}
+        >
+          <ChevronRight
+            size={14}
+            className={`text-gray-500 flex-shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`}
+          />
+          <MemberAvatar discordId={group.discordId} avatar={avatar} size={20} />
+          <span className="text-sm font-semibold text-white truncate">{group.username}</span>
+          <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 flex-shrink-0">
+            {t('claimerDeathCount', { n: group.rows.length })}
+          </span>
+          {group.pendingCount > 0 && (
+            <span className="text-[11px] text-gray-300 font-mono">
+              {t('claimerTotalClaim', { amount: formatSilver(group.totalClaimed) })}
+            </span>
+          )}
+          {group.screenshotCount > 0 && (
+            <span className="text-[11px] text-gray-500 inline-flex items-center gap-1">
+              <ImageIcon size={11} />
+              {t('claimerScreenshotCount', { n: group.screenshotCount })}
+            </span>
+          )}
+        </button>
+        {canBulk && (
+          <button
+            type="button"
+            onClick={() => onBulkApprove(group.pendingIds)}
+            disabled={bulkPending}
+            className="flex items-center gap-1 px-3 text-xs bg-green-500/10 hover:bg-green-500/20 border-l border-gray-800 text-green-300 disabled:opacity-50 flex-shrink-0"
+            title={t('claimerBulkApproveTitle', {
+              n: group.pendingCount,
+              amount: formatSilver(group.pendingPayout),
+            })}
+          >
+            {bulkPending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+            <span className="font-semibold">{t('claimerBulkApproveButton')}</span>
+            <span className="font-mono text-[10px] hidden sm:inline">
+              ({formatSilver(group.pendingPayout)})
+            </span>
+          </button>
+        )}
+      </div>
+      {isOpen && (
+        <ul className="border-t border-gray-800 p-3 space-y-3">
           {group.rows.map((r) => (
             <RegearRow
               key={r.id}
               request={r}
-              avatar={avatars[r.discord_id] ?? null}
+              avatar={avatar}
               ratePercent={ratePercent}
               anomalyFlags={anomalies[r.id]}
               stockCheck={stockChecks[r.id]}

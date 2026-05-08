@@ -380,7 +380,14 @@
     "requestTypeOverchargeBadge": "オーバーチャージ",
     "overchargeNoKillboard": "オーバーチャージ — キルボード検証なし",
     "userEditedRowBadge": "編集済み",
-    "memberSelfClaimBadge": "本人申請"
+    "memberSelfClaimBadge": "本人申請",
+    "groupBulkApproveButton": "イベント一括承認",
+    "groupBulkApproveTitle": "このイベントの保留中 {n} 件を一括承認 ({amount} 支給)",
+    "claimerDeathCount": "{n} デス",
+    "claimerTotalClaim": "請求合計 {amount}",
+    "claimerScreenshotCount": "スクショ {n} 枚",
+    "claimerBulkApproveButton": "申請者一括承認",
+    "claimerBulkApproveTitle": "この申請者の保留中 {n} 件を一括承認 ({amount} 支給)"
   },
   "adminExchangeReview": {
     "pageTitle": "両替申請",
@@ -3259,6 +3266,9 @@
     "regearCancelled": "リギア申請をキャンセルしました。",
     "regearApproved": "リギア申請を承認しました。",
     "regearRejected": "リギア申請を却下しました。",
+    "regearBulkApproved": "リギア申請 {n} 件を承認しました。",
+    "regearBulkApprovedPartial": "{success}/{total} 件のみ承認されました。失敗した項目は再試行してください。",
+    "regearBulkApproveFailed": "リギア申請の承認に失敗しました。",
     "exchangeSubmitted": "両替申請を受け付けました。",
     "exchangeCancelled": "両替申請をキャンセルしました。",
     "exchangeApproved": "両替申請を承認しました。",

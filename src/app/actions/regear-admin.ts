@@ -700,6 +700,53 @@ export async function recheckKillboardVerification(
   }
 }
 
+// 같은 이벤트·같은 청구자 묶음을 한 번에 승인하기 위한 일괄 액션. 한 청구자가
+// 한 전투에서 2회 이상 죽었을 때 RegearReviewList 가 (event_id, discord_id)
+// 단위로 카드를 묶어 보여주고, 묶인 행들을 한 번에 승인한다. 각 행은
+// approve_regear_request RPC 한 번씩 — 트랜잭션은 행 단위 그대로 (실패 시 한
+// 행만 롤백). 네트워크 round-trip 비용 (N개) 은 그룹당 보통 2-5건이라 체감
+// 안 된다. 항상 silver 모드로 승인 — crafted 모드 행도 RPC 가 silver 로 flip.
+// 부분 실패 (race 등) 는 errors[] 로 돌려서 UI 가 토스트에 알림.
+export interface BulkRegearActionResult {
+  succeeded: number
+  failed: number
+  total: number
+  errors: Array<{ id: string; error: string }>
+  fatalError?: string
+}
+
+export async function bulkApproveRegear(
+  ids: string[],
+): Promise<BulkRegearActionResult> {
+  const tErr = await getTranslations('adminActionError')
+  const result: BulkRegearActionResult = {
+    succeeded: 0,
+    failed: 0,
+    total: ids.length,
+    errors: [],
+  }
+  if (ids.length === 0) return result
+  try {
+    const session = await getSession()
+    if (!session) return { ...result, fatalError: tErr('unauthorized') }
+    for (const id of ids) {
+      const sub = await approveRegearRequest(id)
+      if (sub.error) {
+        result.failed += 1
+        result.errors.push({ id, error: sub.error })
+      } else {
+        result.succeeded += 1
+      }
+    }
+    return result
+  } catch (e) {
+    return {
+      ...result,
+      fatalError: e instanceof Error ? e.message : tErr('serverError'),
+    }
+  }
+}
+
 export async function rejectRegearRequest(
   id: string,
   notes: string,

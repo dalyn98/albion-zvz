@@ -380,7 +380,14 @@
     "requestTypeOverchargeBadge": "超额申请",
     "overchargeNoKillboard": "超额申请 — 已跳过击杀榜验证",
     "userEditedRowBadge": "已修改",
-    "memberSelfClaimBadge": "本人申请"
+    "memberSelfClaimBadge": "本人申请",
+    "groupBulkApproveButton": "批准此事件",
+    "groupBulkApproveTitle": "批准此事件的所有 {n} 个待处理申请 ({amount} 发放)",
+    "claimerDeathCount": "死亡 {n} 次",
+    "claimerTotalClaim": "申请总计 {amount}",
+    "claimerScreenshotCount": "截图 {n} 张",
+    "claimerBulkApproveButton": "批准此申请人",
+    "claimerBulkApproveTitle": "批准此申请人的所有 {n} 个待处理申请 ({amount} 发放)"
   },
   "adminExchangeReview": {
     "pageTitle": "兑换申请",
@@ -3259,6 +3266,9 @@
     "regearCancelled": "已取消补装申请。",
     "regearApproved": "已批准补装申请。",
     "regearRejected": "已驳回补装申请。",
+    "regearBulkApproved": "已批准 {n} 个补装申请。",
+    "regearBulkApprovedPartial": "仅批准 {success}/{total} 个。请重试失败的项目。",
+    "regearBulkApproveFailed": "批准补装申请失败。",
     "exchangeSubmitted": "已提交兑换申请。",
     "exchangeCancelled": "已取消兑换申请。",
     "exchangeApproved": "已批准兑换申请。",

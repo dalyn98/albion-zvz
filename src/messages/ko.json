@@ -380,7 +380,14 @@
     "requestTypeOverchargeBadge": "오버차지",
     "overchargeNoKillboard": "오버차지 — 킬보드 검증 미사용",
     "userEditedRowBadge": "수정됨",
-    "memberSelfClaimBadge": "본인 신청"
+    "memberSelfClaimBadge": "본인 신청",
+    "groupBulkApproveButton": "이벤트 전체 승인",
+    "groupBulkApproveTitle": "이 이벤트의 대기 신청 {n}건을 한번에 승인 ({amount} 지급)",
+    "claimerDeathCount": "{n}데스",
+    "claimerTotalClaim": "합계 청구 {amount}",
+    "claimerScreenshotCount": "스크린샷 {n}장",
+    "claimerBulkApproveButton": "청구자 전체 승인",
+    "claimerBulkApproveTitle": "이 청구자의 대기 신청 {n}건을 한번에 승인 ({amount} 지급)"
   },
   "adminExchangeReview": {
     "pageTitle": "환전 신청",
@@ -3259,6 +3266,9 @@
     "regearCancelled": "리기어 신청을 취소했어요.",
     "regearApproved": "리기어 신청을 승인했어요.",
     "regearRejected": "리기어 신청을 거절했어요.",
+    "regearBulkApproved": "{n}건의 리기어 신청을 승인했어요.",
+    "regearBulkApprovedPartial": "{success}/{total}건만 승인되었어요. 실패한 건은 다시 시도해 주세요.",
+    "regearBulkApproveFailed": "리기어 신청을 승인하지 못했어요.",
     "exchangeSubmitted": "환전 신청이 접수되었어요.",
     "exchangeCancelled": "환전 신청을 취소했어요.",
     "exchangeApproved": "환전 신청을 승인했어요.",
