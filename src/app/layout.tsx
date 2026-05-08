@@ -17,7 +17,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getMemberAlbionIdentity } from '@/lib/albion-identity'
 import { getSessionGuildId, getPrimaryTenantId, getTenantDiscordConfig } from '@/lib/tenant'
 import { isSuperAdminSession } from '@/lib/super-admin'
-import { classifyHost, resolveTenantBySlug } from '@/lib/tenant-resolver'
+import { classifyHost, getCanonicalRootDomain, resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
 
 // Routes that should render for anyone, even without a session. The proxy
@@ -126,10 +126,37 @@ export async function generateMetadata(): Promise<Metadata> {
   // canonical/preview/localhost 는 i18n 의 기본 title 유지.
   const classification = classifyHost(headersList.get('host'))
   const pathname = headersList.get('x-pathname') ?? ''
-  const tabTitle =
-    classification.kind === 'tenant'
-      ? displayNameFromSlug(classification.slug) || t('title')
-      : t('title')
+
+  // 테넌트 서브도메인 ({slug}.albion-guildmanager.com) 는 OG/Twitter 카드를
+  // 길드별로 덮어쓴다 — Discord/Slack 임베드 미리보기에 사이트 공통 카드 대신
+  // 그 길드의 banner/식별자가 노출되도록. 이미지는 관리자가 /admin/dashboard/settings
+  // 에서 올린 landing_banner_url(공개 storage URL) 을 그대로 재활용한다.
+  // 미설정 길드는 default OG 이미지로 폴백.
+  let tenantOverride: {
+    siteName: string
+    bannerUrl: string
+    canonicalUrl: string
+    title: string
+    description: string
+  } | null = null
+  if (classification.kind === 'tenant') {
+    const tenant = await resolveTenantBySlug(classification.slug)
+    if (tenant) {
+      const bannerUrl = (
+        await getAppSetting('landing_banner_url', '', tenant.tenantId)
+      ).trim()
+      const siteName = displayNameFromSlug(tenant.slug) || t('ogSiteName')
+      tenantOverride = {
+        siteName,
+        bannerUrl,
+        canonicalUrl: `https://${tenant.slug}.${getCanonicalRootDomain()}`,
+        title: t('ogGuildTitle', { name: siteName }),
+        description: t('ogGuildDescription', { name: siteName }),
+      }
+    }
+  }
+
+  const tabTitle = tenantOverride?.siteName ?? t('title')
 
   // 인덱싱 정책:
   //  - canonical root host (`albion-guildmanager.com`) 의 마케팅/공개 path → index, follow
@@ -148,9 +175,15 @@ export async function generateMetadata(): Promise<Metadata> {
         googleBot: { index: false, follow: false, noimageindex: true },
       }
 
+  const ogTitle = tenantOverride?.title ?? t('ogDefaultTitle')
+  const ogDescription = tenantOverride?.description ?? t('ogDefaultDescription')
+  const ogSiteName = tenantOverride?.siteName ?? t('ogSiteName')
+  const ogUrl = tenantOverride?.canonicalUrl ?? 'https://albion-guildmanager.com'
+  const ogImages = tenantOverride?.bannerUrl ? [tenantOverride.bannerUrl] : undefined
+
   // OG/Twitter 카드 — Discord/Slack/Twitter 임베드 시 노출. 페이지 단위
   // generateMetadata (예: /g/<slug>) 가 같은 키를 다시 export 하면 자동
-  // 오버라이드된다. 여기서는 사이트 전체 기본값.
+  // 오버라이드된다. 여기서는 사이트 전체 기본값 + 테넌트 서브도메인 override.
   return {
     metadataBase: new URL('https://albion-guildmanager.com'),
     title: tabTitle,
@@ -165,19 +198,21 @@ export async function generateMetadata(): Promise<Metadata> {
       'Albion guild bot',
       'Discord guild bot',
     ],
-    applicationName: t('ogSiteName'),
+    applicationName: ogSiteName,
     robots,
     openGraph: {
       type: 'website',
-      siteName: t('ogSiteName'),
-      title: t('ogDefaultTitle'),
-      description: t('ogDefaultDescription'),
-      url: 'https://albion-guildmanager.com',
+      siteName: ogSiteName,
+      title: ogTitle,
+      description: ogDescription,
+      url: ogUrl,
+      ...(ogImages ? { images: ogImages } : {}),
     },
     twitter: {
       card: 'summary_large_image',
-      title: t('ogDefaultTitle'),
-      description: t('ogDefaultDescription'),
+      title: ogTitle,
+      description: ogDescription,
+      ...(ogImages ? { images: ogImages } : {}),
     },
     appleWebApp: {
       capable: true,
