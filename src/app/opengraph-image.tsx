@@ -1,14 +1,83 @@
 import { ImageResponse } from 'next/og'
+import { headers } from 'next/headers'
+import { classifyHost, resolveTenantBySlug } from '@/lib/tenant-resolver'
+import { getAppSetting } from '@/lib/app-settings'
+import { displayNameFromSlug } from '@/lib/tenant-slug'
 
 // Default 1200x630 OG image used when sharing canonical marketing pages on
 // Discord/Slack/Twitter. Per-page generateMetadata can override
 // `openGraph.images` with a route-specific banner (e.g. each guild's profile
 // uses its own banner image).
+//
+// 테넌트 서브도메인 ({slug}.albion-guildmanager.com) 에서는 layout 의
+// metadataBase 가 그쪽 호스트로 잡혀 og:image URL 도 같은 서브도메인으로
+// 만들어진다. 그래서 여기 핸들러가 헤더에서 host 를 읽어 그 길드의
+// landing_banner_url 을 그대로 스트림할지, JSX OG 카드를 렌더할지 분기한다.
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 export const alt = 'AlbionGuildManager'
 
-export default function OpengraphImage() {
+// 매번 새로 평가해야 host 단위로 다른 이미지를 돌려줄 수 있다 — 정적 캐시는
+// 한 번 만들어진 이미지를 모든 호스트에서 공유해버린다.
+export const dynamic = 'force-dynamic'
+
+export default async function OpengraphImage() {
+  const headersList = await headers()
+  const classification = classifyHost(headersList.get('host'))
+
+  if (classification.kind === 'tenant') {
+    const tenant = await resolveTenantBySlug(classification.slug)
+    if (tenant) {
+      const bannerUrl = (
+        await getAppSetting('landing_banner_url', '', tenant.tenantId)
+      ).trim()
+      if (bannerUrl) {
+        const proxied = await proxyBanner(bannerUrl)
+        if (proxied) return proxied
+      }
+      return renderCard({
+        brand: displayNameFromSlug(tenant.slug) || tenant.name,
+        tagline: 'Albion Online guild operations on autopilot',
+      })
+    }
+  }
+
+  return renderCard({
+    brand: 'AlbionGuildManager',
+    tagline: 'Albion Online guild operations on autopilot',
+  })
+}
+
+// 길드가 직접 올린 banner 이미지를 그대로 OG 응답으로 흘려보낸다. Discord/Slack
+// 크롤러는 og:image URL 을 한 번만 fetch 하므로 여기서 한 번 메모리에 받아
+// stream 해도 비용이 크지 않다. 실패 시 null 을 돌려 호출부가 JSX 카드로
+// 폴백한다.
+async function proxyBanner(bannerUrl: string): Promise<Response | null> {
+  try {
+    const res = await fetch(bannerUrl, { cache: 'no-store' })
+    if (!res.ok) return null
+    const buf = await res.arrayBuffer()
+    const ct = res.headers.get('content-type') ?? 'image/png'
+    return new Response(buf, {
+      headers: {
+        'Content-Type': ct,
+        // 길드별 OG 이미지 변경(배너 교체) 이 5 분 안에 임베드에 반영되도록
+        // 짧게. 동시에 Discord 크롤러가 같은 path 를 자주 두드려도 origin 을
+        // 다시 때리지 않게 약간의 캐시를 둔다.
+        'Cache-Control': 'public, max-age=300, s-maxage=300',
+      },
+    })
+  } catch {
+    return null
+  }
+}
+
+interface CardProps {
+  brand: string
+  tagline: string
+}
+
+function renderCard({ brand, tagline }: CardProps): ImageResponse {
   return new ImageResponse(
     (
       <div
@@ -63,7 +132,7 @@ export default function OpengraphImage() {
               fontWeight: 900,
             }}
           >
-            A
+            {brand.charAt(0).toUpperCase()}
           </div>
           <div
             style={{
@@ -73,7 +142,7 @@ export default function OpengraphImage() {
               color: '#f59e0b',
             }}
           >
-            AlbionGuildManager
+            {brand}
           </div>
         </div>
         <div
@@ -87,7 +156,7 @@ export default function OpengraphImage() {
             maxWidth: 900,
           }}
         >
-          Albion Online guild operations on autopilot
+          {tagline}
         </div>
         <div
           style={{

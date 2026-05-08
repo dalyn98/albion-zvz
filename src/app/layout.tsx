@@ -181,11 +181,19 @@ export async function generateMetadata(): Promise<Metadata> {
   const ogUrl = tenantOverride?.canonicalUrl ?? 'https://albion-guildmanager.com'
   const ogImages = tenantOverride?.bannerUrl ? [tenantOverride.bannerUrl] : undefined
 
+  // metadataBase: 테넌트 서브도메인은 자기 호스트로 — Next.js 의
+  // opengraph-image.tsx 파일 컨벤션이 자동 생성하는 og:image URL 도 동일 호스트로
+  // 만들어 그쪽 라우트 핸들러가 host 단위로 길드 banner 를 stream 할 수 있게.
+  // canonical/preview 는 기존 albion-guildmanager.com 유지.
+  const metadataBase = tenantOverride
+    ? new URL(tenantOverride.canonicalUrl)
+    : new URL('https://albion-guildmanager.com')
+
   // OG/Twitter 카드 — Discord/Slack/Twitter 임베드 시 노출. 페이지 단위
   // generateMetadata (예: /g/<slug>) 가 같은 키를 다시 export 하면 자동
   // 오버라이드된다. 여기서는 사이트 전체 기본값 + 테넌트 서브도메인 override.
   return {
-    metadataBase: new URL('https://albion-guildmanager.com'),
+    metadataBase,
     title: tabTitle,
     description: t('description'),
     keywords: [
