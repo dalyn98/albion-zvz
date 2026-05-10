@@ -406,6 +406,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         ctaText={ctaText || tLanding('defaultCta')}
         loginLabel={tLanding('discordLogin')}
         memberRequiredLabel={tLanding('memberRequired')}
+        invitePromptLabel={tLanding('invitePrompt')}
         logoutLabel={tLanding('logout')}
         learnMoreLabel={tLanding('learnMore')}
         authErrorLabels={{

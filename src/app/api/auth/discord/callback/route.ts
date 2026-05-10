@@ -181,6 +181,39 @@ export async function GET(request: NextRequest) {
     const returnTo =
       state.returnTo.startsWith('/') && !state.returnTo.startsWith('//') ? state.returnTo : '/'
 
+    // 초대 토큰을 미리 검증해 invite 의 tenant 를 분리해 둔다. 사용자가 다른
+    // 길드의 멤버여도 (matchedTenants 가 비어있지 않아도) invite 가 가리키는
+    // 이벤트의 tenant 가 그 안에 없으면 member path 가 아닌 guest path 로 분기.
+    // 그렇지 않으면 "내 길드 A 멤버가 길드 B 이벤트 초대 링크를 클릭" 했을 때
+    // 길드 A 세션이 발급돼 invite 가 무시되는 회귀가 발생한다.
+    let inviteEventScope: string | null = null
+    let inviteTenantId: string | null = null
+    if (state.invite) {
+      const nowIso = new Date().toISOString()
+      const { data: tokenRow } = await getAdminClient()
+        .from('event_guest_tokens')
+        .select('event_id, revoked_at, expires_at')
+        .eq('token', state.invite)
+        .maybeSingle()
+      if (
+        tokenRow &&
+        !tokenRow.revoked_at &&
+        (!tokenRow.expires_at || tokenRow.expires_at > nowIso)
+      ) {
+        inviteEventScope = tokenRow.event_id as string
+        const { data: scopeEvent } = await getAdminClient()
+          .from('events')
+          .select('guild_id')
+          .eq('id', inviteEventScope)
+          .maybeSingle()
+        inviteTenantId = (scopeEvent?.guild_id as string | undefined) ?? null
+      }
+    }
+    const inviteForcesGuestPath =
+      inviteEventScope !== null &&
+      inviteTenantId !== null &&
+      !matchedTenants.some((t) => t.id === inviteTenantId)
+
     // /onboard 흐름은 새 길드에 봇을 설치하려는 의도. 사용자가 기존 tenant
     // 의 멤버여도 그 tenant subdomain 으로 hop 하면 안 된다 — onboard cookie
     // 와 이후 bot-install state cookie 가 모두 canonical 도메인에 있어야
@@ -205,11 +238,15 @@ export async function GET(request: NextRequest) {
     }
 
     // ───── Member path ─────
-    if (matchedTenants.length > 0) {
-      // Prefer the tenant whose slug matches the originating subdomain —
-      // keeps multi-tenant users on the subdomain they started from.
+    if (matchedTenants.length > 0 && !inviteForcesGuestPath) {
+      // 초대가 가리키는 tenant 의 멤버라면 그 tenant 우선. 아니면 originHost
+      // 매칭, 그것도 없으면 [0] fallback. (inviteForcesGuestPath 가 true 면 이
+      // 블록 자체를 skip 해서 게스트 path 로 직행.)
+      const inviteTenantMatch =
+        inviteTenantId ? matchedTenants.find((t) => t.id === inviteTenantId) : undefined
       const originSlug = extractOriginSlug(state.originHost)
       const tenant =
+        inviteTenantMatch ??
         (originSlug ? matchedTenants.find((t) => t.slug === originSlug) : undefined) ??
         matchedTenants[0]
 
@@ -332,22 +369,8 @@ export async function GET(request: NextRequest) {
     // ───── Guest path & Onboarding ─────
     const db = getAdminClient()
 
-    let eventScope: string | null = null
-    if (state.invite) {
-      const nowIso = new Date().toISOString()
-      const { data: tokenRow } = await db
-        .from('event_guest_tokens')
-        .select('event_id, revoked_at, expires_at')
-        .eq('token', state.invite)
-        .maybeSingle()
-      if (
-        tokenRow &&
-        !tokenRow.revoked_at &&
-        (!tokenRow.expires_at || tokenRow.expires_at > nowIso)
-      ) {
-        eventScope = tokenRow.event_id as string
-      }
-    }
+    // 위에서 이미 검증한 invite 결과 재사용 — DB 라운드트립 절약 + 분기 일관성.
+    const eventScope: string | null = inviteEventScope
 
     if (!eventScope) {
       const matchedTenantGuildIds = new Set(matchedTenants.map((t) => t.discordGuildId))
@@ -367,13 +390,8 @@ export async function GET(request: NextRequest) {
     }
 
     // 게스트: 이벤트 스코프로 로그인. 이벤트가 속한 tenant 의 서브도메인으로 hop.
-    const { data: scopeEvent } = await db
-      .from('events')
-      .select('guild_id')
-      .eq('id', eventScope)
-      .maybeSingle()
-    const guestGuildId =
-      (scopeEvent?.guild_id as string | undefined) ?? (await getPrimaryTenantId())
+    // inviteTenantId 는 위에서 이미 events 테이블 조회로 채워져 있다.
+    const guestGuildId = inviteTenantId ?? (await getPrimaryTenantId())
 
     const guestTenant = await getTenantDiscordConfig(guestGuildId)
     const guestSlug = guestTenant?.slug ?? FALLBACK_TENANT_SLUG

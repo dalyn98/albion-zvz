@@ -22,6 +22,7 @@ interface Props {
   ctaText: string
   loginLabel: string
   memberRequiredLabel: string
+  invitePromptLabel: string
   logoutLabel: string
   learnMoreLabel: string
   authErrorLabels: Record<string, string>
@@ -34,6 +35,7 @@ export default function AppGate({
   ctaText,
   loginLabel,
   memberRequiredLabel,
+  invitePromptLabel,
   logoutLabel,
   learnMoreLabel,
   authErrorLabels,
@@ -50,10 +52,23 @@ export default function AppGate({
   // returnTo 는 현재 경로 — 이벤트 상세 URL 로 들어온 게스트는 로그인 직후
   // 같은 이벤트 페이지에 착륙하게 된다.
   const invite = searchParams.get('invite')?.trim() ?? ''
+  const hasInvite = invite.length > 0
   const returnTo = pathname && pathname.startsWith('/') && !pathname.startsWith('//') ? pathname : '/'
   const params = new URLSearchParams({ returnTo })
   if (invite) params.set('invite', invite)
   const loginHref = `/api/auth/discord/start?${params.toString()}`
+
+  // 초대 링크가 있으면 어떤 reason 이든 Discord 로그인 버튼이 우선이다 — 다른
+  // 계정으로 들어와 있는 사용자도 OAuth 한번 돌면 콜백이 게스트 세션을 발급해
+  // 이벤트 페이지로 hop 한다. no_role + invite 은 거기에 더해 logout 도 같이
+  // 노출해 "다른 계정으로 다시 들어가는" 옵션을 남긴다.
+  const showLogin = reason === 'not_logged_in' || hasInvite
+  const showLogout = reason === 'no_role'
+  const promptText = hasInvite
+    ? invitePromptLabel
+    : reason === 'no_role'
+      ? memberRequiredLabel
+      : ctaText
   const backgroundStyle = bannerUrl
     ? {
         backgroundImage: `url(${bannerUrl})`,
@@ -76,26 +91,29 @@ export default function AppGate({
             {siteName}
           </h1>
           <p className="text-gray-200/90 text-sm leading-relaxed drop-shadow whitespace-pre-wrap">
-            {reason === 'no_role' ? memberRequiredLabel : ctaText}
+            {promptText}
           </p>
         </div>
 
-        {reason === 'no_role' ? (
-          <a
-            href="/api/auth/logout"
-            className="group relative inline-flex items-center justify-center gap-2 w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3.5 rounded-xl shadow-lg hover:-translate-y-0.5 transition-all duration-200"
-          >
-            <span>{logoutLabel}</span>
-          </a>
-        ) : (
-          <a
-            href={loginHref}
-            className="group relative inline-flex items-center justify-center gap-2 w-full bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold py-3.5 rounded-xl shadow-[0_10px_30px_-10px_rgba(88,101,242,0.6)] hover:shadow-[0_14px_36px_-10px_rgba(88,101,242,0.75)] hover:-translate-y-0.5 transition-all duration-200"
-          >
-            <DiscordIcon />
-            <span>{loginLabel}</span>
-          </a>
-        )}
+        <div className="space-y-3">
+          {showLogin && (
+            <a
+              href={loginHref}
+              className="group relative inline-flex items-center justify-center gap-2 w-full bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold py-3.5 rounded-xl shadow-[0_10px_30px_-10px_rgba(88,101,242,0.6)] hover:shadow-[0_14px_36px_-10px_rgba(88,101,242,0.75)] hover:-translate-y-0.5 transition-all duration-200"
+            >
+              <DiscordIcon />
+              <span>{loginLabel}</span>
+            </a>
+          )}
+          {showLogout && (
+            <a
+              href="/api/auth/logout"
+              className="group relative inline-flex items-center justify-center gap-2 w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3.5 rounded-xl shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+            >
+              <span>{logoutLabel}</span>
+            </a>
+          )}
+        </div>
 
         {errorMessage && <p className="text-red-300 text-xs drop-shadow">{errorMessage}</p>}
 

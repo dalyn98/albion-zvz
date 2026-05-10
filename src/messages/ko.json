@@ -1727,6 +1727,7 @@
     "defaultCta": "Discord로 로그인하면 이벤트와 파티에 접근할 수 있습니다.",
     "discordLogin": "Discord로 로그인",
     "memberRequired": "길드에 가입되어 있지 않아 사이트를 볼 수 없습니다.\n길드 관리자에게 초대를 요청한 뒤 다시 로그인해주세요.",
+    "invitePrompt": "이벤트 초대 링크입니다.\nDiscord 로그인하면 게스트로 입장됩니다.",
     "logout": "다른 계정으로 로그인",
     "learnMore": "내 길드에서 사용해보기"
   },
