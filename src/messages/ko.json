@@ -1763,7 +1763,9 @@
     "docs": "문서",
     "install": "내 길드 만들기",
     "myGuild": "내 길드",
-    "discord": "공식 디스코드"
+    "discord": "공식 디스코드",
+    "openMenu": "메뉴 열기",
+    "closeMenu": "메뉴 닫기"
   },
   "docsNav": {
     "sectionGettingStarted": "시작하기",

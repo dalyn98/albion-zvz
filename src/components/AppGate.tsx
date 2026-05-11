@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import DiscordIcon from '@/components/DiscordIcon'
 
@@ -25,6 +26,7 @@ interface Props {
   invitePromptLabel: string
   logoutLabel: string
   learnMoreLabel: string
+  learnMoreHref: string
   authErrorLabels: Record<string, string>
 }
 
@@ -38,8 +40,31 @@ export default function AppGate({
   invitePromptLabel,
   logoutLabel,
   learnMoreLabel,
+  learnMoreHref,
   authErrorLabels,
 }: Props) {
+  // 이벤트/멤버/공유 페이지의 generateMetadata 가 OG/SEO 를 위해 풍부한 title
+  // (예: "Foo Battle · 길드명") 을 박아두는데, 미로그인 사용자에게는 AppGate
+  // 가 본문을 덮으면서도 브라우저 탭 title 만 남아 정보가 새 보인다. App Router
+  // 의 head-manager 는 hydration 후에도 metadata 를 한 번 더 동기화하므로
+  // 단순 setter 는 다시 덮인다. <title> 변경을 감시해 siteName 으로 유지한다.
+  useEffect(() => {
+    if (typeof document === 'undefined' || !siteName) return
+    const titleEl = document.querySelector('title')
+    if (!titleEl) {
+      document.title = siteName
+      return
+    }
+    document.title = siteName
+    const observer = new MutationObserver(() => {
+      if (document.title !== siteName) {
+        document.title = siteName
+      }
+    })
+    observer.observe(titleEl, { childList: true, characterData: true, subtree: true })
+    return () => observer.disconnect()
+  }, [siteName])
+
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const authError = searchParams.get('auth_error')
@@ -106,12 +131,16 @@ export default function AppGate({
             </a>
           )}
           {showLogout && (
-            <a
-              href="/api/auth/logout"
-              className="group relative inline-flex items-center justify-center gap-2 w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3.5 rounded-xl shadow-lg hover:-translate-y-0.5 transition-all duration-200"
-            >
-              <span>{logoutLabel}</span>
-            </a>
+            // /api/auth/logout 는 POST 전용 (CSRF 보호). 기존에 <a> 로 GET
+            // 호출이 가서 405 가 떴었다. 풀폼 submit 으로 일관성 있게.
+            <form action="/api/auth/logout" method="POST" className="w-full">
+              <button
+                type="submit"
+                className="group relative inline-flex items-center justify-center gap-2 w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3.5 rounded-xl shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+              >
+                <span>{logoutLabel}</span>
+              </button>
+            </form>
           )}
         </div>
 
@@ -119,7 +148,7 @@ export default function AppGate({
 
         <div className="flex flex-col items-center gap-2">
           <a
-            href="/public/landing"
+            href={learnMoreHref}
             className="inline-block text-gray-300/90 hover:text-white text-xs drop-shadow underline underline-offset-4 decoration-gray-500/60"
           >
             {learnMoreLabel}

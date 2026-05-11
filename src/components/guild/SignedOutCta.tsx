@@ -27,8 +27,9 @@ export default async function SignedOutCta({ accent, returnTo }: Props) {
       <p className="text-gray-300 text-xs flex-1 min-w-0">{t('signedOutCtaText')}</p>
       <a
         href={href}
-        className={`shrink-0 text-xs font-semibold ${accent.heading} hover:underline inline-flex items-center gap-1`}
+        className={`shrink-0 inline-flex items-center gap-1.5 ${accent.heading} ${accent.border} border bg-gray-900/60 hover:bg-gray-900 text-xs font-semibold px-3.5 py-2.5 rounded-lg transition-colors min-h-[40px]`}
       >
+        <LogIn size={12} />
         {t('signedOutCtaLink')}
       </a>
     </div>

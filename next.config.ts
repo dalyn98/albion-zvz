@@ -30,6 +30,11 @@ const nextConfig: NextConfig = {
       // 큰 파일은 서버 액션의 깔끔한 'screenshotTooLarge' 메시지로 거절된다.
       bodySizeLimit: '10mb',
     },
+    // 미매칭 URL 진입 시 RootLayout 의 `locked` 분기가 AppGate(로그인 화면)
+    // 를 강제로 띄우는 것을 우회 — `src/app/global-not-found.tsx` 가 layout
+    // 우회 채널로 직접 렌더된다. segment-level notFound() 호출은 여전히
+    // `src/app/not-found.tsx` 가 처리.
+    globalNotFound: true,
   },
   images: {
     remotePatterns: [

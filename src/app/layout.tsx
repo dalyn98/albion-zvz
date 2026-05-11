@@ -398,6 +398,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     ])
     const derivedBrandName = resolvedTenantSlug ? displayNameFromSlug(resolvedTenantSlug) : ''
     const siteName = derivedBrandName.length > 0 ? derivedBrandName : tPublicLanding('siteName')
+    // 테넌트 서브도메인에서 "더 알아보기" 를 누르면 현재 호스트의
+    // /public/landing 으로 빠지지만 그 페이지도 같은 locked 로직을 타서 또
+    // AppGate 가 뜬다 (테넌트 서브도메인의 마케팅 라우트가 없으므로). canonical
+    // 루트로 보내야 실제 마케팅 페이지가 열린다.
+    const learnMoreHref =
+      classification.kind === 'tenant'
+        ? `https://${getCanonicalRootDomain()}/public/landing`
+        : '/public/landing'
     gateContent = (
       <AppGate
         reason={session ? 'no_role' : 'not_logged_in'}
@@ -409,6 +417,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         invitePromptLabel={tLanding('invitePrompt')}
         logoutLabel={tLanding('logout')}
         learnMoreLabel={tLanding('learnMore')}
+        learnMoreHref={learnMoreHref}
         authErrorLabels={{
           denied: tAuthError('denied'),
           invalid: tAuthError('invalid'),

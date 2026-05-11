@@ -1763,7 +1763,9 @@
     "docs": "文档",
     "install": "创建我的公会",
     "myGuild": "我的公会",
-    "discord": "官方 Discord"
+    "discord": "官方 Discord",
+    "openMenu": "打开菜单",
+    "closeMenu": "关闭菜单"
   },
   "docsNav": {
     "sectionGettingStarted": "入门",

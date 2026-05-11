@@ -1763,7 +1763,9 @@
     "docs": "ドキュメント",
     "install": "ギルドを作成",
     "myGuild": "マイギルド",
-    "discord": "公式Discord"
+    "discord": "公式Discord",
+    "openMenu": "メニューを開く",
+    "closeMenu": "メニューを閉じる"
   },
   "docsNav": {
     "sectionGettingStarted": "はじめに",

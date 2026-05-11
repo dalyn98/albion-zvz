@@ -1763,7 +1763,9 @@
     "docs": "Docs",
     "install": "Create my guild",
     "myGuild": "My guild",
-    "discord": "Official Discord"
+    "discord": "Official Discord",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
   },
   "docsNav": {
     "sectionGettingStarted": "Getting Started",

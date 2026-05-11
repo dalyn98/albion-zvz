@@ -6,6 +6,7 @@ import { getMarketingPaths } from '@/lib/marketing-paths'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { tenantUrl } from '@/lib/tenant-resolver'
 import MarketingLanguageSwitcher from './MarketingLanguageSwitcher'
+import MarketingNavMobileMenu from './MarketingNavMobileMenu'
 import DiscordIcon from './DiscordIcon'
 
 // 앱 운영자가 직접 관리하는 공식 커뮤니티 invite. 길드별 길드 디스코드와 다른
@@ -51,10 +52,24 @@ export default async function MarketingNav({ active }: MarketingNavProps) {
     { href: paths.features, key: 'features' },
     { href: paths.docs, key: 'docs' },
   ]
+  const mobileMenuItems = navItems.map((item) => ({
+    href: item.href,
+    label: t(item.key),
+    isActive: active === item.key,
+  }))
+
   return (
     <nav className="border-b border-white/5 bg-[#0b0d12]/80 backdrop-blur-md">
       <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
-        <ul className="flex items-center gap-1 text-sm">
+        {/* 모바일(<sm): 햄버거. 데스크탑(sm+): 가로 링크 묶음. 모바일에서 가로
+            링크를 유지하면 ja/ko 의 다음절 라벨 ("기능", "ドキュメント") 이 좁은
+            폭에서 두 글자씩 줄바꿈되거나 우측 클러스터를 밀어내 깨진다. */}
+        <MarketingNavMobileMenu
+          items={mobileMenuItems}
+          openLabel={t('openMenu')}
+          closeLabel={t('closeMenu')}
+        />
+        <ul className="hidden sm:flex items-center gap-1 text-sm">
           {navItems.map((item) => {
             const isActive = active === item.key
             return (
@@ -88,7 +103,7 @@ export default async function MarketingNav({ active }: MarketingNavProps) {
           {myGuildHref ? (
             <a
               href={myGuildHref}
-              className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold px-3 py-1.5 rounded-md"
+              className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap"
             >
               <Home size={12} />
               {t('myGuild')}
@@ -97,7 +112,7 @@ export default async function MarketingNav({ active }: MarketingNavProps) {
             !session && (
               <a
                 href="/api/auth/discord/start?returnTo=/onboard"
-                className="inline-flex items-center gap-1 bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-semibold px-3 py-1.5 rounded-md"
+                className="inline-flex items-center gap-1 bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap"
               >
                 <LogIn size={12} />
                 {t('install')}
