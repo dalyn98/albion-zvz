@@ -13,6 +13,7 @@ import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { getLocalizedItemName } from '@/lib/item-names'
+import { DEFAULT_TENANT_TIMEZONE, toZonedParts } from '@/lib/timezone'
 import type { Locale } from '@/i18n/locales'
 import {
   Upload,
@@ -769,12 +770,11 @@ function StatCell({
 }
 
 function formatLoggedAt(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  const yyyy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  const hh = String(d.getHours()).padStart(2, '0')
-  const mi = String(d.getMinutes()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`
+  if (Number.isNaN(new Date(iso).getTime())) return iso
+  const p = toZonedParts(iso, DEFAULT_TENANT_TIMEZONE)
+  const mm = String(p.month).padStart(2, '0')
+  const dd = String(p.day).padStart(2, '0')
+  const hh = String(p.hour).padStart(2, '0')
+  const mi = String(p.minute).padStart(2, '0')
+  return `${p.year}-${mm}-${dd} ${hh}:${mi}`
 }

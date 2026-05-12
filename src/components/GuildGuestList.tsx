@@ -8,6 +8,7 @@ import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
 import LanguageBadge from './LanguageBadge'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
+import { compareStrings } from '@/lib/sort-strings'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { getRoleStyle } from '@/types'
 import { revokeGuest } from '@/app/actions/members-admin'
@@ -34,12 +35,12 @@ export default function GuildGuestList({ guests, isAdmin }: Props) {
         if (b.participation_count !== a.participation_count) {
           return b.participation_count - a.participation_count
         }
-        return a.username.localeCompare(b.username)
+        return compareStrings(a.username, b.username)
       })
     } else {
       // Most recent invites first — guests are a transient audience so the
       // default sort highlights new arrivals.
-      sorted.sort((a, b) => b.joined_at.localeCompare(a.joined_at))
+      sorted.sort((a, b) => compareStrings(b.joined_at, a.joined_at))
     }
     return sorted
   }, [guests, search, sortKey])

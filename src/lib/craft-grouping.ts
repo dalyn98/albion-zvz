@@ -1,4 +1,6 @@
 import type { CraftQueueItem } from '@/app/actions/craft'
+import { compareStrings } from '@/lib/sort-strings'
+import { DEFAULT_TENANT_TIMEZONE, toZonedParts } from '@/lib/timezone'
 
 export const NO_EVENT_KEY = '__none__'
 
@@ -35,18 +37,22 @@ export function groupByEvent(items: CraftQueueItem[]): EventGroup[] {
   return Array.from(map.values()).sort((a, b) => {
     if (a.key === NO_EVENT_KEY) return 1
     if (b.key === NO_EVENT_KEY) return -1
-    if (!a.gatherAt && !b.gatherAt) return a.eventTitle.localeCompare(b.eventTitle)
+    if (!a.gatherAt && !b.gatherAt) return compareStrings(a.eventTitle, b.eventTitle)
     if (!a.gatherAt) return 1
     if (!b.gatherAt) return -1
     return new Date(a.gatherAt).getTime() - new Date(b.gatherAt).getTime()
   })
 }
 
+// Pin to a fixed timezone (DEFAULT_TENANT_TIMEZONE) instead of `new Date().getX()`,
+// which reads the host TZ. SSR runs on Vercel (UTC) while clients are usually
+// KST/JST, so the same iso renders different MM/DD HH:MM on each side and
+// trips React #418 hydration mismatch.
 export function formatGatherTime(iso: string): string {
-  const d = new Date(iso)
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const hh = String(d.getHours()).padStart(2, '0')
-  const mm = String(d.getMinutes()).padStart(2, '0')
+  const p = toZonedParts(iso, DEFAULT_TENANT_TIMEZONE)
+  const m = String(p.month).padStart(2, '0')
+  const day = String(p.day).padStart(2, '0')
+  const hh = String(p.hour).padStart(2, '0')
+  const mm = String(p.minute).padStart(2, '0')
   return `${m}/${day} ${hh}:${mm}`
 }

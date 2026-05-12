@@ -15,6 +15,7 @@ import type { GuildMemberSummary } from '@/app/actions/members-admin'
 import { getLocalizedItemName } from '@/lib/item-names'
 import { canonicalT8WeaponId } from '@/lib/weapon-display'
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/locales'
+import { compareStrings } from '@/lib/sort-strings'
 
 // 무기군 필터/뱃지에 쓸 라벨. 킬보드 샘플(T6_... 등) 을 그대로 로컬라이즈하면
 // "마스터의 ~" 같이 티어별로 쪼개져 보여서, 같은 무기군을 T8.0 canonical 로
@@ -90,7 +91,7 @@ export default function GuildMemberList({ members }: Props) {
         if (b.participation_count !== a.participation_count) {
           return b.participation_count - a.participation_count
         }
-        return a.username.localeCompare(b.username)
+        return compareStrings(a.username, b.username)
       })
     } else if (roleFilter) {
       sorted.sort((a, b) => {
@@ -100,7 +101,7 @@ export default function GuildMemberList({ members }: Props) {
         if (b.participation_count !== a.participation_count) {
           return b.participation_count - a.participation_count
         }
-        return a.username.localeCompare(b.username)
+        return compareStrings(a.username, b.username)
       })
     } else if (sortKey === 'recent') {
       sorted.sort((a, b) => b.updated_at.localeCompare(a.updated_at))
@@ -109,7 +110,7 @@ export default function GuildMemberList({ members }: Props) {
         if (b.participation_count !== a.participation_count) {
           return b.participation_count - a.participation_count
         }
-        return a.username.localeCompare(b.username)
+        return compareStrings(a.username, b.username)
       })
     }
     return sorted

@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
+import { formatDateTime } from '@/lib/format-datetime'
 import type { Locale } from '@/i18n/locales'
 import {
   claimCraftOrder,
@@ -191,7 +192,7 @@ function OrderCard({
         </p>
         <p className="text-[11px] text-gray-400 mt-1">
           {t('postedByLabel', { name: order.postedByUsername ?? order.postedByDiscordId })} ·{' '}
-          {new Date(order.createdAt).toLocaleString()}
+          {formatDateTime(order.createdAt)}
         </p>
         {order.notes && (
           <p className="text-[11px] text-gray-300 mt-1 whitespace-pre-line">{order.notes}</p>

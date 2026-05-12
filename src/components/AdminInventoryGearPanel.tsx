@@ -18,6 +18,7 @@ import {
   type TierLevel,
 } from '@/lib/inventory-catalog'
 import { adjustGearAction, setGearAction } from '@/app/actions/inventory'
+import { compareStrings } from '@/lib/sort-strings'
 import { removeTrackedItemAction } from '@/app/actions/inventory-tracked'
 import { extractWeaponCategory } from '@/lib/weapon-category'
 import { getWeaponFamilyRank } from '@/lib/weapon-family'
@@ -64,7 +65,7 @@ function compareRows(a: CategorizedRow, b: CategorizedRow): number {
   if (subA > subB) return 1
   const tierDiff = (b.tier ?? 0) - (a.tier ?? 0)
   if (tierDiff !== 0) return tierDiff
-  return a.localizedName.localeCompare(b.localizedName)
+  return compareStrings(a.localizedName, b.localizedName)
 }
 
 const GRID_SLOT_FILTERS: ReadonlyArray<GearSlot> = [

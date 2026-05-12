@@ -9,6 +9,7 @@ import { requireAdmin } from '@/lib/auth'
 import { isLocale, type Locale } from '@/i18n/locales'
 import { runMemberSync, type RolesSource } from '@/lib/member-sync'
 import { extractWeaponCategory } from '@/lib/weapon-category'
+import { compareStrings } from '@/lib/sort-strings'
 import {
   calcOutcomeStats,
   calcParticipationStreak,
@@ -309,7 +310,7 @@ export async function listGuildMembers(): Promise<{
       if (b.participation_count !== a.participation_count) {
         return b.participation_count - a.participation_count
       }
-      return a.username.localeCompare(b.username)
+      return compareStrings(a.username, b.username)
     })
 
     return { members }
@@ -494,7 +495,7 @@ export async function listAlbionRoster(): Promise<{
     // 도 제공하지만 초기 진입 인상은 "활약하는 멤버 위로".
     roster.sort((a, b) => {
       if (b.kill_fame !== a.kill_fame) return b.kill_fame - a.kill_fame
-      return a.albion_player_name.localeCompare(b.albion_player_name)
+      return compareStrings(a.albion_player_name, b.albion_player_name)
     })
 
     return { roster }

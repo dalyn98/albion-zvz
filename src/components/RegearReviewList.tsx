@@ -30,6 +30,7 @@ import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
+import { compareStrings } from '@/lib/sort-strings'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { useToast } from './ToastProvider'
 
@@ -104,10 +105,10 @@ function clusterRowsByMember(rows: AdminRegearRequest[]): AdminRegearRequest[] {
     if (a.discord_id !== b.discord_id) {
       const al = memberLatest.get(a.discord_id) ?? ''
       const bl = memberLatest.get(b.discord_id) ?? ''
-      if (al !== bl) return bl.localeCompare(al)
-      return a.discord_id.localeCompare(b.discord_id)
+      if (al !== bl) return compareStrings(bl, al)
+      return compareStrings(a.discord_id, b.discord_id)
     }
-    return b.created_at.localeCompare(a.created_at)
+    return compareStrings(b.created_at, a.created_at)
   })
 }
 

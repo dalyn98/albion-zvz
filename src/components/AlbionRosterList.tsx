@@ -8,6 +8,7 @@ import SearchBox from './SearchBox'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
 import { ALBION_SERVER_LABEL } from '@/lib/albion-gameinfo'
 import type { AlbionRosterEntry } from '@/app/actions/members-admin'
+import { compareStrings } from '@/lib/sort-strings'
 
 interface Props {
   roster: AlbionRosterEntry[]
@@ -48,10 +49,10 @@ export default function AlbionRosterList({ roster }: Props) {
         const ra = rankForLinkedSort(a)
         const rb = rankForLinkedSort(b)
         if (ra !== rb) return ra - rb
-        return a.albion_player_name.localeCompare(b.albion_player_name)
+        return compareStrings(a.albion_player_name, b.albion_player_name)
       })
     } else {
-      sorted.sort((a, b) => a.albion_player_name.localeCompare(b.albion_player_name))
+      sorted.sort((a, b) => compareStrings(a.albion_player_name, b.albion_player_name))
     }
     return sorted
   }, [roster, search, sortKey, linkFilter])

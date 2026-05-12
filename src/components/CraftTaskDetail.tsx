@@ -25,6 +25,7 @@ import { formatSilver } from '@/lib/silver'
 import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/locales'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import { DEFAULT_TENANT_TIMEZONE, toZonedParts } from '@/lib/timezone'
 import ItemImage from './ItemImage'
 import { useToast } from './ToastProvider'
 
@@ -178,13 +179,13 @@ function TimelineStep({
 
 function formatDateTime(iso: string): string {
   try {
-    const d = new Date(iso)
-    if (Number.isNaN(d.getTime())) return iso
-    const yy = String(d.getFullYear()).slice(2)
-    const mm = String(d.getMonth() + 1).padStart(2, '0')
-    const dd = String(d.getDate()).padStart(2, '0')
-    const hh = String(d.getHours()).padStart(2, '0')
-    const mi = String(d.getMinutes()).padStart(2, '0')
+    if (Number.isNaN(new Date(iso).getTime())) return iso
+    const p = toZonedParts(iso, DEFAULT_TENANT_TIMEZONE)
+    const yy = String(p.year).slice(2)
+    const mm = String(p.month).padStart(2, '0')
+    const dd = String(p.day).padStart(2, '0')
+    const hh = String(p.hour).padStart(2, '0')
+    const mi = String(p.minute).padStart(2, '0')
     return `${yy}/${mm}/${dd} ${hh}:${mi}`
   } catch {
     return iso

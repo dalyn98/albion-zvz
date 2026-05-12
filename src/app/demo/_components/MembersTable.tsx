@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 import { ChevronRight, Crown, Users, X } from 'lucide-react'
+import { compareStrings } from '@/lib/sort-strings'
 import type { DemoMember, DemoMemberRoleKey, DemoWeaponKey } from '@/data/demo-seed'
 
 type Props = {
@@ -57,7 +58,7 @@ export function DemoMembersTable({ members }: Props) {
       if (b.weeklyAttendance.attended !== a.weeklyAttendance.attended) {
         return b.weeklyAttendance.attended - a.weeklyAttendance.attended
       }
-      return a.ign.localeCompare(b.ign)
+      return compareStrings(a.ign, b.ign)
     })
   }, [members, search, sortKey, roleFilter, weaponFilter])
 
