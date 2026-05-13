@@ -34,6 +34,14 @@ Multi-tenant SaaS for Albion Online ZvZ guild operations. Production: <https://a
 - `public/screenshots/` — 마케팅 페이지 스크린샷 (매핑은 `src/lib/marketing-screenshots.ts`)
 - `scripts/` — `prebuild` 단계의 정적 자원 빌드 (items / spells / cooldowns)
 
+## 테스트
+
+자동 테스트는 두 층으로 분리:
+- 단위 테스트 (`npm test`) — `src/lib/**/*.test.ts`. 외부 의존 없는 순수 함수.
+- 통합 테스트 (`npm run test:integration`) — `src/**/*.integration.test.ts`. 실 Postgres 가 결정하는 invariant (마이그, RPC tenant 격리, RLS, ON CONFLICT). 로컬 docker + supabase 필요, env 없으면 자동 skip.
+
+새 마이그/RPC/`onConflict` 변경, 새 도메인 invariant 추가 시 **짝짓는 테스트를 같은 PR 에 포함** (scope-audit 5축의 "테스트" 축). 자세한 패턴/셋업/디버깅/확장 우선순위는 [docs/testing.md](./docs/testing.md) 참고.
+
 ## 배포
 
 - `main` 브랜치 push → Vercel 자동 배포. 도메인은 **albion-guildmanager.com** (vercel.app 아님).
