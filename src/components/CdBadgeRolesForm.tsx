@@ -10,6 +10,7 @@ import { useTranslations } from 'next-intl'
 import { Save, Timer } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
 import { SLOT_ROLES, SLOT_ROLE_STYLES, type SlotRole } from '@/types'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 // SLOT_ROLE 내부 키 → messages/{locale}.json 의 slotRole.* 키로 매핑.
 const ROLE_I18N_KEYS: Record<SlotRole, string> = {
@@ -34,13 +35,16 @@ export default function CdBadgeRolesForm({ initialRoles, embedded = false }: Pro
   const tRole = useTranslations('slotRole')
   const t = useTranslations('adminCdBadge')
   const [selected, setSelected] = useState<Set<SlotRole>>(new Set(initialRoles))
+  // 저장 직후 saved 셋 sync — router.refresh 동안의 false-alarm 방지.
+  const [savedSelected, setSavedSelected] = useState<Set<SlotRole>>(new Set(initialRoles))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
 
-  const sortedInitial = [...initialRoles].sort().join(',')
+  const sortedSaved = [...savedSelected].sort().join(',')
   const sortedCurrent = [...selected].sort().join(',')
-  const dirty = sortedInitial !== sortedCurrent
+  const dirty = sortedSaved !== sortedCurrent
+  useReportDirty('cd-badge-roles', dirty)
 
   const toggle = (role: SlotRole) => {
     const next = new Set(selected)
@@ -58,6 +62,7 @@ export default function CdBadgeRolesForm({ initialRoles, embedded = false }: Pro
     const result = await updateAppSetting('cd_badge_roles', payload)
     if (result.error) setError(result.error)
     else {
+      setSavedSelected(new Set(selected))
       setSaved(true)
       router.refresh()
     }

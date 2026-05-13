@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { updateAppSetting } from '@/app/actions/settings'
 import { Save } from 'lucide-react'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   initialWindowMinutes: number
@@ -34,6 +35,10 @@ export default function RegearLimitsForm({
   const [windowMinutes, setWindowMinutes] = useState(String(initialWindowMinutes))
   const [maxDeaths, setMaxDeaths] = useState(String(initialMaxDeaths))
   const [eligibilityDays, setEligibilityDays] = useState(String(initialEligibilityDays))
+  // 저장 직후 saved* sync — router.refresh 동안의 false-alarm 방지.
+  const [savedWindowMinutes, setSavedWindowMinutes] = useState(String(initialWindowMinutes))
+  const [savedMaxDeaths, setSavedMaxDeaths] = useState(String(initialMaxDeaths))
+  const [savedEligibilityDays, setSavedEligibilityDays] = useState(String(initialEligibilityDays))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
@@ -57,9 +62,10 @@ export default function RegearLimitsForm({
     eligibilityNum < ELIGIBILITY_MIN ||
     eligibilityNum > ELIGIBILITY_MAX
   const dirty =
-    windowMinutes !== String(initialWindowMinutes) ||
-    maxDeaths !== String(initialMaxDeaths) ||
-    eligibilityDays !== String(initialEligibilityDays)
+    windowMinutes !== savedWindowMinutes ||
+    maxDeaths !== savedMaxDeaths ||
+    eligibilityDays !== savedEligibilityDays
+  useReportDirty('regear-limits', dirty)
 
   const handleSave = async () => {
     if (windowInvalid || deathsInvalid || eligibilityInvalid) {
@@ -87,6 +93,9 @@ export default function RegearLimitsForm({
       setLoading(false)
       return
     }
+    setSavedWindowMinutes(windowMinutes)
+    setSavedMaxDeaths(maxDeaths)
+    setSavedEligibilityDays(eligibilityDays)
     setSaved(true)
     router.refresh()
     setLoading(false)

@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useUnsavedChanges } from './UnsavedChangesProvider'
 
 // 이벤트 편집 화면의 여러 섹션(EventInfoForm, 파티 편집기)을 하나의 "저장"
 // 버튼으로 커밋하기 위한 공용 레지스트리.
@@ -13,8 +14,9 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 //
 // 미저장 변경 보호: 각 섹션이 useReportDirty(id, isDirty) 로 dirty 상태를
 // 알리면 Provider 가 beforeunload 를 걸어 탭 닫기 / 새로고침 / 외부 이동을
-// 막는다. (Next.js Link 내부 이동은 브라우저 이벤트가 아니라서 잡지 못한다는
-// 한계가 있지만, 현재 가장 흔한 사고 — 닫기·새로고침 — 은 안전하게 막힌다.)
+// 막는다. 추가로 글로벌 UnsavedChangesProvider 에 `event-edit:${id}` 키로
+// 위임해 사이트 내 Link/router 이동(GuardedLink, useGuardedRouter)도
+// confirm 다이얼로그가 뜨도록 한다.
 
 export interface SaveResult {
   error?: string
@@ -37,6 +39,7 @@ export function EventEditSaveProvider({ children }: { children: ReactNode }) {
   const registryRef = useRef<Map<string, { label: string; fn: SaveFn }>>(new Map())
   const dirtyRef = useRef<Set<string>>(new Set())
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const globalUnsaved = useUnsavedChanges()
 
   const register = useCallback((id: string, label: string, fn: SaveFn) => {
     registryRef.current.set(id, { label, fn })
@@ -49,7 +52,10 @@ export function EventEditSaveProvider({ children }: { children: ReactNode }) {
     if (dirty) dirtyRef.current.add(id)
     else dirtyRef.current.delete(id)
     setHasUnsavedChanges(dirtyRef.current.size > 0)
-  }, [])
+    // 글로벌 가드(GuardedLink, useGuardedRouter)가 사이트 내 이동을 가로채려면
+    // 이쪽 dirty 도 글로벌 셋에 반영되어야 함. 키 충돌을 막기 위해 prefix.
+    globalUnsaved.reportDirty(`event-edit:${id}`, dirty)
+  }, [globalUnsaved])
 
   const triggerSaveAll = useCallback(async () => {
     const errors: Array<{ id: string; label: string; error: string }> = []
@@ -65,13 +71,16 @@ export function EventEditSaveProvider({ children }: { children: ReactNode }) {
     }
     // 저장 성공 시 dirty 셋을 비워 beforeunload 를 즉시 해제. 각 섹션의
     // useReportDirty effect 도 다음 렌더에 같은 결과를 보고하지만, 여기서
-    // 미리 비워야 redirect 직후 confirm 다이얼로그가 안 뜬다.
+    // 미리 비워야 redirect 직후 confirm 다이얼로그가 안 뜬다. 글로벌도 같이.
     if (errors.length === 0) {
+      for (const id of dirtyRef.current) {
+        globalUnsaved.reportDirty(`event-edit:${id}`, false)
+      }
       dirtyRef.current.clear()
       setHasUnsavedChanges(false)
     }
     return errors
-  }, [])
+  }, [globalUnsaved])
 
   // 미저장 변경이 있을 때만 beforeunload 를 등록. 모든 브라우저는 returnValue
   // 가 truthy 면 native confirm 다이얼로그를 띄운다 (메시지 텍스트는 무시됨).

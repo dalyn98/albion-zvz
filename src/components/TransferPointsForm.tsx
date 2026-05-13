@@ -13,6 +13,7 @@ import {
 } from '@/app/actions/transfer'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   balance: number
@@ -83,6 +84,8 @@ export default function TransferPointsForm({ balance, candidates }: Props) {
   })
   const canSubmit =
     drafts.length > 0 && !anyInvalid && !overBalance && totalAmount > 0 && !pending
+  // 모달이 열려 있고 수신자가 한 명이라도 추가돼 있으면 작성 중.
+  useReportDirty('transfer-points', open && drafts.length > 0)
 
   const addRecipient = (c: TransferCandidate) => {
     if (pickedIds.has(c.discord_id)) return

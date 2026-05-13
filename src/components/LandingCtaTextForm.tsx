@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { updateAppSetting } from '@/app/actions/settings'
 import { Save, RotateCcw } from 'lucide-react'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   initialText: string
@@ -19,12 +20,16 @@ export default function LandingCtaTextForm({ initialText, defaultText }: Props) 
   const router = useRouter()
   const ctaId = useId()
   const [text, setText] = useState(initialText)
+  // 저장 성공 시 즉시 savedText 를 새 값으로 sync — router.refresh 가 새 prop
+  // 을 가져오기 전까지 dirty 가 stale-true 로 남아 false-alarm 가드가 뜨는 것을 막는다.
+  const [savedText, setSavedText] = useState(initialText)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
 
-  const dirty = text !== initialText
+  const dirty = text !== savedText
   const tooLong = text.length > MAX_LENGTH
+  useReportDirty('landing-cta-text', dirty)
 
   const handleSave = async () => {
     if (tooLong) {
@@ -38,6 +43,7 @@ export default function LandingCtaTextForm({ initialText, defaultText }: Props) 
     if (result.error) {
       setError(result.error)
     } else {
+      setSavedText(text)
       setSaved(true)
       router.refresh()
     }

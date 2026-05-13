@@ -1,9 +1,9 @@
 'use client'
 
 import { Fragment, useEffect, useState } from 'react'
-import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { GuardedLink } from './UnsavedChangesProvider'
 import {
   CalendarDays,
   ShieldCheck,
@@ -283,16 +283,16 @@ export default function AppSidebar({
         >
           <Menu size={20} />
         </button>
-        <Link href={publicProfileHref ?? '/'} className="text-amber-400 text-base font-bold">⚔ {brandName}</Link>
+        <GuardedLink href={publicProfileHref ?? '/'} className="text-amber-400 text-base font-bold">⚔ {brandName}</GuardedLink>
         {session ? (
-          <Link href="/me/profile" aria-label={t('myInfo')} className="flex items-center">
+          <GuardedLink href="/me/profile" aria-label={t('myInfo')} className="flex items-center">
             {url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={url} alt="" className="w-7 h-7 rounded-full" />
             ) : (
               <UserCircle2 size={24} className="text-gray-400" />
             )}
-          </Link>
+          </GuardedLink>
         ) : (
           <a
             href={loginHref}
@@ -319,9 +319,9 @@ export default function AppSidebar({
         {/* Brand + collapse toggle */}
         <div className={`flex items-center ${navExpanded ? 'justify-between px-4' : 'justify-center'} h-14 border-b border-white/5 flex-shrink-0`}>
           {navExpanded && (
-            <Link href={publicProfileHref ?? '/'} className="text-amber-400 font-bold text-[15px] tracking-tight flex items-center gap-2 truncate">
+            <GuardedLink href={publicProfileHref ?? '/'} className="text-amber-400 font-bold text-[15px] tracking-tight flex items-center gap-2 truncate">
               ⚔ <span>{brandName}</span>
-            </Link>
+            </GuardedLink>
           )}
           <div className="flex items-center gap-1">
             <button
@@ -406,7 +406,7 @@ export default function AppSidebar({
             관리자만 노출 (`session.isAdmin`). 펼쳤을 땐 라벨, 접었을 땐 아이콘만. */}
         {session?.isAdmin && (
           <div className={`border-t border-white/5 flex-shrink-0 ${navExpanded ? 'px-3 pt-2 pb-1' : 'px-2 pt-2 pb-1'}`}>
-            <Link
+            <GuardedLink
               href="/admin/dashboard/guide"
               title={navExpanded ? undefined : tNav('guide')}
               className={`flex items-center rounded-lg text-gray-500 hover:text-gray-200 hover:bg-gray-800/60 transition-colors ${
@@ -419,7 +419,7 @@ export default function AppSidebar({
             >
               <BookOpen size={navExpanded ? 13 : 16} className="flex-shrink-0" />
               {navExpanded && <span className="truncate">{tNav('guide')}</span>}
-            </Link>
+            </GuardedLink>
           </div>
         )}
 
@@ -427,7 +427,7 @@ export default function AppSidebar({
         <div className={`border-t border-white/5 flex-shrink-0 ${navExpanded ? 'px-3 py-3' : 'px-2 py-3'}`}>
           {session ? (
             <div className={`flex ${navExpanded ? 'items-center justify-between gap-2' : 'flex-col items-center gap-2'}`}>
-              <Link
+              <GuardedLink
                 href="/me/profile"
                 className={`flex items-center gap-2 min-w-0 flex-1 hover:text-white ${navExpanded ? '' : 'justify-center'}`}
                 aria-label={t('myInfo')}
@@ -442,7 +442,7 @@ export default function AppSidebar({
                 {navExpanded && (
                   <span className="text-gray-200 text-xs font-medium truncate">{session.username}</span>
                 )}
-              </Link>
+              </GuardedLink>
               <form action="/api/auth/logout" method="post">
                 <button
                   type="submit"
@@ -534,7 +534,7 @@ function NavLink({
   const active = isActivePath(pathname, href, exact)
   const hasBadge = typeof badge === 'number' && badge > 0
   return (
-    <Link
+    <GuardedLink
       href={href}
       title={expanded ? undefined : label}
       className={`relative flex items-center gap-3 rounded-lg transition-colors ${
@@ -559,7 +559,7 @@ function NavLink({
           {badge > 99 ? '99+' : badge}
         </span>
       )}
-    </Link>
+    </GuardedLink>
   )
 }
 

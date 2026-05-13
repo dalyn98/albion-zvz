@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import { requestExchange } from '@/app/actions/exchange'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { useToast } from './ToastProvider'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   balance: number
@@ -25,6 +26,7 @@ export default function RequestExchangeForm({ balance, disabled }: Props) {
 
   const silver = parseSilverInput(amount)
   const canSubmit = !disabled && silver !== null && silver > 0 && silver <= balance
+  useReportDirty('request-exchange', !disabled && amount.trim() !== '')
 
   const submit = () => {
     if (silver === null) {

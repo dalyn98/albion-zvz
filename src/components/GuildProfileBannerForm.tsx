@@ -9,6 +9,7 @@ import {
   clearGuildProfileBanner,
 } from '@/app/actions/guild-profile'
 import ImageCropModal from '@/components/ImageCropModal'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   currentUrl: string
@@ -29,6 +30,8 @@ export default function GuildProfileBannerForm({ currentUrl }: Props) {
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
+
+  useReportDirty('guild-profile-banner', pendingFile !== null || croppedFile !== null)
 
   const displayUrl = previewUrl || currentUrl
 

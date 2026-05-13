@@ -4166,5 +4166,8 @@
     "docsReady": "📖 Official guide:\n{url}",
     "upcomingNone": "📭 No upcoming events. Event list:\n{url}",
     "upcoming": "⏰ Most imminent event\n**{title}**\n🕒 {when}\n🔗 {url}"
+  },
+  "unsavedChanges": {
+    "confirmLeave": "You have unsaved changes. Are you sure you want to leave this page?"
   }
 }

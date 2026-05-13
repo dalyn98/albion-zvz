@@ -11,6 +11,7 @@ import {
 } from '@/app/actions/guild-profile'
 import { BANNER_OPACITY_OPTIONS } from '@/lib/guild-profile'
 import ImageCropModal from '@/components/ImageCropModal'
+import { useReportDirty } from '../UnsavedChangesProvider'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const BANNER_ASPECT = 21 / 9
@@ -72,6 +73,12 @@ function BannerEditModal({ currentUrl, currentOpacity, onClose }: ModalProps) {
   // 가 따라간다. 서버 저장은 startTransition 안에서 이뤄지고 router.refresh() 로
   // 최종값과 sync. 저장 실패 시 재페치된 settings 값으로 자동 복구된다.
   const [opacityPreview, setOpacityPreview] = useState(currentOpacity)
+
+  // 모달 내부에서 미저장 파일 선택이 있으면 dirty. opacity 변경은 즉시 저장이라 제외.
+  useReportDirty(
+    'guild-banner-inline',
+    pendingFile !== null || croppedFile !== null,
+  )
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { headers } from 'next/headers'
 import { LogIn } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
@@ -6,6 +5,7 @@ import { classifyHost } from '@/lib/tenant-resolver'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
 import { getSession } from '@/lib/session'
 import LanguageSwitcher from './LanguageSwitcher'
+import { GuardedLink } from './UnsavedChangesProvider'
 
 const DEFAULT_BRAND_NAME = 'Albion ZvZ'
 
@@ -33,13 +33,13 @@ export default async function PublicShell({ children }: { children: React.ReactN
     <div className="min-h-screen w-full flex flex-col">
       <header className="border-b border-white/5 bg-[#0b0d12]/90 backdrop-blur-md sticky top-0 z-30">
         <div className="max-w-5xl mx-auto flex items-center justify-between px-4 py-3">
-          <Link
+          <GuardedLink
             href="/"
             className="text-amber-400 text-base font-bold flex items-center gap-2"
           >
             <span>⚔</span>
             <span>{brandName}</span>
-          </Link>
+          </GuardedLink>
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
             {!session && (

@@ -10,6 +10,7 @@ import { useTranslations } from 'next-intl'
 import { Save, Coins } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
 import { SLOT_KEYS, type SlotKey } from '@/types'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   initialExcluded: SlotKey[]
@@ -24,13 +25,16 @@ export default function AutoRegearSlotsForm({ initialExcluded, embedded = false 
 
   const initialIncluded = SLOT_KEYS.filter((k) => !initialExcluded.includes(k))
   const [included, setIncluded] = useState<Set<SlotKey>>(new Set(initialIncluded))
+  // 저장 직후 saved 셋을 새 값으로 sync — router.refresh 동안의 false-alarm 방지.
+  const [savedIncluded, setSavedIncluded] = useState<Set<SlotKey>>(new Set(initialIncluded))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
 
-  const sortedInitial = [...initialIncluded].sort().join(',')
+  const sortedSaved = [...savedIncluded].sort().join(',')
   const sortedCurrent = [...included].sort().join(',')
-  const dirty = sortedInitial !== sortedCurrent
+  const dirty = sortedSaved !== sortedCurrent
+  useReportDirty('auto-regear-slots', dirty)
 
   const toggle = (slot: SlotKey) => {
     const next = new Set(included)
@@ -49,6 +53,7 @@ export default function AutoRegearSlotsForm({ initialExcluded, embedded = false 
     const result = await updateAppSetting('auto_regear_excluded_slots', payload)
     if (result.error) setError(result.error)
     else {
+      setSavedIncluded(new Set(included))
       setSaved(true)
       router.refresh()
     }

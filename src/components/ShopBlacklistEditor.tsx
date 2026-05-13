@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Ban, Plus, X, Loader2 } from 'lucide-react'
 import { addBlacklist, removeBlacklist } from '@/app/actions/shop-admin'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   initial: string[]
@@ -17,6 +18,9 @@ export default function ShopBlacklistEditor({ initial }: Props) {
   const [input, setInput] = useState('')
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
+
+  // 입력란에 미추가 텍스트가 남아있는 동안만 작성 중. 추가/삭제는 즉시 서버 반영.
+  useReportDirty('shop-blacklist', input.trim() !== '')
 
   const handleAdd = () => {
     const name = input.trim()

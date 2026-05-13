@@ -14,6 +14,7 @@ import { useTranslations } from 'next-intl'
 import { Pencil, Check, X, Plus, Loader2 } from 'lucide-react'
 import type { AppSettingKey } from '@/lib/app-settings'
 import { updateAppSetting } from '@/app/actions/settings'
+import { useReportDirty } from '../UnsavedChangesProvider'
 
 export type EditorKind = 'text' | 'textarea' | 'select' | 'csv'
 
@@ -66,6 +67,13 @@ export default function InlineEditableField({
   const [csvSelected, setCsvSelected] = useState<string[]>(() => parseCsv(currentValue))
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  // settingKey 로 인스턴스 식별 — 한 페이지에 여러 InlineEditableField 가 동시에 마운트.
+  // 편집 모드 OFF 면 dirty=false. 편집 모드 ON 일 때만 값 비교.
+  const csvCurrentSorted = parseCsv(currentValue).slice().sort().join(',')
+  const csvDraftSorted = csvSelected.slice().sort().join(',')
+  const valueDirty = kind === 'csv' ? csvDraftSorted !== csvCurrentSorted : draft !== currentValue
+  useReportDirty(`inline-edit:${settingKey}`, enabled && editing && valueDirty)
 
   if (!enabled) {
     // 비-편집 모드 — 어드민이 아닐 때는 children 그대로. 빈 값 처리는 부모가 결정.

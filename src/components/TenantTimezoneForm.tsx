@@ -15,6 +15,7 @@ import {
   getUtcOffsetLabel,
   type TenantTimezoneOption,
 } from '@/lib/timezone'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   initialTimezone: string
@@ -26,11 +27,13 @@ export default function TenantTimezoneForm({ initialTimezone, embedded = false }
   const tc = useTranslations('common')
   const t = useTranslations('adminTimezone')
   const [timezone, setTimezone] = useState(initialTimezone)
+  const [savedTimezone, setSavedTimezone] = useState(initialTimezone)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
 
-  const dirty = timezone !== initialTimezone
+  const dirty = timezone !== savedTimezone
+  useReportDirty('tenant-timezone', dirty)
 
   const handleSave = async () => {
     setLoading(true)
@@ -40,6 +43,7 @@ export default function TenantTimezoneForm({ initialTimezone, embedded = false }
     if (result.error) {
       setError(result.error)
     } else {
+      setSavedTimezone(timezone)
       setSaved(true)
       router.refresh()
     }

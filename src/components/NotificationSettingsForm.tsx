@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { updateAppSetting } from '@/app/actions/settings'
 import { Save } from 'lucide-react'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   initialMessage: string
@@ -18,12 +19,14 @@ export default function NotificationSettingsForm({ initialMessage, embedded = fa
   const router = useRouter()
   const messageId = useId()
   const [message, setMessage] = useState(initialMessage)
+  const [savedMessage, setSavedMessage] = useState(initialMessage)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
 
-  const dirty = message !== initialMessage
+  const dirty = message !== savedMessage
   const tooLong = message.length > MAX_LENGTH
+  useReportDirty('notification-settings', dirty)
 
   const handleSave = async () => {
     if (!message.trim()) {
@@ -41,6 +44,7 @@ export default function NotificationSettingsForm({ initialMessage, embedded = fa
     if (result.error) {
       setError(result.error)
     } else {
+      setSavedMessage(message)
       setSaved(true)
       router.refresh()
     }

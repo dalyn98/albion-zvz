@@ -11,6 +11,7 @@ import AlbionOnboardingModal from '@/components/AlbionOnboardingModal'
 import SystemNoticesBanner from '@/components/SystemNoticesBanner'
 import ImpersonationBanner from '@/components/ImpersonationBanner'
 import { ToastProvider } from '@/components/ToastProvider'
+import { UnsavedChangesProvider } from '@/components/UnsavedChangesProvider'
 import { getSession } from '@/lib/session'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -471,10 +472,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="min-h-full bg-[#0f1117] text-white">
         <NextIntlClientProvider locale={locale} messages={messages}>
           <ToastProvider>
-            <ImpersonationBanner />
-            <SystemNoticesBanner />
-            {body}
-            {onboardingModalProps && <AlbionOnboardingModal {...onboardingModalProps} />}
+            <UnsavedChangesProvider>
+              <ImpersonationBanner />
+              <SystemNoticesBanner />
+              {body}
+              {onboardingModalProps && <AlbionOnboardingModal {...onboardingModalProps} />}
+            </UnsavedChangesProvider>
           </ToastProvider>
         </NextIntlClientProvider>
       </body>

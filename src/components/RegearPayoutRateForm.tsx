@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { updateAppSetting } from '@/app/actions/settings'
 import { Save } from 'lucide-react'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   initialPercent: number
@@ -19,6 +20,7 @@ export default function RegearPayoutRateForm({ initialPercent, embedded = false 
   const router = useRouter()
   const percentId = useId()
   const [percent, setPercent] = useState(String(initialPercent))
+  const [savedPercent, setSavedPercent] = useState(String(initialPercent))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
@@ -29,7 +31,8 @@ export default function RegearPayoutRateForm({ initialPercent, embedded = false 
     !Number.isInteger(percentNum) ||
     percentNum < PERCENT_MIN ||
     percentNum > PERCENT_MAX
-  const dirty = percent !== String(initialPercent)
+  const dirty = percent !== savedPercent
+  useReportDirty('regear-payout-rate', dirty)
 
   const handleSave = async () => {
     if (invalid) {
@@ -45,6 +48,7 @@ export default function RegearPayoutRateForm({ initialPercent, embedded = false 
       setLoading(false)
       return
     }
+    setSavedPercent(percent)
     setSaved(true)
     router.refresh()
     setLoading(false)

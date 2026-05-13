@@ -12,6 +12,7 @@ import {
 } from '@/app/actions/guild-profile-gallery'
 import { GALLERY_MAX_ITEMS, type GalleryItem } from '@/lib/guild-profile-gallery'
 import ImageCropModal from '@/components/ImageCropModal'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const CAPTION_MAX_LENGTH = 120
@@ -34,6 +35,11 @@ export default function GuildProfileGalleryEditor({ items }: Props) {
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
   const [busyItemId, setBusyItemId] = useState<string | null>(null)
+
+  useReportDirty(
+    'guild-profile-gallery-add',
+    pendingFile !== null || croppedFile !== null || caption.length > 0,
+  )
 
   const atMax = items.length >= GALLERY_MAX_ITEMS
 
@@ -241,6 +247,7 @@ function GalleryItemCard({
   const [, startTransition] = useTransition()
 
   const captionDirty = caption !== item.caption
+  useReportDirty(`gallery-item-caption:${item.id}`, captionDirty)
 
   const handleSaveCaption = () => {
     setSavingCaption(true)

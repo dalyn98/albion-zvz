@@ -4166,5 +4166,8 @@
     "docsReady": "📖 공식 가이드\n{url}",
     "upcomingNone": "📭 예정된 이벤트가 없어요. 이벤트 목록\n{url}",
     "upcoming": "⏰ 가장 임박한 이벤트\n**{title}**\n🕒 {when}\n🔗 {url}"
+  },
+  "unsavedChanges": {
+    "confirmLeave": "저장하지 않은 변경사항이 있습니다. 이 페이지를 떠나시겠습니까?"
   }
 }

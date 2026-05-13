@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Image as ImageIcon, Upload, Trash2 } from 'lucide-react'
 import { uploadLandingBanner, clearLandingBanner } from '@/app/actions/landing-banner'
 import ImageCropModal from '@/components/ImageCropModal'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   currentUrl: string
@@ -24,6 +25,8 @@ export default function LandingBannerForm({ currentUrl }: Props) {
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
+
+  useReportDirty('landing-banner', pendingFile !== null || croppedFile !== null)
 
   const displayUrl = previewUrl || currentUrl
 

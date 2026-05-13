@@ -7,6 +7,7 @@ import { Save } from 'lucide-react'
 import { updateRoleReward, type RoleReward } from '@/app/actions/regear-admin'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 export default function RoleRewardsEditor({ rewards }: { rewards: RoleReward[] }) {
   const t = useTranslations('adminRoleRewards')
@@ -28,12 +29,14 @@ function RoleRow({ reward }: { reward: RoleReward }) {
   const tRole = useTranslations('slotRole')
   const router = useRouter()
   const [value, setValue] = useState(reward.silver.toString())
+  const [savedSilver, setSavedSilver] = useState(reward.silver)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [pending, startTransition] = useTransition()
 
   const parsed = parseSilverInput(value)
-  const dirty = parsed !== null && parsed !== reward.silver
+  const dirty = parsed !== null && parsed !== savedSilver
+  useReportDirty(`role-reward:${reward.role_name}`, dirty)
 
   const save = () => {
     if (parsed === null) {
@@ -48,6 +51,7 @@ function RoleRow({ reward }: { reward: RoleReward }) {
         setError(result.error)
         return
       }
+      setSavedSilver(parsed)
       setSaved(true)
       router.refresh()
     })

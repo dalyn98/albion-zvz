@@ -12,6 +12,7 @@ import {
 import type { AppSettingKey } from '@/lib/app-settings'
 import { Image as ImageIcon, Save, Eraser, Upload, Trash2 } from 'lucide-react'
 import ImageCropModal from '@/components/ImageCropModal'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 export const NOTICE_MAX_LENGTH = 500
 const MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -52,6 +53,7 @@ export default function NoticeSettingForm({
   const router = useRouter()
   const textareaId = useId()
   const [text, setText] = useState(initialMessage)
+  const [savedText, setSavedText] = useState(initialMessage)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
@@ -64,9 +66,15 @@ export default function NoticeSettingForm({
   const [imgError, setImgError] = useState('')
   const [imgPending, startImgTransition] = useTransition()
 
-  const dirty = text !== initialMessage
+  const dirty = text !== savedText
   const tooLong = text.length > NOTICE_MAX_LENGTH
   const displayImageUrl = previewUrl || initialImageUrl
+  // settingKey 로 instance 식별 — 한 페이지에 여러 NoticeSettingForm 이 동시에 마운트될 수 있음.
+  // pendingFile/croppedFile 도 unsaved upload 로 간주.
+  useReportDirty(
+    `notice-setting:${settingKey}`,
+    dirty || pendingFile !== null || croppedFile !== null,
+  )
 
   const handleSave = async () => {
     if (tooLong) {
@@ -80,6 +88,7 @@ export default function NoticeSettingForm({
     if (result.error) {
       setError(result.error)
     } else {
+      setSavedText(text)
       setSaved(true)
       router.refresh()
     }

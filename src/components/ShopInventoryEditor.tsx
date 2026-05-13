@@ -18,6 +18,7 @@ import { computePointPrice } from '@/lib/shop/price'
 import { formatRelativeFine } from '@/lib/relative-time'
 import { getLocalizedItemName } from '@/lib/item-names'
 import type { Locale } from '@/i18n/locales'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 export type InventoryPriceWarning = 'quality' | 'window' | 'bluezone' | 'redzone' | null
 
@@ -322,6 +323,12 @@ function InventoryListItem({
   const [priceInput, setPriceInput] = useState(
     row.manualPrice !== null ? String(row.manualPrice) : '',
   )
+
+  // 인라인 편집 모드 중이고 값이 원본과 다를 때 dirty.
+  const stockDirty = editingStock && stockInput !== String(row.stock)
+  const initialPriceInput = row.manualPrice !== null ? String(row.manualPrice) : ''
+  const priceDirty = editingPrice && priceInput !== initialPriceInput
+  useReportDirty(`shop-inventory-row:${row.id}`, stockDirty || priceDirty)
 
   const pointPrice = computePointPrice({
     manualPrice: row.manualPrice,

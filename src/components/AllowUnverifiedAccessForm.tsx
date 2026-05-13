@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Save, ShieldCheck } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   initialAllowed: boolean
@@ -20,11 +21,13 @@ export default function AllowUnverifiedAccessForm({ initialAllowed, embedded = f
   const tc = useTranslations('common')
   const t = useTranslations('adminAllowUnverified')
   const [allowed, setAllowed] = useState(initialAllowed)
+  const [savedAllowed, setSavedAllowed] = useState(initialAllowed)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
 
-  const dirty = allowed !== initialAllowed
+  const dirty = allowed !== savedAllowed
+  useReportDirty('allow-unverified-access', dirty)
 
   const handleSave = async () => {
     setLoading(true)
@@ -37,6 +40,7 @@ export default function AllowUnverifiedAccessForm({ initialAllowed, embedded = f
     if (result.error) {
       setError(result.error)
     } else {
+      setSavedAllowed(allowed)
       setSaved(true)
       router.refresh()
     }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { updateAppSetting } from '@/app/actions/settings'
 import { Save } from 'lucide-react'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 // 길드 기본 DM 리드타임. 개인이 /me/settings 에서 override 할 수 있고, NULL 이면
 // 이 값을 따른다. 아래 옵션 외 임의 값(분 단위)도 입력 허용.
@@ -22,6 +23,7 @@ export default function EventDmLeadMinutesForm({ initialMinutes, embedded = fals
   const router = useRouter()
   const inputId = useId()
   const [minutes, setMinutes] = useState(String(initialMinutes))
+  const [savedMinutes, setSavedMinutes] = useState(String(initialMinutes))
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -29,7 +31,8 @@ export default function EventDmLeadMinutesForm({ initialMinutes, embedded = fals
   const num = Number(minutes)
   const invalid =
     !Number.isFinite(num) || !Number.isInteger(num) || num < LEAD_MIN || num > LEAD_MAX
-  const dirty = minutes !== String(initialMinutes)
+  const dirty = minutes !== savedMinutes
+  useReportDirty('event-dm-lead-minutes', dirty)
 
   const handleSave = () => {
     if (invalid) {
@@ -44,6 +47,7 @@ export default function EventDmLeadMinutesForm({ initialMinutes, embedded = fals
         setError(result.error)
         return
       }
+      setSavedMinutes(String(num))
       setSaved(true)
       router.refresh()
     })

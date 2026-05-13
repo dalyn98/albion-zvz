@@ -12,6 +12,7 @@ import {
   type AccentColor,
   type RecruitmentStatus,
 } from '@/lib/guild-profile'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 const DESCRIPTION_MAX_LENGTH = 500
 const URL_MAX_LENGTH = 500
@@ -39,6 +40,10 @@ export default function GuildProfileEditor({
     initialRecruitmentStatus,
   )
   const [discordInviteUrl, setDiscordInviteUrl] = useState(initialDiscordInviteUrl)
+  // 저장 성공 시 saved* 를 즉시 새 값으로 sync — router.refresh 가 새 prop 을
+  // 가져오기 전까지의 false-alarm 가드 방지.
+  const [savedDescription, setSavedDescription] = useState(initialDescription)
+  const [savedDiscordInviteUrl, setSavedDiscordInviteUrl] = useState(initialDiscordInviteUrl)
 
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [savedKey, setSavedKey] = useState<string | null>(null)
@@ -50,8 +55,9 @@ export default function GuildProfileEditor({
 
   const descTooLong = description.length > DESCRIPTION_MAX_LENGTH
   const urlTooLong = discordInviteUrl.length > URL_MAX_LENGTH
-  const descDirty = description !== initialDescription
-  const urlDirty = discordInviteUrl !== initialDiscordInviteUrl
+  const descDirty = description !== savedDescription
+  const urlDirty = discordInviteUrl !== savedDiscordInviteUrl
+  useReportDirty('guild-profile-editor', descDirty || urlDirty)
 
   const save = (
     label: string,
@@ -68,6 +74,8 @@ export default function GuildProfileEditor({
         setSavingKey(null)
         return
       }
+      if (label === 'description') setSavedDescription(value)
+      else if (label === 'discord') setSavedDiscordInviteUrl(value)
       setSavingKey(null)
       setSavedKey(label)
       router.refresh()

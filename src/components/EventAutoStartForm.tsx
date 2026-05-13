@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { updateAppSetting } from '@/app/actions/settings'
 import { Save } from 'lucide-react'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   initialEnabled: boolean
@@ -15,11 +16,13 @@ export default function EventAutoStartForm({ initialEnabled, embedded = false }:
   const t = useTranslations('adminEventAutoStart')
   const router = useRouter()
   const [enabled, setEnabled] = useState(initialEnabled)
+  const [savedEnabled, setSavedEnabled] = useState(initialEnabled)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
 
-  const dirty = enabled !== initialEnabled
+  const dirty = enabled !== savedEnabled
+  useReportDirty('event-auto-start', dirty)
 
   const handleSave = async () => {
     setLoading(true)
@@ -29,6 +32,7 @@ export default function EventAutoStartForm({ initialEnabled, embedded = false }:
     if (result.error) {
       setError(result.error)
     } else {
+      setSavedEnabled(enabled)
       setSaved(true)
       router.refresh()
     }

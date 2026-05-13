@@ -21,6 +21,7 @@ import {
 } from '@/app/actions/onboarding'
 import { updateAlbionHomeGuild } from '@/app/actions/settings'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   initialServer: AlbionServer
@@ -67,6 +68,9 @@ export default function AlbionHomeGuildForm({
   const [server, setServer] = useState<AlbionServer>(initialServer)
   const [guildId, setGuildId] = useState(initialGuildId)
   const [guildName, setGuildName] = useState(initialGuildName ?? '')
+  // 저장 직후 saved* sync — router.refresh 동안의 false-alarm 차단.
+  const [savedServer, setSavedServer] = useState<AlbionServer>(initialServer)
+  const [savedGuildId, setSavedGuildId] = useState(initialGuildId)
   const [query, setQuery] = useState('')
   const [candidates, setCandidates] = useState<AlbionGuildCandidate[]>([])
   const [searching, setSearching] = useState(false)
@@ -74,7 +78,8 @@ export default function AlbionHomeGuildForm({
   const [saved, setSaved] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  const dirty = server !== initialServer || guildId !== initialGuildId
+  const dirty = server !== savedServer || guildId !== savedGuildId
+  useReportDirty('albion-home-guild', editable && dirty)
 
   const latestRequestRef = useRef(0)
   useEffect(() => {
@@ -138,6 +143,8 @@ export default function AlbionHomeGuildForm({
         setError(res.error)
         return
       }
+      setSavedServer(server)
+      setSavedGuildId(guildId)
       setSaved(true)
       router.refresh()
     })

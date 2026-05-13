@@ -18,6 +18,7 @@ import {
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
 import { compressImageIfLarge } from '@/lib/image-compress'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   detail: MyRegearDetail
@@ -123,6 +124,12 @@ export default function MyManualRegearEditor({ detail }: Props) {
     primarySlot.pendingFile !== null ||
     secondarySlot.pendingFile !== null ||
     secondarySlot.pendingRemove
+
+  // 미저장 변경 가드 — pending + 수동인 경우(=편집 가능)에만 의미가 있다.
+  // claimed silver 입력이 원본과 다르거나 스크린샷 변경이 걸려 있으면 dirty.
+  const isDirty =
+    editable && (inputValue !== detail.claimedSilver.toString() || hasShotChanges)
+  useReportDirty(`me-regear:${detail.id}`, isDirty)
 
   const handleSaveScreenshots = () => {
     if (!hasShotChanges) return

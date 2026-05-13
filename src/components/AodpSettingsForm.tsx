@@ -11,6 +11,7 @@ import { useTranslations } from 'next-intl'
 import { Save, LineChart, Info } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 type PriceMode = 'spot' | 'avg_1d' | 'avg_3d' | 'avg_7d' | 'avg_14d'
 type Quality = 1 | 2 | 3 | 4 | 5
@@ -47,18 +48,21 @@ export default function AodpSettingsForm({ initialCities, initialMode, initialMi
   const t = useTranslations('adminAodp')
   const tShop = useTranslations('shop')
   // 기준 도시는 1개만. 기존에 여러 개 저장됐던 값도 첫 항목만 남긴다.
-  const [city, setCity] = useState<string>(
-    initialCities[0] ?? (AODP_ALLOWED_CITIES[0] as string),
-  )
+  const initialCity = initialCities[0] ?? (AODP_ALLOWED_CITIES[0] as string)
+  const [city, setCity] = useState<string>(initialCity)
   const [mode, setMode] = useState<PriceMode>(initialMode)
   const [minQuality, setMinQuality] = useState<Quality>(initialMinQuality)
+  // 저장 직후 saved* sync 로 router.refresh 동안의 false-alarm 차단.
+  const [savedCity, setSavedCity] = useState<string>(initialCity)
+  const [savedMode, setSavedMode] = useState<PriceMode>(initialMode)
+  const [savedMinQuality, setSavedMinQuality] = useState<Quality>(initialMinQuality)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
 
-  const initialCity = initialCities[0] ?? (AODP_ALLOWED_CITIES[0] as string)
   const dirty =
-    city !== initialCity || mode !== initialMode || minQuality !== initialMinQuality
+    city !== savedCity || mode !== savedMode || minQuality !== savedMinQuality
+  useReportDirty('aodp-settings', dirty)
 
   const handleSave = async () => {
     setLoading(true)
@@ -73,6 +77,9 @@ export default function AodpSettingsForm({ initialCities, initialMode, initialMi
     if (firstError?.error) {
       setError(firstError.error)
     } else {
+      setSavedCity(city)
+      setSavedMode(mode)
+      setSavedMinQuality(minQuality)
       setSaved(true)
       router.refresh()
     }

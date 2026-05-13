@@ -4166,5 +4166,8 @@
     "docsReady": "📖 公式ガイド\n{url}",
     "upcomingNone": "📭 予定されているイベントはありません。イベント一覧\n{url}",
     "upcoming": "⏰ 直近のイベント\n**{title}**\n🕒 {when}\n🔗 {url}"
+  },
+  "unsavedChanges": {
+    "confirmLeave": "保存されていない変更があります。このページを離れてもよろしいですか？"
   }
 }

@@ -28,6 +28,7 @@ import {
 import { formatDateTimeWithSeconds } from '@/lib/format-datetime'
 import { getLocalizedItemName } from '@/lib/item-names'
 import type { Locale } from '@/i18n/locales'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—'
@@ -57,6 +58,12 @@ export default function ShopBaselineForm() {
   const [confirmResult, setConfirmResult] = useState<string | null>(null)
   const [confirmDrift, setConfirmDrift] = useState<DriftReport | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // raw 로그 또는 notes 가 입력돼 있고 아직 확정 결과가 없으면 작성 중.
+  useReportDirty(
+    'shop-baseline',
+    !confirmResult && (raw.trim() !== '' || notes.trim() !== ''),
+  )
 
   const runPreview = async () => {
     if (!raw.trim()) return

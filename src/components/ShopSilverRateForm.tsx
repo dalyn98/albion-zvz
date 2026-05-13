@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Save, Percent } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   initial: string
@@ -36,11 +37,13 @@ export default function ShopSilverRateForm({ initial }: Props) {
   const router = useRouter()
   const initialPercent = multiplierToPercent(initial)
   const [percent, setPercent] = useState(String(initialPercent))
+  const [savedPercent, setSavedPercent] = useState(String(initialPercent))
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
 
-  const dirty = percent.trim() !== String(initialPercent)
+  const dirty = percent.trim() !== savedPercent
+  useReportDirty('shop-silver-rate', dirty)
   const parsed = Number(percent)
   const isValid =
     Number.isFinite(parsed) &&
@@ -64,6 +67,7 @@ export default function ShopSilverRateForm({ initial }: Props) {
         setError(result.error)
         return
       }
+      setSavedPercent(String(parsed))
       setSaved(true)
       router.refresh()
     })

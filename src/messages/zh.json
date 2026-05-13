@@ -4166,5 +4166,8 @@
     "docsReady": "📖 官方指南\n{url}",
     "upcomingNone": "📭 暂无即将开始的活动。活动列表\n{url}",
     "upcoming": "⏰ 最临近的活动\n**{title}**\n🕒 {when}\n🔗 {url}"
+  },
+  "unsavedChanges": {
+    "confirmLeave": "您有未保存的更改。确定要离开此页面吗？"
   }
 }

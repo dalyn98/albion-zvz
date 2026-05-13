@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { createDraftEvent } from '@/app/actions/admin'
 import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, type EventCategory } from '@/types'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   allowedCategories: EventCategory[]
@@ -27,6 +28,10 @@ export default function NewEventDraftForm({ allowedCategories }: Props) {
   const [category, setCategory] = useState<EventCategory>(visibleCategories[0] ?? '전투')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // 제목 입력만 있어도 "작성 중" 으로 간주. 카테고리만 바꾼 상태는 사용자가
+  // 입력한 텍스트가 없으므로 손실 걱정 대상이 아니다.
+  useReportDirty('new-event-draft', title.trim() !== '')
 
   const handleSubmit = async () => {
     const trimmed = title.trim()

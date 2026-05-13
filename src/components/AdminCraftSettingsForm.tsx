@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Save } from 'lucide-react'
 import { updateCraftSettingsAdmin, type CraftBoxConfig } from '@/app/actions/craft'
 import { useToast } from './ToastProvider'
+import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   initial: CraftBoxConfig
@@ -22,7 +23,19 @@ export default function AdminCraftSettingsForm({ initial }: Props) {
   const [rangeMin, setRangeMin] = useState(String(initial.rangeMin))
   const [rangeMax, setRangeMax] = useState(String(initial.rangeMax))
   const [expiryDays, setExpiryDays] = useState(String(initial.expiryDays))
+  // 저장 성공 시 saved* 를 새 값으로 sync — router.refresh 동안의 false-alarm 방지.
+  const [savedEnabled, setSavedEnabled] = useState(initial.enabled)
+  const [savedRangeMin, setSavedRangeMin] = useState(String(initial.rangeMin))
+  const [savedRangeMax, setSavedRangeMax] = useState(String(initial.rangeMax))
+  const [savedExpiryDays, setSavedExpiryDays] = useState(String(initial.expiryDays))
   const [pending, startTransition] = useTransition()
+
+  const dirty =
+    enabled !== savedEnabled ||
+    rangeMin !== savedRangeMin ||
+    rangeMax !== savedRangeMax ||
+    expiryDays !== savedExpiryDays
+  useReportDirty('admin-craft-settings', dirty)
 
   const submit = () => {
     const min = Number(rangeMin)
@@ -53,6 +66,10 @@ export default function AdminCraftSettingsForm({ initial }: Props) {
         toast.error(r.error)
         return
       }
+      setSavedEnabled(enabled)
+      setSavedRangeMin(String(min))
+      setSavedRangeMax(String(max))
+      setSavedExpiryDays(String(expiry))
       toast.success(t('toastSaved'))
       router.refresh()
     })
