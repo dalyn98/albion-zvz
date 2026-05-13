@@ -383,7 +383,7 @@ function SelfDisplay({
       </span>
       <RoleChips roles={myRow.possible_roles} tRole={tRole} />
       {myRow.notes && (
-        <span className="text-[11px] text-gray-400 italic">"{myRow.notes}"</span>
+        <span className="text-[11px] text-gray-400 italic">&quot;{myRow.notes}&quot;</span>
       )}
     </div>
   )
@@ -456,7 +456,7 @@ function RowItem({
         />
         <RoleChips roles={row.possible_roles} tRole={tRole} />
         {row.notes && (
-          <span className="text-[11px] text-gray-400 italic">"{row.notes}"</span>
+          <span className="text-[11px] text-gray-400 italic">&quot;{row.notes}&quot;</span>
         )}
       </div>
       {canManage && (

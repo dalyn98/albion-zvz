@@ -105,7 +105,7 @@ export default async function SuperAdminDashboardPage() {
         </h2>
         <div className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
           <p className="text-xs text-gray-400">
-            cron 은 5분 주기로 자동 실행됩니다. "방금 전투했는데 지금 보고 싶다"
+            cron 은 5분 주기로 자동 실행됩니다. &quot;방금 전투했는데 지금 보고 싶다&quot;
             처럼 즉시성이 필요할 때만 강제 실행하세요. 모든 활성 테넌트의 전투/킬로그를
             한꺼번에 갱신하므로 최대 2분이 걸릴 수 있습니다.
           </p>

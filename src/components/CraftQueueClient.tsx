@@ -27,7 +27,6 @@ import { translateSlotRole } from '@/lib/slot-role-i18n'
 import {
   groupByEvent,
   formatGatherTime,
-  NO_EVENT_KEY,
   type EventGroup,
 } from '@/lib/craft-grouping'
 import {

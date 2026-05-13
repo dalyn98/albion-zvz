@@ -608,7 +608,7 @@ async function fetchAodpPricesExact(
     for (const k of keys) {
       if (!historyBestByItem.has(itemId(k))) missingItems.add(itemId(k))
     }
-    let spotBestByItem = new Map<
+    const spotBestByItem = new Map<
       string,
       { price: number; city: string; sampledAt: string; sampleCount: null }
     >()

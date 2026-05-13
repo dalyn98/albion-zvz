@@ -12,7 +12,6 @@ import {
   previewBackupImport,
   type BackupImportPlan,
   type BackupImportSummary,
-  type GuildBackup,
 } from '@/lib/guild-backup'
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
