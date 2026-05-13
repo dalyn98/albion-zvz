@@ -39,8 +39,9 @@ yarn-error.log*
 # build-items upstream cache
 .cache/
 
-# supabase CLI local state (project ref/pooler cache, no secrets but still local)
+# supabase CLI local state (project ref/pooler cache + local branch tracking, no secrets but still local)
 supabase/.temp/
+supabase/.branches/
 
 # typescript
 *.tsbuildinfo
