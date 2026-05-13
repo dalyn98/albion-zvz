@@ -13,7 +13,7 @@ export default defineConfig({
     environment: 'node',
     globals: false,
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
-    exclude: ['node_modules', '.next', 'dist'],
+    exclude: ['node_modules', '.next', 'dist', 'src/**/*.integration.test.ts'],
     testTimeout: 10_000,
   },
 })
