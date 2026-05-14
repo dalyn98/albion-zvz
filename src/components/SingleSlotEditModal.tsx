@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import SlotEditor, { type SlotInput } from './SlotEditor'
@@ -35,9 +35,14 @@ export default function SingleSlotEditModal({
   const toast = useToast()
   const router = useRouter()
   const [input, setInput] = useState<SlotInput>(() => slotToInput(slot))
-  // slotToInput 은 안정적인 직렬화를 보장하므로 JSON 비교로 충분. savedSerialized 는
-  // 저장 성공 직후 setState 로 동기 갱신해 dirty 가 router.refresh 완료를 기다리지 않게 한다.
-  const [savedSerialized, setSavedSerialized] = useState(() => JSON.stringify(slotToInput(slot)))
+  // savedRef 는 "마지막 저장 시점 스냅샷" 의 동기 보관소. setState 는 React 가
+  // 다음 렌더까지 비동기 batched 로 미루지만, 같은 클릭 안에서 SlotEditor 의
+  // save 버튼 onClick 이 await onSave() 직후 standaloneMode.onClose() 를 호출할 때
+  // 그 standaloneMode 는 클릭 시점의 stale closure 라 handleClose 안의 dirty 가
+  // 아직 true 로 평가된다. ref 로 동기 갱신해 stale handleClose 도 "방금 저장됨" 을
+  // 즉시 인지하게 한다.
+  const savedRef = useRef<string>(JSON.stringify(slotToInput(slot)))
+  const [savedSerialized, setSavedSerialized] = useState<string>(() => savedRef.current)
   const dirty = JSON.stringify(input) !== savedSerialized
   useReportDirty(`single-slot-edit:${slot.id}`, dirty)
 
@@ -57,7 +62,11 @@ export default function SingleSlotEditModal({
       toast.error(result.error)
       return false
     }
-    setSavedSerialized(JSON.stringify(input))
+    const newSnap = JSON.stringify(input)
+    // ref 를 setState 보다 먼저 동기 갱신. 곧 호출될 stale handleClose 가
+    // savedRef.current 를 읽어 currentDirty=false 로 판단하게 함.
+    savedRef.current = newSnap
+    setSavedSerialized(newSnap)
     toast.success(t('buildSaved'))
     // revalidatePath 는 서버 캐시만 무효화한다 — 현재 보고 있는 페이지 데이터를
     // 갱신하려면 클라이언트 쪽에서 router.refresh 를 호출해야 한다.
@@ -67,10 +76,13 @@ export default function SingleSlotEditModal({
 
   // 모달 close 시 본인 폼이 dirty 면 confirm. 다른 폼의 전역 dirty 와 무관하게
   // 이 모달 안의 미저장만 검사한다 (모달 닫기는 페이지 이탈이 아니다).
+  // dirty 를 closure 가 아닌 ref + 현재 input 비교로 재계산해야 같은 클릭의
+  // save → close 순차 호출에서 "방금 저장한 상태" 를 정확히 반영한다.
   const handleClose = useCallback(() => {
-    if (dirty && !window.confirm(tUnsaved('confirmLeave'))) return
+    const currentDirty = JSON.stringify(input) !== savedRef.current
+    if (currentDirty && !window.confirm(tUnsaved('confirmLeave'))) return
     onClose()
-  }, [dirty, onClose, tUnsaved])
+  }, [input, onClose, tUnsaved])
 
   return (
     <SlotEditor
