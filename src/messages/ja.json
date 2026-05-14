@@ -2923,7 +2923,9 @@
     "noEntries": "該当期間の記録なし",
     "noEntriesSurvival": "評価イベント5回以上が必要",
     "noEntriesKd": "キル+デス5回以上が必要",
-    "noEntriesWinRate": "確定戦闘5回以上が必要"
+    "noEntriesWinRate": "確定戦闘5回以上が必要",
+    "justUpdated": "たった今更新",
+    "emptyHint": "まだZvZ記録が蓄積されていません。戦闘に参加すると自動で集計されます。"
   },
   "memberDetail": {
     "recentLogin": "最近のログイン: {date}",

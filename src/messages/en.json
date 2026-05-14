@@ -2923,7 +2923,9 @@
     "noEntries": "No records for this window",
     "noEntriesSurvival": "Need ≥5 evaluated events",
     "noEntriesKd": "Need ≥5 total kills+deaths",
-    "noEntriesWinRate": "Need ≥5 finalized battles"
+    "noEntriesWinRate": "Need ≥5 finalized battles",
+    "justUpdated": "Just updated",
+    "emptyHint": "No ZvZ records yet. Stats accumulate automatically as your guild fights."
   },
   "memberDetail": {
     "recentLogin": "Last login: {date}",

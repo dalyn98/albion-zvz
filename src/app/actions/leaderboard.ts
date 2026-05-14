@@ -46,6 +46,9 @@ export interface LeaderboardData {
   survival: LeaderboardEntry[]
   kd: LeaderboardEntry[]
   winRate: LeaderboardEntry[]
+  // 액션이 데이터를 만들어낸 시각. UI 의 "방금 업데이트" 칩 데이터 소스.
+  // force-dynamic 라우트라 매 요청마다 새로 계산되므로 곧 stale 표시에 쓸 수 있다.
+  fetchedAt: string
 }
 
 const TOP_N = 10
@@ -275,5 +278,5 @@ export async function getLeaderboard(
       evaluatedEvents: a.evaluatedOutcomeEvents,
     }))
 
-  return { window, kills, participation, survival, kd, winRate }
+  return { window, kills, participation, survival, kd, winRate, fetchedAt: new Date().toISOString() }
 }

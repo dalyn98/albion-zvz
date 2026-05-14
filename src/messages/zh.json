@@ -2923,7 +2923,9 @@
     "noEntries": "此时间段内无记录",
     "noEntriesSurvival": "需评估场次 ≥5",
     "noEntriesKd": "需击杀+阵亡总数 ≥5",
-    "noEntriesWinRate": "需已确定战斗 ≥5 场"
+    "noEntriesWinRate": "需已确定战斗 ≥5 场",
+    "justUpdated": "刚刚更新",
+    "emptyHint": "暂无 ZvZ 记录。参与战斗后将自动累积统计数据。"
   },
   "memberDetail": {
     "recentLogin": "最近登录:{date}",

@@ -2923,7 +2923,9 @@
     "noEntries": "해당 기간 기록 없음",
     "noEntriesSurvival": "평가 이벤트 5회 이상 필요",
     "noEntriesKd": "킬+데스 5회 이상 필요",
-    "noEntriesWinRate": "확정 전투 5회 이상 필요"
+    "noEntriesWinRate": "확정 전투 5회 이상 필요",
+    "justUpdated": "방금 업데이트",
+    "emptyHint": "아직 ZvZ 기록이 쌓이지 않았어요. 전투에 참여하면 자동으로 집계됩니다."
   },
   "memberDetail": {
     "recentLogin": "최근 로그인: {date}",

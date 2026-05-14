@@ -1,10 +1,12 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Sword, CalendarCheck, Heart, Target, Trophy, Swords } from 'lucide-react'
+import { Sword, CalendarCheck, Heart, Target, Trophy, Swords, Sparkles } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { getLeaderboard, type LeaderboardEntry, type LeaderboardWindow } from '@/app/actions/leaderboard'
 import MemberAvatar from '@/components/MemberAvatar'
+import { isLeaderboardPolishV2 } from '@/lib/polish-flags'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,10 +29,14 @@ export default async function LeaderboardPage({
   const params = await searchParams
   const window: LeaderboardWindow = isWindow(params.window) ? params.window : 'week'
 
-  const [data, t] = await Promise.all([
+  // tenant slug 으로 staged rollout 게이트 — 멘헤라에서만 polish v2 활성.
+  const guildId = await getSessionGuildId(session)
+  const [data, t, tenantConfig] = await Promise.all([
     getLeaderboard(window),
     getTranslations('leaderboard'),
+    getTenantDiscordConfig(guildId),
   ])
+  const polishV2 = isLeaderboardPolishV2(tenantConfig?.slug)
 
   return (
     <main className="flex-1 w-full max-w-4xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -42,27 +48,46 @@ export default async function LeaderboardPage({
         <p className="text-gray-400 text-sm">{t('description')}</p>
       </div>
 
-      <nav className="flex items-center gap-1 bg-gray-900 border border-gray-800 rounded-lg p-1 w-fit">
-        {WINDOWS.map((w) => {
-          const active = w === window
-          return (
-            <Link
-              key={w}
-              href={`/leaderboard?window=${w}`}
-              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${
-                active
-                  ? 'bg-amber-500/20 text-amber-300'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800'
-              }`}
-            >
-              {t(`window.${w}`)}
-            </Link>
-          )
-        })}
-      </nav>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <nav className="flex items-center gap-1 bg-gray-900 border border-gray-800 rounded-lg p-1 w-fit">
+          {WINDOWS.map((w) => {
+            const active = w === window
+            return (
+              <Link
+                key={w}
+                href={`/leaderboard?window=${w}`}
+                className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${
+                  active
+                    ? 'bg-amber-500/20 text-amber-300'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                }`}
+              >
+                {t(`window.${w}`)}
+              </Link>
+            )
+          })}
+        </nav>
+        {polishV2 && data && (
+          <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-300/80 bg-emerald-500/5 border border-emerald-500/20 rounded-full px-2.5 py-1">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            </span>
+            {t('justUpdated')}
+          </span>
+        )}
+      </div>
 
       {!data ? (
-        <p className="text-gray-500 text-sm text-center py-8">{t('empty')}</p>
+        polishV2 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <Sparkles size={28} className="text-amber-400/60 mb-3" />
+            <p className="text-gray-300 text-sm font-medium">{t('empty')}</p>
+            <p className="text-gray-500 text-xs mt-1 max-w-sm">{t('emptyHint')}</p>
+          </div>
+        ) : (
+          <p className="text-gray-500 text-sm text-center py-8">{t('empty')}</p>
+        )
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <LeaderboardCard
@@ -74,6 +99,7 @@ export default async function LeaderboardPage({
             subText={(e) =>
               e.deaths != null ? t('killsSub', { kills: e.kills ?? 0, deaths: e.deaths }) : undefined
             }
+            polish={polishV2}
           />
           <LeaderboardCard
             title={t('participation')}
@@ -81,6 +107,7 @@ export default async function LeaderboardPage({
             entries={data.participation}
             emptyText={t('noEntries')}
             formatValue={(e) => t('participationUnit', { count: e.value })}
+            polish={polishV2}
           />
           <LeaderboardCard
             title={t('survival')}
@@ -93,6 +120,7 @@ export default async function LeaderboardPage({
                 ? t('evaluatedSub', { count: e.evaluatedEvents })
                 : undefined
             }
+            polish={polishV2}
           />
           <LeaderboardCard
             title={t('kd')}
@@ -105,6 +133,7 @@ export default async function LeaderboardPage({
                 ? t('kdSub', { kills: e.kills, deaths: e.deaths })
                 : undefined
             }
+            polish={polishV2}
           />
           <LeaderboardCard
             title={t('winRate')}
@@ -117,6 +146,7 @@ export default async function LeaderboardPage({
                 ? t('winLossSub', { wins: e.wins, losses: e.losses })
                 : undefined
             }
+            polish={polishV2}
           />
         </div>
       )}
@@ -131,6 +161,7 @@ interface LeaderboardCardProps {
   emptyText: string
   formatValue: (entry: LeaderboardEntry) => string
   subText?: (entry: LeaderboardEntry) => string | undefined
+  polish: boolean
 }
 
 function LeaderboardCard({
@@ -140,9 +171,14 @@ function LeaderboardCard({
   emptyText,
   formatValue,
   subText,
+  polish,
 }: LeaderboardCardProps) {
   return (
-    <section className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-2">
+    <section
+      className={`bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-2 ${
+        polish ? 'transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-glow' : ''
+      }`}
+    >
       <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
         {icon}
         {title}
@@ -158,11 +194,20 @@ function LeaderboardCard({
             const href = entry.discord_id
               ? `/members/${entry.discord_id}`
               : `/members/albion/${entry.albion_player_id}`
+            const isTopRank = rank === 1
             return (
-              <li key={entry.albion_player_id}>
+              <li
+                key={entry.albion_player_id}
+                className={polish ? 'lb-row-in' : undefined}
+                style={polish ? { animationDelay: `${idx * 40}ms` } : undefined}
+              >
                 <Link
                   href={href}
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-800/70 transition-colors"
+                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors ${
+                    polish && isTopRank
+                      ? 'bg-amber-500/5 hover:bg-amber-500/10 lb-rank1-glow'
+                      : 'hover:bg-gray-800/70'
+                  }`}
                 >
                   <span
                     className={`w-6 text-center text-xs font-bold tabular-nums flex-shrink-0 ${
