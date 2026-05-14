@@ -34,6 +34,7 @@ export default function SingleSlotEditModal({
   const tUnsaved = useTranslations('unsavedChanges')
   const toast = useToast()
   const router = useRouter()
+  const initialSnap = JSON.stringify(slotToInput(slot))
   const [input, setInput] = useState<SlotInput>(() => slotToInput(slot))
   // savedRef 는 "마지막 저장 시점 스냅샷" 의 동기 보관소. setState 는 React 가
   // 다음 렌더까지 비동기 batched 로 미루지만, 같은 클릭 안에서 SlotEditor 의
@@ -41,8 +42,8 @@ export default function SingleSlotEditModal({
   // 그 standaloneMode 는 클릭 시점의 stale closure 라 handleClose 안의 dirty 가
   // 아직 true 로 평가된다. ref 로 동기 갱신해 stale handleClose 도 "방금 저장됨" 을
   // 즉시 인지하게 한다.
-  const savedRef = useRef<string>(JSON.stringify(slotToInput(slot)))
-  const [savedSerialized, setSavedSerialized] = useState<string>(() => savedRef.current)
+  const savedRef = useRef<string>(initialSnap)
+  const [savedSerialized, setSavedSerialized] = useState<string>(initialSnap)
   const dirty = JSON.stringify(input) !== savedSerialized
   useReportDirty(`single-slot-edit:${slot.id}`, dirty)
 
