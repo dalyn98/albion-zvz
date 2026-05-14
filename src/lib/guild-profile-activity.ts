@@ -138,6 +138,10 @@ export async function loadTopContributorsThisWeek(
   // 리더보드는 "앱 내 가입한 길드원" 만 표시 — Albion API 로 동기화된 길드원이어도
   // Discord OAuth 로 앱에 가입하지 않았다면 노출하지 않는다. 길드원 카운트
   // (`길드원 N명`) 와 동일한 분모를 쓰기 위함.
+  //
+  // killboard_events 는 discord_id IS NOT NULL 게이트로 "사이트 가입 이후
+  // 발생한 kill" 만 통과시킨다. 리더보드/멤버 상세/RPC 와 동일 정책.
+  // (관련 메모: feedback_albion_zvz_stats_membership_policy)
   const [avatarsRes, killboardRes, trackedBattles, participations] =
     await Promise.all([
       db
@@ -150,7 +154,8 @@ export async function loadTopContributorsThisWeek(
         .from('killboard_events')
         .select('albion_player_id, role, occurred_at, battle_id')
         .eq('guild_id', guildId)
-        .gte('occurred_at', sinceIso),
+        .gte('occurred_at', sinceIso)
+        .not('discord_id', 'is', null),
       fetchTrackedBattleWindows(db, guildId, sinceIso, { bundleSplits }),
       fetchMemberBattleParticipations(db, guildId, sinceIso),
     ])

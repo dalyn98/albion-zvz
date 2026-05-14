@@ -626,11 +626,13 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     // 를 albion_player_id 기준으로 조회할 수 있다. (guild_id, discord_id) PK
     // 인덱스라 1 roundtrip 비용은 무시해도 됨.
     //
-    // 과거에는 killboard_events 를 discord_id 기준으로 조회했는데, "Albion 길드
-    // 가입 후 한참 뒤 Discord 연동" 순서인 멤버는 연동 전 Phase 3 에서 sync 된
-    // 이벤트가 discord_id=NULL 로 남아 멤버 상세 K/D 가 누락. 리더보드 RPC 와
-    // 수치가 어긋나는 원인. albion_player_id 는 sync 시 항상 set 되므로 이쪽이
-    // 정합성 있는 키.
+    // killboard_events 는 (albion_player_id + discord_id IS NOT NULL) 로 조회.
+    // discord_id 게이트는 "사이트 가입 이후 발생한 kill" 만 통과시키는 자연
+    // 필터 — killboard sync 가 upsert 시 ignoreDuplicates=true 라 가입 전
+    // 미연동 sync 된 행은 discord_id=NULL 로 남는다. 리더보드 / 길드 공개
+    // 페이지 / 멤버 상세 / member_ranking_counts RPC 모두 동일 정책으로
+    // 일치 — "사이트 가입자 + 가입 이후 기록" 만 통계 모집단.
+    // (관련 메모: feedback_albion_zvz_stats_membership_policy)
     const avatarRes = await db
       .from('guild_avatars')
       .select('discord_id, username, avatar, albion_player_id, updated_at, preferred_language')
@@ -686,6 +688,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
             .select('event_id, role, fame, item_power, occurred_at, equipment, opponent_name, opponent_guild, opponent_alliance, battle_id')
             .eq('guild_id', guildId)
             .eq('albion_player_id', memberAlbionId)
+            .not('discord_id', 'is', null)
         : Promise.resolve({ data: [], error: null } as const),
       // 랭킹 RPC — 길드 전체 멤버의 kills/participations 를 집계해서 반환. 본인
       // 카운트와 비교해 상위 percentile 계산. 기존 PostgREST 쿼리는 group by 를

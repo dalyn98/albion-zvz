@@ -100,10 +100,16 @@ export async function getLeaderboard(
     .is('withdrawn_at', null)
     .not('albion_player_id', 'is', null)
 
+  // discord_id IS NOT NULL 은 "가입 이후 발생 kill" 게이트. killboard sync 가
+  // upsert 시 ignoreDuplicates=true 라 가입 전 미연동 sync 된 행은 discord_id=NULL
+  // 인 채로 남는다. 따라서 이 필터가 자연스럽게 가입 후 kill 만 통과시킴.
+  // 정책: 업적/통계/리더보드 = "사이트 가입자 + 가입 이후 기록".
+  // (관련 메모: feedback_albion_zvz_stats_membership_policy)
   let killboardQ = db
     .from('killboard_events')
     .select('albion_player_id, role, occurred_at, battle_id')
     .eq('guild_id', guildId)
+    .not('discord_id', 'is', null)
   if (cutoff) killboardQ = killboardQ.gte('occurred_at', cutoff)
 
   const [avatarsRes, killboardRes, trackedBattles, participations] = await Promise.all([
