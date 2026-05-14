@@ -48,6 +48,8 @@ export default function SaveSlotAsTemplateButton({ slot, defaultName, defaultCat
   useEffect(() => {
     if (!open) return
     let cancelled = false
+    // 모달 열림 → 템플릿 fetch 시작. open prop 변화 → 비동기 외부 호출 트리거.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setListLoading(true)
     listSlotTemplates()
       .then((result) => {

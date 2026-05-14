@@ -124,6 +124,9 @@ export default function RegearRequestButton({
   // Client-side "waiting for killboard" check. Server re-validates; this is
   // just to keep the button from opening a modal that will error on submit.
   const windowOpenMs = new Date(windowOpenAt).getTime()
+  // 윈도우 시작 시각 클라이언트 체크 — 서버가 권위, 여긴 UX 가드일 뿐.
+  // 다음 인터랙션 시 재평가되면 충분하므로 render purity 위배는 의도된 가드.
+  // eslint-disable-next-line react-hooks/purity
   const windowPending = Number.isFinite(windowOpenMs) && Date.now() < windowOpenMs
   const disabled = atLimit || !roleName || ceilingMissing || windowPending
   const buttonLabel = atLimit
@@ -725,6 +728,8 @@ function ScreenshotSlot({ entryId, slot, label, file, onChange, onHover }: Scree
 
   useEffect(() => {
     if (!file) {
+      // file 해제 → preview 비우기. URL.createObjectURL cleanup 패턴.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPreviewUrl(null)
       return
     }
@@ -758,6 +763,8 @@ function ScreenshotSlot({ entryId, slot, label, file, onChange, onHover }: Scree
         }`}
       >
         {previewUrl ? (
+          // blob: URL.createObjectURL 기반 미리보기 — Next Image 가 다루지 못함.
+          // eslint-disable-next-line @next/next/no-img-element
           <img src={previewUrl} alt={t('screenshotAlt')} className="max-h-48 w-auto object-contain" />
         ) : (
           <>

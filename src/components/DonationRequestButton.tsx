@@ -32,6 +32,8 @@ export default function DonationRequestButton() {
 
   useEffect(() => {
     if (!file) {
+      // file 해제 → preview 비우기. URL.createObjectURL cleanup 패턴.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPreviewUrl(null)
       return
     }
@@ -42,6 +44,8 @@ export default function DonationRequestButton() {
 
   useEffect(() => {
     if (!open) {
+      // 모달 닫힐 때 일괄 reset — open prop 변화 → 로컬 form state 동기화.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFile(null)
       setSilverInput('')
       setMemo('')

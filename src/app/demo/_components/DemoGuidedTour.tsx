@@ -39,6 +39,8 @@ export default function DemoGuidedTour({
   const [rect, setRect] = useState<Rect | null>(null)
 
   useEffect(() => {
+    // SSR hydration 직후 mount 플래그 + localStorage 기반 autoStart 결정.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-only init
     setMounted(true)
     if (!autoStart) return
     try {
@@ -68,6 +70,8 @@ export default function DemoGuidedTour({
   useEffect(() => {
     if (!active) return
     if (step >= steps.length) {
+      // 투어 끝 — measure 가 가리킬 대상 없음. effect 안 reset 은 의도된 사이클 종료.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRect(null)
       return
     }

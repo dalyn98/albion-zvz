@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { X } from 'lucide-react'
@@ -181,14 +181,14 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
       notifyEveryone,
       category,
     })
-  const cleanSnapshotRef = useRef<string>(computeSnapshot())
+  const [cleanSnapshot, setCleanSnapshot] = useState<string>(() => computeSnapshot())
   const currentSnapshot = useMemo(
     () => computeSnapshot(),
     // computeSnapshot 은 closure 로 모든 입력을 참조.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [title, parts, gatherLocation, specialNotes, notifyRoleId, notifyChannelId, notifyEveryone, category],
   )
-  const isDirty = isEdit && currentSnapshot !== cleanSnapshotRef.current
+  const isDirty = isEdit && currentSnapshot !== cleanSnapshot
   useReportDirty('event-info', isDirty)
 
   // 편집 모드에서만 상위 저장 바에 자신을 등록. 생성 모드는 기존 모달 흐름.
@@ -223,7 +223,7 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
           return { error: result.error }
         }
         setError('')
-        cleanSnapshotRef.current = snapshotAtSave
+        setCleanSnapshot(snapshotAtSave)
         return {}
       }
       const v = validate()
@@ -247,7 +247,7 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
         return { error: result.error }
       }
       setError('')
-      cleanSnapshotRef.current = snapshotAtSave
+      setCleanSnapshot(snapshotAtSave)
       return {}
     },
     isEdit,

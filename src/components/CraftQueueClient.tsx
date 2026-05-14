@@ -83,6 +83,8 @@ export default function CraftQueueClient({
         (c): c is CraftCity =>
           typeof c === 'string' && (CRAFT_CITIES as readonly string[]).includes(c),
       )
+      // mount-only localStorage hydration.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (valid.length > 0) setCityFilter(new Set(valid))
     } catch {
       // 망가진 JSON 은 무시 — 기본값(전체) 으로 가는 게 안전.

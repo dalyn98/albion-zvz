@@ -34,6 +34,8 @@ export default function RecentBuildsDropdown({ slot, onLoad }: Props) {
   // from the Done click appears immediately.
   useEffect(() => {
     if (!open) return
+    // 드롭다운 열림 → localStorage 에서 최신 build 목록 fetch. open → state 동기화.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setBuilds(loadRecentBuilds())
   }, [open])
 

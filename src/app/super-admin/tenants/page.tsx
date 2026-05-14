@@ -54,6 +54,8 @@ export default async function SuperAdminTenantsPage({
   const inactiveOnly = sp.inactive === '1'
   const tenants = await listAllTenantsWithStats()
   const basePath = getSuperAdminPath()
+  // server component — Date.now() 은 매 요청마다 1회 평가, render purity 무관.
+  // eslint-disable-next-line react-hooks/purity
   const now = Date.now()
 
   const filtered = tenants.filter((t) => {

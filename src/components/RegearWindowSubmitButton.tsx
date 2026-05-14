@@ -618,6 +618,8 @@ function ScreenshotSlot({ entryId, slot, label, file, onChange, onHover }: Scree
 
   useEffect(() => {
     if (!file) {
+      // file 해제 → preview 비우기. URL.createObjectURL cleanup 패턴.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPreviewUrl(null)
       return
     }
@@ -651,6 +653,8 @@ function ScreenshotSlot({ entryId, slot, label, file, onChange, onHover }: Scree
         }`}
       >
         {previewUrl ? (
+          // blob: URL.createObjectURL 기반 미리보기 — Next Image 가 다루지 못함.
+          // eslint-disable-next-line @next/next/no-img-element
           <img src={previewUrl} alt={t('screenshotAlt')} className="max-h-48 w-auto object-contain" />
         ) : (
           <>

@@ -33,6 +33,8 @@ export default function AdminPointAdjuster({ discordId, username, balance }: Pro
   // clean; also lock body scroll while the modal is up.
   useEffect(() => {
     if (!open) {
+      // 모달 닫힐 때 일괄 reset — 외부 (open prop) → 로컬 form state 동기화.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAmountInput('')
       setMemo('')
       setError('')

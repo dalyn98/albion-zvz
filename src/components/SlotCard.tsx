@@ -550,6 +550,9 @@ function GearChoiceModal({
   // 잘못 제출되는 걸 막기 위해서.
   const weaponPickId = picks.weapon ?? null
   useEffect(() => {
+    // 무기 변경 → 의존하는 부위 (방어구 등) 픽이 더 이상 유효하지 않으면 제거.
+    // 외부 (weapon pick) 변화 → 파생 state 정합 동기화. 도메인 invariant 자동화.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPicks((prev) => {
       let changed = false
       const next: Record<string, string> = { ...prev }

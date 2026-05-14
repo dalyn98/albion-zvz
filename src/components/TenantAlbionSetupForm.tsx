@@ -57,6 +57,8 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
   const latestRequestRef = useRef(0)
   useEffect(() => {
     if (query.trim().length < 2) {
+      // 빈 query → 검색 결과 클리어. 외부 (query) → 로컬 state 동기화.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCandidates([])
       setSearching(false)
       return

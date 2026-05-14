@@ -128,6 +128,8 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
     const adminStored = window.localStorage.getItem(ADMIN_GROUP_KEY)
     const sectionStored = window.localStorage.getItem(SECTION_COLLAPSED_KEY)
     const wideScreen = window.matchMedia('(min-width: 1024px)').matches
+    // mount-only localStorage hydration. SSR 단계에선 알 수 없는 클라이언트 prefs.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(stored === null ? wideScreen : stored === 'true')
     if (memberStored !== null) setMemberOpen(memberStored === 'true')
     if (adminStored !== null) setAdminOpen(adminStored === 'true')
@@ -167,6 +169,8 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
   }
 
   useEffect(() => {
+    // 라우트 전환 시 mobile drawer 자동 닫기 — 외부 (라우터) 상태 → 로컬 state 동기화.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileDrawer(false)
   }, [pathname])
 

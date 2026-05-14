@@ -22,6 +22,8 @@ export default function OnboardGuildList({ guilds, installLabel }: Props) {
         >
           <div className="flex items-center gap-3 min-w-0">
             {g.icon ? (
+              // Discord CDN 외부 자원 — Next Image 최적화 이점 없음 (이미 64px 고정).
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={`https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64`}
                 alt=""

@@ -45,6 +45,8 @@ export default function LoadSlotTemplateButton({ slot, onLoad, defaultCategoryFi
   useEffect(() => {
     if (!open) return
     let cancelled = false
+    // 모달 열림 → 템플릿 fetch 시작. open prop 변화 → 비동기 외부 호출 트리거.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setListLoading(true)
     setError('')
     listSlotTemplates()
@@ -63,6 +65,8 @@ export default function LoadSlotTemplateButton({ slot, onLoad, defaultCategoryFi
     return () => {
       cancelled = true
     }
+    // t 는 fetch 결과 핸들러용 — 의존성 추가하면 t 변경마다 재 fetch 되므로 제외.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   const categoryFilteredTemplates = useMemo(() => {

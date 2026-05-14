@@ -28,6 +28,8 @@ export default function MarketingNavMobileMenu({ items, openLabel, closeLabel }:
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    // SSR hydration 직후 mount 플래그 — portal 렌더 가드.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
   }, [])
 

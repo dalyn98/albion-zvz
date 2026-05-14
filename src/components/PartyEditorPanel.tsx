@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Eye, EyeOff, Package, Beaker, Bomb, Megaphone } from 'lucide-react'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
@@ -189,14 +189,14 @@ export default function PartyEditorPanel({
       partyName: isBombSquad ? partyName.trim() : '',
       callerDiscordId: isBombSquad ? callerDiscordId.trim() : '',
     })
-  const cleanSnapshotRef = useRef<string>(computeSnapshot())
+  const [cleanSnapshot, setCleanSnapshot] = useState<string>(() => computeSnapshot())
   const currentSnapshot = useMemo(
     () => computeSnapshot(),
     // computeSnapshot 은 closure 로 모든 입력을 읽으므로 의존성에 입력을 나열.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [slots, isBombSquad, bombSquadKind, partyName, callerDiscordId],
   )
-  const isDirty = currentSnapshot !== cleanSnapshotRef.current
+  const isDirty = currentSnapshot !== cleanSnapshot
   useReportDirty(`party-${partyNumber}`, isDirty)
 
   // 상위 저장 바에서 호출될 saver. 개별 저장 버튼이 없어졌으므로 에러만
@@ -222,7 +222,7 @@ export default function PartyEditorPanel({
     }
     setError('')
     // 저장 성공 — 현재 입력을 새 "clean" 기준으로 채택. 다시 변경하면 다시 dirty.
-    cleanSnapshotRef.current = snapshotAtSave
+    setCleanSnapshot(snapshotAtSave)
     return {}
   }
 

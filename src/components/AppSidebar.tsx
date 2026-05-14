@@ -203,6 +203,8 @@ export default function AppSidebar({
     const superAdminStored = window.localStorage.getItem(SUPER_ADMIN_GROUP_KEY)
     const sectionStored = window.localStorage.getItem(SECTION_COLLAPSED_KEY)
     const wideScreen = window.matchMedia('(min-width: 1024px)').matches
+    // mount-only localStorage hydration. SSR 단계에선 알 수 없는 클라이언트 prefs.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(stored === null ? wideScreen : stored === 'true')
     if (memberStored !== null) setMemberOpen(memberStored === 'true')
     if (adminStored !== null) setAdminOpen(adminStored === 'true')
@@ -249,6 +251,8 @@ export default function AppSidebar({
 
   useEffect(() => {
     // Auto-close the drawer on route change so taps on mobile feel responsive.
+    // 외부 (라우터) 상태 → 로컬 state 동기화 패턴.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileDrawer(false)
   }, [pathname])
 

@@ -169,6 +169,8 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, isBom
   )
 
   useEffect(() => {
+    // slot 변화 → 각 부위 gear mode (single/options/spec) 재파생. 도메인 invariant 자동화.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setModes((prev) => {
       const next = { ...prev }
       let changed = false

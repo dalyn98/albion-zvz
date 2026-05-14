@@ -51,6 +51,8 @@ export default function EventPartyGrid({
 
   useEffect(() => {
     if (!currentDiscordId) {
+      // 비로그인 → 숨김 ids 비움. mount-only localStorage hydration.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHiddenPartyIds([])
       setHiddenHydrated(true)
       return

@@ -59,6 +59,8 @@ export default function AlbionOnboardingWizard({
   const latestRequestRef = useRef(0)
   useEffect(() => {
     if (step !== 'search' || !server || query.trim().length < 2) {
+      // 검색 조건 미달 시 결과 클리어 — 외부 (step/server/query) → 로컬 state 동기화.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCandidates([])
       return
     }
