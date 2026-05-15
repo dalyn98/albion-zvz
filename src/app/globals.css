@@ -3,12 +3,6 @@
    LCP 가 200-300ms 늦어졌다. link preconnect + stylesheet 로 옮겨 병렬화. */
 @import "tailwindcss";
 
-/* 게임 폰트 (디자인 v2 / 멘헤라 한정) — Cinzel (heading), Marcellus (subhead).
-   CSS 스펙상 모든 @import 는 다른 룰보다 위에 와야 하므로 최상단 배치.
-   v2 스코프 밖 사용자에게도 다운로드는 되지만 사용되지 않고, preload 안 하므로
-   비용은 무시 가능. font-display: swap 으로 LCP 영향 최소화. */
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Marcellus&display=swap');
-
 :root {
   /* 차가운 블루-블랙 베이스. 순수 검정(#000)보다 파랑 기미가 있어야
      모던한 dark UI에서 덜 칙칙해 보인다. */
