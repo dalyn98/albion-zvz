@@ -4,12 +4,12 @@ import { getTranslations } from 'next-intl/server'
 import {
   listRegearRequests,
   listExchangeRequests,
-  getRegearPayoutRatePercent,
   getRegearAnomalyMap,
   getRegearOriginCounts,
   type RegearOrigin,
   type RegearOriginCounts,
 } from '@/app/actions/regear-admin'
+import { getRegearPayoutRatePercent } from '@/app/actions/regear-admin-types'
 import { checkBuildSnapshotStockBatch } from '@/lib/inventory'
 import type { BuildSnapshot } from '@/types'
 import { listDonationRequests } from '@/app/actions/donation-admin'

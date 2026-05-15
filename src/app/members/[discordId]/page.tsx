@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
-import { getGuildMemberDetail } from '@/app/actions/members-admin'
+import { getGuildMemberDetail } from '@/app/actions/members-admin-detail'
 import MemberDetailView from '@/components/MemberDetailView'
 import AdminPointAdjuster from '@/components/AdminPointAdjuster'
 

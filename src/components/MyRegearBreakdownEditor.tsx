@@ -12,11 +12,8 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { Save, Loader2, Pencil } from 'lucide-react'
-import {
-  updateMyRegearLineItemPrice,
-  type MyRegearDetail,
-  type RegearLineItem,
-} from '@/app/actions/regear'
+import { type MyRegearDetail, type RegearLineItem } from '@/app/actions/regear'
+import { updateMyRegearLineItemPrice } from '@/app/actions/regear-edit'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
 import { getLocalizedItemName } from '@/lib/item-names'

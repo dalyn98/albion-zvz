@@ -626,12 +626,7 @@ export async function syncMembersNow(): Promise<SyncMembersNowResult> {
   }
 }
 
-// 옛 임포터(서버 컴포넌트/페이지) 호환을 위한 re-export. detail fetcher 는
-// members-admin-detail.ts 로 옮겨졌지만, `@/app/actions/members-admin` 경로로
-// 들어오던 코드는 그대로 동작해야 한다.
+// detail fetcher 의 타입은 importer 호환을 위해 re-export. 'use server' 파일에서
+// 값 re-export 는 Turbopack 이 async 여부를 보장 못해 거부 — fetcher 함수는
+// 직접 `@/app/actions/members-admin-detail` 에서 import 하도록 호출 측 변경.
 export type { AlbionMemberDetail } from '@/app/actions/members-admin-detail'
-export {
-  getGuildMemberDetail,
-  getMyMemberDetail,
-  getAlbionMemberDetail,
-} from '@/app/actions/members-admin-detail'

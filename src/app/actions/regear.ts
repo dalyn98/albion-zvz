@@ -29,16 +29,11 @@ import { type BuildSnapshot, type RegearType, type SlotGearDisplay } from '@/typ
 // member-side inline edit actions in `regear-edit.ts`.
 // 공유 헬퍼 (snapshot/normalize/compute) 와 스크린샷 상수는 `@/lib/regear-helpers`.
 
-// 편집/취소 함수와 결과 타입을 사용하던 importer 가 끊기지 않도록 re-export.
+// 결과 타입은 importer 호환을 위해 re-export. 'use server' 파일에서 값
+// re-export 는 Turbopack 이 async 여부를 보장 못해 거부 — 액션 함수는
+// 직접 `@/app/actions/regear-edit` 에서 import 하도록 호출 측을 변경했다.
 export type { RegearLineItem } from '@/lib/regear-helpers'
 export type { UpdateLineItemResult } from '@/app/actions/regear-edit'
-export {
-  cancelMyRegearRequest,
-  updateMyRegearBuildSnapshotSlot,
-  updateMyManualRegearScreenshots,
-  updateMyRegearLineItemPrice,
-  updateMyManualRegearClaim,
-} from '@/app/actions/regear-edit'
 
 const DEFAULT_REGEAR_WINDOW_MINUTES = 60
 const DEFAULT_MAX_DEATHS_PER_EVENT = 1

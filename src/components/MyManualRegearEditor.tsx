@@ -9,12 +9,11 @@ import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Save, Loader2, Upload, Clipboard, Trash2, Undo2 } from 'lucide-react'
+import { getMyRegearScreenshotUrl, type MyRegearDetail } from '@/app/actions/regear'
 import {
-  getMyRegearScreenshotUrl,
   updateMyManualRegearClaim,
   updateMyManualRegearScreenshots,
-  type MyRegearDetail,
-} from '@/app/actions/regear'
+} from '@/app/actions/regear-edit'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
 import { compressImageIfLarge } from '@/lib/image-compress'

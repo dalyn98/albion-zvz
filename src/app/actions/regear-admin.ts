@@ -5,6 +5,11 @@
 // - regear-admin-list.ts     'use server', 조회/검색/이상치 감지
 // - regear-admin-resolve.ts  'use server', approve/reject/recheck/bulk
 // - exchange-admin.ts        'use server', 환전 + 역할 보상
+//
+// 클라이언트 컴포넌트가 이 배럴에서 `'use server'` 모듈의 함수만 import 하도록
+// 디자인 — Turbopack 가 RPC 스텁으로 치환해 next/headers 가 클라 번들에 끌려
+// 오지 않게 한다. 비-action 헬퍼 (`getRegearPayoutRatePercent` 등) 는 서버
+// 컴포넌트가 `@/app/actions/regear-admin-types` 에서 직접 import.
 
 export type {
   AdminRegearRequest,
@@ -15,8 +20,6 @@ export type {
   BulkRegearActionResult,
   RecheckKillboardResult,
 } from './regear-admin-types'
-
-export { getRegearPayoutRatePercent } from './regear-admin-types'
 
 export {
   listRegearRequests,

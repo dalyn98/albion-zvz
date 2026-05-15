@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
-import { getAlbionMemberDetail } from '@/app/actions/members-admin'
+import { getAlbionMemberDetail } from '@/app/actions/members-admin-detail'
 import AlbionMemberDetailView from '@/components/AlbionMemberDetailView'
 
 export const dynamic = 'force-dynamic'

@@ -12,7 +12,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { Loader2 } from 'lucide-react'
-import { updateMyRegearBuildSnapshotSlot } from '@/app/actions/regear'
+import { updateMyRegearBuildSnapshotSlot } from '@/app/actions/regear-edit'
 import {
   GEAR_ENCHANT_COLOR_CLASS,
   GEAR_ENCHANT_MAX,

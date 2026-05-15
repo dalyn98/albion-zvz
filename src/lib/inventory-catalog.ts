@@ -18,7 +18,7 @@ import {
   categorizeGearItem,
   type GearArmorMaterial,
   type GearSlot,
-} from './inventory'
+} from './inventory-types'
 
 export interface GearCatalogEntry {
   baseItemId: string

@@ -4,7 +4,7 @@ import {
   listRegearWindows,
   listRegearRoleOptions,
 } from '@/app/actions/regear-windows'
-import { getRegearPayoutRatePercent } from '@/app/actions/regear-admin'
+import { getRegearPayoutRatePercent } from '@/app/actions/regear-admin-types'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'

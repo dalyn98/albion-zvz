@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { cancelMyRegearRequest } from '@/app/actions/regear'
+import { cancelMyRegearRequest } from '@/app/actions/regear-edit'
 import { useToast } from './ToastProvider'
 
 export default function RegearRequestCancelButton({ id }: { id: string }) {

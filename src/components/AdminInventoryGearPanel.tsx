@@ -10,7 +10,7 @@ import {
   type GearArmorMaterial,
   type GearSlot,
   type InventoryGearBaseRow,
-} from '@/lib/inventory'
+} from '@/lib/inventory-types'
 import {
   ENCHANT_LEVELS,
   TIER_LEVELS,

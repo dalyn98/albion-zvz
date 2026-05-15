@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
-import { getMyMemberDetail } from '@/app/actions/members-admin'
+import { getMyMemberDetail } from '@/app/actions/members-admin-detail'
 import MemberDetailView from '@/components/MemberDetailView'
 
 export const dynamic = 'force-dynamic'
