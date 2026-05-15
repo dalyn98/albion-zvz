@@ -17,6 +17,31 @@ import { CATEGORY_NOTIFY_COLUMN, type EventCategory } from '@/types'
 // 로그만 남기고 다음 수신자로 넘어간다.
 
 const DISCORD_API = 'https://discord.com/api/v10'
+// 사용자 간 동시 호출 개수. Discord global rate limit 은 bot token 당 ~50/s 라
+// 동시성 5 + 사용자당 2 API call 기준 이론상 10/s 정도로 제한 — 안전 마진 충분.
+const DM_CONCURRENCY = 5
+// 한 호출당 429 재시도 횟수. Retry-After 헤더 따라 대기 후 재시도. 두 번 이상
+// 연속 429 면 일시적 글로벌 제한일 가능성 — 다음 수신자로 넘어가 손실 최소화.
+const MAX_429_RETRIES = 2
+
+// 429 Too Many Requests 대응. Discord 는 retry-after 헤더 (초) 를 함께 보내며
+// 글로벌·라우트 한도가 따로 있다. 한도 도달 시 헤더만큼 대기 후 재시도.
+async function fetchWithRateLimit(input: string, init: RequestInit): Promise<Response> {
+  for (let attempt = 0; attempt <= MAX_429_RETRIES; attempt++) {
+    const res = await fetch(input, init)
+    if (res.status !== 429) return res
+    if (attempt === MAX_429_RETRIES) return res
+    const retryAfter = Number(res.headers.get('retry-after') ?? '1')
+    // 0.5s 미만은 의미 없고, 10s 초과는 단일 호출 대기로는 너무 길다 → clamp.
+    const waitMs = Math.min(Math.max(retryAfter, 0.5), 10) * 1000
+    console.warn(
+      `[discord-dm] 429 received, retry-after=${retryAfter}s, waiting ${waitMs}ms (attempt ${attempt + 1}/${MAX_429_RETRIES})`,
+    )
+    await new Promise((r) => setTimeout(r, waitMs))
+  }
+  // 루프가 끝났지만 위 분기로 빠져나오지 못한 경우 — 안전을 위해 throw.
+  throw new Error('[discord-dm] fetchWithRateLimit: unreachable')
+}
 
 export interface DiscordDmPayload {
   title: string
@@ -89,7 +114,7 @@ export async function filterDmOptedIn(
 }
 
 async function openDmChannel(token: string, userId: string): Promise<string | null> {
-  const res = await fetch(`${DISCORD_API}/users/@me/channels`, {
+  const res = await fetchWithRateLimit(`${DISCORD_API}/users/@me/channels`, {
     method: 'POST',
     headers: {
       Authorization: `Bot ${token}`,
@@ -124,7 +149,7 @@ async function postDmMessage(
     color: 0x5865f2,
     timestamp: new Date().toISOString(),
   }
-  const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+  const res = await fetchWithRateLimit(`${DISCORD_API}/channels/${channelId}/messages`, {
     method: 'POST',
     headers: {
       Authorization: `Bot ${token}`,
@@ -161,14 +186,24 @@ export async function sendDiscordDmsToUsers(
   const optedIn = await filterDmOptedIn(discordIds, guildId, categoryFilter)
   if (optedIn.length === 0) return { attempted: 0, succeeded: 0 }
 
+  // 배치 동시성 — 길드 규모가 커지면 직렬은 분 단위로 걸린다. fetchWithRateLimit
+  // 가 429 를 처리하므로 동시성 N 이어도 안전. 한 수신자 실패는 다음에 영향 없음.
   let succeeded = 0
-  // 순차 처리 — 길드 규모(수십 명)에서 병렬화 이득이 작고 Discord rate limit
-  // 대응이 단순해진다. 한 수신자 실패는 다음 수신자에 영향 없음.
-  for (const userId of optedIn) {
-    const channelId = await openDmChannel(token, userId)
-    if (!channelId) continue
-    const ok = await postDmMessage(token, channelId, payload)
-    if (ok) succeeded++
+  for (let i = 0; i < optedIn.length; i += DM_CONCURRENCY) {
+    const batch = optedIn.slice(i, i + DM_CONCURRENCY)
+    const results = await Promise.all(
+      batch.map(async (userId) => {
+        try {
+          const channelId = await openDmChannel(token, userId)
+          if (!channelId) return false
+          return await postDmMessage(token, channelId, payload)
+        } catch (e) {
+          console.error(`[discord-dm] send to ${userId} threw:`, e)
+          return false
+        }
+      }),
+    )
+    succeeded += results.filter(Boolean).length
   }
   return { attempted: optedIn.length, succeeded }
 }
