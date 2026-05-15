@@ -15,6 +15,7 @@ import { sendEventNotification, DiscordChannelMessageError, type EventNotificati
 import { getAppSetting } from '@/lib/app-settings'
 import { getLocale } from '@/lib/locale'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import { log } from '@/lib/log'
 import type { Locale } from '@/i18n/locales'
 import type { BombSquadKind, ConditionalSlotOptions, DependentSlotKey, EventCategory, SlotKey, SlotSpells, GearOption, GearSpec, GearSpecs } from '@/types'
 import {
@@ -206,7 +207,10 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
         .delete()
         .eq('event_id', id)
       if (clearError) {
-        console.error('[admin/updateEvent] event_dm_sent clear failed:', clearError.message)
+        log.error('[admin/updateEvent] event_dm_sent clear failed', clearError, {
+          tenant_id: guildId,
+          event_id: id,
+        })
       }
     }
     revalidatePath('/admin/dashboard')
@@ -280,10 +284,17 @@ export async function publishEvent(id: string): Promise<{ error?: string; warnin
             cachedEvent,
           )
           if (dispatch.error) {
-            console.error('[publishEvent] async notification failed:', dispatch.error)
+            log.error('[publishEvent] async notification failed', undefined, {
+              tenant_id: guildId,
+              event_id: id,
+              reason: dispatch.error,
+            })
           }
         } catch (e) {
-          console.error('[publishEvent] async notification threw:', e)
+          log.error('[publishEvent] async notification threw', e, {
+            tenant_id: guildId,
+            event_id: id,
+          })
         }
       })
     }
@@ -587,7 +598,10 @@ export async function resetBattleStart(id: string): Promise<{ error?: string }> 
       .delete()
       .eq('event_id', id)
     if (clearError) {
-      console.error('[admin/resetBattleStart] event_dm_sent clear failed:', clearError.message)
+      log.error('[admin/resetBattleStart] event_dm_sent clear failed', clearError, {
+        tenant_id: guildId,
+        event_id: id,
+      })
     }
     revalidatePath(`/admin/dashboard/events/${id}`)
     revalidatePath(`/events/${id}`)

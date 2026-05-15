@@ -11,6 +11,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import { listGuildMembersBulk } from '@/lib/discord'
 import { getTenantDiscordConfig } from '@/lib/tenant'
+import { log } from '@/lib/log'
 
 // 직전 성공 후 20시간 내면 skip — cron 재시도가 하루 2회 이상 돌지 않게 수렴.
 // KST 04:00 스케줄이 약간 앞당겨져도 다음날 실행이 건너뛰지 않도록 20h.
@@ -90,7 +91,10 @@ export async function runMemberSync(
     members = await listGuildMembersBulk(tenantConfig.discordGuildId)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    console.error('[member-sync] bulk fetch failed:', msg)
+    log.error('[member-sync] bulk fetch failed', e, {
+      tenant_id: guildId,
+      discord_guild_id: tenantConfig.discordGuildId,
+    })
     return { kind: 'error', message: msg }
   }
 
@@ -120,7 +124,12 @@ export async function runMemberSync(
       .update({ withdrawn_at: nowIso })
       .eq('guild_id', guildId)
       .in('discord_id', toWithdraw)
-    if (updErr) console.error('[member-sync] withdraw update failed:', updErr.message)
+    if (updErr) {
+      log.error('[member-sync] withdraw update failed', updErr, {
+        tenant_id: guildId,
+        count: toWithdraw.length,
+      })
+    }
   }
   if (toRejoin.length > 0) {
     const { error: updErr } = await db
@@ -128,7 +137,12 @@ export async function runMemberSync(
       .update({ withdrawn_at: null })
       .eq('guild_id', guildId)
       .in('discord_id', toRejoin)
-    if (updErr) console.error('[member-sync] rejoin update failed:', updErr.message)
+    if (updErr) {
+      log.error('[member-sync] rejoin update failed', updErr, {
+        tenant_id: guildId,
+        count: toRejoin.length,
+      })
+    }
   }
 
   await db

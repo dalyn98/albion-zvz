@@ -1,4 +1,5 @@
 import { getAdminClient } from '@/lib/supabase-admin'
+import { log } from '@/lib/log'
 
 // 어드민 OAuth 로그인 시점에 호출 — 슈퍼어드민 UI 에서 무활동 테넌트(30일+)
 // 를 식별하는 신호. 자체 실패는 swallow 한다 — 통계 갱신 한 번 빠지는 것보다
@@ -11,6 +12,6 @@ export async function recordAdminLogin(tenantId: string): Promise<void> {
     .update({ last_admin_login_at: new Date().toISOString() })
     .eq('id', tenantId)
   if (error) {
-    console.error('[recordAdminLogin] update failed', { tenantId, error })
+    log.error('[recordAdminLogin] update failed', error, { tenant_id: tenantId })
   }
 }

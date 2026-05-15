@@ -5,6 +5,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { isValidTenantSlug } from '@/lib/tenant-resolver'
 import { upsertGuildAvatar } from '@/lib/discord-avatar'
 import { recordAdminLogin } from '@/lib/tenant-activity'
+import { log } from '@/lib/log'
 import { SLOT_ROLES, EVENT_CATEGORIES } from '@/types'
 
 const ONBOARD_GUILDS_COOKIE = 'discord_onboard_guilds'
@@ -65,13 +66,13 @@ export async function GET(request: NextRequest) {
 
   const guildId = url.searchParams.get('guild_id')
   if (!guildId || !/^\d{17,20}$/.test(guildId)) {
-    console.error('[bot-callback] invalid guild_id', { params: url.searchParams.toString() })
+    log.error('[bot-callback] invalid guild_id', undefined, { params: url.searchParams.toString() })
     return errorRedirect(url.origin, 'guild_id_missing')
   }
 
   const code = url.searchParams.get('code')
   if (!code) {
-    console.error('[bot-callback] missing code', { params: url.searchParams.toString() })
+    log.error('[bot-callback] missing code', undefined, { params: url.searchParams.toString() })
     return errorRedirect(url.origin, 'code_missing')
   }
 
@@ -81,7 +82,7 @@ export async function GET(request: NextRequest) {
     const tokenRes = await exchangeBotInstallCode(code)
     const installer = await getCurrentUser(tokenRes.access_token)
     if (!installer) {
-      console.error('[bot-callback] /users/@me returned null')
+      log.error('[bot-callback] /users/@me returned null', undefined, { guild_id: guildId })
       return errorRedirect(url.origin, 'identity_unknown')
     }
 
@@ -148,7 +149,10 @@ export async function GET(request: NextRequest) {
         if (errorCode !== '23505') break
       }
       if (!tenantRow) {
-        console.error('[bot-callback] tenant insert failed', lastInsertError)
+        log.error('[bot-callback] tenant insert failed', lastInsertError, {
+          guild_id: guildId,
+          installer_discord_id: installerDiscordId,
+        })
         return errorRedirect(url.origin, 'server_error')
       }
       tenantId = tenantRow.id
@@ -168,7 +172,7 @@ export async function GET(request: NextRequest) {
         .from('role_rewards')
         .upsert(seedRows, { onConflict: 'guild_id,role_name' })
       if (seedError) {
-        console.error('[bot-callback] role_rewards seed failed', seedError)
+        log.error('[bot-callback] role_rewards seed failed', seedError, { tenant_id: tenantId })
       }
     }
 
@@ -182,10 +186,10 @@ export async function GET(request: NextRequest) {
     // 세션은 발급하지 않는다 (onboarding 권한 없음). 이 경우 /onboard 으로
     // 돌려보낸다.
     if (tenantOwnerDiscordId !== installerDiscordId) {
-      console.warn('[bot-callback] reinstall by non-owner', {
-        tenantOwnerDiscordId,
-        installerDiscordId,
-        tenantId,
+      log.warn('[bot-callback] reinstall by non-owner', {
+        tenant_owner_discord_id: tenantOwnerDiscordId,
+        installer_discord_id: installerDiscordId,
+        tenant_id: tenantId,
       })
       return errorRedirect(url.origin, 'not_owner')
     }
@@ -208,7 +212,10 @@ export async function GET(request: NextRequest) {
         false,
       )
     } catch (e) {
-      console.error('[bot-callback] upsertGuildAvatar failed', e)
+      log.error('[bot-callback] upsertGuildAvatar failed', e, {
+        tenant_id: tenantId,
+        installer_discord_id: installerDiscordId,
+      })
     }
 
     const newSession = await signSession({
@@ -233,7 +240,7 @@ export async function GET(request: NextRequest) {
     response.cookies.delete(ONBOARD_GUILDS_COOKIE)
     return response
   } catch (e) {
-    console.error('[bot-callback]', e)
+    log.error('[bot-callback] unhandled', e, { guild_id: guildId })
     return errorRedirect(url.origin, 'server_error')
   }
 }

@@ -1,5 +1,6 @@
 import 'server-only'
 import { getAdminClient } from './supabase-admin'
+import { log } from './log'
 import { CATEGORY_NOTIFY_COLUMN, type EventCategory } from '@/types'
 
 // Discord DM 발송용 공용 모듈.
@@ -34,9 +35,12 @@ async function fetchWithRateLimit(input: string, init: RequestInit): Promise<Res
     const retryAfter = Number(res.headers.get('retry-after') ?? '1')
     // 0.5s 미만은 의미 없고, 10s 초과는 단일 호출 대기로는 너무 길다 → clamp.
     const waitMs = Math.min(Math.max(retryAfter, 0.5), 10) * 1000
-    console.warn(
-      `[discord-dm] 429 received, retry-after=${retryAfter}s, waiting ${waitMs}ms (attempt ${attempt + 1}/${MAX_429_RETRIES})`,
-    )
+    log.warn('[discord-dm] 429 received', {
+      retry_after_seconds: retryAfter,
+      wait_ms: waitMs,
+      attempt: attempt + 1,
+      max_attempts: MAX_429_RETRIES,
+    })
     await new Promise((r) => setTimeout(r, waitMs))
   }
   // 루프가 끝났지만 위 분기로 빠져나오지 못한 경우 — 안전을 위해 throw.
@@ -124,7 +128,11 @@ async function openDmChannel(token: string, userId: string): Promise<string | nu
   })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    console.error(`[discord-dm] openDmChannel failed for ${userId}: ${res.status} ${text}`)
+    log.error('[discord-dm] openDmChannel failed', undefined, {
+      discord_id: userId,
+      status: res.status,
+      response: text,
+    })
     return null
   }
   const json = (await res.json()) as { id: string }
@@ -159,7 +167,11 @@ async function postDmMessage(
   })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    console.error(`[discord-dm] postDmMessage failed: ${res.status} ${text}`)
+    log.error('[discord-dm] postDmMessage failed', undefined, {
+      channel_id: channelId,
+      status: res.status,
+      response: text,
+    })
     return false
   }
   return true
@@ -180,7 +192,9 @@ export async function sendDiscordDmsToUsers(
 ): Promise<DmResult> {
   const token = getBotToken()
   if (!token) {
-    console.warn('[discord-dm] DISCORD_BOT_TOKEN not set — skipping send')
+    log.warn('[discord-dm] DISCORD_BOT_TOKEN not set — skipping send', {
+      tenant_id: guildId,
+    })
     return { attempted: 0, succeeded: 0 }
   }
   const optedIn = await filterDmOptedIn(discordIds, guildId, categoryFilter)
@@ -198,7 +212,10 @@ export async function sendDiscordDmsToUsers(
           if (!channelId) return false
           return await postDmMessage(token, channelId, payload)
         } catch (e) {
-          console.error(`[discord-dm] send to ${userId} threw:`, e)
+          log.error('[discord-dm] send threw', e, {
+            discord_id: userId,
+            tenant_id: guildId,
+          })
           return false
         }
       }),

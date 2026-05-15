@@ -6,6 +6,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { listActiveTenants } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { isValidTenantTimezone } from '@/lib/timezone'
+import { log } from '@/lib/log'
 import type { EventCategory } from '@/types'
 
 // 이벤트 집결 시간이 다가오면 파티에 편성된 멤버들에게 Discord DM 을 보낸다.
@@ -108,7 +109,9 @@ export async function GET(request: Request) {
       .gte('gather_at', autoStartFloor)
       .lte('gather_at', now.toISOString())
     if (pendingError) {
-      console.error('[cron/event-imminent] auto-start scan failed:', pendingError.message)
+      log.error('[cron/event-imminent] auto-start scan failed', pendingError, {
+        tenant_id: tenant.id,
+      })
       continue
     }
     for (const row of pending ?? []) {
@@ -120,7 +123,10 @@ export async function GET(request: Request) {
         .eq('id', row.id)
         .is('battle_started_at', null)
       if (updateError) {
-        console.error('[cron/event-imminent] auto-start update failed:', updateError.message)
+        log.error('[cron/event-imminent] auto-start update failed', updateError, {
+          tenant_id: tenant.id,
+          event_id: row.id,
+        })
         continue
       }
       console.log(`[cron/event-imminent] auto-started event ${row.id} (gather_at=${gatherAt}) for tenant ${tenant.id}`)
@@ -181,7 +187,10 @@ export async function GET(request: Request) {
       .eq('parties.event_id', event.id)
       .not('assigned_discord_id', 'is', null)
     if (slotsError) {
-      console.error('[cron/event-imminent] slots query failed:', slotsError.message)
+      log.error('[cron/event-imminent] slots query failed', slotsError, {
+        tenant_id: guildId,
+        event_id: event.id,
+      })
       continue
     }
 
@@ -304,7 +313,10 @@ export async function GET(request: Request) {
         .from('event_dm_sent')
         .upsert(rows, { onConflict: 'event_id,discord_id', ignoreDuplicates: true })
       if (insertError) {
-        console.error('[cron/event-imminent] event_dm_sent upsert failed:', insertError.message)
+        log.error('[cron/event-imminent] event_dm_sent upsert failed', insertError, {
+          tenant_id: guildId,
+          event_id: event.id,
+        })
       }
     }
 

@@ -39,6 +39,7 @@ import {
 } from '@/lib/inventory'
 import { formatSilver } from '@/lib/silver'
 import { getCurrentWeekStartIso } from '@/lib/timezone'
+import { log } from '@/lib/log'
 import type { BuildSnapshot } from '@/types'
 
 // ────────────────────────────────────────────────────────────
@@ -764,10 +765,9 @@ export async function deliverCraftQueueItem(
           .eq('id', input.taskId)
       }
     } catch (e) {
-      console.error('[craft.deliver] inventory hook failed', {
-        guildId,
-        taskId: input.taskId,
-        error: e instanceof Error ? e.message : String(e),
+      log.error('[craft.deliver] inventory hook failed', e, {
+        tenant_id: guildId,
+        task_id: input.taskId,
       })
     }
   }

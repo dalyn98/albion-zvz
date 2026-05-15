@@ -18,6 +18,7 @@ import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { isValidTenantTimezone } from '@/lib/timezone'
 import { recordAdminLogin } from '@/lib/tenant-activity'
+import { log } from '@/lib/log'
 import { EVENT_CATEGORIES } from '@/types'
 
 // 온보딩 위저드는 3 단계다. 각 단계별 액션은 세션이 tenant 의 created_by_discord_id
@@ -155,7 +156,11 @@ async function findHomeGuildConflict(
   if (error) {
     // 조회 실패 시 보수적으로 false (= 충돌 없음으로 가정). DB unique index 가
     // 최종 안전망이라 false 양성이라도 INSERT 단계에서 23505 로 거부됨.
-    console.warn('[saveTenantAlbion] conflict check failed', error)
+    log.warn('[saveTenantAlbion] conflict check failed', {
+      tenant_id: excludeTenantId,
+      home_guild_id: homeGuildId,
+      error: error.message,
+    })
     return false
   }
   return Array.isArray(data) && data.length > 0
@@ -179,7 +184,11 @@ async function findUniqueSlug(
       .neq('id', excludeTenantId)
       .maybeSingle()
     if (error) {
-      console.warn('[saveTenantAlbion] slug availability check failed', error)
+      log.warn('[saveTenantAlbion] slug availability check failed', {
+        tenant_id: excludeTenantId,
+        candidate,
+        error: error.message,
+      })
       return false
     }
     return !data
@@ -250,7 +259,11 @@ export async function saveTenantAlbion(
           if (slugError) {
             // race 로 인한 충돌 — 다음 시도에서 새 random suffix 로 회피 가능.
             // 위저드 진행을 막지 않기 위해 로그만 남기고 통과.
-            console.warn('[saveTenantAlbion] slug update failed', slugError)
+            log.warn('[saveTenantAlbion] slug update failed', {
+              tenant_id: input.tenantId,
+              new_slug: newSlug,
+              error: slugError.message,
+            })
           }
         }
       }
@@ -412,7 +425,9 @@ export async function saveTenantRewards(
     .from('app_settings')
     .upsert(policyRows, { onConflict: 'guild_id,key' })
   if (policyError) {
-    console.error('[saveTenantRewards] policy upsert failed', policyError)
+    log.error('[saveTenantRewards] policy upsert failed', policyError, {
+      tenant_id: input.tenantId,
+    })
     return { error: t('errorGeneric') }
   }
 
@@ -426,7 +441,9 @@ export async function saveTenantRewards(
     .select('slug')
     .single()
   if (activateError || !activatedTenant) {
-    console.error('[saveTenantRewards] activation failed', activateError)
+    log.error('[saveTenantRewards] activation failed', activateError, {
+      tenant_id: input.tenantId,
+    })
     return { error: t('errorGeneric') }
   }
   const tenantSlug = activatedTenant.slug as string

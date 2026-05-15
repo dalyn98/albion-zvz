@@ -19,6 +19,7 @@ import {
   type DiscordInteractionPayload,
 } from '@/lib/discord-interactions'
 import { handleSlashCommand } from '@/lib/discord-commands'
+import { log } from '@/lib/log'
 
 // Discord 는 3 초 안에 응답이 오지 않으면 endpoint 가 죽었다고 판단해
 // 사용자에게 "interaction failed" 를 띄운다. DB 쿼리 1-2 회면 충분히 안에
@@ -29,7 +30,7 @@ export const runtime = 'nodejs'
 export async function POST(request: Request) {
   const publicKey = process.env.DISCORD_PUBLIC_KEY
   if (!publicKey) {
-    console.error('[discord/interactions] DISCORD_PUBLIC_KEY is not configured')
+    log.error('[discord/interactions] DISCORD_PUBLIC_KEY is not configured')
     return new NextResponse('Server misconfigured', { status: 500 })
   }
 
@@ -74,7 +75,10 @@ export async function POST(request: Request) {
   } catch (error) {
     // 핸들러 실패는 운영자만 알면 되고, 사용자에게는 ephemeral 안내. Discord
     // 가 본문 길이 제한이 있어 메시지를 짧게 — 자세한 디버깅은 서버 로그에서.
-    console.error('[discord/interactions] handler failed:', error)
+    log.error('[discord/interactions] handler failed', error, {
+      interaction_type: payload.type,
+      guild_id: payload.guild_id,
+    })
     return NextResponse.json({
       type: 4,
       data: {

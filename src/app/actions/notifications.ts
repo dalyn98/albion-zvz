@@ -8,6 +8,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { isValidTenantTimezone } from '@/lib/timezone'
 import { requireEventCreator } from '@/lib/auth'
+import { log } from '@/lib/log'
 import { CATEGORY_NOTIFY_COLUMN, EVENT_CATEGORIES, type EventCategory } from '@/types'
 
 // 사용자(길드원/게스트) 본인의 Discord DM 수신 토글과 관리자용 Discord 역할
@@ -239,7 +240,12 @@ export async function listGuildRoles(): Promise<{
     })
     if (!res.ok) {
       const text = await res.text().catch(() => '')
-      console.error(`[notifications] listGuildRoles failed: ${res.status} ${text}`)
+      log.error('[notifications] listGuildRoles failed', undefined, {
+        tenant_id: sessionGuildId,
+        discord_guild_id: discordGuildId,
+        status: res.status,
+        response: text,
+      })
       return { roles: [], error: tErr('serverError') }
     }
     const raw = (await res.json()) as RawDiscordRole[]
@@ -279,7 +285,12 @@ export async function listGuildChannels(): Promise<{
     })
     if (!res.ok) {
       const text = await res.text().catch(() => '')
-      console.error(`[notifications] listGuildChannels failed: ${res.status} ${text}`)
+      log.error('[notifications] listGuildChannels failed', undefined, {
+        tenant_id: sessionGuildId,
+        discord_guild_id: tenantConfig.discordGuildId,
+        status: res.status,
+        response: text,
+      })
       return { channels: [], error: tErr('serverError') }
     }
     const raw = (await res.json()) as RawDiscordChannel[]

@@ -17,6 +17,7 @@ import {
 import { requireAdmin } from '@/lib/auth'
 import { getMemberAlbionIdentity, type MemberAlbionIdentity } from '@/lib/albion-identity'
 import { changeGuildMemberNickname } from '@/lib/discord'
+import { log } from '@/lib/log'
 
 // 드롭다운에서 유저가 고르기 편하도록 정리한 후보 구조.
 export interface AlbionPlayerCandidate {
@@ -99,15 +100,16 @@ export async function confirmAlbionIdentity(input: {
   if (!verified) {
     // 관리자 진단용 로그 — 인증 실패 시 왜 실패했는지(서버 불일치/길드 ID 불일치)
     // 를 vercel logs 에서 바로 볼 수 있게 한다. player UUID 는 공개 정보.
-    console.warn('[onboarding] verify failed', {
-      discordId: session.discordId,
-      inputServer: input.server,
-      homeServer,
-      serverMatch,
-      playerGuildId: player.GuildId,
-      playerGuildName: player.GuildName,
-      homeGuildId,
-      guildMatch,
+    log.warn('[onboarding] verify failed', {
+      tenant_id: sessionGuildId,
+      discord_id: session.discordId,
+      input_server: input.server,
+      home_server: homeServer,
+      server_match: serverMatch,
+      player_guild_id: player.GuildId,
+      player_guild_name: player.GuildName,
+      home_guild_id: homeGuildId,
+      guild_match: guildMatch,
     })
   }
 
@@ -134,7 +136,12 @@ export async function confirmAlbionIdentity(input: {
         await changeGuildMemberNickname(tenantConfig.discordGuildId, session.discordId, player.Name)
       }
     } catch (e) {
-      console.warn('[onboarding] discord nickname change failed', e)
+      log.warn('[onboarding] discord nickname change failed', {
+        tenant_id: sessionGuildId,
+        discord_id: session.discordId,
+        nickname: player.Name,
+        error: e instanceof Error ? e.message : String(e),
+      })
     }
   }
 

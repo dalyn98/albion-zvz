@@ -11,6 +11,7 @@ import { calcPayoutSilver } from '@/lib/regear-payout'
 import { requireAlbionVerified } from '@/lib/albion-identity'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import { findTrackedBattleIdsForEvent } from '@/lib/auto-regear-matching'
+import { log } from '@/lib/log'
 import { SLOT_KEYS, getDisplayGear, type BuildSnapshot, type RegearType, type SlotGearDisplay, type SlotKey } from '@/types'
 
 // User-facing regear actions. Admin-side lives in `regear-admin.ts`.
@@ -157,7 +158,7 @@ export async function requestRegear(
   } catch (err) {
     // /regear/error.tsx 가 뜨는 회귀 방지 — 예상 못한 throw 는 로그만 남기고
     // 일반 에러 토스트로 전환. 발생 시 로그에서 진단 가능.
-    console.error('[requestRegear] unhandled error', err)
+    log.error('[requestRegear] unhandled error', err)
     const tErr = await getTranslations('memberActionError')
     return { error: tErr('serverError') }
   }
@@ -295,7 +296,10 @@ async function requestRegearInner(
       event.battle_started_at,
     )
   } catch (err) {
-    console.error('[requestRegear] findTrackedBattleIdsForEvent failed', err)
+    log.error('[requestRegear] findTrackedBattleIdsForEvent failed', err, {
+      tenant_id: guildId,
+      event_id: eventId,
+    })
   }
   const latestEndedMs = matchedBattles.reduce((acc, b) => {
     const ms = Date.parse(b.endedAtIso)

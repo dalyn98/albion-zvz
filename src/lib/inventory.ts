@@ -19,6 +19,7 @@ import {
   ENCHANT_LEVELS,
   type EnchantLevel,
 } from './inventory-catalog'
+import { log } from './log'
 
 // 베이스 아이템 단위 카탈로그 행. 인챈트 @0~@4 별 수량을 한 묶음으로 보관해
 // 그리드 카드 1장 = 베이스 1개 매핑. DB 에 row 가 없는 인챈트는 0 으로 채움.
@@ -267,10 +268,7 @@ export async function decrementBuildForDelivery(
   if (error) {
     // 사전 재고 조회 실패 → 경고 판정 불가. deliver 자체는 이미 성공한 상태
     // 이고 floor=0 RPC 에 맡겨도 0 에서 멈추므로 단순히 차감만 시도한다.
-    console.error('[inventory hook] pre-check failed', {
-      guildId,
-      error: error.message,
-    })
+    log.error('[inventory hook] pre-check failed', error, { tenant_id: guildId })
   }
   const stockMap = new Map<string, number>()
   for (const row of data ?? []) {
@@ -288,11 +286,10 @@ export async function decrementBuildForDelivery(
     try {
       await adjustInventoryGear(guildId, itemId, -1, actorDiscordId)
     } catch (e) {
-      console.error('[inventory hook] adjustInventoryGear failed', {
-        guildId,
-        itemId,
+      log.error('[inventory hook] adjustInventoryGear failed', e, {
+        tenant_id: guildId,
+        item_id: itemId,
         delta: -1,
-        error: e instanceof Error ? e.message : String(e),
       })
     }
   }
@@ -338,10 +335,7 @@ export async function autoTrackSuffixesFromItemIds(
       ignoreDuplicates: true,
     })
   if (error) {
-    console.error('[inventory hook] auto-track failed', {
-      guildId,
-      error: error.message,
-    })
+    log.error('[inventory hook] auto-track failed', error, { tenant_id: guildId })
   }
 }
 

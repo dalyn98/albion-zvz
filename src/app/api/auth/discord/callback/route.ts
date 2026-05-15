@@ -28,6 +28,7 @@ import {
   classifyHost,
   FALLBACK_TENANT_SLUG,
 } from '@/lib/tenant-resolver'
+import { log } from '@/lib/log'
 
 // Onboarding cookie stays on the canonical domain (it's consumed by /onboard
 // which is served from the canonical host until the new tenant exists).
@@ -168,7 +169,7 @@ export async function GET(request: NextRequest) {
 
     // Phase 3: 유저의 Discord 길드 목록 → tenants 매칭.
     const userGuilds = await listUserGuilds(token.access_token).catch((e) => {
-      console.error('[discord-callback] listUserGuilds failed', e)
+      log.error('[discord-callback] listUserGuilds failed', e, { discord_id: user.id })
       return [] as Awaited<ReturnType<typeof listUserGuilds>>
     })
 
@@ -310,7 +311,10 @@ export async function GET(request: NextRequest) {
             isBombSquadCaller,
           )
         } catch (err) {
-          console.error('[discord-callback] upsertGuildAvatar failed', err)
+          log.error('[discord-callback] upsertGuildAvatar failed', err, {
+            tenant_id: tenant.id,
+            discord_id: user.id,
+          })
         }
 
         const db = getAdminClient()
@@ -330,7 +334,10 @@ export async function GET(request: NextRequest) {
               .eq('guild_id', tenant.id)
               .eq('discord_id', user.id)
             if (langErr) {
-              console.error('[discord-callback] save preferred_language failed', langErr)
+              log.error('[discord-callback] save preferred_language failed', langErr, {
+                tenant_id: tenant.id,
+                discord_id: user.id,
+              })
             } else {
               preferred = fromDiscord
             }
@@ -429,7 +436,10 @@ export async function GET(request: NextRequest) {
           .eq('guild_id', guestGuildId)
           .eq('discord_id', user.id)
         if (langErr) {
-          console.error('[discord-callback] save guest preferred_language failed', langErr)
+          log.error('[discord-callback] save guest preferred_language failed', langErr, {
+            tenant_id: guestGuildId,
+            discord_id: user.id,
+          })
         } else {
           guestPreferred = fromDiscord
         }
@@ -458,7 +468,7 @@ export async function GET(request: NextRequest) {
       isLocale(guestPreferred) ? guestPreferred : null,
     )
   } catch (e) {
-    console.error('[discord-callback]', e)
+    log.error('[discord-callback] unhandled', e, { return_to: state.returnTo })
     return errorRedirect(state, 'server_error')
   }
 }

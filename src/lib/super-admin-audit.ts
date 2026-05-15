@@ -5,6 +5,7 @@
 // 실패는 로깅만 하고 상위 액션은 깨뜨리지 않는다 (감사 누락 < 기능 차단).
 
 import { getAdminClient } from '@/lib/supabase-admin'
+import { log } from '@/lib/log'
 
 export type SuperAdminAction =
   | 'tenant.status.update'
@@ -35,7 +36,11 @@ export async function logSuperAdminAction(entry: AuditEntry): Promise<void> {
       details: entry.details ?? {},
     })
   } catch (err) {
-    console.error('[super-admin-audit] failed to write entry', err)
+    log.error('[super-admin-audit] failed to write entry', err, {
+      action: entry.action,
+      target_tenant_id: entry.targetTenantId ?? undefined,
+      target_discord_id: entry.targetDiscordId ?? undefined,
+    })
   }
 }
 
