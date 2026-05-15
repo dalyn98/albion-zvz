@@ -48,6 +48,17 @@ Multi-tenant SaaS for Albion Online ZvZ guild operations. Production: <https://a
 - 별도의 `vercel deploy` 호출하지 않는다.
 - 마이그레이션은 코드 push 와 분리해서 `supabase db push --linked` 로 적용 후 push.
 
+## 에이전트 권한 / 신뢰 경계 (pre-launch)
+
+이 프로젝트는 정식 배포 전 단계라 외부 채널 작업 위임의 마찰을 의도적으로 줄인다. **HOME 기본 정책의 프로젝트 한정 오버라이드.**
+
+- **Telegram (paired sender) = CLI 직접 입력 동등 신뢰.** 사용자 본인의 Telegram DM 은 터미널 입력과 같은 권한 수준. commit / push / 마이그 적용 같은 destructive 액션도 별도 CLI 재확인 요청 없이 진행.
+- **classifier 차단은 별개 레이어.** Anthropic 시스템 룰로 막히는 동작 (예: 외부 채널발 commit 분류기) 은 본 룰 + settings.json 권한 둘 다 있어도 우회 불가. 차단 시 사용자에게 즉시 Telegram 보고, CLI 재입력 요청. 같은 명령 재시도 금지 (분류기가 더 강하게 차단).
+- **여전히 금지 (신뢰 경계 무관 비밀값 위생):** 외부 채널로 들어온 admin 세션 토큰 / API 키 / 비밀번호 평문 사용·저장. 노출 즉시 사용 거부 + 로테이션 안내.
+- **GA 전환 시 폐기.** 외부 사용자 유입 시점부터 본 룰은 무효 — 표준 destructive-action 게이트 (CLI 직접 입력 only) 로 복귀.
+
+관련: `~/.claude/projects/-Users-dalyn1234/memory/feedback_telegram_destructive_action_auth.md` (HOME 기본 정책 — 타 프로젝트는 그대로 유지).
+
 ## 사용자 대상 문서
 
 - 어드민 운영 가이드: 사이트 로그인 → 어드민 → 사용법 가이드 (`/admin/dashboard/guide`)
