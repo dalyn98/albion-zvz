@@ -7,17 +7,39 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { verifyDeathInWindow } from '@/lib/killboard'
 import { getAppSetting } from '@/lib/app-settings'
-import { calcPayoutSilver } from '@/lib/regear-payout'
 import { requireAlbionVerified } from '@/lib/albion-identity'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import { findTrackedBattleIdsForEvent } from '@/lib/auto-regear-matching'
 import { log } from '@/lib/log'
-import { SLOT_KEYS, getDisplayGear, type BuildSnapshot, type RegearType, type SlotGearDisplay, type SlotKey } from '@/types'
+import {
+  ALLOWED_MIME,
+  MAX_SCREENSHOT_BYTES,
+  SCREENSHOT_BUCKET,
+  buildSnapshotFromSlot,
+  computeMarketSilverFromItems,
+  computeRegearWindowOpenMs,
+  latestEndedMsOf,
+  normalizeBreakdownItems,
+  type RawBreakdown,
+  type RegearLineItem,
+} from '@/lib/regear-helpers'
+import { type BuildSnapshot, type RegearType, type SlotGearDisplay } from '@/types'
 
-// User-facing regear actions. Admin-side lives in `regear-admin.ts`.
+// User-facing regear actions. Admin-side lives in `regear-admin.ts`,
+// member-side inline edit actions in `regear-edit.ts`.
+// 공유 헬퍼 (snapshot/normalize/compute) 와 스크린샷 상수는 `@/lib/regear-helpers`.
 
-const SCREENSHOT_BUCKET = 'regear-screenshots'
-const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024 // 10 MiB — must match bucket limit in migration 003
+// 편집/취소 함수와 결과 타입을 사용하던 importer 가 끊기지 않도록 re-export.
+export type { RegearLineItem } from '@/lib/regear-helpers'
+export type { UpdateLineItemResult } from '@/app/actions/regear-edit'
+export {
+  cancelMyRegearRequest,
+  updateMyRegearBuildSnapshotSlot,
+  updateMyManualRegearScreenshots,
+  updateMyRegearLineItemPrice,
+  updateMyManualRegearClaim,
+} from '@/app/actions/regear-edit'
+
 const DEFAULT_REGEAR_WINDOW_MINUTES = 60
 const DEFAULT_MAX_DEATHS_PER_EVENT = 1
 // 신청 가능한 리기어가 적격 리스트에 머무는 기간(일). 이 시간이 지난 사망/이벤트는
@@ -26,8 +48,6 @@ const DEFAULT_MAX_DEATHS_PER_EVENT = 1
 const DEFAULT_ELIGIBILITY_DAYS = 14
 const MIN_ELIGIBILITY_DAYS = 1
 const MAX_ELIGIBILITY_DAYS = 90
-
-const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp'])
 
 async function loadRegearLimits(
   guildId: string,
@@ -65,18 +85,6 @@ const DEFAULT_REGEAR_LIMITS: RegearLimits = {
 export async function getRegearEligibilityDays(guildId: string): Promise<number> {
   const { eligibilityDays } = await loadRegearLimits(guildId)
   return eligibilityDays
-}
-
-function buildSnapshotFromSlot(slot: SlotGearDisplay, roleName: string): BuildSnapshot {
-  const gear = SLOT_KEYS.reduce(
-    (acc, k) => {
-      const { name, id } = getDisplayGear(slot, k)
-      acc[k] = { name: name ?? null, id: id ?? null }
-      return acc
-    },
-    {} as Record<SlotKey, { name: string | null; id: string | null }>,
-  )
-  return { role_name: roleName || null, ...gear }
 }
 
 export interface MyRegearRequest {
@@ -301,16 +309,10 @@ async function requestRegearInner(
       event_id: eventId,
     })
   }
-  const latestEndedMs = matchedBattles.reduce((acc, b) => {
-    const ms = Date.parse(b.endedAtIso)
-    return Number.isFinite(ms) && ms > acc ? ms : acc
-  }, 0)
+  const latestEndedMs = latestEndedMsOf(matchedBattles)
   // 신청 오픈 규칙: 전투 시작 + windowMinutes (기본 60분) 이 지나거나, 매칭된
   // 전투가 종료(ended_at 보유) 되면 즉시 오픈. 둘 중 빠른 시점.
-  const startPlusBufferMs = battleStartMs + windowMinutes * 60 * 1000
-  const windowOpenMs =
-    latestEndedMs > 0 ? Math.min(startPlusBufferMs, latestEndedMs) : startPlusBufferMs
-  if (Date.now() < windowOpenMs) {
+  if (Date.now() < computeRegearWindowOpenMs(battleStartMs, latestEndedMs, windowMinutes)) {
     return { error: tErr('regearWindowNotOpen', { minutes: windowMinutes }) }
   }
 
@@ -413,48 +415,6 @@ async function requestRegearInner(
   revalidatePath('/admin/dashboard/regear')
   revalidatePath('/me')
   return { id: inserted.id }
-}
-
-export async function cancelMyRegearRequest(id: string): Promise<{ error?: string }> {
-  const tErr = await getTranslations('memberActionError')
-  const session = await getSession()
-  if (!session) return { error: tErr('loginRequired') }
-  const guildId = await getSessionGuildId(session)
-
-  const db = getAdminClient()
-  const { data: row, error: fetchError } = await db
-    .from('regear_requests')
-    .select('id, status, discord_id, event_id, screenshot_path, screenshot_path_2')
-    .eq('guild_id', guildId)
-    .eq('id', id)
-    .maybeSingle()
-  if (fetchError) return { error: fetchError.message }
-  if (!row) return { error: tErr('requestNotFound') }
-  if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnCancel') }
-  if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotCancel') }
-
-  const { error: deleteError } = await db
-    .from('regear_requests')
-    .delete()
-    .eq('guild_id', guildId)
-    .eq('id', id)
-    .eq('status', 'pending')
-  if (deleteError) return { error: deleteError.message }
-
-  // Best-effort screenshot cleanup. If this fails we continue — the nightly
-  // cron already has a separate sweep for orphaned files.
-  const toRemove: string[] = []
-  if (row.screenshot_path) toRemove.push(row.screenshot_path)
-  if (row.screenshot_path_2) toRemove.push(row.screenshot_path_2)
-  if (toRemove.length > 0) {
-    await db.storage.from(SCREENSHOT_BUCKET).remove(toRemove)
-  }
-
-  if (row.event_id) revalidatePath(`/events/${row.event_id}`)
-  revalidatePath('/regear')
-  revalidatePath('/me')
-  revalidatePath('/admin/dashboard/regear')
-  return {}
 }
 
 export async function listMyRegearRequests(): Promise<{
@@ -607,16 +567,12 @@ export async function listMyRegearEligibleEvents(): Promise<{
     }
   }
 
-  // 이벤트별 신청 오픈 시각 사전 계산. submission gate 와 동일한 규칙:
-  // min(battle_started_at + windowMinutes, latest matched ended_at) — 즉
-  // 전투 시작 후 windowMinutes 가 지나거나 전투 종료 시 둘 중 빠른 시점.
-  // 매칭이 0건이면 start + windowMinutes 폴백.
+  // 이벤트별 신청 오픈 시각 사전 계산. submission gate 와 동일한 규칙
+  // (computeRegearWindowOpenMs). tenant_battle_records 쿼리가 일시적으로 실패해도
+  // /regear 페이지 전체가 죽지 않도록 allSettled — 실패한 이벤트는
+  // battle_started_at 기준으로 폴백되어 클라이언트는 정상 표시.
   const { windowMinutes } = await loadRegearLimits(guildId)
-  const windowMinutesMs = windowMinutes * 60 * 1000
   const eligibleEvents = events.filter((e) => eventToRole.has(e.id))
-  // tenant_battle_records 쿼리가 일시적으로 실패해도 /regear 페이지 전체가 죽지
-  // 않도록 allSettled 로 감싼다. 실패한 이벤트는 battle_started_at 기준으로
-  // 폴백되어 클라이언트는 정상 표시.
   const matchedSettled = await Promise.allSettled(
     eligibleEvents.map((e) =>
       findTrackedBattleIdsForEvent(db, guildId, e.battle_started_at as string),
@@ -627,13 +583,11 @@ export async function listMyRegearEligibleEvents(): Promise<{
     const settled = matchedSettled[i]
     const matched = settled.status === 'fulfilled' ? settled.value : []
     const battleStartMs = new Date(e.battle_started_at as string).getTime()
-    const latestEndedMs = matched.reduce((acc, b) => {
-      const ms = Date.parse(b.endedAtIso)
-      return Number.isFinite(ms) && ms > acc ? ms : acc
-    }, 0)
-    const startPlusBufferMs = battleStartMs + windowMinutesMs
-    const windowOpenMs =
-      latestEndedMs > 0 ? Math.min(startPlusBufferMs, latestEndedMs) : startPlusBufferMs
+    const windowOpenMs = computeRegearWindowOpenMs(
+      battleStartMs,
+      latestEndedMsOf(matched),
+      windowMinutes,
+    )
     windowOpenByEvent.set(e.id, new Date(windowOpenMs).toISOString())
   })
 
@@ -684,26 +638,6 @@ export async function getMyPointsSummary(): Promise<{
   return { summary: { balance: earned - spent, lifetimeEarned: earned, lifetimeSpent: spent } }
 }
 
-// 자동 리기어 pending 상태에서 청구자가 부위별 시세를 수정할 때 쓰는 구조.
-// auto-regear.ts 가 만든 gear_breakdown.items 와 동일한 필드 셋 + userEdited 플래그.
-export interface RegearLineItem {
-  slot: string
-  uniqueName: string
-  enchant: number
-  quality: number
-  count: number
-  // 단위(1개) 실버 가격. null = AODP 에서 시세를 못 찾음 (청구자가 입력해야 지급 대상).
-  price: number | null
-  city: string | null
-  fallbackTier: string | null
-  // true 면 청구자가 직접 수정한 슬롯. 관리자 UI 에 배지로 노출해 AODP 자동
-  // 추정과 구분할 수 있게 한다.
-  userEdited: boolean
-  // AODP 결과 신뢰도. 'low' 면 청구자에게 "직접 입력해 주세요" 안내 배지를
-  // 띄운다. 옛 행은 confidence 가 없을 수 있어 nullable.
-  confidence: 'high' | 'medium' | 'low' | 'none' | null
-}
-
 export interface MyRegearDetail {
   id: string
   eventId: string
@@ -729,77 +663,6 @@ export interface MyRegearDetail {
   // 추출되어 들어오지만 sync 지연 시 빈 슬롯이 있을 수 있다.
   fulfillmentMode: 'silver' | 'crafted'
   buildSnapshot: BuildSnapshot | null
-}
-
-interface RawBreakdownItem {
-  slot?: unknown
-  uniqueName?: unknown
-  enchant?: unknown
-  quality?: unknown
-  count?: unknown
-  price?: unknown
-  city?: unknown
-  fallbackTier?: unknown
-  userEdited?: unknown
-  confidence?: unknown
-}
-
-interface RawBreakdown {
-  role_cap?: unknown
-  payout_rate_percent?: unknown
-  market_silver?: unknown
-  items?: unknown
-  warning_level?: unknown
-}
-
-function normalizeBreakdownItems(raw: unknown): RegearLineItem[] {
-  if (!Array.isArray(raw)) return []
-  return raw
-    .filter((v): v is RawBreakdownItem => typeof v === 'object' && v !== null)
-    .map((v): RegearLineItem => {
-      const confidence: 'high' | 'medium' | 'low' | 'none' | null =
-        v.confidence === 'high' ||
-        v.confidence === 'medium' ||
-        v.confidence === 'low' ||
-        v.confidence === 'none'
-          ? v.confidence
-          : null
-      return {
-        slot: typeof v.slot === 'string' ? v.slot : '',
-        uniqueName: typeof v.uniqueName === 'string' ? v.uniqueName : '',
-        enchant:
-          typeof v.enchant === 'number' && Number.isFinite(v.enchant)
-            ? Math.trunc(v.enchant)
-            : 0,
-        quality:
-          typeof v.quality === 'number' && Number.isFinite(v.quality)
-            ? Math.trunc(v.quality)
-            : 1,
-        count:
-          typeof v.count === 'number' && Number.isFinite(v.count) && v.count > 0
-            ? Math.trunc(v.count)
-            : 1,
-        price:
-          typeof v.price === 'number' && Number.isFinite(v.price) && v.price >= 0
-            ? Math.trunc(v.price)
-            : null,
-        city: typeof v.city === 'string' ? v.city : null,
-        fallbackTier: typeof v.fallbackTier === 'string' ? v.fallbackTier : null,
-        userEdited: v.userEdited === true,
-        confidence,
-      }
-    })
-    .filter((v) => v.slot.length > 0)
-}
-
-function computeMarketSilverFromItems(items: RegearLineItem[]): number {
-  let total = 0
-  for (const it of items) {
-    if (typeof it.price === 'number' && it.price > 0) {
-      total += it.price * it.count
-    }
-  }
-  return total
 }
 
 export async function getMyRegearDetail(
@@ -875,76 +738,6 @@ export async function getMyRegearDetail(
   return { detail }
 }
 
-// 제작 모드 자동 리기어 본인 빌드 한 슬롯 갱신. tier+enchant 만 다르고 base 가
-// 같은 아이템(예: T5_2H_ARCANESTAFF → T7_2H_ARCANESTAFF@2) 으로 바꿔달라는 케이스가
-// 대부분이지만, killboard sync 지연으로 슬롯이 비어있던 경우 새로 채우는 호출도
-// 같은 액션을 재사용한다 — 차이는 입력 값(name/id) 의 채워짐 여부일 뿐.
-//
-// 빈 슬롯으로 되돌리는 케이스는 명시적으로 name=id=null 호출. 클라이언트에서 슬롯
-// "비우기" 버튼을 누른 경우 UI 가 그렇게 부른다.
-export async function updateMyRegearBuildSnapshotSlot(
-  requestId: string,
-  slotKey: SlotKey,
-  name: string | null,
-  id: string | null,
-): Promise<{ error?: string; buildSnapshot?: BuildSnapshot }> {
-  const tErr = await getTranslations('memberActionError')
-  if (!SLOT_KEYS.includes(slotKey)) {
-    return { error: tErr('slotNotFound') }
-  }
-  const trimmedId = typeof id === 'string' ? id.trim() : null
-  const trimmedName = typeof name === 'string' ? name.trim() : null
-  // (id null, name 채워짐) 같은 일관성 없는 입력은 막는다 — 둘 다 null 이거나 둘 다 truthy.
-  if ((trimmedId && !trimmedName) || (!trimmedId && trimmedName)) {
-    return { error: tErr('invalidInput') }
-  }
-
-  const session = await getSession()
-  if (!session) return { error: tErr('loginRequired') }
-  const guildId = await getSessionGuildId(session)
-
-  const db = getAdminClient()
-  const { data: row, error: fetchErr } = await db
-    .from('regear_requests')
-    .select('id, discord_id, status, auto_generated, fulfillment_mode, build_snapshot, role_name')
-    .eq('guild_id', guildId)
-    .eq('id', requestId)
-    .maybeSingle()
-  if (fetchErr) return { error: fetchErr.message }
-  if (!row) return { error: tErr('requestNotFound') }
-  if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnEdit') }
-  if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
-  if (!row.auto_generated) return { error: tErr('autoOnlyEditable') }
-  if (row.fulfillment_mode !== 'crafted') return { error: tErr('craftedOnlyEditable') }
-
-  // 비어 있던 snapshot 도 한 슬롯만 들고 들어와도 일관된 BuildSnapshot 으로
-  // 정규화 — UI 가 9개 슬롯을 항상 보여주기 위해 누락된 슬롯에 null 들을 박아둔다.
-  const current = (row.build_snapshot as BuildSnapshot | null) ?? null
-  const next: BuildSnapshot = {
-    role_name: current?.role_name ?? ((row.role_name as string | null) ?? null),
-    weapon: current?.weapon ?? { name: null, id: null },
-    head: current?.head ?? { name: null, id: null },
-    armor: current?.armor ?? { name: null, id: null },
-    shoes: current?.shoes ?? { name: null, id: null },
-    offhand: current?.offhand ?? { name: null, id: null },
-    potion: current?.potion ?? { name: null, id: null },
-    food: current?.food ?? { name: null, id: null },
-    cape: current?.cape ?? { name: null, id: null },
-    mount: current?.mount ?? { name: null, id: null },
-  }
-  next[slotKey] = { name: trimmedName, id: trimmedId }
-
-  const { error: updateErr } = await db
-    .from('regear_requests')
-    .update({ build_snapshot: next })
-    .eq('guild_id', guildId)
-    .eq('id', requestId)
-  if (updateErr) return { error: updateErr.message }
-
-  revalidatePath(`/me/regear/${requestId}`)
-  return { buildSnapshot: next }
-}
-
 // 멤버 본인의 리기어 스크린샷 signed URL 발급 — 관리자용 getScreenshotUrl 과
 // 같은 버킷이지만 ownership 체크가 다르다 (관리자 권한 X, discord_id 일치 필수).
 export async function getMyRegearScreenshotUrl(
@@ -977,296 +770,3 @@ export async function getMyRegearScreenshotUrl(
   return { url: urlData.signedUrl }
 }
 
-// 수동 제출 리기어의 스크린샷 교체 (pending 한정). 새 파일 업로드 → DB 갱신
-// → 옛 파일 best-effort 정리. 두 슬롯 중 일부만 교체할 수도 있고, 두 번째는
-// 삭제도 가능(removeSecondary). 새 업로드가 실패하면 이미 올린 파일은 롤백.
-export async function updateMyManualRegearScreenshots(
-  requestId: string,
-  formData: FormData,
-): Promise<{
-  error?: string
-  primaryPath?: string | null
-  secondaryPath?: string | null
-}> {
-  const tErr = await getTranslations('memberActionError')
-  try {
-    const session = await getSession()
-    if (!session) return { error: tErr('loginRequired') }
-    const guildId = await getSessionGuildId(session)
-
-    const newPrimary = formData.get('screenshot')
-    const newSecondary = formData.get('screenshot2')
-    const removeSecondary = formData.get('removeSecondary') === 'true'
-
-    const hasPrimary = newPrimary instanceof File && newPrimary.size > 0
-    const hasSecondary = newSecondary instanceof File && newSecondary.size > 0
-
-    if (hasPrimary) {
-      if (newPrimary.size > MAX_SCREENSHOT_BYTES) return { error: tErr('screenshotTooLarge') }
-      if (!ALLOWED_MIME.has(newPrimary.type)) return { error: tErr('screenshotWrongType') }
-    }
-    if (hasSecondary) {
-      if (newSecondary.size > MAX_SCREENSHOT_BYTES) return { error: tErr('screenshotTooLarge') }
-      if (!ALLOWED_MIME.has(newSecondary.type)) return { error: tErr('screenshotWrongType') }
-    }
-    if (!hasPrimary && !hasSecondary && !removeSecondary) {
-      return { error: tErr('noChange') }
-    }
-
-    const db = getAdminClient()
-    const { data: row, error: fetchError } = await db
-      .from('regear_requests')
-      .select(
-        'id, status, auto_generated, discord_id, event_id, screenshot_path, screenshot_path_2',
-      )
-      .eq('guild_id', guildId)
-      .eq('id', requestId)
-      .maybeSingle()
-    if (fetchError) return { error: fetchError.message }
-    if (!row) return { error: tErr('requestNotFound') }
-    if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnEdit') }
-    if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
-    if (row.auto_generated) return { error: tErr('manualOnlyEditable') }
-
-    const eventId = row.event_id as string
-    const oldPrimary = (row.screenshot_path as string | null) ?? null
-    const oldSecondary = (row.screenshot_path_2 as string | null) ?? null
-
-    let nextPrimary: string | null = oldPrimary
-    let nextSecondary: string | null = oldSecondary
-    const newlyUploaded: string[] = []
-    const toRemove: string[] = []
-
-    if (hasPrimary) {
-      const ext =
-        newPrimary.type === 'image/png'
-          ? 'png'
-          : newPrimary.type === 'image/webp'
-            ? 'webp'
-            : 'jpg'
-      const path = `${session.discordId}/${eventId}-${Date.now()}.${ext}`
-      const { error: upErr } = await db.storage
-        .from(SCREENSHOT_BUCKET)
-        .upload(path, newPrimary, { contentType: newPrimary.type, upsert: false })
-      if (upErr) {
-        return { error: tErr('screenshotUploadFailed', { reason: upErr.message }) }
-      }
-      newlyUploaded.push(path)
-      if (oldPrimary) toRemove.push(oldPrimary)
-      nextPrimary = path
-    }
-
-    if (hasSecondary) {
-      const ext =
-        newSecondary.type === 'image/png'
-          ? 'png'
-          : newSecondary.type === 'image/webp'
-            ? 'webp'
-            : 'jpg'
-      const path = `${session.discordId}/${eventId}-${Date.now()}-2.${ext}`
-      const { error: upErr } = await db.storage
-        .from(SCREENSHOT_BUCKET)
-        .upload(path, newSecondary, { contentType: newSecondary.type, upsert: false })
-      if (upErr) {
-        if (newlyUploaded.length > 0) {
-          await db.storage.from(SCREENSHOT_BUCKET).remove(newlyUploaded)
-        }
-        return { error: tErr('screenshotUploadFailed', { reason: upErr.message }) }
-      }
-      newlyUploaded.push(path)
-      if (oldSecondary) toRemove.push(oldSecondary)
-      nextSecondary = path
-    } else if (removeSecondary && oldSecondary) {
-      toRemove.push(oldSecondary)
-      nextSecondary = null
-    }
-
-    const { error: updateError } = await db
-      .from('regear_requests')
-      .update({
-        screenshot_path: nextPrimary,
-        screenshot_path_2: nextSecondary,
-      })
-      .eq('guild_id', guildId)
-      .eq('id', requestId)
-      .eq('discord_id', session.discordId)
-      .eq('status', 'pending')
-      .eq('auto_generated', false)
-    if (updateError) {
-      if (newlyUploaded.length > 0) {
-        await db.storage.from(SCREENSHOT_BUCKET).remove(newlyUploaded)
-      }
-      return { error: updateError.message }
-    }
-
-    if (toRemove.length > 0) {
-      await db.storage.from(SCREENSHOT_BUCKET).remove(toRemove)
-    }
-
-    revalidatePath(`/me/regear/${requestId}`)
-    revalidatePath('/admin/dashboard/regear')
-    revalidatePath('/admin/dashboard/approvals')
-    revalidatePath('/me')
-
-    return { primaryPath: nextPrimary, secondaryPath: nextSecondary }
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
-  }
-}
-
-// 단위 실버 상한 — int32 를 넘지 않으면서 시세 오입력 방지. 20M 실버/단위면
-// 현재 게임 내 어떤 아이템보다도 훨씬 높아 실질적 상한은 유지된다.
-const MAX_UNIT_SILVER = 20_000_000
-
-export interface UpdateLineItemResult {
-  error?: string
-  marketSilver?: number
-  claimedSilver?: number
-  payoutSilver?: number
-}
-
-export async function updateMyRegearLineItemPrice(
-  requestId: string,
-  slot: string,
-  newUnitSilver: number,
-): Promise<UpdateLineItemResult> {
-  const tErr = await getTranslations('memberActionError')
-  try {
-    const session = await getSession()
-    if (!session) return { error: tErr('loginRequired') }
-    const guildId = await getSessionGuildId(session)
-
-    if (!Number.isInteger(newUnitSilver) || newUnitSilver < 0) {
-      return { error: tErr('priceMustBeNonNegativeInt') }
-    }
-    if (newUnitSilver > MAX_UNIT_SILVER) {
-      return { error: tErr('priceTooLarge', { max: MAX_UNIT_SILVER.toLocaleString() }) }
-    }
-    const slotTrimmed = slot.trim()
-    if (!slotTrimmed) return { error: tErr('slotEmpty') }
-
-    const db = getAdminClient()
-    const { data, error } = await db
-      .from('regear_requests')
-      .select('id, status, auto_generated, discord_id, gear_breakdown')
-      .eq('guild_id', guildId)
-      .eq('id', requestId)
-      .eq('discord_id', session.discordId)
-      .maybeSingle()
-    if (error) return { error: error.message }
-    if (!data) return { error: tErr('requestNotFound') }
-    if (data.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
-    if (!data.auto_generated) return { error: tErr('autoOnlyEditable') }
-
-    const breakdown = (data.gear_breakdown as RawBreakdown | null) ?? {}
-    const items = normalizeBreakdownItems(breakdown.items)
-    const idx = items.findIndex((it) => it.slot === slotTrimmed)
-    if (idx === -1) return { error: tErr('slotNotFound') }
-
-    // Immutable update — items 배열을 재구성해 해당 슬롯만 교체.
-    const updatedItems: RegearLineItem[] = items.map((it, i) =>
-      i === idx ? { ...it, price: newUnitSilver, userEdited: true } : it,
-    )
-
-    const newMarketSilver = computeMarketSilverFromItems(updatedItems)
-    const roleCap =
-      typeof breakdown.role_cap === 'number' && Number.isFinite(breakdown.role_cap) && breakdown.role_cap > 0
-        ? Math.trunc(breakdown.role_cap)
-        : newMarketSilver
-    const payoutRatePercent =
-      typeof breakdown.payout_rate_percent === 'number' &&
-      Number.isFinite(breakdown.payout_rate_percent) &&
-      breakdown.payout_rate_percent >= 1 &&
-      breakdown.payout_rate_percent <= 100
-        ? Math.trunc(breakdown.payout_rate_percent)
-        : 100
-    const newClaimedSilver = Math.min(newMarketSilver, roleCap)
-    const newPayoutSilver = calcPayoutSilver(newClaimedSilver, payoutRatePercent)
-
-    const newBreakdown = {
-      ...breakdown,
-      items: updatedItems,
-      market_silver: newMarketSilver,
-    }
-
-    const { error: updateError } = await db
-      .from('regear_requests')
-      .update({
-        gear_breakdown: newBreakdown,
-        claimed_silver: newClaimedSilver,
-        payout_silver: newPayoutSilver,
-      })
-      .eq('guild_id', guildId)
-      .eq('id', requestId)
-      .eq('discord_id', session.discordId)
-      .eq('status', 'pending')
-      .eq('auto_generated', true)
-    if (updateError) return { error: updateError.message }
-
-    revalidatePath('/me')
-    revalidatePath('/admin/dashboard/regear')
-    revalidatePath('/admin/dashboard/approvals')
-    return {
-      marketSilver: newMarketSilver,
-      claimedSilver: newClaimedSilver,
-      payoutSilver: newPayoutSilver,
-    }
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
-  }
-}
-
-// 수동 제출 리기어의 청구 실버 수정 (pending 한정).
-// 자동 리기어는 슬롯별로 단가를 수정해 market/claimed/payout 을 재계산하지만,
-// 수동은 청구자가 직접 적은 단일 금액 (claimed_silver) 만 갱신하면 된다.
-// payout_silver 는 승인 시점에 RPC 가 채우므로 여기서는 건드리지 않는다.
-export async function updateMyManualRegearClaim(
-  requestId: string,
-  newClaimedSilver: number,
-): Promise<{ error?: string; claimedSilver?: number }> {
-  const tErr = await getTranslations('memberActionError')
-  try {
-    const session = await getSession()
-    if (!session) return { error: tErr('loginRequired') }
-    const guildId = await getSessionGuildId(session)
-
-    if (!Number.isInteger(newClaimedSilver) || newClaimedSilver <= 0) {
-      return { error: tErr('invalidClaimAmount') }
-    }
-
-    const db = getAdminClient()
-    const { data, error } = await db
-      .from('regear_requests')
-      .select('id, status, auto_generated, discord_id, silver')
-      .eq('guild_id', guildId)
-      .eq('id', requestId)
-      .eq('discord_id', session.discordId)
-      .maybeSingle()
-    if (error) return { error: error.message }
-    if (!data) return { error: tErr('requestNotFound') }
-    if (data.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
-    if (data.auto_generated) return { error: tErr('manualOnlyEditable') }
-
-    const ceiling = (data.silver as number | null) ?? 0
-    if (newClaimedSilver > ceiling) {
-      return { error: tErr('claimOverCeiling', { ceiling: ceiling.toLocaleString() }) }
-    }
-
-    const { error: updateError } = await db
-      .from('regear_requests')
-      .update({ claimed_silver: newClaimedSilver })
-      .eq('guild_id', guildId)
-      .eq('id', requestId)
-      .eq('discord_id', session.discordId)
-      .eq('status', 'pending')
-      .eq('auto_generated', false)
-    if (updateError) return { error: updateError.message }
-
-    revalidatePath('/me')
-    revalidatePath('/admin/dashboard/regear')
-    revalidatePath('/admin/dashboard/approvals')
-    return { claimedSilver: newClaimedSilver }
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : tErr('serverError') }
-  }
-}
