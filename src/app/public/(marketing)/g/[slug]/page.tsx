@@ -3,7 +3,6 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 import {
-  ExternalLink,
   Users,
   Swords,
   ShieldCheck,
@@ -11,16 +10,10 @@ import {
   Image as ImageIcon,
   BarChart3,
   Activity,
-  Crown,
-  Skull,
-  ShieldAlert,
-  Globe,
-  Clock,
-  Languages,
-  UserCheck,
   ShieldHalf,
   Calendar,
   Target,
+  UserCheck,
   Sword,
 } from 'lucide-react'
 import MarketingNav from '@/components/MarketingNav'
@@ -28,14 +21,10 @@ import { resolveTenantBySlugAnyStatus } from '@/lib/tenant-resolver'
 import { loadGuildProfileSettings, ACCENT_CLASS_MAP } from '@/lib/guild-profile'
 import { getAppSetting } from '@/lib/app-settings'
 import { resolveAlbionDisplayName } from '@/lib/albion-display-name'
-import { loadGalleryItems, type GalleryItem } from '@/lib/guild-profile-gallery'
+import { loadGalleryItems } from '@/lib/guild-profile-gallery'
 import {
   loadRecentTrackedBattle,
   loadTopContributorsThisWeek,
-  loadTrackedBattleLifetimeCount,
-  type RecentBattleSummary,
-  type TopContributorSummary,
-  type BattleOutcome,
 } from '@/lib/guild-profile-activity'
 import {
   loadLifetimeBattleStats,
@@ -48,9 +37,9 @@ import {
   type RivalGuild,
 } from '@/lib/guild-profile-stats'
 import { loadMemberDashboardSummary } from '@/lib/guild-profile-member-dashboard'
+import { loadSectionStats } from '@/lib/guild-profile-section-stats'
 import { getAdminBadgeCounts } from '@/lib/admin-badges'
 import { formatRelativeFine } from '@/lib/relative-time'
-import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import MemberDashboardSection from '@/components/guild/MemberDashboardSection'
 import SignedOutCta from '@/components/guild/SignedOutCta'
@@ -61,14 +50,26 @@ import { getLocale } from 'next-intl/server'
 import { isLocale } from '@/i18n/locales'
 import { getLocalizedItemName } from '@/lib/item-names'
 import { canonicalT8WeaponId, stripTierPrefix } from '@/lib/weapon-display'
-import InlineEditableField, { type EditorOption } from '@/components/guild/InlineEditableField'
+import InlineEditableField from '@/components/guild/InlineEditableField'
 import AdminTeamGridClient from '@/components/AdminTeamGridClient'
-import BannerInlineEdit from '@/components/guild/BannerInlineEdit'
 import SectionVisibilityPin from '@/components/guild/SectionVisibilityPin'
 import GalleryInlineEdit from '@/components/guild/GalleryInlineEdit'
 import HiddenSectionsAdminBar, {
   type HiddenSectionEntry,
 } from '@/components/guild/HiddenSectionsAdminBar'
+import GuildProfileHero from '@/components/guild/GuildProfileHero'
+import GuildProfileDisabledState from '@/components/guild/GuildProfileDisabledState'
+import {
+  SectionHeader,
+  GalleryGrid,
+  StatCard,
+  RecentBattleCard,
+  TopContributorsCard,
+  InfoCard,
+  WeaponDistributionCard,
+  RivalsCard,
+  formatRatio,
+} from '@/components/guild/GuildProfileSections'
 
 export const dynamic = 'force-dynamic'
 
@@ -139,53 +140,6 @@ export async function generateMetadata({
   }
 }
 
-interface SectionStat {
-  count: number
-}
-
-async function loadSectionStats(
-  guildId: string,
-  flags: { showMembers: boolean; showBattles: boolean; showRegearStats: boolean },
-): Promise<{
-  members: SectionStat | null
-  battles: SectionStat | null
-  regear: SectionStat | null
-}> {
-  const db = getAdminClient()
-
-  // 멀티테넌트 마이그레이션 (072) 에서 이 테이블들의 컬럼이 guild_id 로 통일됐다.
-  // 이전 코드에서 tenant_id 로 잘못 필터해 silent 0 으로 떨어지던 버그 수정.
-  // guild_avatars 는 PK 가 (guild_id, discord_id) 복합으로 바뀌어 (084) 단일
-  // 'id' 컬럼이 없다 — head:true 카운트는 select 컬럼이 존재해야 하므로 '*' 사용.
-  // battles 카운트는 events.battle_started_at 이 아니라 tenant_battle_records 기반
-  // (low-engagement 컷 + bundle_split 토글 적용) 으로 /battles 페이지와 일치시킴.
-  const [members, battlesCount, regear] = await Promise.all([
-    flags.showMembers
-      ? db
-          .from('guild_avatars')
-          .select('*', { count: 'exact', head: true })
-          .eq('guild_id', guildId)
-          .is('withdrawn_at', null)
-      : Promise.resolve({ count: null }),
-    flags.showBattles
-      ? loadTrackedBattleLifetimeCount(guildId)
-      : Promise.resolve(null),
-    flags.showRegearStats
-      ? db
-          .from('regear_requests')
-          .select('*', { count: 'exact', head: true })
-          .eq('guild_id', guildId)
-          .eq('status', 'approved')
-      : Promise.resolve({ count: null }),
-  ])
-
-  return {
-    members: typeof members.count === 'number' ? { count: members.count } : null,
-    battles: typeof battlesCount === 'number' ? { count: battlesCount } : null,
-    regear: typeof regear.count === 'number' ? { count: regear.count } : null,
-  }
-}
-
 export default async function GuildProfilePage({
   params,
 }: {
@@ -204,7 +158,7 @@ export default async function GuildProfilePage({
   const displayName = await resolveAlbionDisplayName(tenant.tenantId, tenant.slug, tenant.name)
 
   if (tenant.status === 'pending') {
-    return <DisabledStatePage displayName={displayName} pending />
+    return <GuildProfileDisabledState displayName={displayName} pending />
   }
 
   const settings = await loadGuildProfileSettings(tenant.tenantId)
@@ -214,7 +168,7 @@ export default async function GuildProfilePage({
   // 어드민이라면 곧장 활성화 화면으로 이동할 수 있게 한다. 검색 인덱싱은
   // generateMetadata 에서 noindex 처리.
   if (!settings.enabled) {
-    return <DisabledStatePage displayName={displayName} />
+    return <GuildProfileDisabledState displayName={displayName} />
   }
 
   // 멤버 대시보드 섹션은 길드별 staged rollout 토글(`member_dashboard_enabled`)
@@ -361,31 +315,12 @@ export default async function GuildProfilePage({
   const weaponTotalCount = showWeapons
     ? weaponDistribution.reduce((sum, w) => sum + w.count, 0)
     : 0
-  // 언어 코드를 i18n 라벨로 변환. ko/ja/en/zh/es/fr/de/pt 8개.
-  const languageLabels = settings.languages.map((code) => t(`language_${code}`))
   // serverCode 가 null 이면 (override/albion_server 둘 다 미설정) HeroChip 자체를
   // 숨긴다. 어드민이 본인 길드를 볼 때는 InlineEditableField 의 emptyLabel 로
   // "+ 서버 설정" 어퍼던스가 노출되어 직접 채울 수 있다.
   const serverLabel = serverCode ? t(`server_${serverCode}`) : null
   const localeRaw = await getLocale()
   const locale = isLocale(localeRaw) ? localeRaw : 'ko'
-
-  // 인라인 편집 select/csv 용 옵션 — 어드민이 아니면 사용되지 않지만 빌드타임에
-  // 풀어두어야 client 컴포넌트가 t() 함수를 안 받는다 (RSC → client prop 룰).
-  const recruitmentOptions: EditorOption[] = [
-    { value: 'open', label: t('recruitment_open') },
-    { value: 'selective', label: t('recruitment_selective') },
-    { value: 'closed', label: t('recruitment_closed') },
-  ]
-  const serverOptions: EditorOption[] = [
-    { value: '', label: t('serverDefaultOption') },
-    { value: 'east', label: t('server_east') },
-    { value: 'west', label: t('server_west') },
-    { value: 'europe', label: t('server_europe') },
-  ]
-  const languageOptions: EditorOption[] = (
-    ['ko', 'ja', 'en', 'zh', 'es', 'fr', 'de', 'pt'] as const
-  ).map((code) => ({ value: code, label: t(`language_${code}`) }))
 
   // 어드민이 인라인 핀으로 끈 섹션 모음. 페이지 하단의 "다시 보이기" 위젯이
   // 이 목록을 받아 다시 켜는 단일 진입점을 제공. 어드민 외에는 빈 배열 처리.
@@ -410,208 +345,15 @@ export default async function GuildProfilePage({
     <div className="min-h-screen bg-[#08090d] text-white">
       {!viewingOwnGuild && <MarketingNav />}
 
-      {/* HERO — 좌측 수직 액센트 바 + 배너 + 글로우 + 미세 노이즈 텍스처.
-          모집 open 일 때 도트가 ping. 길드명은 모바일/데스크탑 4xl→6xl→7xl 로
-          반응형 점진 확대. */}
-      <header className="relative overflow-hidden">
-        <BannerInlineEdit
-          enabled={isOwnGuildAdmin}
-          currentUrl={settings.bannerUrl}
-          currentOpacity={settings.bannerOpacity}
-        />
-        <div className={`absolute inset-0 ${accent.heroGradient}`} />
-        <div
-          className={`absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full ${accent.heroGlow} blur-3xl pointer-events-none`}
-        />
-        {settings.bannerUrl && (
-          <div className="absolute inset-0 overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={settings.bannerUrl}
-              alt=""
-              className="w-full h-full object-cover"
-              style={{ opacity: settings.bannerOpacity / 100 }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-[#08090d]" />
-          </div>
-        )}
-        {/* 미세한 도트 노이즈 — 단조로운 그라디언트에 결을 입힌다. 4% 투명도라
-            텍스처는 거의 인지되지 않지만 hero 가 "재질감" 을 갖는다. */}
-        <div
-          className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay"
-          style={{
-            backgroundImage:
-              'radial-gradient(rgba(255,255,255,0.9) 1px, transparent 1px)',
-            backgroundSize: '3px 3px',
-          }}
-        />
-        <div className={`absolute top-0 left-0 bottom-0 w-[3px] ${accent.bar}`} />
-        <div className={`absolute bottom-0 left-0 right-0 h-px ${accent.divider}`} />
-
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-20 sm:py-28 lg:py-32">
-          <div className="space-y-6">
-            {/* 연합 태그 — 게임 내 alliance 표시. recruitment pill 보다 한 단계 큰
-                pill (text-sm + ring-2) + 명시 라벨로 시각 비중 강조. 미가입 길드는
-                자연스레 숨김. AllianceName 은 hover tooltip 으로만 노출. */}
-            {alliance && (
-              <div className="flex items-center gap-2">
-                <span
-                  className={`inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-lg text-sm font-bold ring-2 backdrop-blur-sm ${accent.badgeBg} ${accent.badgeText} ${accent.badgeRing}`}
-                  title={alliance.name ?? undefined}
-                >
-                  <ShieldCheck size={14} />
-                  <span className="text-[10px] uppercase tracking-[0.25em] opacity-80">
-                    {t('allianceLabel')}
-                  </span>
-                  <span className="font-mono tracking-wider text-base">
-                    [{alliance.tag}]
-                  </span>
-                </span>
-              </div>
-            )}
-            <div className="flex items-center gap-3 flex-wrap">
-              <InlineEditableField
-                enabled={isOwnGuildAdmin}
-                settingKey="guild_profile_recruitment_status"
-                currentValue={settings.recruitmentStatus}
-                kind="select"
-                options={recruitmentOptions}
-                label={t('recruitmentEditLabel')}
-                display="inline"
-              >
-                <span
-                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold ring-1 backdrop-blur-sm ${accent.badgeBg} ${accent.badgeText} ${accent.badgeRing}`}
-                >
-                  <span className="relative flex w-2 h-2">
-                    {settings.recruitmentStatus === 'open' && (
-                      <span
-                        className={`absolute inline-flex w-full h-full rounded-full ${accent.dot} opacity-75 animate-ping`}
-                      />
-                    )}
-                    <span className={`relative inline-flex w-2 h-2 rounded-full ${accent.dot}`} />
-                  </span>
-                  {t(`recruitment_${settings.recruitmentStatus}`)}
-                </span>
-              </InlineEditableField>
-              <span className="text-gray-500 text-[11px] font-mono tracking-[0.2em] uppercase">
-                /g/{tenant.slug}
-              </span>
-            </div>
-            <h1
-              className={`text-4xl sm:text-6xl lg:text-7xl font-black tracking-tighter ${accent.heading} drop-shadow-[0_4px_20px_rgba(0,0,0,0.6)] break-words`}
-            >
-              {displayName}
-            </h1>
-            <InlineEditableField
-              enabled={isOwnGuildAdmin}
-              settingKey="guild_profile_description"
-              currentValue={settings.description}
-              kind="textarea"
-              label={t('descriptionEditLabel')}
-              emptyLabel={t('descriptionAddLabel')}
-              placeholder={t('descriptionPlaceholder')}
-              maxLength={500}
-            >
-              {settings.description.length > 0 && (
-                <p className="text-gray-200 text-base sm:text-lg leading-relaxed max-w-2xl whitespace-pre-line">
-                  {settings.description}
-                </p>
-              )}
-            </InlineEditableField>
-            {/* hero 칩 — 서버 (항상 표시), 활동 시간대 (admin 입력 시), 언어 (admin 입력 시).
-                glass + ring 으로 hero 톤 유지. Lucide 아이콘으로 시각 라벨 보강.
-                어드민이 본인 길드를 볼 때는 각 칩이 인라인 편집 가능. 빈 칩은
-                "+ 추가" 버튼으로 대체된다 (server 는 fallback 이 있어 늘 표시). */}
-            <div className="flex flex-wrap items-center gap-2">
-              <InlineEditableField
-                enabled={isOwnGuildAdmin}
-                settingKey="guild_profile_server"
-                currentValue={settings.serverOverride}
-                kind="select"
-                options={serverOptions}
-                label={t('serverEditLabel')}
-                emptyLabel={t('serverAddLabel')}
-                display="inline"
-              >
-                {serverLabel && (
-                  <HeroChip icon={<Globe size={12} />} label={serverLabel} accent={accent} />
-                )}
-              </InlineEditableField>
-              <InlineEditableField
-                enabled={isOwnGuildAdmin}
-                settingKey="guild_profile_active_hours"
-                currentValue={settings.activeHours}
-                kind="text"
-                label={t('activeHoursEditLabel')}
-                emptyLabel={t('activeHoursAddLabel')}
-                placeholder={t('activeHoursPlaceholder')}
-                maxLength={80}
-                display="inline"
-              >
-                {settings.activeHours.length > 0 && (
-                  <HeroChip
-                    icon={<Clock size={12} />}
-                    label={settings.activeHours}
-                    accent={accent}
-                  />
-                )}
-              </InlineEditableField>
-              <InlineEditableField
-                enabled={isOwnGuildAdmin}
-                settingKey="guild_profile_languages"
-                currentValue={settings.languages.join(',')}
-                kind="csv"
-                options={languageOptions}
-                label={t('languagesEditLabel')}
-                emptyLabel={t('languagesAddLabel')}
-                display="inline"
-              >
-                {languageLabels.length > 0 && (
-                  <HeroChip
-                    icon={<Languages size={12} />}
-                    label={languageLabels.join(' / ')}
-                    accent={accent}
-                  />
-                )}
-              </InlineEditableField>
-            </div>
-            {/* Discord CTA — 모집 중이고 invite URL 이 채워졌을 때 노출. 어드민
-                본인일 때는 url 이 비어 있어도 "+ 추가" 버튼으로 보여 직접 채우게
-                한다. recruitment === 'closed' 면 invite 자체가 의미 없어 어드민
-                에게도 숨김. */}
-            {settings.recruitmentStatus !== 'closed' &&
-              (isOwnGuildAdmin || settings.discordInviteUrl.length > 0) && (
-                <div className="pt-3">
-                  <InlineEditableField
-                    enabled={isOwnGuildAdmin}
-                    settingKey="guild_profile_discord_invite_url"
-                    currentValue={settings.discordInviteUrl}
-                    kind="text"
-                    label={t('discordInviteEditLabel')}
-                    emptyLabel={t('discordInviteAddLabel')}
-                    placeholder={t('discordInvitePlaceholder')}
-                    maxLength={200}
-                  >
-                    {settings.discordInviteUrl.length > 0 && (
-                      <a
-                        href={settings.discordInviteUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`group inline-flex items-center gap-2 ${accent.ctaBg} font-bold px-6 py-3.5 rounded-lg transition-all text-sm shadow-lg hover:shadow-2xl hover:-translate-y-0.5`}
-                      >
-                        {t('joinCta')}
-                        <ExternalLink
-                          size={14}
-                          className="transition-transform group-hover:translate-x-0.5"
-                        />
-                      </a>
-                    )}
-                  </InlineEditableField>
-                </div>
-              )}
-          </div>
-        </div>
-      </header>
+      <GuildProfileHero
+        tenantSlug={tenant.slug}
+        displayName={displayName}
+        settings={settings}
+        accent={accent}
+        alliance={alliance}
+        serverLabel={serverLabel}
+        isOwnGuildAdmin={isOwnGuildAdmin}
+      />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-12">
         {/* 어드민 처리 대기 카드 — 길드 어드민이 본인 길드 페이지를 볼 때만 노출.
@@ -915,19 +657,19 @@ export default async function GuildProfilePage({
                   />
                   <WeaponDistributionCard
                     weapons={weaponDistribution.map((w) => {
-                    // 카테고리를 T8.0 base id 로 정규화해 albion-items 번들에서
-                    // 로컬라이즈된 이름을 가져온다. 인챈트/티어 변종은 번들에 없는
-                    // 경우가 있어 base 형으로 수렴 — 한국어면 "장로의 X" 가 되므로
-                    // stripTierPrefix 로 접두사 제거.
-                    const canonical = canonicalT8WeaponId(w.sampleItemId)
-                    const localized = canonical
-                      ? getLocalizedItemName(canonical, locale, w.category)
-                      : w.category
-                    return {
-                      ...w,
-                      label: stripTierPrefix(localized) || w.category,
-                    }
-                  })}
+                      // 카테고리를 T8.0 base id 로 정규화해 albion-items 번들에서
+                      // 로컬라이즈된 이름을 가져온다. 인챈트/티어 변종은 번들에 없는
+                      // 경우가 있어 base 형으로 수렴 — 한국어면 "장로의 X" 가 되므로
+                      // stripTierPrefix 로 접두사 제거.
+                      const canonical = canonicalT8WeaponId(w.sampleItemId)
+                      const localized = canonical
+                        ? getLocalizedItemName(canonical, locale, w.category)
+                        : w.category
+                      return {
+                        ...w,
+                        label: stripTierPrefix(localized) || w.category,
+                      }
+                    })}
                     totalCount={weaponTotalCount}
                     accent={accent}
                     titleLabel={t('weaponDistributionLabel')}
@@ -978,501 +720,3 @@ export default async function GuildProfilePage({
     </div>
   )
 }
-
-interface SectionHeaderProps {
-  icon: React.ReactNode
-  label: string
-  accent: (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
-}
-
-function SectionHeader({ icon, label, accent }: SectionHeaderProps) {
-  return (
-    <div className="flex items-center gap-3">
-      <div
-        className={`flex items-center gap-2 ${accent.heading} text-xs font-bold uppercase tracking-[0.25em]`}
-      >
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div className={`flex-1 h-px ${accent.divider}`} />
-      <span
-        className={`inline-block w-1 h-1 rounded-full ${accent.dot} shrink-0 opacity-70`}
-      />
-    </div>
-  )
-}
-
-interface GalleryGridProps {
-  items: GalleryItem[]
-  fallbackAlt: string
-  accent: (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
-}
-
-// 항목 수 기반 분기. 1장 = 풀 카드, 2장 = 동일 그리드, 3장+ = editorial (첫
-// 사진을 2x2 로 키우고 나머지는 1x1). 4장 이상부터는 sm:auto-rows 가 자연스럽게
-// 확장한다.
-function GalleryGrid({ items, fallbackAlt, accent }: GalleryGridProps) {
-  if (items.length === 1) {
-    return (
-      <div className="grid grid-cols-1">
-        <GalleryFigure item={items[0]} fallbackAlt={fallbackAlt} accent={accent} />
-      </div>
-    )
-  }
-  if (items.length === 2) {
-    return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {items.map((item) => (
-          <GalleryFigure
-            key={item.id}
-            item={item}
-            fallbackAlt={fallbackAlt}
-            accent={accent}
-          />
-        ))}
-      </div>
-    )
-  }
-  const [first, ...rest] = items
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 sm:auto-rows-[160px] gap-3">
-      <div className="sm:col-span-2 sm:row-span-2 sm:h-auto h-64">
-        <GalleryFigure
-          item={first}
-          fallbackAlt={fallbackAlt}
-          accent={accent}
-          fillParent
-        />
-      </div>
-      {rest.map((item) => (
-        <div key={item.id} className="sm:h-auto h-44">
-          <GalleryFigure item={item} fallbackAlt={fallbackAlt} accent={accent} fillParent />
-        </div>
-      ))}
-    </div>
-  )
-}
-
-interface GalleryFigureProps {
-  item: GalleryItem
-  fallbackAlt: string
-  accent: (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
-  // editorial 그리드에서 부모 박스 크기에 맞춰야 할 때.
-  fillParent?: boolean
-}
-
-function GalleryFigure({ item, fallbackAlt, accent, fillParent }: GalleryFigureProps) {
-  const sizing = fillParent ? 'h-full' : 'aspect-[16/9]'
-  return (
-    <figure
-      className={`group relative rounded-xl overflow-hidden border ${accent.border} bg-gray-900/50 ${sizing} transition-all hover:-translate-y-0.5 hover:shadow-2xl`}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={item.imageUrl}
-        alt={item.caption || fallbackAlt}
-        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-      />
-      {item.caption && (
-        <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent px-4 py-3 text-sm text-white font-medium">
-          {item.caption}
-        </figcaption>
-      )}
-    </figure>
-  )
-}
-
-interface StatCardProps {
-  icon: React.ReactNode
-  label: string
-  value: number | null
-  unit: string
-  accent: (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
-}
-
-function StatCard({ icon, label, value, unit, accent }: StatCardProps) {
-  return (
-    <div
-      className={`relative rounded-xl border ${accent.border} bg-gray-900/40 px-5 py-5 backdrop-blur-sm overflow-hidden transition-colors hover:bg-gray-900/60`}
-    >
-      {/* 코너 글로우 — 카드에 약한 입체감을 주기 위한 단일 블러 원. */}
-      <div
-        className={`absolute -top-12 -right-12 w-32 h-32 rounded-full ${accent.heroGlow} blur-2xl pointer-events-none`}
-      />
-      <div className="relative flex items-center justify-between mb-3">
-        <span
-          className={`flex items-center justify-center w-9 h-9 rounded-lg ${accent.badgeBg} ${accent.heading}`}
-        >
-          {icon}
-        </span>
-        <span
-          className={`text-[10px] uppercase tracking-[0.18em] font-bold ${accent.heading}`}
-        >
-          {label}
-        </span>
-      </div>
-      <div className="relative">
-        {value !== null ? (
-          <div className="flex items-baseline gap-1.5">
-            <span className={`text-3xl font-black ${accent.heading}`}>
-              {value.toLocaleString()}
-            </span>
-            <span className="text-gray-500 text-xs">{unit}</span>
-          </div>
-        ) : (
-          <div className="text-gray-300 text-sm">{unit}</div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-interface RecentBattleCardProps {
-  battle: RecentBattleSummary
-  accent: (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
-  sizeLabel: string
-  outcomeLabel: string
-  relativeLabel: string
-  titleLabel: string
-  opponentLabel: string
-}
-
-// 결과(승/패/무) 색은 액센트와 무관하게 universal 매핑. 길드 액센트가 rose 인
-// 경우 패배 카드까지 분홍이면 결과를 못 읽으니 분리.
-const OUTCOME_BADGE: Record<BattleOutcome, string> = {
-  win: 'bg-emerald-500/20 text-emerald-200 ring-emerald-500/50',
-  loss: 'bg-rose-500/20 text-rose-200 ring-rose-500/50',
-  tie: 'bg-slate-500/20 text-slate-200 ring-slate-500/50',
-}
-
-const OUTCOME_ICON: Record<BattleOutcome, React.ReactNode> = {
-  win: <ShieldCheck size={12} />,
-  loss: <Skull size={12} />,
-  tie: <ShieldAlert size={12} />,
-}
-
-function RecentBattleCard({
-  battle,
-  accent,
-  sizeLabel,
-  outcomeLabel,
-  relativeLabel,
-  titleLabel,
-  opponentLabel,
-}: RecentBattleCardProps) {
-  return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <span
-          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold ring-1 uppercase tracking-[0.15em] ${OUTCOME_BADGE[battle.outcome]}`}
-        >
-          {OUTCOME_ICON[battle.outcome]}
-          <span>{outcomeLabel}</span>
-        </span>
-        <span className="text-[11px] text-gray-500 font-mono shrink-0 tabular-nums">
-          {relativeLabel}
-        </span>
-      </div>
-      <div>
-        <p
-          className={`text-[10px] uppercase tracking-[0.22em] font-bold mb-2 ${accent.heading}`}
-        >
-          {titleLabel}
-        </p>
-        <p className="text-lg sm:text-xl font-bold text-white truncate leading-tight">
-          {opponentLabel}
-        </p>
-      </div>
-      <div className="flex items-center gap-6 pt-4 border-t border-gray-800">
-        <div className="flex items-baseline gap-1.5">
-          <Swords size={15} className={`${accent.heading} self-center`} />
-          <span className={`text-3xl font-black ${accent.heading} tabular-nums`}>
-            {battle.homeKills}
-          </span>
-          <span className="text-gray-600 text-[11px] font-mono uppercase tracking-wider">
-            K
-          </span>
-        </div>
-        <div className="flex items-baseline gap-1.5">
-          <Skull size={15} className="text-gray-500 self-center" />
-          <span className="text-3xl font-black text-gray-300 tabular-nums">
-            {battle.homeDeaths}
-          </span>
-          <span className="text-gray-600 text-[11px] font-mono uppercase tracking-wider">
-            D
-          </span>
-        </div>
-        <div className="ml-auto flex items-center gap-1.5">
-          <Users size={11} className="text-gray-600" />
-          <span className="text-[11px] text-gray-500 font-mono">
-            {battle.homeTeamSize} · {sizeLabel}
-          </span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-interface TopContributorsCardProps {
-  contributors: TopContributorSummary[]
-  accent: (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
-  titleLabel: string
-  killsUnit: string
-}
-
-function TopContributorsCard({
-  contributors,
-  accent,
-  titleLabel,
-  killsUnit,
-}: TopContributorsCardProps) {
-  return (
-    <div className="space-y-4 h-full flex flex-col">
-      <p className={`text-[10px] uppercase tracking-[0.18em] font-bold ${accent.heading}`}>
-        {titleLabel}
-      </p>
-      <ul className="space-y-2.5 flex-1">
-        {contributors.map((c, idx) => (
-          <li key={c.albionPlayerId} className="flex items-center gap-3">
-            <div className="relative shrink-0">
-              {c.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={c.avatarUrl}
-                  alt=""
-                  className="w-9 h-9 rounded-full bg-gray-800 object-cover"
-                />
-              ) : (
-                <div className="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center">
-                  <Users size={14} className="text-gray-600" />
-                </div>
-              )}
-              {idx === 0 && (
-                <Crown
-                  size={14}
-                  className={`absolute -top-1 -right-1 ${accent.heading} drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]`}
-                  fill="currentColor"
-                />
-              )}
-            </div>
-            <span className="flex-1 text-sm text-white font-medium truncate">{c.name}</span>
-            <span className="flex items-baseline gap-1 shrink-0">
-              <span className={`text-base font-black ${accent.heading}`}>{c.kills}</span>
-              <span className="text-gray-500 text-[11px]">{killsUnit}</span>
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-interface HeroChipProps {
-  icon: React.ReactNode
-  label: string
-  accent: (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
-}
-
-// hero 본체에 들어가는 작은 정보 칩. recruitment status 배지와 톤 통일하되
-// glow 보다는 차분한 ring 처리 — 정보성이지 강조가 아님.
-function HeroChip({ icon, label, accent }: HeroChipProps) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ring-1 backdrop-blur-sm ${accent.badgeBg} ${accent.badgeText} ${accent.badgeRing}`}
-    >
-      <span className="opacity-80">{icon}</span>
-      <span className="truncate max-w-[200px]">{label}</span>
-    </span>
-  )
-}
-
-interface InfoCardProps {
-  icon: React.ReactNode
-  title: string
-  body: string
-  accent: (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
-}
-
-// 모집 정보 / 가입 절차 카드. 자유 텍스트 멀티라인을 안전하게 렌더 (whitespace-pre-line).
-function InfoCard({ icon, title, body, accent }: InfoCardProps) {
-  return (
-    <div
-      className={`rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm transition-colors hover:bg-gray-900/60`}
-    >
-      <div className={`flex items-center gap-2 ${accent.heading} text-[10px] uppercase tracking-[0.2em] font-bold mb-3`}>
-        {icon}
-        <span>{title}</span>
-      </div>
-      <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-line">{body}</p>
-    </div>
-  )
-}
-
-interface WeaponDistributionCardProps {
-  weapons: Array<WeaponCategoryUsage & { label: string }>
-  totalCount: number
-  accent: (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
-  titleLabel: string
-  windowLabel: string
-}
-
-function WeaponDistributionCard({
-  weapons,
-  totalCount,
-  accent,
-  titleLabel,
-  windowLabel,
-}: WeaponDistributionCardProps) {
-  return (
-    <div
-      className={`rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm space-y-3`}
-    >
-      <div className="flex items-center justify-between">
-        <p className={`text-[10px] uppercase tracking-[0.2em] font-bold ${accent.heading}`}>
-          {titleLabel}
-        </p>
-        <span className="text-[10px] text-gray-500 font-mono uppercase tracking-wider">
-          {windowLabel}
-        </span>
-      </div>
-      <ul className="space-y-2">
-        {weapons.map((w) => {
-          const pct = totalCount > 0 ? Math.round((w.count / totalCount) * 100) : 0
-          return (
-            <li key={w.category} className="space-y-1">
-              <div className="flex items-baseline justify-between gap-2 text-xs">
-                <span className="text-gray-200 font-medium truncate">{w.label}</span>
-                <span className={`shrink-0 font-mono tabular-nums ${accent.heading}`}>{pct}%</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-gray-800 overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${accent.dot}`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
-  )
-}
-
-interface RivalsCardProps {
-  rivals: RivalGuild[]
-  accent: (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
-  titleLabel: string
-  windowLabel: string
-  battlesUnit: string
-}
-
-function RivalsCard({
-  rivals,
-  accent,
-  titleLabel,
-  windowLabel,
-  battlesUnit,
-}: RivalsCardProps) {
-  return (
-    <div
-      className={`rounded-xl border ${accent.border} bg-gray-900/40 p-5 backdrop-blur-sm space-y-3`}
-    >
-      <div className="flex items-center justify-between">
-        <p className={`text-[10px] uppercase tracking-[0.2em] font-bold ${accent.heading}`}>
-          {titleLabel}
-        </p>
-        <span className="text-[10px] text-gray-500 font-mono uppercase tracking-wider">
-          {windowLabel}
-        </span>
-      </div>
-      <ul className="space-y-2.5">
-        {rivals.map((r) => (
-          <li key={r.guildName} className="space-y-1">
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-sm text-white font-semibold truncate">{r.guildName}</span>
-              <span className="text-[11px] text-gray-500 font-mono tabular-nums shrink-0">
-                {r.battleCount} {battlesUnit}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-[11px] font-mono">
-              <span className="text-emerald-300 tabular-nums">{r.wins}W</span>
-              <span className="text-gray-700">·</span>
-              <span className="text-rose-300 tabular-nums">{r.losses}L</span>
-              {r.ties > 0 && (
-                <>
-                  <span className="text-gray-700">·</span>
-                  <span className="text-gray-400 tabular-nums">{r.ties}T</span>
-                </>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-// K/D 비율 표시 — 한 자리 소수까지. 1.0 미만은 둘째 자리까지 (0.85 가 0.9 가 되면
-// 0.9 와 1 의 차가 모호해짐).
-function formatRatio(ratio: number): string {
-  if (ratio >= 10) return ratio.toFixed(0)
-  if (ratio >= 1) return ratio.toFixed(2)
-  return ratio.toFixed(2)
-}
-
-// 공개 프로필이 비활성/미설정 상태인 길드의 안내 화면. 두 케이스 동일 구조:
-//   - active + showProfile=false  → "아직 켜지지 않음" / 어드민 CTA → /admin/dashboard/guild-profile
-//   - pending (위저드 미완료)       → "아직 설정 중" / 어드민 CTA → /onboard (위저드 이어 진행)
-// 둘 다 amber 액센트로 사이트 톤 유지. generateMetadata 가 이 두 케이스에 noindex 처리.
-async function DisabledStatePage({
-  displayName,
-  pending,
-}: {
-  displayName: string
-  pending?: boolean
-}) {
-  const t = await getTranslations('publicGuildProfile')
-  const heading = pending ? t('pendingHeading') : t('disabledHeading')
-  const body = pending ? t('pendingBody') : t('disabledBody')
-  const adminCta = pending ? t('pendingAdminCta') : t('disabledAdminCta')
-  const adminHref = pending ? '/onboard' : '/admin/dashboard/guild-profile'
-  return (
-    <>
-      <MarketingNav />
-      <div className="min-h-screen bg-[#08090d] text-white relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/15 via-orange-700/10 to-black pointer-events-none" />
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
-        <div className="relative max-w-2xl mx-auto px-4 sm:px-6 py-24 sm:py-32 text-center space-y-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-500/15 ring-1 ring-amber-500/30">
-            <Globe size={28} className="text-amber-300" />
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight break-words">
-            {displayName}
-          </h1>
-          <p className="text-[10px] uppercase tracking-[0.25em] font-bold text-amber-300/90">
-            {heading}
-          </p>
-          <p className="text-gray-300 text-sm sm:text-base leading-relaxed max-w-lg mx-auto">
-            {body}
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
-            <Link
-              href={adminHref}
-              className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-5 py-3 rounded-lg text-sm shadow-lg hover:shadow-2xl hover:-translate-y-0.5 transition-all"
-            >
-              {adminCta}
-              <ExternalLink size={14} />
-            </Link>
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 border border-gray-700 hover:border-gray-500 text-gray-200 font-semibold px-5 py-3 rounded-lg text-sm transition-colors"
-            >
-              {t('disabledHomeCta')}
-            </Link>
-          </div>
-        </div>
-      </div>
-    </>
-  )
-}
-
