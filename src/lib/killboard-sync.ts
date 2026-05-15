@@ -119,7 +119,8 @@ interface GuildAvatarMemberRow {
 }
 
 export interface KillboardSyncResult {
-  server: AlbionServer
+  // 서버 미설정 길드는 sync 자체를 skip 하므로 null 가능.
+  server: AlbionServer | null
   members_total: number
   members_resolved: number
   members_newly_resolved: number
@@ -138,7 +139,26 @@ export async function syncKillboard(
   guildId: string,
 ): Promise<KillboardSyncResult> {
   const startedAt = Date.now()
-  const server = await resolveAlbionServer(guildId)
+  // albion_server 미설정 — 신규 길드가 onboarding 중간에 cron 에 도달한 케이스.
+  // 'east' 로 silent 폴백하면 west/eu 길드의 킬이 영원히 안 잡혀 자기-인증
+  // 위반. 명시적으로 skip 결과 반환해 운영자가 errors 로 인지.
+  let server: AlbionServer
+  try {
+    server = await resolveAlbionServer(guildId)
+  } catch {
+    return {
+      server: null,
+      members_total: 0,
+      members_resolved: 0,
+      members_newly_resolved: 0,
+      members_unresolved: 0,
+      albion_only_pool: 0,
+      albion_only_polled: 0,
+      events_upserted: 0,
+      errors: [{ member: '*', step: 'config', message: 'albion_server not configured for tenant' }],
+      duration_ms: Date.now() - startedAt,
+    }
+  }
   const baseUrl = SERVER_ENDPOINTS[server]
   // tenant 의 알비온 길드명 — 동명이인 중 자기 길드원을 고르는 데 사용. 위저드
   // step 2 에서 albion_home_guild_id 와 함께 저장. 미설정이면 매칭 자체를 skip

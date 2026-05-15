@@ -363,7 +363,10 @@ export default async function GuildProfilePage({
     : 0
   // 언어 코드를 i18n 라벨로 변환. ko/ja/en/zh/es/fr/de/pt 8개.
   const languageLabels = settings.languages.map((code) => t(`language_${code}`))
-  const serverLabel = t(`server_${serverCode}`)
+  // serverCode 가 null 이면 (override/albion_server 둘 다 미설정) HeroChip 자체를
+  // 숨긴다. 어드민이 본인 길드를 볼 때는 InlineEditableField 의 emptyLabel 로
+  // "+ 서버 설정" 어퍼던스가 노출되어 직접 채울 수 있다.
+  const serverLabel = serverCode ? t(`server_${serverCode}`) : null
   const localeRaw = await getLocale()
   const locale = isLocale(localeRaw) ? localeRaw : 'ko'
 
@@ -527,9 +530,12 @@ export default async function GuildProfilePage({
                 kind="select"
                 options={serverOptions}
                 label={t('serverEditLabel')}
+                emptyLabel={t('serverAddLabel')}
                 display="inline"
               >
-                <HeroChip icon={<Globe size={12} />} label={serverLabel} accent={accent} />
+                {serverLabel && (
+                  <HeroChip icon={<Globe size={12} />} label={serverLabel} accent={accent} />
+                )}
               </InlineEditableField>
               <InlineEditableField
                 enabled={isOwnGuildAdmin}

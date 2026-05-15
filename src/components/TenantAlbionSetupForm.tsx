@@ -8,7 +8,7 @@ import {
   type AlbionGuildCandidate,
 } from '@/app/actions/onboarding'
 import { saveTenantAlbion } from '@/app/actions/onboard'
-import type { AlbionServer } from '@/lib/albion-gameinfo'
+import { ALBION_SERVERS, type AlbionServer } from '@/lib/albion-gameinfo'
 import { AODP_ALLOWED_CITIES, type AodpCity } from '@/lib/shop/aodp-constants'
 
 interface Labels {
@@ -21,9 +21,12 @@ interface Labels {
   albionSelectedGuild: string
   albionClearGuild: string
   albionNoHomeGuild: string
-  albionServerWest: string
-  albionServerEast: string
-  albionServerEurope: string
+  // 서버 라벨 — west/east/europe 모두 ALBION_SERVER_LABEL_KEY 매핑 기반.
+  // 단일 진실 원천은 common 네임스페이스, 부모 RSC 에서 resolveServerLabel 로 풀어 전달.
+  albionServerLabels: Record<AlbionServer, string>
+  // 'gameinfo-sgp' 같은 hostname 힌트 — 서버를 시각적으로 구분하는 보조 정보.
+  albionServerHints: Record<AlbionServer, string>
+  albionServerSelectHint: string
   albionAodpCityLabel: string
   albionAodpCityHelp: string
   nextButton: string
@@ -44,7 +47,9 @@ const SEARCH_DEBOUNCE_MS = 300
 // 명시한다 — 나중에 설정 페이지에서 복구 가능.
 export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
   const router = useRouter()
-  const [server, setServer] = useState<AlbionServer>('east')
+  // 초기 서버 미선택 — 한 서버 (east) 를 default 로 박으면 west/eu 길드 사용자가
+  // 폼을 그대로 제출해 잘못된 서버에 저장되는 사고. 명시적 클릭을 요구.
+  const [server, setServer] = useState<AlbionServer | null>(null)
   const [guildId, setGuildId] = useState('')
   const [guildName, setGuildName] = useState('')
   const [query, setQuery] = useState('')
@@ -56,8 +61,9 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
 
   const latestRequestRef = useRef(0)
   useEffect(() => {
-    if (query.trim().length < 2) {
-      // 빈 query → 검색 결과 클리어. 외부 (query) → 로컬 state 동기화.
+    // 서버 미선택 시 검색 자체 비활성 — 어느 서버에 쿼리할지 알 수 없다.
+    if (!server || query.trim().length < 2) {
+      // 빈 query / 서버 미선택 → 검색 결과 클리어. 외부 → 로컬 state 동기화.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setCandidates([])
       setSearching(false)
@@ -106,6 +112,7 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (!server) return
     setError('')
     startTransition(async () => {
       const res = await saveTenantAlbion({
@@ -124,8 +131,9 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
   }
 
   // 길드 미선택 시에도 다음 단계로 진행 — 알비온 인증/킬보드 sync 는 비활성으로
-  // 시작하고, 관리자가 나중에 설정 페이지에서 채울 수 있다.
+  // 시작하고, 관리자가 나중에 설정 페이지에서 채울 수 있다. 단 서버는 필수.
   const handleSkip = () => {
+    if (!server) return
     setError('')
     startTransition(async () => {
       const res = await saveTenantAlbion({
@@ -143,15 +151,16 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
     })
   }
 
+  // ALBION_SERVERS 가 단일 진실 원천 — 서버 추가/제거 시 albion-gameinfo.ts 만 수정.
   const serverOptions: ReadonlyArray<{
     value: AlbionServer
     label: string
     hint: string
-  }> = [
-    { value: 'east', label: labels.albionServerEast, hint: 'gameinfo-sgp' },
-    { value: 'west', label: labels.albionServerWest, hint: 'gameinfo' },
-    { value: 'europe', label: labels.albionServerEurope, hint: 'gameinfo-ams' },
-  ]
+  }> = ALBION_SERVERS.map((value) => ({
+    value,
+    label: labels.albionServerLabels[value],
+    hint: labels.albionServerHints[value],
+  }))
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -160,6 +169,9 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
           {labels.albionServerLabel}
         </legend>
         <p className="text-xs text-gray-400">{labels.albionServerHelp}</p>
+        {!server && (
+          <p className="text-xs text-amber-300">{labels.albionServerSelectHint}</p>
+        )}
         <div className="mt-2 space-y-1.5">
           {serverOptions.map((opt) => (
             <label
@@ -307,14 +319,14 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
         <button
           type="button"
           onClick={handleSkip}
-          disabled={isPending}
+          disabled={isPending || !server}
           className="rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-60 text-gray-300 text-sm font-semibold px-4 py-2.5"
         >
           {labels.skipButton}
         </button>
         <button
           type="submit"
-          disabled={isPending || !guildId}
+          disabled={isPending || !server || !guildId}
           className="flex-1 rounded-lg bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-60 text-white text-sm font-semibold py-2.5"
         >
           {isPending ? labels.savingButton : labels.nextButton}

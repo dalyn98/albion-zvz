@@ -90,7 +90,17 @@ export async function POST() {
     ),
   )
 
-  const server = await resolveAlbionServer(guildId)
+  // resolveAlbionServer 는 미설정 시 throw — 운영자가 backfill 누른 시점에
+  // 명시 설정이 비어 있는 거 자체가 사고이므로 400 으로 분명히 표면화.
+  let server: AlbionServer
+  try {
+    server = await resolveAlbionServer(guildId)
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : 'albion_server not configured' },
+      { status: 400 },
+    )
+  }
   const baseUrl = SERVER_ENDPOINTS[server]
 
   // event_id → battle_id 매핑. 같은 event_id 가 killer/victim 양쪽에서 잡힐 수

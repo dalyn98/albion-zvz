@@ -87,7 +87,15 @@ export async function POST(req: Request) {
     ),
   )
 
-  const server = await resolveAlbionServer(guildId)
+  let server: AlbionServer
+  try {
+    server = await resolveAlbionServer(guildId)
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : 'albion_server not configured' },
+      { status: 400 },
+    )
+  }
   const baseUrl = SERVER_ENDPOINTS[server]
 
   let updated = 0

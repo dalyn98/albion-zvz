@@ -753,7 +753,12 @@ export async function fetchAodpPrices(
         : baseCities.length === 1
           ? baseCities[0]
           : '',
-    server: options.server ?? 'east',
+    server: options.server ?? (() => {
+      // 'east' silent 폴백 금지 — 호출부는 loadAodpOptions(guildId) 로 옵션을
+      // 풀어 server 를 반드시 채워서 넘긴다. 직접 호출이라 server 가 비어 있으면
+      // 명시적 실패로 west/eu 테넌트의 동부 시세 잘못 적용을 차단.
+      throw new Error('fetchAodpPrices requires options.server (no silent east fallback)')
+    })(),
     mode: options.mode ?? 'spot',
     minQuality: options.minQuality && options.minQuality > 0 ? options.minQuality : 1,
     qualityAgnostic: options.qualityAgnostic === true,

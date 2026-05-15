@@ -74,7 +74,7 @@ interface Props {
   regearEligibilityDays: number
   regearPayoutRatePercent: number
   eventsAutoStartEnabled: boolean
-  albionServer: AlbionServer
+  albionServer: AlbionServer | null
   albionHomeGuildId: string
   albionHomeGuildName: string | null
   autoRegearEnabled: boolean

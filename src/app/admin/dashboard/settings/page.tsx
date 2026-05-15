@@ -1,7 +1,7 @@
 import { getAppSetting } from '@/lib/app-settings'
 import { listRoleRewards } from '@/app/actions/regear-admin'
 import SettingsTabs from '@/components/SettingsTabs'
-import { getGuild, type AlbionServer } from '@/lib/albion-gameinfo'
+import { getGuild, isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 import { getTranslations } from 'next-intl/server'
 import { SLOT_ROLES, SLOT_KEYS, type SlotRole, type SlotKey } from '@/types'
 import { getSession } from '@/lib/session'
@@ -73,7 +73,9 @@ export default async function SettingsPage() {
     getAppSetting('regear_eligibility_days', '14', tenantId),
     getAppSetting('regear_payout_rate_percent', '100', tenantId),
     getAppSetting('events_auto_start_enabled', 'false', tenantId),
-    getAppSetting('albion_server', 'east', tenantId),
+    // 빈 문자열 폴백 — 'east' 폴백은 west/eu 테넌트의 자가-인증 위반.
+    // isAlbionServer 로 검증 후 null 로 전달, UI 에서 명시적 선택을 강제한다.
+    getAppSetting('albion_server', '', tenantId),
     getAppSetting('albion_home_guild_id', '', tenantId),
     getAppSetting('auto_regear_enabled', 'false', tenantId),
     getAppSetting('auto_regear_excluded_slots', '["food","cape","mount","potion"]', tenantId),
@@ -140,11 +142,11 @@ export default async function SettingsPage() {
       : 100
   const eventsAutoStartEnabled = eventsAutoStartRaw === 'true'
 
-  // DB에 잘못된 값이 박혀있을 경우(과거 마이그레이션 실수 등) 기본값으로 degrade.
-  const albionServer: AlbionServer =
-    albionServerRaw === 'west' || albionServerRaw === 'east' || albionServerRaw === 'europe'
-      ? albionServerRaw
-      : 'east'
+  // DB 에 값이 없거나 손상된 경우 null 로 전달 — UI 가 명시적 선택을 강제한다.
+  // 'east' 폴백은 west/eu 테넌트의 홈 길드/온보딩이 silent 실패로 이어진다.
+  const albionServer: AlbionServer | null = isAlbionServer(albionServerRaw)
+    ? albionServerRaw
+    : null
 
   const autoRegearEnabled = autoRegearEnabledRaw === 'true'
   const autoRegearSkipLowConfidence = autoRegearSkipLowConfidenceRaw === 'true'
@@ -168,9 +170,12 @@ export default async function SettingsPage() {
 
   // 저장돼 있는 홈 길드 UUID 를 이름으로 역조회. Gameinfo 장애/삭제된 길드는
   // null 로 폴백해 UI 가 ID 만 노출하도록 둔다 — 실패해도 저장 흐름은 막지 않는다.
-  const initialHomeGuildName = albionHomeGuildId
-    ? (await getGuild(albionServer, albionHomeGuildId))?.Name ?? null
-    : null
+  // albionServer 가 null (= 미설정/손상) 인 경우엔 어느 서버 게임인포를 칠지
+  // 모르므로 lookup 스킵.
+  const initialHomeGuildName =
+    albionServer && albionHomeGuildId
+      ? (await getGuild(albionServer, albionHomeGuildId))?.Name ?? null
+      : null
 
   // SLOT_ROLES 에 없는 값은 drop — UI 토글이 조용히 잃어버리는 것보다
   // 관리자에게 재저장을 유도하는 편이 명확.

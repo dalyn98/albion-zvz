@@ -20,11 +20,13 @@ import {
   type AlbionGuildCandidate,
 } from '@/app/actions/onboarding'
 import { updateAlbionHomeGuild } from '@/app/actions/settings'
-import type { AlbionServer } from '@/lib/albion-gameinfo'
+import { ALBION_SERVER_LABEL_KEY, type AlbionServer } from '@/lib/albion-gameinfo'
 import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
-  initialServer: AlbionServer
+  // null: app_settings 에 albion_server 가 아예 없거나 손상된 상태. UI 에서
+  // 명시적 선택을 강제하고, 저장 버튼을 비활성화한다. 'east' 폴백 없음.
+  initialServer: AlbionServer | null
   initialGuildId: string
   initialGuildName?: string | null
   embedded?: boolean
@@ -39,14 +41,15 @@ interface Props {
 
 const SEARCH_DEBOUNCE_MS = 300
 
+// 라벨은 common 네임스페이스의 단일 진실 원천 (ALBION_SERVER_LABEL_KEY) 을 사용.
+// 힌트는 admin 컨텍스트에 맞춘 별도 메시지 (adminAlbionHomeGuild.serverEastHint 등).
 const SERVER_OPTIONS: ReadonlyArray<{
   value: AlbionServer
-  labelKey: 'serverEastLabel' | 'serverWestLabel' | 'serverEuropeLabel'
   hintKey: 'serverEastHint' | 'serverWestHint' | 'serverEuropeHint'
 }> = [
-  { value: 'east', labelKey: 'serverEastLabel', hintKey: 'serverEastHint' },
-  { value: 'west', labelKey: 'serverWestLabel', hintKey: 'serverWestHint' },
-  { value: 'europe', labelKey: 'serverEuropeLabel', hintKey: 'serverEuropeHint' },
+  { value: 'east', hintKey: 'serverEastHint' },
+  { value: 'west', hintKey: 'serverWestHint' },
+  { value: 'europe', hintKey: 'serverEuropeHint' },
 ]
 
 // 서버 + 홈 길드를 한 폼에서 묶어 저장. 길드 UUID 는 서버별로 다르기 때문에 둘
@@ -65,11 +68,11 @@ export default function AlbionHomeGuildForm({
   const router = useRouter()
   const tc = useTranslations('common')
   const t = useTranslations('adminAlbionHomeGuild')
-  const [server, setServer] = useState<AlbionServer>(initialServer)
+  const [server, setServer] = useState<AlbionServer | null>(initialServer)
   const [guildId, setGuildId] = useState(initialGuildId)
   const [guildName, setGuildName] = useState(initialGuildName ?? '')
   // 저장 직후 saved* sync — router.refresh 동안의 false-alarm 차단.
-  const [savedServer, setSavedServer] = useState<AlbionServer>(initialServer)
+  const [savedServer, setSavedServer] = useState<AlbionServer | null>(initialServer)
   const [savedGuildId, setSavedGuildId] = useState(initialGuildId)
   const [query, setQuery] = useState('')
   const [candidates, setCandidates] = useState<AlbionGuildCandidate[]>([])
@@ -83,8 +86,8 @@ export default function AlbionHomeGuildForm({
 
   const latestRequestRef = useRef(0)
   useEffect(() => {
-    if (query.trim().length < 2) {
-      // 빈 query → 검색 결과 클리어. 외부 (query) → 로컬 state 동기화.
+    if (query.trim().length < 2 || !server) {
+      // 빈 query 거나 서버 미선택 → 검색 결과 클리어. 외부 (query/server) → 로컬 state 동기화.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setCandidates([])
       setSearching(false)
@@ -139,6 +142,7 @@ export default function AlbionHomeGuildForm({
   const handleSave = () => {
     setError('')
     setSaved(false)
+    if (!server) return
     startTransition(async () => {
       const res = await updateAlbionHomeGuild({ server, guildId })
       if (res.error) {
@@ -182,15 +186,11 @@ export default function AlbionHomeGuildForm({
               <p className="text-sm text-white font-semibold truncate">{guildName}</p>
             )}
             <p className="text-xs text-gray-400 font-mono break-all">{guildId}</p>
-            <p className="text-[11px] text-gray-500 mt-1 font-mono">
-              {t(
-                server === 'east'
-                  ? 'serverEastLabel'
-                  : server === 'west'
-                  ? 'serverWestLabel'
-                  : 'serverEuropeLabel',
-              )}
-            </p>
+            {server && (
+              <p className="text-[11px] text-gray-500 mt-1 font-mono">
+                {tc(ALBION_SERVER_LABEL_KEY[server])}
+              </p>
+            )}
           </div>
         </div>
 
@@ -276,7 +276,7 @@ export default function AlbionHomeGuildForm({
               className="mt-1 accent-amber-500"
             />
             <span className="flex-1">
-              <span className="text-sm text-white font-semibold">{t(opt.labelKey)}</span>
+              <span className="text-sm text-white font-semibold">{tc(ALBION_SERVER_LABEL_KEY[opt.value])}</span>
               <span className="block text-[11px] text-gray-500 mt-0.5 font-mono">{t(opt.hintKey)}</span>
             </span>
           </label>
@@ -373,7 +373,7 @@ export default function AlbionHomeGuildForm({
         <button
           type="button"
           onClick={handleSave}
-          disabled={!dirty || isPending}
+          disabled={!dirty || isPending || !server}
           className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-4 py-2 rounded-lg transition-colors text-sm"
         >
           {isPending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
@@ -381,6 +381,9 @@ export default function AlbionHomeGuildForm({
         </button>
         {saved && !dirty && (
           <span className="text-[11px] text-emerald-400">{tc('saved')}</span>
+        )}
+        {!server && (
+          <span className="text-[11px] text-amber-300">{t('serverSelectRequired')}</span>
         )}
       </div>
     </div>

@@ -18,17 +18,17 @@ import { fetchJsonWithRetry } from '@/lib/http-retry'
 // which most admins are already using to eyeball battles.
 const SERVER_ENDPOINTS = ALBION_GAMEINFO_ENDPOINTS
 
-const DEFAULT_SERVER: AlbionServer = 'east'
-
-function parseServer(raw: string): AlbionServer {
-  return isAlbionServer(raw) ? raw : DEFAULT_SERVER
-}
-
-// tenant 별로 albion_server 가 다를 수 있다. guildId 를 받아 해당 tenant 의 값을
-// 읽는다. 호출자는 항상 명시 — 미지정 fallback 은 cross-tenant 누설 위험.
+// tenant 별로 albion_server 가 다를 수 있다. 미설정이면 throw — 'east' silent
+// 폴백 금지: west/eu tenant 가 East 킬보드를 침묵 폴링해 "내 킬이 안 잡혀요"
+// 가 되는 자기-인증 위반 사고를 막는다. graceful skip 필요한 cron/sync 는
+// try/catch 로 받고, 호출자 검증된 admin 액션은 throw 를 그대로 노출해 운영자
+// UX 에 명시적인 오류로 표면화.
 export async function resolveAlbionServer(guildId: string): Promise<AlbionServer> {
-  const raw = await getAppSetting('albion_server', DEFAULT_SERVER, guildId)
-  return parseServer(raw)
+  const raw = await getAppSetting('albion_server', '', guildId)
+  if (!isAlbionServer(raw)) {
+    throw new Error(`albion_server not configured for guild: ${guildId}`)
+  }
+  return raw
 }
 
 async function resolveBaseUrl(guildId: string): Promise<string> {

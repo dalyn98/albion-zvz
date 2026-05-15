@@ -16,7 +16,7 @@ import { bundleSplitBattles, type BundleableRow } from '@/lib/battle-bundling'
 import { discordAvatarUrl } from '@/lib/discord-avatar'
 import { extractWeaponCategory } from '@/lib/weapon-category'
 import { fetchTrackedBattleWindows, isWithinTrackedWindow } from '@/lib/tracked-kills'
-import { getGuild, isAlbionServer } from '@/lib/albion-gameinfo'
+import { getGuild, isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const ROLLING_WINDOW_DAYS = 30
@@ -252,18 +252,18 @@ export async function loadAdminTeam(guildId: string): Promise<AdminTeamMember[]>
 
 // 어드민의 명시 override (`guild_profile_server`) 가 비어 있을 때 fallback 으로
 // tenant 의 `albion_server` 설정값을 그대로 사용. 한 길드는 단일 서버에 속하므로
-// majority 계산 없이 직접 매핑이 정확. albion_server 도 비어 있으면 'east' 하드
-// 디폴트 (앱 전역 fallback 과 일치).
+// majority 계산 없이 직접 매핑이 정확. 둘 다 비어 있으면 null — 'east' 하드
+// 디폴트는 west/eu 길드를 동부로 잘못 표기하므로 폐기. 호출자가 null 케이스를
+// 처리해 HeroChip 등을 conditionally 렌더.
 export async function resolveProfileServer(
   guildId: string,
   override: string,
-): Promise<'east' | 'west' | 'europe'> {
-  if (override === 'east' || override === 'west' || override === 'europe') {
+): Promise<AlbionServer | null> {
+  if (isAlbionServer(override)) {
     return override
   }
-  const raw = await getAppSetting('albion_server', 'east', guildId)
-  if (raw === 'east' || raw === 'west' || raw === 'europe') return raw
-  return 'east'
+  const raw = await getAppSetting('albion_server', '', guildId)
+  return isAlbionServer(raw) ? raw : null
 }
 
 export interface AllianceInfo {
@@ -286,7 +286,7 @@ export async function loadAllianceInfo(
   const homeGuildId = (await getAppSetting('albion_home_guild_id', '', guildId)).trim()
   if (!homeGuildId) return null
   const server = await resolveProfileServer(guildId, override)
-  if (!isAlbionServer(server)) return null
+  if (!server) return null
   const guild = await getGuild(server, homeGuildId)
   const tag = guild?.AllianceTag?.trim()
   if (!tag) return null
