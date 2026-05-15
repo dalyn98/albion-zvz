@@ -138,7 +138,7 @@ export default function MarketingScreenshotCarousel({
     if (!canEdit) return
     const target = images[safeIndex]
     if (!target) return
-    if (!window.confirm('이 이미지를 삭제하시겠습니까?')) return
+    if (!window.confirm(t('carouselDeleteConfirm'))) return
     setError(null)
     startTransition(async () => {
       const { error } = await deleteMarketingScreenshot(target.id)
@@ -173,7 +173,7 @@ export default function MarketingScreenshotCarousel({
                 <Plus size={28} className="mx-auto text-amber-300" />
               )}
               <p className="text-xs text-amber-200 font-semibold">
-                {isPending ? '업로드 중…' : '클릭해서 스크린샷 업로드'}
+                {isPending ? t('carouselUploading') : t('carouselUploadPrompt')}
               </p>
               <p className="text-[11px] text-gray-500 font-mono">{fallbackLabel}</p>
             </div>
@@ -261,7 +261,7 @@ export default function MarketingScreenshotCarousel({
                   ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                   : 'bg-amber-500 text-gray-950 hover:bg-amber-400 cursor-pointer'
               }`}
-              aria-label="이미지 추가"
+              aria-label={t('carouselUploadLabel')}
             >
               <input
                 ref={fileInputRef}
@@ -278,17 +278,17 @@ export default function MarketingScreenshotCarousel({
               ) : (
                 <Plus size={11} />
               )}
-              <span>추가</span>
+              <span>{t('carouselUpload')}</span>
             </label>
             <button
               type="button"
               onClick={handleDeleteCurrent}
               disabled={isPending}
-              aria-label="현재 이미지 삭제"
+              aria-label={t('carouselDeleteLabel')}
               className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold shadow-lg bg-rose-500/90 text-white hover:bg-rose-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Trash2 size={11} />
-              <span>삭제</span>
+              <span>{t('carouselDelete')}</span>
             </button>
           </div>
         )}

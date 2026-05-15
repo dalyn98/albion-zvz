@@ -1841,7 +1841,14 @@
     "ctaBoxBody": "正式上线之前所有功能均可免费使用。",
     "carouselPrev": "上一张",
     "carouselNext": "下一张",
-    "carouselDot": "第 {n} 张"
+    "carouselDot": "第 {n} 张",
+    "carouselUploadLabel": "添加图片",
+    "carouselUpload": "添加",
+    "carouselDeleteLabel": "删除当前图片",
+    "carouselDelete": "删除",
+    "carouselUploading": "上传中…",
+    "carouselUploadPrompt": "点击上传截图",
+    "carouselDeleteConfirm": "确定要删除这张图片吗?"
   },
   "publicFeatures": {
     "pageTitle": "功能",

@@ -87,6 +87,9 @@ export default function MemberAssignModal({ eventId, slotId, slotLabel, onClose 
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="member-assign-modal-title"
         className="bg-gray-900 border border-rose-500/40 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl flex flex-col max-h-[92dvh]"
         onClick={(e) => e.stopPropagation()}
       >
@@ -94,7 +97,7 @@ export default function MemberAssignModal({ eventId, slotId, slotLabel, onClose 
           <div className="flex items-center gap-2 min-w-0">
             <Bomb size={16} className="text-rose-400 flex-shrink-0" />
             <div className="min-w-0">
-              <h3 className="font-bold text-white text-base truncate">{t('title')}</h3>
+              <h3 id="member-assign-modal-title" className="font-bold text-white text-base truncate">{t('title')}</h3>
               <p className="text-gray-400 text-xs truncate">{slotLabel}</p>
             </div>
           </div>

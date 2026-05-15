@@ -1841,7 +1841,14 @@
     "ctaBoxBody": "正式リリースまですべての機能を無料でご利用いただけます。",
     "carouselPrev": "前の画像",
     "carouselNext": "次の画像",
-    "carouselDot": "{n}枚目の画像"
+    "carouselDot": "{n}枚目の画像",
+    "carouselUploadLabel": "画像を追加",
+    "carouselUpload": "追加",
+    "carouselDeleteLabel": "現在の画像を削除",
+    "carouselDelete": "削除",
+    "carouselUploading": "アップロード中…",
+    "carouselUploadPrompt": "クリックしてスクリーンショットをアップロード",
+    "carouselDeleteConfirm": "この画像を削除しますか?"
   },
   "publicFeatures": {
     "pageTitle": "機能",

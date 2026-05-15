@@ -1841,7 +1841,14 @@
     "ctaBoxBody": "Use every feature for free until general availability.",
     "carouselPrev": "Previous image",
     "carouselNext": "Next image",
-    "carouselDot": "Image {n}"
+    "carouselDot": "Image {n}",
+    "carouselUploadLabel": "Add image",
+    "carouselUpload": "Add",
+    "carouselDeleteLabel": "Delete current image",
+    "carouselDelete": "Delete",
+    "carouselUploading": "Uploading…",
+    "carouselUploadPrompt": "Click to upload screenshot",
+    "carouselDeleteConfirm": "Delete this image?"
   },
   "publicFeatures": {
     "pageTitle": "Features",
