@@ -4,12 +4,12 @@ import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Box, ListChecks, X, Coins, ChevronDown, Undo2 } from 'lucide-react'
+import { type CraftQueueItem } from '@/app/actions/craft'
 import {
   cancelCraftTaskAdmin,
   convertCraftTaskToSilverAdmin,
   revertCraftTaskToPendingAdmin,
-  type CraftQueueItem,
-} from '@/app/actions/craft'
+} from '@/app/actions/craft-admin'
 import { SLOT_KEYS, type SlotKey } from '@/types'
 import { formatSilver } from '@/lib/silver'
 import { translateSlotRole } from '@/lib/slot-role-i18n'

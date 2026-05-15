@@ -12,14 +12,16 @@ import {
   User,
 } from 'lucide-react'
 import {
+  type CraftBoxConfig,
+  type CraftCompensationMode,
+  type CrafterProfile,
+} from '@/app/actions/craft'
+import {
   claimCraftQueueItem,
   releaseCraftQueueItem,
   deliverCraftQueueItem,
-  type CraftBoxConfig,
-  type CraftCompensationMode,
   type CraftQueueTaskDetail,
-  type CrafterProfile,
-} from '@/app/actions/craft'
+} from '@/app/actions/craft-queue'
 import { SLOT_KEYS, type BuildSnapshot, type SlotKey } from '@/types'
 import { formatSilver } from '@/lib/silver'
 import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'

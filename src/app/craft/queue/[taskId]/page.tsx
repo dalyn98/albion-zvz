@@ -3,10 +3,10 @@ import { getTranslations } from 'next-intl/server'
 import { Hammer } from 'lucide-react'
 import { getSession } from '@/lib/session'
 import {
-  getCraftQueueTaskDetail,
   getMyCrafterProfile,
   getCraftConfig,
 } from '@/app/actions/craft'
+import { getCraftQueueTaskDetail } from '@/app/actions/craft-queue'
 import CraftTaskDetail from '@/components/CraftTaskDetail'
 
 // 단일 craft task 상세. 큐 카드의 "상세" 링크에서 진입. 권한 검사는 server

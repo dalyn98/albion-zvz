@@ -4,11 +4,11 @@ import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { UserPlus, UserMinus, Users, Box } from 'lucide-react'
+import { type CraftCompensationMode } from '@/app/actions/craft'
 import {
   setMemberCrafterFlag,
   setCrafterBoxRange,
-  type CraftCompensationMode,
-} from '@/app/actions/craft'
+} from '@/app/actions/craft-admin'
 import { useToast } from './ToastProvider'
 
 interface AdminCrafterRow {

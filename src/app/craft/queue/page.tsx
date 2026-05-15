@@ -4,10 +4,10 @@ import { getTranslations } from 'next-intl/server'
 import { Hammer, Box } from 'lucide-react'
 import { getSession } from '@/lib/session'
 import {
-  listCraftQueueForCrafter,
   getMyCrafterProfile,
   getCraftConfig,
 } from '@/app/actions/craft'
+import { listCraftQueueForCrafter } from '@/app/actions/craft-queue'
 import { aggregateBuildSnapshots } from '@/lib/craft-aggregation'
 import CraftQueueClient from '@/components/CraftQueueClient'
 import CraftQueueAggregationCard from '@/components/CraftQueueAggregationCard'

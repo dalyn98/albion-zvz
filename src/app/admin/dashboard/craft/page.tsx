@@ -2,11 +2,11 @@ import { getTranslations } from 'next-intl/server'
 import { Hammer } from 'lucide-react'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { getCraftConfig } from '@/app/actions/craft'
 import {
-  getCraftConfig,
   listGuildCrafters,
   listAllCraftTasksAdmin,
-} from '@/app/actions/craft'
+} from '@/app/actions/craft-admin'
 import type { CraftDemandStatsMode } from '@/app/actions/craft-stats-admin'
 import { listGuildMembers } from '@/app/actions/members-admin'
 import AdminCraftSettingsForm from '@/components/AdminCraftSettingsForm'

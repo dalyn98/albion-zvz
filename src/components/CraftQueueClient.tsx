@@ -6,12 +6,7 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { Box, Hammer, X, Settings2, ChevronDown, MapPin } from 'lucide-react'
 import {
-  claimCraftQueueItem,
-  releaseCraftQueueItem,
-  deliverCraftQueueItem,
   setMyCrafterDefaults,
-  bulkClaimCraftQueueItems,
-  bulkReleaseCraftQueueItems,
   computeAutoAssignBox,
   type CraftQueueItem,
   type CraftBoxConfig,
@@ -19,6 +14,13 @@ import {
   type CraftCompensationMode,
   type AutoAssignReason,
 } from '@/app/actions/craft'
+import {
+  claimCraftQueueItem,
+  releaseCraftQueueItem,
+  deliverCraftQueueItem,
+  bulkClaimCraftQueueItems,
+  bulkReleaseCraftQueueItems,
+} from '@/app/actions/craft-queue'
 import { SLOT_KEYS, type BuildSnapshot, type SlotKey } from '@/types'
 import { formatSilver } from '@/lib/silver'
 import ItemImage from './ItemImage'
