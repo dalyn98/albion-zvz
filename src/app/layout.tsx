@@ -238,7 +238,9 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#0f1117',
+  // canvas (--color-background hsl 222 22% 6%) 와 동기. 모바일 상태바 색이
+  // 페이지 bg 와 매끄럽게 이어지도록.
+  themeColor: '#0b0d12',
 }
 
 // Hard-gate every page (except /api/* routes, which are not wrapped by this
@@ -470,7 +472,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/variable/pretendardvariable.css"
         />
       </head>
-      <body className="min-h-full bg-[#0f1117] text-white">
+      <body className="min-h-full text-foreground">
         <NextIntlClientProvider locale={locale} messages={messages}>
           <ToastProvider>
             <ConfirmDialogProvider>

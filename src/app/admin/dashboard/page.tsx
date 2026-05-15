@@ -86,13 +86,13 @@ export default async function DashboardPage({
       )}
 
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-white">
+        <h1 className="text-2xl font-semibold text-foreground tracking-tight">
           {section === 'templates' ? tTemplates('pageTitle') : tDashboard('pageTitle')}
         </h1>
         {section === 'events' && (
           <Link
             href="/admin/dashboard/events/new"
-            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-4 py-2 rounded-lg transition-colors text-sm"
+            className="flex items-center gap-2 bg-accent hover:bg-accent-hover text-accent-foreground font-semibold px-4 py-2 rounded-lg transition-colors text-sm shadow-card"
           >
             <Plus size={16} />
             {tDashboard('newEvent')}
@@ -119,12 +119,12 @@ async function EventsSection() {
   const [events, t] = await Promise.all([getEvents(guildId), getTranslations('adminDashboard')])
   if (events.length === 0) {
     return (
-      <div className="bg-gray-900 border border-gray-700 rounded-xl p-12 text-center">
-        <Calendar size={32} className="text-gray-600 mx-auto mb-3" />
-        <p className="text-gray-400">{t('noEvents')}</p>
+      <div className="bg-surface border border-border rounded-xl p-12 text-center shadow-card">
+        <Calendar size={32} className="text-faint mx-auto mb-3" />
+        <p className="text-muted">{t('noEvents')}</p>
         <Link
           href="/admin/dashboard/events/new"
-          className="text-amber-400 hover:text-amber-300 text-sm mt-2 inline-block"
+          className="text-accent-soft-foreground hover:text-accent text-sm mt-2 inline-block transition-colors"
         >
           {t('createFirstEvent')}
         </Link>
@@ -143,16 +143,16 @@ async function TemplatesSection() {
   return (
     <div className="space-y-3">
       <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
-        <p className="text-gray-400 text-xs sm:text-sm flex-1">{t('pageDescription')}</p>
+        <p className="text-muted text-xs sm:text-sm flex-1">{t('pageDescription')}</p>
         <CreateTemplateButton />
       </div>
       {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
-          <p className="text-red-400 text-sm">{error}</p>
+        <div className="bg-danger-soft border border-danger/30 rounded-lg px-3 py-2">
+          <p className="text-danger-soft-foreground text-sm">{error}</p>
         </div>
       )}
       {templates.length === 0 && !error ? (
-        <p className="text-gray-500 text-sm py-8 text-center">{t('noTemplates')}</p>
+        <p className="text-subtle text-sm py-8 text-center">{t('noTemplates')}</p>
       ) : (
         <TemplateList templates={templates} />
       )}
@@ -187,7 +187,7 @@ function SectionTabs({ active, tabsLabel, eventsLabel, templatesLabel }: Section
     <nav
       role="tablist"
       aria-label={tabsLabel}
-      className="flex gap-1 border-b border-gray-800 overflow-x-auto"
+      className="flex gap-1 border-b border-border overflow-x-auto"
     >
       {tabs.map(({ key, label, href, icon: Icon }) => {
         const isActive = active === key
@@ -199,8 +199,8 @@ function SectionTabs({ active, tabsLabel, eventsLabel, templatesLabel }: Section
             aria-selected={isActive}
             className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
               isActive
-                ? 'text-amber-300 border-amber-400'
-                : 'text-gray-400 border-transparent hover:text-white'
+                ? 'text-accent-soft-foreground border-accent'
+                : 'text-muted border-transparent hover:text-foreground'
             }`}
           >
             <Icon size={14} />

@@ -280,23 +280,23 @@ export default function AppSidebar({
   return (
     <>
       {/* Mobile top bar — only shown on <lg. Hamburger opens drawer. */}
-      <div className="lg:hidden flex items-center justify-between border-b border-white/5 px-4 py-3 bg-[#0b0d12]/90 backdrop-blur-md sticky top-0 z-30">
+      <div className="lg:hidden flex items-center justify-between border-b border-border px-4 py-3 bg-background/90 backdrop-blur-md sticky top-0 z-30">
         <button
           type="button"
           onClick={() => setMobileDrawer(true)}
           aria-label={t('openMenu')}
-          className="p-1.5 text-gray-300 hover:text-white"
+          className="p-1.5 text-muted hover:text-foreground transition-colors"
         >
           <Menu size={20} />
         </button>
-        <GuardedLink href={publicProfileHref ?? '/'} className="text-amber-400 text-base font-bold">⚔ {brandName}</GuardedLink>
+        <GuardedLink href={publicProfileHref ?? '/'} className="text-accent text-base font-semibold tracking-tight">⚔ {brandName}</GuardedLink>
         {session ? (
           <GuardedLink href="/me/profile" aria-label={t('myInfo')} className="flex items-center">
             {url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={url} alt="" className="w-7 h-7 rounded-full" />
             ) : (
-              <UserCircle2 size={24} className="text-gray-400" />
+              <UserCircle2 size={24} className="text-muted" />
             )}
           </GuardedLink>
         ) : (
@@ -318,14 +318,14 @@ export default function AppSidebar({
       <aside
         className={`${
           mobileDrawer ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 fixed lg:sticky top-0 left-0 z-50 h-dvh lg:h-screen flex-shrink-0 border-r border-white/5 bg-[#0a0c11]/95 backdrop-blur-xl transition-[transform,width] duration-200 ease-out ${
+        } lg:translate-x-0 fixed lg:sticky top-0 left-0 z-50 h-dvh lg:h-screen flex-shrink-0 border-r border-border bg-surface/95 backdrop-blur-xl transition-[transform,width] duration-200 ease-out ${
           navExpanded ? 'w-64' : 'w-[64px]'
         } lg:w-auto ${open ? 'lg:w-64' : 'lg:w-[64px]'} flex flex-col overflow-hidden`}
       >
         {/* Brand + collapse toggle */}
-        <div className={`flex items-center ${navExpanded ? 'justify-between px-4' : 'justify-center'} h-14 border-b border-white/5 flex-shrink-0`}>
+        <div className={`flex items-center ${navExpanded ? 'justify-between px-4' : 'justify-center'} h-14 border-b border-border flex-shrink-0`}>
           {navExpanded && (
-            <GuardedLink href={publicProfileHref ?? '/'} className="text-amber-400 font-bold text-[15px] tracking-tight flex items-center gap-2 truncate">
+            <GuardedLink href={publicProfileHref ?? '/'} className="text-accent font-semibold text-[15px] tracking-tight flex items-center gap-2 truncate">
               ⚔ <span>{brandName}</span>
             </GuardedLink>
           )}
@@ -334,7 +334,7 @@ export default function AppSidebar({
               type="button"
               onClick={() => setMobileDrawer(false)}
               aria-label={t('close')}
-              className="lg:hidden text-gray-400 hover:text-white p-1.5"
+              className="lg:hidden text-muted hover:text-foreground p-1.5 transition-colors"
             >
               <X size={18} />
             </button>
@@ -342,7 +342,7 @@ export default function AppSidebar({
               type="button"
               onClick={() => setOpen((v) => !v)}
               aria-label={open ? t('collapse') : t('expand')}
-              className="hidden lg:inline text-gray-400 hover:text-white p-1.5"
+              className="hidden lg:inline text-muted hover:text-foreground p-1.5 transition-colors"
             >
               {open ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
             </button>
@@ -411,15 +411,15 @@ export default function AppSidebar({
         {/* Admin guide link — 사이드바 메인 nav 의 빈도 낮은 항목을 footer 로 옮긴 것.
             관리자만 노출 (`session.isAdmin`). 펼쳤을 땐 라벨, 접었을 땐 아이콘만. */}
         {session?.isAdmin && (
-          <div className={`border-t border-white/5 flex-shrink-0 ${navExpanded ? 'px-3 pt-2 pb-1' : 'px-2 pt-2 pb-1'}`}>
+          <div className={`border-t border-border flex-shrink-0 ${navExpanded ? 'px-3 pt-2 pb-1' : 'px-2 pt-2 pb-1'}`}>
             <GuardedLink
               href="/admin/dashboard/guide"
               title={navExpanded ? undefined : tNav('guide')}
-              className={`flex items-center rounded-lg text-gray-500 hover:text-gray-200 hover:bg-gray-800/60 transition-colors ${
+              className={`flex items-center rounded-lg text-subtle hover:text-foreground hover:bg-surface-2 transition-colors ${
                 navExpanded ? 'gap-2 px-3 py-1.5 text-xs' : 'justify-center p-2'
               } ${
                 isActivePath(pathname || '/', '/admin/dashboard/guide')
-                  ? 'text-amber-300 bg-amber-500/10'
+                  ? 'text-accent-soft-foreground bg-accent-soft'
                   : ''
               }`}
             >
@@ -430,12 +430,12 @@ export default function AppSidebar({
         )}
 
         {/* Footer — session info */}
-        <div className={`border-t border-white/5 flex-shrink-0 ${navExpanded ? 'px-3 py-3' : 'px-2 py-3'}`}>
+        <div className={`border-t border-border flex-shrink-0 ${navExpanded ? 'px-3 py-3' : 'px-2 py-3'}`}>
           {session ? (
             <div className={`flex ${navExpanded ? 'items-center justify-between gap-2' : 'flex-col items-center gap-2'}`}>
               <GuardedLink
                 href="/me/profile"
-                className={`flex items-center gap-2 min-w-0 flex-1 hover:text-white ${navExpanded ? '' : 'justify-center'}`}
+                className={`flex items-center gap-2 min-w-0 flex-1 hover:text-foreground transition-colors ${navExpanded ? '' : 'justify-center'}`}
                 aria-label={t('myInfo')}
                 title={t('myInfo')}
               >
@@ -443,16 +443,16 @@ export default function AppSidebar({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={url} alt="" className="w-7 h-7 rounded-full flex-shrink-0" />
                 ) : (
-                  <UserCircle2 size={24} className="text-gray-400 flex-shrink-0" />
+                  <UserCircle2 size={24} className="text-muted flex-shrink-0" />
                 )}
                 {navExpanded && (
-                  <span className="text-gray-200 text-xs font-medium truncate">{session.username}</span>
+                  <span className="text-muted text-xs font-medium truncate">{session.username}</span>
                 )}
               </GuardedLink>
               <form action="/api/auth/logout" method="post">
                 <button
                   type="submit"
-                  className="flex items-center gap-1 text-gray-500 hover:text-red-400 p-1.5"
+                  className="flex items-center gap-1 text-subtle hover:text-danger-soft-foreground p-1.5 transition-colors"
                   aria-label={t('logout')}
                   title={t('logout')}
                 >
@@ -547,8 +547,8 @@ function NavLink({
         expanded ? 'px-3 py-2 text-sm' : 'justify-center p-2'
       } ${
         active
-          ? 'bg-amber-500/20 text-amber-300'
-          : 'text-gray-400 hover:text-white hover:bg-gray-800'
+          ? 'bg-accent-soft text-accent-soft-foreground'
+          : 'text-muted hover:text-foreground hover:bg-surface-2'
       }`}
     >
       <span className="relative flex-shrink-0">
@@ -590,7 +590,7 @@ function NavGroup({
         <button
           type="button"
           onClick={() => setCollapsible(!collapsible)}
-          className="w-full flex items-center justify-between px-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest hover:text-gray-300"
+          className="w-full flex items-center justify-between px-2 text-[10px] font-semibold text-subtle uppercase tracking-widest hover:text-muted transition-colors"
         >
           <span>{title}</span>
           <ChevronDown
@@ -599,7 +599,7 @@ function NavGroup({
           />
         </button>
       ) : (
-        <div className="border-t border-gray-800 mx-2 my-1" aria-label={title} />
+        <div className="border-t border-border mx-2 my-1" aria-label={title} />
       )}
       {(collapsible || !expanded) &&
         (showSubHeaders
@@ -610,12 +610,12 @@ function NavGroup({
                   <button
                     type="button"
                     onClick={() => onToggleSection(bucket.section)}
-                    className="w-full flex items-center justify-between px-3 pt-2 pb-1 text-[11px] font-semibold text-gray-300 hover:text-white tracking-wide transition-colors"
+                    className="w-full flex items-center justify-between px-3 pt-2 pb-1 text-[11px] font-medium text-muted hover:text-foreground tracking-wide transition-colors"
                   >
                     <span>{sectionLabel(bucket.section)}</span>
                     <ChevronDown
                       size={12}
-                      className={`transition-transform text-gray-500 ${sectionCollapsed ? '-rotate-90' : ''}`}
+                      className={`transition-transform text-subtle ${sectionCollapsed ? '-rotate-90' : ''}`}
                     />
                   </button>
                   {!sectionCollapsed &&

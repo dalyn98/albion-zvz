@@ -3,13 +3,113 @@
    LCP 가 200-300ms 늦어졌다. link preconnect + stylesheet 로 옮겨 병렬화. */
 @import "tailwindcss";
 
-:root {
-  /* 차가운 블루-블랙 베이스. 순수 검정(#000)보다 파랑 기미가 있어야
-     모던한 dark UI에서 덜 칙칙해 보인다. */
-  --background: #0b0d12;
-  --foreground: #ededf0;
+/* =============================================================================
+   Design tokens (Tailwind v4 @theme)
+   -----------------------------------------------------------------------------
+   `@theme` 블록은 빌드타임에 (1) CSS 변수 주입 + (2) bg-{name}/text-{name}/
+   border-{name} 같은 유틸리티 클래스 자동 생성. 기존 bg-gray-900 등 디폴트
+   팔레트는 그대로 살아있음 — 새 시멘틱 토큰은 점진적으로 도입하기 위한 레이어.
 
-  /* 브랜드 액센트 — amber 계열을 유지하되 gradient/glow에 쓸 수 있게 HSL 보관. */
+   네이밍 컨벤션 (shadcn-style):
+   - surface 계층: background (canvas) → surface (card) → surface-2 (raised) → overlay
+   - text 계층: foreground (1차) → muted (2차) → subtle (3차) → faint (placeholder)
+   - 의미: accent (brand=amber) / danger / success / warning / info
+   - 각 의미색은 base + foreground + soft(tinted bg) 3쌍.
+   ============================================================================= */
+@theme {
+  /* Surface — 다크 UI 의 4단계 계층. lightness 가 한 단계씩 올라가도록 정렬.
+     숫자값은 기존 bg-gray-* (gray-950 ~ gray-700) 의 범위와 시각적으로 일치. */
+  --color-background: hsl(222 22% 6%);      /* canvas (body) — 가장 어두움 */
+  --color-surface: hsl(222 18% 9%);         /* card/panel — bg 위 한 단계 */
+  --color-surface-2: hsl(222 16% 13%);      /* raised/hover — surface 위 */
+  --color-surface-3: hsl(222 14% 17%);      /* overlay/popover — 최상위 */
+
+  /* Foreground — 4단계 텍스트 계층. contrast 가 한 단계씩 내려감.
+     기존 text-gray-100 ~ text-gray-500 매핑. */
+  --color-foreground: hsl(220 14% 96%);     /* 1차 — heading/body */
+  --color-muted: hsl(220 10% 75%);          /* 2차 — secondary text */
+  --color-subtle: hsl(220 8% 58%);          /* 3차 — caption, helper */
+  --color-faint: hsl(220 8% 42%);           /* 4차 — placeholder, disabled */
+
+  /* Border — 3단계. 거의 모든 dark UI border 는 white tint 로 처리하는 게
+     모던하게 보임 (gray 직접 사용보다 부드럽다). */
+  --color-border: hsl(220 14% 96% / 0.08);  /* subtle — card/divider */
+  --color-border-strong: hsl(220 14% 96% / 0.14); /* prominent — input, focus */
+
+  /* Accent — 브랜드 amber. solid CTA / tinted bg / 그 위 텍스트 3쌍.
+     기존 amber-500/-400/-300 사용 패턴을 시멘틱 토큰으로 흡수. */
+  --color-accent: hsl(38 92% 56%);          /* amber-500 — solid CTA bg */
+  --color-accent-hover: hsl(38 95% 62%);    /* hover state */
+  --color-accent-foreground: hsl(222 30% 8%); /* 검정 — accent bg 위 텍스트 */
+  --color-accent-soft: hsl(38 92% 56% / 0.12); /* tinted bg — active nav 등 */
+  --color-accent-soft-foreground: hsl(38 95% 70%); /* tinted bg 위 텍스트 */
+
+  /* Danger — red 계열. 삭제/에러/위험. */
+  --color-danger: hsl(0 72% 60%);
+  --color-danger-foreground: hsl(0 0% 100%);
+  --color-danger-soft: hsl(0 72% 60% / 0.12);
+  --color-danger-soft-foreground: hsl(0 82% 75%);
+
+  /* Success — emerald 계열. 성공/완료. */
+  --color-success: hsl(142 65% 50%);
+  --color-success-foreground: hsl(0 0% 100%);
+  --color-success-soft: hsl(142 65% 50% / 0.12);
+  --color-success-soft-foreground: hsl(142 65% 65%);
+
+  /* Warning — amber 와 가까운 톤이지만 의미 분리 (amber=brand, warning=경고). */
+  --color-warning: hsl(38 92% 56%);
+  --color-warning-foreground: hsl(222 30% 8%);
+  --color-warning-soft: hsl(38 92% 56% / 0.12);
+  --color-warning-soft-foreground: hsl(38 95% 70%);
+
+  /* Info — blue 계열. 알림/링크/중립. */
+  --color-info: hsl(217 91% 60%);
+  --color-info-foreground: hsl(0 0% 100%);
+  --color-info-soft: hsl(217 91% 60% / 0.12);
+  --color-info-soft-foreground: hsl(217 91% 75%);
+
+  /* Albion 티어 색 — UI 크롬엔 쓰지 않음. 데이터 시각화 (티어 뱃지, 차트,
+     아이템 카드 보더) 전용. 모던 SaaS 룩을 망치는 첫 단추가 "게임 색을 UI 에
+     쓰는 것" 이기 때문에 의도적으로 격리. */
+  --color-tier-t4: hsl(142 65% 50%);        /* 초록 */
+  --color-tier-t5: hsl(217 91% 60%);        /* 파랑 */
+  --color-tier-t6: hsl(280 70% 65%);        /* 보라 */
+  --color-tier-t7: hsl(38 92% 56%);         /* 금색 */
+  --color-tier-t8: hsl(0 0% 28%);           /* 검정 */
+
+  /* Shadow — 다크 UI 용. 거의 모든 카드/팝오버에 화이트 hairline border + 검정
+     drop shadow 조합으로 lift 감을 준다. Linear/Vercel 스타일. */
+  --shadow-soft: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.04),
+                 0 4px 12px -4px rgb(0 0 0 / 0.4);
+  --shadow-lift: 0 0 0 1px rgb(255 255 255 / 0.06),
+                 0 8px 24px -8px rgb(0 0 0 / 0.5),
+                 0 2px 6px -2px rgb(0 0 0 / 0.4);
+  --shadow-pop: 0 0 0 1px rgb(255 255 255 / 0.08),
+                0 20px 40px -12px rgb(0 0 0 / 0.6),
+                0 4px 12px -4px rgb(0 0 0 / 0.4);
+
+  /* Motion — 한 곳에서 ease + duration 통제. spec sheet 이 늘어나지 않게
+     기본/빠름/느림 3단계로만. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 120ms;
+  --duration-base: 220ms;
+  --duration-slow: 400ms;
+}
+
+/* =============================================================================
+   Legacy CSS 변수 — globals.css 내부 (body radial-gradient) 에서만 소비.
+   외부 컴포넌트에서는 새 시멘틱 토큰 (--color-*) 사용 권장.
+   ============================================================================= */
+:root {
+  /* 차가운 블루-블랙 베이스. radial-gradient 컬러 스톱에 var(--background) 가
+     필요해서 :root 에 보존. 신규 코드는 var(--color-background) 사용. */
+  --background: hsl(222 22% 6%);
+  --foreground: hsl(220 14% 96%);
+
+  /* 브랜드 액센트 HSL — 기존 lb-rank1-glow / focus ring 에서 hsl(var(--accent))
+     형태로 소비되고 있어 호환을 위해 유지. */
   --accent: 38 92% 56%;
   --accent-foreground: 48 96% 89%;
 }
@@ -36,9 +136,11 @@ html {
 }
 
 body {
+  /* canvas 색 + 은은한 amber/indigo radial glow. layout.tsx 의 body className
+     은 더 이상 bg 를 덮어쓰지 않음 — globals.css 가 단일 진실. */
   background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(245, 158, 11, 0.08), transparent 60%),
-    radial-gradient(ellipse 60% 50% at 80% 110%, rgba(99, 102, 241, 0.06), transparent 60%),
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(245, 158, 11, 0.06), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 110%, rgba(99, 102, 241, 0.05), transparent 60%),
     var(--background);
   background-attachment: fixed;
   color: var(--foreground);
@@ -60,7 +162,9 @@ body {
   image-rendering: crisp-edges;
 }
 
-/* 모던한 은은한 리프트 그림자. 카드/모달 hover에 가볍게 얹으면 입체감이 살아난다. */
+/* 모던한 은은한 리프트 그림자. 카드/모달 hover에 가볍게 얹으면 입체감이 살아난다.
+   신규 코드는 `shadow-card` / `shadow-lift` 유틸리티 사용 권장 (@theme 정의됨).
+   .shadow-glow / .shadow-glow-amber 는 기존 호출지점 호환을 위해 보존. */
 .shadow-glow {
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.04),
