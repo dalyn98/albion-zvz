@@ -3,7 +3,7 @@ import { Boxes } from 'lucide-react'
 import {
   loadCraftActiveMaterialStatsAdmin,
   type CraftActiveItemRow,
-} from '@/app/actions/craft'
+} from '@/app/actions/craft-stats-admin'
 import { getLocale } from '@/lib/locale'
 import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
 import type { Locale } from '@/i18n/locales'

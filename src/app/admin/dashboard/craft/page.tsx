@@ -6,8 +6,8 @@ import {
   getCraftConfig,
   listGuildCrafters,
   listAllCraftTasksAdmin,
-  type CraftDemandStatsMode,
 } from '@/app/actions/craft'
+import type { CraftDemandStatsMode } from '@/app/actions/craft-stats-admin'
 import { listGuildMembers } from '@/app/actions/members-admin'
 import AdminCraftSettingsForm from '@/components/AdminCraftSettingsForm'
 import AdminCraftCraftersPanel from '@/components/AdminCraftCraftersPanel'

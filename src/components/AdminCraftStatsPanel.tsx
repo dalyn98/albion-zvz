@@ -6,7 +6,7 @@ import {
   type CraftDemandBucket,
   type CraftDemandStatsMode,
   type CraftDemandTopItem,
-} from '@/app/actions/craft'
+} from '@/app/actions/craft-stats-admin'
 import { getLocale } from '@/lib/locale'
 import { getLocalizedItemName } from '@/lib/item-names'
 import { SLOT_LABELS } from '@/types'
