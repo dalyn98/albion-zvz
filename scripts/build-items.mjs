@@ -8,11 +8,32 @@
 // keeping only the tiers and categories we actually search, the bundle
 // drops to well under 500KB and per-request filtering is a few ms.
 
-import { writeFile, mkdir } from 'node:fs/promises'
+import { writeFile, mkdir, readFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ITEMS_URL = 'https://raw.githubusercontent.com/ao-data/ao-bin-dumps/master/formatted/items.json'
+const FETCH_TIMEOUT_MS = 30_000
+const FETCH_RETRIES = 1
+
+async function fetchWithTimeout(url) {
+  for (let attempt = 0; attempt <= FETCH_RETRIES; attempt++) {
+    const ctl = new AbortController()
+    const timer = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS)
+    try {
+      const res = await fetch(url, { signal: ctl.signal })
+      clearTimeout(timer)
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
+      return res
+    } catch (e) {
+      clearTimeout(timer)
+      if (attempt === FETCH_RETRIES) throw e
+      console.warn(`[build-items] fetch attempt ${attempt + 1} failed (${e.message}), retrying in 1.5s`)
+      await new Promise((r) => setTimeout(r, 1500))
+    }
+  }
+}
 
 // Same patterns as the old runtime filter — see src/app/api/items/search/route.ts
 // history for provenance. Keep both in sync.
@@ -87,10 +108,30 @@ function tierMatches(uniqueName, category) {
 }
 
 async function main() {
-  console.log(`[build-items] Fetching ${ITEMS_URL}`)
-  const res = await fetch(ITEMS_URL)
-  if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`)
-  const raw = await res.json()
+  const here = dirname(fileURLToPath(import.meta.url))
+  const cacheDir = resolve(here, '..', '.cache')
+  const cachePath = resolve(cacheDir, 'items.json')
+
+  let raw
+  try {
+    console.log(`[build-items] Fetching ${ITEMS_URL}`)
+    const res = await fetchWithTimeout(ITEMS_URL)
+    raw = await res.json()
+    // Best-effort cache write — 다음 빌드에서 업스트림 장애 시 사용.
+    try {
+      await mkdir(cacheDir, { recursive: true })
+      await writeFile(cachePath, JSON.stringify(raw))
+    } catch (cacheErr) {
+      console.warn(`[build-items] cache write failed (non-fatal): ${cacheErr.message}`)
+    }
+  } catch (e) {
+    if (!existsSync(cachePath)) {
+      console.error(`[build-items] fetch failed and no cache available: ${e.message}`)
+      throw e
+    }
+    console.warn(`[build-items] fetch failed (${e.message}), falling back to cache ${cachePath}`)
+    raw = JSON.parse(await readFile(cachePath, 'utf8'))
+  }
   const items = Array.isArray(raw) ? raw : Object.values(raw)
   console.log(`[build-items] Upstream item count: ${items.length}`)
 
@@ -171,7 +212,6 @@ async function main() {
     `[build-items] Kept ${processed.length} items (${totalMounts} mounts total, ${seenMountIds.size} from overrides) after filter`,
   )
 
-  const here = dirname(fileURLToPath(import.meta.url))
   const outPath = resolve(here, '..', 'src', 'data', 'albion-items.json')
   await mkdir(dirname(outPath), { recursive: true })
   await writeFile(outPath, JSON.stringify(processed))

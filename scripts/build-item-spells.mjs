@@ -17,10 +17,31 @@
 //   lookups strip the @N suffix at runtime before hitting this map.
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ITEMS_XML_URL = 'https://raw.githubusercontent.com/ao-data/ao-bin-dumps/master/items.xml'
+const FETCH_TIMEOUT_MS = 30_000
+const FETCH_RETRIES = 1
+
+async function fetchTextWithTimeout(url) {
+  for (let attempt = 0; attempt <= FETCH_RETRIES; attempt++) {
+    const ctl = new AbortController()
+    const timer = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS)
+    try {
+      const res = await fetch(url, { signal: ctl.signal })
+      clearTimeout(timer)
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
+      return await res.text()
+    } catch (e) {
+      clearTimeout(timer)
+      if (attempt === FETCH_RETRIES) throw e
+      console.warn(`[build-item-spells] fetch attempt ${attempt + 1} failed (${e.message}), retrying in 1.5s`)
+      await new Promise((r) => setTimeout(r, 1500))
+    }
+  }
+}
 
 // Some upstream items reference a base that itself references another base
 // (rare, but seen in mount/tool chains). Cap depth so a broken chain can't
@@ -180,15 +201,22 @@ async function main() {
     console.log(`[build-item-spells] Using local items.xml from ${process.env.AO_ITEMS_XML}`)
     xml = await readFile(process.env.AO_ITEMS_XML, 'utf8')
   } else {
-    console.log(`[build-item-spells] Fetching ${ITEMS_XML_URL}`)
-    const res = await fetch(ITEMS_XML_URL)
-    if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`)
-    xml = await res.text()
     try {
-      await mkdir(cacheDir, { recursive: true })
-      await writeFile(cachePath, xml)
-    } catch {
-      // Cache is best-effort — not fatal.
+      console.log(`[build-item-spells] Fetching ${ITEMS_XML_URL}`)
+      xml = await fetchTextWithTimeout(ITEMS_XML_URL)
+      try {
+        await mkdir(cacheDir, { recursive: true })
+        await writeFile(cachePath, xml)
+      } catch (cacheErr) {
+        console.warn(`[build-item-spells] cache write failed (non-fatal): ${cacheErr.message}`)
+      }
+    } catch (e) {
+      if (!existsSync(cachePath)) {
+        console.error(`[build-item-spells] fetch failed and no cache available: ${e.message}`)
+        throw e
+      }
+      console.warn(`[build-item-spells] fetch failed (${e.message}), falling back to cache ${cachePath}`)
+      xml = await readFile(cachePath, 'utf8')
     }
   }
 

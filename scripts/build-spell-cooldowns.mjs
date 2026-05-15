@@ -22,6 +22,26 @@ import { fileURLToPath } from 'node:url'
 
 const SPELLS_XML_URL = 'https://raw.githubusercontent.com/ao-data/ao-bin-dumps/master/spells.xml'
 const ITEMS_XML_URL = 'https://raw.githubusercontent.com/ao-data/ao-bin-dumps/master/items.xml'
+const FETCH_TIMEOUT_MS = 30_000
+const FETCH_RETRIES = 1
+
+async function fetchTextWithTimeout(url, label) {
+  for (let attempt = 0; attempt <= FETCH_RETRIES; attempt++) {
+    const ctl = new AbortController()
+    const timer = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS)
+    try {
+      const res = await fetch(url, { signal: ctl.signal })
+      clearTimeout(timer)
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
+      return await res.text()
+    } catch (e) {
+      clearTimeout(timer)
+      if (attempt === FETCH_RETRIES) throw e
+      console.warn(`[build-spell-cooldowns] fetch ${label} attempt ${attempt + 1} failed (${e.message}), retrying in 1.5s`)
+      await new Promise((r) => setTimeout(r, 1500))
+    }
+  }
+}
 
 const ATTR_RE = /(\w+)="([^"]*)"/g
 
@@ -154,16 +174,20 @@ async function loadXml(envVar, url, cachePath, label) {
     return readFile(cachePath, 'utf8')
   }
   console.log(`[build-spell-cooldowns] Fetching ${url}`)
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`)
-  const text = await res.text()
   try {
-    await mkdir(dirname(cachePath), { recursive: true })
-    await writeFile(cachePath, text)
-  } catch {
-    // Cache is best-effort.
+    const text = await fetchTextWithTimeout(url, label)
+    try {
+      await mkdir(dirname(cachePath), { recursive: true })
+      await writeFile(cachePath, text)
+    } catch (cacheErr) {
+      console.warn(`[build-spell-cooldowns] cache write failed (non-fatal): ${cacheErr.message}`)
+    }
+    return text
+  } catch (e) {
+    // existsSync 가 false 일 때만 여기로 — 캐시 없음 + fetch 실패 = 빌드 중단.
+    console.error(`[build-spell-cooldowns] fetch ${label} failed and no cache available: ${e.message}`)
+    throw e
   }
-  return text
 }
 
 async function main() {
