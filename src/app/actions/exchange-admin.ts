@@ -1,0 +1,208 @@
+'use server'
+
+// 환전 신청 + 역할 보상 액션. 리기어와 같은 어드민 승인 흐름 (approvals)
+// 화면에서 함께 노출되어 한 모듈로 묶었다. 리기어 mutation/list 는
+// `./regear-admin-resolve` / `./regear-admin-list` 분리 모듈에 있다.
+
+import { revalidatePath } from 'next/cache'
+import { getTranslations } from 'next-intl/server'
+import { requireAdmin } from '@/lib/auth'
+import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
+import { sendDiscordDmToUser } from '@/lib/discord-dm'
+import { formatSilver } from '@/lib/silver'
+import type { AdminExchangeRequest, RoleReward } from './regear-admin-types'
+
+export async function listExchangeRequests(
+  scope: 'pending' | 'all' = 'pending',
+): Promise<{ requests: AdminExchangeRequest[]; error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { requests: [], error: tErr('unauthorized') }
+    const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
+    let query = db
+      .from('exchange_requests')
+      .select(
+        'id, discord_id, username, silver, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username',
+      )
+      .eq('guild_id', guildId)
+      .order('created_at', { ascending: false })
+      .limit(500)
+    if (scope === 'pending') query = query.eq('status', 'pending')
+    const { data, error } = await query
+    if (error) return { requests: [], error: error.message }
+
+    // Attach balance per user — a small N+1 that's fine at admin-scale volume.
+    const rows = data ?? []
+    const balances = new Map<string, number>()
+    const uniqueIds = Array.from(new Set(rows.map((r) => r.discord_id)))
+    if (uniqueIds.length > 0) {
+      const { data: ledger, error: ledgerError } = await db
+        .from('point_ledger')
+        .select('discord_id, delta')
+        .eq('guild_id', guildId)
+        .in('discord_id', uniqueIds)
+      if (ledgerError) return { requests: [], error: ledgerError.message }
+      for (const row of ledger ?? []) {
+        balances.set(row.discord_id, (balances.get(row.discord_id) ?? 0) + row.delta)
+      }
+    }
+
+    return {
+      requests: rows.map((r) => ({
+        id: r.id,
+        discord_id: r.discord_id,
+        username: r.username,
+        silver: r.silver,
+        status: r.status as AdminExchangeRequest['status'],
+        admin_notes: r.admin_notes,
+        created_at: r.created_at,
+        resolved_at: r.resolved_at,
+        handled_by: r.handled_by ?? null,
+        handled_by_username: r.handled_by_username ?? null,
+        balance: balances.get(r.discord_id) ?? 0,
+      })),
+    }
+  } catch (e) {
+    return { requests: [], error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function approveExchangeRequest(id: string): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  const tDm = await getTranslations('discordDm')
+  try {
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+    const { error } = await db.rpc('approve_exchange_request', {
+      p_id: id,
+      p_admin_id: session.discordId,
+      p_admin_username: session.username,
+      p_guild_id: guildId,
+    })
+    if (error) {
+      if (error.message.includes('EXCHANGE_NOT_PENDING')) {
+        return { error: tErr('alreadyHandled') }
+      }
+      if (error.message.includes('INSUFFICIENT_BALANCE')) {
+        return { error: tErr('insufficientBalanceForExchange') }
+      }
+      return { error: error.message }
+    }
+    revalidatePath('/admin/dashboard/exchanges')
+    revalidatePath('/me')
+    const { data: row } = await db
+      .from('exchange_requests')
+      .select('discord_id, silver')
+      .eq('guild_id', guildId)
+      .eq('id', id)
+      .maybeSingle()
+    if (row?.discord_id) {
+      void sendDiscordDmToUser(row.discord_id, guildId, {
+        title: tDm('exchangeApprovedTitle'),
+        body: tDm('exchangeApprovedBody', { silver: formatSilver(row.silver ?? 0) }),
+        url: '/me',
+      })
+    }
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function rejectExchangeRequest(
+  id: string,
+  notes: string,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  const tDm = await getTranslations('discordDm')
+  try {
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+    const { error } = await db.rpc('reject_exchange_request', {
+      p_id: id,
+      p_notes: notes.trim() || null,
+      p_admin_id: session.discordId,
+      p_admin_username: session.username,
+      p_guild_id: guildId,
+    })
+    if (error) {
+      if (error.message.includes('EXCHANGE_NOT_PENDING')) {
+        return { error: tErr('alreadyHandled') }
+      }
+      return { error: error.message }
+    }
+    revalidatePath('/admin/dashboard/exchanges')
+    revalidatePath('/me')
+    const { data: row } = await db
+      .from('exchange_requests')
+      .select('discord_id, silver')
+      .eq('guild_id', guildId)
+      .eq('id', id)
+      .maybeSingle()
+    if (row?.discord_id) {
+      void sendDiscordDmToUser(row.discord_id, guildId, {
+        title: tDm('exchangeRejectedTitle'),
+        body: tDm('exchangeRejectedBody', { silver: formatSilver(row.silver ?? 0) }),
+        url: '/me',
+      })
+    }
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function listRoleRewards(): Promise<{
+  rewards: RoleReward[]
+  error?: string
+}> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { rewards: [], error: tErr('unauthorized') }
+    const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
+    const { data, error } = await db
+      .from('role_rewards')
+      .select('role_name, silver, updated_at')
+      .eq('guild_id', guildId)
+      .order('role_name')
+    if (error) return { rewards: [], error: error.message }
+    return { rewards: (data ?? []) as RoleReward[] }
+  } catch (e) {
+    return { rewards: [], error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function updateRoleReward(
+  roleName: string,
+  silver: number,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    if (!Number.isInteger(silver) || silver < 0) {
+      return { error: tErr('nonNegativeInteger') }
+    }
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const db = await requireAdmin()
+    const guildId = await getSessionGuildId(session)
+    const { error } = await db
+      .from('role_rewards')
+      .update({ silver, updated_at: new Date().toISOString() })
+      .eq('guild_id', guildId)
+      .eq('role_name', roleName)
+    if (error) return { error: error.message }
+    revalidatePath('/admin/dashboard/settings')
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
