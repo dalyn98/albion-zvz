@@ -9,7 +9,6 @@ import BattleRecordList, {
   type BattleListTab,
 } from '@/components/BattleRecordList'
 import { isSizeCategory, SIZE_CATEGORIES } from '@/lib/albion-battles'
-import { isHighEngagement } from '@/lib/low-engagement-cut'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,10 +19,10 @@ interface SearchParams {
 
 const RECENT_LIMIT = 20
 const SIZE_LIMIT = 50
-// low-engagement 컷이 TS-side 라 결과 잘림 보정. 컷 통과 비율을 보수적으로
-// ~30% 가정해 3x fetch 후 슬라이스. 컷 통과 행이 적은 길드는 그래도 limit 미만이
-// 나올 수 있지만, 그건 실제로 표시할 만한 전투가 그만큼 없다는 의미.
-const FETCH_OVERFETCH_MULTIPLIER = 3
+// mig 150 이전 — low-engagement 컷이 TS-side 라 over-fetch 후 슬라이스했다.
+// mig 150 부터는 tenant_battle_records.is_high_engagement 생성 컬럼 + 부분
+// 인덱스 (idx_tenant_battle_records_high_engagement) 로 SQL-side 정확 fetch.
+// over-fetch multiplier 제거 — limit 만큼만 가져온다.
 
 function resolveTab(raw: string | undefined): BattleListTab {
   if (raw && isSizeCategory(raw)) return raw
@@ -56,32 +55,25 @@ export default async function BattlesPage({
   // 관리자 클라이언트는 RLS 를 우회해도 .eq('guild_id') 로 명시적 스코프 유지.
   const db = getAdminClient()
   const limit = activeTab === 'recent' ? RECENT_LIMIT : SIZE_LIMIT
-  // low-engagement 컷 통과율을 ~30% 가정하고 3x 로 over-fetch 한 뒤 TS 에서 컷
-  // 적용 → 정렬 유지하면서 limit 만큼 슬라이스. 컷이 RPC/SQL 표현으로 안 들어가는
-  // 이유: PostgREST 가 산술 표현식 (team_size * 0.1) 을 지원하지 않아.
+  // is_high_engagement = (home_kills+home_deaths) >= home_team_size*0.1 OR home_deaths >= 3
+  // (mig 150 의 STORED generated column). SQL-side 필터 + 전용 인덱스로 정확
+  // fetch — TS 측 후처리 필터 제거.
   let query = db
     .from('tenant_battle_records')
     .select(
       'id, battle_record_id, home_guild_name, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, main_opponent_force_kind, main_opponent_force_name, main_opponent_team_size, main_opponent_kill_fame, match_index, match_total, is_provisional, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name)',
     )
     .eq('guild_id', guildId)
+    .eq('is_high_engagement', true)
     .order('started_at', { ascending: false })
     .order('match_index', { ascending: true })
-    .limit(limit * FETCH_OVERFETCH_MULTIPLIER)
+    .limit(limit)
   if (activeTab !== 'recent') query = query.eq('size_category', activeTab)
   if (outcomeFilter) query = query.eq('outcome', outcomeFilter)
 
   const { data, error } = await query
 
-  const filteredData = (data ?? []).filter((r) =>
-    isHighEngagement({
-      homeKills: r.home_kills as number,
-      homeDeaths: r.home_deaths as number,
-      homeTeamSize: r.home_team_size as number,
-    }),
-  )
-
-  const rows: BattleRecordRow[] = filteredData.slice(0, limit).map((r) => {
+  const rows: BattleRecordRow[] = (data ?? []).map((r) => {
     const battle = Array.isArray(r.battle_records) ? r.battle_records[0] : r.battle_records
     return {
       id: r.id as string,

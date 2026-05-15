@@ -219,12 +219,17 @@ export default async function EventDetailPage({
   // Pre-battle & in-progress battles get live polling. Once the battle is
   // finished (battle_started_at + 1h), slots are frozen — no reason to keep
   // hammering the DB or draining mobile batteries.
+  // 페이즈별 폴링 간격을 분리한다. 모집 단계 (pre-battle) 에서 슬롯 변경은
+  // 비교적 느려서 30s 면 사용자 체감 지연 없음 — 이 단계가 RSC 재렌더의
+  // 대부분을 차지하므로 50% 감축이 부하 절감 효과가 가장 크다. 전투 개시
+  // 후 1h 까지는 staff 라이브 모니터링용으로 15s 유지.
   const shouldPoll = !event.battle_started_at || !isEnded(event.battle_started_at)
   const battleEnded = !!event.battle_started_at && isEnded(event.battle_started_at)
+  const pollIntervalMs = event.battle_started_at ? 15_000 : 30_000
 
   return (
     <div className="flex-1 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 py-6 sm:py-8 flex flex-col lg:flex-row lg:gap-6 space-y-4 lg:space-y-0">
-      {shouldPoll && <AutoRefresh intervalMs={15000} />}
+      {shouldPoll && <AutoRefresh intervalMs={pollIntervalMs} />}
       <main className="flex-1 min-w-0 space-y-6 sm:space-y-8">
         <Link
           href="/"

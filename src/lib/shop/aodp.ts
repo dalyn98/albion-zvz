@@ -732,13 +732,17 @@ function sameCities(a: readonly string[], b: readonly string[]): boolean {
 // 각 결과의 fallbackTier 가 어느 단계에서 hit 했는지 알려준다.
 //   1. exact      — 사용자 설정 그대로 (quality fallback 은 내장)
 //   2. window     — mode='avg_14d' 로 풀어 재시도
-//   3. bluezone   — cities 에 블루존 추가
-//   4. redzone    — cities 에 레드존도 추가 (= 사실상 모든 시티)
-//   5. none       — 끝까지 못 찾음. price === null.
+//   3. extended   — cities 에 블루존 + 레드존을 한 번에 union. 히트한 도시 종류로
+//                   tier 를 bluezone / redzone 으로 사후 라벨링.
+//   4. none       — 끝까지 못 찾음. price === null.
 //
 // 단계는 누적: window 부터 minQuality=1, mode='avg_14d' 가 강제되며 그 위에
 // 도시만 점진적으로 넓어진다. 사용자 설정에 이미 모든 도시가 포함돼 있으면
 // 도시 확장 단계는 자동으로 skip — 추가 API 호출 없음.
+//
+// 부하 최적화 (#27): 과거 4단계 (exact→window→bluezone→redzone) 의 마지막
+// 두 단계를 1번의 union 조회로 합쳐 AODP API 호출을 최대 1회 절감. 결과
+// 신뢰도 (bluezone/redzone 양쪽 모두 'low') 와 tier 라벨은 보존.
 export async function fetchAodpPrices(
   keys: AodpPriceKey[],
   options: AodpOptions = {},
@@ -808,16 +812,30 @@ export async function fetchAodpPrices(
     await overrideTier(collectMisses(), 'window', widenedOpts)
   }
 
-  // 3단계: bluezone — cities 에 블루존 union. 이미 모든 블루존이 포함돼 있으면 skip.
-  const bzCities = unionCities(userOpts.cities, BLUE_ZONE_CITIES)
-  if (!sameCities(bzCities, userOpts.cities)) {
-    await overrideTier(collectMisses(), 'bluezone', { ...widenedOpts, cities: bzCities })
-  }
-
-  // 4단계: redzone — cities 에 레드존도 union.
-  const allCities = unionCities(bzCities, RED_ZONE_CITIES)
-  if (!sameCities(allCities, bzCities)) {
-    await overrideTier(collectMisses(), 'redzone', { ...widenedOpts, cities: allCities })
+  // 3단계: extended — bluezone + redzone 을 한 번에 union 한 확장 도시 풀.
+  // 단일 API 호출로 두 단계 묶음. tier 라벨은 hit 한 도시가 redzone 이면
+  // 'redzone', 그 외 (블루존 포함) 면 'bluezone' 로 분류 — 사용자 설정에
+  // 이미 포함된 도시였다면 widening 자체를 skip.
+  const allCities = unionCities(unionCities(userOpts.cities, BLUE_ZONE_CITIES), RED_ZONE_CITIES)
+  if (!sameCities(allCities, userOpts.cities)) {
+    const misses = collectMisses()
+    if (misses.length > 0) {
+      const extended = await fetchAodpPricesExact(misses, { ...widenedOpts, cities: allCities })
+      const redzoneSet = new Set<string>(RED_ZONE_CITIES)
+      for (const [mk, r] of extended) {
+        if (r.price === null) continue
+        const tier: AodpFallbackTier =
+          r.city && redzoneSet.has(r.city) ? 'redzone' : 'bluezone'
+        r.fallbackTier = tier
+        r.confidence = computeConfidence(
+          { sampledAt: r.sampledAt ?? '', sampleCount: r.sampleCount },
+          tier,
+          r.source,
+          now,
+        )
+        out.set(mk, r)
+      }
+    }
   }
 
   // 5단계: none — 마지막까지 못 찾은 key 는 null + tier='none'. 기존 result 에

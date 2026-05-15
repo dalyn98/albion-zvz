@@ -31,6 +31,14 @@ const API_DELAY_MS = 250
 // 평균 580명 멤버를 하루에 약 5번씩 커버. 기존 가입자 polling 시간 + 30명 추가 ≈
 // cron maxDuration 안에 안정적으로 들어옴.
 const MAX_ALBION_ONLY_PER_RUN = 30
+// Discord 가입 길드원도 max-scale (300명 길드 × 가입률 67% ≈ 200명 linked) 가정
+// 시 5분 주기로 전원 polling 하면 Albion API 호출이 tenant 당 400회/5min →
+// 다수 tenant 동시 실행 시 IP rate-limit 위험. Phase 3 와 동일 random-sample 로
+// 한 사이클에 N명씩 처리하면 (60명 cap) eventually-consistent 로 모든 가입자가
+// ~17분 안에 1회씩 polling 된다. 리더보드/탑킬러 통계는 분 단위 신선도 불필요.
+//
+// 길드 규모 ≤60명이면 cap 영향 0 (전원 polling 그대로). 대형 길드만 분할.
+const MAX_DISCORD_LINKED_PER_RUN = 60
 
 interface PlayerRef {
   Id: string
@@ -62,11 +70,24 @@ interface SearchResponse {
   players: PlayerRef[]
 }
 
+// 기본은 no-store — kills/deaths 는 매 cron 마다 최신 50건이 필요.
 async function fetchJson<T>(url: string): Promise<T> {
   return fetchJsonWithRetry<T>(url, {
     label: 'killboard',
     userAgent: 'albion-zvz-killboard-sync/1.0',
     fetchInit: { cache: 'no-store' },
+  })
+}
+
+// 이름 → player_id 검색만 1h 캐시. Albion 닉네임 변경은 실버 비용 큰 행위라
+// 사실상 immutable. 같은 cron 사이클에서 upsert 실패로 재검색되는 케이스나,
+// 다수 tenant 가 동일 닉네임을 동시에 조회하는 케이스(동명이인 검색)도
+// 1h 안에서 한 번만 API 가 호출되도록 보장.
+async function fetchSearchCached<T>(url: string): Promise<T> {
+  return fetchJsonWithRetry<T>(url, {
+    label: 'killboard',
+    userAgent: 'albion-zvz-killboard-sync/1.0',
+    fetchInit: { next: { revalidate: 3600 } },
   })
 }
 
@@ -80,7 +101,7 @@ async function searchPlayerId(
   guildName: string,
 ): Promise<string | null> {
   const url = `${baseUrl}/search?q=${encodeURIComponent(username)}`
-  const data = await fetchJson<SearchResponse>(url)
+  const data = await fetchSearchCached<SearchResponse>(url)
   const target = username.trim().toLowerCase()
   // 길드명까지 일치하는 레코드 우선 — 동명이인 중 자기 길드 소속을 고른다.
   const guildMatch = data.players.find(
@@ -125,6 +146,9 @@ export interface KillboardSyncResult {
   members_resolved: number
   members_newly_resolved: number
   members_unresolved: number
+  // 이번 cron 에서 polling 한 Discord 가입자 수 (MAX_DISCORD_LINKED_PER_RUN 상한).
+  // 길드가 60명 이하면 = members_resolved, 그 이상이면 < members_resolved.
+  members_polled: number
   // 미연동 Albion 멤버 풀 크기 (left_at IS NULL ∧ guild_avatars 미매핑).
   albion_only_pool: number
   // 이번 cron 에서 polling 한 미연동 멤버 수 (MAX_ALBION_ONLY_PER_RUN 상한).
@@ -152,6 +176,7 @@ export async function syncKillboard(
       members_resolved: 0,
       members_newly_resolved: 0,
       members_unresolved: 0,
+      members_polled: 0,
       albion_only_pool: 0,
       albion_only_polled: 0,
       events_upserted: 0,
@@ -174,6 +199,7 @@ export async function syncKillboard(
       members_resolved: 0,
       members_newly_resolved: 0,
       members_unresolved: 0,
+      members_polled: 0,
       albion_only_pool: 0,
       albion_only_polled: 0,
       events_upserted: 0,
@@ -222,9 +248,17 @@ export async function syncKillboard(
   }
 
   // Phase 2: player_id 가 있는 Discord 가입자들의 kills/deaths 조회 → upsert.
+  // 길드 규모가 클 때 (linked > MAX_DISCORD_LINKED_PER_RUN) random sampling 으로
+  // 분할 polling. 작은 길드는 cap 영향 없이 전원 polling.
   const resolved = memberRows.filter((m) => !!m.albion_player_id)
+  const resolvedShuffled = resolved.slice()
+  for (let i = resolvedShuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[resolvedShuffled[i], resolvedShuffled[j]] = [resolvedShuffled[j], resolvedShuffled[i]]
+  }
+  const resolvedTargets = resolvedShuffled.slice(0, MAX_DISCORD_LINKED_PER_RUN)
   let upserted = 0
-  for (const m of resolved) {
+  for (const m of resolvedTargets) {
     const playerId = m.albion_player_id!
     try {
       const newRows = await pollAndBuildRows(baseUrl, playerId, m, guildId)
@@ -309,6 +343,7 @@ export async function syncKillboard(
     members_resolved: resolved.length,
     members_newly_resolved: newlyResolved,
     members_unresolved: memberRows.length - resolved.length,
+    members_polled: resolvedTargets.length,
     albion_only_pool: albionOnlyPool.length,
     albion_only_polled: albionOnlyTargets.length,
     events_upserted: upserted,
