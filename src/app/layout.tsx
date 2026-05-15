@@ -21,6 +21,7 @@ import { getSessionGuildId, getPrimaryTenantId, getTenantDiscordConfig } from '@
 import { isSuperAdminSession } from '@/lib/super-admin'
 import { classifyHost, getCanonicalRootDomain, resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
+import { designVersionAttr } from '@/lib/polish-flags'
 
 // Routes that should render for anyone, even without a session. The proxy
 // forwards the pathname via x-pathname so we can decide here without duplicating
@@ -259,6 +260,21 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const isMarketingRaw = isMarketingPathname(pathname)
   const isOnboard = isOnboardPathname(pathname)
 
+  // 디자인 v2 (게임적 아이덴티티) staged rollout — 현재 테넌트 slug 를
+  // 해석해 <html data-design> 어트리뷰트로 CSS 스코핑. 멘헤라만 v2, 그 외는
+  // v1 (현행 UI). session 우선, 없으면 host 의 서브도메인으로 폴백.
+  let currentTenantSlug: string | null = null
+  if (session?.guildId) {
+    const cfg = await getTenantDiscordConfig(session.guildId)
+    currentTenantSlug = cfg?.slug ?? null
+  } else {
+    const classification = classifyHost(headersList.get('host'))
+    if (classification.kind === 'tenant') {
+      currentTenantSlug = classification.slug
+    }
+  }
+  const designVersion = designVersionAttr(currentTenantSlug)
+
   // `/public/g/<slug>` 페이지에서, 그 길드의 멤버 본인이 접속한 경우에만 marketing
   // 처리를 끄고 AppShell(사이드바) 을 둘러준다. 다른 길드 멤버나 비로그인 방문자는
   // 기존 marketing 페이지(자체 MarketingNav) 그대로 — 사이드바는 자기 길드 컨텍스트
@@ -458,7 +474,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           : <AppShell>{children}</AppShell>
 
   return (
-    <html lang={locale} className="h-full antialiased">
+    <html lang={locale} className="h-full antialiased" data-design={designVersion}>
       <head>
         {/* Pretendard 가변 폰트. jsdelivr CDN 에 별도 preconnect 해두면
             TLS/DNS 가 CSS 다운로드 전에 끝난다. stylesheet 는 render-blocking
