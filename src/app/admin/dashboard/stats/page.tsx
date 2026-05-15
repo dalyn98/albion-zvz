@@ -105,44 +105,38 @@ export default async function AdminStatsPage() {
   ]
 
   return (
-    <div className="space-y-6" data-v2-page="stats">
-      <header className="space-y-2" data-v2-page-header>
-        <div className="flex items-center gap-2">
-          <BarChart3 size={22} className="text-amber-400" data-v2-page-icon />
-          <h1 className="text-2xl font-bold text-white" data-v2-page-title>{tNav('stats')}</h1>
-        </div>
-        <div data-v2-only className="game-divider" aria-hidden="true">
-          <span className="game-divider-diamond" />
-        </div>
-        <p className="text-sm text-gray-400" data-v2-page-lede>{tStats('ledgerDescription')}</p>
-      </header>
+    <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <BarChart3 size={22} className="text-amber-400" />
+        <h1 className="text-2xl font-bold text-white">{tNav('stats')}</h1>
+      </div>
+      <p className="text-sm text-gray-400">{tStats('ledgerDescription')}</p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" data-v2-grid="kpi">
-        {cards.map((card, idx) => {
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {cards.map((card) => {
           const Icon = card.icon
           return (
             <div
               key={card.label}
               className={`${card.bg} ${card.ring} border rounded-lg p-4 space-y-2`}
-              data-v2-card={idx === 0 ? 'kpi-hero' : 'kpi'}
             >
               <div className="flex items-center gap-2">
                 <Icon size={16} className={card.accent} />
-                <span className="text-xs text-gray-300" data-v2-card-label>{card.label}</span>
+                <span className="text-xs text-gray-300">{card.label}</span>
               </div>
-              <div className={`text-2xl font-bold font-mono ${card.accent}`} data-v2-card-value>
+              <div className={`text-2xl font-bold font-mono ${card.accent}`}>
                 {card.value.toLocaleString()}
               </div>
-              <div className="text-[11px] text-gray-500" data-v2-card-hint>{card.hint}</div>
+              <div className="text-[11px] text-gray-500">{card.hint}</div>
             </div>
           )
         })}
       </div>
 
-      <section className="bg-gray-900/60 border border-gray-700 rounded-lg" data-v2-section="top-holders">
-        <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between" data-v2-section-header>
-          <h2 className="text-sm font-semibold text-white" data-v2-section-title>{tStats('topHoldersTitle')}</h2>
-          <span className="text-xs text-gray-500" data-v2-section-meta>Top {stats.topHolders.length}</span>
+      <section className="bg-gray-900/60 border border-gray-700 rounded-lg">
+        <header className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-white">{tStats('topHoldersTitle')}</h2>
+          <span className="text-xs text-gray-500">Top {stats.topHolders.length}</span>
         </header>
         {stats.topHolders.length === 0 ? (
           <div className="px-4 py-8 text-center text-sm text-gray-500">
@@ -159,10 +153,8 @@ export default async function AdminStatsPage() {
               <li
                 key={h.discordId}
                 className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800/40"
-                data-v2-row="holder"
-                data-v2-rank={idx + 1}
               >
-                <span className="text-xs text-gray-500 font-mono w-6 text-right" data-v2-rank-badge>{idx + 1}</span>
+                <span className="text-xs text-gray-500 font-mono w-6 text-right">{idx + 1}</span>
                 <MemberAvatar discordId={h.discordId} avatar={h.avatar} size={24} />
                 <span className="flex-1 text-sm text-gray-200 truncate flex items-center gap-2 min-w-0">
                   <MemberLink
@@ -171,12 +163,12 @@ export default async function AdminStatsPage() {
                     className="truncate"
                   />
                   {h.isAdmin && (
-                    <span className="text-[10px] text-amber-400 border border-amber-500/40 rounded px-1 py-0.5 flex-shrink-0" data-v2-badge="admin">
+                    <span className="text-[10px] text-amber-400 border border-amber-500/40 rounded px-1 py-0.5 flex-shrink-0">
                       ADMIN
                     </span>
                   )}
                 </span>
-                <span className="text-sm font-mono text-amber-300 tabular-nums" data-v2-holder-balance>
+                <span className="text-sm font-mono text-amber-300 tabular-nums">
                   {h.balance.toLocaleString()}
                 </span>
               </li>
