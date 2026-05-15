@@ -19,7 +19,9 @@ export interface SystemStats {
 
 async function countAll(table: string): Promise<number> {
   const db = getAdminClient()
-  const { count } = await db.from(table).select('*', { count: 'exact', head: true })
+  // head:true 라 body 는 비지만, PostgREST 는 select 컬럼 식별자를 파싱해 query plan
+  // 을 만든다. 'id' 같은 단일 컬럼이 '*' 보다 가볍다.
+  const { count } = await db.from(table).select('id', { count: 'exact', head: true })
   return count ?? 0
 }
 
@@ -36,9 +38,11 @@ export async function getSystemStats(): Promise<SystemStats> {
     members,
   ] = await Promise.all([
     db.from('tenants').select('status'),
-    db.from('tenants').select('*', { count: 'exact', head: true }).not('bot_installed_at', 'is', null),
+    db.from('tenants').select('id', { count: 'exact', head: true }).not('bot_installed_at', 'is', null),
     countAll('events'),
-    countAll('battles'),
+    // 'battles' 테이블에는 guild_id 컬럼이 없다. 슈퍼어드민 전역 카운트는 events 와
+    // 대응되는 multi-tenant 추적용 tenant_battle_records 로 계산.
+    countAll('tenant_battle_records'),
     countAll('regear_requests'),
     countAll('exchange_requests'),
     countAll('donation_requests'),
@@ -165,12 +169,14 @@ export async function getTenantDetail(tenantId: string): Promise<TenantDetail | 
     recent,
     overrides,
   ] = await Promise.all([
-    db.from('guild_avatars').select('*', { count: 'exact', head: true }).eq('guild_id', tenantId),
-    db.from('events').select('*', { count: 'exact', head: true }).eq('guild_id', tenantId),
-    db.from('battles').select('*', { count: 'exact', head: true }).eq('guild_id', tenantId),
-    db.from('regear_requests').select('*', { count: 'exact', head: true }).eq('guild_id', tenantId),
-    db.from('exchange_requests').select('*', { count: 'exact', head: true }).eq('guild_id', tenantId),
-    db.from('donation_requests').select('*', { count: 'exact', head: true }).eq('guild_id', tenantId),
+    db.from('guild_avatars').select('id', { count: 'exact', head: true }).eq('guild_id', tenantId),
+    db.from('events').select('id', { count: 'exact', head: true }).eq('guild_id', tenantId),
+    // 'battles' 테이블에는 guild_id 컬럼이 없어 직접 필터 불가. tenant 별 집계는
+    // tenant_battle_records 로 한다 (mig 076 에서 guild_id 인덱스 보유).
+    db.from('tenant_battle_records').select('id', { count: 'exact', head: true }).eq('guild_id', tenantId),
+    db.from('regear_requests').select('id', { count: 'exact', head: true }).eq('guild_id', tenantId),
+    db.from('exchange_requests').select('id', { count: 'exact', head: true }).eq('guild_id', tenantId),
+    db.from('donation_requests').select('id', { count: 'exact', head: true }).eq('guild_id', tenantId),
     db
       .from('events')
       .select('id, title, created_at')

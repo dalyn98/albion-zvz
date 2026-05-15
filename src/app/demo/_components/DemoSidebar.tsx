@@ -139,7 +139,9 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
         if (Array.isArray(parsed)) {
           setCollapsedSections(new Set(parsed.filter((k): k is SectionKey => typeof k === 'string')))
         }
-      } catch {}
+      } catch (e) {
+        console.error('[DemoSidebar] failed to parse collapsed-sections localStorage value:', e)
+      }
     }
     setHydrated(true)
   }, [])

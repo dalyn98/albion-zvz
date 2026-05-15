@@ -13,6 +13,23 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    files: ["src/app/**/*.{ts,tsx}"],
+    rules: {
+      // AGENTS.md hard rule #2: force-static 금지.
+      // 빌드타임에 layout 의 x-pathname 헤더가 비어 AppGate 가 HTML 에 박혀버린다.
+      // 새 라우트는 force-dynamic 또는 ISR (revalidate=...) 만 허용.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[id.name='dynamic'] > Literal[value='force-static']",
+          message:
+            "AGENTS.md hard rule: `export const dynamic = 'force-static'` 금지. force-dynamic 또는 revalidate 를 사용하세요.",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

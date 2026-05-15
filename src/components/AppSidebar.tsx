@@ -216,7 +216,9 @@ export default function AppSidebar({
         if (Array.isArray(parsed)) {
           setCollapsedSections(new Set(parsed.filter((k): k is SectionKey => typeof k === 'string')))
         }
-      } catch {}
+      } catch (e) {
+        console.error('[AppSidebar] failed to parse collapsed-sections localStorage value:', e)
+      }
     }
     setHydrated(true)
   }, [])
