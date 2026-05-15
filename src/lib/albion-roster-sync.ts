@@ -35,11 +35,13 @@ export async function runAlbionRosterSync(
   tenantId: string,
 ): Promise<AlbionRosterSyncOutcome> {
   const [serverRaw, homeGuildId] = await Promise.all([
-    getAppSetting('albion_server', 'east', tenantId),
+    getAppSetting('albion_server', '', tenantId),
     getAppSetting('albion_home_guild_id', '', tenantId),
   ])
 
   if (!homeGuildId) return { kind: 'skipped', reason: 'no_home_guild' }
+  // albion_server 가 비어 있으면 ('' 반환) east 로 silent 폴백하지 않고 skip.
+  // 폴백 시 west/eu tenant 가 잘못된 server API 로 멤버 sync 되어 매핑이 깨진다.
   if (!isAlbionServer(serverRaw)) return { kind: 'skipped', reason: 'invalid_server' }
 
   const members = await fetchGuildMembers(serverRaw, homeGuildId)

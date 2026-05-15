@@ -2,7 +2,7 @@ import Image from 'next/image'
 import { getTranslations } from 'next-intl/server'
 import { getLocale } from '@/lib/locale'
 import { getLocalizedItemName } from '@/lib/item-names'
-import { ALBION_SERVER_LABEL } from '@/lib/albion-gameinfo'
+import { ALBION_SERVER_LABEL_KEY } from '@/lib/albion-gameinfo'
 import {
   BarChart3,
   Wallet,
@@ -44,6 +44,7 @@ const STATS_TOUR_STEPS = [
 ] as const
 
 type StatsTranslator = Awaited<ReturnType<typeof getTranslations<'adminStats'>>>
+type CommonTranslator = Awaited<ReturnType<typeof getTranslations<'common'>>>
 
 const STATS_COLLAPSED_ROWS = 8
 
@@ -63,9 +64,10 @@ function MockAvatar({ size = 24 }: { size?: number }) {
 }
 
 export default async function DemoStatsPage() {
-  const [tNav, tStats, locale] = await Promise.all([
+  const [tNav, tStats, tCommon, locale] = await Promise.all([
     getTranslations('nav'),
     getTranslations('adminStats'),
+    getTranslations('common'),
     getLocale(),
   ])
 
@@ -184,7 +186,7 @@ export default async function DemoStatsPage() {
       <div data-tour-id="stats-finance">
         <FinanceFlowSection stats={DEMO_FINANCE_FLOW_STATS} tStats={tStats} />
       </div>
-      <AlbionVerificationSection tStats={tStats} />
+      <AlbionVerificationSection tStats={tStats} tCommon={tCommon} />
       <EventParticipationSection tStats={tStats} />
       <ShopRegearSection tStats={tStats} locale={locale} />
       <WithdrawnMembersSection
@@ -528,7 +530,13 @@ function ShopRegearSection({
   )
 }
 
-function AlbionVerificationSection({ tStats }: { tStats: StatsTranslator }) {
+function AlbionVerificationSection({
+  tStats,
+  tCommon,
+}: {
+  tStats: StatsTranslator
+  tCommon: CommonTranslator
+}) {
   const stats = DEMO_VERIFICATION_STATS
 
   const cards = [
@@ -607,6 +615,7 @@ function AlbionVerificationSection({ tStats }: { tStats: StatsTranslator }) {
         members={stats.pendingMembers}
         mode="pending"
         tStats={tStats}
+        tCommon={tCommon}
       />
       <VerificationMemberList
         title={tStats('unverifiedMembersTitle')}
@@ -616,6 +625,7 @@ function AlbionVerificationSection({ tStats }: { tStats: StatsTranslator }) {
         members={stats.unverifiedMembers}
         mode="unverified"
         tStats={tStats}
+        tCommon={tCommon}
       />
       <VerificationMemberList
         title={tStats('verifiedMembersTitle')}
@@ -625,6 +635,7 @@ function AlbionVerificationSection({ tStats }: { tStats: StatsTranslator }) {
         members={stats.verifiedMembers}
         mode="verified"
         tStats={tStats}
+        tCommon={tCommon}
       />
     </section>
   )
@@ -638,6 +649,7 @@ function VerificationMemberList({
   members,
   mode,
   tStats,
+  tCommon,
 }: {
   title: string
   icon: React.ComponentType<{ size?: number; className?: string }>
@@ -646,6 +658,7 @@ function VerificationMemberList({
   members: DemoVerificationMember[]
   mode: 'pending' | 'unverified' | 'verified'
   tStats: StatsTranslator
+  tCommon: CommonTranslator
 }) {
   return (
     <div className="bg-gray-900/60 border border-gray-700 rounded-lg">
@@ -685,7 +698,7 @@ function VerificationMemberList({
                 <div className="hidden sm:flex flex-col items-end text-[11px] text-gray-500 min-w-0">
                   <span className="text-gray-300 truncate max-w-[140px]">{m.nickname ?? '—'}</span>
                   <span className="font-mono">
-                    {m.server ? ALBION_SERVER_LABEL[m.server] : '—'}
+                    {m.server ? tCommon(ALBION_SERVER_LABEL_KEY[m.server]) : '—'}
                     {m.guildId ? (
                       m.guildMatchesHome ? (
                         <span className="ml-1 text-emerald-400">

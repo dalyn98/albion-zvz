@@ -10,7 +10,7 @@ import {
   setAlbionIdentityManually,
   type AlbionPlayerCandidate,
 } from '@/app/actions/onboarding'
-import { ALBION_SERVERS, ALBION_SERVER_LABEL, type AlbionServer } from '@/lib/albion-gameinfo'
+import { ALBION_SERVERS, ALBION_SERVER_LABEL_KEY, type AlbionServer } from '@/lib/albion-gameinfo'
 import type { MemberAlbionIdentity } from '@/lib/albion-identity'
 import { useToast } from './ToastProvider'
 
@@ -28,6 +28,12 @@ type Step = 'server' | 'search' | 'done'
 
 const SEARCH_DEBOUNCE_MS = 300
 
+const SERVER_HINT_KEY: Record<AlbionServer, 'serverHintEast' | 'serverHintWest' | 'serverHintEurope'> = {
+  east: 'serverHintEast',
+  west: 'serverHintWest',
+  europe: 'serverHintEurope',
+}
+
 export default function AlbionOnboardingWizard({
   discordNickname,
   initialIdentity,
@@ -36,6 +42,7 @@ export default function AlbionOnboardingWizard({
   onFinish,
 }: Props) {
   const t = useTranslations('albionOnboarding')
+  const tCommon = useTranslations('common')
   const router = useRouter()
   const toast = useToast()
 
@@ -144,9 +151,12 @@ export default function AlbionOnboardingWizard({
 
       {step === 'server' && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-            <Globe size={14} /> {t('stepServer')}
-          </h2>
+          <header className="space-y-1">
+            <h2 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+              <Globe size={14} /> {t('stepServer')}
+            </h2>
+            <p className="text-xs text-gray-500 leading-relaxed">{t('stepServerHelp')}</p>
+          </header>
           <div className="space-y-2">
             {ALBION_SERVERS.map((s) => (
               <button
@@ -155,10 +165,15 @@ export default function AlbionOnboardingWizard({
                 onClick={() => handleSelectServer(s)}
                 className="w-full flex items-center justify-between bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-amber-500/40 rounded-lg px-4 py-3.5 text-left transition-colors"
               >
-                <span className="text-base font-semibold text-white">
-                  {ALBION_SERVER_LABEL[s]}
+                <span className="flex flex-col gap-0.5 min-w-0">
+                  <span className="text-base font-semibold text-white">
+                    {tCommon(ALBION_SERVER_LABEL_KEY[s])}
+                  </span>
+                  <span className="text-[11px] text-gray-500 leading-snug">
+                    {t(SERVER_HINT_KEY[s])}
+                  </span>
                 </span>
-                <ChevronRight size={16} className="text-gray-600" />
+                <ChevronRight size={16} className="text-gray-600 flex-shrink-0" />
               </button>
             ))}
           </div>
@@ -169,7 +184,7 @@ export default function AlbionOnboardingWizard({
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-              <Search size={14} /> {t('stepSearch', { server: ALBION_SERVER_LABEL[server] })}
+              <Search size={14} /> {t('stepSearch', { server: tCommon(ALBION_SERVER_LABEL_KEY[server]) })}
             </h2>
             <button
               type="button"

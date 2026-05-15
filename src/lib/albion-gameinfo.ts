@@ -174,9 +174,12 @@ export async function fetchGuildMembers(
   }
 }
 
-// UI 용 라벨. 서버 선택 드롭다운/배지에 같은 문자열을 쓰기 위해 모아 둔다.
-export const ALBION_SERVER_LABEL: Record<AlbionServer, string> = {
-  west: 'Americas',
-  east: 'Asia (SGP)',
-  europe: 'Europe',
+// 서버 선택 드롭다운/배지용 i18n 키. 실제 라벨은 `common` 네임스페이스에서 가져온다.
+export const ALBION_SERVER_LABEL_KEY: Record<
+  AlbionServer,
+  'albionServerEast' | 'albionServerWest' | 'albionServerEurope'
+> = {
+  west: 'albionServerWest',
+  east: 'albionServerEast',
+  europe: 'albionServerEurope',
 }

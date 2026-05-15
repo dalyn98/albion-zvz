@@ -28,6 +28,7 @@ import {
 import { worstWarningLevel } from '@/lib/regear-estimate'
 import { findTrackedBattleIdsForEvent } from '@/lib/auto-regear-matching'
 import { isLikelyRoyalCluster } from '@/lib/albion-zone'
+import { isAlbionServer } from '@/lib/albion-gameinfo'
 import { SLOT_KEYS, type BuildSnapshot, type SlotKey } from '@/types'
 
 // 알비온 killboard equipment 슬롯명 → BuildSnapshot 슬롯 키 매핑.
@@ -275,10 +276,11 @@ export async function processAutoRegear(
   const startedAt = Date.now()
   const errors: AutoRegearResult['errors'] = []
 
-  // 5개 app_settings 를 1번의 round-trip 으로 읽는다.
+  // 7개 app_settings 를 1번의 round-trip 으로 읽는다.
   const SETTING_KEYS = [
     'auto_regear_enabled',
     'albion_home_guild_id',
+    'albion_server',
     'regear_payout_rate_percent',
     'craft_regear_enabled',
     'auto_regear_excluded_slots',
@@ -315,8 +317,9 @@ export async function processAutoRegear(
 
   // home_guild 미설정이면 battle-tracker cron 이 이 테넌트를 아예 건너뛰므로
   // last_battle_tracker_sync_at 가 영원히 NULL → 아래 deferral 가드가 모든
-  // 이벤트를 무한 연기한다. self-serve 함정이라 여기서 단락한다.
-  if (!settings.get('albion_home_guild_id')) {
+  // 이벤트를 무한 연기한다. albion_server 도 마찬가지로 미설정이면 loadAodpOptions 가
+  // throw 하므로 손익 없는 self-serve 함정. 여기서 단락한다.
+  if (!settings.get('albion_home_guild_id') || !isAlbionServer(settings.get('albion_server'))) {
     return {
       events_considered: 0,
       events_processed: 0,

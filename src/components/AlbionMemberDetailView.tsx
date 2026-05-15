@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { getLocale, getTranslations } from 'next-intl/server'
 import ItemImage from './ItemImage'
-import { ALBION_SERVER_LABEL } from '@/lib/albion-gameinfo'
+import { ALBION_SERVER_LABEL_KEY } from '@/lib/albion-gameinfo'
 import { formatDate, formatDateTime } from '@/lib/format-datetime'
 import { getLocalizedItemName } from '@/lib/item-names'
 import { canonicalT8WeaponId } from '@/lib/weapon-display'
@@ -31,6 +31,7 @@ interface Props {
 export default async function AlbionMemberDetailView({ detail }: Props) {
   const t = await getTranslations('albionMemberDetail')
   const tShared = await getTranslations('memberDetail')
+  const tCommon = await getTranslations('common')
   const rawLocale = await getLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
 
@@ -50,7 +51,7 @@ export default async function AlbionMemberDetailView({ detail }: Props) {
             </span>
           </div>
           <p className="text-gray-500 text-xs mt-0.5 truncate">
-            {ALBION_SERVER_LABEL[detail.albion_server]} · {detail.albion_guild_name}
+            {tCommon(ALBION_SERVER_LABEL_KEY[detail.albion_server])} · {detail.albion_guild_name}
           </p>
           <p className="text-gray-500 text-xs">
             {t('joinedAt', { date: formatDate(detail.first_seen_at) })}

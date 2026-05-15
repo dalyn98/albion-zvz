@@ -10,7 +10,7 @@ import { getMyDashboard } from '@/app/actions/me-dashboard'
 import { getMemberAlbionIdentity, isAlbionVerified } from '@/lib/albion-identity'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSessionGuildId } from '@/lib/tenant'
-import { ALBION_SERVER_LABEL } from '@/lib/albion-gameinfo'
+import { ALBION_SERVER_LABEL_KEY } from '@/lib/albion-gameinfo'
 import { formatGatherTimeFor } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
 import { getTenantTimezone } from '@/lib/timezone-server'
@@ -47,6 +47,7 @@ export default async function MePage() {
     tRequests,
     tOnboarding,
     tRole,
+    tCommon,
     locale,
     tz,
   ] = await Promise.all([
@@ -62,6 +63,7 @@ export default async function MePage() {
     getTranslations('myRequests'),
     getTranslations('albionOnboarding'),
     getTranslations('slotRole'),
+    getTranslations('common'),
     getLocale(),
     getTenantTimezone(guildId),
   ])
@@ -103,7 +105,7 @@ export default async function MePage() {
               <span className="ml-2 text-xs opacity-80 font-mono">
                 {albionIdentity.nickname}
                 {albionIdentity.server && (
-                  <span className="ml-1 opacity-70">· {ALBION_SERVER_LABEL[albionIdentity.server]}</span>
+                  <span className="ml-1 opacity-70">· {tCommon(ALBION_SERVER_LABEL_KEY[albionIdentity.server])}</span>
                 )}
               </span>
             )}

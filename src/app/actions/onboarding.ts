@@ -90,10 +90,9 @@ export async function confirmAlbionIdentity(input: {
 
   const sessionGuildId = await getSessionGuildId(session)
   const homeGuildId = (await getAppSetting('albion_home_guild_id', '', sessionGuildId)).trim()
-  // fallback 'east' — 설정 페이지/killboard/AODP 전부 'east' fallback 을 쓰므로
-  // 온보딩도 같은 기본값을 써야 관리자가 "UI 에 East 로 보여서 저장 안 했는데
-  // 실제 DB 에는 row 가 없어 인증이 항상 실패" 하는 상태가 안 된다.
-  const homeServer = (await getAppSetting('albion_server', 'east', sessionGuildId)).trim()
+  // albion_server 가 비어 있으면 ('') serverMatch 가 자동으로 false → 미인증으로 처리.
+  // 'east' silent 폴백을 쓰면 west/eu tenant 가 East 사용자를 잘못 인증할 수 있다.
+  const homeServer = (await getAppSetting('albion_server', '', sessionGuildId)).trim()
   const serverMatch = homeServer === input.server
   const guildMatch = Boolean(homeGuildId) && player.GuildId === homeGuildId
   const verified = serverMatch && guildMatch

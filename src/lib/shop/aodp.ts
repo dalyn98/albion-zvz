@@ -8,7 +8,7 @@
 // 전달하는 패턴을 쓴다. 공용 유틸을 pure 하게 유지하려고 자동 로딩은 의도적으로
 // 하지 않음(단위 테스트/Phase 3 auto-regear 가 모의 옵션을 주입하기 쉽게).
 
-import type { AlbionServer } from '@/lib/albion-gameinfo'
+import { type AlbionServer, isAlbionServer } from '@/lib/albion-gameinfo'
 import { getAppSetting } from '@/lib/app-settings'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { fetchJsonWithRetry } from '@/lib/http-retry'
@@ -391,14 +391,18 @@ function computeConfidence(
 // guildId 는 필수 — 호출자가 항상 명시해 cross-tenant 누설을 막는다.
 export async function loadAodpOptions(guildId: string): Promise<Required<AodpOptions>> {
   const [serverRaw, citiesRaw, modeRaw, minQualityRaw, qualityAgnosticRaw] = await Promise.all([
-    getAppSetting('albion_server', 'east', guildId),
+    getAppSetting('albion_server', '', guildId),
     getAppSetting('aodp_cities', '', guildId),
     getAppSetting('aodp_price_mode', 'spot', guildId),
     getAppSetting('aodp_min_quality', '1', guildId),
     getAppSetting('aodp_quality_agnostic', 'false', guildId),
   ])
-  const server: AlbionServer =
-    serverRaw === 'west' || serverRaw === 'east' || serverRaw === 'europe' ? serverRaw : 'east'
+  // 'east' silent 폴백 금지 — west/eu tenant 가 동부 AODP 시세로 잘못 청구되는 사고를 막는다.
+  // 호출자(cron/admin action)가 errors 로 받아 tenant skip 또는 사용자 안내로 처리.
+  if (!isAlbionServer(serverRaw)) {
+    throw new Error(`albion_server not configured for guild: ${guildId}`)
+  }
+  const server: AlbionServer = serverRaw
 
   let cities: readonly string[] = DEFAULT_CITIES
   if (citiesRaw) {

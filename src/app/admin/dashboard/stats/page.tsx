@@ -37,9 +37,10 @@ import MemberAvatar from '@/components/MemberAvatar'
 import MemberLink from '@/components/MemberLink'
 import ForceOnboardButton from '@/components/ForceOnboardButton'
 import CollapsibleList from '@/components/CollapsibleList'
-import { ALBION_SERVER_LABEL } from '@/lib/albion-gameinfo'
+import { ALBION_SERVER_LABEL_KEY } from '@/lib/albion-gameinfo'
 
 type StatsTranslator = Awaited<ReturnType<typeof getTranslations<'adminStats'>>>
+type CommonTranslator = Awaited<ReturnType<typeof getTranslations<'common'>>>
 
 // 통계 페이지의 모든 상위 N 목록이 공유하는 기본 접힘 행수. 바꾸려면 여기만.
 const STATS_COLLAPSED_ROWS = 8
@@ -54,17 +55,27 @@ function itemImageUrl(uniqueName: string, enchant: number, quality: number): str
 
 export default async function AdminStatsPage() {
   // 다섯 섹션을 병렬로 — 하나가 느려도 다른 섹션이 블로킹되지 않도록.
-  const [tNav, tStats, locale, pointRes, eventRes, shopRegearRes, verificationRes, financeRes] =
-    await Promise.all([
-      getTranslations('nav'),
-      getTranslations('adminStats'),
-      getLocale(),
-      getPointStats(),
-      getEventStats(),
-      getShopRegearStats(),
-      getAlbionVerificationStats(),
-      getFinanceFlowStats(),
-    ])
+  const [
+    tNav,
+    tStats,
+    tCommon,
+    locale,
+    pointRes,
+    eventRes,
+    shopRegearRes,
+    verificationRes,
+    financeRes,
+  ] = await Promise.all([
+    getTranslations('nav'),
+    getTranslations('adminStats'),
+    getTranslations('common'),
+    getLocale(),
+    getPointStats(),
+    getEventStats(),
+    getShopRegearStats(),
+    getAlbionVerificationStats(),
+    getFinanceFlowStats(),
+  ])
 
   const { stats, error } = pointRes
 
@@ -194,7 +205,7 @@ export default async function AdminStatsPage() {
       </section>
 
       <FinanceFlowSection result={financeRes} tStats={tStats} />
-      <AlbionVerificationSection result={verificationRes} tStats={tStats} />
+      <AlbionVerificationSection result={verificationRes} tStats={tStats} tCommon={tCommon} />
       <EventParticipationSection result={eventRes} tStats={tStats} />
       <ShopRegearSection result={shopRegearRes} tStats={tStats} locale={locale} />
       <WithdrawnMembersSection
@@ -571,9 +582,11 @@ function ShopRegearSection({
 function AlbionVerificationSection({
   result,
   tStats,
+  tCommon,
 }: {
   result: Awaited<ReturnType<typeof getAlbionVerificationStats>>
   tStats: StatsTranslator
+  tCommon: CommonTranslator
 }) {
   const { stats, error } = result
   if (error || !stats) {
@@ -667,6 +680,7 @@ function AlbionVerificationSection({
         members={stats.pendingMembers}
         mode="pending"
         tStats={tStats}
+        tCommon={tCommon}
       />
       <VerificationMemberList
         title={tStats('unverifiedMembersTitle')}
@@ -676,6 +690,7 @@ function AlbionVerificationSection({
         members={stats.unverifiedMembers}
         mode="unverified"
         tStats={tStats}
+        tCommon={tCommon}
       />
       <VerificationMemberList
         title={tStats('verifiedMembersTitle')}
@@ -685,6 +700,7 @@ function AlbionVerificationSection({
         members={stats.verifiedMembers}
         mode="verified"
         tStats={tStats}
+        tCommon={tCommon}
       />
     </section>
   )
@@ -698,6 +714,7 @@ function VerificationMemberList({
   members,
   mode,
   tStats,
+  tCommon,
 }: {
   title: string
   icon: React.ComponentType<{ size?: number; className?: string }>
@@ -706,6 +723,7 @@ function VerificationMemberList({
   members: VerificationMember[]
   mode: 'pending' | 'unverified' | 'verified'
   tStats: StatsTranslator
+  tCommon: CommonTranslator
 }) {
   return (
     <div className="bg-gray-900/60 border border-gray-700 rounded-lg">
@@ -748,7 +766,7 @@ function VerificationMemberList({
                     {m.nickname ?? '—'}
                   </span>
                   <span className="font-mono">
-                    {m.server ? ALBION_SERVER_LABEL[m.server] : '—'}
+                    {m.server ? tCommon(ALBION_SERVER_LABEL_KEY[m.server]) : '—'}
                     {m.guildId ? (
                       m.guildMatchesHome ? (
                         <span className="ml-1 text-emerald-400">

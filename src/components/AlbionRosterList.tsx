@@ -6,7 +6,7 @@ import { ChevronRight, Globe, Link2, Link2Off, ShieldOff, Swords } from 'lucide-
 import { useTranslations } from 'next-intl'
 import SearchBox from './SearchBox'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
-import { ALBION_SERVER_LABEL } from '@/lib/albion-gameinfo'
+import { ALBION_SERVER_LABEL_KEY } from '@/lib/albion-gameinfo'
 import type { AlbionRosterEntry } from '@/app/actions/members-admin'
 import { compareStrings } from '@/lib/sort-strings'
 
@@ -124,6 +124,7 @@ export default function AlbionRosterList({ roster }: Props) {
 
 function RosterRow({ entry }: { entry: AlbionRosterEntry }) {
   const t = useTranslations('members')
+  const tCommon = useTranslations('common')
   const isLinked = entry.linked_discord_id !== null && !entry.linked_withdrawn
   const isWithdrawn = entry.linked_discord_id !== null && entry.linked_withdrawn
 
@@ -163,7 +164,7 @@ function RosterRow({ entry }: { entry: AlbionRosterEntry }) {
           )}
         </div>
         <div className="flex items-center gap-2 mt-1 flex-wrap text-[11px] text-gray-400">
-          <span>{ALBION_SERVER_LABEL[entry.albion_server]}</span>
+          <span>{tCommon(ALBION_SERVER_LABEL_KEY[entry.albion_server])}</span>
         </div>
       </div>
       {!isWithdrawn && <ChevronRight size={16} className="text-gray-600 flex-shrink-0" />}
