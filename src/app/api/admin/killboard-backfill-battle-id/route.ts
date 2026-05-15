@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { resolveAlbionServer, type AlbionServer } from '@/lib/killboard'
+import { resolveAlbionServer } from '@/lib/killboard'
+import type { AlbionServer } from '@/lib/albion-gameinfo'
 
 // 관리자 전용 일회성 백필. killboard_events.battle_id 는 마이그 096 부터 채워지므로
 // 그 이전 sync 행은 NULL. tracked-kills 매칭이 battle_id 정확 매칭을 우선하기 때문에

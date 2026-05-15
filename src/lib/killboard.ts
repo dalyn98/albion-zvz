@@ -10,9 +10,8 @@
 
 import { getAppSetting } from '@/lib/app-settings'
 import { ALBION_GAMEINFO_ENDPOINTS } from '@/lib/albion-endpoints'
+import { type AlbionServer, isAlbionServer } from '@/lib/albion-gameinfo'
 import { fetchJsonWithRetry } from '@/lib/http-retry'
-
-export type AlbionServer = 'west' | 'east' | 'europe'
 
 // Mapping matches Albion Online's official API hostnames. 'east' is the
 // Asia/Pacific server (Singapore DC) — naming follows albionbb.com's scheme
@@ -22,8 +21,7 @@ const SERVER_ENDPOINTS = ALBION_GAMEINFO_ENDPOINTS
 const DEFAULT_SERVER: AlbionServer = 'east'
 
 function parseServer(raw: string): AlbionServer {
-  if (raw === 'west' || raw === 'east' || raw === 'europe') return raw
-  return DEFAULT_SERVER
+  return isAlbionServer(raw) ? raw : DEFAULT_SERVER
 }
 
 // tenant 별로 albion_server 가 다를 수 있다. guildId 를 받아 해당 tenant 의 값을

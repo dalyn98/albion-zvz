@@ -12,7 +12,8 @@
 // 슬립으로 25명 × (kills+deaths+search)/250ms ≈ 15~20s 로 sync 1회 완료.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { resolveAlbionServer, type AlbionServer } from './killboard'
+import { resolveAlbionServer } from './killboard'
+import type { AlbionServer } from './albion-gameinfo'
 import { fetchJsonWithRetry } from '@/lib/http-retry'
 import { getAppSetting } from './app-settings'
 import { ALBION_GAMEINFO_ENDPOINTS } from './albion-endpoints'

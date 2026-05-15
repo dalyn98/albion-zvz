@@ -89,9 +89,11 @@ export async function GET(request: Request) {
   for (const tenant of tenants) {
     const [homeGuildId, serverRaw] = await Promise.all([
       getAppSetting('albion_home_guild_id', '', tenant.id),
-      getAppSetting('albion_server', 'east', tenant.id),
+      getAppSetting('albion_server', '', tenant.id),
     ])
     if (!homeGuildId) continue
+    // albion_server row 가 없으면 ('' 반환) skip — 'east' 로 silent 폴백하면
+    // west/eu tenant 가 잘못된 server API 로 추적되어 battle_records 가 오염된다.
     if (!isAlbionServer(serverRaw)) continue
     tracking.push({
       tenantId: tenant.id,

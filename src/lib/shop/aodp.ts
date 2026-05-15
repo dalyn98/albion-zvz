@@ -8,7 +8,7 @@
 // 전달하는 패턴을 쓴다. 공용 유틸을 pure 하게 유지하려고 자동 로딩은 의도적으로
 // 하지 않음(단위 테스트/Phase 3 auto-regear 가 모의 옵션을 주입하기 쉽게).
 
-import type { AlbionServer } from '@/lib/killboard'
+import type { AlbionServer } from '@/lib/albion-gameinfo'
 import { getAppSetting } from '@/lib/app-settings'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { fetchJsonWithRetry } from '@/lib/http-retry'

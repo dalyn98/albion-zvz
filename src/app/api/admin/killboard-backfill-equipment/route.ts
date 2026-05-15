@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { resolveAlbionServer, type AlbionServer } from '@/lib/killboard'
+import { resolveAlbionServer } from '@/lib/killboard'
+import type { AlbionServer } from '@/lib/albion-gameinfo'
 
 // 관리자 전용 일회성 백필. killboard_events 의 role='killer' 행은 예전 sync
 // 설계상 equipment 가 null 로 저장됐다. 0데스 킬러(DPS 등) 의 무기 통계를

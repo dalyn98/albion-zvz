@@ -935,7 +935,7 @@
     "advancedTitle": "高级开关",
     "advancedDescription": "切换公开页面的附加区块。",
     "memberDashboardLabel": "显示成员个人仪表盘区块",
-    "memberDashboardHint": "开启后，公会成员访问自家公会页面时会在 hero 下方看到余额、K/D、补给、交易卡片，未登录访客会看到加入 CTA 横幅。",
+    "memberDashboardHint": "开启后，公会成员访问自家公会页面时会在 hero 下方看到余额、K/D、装备补偿、交易卡片，未登录访客会看到加入 CTA 横幅。",
     "disableButton": "停用公开资料",
     "disableSaving": "停用中…",
     "disableConfirm": "确定停用公开资料？已保存的横幅、简介、画廊都会保留，只是页面本身被隐藏。"
@@ -3781,7 +3781,7 @@
     "sidebar": {
       "section": {
         "activity": "活动",
-        "regear": "补给",
+        "regear": "装备补偿",
         "community": "社区",
         "ops": "运营"
       },
@@ -3789,7 +3789,7 @@
         "dashboard": "仪表板",
         "events": "活动",
         "battles": "战斗记录",
-        "regear": "补给申请",
+        "regear": "装备补偿申请",
         "craft": "制作队列",
         "members": "公会成员",
         "shop": "公会商店",
@@ -3871,14 +3871,14 @@
       "weeklyDeaths": "死亡",
       "weeklyKd": "K/D",
       "weeklyActiveMembers": "活跃成员",
-      "weeklyRegearsApproved": "已批准补给",
+      "weeklyRegearsApproved": "已批准装备补偿",
       "weeklySilverPaid": "已支付银币",
       "upcomingTitle": "即将开始的活动",
       "upcomingEmpty": "暂无即将开始的活动。",
       "upcomingViewAll": "查看全部活动",
-      "pendingTitle": "待审补给",
+      "pendingTitle": "待审装备补偿",
       "pendingEmpty": "暂无待审申请。",
-      "pendingViewAll": "查看全部补给",
+      "pendingViewAll": "查看全部装备补偿",
       "recentActivityTitle": "近期活动",
       "recentActivityKill": "{member} 击杀 {opponent}",
       "recentActivityDeath": "{member} 被 {opponent} 击杀",
@@ -3907,7 +3907,7 @@
       "demoOnlyDetail": "演示:仅首个活动可查看完整详情。"
     },
     "regear": {
-      "title": "补给申请",
+      "title": "装备补偿申请",
       "subtitle": "自动 + 手动申请,统一管理。",
       "listColVictim": "申请人",
       "listColBattle": "战斗",
@@ -3972,7 +3972,7 @@
       "detailTitle": "成员详情",
       "joined": "加入 {n} 天",
       "lastEvent": "最近活动",
-      "regearsRecent": "近期补给",
+      "regearsRecent": "近期装备补偿",
       "achievements": "成就",
       "noAchievements": "暂无成就。",
       "statKills": "击杀",
@@ -4078,8 +4078,8 @@
       "regearMaxDeathsLabel": "每次最大死亡数",
       "regearEligibilityLabel": "资格 (入会后)",
       "regearPayoutRateLabel": "支付比例",
-      "autoRegearLabel": "自动补给",
-      "craftRegearLabel": "制作补给",
+      "autoRegearLabel": "自动装备补偿",
+      "craftRegearLabel": "制作装备补偿",
       "landingCtaTextLabel": "落地页 CTA 文案",
       "landingBannerLabel": "落地页横幅图像",
       "toggleOn": "开启",
@@ -4112,9 +4112,9 @@
           "step1Title": "公开公会主页",
           "step1Body": "招募状态、联盟与时区一目了然。Discord 分享和 SEO 索引使用的就是这个页面。",
           "step2Title": "管理员队列",
-          "step2Body": "补给、兑换、捐赠、商店、结算、制作集中在一张卡片。无需逐个频道查看。",
+          "step2Body": "装备补偿、兑换、捐赠、商店、结算、制作集中在一张卡片。无需逐个频道查看。",
           "step3Title": "成员仪表板",
-          "step3Body": "Discord 与 Albion 关联后，成员可在同一界面查看自己的 K/D、出席与补给记录。结算纠纷消失。",
+          "step3Body": "Discord 与 Albion 关联后，成员可在同一界面查看自己的 K/D、出席与装备补偿记录。结算纠纷消失。",
           "step4Title": "周度 KPI",
           "step4Body": "活动、胜负、击杀/死亡自动更新。无需使用 Excel 也能掌握公会趋势。",
           "step5Title": "战斗自动追踪",
@@ -4134,11 +4134,11 @@
         },
         "regear": {
           "step1Title": "六类审批统一",
-          "step1Body": "补给、兑换、捐赠、商店订单、结算、制作 — 所有管理员审批集中在一页。徽章显示待处理数量。",
-          "step2Title": "自动 vs 手动补给",
-          "step2Body": "自动补给由 cron 从战报自动生成；手动则由成员申请。可独立筛选分别审核。",
+          "step1Body": "装备补偿、兑换、捐赠、商店订单、结算、制作 — 所有管理员审批集中在一页。徽章显示待处理数量。",
+          "step2Title": "自动 vs 手动装备补偿",
+          "step2Body": "自动装备补偿由 cron 从战报自动生成；手动则由成员申请。可独立筛选分别审核。",
           "step3Title": "按部位编辑价格",
-          "step3Body": "每张补给卡可分别调整头/胸/手/脚/武器/盾/坐骑等部位单价。申请人按市场行情自行修改。",
+          "step3Body": "每张装备补偿卡可分别调整头/胸/手/脚/武器/盾/坐骑等部位单价。申请人按市场行情自行修改。",
           "completedBody": "其他审批类型（兑换/捐赠/商店）使用相同流程。"
         },
         "members": {
@@ -4146,7 +4146,7 @@
           "step1Body": "总成员数 + 本周累计出席次数直接显示在页眉。",
           "step2Title": "四层成员分类",
           "step2Body": "Members · Roster · Guests · Withdrawn 四个标签页分别管理正式成员 / 名册 / 临时访客 / 退会者。",
-          "completedBody": "点击任意成员行可查看个人统计与补给历史。"
+          "completedBody": "点击任意成员行可查看个人统计与装备补偿历史。"
         },
         "stats": {
           "step1Title": "积分系统指标",
@@ -4155,7 +4155,7 @@
           "step2Body": "按积分余额排名，立即识别最活跃成员，并标注管理员徽章。",
           "step3Title": "资金流向分析",
           "step3Body": "最近 N 天的每日收支图 + 按来源/用途的细分。追踪积分从何而来、流向何处。",
-          "completedBody": "继续向下滚动可查看认证 / 活动参与率 / 商店与补给统计。"
+          "completedBody": "继续向下滚动可查看认证 / 活动参与率 / 商店与装备补偿统计。"
         }
       }
     }

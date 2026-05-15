@@ -2,6 +2,7 @@ import Image from 'next/image'
 import { getTranslations } from 'next-intl/server'
 import { getLocale } from '@/lib/locale'
 import { getLocalizedItemName } from '@/lib/item-names'
+import { ALBION_SERVER_LABEL } from '@/lib/albion-gameinfo'
 import {
   BarChart3,
   Wallet,
@@ -45,12 +46,6 @@ const STATS_TOUR_STEPS = [
 type StatsTranslator = Awaited<ReturnType<typeof getTranslations<'adminStats'>>>
 
 const STATS_COLLAPSED_ROWS = 8
-
-const ALBION_SERVER_LABEL: Record<'east' | 'west' | 'sgp', string> = {
-  east: 'Americas',
-  west: 'Europe',
-  sgp: 'Asia',
-}
 
 function itemImageUrl(uniqueName: string, enchant: number, quality: number): string {
   const id = enchant > 0 ? `${uniqueName}@${enchant}` : uniqueName

@@ -982,7 +982,7 @@ export type DemoVerificationMember = {
   // 길드 매칭 상태.
   guildMatchesHome: boolean | null
   // 서버 코드 (UI 라벨용 stub).
-  server: 'east' | 'west' | 'sgp' | null
+  server: 'east' | 'west' | 'europe' | null
   guildId: string | null
 }
 
