@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 import { getTranslations } from 'next-intl/server'
 import {
   requireEventCreator,
@@ -10,7 +11,7 @@ import {
 } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
-import { sendEventNotification, DiscordChannelMessageError } from '@/lib/discord'
+import { sendEventNotification, DiscordChannelMessageError, type EventNotificationPayload } from '@/lib/discord'
 import { getAppSetting } from '@/lib/app-settings'
 import { getLocale } from '@/lib/locale'
 import { getTenantTimezone } from '@/lib/timezone-server'
@@ -236,9 +237,13 @@ export async function publishEvent(id: string): Promise<{ error?: string; warnin
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
     const guildId = await getSessionGuildId(session)
+    // publish + 자동 알림 발송에 필요한 필드를 한 SELECT 로 합쳐 가져온다.
+    // dispatchEventNotification 이 이 row 를 그대로 재사용하므로 round-trip
+    // 1회를 절약. `id` 는 cached row 식별용, `notify_everyone` 은 알림 멘션 분기,
+    // `category` 는 publish 시점의 strict 검증용.
     const { data: current, error: fetchError } = await db
       .from('events')
-      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, category')
+      .select('id, title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone, category')
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
@@ -257,13 +262,30 @@ export async function publishEvent(id: string): Promise<{ error?: string; warnin
     revalidatePath(`/events/${id}`)
 
     // 자동 알림 — 채널이 해석되지 않으면 조용히 skip (Discord 미연동 길드는
-    // 발행만 정상 동작). 실패는 warning 으로 surface 해서 관리자가 종 버튼으로
-    // 수동 재시도 할 수 있게 한다.
+    // 발행만 정상 동작). Discord API 호출 (200~500ms 외부 네트워크) 을 응답
+    // 경로에서 빼고 next/server `after()` 로 백그라운드 실행 — 사용자는 즉시
+    // 응답을 받는다. 실패해도 발행 자체는 성공이고, 사용자는 종 버튼
+    // (notifyEvent 수동) 으로 재시도 가능. 운영자는 Vercel 로그에서 인지.
     const tenantConfig = await getTenantDiscordConfig(guildId)
     const channelId = current.notify_channel_id ?? tenantConfig?.eventChannelId ?? null
     if (channelId) {
-      const dispatch = await dispatchEventNotification(db, guildId, id, tenantConfig)
-      if (dispatch.error) return { warning: dispatch.error }
+      const cachedEvent = current as EventNotificationPayload
+      after(async () => {
+        try {
+          const dispatch = await dispatchEventNotification(
+            db,
+            guildId,
+            id,
+            tenantConfig,
+            cachedEvent,
+          )
+          if (dispatch.error) {
+            console.error('[publishEvent] async notification failed:', dispatch.error)
+          }
+        } catch (e) {
+          console.error('[publishEvent] async notification threw:', e)
+        }
+      })
     }
     return {}
   } catch (e) {
@@ -297,17 +319,24 @@ async function dispatchEventNotification(
   guildId: string,
   eventId: string,
   cachedTenantConfig?: CachedTenantConfig,
+  cachedEventData?: EventNotificationPayload,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const { data, error } = await db
-      .from('events')
-      .select('id, title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone')
-      .eq('guild_id', guildId)
-      .eq('id', eventId)
-      .maybeSingle()
-    if (error) return { error: error.message }
-    if (!data) return { error: tErr('eventNotFound') }
+    // publishEvent 자동 발송 경로는 자기 SELECT 결과를 prop 으로 넘긴다
+    // (round-trip 절약). notifyEvent 수동 경로는 prop 없이 호출되어 자체 SELECT.
+    let data: EventNotificationPayload | null = cachedEventData ?? null
+    if (!data) {
+      const { data: fetched, error } = await db
+        .from('events')
+        .select('id, title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone')
+        .eq('guild_id', guildId)
+        .eq('id', eventId)
+        .maybeSingle()
+      if (error) return { error: error.message }
+      if (!fetched) return { error: tErr('eventNotFound') }
+      data = fetched as EventNotificationPayload
+    }
     // 관리자가 설정 화면에서 알림 문구를 저장하지 않은 경우 호출자(관리자)
     // 의 locale 에 맞는 기본 문구를 사용. 길드별 단일 언어 설정은 없지만,
     // 알림을 트리거하는 사람의 locale 이 길드 운영 언어일 가능성이 가장 높다.

@@ -9,8 +9,9 @@ import { useUnsavedChanges } from './UnsavedChangesProvider'
 // 각 섹션은 useRegisterSave(id, fn) 으로 자신을 등록만 하고, 실제 버튼은
 // EventEditSaveBar 가 단일 제공. 개별 섹션의 save 버튼은 편집 모드에서 숨긴다.
 //
-// 에러는 id 라벨과 함께 수집되어 상단 바에 표시. 저장 순서는 등록 순서대로,
-// 직렬 — 병렬로 하면 서버 액션 쪽 revalidate 가 중복·경합될 수 있어서.
+// 에러는 id 라벨과 함께 수집되어 상단 바에 표시. 저장은 병렬 — 각 섹션이
+// 만지는 행이 분리돼 있다(EventInfoForm=events row, PartyEditorPanel #N=parties
+// + slots rows). revalidatePath 는 Next 가 dedupe 하므로 중복 호출 무해.
 //
 // 미저장 변경 보호: 각 섹션이 useReportDirty(id, isDirty) 로 dirty 상태를
 // 알리면 Provider 가 beforeunload 를 걸어 탭 닫기 / 새로고침 / 외부 이동을
@@ -58,17 +59,22 @@ export function EventEditSaveProvider({ children }: { children: ReactNode }) {
   }, [globalUnsaved])
 
   const triggerSaveAll = useCallback(async () => {
-    const errors: Array<{ id: string; label: string; error: string }> = []
     // Iterator 스냅샷으로 순회 — 저장 중 등록 변동이 있어도 이번 라운드는 고정.
     const entries = Array.from(registryRef.current.entries())
-    for (const [id, { label, fn }] of entries) {
-      try {
-        const r = await fn()
-        if (r.error) errors.push({ id, label, error: r.error })
-      } catch (e) {
-        errors.push({ id, label, error: e instanceof Error ? e.message : 'unknown error' })
-      }
-    }
+    // 각 섹션을 병렬 실행. 한 섹션의 throw 가 다른 섹션을 취소하지 않도록
+    // 각자 try/catch 로 감싸 결과 배열을 만든 뒤 Promise.all 로 모은다.
+    const results = await Promise.all(
+      entries.map(async ([id, { label, fn }]) => {
+        try {
+          const r = await fn()
+          if (r.error) return { id, label, error: r.error }
+          return null
+        } catch (e) {
+          return { id, label, error: e instanceof Error ? e.message : 'unknown error' }
+        }
+      }),
+    )
+    const errors = results.filter((r): r is { id: string; label: string; error: string } => r !== null)
     // 저장 성공 시 dirty 셋을 비워 beforeunload 를 즉시 해제. 각 섹션의
     // useReportDirty effect 도 다음 렌더에 같은 결과를 보고하지만, 여기서
     // 미리 비워야 redirect 직후 confirm 다이얼로그가 안 뜬다. 글로벌도 같이.
