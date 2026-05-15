@@ -14,18 +14,3 @@
 export function isLeaderboardPolishV2(tenantSlug: string | null | undefined): boolean {
   return tenantSlug === 'menhera'
 }
-
-// 디자인 v2 (게임적 아이덴티티) — 알비온 팔레트 (다크 + 골드 + 양피지 크림 +
-// 핏빛), 게임 폰트 (Cinzel/Marcellus), 카드 ornate, glow pulse, 마이크로
-// 인터랙션. 멘헤라에서만 활성. <html data-design="v2"> 어트리뷰트로 CSS
-// 스코핑 → 다른 길드는 코드만 추가될 뿐 비주얼 무영향.
-//
-// 롤백: 이 함수 본문을 `return false` 로 변경하면 즉시 모든 사용자가 v1 복귀.
-export function isDesignV2(tenantSlug: string | null | undefined): boolean {
-  return tenantSlug === 'menhera'
-}
-
-// HTML data-design 어트리뷰트 값 계산. 레이아웃에서 한 번 호출.
-export function designVersionAttr(tenantSlug: string | null | undefined): 'v1' | 'v2' {
-  return isDesignV2(tenantSlug) ? 'v2' : 'v1'
-}

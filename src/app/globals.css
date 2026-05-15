@@ -145,12 +145,3 @@ body {
   background: rgba(255, 255, 255, 0.16);
   background-clip: padding-box;
 }
-
-/* ─────────────────────────────────────────────────────────────
-   디자인 v2 (게임적 아이덴티티) — 멘헤라 한정 staged rollout.
-   html[data-design="v2"] 스코프 안에서만 적용. v1 (기본) 사용자는
-   영향 무. polish-flags.ts:isDesignV2 가 false 면 v1 으로 폴백.
-   ───────────────────────────────────────────────────────────── */
-html[data-design="v2"] {
-  /* Step 0: 스코프만 선언. 실제 토큰/스타일은 Step 1 에서 추가. */
-}
