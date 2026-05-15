@@ -61,12 +61,16 @@ const MIN_EVENTS_FOR_KD_RANK = 5
 const MIN_EVALUATED_FOR_WINRATE_RANK = 5
 
 const DAY_MS = 24 * 60 * 60 * 1000
+// 'all' 도 무경계가 아닌 2년 롤링 — Supabase 의 PostgREST 가 db-max-rows
+// (default 1000) 로 묵음 truncate 하면 활성 길드 리더보드가 부정확해진다.
+// 2년이면 사실상 '전체 기간' 이고, killboard_events 행 수도 예측 가능.
+const ALL_WINDOW_MAX_DAYS = 730
 
 // 'week' 는 PT 월요일 00:00 (사이트 전역 #204) — 길드 공개 페이지의 "이번 주
 // 탑 킬러" 와 같은 경계를 보게 한다. 'month' 는 직관적인 30일 롤링 (월 경계가
 // 아니라 "최근 한 달" 의 의미 그대로).
-function cutoffFor(window: LeaderboardWindow): string | null {
-  if (window === 'all') return null
+function cutoffFor(window: LeaderboardWindow): string {
+  if (window === 'all') return new Date(Date.now() - ALL_WINDOW_MAX_DAYS * DAY_MS).toISOString()
   if (window === 'week') return getCurrentWeekStartIso()
   return new Date(Date.now() - 30 * DAY_MS).toISOString()
 }
@@ -105,12 +109,12 @@ export async function getLeaderboard(
   // 인 채로 남는다. 따라서 이 필터가 자연스럽게 가입 후 kill 만 통과시킴.
   // 정책: 업적/통계/리더보드 = "사이트 가입자 + 가입 이후 기록".
   // (관련 메모: feedback_albion_zvz_stats_membership_policy)
-  let killboardQ = db
+  const killboardQ = db
     .from('killboard_events')
     .select('albion_player_id, role, occurred_at, battle_id')
     .eq('guild_id', guildId)
     .not('discord_id', 'is', null)
-  if (cutoff) killboardQ = killboardQ.gte('occurred_at', cutoff)
+    .gte('occurred_at', cutoff)
 
   const [avatarsRes, killboardRes, trackedBattles, participations] = await Promise.all([
     avatarsQ,
