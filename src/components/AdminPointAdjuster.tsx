@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Coins, Minus, Plus, X } from 'lucide-react'
 import { adjustMemberPoints } from '@/app/actions/points-admin'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
+import { useConfirm } from '@/components/ConfirmDialog'
 
 interface Props {
   discordId: string
@@ -25,6 +26,7 @@ export default function AdminPointAdjuster({ discordId, username, balance }: Pro
   const [memo, setMemo] = useState('')
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
+  const askConfirm = useConfirm()
 
   const parsed = parseSilverInput(amountInput)
   const canSubmit = parsed !== null && parsed > 0 && memo.trim().length > 0 && !pending
@@ -58,7 +60,7 @@ export default function AdminPointAdjuster({ discordId, username, balance }: Pro
     return () => document.removeEventListener('keydown', onKey)
   }, [open, pending])
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setError('')
     if (parsed === null || parsed <= 0) {
       setError(t('invalidAmount'))
@@ -72,18 +74,22 @@ export default function AdminPointAdjuster({ discordId, username, balance }: Pro
     const delta = direction === 'grant' ? parsed : -parsed
     const projected = balance + delta
     if (direction === 'deduct' && projected < 0) {
-      const ok = confirm(t('negativeWarn', { balance: formatSilver(projected) }))
+      const ok = await askConfirm({
+        body: t('negativeWarn', { balance: formatSilver(projected) }),
+        destructive: false,
+      })
       if (!ok) return
     }
 
     const actionLabel = direction === 'grant' ? t('actionGrant') : t('actionDeduct')
-    const ok = confirm(
-      t('confirmAction', {
+    const ok = await askConfirm({
+      body: t('confirmAction', {
         name: username,
         amount: formatSilver(parsed),
         action: actionLabel,
       }),
-    )
+      destructive: direction === 'deduct',
+    })
     if (!ok) return
 
     startTransition(async () => {

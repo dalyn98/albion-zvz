@@ -57,6 +57,8 @@
     "deletedEvent": "(deleted event)",
     "delete": "Delete",
     "cancel": "Cancel",
+    "confirm": "Confirm",
+    "confirmTitle": "Confirm",
     "save": "Save",
     "saving": "Saving…",
     "saved": "Saved",

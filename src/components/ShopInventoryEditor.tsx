@@ -18,6 +18,7 @@ import { computePointPrice } from '@/lib/shop/price'
 import { formatRelativeFine } from '@/lib/relative-time'
 import { getLocalizedItemName } from '@/lib/item-names'
 import type { Locale } from '@/i18n/locales'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useReportDirty } from './UnsavedChangesProvider'
 
 export type InventoryPriceWarning = 'quality' | 'window' | 'bluezone' | 'redzone' | null
@@ -135,6 +136,7 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
   } | null>(null)
   const [query, setQuery] = useState('')
   const [filterTier, setFilterTier] = useState<number | 'all'>('all')
+  const askConfirm = useConfirm()
 
   const localizedRows = useMemo<InventoryRow[]>(() => {
     return rows.map((r) => ({
@@ -172,10 +174,9 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
     })
   }
 
-  const handleReset = () => {
-    if (!confirm(t('resetConfirm'))) {
-      return
-    }
+  const handleReset = async () => {
+    const ok = await askConfirm({ body: t('resetConfirm'), destructive: true })
+    if (!ok) return
     setError('')
     setSyncSummary(null)
     setResetSummary(null)
@@ -323,6 +324,7 @@ function InventoryListItem({
   const [priceInput, setPriceInput] = useState(
     row.manualPrice !== null ? String(row.manualPrice) : '',
   )
+  const askConfirm = useConfirm()
 
   // 인라인 편집 모드 중이고 값이 원본과 다를 때 dirty.
   const stockDirty = editingStock && stockInput !== String(row.stock)
@@ -387,8 +389,12 @@ function InventoryListItem({
     })
   }
 
-  const handleDelete = () => {
-    if (!confirm(t('deleteConfirm', { name: row.nameKo }))) return
+  const handleDelete = async () => {
+    const ok = await askConfirm({
+      body: t('deleteConfirm', { name: row.nameKo }),
+      destructive: true,
+    })
+    if (!ok) return
     onStart(async () => {
       const result = await deleteInventoryRow(row.id)
       if (result.error) {

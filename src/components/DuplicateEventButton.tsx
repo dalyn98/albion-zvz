@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Copy } from 'lucide-react'
 import { cloneEvent } from '@/app/actions/admin'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useToast } from './ToastProvider'
 
 export default function DuplicateEventButton({ eventId }: { eventId: string }) {
@@ -13,9 +14,11 @@ export default function DuplicateEventButton({ eventId }: { eventId: string }) {
   const tToast = useTranslations('toast')
   const toast = useToast()
   const [pending, startTransition] = useTransition()
+  const askConfirm = useConfirm()
 
-  const handleClick = () => {
-    if (!confirm(t('duplicateConfirm'))) return
+  const handleClick = async () => {
+    const ok = await askConfirm({ body: t('duplicateConfirm'), destructive: false })
+    if (!ok) return
     startTransition(async () => {
       const result = await cloneEvent(eventId)
       if (result.error) {

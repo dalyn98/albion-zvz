@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { EyeOff, Loader2 } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
 import type { AppSettingKey } from '@/lib/app-settings'
+import { useConfirm } from '@/components/ConfirmDialog'
 
 interface Props {
   enabled: boolean
@@ -24,11 +25,13 @@ export default function SectionVisibilityPin({
   const t = useTranslations('publicGuildProfile')
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const askConfirm = useConfirm()
 
   if (!enabled) return null
 
-  const onClick = () => {
-    if (!confirm(t('hideSectionConfirm'))) return
+  const onClick = async () => {
+    const ok = await askConfirm({ body: t('hideSectionConfirm'), destructive: true })
+    if (!ok) return
     startTransition(async () => {
       const result = await updateAppSetting(settingKey, 'false')
       if (result.error) {

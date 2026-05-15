@@ -10,6 +10,7 @@ import {
   revokeEventGuestToken,
   type EventGuestToken,
 } from '@/app/actions/event-invites'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { formatDateTime } from '@/lib/format-datetime'
 
 interface Props {
@@ -39,6 +40,7 @@ export default function EventGuestInviteManager({ eventId, initialTokens, origin
   const [pending, startTransition] = useTransition()
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const askConfirm = useConfirm()
 
   const nowIso = new Date().toISOString()
   const activeTokens = tokens.filter((t) => isActive(t, nowIso))
@@ -77,8 +79,9 @@ export default function EventGuestInviteManager({ eventId, initialTokens, origin
     }
   }
 
-  const handleRevoke = (tokenId: string) => {
-    if (!confirm(t('revokeConfirm'))) return
+  const handleRevoke = async (tokenId: string) => {
+    const ok = await askConfirm({ body: t('revokeConfirm'), destructive: true })
+    if (!ok) return
     startTransition(async () => {
       const res = await revokeEventGuestToken(tokenId, eventId)
       if (res.error) {

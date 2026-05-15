@@ -20,6 +20,7 @@ import {
   type EventGroup,
 } from '@/lib/craft-grouping'
 import ItemImage from './ItemImage'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useToast } from './ToastProvider'
 
 interface Props {
@@ -38,6 +39,7 @@ export default function AdminCraftTasksList({ initialTasks }: Props) {
   const [pendingTarget, setPendingTarget] = useState<string | null>(null)
   const [, startTransition] = useTransition()
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+  const askConfirm = useConfirm()
 
   const groups = useMemo(() => groupByEvent(initialTasks), [initialTasks])
 
@@ -50,8 +52,9 @@ export default function AdminCraftTasksList({ initialTasks }: Props) {
     })
   }
 
-  const onCancel = (taskId: string) => {
-    if (!window.confirm(t('confirmCancelTask'))) return
+  const onCancel = async (taskId: string) => {
+    const ok = await askConfirm({ body: t('confirmCancelTask'), destructive: true })
+    if (!ok) return
     setPendingTarget(taskId)
     startTransition(async () => {
       const r = await cancelCraftTaskAdmin(taskId)
@@ -65,8 +68,9 @@ export default function AdminCraftTasksList({ initialTasks }: Props) {
     })
   }
 
-  const onConvert = (taskId: string) => {
-    if (!window.confirm(t('confirmConvertTask'))) return
+  const onConvert = async (taskId: string) => {
+    const ok = await askConfirm({ body: t('confirmConvertTask'), destructive: false })
+    if (!ok) return
     setPendingTarget(taskId)
     startTransition(async () => {
       const r = await convertCraftTaskToSilverAdmin(taskId)
@@ -80,8 +84,9 @@ export default function AdminCraftTasksList({ initialTasks }: Props) {
     })
   }
 
-  const onRevert = (taskId: string) => {
-    if (!window.confirm(t('confirmRevertTask'))) return
+  const onRevert = async (taskId: string) => {
+    const ok = await askConfirm({ body: t('confirmRevertTask'), destructive: true })
+    if (!ok) return
     setPendingTarget(taskId)
     startTransition(async () => {
       const r = await revertCraftTaskToPendingAdmin(taskId)

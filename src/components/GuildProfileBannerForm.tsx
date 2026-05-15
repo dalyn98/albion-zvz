@@ -9,6 +9,7 @@ import {
   clearGuildProfileBanner,
 } from '@/app/actions/guild-profile'
 import ImageCropModal from '@/components/ImageCropModal'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
@@ -30,6 +31,7 @@ export default function GuildProfileBannerForm({ currentUrl }: Props) {
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
+  const askConfirm = useConfirm()
 
   useReportDirty('guild-profile-banner', pendingFile !== null || croppedFile !== null)
 
@@ -92,9 +94,9 @@ export default function GuildProfileBannerForm({ currentUrl }: Props) {
     })
   }
 
-  const handleClear = () => {
+  const handleClear = async () => {
     if (!currentUrl) return
-    const ok = confirm(t('bannerRemoveConfirm'))
+    const ok = await askConfirm({ body: t('bannerRemoveConfirm'), destructive: true })
     if (!ok) return
     setError('')
     startTransition(async () => {

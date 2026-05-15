@@ -11,6 +11,7 @@ import {
 } from '@/app/actions/guild-profile'
 import { BANNER_OPACITY_OPTIONS } from '@/lib/guild-profile'
 import ImageCropModal from '@/components/ImageCropModal'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useReportDirty } from '../UnsavedChangesProvider'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -69,6 +70,7 @@ function BannerEditModal({ currentUrl, currentOpacity, onClose }: ModalProps) {
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
+  const askConfirm = useConfirm()
   // 옵티미스틱 미리보기 — 사용자가 select 를 바꾸면 즉시 미리보기 이미지 opacity
   // 가 따라간다. 서버 저장은 startTransition 안에서 이뤄지고 router.refresh() 로
   // 최종값과 sync. 저장 실패 시 재페치된 settings 값으로 자동 복구된다.
@@ -153,9 +155,9 @@ function BannerEditModal({ currentUrl, currentOpacity, onClose }: ModalProps) {
     })
   }
 
-  const handleClear = () => {
+  const handleClear = async () => {
     if (!currentUrl) return
-    const ok = confirm(t('bannerRemoveConfirm'))
+    const ok = await askConfirm({ body: t('bannerRemoveConfirm'), destructive: true })
     if (!ok) return
     setError('')
     startTransition(async () => {

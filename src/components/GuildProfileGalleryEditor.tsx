@@ -12,6 +12,7 @@ import {
 } from '@/app/actions/guild-profile-gallery'
 import { GALLERY_MAX_ITEMS, type GalleryItem } from '@/lib/guild-profile-gallery'
 import ImageCropModal from '@/components/ImageCropModal'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useReportDirty } from './UnsavedChangesProvider'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -35,6 +36,7 @@ export default function GuildProfileGalleryEditor({ items }: Props) {
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
   const [busyItemId, setBusyItemId] = useState<string | null>(null)
+  const askConfirm = useConfirm()
 
   useReportDirty(
     'guild-profile-gallery-add',
@@ -99,8 +101,8 @@ export default function GuildProfileGalleryEditor({ items }: Props) {
     })
   }
 
-  const handleRemove = (itemId: string) => {
-    const ok = confirm(t('galleryRemoveConfirm'))
+  const handleRemove = async (itemId: string) => {
+    const ok = await askConfirm({ body: t('galleryRemoveConfirm'), destructive: true })
     if (!ok) return
     setError('')
     setBusyItemId(itemId)

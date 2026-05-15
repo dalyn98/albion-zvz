@@ -12,6 +12,7 @@ import {
 import type { AppSettingKey } from '@/lib/app-settings'
 import { Image as ImageIcon, Save, Eraser, Upload, Trash2 } from 'lucide-react'
 import ImageCropModal from '@/components/ImageCropModal'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useReportDirty } from './UnsavedChangesProvider'
 
 export const NOTICE_MAX_LENGTH = 500
@@ -65,6 +66,7 @@ export default function NoticeSettingForm({
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [imgError, setImgError] = useState('')
   const [imgPending, startImgTransition] = useTransition()
+  const askConfirm = useConfirm()
 
   const dirty = text !== savedText
   const tooLong = text.length > NOTICE_MAX_LENGTH
@@ -158,10 +160,10 @@ export default function NoticeSettingForm({
     })
   }
 
-  const handleClearImage = () => {
+  const handleClearImage = async () => {
     if (!target) return
     if (!initialImageUrl) return
-    const ok = confirm(t('noticeImageRemoveConfirm'))
+    const ok = await askConfirm({ body: t('noticeImageRemoveConfirm'), destructive: true })
     if (!ok) return
     setImgError('')
     startImgTransition(async () => {

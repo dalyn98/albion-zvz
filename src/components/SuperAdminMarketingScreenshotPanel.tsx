@@ -16,6 +16,7 @@ import {
   moveMarketingScreenshot,
   updateMarketingScreenshotAlt,
 } from '@/app/actions/marketing-screenshots'
+import { useConfirm } from '@/components/ConfirmDialog'
 import type {
   MarketingScreenshotImage,
   MarketingScreenshotKey,
@@ -37,6 +38,7 @@ export default function SuperAdminMarketingScreenshotPanel({
   const [error, setError] = useState<string | null>(null)
   const [editingAlt, setEditingAlt] = useState<string | null>(null)
   const [altDraft, setAltDraft] = useState('')
+  const askConfirm = useConfirm()
 
   function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files
@@ -58,8 +60,9 @@ export default function SuperAdminMarketingScreenshotPanel({
     })
   }
 
-  function handleDelete(id: string) {
-    if (!window.confirm('이 이미지를 삭제하시겠습니까?')) return
+  async function handleDelete(id: string) {
+    const ok = await askConfirm({ body: '이 이미지를 삭제하시겠습니까?', destructive: true })
+    if (!ok) return
     setError(null)
     startTransition(async () => {
       const { error } = await deleteMarketingScreenshot(id)

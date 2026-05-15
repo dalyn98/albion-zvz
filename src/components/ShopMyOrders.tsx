@@ -8,6 +8,7 @@ import { cancelMyOrder, type MyOrderRow } from '@/app/actions/shop-member'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { getLocalizedItemName } from '@/lib/item-names'
 import type { Locale } from '@/i18n/locales'
+import { useConfirm } from '@/components/ConfirmDialog'
 
 interface Props {
   orders: MyOrderRow[]
@@ -73,11 +74,13 @@ function OrderCard({ order }: { order: MyOrderRow }) {
   const locale = useLocale() as Locale
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
+  const askConfirm = useConfirm()
   const badgeClass = STATUS_BADGE_CLASS[order.status]
   const badgeLabel = t(STATUS_LABEL_KEY[order.status])
 
-  const handleCancel = () => {
-    if (!confirm(t('cancelConfirm'))) return
+  const handleCancel = async () => {
+    const ok = await askConfirm({ body: t('cancelConfirm'), destructive: true })
+    if (!ok) return
     setError('')
     startTransition(async () => {
       const result = await cancelMyOrder(order.id)

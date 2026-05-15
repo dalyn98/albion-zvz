@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Trash2 } from 'lucide-react'
 import { deleteEvent } from '@/app/actions/admin'
+import { useConfirm } from '@/components/ConfirmDialog'
 
 interface Props {
   eventId: string
@@ -15,9 +16,11 @@ export default function DeleteEventButton({ eventId, redirectTo, variant = 'icon
   const router = useRouter()
   const t = useTranslations('adminDashboard')
   const tCommon = useTranslations('common')
+  const askConfirm = useConfirm()
 
   const handleDelete = async () => {
-    if (!confirm(t('confirmDeleteEvent'))) return
+    const ok = await askConfirm({ body: t('confirmDeleteEvent'), destructive: true })
+    if (!ok) return
     const result = await deleteEvent(eventId)
     if (result.error) {
       alert(result.error)

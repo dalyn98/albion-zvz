@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Globe, AlertTriangle, Loader2, Check } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
+import { useConfirm } from '@/components/ConfirmDialog'
 
 interface Props {
   enabled: boolean
@@ -18,9 +19,13 @@ export default function GuildProfileEnableToggle({ enabled, memberDashboardEnabl
   const [savedKey, setSavedKey] = useState<string | null>(null)
   const [pendingKey, setPendingKey] = useState<string | null>(null)
   const [, startTransition] = useTransition()
+  const askConfirm = useConfirm()
 
-  function save(label: string, key: 'guild_profile_enabled' | 'member_dashboard_enabled', value: 'true' | 'false', confirmMsg?: string) {
-    if (confirmMsg && !window.confirm(confirmMsg)) return
+  async function save(label: string, key: 'guild_profile_enabled' | 'member_dashboard_enabled', value: 'true' | 'false', confirmMsg?: string) {
+    if (confirmMsg) {
+      const ok = await askConfirm({ body: confirmMsg, destructive: false })
+      if (!ok) return
+    }
     setError('')
     setPendingKey(label)
     setSavedKey(null)

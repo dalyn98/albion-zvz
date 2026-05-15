@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Check } from 'lucide-react'
 import { markCraftPickupCollected } from '@/app/actions/craft'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useToast } from './ToastProvider'
 
 interface Props {
@@ -18,10 +19,12 @@ export default function MyCraftPickupCollectButton({ taskId }: Props) {
   const toast = useToast()
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const askConfirm = useConfirm()
 
-  const onClick = () => {
+  const onClick = async () => {
     if (pending) return
-    if (!window.confirm(t('confirmCollected'))) return
+    const ok = await askConfirm({ body: t('confirmCollected'), destructive: false })
+    if (!ok) return
     startTransition(async () => {
       const r = await markCraftPickupCollected(taskId)
       if (r.error) {

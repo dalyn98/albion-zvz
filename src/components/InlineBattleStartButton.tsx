@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Swords, RotateCcw, Loader2 } from 'lucide-react'
 import { startBattle, resetBattleStart } from '@/app/actions/admin'
+import { useConfirm } from '@/components/ConfirmDialog'
 
 interface Props {
   eventId: string
@@ -16,9 +17,11 @@ export default function InlineBattleStartButton({ eventId, battleStartedAt }: Pr
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
+  const askConfirm = useConfirm()
 
-  const start = () => {
-    if (!confirm(t('battleStartConfirm'))) return
+  const start = async () => {
+    const ok = await askConfirm({ body: t('battleStartConfirm'), destructive: false })
+    if (!ok) return
     setError('')
     startTransition(async () => {
       const result = await startBattle(eventId)
@@ -27,8 +30,9 @@ export default function InlineBattleStartButton({ eventId, battleStartedAt }: Pr
     })
   }
 
-  const reset = () => {
-    if (!confirm(t('battleResetConfirm'))) return
+  const reset = async () => {
+    const ok = await askConfirm({ body: t('battleResetConfirm'), destructive: true })
+    if (!ok) return
     setError('')
     startTransition(async () => {
       const result = await resetBattleStart(eventId)

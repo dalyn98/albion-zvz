@@ -16,6 +16,7 @@ import {
 } from '@/lib/gather-time'
 import FourPartTimeInput, { BLANK_GATHER_PARTS, isAllBlank } from './FourPartTimeInput'
 import { formatDateTime } from '@/lib/format-datetime'
+import { useConfirm } from '@/components/ConfirmDialog'
 
 interface RegearWindowsAdminProps {
   initialWindows: RegearWindow[]
@@ -28,6 +29,7 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
   const [isPending, startTransition] = useTransition()
   const [formError, setFormError] = useState<string | null>(null)
   const [parts, setParts] = useState<GatherTimeParts>(BLANK_GATHER_PARTS)
+  const askConfirm = useConfirm()
 
   const allBlank = isAllBlank(parts)
   const parsed = allBlank ? null : parseGatherTime(parts, { timezone: tenantTimezone })
@@ -78,7 +80,8 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
   }
 
   async function handleClose(id: string) {
-    if (!confirm(t('confirmClose'))) return
+    const ok = await askConfirm({ body: t('confirmClose'), destructive: true })
+    if (!ok) return
     startTransition(async () => {
       const res = await closeRegearWindow(id)
       if (res.error) {
@@ -96,7 +99,8 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
   }
 
   async function handleDelete(id: string) {
-    if (!confirm(t('confirmDelete'))) return
+    const ok = await askConfirm({ body: t('confirmDelete'), destructive: true })
+    if (!ok) return
     startTransition(async () => {
       const res = await deleteRegearWindow(id)
       if (res.error) {

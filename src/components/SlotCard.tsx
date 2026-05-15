@@ -30,6 +30,7 @@ import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
 import MemberAssignModal from './MemberAssignModal'
 import SingleSlotEditModal from './SingleSlotEditModal'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { UserPlus, UserX, MessageSquare, LogIn, Lock, X, Swords, Check, Hourglass, Bomb, Pencil } from 'lucide-react'
 
 interface Props {
@@ -107,6 +108,7 @@ export default function SlotCard({
   const tGear = useTranslations('gear')
   const tRole = useTranslations('slotRole')
   const locale = useLocale() as Locale
+  const askConfirm = useConfirm()
 
   const isTaken = slot.assigned_discord_id !== null
   const isMine = isTaken && slot.assigned_discord_id === currentDiscordId
@@ -151,9 +153,9 @@ export default function SlotCard({
     })
   }
 
-  const handleAssign = () => {
+  const handleAssign = async () => {
     if (battleStarted) {
-      const ok = confirm(t('confirmBattleStarted'))
+      const ok = await askConfirm({ body: t('confirmBattleStarted'), destructive: false })
       if (!ok) return
     }
     if (needsPicks) {
@@ -173,11 +175,15 @@ export default function SlotCard({
     })
   }
 
-  const handleAdminKick = () => {
+  const handleAdminKick = async () => {
     if (!slot.assigned_username) return
     // 전투 시작 후 킥은 참여 기록(통계/리기어 자격) 에 영향을 줄 수 있어 별도 경고.
     const confirmKey = battleStarted ? 'confirmAdminKickAfterStart' : 'confirmAdminKick'
-    if (!confirm(t(confirmKey, { name: slot.assigned_username }))) return
+    const ok = await askConfirm({
+      body: t(confirmKey, { name: slot.assigned_username }),
+      destructive: true,
+    })
+    if (!ok) return
     setError('')
     startTransition(async () => {
       const result = await adminCancelSlot(slot.id)
@@ -186,11 +192,12 @@ export default function SlotCard({
     })
   }
 
-  const handleApproveRequest = () => {
+  const handleApproveRequest = async () => {
     if (battleStarted && slot.requested_username) {
-      const ok = confirm(
-        t('bombSquad.confirmApproveAfterStart', { name: slot.requested_username }),
-      )
+      const ok = await askConfirm({
+        body: t('bombSquad.confirmApproveAfterStart', { name: slot.requested_username }),
+        destructive: false,
+      })
       if (!ok) return
     }
     setError('')
@@ -201,12 +208,16 @@ export default function SlotCard({
     })
   }
 
-  const handleRejectRequest = () => {
+  const handleRejectRequest = async () => {
     if (!slot.requested_username) return
     const confirmKey = battleStarted
       ? 'bombSquad.confirmRejectAfterStart'
       : 'bombSquad.confirmReject'
-    if (!confirm(t(confirmKey, { name: slot.requested_username }))) return
+    const ok = await askConfirm({
+      body: t(confirmKey, { name: slot.requested_username }),
+      destructive: true,
+    })
+    if (!ok) return
     setError('')
     startTransition(async () => {
       const result = await rejectSlotRequest(slot.id)
@@ -215,9 +226,9 @@ export default function SlotCard({
     })
   }
 
-  const handleOpenAssignModal = () => {
+  const handleOpenAssignModal = async () => {
     if (battleStarted) {
-      const ok = confirm(t('bombSquad.confirmAssignAfterStart'))
+      const ok = await askConfirm({ body: t('bombSquad.confirmAssignAfterStart'), destructive: false })
       if (!ok) return
     }
     setAssignModalOpen(true)

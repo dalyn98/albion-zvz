@@ -25,6 +25,7 @@ import { getWeaponFamilyRank } from '@/lib/weapon-family'
 import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
 import type { TrackedItemSearchEntry } from '@/lib/inventory-name-search'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useToast } from './ToastProvider'
 import TrackedItemManager from './TrackedItemManager'
 
@@ -512,6 +513,7 @@ function CardPopover({
   onClose,
   t,
 }: PopoverProps) {
+  const askConfirm = useConfirm()
   return (
     <div
       data-inventory-popover={row.baseItemId}
@@ -573,8 +575,8 @@ function CardPopover({
         </div>
         <button
           type="button"
-          onClick={() => {
-            const ok = window.confirm(t('removeTrackedConfirm'))
+          onClick={async () => {
+            const ok = await askConfirm({ body: t('removeTrackedConfirm'), destructive: true })
             if (!ok) return
             const suffix = row.baseItemId.replace(/^T\d+_/, '')
             onRemoveTracked(suffix)

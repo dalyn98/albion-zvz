@@ -57,6 +57,8 @@
     "deletedEvent": "(削除されたイベント)",
     "delete": "削除",
     "cancel": "キャンセル",
+    "confirm": "確認",
+    "confirmTitle": "確認",
     "save": "保存",
     "saving": "保存中…",
     "saved": "保存しました",

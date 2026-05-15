@@ -4,7 +4,6 @@ import {
   buildFinalMatchupRows,
   buildLegacyBackfillRows,
   buildProvisionalTenantRow,
-  type KillboardPair,
 } from './battle-tracking-helpers'
 import type {
   AlbionBattle,
@@ -530,9 +529,9 @@ describe('buildBattleRecordRow — raw_battle 보존', () => {
         { id: 'g2', name: 'G2', teamSize: 12, kills: 2, killFame: 50_000 },
       ],
     })
-    const row = buildBattleRecordRow(battle, 'asia')
+    const row = buildBattleRecordRow(battle, 'east')
     expect(row.albion_battle_id).toBe(42)
-    expect(row.albion_server).toBe('asia')
+    expect(row.albion_server).toBe('east')
     expect(row.total_players).toBe(22)
     expect(row.total_kills).toBe(battle.totalKills)
     expect(row.total_fame).toBe(battle.totalFame)

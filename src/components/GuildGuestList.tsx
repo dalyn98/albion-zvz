@@ -13,6 +13,7 @@ import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { getRoleStyle } from '@/types'
 import { revokeGuest } from '@/app/actions/members-admin'
 import type { GuildGuestSummary } from '@/app/actions/members-admin'
+import { useConfirm } from '@/components/ConfirmDialog'
 
 interface Props {
   guests: GuildGuestSummary[]
@@ -110,9 +111,14 @@ function GuestRow({ guest, isAdmin }: { guest: GuildGuestSummary; isAdmin: boole
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
+  const askConfirm = useConfirm()
 
-  const handleRevoke = () => {
-    if (!confirm(t('confirmRevokeGuest', { name: guest.username }))) return
+  const handleRevoke = async () => {
+    const ok = await askConfirm({
+      body: t('confirmRevokeGuest', { name: guest.username }),
+      destructive: true,
+    })
+    if (!ok) return
     setError('')
     startTransition(async () => {
       const result = await revokeGuest(guest.discord_id)

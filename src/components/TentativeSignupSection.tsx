@@ -14,6 +14,7 @@ import { SLOT_ROLES, type SlotRole, getRoleStyle } from '@/types'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useToast } from './ToastProvider'
 
 interface DirectoryMember {
@@ -431,9 +432,14 @@ function RowItem({
   router: ReturnType<typeof useRouter>
 }) {
   const [pending, startTransition] = useTransition()
+  const askConfirm = useConfirm()
 
-  const remove = () => {
-    if (!confirm(tAction('confirmRemove', { name: row.username }))) return
+  const remove = async () => {
+    const ok = await askConfirm({
+      body: tAction('confirmRemove', { name: row.username }),
+      destructive: true,
+    })
+    if (!ok) return
     startTransition(async () => {
       const result = await removeTentativeSignup(eventId, row.discord_id)
       if (result.error) {

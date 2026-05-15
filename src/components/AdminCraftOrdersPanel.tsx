@@ -12,6 +12,7 @@ import {
   cancelCraftOrderAdmin,
   type CraftOrderWithTasks,
 } from '@/app/actions/craft-orders'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useToast } from './ToastProvider'
 import ItemPicker from './ItemPicker'
 import { GEAR_ENCHANT_MIN, GEAR_ENCHANT_MAX, GEAR_ENCHANT_COLOR_CLASS } from '@/types'
@@ -45,6 +46,7 @@ export default function AdminCraftOrdersPanel({ initialOrders }: Props) {
   const router = useRouter()
   const [orders, setOrders] = useState(initialOrders)
   const [pending, startTransition] = useTransition()
+  const askConfirm = useConfirm()
 
   const refresh = () => router.refresh()
 
@@ -84,8 +86,9 @@ export default function AdminCraftOrdersPanel({ initialOrders }: Props) {
               key={entry.order.id}
               entry={entry}
               pending={pending}
-              onCancel={() => {
-                if (!confirm(t('adminConfirmCancelOrder'))) return
+              onCancel={async () => {
+                const ok = await askConfirm({ body: t('adminConfirmCancelOrder'), destructive: true })
+                if (!ok) return
                 startTransition(async () => {
                   const res = await cancelCraftOrderAdmin(entry.order.id)
                   if (res.error) toast.error(res.error)

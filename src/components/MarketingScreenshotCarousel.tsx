@@ -14,6 +14,7 @@ import {
   uploadMarketingScreenshot,
   deleteMarketingScreenshot,
 } from '@/app/actions/marketing-screenshots'
+import { useConfirm } from '@/components/ConfirmDialog'
 import type {
   MarketingScreenshotImage,
   MarketingScreenshotKey,
@@ -54,6 +55,7 @@ export default function MarketingScreenshotCarousel({
   const [activeIndex, setActiveIndex] = useState(0)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const askConfirm = useConfirm()
 
   const canEdit = editable && !!slot
 
@@ -134,11 +136,12 @@ export default function MarketingScreenshotCarousel({
     })
   }
 
-  function handleDeleteCurrent() {
+  async function handleDeleteCurrent() {
     if (!canEdit) return
     const target = images[safeIndex]
     if (!target) return
-    if (!window.confirm(t('carouselDeleteConfirm'))) return
+    const ok = await askConfirm({ body: t('carouselDeleteConfirm'), destructive: true })
+    if (!ok) return
     setError(null)
     startTransition(async () => {
       const { error } = await deleteMarketingScreenshot(target.id)
