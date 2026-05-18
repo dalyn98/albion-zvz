@@ -1,4 +1,7 @@
-import { getTranslations } from 'next-intl/server'
+'use client'
+
+import { useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   Swords,
   Info,
@@ -11,19 +14,16 @@ import {
   CornerDownRight,
   Sparkles,
 } from 'lucide-react'
-import DemoActionButton from '../_components/DemoActionButton'
 import DemoCTACard from '../_components/DemoCTACard'
 
 // 실 /battles 의 비주얼 클론 — 헤더 + 팁 카드 + 판정 규칙 details + 탭 + 결과
-// 필터 + 전투기록 테이블. 실 페이지는 BattleRecordList (use client, useRouter
-// 로 ?tab/?outcome 갱신) 인데 데모에선 정적 SSR 로 옮기고 모든 인터랙션은
-// DemoActionButton 으로 토스트 안내.
-//
-// 규모별 톤 — small=sky, middle=emerald, large=orange, zerg=rose (실제 SIZE_TONE
-// 과 1:1 매칭). 분리 매치업은 violet 좌측 보더 + 점선, 판정 중은 amber Hourglass.
+// 필터 + 전투기록 테이블. 데모에선 클라이언트 useState 로 탭/결과 필터를 실제로
+// 적용 — pending 토스트 대신 진짜 필터링된 결과를 보여줘 실사용감 부여.
 
 type SizeCategory = 'small' | 'middle' | 'large' | 'zerg'
 type Outcome = 'win' | 'loss' | 'tie'
+type Tab = 'recent' | SizeCategory
+type OutcomeFilter = 'all' | Outcome
 
 interface BattleRow {
   id: string
@@ -44,7 +44,6 @@ interface BattleRow {
   clusterName: string
 }
 
-// SIZE_TONE — 실 BattleRecordList 의 토큰을 그대로 가져왔다 (1:1 일관).
 const SIZE_TONE: Record<SizeCategory, { badge: string; dot: string }> = {
   small: { badge: 'bg-sky-500/10 border-sky-500/30 text-sky-200', dot: 'bg-sky-400' },
   middle: { badge: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200', dot: 'bg-emerald-400' },
@@ -64,8 +63,6 @@ const OUTCOME_ICON: Record<Outcome, React.ComponentType<{ size?: number }>> = {
   tie: Minus,
 }
 
-// 데모 행 — 사이즈 4종 + 결과 3종 + 분리 매치업 페어 1쌍 + 판정 중 1건 포함.
-// startedAt 절대값 — 모두 2026-05-18 KST 기준, 가장 최근 전투부터 내림차순.
 const DEMO_BATTLES: ReadonlyArray<BattleRow> = [
   {
     id: 'demo-b-1',
@@ -242,9 +239,6 @@ function formatFame(n: number): string {
   return String(n)
 }
 
-// 데모 페이지는 SSR + 정적 시간 표기 — useRouter / 사용자 timezone 의존 없이
-// 한국 표준시 (UTC+9) 기준 "MM/DD HH:mm" 표시. 실 페이지는 사용자 길드 timezone
-// 사용 (formatDateTimeShort).
 function formatStartedAtKst(iso: string): string {
   const d = new Date(iso)
   const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000)
@@ -255,18 +249,20 @@ function formatStartedAtKst(iso: string): string {
   return `${month}/${day} ${hh}:${mm}`
 }
 
-const TABS: Array<'recent' | SizeCategory> = ['recent', 'small', 'middle', 'large', 'zerg']
+const TABS: ReadonlyArray<Tab> = ['recent', 'small', 'middle', 'large', 'zerg']
+const OUTCOMES: ReadonlyArray<OutcomeFilter> = ['all', 'win', 'loss', 'tie']
 
-export default async function DemoBattlesPage() {
-  const [t, tCommon, tDemoMe, tDemoBattles, tCta] = await Promise.all([
-    getTranslations('battleTracking'),
-    getTranslations('common'),
-    getTranslations('demo.me'),
-    getTranslations('demo.battles'),
-    getTranslations('demo.ctaCard'),
-  ])
+export default function DemoBattlesPage() {
+  const t = useTranslations('battleTracking')
+  const tCommon = useTranslations('common')
+  const tDemoMe = useTranslations('demo.me')
+  const tDemoBattles = useTranslations('demo.battles')
+  const tCta = useTranslations('demo.ctaCard')
 
-  const tabLabels: Record<'recent' | SizeCategory, string> = {
+  const [activeTab, setActiveTab] = useState<Tab>('recent')
+  const [outcomeFilter, setOutcomeFilter] = useState<OutcomeFilter>('all')
+
+  const tabLabels: Record<Tab, string> = {
     recent: t('tabRecent'),
     small: t('size_small'),
     middle: t('size_middle'),
@@ -279,7 +275,15 @@ export default async function DemoBattlesPage() {
     tie: t('outcome_tie'),
   }
 
-  const roles = computeGroupRoles(DEMO_BATTLES)
+  const filtered = useMemo(() => {
+    return DEMO_BATTLES.filter((r) => {
+      if (activeTab !== 'recent' && r.sizeCategory !== activeTab) return false
+      if (outcomeFilter !== 'all' && r.outcome !== outcomeFilter) return false
+      return true
+    })
+  }, [activeTab, outcomeFilter])
+
+  const roles = useMemo(() => computeGroupRoles(filtered), [filtered])
 
   return (
     <main className="flex-1 w-full max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 py-6 sm:py-8 space-y-5">
@@ -366,10 +370,14 @@ export default async function DemoBattlesPage() {
       <div className="space-y-3">
         <nav role="tablist" className="flex gap-1 border-b border-gray-800 overflow-x-auto">
           {TABS.map((key) => {
-            const isActive = key === 'recent'
+            const isActive = key === activeTab
             return (
-              <DemoActionButton
+              <button
                 key={key}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActiveTab(key)}
                 className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
                   isActive
                     ? 'text-amber-300 border-amber-400'
@@ -377,21 +385,28 @@ export default async function DemoBattlesPage() {
                 }`}
               >
                 {tabLabels[key]}
-              </DemoActionButton>
+              </button>
             )
           })}
         </nav>
 
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <label className="text-gray-400 text-xs">{t('filterOutcome')}</label>
-            <DemoActionButton
-              asDiv
-              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white inline-flex items-center gap-2 cursor-pointer hover:border-amber-500/40"
+            <label htmlFor="demo-battles-outcome" className="text-gray-400 text-xs">
+              {t('filterOutcome')}
+            </label>
+            <select
+              id="demo-battles-outcome"
+              value={outcomeFilter}
+              onChange={(e) => setOutcomeFilter(e.target.value as OutcomeFilter)}
+              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white cursor-pointer hover:border-amber-500/40 focus:border-amber-500 focus:outline-none"
             >
-              <span>{tCommon('all')}</span>
-              <ChevronRight size={12} className="rotate-90 text-gray-500" />
-            </DemoActionButton>
+              {OUTCOMES.map((o) => (
+                <option key={o} value={o}>
+                  {o === 'all' ? tCommon('all') : outcomeLabels[o]}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -408,94 +423,105 @@ export default async function DemoBattlesPage() {
               </tr>
             </thead>
             <tbody>
-              {DEMO_BATTLES.map((row, i) => {
-                const groupRole = roles[i]
-                const isSplit = groupRole !== 'single'
-                const isContinuation = groupRole === 'continuation'
-                const rowClass = isSplit
-                  ? `border-l-2 border-l-violet-500/40 bg-violet-500/[0.03] ${
-                      isContinuation
-                        ? 'border-t border-t-dashed border-violet-500/20'
-                        : 'border-t border-gray-800'
-                    }`
-                  : 'border-t border-gray-800'
-                const OutcomeIcon = OUTCOME_ICON[row.outcome]
-                return (
-                  <tr key={row.id} className={`${rowClass} hover:bg-gray-800/40`}>
-                    <td className="px-3 py-2 text-gray-300 font-mono text-sm whitespace-nowrap">
-                      {isContinuation ? (
-                        <span
-                          className="inline-flex items-center gap-1 text-violet-300"
-                          title={t('sameBattleLabel')}
-                        >
-                          <CornerDownRight size={14} />
-                          <span className="text-xs uppercase tracking-wider font-semibold">
-                            {t('sameBattleLabel')}
-                          </span>
-                        </span>
-                      ) : (
-                        <span className="text-gray-300">{formatStartedAtKst(row.startedAt)}</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex flex-wrap items-center gap-1">
-                        <span
-                          className={`inline-flex items-center gap-1.5 border rounded px-2 py-0.5 text-[13px] font-medium ${SIZE_TONE[row.sizeCategory].badge}`}
-                        >
+              {filtered.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="px-3 py-12 text-center text-gray-500 text-sm border-t border-gray-800"
+                  >
+                    {tCommon('searchNoResults')}
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((row, i) => {
+                  const groupRole = roles[i]
+                  const isSplit = groupRole !== 'single'
+                  const isContinuation = groupRole === 'continuation'
+                  const rowClass = isSplit
+                    ? `border-l-2 border-l-violet-500/40 bg-violet-500/[0.03] ${
+                        isContinuation
+                          ? 'border-t border-t-dashed border-violet-500/20'
+                          : 'border-t border-gray-800'
+                      }`
+                    : 'border-t border-gray-800'
+                  const OutcomeIcon = OUTCOME_ICON[row.outcome]
+                  return (
+                    <tr key={row.id} className={`${rowClass} hover:bg-gray-800/40`}>
+                      <td className="px-3 py-2 text-gray-300 font-mono text-sm whitespace-nowrap">
+                        {isContinuation ? (
                           <span
-                            className={`w-1.5 h-1.5 rounded-full ${SIZE_TONE[row.sizeCategory].dot}`}
-                            aria-hidden
-                          />
-                          {tabLabels[row.sizeCategory]}
-                          <span className="opacity-70 font-mono">
-                            {row.homeTeamSize}v{row.mainOpponentTeamSize}
-                          </span>
-                        </span>
-                        {row.matchTotal > 1 && (
-                          <span
-                            className="inline-flex items-center gap-0.5 bg-violet-500/15 border border-violet-500/30 rounded px-1.5 py-0.5 text-xs text-violet-300"
-                            title={t('matchSplitLabel')}
+                            className="inline-flex items-center gap-1 text-violet-300"
+                            title={t('sameBattleLabel')}
                           >
-                            <GitBranch size={12} />
-                            {row.matchIndex}/{row.matchTotal}
+                            <CornerDownRight size={14} />
+                            <span className="text-xs uppercase tracking-wider font-semibold">
+                              {t('sameBattleLabel')}
+                            </span>
                           </span>
+                        ) : (
+                          <span className="text-gray-300">{formatStartedAtKst(row.startedAt)}</span>
                         )}
-                        {row.isProvisional && (
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap items-center gap-1">
                           <span
-                            className="inline-flex items-center gap-0.5 bg-amber-500/10 border border-amber-500/30 rounded px-1.5 py-0.5 text-xs text-amber-300"
-                            title={t('provisionalLabel')}
+                            className={`inline-flex items-center gap-1.5 border rounded px-2 py-0.5 text-[13px] font-medium ${SIZE_TONE[row.sizeCategory].badge}`}
                           >
-                            <Hourglass size={12} />
-                            {t('provisionalLabel')}
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${SIZE_TONE[row.sizeCategory].dot}`}
+                              aria-hidden
+                            />
+                            {tabLabels[row.sizeCategory]}
+                            <span className="opacity-70 font-mono">
+                              {row.homeTeamSize}v{row.mainOpponentTeamSize}
+                            </span>
                           </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2">
-                      <span
-                        className={`inline-flex items-center gap-1 text-sm font-semibold ${OUTCOME_COLOR[row.outcome]}`}
-                      >
-                        <OutcomeIcon size={14} />
-                        {outcomeLabels[row.outcome]}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="text-base text-white">{row.mainOpponentName}</div>
-                    </td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap">
-                      <div className="text-sm text-gray-300 font-mono">
-                        <span className="text-emerald-400">{row.homeKills}</span>
-                        <span className="text-gray-600">/</span>
-                        <span className="text-red-400">{row.homeDeaths}</span>
-                      </div>
-                      <div className="text-xs text-gray-500 font-mono">
-                        {formatFame(row.homeKillFame)} vs {formatFame(row.mainOpponentKillFame)}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 text-gray-400 text-sm">{row.clusterName}</td>
-                  </tr>
-                )
-              })}
+                          {row.matchTotal > 1 && (
+                            <span
+                              className="inline-flex items-center gap-0.5 bg-violet-500/15 border border-violet-500/30 rounded px-1.5 py-0.5 text-xs text-violet-300"
+                              title={t('matchSplitLabel')}
+                            >
+                              <GitBranch size={12} />
+                              {row.matchIndex}/{row.matchTotal}
+                            </span>
+                          )}
+                          {row.isProvisional && (
+                            <span
+                              className="inline-flex items-center gap-0.5 bg-amber-500/10 border border-amber-500/30 rounded px-1.5 py-0.5 text-xs text-amber-300"
+                              title={t('provisionalLabel')}
+                            >
+                              <Hourglass size={12} />
+                              {t('provisionalLabel')}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={`inline-flex items-center gap-1 text-sm font-semibold ${OUTCOME_COLOR[row.outcome]}`}
+                        >
+                          <OutcomeIcon size={14} />
+                          {outcomeLabels[row.outcome]}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="text-base text-white">{row.mainOpponentName}</div>
+                      </td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                        <div className="text-sm text-gray-300 font-mono">
+                          <span className="text-emerald-400">{row.homeKills}</span>
+                          <span className="text-gray-600">/</span>
+                          <span className="text-red-400">{row.homeDeaths}</span>
+                        </div>
+                        <div className="text-xs text-gray-500 font-mono">
+                          {formatFame(row.homeKillFame)} vs {formatFame(row.mainOpponentKillFame)}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-gray-400 text-sm">{row.clusterName}</td>
+                    </tr>
+                  )
+                })
+              )}
             </tbody>
           </table>
         </div>

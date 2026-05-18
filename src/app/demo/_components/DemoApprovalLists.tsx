@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
   Check, X, ShieldCheck, ChevronDown, ChevronUp, Users,
@@ -8,7 +8,7 @@ import {
 import SearchBox from '@/components/SearchBox'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
 import { formatTimeLabel, formatSilver, formatSilverFull } from '../_lib/format'
-import { useDemoToast } from './DemoFeedbackProvider'
+import { isRegearRejectReasonCode, REGEAR_REJECT_REASON_CODES, type RegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import type {
   DemoRegearListItem,
   DemoExchangeRequest,
@@ -20,16 +20,21 @@ import type {
 
 // `/admin/dashboard/approvals` 의 6 개 ReviewList 컴포넌트 (Regear/Exchange/Donation/
 // Shop/EventPayout/Craft) 를 한 곳에 데모용으로 클론. 카드 외관 / 상태 pill /
-// 라벨 키는 실제 컴포넌트와 동일. 액션 버튼은 disabled 대신 클릭하면 "데모용
-// 작업이라 저장되지 않아요" toast 를 띄워 진짜 버튼처럼 반응하게 한다.
+// 라벨 키는 실제 컴포넌트와 동일. 액션 버튼은 백엔드 호출 대신 클라이언트 상태
+// override 로 처리 — 클릭하면 pending → approved/rejected pill 이 그 자리에서
+// 바뀌어 "관리자가 어떻게 처리하는지" 가 실제 앱처럼 전달된다. 페이지 reload
+// 시 초기화되며, 그것은 데모 페이지의 특성으로 받아들여진다.
 
-function useApprovalActionHandler() {
-  const tFeedback = useTranslations('demo.feedback')
-  const { showToast } = useDemoToast()
-  return useCallback(() => {
-    showToast(tFeedback('actionAcknowledged'))
-  }, [tFeedback, showToast])
+type StatusOverride = 'approved' | 'rejected'
+
+function useDemoStatusOverrides() {
+  const [overrides, setOverrides] = useState<Partial<Record<string, StatusOverride>>>({})
+  const setStatus = (id: string, status: StatusOverride) =>
+    setOverrides((prev) => ({ ...prev, [id]: status }))
+  return { overrides, setStatus }
 }
+
+const DEMO_HANDLER_NAME = 'You'
 
 const STATUS_CLASS_DEFAULT: Record<string, string> = {
   pending: 'bg-yellow-500/20 text-yellow-300',
@@ -45,20 +50,29 @@ const STATUS_CLASS_EMERALD: Record<string, string> = {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Regear
+// Regear — reject 시 사유 코드 드롭다운 (마이그 151 enum 8개 그대로)
 // ─────────────────────────────────────────────────────────────────
 
 export function DemoRegearReviewList({ requests }: { requests: DemoRegearListItem[] }) {
   const t = useTranslations('adminRegearReview')
   const tCommon = useTranslations('common')
   const tDemo = useTranslations('demo')
-  const handleAction = useApprovalActionHandler()
+  const tReason = useTranslations('regearRejectReason')
+  const { overrides, setStatus } = useDemoStatusOverrides()
+  const [openReasonFor, setOpenReasonFor] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+
   const filtered = useMemo(() => {
     const q = normalizeQuery(search)
     if (!q) return requests
     return requests.filter((r) => matchesName(r.victim, q) || matchesName(r.battleLabel, q))
   }, [requests, search])
+
+  const handleReject = (id: string, reasonCode: RegearRejectReasonCode) => {
+    if (!isRegearRejectReasonCode(reasonCode)) return
+    setStatus(id, 'rejected')
+    setOpenReasonFor(null)
+  }
 
   return (
     <div className="space-y-3">
@@ -67,72 +81,98 @@ export function DemoRegearReviewList({ requests }: { requests: DemoRegearListIte
         <p className="text-gray-500 text-sm text-center py-6">{tCommon('searchNoResults')}</p>
       ) : (
         <ul className="space-y-3">
-          {filtered.map((r) => (
-            <li key={r.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="text-white text-sm font-semibold truncate">{r.victim}</span>
-                    {r.origin === 'manual' && (
-                      <span className="inline-flex items-center gap-1 bg-violet-400 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded">
-                        {t('originManual')}
-                      </span>
-                    )}
-                    <span className="text-gray-400 text-xs truncate">· {r.battleLabel}</span>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400">
-                    <span className="font-mono text-amber-400">
-                      {t('claimed', { amount: formatSilver(r.totalSilver) })}
-                      {r.capSilver != null && (
-                        <span className="text-gray-500"> / {t('cap', { amount: formatSilver(r.capSilver) })}</span>
+          {filtered.map((r) => {
+            const effectiveStatus = overrides[r.id] ?? r.status
+            const handler = overrides[r.id] ? DEMO_HANDLER_NAME : r.handledBy
+            return (
+              <li key={r.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="text-white text-sm font-semibold truncate">{r.victim}</span>
+                      {r.origin === 'manual' && (
+                        <span className="inline-flex items-center gap-1 bg-violet-400 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded">
+                          {t('originManual')}
+                        </span>
                       )}
-                    </span>
-                    <span className="font-mono text-gray-500">{formatTimeLabel(tDemo, r.diedAt)}</span>
+                      <span className="text-gray-400 text-xs truncate">· {r.battleLabel}</span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400">
+                      <span className="font-mono text-amber-400">
+                        {t('claimed', { amount: formatSilver(r.totalSilver) })}
+                        {r.capSilver != null && (
+                          <span className="text-gray-500"> / {t('cap', { amount: formatSilver(r.capSilver) })}</span>
+                        )}
+                      </span>
+                      <span className="font-mono text-gray-500">{formatTimeLabel(tDemo, r.diedAt)}</span>
+                    </div>
                   </div>
+                  <span
+                    className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS_DEFAULT[effectiveStatus]}`}
+                  >
+                    {statusText(t, effectiveStatus)}
+                  </span>
                 </div>
-                <span
-                  className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS_DEFAULT[r.status]}`}
-                >
-                  {statusText(t, r.status)}
-                </span>
-              </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="flex items-center gap-1 text-green-400 text-xs">
-                  <ShieldCheck size={13} /> {t('killboardVerified')}
-                </span>
-                <span className="text-[11px] text-gray-500">
-                  · {r.killerName} <span className="text-gray-600">({r.killerWeapon})</span>
-                </span>
-              </div>
-
-              {r.status === 'pending' && (
                 <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={handleAction}
-                    className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded transition-colors"
-                  >
-                    <Check size={13} />
-                    {t('approveWithPayout', { amount: formatSilver(r.totalSilver) })}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleAction}
-                    className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded transition-colors"
-                  >
-                    <X size={13} /> {t('reject')}
-                  </button>
+                  <span className="flex items-center gap-1 text-green-400 text-xs">
+                    <ShieldCheck size={13} /> {t('killboardVerified')}
+                  </span>
+                  <span className="text-[11px] text-gray-500">
+                    · {r.killerName} <span className="text-gray-600">({r.killerWeapon})</span>
+                  </span>
                 </div>
-              )}
 
-              {r.status !== 'pending' && r.handledBy && (
-                <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2 space-y-0.5">
-                  <p>{t('handledBy', { status: statusText(t, r.status), handler: r.handledBy })}</p>
-                </div>
-              )}
-            </li>
-          ))}
+                {effectiveStatus === 'pending' && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setStatus(r.id, 'approved')}
+                        className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded transition-colors"
+                      >
+                        <Check size={13} />
+                        {t('approveWithPayout', { amount: formatSilver(r.totalSilver) })}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOpenReasonFor(openReasonFor === r.id ? null : r.id)}
+                        aria-expanded={openReasonFor === r.id}
+                        className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded transition-colors"
+                      >
+                        <X size={13} /> {t('reject')}
+                      </button>
+                    </div>
+                    {openReasonFor === r.id && (
+                      <div className="bg-gray-950 border border-gray-700 rounded-lg p-3 space-y-1.5">
+                        <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide">
+                          {t('rejectReasonLabel')}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {REGEAR_REJECT_REASON_CODES.map((code) => (
+                            <button
+                              key={code}
+                              type="button"
+                              onClick={() => handleReject(r.id, code)}
+                              className="text-[11px] bg-gray-800 hover:bg-red-500/20 hover:text-red-200 border border-gray-700 hover:border-red-500/40 text-gray-300 px-2.5 py-1 rounded transition-colors"
+                            >
+                              {tReason(code)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {effectiveStatus !== 'pending' && handler && (
+                  <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2 space-y-0.5">
+                    <p>{t('handledBy', { status: statusText(t, effectiveStatus), handler })}</p>
+                  </div>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
     </div>
@@ -147,7 +187,7 @@ export function DemoExchangeReviewList({ requests }: { requests: DemoExchangeReq
   const t = useTranslations('adminExchangeReview')
   const tCommon = useTranslations('common')
   const tDemo = useTranslations('demo')
-  const handleAction = useApprovalActionHandler()
+  const { overrides, setStatus } = useDemoStatusOverrides()
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
     const q = normalizeQuery(search)
@@ -162,55 +202,59 @@ export function DemoExchangeReviewList({ requests }: { requests: DemoExchangeReq
         <p className="text-gray-500 text-sm text-center py-6">{tCommon('searchNoResults')}</p>
       ) : (
         <ul className="space-y-3">
-          {filtered.map((r) => (
-            <li key={r.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-white text-sm font-semibold truncate">{r.member}</span>
+          {filtered.map((r) => {
+            const effectiveStatus = overrides[r.id] ?? r.status
+            const handler = overrides[r.id] ? DEMO_HANDLER_NAME : r.handledBy
+            return (
+              <li key={r.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white text-sm font-semibold truncate">{r.member}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-gray-400 mt-1 flex-wrap">
+                      <span className="font-mono text-amber-400">{formatSilver(r.silver)}</span>
+                      <span className="text-gray-500">
+                        {t('balanceLabel', { amount: formatSilver(r.points * 1000) })}
+                      </span>
+                      <span className="font-mono text-gray-600">{formatTimeLabel(tDemo, r.requestedAt)}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-gray-400 mt-1 flex-wrap">
-                    <span className="font-mono text-amber-400">{formatSilver(r.silver)}</span>
-                    <span className="text-gray-500">
-                      {t('balanceLabel', { amount: formatSilver(r.points * 1000) })}
-                    </span>
-                    <span className="font-mono text-gray-600">{formatTimeLabel(tDemo, r.requestedAt)}</span>
+                  <span
+                    className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS_DEFAULT[effectiveStatus]}`}
+                  >
+                    {statusText(t, effectiveStatus)}
+                  </span>
+                </div>
+
+                {effectiveStatus === 'pending' && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setStatus(r.id, 'approved')}
+                      className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded transition-colors"
+                    >
+                      <Check size={13} />
+                      {t('approveButton')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatus(r.id, 'rejected')}
+                      className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded transition-colors"
+                    >
+                      <X size={13} /> {t('reject')}
+                    </button>
                   </div>
-                </div>
-                <span
-                  className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS_DEFAULT[r.status]}`}
-                >
-                  {statusText(t, r.status)}
-                </span>
-              </div>
+                )}
 
-              {r.status === 'pending' && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={handleAction}
-                    className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded transition-colors"
-                  >
-                    <Check size={13} />
-                    {t('approveButton')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleAction}
-                    className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded transition-colors"
-                  >
-                    <X size={13} /> {t('reject')}
-                  </button>
-                </div>
-              )}
-
-              {r.status !== 'pending' && r.handledBy && (
-                <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2 space-y-0.5">
-                  <p>{t('handledBy', { status: statusText(t, r.status), handler: r.handledBy })}</p>
-                </div>
-              )}
-            </li>
-          ))}
+                {effectiveStatus !== 'pending' && handler && (
+                  <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2 space-y-0.5">
+                    <p>{t('handledBy', { status: statusText(t, effectiveStatus), handler })}</p>
+                  </div>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
     </div>
@@ -225,7 +269,7 @@ export function DemoDonationReviewList({ requests }: { requests: DemoDonationReq
   const t = useTranslations('adminDonationReview')
   const tCommon = useTranslations('common')
   const tDemo = useTranslations('demo')
-  const handleAction = useApprovalActionHandler()
+  const { overrides, setStatus } = useDemoStatusOverrides()
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
     const q = normalizeQuery(search)
@@ -240,63 +284,67 @@ export function DemoDonationReviewList({ requests }: { requests: DemoDonationReq
         <p className="text-gray-500 text-sm text-center py-6">{tCommon('searchNoResults')}</p>
       ) : (
         <ul className="space-y-3">
-          {filtered.map((r) => (
-            <li key={r.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-white text-sm font-semibold truncate">{r.member}</span>
+          {filtered.map((r) => {
+            const effectiveStatus = overrides[r.id] ?? r.status
+            const handler = overrides[r.id] ? DEMO_HANDLER_NAME : r.handledBy
+            return (
+              <li key={r.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-white text-sm font-semibold truncate">{r.member}</span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400">
+                      <span className="font-mono text-emerald-400">
+                        {t('claimed', { amount: formatSilver(r.silver) })}
+                      </span>
+                      <span className="font-mono text-gray-500">{formatTimeLabel(tDemo, r.requestedAt)}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400">
-                    <span className="font-mono text-emerald-400">
-                      {t('claimed', { amount: formatSilver(r.silver) })}
-                    </span>
-                    <span className="font-mono text-gray-500">{formatTimeLabel(tDemo, r.requestedAt)}</span>
+                  <span
+                    className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS_DEFAULT[effectiveStatus]}`}
+                  >
+                    {statusText(t, effectiveStatus)}
+                  </span>
+                </div>
+
+                {r.note && (
+                  <div className="bg-gray-800/50 rounded px-3 py-2">
+                    <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider mb-1">
+                      {t('memoLabel')}
+                    </p>
+                    <p className="text-gray-300 text-xs whitespace-pre-wrap">{r.note}</p>
                   </div>
-                </div>
-                <span
-                  className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS_DEFAULT[r.status]}`}
-                >
-                  {statusText(t, r.status)}
-                </span>
-              </div>
+                )}
 
-              {r.note && (
-                <div className="bg-gray-800/50 rounded px-3 py-2">
-                  <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider mb-1">
-                    {t('memoLabel')}
-                  </p>
-                  <p className="text-gray-300 text-xs whitespace-pre-wrap">{r.note}</p>
-                </div>
-              )}
+                {effectiveStatus === 'pending' && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setStatus(r.id, 'approved')}
+                      className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded transition-colors"
+                    >
+                      <Check size={13} />
+                      {t('approveWithPayout', { amount: formatSilver(r.silver) })}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatus(r.id, 'rejected')}
+                      className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded transition-colors"
+                    >
+                      <X size={13} /> {t('reject')}
+                    </button>
+                  </div>
+                )}
 
-              {r.status === 'pending' && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={handleAction}
-                    className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded transition-colors"
-                  >
-                    <Check size={13} />
-                    {t('approveWithPayout', { amount: formatSilver(r.silver) })}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleAction}
-                    className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded transition-colors"
-                  >
-                    <X size={13} /> {t('reject')}
-                  </button>
-                </div>
-              )}
-
-              {r.status !== 'pending' && r.handledBy && (
-                <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2 space-y-0.5">
-                  <p>{t('handledBy', { status: statusText(t, r.status), handler: r.handledBy })}</p>
-                </div>
-              )}
-            </li>
-          ))}
+                {effectiveStatus !== 'pending' && handler && (
+                  <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2 space-y-0.5">
+                    <p>{t('handledBy', { status: statusText(t, effectiveStatus), handler })}</p>
+                  </div>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
     </div>
@@ -309,7 +357,7 @@ export function DemoDonationReviewList({ requests }: { requests: DemoDonationReq
 
 export function DemoShopOrderReviewList({ orders }: { orders: DemoShopOrder[] }) {
   const t = useTranslations('adminShopOrderReview')
-  const handleAction = useApprovalActionHandler()
+  const { overrides, setStatus } = useDemoStatusOverrides()
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
     const q = normalizeQuery(search)
@@ -325,75 +373,79 @@ export function DemoShopOrderReviewList({ orders }: { orders: DemoShopOrder[] })
         <p className="text-gray-500 text-sm text-center py-6">{t('searchNoResults')}</p>
       ) : (
         <ul className="space-y-3">
-          {filtered.map((o) => (
-            <li key={o.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-white text-sm font-semibold truncate">{o.member}</span>
+          {filtered.map((o) => {
+            const effectiveStatus = overrides[o.id] ?? o.status
+            const handler = overrides[o.id] ? DEMO_HANDLER_NAME : o.handledBy
+            return (
+              <li key={o.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white text-sm font-semibold truncate">{o.member}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-gray-400 mt-1 flex-wrap">
+                      <span className="font-mono text-amber-300 font-bold">
+                        {o.pointsTotal.toLocaleString()}p
+                      </span>
+                      <span className="text-gray-500">
+                        {t('balanceLabel', { amount: '4,200' })}
+                      </span>
+                      <span className="font-mono text-gray-600">{formatTimeLabel(tDemo, o.requestedAt)}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-gray-400 mt-1 flex-wrap">
-                    <span className="font-mono text-amber-300 font-bold">
+                  <span
+                    className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${
+                      STATUS_CLASS_EMERALD[effectiveStatus] ?? STATUS_CLASS_EMERALD.pending
+                    }`}
+                  >
+                    {statusText(t, effectiveStatus)}
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 rounded px-2 py-1 text-xs bg-gray-800/40">
+                    <div className="w-7 h-7 rounded bg-gray-950 flex-shrink-0" />
+                    <span className="text-gray-200 flex-1 truncate">
+                      {o.itemLabel}
+                      {o.itemEnchant > 0 && (
+                        <span className="text-amber-300 ml-1 font-mono">.{o.itemEnchant}</span>
+                      )}
+                    </span>
+                    <span className="text-gray-400 font-mono">× {o.quantity}</span>
+                    <span className="text-amber-300 font-mono w-20 text-right">
                       {o.pointsTotal.toLocaleString()}p
                     </span>
-                    <span className="text-gray-500">
-                      {t('balanceLabel', { amount: '4,200' })}
-                    </span>
-                    <span className="font-mono text-gray-600">{formatTimeLabel(tDemo, o.requestedAt)}</span>
                   </div>
                 </div>
-                <span
-                  className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${
-                    STATUS_CLASS_EMERALD[o.status] ?? STATUS_CLASS_EMERALD.pending
-                  }`}
-                >
-                  {statusText(t, o.status)}
-                </span>
-              </div>
 
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 rounded px-2 py-1 text-xs bg-gray-800/40">
-                  <div className="w-7 h-7 rounded bg-gray-950 flex-shrink-0" />
-                  <span className="text-gray-200 flex-1 truncate">
-                    {o.itemLabel}
-                    {o.itemEnchant > 0 && (
-                      <span className="text-amber-300 ml-1 font-mono">.{o.itemEnchant}</span>
-                    )}
-                  </span>
-                  <span className="text-gray-400 font-mono">× {o.quantity}</span>
-                  <span className="text-amber-300 font-mono w-20 text-right">
-                    {o.pointsTotal.toLocaleString()}p
-                  </span>
-                </div>
-              </div>
+                {effectiveStatus === 'pending' && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setStatus(o.id, 'approved')}
+                      className="flex items-center gap-1 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 px-3 py-1.5 rounded transition-colors"
+                    >
+                      <Check size={13} />
+                      {t('approveButton')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatus(o.id, 'rejected')}
+                      className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded transition-colors"
+                    >
+                      <X size={13} /> {t('rejectButton')}
+                    </button>
+                  </div>
+                )}
 
-              {o.status === 'pending' && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={handleAction}
-                    className="flex items-center gap-1 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 px-3 py-1.5 rounded transition-colors"
-                  >
-                    <Check size={13} />
-                    {t('approveButton')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleAction}
-                    className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded transition-colors"
-                  >
-                    <X size={13} /> {t('rejectButton')}
-                  </button>
-                </div>
-              )}
-
-              {o.status !== 'pending' && o.handledBy && (
-                <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2">
-                  {t('statusTimestamp', { status: statusText(t, o.status), datetime: formatTimeLabel(tDemo, o.requestedAt) })}
-                </div>
-              )}
-            </li>
-          ))}
+                {effectiveStatus !== 'pending' && handler && (
+                  <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2">
+                    {t('statusTimestamp', { status: statusText(t, effectiveStatus), datetime: formatTimeLabel(tDemo, o.requestedAt) })}
+                  </div>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
     </div>
@@ -408,6 +460,7 @@ export function DemoEventPayoutReviewList({ requests }: { requests: DemoEventPay
   const t = useTranslations('adminEventPayoutReview')
   const tCommon = useTranslations('common')
   const tDemo = useTranslations('demo')
+  const { overrides, setStatus } = useDemoStatusOverrides()
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
     const q = normalizeQuery(search)
@@ -423,7 +476,16 @@ export function DemoEventPayoutReviewList({ requests }: { requests: DemoEventPay
       ) : (
         <ul className="space-y-3">
           {filtered.map((r) => (
-            <DemoEventPayoutRow key={r.id} request={r} t={t} tDemo={tDemo} />
+            <DemoEventPayoutRow
+              key={r.id}
+              request={r}
+              effectiveStatus={overrides[r.id] ?? r.status}
+              handler={overrides[r.id] ? DEMO_HANDLER_NAME : r.handledBy}
+              onApprove={() => setStatus(r.id, 'approved')}
+              onReject={() => setStatus(r.id, 'rejected')}
+              t={t}
+              tDemo={tDemo}
+            />
           ))}
         </ul>
       )}
@@ -433,14 +495,21 @@ export function DemoEventPayoutReviewList({ requests }: { requests: DemoEventPay
 
 function DemoEventPayoutRow({
   request,
+  effectiveStatus,
+  handler,
+  onApprove,
+  onReject,
   t,
   tDemo,
 }: {
   request: DemoEventPayout
+  effectiveStatus: string
+  handler: string | null | undefined
+  onApprove: () => void
+  onReject: () => void
   t: (key: string, values?: Record<string, string | number>) => string
   tDemo: (key: string, values?: Record<string, string | number>) => string
 }) {
-  const handleAction = useApprovalActionHandler()
   const [showParticipants, setShowParticipants] = useState(false)
   return (
     <li className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
@@ -469,9 +538,9 @@ function DemoEventPayoutRow({
           </p>
         </div>
         <span
-          className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS_DEFAULT[request.status]}`}
+          className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS_DEFAULT[effectiveStatus]}`}
         >
-          {statusText(t, request.status)}
+          {statusText(t, effectiveStatus)}
         </span>
       </div>
 
@@ -484,11 +553,11 @@ function DemoEventPayoutRow({
         {showParticipants ? t('hideParticipants') : t('showParticipants')}
       </button>
 
-      {request.status === 'pending' && (
+      {effectiveStatus === 'pending' && (
         <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
-            onClick={handleAction}
+            onClick={onApprove}
             className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded transition-colors"
           >
             <Check size={13} />
@@ -496,7 +565,7 @@ function DemoEventPayoutRow({
           </button>
           <button
             type="button"
-            onClick={handleAction}
+            onClick={onReject}
             className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded transition-colors"
           >
             <X size={13} /> {t('reject')}
@@ -504,9 +573,9 @@ function DemoEventPayoutRow({
         </div>
       )}
 
-      {request.status !== 'pending' && request.handledBy && (
+      {effectiveStatus !== 'pending' && handler && (
         <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2 space-y-0.5">
-          <p>{t('handledBy', { status: statusText(t, request.status), handler: request.handledBy })}</p>
+          <p>{t('handledBy', { status: statusText(t, effectiveStatus), handler })}</p>
         </div>
       )}
     </li>
@@ -520,7 +589,7 @@ function DemoEventPayoutRow({
 export function DemoCraftOrderReviewList({ tasks }: { tasks: DemoCraftOrder[] }) {
   const t = useTranslations('adminCraftOrderReview')
   const tDemo = useTranslations('demo')
-  const handleAction = useApprovalActionHandler()
+  const { overrides, setStatus } = useDemoStatusOverrides()
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
     const q = normalizeQuery(search)
@@ -536,7 +605,8 @@ export function DemoCraftOrderReviewList({ tasks }: { tasks: DemoCraftOrder[] })
       ) : (
         <ul className="space-y-3">
           {filtered.map((task) => {
-            const status = task.status === 'pending' ? 'delivered' : task.status
+            const overridden = overrides[task.id]
+            const baseStatus = overridden ?? (task.status === 'pending' ? 'delivered' : task.status)
             return (
               <li
                 key={task.id}
@@ -552,14 +622,14 @@ export function DemoCraftOrderReviewList({ tasks }: { tasks: DemoCraftOrder[] })
                   </div>
                   <span
                     className={`text-[11px] px-2 py-0.5 rounded ${
-                      status === 'approved'
+                      baseStatus === 'approved'
                         ? 'bg-emerald-500/20 text-emerald-300'
-                        : status === 'rejected'
+                        : baseStatus === 'rejected'
                           ? 'bg-red-500/20 text-red-300'
                           : 'bg-amber-500/20 text-amber-200'
                     }`}
                   >
-                    {craftStatusText(t, status)}
+                    {craftStatusText(t, baseStatus)}
                   </span>
                 </div>
 
@@ -577,11 +647,11 @@ export function DemoCraftOrderReviewList({ tasks }: { tasks: DemoCraftOrder[] })
                   </p>
                 </div>
 
-                {task.status === 'pending' && (
+                {task.status === 'pending' && !overridden && (
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      onClick={handleAction}
+                      onClick={() => setStatus(task.id, 'approved')}
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
                     >
                       <Check size={12} />
@@ -589,7 +659,7 @@ export function DemoCraftOrderReviewList({ tasks }: { tasks: DemoCraftOrder[] })
                     </button>
                     <button
                       type="button"
-                      onClick={handleAction}
+                      onClick={() => setStatus(task.id, 'rejected')}
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 text-xs font-medium transition-colors"
                     >
                       <X size={12} />
@@ -612,7 +682,7 @@ export function DemoCraftOrderReviewList({ tasks }: { tasks: DemoCraftOrder[] })
 
 function statusText(
   t: (key: string) => string,
-  status: 'pending' | 'approved' | 'rejected',
+  status: string,
 ): string {
   if (status === 'approved') return t('statusApproved')
   if (status === 'rejected') return t('statusRejected')
@@ -621,7 +691,7 @@ function statusText(
 
 function craftStatusText(
   t: (key: string) => string,
-  status: 'delivered' | 'approved' | 'rejected',
+  status: string,
 ): string {
   if (status === 'approved') return t('statusApproved')
   if (status === 'rejected') return t('statusRejected')

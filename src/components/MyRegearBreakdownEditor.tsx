@@ -21,6 +21,7 @@ import type { Locale } from '@/i18n/locales'
 import ItemImage from './ItemImage'
 import MyRegearBuildSnapshotEditor from './MyRegearBuildSnapshotEditor'
 import { useReportDirty } from './UnsavedChangesProvider'
+import { useToast } from './ToastProvider'
 
 interface Props {
   detail: MyRegearDetail
@@ -46,6 +47,7 @@ function lineSubtotal(item: RegearLineItem): number {
 
 export default function MyRegearBreakdownEditor({ detail }: Props) {
   const router = useRouter()
+  const toast = useToast()
   const t = useTranslations('regearBreakdown')
   const tMe = useTranslations('me')
   const tReason = useTranslations('regearRejectReason')
@@ -109,6 +111,7 @@ export default function MyRegearBreakdownEditor({ detail }: Props) {
       setSavingSlot(null)
       if (result.error) {
         setRowError({ slot, message: result.error })
+        toast.error(result.error)
         return
       }
       setItems((prev) =>
@@ -118,6 +121,7 @@ export default function MyRegearBreakdownEditor({ detail }: Props) {
       if (typeof result.claimedSilver === 'number') setClaimedSilver(result.claimedSilver)
       if (typeof result.payoutSilver === 'number') setPayoutSilver(result.payoutSilver)
       setEditing(null)
+      toast.success(t('priceSavedToast'))
       router.refresh()
     })
   }

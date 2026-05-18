@@ -220,7 +220,10 @@ function LeaderboardCard({
             const sub = subText?.(entry)
             return (
               <li key={entry.username}>
-                <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-800/70 transition-colors">
+                <Link
+                  href={`/demo/members/${encodeURIComponent(entry.username)}`}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-800/70 hover:ring-1 hover:ring-amber-500/30 transition-all"
+                >
                   <span
                     className={`w-6 text-center text-xs font-bold tabular-nums flex-shrink-0 ${
                       rank === 1
@@ -244,7 +247,7 @@ function LeaderboardCard({
                   <span className="text-amber-300 text-sm font-mono font-bold tabular-nums flex-shrink-0">
                     {formatValue(entry)}
                   </span>
-                </div>
+                </Link>
               </li>
             )
           })}

@@ -1572,7 +1572,8 @@
     "editableHint": "承認前まで部位別の単価を編集できます。入力値 × 数量 = 該当部位の請求額となり、請求合計はロール上限 {cap}s にクランプされます。支給予定は請求額の {rate}%。",
     "adminNotesTitle": "管理者メモ",
     "invalidNumber": "有効な数値を入力してください。",
-    "editHint": "クリックして編集"
+    "editHint": "クリックして編集",
+    "priceSavedToast": "単価を保存しました"
   },
   "regearBuildSnapshot": {
     "title": "クラフトビルド情報",
@@ -2677,7 +2678,8 @@
       "PLATE": "プレート",
       "LEATHER": "レザー",
       "CLOTH": "クロス"
-    }
+    },
+    "emptyCatalog": "フィルター条件に一致するアイテムがありません"
   },
   "donation": {
     "openButton": "寄付申請",
@@ -4190,7 +4192,8 @@
       "ctaCrafterTitle": "クラフター報酬、トースト1回で完結",
       "ctaCrafterDescription": "ボランティア/有料モード選択、ボックス範囲の自動割当、素材費+プレミアム自動計算。ギルメン依頼を受注してボックスに入れるだけ。",
       "ctaMemberTitle": "発注の受注、ゲーム内チャットなしで即実行",
-      "ctaMemberDescription": "管理者の登録した発注から一部数量だけ受注。納品メモ+承認まで1画面 — Discordチャンネルを荒らさずスッキリ。"
+      "ctaMemberDescription": "管理者の登録した発注から一部数量だけ受注。納品メモ+承認まで1画面 — Discordチャンネルを荒らさずスッキリ。",
+      "craftersEmpty": "登録された製作者がいません"
     },
     "ctaCard": {
       "eyebrow": "この流れを自分のギルドで",

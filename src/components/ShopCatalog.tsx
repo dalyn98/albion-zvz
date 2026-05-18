@@ -261,7 +261,7 @@ export default function ShopCatalog({
           }}
         >
           {filtered.length === 0 ? (
-            <p className="text-amber-100/50 text-sm text-center py-10">
+            <p className="text-amber-100/80 text-base text-center py-12 font-medium">
               {items.length === 0 ? t('emptyStock') : t('emptySearch')}
             </p>
           ) : (
@@ -537,7 +537,7 @@ function CartPanel({
 
       <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 space-y-1.5">
         {cart.length === 0 ? (
-          <p className="text-gray-500 text-xs text-center py-10">
+          <p className="text-gray-300 text-sm text-center py-10">
             {t('cart.empty')}
           </p>
         ) : (
