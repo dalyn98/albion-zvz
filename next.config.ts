@@ -1,7 +1,11 @@
 import type { NextConfig } from 'next'
 import createNextIntlPlugin from 'next-intl/plugin'
 import createMDX from '@next/mdx'
-import { withSentryConfig } from '@sentry/nextjs'
+// TEMP DISABLED (hotfix/sentry-disable): withSentryConfig wrapper 가 미들웨어 번들에
+// @swc/helpers/esm/_interop_require_default 동적 require 를 주입 → Vercel NFT 가
+// 추적 못해 MIDDLEWARE_INVOCATION_FAILED. apex 500 복구 위해 한시 제거.
+// 복구되면 원본 wrapper 로 되돌릴 것 — @sentry/nextjs 다운그레이드 또는 SDK 패치 후.
+// import { withSentryConfig } from '@sentry/nextjs'
 
 // Server Actions compare the incoming `origin` header against the request host
 // to block CSRF. When the site is reached via a Tailscale IP (100.x.x.x) or any
@@ -109,21 +113,13 @@ const nextConfig: NextConfig = {
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts')
 const withMDX = createMDX({})
 
-// Sentry 는 배포 시 source map 업로드 (SENTRY_AUTH_TOKEN 있을 때만), 클라이언트
-// 번들에 SDK 주입 등을 webpack/turbopack 단계에서 처리한다. silent=true 면
-// 로컬 빌드에서 토큰 없을 때 경고가 줄어든다.
-export default withSentryConfig(withNextIntl(withMDX(nextConfig)), {
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-  silent: !process.env.CI,
-  // 토큰 없으면 source map 업로드 자동 skip — DSN 이 비어 있어도 빌드는 통과.
-  authToken: process.env.SENTRY_AUTH_TOKEN,
-  // 클라이언트 번들에 ad-blocker 가 보내는 요청을 막지 않도록 tunnel route 활성.
-  // 실제 효과는 NEXT_PUBLIC_SENTRY_DSN 이 set 됐을 때만 발생.
-  tunnelRoute: '/monitoring',
-  // 빌드 시 Vercel 의 Cron Monitor 자동 연동을 끈다 — 우리는 자체 vercel.json
-  // cron 을 쓰고, Sentry Cron 은 별도 기능 (선택 도입).
-  webpack: {
-    automaticVercelMonitors: false,
-  },
-})
+// TEMP DISABLED (hotfix/sentry-disable): 위 import 주석 참조. 원본 wrapper 는 아래.
+// export default withSentryConfig(withNextIntl(withMDX(nextConfig)), {
+//   org: process.env.SENTRY_ORG,
+//   project: process.env.SENTRY_PROJECT,
+//   silent: !process.env.CI,
+//   authToken: process.env.SENTRY_AUTH_TOKEN,
+//   tunnelRoute: '/monitoring',
+//   webpack: { automaticVercelMonitors: false },
+// })
+export default withNextIntl(withMDX(nextConfig))
