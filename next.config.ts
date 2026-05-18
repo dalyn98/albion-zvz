@@ -16,21 +16,23 @@ const nextConfig: NextConfig = {
   // MDX 페이지 (`/docs/*` 의 page.mdx) 를 라우트로 인식시킨다. .md 는 사용 안
   // 함 — 모든 docs 본문은 .mdx 로 통일.
   pageExtensions: ['ts', 'tsx', 'mdx'],
-  // Next.js 16 + Turbopack + Vercel NFT 의 알려진 결함: 컴파일 산출물이
-  // `@swc/helpers/esm/_interop_require_default` 를 절대경로 require 하는데,
-  // NFT 는 runtime-계산된 절대경로 require 를 추적 못해 /var/task 에서 누락 →
-  // "Cannot find module" 으로 Node.js 함수가 종료, MIDDLEWARE_INVOCATION_FAILED.
+  // Next.js 16 + Turbopack + Vercel NFT 결함:
+  //   컴파일 산출물이 `@swc/helpers/esm/_interop_require_default.js` 직접경로 require.
+  //   설치된 0.5.21 의 `exports` 필드는 modern path (`./_/_interop_require_default`)
+  //   만 노출하고 직접 `./esm/*` 은 `./esm/*` 패스스루만 매핑돼 NFT 가 정적 추적
+  //   실패 → /var/task 누락 → MIDDLEWARE_INVOCATION_FAILED.
   //
-  // 두 갈래로 강제:
-  // 1) outputFileTracingIncludes — 모든 route 깊이를 커버 (이전 `/*` 는 1-depth
-  //    만 매칭됐던 듯 — 효과 없었음).
-  // 2) serverExternalPackages — @swc/helpers 를 bundle 대신 외부 require 로
-  //    유지해 NFT 가 정상 패키지 트레이스 경로로 따라가도록.
+  // 핵심 픽스 (package.json 동행):
+  //   @swc/helpers 를 next 16.2.6 이 선언한 0.5.15 로 강제 다운그레이드.
+  //   0.5.15 는 exports 필드가 단순해 NFT 가 모든 헬퍼 파일을 정상 트레이스.
+  //
+  // 보강: outputFileTracingIncludes 로 @swc/helpers 전체 트리 강제 포함 (belt-and-suspenders).
+  // serverExternalPackages 는 제거 — 외부 require 유지하면 여전히 /var/task 의존,
+  // 디폴트(번들 inline) 로 두면 헬퍼 파일이 함수 번들에 직접 박힌다.
   outputFileTracingIncludes: {
     '/': ['./node_modules/@swc/helpers/**/*'],
     '/(.*)': ['./node_modules/@swc/helpers/**/*'],
   },
-  serverExternalPackages: ['@swc/helpers'],
   experimental: {
     serverActions: {
       allowedOrigins: [
