@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Image as ImageIcon, Shield, Timer, Coins, Building2 } from 'lucide-react'
+import { useDemoToast } from './DemoFeedbackProvider'
 
 type TabKey = 'guild' | 'permissions' | 'events' | 'regear' | 'landing'
 
@@ -28,6 +29,8 @@ const TABS: readonly TabDef[] = [
 export default function DemoSettingsTabs() {
   const t = useTranslations('adminSettings')
   const tDemo = useTranslations('demo.settings')
+  const tFeedback = useTranslations('demo.feedback')
+  const { showToast } = useDemoToast()
   const [active, setActive] = useState<TabKey>('guild')
 
   return (
@@ -151,8 +154,8 @@ export default function DemoSettingsTabs() {
       <div className="flex justify-end pt-2">
         <button
           type="button"
-          disabled
-          className="bg-amber-500 text-black font-bold px-4 py-2 rounded-lg text-sm cursor-not-allowed opacity-60"
+          onClick={() => showToast(tFeedback('actionAcknowledged'))}
+          className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-4 py-2 rounded-lg text-sm transition-colors"
         >
           {t('save')}
         </button>

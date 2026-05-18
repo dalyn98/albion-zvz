@@ -20,6 +20,7 @@ import {
   DemoCraftOrderReviewList,
 } from '../_components/DemoApprovalLists'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
+import DemoCTACard from '../_components/DemoCTACard'
 
 const REGEAR_TOUR_STEPS = [
   { id: 'regear-types' },
@@ -75,7 +76,10 @@ export default async function DemoApprovalsPage({
   const scope = resolveScope(sp.scope)
   const origin = resolveOrigin(sp.origin)
 
-  const tApprovals = await getTranslations('adminApprovals')
+  const [tApprovals, tCta] = await Promise.all([
+    getTranslations('adminApprovals'),
+    getTranslations('demo.ctaCard'),
+  ])
 
   const tabs: TabDef[] = [
     { key: 'regear', label: tApprovals('tabRegear'), icon: ShieldCheck, badge: DEMO_ADMIN_BADGES.regear },
@@ -104,6 +108,13 @@ export default async function DemoApprovalsPage({
       {type === 'shop' && <ShopSection scope={scope} />}
       {type === 'event_payout' && <EventPayoutSection scope={scope} />}
       {type === 'craft' && <CraftSection scope={scope} />}
+
+      <DemoCTACard
+        eyebrow={tCta('eyebrow')}
+        title={tCta('regear.title')}
+        description={tCta('regear.description')}
+        buttonLabel={tCta('buttonLabel')}
+      />
     </div>
   )
 }

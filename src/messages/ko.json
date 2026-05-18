@@ -4104,6 +4104,41 @@
     "backup": {
       "demoNotice": "데모 — 내보내기·가져오기 버튼은 비활성 상태예요. 실제 길드에서는 JSON 파일로 안전하게 옮길 수 있어요."
     },
+    "feedback": {
+      "actionAcknowledged": "데모용 작업이라 저장되지 않아요"
+    },
+    "ctaCard": {
+      "eyebrow": "이 흐름을 우리 길드에서",
+      "buttonLabel": "Discord 봇 초대하기",
+      "home": {
+        "title": "지금 본 화면, 우리 길드에서 그대로 작동합니다",
+        "description": "공개 프로필 · 자동 KPI · 멤버 대시보드 · 어드민 대기열 — 봇 초대 한 번으로 즉시 운영 환경이 됩니다."
+      },
+      "regear": {
+        "title": "리기어 청구를 진짜 자동으로",
+        "description": "킬보드에서 자동 청구가 만들어지고, 부위별 가격 편집 후 한 번에 승인. 환전·기부·상점·정산·제작까지 한 화면에서 처리합니다."
+      },
+      "stats": {
+        "title": "이런 통계가 매 전투마다 자동으로",
+        "description": "포인트 보유 · 누적 수입/지출 · 재정 흐름 · 무기 분포까지 엑셀 없이 실시간 갱신됩니다."
+      },
+      "members": {
+        "title": "Discord + Albion 캐릭터, 자동 동기화",
+        "description": "Members · Roster · Guests · Withdrawn 4단계 분류로 정식 길드원과 게스트를 분리 관리. 출석 · K/D · 리기어 이력도 한 화면."
+      },
+      "events": {
+        "title": "이벤트 편성, 템플릿으로 5분 컷",
+        "description": "반복 정모는 템플릿으로 한 번만 만들어 재사용 · 슬롯 자동 배정 · DM 자동 알림으로 콜러 작업을 줄여요."
+      },
+      "settings": {
+        "title": "운영 정책, 설정 한 번에 고정",
+        "description": "리기어 지급 비율 · 자동화 토글 · 역할별 권한 — 모든 어드민이 같은 규칙으로 운영하도록 설정으로 묶어둡니다."
+      },
+      "backup": {
+        "title": "데이터 백업/복원, 클릭 한 번",
+        "description": "모든 길드 데이터를 JSON 한 파일로 내보내고 복원할 수 있어요. 다른 서버 이전이나 시점 복원도 안전하게."
+      }
+    },
     "membersList": {
       "filterByRole": "직책 필터",
       "filterByWeapon": "무기 필터",

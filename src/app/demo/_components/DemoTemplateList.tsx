@@ -6,6 +6,7 @@ import { Pencil, Copy, Trash2 } from 'lucide-react'
 import SearchBox from '@/components/SearchBox'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
 import type { DemoTemplate } from '@/data/demo-seed'
+import { useDemoToast } from './DemoFeedbackProvider'
 
 // `/admin/dashboard?section=templates` 의 TemplateList 비주얼 클론.
 // - 같은 카드 외관 (이름 / 슬롯 수 + 지역 힌트 / 액션 버튼).
@@ -53,31 +54,34 @@ export default function DemoTemplateList({ templates }: Props) {
 }
 
 function DemoIconRow({ editLabel, duplicateLabel }: { editLabel: string; duplicateLabel: string }) {
+  const tFeedback = useTranslations('demo.feedback')
+  const { showToast } = useDemoToast()
+  const onClick = () => showToast(tFeedback('actionAcknowledged'))
   return (
     <>
       <button
         type="button"
-        disabled
+        onClick={onClick}
         aria-label={editLabel}
-        className="flex items-center gap-1 px-3 py-2 text-amber-300/60 cursor-not-allowed text-xs font-medium"
+        className="flex items-center gap-1 px-3 py-2 text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 rounded text-xs font-medium transition-colors"
       >
         <Pencil size={13} />
         <span className="hidden sm:inline">{editLabel}</span>
       </button>
       <button
         type="button"
-        disabled
+        onClick={onClick}
         aria-label={duplicateLabel}
-        className="p-2 text-gray-400/60 cursor-not-allowed"
+        className="p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors"
       >
         <Copy size={13} />
       </button>
       <div className="pr-2">
         <button
           type="button"
-          disabled
+          onClick={onClick}
           aria-label="delete"
-          className="p-2 text-rose-400/60 cursor-not-allowed"
+          className="p-2 text-rose-300 hover:text-rose-200 hover:bg-rose-500/10 rounded transition-colors"
         >
           <Trash2 size={13} />
         </button>

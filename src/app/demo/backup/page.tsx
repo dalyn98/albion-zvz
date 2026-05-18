@@ -1,5 +1,7 @@
 import { getTranslations } from 'next-intl/server'
 import { Download, Upload, AlertTriangle, Sparkles } from 'lucide-react'
+import DemoActionButton from '../_components/DemoActionButton'
+import DemoCTACard from '../_components/DemoCTACard'
 
 // `/demo/backup` — `/admin/dashboard/backup` 의 정적 비주얼 클론.
 // 실제 GuildBackupPanel 구조를 그대로 재현하되, 모든 액션 (export/import 트랜
@@ -7,9 +9,10 @@ import { Download, Upload, AlertTriangle, Sparkles } from 'lucide-react'
 // 점을 확인할 수 있게 한다. 가짜 preview 도 보여주지 않는다 — 빈 상태가 가장
 // 정직한 미리보기.
 export default async function DemoBackupPage() {
-  const [t, tDemo] = await Promise.all([
+  const [t, tDemo, tCta] = await Promise.all([
     getTranslations('adminBackup'),
     getTranslations('demo.backup'),
+    getTranslations('demo.ctaCard'),
   ])
 
   return (
@@ -29,14 +32,10 @@ export default async function DemoBackupPage() {
           <h2 className="text-lg font-semibold text-white">{t('exportTitle')}</h2>
           <p className="mt-1 text-sm text-gray-400">{t('exportHint')}</p>
         </header>
-        <button
-          type="button"
-          disabled
-          className="inline-flex items-center gap-2 rounded-md bg-amber-500 text-black px-4 py-2 text-sm font-medium cursor-not-allowed opacity-60"
-        >
+        <DemoActionButton className="inline-flex items-center gap-2 rounded-md bg-amber-500 hover:bg-amber-400 text-black px-4 py-2 text-sm font-medium transition-colors">
           <Download size={16} />
           {t('exportButton')}
-        </button>
+        </DemoActionButton>
       </section>
 
       <section className="rounded-lg border border-gray-800 bg-gray-900 p-5 space-y-4">
@@ -45,10 +44,13 @@ export default async function DemoBackupPage() {
           <p className="mt-1 text-sm text-gray-400">{t('importHint')}</p>
         </header>
 
-        <div className="inline-flex items-center gap-2 rounded-md border border-gray-700 bg-gray-950 px-4 py-2 text-sm font-medium text-gray-400 cursor-not-allowed opacity-70">
+        <DemoActionButton
+          asDiv
+          className="inline-flex items-center gap-2 rounded-md border border-gray-700 hover:border-amber-500/50 bg-gray-950 hover:bg-gray-900 px-4 py-2 text-sm font-medium text-gray-200 transition-colors"
+        >
           <Upload size={16} />
           {t('importPickFile')}
-        </div>
+        </DemoActionButton>
 
         <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
           <div className="flex items-start gap-2">
@@ -57,6 +59,13 @@ export default async function DemoBackupPage() {
           </div>
         </div>
       </section>
+
+      <DemoCTACard
+        eyebrow={tCta('eyebrow')}
+        title={tCta('backup.title')}
+        description={tCta('backup.description')}
+        buttonLabel={tCta('buttonLabel')}
+      />
     </div>
   )
 }

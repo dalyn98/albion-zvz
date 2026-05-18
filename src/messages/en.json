@@ -4104,6 +4104,41 @@
     "backup": {
       "demoNotice": "Demo — export and import buttons are disabled. Real guilds can move data safely as JSON."
     },
+    "feedback": {
+      "actionAcknowledged": "Demo action — not saved"
+    },
+    "ctaCard": {
+      "eyebrow": "Run this in your guild",
+      "buttonLabel": "Invite Discord bot",
+      "home": {
+        "title": "Everything you just saw, working in your guild",
+        "description": "Public profile · automatic KPIs · member dashboard · admin queue — one bot invite and you're live."
+      },
+      "regear": {
+        "title": "Regear claims, actually automated",
+        "description": "Killboard creates claims automatically; tune per-slot prices, then approve in one click. Exchange, donation, shop, payout, craft — all in the same screen."
+      },
+      "stats": {
+        "title": "These stats refresh after every battle",
+        "description": "Point balances · lifetime income & spend · finance flow · weapon distribution — live, with no spreadsheet."
+      },
+      "members": {
+        "title": "Discord + Albion characters, auto-synced",
+        "description": "Members · Roster · Guests · Withdrawn — four tabs separate full members from guests. Attendance, K/D, and regear history all in one place."
+      },
+      "events": {
+        "title": "Plan an event in 5 minutes",
+        "description": "Reuse templates for recurring nights · auto-fill slots · DM reminders. Callers and admins both save time."
+      },
+      "settings": {
+        "title": "Lock in your operating rules",
+        "description": "Regear payout rate · automation toggles · role permissions — settings keep every admin on the same playbook."
+      },
+      "backup": {
+        "title": "One-click backup & restore",
+        "description": "Export every bit of guild data into a single JSON file, restore it anywhere — safe for server moves or point-in-time rollbacks."
+      }
+    },
     "membersList": {
       "filterByRole": "Filter by role",
       "filterByWeapon": "Filter by weapon",

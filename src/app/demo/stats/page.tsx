@@ -14,6 +14,7 @@ import {
 } from '@/data/demo-seed'
 import CollapsibleList from '@/components/CollapsibleList'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
+import DemoCTACard from '../_components/DemoCTACard'
 import { MockAvatar, STATS_COLLAPSED_ROWS } from './_components/shared'
 import WithdrawnMembersSection from './_components/WithdrawnMembersSection'
 import EventParticipationSection from './_components/EventParticipationSection'
@@ -28,10 +29,11 @@ const STATS_TOUR_STEPS = [
 ] as const
 
 export default async function DemoStatsPage() {
-  const [tNav, tStats, tCommon, locale] = await Promise.all([
+  const [tNav, tStats, tCommon, tCta, locale] = await Promise.all([
     getTranslations('nav'),
     getTranslations('adminStats'),
     getTranslations('common'),
+    getTranslations('demo.ctaCard'),
     getLocale(),
   ])
 
@@ -157,6 +159,13 @@ export default async function DemoStatsPage() {
         withdrawnHeld={stats.withdrawnHeld}
         withdrawnHolders={stats.withdrawnHolders}
         tStats={tStats}
+      />
+
+      <DemoCTACard
+        eyebrow={tCta('eyebrow')}
+        title={tCta('stats.title')}
+        description={tCta('stats.description')}
+        buttonLabel={tCta('buttonLabel')}
       />
     </div>
   )

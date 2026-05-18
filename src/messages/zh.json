@@ -4102,6 +4102,41 @@
     "backup": {
       "demoNotice": "演示 — 导出和导入按钮已禁用。真实公会可以安全地以 JSON 形式迁移数据。"
     },
+    "feedback": {
+      "actionAcknowledged": "演示操作 — 不会保存"
+    },
+    "ctaCard": {
+      "eyebrow": "在你的公会中运行",
+      "buttonLabel": "邀请 Discord 机器人",
+      "home": {
+        "title": "你刚才看到的一切，在你的公会立刻可用",
+        "description": "公开页面 · 自动 KPI · 成员仪表板 · 管理员待办队列 — 邀请机器人一次就能上线运营。"
+      },
+      "regear": {
+        "title": "重装申请真正实现自动化",
+        "description": "击杀榜自动生成申请，按部位调整价格后一键审批。兑换、捐赠、商店、结算、制作都在同一界面处理。"
+      },
+      "stats": {
+        "title": "每场战斗后这些数据自动刷新",
+        "description": "点数余额 · 累计收入与支出 · 财务流向 · 武器分布，全部实时更新，无需 Excel。"
+      },
+      "members": {
+        "title": "Discord 与 Albion 角色自动同步",
+        "description": "Members · Roster · Guests · Withdrawn 四个标签，区分正式成员与访客。出勤、K/D、重装记录尽在一处。"
+      },
+      "events": {
+        "title": "5 分钟完成一次活动编排",
+        "description": "用模板复用周期性活动 · 自动分配位置 · DM 自动提醒，让指挥与管理员都省时。"
+      },
+      "settings": {
+        "title": "用设置固定运营规则",
+        "description": "重装支付比例 · 自动化开关 · 角色权限，让所有管理员按同一套规则运营。"
+      },
+      "backup": {
+        "title": "一键备份与还原",
+        "description": "将整个公会的数据导出为一个 JSON 文件，并随时还原 — 服务器迁移或时点回滚都安全无忧。"
+      }
+    },
     "membersList": {
       "filterByRole": "按职责筛选",
       "filterByWeapon": "按武器筛选",

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { DEMO_MEMBERS, DEMO_WEEKLY_STATS, DEMO_ADMIN_BADGES } from '@/data/demo-seed'
 import DemoGuidedTour from './_components/DemoGuidedTour'
+import DemoCTACard from './_components/DemoCTACard'
 
 const ALLIANCE_TAG = 'MGM'
 const SLUG = 'menhera'
@@ -53,9 +54,10 @@ const HOME_TOUR_STEPS = [
 ] as const
 
 export default async function DemoHomePage() {
-  const [tHome, tDemo] = await Promise.all([
+  const [tHome, tDemo, tCta] = await Promise.all([
     getTranslations('demo.home'),
     getTranslations('demo'),
+    getTranslations('demo.ctaCard'),
   ])
 
   const totalParticipation = DEMO_MEMBERS.reduce(
@@ -253,6 +255,13 @@ export default async function DemoHomePage() {
             ))}
           </ul>
         </section>
+
+        <DemoCTACard
+          eyebrow={tCta('eyebrow')}
+          title={tCta('home.title')}
+          description={tCta('home.description')}
+          buttonLabel={tCta('buttonLabel')}
+        />
       </main>
     </div>
   )

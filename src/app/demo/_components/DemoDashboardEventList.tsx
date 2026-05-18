@@ -18,6 +18,7 @@ import SearchBox from '@/components/SearchBox'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
 import type { DemoEventListItem } from '@/data/demo-seed'
 import { formatTimeLabel } from '../_lib/format'
+import { useDemoToast } from './DemoFeedbackProvider'
 
 // `/admin/dashboard` 의 DashboardEventList 비주얼 클론.
 // - 같은 active/ended 탭, 같은 SearchBox, 같은 카드 라이아웃.
@@ -188,6 +189,8 @@ function DemoIconButton({
   ariaLabel: string
   variant?: 'gray' | 'amber' | 'rose'
 }) {
+  const tFeedback = useTranslations('demo.feedback')
+  const { showToast } = useDemoToast()
   const styles =
     variant === 'amber'
       ? 'text-amber-400/70 hover:text-amber-300 hover:bg-amber-500/10'
@@ -197,9 +200,9 @@ function DemoIconButton({
   return (
     <button
       type="button"
-      disabled
+      onClick={() => showToast(tFeedback('actionAcknowledged'))}
       aria-label={ariaLabel}
-      className={`p-2 rounded-lg cursor-not-allowed ${styles}`}
+      className={`p-2 rounded-lg transition-colors ${styles}`}
     >
       {icon}
     </button>

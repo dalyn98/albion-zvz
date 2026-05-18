@@ -5,6 +5,8 @@ import MemberInviteCard from '@/components/MemberInviteCard'
 import DemoDashboardEventList from '../_components/DemoDashboardEventList'
 import DemoTemplateList from '../_components/DemoTemplateList'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
+import DemoActionButton from '../_components/DemoActionButton'
+import DemoCTACard from '../_components/DemoCTACard'
 import { DEMO_EVENTS, DEMO_TEMPLATES } from '@/data/demo-seed'
 
 const EVENTS_TOUR_STEPS = [
@@ -34,9 +36,10 @@ export default async function DemoEventsPage({
   const sp = await searchParams
   const section = resolveSection(sp.section)
 
-  const [tDashboard, tTemplates] = await Promise.all([
+  const [tDashboard, tTemplates, tCta] = await Promise.all([
     getTranslations('adminDashboard'),
     getTranslations('adminTemplates'),
+    getTranslations('demo.ctaCard'),
   ])
 
   return (
@@ -49,14 +52,10 @@ export default async function DemoEventsPage({
           {section === 'templates' ? tTemplates('pageTitle') : tDashboard('pageTitle')}
         </h1>
         {section === 'events' && (
-          <Link
-            href="/demo/events"
-            aria-disabled
-            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-4 py-2 rounded-lg transition-colors text-sm cursor-not-allowed opacity-90"
-          >
+          <DemoActionButton className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-4 py-2 rounded-lg transition-colors text-sm">
             <Plus size={16} />
             {tDashboard('newEvent')}
-          </Link>
+          </DemoActionButton>
         )}
       </div>
 
@@ -76,6 +75,13 @@ export default async function DemoEventsPage({
           <TemplatesSection tTemplates={tTemplates} />
         )}
       </div>
+
+      <DemoCTACard
+        eyebrow={tCta('eyebrow')}
+        title={tCta('events.title')}
+        description={tCta('events.description')}
+        buttonLabel={tCta('buttonLabel')}
+      />
     </div>
   )
 }
@@ -105,14 +111,10 @@ function TemplatesSection({
     <div className="space-y-3">
       <div className="flex items-start sm:items-center justify-between gap-3 flex-col sm:flex-row">
         <p className="text-gray-400 text-xs sm:text-sm flex-1">{tTemplates('pageDescription')}</p>
-        <button
-          type="button"
-          disabled
-          className="flex items-center gap-2 bg-amber-500 text-black font-bold px-3 py-2 rounded-lg text-sm cursor-not-allowed opacity-90 whitespace-nowrap"
-        >
+        <DemoActionButton className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-colors">
           <Plus size={14} />
           {tTemplates('createTemplateButton')}
-        </button>
+        </DemoActionButton>
       </div>
       {DEMO_TEMPLATES.length === 0 ? (
         <p className="text-gray-500 text-sm py-8 text-center">{tTemplates('noTemplates')}</p>

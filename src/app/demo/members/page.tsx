@@ -3,6 +3,7 @@ import { DEMO_MEMBERS } from '@/data/demo-seed'
 import { DemoMembersTable } from '../_components/MembersTable'
 import DemoMembersPageTabs from '../_components/DemoMembersPageTabs'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
+import DemoCTACard from '../_components/DemoCTACard'
 
 const MEMBERS_TOUR_STEPS = [
   { id: 'members-header' },
@@ -12,9 +13,10 @@ const MEMBERS_TOUR_STEPS = [
 // 실제 /members 페이지 비주얼 클론 — 4탭 (members/roster/guests/withdrawn).
 // members 탭만 진짜 시드, 나머지 3탭은 기능 범위를 보여주는 정적 placeholder.
 export default async function DemoMembersPage() {
-  const [t, tDemo] = await Promise.all([
+  const [t, tDemo, tCta] = await Promise.all([
     getTranslations('members'),
     getTranslations('demo'),
+    getTranslations('demo.ctaCard'),
   ])
 
   const totalParticipation = DEMO_MEMBERS.reduce(
@@ -63,6 +65,13 @@ export default async function DemoMembersPage() {
       </div>
 
       <p className="text-[11px] text-gray-600 italic px-1">{tDemo('members.demoOnlyDetail')}</p>
+
+      <DemoCTACard
+        eyebrow={tCta('eyebrow')}
+        title={tCta('members.title')}
+        description={tCta('members.description')}
+        buttonLabel={tCta('buttonLabel')}
+      />
     </div>
   )
 }

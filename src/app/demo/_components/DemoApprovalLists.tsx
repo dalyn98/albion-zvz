@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
   Check, X, ShieldCheck, ChevronDown, ChevronUp, Users,
@@ -8,6 +8,7 @@ import {
 import SearchBox from '@/components/SearchBox'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
 import { formatTimeLabel, formatSilver, formatSilverFull } from '../_lib/format'
+import { useDemoToast } from './DemoFeedbackProvider'
 import type {
   DemoRegearListItem,
   DemoExchangeRequest,
@@ -18,8 +19,17 @@ import type {
 } from '@/data/demo-seed'
 
 // `/admin/dashboard/approvals` 의 6 개 ReviewList 컴포넌트 (Regear/Exchange/Donation/
-// Shop/EventPayout/Craft) 를 한 곳에 데모용으로 클론. 모든 액션 버튼은 disabled.
-// 카드 외관 / 상태 pill / 라벨 키는 실제 컴포넌트와 동일.
+// Shop/EventPayout/Craft) 를 한 곳에 데모용으로 클론. 카드 외관 / 상태 pill /
+// 라벨 키는 실제 컴포넌트와 동일. 액션 버튼은 disabled 대신 클릭하면 "데모용
+// 작업이라 저장되지 않아요" toast 를 띄워 진짜 버튼처럼 반응하게 한다.
+
+function useApprovalActionHandler() {
+  const tFeedback = useTranslations('demo.feedback')
+  const { showToast } = useDemoToast()
+  return useCallback(() => {
+    showToast(tFeedback('actionAcknowledged'))
+  }, [tFeedback, showToast])
+}
 
 const STATUS_CLASS_DEFAULT: Record<string, string> = {
   pending: 'bg-yellow-500/20 text-yellow-300',
@@ -42,6 +52,7 @@ export function DemoRegearReviewList({ requests }: { requests: DemoRegearListIte
   const t = useTranslations('adminRegearReview')
   const tCommon = useTranslations('common')
   const tDemo = useTranslations('demo')
+  const handleAction = useApprovalActionHandler()
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
     const q = normalizeQuery(search)
@@ -99,16 +110,16 @@ export function DemoRegearReviewList({ requests }: { requests: DemoRegearListIte
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
-                    disabled
-                    className="flex items-center gap-1 text-xs bg-green-500/20 border border-green-500/40 text-green-300 px-3 py-1.5 rounded cursor-not-allowed opacity-90"
+                    onClick={handleAction}
+                    className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded transition-colors"
                   >
                     <Check size={13} />
                     {t('approveWithPayout', { amount: formatSilver(r.totalSilver) })}
                   </button>
                   <button
                     type="button"
-                    disabled
-                    className="flex items-center gap-1 text-xs bg-red-500/20 border border-red-500/40 text-red-300 px-3 py-1.5 rounded cursor-not-allowed opacity-90"
+                    onClick={handleAction}
+                    className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded transition-colors"
                   >
                     <X size={13} /> {t('reject')}
                   </button>
@@ -136,6 +147,7 @@ export function DemoExchangeReviewList({ requests }: { requests: DemoExchangeReq
   const t = useTranslations('adminExchangeReview')
   const tCommon = useTranslations('common')
   const tDemo = useTranslations('demo')
+  const handleAction = useApprovalActionHandler()
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
     const q = normalizeQuery(search)
@@ -176,16 +188,16 @@ export function DemoExchangeReviewList({ requests }: { requests: DemoExchangeReq
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
-                    disabled
-                    className="flex items-center gap-1 text-xs bg-green-500/20 border border-green-500/40 text-green-300 px-3 py-1.5 rounded cursor-not-allowed opacity-90"
+                    onClick={handleAction}
+                    className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded transition-colors"
                   >
                     <Check size={13} />
                     {t('approveButton')}
                   </button>
                   <button
                     type="button"
-                    disabled
-                    className="flex items-center gap-1 text-xs bg-red-500/20 border border-red-500/40 text-red-300 px-3 py-1.5 rounded cursor-not-allowed opacity-90"
+                    onClick={handleAction}
+                    className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded transition-colors"
                   >
                     <X size={13} /> {t('reject')}
                   </button>
@@ -213,6 +225,7 @@ export function DemoDonationReviewList({ requests }: { requests: DemoDonationReq
   const t = useTranslations('adminDonationReview')
   const tCommon = useTranslations('common')
   const tDemo = useTranslations('demo')
+  const handleAction = useApprovalActionHandler()
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
     const q = normalizeQuery(search)
@@ -261,16 +274,16 @@ export function DemoDonationReviewList({ requests }: { requests: DemoDonationReq
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
-                    disabled
-                    className="flex items-center gap-1 text-xs bg-green-500/20 border border-green-500/40 text-green-300 px-3 py-1.5 rounded cursor-not-allowed opacity-90"
+                    onClick={handleAction}
+                    className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded transition-colors"
                   >
                     <Check size={13} />
                     {t('approveWithPayout', { amount: formatSilver(r.silver) })}
                   </button>
                   <button
                     type="button"
-                    disabled
-                    className="flex items-center gap-1 text-xs bg-red-500/20 border border-red-500/40 text-red-300 px-3 py-1.5 rounded cursor-not-allowed opacity-90"
+                    onClick={handleAction}
+                    className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded transition-colors"
                   >
                     <X size={13} /> {t('reject')}
                   </button>
@@ -296,6 +309,7 @@ export function DemoDonationReviewList({ requests }: { requests: DemoDonationReq
 
 export function DemoShopOrderReviewList({ orders }: { orders: DemoShopOrder[] }) {
   const t = useTranslations('adminShopOrderReview')
+  const handleAction = useApprovalActionHandler()
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
     const q = normalizeQuery(search)
@@ -357,16 +371,16 @@ export function DemoShopOrderReviewList({ orders }: { orders: DemoShopOrder[] })
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
-                    disabled
-                    className="flex items-center gap-1 text-xs bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-3 py-1.5 rounded cursor-not-allowed opacity-90"
+                    onClick={handleAction}
+                    className="flex items-center gap-1 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 px-3 py-1.5 rounded transition-colors"
                   >
                     <Check size={13} />
                     {t('approveButton')}
                   </button>
                   <button
                     type="button"
-                    disabled
-                    className="flex items-center gap-1 text-xs bg-red-500/20 border border-red-500/40 text-red-300 px-3 py-1.5 rounded cursor-not-allowed opacity-90"
+                    onClick={handleAction}
+                    className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded transition-colors"
                   >
                     <X size={13} /> {t('rejectButton')}
                   </button>
@@ -426,6 +440,7 @@ function DemoEventPayoutRow({
   t: (key: string, values?: Record<string, string | number>) => string
   tDemo: (key: string, values?: Record<string, string | number>) => string
 }) {
+  const handleAction = useApprovalActionHandler()
   const [showParticipants, setShowParticipants] = useState(false)
   return (
     <li className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
@@ -473,16 +488,16 @@ function DemoEventPayoutRow({
         <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
-            disabled
-            className="flex items-center gap-1 text-xs bg-green-500/20 border border-green-500/40 text-green-300 px-3 py-1.5 rounded cursor-not-allowed opacity-90"
+            onClick={handleAction}
+            className="flex items-center gap-1 text-xs bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 px-3 py-1.5 rounded transition-colors"
           >
             <Check size={13} />
             {t('approveWithPayout', { amount: formatSilver(request.totalPoints) })}
           </button>
           <button
             type="button"
-            disabled
-            className="flex items-center gap-1 text-xs bg-red-500/20 border border-red-500/40 text-red-300 px-3 py-1.5 rounded cursor-not-allowed opacity-90"
+            onClick={handleAction}
+            className="flex items-center gap-1 text-xs bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 px-3 py-1.5 rounded transition-colors"
           >
             <X size={13} /> {t('reject')}
           </button>
@@ -505,6 +520,7 @@ function DemoEventPayoutRow({
 export function DemoCraftOrderReviewList({ tasks }: { tasks: DemoCraftOrder[] }) {
   const t = useTranslations('adminCraftOrderReview')
   const tDemo = useTranslations('demo')
+  const handleAction = useApprovalActionHandler()
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
     const q = normalizeQuery(search)
@@ -565,16 +581,16 @@ export function DemoCraftOrderReviewList({ tasks }: { tasks: DemoCraftOrder[] })
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      disabled
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-emerald-600 disabled:opacity-90 text-white text-xs font-medium cursor-not-allowed"
+                      onClick={handleAction}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
                     >
                       <Check size={12} />
                       {t('approve')}
                     </button>
                     <button
                       type="button"
-                      disabled
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-red-500/20 border border-red-500/40 text-red-300 text-xs font-medium cursor-not-allowed opacity-90"
+                      onClick={handleAction}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 text-xs font-medium transition-colors"
                     >
                       <X size={12} />
                       {t('reject')}
