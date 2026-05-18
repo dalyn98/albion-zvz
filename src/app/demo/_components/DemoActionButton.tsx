@@ -5,14 +5,15 @@ import { useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
 
 // 데모 라우트 server-rendered 페이지에서 "실제 같은 버튼" 을 만들 때 쓰는 wrapper.
-// disabled 대신 토스트를 띄워, 마우스 오버 시 가능해 보이고 클릭하면 "데모용 작업
-// 이라 저장되지 않아요" 안내가 뜬다.
+// disabled 가 아니면 토스트를 띄워 "데모용 작업이라 저장되지 않아요" 안내.
+// disabled=true 면 진짜 비활성화 — 클릭/포커스/키보드 액션 모두 차단.
 
 interface DemoActionButtonProps {
   className: string
   children: ReactNode
   ariaLabel?: string
   asDiv?: boolean
+  disabled?: boolean
 }
 
 export default function DemoActionButton({
@@ -20,24 +21,30 @@ export default function DemoActionButton({
   children,
   ariaLabel,
   asDiv = false,
+  disabled = false,
 }: DemoActionButtonProps) {
   const tFeedback = useTranslations('demo.feedback')
   const { showToast } = useDemoToast()
-  const onClick = () => showToast(tFeedback('actionAcknowledged'))
+  const onClick = () => {
+    if (disabled) return
+    showToast(tFeedback('actionAcknowledged'))
+  }
 
   if (asDiv) {
     return (
       <div
         role="button"
-        tabIndex={0}
+        tabIndex={disabled ? -1 : 0}
         onClick={onClick}
         onKeyDown={(e) => {
+          if (disabled) return
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
             onClick()
           }
         }}
         aria-label={ariaLabel}
+        aria-disabled={disabled || undefined}
         className={className}
       >
         {children}
@@ -46,7 +53,13 @@ export default function DemoActionButton({
   }
 
   return (
-    <button type="button" onClick={onClick} aria-label={ariaLabel} className={className}>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      className={className}
+    >
       {children}
     </button>
   )

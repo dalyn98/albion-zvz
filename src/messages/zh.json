@@ -3111,6 +3111,7 @@
     "eventNotFound": "未找到活动。",
     "invalidPartyNumber": "小队编号无效。",
     "tooManySlots": "一个小队最多可有 {max} 名成员。",
+    "bulkRegearTooMany": "一次最多只能批量审批 {max} 件请求。",
     "eventMissing": "活动不存在。如果重新执行了 schema,请先创建新活动。",
     "eventMissingForParty": "无法创建小队,因为活动不存在。请返回活动列表并创建新活动。",
     "requestNotFound": "未找到申请。",
@@ -4158,7 +4159,7 @@
       "ctaDescription": "一个银币↔积分汇率滑块 — 成员自助购买，管理员只需处理订单队列。价格不准确警告自动提示。"
     },
     "inventory": {
-      "notice": "演示模式 — +/- 点击仅显示提示，实际库存不会改变。展示管理员如何管理公会库存。",
+      "notice": "演示模式 — +/− 点击、搜索和筛选在当前页面会实际生效。刷新页面后会恢复为初始状态。",
       "ctaTitle": "库存管理一屏完成，告别 Excel",
       "ctaDescription": "9 种追踪基础物品 + 槽位/层级筛选 + 按附魔分类库存。制作交付时自动 −1 — 新手运营 5 分钟即可上手。"
     },
@@ -4193,7 +4194,9 @@
       "ctaCrafterDescription": "选择志愿/付费模式,自动分配仓库范围,材料费 + 溢价自动计算。接受公会成员请求并放入仓库即可。",
       "ctaMemberTitle": "接单无需在游戏内打字",
       "ctaMemberDescription": "从已登记发单中选择部分数量接单。交付备注 + 审批一屏完成 — 不会刷屏 Discord 频道。",
-      "craftersEmpty": "没有已登记的制作者"
+      "craftersEmpty": "没有已登记的制作者",
+      "tasksDisabledNotice": "制作系统已关闭，因此队列不会显示。",
+      "tasksRangeEmpty": "在所选仓库范围内没有相符的任务。"
     },
     "ctaCard": {
       "eyebrow": "在你的公会中运行",

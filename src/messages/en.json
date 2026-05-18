@@ -3111,6 +3111,7 @@
     "eventNotFound": "Event not found.",
     "invalidPartyNumber": "Party number is invalid.",
     "tooManySlots": "A party can have at most {max} members.",
+    "bulkRegearTooMany": "Bulk approve is limited to {max} requests at a time.",
     "eventMissing": "Event does not exist. If you re-ran the schema, create a new event first.",
     "eventMissingForParty": "Cannot create a party because the event does not exist. Return to the event list and create a new event.",
     "requestNotFound": "Request not found.",
@@ -4158,7 +4159,7 @@
       "ctaDescription": "One silver↔points rate slider — members buy themselves, admins just clear the queue. Inaccurate-price warnings included."
     },
     "inventory": {
-      "notice": "Demo mode — +/- clicks only show a toast; nothing actually changes. This is how admins manage the guild stockpile.",
+      "notice": "Demo mode — +/− clicks, search, and filters actually work in this view. Everything resets when you reload the page.",
       "ctaTitle": "Stockpile management in one screen, no spreadsheets",
       "ctaDescription": "9 tracked bases + slot/tier filters + per-enchant counts. Auto −1 on craft delivery — even a first-time officer is fluent in 5 minutes."
     },
@@ -4193,7 +4194,9 @@
       "ctaCrafterDescription": "Pick volunteer/paid mode, get a box range auto-assigned, materials + premium computed automatically. Just claim the request and drop it in the box.",
       "ctaMemberTitle": "Claim orders without spamming chat",
       "ctaMemberDescription": "Pick a partial quantity from posted orders, deliver with a memo, and admin approves — all on one screen, no Discord channel clutter.",
-      "craftersEmpty": "No crafters registered"
+      "craftersEmpty": "No crafters registered",
+      "tasksDisabledNotice": "Crafting is turned off, so the queue is hidden.",
+      "tasksRangeEmpty": "No tasks fall within the selected box range."
     },
     "ctaCard": {
       "eyebrow": "Run this in your guild",

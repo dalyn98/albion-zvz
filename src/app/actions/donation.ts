@@ -111,13 +111,17 @@ export async function cancelMyDonationRequest(id: string): Promise<{ error?: str
   if (row.discord_id !== session.discordId) return { error: tErr('onlyOwnCancel') }
   if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotCancel') }
 
-  const { error: deleteError } = await db
+  const { data: deletedRows, error: deleteError } = await db
     .from('donation_requests')
     .delete()
     .eq('guild_id', guildId)
     .eq('id', id)
     .eq('status', 'pending')
+    .select('id')
   if (deleteError) return { error: deleteError.message }
+  if (!deletedRows || deletedRows.length === 0) {
+    return { error: tErr('alreadyProcessedCannotCancel') }
+  }
 
   if (row.screenshot_path) {
     await db.storage.from(SCREENSHOT_BUCKET).remove([row.screenshot_path])

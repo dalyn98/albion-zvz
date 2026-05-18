@@ -374,6 +374,8 @@ export async function recheckKillboardVerification(
 // 행만 롤백). 네트워크 round-trip 비용 (N개) 은 그룹당 보통 2-5건이라 체감
 // 안 된다. 항상 silver 모드로 승인 — crafted 모드 행도 RPC 가 silver 로 flip.
 // 부분 실패 (race 등) 는 errors[] 로 돌려서 UI 가 토스트에 알림.
+const BULK_REGEAR_LIMIT = 50
+
 export async function bulkApproveRegear(
   ids: string[],
 ): Promise<BulkRegearActionResult> {
@@ -385,6 +387,12 @@ export async function bulkApproveRegear(
     errors: [],
   }
   if (ids.length === 0) return result
+  if (ids.length > BULK_REGEAR_LIMIT) {
+    return {
+      ...result,
+      fatalError: tErr('bulkRegearTooMany', { max: BULK_REGEAR_LIMIT }),
+    }
+  }
   try {
     const session = await getSession()
     if (!session) return { ...result, fatalError: tErr('unauthorized') }

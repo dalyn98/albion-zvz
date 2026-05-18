@@ -1,5 +1,6 @@
 'use server'
 
+import { unstable_cache } from 'next/cache'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
@@ -82,16 +83,37 @@ type KillboardRow = {
   battle_id: number | null
 }
 
+type LeaderboardCardData = Omit<LeaderboardData, 'window' | 'fetchedAt'>
+
+// killboard sync 가 분 단위로 도므로 60s revalidate 면 두 가지 다 잡힌다:
+// (a) 같은 guild 같은 윈도우의 페이지를 연 사용자들끼리 compute 공유,
+// (b) sync 가 새 row 를 써도 1분 안에는 반영됨.
+const computeLeaderboardCardsCached = unstable_cache(
+  computeLeaderboardCards,
+  ['leaderboard-cards'],
+  { revalidate: 60 },
+)
+
 export async function getLeaderboard(
   window: LeaderboardWindow = 'week',
 ): Promise<LeaderboardData | null> {
   const session = await getSession()
   if (!session) return null
   const guildId = await getSessionGuildId(session)
-  const db = getAdminClient()
-  const cutoff = cutoffFor(window)
   const bundleSplits =
     (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
+
+  const cards = await computeLeaderboardCardsCached(guildId, window, bundleSplits)
+  return { window, ...cards, fetchedAt: new Date().toISOString() }
+}
+
+async function computeLeaderboardCards(
+  guildId: string,
+  window: LeaderboardWindow,
+  bundleSplits: boolean,
+): Promise<LeaderboardCardData> {
+  const db = getAdminClient()
+  const cutoff = cutoffFor(window)
 
   // 모집단: Discord 로그인 한 활성 길드원만 (guild_avatars where withdrawn_at IS NULL).
   // 정책: 업적/통계/리더보드는 "앱 내 가입한 길드원" 만 표시 — Albion API 로
@@ -288,5 +310,5 @@ export async function getLeaderboard(
       evaluatedEvents: a.evaluatedOutcomeEvents,
     }))
 
-  return { window, kills, participation, survival, kd, winRate, fetchedAt: new Date().toISOString() }
+  return { kills, participation, survival, kd, winRate }
 }
