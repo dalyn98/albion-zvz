@@ -4105,6 +4105,29 @@
     "feedback": {
       "actionAcknowledged": "演示操作 — 不会保存"
     },
+    "featurePreview": {
+      "eyebrow": "在完整应用中可用",
+      "backToDemo": "返回演示首页",
+      "inviteBot": "邀请 Discord 机器人",
+      "bulletRealData": "基于真实公会数据运行 — 无需手动输入,自动更新",
+      "bulletAutoSync": "与 Discord + Albion 击杀榜自动同步",
+      "bulletInstantInvite": "一次 Discord 机器人邀请,立即可用",
+      "descriptions": {
+        "battles": "所有追踪的 ZvZ 战斗汇总于一处 — 胜负、联盟分类、指挥 MVP、本公会 K/D 全部自动统计。",
+        "craftAdmin": "在单一界面管理制作队列 — 成员订单、材料匹配、制作者分配、成品交付全程追踪。",
+        "craftQueue": "实时查看制作队列,优先级、材料库存、预计完成时间一目了然。",
+        "craftMyTasks": "我的制作任务清单 — 状态更新、成品交付、报酬申请,全部在一个页面。",
+        "craftOrders": "追踪你的制作订单 — 材料匹配 → 制作中 → 完成,各阶段实时通知。",
+        "leaderboard": "按击杀、死亡、K/D、出席、参战 5 个维度对公会成员排名。支持周/月/赛季切换。",
+        "me": "你的积分余额、最近收支记录、获得的奖杯、即将到来的活动 — 成员主页。",
+        "meProfile": "你的角色信息、Albion 认证状态、加入职务、奖杯 — 其他成员看到的个人卡片。",
+        "meSettings": "DM 通知时机、语言、显示名等个人设置。",
+        "inventory": "追踪公会仓库库存。自动标记谁借走了什么、哪些材料即将耗尽。",
+        "guildProfile": "公开公会资料 — 招募文案、活跃时段、联盟、图标。机器人邀请后立刻对外公开。",
+        "guide": "各功能的运营指南、常见问题、迁移说明 — 管理员邀请机器人后看到的手册。",
+        "shop": "AODP 价格自动追踪 + 成员自助购买 + 管理员订单队列。白银↔积分汇率一键滑动调节。"
+      }
+    },
     "ctaCard": {
       "eyebrow": "在你的公会中运行",
       "buttonLabel": "邀请 Discord 机器人",

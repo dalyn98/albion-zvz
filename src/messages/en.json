@@ -4107,6 +4107,29 @@
     "feedback": {
       "actionAcknowledged": "Demo action — not saved"
     },
+    "featurePreview": {
+      "eyebrow": "Available in the full app",
+      "backToDemo": "Back to demo home",
+      "inviteBot": "Invite Discord bot",
+      "bulletRealData": "Runs on your real guild data — no manual input required",
+      "bulletAutoSync": "Auto-syncs with Discord + Albion killboard",
+      "bulletInstantInvite": "One Discord bot invite, ready to go",
+      "descriptions": {
+        "battles": "Every tracked ZvZ battle in one place — win/loss, alliance breakdown, caller MVPs, your guild's K/D, all auto-calculated.",
+        "craftAdmin": "Manage the craft queue in a single screen — member orders, material matching, crafter assignment, delivery tracking.",
+        "craftQueue": "See the craft queue live: priority, available materials, estimated completion.",
+        "craftMyTasks": "Your assigned crafts — change status, deliver result, claim payment, all on one page.",
+        "craftOrders": "Track your craft orders through material matching → in-progress → completed with step-by-step notifications.",
+        "leaderboard": "Rank guild members across kills, deaths, K/D, attendance and battles. Weekly / monthly / season toggle.",
+        "me": "Your point balance, recent earnings and spending, trophies, upcoming events — the member home screen.",
+        "meProfile": "Your character info, Albion verification status, role, trophies — the card other members see.",
+        "meSettings": "Personal settings — DM notification timing, language, display name.",
+        "inventory": "Track guild storage inventory. Auto-flag who borrowed what and which materials are running low.",
+        "guildProfile": "Public guild profile — recruitment blurb, active hours, alliance, icon. Visible publicly the moment the bot is invited.",
+        "guide": "Per-feature operations guide, FAQ, migration notes — the manual admins see right after inviting the bot.",
+        "shop": "Automatic AODP price tracking + member self-checkout + admin order queue. Silver↔points rate on a single slider."
+      }
+    },
     "ctaCard": {
       "eyebrow": "Run this in your guild",
       "buttonLabel": "Invite Discord bot",
