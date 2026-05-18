@@ -4107,29 +4107,6 @@
     "feedback": {
       "actionAcknowledged": "Demo action — not saved"
     },
-    "featurePreview": {
-      "eyebrow": "Available in the full app",
-      "backToDemo": "Back to demo home",
-      "inviteBot": "Invite Discord bot",
-      "bulletRealData": "Runs on your real guild data — no manual input required",
-      "bulletAutoSync": "Auto-syncs with Discord + Albion killboard",
-      "bulletInstantInvite": "One Discord bot invite, ready to go",
-      "descriptions": {
-        "battles": "Every tracked ZvZ battle in one place — win/loss, alliance breakdown, caller MVPs, your guild's K/D, all auto-calculated.",
-        "craftAdmin": "Manage the craft queue in a single screen — member orders, material matching, crafter assignment, delivery tracking.",
-        "craftQueue": "See the craft queue live: priority, available materials, estimated completion.",
-        "craftMyTasks": "Your assigned crafts — change status, deliver result, claim payment, all on one page.",
-        "craftOrders": "Track your craft orders through material matching → in-progress → completed with step-by-step notifications.",
-        "leaderboard": "Rank guild members across kills, deaths, K/D, attendance and battles. Weekly / monthly / season toggle.",
-        "me": "Your point balance, recent earnings and spending, trophies, upcoming events — the member home screen.",
-        "meProfile": "Your character info, Albion verification status, role, trophies — the card other members see.",
-        "meSettings": "Personal settings — DM notification timing, language, display name.",
-        "inventory": "Track guild storage inventory. Auto-flag who borrowed what and which materials are running low.",
-        "guildProfile": "Public guild profile — recruitment blurb, active hours, alliance, icon. Visible publicly the moment the bot is invited.",
-        "guide": "Per-feature operations guide, FAQ, migration notes — the manual admins see right after inviting the bot.",
-        "shop": "Automatic AODP price tracking + member self-checkout + admin order queue. Silver↔points rate on a single slider."
-      }
-    },
     "me": {
       "viewingAsEyebrow": "Previewing as Eternia",
       "verifiedNote": "Demo characters are always shown as Albion-verified.",
@@ -4170,6 +4147,16 @@
       "previewCardDescription": "From the moment the bot is invited, this URL exposes your guild page. Drop it straight into a recruitment post.",
       "ctaTitle": "Skip building a recruitment page — it's already done",
       "ctaDescription": "Pick an accent color, write a blurb, set recruitment status — the public page appears instantly. Banner, gallery, stat cards: all one click."
+    },
+    "battles": {
+      "notice": "Demo mode — the battles shown are fabricated sample data. Once the bot is invited, the Albion API pulls your guild's real ZvZ fights every hour and fills this page automatically.",
+      "ctaTitle": "Auto-tracked battles — no manual logging",
+      "ctaDescription": "Hourly pull from the Albion API → sub-10 ganks filtered out → split per opposing alliance → kill-fame–based win/loss — every ZvZ your guild fights, on one screen."
+    },
+    "guide": {
+      "notice": "Demo mode — this guide is identical to the actual admin guide at /admin/dashboard/guide. After inviting the bot, the \"Guide\" link in the admin sidebar footer brings you right back here.",
+      "ctaTitle": "Operator guide — so members stop asking \"where are the docs?\"",
+      "ctaDescription": "A 7-step path for any first-time admin: auto-regear, notification channels, timezone, troubleshooting — all on one page that lives inside your site, always one click away."
     },
     "craft": {
       "adminNotice": "Demo mode — toggles and inputs only fire toasts; nothing is saved. This walks you through how admins operate the crafting system.",

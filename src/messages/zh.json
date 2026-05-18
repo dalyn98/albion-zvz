@@ -4105,29 +4105,6 @@
     "feedback": {
       "actionAcknowledged": "演示操作 — 不会保存"
     },
-    "featurePreview": {
-      "eyebrow": "在完整应用中可用",
-      "backToDemo": "返回演示首页",
-      "inviteBot": "邀请 Discord 机器人",
-      "bulletRealData": "基于真实公会数据运行 — 无需手动输入,自动更新",
-      "bulletAutoSync": "与 Discord + Albion 击杀榜自动同步",
-      "bulletInstantInvite": "一次 Discord 机器人邀请,立即可用",
-      "descriptions": {
-        "battles": "所有追踪的 ZvZ 战斗汇总于一处 — 胜负、联盟分类、指挥 MVP、本公会 K/D 全部自动统计。",
-        "craftAdmin": "在单一界面管理制作队列 — 成员订单、材料匹配、制作者分配、成品交付全程追踪。",
-        "craftQueue": "实时查看制作队列,优先级、材料库存、预计完成时间一目了然。",
-        "craftMyTasks": "我的制作任务清单 — 状态更新、成品交付、报酬申请,全部在一个页面。",
-        "craftOrders": "追踪你的制作订单 — 材料匹配 → 制作中 → 完成,各阶段实时通知。",
-        "leaderboard": "按击杀、死亡、K/D、出席、参战 5 个维度对公会成员排名。支持周/月/赛季切换。",
-        "me": "你的积分余额、最近收支记录、获得的奖杯、即将到来的活动 — 成员主页。",
-        "meProfile": "你的角色信息、Albion 认证状态、加入职务、奖杯 — 其他成员看到的个人卡片。",
-        "meSettings": "DM 通知时机、语言、显示名等个人设置。",
-        "inventory": "追踪公会仓库库存。自动标记谁借走了什么、哪些材料即将耗尽。",
-        "guildProfile": "公开公会资料 — 招募文案、活跃时段、联盟、图标。机器人邀请后立刻对外公开。",
-        "guide": "各功能的运营指南、常见问题、迁移说明 — 管理员邀请机器人后看到的手册。",
-        "shop": "AODP 价格自动追踪 + 成员自助购买 + 管理员订单队列。白银↔积分汇率一键滑动调节。"
-      }
-    },
     "me": {
       "viewingAsEyebrow": "正在以 Eternia 身份预览",
       "verifiedNote": "演示角色始终显示为已通过阿尔比恩验证。",
@@ -4168,6 +4145,16 @@
       "previewCardDescription": "机器人邀请后即刻通过此 URL 对外公开公会页面。可直接粘贴到招募贴。",
       "ctaTitle": "招募页面无需另行制作",
       "ctaDescription": "选好主题色、写一段介绍、设置招募状态 — 公开页面即时生成。横幅、图库、统计卡片一键切换。"
+    },
+    "battles": {
+      "notice": "演示模式 — 此处展示的战斗均为演示用虚拟数据。实际邀请机器人后,系统每小时会从 Albion API 自动抓取本公会的真实 ZvZ 战斗。",
+      "ctaTitle": "战斗自动追踪,一行都不用记",
+      "ctaDescription": "Albion API 每小时自动抓取 → 排除 10 人以下抢人 → 按联盟拆分 → 按 killfame 合计判定胜负 — 公会所有 ZvZ 一屏即览。"
+    },
+    "guide": {
+      "notice": "演示模式 — 此向导与实际管理员向导(/admin/dashboard/guide)100% 完全一致。邀请机器人后,可随时通过管理员侧栏左下的「向导」链接再次查看。",
+      "ctaTitle": "运营向导,免得公会成员追问「说明书在哪」",
+      "ctaDescription": "为首次邀请机器人的管理员准备 7 步上手指南 — 自动 regear、通知频道、时区、问题排查全部汇集于一页。常驻于站内,随时一键打开。"
     },
     "craft": {
       "adminNotice": "演示模式 — 开关/输入只会弹出提示,实际设置不会更改。为你展示管理员如何运营制作系统。",
