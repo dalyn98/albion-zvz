@@ -12,6 +12,7 @@ import {
   computeRegearAnomalies,
   type RegearAnomalyFlag,
 } from '@/lib/regear-anomaly'
+import { isRegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import type { BuildSnapshot, RegearType } from '@/types'
 import {
   SCREENSHOT_BUCKET,
@@ -34,7 +35,7 @@ export async function listRegearRequests(
     let query = db
       .from('regear_requests')
       .select(
-        'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
+        'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
       )
       .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
@@ -143,6 +144,9 @@ export async function listRegearRequests(
         killboard_event_id: row.killboard_event_id,
         status: row.status as AdminRegearRequest['status'],
         admin_notes: row.admin_notes,
+        reject_reason_code: isRegearRejectReasonCode(row.reject_reason_code)
+          ? row.reject_reason_code
+          : null,
         created_at: row.created_at,
         resolved_at: row.resolved_at,
         handled_by: row.handled_by ?? null,

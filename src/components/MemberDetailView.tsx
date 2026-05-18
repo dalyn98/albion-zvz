@@ -71,6 +71,7 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
   const t = await getTranslations('memberDetail')
   const tStatus = await getTranslations('status')
   const tRole = await getTranslations('slotRole')
+  const tReason = await getTranslations('regearRejectReason')
   const rawLocale = await getLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
   const statusLabels: StatusLabels = {
@@ -427,6 +428,12 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
                       </span>
                     )}
                   </p>
+                  {r.reject_reason_code && (
+                    <p className="text-[11px] text-red-300">
+                      <span className="font-semibold">{t('rejectReasonLabel')}:</span>{' '}
+                      {tReason(r.reject_reason_code)}
+                    </p>
+                  )}
                   {r.admin_notes && (
                     <p className="text-gray-400 text-[11px] italic truncate">{r.admin_notes}</p>
                   )}

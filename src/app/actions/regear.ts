@@ -24,6 +24,10 @@ import {
   type RegearLineItem,
 } from '@/lib/regear-helpers'
 import { type BuildSnapshot, type RegearType, type SlotGearDisplay } from '@/types'
+import {
+  isRegearRejectReasonCode,
+  type RegearRejectReasonCode,
+} from '@/lib/regear-reject-reasons'
 
 // User-facing regear actions. Admin-side lives in `regear-admin.ts`,
 // member-side inline edit actions in `regear-edit.ts`.
@@ -95,6 +99,9 @@ export interface MyRegearRequest {
   status: 'pending' | 'approved' | 'rejected'
   killboard_verified: boolean
   admin_notes: string | null
+  // 마이그 151. 거절 시 enum 코드. status='rejected' row 만 채워지고 그 외엔 null.
+  // UI 가 `regearRejectReason.{code}` 로 i18n 라벨화해 멤버에게 노출.
+  reject_reason_code: RegearRejectReasonCode | null
   created_at: string
   resolved_at: string | null
   handled_by_username: string | null
@@ -426,7 +433,7 @@ export async function listMyRegearRequests(): Promise<{
   const { data, error } = await db
     .from('regear_requests')
     .select(
-      'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, status, killboard_verified, admin_notes, created_at, resolved_at, handled_by_username, build_snapshot, auto_generated, events(title)',
+      'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, status, killboard_verified, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, build_snapshot, auto_generated, events(title)',
     )
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
@@ -449,6 +456,9 @@ export async function listMyRegearRequests(): Promise<{
       status: row.status as MyRegearRequest['status'],
       killboard_verified: row.killboard_verified,
       admin_notes: row.admin_notes,
+      reject_reason_code: isRegearRejectReasonCode(row.reject_reason_code)
+        ? row.reject_reason_code
+        : null,
       created_at: row.created_at,
       resolved_at: row.resolved_at,
       handled_by_username: row.handled_by_username ?? null,
@@ -650,6 +660,8 @@ export interface MyRegearDetail {
   warningLevel: 'quality' | 'window' | 'bluezone' | 'redzone' | null
   createdAt: string
   adminNotes: string | null
+  // 마이그 151. 거절 시 enum 코드. status='rejected' 만 채워진다.
+  rejectReasonCode: RegearRejectReasonCode | null
   // 수동 신청에 첨부된 스크린샷 경로 (auto-regear 면 null). UI 가 미리보기 / 교체에 사용.
   screenshotPath: string | null
   screenshotPath2: string | null
@@ -673,7 +685,7 @@ export async function getMyRegearDetail(
   const { data, error } = await db
     .from('regear_requests')
     .select(
-      'id, event_id, event_title_snapshot, role_name, silver, claimed_silver, payout_silver, status, auto_generated, gear_breakdown, price_warning_level, created_at, admin_notes, screenshot_path, screenshot_path_2, fulfillment_mode, build_snapshot, events(title)',
+      'id, event_id, event_title_snapshot, role_name, silver, claimed_silver, payout_silver, status, auto_generated, gear_breakdown, price_warning_level, created_at, admin_notes, reject_reason_code, screenshot_path, screenshot_path_2, fulfillment_mode, build_snapshot, events(title)',
     )
     .eq('guild_id', guildId)
     .eq('id', id)
@@ -725,6 +737,9 @@ export async function getMyRegearDetail(
     warningLevel,
     createdAt: data.created_at as string,
     adminNotes: (data.admin_notes as string | null) ?? null,
+    rejectReasonCode: isRegearRejectReasonCode(data.reject_reason_code)
+      ? data.reject_reason_code
+      : null,
     screenshotPath: (data.screenshot_path as string | null) ?? null,
     screenshotPath2: (data.screenshot_path_2 as string | null) ?? null,
     fulfillmentMode,

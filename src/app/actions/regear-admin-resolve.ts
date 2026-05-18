@@ -15,6 +15,7 @@ import { calcPayoutSilver } from '@/lib/regear-payout'
 import { verifyDeathInWindow } from '@/lib/killboard'
 import { estimateSilverFromEquipment } from '@/lib/regear-estimate'
 import { checkBuildSnapshotStock } from '@/lib/inventory'
+import { isRegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import type { BuildSnapshot } from '@/types'
 import {
   loadPayoutRatePercent,
@@ -407,10 +408,15 @@ export async function bulkApproveRegear(
 
 export async function rejectRegearRequest(
   id: string,
+  reasonCode: string,
   notes: string,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   const tDm = await getTranslations('discordDm')
+  const tReason = await getTranslations('regearRejectReason')
+  if (!isRegearRejectReasonCode(reasonCode)) {
+    return { error: tErr('invalidRejectReason') }
+  }
   try {
     const db = await requireAdmin()
     const session = await getSession()
@@ -419,6 +425,7 @@ export async function rejectRegearRequest(
     const { error } = await db.rpc('reject_regear_request', {
       p_id: id,
       p_notes: notes.trim() || null,
+      p_reason_code: reasonCode,
       p_admin_id: session.discordId,
       p_admin_username: session.username,
       p_guild_id: guildId,
@@ -426,6 +433,9 @@ export async function rejectRegearRequest(
     if (error) {
       if (error.message.includes('REGEAR_NOT_PENDING')) {
         return { error: tErr('alreadyHandled') }
+      }
+      if (error.message.includes('INVALID_REJECT_REASON_CODE')) {
+        return { error: tErr('invalidRejectReason') }
       }
       return { error: error.message }
     }
@@ -438,9 +448,23 @@ export async function rejectRegearRequest(
       .eq('id', id)
       .maybeSingle()
     if (row?.discord_id) {
+      // DM 본문에 사유 라벨까지 넣어 멤버가 사이트를 안 열어도 어떤 사유로
+      // 거절됐는지 한 줄로 안다. 자유메모(notes) 가 있으면 괄호로 부연.
+      const reasonLabel = tReason(reasonCode)
+      const notesTrimmed = notes.trim()
+      const bodyText = notesTrimmed
+        ? tDm('regearRejectedBodyWithReason', {
+            event: row.event_title_snapshot ?? '',
+            reason: reasonLabel,
+            notes: notesTrimmed,
+          })
+        : tDm('regearRejectedBodyReasonOnly', {
+            event: row.event_title_snapshot ?? '',
+            reason: reasonLabel,
+          })
       void sendDiscordDmToUser(row.discord_id, guildId, {
         title: tDm('regearRejectedTitle'),
-        body: tDm('regearRejectedBody', { event: row.event_title_snapshot ?? '' }),
+        body: bodyText,
         url: '/me',
       })
     }

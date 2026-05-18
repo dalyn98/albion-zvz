@@ -26,6 +26,7 @@ import type {
   MemberKillEvent as KillboardMemberKillEvent,
 } from '@/lib/member-killboard-aggregation'
 import type { RegearType } from '@/types'
+import type { RegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
 // 포인트 조정 같은 mutation은 별도로 requireAdmin()을 거치게 둔다.
@@ -96,6 +97,8 @@ export interface MemberRegearEntry {
   payout_silver: number | null
   status: 'pending' | 'approved' | 'rejected'
   admin_notes: string | null
+  // 마이그 151. status='rejected' 인 row 만 값이 채워진다. UI 에서 enum 라벨로 표기.
+  reject_reason_code: RegearRejectReasonCode | null
   created_at: string
   resolved_at: string | null
   handled_by_username: string | null

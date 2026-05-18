@@ -355,7 +355,10 @@
     "approveWithPayoutRate": "승인 ({amount} 지급, {rate}%)",
     "paidOut": "지급 {amount}",
     "reject": "거절",
-    "rejectPlaceholder": "거절 사유 (선택)",
+    "rejectReasonLabel": "거절 사유",
+    "rejectReasonPlaceholder": "거절 사유를 선택하세요",
+    "rejectReasonRequired": "거절 사유를 먼저 선택해 주세요.",
+    "rejectNotesPlaceholder": "추가 메모 (선택) — 멤버에게 함께 전달됩니다.",
     "rejectConfirm": "거절 확정",
     "resolvedAt": "{status} 일시: {datetime}",
     "handledBy": "{status} 담당: {handler}",
@@ -1499,6 +1502,16 @@
     "commitStatStockChanges": "재고 변동",
     "commitStatPriceUpdate": "시세 갱신",
     "commitAodpSummary": "시세 갱신: 요청 {requested} · 갱신 {updated} · 시세 없음 {missing}"
+  },
+  "regearRejectReason": {
+    "killboard_mismatch": "킬보드 기록과 일치하지 않음",
+    "out_of_window": "신청 가능 기간 초과",
+    "screenshot_invalid": "스크린샷 부적합 (조작·식별 불가)",
+    "price_inflated": "청구 금액이 시세 대비 과대",
+    "duplicate_request": "중복 신청",
+    "not_eligible_event": "보상 대상 이벤트가 아님",
+    "insufficient_evidence": "증빙 부족 (재신청 권장)",
+    "other": "기타 (메모 참고)"
   },
   "regearBreakdown": {
     "previewTitle": "부위별 시세 내역",
@@ -2773,6 +2786,7 @@
     "noRegears": "신청 내역이 없습니다.",
     "regearEditBreakdown": "부위별 시세 수정",
     "regearEditClaim": "청구액 수정",
+    "rejectReasonLabel": "거절 사유",
     "claimed": "청구",
     "ceiling": "상한",
     "killboardUnverified": "킬보드 미확인",
@@ -2958,6 +2972,7 @@
     "noEvents": "참여 이벤트가 없습니다.",
     "regearHistory": "리기어 내역 ({count})",
     "noRegears": "리기어 신청 이력이 없습니다.",
+    "rejectReasonLabel": "거절 사유",
     "exchangeHistory": "환전 내역 ({count})",
     "noExchanges": "환전/수동 조정 이력이 없습니다.",
     "manualAdjust": "수동 조정",
@@ -3100,6 +3115,7 @@
     "partyNameTooLong": "파티 이름은 {max}자를 넘을 수 없습니다.",
     "requestNotFound": "신청을 찾을 수 없습니다.",
     "requestNotPending": "대기중인 신청만 처리할 수 있습니다.",
+    "invalidRejectReason": "유효한 거절 사유를 선택해 주세요.",
     "memberNotFound": "길드원을 찾을 수 없습니다.",
     "invalidAmount": "금액을 올바르게 입력해주세요.",
     "insufficientPoints": "포인트가 부족합니다.",
@@ -3334,6 +3350,8 @@
     "regearStockedBody": "{event} 리기어가 길드 재고에서 출고되었어요. 관리자에게 장비 수령 방법을 확인하세요.",
     "regearRejectedTitle": "리기어 거절",
     "regearRejectedBody": "{event} 리기어 신청이 거절됐어요.",
+    "regearRejectedBodyWithReason": "{event} 리기어 신청이 거절됐어요. 사유: {reason} ({notes})",
+    "regearRejectedBodyReasonOnly": "{event} 리기어 신청이 거절됐어요. 사유: {reason}",
     "exchangeApprovedTitle": "환전 승인",
     "exchangeApprovedBody": "{silver} silver 환전이 승인됐어요.",
     "exchangeRejectedTitle": "환전 거절",
@@ -4106,6 +4124,73 @@
     },
     "feedback": {
       "actionAcknowledged": "데모용 작업이라 저장되지 않아요"
+    },
+    "me": {
+      "viewingAsEyebrow": "Eternia 로 미리보기 중",
+      "verifiedNote": "데모 캐릭터는 항상 알비온 인증된 상태로 표시됩니다.",
+      "nextEventRole": "탱커",
+      "activityTitle": "최근 활동",
+      "activityRegear": "리기어 청구 — 자동 생성",
+      "activityRegearNote": "T8 플레이트 · 핼버드 외 6점",
+      "activityExchange": "환전 완료",
+      "activityExchangeNote": "포인트 200 → 실버 2.0M",
+      "activityDonation": "기부 검토 중",
+      "activityDonationNote": "T7 럭셔리 자켓 외 3점",
+      "activityEvent": "이벤트 참여",
+      "activityEventNote": "탱커 · 1킬 0데스",
+      "settingsNotice": "데모 모드에서는 설정 변경이 저장되지 않습니다. 봇 초대 후 실제 계정에 반영됩니다.",
+      "settingsDmEnabled": "DM 알림 켜짐",
+      "settingsDmCategoryEvent": "이벤트 시작 알림",
+      "settingsDmCategoryRegear": "리기어 결과 알림",
+      "settingsDmCategoryExchange": "환전 결과 알림",
+      "settingsTimezone": "표시 시간대",
+      "settingsTimezoneAuto": "길드 기본값 (Asia/Seoul)",
+      "profileEyebrow": "내 알비온 프로필",
+      "profileVerifiedTag": "검증됨",
+      "profileServerLabel": "아시아"
+    },
+    "shop": {
+      "notice": "데모 모드 — 실제로 주문되지 않고 잔액도 차감되지 않아요. 클릭해보면서 UI 흐름을 확인해주세요.",
+      "deliveryNotice": "주문이 승인되면 길드 마스터가 게임 내 우편으로 아이템을 보내드려요. 평균 6시간 이내 전달.",
+      "ctaTitle": "AODP 자동 시세 + 셀프 주문, 그대로 가져갈 수 있어요",
+      "ctaDescription": "실버↔포인트 환율 슬라이더 한 번이면 멤버는 셀프로 사고, 어드민은 발주 큐만 확인하면 끝. 시세 부정확 경고도 자동."
+    },
+    "inventory": {
+      "notice": "데모 모드 — +/- 클릭은 토스트만 뜨고 실제 재고는 바뀌지 않아요. 어드민이 길드 재고를 어떻게 관리하는지 보여드립니다.",
+      "ctaTitle": "재고 관리, 엑셀 없이 한 화면에서",
+      "ctaDescription": "추적 중인 베이스 9종 + 슬롯/티어 필터 + 인챈트별 재고. 제작 납품 시 자동 −1 까지 — 캠프장 운영자도 5분이면 익숙해져요."
+    },
+    "guildProfile": {
+      "previewCardTitle": "공개 프로필 URL",
+      "previewCardDescription": "봇 초대 직후부터 이 주소로 우리 길드 페이지가 외부에 공개됩니다. 모집 글에 그대로 붙여넣기 좋아요.",
+      "ctaTitle": "모집 페이지, 따로 제작 안 해도 돼요",
+      "ctaDescription": "테마 색상·소개 문구·모집 상태만 설정하면 즉시 공개 페이지가 만들어집니다. 배너·갤러리·통계 카드 표시도 클릭 한 번."
+    },
+    "battles": {
+      "notice": "데모 모드 — 표시된 전투는 시연용 가상 데이터입니다. 실제 봇 초대 후에는 매시간 알비온 API 에서 우리 길드의 진짜 ZvZ 전투가 자동으로 채워집니다.",
+      "ctaTitle": "전투 자동 추적, 한 줄도 안 적어도 됩니다",
+      "ctaDescription": "알비온 API 에서 매시간 자동 수집 → 10명 미만 갱크 제외 → 알라이언스별 분리 → 명성 합산 승패 — 우리 길드의 모든 ZvZ 가 한 화면에."
+    },
+    "guide": {
+      "notice": "데모 모드 — 이 가이드는 실제 어드민 가이드(/admin/dashboard/guide) 와 100% 동일한 내용입니다. 봇 초대 후 어드민 대시보드 좌측 하단 \"가이드\" 링크로 언제든 다시 볼 수 있어요.",
+      "ctaTitle": "운영 가이드, 멤버에게 \"매뉴얼 어디 있어요?\" 안 받게",
+      "ctaDescription": "처음 봇 초대한 어드민이 7단계로 운영을 시작할 수 있도록 — 자동 리기어부터 알림 채널·시간대·문제해결까지 한 페이지에 정리. 사이트 안에 항상 떠 있어요."
+    },
+    "craft": {
+      "adminNotice": "데모 모드 — 토글/입력은 토스트만 뜨고 실제 설정은 바뀌지 않아요. 어드민이 어떤 흐름으로 제작 시스템을 운영하는지 보여드립니다.",
+      "queueNotice": "데모 모드 — 잡기/놓기 버튼은 토스트만 뜨고 실제 작업이 잡히지 않아요. 제작자가 길드 큐를 어떻게 수주하는지 흐름을 보여드립니다.",
+      "myTasksNotice": "데모 모드 — 본인이 잡았다고 가정한 작업과 재료 합산을 미리 보여드려요. 실제 잔액·재고는 바뀌지 않아요.",
+      "ordersNotice": "데모 모드 — 발주 수주/납품 버튼은 토스트만 뜨고 실제 포인트는 지급되지 않아요. 발주 흐름의 UI 만 미리보기.",
+      "linkQueue": "제작자가 잡을 수 있는 길드 전체 큐",
+      "linkMyTasks": "내가 잡은 작업 + 재료 합산",
+      "linkOrders": "관리자 발주 — 길드원이 수주해 납품",
+      "boxNumber": "보관함 #{n}",
+      "ctaAdminTitle": "제작 큐, 약속·재료·납품까지 자동 추적",
+      "ctaAdminDescription": "큐 등록 → 제작자 수주 → 보관함 납품 → 회수까지 전 과정 자동. 박스 번호·만료일·재료비 정산까지 한 화면에서 끝내세요.",
+      "ctaCrafterTitle": "제작자 보상, 토스트 한 번이면 끝",
+      "ctaCrafterDescription": "자원봉사/유료 모드 선택, 박스 범위 자동 배정, 재료비 + 프리미엄 자동 계산. 길드원 청구를 잡아 박스에 넣는 것만 하면 됩니다.",
+      "ctaMemberTitle": "발주 수주, 게임 내 채팅 없이 바로",
+      "ctaMemberDescription": "관리자가 등록한 발주를 골라 일부 수량만 수주. 납품 메모 + 승인까지 한 화면 — Discord 채널 도배 없이 깔끔하게."
     },
     "ctaCard": {
       "eyebrow": "이 흐름을 우리 길드에서",

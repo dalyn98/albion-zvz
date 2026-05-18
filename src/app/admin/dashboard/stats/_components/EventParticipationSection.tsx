@@ -1,18 +1,16 @@
 import { CalendarCheck, UserCheck, Users } from 'lucide-react'
-import type { getEventStats } from '@/app/actions/stats-admin'
+import { getEventStats } from '@/app/actions/stats-admin'
 import MemberAvatar from '@/components/MemberAvatar'
 import MemberLink from '@/components/MemberLink'
 import CollapsibleList from '@/components/CollapsibleList'
 import { STATS_COLLAPSED_ROWS, type StatsTranslator } from './shared'
 
-export default function EventParticipationSection({
-  result,
+export default async function EventParticipationSection({
   tStats,
 }: {
-  result: Awaited<ReturnType<typeof getEventStats>>
   tStats: StatsTranslator
 }) {
-  const { stats, error } = result
+  const { stats, error } = await getEventStats()
   if (error || !stats) {
     return (
       <section className="bg-gray-900/60 border border-gray-700 rounded-lg p-4 text-sm text-red-300">

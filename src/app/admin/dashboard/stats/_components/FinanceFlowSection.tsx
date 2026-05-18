@@ -5,17 +5,15 @@ import {
   ArrowDownRight,
   ArrowUpRight,
 } from 'lucide-react'
-import type { FinanceFlowStats } from '@/app/actions/stats-admin'
+import { getFinanceFlowStats, type FinanceFlowStats } from '@/app/actions/stats-admin'
 import { reasonLabel, type StatsTranslator } from './shared'
 
-export default function FinanceFlowSection({
-  result,
+export default async function FinanceFlowSection({
   tStats,
 }: {
-  result: { stats?: FinanceFlowStats; error?: string }
   tStats: StatsTranslator
 }) {
-  const { stats, error } = result
+  const { stats, error } = await getFinanceFlowStats()
   if (error || !stats) {
     return (
       <section className="bg-gray-900/60 border border-gray-700 rounded-lg p-4 text-sm text-red-300">

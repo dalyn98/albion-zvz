@@ -1,21 +1,19 @@
 import Image from 'next/image'
 import { ShoppingBag, ShieldCheck, Clock, Trophy } from 'lucide-react'
-import type { getShopRegearStats } from '@/app/actions/stats-admin'
+import { getShopRegearStats } from '@/app/actions/stats-admin'
 import { getLocalizedItemName } from '@/lib/item-names'
 import type { Locale } from '@/i18n/locales'
 import CollapsibleList from '@/components/CollapsibleList'
 import { STATS_COLLAPSED_ROWS, itemImageUrl, type StatsTranslator } from './shared'
 
-export default function ShopRegearSection({
-  result,
+export default async function ShopRegearSection({
   tStats,
   locale,
 }: {
-  result: Awaited<ReturnType<typeof getShopRegearStats>>
   tStats: StatsTranslator
   locale: Locale
 }) {
-  const { stats, error } = result
+  const { stats, error } = await getShopRegearStats()
   if (error || !stats) {
     return (
       <section className="bg-gray-900/60 border border-gray-700 rounded-lg p-4 text-sm text-red-300">

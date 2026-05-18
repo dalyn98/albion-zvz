@@ -2,7 +2,14 @@
 // DB 백킹 — 슈퍼어드민이 `/super-admin/marketing-screenshots` 에서 업로드/관리.
 // 슬롯당 여러 장 허용, position 으로 정렬, 캐러셀로 표시.
 
+import { unstable_cache } from 'next/cache'
 import { getAdminClient } from '@/lib/supabase-admin'
+
+// landing 은 force-dynamic 이라 매 요청마다 동일한 DB SELECT 가 반복된다.
+// 슈퍼어드민 업로드 빈도는 극히 낮으므로(주~월 단위) tag-invalidated cache 로 묶어
+// 마케팅 트래픽 전체에 대해 사실상 메모리 응답으로 만든다. write 경로
+// (`actions/marketing-screenshots.ts`) 의 revalidate() 가 같은 tag 로 무효화.
+export const MARKETING_SCREENSHOTS_TAG = 'marketing-screenshots'
 
 export type MarketingScreenshotKey = 'events' | 'regear' | 'craft' | 'shop' | 'stats'
 
@@ -40,7 +47,7 @@ function isValidSlot(value: unknown): value is MarketingScreenshotKey {
   )
 }
 
-export async function loadMarketingScreenshots(): Promise<MarketingScreenshotsBySlot> {
+async function loadMarketingScreenshotsUncached(): Promise<MarketingScreenshotsBySlot> {
   const db = getAdminClient()
   const { data, error } = await db
     .from('marketing_screenshots')
@@ -68,3 +75,10 @@ export async function loadMarketingScreenshots(): Promise<MarketingScreenshotsBy
   }
   return map
 }
+
+// revalidate 1 h — write 시 tag 무효화로 즉시 갱신되므로 안전망용 상한.
+export const loadMarketingScreenshots = unstable_cache(
+  loadMarketingScreenshotsUncached,
+  ['marketing-screenshots:all'],
+  { tags: [MARKETING_SCREENSHOTS_TAG], revalidate: 3600 },
+)

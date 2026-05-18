@@ -5,9 +5,9 @@ import {
   ShieldQuestion,
   UserX,
 } from 'lucide-react'
-import type {
+import {
   getAlbionVerificationStats,
-  VerificationMember,
+  type VerificationMember,
 } from '@/app/actions/stats-admin'
 import MemberAvatar from '@/components/MemberAvatar'
 import MemberLink from '@/components/MemberLink'
@@ -20,16 +20,14 @@ import {
   type CommonTranslator,
 } from './shared'
 
-export default function AlbionVerificationSection({
-  result,
+export default async function AlbionVerificationSection({
   tStats,
   tCommon,
 }: {
-  result: Awaited<ReturnType<typeof getAlbionVerificationStats>>
   tStats: StatsTranslator
   tCommon: CommonTranslator
 }) {
-  const { stats, error } = result
+  const { stats, error } = await getAlbionVerificationStats()
   if (error || !stats) {
     return (
       <section className="bg-gray-900/60 border border-gray-700 rounded-lg p-4 text-sm text-red-300">

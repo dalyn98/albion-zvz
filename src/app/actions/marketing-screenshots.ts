@@ -1,11 +1,15 @@
 'use server'
 
 import { randomUUID } from 'crypto'
-import { revalidatePath } from 'next/cache'
+// Next.js 16 분리: revalidateTag(tag, profile) 는 일반 무효화, updateTag(tag)
+// 는 server action 에서 read-your-own-writes 보장. 슈퍼어드민이 업로드 직후
+// 자기 화면(super-admin/marketing-screenshots)에서 즉시 갱신을 봐야 하므로 후자.
+import { revalidatePath, updateTag } from 'next/cache'
 import { requireSuperAdmin } from '@/lib/super-admin'
 import { getAdminClient } from '@/lib/supabase-admin'
 import {
   MARKETING_SCREENSHOT_KEYS,
+  MARKETING_SCREENSHOTS_TAG,
   type MarketingScreenshotKey,
 } from '@/lib/marketing-screenshots'
 
@@ -42,6 +46,7 @@ function extFromMime(mime: string): string {
 }
 
 function revalidate() {
+  updateTag(MARKETING_SCREENSHOTS_TAG)
   revalidatePath('/super-admin/marketing-screenshots')
   revalidatePath('/public/landing', 'page')
   revalidatePath('/public/features', 'page')

@@ -355,7 +355,10 @@
     "approveWithPayoutRate": "承認 ({amount} 支給, {rate}%)",
     "paidOut": "支給 {amount}",
     "reject": "却下",
-    "rejectPlaceholder": "却下理由 (任意)",
+    "rejectReasonLabel": "却下理由",
+    "rejectReasonPlaceholder": "却下理由を選択してください",
+    "rejectReasonRequired": "却下理由をまず選択してください。",
+    "rejectNotesPlaceholder": "追加メモ (任意) — メンバーにも一緒に送られます。",
     "rejectConfirm": "却下確定",
     "resolvedAt": "{status} 日時: {datetime}",
     "handledBy": "{status} 担当: {handler}",
@@ -1499,6 +1502,16 @@
     "commitStatStockChanges": "在庫変動",
     "commitStatPriceUpdate": "価格更新",
     "commitAodpSummary": "相場更新: 要求 {requested} · 更新 {updated} · 価格なし {missing}"
+  },
+  "regearRejectReason": {
+    "killboard_mismatch": "キルボード記録と一致しない",
+    "out_of_window": "申請可能期間を超過",
+    "screenshot_invalid": "スクリーンショット不適合 (改ざん・識別不可)",
+    "price_inflated": "請求金額が相場に対して過大",
+    "duplicate_request": "重複申請",
+    "not_eligible_event": "報酬対象のイベントではない",
+    "insufficient_evidence": "証拠不十分 (再申請を推奨)",
+    "other": "その他 (メモ参照)"
   },
   "regearBreakdown": {
     "previewTitle": "部位別の価格内訳",
@@ -2773,6 +2786,7 @@
     "noRegears": "申請履歴がありません。",
     "regearEditBreakdown": "部位別の価格を編集",
     "regearEditClaim": "請求額を修正",
+    "rejectReasonLabel": "却下理由",
     "claimed": "請求",
     "ceiling": "上限",
     "killboardUnverified": "キルボード未確認",
@@ -2958,6 +2972,7 @@
     "noEvents": "参加イベントがありません。",
     "regearHistory": "リギア履歴 ({count})",
     "noRegears": "リギア申請履歴がありません。",
+    "rejectReasonLabel": "却下理由",
     "exchangeHistory": "両替履歴 ({count})",
     "noExchanges": "両替/手動調整履歴がありません。",
     "manualAdjust": "手動調整",
@@ -3098,6 +3113,7 @@
     "eventMissingForParty": "イベントが存在しないためパーティーを作成できません。イベント一覧に戻って新規作成してください。",
     "requestNotFound": "申請が見つかりません。",
     "requestNotPending": "保留中の申請のみ処理できます。",
+    "invalidRejectReason": "有効な却下理由を選択してください。",
     "memberNotFound": "ギルドメンバーが見つかりません。",
     "invalidAmount": "金額を正しく入力してください。",
     "insufficientPoints": "ポイントが不足しています。",
@@ -3334,6 +3350,8 @@
     "regearStockedBody": "{event} のリギアがギルド在庫から出庫されました。装備の受け取り方法は管理者にご確認ください。",
     "regearRejectedTitle": "リギア却下",
     "regearRejectedBody": "{event} のリギア申請が却下されました。",
+    "regearRejectedBodyWithReason": "{event} のリギア申請が却下されました。理由: {reason} ({notes})",
+    "regearRejectedBodyReasonOnly": "{event} のリギア申請が却下されました。理由: {reason}",
     "exchangeApprovedTitle": "両替承認",
     "exchangeApprovedBody": "{silver} silver の両替が承認されました。",
     "exchangeRejectedTitle": "両替却下",
@@ -4106,6 +4124,73 @@
     },
     "feedback": {
       "actionAcknowledged": "デモ用の操作なので保存されません"
+    },
+    "me": {
+      "viewingAsEyebrow": "Eternia としてプレビュー中",
+      "verifiedNote": "デモキャラクターは常にアルビオン認証済みの状態で表示されます。",
+      "nextEventRole": "タンク",
+      "activityTitle": "最近のアクティビティ",
+      "activityRegear": "リギア申請 — 自動生成",
+      "activityRegearNote": "T8プレート · ハルバード 他6点",
+      "activityExchange": "換金完了",
+      "activityExchangeNote": "ポイント 200 → シルバー 2.0M",
+      "activityDonation": "寄付審査中",
+      "activityDonationNote": "T7ラグジュアリージャケット 他3点",
+      "activityEvent": "イベント参加",
+      "activityEventNote": "タンク · 1キル 0デス",
+      "settingsNotice": "デモモードでは設定変更は保存されません。ボット招待後、実際のアカウントに反映されます。",
+      "settingsDmEnabled": "DM通知 オン",
+      "settingsDmCategoryEvent": "イベント開始通知",
+      "settingsDmCategoryRegear": "リギア結果通知",
+      "settingsDmCategoryExchange": "換金結果通知",
+      "settingsTimezone": "表示タイムゾーン",
+      "settingsTimezoneAuto": "ギルドデフォルト (Asia/Seoul)",
+      "profileEyebrow": "私のアルビオンプロフィール",
+      "profileVerifiedTag": "認証済み",
+      "profileServerLabel": "アジア"
+    },
+    "shop": {
+      "notice": "デモモード — 実際の注文は行われず、残高も減りません。クリックしてUIの流れを確認してみてください。",
+      "deliveryNotice": "注文が承認されると、ギルドマスターがゲーム内メールでアイテムを送ります。平均6時間以内にお届け。",
+      "ctaTitle": "AODP自動価格 + セルフ注文、そのまま導入できます",
+      "ctaDescription": "シルバー↔ポイント為替レートスライダー1つで、メンバーはセルフ購入、管理者は発注キューの確認だけ。価格不正確警告も自動。"
+    },
+    "inventory": {
+      "notice": "デモモード — +/- クリックはトーストだけで、実際の在庫は変わりません。管理者がギルド在庫をどう管理しているかをご紹介。",
+      "ctaTitle": "在庫管理、エクセル無しで1画面",
+      "ctaDescription": "追跡中ベース9種 + スロット/ティアフィルター + エンチャント別在庫。クラフト納品時の自動 −1 まで — 初心者運営でも5分で慣れます。"
+    },
+    "guildProfile": {
+      "previewCardTitle": "公開プロフィールURL",
+      "previewCardDescription": "ボット招待直後からこのURLでギルドページが公開されます。募集投稿にそのまま貼り付けOK。",
+      "ctaTitle": "募集ページ、別途制作不要です",
+      "ctaDescription": "テーマカラー・紹介文・募集状態を設定するだけで公開ページが即生成。バナー・ギャラリー・統計カードもクリック1つで切替。"
+    },
+    "battles": {
+      "notice": "デモモード — 表示中の戦闘はデモ用の仮想データです。実際にボットを招待すると、AlbionAPIから毎時うちのギルドの本物のZvZ戦闘が自動で取り込まれます。",
+      "ctaTitle": "戦闘の自動集計、1行も書く必要ありません",
+      "ctaDescription": "AlbionAPIから毎時自動収集 → 10人未満のガンクは除外 → アライアンス別に分離 → killfame合算で勝敗判定 — うちのギルドのZvZすべてを1画面に。"
+    },
+    "guide": {
+      "notice": "デモモード — このガイドは実際の管理者ガイド(/admin/dashboard/guide)と100%同一の内容です。ボット招待後、管理者ダッシュボード左下の「ガイド」リンクからいつでも再閲覧できます。",
+      "ctaTitle": "運用ガイド、メンバーから「マニュアルどこ?」と聞かれないために",
+      "ctaDescription": "初めてボットを招待した管理者が7ステップで運用を始められるように — 自動リギア・通知チャンネル・タイムゾーン・トラブルシュートまで1ページに集約。サイト内に常駐します。"
+    },
+    "craft": {
+      "adminNotice": "デモモード — トグル/入力はトーストだけで実際の設定は変わりません。管理者が製作システムをどう運用するかをご紹介します。",
+      "queueNotice": "デモモード — 受注/解放ボタンはトーストだけで実際にタスクは取得されません。クラフターがギルドキューをどう受注するかの流れをご覧ください。",
+      "myTasksNotice": "デモモード — 自分が受注したと仮定したタスクと素材の合計をプレビュー。実際の残高・在庫は変わりません。",
+      "ordersNotice": "デモモード — 発注の受注/納品ボタンはトーストだけでポイントは支給されません。発注フローのUIだけをプレビュー。",
+      "linkQueue": "クラフターが受注可能なギルド全体のキュー",
+      "linkMyTasks": "自分が受注したタスク + 素材合計",
+      "linkOrders": "管理者発注 — ギルメンが受注して納品",
+      "boxNumber": "倉庫 #{n}",
+      "ctaAdminTitle": "製作キュー、約束・素材・納品まで自動追跡",
+      "ctaAdminDescription": "キュー登録 → クラフター受注 → 倉庫納品 → 回収まで全工程を自動化。ボックス番号・有効期限・素材費の精算も1画面で完結。",
+      "ctaCrafterTitle": "クラフター報酬、トースト1回で完結",
+      "ctaCrafterDescription": "ボランティア/有料モード選択、ボックス範囲の自動割当、素材費+プレミアム自動計算。ギルメン依頼を受注してボックスに入れるだけ。",
+      "ctaMemberTitle": "発注の受注、ゲーム内チャットなしで即実行",
+      "ctaMemberDescription": "管理者の登録した発注から一部数量だけ受注。納品メモ+承認まで1画面 — Discordチャンネルを荒らさずスッキリ。"
     },
     "ctaCard": {
       "eyebrow": "この流れを自分のギルドで",

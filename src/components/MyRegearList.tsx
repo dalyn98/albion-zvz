@@ -28,10 +28,11 @@ interface Props {
 }
 
 export default async function MyRegearList({ requests }: Props) {
-  const [tMe, tStatus, tRole] = await Promise.all([
+  const [tMe, tStatus, tRole, tReason] = await Promise.all([
     getTranslations('me'),
     getTranslations('status'),
     getTranslations('slotRole'),
+    getTranslations('regearRejectReason'),
   ])
 
   if (requests.length === 0) {
@@ -63,6 +64,12 @@ export default async function MyRegearList({ requests }: Props) {
               <span className="text-yellow-400">{tMe('killboardUnverified')}</span>
             )}
           </div>
+          {r.reject_reason_code && (
+            <p className="text-xs text-red-300">
+              <span className="font-semibold">{tMe('rejectReasonLabel')}:</span>{' '}
+              {tReason(r.reject_reason_code)}
+            </p>
+          )}
           {r.admin_notes && (
             <p className="text-gray-500 text-xs truncate">{r.admin_notes}</p>
           )}
