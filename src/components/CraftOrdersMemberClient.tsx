@@ -303,8 +303,8 @@ function MyTaskRow({
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
               placeholder={t('deliveryMemoPlaceholder')}
-              rows={2}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-white"
+              rows={3}
+              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-white placeholder:text-gray-500 focus:border-amber-500 focus:outline-none"
             />
           </label>
           <div className="flex flex-wrap gap-2">

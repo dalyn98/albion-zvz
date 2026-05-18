@@ -1572,7 +1572,8 @@
     "editableHint": "승인 전까지 부위별 단위 시세를 수정할 수 있습니다. 입력한 값 × 수량 = 해당 부위 청구액이 되고, 청구 합계는 역할 상한 {cap}s 로 클램프됩니다. 지급 예정은 청구액의 {rate}%.",
     "adminNotesTitle": "관리자 메모",
     "invalidNumber": "유효한 숫자를 입력하세요.",
-    "editHint": "클릭해서 수정"
+    "editHint": "클릭해서 수정",
+    "priceSavedToast": "단가가 저장되었습니다"
   },
   "regearBuildSnapshot": {
     "title": "제작 빌드 정보",
@@ -2677,7 +2678,8 @@
       "PLATE": "플레이트",
       "LEATHER": "가죽",
       "CLOTH": "천"
-    }
+    },
+    "emptyCatalog": "필터 조건에 맞는 아이템이 없습니다"
   },
   "donation": {
     "openButton": "기부 신청",
@@ -4190,7 +4192,8 @@
       "ctaCrafterTitle": "제작자 보상, 토스트 한 번이면 끝",
       "ctaCrafterDescription": "자원봉사/유료 모드 선택, 박스 범위 자동 배정, 재료비 + 프리미엄 자동 계산. 길드원 청구를 잡아 박스에 넣는 것만 하면 됩니다.",
       "ctaMemberTitle": "발주 수주, 게임 내 채팅 없이 바로",
-      "ctaMemberDescription": "관리자가 등록한 발주를 골라 일부 수량만 수주. 납품 메모 + 승인까지 한 화면 — Discord 채널 도배 없이 깔끔하게."
+      "ctaMemberDescription": "관리자가 등록한 발주를 골라 일부 수량만 수주. 납품 메모 + 승인까지 한 화면 — Discord 채널 도배 없이 깔끔하게.",
+      "craftersEmpty": "등록된 제작자가 없습니다"
     },
     "ctaCard": {
       "eyebrow": "이 흐름을 우리 길드에서",

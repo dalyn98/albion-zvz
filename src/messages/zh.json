@@ -74,7 +74,9 @@
     "backToMyPage": "返回我的页面",
     "albionServerEast": "东部（亚洲）",
     "albionServerWest": "西部（美洲）",
-    "albionServerEurope": "欧洲"
+    "albionServerEurope": "欧洲",
+    "confirm": "确认",
+    "confirmTitle": "确认"
   },
   "imageCrop": {
     "title": "裁剪图片",
@@ -1570,7 +1572,8 @@
     "editableHint": "在批准前您可编辑每个槽位的单价。您的输入 × 数量 = 该槽位的申请额，且总申请额限制在角色上限 {cap} 银币内。发放为申请额的 {rate}%。",
     "adminNotesTitle": "管理员备注",
     "invalidNumber": "请输入有效数字。",
-    "editHint": "点击以编辑"
+    "editHint": "点击以编辑",
+    "priceSavedToast": "已保存单价"
   },
   "regearBuildSnapshot": {
     "title": "制作配装信息",
@@ -2675,7 +2678,8 @@
       "PLATE": "板甲",
       "LEATHER": "皮甲",
       "CLOTH": "布甲"
-    }
+    },
+    "emptyCatalog": "没有符合筛选条件的物品"
   },
   "donation": {
     "openButton": "提交捐赠",
@@ -4188,7 +4192,8 @@
       "ctaCrafterTitle": "制作者奖励,一次提示即完成",
       "ctaCrafterDescription": "选择志愿/付费模式,自动分配仓库范围,材料费 + 溢价自动计算。接受公会成员请求并放入仓库即可。",
       "ctaMemberTitle": "接单无需在游戏内打字",
-      "ctaMemberDescription": "从已登记发单中选择部分数量接单。交付备注 + 审批一屏完成 — 不会刷屏 Discord 频道。"
+      "ctaMemberDescription": "从已登记发单中选择部分数量接单。交付备注 + 审批一屏完成 — 不会刷屏 Discord 频道。",
+      "craftersEmpty": "没有已登记的制作者"
     },
     "ctaCard": {
       "eyebrow": "在你的公会中运行",

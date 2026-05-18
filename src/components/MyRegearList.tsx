@@ -73,13 +73,13 @@ export default async function MyRegearList({ requests }: Props) {
           {r.admin_notes && (
             <p className="text-gray-500 text-xs truncate">{r.admin_notes}</p>
           )}
-          <p className="text-gray-600 text-xs font-mono">
+          <p className="text-gray-400 text-xs font-mono">
             {tMe('requestedAt', { when: formatDateTime(r.created_at) })}
             {r.resolved_at && r.status !== 'pending' && (
               <span className="ml-2">
                 · {tStatus(r.status)} {formatDateTime(r.resolved_at)}
                 {r.handled_by_username && (
-                  <span className="ml-1 text-gray-700">
+                  <span className="ml-1 text-gray-400">
                     · {tMe('handledBy', { handler: r.handled_by_username })}
                   </span>
                 )}

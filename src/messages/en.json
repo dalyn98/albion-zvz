@@ -1572,7 +1572,8 @@
     "editableHint": "You can edit per-slot unit prices until approval. Your input × quantity = the claim for that slot, and the total claim is clamped to the role cap {cap}s. Payout is {rate}% of the claim.",
     "adminNotesTitle": "Admin note",
     "invalidNumber": "Enter a valid number.",
-    "editHint": "Click to edit"
+    "editHint": "Click to edit",
+    "priceSavedToast": "Price saved"
   },
   "regearBuildSnapshot": {
     "title": "Craft build info",
@@ -2677,7 +2678,8 @@
       "PLATE": "Plate",
       "LEATHER": "Leather",
       "CLOTH": "Cloth"
-    }
+    },
+    "emptyCatalog": "No items match the current filters"
   },
   "donation": {
     "openButton": "Submit donation",
@@ -4190,7 +4192,8 @@
       "ctaCrafterTitle": "Crafter rewards, one toast to confirm",
       "ctaCrafterDescription": "Pick volunteer/paid mode, get a box range auto-assigned, materials + premium computed automatically. Just claim the request and drop it in the box.",
       "ctaMemberTitle": "Claim orders without spamming chat",
-      "ctaMemberDescription": "Pick a partial quantity from posted orders, deliver with a memo, and admin approves — all on one screen, no Discord channel clutter."
+      "ctaMemberDescription": "Pick a partial quantity from posted orders, deliver with a memo, and admin approves — all on one screen, no Discord channel clutter.",
+      "craftersEmpty": "No crafters registered"
     },
     "ctaCard": {
       "eyebrow": "Run this in your guild",

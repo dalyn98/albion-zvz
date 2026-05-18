@@ -1,5 +1,8 @@
+'use client'
+
 import Link from 'next/link'
-import { getTranslations } from 'next-intl/server'
+import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   Box,
   ClipboardList,
@@ -10,17 +13,21 @@ import {
   User,
 } from 'lucide-react'
 import { DEMO_MEMBERS } from '@/data/demo-seed'
-import DemoActionButton from '../_components/DemoActionButton'
 import DemoCTACard from '../_components/DemoCTACard'
 
-// 실 /admin/dashboard/craft 의 비주얼 클론 — 토글/박스 범위/만료일 + 제작자
-// 권한 패널 + 진행 중인 작업 리스트. 실 페이지는 AdminCraftSettingsForm /
-// AdminCraftCraftersPanel / AdminCraftTasksList 등 다수 client 컴포넌트 조합.
-// SSR 정적 마크업으로 핵심 만 발췌.
+// 실 /admin/dashboard/craft 의 비주얼 클론 — 데모용 클라이언트 상태로 토글 / 박스 범위 /
+// 만료일 / 제작자 삭제를 실제로 반영. 페이지 리로드 시 초기화.
 
-const CRAFTERS = DEMO_MEMBERS.slice(0, 3).map((m, idx) => ({
+interface Crafter {
+  ign: string
+  mode: 'paid' | 'volunteer'
+  premium: number
+  boxRange: string
+}
+
+const INITIAL_CRAFTERS: Crafter[] = DEMO_MEMBERS.slice(0, 3).map((m, idx) => ({
   ign: m.ign,
-  mode: idx === 0 ? 'paid' as const : idx === 1 ? 'volunteer' as const : 'paid' as const,
+  mode: idx === 1 ? 'volunteer' : 'paid',
   premium: idx === 0 ? 15 : idx === 2 ? 10 : 0,
   boxRange: idx === 0 ? '1~10' : idx === 1 ? '11~20' : '21~30',
 }))
@@ -39,13 +46,21 @@ const STATUS_STYLE: Record<typeof TASKS[number]['status'], { bg: string; text: s
   delivered: { bg: 'bg-emerald-500/15', text: 'text-emerald-300', label: 'status_delivered' },
 }
 
-export default async function DemoCraftAdminPage() {
-  const [t, tDemoMe, tDemoCraft, tCta] = await Promise.all([
-    getTranslations('adminCraft'),
-    getTranslations('demo.me'),
-    getTranslations('demo.craft'),
-    getTranslations('demo.ctaCard'),
-  ])
+export default function DemoCraftAdminPage() {
+  const t = useTranslations('adminCraft')
+  const tDemoMe = useTranslations('demo.me')
+  const tDemoCraft = useTranslations('demo.craft')
+  const tCta = useTranslations('demo.ctaCard')
+
+  const [enabled, setEnabled] = useState(true)
+  const [rangeMin, setRangeMin] = useState(1)
+  const [rangeMax, setRangeMax] = useState(30)
+  const [expiryDays, setExpiryDays] = useState(7)
+  const [crafters, setCrafters] = useState<Crafter[]>(INITIAL_CRAFTERS)
+
+  const removeCrafter = (ign: string) => {
+    setCrafters((prev) => prev.filter((c) => c.ign !== ign))
+  }
 
   return (
     <div className="space-y-5">
@@ -105,7 +120,7 @@ export default async function DemoCraftAdminPage() {
       {/* 기본 설정 */}
       <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
-          <ToggleRight size={16} className="text-emerald-400" />
+          <ToggleRight size={16} className={enabled ? 'text-emerald-400' : 'text-gray-500'} />
           {t('settingsTitle')}
         </h2>
         <p className="text-xs text-gray-500">{t('settingsHint')}</p>
@@ -116,39 +131,64 @@ export default async function DemoCraftAdminPage() {
               <p className="text-white text-sm font-semibold">{t('enabledLabel')}</p>
               <p className="text-[11px] text-gray-500 mt-0.5">{t('enabledHint')}</p>
             </div>
-            <DemoActionButton
-              asDiv
-              className="relative inline-flex h-6 w-11 rounded-full bg-emerald-500/40 border border-emerald-500/60 cursor-pointer shrink-0"
+            <button
+              type="button"
+              role="switch"
+              aria-checked={enabled}
+              onClick={() => setEnabled((v) => !v)}
+              className={`relative inline-flex h-6 w-11 rounded-full border cursor-pointer shrink-0 transition-colors ${
+                enabled
+                  ? 'bg-emerald-500/40 border-emerald-500/60'
+                  : 'bg-gray-700/50 border-gray-600'
+              }`}
             >
-              <span className="absolute right-0.5 top-0.5 h-4 w-4 rounded-full bg-emerald-300 shadow" />
-            </DemoActionButton>
+              <span
+                className={`absolute top-0.5 h-4 w-4 rounded-full shadow transition-all ${
+                  enabled ? 'right-0.5 bg-emerald-300' : 'left-0.5 bg-gray-400'
+                }`}
+              />
+            </button>
           </div>
 
-          <div className="bg-gray-950 border border-gray-800 rounded-lg p-3 space-y-2">
-            <p className="text-white text-sm font-semibold">{t('rangeMinLabel')} / {t('rangeMaxLabel')}</p>
+          <div className={`bg-gray-950 border border-gray-800 rounded-lg p-3 space-y-2 ${!enabled ? 'opacity-50' : ''}`}>
+            <p className="text-white text-sm font-semibold">
+              {t('rangeMinLabel')} / {t('rangeMaxLabel')}
+            </p>
             <div className="flex items-center gap-2">
-              <DemoActionButton
-                asDiv
-                className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-200 font-mono cursor-text"
-              >
-                1
-              </DemoActionButton>
+              <input
+                type="number"
+                min={1}
+                max={rangeMax}
+                value={rangeMin}
+                disabled={!enabled}
+                onChange={(e) => setRangeMin(Math.max(1, Number(e.target.value) || 1))}
+                className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-200 font-mono focus:border-amber-500 focus:outline-none disabled:cursor-not-allowed"
+              />
               <span className="text-gray-500">~</span>
-              <DemoActionButton
-                asDiv
-                className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-200 font-mono cursor-text"
-              >
-                30
-              </DemoActionButton>
+              <input
+                type="number"
+                min={rangeMin}
+                max={99}
+                value={rangeMax}
+                disabled={!enabled}
+                onChange={(e) => setRangeMax(Math.min(99, Number(e.target.value) || rangeMin))}
+                className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-200 font-mono focus:border-amber-500 focus:outline-none disabled:cursor-not-allowed"
+              />
             </div>
             <div className="flex items-center gap-2 pt-1">
-              <span className="text-[11px] text-gray-500">{t('expiryDaysLabel')}</span>
-              <DemoActionButton
-                asDiv
-                className="bg-gray-900 border border-gray-700 rounded px-2 py-0.5 text-xs text-gray-200 font-mono cursor-text"
-              >
-                7
-              </DemoActionButton>
+              <label htmlFor="demo-craft-expiry" className="text-[11px] text-gray-500">
+                {t('expiryDaysLabel')}
+              </label>
+              <input
+                id="demo-craft-expiry"
+                type="number"
+                min={1}
+                max={90}
+                value={expiryDays}
+                disabled={!enabled}
+                onChange={(e) => setExpiryDays(Math.max(1, Number(e.target.value) || 1))}
+                className="w-16 bg-gray-900 border border-gray-700 rounded px-2 py-0.5 text-xs text-gray-200 font-mono focus:border-amber-500 focus:outline-none disabled:cursor-not-allowed"
+              />
             </div>
           </div>
         </div>
@@ -162,33 +202,43 @@ export default async function DemoCraftAdminPage() {
         </h2>
         <p className="text-xs text-gray-500">{t('craftersHint')}</p>
         <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-          {t('craftersListTitle', { count: CRAFTERS.length })}
+          {t('craftersListTitle', { count: crafters.length })}
         </p>
-        <ul className="space-y-2">
-          {CRAFTERS.map((c) => (
-            <li
-              key={c.ign}
-              className="flex items-center gap-3 bg-gray-950 border border-gray-800 rounded-lg px-3 py-2"
-            >
-              <div className="w-7 h-7 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0">
-                <User size={14} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white text-sm font-semibold truncate">{c.ign}</p>
-                <p className="text-[11px] text-gray-500">
-                  {c.mode === 'paid'
-                    ? t('crafterModePaid', { premium: c.premium })
-                    : t('crafterModeVolunteer')}
-                  {' · '}
-                  {t('boxRangeTitle')} {c.boxRange}
-                </p>
-              </div>
-              <DemoActionButton className="text-xs text-gray-400 hover:text-red-300 font-semibold">
-                {t('removeCrafter')}
-              </DemoActionButton>
-            </li>
-          ))}
-        </ul>
+        {crafters.length === 0 ? (
+          <p className="text-gray-500 text-sm text-center py-6">
+            {tDemoCraft('craftersEmpty')}
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {crafters.map((c) => (
+              <li
+                key={c.ign}
+                className="flex items-center gap-3 bg-gray-950 border border-gray-800 rounded-lg px-3 py-2"
+              >
+                <div className="w-7 h-7 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0">
+                  <User size={14} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm font-semibold truncate">{c.ign}</p>
+                  <p className="text-[11px] text-gray-500">
+                    {c.mode === 'paid'
+                      ? t('crafterModePaid', { premium: c.premium })
+                      : t('crafterModeVolunteer')}
+                    {' · '}
+                    {t('boxRangeTitle')} {c.boxRange}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeCrafter(c.ign)}
+                  className="text-xs text-gray-400 hover:text-red-300 font-semibold transition-colors"
+                >
+                  {t('removeCrafter')}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       {/* 진행 중인 작업 */}
