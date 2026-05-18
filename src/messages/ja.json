@@ -4130,6 +4130,30 @@
         "shop": "AODP価格自動追跡 + メンバーセルフ購入 + 管理者発注キュー。シルバー↔ポイント換金率もスライダー1本で。"
       }
     },
+    "me": {
+      "viewingAsEyebrow": "Eternia としてプレビュー中",
+      "verifiedNote": "デモキャラクターは常にアルビオン認証済みの状態で表示されます。",
+      "nextEventRole": "タンク",
+      "activityTitle": "最近のアクティビティ",
+      "activityRegear": "リギア申請 — 自動生成",
+      "activityRegearNote": "T8プレート · ハルバード 他6点",
+      "activityExchange": "換金完了",
+      "activityExchangeNote": "ポイント 200 → シルバー 2.0M",
+      "activityDonation": "寄付審査中",
+      "activityDonationNote": "T7ラグジュアリージャケット 他3点",
+      "activityEvent": "イベント参加",
+      "activityEventNote": "タンク · 1キル 0デス",
+      "settingsNotice": "デモモードでは設定変更は保存されません。ボット招待後、実際のアカウントに反映されます。",
+      "settingsDmEnabled": "DM通知 オン",
+      "settingsDmCategoryEvent": "イベント開始通知",
+      "settingsDmCategoryRegear": "リギア結果通知",
+      "settingsDmCategoryExchange": "換金結果通知",
+      "settingsTimezone": "表示タイムゾーン",
+      "settingsTimezoneAuto": "ギルドデフォルト (Asia/Seoul)",
+      "profileEyebrow": "私のアルビオンプロフィール",
+      "profileVerifiedTag": "認証済み",
+      "profileServerLabel": "アジア"
+    },
     "ctaCard": {
       "eyebrow": "この流れを自分のギルドで",
       "buttonLabel": "Discordボットを招待",

@@ -4128,6 +4128,30 @@
         "shop": "AODP 价格自动追踪 + 成员自助购买 + 管理员订单队列。白银↔积分汇率一键滑动调节。"
       }
     },
+    "me": {
+      "viewingAsEyebrow": "正在以 Eternia 身份预览",
+      "verifiedNote": "演示角色始终显示为已通过阿尔比恩验证。",
+      "nextEventRole": "坦克",
+      "activityTitle": "最近活动",
+      "activityRegear": "重装申请 — 自动生成",
+      "activityRegearNote": "T8 板甲 · 斧戟 等 6 件",
+      "activityExchange": "兑换完成",
+      "activityExchangeNote": "积分 200 → 白银 2.0M",
+      "activityDonation": "捐赠审核中",
+      "activityDonationNote": "T7 奢华夹克 等 3 件",
+      "activityEvent": "活动参与",
+      "activityEventNote": "坦克 · 1 击杀 0 死亡",
+      "settingsNotice": "演示模式下设置不会被保存。邀请机器人后将应用到您的真实账号。",
+      "settingsDmEnabled": "已开启 DM 通知",
+      "settingsDmCategoryEvent": "活动开始提醒",
+      "settingsDmCategoryRegear": "重装结果提醒",
+      "settingsDmCategoryExchange": "兑换结果提醒",
+      "settingsTimezone": "显示时区",
+      "settingsTimezoneAuto": "公会默认 (Asia/Seoul)",
+      "profileEyebrow": "我的阿尔比恩档案",
+      "profileVerifiedTag": "已验证",
+      "profileServerLabel": "亚洲"
+    },
     "ctaCard": {
       "eyebrow": "在你的公会中运行",
       "buttonLabel": "邀请 Discord 机器人",

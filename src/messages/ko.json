@@ -4130,6 +4130,30 @@
         "shop": "AODP 가격 자동 추적 + 멤버 셀프 구매 + 어드민 발주 큐. 실버↔포인트 환율도 한 슬라이더로."
       }
     },
+    "me": {
+      "viewingAsEyebrow": "Eternia 로 미리보기 중",
+      "verifiedNote": "데모 캐릭터는 항상 알비온 인증된 상태로 표시됩니다.",
+      "nextEventRole": "탱커",
+      "activityTitle": "최근 활동",
+      "activityRegear": "리기어 청구 — 자동 생성",
+      "activityRegearNote": "T8 플레이트 · 핼버드 외 6점",
+      "activityExchange": "환전 완료",
+      "activityExchangeNote": "포인트 200 → 실버 2.0M",
+      "activityDonation": "기부 검토 중",
+      "activityDonationNote": "T7 럭셔리 자켓 외 3점",
+      "activityEvent": "이벤트 참여",
+      "activityEventNote": "탱커 · 1킬 0데스",
+      "settingsNotice": "데모 모드에서는 설정 변경이 저장되지 않습니다. 봇 초대 후 실제 계정에 반영됩니다.",
+      "settingsDmEnabled": "DM 알림 켜짐",
+      "settingsDmCategoryEvent": "이벤트 시작 알림",
+      "settingsDmCategoryRegear": "리기어 결과 알림",
+      "settingsDmCategoryExchange": "환전 결과 알림",
+      "settingsTimezone": "표시 시간대",
+      "settingsTimezoneAuto": "길드 기본값 (Asia/Seoul)",
+      "profileEyebrow": "내 알비온 프로필",
+      "profileVerifiedTag": "검증됨",
+      "profileServerLabel": "아시아"
+    },
     "ctaCard": {
       "eyebrow": "이 흐름을 우리 길드에서",
       "buttonLabel": "Discord 봇 초대하기",

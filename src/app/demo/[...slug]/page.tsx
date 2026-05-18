@@ -4,13 +4,9 @@ import { getTranslations } from 'next-intl/server'
 import {
   Swords,
   Hammer,
-  Trophy,
   ShoppingBag,
   Boxes,
   Sparkles,
-  Wallet,
-  Settings,
-  UserCircle2,
   BookOpen,
   CheckCircle2,
   ExternalLink,
@@ -30,10 +26,6 @@ type FeatureKey =
   | 'craft/queue'
   | 'craft/my-tasks'
   | 'craft/orders'
-  | 'leaderboard'
-  | 'me'
-  | 'me/profile'
-  | 'me/settings'
   | 'inventory'
   | 'guild-profile'
   | 'guide'
@@ -52,10 +44,6 @@ const FEATURE_MAP: Record<FeatureKey, FeatureSpec> = {
   'craft/queue': { icon: Hammer, navKey: 'craftQueue', descKey: 'craftQueue', accent: 'amber' },
   'craft/my-tasks': { icon: Box, navKey: 'craftMyTasks', descKey: 'craftMyTasks', accent: 'amber' },
   'craft/orders': { icon: ClipboardList, navKey: 'craftOrders', descKey: 'craftOrders', accent: 'amber' },
-  leaderboard: { icon: Trophy, navKey: 'leaderboard', descKey: 'leaderboard', accent: 'fuchsia' },
-  me: { icon: Wallet, navKey: 'myWallet', descKey: 'me', accent: 'amber' },
-  'me/profile': { icon: UserCircle2, navKey: 'myInfo', descKey: 'meProfile', accent: 'indigo' },
-  'me/settings': { icon: Settings, navKey: 'mySettings', descKey: 'meSettings', accent: 'sky' },
   inventory: { icon: Boxes, navKey: 'inventoryAdmin', descKey: 'inventory', accent: 'emerald' },
   'guild-profile': { icon: Sparkles, navKey: 'guildProfile', descKey: 'guildProfile', accent: 'fuchsia' },
   guide: { icon: BookOpen, navKey: 'guide', descKey: 'guide', accent: 'sky' },

@@ -4130,6 +4130,30 @@
         "shop": "Automatic AODP price tracking + member self-checkout + admin order queue. Silver↔points rate on a single slider."
       }
     },
+    "me": {
+      "viewingAsEyebrow": "Previewing as Eternia",
+      "verifiedNote": "Demo characters are always shown as Albion-verified.",
+      "nextEventRole": "Tank",
+      "activityTitle": "Recent activity",
+      "activityRegear": "Regear claim — auto-created",
+      "activityRegearNote": "T8 Plate · Halberd + 6 more pieces",
+      "activityExchange": "Exchange completed",
+      "activityExchangeNote": "200 pts → 2.0M silver",
+      "activityDonation": "Donation under review",
+      "activityDonationNote": "T7 Luxury Jacket + 3 more items",
+      "activityEvent": "Event participation",
+      "activityEventNote": "Tank · 1 kill 0 deaths",
+      "settingsNotice": "Settings changes are not saved in demo mode. They will take effect on your real account after inviting the bot.",
+      "settingsDmEnabled": "DM notifications on",
+      "settingsDmCategoryEvent": "Event-start notifications",
+      "settingsDmCategoryRegear": "Regear-result notifications",
+      "settingsDmCategoryExchange": "Exchange-result notifications",
+      "settingsTimezone": "Display timezone",
+      "settingsTimezoneAuto": "Guild default (Asia/Seoul)",
+      "profileEyebrow": "My Albion profile",
+      "profileVerifiedTag": "Verified",
+      "profileServerLabel": "Asia"
+    },
     "ctaCard": {
       "eyebrow": "Run this in your guild",
       "buttonLabel": "Invite Discord bot",
