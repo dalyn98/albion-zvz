@@ -35,6 +35,10 @@ import {
   hasUserEdits,
   isMemberSelfClaim,
 } from '@/lib/regear-review-grouping'
+import {
+  REGEAR_REJECT_REASON_CODES,
+  type RegearRejectReasonCode,
+} from '@/lib/regear-reject-reasons'
 import ImageLightbox from './ImageLightbox'
 import RegearBreakdownPreview from './RegearBreakdownPreview'
 import MemberAvatar from './MemberAvatar'
@@ -66,12 +70,14 @@ export default function RegearReviewRow({
   const tCommon = useTranslations('common')
   const tToast = useTranslations('toast')
   const tRole = useTranslations('slotRole')
+  const tReason = useTranslations('regearRejectReason')
   const toast = useToast()
   const [pending, startTransition] = useTransition()
   const [rechecking, setRechecking] = useState(false)
   const [error, setError] = useState('')
   const [rejectMode, setRejectMode] = useState(false)
   const [rejectNotes, setRejectNotes] = useState('')
+  const [rejectReasonCode, setRejectReasonCode] = useState<RegearRejectReasonCode | ''>('')
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null)
   const [loadingScreenshot, setLoadingScreenshot] = useState(false)
   const [zoomed, setZoomed] = useState(false)
@@ -210,13 +216,19 @@ export default function RegearReviewRow({
 
   const reject = () => {
     setError('')
+    if (!rejectReasonCode) {
+      setError(t('rejectReasonRequired'))
+      return
+    }
     startTransition(async () => {
-      const result = await rejectRegearRequest(request.id, rejectNotes)
+      const result = await rejectRegearRequest(request.id, rejectReasonCode, rejectNotes)
       if (result.error) {
         setError(result.error)
         return
       }
       setRejectMode(false)
+      setRejectReasonCode('')
+      setRejectNotes('')
       toast.success(tToast('regearRejected'))
       router.refresh()
     })
@@ -346,10 +358,17 @@ export default function RegearReviewRow({
         />
       )}
 
-      {request.admin_notes && (
-        <p className="text-gray-400 text-xs italic bg-gray-800/50 rounded px-3 py-2">
-          {request.admin_notes}
-        </p>
+      {(request.reject_reason_code || request.admin_notes) && (
+        <div className="bg-gray-800/50 rounded px-3 py-2 space-y-1">
+          {request.reject_reason_code && (
+            <p className="text-xs font-semibold text-red-300">
+              {t('rejectReasonLabel')}: <span className="font-normal">{tReason(request.reject_reason_code)}</span>
+            </p>
+          )}
+          {request.admin_notes && (
+            <p className="text-gray-400 text-xs italic">{request.admin_notes}</p>
+          )}
+        </div>
       )}
 
       {screenshotUrl ? (
@@ -597,11 +616,31 @@ export default function RegearReviewRow({
 
       {rejectMode && (
         <div className="space-y-2">
+          <div className="space-y-1">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              {t('rejectReasonLabel')}
+            </label>
+            <select
+              value={rejectReasonCode}
+              onChange={(e) =>
+                setRejectReasonCode(e.target.value as RegearRejectReasonCode | '')
+              }
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+              disabled={pending}
+            >
+              <option value="">{t('rejectReasonPlaceholder')}</option>
+              {REGEAR_REJECT_REASON_CODES.map((code) => (
+                <option key={code} value={code}>
+                  {tReason(code)}
+                </option>
+              ))}
+            </select>
+          </div>
           <textarea
             rows={2}
             value={rejectNotes}
             onChange={(e) => setRejectNotes(e.target.value)}
-            placeholder={t('rejectPlaceholder')}
+            placeholder={t('rejectNotesPlaceholder')}
             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 resize-none"
           />
           <div className="flex items-center gap-2">
@@ -618,6 +657,7 @@ export default function RegearReviewRow({
               onClick={() => {
                 setRejectMode(false)
                 setRejectNotes('')
+                setRejectReasonCode('')
               }}
               disabled={pending}
               className="text-gray-400 hover:text-white text-xs px-3 py-1.5"

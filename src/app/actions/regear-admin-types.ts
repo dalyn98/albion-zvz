@@ -8,6 +8,7 @@
 import { getAppSetting } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import type { RegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import type { BuildSnapshot, RegearType } from '@/types'
 
 export type AdminRegearRequest = {
@@ -34,6 +35,10 @@ export type AdminRegearRequest = {
   killboard_event_id: number | null
   status: 'pending' | 'approved' | 'rejected'
   admin_notes: string | null
+  // 마이그 151. 거절 시 관리자가 드롭다운에서 선택한 enum 사유. status='rejected'
+  // 인 row 만 값이 채워지고, pending/approved 는 항상 null. admin_notes (자유메모)
+  // 와 함께 표시되어 멤버가 어떤 행동(재신청/추가증빙)을 해야 하는지 명확히 안내.
+  reject_reason_code: RegearRejectReasonCode | null
   created_at: string
   resolved_at: string | null
   // 처리한 관리자 Discord ID + 당시 표시명 스냅샷. 마이그 040 이전 row 는 null.

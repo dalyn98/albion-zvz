@@ -47,6 +47,8 @@ function lineSubtotal(item: RegearLineItem): number {
 export default function MyRegearBreakdownEditor({ detail }: Props) {
   const router = useRouter()
   const t = useTranslations('regearBreakdown')
+  const tMe = useTranslations('me')
+  const tReason = useTranslations('regearRejectReason')
   const locale = useLocale() as Locale
   const [items, setItems] = useState<RegearLineItem[]>(detail.items)
   const [marketSilver, setMarketSilver] = useState<number>(detail.marketSilver)
@@ -328,6 +330,12 @@ export default function MyRegearBreakdownEditor({ detail }: Props) {
       )}
       {detail.status === 'rejected' && (
         <p className="text-gray-500 text-xs">{t('alreadyRejected')}</p>
+      )}
+      {detail.rejectReasonCode && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+          <p className="text-xs text-red-300/80 mb-1">{tMe('rejectReasonLabel')}</p>
+          <p className="text-sm text-red-200 font-semibold">{tReason(detail.rejectReasonCode)}</p>
+        </div>
       )}
       {detail.adminNotes && (
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-3">

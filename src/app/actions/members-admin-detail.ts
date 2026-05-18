@@ -39,6 +39,7 @@ import {
   type WeaponCount,
 } from '@/lib/member-killboard-aggregation'
 import type { RegearType } from '@/types'
+import { isRegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import type {
   RoleCount,
   MemberEventEntry,
@@ -105,7 +106,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       db
         .from('regear_requests')
         .select(
-          'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, status, admin_notes, created_at, resolved_at, handled_by_username, events(title)',
+          'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, events(title)',
         )
         .eq('guild_id', guildId)
         .eq('discord_id', discordId)
@@ -207,6 +208,9 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
         payout_silver: row.payout_silver ?? null,
         status: row.status as MemberRegearEntry['status'],
         admin_notes: row.admin_notes,
+        reject_reason_code: isRegearRejectReasonCode(row.reject_reason_code)
+          ? row.reject_reason_code
+          : null,
         created_at: row.created_at,
         resolved_at: row.resolved_at,
         handled_by_username: row.handled_by_username ?? null,
