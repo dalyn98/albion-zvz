@@ -1,11 +1,7 @@
 import type { NextConfig } from 'next'
 import createNextIntlPlugin from 'next-intl/plugin'
 import createMDX from '@next/mdx'
-// TEMP DISABLED (hotfix/sentry-disable): withSentryConfig wrapper 가 미들웨어 번들에
-// @swc/helpers/esm/_interop_require_default 동적 require 를 주입 → Vercel NFT 가
-// 추적 못해 MIDDLEWARE_INVOCATION_FAILED. apex 500 복구 위해 한시 제거.
-// 복구되면 원본 wrapper 로 되돌릴 것 — @sentry/nextjs 다운그레이드 또는 SDK 패치 후.
-// import { withSentryConfig } from '@sentry/nextjs'
+import { withSentryConfig } from '@sentry/nextjs'
 
 // Server Actions compare the incoming `origin` header against the request host
 // to block CSRF. When the site is reached via a Tailscale IP (100.x.x.x) or any
@@ -20,12 +16,21 @@ const nextConfig: NextConfig = {
   // MDX 페이지 (`/docs/*` 의 page.mdx) 를 라우트로 인식시킨다. .md 는 사용 안
   // 함 — 모든 docs 본문은 .mdx 로 통일.
   pageExtensions: ['ts', 'tsx', 'mdx'],
-  // Next.js 16 의 @vercel/nft 파일 트레이싱이 컴파일 산출물의
-  // `@swc/helpers/esm/_interop_require_default` require 를 추적 못해 Vercel
-  // serverless 함수 번들에서 누락되는 이슈 — 모든 라우트에 @swc/helpers 강제 포함.
+  // Next.js 16 + Turbopack + Vercel NFT 의 알려진 결함: 컴파일 산출물이
+  // `@swc/helpers/esm/_interop_require_default` 를 절대경로 require 하는데,
+  // NFT 는 runtime-계산된 절대경로 require 를 추적 못해 /var/task 에서 누락 →
+  // "Cannot find module" 으로 Node.js 함수가 종료, MIDDLEWARE_INVOCATION_FAILED.
+  //
+  // 두 갈래로 강제:
+  // 1) outputFileTracingIncludes — 모든 route 깊이를 커버 (이전 `/*` 는 1-depth
+  //    만 매칭됐던 듯 — 효과 없었음).
+  // 2) serverExternalPackages — @swc/helpers 를 bundle 대신 외부 require 로
+  //    유지해 NFT 가 정상 패키지 트레이스 경로로 따라가도록.
   outputFileTracingIncludes: {
-    '/*': ['node_modules/@swc/helpers/**/*'],
+    '/': ['./node_modules/@swc/helpers/**/*'],
+    '/(.*)': ['./node_modules/@swc/helpers/**/*'],
   },
+  serverExternalPackages: ['@swc/helpers'],
   experimental: {
     serverActions: {
       allowedOrigins: [
@@ -113,13 +118,24 @@ const nextConfig: NextConfig = {
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts')
 const withMDX = createMDX({})
 
-// TEMP DISABLED (hotfix/sentry-disable): 위 import 주석 참조. 원본 wrapper 는 아래.
-// export default withSentryConfig(withNextIntl(withMDX(nextConfig)), {
-//   org: process.env.SENTRY_ORG,
-//   project: process.env.SENTRY_PROJECT,
-//   silent: !process.env.CI,
-//   authToken: process.env.SENTRY_AUTH_TOKEN,
-//   tunnelRoute: '/monitoring',
-//   webpack: { automaticVercelMonitors: false },
-// })
-export default withNextIntl(withMDX(nextConfig))
+// Sentry 는 배포 시 source map 업로드 (SENTRY_AUTH_TOKEN 있을 때만), 클라이언트
+// 번들에 SDK 주입 등을 webpack/turbopack 단계에서 처리한다. silent=true 면
+// 로컬 빌드에서 토큰 없을 때 경고가 줄어든다.
+//
+// 참고: 28761cc 에서 한시 비활성했었지만 apex 500 은 그대로 였음 → Sentry 가
+// 원인이 아님 확정, 정상 복구.
+export default withSentryConfig(withNextIntl(withMDX(nextConfig)), {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: !process.env.CI,
+  // 토큰 없으면 source map 업로드 자동 skip — DSN 이 비어 있어도 빌드는 통과.
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  // 클라이언트 번들에 ad-blocker 가 보내는 요청을 막지 않도록 tunnel route 활성.
+  // 실제 효과는 NEXT_PUBLIC_SENTRY_DSN 이 set 됐을 때만 발생.
+  tunnelRoute: '/monitoring',
+  // 빌드 시 Vercel 의 Cron Monitor 자동 연동을 끈다 — 우리는 자체 vercel.json
+  // cron 을 쓰고, Sentry Cron 은 별도 기능 (선택 도입).
+  webpack: {
+    automaticVercelMonitors: false,
+  },
+})
