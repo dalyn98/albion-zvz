@@ -4,7 +4,6 @@ import { getTranslations } from 'next-intl/server'
 import {
   Swords,
   Hammer,
-  ShoppingBag,
   Boxes,
   Sparkles,
   BookOpen,
@@ -29,7 +28,6 @@ type FeatureKey =
   | 'inventory'
   | 'guild-profile'
   | 'guide'
-  | 'shop'
 
 type FeatureSpec = {
   icon: React.ComponentType<{ size?: number; className?: string }>
@@ -47,7 +45,6 @@ const FEATURE_MAP: Record<FeatureKey, FeatureSpec> = {
   inventory: { icon: Boxes, navKey: 'inventoryAdmin', descKey: 'inventory', accent: 'emerald' },
   'guild-profile': { icon: Sparkles, navKey: 'guildProfile', descKey: 'guildProfile', accent: 'fuchsia' },
   guide: { icon: BookOpen, navKey: 'guide', descKey: 'guide', accent: 'sky' },
-  shop: { icon: ShoppingBag, navKey: 'shop', descKey: 'shop', accent: 'amber' },
 }
 
 // Tailwind JIT 가 클래스를 식별해야 해 정적 객체로 미리 풀어둔다.

@@ -4154,6 +4154,12 @@
       "profileVerifiedTag": "검증됨",
       "profileServerLabel": "아시아"
     },
+    "shop": {
+      "notice": "데모 모드 — 실제로 주문되지 않고 잔액도 차감되지 않아요. 클릭해보면서 UI 흐름을 확인해주세요.",
+      "deliveryNotice": "주문이 승인되면 길드 마스터가 게임 내 우편으로 아이템을 보내드려요. 평균 6시간 이내 전달.",
+      "ctaTitle": "AODP 자동 시세 + 셀프 주문, 그대로 가져갈 수 있어요",
+      "ctaDescription": "실버↔포인트 환율 슬라이더 한 번이면 멤버는 셀프로 사고, 어드민은 발주 큐만 확인하면 끝. 시세 부정확 경고도 자동."
+    },
     "ctaCard": {
       "eyebrow": "이 흐름을 우리 길드에서",
       "buttonLabel": "Discord 봇 초대하기",

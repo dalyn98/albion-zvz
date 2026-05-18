@@ -4152,6 +4152,12 @@
       "profileVerifiedTag": "已验证",
       "profileServerLabel": "亚洲"
     },
+    "shop": {
+      "notice": "演示模式 — 订单不会实际下达，余额也不会减少。点击体验一下 UI 流程吧。",
+      "deliveryNotice": "订单获批后，公会主会通过游戏内邮件发送物品。平均 6 小时内送达。",
+      "ctaTitle": "AODP 自动价格 + 自助下单，可直接落地",
+      "ctaDescription": "一个银币↔积分汇率滑块 — 成员自助购买，管理员只需处理订单队列。价格不准确警告自动提示。"
+    },
     "ctaCard": {
       "eyebrow": "在你的公会中运行",
       "buttonLabel": "邀请 Discord 机器人",

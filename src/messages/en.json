@@ -4154,6 +4154,12 @@
       "profileVerifiedTag": "Verified",
       "profileServerLabel": "Asia"
     },
+    "shop": {
+      "notice": "Demo mode — orders aren't actually placed and your balance doesn't decrease. Click around to see how the flow works.",
+      "deliveryNotice": "Once an order is approved, a guild master ships the items via in-game mail. Average delivery within 6 hours.",
+      "ctaTitle": "AODP-driven pricing + self-serve orders, ready to ship",
+      "ctaDescription": "One silver↔points rate slider — members buy themselves, admins just clear the queue. Inaccurate-price warnings included."
+    },
     "ctaCard": {
       "eyebrow": "Run this in your guild",
       "buttonLabel": "Invite Discord bot",
