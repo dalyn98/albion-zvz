@@ -4171,6 +4171,22 @@
       "ctaTitle": "Skip building a recruitment page — it's already done",
       "ctaDescription": "Pick an accent color, write a blurb, set recruitment status — the public page appears instantly. Banner, gallery, stat cards: all one click."
     },
+    "craft": {
+      "adminNotice": "Demo mode — toggles and inputs only fire toasts; nothing is saved. This walks you through how admins operate the crafting system.",
+      "queueNotice": "Demo mode — claim/release buttons only fire toasts; no tasks are actually claimed. This walks you through how a crafter pulls work from the guild queue.",
+      "myTasksNotice": "Demo mode — we preview tasks as if you had claimed them, plus the material aggregate. Your balance and stock are not affected.",
+      "ordersNotice": "Demo mode — claim/deliver buttons only fire toasts; no points are paid out. Just the order flow UI.",
+      "linkQueue": "Crafter-facing guild-wide queue",
+      "linkMyTasks": "Tasks you claimed + material aggregate",
+      "linkOrders": "Admin-posted orders members can claim and deliver",
+      "boxNumber": "Box #{n}",
+      "ctaAdminTitle": "Crafting queue: promises, materials, deliveries — all tracked",
+      "ctaAdminDescription": "Queue submission → crafter claim → box delivery → pickup, automated end-to-end. Box numbers, expiry, material reimbursement — all on one screen.",
+      "ctaCrafterTitle": "Crafter rewards, one toast to confirm",
+      "ctaCrafterDescription": "Pick volunteer/paid mode, get a box range auto-assigned, materials + premium computed automatically. Just claim the request and drop it in the box.",
+      "ctaMemberTitle": "Claim orders without spamming chat",
+      "ctaMemberDescription": "Pick a partial quantity from posted orders, deliver with a memo, and admin approves — all on one screen, no Discord channel clutter."
+    },
     "ctaCard": {
       "eyebrow": "Run this in your guild",
       "buttonLabel": "Invite Discord bot",

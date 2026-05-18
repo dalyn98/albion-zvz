@@ -3,13 +3,10 @@ import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import {
   Swords,
-  Hammer,
   BookOpen,
   CheckCircle2,
   ExternalLink,
   ArrowLeft,
-  ClipboardList,
-  Box,
 } from 'lucide-react'
 
 // 데모 사이드바엔 노출되지만 페이지 자체는 아직 구현 전인 라우트들을 위한
@@ -19,10 +16,6 @@ import {
 
 type FeatureKey =
   | 'battles'
-  | 'craft'
-  | 'craft/queue'
-  | 'craft/my-tasks'
-  | 'craft/orders'
   | 'guide'
 
 type FeatureSpec = {
@@ -34,10 +27,6 @@ type FeatureSpec = {
 
 const FEATURE_MAP: Record<FeatureKey, FeatureSpec> = {
   battles: { icon: Swords, navKey: 'battles', descKey: 'battles', accent: 'rose' },
-  craft: { icon: Hammer, navKey: 'craftAdmin', descKey: 'craftAdmin', accent: 'amber' },
-  'craft/queue': { icon: Hammer, navKey: 'craftQueue', descKey: 'craftQueue', accent: 'amber' },
-  'craft/my-tasks': { icon: Box, navKey: 'craftMyTasks', descKey: 'craftMyTasks', accent: 'amber' },
-  'craft/orders': { icon: ClipboardList, navKey: 'craftOrders', descKey: 'craftOrders', accent: 'amber' },
   guide: { icon: BookOpen, navKey: 'guide', descKey: 'guide', accent: 'sky' },
 }
 

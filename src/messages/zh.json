@@ -4169,6 +4169,22 @@
       "ctaTitle": "招募页面无需另行制作",
       "ctaDescription": "选好主题色、写一段介绍、设置招募状态 — 公开页面即时生成。横幅、图库、统计卡片一键切换。"
     },
+    "craft": {
+      "adminNotice": "演示模式 — 开关/输入只会弹出提示,实际设置不会更改。为你展示管理员如何运营制作系统。",
+      "queueNotice": "演示模式 — 接单/释放按钮只会弹出提示,任务不会真的被接走。为你展示制作者如何从公会队列接单。",
+      "myTasksNotice": "演示模式 — 预览了假设你已接单的任务和材料汇总。实际余额、库存不会变动。",
+      "ordersNotice": "演示模式 — 发单的接单/交付按钮只会弹出提示,不会真的发放积分。仅预览发单流程的 UI。",
+      "linkQueue": "制作者可接的公会全队列",
+      "linkMyTasks": "我接的任务 + 材料汇总",
+      "linkOrders": "管理员发单 — 公会成员接单并交付",
+      "boxNumber": "仓库 #{n}",
+      "ctaAdminTitle": "制作队列,从约定到材料到交付,自动追踪",
+      "ctaAdminDescription": "队列登记 → 制作者接单 → 仓库交付 → 回收,全流程自动化。仓库编号、过期日、材料费结算一屏搞定。",
+      "ctaCrafterTitle": "制作者奖励,一次提示即完成",
+      "ctaCrafterDescription": "选择志愿/付费模式,自动分配仓库范围,材料费 + 溢价自动计算。接受公会成员请求并放入仓库即可。",
+      "ctaMemberTitle": "接单无需在游戏内打字",
+      "ctaMemberDescription": "从已登记发单中选择部分数量接单。交付备注 + 审批一屏完成 — 不会刷屏 Discord 频道。"
+    },
     "ctaCard": {
       "eyebrow": "在你的公会中运行",
       "buttonLabel": "邀请 Discord 机器人",
