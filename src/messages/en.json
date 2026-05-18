@@ -4160,6 +4160,17 @@
       "ctaTitle": "AODP-driven pricing + self-serve orders, ready to ship",
       "ctaDescription": "One silver↔points rate slider — members buy themselves, admins just clear the queue. Inaccurate-price warnings included."
     },
+    "inventory": {
+      "notice": "Demo mode — +/- clicks only show a toast; nothing actually changes. This is how admins manage the guild stockpile.",
+      "ctaTitle": "Stockpile management in one screen, no spreadsheets",
+      "ctaDescription": "9 tracked bases + slot/tier filters + per-enchant counts. Auto −1 on craft delivery — even a first-time officer is fluent in 5 minutes."
+    },
+    "guildProfile": {
+      "previewCardTitle": "Public profile URL",
+      "previewCardDescription": "From the moment the bot is invited, this URL exposes your guild page. Drop it straight into a recruitment post.",
+      "ctaTitle": "Skip building a recruitment page — it's already done",
+      "ctaDescription": "Pick an accent color, write a blurb, set recruitment status — the public page appears instantly. Banner, gallery, stat cards: all one click."
+    },
     "ctaCard": {
       "eyebrow": "Run this in your guild",
       "buttonLabel": "Invite Discord bot",

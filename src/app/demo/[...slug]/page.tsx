@@ -4,8 +4,6 @@ import { getTranslations } from 'next-intl/server'
 import {
   Swords,
   Hammer,
-  Boxes,
-  Sparkles,
   BookOpen,
   CheckCircle2,
   ExternalLink,
@@ -25,8 +23,6 @@ type FeatureKey =
   | 'craft/queue'
   | 'craft/my-tasks'
   | 'craft/orders'
-  | 'inventory'
-  | 'guild-profile'
   | 'guide'
 
 type FeatureSpec = {
@@ -42,8 +38,6 @@ const FEATURE_MAP: Record<FeatureKey, FeatureSpec> = {
   'craft/queue': { icon: Hammer, navKey: 'craftQueue', descKey: 'craftQueue', accent: 'amber' },
   'craft/my-tasks': { icon: Box, navKey: 'craftMyTasks', descKey: 'craftMyTasks', accent: 'amber' },
   'craft/orders': { icon: ClipboardList, navKey: 'craftOrders', descKey: 'craftOrders', accent: 'amber' },
-  inventory: { icon: Boxes, navKey: 'inventoryAdmin', descKey: 'inventory', accent: 'emerald' },
-  'guild-profile': { icon: Sparkles, navKey: 'guildProfile', descKey: 'guildProfile', accent: 'fuchsia' },
   guide: { icon: BookOpen, navKey: 'guide', descKey: 'guide', accent: 'sky' },
 }
 

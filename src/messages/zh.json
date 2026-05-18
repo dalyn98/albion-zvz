@@ -4158,6 +4158,17 @@
       "ctaTitle": "AODP 自动价格 + 自助下单，可直接落地",
       "ctaDescription": "一个银币↔积分汇率滑块 — 成员自助购买，管理员只需处理订单队列。价格不准确警告自动提示。"
     },
+    "inventory": {
+      "notice": "演示模式 — +/- 点击仅显示提示，实际库存不会改变。展示管理员如何管理公会库存。",
+      "ctaTitle": "库存管理一屏完成，告别 Excel",
+      "ctaDescription": "9 种追踪基础物品 + 槽位/层级筛选 + 按附魔分类库存。制作交付时自动 −1 — 新手运营 5 分钟即可上手。"
+    },
+    "guildProfile": {
+      "previewCardTitle": "公开资料 URL",
+      "previewCardDescription": "机器人邀请后即刻通过此 URL 对外公开公会页面。可直接粘贴到招募贴。",
+      "ctaTitle": "招募页面无需另行制作",
+      "ctaDescription": "选好主题色、写一段介绍、设置招募状态 — 公开页面即时生成。横幅、图库、统计卡片一键切换。"
+    },
     "ctaCard": {
       "eyebrow": "在你的公会中运行",
       "buttonLabel": "邀请 Discord 机器人",
