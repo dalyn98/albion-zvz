@@ -16,6 +16,12 @@ const nextConfig: NextConfig = {
   // MDX 페이지 (`/docs/*` 의 page.mdx) 를 라우트로 인식시킨다. .md 는 사용 안
   // 함 — 모든 docs 본문은 .mdx 로 통일.
   pageExtensions: ['ts', 'tsx', 'mdx'],
+  // Next.js 16 의 @vercel/nft 파일 트레이싱이 컴파일 산출물의
+  // `@swc/helpers/esm/_interop_require_default` require 를 추적 못해 Vercel
+  // serverless 함수 번들에서 누락되는 이슈 — 모든 라우트에 @swc/helpers 강제 포함.
+  outputFileTracingIncludes: {
+    '/*': ['node_modules/@swc/helpers/**/*'],
+  },
   experimental: {
     serverActions: {
       allowedOrigins: [
