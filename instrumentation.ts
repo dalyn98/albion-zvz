@@ -1,16 +1,21 @@
-// Next.js 16 instrumentation hook. 서버 부팅 시 한 번 호출돼 Sentry 를 runtime
-// 별로 초기화. onRequestError 는 RSC/route handler 에서 던져진 에러를 Sentry 로
-// 전달하는 표준 훅 (Next.js 가 자동 호출).
-
-import * as Sentry from '@sentry/nextjs'
+// TEMP DISABLED (hotfix/sentry-disable): next.config.ts withSentryConfig 제거와
+// 짝지어 instrumentation 도 no-op 처리. 미들웨어 번들에서 @sentry/nextjs 가
+// 끌어오는 @swc/helpers 동적 require 가 Vercel NFT 추적 누락으로 500 유발.
+// 원본 로직은 아래 주석. 복구 시 import + register + onRequestError 다시 활성화.
+//
+// import * as Sentry from '@sentry/nextjs'
+//
+// export async function register() {
+//   if (process.env.NEXT_RUNTIME === 'nodejs') {
+//     await import('./sentry.server.config')
+//   }
+//   if (process.env.NEXT_RUNTIME === 'edge') {
+//     await import('./sentry.edge.config')
+//   }
+// }
+//
+// export const onRequestError = Sentry.captureRequestError
 
 export async function register() {
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
-    await import('./sentry.server.config')
-  }
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    await import('./sentry.edge.config')
-  }
+  // no-op
 }
-
-export const onRequestError = Sentry.captureRequestError
