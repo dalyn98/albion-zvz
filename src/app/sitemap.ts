@@ -24,28 +24,34 @@ function expandDocsRoutes(): string[] {
 // 공개 길드 프로필 (/g/<slug>) — 활성+공개 토글 ON 인 길드만 인덱싱.
 // pending 이거나 enabled=false 면 generateMetadata 에서 noindex 처리되므로
 // sitemap 에서도 제외해 크롤러가 dead link 를 줍지 않게 한다.
+// Supabase env 가 없는 빌드 환경 (preview 등) 에서는 빈 배열로 회복 — sitemap
+// 정적 부분은 계속 서빙되고, 실 production runtime 의 ISR 재생성 때 채워진다.
 async function listPublicGuildSlugs(): Promise<string[]> {
-  const db = getAdminClient()
-  const { data: tenants } = await db
-    .from('tenants')
-    .select('id, slug')
-    .eq('status', 'active')
-  if (!tenants || tenants.length === 0) return []
-  const tenantById = new Map(
-    tenants.map((row) => [row.id as string, row.slug as string]),
-  )
-  // app_settings 에 guild_profile_enabled='true' 인 길드만 필터.
-  const { data: enabledRows } = await db
-    .from('app_settings')
-    .select('guild_id, value')
-    .eq('key', 'guild_profile_enabled')
-    .in('guild_id', Array.from(tenantById.keys()))
-  if (!enabledRows) return []
-  return enabledRows
-    .filter((row) => (row.value as string) === 'true')
-    .map((row) => tenantById.get(row.guild_id as string))
-    .filter((slug): slug is string => Boolean(slug))
-    .sort()
+  try {
+    const db = getAdminClient()
+    const { data: tenants } = await db
+      .from('tenants')
+      .select('id, slug')
+      .eq('status', 'active')
+    if (!tenants || tenants.length === 0) return []
+    const tenantById = new Map(
+      tenants.map((row) => [row.id as string, row.slug as string]),
+    )
+    // app_settings 에 guild_profile_enabled='true' 인 길드만 필터.
+    const { data: enabledRows } = await db
+      .from('app_settings')
+      .select('guild_id, value')
+      .eq('key', 'guild_profile_enabled')
+      .in('guild_id', Array.from(tenantById.keys()))
+    if (!enabledRows) return []
+    return enabledRows
+      .filter((row) => (row.value as string) === 'true')
+      .map((row) => tenantById.get(row.guild_id as string))
+      .filter((slug): slug is string => Boolean(slug))
+      .sort()
+  } catch {
+    return []
+  }
 }
 
 export const revalidate = 3600
