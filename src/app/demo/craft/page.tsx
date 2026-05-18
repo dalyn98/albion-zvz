@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
   Box,
@@ -61,6 +61,15 @@ export default function DemoCraftAdminPage() {
   const removeCrafter = (ign: string) => {
     setCrafters((prev) => prev.filter((c) => c.ign !== ign))
   }
+
+  // 설정 토글/범위가 실제 작업 노출에 영향을 주도록 — 비활성화면 모두 숨김,
+  // 활성화면 큐(box=null) 는 항상 + 진행 중 작업은 박스 번호가 범위 안에 있을 때만.
+  const visibleTasks = useMemo(() => {
+    if (!enabled) return [] as typeof TASKS
+    return TASKS.filter(
+      (task) => task.box === null || (task.box >= rangeMin && task.box <= rangeMax),
+    )
+  }, [enabled, rangeMin, rangeMax])
 
   return (
     <div className="space-y-5">
@@ -150,10 +159,24 @@ export default function DemoCraftAdminPage() {
             </button>
           </div>
 
-          <div className={`bg-gray-950 border border-gray-800 rounded-lg p-3 space-y-2 ${!enabled ? 'opacity-50' : ''}`}>
-            <p className="text-white text-sm font-semibold">
-              {t('rangeMinLabel')} / {t('rangeMaxLabel')}
-            </p>
+          <div
+            aria-disabled={!enabled || undefined}
+            className={`relative rounded-lg p-3 space-y-2 transition-colors ${
+              enabled
+                ? 'bg-gray-950 border border-gray-800'
+                : 'bg-gray-950/40 border border-dashed border-gray-700/60 opacity-60 grayscale [&_input]:cursor-not-allowed'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <p className={`text-sm font-semibold ${enabled ? 'text-white' : 'text-gray-500'}`}>
+                {t('rangeMinLabel')} / {t('rangeMaxLabel')}
+              </p>
+              {!enabled && (
+                <span className="text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-gray-800 text-gray-400 border border-gray-700">
+                  off
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -245,29 +268,39 @@ export default function DemoCraftAdminPage() {
       <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
         <h2 className="text-base font-bold text-white">{t('tasksTitle')}</h2>
         <p className="text-xs text-gray-500">{t('tasksHint')}</p>
-        <ul className="space-y-2">
-          {TASKS.map((task) => {
-            const s = STATUS_STYLE[task.status]
-            return (
-              <li
-                key={task.id}
-                className="bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 flex items-center gap-3"
-              >
-                <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${s.bg} ${s.text} shrink-0`}>
-                  {t(s.label)}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-semibold truncate">{task.item}</p>
-                  <p className="text-[11px] text-gray-500 truncate">
-                    {t('taskRequester', { name: task.requester })}
-                    {task.crafter && ` · ${t('taskCrafter', { name: task.crafter })}`}
-                    {task.box && ` · ${tDemoCraft('boxNumber', { n: task.box })}`}
-                  </p>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+        {!enabled ? (
+          <p className="text-gray-500 text-sm text-center py-6 bg-gray-950 border border-gray-800 rounded-lg">
+            {tDemoCraft('tasksDisabledNotice')}
+          </p>
+        ) : visibleTasks.length === 0 ? (
+          <p className="text-gray-500 text-sm text-center py-6 bg-gray-950 border border-gray-800 rounded-lg">
+            {tDemoCraft('tasksRangeEmpty')}
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {visibleTasks.map((task) => {
+              const s = STATUS_STYLE[task.status]
+              return (
+                <li
+                  key={task.id}
+                  className="bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 flex items-center gap-3"
+                >
+                  <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${s.bg} ${s.text} shrink-0`}>
+                    {t(s.label)}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-semibold truncate">{task.item}</p>
+                    <p className="text-[11px] text-gray-500 truncate">
+                      {t('taskRequester', { name: task.requester })}
+                      {task.crafter && ` · ${t('taskCrafter', { name: task.crafter })}`}
+                      {task.box && ` · ${tDemoCraft('boxNumber', { n: task.box })}`}
+                    </p>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
       </section>
 
       <DemoCTACard

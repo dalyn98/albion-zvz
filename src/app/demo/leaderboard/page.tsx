@@ -5,14 +5,49 @@ import { DEMO_MEMBERS } from '@/data/demo-seed'
 import DemoCTACard from '../_components/DemoCTACard'
 
 // 실제 /leaderboard 와 같은 5장(킬/참여/생존/KD/승률) 카드 구성. window 탭은
-// 시각용 — 데모는 단일 시드라 클릭해도 데이터는 같음. /demo/leaderboard?window=
-// search param 으로 활성 탭만 바뀐다.
+// 주/월/전체 누적 분량과 멤버별 안정적 변동을 함께 적용해, 각 윈도우가 진짜로
+// 다른 데이터처럼 보이도록 한다. /demo/leaderboard?window= search param 으로
+// 활성 탭만 바뀐다.
 
 type LeaderboardWindow = 'week' | 'month' | 'all'
 const WINDOWS: ReadonlyArray<LeaderboardWindow> = ['week', 'month', 'all']
 
 function isWindow(v: string | undefined): v is LeaderboardWindow {
   return v === 'week' || v === 'month' || v === 'all'
+}
+
+// 주 = 1배, 월 = 4주 누적, 전체 = ~4개월. 멤버별 변동은 ign 해시로 결정적.
+const WINDOW_VOLUME: Record<LeaderboardWindow, number> = {
+  week: 1,
+  month: 4,
+  all: 16,
+}
+
+// ign + windowKey 로 결정적 변동 (0.85 ~ 1.15). 멤버마다 윈도우별로 약간씩
+// 순위가 흔들려, 단일 시드여도 "다른 기간" 처럼 보인다.
+function windowJitter(ign: string, windowKey: LeaderboardWindow): number {
+  const seed = windowKey === 'week' ? 11 : windowKey === 'month' ? 137 : 271
+  let h = seed
+  for (let i = 0; i < ign.length; i += 1) {
+    h = (h * 31 + ign.charCodeAt(i)) % 1000
+  }
+  return 0.85 + (h / 1000) * 0.3
+}
+
+// 생존률·승률 같은 비율 지표는 윈도우별로 작은 변동만 (±4% 포인트).
+function pctJitter(ign: string, windowKey: LeaderboardWindow): number {
+  const seed = windowKey === 'week' ? 7 : windowKey === 'month' ? 53 : 191
+  let h = seed
+  for (let i = 0; i < ign.length; i += 1) {
+    h = (h * 17 + ign.charCodeAt(i)) % 1000
+  }
+  return ((h / 1000) - 0.5) * 8 // -4 ~ +4
+}
+
+function clampPct(v: number): number {
+  if (v < 0) return 0
+  if (v > 100) return 100
+  return Math.round(v)
 }
 
 type Entry = {
@@ -38,7 +73,20 @@ export default async function DemoLeaderboardPage({
     getTranslations('demo.ctaCard'),
   ])
 
-  const kills: Entry[] = [...DEMO_MEMBERS]
+  const volume = WINDOW_VOLUME[windowKey]
+
+  // 윈도우별 누적값. 멤버마다 결정적 jitter 를 곱해 순위가 미세하게 흔들리도록.
+  const scaled = DEMO_MEMBERS.map((m) => {
+    const j = windowJitter(m.ign, windowKey)
+    const kills = Math.max(0, Math.round(m.kills * volume * j))
+    const deaths = Math.max(0, Math.round(m.deaths * volume * j))
+    const battles = Math.max(1, Math.round(m.battles * volume * j))
+    const attended = Math.max(0, Math.round(m.weeklyAttendance.attended * volume * j))
+    const survivalPct = clampPct(m.survivalPct + pctJitter(m.ign, windowKey))
+    return { ign: m.ign, kills, deaths, battles, attended, survivalPct }
+  })
+
+  const kills: Entry[] = [...scaled]
     .sort((a, b) => b.kills - a.kills)
     .slice(0, 10)
     .map((m) => ({
@@ -48,13 +96,13 @@ export default async function DemoLeaderboardPage({
       deaths: m.deaths,
     }))
 
-  const participation: Entry[] = [...DEMO_MEMBERS]
-    .map((m) => ({ username: m.ign, value: m.weeklyAttendance.attended }))
+  const participation: Entry[] = [...scaled]
+    .map((m) => ({ username: m.ign, value: m.attended }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 10)
 
   // 생존률은 battles ≥ 5 인 멤버만 — 실 leaderboard 와 동일 필터.
-  const survival: Entry[] = [...DEMO_MEMBERS]
+  const survival: Entry[] = [...scaled]
     .filter((m) => m.battles >= 5)
     .map((m) => ({
       username: m.ign,
@@ -64,7 +112,7 @@ export default async function DemoLeaderboardPage({
     .sort((a, b) => b.value - a.value)
     .slice(0, 10)
 
-  const kd: Entry[] = [...DEMO_MEMBERS]
+  const kd: Entry[] = [...scaled]
     .filter((m) => m.kills + m.deaths >= 5)
     .map((m) => ({
       username: m.ign,
@@ -76,7 +124,7 @@ export default async function DemoLeaderboardPage({
     .slice(0, 10)
 
   // 승률은 시드에 없으니 survivalPct 를 그대로 차용 — 데모 컨텍스트에서 "근사치" 표시.
-  const winRate: Entry[] = [...DEMO_MEMBERS]
+  const winRate: Entry[] = [...scaled]
     .filter((m) => m.battles >= 5)
     .map((m) => {
       const wins = Math.round(m.battles * (m.survivalPct / 100))

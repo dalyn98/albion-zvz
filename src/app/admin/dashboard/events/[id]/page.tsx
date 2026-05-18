@@ -119,22 +119,25 @@ export default async function EditEventPage({
   )
   const tentativeRows = tentativeRes.rows
   // 어드민이 다른 멤버를 대신 참가예정에 등록할 수 있도록 활성 멤버 디렉터리를
-  // 한 번 더 조회. 탈퇴자(withdrawn_at not null) 는 제외.
+  // 한 번 더 조회. 탈퇴자(withdrawn_at not null) 는 제외. 아바타 조회와는
+  // 서로 독립적이라 같은 Promise.all 묶음으로 round-trip 을 1회로 줄인다.
   const adminClient = getAdminClient()
-  const { data: tentativeDirectoryRows } = await adminClient
-    .from('guild_avatars')
-    .select('discord_id, username')
-    .eq('guild_id', guildId)
-    .is('withdrawn_at', null)
-    .order('username')
-  const tentativeDirectory = (tentativeDirectoryRows ?? []).map((m) => ({
+  const [tentativeDirectoryRes, avatarMap] = await Promise.all([
+    adminClient
+      .from('guild_avatars')
+      .select('discord_id, username')
+      .eq('guild_id', guildId)
+      .is('withdrawn_at', null)
+      .order('username'),
+    getAvatarsByDiscordIds(guildId, [
+      ...assignedDiscordIds,
+      ...tentativeRows.map((r) => r.discord_id),
+    ]),
+  ])
+  const tentativeDirectory = (tentativeDirectoryRes.data ?? []).map((m) => ({
     discord_id: m.discord_id,
     username: m.username,
   }))
-  const avatarMap = await getAvatarsByDiscordIds(guildId, [
-    ...assignedDiscordIds,
-    ...tentativeRows.map((r) => r.discord_id),
-  ])
   const avatars = Object.fromEntries(avatarMap)
 
   return (

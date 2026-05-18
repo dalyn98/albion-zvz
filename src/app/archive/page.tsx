@@ -2,7 +2,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import type { Event } from '@/types'
 import { getTranslations } from 'next-intl/server'
 import { Archive } from 'lucide-react'
-import { formatGatherTimeFor, isEnded } from '@/lib/gather-time'
+import { formatGatherTimeFor } from '@/lib/gather-time'
 import { formatDateTime } from '@/lib/format-datetime'
 import { getLocale } from '@/lib/locale'
 import { getSession } from '@/lib/session'
@@ -12,18 +12,23 @@ import ArchiveEventList, { type ArchivedEventCard } from '@/components/ArchiveEv
 
 export const dynamic = 'force-dynamic'
 
+// isEnded 와 동일한 컷오프 (battle_started_at + 1h < now) 를 SQL 로 푸시.
+// 진행 중인 전투는 DB 에서 제외돼 페이지 로딩 시 가져오는 row 수가 줄고,
+// 후속 parties join 도 작아진다. ms 는 ko/ja/en 무관 UTC ISO 라 안전.
+const BATTLE_DURATION_MS = 60 * 60 * 1000
+
 async function getArchivedEvents(guildId: string, tz: string): Promise<ArchivedEventCard[]> {
   const db = getAdminClient()
+  const cutoffIso = new Date(Date.now() - BATTLE_DURATION_MS).toISOString()
   const { data: events } = await db
     .from('events')
     .select('*')
     .eq('guild_id', guildId)
     .not('battle_started_at', 'is', null)
+    .lt('battle_started_at', cutoffIso)
     .order('battle_started_at', { ascending: false })
 
-  const ended = ((events ?? []) as Event[]).filter((e) =>
-    e.battle_started_at ? isEnded(e.battle_started_at) : false,
-  )
+  const ended = (events ?? []) as Event[]
   if (ended.length === 0) return []
 
   const ids = ended.map((e) => e.id)

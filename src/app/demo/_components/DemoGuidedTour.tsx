@@ -155,6 +155,8 @@ export default function DemoGuidedTour({
 
   const titleText = isCompleted ? tUi('completedTitle') : tPage(`step${step + 1}Title`)
   const bodyText = isCompleted ? tPage('completedBody') : tPage(`step${step + 1}Body`)
+  const titleId = `demo-tour-title-${namespace}`
+  const bodyId = `demo-tour-body-${namespace}`
 
   return (
     <>
@@ -181,6 +183,9 @@ export default function DemoGuidedTour({
 
       <div
         role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={bodyId}
         aria-live="polite"
         className="fixed z-50 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 bottom-4 sm:max-w-lg w-auto bg-[#11131a] border border-amber-400/40 rounded-xl shadow-2xl"
       >
@@ -204,8 +209,8 @@ export default function DemoGuidedTour({
                 <X size={14} />
               </button>
             </div>
-            <h3 className="text-sm font-bold text-white leading-tight">{titleText}</h3>
-            <p className="mt-1.5 text-xs text-gray-300 leading-relaxed">{bodyText}</p>
+            <h3 id={titleId} className="text-sm font-bold text-white leading-tight">{titleText}</h3>
+            <p id={bodyId} className="mt-1.5 text-xs text-gray-300 leading-relaxed">{bodyText}</p>
           </div>
         </div>
         <div className="border-t border-white/5 px-4 py-2.5 flex items-center justify-between gap-2">
