@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { getTranslations } from 'next-intl/server'
 import { getLocale } from '@/lib/locale'
 import {
@@ -7,13 +8,7 @@ import {
   TrendingDown,
   Users,
 } from 'lucide-react'
-import {
-  getPointStats,
-  getEventStats,
-  getShopRegearStats,
-  getAlbionVerificationStats,
-  getFinanceFlowStats,
-} from '@/app/actions/stats-admin'
+import { getPointStats } from '@/app/actions/stats-admin'
 import MemberAvatar from '@/components/MemberAvatar'
 import MemberLink from '@/components/MemberLink'
 import CollapsibleList from '@/components/CollapsibleList'
@@ -23,31 +18,19 @@ import EventParticipationSection from './_components/EventParticipationSection'
 import ShopRegearSection from './_components/ShopRegearSection'
 import AlbionVerificationSection from './_components/AlbionVerificationSection'
 import FinanceFlowSection from './_components/FinanceFlowSection'
+import SectionSkeleton from './_components/SectionSkeleton'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminStatsPage() {
-  // 다섯 섹션을 병렬로 — 하나가 느려도 다른 섹션이 블로킹되지 않도록.
-  const [
-    tNav,
-    tStats,
-    tCommon,
-    locale,
-    pointRes,
-    eventRes,
-    shopRegearRes,
-    verificationRes,
-    financeRes,
-  ] = await Promise.all([
+  // 헤더·카드·TopHolders·WithdrawnMembers 만 빠르게 막고, 나머지 4개 섹션은
+  // Suspense 로 스트리밍 — 한 섹션이 느려도 첫 paint 가 지연되지 않게.
+  const [tNav, tStats, tCommon, locale, pointRes] = await Promise.all([
     getTranslations('nav'),
     getTranslations('adminStats'),
     getTranslations('common'),
     getLocale(),
     getPointStats(),
-    getEventStats(),
-    getShopRegearStats(),
-    getAlbionVerificationStats(),
-    getFinanceFlowStats(),
   ])
 
   const { stats, error } = pointRes
@@ -177,10 +160,18 @@ export default async function AdminStatsPage() {
         )}
       </section>
 
-      <FinanceFlowSection result={financeRes} tStats={tStats} />
-      <AlbionVerificationSection result={verificationRes} tStats={tStats} tCommon={tCommon} />
-      <EventParticipationSection result={eventRes} tStats={tStats} />
-      <ShopRegearSection result={shopRegearRes} tStats={tStats} locale={locale} />
+      <Suspense fallback={<SectionSkeleton />}>
+        <FinanceFlowSection tStats={tStats} />
+      </Suspense>
+      <Suspense fallback={<SectionSkeleton />}>
+        <AlbionVerificationSection tStats={tStats} tCommon={tCommon} />
+      </Suspense>
+      <Suspense fallback={<SectionSkeleton />}>
+        <EventParticipationSection tStats={tStats} />
+      </Suspense>
+      <Suspense fallback={<SectionSkeleton />}>
+        <ShopRegearSection tStats={tStats} locale={locale} />
+      </Suspense>
       <WithdrawnMembersSection
         withdrawnHeld={stats.withdrawnHeld}
         withdrawnHolders={stats.withdrawnHolders}
