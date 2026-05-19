@@ -1747,7 +1747,23 @@
     "memberRequired": "必须是公会成员才能查看此站点。\n请向管理员索取邀请，然后再次登录。",
     "invitePrompt": "这是活动邀请链接。\n使用 Discord 登录即可作为访客进入。",
     "logout": "使用其他账号登录",
-    "learnMore": "用我自己的公会试试"
+    "learnMore": "用我自己的公会试试",
+    "retry": "重试"
+  },
+  "inAppBrowserNotice": {
+    "title": "请在外部浏览器打开",
+    "description": "当前页面正在应用内浏览器中打开,Discord 登录可能无法正常工作。请在 Safari · Chrome 等独立浏览器中打开。",
+    "copyButton": "复制 URL",
+    "copied": "已复制",
+    "openBrowser": "在 Safari 中打开",
+    "hintKakaoTalk": "点击 KakaoTalk 右上角 ⋮ → 在其他浏览器中打开,或使用下方按钮复制 URL 后粘贴到浏览器。",
+    "hintDiscord": "长按 Discord 中的链接,选择「在浏览器中打开」。",
+    "hintInstagram": "点击 Instagram 右上角 ⋯ → 在外部链接中打开。",
+    "hintFacebook": "点击 Facebook 右上角 ⋯ → 在外部浏览器中打开。",
+    "hintLine": "点击 LINE 右上角 ⋯ → 在其他应用中打开,然后选择浏览器。",
+    "hintNaver": "点击 NAVER 应用右下方菜单 → 在外部浏览器中打开。",
+    "hintWechat": "点击微信右上角 … → 在浏览器中打开。",
+    "hintUnknown": "请在当前应用的右上或底部菜单中找到「在外部浏览器中打开」选项。"
   },
   "publicLanding": {
     "siteName": "Albion Guild Manager",
@@ -1951,6 +1967,10 @@
       "noIdentity": "无法获取 Discord 用户信息。",
       "noRole": "缺少必需的身份组,无法登录。",
       "serverError": "登录过程中发生服务器错误。",
+      "hopMissing": "登录信息缺失,请重试。",
+      "hopInvalid": "登录信息无效,请重试。",
+      "hopWrongHost": "公会域名错误,请使用正确的公会URL访问。",
+      "hopNoTenant": "找不到关联的公会。",
       "default": "登录失败。"
     }
   },

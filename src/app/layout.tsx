@@ -393,12 +393,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     } else {
       gateGuildId = await getPrimaryTenantId()
     }
-    const [bannerUrl, ctaText, tLanding, tAuthError, tPublicLanding] = await Promise.all([
+    const [bannerUrl, ctaText, tLanding, tAuthError, tPublicLanding, tInApp] = await Promise.all([
       getAppSetting('landing_banner_url', '', gateGuildId),
       getAppSetting('landing_cta_text', '', gateGuildId),
       getTranslations('landing'),
       getTranslations('auth.error'),
       getTranslations('publicLanding'),
+      getTranslations('inAppBrowserNotice'),
     ])
     const derivedBrandName = resolvedTenantSlug ? displayNameFromSlug(resolvedTenantSlug) : ''
     const siteName = derivedBrandName.length > 0 ? derivedBrandName : tPublicLanding('siteName')
@@ -430,7 +431,29 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           noIdentity: tAuthError('noIdentity'),
           noRole: tAuthError('noRole'),
           serverError: tAuthError('serverError'),
+          hopMissing: tAuthError('hopMissing'),
+          hopInvalid: tAuthError('hopInvalid'),
+          hopWrongHost: tAuthError('hopWrongHost'),
+          hopNoTenant: tAuthError('hopNoTenant'),
           default: tAuthError('default'),
+        }}
+        retryLabel={tLanding('retry')}
+        inAppBrowserNotice={{
+          title: tInApp('title'),
+          description: tInApp('description'),
+          copyButtonLabel: tInApp('copyButton'),
+          copiedLabel: tInApp('copied'),
+          openBrowserLabel: tInApp('openBrowser'),
+          perAppHint: {
+            kakaotalk: tInApp('hintKakaoTalk'),
+            discord: tInApp('hintDiscord'),
+            instagram: tInApp('hintInstagram'),
+            facebook: tInApp('hintFacebook'),
+            line: tInApp('hintLine'),
+            naver: tInApp('hintNaver'),
+            wechat: tInApp('hintWechat'),
+            unknown_webview: tInApp('hintUnknown'),
+          },
         }}
       />
     )

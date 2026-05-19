@@ -18,7 +18,9 @@
 
 import type { SessionPayload } from './session'
 
-const STATE_MAX_AGE_SECONDS = 60 * 10
+// 모바일 3G/지하철 같은 느린 연결에서 Discord 인증이 10분을 넘는 케이스가
+// 보고됐다. 15분으로 늘려도 nonce + HMAC 으로 재사용 위험은 그대로 막힌다.
+const STATE_MAX_AGE_SECONDS = 60 * 15
 const HOP_TOKEN_MAX_AGE_SECONDS = 60
 
 export interface OAuthStatePayload {

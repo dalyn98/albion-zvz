@@ -11,6 +11,10 @@ Sentry.init({
   // 양과 비용 균형이 맞고, 에러는 별개로 100% 캡처된다.
   tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
   // Replay 는 일단 끄고 — 비용 + GDPR 고려. 필요하면 나중에 켜자.
+  // 첫 페이지뷰 직후 페이지 이동이 빠른 모바일에서 client_report beacon 이
+  // pagehide 와 경쟁해 ERR_ABORTED 로 잡힌다. 우리는 client_report (rate-limited
+  // event 카운터) 자체가 운영상 필요하지 않으니 끈다. 에러/트레이스는 영향 없음.
+  sendClientReports: false,
 })
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart

@@ -3,6 +3,8 @@
 import { useEffect } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import DiscordIcon from '@/components/DiscordIcon'
+import InAppBrowserNotice from '@/components/InAppBrowserNotice'
+import type { InAppBrowserKind } from '@/lib/user-agent'
 
 const AUTH_ERROR_KEY_MAP: Record<string, string> = {
   denied: 'denied',
@@ -12,6 +14,10 @@ const AUTH_ERROR_KEY_MAP: Record<string, string> = {
   no_identity: 'noIdentity',
   no_role: 'noRole',
   server_error: 'serverError',
+  hop_missing: 'hopMissing',
+  hop_invalid: 'hopInvalid',
+  hop_wrong_host: 'hopWrongHost',
+  hop_no_tenant: 'hopNoTenant',
 }
 
 export type GateReason = 'not_logged_in' | 'no_role'
@@ -28,6 +34,15 @@ interface Props {
   learnMoreLabel: string
   learnMoreHref: string
   authErrorLabels: Record<string, string>
+  retryLabel: string
+  inAppBrowserNotice: {
+    title: string
+    description: string
+    copyButtonLabel: string
+    copiedLabel: string
+    openBrowserLabel: string
+    perAppHint: Partial<Record<NonNullable<InAppBrowserKind>, string>>
+  }
 }
 
 export default function AppGate({
@@ -42,6 +57,8 @@ export default function AppGate({
   learnMoreLabel,
   learnMoreHref,
   authErrorLabels,
+  retryLabel,
+  inAppBrowserNotice,
 }: Props) {
   // 이벤트/멤버/공유 페이지의 generateMetadata 가 OG/SEO 를 위해 풍부한 title
   // (예: "Foo Battle · 길드명") 을 박아두는데, 미로그인 사용자에게는 AppGate
@@ -89,6 +106,10 @@ export default function AppGate({
   // 노출해 "다른 계정으로 다시 들어가는" 옵션을 남긴다.
   const showLogin = reason === 'not_logged_in' || hasInvite
   const showLogout = reason === 'no_role'
+  // auth_error 로 한 번 깨진 사용자가 그 자리에서 다시 시도할 수 있도록 retry
+  // 버튼을 노출. login 버튼이 이미 같은 동작을 하므로 logout-only 경로(no_role)
+  // 에선 의미 없음.
+  const showRetry = !!authError && showLogin
   const promptText = hasInvite
     ? invitePromptLabel
     : reason === 'no_role'
@@ -104,13 +125,13 @@ export default function AppGate({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-[#0b0d12]"
+      className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-[#0b0d12] overflow-y-auto py-8"
       style={backgroundStyle}
     >
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/85" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.4)_70%)]" />
 
-      <div className="relative z-10 w-full max-w-sm text-center space-y-8">
+      <div className="relative z-10 w-full max-w-sm text-center space-y-6 my-auto">
         <div className="space-y-3">
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">
             {siteName}
@@ -120,6 +141,15 @@ export default function AppGate({
           </p>
         </div>
 
+        <InAppBrowserNotice
+          title={inAppBrowserNotice.title}
+          description={inAppBrowserNotice.description}
+          copyButtonLabel={inAppBrowserNotice.copyButtonLabel}
+          copiedLabel={inAppBrowserNotice.copiedLabel}
+          openBrowserLabel={inAppBrowserNotice.openBrowserLabel}
+          perAppHint={inAppBrowserNotice.perAppHint}
+        />
+
         <div className="space-y-3">
           {showLogin && (
             <a
@@ -127,7 +157,7 @@ export default function AppGate({
               className="group relative inline-flex items-center justify-center gap-2 w-full bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold py-3.5 rounded-xl shadow-[0_10px_30px_-10px_rgba(88,101,242,0.6)] hover:shadow-[0_14px_36px_-10px_rgba(88,101,242,0.75)] hover:-translate-y-0.5 transition-all duration-200"
             >
               <DiscordIcon />
-              <span>{loginLabel}</span>
+              <span>{showRetry ? retryLabel : loginLabel}</span>
             </a>
           )}
           {showLogout && (
