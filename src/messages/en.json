@@ -679,7 +679,7 @@
     "bombSquad": {
       "title": "Bomb-squad party & caller",
       "cta": "Open permissions",
-      "body": "Bomb-squad parties use a 'members apply freely → caller approves/direct-assigns' flow. To use it:\n\n1) Go to Settings → Permissions and configure at least one caller role.\n2) Have at least one guild member with that role.\n3) In the event party editor, toggle 'Bomb Squad' on and pick a caller.\n\nCallers get a dedicated edit page at /events/{id}/party/{n} where they manage their own party's slots and members."
+      "body": "Bomb-squad parties use a 'members apply freely → caller approves/direct-assigns' flow. To use it:\n\n1) Go to Settings → Permissions and configure at least one caller role.\n2) Have at least one guild member with that role.\n3) In the event party editor, toggle 'Bomb Squad' on and pick a caller.\n\nCallers manage their own party's slots and members directly from a dedicated edit page."
     },
     "shop": {
       "title": "Guild shop",
