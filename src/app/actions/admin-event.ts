@@ -18,6 +18,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { getLocale } from '@/lib/locale'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { log } from '@/lib/log'
+import { logAdminAction } from '@/lib/admin-audit'
 import type { Locale } from '@/i18n/locales'
 import type { EventCategory } from '@/types'
 import { EVENT_CATEGORIES } from '@/types'
@@ -114,6 +115,14 @@ export async function createDraftEvent(
       .select('id')
       .single()
     if (error) return { error: error.message }
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'event.create',
+      targetId: data.id,
+      targetKind: 'event',
+      details: { kind: 'draft', title: payload.title.trim(), category },
+    })
     return { id: data.id }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -143,6 +152,14 @@ export async function createEvent(payload: EventPayload): Promise<{ id: string }
       .select('id')
       .single()
     if (error) return { error: error.message }
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'event.create',
+      targetId: data.id,
+      targetKind: 'event',
+      details: { title: payload.title, gatherAt: payload.gather_at, category: requestedCategory },
+    })
     return { id: data.id }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -203,6 +220,14 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
     revalidatePath(`/admin/dashboard/events/${id}`)
     revalidatePath('/')
     revalidatePath(`/events/${id}`)
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'event.update',
+      targetId: id,
+      targetKind: 'event',
+      details: { title: payload.title, gatherAt: payload.gather_at, gatherAtChanged },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -247,6 +272,14 @@ export async function publishEvent(id: string): Promise<{ error?: string; warnin
     revalidatePath('/admin/dashboard')
     revalidatePath('/')
     revalidatePath(`/events/${id}`)
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'event.publish',
+      targetId: id,
+      targetKind: 'event',
+      details: { title: current.title, gatherAt: current.gather_at },
+    })
 
     // 자동 알림 — 채널이 해석되지 않으면 조용히 skip (Discord 미연동 길드는
     // 발행만 정상 동작). Discord API 호출 (200~500ms 외부 네트워크) 을 응답
@@ -509,6 +542,14 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
 
     revalidatePath('/admin/dashboard')
     revalidatePath('/')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'event.create',
+      targetId: newId,
+      targetKind: 'event',
+      details: { kind: 'clone', clonedFrom: id, title: source.title },
+    })
     return { id: newId }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -522,6 +563,13 @@ export async function deleteEvent(id: string): Promise<{ error?: string }> {
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
     const guildId = await getSessionGuildId(session)
+    // 삭제 전 제목 캐싱 — audit details 에 남기기 위해.
+    const { data: snapshot } = await db
+      .from('events')
+      .select('title, gather_at')
+      .eq('guild_id', guildId)
+      .eq('id', id)
+      .maybeSingle()
     // regear_requests keeps history via SET NULL (migration 005).
     const { error } = await db.from('events').delete().eq('guild_id', guildId).eq('id', id)
     if (error) return { error: error.message }
@@ -531,6 +579,14 @@ export async function deleteEvent(id: string): Promise<{ error?: string }> {
     revalidatePath('/me')
     revalidatePath('/members')
     revalidatePath('/members/[discordId]', 'page')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'event.delete',
+      targetId: id,
+      targetKind: 'event',
+      details: { title: snapshot?.title ?? null, gatherAt: snapshot?.gather_at ?? null },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -553,6 +609,14 @@ export async function startBattle(id: string): Promise<{ startedAt?: string; err
     if (error) return { error: error.message }
     revalidatePath(`/admin/dashboard/events/${id}`)
     revalidatePath(`/events/${id}`)
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'event.update',
+      targetId: id,
+      targetKind: 'event',
+      details: { kind: 'battle_start', startedAt },
+    })
     return { startedAt }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -588,6 +652,14 @@ export async function resetBattleStart(id: string): Promise<{ error?: string }> 
     }
     revalidatePath(`/admin/dashboard/events/${id}`)
     revalidatePath(`/events/${id}`)
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'event.update',
+      targetId: id,
+      targetKind: 'event',
+      details: { kind: 'battle_reset' },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

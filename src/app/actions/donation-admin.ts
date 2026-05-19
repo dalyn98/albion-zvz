@@ -7,6 +7,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { formatSilver } from '@/lib/silver'
+import { logAdminAction } from '@/lib/admin-audit'
 
 const SCREENSHOT_BUCKET = 'donation-screenshots'
 // 리기어와 동일 — 관리자가 검토 중 창을 띄워둘 시간만 주면 된다.
@@ -118,6 +119,15 @@ export async function approveDonationRequest(id: string): Promise<{ error?: stri
         url: '/me',
       })
     }
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'donation.approve',
+      targetId: id,
+      targetKind: 'donation',
+      targetDiscordId: row?.discord_id ?? null,
+      details: { silver: row?.silver ?? 0 },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -163,6 +173,15 @@ export async function rejectDonationRequest(
         url: '/me',
       })
     }
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'donation.reject',
+      targetId: id,
+      targetKind: 'donation',
+      targetDiscordId: row?.discord_id ?? null,
+      details: { silver: row?.silver ?? 0, notes: notes.trim() || null },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

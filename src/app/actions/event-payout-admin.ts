@@ -8,6 +8,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { formatSilver } from '@/lib/silver'
 import { isEnded } from '@/lib/gather-time'
+import { logAdminAction } from '@/lib/admin-audit'
 
 const MEMO_MAX = 500
 
@@ -146,6 +147,20 @@ export async function createEventPayoutRequest(
 
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath(`/admin/dashboard/events/${input.eventId}`)
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'event.payout.create',
+      targetId: inserted.id as string,
+      targetKind: 'event',
+      details: {
+        eventId: input.eventId,
+        eventTitle: event.title,
+        silverPerMember: input.silverPerMember,
+        participantCount: participants.length,
+        totalSilver,
+      },
+    })
     return { id: inserted.id as string }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -250,6 +265,14 @@ export async function approveEventPayoutRequest(
         url: '/me',
       })
     }
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'event.payout.approve',
+      targetId: id,
+      targetKind: 'event',
+      details: { silverPerMember: silver, participantCount: participants.length, eventTitle },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -280,6 +303,14 @@ export async function rejectEventPayoutRequest(
       return { error: error.message }
     }
     revalidatePath('/admin/dashboard/approvals')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'event.payout.reject',
+      targetId: id,
+      targetKind: 'event',
+      details: { notes: notes.trim() || null },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

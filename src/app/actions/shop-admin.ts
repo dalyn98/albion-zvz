@@ -12,6 +12,7 @@ import { resolveKoItem } from '@/lib/shop/resolve-item'
 import { aggregateStock, type AggregateRow } from '@/lib/shop/aggregate-stock'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { logAdminAction } from '@/lib/admin-audit'
 import { syncShopPrices, type PriceSyncSummary } from './shop-inventory'
 
 export interface ImportSummary {
@@ -336,6 +337,20 @@ export async function importChestLog(
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')
 
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'shop.item.update',
+      targetKind: 'shop_item',
+      details: {
+        kind: 'chest.import',
+        inserted,
+        duplicatesSkipped,
+        stockChanges: stockChanges.length,
+        unresolvedRows,
+      },
+    })
+
     return {
       parsed: entries.length,
       parseErrors: errors,
@@ -372,6 +387,13 @@ export async function addBlacklist(itemName: string): Promise<{ error?: string }
       .upsert({ guild_id: guildId, item_name_raw: trimmed, added_by: session.discordId })
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/shop')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'shop.item.add',
+      targetKind: 'shop_item',
+      details: { kind: 'blacklist.add', itemName: trimmed },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Server error' }
@@ -391,6 +413,13 @@ export async function removeBlacklist(itemName: string): Promise<{ error?: strin
       .eq('item_name_raw', itemName)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/shop')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'shop.item.remove',
+      targetKind: 'shop_item',
+      details: { kind: 'blacklist.remove', itemName },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Server error' }
@@ -566,6 +595,14 @@ export async function approveShopOrder(
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'shop.order.approve',
+      targetId: orderId,
+      targetKind: 'shop_order',
+      details: { adminNote: trimmedNote },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Server error' }
@@ -601,6 +638,14 @@ export async function rejectShopOrder(
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'shop.order.reject',
+      targetId: orderId,
+      targetKind: 'shop_order',
+      details: { adminNote: trimmedNote },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Server error' }

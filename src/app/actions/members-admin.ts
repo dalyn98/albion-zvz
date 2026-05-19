@@ -17,6 +17,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { requireAdmin } from '@/lib/auth'
+import { logAdminAction } from '@/lib/admin-audit'
 import { isLocale, type Locale } from '@/i18n/locales'
 import { runMemberSync, type RolesSource } from '@/lib/member-sync'
 import { extractWeaponCategory } from '@/lib/weapon-category'
@@ -588,6 +589,14 @@ export async function revokeGuest(discordId: string): Promise<{ error?: string }
       .eq('discord_id', discordId)
     if (error) return { error: error.message }
     revalidatePath('/members')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'member.kick',
+      targetDiscordId: discordId,
+      targetKind: 'member',
+      details: { kind: 'guest' },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

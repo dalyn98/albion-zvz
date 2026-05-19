@@ -14,6 +14,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { parseChestLog, type ChestLogEntry } from '@/lib/shop/parse-chest-log'
 import { resolveKoItem } from '@/lib/shop/resolve-item'
+import { logAdminAction } from '@/lib/admin-audit'
 
 export interface BaselineItem {
   uniqueName: string
@@ -348,6 +349,20 @@ export async function confirmBaseline(input: {
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/admin/dashboard/shop/baseline')
     revalidatePath('/shop')
+
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'shop.item.update',
+      targetId: id ?? null,
+      targetKind: 'shop_item',
+      details: {
+        kind: 'baseline.apply',
+        appliedItems: preview.items.length,
+        totalItems: preview.totalItems,
+        notes: input.notes?.trim() || null,
+      },
+    })
 
     return {
       baselineId: id,

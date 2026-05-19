@@ -27,6 +27,7 @@ import {
   type CraftCompensationMode,
   type CraftQueueItem,
 } from '@/app/actions/craft'
+import { logAdminAction } from '@/lib/admin-audit'
 
 export interface AdminCrafterRow {
   discordId: string
@@ -96,6 +97,14 @@ export async function setMemberCrafterFlag(
       .eq('discord_id', discordId)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/craft')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'settings.update',
+      targetDiscordId: discordId,
+      targetKind: 'setting',
+      details: { kind: 'crafter_flag', isCrafter },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -177,6 +186,14 @@ export async function setCrafterBoxRange(
     revalidatePath('/admin/dashboard/craft')
     revalidatePath('/craft/queue')
     revalidatePath('/craft/my-tasks')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'settings.update',
+      targetDiscordId: discordId,
+      targetKind: 'setting',
+      details: { kind: 'crafter_box_range', start, end },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -259,6 +276,14 @@ export async function cancelCraftTaskAdmin(taskId: string): Promise<{ error?: st
       return { error: msg }
     }
     revalidatePath('/admin/dashboard/craft')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'craft.task.cancel',
+      targetId: taskId,
+      targetKind: 'craft_task',
+      details: { kind: 'admin_force_cancel' },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -326,6 +351,19 @@ export async function convertCraftTaskToSilverAdmin(
 
     revalidatePath('/admin/dashboard/craft')
     revalidatePath('/me')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'craft.task.cancel',
+      targetId: taskId,
+      targetKind: 'craft_task',
+      targetDiscordId: (r?.discord_id as string | undefined) ?? null,
+      details: {
+        kind: 'convert_to_silver',
+        creditSilver: credit,
+        eventTitle: (r?.event_title_snapshot as string | undefined) ?? null,
+      },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -365,6 +403,14 @@ export async function revertCraftTaskToPendingAdmin(
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/craft/queue')
     revalidatePath('/me')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'craft.task.cancel',
+      targetId: taskId,
+      targetKind: 'craft_task',
+      details: { kind: 'revert_to_pending' },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -419,6 +465,19 @@ export async function updateCraftSettingsAdmin(
       .upsert(rows, { onConflict: 'guild_id,key' })
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/craft')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'settings.update',
+      targetKind: 'setting',
+      details: {
+        kind: 'craft_global',
+        enabled: input.enabled,
+        rangeMin: input.rangeMin,
+        rangeMax: input.rangeMax,
+        expiryDays: input.expiryDays,
+      },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
