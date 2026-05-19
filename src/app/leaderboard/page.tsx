@@ -56,7 +56,7 @@ export default async function LeaderboardPage({
               <Link
                 key={w}
                 href={`/leaderboard?window=${w}`}
-                className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${
+                className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
                   active
                     ? 'bg-amber-500/20 text-amber-300'
                     : 'text-gray-400 hover:text-white hover:bg-gray-800'

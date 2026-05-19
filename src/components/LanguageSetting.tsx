@@ -52,7 +52,7 @@ export default function LanguageSetting({ initialLocale }: Props) {
               key={locale}
               type="button"
               onClick={() => handleSelect(locale)}
-              disabled={!!pending}
+              disabled={isPending}
               className={[
                 'flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
                 isActive

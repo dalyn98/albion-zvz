@@ -22,6 +22,10 @@ import HoverTip from './HoverTip'
 
 export type ShopPriceWarning = 'quality' | 'window' | 'bluezone' | 'redzone' | null
 
+// 서버측 shop-member.ts 의 MEMO_MAX 와 동기. 사용자가 입력 한도를 미리 보고
+// 잘못 잘려나가는 일을 막기 위해 카운터로 노출.
+const SHOP_NOTE_MAX = 500
+
 export interface CatalogItem {
   id: string
   uniqueName: string
@@ -568,13 +572,25 @@ function CartPanel({
           </span>
         </div>
 
-        <textarea
-          value={note}
-          onChange={(e) => onNoteChange(e.target.value)}
-          rows={2}
-          placeholder={t('cart.notePlaceholder')}
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 resize-none"
-        />
+        <div className="space-y-1">
+          <textarea
+            value={note}
+            onChange={(e) => onNoteChange(e.target.value.slice(0, SHOP_NOTE_MAX))}
+            rows={2}
+            maxLength={SHOP_NOTE_MAX}
+            placeholder={t('cart.notePlaceholder')}
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 resize-none"
+          />
+          <div className="flex justify-end">
+            <span
+              className={`text-[10px] tabular-nums ${
+                note.length >= SHOP_NOTE_MAX ? 'text-red-400' : 'text-gray-500'
+              }`}
+            >
+              {note.length} / {SHOP_NOTE_MAX}
+            </span>
+          </div>
+        </div>
 
         <div className="flex items-center gap-2">
           <button

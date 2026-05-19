@@ -60,6 +60,12 @@ const nextConfig: NextConfig = {
         hostname: 'render.albiononline.com',
         pathname: '/v1/item/**',
       },
+      // Discord 사용자 아바타. 사이드바/멤버 페이지에서 next/image 로 로드.
+      {
+        protocol: 'https',
+        hostname: 'cdn.discordapp.com',
+        pathname: '/avatars/**',
+      },
     ],
   },
   // 짧고 외우기 쉬운 봇 초대 URL + 통합된 /landing 으로 흡수된 마케팅 페이지의

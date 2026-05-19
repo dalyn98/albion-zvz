@@ -108,6 +108,8 @@ Allow: /public/g/
 Allow: /opengraph-image
 Allow: /icon
 Allow: /favicon.ico
+Allow: /demo
+Allow: /demo/
 Disallow: /admin/
 Disallow: /super-admin/
 Disallow: /api/
@@ -121,7 +123,6 @@ Disallow: /battles
 Disallow: /leaderboard
 Disallow: /me
 Disallow: /welcome-language
-Disallow: /demo
 Disallow: /logout
 
 Sitemap: https://albion-guildmanager.com/sitemap.xml
