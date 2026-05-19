@@ -1747,7 +1747,23 @@
     "memberRequired": "You must be a member of the guild to view this site.\nAsk an admin for an invite, then log in again.",
     "invitePrompt": "This is an event invite link.\nLog in with Discord to enter as a guest.",
     "logout": "Sign in with another account",
-    "learnMore": "Try this with my own guild"
+    "learnMore": "Try this with my own guild",
+    "retry": "Try again"
+  },
+  "inAppBrowserNotice": {
+    "title": "Open in an external browser",
+    "description": "This page is open in an in-app browser. Discord login may not work properly here. Please open it in Safari, Chrome, or another standalone browser.",
+    "copyButton": "Copy URL",
+    "copied": "Copied",
+    "openBrowser": "Open in Safari",
+    "hintKakaoTalk": "Tap the ⋮ menu in the top-right of KakaoTalk → Open in another browser, or copy the URL with the button below and paste it into your browser.",
+    "hintDiscord": "Long-press the link in Discord and choose \"Open in browser\".",
+    "hintInstagram": "Tap the ⋯ menu in the top-right of Instagram → Open in external link.",
+    "hintFacebook": "Tap the ⋯ menu in the top-right of Facebook → Open in external browser.",
+    "hintLine": "Tap the ⋯ menu in the top-right of LINE → Open in another app, then pick a browser.",
+    "hintNaver": "Tap the menu in the bottom-right of the NAVER app → Open in external browser.",
+    "hintWechat": "Tap the … menu in the top-right of WeChat → Open in Browser (在浏览器中打开).",
+    "hintUnknown": "Find the \"Open in external browser\" option in the top-right or bottom menu of your current app."
   },
   "publicLanding": {
     "siteName": "Albion Guild Manager",
@@ -1951,6 +1967,10 @@
       "noIdentity": "Could not fetch Discord user info.",
       "noRole": "You cannot log in without the required role.",
       "serverError": "A server error occurred during login.",
+      "hopMissing": "Login info is missing. Please try again.",
+      "hopInvalid": "Login info is invalid. Please try again.",
+      "hopWrongHost": "Wrong guild domain. Please access from the correct guild URL.",
+      "hopNoTenant": "Connected guild not found.",
       "default": "Login failed."
     }
   },

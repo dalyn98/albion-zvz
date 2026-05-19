@@ -1747,7 +1747,23 @@
     "memberRequired": "ギルドに加入していないためサイトを閲覧できません。\nギルド管理者に招待を依頼してから再度ログインしてください。",
     "invitePrompt": "イベント招待リンクです。\nDiscord でログインするとゲストとして入場できます。",
     "logout": "別のアカウントでログイン",
-    "learnMore": "自分のギルドでも使ってみる"
+    "learnMore": "自分のギルドでも使ってみる",
+    "retry": "再試行"
+  },
+  "inAppBrowserNotice": {
+    "title": "外部ブラウザで開いてください",
+    "description": "現在アプリ内ブラウザで開かれています。Discord ログインが正常に動作しない場合があります。Safari · Chrome などの標準ブラウザで開いてください。",
+    "copyButton": "URLをコピー",
+    "copied": "コピー済み",
+    "openBrowser": "Safari で開く",
+    "hintKakaoTalk": "KakaoTalk 右上の ⋮ → 他のブラウザで開くを選ぶか、下のボタンで URL をコピーしてブラウザに貼り付けてください。",
+    "hintDiscord": "Discord メッセージのリンクを長押しして「ブラウザで開く」を選択してください。",
+    "hintInstagram": "Instagram 右上の ⋯ → 外部リンクで開くを選んでください。",
+    "hintFacebook": "Facebook 右上の ⋯ → 外部ブラウザで開くを選んでください。",
+    "hintLine": "LINE 右上の ⋯ → 他のアプリで開くからブラウザを選んでください。",
+    "hintNaver": "NAVER アプリ右下メニュー → 外部ブラウザで開くを選んでください。",
+    "hintWechat": "微信 右上の … → 在浏览器中打开 (ブラウザで開く) を押してください。",
+    "hintUnknown": "現在の画面の右上/右下メニューから「外部ブラウザで開く」を探して押してください。"
   },
   "publicLanding": {
     "siteName": "Albion Guild Manager",
@@ -1951,6 +1967,10 @@
       "noIdentity": "Discord のユーザー情報を取得できませんでした。",
       "noRole": "必要なロールがないためログインできません。",
       "serverError": "ログイン処理中にサーバーエラーが発生しました。",
+      "hopMissing": "ログイン情報が欠落しています。再度お試しください。",
+      "hopInvalid": "ログイン情報が無効です。再度お試しください。",
+      "hopWrongHost": "誤ったギルドドメインから入りました。ギルドのURLから再度アクセスしてください。",
+      "hopNoTenant": "接続されたギルドが見つかりませんでした。",
       "default": "ログインに失敗しました。"
     }
   },

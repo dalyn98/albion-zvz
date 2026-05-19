@@ -15,8 +15,15 @@ import { classifyHost } from '@/lib/tenant-resolver'
 import { getTenantDiscordConfig } from '@/lib/tenant'
 import { LOCALE_COOKIE, isLocale } from '@/i18n/locales'
 import { localeCookieOptions } from '@/lib/locale-cookie'
+import { recordAuthFailure } from '@/lib/auth-telemetry'
 
-function errorRedirect(origin: string, reason: string): NextResponse {
+function errorRedirect(
+  request: NextRequest,
+  origin: string,
+  reason: string,
+  extra?: Record<string, unknown>,
+): NextResponse {
+  recordAuthFailure(request, 'finish', reason, extra)
   const target = new URL('/', origin)
   target.searchParams.set('auth_error', reason)
   return NextResponse.redirect(target)
@@ -25,24 +32,31 @@ function errorRedirect(origin: string, reason: string): NextResponse {
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
   const token = url.searchParams.get('token')
-  if (!token) return errorRedirect(url.origin, 'hop_missing')
+  if (!token) return errorRedirect(request, url.origin, 'hop_missing')
 
   const hop = await verifyHopToken(token)
-  if (!hop) return errorRedirect(url.origin, 'hop_invalid')
+  if (!hop) return errorRedirect(request, url.origin, 'hop_invalid')
 
   const session = hop.session
-  if (!session.guildId) return errorRedirect(url.origin, 'hop_no_tenant')
+  if (!session.guildId) return errorRedirect(request, url.origin, 'hop_no_tenant')
 
   // Anti-misdirection: the session's tenant must match the tenant whose
   // subdomain this request arrived on. Without this check, a leaked hop
   // token (60s window) could be redeemed on any tenant subdomain and set a
   // cookie with a mismatched guildId there.
   const hostClassification = classifyHost(request.headers.get('host'))
-  if (hostClassification.kind !== 'tenant') return errorRedirect(url.origin, 'hop_wrong_host')
+  if (hostClassification.kind !== 'tenant') {
+    return errorRedirect(request, url.origin, 'hop_wrong_host', { classification: hostClassification.kind })
+  }
 
   const tenant = await getTenantDiscordConfig(session.guildId)
-  if (!tenant) return errorRedirect(url.origin, 'hop_no_tenant')
-  if (tenant.slug !== hostClassification.slug) return errorRedirect(url.origin, 'hop_wrong_host')
+  if (!tenant) return errorRedirect(request, url.origin, 'hop_no_tenant', { guild_id: session.guildId })
+  if (tenant.slug !== hostClassification.slug) {
+    return errorRedirect(request, url.origin, 'hop_wrong_host', {
+      session_slug: tenant.slug,
+      host_slug: hostClassification.slug,
+    })
+  }
 
   const returnTo =
     hop.returnTo.startsWith('/') && !hop.returnTo.startsWith('//') ? hop.returnTo : '/'

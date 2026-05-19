@@ -1747,7 +1747,23 @@
     "memberRequired": "길드에 가입되어 있지 않아 사이트를 볼 수 없습니다.\n길드 관리자에게 초대를 요청한 뒤 다시 로그인해주세요.",
     "invitePrompt": "이벤트 초대 링크입니다.\nDiscord 로그인하면 게스트로 입장됩니다.",
     "logout": "다른 계정으로 로그인",
-    "learnMore": "내 길드에서 사용해보기"
+    "learnMore": "내 길드에서 사용해보기",
+    "retry": "다시 시도"
+  },
+  "inAppBrowserNotice": {
+    "title": "외부 브라우저에서 열어주세요",
+    "description": "현재 인앱 브라우저에서 열려 있어요. Discord 로그인이 정상적으로 동작하지 않을 수 있습니다. Safari · Chrome 같은 기본 브라우저에서 열어주세요.",
+    "copyButton": "URL 복사",
+    "copied": "복사됨",
+    "openBrowser": "Safari 로 열기",
+    "hintKakaoTalk": "카카오톡 우측 상단의 ⋮ → 다른 브라우저로 열기를 누르거나, 아래 버튼으로 URL 을 복사한 뒤 직접 브라우저에 붙여넣으세요.",
+    "hintDiscord": "Discord 메시지에서 링크를 길게 눌러 \"브라우저에서 열기\" 를 선택하세요.",
+    "hintInstagram": "Instagram 우측 상단의 ⋯ → 외부 링크에서 열기를 눌러주세요.",
+    "hintFacebook": "Facebook 우측 상단의 ⋯ → 외부 브라우저로 열기를 눌러주세요.",
+    "hintLine": "LINE 우측 상단의 ⋯ → 다른 앱으로 열기에서 브라우저를 선택해주세요.",
+    "hintNaver": "네이버 앱 우측 하단의 메뉴 → 외부 브라우저에서 열기를 눌러주세요.",
+    "hintWechat": "微信 우측 상단의 … → 在浏览器中打开 (브라우저에서 열기) 를 눌러주세요.",
+    "hintUnknown": "현재 화면 우측 상단/하단의 메뉴에서 \"외부 브라우저로 열기\" 를 찾아 눌러주세요."
   },
   "publicLanding": {
     "siteName": "Albion Guild Manager",
@@ -1951,6 +1967,10 @@
       "noIdentity": "Discord 사용자 정보를 가져오지 못했습니다.",
       "noRole": "필요한 역할이 없어 로그인할 수 없습니다.",
       "serverError": "로그인 처리 중 서버 오류가 발생했습니다.",
+      "hopMissing": "로그인 정보가 누락되어 다시 시도해야 합니다.",
+      "hopInvalid": "로그인 정보가 유효하지 않습니다. 다시 시도해주세요.",
+      "hopWrongHost": "잘못된 길드 도메인으로 진입했습니다. 길드 주소로 다시 접속해주세요.",
+      "hopNoTenant": "연결된 길드를 찾을 수 없습니다.",
       "default": "로그인에 실패했습니다."
     }
   },

@@ -29,6 +29,7 @@ import {
   FALLBACK_TENANT_SLUG,
 } from '@/lib/tenant-resolver'
 import { log } from '@/lib/log'
+import { recordAuthFailure } from '@/lib/auth-telemetry'
 
 // Onboarding cookie stays on the canonical domain (it's consumed by /onboard
 // which is served from the canonical host until the new tenant exists).
@@ -82,7 +83,18 @@ function buildErrorOrigin(state: OAuthStatePayload | null): string {
   return 'https://albion-guildmanager.com'
 }
 
-function errorRedirect(state: OAuthStatePayload | null, reason: string): NextResponse {
+function errorRedirect(
+  request: NextRequest,
+  state: OAuthStatePayload | null,
+  reason: string,
+  extra?: Record<string, unknown>,
+): NextResponse {
+  recordAuthFailure(request, 'callback', reason, {
+    origin_host: state?.originHost ?? null,
+    return_to: state?.returnTo ?? null,
+    has_invite: state?.invite != null,
+    ...(extra ?? {}),
+  })
   const origin = buildErrorOrigin(state)
   const target = new URL('/', origin)
   target.searchParams.set('auth_error', reason)
@@ -156,16 +168,16 @@ export async function GET(request: NextRequest) {
   const returnedState = url.searchParams.get('state')
   const discordError = url.searchParams.get('error')
 
-  if (discordError) return errorRedirect(null, 'denied')
-  if (!code || !returnedState) return errorRedirect(null, 'invalid')
+  if (discordError) return errorRedirect(request, null, 'denied', { discord_error: discordError })
+  if (!code || !returnedState) return errorRedirect(request, null, 'invalid')
 
   const state = await verifyOAuthState(returnedState)
-  if (!state) return errorRedirect(null, 'state_mismatch')
+  if (!state) return errorRedirect(request, null, 'state_mismatch')
 
   try {
     const token = await exchangeCode(code)
     const user = await getCurrentUser(token.access_token)
-    if (!user) return errorRedirect(state, 'no_identity')
+    if (!user) return errorRedirect(request, state, 'no_identity')
 
     // Phase 3: 유저의 Discord 길드 목록 → tenants 매칭.
     const userGuilds = await listUserGuilds(token.access_token).catch((e) => {
@@ -252,7 +264,7 @@ export async function GET(request: NextRequest) {
         matchedTenants[0]
 
       const member = await getGuildMember(token.access_token, tenant.discordGuildId)
-      if (!member) return errorRedirect(state, 'not_in_guild')
+      if (!member) return errorRedirect(request, state, 'not_in_guild', { tenant_id: tenant.id })
       // 멤버 역할 판정은 admin 이 설정 UI 에서 바꾼 active_member_role_ids 를
       // 우선 적용 — 비어있으면 onboarding 시점 시드된 tenant.member_role_ids
       // 로 폴백. member-sync.ts 와 동일한 우선순위.
@@ -260,7 +272,7 @@ export async function GET(request: NextRequest) {
       const effectiveMemberRoleIds =
         activeMemberRoleIds.length > 0 ? activeMemberRoleIds : tenant.memberRoleIds
       const identity = identityFromMember(member, effectiveMemberRoleIds, tenant.adminRoleIds)
-      if (!identity) return errorRedirect(state, 'no_identity')
+      if (!identity) return errorRedirect(request, state, 'no_identity', { tenant_id: tenant.id })
       // 슈퍼어드민이 부여한 admin 오버라이드. 길드 역할 없이도 admin 권한을
       // 강제 부여한다 — 운영/지원 시나리오용. row 가 있으면 isAdmin=true.
       const { data: overrideRow } = await getAdminClient()
@@ -393,7 +405,9 @@ export async function GET(request: NextRequest) {
       if (onboardableGuilds.length > 0) {
         return onboardingResponse(url.origin, user, onboardableGuilds)
       }
-      return errorRedirect(state, matchedTenants.length > 0 ? 'no_role' : 'not_in_guild')
+      return errorRedirect(request, state, matchedTenants.length > 0 ? 'no_role' : 'not_in_guild', {
+        matched_tenants: matchedTenants.length,
+      })
     }
 
     // 게스트: 이벤트 스코프로 로그인. 이벤트가 속한 tenant 의 서브도메인으로 hop.
@@ -469,6 +483,6 @@ export async function GET(request: NextRequest) {
     )
   } catch (e) {
     log.error('[discord-callback] unhandled', e, { return_to: state.returnTo })
-    return errorRedirect(state, 'server_error')
+    return errorRedirect(request, state, 'server_error')
   }
 }
