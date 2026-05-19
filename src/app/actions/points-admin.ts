@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { logAdminAction } from '@/lib/admin-audit'
 
 const MEMO_MAX_LENGTH = 200
 
@@ -57,6 +58,14 @@ export async function adjustMemberPoints(
     revalidatePath('/members')
     revalidatePath('/me')
     revalidatePath('/me/profile')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'points.adjust',
+      targetDiscordId: discordId,
+      targetKind: 'member',
+      details: { delta: deltaSilver, memo: trimmedMemo },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

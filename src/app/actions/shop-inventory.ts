@@ -12,6 +12,7 @@ import { requireAdmin } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { syncTenantShopPrices } from '@/lib/shop/price-sync'
+import { logAdminAction } from '@/lib/admin-audit'
 
 export interface PriceSyncSummary {
   requested: number
@@ -69,6 +70,14 @@ export async function updateInventoryStock(
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'shop.item.update',
+      targetId: id,
+      targetKind: 'shop_item',
+      details: { kind: 'manual_stock_edit', stock },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Server error' }
@@ -101,6 +110,14 @@ export async function setManualPrice(
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'shop.price.update',
+      targetId: id,
+      targetKind: 'shop_item',
+      details: { kind: 'manual_set', pointPrice },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Server error' }
@@ -125,6 +142,14 @@ export async function clearManualPrice(id: string): Promise<{ error?: string }> 
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'shop.price.update',
+      targetId: id,
+      targetKind: 'shop_item',
+      details: { kind: 'manual_clear' },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Server error' }
@@ -175,6 +200,17 @@ export async function resetShopInventory(): Promise<ResetInventoryResult> {
 
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'shop.item.update',
+      targetKind: 'shop_item',
+      details: {
+        kind: 'inventory.reset',
+        stockRowsZeroed: zeroed?.length ?? 0,
+        logsDeleted: deleted?.length ?? 0,
+      },
+    })
     return {
       stockRowsZeroed: zeroed?.length ?? 0,
       logsDeleted: deleted?.length ?? 0,
@@ -207,6 +243,14 @@ export async function deleteInventoryRow(id: string): Promise<{ error?: string }
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'shop.item.remove',
+      targetId: id,
+      targetKind: 'shop_item',
+      details: { kind: 'row.delete' },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Server error' }

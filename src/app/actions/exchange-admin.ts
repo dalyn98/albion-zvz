@@ -11,6 +11,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { formatSilver } from '@/lib/silver'
+import { logAdminAction } from '@/lib/admin-audit'
 import type { AdminExchangeRequest, RoleReward } from './regear-admin-types'
 
 export async function listExchangeRequests(
@@ -108,6 +109,15 @@ export async function approveExchangeRequest(id: string): Promise<{ error?: stri
         url: '/me',
       })
     }
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'exchange.approve',
+      targetId: id,
+      targetKind: 'exchange',
+      targetDiscordId: row?.discord_id ?? null,
+      details: { silver: row?.silver ?? 0 },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -153,6 +163,15 @@ export async function rejectExchangeRequest(
         url: '/me',
       })
     }
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'exchange.reject',
+      targetId: id,
+      targetKind: 'exchange',
+      targetDiscordId: row?.discord_id ?? null,
+      details: { silver: row?.silver ?? 0, notes: notes.trim() || null },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -201,6 +220,14 @@ export async function updateRoleReward(
       .eq('role_name', roleName)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/settings')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'role_reward.update',
+      targetId: roleName,
+      targetKind: 'role_reward',
+      details: { roleName, silver },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

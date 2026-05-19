@@ -11,6 +11,7 @@ import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 import { isValidTenantTimezone } from '@/lib/timezone'
 import { isSuperAdminSession } from '@/lib/super-admin'
 import { SLOT_ROLES, SLOT_KEYS } from '@/types'
+import { logAdminAction } from '@/lib/admin-audit'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
@@ -328,6 +329,13 @@ export async function updateAppSetting(
       // 이벤트 상세의 파티 그리드에서 CD 뱃지 표시가 이 값에 의존.
       revalidatePath('/events/[id]', 'page')
     }
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'settings.update',
+      targetKind: 'setting',
+      details: { kind: 'app_setting', key, value: trimmed },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -361,6 +369,13 @@ export async function updateTenantAdminRoles(
       .eq('id', guildId)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/settings')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'settings.update',
+      targetKind: 'setting',
+      details: { kind: 'admin_role_ids', roleIds: clean },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -396,6 +411,13 @@ export async function updateTenantTimezone(
     // 시간대 변경은 거의 모든 표시 화면(events, regear, leaderboard 등) 에 영향
     // 가지만 layout 단위로 한 번에 무효화하면 hot path 도 같이 깨진다 — 관리자
     // 가 다음 페이지 진입 시 자연 갱신되도록 둔다 (주요 화면 next-intl SSR).
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'settings.update',
+      targetKind: 'setting',
+      details: { kind: 'tenant_timezone', value: iana },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -468,6 +490,13 @@ export async function updateAlbionHomeGuild(input: {
       return { error: error.message }
     }
     revalidatePath('/admin/dashboard/settings')
+    await logAdminAction({
+      guildId: sessionGuildId,
+      adminDiscordId: session.discordId,
+      action: 'settings.update',
+      targetKind: 'setting',
+      details: { kind: 'albion_home_guild', server, albionGuildId: guildId },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

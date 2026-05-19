@@ -16,6 +16,7 @@ import { verifyDeathInWindow } from '@/lib/killboard'
 import { estimateSilverFromEquipment } from '@/lib/regear-estimate'
 import { checkBuildSnapshotStock } from '@/lib/inventory'
 import { isRegearRejectReasonCode } from '@/lib/regear-reject-reasons'
+import { logAdminAction } from '@/lib/admin-audit'
 import type { BuildSnapshot } from '@/types'
 import {
   loadPayoutRatePercent,
@@ -98,6 +99,15 @@ export async function approveRegearRequest(
         url: '/me',
       })
     }
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'regear.approve',
+      targetId: id,
+      targetKind: 'regear',
+      targetDiscordId: row?.discord_id ?? null,
+      details: { mode: 'silver', claimedSilver: claimed, payoutSilver: payout, eventTitle: row?.event_title_snapshot ?? null },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -195,6 +205,15 @@ export async function approveRegearFromStock(
         url: '/me',
       })
     }
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'regear.approve',
+      targetId: id,
+      targetKind: 'regear',
+      targetDiscordId: row?.discord_id ?? null,
+      details: { mode: 'stock', claimedSilver: claimed, payoutSilver: payout, eventTitle: row?.event_title_snapshot ?? null },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -273,6 +292,21 @@ export async function approveRegearAsCrafted(
     // DM 은 보내지 않는다 — 청구자 입장에서는 큐 진입 자체가 의미 있는
     // 상태 변화가 아니라, 제작자가 박스에 장비를 채운 시점 (delivery) 에만
     // 알림이 가치 있다.
+    const { data: row } = await db
+      .from('regear_requests')
+      .select('discord_id, event_title_snapshot')
+      .eq('guild_id', guildId)
+      .eq('id', id)
+      .maybeSingle()
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'regear.approve',
+      targetId: id,
+      targetKind: 'regear',
+      targetDiscordId: row?.discord_id ?? null,
+      details: { mode: 'crafted', claimedSilver: claimed, payoutSilver: payout, eventTitle: row?.event_title_snapshot ?? null },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -396,6 +430,7 @@ export async function bulkApproveRegear(
   try {
     const session = await getSession()
     if (!session) return { ...result, fatalError: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
     for (const id of ids) {
       const sub = await approveRegearRequest(id)
       if (sub.error) {
@@ -405,6 +440,13 @@ export async function bulkApproveRegear(
         result.succeeded += 1
       }
     }
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'regear.bulk_approve',
+      targetKind: 'regear',
+      details: { total: result.total, succeeded: result.succeeded, failed: result.failed, ids },
+    })
     return result
   } catch (e) {
     return {
@@ -476,6 +518,15 @@ export async function rejectRegearRequest(
         url: '/me',
       })
     }
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'regear.reject',
+      targetId: id,
+      targetKind: 'regear',
+      targetDiscordId: row?.discord_id ?? null,
+      details: { reasonCode, notes: notes.trim() || null, eventTitle: row?.event_title_snapshot ?? null },
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
