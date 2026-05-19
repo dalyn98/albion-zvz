@@ -8,6 +8,7 @@ import { isSuperAdminSession } from '@/lib/super-admin'
 import { getSuperAdminPath } from '@/lib/super-admin-path'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { getMarketingPaths } from '@/lib/marketing-paths'
 import AppSidebar from './AppSidebar'
 
 // 어떤 tenant 에도 매칭되지 않을 때 표시되는 generic 브랜드명. 과거에 'Menhera'
@@ -83,6 +84,10 @@ export default async function AppShell({ children }: { children: React.ReactNode
   // path 는 슈퍼어드민에게만 prop 으로 전달 — 일반 세션 HTML 에는 baked-in 시키지
   // 않아 정찰 표면을 더 줄인다 (env randomized path 를 클라에 노출 안 함).
   const superAdminPath = superAdmin ? getSuperAdminPath() : null
+  // AGM 공식 마케팅 사이트 진입점 — 호스트별 (canonical / 테넌트 서브도메인) 로
+  // 통하는 path 가 다르므로 server 측에서 풀어 사이드바에 prop 으로 전달.
+  const marketingPaths = await getMarketingPaths()
+  const landingHref = marketingPaths.home
   return (
     <div className="flex flex-col lg:flex-row min-h-screen w-full">
       <AppSidebar
@@ -95,6 +100,7 @@ export default async function AppShell({ children }: { children: React.ReactNode
         craftAdminVisible={craftAdminVisible}
         craftOrdersVisible={craftOrdersVisible}
         publicProfileHref={publicProfileHref}
+        landingHref={landingHref}
       />
       <div className="flex-1 min-w-0 flex flex-col">{children}</div>
     </div>

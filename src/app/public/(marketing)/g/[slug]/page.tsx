@@ -15,8 +15,10 @@ import {
   Target,
   UserCheck,
   Sword,
+  ExternalLink,
 } from 'lucide-react'
 import MarketingNav from '@/components/MarketingNav'
+import { getMarketingPaths } from '@/lib/marketing-paths'
 import { resolveTenantBySlugAnyStatus } from '@/lib/tenant-resolver'
 import { loadGuildProfileSettings, ACCENT_CLASS_MAP } from '@/lib/guild-profile'
 import { getAppSetting } from '@/lib/app-settings'
@@ -273,6 +275,11 @@ export default async function GuildProfilePage({
   const t = await getTranslations('publicGuildProfile')
   const tTime = await getTranslations('time')
   const tBattle = await getTranslations('battleTracking')
+  const tNav = await getTranslations('nav')
+  // 본인 길드 페이지 → AGM 공식 사이트 진입 통로. canonical host 에선 `/`, 테넌트
+  // 서브도메인에선 `/public/landing` 으로 자동 분기. 사이드바에도 같은 링크가
+  // 있지만 페이지 헤더에 한 번 더 노출해 어퍼던스를 키운다.
+  const marketingPaths = await getMarketingPaths()
   const accent = ACCENT_CLASS_MAP[settings.accentColor]
   // 라이프타임 카드는 데이터가 충분할 때만 노출 — 작은 표본이 도리어 길드를
   // 약해 보이게 만든다. 임계값은 의미 단위: 5전투 = 가벼운 스파링 이상.
@@ -344,6 +351,21 @@ export default async function GuildProfilePage({
   return (
     <div className="min-h-screen bg-[#08090d] text-white">
       {!viewingOwnGuild && <MarketingNav />}
+      {/* 본인 길드원/어드민이 자기 길드 페이지를 볼 때만 노출되는 작은 진입 링크.
+          MarketingNav 가 숨겨진 상태라 AGM 공식 사이트로 빠질 통로가 없어진다 —
+          사이드바에도 같은 링크가 있지만 헤더에 한 번 더 두어 모바일 (사이드바
+          드로어) 사용자도 한 번에 도달할 수 있게 한다. */}
+      {viewingOwnGuild && (
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-4 flex justify-end">
+          <Link
+            href={marketingPaths.home}
+            className="inline-flex items-center gap-1.5 text-xs text-white/55 hover:text-white/90 transition-colors"
+          >
+            <ExternalLink size={12} />
+            <span>{tNav('officialSite')}</span>
+          </Link>
+        </div>
+      )}
 
       <GuildProfileHero
         tenantSlug={tenant.slug}

@@ -33,6 +33,7 @@ import {
   ClipboardList,
   Archive,
   ScrollText,
+  ExternalLink,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -168,6 +169,10 @@ interface AppSidebarProps {
   // 공개 프로필 (`/g/<slug>`) 진입용 사이드바 링크. guild_profile_enabled 가
   // 꺼져 있거나 slug 가 없으면 null — AppShell 이 게이팅한다.
   publicProfileHref: string | null
+  // AGM 공식 마케팅 사이트 진입점. host (canonical vs tenant subdomain) 에 따라
+  // `/` 혹은 `/public/landing` 으로 다른 path 가 들어온다. 모든 세션 (게스트
+  // 포함) 에게 노출.
+  landingHref: string
 }
 
 export default function AppSidebar({
@@ -180,6 +185,7 @@ export default function AppSidebar({
   craftAdminVisible,
   craftOrdersVisible,
   publicProfileHref,
+  landingHref,
 }: AppSidebarProps) {
   const pathname = usePathname()
   const t = useTranslations('sidebar')
@@ -417,10 +423,21 @@ export default function AppSidebar({
           )}
         </nav>
 
-        {/* Admin guide link — 사이드바 메인 nav 의 빈도 낮은 항목을 footer 로 옮긴 것.
-            관리자만 노출 (`session.isAdmin`). 펼쳤을 땐 라벨, 접었을 땐 아이콘만. */}
-        {session?.isAdmin && (
-          <div className={`border-t border-border flex-shrink-0 ${navExpanded ? 'px-3 pt-2 pb-1' : 'px-2 pt-2 pb-1'}`}>
+        {/* Footer extras — 메인 nav 와 세션 footer 사이의 보조 링크들.
+            공식 사이트 (모든 세션, 길드 페이지에서 AGM 마케팅 사이트로 빠지는 통로) +
+            어드민 운영 가이드 (admin 한정). 펼침 시 라벨, 접힘 시 아이콘만. */}
+        <div className={`border-t border-border flex-shrink-0 space-y-0.5 ${navExpanded ? 'px-3 pt-2 pb-1' : 'px-2 pt-2 pb-1'}`}>
+          <GuardedLink
+            href={landingHref}
+            title={navExpanded ? undefined : tNav('officialSite')}
+            className={`flex items-center rounded-lg text-subtle hover:text-foreground hover:bg-surface-2 transition-colors ${
+              navExpanded ? 'gap-2 px-3 py-1.5 text-xs' : 'justify-center p-2'
+            }`}
+          >
+            <ExternalLink size={navExpanded ? 13 : 16} className="flex-shrink-0" />
+            {navExpanded && <span className="truncate">{tNav('officialSite')}</span>}
+          </GuardedLink>
+          {session?.isAdmin && (
             <GuardedLink
               href="/admin/dashboard/guide"
               title={navExpanded ? undefined : tNav('guide')}
@@ -435,8 +452,8 @@ export default function AppSidebar({
               <BookOpen size={navExpanded ? 13 : 16} className="flex-shrink-0" />
               {navExpanded && <span className="truncate">{tNav('guide')}</span>}
             </GuardedLink>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Footer — session info */}
         <div className={`border-t border-border flex-shrink-0 ${navExpanded ? 'px-3 py-3' : 'px-2 py-3'}`}>
