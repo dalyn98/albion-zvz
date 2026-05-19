@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/secrets-scan.js\"",
+            "timeout": 10,
+            "statusMessage": "Scanning for secrets..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/i18n-parity.js\"",
+            "timeout": 20,
+            "statusMessage": "Checking i18n parity..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/tsc-lib.js\"",
+            "timeout": 70,
+            "statusMessage": "tsc on lib...",
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}
