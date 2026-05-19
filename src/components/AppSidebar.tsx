@@ -32,6 +32,7 @@ import {
   Home,
   ClipboardList,
   Archive,
+  ScrollText,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -101,6 +102,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/dashboard/guild-profile', labelKey: 'guildProfile', icon: Sparkles, section: 'features' },
   // 시스템
   { href: '/admin/dashboard/stats', labelKey: 'stats', icon: BarChart3, section: 'system' },
+  { href: '/admin/dashboard/audit', labelKey: 'audit', icon: ScrollText, section: 'system' },
   { href: '/admin/dashboard/settings', labelKey: 'settings', icon: Settings, section: 'system' },
   { href: '/admin/dashboard/backup', labelKey: 'backup', icon: Archive, section: 'system' },
 ]

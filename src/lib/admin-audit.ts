@@ -22,53 +22,60 @@
 import { getAdminClient } from '@/lib/supabase-admin'
 import { log } from '@/lib/log'
 
-// 도메인별 namespace 로 시작하는 식별자. 새 액션 추가 시 여기에 한 줄.
-// 자유 텍스트 string 보다 좁혀서 typo/일관성 문제를 컴파일 타임에 잡는다.
-export type AdminAction =
-  | 'event.create'
-  | 'event.update'
-  | 'event.delete'
-  | 'event.publish'
-  | 'event.cancel'
-  | 'event.payout.create'
-  | 'event.payout.approve'
-  | 'event.payout.reject'
-  | 'member.role.grant'
-  | 'member.role.revoke'
-  | 'member.kick'
-  | 'points.adjust'
-  | 'regear.approve'
-  | 'regear.reject'
-  | 'regear.bulk_approve'
-  | 'regear.bulk_reject'
-  | 'exchange.approve'
-  | 'exchange.reject'
-  | 'role_reward.update'
-  | 'shop.item.add'
-  | 'shop.item.update'
-  | 'shop.item.remove'
-  | 'shop.price.update'
-  | 'shop.order.approve'
-  | 'shop.order.reject'
-  | 'donation.approve'
-  | 'donation.reject'
-  | 'settings.update'
-  | 'craft.task.assign'
-  | 'craft.task.complete'
-  | 'craft.task.cancel'
+// 도메인별 namespace 로 시작하는 식별자. 새 액션 추가 시 ADMIN_ACTIONS 에 한 줄
+// — `as const` 로 union 타입과 런타임 array 가 한 곳에서 파생되도록 묶었다.
+// audit 페이지의 필터 드롭다운이 런타임 array 를 필요로 한다.
+export const ADMIN_ACTIONS = [
+  'event.create',
+  'event.update',
+  'event.delete',
+  'event.publish',
+  'event.cancel',
+  'event.payout.create',
+  'event.payout.approve',
+  'event.payout.reject',
+  'member.role.grant',
+  'member.role.revoke',
+  'member.kick',
+  'points.adjust',
+  'regear.approve',
+  'regear.reject',
+  'regear.bulk_approve',
+  'regear.bulk_reject',
+  'exchange.approve',
+  'exchange.reject',
+  'role_reward.update',
+  'shop.item.add',
+  'shop.item.update',
+  'shop.item.remove',
+  'shop.price.update',
+  'shop.order.approve',
+  'shop.order.reject',
+  'donation.approve',
+  'donation.reject',
+  'settings.update',
+  'craft.task.assign',
+  'craft.task.complete',
+  'craft.task.cancel',
+] as const
+
+export type AdminAction = (typeof ADMIN_ACTIONS)[number]
 
 // target_kind 도 좁혀서 audit 조회 시 안전한 enum 으로 사용.
-export type AdminAuditTargetKind =
-  | 'event'
-  | 'member'
-  | 'regear'
-  | 'exchange'
-  | 'role_reward'
-  | 'shop_item'
-  | 'shop_order'
-  | 'donation'
-  | 'craft_task'
-  | 'setting'
+export const ADMIN_AUDIT_TARGET_KINDS = [
+  'event',
+  'member',
+  'regear',
+  'exchange',
+  'role_reward',
+  'shop_item',
+  'shop_order',
+  'donation',
+  'craft_task',
+  'setting',
+] as const
+
+export type AdminAuditTargetKind = (typeof ADMIN_AUDIT_TARGET_KINDS)[number]
 
 export interface AdminAuditEntry {
   guildId: string
@@ -114,22 +121,63 @@ export interface AdminAuditLogRow {
   createdAt: string
 }
 
-// 한 길드의 최근 audit 조회. 어드민 페이지의 "활동 로그" 탭에서 사용 예정.
-// guild_id 격리는 caller 가 보장 — 이 함수는 service_role 로 직접 쿼리한다.
+export interface ListAdminAuditLogFilters {
+  action?: AdminAction
+  adminDiscordId?: string
+  targetKind?: AdminAuditTargetKind
+  targetDiscordId?: string
+  // ISO datetime strings — inclusive lower / upper bound on created_at.
+  from?: string
+  to?: string
+}
+
+export interface ListAdminAuditLogOptions {
+  filters?: ListAdminAuditLogFilters
+  limit?: number
+  offset?: number
+}
+
+export interface ListAdminAuditLogResult {
+  rows: AdminAuditLogRow[]
+  total: number
+  limit: number
+  offset: number
+}
+
+const DEFAULT_LIMIT = 50
+const MAX_LIMIT = 200
+
+// 한 길드의 audit 로그 조회 — 어드민 대시보드 "감사 로그" 페이지에서 사용.
+// guild_id 격리는 시그니처에 강제 (caller 가 본인 길드 id 만 넘긴다는 가정).
+// 필터/페이지네이션 + total count 같이 반환해 UI 가 페이지 컨트롤을 그릴 수 있게.
 export async function listAdminAuditLog(
   guildId: string,
-  limit: number = 100,
-): Promise<AdminAuditLogRow[]> {
+  options: ListAdminAuditLogOptions = {},
+): Promise<ListAdminAuditLogResult> {
+  const limit = Math.min(Math.max(1, options.limit ?? DEFAULT_LIMIT), MAX_LIMIT)
+  const offset = Math.max(0, options.offset ?? 0)
+  const filters = options.filters ?? {}
+
   const db = getAdminClient()
-  const { data } = await db
+  let q = db
     .from('admin_audit_log')
     .select(
       'id, guild_id, admin_discord_id, action, target_id, target_kind, target_discord_id, details, created_at',
+      { count: 'exact' },
     )
     .eq('guild_id', guildId)
-    .order('created_at', { ascending: false })
-    .limit(limit)
-  return (data ?? []).map((r) => ({
+  if (filters.action) q = q.eq('action', filters.action)
+  if (filters.adminDiscordId) q = q.eq('admin_discord_id', filters.adminDiscordId)
+  if (filters.targetKind) q = q.eq('target_kind', filters.targetKind)
+  if (filters.targetDiscordId) q = q.eq('target_discord_id', filters.targetDiscordId)
+  if (filters.from) q = q.gte('created_at', filters.from)
+  if (filters.to) q = q.lte('created_at', filters.to)
+  q = q.order('created_at', { ascending: false }).range(offset, offset + limit - 1)
+
+  const { data, count, error } = await q
+  if (error) throw new Error(error.message)
+
+  const rows: AdminAuditLogRow[] = (data ?? []).map((r) => ({
     id: r.id as string,
     guildId: r.guild_id as string,
     adminDiscordId: r.admin_discord_id as string,
@@ -140,4 +188,6 @@ export async function listAdminAuditLog(
     details: (r.details as Record<string, unknown> | null) ?? {},
     createdAt: r.created_at as string,
   }))
+
+  return { rows, total: count ?? 0, limit, offset }
 }
