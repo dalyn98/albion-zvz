@@ -4272,6 +4272,10 @@
       "backup": {
         "title": "One-click backup & restore",
         "description": "Export every bit of guild data into a single JSON file, restore it anywhere — safe for server moves or point-in-time rollbacks."
+      },
+      "audit": {
+        "title": "Every admin action, traceable to the last line",
+        "description": "Events, regear, exchange, shop, settings — every admin mutation is auto-logged. Filter by action, target, or date to resolve disputes instantly."
       }
     },
     "membersList": {
@@ -4342,6 +4346,15 @@
           "step3Title": "Finance flow analysis",
           "step3Body": "Daily earned/spent chart for the last N days + breakdown by source and sink. Track where points come in and go out.",
           "completedBody": "Scroll further for verification, event participation, shop & regear stats."
+        },
+        "audit": {
+          "step1Title": "Filter to the exact incident",
+          "step1Body": "Action · target kind · admin/target Discord ID · date range. Surface the one entry you need within 30 seconds during a dispute.",
+          "step2Title": "One row = one mutation",
+          "step2Body": "Who · when · which action · which target. Expand the JSON details to inspect before/after values for any change.",
+          "step3Title": "Pagination",
+          "step3Body": "Paginated 10 entries per page by default. Total count is always visible at the top.",
+          "completedBody": "Try changing the filters — picture how you'd use this for disputes inside your own guild."
         }
       }
     }

@@ -30,6 +30,7 @@ import {
   Home,
   ClipboardList,
   Archive,
+  ScrollText,
 } from 'lucide-react'
 import { DEMO_ADMIN_BADGES } from '@/data/demo-seed'
 
@@ -91,6 +92,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/demo/guild-profile', labelKey: 'guildProfile', icon: Sparkles, section: 'features' },
   // 시스템
   { href: '/demo/stats', labelKey: 'stats', icon: BarChart3, section: 'system' },
+  { href: '/demo/audit', labelKey: 'audit', icon: ScrollText, section: 'system' },
   { href: '/demo/settings', labelKey: 'settings', icon: Settings, section: 'system' },
   { href: '/demo/backup', labelKey: 'backup', icon: Archive, section: 'system' },
 ]
