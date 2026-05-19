@@ -1755,7 +1755,7 @@
     "description": "現在アプリ内ブラウザで開かれています。Discord ログインが正常に動作しない場合があります。Safari · Chrome などの標準ブラウザで開いてください。",
     "copyButton": "URLをコピー",
     "copied": "コピー済み",
-    "openBrowser": "Safari で開く",
+    "openBrowser": "標準ブラウザで開く",
     "hintKakaoTalk": "KakaoTalk 右上の ⋮ → 他のブラウザで開くを選ぶか、下のボタンで URL をコピーしてブラウザに貼り付けてください。",
     "hintDiscord": "Discord メッセージのリンクを長押しして「ブラウザで開く」を選択してください。",
     "hintInstagram": "Instagram 右上の ⋯ → 外部リンクで開くを選んでください。",

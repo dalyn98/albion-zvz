@@ -2,7 +2,11 @@
 
 import { useState, useSyncExternalStore } from 'react'
 import { ExternalLink, Copy, Check } from 'lucide-react'
-import { detectInAppBrowser, type InAppBrowserKind } from '@/lib/user-agent'
+import {
+  buildExternalBrowserHref,
+  detectInAppBrowser,
+  type InAppBrowserKind,
+} from '@/lib/user-agent'
 
 // navigator.userAgent 는 페이지 lifetime 동안 바뀌지 않지만, hydration mismatch
 // 를 피하려면 첫 서버 렌더링은 null 을 돌려줘야 한다. useSyncExternalStore 가
@@ -60,8 +64,10 @@ export default function InAppBrowserNotice({
 
   if (!kind) return null
 
-  const isIOS = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent)
-  const safariFallbackHref = isIOS ? currentUrl.replace(/^https:/, 'x-safari-https:') : null
+  const externalBrowserHref =
+    typeof navigator !== 'undefined'
+      ? buildExternalBrowserHref(navigator.userAgent, currentUrl)
+      : null
 
   const handleCopy = async () => {
     try {
@@ -85,9 +91,9 @@ export default function InAppBrowserNotice({
       </div>
 
       <div className="flex flex-col gap-2">
-        {safariFallbackHref && (
+        {externalBrowserHref && (
           <a
-            href={safariFallbackHref}
+            href={externalBrowserHref}
             className="inline-flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-semibold text-sm py-2.5 rounded-lg transition-colors"
           >
             <ExternalLink size={14} />

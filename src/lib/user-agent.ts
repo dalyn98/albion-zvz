@@ -34,3 +34,36 @@ export function detectInAppBrowser(userAgent: string | null | undefined): InAppB
   if (isIOSWebView) return 'unknown_webview'
   return null
 }
+
+export type MobilePlatform = 'ios' | 'android' | null
+
+export function detectMobilePlatform(userAgent: string | null | undefined): MobilePlatform {
+  if (!userAgent) return null
+  if (/iPhone|iPad|iPod/.test(userAgent)) return 'ios'
+  if (/Android/.test(userAgent)) return 'android'
+  return null
+}
+
+// 인앱 브라우저에서 외부 브라우저로 강제 진입시키는 URL 을 생성.
+//   - iOS: x-safari-https:// 커스텀 스킴 → Safari
+//   - Android: intent:// + package=com.android.chrome → Chrome
+//     S.browser_fallback_url 로 Chrome 미설치 시 폴백.
+// 데스크탑/지원되지 않는 환경은 null (UI 가 버튼 자체를 숨김).
+export function buildExternalBrowserHref(
+  userAgent: string | null | undefined,
+  url: string,
+): string | null {
+  if (!url) return null
+  const platform = detectMobilePlatform(userAgent)
+  if (platform === 'ios') {
+    return url.replace(/^https:/, 'x-safari-https:')
+  }
+  if (platform === 'android') {
+    // intent URL 형식: intent://HOST+PATH#Intent;scheme=https;package=...;end
+    // 스킴 접두사를 떼고 호스트+경로만 intent:// 뒤에 붙인다.
+    const stripped = url.replace(/^https?:\/\//, '')
+    const fallback = encodeURIComponent(url)
+    return `intent://${stripped}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${fallback};end`
+  }
+  return null
+}
