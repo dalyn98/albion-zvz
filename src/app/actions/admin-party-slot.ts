@@ -153,25 +153,36 @@ export async function savePartySlots(
     // (swaps and permutations always collide on UNIQUE(party_id, slot_number)).
     // Park kept slots at temp numbers >20 first, then write the final values.
     // Migration 022 widens the slot_number CHECK to permit this transient range.
+    //
+    // Promise.all 로 두 패스를 각각 병렬 발화 — N×latency 가 1×latency 로 줄어
+    // 50~100 슬롯 저장이 수 초 → 100ms 단위로 단축된다. 한 패스 안에서는 모든
+    // UPDATE 가 서로 다른 slot_number 를 쓰므로 UNIQUE 충돌이 없고, 패스 간엔
+    // await 경계가 있어 1 패스가 끝난 뒤 2 패스가 시작된다.
     const kept = slots.filter((s) => s.id)
     const TEMP_OFFSET = 1000
-    for (let i = 0; i < kept.length; i++) {
-      const { error } = await db
-        .from('slots')
-        .update({ slot_number: TEMP_OFFSET + i + 1 })
-        .eq('guild_id', guildId)
-        .eq('id', kept[i].id!)
-      if (error) return { error: error.message }
-    }
+    const renumberResults = await Promise.all(
+      kept.map((slot, i) =>
+        db
+          .from('slots')
+          .update({ slot_number: TEMP_OFFSET + i + 1 })
+          .eq('guild_id', guildId)
+          .eq('id', slot.id!),
+      ),
+    )
+    const renumberError = renumberResults.find((r) => r.error)?.error
+    if (renumberError) return { error: renumberError.message }
 
-    for (const slot of kept) {
-      const { error } = await db
-        .from('slots')
-        .update(slotToRow(resolvedPartyId, slot, guildId))
-        .eq('guild_id', guildId)
-        .eq('id', slot.id!)
-      if (error) return { error: error.message }
-    }
+    const finalResults = await Promise.all(
+      kept.map((slot) =>
+        db
+          .from('slots')
+          .update(slotToRow(resolvedPartyId, slot, guildId))
+          .eq('guild_id', guildId)
+          .eq('id', slot.id!),
+      ),
+    )
+    const finalError = finalResults.find((r) => r.error)?.error
+    if (finalError) return { error: finalError.message }
 
     // Insert new slots last
     const newSlots = slots.filter((s) => !s.id)
