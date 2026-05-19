@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useTransition } from 'react'
+import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import {
   ImageIcon,
@@ -218,18 +219,20 @@ export default function MarketingScreenshotCarousel({
           onPointerCancel={onPointerUp}
         >
           <div className="flex h-full">
-            {images.map((img) => (
+            {images.map((img, idx) => (
               <div
                 key={img.id}
-                className="w-full h-full flex-shrink-0 snap-center"
+                className="relative w-full h-full flex-shrink-0 snap-center"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={img.url}
                   alt={img.alt ?? fallbackLabel}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  // 첫 슬라이드만 즉시 / 나머지는 lazy — LCP 후보 보호.
+                  priority={idx === 0}
                   draggable={false}
-                  loading="lazy"
-                  className="w-full h-full object-contain pointer-events-none"
+                  className="object-contain pointer-events-none"
                 />
               </div>
             ))}

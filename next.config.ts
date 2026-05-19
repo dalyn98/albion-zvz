@@ -66,6 +66,13 @@ const nextConfig: NextConfig = {
         hostname: 'cdn.discordapp.com',
         pathname: '/avatars/**',
       },
+      // Supabase storage — 마케팅 캐러셀(`MarketingScreenshotCarousel`) 의
+      // 스크린샷 호스트. 프로젝트 ref 는 env 별로 다르므로 와일드카드.
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        pathname: '/storage/v1/object/public/marketing-screenshots/**',
+      },
     ],
   },
   // 짧고 외우기 쉬운 봇 초대 URL + 통합된 /landing 으로 흡수된 마케팅 페이지의
