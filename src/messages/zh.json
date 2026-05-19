@@ -1755,7 +1755,7 @@
     "description": "当前页面正在应用内浏览器中打开,Discord 登录可能无法正常工作。请在 Safari · Chrome 等独立浏览器中打开。",
     "copyButton": "复制 URL",
     "copied": "已复制",
-    "openBrowser": "在 Safari 中打开",
+    "openBrowser": "在默认浏览器中打开",
     "hintKakaoTalk": "点击 KakaoTalk 右上角 ⋮ → 在其他浏览器中打开,或使用下方按钮复制 URL 后粘贴到浏览器。",
     "hintDiscord": "长按 Discord 中的链接,选择「在浏览器中打开」。",
     "hintInstagram": "点击 Instagram 右上角 ⋯ → 在外部链接中打开。",

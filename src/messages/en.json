@@ -1755,7 +1755,7 @@
     "description": "This page is open in an in-app browser. Discord login may not work properly here. Please open it in Safari, Chrome, or another standalone browser.",
     "copyButton": "Copy URL",
     "copied": "Copied",
-    "openBrowser": "Open in Safari",
+    "openBrowser": "Open in default browser",
     "hintKakaoTalk": "Tap the ⋮ menu in the top-right of KakaoTalk → Open in another browser, or copy the URL with the button below and paste it into your browser.",
     "hintDiscord": "Long-press the link in Discord and choose \"Open in browser\".",
     "hintInstagram": "Tap the ⋯ menu in the top-right of Instagram → Open in external link.",
