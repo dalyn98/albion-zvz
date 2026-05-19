@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import Image from 'next/image'
 import { GuardedLink } from './UnsavedChangesProvider'
 import {
   CalendarDays,
@@ -293,8 +294,14 @@ export default function AppSidebar({
         {session ? (
           <GuardedLink href="/me/profile" aria-label={t('myInfo')} className="flex items-center">
             {url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={url} alt="" className="w-7 h-7 rounded-full" />
+              <Image
+                src={url}
+                alt=""
+                width={28}
+                height={28}
+                className="rounded-full"
+                unoptimized
+              />
             ) : (
               <UserCircle2 size={24} className="text-muted" />
             )}
@@ -440,8 +447,14 @@ export default function AppSidebar({
                 title={t('myInfo')}
               >
                 {url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={url} alt="" className="w-7 h-7 rounded-full flex-shrink-0" />
+                  <Image
+                    src={url}
+                    alt=""
+                    width={28}
+                    height={28}
+                    className="rounded-full flex-shrink-0"
+                    unoptimized
+                  />
                 ) : (
                   <UserCircle2 size={24} className="text-muted flex-shrink-0" />
                 )}
