@@ -19,6 +19,7 @@ import {
 import { getMarketingPaths } from '@/lib/marketing-paths'
 import { getSession } from '@/lib/session'
 import { isSuperAdminSession } from '@/lib/super-admin'
+import InAppBrowserNoticeWithMessages from '@/components/InAppBrowserNoticeWithMessages'
 
 export const dynamic = 'force-dynamic'
 
@@ -124,6 +125,9 @@ export default async function PublicLandingPage() {
                 <PlayCircle size={16} />
                 {t('tryDemoButton')}
               </Link>
+            </div>
+            <div className="mx-auto max-w-sm">
+              <InAppBrowserNoticeWithMessages />
             </div>
             <p className="text-[11px] text-gray-500 leading-relaxed pt-1 max-w-md mx-auto">
               {tMkt('installPermissionNote')}
@@ -282,6 +286,9 @@ export default async function PublicLandingPage() {
               >
                 {t('loginInstead')}
               </a>
+            </div>
+            <div className="mx-auto max-w-sm pt-1">
+              <InAppBrowserNoticeWithMessages />
             </div>
             <p className="text-[11px] text-amber-100/60 leading-relaxed pt-1">
               {tMkt('installPermissionNote')}

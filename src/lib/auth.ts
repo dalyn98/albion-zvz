@@ -1,4 +1,4 @@
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSessionGuildId } from '@/lib/tenant'
 
@@ -8,6 +8,15 @@ import { getSessionGuildId } from '@/lib/tenant'
 export async function requireAdmin() {
   const session = await getSession()
   if (!session?.isAdmin) throw new Error('Unauthorized')
+  return getAdminClient()
+}
+
+// Capability gate for delegated officer workflows. `isAdmin` remains an
+// explicit bypass so existing admin sessions issued before a new capability bit
+// was added do not lose access until their next login.
+export async function requireCapability(capability: bigint) {
+  const session = await getSession()
+  if (!session?.isAdmin && !sessionHas(session, capability)) throw new Error('Unauthorized')
   return getAdminClient()
 }
 

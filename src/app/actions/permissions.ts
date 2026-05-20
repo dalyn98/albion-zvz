@@ -3,12 +3,13 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getTranslations } from 'next-intl/server'
-import { requireAdmin } from '@/lib/auth'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { getAdminClient } from '@/lib/supabase-admin'
 import { logAdminAction } from '@/lib/admin-audit'
 import {
   ALL_CAPABILITIES,
+  CAP,
   parseCapabilities,
   serializeCapabilities,
 } from '@/lib/permissions'
@@ -79,9 +80,10 @@ export async function listPermissions(): Promise<PermissionsListResult> {
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session)
+    if (!session || !sessionHas(session, CAP.SETTINGS_PERMISSIONS)) {
       return { roleGrants: [], userOverrides: [], error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    }
+    const db = getAdminClient()
     const guildId = await getSessionGuildId(session)
 
     const [rolesRes, overridesRes] = await Promise.all([
@@ -139,8 +141,10 @@ export async function upsertRoleGrant(input: {
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session) return { error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    if (!session || !sessionHas(session, CAP.SETTINGS_PERMISSIONS)) {
+      return { error: tErr('unauthorized') }
+    }
+    const db = getAdminClient()
     const guildId = await getSessionGuildId(session)
 
     const parsed = upsertRoleGrantSchema.safeParse({
@@ -189,8 +193,10 @@ export async function deleteRoleGrant(
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session) return { error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    if (!session || !sessionHas(session, CAP.SETTINGS_PERMISSIONS)) {
+      return { error: tErr('unauthorized') }
+    }
+    const db = getAdminClient()
     const guildId = await getSessionGuildId(session)
 
     const parsed = discordRoleIdSchema.safeParse(discordRoleId)
@@ -232,8 +238,10 @@ export async function upsertUserOverride(input: {
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session) return { error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    if (!session || !sessionHas(session, CAP.SETTINGS_PERMISSIONS)) {
+      return { error: tErr('unauthorized') }
+    }
+    const db = getAdminClient()
     const guildId = await getSessionGuildId(session)
 
     const parsed = upsertUserOverrideSchema.safeParse({
@@ -282,8 +290,10 @@ export async function deleteUserOverride(
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session) return { error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    if (!session || !sessionHas(session, CAP.SETTINGS_PERMISSIONS)) {
+      return { error: tErr('unauthorized') }
+    }
+    const db = getAdminClient()
     const guildId = await getSessionGuildId(session)
 
     const parsed = discordIdSchema.safeParse(discordId)
@@ -313,4 +323,3 @@ export async function deleteUserOverride(
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
-

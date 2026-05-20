@@ -33,12 +33,14 @@ import {
   ClipboardList,
   Archive,
   ScrollText,
+  FileText,
   KeyRound,
   Zap,
   ExternalLink,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
+import { canAccessAdminPath } from '@/lib/admin-route-access'
 
 // 사이드바 한 그룹 안의 sub-section. labelKey 없으면 헤더 없이 첫 번째 섹션
 // 으로 취급. nav.section.<key> 로 i18n.
@@ -89,6 +91,7 @@ const MEMBER_NAV: NavItem[] = [
   { href: '/leaderboard', labelKey: 'leaderboard', icon: Trophy, section: 'community' },
   // 내 정보
   { href: '/me', labelKey: 'myWallet', icon: Wallet, exact: true, memberOnly: true, section: 'profile' },
+  { href: '/me/settlements', labelKey: 'mySettlements', icon: FileText, memberOnly: true, section: 'profile' },
   { href: '/me/settings', labelKey: 'mySettings', icon: Settings, section: 'profile' },
 ]
 
@@ -106,6 +109,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/dashboard/guild-profile', labelKey: 'guildProfile', icon: Sparkles, section: 'features' },
   // 시스템
   { href: '/admin/dashboard/stats', labelKey: 'stats', icon: BarChart3, section: 'system' },
+  { href: '/admin/dashboard/settlements', labelKey: 'settlements', icon: FileText, section: 'system' },
   { href: '/admin/dashboard/audit', labelKey: 'audit', icon: ScrollText, section: 'system' },
   { href: '/admin/dashboard/permissions', labelKey: 'permissions', icon: KeyRound, section: 'system' },
   { href: '/admin/dashboard/settings', labelKey: 'settings', icon: Settings, section: 'system' },
@@ -159,6 +163,7 @@ interface AppSidebarProps {
   adminBadges: AdminBadgeCounts | null
   brandName: string
   isSuperAdmin: boolean
+  canSeeAdminNav: boolean
   // 슈퍼어드민 외부 path. 슈퍼어드민 세션이 아니면 null — randomized path 가
   // 일반 클라이언트 HTML 에 노출되지 않도록 AppShell 이 게이팅한다.
   superAdminPath: string | null
@@ -184,6 +189,7 @@ export default function AppSidebar({
   adminBadges,
   brandName,
   isSuperAdmin,
+  canSeeAdminNav,
   superAdminPath,
   craftQueueVisible,
   craftAdminVisible,
@@ -385,10 +391,13 @@ export default function AppSidebar({
             collapsedSections={collapsedSections}
             onToggleSection={toggleSection}
           />
-          {session?.isAdmin && (
+          {canSeeAdminNav && (
             <NavGroup
               title={t('adminGroup')}
               items={ADMIN_NAV
+                .filter((i) =>
+                  canAccessAdminPath(i.href, session?.isAdmin ?? false, session?.capabilities),
+                )
                 .filter((i) => !i.craftAdminOnly || craftAdminVisible)
                 .map((i) => ({
                   ...i,
@@ -441,7 +450,11 @@ export default function AppSidebar({
             <ExternalLink size={navExpanded ? 13 : 16} className="flex-shrink-0" />
             {navExpanded && <span className="truncate">{tNav('officialSite')}</span>}
           </GuardedLink>
-          {session?.isAdmin && (
+          {canAccessAdminPath(
+            '/admin/dashboard/guide',
+            session?.isAdmin ?? false,
+            session?.capabilities,
+          ) && (
             <GuardedLink
               href="/admin/dashboard/guide"
               title={navExpanded ? undefined : tNav('guide')}

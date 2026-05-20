@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { findTrackedBattleIdsForEvent } from '@/lib/auto-regear-matching'
+import { getSuperAdminSession } from '@/lib/super-admin'
 import { isLikelyRoyalCluster } from '@/lib/albion-zone'
 import {
   AUTO_REGEAR_ENDED_BUFFER_MS,
@@ -19,8 +19,8 @@ import {
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
-  const session = await getSession()
-  if (!session?.isAdmin) {
+  const session = await getSuperAdminSession()
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const guildId = await getSessionGuildId(session)

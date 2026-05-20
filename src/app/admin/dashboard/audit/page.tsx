@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { BookOpen } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
+import { CAP } from '@/lib/permissions'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import {
@@ -86,7 +87,7 @@ export default async function AdminAuditPage({
   const offset = (page - 1) * PAGE_SIZE
 
   const session = await getSession()
-  if (!session?.isAdmin) {
+  if (!session || !sessionHas(session, CAP.AUDIT_VIEW)) {
     throw new Error('Unauthorized')
   }
   const guildId = await getSessionGuildId(session)

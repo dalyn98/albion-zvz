@@ -18,7 +18,12 @@ vi.mock('@/lib/session', async () => {
   }
 })
 
-import { isSuperAdmin, isSuperAdminSession, requireSuperAdmin } from './super-admin'
+import {
+  getSuperAdminSession,
+  isSuperAdmin,
+  isSuperAdminSession,
+  requireSuperAdmin,
+} from './super-admin'
 
 function makeSession(overrides: Partial<SessionPayload> = {}): SessionPayload {
   return {
@@ -168,5 +173,21 @@ describe('requireSuperAdmin', () => {
     )
     await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT')
     expect(redirectMock).toHaveBeenCalledExactlyOnceWith('/')
+  })
+})
+
+describe('getSuperAdminSession', () => {
+  it('returns the session for API callers that are super-admins', async () => {
+    vi.stubEnv('SUPER_ADMIN_DISCORD_IDS', '111')
+    const session = makeSession({ discordId: '111' })
+    getSessionMock.mockResolvedValueOnce(session)
+    await expect(getSuperAdminSession()).resolves.toBe(session)
+  })
+
+  it('returns null instead of redirecting for non-super-admin API callers', async () => {
+    vi.stubEnv('SUPER_ADMIN_DISCORD_IDS', '111')
+    getSessionMock.mockResolvedValueOnce(makeSession({ discordId: '999', isAdmin: true }))
+    await expect(getSuperAdminSession()).resolves.toBeNull()
+    expect(redirectMock).not.toHaveBeenCalled()
   })
 })

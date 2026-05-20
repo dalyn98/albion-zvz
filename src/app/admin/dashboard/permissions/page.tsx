@@ -2,7 +2,8 @@ import { Suspense } from 'react'
 import { getTranslations } from 'next-intl/server'
 import { KeyRound } from 'lucide-react'
 import { redirect } from 'next/navigation'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
+import { CAP } from '@/lib/permissions'
 import { listPermissions } from '@/app/actions/permissions'
 import PermissionsEditor from './PermissionsEditor'
 
@@ -12,7 +13,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function PermissionsPage() {
   const session = await getSession()
-  if (!session || !session.isAdmin) redirect('/')
+  if (!session || !sessionHas(session, CAP.SETTINGS_PERMISSIONS)) redirect('/')
 
   const t = await getTranslations('permissions')
   const { roleGrants, userOverrides, error } = await listPermissions()

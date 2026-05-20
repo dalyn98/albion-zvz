@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation'
 import { Lock, ShieldAlert } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
+import { getFirstAccessibleAdminPath } from '@/lib/admin-route-access'
 import { getSession } from '@/lib/session'
+import InAppBrowserNoticeWithMessages from '@/components/InAppBrowserNoticeWithMessages'
 
 const ERROR_KEY_MAP: Record<string, string> = {
   denied: 'errorDenied',
@@ -31,7 +33,11 @@ export default async function AdminLoginPage({
   const errorMessage = resolveError()
 
   const session = await getSession()
-  if (session?.isAdmin) redirect('/admin/dashboard')
+  const firstAdminPath = getFirstAccessibleAdminPath(
+    session?.isAdmin ?? false,
+    session?.capabilities,
+  )
+  if (firstAdminPath) redirect(firstAdminPath)
 
   const loggedInAsNonAdmin = session && !session.isAdmin
 
@@ -63,6 +69,7 @@ export default async function AdminLoginPage({
           </div>
         ) : (
           <div className="space-y-4">
+            <InAppBrowserNoticeWithMessages />
             <a
               href="/api/auth/discord/start?returnTo=/admin/dashboard"
               className="flex items-center justify-center gap-2 w-full bg-[#5865F2] hover:bg-[#4752c4] text-white font-bold py-3 rounded-lg transition-colors"

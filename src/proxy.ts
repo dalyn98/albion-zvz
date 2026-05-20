@@ -10,6 +10,7 @@ import {
   getSuperAdminPath,
   SUPER_ADMIN_INTERNAL_PATH,
 } from '@/lib/super-admin-path'
+import { canAccessAdminPath } from '@/lib/admin-route-access'
 
 // Multi-tenant subdomain migration (Phase A1):
 // legacy vercel.app hosts 308-redirect to `menhera.albion-guildmanager.com/<path>`
@@ -157,7 +158,7 @@ export async function proxy(request: NextRequest) {
   if (!session) {
     return withPathname(NextResponse.redirect(new URL('/admin', request.url)), pathname)
   }
-  if (!session.isAdmin) {
+  if (!canAccessAdminPath(pathname, session.isAdmin, session.capabilities)) {
     return withPathname(
       NextResponse.redirect(new URL('/admin?error=not_admin', request.url)),
       pathname,

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { fetchTrackedBattleWindows } from '@/lib/tracked-kills'
+import { getSuperAdminSession } from '@/lib/super-admin'
 
 // 임시 진단 엔드포인트. tenant_battle_records 시간창이 events.battle_started_at /
 // killboard_events.occurred_at 와 어떻게 맞물리는지 눈으로 확인하기 위함.
@@ -11,8 +11,8 @@ import { fetchTrackedBattleWindows } from '@/lib/tracked-kills'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const session = await getSession()
-  if (!session?.isAdmin) {
+  const session = await getSuperAdminSession()
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const guildId = await getSessionGuildId(session)

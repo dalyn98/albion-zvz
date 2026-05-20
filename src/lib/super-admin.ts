@@ -34,6 +34,13 @@ export function isSuperAdminSession(session: SessionPayload | null | undefined):
   return isSuperAdmin(session.discordId)
 }
 
+// API route guard helper. Unlike requireSuperAdmin(), this does not redirect
+// because JSON endpoints should return a 401 response from the route handler.
+export async function getSuperAdminSession(): Promise<SessionPayload | null> {
+  const session = await getSession()
+  return isSuperAdminSession(session) ? session : null
+}
+
 // Server component / action 가드. 통과하면 슈퍼어드민 세션을 반환.
 // 실패 시 root 로 리다이렉트 — 슈퍼어드민 페이지 자체의 존재를 노출하지 않기 위해
 // /admin 이 아니라 / 로 보낸다.

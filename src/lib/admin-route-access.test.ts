@@ -1,0 +1,58 @@
+import { describe, expect, it } from 'vitest'
+import { CAP, serializeCapabilities } from './permissions'
+import {
+  canAccessAdminPath,
+  canAccessAnyOfficerAdminRoute,
+  getFirstAccessibleAdminPath,
+} from './admin-route-access'
+
+describe('admin route access', () => {
+  it('legacy admins can access every admin dashboard route', () => {
+    expect(canAccessAdminPath('/admin/dashboard', true, '0')).toBe(true)
+    expect(canAccessAdminPath('/admin/dashboard/settings', true, '0')).toBe(true)
+  })
+
+  it('non-admins cannot access routes without an explicit officer capability rule', () => {
+    const caps = serializeCapabilities(CAP.SIPHON_MANAGE)
+    expect(canAccessAdminPath('/admin/dashboard', false, caps)).toBe(false)
+    expect(canAccessAdminPath('/admin/dashboard/regear', false, caps)).toBe(false)
+  })
+
+  it('allows a matching officer capability for its route and nested paths', () => {
+    const caps = serializeCapabilities(CAP.SIPHON_MANAGE)
+    expect(canAccessAdminPath('/admin/dashboard/siphon', false, caps)).toBe(true)
+    expect(canAccessAdminPath('/admin/dashboard/siphon/import', false, caps)).toBe(true)
+  })
+
+  it('allows finance capabilities into stats and settlement routes', () => {
+    expect(canAccessAdminPath(
+      '/admin/dashboard/stats',
+      false,
+      serializeCapabilities(CAP.STATS_VIEW),
+    )).toBe(true)
+    expect(canAccessAdminPath(
+      '/admin/dashboard/settlements/period-1',
+      false,
+      serializeCapabilities(CAP.SETTLEMENT_MANAGE),
+    )).toBe(true)
+  })
+
+  it('does not allow a different officer capability into another protected route', () => {
+    const caps = serializeCapabilities(CAP.SIPHON_MANAGE)
+    expect(canAccessAdminPath('/admin/dashboard/audit', false, caps)).toBe(false)
+    expect(canAccessAdminPath('/admin/dashboard/permissions', false, caps)).toBe(false)
+  })
+
+  it('shows officer admin navigation when at least one officer route is available', () => {
+    expect(canAccessAnyOfficerAdminRoute(false, serializeCapabilities(CAP.AUDIT_VIEW))).toBe(true)
+    expect(canAccessAnyOfficerAdminRoute(false, '0')).toBe(false)
+  })
+
+  it('redirects officers to their first accessible admin route instead of the admin-only root', () => {
+    expect(getFirstAccessibleAdminPath(true, '0')).toBe('/admin/dashboard')
+    expect(getFirstAccessibleAdminPath(false, serializeCapabilities(CAP.SETTLEMENT_MANAGE))).toBe(
+      '/admin/dashboard/settlements',
+    )
+    expect(getFirstAccessibleAdminPath(false, '0')).toBe(null)
+  })
+})

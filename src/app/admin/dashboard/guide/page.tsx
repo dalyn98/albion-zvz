@@ -21,7 +21,9 @@ import {
   Library,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-import { requireAdmin } from '@/lib/auth'
+import { notFound } from 'next/navigation'
+import { canAccessAnyOfficerAdminRoute } from '@/lib/admin-route-access'
+import { getSession } from '@/lib/session'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,7 +77,10 @@ const CATEGORIES: CategoryDef[] = [
 ]
 
 export default async function AdminGuidePage() {
-  await requireAdmin()
+  const session = await getSession()
+  if (!canAccessAnyOfficerAdminRoute(session?.isAdmin ?? false, session?.capabilities)) {
+    notFound()
+  }
   const t = await getTranslations('adminGuide')
   const tCat = await getTranslations('adminGuide.category')
 

@@ -16,6 +16,7 @@ import { upsertGuildAvatar } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
 import { EVENT_CATEGORIES, type EventCategory } from '@/types'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { resolveTenantLoginAccess } from '@/lib/tenant-login-access'
 import {
   getPrimaryTenantId,
   getTenantDiscordConfig,
@@ -293,7 +294,10 @@ export async function GET(request: NextRequest) {
       const effectiveMemberRoleIds =
         activeMemberRoleIds.length > 0 ? activeMemberRoleIds : tenant.memberRoleIds
       const identity = identityFromMember(member, effectiveMemberRoleIds, tenant.adminRoleIds)
-      if (!identity) return errorRedirect(request, state, 'no_identity', { tenant_id: tenant.id })
+      const isTenantOwner = tenant.createdByDiscordId === user.id
+      if (!identity && !isTenantOwner) {
+        return errorRedirect(request, state, 'no_identity', { tenant_id: tenant.id })
+      }
       // 슈퍼어드민이 부여한 admin 오버라이드. 길드 역할 없이도 admin 권한을
       // 강제 부여한다 — 운영/지원 시나리오용. row 가 있으면 isAdmin=true.
       const { data: overrideRow } = await getAdminClient()
@@ -302,8 +306,14 @@ export async function GET(request: NextRequest) {
         .eq('tenant_id', tenant.id)
         .eq('discord_id', user.id)
         .maybeSingle()
-      const isAdmin = identity.isAdmin || !!overrideRow
-      const isMember = identity.isMember || !!overrideRow
+      // 테넌트 생성자는 Discord 역할 선택을 잘못해도 다음 로그인에서 잠기면 안 된다.
+      // created_by_discord_id 는 봇 설치 OAuth 로 확정된 실제 설치자라 tenant-local
+      // owner 예외로만 사용한다.
+      const { isAdmin, isMember } = resolveTenantLoginAccess({
+        identity,
+        hasAdminOverride: !!overrideRow,
+        isTenantOwner,
+      })
 
       if (isMember) {
         const [legacyIds, combatIds, ffIds, gankingIds, bombSquadCallerRoleIds] = await Promise.all(
@@ -332,7 +342,7 @@ export async function GET(request: NextRequest) {
             ]
         const canCreateEvents = isAdmin || eventCreatorCategories.length > 0
         const isBombSquadCaller = bombSquadCallerRoleIds.some((id) => memberRoleSet.has(id))
-        const displayName = identity.username
+        const displayName = identity?.username ?? member.nick ?? user.global_name ?? user.username
 
         try {
           await upsertGuildAvatar(

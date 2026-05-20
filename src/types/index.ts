@@ -10,8 +10,8 @@ export interface Event {
   // Migration 030: 이벤트 Discord 채널 공지 시 @멘션할 역할 ID. NULL 이면
   // 멘션 없이 조용히 올린다.
   notify_role_id: string | null
-  // Migration 032: 공지를 올릴 Discord 채널 ID. NULL 이면 env 기반 기본 채널
-  // (DISCORD_EVENT_CHANNEL_ID) 로 fallback.
+  // Migration 032: 공지를 올릴 Discord 채널 ID. NULL 이면 tenant 설정의
+  // event_channel_id 를 fallback 으로 사용한다.
   notify_channel_id: string | null
   // Migration 105: true 면 채널 공지에 @everyone 을 함께 멘션한다.
   // notify_role_id 와 독립 동작 — 둘 다 켜져 있으면 둘 다 멘션된다.

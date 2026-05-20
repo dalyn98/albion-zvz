@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { resolveAlbionServer } from '@/lib/killboard'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
+import { getSuperAdminSession } from '@/lib/super-admin'
 
-// 관리자 전용 일회성 백필. killboard_events.battle_id 는 마이그 096 부터 채워지므로
+// 슈퍼어드민 전용 일회성 백필. killboard_events.battle_id 는 마이그 096 부터 채워지므로
 // 그 이전 sync 행은 NULL. tracked-kills 매칭이 battle_id 정확 매칭을 우선하기 때문에
 // 기존 NULL 행은 시간창 폴백에 의지하게 된다 — 1:1 갱킹이 동시간대 트래킹 배틀에
 // 잘못 흡수되는 원인. 이 엔드포인트는 멤버별 /players/{id}/{kills,deaths} 응답에서
@@ -62,8 +62,8 @@ function sleep(ms: number): Promise<void> {
 }
 
 export async function POST() {
-  const session = await getSession()
-  if (!session?.isAdmin) {
+  const session = await getSuperAdminSession()
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const guildId = await getSessionGuildId(session)

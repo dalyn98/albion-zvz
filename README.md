@@ -4,7 +4,7 @@ Albion Online ZvZ 길드 운영을 위한 멀티테넌트 SaaS. 이벤트 운영
 
 - 프로덕션: <https://albion-guildmanager.com>
 - 봇 초대 단축 URL: <https://albion-guildmanager.com/invite>
-- 어드민용 사용법 가이드: 사이트 로그인 후 어드민 → 사용법 가이드 (i18n: ko / ja / en)
+- 어드민용 사용법 가이드: 사이트 로그인 후 어드민 → 사용법 가이드 (i18n: ko / ja / en / zh)
 - 마케팅·FAQ: `/landing`, `/pricing`, `/faq`
 
 ## 핵심 기능
@@ -14,12 +14,12 @@ Albion Online ZvZ 길드 운영을 위한 멀티테넌트 SaaS. 이벤트 운영
 - **ZvZ 통계** — Albion `/battles` API 자동 집계, 멤버별 K/D·생존률·연속 출석·랭킹, 무기 카테고리별 사용 통계.
 - **알비온 닉네임 인증** — 홈 길드 등록 후 멤버가 본인 닉을 인증하면 사이트·Discord 닉이 알비온 닉으로 자동 동기화.
 - **Discord 통합** — OAuth 로그인, 채널 공지, 개인 DM 알림(이벤트 임박·보상 승인), 어드민 역할 매핑.
-- **다국어** — `next-intl` 기반 ko / ja / en 동등 지원, 어드민 전용 화면도 i18n 필수.
+- **다국어** — `next-intl` 기반 ko / ja / en / zh 동등 지원, 어드민 전용 화면도 i18n 필수.
 
 ## 기술 스택
 
 - **프레임워크**: Next.js 16 (App Router) on Vercel Fluid Compute
-- **데이터**: Supabase (Postgres + RPC + RLS), Vercel Blob (스크린샷)
+- **데이터**: Supabase (Postgres + RPC + RLS + Storage)
 - **외부 API**: Albion gameinfo (3-region 폴링) + AODP 가격 API (5분 cron)
 - **인증**: Discord OAuth (custom session, `next-auth` 미사용)
 - **i18n**: `next-intl` v4
@@ -47,20 +47,22 @@ npm run lint
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 클라이언트 측 Supabase 접근 |
 | `SUPABASE_SERVICE_ROLE_KEY` | 서버 액션·cron 의 관리자 권한 접근 |
-| `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` / `DISCORD_BOT_TOKEN` | OAuth 로그인 + 봇 동작 |
-| `DISCORD_GUILD_ID` | 봇 동작 기준 Discord 서버 ID |
+| `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` / `DISCORD_BOT_TOKEN` / `DISCORD_PUBLIC_KEY` | OAuth 로그인 + 봇 동작 + slash command 서명 검증 |
 | `COOKIE_SECRET` | 세션 쿠키 서명용 32자 랜덤 문자열 |
 | `COOKIE_SECURE` | 프로덕션에서 `true`, 로컬 HTTP 에서 `false` |
 | `APP_URL` | OAuth redirect base URL |
 | `TENANT_ROOT_DOMAIN` | 멀티테넌트 서브도메인 라우팅 기준 |
+| `CRON_SECRET` | Vercel Cron 및 수동 cron 호출 Bearer 토큰 |
 | `SUPER_ADMIN_DISCORD_IDS` / `SUPER_ADMIN_PATH` | 운영자 전용 임퍼소네이션 진입점 |
+| `DISCORD_GUILD_ID` | 레거시 세션의 primary tenant fallback 용도. 신규 기능은 per-tenant DB 설정을 사용 |
+| `SUPABASE_ACCESS_TOKEN` | 선택. `./scripts/safe-db-push.sh` 의 pre-migration 백업 및 Supabase CLI 작업용 |
 
 ## 데이터베이스 마이그레이션
 
 `supabase/migrations/` 에 번호 기반(`001_…`, `105_…`) 으로 누적합니다. 적용은 다음으로:
 
 ```bash
-supabase db push --linked
+./scripts/safe-db-push.sh <label>
 ```
 
 ## 배포
@@ -74,7 +76,7 @@ src/
   app/                     # App Router 라우트 (admin/, public/, api/, events/, battles/, regear/...)
   components/              # 공통 React 컴포넌트
   lib/                     # 도메인 로직, Supabase·Discord·Albion 클라이언트
-  messages/                # ko.json · ja.json · en.json (3개 언어 동등)
+  messages/                # ko.json · ja.json · en.json · zh.json (4개 언어 동등)
 supabase/
   migrations/              # 누적 SQL 마이그레이션
 scripts/                   # prebuild 단계의 정적 자원 빌드 스크립트

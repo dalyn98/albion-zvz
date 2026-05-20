@@ -82,6 +82,7 @@ export interface TenantDiscordConfig {
   discordGuildId: string
   slug: string
   name: string
+  createdByDiscordId: string | null
   memberRoleIds: string[]
   adminRoleIds: string[]
   eventChannelId: string | null
@@ -97,7 +98,7 @@ export const getTenantDiscordConfig = cache(
     const { data } = await db
       .from('tenants')
       .select(
-        'id, discord_guild_id, slug, name, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at',
+        'id, discord_guild_id, slug, name, created_by_discord_id, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at',
       )
       .eq('id', tenantId)
       .maybeSingle()
@@ -107,6 +108,7 @@ export const getTenantDiscordConfig = cache(
       discordGuildId: data.discord_guild_id as string,
       slug: data.slug as string,
       name: data.name as string,
+      createdByDiscordId: (data.created_by_discord_id as string | null) ?? null,
       memberRoleIds: (data.member_role_ids as string[] | null) ?? [],
       adminRoleIds: (data.admin_role_ids as string[] | null) ?? [],
       eventChannelId: (data.event_channel_id as string | null) ?? null,
@@ -122,7 +124,7 @@ export async function getTenantDiscordConfigByDiscordGuildId(
   const { data } = await db
     .from('tenants')
     .select(
-      'id, discord_guild_id, slug, name, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at',
+      'id, discord_guild_id, slug, name, created_by_discord_id, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at',
     )
     .eq('discord_guild_id', discordGuildId)
     .maybeSingle()
@@ -132,6 +134,7 @@ export async function getTenantDiscordConfigByDiscordGuildId(
     discordGuildId: data.discord_guild_id as string,
     slug: data.slug as string,
     name: data.name as string,
+    createdByDiscordId: (data.created_by_discord_id as string | null) ?? null,
     memberRoleIds: (data.member_role_ids as string[] | null) ?? [],
     adminRoleIds: (data.admin_role_ids as string[] | null) ?? [],
     eventChannelId: (data.event_channel_id as string | null) ?? null,
@@ -148,7 +151,7 @@ export async function listActiveTenants(): Promise<TenantDiscordConfig[]> {
   const { data } = await db
     .from('tenants')
     .select(
-      'id, discord_guild_id, slug, name, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at',
+      'id, discord_guild_id, slug, name, created_by_discord_id, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at',
     )
     .eq('status', 'active')
   const tenants = (data ?? []).map((r) => ({
@@ -156,6 +159,7 @@ export async function listActiveTenants(): Promise<TenantDiscordConfig[]> {
     discordGuildId: r.discord_guild_id as string,
     slug: r.slug as string,
     name: r.name as string,
+    createdByDiscordId: (r.created_by_discord_id as string | null) ?? null,
     memberRoleIds: (r.member_role_ids as string[] | null) ?? [],
     adminRoleIds: (r.admin_role_ids as string[] | null) ?? [],
     eventChannelId: (r.event_channel_id as string | null) ?? null,

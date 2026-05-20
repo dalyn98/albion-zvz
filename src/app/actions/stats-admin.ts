@@ -1,7 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireAdmin } from '@/lib/auth'
+import { requireCapability } from '@/lib/auth'
+import { CAP } from '@/lib/permissions'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
@@ -99,7 +100,7 @@ export async function getPointStats(): Promise<{ stats?: PointStats; error?: str
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    const db = await requireCapability(CAP.STATS_VIEW)
     const guildId = await getSessionGuildId(session)
     const [ledgerRes, avatarsRes] = await Promise.all([
       db.from('point_ledger').select('discord_id, delta').eq('guild_id', guildId),
@@ -195,7 +196,7 @@ export async function getEventStats(): Promise<{ stats?: EventStats; error?: str
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    const db = await requireCapability(CAP.STATS_VIEW)
     const guildId = await getSessionGuildId(session)
     const since = daysAgoIso(PARTICIPATION_WINDOW_DAYS)
 
@@ -312,7 +313,7 @@ export async function getShopRegearStats(): Promise<{
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    const db = await requireCapability(CAP.STATS_VIEW)
     const guildId = await getSessionGuildId(session)
     const since = daysAgoIso(SHOP_REGEAR_WINDOW_DAYS)
 
@@ -483,7 +484,7 @@ export async function getAlbionVerificationStats(): Promise<{
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    const db = await requireCapability(CAP.STATS_VIEW)
     const guildId = await getSessionGuildId(session)
     const [avatarsRes, homeGuildId] = await Promise.all([
       db
@@ -571,7 +572,7 @@ export async function resetMemberAlbionOnboarding(
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    const db = await requireCapability(CAP.STATS_VIEW)
     const guildId = await getSessionGuildId(session)
     const { error } = await db
       .from('guild_avatars')
@@ -660,7 +661,7 @@ export async function getFinanceFlowStats(): Promise<{
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    const db = await requireCapability(CAP.STATS_VIEW)
     const guildId = await getSessionGuildId(session)
     const tz = await getTenantTimezone(guildId)
     const since = daysAgoIso(FINANCE_WINDOW_DAYS)

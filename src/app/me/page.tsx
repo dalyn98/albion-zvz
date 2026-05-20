@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { ChevronRight, ShieldAlert, ShieldCheck } from 'lucide-react'
+import { ChevronRight, FileText, ShieldAlert, ShieldCheck } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { listMyExchangeRequests } from '@/app/actions/exchange'
@@ -16,6 +16,7 @@ import { getLocale } from '@/lib/locale'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import MyHomeDashboardCard from '@/components/MyHomeDashboardCard'
+import MemberNextActionsPanel from '@/components/MemberNextActionsPanel'
 import BadgeGrid from '@/components/BadgeGrid'
 import RequestExchangeForm from '@/components/RequestExchangeForm'
 import TransferPointsForm from '@/components/TransferPointsForm'
@@ -78,6 +79,20 @@ export default async function MePage() {
     (dashboard?.pendingRegearCount ?? 0) +
     (dashboard?.pendingExchangeCount ?? 0) +
     (dashboard?.pendingDonationCount ?? 0)
+  const nextEventForAction = dashboard?.nextUpcomingEvent
+    ? {
+        id: dashboard.nextUpcomingEvent.id,
+        title: dashboard.nextUpcomingEvent.title,
+        subtitle: [
+          dashboard.nextUpcomingEvent.gather_at
+            ? formatGatherTimeFor(locale, dashboard.nextUpcomingEvent.gather_at, tz)
+            : dashboard.nextUpcomingEvent.gather_time,
+          dashboard.nextUpcomingEvent.role_name
+            ? translateSlotRole(dashboard.nextUpcomingEvent.role_name, tRole)
+            : null,
+        ].filter(Boolean).join(' · '),
+      }
+    : null
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -126,6 +141,26 @@ export default async function MePage() {
         </div>
       </section>
 
+      <MemberNextActionsPanel
+        albionVerified={albionVerified}
+        pendingTotal={pendingTotal}
+        nextEvent={nextEventForAction}
+        labels={{
+          title: t('actionTitle'),
+          description: t('actionDescription'),
+          verifyTitle: t('actionVerifyTitle'),
+          verifyBody: t('actionVerifyBody'),
+          requestsTitle: t('actionRequestsTitle'),
+          requestsBody: t('actionRequestsBody', { count: pendingTotal }),
+          nextEventTitle: t('actionNextEventTitle'),
+          settlementsTitle: t('actionSettlementsTitle'),
+          settlementsBody: t('actionSettlementsBody'),
+          noItemsTitle: t('actionNoItemsTitle'),
+          noItemsBody: t('actionNoItemsBody'),
+          open: t('actionOpen'),
+        }}
+      />
+
       {dashboard && (
         <MyHomeDashboardCard data={dashboard} weeklyStatsEnabled={weeklyStatsEnabled} />
       )}
@@ -157,6 +192,20 @@ export default async function MePage() {
               ? tRequests('cardSubtitlePending', { count: pendingTotal })
               : tRequests('cardSubtitle')}
           </p>
+        </div>
+        <ChevronRight size={18} className="text-gray-500 group-hover:text-amber-400 flex-shrink-0" />
+      </Link>
+
+      <Link
+        href="/me/settlements"
+        className="flex items-center justify-between gap-3 bg-gray-900 border border-gray-700 hover:border-amber-500/40 rounded-2xl px-4 py-3 transition-colors group"
+      >
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <FileText size={18} className="text-amber-400 flex-shrink-0" />
+          <div className="min-w-0">
+            <p className="text-white text-sm font-semibold">{t('settlementCardTitle')}</p>
+            <p className="text-gray-500 text-xs mt-0.5">{t('settlementCardSubtitle')}</p>
+          </div>
         </div>
         <ChevronRight size={18} className="text-gray-500 group-hover:text-amber-400 flex-shrink-0" />
       </Link>

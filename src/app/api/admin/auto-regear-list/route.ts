@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { getSuperAdminSession } from '@/lib/super-admin'
 
 // 최근 auto_generated regear_requests 의 상태 분포를 read-only 로 노출.
 // auto-approval 이 일어났는지 검증용. AGENTS.md force-static 금지 룰 적용.
@@ -9,8 +9,8 @@ import { getAdminClient } from '@/lib/supabase-admin'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
-  const session = await getSession()
-  if (!session?.isAdmin) {
+  const session = await getSuperAdminSession()
+  if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const guildId = await getSessionGuildId(session)

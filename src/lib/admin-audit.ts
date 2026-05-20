@@ -63,6 +63,8 @@ export const ADMIN_ACTIONS = [
   'permission.user.delete',
   'siphon.log.import',
   'siphon.log.delete',
+  'settlement.create',
+  'settlement.close',
 ] as const
 
 export type AdminAction = (typeof ADMIN_ACTIONS)[number]
@@ -82,6 +84,7 @@ export const ADMIN_AUDIT_TARGET_KINDS = [
   'permission_role',
   'permission_user',
   'siphon_ledger',
+  'settlement_period',
 ] as const
 
 export type AdminAuditTargetKind = (typeof ADMIN_AUDIT_TARGET_KINDS)[number]

@@ -12,6 +12,7 @@ import SetupChecklist from '@/components/SetupChecklist'
 import MemberInviteCard from '@/components/MemberInviteCard'
 import TemplateList from '@/components/TemplateList'
 import CreateTemplateButton from '@/components/CreateTemplateButton'
+import AdminOperationsPanel from '@/components/AdminOperationsPanel'
 import { listTemplates } from '@/app/actions/templates'
 
 type Section = 'events' | 'templates'
@@ -80,6 +81,8 @@ export default async function DashboardPage({
       )}
 
       <SetupChecklist guildId={guildId} />
+
+      <AdminOperationsPanel guildId={guildId} tenantConfig={tenantConfig} />
 
       {inviteUrl && (
         <MemberInviteCard inviteUrl={inviteUrl} guildName={inviteGuildName} />

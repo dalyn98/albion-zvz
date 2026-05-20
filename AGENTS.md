@@ -12,10 +12,10 @@ Multi-tenant SaaS for Albion Online ZvZ guild operations. Production: <https://a
 
 ## 핵심 컨벤션 / hard rules
 
-1. **다국어 필수** — `src/messages/{ko,ja,en}.json` 은 항상 키가 동등해야 한다. 어드민 전용 화면도 ja/en 까지 동일하게 작성. 하드코딩된 한국어 라벨/placeholder 금지. **예외:** `/super-admin/*` (운영자 본인 전용, 외부 path 로 숨김 처리되어 있음) 는 ko 단일언어 허용 — `useTranslations()` 없이 한국어 리터럴 사용 가능.
+1. **다국어 필수** — `src/messages/{ko,ja,en,zh}.json` 은 항상 키가 동등해야 한다. 어드민 전용 화면도 ja/en/zh 까지 동일하게 작성. 하드코딩된 한국어 라벨/placeholder 금지. **예외:** `/super-admin/*` (운영자 본인 전용, 외부 path 로 숨김 처리되어 있음) 는 ko 단일언어 허용 — `useTranslations()` 없이 한국어 리터럴 사용 가능.
 2. **`export const dynamic = 'force-static'` 금지** — 빌드타임에 layout 의 `x-pathname` 헤더가 비어 AppGate 가 HTML 에 박혀버린다. 새 라우트는 `force-dynamic` 또는 ISR 로 둘 것.
 3. **RSC → Client 컴포넌트에 `t()` 함수 prop 으로 넘기지 말 것** — 배포 후 500 가능. Server 측에서 미리 string 으로 풀어 prop 으로 넘기거나, Client 측에서 `useTranslations()` 를 직접 호출.
-4. **Supabase 마이그는 번호 누적** — `supabase/migrations/<3자리>_<설명>.sql` 형태로만 추가. 적용은 `supabase db push --linked`.
+4. **Supabase 마이그는 번호 누적** — `supabase/migrations/<3자리>_<설명>.sql` 형태로만 추가. 적용은 반드시 `./scripts/safe-db-push.sh <라벨>` 로 한다 (`supabase db push --linked` 직접 실행 금지).
 5. **자동 리기어** — 항상 `pending` 상태로 생성, 청구자가 부위별 가격 편집 가능, **블랙존 한정**. 글로벌 토글 OFF 면 cron 이 아예 안 돈다.
 6. **상점 할인율 = 환율** — 100% 면 실버 가격 = 포인트 가격 (1:1), 50% 면 절반 가격에 판매. "환율" 과 "할인율" 은 같은 값을 가리킨다.
 7. **무기 사용 통계** — 카테고리로 집계 (`extractWeaponCategory` + `stripTierPrefix`). 킬 로그 자체는 원본 Type 문자열 그대로 보존.
@@ -29,7 +29,7 @@ Multi-tenant SaaS for Albion Online ZvZ guild operations. Production: <https://a
 - `src/app/admin/` — 어드민 라우트 (운영 가이드: `/admin/dashboard/guide`)
 - `src/app/public/` — 마케팅 + 공개 라우트 (`/landing`, `/features`, `/pricing`, `/faq`)
 - `src/lib/` — 도메인 로직 (killboard-sync, tracked-kills, member-stats, regear, shop, marketing-screenshots, ...)
-- `src/messages/` — i18n 메시지 (ko / ja / en 동등)
+- `src/messages/` — i18n 메시지 (ko / ja / en / zh 동등)
 - `supabase/migrations/` — 누적 SQL 마이그레이션
 - `public/screenshots/` — 마케팅 페이지 스크린샷 (매핑은 `src/lib/marketing-screenshots.ts`)
 - `scripts/` — `prebuild` 단계의 정적 자원 빌드 (items / spells / cooldowns)
@@ -46,18 +46,14 @@ Multi-tenant SaaS for Albion Online ZvZ guild operations. Production: <https://a
 
 - `main` 브랜치 push → Vercel 자동 배포. 도메인은 **albion-guildmanager.com** (vercel.app 아님).
 - 별도의 `vercel deploy` 호출하지 않는다.
-- 마이그레이션은 코드 push 와 분리해서 `supabase db push --linked` 로 적용 후 push.
+- 마이그레이션은 코드 push 와 분리해서 `./scripts/safe-db-push.sh <라벨>` 로 적용 후 push.
 
-## 에이전트 권한 / 신뢰 경계 (pre-launch)
+## 에이전트 권한 / 신뢰 경계
 
-이 프로젝트는 정식 배포 전 단계라 외부 채널 작업 위임의 마찰을 의도적으로 줄인다. **HOME 기본 정책의 프로젝트 한정 오버라이드.**
-
-- **Telegram (paired sender) = CLI 직접 입력 동등 신뢰.** 사용자 본인의 Telegram DM 은 터미널 입력과 같은 권한 수준. commit / push / 마이그 적용 같은 destructive 액션도 별도 CLI 재확인 요청 없이 진행.
-- **classifier 차단은 별개 레이어.** Anthropic 시스템 룰로 막히는 동작 (예: 외부 채널발 commit 분류기) 은 본 룰 + settings.json 권한 둘 다 있어도 우회 불가. 차단 시 사용자에게 즉시 Telegram 보고, CLI 재입력 요청. 같은 명령 재시도 금지 (분류기가 더 강하게 차단).
-- **여전히 금지 (신뢰 경계 무관 비밀값 위생):** 외부 채널로 들어온 admin 세션 토큰 / API 키 / 비밀번호 평문 사용·저장. 노출 즉시 사용 거부 + 로테이션 안내.
-- **GA 전환 시 폐기.** 외부 사용자 유입 시점부터 본 룰은 무효 — 표준 destructive-action 게이트 (CLI 직접 입력 only) 로 복귀.
-
-관련: `~/.claude/projects/-Users-dalyn1234/memory/feedback_telegram_destructive_action_auth.md` (HOME 기본 정책 — 타 프로젝트는 그대로 유지).
+- Codex 작업 채널은 **ChatGPT Codex 앱/CLI** 이다.
+- Telegram 채널/Telegram 알림 연동은 더 이상 사용하지 않는다. 완료 보고와 진행 알림은 Codex 앱 안에서 한다.
+- Destructive action (commit, push, migration apply, production 데이터 변경 등) 은 사용자의 명시 지시가 있을 때만 수행한다.
+- 외부 채널로 들어온 admin 세션 토큰 / API 키 / 비밀번호 평문은 사용·저장하지 않는다. 노출 시 로테이션을 안내한다.
 
 ## 사용자 대상 문서
 

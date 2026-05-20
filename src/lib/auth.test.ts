@@ -6,6 +6,10 @@ const getSessionGuildIdMock = vi.fn<(s: SessionPayload) => Promise<string | null
 
 vi.mock('@/lib/session', () => ({
   getSession: () => getSessionMock(),
+  sessionHas: (s: SessionPayload | null, cap: bigint) => {
+    if (!s) return false
+    return (BigInt(s.capabilities) & cap) !== 0n
+  },
 }))
 vi.mock('@/lib/tenant', () => ({
   getSessionGuildId: (s: SessionPayload) => getSessionGuildIdMock(s),
@@ -54,6 +58,7 @@ vi.mock('@/lib/supabase-admin', () => ({
 
 import {
   requireAdmin,
+  requireCapability,
   requireEventCreator,
   requireEventCreatorForEvent,
   requireEventCreatorOrPartyCaller,
@@ -97,6 +102,27 @@ describe('requireAdmin', () => {
   it('returns admin client when isAdmin', async () => {
     getSessionMock.mockResolvedValue(session({ isAdmin: true }))
     const c = await requireAdmin()
+    expect(c).toMatchObject(ADMIN_SENTINEL)
+  })
+})
+
+describe('requireCapability', () => {
+  const cap = 1n << 27n
+
+  it('throws Unauthorized when capability is missing', async () => {
+    getSessionMock.mockResolvedValue(session({ capabilities: '0' }))
+    await expect(requireCapability(cap)).rejects.toThrow(/Unauthorized/)
+  })
+
+  it('returns admin client when capability is present', async () => {
+    getSessionMock.mockResolvedValue(session({ capabilities: cap.toString() }))
+    const c = await requireCapability(cap)
+    expect(c).toMatchObject(ADMIN_SENTINEL)
+  })
+
+  it('keeps legacy admins working even if their cookie lacks a new capability bit', async () => {
+    getSessionMock.mockResolvedValue(session({ isAdmin: true, capabilities: '0' }))
+    const c = await requireCapability(cap)
     expect(c).toMatchObject(ADMIN_SENTINEL)
   })
 })

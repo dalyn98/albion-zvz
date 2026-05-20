@@ -63,6 +63,10 @@ export const CAP = {
   WAR_LOADOUT_VALIDATE: 1n << 24n,
   WAR_LOADOUT_CONFIGURE: 1n << 25n,
   AUDIT_VIEW: 1n << 26n,
+
+  // 운영 리포트 / 정산
+  STATS_VIEW: 1n << 27n,
+  SETTLEMENT_MANAGE: 1n << 28n,
 } as const
 
 export type CapabilityKey = keyof typeof CAP
@@ -94,6 +98,7 @@ export const CAPABILITY_GROUPS: Record<string, CapabilityKey[]> = {
     'SETTINGS_GUILD_PROFILE',
     'SETTINGS_PERMISSIONS',
   ],
+  finance: ['STATS_VIEW', 'SETTLEMENT_MANAGE'],
   advanced: [
     'CHEST_LOG_PASTE',
     'SIPHON_MANAGE',

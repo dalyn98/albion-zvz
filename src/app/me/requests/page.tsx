@@ -85,6 +85,30 @@ export default async function MyRequestsPage() {
         </p>
       </div>
 
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <RequestSummaryCard
+          label={tMe('regearListTitle')}
+          total={regears.length}
+          pending={regears.filter((r) => r.status === 'pending').length}
+          pendingLabel={t('summaryPending')}
+          totalLabel={t('summaryTotal')}
+        />
+        <RequestSummaryCard
+          label={tMe('exchangeTitle')}
+          total={exchanges.length}
+          pending={exchanges.filter((e) => e.status === 'pending').length}
+          pendingLabel={t('summaryPending')}
+          totalLabel={t('summaryTotal')}
+        />
+        <RequestSummaryCard
+          label={tMe('donationTitle')}
+          total={donations.length}
+          pending={donations.filter((d) => d.status === 'pending').length}
+          pendingLabel={t('summaryPending')}
+          totalLabel={t('summaryTotal')}
+        />
+      </section>
+
       <section className="space-y-3">
         <h2 className="text-lg font-bold text-white">{tMe('regearListTitle')}</h2>
         <MyRegearList requests={regears} />
@@ -175,5 +199,34 @@ export default async function MyRequestsPage() {
         )}
       </section>
     </main>
+  )
+}
+
+function RequestSummaryCard({
+  label,
+  total,
+  pending,
+  pendingLabel,
+  totalLabel,
+}: {
+  label: string
+  total: number
+  pending: number
+  pendingLabel: string
+  totalLabel: string
+}) {
+  return (
+    <div className="rounded-xl border border-gray-800 bg-gray-900 px-4 py-3">
+      <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">{label}</p>
+      <div className="mt-2 flex items-end justify-between gap-2">
+        <div>
+          <p className="text-2xl font-bold text-white tabular-nums">{pending}</p>
+          <p className="text-[11px] text-amber-300">{pendingLabel}</p>
+        </div>
+        <p className="text-xs text-gray-500">
+          {totalLabel} <span className="font-mono text-gray-300">{total}</span>
+        </p>
+      </div>
+    </div>
   )
 }
