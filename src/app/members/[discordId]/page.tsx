@@ -3,9 +3,11 @@ import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { getGuildMemberDetail } from '@/app/actions/members-admin-detail'
 import MemberDetailView from '@/components/MemberDetailView'
 import AdminPointAdjuster from '@/components/AdminPointAdjuster'
+import RealtimeKillboardListener from '@/components/RealtimeKillboardListener'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,9 +23,10 @@ export default async function MemberDetailPage({
     redirect(`/api/auth/discord/start?returnTo=/members/${discordId}`)
   }
 
-  const [{ detail, error }, t] = await Promise.all([
+  const [{ detail, error }, t, guildId] = await Promise.all([
     getGuildMemberDetail(discordId),
     getTranslations('members'),
+    getSessionGuildId(session),
   ])
   if (!detail && !error) notFound()
 
@@ -57,6 +60,7 @@ export default async function MemberDetailPage({
       )}
 
       {detail && <MemberDetailView detail={detail} />}
+      <RealtimeKillboardListener guildId={guildId} />
     </main>
   )
 }

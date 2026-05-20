@@ -17,6 +17,7 @@ import type { AlbionServer } from './albion-gameinfo'
 import { fetchJsonWithRetry } from '@/lib/http-retry'
 import { getAppSetting } from './app-settings'
 import { ALBION_GAMEINFO_ENDPOINTS } from './albion-endpoints'
+import { broadcastGuildEvent } from './realtime-broadcast'
 
 const SERVER_ENDPOINTS = ALBION_GAMEINFO_ENDPOINTS
 
@@ -336,6 +337,11 @@ export async function syncKillboard(
     }
     await sleep(API_DELAY_MS)
   }
+
+  // Phase 2/3 이후 새 row 가 commit 됐다면 길드 채널에 broadcast — 구독 중인
+  // 클라이언트가 router.refresh() 로 즉시 새 kill 을 받아옴. broadcast 실패는
+  // non-fatal (DB 는 이미 commit, 다음 page reload 에서 보임).
+  await broadcastGuildEvent('killboard', guildId, upserted)
 
   return {
     server,
