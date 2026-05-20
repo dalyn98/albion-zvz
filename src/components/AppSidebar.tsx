@@ -34,6 +34,7 @@ import {
   Archive,
   ScrollText,
   KeyRound,
+  Zap,
   ExternalLink,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
@@ -99,6 +100,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/dashboard/approvals', labelKey: 'approvals', icon: ShieldCheck, section: 'ops' },
   // 기능
   { href: '/admin/dashboard/shop', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'features' },
+  { href: '/admin/dashboard/siphon', labelKey: 'siphonAdmin', icon: Zap, section: 'features' },
   { href: '/admin/dashboard/craft', labelKey: 'craftAdmin', icon: Hammer, craftAdminOnly: true, section: 'features' },
   { href: '/admin/dashboard/inventory', labelKey: 'inventoryAdmin', icon: Boxes, craftAdminOnly: true, section: 'features' },
   { href: '/admin/dashboard/guild-profile', labelKey: 'guildProfile', icon: Sparkles, section: 'features' },
