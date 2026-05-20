@@ -43,6 +43,9 @@ type SectionKey =
   | 'ops'
   | 'features'
   | 'system'
+  | 'adminSupply'
+  | 'adminInsight'
+  | 'adminSettings'
 
 interface NavItem {
   href: string
@@ -85,23 +88,33 @@ const ADMIN_NAV: NavItem[] = [
       DEMO_ADMIN_BADGES.shop +
       DEMO_ADMIN_BADGES.eventPayout,
   },
-  // 기능
-  { href: '/demo/shop', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'features' },
-  { href: '/demo/craft', labelKey: 'craftAdmin', icon: Hammer, section: 'features' },
-  { href: '/demo/inventory', labelKey: 'inventoryAdmin', icon: Boxes, section: 'features' },
-  { href: '/demo/guild-profile', labelKey: 'guildProfile', icon: Sparkles, section: 'features' },
-  // 시스템
-  { href: '/demo/stats', labelKey: 'stats', icon: BarChart3, section: 'system' },
-  { href: '/demo/audit', labelKey: 'audit', icon: ScrollText, section: 'system' },
-  { href: '/demo/settings', labelKey: 'settings', icon: Settings, section: 'system' },
-  { href: '/demo/backup', labelKey: 'backup', icon: Archive, section: 'system' },
+  // 보급/재화
+  { href: '/demo/shop', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'adminSupply' },
+  { href: '/demo/craft', labelKey: 'craftAdmin', icon: Hammer, section: 'adminSupply' },
+  { href: '/demo/inventory', labelKey: 'inventoryAdmin', icon: Boxes, section: 'adminSupply' },
+  // 분석/기록
+  { href: '/demo/stats', labelKey: 'stats', icon: BarChart3, section: 'adminInsight' },
+  { href: '/demo/audit', labelKey: 'audit', icon: ScrollText, section: 'adminInsight' },
+  // 길드 설정
+  { href: '/demo/guild-profile', labelKey: 'guildProfile', icon: Sparkles, section: 'adminSettings' },
+  { href: '/demo/settings', labelKey: 'settings', icon: Settings, section: 'adminSettings' },
+  { href: '/demo/backup', labelKey: 'backup', icon: Archive, section: 'adminSettings' },
 ]
 
 const STORAGE_KEY = 'demo.sidebar.open'
 const MEMBER_GROUP_KEY = 'demo.sidebar.memberOpen.v2'
 const ADMIN_GROUP_KEY = 'demo.sidebar.adminOpen.v2'
-const SECTION_COLLAPSED_KEY = 'demo.sidebar.sectionCollapsed.v2'
-const DEFAULT_COLLAPSED_SECTIONS: SectionKey[] = ['regear', 'community', 'profile', 'features', 'system']
+const SECTION_COLLAPSED_KEY = 'demo.sidebar.sectionCollapsed.v3'
+const DEFAULT_COLLAPSED_SECTIONS: SectionKey[] = [
+  'regear',
+  'community',
+  'profile',
+  'features',
+  'system',
+  'adminSupply',
+  'adminInsight',
+  'adminSettings',
+]
 
 function isActivePath(pathname: string, href: string, exact = false): boolean {
   if (exact) return pathname === href

@@ -52,6 +52,9 @@ type SectionKey =
   | 'ops'
   | 'features'
   | 'system'
+  | 'adminSupply'
+  | 'adminInsight'
+  | 'adminSettings'
 
 interface NavItem {
   href: string
@@ -101,19 +104,20 @@ const ADMIN_NAV: NavItem[] = [
   // exact 매칭이 없으면 하위 페이지에 있을 때도 "이벤트 관리"가 계속 하이라이트됨.
   { href: '/admin/dashboard', labelKey: 'eventAdmin', icon: CalendarDays, exact: true, section: 'ops' },
   { href: '/admin/dashboard/approvals', labelKey: 'approvals', icon: ShieldCheck, section: 'ops' },
-  // 기능
-  { href: '/admin/dashboard/shop', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'features' },
-  { href: '/admin/dashboard/siphon', labelKey: 'siphonAdmin', icon: Zap, section: 'features' },
-  { href: '/admin/dashboard/craft', labelKey: 'craftAdmin', icon: Hammer, craftAdminOnly: true, section: 'features' },
-  { href: '/admin/dashboard/inventory', labelKey: 'inventoryAdmin', icon: Boxes, craftAdminOnly: true, section: 'features' },
-  { href: '/admin/dashboard/guild-profile', labelKey: 'guildProfile', icon: Sparkles, section: 'features' },
-  // 시스템
-  { href: '/admin/dashboard/stats', labelKey: 'stats', icon: BarChart3, section: 'system' },
-  { href: '/admin/dashboard/settlements', labelKey: 'settlements', icon: FileText, section: 'system' },
-  { href: '/admin/dashboard/audit', labelKey: 'audit', icon: ScrollText, section: 'system' },
-  { href: '/admin/dashboard/permissions', labelKey: 'permissions', icon: KeyRound, section: 'system' },
-  { href: '/admin/dashboard/settings', labelKey: 'settings', icon: Settings, section: 'system' },
-  { href: '/admin/dashboard/backup', labelKey: 'backup', icon: Archive, section: 'system' },
+  // 보급/재화
+  { href: '/admin/dashboard/shop', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'adminSupply' },
+  { href: '/admin/dashboard/siphon', labelKey: 'siphonAdmin', icon: Zap, section: 'adminSupply' },
+  { href: '/admin/dashboard/settlements', labelKey: 'settlements', icon: FileText, section: 'adminSupply' },
+  { href: '/admin/dashboard/craft', labelKey: 'craftAdmin', icon: Hammer, craftAdminOnly: true, section: 'adminSupply' },
+  { href: '/admin/dashboard/inventory', labelKey: 'inventoryAdmin', icon: Boxes, craftAdminOnly: true, section: 'adminSupply' },
+  // 분석/기록
+  { href: '/admin/dashboard/stats', labelKey: 'stats', icon: BarChart3, section: 'adminInsight' },
+  { href: '/admin/dashboard/audit', labelKey: 'audit', icon: ScrollText, section: 'adminInsight' },
+  // 길드 설정
+  { href: '/admin/dashboard/guild-profile', labelKey: 'guildProfile', icon: Sparkles, section: 'adminSettings' },
+  { href: '/admin/dashboard/permissions', labelKey: 'permissions', icon: KeyRound, section: 'adminSettings' },
+  { href: '/admin/dashboard/settings', labelKey: 'settings', icon: Settings, section: 'adminSettings' },
+  { href: '/admin/dashboard/backup', labelKey: 'backup', icon: Archive, section: 'adminSettings' },
 ]
 
 // 슈퍼어드민 (멀티테넌트 운영자) 메뉴. SUPER_ADMIN_DISCORD_IDS env 에 등록된
@@ -143,8 +147,17 @@ const MEMBER_GROUP_KEY = 'app.sidebar.memberOpen.v2'
 const ADMIN_GROUP_KEY = 'app.sidebar.adminOpen.v2'
 const SUPER_ADMIN_GROUP_KEY = 'app.sidebar.superAdminOpen.v2'
 // 접힌 sub-section 들의 SectionKey 집합을 JSON 배열로 직렬화.
-const SECTION_COLLAPSED_KEY = 'app.sidebar.sectionCollapsed.v2'
-const DEFAULT_COLLAPSED_SECTIONS: SectionKey[] = ['regear', 'community', 'profile', 'features', 'system']
+const SECTION_COLLAPSED_KEY = 'app.sidebar.sectionCollapsed.v3'
+const DEFAULT_COLLAPSED_SECTIONS: SectionKey[] = [
+  'regear',
+  'community',
+  'profile',
+  'features',
+  'system',
+  'adminSupply',
+  'adminInsight',
+  'adminSettings',
+]
 
 function avatarUrl(discordId: string, avatar: string | null): string | null {
   if (!avatar) return null

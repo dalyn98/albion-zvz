@@ -49,7 +49,10 @@
       "profile": "내 정보",
       "ops": "운영",
       "features": "기능",
-      "system": "시스템"
+      "system": "시스템",
+      "adminSupply": "보급/재화",
+      "adminInsight": "분석/기록",
+      "adminSettings": "길드 설정"
     }
   },
   "common": {

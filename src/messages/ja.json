@@ -49,7 +49,10 @@
       "profile": "マイページ",
       "ops": "運営",
       "features": "機能",
-      "system": "システム"
+      "system": "システム",
+      "adminSupply": "補給・資金",
+      "adminInsight": "分析・記録",
+      "adminSettings": "ギルド設定"
     }
   },
   "common": {

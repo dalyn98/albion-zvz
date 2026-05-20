@@ -49,7 +49,10 @@
       "profile": "My page",
       "ops": "Operations",
       "features": "Features",
-      "system": "System"
+      "system": "System",
+      "adminSupply": "Supply & funds",
+      "adminInsight": "Reports & logs",
+      "adminSettings": "Guild settings"
     }
   },
   "common": {
