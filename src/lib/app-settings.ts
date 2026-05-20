@@ -223,6 +223,10 @@ export type AppSettingKey =
   // 정기 이벤트 일정 자유 텍스트 (멀티라인 허용). 예: "화/목 22시 ZvZ\n토요일
   // 21시 갱킹". 빈 값 = 섹션 숨김.
   | 'guild_profile_event_schedule'
+  // 길드 홍보용 YouTube 영상/플레이리스트 URL. watch / youtu.be / playlist 형태만
+  // 허용 — 임의 iframe src 는 XSS 벡터라 `toYoutubeEmbedUrl` sanitizer 가 화이트
+  // 리스트 통과 못한 값은 저장 단계에서 거부. 빈 값 = 위젯 숨김.
+  | 'guild_profile_youtube_url'
   // 길드 공개 페이지(`/g/<slug>`) 활동 섹션의 "이번 주 활동" KPI 줄 토글. 원래
   // 홈(`/`) 상단에 있던 위젯이 길드 공개 페이지로 이동했지만 (#208) 설정 키는
   // 그대로 유지 — 기존 길드의 'true' 가 즉시 새 위치에 반영되도록.

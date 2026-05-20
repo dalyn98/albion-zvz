@@ -254,6 +254,9 @@ export interface GuildProfileSettings {
   joinSteps: string
   // 정기 이벤트 일정 자유 텍스트 (멀티라인 허용). 빈 값 = 섹션 숨김.
   eventSchedule: string
+  // YouTube URL (watch / youtu.be / playlist / embed 형태 모두 허용). 빈 값 =
+  // 위젯 숨김. 렌더 시 toYoutubeEmbedUrl 로 정규화 + sanitize.
+  youtubeUrl: string
 }
 
 export const DEFAULT_GUILD_PROFILE: GuildProfileSettings = {
@@ -279,6 +282,7 @@ export const DEFAULT_GUILD_PROFILE: GuildProfileSettings = {
   recruitingRoles: '',
   joinSteps: '',
   eventSchedule: '',
+  youtubeUrl: '',
 }
 
 // csv → string[]. 알 수 없는 코드는 무시 (저장 시점 검증을 통과한 값만 들어와야
@@ -321,6 +325,7 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
     recruitingRoles,
     joinSteps,
     eventSchedule,
+    youtubeUrl,
   ] = await Promise.all([
     getAppSetting('guild_profile_enabled', 'false', guildId),
     getAppSetting('guild_profile_banner_url', '', guildId),
@@ -344,6 +349,7 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
     getAppSetting('guild_profile_recruiting_roles', '', guildId),
     getAppSetting('guild_profile_join_steps', '', guildId),
     getAppSetting('guild_profile_event_schedule', '', guildId),
+    getAppSetting('guild_profile_youtube_url', '', guildId),
   ])
 
   return {
@@ -369,5 +375,6 @@ export async function loadGuildProfileSettings(guildId: string): Promise<GuildPr
     recruitingRoles,
     joinSteps,
     eventSchedule,
+    youtubeUrl,
   }
 }

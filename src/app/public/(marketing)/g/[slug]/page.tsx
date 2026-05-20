@@ -16,11 +16,13 @@ import {
   UserCheck,
   Sword,
   ExternalLink,
+  PlayCircle,
 } from 'lucide-react'
 import MarketingNav from '@/components/MarketingNav'
 import { getMarketingPaths } from '@/lib/marketing-paths'
 import { resolveTenantBySlugAnyStatus } from '@/lib/tenant-resolver'
 import { loadGuildProfileSettings, ACCENT_CLASS_MAP } from '@/lib/guild-profile'
+import { toYoutubeEmbedUrl } from '@/lib/youtube-embed'
 import { getAppSetting } from '@/lib/app-settings'
 import { resolveAlbionDisplayName } from '@/lib/albion-display-name'
 import { loadGalleryItems } from '@/lib/guild-profile-gallery'
@@ -298,6 +300,12 @@ export default async function GuildProfilePage({
   // 않는다. activity 섹션 렌더 여부는 KPI 줄까지 함께 본다.
   const showWeeklyStats =
     weeklyStats !== null && weeklyStats.battleCount > 0
+  // YouTube 임베드 URL — sanitizer 가 null 을 돌려주면 위젯 자체를 숨긴다.
+  // 어드민이 잘못된 URL 을 저장 단계에서 차단당하므로, 여기에 도달한 값은 항상
+  // 화이트리스트 통과한 값이지만, 데이터 변경/legacy 대비 한번 더 검증.
+  const youtubeEmbedUrl = settings.youtubeUrl
+    ? toYoutubeEmbedUrl(settings.youtubeUrl)
+    : null
   // 활동 섹션 마스터 토글. 어드민이 명시적으로 끄면 데이터가 있어도 섹션 자체 숨김.
   // settings.showActivity 의 기본은 true 라 기존 길드 가시성에 변화 없음.
   const hasActivity =
@@ -474,6 +482,34 @@ export default async function GuildProfilePage({
                 <p className="text-gray-500 text-xs mt-2">{t('galleryEmptyAdmin')}</p>
               </div>
             )}
+          </section>
+        )}
+
+        {/* YouTube 영상 — 어드민이 설정한 단일 영상/플레이리스트. sanitizer 통과
+            못한 값이면 위젯 자체를 숨긴다 (XSS 경계). 가로 16:9 + lazy load. */}
+        {youtubeEmbedUrl && (
+          <section className="space-y-4">
+            <SectionHeader
+              icon={<PlayCircle size={14} />}
+              label={t('youtubeHeading')}
+              accent={accent}
+            />
+            <div
+              className={`relative rounded-xl border ${accent.border} bg-gray-900/40 overflow-hidden backdrop-blur-sm`}
+            >
+              <div className="aspect-video">
+                <iframe
+                  src={youtubeEmbedUrl}
+                  title="YouTube"
+                  loading="lazy"
+                  allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+                  className="w-full h-full border-0"
+                />
+              </div>
+            </div>
           </section>
         )}
 

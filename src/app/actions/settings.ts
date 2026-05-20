@@ -12,6 +12,7 @@ import { isValidTenantTimezone } from '@/lib/timezone'
 import { isSuperAdminSession } from '@/lib/super-admin'
 import { SLOT_ROLES, SLOT_KEYS } from '@/types'
 import { logAdminAction } from '@/lib/admin-audit'
+import { toYoutubeEmbedUrl } from '@/lib/youtube-embed'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
@@ -63,6 +64,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'guild_profile_recruiting_roles',
   'guild_profile_join_steps',
   'guild_profile_event_schedule',
+  'guild_profile_youtube_url',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -109,6 +111,8 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   'guild_profile_join_steps',
   // 빈 값 = 정기 이벤트 일정 섹션 숨김.
   'guild_profile_event_schedule',
+  // 빈 값 = YouTube 위젯 숨김.
+  'guild_profile_youtube_url',
 ] as const
 
 // JSON array string keys. Must parse to string[] or the upsert is rejected.
@@ -288,6 +292,13 @@ export async function updateAppSetting(
       const unknown = tokens.filter((t) => !csvEnum.includes(t))
       if (unknown.length > 0) {
         return { error: tErr('invalidEnumValue', { values: csvEnum.join(', ') }) }
+      }
+    }
+    // YouTube URL 은 임의 iframe src 허용 시 XSS 벡터 — sanitizer 통과 못한 값은
+    // 저장 자체 차단. 어드민이 잘못된 URL 을 즉시 인지.
+    if (trimmed && key === 'guild_profile_youtube_url') {
+      if (!toYoutubeEmbedUrl(trimmed)) {
+        return { error: tErr('invalidYoutubeUrl') }
       }
     }
     const db = await requireAdmin()

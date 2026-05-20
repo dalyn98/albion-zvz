@@ -99,6 +99,7 @@ export default async function GuildProfileAdminPage() {
         initialAccentColor={settings.accentColor}
         initialRecruitmentStatus={settings.recruitmentStatus}
         initialDiscordInviteUrl={settings.discordInviteUrl}
+        initialYoutubeUrl={settings.youtubeUrl}
       />
 
       <GuildProfileEnableToggle

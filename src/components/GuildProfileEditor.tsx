@@ -12,6 +12,7 @@ import {
   type AccentColor,
   type RecruitmentStatus,
 } from '@/lib/guild-profile'
+import { toYoutubeEmbedUrl } from '@/lib/youtube-embed'
 import { useReportDirty } from './UnsavedChangesProvider'
 
 const DESCRIPTION_MAX_LENGTH = 500
@@ -22,6 +23,7 @@ interface Props {
   initialAccentColor: AccentColor
   initialRecruitmentStatus: RecruitmentStatus
   initialDiscordInviteUrl: string
+  initialYoutubeUrl: string
 }
 
 export default function GuildProfileEditor({
@@ -29,6 +31,7 @@ export default function GuildProfileEditor({
   initialAccentColor,
   initialRecruitmentStatus,
   initialDiscordInviteUrl,
+  initialYoutubeUrl,
 }: Props) {
   const t = useTranslations('adminGuildProfile')
   const tCommon = useTranslations('common')
@@ -40,10 +43,12 @@ export default function GuildProfileEditor({
     initialRecruitmentStatus,
   )
   const [discordInviteUrl, setDiscordInviteUrl] = useState(initialDiscordInviteUrl)
+  const [youtubeUrl, setYoutubeUrl] = useState(initialYoutubeUrl)
   // 저장 성공 시 saved* 를 즉시 새 값으로 sync — router.refresh 가 새 prop 을
   // 가져오기 전까지의 false-alarm 가드 방지.
   const [savedDescription, setSavedDescription] = useState(initialDescription)
   const [savedDiscordInviteUrl, setSavedDiscordInviteUrl] = useState(initialDiscordInviteUrl)
+  const [savedYoutubeUrl, setSavedYoutubeUrl] = useState(initialYoutubeUrl)
 
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [savedKey, setSavedKey] = useState<string | null>(null)
@@ -52,12 +57,20 @@ export default function GuildProfileEditor({
 
   const descId = useId()
   const urlId = useId()
+  const youtubeId = useId()
 
   const descTooLong = description.length > DESCRIPTION_MAX_LENGTH
   const urlTooLong = discordInviteUrl.length > URL_MAX_LENGTH
+  const youtubeTooLong = youtubeUrl.length > URL_MAX_LENGTH
+  // 저장 전 클라이언트 사전 검증 — 서버 액션도 같은 sanitizer 로 막지만, 잘못된
+  // URL 을 미리 회색 처리해 어드민이 즉시 인지할 수 있게 한다. 빈 값은 OK
+  // (위젯 숨김 의도).
+  const youtubeInvalid =
+    youtubeUrl.trim().length > 0 && toYoutubeEmbedUrl(youtubeUrl) === null
   const descDirty = description !== savedDescription
   const urlDirty = discordInviteUrl !== savedDiscordInviteUrl
-  useReportDirty('guild-profile-editor', descDirty || urlDirty)
+  const youtubeDirty = youtubeUrl !== savedYoutubeUrl
+  useReportDirty('guild-profile-editor', descDirty || urlDirty || youtubeDirty)
 
   const save = (
     label: string,
@@ -76,6 +89,7 @@ export default function GuildProfileEditor({
       }
       if (label === 'description') setSavedDescription(value)
       else if (label === 'discord') setSavedDiscordInviteUrl(value)
+      else if (label === 'youtube') setSavedYoutubeUrl(value)
       setSavingKey(null)
       setSavedKey(label)
       router.refresh()
@@ -247,6 +261,57 @@ export default function GuildProfileEditor({
             {tCommon('saved')}
           </p>
         )}
+      </section>
+
+      {/* YouTube 영상 — 공개 프로필에 임베드. sanitizer 통과 못한 URL 은 서버에서
+          거부, 클라이언트는 입력 즉시 회색 처리 + 저장 버튼 비활성. */}
+      <section className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-3">
+        <div>
+          <h2 className="font-bold text-white text-base">{t('youtubeUrlTitle')}</h2>
+          <p className="text-gray-500 text-xs mt-1">{t('youtubeUrlDescription')}</p>
+        </div>
+        <div>
+          <label htmlFor={youtubeId} className="sr-only">
+            {t('youtubeUrlTitle')}
+          </label>
+          <input
+            id={youtubeId}
+            type="url"
+            inputMode="url"
+            value={youtubeUrl}
+            onChange={(e) => setYoutubeUrl(e.target.value)}
+            placeholder={t('youtubeUrlPlaceholder')}
+            className={`w-full bg-gray-800 border rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 ${
+              youtubeInvalid ? 'border-red-700' : 'border-gray-700'
+            }`}
+          />
+          <div className="flex items-center justify-between mt-1">
+            <span
+              className={`text-[11px] ${
+                youtubeTooLong || youtubeInvalid ? 'text-red-400' : 'text-gray-500'
+              }`}
+            >
+              {youtubeUrl.length}/{URL_MAX_LENGTH}
+            </span>
+            {savedKey === 'youtube' && !youtubeDirty && (
+              <span className="text-[11px] text-emerald-400 flex items-center gap-1">
+                <Check size={10} />
+                {tCommon('saved')}
+              </span>
+            )}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => save('youtube', 'guild_profile_youtube_url', youtubeUrl)}
+          disabled={
+            savingKey !== null || !youtubeDirty || youtubeTooLong || youtubeInvalid
+          }
+          className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-4 py-2 rounded-lg transition-colors text-sm"
+        >
+          <Save size={14} />
+          {savingKey === 'youtube' ? tCommon('saving') : tCommon('save')}
+        </button>
       </section>
 
       {error && (
