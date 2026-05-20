@@ -27,6 +27,7 @@ const SAMPLE_SESSION: SessionPayload = {
   eventCreatorCategories: [],
   eventScope: null,
   guildId: 'tenant-uuid',
+  capabilities: '0',
   issuedAt: Date.now(),
 }
 

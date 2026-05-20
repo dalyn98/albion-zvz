@@ -33,6 +33,7 @@
     "settings": "设置",
     "backup": "备份/恢复",
     "audit": "审计日志",
+    "permissions": "权限管理",
     "guide": "指南",
     "archive": "归档",
     "publicProfile": "首页",
@@ -3205,6 +3206,7 @@
     "galleryAtMax": "图库最多可包含 {max} 张图片。",
     "invalidDateFormat": "日期必须为 YYYY-MM-DD 格式。",
     "unauthorized": "您没有执行此操作的权限。",
+    "invalidInput": "输入不正确。",
     "invalidJsonArray": "无法保存职业列表。",
     "bombSquadKindRequired": "请选择爆装组类型(近战/远程)。",
     "partyNameTooLong": "小队名称不能超过 {max} 个字符。",
@@ -4373,6 +4375,79 @@
     "docsReady": "📖 官方指南\n{url}",
     "upcomingNone": "📭 暂无即将开始的活动。活动列表\n{url}",
     "upcoming": "⏰ 最临近的活动\n**{title}**\n🕒 {when}\n🔗 {url}"
+  },
+  "permissions": {
+    "heading": "权限管理",
+    "description": "为 Discord 角色授予细粒度权限(capability)，或对特定成员单独追加 / 收回权限。",
+    "capabilityGroup": {
+      "members": "成员",
+      "regear": "补装",
+      "events": "活动",
+      "shop": "商店与库存",
+      "craft": "制作",
+      "combat": "战斗与击杀榜",
+      "settings": "设置",
+      "advanced": "高级"
+    },
+    "capability": {
+      "MEMBERS_VIEW": "查看成员列表",
+      "MEMBERS_MANAGE": "管理成员权限·角色",
+      "REGEAR_APPROVE": "补装审批 / 拒绝",
+      "REGEAR_EDIT_PRICE": "修改补装价格",
+      "REGEAR_BULK_ACTION": "补装批量操作",
+      "EVENT_CREATE_COMBAT": "创建战斗活动",
+      "EVENT_CREATE_FF": "创建联谊战活动",
+      "EVENT_CREATE_GANKING": "创建小队活动",
+      "EVENT_MANAGE": "编辑 / 删除活动",
+      "INVENTORY_MANAGE": "库存管理",
+      "INVENTORY_DELIVER": "库存出库",
+      "SHOP_PRICING": "修改商店价格",
+      "CRAFT_TASK_CREATE": "创建制作工单",
+      "CRAFT_TASK_DELIVER": "工单出库",
+      "CRAFT_MASTER": "制作主管(全权管理)",
+      "KILLBOARD_SYNC": "手动同步击杀榜",
+      "BATTLES_MANAGE": "战斗记录管理",
+      "BOMB_SQUAD_CALL": "炸弹小队召集",
+      "SETTINGS_GENERAL": "修改通用设置",
+      "SETTINGS_TOGGLES": "修改功能开关",
+      "SETTINGS_GUILD_PROFILE": "编辑公会主页",
+      "SETTINGS_PERMISSIONS": "权限管理(本页面)",
+      "CHEST_LOG_PASTE": "粘贴 Chest log",
+      "SIPHON_MANAGE": "Siphon 收支管理",
+      "WAR_LOADOUT_VALIDATE": "战斗装备配置校验",
+      "WAR_LOADOUT_CONFIGURE": "战斗装备配置设置",
+      "AUDIT_VIEW": "查看审计日志"
+    },
+    "roleGrantEditor": {
+      "heading": "按 Discord 角色授权",
+      "description": "拥有该 Discord 角色的所有成员自动获得这些权限。",
+      "discordRoleIdLabel": "Discord 角色 ID",
+      "discordRoleIdPlaceholder": "例: 1234567890123456789",
+      "notesLabel": "备注",
+      "emptyState": "尚未配置任何角色权限。"
+    },
+    "userOverrideEditor": {
+      "heading": "按用户覆盖",
+      "description": "为特定用户在角色权限基础上追加或收回权限。",
+      "discordIdLabel": "Discord 用户 ID",
+      "discordIdPlaceholder": "例: 1234567890123456789",
+      "notesLabel": "备注",
+      "grantedHeading": "追加授予",
+      "revokedHeading": "收回",
+      "emptyState": "尚未配置任何用户覆盖。"
+    },
+    "listItem": {
+      "noCapabilities": "(无权限)"
+    },
+    "actions": {
+      "cancel": "取消",
+      "save": "保存",
+      "edit": "编辑",
+      "delete": "删除",
+      "deleteConfirm": "确定要删除吗？",
+      "addRoleGrant": "添加角色权限",
+      "addUserOverride": "添加用户覆盖"
+    }
   },
   "unsavedChanges": {
     "confirmLeave": "您有未保存的更改。确定要离开此页面吗？"

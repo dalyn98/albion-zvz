@@ -10,6 +10,7 @@ import {
   type DiscordUserGuild,
 } from '@/lib/discord'
 import { SESSION_COOKIE_NAME, cookieOptions, signSession, type SessionPayload } from '@/lib/session'
+import { resolveUserCapabilities, serializeCapabilities } from '@/lib/permissions'
 import { upsertGuildAvatar } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
 import { EVENT_CATEGORIES, type EventCategory } from '@/types'
@@ -144,6 +145,9 @@ async function onboardingResponse(
     eventCreatorCategories: [],
     eventScope: null,
     guildId: null,
+    // 온보딩 단계라 테넌트가 아직 없다 — capability 비트도 0. 본격 admin 세션은
+    // bot-callback/onboard 완료 후 갱신.
+    capabilities: '0',
     issuedAt: Date.now(),
   })
   response.cookies.set(SESSION_COOKIE_NAME, sessionCookie, cookieOptions())
@@ -356,6 +360,24 @@ export async function GET(request: NextRequest) {
           }
         }
 
+        // Granular capability 비트필드 — role grant + per-user override 의 합성.
+        // isAdmin 인 세션은 ALL_CAPABILITIES 마스크라 점진 마이그 도중 권한 누락
+        // 사고 0. DB 조회 실패 시에도 로그인은 계속 진행 (capabilities='0').
+        let capabilitiesBits = 0n
+        try {
+          capabilitiesBits = await resolveUserCapabilities(getAdminClient(), {
+            guildId: tenant.id,
+            discordId: user.id,
+            discordRoleIds: member.roles,
+            isLegacyAdmin: isAdmin,
+          })
+        } catch (err) {
+          log.error('[discord-callback] resolveUserCapabilities failed', err, {
+            tenant_id: tenant.id,
+            discord_id: user.id,
+          })
+        }
+
         const session: SessionPayload = {
           discordId: user.id,
           username: displayName,
@@ -367,6 +389,7 @@ export async function GET(request: NextRequest) {
           eventCreatorCategories,
           eventScope: null,
           guildId: tenant.id,
+          capabilities: serializeCapabilities(capabilitiesBits),
           issuedAt: Date.now(),
         }
         if (isAdmin) {
@@ -471,6 +494,9 @@ export async function GET(request: NextRequest) {
       eventCreatorCategories: [],
       eventScope,
       guildId: guestGuildId,
+      // 게스트는 이벤트 1개 read-only 라 capability 비트는 0. session-verify
+      // 의 sessionHas 가 0n 으로 파싱해 모든 capability 체크 false.
+      capabilities: '0',
       issuedAt: Date.now(),
     }
     const scopedReturnTo = `/events/${eventScope}`

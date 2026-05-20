@@ -22,6 +22,7 @@ const basePayload = (overrides: Partial<SessionPayload> = {}): SessionPayload =>
   eventCreatorCategories: [],
   eventScope: null,
   guildId: 'tenant-1',
+  capabilities: '0',
   issuedAt: Date.now(),
   ...overrides,
 })

@@ -57,6 +57,10 @@ export const ADMIN_ACTIONS = [
   'craft.task.assign',
   'craft.task.complete',
   'craft.task.cancel',
+  'permission.role.update',
+  'permission.role.delete',
+  'permission.user.update',
+  'permission.user.delete',
 ] as const
 
 export type AdminAction = (typeof ADMIN_ACTIONS)[number]
@@ -73,6 +77,8 @@ export const ADMIN_AUDIT_TARGET_KINDS = [
   'donation',
   'craft_task',
   'setting',
+  'permission_role',
+  'permission_user',
 ] as const
 
 export type AdminAuditTargetKind = (typeof ADMIN_AUDIT_TARGET_KINDS)[number]

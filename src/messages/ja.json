@@ -33,6 +33,7 @@
     "settings": "設定",
     "backup": "バックアップ/復元",
     "audit": "監査ログ",
+    "permissions": "権限管理",
     "guide": "ガイド",
     "archive": "アーカイブ",
     "publicProfile": "ホーム",
@@ -3205,6 +3206,7 @@
     "galleryAtMax": "ギャラリーには最大 {max} 枚まで追加できます。",
     "invalidDateFormat": "日付は YYYY-MM-DD 形式で入力してください。",
     "unauthorized": "この操作を実行する権限がありません。",
+    "invalidInput": "入力値が正しくありません。",
     "invalidJsonArray": "役割一覧を保存できませんでした。",
     "bombSquadKindRequired": "ボムスクワッドの種類(近接/遠距離)を選択してください。",
     "partyNameTooLong": "パーティー名は {max} 文字以内で入力してください。",
@@ -4373,6 +4375,79 @@
     "docsReady": "📖 公式ガイド\n{url}",
     "upcomingNone": "📭 予定されているイベントはありません。イベント一覧\n{url}",
     "upcoming": "⏰ 直近のイベント\n**{title}**\n🕒 {when}\n🔗 {url}"
+  },
+  "permissions": {
+    "heading": "権限管理",
+    "description": "Discord ロールごとに細かい権限(capability)を付与したり、特定メンバーに追加付与・取消しを行います。",
+    "capabilityGroup": {
+      "members": "メンバー",
+      "regear": "リギア",
+      "events": "イベント",
+      "shop": "ショップ・在庫",
+      "craft": "クラフト",
+      "combat": "戦闘・キルボード",
+      "settings": "設定",
+      "advanced": "高度"
+    },
+    "capability": {
+      "MEMBERS_VIEW": "メンバー一覧の閲覧",
+      "MEMBERS_MANAGE": "メンバー権限・ロール管理",
+      "REGEAR_APPROVE": "リギア承認・拒否",
+      "REGEAR_EDIT_PRICE": "リギア価格の編集",
+      "REGEAR_BULK_ACTION": "リギア一括処理",
+      "EVENT_CREATE_COMBAT": "戦闘イベントの作成",
+      "EVENT_CREATE_FF": "親睦戦イベントの作成",
+      "EVENT_CREATE_GANKING": "ガンクイベントの作成",
+      "EVENT_MANAGE": "イベントの編集・削除",
+      "INVENTORY_MANAGE": "在庫管理",
+      "INVENTORY_DELIVER": "在庫出庫",
+      "SHOP_PRICING": "ショップ価格の変更",
+      "CRAFT_TASK_CREATE": "クラフト依頼の作成",
+      "CRAFT_TASK_DELIVER": "クラフト依頼の出庫",
+      "CRAFT_MASTER": "クラフトマスター(全管理)",
+      "KILLBOARD_SYNC": "キルボード手動同期",
+      "BATTLES_MANAGE": "戦闘記録の管理",
+      "BOMB_SQUAD_CALL": "ボムスクワッド召集",
+      "SETTINGS_GENERAL": "一般設定の変更",
+      "SETTINGS_TOGGLES": "機能トグルの変更",
+      "SETTINGS_GUILD_PROFILE": "ギルドプロフィールの編集",
+      "SETTINGS_PERMISSIONS": "権限管理(本ページ)",
+      "CHEST_LOG_PASTE": "Chest log の貼り付け",
+      "SIPHON_MANAGE": "サイフォン入出金管理",
+      "WAR_LOADOUT_VALIDATE": "ウォーロードアウト検証",
+      "WAR_LOADOUT_CONFIGURE": "ウォーロードアウト設定",
+      "AUDIT_VIEW": "監査ログ閲覧"
+    },
+    "roleGrantEditor": {
+      "heading": "Discord ロール別の権限",
+      "description": "Discord ロールを持つすべてのメンバーに自動で付与される権限です。",
+      "discordRoleIdLabel": "Discord ロール ID",
+      "discordRoleIdPlaceholder": "例: 1234567890123456789",
+      "notesLabel": "メモ",
+      "emptyState": "登録されたロール権限はありません。"
+    },
+    "userOverrideEditor": {
+      "heading": "ユーザー別の権限上書き",
+      "description": "特定ユーザーにロールと無関係に権限を追加・取消します。",
+      "discordIdLabel": "Discord ユーザー ID",
+      "discordIdPlaceholder": "例: 1234567890123456789",
+      "notesLabel": "メモ",
+      "grantedHeading": "追加付与",
+      "revokedHeading": "取消し",
+      "emptyState": "登録されたユーザー別上書きはありません。"
+    },
+    "listItem": {
+      "noCapabilities": "(権限なし)"
+    },
+    "actions": {
+      "cancel": "キャンセル",
+      "save": "保存",
+      "edit": "編集",
+      "delete": "削除",
+      "deleteConfirm": "本当に削除しますか？",
+      "addRoleGrant": "ロール権限を追加",
+      "addUserOverride": "ユーザー上書きを追加"
+    }
   },
   "unsavedChanges": {
     "confirmLeave": "保存されていない変更があります。このページを離れてもよろしいですか？"

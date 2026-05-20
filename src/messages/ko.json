@@ -33,6 +33,7 @@
     "settings": "설정",
     "backup": "백업/복원",
     "audit": "감사 로그",
+    "permissions": "권한 관리",
     "guide": "가이드",
     "archive": "아카이브",
     "publicProfile": "홈",
@@ -3207,6 +3208,7 @@
     "galleryAtMax": "갤러리에는 최대 {max}장까지 추가할 수 있습니다.",
     "invalidDateFormat": "날짜는 YYYY-MM-DD 형식으로 입력해 주세요.",
     "unauthorized": "이 작업을 수행할 권한이 없습니다.",
+    "invalidInput": "입력값이 올바르지 않습니다.",
     "invalidJsonArray": "역할 목록을 올바르게 저장할 수 없습니다.",
     "invalidIntegerRange": "{min} ~ {max} 사이의 정수로 입력해 주세요.",
     "invalidBoolean": "true 또는 false 값만 허용됩니다.",
@@ -4373,6 +4375,79 @@
     "docsReady": "📖 공식 가이드\n{url}",
     "upcomingNone": "📭 예정된 이벤트가 없어요. 이벤트 목록\n{url}",
     "upcoming": "⏰ 가장 임박한 이벤트\n**{title}**\n🕒 {when}\n🔗 {url}"
+  },
+  "permissions": {
+    "heading": "권한 관리",
+    "description": "Discord 역할별로 granular 권한(capability)을 부여하거나, 특정 멤버에게 추가 권한·회수를 적용합니다.",
+    "capabilityGroup": {
+      "members": "멤버",
+      "regear": "리기어",
+      "events": "이벤트",
+      "shop": "상점·재고",
+      "craft": "제작",
+      "combat": "전투·킬보드",
+      "settings": "설정",
+      "advanced": "고급"
+    },
+    "capability": {
+      "MEMBERS_VIEW": "멤버 목록 조회",
+      "MEMBERS_MANAGE": "멤버 권한·역할 관리",
+      "REGEAR_APPROVE": "리기어 승인·거절",
+      "REGEAR_EDIT_PRICE": "리기어 가격 수정",
+      "REGEAR_BULK_ACTION": "리기어 일괄 처리",
+      "EVENT_CREATE_COMBAT": "전투 이벤트 생성",
+      "EVENT_CREATE_FF": "단합전 이벤트 생성",
+      "EVENT_CREATE_GANKING": "갱킹 이벤트 생성",
+      "EVENT_MANAGE": "이벤트 편집·삭제",
+      "INVENTORY_MANAGE": "재고 관리",
+      "INVENTORY_DELIVER": "재고 출고",
+      "SHOP_PRICING": "상점 가격 변경",
+      "CRAFT_TASK_CREATE": "제작 작업 발주",
+      "CRAFT_TASK_DELIVER": "제작 작업 출고",
+      "CRAFT_MASTER": "제작 마스터(전체 관리)",
+      "KILLBOARD_SYNC": "킬보드 수동 동기화",
+      "BATTLES_MANAGE": "전투 기록 관리",
+      "BOMB_SQUAD_CALL": "밤스쿼드 호출",
+      "SETTINGS_GENERAL": "일반 설정 변경",
+      "SETTINGS_TOGGLES": "기능 토글 변경",
+      "SETTINGS_GUILD_PROFILE": "길드 프로필 편집",
+      "SETTINGS_PERMISSIONS": "권한 관리(본 페이지)",
+      "CHEST_LOG_PASTE": "Chest log 붙여넣기",
+      "SIPHON_MANAGE": "사이펀 입출금 관리",
+      "WAR_LOADOUT_VALIDATE": "워 로드아웃 검증",
+      "WAR_LOADOUT_CONFIGURE": "워 로드아웃 설정",
+      "AUDIT_VIEW": "감사 로그 조회"
+    },
+    "roleGrantEditor": {
+      "heading": "Discord 역할별 권한",
+      "description": "Discord 역할을 가진 모든 멤버에게 자동으로 부여되는 권한입니다.",
+      "discordRoleIdLabel": "Discord 역할 ID",
+      "discordRoleIdPlaceholder": "예: 1234567890123456789",
+      "notesLabel": "메모",
+      "emptyState": "등록된 역할 권한이 없습니다."
+    },
+    "userOverrideEditor": {
+      "heading": "사용자별 권한 보정",
+      "description": "특정 사용자에게 역할과 무관하게 권한을 추가하거나 회수합니다.",
+      "discordIdLabel": "Discord 사용자 ID",
+      "discordIdPlaceholder": "예: 1234567890123456789",
+      "notesLabel": "메모",
+      "grantedHeading": "추가 부여",
+      "revokedHeading": "회수",
+      "emptyState": "등록된 사용자별 보정이 없습니다."
+    },
+    "listItem": {
+      "noCapabilities": "(권한 없음)"
+    },
+    "actions": {
+      "cancel": "취소",
+      "save": "저장",
+      "edit": "수정",
+      "delete": "삭제",
+      "deleteConfirm": "정말 삭제하시겠습니까?",
+      "addRoleGrant": "역할 권한 추가",
+      "addUserOverride": "사용자 보정 추가"
+    }
   },
   "unsavedChanges": {
     "confirmLeave": "저장하지 않은 변경사항이 있습니다. 이 페이지를 떠나시겠습니까?"

@@ -34,6 +34,12 @@ export interface SessionPayload {
   // 레거시 쿠키(Phase 1 이전 발급)는 null 이며, 이 경우 소비 측에서 primary
   // tenant 로 fallback 한다 (src/lib/tenant.ts:getSessionGuildId).
   guildId: string | null
+  // Granular capability 비트필드 (BigInt → base-10 string 으로 직렬화).
+  // isAdmin 인 세션은 ALL_CAPABILITIES, 일반 멤버는 role grant + override 합산
+  // 결과. 레거시 쿠키는 빈 문자열 또는 누락 → 코드 측 helper 에서 0n fallback.
+  // 점진 마이그를 위해 기존 isAdmin/canCreateEvents/eventCreatorCategories 와
+  // 공존 — 검증은 `sessionHas(session, CAP.X)` 헬퍼로 (src/lib/session.ts).
+  capabilities: string
   issuedAt: number
 }
 
@@ -131,6 +137,10 @@ export async function verifySession(cookieValue: string | undefined): Promise<Se
       eventScope: parsed.eventScope ?? null,
       // 레거시 쿠키(guildId 도입 이전) 는 null. 소비 측에서 primary tenant 로 fallback.
       guildId: parsed.guildId ?? null,
+      // 레거시 쿠키 (capabilities 도입 이전) 는 빈 문자열. sessionHas 가 0n 으로
+      // 파싱해 모든 capability 체크 false → 자연스럽게 legacy isAdmin 게이트만
+      // 통과. 재로그인 시 OAuth callback 에서 resolveUserCapabilities 가 갱신.
+      capabilities: typeof parsed.capabilities === 'string' ? parsed.capabilities : '',
       issuedAt: parsed.issuedAt,
     }
   } catch {

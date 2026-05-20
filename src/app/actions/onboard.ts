@@ -18,6 +18,7 @@ import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { isValidTenantTimezone } from '@/lib/timezone'
 import { recordAdminLogin } from '@/lib/tenant-activity'
+import { ALL_CAPABILITIES, serializeCapabilities } from '@/lib/permissions'
 import { log } from '@/lib/log'
 import { EVENT_CATEGORIES } from '@/types'
 
@@ -461,6 +462,9 @@ export async function saveTenantRewards(
     eventCreatorCategories: [...EVENT_CATEGORIES],
     eventScope: null,
     guildId: input.tenantId,
+    // 온보딩 완료 직후 첫 admin — ALL_CAPABILITIES 명시 부여. 다음 로그인부터
+    // resolveUserCapabilities 가 role grant 기반으로 갱신.
+    capabilities: serializeCapabilities(ALL_CAPABILITIES),
     issuedAt: Date.now(),
   }
 

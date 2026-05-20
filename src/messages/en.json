@@ -33,6 +33,7 @@
     "settings": "Settings",
     "backup": "Backup / Restore",
     "audit": "Audit log",
+    "permissions": "Permissions",
     "guide": "Guide",
     "archive": "Archive",
     "publicProfile": "Home",
@@ -3205,6 +3206,7 @@
     "galleryAtMax": "Gallery can have up to {max} images.",
     "invalidDateFormat": "Dates must be in YYYY-MM-DD format.",
     "unauthorized": "You don't have permission to perform this action.",
+    "invalidInput": "Invalid input.",
     "invalidJsonArray": "Could not save the role list.",
     "bombSquadKindRequired": "Select the bomb squad kind (melee/ranged).",
     "partyNameTooLong": "Party name cannot exceed {max} characters.",
@@ -4373,6 +4375,79 @@
     "docsReady": "📖 Official guide:\n{url}",
     "upcomingNone": "📭 No upcoming events. Event list:\n{url}",
     "upcoming": "⏰ Most imminent event\n**{title}**\n🕒 {when}\n🔗 {url}"
+  },
+  "permissions": {
+    "heading": "Permissions",
+    "description": "Grant granular capabilities to Discord roles, or apply per-user adjustments on top of role-based grants.",
+    "capabilityGroup": {
+      "members": "Members",
+      "regear": "Regear",
+      "events": "Events",
+      "shop": "Shop & inventory",
+      "craft": "Crafting",
+      "combat": "Combat & killboard",
+      "settings": "Settings",
+      "advanced": "Advanced"
+    },
+    "capability": {
+      "MEMBERS_VIEW": "View members",
+      "MEMBERS_MANAGE": "Manage member roles",
+      "REGEAR_APPROVE": "Approve / reject regears",
+      "REGEAR_EDIT_PRICE": "Edit regear prices",
+      "REGEAR_BULK_ACTION": "Bulk regear actions",
+      "EVENT_CREATE_COMBAT": "Create combat events",
+      "EVENT_CREATE_FF": "Create friendship events",
+      "EVENT_CREATE_GANKING": "Create ganking events",
+      "EVENT_MANAGE": "Edit / delete events",
+      "INVENTORY_MANAGE": "Manage inventory",
+      "INVENTORY_DELIVER": "Deliver inventory",
+      "SHOP_PRICING": "Change shop prices",
+      "CRAFT_TASK_CREATE": "Create craft tasks",
+      "CRAFT_TASK_DELIVER": "Deliver craft tasks",
+      "CRAFT_MASTER": "Craft master (full)",
+      "KILLBOARD_SYNC": "Manual killboard sync",
+      "BATTLES_MANAGE": "Manage battle records",
+      "BOMB_SQUAD_CALL": "Call bomb squad",
+      "SETTINGS_GENERAL": "Change general settings",
+      "SETTINGS_TOGGLES": "Change feature toggles",
+      "SETTINGS_GUILD_PROFILE": "Edit guild profile",
+      "SETTINGS_PERMISSIONS": "Manage permissions (this page)",
+      "CHEST_LOG_PASTE": "Paste chest log",
+      "SIPHON_MANAGE": "Manage siphon ledger",
+      "WAR_LOADOUT_VALIDATE": "Validate war loadout",
+      "WAR_LOADOUT_CONFIGURE": "Configure war loadout",
+      "AUDIT_VIEW": "View audit log"
+    },
+    "roleGrantEditor": {
+      "heading": "Per-role permissions",
+      "description": "Capabilities automatically granted to every member who holds the given Discord role.",
+      "discordRoleIdLabel": "Discord role ID",
+      "discordRoleIdPlaceholder": "e.g. 1234567890123456789",
+      "notesLabel": "Notes",
+      "emptyState": "No role permissions configured yet."
+    },
+    "userOverrideEditor": {
+      "heading": "Per-user overrides",
+      "description": "Add or revoke capabilities for a specific user, on top of their role-based grants.",
+      "discordIdLabel": "Discord user ID",
+      "discordIdPlaceholder": "e.g. 1234567890123456789",
+      "notesLabel": "Notes",
+      "grantedHeading": "Granted",
+      "revokedHeading": "Revoked",
+      "emptyState": "No per-user overrides configured yet."
+    },
+    "listItem": {
+      "noCapabilities": "(no capabilities)"
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "save": "Save",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleteConfirm": "Are you sure you want to delete this?",
+      "addRoleGrant": "Add role grant",
+      "addUserOverride": "Add user override"
+    }
   },
   "unsavedChanges": {
     "confirmLeave": "You have unsaved changes. Are you sure you want to leave this page?"

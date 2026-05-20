@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { signSession, SESSION_COOKIE_NAME, cookieOptions } from '@/lib/session'
+import { ALL_CAPABILITIES, serializeCapabilities } from '@/lib/permissions'
 import { getDiscordGuild, exchangeBotInstallCode, getCurrentUser } from '@/lib/discord'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { isValidTenantSlug } from '@/lib/tenant-resolver'
@@ -229,6 +230,9 @@ export async function GET(request: NextRequest) {
       eventCreatorCategories: [...EVENT_CATEGORIES],
       eventScope: null,
       guildId: tenantId,
+      // 봇 설치자는 곧장 첫 admin — ALL_CAPABILITIES 명시 부여. Discord role
+      // 별 grant 가 아직 비어 있어도 capability 게이트가 모두 통과.
+      capabilities: serializeCapabilities(ALL_CAPABILITIES),
       issuedAt: Date.now(),
     })
 
