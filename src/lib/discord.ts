@@ -53,7 +53,10 @@ export function getDiscordOAuthConfig(): DiscordOAuthConfig {
   }
 }
 
-export function buildAuthorizeUrl(state: string): string {
+export function buildAuthorizeUrl(
+  state: string,
+  options?: { prompt?: 'none' | 'consent' },
+): string {
   const { clientId, redirectUri } = getDiscordOAuthConfig()
   const params = new URLSearchParams({
     client_id: clientId,
@@ -62,6 +65,10 @@ export function buildAuthorizeUrl(state: string): string {
     scope: OAUTH_SCOPES,
     state,
   })
+  // Discord 의 default 는 매번 consent 화면 표시. 'none' 을 명시하면 이미
+  // 동의한 사용자는 자동 skip — 신규 사용자는 error=consent_required 를
+  // 반환하므로 callback 에서 prompt=consent 로 한 번 fallback 한다.
+  if (options?.prompt) params.set('prompt', options.prompt)
   return `https://discord.com/oauth2/authorize?${params.toString()}`
 }
 

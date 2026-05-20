@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
+  buildAuthorizeUrl,
   exchangeCode,
   getCurrentUser,
   getGuildMember,
@@ -23,7 +24,7 @@ import {
 } from '@/lib/tenant'
 import { isLocale } from '@/i18n/locales'
 import { recordAdminLogin } from '@/lib/tenant-activity'
-import { signHopToken, verifyOAuthState, type OAuthStatePayload } from '@/lib/oauth-state'
+import { signHopToken, signOAuthState, verifyOAuthState, type OAuthStatePayload } from '@/lib/oauth-state'
 import {
   buildTenantHostUrl,
   classifyHost,
@@ -171,6 +172,22 @@ export async function GET(request: NextRequest) {
   const code = url.searchParams.get('code')
   const returnedState = url.searchParams.get('state')
   const discordError = url.searchParams.get('error')
+
+  // start 에서 prompt=none 으로 보낸 사용자가 처음 인증하는 경우 Discord 가
+  // consent_required 로 응답한다 — 신규 사용자에게 동의 화면을 띄우기 위해
+  // prompt=consent 로 한 번만 retry. state 가 유효하면 originHost / returnTo
+  // / invite 를 그대로 보존해 새 state 로 재발급.
+  if (discordError === 'consent_required' && returnedState) {
+    const fallbackState = await verifyOAuthState(returnedState)
+    if (fallbackState) {
+      const retryState = await signOAuthState({
+        originHost: fallbackState.originHost,
+        returnTo: fallbackState.returnTo,
+        invite: fallbackState.invite,
+      })
+      return NextResponse.redirect(buildAuthorizeUrl(retryState, { prompt: 'consent' }))
+    }
+  }
 
   if (discordError) return errorRedirect(request, null, 'denied', { discord_error: discordError })
   if (!code || !returnedState) return errorRedirect(request, null, 'invalid')

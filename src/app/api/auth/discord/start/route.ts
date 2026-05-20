@@ -18,10 +18,17 @@ export async function GET(request: NextRequest) {
   // started from.
   const originHost = request.headers.get('host') ?? ''
 
+  // 첫 시도는 prompt=none — 이미 동의한 사용자는 Discord 동의 화면 skip.
+  // callback 이 error=consent_required 를 받으면 retry=1 로 다시 와서
+  // prompt=consent 로 명시 동의 화면을 띄운다 (신규 사용자 1회).
+  const retry = url.searchParams.get('retry') === '1'
+
   const state = await signOAuthState({
     originHost,
     returnTo,
     invite: invite || null,
   })
-  return NextResponse.redirect(buildAuthorizeUrl(state))
+  return NextResponse.redirect(
+    buildAuthorizeUrl(state, { prompt: retry ? 'consent' : 'none' }),
+  )
 }
