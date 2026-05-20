@@ -98,9 +98,10 @@ const ADMIN_NAV: NavItem[] = [
 ]
 
 const STORAGE_KEY = 'demo.sidebar.open'
-const MEMBER_GROUP_KEY = 'demo.sidebar.memberOpen'
-const ADMIN_GROUP_KEY = 'demo.sidebar.adminOpen'
-const SECTION_COLLAPSED_KEY = 'demo.sidebar.sectionCollapsed'
+const MEMBER_GROUP_KEY = 'demo.sidebar.memberOpen.v2'
+const ADMIN_GROUP_KEY = 'demo.sidebar.adminOpen.v2'
+const SECTION_COLLAPSED_KEY = 'demo.sidebar.sectionCollapsed.v2'
+const DEFAULT_COLLAPSED_SECTIONS: SectionKey[] = ['regear', 'community', 'profile', 'features', 'system']
 
 function isActivePath(pathname: string, href: string, exact = false): boolean {
   if (exact) return pathname === href
@@ -122,7 +123,9 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
   const [adminOpen, setAdminOpen] = useState(true)
   const [mobileDrawer, setMobileDrawer] = useState(false)
   const [hydrated, setHydrated] = useState(false)
-  const [collapsedSections, setCollapsedSections] = useState<Set<SectionKey>>(() => new Set())
+  const [collapsedSections, setCollapsedSections] = useState<Set<SectionKey>>(
+    () => new Set(DEFAULT_COLLAPSED_SECTIONS),
+  )
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY)
@@ -133,8 +136,13 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
     // mount-only localStorage hydration. SSR 단계에선 알 수 없는 클라이언트 prefs.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(stored === null ? wideScreen : stored === 'true')
+    const onAdminLikeRoute = ['/demo/stats', '/demo/audit', '/demo/settings', '/demo/backup'].some(
+      (href) => window.location.pathname.startsWith(href),
+    )
     if (memberStored !== null) setMemberOpen(memberStored === 'true')
+    else setMemberOpen(!onAdminLikeRoute)
     if (adminStored !== null) setAdminOpen(adminStored === 'true')
+    else setAdminOpen(onAdminLikeRoute)
     if (sectionStored !== null) {
       try {
         const parsed = JSON.parse(sectionStored)
@@ -439,6 +447,8 @@ function NavGroup({
 }: NavGroupProps) {
   const buckets = bucketBySection(items)
   const showSubHeaders = expanded && buckets.length > 1
+  const groupHasActive = items.some((item) => isActivePath(pathname, item.href, item.exact))
+  const groupOpen = collapsible || !expanded || groupHasActive
   return (
     <div className="px-2 space-y-1">
       {expanded ? (
@@ -450,16 +460,19 @@ function NavGroup({
           <span>{title}</span>
           <ChevronDown
             size={12}
-            className={`transition-transform ${collapsible ? '' : '-rotate-90'}`}
+            className={`transition-transform ${groupOpen ? '' : '-rotate-90'}`}
           />
         </button>
       ) : (
         <div className="border-t border-gray-800 mx-2 my-1" aria-label={title} />
       )}
-      {(collapsible || !expanded) &&
+      {groupOpen &&
         (showSubHeaders
           ? buckets.map((bucket) => {
-              const sectionCollapsed = collapsedSections.has(bucket.section)
+              const sectionHasActive = bucket.items.some((item) =>
+                isActivePath(pathname, item.href, item.exact),
+              )
+              const sectionCollapsed = collapsedSections.has(bucket.section) && !sectionHasActive
               return (
                 <Fragment key={bucket.section}>
                   <button

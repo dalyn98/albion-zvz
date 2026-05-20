@@ -139,11 +139,12 @@ function buildSuperAdminNav(basePath: string): SuperAdminNavItem[] {
 }
 
 const STORAGE_KEY = 'app.sidebar.open'
-const MEMBER_GROUP_KEY = 'app.sidebar.memberOpen'
-const ADMIN_GROUP_KEY = 'app.sidebar.adminOpen'
-const SUPER_ADMIN_GROUP_KEY = 'app.sidebar.superAdminOpen'
-// 접힌 sub-section 들의 SectionKey 집합을 JSON 배열로 직렬화. 비어 있으면 모두 펼친 상태.
-const SECTION_COLLAPSED_KEY = 'app.sidebar.sectionCollapsed'
+const MEMBER_GROUP_KEY = 'app.sidebar.memberOpen.v2'
+const ADMIN_GROUP_KEY = 'app.sidebar.adminOpen.v2'
+const SUPER_ADMIN_GROUP_KEY = 'app.sidebar.superAdminOpen.v2'
+// 접힌 sub-section 들의 SectionKey 집합을 JSON 배열로 직렬화.
+const SECTION_COLLAPSED_KEY = 'app.sidebar.sectionCollapsed.v2'
+const DEFAULT_COLLAPSED_SECTIONS: SectionKey[] = ['regear', 'community', 'profile', 'features', 'system']
 
 function avatarUrl(discordId: string, avatar: string | null): string | null {
   if (!avatar) return null
@@ -211,9 +212,12 @@ export default function AppSidebar({
   const [superAdminOpen, setSuperAdminOpen] = useState(true)
   const [mobileDrawer, setMobileDrawer] = useState(false)
   const [hydrated, setHydrated] = useState(false)
-  // sub-section 접힘 상태. 기본은 모두 펼침 (빈 Set). 사용자가 한 번 접으면 다시
-  // 열 때까지 같은 키로 기억. localStorage 에 직렬화된 SectionKey 배열로 저장.
-  const [collapsedSections, setCollapsedSections] = useState<Set<SectionKey>>(() => new Set())
+  // sub-section 접힘 상태. 기본은 활동/운영만 펼쳐 신규 사용자가 첫 화면에서
+  // 적은 수의 탭만 보게 한다. 현재 라우트가 속한 섹션은 NavGroup 에서 자동으로
+  // 펼쳐 경로 감각을 잃지 않게 한다.
+  const [collapsedSections, setCollapsedSections] = useState<Set<SectionKey>>(
+    () => new Set(DEFAULT_COLLAPSED_SECTIONS),
+  )
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY)
@@ -225,8 +229,11 @@ export default function AppSidebar({
     // mount-only localStorage hydration. SSR 단계에선 알 수 없는 클라이언트 prefs.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(stored === null ? wideScreen : stored === 'true')
+    const onAdminRoute = (window.location.pathname || '').startsWith('/admin')
     if (memberStored !== null) setMemberOpen(memberStored === 'true')
+    else setMemberOpen(!onAdminRoute)
     if (adminStored !== null) setAdminOpen(adminStored === 'true')
+    else setAdminOpen(onAdminRoute)
     if (superAdminStored !== null) setSuperAdminOpen(superAdminStored === 'true')
     // 잘못된 JSON 이거나 알 수 없는 키가 들어 있어도 무시 — 다음 토글 때 깨끗한 상태로 덮어쓴다.
     if (sectionStored !== null) {
@@ -633,6 +640,8 @@ function NavGroup({
   // 그룹 안에 sub-section 이 1개면 헤더를 표시할 의미가 없다 (super-admin nav 케이스).
   // 또 사이드바를 접은 상태 (좁은 폭) 에선 sub-section 헤더를 숨기고 아이콘만.
   const showSubHeaders = expanded && buckets.length > 1
+  const groupHasActive = items.some((item) => isActivePath(pathname, item.href, item.exact))
+  const groupOpen = collapsible || !expanded || groupHasActive
   return (
     <div className="px-2 space-y-1">
       {expanded ? (
@@ -644,16 +653,19 @@ function NavGroup({
           <span>{title}</span>
           <ChevronDown
             size={12}
-            className={`transition-transform ${collapsible ? '' : '-rotate-90'}`}
+            className={`transition-transform ${groupOpen ? '' : '-rotate-90'}`}
           />
         </button>
       ) : (
         <div className="border-t border-border mx-2 my-1" aria-label={title} />
       )}
-      {(collapsible || !expanded) &&
+      {groupOpen &&
         (showSubHeaders
           ? buckets.map((bucket) => {
-              const sectionCollapsed = collapsedSections.has(bucket.section)
+              const sectionHasActive = bucket.items.some((item) =>
+                isActivePath(pathname, item.href, item.exact),
+              )
+              const sectionCollapsed = collapsedSections.has(bucket.section) && !sectionHasActive
               return (
                 <Fragment key={bucket.section}>
                   <button
