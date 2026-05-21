@@ -16,6 +16,7 @@ describe('admin route access', () => {
     const caps = serializeCapabilities(CAP.SIPHON_MANAGE)
     expect(canAccessAdminPath('/admin/dashboard', false, caps)).toBe(false)
     expect(canAccessAdminPath('/admin/dashboard/regear', false, caps)).toBe(false)
+    expect(canAccessAdminPath('/admin/dashboard/backup', false, caps)).toBe(false)
   })
 
   it('allows a matching officer capability for its route and nested paths', () => {
@@ -35,6 +36,34 @@ describe('admin route access', () => {
       false,
       serializeCapabilities(CAP.SETTLEMENT_MANAGE),
     )).toBe(false)
+  })
+
+  it('allows delegated operation capabilities into matching admin areas', () => {
+    expect(canAccessAdminPath(
+      '/admin/dashboard/approvals?tab=shop',
+      false,
+      serializeCapabilities(CAP.INVENTORY_DELIVER),
+    )).toBe(true)
+    expect(canAccessAdminPath(
+      '/admin/dashboard/shop',
+      false,
+      serializeCapabilities(CAP.SHOP_PRICING),
+    )).toBe(true)
+    expect(canAccessAdminPath(
+      '/admin/dashboard/shop',
+      false,
+      serializeCapabilities(CAP.CHEST_LOG_PASTE),
+    )).toBe(true)
+    expect(canAccessAdminPath(
+      '/admin/dashboard/craft',
+      false,
+      serializeCapabilities(CAP.CRAFT_TASK_DELIVER),
+    )).toBe(true)
+    expect(canAccessAdminPath(
+      '/admin/dashboard/settings',
+      false,
+      serializeCapabilities(CAP.SETTINGS_GUILD_PROFILE),
+    )).toBe(true)
   })
 
   it('does not allow a different officer capability into another protected route', () => {

@@ -118,9 +118,12 @@
     "noEvents": "登録されたイベントがありません。",
     "createFirstEvent": "最初のイベントを作成 →",
     "searchPlaceholder": "イベント名または日付で検索 (例: 04-19, 4月19日)",
+    "badgeDraft": "下書き",
     "badgeEnded": "終了",
     "badgeBattleActive": "戦闘中",
     "badgeImminent": "戦闘間近",
+    "draftActionsDisabled": "下書きイベントは公開後に通知/戦闘開始を使用できます。",
+    "draftScheduleMissing": "時刻未設定 · 公開前",
     "confirmDeleteEvent": "このイベントを削除しますか? ビルド・申請・戦闘記録もすべて削除され、メンバー/ギルドの戦績にも反映されます。",
     "notifyConfirm": "このイベント通知を Discord に再送しますか?\n@everyone がタグされます。",
     "notifyErrorPrefix": "通知送信失敗",
@@ -289,7 +292,19 @@
   },
   "adminNewEvent": {
     "title": "新規イベント",
-    "subtitle": "イベントを作成するとビルド構成画面へ移動します。"
+    "subtitle": "イベントを作成するとビルド構成画面へ移動します。",
+    "templateStartTitle": "テンプレートから開始",
+    "templateStartDescription": "保存済みのパーティ/スロット構成を読み込んだ下書きを作成します。",
+    "templateStartEmpty": "保存済みイベントテンプレートはまだありません。既存イベント編集画面で先にテンプレートを保存してください。",
+    "templateLabel": "読み込むテンプレート",
+    "templateStartRequired": "テンプレートとイベントタイトルを選択してください。",
+    "templateStartFailed": "テンプレートからイベントを作成できませんでした。",
+    "templateStartSubmit": "テンプレートで下書きを作成",
+    "recentStartTitle": "最近のイベントから開始",
+    "recentStartDescription": "よく使うイベントを複製すると、パーティ/スロットビルドを残して申請者だけ初期化できます。",
+    "recentStartNoSchedule": "時刻未設定",
+    "recentStartDraft": "下書き",
+    "recentStartPublished": "公開済み"
   },
   "adminEditEvent": {
     "title": "イベント編集",
@@ -318,7 +333,7 @@
     "partDay": "日",
     "partHour": "時",
     "partMinute": "分",
-    "gatherLocationLabel": "集結場所 *",
+    "gatherLocationLabel": "集結場所",
     "gatherLocationPlaceholder": "例: RTD 島",
     "gatherLocationRequired": "集結場所を入力してください。",
     "specialNotesLabel": "全体告知",
@@ -916,7 +931,7 @@
   },
   "adminGuildProfile": {
     "pageTitle": "公開ギルドプロフィール",
-    "pageDescription": "albion-guildmanager.com/g/<slug> で公開されるギルドのプロフィールページを編集します。",
+    "pageDescription": "albion-guildmanager.com/g/your-guild で公開されるギルドのプロフィールページを編集します。",
     "previewLink": "プロフィールページを見る",
     "disabledTitle": "このギルドはまだ有効化されていません",
     "disabledDescription": "公開プロフィール機能は段階的にロールアウト中です。運営に有効化を依頼してください。",
@@ -983,7 +998,7 @@
   },
   "adminGuildProfileToggle": {
     "enableTitle": "公開ギルドプロフィールを有効化",
-    "enableBody": "この機能を有効にすると、albion-guildmanager.com/g/<スラッグ> でログインしていない訪問者にもギルドページが公開されます。募集・宣伝に活用できます。",
+    "enableBody": "この機能を有効にすると、albion-guildmanager.com/g/your-guild でログインしていない訪問者にもギルドページが公開されます。募集・宣伝に活用できます。",
     "enableWarningTitle": "有効化前にご確認ください",
     "enableWarning1": "ギルドメンバー一覧・戦闘記録・統計が未ログイン訪問者にも公開されます。",
     "enableWarning2": "検索エンジン (Google など) にインデックスされる可能性があり、ギルド名・紹介文が外部検索に表示されることがあります。",
@@ -1924,6 +1939,7 @@
     "dashboardHome": "マイホーム",
     "dashboardProfile": "プロフィール",
     "dashboardSettings": "個人設定",
+    "dashboardSiphon": "マイサイフォン",
     "dashboardRegearDetail": "自分のリギア請求",
     "dashboardRequests": "リクエスト / 補償履歴",
     "adminDashboard": "管理者ダッシュボード",
@@ -2027,11 +2043,11 @@
     "q15": "自分の戦死が自動リギアに反映されません。なぜですか?",
     "a15": "1) アルビオンのキル記録は戦死後、公式記録に反映されるまでに約 30 分ほどかかります — しばらく待ってから申請ページの「再確認」ボタンを押してみてください。2) 自動リギアはブラックゾーンの戦死のみ自動で拾います。イエロー/レッドゾーンや非 ZvZ の戦死は手動申請が必要です。3) アルビオンのキャラクター認証が完了しているか、サイトのホームギルドと自身のギルドが一致しているか確認してください。",
     "q16": "ギルド公開ページはどのようにカスタマイズできますか?",
-    "a16": "管理者は `/g/<slug>` 公開ページのバナー画像・バナー透明度・アクセントカラー・説明文・募集ステータス・Discord 招待リンク・活動時間帯・使用言語などを直接編集できます。また、メンバー数 / 戦闘記録 / 武器分布 / ライバルギルド / 運営陣カードなど、セクション単位での表示トグルも切り替えられます。公開ページ右上の「バナー編集」ボタン、または管理画面のギルド公開プロフィール設定から調整できます。",
+    "a16": "管理者は `/g/your-guild` 公開ページのバナー画像・バナー透明度・アクセントカラー・説明文・募集ステータス・Discord 招待リンク・活動時間帯・使用言語などを直接編集できます。また、メンバー数 / 戦闘記録 / 武器分布 / ライバルギルド / 運営陣カードなど、セクション単位での表示トグルも切り替えられます。公開ページ右上の「バナー編集」ボタン、または管理画面のギルド公開プロフィール設定から調整できます。",
     "q17": "このサイトは何言語に対応していますか?",
     "a17": "サイト UI は韓国語・日本語・英語・中国語 (簡体字) の 4 言語に対応しています。右上の言語メニューですぐに切り替えられ、すべてのページに即時反映されます。ただし本ドキュメント (`/docs`) 自体は現在韓国語のみで、他言語への翻訳は順次進めています。",
     "q18": "公開ページにアルビオンの英語ギルド名が表示されますが、Discord 上の日本語名に変えられますか?",
-    "a18": "公開ページ (`/g/<slug>`) と SEO メタデータは、アルビオンのゲーム内ギルド名 (英語) を常に優先して表示します。アルビオンはギルド名に英語のみを許可しているため、他のプレイヤーが検索したりキルボードで追跡する名称とそのまま揃えるための仕様です。Discord の日本語ギルド名は管理画面など内部でのみ使われます。初回設定後にホームギルドを変更したい場合はスーパー管理者 (運営) にお問い合わせください。"
+    "a18": "公開ページ (`/g/your-guild`) と SEO メタデータは、アルビオンのゲーム内ギルド名 (英語) を常に優先して表示します。アルビオンはギルド名に英語のみを許可しているため、他のプレイヤーが検索したりキルボードで追跡する名称とそのまま揃えるための仕様です。Discord の日本語ギルド名は管理画面など内部でのみ使われます。初回設定後にホームギルドを変更したい場合はスーパー管理者 (運営) にお問い合わせください。"
   },
   "auth": {
     "error": {
@@ -2103,7 +2119,14 @@
     "noSlots": "スロットがありません。",
     "filterMyRole": "自分の役割だけ表示 ({role})",
     "filterMyRoleActive": "{role} フィルター解除",
-    "filterNoMatches": "同じ役割の他のスロットはありません。",
+    "filterOpen": "空きスロットのみ",
+    "filterOpenActive": "空きスロット解除",
+    "filterSuggested": "参加予定の役割",
+    "filterSuggestedActive": "参加予定役割を解除",
+    "filterRoleLabel": "役割フィルター",
+    "filterRoleAll": "すべての役割",
+    "filterClearAll": "フィルター初期化",
+    "filterNoMatches": "条件に合うスロットはありません。",
     "edit": "編集",
     "editAria": "イベントを編集",
     "hideParty": "非表示",
@@ -3301,6 +3324,7 @@
     "missingTitle": "イベントタイトルが空です。",
     "missingLocation": "集合場所が空です。",
     "invalidGatherTime": "集合時間が正しくありません。",
+    "eventNotPublished": "下書きイベントを先に公開してください。",
     "eventNotFound": "イベントが見つかりません。",
     "invalidPartyNumber": "パーティー番号が正しくありません。",
     "tooManySlots": "1 パーティーは最大 {max} 名までです。",
@@ -3942,7 +3966,7 @@
     "albionHomeGuildIdHint": "未登録の間、すべてのメンバーが [未認証] 扱いになります。",
     "configureHomeGuild": "ホームギルドを設定",
     "guildProfileEnabledLabel": "公開ギルドプロフィールを有効化",
-    "guildProfileEnabledDescription": "ギルドページ (/g/<slug>) を公開し、Google 検索 + Discord 埋め込みに表示します。",
+    "guildProfileEnabledDescription": "ギルドページ (/g/your-guild) を公開し、Google 検索 + Discord 埋め込みに表示します。",
     "guildProfileEnabledHint": "バナー・説明・募集ステータスを直接編集でき、オフにすると非公開に戻ります。",
     "configureGuildProfile": "公開プロフィールを設定",
     "autoRegearEnabledLabel": "自動リギアを有効化",
@@ -3961,12 +3985,20 @@
   "publishEventBanner": {
     "draftStatus": "下書き (draft) 状態",
     "draftDescription": "このイベントはホームに表示されず、公開リンクも404になります。ビルド / パーティ構成が完了したら必須項目を埋めて公開してください。",
-    "missingRequired": "未入力: {fields} — 下部の「保存」ボタンで DB に反映してから再度押してください。",
+    "missingRequired": "保存済みデータ上の未入力: {fields}。今入力したばかりなら、このボタンが先に保存してから公開を試みます。",
     "fieldTitle": "タイトル",
     "fieldGatherAt": "集合時間",
     "fieldGatherLocation": "集合場所",
     "publishing": "公開中…",
     "publishButton": "公開する",
+    "visibleSlots": "公開スロット",
+    "hiddenSlots": "非表示",
+    "assignedSlots": "申請済み",
+    "emptySlots": "空き",
+    "tentativeCount": "参加予定",
+    "notificationChannel": "通知チャンネル",
+    "ready": "準備済み",
+    "notSet": "未設定",
     "publishedNotifyFailed": "イベントは公開されましたが、Discord 通知の自動送信に失敗しました: {error}\nダッシュボードのベルアイコンから再送できます。"
   },
   "forceOnboardButton": {
@@ -4209,6 +4241,36 @@
       "slotCape": "ケープ",
       "back": "← 請求一覧",
       "demoOnlyDetail": "デモ: 詳細は最初の請求のみ表示できます。"
+    },
+    "memberEvents": {
+      "title": "イベント申請",
+      "subtitle": "自分のスロット状態と次のイベントを先に確認できます。",
+      "nextSlotLabel": "次のスロット",
+      "nextTimeLabel": "次の集合",
+      "openSlotsLabel": "空き枠",
+      "upcomingTitle": "申請できるイベント",
+      "recentTitle": "最近参加したイベント",
+      "mySlot": "自分の枠: {slot}",
+      "openSlots": "申請可能 {count}枠",
+      "ended": "終了"
+    },
+    "memberRegear": {
+      "title": "自分のリギア",
+      "subtitle": "自動請求の確認、手動請求、処理状況を一画面で確認します。",
+      "autoTitle": "自動リギア確認",
+      "autoDescription": "キルボードで確認された死亡は、自動で承認待ち請求になります。",
+      "viewAutoClaim": "自動請求を見る",
+      "manualTitle": "手動請求",
+      "manualDescription": "自動検出されなかった死亡やスクリーンショット証明が必要な件を送信します。",
+      "manualButton": "手動請求を作成",
+      "myRequestsTitle": "自分の申請履歴",
+      "pendingCount": "{count}件待機",
+      "walletHint": "承認されたシルバーリギアはウォレットポイントに入り、制作リギアは受け取り案内が表示されます。",
+      "status": {
+        "pending": "待機",
+        "approved": "承認",
+        "rejected": "却下"
+      }
     },
     "approvals": {
       "title": "承認管理",
@@ -4604,6 +4666,15 @@
       "WAR_LOADOUT_VALIDATE": "ウォーロードアウト検証",
       "WAR_LOADOUT_CONFIGURE": "ウォーロードアウト設定",
       "AUDIT_VIEW": "監査ログ閲覧"
+    },
+    "presets": {
+      "title": "ロールプリセット",
+      "description": "担当業務を先に選び、必要な権限だけ細かく調整してください。",
+      "regearOfficer": "リギア担当",
+      "shopQuartermaster": "補給担当",
+      "craftLead": "クラフト責任者",
+      "analyst": "分析担当",
+      "guildSettings": "ギルド設定担当"
     },
     "roleGrantEditor": {
       "heading": "Discord ロール別の権限",

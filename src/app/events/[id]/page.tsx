@@ -425,6 +425,16 @@ export default async function EventDetailPage({
           <EventSlotSidebar placement="mobile" parties={parties} avatars={avatars} />
         </div>
 
+        <EventMyStatusCard
+          title={t('myStatusTitle')}
+          statusTitle={myStatusTitle}
+          description={myStatusDescription}
+          tone={myStatusTone}
+          details={myStatusDetails}
+          primaryAction={myStatusPrimaryAction}
+          secondaryAction={myStatusSecondaryAction}
+        />
+
         <TentativeSignupSection
           eventId={id}
           rows={tentativeRows}
@@ -440,16 +450,6 @@ export default async function EventDetailPage({
           battleStarted={!!event.battle_started_at}
         />
 
-        <EventMyStatusCard
-          title={t('myStatusTitle')}
-          statusTitle={myStatusTitle}
-          description={myStatusDescription}
-          tone={myStatusTone}
-          details={myStatusDetails}
-          primaryAction={myStatusPrimaryAction}
-          secondaryAction={myStatusSecondaryAction}
-        />
-
         <div id="event-slots" className="scroll-mt-20">
           <EventPartyGrid
             parties={parties}
@@ -463,6 +463,7 @@ export default async function EventDetailPage({
             cdBadgeRoles={cdBadgeRoles}
             autoRegearEnabled={autoRegearEnabled}
             eventCategory={event.category}
+            suggestedRoles={myTentative?.possible_roles ?? []}
           />
         </div>
       </main>

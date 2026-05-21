@@ -8,11 +8,12 @@
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireAnyCapability } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { syncTenantShopPrices } from '@/lib/shop/price-sync'
 import { logAdminAction } from '@/lib/admin-audit'
+import { CAP } from '@/lib/permissions'
 
 export interface PriceSyncSummary {
   requested: number
@@ -21,15 +22,18 @@ export interface PriceSyncSummary {
   error?: string
 }
 
+const INVENTORY_MANAGE_CAPS = [CAP.INVENTORY_MANAGE, CAP.SHOP_PRICING] as const
+const SHOP_PRICING_CAPS = [CAP.SHOP_PRICING, CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
+
 export async function syncShopPrices(): Promise<PriceSyncSummary> {
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session?.isAdmin) {
+    if (!session) {
       return { requested: 0, updated: 0, missing: 0, error: 'Unauthorized' }
     }
     const guildId = await getSessionGuildId(session)
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(SHOP_PRICING_CAPS)
 
     const result = await syncTenantShopPrices(db, guildId)
     if (result.error) {
@@ -58,10 +62,10 @@ export async function updateInventoryStock(
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session?.isAdmin) return { error: 'Unauthorized' }
+    if (!session) return { error: 'Unauthorized' }
     if (!Number.isInteger(stock) || stock < 0) return { error: tErr('nonNegativeInteger') }
     const guildId = await getSessionGuildId(session)
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(INVENTORY_MANAGE_CAPS)
     const { error } = await db
       .from('shop_inventory')
       .update({ stock, updated_at: new Date().toISOString() })
@@ -91,10 +95,10 @@ export async function setManualPrice(
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session?.isAdmin) return { error: 'Unauthorized' }
+    if (!session) return { error: 'Unauthorized' }
     if (!Number.isInteger(pointPrice) || pointPrice < 0) return { error: tErr('nonNegativeInteger') }
     const guildId = await getSessionGuildId(session)
-    const db = await requireAdmin()
+    const db = await requireAnyCapability([CAP.SHOP_PRICING])
     const { error } = await db
       .from('shop_inventory')
       .update({
@@ -127,9 +131,9 @@ export async function setManualPrice(
 export async function clearManualPrice(id: string): Promise<{ error?: string }> {
   try {
     const session = await getSession()
-    if (!session?.isAdmin) return { error: 'Unauthorized' }
+    if (!session) return { error: 'Unauthorized' }
     const guildId = await getSessionGuildId(session)
-    const db = await requireAdmin()
+    const db = await requireAnyCapability([CAP.SHOP_PRICING])
     const { error } = await db
       .from('shop_inventory')
       .update({
@@ -172,9 +176,9 @@ export async function resetShopInventory(): Promise<ResetInventoryResult> {
   const empty: ResetInventoryResult = { stockRowsZeroed: 0, logsDeleted: 0 }
   try {
     const session = await getSession()
-    if (!session?.isAdmin) return { ...empty, error: 'Unauthorized' }
+    if (!session) return { ...empty, error: 'Unauthorized' }
     const guildId = await getSessionGuildId(session)
-    const db = await requireAdmin()
+    const db = await requireAnyCapability([CAP.INVENTORY_MANAGE])
 
     const { data: zeroed, error: zeroErr } = await db
       .from('shop_inventory')
@@ -224,9 +228,9 @@ export async function deleteInventoryRow(id: string): Promise<{ error?: string }
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session?.isAdmin) return { error: 'Unauthorized' }
+    if (!session) return { error: 'Unauthorized' }
     const guildId = await getSessionGuildId(session)
-    const db = await requireAdmin()
+    const db = await requireAnyCapability([CAP.INVENTORY_MANAGE])
     // 안전장치: 재고 > 0 인 행은 실수로 지우지 않게 거부.
     const { data: row, error: readErr } = await db
       .from('shop_inventory')

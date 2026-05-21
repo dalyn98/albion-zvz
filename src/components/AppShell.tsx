@@ -1,5 +1,5 @@
 import { headers } from 'next/headers'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHasAny } from '@/lib/session'
 import { getAdminBadgeCounts, type AdminBadgeCounts } from '@/lib/admin-badges'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
@@ -10,6 +10,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getMarketingPaths } from '@/lib/marketing-paths'
 import { canAccessAnyOfficerAdminRoute } from '@/lib/admin-route-access'
+import { CAP } from '@/lib/permissions'
 import AppSidebar from './AppSidebar'
 
 // 어떤 tenant 에도 매칭되지 않을 때 표시되는 generic 브랜드명. 과거에 'Menhera'
@@ -49,9 +50,18 @@ export default async function AppShell({ children }: { children: React.ReactNode
     // 또는 admin 일 때만 큐가 보이고, 어드민은 toggle on 하나로 craft 운영 탭이
     // 보인다. 어느 쪽이든 craft_regear_enabled 가 OFF 면 craft 관련 탭은 다 숨김.
     const needsCraftSetting = session.isMember || session.isAdmin
+    const canReviewQueues = session.isAdmin || sessionHasAny(session, [
+      CAP.REGEAR_APPROVE,
+      CAP.REGEAR_EDIT_PRICE,
+      CAP.REGEAR_BULK_ACTION,
+      CAP.INVENTORY_DELIVER,
+      CAP.EVENT_MANAGE,
+      CAP.CRAFT_TASK_DELIVER,
+      CAP.CRAFT_MASTER,
+    ])
     const [badges, tenantCfg, craftEnabledRaw, isCrafter, guildProfileEnabledRaw] =
       await Promise.all([
-        session.isAdmin ? getAdminBadgeCounts(guildId) : Promise.resolve(null),
+        canReviewQueues ? getAdminBadgeCounts(guildId) : Promise.resolve(null),
         getTenantDiscordConfig(guildId),
         needsCraftSetting
           ? getAppSetting('craft_regear_enabled', 'false', guildId)
@@ -77,7 +87,13 @@ export default async function AppShell({ children }: { children: React.ReactNode
     craftQueueVisible = craftEnabled && isCrafter
     // 어드민 craft / inventory 탭은 toggle on 인 경우에만 사이드바에 노출.
     // OFF 면 admin 은 settings → events 탭에서 다시 켤 수 있다 (entry 보장).
-    craftAdminVisible = craftEnabled && session.isAdmin
+    craftAdminVisible = craftEnabled && (session.isAdmin || sessionHasAny(session, [
+      CAP.CRAFT_TASK_CREATE,
+      CAP.CRAFT_TASK_DELIVER,
+      CAP.CRAFT_MASTER,
+      CAP.INVENTORY_MANAGE,
+      CAP.INVENTORY_DELIVER,
+    ]))
     // 발주 보드는 모든 멤버 (제작자 + 일반 멤버) 에게 가시 — 토글이 핵심 게이트.
     craftOrdersVisible = craftEnabled && (session.isMember || session.isAdmin)
   }

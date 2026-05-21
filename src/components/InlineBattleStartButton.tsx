@@ -10,9 +10,10 @@ import { useConfirm } from '@/components/ConfirmDialog'
 interface Props {
   eventId: string
   battleStartedAt: string | null
+  disabledReason?: string
 }
 
-export default function InlineBattleStartButton({ eventId, battleStartedAt }: Props) {
+export default function InlineBattleStartButton({ eventId, battleStartedAt, disabledReason }: Props) {
   const t = useTranslations('adminDashboard')
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -39,6 +40,21 @@ export default function InlineBattleStartButton({ eventId, battleStartedAt }: Pr
       if (result.error) setError(result.error)
       else router.refresh()
     })
+  }
+
+  if (disabledReason) {
+    return (
+      <button
+        type="button"
+        disabled
+        title={disabledReason}
+        aria-label={disabledReason}
+        className="flex items-center gap-1 text-xs bg-gray-800/70 border border-gray-700 text-gray-500 font-semibold px-3 py-1.5 rounded-lg cursor-not-allowed"
+      >
+        <Swords size={13} />
+        {t('battleStart')}
+      </button>
+    )
   }
 
   if (battleStartedAt) {

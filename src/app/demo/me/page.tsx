@@ -271,7 +271,7 @@ export default async function DemoMePage() {
 
       <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <QuickLinkCard
-          href="/demo/events"
+          href="/demo/member-events"
           icon={<Calendar size={16} />}
           title={t('quickEventsTitle')}
           body={t('quickEventsBody')}
@@ -289,7 +289,7 @@ export default async function DemoMePage() {
           body={t('quickSiphonBody')}
         />
         <QuickLinkCard
-          href="/demo/regear"
+          href="/demo/member-regear"
           icon={<ShieldCheck size={16} />}
           title={t('quickRegearTitle')}
           body={t('quickRegearBody')}

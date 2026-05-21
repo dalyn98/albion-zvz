@@ -9,10 +9,11 @@ import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { requireAdmin } from '@/lib/auth'
+import { requireAnyCapability } from '@/lib/auth'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { autoTrackSuffixesFromItemIds } from '@/lib/inventory'
+import { CAP } from '@/lib/permissions'
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -149,6 +150,9 @@ function mapTask(row: RawTaskRow): CraftOrderTaskRow {
   }
 }
 
+const CRAFT_CREATE_CAPS = [CAP.CRAFT_TASK_CREATE, CAP.CRAFT_MASTER] as const
+const CRAFT_REVIEW_CAPS = [CAP.CRAFT_TASK_DELIVER, CAP.CRAFT_MASTER] as const
+
 // ────────────────────────────────────────────────────────────
 // Reads
 // ────────────────────────────────────────────────────────────
@@ -255,7 +259,7 @@ export async function listCraftOrderTasksForReview(scope: 'pending' | 'all'): Pr
     const session = await getSession()
     if (!session) return { tasks: [], error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
-    const db = getAdminClient()
+    const db = await requireAnyCapability(CRAFT_REVIEW_CAPS)
 
     let query = db
       .from('craft_tasks')
@@ -367,7 +371,7 @@ export async function postCraftOrderAdmin(
 ): Promise<{ orderId?: string; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(CRAFT_CREATE_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -403,7 +407,7 @@ export async function postCraftOrderAdmin(
 export async function cancelCraftOrderAdmin(orderId: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(CRAFT_CREATE_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -436,7 +440,7 @@ export async function approveCraftOrderTaskAdmin(
   const tErr = await getTranslations('adminActionError')
   const tDm = await getTranslations('discordDm')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(CRAFT_REVIEW_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -515,7 +519,7 @@ export async function rejectCraftOrderTaskAdmin(
   const tErr = await getTranslations('adminActionError')
   const tDm = await getTranslations('discordDm')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(CRAFT_REVIEW_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -703,4 +707,3 @@ export async function deliverCraftOrderTask(
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
-

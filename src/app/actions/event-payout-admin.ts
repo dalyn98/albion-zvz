@@ -2,15 +2,17 @@
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireAnyCapability } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { formatSilver } from '@/lib/silver'
 import { isEnded } from '@/lib/gather-time'
 import { logAdminAction } from '@/lib/admin-audit'
+import { CAP } from '@/lib/permissions'
 
 const MEMO_MAX = 500
+const EVENT_PAYOUT_CAPS = [CAP.EVENT_MANAGE] as const
 
 interface PayoutParticipant {
   discord_id: string
@@ -54,7 +56,7 @@ export async function listEventPayoutEligibleParticipants(
 ): Promise<{ participants: EventPayoutEligibleParticipant[]; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(EVENT_PAYOUT_CAPS)
     const session = await getSession()
     if (!session) return { participants: [], error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -94,7 +96,7 @@ export async function createEventPayoutRequest(
 ): Promise<{ error?: string; id?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(EVENT_PAYOUT_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -174,7 +176,7 @@ export async function listEventPayoutRequests(
   try {
     const session = await getSession()
     if (!session) return { requests: [], error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(EVENT_PAYOUT_CAPS)
     const guildId = await getSessionGuildId(session)
     let query = db
       .from('event_payout_requests')
@@ -223,7 +225,7 @@ export async function approveEventPayoutRequest(
   const tErr = await getTranslations('adminActionError')
   const tDm = await getTranslations('discordDm')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(EVENT_PAYOUT_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -285,7 +287,7 @@ export async function rejectEventPayoutRequest(
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(EVENT_PAYOUT_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)

@@ -60,9 +60,9 @@ interface NavItem {
 // 멤버 nav — 어드민도 "멤버 시점 + 어드민 시점" 둘 다 보이게 노출. 실제 AppSidebar 와 동일 순서.
 const MEMBER_NAV: NavItem[] = [
   { href: '/demo', labelKey: 'publicProfile', icon: Home, exact: true, section: 'activity' },
-  { href: '/demo/events', labelKey: 'events', icon: CalendarDays, section: 'activity' },
+  { href: '/demo/member-events', labelKey: 'events', icon: CalendarDays, section: 'activity' },
   { href: '/demo/battles', labelKey: 'battles', icon: Swords, section: 'activity' },
-  { href: '/demo/regear', labelKey: 'regearRequest', icon: ShieldCheck, section: 'regear' },
+  { href: '/demo/member-regear', labelKey: 'regearRequest', icon: ShieldCheck, section: 'regear' },
   { href: '/demo/craft/queue', labelKey: 'craftQueue', icon: Hammer, section: 'regear' },
   { href: '/demo/craft/my-tasks', labelKey: 'craftMyTasks', icon: Box, section: 'regear' },
   { href: '/demo/craft/orders', labelKey: 'craftOrders', icon: ClipboardList, section: 'regear' },

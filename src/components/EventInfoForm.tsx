@@ -97,6 +97,7 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
   // 폼 → 실제 DB 호출에 쓰는 payload 를 한번에 조립. validate 에서 파싱한
   // Date 를 그대로 받아 다시 파싱하는 일 없이 재사용한다.
   // 결과는 { dt } 또는 { error } — error 상태는 호출측에서 별도로 setError 한다.
+  // 장소는 운영상 TBD 일 수 있어 발행/저장 모두 optional 로 둔다.
   const validate = (): { dt: Date } | { error: string } => {
     if (!title.trim()) return { error: t('titleRequired') }
     const dt = parseGatherTime(parts, {
@@ -104,7 +105,6 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
       timezone: tenantTimezone,
     })
     if (!dt) return { error: t('gatherTimeInvalid') }
-    if (!gatherLocation.trim()) return { error: t('gatherLocationRequired') }
     return { dt }
   }
 

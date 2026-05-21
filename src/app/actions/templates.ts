@@ -5,7 +5,14 @@ import { getTranslations } from 'next-intl/server'
 import { requireAdmin } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import type { ConditionalSlotOptions, GearOption, GearSpecs, SlotSpells } from '@/types'
+import {
+  EVENT_CATEGORIES,
+  type ConditionalSlotOptions,
+  type EventCategory,
+  type GearOption,
+  type GearSpecs,
+  type SlotSpells,
+} from '@/types'
 
 // Columns saved per slot: role + notes + all 8 gear slots + per-slot options
 // + per-item spells, no assignment data (per product spec: templates store
@@ -63,6 +70,67 @@ export interface TemplateRecord {
   name: string
   data: TemplateData
   created_at: string
+}
+
+type TemplateDb = Awaited<ReturnType<typeof requireAdmin>>
+type TemplateErrorTranslator = Awaited<ReturnType<typeof getTranslations<'adminActionError'>>>
+
+async function insertTemplateParties(
+  db: TemplateDb,
+  guildId: string,
+  eventId: string,
+  data: TemplateData,
+  tErr: TemplateErrorTranslator,
+): Promise<{ error?: string }> {
+  if (!data?.parties?.length) return { error: tErr('templateHasNoParties') }
+
+  // Batch-insert all parties, then batch-insert all slots in one shot —
+  // collapses O(N) roundtrips into 2 regardless of party count.
+  const { data: insertedParties, error: partiesError } = await db
+    .from('parties')
+    .insert(
+      data.parties.map((p) => ({
+        guild_id: guildId,
+        event_id: eventId,
+        party_number: p.party_number,
+      })),
+    )
+    .select('id, party_number')
+  if (partiesError) return { error: partiesError.message }
+
+  const partyIdByNumber = new Map(
+    (insertedParties ?? []).map((p) => [p.party_number, p.id as string]),
+  )
+
+  const slotRows = data.parties.flatMap((party) => {
+    const partyId = partyIdByNumber.get(party.party_number)
+    if (!partyId) return []
+    return party.slots.map((s) => ({
+      guild_id: guildId,
+      party_id: partyId,
+      slot_number: s.slot_number,
+      role_name: s.role_name,
+      notes: s.notes,
+      spells: s.spells ?? null,
+      gear_specs: s.gear_specs ?? null,
+      conditional_options: s.conditional_options ?? null,
+      weapon_name: s.weapon_name,   weapon_id: s.weapon_id,   weapon_options: s.weapon_options ?? null,
+      head_name: s.head_name,       head_id: s.head_id,       head_options: s.head_options ?? null,
+      armor_name: s.armor_name,     armor_id: s.armor_id,     armor_options: s.armor_options ?? null,
+      shoes_name: s.shoes_name,     shoes_id: s.shoes_id,     shoes_options: s.shoes_options ?? null,
+      offhand_name: s.offhand_name, offhand_id: s.offhand_id, offhand_options: s.offhand_options ?? null,
+      potion_name: s.potion_name,   potion_id: s.potion_id,   potion_options: s.potion_options ?? null,
+      food_name: s.food_name,       food_id: s.food_id,       food_options: s.food_options ?? null,
+      cape_name: s.cape_name,       cape_id: s.cape_id,       cape_options: s.cape_options ?? null,
+      mount_name: s.mount_name,     mount_id: s.mount_id,     mount_options: s.mount_options ?? null,
+    }))
+  })
+
+  if (slotRows.length > 0) {
+    const { error: slotsError } = await db.from('slots').insert(slotRows)
+    if (slotsError) return { error: slotsError.message }
+  }
+  return {}
 }
 
 // 호출 모드 두 가지:
@@ -227,6 +295,64 @@ export async function listTemplates(): Promise<{
     return { templates: (data ?? []) as TemplateSummary[] }
   } catch (e) {
     return { templates: [], error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function createEventFromTemplate(
+  templateId: string,
+  payload: { title: string; category?: EventCategory },
+): Promise<{ id?: string; error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const title = payload.title.trim()
+    if (!title) return { error: tErr('missingTitle') }
+    const category = payload.category ?? '전투'
+    if (!EVENT_CATEGORIES.includes(category)) return { error: tErr('serverError') }
+
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+
+    const { data: template, error: templateError } = await db
+      .from('event_templates')
+      .select('data')
+      .eq('guild_id', guildId)
+      .eq('id', templateId)
+      .maybeSingle()
+    if (templateError) return { error: templateError.message }
+    if (!template) return { error: tErr('templateNotFound') }
+    const templateData = template.data as TemplateData
+    if (!templateData?.parties?.length) return { error: tErr('templateHasNoParties') }
+
+    const { data: event, error: eventError } = await db
+      .from('events')
+      .insert({
+        guild_id: guildId,
+        title,
+        gather_time: '',
+        gather_at: null,
+        gather_location: '',
+        special_notes: null,
+        status: 'draft',
+        category,
+        created_by: session.discordId,
+      })
+      .select('id')
+      .single()
+    if (eventError) return { error: eventError.message }
+
+    const inserted = await insertTemplateParties(db, guildId, event.id as string, templateData, tErr)
+    if (inserted.error) {
+      await db.from('events').delete().eq('guild_id', guildId).eq('id', event.id)
+      return { error: inserted.error }
+    }
+
+    revalidatePath('/admin/dashboard')
+    revalidatePath(`/admin/dashboard/events/${event.id}`)
+    return { id: event.id as string }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
 
@@ -428,55 +554,8 @@ export async function applyTemplate(
       .single()
     if (templateError) return { error: templateError.message }
 
-    const data = template.data as TemplateData
-    if (!data?.parties?.length) return { error: tErr('templateHasNoParties') }
-
-    // Batch-insert all parties, then batch-insert all slots in one shot —
-    // collapses O(N) roundtrips into 2 regardless of party count.
-    const { data: insertedParties, error: partiesError } = await db
-      .from('parties')
-      .insert(
-        data.parties.map((p) => ({
-          guild_id: guildId,
-          event_id: eventId,
-          party_number: p.party_number,
-        })),
-      )
-      .select('id, party_number')
-    if (partiesError) return { error: partiesError.message }
-
-    const partyIdByNumber = new Map(
-      (insertedParties ?? []).map((p) => [p.party_number, p.id as string]),
-    )
-
-    const slotRows = data.parties.flatMap((party) => {
-      const partyId = partyIdByNumber.get(party.party_number)
-      if (!partyId) return []
-      return party.slots.map((s) => ({
-        guild_id: guildId,
-        party_id: partyId,
-        slot_number: s.slot_number,
-        role_name: s.role_name,
-        notes: s.notes,
-        spells: s.spells ?? null,
-        gear_specs: s.gear_specs ?? null,
-        conditional_options: s.conditional_options ?? null,
-        weapon_name: s.weapon_name,   weapon_id: s.weapon_id,   weapon_options: s.weapon_options ?? null,
-        head_name: s.head_name,       head_id: s.head_id,       head_options: s.head_options ?? null,
-        armor_name: s.armor_name,     armor_id: s.armor_id,     armor_options: s.armor_options ?? null,
-        shoes_name: s.shoes_name,     shoes_id: s.shoes_id,     shoes_options: s.shoes_options ?? null,
-        offhand_name: s.offhand_name, offhand_id: s.offhand_id, offhand_options: s.offhand_options ?? null,
-        potion_name: s.potion_name,   potion_id: s.potion_id,   potion_options: s.potion_options ?? null,
-        food_name: s.food_name,       food_id: s.food_id,       food_options: s.food_options ?? null,
-        cape_name: s.cape_name,       cape_id: s.cape_id,       cape_options: s.cape_options ?? null,
-        mount_name: s.mount_name,     mount_id: s.mount_id,     mount_options: s.mount_options ?? null,
-      }))
-    })
-
-    if (slotRows.length > 0) {
-      const { error: slotsError } = await db.from('slots').insert(slotRows)
-      if (slotsError) return { error: slotsError.message }
-    }
+    const inserted = await insertTemplateParties(db, guildId, eventId, template.data as TemplateData, tErr)
+    if (inserted.error) return { error: inserted.error }
 
     revalidatePath(`/admin/dashboard/events/${eventId}`)
     revalidatePath(`/events/${eventId}`)

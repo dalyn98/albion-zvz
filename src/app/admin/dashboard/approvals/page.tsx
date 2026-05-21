@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { ShieldCheck, Wallet, Gift, ShoppingBag, Coins, ClipboardList } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import {
@@ -24,9 +25,10 @@ import EventPayoutReviewList from '@/components/EventPayoutReviewList'
 import CraftOrderReviewList from '@/components/CraftOrderReviewList'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 import { getAdminBadgeCounts } from '@/lib/admin-badges'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHasAny } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import { CAP } from '@/lib/permissions'
 
 type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop' | 'event_payout' | 'craft'
 type Scope = 'pending' | 'all'
@@ -59,6 +61,31 @@ function resolveOrigin(v: string | undefined): RegearOrigin {
   return 'auto'
 }
 
+const APPROVAL_TAB_CAPABILITIES: Record<TypeKey, readonly bigint[]> = {
+  regear: [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION],
+  // 환전/기부는 아직 별도 capability 가 없다. 포인트/재정 mutation 이라
+  // 세분화 전까지 legacy admin 전용으로 둔다.
+  exchange: [],
+  donation: [],
+  shop: [CAP.INVENTORY_DELIVER, CAP.INVENTORY_MANAGE],
+  event_payout: [CAP.EVENT_MANAGE],
+  craft: [CAP.CRAFT_TASK_DELIVER, CAP.CRAFT_MASTER],
+}
+
+function canAccessApprovalTab(
+  session: NonNullable<Awaited<ReturnType<typeof getSession>>>,
+  key: TypeKey,
+): boolean {
+  if (session.isAdmin) return true
+  const caps = APPROVAL_TAB_CAPABILITIES[key]
+  if (caps.length === 0) return false
+  return sessionHasAny(session, caps)
+}
+
+function approvalTabHref(key: TypeKey): string {
+  return key === 'regear' ? '/admin/dashboard/approvals' : `/admin/dashboard/approvals?tab=${key}`
+}
+
 export const dynamic = 'force-dynamic'
 
 export default async function ApprovalsPage({
@@ -81,7 +108,7 @@ export default async function ApprovalsPage({
     getAdminBadgeCounts(guildId),
   ])
 
-  const tabs: TabDef[] = [
+  const allTabs: TabDef[] = [
     { key: 'regear', label: tApprovals('tabRegear'), icon: ShieldCheck, badge: badges.regear },
     { key: 'exchange', label: tApprovals('tabExchange'), icon: Wallet, badge: badges.exchange },
     { key: 'donation', label: tApprovals('tabDonation'), icon: Gift, badge: badges.donation },
@@ -89,6 +116,9 @@ export default async function ApprovalsPage({
     { key: 'event_payout', label: tApprovals('tabEventPayout'), icon: Coins, badge: badges.eventPayout },
     { key: 'craft', label: tApprovals('tabCraft'), icon: ClipboardList, badge: badges.craft },
   ]
+  const tabs = allTabs.filter((tab) => canAccessApprovalTab(session, tab.key))
+  if (tabs.length === 0) redirect('/admin')
+  if (!canAccessApprovalTab(session, type)) redirect(approvalTabHref(tabs[0].key))
 
   return (
     <div className="space-y-4">
@@ -135,7 +165,7 @@ function TypeTabs({ active, tabs, tabsLabel }: TypeTabsProps) {
         // Switching sections resets scope back to pending — the two params are
         // conceptually independent but operators almost always want to see the
         // pending queue first when they change type.
-        const href = key === 'regear' ? '/admin/dashboard/approvals' : `/admin/dashboard/approvals?tab=${key}`
+        const href = approvalTabHref(key)
         return (
           <Link
             key={key}

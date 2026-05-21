@@ -5,9 +5,10 @@
 // `./regear-admin-types` 에서 공유.
 
 import { getTranslations } from 'next-intl/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireAnyCapability } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { CAP } from '@/lib/permissions'
 import {
   computeRegearAnomalies,
   type RegearAnomalyFlag,
@@ -22,6 +23,8 @@ import {
   type RegearOriginCounts,
 } from './regear-admin-types'
 
+const REGEAR_REVIEW_CAPS = [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION] as const
+
 export async function listRegearRequests(
   scope: 'pending' | 'all' = 'pending',
   origin: RegearOrigin = 'all',
@@ -30,7 +33,7 @@ export async function listRegearRequests(
   try {
     const session = await getSession()
     if (!session) return { requests: [], error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
     let query = db
       .from('regear_requests')
@@ -182,7 +185,7 @@ export async function getRegearOriginCounts(
   try {
     const session = await getSession()
     if (!session) return { counts: { auto: 0, manual: 0, all: 0 }, error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
     const baseQuery = () => {
       let q = db
@@ -212,7 +215,7 @@ export async function getRegearOriginCounts(
 export async function getScreenshotUrl(path: string): Promise<{ url?: string; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
     const { data, error } = await db.storage
       .from(SCREENSHOT_BUCKET)
       .createSignedUrl(path, SCREENSHOT_URL_TTL_SECONDS)
@@ -238,7 +241,7 @@ export async function getRegearAnomalyMap(
   try {
     const session = await getSession()
     if (!session) return {}
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
 
     // 1) 청구자별 최근 7일 승인 건수. 현재 pending 은 status 필터로 자동 제외.

@@ -221,7 +221,7 @@ export default function DemoShopPage() {
       </div>
 
       {/* 내 주문 패널 — pending 주문 취소는 실제로 state 에서 제거 */}
-      <section className="bg-gray-900 border border-gray-700 rounded-xl overflow-hidden">
+      <section className="hidden lg:block bg-gray-900 border border-gray-700 rounded-xl overflow-hidden">
         <div className="w-full flex items-center gap-2 px-4 py-3 border-b border-gray-800">
           <History size={14} className="text-gray-400" />
           <span className="text-sm text-white font-semibold">{tShopMyOrders('title')}</span>
@@ -353,6 +353,152 @@ export default function DemoShopPage() {
               </div>
             )}
           </div>
+
+          <section className="lg:hidden bg-gray-900 border border-gray-700 rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-800">
+              <h2 className="text-white font-bold text-sm flex items-center gap-2">
+                <ShoppingCart size={14} className="text-amber-400" />
+                {tShopCatalog('cartButton')}
+              </h2>
+              {totalQty > 0 && (
+                <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-semibold">
+                  {totalQty}
+                </span>
+              )}
+            </div>
+            {cartItems.length === 0 ? (
+              <p className="px-4 py-6 text-center text-xs text-gray-500">
+                {tShopCatalog('cart.empty')}
+              </p>
+            ) : (
+              <ul className="divide-y divide-gray-800">
+                {cartItems.map(({ item, qty }) => (
+                  <li key={item.id} className="px-3 py-2 flex items-center gap-2">
+                    <span className="relative w-10 h-10 shrink-0">
+                      <Image
+                        src={imageUrl(item.uniqueName, item.enchant, item.quality, 64)}
+                        alt={item.nameKo}
+                        fill
+                        className="object-contain pixel-img"
+                        sizes="40px"
+                        unoptimized
+                      />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-xs font-semibold truncate">
+                        {item.nameKo}
+                        {item.enchant > 0 ? `.${item.enchant}` : ''}
+                      </p>
+                      <p className="text-amber-300 font-mono text-[11px]">
+                        {item.pointPrice.toLocaleString()}p × {qty}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => decrementLine(item.id)}
+                        className="w-7 h-7 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 flex items-center justify-center"
+                        aria-label={tShopCatalog('cart.decAriaLabel')}
+                      >
+                        <Minus size={12} />
+                      </button>
+                      <span className="text-xs text-white font-mono w-4 text-center">{qty}</span>
+                      <button
+                        type="button"
+                        onClick={() => incrementLine(item.id)}
+                        className="w-7 h-7 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 flex items-center justify-center"
+                        aria-label={tShopCatalog('cart.incAriaLabel')}
+                      >
+                        <Plus size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeLine(item.id)}
+                        className="w-7 h-7 rounded text-gray-500 hover:text-red-300 hover:bg-red-500/10 flex items-center justify-center ml-0.5"
+                        aria-label={tShopCatalog('cart.removeAriaLabel')}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="px-4 py-3 border-t border-gray-800 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-400">{tShopCatalog('cart.totalLabel')}</span>
+                <span className={`font-mono font-bold ${insufficient ? 'text-red-400' : 'text-amber-300'}`}>
+                  {totalPoints.toLocaleString()}p
+                  {insufficient && (
+                    <span className="ml-1 text-[10px]">{tShopCatalog('cart.insufficient')}</span>
+                  )}
+                </span>
+              </div>
+              <textarea
+                value={cartNote}
+                onChange={(e) => setCartNote(e.target.value)}
+                placeholder={tShopCatalog('cart.notePlaceholder')}
+                rows={2}
+                className="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white placeholder:text-gray-500 focus:border-amber-400 focus:outline-none resize-none"
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={clearCart}
+                  disabled={cart.length === 0}
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-gray-300 font-semibold px-3 py-2 rounded-lg text-xs transition-colors"
+                >
+                  {tShopCatalog('cart.clearButton')}
+                </button>
+                <DemoActionButton className="flex-[2] bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black font-bold px-3 py-2 rounded-lg text-xs transition-colors inline-flex items-center justify-center gap-1.5">
+                  <Send size={12} />
+                  {tShopCatalog('cart.submitButton')}
+                </DemoActionButton>
+              </div>
+            </div>
+          </section>
+
+          <details className="lg:hidden bg-gray-900 border border-gray-700 rounded-xl overflow-hidden">
+            <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3">
+              <History size={14} className="text-gray-400" />
+              <span className="text-sm text-white font-semibold">{tShopMyOrders('title')}</span>
+              <span className="text-xs text-gray-500">({orders.length})</span>
+              {pendingOrderCount > 0 && (
+                <span className="ml-auto text-xs bg-yellow-500/20 text-yellow-300 px-2 py-0.5 rounded-full font-semibold">
+                  {pendingOrderCount}
+                </span>
+              )}
+            </summary>
+            <ul className="divide-y divide-gray-800 border-t border-gray-800">
+              {orders.map((order) => (
+                <li key={order.id} className="px-4 py-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className={`px-2 py-0.5 rounded-full font-semibold ${STATUS_BADGE_CLASS[order.status]}`}>
+                        {tShopMyOrders(STATUS_LABEL_KEY[order.status])}
+                      </span>
+                      <span className="text-gray-500">{order.whenLabel}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-amber-300 font-mono font-bold">
+                        {order.totalPoints.toLocaleString()}p
+                      </span>
+                      {order.status === 'pending' && (
+                        <button
+                          type="button"
+                          onClick={() => cancelOrder(order.id)}
+                          className="text-gray-400 hover:text-red-300 font-semibold transition-colors"
+                          aria-label={tShopMyOrders('cancelButton')}
+                        >
+                          {tShopMyOrders('cancelButton')}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </details>
         </div>
 
         {/* 장바구니 사이드바 — 실제 ±, 삭제, 비우기, 메모 입력 */}

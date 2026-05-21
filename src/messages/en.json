@@ -118,9 +118,12 @@
     "noEvents": "No events registered.",
     "createFirstEvent": "Create the first event →",
     "searchPlaceholder": "Search by event name or date (e.g. 04-19, Apr 19)",
+    "badgeDraft": "Draft",
     "badgeEnded": "Ended",
     "badgeBattleActive": "In battle",
     "badgeImminent": "Imminent",
+    "draftActionsDisabled": "Publish this draft before sending notifications or starting the battle.",
+    "draftScheduleMissing": "Time not set · before publish",
     "confirmDeleteEvent": "Delete this event? Builds, applications, and battle records will be removed, and member/guild stats will reflect the deletion.",
     "notifyConfirm": "Re-send this event notification to Discord?\n@everyone will be pinged.",
     "notifyErrorPrefix": "Notification failed",
@@ -289,7 +292,19 @@
   },
   "adminNewEvent": {
     "title": "New event",
-    "subtitle": "After creating an event you'll be taken to the build composer."
+    "subtitle": "After creating an event you'll be taken to the build composer.",
+    "templateStartTitle": "Start from template",
+    "templateStartDescription": "Create a draft with a saved party and slot setup already loaded.",
+    "templateStartEmpty": "No event templates saved yet. Save one from an existing event editor first.",
+    "templateLabel": "Template to load",
+    "templateStartRequired": "Select a template and enter an event title.",
+    "templateStartFailed": "Could not create an event from this template.",
+    "templateStartSubmit": "Create draft from template",
+    "recentStartTitle": "Start from a recent event",
+    "recentStartDescription": "Duplicate a familiar event to keep the party/slot builds and clear all sign-ups.",
+    "recentStartNoSchedule": "Time not set",
+    "recentStartDraft": "Draft",
+    "recentStartPublished": "Published"
   },
   "adminEditEvent": {
     "title": "Edit event",
@@ -318,7 +333,7 @@
     "partDay": "dy",
     "partHour": "hr",
     "partMinute": "min",
-    "gatherLocationLabel": "Gather location *",
+    "gatherLocationLabel": "Gather location",
     "gatherLocationPlaceholder": "e.g. RTD Island",
     "gatherLocationRequired": "Please enter a gather location.",
     "specialNotesLabel": "Announcement",
@@ -916,7 +931,7 @@
   },
   "adminGuildProfile": {
     "pageTitle": "Public guild profile",
-    "pageDescription": "Customize the page shown at albion-guildmanager.com/g/<slug>.",
+    "pageDescription": "Customize the page shown at albion-guildmanager.com/g/your-guild.",
     "previewLink": "View profile",
     "disabledTitle": "This guild is not enabled yet",
     "disabledDescription": "Public profiles are rolling out gradually. Ask the platform team to enable it for your guild.",
@@ -983,7 +998,7 @@
   },
   "adminGuildProfileToggle": {
     "enableTitle": "Enable public guild profile",
-    "enableBody": "Turning this on makes your guild page accessible at albion-guildmanager.com/g/<slug> for any visitor — perfect for recruitment and outreach.",
+    "enableBody": "Turning this on makes your guild page accessible at albion-guildmanager.com/g/your-guild for any visitor — perfect for recruitment and outreach.",
     "enableWarningTitle": "Before enabling, please review",
     "enableWarning1": "Member list, battle history, and statistics will be visible to logged-out visitors.",
     "enableWarning2": "Search engines (Google, etc.) may index the page — your guild name and description could appear in external search results.",
@@ -1924,6 +1939,7 @@
     "dashboardHome": "My home",
     "dashboardProfile": "My profile",
     "dashboardSettings": "My settings",
+    "dashboardSiphon": "My siphon",
     "dashboardRegearDetail": "My regear claim",
     "dashboardRequests": "My requests / payouts",
     "adminDashboard": "Admin dashboard",
@@ -2027,11 +2043,11 @@
     "q15": "My death isn't getting picked up by auto-regear. Why?",
     "a15": "1) Albion's kill records take about 30 minutes to appear in the official feed after a death — wait a moment and press 'Recheck' on the regear page. 2) Auto-regear only catches deaths in the black zone. Yellow/red-zone or non-ZvZ deaths must be submitted manually. 3) Make sure your Albion character is verified and that your guild matches the site's home guild.",
     "q16": "How do I customize my guild’s public page?",
-    "a16": "Admins can edit the `/g/<slug>` page directly — banner image, banner opacity, accent color, description, recruitment status, Discord invite link, active hours, and supported languages. You can also toggle individual sections on or off (member count, battle records, weapon mix, rival guilds, admin team, and more). Use the \"Edit banner\" button at the top of the public page, or open the public profile settings in the admin panel.",
+    "a16": "Admins can edit the `/g/your-guild` page directly — banner image, banner opacity, accent color, description, recruitment status, Discord invite link, active hours, and supported languages. You can also toggle individual sections on or off (member count, battle records, weapon mix, rival guilds, admin team, and more). Use the \"Edit banner\" button at the top of the public page, or open the public profile settings in the admin panel.",
     "q17": "Which languages does the site support?",
     "a17": "The site UI ships in Korean, Japanese, English, and Simplified Chinese. Switch language from the top-right language menu and every page updates immediately. Note that the documentation pages (`/docs`) themselves are currently written in Korean only — additional translations are rolling out gradually.",
     "q18": "The public page shows the Albion English guild name. Can I show our Discord name instead?",
-    "a18": "The public page (`/g/<slug>`) and SEO metadata always prefer your in-game Albion guild name (English) — Albion only permits English characters in guild names, and matching that name keeps the page consistent with how other players search for you or track you on the killboard. The localized Discord name is only used inside admin surfaces. To change your home guild after first setup, contact the operator (super-admin)."
+    "a18": "The public page (`/g/your-guild`) and SEO metadata always prefer your in-game Albion guild name (English) — Albion only permits English characters in guild names, and matching that name keeps the page consistent with how other players search for you or track you on the killboard. The localized Discord name is only used inside admin surfaces. To change your home guild after first setup, contact the operator (super-admin)."
   },
   "auth": {
     "error": {
@@ -2103,7 +2119,14 @@
     "noSlots": "No slots.",
     "filterMyRole": "Show my role only ({role})",
     "filterMyRoleActive": "Clear {role} filter",
-    "filterNoMatches": "No other slots with this role.",
+    "filterOpen": "Open slots only",
+    "filterOpenActive": "Clear open slots",
+    "filterSuggested": "My tentative roles",
+    "filterSuggestedActive": "Clear tentative roles",
+    "filterRoleLabel": "Role filter",
+    "filterRoleAll": "All roles",
+    "filterClearAll": "Clear filters",
+    "filterNoMatches": "No slots match the selected filters.",
     "edit": "Edit",
     "editAria": "Edit event",
     "hideParty": "Hide",
@@ -3301,6 +3324,7 @@
     "missingTitle": "Event title is empty.",
     "missingLocation": "Gather location is empty.",
     "invalidGatherTime": "Gather time is invalid.",
+    "eventNotPublished": "Publish the draft event first.",
     "eventNotFound": "Event not found.",
     "invalidPartyNumber": "Party number is invalid.",
     "tooManySlots": "A party can have at most {max} members.",
@@ -3942,7 +3966,7 @@
     "albionHomeGuildIdHint": "Until this is set, every member is treated as [unverified].",
     "configureHomeGuild": "Configure home guild",
     "guildProfileEnabledLabel": "Enable public guild profile",
-    "guildProfileEnabledDescription": "Make your guild page (/g/<slug>) public so it shows up on Google search and as a Discord embed.",
+    "guildProfileEnabledDescription": "Make your guild page (/g/your-guild) public so it shows up on Google search and as a Discord embed.",
     "guildProfileEnabledHint": "Edit banner, description, recruitment status directly. Toggling off makes it private again.",
     "configureGuildProfile": "Configure public profile",
     "autoRegearEnabledLabel": "Enable auto regear",
@@ -3961,12 +3985,20 @@
   "publishEventBanner": {
     "draftStatus": "Draft status",
     "draftDescription": "This event is hidden from the home page and the public link returns 404. Once the build / party setup is final, fill in the required fields and publish.",
-    "missingRequired": "Missing: {fields} — save your edits with the bottom \"Save\" button first, then click publish again.",
+    "missingRequired": "Still missing in the saved data: {fields}. If you just typed it, this button will save first and then try to publish.",
     "fieldTitle": "Title",
     "fieldGatherAt": "Gather time",
     "fieldGatherLocation": "Gather location",
     "publishing": "Publishing…",
     "publishButton": "Publish",
+    "visibleSlots": "Visible slots",
+    "hiddenSlots": "Hidden slots",
+    "assignedSlots": "Applied",
+    "emptySlots": "Open slots",
+    "tentativeCount": "Tentative",
+    "notificationChannel": "Notify channel",
+    "ready": "Ready",
+    "notSet": "Not set",
     "publishedNotifyFailed": "The event was published, but the auto Discord notification failed: {error}\nYou can retry from the bell icon on the dashboard."
   },
   "forceOnboardButton": {
@@ -4209,6 +4241,36 @@
       "slotCape": "Cape",
       "back": "← Claims",
       "demoOnlyDetail": "Demo: only the first claim has full detail."
+    },
+    "memberEvents": {
+      "title": "Event signups",
+      "subtitle": "Check your slot status and upcoming events first.",
+      "nextSlotLabel": "Next slot",
+      "nextTimeLabel": "Next rally",
+      "openSlotsLabel": "Open slots",
+      "upcomingTitle": "Events open for signup",
+      "recentTitle": "Recent events",
+      "mySlot": "My slot: {slot}",
+      "openSlots": "{count} slots open",
+      "ended": "Ended"
+    },
+    "memberRegear": {
+      "title": "My regear",
+      "subtitle": "Review auto claims, submit manual claims, and track status in one place.",
+      "autoTitle": "Review auto regear",
+      "autoDescription": "Deaths verified through killboard create a pending claim automatically.",
+      "viewAutoClaim": "View auto claim",
+      "manualTitle": "Manual claim",
+      "manualDescription": "Submit deaths that were not detected automatically or need screenshot proof.",
+      "manualButton": "Create manual claim",
+      "myRequestsTitle": "My requests",
+      "pendingCount": "{count} pending",
+      "walletHint": "Approved silver regears credit your wallet points; crafted regears show pickup instructions.",
+      "status": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      }
     },
     "approvals": {
       "title": "Approvals",
@@ -4604,6 +4666,15 @@
       "WAR_LOADOUT_VALIDATE": "Validate war loadout",
       "WAR_LOADOUT_CONFIGURE": "Configure war loadout",
       "AUDIT_VIEW": "View audit log"
+    },
+    "presets": {
+      "title": "Role presets",
+      "description": "Start from the job this officer will do, then fine-tune individual permissions.",
+      "regearOfficer": "Regear officer",
+      "shopQuartermaster": "Shop quartermaster",
+      "craftLead": "Craft lead",
+      "analyst": "Analyst",
+      "guildSettings": "Guild settings"
     },
     "roleGrantEditor": {
       "heading": "Per-role permissions",

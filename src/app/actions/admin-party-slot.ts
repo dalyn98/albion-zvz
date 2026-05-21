@@ -23,6 +23,36 @@ import {
   type SlotPayload,
 } from './admin-slot-sanitizers'
 
+const SLOT_DIFF_COLUMNS =
+  'id, party_id, slot_number, is_hidden, role_name, notes, spells, gear_specs, conditional_options, ' +
+  'auto_regear_excluded, manual_regear_excluded, is_solo_bomb, ' +
+  'weapon_name, weapon_id, weapon_options, ' +
+  'head_name, head_id, head_options, ' +
+  'armor_name, armor_id, armor_options, ' +
+  'shoes_name, shoes_id, shoes_options, ' +
+  'offhand_name, offhand_id, offhand_options, ' +
+  'potion_name, potion_id, potion_options, ' +
+  'food_name, food_id, food_options, ' +
+  'cape_name, cape_id, cape_options, ' +
+  'mount_name, mount_id, mount_options'
+
+function stableCompareValue(value: unknown): string {
+  if (value == null) return 'null'
+  if (typeof value === 'object') return JSON.stringify(value)
+  return String(value)
+}
+
+function slotRowMatches(
+  existing: Record<string, unknown>,
+  desired: Record<string, unknown>,
+): boolean {
+  for (const [key, value] of Object.entries(desired)) {
+    if (key === 'guild_id') continue
+    if (stableCompareValue(existing[key]) !== stableCompareValue(value)) return false
+  }
+  return true
+}
+
 export async function savePartySlots(
   eventId: string,
   partyNumber: number,
@@ -154,29 +184,58 @@ export async function savePartySlots(
     // Park kept slots at temp numbers >20 first, then write the final values.
     // Migration 022 widens the slot_number CHECK to permit this transient range.
     //
-    // Promise.all 로 두 패스를 각각 병렬 발화 — N×latency 가 1×latency 로 줄어
-    // 50~100 슬롯 저장이 수 초 → 100ms 단위로 단축된다. 한 패스 안에서는 모든
-    // UPDATE 가 서로 다른 slot_number 를 쓰므로 UNIQUE 충돌이 없고, 패스 간엔
-    // await 경계가 있어 1 패스가 끝난 뒤 2 패스가 시작된다.
+    // 먼저 DB snapshot 과 원하는 row 를 비교해 실제로 바뀐 슬롯만 UPDATE 한다.
+    // 순서 변경이 있을 때만 임시 번호 parking pass 를 실행하고, 내용만 바뀐
+    // 경우에는 곧장 changed row 만 갱신해 저장 round-trip 과 write lock 을 줄인다.
     const kept = slots.filter((s) => s.id)
-    const TEMP_OFFSET = 1000
-    const renumberResults = await Promise.all(
-      kept.map((slot, i) =>
-        db
-          .from('slots')
-          .update({ slot_number: TEMP_OFFSET + i + 1 })
-          .eq('guild_id', guildId)
-          .eq('id', slot.id!),
-      ),
+    const desiredRowsById = new Map(
+      kept.map((slot, i) => [
+        slot.id!,
+        slotToRow(resolvedPartyId, { ...slot, slot_number: i + 1 }),
+      ]),
     )
-    const renumberError = renumberResults.find((r) => r.error)?.error
-    if (renumberError) return { error: renumberError.message }
+    const { data: existingRows, error: existingRowsError } = kept.length > 0
+      ? await db
+          .from('slots')
+          .select(SLOT_DIFF_COLUMNS)
+          .eq('guild_id', guildId)
+          .in('id', kept.map((s) => s.id!))
+      : { data: [] as Record<string, unknown>[], error: null }
+    if (existingRowsError) return { error: existingRowsError.message }
+    const existingRowsById = new Map(
+      ((existingRows ?? []) as Record<string, unknown>[]).map((row) => [row.id as string, row]),
+    )
+    const changedKept = kept.filter((slot) => {
+      const desired = desiredRowsById.get(slot.id!)
+      const existing = existingRowsById.get(slot.id!)
+      if (!desired || !existing) return true
+      return !slotRowMatches(existing, desired)
+    })
+    const hasOrderChanges = kept.some((slot) => {
+      const desired = desiredRowsById.get(slot.id!)
+      const existing = existingRowsById.get(slot.id!)
+      return !!desired && !!existing && existing.slot_number !== desired.slot_number
+    })
+    const TEMP_OFFSET = 1000
+    if (hasOrderChanges) {
+      const renumberResults = await Promise.all(
+        kept.map((slot, i) =>
+          db
+            .from('slots')
+            .update({ slot_number: TEMP_OFFSET + i + 1 })
+            .eq('guild_id', guildId)
+            .eq('id', slot.id!),
+        ),
+      )
+      const renumberError = renumberResults.find((r) => r.error)?.error
+      if (renumberError) return { error: renumberError.message }
+    }
 
     const finalResults = await Promise.all(
-      kept.map((slot) =>
+      changedKept.map((slot) =>
         db
           .from('slots')
-          .update(slotToRow(resolvedPartyId, slot, guildId))
+          .update(desiredRowsById.get(slot.id!)!)
           .eq('guild_id', guildId)
           .eq('id', slot.id!),
       ),

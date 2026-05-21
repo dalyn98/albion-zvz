@@ -118,9 +118,12 @@
     "noEvents": "尚未注册任何活动。",
     "createFirstEvent": "创建第一个活动 →",
     "searchPlaceholder": "按活动名或日期搜索（例如 04-19、4月19日）",
+    "badgeDraft": "草稿",
     "badgeEnded": "已结束",
     "badgeBattleActive": "战斗中",
     "badgeImminent": "即将开始",
+    "draftActionsDisabled": "草稿活动发布后才能发送通知或开始战斗。",
+    "draftScheduleMissing": "时间未设置 · 发布前",
     "confirmDeleteEvent": "删除此活动？配装、报名和战斗记录将被移除，成员/公会统计也会随之更新。",
     "notifyConfirm": "重新向 Discord 发送此活动的通知吗？\n将会 @everyone。",
     "notifyErrorPrefix": "通知发送失败",
@@ -289,7 +292,19 @@
   },
   "adminNewEvent": {
     "title": "新建活动",
-    "subtitle": "创建活动后将进入配装编辑器。"
+    "subtitle": "创建活动后将进入配装编辑器。",
+    "templateStartTitle": "从模板开始",
+    "templateStartDescription": "创建一个已加载保存的小队/槽位配置的草稿。",
+    "templateStartEmpty": "还没有保存的活动模板。请先在现有活动编辑器中保存模板。",
+    "templateLabel": "要加载的模板",
+    "templateStartRequired": "请选择模板并输入活动标题。",
+    "templateStartFailed": "无法从该模板创建活动。",
+    "templateStartSubmit": "从模板创建草稿",
+    "recentStartTitle": "从最近活动开始",
+    "recentStartDescription": "复制常用活动会保留小队/槽位配装，并清空所有报名。",
+    "recentStartNoSchedule": "时间未设置",
+    "recentStartDraft": "草稿",
+    "recentStartPublished": "已发布"
   },
   "adminEditEvent": {
     "title": "编辑活动",
@@ -318,7 +333,7 @@
     "partDay": "日",
     "partHour": "时",
     "partMinute": "分",
-    "gatherLocationLabel": "集合地点 *",
+    "gatherLocationLabel": "集合地点",
     "gatherLocationPlaceholder": "例如：RTD 岛",
     "gatherLocationRequired": "请输入集合地点。",
     "specialNotesLabel": "公告",
@@ -916,7 +931,7 @@
   },
   "adminGuildProfile": {
     "pageTitle": "公开公会资料",
-    "pageDescription": "自定义 albion-guildmanager.com/g/<slug> 显示的页面。",
+    "pageDescription": "自定义 albion-guildmanager.com/g/your-guild 显示的页面。",
     "previewLink": "查看资料",
     "disabledTitle": "此公会尚未启用",
     "disabledDescription": "公开资料正在逐步开放。请联系平台团队为您的公会启用。",
@@ -983,7 +998,7 @@
   },
   "adminGuildProfileToggle": {
     "enableTitle": "启用公开公会资料",
-    "enableBody": "开启此功能后，访客可通过 albion-guildmanager.com/g/<slug> 访问您的公会页面，适合招募与宣传。",
+    "enableBody": "开启此功能后，访客可通过 albion-guildmanager.com/g/your-guild 访问您的公会页面，适合招募与宣传。",
     "enableWarningTitle": "启用前请确认",
     "enableWarning1": "公会成员列表、战斗记录与统计将对未登录访客公开。",
     "enableWarning2": "搜索引擎 (Google 等) 可能会索引此页面，公会名与简介可能出现在外部搜索结果中。",
@@ -1924,6 +1939,7 @@
     "dashboardHome": "我的首页",
     "dashboardProfile": "我的资料",
     "dashboardSettings": "我的设置",
+    "dashboardSiphon": "我的 Siphon",
     "dashboardRegearDetail": "我的装备补偿申请",
     "dashboardRequests": "我的申请 / 发放",
     "adminDashboard": "管理员面板",
@@ -2027,11 +2043,11 @@
     "q15": "我的阵亡没有被自动补装识别,为什么?",
     "a15": "1) 阵亡发生后约 30 分钟才会反映到阿尔比恩官方记录中 — 请稍候片刻,然后在装备补偿页面点击「重新检查」。2) 自动补装仅识别黑暗地带的阵亡。黄区/红区或非 ZvZ 阵亡需要手动申请。3) 请确认您的阿尔比恩角色已通过验证,且所属公会与本站本家公会一致。",
     "q16": "如何自定义公会公开页面?",
-    "a16": "管理员可以直接编辑 `/g/<slug>` 公开页面的横幅图像、横幅透明度、强调色、介绍文、招募状态、Discord 邀请链接、活动时间段、支持语言等。也可以按区块切换显示开关 (成员数 / 战斗记录 / 武器分布 / 对手公会 / 管理组等)。使用公开页面右上角的「编辑横幅」按钮，或在管理后台的公开资料设置中调整。",
+    "a16": "管理员可以直接编辑 `/g/your-guild` 公开页面的横幅图像、横幅透明度、强调色、介绍文、招募状态、Discord 邀请链接、活动时间段、支持语言等。也可以按区块切换显示开关 (成员数 / 战斗记录 / 武器分布 / 对手公会 / 管理组等)。使用公开页面右上角的「编辑横幅」按钮，或在管理后台的公开资料设置中调整。",
     "q17": "本站支持哪些语言?",
     "a17": "站点 UI 支持韩语、日语、英语和简体中文 4 种语言。在右上角的语言菜单中即可切换，所有页面会立即生效。不过本说明文档 (`/docs`) 目前仅有韩语版本，其他语言翻译正在逐步推进。",
     "q18": "公开页面显示的是阿尔比恩英文公会名，能改成 Discord 上的中文名吗?",
-    "a18": "公开页面 (`/g/<slug>`) 与 SEO 元数据始终优先显示阿尔比恩游戏内的英文公会名 — 因为阿尔比恩仅允许英文字符作为公会名，使用相同名称便于其他玩家搜索或在击杀板上追踪本公会。Discord 上的本地化公会名仅在管理后台等内部界面使用。如需在初始设置后更改本家公会，请联系超级管理员 (运营)。"
+    "a18": "公开页面 (`/g/your-guild`) 与 SEO 元数据始终优先显示阿尔比恩游戏内的英文公会名 — 因为阿尔比恩仅允许英文字符作为公会名，使用相同名称便于其他玩家搜索或在击杀板上追踪本公会。Discord 上的本地化公会名仅在管理后台等内部界面使用。如需在初始设置后更改本家公会，请联系超级管理员 (运营)。"
   },
   "auth": {
     "error": {
@@ -2103,7 +2119,14 @@
     "noSlots": "无槽位。",
     "filterMyRole": "仅显示我的职业({role})",
     "filterMyRoleActive": "清除 {role} 筛选",
-    "filterNoMatches": "没有其他该职业的槽位。",
+    "filterOpen": "仅空槽位",
+    "filterOpenActive": "清除空槽位筛选",
+    "filterSuggested": "我的参加意向角色",
+    "filterSuggestedActive": "清除参加意向角色",
+    "filterRoleLabel": "角色筛选",
+    "filterRoleAll": "全部角色",
+    "filterClearAll": "清除筛选",
+    "filterNoMatches": "没有符合筛选条件的槽位。",
     "edit": "编辑",
     "editAria": "编辑活动",
     "hideParty": "隐藏",
@@ -3301,6 +3324,7 @@
     "missingTitle": "活动标题为空。",
     "missingLocation": "集合地点为空。",
     "invalidGatherTime": "集合时间无效。",
+    "eventNotPublished": "请先发布草稿活动。",
     "eventNotFound": "未找到活动。",
     "invalidPartyNumber": "小队编号无效。",
     "tooManySlots": "一个小队最多可有 {max} 名成员。",
@@ -3942,7 +3966,7 @@
     "albionHomeGuildIdHint": "未设置前,所有成员都会被视作 [未验证]。",
     "configureHomeGuild": "配置主公会",
     "guildProfileEnabledLabel": "启用公开公会页",
-    "guildProfileEnabledDescription": "公开公会页(/g/<slug>),让其出现在 Google 搜索与 Discord 嵌入预览中。",
+    "guildProfileEnabledDescription": "公开公会页(/g/your-guild),让其出现在 Google 搜索与 Discord 嵌入预览中。",
     "guildProfileEnabledHint": "可直接编辑横幅、说明与招募状态;关闭后会重新隐藏。",
     "configureGuildProfile": "配置公开页",
     "autoRegearEnabledLabel": "启用自动 Regear",
@@ -3961,12 +3985,20 @@
   "publishEventBanner": {
     "draftStatus": "草稿状态",
     "draftDescription": "该事件不会出现在首页,公开链接也会返回 404。配装 / 小队定稿后,请填写必填项并发布。",
-    "missingRequired": "缺少必填项:{fields} — 请先用底部的「保存」按钮保存修改,再次点击发布。",
+    "missingRequired": "已保存数据中仍缺少:{fields}。如果刚刚输入,此按钮会先保存再尝试发布。",
     "fieldTitle": "标题",
     "fieldGatherAt": "集合时间",
     "fieldGatherLocation": "集合地点",
     "publishing": "发布中…",
     "publishButton": "发布",
+    "visibleSlots": "公开槽位",
+    "hiddenSlots": "隐藏槽位",
+    "assignedSlots": "已报名",
+    "emptySlots": "空槽位",
+    "tentativeCount": "参加意向",
+    "notificationChannel": "通知频道",
+    "ready": "已就绪",
+    "notSet": "未设置",
     "publishedNotifyFailed": "事件已发布,但 Discord 自动通知失败:{error}\n可在仪表盘的铃铛图标处重试。"
   },
   "forceOnboardButton": {
@@ -4209,6 +4241,36 @@
       "slotCape": "披风",
       "back": "← 申请列表",
       "demoOnlyDetail": "演示:仅首个申请可查看完整详情。"
+    },
+    "memberEvents": {
+      "title": "活动报名",
+      "subtitle": "优先查看自己的槽位状态和即将开始的活动。",
+      "nextSlotLabel": "下个槽位",
+      "nextTimeLabel": "下次集合",
+      "openSlotsLabel": "空位",
+      "upcomingTitle": "可报名活动",
+      "recentTitle": "最近参加的活动",
+      "mySlot": "我的槽位: {slot}",
+      "openSlots": "可报名 {count} 位",
+      "ended": "已结束"
+    },
+    "memberRegear": {
+      "title": "我的补装",
+      "subtitle": "在一个页面查看自动申请、手动申请和处理状态。",
+      "autoTitle": "查看自动补装",
+      "autoDescription": "击杀榜确认的死亡会自动生成待审核申请。",
+      "viewAutoClaim": "查看自动申请",
+      "manualTitle": "手动申请",
+      "manualDescription": "提交未自动检测到的死亡，或需要截图证明的申请。",
+      "manualButton": "创建手动申请",
+      "myRequestsTitle": "我的申请记录",
+      "pendingCount": "{count} 条待处理",
+      "walletHint": "批准的银币补装会进入我的钱包积分；制作补装会显示领取说明。",
+      "status": {
+        "pending": "待处理",
+        "approved": "已批准",
+        "rejected": "已拒绝"
+      }
     },
     "approvals": {
       "title": "审批管理",
@@ -4604,6 +4666,15 @@
       "WAR_LOADOUT_VALIDATE": "战斗装备配置校验",
       "WAR_LOADOUT_CONFIGURE": "战斗装备配置设置",
       "AUDIT_VIEW": "查看审计日志"
+    },
+    "presets": {
+      "title": "角色预设",
+      "description": "先选择这名管理成员负责的工作，再微调单项权限。",
+      "regearOfficer": "补装负责人",
+      "shopQuartermaster": "商店补给官",
+      "craftLead": "制作负责人",
+      "analyst": "数据分析员",
+      "guildSettings": "公会设置负责人"
     },
     "roleGrantEditor": {
       "heading": "按 Discord 角色授权",

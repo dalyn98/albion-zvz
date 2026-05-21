@@ -123,56 +123,74 @@ export default function DashboardEventList({ events }: { events: Event[] }) {
           </p>
         ) : (
           <div className="space-y-3">
-            {filtered.map((event) => (
-              <div
-                key={event.id}
-                className="bg-gray-900 border border-gray-700 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+            {filtered.map((event) => {
+              const isDraft = event.status === 'draft'
+              const draftDisabledReason = isDraft ? t('draftActionsDisabled') : undefined
+              return (
+                <div
+                  key={event.id}
+                  className="bg-gray-900 border border-gray-700 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <Link
+                        href={`/admin/dashboard/events/${event.id}`}
+                        className="font-bold text-white truncate hover:text-amber-300 transition-colors"
+                      >
+                        {event.title}
+                      </Link>
+                      {isDraft ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-200 border border-sky-500/35">
+                          {t('badgeDraft')}
+                        </span>
+                      ) : event.battle_started_at && isEnded(event.battle_started_at) ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-700 text-gray-300">
+                          <Archive size={10} />
+                          {t('badgeEnded')}
+                        </span>
+                      ) : event.battle_started_at ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                          <Swords size={10} />
+                          {t('badgeBattleActive')}
+                        </span>
+                      ) : isImminent(event.gather_at) ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/40">
+                          <Flame size={10} />
+                          {t('badgeImminent')}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="text-gray-400 text-sm truncate">
+                      {event.gather_at
+                        ? formatGatherTimeFor(locale, event.gather_at)
+                        : event.gather_time || t('draftScheduleMissing')}
+                      {event.gather_location.trim() ? ` · ${event.gather_location}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:flex-shrink-0">
+                    <InlineBattleStartButton
+                      eventId={event.id}
+                      battleStartedAt={event.battle_started_at}
+                      disabledReason={draftDisabledReason}
+                    />
+                    <NotifyEventButton
+                      eventId={event.id}
+                      disabled={isDraft}
+                      disabledTitle={draftDisabledReason}
+                    />
                     <Link
                       href={`/admin/dashboard/events/${event.id}`}
-                      className="font-bold text-white truncate hover:text-amber-300 transition-colors"
+                      className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                      aria-label={tCommon('edit')}
                     >
-                      {event.title}
+                      <Pencil size={15} />
                     </Link>
-                    {event.battle_started_at && isEnded(event.battle_started_at) ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-700 text-gray-300">
-                        <Archive size={10} />
-                        {t('badgeEnded')}
-                      </span>
-                    ) : event.battle_started_at ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                        <Swords size={10} />
-                        {t('badgeBattleActive')}
-                      </span>
-                    ) : isImminent(event.gather_at) ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/40">
-                        <Flame size={10} />
-                        {t('badgeImminent')}
-                      </span>
-                    ) : null}
+                    <DuplicateEventButton eventId={event.id} />
+                    <DeleteEventButton eventId={event.id} />
                   </div>
-                  <p className="text-gray-400 text-sm truncate">
-                    {event.gather_at ? formatGatherTimeFor(locale, event.gather_at) : event.gather_time}
-                    {event.gather_location.trim() ? ` · ${event.gather_location}` : ''}
-                  </p>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:flex-shrink-0">
-                  <InlineBattleStartButton eventId={event.id} battleStartedAt={event.battle_started_at} />
-                  <NotifyEventButton eventId={event.id} />
-                  <Link
-                    href={`/admin/dashboard/events/${event.id}`}
-                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-                    aria-label={tCommon('edit')}
-                  >
-                    <Pencil size={15} />
-                  </Link>
-                  <DuplicateEventButton eventId={event.id} />
-                  <DeleteEventButton eventId={event.id} />
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

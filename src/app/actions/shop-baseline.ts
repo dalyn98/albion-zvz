@@ -9,12 +9,13 @@
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireAnyCapability } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { parseChestLog, type ChestLogEntry } from '@/lib/shop/parse-chest-log'
 import { resolveKoItem } from '@/lib/shop/resolve-item'
 import { logAdminAction } from '@/lib/admin-audit'
+import { CAP } from '@/lib/permissions'
 
 export interface BaselineItem {
   uniqueName: string
@@ -95,6 +96,7 @@ export interface BaselineConfirmResult {
 }
 
 const MAX_ENTRIES = 5000
+const BASELINE_CAPS = [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
 
 // deposit 창의 entries 를 이름별로 묶어 수량 합산.
 function aggregateDeposits(entries: ChestLogEntry[]): {
@@ -155,8 +157,8 @@ export async function previewBaseline(raw: string): Promise<BaselinePreview> {
 
   try {
     const session = await getSession()
-    if (!session?.isAdmin) return { ...empty, error: 'Unauthorized' }
-    const db = await requireAdmin()
+    if (!session) return { ...empty, error: 'Unauthorized' }
+    const db = await requireAnyCapability(BASELINE_CAPS)
     const guildId = await getSessionGuildId(session)
 
     const { entries, errors } = parseChestLog(raw)
@@ -264,7 +266,7 @@ export async function previewBaseline(raw: string): Promise<BaselinePreview> {
 
 // RPC 가 저장한 drift_report 를 읽어 카멜케이스로 normalize.
 async function fetchDriftReport(
-  db: Awaited<ReturnType<typeof requireAdmin>>,
+  db: Awaited<ReturnType<typeof requireAnyCapability>>,
   baselineId: string,
 ): Promise<DriftReport | null> {
   const { data } = await db
@@ -306,9 +308,9 @@ export async function confirmBaseline(input: {
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session?.isAdmin)
+    if (!session)
       return { appliedItems: 0, totalItems: 0, driftReport: null, error: 'Unauthorized' }
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(BASELINE_CAPS)
     const guildId = await getSessionGuildId(session)
 
     // preview 와 동일한 파싱 로직 재사용 (실제 적용 직전에 서버 측에서 다시 계산해

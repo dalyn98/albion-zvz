@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireAnyCapability } from '@/lib/auth'
 import { getAppSetting, type AppSettingKey } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
@@ -13,6 +13,7 @@ import { isSuperAdminSession } from '@/lib/super-admin'
 import { SLOT_ROLES, SLOT_KEYS } from '@/types'
 import { logAdminAction } from '@/lib/admin-audit'
 import { toYoutubeEmbedUrl } from '@/lib/youtube-embed'
+import { CAP } from '@/lib/permissions'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
@@ -68,6 +69,33 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
 ] as const
 
 const MAX_VALUE_LENGTH = 500
+
+function settingCaps(key: AppSettingKey): readonly bigint[] {
+  if (key.startsWith('guild_profile_') || key === 'landing_cta_text') {
+    return [CAP.SETTINGS_GUILD_PROFILE]
+  }
+  if (
+    key === 'shop_discount_rate' ||
+    key === 'shop_delivery_notice' ||
+    key === 'aodp_cities' ||
+    key === 'aodp_price_mode' ||
+    key === 'aodp_min_quality'
+  ) {
+    return [CAP.SHOP_PRICING]
+  }
+  if (
+    key === 'auto_regear_enabled' ||
+    key === 'auto_regear_skip_low_confidence' ||
+    key === 'events_auto_start_enabled' ||
+    key === 'allow_unverified_member_access' ||
+    key === 'member_dashboard_enabled' ||
+    key === 'regear_require_verification' ||
+    key === 'regear_overcharge_enabled'
+  ) {
+    return [CAP.SETTINGS_TOGGLES]
+  }
+  return [CAP.SETTINGS_GENERAL]
+}
 
 // Keys for which an empty value is meaningful (= "unset, fall back to
 // application default"). Other keys reject empty input.
@@ -301,7 +329,7 @@ export async function updateAppSetting(
         return { error: tErr('invalidYoutubeUrl') }
       }
     }
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(settingCaps(key))
     // Multi-tenant: app_settings PK 가 (guild_id, key) 복합이므로 upsert 타겟도
     // 두 컬럼 모두 지정. 세션에 guildId 가 없으면 primary tenant 로 fallback.
     const session = await getSession()
@@ -370,7 +398,7 @@ export async function updateTenantAdminRoles(
       }
       if (!clean.includes(v)) clean.push(v)
     }
-    const db = await requireAdmin()
+    const db = await requireAnyCapability([CAP.SETTINGS_PERMISSIONS])
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
@@ -404,7 +432,7 @@ export async function updateTenantTimezone(
     if (!isValidTenantTimezone(iana)) {
       return { error: tErr('invalidEnumValue', { values: 'Asia/Seoul, Europe/Berlin, America/New_York, America/Sao_Paulo' }) }
     }
-    const db = await requireAdmin()
+    const db = await requireAnyCapability([CAP.SETTINGS_GENERAL])
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
@@ -458,7 +486,7 @@ export async function updateAlbionHomeGuild(input: {
     if (guildId.length > MAX_VALUE_LENGTH) {
       return { error: tErr('valueTooLong', { max: MAX_VALUE_LENGTH }) }
     }
-    const db = await requireAdmin()
+    const db = await requireAnyCapability([CAP.SETTINGS_GENERAL])
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const sessionGuildId = await getSessionGuildId(session)

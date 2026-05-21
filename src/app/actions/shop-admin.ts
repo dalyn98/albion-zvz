@@ -6,13 +6,14 @@
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireAnyCapability } from '@/lib/auth'
 import { parseChestLog, type ChestLogEntry } from '@/lib/shop/parse-chest-log'
 import { resolveKoItem } from '@/lib/shop/resolve-item'
 import { aggregateStock, type AggregateRow } from '@/lib/shop/aggregate-stock'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { logAdminAction } from '@/lib/admin-audit'
+import { CAP } from '@/lib/permissions'
 import { syncShopPrices, type PriceSyncSummary } from './shop-inventory'
 
 export interface ImportSummary {
@@ -50,6 +51,8 @@ const IMPORT_ROW_LIMIT = 5000
 // 승인/거절 시 admin 메모 최대 길이. 컬럼 자체에는 길이 제약이 없지만 UI 와
 // DB 양쪽에서 비정상적으로 큰 입력을 막아 두면 페이지 렌더가 깨지지 않는다.
 const ADMIN_NOTE_MAX_LENGTH = 1000
+const SHOP_IMPORT_CAPS = [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
+const SHOP_REVIEW_CAPS = [CAP.INVENTORY_MANAGE, CAP.INVENTORY_DELIVER] as const
 
 export interface ImportOptions {
   // true 면 DB insert / 재고 RPC / 시세 동기화 / revalidate 모두 스킵하고
@@ -98,8 +101,8 @@ export async function importChestLog(
   }
   try {
     const session = await getSession()
-    if (!session?.isAdmin) return { ...empty, error: 'Unauthorized' }
-    const db = await requireAdmin()
+    if (!session) return { ...empty, error: 'Unauthorized' }
+    const db = await requireAnyCapability(SHOP_IMPORT_CAPS)
     const guildId = await getSessionGuildId(session)
 
     const { entries, errors } = parseChestLog(raw)
@@ -377,10 +380,10 @@ export async function addBlacklist(itemName: string): Promise<{ error?: string }
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session?.isAdmin) return { error: 'Unauthorized' }
+    if (!session) return { error: 'Unauthorized' }
     const trimmed = itemName.trim()
     if (!trimmed) return { error: tErr('itemNameEmpty') }
-    const db = await requireAdmin()
+    const db = await requireAnyCapability([CAP.INVENTORY_MANAGE])
     const guildId = await getSessionGuildId(session)
     const { error } = await db
       .from('shop_blacklist')
@@ -403,8 +406,8 @@ export async function addBlacklist(itemName: string): Promise<{ error?: string }
 export async function removeBlacklist(itemName: string): Promise<{ error?: string }> {
   try {
     const session = await getSession()
-    if (!session?.isAdmin) return { error: 'Unauthorized' }
-    const db = await requireAdmin()
+    if (!session) return { error: 'Unauthorized' }
+    const db = await requireAnyCapability([CAP.INVENTORY_MANAGE])
     const guildId = await getSessionGuildId(session)
     const { error } = await db
       .from('shop_blacklist')
@@ -462,8 +465,8 @@ export async function listShopOrders(
 ): Promise<ListShopOrdersResult> {
   try {
     const session = await getSession()
-    if (!session?.isAdmin) return { orders: [], error: 'Unauthorized' }
-    const db = await requireAdmin()
+    if (!session) return { orders: [], error: 'Unauthorized' }
+    const db = await requireAnyCapability(SHOP_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
     const q = db
       .from('shop_orders')
@@ -566,13 +569,13 @@ export async function approveShopOrder(
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session?.isAdmin) return { error: 'Unauthorized' }
+    if (!session) return { error: 'Unauthorized' }
     const trimmedNote = adminNote?.trim() || null
     if (trimmedNote && trimmedNote.length > ADMIN_NOTE_MAX_LENGTH) {
       return { error: tErr('adminNoteTooLong', { max: ADMIN_NOTE_MAX_LENGTH }) }
     }
     const guildId = await getSessionGuildId(session)
-    const db = await requireAdmin()
+    const db = await requireAnyCapability([CAP.INVENTORY_DELIVER])
     const { error } = await db.rpc('approve_shop_order', {
       p_id: orderId,
       p_admin_id: session.discordId,
@@ -616,13 +619,13 @@ export async function rejectShopOrder(
   const tErr = await getTranslations('adminActionError')
   try {
     const session = await getSession()
-    if (!session?.isAdmin) return { error: 'Unauthorized' }
+    if (!session) return { error: 'Unauthorized' }
     const trimmedNote = adminNote?.trim() || null
     if (trimmedNote && trimmedNote.length > ADMIN_NOTE_MAX_LENGTH) {
       return { error: tErr('adminNoteTooLong', { max: ADMIN_NOTE_MAX_LENGTH }) }
     }
     const guildId = await getSessionGuildId(session)
-    const db = await requireAdmin()
+    const db = await requireAnyCapability([CAP.INVENTORY_DELIVER])
     const { error } = await db.rpc('reject_shop_order', {
       p_id: orderId,
       p_admin_id: session.discordId,

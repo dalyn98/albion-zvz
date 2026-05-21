@@ -106,6 +106,7 @@ export const DOCS_NAV: DocsNavSection[] = [
           { slug: 'dashboard/home', itemKey: 'dashboardHome' },
           { slug: 'dashboard/profile', itemKey: 'dashboardProfile' },
           { slug: 'dashboard/settings', itemKey: 'dashboardSettings' },
+          { slug: 'dashboard/siphon', itemKey: 'dashboardSiphon' },
           { slug: 'dashboard/regear-detail', itemKey: 'dashboardRegearDetail' },
           { slug: 'dashboard/requests', itemKey: 'dashboardRequests' },
         ],

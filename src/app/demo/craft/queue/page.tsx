@@ -333,56 +333,6 @@ export default function DemoCraftQueuePage() {
         </div>
       </div>
 
-      {/* 필요 장비 집계 */}
-      <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 space-y-3">
-        <header className="space-y-1">
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <Package size={16} className="text-amber-400" />
-            {t('aggregateTitle')}
-            <span className="text-xs text-gray-500">
-              {t('aggregateTaskCount', { count: visibleQueue.length })}
-            </span>
-          </h2>
-          <p className="text-[11px] text-gray-500">{t('aggregateHint')}</p>
-        </header>
-        {aggregateRows.length === 0 ? (
-          <p className="text-gray-500 text-sm text-center py-6">{t('queueEmpty')}</p>
-        ) : (
-          <>
-            <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">{t('aggregateItemsTitle')}</p>
-            <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {aggregateRows.map((item) => (
-                <li key={`${item.itemId}-${item.enchant}`} className="bg-gray-950 border border-gray-800 rounded-lg p-2 flex items-center gap-2">
-                  <Image
-                    src={itemUrl(item.itemId, item.enchant)}
-                    alt={item.label}
-                    width={32}
-                    height={32}
-                    className="shrink-0"
-                    unoptimized
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] text-white truncate">{item.label}</p>
-                    <p className="text-[10px] text-gray-500 flex items-center gap-1 flex-wrap">
-                      <span className="text-gray-300 font-mono">T8</span>
-                      {item.enchant > 0 && (
-                        <span className="text-emerald-400 font-mono">{t('aggregateEnchantLabel', { level: item.enchant })}</span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-                    <span className="text-amber-300 font-bold font-mono text-sm">×{item.count}</span>
-                    <span className={`text-[10px] font-mono px-1 rounded leading-none py-0.5 ${stockBadgeStyle(item.stock, item.count)}`}>
-                      {t('aggregateStockBadge', { count: item.stock })}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </section>
-
       {/* 대기 중인 작업 */}
       <section className="space-y-3">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
@@ -500,6 +450,56 @@ export default function DemoCraftQueuePage() {
                   </li>
                 )
               })}
+            </ul>
+          </>
+        )}
+      </section>
+
+      {/* 필요 장비 집계 */}
+      <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 space-y-3">
+        <header className="space-y-1">
+          <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <Package size={16} className="text-amber-400" />
+            {t('aggregateTitle')}
+            <span className="text-xs text-gray-500">
+              {t('aggregateTaskCount', { count: visibleQueue.length })}
+            </span>
+          </h2>
+          <p className="text-[11px] text-gray-500">{t('aggregateHint')}</p>
+        </header>
+        {aggregateRows.length === 0 ? (
+          <p className="text-gray-500 text-sm text-center py-6">{t('queueEmpty')}</p>
+        ) : (
+          <>
+            <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">{t('aggregateItemsTitle')}</p>
+            <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {aggregateRows.map((item) => (
+                <li key={`${item.itemId}-${item.enchant}`} className="bg-gray-950 border border-gray-800 rounded-lg p-2 flex items-center gap-2">
+                  <Image
+                    src={itemUrl(item.itemId, item.enchant)}
+                    alt={item.label}
+                    width={32}
+                    height={32}
+                    className="shrink-0"
+                    unoptimized
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] text-white truncate">{item.label}</p>
+                    <p className="text-[10px] text-gray-500 flex items-center gap-1 flex-wrap">
+                      <span className="text-gray-300 font-mono">T8</span>
+                      {item.enchant > 0 && (
+                        <span className="text-emerald-400 font-mono">{t('aggregateEnchantLabel', { level: item.enchant })}</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                    <span className="text-amber-300 font-bold font-mono text-sm">×{item.count}</span>
+                    <span className={`text-[10px] font-mono px-1 rounded leading-none py-0.5 ${stockBadgeStyle(item.stock, item.count)}`}>
+                      {t('aggregateStockBadge', { count: item.stock })}
+                    </span>
+                  </div>
+                </li>
+              ))}
             </ul>
           </>
         )}

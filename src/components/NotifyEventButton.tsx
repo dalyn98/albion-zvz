@@ -9,13 +9,21 @@ import { useConfirm } from '@/components/ConfirmDialog'
 // How long to show the "sent" checkmark before reverting to the bell icon.
 const SUCCESS_FLASH_MS = 2000
 
-export default function NotifyEventButton({ eventId }: { eventId: string }) {
+export default function NotifyEventButton({
+  eventId,
+  disabled = false,
+  disabledTitle,
+}: {
+  eventId: string
+  disabled?: boolean
+  disabledTitle?: string
+}) {
   const t = useTranslations('adminDashboard')
   const [state, setState] = useState<'idle' | 'loading' | 'success'>('idle')
   const askConfirm = useConfirm()
 
   const handleClick = async () => {
-    if (state !== 'idle') return
+    if (disabled || state !== 'idle') return
     const ok = await askConfirm({ body: t('notifyConfirm'), destructive: false })
     if (!ok) return
     setState('loading')
@@ -32,8 +40,8 @@ export default function NotifyEventButton({ eventId }: { eventId: string }) {
   return (
     <button
       onClick={handleClick}
-      disabled={state !== 'idle'}
-      title={t('notifyTitle')}
+      disabled={disabled || state !== 'idle'}
+      title={disabled ? disabledTitle : t('notifyTitle')}
       aria-label={t('notifyTitle')}
       className="p-2 text-gray-400 hover:text-amber-300 hover:bg-gray-700 rounded-lg transition-colors disabled:hover:bg-transparent disabled:cursor-not-allowed"
     >

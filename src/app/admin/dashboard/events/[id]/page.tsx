@@ -19,7 +19,7 @@ import { listTentativeSignups } from '@/app/actions/event-tentative'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
-import { getSessionGuildId } from '@/lib/tenant'
+import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { isEnded } from '@/lib/gather-time'
 import { getTenantTimezone } from '@/lib/timezone-server'
 
@@ -97,6 +97,7 @@ export default async function EditEventPage({
     autoRegearRaw,
     tenantTimezone,
     tentativeRes,
+    tenantConfig,
   ] = await Promise.all([
     getData(id, guildId),
     listTemplates(),
@@ -104,6 +105,7 @@ export default async function EditEventPage({
     getAppSetting('auto_regear_enabled', 'false', guildId),
     getTenantTimezone(guildId),
     listTentativeSignups(id),
+    getTenantDiscordConfig(guildId),
   ])
   const autoRegearEnabled = autoRegearRaw === 'true'
 
@@ -113,6 +115,20 @@ export default async function EditEventPage({
   const partyLimits = CATEGORY_PARTY_LIMITS[eventCategory]
   const hasParties = parties.length > 0
   const hasSlots = parties.some((p) => p.slots.length > 0)
+  const publishSummary = {
+    visibleSlots: parties.reduce((sum, p) => sum + p.slots.filter((s) => !s.is_hidden).length, 0),
+    hiddenSlots: parties.reduce((sum, p) => sum + p.slots.filter((s) => s.is_hidden).length, 0),
+    assignedSlots: parties.reduce(
+      (sum, p) => sum + p.slots.filter((s) => !!s.assigned_discord_id).length,
+      0,
+    ),
+    emptySlots: parties.reduce(
+      (sum, p) => sum + p.slots.filter((s) => !s.is_hidden && !s.assigned_discord_id).length,
+      0,
+    ),
+    tentativeCount: tentativeRes.rows.length,
+    hasNotificationChannel: !!(event.notify_channel_id ?? tenantConfig?.eventChannelId),
+  }
 
   const assignedDiscordIds = parties.flatMap((p) =>
     p.slots.map((s) => s.assigned_discord_id).filter((id): id is string => !!id),
@@ -153,7 +169,7 @@ export default async function EditEventPage({
               <DeleteEventButton eventId={event.id} redirectTo="/admin/dashboard" variant="labeled" />
             </div>
           </div>
-          {event.status === 'draft' && <PublishEventBanner event={event} />}
+          {event.status === 'draft' && <PublishEventBanner event={event} summary={publishSummary} />}
           <EventInfoForm initialEvent={event} tenantTimezone={tenantTimezone} />
 
           <TentativeSignupSection

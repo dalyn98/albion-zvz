@@ -22,6 +22,7 @@ interface Props {
   // 내려가는 컨텍스트. 관리자가 아니면 사용되지 않으므로 SSR 비용은 없음.
   autoRegearEnabled: boolean
   eventCategory?: EventCategory
+  suggestedRoles?: readonly SlotRole[]
 }
 
 function hiddenStorageKey(eventId: string, discordId: string) {
@@ -40,10 +41,14 @@ export default function EventPartyGrid({
   cdBadgeRoles,
   autoRegearEnabled,
   eventCategory,
+  suggestedRoles = [],
 }: Props) {
   const t = useTranslations('event')
   const tRole = useTranslations('slotRole')
   const [onlyMyRole, setOnlyMyRole] = useState(false)
+  const [openOnly, setOpenOnly] = useState(false)
+  const [suggestedOnly, setSuggestedOnly] = useState(false)
+  const [roleFilter, setRoleFilter] = useState<SlotRole | ''>('')
   // Load after mount so SSR output matches first client render — avoids hydration
   // mismatch when localStorage has hidden ids saved from a prior visit.
   const [hiddenPartyIds, setHiddenPartyIds] = useState<string[]>([])
@@ -136,28 +141,58 @@ export default function EventPartyGrid({
     [parties, hiddenSet],
   )
 
+  const availableRoles = useMemo(() => {
+    const seen = new Set<SlotRole>()
+    for (const party of parties) {
+      for (const slot of party.slots) {
+        if (slot.role_name) seen.add(slot.role_name as SlotRole)
+      }
+    }
+    return Array.from(seen)
+  }, [parties])
+
   const visibleParties = useMemo(
     () => (hiddenHydrated ? parties.filter((p) => !hiddenSet.has(p.id)) : parties),
     [parties, hiddenSet, hiddenHydrated],
   )
 
   const filteredParties = useMemo(() => {
-    if (!onlyMyRole || !myRoleName) return visibleParties
+    const suggestedSet = new Set(suggestedRoles)
     return visibleParties
       .map((party) => ({
         ...party,
-        slots: party.slots.filter((s) => s.role_name === myRoleName),
+        slots: party.slots.filter((s) => {
+          if (onlyMyRole && myRoleName && s.role_name !== myRoleName) return false
+          if (openOnly && (s.assigned_discord_id || s.requested_discord_id)) return false
+          if (roleFilter && s.role_name !== roleFilter) return false
+          if (suggestedOnly && suggestedSet.size > 0 && !suggestedSet.has(s.role_name as SlotRole)) return false
+          return true
+        }),
       }))
       .filter((party) => party.slots.length > 0)
-  }, [visibleParties, onlyMyRole, myRoleName])
+  }, [visibleParties, onlyMyRole, myRoleName, openOnly, roleFilter, suggestedOnly, suggestedRoles])
 
   const hasAnyRoleFilter = !!myRoleName
   const canHide = !!currentDiscordId
+  const hasSuggestedRoles = suggestedRoles.length > 0
+  const filtersActive = onlyMyRole || openOnly || !!roleFilter || suggestedOnly
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {(hasAnyRoleFilter || (canHide && hiddenParties.length > 0)) && (
-        <div className="flex items-center gap-2 flex-wrap">
+      {(parties.length > 0 || hasAnyRoleFilter || (canHide && hiddenParties.length > 0)) && (
+        <div className="flex items-center gap-2 flex-wrap rounded-xl border border-gray-800 bg-gray-900/60 px-3 py-2">
+          <button
+            type="button"
+            onClick={() => setOpenOnly((prev) => !prev)}
+            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+              openOnly
+                ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-200 hover:bg-emerald-500/25'
+                : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-emerald-500/50 hover:text-emerald-200'
+            }`}
+          >
+            {openOnly ? <X size={12} /> : <Filter size={12} />}
+            {openOnly ? t('filterOpenActive') : t('filterOpen')}
+          </button>
           {hasAnyRoleFilter && (
             <button
               type="button"
@@ -172,6 +207,50 @@ export default function EventPartyGrid({
               {onlyMyRole
                 ? t('filterMyRoleActive', { role: translateSlotRole(myRoleName!, tRole) })
                 : t('filterMyRole', { role: translateSlotRole(myRoleName!, tRole) })}
+            </button>
+          )}
+          {hasSuggestedRoles && (
+            <button
+              type="button"
+              onClick={() => setSuggestedOnly((prev) => !prev)}
+              className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+                suggestedOnly
+                  ? 'bg-sky-500/15 border-sky-500/50 text-sky-200 hover:bg-sky-500/25'
+                  : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-sky-500/50 hover:text-sky-200'
+              }`}
+            >
+              {suggestedOnly ? <X size={12} /> : <Filter size={12} />}
+              {suggestedOnly ? t('filterSuggestedActive') : t('filterSuggested')}
+            </button>
+          )}
+          {availableRoles.length > 0 && (
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value as SlotRole | '')}
+              aria-label={t('filterRoleLabel')}
+              className="min-h-8 rounded-full border border-gray-700 bg-gray-800 px-3 text-xs font-semibold text-gray-200 focus:outline-none focus:border-amber-500"
+            >
+              <option value="">{t('filterRoleAll')}</option>
+              {availableRoles.map((role) => (
+                <option key={role} value={role}>
+                  {translateSlotRole(role, tRole)}
+                </option>
+              ))}
+            </select>
+          )}
+          {filtersActive && (
+            <button
+              type="button"
+              onClick={() => {
+                setOnlyMyRole(false)
+                setOpenOnly(false)
+                setSuggestedOnly(false)
+                setRoleFilter('')
+              }}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-white px-2 py-1"
+            >
+              <X size={12} />
+              {t('filterClearAll')}
             </button>
           )}
         </div>
@@ -215,7 +294,7 @@ export default function EventPartyGrid({
         <p className="text-center text-gray-500">{t('noParties')}</p>
       )}
 
-      {onlyMyRole && filteredParties.length === 0 && parties.length > 0 && (
+      {filtersActive && filteredParties.length === 0 && parties.length > 0 && (
         <p className="text-center text-gray-500 text-sm py-6">{t('filterNoMatches')}</p>
       )}
 

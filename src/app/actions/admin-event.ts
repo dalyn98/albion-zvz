@@ -340,6 +340,7 @@ export async function notifyEvent(id: string): Promise<{ error?: string }> {
 // 누락을 인지하게 한다.
 type EventCreatorDb = Awaited<ReturnType<typeof requireEventCreatorForEvent>>
 type CachedTenantConfig = Awaited<ReturnType<typeof getTenantDiscordConfig>>
+type EventNotificationRow = EventNotificationPayload & { status?: string | null }
 
 async function dispatchEventNotification(
   db: EventCreatorDb,
@@ -352,18 +353,19 @@ async function dispatchEventNotification(
   try {
     // publishEvent 자동 발송 경로는 자기 SELECT 결과를 prop 으로 넘긴다
     // (round-trip 절약). notifyEvent 수동 경로는 prop 없이 호출되어 자체 SELECT.
-    let data: EventNotificationPayload | null = cachedEventData ?? null
+    let data: EventNotificationRow | null = cachedEventData ?? null
     if (!data) {
       const { data: fetched, error } = await db
         .from('events')
-        .select('id, title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone')
+        .select('id, title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone, status')
         .eq('guild_id', guildId)
         .eq('id', eventId)
         .maybeSingle()
       if (error) return { error: error.message }
       if (!fetched) return { error: tErr('eventNotFound') }
-      data = fetched as EventNotificationPayload
+      data = fetched as EventNotificationRow
     }
+    if (data.status === 'draft') return { error: tErr('eventNotPublished') }
     // 관리자가 설정 화면에서 알림 문구를 저장하지 않은 경우 호출자(관리자)
     // 의 locale 에 맞는 기본 문구를 사용. 길드별 단일 언어 설정은 없지만,
     // 알림을 트리거하는 사람의 locale 이 길드 운영 언어일 가능성이 가장 높다.
@@ -435,7 +437,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
 
     const { data: source, error: sourceErr } = await db
       .from('events')
-      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone')
+      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone, category')
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
@@ -463,6 +465,9 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
         notify_role_id: source.notify_role_id,
         notify_channel_id: source.notify_channel_id,
         notify_everyone: source.notify_everyone,
+        category: EVENT_CATEGORIES.includes(source.category as EventCategory)
+          ? source.category
+          : '전투',
         // 복제는 늘 draft 로 시작 — 관리자가 날짜/공지 확인 후 명시적으로 발행.
         status: 'draft',
         created_by: session.discordId,
@@ -600,6 +605,15 @@ export async function startBattle(id: string): Promise<{ startedAt?: string; err
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForEvent(id)
     const guildId = await getSessionGuildId(session)
+    const { data: current, error: currentError } = await db
+      .from('events')
+      .select('status')
+      .eq('guild_id', guildId)
+      .eq('id', id)
+      .maybeSingle()
+    if (currentError) return { error: currentError.message }
+    if (!current) return { error: tErr('eventNotFound') }
+    if (current.status === 'draft') return { error: tErr('eventNotPublished') }
     const startedAt = new Date().toISOString()
     const { error } = await db
       .from('events')

@@ -3,16 +3,18 @@
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireAnyCapability } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { GALLERY_MAX_ITEMS } from '@/lib/guild-profile-gallery'
+import { CAP } from '@/lib/permissions'
 
 const BUCKET = 'guild-profiles'
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 const PUBLIC_URL_PREFIX = `/storage/v1/object/public/${BUCKET}/`
 const CAPTION_MAX_LENGTH = 120
+const GUILD_PROFILE_CAPS = [CAP.SETTINGS_GUILD_PROFILE] as const
 
 function extractPath(url: string): string | null {
   const idx = url.indexOf(PUBLIC_URL_PREFIX)
@@ -49,7 +51,7 @@ export async function addGalleryItem(
 
     const caption = captionRaw.trim().slice(0, CAPTION_MAX_LENGTH)
 
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(GUILD_PROFILE_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
@@ -101,7 +103,7 @@ export async function removeGalleryItem(
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(GUILD_PROFILE_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
@@ -156,7 +158,7 @@ export async function moveGalleryItem(
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(GUILD_PROFILE_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
@@ -201,7 +203,7 @@ export async function updateGalleryCaption(
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(GUILD_PROFILE_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)

@@ -1,4 +1,4 @@
-import { getSession, sessionHas } from '@/lib/session'
+import { getSession, sessionHas, sessionHasAny } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSessionGuildId } from '@/lib/tenant'
 
@@ -17,6 +17,14 @@ export async function requireAdmin() {
 export async function requireCapability(capability: bigint) {
   const session = await getSession()
   if (!session?.isAdmin && !sessionHas(session, capability)) throw new Error('Unauthorized')
+  return getAdminClient()
+}
+
+export async function requireAnyCapability(capabilities: readonly bigint[]) {
+  const session = await getSession()
+  if (!session?.isAdmin && !sessionHasAny(session, capabilities)) {
+    throw new Error('Unauthorized')
+  }
   return getAdminClient()
 }
 

@@ -22,9 +22,17 @@ import type { Event } from '@/types'
 
 interface Props {
   event: Event
+  summary: {
+    visibleSlots: number
+    hiddenSlots: number
+    assignedSlots: number
+    emptySlots: number
+    tentativeCount: number
+    hasNotificationChannel: boolean
+  }
 }
 
-export default function PublishEventBanner({ event }: Props) {
+export default function PublishEventBanner({ event, summary }: Props) {
   const router = useRouter()
   const t = useTranslations('publishEventBanner')
   const saveCtx = useEventEditSaveAll()
@@ -39,7 +47,7 @@ export default function PublishEventBanner({ event }: Props) {
   const missing: string[] = []
   if (!event.title.trim()) missing.push(t('fieldTitle'))
   if (!event.gather_at) missing.push(t('fieldGatherAt'))
-  const canPublishLocally = missing.length === 0
+  const hasMissingSavedFields = missing.length > 0
 
   const handlePublish = async () => {
     setError(null)
@@ -77,28 +85,63 @@ export default function PublishEventBanner({ event }: Props) {
     <div className="bg-amber-500/10 border border-amber-500/40 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
       <div className="flex items-start gap-2 flex-1 min-w-0">
         <AlertCircle size={16} className="text-amber-400 mt-0.5 shrink-0" />
-        <div className="space-y-1 min-w-0">
+        <div className="space-y-2 min-w-0">
           <p className="text-sm font-semibold text-amber-200">{t('draftStatus')}</p>
           <p className="text-xs text-amber-100/80 leading-relaxed">
             {t('draftDescription')}
           </p>
-          {!canPublishLocally && (
+          {hasMissingSavedFields && (
             <p className="text-xs text-amber-300 font-semibold">
               {t('missingRequired', { fields: missing.join(', ') })}
             </p>
           )}
+          <dl className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-1">
+            <SummaryChip label={t('visibleSlots')} value={summary.visibleSlots} />
+            <SummaryChip label={t('emptySlots')} value={summary.emptySlots} />
+            <SummaryChip label={t('assignedSlots')} value={summary.assignedSlots} />
+            <SummaryChip label={t('hiddenSlots')} value={summary.hiddenSlots} />
+            <SummaryChip label={t('tentativeCount')} value={summary.tentativeCount} />
+            <SummaryChip
+              label={t('notificationChannel')}
+              value={summary.hasNotificationChannel ? t('ready') : t('notSet')}
+              tone={summary.hasNotificationChannel ? 'ok' : 'warn'}
+            />
+          </dl>
           {error && <p className="text-xs text-red-300">{error}</p>}
         </div>
       </div>
       <button
         type="button"
         onClick={handlePublish}
-        disabled={loading || !canPublishLocally}
+        disabled={loading}
         className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-4 py-2 rounded-lg transition-colors text-sm shrink-0"
       >
         <Send size={14} />
         {loading ? t('publishing') : t('publishButton')}
       </button>
+    </div>
+  )
+}
+
+function SummaryChip({
+  label,
+  value,
+  tone = 'neutral',
+}: {
+  label: string
+  value: number | string
+  tone?: 'neutral' | 'ok' | 'warn'
+}) {
+  const valueClass =
+    tone === 'ok'
+      ? 'text-emerald-300'
+      : tone === 'warn'
+        ? 'text-amber-300'
+        : 'text-white'
+  return (
+    <div className="rounded-lg border border-amber-500/20 bg-black/15 px-2.5 py-1.5">
+      <dt className="text-[10px] text-amber-100/60 leading-none">{label}</dt>
+      <dd className={`mt-1 text-xs font-bold tabular-nums ${valueClass}`}>{value}</dd>
     </div>
   )
 }

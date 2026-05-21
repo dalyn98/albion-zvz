@@ -6,9 +6,10 @@
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireAnyCapability } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { CAP } from '@/lib/permissions'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { formatSilver } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
@@ -24,6 +25,9 @@ import {
   type RecheckKillboardResult,
 } from './regear-admin-types'
 
+const REGEAR_REVIEW_CAPS = [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION] as const
+const REGEAR_BULK_CAPS = [CAP.REGEAR_BULK_ACTION, CAP.REGEAR_APPROVE] as const
+
 export async function approveRegearRequest(
   id: string,
   overrideSilver?: number,
@@ -31,7 +35,7 @@ export async function approveRegearRequest(
   const tErr = await getTranslations('adminActionError')
   const tDm = await getTranslations('discordDm')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -123,7 +127,7 @@ export async function approveRegearFromStock(
   const tErr = await getTranslations('adminActionError')
   const tDm = await getTranslations('discordDm')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -230,7 +234,7 @@ export async function approveRegearAsCrafted(
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -330,7 +334,7 @@ export async function recheckKillboardVerification(
   try {
     const session = await getSession()
     if (!session) return { ...empty, error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
     const { data: row, error: fetchError } = await db
       .from('regear_requests')
@@ -428,6 +432,7 @@ export async function bulkApproveRegear(
     }
   }
   try {
+    await requireAnyCapability(REGEAR_BULK_CAPS)
     const session = await getSession()
     if (!session) return { ...result, fatalError: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -468,7 +473,7 @@ export async function rejectRegearRequest(
     return { error: tErr('invalidRejectReason') }
   }
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)

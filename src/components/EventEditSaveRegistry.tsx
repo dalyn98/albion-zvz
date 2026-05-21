@@ -61,6 +61,7 @@ export function EventEditSaveProvider({ children }: { children: ReactNode }) {
   const triggerSaveAll = useCallback(async () => {
     // Iterator 스냅샷으로 순회 — 저장 중 등록 변동이 있어도 이번 라운드는 고정.
     const entries = Array.from(registryRef.current.entries())
+      .filter(([id]) => dirtyRef.current.has(id))
     // 각 섹션을 병렬 실행. 한 섹션의 throw 가 다른 섹션을 취소하지 않도록
     // 각자 try/catch 로 감싸 결과 배열을 만든 뒤 Promise.all 로 모은다.
     const results = await Promise.all(

@@ -31,17 +31,66 @@ function toggleBit(current: bigint, cap: bigint, on: boolean): bigint {
   return on ? current | cap : current & ~cap
 }
 
+const CAPABILITY_PRESETS = [
+  {
+    key: 'regearOfficer',
+    bits: CAP.REGEAR_APPROVE | CAP.REGEAR_EDIT_PRICE | CAP.REGEAR_BULK_ACTION,
+  },
+  {
+    key: 'shopQuartermaster',
+    bits: CAP.INVENTORY_MANAGE | CAP.INVENTORY_DELIVER | CAP.SHOP_PRICING,
+  },
+  {
+    key: 'craftLead',
+    bits: CAP.CRAFT_TASK_CREATE | CAP.CRAFT_TASK_DELIVER | CAP.CRAFT_MASTER,
+  },
+  {
+    key: 'analyst',
+    bits: CAP.STATS_VIEW | CAP.AUDIT_VIEW,
+  },
+  {
+    key: 'guildSettings',
+    bits: CAP.SETTINGS_GENERAL | CAP.SETTINGS_TOGGLES | CAP.SETTINGS_GUILD_PROFILE,
+  },
+] as const
+
 interface CapabilityPickerProps {
   value: string
   onChange: (next: string) => void
+  showPresets?: boolean
 }
 
-function CapabilityPicker({ value, onChange }: CapabilityPickerProps) {
+function CapabilityPicker({ value, onChange, showPresets = true }: CapabilityPickerProps) {
   const t = useTranslations('permissions')
   const bits = parseCapabilities(value)
 
   return (
     <div className="space-y-3">
+      {showPresets && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+          <div>
+            <p className="text-xs font-semibold text-amber-200">
+              {t('presets.title')}
+            </p>
+            <p className="text-[11px] text-gray-400 mt-0.5">
+              {t('presets.description')}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {CAPABILITY_PRESETS.map((preset) => (
+              <button
+                key={preset.key}
+                type="button"
+                onClick={() => onChange(serializeCapabilities(bits | preset.bits))}
+                className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-gray-950 px-2.5 py-1 text-[11px] font-semibold text-amber-200 hover:border-amber-300 hover:text-amber-100"
+              >
+                <Plus size={11} />
+                {t(`presets.${preset.key}`)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {Object.entries(CAPABILITY_GROUPS).map(([group, capKeys]) => (
         <div key={group} className="rounded-lg border border-gray-700 bg-gray-900/40 p-3">
           <div className="text-xs font-semibold text-amber-300 mb-2 uppercase tracking-wide">
@@ -252,6 +301,7 @@ function UserOverrideForm({ initial, onSaved, onCancel }: UserOverrideFormProps)
           </div>
           <CapabilityPicker
             value={form.capabilitiesRevoked}
+            showPresets={false}
             onChange={(next) => setForm((f) => ({ ...f, capabilitiesRevoked: next }))}
           />
         </div>

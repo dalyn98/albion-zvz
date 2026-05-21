@@ -2,13 +2,13 @@
 
 // 어드민 제작 운영 액션 — 크래프터 권한 부여/해제, 박스 범위 지정, 진행 중 task
 // 모니터링 / 강제 취소 / 실버 변환, 설정 (range / expiry / enabled) 변경. 모두
-// requireAdmin() 게이트 통과 후 동작.
+// capability 게이트 통과 후 동작.
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { requireAdmin } from '@/lib/auth'
+import { requireAnyCapability } from '@/lib/auth'
 import {
   cancelCraftTask,
   convertCraftTaskToSilver,
@@ -28,6 +28,7 @@ import {
   type CraftQueueItem,
 } from '@/app/actions/craft'
 import { logAdminAction } from '@/lib/admin-audit'
+import { CAP } from '@/lib/permissions'
 
 export interface AdminCrafterRow {
   discordId: string
@@ -39,13 +40,16 @@ export interface AdminCrafterRow {
   boxRangeEnd: number | null
 }
 
+const CRAFT_ADMIN_CAPS = [CAP.CRAFT_TASK_CREATE, CAP.CRAFT_TASK_DELIVER, CAP.CRAFT_MASTER] as const
+const CRAFT_MASTER_CAPS = [CAP.CRAFT_MASTER] as const
+
 export async function listGuildCrafters(): Promise<{
   crafters: AdminCrafterRow[]
   error?: string
 }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(CRAFT_ADMIN_CAPS)
     const session = await getSession()
     if (!session) return { crafters: [], error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -85,7 +89,7 @@ export async function setMemberCrafterFlag(
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(CRAFT_MASTER_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -122,7 +126,7 @@ export async function setCrafterBoxRange(
   const tErr = await getTranslations('adminActionError')
   const tCraft = await getTranslations('memberActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(CRAFT_MASTER_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -206,7 +210,7 @@ export async function listAllCraftTasksAdmin(
   const tErr = await getTranslations('adminActionError')
   const tCommon = await getTranslations('common')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(CRAFT_ADMIN_CAPS)
     const session = await getSession()
     if (!session) return { tasks: [], error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -261,7 +265,7 @@ export async function listAllCraftTasksAdmin(
 export async function cancelCraftTaskAdmin(taskId: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    await requireAdmin()
+    await requireAnyCapability(CRAFT_ADMIN_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -301,7 +305,7 @@ export async function convertCraftTaskToSilverAdmin(
   const tErr = await getTranslations('adminActionError')
   const tDm = await getTranslations('discordDm')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(CRAFT_ADMIN_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -379,7 +383,7 @@ export async function revertCraftTaskToPendingAdmin(
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(CRAFT_ADMIN_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -431,7 +435,7 @@ export async function updateCraftSettingsAdmin(
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(CRAFT_MASTER_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)

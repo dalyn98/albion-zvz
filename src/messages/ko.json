@@ -118,9 +118,12 @@
     "noEvents": "등록된 이벤트가 없습니다.",
     "createFirstEvent": "첫 이벤트 만들기 →",
     "searchPlaceholder": "이벤트 제목 또는 날짜로 검색 (예: 04-19, 4월 19일)",
+    "badgeDraft": "초안",
     "badgeEnded": "종료",
     "badgeBattleActive": "전투 진행중",
     "badgeImminent": "전투 임박",
+    "draftActionsDisabled": "초안 이벤트는 발행 후 공지/전투 시작을 사용할 수 있습니다.",
+    "draftScheduleMissing": "시간 미정 · 발행 전",
     "confirmDeleteEvent": "이벤트를 삭제하시겠습니까? 빌드, 신청, 전투 기록이 모두 삭제되며 멤버/길드 전적에서도 제거됩니다.",
     "notifyConfirm": "이 이벤트 알림을 Discord에 다시 보낼까요?\n@everyone 이 태그됩니다.",
     "notifyErrorPrefix": "알림 전송 실패",
@@ -289,7 +292,19 @@
   },
   "adminNewEvent": {
     "title": "새 이벤트",
-    "subtitle": "이벤트를 생성하면 빌드 구성 화면으로 이동합니다."
+    "subtitle": "이벤트를 생성하면 빌드 구성 화면으로 이동합니다.",
+    "templateStartTitle": "템플릿으로 시작",
+    "templateStartDescription": "자주 쓰는 파티/슬롯 구성을 바로 불러온 초안을 만듭니다.",
+    "templateStartEmpty": "아직 저장된 이벤트 템플릿이 없습니다. 기존 이벤트 편집 화면에서 먼저 템플릿을 저장하세요.",
+    "templateLabel": "불러올 템플릿",
+    "templateStartRequired": "템플릿과 이벤트 제목을 모두 선택해주세요.",
+    "templateStartFailed": "템플릿으로 이벤트를 만들 수 없습니다.",
+    "templateStartSubmit": "템플릿으로 초안 만들기",
+    "recentStartTitle": "최근 이벤트에서 시작",
+    "recentStartDescription": "자주 쓰던 이벤트를 복제하면 파티/슬롯 빌드를 그대로 가져오고 신청자는 비워집니다.",
+    "recentStartNoSchedule": "시간 미정",
+    "recentStartDraft": "초안",
+    "recentStartPublished": "발행됨"
   },
   "adminEditEvent": {
     "title": "이벤트 수정",
@@ -318,7 +333,7 @@
     "partDay": "일",
     "partHour": "시",
     "partMinute": "분",
-    "gatherLocationLabel": "집결 장소 *",
+    "gatherLocationLabel": "집결 장소",
     "gatherLocationPlaceholder": "예: RTD 섬",
     "gatherLocationRequired": "집결 장소를 입력해주세요.",
     "specialNotesLabel": "전체 공지",
@@ -916,7 +931,7 @@
   },
   "adminGuildProfile": {
     "pageTitle": "공개 길드 프로필",
-    "pageDescription": "albion-guildmanager.com/g/<슬러그> 에서 보이는 우리 길드 공개 페이지를 꾸밉니다.",
+    "pageDescription": "albion-guildmanager.com/g/your-guild 에서 보이는 우리 길드 공개 페이지를 꾸밉니다.",
     "previewLink": "프로필 페이지 보기",
     "disabledTitle": "이 길드는 아직 활성화되지 않았습니다",
     "disabledDescription": "공개 프로필 기능은 단계적으로 열고 있습니다. 운영자에게 활성화를 요청해 주세요.",
@@ -983,7 +998,7 @@
   },
   "adminGuildProfileToggle": {
     "enableTitle": "공개 길드 프로필 활성화",
-    "enableBody": "이 기능을 켜면 albion-guildmanager.com/g/<슬러그> 주소로 누구나 우리 길드 페이지를 볼 수 있게 됩니다. 모집·홍보용으로 활용하기에 좋아요.",
+    "enableBody": "이 기능을 켜면 albion-guildmanager.com/g/your-guild 주소로 누구나 우리 길드 페이지를 볼 수 있게 됩니다. 모집·홍보용으로 활용하기에 좋아요.",
     "enableWarningTitle": "활성화 전에 확인해 주세요",
     "enableWarning1": "길드원 목록·전투기록·통계가 비로그인 방문자에게도 노출됩니다.",
     "enableWarning2": "검색 엔진(구글 등) 에 인덱싱될 수 있어, 길드명·소개 글이 외부 검색에 노출될 수 있습니다.",
@@ -1924,6 +1939,7 @@
     "dashboardHome": "내 홈",
     "dashboardProfile": "내 프로필",
     "dashboardSettings": "내 설정",
+    "dashboardSiphon": "내 사이펀",
     "dashboardRegearDetail": "내 리기어 청구",
     "dashboardRequests": "내 요청 / 보상 내역",
     "adminDashboard": "어드민 대시보드",
@@ -2027,11 +2043,11 @@
     "q15": "내 사망이 자동 리기어로 잡히지 않아요. 왜 그런가요?",
     "a15": "1) 알비온 킬 기록은 사망 후 공식 기록에 반영되기까지 약 30분 정도 걸립니다 — 잠시 기다린 뒤 청구 페이지의 '재확인' 버튼을 눌러 보세요. 2) 자동 리기어는 블랙존 사망만 자동으로 잡습니다. 옐로우/레드존이나 비-ZvZ 사망은 수동 청구로 보내야 합니다. 3) 알비온 캐릭터 인증을 마쳤는지, 사이트의 홈 길드와 본인 길드가 일치하는지 확인하세요.",
     "q16": "길드 공개 페이지를 어떻게 꾸미나요?",
-    "a16": "어드민은 `/g/<slug>` 공개 페이지의 배너 이미지·배너 투명도·강조 색상·설명문·모집 상태·디스코드 초대 링크·활동 시간대·사용 언어 등을 직접 편집할 수 있습니다. 또 멤버 수 / 전투 기록 / 무기 분포 / 라이벌 길드 / 운영진 카드 등 섹션 단위로 노출 토글도 켜고 끌 수 있습니다. 공개 페이지 우측 상단의 \"배너 편집\" 버튼, 또는 어드민의 길드 공개 프로필 설정에서 모두 조절합니다.",
+    "a16": "어드민은 `/g/your-guild` 공개 페이지의 배너 이미지·배너 투명도·강조 색상·설명문·모집 상태·디스코드 초대 링크·활동 시간대·사용 언어 등을 직접 편집할 수 있습니다. 또 멤버 수 / 전투 기록 / 무기 분포 / 라이벌 길드 / 운영진 카드 등 섹션 단위로 노출 토글도 켜고 끌 수 있습니다. 공개 페이지 우측 상단의 \"배너 편집\" 버튼, 또는 어드민의 길드 공개 프로필 설정에서 모두 조절합니다.",
     "q17": "사이트는 어떤 언어를 지원하나요?",
     "a17": "사이트 UI 는 한국어 · 일본어 · 영어 · 중국어 (간체) 4 개 언어를 지원합니다. 우상단 언어 메뉴에서 바로 전환할 수 있고, 모든 페이지에 즉시 반영됩니다. 단 이 사용 안내서 (`/docs`) 본문은 현재 한국어로만 작성되어 있으며 다국어 번역은 순차 진행 중입니다.",
     "q18": "공개 페이지에 알비온 영문 길드명이 보이는데 디스코드 한국어 이름으로 바꿀 수 있나요?",
-    "a18": "공개 페이지(`/g/<slug>`)와 SEO 메타데이터는 항상 알비온 인게임 길드명(영문) 을 우선해서 보여줍니다. 알비온은 길드명에 영문만 허용하기 때문에, 다른 플레이어가 검색하거나 킬보드에서 추적하는 이름과 그대로 일치시키기 위한 정책입니다. 디스코드 한국어 길드명은 어드민 운영 화면 등 내부 surface 에서만 사용됩니다. 첫 설정 이후 홈 길드를 바꾸려면 슈퍼어드민(운영자)에게 문의해 주세요."
+    "a18": "공개 페이지(`/g/your-guild`)와 SEO 메타데이터는 항상 알비온 인게임 길드명(영문) 을 우선해서 보여줍니다. 알비온은 길드명에 영문만 허용하기 때문에, 다른 플레이어가 검색하거나 킬보드에서 추적하는 이름과 그대로 일치시키기 위한 정책입니다. 디스코드 한국어 길드명은 어드민 운영 화면 등 내부 surface 에서만 사용됩니다. 첫 설정 이후 홈 길드를 바꾸려면 슈퍼어드민(운영자)에게 문의해 주세요."
   },
   "auth": {
     "error": {
@@ -2103,7 +2119,14 @@
     "noSlots": "슬롯이 없습니다.",
     "filterMyRole": "내 역할만 보기 ({role})",
     "filterMyRoleActive": "{role} 필터 해제",
-    "filterNoMatches": "같은 역할의 다른 슬롯이 없습니다.",
+    "filterOpen": "빈 슬롯만",
+    "filterOpenActive": "빈 슬롯 필터 해제",
+    "filterSuggested": "내 참가예정 역할",
+    "filterSuggestedActive": "참가예정 역할 해제",
+    "filterRoleLabel": "역할 필터",
+    "filterRoleAll": "전체 역할",
+    "filterClearAll": "필터 초기화",
+    "filterNoMatches": "조건에 맞는 슬롯이 없습니다.",
     "edit": "편집",
     "editAria": "이벤트 편집",
     "hideParty": "숨기기",
@@ -3301,6 +3324,7 @@
     "missingTitle": "이벤트 제목이 비어 있습니다.",
     "missingLocation": "집결 장소가 비어 있습니다.",
     "invalidGatherTime": "집결 시간이 올바르지 않습니다.",
+    "eventNotPublished": "초안 이벤트는 먼저 발행해야 합니다.",
     "eventNotFound": "이벤트를 찾을 수 없습니다.",
     "invalidPartyNumber": "파티 번호가 올바르지 않습니다.",
     "tooManySlots": "한 파티는 최대 {max}명까지입니다.",
@@ -3942,7 +3966,7 @@
     "albionHomeGuildIdHint": "비어 있으면 모든 길드원이 [미인증] 상태로 처리됩니다.",
     "configureHomeGuild": "홈 길드 설정",
     "guildProfileEnabledLabel": "공개 길드 프로필 활성화",
-    "guildProfileEnabledDescription": "길드 페이지(/g/<슬러그>) 를 공개해 Google 검색 + Discord 임베드에 노출합니다.",
+    "guildProfileEnabledDescription": "길드 페이지(/g/your-guild) 를 공개해 Google 검색 + Discord 임베드에 노출합니다.",
     "guildProfileEnabledHint": "배너·설명·모집상태를 직접 편집할 수 있고, 끄면 비공개로 돌아갑니다.",
     "configureGuildProfile": "공개 프로필 설정",
     "autoRegearEnabledLabel": "자동 리기어 활성화",
@@ -3961,12 +3985,20 @@
   "publishEventBanner": {
     "draftStatus": "임시 저장 (draft) 상태",
     "draftDescription": "이 이벤트는 홈에 노출되지 않고 공개 링크도 404 로 처리됩니다. 빌드 / 파티 구성이 끝났다면 아래 필수값을 채우고 발행하세요.",
-    "missingRequired": "남은 필수값: {fields} — 편집 후 하단 \"저장\" 버튼으로 DB 에 반영한 뒤 다시 눌러주세요.",
+    "missingRequired": "현재 저장된 값 기준 남은 필수값: {fields}. 방금 입력했다면 이 버튼이 먼저 저장한 뒤 발행을 시도합니다.",
     "fieldTitle": "제목",
     "fieldGatherAt": "집결 시간",
     "fieldGatherLocation": "집결 장소",
     "publishing": "발행 중…",
     "publishButton": "발행하기",
+    "visibleSlots": "공개 슬롯",
+    "hiddenSlots": "숨김 슬롯",
+    "assignedSlots": "신청됨",
+    "emptySlots": "빈 슬롯",
+    "tentativeCount": "참가예정",
+    "notificationChannel": "공지 채널",
+    "ready": "준비됨",
+    "notSet": "미설정",
     "publishedNotifyFailed": "이벤트는 발행됐지만 Discord 알림 자동 발송에 실패했어요: {error}\n대시보드의 종 아이콘으로 다시 보낼 수 있습니다."
   },
   "forceOnboardButton": {
@@ -4209,6 +4241,36 @@
       "slotCape": "망토",
       "back": "← 청구 목록",
       "demoOnlyDetail": "데모: 상세는 첫 청구만 미리볼 수 있어요."
+    },
+    "memberEvents": {
+      "title": "이벤트 신청",
+      "subtitle": "내 슬롯 상태와 곧 시작하는 이벤트를 먼저 확인합니다.",
+      "nextSlotLabel": "다음 슬롯",
+      "nextTimeLabel": "다음 모임",
+      "openSlotsLabel": "빈 슬롯",
+      "upcomingTitle": "신청 가능한 이벤트",
+      "recentTitle": "최근 참여 이벤트",
+      "mySlot": "내 슬롯: {slot}",
+      "openSlots": "신청 가능 {count}자리",
+      "ended": "종료"
+    },
+    "memberRegear": {
+      "title": "내 리기어",
+      "subtitle": "자동 청구 확인, 수동 청구, 처리 상태를 한 화면에서 봅니다.",
+      "autoTitle": "자동 리기어 확인",
+      "autoDescription": "킬보드에서 확인된 사망은 신청서가 자동으로 만들어져 대기열에 들어갑니다.",
+      "viewAutoClaim": "자동 청구 보기",
+      "manualTitle": "수동 청구",
+      "manualDescription": "자동으로 잡히지 않은 사망이나 스크린샷 증빙이 필요한 건은 직접 제출합니다.",
+      "manualButton": "수동 청구 작성",
+      "myRequestsTitle": "내 신청 내역",
+      "pendingCount": "{count}건 대기",
+      "walletHint": "승인된 실버 리기어는 내 지갑 포인트로 적립되고, 제작 리기어는 보관함 회수 안내가 표시됩니다.",
+      "status": {
+        "pending": "대기",
+        "approved": "승인",
+        "rejected": "반려"
+      }
     },
     "approvals": {
       "title": "승인 관리",
@@ -4604,6 +4666,15 @@
       "WAR_LOADOUT_VALIDATE": "워 로드아웃 검증",
       "WAR_LOADOUT_CONFIGURE": "워 로드아웃 설정",
       "AUDIT_VIEW": "감사 로그 조회"
+    },
+    "presets": {
+      "title": "역할 프리셋",
+      "description": "담당 업무를 먼저 고른 뒤 필요한 권한만 세부 조정하세요.",
+      "regearOfficer": "리기어 담당관",
+      "shopQuartermaster": "상점 보급관",
+      "craftLead": "제작 리드",
+      "analyst": "분석 담당",
+      "guildSettings": "길드 설정 담당"
     },
     "roleGrantEditor": {
       "heading": "Discord 역할별 권한",

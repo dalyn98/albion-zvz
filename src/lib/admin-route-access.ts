@@ -7,6 +7,23 @@ interface AdminRouteAccessRule {
 }
 
 const OFFICER_DASHBOARD_CAPABILITIES = [
+  CAP.REGEAR_APPROVE,
+  CAP.REGEAR_EDIT_PRICE,
+  CAP.REGEAR_BULK_ACTION,
+  CAP.EVENT_CREATE_COMBAT,
+  CAP.EVENT_CREATE_FF,
+  CAP.EVENT_CREATE_GANKING,
+  CAP.EVENT_MANAGE,
+  CAP.INVENTORY_MANAGE,
+  CAP.INVENTORY_DELIVER,
+  CAP.SHOP_PRICING,
+  CAP.CHEST_LOG_PASTE,
+  CAP.CRAFT_TASK_CREATE,
+  CAP.CRAFT_TASK_DELIVER,
+  CAP.CRAFT_MASTER,
+  CAP.SETTINGS_GENERAL,
+  CAP.SETTINGS_TOGGLES,
+  CAP.SETTINGS_GUILD_PROFILE,
   CAP.SIPHON_MANAGE,
   CAP.AUDIT_VIEW,
   CAP.SETTINGS_PERMISSIONS,
@@ -14,6 +31,62 @@ const OFFICER_DASHBOARD_CAPABILITIES = [
 ] as const
 
 export const ADMIN_ROUTE_ACCESS_RULES: readonly AdminRouteAccessRule[] = [
+  {
+    href: '/admin/dashboard',
+    exact: true,
+    capabilities: [
+      CAP.EVENT_CREATE_COMBAT,
+      CAP.EVENT_CREATE_FF,
+      CAP.EVENT_CREATE_GANKING,
+      CAP.EVENT_MANAGE,
+    ],
+  },
+  {
+    href: '/admin/dashboard/events',
+    capabilities: [
+      CAP.EVENT_CREATE_COMBAT,
+      CAP.EVENT_CREATE_FF,
+      CAP.EVENT_CREATE_GANKING,
+      CAP.EVENT_MANAGE,
+    ],
+  },
+  {
+    href: '/admin/dashboard/templates',
+    capabilities: [
+      CAP.EVENT_CREATE_COMBAT,
+      CAP.EVENT_CREATE_FF,
+      CAP.EVENT_CREATE_GANKING,
+      CAP.EVENT_MANAGE,
+    ],
+  },
+  {
+    href: '/admin/dashboard/approvals',
+    capabilities: [
+      CAP.REGEAR_APPROVE,
+      CAP.REGEAR_EDIT_PRICE,
+      CAP.REGEAR_BULK_ACTION,
+      CAP.INVENTORY_DELIVER,
+      CAP.EVENT_MANAGE,
+      CAP.CRAFT_TASK_DELIVER,
+      CAP.CRAFT_MASTER,
+    ],
+  },
+  {
+    href: '/admin/dashboard/shop',
+    capabilities: [CAP.INVENTORY_MANAGE, CAP.INVENTORY_DELIVER, CAP.SHOP_PRICING, CAP.CHEST_LOG_PASTE],
+  },
+  {
+    href: '/admin/dashboard/inventory',
+    capabilities: [CAP.INVENTORY_MANAGE, CAP.INVENTORY_DELIVER],
+  },
+  {
+    href: '/admin/dashboard/craft',
+    capabilities: [CAP.CRAFT_TASK_CREATE, CAP.CRAFT_TASK_DELIVER, CAP.CRAFT_MASTER],
+  },
+  {
+    href: '/admin/dashboard/regear-windows',
+    capabilities: [CAP.REGEAR_APPROVE, CAP.SETTINGS_TOGGLES],
+  },
   {
     href: '/admin/dashboard/stats',
     capabilities: [CAP.STATS_VIEW],
@@ -29,6 +102,19 @@ export const ADMIN_ROUTE_ACCESS_RULES: readonly AdminRouteAccessRule[] = [
   {
     href: '/admin/dashboard/permissions',
     capabilities: [CAP.SETTINGS_PERMISSIONS],
+  },
+  {
+    href: '/admin/dashboard/guild-profile',
+    capabilities: [CAP.SETTINGS_GUILD_PROFILE],
+  },
+  {
+    href: '/admin/dashboard/settings',
+    capabilities: [
+      CAP.SETTINGS_GENERAL,
+      CAP.SETTINGS_TOGGLES,
+      CAP.SETTINGS_GUILD_PROFILE,
+      CAP.SETTINGS_PERMISSIONS,
+    ],
   },
   {
     href: '/admin/dashboard/guide',
@@ -68,11 +154,12 @@ export function getFirstAccessibleAdminPath(
 }
 
 function matchAdminRoute(pathname: string): AdminRouteAccessRule | null {
+  const normalizedPath = pathname.split(/[?#]/, 1)[0] || pathname
   let best: AdminRouteAccessRule | null = null
   for (const rule of ADMIN_ROUTE_ACCESS_RULES) {
     const matches = rule.exact
-      ? pathname === rule.href
-      : pathname === rule.href || pathname.startsWith(`${rule.href}/`)
+      ? normalizedPath === rule.href
+      : normalizedPath === rule.href || normalizedPath.startsWith(`${rule.href}/`)
     if (!matches) continue
     if (!best || rule.href.length > best.href.length) best = rule
   }
