@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   Swords,
   Trophy,
+  Zap,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
@@ -16,12 +17,14 @@ import { listMyExchangeRequests } from '@/app/actions/exchange'
 import { listMyParticipation } from '@/app/actions/member'
 import { listTransferCandidates } from '@/app/actions/transfer'
 import { getMyDashboard } from '@/app/actions/me-dashboard'
+import { getMySiphonAccount, type MySiphonAccountResult } from '@/app/actions/siphon-member'
 import { getMemberAlbionIdentity, isAlbionVerified } from '@/lib/albion-identity'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSessionGuildId } from '@/lib/tenant'
 import { ALBION_SERVER_LABEL_KEY } from '@/lib/albion-gameinfo'
 import { formatGatherTimeFor } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
+import { formatDateTime } from '@/lib/format-datetime'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { formatSilver } from '@/lib/silver'
@@ -52,6 +55,7 @@ export default async function MePage() {
     { requests: exchanges },
     { entries: participation },
     { candidates: transferCandidates },
+    siphonAccount,
     albionIdentity,
     weeklyStatsEnabledRaw,
     t,
@@ -66,6 +70,7 @@ export default async function MePage() {
     listMyExchangeRequests(),
     listMyParticipation(),
     listTransferCandidates(),
+    getMySiphonAccount(5),
     getMemberAlbionIdentity(session.discordId, guildId),
     // 길드별 토글 — 기본 OFF. SaaS 다른 테넌트에는 노출하지 않는다. 우리 길드는
     // 별도 SQL upsert 로 'true' 설정.
@@ -170,7 +175,7 @@ export default async function MePage() {
         }}
       />
 
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <QuickLinkCard
           href="/"
           icon={<CalendarDays size={16} />}
@@ -182,6 +187,12 @@ export default async function MePage() {
           icon={<Coins size={16} />}
           title={t('quickWalletTitle')}
           body={t('quickWalletBody')}
+        />
+        <QuickLinkCard
+          href="#siphon"
+          icon={<Zap size={16} />}
+          title={t('quickSiphonTitle')}
+          body={t('quickSiphonBody')}
         />
         <QuickLinkCard
           href="/regear"
@@ -202,6 +213,8 @@ export default async function MePage() {
       )}
 
       <MyCraftPickupsSection />
+
+      <MySiphonSummarySection result={siphonAccount} t={t} tz={tz} />
 
       {dashboard && (
         <BadgeGrid
@@ -357,19 +370,126 @@ function WalletMetric({
   value,
   sub,
   accent = false,
+  valueClass,
 }: {
   label: string
   value: string
   sub?: string
   accent?: boolean
+  valueClass?: string
 }) {
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-950/40 px-4 py-3">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">{label}</p>
-      <p className={`mt-1 text-lg font-bold font-mono ${accent ? 'text-amber-300' : 'text-white'}`}>
+      <p className={`mt-1 text-lg font-bold font-mono ${valueClass ?? (accent ? 'text-amber-300' : 'text-white')}`}>
         {value}
       </p>
       {sub && <p className="mt-1 text-[11px] text-gray-500">{sub}</p>}
     </div>
   )
+}
+
+function MySiphonSummarySection({
+  result,
+  t,
+  tz,
+}: {
+  result: MySiphonAccountResult
+  t: Awaited<ReturnType<typeof getTranslations<'me'>>>
+  tz: string
+}) {
+  const account = result.status === 'ready' ? result.account : null
+  const balanceClass = !account
+    ? 'text-white'
+    : account.net < 0
+      ? 'text-rose-300'
+      : account.net > 0
+        ? 'text-emerald-300'
+        : 'text-white'
+  const balanceSub = !account
+    ? undefined
+    : account.net < 0
+      ? t('siphonNegativeSub')
+      : account.net > 0
+        ? t('siphonPositiveSub')
+        : t('siphonZeroSub')
+
+  return (
+    <section id="siphon" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4 scroll-mt-20">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <Zap size={18} className="text-amber-300" />
+            {t('siphonTitle')}
+          </h2>
+          <p className="text-gray-400 text-xs leading-relaxed mt-1">{t('siphonDescription')}</p>
+        </div>
+        <Link
+          href="/me/siphon"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-amber-300 hover:text-amber-200"
+        >
+          <ListChecks size={14} />
+          {t('siphonHistoryLink')}
+        </Link>
+      </div>
+
+      {result.status === 'unverified' ? (
+        <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100">
+          <p className="font-semibold">{t('siphonUnverifiedTitle')}</p>
+          <p className="mt-1 text-xs leading-relaxed text-yellow-100/80">{t('siphonUnverifiedBody')}</p>
+          <Link
+            href="/onboarding/albion?return=%2Fme"
+            className="inline-block mt-2 text-xs font-semibold underline underline-offset-2 hover:opacity-80"
+          >
+            {t('siphonVerifyCta')}
+          </Link>
+        </div>
+      ) : result.status === 'error' ? (
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+          <p className="font-semibold">{t('siphonErrorTitle')}</p>
+          <p className="mt-1 text-xs leading-relaxed text-rose-100/80">{t('siphonErrorBody')}</p>
+        </div>
+      ) : (
+        <>
+          <p className="text-[11px] text-gray-500">
+            {t('siphonVerifiedPlayer', { player: result.account.player })}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <WalletMetric
+              label={t('siphonBalanceLabel')}
+              value={formatSiphonCount(result.account.net, t)}
+              valueClass={balanceClass}
+              sub={balanceSub}
+            />
+            <WalletMetric
+              label={t('siphonDepositedLabel')}
+              value={formatSiphonCount(result.account.deposited, t)}
+              valueClass="text-emerald-300"
+            />
+            <WalletMetric
+              label={t('siphonWithdrawnLabel')}
+              value={formatSiphonCount(result.account.withdrawn, t)}
+              valueClass="text-rose-300"
+            />
+            <WalletMetric
+              label={t('siphonLastActivityLabel')}
+              value={
+                result.account.lastActivityAt
+                  ? formatDateTime(result.account.lastActivityAt, tz)
+                  : t('siphonNoActivity')
+              }
+            />
+          </div>
+        </>
+      )}
+    </section>
+  )
+}
+
+function formatSiphonCount(
+  n: number,
+  t: Awaited<ReturnType<typeof getTranslations<'me'>>>,
+): string {
+  const sign = n > 0 ? '+' : n < 0 ? '-' : ''
+  return t('siphonUnit', { count: `${sign}${Math.abs(n).toLocaleString('en-US')}` })
 }
