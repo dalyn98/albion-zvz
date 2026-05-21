@@ -28,7 +28,7 @@ interface Rect {
 export default function DemoGuidedTour({
   steps,
   namespace,
-  autoStart = false,
+  autoStart = true,
 }: DemoGuidedTourProps) {
   const tUi = useTranslations('demo.tour.ui')
   const tPage = useTranslations(`demo.tour.pages.${namespace}`)
