@@ -8,13 +8,13 @@ import {
   Crown,
   HandHeart,
   Heart,
+  ListChecks,
   Send,
   ShieldCheck,
   Sparkles,
   Skull,
   Swords,
   Trophy,
-  Wallet,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { DEMO_MEMBERS } from '@/data/demo-seed'
@@ -41,6 +41,7 @@ const PENDING_REGEAR = 1
 const PENDING_EXCHANGE = 1
 const PENDING_DONATION = 1
 const PENDING_TOTAL = PENDING_REGEAR + PENDING_EXCHANGE + PENDING_DONATION
+const PENDING_EXCHANGE_AMOUNT = 1_200
 
 const WEEK_BATTLES = 12
 const WEEK_KILLS = 18
@@ -263,6 +264,33 @@ export default async function DemoMePage() {
         </div>
       </section>
 
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <QuickLinkCard
+          href="/demo/events"
+          icon={<Calendar size={16} />}
+          title={t('quickEventsTitle')}
+          body={t('quickEventsBody')}
+        />
+        <QuickLinkCard
+          href="#wallet"
+          icon={<Coins size={16} />}
+          title={t('quickWalletTitle')}
+          body={t('quickWalletBody')}
+        />
+        <QuickLinkCard
+          href="/demo/regear"
+          icon={<ShieldCheck size={16} />}
+          title={t('quickRegearTitle')}
+          body={t('quickRegearBody')}
+        />
+        <QuickLinkCard
+          href="/demo/leaderboard"
+          icon={<Trophy size={16} />}
+          title={t('quickLeaderboardTitle')}
+          body={t('quickLeaderboardBody')}
+        />
+      </section>
+
       <BadgeGrid
         input={{
           participationCount: PARTICIPATION_COUNT,
@@ -288,28 +316,51 @@ export default async function DemoMePage() {
         <ChevronRight size={18} className="text-gray-500 group-hover:text-amber-400 flex-shrink-0" />
       </DemoActionButton>
 
-      <section className="bg-gray-900 border border-gray-700 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
-        <p className="text-gray-500 text-[11px] leading-relaxed min-w-0 flex-1">
-          {t('transferDescription')}
-        </p>
-        <DemoActionButton className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-bold px-3 py-1.5 rounded-lg text-xs transition-colors flex-shrink-0">
-          <Send size={12} />
-          {t('transferOpen')}
-        </DemoActionButton>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-lg font-bold text-white">{t('exchangeTitle')}</h2>
-        <p className="text-gray-400 text-xs leading-relaxed">{t('exchangeDescription')}</p>
-        <div className="bg-gray-900 border border-gray-700 rounded-2xl p-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm text-gray-300">
-            <Wallet size={16} className="text-amber-400" />
-            <span className="font-mono font-bold text-white">{ME.points.toLocaleString()}</span>
-            <span className="text-xs text-gray-500">pts</span>
+      <section id="wallet" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4 scroll-mt-20">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-lg font-bold text-white">{t('walletTitle')}</h2>
+            <p className="text-gray-400 text-xs leading-relaxed mt-1">{t('walletDescription')}</p>
           </div>
-          <DemoActionButton className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-bold px-3 py-1.5 rounded-lg text-xs transition-colors">
-            <Coins size={12} />
-            {t('exchangeTitle')}
+          <DemoActionButton className="inline-flex items-center gap-1 text-xs font-semibold text-amber-300 hover:text-amber-200">
+            <ListChecks size={14} />
+            {t('walletHistoryLink')}
+          </DemoActionButton>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <WalletMetric label={t('walletBalanceLabel')} value={formatSilver(ME.points)} accent />
+          <WalletMetric
+            label={t('walletExchangeLabel')}
+            value={formatSilver(PENDING_EXCHANGE_AMOUNT)}
+            sub={t('walletPendingExchange')}
+          />
+          <WalletMetric
+            label={t('walletLifetimeLabel')}
+            value={t('walletLifetimeValue', {
+              earned: formatSilver(LIFETIME_EARNED),
+              spent: formatSilver(LIFETIME_SPENT),
+            })}
+            sub={t('walletLifetimeSub')}
+          />
+        </div>
+        <div className="border-t border-gray-800 pt-4 space-y-3">
+          <h3 className="text-sm font-bold text-white">{t('exchangeTitle')}</h3>
+          <p className="text-gray-400 text-xs leading-relaxed">{t('exchangeDescription')}</p>
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-800 bg-gray-950/40 px-4 py-3">
+            <span className="text-xs text-gray-400">{t('walletExchangeReady')}</span>
+            <DemoActionButton className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-bold px-3 py-1.5 rounded-lg text-xs transition-colors">
+              <Coins size={12} />
+              {t('exchangeTitle')}
+            </DemoActionButton>
+          </div>
+        </div>
+        <div className="border-t border-gray-800 pt-4 flex items-center justify-between gap-3">
+          <p className="text-gray-500 text-[11px] leading-relaxed min-w-0 flex-1">
+            {t('transferDescription')}
+          </p>
+          <DemoActionButton className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-bold px-3 py-1.5 rounded-lg text-xs transition-colors flex-shrink-0">
+            <Send size={12} />
+            {t('transferOpen')}
           </DemoActionButton>
         </div>
       </section>
@@ -371,6 +422,53 @@ export default async function DemoMePage() {
         description={tCta('members.description')}
         buttonLabel={tCta('buttonLabel')}
       />
+    </div>
+  )
+}
+
+function QuickLinkCard({
+  href,
+  icon,
+  title,
+  body,
+}: {
+  href: string
+  icon: React.ReactNode
+  title: string
+  body: string
+}) {
+  return (
+    <Link
+      href={href}
+      className="group rounded-2xl border border-gray-800 bg-gray-900 px-4 py-3 hover:border-amber-500/40 transition-colors"
+    >
+      <div className="flex items-center gap-2 text-amber-300">
+        {icon}
+        <p className="text-sm font-bold text-white truncate">{title}</p>
+      </div>
+      <p className="mt-1 text-xs text-gray-500 leading-relaxed line-clamp-2">{body}</p>
+    </Link>
+  )
+}
+
+function WalletMetric({
+  label,
+  value,
+  sub,
+  accent = false,
+}: {
+  label: string
+  value: string
+  sub?: string
+  accent?: boolean
+}) {
+  return (
+    <div className="rounded-xl border border-gray-800 bg-gray-950/40 px-4 py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">{label}</p>
+      <p className={`mt-1 text-lg font-bold font-mono ${accent ? 'text-amber-300' : 'text-white'}`}>
+        {value}
+      </p>
+      {sub && <p className="mt-1 text-[11px] text-gray-500">{sub}</p>}
     </div>
   )
 }

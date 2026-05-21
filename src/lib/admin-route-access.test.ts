@@ -24,17 +24,17 @@ describe('admin route access', () => {
     expect(canAccessAdminPath('/admin/dashboard/siphon/import', false, caps)).toBe(true)
   })
 
-  it('allows finance capabilities into stats and settlement routes', () => {
+  it('allows finance capabilities into stats routes', () => {
     expect(canAccessAdminPath(
       '/admin/dashboard/stats',
       false,
       serializeCapabilities(CAP.STATS_VIEW),
     )).toBe(true)
     expect(canAccessAdminPath(
-      '/admin/dashboard/settlements/period-1',
+      '/admin/dashboard/settlements',
       false,
       serializeCapabilities(CAP.SETTLEMENT_MANAGE),
-    )).toBe(true)
+    )).toBe(false)
   })
 
   it('does not allow a different officer capability into another protected route', () => {
@@ -50,9 +50,7 @@ describe('admin route access', () => {
 
   it('redirects officers to their first accessible admin route instead of the admin-only root', () => {
     expect(getFirstAccessibleAdminPath(true, '0')).toBe('/admin/dashboard')
-    expect(getFirstAccessibleAdminPath(false, serializeCapabilities(CAP.SETTLEMENT_MANAGE))).toBe(
-      '/admin/dashboard/settlements',
-    )
+    expect(getFirstAccessibleAdminPath(false, serializeCapabilities(CAP.STATS_VIEW))).toBe('/admin/dashboard/stats')
     expect(getFirstAccessibleAdminPath(false, '0')).toBe(null)
   })
 })

@@ -120,7 +120,6 @@ export const DOCS_NAV: DocsNavSection[] = [
         subItems: [
           { slug: 'admin/dashboard', itemKey: 'adminDashboard' },
           { slug: 'admin/global-toggles', itemKey: 'adminGlobalToggles' },
-          { slug: 'admin/settlements', itemKey: 'adminSettlements' },
           { slug: 'admin/permissions', itemKey: 'adminPermissions' },
           { slug: 'admin/in-app-guide', itemKey: 'adminInAppGuide' },
         ],

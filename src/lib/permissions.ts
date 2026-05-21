@@ -64,12 +64,24 @@ export const CAP = {
   WAR_LOADOUT_CONFIGURE: 1n << 25n,
   AUDIT_VIEW: 1n << 26n,
 
-  // 운영 리포트 / 정산
+  // 운영 리포트
   STATS_VIEW: 1n << 27n,
+  // Deprecated. The game flow uses on-demand exchange requests instead of
+  // month-end settlement periods. Keep the bit reserved so old DB masks do
+  // not change meaning, but do not expose it in CAPABILITY_GROUPS.
   SETTLEMENT_MANAGE: 1n << 28n,
 } as const
 
 export type CapabilityKey = keyof typeof CAP
+
+export const DEPRECATED_CAPABILITY_KEYS = [
+  'SETTLEMENT_MANAGE',
+] as const satisfies readonly CapabilityKey[]
+
+export const ACTIVE_CAPABILITY_KEYS = Object.keys(CAP).filter(
+  (key): key is CapabilityKey =>
+    !(DEPRECATED_CAPABILITY_KEYS as readonly string[]).includes(key),
+)
 
 // 모든 capability 의 OR. legacy isAdmin = true 인 세션에 부여하는 마스크.
 // 새 capability 추가 시 자동 포함 (Object.values 사용).
@@ -98,7 +110,7 @@ export const CAPABILITY_GROUPS: Record<string, CapabilityKey[]> = {
     'SETTINGS_GUILD_PROFILE',
     'SETTINGS_PERMISSIONS',
   ],
-  finance: ['STATS_VIEW', 'SETTLEMENT_MANAGE'],
+  finance: ['STATS_VIEW'],
   advanced: [
     'CHEST_LOG_PASTE',
     'SIPHON_MANAGE',

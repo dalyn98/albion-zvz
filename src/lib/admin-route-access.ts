@@ -11,17 +11,12 @@ const OFFICER_DASHBOARD_CAPABILITIES = [
   CAP.AUDIT_VIEW,
   CAP.SETTINGS_PERMISSIONS,
   CAP.STATS_VIEW,
-  CAP.SETTLEMENT_MANAGE,
 ] as const
 
 export const ADMIN_ROUTE_ACCESS_RULES: readonly AdminRouteAccessRule[] = [
   {
     href: '/admin/dashboard/stats',
     capabilities: [CAP.STATS_VIEW],
-  },
-  {
-    href: '/admin/dashboard/settlements',
-    capabilities: [CAP.SETTLEMENT_MANAGE],
   },
   {
     href: '/admin/dashboard/siphon',

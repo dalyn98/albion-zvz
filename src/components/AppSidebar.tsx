@@ -33,7 +33,6 @@ import {
   ClipboardList,
   Archive,
   ScrollText,
-  FileText,
   KeyRound,
   Zap,
   ExternalLink,
@@ -94,7 +93,6 @@ const MEMBER_NAV: NavItem[] = [
   { href: '/leaderboard', labelKey: 'leaderboard', icon: Trophy, section: 'community' },
   // 내 정보
   { href: '/me', labelKey: 'myWallet', icon: Wallet, exact: true, memberOnly: true, section: 'profile' },
-  { href: '/me/settlements', labelKey: 'mySettlements', icon: FileText, memberOnly: true, section: 'profile' },
   { href: '/me/settings', labelKey: 'mySettings', icon: Settings, section: 'profile' },
 ]
 
@@ -107,7 +105,6 @@ const ADMIN_NAV: NavItem[] = [
   // 보급/재화
   { href: '/admin/dashboard/shop', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'adminSupply' },
   { href: '/admin/dashboard/siphon', labelKey: 'siphonAdmin', icon: Zap, section: 'adminSupply' },
-  { href: '/admin/dashboard/settlements', labelKey: 'settlements', icon: FileText, section: 'adminSupply' },
   { href: '/admin/dashboard/craft', labelKey: 'craftAdmin', icon: Hammer, craftAdminOnly: true, section: 'adminSupply' },
   { href: '/admin/dashboard/inventory', labelKey: 'inventoryAdmin', icon: Boxes, craftAdminOnly: true, section: 'adminSupply' },
   // 분석/기록

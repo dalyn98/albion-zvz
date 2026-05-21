@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useTranslations } from 'next-intl'
 import { ShieldCheck, UserCog, Plus, Save, Trash2, X } from 'lucide-react'
 import {
+  ACTIVE_CAPABILITY_KEYS,
   CAP,
   CAPABILITY_GROUPS,
   type CapabilityKey,
@@ -314,8 +315,8 @@ function RoleGrantRowItem({ grant }: RoleGrantRowItemProps) {
 
   const bits = parseCapabilities(grant.capabilities)
   const enabledLabels: string[] = []
-  for (const [key, cap] of Object.entries(CAP)) {
-    if ((bits & cap) !== 0n) enabledLabels.push(t(`capability.${key as CapabilityKey}`))
+  for (const key of ACTIVE_CAPABILITY_KEYS) {
+    if ((bits & CAP[key]) !== 0n) enabledLabels.push(t(`capability.${key}`))
   }
 
   return (
@@ -387,11 +388,9 @@ function UserOverrideRowItem({ override }: UserOverrideRowItemProps) {
   const revokedBits = parseCapabilities(override.capabilitiesRevoked)
   const grantedLabels: string[] = []
   const revokedLabels: string[] = []
-  for (const [key, cap] of Object.entries(CAP)) {
-    if ((grantedBits & cap) !== 0n)
-      grantedLabels.push(t(`capability.${key as CapabilityKey}`))
-    if ((revokedBits & cap) !== 0n)
-      revokedLabels.push(t(`capability.${key as CapabilityKey}`))
+  for (const key of ACTIVE_CAPABILITY_KEYS) {
+    if ((grantedBits & CAP[key]) !== 0n) grantedLabels.push(t(`capability.${key}`))
+    if ((revokedBits & CAP[key]) !== 0n) revokedLabels.push(t(`capability.${key}`))
   }
 
   return (

@@ -38,15 +38,15 @@
 
 - 홈 이벤트 목록/참가
 - 이벤트 상세, 파티/슬롯 신청, 게스트 이벤트 링크
-- `/me` 잔액, 전적, 요청, 환전, 포인트 이전, 기부
-- `/me/settlements` 월말 정산 라인과 개인별 청구/수취 금액 확인
+- `/me` 내 현황, 다음 이벤트, 포인트/환전, 전적, 요청, 포인트 이전, 기부
+- `/me/requests` 리기어/환전/기부 신청 상태 확인
 - `/regear`, `/me/regear/[id]` 수동/자동 리기어 청구와 가격 수정
 - `/shop` 길드 상점
 - `/craft/queue`, `/craft/my-tasks`, `/craft/orders`, `/craft/inventory`
 - `/members`, `/members/[discordId]`, `/members/albion/[playerId]`
 - `/battles`, `/battles/[id]`, `/leaderboard`
 
-상태: 기능 범위는 넓고, 포인트 잔액/청구/제작/전투 통계가 연결되어 있다. Codex 인수 후 월말 마감/CSV/개인별 청구서 v1 도메인 객체를 추가했다.
+상태: 기능 범위는 넓고, 포인트 잔액/청구/제작/전투 통계가 연결되어 있다. 2026-05-21 사용자 도메인 피드백에 따라 월말 정산 UI 는 제품 표면에서 제거하고, 실버 리기어는 포인트 적립 후 개인 환전 신청 흐름으로 정리했다.
 
 ### 관리자 기능
 
@@ -58,7 +58,6 @@
 - 멤버/통계/탈퇴자/알비온 인증 관리
 - 길드 프로필/갤러리/YouTube
 - 백업 export/import
-- 월말 정산 생성/마감/CSV
 - granular permission
 - admin audit log
 - siphon ledger
@@ -102,9 +101,11 @@
    - 카카오톡/Discord/Instagram/Facebook/LINE/Naver/WeChat 인앱 브라우저 감지 시 외부 브라우저/URL 복사 안내 표시
 
 6. 길드원 self-service UX 보강
-   - `/me` 상단에 "지금 확인할 것" 패널 추가: 캐릭터 인증, 대기 신청, 다음 이벤트, 월말 정산을 우선 노출
+   - `/me` 상단에 "지금 확인할 것" 패널 추가: 캐릭터 인증, 대기 신청, 다음 이벤트를 우선 노출
    - `/me/requests` 상단에 리기어/환전/기부별 대기/전체 요약 추가
-   - `/me/settlements` 상단에 최신 정산 결과 요약 추가: 받을 금액, 낼 금액, 변동 없음, 초안/마감 안내
+   - `/me` 에 이벤트/포인트·환전/리기어/순위 바로가기와 포인트·환전 요약 섹션 추가
+   - 이벤트 상세에 로그인 사용자 기준 내 슬롯/신청/참가예정 상태 카드 추가
+   - 월말 정산 UI, 권한 노출, 문서 링크, 서버 액션은 비활성화
 
 7. 소통 채널 정리
    - Telegram 채널/Telegram 알림은 더 이상 사용하지 않는다.
@@ -112,32 +113,38 @@
 
 ## 주요 발견
 
-### P0. 월말 정산/CSV/개인별 청구
+### P0. 길드원 개인 현황과 환전 흐름
 
-초기 점검 시점에는 `point_ledger` 와 잔액 계산은 탄탄했지만 "정산 기간" 이 없었다. `getFinanceFlowStats()` 는 최근 30일 흐름을 보여주는 통계일 뿐, 마감/동결/CSV/청구 상태를 만들지 않았다.
+초기 점검 시점에는 `point_ledger` 와 잔액 계산은 탄탄했지만, 길드원이 앱을 열었을 때 "내가 지금 무엇을 해야 하는가" 가 한 화면에 모이지 않았다. 특히 `/me` 가 지갑 기능처럼 보이고, 이벤트/환전/리기어/순위로 이어지는 주 동선이 분산되어 있었다.
 
-2026-05-20 Codex 인수 후 v1 구현:
+2026-05-21 사용자 도메인 피드백으로 정정:
 
-- `155_monthly_settlements.sql`: `settlement_periods`, `settlement_lines` 추가
-- 관리자 화면: `/admin/dashboard/settlements`, `/admin/dashboard/settlements/[id]`
-- 멤버 화면: `/me/settlements`
-- CSV 다운로드: 브라우저에서 현재 정산 라인 기준 생성
-- 감사 로그: `settlement.create`, `settlement.close`
+- 이 게임 운영에서 리기어는 월말에 정산하지 않는다.
+- 실버 리기어는 포인트가 쌓인 뒤 개인이 환전을 신청한다.
+- 제작 리기어는 신청 후 길드가 제작 완료한 장비를 개별 지급한다.
 
-남은 제품 단위:
+반영 결과:
 
-- 재계산/수정 흐름: draft 기간을 삭제 없이 다시 계산할지 정책 결정 필요
-- export 이력: CSV 다운로드 자체를 서버에 기록할지 결정 필요
-- 실제 지급 완료 처리: 월말 정산과 기존 환전 승인 플로우를 연결할지 결정 필요
+- `/me` 를 "내 현황" 대시보드로 재정의
+- 포인트 잔액, 대기 환전, 누적 지급/사용을 한 섹션에 노출
+- 환전 신청과 포인트 양도를 같은 맥락에 배치
+- 이벤트 상세에 내 슬롯 상태 카드 추가
+- 월말 정산 라우트는 기존 신청/승인 흐름으로 redirect
+- 월말 정산 서버 액션과 UI 컴포넌트는 제거
+
+스키마 이력 주의:
+
+- `155_monthly_settlements.sql` 은 이미 누적 마이그레이션 번호에 포함되어 있어 삭제하지 않는다.
+- 해당 테이블은 현재 제품 표면에서 사용하지 않는 reserved schema 로 둔다.
 
 ### P1. granular permission 은 기반만 있고 전체 적용은 아니다
 
-권한 비트필드와 UI는 존재한다. 하지만 대부분 admin server action 은 아직 `requireAdmin()` 또는 `session.isAdmin` 이다. 현재 capability 로 열린 것은 이번에 보완한 siphon/audit/permissions, 그리고 Codex 인수 후 추가한 stats/settlements 중심이다.
+권한 비트필드와 UI는 존재한다. 하지만 대부분 admin server action 은 아직 `requireAdmin()` 또는 `session.isAdmin` 이다. 현재 capability 로 열린 것은 이번에 보완한 siphon/audit/permissions 와 stats 중심이다.
 
 2026-05-20 Codex 인수 후 추가 보완:
 
 - `STATS_VIEW`: 통계 화면과 `stats-admin` read actions 접근
-- `SETTLEMENT_MANAGE`: 월말 정산 화면과 정산 생성/마감 actions 접근
+- `SETTLEMENT_MANAGE`: 도메인 흐름 정정 후 deprecated/reserved bit 로 전환, UI 그룹에서는 제거
 - 담당관 `/admin` 진입 redirect 와 운영 가이드 접근 차단 불일치 수정
 - 기존 admin 세션은 새 capability bit 가 쿠키에 없어도 `isAdmin` fallback 으로 통과
 
@@ -206,11 +213,11 @@
 
 ### P2. 대형 파일이 많다
 
-500줄 이상 TS/TSX 파일이 다수다. 당장 결함은 아니지만 정산 기능처럼 공유 도메인이 생기면 유지보수 비용이 커진다.
+500줄 이상 TS/TSX 파일이 다수다. 당장 결함은 아니지만 지갑/환전처럼 공유 도메인이 커지면 유지보수 비용이 커진다.
 
 우선 분리 후보:
 
-- finance/settlement 도메인 신설
+- wallet/exchange 도메인 정리
 - admin permission matrix
 - regear admin actions
 - shop import/baseline
@@ -222,14 +229,14 @@ migration 118 이 모든 public table 에 RLS 를 켜고 정책 없이 service-r
 
 ## 다음 구현 순서
 
-1. 월말 정산 v1 운영 검증
-   - 신규 마이그레이션 적용 후 실제 guild ledger 로 기간 생성/CSV/멤버 화면을 확인한다.
+1. 길드원 개인 현황 운영 검증
+   - 실제 길드원 세션으로 `/me`, 이벤트 상세, `/me/requests`, `/regear`, `/leaderboard` 동선을 모바일에서 확인한다.
 
 2. admin diagnostics/backfill UX 정리
    - 권한은 super-admin/CRON_SECRET 으로 격리됐다. 다음은 route 이름과 super-admin UI 를 정리한다.
 
 3. permission matrix 확장
-   - route access helper 를 기준으로 stats/settlements 는 capability 기반으로 전환했다.
+   - route access helper 를 기준으로 stats 는 capability 기반으로 전환했다.
    - 남은 shop/regear/member/settings/admin-team action 도 기능별 capability 로 분리한다.
 
 4. 신규 tenant E2E smoke

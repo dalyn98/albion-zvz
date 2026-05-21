@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest'
 import {
   CAP,
   ALL_CAPABILITIES,
+  ACTIVE_CAPABILITY_KEYS,
   CAPABILITY_GROUPS,
+  DEPRECATED_CAPABILITY_KEYS,
   serializeCapabilities,
   parseCapabilities,
   hasCapability,
@@ -28,12 +30,21 @@ describe('CAP definitions', () => {
     }
   })
 
-  it('CAPABILITY_GROUPS 의 키 합집합 = CAP 의 전체 키', () => {
+  it('CAPABILITY_GROUPS 의 키 합집합 = 활성 capability 전체 키', () => {
     const grouped = new Set<string>(
       Object.values(CAPABILITY_GROUPS).flatMap((arr) => arr as string[]),
     )
-    const all = new Set(Object.keys(CAP))
-    expect(grouped).toEqual(all)
+    expect(grouped).toEqual(new Set(ACTIVE_CAPABILITY_KEYS))
+  })
+
+  it('deprecated capability 는 비트 의미만 보존하고 UI 그룹에는 노출하지 않는다', () => {
+    const grouped = new Set<string>(
+      Object.values(CAPABILITY_GROUPS).flatMap((arr) => arr as string[]),
+    )
+    for (const key of DEPRECATED_CAPABILITY_KEYS) {
+      expect(grouped.has(key)).toBe(false)
+      expect(CAP[key]).toBeDefined()
+    }
   })
 })
 

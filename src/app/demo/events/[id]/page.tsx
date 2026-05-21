@@ -2,7 +2,8 @@ import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Crown } from 'lucide-react'
-import { DEMO_EVENTS, DEMO_EVENT_DETAIL, type DemoEventSlot } from '@/data/demo-seed'
+import { DEMO_EVENTS, DEMO_EVENT_DETAIL, DEMO_MEMBERS, type DemoEventSlot } from '@/data/demo-seed'
+import EventMyStatusCard from '@/components/EventMyStatusCard'
 import { formatTimeLabel } from '../../_lib/format'
 import { EventStatusPill } from '../../_components/Pills'
 
@@ -15,10 +16,16 @@ export default async function DemoEventDetailPage({
   const listEvent = DEMO_EVENTS.find((e) => e.id === id)
   if (!listEvent) notFound()
 
-  const t = await getTranslations('demo')
+  const [t, tEvent] = await Promise.all([
+    getTranslations('demo'),
+    getTranslations('event'),
+  ])
   const isPrimary = listEvent.id === DEMO_EVENT_DETAIL.id
   const description = isPrimary ? DEMO_EVENT_DETAIL.description : null
   const organizer = isPrimary ? DEMO_EVENT_DETAIL.organizer : '—'
+  const demoMemberIgn = DEMO_MEMBERS[0]?.ign ?? 'Eternia'
+  const renderedParties = DEMO_EVENT_DETAIL.parties
+  const mySlot = findDemoSlot(renderedParties, demoMemberIgn)
 
   return (
     <div className="space-y-4">
@@ -44,26 +51,69 @@ export default async function DemoEventDetailPage({
         <Field label={t('events.detailOrganizer')} value={organizer} />
       </dl>
 
-      {DEMO_EVENT_DETAIL.parties.map((party) => (
-        <section key={party.id} className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
-          <header className="bg-gray-950 px-3 py-2 border-b border-gray-800 flex items-center justify-between">
-            <div className="text-xs font-semibold text-gray-200">{t('events.partyMain')}</div>
-            <div className="text-[11px] font-mono text-amber-400">
-              {t('events.filledFraction', {
-                filled: party.slots.filter((s) => s.assigned).length,
-                total: party.slots.length,
-              })}
+      <EventMyStatusCard
+        title={tEvent('myStatusTitle')}
+        statusTitle={mySlot ? tEvent('myStatusAssignedTitle') : tEvent('myStatusNoneTitle')}
+        description={
+          mySlot
+            ? listEvent.battleStarted
+              ? tEvent('myStatusAssignedStartedBody')
+              : tEvent('myStatusAssignedBody')
+            : tEvent('myStatusNoneBody')
+        }
+        tone={mySlot ? 'success' : 'neutral'}
+        details={
+          mySlot
+            ? [
+                tEvent('myStatusPartySlot', { party: mySlot.partyName, slot: mySlot.slotNumber }),
+                tEvent('myStatusRole', { role: t(`slotRoles.${mySlot.slot.role}`) }),
+              ]
+            : []
+        }
+        primaryAction={
+          mySlot && listEvent.battleStarted
+            ? { href: '/demo/regear', label: tEvent('myStatusRegear') }
+            : undefined
+        }
+        secondaryAction={{ href: '#event-slots', label: tEvent('myStatusFindSlot') }}
+      />
+
+      <div id="event-slots" className="space-y-4 scroll-mt-20">
+        {renderedParties.map((party) => (
+          <section key={party.id} className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+            <header className="bg-gray-950 px-3 py-2 border-b border-gray-800 flex items-center justify-between">
+              <div className="text-xs font-semibold text-gray-200">{t('events.partyMain')}</div>
+              <div className="text-[11px] font-mono text-amber-400">
+                {t('events.filledFraction', {
+                  filled: party.slots.filter((s) => s.assigned).length,
+                  total: party.slots.length,
+                })}
+              </div>
+            </header>
+            <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {party.slots.map((slot, i) => (
+                <SlotCard key={`${party.id}-${i}`} slot={slot} t={t} />
+              ))}
             </div>
-          </header>
-          <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {party.slots.map((slot, i) => (
-              <SlotCard key={`${party.id}-${i}`} slot={slot} t={t} />
-            ))}
-          </div>
-        </section>
-      ))}
+          </section>
+        ))}
+      </div>
     </div>
   )
+}
+
+function findDemoSlot(parties: typeof DEMO_EVENT_DETAIL.parties, ign: string) {
+  for (const party of parties) {
+    const slotIndex = party.slots.findIndex((slot) => slot.assigned === ign)
+    if (slotIndex >= 0) {
+      return {
+        partyName: party.name,
+        slotNumber: slotIndex + 1,
+        slot: party.slots[slotIndex]!,
+      }
+    }
+  }
+  return null
 }
 
 function Field({ label, value }: { label: string; value: string }) {

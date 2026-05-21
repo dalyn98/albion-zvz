@@ -10,6 +10,7 @@ import EventPartyGrid from '@/components/EventPartyGrid'
 import EventSlotSidebar from '@/components/EventSlotSidebar'
 import EventGuestInviteManager from '@/components/EventGuestInviteManager'
 import TentativeSignupSection from '@/components/TentativeSignupSection'
+import EventMyStatusCard, { type EventMyStatusTone } from '@/components/EventMyStatusCard'
 import { listTentativeSignups } from '@/app/actions/event-tentative'
 import AutoRefresh from '@/components/AutoRefresh'
 import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil, FileText } from 'lucide-react'
@@ -24,6 +25,7 @@ import { getTenantTimezone } from '@/lib/timezone-server'
 import { listEventGuestTokens } from '@/app/actions/event-invites'
 import { classifyHost, resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { resolveAlbionDisplayName } from '@/lib/albion-display-name'
+import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { loadGuildProfileSettings } from '@/lib/guild-profile'
 
 function formatStartedAt(iso: string, tz: string): string {
@@ -139,9 +141,19 @@ export default async function EventDetailPage({
   // fallback. 이벤트 상세는 layout gate 가 자기 이벤트 외 접근을 차단하므로
   // guildId 미스매치는 유효 경로에서 발생하지 않는다.
   const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
-  const [{ event, parties }, t, locale, cdBadgeRolesRaw, autoRegearRaw, tz, tentativeRes] = await Promise.all([
+  const [
+    { event, parties },
+    t,
+    tRole,
+    locale,
+    cdBadgeRolesRaw,
+    autoRegearRaw,
+    tz,
+    tentativeRes,
+  ] = await Promise.all([
     getEvent(id, guildId),
     getTranslations('event'),
+    getTranslations('slotRole'),
     getLocale(),
     getAppSetting('cd_badge_roles', '["Dps"]', guildId),
     getAppSetting('auto_regear_enabled', 'false', guildId),
@@ -226,6 +238,94 @@ export default async function EventDetailPage({
   const shouldPoll = !event.battle_started_at || !isEnded(event.battle_started_at)
   const battleEnded = !!event.battle_started_at && isEnded(event.battle_started_at)
   const pollIntervalMs = event.battle_started_at ? 15_000 : 30_000
+  let myAssigned:
+    | { partyName: string; slotNumber: number; roleName: string | null }
+    | null = null
+  let myPending:
+    | { partyName: string; slotNumber: number; roleName: string | null }
+    | null = null
+  if (session) {
+    for (const party of parties) {
+      const customName = party.name?.trim()
+      const partyName = party.is_bomb_squad && customName
+        ? customName
+        : t('partyNumber', { number: party.party_number })
+      for (const slot of party.slots) {
+        if (!myAssigned && slot.assigned_discord_id === session.discordId) {
+          myAssigned = { partyName, slotNumber: slot.slot_number, roleName: slot.role_name }
+        }
+        if (!myPending && slot.requested_discord_id === session.discordId) {
+          myPending = { partyName, slotNumber: slot.slot_number, roleName: slot.role_name }
+        }
+      }
+    }
+  }
+  const myTentative = session
+    ? tentativeRows.find((row) => row.discord_id === session.discordId) ?? null
+    : null
+  const myTentativeRoleNames =
+    myTentative?.possible_roles.map((role) => translateSlotRole(role, tRole)).filter(Boolean) ?? []
+  const myStatusTone: EventMyStatusTone = !session
+    ? 'guest'
+    : myAssigned
+      ? 'success'
+      : myPending || myTentative
+        ? 'pending'
+        : 'neutral'
+  const myStatusDetails = myAssigned
+    ? [
+        t('myStatusPartySlot', {
+          party: myAssigned.partyName,
+          slot: myAssigned.slotNumber,
+        }),
+        myAssigned.roleName
+          ? t('myStatusRole', { role: translateSlotRole(myAssigned.roleName, tRole) })
+          : null,
+      ].filter((v): v is string => !!v)
+    : myPending
+      ? [
+          t('myStatusPartySlot', {
+            party: myPending.partyName,
+            slot: myPending.slotNumber,
+          }),
+          myPending.roleName
+            ? t('myStatusRole', { role: translateSlotRole(myPending.roleName, tRole) })
+            : null,
+        ].filter((v): v is string => !!v)
+      : myTentative
+        ? myTentativeRoleNames.length > 0
+          ? [t('myStatusTentativeRoles', { roles: myTentativeRoleNames.join(', ') })]
+          : []
+        : []
+  const myStatusTitle = !session
+    ? t('myStatusGuestTitle')
+    : myAssigned
+      ? t('myStatusAssignedTitle')
+      : myPending
+        ? t('myStatusPendingTitle')
+        : myTentative
+          ? t('myStatusTentativeTitle')
+          : t('myStatusNoneTitle')
+  const myStatusDescription = !session
+    ? t('myStatusGuestBody')
+    : myAssigned
+      ? event.battle_started_at
+        ? t('myStatusAssignedStartedBody')
+        : t('myStatusAssignedBody')
+      : myPending
+        ? t('myStatusPendingBody')
+        : myTentative
+          ? t('myStatusTentativeBody')
+          : t('myStatusNoneBody')
+  const canRequestRegear = !!session?.isMember && !!myAssigned && !!event.battle_started_at
+  const myStatusPrimaryAction = !session
+    ? { href: loginHref, label: t('myStatusLogin') }
+    : canRequestRegear
+      ? { href: '/regear', label: t('myStatusRegear') }
+      : undefined
+  const myStatusSecondaryAction = session && !canRequestRegear
+    ? { href: '#event-slots', label: t('myStatusFindSlot') }
+    : undefined
 
   return (
     <div className="flex-1 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 py-6 sm:py-8 flex flex-col lg:flex-row lg:gap-6 space-y-4 lg:space-y-0">
@@ -340,19 +440,31 @@ export default async function EventDetailPage({
           battleStarted={!!event.battle_started_at}
         />
 
-        <EventPartyGrid
-          parties={parties}
-          currentDiscordId={session?.discordId ?? null}
-          loginHref={loginHref}
-          battleStarted={!!event.battle_started_at}
-          isAdmin={session?.isAdmin ?? false}
-          eventId={id}
-          avatars={avatars}
-          usernames={usernames}
-          cdBadgeRoles={cdBadgeRoles}
-          autoRegearEnabled={autoRegearEnabled}
-          eventCategory={event.category}
+        <EventMyStatusCard
+          title={t('myStatusTitle')}
+          statusTitle={myStatusTitle}
+          description={myStatusDescription}
+          tone={myStatusTone}
+          details={myStatusDetails}
+          primaryAction={myStatusPrimaryAction}
+          secondaryAction={myStatusSecondaryAction}
         />
+
+        <div id="event-slots" className="scroll-mt-20">
+          <EventPartyGrid
+            parties={parties}
+            currentDiscordId={session?.discordId ?? null}
+            loginHref={loginHref}
+            battleStarted={!!event.battle_started_at}
+            isAdmin={session?.isAdmin ?? false}
+            eventId={id}
+            avatars={avatars}
+            usernames={usernames}
+            cdBadgeRoles={cdBadgeRoles}
+            autoRegearEnabled={autoRegearEnabled}
+            eventCategory={event.category}
+          />
+        </div>
       </main>
 
       <aside className="hidden lg:block w-72 xl:w-80 flex-shrink-0">

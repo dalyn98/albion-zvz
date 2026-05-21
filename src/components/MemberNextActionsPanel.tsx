@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { CalendarDays, CheckCircle2, ChevronRight, FileText, ListChecks, ShieldAlert } from 'lucide-react'
+import { CalendarDays, CheckCircle2, ChevronRight, ListChecks, ShieldAlert } from 'lucide-react'
 
 interface NextEvent {
   id: string
@@ -15,8 +15,6 @@ interface Labels {
   requestsTitle: string
   requestsBody: string
   nextEventTitle: string
-  settlementsTitle: string
-  settlementsBody: string
   noItemsTitle: string
   noItemsBody: string
   open: string
@@ -79,17 +77,7 @@ export default function MemberNextActionsPanel({
     )
   }
 
-  actions.push(
-    <ActionLink
-      key="settlements"
-      href="/me/settlements"
-      icon={<FileText size={18} />}
-      title={labels.settlementsTitle}
-      body={labels.settlementsBody}
-      tone="neutral"
-      openLabel={labels.open}
-    />,
-  )
+  const hasActions = actions.length > 0
 
   return (
     <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4">
@@ -98,12 +86,12 @@ export default function MemberNextActionsPanel({
           <h2 className="text-white text-base font-bold">{labels.title}</h2>
           <p className="text-gray-400 text-xs leading-relaxed mt-1">{labels.description}</p>
         </div>
-        {actions.length === 1 && albionVerified && pendingTotal === 0 && !nextEvent && (
+        {!hasActions && (
           <CheckCircle2 size={20} className="text-emerald-400 flex-shrink-0 mt-0.5" />
         )}
       </div>
 
-      {actions.length === 1 && albionVerified && pendingTotal === 0 && !nextEvent ? (
+      {!hasActions ? (
         <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3">
           <p className="text-sm font-semibold text-emerald-200">{labels.noItemsTitle}</p>
           <p className="text-xs text-emerald-100/75 leading-relaxed mt-1">{labels.noItemsBody}</p>
