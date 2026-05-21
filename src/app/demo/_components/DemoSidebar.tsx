@@ -30,7 +30,9 @@ import {
   Home,
   ClipboardList,
   Archive,
+  KeyRound,
   ScrollText,
+  Zap,
 } from 'lucide-react'
 import { DEMO_ADMIN_BADGES } from '@/data/demo-seed'
 
@@ -91,6 +93,7 @@ const ADMIN_NAV: NavItem[] = [
   },
   // 보급/재화
   { href: '/demo/shop', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'adminSupply' },
+  { href: '/demo/siphon', labelKey: 'siphonAdmin', icon: Zap, section: 'adminSupply' },
   { href: '/demo/craft', labelKey: 'craftAdmin', icon: Hammer, section: 'adminSupply' },
   { href: '/demo/inventory', labelKey: 'inventoryAdmin', icon: Boxes, section: 'adminSupply' },
   // 분석/기록
@@ -98,6 +101,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/demo/audit', labelKey: 'audit', icon: ScrollText, section: 'adminInsight' },
   // 길드 설정
   { href: '/demo/guild-profile', labelKey: 'guildProfile', icon: Sparkles, section: 'adminSettings' },
+  { href: '/demo/permissions', labelKey: 'permissions', icon: KeyRound, section: 'adminSettings' },
   { href: '/demo/settings', labelKey: 'settings', icon: Settings, section: 'adminSettings' },
   { href: '/demo/backup', labelKey: 'backup', icon: Archive, section: 'adminSettings' },
 ]

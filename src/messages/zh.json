@@ -4533,6 +4533,30 @@
       "tasksDisabledNotice": "制作系统已关闭，因此队列不会显示。",
       "tasksRangeEmpty": "在所选仓库范围内没有相符的任务。"
     },
+    "siphon": {
+      "notice": "演示 — 粘贴、分析、保存会在页面上响应，但不会写入数据库。可体验成员 Siphoned Energy 余额管理流程。",
+      "lastImport": "最后导入：{time}",
+      "lastImportDemo": "今天 23:18",
+      "lastImportJustNow": "刚刚",
+      "previewStatus": "分析状态",
+      "previewReady": "就绪",
+      "playerSearchPlaceholder": "搜索玩家…",
+      "ledgerDescription": "从游戏内公会仓库日志中过滤出的 Siphoned Energy 原始记录。",
+      "toastAnalyzed": "已分析演示日志。",
+      "toastSaved": "演示保存流程完成。真实数据没有改变。",
+      "toastCleared": "已清空粘贴区域。"
+    },
+    "permissions": {
+      "notice": "演示 — 角色预设、权限开关、用户修正会像真实应用一样响应，但不会保存。",
+      "sampleRoleRegear": "补装负责人",
+      "adminRoles": "管理员角色",
+      "eventCreatorRoles": "活动创建角色",
+      "activeMemberRoles": "活跃成员角色",
+      "enabledCount": "已选择 {count} 项权限",
+      "overrideExample": "例如：只给 Daewi 增加活动创建权限，或从补给官角色中收回设置权限。",
+      "toastPreset": "已应用预设。演示更改不会保存。",
+      "toastSaved": "已查看 {count} 项权限的保存流程。真实数据没有改变。"
+    },
     "ctaCard": {
       "eyebrow": "在你的公会中运行",
       "buttonLabel": "邀请 Discord 机器人",
@@ -4666,6 +4690,52 @@
           "step3Title": "分页",
           "step3Body": "默认每页 10 条。总条数始终显示在顶部。",
           "completedBody": "尝试调整筛选器，想象一下在自己公会的纠纷中如何使用。"
+        },
+        "siphon": {
+          "introTitle": "Siphon 管理导览",
+          "introBody": "管理员粘贴游戏内仓库日志，并追踪每位成员 Siphoned Energy 余额的页面。",
+          "step1Title": "粘贴日志",
+          "step1Body": "粘贴从游戏复制的仓库日志后，系统只保留 Siphon 行并计算入库和出库。",
+          "step2Title": "成员余额",
+          "step2Body": "查看谁存入了多少、谁使用了多少，并以正负余额显示。",
+          "step3Title": "原始台账",
+          "step3Body": "出现问题时可追踪原始时间、玩家、数量和导入负责人。",
+          "completedBody": "管理员维护完整台账，成员只查看自己的 Siphon 余额。"
+        },
+        "permissions": {
+          "introTitle": "权限管理导览",
+          "introBody": "只向非管理员负责人开放他们需要的页面和操作。",
+          "step1Title": "基础角色设置",
+          "step1Body": "在一处查看管理员角色、活动创建角色和活跃成员角色。",
+          "step2Title": "角色预设",
+          "step2Body": "选择补装负责人、补给官、制作负责人、分析员等岗位预设。",
+          "step3Title": "能力开关",
+          "step3Body": "按角色调整补装审批、活动创建、库存管理、统计查看等权限。",
+          "step4Title": "用户修正",
+          "step4Body": "当角色规则不够用时，可对单个成员增加或收回权限。",
+          "completedBody": "公会长可以委派工作，而不必交出完整管理员权限。"
+        },
+        "myRequests": {
+          "introTitle": "我的申请导览",
+          "introBody": "成员在一处查看自己的补装、兑换和捐赠申请状态。",
+          "step1Title": "申请摘要",
+          "step1Body": "按功能分开展示待处理和总数。",
+          "step2Title": "补装状态",
+          "step2Body": "自动和手动补装都会显示待处理、已批准或已拒绝。",
+          "step3Title": "兑换状态",
+          "step3Body": "查看积分换银币申请的金额和处理人。",
+          "step4Title": "捐赠状态",
+          "step4Body": "捐给公会的银币是否计入积分会留下记录。",
+          "completedBody": "成员可以先自行查看状态，再决定是否询问管理员。"
+        },
+        "mySiphon": {
+          "introTitle": "我的 Siphon 导览",
+          "introBody": "成员查看自己已验证 Albion 角色的 Siphon 存入、取出和余额。",
+          "step1Title": "我的余额摘要",
+          "step1Body": "当前余额、累计存入、累计取出和最近活动一目了然。",
+          "step2Title": "存取历史",
+          "step2Body": "只显示管理员导入日志中匹配本人角色名的记录。",
+          "completedBody": "成员可自行核对 Siphon 余额，减少对管理员的询问。"
         },
         "memberEvents": {
           "introTitle": "成员活动导览",

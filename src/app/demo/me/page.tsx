@@ -320,10 +320,13 @@ export default async function DemoMePage() {
             </h2>
             <p className="text-gray-400 text-xs leading-relaxed mt-1">{t('siphonDescription')}</p>
           </div>
-          <DemoActionButton className="inline-flex items-center gap-1 text-xs font-semibold text-amber-300 hover:text-amber-200">
+          <Link
+            href="/demo/me/siphon"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-amber-300 hover:text-amber-200"
+          >
             <ListChecks size={14} />
             {t('siphonHistoryLink')}
-          </DemoActionButton>
+          </Link>
         </div>
         <p className="text-[11px] text-gray-500">
           {t('siphonVerifiedPlayer', { player: ME.ign })}
@@ -361,8 +364,8 @@ export default async function DemoMePage() {
         }}
       />
 
-      <DemoActionButton
-        asDiv
+      <Link
+        href="/demo/me/requests"
         className="flex items-center justify-between gap-3 bg-gray-900 border border-gray-700 hover:border-amber-500/40 rounded-2xl px-4 py-3 transition-colors group cursor-pointer"
       >
         <div className="min-w-0 flex-1 text-left">
@@ -372,7 +375,7 @@ export default async function DemoMePage() {
           </p>
         </div>
         <ChevronRight size={18} className="text-gray-500 group-hover:text-amber-400 flex-shrink-0" />
-      </DemoActionButton>
+      </Link>
 
       <section id="wallet" data-tour-id="me-wallet" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4 scroll-mt-20">
         <div className="flex items-start justify-between gap-3 flex-wrap">

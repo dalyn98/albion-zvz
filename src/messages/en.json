@@ -4533,6 +4533,30 @@
       "tasksDisabledNotice": "Crafting is turned off, so the queue is hidden.",
       "tasksRangeEmpty": "No tasks fall within the selected box range."
     },
+    "siphon": {
+      "notice": "Demo — paste, analyze, and save react on screen but do not write to the database. Try the guild-member siphon balance workflow.",
+      "lastImport": "Last import: {time}",
+      "lastImportDemo": "Today 23:18",
+      "lastImportJustNow": "Just now",
+      "previewStatus": "Analysis status",
+      "previewReady": "Ready",
+      "playerSearchPlaceholder": "Search player…",
+      "ledgerDescription": "Raw siphon-only rows filtered from the in-game guild chest log.",
+      "toastAnalyzed": "Demo log analyzed.",
+      "toastSaved": "Demo save flow completed. Live data was not changed.",
+      "toastCleared": "Paste area cleared."
+    },
+    "permissions": {
+      "notice": "Demo — role presets, permission toggles, and user overrides react like the real app, but nothing is saved.",
+      "sampleRoleRegear": "Regear officer",
+      "adminRoles": "Admin roles",
+      "eventCreatorRoles": "Event creator roles",
+      "activeMemberRoles": "Active member roles",
+      "enabledCount": "{count} permissions selected",
+      "overrideExample": "Example: grant Daewi event creation only, or revoke settings access from a quartermaster role.",
+      "toastPreset": "Preset applied. Demo changes are not saved.",
+      "toastSaved": "Reviewed the save flow for {count} permissions. Live data was not changed."
+    },
     "ctaCard": {
       "eyebrow": "Run this in your guild",
       "buttonLabel": "Invite Discord bot",
@@ -4666,6 +4690,52 @@
           "step3Title": "Pagination",
           "step3Body": "Paginated 10 entries per page by default. Total count is always visible at the top.",
           "completedBody": "Try changing the filters — picture how you'd use this for disputes inside your own guild."
+        },
+        "siphon": {
+          "introTitle": "Siphon management tour",
+          "introBody": "An admin view for pasting in-game chest logs and tracking each member's Siphoned Energy balance.",
+          "step1Title": "Paste logs",
+          "step1Body": "Paste chest logs copied from the game. The app keeps siphon rows and calculates deposits and withdrawals.",
+          "step2Title": "Member balances",
+          "step2Body": "See who deposited and who used siphons, with positive and negative balances.",
+          "step3Title": "Raw ledger",
+          "step3Body": "When questions come up, trace the original time, player, quantity, and importing officer.",
+          "completedBody": "Admins manage the full ledger; members check only their own siphon balance."
+        },
+        "permissions": {
+          "introTitle": "Permissions tour",
+          "introBody": "Grant non-admin officers only the screens and actions they need.",
+          "step1Title": "Base role settings",
+          "step1Body": "Review admin roles, event creator roles, and active member roles in one place.",
+          "step2Title": "Role presets",
+          "step2Body": "Choose job-based presets such as regear officer, quartermaster, craft lead, or analyst.",
+          "step3Title": "Capability toggles",
+          "step3Body": "Tune role permissions such as regear approval, event creation, inventory management, and stats access.",
+          "step4Title": "User overrides",
+          "step4Body": "Grant or revoke permissions for a specific member when role-level rules are not enough.",
+          "completedBody": "Guild leaders can delegate work without handing out full admin access."
+        },
+        "myRequests": {
+          "introTitle": "My requests tour",
+          "introBody": "Members can check their own regear, exchange, and donation request statuses in one place.",
+          "step1Title": "Request summary",
+          "step1Body": "Pending and total counts are split by feature.",
+          "step2Title": "Regear status",
+          "step2Body": "Auto and manual regears show whether they are pending, approved, or rejected.",
+          "step3Title": "Exchange status",
+          "step3Body": "Point-to-silver exchange requests show amount and handler.",
+          "step4Title": "Donation status",
+          "step4Body": "Silver donated to the guild stays visible as a point-credit request.",
+          "completedBody": "Members can check status before asking admins."
+        },
+        "mySiphon": {
+          "introTitle": "My siphon tour",
+          "introBody": "Members see siphon deposits, withdrawals, and balance for their verified Albion character.",
+          "step1Title": "My balance summary",
+          "step1Body": "Current balance, total deposited, total withdrawn, and latest activity are visible at a glance.",
+          "step2Title": "Deposit/withdraw history",
+          "step2Body": "Only rows matching the member's character name are shown from the admin-imported chest log.",
+          "completedBody": "Members can self-check siphon balances, reducing admin questions."
         },
         "memberEvents": {
           "introTitle": "My events tour",

@@ -4533,6 +4533,30 @@
       "tasksDisabledNotice": "제작 시스템이 꺼져 있어 큐가 노출되지 않습니다.",
       "tasksRangeEmpty": "선택한 박스 범위 안에 해당하는 작업이 없어요."
     },
+    "siphon": {
+      "notice": "데모 — 붙여넣기·분석·저장 버튼은 화면에서 실제로 반응하지만 DB에는 저장되지 않아요. 길드원별 사이펀 잔량 관리 흐름을 체험해보세요.",
+      "lastImport": "마지막 반영: {time}",
+      "lastImportDemo": "오늘 23:18",
+      "lastImportJustNow": "방금 전",
+      "previewStatus": "분석 상태",
+      "previewReady": "준비됨",
+      "playerSearchPlaceholder": "플레이어 검색…",
+      "ledgerDescription": "인게임 길드 보관함 로그에서 사이펀 항목만 추린 원본 기록입니다.",
+      "toastAnalyzed": "데모 로그를 분석했어요.",
+      "toastSaved": "데모 저장 처리 완료. 실제 데이터는 변경되지 않아요.",
+      "toastCleared": "붙여넣기 영역을 비웠어요."
+    },
+    "permissions": {
+      "notice": "데모 — 역할 프리셋, 권한 토글, 사용자 보정이 실제처럼 반응하지만 저장되지는 않아요.",
+      "sampleRoleRegear": "리기어 담당관",
+      "adminRoles": "관리자 역할",
+      "eventCreatorRoles": "이벤트 생성 역할",
+      "activeMemberRoles": "활성 멤버 역할",
+      "enabledCount": "{count}개 권한 선택됨",
+      "overrideExample": "예: 일반 멤버 Daewi에게 이벤트 생성 권한만 추가하거나, 보급관 역할에서 설정 권한만 회수할 수 있습니다.",
+      "toastPreset": "프리셋을 적용했어요. 데모라 저장되지는 않습니다.",
+      "toastSaved": "{count}개 권한 저장 흐름을 확인했어요. 실제 데이터는 변경되지 않아요."
+    },
     "ctaCard": {
       "eyebrow": "이 흐름을 우리 길드에서",
       "buttonLabel": "Discord 봇 초대하기",
@@ -4666,6 +4690,52 @@
           "step3Title": "페이지네이션",
           "step3Body": "기본 10건 단위로 페이지를 끊어 보여줍니다. 전체 카운트는 상단에 항상 노출됩니다.",
           "completedBody": "필터를 직접 바꿔 보면서 본인 길드의 어떤 분쟁에 쓸지 그려 보세요."
+        },
+        "siphon": {
+          "introTitle": "사이펀 관리 투어",
+          "introBody": "인게임 보관함 로그를 붙여넣어 길드원별 착취한 에너지 잔량을 추적하는 관리자 화면입니다.",
+          "step1Title": "로그 붙여넣기",
+          "step1Body": "게임에서 복사한 보관함 로그를 넣으면 사이펀 항목만 추리고 입금/출금을 계산합니다.",
+          "step2Title": "길드원별 잔량",
+          "step2Body": "누가 얼마나 넣고 얼마나 사용했는지 양수/음수로 확인합니다.",
+          "step3Title": "원본 로그",
+          "step3Body": "문제가 생겼을 때 원본 시간, 플레이어, 수량, 임포트 담당자를 추적합니다.",
+          "completedBody": "관리자는 전체 잔량을 보고, 길드원은 내 사이펀 화면에서 본인 잔량만 확인합니다."
+        },
+        "permissions": {
+          "introTitle": "권한 관리 투어",
+          "introBody": "비어드민 담당관에게 필요한 화면만 열어주는 역할·사용자별 권한 관리 흐름입니다.",
+          "step1Title": "기본 역할 설정",
+          "step1Body": "관리자 역할, 이벤트 생성 역할, 활성 멤버 역할을 한곳에서 확인합니다.",
+          "step2Title": "역할 프리셋",
+          "step2Body": "리기어 담당관, 상점 보급관, 제작 리드처럼 업무별 기본 권한을 빠르게 고릅니다.",
+          "step3Title": "세부 권한 토글",
+          "step3Body": "역할별로 리기어 승인, 이벤트 생성, 재고 관리, 통계 조회 같은 권한을 직접 조정합니다.",
+          "step4Title": "사용자별 보정",
+          "step4Body": "특정 멤버에게만 권한을 추가하거나 회수해 예외 케이스를 처리합니다.",
+          "completedBody": "길드장은 모든 일을 직접 하지 않고 담당관에게 필요한 만큼만 맡길 수 있습니다."
+        },
+        "myRequests": {
+          "introTitle": "내 신청 내역 투어",
+          "introBody": "길드원이 리기어, 환전, 기부 신청 상태를 한 화면에서 확인하는 흐름입니다.",
+          "step1Title": "신청 요약",
+          "step1Body": "대기 중인 건과 전체 건수를 기능별로 나누어 봅니다.",
+          "step2Title": "리기어 상태",
+          "step2Body": "자동/수동 리기어가 승인 대기인지, 승인됐는지 바로 확인합니다.",
+          "step3Title": "환전 상태",
+          "step3Body": "포인트를 실버로 바꾼 신청과 처리자를 확인합니다.",
+          "step4Title": "기부 상태",
+          "step4Body": "길드에 기부한 실버가 포인트로 인정됐는지 기록으로 남습니다.",
+          "completedBody": "길드원은 관리자에게 묻기 전에 본인 신청 상태를 직접 확인할 수 있습니다."
+        },
+        "mySiphon": {
+          "introTitle": "내 사이펀 투어",
+          "introBody": "길드원이 본인 캐릭터명으로 기록된 사이펀 입출금과 잔량을 확인하는 화면입니다.",
+          "step1Title": "내 잔량 요약",
+          "step1Body": "현재 잔량, 누적 입금, 누적 출금, 최근 기록을 한눈에 봅니다.",
+          "step2Title": "입출금 내역",
+          "step2Body": "관리자가 붙여넣은 길드 보관함 로그 중 내 캐릭터명 기록만 표시합니다.",
+          "completedBody": "사이펀은 길드원이 직접 잔량을 확인할 수 있어 운영자 문의가 줄어듭니다."
         },
         "memberEvents": {
           "introTitle": "내 이벤트 투어",
