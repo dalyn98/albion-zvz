@@ -15,6 +15,7 @@ export const SCREENSHOT_BUCKET = 'regear-screenshots'
 // 10 MiB — 마이그 003 의 버킷 한도와 동일하게 유지.
 export const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024
 export const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp'])
+export const DAY_MS = 24 * 60 * 60 * 1000
 
 // 자동 리기어 pending 상태에서 청구자가 부위별 시세를 수정할 때 쓰는 구조.
 // auto-regear.ts 가 만든 gear_breakdown.items 와 동일한 필드 셋 + userEdited 플래그.
@@ -132,6 +133,21 @@ export function computeRegearWindowOpenMs(
 ): number {
   const startPlusBufferMs = battleStartMs + windowMinutes * 60 * 1000
   return latestEndedMs > 0 ? Math.min(startPlusBufferMs, latestEndedMs) : startPlusBufferMs
+}
+
+export function computeRegearEligibilityDeadlineMs(
+  anchorMs: number,
+  eligibilityDays: number,
+): number {
+  return anchorMs + eligibilityDays * DAY_MS
+}
+
+export function isRegearEligibilityExpired(
+  anchorMs: number,
+  eligibilityDays: number,
+  nowMs: number = Date.now(),
+): boolean {
+  return nowMs > computeRegearEligibilityDeadlineMs(anchorMs, eligibilityDays)
 }
 
 // matchedBattles 배열에서 가장 늦은 ended_at(ms) 을 뽑는다. 매칭 0건 또는 모두

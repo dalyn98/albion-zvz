@@ -15,6 +15,7 @@ import {
 import { DEMO_MEMBERS } from '@/data/demo-seed'
 import DemoActionButton from '../../_components/DemoActionButton'
 import DemoCTACard from '../../_components/DemoCTACard'
+import DemoGuidedTour from '../../_components/DemoGuidedTour'
 import { useDemoToast } from '../../_components/DemoFeedbackProvider'
 
 // 실 /craft/queue 비주얼 클론을 클라이언트 컴포넌트로 전환. 도시 필터, 일괄 선택,
@@ -111,6 +112,12 @@ const INITIAL_QUEUE: ReadonlyArray<QueueRow> = [
 ]
 
 const CITIES: ReadonlyArray<City> = ['bridgewatch', 'lymhurst', 'martlock', 'fortsterling', 'thetford', 'caerleon']
+const CRAFT_QUEUE_TOUR_STEPS = [
+  { id: 'craft-queue-defaults' },
+  { id: 'craft-queue-filter' },
+  { id: 'craft-queue-list' },
+  { id: 'craft-queue-aggregate' },
+] as const
 
 // 베이스 재고 — 잡힌 작업만큼 needed 가 줄어들고 부족 여부도 다시 계산됨.
 const BASE_STOCK: Record<string, number> = {
@@ -247,6 +254,7 @@ export default function DemoCraftQueuePage() {
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
+      <DemoGuidedTour steps={CRAFT_QUEUE_TOUR_STEPS} namespace="craftQueue" />
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-white mb-1 flex items-center gap-2">
@@ -279,7 +287,7 @@ export default function DemoCraftQueuePage() {
       </Link>
 
       {/* 제작자 기본값 카드 — 편집 버튼은 토스트 안내 */}
-      <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 space-y-2">
+      <section data-tour-id="craft-queue-defaults" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 space-y-2">
         <h2 className="text-base font-bold text-white">{t('defaultsTitle')}</h2>
         <div className="flex items-center justify-between flex-wrap gap-2">
           <p className="text-sm text-gray-300">
@@ -293,7 +301,7 @@ export default function DemoCraftQueuePage() {
       </section>
 
       {/* 도시 필터 — 실제로 멀티 토글 */}
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl p-3 space-y-2">
+      <div data-tour-id="craft-queue-filter" className="bg-gray-900 border border-gray-700 rounded-2xl p-3 space-y-2">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">{t('cityFilter.title')}</p>
           <div className="flex items-center gap-2">
@@ -334,7 +342,7 @@ export default function DemoCraftQueuePage() {
       </div>
 
       {/* 대기 중인 작업 */}
-      <section className="space-y-3">
+      <section data-tour-id="craft-queue-list" className="space-y-3">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
           <Hammer size={16} className="text-amber-400" />
           {t('queueTitle')}
@@ -456,7 +464,7 @@ export default function DemoCraftQueuePage() {
       </section>
 
       {/* 필요 장비 집계 */}
-      <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 space-y-3">
+      <section data-tour-id="craft-queue-aggregate" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 space-y-3">
         <header className="space-y-1">
           <h2 className="text-base font-bold text-white flex items-center gap-2">
             <Package size={16} className="text-amber-400" />

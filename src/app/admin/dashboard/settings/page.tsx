@@ -5,9 +5,10 @@ import { getGuild, isAlbionServer, type AlbionServer } from '@/lib/albion-gamein
 import { getTranslations } from 'next-intl/server'
 import { SLOT_ROLES, SLOT_KEYS, type SlotRole, type SlotKey } from '@/types'
 import { getSession } from '@/lib/session'
-import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
+import { getSessionGuildId } from '@/lib/tenant'
 import { DEFAULT_TENANT_TIMEZONE, isValidTenantTimezone } from '@/lib/timezone'
 import { isSuperAdminSession } from '@/lib/super-admin'
+import { loadAdminPermissionRoleSettings } from '@/lib/admin-permission-settings'
 
 // 알림 메시지의 기본값은 빈 문자열 — 폼은 초기값이 비어 있으면 locale 별
 // `messagePlaceholder` 를 노출하므로, 관리자는 자신이 사용하는 언어의 예시를
@@ -22,21 +23,13 @@ export default async function SettingsPage() {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const tenantId = await getSessionGuildId(session)
-  const tenantConfig = await getTenantDiscordConfig(tenantId)
-  const adminRoleIds = tenantConfig?.adminRoleIds ?? []
   const isSuperAdmin = isSuperAdminSession(session)
 
   const [
+    permissionRoleSettings,
     message,
     bannerUrl,
     ctaText,
-    eventCreatorRoleIdsRaw,
-    eventCreatorCombatIdsRaw,
-    eventCreatorFfIdsRaw,
-    eventCreatorGankingIdsRaw,
-    bombSquadCallerRoleIdsRaw,
-    activeMemberRoleIdsRaw,
-    lastMemberSyncAtRaw,
     regearWindowMinutesRaw,
     regearMaxDeathsRaw,
     regearEligibilityDaysRaw,
@@ -58,16 +51,10 @@ export default async function SettingsPage() {
     tLanding,
     t,
   ] = await Promise.all([
+    loadAdminPermissionRoleSettings(tenantId),
     getAppSetting('event_notification_message', '', tenantId),
     getAppSetting('landing_banner_url', '', tenantId),
     getAppSetting('landing_cta_text', '', tenantId),
-    getAppSetting('event_creator_role_ids', '[]', tenantId),
-    getAppSetting('event_creator_role_ids_combat', '[]', tenantId),
-    getAppSetting('event_creator_role_ids_ff', '[]', tenantId),
-    getAppSetting('event_creator_role_ids_ganking', '[]', tenantId),
-    getAppSetting('bomb_squad_caller_role_ids', '[]', tenantId),
-    getAppSetting('active_member_role_ids', '[]', tenantId),
-    getAppSetting('last_member_sync_at', '', tenantId),
     getAppSetting('regear_window_minutes', '60', tenantId),
     getAppSetting('regear_max_deaths_per_event', '1', tenantId),
     getAppSetting('regear_eligibility_days', '14', tenantId),
@@ -95,25 +82,6 @@ export default async function SettingsPage() {
     getTranslations('landing'),
     getTranslations('adminSettings'),
   ])
-
-  // JSON 파싱 실패/잘못된 shape 은 빈 배열로 degrade — UI 를 깨뜨리기보다
-  // 비활성 상태(=admin 만 이벤트 생성) 로 보이게 한다.
-  const parseRoleIds = (raw: string): string[] => {
-    try {
-      const parsed = JSON.parse(raw)
-      if (!Array.isArray(parsed)) return []
-      return parsed.filter((v): v is string => typeof v === 'string' && v.length > 0)
-    } catch {
-      return []
-    }
-  }
-  const eventCreatorRoleIds = parseRoleIds(eventCreatorRoleIdsRaw)
-  const eventCreatorCombatRoleIds = parseRoleIds(eventCreatorCombatIdsRaw)
-  const eventCreatorFfRoleIds = parseRoleIds(eventCreatorFfIdsRaw)
-  const eventCreatorGankingRoleIds = parseRoleIds(eventCreatorGankingIdsRaw)
-  const bombSquadCallerRoleIds = parseRoleIds(bombSquadCallerRoleIdsRaw)
-  const activeMemberRoleIds = parseRoleIds(activeMemberRoleIdsRaw)
-  const lastMemberSyncAt = lastMemberSyncAtRaw || null
 
   // Numeric/boolean settings degrade to sane defaults if the DB value is
   // missing or malformed — admin can correct via the new form.
@@ -213,20 +181,20 @@ export default async function SettingsPage() {
       </div>
 
       <SettingsTabs
-        adminRoleIds={adminRoleIds}
+        adminRoleIds={permissionRoleSettings.adminRoleIds}
         notificationMessage={message}
         rewards={rewards}
         rewardsError={rewardsError}
         landingBannerUrl={bannerUrl}
         landingCtaText={ctaText}
         defaultLandingCtaText={tLanding('defaultCta')}
-        eventCreatorRoleIds={eventCreatorRoleIds}
-        eventCreatorCombatRoleIds={eventCreatorCombatRoleIds}
-        eventCreatorFfRoleIds={eventCreatorFfRoleIds}
-        eventCreatorGankingRoleIds={eventCreatorGankingRoleIds}
-        bombSquadCallerRoleIds={bombSquadCallerRoleIds}
-        activeMemberRoleIds={activeMemberRoleIds}
-        lastMemberSyncAt={lastMemberSyncAt}
+        eventCreatorRoleIds={permissionRoleSettings.eventCreatorRoleIds}
+        eventCreatorCombatRoleIds={permissionRoleSettings.eventCreatorCombatRoleIds}
+        eventCreatorFfRoleIds={permissionRoleSettings.eventCreatorFfRoleIds}
+        eventCreatorGankingRoleIds={permissionRoleSettings.eventCreatorGankingRoleIds}
+        bombSquadCallerRoleIds={permissionRoleSettings.bombSquadCallerRoleIds}
+        activeMemberRoleIds={permissionRoleSettings.activeMemberRoleIds}
+        lastMemberSyncAt={permissionRoleSettings.lastMemberSyncAt}
         regearWindowMinutes={regearWindowMinutes}
         regearMaxDeaths={regearMaxDeaths}
         regearEligibilityDays={regearEligibilityDays}

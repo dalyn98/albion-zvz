@@ -15,6 +15,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import DemoCTACard from '../_components/DemoCTACard'
+import DemoGuidedTour from '../_components/DemoGuidedTour'
 
 // 실 /battles 의 비주얼 클론 — 헤더 + 팁 카드 + 판정 규칙 details + 탭 + 결과
 // 필터 + 전투기록 테이블. 데모에선 클라이언트 useState 로 탭/결과 필터를 실제로
@@ -251,6 +252,11 @@ function formatStartedAtKst(iso: string): string {
 
 const TABS: ReadonlyArray<Tab> = ['recent', 'small', 'middle', 'large', 'zerg']
 const OUTCOMES: ReadonlyArray<OutcomeFilter> = ['all', 'win', 'loss', 'tie']
+const BATTLES_TOUR_STEPS = [
+  { id: 'battles-rules' },
+  { id: 'battles-filters' },
+  { id: 'battles-table' },
+] as const
 
 export default function DemoBattlesPage() {
   const t = useTranslations('battleTracking')
@@ -287,6 +293,7 @@ export default function DemoBattlesPage() {
 
   return (
     <main className="flex-1 w-full max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 py-6 sm:py-8 space-y-5">
+      <DemoGuidedTour steps={BATTLES_TOUR_STEPS} namespace="battles" />
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div className="flex items-start gap-3">
           <Swords size={20} className="text-amber-400 mt-1" />
@@ -306,7 +313,7 @@ export default function DemoBattlesPage() {
         <p className="text-amber-200 text-sm">{tDemoBattles('notice')}</p>
       </div>
 
-      <div className="bg-gray-950/50 border border-gray-800 rounded-lg p-3 space-y-2">
+      <div data-tour-id="battles-rules" className="bg-gray-950/50 border border-gray-800 rounded-lg p-3 space-y-2">
         <p className="text-[11px] text-gray-400 flex items-center gap-1.5">
           <Info size={12} />
           <span className="font-semibold text-amber-300">{t('tipTitle')}</span>
@@ -367,7 +374,7 @@ export default function DemoBattlesPage() {
         </details>
       </div>
 
-      <div className="space-y-3">
+      <div data-tour-id="battles-filters" className="space-y-3">
         <nav role="tablist" className="flex gap-1 border-b border-gray-800 overflow-x-auto">
           {TABS.map((key) => {
             const isActive = key === activeTab
@@ -410,7 +417,7 @@ export default function DemoBattlesPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto bg-gray-900 border border-gray-700 rounded-xl">
+        <div data-tour-id="battles-table" className="overflow-x-auto bg-gray-900 border border-gray-700 rounded-xl">
           <table className="w-full text-base">
             <thead className="bg-gray-950/60 text-gray-400 text-sm">
               <tr>

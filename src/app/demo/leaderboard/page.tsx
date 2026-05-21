@@ -3,6 +3,7 @@ import { Sword, CalendarCheck, Heart, Target, Trophy, Swords } from 'lucide-reac
 import { getTranslations } from 'next-intl/server'
 import { DEMO_MEMBERS } from '@/data/demo-seed'
 import DemoCTACard from '../_components/DemoCTACard'
+import DemoGuidedTour from '../_components/DemoGuidedTour'
 
 // 실제 /leaderboard 와 같은 5장(킬/참여/생존/KD/승률) 카드 구성. window 탭은
 // 주/월/전체 누적 분량과 멤버별 안정적 변동을 함께 적용해, 각 윈도우가 진짜로
@@ -11,6 +12,11 @@ import DemoCTACard from '../_components/DemoCTACard'
 
 type LeaderboardWindow = 'week' | 'month' | 'all'
 const WINDOWS: ReadonlyArray<LeaderboardWindow> = ['week', 'month', 'all']
+const LEADERBOARD_TOUR_STEPS = [
+  { id: 'leaderboard-window' },
+  { id: 'leaderboard-cards' },
+  { id: 'leaderboard-member-link' },
+] as const
 
 function isWindow(v: string | undefined): v is LeaderboardWindow {
   return v === 'week' || v === 'month' || v === 'all'
@@ -141,6 +147,7 @@ export default async function DemoLeaderboardPage({
 
   return (
     <div className="space-y-6">
+      <DemoGuidedTour steps={LEADERBOARD_TOUR_STEPS} namespace="leaderboard" />
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2 mb-1">
           <Trophy size={22} className="text-amber-400" />
@@ -149,7 +156,7 @@ export default async function DemoLeaderboardPage({
         <p className="text-gray-400 text-sm">{t('description')}</p>
       </div>
 
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+      <div data-tour-id="leaderboard-window" className="flex items-center justify-between gap-2 flex-wrap">
         <nav className="flex items-center gap-1 bg-gray-900 border border-gray-800 rounded-lg p-1 w-fit">
           {WINDOWS.map((w) => {
             const active = w === windowKey
@@ -170,7 +177,7 @@ export default async function DemoLeaderboardPage({
         </nav>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div data-tour-id="leaderboard-cards" className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <LeaderboardCard
           title={t('kills')}
           icon={<Sword size={16} className="text-red-400" />}
@@ -269,6 +276,7 @@ function LeaderboardCard({
             return (
               <li key={entry.username}>
                 <Link
+                  data-tour-id={idx === 0 ? 'leaderboard-member-link' : undefined}
                   href={`/demo/members/${encodeURIComponent(entry.username)}`}
                   className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-800/70 hover:ring-1 hover:ring-amber-500/30 transition-all"
                 >

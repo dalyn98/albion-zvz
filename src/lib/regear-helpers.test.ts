@@ -1,0 +1,23 @@
+import { describe, expect, it } from 'vitest'
+import {
+  computeRegearEligibilityDeadlineMs,
+  isRegearEligibilityExpired,
+} from './regear-helpers'
+
+describe('regear eligibility deadline', () => {
+  it('uses the battle/death anchor plus eligibility days as the deadline', () => {
+    const anchor = Date.UTC(2026, 4, 1, 12, 0, 0)
+
+    expect(computeRegearEligibilityDeadlineMs(anchor, 14)).toBe(
+      Date.UTC(2026, 4, 15, 12, 0, 0),
+    )
+  })
+
+  it('treats the exact deadline as still submittable', () => {
+    const anchor = Date.UTC(2026, 4, 1, 12, 0, 0)
+    const deadline = computeRegearEligibilityDeadlineMs(anchor, 14)
+
+    expect(isRegearEligibilityExpired(anchor, 14, deadline)).toBe(false)
+    expect(isRegearEligibilityExpired(anchor, 14, deadline + 1)).toBe(true)
+  })
+})

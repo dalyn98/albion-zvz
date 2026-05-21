@@ -8,11 +8,7 @@ import EventDmLeadMinutesForm from './EventDmLeadMinutesForm'
 import RoleRewardsEditor from './RoleRewardsEditor'
 import LandingBannerForm from './LandingBannerForm'
 import LandingCtaTextForm from './LandingCtaTextForm'
-import AdminRoleSetting from './AdminRoleSetting'
-import EventCreatorRolesGroup from './EventCreatorRolesGroup'
-import BombSquadCallerRolesSetting from './BombSquadCallerRolesSetting'
 import SettingsGroup from './SettingsGroup'
-import ActiveMemberRolesSetting from './ActiveMemberRolesSetting'
 import RegearLimitsForm from './RegearLimitsForm'
 import RegearPayoutRateForm from './RegearPayoutRateForm'
 import EventAutoStartForm from './EventAutoStartForm'
@@ -23,6 +19,7 @@ import type { AlbionServer } from '@/lib/albion-gameinfo'
 import RegearModeCard from './RegearModeCard'
 import CdBadgeRolesForm from './CdBadgeRolesForm'
 import AutoRegearSlotsForm from './AutoRegearSlotsForm'
+import PermissionRoleSettingsPanel from './PermissionRoleSettingsPanel'
 import type { RoleReward } from '@/app/actions/regear-admin'
 import type { SlotRole, SlotKey } from '@/types'
 
@@ -204,20 +201,16 @@ export default function SettingsTabs({
           </SettingsGroup>
         )}
         {active === 'permissions' && (
-          <div className="space-y-4">
-            <AdminRoleSetting initialRoleIds={adminRoleIds} />
-            <EventCreatorRolesGroup
-              legacyRoleIds={eventCreatorRoleIds}
-              combatRoleIds={eventCreatorCombatRoleIds}
-              ffRoleIds={eventCreatorFfRoleIds}
-              gankingRoleIds={eventCreatorGankingRoleIds}
-            />
-            <BombSquadCallerRolesSetting initialRoleIds={bombSquadCallerRoleIds} />
-            <ActiveMemberRolesSetting
-              initialRoleIds={activeMemberRoleIds}
-              initialLastSyncAt={lastMemberSyncAt}
-            />
-          </div>
+          <PermissionRoleSettingsPanel
+            adminRoleIds={adminRoleIds}
+            eventCreatorRoleIds={eventCreatorRoleIds}
+            eventCreatorCombatRoleIds={eventCreatorCombatRoleIds}
+            eventCreatorFfRoleIds={eventCreatorFfRoleIds}
+            eventCreatorGankingRoleIds={eventCreatorGankingRoleIds}
+            bombSquadCallerRoleIds={bombSquadCallerRoleIds}
+            activeMemberRoleIds={activeMemberRoleIds}
+            lastMemberSyncAt={lastMemberSyncAt}
+          />
         )}
         {active === 'events' && (
           <div className="space-y-4">

@@ -18,6 +18,7 @@ import { getTranslations } from 'next-intl/server'
 import { DEMO_MEMBERS } from '@/data/demo-seed'
 import BadgeGrid from '@/components/BadgeGrid'
 import DemoCTACard from '../../_components/DemoCTACard'
+import DemoGuidedTour from '../../_components/DemoGuidedTour'
 
 // Eternia 의 멤버 디테일을 데모용으로 재현. 실 /me/profile 의 MemberDetailView
 // 와 유사한 구조 — 헤더(아바타+IGN+verified), 4개 통계 그룹, 뱃지 그리드,
@@ -108,6 +109,12 @@ const RECENT_BATTLES: ReadonlyArray<RecentBattle> = [
     whenLabel: '3d ago',
   },
 ]
+const ME_PROFILE_TOUR_STEPS = [
+  { id: 'me-profile-header' },
+  { id: 'me-profile-stats' },
+  { id: 'me-profile-weapons' },
+  { id: 'me-profile-battles' },
+] as const
 
 function formatKd(kills: number, deaths: number): string {
   if (deaths === 0) return kills === 0 ? '-' : `${kills}.00`
@@ -145,6 +152,7 @@ export default async function DemoMyProfilePage() {
 
   return (
     <div className="space-y-6">
+      <DemoGuidedTour steps={ME_PROFILE_TOUR_STEPS} namespace="meProfile" />
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-[11px] font-bold uppercase tracking-widest text-amber-300">
           {tDemoMe('profileEyebrow')}
@@ -155,7 +163,7 @@ export default async function DemoMyProfilePage() {
         </span>
       </div>
 
-      <header className="flex items-center gap-4 bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5">
+      <header data-tour-id="me-profile-header" className="flex items-center gap-4 bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5">
         <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-500/30 to-amber-500/10 border border-amber-500/30 flex items-center justify-center text-xl font-bold text-amber-200 flex-shrink-0">
           {ME.ign.charAt(0)}
         </div>
@@ -176,7 +184,7 @@ export default async function DemoMyProfilePage() {
         </div>
       </header>
 
-      <section className="space-y-3">
+      <section data-tour-id="me-profile-stats" className="space-y-3">
         <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
           <Trophy size={14} className="text-amber-400" />
           {tDetail('statsSectionTitle')}
@@ -309,7 +317,7 @@ export default async function DemoMyProfilePage() {
         }}
       />
 
-      <section className="space-y-3">
+      <section data-tour-id="me-profile-weapons" className="space-y-3">
         <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
           <Swords size={14} className="text-amber-400" />
           {tDetail('weaponUsage')}
@@ -327,7 +335,7 @@ export default async function DemoMyProfilePage() {
         </div>
       </section>
 
-      <section className="space-y-3">
+      <section data-tour-id="me-profile-battles" className="space-y-3">
         <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
           <Flame size={14} className="text-orange-400" />
           {tDetail('killboardHeading')}

@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server'
 import { ExternalLink, Info, Palette, Sparkles, Users } from 'lucide-react'
 import DemoActionButton from '../_components/DemoActionButton'
 import DemoCTACard from '../_components/DemoCTACard'
+import DemoGuidedTour from '../_components/DemoGuidedTour'
 
 // 실 /admin/dashboard/guild-profile 의 비주얼 클론 — 길드 소개 textarea,
 // 테마 색상 픽커, 모집 상태 선택, Discord 초대 링크 입력. GuildProfileEditor /
@@ -50,6 +51,12 @@ const DEMO_GUILD_DESCRIPTION = `ZvZ 위주로 활동하는 한국어 길드입�
 const DEMO_DISCORD_INVITE = 'https://discord.gg/demo-guild'
 
 const DEMO_PREVIEW_HREF = '/g/demo-guild'
+const GUILD_PROFILE_TOUR_STEPS = [
+  { id: 'guild-profile-description' },
+  { id: 'guild-profile-theme' },
+  { id: 'guild-profile-recruitment' },
+  { id: 'guild-profile-preview' },
+] as const
 
 export default async function DemoGuildProfilePage() {
   const [t, tDemoMe, tDemoGuildProfile, tCta] = await Promise.all([
@@ -61,6 +68,7 @@ export default async function DemoGuildProfilePage() {
 
   return (
     <div className="space-y-5">
+      <DemoGuidedTour steps={GUILD_PROFILE_TOUR_STEPS} namespace="guildProfile" />
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-white">{t('pageTitle')}</h1>
@@ -91,7 +99,7 @@ export default async function DemoGuildProfilePage() {
       </div>
 
       {/* 길드 소개 */}
-      <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
+      <section data-tour-id="guild-profile-description" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
         <div>
           <h2 className="text-base font-bold text-white">{t('descriptionTitle')}</h2>
           <p className="text-xs text-gray-500 mt-1">{t('descriptionDescription')}</p>
@@ -105,7 +113,7 @@ export default async function DemoGuildProfilePage() {
       </section>
 
       {/* 테마 색상 */}
-      <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
+      <section data-tour-id="guild-profile-theme" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
         <div>
           <h2 className="text-base font-bold text-white flex items-center gap-2">
             <Palette size={16} className="text-amber-400" />
@@ -135,7 +143,7 @@ export default async function DemoGuildProfilePage() {
       </section>
 
       {/* 모집 상태 / Discord */}
-      <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4">
+      <section data-tour-id="guild-profile-recruitment" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4">
         <div>
           <h2 className="text-base font-bold text-white flex items-center gap-2">
             <Users size={16} className="text-emerald-400" />
@@ -175,7 +183,7 @@ export default async function DemoGuildProfilePage() {
       </section>
 
       {/* 공개 페이지 미리보기 카드 */}
-      <section className="bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 rounded-2xl p-4 sm:p-5 space-y-3">
+      <section data-tour-id="guild-profile-preview" className="bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 rounded-2xl p-4 sm:p-5 space-y-3">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
           <ExternalLink size={16} className="text-amber-400" />
           {tDemoGuildProfile('previewCardTitle')}

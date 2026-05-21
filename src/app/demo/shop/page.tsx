@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import DemoActionButton from '../_components/DemoActionButton'
 import DemoCTACard from '../_components/DemoCTACard'
+import DemoGuidedTour from '../_components/DemoGuidedTour'
 
 // 데모 사용자가 실제 앱처럼 체험할 수 있도록 클라이언트 컴포넌트로 전환. 검색,
 // 티어 필터, 카트 add/remove/quantity, 주문 취소까지 실제 상태가 움직인다.
@@ -131,6 +132,11 @@ function imageUrl(uniqueName: string, enchant: number, quality: number, size = 9
 }
 
 type TierFilter = 'all' | 7 | 8
+const SHOP_TOUR_STEPS = [
+  { id: 'shop-orders' },
+  { id: 'shop-catalog' },
+  { id: 'shop-cart' },
+] as const
 
 export default function DemoShopPage() {
   const tNav = useTranslations('nav')
@@ -201,6 +207,7 @@ export default function DemoShopPage() {
 
   return (
     <div className="space-y-4 max-w-7xl">
+      <DemoGuidedTour steps={SHOP_TOUR_STEPS} namespace="shop" />
       <div className="flex items-center gap-2">
         <ShoppingBag size={22} className="text-amber-400" />
         <h1 className="text-2xl font-bold text-white">{tNav('shop')}</h1>
@@ -215,7 +222,7 @@ export default function DemoShopPage() {
         <p className="text-amber-200 text-sm">{tDemoShop('notice')}</p>
       </div>
 
-      <div className="bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 flex items-start gap-2">
+      <div data-tour-id="shop-orders" className="bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 flex items-start gap-2">
         <Info size={14} className="text-amber-300 mt-0.5 shrink-0" />
         <p className="text-amber-100/90 text-xs whitespace-pre-wrap">{tDemoShop('deliveryNotice')}</p>
       </div>
@@ -288,8 +295,8 @@ export default function DemoShopPage() {
         </ul>
       </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
-        <div className="space-y-3 min-w-0">
+      <div data-tour-id="shop-cart" className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
+        <div data-tour-id="shop-catalog" className="space-y-3 min-w-0">
           {/* 카탈로그 헤더 — 실제 작동하는 검색 / 티어 필터 */}
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative flex-1 min-w-[200px]">

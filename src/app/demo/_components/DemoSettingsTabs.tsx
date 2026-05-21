@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Image as ImageIcon, Shield, Timer, Coins, Building2 } from 'lucide-react'
 import { useDemoToast } from './DemoFeedbackProvider'
+import { DEMO_GUILD_NAME } from '@/data/demo-seed'
 
 type TabKey = 'guild' | 'permissions' | 'events' | 'regear' | 'landing'
 
@@ -68,7 +69,7 @@ export default function DemoSettingsTabs() {
             title={t('guildGroupTitle')}
             description={t('guildGroupDescription')}
           >
-            <DemoFormRow label={tDemo('homeGuildLabel')} value="Menhera" />
+            <DemoFormRow label={tDemo('homeGuildLabel')} value={DEMO_GUILD_NAME} />
             <DemoFormRow label={tDemo('timezoneLabel')} value="Asia/Seoul" />
             <DemoFormRow
               label={tDemo('unverifiedAccessLabel')}

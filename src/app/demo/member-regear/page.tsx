@@ -4,9 +4,15 @@ import { getTranslations } from 'next-intl/server'
 import { DEMO_REGEAR_LIST } from '@/data/demo-seed'
 import DemoActionButton from '../_components/DemoActionButton'
 import DemoCTACard from '../_components/DemoCTACard'
+import DemoGuidedTour from '../_components/DemoGuidedTour'
 import { formatSilver, formatTimeLabel } from '../_lib/format'
 
 const CURRENT_USER = 'Eternia'
+const MEMBER_REGEAR_TOUR_STEPS = [
+  { id: 'member-regear-entry' },
+  { id: 'member-regear-requests' },
+  { id: 'member-regear-wallet' },
+] as const
 
 export default async function DemoMemberRegearPage() {
   const [t, tDemo, tCta] = await Promise.all([
@@ -18,6 +24,7 @@ export default async function DemoMemberRegearPage() {
 
   return (
     <div className="space-y-6">
+      <DemoGuidedTour steps={MEMBER_REGEAR_TOUR_STEPS} namespace="memberRegear" />
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
           <ShieldCheck size={20} className="text-amber-400" />
@@ -26,7 +33,7 @@ export default async function DemoMemberRegearPage() {
         <p className="text-gray-400 text-sm mt-1">{t('subtitle')}</p>
       </div>
 
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <section data-tour-id="member-regear-entry" className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
           <ShieldCheck size={20} className="text-emerald-300" />
           <h2 className="mt-3 text-sm font-bold text-white">{t('autoTitle')}</h2>
@@ -50,7 +57,7 @@ export default async function DemoMemberRegearPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-gray-800 bg-gray-900 p-4 space-y-3">
+      <section data-tour-id="member-regear-requests" className="rounded-2xl border border-gray-800 bg-gray-900 p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-base font-bold text-white">{t('myRequestsTitle')}</h2>
           <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-200">
@@ -81,7 +88,7 @@ export default async function DemoMemberRegearPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-gray-800 bg-gray-900 px-4 py-3 flex items-center gap-3">
+      <section data-tour-id="member-regear-wallet" className="rounded-2xl border border-gray-800 bg-gray-900 px-4 py-3 flex items-center gap-3">
         <WalletCards size={18} className="text-amber-300 shrink-0" />
         <p className="text-xs text-gray-400 leading-relaxed">{t('walletHint')}</p>
       </section>

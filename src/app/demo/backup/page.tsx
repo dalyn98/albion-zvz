@@ -2,6 +2,12 @@ import { getTranslations } from 'next-intl/server'
 import { Download, Upload, AlertTriangle, Sparkles } from 'lucide-react'
 import DemoActionButton from '../_components/DemoActionButton'
 import DemoCTACard from '../_components/DemoCTACard'
+import DemoGuidedTour from '../_components/DemoGuidedTour'
+
+const BACKUP_TOUR_STEPS = [
+  { id: 'backup-export' },
+  { id: 'backup-import' },
+] as const
 
 // `/demo/backup` — `/admin/dashboard/backup` 의 정적 비주얼 클론.
 // 실제 GuildBackupPanel 구조를 그대로 재현하되, 모든 액션 (export/import 트랜
@@ -17,6 +23,7 @@ export default async function DemoBackupPage() {
 
   return (
     <div className="space-y-6">
+      <DemoGuidedTour steps={BACKUP_TOUR_STEPS} namespace="backup" />
       <header>
         <h1 className="text-2xl font-semibold text-white">{t('pageTitle')}</h1>
         <p className="mt-1 text-sm text-gray-400">{t('pageSubtitle')}</p>
@@ -27,7 +34,7 @@ export default async function DemoBackupPage() {
         <p className="text-amber-200 text-sm">{tDemo('demoNotice')}</p>
       </div>
 
-      <section className="rounded-lg border border-gray-800 bg-gray-900 p-5 space-y-4">
+      <section data-tour-id="backup-export" className="rounded-lg border border-gray-800 bg-gray-900 p-5 space-y-4">
         <header>
           <h2 className="text-lg font-semibold text-white">{t('exportTitle')}</h2>
           <p className="mt-1 text-sm text-gray-400">{t('exportHint')}</p>
@@ -38,7 +45,7 @@ export default async function DemoBackupPage() {
         </DemoActionButton>
       </section>
 
-      <section className="rounded-lg border border-gray-800 bg-gray-900 p-5 space-y-4">
+      <section data-tour-id="backup-import" className="rounded-lg border border-gray-800 bg-gray-900 p-5 space-y-4">
         <header>
           <h2 className="text-lg font-semibold text-white">{t('importTitle')}</h2>
           <p className="mt-1 text-sm text-gray-400">{t('importHint')}</p>

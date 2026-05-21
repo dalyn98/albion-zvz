@@ -14,3 +14,7 @@ export type DemoTimeLabel = {
   day: DemoRelativeDay
   time: string
 }
+
+export const DEMO_GUILD_NAME = 'Emberfall'
+export const DEMO_GUILD_SLUG = 'emberfall'
+export const DEMO_ALLIANCE_TAG = 'DUSK'

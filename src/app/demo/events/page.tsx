@@ -7,7 +7,7 @@ import DemoTemplateList from '../_components/DemoTemplateList'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 import DemoActionButton from '../_components/DemoActionButton'
 import DemoCTACard from '../_components/DemoCTACard'
-import { DEMO_EVENTS, DEMO_TEMPLATES } from '@/data/demo-seed'
+import { DEMO_EVENTS, DEMO_GUILD_NAME, DEMO_TEMPLATES } from '@/data/demo-seed'
 
 const EVENTS_TOUR_STEPS = [
   { id: 'events-header' },
@@ -26,7 +26,6 @@ function resolveSection(v: string | undefined): Section {
 }
 
 const DEMO_INVITE_URL = 'https://demo.albion-guildmanager.com/onboarding/albion'
-const DEMO_GUILD_NAME = 'Demo Guild'
 
 export default async function DemoEventsPage({
   searchParams,

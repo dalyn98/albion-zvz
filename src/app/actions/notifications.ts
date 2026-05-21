@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHasAny } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getTenantTimezone } from '@/lib/timezone-server'
@@ -10,6 +10,7 @@ import { isValidTenantTimezone } from '@/lib/timezone'
 import { requireEventCreator } from '@/lib/auth'
 import { log } from '@/lib/log'
 import { CATEGORY_NOTIFY_COLUMN, EVENT_CATEGORIES, type EventCategory } from '@/types'
+import { CAP } from '@/lib/permissions'
 
 // 사용자(길드원/게스트) 본인의 Discord DM 수신 토글과 관리자용 Discord 역할
 // 목록 조회를 담당. 웹 푸시 스택(actions/push.ts) 을 대체한다.
@@ -224,9 +225,19 @@ export async function listGuildRoles(): Promise<{
 }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    await requireEventCreator()
     const session = await getSession()
     if (!session) return { roles: [], error: tErr('serverError') }
+    if (
+      !session.isAdmin &&
+      !session.canCreateEvents &&
+      !sessionHasAny(session, [
+        CAP.SETTINGS_PERMISSIONS,
+        CAP.SETTINGS_GENERAL,
+        CAP.SETTINGS_TOGGLES,
+      ])
+    ) {
+      throw new Error('Unauthorized')
+    }
     const sessionGuildId = await getSessionGuildId(session)
     const tenantConfig = await getTenantDiscordConfig(sessionGuildId)
     const botToken = process.env.DISCORD_BOT_TOKEN

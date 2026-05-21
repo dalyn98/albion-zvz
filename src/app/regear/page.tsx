@@ -155,6 +155,8 @@ export default async function RegearPage() {
                       <span className="text-white font-semibold">{translateSlotRole(event.role_name, tRole)}</span>
                       <span className="text-gray-500"> · {t('expectedReward')} </span>
                       <span className="text-amber-400 font-mono font-semibold">{formatSilver(event.role_reward)}</span>
+                      <span className="text-gray-500"> · {t('requestDeadline')} </span>
+                      <span className="text-gray-300">{formatStartedAt(event.deadline_at, tz)}</span>
                     </div>
                     {event.auto_request_id ? (
                       <Link

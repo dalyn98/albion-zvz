@@ -17,7 +17,9 @@ import {
   SCREENSHOT_BUCKET,
   buildSnapshotFromSlot,
   computeMarketSilverFromItems,
+  computeRegearEligibilityDeadlineMs,
   computeRegearWindowOpenMs,
+  isRegearEligibilityExpired,
   latestEndedMsOf,
   normalizeBreakdownItems,
   type RawBreakdown,
@@ -137,6 +139,9 @@ export interface RegearEligibleEvent {
   // 지나거나 전투가 종료되는 시점 둘 중 빠른 쪽. 매칭이 0건이면 start +
   // windowMinutes 으로 폴백.
   window_open_at: string
+  // ISO 시각: 이벤트 시작 기준 신청 마감. 자유 리기어(트래킹 사망)와 같은
+  // regear_eligibility_days 정책을 수동 이벤트 리기어에도 적용한다.
+  deadline_at: string
 }
 
 export interface RegearLimits {
@@ -243,7 +248,7 @@ async function requestRegearInner(
 
   const buildSnapshot = buildSnapshotFromSlot(slot as unknown as SlotGearDisplay, roleName)
 
-  const { windowMinutes, maxDeaths } = await loadRegearLimits(guildId)
+  const { windowMinutes, maxDeaths, eligibilityDays } = await loadRegearLimits(guildId)
 
   // 1a) Supersede policy: pending 자동 리기어 행이 있으면 반려로 밀어내고 수동을
   //     받는다. 자동이 cron 에서 선행되어 pending 으로 자리 잡았더라도, 실제
@@ -295,6 +300,9 @@ async function requestRegearInner(
     return { error: tErr('battleNotStarted') }
   }
   const battleStartMs = new Date(event.battle_started_at).getTime()
+  if (isRegearEligibilityExpired(battleStartMs, eligibilityDays)) {
+    return { error: tErr('regearEligibilityExpired', { days: eligibilityDays }) }
+  }
   // tenant_battle_records 쿼리가 일시 실패해도 신청 자체가 throw 되지 않도록
   // 폴백: 매칭이 없으면 battle_started_at + windowMinutes 만 사용. cron 측
   // (auto-regear.ts) 은 별도 try/catch 없이 throw 그대로 유지.
@@ -584,6 +592,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
     ),
   )
   const windowOpenByEvent = new Map<string, string>()
+  const deadlineByEvent = new Map<string, string>()
   eligibleEvents.forEach((e, i) => {
     const settled = matchedSettled[i]
     const matched = settled.status === 'fulfilled' ? settled.value : []
@@ -594,6 +603,10 @@ export async function listMyRegearEligibleEvents(): Promise<{
       windowMinutes,
     )
     windowOpenByEvent.set(e.id, new Date(windowOpenMs).toISOString())
+    deadlineByEvent.set(
+      e.id,
+      new Date(computeRegearEligibilityDeadlineMs(battleStartMs, eligibilityDays)).toISOString(),
+    )
   })
 
   const result: RegearEligibleEvent[] = eligibleEvents.map((e) => {
@@ -611,6 +624,13 @@ export async function listMyRegearEligibleEvents(): Promise<{
       auto_request_id: autoRequestByEvent.get(e.id) ?? null,
       window_open_at:
         windowOpenByEvent.get(e.id) ?? (e.battle_started_at as string),
+      deadline_at:
+        deadlineByEvent.get(e.id) ?? new Date(
+          computeRegearEligibilityDeadlineMs(
+            new Date(e.battle_started_at as string).getTime(),
+            eligibilityDays,
+          ),
+        ).toISOString(),
     }
   })
 
@@ -779,4 +799,3 @@ export async function getMyRegearScreenshotUrl(
   if (urlError) return { error: urlError.message }
   return { url: urlData.signedUrl }
 }
-

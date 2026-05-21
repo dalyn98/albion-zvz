@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { DEMO_MEMBERS } from '@/data/demo-seed'
 import DemoCTACard from '../../_components/DemoCTACard'
+import DemoGuidedTour from '../../_components/DemoGuidedTour'
 import { useDemoToast } from '../../_components/DemoFeedbackProvider'
 
 // 실 /craft/my-tasks 비주얼 클론을 클라이언트 컴포넌트로 전환. 잡은(claimed)
@@ -108,6 +109,11 @@ const MATERIAL_HINT: Record<string, string> = {
   m1: '1.10M',
   m2: '0.95M',
 }
+const CRAFT_MY_TASKS_TOUR_STEPS = [
+  { id: 'craft-my-aggregate' },
+  { id: 'craft-my-claimed' },
+  { id: 'craft-my-delivered' },
+] as const
 
 function itemUrl(itemId: string, enchant: number): string {
   const q = enchant > 0 ? `?quality=3&enchantment=${enchant}` : '?quality=3'
@@ -226,6 +232,7 @@ export default function DemoCraftMyTasksPage() {
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
+      <DemoGuidedTour steps={CRAFT_MY_TASKS_TOUR_STEPS} namespace="craftMyTasks" />
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-white mb-1 flex items-center gap-2">
@@ -258,7 +265,7 @@ export default function DemoCraftMyTasksPage() {
       </Link>
 
       {/* 내가 잡은 작업 재료 집계 */}
-      <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 space-y-3">
+      <section data-tour-id="craft-my-aggregate" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 space-y-3">
         <header className="space-y-1">
           <h2 className="text-base font-bold text-white flex items-center gap-2">
             <Package size={16} className="text-amber-400" />
@@ -308,7 +315,7 @@ export default function DemoCraftMyTasksPage() {
       </section>
 
       {/* 내가 잡은 작업 */}
-      <section className="space-y-3">
+      <section data-tour-id="craft-my-claimed" className="space-y-3">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
           <Box size={16} className="text-emerald-400" />
           {t('mineTitle')}
@@ -427,7 +434,7 @@ export default function DemoCraftMyTasksPage() {
                 const role = ROLE_BADGE[row.role]
                 const city = CITY_BADGE[row.city]
                 return (
-                  <li key={row.taskId} className="bg-gray-900 border border-emerald-500/30 rounded-2xl p-4 space-y-3">
+                  <li key={row.taskId} data-tour-id="craft-my-delivered" className="bg-gray-900 border border-emerald-500/30 rounded-2xl p-4 space-y-3">
                     <div className="flex items-center gap-2 flex-wrap">
                       <div className="w-7 h-7 rounded-full bg-gray-800 text-gray-300 flex items-center justify-center shrink-0">
                         <User size={14} />

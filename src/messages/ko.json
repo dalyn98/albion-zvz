@@ -1766,13 +1766,13 @@
   },
   "adminRegearLimits": {
     "title": "리기어 신청 제한",
-    "description": "리기어 신청이 열리기까지의 대기 시간과, 한 이벤트에서 한 명이 최대 몇 번까지 신청할 수 있는지를 설정해요. 바꾼 값은 이후 새로 들어오는 신청부터 적용돼요.",
+    "description": "리기어 신청이 열리기까지의 대기 시간, 한 이벤트에서 한 명이 최대 몇 번까지 신청할 수 있는지, 신청 마감 기간을 설정해요. 바꾼 값은 이후 새로 들어오는 신청부터 적용돼요.",
     "windowMinutesLabel": "신청 가능해지기까지 (분)",
     "windowMinutesHint": "{min} ~ {max}분 사이로 입력해 주세요. 전투 시작 후 이 시간이 지나거나 전투가 종료되면(둘 중 빠른 쪽) 길드원이 리기어를 신청할 수 있어요. 전투가 길어질 때 알비온 킬보드 indexing 을 기다리는 여유 시간으로 쓰여요.",
     "maxDeathsLabel": "이벤트당 최대 신청 수",
     "maxDeathsHint": "{min} ~ {max} 사이로 입력해 주세요. 같은 이벤트에서 한 명이 신청할 수 있는 최대 횟수예요. 거절된 신청은 횟수에서 빠지니 다시 신청할 수 있어요.",
     "eligibilityDaysLabel": "신청 가능 기간 (일)",
-    "eligibilityDaysHint": "{min} ~ {max}일 사이로 입력해 주세요. 이 기간이 지난 이벤트와 트래킹 사망은 \"신청 가능한 리기어\" 목록에서 사라져요. 이미 접수된 신청은 영향을 받지 않아요.",
+    "eligibilityDaysHint": "{min} ~ {max}일 사이로 입력해 주세요. 이 기간이 지난 이벤트 리기어와 트래킹 사망은 새 신청이 차단되고 \"신청 가능한 리기어\" 목록에서 사라져요. 이미 접수된 신청은 영향을 받지 않아요.",
     "invalidRange": "입력 값이 허용 범위를 벗어났습니다.",
     "save": "저장",
     "saving": "저장 중…",
@@ -2332,6 +2332,7 @@
     "battleStartedAt": "{time} 시작",
     "role": "역할",
     "expectedReward": "지급 예상",
+    "requestDeadline": "신청 마감",
     "buttonDone": "리기어 신청 완료",
     "buttonCeilingMissing": "리기어 상한 미설정",
     "buttonRequest": "리기어 신청",
@@ -3474,6 +3475,7 @@
     "manualRegearExcluded": "이 빌드는 수동 리기어 신청이 차단되어 있습니다. 관리자에게 문의하세요.",
     "alreadyRequestedForEvent": "이 이벤트에 이미 리기어를 신청했습니다.",
     "regearWindowNotOpen": "전투 시작 후 {minutes}분이 지나거나 전투가 종료되어야 신청할 수 있습니다.",
+    "regearEligibilityExpired": "신청 가능 기간({days}일)이 지나 이 이벤트 리기어를 새로 신청할 수 없습니다.",
     "regearDeathsLimitReached": "이 이벤트에서 최대 {max}회까지 신청 가능합니다.",
     "ceilingNotSetForRole": "해당 역할의 리기어 상한이 설정되지 않았습니다. 관리자에게 문의하세요.",
     "invalidClaimAmount": "청구 금액을 정수로 입력해 주세요.",
@@ -4370,7 +4372,7 @@
       "colKd": "K/D",
       "colSurvival": "생존률",
       "colAttend": "출석",
-      "demoOnlyDetail": "데모 통계 — 멘헤라 길드 샘플 데이터 기반."
+      "demoOnlyDetail": "데모 통계 — Emberfall 길드 샘플 데이터 기반."
     },
     "notFound": {
       "title": "데모에서는 이 페이지를 미리볼 수 없어요",
@@ -4426,7 +4428,7 @@
       "adminPendingShop": "상점 주문",
       "adminPendingPayout": "이벤트 지급",
       "demoBadge": "DEMO",
-      "demoNote": "데모 — 멘헤라 길드 샘플 데이터, 실제 통계 아님."
+      "demoNote": "데모 — Emberfall 길드 샘플 데이터, 실제 통계 아님."
     },
     "settings": {
       "demoNotice": "데모 — 설정 변경은 적용되지 않아요. 실제 운영 화면을 그대로 미리보기 형태로 제공해요.",
@@ -4580,10 +4582,14 @@
         "doneButton": "완료",
         "restartButton": "투어 다시 보기",
         "stepCounter": "{current} / {total}",
-        "completedTitle": "둘러보기 완료"
+        "completedTitle": "둘러보기 완료",
+        "introEyebrow": "기능 투어",
+        "officialHomeButton": "공식 홈페이지"
       },
       "pages": {
         "home": {
+          "introTitle": "데모 홈 투어",
+          "introBody": "공개 프로필, 관리자 대기열, 멤버 대시보드, 전투 분석까지 전체 서비스 흐름을 빠르게 훑습니다.",
           "step1Title": "공개 길드 프로필",
           "step1Body": "모집 상태 · 동맹 · 시간대를 즉시 노출. Discord 공유와 SEO 색인에 그대로 사용되는 페이지입니다.",
           "step2Title": "관리자 대기열",
@@ -4599,6 +4605,8 @@
           "completedBody": "이제 사이드바의 이벤트 · 길드원 · 설정 · 백업도 직접 살펴보세요."
         },
         "events": {
+          "introTitle": "이벤트 운영 투어",
+          "introBody": "이벤트 목록, 템플릿, 참가자 편성 흐름을 확인합니다.",
           "step1Title": "이벤트 편성",
           "step1Body": "예정된 ZvZ를 카드로 정리. 클릭 한 번으로 새 이벤트 작성, 길드 전체 공지에 그대로 사용됩니다.",
           "step2Title": "이벤트 vs 템플릿",
@@ -4608,6 +4616,8 @@
           "completedBody": "이벤트 카드를 열어 파티 편성 패널까지 확인해 보세요."
         },
         "regear": {
+          "introTitle": "관리자 승인 투어",
+          "introBody": "리기어·환전·기부·상점·제작 승인 대기열을 한 화면에서 처리하는 방식을 봅니다.",
           "step1Title": "6가지 승인 통합",
           "step1Body": "리기어 · 환전 · 기부 · 상점 주문 · 결제 · 제작 — 모든 어드민 결재가 한 페이지에 모입니다. 배지로 처리 대기 건수가 표시됩니다.",
           "step2Title": "자동 vs 수동 리기어",
@@ -4617,6 +4627,8 @@
           "completedBody": "다른 승인 유형 탭(환전/기부/상점)도 동일한 흐름으로 처리됩니다."
         },
         "members": {
+          "introTitle": "길드원 관리 투어",
+          "introBody": "길드원 상태, 탭 분류, 개인 상세 진입 흐름을 확인합니다.",
           "step1Title": "길드 인원 현황",
           "step1Body": "전체 인원 + 이번 주 누적 출전 수가 헤더에 한눈에 표시됩니다.",
           "step2Title": "4단계 멤버십 분류",
@@ -4624,6 +4636,8 @@
           "completedBody": "각 길드원 행을 클릭하면 개인 통계와 리기어 이력을 볼 수 있어요."
         },
         "stats": {
+          "introTitle": "통계 분석 투어",
+          "introBody": "포인트, 보유자, 재정 흐름과 운영 지표를 보는 방법을 안내합니다.",
           "step1Title": "포인트 시스템 지표",
           "step1Body": "보유 포인트 총합, 누적 수입/지출, 상위 보유자 수 — 길드 경제의 핵심 KPI 4개가 카드로 정리됩니다.",
           "step2Title": "상위 포인트 보유자",
@@ -4633,6 +4647,8 @@
           "completedBody": "검증 / 이벤트 참여율 / 상점 · 리기어 통계도 아래로 스크롤하면 볼 수 있어요."
         },
         "audit": {
+          "introTitle": "감사 로그 투어",
+          "introBody": "분쟁 대응을 위해 누가 무엇을 바꿨는지 추적하는 흐름을 봅니다.",
           "step1Title": "필터로 즉시 좁히기",
           "step1Body": "액션 · 대상 종류 · 어드민/대상 ID · 날짜 범위. 분쟁이 생겼을 때 해당 건만 30초 안에 추려냅니다.",
           "step2Title": "한 줄 = 한 mutation",
@@ -4640,6 +4656,221 @@
           "step3Title": "페이지네이션",
           "step3Body": "기본 10건 단위로 페이지를 끊어 보여줍니다. 전체 카운트는 상단에 항상 노출됩니다.",
           "completedBody": "필터를 직접 바꿔 보면서 본인 길드의 어떤 분쟁에 쓸지 그려 보세요."
+        },
+        "memberEvents": {
+          "introTitle": "내 이벤트 투어",
+          "introBody": "길드원이 이벤트를 찾고 본인 슬롯과 최근 참여 기록을 확인하는 흐름입니다",
+          "step1Title": "다음 참여 요약",
+          "step1Body": "가장 가까운 이벤트 시간, 내 역할, 남은 슬롯을 한눈에 봅니다.",
+          "step2Title": "참여 가능한 이벤트",
+          "step2Body": "이벤트 카드를 눌러 상세 페이지와 슬롯 현황으로 이동합니다.",
+          "step3Title": "최근 참여 이력",
+          "step3Body": "끝난 전투도 남겨 본인이 어떤 흐름으로 참여했는지 확인합니다.",
+          "completedBody": "이제 이벤트 상세에서 본인 슬롯과 리기어 진입점을 확인해 보세요."
+        },
+        "battles": {
+          "introTitle": "전투 기록 투어",
+          "introBody": "킬보드 전투를 사이트 규칙으로 정제해 승패와 규모를 보는 화면입니다.",
+          "step1Title": "판정 규칙",
+          "step1Body": "소규모 갱크 제외, 규모 분류, 다중 상대 분리 기준을 설명합니다.",
+          "step2Title": "탭과 결과 필터",
+          "step2Body": "규모와 승패 기준으로 전투 목록을 빠르게 좁힙니다.",
+          "step3Title": "전투 테이블",
+          "step3Body": "상대, K/D, 명성, 지역을 행 단위로 비교합니다.",
+          "completedBody": "전투 상세와 통계 페이지도 같은 판정 규칙을 공유합니다."
+        },
+        "memberRegear": {
+          "introTitle": "내 리기어 투어",
+          "introBody": "길드원이 직접 리기어를 신청하고 진행 상태를 보는 흐름입니다.",
+          "step1Title": "신청 진입",
+          "step1Body": "자동 리기어와 수동 신청이 어떻게 구분되는지 보여줍니다.",
+          "step2Title": "내 신청 내역",
+          "step2Body": "대기 중인 청구와 처리 상태를 카드로 확인합니다.",
+          "step3Title": "지갑 연결",
+          "step3Body": "리기어 결과가 내 지갑/포인트 흐름과 이어집니다.",
+          "completedBody": "상세 화면에서 부위별 산정 내역까지 확인할 수 있습니다."
+        },
+        "shop": {
+          "introTitle": "상점 투어",
+          "introBody": "포인트로 길드 재고를 주문하고 장바구니를 관리하는 흐름입니다.",
+          "step1Title": "주문 안내",
+          "step1Body": "배송 방식과 기존 주문 상태를 먼저 확인합니다.",
+          "step2Title": "카탈로그",
+          "step2Body": "검색과 티어 필터로 필요한 장비를 찾습니다.",
+          "step3Title": "장바구니",
+          "step3Body": "수량, 메모, 총 포인트를 확인하고 주문합니다.",
+          "completedBody": "상점 주문은 관리자 승인 대기열로 연결됩니다."
+        },
+        "inventory": {
+          "introTitle": "재고 관리 투어",
+          "introBody": "관리자가 추적 장비와 실제 수량을 확인·조정하는 화면입니다.",
+          "step1Title": "추적 장비",
+          "step1Body": "길드가 관리하는 핵심 장비 목록을 검색합니다.",
+          "step2Title": "필터",
+          "step2Body": "티어, 슬롯, 빈 카드 숨김으로 재고 범위를 좁힙니다.",
+          "step3Title": "재고 그리드",
+          "step3Body": "인챈트별 수량을 카드에서 직접 확인하고 조정합니다.",
+          "completedBody": "재고는 상점과 제작 리기어의 기반 데이터입니다."
+        },
+        "craftAdmin": {
+          "introTitle": "제작 관리자 투어",
+          "introBody": "제작 리기어 기능을 켜고 제작자·상자 범위를 관리하는 화면입니다.",
+          "step1Title": "빠른 이동",
+          "step1Body": "제작 큐, 내 작업, 주문 화면으로 바로 이동합니다.",
+          "step2Title": "기본 설정",
+          "step2Body": "제작 활성화, 상자 범위, 만료일을 조정합니다.",
+          "step3Title": "제작자 권한",
+          "step3Body": "제작자별 보상 방식과 담당 상자를 관리합니다.",
+          "step4Title": "진행 작업",
+          "step4Body": "현재 제작 큐가 설정에 따라 어떻게 보이는지 확인합니다.",
+          "completedBody": "제작자는 큐에서 작업을 잡고 납품까지 처리합니다."
+        },
+        "craftQueue": {
+          "introTitle": "제작 큐 투어",
+          "introBody": "제작자가 길드원이 신청한 제작 리기어를 잡는 화면입니다.",
+          "step1Title": "제작자 기본값",
+          "step1Body": "보상 방식과 담당 상자 범위를 확인합니다.",
+          "step2Title": "도시 필터",
+          "step2Body": "제작 도시 기준으로 작업을 좁힙니다.",
+          "step3Title": "대기 작업",
+          "step3Body": "개별 또는 일괄로 제작 작업을 잡습니다.",
+          "step4Title": "필요 재료 집계",
+          "step4Body": "선택 범위에서 필요한 장비와 부족 수량을 합산합니다.",
+          "completedBody": "잡은 작업은 내 작업 화면에서 납품 처리합니다."
+        },
+        "craftMyTasks": {
+          "introTitle": "내 제작 작업 투어",
+          "introBody": "제작자가 잡은 작업을 납품하거나 다시 놓는 흐름입니다.",
+          "step1Title": "재료 집계",
+          "step1Body": "내가 잡은 작업 기준으로 필요한 장비를 합산합니다.",
+          "step2Title": "진행 중 작업",
+          "step2Body": "납품 또는 작업 놓기를 실제 상태 변화로 확인합니다.",
+          "step3Title": "납품 완료",
+          "step3Body": "상자 번호와 사용 금액이 남는 완료 이력을 봅니다.",
+          "completedBody": "납품된 제작 리기어는 관리자 승인 흐름과 연결됩니다."
+        },
+        "craftOrders": {
+          "introTitle": "제작 주문 투어",
+          "introBody": "길드 제작 발주를 수주하고 납품하는 흐름입니다.",
+          "step1Title": "주문 탭",
+          "step1Body": "수주 가능 주문과 내 수주를 전환합니다.",
+          "step2Title": "주문 목록",
+          "step2Body": "남은 수량, 단가, 총 지급액을 비교합니다.",
+          "step3Title": "수주/납품 액션",
+          "step3Body": "수량 입력 후 수주하고, 내 수주는 납품 또는 취소할 수 있습니다.",
+          "completedBody": "제작 주문은 보급 담당자가 필요한 장비를 외주화할 때 쓰입니다."
+        },
+        "me": {
+          "introTitle": "내 대시보드 투어",
+          "introBody": "길드원이 자신의 인증, 지갑, 사이펀, 전투 지표를 한눈에 보는 화면입니다.",
+          "step1Title": "인증 상태",
+          "step1Body": "Discord 계정과 Albion 캐릭터 연결 상태를 확인합니다.",
+          "step2Title": "개인 요약",
+          "step2Body": "다음 이벤트, 포인트, 참여, K/D, 생존률을 모아 봅니다.",
+          "step3Title": "사이펀 잔액",
+          "step3Body": "입출금 누적과 현재 사용 가능 수량을 확인합니다.",
+          "step4Title": "내 지갑",
+          "step4Body": "환전·양도·기부 같은 포인트 작업으로 이어집니다.",
+          "step5Title": "최근 활동",
+          "step5Body": "리기어, 이벤트, 환전, 기부 흐름을 시간순으로 봅니다.",
+          "completedBody": "길드원은 이 화면에서 본인 상황을 가장 빨리 파악합니다."
+        },
+        "meSettings": {
+          "introTitle": "내 설정 투어",
+          "introBody": "길드원이 언어와 알림, 시간대를 조정하는 화면입니다.",
+          "step1Title": "언어",
+          "step1Body": "사이트 표시 언어를 선택합니다.",
+          "step2Title": "DM 알림",
+          "step2Body": "이벤트·리기어·환전 알림을 카테고리별로 조정합니다.",
+          "step3Title": "시간대",
+          "step3Body": "개인 시간대를 지정해 이벤트 시간을 본인 기준으로 봅니다.",
+          "completedBody": "비개발자 길드원이 스스로 알림 피로도를 줄일 수 있습니다."
+        },
+        "meProfile": {
+          "introTitle": "내 프로필 투어",
+          "introBody": "개인 전투 기록과 업적을 더 자세히 보는 화면입니다.",
+          "step1Title": "프로필 헤더",
+          "step1Body": "인증된 캐릭터와 최근 로그인 상태를 봅니다.",
+          "step2Title": "상세 통계",
+          "step2Body": "참여, 포인트, 킬보드, 연승 지표를 그룹별로 확인합니다.",
+          "step3Title": "무기 사용",
+          "step3Body": "주로 사용하는 무기와 비중을 확인합니다.",
+          "step4Title": "최근 전투",
+          "step4Body": "킬/데스 이벤트를 시간순으로 추적합니다.",
+          "completedBody": "공유 가능한 개인 성과판으로도 활용할 수 있습니다."
+        },
+        "leaderboard": {
+          "introTitle": "리더보드 투어",
+          "introBody": "길드원 순위를 기간별로 비교하는 화면입니다.",
+          "step1Title": "기간 선택",
+          "step1Body": "주간, 월간, 전체 기간을 전환합니다.",
+          "step2Title": "순위 카드",
+          "step2Body": "킬, 참여, 생존률, K/D, 승률을 별도 카드로 봅니다.",
+          "step3Title": "멤버 상세 진입",
+          "step3Body": "순위 행을 눌러 개인 상세 페이지로 이동합니다.",
+          "completedBody": "경쟁 요소가 길드원 재방문 동기가 됩니다."
+        },
+        "guildProfile": {
+          "introTitle": "길드 프로필 설정 투어",
+          "introBody": "공개 모집 페이지에 보일 길드 정보를 관리합니다.",
+          "step1Title": "길드 소개",
+          "step1Body": "공개 페이지에 표시할 소개 문구를 편집합니다.",
+          "step2Title": "테마 색상",
+          "step2Body": "길드 페이지의 강조 색상을 고릅니다.",
+          "step3Title": "모집 상태",
+          "step3Body": "모집 여부와 Discord 초대 링크를 관리합니다.",
+          "step4Title": "공개 미리보기",
+          "step4Body": "실제 공개 URL로 어떻게 보일지 확인합니다.",
+          "completedBody": "비개발자 관리자도 모집 페이지를 직접 관리할 수 있습니다."
+        },
+        "settings": {
+          "introTitle": "길드 설정 투어",
+          "introBody": "길드 운영 정책을 카테고리별로 관리하는 화면입니다.",
+          "step1Title": "설정 탭",
+          "step1Body": "길드, 권한, 이벤트, 리기어, 대문 설정을 탭으로 묶었습니다.",
+          "step2Title": "데모 안내",
+          "step2Body": "데모에서는 저장하지 않지만 실제 앱의 설정 구조를 그대로 보여줍니다.",
+          "completedBody": "권한 관련 설정은 권한 관리 페이지에도 함께 묶여 있습니다."
+        },
+        "backup": {
+          "introTitle": "백업 투어",
+          "introBody": "길드 데이터를 내보내거나 복구하는 운영자용 화면입니다.",
+          "step1Title": "내보내기",
+          "step1Body": "현재 길드 설정과 운영 데이터를 백업 파일로 받을 수 있습니다.",
+          "step2Title": "가져오기",
+          "step2Body": "백업 파일을 고르고 복구 전 경고를 확인합니다.",
+          "completedBody": "실 운영에서는 복구 전 미리보기와 관리자 확인이 중요합니다."
+        },
+        "eventDetail": {
+          "introTitle": "이벤트 상세 투어",
+          "introBody": "길드원이 이벤트 상세에서 본인 슬롯과 파티 구성을 확인하는 화면입니다.",
+          "step1Title": "이벤트 요약",
+          "step1Body": "시간, 템플릿, 지역, 주최자를 확인합니다.",
+          "step2Title": "내 상태",
+          "step2Body": "본인 배정 여부와 리기어 진입점을 확인합니다.",
+          "step3Title": "슬롯 편성",
+          "step3Body": "파티별 역할, 장비, 배정자를 한눈에 봅니다.",
+          "completedBody": "이 화면이 이벤트 시간대 길드원의 주 진입점입니다."
+        },
+        "regearDetail": {
+          "introTitle": "리기어 상세 투어",
+          "introBody": "청구 한 건의 전투 정보와 부위별 산정액을 확인합니다.",
+          "step1Title": "청구 요약",
+          "step1Body": "피해자, 전투, 사망 시각, 킬러 정보를 봅니다.",
+          "step2Title": "부위별 산정",
+          "step2Body": "각 슬롯별 추정 금액과 총액을 검토합니다.",
+          "completedBody": "자동 리기어는 여기서 가격 보정 흐름으로 이어집니다."
+        },
+        "memberDetail": {
+          "introTitle": "멤버 상세 투어",
+          "introBody": "특정 길드원의 성과, 업적, 최근 전투를 보는 화면입니다.",
+          "step1Title": "핵심 지표",
+          "step1Body": "킬, 데스, K/D, 참여, 생존률을 요약합니다.",
+          "step2Title": "컨텍스트",
+          "step2Body": "마지막 이벤트와 업적을 함께 확인합니다.",
+          "step3Title": "최근 이벤트",
+          "step3Body": "최근 킬/데스 로그를 시간순으로 봅니다.",
+          "completedBody": "길드 관리자는 이 화면으로 멤버 상태를 빠르게 파악합니다."
         }
       }
     }
@@ -4656,6 +4887,10 @@
   "permissions": {
     "heading": "권한 관리",
     "description": "Discord 역할별로 granular 권한(capability)을 부여하거나, 특정 멤버에게 추가 권한·회수를 적용합니다.",
+    "roleSettings": {
+      "title": "길드 역할 권한",
+      "description": "관리자 역할, 이벤트 생성 역할, 밤스쿼드 콜러, 활성 멤버 판정 역할을 한곳에서 관리합니다. Discord 역할 변경은 대상 멤버의 다음 로그인부터 반영될 수 있습니다."
+    },
     "capabilityGroup": {
       "members": "멤버",
       "regear": "리기어",

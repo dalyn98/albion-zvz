@@ -66,6 +66,13 @@ describe('admin route access', () => {
     )).toBe(true)
   })
 
+  it('keeps delegated permission officers on the permissions page', () => {
+    const caps = serializeCapabilities(CAP.SETTINGS_PERMISSIONS)
+    expect(canAccessAdminPath('/admin/dashboard/permissions', false, caps)).toBe(true)
+    expect(canAccessAdminPath('/admin/dashboard/settings', false, caps)).toBe(false)
+    expect(getFirstAccessibleAdminPath(false, caps)).toBe('/admin/dashboard/permissions')
+  })
+
   it('does not allow a different officer capability into another protected route', () => {
     const caps = serializeCapabilities(CAP.SIPHON_MANAGE)
     expect(canAccessAdminPath('/admin/dashboard/audit', false, caps)).toBe(false)

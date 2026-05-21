@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server'
 import { Bell, Clock, Languages, Sparkles } from 'lucide-react'
 import DemoActionButton from '../../_components/DemoActionButton'
 import DemoCTACard from '../../_components/DemoCTACard'
+import DemoGuidedTour from '../../_components/DemoGuidedTour'
 
 // 실 /me/settings 의 비주얼 클론 — 언어 선택 + DM 토글 + 카테고리 DM 설정 +
 // 시간대. server actions 가 필요 없도록 disabled 비주얼만 보여주고, 클릭 시
@@ -15,6 +16,11 @@ const LANGUAGE_OPTIONS = [
 ] as const
 
 const ACTIVE_LANGUAGE = 'ko'
+const ME_SETTINGS_TOUR_STEPS = [
+  { id: 'me-settings-language' },
+  { id: 'me-settings-dm' },
+  { id: 'me-settings-timezone' },
+] as const
 
 const DM_CATEGORIES = [
   { key: 'event', labelKey: 'settingsDmCategoryEvent' as const, enabled: true },
@@ -31,6 +37,7 @@ export default async function DemoMySettingsPage() {
 
   return (
     <div className="space-y-6">
+      <DemoGuidedTour steps={ME_SETTINGS_TOUR_STEPS} namespace="meSettings" />
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-white">{t('title')}</h1>
@@ -47,7 +54,7 @@ export default async function DemoMySettingsPage() {
         <p className="text-amber-200 text-sm">{tDemoMe('settingsNotice')}</p>
       </div>
 
-      <section className="space-y-3">
+      <section data-tour-id="me-settings-language" className="space-y-3">
         <h2 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1.5">
           <Languages size={11} />
           {t('languageGroup')}
@@ -78,7 +85,7 @@ export default async function DemoMySettingsPage() {
           {t('notificationsGroup')}
         </h2>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex items-center justify-between gap-3">
+        <div data-tour-id="me-settings-dm" className="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Bell size={14} className="text-amber-400" />
             <p className="text-white text-sm font-semibold">{tDemoMe('settingsDmEnabled')}</p>
@@ -91,7 +98,7 @@ export default async function DemoMySettingsPage() {
           </DemoActionButton>
         </div>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3">
+        <div data-tour-id="me-settings-timezone" className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3">
           {DM_CATEGORIES.map((cat) => (
             <div
               key={cat.key}

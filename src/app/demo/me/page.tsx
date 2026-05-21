@@ -22,6 +22,7 @@ import { DEMO_MEMBERS } from '@/data/demo-seed'
 import BadgeGrid from '@/components/BadgeGrid'
 import DemoActionButton from '../_components/DemoActionButton'
 import DemoCTACard from '../_components/DemoCTACard'
+import DemoGuidedTour from '../_components/DemoGuidedTour'
 
 // Eternia 를 mock 로그인 사용자로 고정. 실 /me 의 비주얼/섹션 구성을 그대로
 // 옮긴 데모 — 인증 배지, MyHomeDashboardCard 스타일 메트릭 5장, BadgeGrid,
@@ -60,6 +61,13 @@ const NEXT_EVENT = {
   titleRaw: 'Roads 7v7 — Mercia Ore',
   timeLabel: 'Today 22:00',
 }
+const ME_TOUR_STEPS = [
+  { id: 'me-verified' },
+  { id: 'me-summary' },
+  { id: 'me-siphon' },
+  { id: 'me-wallet' },
+  { id: 'me-activity' },
+] as const
 
 type ParticipationItem = {
   id: string
@@ -132,6 +140,7 @@ export default async function DemoMePage() {
 
   return (
     <div className="space-y-6">
+      <DemoGuidedTour steps={ME_TOUR_STEPS} namespace="me" />
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">{t('title')}</h1>
@@ -143,7 +152,7 @@ export default async function DemoMePage() {
         </span>
       </div>
 
-      <section className="flex items-start gap-3 rounded-2xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-200 p-4">
+      <section data-tour-id="me-verified" className="flex items-start gap-3 rounded-2xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-200 p-4">
         <ShieldCheck size={20} className="flex-shrink-0 mt-0.5" />
         <div className="min-w-0 flex-1 space-y-1">
           <p className="text-sm font-semibold flex items-center gap-2 flex-wrap">
@@ -157,7 +166,7 @@ export default async function DemoMePage() {
         </div>
       </section>
 
-      <section className="bg-gray-900 border border-gray-700 rounded-2xl p-5 sm:p-6 space-y-5">
+      <section data-tour-id="me-summary" className="bg-gray-900 border border-gray-700 rounded-2xl p-5 sm:p-6 space-y-5">
         <div>
           <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-2">
             {t('homeNextEvent')}
@@ -302,7 +311,7 @@ export default async function DemoMePage() {
         />
       </section>
 
-      <section id="siphon" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4 scroll-mt-20">
+      <section id="siphon" data-tour-id="me-siphon" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4 scroll-mt-20">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -365,7 +374,7 @@ export default async function DemoMePage() {
         <ChevronRight size={18} className="text-gray-500 group-hover:text-amber-400 flex-shrink-0" />
       </DemoActionButton>
 
-      <section id="wallet" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4 scroll-mt-20">
+      <section id="wallet" data-tour-id="me-wallet" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4 scroll-mt-20">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <h2 className="text-lg font-bold text-white">{t('walletTitle')}</h2>
@@ -414,7 +423,7 @@ export default async function DemoMePage() {
         </div>
       </section>
 
-      <section className="space-y-3">
+      <section data-tour-id="me-activity" className="space-y-3">
         <div className="flex items-baseline justify-between gap-2">
           <h2 className="text-lg font-bold text-white">{t('donationTitle')}</h2>
           <DemoActionButton className="inline-flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-200 font-bold px-3 py-1.5 rounded-lg text-xs transition-colors border border-emerald-500/30">

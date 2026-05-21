@@ -9,8 +9,14 @@ import {
   type DemoMember,
 } from '@/data/demo-seed'
 import { formatTimeLabel } from '../../_lib/format'
+import DemoGuidedTour from '../../_components/DemoGuidedTour'
 
 const ALLOWED_DETAIL = new Set(['Eternia'])
+const MEMBER_DETAIL_TOUR_STEPS = [
+  { id: 'member-detail-stats' },
+  { id: 'member-detail-context' },
+  { id: 'member-detail-recent' },
+] as const
 
 export default async function DemoMemberDetailPage({
   params,
@@ -30,6 +36,7 @@ export default async function DemoMemberDetailPage({
 
   return (
     <div className="space-y-4">
+      <DemoGuidedTour steps={MEMBER_DETAIL_TOUR_STEPS} namespace="memberDetail" />
       <Link
         href="/demo/members"
         className="inline-block text-xs text-gray-500 hover:text-amber-400 transition-colors"
@@ -50,7 +57,7 @@ export default async function DemoMemberDetailPage({
         </p>
       </header>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+      <div data-tour-id="member-detail-stats" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         <StatCard label={t('members.statKills')} value={String(member.kills)} accent="text-amber-400" />
         <StatCard label={t('members.statDeaths')} value={String(member.deaths)} accent="text-red-300" />
         <StatCard label={t('members.statKd')} value={kd} accent="text-amber-400" />
@@ -70,7 +77,7 @@ export default async function DemoMemberDetailPage({
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div data-tour-id="member-detail-context" className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <section className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
           <header className="bg-gray-950 px-3 py-2 border-b border-gray-800 text-xs font-semibold text-gray-200">
             {t('members.lastEvent')}
@@ -114,7 +121,7 @@ export default async function DemoMemberDetailPage({
         </section>
       </div>
 
-      <section className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <section data-tour-id="member-detail-recent" className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
         <header className="bg-gray-950 px-3 py-2 border-b border-gray-800 text-xs font-semibold text-gray-200">
           {t('members.recentEventsTitle')}
         </header>

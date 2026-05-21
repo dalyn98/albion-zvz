@@ -146,7 +146,7 @@ export type DemoVerificationStats = {
   verifiedMembers: DemoVerificationMember[]
 }
 
-// 멘헤라 길드 기준: 7명 verified (길드 매칭) / 1명 unverified (다른 길드) / 1명 onboarding 미완.
+// 데모 길드 기준: 7명 verified (길드 매칭) / 1명 unverified (다른 길드) / 1명 onboarding 미완.
 export const DEMO_VERIFICATION_STATS: DemoVerificationStats = {
   totalActive: DEMO_MEMBERS.length,
   verified: 8,

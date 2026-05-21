@@ -27,6 +27,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'bomb_squad_caller_role_ids',
   'regear_window_minutes',
   'regear_max_deaths_per_event',
+  'regear_eligibility_days',
   'events_auto_start_enabled',
   'regear_payout_rate_percent',
   'shop_discount_rate',
@@ -71,6 +72,16 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
 const MAX_VALUE_LENGTH = 500
 
 function settingCaps(key: AppSettingKey): readonly bigint[] {
+  if (
+    key === 'event_creator_role_ids' ||
+    key === 'event_creator_role_ids_combat' ||
+    key === 'event_creator_role_ids_ff' ||
+    key === 'event_creator_role_ids_ganking' ||
+    key === 'bomb_squad_caller_role_ids' ||
+    key === 'active_member_role_ids'
+  ) {
+    return [CAP.SETTINGS_PERMISSIONS]
+  }
   if (key.startsWith('guild_profile_') || key === 'landing_cta_text') {
     return [CAP.SETTINGS_GUILD_PROFILE]
   }
@@ -162,6 +173,7 @@ const JSON_ARRAY_KEYS: readonly AppSettingKey[] = [
 const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }>> = {
   regear_window_minutes: { min: 1, max: 240 },
   regear_max_deaths_per_event: { min: 1, max: 10 },
+  regear_eligibility_days: { min: 1, max: 90 },
   regear_payout_rate_percent: { min: 1, max: 100 },
   // 1 Normal, 2 Good, 3 Outstanding, 4 Excellent, 5 Masterpiece.
   aodp_min_quality: { min: 1, max: 5 },
@@ -358,6 +370,16 @@ export async function updateAppSetting(
     if (key === 'auto_regear_excluded_slots') {
       revalidatePath('/admin/dashboard/settings')
     }
+    if (
+      key === 'event_creator_role_ids' ||
+      key === 'event_creator_role_ids_combat' ||
+      key === 'event_creator_role_ids_ff' ||
+      key === 'event_creator_role_ids_ganking' ||
+      key === 'bomb_squad_caller_role_ids' ||
+      key === 'active_member_role_ids'
+    ) {
+      revalidatePath('/admin/dashboard/permissions')
+    }
     if (key.startsWith('guild_profile_')) {
       // 공개 프로필 페이지가 이 값들을 직접 읽어 표시 — 어드민 저장 즉시 반영.
       revalidatePath('/admin/dashboard/guild-profile')
@@ -408,6 +430,7 @@ export async function updateTenantAdminRoles(
       .eq('id', guildId)
     if (error) return { error: error.message }
     revalidatePath('/admin/dashboard/settings')
+    revalidatePath('/admin/dashboard/permissions')
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,

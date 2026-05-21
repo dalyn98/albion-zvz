@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { ClipboardList, Sparkles } from 'lucide-react'
 import { DEMO_MEMBERS } from '@/data/demo-seed'
 import DemoCTACard from '../../_components/DemoCTACard'
+import DemoGuidedTour from '../../_components/DemoGuidedTour'
 import { useDemoToast } from '../../_components/DemoFeedbackProvider'
 
 // 실 /craft/orders 비주얼 클론을 클라이언트 컴포넌트로 전환. 발주 수주 / 수주 취소 /
@@ -100,6 +101,11 @@ const STATUS_BADGE: Record<ClaimStatus, { bg: string; text: string }> = {
   claimed: { bg: 'bg-amber-500/15', text: 'text-amber-300' },
   delivered: { bg: 'bg-emerald-500/15', text: 'text-emerald-300' },
 }
+const CRAFT_ORDERS_TOUR_STEPS = [
+  { id: 'craft-orders-tabs' },
+  { id: 'craft-orders-list' },
+  { id: 'craft-orders-actions' },
+] as const
 
 function calcPayout(quantity: number, unitPrice: string): string {
   const n = Number(unitPrice.replaceAll(',', ''))
@@ -180,6 +186,7 @@ export default function DemoCraftOrdersPage() {
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
+      <DemoGuidedTour steps={CRAFT_ORDERS_TOUR_STEPS} namespace="craftOrders" />
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-white mb-1 flex items-center gap-2">
@@ -200,7 +207,7 @@ export default function DemoCraftOrdersPage() {
       </div>
 
       {/* 탭 */}
-      <nav role="tablist" aria-label={t('memberTabsLabel')} className="flex gap-1 border-b border-gray-800 overflow-x-auto">
+      <nav data-tour-id="craft-orders-tabs" role="tablist" aria-label={t('memberTabsLabel')} className="flex gap-1 border-b border-gray-800 overflow-x-auto">
         <button
           type="button"
           role="tab"
@@ -243,7 +250,7 @@ export default function DemoCraftOrdersPage() {
         </button>
       </nav>
 
-      <div className="space-y-4">
+      <div data-tour-id="craft-orders-list" className="space-y-4">
         {visible.length === 0 ? (
           <p className="text-gray-500 text-sm text-center py-10 bg-gray-900 border border-gray-700 rounded-2xl">
             {tab === 'available' ? t('memberEmpty') : t('memberMineEmpty')}
@@ -329,7 +336,7 @@ export default function DemoCraftOrdersPage() {
 
                 {/* claim form / actions */}
                 {!fulfilled && !order.myClaim && (
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div data-tour-id="craft-orders-actions" className="flex items-center gap-2 flex-wrap">
                     <label className="flex items-center gap-1.5">
                       <span className="sr-only">{t('claimQuantityLabel')}</span>
                       <input
@@ -356,7 +363,7 @@ export default function DemoCraftOrdersPage() {
                 )}
 
                 {order.myClaim?.status === 'claimed' && (
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div data-tour-id="craft-orders-actions" className="flex items-center gap-2 flex-wrap">
                     <div
                       className="flex-1 bg-gray-950 border border-gray-700 rounded px-3 py-2 text-xs text-gray-500 italic"
                       aria-label={t('deliveryMemoLabel')}

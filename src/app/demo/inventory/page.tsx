@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import { Boxes, Lock, Minus, Plus, Search, Shield, Sparkles } from 'lucide-react'
 import DemoCTACard from '../_components/DemoCTACard'
+import DemoGuidedTour from '../_components/DemoGuidedTour'
 
 // 데모 사용자가 실제 앱처럼 체험할 수 있도록 클라이언트 컴포넌트로 전환. 추적
 // 검색, 카탈로그 검색, 티어/슬롯 필터, 빈 카드 숨김 토글, 카드별 enchant3 수량
@@ -71,6 +72,11 @@ function imageUrl(uniqueName: string, enchant: number, size = 96): string {
 }
 
 type EnchantQtyMap = Record<string, Record<number, number>>
+const INVENTORY_TOUR_STEPS = [
+  { id: 'inventory-tracked' },
+  { id: 'inventory-filters' },
+  { id: 'inventory-grid' },
+] as const
 
 function toInitialQtyMap(): EnchantQtyMap {
   const map: EnchantQtyMap = {}
@@ -135,6 +141,7 @@ export default function DemoInventoryPage() {
 
   return (
     <div className="space-y-6">
+      <DemoGuidedTour steps={INVENTORY_TOUR_STEPS} namespace="inventory" />
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
@@ -155,7 +162,7 @@ export default function DemoInventoryPage() {
       </div>
 
       {/* 추적 패널 — 검색 입력 작동 */}
-      <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
+      <section data-tour-id="inventory-tracked" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <h2 className="text-base font-bold text-white flex items-center gap-2">
             <Shield size={16} className="text-emerald-400" />
@@ -188,7 +195,7 @@ export default function DemoInventoryPage() {
           <p className="text-xs text-gray-500 mt-1">{t('gearHintCatalog')}</p>
         </div>
 
-        <div className="space-y-3">
+        <div data-tour-id="inventory-filters" className="space-y-3">
           <div className="relative">
             <Search
               size={14}
@@ -275,7 +282,7 @@ export default function DemoInventoryPage() {
               {t('emptyCatalog')}
             </p>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+            <div data-tour-id="inventory-grid" className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-5 xl:grid-cols-6 gap-2">
               {catalogFiltered.map((card) => (
                 <InventoryCard
                   key={card.baseItemId}

@@ -17,13 +17,17 @@ import {
   BarChart3,
   Sparkles,
 } from 'lucide-react'
-import { DEMO_MEMBERS, DEMO_WEEKLY_STATS, DEMO_ADMIN_BADGES } from '@/data/demo-seed'
+import {
+  DEMO_ADMIN_BADGES,
+  DEMO_ALLIANCE_TAG,
+  DEMO_GUILD_NAME,
+  DEMO_GUILD_SLUG,
+  DEMO_MEMBERS,
+  DEMO_WEEKLY_STATS,
+} from '@/data/demo-seed'
 import DemoGuidedTour from './_components/DemoGuidedTour'
 import DemoCTACard from './_components/DemoCTACard'
 
-const ALLIANCE_TAG = 'MGM'
-const SLUG = 'menhera'
-const DEMO_GUILD_NAME = 'Menhera'
 const DISCORD_INVITE_URL = '/api/auth/discord/start?returnTo=/'
 const LIFETIME_BATTLES = 312
 const LIFETIME_REGEAR = 1840
@@ -116,7 +120,7 @@ export default async function DemoHomePage() {
                 <span className="text-[10px] uppercase tracking-[0.25em] opacity-80">
                   {tHome('heroAlliance')}
                 </span>
-                <span className="font-mono tracking-wider text-base">[{ALLIANCE_TAG}]</span>
+                <span className="font-mono tracking-wider text-base">[{DEMO_ALLIANCE_TAG}]</span>
               </span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-200 border border-amber-400/40 uppercase tracking-wider">
                 <Sparkles size={11} />
@@ -132,7 +136,7 @@ export default async function DemoHomePage() {
                 {tHome('heroRecruitmentOpen')}
               </span>
               <span className="text-gray-500 text-[11px] font-mono tracking-[0.2em] uppercase">
-                /g/{SLUG}
+                /g/{DEMO_GUILD_SLUG}
               </span>
             </div>
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tighter text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.6)] break-words">

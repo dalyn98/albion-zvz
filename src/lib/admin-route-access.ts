@@ -113,7 +113,6 @@ export const ADMIN_ROUTE_ACCESS_RULES: readonly AdminRouteAccessRule[] = [
       CAP.SETTINGS_GENERAL,
       CAP.SETTINGS_TOGGLES,
       CAP.SETTINGS_GUILD_PROFILE,
-      CAP.SETTINGS_PERMISSIONS,
     ],
   },
   {

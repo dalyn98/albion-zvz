@@ -4,6 +4,13 @@ import { getTranslations } from 'next-intl/server'
 import { DEMO_EVENTS, type DemoEventListItem } from '@/data/demo-seed'
 import { formatTimeLabel } from '../_lib/format'
 import DemoCTACard from '../_components/DemoCTACard'
+import DemoGuidedTour from '../_components/DemoGuidedTour'
+
+const MEMBER_EVENTS_TOUR_STEPS = [
+  { id: 'member-events-summary' },
+  { id: 'member-events-upcoming' },
+  { id: 'member-events-recent' },
+] as const
 
 const MY_SLOT_BY_EVENT: Record<string, string> = {
   'evt-1': 'Tank · Heavy Mace',
@@ -23,6 +30,7 @@ export default async function DemoMemberEventsPage() {
 
   return (
     <div className="space-y-6">
+      <DemoGuidedTour steps={MEMBER_EVENTS_TOUR_STEPS} namespace="memberEvents" />
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
           <CalendarDays size={20} className="text-amber-400" />
@@ -31,13 +39,13 @@ export default async function DemoMemberEventsPage() {
         <p className="text-gray-400 text-sm mt-1">{t('subtitle')}</p>
       </div>
 
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <section data-tour-id="member-events-summary" className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <SummaryCard icon={<ShieldCheck size={16} />} label={t('nextSlotLabel')} value="Tank" />
         <SummaryCard icon={<CalendarDays size={16} />} label={t('nextTimeLabel')} value={nextTimeLabel} />
         <SummaryCard icon={<Users size={16} />} label={t('openSlotsLabel')} value="2" />
       </section>
 
-      <section className="space-y-3">
+      <section data-tour-id="member-events-upcoming" className="space-y-3">
         <h2 className="text-base font-bold text-white">{t('upcomingTitle')}</h2>
         <div className="space-y-2">
           {upcoming.map((event) => (
@@ -46,7 +54,7 @@ export default async function DemoMemberEventsPage() {
         </div>
       </section>
 
-      <section className="space-y-3">
+      <section data-tour-id="member-events-recent" className="space-y-3">
         <h2 className="text-base font-bold text-white">{t('recentTitle')}</h2>
         <div className="space-y-2">
           {ended.map((event) => (

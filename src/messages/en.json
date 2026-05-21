@@ -1766,13 +1766,13 @@
   },
   "adminRegearLimits": {
     "title": "Regear submission limits",
-    "description": "Set how long members must wait before regear requests open, and how many requests one person can file per event. New values apply to requests filed from now on.",
+    "description": "Set how long members must wait before regear requests open, how many requests one person can file per event, and when new submissions expire. New values apply to requests filed from now on.",
     "windowMinutesLabel": "Time until requests open (minutes)",
     "windowMinutesHint": "{min}–{max} minutes. Members can file regear requests once this many minutes pass after the battle starts, or as soon as the battle ends — whichever comes first. The buffer gives Albion's killboard time to index death records on long battles.",
     "maxDeathsLabel": "Max requests per event",
     "maxDeathsHint": "{min}–{max}. The maximum number of requests one member can file for the same event. Rejected requests don't count, so they can retry.",
     "eligibilityDaysLabel": "Eligibility window (days)",
-    "eligibilityDaysHint": "{min}–{max} days. Events and tracked deaths older than this disappear from the \"eligible regear\" list. Already-submitted requests are not affected.",
+    "eligibilityDaysHint": "{min}–{max} days. Event regear and tracked deaths older than this can no longer be newly submitted and disappear from the \"eligible regear\" list. Already-submitted requests are not affected.",
     "invalidRange": "Value out of allowed range.",
     "save": "Save",
     "saving": "Saving…",
@@ -2332,6 +2332,7 @@
     "battleStartedAt": "Started {time}",
     "role": "Role",
     "expectedReward": "Expected payout",
+    "requestDeadline": "Deadline",
     "buttonDone": "Regear submitted",
     "buttonCeilingMissing": "Regear cap not set",
     "buttonRequest": "Request regear",
@@ -3474,6 +3475,7 @@
     "manualRegearExcluded": "Manual regear requests are blocked for this build. Please contact an admin.",
     "alreadyRequestedForEvent": "You've already submitted a regear request for this event.",
     "regearWindowNotOpen": "Submissions open {minutes} minutes after the battle starts or once it ends, whichever is sooner.",
+    "regearEligibilityExpired": "The submission window ({days} days) has passed, so this event can no longer accept new regear requests.",
     "regearDeathsLimitReached": "You've already submitted the max ({max}) regear requests for this event.",
     "ceilingNotSetForRole": "This role's regear cap isn't set. Please contact an admin.",
     "invalidClaimAmount": "Claim amount must be an integer.",
@@ -4370,7 +4372,7 @@
       "colKd": "K/D",
       "colSurvival": "Survival",
       "colAttend": "Attend",
-      "demoOnlyDetail": "Demo stats — based on sample data from the Menhera guild."
+      "demoOnlyDetail": "Demo stats — based on sample data from the Emberfall guild."
     },
     "notFound": {
       "title": "This page isn't available in the demo",
@@ -4426,7 +4428,7 @@
       "adminPendingShop": "Shop orders",
       "adminPendingPayout": "Event payouts",
       "demoBadge": "DEMO",
-      "demoNote": "Demo — Menhera guild sample data, not live stats."
+      "demoNote": "Demo — Emberfall guild sample data, not live stats."
     },
     "settings": {
       "demoNotice": "Demo — settings changes don't apply. The full live screen is rendered in preview mode.",
@@ -4580,10 +4582,14 @@
         "doneButton": "Done",
         "restartButton": "Replay tour",
         "stepCounter": "{current} / {total}",
-        "completedTitle": "Tour complete"
+        "completedTitle": "Tour complete",
+        "introEyebrow": "Feature tour",
+        "officialHomeButton": "Official site"
       },
       "pages": {
         "home": {
+          "introTitle": "Demo home tour",
+          "introBody": "Review the public profile, admin queue, member dashboard, battle tracking, and weapon analytics flow.",
           "step1Title": "Public guild profile",
           "step1Body": "Recruitment status, alliance and timezone surfaced instantly. The same page used for Discord shares and SEO indexing.",
           "step2Title": "Admin queue",
@@ -4599,6 +4605,8 @@
           "completedBody": "Now explore Events, Members, Settings and Backup from the sidebar."
         },
         "events": {
+          "introTitle": "Event operations tour",
+          "introBody": "See how event lists, templates, and participant composition fit together.",
           "step1Title": "Event scheduling",
           "step1Body": "Planned ZvZ events organized as cards. One click creates a new event ready for guild-wide announcements.",
           "step2Title": "Events vs templates",
@@ -4608,6 +4616,8 @@
           "completedBody": "Open any event card to inspect the party-editor panel."
         },
         "regear": {
+          "introTitle": "Admin approvals tour",
+          "introBody": "Walk through the unified queue for regear, exchanges, donations, shop orders, payouts, and craft work.",
           "step1Title": "6 approval types unified",
           "step1Body": "Regear, exchange, donation, shop order, payout, craft — every admin approval funneled into one page. Badges show pending counts.",
           "step2Title": "Auto vs manual regear",
@@ -4617,6 +4627,8 @@
           "completedBody": "Other approval type tabs (exchange/donation/shop) follow the same flow."
         },
         "members": {
+          "introTitle": "Member management tour",
+          "introBody": "Review member status, tab grouping, and member detail navigation.",
           "step1Title": "Guild headcount overview",
           "step1Body": "Total members + this week's cumulative participation appear directly in the header.",
           "step2Title": "4-tier membership split",
@@ -4624,6 +4636,8 @@
           "completedBody": "Click any member row for personal stats and regear history."
         },
         "stats": {
+          "introTitle": "Analytics tour",
+          "introBody": "See how point balances, holders, finance flow, and operating metrics are presented.",
           "step1Title": "Point-system indicators",
           "step1Body": "Total held points, lifetime earned/spent, holder count — four KPI cards capture your guild's economy at a glance.",
           "step2Title": "Top point holders",
@@ -4633,6 +4647,8 @@
           "completedBody": "Scroll further for verification, event participation, shop & regear stats."
         },
         "audit": {
+          "introTitle": "Audit log tour",
+          "introBody": "Track who changed what when disputes or mistakes need review.",
           "step1Title": "Filter to the exact incident",
           "step1Body": "Action · target kind · admin/target Discord ID · date range. Surface the one entry you need within 30 seconds during a dispute.",
           "step2Title": "One row = one mutation",
@@ -4640,6 +4656,221 @@
           "step3Title": "Pagination",
           "step3Body": "Paginated 10 entries per page by default. Total count is always visible at the top.",
           "completedBody": "Try changing the filters — picture how you'd use this for disputes inside your own guild."
+        },
+        "memberEvents": {
+          "introTitle": "My events tour",
+          "introBody": "How members find events, check their slot, and review recent participation.",
+          "step1Title": "Next-event summary",
+          "step1Body": "See the closest event time, your role, and open slots at a glance.",
+          "step2Title": "Available events",
+          "step2Body": "Open an event card to inspect the detail page and slot grid.",
+          "step3Title": "Recent history",
+          "step3Body": "Ended events remain visible so members can track their participation.",
+          "completedBody": "Open an event detail page next to see your slot and regear entry point."
+        },
+        "battles": {
+          "introTitle": "Battle records tour",
+          "introBody": "How killboard battles are cleaned into site-level size, outcome, and opponent views.",
+          "step1Title": "Rules",
+          "step1Body": "Review gank exclusion, size categories, and multi-opponent split rules.",
+          "step2Title": "Tabs and filters",
+          "step2Body": "Narrow battles by scale and result.",
+          "step3Title": "Battle table",
+          "step3Body": "Compare opponent, K/D, fame, and zone row by row.",
+          "completedBody": "Battle detail and stats pages use the same judgment rules."
+        },
+        "memberRegear": {
+          "introTitle": "My regear tour",
+          "introBody": "How members submit regear and follow their request status.",
+          "step1Title": "Request entry",
+          "step1Body": "See how auto regear and manual requests are separated.",
+          "step2Title": "My requests",
+          "step2Body": "Track pending claims and processing status.",
+          "step3Title": "Wallet link",
+          "step3Body": "Regear outcomes connect back to wallet and point flow.",
+          "completedBody": "The detail page shows per-slot estimation for each request."
+        },
+        "shop": {
+          "introTitle": "Shop tour",
+          "introBody": "How members order guild stock with points and manage their cart.",
+          "step1Title": "Order guide",
+          "step1Body": "Check delivery guidance and existing order status first.",
+          "step2Title": "Catalog",
+          "step2Body": "Search and tier-filter the gear you need.",
+          "step3Title": "Cart",
+          "step3Body": "Review quantity, memo, and total points before ordering.",
+          "completedBody": "Shop orders flow into the admin approval queue."
+        },
+        "inventory": {
+          "introTitle": "Inventory tour",
+          "introBody": "How admins inspect and adjust tracked guild stock.",
+          "step1Title": "Tracked items",
+          "step1Body": "Search the key gear the guild manages.",
+          "step2Title": "Filters",
+          "step2Body": "Narrow stock by tier, slot, and empty-card visibility.",
+          "step3Title": "Stock grid",
+          "step3Body": "Review and adjust quantities by enchant level.",
+          "completedBody": "Inventory powers shop orders and crafted regear."
+        },
+        "craftAdmin": {
+          "introTitle": "Craft admin tour",
+          "introBody": "How admins enable crafted regear and manage crafters and box ranges.",
+          "step1Title": "Quick links",
+          "step1Body": "Jump to the craft queue, my tasks, and order screens.",
+          "step2Title": "Defaults",
+          "step2Body": "Adjust craft mode, box range, and expiry.",
+          "step3Title": "Crafter access",
+          "step3Body": "Manage crafter payout mode and assigned boxes.",
+          "step4Title": "Live tasks",
+          "step4Body": "Preview how current tasks appear under these settings.",
+          "completedBody": "Crafters claim work from the queue and deliver it from their task page."
+        },
+        "craftQueue": {
+          "introTitle": "Craft queue tour",
+          "introBody": "How crafters claim member-requested crafted regear.",
+          "step1Title": "Crafter defaults",
+          "step1Body": "Review payout mode and assigned box range.",
+          "step2Title": "City filter",
+          "step2Body": "Narrow work by crafting city.",
+          "step3Title": "Queued tasks",
+          "step3Body": "Claim work individually or in bulk.",
+          "step4Title": "Needed items",
+          "step4Body": "Aggregate required gear and shortages for the visible queue.",
+          "completedBody": "Claimed tasks move to My Tasks for delivery."
+        },
+        "craftMyTasks": {
+          "introTitle": "My craft tasks tour",
+          "introBody": "How crafters deliver or release tasks they claimed.",
+          "step1Title": "Material rollup",
+          "step1Body": "Aggregate needed items for your claimed tasks.",
+          "step2Title": "Claimed tasks",
+          "step2Body": "Deliver or release work and watch state change.",
+          "step3Title": "Delivered history",
+          "step3Body": "See box number and material spend after delivery.",
+          "completedBody": "Delivered craft regear connects to the admin approval flow."
+        },
+        "craftOrders": {
+          "introTitle": "Craft orders tour",
+          "introBody": "How guild craft orders are claimed and delivered.",
+          "step1Title": "Tabs",
+          "step1Body": "Switch between available orders and your claims.",
+          "step2Title": "Order list",
+          "step2Body": "Compare remaining quantity, unit price, and total payout.",
+          "step3Title": "Claim/deliver actions",
+          "step3Body": "Enter quantity, claim, then deliver or release your claim.",
+          "completedBody": "Craft orders help supply officers outsource needed gear."
+        },
+        "me": {
+          "introTitle": "My dashboard tour",
+          "introBody": "How members see their verification, wallet, siphon, and combat metrics.",
+          "step1Title": "Verification",
+          "step1Body": "Confirm Discord and Albion character linkage.",
+          "step2Title": "Personal summary",
+          "step2Body": "Review next event, points, participation, K/D, and survival.",
+          "step3Title": "Siphon balance",
+          "step3Body": "Check deposited, withdrawn, and available siphon energy.",
+          "step4Title": "Wallet",
+          "step4Body": "Jump into exchange, transfer, and donation workflows.",
+          "step5Title": "Recent activity",
+          "step5Body": "Read regear, event, exchange, and donation events in order.",
+          "completedBody": "This is the fastest member-facing overview screen."
+        },
+        "meSettings": {
+          "introTitle": "My settings tour",
+          "introBody": "How members adjust language, alerts, and timezone.",
+          "step1Title": "Language",
+          "step1Body": "Choose the site display language.",
+          "step2Title": "DM alerts",
+          "step2Body": "Tune event, regear, and exchange notifications by category.",
+          "step3Title": "Timezone",
+          "step3Body": "Set a personal timezone for event times.",
+          "completedBody": "Members can reduce notification fatigue without asking an admin."
+        },
+        "meProfile": {
+          "introTitle": "My profile tour",
+          "introBody": "A deeper view of personal battle records and achievements.",
+          "step1Title": "Header",
+          "step1Body": "See verified character and recent login state.",
+          "step2Title": "Stats",
+          "step2Body": "Review participation, points, killboard, and streak metrics.",
+          "step3Title": "Weapons",
+          "step3Body": "See main weapon usage and share.",
+          "step4Title": "Recent battles",
+          "step4Body": "Track kill/death events over time.",
+          "completedBody": "This can also work as a shareable personal performance card."
+        },
+        "leaderboard": {
+          "introTitle": "Leaderboard tour",
+          "introBody": "How members compare rankings across windows.",
+          "step1Title": "Window selector",
+          "step1Body": "Switch between weekly, monthly, and all-time views.",
+          "step2Title": "Rank cards",
+          "step2Body": "Review kills, participation, survival, K/D, and win rate separately.",
+          "step3Title": "Member drill-down",
+          "step3Body": "Open a row to inspect that member detail page.",
+          "completedBody": "Competition gives members a reason to revisit."
+        },
+        "guildProfile": {
+          "introTitle": "Guild profile settings tour",
+          "introBody": "How admins manage the public recruitment page.",
+          "step1Title": "Description",
+          "step1Body": "Edit the introduction shown publicly.",
+          "step2Title": "Theme color",
+          "step2Body": "Choose the accent color for the guild page.",
+          "step3Title": "Recruitment",
+          "step3Body": "Manage status and Discord invite link.",
+          "step4Title": "Preview",
+          "step4Body": "Check how the public URL will look.",
+          "completedBody": "Non-developer admins can manage recruitment content directly."
+        },
+        "settings": {
+          "introTitle": "Guild settings tour",
+          "introBody": "How guild operating policies are grouped by category.",
+          "step1Title": "Settings tabs",
+          "step1Body": "Guild, permissions, events, regear, and landing settings are grouped as tabs.",
+          "step2Title": "Demo notice",
+          "step2Body": "The demo does not save, but mirrors the real settings structure.",
+          "completedBody": "Permission-related settings are also grouped into the permissions page."
+        },
+        "backup": {
+          "introTitle": "Backup tour",
+          "introBody": "How operators export or restore guild data.",
+          "step1Title": "Export",
+          "step1Body": "Download the current guild configuration and operating data.",
+          "step2Title": "Import",
+          "step2Body": "Pick a backup file and review warnings before restore.",
+          "completedBody": "In production, preview and admin confirmation are critical before restore."
+        },
+        "eventDetail": {
+          "introTitle": "Event detail tour",
+          "introBody": "How members check their slot and party composition from an event page.",
+          "step1Title": "Event summary",
+          "step1Body": "Review time, template, zone, and organizer.",
+          "step2Title": "My status",
+          "step2Body": "Check assignment state and regear entry point.",
+          "step3Title": "Slot grid",
+          "step3Body": "Read party roles, gear, and assigned members.",
+          "completedBody": "This is the main member entry point during event time."
+        },
+        "regearDetail": {
+          "introTitle": "Regear detail tour",
+          "introBody": "How one claim shows battle info and per-slot valuation.",
+          "step1Title": "Claim summary",
+          "step1Body": "Review victim, battle, death time, and killer.",
+          "step2Title": "Per-slot estimate",
+          "step2Body": "Inspect each slot estimate and total.",
+          "completedBody": "Auto regear continues from here into price adjustment."
+        },
+        "memberDetail": {
+          "introTitle": "Member detail tour",
+          "introBody": "How admins review one member’s performance, achievements, and recent battles.",
+          "step1Title": "Core metrics",
+          "step1Body": "Summarize kills, deaths, K/D, participation, and survival.",
+          "step2Title": "Context",
+          "step2Body": "Review last event and achievements together.",
+          "step3Title": "Recent events",
+          "step3Body": "Read recent kill/death logs in order.",
+          "completedBody": "Admins can quickly understand a member’s current state here."
         }
       }
     }
@@ -4656,6 +4887,10 @@
   "permissions": {
     "heading": "Permissions",
     "description": "Grant granular capabilities to Discord roles, or apply per-user adjustments on top of role-based grants.",
+    "roleSettings": {
+      "title": "Guild role permissions",
+      "description": "Manage admin roles, event creator roles, bomb squad callers, and active-member roles in one place. Discord role changes may apply after the affected member logs in again."
+    },
     "capabilityGroup": {
       "members": "Members",
       "regear": "Regear",

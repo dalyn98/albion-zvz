@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { DEMO_REGEAR_DETAIL, type DemoRegearSlot } from '@/data/demo-seed'
 import { formatTimeLabel, formatSilverFull } from '../../_lib/format'
 import { RegearStatusPill, RegearOriginPill } from '../../_components/Pills'
+import DemoGuidedTour from '../../_components/DemoGuidedTour'
 
 const SLOT_KEY: Record<DemoRegearSlot, string> = {
   head: 'regear.slotHead',
@@ -13,6 +14,10 @@ const SLOT_KEY: Record<DemoRegearSlot, string> = {
   offhand: 'regear.slotOffhand',
   cape: 'regear.slotCape',
 }
+const REGEAR_DETAIL_TOUR_STEPS = [
+  { id: 'regear-detail-summary' },
+  { id: 'regear-detail-pieces' },
+] as const
 
 export default async function DemoRegearDetailPage({
   params,
@@ -27,6 +32,7 @@ export default async function DemoRegearDetailPage({
 
   return (
     <div className="space-y-4">
+      <DemoGuidedTour steps={REGEAR_DETAIL_TOUR_STEPS} namespace="regearDetail" />
       <Link
         href="/demo/regear"
         className="inline-block text-xs text-gray-500 hover:text-amber-400 transition-colors"
@@ -42,14 +48,14 @@ export default async function DemoRegearDetailPage({
         </div>
       </header>
 
-      <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-gray-900 border border-gray-800 rounded-lg p-3">
+      <dl data-tour-id="regear-detail-summary" className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-gray-900 border border-gray-800 rounded-lg p-3">
         <Field label={t('regear.victimLabel')} value={rg.victim} />
         <Field label={t('regear.battleLabel')} value={rg.battleLabel} />
         <Field label={t('regear.diedLabel')} value={formatTimeLabel(t, rg.diedAt)} />
         <Field label={t('regear.killerLabel')} value={`${rg.killerName} · ${rg.killerWeapon}`} />
       </dl>
 
-      <section className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <section data-tour-id="regear-detail-pieces" className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
         <header className="bg-gray-950 px-3 py-2 border-b border-gray-800 text-xs font-semibold text-gray-200">
           {t('regear.piecesTitle')}
         </header>

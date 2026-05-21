@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { DEMO_MEMBERS } from '@/data/demo-seed'
 import DemoCTACard from '../_components/DemoCTACard'
+import DemoGuidedTour from '../_components/DemoGuidedTour'
 
 // 실 /admin/dashboard/craft 의 비주얼 클론 — 데모용 클라이언트 상태로 토글 / 박스 범위 /
 // 만료일 / 제작자 삭제를 실제로 반영. 페이지 리로드 시 초기화.
@@ -39,6 +40,12 @@ const TASKS = [
   { id: 't4', requester: DEMO_MEMBERS[6].ign, item: 'Heavy Crossbow .3', crafter: DEMO_MEMBERS[2].ign, status: 'claimed' as const, box: 24 },
   { id: 't5', requester: DEMO_MEMBERS[7].ign, item: 'Cape .3', crafter: null, status: 'queued' as const, box: null },
 ]
+const CRAFT_ADMIN_TOUR_STEPS = [
+  { id: 'craft-admin-links' },
+  { id: 'craft-admin-settings' },
+  { id: 'craft-admin-crafters' },
+  { id: 'craft-admin-tasks' },
+] as const
 
 const STATUS_STYLE: Record<typeof TASKS[number]['status'], { bg: string; text: string; label: 'status_queued' | 'status_claimed' | 'status_delivered' }> = {
   queued: { bg: 'bg-gray-700/40', text: 'text-gray-300', label: 'status_queued' },
@@ -73,6 +80,7 @@ export default function DemoCraftAdminPage() {
 
   return (
     <div className="space-y-5">
+      <DemoGuidedTour steps={CRAFT_ADMIN_TOUR_STEPS} namespace="craftAdmin" />
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
@@ -93,7 +101,7 @@ export default function DemoCraftAdminPage() {
       </div>
 
       {/* 빠른 이동 카드 */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div data-tour-id="craft-admin-links" className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <Link
           href="/demo/craft/queue"
           className="flex items-center gap-3 bg-gray-900 border border-gray-700 hover:border-amber-500/40 rounded-xl px-3 py-3 transition-colors"
@@ -127,7 +135,7 @@ export default function DemoCraftAdminPage() {
       </div>
 
       {/* 기본 설정 */}
-      <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
+      <section data-tour-id="craft-admin-settings" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
           <ToggleRight size={16} className={enabled ? 'text-emerald-400' : 'text-gray-500'} />
           {t('settingsTitle')}
@@ -218,7 +226,7 @@ export default function DemoCraftAdminPage() {
       </section>
 
       {/* 제작자 권한 */}
-      <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
+      <section data-tour-id="craft-admin-crafters" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
           <Crown size={16} className="text-amber-400" />
           {t('craftersTitle')}
@@ -265,7 +273,7 @@ export default function DemoCraftAdminPage() {
       </section>
 
       {/* 진행 중인 작업 */}
-      <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
+      <section data-tour-id="craft-admin-tasks" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
         <h2 className="text-base font-bold text-white">{t('tasksTitle')}</h2>
         <p className="text-xs text-gray-500">{t('tasksHint')}</p>
         {!enabled ? (

@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { ChevronLeft, ChevronRight, X, Compass, Sparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, Compass, Sparkles, Home } from 'lucide-react'
 
 const SCROLL_SETTLE_MS = 380
 const HIGHLIGHT_PADDING = 10
+const OFFICIAL_HOME_HREF = '/public/landing'
 
 interface Step {
   id: string
@@ -34,6 +35,7 @@ export default function DemoGuidedTour({
   const storageKey = `demo.tour.${namespace}.seen`
 
   const [mounted, setMounted] = useState(false)
+  const [introOpen, setIntroOpen] = useState(false)
   const [active, setActive] = useState(false)
   const [step, setStep] = useState(0)
   const [rect, setRect] = useState<Rect | null>(null)
@@ -45,7 +47,7 @@ export default function DemoGuidedTour({
     if (!autoStart) return
     try {
       const seen = window.localStorage.getItem(storageKey)
-      if (!seen) setActive(true)
+      if (!seen) setIntroOpen(true)
     } catch {
       // localStorage blocked — leave inactive
     }
@@ -97,6 +99,7 @@ export default function DemoGuidedTour({
   }, [active, measure])
 
   const dismiss = useCallback(() => {
+    setIntroOpen(false)
     setActive(false)
     if (!autoStart) return
     try {
@@ -119,8 +122,13 @@ export default function DemoGuidedTour({
   }, [])
 
   const handleStart = useCallback(() => {
+    setIntroOpen(false)
     setStep(0)
     setActive(true)
+  }, [])
+
+  const handleOpenIntro = useCallback(() => {
+    setIntroOpen(true)
   }, [])
 
   useEffect(() => {
@@ -136,11 +144,85 @@ export default function DemoGuidedTour({
 
   if (!mounted) return null
 
+  const introTitleId = `demo-tour-intro-title-${namespace}`
+  const introBodyId = `demo-tour-intro-body-${namespace}`
+
+  if (!active && introOpen) {
+    return (
+      <>
+        <div
+          aria-hidden
+          className="fixed inset-0 z-40 bg-[#08090d]/78 transition-opacity duration-300"
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={introTitleId}
+          aria-describedby={introBodyId}
+          className="fixed z-50 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 bottom-4 sm:max-w-lg w-auto bg-[#11131a] border border-amber-400/40 rounded-xl shadow-2xl"
+        >
+          <div className="flex items-start gap-3 p-4">
+            <span className="flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30">
+              <Compass size={14} />
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300/80">
+                  {tUi('introEyebrow')}
+                </span>
+                <button
+                  type="button"
+                  onClick={dismiss}
+                  aria-label={tUi('skipButton')}
+                  className="text-gray-500 hover:text-gray-300 transition-colors -mr-1 -mt-1 p-1"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              <h3 id={introTitleId} className="text-sm font-bold text-white leading-tight">
+                {tPage('introTitle')}
+              </h3>
+              <p id={introBodyId} className="mt-1.5 text-xs text-gray-300 leading-relaxed">
+                {tPage('introBody')}
+              </p>
+            </div>
+          </div>
+          <div className="border-t border-white/5 px-4 py-2.5 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <a
+                href={OFFICIAL_HOME_HREF}
+                className="inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-white font-medium transition-colors"
+              >
+                <Home size={11} />
+                {tUi('officialHomeButton')}
+              </a>
+              <button
+                type="button"
+                onClick={dismiss}
+                className="text-[11px] text-gray-500 hover:text-gray-300 font-medium transition-colors"
+              >
+                {tUi('skipButton')}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={handleStart}
+              className="inline-flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold px-3 py-1.5 rounded-md transition-colors"
+            >
+              {tUi('startButton')}
+              <ChevronRight size={12} />
+            </button>
+          </div>
+        </div>
+      </>
+    )
+  }
+
   if (!active) {
     return (
       <button
         type="button"
-        onClick={handleStart}
+        onClick={handleOpenIntro}
         className="fixed bottom-4 right-4 z-50 inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold px-3.5 py-2.5 rounded-full shadow-[0_8px_30px_-6px_rgba(251,191,36,0.5)] transition-colors"
       >
         <Compass size={13} />
@@ -214,13 +296,22 @@ export default function DemoGuidedTour({
           </div>
         </div>
         <div className="border-t border-white/5 px-4 py-2.5 flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={dismiss}
-            className="text-[11px] text-gray-500 hover:text-gray-300 font-medium transition-colors"
-          >
-            {tUi('skipButton')}
-          </button>
+          <div className="flex items-center gap-3">
+            <a
+              href={OFFICIAL_HOME_HREF}
+              className="inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-white font-medium transition-colors"
+            >
+              <Home size={11} />
+              {tUi('officialHomeButton')}
+            </a>
+            <button
+              type="button"
+              onClick={dismiss}
+              className="text-[11px] text-gray-500 hover:text-gray-300 font-medium transition-colors"
+            >
+              {tUi('skipButton')}
+            </button>
+          </div>
           <div className="flex items-center gap-1.5">
             {step > 0 && !isCompleted && (
               <button

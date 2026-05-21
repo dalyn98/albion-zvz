@@ -6,6 +6,13 @@ import { DEMO_EVENTS, DEMO_EVENT_DETAIL, DEMO_MEMBERS, type DemoEventSlot } from
 import EventMyStatusCard from '@/components/EventMyStatusCard'
 import { formatTimeLabel } from '../../_lib/format'
 import { EventStatusPill } from '../../_components/Pills'
+import DemoGuidedTour from '../../_components/DemoGuidedTour'
+
+const EVENT_DETAIL_TOUR_STEPS = [
+  { id: 'event-detail-summary' },
+  { id: 'event-detail-my-status' },
+  { id: 'event-detail-slots' },
+] as const
 
 export default async function DemoEventDetailPage({
   params,
@@ -29,6 +36,7 @@ export default async function DemoEventDetailPage({
 
   return (
     <div className="space-y-4">
+      <DemoGuidedTour steps={EVENT_DETAIL_TOUR_STEPS} namespace="eventDetail" />
       <Link
         href="/demo/events"
         className="inline-block text-xs text-gray-500 hover:text-amber-400 transition-colors"
@@ -44,41 +52,43 @@ export default async function DemoEventDetailPage({
         {description && <p className="text-xs text-gray-500">{description}</p>}
       </header>
 
-      <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-gray-900 border border-gray-800 rounded-lg p-3">
+      <dl data-tour-id="event-detail-summary" className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-gray-900 border border-gray-800 rounded-lg p-3">
         <Field label={t('events.detailWhen')} value={formatTimeLabel(t, listEvent.scheduledAt)} />
         <Field label={t('events.detailTemplate')} value={listEvent.templateLabel} />
         <Field label={t('events.detailZone')} value={listEvent.zone} />
         <Field label={t('events.detailOrganizer')} value={organizer} />
       </dl>
 
-      <EventMyStatusCard
-        title={tEvent('myStatusTitle')}
-        statusTitle={mySlot ? tEvent('myStatusAssignedTitle') : tEvent('myStatusNoneTitle')}
-        description={
-          mySlot
-            ? listEvent.battleStarted
-              ? tEvent('myStatusAssignedStartedBody')
-              : tEvent('myStatusAssignedBody')
-            : tEvent('myStatusNoneBody')
-        }
-        tone={mySlot ? 'success' : 'neutral'}
-        details={
-          mySlot
-            ? [
-                tEvent('myStatusPartySlot', { party: mySlot.partyName, slot: mySlot.slotNumber }),
-                tEvent('myStatusRole', { role: t(`slotRoles.${mySlot.slot.role}`) }),
-              ]
-            : []
-        }
-        primaryAction={
-          mySlot && listEvent.battleStarted
-            ? { href: '/demo/regear', label: tEvent('myStatusRegear') }
-            : undefined
-        }
-        secondaryAction={{ href: '#event-slots', label: tEvent('myStatusFindSlot') }}
-      />
+      <div data-tour-id="event-detail-my-status">
+        <EventMyStatusCard
+          title={tEvent('myStatusTitle')}
+          statusTitle={mySlot ? tEvent('myStatusAssignedTitle') : tEvent('myStatusNoneTitle')}
+          description={
+            mySlot
+              ? listEvent.battleStarted
+                ? tEvent('myStatusAssignedStartedBody')
+                : tEvent('myStatusAssignedBody')
+              : tEvent('myStatusNoneBody')
+          }
+          tone={mySlot ? 'success' : 'neutral'}
+          details={
+            mySlot
+              ? [
+                  tEvent('myStatusPartySlot', { party: mySlot.partyName, slot: mySlot.slotNumber }),
+                  tEvent('myStatusRole', { role: t(`slotRoles.${mySlot.slot.role}`) }),
+                ]
+              : []
+          }
+          primaryAction={
+            mySlot && listEvent.battleStarted
+              ? { href: '/demo/regear', label: tEvent('myStatusRegear') }
+              : undefined
+          }
+          secondaryAction={{ href: '#event-slots', label: tEvent('myStatusFindSlot') }}
+        />
+      </div>
 
-      <div id="event-slots" className="space-y-4 scroll-mt-20">
+      <div id="event-slots" data-tour-id="event-detail-slots" className="space-y-4 scroll-mt-20">
         {renderedParties.map((party) => (
           <section key={party.id} className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
             <header className="bg-gray-950 px-3 py-2 border-b border-gray-800 flex items-center justify-between">

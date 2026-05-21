@@ -4,7 +4,10 @@ import { KeyRound } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { getSession, sessionHas } from '@/lib/session'
 import { CAP } from '@/lib/permissions'
+import { getSessionGuildId } from '@/lib/tenant'
+import { loadAdminPermissionRoleSettings } from '@/lib/admin-permission-settings'
 import { listPermissions } from '@/app/actions/permissions'
+import PermissionRoleSettingsPanel from '@/components/PermissionRoleSettingsPanel'
 import PermissionsEditor from './PermissionsEditor'
 
 // `force-dynamic` 은 admin 라우트 공통 — 세션/길드별 데이터가 빌드타임에 박히면
@@ -16,7 +19,11 @@ export default async function PermissionsPage() {
   if (!session || !sessionHas(session, CAP.SETTINGS_PERMISSIONS)) redirect('/')
 
   const t = await getTranslations('permissions')
-  const { roleGrants, userOverrides, error } = await listPermissions()
+  const guildId = await getSessionGuildId(session)
+  const [roleSettings, { roleGrants, userOverrides, error }] = await Promise.all([
+    loadAdminPermissionRoleSettings(guildId),
+    listPermissions(),
+  ])
 
   return (
     <div className="space-y-6">
@@ -33,6 +40,17 @@ export default async function PermissionsPage() {
           {error}
         </div>
       )}
+
+      <PermissionRoleSettingsPanel
+        adminRoleIds={roleSettings.adminRoleIds}
+        eventCreatorRoleIds={roleSettings.eventCreatorRoleIds}
+        eventCreatorCombatRoleIds={roleSettings.eventCreatorCombatRoleIds}
+        eventCreatorFfRoleIds={roleSettings.eventCreatorFfRoleIds}
+        eventCreatorGankingRoleIds={roleSettings.eventCreatorGankingRoleIds}
+        bombSquadCallerRoleIds={roleSettings.bombSquadCallerRoleIds}
+        activeMemberRoleIds={roleSettings.activeMemberRoleIds}
+        lastMemberSyncAt={roleSettings.lastMemberSyncAt}
+      />
 
       <Suspense fallback={<div className="text-sm text-gray-500">…</div>}>
         <PermissionsEditor

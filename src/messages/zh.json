@@ -1766,13 +1766,13 @@
   },
   "adminRegearLimits": {
     "title": "补装提交限制",
-    "description": "设置补装申请开放前的等待时间，以及单人单活动可提交的最多申请数。新值适用于此后提交的申请。",
+    "description": "设置补装申请开放前的等待时间、单人单活动可提交的最多申请数，以及新申请的截止期限。新值适用于此后提交的申请。",
     "windowMinutesLabel": "申请开放等待时间（分钟）",
     "windowMinutesHint": "{min}–{max} 分钟。战斗开始后经过此分钟数,或战斗结束时(取较早者)成员即可提交补装申请。当战斗较长时,此缓冲为阿尔比恩击杀榜处理死亡记录留出时间。",
     "maxDeathsLabel": "每活动最多申请数",
     "maxDeathsHint": "{min}–{max}。单个成员对同一活动可提交的最多申请数。已拒绝的申请不计入，可重试。",
     "eligibilityDaysLabel": "有效期窗口（天）",
-    "eligibilityDaysHint": "{min}–{max} 天。早于此天数的活动和已记录死亡会从「可申请补装」列表中消失。已提交的申请不受影响。",
+    "eligibilityDaysHint": "{min}–{max} 天。超过此期限的活动补装和已记录死亡将无法再新提交，并会从「可申请补装」列表中消失。已提交的申请不受影响。",
     "invalidRange": "值超出允许范围。",
     "save": "保存",
     "saving": "保存中…",
@@ -2332,6 +2332,7 @@
     "battleStartedAt": "开始于 {time}",
     "role": "职业",
     "expectedReward": "预计发放",
+    "requestDeadline": "申请截止",
     "buttonDone": "补装已提交",
     "buttonCeilingMissing": "未设置补装上限",
     "buttonRequest": "申请补装",
@@ -3474,6 +3475,7 @@
     "manualRegearExcluded": "此配装的手动补装申请已被禁止,请联系管理员。",
     "alreadyRequestedForEvent": "您已为此活动提交过补装申请。",
     "regearWindowNotOpen": "需在战斗开始 {minutes} 分钟后,或战斗结束后才能申请。",
+    "regearEligibilityExpired": "申请窗口（{days} 天）已过，此活动无法再提交新的补装申请。",
     "regearDeathsLimitReached": "您已为此活动提交了最多({max})次补装申请。",
     "ceilingNotSetForRole": "此职业的补装上限尚未设置,请联系管理员。",
     "invalidClaimAmount": "申请金额必须为整数。",
@@ -4370,7 +4372,7 @@
       "colKd": "K/D",
       "colSurvival": "生存率",
       "colAttend": "出席",
-      "demoOnlyDetail": "演示统计 — 基于 Menhera 公会样本数据。"
+      "demoOnlyDetail": "演示统计 — 基于 Emberfall 公会样本数据。"
     },
     "notFound": {
       "title": "此页面在演示中不可用",
@@ -4426,7 +4428,7 @@
       "adminPendingShop": "商店订单",
       "adminPendingPayout": "事件发放",
       "demoBadge": "DEMO",
-      "demoNote": "演示 — Menhera 公会样本数据,非实时统计。"
+      "demoNote": "演示 — Emberfall 公会样本数据，非实时统计。"
     },
     "settings": {
       "demoNotice": "演示 — 设置更改不会生效。实际运营界面以预览模式呈现。",
@@ -4580,10 +4582,14 @@
         "doneButton": "完成",
         "restartButton": "重新导览",
         "stepCounter": "{current} / {total}",
-        "completedTitle": "导览完成"
+        "completedTitle": "导览完成",
+        "introEyebrow": "功能导览",
+        "officialHomeButton": "官方网站"
       },
       "pages": {
         "home": {
+          "introTitle": "演示首页导览",
+          "introBody": "快速浏览公开资料、管理员队列、成员仪表盘和战斗分析等完整服务流程。",
           "step1Title": "公开公会主页",
           "step1Body": "招募状态、联盟与时区一目了然。Discord 分享和 SEO 索引使用的就是这个页面。",
           "step2Title": "管理员队列",
@@ -4599,6 +4605,8 @@
           "completedBody": "现在请直接查看侧边栏的活动、公会成员、设置与备份。"
         },
         "events": {
+          "introTitle": "活动管理导览",
+          "introBody": "管理员创建活动、查看队伍槽位并管理发布状态的页面。",
           "step1Title": "活动编排",
           "step1Body": "预定的 ZvZ 活动以卡片形式整理。一键新建活动，可直接用于公会公告。",
           "step2Title": "活动 vs 模板",
@@ -4608,6 +4616,8 @@
           "completedBody": "打开任意活动卡片即可查看队伍编排面板。"
         },
         "regear": {
+          "introTitle": "补装审批导览",
+          "introBody": "确认并处理银币补装、自由补装和制作补装申请的管理流程。",
           "step1Title": "六类审批统一",
           "step1Body": "装备补偿、兑换、捐赠、商店订单、活动发放、制作 — 所有管理员审批集中在一页。徽章显示待处理数量。",
           "step2Title": "自动 vs 手动装备补偿",
@@ -4617,6 +4627,8 @@
           "completedBody": "其他审批类型（兑换/捐赠/商店）使用相同流程。"
         },
         "members": {
+          "introTitle": "成员管理导览",
+          "introBody": "查看公会成员认证状态、角色和活跃情况的管理页面。",
           "step1Title": "公会人数概览",
           "step1Body": "总成员数 + 本周累计出席次数直接显示在页眉。",
           "step2Title": "四层成员分类",
@@ -4624,6 +4636,8 @@
           "completedBody": "点击任意成员行可查看个人统计与装备补偿历史。"
         },
         "stats": {
+          "introTitle": "统计导览",
+          "introBody": "查看活动参与、补装费用和战斗贡献，辅助运营判断。",
           "step1Title": "积分系统指标",
           "step1Body": "持有积分总和、累计收支、持有者数量 — 四张 KPI 卡片概览公会经济。",
           "step2Title": "积分前列持有者",
@@ -4633,6 +4647,8 @@
           "completedBody": "继续向下滚动可查看认证 / 活动参与率 / 商店与装备补偿统计。"
         },
         "audit": {
+          "introTitle": "审计日志导览",
+          "introBody": "追踪管理员操作和重要状态变更，方便事后确认。",
           "step1Title": "用筛选器快速定位",
           "step1Body": "动作 · 对象类型 · 管理员/对象 ID · 日期范围。出现纠纷时 30 秒内就能筛出对应条目。",
           "step2Title": "一行 = 一次操作",
@@ -4640,6 +4656,221 @@
           "step3Title": "分页",
           "step3Body": "默认每页 10 条。总条数始终显示在顶部。",
           "completedBody": "尝试调整筛选器，想象一下在自己公会的纠纷中如何使用。"
+        },
+        "memberEvents": {
+          "introTitle": "成员活动导览",
+          "introBody": "成员查看活动日程、报名状态和近期活动的流程。",
+          "step1Title": "参与摘要",
+          "step1Body": "一眼确认待处理、已确认和近期出勤。",
+          "step2Title": "即将开始的活动",
+          "step2Body": "查看所需装备和集合时间，并从详情页报名槽位。",
+          "step3Title": "近期记录",
+          "step3Body": "回顾自己参加过的活动和出勤结果。",
+          "completedBody": "从活动详情页进入实际槽位报名。"
+        },
+        "battles": {
+          "introTitle": "战斗记录导览",
+          "introBody": "将击杀板整理成有意义的战斗单位进行分析。",
+          "step1Title": "统计规则",
+          "step1Body": "排除小规模抓人和低参与战斗，只保留有 ZvZ 意义的战斗。",
+          "step2Title": "筛选器",
+          "step2Body": "按时间、结果、敌方联盟快速筛选。",
+          "step3Title": "战斗列表",
+          "step3Body": "通过击杀、死亡、IP 和对手信息选择要查看的战斗。",
+          "completedBody": "战斗详情中可以继续查看参与者和装备构成。"
+        },
+        "memberRegear": {
+          "introTitle": "成员补装导览",
+          "introBody": "成员查看自己补装申请和余额的页面。",
+          "step1Title": "申请入口",
+          "step1Body": "活动后选择可申请的补装类型。",
+          "step2Title": "申请记录",
+          "step2Body": "自己确认待审批、已通过和被退回的申请。",
+          "step3Title": "钱包联动",
+          "step3Body": "查看点数和银币余额，用于判断下一次兑换。",
+          "completedBody": "补装详情中还能查看各装备部位金额。"
+        },
+        "shop": {
+          "introTitle": "商店导览",
+          "introBody": "成员用点数订购公会库存并管理购物车的流程。",
+          "step1Title": "订单说明",
+          "step1Body": "先确认配送方式和现有订单状态。",
+          "step2Title": "商品目录",
+          "step2Body": "搜索需要的装备，并按阶级筛选。",
+          "step3Title": "购物车",
+          "step3Body": "下单前确认数量、备注和总点数。",
+          "completedBody": "商店订单会进入管理员审批队列。"
+        },
+        "inventory": {
+          "introTitle": "库存导览",
+          "introBody": "管理员查看公会库存、阈值和补充目标的页面。",
+          "step1Title": "追踪库存",
+          "step1Body": "优先确认容易短缺的核心装备。",
+          "step2Title": "筛选器",
+          "step2Body": "按类别、阶级和库存状态缩小范围。",
+          "step3Title": "库存网格",
+          "step3Body": "在同一行查看当前数量、预留数量和补货建议。",
+          "completedBody": "库存信息会影响商店和制作补装判断。"
+        },
+        "craftAdmin": {
+          "introTitle": "制作补装管理导览",
+          "introBody": "进入制作补装基础设置、工匠和作业队列的入口。",
+          "step1Title": "相关页面",
+          "step1Body": "快速前往队列、订单和个人任务。",
+          "step2Title": "基础设置",
+          "step2Body": "管理制作补装的开放状态和期限规则。",
+          "step3Title": "工匠管理",
+          "step3Body": "查看制作负责人专长和状态。",
+          "step4Title": "作业概览",
+          "step4Body": "快速掌握等待处理的制作任务量。",
+          "completedBody": "实际制作任务会在队列页面分配。"
+        },
+        "craftQueue": {
+          "introTitle": "制作队列导览",
+          "introBody": "将制作补装申请拆成任务并分配给负责人。",
+          "step1Title": "默认条件",
+          "step1Body": "先确认质量、城市和截止时间等共通条件。",
+          "step2Title": "筛选",
+          "step2Body": "按状态、类别和负责人只显示需要的任务。",
+          "step3Title": "任务卡片",
+          "step3Body": "在一张卡片中确认物品、数量、负责人和进度。",
+          "step4Title": "汇总",
+          "step4Body": "按类别汇总需求数量，用于制作计划。",
+          "completedBody": "负责人会在自己的任务页面更新进度。"
+        },
+        "craftMyTasks": {
+          "introTitle": "我的制作任务导览",
+          "introBody": "工匠查看分配给自己的制作任务和交付状态。",
+          "step1Title": "个人汇总",
+          "step1Body": "汇总已接任务、已完成和待交付数量。",
+          "step2Title": "进行中任务",
+          "step2Body": "查看正在制作的装备和期限，决定优先级。",
+          "step3Title": "已交付",
+          "step3Body": "已完成任务会保留为记录，管理员也能追踪。",
+          "completedBody": "准确更新任务状态可以让发放流程更顺畅。"
+        },
+        "craftOrders": {
+          "introTitle": "制作订单导览",
+          "introBody": "管理员确认制作补装申请，并展开为制作任务。",
+          "step1Title": "订单标签",
+          "step1Body": "切换新订单、进行中和已完成状态。",
+          "step2Title": "订单列表",
+          "step2Body": "集中查看申请者、活动和所需装备。",
+          "step3Title": "管理操作",
+          "step3Body": "按订单处理审批、退回和生成制作队列。",
+          "completedBody": "订单通过后会在制作队列中变成具体任务。"
+        },
+        "me": {
+          "introTitle": "我的仪表盘导览",
+          "introBody": "成员一眼查看自己的认证、余额、虹吸和活动。",
+          "step1Title": "认证状态",
+          "step1Body": "确认 Discord 和 Albion 角色是否已绑定。",
+          "step2Title": "个人摘要",
+          "step2Body": "汇总出勤、补装、点数等常用信息。",
+          "step3Title": "虹吸余额",
+          "step3Body": "确认个人存入的虹吸剩余数量。",
+          "step4Title": "钱包",
+          "step4Body": "查看点数、银币和可兑换金额。",
+          "step5Title": "近期活动",
+          "step5Body": "用近期申请和活动记录决定下一步行动。",
+          "completedBody": "常用功能可以从这个页面直接继续。"
+        },
+        "meSettings": {
+          "introTitle": "个人设置导览",
+          "introBody": "调整个人通知、语言和时区设置。",
+          "step1Title": "语言",
+          "step1Body": "将应用显示语言切换到想要的语言。",
+          "step2Title": "私信通知",
+          "step2Body": "设置是否接收活动、补装和商店相关个人通知。",
+          "step3Title": "时区",
+          "step3Body": "设置时区，让活动时间以自己的基准显示。",
+          "completedBody": "设置完成后更不容易错过运营通知。"
+        },
+        "meProfile": {
+          "introTitle": "我的资料导览",
+          "introBody": "确认其他公会成员看到的活动资料和战斗倾向。",
+          "step1Title": "资料头部",
+          "step1Body": "查看角色、职能和最近状态。",
+          "step2Title": "核心统计",
+          "step2Body": "查看参与、击杀、死亡和贡献指标。",
+          "step3Title": "武器倾向",
+          "step3Body": "确认常用武器类别和战斗风格。",
+          "step4Title": "近期战斗",
+          "step4Body": "快速查看近期参与的战斗和结果。",
+          "completedBody": "资料会连接到排行榜和成员详情页面。"
+        },
+        "leaderboard": {
+          "introTitle": "排行榜导览",
+          "introBody": "成员查看自己活动排名和强项的页面。",
+          "step1Title": "统计期间",
+          "step1Body": "切换本周、本月等比较基准。",
+          "step2Title": "排名卡片",
+          "step2Body": "查看参与、贡献和战斗指标的前列成员。",
+          "step3Title": "成员详情链接",
+          "step3Body": "点击名字进入该成员的详细资料。",
+          "completedBody": "排行榜会给成员再次打开应用的理由。"
+        },
+        "guildProfile": {
+          "introTitle": "公开公会资料导览",
+          "introBody": "管理外部访客看到的公会介绍和招募信息。",
+          "step1Title": "公会说明",
+          "step1Body": "简要说明公会风格和运营方式。",
+          "step2Title": "主题",
+          "step2Body": "调整公开页面的颜色和氛围。",
+          "step3Title": "招募信息",
+          "step3Body": "整理招募状态、要求和联系路径。",
+          "step4Title": "预览",
+          "step4Body": "保存前确认访客看到的页面。",
+          "completedBody": "公开资料是邀请链接和入会流程的第一印象。"
+        },
+        "settings": {
+          "introTitle": "管理员设置导览",
+          "introBody": "进入公会运营所需设置分组的入口。",
+          "step1Title": "设置标签",
+          "step1Body": "将权限、通知、自动化和补装等相关设置集中导航。",
+          "step2Title": "说明区域",
+          "step2Body": "确认设置变更会影响哪些运营流程。",
+          "completedBody": "详细权限会在权限设置页面一起管理。"
+        },
+        "backup": {
+          "introTitle": "备份导览",
+          "introBody": "导出或恢复公会数据的管理员工具。",
+          "step1Title": "导出",
+          "step1Body": "生成运营数据备份文件。",
+          "step2Title": "导入",
+          "step2Body": "恢复前确认影响范围，只导入需要的数据。",
+          "completedBody": "备份可作为大型设置变更前的安全措施。"
+        },
+        "eventDetail": {
+          "introTitle": "活动详情导览",
+          "introBody": "成员最常访问的槽位报名页面。",
+          "step1Title": "活动摘要",
+          "step1Body": "先确认时间、地点和所需装备。",
+          "step2Title": "我的报名状态",
+          "step2Body": "立即确认自己是否已报名、是否已确认。",
+          "step3Title": "槽位列表",
+          "step3Body": "选择想要的职责和装备槽位进行报名。",
+          "completedBody": "管理员也能在同一详情页调整槽位和报名状态。"
+        },
+        "regearDetail": {
+          "introTitle": "补装详情导览",
+          "introBody": "查看已申请补装的状态和各装备金额。",
+          "step1Title": "申请摘要",
+          "step1Body": "确认状态、活动、总额和处理备注。",
+          "step2Title": "装备项目",
+          "step2Body": "查看每个部位的价格和是否认可。",
+          "completedBody": "如果被退回，可以查看原因并补充所需信息。"
+        },
+        "memberDetail": {
+          "introTitle": "成员详情导览",
+          "introBody": "查看单个成员的活动、战斗和上下文信息。",
+          "step1Title": "活动统计",
+          "step1Body": "同时查看参与、战斗和补装指标。",
+          "step2Title": "运营上下文",
+          "step2Body": "确认角色、认证状态和主要备注。",
+          "step3Title": "近期记录",
+          "step3Body": "根据近期活动和战斗记录判断当前活跃度。",
+          "completedBody": "此页面对管理员判断和成员自我确认都很有用。"
         }
       }
     }
@@ -4656,6 +4887,10 @@
   "permissions": {
     "heading": "权限管理",
     "description": "为 Discord 角色授予细粒度权限(capability)，或对特定成员单独追加 / 收回权限。",
+    "roleSettings": {
+      "title": "公会角色权限",
+      "description": "在一处管理管理员角色、活动创建角色、Bomb Squad 指挥员和活跃成员判定角色。Discord 角色变更可能需要目标成员下次登录后才会生效。"
+    },
     "capabilityGroup": {
       "members": "成员",
       "regear": "补装",
