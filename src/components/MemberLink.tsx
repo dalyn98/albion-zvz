@@ -6,6 +6,7 @@ interface Props {
   discordId: string | null | undefined
   username: string
   className?: string
+  hrefPrefix?: string
   // 부모가 hover 색을 강제하고 싶을 때 underline/hover 효과를 끌 수 있게.
   plain?: boolean
   title?: string
@@ -19,6 +20,7 @@ export default function MemberLink({
   discordId,
   username,
   className = '',
+  hrefPrefix = '/members',
   plain = false,
   title,
 }: Props) {
@@ -28,7 +30,7 @@ export default function MemberLink({
   const hoverCls = plain ? '' : 'hover:text-amber-300 hover:underline'
   return (
     <Link
-      href={`/members/${discordId}`}
+      href={`${hrefPrefix}/${discordId}`}
       className={`${hoverCls} ${className}`.trim()}
       title={title ?? username}
       onClick={(e) => e.stopPropagation()}

@@ -36,6 +36,7 @@ interface Props {
   // 관리자 전용 노출 시 다른 멤버를 대신 등록할 수 있도록 후보 디렉터리 제공.
   // 멤버 페이지에서는 비워서(빈 배열) 어드민 추가 폼이 안 뜨게 한다.
   memberDirectory?: DirectoryMember[]
+  interactionMode?: 'live' | 'demo'
 }
 
 export default function TentativeSignupSection({
@@ -48,13 +49,16 @@ export default function TentativeSignupSection({
   loginHref,
   battleStarted,
   memberDirectory = [],
+  interactionMode = 'live',
 }: Props) {
   const t = useTranslations('eventTentative')
   const tRole = useTranslations('slotRole')
   const tAction = useTranslations('eventTentativeAction')
   const tCommon = useTranslations('common')
+  const tDemoFeedback = useTranslations('demo.feedback')
   const toast = useToast()
   const router = useRouter()
+  const isDemo = interactionMode === 'demo'
 
   const myRow = useMemo(
     () => rows.find((r) => r.discord_id === currentDiscordId) ?? null,
@@ -92,8 +96,10 @@ export default function TentativeSignupSection({
         tRole={tRole}
         tAction={tAction}
         tCommon={tCommon}
+        demoActionLabel={tDemoFeedback('actionAcknowledged')}
         toast={toast}
         router={router}
+        isDemo={isDemo}
       />
 
       {others.length > 0 && (
@@ -109,8 +115,10 @@ export default function TentativeSignupSection({
               tRole={tRole}
               tAction={tAction}
               tCommon={tCommon}
+              demoActionLabel={tDemoFeedback('actionAcknowledged')}
               toast={toast}
               router={router}
+              isDemo={isDemo}
             />
           ))}
         </ul>
@@ -125,8 +133,10 @@ export default function TentativeSignupSection({
           tRole={tRole}
           tAction={tAction}
           tCommon={tCommon}
+          demoActionLabel={tDemoFeedback('actionAcknowledged')}
           toast={toast}
           router={router}
+          isDemo={isDemo}
         />
       )}
     </section>
@@ -145,8 +155,10 @@ interface SelfRowProps {
   tRole: ReturnType<typeof useTranslations<'slotRole'>>
   tAction: ReturnType<typeof useTranslations<'eventTentativeAction'>>
   tCommon: ReturnType<typeof useTranslations<'common'>>
+  demoActionLabel: string
   toast: ReturnType<typeof useToast>
   router: ReturnType<typeof useRouter>
+  isDemo: boolean
 }
 
 function SelfRow({
@@ -161,8 +173,10 @@ function SelfRow({
   tRole,
   tAction,
   tCommon,
+  demoActionLabel,
   toast,
   router,
+  isDemo,
 }: SelfRowProps) {
   const [editing, setEditing] = useState(false)
   const [pending, startTransition] = useTransition()
@@ -218,6 +232,11 @@ function SelfRow({
       return
     }
     startTransition(async () => {
+      if (isDemo) {
+        toast.info(demoActionLabel)
+        setEditing(false)
+        return
+      }
       const result = await submitMyTentativeSignup(eventId, selected, notes)
       if (result.error) {
         setError(result.error)
@@ -233,6 +252,11 @@ function SelfRow({
     if (!myRow) return
     setError('')
     startTransition(async () => {
+      if (isDemo) {
+        toast.info(demoActionLabel)
+        setEditing(false)
+        return
+      }
       const result = await removeTentativeSignup(eventId, myRow.discord_id)
       if (result.error) {
         setError(result.error)
@@ -417,8 +441,10 @@ function RowItem({
   tRole,
   tAction,
   tCommon,
+  demoActionLabel,
   toast,
   router,
+  isDemo,
 }: {
   row: TentativeSignupRow
   avatar: string | null
@@ -428,8 +454,10 @@ function RowItem({
   tRole: ReturnType<typeof useTranslations<'slotRole'>>
   tAction: ReturnType<typeof useTranslations<'eventTentativeAction'>>
   tCommon: ReturnType<typeof useTranslations<'common'>>
+  demoActionLabel: string
   toast: ReturnType<typeof useToast>
   router: ReturnType<typeof useRouter>
+  isDemo: boolean
 }) {
   const [pending, startTransition] = useTransition()
   const askConfirm = useConfirm()
@@ -441,6 +469,10 @@ function RowItem({
     })
     if (!ok) return
     startTransition(async () => {
+      if (isDemo) {
+        toast.info(demoActionLabel)
+        return
+      }
       const result = await removeTentativeSignup(eventId, row.discord_id)
       if (result.error) {
         toast.error(result.error)
@@ -514,8 +546,10 @@ function AdminAddPanel({
   tRole,
   tAction,
   tCommon,
+  demoActionLabel,
   toast,
   router,
+  isDemo,
 }: {
   eventId: string
   memberDirectory: DirectoryMember[]
@@ -524,8 +558,10 @@ function AdminAddPanel({
   tRole: ReturnType<typeof useTranslations<'slotRole'>>
   tAction: ReturnType<typeof useTranslations<'eventTentativeAction'>>
   tCommon: ReturnType<typeof useTranslations<'common'>>
+  demoActionLabel: string
   toast: ReturnType<typeof useToast>
   router: ReturnType<typeof useRouter>
+  isDemo: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [selectedMember, setSelectedMember] = useState('')
@@ -558,6 +594,14 @@ function AdminAddPanel({
       return
     }
     startTransition(async () => {
+      if (isDemo) {
+        toast.info(demoActionLabel)
+        setSelectedMember('')
+        setSelected([])
+        setNotes('')
+        setOpen(false)
+        return
+      }
       const result = await adminUpsertTentativeSignup(
         eventId,
         member.discord_id,

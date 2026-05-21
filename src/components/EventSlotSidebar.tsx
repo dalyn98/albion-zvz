@@ -19,6 +19,7 @@ interface Props {
   placement: Placement
   title?: string
   avatars?: Record<string, string | null>
+  memberHrefPrefix?: string
 }
 
 // Pre-resolved translation bundle we pass down through the sub-components.
@@ -149,7 +150,13 @@ function countArmor(parties: PartyWithSlots[], keywords: readonly string[]): num
   return count
 }
 
-export default async function EventSlotSidebar({ parties, placement, title, avatars = {} }: Props) {
+export default async function EventSlotSidebar({
+  parties,
+  placement,
+  title,
+  avatars = {},
+  memberHrefPrefix = '/members',
+}: Props) {
   const [t, tArmor, tSlot, tRole, locale] = await Promise.all([
     getTranslations('eventSidebar'),
     getTranslations('armor'),
@@ -195,6 +202,7 @@ export default async function EventSlotSidebar({ parties, placement, title, avat
         avatars={avatars}
         labels={labels}
         locale={locale}
+        memberHrefPrefix={memberHrefPrefix}
       />
     )
   }
@@ -208,6 +216,7 @@ export default async function EventSlotSidebar({ parties, placement, title, avat
       mountRaw={mountRaw}
       labels={labels}
       locale={locale}
+      memberHrefPrefix={memberHrefPrefix}
     />
   )
 }
@@ -220,6 +229,7 @@ function MobileCollapsedSidebar({
   avatars,
   labels,
   locale,
+  memberHrefPrefix,
 }: {
   parties: PartyWithSlots[]
   assigned: number
@@ -228,6 +238,7 @@ function MobileCollapsedSidebar({
   avatars: Record<string, string | null>
   labels: SidebarLabels
   locale: Locale
+  memberHrefPrefix: string
 }) {
   // Mobile: collapse disarray + armor + slot list into one <details> to reclaim
   // vertical space. Summary row carries the two most-actionable numbers (혼란
@@ -261,7 +272,13 @@ function MobileCollapsedSidebar({
         <DisarraySection assigned={assigned} mountRaw={mountRaw} labels={labels} />
         <ArmorSummarySection parties={parties} labels={labels} />
         <div className="max-h-[50vh] overflow-y-auto p-2">
-          <SidebarList parties={parties} avatars={avatars} labels={labels} locale={locale} />
+          <SidebarList
+            parties={parties}
+            avatars={avatars}
+            labels={labels}
+            locale={locale}
+            memberHrefPrefix={memberHrefPrefix}
+          />
         </div>
       </div>
     </details>
@@ -361,6 +378,7 @@ function DesktopSidebar({
   mountRaw,
   labels,
   locale,
+  memberHrefPrefix,
 }: {
   parties: PartyWithSlots[]
   assigned: number
@@ -369,6 +387,7 @@ function DesktopSidebar({
   mountRaw: number
   labels: SidebarLabels
   locale: Locale
+  memberHrefPrefix: string
 }) {
   return (
     <div className="sticky top-4 flex flex-col max-h-[calc(100vh-2rem)] bg-gray-900 border border-gray-800 rounded-xl divide-y divide-gray-800 overflow-hidden">
@@ -388,7 +407,13 @@ function DesktopSidebar({
         <ArmorSummarySection parties={parties} labels={labels} />
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto p-2">
-        <SidebarList parties={parties} avatars={avatars} labels={labels} locale={locale} />
+        <SidebarList
+          parties={parties}
+          avatars={avatars}
+          labels={labels}
+          locale={locale}
+          memberHrefPrefix={memberHrefPrefix}
+        />
       </div>
     </div>
   )
@@ -399,11 +424,13 @@ function SidebarList({
   avatars,
   labels,
   locale,
+  memberHrefPrefix,
 }: {
   parties: PartyWithSlots[]
   avatars: Record<string, string | null>
   labels: SidebarLabels
   locale: Locale
+  memberHrefPrefix: string
 }) {
   const nonEmpty = parties.filter((p) => p.slots.length > 0)
   if (nonEmpty.length === 0) {
@@ -424,6 +451,7 @@ function SidebarList({
                 avatar={slot.assigned_discord_id ? avatars[slot.assigned_discord_id] ?? null : null}
                 labels={labels}
                 locale={locale}
+                memberHrefPrefix={memberHrefPrefix}
               />
             ))}
           </ul>
@@ -439,12 +467,14 @@ function SidebarRow({
   avatar,
   labels,
   locale,
+  memberHrefPrefix,
 }: {
   slot: PartyWithSlots['slots'][number]
   partyNumber: number
   avatar: string | null
   labels: SidebarLabels
   locale: Locale
+  memberHrefPrefix: string
 }) {
   const roleStyle = getRoleStyle(slot.role_name)
   const primaryKind = getPrimaryGearKind(slot.role_name)
@@ -496,7 +526,7 @@ function SidebarRow({
 
       {slot.assigned_username && slot.assigned_discord_id ? (
         <Link
-          href={`/members/${slot.assigned_discord_id}`}
+          href={`${memberHrefPrefix}/${slot.assigned_discord_id}`}
           className="flex items-center gap-1 flex-shrink-0 max-w-[90px] text-right text-green-400 hover:text-green-300 hover:underline underline-offset-2"
           title={labels.viewMember(slot.assigned_username)}
         >

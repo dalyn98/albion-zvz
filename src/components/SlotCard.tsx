@@ -49,6 +49,8 @@ interface Props {
   // 노출 여부 / 템플릿 저장 다이얼로그의 카테고리 기본값을 판단한다.
   autoRegearEnabled: boolean
   eventCategory?: EventCategory
+  interactionMode?: 'live' | 'demo'
+  memberHrefPrefix?: string
 }
 
 function NoteTooltip({ notes }: { notes: string }) {
@@ -92,6 +94,8 @@ export default function SlotCard({
   cdBadgeRoles,
   autoRegearEnabled,
   eventCategory,
+  interactionMode = 'live',
+  memberHrefPrefix = '/members',
 }: Props) {
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
@@ -100,10 +104,16 @@ export default function SlotCard({
   const [editOpen, setEditOpen] = useState(false)
   const router = useRouter()
   const t = useTranslations('slot')
+  const tDemoFeedback = useTranslations('demo.feedback')
   const tGear = useTranslations('gear')
   const tRole = useTranslations('slotRole')
   const locale = useLocale() as Locale
   const askConfirm = useConfirm()
+  const isDemo = interactionMode === 'demo'
+
+  const acknowledgeDemoAction = () => {
+    setError(tDemoFeedback('actionAcknowledged'))
+  }
 
   const isTaken = slot.assigned_discord_id !== null
   const isMine = isTaken && slot.assigned_discord_id === currentDiscordId
@@ -140,6 +150,10 @@ export default function SlotCard({
   const primaryDisplay = getDisplayGear(slot, primaryKind)
 
   const doAssign = (picks: SlotPicks) => {
+    if (isDemo) {
+      acknowledgeDemoAction()
+      return
+    }
     setError('')
     startTransition(async () => {
       const result = await assignSlot(slot.id, picks)
@@ -149,6 +163,10 @@ export default function SlotCard({
   }
 
   const handleAssign = async () => {
+    if (isDemo) {
+      acknowledgeDemoAction()
+      return
+    }
     if (battleStarted) {
       const ok = await askConfirm({ body: t('confirmBattleStarted'), destructive: false })
       if (!ok) return
@@ -162,6 +180,10 @@ export default function SlotCard({
   }
 
   const handleCancel = () => {
+    if (isDemo) {
+      acknowledgeDemoAction()
+      return
+    }
     setError('')
     startTransition(async () => {
       const result = await cancelSlot(slot.id)
@@ -172,6 +194,10 @@ export default function SlotCard({
 
   const handleAdminKick = async () => {
     if (!slot.assigned_username) return
+    if (isDemo) {
+      acknowledgeDemoAction()
+      return
+    }
     // 전투 시작 후 킥은 참여 기록(통계/리기어 자격) 에 영향을 줄 수 있어 별도 경고.
     const confirmKey = battleStarted ? 'confirmAdminKickAfterStart' : 'confirmAdminKick'
     const ok = await askConfirm({
@@ -188,6 +214,10 @@ export default function SlotCard({
   }
 
   const handleApproveRequest = async () => {
+    if (isDemo) {
+      acknowledgeDemoAction()
+      return
+    }
     if (battleStarted && slot.requested_username) {
       const ok = await askConfirm({
         body: t('bombSquad.confirmApproveAfterStart', { name: slot.requested_username }),
@@ -205,6 +235,10 @@ export default function SlotCard({
 
   const handleRejectRequest = async () => {
     if (!slot.requested_username) return
+    if (isDemo) {
+      acknowledgeDemoAction()
+      return
+    }
     const confirmKey = battleStarted
       ? 'bombSquad.confirmRejectAfterStart'
       : 'bombSquad.confirmReject'
@@ -222,6 +256,10 @@ export default function SlotCard({
   }
 
   const handleOpenAssignModal = async () => {
+    if (isDemo) {
+      acknowledgeDemoAction()
+      return
+    }
     if (battleStarted) {
       const ok = await askConfirm({ body: t('bombSquad.confirmAssignAfterStart'), destructive: false })
       if (!ok) return
@@ -287,6 +325,7 @@ export default function SlotCard({
             <MemberLink
               discordId={slot.assigned_discord_id}
               username={slot.assigned_username ?? ''}
+              hrefPrefix={memberHrefPrefix}
               className="font-semibold truncate max-w-[80px]"
             />
           </div>
@@ -299,6 +338,7 @@ export default function SlotCard({
             <MemberLink
               discordId={slot.requested_discord_id}
               username={slot.requested_username ?? ''}
+              hrefPrefix={memberHrefPrefix}
               className="font-semibold truncate max-w-[80px]"
             />
           </div>

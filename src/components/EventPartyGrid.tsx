@@ -23,6 +23,8 @@ interface Props {
   autoRegearEnabled: boolean
   eventCategory?: EventCategory
   suggestedRoles?: readonly SlotRole[]
+  interactionMode?: 'live' | 'demo'
+  memberHrefPrefix?: string
 }
 
 function hiddenStorageKey(eventId: string, discordId: string) {
@@ -42,6 +44,8 @@ export default function EventPartyGrid({
   autoRegearEnabled,
   eventCategory,
   suggestedRoles = [],
+  interactionMode = 'live',
+  memberHrefPrefix = '/members',
 }: Props) {
   const t = useTranslations('event')
   const tRole = useTranslations('slotRole')
@@ -344,7 +348,7 @@ export default function EventPartyGrid({
                     <Megaphone size={11} />
                     <span>{t('bombSquad.callerPrefix')}</span>
                     <Link
-                      href={`/members/${party.caller_discord_id}`}
+                      href={`${memberHrefPrefix}/${party.caller_discord_id}`}
                       aria-label={t('bombSquad.callerNameAria', { name: callerName })}
                       className="font-semibold underline underline-offset-2 decoration-dotted decoration-rose-400/50 hover:text-rose-100 hover:decoration-rose-300"
                     >
@@ -407,6 +411,8 @@ export default function EventPartyGrid({
                     cdBadgeRoles={cdBadgeRoles}
                     autoRegearEnabled={autoRegearEnabled}
                     eventCategory={eventCategory}
+                    interactionMode={interactionMode}
+                    memberHrefPrefix={memberHrefPrefix}
                   />
                 ))}
               </div>
