@@ -179,6 +179,9 @@
     "actionSyncTitle": "自動同期が遅れている項目があります。",
     "actionSyncBody": "外部APIまたは設定の問題かもしれません。最近の戦闘やリギア結果が空に見える場合は、まずここを確認してください。",
     "actionSyncLink": "同期設定を見る",
+    "actionDraftTitle": "下書きイベントが {count}件あります。",
+    "actionDraftBody": "下書きはメンバーのホームに表示されません。時間とスロットが決まったイベントは公開まで完了すると申請を受けられます。",
+    "actionDraftLink": "イベント一覧を開く",
     "actionNoEventsTitle": "予定されているイベントがありません。",
     "actionNoEventsBody": "次のZvZやFF予定を登録すると、メンバーが事前に申請し装備を確認できます。",
     "actionNoEventsLink": "イベントを作成",
@@ -1813,6 +1816,12 @@
       "imminent": "戦闘間近",
       "ended": "終了"
     },
+    "myStatus": {
+      "assigned": "自分のスロット確定",
+      "pending": "承認待ち",
+      "tentative": "参加予定",
+      "available": "申請可能"
+    },
     "tabs": {
       "scheduled": "予定",
       "count": "({count})"
@@ -2899,6 +2908,9 @@
     "actionRequestsTitle": "保留中の申請",
     "actionRequestsBody": "保留中の申請 {count} 件の状態と理由を確認します。",
     "actionNextEventTitle": "参加予定の次のイベント",
+    "actionPendingEventTitle": "承認待ちのイベント",
+    "actionTentativeEventTitle": "参加予定にしたイベント",
+    "actionAvailableEventTitle": "申請可能な次のイベント",
     "actionNoItemsTitle": "今対応することはありません",
     "actionNoItemsBody": "保留中の申請や必須認証はありません。最近の活動と残高だけ確認すれば大丈夫です。",
     "actionOpen": "開く",

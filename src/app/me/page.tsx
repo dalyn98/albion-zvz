@@ -95,16 +95,17 @@ export default async function MePage() {
     (dashboard?.pendingRegearCount ?? 0) +
     (dashboard?.pendingExchangeCount ?? 0) +
     (dashboard?.pendingDonationCount ?? 0)
-  const nextEventForAction = dashboard?.nextUpcomingEvent
+  const nextEventForAction = dashboard?.nextActionEvent
     ? {
-        id: dashboard.nextUpcomingEvent.id,
-        title: dashboard.nextUpcomingEvent.title,
+        id: dashboard.nextActionEvent.id,
+        title: dashboard.nextActionEvent.title,
+        kind: dashboard.nextActionEvent.kind,
         subtitle: [
-          dashboard.nextUpcomingEvent.gather_at
-            ? formatGatherTimeFor(locale, dashboard.nextUpcomingEvent.gather_at, tz)
-            : dashboard.nextUpcomingEvent.gather_time,
-          dashboard.nextUpcomingEvent.role_name
-            ? translateSlotRole(dashboard.nextUpcomingEvent.role_name, tRole)
+          dashboard.nextActionEvent.gather_at
+            ? formatGatherTimeFor(locale, dashboard.nextActionEvent.gather_at, tz)
+            : dashboard.nextActionEvent.gather_time,
+          dashboard.nextActionEvent.role_name
+            ? translateSlotRole(dashboard.nextActionEvent.role_name, tRole)
             : null,
         ].filter(Boolean).join(' · '),
       }
@@ -169,6 +170,9 @@ export default async function MePage() {
           requestsTitle: t('actionRequestsTitle'),
           requestsBody: t('actionRequestsBody', { count: pendingTotal }),
           nextEventTitle: t('actionNextEventTitle'),
+          pendingEventTitle: t('actionPendingEventTitle'),
+          tentativeEventTitle: t('actionTentativeEventTitle'),
+          availableEventTitle: t('actionAvailableEventTitle'),
           noItemsTitle: t('actionNoItemsTitle'),
           noItemsBody: t('actionNoItemsBody'),
           open: t('actionOpen'),

@@ -1,10 +1,12 @@
 import Link from 'next/link'
-import { CalendarDays, CheckCircle2, ChevronRight, ListChecks, ShieldAlert } from 'lucide-react'
+import { CalendarDays, CheckCircle2, ChevronRight, Clock3, ListChecks, ShieldAlert } from 'lucide-react'
+import type { MyDashboardNextEventKind } from '@/app/actions/me-dashboard'
 
 interface NextEvent {
   id: string
   title: string
   subtitle: string
+  kind: MyDashboardNextEventKind
 }
 
 interface Labels {
@@ -15,6 +17,9 @@ interface Labels {
   requestsTitle: string
   requestsBody: string
   nextEventTitle: string
+  pendingEventTitle: string
+  tentativeEventTitle: string
+  availableEventTitle: string
   noItemsTitle: string
   noItemsBody: string
   open: string
@@ -64,14 +69,15 @@ export default function MemberNextActionsPanel({
   }
 
   if (nextEvent) {
+    const isWaiting = nextEvent.kind === 'pending' || nextEvent.kind === 'tentative'
     actions.push(
       <ActionLink
         key="next-event"
         href={`/events/${nextEvent.id}`}
-        icon={<CalendarDays size={18} />}
-        title={labels.nextEventTitle}
+        icon={isWaiting ? <Clock3 size={18} /> : <CalendarDays size={18} />}
+        title={eventActionTitle(nextEvent.kind, labels)}
         body={`${nextEvent.title} · ${nextEvent.subtitle}`}
-        tone="neutral"
+        tone={nextEvent.kind === 'available' ? 'accent' : 'neutral'}
         openLabel={labels.open}
       />,
     )
@@ -101,6 +107,19 @@ export default function MemberNextActionsPanel({
       )}
     </section>
   )
+}
+
+function eventActionTitle(kind: MyDashboardNextEventKind, labels: Labels): string {
+  switch (kind) {
+    case 'pending':
+      return labels.pendingEventTitle
+    case 'tentative':
+      return labels.tentativeEventTitle
+    case 'available':
+      return labels.availableEventTitle
+    default:
+      return labels.nextEventTitle
+  }
 }
 
 function ActionLink({

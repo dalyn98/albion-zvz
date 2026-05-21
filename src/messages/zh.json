@@ -179,6 +179,9 @@
     "actionSyncTitle": "部分自动同步项目出现延迟。",
     "actionSyncBody": "这可能是外部 API 或设置问题。如果最近战斗或补装结果显示为空，请先检查这里。",
     "actionSyncLink": "查看同步设置",
+    "actionDraftTitle": "有 {count} 个活动草稿。",
+    "actionDraftBody": "草稿不会显示在成员首页。时间和槽位确定后请发布活动，成员才能报名。",
+    "actionDraftLink": "打开活动列表",
     "actionNoEventsTitle": "没有即将开始的活动。",
     "actionNoEventsBody": "添加下一场 ZvZ 或刷 fame 日程后，成员可以提前报名并确认装备。",
     "actionNoEventsLink": "创建活动",
@@ -1813,6 +1816,12 @@
       "imminent": "即将开始",
       "ended": "已结束"
     },
+    "myStatus": {
+      "assigned": "我的槽位已确认",
+      "pending": "等待审批",
+      "tentative": "参加意向",
+      "available": "可报名"
+    },
     "tabs": {
       "scheduled": "已安排",
       "count": "（{count}）"
@@ -2899,6 +2908,9 @@
     "actionRequestsTitle": "待处理申请",
     "actionRequestsBody": "查看 {count} 个待处理申请的状态和原因。",
     "actionNextEventTitle": "你报名的下一场活动",
+    "actionPendingEventTitle": "等待审批的活动",
+    "actionTentativeEventTitle": "已标记参加意向的活动",
+    "actionAvailableEventTitle": "下一场可报名活动",
     "actionNoItemsTitle": "现在没有需要处理的事项",
     "actionNoItemsBody": "没有待处理申请或必需验证。查看近期活动和余额即可。",
     "actionOpen": "打开",

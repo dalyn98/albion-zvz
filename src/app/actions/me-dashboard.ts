@@ -19,6 +19,17 @@ import { getTenantTimezone } from '@/lib/timezone-server'
 import { getCurrentWeekStartIso } from '@/lib/timezone'
 import { getAppSetting } from '@/lib/app-settings'
 
+export type MyDashboardNextEventKind = 'assigned' | 'pending' | 'tentative' | 'available'
+
+export interface MyDashboardNextEvent {
+  id: string
+  title: string
+  gather_at: string | null
+  gather_time: string
+  role_name: string | null
+  kind: MyDashboardNextEventKind
+}
+
 export interface MyDashboardData {
   balance: number
   lifetimeEarned: number
@@ -52,6 +63,7 @@ export interface MyDashboardData {
     gather_time: string
     role_name: string | null
   } | null
+  nextActionEvent: MyDashboardNextEvent | null
   pendingRegearCount: number
   pendingExchangeCount: number
   pendingDonationCount: number
@@ -62,6 +74,7 @@ type UpcomingSlotEvent = {
   title: string
   gather_at: string | null
   gather_time: string
+  status?: string
 }
 
 type UpcomingSlotRow = {
@@ -70,6 +83,46 @@ type UpcomingSlotRow = {
     | { events: UpcomingSlotEvent | UpcomingSlotEvent[] }
     | Array<{ events: UpcomingSlotEvent | UpcomingSlotEvent[] }>
     | null
+}
+
+type UpcomingTentativeRow = {
+  events: UpcomingSlotEvent | UpcomingSlotEvent[] | null
+}
+
+type OpenEventRow = UpcomingSlotEvent & {
+  battle_started_at: string | null
+  parties:
+    | Array<{
+        slots:
+          | Array<{
+              assigned_discord_id: string | null
+              requested_discord_id: string | null
+              is_hidden: boolean
+            }>
+          | null
+      }>
+    | null
+}
+
+function getSlotEvent(row: UpcomingSlotRow): UpcomingSlotEvent | null {
+  const party = Array.isArray(row.parties) ? row.parties[0] : row.parties
+  if (!party) return null
+  const event = Array.isArray(party.events) ? party.events[0] : party.events
+  return event ?? null
+}
+
+function getTentativeEvent(row: UpcomingTentativeRow): UpcomingSlotEvent | null {
+  if (!row.events) return null
+  return Array.isArray(row.events) ? row.events[0] ?? null : row.events
+}
+
+function isEarlierEvent(
+  candidate: Pick<MyDashboardNextEvent, 'gather_at'>,
+  current: Pick<MyDashboardNextEvent, 'gather_at'> | null,
+): boolean {
+  if (!candidate.gather_at) return false
+  if (!current?.gather_at) return true
+  return candidate.gather_at < current.gather_at
 }
 
 export async function getMyDashboard(): Promise<MyDashboardData | null> {
@@ -85,6 +138,9 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
   const [
     pointsSummary,
     upcomingSlotsRes,
+    pendingSlotsRes,
+    tentativeRes,
+    openEventsRes,
     avatarRes,
     killboardRes,
     regearRes,
@@ -99,11 +155,39 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     db
       .from('slots')
       .select(
-        'role_name, parties!inner(events!inner(id, title, gather_at, gather_time))',
+        'role_name, parties!inner(events!inner(id, title, gather_at, gather_time, status))',
       )
       .eq('guild_id', guildId)
       .eq('assigned_discord_id', session.discordId)
+      .eq('parties.events.status', 'published')
       .gt('parties.events.gather_at', nowIso),
+    db
+      .from('slots')
+      .select(
+        'role_name, parties!inner(events!inner(id, title, gather_at, gather_time, status))',
+      )
+      .eq('guild_id', guildId)
+      .eq('requested_discord_id', session.discordId)
+      .eq('parties.events.status', 'published')
+      .gt('parties.events.gather_at', nowIso),
+    db
+      .from('event_tentative_signups')
+      .select('events!inner(id, title, gather_at, gather_time, status)')
+      .eq('guild_id', guildId)
+      .eq('discord_id', session.discordId)
+      .eq('events.status', 'published')
+      .gt('events.gather_at', nowIso),
+    db
+      .from('events')
+      .select(
+        'id, title, gather_at, gather_time, battle_started_at, parties(slots(assigned_discord_id, requested_discord_id, is_hidden))',
+      )
+      .eq('guild_id', guildId)
+      .eq('status', 'published')
+      .is('battle_started_at', null)
+      .gt('gather_at', nowIso)
+      .order('gather_at', { ascending: true, nullsFirst: false })
+      .limit(12),
     // mergeMemberBattles 의 키가 albion_player_id 라 본인 매핑을 먼저 얻어야
     // 0K0D 참여(탱커/힐러) 까지 합쳐진다. 미연동(Albion 인증 미완료) 멤버는
     // null → killBattles 만으로 fallback (기존 동작과 동일).
@@ -193,10 +277,9 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     gather_time: string
     role_name: string | null
   } | null = null
+  const nextActions: MyDashboardNextEvent[] = []
   for (const row of (upcomingSlotsRes.data ?? []) as UpcomingSlotRow[]) {
-    const party = Array.isArray(row.parties) ? row.parties[0] : row.parties
-    if (!party) continue
-    const event = Array.isArray(party.events) ? party.events[0] : party.events
+    const event = getSlotEvent(row)
     if (!event || !event.gather_at) continue
     if (!upcoming || event.gather_at < (upcoming.gather_at ?? '')) {
       upcoming = {
@@ -207,7 +290,72 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
         role_name: row.role_name,
       }
     }
+    nextActions.push({
+      id: event.id,
+      title: event.title,
+      gather_at: event.gather_at,
+      gather_time: event.gather_time,
+      role_name: row.role_name,
+      kind: 'assigned',
+    })
   }
+
+  for (const row of (pendingSlotsRes.data ?? []) as UpcomingSlotRow[]) {
+    const event = getSlotEvent(row)
+    if (!event?.gather_at) continue
+    nextActions.push({
+      id: event.id,
+      title: event.title,
+      gather_at: event.gather_at,
+      gather_time: event.gather_time,
+      role_name: row.role_name,
+      kind: 'pending',
+    })
+  }
+
+  for (const row of (tentativeRes.data ?? []) as UpcomingTentativeRow[]) {
+    const event = getTentativeEvent(row)
+    if (!event?.gather_at) continue
+    nextActions.push({
+      id: event.id,
+      title: event.title,
+      gather_at: event.gather_at,
+      gather_time: event.gather_time,
+      role_name: null,
+      kind: 'tentative',
+    })
+  }
+
+  let nextAvailable: MyDashboardNextEvent | null = null
+  const occupiedEventIds = new Set(nextActions.map((event) => event.id))
+  for (const event of (openEventsRes.data ?? []) as OpenEventRow[]) {
+    if (!event.gather_at || event.battle_started_at || occupiedEventIds.has(event.id)) continue
+    const hasOpenSlot = (event.parties ?? []).some((party) =>
+      (party.slots ?? []).some(
+        (slot) => !slot.is_hidden && !slot.assigned_discord_id && !slot.requested_discord_id,
+      ),
+    )
+    if (!hasOpenSlot) continue
+    const candidate: MyDashboardNextEvent = {
+      id: event.id,
+      title: event.title,
+      gather_at: event.gather_at,
+      gather_time: event.gather_time,
+      role_name: null,
+      kind: 'available',
+    }
+    if (isEarlierEvent(candidate, nextAvailable)) {
+      nextAvailable = candidate
+    }
+  }
+  if (nextAvailable) {
+    nextActions.push(nextAvailable)
+  }
+
+  const nextActionEvent = nextActions.reduce<MyDashboardNextEvent | null>(
+    (current, event) => (isEarlierEvent(event, current) ? event : current),
+    null,
+  )
 
   return {
     balance: pointsSummary.summary?.balance ?? 0,
@@ -232,6 +380,7 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     weekWins,
     weekLosses,
     nextUpcomingEvent: upcoming,
+    nextActionEvent,
     pendingRegearCount: regearRes.count ?? 0,
     pendingExchangeCount: exchangeRes.count ?? 0,
     pendingDonationCount: donationRes.count ?? 0,

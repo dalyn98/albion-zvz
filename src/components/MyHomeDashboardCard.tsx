@@ -59,6 +59,7 @@ export default async function MyHomeDashboardCard({ data, weeklyStatsEnabled = f
       : `${Math.round(data.winRate * 100)}%`
   const pendingTotal =
     data.pendingRegearCount + data.pendingExchangeCount + data.pendingDonationCount
+  const nextEvent = data.nextActionEvent ?? data.nextUpcomingEvent
 
   return (
     <section className="bg-gray-900 border border-gray-700 rounded-2xl p-5 sm:p-6 space-y-5">
@@ -66,23 +67,23 @@ export default async function MyHomeDashboardCard({ data, weeklyStatsEnabled = f
         <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-2">
           {t('homeNextEvent')}
         </p>
-        {data.nextUpcomingEvent ? (
+        {nextEvent ? (
           <Link
-            href={`/events/${data.nextUpcomingEvent.id}`}
+            href={`/events/${nextEvent.id}`}
             className="flex items-center gap-3 bg-gray-800/60 border border-gray-700 hover:border-amber-500/40 rounded-lg px-3 py-2 transition-colors"
           >
             <Calendar size={18} className="text-amber-400 flex-shrink-0" />
             <div className="min-w-0 flex-1">
               <p className="text-white text-sm font-semibold truncate">
-                {data.nextUpcomingEvent.title}
+                {nextEvent.title}
               </p>
               <p className="text-gray-400 text-xs">
-                {data.nextUpcomingEvent.gather_at
-                  ? formatGatherTimeFor(locale, data.nextUpcomingEvent.gather_at)
-                  : data.nextUpcomingEvent.gather_time}
-                {data.nextUpcomingEvent.role_name && (
+                {nextEvent.gather_at
+                  ? formatGatherTimeFor(locale, nextEvent.gather_at)
+                  : nextEvent.gather_time}
+                {nextEvent.role_name && (
                   <span className="ml-2 text-gray-500">
-                    · {translateSlotRole(data.nextUpcomingEvent.role_name, tRole)}
+                    · {translateSlotRole(nextEvent.role_name, tRole)}
                   </span>
                 )}
               </p>

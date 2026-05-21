@@ -242,6 +242,16 @@ export default async function AdminOperationsPanel({ guildId, tenantConfig }: Pr
       link: t('actionSyncLink'),
     })
   }
+  if (snapshot.draftEvents > 0) {
+    actionItems.push({
+      key: 'drafts',
+      tone: 'info',
+      title: t('actionDraftTitle', { count: snapshot.draftEvents }),
+      body: t('actionDraftBody'),
+      href: '/admin/dashboard',
+      link: t('actionDraftLink'),
+    })
+  }
   if (snapshot.upcomingEvents === 0 && snapshot.draftEvents === 0) {
     actionItems.push({
       key: 'events',

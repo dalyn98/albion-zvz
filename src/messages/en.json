@@ -179,6 +179,9 @@
     "actionSyncTitle": "Some automatic sync jobs are delayed.",
     "actionSyncBody": "This may be an external API or setup issue. If recent battles or regear results look empty, check this first.",
     "actionSyncLink": "View sync settings",
+    "actionDraftTitle": "{count} draft event(s) exist.",
+    "actionDraftBody": "Drafts are invisible on the member home. Publish events once time and slots are ready so members can sign up.",
+    "actionDraftLink": "Open event list",
     "actionNoEventsTitle": "No upcoming events are scheduled.",
     "actionNoEventsBody": "Add the next ZvZ or FF schedule so members can sign up and check their gear ahead of time.",
     "actionNoEventsLink": "Create event",
@@ -1813,6 +1816,12 @@
       "imminent": "Imminent",
       "ended": "Ended"
     },
+    "myStatus": {
+      "assigned": "My slot confirmed",
+      "pending": "Pending approval",
+      "tentative": "Tentative",
+      "available": "Open to apply"
+    },
     "tabs": {
       "scheduled": "Scheduled",
       "count": "({count})"
@@ -2899,6 +2908,9 @@
     "actionRequestsTitle": "Pending requests",
     "actionRequestsBody": "Review status and reasons for {count} pending requests.",
     "actionNextEventTitle": "Your next signed-up event",
+    "actionPendingEventTitle": "Event waiting for approval",
+    "actionTentativeEventTitle": "Event marked tentative",
+    "actionAvailableEventTitle": "Next event open to apply",
     "actionNoItemsTitle": "Nothing needs action right now",
     "actionNoItemsBody": "No pending requests or required verification. You can just review recent activity and balance.",
     "actionOpen": "Open",

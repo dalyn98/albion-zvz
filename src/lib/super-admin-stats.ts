@@ -17,11 +17,17 @@ export interface SystemStats {
   members: number
 }
 
+const COUNT_COLUMN_BY_TABLE: Record<string, string> = {
+  guild_avatars: 'discord_id',
+}
+
 async function countAll(table: string): Promise<number> {
   const db = getAdminClient()
   // head:true 라 body 는 비지만, PostgREST 는 select 컬럼 식별자를 파싱해 query plan
   // 을 만든다. 'id' 같은 단일 컬럼이 '*' 보다 가볍다.
-  const { count } = await db.from(table).select('id', { count: 'exact', head: true })
+  const { count } = await db
+    .from(table)
+    .select(COUNT_COLUMN_BY_TABLE[table] ?? 'id', { count: 'exact', head: true })
   return count ?? 0
 }
 
@@ -169,7 +175,10 @@ export async function getTenantDetail(tenantId: string): Promise<TenantDetail | 
     recent,
     overrides,
   ] = await Promise.all([
-    db.from('guild_avatars').select('id', { count: 'exact', head: true }).eq('guild_id', tenantId),
+    db
+      .from('guild_avatars')
+      .select('discord_id', { count: 'exact', head: true })
+      .eq('guild_id', tenantId),
     db.from('events').select('id', { count: 'exact', head: true }).eq('guild_id', tenantId),
     // 'battles' 테이블에는 guild_id 컬럼이 없어 직접 필터 불가. tenant 별 집계는
     // tenant_battle_records 로 한다 (mig 076 에서 guild_id 인덱스 보유).
