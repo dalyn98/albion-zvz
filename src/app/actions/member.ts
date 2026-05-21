@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { getEventGuestProfile } from '@/lib/event-guest-profile'
 import type { GearOption, SlotKey } from '@/types'
 
 export type SlotPicks = Partial<Record<SlotKey, GearOption>>
@@ -117,11 +118,17 @@ export async function assignSlot(
   if (session.eventScope && partyObj?.event_id !== session.eventScope) {
     return { error: tAction('slotNotFound') }
   }
+  let displayUsername = session.username
+  if (session.isGuest && partyObj?.event_id === session.eventScope) {
+    const profile = await getEventGuestProfile(guildId, partyObj.event_id, session.discordId)
+    if (!profile) return { error: tAction('guestProfileRequired') }
+    displayUsername = profile.displayName
+  }
 
   const { error } = await db.rpc('assign_slot', {
     p_slot_id: slotId,
     p_discord_id: session.discordId,
-    p_username: session.username,
+    p_username: displayUsername,
     p_picks: payload,
   })
   if (error) return { error: mapRpcError(error.message, tAction, tGear) }

@@ -2,17 +2,13 @@
 // anchor 로 노출된다 (전용 라우트는 redirect-only 로 보존돼 기존 인바운드 링크가
 // 안 깨진다). FAQ 는 별도 페이지로 분리되어 /faq 에서 노출된다.
 //
-// canonical 도메인(`albion-guildmanager.com`) 에서는 proxy 가 깔끔한 canonical
-// path 를 내부 `/public/*` 로 rewrite 하지만, 테넌트 서브도메인
-// (`{slug}.albion-guildmanager.com`) 이나 preview/localhost 에서는 같은 path 가
-// rewrite 되지 않아 AppGate 로 떨어진다.
-//
-// 마케팅 페이지(/public/* 직접) 는 어떤 호스트에서도 layout 의 isPublic 분기로
-// 정상 표시되므로, MarketingNav/MarketingFooter/페이지 내부 cross-link 는 호스트
-// 에 따라 canonical 또는 `/public/*` path 중 통하는 쪽을 골라 써야 한다.
+// 공식 사이트는 항상 canonical root (`albion-guildmanager.com`) 로 열려야 한다.
+// 테넌트 서브도메인에서 AGM 공식 사이트 링크를 눌러도 `{slug}.…/public/landing`
+// 에 머물면 공유 URL 이 길드 컨텍스트를 띠게 되므로, tenant host 에서는 root
+// 절대 URL 을 반환한다. preview/localhost 는 로컬 검증을 위해 `/public/*` 유지.
 
 import { headers } from 'next/headers'
-import { classifyHost } from '@/lib/tenant-resolver'
+import { classifyHost, getCanonicalRootDomain } from '@/lib/tenant-resolver'
 
 export interface MarketingPaths {
   home: string
@@ -40,11 +36,27 @@ const PUBLIC_PATHS: MarketingPaths = {
   guildPage: '/public/g',
 }
 
-// Returns the canonical short paths only when we're actually on the canonical
-// root host; everywhere else falls back to `/public/*` direct paths so the
-// links keep working on tenant subdomains, previews, and localhost.
+function buildRootAbsolutePaths(rootDomain: string): MarketingPaths {
+  const origin = `https://${rootDomain}`
+  return {
+    home: `${origin}/`,
+    features: `${origin}/#features`,
+    faq: `${origin}/faq`,
+    docs: `${origin}/docs`,
+    guildPage: `${origin}/g`,
+  }
+}
+
+export function getMarketingPathsForHost(hostHeader: string | null | undefined): MarketingPaths {
+  const classification = classifyHost(hostHeader)
+  if (classification.kind === 'root') return CANONICAL_PATHS
+  if (classification.kind === 'tenant') {
+    return buildRootAbsolutePaths(getCanonicalRootDomain())
+  }
+  return PUBLIC_PATHS
+}
+
 export async function getMarketingPaths(): Promise<MarketingPaths> {
   const headersList = await headers()
-  const classification = classifyHost(headersList.get('host'))
-  return classification.kind === 'root' ? CANONICAL_PATHS : PUBLIC_PATHS
+  return getMarketingPathsForHost(headersList.get('host'))
 }

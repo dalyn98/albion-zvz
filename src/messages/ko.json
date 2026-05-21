@@ -1206,6 +1206,23 @@
     "activeCount": "활성 링크 {count}개",
     "copyFailed": "클립보드 복사에 실패했습니다."
   },
+  "eventGuestProfile": {
+    "title": "Set your event nickname",
+    "description": "This name is used only on this event page. Albion verification is not required for guests.",
+    "nicknameLabel": "Event nickname",
+    "nicknamePlaceholder": "Enter the name your party should recognize",
+    "languageLabel": "Language",
+    "languageHelp": "Choose the language you want to use on this site.",
+    "save": "Continue to event",
+    "saving": "Saving…",
+    "nameRequired": "Enter a nickname for this event.",
+    "nameTooShort": "Nickname must be at least 2 characters.",
+    "nameTooLong": "Nickname must be 32 characters or fewer.",
+    "invalidLanguage": "Choose a supported language.",
+    "unauthorized": "This guest invite is not valid for this event.",
+    "eventNotFound": "Event not found.",
+    "saveFailed": "Failed to save your guest profile. Please try again."
+  },
   "noticeBannerAdmin": {
     "addLabel": "공지 추가",
     "editTooltip": "공지 편집"
@@ -3323,6 +3340,7 @@
     "bombSquadNotAuthorized": "콜러 또는 관리자만 처리할 수 있습니다.",
     "loginRequired": "로그인이 필요합니다.",
     "noMemberRole": "신청할 수 있는 역할이 없습니다.",
+    "guestProfileRequired": "Please enter your event nickname before signing up for a slot.",
     "battleAlreadyStarted": "전투가 이미 시작되어 취소할 수 없습니다.",
     "eventFinalized": "이벤트가 종료되어 더 이상 참여할 수 없습니다.",
     "adminOnly": "관리자만 수행할 수 있습니다.",

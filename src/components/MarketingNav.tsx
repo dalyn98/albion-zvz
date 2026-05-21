@@ -22,8 +22,8 @@ interface MarketingNavProps {
 export default async function MarketingNav({ active }: MarketingNavProps) {
   // 마케팅 페이지는 layout 의 PublicShell/AppShell 분기에서 빠져 children 만
   // 렌더되므로 (isMarketing 분기), 페이지 최상단 헤더는 이 nav 가 직접 책임진다.
-  // canonical 호스트 외(테넌트 서브도메인/프리뷰/로컬) 에서는 proxy rewrite 가
-  // 안 걸리므로 paths 가 자동으로 /public/* 로 fallback 된다.
+  // tenant host 에서는 공식 사이트 링크가 canonical root 절대 URL 로 잡히고,
+  // preview/localhost 에서는 로컬 검증 가능한 /public/* 로 fallback 된다.
   const [t, session, paths] = await Promise.all([
     getTranslations('publicNav'),
     getSession(),

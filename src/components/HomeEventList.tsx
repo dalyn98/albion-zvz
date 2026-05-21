@@ -9,15 +9,10 @@ import {
   Users,
   Swords,
   Flame,
-  CheckCircle2,
-  Clock3,
-  PlusCircle,
-  UserCheck,
 } from 'lucide-react'
 import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, type EventCategory } from '@/types'
 
 export type HomeEventKind = 'imminent' | 'upcoming'
-export type HomeEventMyStatus = 'assigned' | 'pending' | 'tentative' | 'available'
 
 export interface HomeEventCardData {
   id: string
@@ -29,7 +24,6 @@ export interface HomeEventCardData {
   kind: HomeEventKind
   battleStarted: boolean
   category: EventCategory
-  myStatus: HomeEventMyStatus | null
 }
 
 interface Props {
@@ -151,7 +145,6 @@ function EventCard({ event }: { event: HomeEventCardData }) {
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-base sm:text-lg font-bold text-white truncate">{event.title}</h2>
             <KindBadge kind={event.kind} battleStarted={event.battleStarted} />
-            {event.myStatus && <MyStatusBadge status={event.myStatus} />}
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
             <div className="flex items-center gap-1.5 text-gray-300">
@@ -178,41 +171,6 @@ function EventCard({ event }: { event: HomeEventCardData }) {
         />
       </div>
     </Link>
-  )
-}
-
-function MyStatusBadge({ status }: { status: HomeEventMyStatus }) {
-  const t = useTranslations('home.myStatus')
-  const config = {
-    assigned: {
-      icon: CheckCircle2,
-      className: 'border-emerald-500/35 bg-emerald-500/15 text-emerald-200',
-    },
-    pending: {
-      icon: Clock3,
-      className: 'border-amber-500/35 bg-amber-500/15 text-amber-200',
-    },
-    tentative: {
-      icon: UserCheck,
-      className: 'border-sky-500/35 bg-sky-500/15 text-sky-200',
-    },
-    available: {
-      icon: PlusCircle,
-      className: 'border-gray-600 bg-gray-800/70 text-gray-200',
-    },
-  } satisfies Record<
-    HomeEventMyStatus,
-    { icon: React.ComponentType<{ size?: number }>; className: string }
-  >
-  const Icon = config[status].icon
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1 border text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${config[status].className}`}
-    >
-      <Icon size={10} />
-      {t(status)}
-    </span>
   )
 }
 

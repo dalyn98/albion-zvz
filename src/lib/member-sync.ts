@@ -26,6 +26,8 @@ export interface MemberSyncResult {
   rolesSource: RolesSource
   withdrawn: number
   rejoined: number
+  adminUpdated: number
+  bombSquadCallerUpdated: number
 }
 
 export type MemberSyncOutcome =
@@ -68,7 +70,9 @@ export async function runMemberSync(
   if (!tenantConfig) return { kind: 'error', message: 'Tenant not found' }
 
   const activeRoleIdsRaw = await getAppSetting('active_member_role_ids', '[]', guildId)
+  const bombSquadCallerRoleIdsRaw = await getAppSetting('bomb_squad_caller_role_ids', '[]', guildId)
   const explicitRoleIds = parseRoleIds(activeRoleIdsRaw)
+  const bombSquadCallerRoleIds = parseRoleIds(bombSquadCallerRoleIdsRaw)
   // env 폴백 제거 — 대신 tenant.member_role_ids (마이그 074 에 시드됨) 를 사용.
   // 신규 tenant 는 반드시 tenants.member_role_ids 가 채워진 상태여야 동작.
   const tenantMemberRoleIds = tenantConfig.memberRoleIds
@@ -80,11 +84,20 @@ export async function runMemberSync(
         ? 'env_fallback'
         : 'server_only'
 
-  const { data: avatars, error: avatarsError } = await db
-    .from('guild_avatars')
-    .select('discord_id, withdrawn_at')
-    .eq('guild_id', guildId)
+  const [
+    { data: avatars, error: avatarsError },
+    { data: adminOverrides, error: overrideError },
+  ] = await Promise.all([
+    db
+      .from('guild_avatars')
+      .select('discord_id, withdrawn_at, is_admin, is_bomb_squad_caller')
+      .eq('guild_id', guildId),
+    db.from('tenant_admin_overrides').select('discord_id').eq('tenant_id', guildId),
+  ])
+  if (overrideError) return { kind: 'error', message: overrideError.message }
   if (avatarsError) return { kind: 'error', message: avatarsError.message }
+
+  const adminOverrideIds = new Set((adminOverrides ?? []).map((r) => r.discord_id as string))
 
   let members: Awaited<ReturnType<typeof listGuildMembersBulk>>
   try {
@@ -106,16 +119,34 @@ export async function runMemberSync(
 
   const toWithdraw: string[] = []
   const toRejoin: string[] = []
+  const toAdminTrue: string[] = []
+  const toAdminFalse: string[] = []
+  const toCallerTrue: string[] = []
+  const toCallerFalse: string[] = []
   for (const row of avatars ?? []) {
     const roles = memberRoles.get(row.discord_id)
     const inServer = !!roles
+    const hasAdminRole = tenantConfig.adminRoleIds.some((id) => roles?.includes(id) ?? false)
+    const isTenantOwner = tenantConfig.createdByDiscordId === row.discord_id
+    const hasAdminOverride = adminOverrideIds.has(row.discord_id)
+    const shouldBeAdmin = inServer && (hasAdminRole || isTenantOwner || hasAdminOverride)
+    const shouldBeBombSquadCaller =
+      inServer && bombSquadCallerRoleIds.some((id) => roles?.includes(id) ?? false)
     const hasActiveRole =
       activeRoleIds.length === 0 ? true : activeRoleIds.some((id) => roles?.includes(id) ?? false)
-    const isActive = inServer && hasActiveRole
+    // 로그인 판정과 맞춘다: 관리자/테넌트 소유자는 멤버 역할을 겸한다.
+    const isActive = inServer && (hasActiveRole || shouldBeAdmin)
     const wasActive = row.withdrawn_at === null
 
     if (isActive && !wasActive) toRejoin.push(row.discord_id)
     else if (!isActive && wasActive) toWithdraw.push(row.discord_id)
+    if (shouldBeAdmin && row.is_admin !== true) toAdminTrue.push(row.discord_id)
+    else if (!shouldBeAdmin && row.is_admin === true) toAdminFalse.push(row.discord_id)
+    if (shouldBeBombSquadCaller && row.is_bomb_squad_caller !== true) {
+      toCallerTrue.push(row.discord_id)
+    } else if (!shouldBeBombSquadCaller && row.is_bomb_squad_caller === true) {
+      toCallerFalse.push(row.discord_id)
+    }
   }
 
   if (toWithdraw.length > 0) {
@@ -144,6 +175,38 @@ export async function runMemberSync(
       })
     }
   }
+  if (toAdminTrue.length > 0) {
+    const { error } = await db
+      .from('guild_avatars')
+      .update({ is_admin: true })
+      .eq('guild_id', guildId)
+      .in('discord_id', toAdminTrue)
+    if (error) return { kind: 'error', message: error.message }
+  }
+  if (toAdminFalse.length > 0) {
+    const { error } = await db
+      .from('guild_avatars')
+      .update({ is_admin: false })
+      .eq('guild_id', guildId)
+      .in('discord_id', toAdminFalse)
+    if (error) return { kind: 'error', message: error.message }
+  }
+  if (toCallerTrue.length > 0) {
+    const { error } = await db
+      .from('guild_avatars')
+      .update({ is_bomb_squad_caller: true })
+      .eq('guild_id', guildId)
+      .in('discord_id', toCallerTrue)
+    if (error) return { kind: 'error', message: error.message }
+  }
+  if (toCallerFalse.length > 0) {
+    const { error } = await db
+      .from('guild_avatars')
+      .update({ is_bomb_squad_caller: false })
+      .eq('guild_id', guildId)
+      .in('discord_id', toCallerFalse)
+    if (error) return { kind: 'error', message: error.message }
+  }
 
   await db
     .from('app_settings')
@@ -152,7 +215,14 @@ export async function runMemberSync(
       { onConflict: 'guild_id,key' },
     )
 
-  if (toWithdraw.length > 0 || toRejoin.length > 0) {
+  const adminUpdated = toAdminTrue.length + toAdminFalse.length
+  const bombSquadCallerUpdated = toCallerTrue.length + toCallerFalse.length
+  if (
+    toWithdraw.length > 0 ||
+    toRejoin.length > 0 ||
+    adminUpdated > 0 ||
+    bombSquadCallerUpdated > 0
+  ) {
     revalidatePath('/members')
     revalidatePath('/admin/dashboard/stats')
     revalidatePath('/admin/dashboard/settings')
@@ -167,6 +237,8 @@ export async function runMemberSync(
       rolesSource,
       withdrawn: toWithdraw.length,
       rejoined: toRejoin.length,
+      adminUpdated,
+      bombSquadCallerUpdated,
     },
   }
 }

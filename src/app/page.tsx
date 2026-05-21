@@ -13,7 +13,6 @@ import { getMarketingPaths } from '@/lib/marketing-paths'
 import HomeEventList, {
   type HomeEventCardData,
   type HomeEventKind,
-  type HomeEventMyStatus,
 } from '@/components/HomeEventList'
 import NoticeBannerWithAdmin from '@/components/NoticeBannerWithAdmin'
 import HomeAdminPendingCard from '@/components/HomeAdminPendingCard'
@@ -26,14 +25,9 @@ export const dynamic = 'force-dynamic'
 interface EventWithCounts extends Event {
   total: number
   assigned: number
-  requested: number
-  myStatus: HomeEventMyStatus | null
 }
 
-async function getActiveEvents(
-  guildId: string,
-  discordId: string | null,
-): Promise<EventWithCounts[]> {
+async function getActiveEvents(guildId: string): Promise<EventWithCounts[]> {
   const db = getAdminClient()
   const { data: events } = await db
     .from('events')
@@ -53,36 +47,19 @@ async function getActiveEvents(
   if (active.length === 0) return []
 
   const ids = active.map((e) => e.id)
-  const [partiesRes, tentativeRes] = await Promise.all([
-    db
-      .from('parties')
-      .select('event_id, slots(id, assigned_discord_id, requested_discord_id, is_hidden)')
-      .eq('guild_id', guildId)
-      .in('event_id', ids),
-    discordId
-      ? db
-          .from('event_tentative_signups')
-          .select('event_id')
-          .eq('guild_id', guildId)
-          .eq('discord_id', discordId)
-          .in('event_id', ids)
-      : Promise.resolve({ data: [] as Array<{ event_id: string }> }),
-  ])
+  const partiesRes = await db
+    .from('parties')
+    .select('event_id, slots(id, assigned_discord_id, is_hidden)')
+    .eq('guild_id', guildId)
+    .in('event_id', ids)
 
-  const tentativeEventIds = new Set(
-    ((tentativeRes.data ?? []) as Array<{ event_id: string }>).map((row) => row.event_id),
-  )
-  const totals = new Map<
-    string,
-    { total: number; assigned: number; requested: number; myStatus: HomeEventMyStatus | null }
-  >()
+  const totals = new Map<string, { total: number; assigned: number }>()
   for (const p of (partiesRes.data ?? []) as {
     event_id: string
     slots:
       | {
           id: string
           assigned_discord_id: string | null
-          requested_discord_id: string | null
           is_hidden: boolean
         }[]
       | null
@@ -90,24 +67,10 @@ async function getActiveEvents(
     const current = totals.get(p.event_id) ?? {
       total: 0,
       assigned: 0,
-      requested: 0,
-      myStatus: null,
     }
     const slots = (p.slots ?? []).filter((s) => !s.is_hidden)
     current.total += slots.length
     current.assigned += slots.filter((s) => s.assigned_discord_id).length
-    current.requested += slots.filter((s) => s.requested_discord_id).length
-    if (discordId) {
-      for (const slot of slots) {
-        if (slot.assigned_discord_id === discordId) {
-          current.myStatus = 'assigned'
-          break
-        }
-        if (!current.myStatus && slot.requested_discord_id === discordId) {
-          current.myStatus = 'pending'
-        }
-      }
-    }
     totals.set(p.event_id, current)
   }
 
@@ -115,20 +78,12 @@ async function getActiveEvents(
     const eventTotals = totals.get(e.id) ?? {
       total: 0,
       assigned: 0,
-      requested: 0,
-      myStatus: null,
     }
-    const openSlots = Math.max(0, eventTotals.total - eventTotals.assigned - eventTotals.requested)
-    const myStatus =
-      eventTotals.myStatus ??
-      (tentativeEventIds.has(e.id) ? 'tentative' : openSlots > 0 && !e.battle_started_at ? 'available' : null)
 
     return {
       ...e,
       total: eventTotals.total,
       assigned: eventTotals.assigned,
-      requested: eventTotals.requested,
-      myStatus,
     }
   })
 }
@@ -161,7 +116,7 @@ export default async function HomePage() {
   ] = await Promise.all([
     getAppSetting('events_notice_message', '', guildId),
     getAppSetting('events_notice_image_url', '', guildId),
-    getActiveEvents(guildId, session?.discordId ?? null),
+    getActiveEvents(guildId),
     getTenantTimezone(guildId),
     getAppSetting('home_admin_pending_card_enabled', 'false', guildId),
   ])
@@ -184,7 +139,6 @@ export default async function HomePage() {
     kind: classifyScheduled(event),
     battleStarted: !!event.battle_started_at,
     category: event.category,
-    myStatus: event.myStatus,
   })
 
   const cards = events.map(toCard)

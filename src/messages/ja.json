@@ -1206,6 +1206,23 @@
     "activeCount": "有効なリンク {count} 件",
     "copyFailed": "クリップボードへのコピーに失敗しました。"
   },
+  "eventGuestProfile": {
+    "title": "Set your event nickname",
+    "description": "This name is used only on this event page. Albion verification is not required for guests.",
+    "nicknameLabel": "Event nickname",
+    "nicknamePlaceholder": "Enter the name your party should recognize",
+    "languageLabel": "Language",
+    "languageHelp": "Choose the language you want to use on this site.",
+    "save": "Continue to event",
+    "saving": "Saving…",
+    "nameRequired": "Enter a nickname for this event.",
+    "nameTooShort": "Nickname must be at least 2 characters.",
+    "nameTooLong": "Nickname must be 32 characters or fewer.",
+    "invalidLanguage": "Choose a supported language.",
+    "unauthorized": "This guest invite is not valid for this event.",
+    "eventNotFound": "Event not found.",
+    "saveFailed": "Failed to save your guest profile. Please try again."
+  },
   "noticeBannerAdmin": {
     "addLabel": "お知らせを追加",
     "editTooltip": "お知らせを編集"
@@ -3317,6 +3334,7 @@
     "notOwner": "自分で申請したスロットのみキャンセルできます。",
     "loginRequired": "ログインが必要です。",
     "noMemberRole": "申請できる役割がありません。",
+    "guestProfileRequired": "Please enter your event nickname before signing up for a slot.",
     "battleAlreadyStarted": "戦闘が既に開始されており、キャンセルできません。",
     "eventFinalized": "イベントが終了しているため、これ以上参加できません。",
     "adminOnly": "管理者のみ実行できます。",

@@ -42,6 +42,8 @@ export async function GET(request: Request) {
           discord_members: outcome.result.discordMembers,
           withdrawn: outcome.result.withdrawn,
           rejoined: outcome.result.rejoined,
+          admin_updated: outcome.result.adminUpdated,
+          bomb_squad_caller_updated: outcome.result.bombSquadCallerUpdated,
         })
       }
     } catch (e) {

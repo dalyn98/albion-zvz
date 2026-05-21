@@ -1206,6 +1206,23 @@
     "activeCount": "{count} 个有效链接",
     "copyFailed": "无法复制到剪贴板。"
   },
+  "eventGuestProfile": {
+    "title": "Set your event nickname",
+    "description": "This name is used only on this event page. Albion verification is not required for guests.",
+    "nicknameLabel": "Event nickname",
+    "nicknamePlaceholder": "Enter the name your party should recognize",
+    "languageLabel": "Language",
+    "languageHelp": "Choose the language you want to use on this site.",
+    "save": "Continue to event",
+    "saving": "Saving…",
+    "nameRequired": "Enter a nickname for this event.",
+    "nameTooShort": "Nickname must be at least 2 characters.",
+    "nameTooLong": "Nickname must be 32 characters or fewer.",
+    "invalidLanguage": "Choose a supported language.",
+    "unauthorized": "This guest invite is not valid for this event.",
+    "eventNotFound": "Event not found.",
+    "saveFailed": "Failed to save your guest profile. Please try again."
+  },
   "noticeBannerAdmin": {
     "addLabel": "添加公告",
     "editTooltip": "编辑公告"
@@ -3317,6 +3334,7 @@
     "notOwner": "您只能取消您自己申请的槽位。",
     "loginRequired": "需要登录。",
     "noMemberRole": "您没有可申请的职业。",
+    "guestProfileRequired": "Please enter your event nickname before signing up for a slot.",
     "battleAlreadyStarted": "战斗已开始,无法取消。",
     "eventFinalized": "此活动已结束,新报名已关闭。",
     "adminOnly": "仅限管理员。",

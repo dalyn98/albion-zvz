@@ -9,6 +9,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import EventPartyGrid from '@/components/EventPartyGrid'
 import EventSlotSidebar from '@/components/EventSlotSidebar'
 import EventGuestInviteManager from '@/components/EventGuestInviteManager'
+import EventGuestProfileGate from '@/components/EventGuestProfileGate'
 import TentativeSignupSection from '@/components/TentativeSignupSection'
 import EventMyStatusCard, { type EventMyStatusTone } from '@/components/EventMyStatusCard'
 import { listTentativeSignups } from '@/app/actions/event-tentative'
@@ -27,6 +28,10 @@ import { classifyHost, resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { resolveAlbionDisplayName } from '@/lib/albion-display-name'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { loadGuildProfileSettings } from '@/lib/guild-profile'
+import {
+  getEventGuestDisplayNamesByDiscordIds,
+  getEventGuestProfile,
+} from '@/lib/event-guest-profile'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -204,10 +209,14 @@ export default async function EventDetailPage({
     ...memberIds.filter((id): id is string => !!id),
     ...tentativeRows.map((r) => r.discord_id),
   ]
-  const [avatarMap, usernameMap] = await Promise.all([
+  const [avatarMap, usernameMap, eventGuestNameMap] = await Promise.all([
     getAvatarsByDiscordIds(guildId, memberIdList),
     getUsernamesByDiscordIds(guildId, memberIdList),
+    getEventGuestDisplayNamesByDiscordIds(guildId, id, memberIdList),
   ])
+  for (const [discordId, displayName] of eventGuestNameMap) {
+    usernameMap.set(discordId, displayName)
+  }
   const avatars = Object.fromEntries(avatarMap)
   const usernames = Object.fromEntries(usernameMap)
 
@@ -227,6 +236,10 @@ export default async function EventDetailPage({
   const { tokens: guestTokens } = canEdit
     ? await listEventGuestTokens(id)
     : { tokens: [] as const }
+  const guestProfile =
+    session?.isGuest && session.eventScope === id
+      ? await getEventGuestProfile(guildId, id, session.discordId)
+      : null
 
   // Pre-battle & in-progress battles get live polling. Once the battle is
   // finished (battle_started_at + 1h), slots are frozen — no reason to keep
@@ -329,6 +342,9 @@ export default async function EventDetailPage({
 
   return (
     <div className="flex-1 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 py-6 sm:py-8 flex flex-col lg:flex-row lg:gap-6 space-y-4 lg:space-y-0">
+      {session?.isGuest && session.eventScope === id && (
+        <EventGuestProfileGate eventId={id} initialProfile={guestProfile} />
+      )}
       {shouldPoll && <AutoRefresh intervalMs={pollIntervalMs} />}
       <main className="flex-1 min-w-0 space-y-6 sm:space-y-8">
         <Link
@@ -419,21 +435,20 @@ export default async function EventDetailPage({
               </p>
             </div>
           )}
+          <EventMyStatusCard
+            title={t('myStatusTitle')}
+            statusTitle={myStatusTitle}
+            description={myStatusDescription}
+            tone={myStatusTone}
+            details={myStatusDetails}
+            primaryAction={myStatusPrimaryAction}
+            secondaryAction={myStatusSecondaryAction}
+          />
         </div>
 
         <div className="lg:hidden">
           <EventSlotSidebar placement="mobile" parties={parties} avatars={avatars} />
         </div>
-
-        <EventMyStatusCard
-          title={t('myStatusTitle')}
-          statusTitle={myStatusTitle}
-          description={myStatusDescription}
-          tone={myStatusTone}
-          details={myStatusDetails}
-          primaryAction={myStatusPrimaryAction}
-          secondaryAction={myStatusSecondaryAction}
-        />
 
         <TentativeSignupSection
           eventId={id}

@@ -29,12 +29,12 @@ export default function EventMyStatusCard({
 }: EventMyStatusCardProps) {
   const toneClass =
     tone === 'success'
-      ? 'border-emerald-500/35 bg-emerald-500/10'
+      ? 'border-emerald-500/30 bg-emerald-500/10'
       : tone === 'pending'
-        ? 'border-amber-500/35 bg-amber-500/10'
+        ? 'border-amber-500/30 bg-amber-500/10'
         : tone === 'guest'
-          ? 'border-sky-500/35 bg-sky-500/10'
-          : 'border-gray-700 bg-gray-900'
+          ? 'border-sky-500/30 bg-sky-500/10'
+          : 'border-gray-800 bg-gray-950/40'
   const iconClass =
     tone === 'success'
       ? 'text-emerald-300'
@@ -54,51 +54,55 @@ export default function EventMyStatusCard({
   const PrimaryActionIcon = tone === 'guest' ? LogIn : Swords
 
   return (
-    <section className={`rounded-2xl border p-4 sm:p-5 ${toneClass}`}>
-      <div className="flex items-start gap-3">
-        <div className={`mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-black/20 ${iconClass}`}>
-          <Icon size={20} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">{title}</p>
-          <h2 className="mt-1 text-base font-bold text-white">{statusTitle}</h2>
-          <p className="mt-1 text-sm leading-relaxed text-gray-300">{description}</p>
-          {details.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {details.map((detail) => (
-                <span
-                  key={detail}
-                  className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-semibold text-gray-200"
-                >
-                  {detail}
-                </span>
-              ))}
+    <section className={`rounded-xl border px-3 py-2.5 sm:px-4 ${toneClass}`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className={`mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-black/20 ${iconClass}`}>
+            <Icon size={16} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{title}</p>
+              <h2 className="text-sm font-bold text-white">{statusTitle}</h2>
             </div>
-          )}
+            <p className="mt-0.5 text-xs leading-relaxed text-gray-400 sm:line-clamp-1">{description}</p>
+            {details.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {details.map((detail) => (
+                  <span
+                    key={detail}
+                    className="rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-[10px] font-semibold text-gray-200"
+                  >
+                    {detail}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
+        {(primaryAction || secondaryAction) && (
+          <div className="flex flex-wrap items-center gap-2 sm:flex-shrink-0 sm:justify-end">
+            {primaryAction && (
+              <Link
+                href={primaryAction.href}
+                className="inline-flex items-center gap-1.5 rounded-md bg-amber-500 px-2.5 py-1.5 text-xs font-bold text-black hover:bg-amber-400 transition-colors"
+              >
+                <PrimaryActionIcon size={13} />
+                {primaryAction.label}
+              </Link>
+            )}
+            {secondaryAction && (
+              <Link
+                href={secondaryAction.href}
+                className="inline-flex items-center gap-1.5 rounded-md border border-gray-700 px-2.5 py-1.5 text-xs font-semibold text-gray-300 hover:border-amber-500/50 hover:text-amber-200 transition-colors"
+              >
+                <Search size={13} />
+                {secondaryAction.label}
+              </Link>
+            )}
+          </div>
+        )}
       </div>
-      {(primaryAction || secondaryAction) && (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {primaryAction && (
-            <Link
-              href={primaryAction.href}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold text-black hover:bg-amber-400 transition-colors"
-            >
-              <PrimaryActionIcon size={13} />
-              {primaryAction.label}
-            </Link>
-          )}
-          {secondaryAction && (
-            <Link
-              href={secondaryAction.href}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-700 px-3 py-2 text-xs font-semibold text-gray-300 hover:border-amber-500/50 hover:text-amber-200 transition-colors"
-            >
-              <Search size={13} />
-              {secondaryAction.label}
-            </Link>
-          )}
-        </div>
-      )}
     </section>
   )
 }

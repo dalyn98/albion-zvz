@@ -5,6 +5,7 @@ import {
   classifyHost,
   buildTenantHostUrl,
   FALLBACK_TENANT_SLUG,
+  getCanonicalRootDomain,
 } from '@/lib/tenant-resolver'
 import {
   getSuperAdminPath,
@@ -54,6 +55,30 @@ function resolveDocsRewriteTarget(pathname: string): string | null {
 function resolveGuildProfileRewriteTarget(pathname: string): string | null {
   if (pathname === '/g' || pathname.startsWith('/g/')) return `/public${pathname}`
   return null
+}
+
+function resolvePublicMarketingCanonicalPath(pathname: string): string | null {
+  if (pathname === '/public/landing') return '/'
+  if (pathname === '/public/features') return '/features'
+  if (pathname === '/public/pricing') return '/pricing'
+  if (pathname === '/public/faq') return '/faq'
+  if (pathname === '/public/docs') return '/docs'
+  if (pathname.startsWith('/public/docs/')) {
+    return pathname.slice('/public'.length)
+  }
+  return null
+}
+
+function redirectPublicMarketingToCanonical(request: NextRequest): NextResponse | null {
+  const targetPath = resolvePublicMarketingCanonicalPath(request.nextUrl.pathname)
+  if (!targetPath) return null
+
+  const classification = classifyHost(request.headers.get('host'))
+  if (classification.kind !== 'root' && classification.kind !== 'tenant') return null
+
+  const target = new URL(`https://${getCanonicalRootDomain()}${targetPath}`)
+  target.search = request.nextUrl.search
+  return NextResponse.redirect(target)
 }
 
 function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
@@ -130,6 +155,9 @@ function handleSuperAdminPath(request: NextRequest): NextResponse | null {
 export async function proxy(request: NextRequest) {
   const legacyRedirect = redirectLegacyHost(request)
   if (legacyRedirect) return legacyRedirect
+
+  const publicMarketingRedirect = redirectPublicMarketingToCanonical(request)
+  if (publicMarketingRedirect) return publicMarketingRedirect
 
   const marketingRewrite = rewriteCanonicalMarketing(request)
   if (marketingRewrite) return marketingRewrite

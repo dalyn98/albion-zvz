@@ -610,6 +610,8 @@ export interface SyncMembersNowResult {
   rolesSource: RolesSource
   withdrawn: number
   rejoined: number
+  adminUpdated: number
+  bombSquadCallerUpdated: number
   error?: string
 }
 
@@ -623,6 +625,8 @@ export async function syncMembersNow(): Promise<SyncMembersNowResult> {
     rolesSource: 'server_only',
     withdrawn: 0,
     rejoined: 0,
+    adminUpdated: 0,
+    bombSquadCallerUpdated: 0,
   }
   try {
     const session = await getSession()

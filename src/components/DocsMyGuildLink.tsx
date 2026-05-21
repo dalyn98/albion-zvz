@@ -12,8 +12,8 @@ import { resolveAlbionDisplayName } from '@/lib/albion-display-name'
 // 직접 조회 — getTenantDiscordConfig 등 helper 도 있지만 여기서는 slug 만 필요해서
 // 가벼운 select 만 한다.
 //
-// 호스트별 path 차이는 getMarketingPaths(guildPage) 가 흡수: canonical 도메인이면
-// `/g/<slug>`, 테넌트 서브도메인/preview 면 `/public/g/<slug>` 로 조합된다.
+// 호스트별 path 차이는 getMarketingPaths(guildPage) 가 흡수: canonical/tenant
+// 도메인이면 공식 root 의 `/g/<slug>`, preview/localhost 면 `/public/g/<slug>` 로 조합된다.
 //
 // 표시 이름은 resolveAlbionDisplayName 으로 — `/g/<slug>` 페이지와 동일한 우선순위
 // (albion_home_guild_name → slug → Discord 폴백). Discord 길드명을 그대로 쓰면

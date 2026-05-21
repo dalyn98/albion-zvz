@@ -35,6 +35,14 @@ export interface OnboardingState {
   homeGuildConfigured: boolean
 }
 
+function hasControlChars(value: string): boolean {
+  return /[\u0000-\u001f\u007f]/.test(value)
+}
+
+function isSafeShortInput(value: string, maxLength: number): boolean {
+  return value.length > 0 && value.length <= maxLength && !hasControlChars(value)
+}
+
 export async function getOnboardingState(): Promise<OnboardingState> {
   const session = await getSession()
   if (!session) return { identity: null, homeGuildConfigured: false }
@@ -59,7 +67,9 @@ export async function searchAlbionPlayerCandidates(
   const session = await getSession()
   if (!session) return { candidates: [], error: tErr('loginRequired') }
   if (!isAlbionServer(serverRaw)) return { candidates: [], error: tErr('invalidInput') }
-  const players = await searchPlayers(serverRaw, query, 10)
+  const trimmed = query.trim()
+  if (!isSafeShortInput(trimmed, 32)) return { candidates: [], error: tErr('invalidInput') }
+  const players = await searchPlayers(serverRaw, trimmed, 10)
   return { candidates: players.map(toCandidate) }
 }
 
@@ -84,7 +94,7 @@ export async function confirmAlbionIdentity(input: {
   if (!session) return { error: tErr('loginRequired') }
   if (!isAlbionServer(input.server)) return { error: tErr('invalidInput') }
   const playerId = input.playerId.trim()
-  if (!playerId) return { error: tErr('invalidInput') }
+  if (!isSafeShortInput(playerId, 80)) return { error: tErr('invalidInput') }
 
   const player = await getPlayer(input.server, playerId)
   if (!player) return { error: tErr('albionGameinfoUnavailable') }
@@ -161,7 +171,9 @@ export async function setAlbionIdentityManually(input: {
   if (!session) return { error: tErr('loginRequired') }
   if (!isAlbionServer(input.server)) return { error: tErr('invalidInput') }
   const nickname = input.nickname.trim()
-  if (nickname.length < 2 || nickname.length > 32) return { error: tErr('invalidInput') }
+  if (nickname.length < 2 || !isSafeShortInput(nickname, 32)) {
+    return { error: tErr('invalidInput') }
+  }
 
   const sessionGuildId = await getSessionGuildId(session)
   const updated = await upsertAlbionIdentity(session.discordId, sessionGuildId, {

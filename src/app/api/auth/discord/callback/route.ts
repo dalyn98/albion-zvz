@@ -527,11 +527,10 @@ export async function GET(request: NextRequest) {
       issuedAt: Date.now(),
     }
     const scopedReturnTo = `/events/${eventScope}`
-    const destination = resolvePostLoginPath(scopedReturnTo, guestPreferred)
     return buildHopRedirect(
       guestSlug,
       guestSession,
-      destination,
+      scopedReturnTo,
       isLocale(guestPreferred) ? guestPreferred : null,
     )
   } catch (e) {

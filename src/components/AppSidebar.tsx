@@ -189,9 +189,8 @@ interface AppSidebarProps {
   // 공개 프로필 (`/g/<slug>`) 진입용 사이드바 링크. guild_profile_enabled 가
   // 꺼져 있거나 slug 가 없으면 null — AppShell 이 게이팅한다.
   publicProfileHref: string | null
-  // AGM 공식 마케팅 사이트 진입점. host (canonical vs tenant subdomain) 에 따라
-  // `/` 혹은 `/public/landing` 으로 다른 path 가 들어온다. 모든 세션 (게스트
-  // 포함) 에게 노출.
+  // AGM 공식 마케팅 사이트 진입점. tenant host 에서는 canonical root 절대 URL,
+  // preview/localhost 에서는 `/public/landing` 가 들어온다. 모든 세션 (게스트 포함) 에게 노출.
   landingHref: string
 }
 

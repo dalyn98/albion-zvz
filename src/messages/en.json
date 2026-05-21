@@ -1206,6 +1206,23 @@
     "activeCount": "{count} active link(s)",
     "copyFailed": "Couldn't copy to the clipboard."
   },
+  "eventGuestProfile": {
+    "title": "Set your event nickname",
+    "description": "This name is used only on this event page. Albion verification is not required for guests.",
+    "nicknameLabel": "Event nickname",
+    "nicknamePlaceholder": "Enter the name your party should recognize",
+    "languageLabel": "Language",
+    "languageHelp": "Choose the language you want to use on this site.",
+    "save": "Continue to event",
+    "saving": "Saving…",
+    "nameRequired": "Enter a nickname for this event.",
+    "nameTooShort": "Nickname must be at least 2 characters.",
+    "nameTooLong": "Nickname must be 32 characters or fewer.",
+    "invalidLanguage": "Choose a supported language.",
+    "unauthorized": "This guest invite is not valid for this event.",
+    "eventNotFound": "Event not found.",
+    "saveFailed": "Failed to save your guest profile. Please try again."
+  },
   "noticeBannerAdmin": {
     "addLabel": "Add notice",
     "editTooltip": "Edit notice"
@@ -3317,6 +3334,7 @@
     "notOwner": "You can only cancel slots you applied for.",
     "loginRequired": "Login required.",
     "noMemberRole": "You don't have an eligible role.",
+    "guestProfileRequired": "Please enter your event nickname before signing up for a slot.",
     "battleAlreadyStarted": "The battle has already started and cannot be cancelled.",
     "eventFinalized": "This event has ended; new sign-ups are closed.",
     "adminOnly": "Admin only.",

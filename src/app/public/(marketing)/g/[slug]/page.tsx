@@ -278,9 +278,9 @@ export default async function GuildProfilePage({
   const tTime = await getTranslations('time')
   const tBattle = await getTranslations('battleTracking')
   const tNav = await getTranslations('nav')
-  // 본인 길드 페이지 → AGM 공식 사이트 진입 통로. canonical host 에선 `/`, 테넌트
-  // 서브도메인에선 `/public/landing` 으로 자동 분기. 사이드바에도 같은 링크가
-  // 있지만 페이지 헤더에 한 번 더 노출해 어퍼던스를 키운다.
+  // 본인 길드 페이지 → AGM 공식 사이트 진입 통로. tenant host 에서도 canonical
+  // root 로 이동한다. 사이드바에도 같은 링크가 있지만 페이지 헤더에 한 번 더
+  // 노출해 어퍼던스를 키운다.
   const marketingPaths = await getMarketingPaths()
   const accent = ACCENT_CLASS_MAP[settings.accentColor]
   // 라이프타임 카드는 데이터가 충분할 때만 노출 — 작은 표본이 도리어 길드를

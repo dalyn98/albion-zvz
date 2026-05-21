@@ -107,6 +107,7 @@ export async function upsertGuildAvatar(
         avatar,
         is_admin: isAdmin,
         is_bomb_squad_caller: isBombSquadCaller,
+        withdrawn_at: null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'guild_id,discord_id' },

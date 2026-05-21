@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 type DiscordMember = { user: { id: string } | null; roles: string[] }
-type AvatarRow = { discord_id: string; withdrawn_at: string | null }
+type AvatarRow = {
+  discord_id: string
+  withdrawn_at: string | null
+  is_admin?: boolean | null
+  is_bomb_squad_caller?: boolean | null
+}
 
 const settings: Record<string, string> = {}
 const getAppSettingMock = vi.fn<(k: string, f: string, g: string) => Promise<string>>(
@@ -12,6 +17,7 @@ const tenantConfig = {
   discordGuildId: '99',
   slug: 'demo',
   name: 'Demo',
+  createdByDiscordId: null as string | null,
   memberRoleIds: [] as string[],
   adminRoleIds: [] as string[],
   eventChannelId: null,
@@ -37,8 +43,9 @@ vi.mock('next/cache', () => ({
 }))
 
 let avatarRows: AvatarRow[] = []
+let adminOverrideRows: Array<{ discord_id: string }> = []
 let avatarsError: { message: string } | null = null
-const updates: Array<{ withdrawn_at: string | null; discord_ids: string[] }> = []
+const updates: Array<{ patch: Record<string, unknown>; discord_ids: string[] }> = []
 const upserts: Array<{ key: string; value: string }> = []
 
 vi.mock('@/lib/supabase-admin', () => ({
@@ -49,13 +56,20 @@ vi.mock('@/lib/supabase-admin', () => ({
           select: () => ({
             eq: () => Promise.resolve({ data: avatarRows, error: avatarsError }),
           }),
-          update: (patch: { withdrawn_at: string | null }) => ({
+          update: (patch: Record<string, unknown>) => ({
             eq: () => ({
               in: (_col: string, ids: string[]) => {
-                updates.push({ withdrawn_at: patch.withdrawn_at, discord_ids: ids })
+                updates.push({ patch, discord_ids: ids })
                 return Promise.resolve({ error: null })
               },
             }),
+          }),
+        }
+      }
+      if (table === 'tenant_admin_overrides') {
+        return {
+          select: () => ({
+            eq: () => Promise.resolve({ data: adminOverrideRows, error: null }),
           }),
         }
       }
@@ -78,10 +92,13 @@ beforeEach(() => {
   for (const k of Object.keys(settings)) delete settings[k]
   getAppSettingMock.mockClear()
   tenantConfig.memberRoleIds = []
+  tenantConfig.adminRoleIds = []
+  tenantConfig.createdByDiscordId = null
   getTenantDiscordConfigMock.mockClear().mockResolvedValue(tenantConfig)
   listGuildMembersBulkMock.mockReset().mockResolvedValue([])
   revalidatePathMock.mockReset()
   avatarRows = []
+  adminOverrideRows = []
   avatarsError = null
   updates.length = 0
   upserts.length = 0
@@ -179,7 +196,7 @@ describe('runMemberSync withdraw / rejoin transitions', () => {
       expect(r.result.rejoined).toBe(0)
     }
     expect(updates).toContainEqual({
-      withdrawn_at: expect.any(String),
+      patch: { withdrawn_at: expect.any(String) },
       discord_ids: ['b'],
     })
   })
@@ -205,7 +222,50 @@ describe('runMemberSync withdraw / rejoin transitions', () => {
       expect(r.result.rejoined).toBe(1)
       expect(r.result.withdrawn).toBe(0)
     }
-    expect(updates).toContainEqual({ withdrawn_at: null, discord_ids: ['a'] })
+    expect(updates).toContainEqual({ patch: { withdrawn_at: null }, discord_ids: ['a'] })
+  })
+
+  it('keeps admins active even without the active member role', async () => {
+    settings.active_member_role_ids = JSON.stringify(['role-active'])
+    tenantConfig.adminRoleIds = ['role-admin']
+    avatarRows = [{ discord_id: 'a', withdrawn_at: null, is_admin: false }]
+    listGuildMembersBulkMock.mockResolvedValueOnce([
+      { user: { id: 'a' }, roles: ['role-admin'] },
+    ])
+    const r = await runMemberSync('tenant-1', { skipThrottle: true })
+    if (r.kind === 'ok') {
+      expect(r.result.withdrawn).toBe(0)
+      expect(r.result.adminUpdated).toBe(1)
+    }
+    expect(updates).toContainEqual({ patch: { is_admin: true }, discord_ids: ['a'] })
+  })
+
+  it('keeps tenant owner active and marks admin flag when in server', async () => {
+    settings.active_member_role_ids = JSON.stringify(['role-active'])
+    tenantConfig.createdByDiscordId = 'owner'
+    avatarRows = [{ discord_id: 'owner', withdrawn_at: null, is_admin: false }]
+    listGuildMembersBulkMock.mockResolvedValueOnce([
+      { user: { id: 'owner' }, roles: [] },
+    ])
+    const r = await runMemberSync('tenant-1', { skipThrottle: true })
+    if (r.kind === 'ok') {
+      expect(r.result.withdrawn).toBe(0)
+      expect(r.result.adminUpdated).toBe(1)
+    }
+  })
+
+  it('updates bomb squad caller flag from configured roles', async () => {
+    settings.bomb_squad_caller_role_ids = JSON.stringify(['role-bomb'])
+    avatarRows = [{ discord_id: 'a', withdrawn_at: null, is_bomb_squad_caller: false }]
+    listGuildMembersBulkMock.mockResolvedValueOnce([
+      { user: { id: 'a' }, roles: ['role-bomb'] },
+    ])
+    const r = await runMemberSync('tenant-1', { skipThrottle: true })
+    if (r.kind === 'ok') expect(r.result.bombSquadCallerUpdated).toBe(1)
+    expect(updates).toContainEqual({
+      patch: { is_bomb_squad_caller: true },
+      discord_ids: ['a'],
+    })
   })
 
   it('treats every server member as active when activeRoleIds is empty', async () => {
