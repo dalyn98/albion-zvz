@@ -1887,6 +1887,7 @@
     "tagline": "更强的公会,享受游戏的公会长。",
     "subheading": "ZvZ 统计与运营自动化集中一处。一个 Discord 机器人,让公会因数据而强大,公会长重新享受公会本身。",
     "ctaPrimary": "创建我的公会",
+    "ctaMyGuild": "前往我的公会",
     "tryDemoButton": "体验演示",
     "ctaSecondary": "查看公开记录",
     "featuresTitle": "您将获得",
@@ -4247,6 +4248,10 @@
       "back": "← 活动列表",
       "demoOnlyDetail": "演示:仅首个活动可查看完整详情。"
     },
+    "eventDetail": {
+      "filterHint": "演示中筛选器固定为界面示例。",
+      "tentativeSample": "可坦克 / 辅助 · 22:00 前在线"
+    },
     "regear": {
       "title": "装备补偿申请",
       "subtitle": "自动 + 手动申请,统一管理。",
@@ -4280,6 +4285,11 @@
     "memberEvents": {
       "title": "活动报名",
       "subtitle": "优先查看自己的槽位状态和即将开始的活动。",
+      "viewDocs": "指南",
+      "viewArchive": "过往活动",
+      "newEvent": "新活动",
+      "noticeTitle": "成员活动首页",
+      "noticeBody": "使用与正式应用相同的列表结构查看分类、临近活动、报名人数，并进入活动详情。",
       "nextSlotLabel": "下个槽位",
       "nextTimeLabel": "下次集合",
       "openSlotsLabel": "空位",

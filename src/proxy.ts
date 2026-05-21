@@ -12,6 +12,7 @@ import {
   SUPER_ADMIN_INTERNAL_PATH,
 } from '@/lib/super-admin-path'
 import { canAccessAdminPath } from '@/lib/admin-route-access'
+import { LAST_GUILD_COOKIE, lastGuildCookieOptions } from '@/lib/last-guild-cookie'
 
 // Multi-tenant subdomain migration (Phase A1):
 // legacy vercel.app hosts 308-redirect to `menhera.albion-guildmanager.com/<path>`
@@ -124,6 +125,25 @@ function withPathname(response: NextResponse, pathname: string): NextResponse {
   return response
 }
 
+async function rememberTenantFromSession(
+  request: NextRequest,
+  response: NextResponse,
+): Promise<NextResponse> {
+  const classification = classifyHost(request.headers.get('host'))
+  if (classification.kind !== 'tenant') return response
+
+  const cookie = request.cookies.get(SESSION_COOKIE_NAME)?.value
+  const session = await verifySession(cookie)
+  if (!session || session.isGuest || !session.guildId) return response
+
+  response.cookies.set(
+    LAST_GUILD_COOKIE,
+    classification.slug,
+    lastGuildCookieOptions(request.headers.get('host')),
+  )
+  return response
+}
+
 // 슈퍼어드민 path randomization. SUPER_ADMIN_PATH env 가 기본값과 다를 때:
 //   - 외부 path (env 값) 는 내부 /super-admin/* 로 rewrite 후 렌더
 //   - 직접 /super-admin/* 접근은 404 (존재 자체를 숨김)
@@ -177,7 +197,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!pathname.startsWith('/admin/dashboard')) {
-    return withPathname(NextResponse.next(), pathname)
+    return rememberTenantFromSession(request, withPathname(NextResponse.next(), pathname))
   }
 
   const cookie = request.cookies.get(SESSION_COOKIE_NAME)?.value
@@ -193,7 +213,7 @@ export async function proxy(request: NextRequest) {
     )
   }
 
-  return withPathname(NextResponse.next(), pathname)
+  return rememberTenantFromSession(request, withPathname(NextResponse.next(), pathname))
 }
 
 export const config = {

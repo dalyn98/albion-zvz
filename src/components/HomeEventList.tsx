@@ -28,9 +28,10 @@ export interface HomeEventCardData {
 
 interface Props {
   events: HomeEventCardData[]
+  hrefPrefix?: string
 }
 
-export default function HomeEventList({ events }: Props) {
+export default function HomeEventList({ events, hrefPrefix = '/events' }: Props) {
   const t = useTranslations('home')
 
   if (events.length === 0) {
@@ -55,6 +56,7 @@ export default function HomeEventList({ events }: Props) {
             key={c}
             title={t(`sections.${CATEGORY_I18N_SLUG[c]}`)}
             events={group}
+            hrefPrefix={hrefPrefix}
           />
         )
       })}
@@ -65,9 +67,11 @@ export default function HomeEventList({ events }: Props) {
 function CategorySection({
   title,
   events,
+  hrefPrefix,
 }: {
   title: string
   events: HomeEventCardData[]
+  hrefPrefix: string
 }) {
   const t = useTranslations('home')
   const imminent = events.filter((e) => e.kind === 'imminent')
@@ -86,14 +90,14 @@ function CategorySection({
             titleClass="text-amber-300"
           >
             {imminent.map((e) => (
-              <EventCard key={e.id} event={e} />
+              <EventCard key={e.id} event={e} hrefPrefix={hrefPrefix} />
             ))}
           </Section>
         )}
         {upcoming.length > 0 && (
           <Section title={t('sections.upcoming')} titleClass="text-gray-400">
             {upcoming.map((e) => (
-              <EventCard key={e.id} event={e} />
+              <EventCard key={e.id} event={e} hrefPrefix={hrefPrefix} />
             ))}
           </Section>
         )}
@@ -126,7 +130,7 @@ function Section({
   )
 }
 
-function EventCard({ event }: { event: HomeEventCardData }) {
+function EventCard({ event, hrefPrefix }: { event: HomeEventCardData; hrefPrefix: string }) {
   const t = useTranslations('home')
   const stateClass =
     event.kind === 'imminent' && event.battleStarted
@@ -137,7 +141,7 @@ function EventCard({ event }: { event: HomeEventCardData }) {
 
   return (
     <Link
-      href={`/events/${event.id}`}
+      href={`${hrefPrefix}/${event.id}`}
       className={`group block bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-sm border rounded-2xl p-4 sm:p-5 transition-all duration-200 hover:-translate-y-0.5 ${stateClass}`}
     >
       <div className="flex items-start justify-between gap-3">

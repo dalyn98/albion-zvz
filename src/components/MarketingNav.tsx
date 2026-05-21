@@ -3,8 +3,7 @@ import { Home, LogIn } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getMarketingPaths } from '@/lib/marketing-paths'
-import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
-import { tenantUrl } from '@/lib/tenant-resolver'
+import { getMarketingMyGuildHref } from '@/lib/last-guild'
 import MarketingLanguageSwitcher from './MarketingLanguageSwitcher'
 import MarketingNavMobileMenu from './MarketingNavMobileMenu'
 import DiscordIcon from './DiscordIcon'
@@ -30,20 +29,7 @@ export default async function MarketingNav({ active }: MarketingNavProps) {
     getMarketingPaths(),
   ])
 
-  // 로그인 + 길드 멤버 컨텍스트가 있으면 본인 길드 홈으로 진입 버튼을 노출한다.
-  // canonical 호스트에서 보든 다른 테넌트 서브도메인에서 보든 tenantUrl 이 항상
-  // 본인 slug 의 절대 URL 로 hop 시켜 준다. 게스트 (eventScope only) 는 길드 멤버
-  // 가 아니므로 제외 — install 버튼은 어차피 가려진다.
-  let myGuildHref: string | null = null
-  if (session && (session.isMember || session.isAdmin)) {
-    try {
-      const tenantId = await getSessionGuildId(session)
-      const config = await getTenantDiscordConfig(tenantId)
-      if (config?.slug) myGuildHref = tenantUrl(config.slug, '/')
-    } catch {
-      myGuildHref = null
-    }
-  }
+  const myGuildHref = await getMarketingMyGuildHref(session)
 
   // home / features / docs 3개. features 는 /landing#features 앵커로 가서
   // 기능 카드 섹션을 직접 보여주고, docs 는 별도의 사용 안내서 페이지로 분리.

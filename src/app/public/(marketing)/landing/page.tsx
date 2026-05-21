@@ -19,6 +19,7 @@ import {
 import { getMarketingPaths } from '@/lib/marketing-paths'
 import { getSession } from '@/lib/session'
 import { isSuperAdminSession } from '@/lib/super-admin'
+import { getMarketingMyGuildHref } from '@/lib/last-guild'
 import InAppBrowserNoticeWithMessages from '@/components/InAppBrowserNoticeWithMessages'
 
 export const dynamic = 'force-dynamic'
@@ -42,7 +43,9 @@ export default async function PublicLandingPage() {
     loadMarketingScreenshots(),
     getSession(),
   ])
-  const installHref = '/api/auth/discord/start?returnTo=%2Fonboard'
+  const myGuildHref = await getMarketingMyGuildHref(session)
+  const installHref = myGuildHref ?? '/api/auth/discord/start?returnTo=%2Fonboard'
+  const primaryCtaLabel = myGuildHref ? t('ctaMyGuild') : t('ctaPrimary')
   const isAdmin = isSuperAdminSession(session)
 
   // 카드 순서 = USP 우선순위. 통계(f4) 가 가장 강한 차별화이므로 메인,
@@ -116,7 +119,7 @@ export default async function PublicLandingPage() {
                 href={installHref}
                 className="inline-flex items-center justify-center bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold px-6 py-3 rounded-xl shadow-[0_10px_30px_-10px_rgba(88,101,242,0.6)] transition-colors"
               >
-                {t('ctaPrimary')}
+                {primaryCtaLabel}
               </a>
               <Link
                 href="/demo"
@@ -278,7 +281,7 @@ export default async function PublicLandingPage() {
                 href={installHref}
                 className="inline-flex items-center justify-center bg-[#5865F2] hover:bg-[#4752c4] text-white font-semibold px-5 py-2.5 rounded-lg transition-colors"
               >
-                {t('ctaPrimary')}
+                {primaryCtaLabel}
               </a>
               <a
                 href="/api/auth/discord/start?returnTo=%2F"

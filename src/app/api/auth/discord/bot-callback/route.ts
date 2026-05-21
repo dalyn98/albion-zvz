@@ -6,6 +6,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { isValidTenantSlug } from '@/lib/tenant-resolver'
 import { upsertGuildAvatar } from '@/lib/discord-avatar'
 import { recordAdminLogin } from '@/lib/tenant-activity'
+import { LAST_GUILD_COOKIE, lastGuildCookieOptions } from '@/lib/last-guild-cookie'
 import { log } from '@/lib/log'
 import { SLOT_ROLES, EVENT_CATEGORIES } from '@/types'
 
@@ -98,14 +99,16 @@ export async function GET(request: NextRequest) {
     // created_by_discord_id 는 건드리지 않는다 (원래 설치자 보존).
     const { data: existing } = await db
       .from('tenants')
-      .select('id, created_by_discord_id')
+      .select('id, slug, created_by_discord_id')
       .eq('discord_guild_id', guildId)
       .maybeSingle()
 
     let tenantId: string
+    let tenantSlug: string
     let tenantOwnerDiscordId: string
     if (existing) {
       tenantId = existing.id as string
+      tenantSlug = existing.slug as string
       tenantOwnerDiscordId = (existing.created_by_discord_id as string) ?? installerDiscordId
       // 재설치: name/bot_installed_at 만 갱신. status 는 건드리지 않는다 —
       // 이미 active 면 active 유지 (라이브 사이트 영향 없음), pending 이면
@@ -125,7 +128,7 @@ export async function GET(request: NextRequest) {
       //
       // slug 는 tenants.slug UNIQUE 제약을 받는다. 새 suffix 로 최대 5회
       // 재시도 — 실제 충돌 확률은 4^36 suffix space 에서 매우 낮지만 방어적.
-      let tenantRow: { id: string } | null = null
+      let tenantRow: { id: string; slug: string } | null = null
       let lastInsertError: unknown = null
       for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt += 1) {
         const { data: inserted, error: insertError } = await db
@@ -138,10 +141,10 @@ export async function GET(request: NextRequest) {
             bot_installed_at: new Date().toISOString(),
             created_by_discord_id: installerDiscordId,
           })
-          .select('id')
+          .select('id, slug')
           .single()
         if (inserted && !insertError) {
-          tenantRow = inserted as { id: string }
+          tenantRow = inserted as { id: string; slug: string }
           break
         }
         lastInsertError = insertError
@@ -157,6 +160,7 @@ export async function GET(request: NextRequest) {
         return errorRedirect(url.origin, 'server_error')
       }
       tenantId = tenantRow.id
+      tenantSlug = tenantRow.slug
       tenantOwnerDiscordId = installerDiscordId
 
       // 새 tenant 에 기본 role_rewards 8개 seed (silver=0 = "미설정, 리기어 차단").
@@ -241,6 +245,11 @@ export async function GET(request: NextRequest) {
 
     const response = NextResponse.redirect(new URL(`/onboard/setup/${tenantId}`, url.origin))
     response.cookies.set(SESSION_COOKIE_NAME, newSession, cookieOptions())
+    response.cookies.set(
+      LAST_GUILD_COOKIE,
+      tenantSlug,
+      lastGuildCookieOptions(request.headers.get('host')),
+    )
     response.cookies.delete(ONBOARD_GUILDS_COOKIE)
     return response
   } catch (e) {

@@ -1887,6 +1887,7 @@
     "tagline": "A stronger guild. A guild leader who plays again.",
     "subheading": "ZvZ analytics and ops automation in one place. With one Discord bot, your guild grows stronger with data — and your officers get to play again.",
     "ctaPrimary": "Create my guild",
+    "ctaMyGuild": "Go to my guild",
     "tryDemoButton": "Try the demo",
     "ctaSecondary": "View public records",
     "featuresTitle": "What you get",
@@ -4247,6 +4248,10 @@
       "back": "← Events",
       "demoOnlyDetail": "Demo: only the first event has full detail."
     },
+    "eventDetail": {
+      "filterHint": "Filters are fixed in the demo as a UI preview.",
+      "tentativeSample": "Tank / support available · online before 22:00"
+    },
     "regear": {
       "title": "Regear claims",
       "subtitle": "Auto + manual claims, all in one place.",
@@ -4280,6 +4285,11 @@
     "memberEvents": {
       "title": "Event signups",
       "subtitle": "Check your slot status and upcoming events first.",
+      "viewDocs": "Guide",
+      "viewArchive": "Past events",
+      "newEvent": "New event",
+      "noticeTitle": "Member event home",
+      "noticeBody": "Use the same list structure as the live app: categories, imminent events, signup counts, and event-detail entry.",
       "nextSlotLabel": "Next slot",
       "nextTimeLabel": "Next rally",
       "openSlotsLabel": "Open slots",

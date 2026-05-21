@@ -13,6 +13,7 @@ import { SESSION_COOKIE_NAME, cookieOptions, signSession } from '@/lib/session'
 import { verifyHopToken } from '@/lib/oauth-state'
 import { classifyHost } from '@/lib/tenant-resolver'
 import { getTenantDiscordConfig } from '@/lib/tenant'
+import { LAST_GUILD_COOKIE, lastGuildCookieOptions } from '@/lib/last-guild-cookie'
 import { LOCALE_COOKIE, isLocale } from '@/i18n/locales'
 import { localeCookieOptions } from '@/lib/locale-cookie'
 import { recordAuthFailure } from '@/lib/auth-telemetry'
@@ -66,6 +67,11 @@ export async function GET(request: NextRequest) {
   const cookieValue = await signSession({ ...session, issuedAt: Date.now() })
   const response = NextResponse.redirect(new URL(returnTo, url.origin))
   response.cookies.set(SESSION_COOKIE_NAME, cookieValue, cookieOptions())
+  response.cookies.set(
+    LAST_GUILD_COOKIE,
+    tenant.slug,
+    lastGuildCookieOptions(request.headers.get('host')),
+  )
 
   if (hop.preferredLocale && isLocale(hop.preferredLocale)) {
     response.cookies.set(

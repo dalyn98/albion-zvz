@@ -1887,6 +1887,7 @@
     "tagline": "강한 길드, 즐기는 길드장.",
     "subheading": "ZvZ 통계와 운영 자동화를 한 곳에. Discord 봇 하나로 길드는 데이터로 강해지고, 길드장은 다시 길드를 즐기세요.",
     "ctaPrimary": "내 길드 만들기",
+    "ctaMyGuild": "내 길드로 가기",
     "tryDemoButton": "데모 체험해보기",
     "ctaSecondary": "공개 전적 보기",
     "featuresTitle": "주요 기능",
@@ -4247,6 +4248,10 @@
       "back": "← 이벤트 목록",
       "demoOnlyDetail": "데모: 상세는 첫 이벤트만 미리볼 수 있어요."
     },
+    "eventDetail": {
+      "filterHint": "데모에서는 필터가 화면 예시로 고정됩니다.",
+      "tentativeSample": "탱커 / 서폿 가능 · 22:00 전 접속 가능"
+    },
     "regear": {
       "title": "리기어 청구",
       "subtitle": "자동 + 수동 청구 한곳에.",
@@ -4280,6 +4285,11 @@
     "memberEvents": {
       "title": "이벤트 신청",
       "subtitle": "내 슬롯 상태와 곧 시작하는 이벤트를 먼저 확인합니다.",
+      "viewDocs": "가이드",
+      "viewArchive": "지난 이벤트",
+      "newEvent": "새 이벤트",
+      "noticeTitle": "길드원 이벤트 홈",
+      "noticeBody": "실제 앱과 같은 목록 구조로 카테고리, 임박 이벤트, 신청 인원을 확인하고 이벤트 상세로 이동합니다.",
       "nextSlotLabel": "다음 슬롯",
       "nextTimeLabel": "다음 모임",
       "openSlotsLabel": "빈 슬롯",

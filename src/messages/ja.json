@@ -1887,6 +1887,7 @@
     "tagline": "強いギルド、楽しむギルドリーダー。",
     "subheading": "ZvZ 統計と運営の自動化をひとつに。Discord ボットひとつでギルドはデータで強くなり、ギルドリーダーはまたギルドを楽しめます。",
     "ctaPrimary": "ギルドを作成",
+    "ctaMyGuild": "マイギルドへ",
     "tryDemoButton": "デモを体験",
     "ctaSecondary": "公開戦績を見る",
     "featuresTitle": "主な機能",
@@ -4247,6 +4248,10 @@
       "back": "← イベント一覧",
       "demoOnlyDetail": "デモ: 詳細は最初のイベントのみ表示できます。"
     },
+    "eventDetail": {
+      "filterHint": "デモではフィルターは画面例として固定されています。",
+      "tentativeSample": "タンク / サポート可 · 22:00 前にログイン可能"
+    },
     "regear": {
       "title": "リギア請求",
       "subtitle": "自動 + 手動の請求をまとめて。",
@@ -4280,6 +4285,11 @@
     "memberEvents": {
       "title": "イベント申請",
       "subtitle": "自分のスロット状態と次のイベントを先に確認できます。",
+      "viewDocs": "ガイド",
+      "viewArchive": "過去イベント",
+      "newEvent": "新規イベント",
+      "noticeTitle": "メンバー用イベントホーム",
+      "noticeBody": "実際のアプリと同じ一覧構造で、カテゴリ、直近イベント、申請人数、イベント詳細への導線を確認します。",
       "nextSlotLabel": "次のスロット",
       "nextTimeLabel": "次の集合",
       "openSlotsLabel": "空き枠",
