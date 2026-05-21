@@ -4109,7 +4109,9 @@
       "name": "Albion ZvZ"
     },
     "cta": {
-      "inviteBot": "Discord 봇 초대"
+      "inviteBot": "Discord 봇 초대",
+      "officialSite": "공식 홈페이지",
+      "officialSiteShort": "공식"
     },
     "topbar": {
       "tenantName": "데모 길드",

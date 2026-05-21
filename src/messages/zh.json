@@ -4109,7 +4109,9 @@
       "name": "Albion ZvZ"
     },
     "cta": {
-      "inviteBot": "邀请 Discord 机器人"
+      "inviteBot": "邀请 Discord 机器人",
+      "officialSite": "官方网站",
+      "officialSiteShort": "官网"
     },
     "topbar": {
       "tenantName": "演示公会",

@@ -4109,7 +4109,9 @@
       "name": "Albion ZvZ"
     },
     "cta": {
-      "inviteBot": "Discord ボットを招待"
+      "inviteBot": "Discord ボットを招待",
+      "officialSite": "公式サイト",
+      "officialSiteShort": "公式"
     },
     "topbar": {
       "tenantName": "デモギルド",

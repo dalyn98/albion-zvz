@@ -4109,7 +4109,9 @@
       "name": "Albion ZvZ"
     },
     "cta": {
-      "inviteBot": "Invite Discord bot"
+      "inviteBot": "Invite Discord bot",
+      "officialSite": "Official site",
+      "officialSiteShort": "Site"
     },
     "topbar": {
       "tenantName": "Demo Guild",

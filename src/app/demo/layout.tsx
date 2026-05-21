@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server'
-import { Sparkles, ExternalLink } from 'lucide-react'
+import { Sparkles, ExternalLink, Home } from 'lucide-react'
 import DemoSidebar from './_components/DemoSidebar'
 import DemoFeedbackProvider from './_components/DemoFeedbackProvider'
 
@@ -22,14 +22,24 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
             <Sparkles size={12} className="shrink-0" />
             <span className="truncate">{t('banner')}</span>
           </span>
-          <a
-            href="/api/auth/discord/start?returnTo=/"
-            className="inline-flex shrink-0 items-center gap-1 bg-black/80 hover:bg-black text-white text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded transition-colors"
-          >
-            <ExternalLink size={11} />
-            <span className="hidden sm:inline">{t('cta.inviteBot')}</span>
-            <span className="sm:hidden">Discord</span>
-          </a>
+          <div className="inline-flex shrink-0 items-center gap-1.5">
+            <a
+              href="/public/landing"
+              className="inline-flex items-center gap-1 bg-amber-100/80 hover:bg-amber-100 text-black text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded transition-colors"
+            >
+              <Home size={11} />
+              <span className="hidden sm:inline">{t('cta.officialSite')}</span>
+              <span className="sm:hidden">{t('cta.officialSiteShort')}</span>
+            </a>
+            <a
+              href="/api/auth/discord/start?returnTo=/"
+              className="inline-flex items-center gap-1 bg-black/80 hover:bg-black text-white text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded transition-colors"
+            >
+              <ExternalLink size={11} />
+              <span className="hidden sm:inline">{t('cta.inviteBot')}</span>
+              <span className="sm:hidden">Discord</span>
+            </a>
+          </div>
         </div>
 
         <div className="flex flex-col lg:flex-row flex-1 min-h-0">
