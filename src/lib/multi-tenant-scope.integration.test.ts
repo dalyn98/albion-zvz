@@ -125,3 +125,69 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
     expect(aRows?.[0]?.stock).toBe(99) // tenant A 의 값은 보존
   })
 })
+
+describeIntegration('killboard_events tenant scope (mig 156)', () => {
+  let tenantA: TestTenant
+  let tenantB: TestTenant
+
+  beforeEach(async () => {
+    tenantA = await createTestTenant('killboard-a')
+    tenantB = await createTestTenant('killboard-b')
+  })
+
+  afterEach(async () => {
+    await tenantA?.cleanup()
+    await tenantB?.cleanup()
+  })
+
+  it('allows the same Albion event_id and role across different tenants', async () => {
+    const client = getTestServiceClient()
+    const baseRow = {
+      event_id: 910001,
+      role: 'killer',
+      discord_id: null,
+      albion_player_id: 'albion-player-1',
+      player_name: 'Player One',
+      opponent_name: 'Enemy',
+      opponent_guild: 'Enemy Guild',
+      fame: 1000,
+      item_power: 1400,
+      occurred_at: '2026-05-01T00:00:00Z',
+      battle_id: 700001,
+    }
+
+    const { error: errA } = await client
+      .from('killboard_events')
+      .insert({ guild_id: tenantA.guildId, ...baseRow })
+    expect(errA).toBeNull()
+
+    const { error: errB } = await client
+      .from('killboard_events')
+      .insert({ guild_id: tenantB.guildId, ...baseRow })
+    expect(errB).toBeNull()
+  })
+
+  it('still rejects duplicate Albion event_id and role inside the same tenant', async () => {
+    const client = getTestServiceClient()
+    const baseRow = {
+      guild_id: tenantA.guildId,
+      event_id: 910002,
+      role: 'victim',
+      discord_id: null,
+      albion_player_id: 'albion-player-2',
+      player_name: 'Player Two',
+      opponent_name: 'Enemy',
+      opponent_guild: 'Enemy Guild',
+      fame: 2000,
+      item_power: 1300,
+      occurred_at: '2026-05-01T00:05:00Z',
+      battle_id: 700002,
+    }
+
+    const { error: errFirst } = await client.from('killboard_events').insert(baseRow)
+    expect(errFirst).toBeNull()
+
+    const { error: errDup } = await client.from('killboard_events').insert(baseRow)
+    expect(errDup?.code).toBe('23505')
+  })
+})

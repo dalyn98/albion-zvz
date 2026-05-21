@@ -1,8 +1,8 @@
 // 이벤트 사후 리포트. 전투 종료 후 멤버들이 결과를 한눈에 확인할 수 있도록
 // 참여/전투/생존/리기어 4개 영역으로 집계한다.
 // - 모든 계산은 pure function. 쿼리 결과를 인자로 받고 가공만.
-// - 새 마이그레이션 없음 — events, parties, slots, killboard_events, regear_requests,
-//   event_battles 의 기존 컬럼만 사용.
+// - 쿼리 계층은 events, parties, slots, killboard_events, regear_requests 를
+//   읽고, 이 모듈은 이미 로드된 rows 만 집계한다.
 
 export interface EventReportSlot {
   assigned_discord_id: string | null

@@ -42,7 +42,8 @@ const { fetchTrackedBattleWindowsMock } = vi.hoisted(() => ({
 
 vi.mock('@/lib/tracked-kills', () => ({
   fetchTrackedBattleWindows: fetchTrackedBattleWindowsMock,
-  isWithinTrackedWindow: () => true,
+  findTrackedBattleKey: (_occurredAt: string | null, battleId: number | null) =>
+    battleId === null ? null : `albion:${battleId}`,
 }))
 
 vi.mock('@/lib/discord-avatar', () => ({
@@ -194,6 +195,16 @@ describe('loadTopWeaponCategoriesLast30d', () => {
     // Top bucket is 'FIRE' (count 2); 'HOLY' is second (count 1).
     expect(r[0].category).toBe('FIRE')
     expect(r[0].count).toBe(2)
+  })
+
+  it('counts the same weapon category once per tracked battle', async () => {
+    killboardEvents = [
+      { equipment: { MainHand: { Type: 'FIRE_T8' } }, occurred_at: '2026-04-01T00:00:00Z', battle_id: 1 },
+      { equipment: { MainHand: { Type: 'FIRE_T7' } }, occurred_at: '2026-04-01T00:01:00Z', battle_id: 1 },
+      { equipment: { MainHand: { Type: 'FIRE_T6' } }, occurred_at: '2026-04-01T00:02:00Z', battle_id: 2 },
+    ]
+    const r = await loadTopWeaponCategoriesLast30d('tenant-1')
+    expect(r[0]).toMatchObject({ category: 'FIRE', count: 2 })
   })
 
   it('skips rows whose MainHand.Type is missing', async () => {

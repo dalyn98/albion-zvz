@@ -52,8 +52,8 @@ export async function listRegearRequests(
 
     // killboard_event_id → victim row 의 핵심 컬럼만 보조 fetch. 자동·추적사망
     // 건은 screenshot 이 없어 카드에 "어떤 사망인지" 단서가 부족했다.
-    // killboard_events PK 는 (event_id, role) 라 role='victim' 으로 좁힌 후
-    // event_id 로 합집합을 만든다.
+    // killboard_events 자연키는 (guild_id, event_id, role) 이므로 guild_id +
+    // role='victim' 으로 좁힌 후 event_id 합집합을 만든다.
     const kbEventIds = Array.from(
       new Set(
         (data ?? [])

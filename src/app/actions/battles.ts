@@ -18,6 +18,13 @@ import {
 // 거른다.
 const OPPONENT_GUILD_MIN_TEAM_SIZE = 10
 
+function normalizeBattleId(raw: unknown): number | null {
+  if (typeof raw !== 'number' && typeof raw !== 'string') return null
+  if (raw === '') return null
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  return Number.isSafeInteger(n) ? n : null
+}
+
 // 단일 tenant_battle_records 의 상세. 전투 헤더 정보 + 해당 전투 시간창 안에서
 // 길드원이 낸 킬/데스 이벤트 목록. 길드원 판정은 guild_avatars 조인 — 탈퇴자
 // 포함 (withdrawn_at 무시) 해야 과거 전투에서 탈퇴한 멤버의 킬도 보인다.
@@ -238,18 +245,24 @@ export async function getBattleDetail(
     const windowStart = new Date(startMs - WINDOW_PADDING_MS).toISOString()
     const windowEnd = new Date(endMs + WINDOW_PADDING_MS).toISOString()
 
-    // 전투 시간창 안의 길드원 killboard_events. self: Discord identity 노출,
-    // cross: anonymized — albion_nickname 만 사용하고 discord 식별자는 가린다.
-    // 두 케이스 모두 같은 select — anonymized 여부에 따라 매핑만 다름.
-    const { data: events, error: eventsErr } = await db
+    // 길드원 killboard_events. battle_id 가 있는 최신 행은 정확 매칭만 허용하고,
+    // legacy NULL battle_id 행에서만 시간창 fallback 을 사용한다. self:
+    // Discord identity 노출, cross: anonymized — albion_nickname 만 사용하고
+    // discord 식별자는 가린다.
+    const activeBattleId = normalizeBattleId(battle?.albion_battle_id)
+    let eventsQuery = db
       .from('killboard_events')
       .select(
         'event_id, role, fame, item_power, occurred_at, opponent_name, opponent_guild, opponent_alliance, discord_id, guild_avatars!inner(username, avatar, albion_nickname)',
       )
       .eq('guild_id', activeGuildId)
-      .gte('occurred_at', windowStart)
-      .lte('occurred_at', windowEnd)
-      .order('occurred_at', { ascending: true })
+    eventsQuery =
+      activeBattleId !== null
+        ? eventsQuery.eq('battle_id', activeBattleId)
+        : eventsQuery.gte('occurred_at', windowStart).lte('occurred_at', windowEnd)
+    const { data: events, error: eventsErr } = await eventsQuery.order('occurred_at', {
+      ascending: true,
+    })
     if (eventsErr) return { detail: null, error: eventsErr.message }
 
     type EventRow = {

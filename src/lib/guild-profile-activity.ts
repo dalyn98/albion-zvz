@@ -102,6 +102,7 @@ export async function loadRecentTrackedBattle(
       'started_at, outcome, home_kills, home_deaths, home_team_size, primary_opponent_name, size_category',
     )
     .eq('guild_id', guildId)
+    .eq('is_high_engagement', true)
     .order('started_at', { ascending: false })
     .limit(1)
     .maybeSingle()

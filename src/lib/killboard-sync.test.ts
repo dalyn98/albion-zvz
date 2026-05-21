@@ -15,6 +15,9 @@ vi.mock('@/lib/app-settings', () => ({
 vi.mock('@/lib/http-retry', () => ({
   fetchJsonWithRetry: (...args: unknown[]) => fetchJsonWithRetryMock(...args),
 }))
+vi.mock('@/lib/realtime-broadcast', () => ({
+  broadcastGuildEvent: vi.fn(async () => undefined),
+}))
 
 import { syncKillboard } from './killboard-sync'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -25,7 +28,10 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 interface QueryScript {
   guildAvatarsResult: () => Promise<{ data: unknown; error: { message: string } | null }>
   albionOnlyResult: () => Promise<{ data: unknown; error: { message: string } | null }>
-  upsertResult: () => Promise<{ data: unknown; error: { message: string } | null; count: number }>
+  upsertResult: (
+    rows?: unknown,
+    options?: unknown,
+  ) => Promise<{ data: unknown; error: { message: string } | null; count: number }>
   updateResult?: () => Promise<{ error: { message: string } | null }>
 }
 
@@ -51,7 +57,7 @@ function makeDb(script: QueryScript): SupabaseClient {
     }),
   })
   const killboardChain = () => ({
-    upsert: () => script.upsertResult(),
+    upsert: (rows?: unknown, options?: unknown) => script.upsertResult(rows, options),
   })
   return {
     from: (table: string) => {
@@ -156,5 +162,73 @@ describe('syncKillboard early-skip behavior', () => {
     expect(result.events_upserted).toBe(0)
     expect(result.errors).toEqual([])
     expect(fetchJsonWithRetryMock).not.toHaveBeenCalled()
+  })
+
+  it('upserts killboard rows with the tenant-scoped conflict target', async () => {
+    resolveAlbionServerMock.mockResolvedValue('west')
+    getAppSettingMock.mockResolvedValue('My Guild')
+    fetchJsonWithRetryMock.mockImplementation(async (url: string) => {
+      if (url.includes('/kills?')) {
+        return [
+          {
+            EventId: 12345,
+            TimeStamp: '2026-05-01T00:00:00Z',
+            TotalVictimKillFame: 1000,
+            BattleId: 67890,
+            Killer: {
+              Id: 'player-1',
+              Name: 'Player',
+              GuildId: 'guild-1',
+              GuildName: 'My Guild',
+              AllianceId: null,
+              AllianceName: null,
+              AverageItemPower: 1400.4,
+              Equipment: { MainHand: { Type: 'T8_MAIN_FIRESTAFF' } },
+            },
+            Victim: {
+              Id: 'enemy-1',
+              Name: 'Enemy',
+              GuildId: 'guild-2',
+              GuildName: 'Enemy Guild',
+              AllianceId: null,
+              AllianceName: 'Enemy Alliance',
+              AverageItemPower: 1300,
+              Equipment: null,
+            },
+          },
+        ]
+      }
+      if (url.includes('/deaths?')) return []
+      throw new Error(`unexpected URL: ${url}`)
+    })
+    const upsertCalls: Array<{ rows: unknown; options: unknown }> = []
+    const db = makeDb({
+      guildAvatarsResult: async () => ({
+        data: [{ discord_id: 'discord-1', username: 'Player', albion_player_id: 'player-1' }],
+        error: null,
+      }),
+      albionOnlyResult: async () => ({ data: [], error: null }),
+      upsertResult: async (rows, options) => {
+        upsertCalls.push({ rows, options })
+        return { data: null, error: null, count: Array.isArray(rows) ? rows.length : 0 }
+      },
+    })
+
+    const result = await syncKillboard(db, 'tenant-1')
+
+    expect(result.events_upserted).toBe(1)
+    expect(upsertCalls).toHaveLength(1)
+    expect(upsertCalls[0].options).toMatchObject({
+      onConflict: 'guild_id,event_id,role',
+      ignoreDuplicates: true,
+      count: 'exact',
+    })
+    expect(Array.isArray(upsertCalls[0].rows)).toBe(true)
+    expect((upsertCalls[0].rows as Array<Record<string, unknown>>)[0]).toMatchObject({
+      guild_id: 'tenant-1',
+      event_id: 12345,
+      role: 'killer',
+      battle_id: 67890,
+    })
   })
 })

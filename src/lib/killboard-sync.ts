@@ -5,7 +5,7 @@
 //   - guild_avatars 에 `albion_player_id` 를 캐시 → 2번째 이후 sync 는
 //     이름 검색 없이 바로 /players/{id}/kills,/deaths 호출.
 //   - 첫 방문이면 `/search?q={username}` 으로 매칭 시도 (bounded).
-//   - 이미 upsert 된 event_id,role 행은 PK conflict 로 무시되므로
+//   - 이미 upsert 된 guild_id,event_id,role 행은 PK conflict 로 무시되므로
 //     반복 호출이 안전.
 //
 // 주의: Albion 공식 API 는 IP 당 미지정 rate-limit 이 있음. 호출 사이 250ms
@@ -266,7 +266,11 @@ export async function syncKillboard(
       if (newRows.length > 0) {
         const { error, count } = await db
           .from('killboard_events')
-          .upsert(newRows, { onConflict: 'event_id,role', ignoreDuplicates: true, count: 'exact' })
+          .upsert(newRows, {
+            onConflict: 'guild_id,event_id,role',
+            ignoreDuplicates: true,
+            count: 'exact',
+          })
         if (error) {
           errors.push({ member: m.username, step: 'upsert', message: error.message })
         } else {
@@ -321,7 +325,11 @@ export async function syncKillboard(
       if (newRows.length > 0) {
         const { error, count } = await db
           .from('killboard_events')
-          .upsert(newRows, { onConflict: 'event_id,role', ignoreDuplicates: true, count: 'exact' })
+          .upsert(newRows, {
+            onConflict: 'guild_id,event_id,role',
+            ignoreDuplicates: true,
+            count: 'exact',
+          })
         if (error) {
           errors.push({ member: r.albion_player_name, step: 'upsert-albion-only', message: error.message })
         } else {

@@ -15,7 +15,7 @@ import { isHighEngagement } from '@/lib/low-engagement-cut'
 import { bundleSplitBattles, type BundleableRow } from '@/lib/battle-bundling'
 import { discordAvatarUrl } from '@/lib/discord-avatar'
 import { extractWeaponCategory } from '@/lib/weapon-category'
-import { fetchTrackedBattleWindows, isWithinTrackedWindow } from '@/lib/tracked-kills'
+import { fetchTrackedBattleWindows, findTrackedBattleKey } from '@/lib/tracked-kills'
 import { getGuild, isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -103,7 +103,7 @@ export interface WeaponCategoryUsage {
   category: string
   // 가장 최근 관측된 원본 item_id — 아이콘 렌더 용도.
   sampleItemId: string
-  // 무기 카테고리 사용 건수 (killer 행 기준, 분포 비율은 호출자가 합으로 나눔).
+  // 무기 카테고리가 관측된 tracked battle 수. 같은 battle 안의 중복 킬은 1회.
   count: number
 }
 
@@ -114,7 +114,8 @@ export async function loadTopWeaponCategoriesLast30d(
   const cutoffIso = new Date(Date.now() - ROLLING_WINDOW_DAYS * DAY_MS).toISOString()
   // tracked battle 안에서 발생한 killer 이벤트만 집계 — /battles 에 잡히지 않는
   // 1:1 갱킹·소규모 전투의 무기는 "주력 무기" 라기엔 노이즈에 가깝다. 통계 카운트
-  // 과 동일하게 bundle_split 토글을 따라 매치업 분리 row 들을 1전투로 묶는다.
+  // 과 동일하게 bundle_split 토글을 따라 매치업 분리 row 들을 1전투로 묶고,
+  // 같은 전투에서 같은 카테고리가 여러 킬을 내도 "사용 전투 1회" 로 센다.
   const bundleEnabled =
     (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
   const tracked = await fetchTrackedBattleWindows(db, guildId, cutoffIso, {
@@ -139,7 +140,7 @@ export async function loadTopWeaponCategoriesLast30d(
     occurred_at: string | null
     battle_id: number | string | null
   }
-  const agg = new Map<string, { sampleId: string; count: number }>()
+  const agg = new Map<string, { sampleId: string; battleKeys: Set<string> }>()
   for (const row of (data ?? []) as Row[]) {
     const mainHandType = row.equipment?.MainHand?.Type
     if (!mainHandType) continue
@@ -149,20 +150,21 @@ export async function loadTopWeaponCategoriesLast30d(
         : typeof row.battle_id === 'string' && row.battle_id.length > 0
           ? Number(row.battle_id)
           : null
-    if (!isWithinTrackedWindow(row.occurred_at, battleId, tracked)) continue
+    const battleKey = findTrackedBattleKey(row.occurred_at, battleId, tracked)
+    if (!battleKey) continue
     const category = extractWeaponCategory(mainHandType)
     if (!category) continue
     const cur = agg.get(category)
     if (cur) {
-      cur.count += 1
+      cur.battleKeys.add(battleKey)
       cur.sampleId = mainHandType
     } else {
-      agg.set(category, { sampleId: mainHandType, count: 1 })
+      agg.set(category, { sampleId: mainHandType, battleKeys: new Set([battleKey]) })
     }
   }
 
   return Array.from(agg.entries())
-    .map(([category, v]) => ({ category, sampleItemId: v.sampleId, count: v.count }))
+    .map(([category, v]) => ({ category, sampleItemId: v.sampleId, count: v.battleKeys.size }))
     .sort((a, b) => b.count - a.count)
     .slice(0, TOP_WEAPONS)
 }
@@ -187,6 +189,7 @@ export async function loadTopRivalsLast30d(
     .from('tenant_battle_records')
     .select('primary_opponent_name, outcome')
     .eq('guild_id', guildId)
+    .eq('is_high_engagement', true)
     .gte('started_at', cutoff)
 
   type Row = { primary_opponent_name: string | null; outcome: string | null }
