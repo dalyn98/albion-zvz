@@ -11,7 +11,6 @@ import {
 import { formatTimeLabel } from '../../_lib/format'
 import DemoGuidedTour from '../../_components/DemoGuidedTour'
 
-const ALLOWED_DETAIL = new Set(['Eternia'])
 const MEMBER_DETAIL_TOUR_STEPS = [
   { id: 'member-detail-stats' },
   { id: 'member-detail-context' },
@@ -24,9 +23,7 @@ export default async function DemoMemberDetailPage({
   params: Promise<{ ign: string }>
 }) {
   const { ign } = await params
-  if (!ALLOWED_DETAIL.has(ign)) notFound()
-
-  const member = DEMO_MEMBERS.find((m) => m.ign === ign)
+  const member = DEMO_MEMBERS.find((m) => m.ign === ign || m.discordId === ign)
   if (!member) notFound()
 
   const t = await getTranslations('demo')

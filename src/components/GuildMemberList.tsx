@@ -43,6 +43,7 @@ function resolveWeaponIconId(sampleId: string | null): string | null {
 
 interface Props {
   members: GuildMemberSummary[]
+  memberHrefPrefix?: string
 }
 
 type SortKey = 'participation' | 'recent'
@@ -51,7 +52,7 @@ const BADGE_LIMIT = 3
 // 여러 줄로 늘어지면 UI 혼잡해져서 컨벤션(드롭다운/플랫)에 맞춰 전환.
 const WEAPON_DROPDOWN_THRESHOLD = 8
 
-export default function GuildMemberList({ members }: Props) {
+export default function GuildMemberList({ members, memberHrefPrefix = '/members' }: Props) {
   const t = useTranslations('members')
   const tRole = useTranslations('slotRole')
   const rawLocale = useLocale()
@@ -318,6 +319,7 @@ export default function GuildMemberList({ members }: Props) {
               roleFilter={roleFilter}
               weaponFilter={weaponFilter}
               locale={locale}
+              memberHrefPrefix={memberHrefPrefix}
             />
           ))}
         </ul>
@@ -403,11 +405,13 @@ function MemberRow({
   roleFilter,
   weaponFilter,
   locale,
+  memberHrefPrefix,
 }: {
   member: GuildMemberSummary
   roleFilter: SlotRole | null
   weaponFilter: string | null
   locale: Locale
+  memberHrefPrefix: string
 }) {
   const t = useTranslations('members')
   const tRole = useTranslations('slotRole')
@@ -429,7 +433,7 @@ function MemberRow({
   return (
     <li>
       <Link
-        href={`/members/${member.discord_id}`}
+        href={`${memberHrefPrefix}/${member.discord_id}`}
         className="flex items-center gap-3 bg-gray-900 border border-gray-800 hover:border-amber-500/40 rounded-lg px-4 py-3 transition-colors"
       >
         <MemberAvatar discordId={member.discord_id} avatar={member.avatar} size={36} />

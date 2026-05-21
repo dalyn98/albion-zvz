@@ -61,6 +61,7 @@ interface Props {
   isMember: boolean
   // AODP 기준 도시 한글 라벨 — /shop 상단에 "시세 기준: ○○" 로 노출한다.
   baseCityLabel: string
+  interactionMode?: 'live' | 'demo'
 }
 
 interface CartLine {
@@ -87,6 +88,7 @@ export default function ShopCatalog({
   balance,
   isMember,
   baseCityLabel,
+  interactionMode = 'live',
 }: Props) {
   const router = useRouter()
   const locale = useLocale() as Locale
@@ -160,6 +162,13 @@ export default function ShopCatalog({
   const handleSubmit = () => {
     if (cart.length === 0) return
     setResult(null)
+    if (interactionMode === 'demo') {
+      setCart([])
+      setNote('')
+      setCartOpen(false)
+      setResult({ ok: true, message: t('orderSuccess') })
+      return
+    }
     startTransition(async () => {
       const res = await submitShopOrder(
         cart.map((l) => ({ inventoryId: l.item.id, quantity: l.qty })),

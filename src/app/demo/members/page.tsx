@@ -1,50 +1,158 @@
 import { getTranslations } from 'next-intl/server'
 import { DEMO_MEMBERS } from '@/data/demo-seed'
-import { DemoMembersTable } from '../_components/MembersTable'
-import DemoMembersPageTabs from '../_components/DemoMembersPageTabs'
+import MembersPageTabs from '@/components/MembersPageTabs'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 import DemoCTACard from '../_components/DemoCTACard'
+import type {
+  AlbionRosterEntry,
+  GuildGuestSummary,
+  GuildMemberSummary,
+  WithdrawnMemberSummary,
+} from '@/app/actions/members-admin'
+import type { DemoMember, DemoWeaponKey } from '@/data/demo-seed'
 
 const MEMBERS_TOUR_STEPS = [
   { id: 'members-header' },
   { id: 'members-tabs' },
 ] as const
 
-// 실제 /members 페이지 비주얼 클론 — 4탭 (members/roster/guests/withdrawn).
-// members 탭만 진짜 시드, 나머지 3탭은 기능 범위를 보여주는 정적 placeholder.
+const DAY_MS = 24 * 60 * 60 * 1000
+
+const WEAPON_META: Record<DemoWeaponKey, { category: string; sampleId: string; role: string }> = {
+  mace: { category: 'MACE', sampleId: 'T8_2H_MACE', role: 'DefTanker' },
+  fire: { category: 'FIRESTAFF', sampleId: 'T8_2H_FIRESTAFF', role: 'Dps' },
+  lifestaff: { category: 'HOLYSTAFF', sampleId: 'T8_MAIN_HOLYSTAFF', role: 'Healer' },
+  dagger: { category: 'DAGGER', sampleId: 'T8_2H_DAGGERPAIR', role: 'Dps' },
+  crossbow: { category: 'CROSSBOW', sampleId: 'T8_2H_CROSSBOWLARGE', role: 'Dps' },
+}
+
+function daysAgoIso(days: number, nowMs: number): string {
+  return new Date(nowMs - days * DAY_MS).toISOString()
+}
+
+function getDemoNowMs(): number {
+  return Date.now()
+}
+
+function toMemberSummary(member: DemoMember, nowMs: number): GuildMemberSummary {
+  const primary = WEAPON_META[member.primaryWeapon]
+  const secondaryRole = member.role === 'caller' ? 'Caller' : member.role === 'admin' ? 'Caller' : 'Sup'
+  return {
+    discord_id: member.ign,
+    username: member.ign,
+    avatar: null,
+    is_admin: member.role === 'admin',
+    updated_at: daysAgoIso(Math.max(1, Math.floor(member.joinedDaysAgo / 20)), nowMs),
+    participation_count: member.battles,
+    top_roles: [
+      { role: primary.role, count: Math.max(1, Math.round(member.battles * 0.62)) },
+      { role: secondaryRole, count: Math.max(1, Math.round(member.battles * 0.22)) },
+    ],
+    top_weapons: [
+      {
+        category: primary.category,
+        count: Math.max(1, Math.round(member.battles * 0.72)),
+        sample_weapon_id: primary.sampleId,
+      },
+    ],
+    preferred_language: 'ko',
+  }
+}
+
+function toRosterEntry(member: DemoMember, nowMs: number): AlbionRosterEntry {
+  return {
+    albion_player_id: member.ign,
+    albion_player_name: member.ign,
+    albion_server: 'west',
+    kill_fame: member.kills * 320_000,
+    death_fame: member.deaths * 210_000,
+    fame_ratio: member.deaths > 0 ? member.kills / member.deaths : member.kills,
+    average_item_power: 1420 + member.survivalPct,
+    avatar: null,
+    avatar_ring: null,
+    last_seen_at: daysAgoIso(Math.max(1, Math.floor(member.joinedDaysAgo / 30)), nowMs),
+    linked_discord_id: member.ign,
+    linked_username: member.ign,
+    linked_avatar: null,
+    linked_withdrawn: false,
+  }
+}
+
+function buildDemoMembersData(nowMs: number): {
+  members: GuildMemberSummary[]
+  guests: GuildGuestSummary[]
+  withdrawnMembers: WithdrawnMemberSummary[]
+  roster: AlbionRosterEntry[]
+} {
+  const members = DEMO_MEMBERS.map((member) => toMemberSummary(member, nowMs))
+  const roster: AlbionRosterEntry[] = [
+    ...DEMO_MEMBERS.map((member) => toRosterEntry(member, nowMs)),
+    {
+      albion_player_id: 'RivenScout',
+      albion_player_name: 'RivenScout',
+      albion_server: 'west',
+      kill_fame: 6_240_000,
+      death_fame: 1_820_000,
+      fame_ratio: 3.43,
+      average_item_power: 1465,
+      avatar: null,
+      avatar_ring: null,
+      last_seen_at: daysAgoIso(2, nowMs),
+      linked_discord_id: null,
+      linked_username: null,
+      linked_avatar: null,
+      linked_withdrawn: false,
+    },
+  ]
+  const guests: GuildGuestSummary[] = [
+    {
+      discord_id: 'guest-wanderer',
+      username: 'Wanderer',
+      avatar: null,
+      joined_at: daysAgoIso(3, nowMs),
+      participation_count: 2,
+      top_roles: [{ role: 'Dps', count: 2 }],
+      preferred_language: 'ko',
+    },
+  ]
+  const withdrawnMembers: WithdrawnMemberSummary[] = [
+    {
+      discord_id: 'withdrawn-oldknight',
+      username: 'OldKnight',
+      avatar: null,
+      withdrawn_at: daysAgoIso(14, nowMs),
+      updated_at: daysAgoIso(14, nowMs),
+      participation_count: 46,
+      top_roles: [{ role: 'OffTanker', count: 31 }],
+      preferred_language: 'ko',
+    },
+  ]
+  return { members, guests, withdrawnMembers, roster }
+}
+
 export default async function DemoMembersPage() {
   const [t, tDemo, tCta] = await Promise.all([
     getTranslations('members'),
     getTranslations('demo'),
     getTranslations('demo.ctaCard'),
   ])
-
-  const totalParticipation = DEMO_MEMBERS.reduce(
-    (sum, m) => sum + m.weeklyAttendance.attended,
-    0,
-  )
-
-  // 데모 게스트 1건 — 진짜 필드 의미 (초대일, 캐릭터명) 그대로.
-  const guests = [
-    { ign: 'Wanderer', joinedDaysAgo: 3 },
-  ]
-
-  // 데모 탈퇴자 1건.
-  const withdrawn = [
-    { ign: 'OldKnight', withdrawnDaysAgo: 14 },
-  ]
+  const { members, guests, withdrawnMembers, roster } = buildDemoMembersData(getDemoNowMs())
+  const totalParticipation = members.reduce((sum, m) => sum + m.participation_count, 0)
 
   return (
     <div className="space-y-6">
       <DemoGuidedTour steps={MEMBERS_TOUR_STEPS} namespace="members" />
-      <div data-tour-id="members-header" className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div
+        data-tour-id="members-header"
+        className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"
+      >
         <div className="space-y-1">
           <h1 className="text-xl sm:text-2xl font-bold text-white">{t('title')}</h1>
           <p className="text-gray-400 text-sm">{t('description')}</p>
         </div>
         <p className="text-xs text-gray-400">
           {t.rich('counter', {
-            memberCount: DEMO_MEMBERS.length,
+            memberCount: members.length,
             total: totalParticipation,
             bold: (chunks) => <span className="text-white font-semibold">{chunks}</span>,
           })}
@@ -52,15 +160,14 @@ export default async function DemoMembersPage() {
       </div>
 
       <div data-tour-id="members-tabs">
-        <DemoMembersPageTabs
-          membersCount={DEMO_MEMBERS.length}
-          rosterCount={DEMO_MEMBERS.length}
-          guestsCount={guests.length}
-          withdrawnCount={withdrawn.length}
-          membersSection={<DemoMembersTable members={DEMO_MEMBERS} />}
-          rosterSection={<DemoRoster />}
-          guestsSection={<DemoGuests guests={guests} />}
-          withdrawnSection={<DemoWithdrawn withdrawn={withdrawn} />}
+        <MembersPageTabs
+          members={members}
+          guests={guests}
+          withdrawnMembers={withdrawnMembers}
+          roster={roster}
+          isAdmin={false}
+          memberHrefPrefix="/demo/members"
+          albionMemberHrefPrefix={null}
         />
       </div>
 
@@ -73,90 +180,5 @@ export default async function DemoMembersPage() {
         buttonLabel={tCta('buttonLabel')}
       />
     </div>
-  )
-}
-
-// 모든 데모 멤버는 Discord 연동된 상태로 표시 (실제 앱에서 가장 흔한 상태).
-async function DemoRoster() {
-  const t = await getTranslations('members')
-  return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead className="bg-gray-950 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-            <tr>
-              <th className="text-left px-3 py-2">Albion</th>
-              <th className="text-right px-3 py-2 pr-4">{t('rosterDiscordLinked')}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-800">
-            {DEMO_MEMBERS.map((m) => (
-              <tr key={m.ign} className="text-gray-200">
-                <td className="px-3 py-2.5 font-semibold text-white">{m.ign}</td>
-                <td className="px-3 py-2.5 pr-4 text-right">
-                  <span className="inline-flex items-center gap-1 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    {t('rosterDiscordLinked')}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
-
-async function DemoGuests({ guests }: { guests: { ign: string; joinedDaysAgo: number }[] }) {
-  const t = await getTranslations('members')
-  if (guests.length === 0) {
-    return <p className="text-gray-500 text-sm text-center py-8">{t('noGuests')}</p>
-  }
-  return (
-    <ul className="space-y-2">
-      {guests.map((g) => (
-        <li
-          key={g.ign}
-          className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 flex items-center justify-between gap-3"
-        >
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-white">{g.ign}</span>
-            <span className="inline-flex items-center gap-1 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-[10px] font-bold px-2 py-0.5 rounded-full">
-              {t('guestBadge')}
-            </span>
-          </div>
-          <span className="text-xs text-gray-500 font-mono">+{g.joinedDaysAgo}d</span>
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-async function DemoWithdrawn({
-  withdrawn,
-}: {
-  withdrawn: { ign: string; withdrawnDaysAgo: number }[]
-}) {
-  const t = await getTranslations('members')
-  if (withdrawn.length === 0) {
-    return <p className="text-gray-500 text-sm text-center py-8">{t('noWithdrawn')}</p>
-  }
-  return (
-    <ul className="space-y-2">
-      {withdrawn.map((w) => (
-        <li
-          key={w.ign}
-          className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 flex items-center justify-between gap-3"
-        >
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-gray-300">{w.ign}</span>
-            <span className="inline-flex items-center gap-1 bg-rose-500/20 border border-rose-500/40 text-rose-300 text-[10px] font-bold px-2 py-0.5 rounded-full">
-              {t('withdrawnBadge')}
-            </span>
-          </div>
-          <span className="text-xs text-gray-500 font-mono">-{w.withdrawnDaysAgo}d</span>
-        </li>
-      ))}
-    </ul>
   )
 }

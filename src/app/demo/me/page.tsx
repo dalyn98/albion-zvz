@@ -1,28 +1,27 @@
 import Link from 'next/link'
 import {
   Activity,
-  Bell,
   Calendar,
   ChevronRight,
   Coins,
   Crown,
   HandHeart,
-  Heart,
   ListChecks,
   Send,
   ShieldCheck,
   Sparkles,
-  Skull,
-  Swords,
   Trophy,
   Zap,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { DEMO_MEMBERS } from '@/data/demo-seed'
 import BadgeGrid from '@/components/BadgeGrid'
+import MemberNextActionsPanel from '@/components/MemberNextActionsPanel'
+import MyHomeDashboardCard from '@/components/MyHomeDashboardCard'
 import DemoActionButton from '../_components/DemoActionButton'
 import DemoCTACard from '../_components/DemoCTACard'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
+import type { MyDashboardData } from '@/app/actions/me-dashboard'
 
 // Eternia 를 mock 로그인 사용자로 고정. 실 /me 의 비주얼/섹션 구성을 그대로
 // 옮긴 데모 — 인증 배지, MyHomeDashboardCard 스타일 메트릭 5장, BadgeGrid,
@@ -49,17 +48,55 @@ const SIPHON_WITHDRAWN = 46
 const SIPHON_NET = SIPHON_DEPOSITED - SIPHON_WITHDRAWN
 const SIPHON_LAST_ACTIVITY = 'Yesterday 23:18'
 
-const WEEK_BATTLES = 12
-const WEEK_KILLS = 18
-const WEEK_DEATHS = 4
 const WEEK_WINS = 9
 const WEEK_LOSSES = 3
-const WEEK_WIN_PCT = Math.round((WEEK_WINS / (WEEK_WINS + WEEK_LOSSES)) * 100)
 
 const NEXT_EVENT = {
   id: 'evt-1',
   titleRaw: 'Roads 7v7 — Mercia Ore',
   timeLabel: 'Today 22:00',
+}
+
+const DEMO_DASHBOARD: MyDashboardData = {
+  balance: ME.points,
+  lifetimeEarned: LIFETIME_EARNED,
+  lifetimeSpent: LIFETIME_SPENT,
+  kills: ME.kills,
+  deaths: ME.deaths,
+  survivalRate: ME.survivalPct / 100,
+  evaluatedEvents: EVALUATED_EVENTS,
+  currentDeathlessStreak: 3,
+  longestDeathlessStreak: DEATHLESS_LONGEST_STREAK,
+  participationCount: PARTICIPATION_COUNT,
+  participationCurrentStreak: PARTICIPATION_CURRENT_STREAK,
+  participationLongestStreak: PARTICIPATION_LONGEST_STREAK,
+  wins: WINS,
+  losses: LOSSES,
+  winRate: WINS / (WINS + LOSSES),
+  evaluatedOutcomeEvents: 156,
+  weekBattleCount: 12,
+  weekKills: 18,
+  weekDeaths: 4,
+  weekWins: WEEK_WINS,
+  weekLosses: WEEK_LOSSES,
+  nextUpcomingEvent: {
+    id: NEXT_EVENT.id,
+    title: NEXT_EVENT.titleRaw,
+    gather_at: null,
+    gather_time: NEXT_EVENT.timeLabel,
+    role_name: 'DefTanker',
+  },
+  nextActionEvent: {
+    id: NEXT_EVENT.id,
+    title: NEXT_EVENT.titleRaw,
+    gather_at: null,
+    gather_time: NEXT_EVENT.timeLabel,
+    role_name: 'DefTanker',
+    kind: 'assigned',
+  },
+  pendingRegearCount: PENDING_REGEAR,
+  pendingExchangeCount: PENDING_EXCHANGE,
+  pendingDonationCount: PENDING_DONATION,
 }
 const ME_TOUR_STEPS = [
   { id: 'me-verified' },
@@ -103,40 +140,21 @@ function formatSilver(n: number): string {
   return n.toLocaleString()
 }
 
-function formatKd(kills: number, deaths: number): string {
-  if (deaths === 0) return kills === 0 ? '-' : `${kills}.00`
-  return (kills / deaths).toFixed(2)
-}
-
-function survivalTone(rate: number): string {
-  if (rate >= 0.8) return 'text-emerald-300'
-  if (rate >= 0.5) return 'text-amber-300'
-  return 'text-rose-300'
-}
-
-function winRateTone(rate: number): string {
-  if (rate >= 0.6) return 'text-emerald-300'
-  if (rate >= 0.4) return 'text-amber-300'
-  return 'text-rose-300'
-}
-
 export default async function DemoMePage() {
-  const [t, tMe, tDemoMe, tRequests, tCta, tWeekly] = await Promise.all([
-    getTranslations('me'),
+  const [t, tDemoMe, tRequests, tCta] = await Promise.all([
     getTranslations('me'),
     getTranslations('demo.me'),
     getTranslations('myRequests'),
     getTranslations('demo.ctaCard'),
-    getTranslations('me.weekly'),
   ])
 
-  void tMe
-
-  const kd = formatKd(ME.kills, ME.deaths)
   const survivalRate = ME.survivalPct / 100
-  const winRate = WINS / (WINS + LOSSES)
-  const survivalText = `${Math.round(survivalRate * 100)}%`
-  const winRateText = `${Math.round(winRate * 100)}%`
+  const nextEventForAction = {
+    id: NEXT_EVENT.id,
+    title: NEXT_EVENT.titleRaw,
+    subtitle: `${NEXT_EVENT.timeLabel} · ${tDemoMe('nextEventRole')}`,
+    kind: 'assigned' as const,
+  }
 
   return (
     <div className="space-y-6">
@@ -166,117 +184,37 @@ export default async function DemoMePage() {
         </div>
       </section>
 
-      <section data-tour-id="me-summary" className="bg-gray-900 border border-gray-700 rounded-2xl p-5 sm:p-6 space-y-5">
-        <div>
-          <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-2">
-            {t('homeNextEvent')}
-          </p>
-          <Link
-            href={`/demo/events/${NEXT_EVENT.id}`}
-            className="flex items-center gap-3 bg-gray-800/60 border border-gray-700 hover:border-amber-500/40 rounded-lg px-3 py-2 transition-colors"
-          >
-            <Calendar size={18} className="text-amber-400 flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="text-white text-sm font-semibold truncate">{NEXT_EVENT.titleRaw}</p>
-              <p className="text-gray-400 text-xs">
-                {NEXT_EVENT.timeLabel}
-                <span className="ml-2 text-gray-500">· {tDemoMe('nextEventRole')}</span>
-              </p>
-            </div>
-          </Link>
-        </div>
+      <MemberNextActionsPanel
+        albionVerified
+        pendingTotal={PENDING_TOTAL}
+        nextEvent={nextEventForAction}
+        labels={{
+          title: t('actionTitle'),
+          description: t('actionDescription'),
+          verifyTitle: t('actionVerifyTitle'),
+          verifyBody: t('actionVerifyBody'),
+          requestsTitle: t('actionRequestsTitle'),
+          requestsBody: t('actionRequestsBody', { count: PENDING_TOTAL }),
+          nextEventTitle: t('actionNextEventTitle'),
+          pendingEventTitle: t('actionPendingEventTitle'),
+          tentativeEventTitle: t('actionTentativeEventTitle'),
+          availableEventTitle: t('actionAvailableEventTitle'),
+          noItemsTitle: t('actionNoItemsTitle'),
+          noItemsBody: t('actionNoItemsBody'),
+          open: t('actionOpen'),
+        }}
+        verifyHref="/demo/me/profile"
+        requestsHref="/demo/me/requests"
+        eventHrefPrefix="/demo/events"
+      />
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <HomeMetric
-            icon={<Coins size={14} />}
-            label={t('homeMetricPoints')}
-            value={formatSilver(ME.points)}
-          />
-          <HomeMetric
-            icon={<Calendar size={14} />}
-            label={t('homeMetricParticipation')}
-            value={String(PARTICIPATION_COUNT)}
-            sub={t('homeMetricStreakSub', { days: PARTICIPATION_CURRENT_STREAK })}
-          />
-          <HomeMetric
-            icon={<Swords size={14} />}
-            label={t('homeMetricKd')}
-            value={kd}
-            sub={t('homeMetricKdSub', { kills: ME.kills, deaths: ME.deaths })}
-          />
-          <HomeMetric
-            icon={<Heart size={14} />}
-            label={t('homeMetricSurvival')}
-            value={survivalText}
-            valueClass={survivalTone(survivalRate)}
-            sub={t('homeMetricEvaluatedSub', { count: EVALUATED_EVENTS })}
-          />
-          <HomeMetric
-            icon={<Trophy size={14} />}
-            label={t('homeMetricWinRate')}
-            value={winRateText}
-            valueClass={winRateTone(winRate)}
-            sub={t('homeMetricWinLossSub', { wins: WINS, losses: LOSSES })}
-          />
-        </div>
-
-        <div className="text-gray-500 text-[11px]">
-          {t('summary', {
-            earned: formatSilver(LIFETIME_EARNED),
-            spent: formatSilver(LIFETIME_SPENT),
-          })}
-        </div>
-
-        <div className="border-t border-gray-800 pt-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Activity size={14} className="text-amber-400" />
-            <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">
-              {tWeekly('title')}
-            </h3>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <WeeklyStat
-              icon={<Swords size={14} className="text-amber-400" />}
-              label={tWeekly('battles')}
-              value={WEEK_BATTLES.toLocaleString()}
-            />
-            <WeeklyStat
-              icon={<Trophy size={14} className="text-emerald-400" />}
-              label={tWeekly('winRate')}
-              value={`${WEEK_WIN_PCT}%`}
-              sub={tWeekly('winLossSub', { wins: WEEK_WINS, losses: WEEK_LOSSES })}
-            />
-            <WeeklyStat
-              icon={<Swords size={14} className="text-emerald-400" />}
-              label={tWeekly('kills')}
-              value={WEEK_KILLS.toLocaleString()}
-            />
-            <WeeklyStat
-              icon={<Skull size={14} className="text-rose-400" />}
-              label={tWeekly('deaths')}
-              value={WEEK_DEATHS.toLocaleString()}
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-200 rounded-lg px-3 py-2 text-xs">
-          <Bell size={14} className="flex-shrink-0" />
-          <span>
-            {t('homePendingPrefix')}{' '}
-            <span className="font-semibold">
-              {t('homePendingRegear', { count: PENDING_REGEAR })}
-            </span>
-            <span className="mx-1 opacity-60">·</span>
-            <span className="font-semibold">
-              {t('homePendingExchange', { count: PENDING_EXCHANGE })}
-            </span>
-            <span className="mx-1 opacity-60">·</span>
-            <span className="font-semibold">
-              {t('homePendingDonation', { count: PENDING_DONATION })}
-            </span>
-          </span>
-        </div>
-      </section>
+      <div data-tour-id="me-summary">
+        <MyHomeDashboardCard
+          data={DEMO_DASHBOARD}
+          weeklyStatsEnabled
+          eventHrefPrefix="/demo/events"
+        />
+      </div>
 
       <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <QuickLinkCard
@@ -532,56 +470,6 @@ function WalletMetric({
         {value}
       </p>
       {sub && <p className="mt-1 text-[11px] text-gray-500">{sub}</p>}
-    </div>
-  )
-}
-
-function HomeMetric({
-  icon,
-  label,
-  value,
-  sub,
-  valueClass,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string
-  sub?: string
-  valueClass?: string
-}) {
-  return (
-    <div className="bg-gray-800/50 border border-gray-800 rounded-lg px-3 py-2">
-      <div className="flex items-center gap-1.5 text-gray-400 text-[10px] font-semibold uppercase tracking-wider">
-        <span className="text-amber-400/80">{icon}</span>
-        <span className="truncate">{label}</span>
-      </div>
-      <p className={`mt-1 text-base sm:text-lg font-semibold font-mono ${valueClass ?? 'text-white'}`}>
-        {value}
-      </p>
-      {sub && <p className="text-gray-500 text-[10px] mt-0.5 truncate">{sub}</p>}
-    </div>
-  )
-}
-
-function WeeklyStat({
-  icon,
-  label,
-  value,
-  sub,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string
-  sub?: string
-}) {
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-1.5 text-[11px] text-gray-400 uppercase tracking-wide">
-        {icon}
-        {label}
-      </div>
-      <p className="text-white text-xl font-bold tabular-nums">{value}</p>
-      {sub && <p className="text-gray-500 text-[11px] font-mono">{sub}</p>}
     </div>
   )
 }

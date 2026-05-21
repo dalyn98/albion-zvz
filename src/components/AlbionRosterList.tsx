@@ -12,6 +12,8 @@ import { compareStrings } from '@/lib/sort-strings'
 
 interface Props {
   roster: AlbionRosterEntry[]
+  memberHrefPrefix?: string
+  albionMemberHrefPrefix?: string | null
 }
 
 type SortKey = 'linked' | 'name'
@@ -28,7 +30,11 @@ function rankForLinkedSort(entry: AlbionRosterEntry): number {
   return 2 // withdrawn — 죽은 링크라 가장 아래로.
 }
 
-export default function AlbionRosterList({ roster }: Props) {
+export default function AlbionRosterList({
+  roster,
+  memberHrefPrefix = '/members',
+  albionMemberHrefPrefix = '/members/albion',
+}: Props) {
   const t = useTranslations('members')
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('linked')
@@ -114,7 +120,12 @@ export default function AlbionRosterList({ roster }: Props) {
       ) : (
         <ul className="space-y-2 xl:grid xl:grid-cols-2 xl:gap-2 xl:space-y-0 2xl:grid-cols-3">
           {filtered.map((entry) => (
-            <RosterRow key={entry.albion_player_id} entry={entry} />
+            <RosterRow
+              key={entry.albion_player_id}
+              entry={entry}
+              memberHrefPrefix={memberHrefPrefix}
+              albionMemberHrefPrefix={albionMemberHrefPrefix}
+            />
           ))}
         </ul>
       )}
@@ -122,7 +133,15 @@ export default function AlbionRosterList({ roster }: Props) {
   )
 }
 
-function RosterRow({ entry }: { entry: AlbionRosterEntry }) {
+function RosterRow({
+  entry,
+  memberHrefPrefix,
+  albionMemberHrefPrefix,
+}: {
+  entry: AlbionRosterEntry
+  memberHrefPrefix: string
+  albionMemberHrefPrefix: string | null
+}) {
   const t = useTranslations('members')
   const tCommon = useTranslations('common')
   const isLinked = entry.linked_discord_id !== null && !entry.linked_withdrawn
@@ -175,7 +194,7 @@ function RosterRow({ entry }: { entry: AlbionRosterEntry }) {
     return (
       <li>
         <Link
-          href={`/members/${entry.linked_discord_id}`}
+          href={`${memberHrefPrefix}/${entry.linked_discord_id}`}
           className="block bg-gray-900 border border-gray-800 hover:border-amber-500/40 rounded-lg transition-colors"
         >
           {inner}
@@ -189,11 +208,11 @@ function RosterRow({ entry }: { entry: AlbionRosterEntry }) {
   // hover 시 배경 불투명도를 끌어올려 "연동 카드와 다르지만 누를 수 있다" 가
   // 시각적으로 분명히 보이도록 — 이전엔 60% opacity 라 회색 진열장처럼 보여
   // 클릭 어포던스가 약했음.
-  if (!isWithdrawn) {
+  if (!isWithdrawn && albionMemberHrefPrefix) {
     return (
       <li>
         <Link
-          href={`/members/albion/${entry.albion_player_id}`}
+          href={`${albionMemberHrefPrefix}/${entry.albion_player_id}`}
           className="block bg-gray-900/70 border border-gray-800 hover:bg-gray-900 hover:border-gray-500 rounded-lg transition-colors"
         >
           {inner}

@@ -4365,7 +4365,7 @@
       "eventKill": "Kill",
       "eventDeath": "Death",
       "back": "← Members",
-      "demoOnlyDetail": "Demo: only Eternia has full detail."
+      "demoOnlyDetail": "Demo: every sample member has a detail view."
     },
     "stats": {
       "title": "Guild Stats",
@@ -4589,6 +4589,10 @@
       "events": {
         "title": "Plan an event in 5 minutes",
         "description": "Reuse templates for recurring nights · auto-fill slots · DM reminders. Callers and admins both save time."
+      },
+      "shop": {
+        "title": "Guild stock, ordered with points",
+        "description": "Members add gear from the catalog while admins approve orders, stock, and point spending from the queue."
       },
       "settings": {
         "title": "Lock in your operating rules",

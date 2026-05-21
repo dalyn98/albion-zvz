@@ -44,6 +44,8 @@ interface Props {
   withdrawnError?: string
   rosterError?: string
   isAdmin: boolean
+  memberHrefPrefix?: string
+  albionMemberHrefPrefix?: string | null
 }
 
 function isTabKey(value: string | null): value is TabKey {
@@ -65,6 +67,8 @@ export default function MembersPageTabs({
   withdrawnError,
   rosterError,
   isAdmin,
+  memberHrefPrefix,
+  albionMemberHrefPrefix,
 }: Props) {
   const t = useTranslations('members')
   const searchParams = useSearchParams()
@@ -131,7 +135,7 @@ export default function MembersPageTabs({
             {members.length === 0 && !membersError ? (
               <p className="text-gray-500 text-sm text-center py-8">{t('none')}</p>
             ) : (
-              <GuildMemberList members={members} />
+              <GuildMemberList members={members} memberHrefPrefix={memberHrefPrefix} />
             )}
           </>
         )}
@@ -142,7 +146,11 @@ export default function MembersPageTabs({
                 <p className="text-red-400 text-sm">{rosterError}</p>
               </div>
             )}
-            <AlbionRosterList roster={roster} />
+            <AlbionRosterList
+              roster={roster}
+              memberHrefPrefix={memberHrefPrefix}
+              albionMemberHrefPrefix={albionMemberHrefPrefix}
+            />
           </>
         )}
         {active === 'guests' && (

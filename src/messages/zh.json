@@ -4365,7 +4365,7 @@
       "eventKill": "击杀",
       "eventDeath": "死亡",
       "back": "← 成员列表",
-      "demoOnlyDetail": "演示:仅 Eternia 可查看完整详情。"
+      "demoOnlyDetail": "演示:可查看所有示例成员详情。"
     },
     "stats": {
       "title": "公会统计",
@@ -4589,6 +4589,10 @@
       "events": {
         "title": "5 分钟完成一次活动编排",
         "description": "用模板复用周期性活动 · 自动分配位置 · DM 自动提醒，让指挥与管理员都省时。"
+      },
+      "shop": {
+        "title": "用积分订购公会库存",
+        "description": "成员从目录加入装备，管理员在审批队列中统一处理订单、库存与积分消耗。"
       },
       "settings": {
         "title": "用设置固定运营规则",

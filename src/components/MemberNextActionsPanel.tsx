@@ -30,6 +30,9 @@ interface Props {
   pendingTotal: number
   nextEvent: NextEvent | null
   labels: Labels
+  verifyHref?: string
+  requestsHref?: string
+  eventHrefPrefix?: string
 }
 
 export default function MemberNextActionsPanel({
@@ -37,6 +40,9 @@ export default function MemberNextActionsPanel({
   pendingTotal,
   nextEvent,
   labels,
+  verifyHref = '/onboarding/albion?return=%2Fme',
+  requestsHref = '/me/requests',
+  eventHrefPrefix = '/events',
 }: Props) {
   const actions: React.ReactNode[] = []
 
@@ -44,7 +50,7 @@ export default function MemberNextActionsPanel({
     actions.push(
       <ActionLink
         key="verify"
-        href="/onboarding/albion?return=%2Fme"
+        href={verifyHref}
         icon={<ShieldAlert size={18} />}
         title={labels.verifyTitle}
         body={labels.verifyBody}
@@ -58,7 +64,7 @@ export default function MemberNextActionsPanel({
     actions.push(
       <ActionLink
         key="requests"
-        href="/me/requests"
+        href={requestsHref}
         icon={<ListChecks size={18} />}
         title={labels.requestsTitle}
         body={labels.requestsBody}
@@ -73,7 +79,7 @@ export default function MemberNextActionsPanel({
     actions.push(
       <ActionLink
         key="next-event"
-        href={`/events/${nextEvent.id}`}
+        href={`${eventHrefPrefix}/${nextEvent.id}`}
         icon={isWaiting ? <Clock3 size={18} /> : <CalendarDays size={18} />}
         title={eventActionTitle(nextEvent.kind, labels)}
         body={`${nextEvent.title} · ${nextEvent.subtitle}`}

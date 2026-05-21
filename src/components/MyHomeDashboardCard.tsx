@@ -34,9 +34,14 @@ interface Props {
   // app_settings.me_weekly_stats_enabled — false 거나 weekBattleCount 가 0 이면
   // 위젯 자체를 숨긴다. 빈 섹션이 보이면 더 시끄럽다.
   weeklyStatsEnabled?: boolean
+  eventHrefPrefix?: string
 }
 
-export default async function MyHomeDashboardCard({ data, weeklyStatsEnabled = false }: Props) {
+export default async function MyHomeDashboardCard({
+  data,
+  weeklyStatsEnabled = false,
+  eventHrefPrefix = '/events',
+}: Props) {
   const t = await getTranslations('me')
   const tWeekly = await getTranslations('me.weekly')
   const tRole = await getTranslations('slotRole')
@@ -69,7 +74,7 @@ export default async function MyHomeDashboardCard({ data, weeklyStatsEnabled = f
         </p>
         {nextEvent ? (
           <Link
-            href={`/events/${nextEvent.id}`}
+            href={`${eventHrefPrefix}/${nextEvent.id}`}
             className="flex items-center gap-3 bg-gray-800/60 border border-gray-700 hover:border-amber-500/40 rounded-lg px-3 py-2 transition-colors"
           >
             <Calendar size={18} className="text-amber-400 flex-shrink-0" />

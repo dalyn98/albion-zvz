@@ -2,13 +2,15 @@ import Link from 'next/link'
 import { Plus, Calendar, CalendarDays, LayoutTemplate } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import MemberInviteCard from '@/components/MemberInviteCard'
-import DemoDashboardEventList from '../_components/DemoDashboardEventList'
-import DemoTemplateList from '../_components/DemoTemplateList'
+import DashboardEventList from '@/components/DashboardEventList'
+import TemplateList from '@/components/TemplateList'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 import DemoActionButton from '../_components/DemoActionButton'
 import DemoCTACard from '../_components/DemoCTACard'
 import DemoOperationsOverview from '../_components/DemoOperationsOverview'
-import { DEMO_EVENTS, DEMO_GUILD_NAME, DEMO_TEMPLATES } from '@/data/demo-seed'
+import { DEMO_EVENTS, DEMO_GUILD_NAME, DEMO_TEMPLATES, type DemoTimeLabel } from '@/data/demo-seed'
+import type { TemplateSummary } from '@/app/actions/templates'
+import type { Event } from '@/types'
 
 const EVENTS_TOUR_STEPS = [
   { id: 'events-setup' },
@@ -30,6 +32,72 @@ function resolveSection(v: string | undefined): Section {
 }
 
 const DEMO_INVITE_URL = 'https://demo.albion-guildmanager.com/onboarding/albion'
+const DAY_MS = 24 * 60 * 60 * 1000
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000
+
+function demoDayOffset(day: DemoTimeLabel['day']): number {
+  switch (day) {
+    case 'tomorrow':
+      return 1
+    case 'yesterday':
+      return -1
+    case 'd2ago':
+      return -2
+    case 'd3ago':
+      return -3
+    case 'd4ago':
+      return -4
+    case 'today':
+    default:
+      return 0
+  }
+}
+
+function kstDateString(nowMs: number, offsetDays: number): string {
+  return new Date(nowMs + KST_OFFSET_MS + offsetDays * DAY_MS).toISOString().slice(0, 10)
+}
+
+function getDemoNowMs(): number {
+  return Date.now()
+}
+
+function demoGatherIso(value: DemoTimeLabel, nowMs: number): string {
+  const day = kstDateString(nowMs, demoDayOffset(value.day))
+  return new Date(`${day}T${value.time}:00+09:00`).toISOString()
+}
+
+function toEvent(event: (typeof DEMO_EVENTS)[number], index: number, nowMs: number): Event {
+  const gatherAt = demoGatherIso(event.scheduledAt, nowMs)
+  return {
+    id: event.id,
+    title: event.name,
+    gather_time: event.scheduledAt.time,
+    gather_at: gatherAt,
+    gather_location: event.zone,
+    special_notes: null,
+    is_active: event.status !== 'ended',
+    battle_started_at: event.status === 'ended' || event.battleStarted ? gatherAt : null,
+    notify_role_id: null,
+    notify_channel_id: null,
+    notify_everyone: false,
+    created_by: 'demo-admin',
+    status: 'published',
+    category: event.category,
+    created_at: new Date(nowMs - index * DAY_MS).toISOString(),
+  }
+}
+
+function toTemplate(
+  template: (typeof DEMO_TEMPLATES)[number],
+  index: number,
+  nowMs: number,
+): TemplateSummary {
+  return {
+    id: template.id,
+    name: template.name,
+    created_at: new Date(nowMs - (index + 2) * DAY_MS).toISOString(),
+  }
+}
 
 export default async function DemoEventsPage({
   searchParams,
@@ -38,6 +106,7 @@ export default async function DemoEventsPage({
 }) {
   const sp = await searchParams
   const section = resolveSection(sp.section)
+  const nowMs = getDemoNowMs()
 
   const [tDashboard, tTemplates, tCta] = await Promise.all([
     getTranslations('adminDashboard'),
@@ -76,9 +145,9 @@ export default async function DemoEventsPage({
 
       <div data-tour-id="events-content">
         {section === 'events' ? (
-          <EventsSection tDashboard={tDashboard} />
+          <EventsSection tDashboard={tDashboard} nowMs={nowMs} />
         ) : (
-          <TemplatesSection tTemplates={tTemplates} />
+          <TemplatesSection tTemplates={tTemplates} nowMs={nowMs} />
         )}
       </div>
 
@@ -94,8 +163,10 @@ export default async function DemoEventsPage({
 
 function EventsSection({
   tDashboard,
+  nowMs,
 }: {
   tDashboard: Awaited<ReturnType<typeof getTranslations<'adminDashboard'>>>
+  nowMs: number
 }) {
   if (DEMO_EVENTS.length === 0) {
     return (
@@ -105,13 +176,21 @@ function EventsSection({
       </div>
     )
   }
-  return <DemoDashboardEventList events={DEMO_EVENTS} />
+  return (
+    <DashboardEventList
+      events={DEMO_EVENTS.map((event, index) => toEvent(event, index, nowMs))}
+      detailHrefPrefix="/demo/events"
+      interactionMode="demo"
+    />
+  )
 }
 
 function TemplatesSection({
   tTemplates,
+  nowMs,
 }: {
   tTemplates: Awaited<ReturnType<typeof getTranslations<'adminTemplates'>>>
+  nowMs: number
 }) {
   return (
     <div className="space-y-3">
@@ -125,7 +204,11 @@ function TemplatesSection({
       {DEMO_TEMPLATES.length === 0 ? (
         <p className="text-gray-500 text-sm py-8 text-center">{tTemplates('noTemplates')}</p>
       ) : (
-        <DemoTemplateList templates={DEMO_TEMPLATES} />
+        <TemplateList
+          templates={DEMO_TEMPLATES.map((template, index) => toTemplate(template, index, nowMs))}
+          detailHrefPrefix={null}
+          interactionMode="demo"
+        />
       )}
     </div>
   )

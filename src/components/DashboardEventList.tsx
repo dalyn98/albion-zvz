@@ -28,7 +28,17 @@ function isEventEnded(event: Event): boolean {
   return false
 }
 
-export default function DashboardEventList({ events }: { events: Event[] }) {
+interface DashboardEventListProps {
+  events: Event[]
+  detailHrefPrefix?: string
+  interactionMode?: 'live' | 'demo'
+}
+
+export default function DashboardEventList({
+  events,
+  detailHrefPrefix = '/admin/dashboard/events',
+  interactionMode = 'live',
+}: DashboardEventListProps) {
   const t = useTranslations('adminDashboard')
   const tCommon = useTranslations('common')
   const locale = useLocale() as Locale
@@ -134,7 +144,7 @@ export default function DashboardEventList({ events }: { events: Event[] }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <Link
-                        href={`/admin/dashboard/events/${event.id}`}
+                        href={`${detailHrefPrefix}/${event.id}`}
                         className="font-bold text-white truncate hover:text-amber-300 transition-colors"
                       >
                         {event.title}
@@ -168,25 +178,33 @@ export default function DashboardEventList({ events }: { events: Event[] }) {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:flex-shrink-0">
-                    <InlineBattleStartButton
-                      eventId={event.id}
-                      battleStartedAt={event.battle_started_at}
-                      disabledReason={draftDisabledReason}
-                    />
-                    <NotifyEventButton
-                      eventId={event.id}
-                      disabled={isDraft}
-                      disabledTitle={draftDisabledReason}
-                    />
+                    {interactionMode === 'live' && (
+                      <>
+                        <InlineBattleStartButton
+                          eventId={event.id}
+                          battleStartedAt={event.battle_started_at}
+                          disabledReason={draftDisabledReason}
+                        />
+                        <NotifyEventButton
+                          eventId={event.id}
+                          disabled={isDraft}
+                          disabledTitle={draftDisabledReason}
+                        />
+                      </>
+                    )}
                     <Link
-                      href={`/admin/dashboard/events/${event.id}`}
+                      href={`${detailHrefPrefix}/${event.id}`}
                       className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
                       aria-label={tCommon('edit')}
                     >
                       <Pencil size={15} />
                     </Link>
-                    <DuplicateEventButton eventId={event.id} />
-                    <DeleteEventButton eventId={event.id} />
+                    {interactionMode === 'live' && (
+                      <>
+                        <DuplicateEventButton eventId={event.id} />
+                        <DeleteEventButton eventId={event.id} />
+                      </>
+                    )}
                   </div>
                 </div>
               )

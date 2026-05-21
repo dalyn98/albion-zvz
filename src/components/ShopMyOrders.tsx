@@ -12,6 +12,7 @@ import { useConfirm } from '@/components/ConfirmDialog'
 
 interface Props {
   orders: MyOrderRow[]
+  interactionMode?: 'live' | 'demo'
 }
 
 const STATUS_BADGE_CLASS: Record<MyOrderRow['status'], string> = {
@@ -28,13 +29,18 @@ const STATUS_LABEL_KEY: Record<MyOrderRow['status'], string> = {
   cancelled: 'statusCancelled',
 }
 
-export default function ShopMyOrders({ orders }: Props) {
+export default function ShopMyOrders({ orders, interactionMode = 'live' }: Props) {
   const t = useTranslations('shopMyOrders')
   const [expanded, setExpanded] = useState(false)
+  const [demoCancelledIds, setDemoCancelledIds] = useState<Set<string>>(() => new Set())
+  const visibleOrders =
+    interactionMode === 'demo'
+      ? orders.filter((order) => !demoCancelledIds.has(order.id))
+      : orders
 
-  if (orders.length === 0) return null
+  if (visibleOrders.length === 0) return null
 
-  const pendingCount = orders.filter((o) => o.status === 'pending').length
+  const pendingCount = visibleOrders.filter((o) => o.status === 'pending').length
 
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-xl overflow-hidden">
@@ -45,7 +51,7 @@ export default function ShopMyOrders({ orders }: Props) {
       >
         <History size={14} className="text-gray-400" />
         <span className="text-sm text-white font-semibold">{t('title')}</span>
-        <span className="text-xs text-gray-500">({orders.length})</span>
+        <span className="text-xs text-gray-500">({visibleOrders.length})</span>
         {pendingCount > 0 && (
           <span className="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-0.5 rounded-full font-semibold">
             {t('pendingBadge', { count: pendingCount })}
@@ -59,8 +65,19 @@ export default function ShopMyOrders({ orders }: Props) {
 
       {expanded && (
         <div className="border-t border-gray-800 divide-y divide-gray-800">
-          {orders.map((order) => (
-            <OrderCard key={order.id} order={order} />
+          {visibleOrders.map((order) => (
+            <OrderCard
+              key={order.id}
+              order={order}
+              interactionMode={interactionMode}
+              onDemoCancel={() =>
+                setDemoCancelledIds((prev) => {
+                  const next = new Set(prev)
+                  next.add(order.id)
+                  return next
+                })
+              }
+            />
           ))}
         </div>
       )}
@@ -68,7 +85,15 @@ export default function ShopMyOrders({ orders }: Props) {
   )
 }
 
-function OrderCard({ order }: { order: MyOrderRow }) {
+function OrderCard({
+  order,
+  interactionMode,
+  onDemoCancel,
+}: {
+  order: MyOrderRow
+  interactionMode: 'live' | 'demo'
+  onDemoCancel: () => void
+}) {
   const router = useRouter()
   const t = useTranslations('shopMyOrders')
   const locale = useLocale() as Locale
@@ -81,6 +106,10 @@ function OrderCard({ order }: { order: MyOrderRow }) {
   const handleCancel = async () => {
     const ok = await askConfirm({ body: t('cancelConfirm'), destructive: true })
     if (!ok) return
+    if (interactionMode === 'demo') {
+      onDemoCancel()
+      return
+    }
     setError('')
     startTransition(async () => {
       const result = await cancelMyOrder(order.id)
