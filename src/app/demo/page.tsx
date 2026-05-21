@@ -93,7 +93,8 @@ export default async function DemoHomePage() {
     DEMO_ADMIN_BADGES.exchange +
     DEMO_ADMIN_BADGES.donation +
     DEMO_ADMIN_BADGES.shop +
-    DEMO_ADMIN_BADGES.eventPayout
+    DEMO_ADMIN_BADGES.eventPayout +
+    DEMO_ADMIN_BADGES.craft
 
   return (
     <div className="-m-4 sm:-m-6 lg:-m-8 min-h-screen bg-[#08090d] text-white">
@@ -504,6 +505,7 @@ function AdminPendingCard({
     { key: 'donation', label: tHome('adminPendingDonation'), count: DEMO_ADMIN_BADGES.donation },
     { key: 'shop', label: tHome('adminPendingShop'), count: DEMO_ADMIN_BADGES.shop },
     { key: 'eventPayout', label: tHome('adminPendingPayout'), count: DEMO_ADMIN_BADGES.eventPayout },
+    { key: 'craft', label: tHome('adminPendingCraft'), count: DEMO_ADMIN_BADGES.craft },
   ].filter((i) => i.count > 0)
   return (
     <section className="space-y-3">

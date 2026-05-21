@@ -1854,7 +1854,8 @@
       "exchange": "Exchange requests",
       "donation": "Donation requests",
       "shop": "Shop orders",
-      "eventPayout": "Event payouts"
+      "eventPayout": "Event payouts",
+      "craft": "Craft approvals"
     }
   },
   "landing": {
@@ -4429,6 +4430,7 @@
       "adminPendingDonation": "Donation",
       "adminPendingShop": "Shop orders",
       "adminPendingPayout": "Event payouts",
+      "adminPendingCraft": "Craft approvals",
       "demoBadge": "DEMO",
       "demoNote": "Demo — Emberfall guild sample data, not live stats."
     },
@@ -4607,15 +4609,21 @@
           "completedBody": "Now explore Events, Members, Settings and Backup from the sidebar."
         },
         "events": {
-          "introTitle": "Event operations tour",
-          "introBody": "See how event lists, templates, and participant composition fit together.",
-          "step1Title": "Event scheduling",
-          "step1Body": "Planned ZvZ events organized as cards. One click creates a new event ready for guild-wide announcements.",
-          "step2Title": "Events vs templates",
-          "step2Body": "Recurring meetups become templates — define once, then seed the next event with a single click.",
-          "step3Title": "Roster + party editor",
-          "step3Body": "Each event card manages participants, weapon/gear slot assignments, and the schedule in one place.",
-          "completedBody": "Open any event card to inspect the party-editor panel."
+          "introTitle": "Operations dashboard tour",
+          "introBody": "Walk through the same order as the real admin home: required setup, today's work, invite link, and event list.",
+          "step1Title": "Initial setup check",
+          "step1Body": "Confirm the items needed before operations, such as announcement channels, home guild, and public profile settings.",
+          "step2Title": "Today's operations status",
+          "step2Body": "Pending approvals, required setup, sync health, and member verification are summarized as cards.",
+          "step3Title": "Member invite link",
+          "step3Body": "Copy the URL new guild members use to start Discord login and Albion verification.",
+          "step4Title": "Event management header",
+          "step4Body": "This is the entry point for creating and publishing upcoming ZvZ events for guild-wide announcements.",
+          "step5Title": "Events vs templates",
+          "step5Body": "Recurring meetups become templates once, then seed the next event when needed.",
+          "step6Title": "Roster + party editor",
+          "step6Body": "Each event card manages participants, weapon/gear slot assignments, and the schedule in one place.",
+          "completedBody": "The demo now follows the real operations home from today's work through event publishing."
         },
         "regear": {
           "introTitle": "Admin approvals tour",

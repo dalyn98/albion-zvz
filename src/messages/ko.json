@@ -1854,7 +1854,8 @@
       "exchange": "환전 요청",
       "donation": "기부 요청",
       "shop": "상점 주문",
-      "eventPayout": "이벤트 지급"
+      "eventPayout": "이벤트 지급",
+      "craft": "제작 승인"
     }
   },
   "landing": {
@@ -4429,6 +4430,7 @@
       "adminPendingDonation": "기부",
       "adminPendingShop": "상점 주문",
       "adminPendingPayout": "이벤트 지급",
+      "adminPendingCraft": "제작 승인",
       "demoBadge": "DEMO",
       "demoNote": "데모 — Emberfall 길드 샘플 데이터, 실제 통계 아님."
     },
@@ -4607,15 +4609,21 @@
           "completedBody": "이제 사이드바의 이벤트 · 길드원 · 설정 · 백업도 직접 살펴보세요."
         },
         "events": {
-          "introTitle": "이벤트 운영 투어",
-          "introBody": "이벤트 목록, 템플릿, 참가자 편성 흐름을 확인합니다.",
-          "step1Title": "이벤트 편성",
-          "step1Body": "예정된 ZvZ를 카드로 정리. 클릭 한 번으로 새 이벤트 작성, 길드 전체 공지에 그대로 사용됩니다.",
-          "step2Title": "이벤트 vs 템플릿",
-          "step2Body": "반복되는 정모는 템플릿으로 한 번만 만들어 두고, 클릭 한 번으로 다음 이벤트 시드에 재사용하세요.",
-          "step3Title": "참가자 + 파티 편성",
-          "step3Body": "각 이벤트 카드에서 참가 인원, 무기/장비 슬롯 편성, 일정을 한 번에 관리합니다.",
-          "completedBody": "이벤트 카드를 열어 파티 편성 패널까지 확인해 보세요."
+          "introTitle": "운영 대시보드 투어",
+          "introBody": "실제 관리자 홈과 같은 순서로 필수 설정, 오늘 처리할 일, 초대 링크, 이벤트 목록을 둘러봅니다.",
+          "step1Title": "초기 설정 체크",
+          "step1Body": "알림 채널, 홈 길드, 공개 프로필처럼 운영 전에 맞춰야 할 항목을 먼저 확인합니다.",
+          "step2Title": "오늘의 운영 상태",
+          "step2Body": "승인 대기, 필수 설정, 동기화, 멤버 인증 상태를 카드로 요약합니다.",
+          "step3Title": "길드원 초대 링크",
+          "step3Body": "신규 길드원이 Discord 로그인과 Albion 인증을 시작할 URL을 복사합니다.",
+          "step4Title": "이벤트 관리 헤더",
+          "step4Body": "예정된 ZvZ를 만들고 발행하는 진입점입니다. 길드 전체 공지에 그대로 이어집니다.",
+          "step5Title": "이벤트 vs 템플릿",
+          "step5Body": "반복되는 정모는 템플릿으로 한 번만 만들어 두고, 다음 이벤트 시드에 재사용하세요.",
+          "step6Title": "참가자 + 파티 편성",
+          "step6Body": "각 이벤트 카드에서 참가 인원, 무기/장비 슬롯 편성, 일정을 한 번에 관리합니다.",
+          "completedBody": "실제 운영 홈처럼 처리할 일에서 이벤트 발행까지 한 화면에서 이어집니다."
         },
         "regear": {
           "introTitle": "관리자 승인 투어",

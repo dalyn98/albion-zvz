@@ -546,12 +546,12 @@ interface ResolvedNavItem extends NavItem {
 }
 
 // Maps an admin nav href to its pending count for the sidebar badge. The
-// unified approvals entry shows the sum across all three request types so the
-// operator sees a single "queue" size without drilling into sub-tabs.
+// The unified approvals entry shows the full queue size so the operator does
+// not need to drill into sub-tabs to notice pending work.
 function badgeCountFor(href: string, badges: AdminBadgeCounts | null): number {
   if (!badges) return 0
   if (href === '/admin/dashboard/approvals') {
-    return badges.regear + badges.exchange + badges.donation + badges.shop + badges.eventPayout
+    return badges.regear + badges.exchange + badges.donation + badges.shop + badges.eventPayout + badges.craft
   }
   return 0
 }

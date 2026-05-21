@@ -7,6 +7,7 @@ import {
   ShoppingBag,
   Trophy,
   ChevronRight,
+  ClipboardList,
 } from 'lucide-react'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
 
@@ -23,6 +24,7 @@ interface PendingRow {
     | 'donation'
     | 'shop'
     | 'eventPayout'
+    | 'craft'
   Icon: typeof ShieldCheck
 }
 
@@ -39,6 +41,7 @@ export default async function HomeAdminPendingCard({ badges }: Props) {
     { count: badges.shop, href: '/admin/dashboard/shop', labelKey: 'shop', Icon: ShoppingBag },
     // event_payout_requests 는 별도 탭이 없어 통합 approvals 로 보낸다.
     { count: badges.eventPayout, href: '/admin/dashboard/approvals', labelKey: 'eventPayout', Icon: Trophy },
+    { count: badges.craft, href: '/admin/dashboard/approvals?tab=craft', labelKey: 'craft', Icon: ClipboardList },
   ]
 
   const visible = rows.filter((r) => r.count > 0)

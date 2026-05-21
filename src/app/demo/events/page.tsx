@@ -7,9 +7,13 @@ import DemoTemplateList from '../_components/DemoTemplateList'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 import DemoActionButton from '../_components/DemoActionButton'
 import DemoCTACard from '../_components/DemoCTACard'
+import DemoOperationsOverview from '../_components/DemoOperationsOverview'
 import { DEMO_EVENTS, DEMO_GUILD_NAME, DEMO_TEMPLATES } from '@/data/demo-seed'
 
 const EVENTS_TOUR_STEPS = [
+  { id: 'events-setup' },
+  { id: 'events-operations' },
+  { id: 'events-invite' },
   { id: 'events-header' },
   { id: 'events-tabs' },
   { id: 'events-content' },
@@ -44,7 +48,10 @@ export default async function DemoEventsPage({
   return (
     <div className="space-y-6">
       <DemoGuidedTour steps={EVENTS_TOUR_STEPS} namespace="events" />
-      <MemberInviteCard inviteUrl={DEMO_INVITE_URL} guildName={DEMO_GUILD_NAME} />
+      <DemoOperationsOverview />
+      <div data-tour-id="events-invite">
+        <MemberInviteCard inviteUrl={DEMO_INVITE_URL} guildName={DEMO_GUILD_NAME} />
+      </div>
 
       <div data-tour-id="events-header" className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-white">

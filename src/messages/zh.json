@@ -1854,7 +1854,8 @@
       "exchange": "兑换申请",
       "donation": "捐赠申请",
       "shop": "商店订单",
-      "eventPayout": "活动报酬"
+      "eventPayout": "活动报酬",
+      "craft": "制作审批"
     }
   },
   "landing": {
@@ -4429,6 +4430,7 @@
       "adminPendingDonation": "捐赠",
       "adminPendingShop": "商店订单",
       "adminPendingPayout": "事件发放",
+      "adminPendingCraft": "制作审批",
       "demoBadge": "DEMO",
       "demoNote": "演示 — Emberfall 公会样本数据，非实时统计。"
     },
@@ -4607,15 +4609,21 @@
           "completedBody": "现在请直接查看侧边栏的活动、公会成员、设置与备份。"
         },
         "events": {
-          "introTitle": "活动管理导览",
-          "introBody": "管理员创建活动、查看队伍槽位并管理发布状态的页面。",
-          "step1Title": "活动编排",
-          "step1Body": "预定的 ZvZ 活动以卡片形式整理。一键新建活动，可直接用于公会公告。",
-          "step2Title": "活动 vs 模板",
-          "step2Body": "重复性聚会先做成模板，下次活动一键作为种子重用。",
-          "step3Title": "参与者 + 队伍编排",
-          "step3Body": "每个活动卡片可一并管理参与者、武器/装备栏位分配与日程。",
-          "completedBody": "打开任意活动卡片即可查看队伍编排面板。"
+          "introTitle": "运营仪表盘导览",
+          "introBody": "按照真实管理员首页的顺序查看必需设置、今日待办、邀请链接和活动列表。",
+          "step1Title": "初始设置检查",
+          "step1Body": "先确认公告频道、主公会、公开资料等运营前需要配置的项目。",
+          "step2Title": "今日运营状态",
+          "step2Body": "待审批、必需设置、同步状态和成员认证会以卡片汇总。",
+          "step3Title": "成员邀请链接",
+          "step3Body": "复制新成员开始 Discord 登录和 Albion 认证所需的 URL。",
+          "step4Title": "活动管理标题区",
+          "step4Body": "这里是创建并发布预定 ZvZ 活动的入口，可直接衔接公会公告。",
+          "step5Title": "活动 vs 模板",
+          "step5Body": "重复性聚会先做成模板，需要时再作为下一场活动的种子重用。",
+          "step6Title": "参与者 + 队伍编排",
+          "step6Body": "每个活动卡片可一并管理参与者、武器/装备栏位分配与日程。",
+          "completedBody": "现在导览会像真实运营首页一样，从今日待办一路衔接到活动发布。"
         },
         "regear": {
           "introTitle": "补装审批导览",
