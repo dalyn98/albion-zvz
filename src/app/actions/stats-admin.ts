@@ -4,11 +4,15 @@ import { revalidatePath } from 'next/cache'
 import { requireCapability } from '@/lib/auth'
 import { CAP } from '@/lib/permissions'
 import { getAppSetting } from '@/lib/app-settings'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { getTranslations } from 'next-intl/server'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
+import type {
+  AlbionIdentityRelation,
+  AlbionIdentityTrustStatus,
+} from '@/lib/account-albion-identity'
 
 export interface TopHolder {
   discordId: string
@@ -454,7 +458,14 @@ export interface VerificationMember {
   server: AlbionServer | null
   nickname: string | null
   guildId: string | null
+  guildName: string | null
+  allianceName: string | null
   verifiedAt: string | null
+  trustedAt: string | null
+  relation: AlbionIdentityRelation
+  trustStatus: AlbionIdentityTrustStatus
+  statusReason: string | null
+  lastSyncedAt: string | null
   // guild_id 가 홈 길드와 일치하는지 — UI 에서 "길드 매칭" 배지로 사용.
   guildMatchesHome: boolean
 }
@@ -467,13 +478,17 @@ export interface VerificationStats {
   unverified: number
   // verified_at IS NOT NULL.
   verified: number
+  // roster matched but not admin-trusted yet, plus disputed duplicate claims.
+  needsReview: number
   homeGuildConfigured: boolean
   // 온보딩 미완료 + 미인증 멤버 목록 — 관리자가 바로 식별할 수 있게 탑 N.
   pendingMembers: VerificationMember[]
+  reviewMembers: VerificationMember[]
   unverifiedMembers: VerificationMember[]
   // 인증 완료 멤버 — 관리자가 "다른 캐릭터로 갈아타고 싶다" 같은 케이스에서
   // 재인증 트리거할 수 있도록 노출. CollapsibleList 가 기본 collapse 처리.
   verifiedMembers: VerificationMember[]
+  canManageIdentityReview: boolean
 }
 
 export async function getAlbionVerificationStats(): Promise<{
@@ -487,16 +502,38 @@ export async function getAlbionVerificationStats(): Promise<{
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireCapability(CAP.STATS_VIEW)
     const guildId = await getSessionGuildId(session)
-    const [avatarsRes, homeGuildId] = await Promise.all([
+    const canManageIdentityReview = session.isAdmin || sessionHas(session, CAP.MEMBERS_MANAGE)
+    const [avatarsRes, linksRes, homeGuildId] = await Promise.all([
       db
         .from('guild_avatars')
         .select(
           'discord_id, username, avatar, is_admin, withdrawn_at, albion_server, albion_nickname, albion_player_id, albion_guild_id, albion_verified_at',
         )
         .eq('guild_id', guildId),
+      db
+        .from('account_albion_tenant_links')
+        .select(
+          'discord_id, current_guild_name, current_alliance_name, relation, trust_status, status_reason, trusted_at, last_synced_at',
+        )
+        .eq('guild_id', guildId),
       getAppSetting('albion_home_guild_id', '', guildId),
     ])
     if (avatarsRes.error) return { error: avatarsRes.error.message }
+    const linkRows = linksRes.error ? [] : linksRes.data ?? []
+    const linkMap = new Map(
+      linkRows.map((row) => [
+        row.discord_id as string,
+        {
+          guildName: (row.current_guild_name as string | null) ?? null,
+          allianceName: (row.current_alliance_name as string | null) ?? null,
+          relation: normalizeRelation(row.relation),
+          trustStatus: normalizeTrustStatus(row.trust_status),
+          statusReason: (row.status_reason as string | null) ?? null,
+          trustedAt: (row.trusted_at as string | null) ?? null,
+          lastSyncedAt: (row.last_synced_at as string | null) ?? null,
+        },
+      ]),
+    )
 
     const rows = (avatarsRes.data ?? []).filter((a) => !a.withdrawn_at)
     const home = homeGuildId.trim()
@@ -504,14 +541,20 @@ export async function getAlbionVerificationStats(): Promise<{
     let onboardingPending = 0
     let unverified = 0
     let verified = 0
+    let needsReview = 0
     const pendingMembers: VerificationMember[] = []
+    const reviewMembers: VerificationMember[] = []
     const unverifiedMembers: VerificationMember[] = []
     const verifiedMembers: VerificationMember[] = []
 
     for (const a of rows) {
       const server = (a.albion_server ?? null) as AlbionServer | null
-      const guildId = (a.albion_guild_id ?? null) as string | null
-      const guildMatchesHome = Boolean(home) && guildId === home
+      const memberGuildId = (a.albion_guild_id ?? null) as string | null
+      const guildMatchesHome = Boolean(home) && memberGuildId === home
+      const link = linkMap.get(a.discord_id as string)
+      const fallbackTrust: AlbionIdentityTrustStatus = a.albion_verified_at ? 'trusted' : 'claimed'
+      const trustStatus = link?.trustStatus ?? fallbackTrust
+      const relation = link?.relation ?? (guildMatchesHome ? 'home_guild' : memberGuildId ? 'external' : 'unknown')
       const entry: VerificationMember = {
         discordId: a.discord_id as string,
         username: (a.username as string) ?? tCommon('unknownName'),
@@ -519,8 +562,15 @@ export async function getAlbionVerificationStats(): Promise<{
         isAdmin: Boolean(a.is_admin),
         server,
         nickname: (a.albion_nickname as string | null) ?? null,
-        guildId,
+        guildId: memberGuildId,
+        guildName: link?.guildName ?? null,
+        allianceName: link?.allianceName ?? null,
         verifiedAt: (a.albion_verified_at as string | null) ?? null,
+        trustedAt: link?.trustedAt ?? ((a.albion_verified_at as string | null) ?? null),
+        relation,
+        trustStatus,
+        statusReason: link?.statusReason ?? null,
+        lastSyncedAt: link?.lastSyncedAt ?? null,
         guildMatchesHome,
       }
       if (!server) {
@@ -528,7 +578,12 @@ export async function getAlbionVerificationStats(): Promise<{
         pendingMembers.push(entry)
         continue
       }
-      if (entry.verifiedAt) {
+      if (trustStatus === 'roster_matched' || trustStatus === 'disputed') {
+        needsReview += 1
+        reviewMembers.push(entry)
+        continue
+      }
+      if (trustStatus === 'trusted' && relation === 'home_guild') {
         verified += 1
         verifiedMembers.push(entry)
       } else {
@@ -539,6 +594,7 @@ export async function getAlbionVerificationStats(): Promise<{
 
     // 관리자가 상단에서 즉시 식별할 수 있도록 이름순 정렬.
     pendingMembers.sort((a, b) => a.username.localeCompare(b.username))
+    reviewMembers.sort((a, b) => a.username.localeCompare(b.username))
     unverifiedMembers.sort((a, b) => a.username.localeCompare(b.username))
     verifiedMembers.sort((a, b) => a.username.localeCompare(b.username))
 
@@ -548,14 +604,97 @@ export async function getAlbionVerificationStats(): Promise<{
         onboardingPending,
         unverified,
         verified,
+        needsReview,
         homeGuildConfigured: home.length > 0,
         pendingMembers: pendingMembers.slice(0, 50),
+        reviewMembers: reviewMembers.slice(0, 100),
         unverifiedMembers: unverifiedMembers.slice(0, 50),
         // 인증 완료 멤버는 길드 규모에 따라 100+ 가능 — 200 cap 으로 페이로드
         // 보호. CollapsibleList 가 기본 8행으로 접어 노출 부담 줄인다.
         verifiedMembers: verifiedMembers.slice(0, 200),
+        canManageIdentityReview,
       },
     }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function approveMemberAlbionIdentity(
+  discordId: string,
+): Promise<{ ok?: true; error?: string }> {
+  return updateMemberAlbionTrust(discordId, 'trusted', 'admin_approved')
+}
+
+export async function disputeMemberAlbionIdentity(
+  discordId: string,
+): Promise<{ ok?: true; error?: string }> {
+  return updateMemberAlbionTrust(discordId, 'disputed', 'admin_disputed')
+}
+
+async function updateMemberAlbionTrust(
+  discordId: string,
+  trustStatus: 'trusted' | 'disputed',
+  reason: string,
+): Promise<{ ok?: true; error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const db = await requireCapability(CAP.MEMBERS_MANAGE)
+    const guildId = await getSessionGuildId(session)
+    const nowIso = new Date().toISOString()
+
+    const { data: link, error: linkError } = await db
+      .from('account_albion_tenant_links')
+      .select('profile_id, relation, verified_at')
+      .eq('guild_id', guildId)
+      .eq('discord_id', discordId)
+      .maybeSingle()
+    if (linkError) return { error: linkError.message }
+    if (!link) return { error: tErr('memberNotFound') }
+
+    const relation = normalizeRelation(link.relation)
+    const verifiedAt =
+      relation === 'home_guild' && trustStatus === 'trusted'
+        ? ((link.verified_at as string | null) ?? nowIso)
+        : null
+
+    const { error: updateError } = await db
+      .from('account_albion_tenant_links')
+      .update({
+        trust_status: trustStatus,
+        status_reason: reason,
+        trusted_at: trustStatus === 'trusted' ? nowIso : null,
+        disputed_at: trustStatus === 'disputed' ? nowIso : null,
+        verified_at: verifiedAt,
+        updated_at: nowIso,
+      })
+      .eq('guild_id', guildId)
+      .eq('discord_id', discordId)
+    if (updateError) return { error: updateError.message }
+
+    const { error: avatarError } = await db
+      .from('guild_avatars')
+      .update({ albion_verified_at: verifiedAt })
+      .eq('guild_id', guildId)
+      .eq('discord_id', discordId)
+    if (avatarError) return { error: avatarError.message }
+
+    await db.from('account_albion_identity_audit').insert({
+      guild_id: guildId,
+      discord_id: discordId,
+      profile_id: (link.profile_id as string | null) ?? null,
+      actor_discord_id: session.discordId,
+      action: trustStatus === 'trusted' ? 'admin_approve' : 'admin_dispute',
+      trust_status: trustStatus,
+      relation,
+      reason,
+    })
+
+    revalidatePath('/admin/dashboard/stats')
+    revalidatePath(`/members/${discordId}`)
+    return { ok: true }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
@@ -573,7 +712,7 @@ export async function resetMemberAlbionOnboarding(
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
-    const db = await requireCapability(CAP.STATS_VIEW)
+    const db = await requireCapability(CAP.MEMBERS_MANAGE)
     const guildId = await getSessionGuildId(session)
     const { error } = await db
       .from('guild_avatars')
@@ -587,11 +726,49 @@ export async function resetMemberAlbionOnboarding(
       .eq('guild_id', guildId)
       .eq('discord_id', discordId)
     if (error) return { error: error.message }
+    const nowIso = new Date().toISOString()
+    await db
+      .from('account_albion_tenant_links')
+      .update({
+        trust_status: 'revoked',
+        status_reason: 'admin_reset',
+        revoked_at: nowIso,
+        verified_at: null,
+        trusted_at: null,
+        updated_at: nowIso,
+      })
+      .eq('guild_id', guildId)
+      .eq('discord_id', discordId)
     revalidatePath('/admin/dashboard/stats')
     return { ok: true }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
+}
+
+function normalizeRelation(value: unknown): AlbionIdentityRelation {
+  if (
+    value === 'home_guild' ||
+    value === 'alliance' ||
+    value === 'external' ||
+    value === 'unknown'
+  ) {
+    return value
+  }
+  return 'unknown'
+}
+
+function normalizeTrustStatus(value: unknown): AlbionIdentityTrustStatus {
+  if (
+    value === 'claimed' ||
+    value === 'roster_matched' ||
+    value === 'trusted' ||
+    value === 'disputed' ||
+    value === 'revoked'
+  ) {
+    return value
+  }
+  return 'claimed'
 }
 
 // 재정 흐름 집계 창: 30일. 월간 부채 추이 감시 용도로 적절한 기간.

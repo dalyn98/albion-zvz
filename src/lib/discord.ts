@@ -238,6 +238,24 @@ export async function getGuildMember(
   return res.json() as Promise<DiscordGuildMember>
 }
 
+export async function getGuildMemberByBot(
+  discordGuildId: string,
+  discordId: string,
+): Promise<DiscordGuildMemberBulk | null> {
+  const botToken = process.env.DISCORD_BOT_TOKEN
+  if (!botToken) throw new Error('DISCORD_BOT_TOKEN not configured')
+  const res = await fetch(`${DISCORD_API}/guilds/${discordGuildId}/members/${discordId}`, {
+    headers: { Authorization: `Bot ${botToken}` },
+    cache: 'no-store',
+  })
+  if (res.status === 404) return null
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Discord guild member fetch failed (${res.status}): ${text}`)
+  }
+  return res.json() as Promise<DiscordGuildMemberBulk>
+}
+
 // 유저가 속한 Discord 길드 목록. Phase 3 온보딩에서 tenant 매칭 / 길드 피커에 사용.
 // OAuth `guilds` scope 가 필요하다 — `buildAuthorizeUrl` 의 OAUTH_SCOPES 참조.
 export interface DiscordUserGuild {

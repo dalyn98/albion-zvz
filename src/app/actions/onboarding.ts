@@ -18,6 +18,12 @@ import { requireAdmin } from '@/lib/auth'
 import { getMemberAlbionIdentity, type MemberAlbionIdentity } from '@/lib/albion-identity'
 import { changeGuildMemberNickname } from '@/lib/discord'
 import { log } from '@/lib/log'
+import {
+  canUseGuildResourceFeatures,
+  getAccountAlbionIdentityView,
+  recordAlbionIdentityClaim,
+  refreshMemberAlbionIdentity,
+} from '@/lib/account-albion-identity'
 
 // 드롭다운에서 유저가 고르기 편하도록 정리한 후보 구조.
 export interface AlbionPlayerCandidate {
@@ -88,7 +94,7 @@ function toCandidate(p: GameinfoPlayer): AlbionPlayerCandidate {
 export async function confirmAlbionIdentity(input: {
   server: string
   playerId: string
-}): Promise<{ ok?: true; verified?: boolean; error?: string }> {
+}): Promise<{ ok?: true; verified?: boolean; trusted?: boolean; needsReview?: boolean; error?: string }> {
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
@@ -123,15 +129,39 @@ export async function confirmAlbionIdentity(input: {
     })
   }
 
+  const currentAccount = await getAccountAlbionIdentityView(sessionGuildId, session.discordId)
+  const keepTrusted =
+    currentAccount?.trustStatus === 'trusted' &&
+    currentAccount.playerId === player.Id &&
+    currentAccount.server === input.server &&
+    currentAccount.statusReason === 'legacy_trusted'
+  const accountClaim = await recordAlbionIdentityClaim({
+    guildId: sessionGuildId,
+    discordId: session.discordId,
+    server: input.server,
+    player,
+    nickname: player.Name,
+    legacyTrusted: keepTrusted,
+    source: 'member_onboarding',
+  })
+  if (accountClaim.error) return { error: accountClaim.error }
+
+  const accountModelAvailable = accountClaim.profileId !== null
+  const resourceTrusted = accountModelAvailable
+    ? canUseGuildResourceFeatures({
+        relation: accountClaim.relation,
+        trustStatus: accountClaim.trustStatus,
+      })
+    : verified
   const updated = await upsertAlbionIdentity(session.discordId, sessionGuildId, {
     server: input.server,
     playerId: player.Id,
     nickname: player.Name,
     guildId: player.GuildId,
-    verifiedAt: verified ? new Date().toISOString() : null,
-    // 인증된 경우에만 사이트 닉네임을 알비온 닉으로 동기화. 미인증/수동 입력은
-    // 그대로 디스코드 이름을 유지한다.
-    syncSiteUsername: verified,
+    verifiedAt: resourceTrusted ? new Date().toISOString() : null,
+    // 재화 기능까지 신뢰 승인된 경우에만 사이트 닉네임을 알비온 닉으로 동기화.
+    // 검토 대기/미인증/수동 입력은 그대로 디스코드 이름을 유지한다.
+    syncSiteUsername: resourceTrusted,
     fallbackUsername: session.username,
     fallbackAvatar: session.avatar,
   })
@@ -139,7 +169,7 @@ export async function confirmAlbionIdentity(input: {
 
   // 인증 성공 시 디스코드 길드 닉네임도 알비온 닉으로 변경 시도. 봇 권한/역할
   // 순위로 실패할 수 있으므로 best-effort — 로그만 남기고 온보딩은 성공 반환.
-  if (verified) {
+  if (resourceTrusted) {
     try {
       const tenantConfig = await getTenantDiscordConfig(sessionGuildId)
       if (tenantConfig) {
@@ -157,7 +187,12 @@ export async function confirmAlbionIdentity(input: {
 
   revalidatePath('/me')
   revalidatePath('/onboarding/albion')
-  return { ok: true, verified }
+  return {
+    ok: true,
+    verified,
+    trusted: resourceTrusted,
+    needsReview: verified && !resourceTrusted,
+  }
 }
 
 // 수동 입력 플로우 (Gameinfo 에서 본인을 못 찾거나, 일부러 비인증으로 넘어가고
@@ -176,6 +211,17 @@ export async function setAlbionIdentityManually(input: {
   }
 
   const sessionGuildId = await getSessionGuildId(session)
+  const accountClaim = await recordAlbionIdentityClaim({
+    guildId: sessionGuildId,
+    discordId: session.discordId,
+    server: input.server,
+    player: null,
+    nickname,
+    legacyTrusted: false,
+    source: 'manual_entry',
+  })
+  if (accountClaim.error) return { error: accountClaim.error }
+
   const updated = await upsertAlbionIdentity(session.discordId, sessionGuildId, {
     server: input.server,
     playerId: null,
@@ -189,6 +235,23 @@ export async function setAlbionIdentityManually(input: {
 
   revalidatePath('/me')
   revalidatePath('/onboarding/albion')
+  return { ok: true }
+}
+
+export async function refreshMyAlbionIdentity(): Promise<{
+  ok?: true
+  throttledUntil?: string
+  error?: string
+}> {
+  const tErr = await getTranslations('memberActionError')
+  const session = await getSession()
+  if (!session) return { error: tErr('loginRequired') }
+  const guildId = await getSessionGuildId(session)
+  const result = await refreshMemberAlbionIdentity(guildId, session.discordId, { manual: true })
+  if (result.throttledUntil) return { throttledUntil: result.throttledUntil }
+  if (result.error === 'NO_LINKED_ALBION_PROFILE') return { error: tErr('albionVerificationRequired') }
+  if (result.error === 'ALBION_GAMEINFO_UNAVAILABLE') return { error: tErr('albionGameinfoUnavailable') }
+  if (result.error) return { error: result.error }
   return { ok: true }
 }
 

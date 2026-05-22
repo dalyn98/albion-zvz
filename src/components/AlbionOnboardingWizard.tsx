@@ -25,6 +25,7 @@ interface Props {
 }
 
 type Step = 'server' | 'search' | 'done'
+type CompletionStatus = 'trusted' | 'needs_review' | 'unverified'
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -58,8 +59,8 @@ export default function AlbionOnboardingWizard({
   const [isPending, startTransition] = useTransition()
   // confirm/manual 직후 UI 에 인증 결과를 즉시 반영하기 위한 state. 초기 방문
   // 시에는 initialIdentity 로부터 파생, 이후엔 액션 응답으로 덮어씀.
-  const [finalVerified, setFinalVerified] = useState<boolean | null>(
-    initialIdentity?.verifiedAt ? true : initialIdentity?.server ? false : null,
+  const [finalStatus, setFinalStatus] = useState<CompletionStatus | null>(
+    initialIdentity?.verifiedAt ? 'trusted' : initialIdentity?.server ? 'unverified' : null,
   )
 
   // debounce 검색어 → /search 호출. query 나 server 가 바뀔 때마다 재실행.
@@ -100,12 +101,16 @@ export default function AlbionOnboardingWizard({
         toast.error(res.error)
         return
       }
-      if (res.verified) {
+      if (res.trusted) {
         toast.success(t('toastVerified'))
+        setFinalStatus('trusted')
+      } else if (res.needsReview) {
+        toast.success(t('toastNeedsReview'))
+        setFinalStatus('needs_review')
       } else {
         toast.error(t('toastUnverified'))
+        setFinalStatus('unverified')
       }
-      setFinalVerified(Boolean(res.verified))
       setStep('done')
       router.refresh()
     })
@@ -125,7 +130,7 @@ export default function AlbionOnboardingWizard({
         return
       }
       toast.success(t('toastManualSaved'))
-      setFinalVerified(false)
+      setFinalStatus('unverified')
       setStep('done')
       router.refresh()
     })
@@ -256,34 +261,46 @@ export default function AlbionOnboardingWizard({
       )}
 
       {step === 'done' && (
-        <DoneView verified={Boolean(finalVerified)} onFinish={handleFinish} />
+        <DoneView status={finalStatus ?? 'unverified'} onFinish={handleFinish} />
       )}
     </div>
   )
 }
 
 interface DoneViewProps {
-  verified: boolean
+  status: CompletionStatus
   onFinish: () => void
 }
 
-function DoneView({ verified, onFinish }: DoneViewProps) {
+function DoneView({ status, onFinish }: DoneViewProps) {
   const t = useTranslations('albionOnboarding')
+  const verified = status === 'trusted'
+  const needsReview = status === 'needs_review'
   return (
     <section className="space-y-4">
       <div
         className={`rounded-lg p-4 border ${
           verified
             ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-200'
+            : needsReview
+              ? 'bg-sky-500/10 border-sky-500/40 text-sky-200'
             : 'bg-yellow-500/10 border-yellow-500/40 text-yellow-200'
         }`}
       >
         <div className="flex items-center gap-2 font-semibold text-sm mb-1">
           {verified ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
-          {verified ? t('doneVerifiedTitle') : t('doneUnverifiedTitle')}
+          {verified
+            ? t('doneVerifiedTitle')
+            : needsReview
+              ? t('doneNeedsReviewTitle')
+              : t('doneUnverifiedTitle')}
         </div>
         <p className="text-xs leading-relaxed opacity-90">
-          {verified ? t('doneVerifiedDescription') : t('doneUnverifiedDescription')}
+          {verified
+            ? t('doneVerifiedDescription')
+            : needsReview
+              ? t('doneNeedsReviewDescription')
+              : t('doneUnverifiedDescription')}
         </p>
       </div>
       <button

@@ -29,7 +29,13 @@ export default async function MyProfilePage() {
         <p className="text-gray-500 text-sm text-center py-12">{t('notRegistered')}</p>
       )}
 
-      {detail && <MemberDetailView detail={detail} showDiscordId={false} />}
+      {detail && (
+        <MemberDetailView
+          detail={detail}
+          showDiscordId={false}
+          allowIdentityRefresh
+        />
+      )}
     </main>
   )
 }

@@ -12,6 +12,7 @@ import {
 import MemberAvatar from '@/components/MemberAvatar'
 import MemberLink from '@/components/MemberLink'
 import ForceOnboardButton from '@/components/ForceOnboardButton'
+import AlbionIdentityReviewButtons from '@/components/AlbionIdentityReviewButtons'
 import CollapsibleList from '@/components/CollapsibleList'
 import { ALBION_SERVER_LABEL_KEY } from '@/lib/albion-gameinfo'
 import {
@@ -65,6 +66,15 @@ export default async function AlbionVerificationSection({
       bg: stats.unverified > 0 ? 'bg-yellow-500/5' : 'bg-gray-800/40',
     },
     {
+      label: tStats('verificationReviewLabel'),
+      value: stats.needsReview,
+      hint: tStats('verificationReviewHint'),
+      icon: ShieldAlert,
+      accent: stats.needsReview > 0 ? 'text-sky-300' : 'text-gray-400',
+      ring: stats.needsReview > 0 ? 'border-sky-500/30' : 'border-gray-700',
+      bg: stats.needsReview > 0 ? 'bg-sky-500/5' : 'bg-gray-800/40',
+    },
+    {
       label: tStats('verificationOnboardingPendingLabel'),
       value: stats.onboardingPending,
       hint: tStats('verificationOnboardingPendingHint'),
@@ -90,7 +100,7 @@ export default async function AlbionVerificationSection({
         )}
       </p>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {cards.map((card) => {
           const Icon = card.icon
           return (
@@ -118,6 +128,18 @@ export default async function AlbionVerificationSection({
         emptyLabel={tStats('pendingMembersEmpty')}
         members={stats.pendingMembers}
         mode="pending"
+        canManage={stats.canManageIdentityReview}
+        tStats={tStats}
+        tCommon={tCommon}
+      />
+      <VerificationMemberList
+        title={tStats('reviewMembersTitle')}
+        icon={ShieldAlert}
+        accent="text-sky-300"
+        emptyLabel={tStats('reviewMembersEmpty')}
+        members={stats.reviewMembers}
+        mode="review"
+        canManage={stats.canManageIdentityReview}
         tStats={tStats}
         tCommon={tCommon}
       />
@@ -128,6 +150,7 @@ export default async function AlbionVerificationSection({
         emptyLabel={tStats('unverifiedMembersEmpty')}
         members={stats.unverifiedMembers}
         mode="unverified"
+        canManage={stats.canManageIdentityReview}
         tStats={tStats}
         tCommon={tCommon}
       />
@@ -138,6 +161,7 @@ export default async function AlbionVerificationSection({
         emptyLabel={tStats('verifiedMembersEmpty')}
         members={stats.verifiedMembers}
         mode="verified"
+        canManage={stats.canManageIdentityReview}
         tStats={tStats}
         tCommon={tCommon}
       />
@@ -152,6 +176,7 @@ function VerificationMemberList({
   emptyLabel,
   members,
   mode,
+  canManage,
   tStats,
   tCommon,
 }: {
@@ -160,7 +185,8 @@ function VerificationMemberList({
   accent: string
   emptyLabel: string
   members: VerificationMember[]
-  mode: 'pending' | 'unverified' | 'verified'
+  mode: 'pending' | 'review' | 'unverified' | 'verified'
+  canManage: boolean
   tStats: StatsTranslator
   tCommon: CommonTranslator
 }) {
@@ -199,7 +225,7 @@ function VerificationMemberList({
                   </span>
                 )}
               </div>
-              {(mode === 'unverified' || mode === 'verified') && (
+              {(mode === 'review' || mode === 'unverified' || mode === 'verified') && (
                 <div className="hidden sm:flex flex-col items-end text-[11px] text-gray-500 min-w-0">
                   <span className="text-gray-300 truncate max-w-[140px]">
                     {m.nickname ?? '—'}
@@ -222,13 +248,25 @@ function VerificationMemberList({
                       </span>
                     )}
                   </span>
+                  {mode === 'review' && (
+                    <span className="text-sky-300">
+                      {m.trustStatus === 'disputed'
+                        ? tStats('verificationTrustDisputed')
+                        : tStats('verificationTrustRosterMatched')}
+                    </span>
+                  )}
                 </div>
               )}
-              <ForceOnboardButton
-                discordId={m.discordId}
-                username={m.username}
-                isVerified={mode === 'verified'}
-              />
+              {mode === 'review' && canManage && (
+                <AlbionIdentityReviewButtons discordId={m.discordId} username={m.username} />
+              )}
+              {canManage && (
+                <ForceOnboardButton
+                  discordId={m.discordId}
+                  username={m.username}
+                  isVerified={mode === 'verified'}
+                />
+              )}
             </li>
           ))}
         </CollapsibleList>

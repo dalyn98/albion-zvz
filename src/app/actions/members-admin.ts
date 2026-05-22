@@ -28,6 +28,7 @@ import type {
 } from '@/lib/member-killboard-aggregation'
 import type { RegearType } from '@/types'
 import type { RegearRejectReasonCode } from '@/lib/regear-reject-reasons'
+import type { AccountAlbionIdentityView } from '@/lib/account-albion-identity'
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
 // 포인트 조정 같은 mutation은 별도로 requireAdmin()을 거치게 둔다.
@@ -174,6 +175,7 @@ export interface GuildMemberDetail {
   avatar: string | null
   updated_at: string
   preferred_language: Locale | null
+  albion_identity: AccountAlbionIdentityView | null
   participation_count: number
   role_breakdown: RoleCount[]
   events: MemberEventEntry[]

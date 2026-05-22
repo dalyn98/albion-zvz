@@ -32,6 +32,7 @@ import {
 } from '@/lib/tracked-kills'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { getAppSetting } from '@/lib/app-settings'
+import { getAccountAlbionIdentityView } from '@/lib/account-albion-identity'
 import {
   aggregateKillboardRows,
   type KillboardRow,
@@ -95,6 +96,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       rankingRes,
       trackedBattles,
       participationsByMember,
+      accountAlbionIdentity,
     ] = await Promise.all([
       db
         .from('slots')
@@ -138,6 +140,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       db.rpc('member_ranking_counts', { p_guild_id: guildId }),
       fetchTrackedBattleWindows(db, guildId, null, { bundleSplits }),
       fetchMemberBattleParticipations(db, guildId),
+      getAccountAlbionIdentityView(guildId, discordId),
     ])
 
     if (slotsRes.error) return { detail: null, error: slotsRes.error.message }
@@ -336,6 +339,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
         avatar: avatar.avatar,
         updated_at: avatar.updated_at,
         preferred_language: isLocale(avatar.preferred_language) ? avatar.preferred_language : null,
+        albion_identity: accountAlbionIdentity,
         participation_count: battles.length,
         role_breakdown: roleBreakdown,
         weapon_breakdown: agg.weaponBreakdown,

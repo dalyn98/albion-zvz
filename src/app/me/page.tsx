@@ -19,6 +19,10 @@ import { listTransferCandidates } from '@/app/actions/transfer'
 import { getMyDashboard } from '@/app/actions/me-dashboard'
 import { getMySiphonAccount, type MySiphonAccountResult } from '@/app/actions/siphon-member'
 import { getMemberAlbionIdentity, isAlbionVerified } from '@/lib/albion-identity'
+import {
+  canUseGuildResourceFeatures,
+  getAccountAlbionIdentityView,
+} from '@/lib/account-albion-identity'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSessionGuildId } from '@/lib/tenant'
 import { ALBION_SERVER_LABEL_KEY } from '@/lib/albion-gameinfo'
@@ -57,6 +61,7 @@ export default async function MePage() {
     { candidates: transferCandidates },
     siphonAccount,
     albionIdentity,
+    accountAlbionIdentity,
     weeklyStatsEnabledRaw,
     t,
     tRequests,
@@ -72,6 +77,7 @@ export default async function MePage() {
     listTransferCandidates(),
     getMySiphonAccount(5),
     getMemberAlbionIdentity(session.discordId, guildId),
+    getAccountAlbionIdentityView(guildId, session.discordId),
     // 길드별 토글 — 기본 OFF. SaaS 다른 테넌트에는 노출하지 않는다. 우리 길드는
     // 별도 SQL upsert 로 'true' 설정.
     getAppSetting('me_weekly_stats_enabled', 'false', guildId),
@@ -86,7 +92,18 @@ export default async function MePage() {
 
   const weeklyStatsEnabled = weeklyStatsEnabledRaw === 'true'
 
-  const albionVerified = isAlbionVerified(albionIdentity)
+  const albionVerified = accountAlbionIdentity
+    ? canUseGuildResourceFeatures({
+        relation: accountAlbionIdentity.relation,
+        trustStatus: accountAlbionIdentity.trustStatus,
+      })
+    : isAlbionVerified(albionIdentity)
+  const albionNeedsReview = accountAlbionIdentity
+    ? accountAlbionIdentity.trustStatus === 'roster_matched' ||
+      accountAlbionIdentity.trustStatus === 'disputed'
+    : false
+  const albionDisplayName = accountAlbionIdentity?.nickname ?? albionIdentity?.nickname ?? null
+  const albionDisplayServer = accountAlbionIdentity?.server ?? albionIdentity?.server ?? null
 
   const balance = dashboard?.balance ?? 0
   const pendingExchange = exchanges.find((e) => e.status === 'pending') ?? null
@@ -122,6 +139,8 @@ export default async function MePage() {
         className={`flex items-start gap-3 rounded-2xl border p-4 ${
           albionVerified
             ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+            : albionNeedsReview
+              ? 'bg-sky-500/10 border-sky-500/30 text-sky-200'
             : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-200'
         }`}
       >
@@ -132,12 +151,16 @@ export default async function MePage() {
         )}
         <div className="min-w-0 flex-1 space-y-1">
           <p className="text-sm font-semibold">
-            {albionVerified ? tOnboarding('profileBadgeVerified') : tOnboarding('profileBadgeUnverified')}
-            {albionIdentity?.nickname && (
+            {albionVerified
+              ? tOnboarding('profileBadgeVerified')
+              : albionNeedsReview
+                ? tOnboarding('profileBadgeNeedsReview')
+                : tOnboarding('profileBadgeUnverified')}
+            {albionDisplayName && (
               <span className="ml-2 text-xs opacity-80 font-mono">
-                {albionIdentity.nickname}
-                {albionIdentity.server && (
-                  <span className="ml-1 opacity-70">· {tCommon(ALBION_SERVER_LABEL_KEY[albionIdentity.server])}</span>
+                {albionDisplayName}
+                {albionDisplayServer && (
+                  <span className="ml-1 opacity-70">· {tCommon(ALBION_SERVER_LABEL_KEY[albionDisplayServer])}</span>
                 )}
               </span>
             )}
@@ -145,14 +168,16 @@ export default async function MePage() {
           <p className="text-xs leading-relaxed opacity-80">
             {albionVerified
               ? tOnboarding('profileNoteVerified')
+              : albionNeedsReview
+                ? tOnboarding('profileNoteNeedsReview')
               : tOnboarding('profileNoteUnverified')}
           </p>
           {!albionVerified && (
             <Link
-              href="/onboarding/albion?return=%2Fme"
+              href={albionNeedsReview ? '/me/profile' : '/onboarding/albion?return=%2Fme'}
               className="inline-block mt-1 text-xs underline underline-offset-2 font-semibold hover:opacity-80"
             >
-              {tOnboarding('profileCtaVerify')}
+              {albionNeedsReview ? tOnboarding('profileCtaProfile') : tOnboarding('profileCtaVerify')}
             </Link>
           )}
         </div>

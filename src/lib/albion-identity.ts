@@ -4,6 +4,10 @@
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
+import {
+  canUseGuildResourceFeatures,
+  getAccountAlbionIdentityView,
+} from '@/lib/account-albion-identity'
 
 export interface MemberAlbionIdentity {
   discordId: string
@@ -57,6 +61,24 @@ export async function requireAlbionVerified(
   discordId: string,
   guildId: string,
 ): Promise<string | null> {
+  const accountIdentity = await getAccountAlbionIdentityView(guildId, discordId)
+  if (
+    accountIdentity &&
+    canUseGuildResourceFeatures({
+      relation: accountIdentity.relation,
+      trustStatus: accountIdentity.trustStatus,
+    })
+  ) {
+    return null
+  }
+  if (accountIdentity) {
+    const tErr = await getTranslations('memberActionError')
+    return tErr('albionTrustedRequired')
+  }
+
+  // Compatibility fallback for deployments where migration 158/159 has not
+  // been applied yet. Existing trusted members keep working until the account
+  // identity tables are present and backfilled.
   const identity = await getMemberAlbionIdentity(discordId, guildId)
   if (isAlbionVerified(identity)) return null
   const tErr = await getTranslations('memberActionError')

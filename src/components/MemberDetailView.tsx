@@ -3,6 +3,7 @@ import {
   Coins,
   Wallet,
   ShieldCheck,
+  ShieldAlert,
   ChevronRight,
   Sword,
   Skull,
@@ -20,10 +21,17 @@ import MemberAvatar from './MemberAvatar'
 import LanguageBadge from './LanguageBadge'
 import ItemImage from './ItemImage'
 import BadgeGrid from './BadgeGrid'
+import RefreshAlbionIdentityButton from './RefreshAlbionIdentityButton'
 import { formatSilver } from '@/lib/silver'
 import { formatDate, formatDateTime } from '@/lib/format-datetime'
 import { getLocalizedItemName } from '@/lib/item-names'
 import { canonicalT8WeaponId } from '@/lib/weapon-display'
+import { ALBION_SERVER_LABEL_KEY } from '@/lib/albion-gameinfo'
+import {
+  canUseGuildResourceFeatures,
+  type AlbionIdentityRelation,
+  type AlbionIdentityTrustStatus,
+} from '@/lib/account-albion-identity'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import { getRoleStyle, regearPayoutSilver } from '@/types'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
@@ -65,13 +73,21 @@ interface Props {
   detail: GuildMemberDetail
   // Admin view shows the raw Discord ID under the username; member self-view hides it.
   showDiscordId?: boolean
+  // Self profile can trigger the once-per-day Gameinfo refresh.
+  allowIdentityRefresh?: boolean
 }
 
-export default async function MemberDetailView({ detail, showDiscordId = true }: Props) {
+export default async function MemberDetailView({
+  detail,
+  showDiscordId = true,
+  allowIdentityRefresh = false,
+}: Props) {
   const t = await getTranslations('memberDetail')
+  const tIdentity = await getTranslations('albionIdentityProfile')
   const tStatus = await getTranslations('status')
   const tRole = await getTranslations('slotRole')
   const tReason = await getTranslations('regearRejectReason')
+  const tCommon = await getTranslations('common')
   const rawLocale = await getLocale()
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
   const statusLabels: StatusLabels = {
@@ -94,6 +110,15 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
           <p className="text-gray-500 text-xs">{t('recentLogin', { date: formatDate(detail.updated_at) })}</p>
         </div>
       </header>
+
+      {detail.albion_identity && (
+        <AlbionIdentityPanel
+          identity={detail.albion_identity}
+          allowRefresh={allowIdentityRefresh}
+          t={tIdentity}
+          serverLabel={(key) => tCommon(key)}
+        />
+      )}
 
       <section className="space-y-3">
         <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
@@ -469,6 +494,110 @@ export default async function MemberDetailView({ detail, showDiscordId = true }:
   )
 }
 
+function AlbionIdentityPanel({
+  identity,
+  allowRefresh,
+  t,
+  serverLabel,
+}: {
+  identity: NonNullable<GuildMemberDetail['albion_identity']>
+  allowRefresh: boolean
+  t: Awaited<ReturnType<typeof getTranslations>>
+  serverLabel: (key: string) => string
+}) {
+  const resourceTrusted = canUseGuildResourceFeatures({
+    relation: identity.relation,
+    trustStatus: identity.trustStatus,
+  })
+  const reviewPending = identity.trustStatus === 'roster_matched'
+  const disputed = identity.trustStatus === 'disputed'
+  const tone = resourceTrusted
+    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+    : reviewPending
+      ? 'border-sky-500/30 bg-sky-500/10 text-sky-200'
+      : 'border-yellow-500/30 bg-yellow-500/10 text-yellow-200'
+  const Icon = resourceTrusted ? ShieldCheck : ShieldAlert
+  const statusText = t(trustStatusKey(identity.trustStatus))
+  const resourceText = resourceTrusted
+    ? t('resourceTrusted')
+    : reviewPending
+      ? t('resourceReview')
+      : disputed
+        ? t('resourceDisputed')
+        : t('resourceBlocked')
+
+  return (
+    <section className={`rounded-xl border p-4 space-y-3 ${tone}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex items-start gap-2">
+          <Icon size={18} className="mt-0.5 flex-shrink-0" />
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold">{t('title')}</h2>
+            <p className="text-xs leading-relaxed opacity-85">{resourceText}</p>
+          </div>
+        </div>
+        {allowRefresh && identity.playerId && <RefreshAlbionIdentityButton />}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+        <IdentityField label={t('character')} value={identity.nickname ?? t('unknownValue')} />
+        <IdentityField
+          label={t('server')}
+          value={identity.server ? serverLabel(ALBION_SERVER_LABEL_KEY[identity.server]) : t('unknownValue')}
+        />
+        <IdentityField label={t('status')} value={statusText} />
+        <IdentityField label={t('relation')} value={t(relationKey(identity.relation))} />
+        <IdentityField
+          label={t('currentGuild')}
+          value={identity.currentGuildName ?? t('unknownValue')}
+        />
+        <IdentityField
+          label={t('currentAlliance')}
+          value={identity.currentAllianceName ?? t('noAlliance')}
+        />
+        <IdentityField
+          label={t('lastSynced')}
+          value={identity.lastSyncedAt ? formatDateTime(identity.lastSyncedAt) : t('notSynced')}
+        />
+        <IdentityField
+          label={t('trustedAt')}
+          value={identity.trustedAt ? formatDateTime(identity.trustedAt) : t('notTrusted')}
+        />
+      </div>
+    </section>
+  )
+}
+
+function IdentityField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded border border-white/10 bg-black/10 px-2.5 py-2">
+      <p className="text-[10px] uppercase tracking-wide opacity-60">{label}</p>
+      <p className="mt-0.5 truncate font-medium">{value}</p>
+    </div>
+  )
+}
+
+function trustStatusKey(status: AlbionIdentityTrustStatus) {
+  const keys: Record<AlbionIdentityTrustStatus, string> = {
+    claimed: 'statusClaimed',
+    roster_matched: 'statusRosterMatched',
+    trusted: 'statusTrusted',
+    disputed: 'statusDisputed',
+    revoked: 'statusRevoked',
+  }
+  return keys[status]
+}
+
+function relationKey(relation: AlbionIdentityRelation) {
+  const keys: Record<AlbionIdentityRelation, string> = {
+    home_guild: 'relationHomeGuild',
+    alliance: 'relationAlliance',
+    external: 'relationExternal',
+    unknown: 'relationUnknown',
+  }
+  return keys[relation]
+}
+
 interface ExchangeRowProps {
   entry: MemberExchangeEntry
   statusLabels: StatusLabels
@@ -711,4 +840,3 @@ function formatRankSub(
   if (rank == null || total === 0) return undefined
   return render(rank, total)
 }
-
