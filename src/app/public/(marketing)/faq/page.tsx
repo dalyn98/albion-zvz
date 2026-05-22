@@ -1,6 +1,8 @@
 import { HelpCircle } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
+import Link from 'next/link'
 import MarketingNav from '@/components/MarketingNav'
+import { getMarketingPaths } from '@/lib/marketing-paths'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,7 +23,10 @@ const FAQ_ANSWER_KEY: Record<FaqKey, FaqAnswerKey> = {
 }
 
 export default async function PublicFaqPage() {
-  const tFaq = await getTranslations('publicFaq')
+  const [tFaq, paths] = await Promise.all([
+    getTranslations('publicFaq'),
+    getMarketingPaths(),
+  ])
   return (
     <>
       <MarketingNav active="faq" />
@@ -34,6 +39,9 @@ export default async function PublicFaqPage() {
             <h1 className="text-2xl sm:text-3xl font-bold leading-tight">
               {tFaq('pageTitle')}
             </h1>
+            <p className="mx-auto max-w-2xl text-sm leading-relaxed text-gray-300">
+              {tFaq('pageLead')}
+            </p>
           </div>
 
           <div className="space-y-3">
@@ -58,6 +66,27 @@ export default async function PublicFaqPage() {
               </details>
             ))}
           </div>
+
+          <section className="rounded-2xl border border-amber-400/30 bg-amber-500/5 p-5 sm:p-6 text-center space-y-3">
+            <h2 className="text-lg font-bold text-white">{tFaq('ctaTitle')}</h2>
+            <p className="mx-auto max-w-2xl text-sm leading-relaxed text-amber-100/80">
+              {tFaq('ctaBody')}
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-2 pt-1">
+              <Link
+                href={paths.docs}
+                className="inline-flex items-center justify-center rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-amber-400"
+              >
+                {tFaq('ctaDocs')}
+              </Link>
+              <Link
+                href={paths.demo}
+                className="inline-flex items-center justify-center rounded-lg border border-gray-700 bg-gray-900/80 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
+              >
+                {tFaq('ctaDemo')}
+              </Link>
+            </div>
+          </section>
         </div>
       </div>
     </>

@@ -1,6 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Check, HelpCircle, ShieldCheck, Sparkles } from 'lucide-react'
+import {
+  CalendarCheck,
+  Check,
+  Database,
+  HelpCircle,
+  ShieldCheck,
+  Sparkles,
+  UserRoundCheck,
+} from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import MarketingNav from '@/components/MarketingNav'
 import InAppBrowserNoticeWithMessages from '@/components/InAppBrowserNoticeWithMessages'
@@ -62,6 +70,23 @@ export default async function PublicPricingPage() {
       icon: HelpCircle,
       title: t('supportPolicyTitle'),
       body: t('supportPolicyBody'),
+    },
+  ]
+  const validationCards = [
+    {
+      icon: CalendarCheck,
+      title: t('validationEventsTitle'),
+      body: t('validationEventsBody'),
+    },
+    {
+      icon: UserRoundCheck,
+      title: t('validationMembersTitle'),
+      body: t('validationMembersBody'),
+    },
+    {
+      icon: Database,
+      title: t('validationDataTitle'),
+      body: t('validationDataBody'),
     },
   ]
 
@@ -138,6 +163,29 @@ export default async function PublicPricingPage() {
                 <p className="mt-2 text-sm leading-relaxed text-gray-400">{card.body}</p>
               </div>
             ))}
+          </section>
+
+          <section className="rounded-2xl border border-gray-800 bg-gray-950/45 p-6 sm:p-8 space-y-5">
+            <div className="max-w-2xl">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-300">
+                {t('validationBadge')}
+              </p>
+              <h2 className="mt-2 text-xl sm:text-2xl font-bold text-white">
+                {t('validationTitle')}
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-gray-300">
+                {t('validationLead')}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {validationCards.map((card) => (
+                <div key={card.title} className="rounded-xl border border-gray-800 bg-gray-900/55 p-5">
+                  <card.icon size={18} className="text-sky-300" />
+                  <h3 className="mt-3 text-sm font-bold text-white">{card.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-gray-400">{card.body}</p>
+                </div>
+              ))}
+            </div>
           </section>
 
           <section className="rounded-2xl border border-gray-800 bg-gray-950/50 p-6 sm:p-8 text-center space-y-4">

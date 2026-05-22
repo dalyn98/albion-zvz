@@ -7,8 +7,11 @@ import {
   Check,
   ArrowRight,
   PlayCircle,
+  ClipboardList,
+  Gauge,
   ShieldCheck,
   Trophy,
+  Users,
   Wallet,
   Zap,
 } from 'lucide-react'
@@ -52,6 +55,23 @@ export default async function PublicLandingPage() {
   const installHref = myGuildHref ?? '/api/auth/discord/start?returnTo=%2Fonboard'
   const primaryCtaLabel = myGuildHref ? t('ctaMyGuild') : t('ctaPrimary')
   const isAdmin = isSuperAdminSession(session)
+  const proofCards = [
+    {
+      icon: ClipboardList,
+      value: t('proofEventValue'),
+      label: t('proofEventLabel'),
+    },
+    {
+      icon: Gauge,
+      value: t('proofStatsValue'),
+      label: t('proofStatsLabel'),
+    },
+    {
+      icon: Users,
+      value: t('proofMemberValue'),
+      label: t('proofMemberLabel'),
+    },
+  ]
   const memberValueCards = [
     {
       icon: Calendar,
@@ -77,6 +97,26 @@ export default async function PublicLandingPage() {
       icon: Zap,
       title: t('memberSiphonTitle'),
       body: t('memberSiphonBody'),
+    },
+  ]
+  const audienceCards = [
+    {
+      title: t('operatorBenefitTitle'),
+      body: t('operatorBenefitBody'),
+      bullets: [
+        t('operatorBenefitBullet1'),
+        t('operatorBenefitBullet2'),
+        t('operatorBenefitBullet3'),
+      ],
+    },
+    {
+      title: t('memberBenefitTitle'),
+      body: t('memberBenefitBody'),
+      bullets: [
+        t('memberBenefitBullet1'),
+        t('memberBenefitBullet2'),
+        t('memberBenefitBullet3'),
+      ],
     },
   ]
 
@@ -169,6 +209,21 @@ export default async function PublicLandingPage() {
             </p>
           </section>
 
+          <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 scroll-mt-20">
+            {proofCards.map((card) => (
+              <div
+                key={card.value}
+                className="rounded-xl border border-gray-800 bg-gray-900/55 p-4 text-center"
+              >
+                <card.icon size={18} className="mx-auto text-amber-300" />
+                <div className="mt-3 text-base sm:text-lg font-black text-white leading-tight">
+                  {card.value}
+                </div>
+                <p className="mt-1 text-xs text-gray-400 leading-relaxed">{card.label}</p>
+              </div>
+            ))}
+          </section>
+
           {isAdmin && (
             <section className="space-y-5 scroll-mt-20">
               <div className="text-center space-y-1.5">
@@ -243,6 +298,39 @@ export default async function PublicLandingPage() {
                   <p className="mt-2 text-xs text-gray-400 leading-relaxed">
                     {card.body}
                   </p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="space-y-5 scroll-mt-20">
+            <div className="text-center space-y-3">
+              <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-sky-300/80">
+                {t('audienceBadge')}
+              </p>
+              <h2 className="text-2xl sm:text-3xl font-bold leading-tight">
+                {t('audienceTitle')}
+              </h2>
+              <p className="text-sm sm:text-base text-gray-300 max-w-2xl mx-auto leading-relaxed">
+                {t('audienceLead')}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {audienceCards.map((card) => (
+                <div
+                  key={card.title}
+                  className="rounded-2xl border border-gray-800 bg-gray-900/60 p-5 sm:p-6"
+                >
+                  <h3 className="text-lg font-bold text-white">{card.title}</h3>
+                  <p className="mt-2 text-sm text-gray-300 leading-relaxed">{card.body}</p>
+                  <ul className="mt-4 space-y-2">
+                    {card.bullets.map((bullet) => (
+                      <li key={bullet} className="flex items-start gap-2 text-sm text-gray-200">
+                        <Check size={14} className="mt-0.5 flex-shrink-0 text-sky-300" />
+                        <span>{bullet}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ))}
             </div>
