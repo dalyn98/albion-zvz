@@ -519,7 +519,7 @@ export default async function EventDetailPage({
           battleStarted={!!event.battle_started_at}
         />
 
-        <div id="event-slots" className="scroll-mt-20">
+        <div id="event-slots" data-tour-id="member-tour-event-detail" className="scroll-mt-20">
           <EventPartyGrid
             parties={parties}
             currentDiscordId={session?.discordId ?? null}

@@ -160,7 +160,10 @@ export default async function MePage() {
         <p className="text-gray-400 text-sm">{t('description')}</p>
       </div>
 
-      <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4">
+      <section
+        data-tour-id="member-tour-me"
+        className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4"
+      >
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -395,7 +398,11 @@ export default async function MePage() {
         <ChevronRight size={18} className="text-gray-500 group-hover:text-amber-400 flex-shrink-0" />
       </Link>
 
-      <section id="wallet" className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4 scroll-mt-20">
+      <section
+        id="wallet"
+        data-tour-id="member-tour-exchange"
+        className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4 scroll-mt-20"
+      >
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <h2 className="text-lg font-bold text-white">{t('walletTitle')}</h2>

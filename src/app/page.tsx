@@ -192,11 +192,16 @@ export default async function HomePage() {
       {adminBadges && <HomeAdminPendingCard badges={adminBadges} />}
 
       {events.length === 0 ? (
-        <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center">
+        <div
+          data-tour-id="member-tour-events"
+          className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center"
+        >
           <p className="text-gray-400">{t('home.empty')}</p>
         </div>
       ) : (
-        <HomeEventList events={cards} />
+        <div data-tour-id="member-tour-events">
+          <HomeEventList events={cards} />
+        </div>
       )}
     </main>
   )

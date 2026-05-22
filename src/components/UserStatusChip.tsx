@@ -14,6 +14,7 @@ interface Props {
   summary: UserStatusSummary | null
   compact?: boolean
   className?: string
+  tourId?: string
 }
 
 function formatCompactPoints(value: number): string {
@@ -28,7 +29,7 @@ function trimDecimal(value: number): string {
   return value.toFixed(1).replace(/\.0$/, '')
 }
 
-export default function UserStatusChip({ summary, compact = false, className = '' }: Props) {
+export default function UserStatusChip({ summary, compact = false, className = '', tourId }: Props) {
   const t = useTranslations('sidebar')
   if (!summary) return null
 
@@ -55,6 +56,7 @@ export default function UserStatusChip({ summary, compact = false, className = '
       href={href}
       aria-label={ariaLabel}
       title={ariaLabel}
+      data-tour-id={tourId}
       className={[
         'inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-surface/90 text-muted shadow-sm backdrop-blur transition-colors hover:border-accent/50 hover:text-foreground',
         compact ? 'px-2 py-1 text-[11px]' : 'px-3 py-1.5 text-xs',

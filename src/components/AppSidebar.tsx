@@ -329,7 +329,12 @@ export default function AppSidebar({
         </button>
         <GuardedLink href={publicProfileHref ?? '/'} className="min-w-0 truncate px-2 text-accent text-base font-semibold tracking-tight">⚔ {brandName}</GuardedLink>
         {session ? (
-          <UserStatusChip summary={userStatus} compact className="max-w-[46vw]" />
+          <UserStatusChip
+            summary={userStatus}
+            compact
+            className="max-w-[46vw]"
+            tourId="member-tour-status-chip"
+          />
         ) : (
           <a
             href={loginHref}

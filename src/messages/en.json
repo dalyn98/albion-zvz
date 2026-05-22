@@ -5253,6 +5253,43 @@
   "unsavedChanges": {
     "confirmLeave": "You have unsaved changes. Are you sure you want to leave this page?"
   },
+  "memberTour": {
+    "eyebrow": "Member tour",
+    "introTitle": "Here are the pages members use most.",
+    "introBody": "This quick tour moves through the real event, profile, status, regear, and exchange pages. You can skip it at any time.",
+    "start": "Start tour",
+    "skip": "Skip",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "stepCounter": "{current}/{total}",
+    "steps": {
+      "events": {
+        "title": "Events start here",
+        "body": "This is the first page for published guild events. Check the time, location, and sign-up progress before opening the detail page."
+      },
+      "eventDetail": {
+        "title": "Use the detail page to claim a slot",
+        "body": "Review the parties and role slots, then request the position that fits you. Your current sign-up state is visible here too."
+      },
+      "me": {
+        "title": "My info shows your account state",
+        "body": "Your Discord account, Albion character, current guild site, and private activity record are summarized for you only."
+      },
+      "statusChip": {
+        "title": "The top summary is a shortcut",
+        "body": "It keeps your nickname, point balance, and pending alerts visible. Click it to jump to My info or your request history."
+      },
+      "regear": {
+        "title": "Submit regear requests here",
+        "body": "When a post-battle regear window is open, claim it from this page and check the deadline and expected payout."
+      },
+      "exchange": {
+        "title": "Exchange requests live in My info",
+        "body": "Check your point balance and request the silver amount you want. Duplicate requests are blocked while one is pending."
+      }
+    }
+  },
   "publicPricing": {
     "badge": "Free beta",
     "title": "Every feature is free until general availability.",

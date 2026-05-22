@@ -13,6 +13,7 @@ import { canAccessAnyOfficerAdminRoute } from '@/lib/admin-route-access'
 import { CAP } from '@/lib/permissions'
 import AppSidebar from './AppSidebar'
 import UserStatusChip, { type UserStatusSummary } from './UserStatusChip'
+import MemberGuidedTour from './MemberGuidedTour'
 
 // 어떤 tenant 에도 매칭되지 않을 때 표시되는 generic 브랜드명. 과거에 'Menhera'
 // 로 하드코딩돼 있었으나 multi-tenant SaaS 가 되면서 다른 길드에 멘헤라 라벨이
@@ -46,6 +47,8 @@ export default async function AppShell({ children }: { children: React.ReactNode
   // 페이지가 404 라 죽은 링크가 된다.
   let publicProfileHref: string | null = null
   let userStatus: UserStatusSummary | null = null
+  let memberTourScope: string | null = null
+  let memberTourEventHref: string | null = null
   if (session) {
     const guildId = await getSessionGuildId(session)
     // craft 탭 노출은 어드민/멤버 둘 다 영향. 멤버는 toggle on + is_crafter
@@ -61,7 +64,7 @@ export default async function AppShell({ children }: { children: React.ReactNode
       CAP.CRAFT_TASK_DELIVER,
       CAP.CRAFT_MASTER,
     ])
-    const [badges, tenantCfg, craftEnabledRaw, isCrafter, guildProfileEnabledRaw, statusSummary] =
+    const [badges, tenantCfg, craftEnabledRaw, isCrafter, guildProfileEnabledRaw, statusSummary, tourEventHref] =
       await Promise.all([
         canReviewQueues ? getAdminBadgeCounts(guildId) : Promise.resolve(null),
         getTenantDiscordConfig(guildId),
@@ -71,9 +74,14 @@ export default async function AppShell({ children }: { children: React.ReactNode
         session.isMember ? loadIsCrafter(guildId, session.discordId) : Promise.resolve(false),
         getAppSetting('guild_profile_enabled', 'false', guildId),
         loadUserStatusSummary(guildId, session),
+        session.isMember ? loadMemberTourEventHref(guildId) : Promise.resolve(null),
       ])
     adminBadges = badges
     userStatus = statusSummary
+    memberTourEventHref = tourEventHref
+    if (session.isMember && !session.isGuest) {
+      memberTourScope = `${guildId}:${session.discordId}`
+    }
     // 좌측 상단 표시 이름은 tenant slug 첫 하이픈 앞부분 — onboarding wizard 에서
     // 사용자가 정한 식별자가 그대로 노출된다. session 의 tenant 가 있으면
     // host 기반보다 우선.
@@ -132,13 +140,34 @@ export default async function AppShell({ children }: { children: React.ReactNode
       <div className="flex-1 min-w-0 flex flex-col">
         {userStatus && (
           <div className="hidden lg:flex sticky top-0 z-20 h-12 items-center justify-end border-b border-border bg-background/90 px-4 backdrop-blur-md">
-            <UserStatusChip summary={userStatus} />
+            <UserStatusChip summary={userStatus} tourId="member-tour-status-chip" />
           </div>
         )}
         {children}
       </div>
+      {memberTourScope && (
+        <MemberGuidedTour
+          storageScope={memberTourScope}
+          eventDetailHref={memberTourEventHref}
+        />
+      )}
     </div>
   )
+}
+
+async function loadMemberTourEventHref(guildId: string): Promise<string | null> {
+  const db = getAdminClient()
+  const { data } = await db
+    .from('events')
+    .select('id')
+    .eq('guild_id', guildId)
+    .neq('status', 'draft')
+    .order('gather_at', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  return data?.id ? `/events/${data.id}` : null
 }
 
 async function loadUserStatusSummary(
