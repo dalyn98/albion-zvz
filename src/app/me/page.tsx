@@ -5,11 +5,14 @@ import {
   CalendarDays,
   ChevronRight,
   Coins,
+  History,
   ListChecks,
+  LockKeyhole,
   ShieldAlert,
   ShieldCheck,
   Swords,
   Trophy,
+  UserCircle2,
   Zap,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
@@ -25,8 +28,10 @@ import {
   getAccountAlbionIdentityView,
 } from '@/lib/account-albion-identity'
 import { getAppSetting } from '@/lib/app-settings'
-import { getSessionGuildId } from '@/lib/tenant'
+import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
+import { getAdminClient } from '@/lib/supabase-admin'
 import { ALBION_SERVER_LABEL_KEY } from '@/lib/albion-gameinfo'
+import { displayNameFromSlug } from '@/lib/tenant-slug'
 import { formatGatherTimeFor } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
 import { formatDateTime } from '@/lib/format-datetime'
@@ -42,6 +47,17 @@ import DonationRequestButton from '@/components/DonationRequestButton'
 import MyCraftPickupsSection from '@/components/MyCraftPickupsSection'
 
 export const dynamic = 'force-dynamic'
+
+interface PrivateGuildActivityRecord {
+  guildId: string
+  guildName: string
+  isCurrent: boolean
+  relation: string
+  trustStatus: string
+  eventCount: number
+  pointBalance: number
+  requestCount: number
+}
 
 export default async function MePage() {
   const session = await getSession()
@@ -63,6 +79,8 @@ export default async function MePage() {
     siphonAccount,
     albionIdentity,
     accountAlbionIdentity,
+    tenantConfig,
+    activityRecords,
     weeklyStatsEnabledRaw,
     t,
     tRequests,
@@ -79,6 +97,8 @@ export default async function MePage() {
     getMySiphonAccount(5),
     getMemberAlbionIdentity(session.discordId, guildId),
     getAccountAlbionIdentityView(guildId, session.discordId),
+    getTenantDiscordConfig(guildId),
+    loadPrivateGuildActivityRecords(session.discordId, guildId),
     // 길드별 토글 — 기본 OFF. SaaS 다른 테넌트에는 노출하지 않는다. 우리 길드는
     // 별도 SQL upsert 로 'true' 설정.
     getAppSetting('me_weekly_stats_enabled', 'false', guildId),
@@ -105,6 +125,10 @@ export default async function MePage() {
     : false
   const albionDisplayName = accountAlbionIdentity?.nickname ?? albionIdentity?.nickname ?? null
   const albionDisplayServer = accountAlbionIdentity?.server ?? albionIdentity?.server ?? null
+  const currentGuildName =
+    tenantConfig?.slug
+      ? displayNameFromSlug(tenantConfig.slug) || tenantConfig.name
+      : tenantConfig?.name ?? null
 
   const balance = dashboard?.balance ?? 0
   const pendingExchange = exchanges.find((e) => e.status === 'pending') ?? null
@@ -135,6 +159,47 @@ export default async function MePage() {
         <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">{t('title')}</h1>
         <p className="text-gray-400 text-sm">{t('description')}</p>
       </div>
+
+      <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <UserCircle2 size={18} className="text-amber-300" />
+              {t('accountInfoTitle')}
+            </h2>
+            <p className="text-gray-400 text-xs leading-relaxed mt-1">{t('accountInfoDescription')}</p>
+          </div>
+          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-200">
+            <LockKeyhole size={11} />
+            {t('privateOnlyBadge')}
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <WalletMetric
+            label={t('accountDiscordLabel')}
+            value={session.username}
+            valueClass="text-white"
+          />
+          <WalletMetric
+            label={t('accountAlbionLabel')}
+            value={
+              albionDisplayName
+                ? albionDisplayServer
+                  ? `${albionDisplayName} · ${tCommon(ALBION_SERVER_LABEL_KEY[albionDisplayServer])}`
+                  : albionDisplayName
+                : t('accountAlbionMissing')
+            }
+            valueClass={albionDisplayName ? 'text-white' : 'text-gray-500'}
+            sub={albionVerified ? t('accountAlbionTrusted') : t('accountAlbionNeedsCheck')}
+          />
+          <WalletMetric
+            label={t('accountCurrentGuildLabel')}
+            value={currentGuildName ?? t('accountCurrentGuildUnknown')}
+            valueClass="text-white"
+            sub={t('accountCurrentGuildSub')}
+          />
+        </div>
+      </section>
 
       <section
         className={`flex items-start gap-3 rounded-2xl border p-4 ${
@@ -258,6 +323,61 @@ export default async function MePage() {
             wins: dashboard.wins,
           }}
         />
+      )}
+
+      {activityRecords.length > 0 && (
+        <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <History size={18} className="text-amber-300" />
+                {t('activityRecordTitle')}
+              </h2>
+              <p className="text-gray-400 text-xs leading-relaxed mt-1">{t('activityRecordDescription')}</p>
+            </div>
+            <span className="inline-flex items-center gap-1 rounded-full border border-gray-700 bg-gray-950/50 px-2.5 py-1 text-[11px] font-semibold text-gray-300">
+              <LockKeyhole size={11} />
+              {t('activityRecordPrivateHint')}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {activityRecords.map((record) => (
+              <div key={record.guildId} className="rounded-xl border border-gray-800 bg-gray-950/40 px-4 py-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-white truncate">
+                      {record.guildName}
+                      {record.isCurrent && (
+                        <span className="ml-2 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
+                          {t('activityRecordCurrentBadge')}
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-gray-500">
+                      {t(`activityRecordRelation_${record.relation}`)}
+                      <span className="mx-1 text-gray-700">·</span>
+                      {t(`activityRecordTrust_${record.trustStatus}`)}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <CompactRecordMetric
+                    label={t('activityRecordEvents')}
+                    value={t('activityRecordCount', { count: record.eventCount })}
+                  />
+                  <CompactRecordMetric
+                    label={t('activityRecordPoints')}
+                    value={formatSilver(record.pointBalance)}
+                  />
+                  <CompactRecordMetric
+                    label={t('activityRecordRequests')}
+                    value={t('activityRecordCount', { count: record.requestCount })}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       <Link
@@ -391,6 +511,114 @@ export default async function MePage() {
   )
 }
 
+async function loadPrivateGuildActivityRecords(
+  discordId: string,
+  currentGuildId: string,
+): Promise<PrivateGuildActivityRecord[]> {
+  const db = getAdminClient()
+  const { data: links, error: linksError } = await db
+    .from('account_albion_tenant_links')
+    .select('guild_id, relation, trust_status')
+    .eq('discord_id', discordId)
+    .is('revoked_at', null)
+
+  if (linksError || !links || links.length === 0) return []
+
+  const guildIds = Array.from(new Set(links.map((row) => row.guild_id as string).filter(Boolean)))
+  if (guildIds.length === 0) return []
+
+  const [
+    tenantsRes,
+    ledgerRes,
+    regearRes,
+    exchangeRes,
+    donationRes,
+    slotsRes,
+    tentativeRes,
+  ] = await Promise.all([
+    db.from('tenants').select('id, slug, name').in('id', guildIds),
+    db.from('point_ledger').select('guild_id, delta').in('guild_id', guildIds).eq('discord_id', discordId),
+    db.from('regear_requests').select('guild_id, id').in('guild_id', guildIds).eq('discord_id', discordId),
+    db.from('exchange_requests').select('guild_id, id').in('guild_id', guildIds).eq('discord_id', discordId),
+    db.from('donation_requests').select('guild_id, id').in('guild_id', guildIds).eq('discord_id', discordId),
+    db
+      .from('slots')
+      .select('guild_id, parties!inner(events!inner(id))')
+      .in('guild_id', guildIds)
+      .or(`assigned_discord_id.eq.${discordId},requested_discord_id.eq.${discordId}`),
+    db
+      .from('event_tentative_signups')
+      .select('guild_id, event_id')
+      .in('guild_id', guildIds)
+      .eq('discord_id', discordId),
+  ])
+
+  const tenantNames = new Map<string, string>()
+  for (const row of tenantsRes.data ?? []) {
+    const id = row.id as string
+    const slug = (row.slug as string | null) ?? ''
+    const name = (row.name as string | null) ?? ''
+    tenantNames.set(id, displayNameFromSlug(slug) || name || id)
+  }
+
+  const balances = new Map<string, number>()
+  for (const row of ledgerRes.data ?? []) {
+    const guildId = row.guild_id as string
+    balances.set(guildId, (balances.get(guildId) ?? 0) + (Number(row.delta) || 0))
+  }
+
+  const requestCounts = new Map<string, number>()
+  for (const rows of [regearRes.data ?? [], exchangeRes.data ?? [], donationRes.data ?? []]) {
+    for (const row of rows) {
+      const guildId = row.guild_id as string
+      requestCounts.set(guildId, (requestCounts.get(guildId) ?? 0) + 1)
+    }
+  }
+
+  const eventIdsByGuild = new Map<string, Set<string>>()
+  for (const row of slotsRes.data ?? []) {
+    const guildId = row.guild_id as string
+    const party = Array.isArray(row.parties) ? row.parties[0] : row.parties
+    const event = Array.isArray(party?.events) ? party?.events[0] : party?.events
+    const eventId = event?.id as string | undefined
+    if (!eventId) continue
+    const set = eventIdsByGuild.get(guildId) ?? new Set<string>()
+    set.add(eventId)
+    eventIdsByGuild.set(guildId, set)
+  }
+  for (const row of tentativeRes.data ?? []) {
+    const guildId = row.guild_id as string
+    const eventId = row.event_id as string | null
+    if (!eventId) continue
+    const set = eventIdsByGuild.get(guildId) ?? new Set<string>()
+    set.add(eventId)
+    eventIdsByGuild.set(guildId, set)
+  }
+
+  return links
+    .map((row) => {
+      const guildId = row.guild_id as string
+      return {
+        guildId,
+        guildName: tenantNames.get(guildId) ?? guildId,
+        isCurrent: guildId === currentGuildId,
+        relation: normalizeActivityKey(row.relation, ['home_guild', 'alliance', 'external', 'unknown']),
+        trustStatus: normalizeActivityKey(row.trust_status, ['claimed', 'roster_matched', 'trusted', 'disputed', 'revoked']),
+        eventCount: eventIdsByGuild.get(guildId)?.size ?? 0,
+        pointBalance: balances.get(guildId) ?? 0,
+        requestCount: requestCounts.get(guildId) ?? 0,
+      }
+    })
+    .sort((a, b) => {
+      if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1
+      return a.guildName.localeCompare(b.guildName)
+    })
+}
+
+function normalizeActivityKey(value: unknown, allowed: readonly string[]): string {
+  return typeof value === 'string' && allowed.includes(value) ? value : 'unknown'
+}
+
 function QuickLinkCard({
   href,
   icon,
@@ -436,6 +664,15 @@ function WalletMetric({
         {value}
       </p>
       {sub && <p className="mt-1 text-[11px] text-gray-500">{sub}</p>}
+    </div>
+  )
+}
+
+function CompactRecordMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-gray-800 bg-gray-900/70 px-3 py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{label}</p>
+      <p className="mt-1 text-sm font-bold text-white font-mono">{value}</p>
     </div>
   )
 }
