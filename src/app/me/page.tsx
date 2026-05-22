@@ -48,6 +48,8 @@ import MyCraftPickupsSection from '@/components/MyCraftPickupsSection'
 
 export const dynamic = 'force-dynamic'
 
+const PARTICIPATION_PREVIEW_LIMIT = 20
+
 interface PrivateGuildActivityRecord {
   guildId: string
   guildName: string
@@ -137,6 +139,8 @@ export default async function MePage() {
     (dashboard?.pendingRegearCount ?? 0) +
     (dashboard?.pendingExchangeCount ?? 0) +
     (dashboard?.pendingDonationCount ?? 0)
+  const participationPreview = participation.slice(0, PARTICIPATION_PREVIEW_LIMIT)
+  const hasMoreParticipation = participation.length > participationPreview.length
   const nextEventForAction = dashboard?.nextActionEvent
     ? {
         id: dashboard.nextActionEvent.id,
@@ -345,7 +349,11 @@ export default async function MePage() {
           </div>
           <div className="space-y-2">
             {activityRecords.map((record) => (
-              <div key={record.guildId} className="rounded-xl border border-gray-800 bg-gray-950/40 px-4 py-3">
+              <Link
+                key={record.guildId}
+                href={`/me/activity/${record.guildId}`}
+                className="group block rounded-xl border border-gray-800 bg-gray-950/40 px-4 py-3 transition-colors hover:border-amber-500/40 hover:bg-gray-950/70"
+              >
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-white truncate">
@@ -362,6 +370,10 @@ export default async function MePage() {
                       {t(`activityRecordTrust_${record.trustStatus}`)}
                     </p>
                   </div>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-300 opacity-90 group-hover:text-amber-200">
+                    {t('activityRecordDetailLink')}
+                    <ChevronRight size={13} />
+                  </span>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   <CompactRecordMetric
@@ -377,7 +389,7 @@ export default async function MePage() {
                     value={t('activityRecordCount', { count: record.requestCount })}
                   />
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </section>
@@ -484,18 +496,32 @@ export default async function MePage() {
 
       <section className="space-y-3">
         <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-lg font-bold text-white">{t('participationTitle')}</h2>
-          {participation.length > 0 && (
-            <p className="text-xs text-gray-400">
-              {t('participationCount', { count: participation.length })}
-            </p>
-          )}
+          <div>
+            <h2 className="text-lg font-bold text-white">{t('participationTitle')}</h2>
+            {participation.length > 0 && (
+              <p className="mt-0.5 text-xs text-gray-500">
+                {hasMoreParticipation
+                  ? t('participationPreviewHint', {
+                      shown: participationPreview.length,
+                      total: participation.length,
+                    })
+                  : t('participationCount', { count: participation.length })}
+              </p>
+            )}
+          </div>
+          <Link
+            href={`/me/activity/${guildId}`}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-amber-300 hover:text-amber-200"
+          >
+            {t('participationDetailLink')}
+            <ChevronRight size={13} />
+          </Link>
         </div>
         {participation.length === 0 ? (
           <p className="text-gray-500 text-sm text-center py-6">{t('noParticipation')}</p>
         ) : (
-          <ul className="space-y-2">
-            {participation.map((p) => (
+          <ul className="max-h-96 space-y-2 overflow-y-auto pr-1">
+            {participationPreview.map((p) => (
               <li
                 key={p.event_id}
                 className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3"

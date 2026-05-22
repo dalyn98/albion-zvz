@@ -381,6 +381,35 @@ export async function getMyMemberDetail(): Promise<{
   return fetchMemberDetail(session.discordId, guildId)
 }
 
+// Self-only variant for the account activity page. It allows reading another
+// guild's record only when this Discord account has an active tenant link for
+// that guild. This keeps global "My info" drill-down private to the owner.
+export async function getMyMemberDetailForGuild(targetGuildId: string): Promise<{
+  detail: GuildMemberDetail | null
+  error?: string
+}> {
+  const session = await getSession()
+  if (!session) return { detail: null, error: 'Unauthorized' }
+  if (!session.isMember) return { detail: null, error: 'Member only' }
+
+  const currentGuildId = await getSessionGuildId(session)
+  if (targetGuildId !== currentGuildId) {
+    const db = getAdminClient()
+    const { data, error } = await db
+      .from('account_albion_tenant_links')
+      .select('guild_id')
+      .eq('guild_id', targetGuildId)
+      .eq('discord_id', session.discordId)
+      .is('revoked_at', null)
+      .maybeSingle()
+
+    if (error) return { detail: null, error: error.message }
+    if (!data) return { detail: null }
+  }
+
+  return fetchMemberDetail(session.discordId, targetGuildId)
+}
+
 // Discord 미연동 Albion 멤버 상세. albion_guild_members + killboard_events
 // (albion_player_id 매칭) 만으로 구성되는 슬림한 통계 뷰. Discord 의존 항목
 // (slot 참여 이벤트, 리기어, 환전, 포인트, 랭킹, preferred_language, role_breakdown)
