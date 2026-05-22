@@ -1836,7 +1836,12 @@
     "collapse": "サイドバーを閉じる",
     "expand": "サイドバーを開く",
     "language": "言語",
-    "languageSwitchTo": "{label} に切り替え"
+    "languageSwitchTo": "{label} に切り替え",
+    "statusChipPoints": "{points}",
+    "statusChipPending": "保留 {count}件",
+    "statusChipNoPending": "新しい通知なし",
+    "statusChipAria": "{name}、ポイント {points}、{pending}",
+    "statusChipAriaGuest": "{name}、{pending}"
   },
   "home": {
     "title": "戦闘スケジュール",

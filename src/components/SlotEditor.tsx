@@ -295,11 +295,7 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, isBom
     <>
       {!standaloneMode && (
         <div className="flex items-center justify-between px-3 py-2.5 bg-gray-800 border border-gray-700 rounded-lg">
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="flex items-center gap-3 min-w-0 flex-1 text-left"
-          >
+          <div className="flex items-center gap-3 min-w-0 flex-1 text-left cursor-pointer">
             <GearPreview slot={collapsedDisplaySlot} kind="weapon" size={36} isTaken={false} />
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-2 min-w-0">
@@ -331,7 +327,7 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, isBom
             {slot.assigned_username && (
               <span className="text-green-400 text-xs flex-shrink-0">✓ {slot.assigned_username}</span>
             )}
-          </button>
+          </div>
           <div className="flex items-center gap-1 ml-2 flex-shrink-0">
             <button
               type="button"

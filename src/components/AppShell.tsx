@@ -12,6 +12,7 @@ import { getMarketingPaths } from '@/lib/marketing-paths'
 import { canAccessAnyOfficerAdminRoute } from '@/lib/admin-route-access'
 import { CAP } from '@/lib/permissions'
 import AppSidebar from './AppSidebar'
+import UserStatusChip, { type UserStatusSummary } from './UserStatusChip'
 
 // 어떤 tenant 에도 매칭되지 않을 때 표시되는 generic 브랜드명. 과거에 'Menhera'
 // 로 하드코딩돼 있었으나 multi-tenant SaaS 가 되면서 다른 길드에 멘헤라 라벨이
@@ -44,6 +45,7 @@ export default async function AppShell({ children }: { children: React.ReactNode
   // 노출할 href. guild_profile_enabled 가 켜진 길드만 — 비활성화된 길드는 어차피
   // 페이지가 404 라 죽은 링크가 된다.
   let publicProfileHref: string | null = null
+  let userStatus: UserStatusSummary | null = null
   if (session) {
     const guildId = await getSessionGuildId(session)
     // craft 탭 노출은 어드민/멤버 둘 다 영향. 멤버는 toggle on + is_crafter
@@ -59,7 +61,7 @@ export default async function AppShell({ children }: { children: React.ReactNode
       CAP.CRAFT_TASK_DELIVER,
       CAP.CRAFT_MASTER,
     ])
-    const [badges, tenantCfg, craftEnabledRaw, isCrafter, guildProfileEnabledRaw] =
+    const [badges, tenantCfg, craftEnabledRaw, isCrafter, guildProfileEnabledRaw, statusSummary] =
       await Promise.all([
         canReviewQueues ? getAdminBadgeCounts(guildId) : Promise.resolve(null),
         getTenantDiscordConfig(guildId),
@@ -68,8 +70,10 @@ export default async function AppShell({ children }: { children: React.ReactNode
           : Promise.resolve('false'),
         session.isMember ? loadIsCrafter(guildId, session.discordId) : Promise.resolve(false),
         getAppSetting('guild_profile_enabled', 'false', guildId),
+        loadUserStatusSummary(guildId, session),
       ])
     adminBadges = badges
+    userStatus = statusSummary
     // 좌측 상단 표시 이름은 tenant slug 첫 하이픈 앞부분 — onboarding wizard 에서
     // 사용자가 정한 식별자가 그대로 노출된다. session 의 tenant 가 있으면
     // host 기반보다 우선.
@@ -123,10 +127,76 @@ export default async function AppShell({ children }: { children: React.ReactNode
         craftOrdersVisible={craftOrdersVisible}
         publicProfileHref={publicProfileHref}
         landingHref={landingHref}
+        userStatus={userStatus}
       />
-      <div className="flex-1 min-w-0 flex flex-col">{children}</div>
+      <div className="flex-1 min-w-0 flex flex-col">
+        {userStatus && (
+          <div className="hidden lg:flex sticky top-0 z-20 h-12 items-center justify-end border-b border-border bg-background/90 px-4 backdrop-blur-md">
+            <UserStatusChip summary={userStatus} />
+          </div>
+        )}
+        {children}
+      </div>
     </div>
   )
+}
+
+async function loadUserStatusSummary(
+  guildId: string,
+  session: NonNullable<Awaited<ReturnType<typeof getSession>>>,
+): Promise<UserStatusSummary | null> {
+  if (!session.isMember) {
+    return {
+      displayName: session.username,
+      balance: null,
+      pendingCount: 0,
+    }
+  }
+
+  const db = getAdminClient()
+  const [avatarRes, ledgerRes, regearRes, exchangeRes, donationRes] = await Promise.all([
+    db
+      .from('guild_avatars')
+      .select('username, albion_nickname')
+      .eq('guild_id', guildId)
+      .eq('discord_id', session.discordId)
+      .maybeSingle(),
+    db
+      .from('point_ledger')
+      .select('delta')
+      .eq('guild_id', guildId)
+      .eq('discord_id', session.discordId),
+    db
+      .from('regear_requests')
+      .select('id', { head: true, count: 'exact' })
+      .eq('guild_id', guildId)
+      .eq('discord_id', session.discordId)
+      .eq('status', 'pending'),
+    db
+      .from('exchange_requests')
+      .select('id', { head: true, count: 'exact' })
+      .eq('guild_id', guildId)
+      .eq('discord_id', session.discordId)
+      .eq('status', 'pending'),
+    db
+      .from('donation_requests')
+      .select('id', { head: true, count: 'exact' })
+      .eq('guild_id', guildId)
+      .eq('discord_id', session.discordId)
+      .eq('status', 'pending'),
+  ])
+
+  const avatar = avatarRes.data as { username?: string | null; albion_nickname?: string | null } | null
+  const displayName =
+    avatar?.albion_nickname?.trim() ||
+    avatar?.username?.trim() ||
+    session.username
+  const balance = (ledgerRes.data ?? []).reduce((sum, row) => sum + (Number(row.delta) || 0), 0)
+  return {
+    displayName,
+    balance,
+    pendingCount: (regearRes.count ?? 0) + (exchangeRes.count ?? 0) + (donationRes.count ?? 0),
+  }
 }
 
 // guild_avatars.is_crafter 직접 조회. craft.ts 의 loadIsCrafter 와 동일 — 'use server'

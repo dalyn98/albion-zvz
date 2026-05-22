@@ -1836,7 +1836,12 @@
     "collapse": "折叠侧栏",
     "expand": "展开侧栏",
     "language": "语言",
-    "languageSwitchTo": "切换到 {label}"
+    "languageSwitchTo": "切换到 {label}",
+    "statusChipPoints": "{points}",
+    "statusChipPending": "待处理 {count} 项",
+    "statusChipNoPending": "暂无新提醒",
+    "statusChipAria": "{name}, 积分 {points}, {pending}",
+    "statusChipAriaGuest": "{name}, {pending}"
   },
   "home": {
     "title": "战斗日程",

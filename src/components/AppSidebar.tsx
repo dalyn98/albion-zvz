@@ -40,6 +40,7 @@ import {
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
 import { canAccessAdminPath } from '@/lib/admin-route-access'
+import UserStatusChip, { type UserStatusSummary } from './UserStatusChip'
 
 // 사이드바 한 그룹 안의 sub-section. labelKey 없으면 헤더 없이 첫 번째 섹션
 // 으로 취급. nav.section.<key> 로 i18n.
@@ -192,6 +193,7 @@ interface AppSidebarProps {
   // AGM 공식 마케팅 사이트 진입점. tenant host 에서는 canonical root 절대 URL,
   // preview/localhost 에서는 `/public/landing` 가 들어온다. 모든 세션 (게스트 포함) 에게 노출.
   landingHref: string
+  userStatus: UserStatusSummary | null
 }
 
 export default function AppSidebar({
@@ -206,6 +208,7 @@ export default function AppSidebar({
   craftOrdersVisible,
   publicProfileHref,
   landingHref,
+  userStatus,
 }: AppSidebarProps) {
   const pathname = usePathname()
   const t = useTranslations('sidebar')
@@ -324,22 +327,9 @@ export default function AppSidebar({
         >
           <Menu size={20} />
         </button>
-        <GuardedLink href={publicProfileHref ?? '/'} className="text-accent text-base font-semibold tracking-tight">⚔ {brandName}</GuardedLink>
+        <GuardedLink href={publicProfileHref ?? '/'} className="min-w-0 truncate px-2 text-accent text-base font-semibold tracking-tight">⚔ {brandName}</GuardedLink>
         {session ? (
-          <GuardedLink href="/me/profile" aria-label={t('myInfo')} className="flex items-center">
-            {url ? (
-              <Image
-                src={url}
-                alt=""
-                width={28}
-                height={28}
-                className="rounded-full"
-                unoptimized
-              />
-            ) : (
-              <UserCircle2 size={24} className="text-muted" />
-            )}
-          </GuardedLink>
+          <UserStatusChip summary={userStatus} compact className="max-w-[46vw]" />
         ) : (
           <a
             href={loginHref}

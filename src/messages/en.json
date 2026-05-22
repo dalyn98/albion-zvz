@@ -1836,7 +1836,12 @@
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar",
     "language": "Language",
-    "languageSwitchTo": "Switch to {label}"
+    "languageSwitchTo": "Switch to {label}",
+    "statusChipPoints": "{points}",
+    "statusChipPending": "{count} pending",
+    "statusChipNoPending": "No new alerts",
+    "statusChipAria": "{name}, {points} points, {pending}",
+    "statusChipAriaGuest": "{name}, {pending}"
   },
   "home": {
     "title": "Battle schedule",

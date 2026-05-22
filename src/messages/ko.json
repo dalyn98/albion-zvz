@@ -1836,7 +1836,12 @@
     "collapse": "사이드바 접기",
     "expand": "사이드바 펼치기",
     "language": "언어",
-    "languageSwitchTo": "{label}(으)로 전환"
+    "languageSwitchTo": "{label}(으)로 전환",
+    "statusChipPoints": "{points}",
+    "statusChipPending": "대기 {count}건",
+    "statusChipNoPending": "새 알림 없음",
+    "statusChipAria": "{name}, 포인트 {points}, {pending}",
+    "statusChipAriaGuest": "{name}, {pending}"
   },
   "home": {
     "title": "전투 일정",
