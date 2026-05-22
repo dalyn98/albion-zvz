@@ -37,7 +37,8 @@ export interface PointStats {
   withdrawnHolders: TopHolder[]
 }
 
-// 이벤트 참여 집계 창: 과거 30일. 직관적 '최근 한 달' 지표로 운영진에게 친숙.
+// 이벤트 신청/배정 집계 창: 과거 30일. 실제 전투 참여는 event-report 의
+// raw_battle 대조와 리더보드/멤버 상세의 battle participation 지표가 담당한다.
 const PARTICIPATION_WINDOW_DAYS = 30
 // 상점/리기어 트렌드 창: 과거 7일. 주문·리기어 쪽은 단기 신호가 중요.
 const SHOP_REGEAR_WINDOW_DAYS = 7
@@ -47,7 +48,7 @@ export interface TopAttendee {
   username: string
   avatar: string | null
   isAdmin: boolean
-  // 최근 30일 동안 슬롯을 차지한 서로 다른 event 수.
+  // 최근 30일 동안 슬롯을 신청/배정받은 서로 다른 event 수.
   eventCount: number
 }
 
@@ -55,11 +56,11 @@ export interface EventStats {
   windowDays: number
   // 창 내 생성된 이벤트 수.
   totalEvents: number
-  // 창 내 최소 1회라도 슬롯을 차지한 고유 길드원 수.
+  // 창 내 최소 1회라도 슬롯을 신청/배정받은 고유 길드원 수.
   activeMembers: number
   // 전체 등록 길드원(guild_avatars) 수 — 참여율 분모.
   totalMembers: number
-  // activeMembers / totalMembers (0~1). totalMembers==0 이면 0.
+  // activeMembers / totalMembers (0~1). 슬롯 신청/배정률이며 전투 확인 참석률이 아니다.
   participationRate: number
   topAttendees: TopAttendee[]
 }

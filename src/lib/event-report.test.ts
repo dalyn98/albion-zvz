@@ -1,0 +1,134 @@
+import { describe, expect, it } from 'vitest'
+import { buildEventReport } from './event-report'
+
+const profiles = new Map([
+  [
+    'discord-a',
+    {
+      discord_id: 'discord-a',
+      username: 'Assigned A',
+      avatar: null,
+    },
+  ],
+  [
+    'discord-b',
+    {
+      discord_id: 'discord-b',
+      username: 'No Show B',
+      avatar: null,
+    },
+  ],
+  [
+    'discord-c',
+    {
+      discord_id: 'discord-c',
+      username: 'Walk In C',
+      avatar: null,
+    },
+  ],
+])
+
+describe('buildEventReport — event attendance vs battle participation', () => {
+  it('counts one confirmed event attendance separately from multiple battle participations', () => {
+    const report = buildEventReport({
+      profiles,
+      battles: [],
+      regear: [],
+      slots: [
+        { assigned_discord_id: 'discord-a', role_name: 'Healer' },
+        { assigned_discord_id: 'discord-b', role_name: 'DPS' },
+      ],
+      killboard: [],
+      battleParticipations: [
+        {
+          discord_id: 'discord-a',
+          albion_player_id: 'albion-a',
+          albion_name: 'AssignedA',
+          battle_id: 1001,
+        },
+        {
+          discord_id: 'discord-a',
+          albion_player_id: 'albion-a',
+          albion_name: 'AssignedA',
+          battle_id: 1002,
+        },
+        {
+          discord_id: 'discord-a',
+          albion_player_id: 'albion-a',
+          albion_name: 'AssignedA',
+          battle_id: 1003,
+        },
+        {
+          discord_id: 'discord-c',
+          albion_player_id: 'albion-c',
+          albion_name: 'WalkInC',
+          battle_id: 1001,
+        },
+        {
+          discord_id: 'discord-c',
+          albion_player_id: 'albion-c',
+          albion_name: 'WalkInC',
+          battle_id: 1002,
+        },
+        {
+          discord_id: 'discord-c',
+          albion_player_id: 'albion-c',
+          albion_name: 'WalkInC',
+          battle_id: 1003,
+        },
+      ],
+    })
+
+    expect(report.participation.uniqueAssigned).toBe(2)
+    expect(report.attendance.confirmedAssigned).toBe(1)
+    expect(report.attendance.unconfirmedAssigned).toBe(1)
+    expect(report.attendance.unassignedBattleParticipants).toBe(1)
+    expect(report.attendance.battleParticipations).toBe(6)
+    expect(report.attendance.linkedBattleCount).toBe(3)
+    expect(report.attendance.eventAttendanceRate).toBe(0.5)
+  })
+
+  it('keeps assigned no-shows out of survival denominator and marks unassigned battle members', () => {
+    const report = buildEventReport({
+      profiles,
+      battles: [],
+      regear: [],
+      slots: [
+        { assigned_discord_id: 'discord-a', role_name: 'Healer' },
+        { assigned_discord_id: 'discord-b', role_name: 'DPS' },
+      ],
+      killboard: [
+        {
+          discord_id: 'discord-a',
+          albion_player_id: 'albion-a',
+          role: 'victim',
+          occurred_at: '2026-05-22T12:10:00.000Z',
+          battle_id: 1001,
+        },
+      ],
+      battleParticipations: [
+        {
+          discord_id: 'discord-a',
+          albion_player_id: 'albion-a',
+          albion_name: 'AssignedA',
+          battle_id: 1001,
+        },
+        {
+          discord_id: 'discord-c',
+          albion_player_id: 'albion-c',
+          albion_name: 'WalkInC',
+          battle_id: 1001,
+        },
+      ],
+    })
+
+    expect(report.survival.attended).toBe(2)
+    expect(report.survival.died).toBe(1)
+    expect(report.survival.survived).toBe(1)
+    expect(report.attendance.participants.map((p) => [p.username, p.status])).toEqual([
+      ['Assigned A', 'confirmed_assigned'],
+      ['No Show B', 'assigned_no_battle'],
+      ['Walk In C', 'unassigned_battle'],
+    ])
+  })
+})

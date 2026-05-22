@@ -10,8 +10,10 @@ import {
   type EventReportSlot,
   type EventReportKillboard,
   type EventReportRegear,
+  type EventReportBattleParticipation,
 } from '@/lib/event-report'
 import { findTrackedBattleIdsForEvent } from '@/lib/auto-regear-matching'
+import { parseRawBattle } from '@/lib/albion-battles'
 
 // battle_started_at 주변에서 tenant_battle_records 를 찾지 못한 legacy 이벤트의
 // 표시 fallback. killboard 집계는 tracked battle_id 정확 매칭만 사용한다.
@@ -61,7 +63,7 @@ export async function getEventReport(
   // tenant_battle_records 에 적재한다. report.battles 는 빈 배열로 유지
   // (UI 가 length>0 가드). killboard 는 추적된 battle_id 로만 집계해 이벤트
   // 시간대의 솔로 갱킹/다른 전투를 섞지 않는다.
-  const [partiesRes, killboardRes, regearRes] = await Promise.all([
+  const [partiesRes, killboardRes, regearRes, battleRecordsRes] = await Promise.all([
     db
       .from('parties')
       .select('slots(assigned_discord_id, role_name, is_hidden)')
@@ -70,9 +72,8 @@ export async function getEventReport(
     battleIds.length > 0
       ? db
           .from('killboard_events')
-          .select('discord_id, role, occurred_at')
+          .select('discord_id, albion_player_id, role, occurred_at, battle_id')
           .eq('guild_id', guildId)
-          .not('discord_id', 'is', null)
           .in('battle_id', battleIds)
       : Promise.resolve({ data: [], error: null }),
     db
@@ -80,6 +81,15 @@ export async function getEventReport(
       .select('status, payout_silver')
       .eq('guild_id', guildId)
       .eq('event_id', eventId),
+    // battleIds 는 위의 findTrackedBattleIdsForEvent 에서 이미 guild_id 로 스코프된
+    // 값이다. battle_records 자체는 tenant-neutral 원본 테이블이라 여기서는 해당
+    // battle id 의 raw_battle 만 직접 읽는다.
+    battleIds.length > 0
+      ? db
+          .from('battle_records')
+          .select('albion_battle_id, raw_battle')
+          .in('albion_battle_id', battleIds)
+      : Promise.resolve({ data: [], error: null }),
   ])
 
   const slots: EventReportSlot[] = []
@@ -94,18 +104,26 @@ export async function getEventReport(
     }
   }
 
-  type KillboardRow = { discord_id: string | null; role: string | null; occurred_at: string | null }
+  type KillboardRow = {
+    discord_id: string | null
+    albion_player_id: string | null
+    role: string | null
+    occurred_at: string | null
+    battle_id: number | string | null
+  }
   const killboard: EventReportKillboard[] = ((killboardRes.data ?? []) as KillboardRow[])
     .filter(
-      (k): k is { discord_id: string; role: 'killer' | 'victim'; occurred_at: string } =>
-        !!k.discord_id &&
+      (k): k is KillboardRow & { role: 'killer' | 'victim'; occurred_at: string } =>
+        (!!k.discord_id || !!k.albion_player_id) &&
         !!k.occurred_at &&
         (k.role === 'killer' || k.role === 'victim'),
     )
     .map((k) => ({
-      discord_id: k.discord_id,
+      discord_id: k.discord_id ?? null,
+      albion_player_id: k.albion_player_id ?? null,
       role: k.role,
       occurred_at: k.occurred_at,
+      battle_id: normalizeBattleId(k.battle_id),
     }))
 
   const regear: EventReportRegear[] = (regearRes.data ?? []).map((r) => ({
@@ -113,9 +131,84 @@ export async function getEventReport(
     payout_silver: r.payout_silver ?? null,
   }))
 
+  type BattleRecordRow = { albion_battle_id: number | string | null; raw_battle: unknown }
+  const rawParticipants: Array<{
+    albionPlayerId: string
+    albionName: string
+    battleId: number
+  }> = []
+  const rawPlayerIds = new Set<string>()
+  for (const row of (battleRecordsRes.data ?? []) as BattleRecordRow[]) {
+    const battleId = normalizeBattleId(row.albion_battle_id)
+    if (battleId === null) continue
+    const battle = parseRawBattle(row.raw_battle)
+    if (!battle) continue
+    for (const player of Object.values(battle.players ?? {})) {
+      if (!player.id) continue
+      rawPlayerIds.add(player.id)
+      rawParticipants.push({
+        albionPlayerId: player.id,
+        albionName: player.name || player.id,
+        battleId,
+      })
+    }
+  }
+
+  const [participantAvatarsRes, rosterRes] =
+    rawPlayerIds.size > 0
+      ? await Promise.all([
+          db
+            .from('guild_avatars')
+            .select('discord_id, username, avatar, albion_player_id')
+            .eq('guild_id', guildId)
+            .in('albion_player_id', [...rawPlayerIds]),
+          db
+            .from('albion_guild_members')
+            .select('albion_player_id, albion_player_name')
+            .eq('guild_id', guildId)
+            .in('albion_player_id', [...rawPlayerIds]),
+        ])
+      : [
+          { data: [], error: null },
+          { data: [], error: null },
+        ]
+  const avatarsByAlbionId = new Map<string, {
+    discord_id: string | null
+    username: string | null
+    avatar: string | null
+    albion_player_id: string | null
+  }>()
+  for (const row of participantAvatarsRes.data ?? []) {
+    if (!row.albion_player_id) continue
+    avatarsByAlbionId.set(row.albion_player_id, {
+      discord_id: row.discord_id ?? null,
+      username: row.username ?? null,
+      avatar: row.avatar ?? null,
+      albion_player_id: row.albion_player_id,
+    })
+  }
+  const rosterNamesByAlbionId = new Map<string, string>()
+  for (const row of rosterRes.data ?? []) {
+    if (!row.albion_player_id) continue
+    rosterNamesByAlbionId.set(row.albion_player_id, row.albion_player_name ?? row.albion_player_id)
+  }
+
+  const battleParticipations: EventReportBattleParticipation[] = rawParticipants
+    .filter((p) => avatarsByAlbionId.has(p.albionPlayerId) || rosterNamesByAlbionId.has(p.albionPlayerId))
+    .map((p) => {
+      const avatar = avatarsByAlbionId.get(p.albionPlayerId)
+      return {
+        discord_id: avatar?.discord_id ?? null,
+        albion_player_id: p.albionPlayerId,
+        albion_name: avatar?.username ?? rosterNamesByAlbionId.get(p.albionPlayerId) ?? p.albionName,
+        battle_id: p.battleId,
+      }
+    })
+
   const discordIds = new Set<string>()
   for (const s of slots) if (s.assigned_discord_id) discordIds.add(s.assigned_discord_id)
-  for (const k of killboard) discordIds.add(k.discord_id)
+  for (const k of killboard) if (k.discord_id) discordIds.add(k.discord_id)
+  for (const p of battleParticipations) if (p.discord_id) discordIds.add(p.discord_id)
 
   const profiles = new Map<string, EventReportProfile>()
   if (discordIds.size > 0) {
@@ -134,7 +227,14 @@ export async function getEventReport(
     }
   }
 
-  const report = buildEventReport({ slots, killboard, regear, battles: [], profiles })
+  const report = buildEventReport({
+    slots,
+    killboard,
+    battleParticipations,
+    regear,
+    battles: [],
+    profiles,
+  })
 
   return {
     event: {
@@ -148,4 +248,10 @@ export async function getEventReport(
     },
     report,
   }
+}
+
+function normalizeBattleId(raw: number | string | null): number | null {
+  if (raw === null) return null
+  const id = typeof raw === 'number' ? raw : Number(raw)
+  return Number.isSafeInteger(id) ? id : null
 }

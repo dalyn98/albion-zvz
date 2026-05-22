@@ -12,6 +12,8 @@ import {
   Swords,
   ShieldCheck,
   Clock,
+  AlertTriangle,
+  ClipboardCheck,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
@@ -19,6 +21,7 @@ import { getEventReport } from '@/app/actions/event-report'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { formatSilver } from '@/lib/silver'
 import MemberAvatar from '@/components/MemberAvatar'
+import MemberLink from '@/components/MemberLink'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 
 export const dynamic = 'force-dynamic'
@@ -131,13 +134,50 @@ export default async function EventReportPage({
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiCard
-          label={t('kpiAttendees')}
-          value={report.participation.uniqueAttendees}
-          suffix={t('kpiAttendeesSuffix', {
+          label={t('kpiAssigned')}
+          value={report.participation.uniqueAssigned}
+          suffix={t('kpiAssignedSuffix', {
             assigned: report.participation.assignedSlots,
             total: report.participation.totalSlots,
           })}
+          icon={<ClipboardCheck size={14} className="text-indigo-300" />}
+        />
+        <KpiCard
+          label={t('kpiConfirmed')}
+          value={report.attendance.confirmedAssigned}
+          suffix={
+            report.attendance.eventAttendanceRate === null
+              ? t('kpiConfirmedNoRate')
+              : t('kpiConfirmedRate', {
+                  rate: Math.round(report.attendance.eventAttendanceRate * 100),
+                })
+          }
           icon={<Users size={14} className="text-amber-400" />}
+        />
+        <KpiCard
+          label={t('kpiUnconfirmed')}
+          value={report.attendance.unconfirmedAssigned}
+          suffix={t('kpiUnconfirmedSuffix')}
+          icon={<AlertTriangle size={14} className="text-rose-300" />}
+        />
+        <KpiCard
+          label={t('kpiUnassigned')}
+          value={report.attendance.unassignedBattleParticipants}
+          suffix={t('kpiUnassignedSuffix', {
+            battles: report.attendance.linkedBattleCount,
+          })}
+          icon={<Swords size={14} className="text-sky-300" />}
+        />
+      </section>
+
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KpiCard
+          label={t('kpiBattleParticipations')}
+          value={report.attendance.battleParticipations}
+          suffix={t('kpiBattleParticipationsSuffix', {
+            participants: report.attendance.battleParticipants,
+          })}
+          icon={<Swords size={14} className="text-sky-300" />}
         />
         <KpiCard
           label={t('kpiKills')}
@@ -225,6 +265,64 @@ export default async function EventReportPage({
         />
       </section>
 
+      {report.attendance.participants.length > 0 && (
+        <section className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          <header className="px-4 py-3 border-b border-gray-800 flex items-center justify-between gap-3">
+            <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
+              <Users size={14} className="text-amber-400" />
+              {t('attendanceTitle')}
+            </h2>
+            <span className="text-[11px] text-gray-500">
+              {t('attendanceSubtitle', {
+                participants: report.attendance.battleParticipants,
+                battles: report.attendance.linkedBattleCount,
+              })}
+            </span>
+          </header>
+          <ul className="divide-y divide-gray-800">
+            {report.attendance.participants.map((participant) => (
+              <li
+                key={participant.key}
+                className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_auto_auto_auto] gap-3 px-4 py-3 items-center"
+              >
+                <div className="min-w-0 flex items-center gap-2">
+                  <MemberAvatar
+                    discordId={participant.discord_id}
+                    avatar={participant.avatar}
+                    size={24}
+                  />
+                  <div className="min-w-0">
+                    <MemberLink
+                      discordId={participant.discord_id}
+                      username={participant.username}
+                      className="text-sm font-medium text-gray-100 truncate block"
+                    />
+                    <p className="text-[11px] text-gray-500 truncate">
+                      {participant.role_name
+                        ? translateSlotRole(participant.role_name, tRole)
+                        : t('attendanceNoSlotRole')}
+                    </p>
+                  </div>
+                </div>
+                <AttendanceStatusBadge
+                  status={participant.status}
+                  label={t(`attendanceStatus.${participant.status}`)}
+                />
+                <span className="hidden sm:inline text-xs text-gray-400 font-mono tabular-nums text-right">
+                  {t('attendanceBattleCount', { count: participant.battleCount })}
+                </span>
+                <span className="hidden sm:inline text-xs text-gray-400 font-mono tabular-nums text-right">
+                  {t('killDeathsSub', {
+                    kills: participant.kills,
+                    deaths: participant.deaths,
+                  })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {report.participation.roleBreakdown.length > 0 && (
         <section className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
           <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
@@ -292,12 +390,9 @@ function LeaderCard({ title, icon, leaders, emptyText, formatValue, formatSub }:
         <p className="text-gray-500 text-xs text-center py-4">{emptyText}</p>
       ) : (
         <ol className="space-y-1">
-          {leaders.map((leader, idx) => (
-            <li key={leader.discord_id}>
-              <Link
-                href={`/members/${leader.discord_id}`}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-800/70 transition-colors"
-              >
+          {leaders.map((leader, idx) => {
+            const row = (
+              <>
                 <span
                   className={`w-6 text-center text-xs font-bold tabular-nums flex-shrink-0 ${
                     idx === 0
@@ -319,11 +414,49 @@ function LeaderCard({ title, icon, leaders, emptyText, formatValue, formatSub }:
                 <span className="text-amber-300 text-sm font-mono font-bold tabular-nums flex-shrink-0">
                   {formatValue(leader)}
                 </span>
-              </Link>
-            </li>
-          ))}
+              </>
+            )
+            return (
+              <li key={leader.key}>
+                {leader.discord_id ? (
+                  <Link
+                    href={`/members/${leader.discord_id}`}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-800/70 transition-colors"
+                  >
+                    {row}
+                  </Link>
+                ) : (
+                  <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg">
+                    {row}
+                  </div>
+                )}
+              </li>
+            )
+          })}
         </ol>
       )}
     </section>
+  )
+}
+
+function AttendanceStatusBadge({
+  status,
+  label,
+}: {
+  status: 'confirmed_assigned' | 'assigned_no_battle' | 'unassigned_battle'
+  label: string
+}) {
+  const className =
+    status === 'confirmed_assigned'
+      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+      : status === 'assigned_no_battle'
+        ? 'border-rose-500/40 bg-rose-500/10 text-rose-300'
+        : 'border-sky-500/40 bg-sky-500/10 text-sky-300'
+  return (
+    <span
+      className={`inline-flex justify-center rounded-full border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${className}`}
+    >
+      {label}
+    </span>
   )
 }
