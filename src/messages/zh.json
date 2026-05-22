@@ -912,7 +912,17 @@
         "melee": "近战",
         "ranged": "远程"
       }
-    }
+    },
+    "selectedSlotBadge": "已选择",
+    "slotBuildEmpty": "未设置武器",
+    "templatePaletteTitle": "配装面板",
+    "templatePaletteHint": "以图片方式查看已保存的槽位模板,并直接应用到选中的槽位。",
+    "templatePaletteSelectedLabel": "应用目标",
+    "templatePaletteSelectSlot": "请先在右侧选择槽位。",
+    "templatePaletteEmpty": "暂无已保存的配装模板。",
+    "templatePaletteFilteredEmpty": "没有符合筛选条件的配装。",
+    "templatePaletteApply": "应用",
+    "templatePaletteApplying": "应用中"
   },
   "adminRoleRewards": {
     "noRoles": "未注册任何角色。",
@@ -3125,7 +3135,12 @@
     "donationCancelConfirmButton": "确认取消",
     "donationKeep": "保留",
     "handledBy": "处理人:{handler}",
-    "participationCount": "共 {count} 次报名/分配"
+    "participationCount": "共 {count} 次报名/分配",
+    "walletExchangeCtaTitle": "将积分兑换为银币",
+    "walletExchangeCtaReadyBody": "在余额范围内输入金额,管理员会在游戏内发放银币。",
+    "walletExchangeCtaPendingBody": "你已有一笔兑换等待管理员发放,可在申请记录中编辑或取消。",
+    "walletExchangeCtaBalance": "可兑换余额",
+    "walletExchangeCtaPendingAmount": "待处理金额"
   },
   "myProfile": {
     "notRegistered": "您的公会成员记录尚未注册,重新登录将自动完成注册。"
@@ -3420,11 +3435,13 @@
     "amountLabel": "兑换金额(最高 {max} 银币)",
     "amountPlaceholder": "例如 3500000",
     "submitting": "提交中",
-    "submit": "申请兑换",
+    "submit": "将积分兑换为银币",
     "amountDisplay": "兑换金额:",
     "amountWithUnit": "{amount} 银币",
     "overBalance": "(超出余额)",
-    "invalidNumber": "请输入数字。"
+    "invalidNumber": "请输入数字。",
+    "fillMax": "全部输入",
+    "noBalanceNotice": "目前还没有可兑换的积分。"
   },
   "exchangeActions": {
     "editPlaceholder": "例如 3500000",

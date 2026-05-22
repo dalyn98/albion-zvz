@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Plus, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Eye, EyeOff, Package, Beaker, Bomb, Megaphone } from 'lucide-react'
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
+import BuildTemplatePalette from './BuildTemplatePalette'
 import BatchApplySpecsModal, { type BatchSpecsScope } from './BatchApplySpecsModal'
 import BatchApplyItemsModal from './BatchApplyItemsModal'
 import FeatureSetupRequiredModal from './FeatureSetupRequiredModal'
@@ -53,6 +54,9 @@ export default function PartyEditorPanel({
   const t = useTranslations('adminParty')
   const [slots, setSlots] = useState<SlotInput[]>(
     initialData?.slots.map(slotToInput) ?? []
+  )
+  const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(
+    initialData?.slots.length ? 0 : null,
   )
   const [isBombSquad, setIsBombSquad] = useState<boolean>(
     initialData?.is_bomb_squad ?? false,
@@ -150,13 +154,21 @@ export default function PartyEditorPanel({
     if (slots.length >= 20) return
     const nextNum = slots.length > 0 ? Math.max(...slots.map((s) => s.slot_number)) + 1 : 1
     setSlots([...slots, emptySlotInput(nextNum)])
+    setSelectedSlotIndex(slots.length)
   }
 
   const updateSlot = (idx: number, updated: SlotInput) =>
     setSlots(slots.map((s, i) => i === idx ? updated : s))
 
-  const deleteSlot = (idx: number) =>
+  const deleteSlot = (idx: number) => {
     setSlots(slots.filter((_, i) => i !== idx))
+    setSelectedSlotIndex((current) => {
+      if (current == null) return null
+      if (slots.length <= 1) return null
+      if (current === idx) return Math.min(idx, slots.length - 2)
+      return current > idx ? current - 1 : current
+    })
+  }
 
   const moveSlot = (idx: number, dir: -1 | 1) => {
     const target = idx + dir
@@ -164,6 +176,11 @@ export default function PartyEditorPanel({
     const next = [...slots]
     ;[next[idx], next[target]] = [next[target], next[idx]]
     setSlots(next)
+    setSelectedSlotIndex((current) => {
+      if (current === idx) return target
+      if (current === target) return idx
+      return current
+    })
   }
 
   const toggleHide = (idx: number) =>
@@ -232,6 +249,11 @@ export default function PartyEditorPanel({
     isBombSquad && callerDiscordId
       ? memberDirectory.find((m) => m.discord_id === callerDiscordId)?.username ?? null
       : null
+  const selectedSlot = selectedSlotIndex == null ? null : slots[selectedSlotIndex] ?? null
+  const selectedSlotLabel = selectedSlot
+    ? t('slotBreadcrumb', { party: partyNumber, slot: selectedSlot.slot_number })
+    : null
+  const showTemplatePalette = !isCallerScoped
 
   return (
     <details
@@ -379,76 +401,108 @@ export default function PartyEditorPanel({
         )}
 
         {slots.length === 0 && (
-          <p className="text-gray-500 text-sm text-center py-4">
-            {t('noSlotsHint')}
-          </p>
+          <div className="text-center py-4 space-y-3">
+            <p className="text-gray-500 text-sm">{t('noSlotsHint')}</p>
+            <button
+              onClick={addSlot}
+              className="inline-flex items-center gap-1 text-amber-400 hover:text-amber-300 text-sm font-medium"
+            >
+              <Plus size={14} /> {t('addSlot', { count: slots.length })}
+            </button>
+          </div>
         )}
 
-        {slots.map((slot, idx) => (
-          <div
-            key={idx}
-            className={slot.is_hidden ? 'opacity-60' : undefined}
-          >
-            <div className="flex items-center justify-between gap-2 px-1 pb-1">
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => moveSlot(idx, -1)}
-                  disabled={idx === 0}
-                  aria-label={t('moveUp')}
-                  title={t('moveUp')}
-                  className="p-1 rounded text-gray-400 hover:text-amber-300 hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
+        {slots.length > 0 && (
+          <div className={`grid gap-3 items-start ${showTemplatePalette ? 'xl:grid-cols-[19rem_minmax(0,1fr)]' : ''}`}>
+            {showTemplatePalette && (
+              <BuildTemplatePalette
+                selectedSlot={selectedSlot}
+                selectedLabel={selectedSlotLabel}
+                defaultCategoryFilter={eventCategory}
+                onApply={(next) => {
+                  if (selectedSlotIndex == null) return
+                  updateSlot(selectedSlotIndex, next)
+                }}
+              />
+            )}
+            <div className="space-y-3 min-w-0">
+              {slots.map((slot, idx) => (
+                <div
+                  key={idx}
+                  onClickCapture={() => setSelectedSlotIndex(idx)}
+                  className={[
+                    slot.is_hidden ? 'opacity-60' : '',
+                    selectedSlotIndex === idx ? 'rounded-xl ring-1 ring-sky-500/60 bg-sky-500/[0.03] p-1' : 'p-1',
+                  ].join(' ')}
                 >
-                  <ArrowUp size={14} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => moveSlot(idx, 1)}
-                  disabled={idx === slots.length - 1}
-                  aria-label={t('moveDown')}
-                  title={t('moveDown')}
-                  className="p-1 rounded text-gray-400 hover:text-amber-300 hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
-                >
-                  <ArrowDown size={14} />
-                </button>
-                {slot.is_hidden && (
-                  <span className="ml-1 bg-gray-700/60 text-gray-300 text-[10px] font-bold px-1.5 py-0.5 rounded">
-                    {t('hiddenBadge')}
-                  </span>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => toggleHide(idx)}
-                aria-label={slot.is_hidden ? t('show') : t('hide')}
-                title={slot.is_hidden ? t('show') : t('hide')}
-                className="flex items-center gap-1 p-1 rounded text-gray-400 hover:text-amber-300 hover:bg-gray-800 text-xs"
-              >
-                {slot.is_hidden ? <EyeOff size={14} /> : <Eye size={14} />}
-                <span>{slot.is_hidden ? t('show') : t('hide')}</span>
-              </button>
-            </div>
-            <SlotEditor
-              slot={slot}
-              partyNumber={partyNumber}
-              autoRegearEnabled={autoRegearEnabled}
-              isBombSquadParty={isBombSquad}
-              eventCategory={eventCategory}
-              onChange={(updated) => updateSlot(idx, updated)}
-              onDelete={() => deleteSlot(idx)}
-            />
-          </div>
-        ))}
+                  <div className="flex items-center justify-between gap-2 px-1 pb-1">
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => moveSlot(idx, -1)}
+                        disabled={idx === 0}
+                        aria-label={t('moveUp')}
+                        title={t('moveUp')}
+                        className="p-1 rounded text-gray-400 hover:text-amber-300 hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
+                      >
+                        <ArrowUp size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveSlot(idx, 1)}
+                        disabled={idx === slots.length - 1}
+                        aria-label={t('moveDown')}
+                        title={t('moveDown')}
+                        className="p-1 rounded text-gray-400 hover:text-amber-300 hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
+                      >
+                        <ArrowDown size={14} />
+                      </button>
+                      {selectedSlotIndex === idx && (
+                        <span className="ml-1 bg-sky-500/15 text-sky-200 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                          {t('selectedSlotBadge')}
+                        </span>
+                      )}
+                      {slot.is_hidden && (
+                        <span className="ml-1 bg-gray-700/60 text-gray-300 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                          {t('hiddenBadge')}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleHide(idx)}
+                      aria-label={slot.is_hidden ? t('show') : t('hide')}
+                      title={slot.is_hidden ? t('show') : t('hide')}
+                      className="flex items-center gap-1 p-1 rounded text-gray-400 hover:text-amber-300 hover:bg-gray-800 text-xs"
+                    >
+                      {slot.is_hidden ? <EyeOff size={14} /> : <Eye size={14} />}
+                      <span>{slot.is_hidden ? t('show') : t('hide')}</span>
+                    </button>
+                  </div>
+                  <SlotEditor
+                    slot={slot}
+                    partyNumber={partyNumber}
+                    autoRegearEnabled={autoRegearEnabled}
+                    isBombSquadParty={isBombSquad}
+                    eventCategory={eventCategory}
+                    onChange={(updated) => updateSlot(idx, updated)}
+                    onDelete={() => deleteSlot(idx)}
+                  />
+                </div>
+              ))}
 
-        <div className="flex items-center gap-2 pt-1">
-          <button
-            onClick={addSlot}
-            disabled={slots.length >= 20}
-            className="flex items-center gap-1 text-amber-400 hover:text-amber-300 disabled:text-gray-600 text-sm font-medium"
-          >
-            <Plus size={14} /> {t('addSlot', { count: slots.length })}
-          </button>
-        </div>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  onClick={addSlot}
+                  disabled={slots.length >= 20}
+                  className="flex items-center gap-1 text-amber-400 hover:text-amber-300 disabled:text-gray-600 text-sm font-medium"
+                >
+                  <Plus size={14} /> {t('addSlot', { count: slots.length })}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">

@@ -912,7 +912,17 @@
         "melee": "近接",
         "ranged": "遠距離"
       }
-    }
+    },
+    "selectedSlotBadge": "選択中",
+    "slotBuildEmpty": "武器未設定",
+    "templatePaletteTitle": "ビルドパレット",
+    "templatePaletteHint": "保存済みスロットテンプレートを画像で確認し、選択中のスロットへ直接適用します。",
+    "templatePaletteSelectedLabel": "適用先",
+    "templatePaletteSelectSlot": "右側でスロットを先に選択してください。",
+    "templatePaletteEmpty": "保存済みビルドテンプレートがありません。",
+    "templatePaletteFilteredEmpty": "選択条件に合うビルドがありません。",
+    "templatePaletteApply": "適用",
+    "templatePaletteApplying": "適用中"
   },
   "adminRoleRewards": {
     "noRoles": "登録された役割がありません。",
@@ -3125,7 +3135,12 @@
     "donationCancelConfirmButton": "キャンセル確定",
     "donationKeep": "維持",
     "handledBy": "処理者 {handler}",
-    "participationCount": "合計{count}回申請/割当"
+    "participationCount": "合計{count}回申請/割当",
+    "walletExchangeCtaTitle": "ポイントをシルバーに両替",
+    "walletExchangeCtaReadyBody": "残高内で金額を入力すると、管理者がゲーム内でシルバーを支給します。",
+    "walletExchangeCtaPendingBody": "処理待ちの両替申請があります。申請履歴から編集または取消できます。",
+    "walletExchangeCtaBalance": "両替可能残高",
+    "walletExchangeCtaPendingAmount": "保留中の金額"
   },
   "myProfile": {
     "notRegistered": "ギルドメンバー情報がまだ登録されていません。再ログインすると自動的に登録されます。"
@@ -3420,11 +3435,13 @@
     "amountLabel": "両替金額 (最大 {max} silver)",
     "amountPlaceholder": "例: 3500000",
     "submitting": "申請中",
-    "submit": "両替申請",
+    "submit": "ポイントをシルバーに両替",
     "amountDisplay": "両替金額:",
     "amountWithUnit": "{amount} silver",
     "overBalance": "(残高超過)",
-    "invalidNumber": "数値で入力してください。"
+    "invalidNumber": "数値で入力してください。",
+    "fillMax": "全額入力",
+    "noBalanceNotice": "両替できるポイントがまだありません。"
   },
   "exchangeActions": {
     "editPlaceholder": "例: 3500000",

@@ -9,13 +9,14 @@
 //  - GearSection.tsx      — 종류별 single/multi/free + Tier/Enchant + GearOptionPicker
 //  - ConditionalOptionsSection.tsx — 무기 → 의존 종류 후보 좁히기 (Migration 139)
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Trash2, X, Pencil } from 'lucide-react'
 import SaveSlotAsTemplateButton from './SaveSlotAsTemplateButton'
 import LoadSlotTemplateButton from './LoadSlotTemplateButton'
 import RecentBuildsDropdown from './RecentBuildsDropdown'
-import BuildPreview from './BuildPreview'
+import BuildPreview, { buildDisplaySlot } from './BuildPreview'
+import GearPreview from './GearPreview'
 import { slotInputToTemplateData } from '@/lib/slot-template-shape'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { saveRecentBuild } from '@/lib/recent-builds'
@@ -281,6 +282,14 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, isBom
     return slot.items[k].id || isFreeItem(slot.items[k].name, slot.items[k].id)
   }).length
   const roleStyle = getRoleStyle(slot.role_name)
+  const collapsedDisplaySlot = useMemo(() => buildDisplaySlot(slot), [slot])
+  const weaponOptions = slot.options.weapon
+  const weaponName = weaponOptions.length > 0
+    ? `${weaponOptions[0].name}${weaponOptions.length > 1 ? ` +${weaponOptions.length - 1}` : ''}`
+    : isFreeItem(slot.items.weapon.name, slot.items.weapon.id)
+      ? t('itemFree')
+      : slot.items.weapon.name
+  const compactKeys = SLOT_KEYS.filter((key) => key !== 'weapon').slice(0, 5)
 
   return (
     <>
@@ -289,25 +298,36 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, isBom
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="flex items-center gap-2 min-w-0 flex-1 text-left"
+            className="flex items-center gap-3 min-w-0 flex-1 text-left"
           >
-            <span className="text-gray-400 text-xs flex-shrink-0">
-              {t('slotBreadcrumb', { party: partyNumber, slot: slot.slot_number })}
-            </span>
-            {slot.role_name ? (
-              <span
-                className={`text-xs font-semibold px-2 py-0.5 rounded truncate ${
-                  roleStyle ? roleStyle.badge : 'bg-amber-500/20 text-amber-400'
-                }`}
-              >
-                {translateSlotRole(slot.role_name, tRole)}
+            <GearPreview slot={collapsedDisplaySlot} kind="weapon" size={36} isTaken={false} />
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2 min-w-0">
+                <span className="text-gray-400 text-xs flex-shrink-0">
+                  {t('slotBreadcrumb', { party: partyNumber, slot: slot.slot_number })}
+                </span>
+                {slot.role_name ? (
+                  <span
+                    className={`text-xs font-semibold px-2 py-0.5 rounded truncate ${
+                      roleStyle ? roleStyle.badge : 'bg-amber-500/20 text-amber-400'
+                    }`}
+                  >
+                    {translateSlotRole(slot.role_name, tRole)}
+                  </span>
+                ) : (
+                  <span className="text-gray-600 text-xs italic">{t('roleNone')}</span>
+                )}
               </span>
-            ) : (
-              <span className="text-gray-600 text-xs italic">{t('roleNone')}</span>
-            )}
-            <span className="text-gray-600 text-xs ml-auto flex-shrink-0">
-              {filledCount}/8
+              <span className={weaponName ? 'block text-white text-sm font-semibold truncate mt-0.5' : 'block text-gray-600 text-xs italic mt-0.5'}>
+                {weaponName || t('slotBuildEmpty')}
+              </span>
             </span>
+            <span className="hidden md:flex items-center gap-1 flex-shrink-0">
+              {compactKeys.map((key) => (
+                <GearPreview key={key} slot={collapsedDisplaySlot} kind={key} size={26} isTaken={false} />
+              ))}
+            </span>
+            <span className="text-gray-600 text-xs flex-shrink-0">{filledCount}/8</span>
             {slot.assigned_username && (
               <span className="text-green-400 text-xs flex-shrink-0">✓ {slot.assigned_username}</span>
             )}

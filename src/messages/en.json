@@ -912,7 +912,17 @@
         "melee": "Melee",
         "ranged": "Ranged"
       }
-    }
+    },
+    "selectedSlotBadge": "Selected",
+    "slotBuildEmpty": "No weapon set",
+    "templatePaletteTitle": "Build palette",
+    "templatePaletteHint": "Review saved slot templates visually and apply one directly to the selected slot.",
+    "templatePaletteSelectedLabel": "Apply target",
+    "templatePaletteSelectSlot": "Select a slot on the right first.",
+    "templatePaletteEmpty": "No saved build templates.",
+    "templatePaletteFilteredEmpty": "No builds match the selected filters.",
+    "templatePaletteApply": "Apply",
+    "templatePaletteApplying": "Applying"
   },
   "adminRoleRewards": {
     "noRoles": "No roles registered.",
@@ -3125,7 +3135,12 @@
     "donationCancelConfirmButton": "Confirm cancel",
     "donationKeep": "Keep",
     "handledBy": "by {handler}",
-    "participationCount": "{count} signed/assigned total"
+    "participationCount": "{count} signed/assigned total",
+    "walletExchangeCtaTitle": "Exchange points for silver",
+    "walletExchangeCtaReadyBody": "Enter any amount within your balance. An admin pays the silver in-game.",
+    "walletExchangeCtaPendingBody": "You already have an exchange waiting for admin payout. Edit or cancel it from request history.",
+    "walletExchangeCtaBalance": "Exchangeable balance",
+    "walletExchangeCtaPendingAmount": "Pending amount"
   },
   "myProfile": {
     "notRegistered": "Your guild member record hasn't been registered yet. Logging in again will register you automatically."
@@ -3420,11 +3435,13 @@
     "amountLabel": "Exchange amount (max {max} silver)",
     "amountPlaceholder": "e.g. 3500000",
     "submitting": "Submitting",
-    "submit": "Request exchange",
+    "submit": "Exchange points for silver",
     "amountDisplay": "Exchange amount:",
     "amountWithUnit": "{amount} silver",
     "overBalance": "(over balance)",
-    "invalidNumber": "Please enter a number."
+    "invalidNumber": "Please enter a number.",
+    "fillMax": "Use all",
+    "noBalanceNotice": "You do not have exchangeable points yet."
   },
   "exchangeActions": {
     "editPlaceholder": "e.g. 3500000",

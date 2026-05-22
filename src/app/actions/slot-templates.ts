@@ -45,6 +45,10 @@ export interface SlotTemplateSummary {
   created_at: string
 }
 
+export interface SlotTemplateCard extends SlotTemplateSummary {
+  data: SlotTemplateData
+}
+
 export interface SlotTemplateRecord {
   id: string
   name: string
@@ -151,6 +155,28 @@ export async function listSlotTemplates(): Promise<{
       .order('created_at', { ascending: false })
     if (error) return { templates: [], error: error.message }
     return { templates: (data ?? []) as SlotTemplateSummary[] }
+  } catch (e) {
+    return { templates: [], error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function listSlotTemplateCards(): Promise<{
+  templates: SlotTemplateCard[]
+  error?: string
+}> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const db = await requireAdmin()
+    const session = await getSession()
+    if (!session) return { templates: [], error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+    const { data, error } = await db
+      .from('slot_templates')
+      .select('id, name, category, created_at, data, role_name:data->>role_name')
+      .eq('guild_id', guildId)
+      .order('created_at', { ascending: false })
+    if (error) return { templates: [], error: error.message }
+    return { templates: (data ?? []) as SlotTemplateCard[] }
   } catch (e) {
     return { templates: [], error: e instanceof Error ? e.message : tErr('serverError') }
   }

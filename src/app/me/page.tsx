@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import {
+  ArrowRightLeft,
   CalendarDays,
   ChevronRight,
   Coins,
@@ -313,9 +314,30 @@ export default async function MePage() {
           />
         </div>
         <div className="border-t border-gray-800 pt-4 space-y-3">
-          <h3 className="text-sm font-bold text-white">{t('exchangeTitle')}</h3>
-          <p className="text-gray-400 text-xs leading-relaxed">{t('exchangeDescription')}</p>
-          <RequestExchangeForm balance={balance} disabled={hasPendingExchange} />
+          <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 space-y-3">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <ArrowRightLeft size={16} className="text-amber-300" />
+                  {t('walletExchangeCtaTitle')}
+                </h3>
+                <p className="text-gray-300 text-xs leading-relaxed mt-1">
+                  {pendingExchange
+                    ? t('walletExchangeCtaPendingBody')
+                    : t('walletExchangeCtaReadyBody')}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-200/80">
+                  {pendingExchange ? t('walletExchangeCtaPendingAmount') : t('walletExchangeCtaBalance')}
+                </p>
+                <p className="text-lg font-black text-amber-100 font-mono">
+                  {formatSilver(pendingExchange?.silver ?? balance)}
+                </p>
+              </div>
+            </div>
+            <RequestExchangeForm balance={balance} disabled={hasPendingExchange} />
+          </div>
         </div>
         <div className="border-t border-gray-800 pt-4 flex items-center justify-between gap-3">
           <p className="text-gray-500 text-[11px] leading-relaxed min-w-0 flex-1">

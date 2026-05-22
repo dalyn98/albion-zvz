@@ -912,7 +912,17 @@
         "melee": "근거리",
         "ranged": "원거리"
       }
-    }
+    },
+    "selectedSlotBadge": "선택됨",
+    "slotBuildEmpty": "무기 미지정",
+    "templatePaletteTitle": "빌드 팔레트",
+    "templatePaletteHint": "저장한 슬롯 템플릿을 이미지로 확인하고 선택한 슬롯에 바로 적용합니다.",
+    "templatePaletteSelectedLabel": "적용 대상",
+    "templatePaletteSelectSlot": "오른쪽에서 슬롯을 먼저 선택하세요.",
+    "templatePaletteEmpty": "저장된 빌드 템플릿이 없습니다.",
+    "templatePaletteFilteredEmpty": "선택한 조건의 빌드가 없습니다.",
+    "templatePaletteApply": "적용",
+    "templatePaletteApplying": "적용중"
   },
   "adminRoleRewards": {
     "noRoles": "등록된 역할이 없습니다.",
@@ -3125,7 +3135,12 @@
     "donationCancelConfirmButton": "취소 확정",
     "donationKeep": "유지",
     "handledBy": "처리자 {handler}",
-    "participationCount": "총 {count}회 신청/배정"
+    "participationCount": "총 {count}회 신청/배정",
+    "walletExchangeCtaTitle": "포인트를 실버로 환전",
+    "walletExchangeCtaReadyBody": "잔액 안에서 원하는 금액을 입력하면 관리자가 인게임에서 실버를 지급합니다.",
+    "walletExchangeCtaPendingBody": "이미 신청한 환전이 처리 대기 중입니다. 신청 내역에서 수정하거나 취소할 수 있습니다.",
+    "walletExchangeCtaBalance": "환전 가능 잔액",
+    "walletExchangeCtaPendingAmount": "대기 중인 금액"
   },
   "myProfile": {
     "notRegistered": "길드원 정보가 아직 등록되지 않았습니다. 다시 로그인하면 자동으로 등록됩니다."
@@ -3420,11 +3435,13 @@
     "amountLabel": "환전 금액 (최대 {max} silver)",
     "amountPlaceholder": "예: 3500000",
     "submitting": "신청중",
-    "submit": "환전 신청",
+    "submit": "포인트를 실버로 환전",
     "amountDisplay": "환전 금액:",
     "amountWithUnit": "{amount} silver",
     "overBalance": "(잔액 초과)",
-    "invalidNumber": "숫자로 입력해 주세요."
+    "invalidNumber": "숫자로 입력해 주세요.",
+    "fillMax": "전액 입력",
+    "noBalanceNotice": "환전 가능한 포인트가 아직 없습니다."
   },
   "exchangeActions": {
     "editPlaceholder": "예: 3500000",

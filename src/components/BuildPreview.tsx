@@ -27,7 +27,7 @@ const SPELL_CAPABLE_KEYS: readonly SlotKey[] = ['weapon', 'head', 'armor', 'shoe
 // preview components (GearPreview, SlotSpellPanel) already know how to render.
 // All assigned_*/requested_* fields stay null — the preview always renders
 // the admin-defined build, never a member's current pick.
-function buildDisplaySlot(input: SlotInput): Slot {
+export function buildDisplaySlot(input: SlotInput): Slot {
   const flat: Record<string, unknown> = {
     id: 'preview',
     party_id: 'preview',
