@@ -361,7 +361,9 @@ export default async function EventDetailPage({
         ? myTentativeRoleNames.length > 0
           ? [t('myStatusTentativeRoles', { roles: myTentativeRoleNames.join(', ') })]
           : []
-        : []
+        : session?.isGuest && guestProfile
+          ? [t('myStatusGuestName', { name: guestProfile.displayName })]
+          : []
   const myStatusTitle = !session
     ? t('myStatusGuestTitle')
     : myAssigned
