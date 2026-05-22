@@ -199,6 +199,12 @@ export default async function DemoMePage() {
           pendingEventTitle: t('actionPendingEventTitle'),
           tentativeEventTitle: t('actionTentativeEventTitle'),
           availableEventTitle: t('actionAvailableEventTitle'),
+          regearTitle: t('actionRegearTitle'),
+          regearBody: (item) => t('actionRegearBody', {
+            role: item.roleName,
+            reward: item.reward,
+            deadline: item.deadline,
+          }),
           noItemsTitle: t('actionNoItemsTitle'),
           noItemsBody: t('actionNoItemsBody'),
           open: t('actionOpen'),

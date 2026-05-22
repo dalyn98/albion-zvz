@@ -3033,6 +3033,8 @@
     "actionPendingEventTitle": "承認待ちのイベント",
     "actionTentativeEventTitle": "参加予定にしたイベント",
     "actionAvailableEventTitle": "申請可能な次のイベント",
+    "actionRegearTitle": "申請可能なリギア",
+    "actionRegearBody": "{role} · 目安 {reward} · 期限 {deadline}",
     "actionNoItemsTitle": "今対応することはありません",
     "actionNoItemsBody": "保留中の申請や必須認証はありません。最近の活動と残高だけ確認すれば大丈夫です。",
     "actionOpen": "開く",

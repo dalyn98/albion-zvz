@@ -3033,6 +3033,8 @@
     "actionPendingEventTitle": "等待审批的活动",
     "actionTentativeEventTitle": "已标记参加意向的活动",
     "actionAvailableEventTitle": "下一场可报名活动",
+    "actionRegearTitle": "可申请补装",
+    "actionRegearBody": "{role} · 预计 {reward} · 截止 {deadline}",
     "actionNoItemsTitle": "现在没有需要处理的事项",
     "actionNoItemsBody": "没有待处理申请或必需验证。查看近期活动和余额即可。",
     "actionOpen": "打开",

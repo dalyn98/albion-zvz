@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { CalendarDays, CheckCircle2, ChevronRight, Clock3, ListChecks, ShieldAlert } from 'lucide-react'
+import { CalendarDays, CheckCircle2, ChevronRight, Clock3, ListChecks, ShieldAlert, Swords } from 'lucide-react'
 import type { MyDashboardNextEventKind } from '@/app/actions/me-dashboard'
 
 interface NextEvent {
@@ -20,15 +20,27 @@ interface Labels {
   pendingEventTitle: string
   tentativeEventTitle: string
   availableEventTitle: string
+  regearTitle: string
+  regearBody: (item: RegearActionItem) => string
   noItemsTitle: string
   noItemsBody: string
   open: string
+}
+
+export interface RegearActionItem {
+  id: string
+  title: string
+  roleName: string
+  reward: string
+  deadline: string
+  href: string
 }
 
 interface Props {
   albionVerified: boolean
   pendingTotal: number
   nextEvent: NextEvent | null
+  regearItems?: RegearActionItem[]
   labels: Labels
   verifyHref?: string
   requestsHref?: string
@@ -39,6 +51,7 @@ export default function MemberNextActionsPanel({
   albionVerified,
   pendingTotal,
   nextEvent,
+  regearItems = [],
   labels,
   verifyHref = '/onboarding/albion?return=%2Fme',
   requestsHref = '/me/requests',
@@ -68,6 +81,20 @@ export default function MemberNextActionsPanel({
         icon={<ListChecks size={18} />}
         title={labels.requestsTitle}
         body={labels.requestsBody}
+        tone="accent"
+        openLabel={labels.open}
+      />,
+    )
+  }
+
+  for (const item of regearItems.slice(0, 3)) {
+    actions.push(
+      <ActionLink
+        key={`regear-${item.id}`}
+        href={item.href}
+        icon={<Swords size={18} />}
+        title={labels.regearTitle}
+        body={`${item.title} · ${labels.regearBody(item)}`}
         tone="accent"
         openLabel={labels.open}
       />,

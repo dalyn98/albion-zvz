@@ -47,7 +47,9 @@ function isMarketingPathname(pathname: string): boolean {
     pathname === '/public/docs' ||
     pathname.startsWith('/public/docs/') ||
     pathname === '/public/g' ||
-    pathname.startsWith('/public/g/')
+    pathname.startsWith('/public/g/') ||
+    pathname === '/public/u' ||
+    pathname.startsWith('/public/u/')
   )
 }
 

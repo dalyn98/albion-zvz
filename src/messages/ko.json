@@ -3033,6 +3033,8 @@
     "actionPendingEventTitle": "승인 대기 중인 이벤트",
     "actionTentativeEventTitle": "참가예정으로 표시한 이벤트",
     "actionAvailableEventTitle": "신청 가능한 다음 이벤트",
+    "actionRegearTitle": "신청 가능한 리기어",
+    "actionRegearBody": "{role} · 예상 {reward} · 마감 {deadline}",
     "actionNoItemsTitle": "지금 처리할 일은 없습니다",
     "actionNoItemsBody": "대기 신청이나 필수 인증은 없습니다. 최근 활동과 잔액만 확인하면 됩니다.",
     "actionOpen": "열기",

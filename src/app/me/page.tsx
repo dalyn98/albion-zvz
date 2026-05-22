@@ -21,6 +21,7 @@ import { listMyExchangeRequests } from '@/app/actions/exchange'
 import { listMyParticipation } from '@/app/actions/member'
 import { listTransferCandidates } from '@/app/actions/transfer'
 import { getMyDashboard } from '@/app/actions/me-dashboard'
+import { listMyRegearEligibleEvents } from '@/app/actions/regear'
 import { getMySiphonAccount, type MySiphonAccountResult } from '@/app/actions/siphon-member'
 import { getMemberAlbionIdentity, isAlbionVerified } from '@/lib/albion-identity'
 import {
@@ -87,6 +88,7 @@ export default async function MePage() {
     accountAlbionIdentity,
     tenantConfig,
     activityRecords,
+    eligibleRegears,
     weeklyStatsEnabledRaw,
     t,
     tRequests,
@@ -105,6 +107,7 @@ export default async function MePage() {
     getAccountAlbionIdentityView(guildId, session.discordId),
     getTenantDiscordConfig(guildId),
     loadPrivateGuildActivityRecords(session.discordId, guildId),
+    listMyRegearEligibleEvents(),
     // 길드별 토글 — 기본 OFF. SaaS 다른 테넌트에는 노출하지 않는다. 우리 길드는
     // 별도 SQL upsert 로 'true' 설정.
     getAppSetting('me_weekly_stats_enabled', 'false', guildId),
@@ -160,6 +163,14 @@ export default async function MePage() {
         ].filter(Boolean).join(' · '),
       }
     : null
+  const regearActionItems = eligibleRegears.events.slice(0, 3).map((event) => ({
+    id: event.auto_request_id ?? event.id,
+    title: event.title,
+    roleName: translateSlotRole(event.role_name, tRole),
+    reward: formatSilver(event.role_reward),
+    deadline: formatDateTime(event.deadline_at),
+    href: event.auto_request_id ? `/me/regear/${event.auto_request_id}` : '/regear',
+  }))
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -264,6 +275,7 @@ export default async function MePage() {
         albionVerified={albionVerified}
         pendingTotal={pendingTotal}
         nextEvent={nextEventForAction}
+        regearItems={regearActionItems}
         labels={{
           title: t('actionTitle'),
           description: t('actionDescription'),
@@ -275,6 +287,12 @@ export default async function MePage() {
           pendingEventTitle: t('actionPendingEventTitle'),
           tentativeEventTitle: t('actionTentativeEventTitle'),
           availableEventTitle: t('actionAvailableEventTitle'),
+          regearTitle: t('actionRegearTitle'),
+          regearBody: (item) => t('actionRegearBody', {
+            role: item.roleName,
+            reward: item.reward,
+            deadline: item.deadline,
+          }),
           noItemsTitle: t('actionNoItemsTitle'),
           noItemsBody: t('actionNoItemsBody'),
           open: t('actionOpen'),

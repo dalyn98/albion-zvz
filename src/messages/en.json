@@ -3033,6 +3033,8 @@
     "actionPendingEventTitle": "Event waiting for approval",
     "actionTentativeEventTitle": "Event marked tentative",
     "actionAvailableEventTitle": "Next event open to apply",
+    "actionRegearTitle": "Regear available",
+    "actionRegearBody": "{role} · est. {reward} · due {deadline}",
     "actionNoItemsTitle": "Nothing needs action right now",
     "actionNoItemsBody": "No pending requests or required verification. You can just review recent activity and balance.",
     "actionOpen": "Open",
