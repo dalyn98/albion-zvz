@@ -12,7 +12,7 @@ import DiscordIcon from './DiscordIcon'
 // "AlbionGuildManager 사용자/제보 채널" 이라 host 와 무관하게 동일.
 const APP_DISCORD_INVITE_URL = 'https://discord.gg/pJ8EsybBjm'
 
-type NavKey = 'home' | 'features' | 'docs'
+type NavKey = 'home' | 'features' | 'pricing' | 'docs' | 'faq'
 
 interface MarketingNavProps {
   active?: NavKey
@@ -31,12 +31,14 @@ export default async function MarketingNav({ active }: MarketingNavProps) {
 
   const myGuildHref = await getMarketingMyGuildHref(session)
 
-  // home / features / docs 3개. features 는 /landing#features 앵커로 가서
-  // 기능 카드 섹션을 직접 보여주고, docs 는 별도의 사용 안내서 페이지로 분리.
+  // features 는 /landing#features 앵커로 가서 기능 카드 섹션을 직접 보여주고,
+  // pricing/docs/faq 는 별도 페이지로 분리해 공개 탐색 경로를 명확히 둔다.
   const navItems: Array<{ href: string; key: NavKey }> = [
     { href: paths.home, key: 'home' },
     { href: paths.features, key: 'features' },
+    { href: paths.pricing, key: 'pricing' },
     { href: paths.docs, key: 'docs' },
+    { href: paths.faq, key: 'faq' },
   ]
   const mobileMenuItems = navItems.map((item) => ({
     href: item.href,
@@ -47,15 +49,14 @@ export default async function MarketingNav({ active }: MarketingNavProps) {
   return (
     <nav className="border-b border-white/5 bg-[#0b0d12]/80 backdrop-blur-md">
       <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
-        {/* 모바일(<sm): 햄버거. 데스크탑(sm+): 가로 링크 묶음. 모바일에서 가로
-            링크를 유지하면 ja/ko 의 다음절 라벨 ("기능", "ドキュメント") 이 좁은
-            폭에서 두 글자씩 줄바꿈되거나 우측 클러스터를 밀어내 깨진다. */}
+        {/* 모바일/태블릿(<md): 햄버거. 데스크탑(md+): 가로 링크 묶음. 공개 링크가
+            늘어난 상태에서 sm 폭부터 가로 nav 를 보이면 언어 스위처/CTA 와 충돌한다. */}
         <MarketingNavMobileMenu
           items={mobileMenuItems}
           openLabel={t('openMenu')}
           closeLabel={t('closeMenu')}
         />
-        <ul className="hidden sm:flex items-center gap-1 text-sm">
+        <ul className="hidden md:flex items-center gap-1 text-sm">
           {navItems.map((item) => {
             const isActive = active === item.key
             return (

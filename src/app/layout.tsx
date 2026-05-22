@@ -35,13 +35,15 @@ function isPublicPathname(pathname: string): boolean {
 // 갖고 있어 PublicShell/AppShell 의 sticky 헤더를 한 번 더 깔면 시각적 충돌이
 // 생긴다(두 줄짜리 헤더, 언어 스위처/CTA 중복). children 만 그대로 렌더해
 // 마케팅 페이지 내부 컴포넌트가 풀 컨트롤을 갖게 한다. proxy 에서 canonical
-// /, /features, /pricing, /faq 가 이 경로들로 rewrite 된다.
+// /, /features, /pricing, /faq, /privacy, /terms 가 이 경로들로 rewrite 된다.
 function isMarketingPathname(pathname: string): boolean {
   return (
     pathname === '/public/landing' ||
     pathname === '/public/features' ||
     pathname === '/public/pricing' ||
     pathname === '/public/faq' ||
+    pathname === '/public/privacy' ||
+    pathname === '/public/terms' ||
     pathname === '/public/docs' ||
     pathname.startsWith('/public/docs/') ||
     pathname === '/public/g' ||
@@ -109,10 +111,23 @@ function skipAlbionOnboardingModal(pathname: string): boolean {
 // 여기서는 robots 만 풀어 주면 충분하다.
 function isIndexablePathname(pathname: string): boolean {
   if (pathname === '/' || pathname === '/landing') return true
-  if (pathname === '/faq' || pathname === '/docs' || pathname.startsWith('/docs/')) return true
+  if (
+    pathname === '/pricing' ||
+    pathname === '/faq' ||
+    pathname === '/privacy' ||
+    pathname === '/terms' ||
+    pathname === '/docs' ||
+    pathname.startsWith('/docs/')
+  ) return true
   if (pathname === '/g' || pathname.startsWith('/g/')) return true
   // 캐노니컬 호스트에서 proxy rewrite 가 안 걸린 직접 path 도 동일하게 허용.
-  if (pathname === '/public/landing' || pathname === '/public/faq') return true
+  if (
+    pathname === '/public/landing' ||
+    pathname === '/public/pricing' ||
+    pathname === '/public/faq' ||
+    pathname === '/public/privacy' ||
+    pathname === '/public/terms'
+  ) return true
   if (pathname === '/public/docs' || pathname.startsWith('/public/docs/')) return true
   if (pathname === '/public/g' || pathname.startsWith('/public/g/')) return true
   return false

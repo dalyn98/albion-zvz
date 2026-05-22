@@ -1,6 +1,5 @@
-// Host-aware path helpers for marketing pages. features/pricing 는 /landing 의
-// anchor 로 노출된다 (전용 라우트는 redirect-only 로 보존돼 기존 인바운드 링크가
-// 안 깨진다). FAQ 는 별도 페이지로 분리되어 /faq 에서 노출된다.
+// Host-aware path helpers for marketing pages. features 는 /landing 의 anchor 로
+// 노출되고, pricing/FAQ/legal/docs 는 별도 canonical 페이지로 분리된다.
 //
 // 공식 사이트는 항상 canonical root (`albion-guildmanager.com`) 로 열려야 한다.
 // 테넌트 서브도메인에서 AGM 공식 사이트 링크를 눌러도 `{slug}.…/public/landing`
@@ -13,9 +12,13 @@ import { classifyHost, getCanonicalRootDomain } from '@/lib/tenant-resolver'
 export interface MarketingPaths {
   home: string
   features: string
+  pricing: string
   faq: string
   // docs 는 단일 prefix. nested 페이지는 `${paths.docs}/onboarding` 처럼 조합.
   docs: string
+  demo: string
+  privacy: string
+  terms: string
   // 길드 공개 페이지 prefix. 실제 링크는 `${paths.guildPage}/<slug>` 로 합성.
   guildPage: string
 }
@@ -23,16 +26,24 @@ export interface MarketingPaths {
 const CANONICAL_PATHS: MarketingPaths = {
   home: '/',
   features: '/#features',
+  pricing: '/pricing',
   faq: '/faq',
   docs: '/docs',
+  demo: '/demo',
+  privacy: '/privacy',
+  terms: '/terms',
   guildPage: '/g',
 }
 
 const PUBLIC_PATHS: MarketingPaths = {
   home: '/public/landing',
   features: '/public/landing#features',
+  pricing: '/public/pricing',
   faq: '/public/faq',
   docs: '/public/docs',
+  demo: '/demo',
+  privacy: '/public/privacy',
+  terms: '/public/terms',
   guildPage: '/public/g',
 }
 
@@ -41,8 +52,12 @@ function buildRootAbsolutePaths(rootDomain: string): MarketingPaths {
   return {
     home: `${origin}/`,
     features: `${origin}/#features`,
+    pricing: `${origin}/pricing`,
     faq: `${origin}/faq`,
     docs: `${origin}/docs`,
+    demo: `${origin}/demo`,
+    privacy: `${origin}/privacy`,
+    terms: `${origin}/terms`,
     guildPage: `${origin}/g`,
   }
 }

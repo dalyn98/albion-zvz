@@ -75,7 +75,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // 짧고 외우기 쉬운 봇 초대 URL + 통합된 /landing 으로 흡수된 마케팅 페이지의
+  // 짧고 외우기 쉬운 봇 초대 URL + 통합된 /landing 으로 흡수된 기능 페이지의
   // 인바운드 링크를 anchor 로 308 redirect. 정적 redirect 는 Next.js 라우팅
   // 이전에 fire 되므로 anchor 가 그대로 Location 헤더에 실린다.
   async redirects() {
@@ -87,13 +87,11 @@ const nextConfig: NextConfig = {
         permanent: false,
       },
       { source: '/features', destination: '/#features', permanent: true },
-      { source: '/pricing', destination: '/#pricing', permanent: true },
       { source: '/public/features', destination: '/public/landing#features', permanent: true },
-      { source: '/public/pricing', destination: '/public/landing#pricing', permanent: true },
     ]
   },
   // 인덱싱 정책 (robots.txt + meta robots 와 3중 신호):
-  //   - 마케팅/공개 path (/, /landing, /faq, /docs, /g/*) 와 그 직접 형식
+  //   - 마케팅/공개 path (/, /landing, /pricing, /faq, /privacy, /terms, /docs, /g/*) 와 그 직접 형식
   //     (/public/*) 은 검색 인덱싱 허용
   //   - 그 외 모든 path 는 noindex (앱 path /admin /shop /events /api 등)
   //
@@ -117,12 +115,18 @@ const nextConfig: NextConfig = {
       // 2) 마케팅/공개 surface — 인덱싱 허용 (위 wildcard 를 override)
       { source: '/', headers: [indexHeader] },
       { source: '/landing', headers: [indexHeader] },
+      { source: '/pricing', headers: [indexHeader] },
       { source: '/faq', headers: [indexHeader] },
+      { source: '/privacy', headers: [indexHeader] },
+      { source: '/terms', headers: [indexHeader] },
       { source: '/docs', headers: [indexHeader] },
       { source: '/docs/:path*', headers: [indexHeader] },
       { source: '/g/:slug', headers: [indexHeader] },
       { source: '/public/landing', headers: [indexHeader] },
+      { source: '/public/pricing', headers: [indexHeader] },
       { source: '/public/faq', headers: [indexHeader] },
+      { source: '/public/privacy', headers: [indexHeader] },
+      { source: '/public/terms', headers: [indexHeader] },
       { source: '/public/docs', headers: [indexHeader] },
       { source: '/public/docs/:path*', headers: [indexHeader] },
       { source: '/public/g/:slug', headers: [indexHeader] },

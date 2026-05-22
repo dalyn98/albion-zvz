@@ -33,7 +33,7 @@ function redirectLegacyHost(request: NextRequest): NextResponse | null {
 
 // Canonical 도메인 (albion-guildmanager.com) 의 마케팅 라우트는 깔끔한 URL 로
 // 노출하기 위해 내부 /public/(marketing)/* 로 rewrite. URL 바는 그대로 유지되며
-// (`/`, `/features`, `/pricing`, `/faq`) 서버는 마케팅 페이지를 렌더한다.
+// (`/`, `/features`, `/pricing`, `/faq`, `/privacy`, `/terms`) 서버는 마케팅 페이지를 렌더한다.
 // 서브도메인 ({slug}.albion-guildmanager.com) 은 같은 path 라도 영향 없음 —
 // canonical kind 일 때만 분기한다. 마케팅 페이지가 추가될 때 매핑만 늘리면 된다.
 const CANONICAL_MARKETING_REWRITES: Record<string, string> = {
@@ -41,6 +41,8 @@ const CANONICAL_MARKETING_REWRITES: Record<string, string> = {
   '/features': '/public/features',
   '/pricing': '/public/pricing',
   '/faq': '/public/faq',
+  '/privacy': '/public/privacy',
+  '/terms': '/public/terms',
 }
 
 // canonical `/docs` `/docs/<slug>` → `/public/docs[/<slug>]`. exact 매핑이 아니라
@@ -63,6 +65,8 @@ function resolvePublicMarketingCanonicalPath(pathname: string): string | null {
   if (pathname === '/public/features') return '/features'
   if (pathname === '/public/pricing') return '/pricing'
   if (pathname === '/public/faq') return '/faq'
+  if (pathname === '/public/privacy') return '/privacy'
+  if (pathname === '/public/terms') return '/terms'
   if (pathname === '/public/docs') return '/docs'
   if (pathname.startsWith('/public/docs/')) {
     return pathname.slice('/public'.length)

@@ -32,6 +32,18 @@ export const DOCS_NAV: DocsNavSection[] = [
         ],
       },
       {
+        slug: 'events',
+        itemKey: 'events',
+        subItems: [
+          { slug: 'events/create', itemKey: 'eventsCreate' },
+          { slug: 'events/publish', itemKey: 'eventsPublish' },
+          { slug: 'events/slots', itemKey: 'eventsSlots' },
+          { slug: 'events/tentative', itemKey: 'eventsTentative' },
+          { slug: 'events/guests', itemKey: 'eventsGuests' },
+          { slug: 'events/lifecycle', itemKey: 'eventsLifecycle' },
+        ],
+      },
+      {
         slug: 'members',
         itemKey: 'members',
         subItems: [
@@ -122,6 +134,8 @@ export const DOCS_NAV: DocsNavSection[] = [
           { slug: 'admin/dashboard', itemKey: 'adminDashboard' },
           { slug: 'admin/global-toggles', itemKey: 'adminGlobalToggles' },
           { slug: 'admin/permissions', itemKey: 'adminPermissions' },
+          { slug: 'admin/backup', itemKey: 'adminBackup' },
+          { slug: 'admin/audit', itemKey: 'adminAudit' },
           { slug: 'admin/in-app-guide', itemKey: 'adminInAppGuide' },
         ],
       },

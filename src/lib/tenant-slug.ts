@@ -28,6 +28,8 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   'login',
   'signup',
   'pricing',
+  'privacy',
+  'terms',
   'marketing',
   // 내부 경로와 충돌 방지 — slug 가 'events' 면 {slug}.../events 가 모호해짐.
   'events',

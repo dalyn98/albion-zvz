@@ -24,7 +24,7 @@ export default async function PublicFaqPage() {
   const tFaq = await getTranslations('publicFaq')
   return (
     <>
-      <MarketingNav />
+      <MarketingNav active="faq" />
       <div className="bg-[#0b0d12] text-gray-100 min-h-screen">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-8">
           <div className="text-center space-y-3">

@@ -17,7 +17,7 @@ interface Props {
   closeLabel: string
 }
 
-// 모바일(<sm) 마케팅 네비의 햄버거 메뉴. 데스크탑에서는 sm:hidden 으로 가려지고
+// 모바일/태블릿(<md) 마케팅 네비의 햄버거 메뉴. 데스크탑에서는 md:hidden 으로 가려지고
 // 본 nav 의 가로 링크 묶음이 그대로 노출된다. ESC / 백드롭 / 링크 클릭으로 닫힘.
 //
 // 부모 nav 가 `backdrop-blur-md` 를 쓰면 fixed 자식의 containing block 이 nav 로
@@ -51,7 +51,7 @@ export default function MarketingNavMobileMenu({ items, openLabel, closeLabel }:
     open && mounted
       ? createPortal(
           <div
-            className="fixed inset-0 z-[80] sm:hidden"
+	            className="fixed inset-0 z-[80] md:hidden"
             role="dialog"
             aria-modal="true"
           >
@@ -102,7 +102,7 @@ export default function MarketingNavMobileMenu({ items, openLabel, closeLabel }:
         onClick={() => setOpen(true)}
         aria-label={openLabel}
         title={openLabel}
-        className="inline-flex items-center justify-center text-gray-300 hover:text-white bg-gray-800/60 hover:bg-gray-800 border border-gray-700 rounded-md w-9 h-9 transition-colors sm:hidden"
+	        className="inline-flex items-center justify-center text-gray-300 hover:text-white bg-gray-800/60 hover:bg-gray-800 border border-gray-700 rounded-md w-9 h-9 transition-colors md:hidden"
       >
         <Menu size={16} />
       </button>

@@ -29,8 +29,43 @@ export default async function MarketingFooter() {
             </Link>
           </li>
           <li>
+            <Link href={paths.pricing} className="hover:text-white transition-colors">
+              {t('pricing')}
+            </Link>
+          </li>
+          <li>
+            <Link href={paths.docs} className="hover:text-white transition-colors">
+              {t('docs')}
+            </Link>
+          </li>
+          <li>
+            <Link href={paths.demo} className="hover:text-white transition-colors">
+              {t('demo')}
+            </Link>
+          </li>
+          <li>
             <Link href={paths.faq} className="hover:text-white transition-colors">
               {t('faq')}
+            </Link>
+          </li>
+          <li>
+            <a
+              href="https://discord.gg/pJ8EsybBjm"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-white transition-colors"
+            >
+              {t('discord')}
+            </a>
+          </li>
+          <li>
+            <Link href={paths.privacy} className="hover:text-white transition-colors">
+              {t('privacy')}
+            </Link>
+          </li>
+          <li>
+            <Link href={paths.terms} className="hover:text-white transition-colors">
+              {t('terms')}
             </Link>
           </li>
         </ul>

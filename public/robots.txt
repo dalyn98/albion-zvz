@@ -2,7 +2,7 @@
 #
 # 정책:
 #   - 일반 검색 엔진(Google/Bing/Naver 등) → 마케팅 surface 만 인덱싱 허용
-#       /, /landing, /faq, /docs/*, /g/<slug> + /public/ 직접 변형
+#       /, /landing, /pricing, /faq, /privacy, /terms, /docs/*, /g/<slug> + /public/ 직접 변형
 #       길드 운영 데이터(/admin /shop /events /api 등) 는 차단
 #   - AI 학습용 크롤러 → 전부 차단 (저작권 보호)
 #
@@ -96,12 +96,18 @@ Disallow: /
 User-agent: *
 Allow: /$
 Allow: /landing
+Allow: /pricing
 Allow: /faq
+Allow: /privacy
+Allow: /terms
 Allow: /docs
 Allow: /docs/
 Allow: /g/
 Allow: /public/landing
+Allow: /public/pricing
 Allow: /public/faq
+Allow: /public/privacy
+Allow: /public/terms
 Allow: /public/docs
 Allow: /public/docs/
 Allow: /public/g/

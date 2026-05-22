@@ -7,6 +7,10 @@ import {
   Check,
   ArrowRight,
   PlayCircle,
+  ShieldCheck,
+  Trophy,
+  Wallet,
+  Zap,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
@@ -35,10 +39,11 @@ interface FeatureSection {
 }
 
 export default async function PublicLandingPage() {
-  const [t, tFeat, tMkt, paths, screenshots, session] = await Promise.all([
+  const [t, tFeat, tMkt, tPricing, paths, screenshots, session] = await Promise.all([
     getTranslations('publicLanding'),
     getTranslations('publicFeatures'),
     getTranslations('publicMarketing'),
+    getTranslations('publicPricing'),
     getMarketingPaths(),
     loadMarketingScreenshots(),
     getSession(),
@@ -47,6 +52,33 @@ export default async function PublicLandingPage() {
   const installHref = myGuildHref ?? '/api/auth/discord/start?returnTo=%2Fonboard'
   const primaryCtaLabel = myGuildHref ? t('ctaMyGuild') : t('ctaPrimary')
   const isAdmin = isSuperAdminSession(session)
+  const memberValueCards = [
+    {
+      icon: Calendar,
+      title: t('memberEventsTitle'),
+      body: t('memberEventsBody'),
+    },
+    {
+      icon: Wallet,
+      title: t('memberWalletTitle'),
+      body: t('memberWalletBody'),
+    },
+    {
+      icon: ShieldCheck,
+      title: t('memberRegearTitle'),
+      body: t('memberRegearBody'),
+    },
+    {
+      icon: Trophy,
+      title: t('memberRankingTitle'),
+      body: t('memberRankingBody'),
+    },
+    {
+      icon: Zap,
+      title: t('memberSiphonTitle'),
+      body: t('memberSiphonBody'),
+    },
+  ]
 
   // 카드 순서 = USP 우선순위. 통계(f4) 가 가장 강한 차별화이므로 메인,
   // 다음으로 자동 리기어(f2), 통합 운영 흐름(f1), 보조 기능(상점/제작) 순.
@@ -122,7 +154,7 @@ export default async function PublicLandingPage() {
                 {primaryCtaLabel}
               </a>
               <Link
-                href="/demo"
+                href={paths.demo}
                 className="inline-flex items-center justify-center gap-1.5 bg-gray-800/60 hover:bg-gray-800 border border-gray-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors"
               >
                 <PlayCircle size={16} />
@@ -185,6 +217,36 @@ export default async function PublicLandingPage() {
               </div>
             </section>
           )}
+
+          <section className="space-y-5 scroll-mt-20">
+            <div className="text-center space-y-3">
+              <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-emerald-300/80">
+                {t('memberValueBadge')}
+              </p>
+              <h2 className="text-2xl sm:text-3xl font-bold leading-tight">
+                {t('memberValueTitle')}
+              </h2>
+              <p className="text-sm sm:text-base text-gray-300 max-w-2xl mx-auto leading-relaxed">
+                {t('memberValueLead')}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              {memberValueCards.map((card) => (
+                <div
+                  key={card.title}
+                  className="rounded-xl border border-gray-800 bg-gray-900/60 p-4"
+                >
+                  <card.icon size={18} className="text-emerald-300" />
+                  <h3 className="mt-3 text-sm font-bold text-white leading-snug">
+                    {card.title}
+                  </h3>
+                  <p className="mt-2 text-xs text-gray-400 leading-relaxed">
+                    {card.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
 
           <section id="features" className="space-y-12 sm:space-y-16 scroll-mt-20">
             <div className="text-center space-y-3">
@@ -271,6 +333,37 @@ export default async function PublicLandingPage() {
                 </li>
               ))}
             </ol>
+          </section>
+
+          <section
+            id="pricing"
+            className="rounded-2xl border border-emerald-400/30 bg-emerald-400/5 p-6 sm:p-8 text-center space-y-4 scroll-mt-20"
+          >
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-200">
+              {tPricing('badge')}
+            </p>
+            <div className="space-y-2">
+              <h2 className="text-base sm:text-lg font-bold text-white">
+                {tPricing('title')}
+              </h2>
+              <p className="text-sm text-emerald-100/80 max-w-2xl mx-auto leading-relaxed">
+                {tPricing('planBody')}
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row justify-center gap-2">
+              <Link
+                href={paths.pricing}
+                className="inline-flex items-center justify-center bg-emerald-400 hover:bg-emerald-300 text-black font-semibold px-5 py-2.5 rounded-lg transition-colors"
+              >
+                {t('pricingCta')}
+              </Link>
+              <Link
+                href="/demo"
+                className="inline-flex items-center justify-center bg-gray-800/60 hover:bg-gray-800 border border-gray-700 text-white font-semibold px-5 py-2.5 rounded-lg transition-colors"
+              >
+                {t('tryDemoButton')}
+              </Link>
+            </div>
           </section>
 
           <section className="rounded-2xl border border-amber-400/30 bg-amber-500/5 p-6 sm:p-8 text-center space-y-3">
