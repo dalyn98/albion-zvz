@@ -3168,6 +3168,14 @@
     "activityRecordRequests": "申請記録",
     "activityRecordCount": "{count}件",
     "activityRecordDetailLink": "詳細",
+    "activityRecordPublicBadge": "公開中",
+    "activityRecordPrivateBadge": "非公開",
+    "activityRecordEnablePublic": "公開",
+    "activityRecordDisablePublic": "非公開に戻す",
+    "activityRecordCopyPublicLink": "リンクをコピー",
+    "activityRecordCopiedPublicLink": "コピー済み",
+    "activityRecordPublicConfirm": "このギルドの活動記録を公開しますか？公開ページにはイベント/戦闘参加、キル/デス、役割、武器、実績だけが表示され、ポイント、両替、リギア、寄付、サイフォン、Discord ID は表示されません。",
+    "activityRecordVisibilityError": "公開設定を保存できませんでした。しばらくしてからもう一度お試しください。",
     "activityDetailBack": "マイ情報に戻る",
     "activityDetailEyebrow": "自分の活動詳細",
     "activityDetailUnknownGuild": "ギルド活動",
@@ -3181,6 +3189,14 @@
     "activityRecordTrust_trusted": "信頼済み",
     "activityRecordTrust_disputed": "確認が必要",
     "activityRecordTrust_revoked": "接続解除済み"
+  },
+  "publicActivity": {
+    "eyebrow": "公開活動記録",
+    "subtitle": "{guild} で公開された活動サマリーです。",
+    "unknownGuild": "ギルド",
+    "safeScopeBadge": "財務記録は非表示",
+    "privacyNote": "このページは、ユーザーが自分で公開したギルド別の活動記録だけを表示します。ポイント、両替、リギア、寄付、サイフォン、Discord ID は公開されません。",
+    "recentEventsTitle": "最近の参加 ({count})"
   },
   "myProfile": {
     "notRegistered": "ギルドメンバー情報がまだ登録されていません。再ログインすると自動的に登録されます。"

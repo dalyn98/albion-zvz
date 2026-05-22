@@ -45,6 +45,8 @@ import RequestExchangeForm from '@/components/RequestExchangeForm'
 import TransferPointsForm from '@/components/TransferPointsForm'
 import DonationRequestButton from '@/components/DonationRequestButton'
 import MyCraftPickupsSection from '@/components/MyCraftPickupsSection'
+import ActivityRecordVisibilityControl from '@/components/ActivityRecordVisibilityControl'
+import { buildPublicActivityUrl } from '@/lib/member-activity-public-url'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,6 +61,8 @@ interface PrivateGuildActivityRecord {
   eventCount: number
   pointBalance: number
   requestCount: number
+  publicActivityEnabled: boolean
+  publicActivityUrl: string
 }
 
 export default async function MePage() {
@@ -349,13 +353,12 @@ export default async function MePage() {
           </div>
           <div className="space-y-2">
             {activityRecords.map((record) => (
-              <Link
+              <div
                 key={record.guildId}
-                href={`/me/activity/${record.guildId}`}
-                className="group block rounded-xl border border-gray-800 bg-gray-950/40 px-4 py-3 transition-colors hover:border-amber-500/40 hover:bg-gray-950/70"
+                className="rounded-xl border border-gray-800 bg-gray-950/40 px-3 py-3 sm:px-4"
               >
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <div className="min-w-0">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(260px,1fr)] sm:items-center">
+                  <div className="min-w-0 space-y-2">
                     <p className="text-sm font-bold text-white truncate">
                       {record.guildName}
                       {record.isCurrent && (
@@ -369,27 +372,49 @@ export default async function MePage() {
                       <span className="mx-1 text-gray-700">·</span>
                       {t(`activityRecordTrust_${record.trustStatus}`)}
                     </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <CompactRecordMetric
+                        label={t('activityRecordEvents')}
+                        value={t('activityRecordCount', { count: record.eventCount })}
+                      />
+                      <CompactRecordMetric
+                        label={t('activityRecordPoints')}
+                        value={formatSilver(record.pointBalance)}
+                      />
+                      <CompactRecordMetric
+                        label={t('activityRecordRequests')}
+                        value={t('activityRecordCount', { count: record.requestCount })}
+                      />
+                    </div>
                   </div>
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-300 opacity-90 group-hover:text-amber-200">
-                    {t('activityRecordDetailLink')}
-                    <ChevronRight size={13} />
-                  </span>
+                  <div className="flex flex-col gap-2 sm:items-end">
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/me/activity/${record.guildId}`}
+                        className="inline-flex items-center gap-1 rounded-full border border-gray-700 bg-gray-950/60 px-2.5 py-1 text-[11px] font-semibold text-amber-300 hover:border-amber-500/40 hover:text-amber-200"
+                      >
+                        {t('activityRecordDetailLink')}
+                        <ChevronRight size={13} />
+                      </Link>
+                    </div>
+                    <ActivityRecordVisibilityControl
+                      guildId={record.guildId}
+                      initialEnabled={record.publicActivityEnabled}
+                      publicUrl={record.publicActivityUrl}
+                      labels={{
+                        publicBadge: t('activityRecordPublicBadge'),
+                        privateBadge: t('activityRecordPrivateBadge'),
+                        enable: t('activityRecordEnablePublic'),
+                        disable: t('activityRecordDisablePublic'),
+                        copy: t('activityRecordCopyPublicLink'),
+                        copied: t('activityRecordCopiedPublicLink'),
+                        confirmEnable: t('activityRecordPublicConfirm'),
+                        error: t('activityRecordVisibilityError'),
+                      }}
+                    />
+                  </div>
                 </div>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  <CompactRecordMetric
-                    label={t('activityRecordEvents')}
-                    value={t('activityRecordCount', { count: record.eventCount })}
-                  />
-                  <CompactRecordMetric
-                    label={t('activityRecordPoints')}
-                    value={formatSilver(record.pointBalance)}
-                  />
-                  <CompactRecordMetric
-                    label={t('activityRecordRequests')}
-                    value={t('activityRecordCount', { count: record.requestCount })}
-                  />
-                </div>
-              </Link>
+              </div>
             ))}
           </div>
         </section>
@@ -551,7 +576,7 @@ async function loadPrivateGuildActivityRecords(
   const db = getAdminClient()
   const { data: links, error: linksError } = await db
     .from('account_albion_tenant_links')
-    .select('guild_id, relation, trust_status')
+    .select('guild_id, relation, trust_status, public_activity_enabled, public_activity_token')
     .eq('discord_id', discordId)
     .is('revoked_at', null)
 
@@ -640,6 +665,8 @@ async function loadPrivateGuildActivityRecords(
         eventCount: eventIdsByGuild.get(guildId)?.size ?? 0,
         pointBalance: balances.get(guildId) ?? 0,
         requestCount: requestCounts.get(guildId) ?? 0,
+        publicActivityEnabled: Boolean(row.public_activity_enabled),
+        publicActivityUrl: buildPublicActivityUrl(String(row.public_activity_token ?? '')),
       }
     })
     .sort((a, b) => {

@@ -60,6 +60,11 @@ function resolveGuildProfileRewriteTarget(pathname: string): string | null {
   return null
 }
 
+function resolvePublicUserActivityRewriteTarget(pathname: string): string | null {
+  if (pathname === '/u' || pathname.startsWith('/u/')) return `/public${pathname}`
+  return null
+}
+
 function resolvePublicMarketingCanonicalPath(pathname: string): string | null {
   if (pathname === '/public/landing') return '/'
   if (pathname === '/public/features') return '/features'
@@ -108,7 +113,9 @@ function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
 // 마케팅 라우트와 달리 길드원 사이드바에서 `/g/<slug>` 로 같은 서브도메인 안에서
 // 진입하는 경로가 있어, root 한정으로 두면 멤버 페이지가 404 가 된다.
 function rewriteGuildProfile(request: NextRequest): NextResponse | null {
-  const target = resolveGuildProfileRewriteTarget(request.nextUrl.pathname)
+  const target =
+    resolveGuildProfileRewriteTarget(request.nextUrl.pathname) ??
+    resolvePublicUserActivityRewriteTarget(request.nextUrl.pathname)
   if (!target) return null
   const host = request.headers.get('host')
   const classification = classifyHost(host)

@@ -3168,6 +3168,14 @@
     "activityRecordRequests": "Requests",
     "activityRecordCount": "{count}",
     "activityRecordDetailLink": "Details",
+    "activityRecordPublicBadge": "Public",
+    "activityRecordPrivateBadge": "Private",
+    "activityRecordEnablePublic": "Make public",
+    "activityRecordDisablePublic": "Make private",
+    "activityRecordCopyPublicLink": "Copy link",
+    "activityRecordCopiedPublicLink": "Copied",
+    "activityRecordPublicConfirm": "Make this guild activity record public? The public page only shows event/battle participation, kills/deaths, roles, weapons, and achievements. Points, exchanges, regear, donations, siphon, and Discord ID stay hidden.",
+    "activityRecordVisibilityError": "Could not save the visibility setting. Please try again.",
     "activityDetailBack": "Back to My info",
     "activityDetailEyebrow": "My activity detail",
     "activityDetailUnknownGuild": "Guild activity",
@@ -3181,6 +3189,14 @@
     "activityRecordTrust_trusted": "Trusted",
     "activityRecordTrust_disputed": "Needs review",
     "activityRecordTrust_revoked": "Disconnected"
+  },
+  "publicActivity": {
+    "eyebrow": "Public activity record",
+    "subtitle": "Activity summary shared for {guild}.",
+    "unknownGuild": "Guild",
+    "safeScopeBadge": "Financial records hidden",
+    "privacyNote": "This page only shows a guild-specific activity record the user chose to share. Points, exchanges, regear, donations, siphon, and Discord ID are not public.",
+    "recentEventsTitle": "Recent participation ({count})"
   },
   "myProfile": {
     "notRegistered": "Your guild member record hasn't been registered yet. Logging in again will register you automatically."

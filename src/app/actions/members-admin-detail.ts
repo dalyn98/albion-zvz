@@ -33,6 +33,7 @@ import {
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAccountAlbionIdentityView } from '@/lib/account-albion-identity'
+import { displayNameFromSlug } from '@/lib/tenant-slug'
 import {
   aggregateKillboardRows,
   type KillboardRow,
@@ -408,6 +409,40 @@ export async function getMyMemberDetailForGuild(targetGuildId: string): Promise<
   }
 
   return fetchMemberDetail(session.discordId, targetGuildId)
+}
+
+export async function getPublicMemberActivityByToken(token: string): Promise<{
+  detail: GuildMemberDetail | null
+  guildName: string | null
+  error?: string
+}> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token)) {
+    return { detail: null, guildName: null }
+  }
+
+  const db = getAdminClient()
+  const { data, error } = await db
+    .from('account_albion_tenant_links')
+    .select('guild_id, discord_id, tenants(slug, name)')
+    .eq('public_activity_token', token)
+    .eq('public_activity_enabled', true)
+    .is('revoked_at', null)
+    .maybeSingle()
+
+  if (error) return { detail: null, guildName: null, error: error.message }
+  if (!data) return { detail: null, guildName: null }
+
+  const guildId = data.guild_id as string
+  const tenant = Array.isArray(data.tenants) ? data.tenants[0] : data.tenants
+  const slug = (tenant?.slug as string | null) ?? ''
+  const name = (tenant?.name as string | null) ?? ''
+  const result = await fetchMemberDetail(data.discord_id as string, guildId)
+
+  return {
+    detail: result.detail,
+    guildName: displayNameFromSlug(slug) || name || guildId,
+    error: result.error,
+  }
 }
 
 // Discord 미연동 Albion 멤버 상세. albion_guild_members + killboard_events

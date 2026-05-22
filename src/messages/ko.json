@@ -3168,6 +3168,14 @@
     "activityRecordRequests": "신청 기록",
     "activityRecordCount": "{count}건",
     "activityRecordDetailLink": "자세히",
+    "activityRecordPublicBadge": "공개 중",
+    "activityRecordPrivateBadge": "비공개",
+    "activityRecordEnablePublic": "공개",
+    "activityRecordDisablePublic": "비공개로 전환",
+    "activityRecordCopyPublicLink": "링크 복사",
+    "activityRecordCopiedPublicLink": "복사됨",
+    "activityRecordPublicConfirm": "이 길드 활동 기록을 공개할까요? 공개 페이지에는 이벤트/전투 참여, 킬/데스, 역할, 무기, 업적만 표시되고 포인트, 환전, 리기어, 기부, 사이펀, Discord ID는 표시되지 않습니다.",
+    "activityRecordVisibilityError": "공개 설정을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.",
     "activityDetailBack": "내 정보로 돌아가기",
     "activityDetailEyebrow": "내 활동 상세",
     "activityDetailUnknownGuild": "길드 활동",
@@ -3181,6 +3189,14 @@
     "activityRecordTrust_trusted": "신뢰됨",
     "activityRecordTrust_disputed": "검토 필요",
     "activityRecordTrust_revoked": "연결 해제됨"
+  },
+  "publicActivity": {
+    "eyebrow": "공개 활동 기록",
+    "subtitle": "{guild} 길드에서 공개한 활동 요약입니다.",
+    "unknownGuild": "길드",
+    "safeScopeBadge": "재화 기록 제외",
+    "privacyNote": "이 페이지는 사용자가 직접 공개한 길드별 활동 기록만 보여줍니다. 포인트, 환전, 리기어, 기부, 사이펀, Discord ID 같은 운영·재화 정보는 공개되지 않습니다.",
+    "recentEventsTitle": "최근 참여 ({count})"
   },
   "myProfile": {
     "notRegistered": "길드원 정보가 아직 등록되지 않았습니다. 다시 로그인하면 자동으로 등록됩니다."

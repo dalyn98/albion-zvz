@@ -3168,6 +3168,14 @@
     "activityRecordRequests": "申请记录",
     "activityRecordCount": "{count}项",
     "activityRecordDetailLink": "详情",
+    "activityRecordPublicBadge": "公开中",
+    "activityRecordPrivateBadge": "私密",
+    "activityRecordEnablePublic": "公开",
+    "activityRecordDisablePublic": "设为私密",
+    "activityRecordCopyPublicLink": "复制链接",
+    "activityRecordCopiedPublicLink": "已复制",
+    "activityRecordPublicConfirm": "要公开此公会活动记录吗？公开页面只显示活动/战斗参与、击杀/阵亡、职责、武器和成就；积分、兑换、补装、捐赠、虹吸和 Discord ID 不会显示。",
+    "activityRecordVisibilityError": "无法保存公开设置，请稍后重试。",
     "activityDetailBack": "返回我的信息",
     "activityDetailEyebrow": "我的活动详情",
     "activityDetailUnknownGuild": "公会活动",
@@ -3181,6 +3189,14 @@
     "activityRecordTrust_trusted": "已信任",
     "activityRecordTrust_disputed": "需要审核",
     "activityRecordTrust_revoked": "已断开连接"
+  },
+  "publicActivity": {
+    "eyebrow": "公开活动记录",
+    "subtitle": "{guild} 的公开活动摘要。",
+    "unknownGuild": "公会",
+    "safeScopeBadge": "财务记录隐藏",
+    "privacyNote": "此页面仅显示用户主动公开的公会活动记录。积分、兑换、补装、捐赠、虹吸和 Discord ID 不会公开。",
+    "recentEventsTitle": "近期参与（{count}）"
   },
   "myProfile": {
     "notRegistered": "您的公会成员记录尚未注册,重新登录将自动完成注册。"
