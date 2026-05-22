@@ -43,6 +43,7 @@ describe('signOAuthState / verifyOAuthState', () => {
     expect(parsed?.originHost).toBe('menhera.albion-guildmanager.com')
     expect(parsed?.returnTo).toBe('/admin/dashboard')
     expect(parsed?.invite).toBeNull()
+    expect(parsed?.preferredLocale).toBeNull()
     expect(typeof parsed?.nonce).toBe('string')
     expect(parsed?.nonce.length).toBeGreaterThan(0)
   })
@@ -55,6 +56,17 @@ describe('signOAuthState / verifyOAuthState', () => {
     })
     const parsed = await verifyOAuthState(token)
     expect(parsed?.invite).toBe('inv-abc-123')
+  })
+
+  it('carries the browser/site locale when supplied', async () => {
+    const token = await signOAuthState({
+      originHost: 'sub.example.com',
+      returnTo: '/events/event-1',
+      invite: 'inv-abc-123',
+      preferredLocale: 'en',
+    })
+    const parsed = await verifyOAuthState(token)
+    expect(parsed?.preferredLocale).toBe('en')
   })
 
   it('rejects tampered payloads (signature no longer matches)', async () => {

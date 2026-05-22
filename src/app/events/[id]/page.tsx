@@ -38,6 +38,48 @@ function formatStartedAt(iso: string, tz: string): string {
   return formatDateTimeShort(iso, tz).replace('-', '/')
 }
 
+function requestOriginFromHeaders(headersList: Headers): string {
+  const host = headersList.get('x-forwarded-host') ?? headersList.get('host') ?? ''
+  if (!host) return ''
+  const proto = headersList.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https')
+  return `${proto}://${host}`.replace(/\/$/, '')
+}
+
+async function resolvePublicEventGuildId(
+  eventId: string,
+  inviteToken: string | null,
+  headersList: Headers,
+): Promise<string | null> {
+  if (inviteToken) {
+    const nowIso = new Date().toISOString()
+    const { data: tokenRow } = await getAdminClient()
+      .from('event_guest_tokens')
+      .select('event_id, revoked_at, expires_at')
+      .eq('token', inviteToken)
+      .eq('event_id', eventId)
+      .maybeSingle()
+    if (
+      tokenRow &&
+      !tokenRow.revoked_at &&
+      (!tokenRow.expires_at || tokenRow.expires_at > nowIso)
+    ) {
+      const { data: eventRow } = await getAdminClient()
+        .from('events')
+        .select('guild_id')
+        .eq('id', eventId)
+        .maybeSingle()
+      return (eventRow?.guild_id as string | undefined) ?? null
+    }
+  }
+
+  const classification = classifyHost(headersList.get('host'))
+  if (classification.kind === 'tenant') {
+    const tenant = await resolveTenantBySlug(classification.slug)
+    return tenant?.tenantId ?? null
+  }
+  return null
+}
+
 export const dynamic = 'force-dynamic'
 
 // Discord/Slack 임베드 봇은 비로그인으로 페이지를 fetch 하므로 host 헤더의
@@ -137,15 +179,25 @@ async function getEvent(id: string, guildId: string) {
 
 export default async function EventDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ invite?: string | string[] }>
 }) {
-  const { id } = await params
-  const session = await getSession()
-  // 로그인된 멤버면 세션 가드, 게스트/레거시 쿠키/미로그인은 primary tenant 로
-  // fallback. 이벤트 상세는 layout gate 가 자기 이벤트 외 접근을 차단하므로
-  // guildId 미스매치는 유효 경로에서 발생하지 않는다.
-  const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
+  const [{ id }, sp, headersList, session] = await Promise.all([
+    params,
+    searchParams,
+    headers(),
+    getSession(),
+  ])
+  const rawInvite = Array.isArray(sp.invite) ? sp.invite[0] : sp.invite
+  const inviteToken = rawInvite?.trim() || null
+  // 로그인된 멤버/게스트는 세션의 tenant 를 사용한다. 미로그인 게스트 초대는
+  // 토큰이 가리키는 이벤트 tenant 를 먼저 사용해, 예전에 루트 도메인으로 복사된
+  // 초대 링크도 primary tenant 로 잘못 조회하지 않게 한다.
+  const guildId = session
+    ? await getSessionGuildId(session)
+    : (await resolvePublicEventGuildId(id, inviteToken, headersList)) ?? await getPrimaryTenantId()
   const [
     { event, parties },
     t,
@@ -232,7 +284,7 @@ export default async function EventDetailPage({
 
   // 게스트 초대 관리도 같은 권한(관리자 or 이벤트 작성자). 서버에서 미리
   // 활성 토큰 목록을 로드해 모달이 즉시 열리도록 prefill.
-  const origin = (process.env.APP_URL ?? '').replace(/\/$/, '')
+  const origin = requestOriginFromHeaders(headersList)
   const { tokens: guestTokens } = canEdit
     ? await listEventGuestTokens(id)
     : { tokens: [] as const }

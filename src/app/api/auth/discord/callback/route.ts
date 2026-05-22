@@ -185,6 +185,7 @@ export async function GET(request: NextRequest) {
         originHost: fallbackState.originHost,
         returnTo: fallbackState.returnTo,
         invite: fallbackState.invite,
+        preferredLocale: fallbackState.preferredLocale,
       })
       return NextResponse.redirect(buildAuthorizeUrl(retryState, { prompt: 'consent' }))
     }
@@ -369,11 +370,12 @@ export async function GET(request: NextRequest) {
           .maybeSingle()
         let preferred = langRow?.preferred_language ?? null
         if (!isLocale(preferred)) {
-          const fromDiscord = mapDiscordLocale(user.locale)
-          if (fromDiscord) {
+          const fromBrowser = isLocale(state.preferredLocale) ? state.preferredLocale : null
+          const preferredFromLocale = fromBrowser ?? mapDiscordLocale(user.locale)
+          if (preferredFromLocale) {
             const { error: langErr } = await db
               .from('guild_avatars')
-              .update({ preferred_language: fromDiscord })
+              .update({ preferred_language: preferredFromLocale })
               .eq('guild_id', tenant.id)
               .eq('discord_id', user.id)
             if (langErr) {
@@ -382,7 +384,7 @@ export async function GET(request: NextRequest) {
                 discord_id: user.id,
               })
             } else {
-              preferred = fromDiscord
+              preferred = preferredFromLocale
             }
           }
         }
@@ -492,11 +494,12 @@ export async function GET(request: NextRequest) {
 
     let guestPreferred = existingGuest?.preferred_language ?? null
     if (!isLocale(guestPreferred)) {
-      const fromDiscord = mapDiscordLocale(user.locale)
-      if (fromDiscord) {
+      const fromBrowser = isLocale(state.preferredLocale) ? state.preferredLocale : null
+      const preferredFromLocale = fromBrowser ?? mapDiscordLocale(user.locale)
+      if (preferredFromLocale) {
         const { error: langErr } = await db
           .from('guests')
-          .update({ preferred_language: fromDiscord })
+          .update({ preferred_language: preferredFromLocale })
           .eq('guild_id', guestGuildId)
           .eq('discord_id', user.id)
         if (langErr) {
@@ -505,7 +508,7 @@ export async function GET(request: NextRequest) {
             discord_id: user.id,
           })
         } else {
-          guestPreferred = fromDiscord
+          guestPreferred = preferredFromLocale
         }
       }
     }

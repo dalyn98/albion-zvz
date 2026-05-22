@@ -31,6 +31,9 @@ export interface OAuthStatePayload {
   // Previously held in a cookie; cookies can't cross subdomains during the
   // canonical-hop callback, so it travels inside the signed state.
   invite: string | null
+  // Browser/site locale captured before the Discord OAuth redirect. Discord
+  // user.locale can differ from the browser language used to open a guest link.
+  preferredLocale: string | null
   issuedAt: number
 }
 
@@ -110,12 +113,14 @@ export async function signOAuthState(input: {
   originHost: string
   returnTo: string
   invite?: string | null
+  preferredLocale?: string | null
 }): Promise<string> {
   const payload: OAuthStatePayload = {
     nonce: crypto.randomUUID(),
     originHost: input.originHost,
     returnTo: input.returnTo,
     invite: input.invite ?? null,
+    preferredLocale: input.preferredLocale ?? null,
     issuedAt: Date.now(),
   }
   return signJson(payload)
@@ -128,6 +133,7 @@ export async function verifyOAuthState(value: string | undefined): Promise<OAuth
     return null
   }
   if (parsed.invite !== null && typeof parsed.invite !== 'string') return null
+  if (parsed.preferredLocale !== null && typeof parsed.preferredLocale !== 'string') return null
   return parsed
 }
 
