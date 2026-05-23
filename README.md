@@ -53,6 +53,7 @@ npm run lint
 | `APP_URL` | OAuth redirect base URL |
 | `TENANT_ROOT_DOMAIN` | 멀티테넌트 서브도메인 라우팅 기준 |
 | `CRON_SECRET` | Vercel Cron 및 수동 cron 호출 Bearer 토큰 |
+| `ENABLE_TEST_AUTH` / `TEST_AUTH_SECRET` | 선택. 로컬/프리뷰에서 Discord OAuth 없이 테스트 세션을 발급할 때 사용. production 에서는 항상 비활성 |
 | `SUPER_ADMIN_DISCORD_IDS` / `SUPER_ADMIN_PATH` | 운영자 전용 임퍼소네이션 진입점 |
 | `DISCORD_GUILD_ID` | 레거시 세션의 primary tenant fallback 용도. 신규 기능은 per-tenant DB 설정을 사용 |
 | `SUPABASE_ACCESS_TOKEN` | 선택. `./scripts/safe-db-push.sh` 의 pre-migration 백업 및 Supabase CLI 작업용 |
