@@ -83,6 +83,7 @@ function toEvent(event: (typeof DEMO_EVENTS)[number], index: number, nowMs: numb
     created_by: 'demo-admin',
     status: 'published',
     category: event.category,
+    recruitment_mode: index === 0 ? 'hybrid' : 'slots',
     created_at: new Date(nowMs - index * DAY_MS).toISOString(),
   }
 }

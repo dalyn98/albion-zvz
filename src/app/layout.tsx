@@ -28,6 +28,7 @@ import { displayNameFromSlug } from '@/lib/tenant-slug'
 function isPublicPathname(pathname: string): boolean {
   if (pathname.startsWith('/public/')) return true
   if (pathname === '/demo' || pathname.startsWith('/demo/')) return true
+  if (pathname === '/guild-login') return true
   return false
 }
 
@@ -80,6 +81,16 @@ function extractGuildSlugFromPathname(pathname: string): string | null {
 function isAllowedForEventScope(pathname: string, eventScope: string): boolean {
   if (pathname === `/events/${eventScope}`) return true
   if (pathname.startsWith(`/events/${eventScope}/`)) return true
+  if (pathname.startsWith('/welcome-language')) return true
+  if (pathname.startsWith('/public/')) return true
+  return false
+}
+
+function isAllowedForLocalGuildAccount(pathname: string): boolean {
+  if (pathname === '/') return true
+  if (pathname === '/events' || pathname.startsWith('/events/')) return true
+  if (pathname === '/regear' || pathname.startsWith('/regear/')) return true
+  if (pathname.startsWith('/me/regear/')) return true
   if (pathname.startsWith('/welcome-language')) return true
   if (pathname.startsWith('/public/')) return true
   return false
@@ -327,6 +338,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     redirect(`/events/${session.eventScope}`)
   }
 
+  if (
+    !isPublic &&
+    session?.isLocalGuildAccount &&
+    !isAllowedForLocalGuildAccount(pathname)
+  ) {
+    redirect('/')
+  }
+
   // 알비온 온보딩 강제: 멤버가 아직 서버를 고르지 않았으면 랜딩 위에 모달을
   // 덮는다. 리디렉트 대신 overlay 방식 — 로그인 직후 대문 페이지에서 바로
   // 인증할 수 있게. DB 1회 조회(부분 인덱스로 O(log N)).
@@ -410,9 +429,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     } else {
       gateGuildId = await getPrimaryTenantId()
     }
-    const [bannerUrl, ctaText, tLanding, tAuthError, tPublicLanding, tInApp] = await Promise.all([
+    const [bannerUrl, ctaText, localAccountsEnabledRaw, localInviteHash, tLanding, tAuthError, tPublicLanding, tInApp] = await Promise.all([
       getAppSetting('landing_banner_url', '', gateGuildId),
       getAppSetting('landing_cta_text', '', gateGuildId),
+      getAppSetting('local_guild_accounts_enabled', 'false', gateGuildId),
+      getAppSetting('local_guild_invite_hash', '', gateGuildId),
       getTranslations('landing'),
       getTranslations('auth.error'),
       getTranslations('publicLanding'),
@@ -427,6 +448,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       classification.kind === 'tenant'
         ? `https://${getCanonicalRootDomain()}/`
         : '/public/landing'
+    const localLoginEnabled =
+      classification.kind === 'tenant' &&
+      localAccountsEnabledRaw === 'true' &&
+      localInviteHash.trim().length > 0
+    const localLoginHref = localLoginEnabled
+      ? `/guild-login?return=${encodeURIComponent(pathname || '/')}`
+      : null
     gateContent = (
       <AppGate
         reason={session ? 'no_role' : 'not_logged_in'}
@@ -439,6 +467,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         logoutLabel={tLanding('logout')}
         learnMoreLabel={tLanding('learnMore')}
         learnMoreHref={learnMoreHref}
+        localLoginLabel={tLanding('localGuildLogin')}
+        localLoginHref={localLoginHref}
         authErrorLabels={{
           denied: tAuthError('denied'),
           invalid: tAuthError('invalid'),

@@ -363,7 +363,22 @@
     "confirmHint": "아래 내용으로 새 이벤트가 생성됩니다. 생성 후 편집 화면에서 파티·슬롯·공지 채널을 설정할 수 있습니다.",
     "createEvent": "이벤트 생성 →",
     "draftFormHint": "제목만 먼저 정하고 다음으로 넘어가요. 다음 화면에서 파티와 빌드를 구성한 뒤, 준비가 끝나면 날짜·장소·공지 채널을 채우고 \"발행하기\" 버튼으로 공개해요. 발행하기 전까지는 홈 화면에 보이지 않아요.",
-    "draftFormSubmit": "임시 저장 후 편집으로"
+    "draftFormSubmit": "임시 저장 후 편집으로",
+    "recruitmentModeLabel": "모집 방식",
+    "recruitmentMode": {
+      "slots": {
+        "title": "슬롯 방식",
+        "hint": "파티와 슬롯을 직접 정합니다."
+      },
+      "build_sheet": {
+        "title": "빌드표 방식",
+        "hint": "빌드표를 먼저 보여주고 신청을 받습니다."
+      },
+      "hybrid": {
+        "title": "혼합 방식",
+        "hint": "빌드표로 모집하고 운영진이 슬롯을 확정합니다."
+      }
+    }
   },
   "adminRegearAnomaly": {
     "bannerTitle": "이상치 감지됨",
@@ -1204,7 +1219,16 @@
     "noticeImagePreviewAlt": "공지 이미지 미리보기",
     "saved": "저장됨",
     "saving": "저장 중…",
-    "save": "저장"
+    "save": "저장",
+    "localAccountTitle": "Albion 계정 로그인",
+    "localAccountDescription": "Discord 없이 이 길드 안에서만 쓰는 계정을 허용합니다. 허용 범위는 이벤트 신청과 리기어 신청으로 제한됩니다.",
+    "localAccountGuildCode": "길드 초대 코드",
+    "localAccountRotateCode": "길드 초대 코드 변경",
+    "localAccountGuildCodePlaceholder": "6자 이상 코드",
+    "localAccountRotatePlaceholder": "비워두면 기존 코드 유지",
+    "localAccountGuildCodeHint": "평문은 저장하지 않고 해시만 저장합니다. 코드가 유출되면 새 코드로 교체하세요.",
+    "enabled": "켜짐",
+    "disabled": "꺼짐"
   },
   "eventGuestInvite": {
     "button": "게스트 초대",
@@ -1892,7 +1916,8 @@
     "invitePrompt": "이벤트 초대 링크입니다.\nDiscord 로그인하면 게스트로 입장됩니다.",
     "logout": "다른 계정으로 로그인",
     "learnMore": "내 길드에서 사용해보기",
-    "retry": "다시 시도"
+    "retry": "다시 시도",
+    "localGuildLogin": "Albion 계정으로 입장"
   },
   "inAppBrowserNotice": {
     "title": "외부 브라우저에서 열어주세요",
@@ -2270,7 +2295,21 @@
         "ranged": "원거리"
       }
     },
-    "myStatusGuestName": "게스트 이름 {name}"
+    "myStatusGuestName": "게스트 이름 {name}",
+    "myStatusLocalLogin": "Albion 계정",
+    "buildSheetTitle": "이번 이벤트 빌드표",
+    "buildSheetNoItem": "장비 미지정",
+    "buildSheetNoRole": "역할 미지정",
+    "recruitmentMode": {
+      "build_sheet": {
+        "eyebrow": "빌드표 모집",
+        "body": "먼저 필요한 빌드를 확인한 뒤 아래 슬롯에서 맞는 자리에 신청하세요."
+      },
+      "hybrid": {
+        "eyebrow": "혼합 모집",
+        "body": "빌드표 기준으로 신청을 받고, 운영진이 최종 파티와 슬롯을 확정합니다."
+      }
+    }
   },
   "eventReport": {
     "reportLabel": "이벤트 사후 리포트",
@@ -5383,5 +5422,39 @@
     "termsAvailabilityBody": "서비스는 안정적으로 운영하기 위해 노력하지만, 알비온 공식 API, Discord, Supabase, Vercel 같은 외부 시스템 상태에 따라 일시적인 지연이나 장애가 생길 수 있습니다.",
     "termsChangesTitle": "변경과 문의",
     "termsChangesBody": "약관과 정책은 서비스 상태에 따라 갱신될 수 있습니다. 문의와 제보는 공식 Discord 채널에서 받습니다."
+  },
+  "localGuildAccount": {
+    "eyebrow": "길드 전용 로그인",
+    "title": "Albion 계정으로 입장",
+    "description": "Discord 로그인이 부담스러우면 이 길드 안에서만 쓰는 계정으로 이벤트 신청과 리기어 신청을 사용할 수 있어요.",
+    "loginTab": "로그인",
+    "registerTab": "계정 만들기",
+    "languageLabel": "표시 언어",
+    "serverLabel": "서버",
+    "nicknameLabel": "Albion 닉네임",
+    "nicknamePlaceholder": "인게임 닉네임",
+    "passwordLabel": "비밀번호",
+    "passwordPlaceholder": "8자 이상",
+    "guildCodeLabel": "길드 초대 코드",
+    "guildCodePlaceholder": "길드에서 공지한 코드",
+    "registerHint": "닉네임은 Albion Gameinfo에서 확인하며, 홈 길드 로스터와 일치하면 리기어 신청까지 신뢰 계정으로 처리됩니다.",
+    "loginSubmit": "입장하기",
+    "registerSubmit": "계정 만들고 입장",
+    "submitting": "처리 중...",
+    "tenantRequired": "길드 페이지에서만 사용할 수 있습니다.",
+    "disabled": "이 길드는 Albion 계정 로그인을 사용하지 않습니다.",
+    "invalidServer": "서버를 확인해 주세요.",
+    "invalidNickname": "닉네임을 2~32자로 입력해 주세요.",
+    "invalidPassword": "비밀번호는 8~72자여야 합니다.",
+    "invalidGuildCode": "길드 초대 코드가 올바르지 않습니다.",
+    "playerNotFound": "해당 닉네임을 Albion에서 찾지 못했습니다.",
+    "duplicateAccount": "이미 이 닉네임으로 만든 계정이 있습니다.",
+    "saveFailed": "계정을 저장하지 못했습니다.",
+    "invalidLogin": "닉네임 또는 비밀번호가 올바르지 않습니다.",
+    "server": {
+      "west": "Americas / West",
+      "east": "Asia / East",
+      "europe": "Europe"
+    }
   }
 }

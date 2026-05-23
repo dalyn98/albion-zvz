@@ -11,6 +11,7 @@ import SaveAsTemplateButton from '@/components/SaveAsTemplateButton'
 import LoadTemplateButton from '@/components/LoadTemplateButton'
 import DeleteEventButton from '@/components/DeleteEventButton'
 import EventPayoutRequestButton from '@/components/EventPayoutRequestButton'
+import EventBuildSheetSummary from '@/components/EventBuildSheetSummary'
 import { EventEditSaveProvider } from '@/components/EventEditSaveRegistry'
 import EventEditSaveBar from '@/components/EventEditSaveBar'
 import { listTemplates } from '@/app/actions/templates'
@@ -216,6 +217,9 @@ export default async function EditEventPage({
                 )}
               </div>
             </div>
+            {(event.recruitment_mode === 'build_sheet' || event.recruitment_mode === 'hybrid') && (
+              <EventBuildSheetSummary parties={parties} mode={event.recruitment_mode} />
+            )}
             <PartyListEditor
               eventId={id}
               parties={parties}

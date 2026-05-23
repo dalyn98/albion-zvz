@@ -20,8 +20,8 @@ import { getTenantTimezone } from '@/lib/timezone-server'
 import { log } from '@/lib/log'
 import { logAdminAction } from '@/lib/admin-audit'
 import type { Locale } from '@/i18n/locales'
-import type { EventCategory } from '@/types'
-import { EVENT_CATEGORIES } from '@/types'
+import type { EventCategory, EventRecruitmentMode } from '@/types'
+import { EVENT_CATEGORIES, EVENT_RECRUITMENT_MODES } from '@/types'
 import type { AdminErrorTranslator } from './admin-slot-sanitizers'
 
 // next-intl locale 코드(ko/ja/en/zh) → Intl.DateTimeFormat 이 받는 BCP 47 태그.
@@ -54,6 +54,7 @@ interface EventPayload {
   // Migration 063: 이벤트 카테고리. 생성 시 선택하고 편집에서도 변경 가능.
   // 생략하면 DB 기본값 '전투' 가 적용된다.
   category?: EventCategory
+  recruitment_mode?: EventRecruitmentMode
 }
 
 // Final check in case the client bypassed validation — a bad ISO string would
@@ -79,19 +80,29 @@ function validateEventPayload(
   if (payload.category !== undefined && !EVENT_CATEGORIES.includes(payload.category)) {
     return tErr('serverError')
   }
+  if (
+    payload.recruitment_mode !== undefined &&
+    !EVENT_RECRUITMENT_MODES.includes(payload.recruitment_mode)
+  ) {
+    return tErr('serverError')
+  }
   return null
 }
 
 // 이벤트를 draft 상태로 생성. 제목만 받아 빈 껍질을 만든 뒤 편집/발행 단계로 넘긴다.
 // 기존 createEvent 와 달리 gather_at 을 요구하지 않으며 공개 /events 에도 뜨지 않는다.
 export async function createDraftEvent(
-  payload: { title: string; category?: EventCategory },
+  payload: { title: string; category?: EventCategory; recruitmentMode?: EventRecruitmentMode },
 ): Promise<{ id: string } | { error: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
     if (!payload.title.trim()) return { error: tErr('missingTitle') }
     const category: EventCategory =
       payload.category && EVENT_CATEGORIES.includes(payload.category) ? payload.category : '전투'
+    const recruitmentMode: EventRecruitmentMode =
+      payload.recruitmentMode && EVENT_RECRUITMENT_MODES.includes(payload.recruitmentMode)
+        ? payload.recruitmentMode
+        : 'slots'
     const session = await getSession()
     if (!session?.canCreateEvents) return { error: tErr('unauthorized') }
     if (!session.isAdmin && !session.eventCreatorCategories.includes(category)) {
@@ -110,6 +121,7 @@ export async function createDraftEvent(
         special_notes: null,
         status: 'draft',
         category,
+        recruitment_mode: recruitmentMode,
         created_by: session.discordId,
       })
       .select('id')
@@ -121,7 +133,7 @@ export async function createDraftEvent(
       action: 'event.create',
       targetId: data.id,
       targetKind: 'event',
-      details: { kind: 'draft', title: payload.title.trim(), category },
+      details: { kind: 'draft', title: payload.title.trim(), category, recruitmentMode },
     })
     return { id: data.id }
   } catch (e) {

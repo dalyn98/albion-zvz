@@ -363,7 +363,22 @@
     "confirmHint": "以下の内容で新しいイベントが作成されます。作成後の編集画面でパーティー・スロット・告知チャンネルを設定できます。",
     "createEvent": "イベント作成 →",
     "draftFormHint": "まずはタイトルだけ決めて次に進んでください。次の画面でパーティ・ビルドを組み、準備ができたら日時・場所・通知チャンネルを埋めて「公開」ボタンで公開します。公開するまではホーム画面に表示されません。",
-    "draftFormSubmit": "下書き保存して編集へ"
+    "draftFormSubmit": "下書き保存して編集へ",
+    "recruitmentModeLabel": "募集方式",
+    "recruitmentMode": {
+      "slots": {
+        "title": "スロット方式",
+        "hint": "パーティとスロットを直接指定します。"
+      },
+      "build_sheet": {
+        "title": "ビルド表方式",
+        "hint": "ビルド表を先に見せて申請を受けます。"
+      },
+      "hybrid": {
+        "title": "混合方式",
+        "hint": "ビルド表で募集し、運営がスロットを確定します。"
+      }
+    }
   },
   "adminRegearAnomaly": {
     "bannerTitle": "異常を検出",
@@ -1204,7 +1219,16 @@
     "noticeImagePreviewAlt": "お知らせ画像プレビュー",
     "saved": "保存しました",
     "saving": "保存中…",
-    "save": "保存"
+    "save": "保存",
+    "localAccountTitle": "Albionアカウントログイン",
+    "localAccountDescription": "Discordなしでギルド内だけのアカウントを許可します。利用範囲はイベント申請とリギア申請に限定されます。",
+    "localAccountGuildCode": "ギルド招待コード",
+    "localAccountRotateCode": "ギルド招待コード変更",
+    "localAccountGuildCodePlaceholder": "6文字以上",
+    "localAccountRotatePlaceholder": "空欄なら現在のコードを維持",
+    "localAccountGuildCodeHint": "平文は保存せず、ハッシュだけ保存します。漏れた場合は新しいコードに変更してください。",
+    "enabled": "オン",
+    "disabled": "オフ"
   },
   "eventGuestInvite": {
     "button": "ゲスト招待",
@@ -1892,7 +1916,8 @@
     "invitePrompt": "イベント招待リンクです。\nDiscord でログインするとゲストとして入場できます。",
     "logout": "別のアカウントでログイン",
     "learnMore": "自分のギルドでも使ってみる",
-    "retry": "再試行"
+    "retry": "再試行",
+    "localGuildLogin": "Albionアカウントで入る"
   },
   "inAppBrowserNotice": {
     "title": "外部ブラウザで開いてください",
@@ -2270,7 +2295,21 @@
         "ranged": "遠距離"
       }
     },
-    "myStatusGuestName": "ゲスト名 {name}"
+    "myStatusGuestName": "ゲスト名 {name}",
+    "myStatusLocalLogin": "Albionアカウント",
+    "buildSheetTitle": "イベントビルド表",
+    "buildSheetNoItem": "装備未設定",
+    "buildSheetNoRole": "役割未設定",
+    "recruitmentMode": {
+      "build_sheet": {
+        "eyebrow": "ビルド表募集",
+        "body": "必要なビルドを先に確認し、下のスロットから合う場所に申請してください。"
+      },
+      "hybrid": {
+        "eyebrow": "混合募集",
+        "body": "ビルド表を基準に申請を受け、運営が最終パーティとスロットを確定します。"
+      }
+    }
   },
   "eventReport": {
     "reportLabel": "事後レポート",
@@ -5383,5 +5422,39 @@
     "termsAvailabilityBody": "安定運用に努めますが、Albion 公式 API、Discord、Supabase、Vercel など外部システムの状態により一時的な遅延や障害が発生することがあります。",
     "termsChangesTitle": "変更と問い合わせ",
     "termsChangesBody": "規約とポリシーはサービス状況に応じて更新される場合があります。問い合わせと報告は公式 Discord チャンネルで受け付けます。"
+  },
+  "localGuildAccount": {
+    "eyebrow": "ギルド専用ログイン",
+    "title": "Albionアカウントで入る",
+    "description": "Discordログインが不安な場合、このギルド内だけで使うアカウントでイベント申請とリギア申請だけ利用できます。",
+    "loginTab": "ログイン",
+    "registerTab": "作成",
+    "languageLabel": "表示言語",
+    "serverLabel": "サーバー",
+    "nicknameLabel": "Albionニックネーム",
+    "nicknamePlaceholder": "ゲーム内ニックネーム",
+    "passwordLabel": "パスワード",
+    "passwordPlaceholder": "8文字以上",
+    "guildCodeLabel": "ギルド招待コード",
+    "guildCodePlaceholder": "ギルドが告知したコード",
+    "registerHint": "ニックネームはAlbion Gameinfoで確認します。ホームギルドのロスターと一致すればリギア申請も信頼済みとして扱います。",
+    "loginSubmit": "入る",
+    "registerSubmit": "作成して入る",
+    "submitting": "処理中...",
+    "tenantRequired": "ギルドページでのみ使用できます。",
+    "disabled": "このギルドではAlbionアカウントログインを使用していません。",
+    "invalidServer": "サーバーを確認してください。",
+    "invalidNickname": "ニックネームは2〜32文字で入力してください。",
+    "invalidPassword": "パスワードは8〜72文字にしてください。",
+    "invalidGuildCode": "ギルド招待コードが正しくありません。",
+    "playerNotFound": "そのニックネームはAlbionで見つかりませんでした。",
+    "duplicateAccount": "このニックネームのアカウントは既にあります。",
+    "saveFailed": "アカウントを保存できませんでした。",
+    "invalidLogin": "ニックネームまたはパスワードが正しくありません。",
+    "server": {
+      "west": "Americas / West",
+      "east": "Asia / East",
+      "europe": "Europe"
+    }
   }
 }

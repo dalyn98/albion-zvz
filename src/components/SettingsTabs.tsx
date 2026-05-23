@@ -20,6 +20,7 @@ import RegearModeCard from './RegearModeCard'
 import CdBadgeRolesForm from './CdBadgeRolesForm'
 import AutoRegearSlotsForm from './AutoRegearSlotsForm'
 import PermissionRoleSettingsPanel from './PermissionRoleSettingsPanel'
+import LocalGuildAccountSettingsForm from './LocalGuildAccountSettingsForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
 import type { SlotRole, SlotKey } from '@/types'
 
@@ -82,6 +83,8 @@ interface Props {
   autoRegearSkipLowConfidence: boolean
   cdBadgeRoles: SlotRole[]
   allowUnverifiedMemberAccess: boolean
+  localGuildAccountsEnabled: boolean
+  localGuildInviteConfigured: boolean
   tenantTimezone: string
   eventDmLeadMinutes: number
   isSuperAdmin: boolean
@@ -128,6 +131,8 @@ export default function SettingsTabs({
   autoRegearSkipLowConfidence,
   cdBadgeRoles,
   allowUnverifiedMemberAccess,
+  localGuildAccountsEnabled,
+  localGuildInviteConfigured,
   tenantTimezone,
   eventDmLeadMinutes,
   isSuperAdmin,
@@ -197,6 +202,11 @@ export default function SettingsTabs({
             <AllowUnverifiedAccessForm
               embedded
               initialAllowed={allowUnverifiedMemberAccess}
+            />
+            <LocalGuildAccountSettingsForm
+              embedded
+              initialEnabled={localGuildAccountsEnabled}
+              hasInviteCode={localGuildInviteConfigured}
             />
           </SettingsGroup>
         )}

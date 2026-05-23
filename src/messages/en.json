@@ -363,7 +363,22 @@
     "confirmHint": "A new event will be created with the details below. You can configure parties, slots, and the notification channel on the edit page after creation.",
     "createEvent": "Create event →",
     "draftFormHint": "Pick a title first and move on. On the next screen, build your parties and slots; when you're ready, fill in the date, location, and announcement channel, then press \"Publish\" to go live. It stays off the home page until you publish.",
-    "draftFormSubmit": "Save draft & continue"
+    "draftFormSubmit": "Save draft & continue",
+    "recruitmentModeLabel": "Recruitment mode",
+    "recruitmentMode": {
+      "slots": {
+        "title": "Slot mode",
+        "hint": "Assign parties and slots directly."
+      },
+      "build_sheet": {
+        "title": "Build-sheet mode",
+        "hint": "Show the build sheet first, then collect signups."
+      },
+      "hybrid": {
+        "title": "Hybrid mode",
+        "hint": "Recruit from the build sheet, then staff confirm slots."
+      }
+    }
   },
   "adminRegearAnomaly": {
     "bannerTitle": "Anomaly detected",
@@ -1204,7 +1219,16 @@
     "noticeImagePreviewAlt": "Notice image preview",
     "saved": "Saved",
     "saving": "Saving…",
-    "save": "Save"
+    "save": "Save",
+    "localAccountTitle": "Albion account login",
+    "localAccountDescription": "Allow a guild-local account without Discord. Access is limited to event signup and regear requests.",
+    "localAccountGuildCode": "Guild invite code",
+    "localAccountRotateCode": "Rotate guild invite code",
+    "localAccountGuildCodePlaceholder": "6+ characters",
+    "localAccountRotatePlaceholder": "Leave blank to keep the current code",
+    "localAccountGuildCodeHint": "Only a hash is stored. Rotate the code if it leaks.",
+    "enabled": "Enabled",
+    "disabled": "Disabled"
   },
   "eventGuestInvite": {
     "button": "Invite guests",
@@ -1892,7 +1916,8 @@
     "invitePrompt": "This is an event invite link.\nLog in with Discord to enter as a guest.",
     "logout": "Sign in with another account",
     "learnMore": "Try this with my own guild",
-    "retry": "Try again"
+    "retry": "Try again",
+    "localGuildLogin": "Enter with Albion account"
   },
   "inAppBrowserNotice": {
     "title": "Open in an external browser",
@@ -2270,7 +2295,21 @@
         "ranged": "Ranged"
       }
     },
-    "myStatusGuestName": "Guest name {name}"
+    "myStatusGuestName": "Guest name {name}",
+    "myStatusLocalLogin": "Albion account",
+    "buildSheetTitle": "Event build sheet",
+    "buildSheetNoItem": "No gear set",
+    "buildSheetNoRole": "No role set",
+    "recruitmentMode": {
+      "build_sheet": {
+        "eyebrow": "Build-sheet recruitment",
+        "body": "Check the required builds first, then apply to a matching slot below."
+      },
+      "hybrid": {
+        "eyebrow": "Hybrid recruitment",
+        "body": "Members apply from the build sheet and staff confirm final parties and slots."
+      }
+    }
   },
   "eventReport": {
     "reportLabel": "Post-Event Report",
@@ -5383,5 +5422,39 @@
     "termsAvailabilityBody": "We work to keep the service stable, but external systems such as Albion official APIs, Discord, Supabase, and Vercel can cause temporary delays or outages.",
     "termsChangesTitle": "Changes and contact",
     "termsChangesBody": "Terms and policies may be updated as the service evolves. Questions and reports are handled through the official Discord channel."
+  },
+  "localGuildAccount": {
+    "eyebrow": "Guild-only login",
+    "title": "Enter with an Albion account",
+    "description": "If Discord login feels uncomfortable, use a guild-local account for event signup and regear requests only.",
+    "loginTab": "Log in",
+    "registerTab": "Create account",
+    "languageLabel": "Display language",
+    "serverLabel": "Server",
+    "nicknameLabel": "Albion nickname",
+    "nicknamePlaceholder": "In-game nickname",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "At least 8 characters",
+    "guildCodeLabel": "Guild invite code",
+    "guildCodePlaceholder": "Code announced by the guild",
+    "registerHint": "The nickname is checked through Albion Gameinfo. If it matches the home guild roster, regear access is trusted.",
+    "loginSubmit": "Enter",
+    "registerSubmit": "Create and enter",
+    "submitting": "Working...",
+    "tenantRequired": "Use this from a guild page.",
+    "disabled": "This guild does not allow Albion account login.",
+    "invalidServer": "Check the server.",
+    "invalidNickname": "Enter a 2-32 character nickname.",
+    "invalidPassword": "Password must be 8-72 characters.",
+    "invalidGuildCode": "The guild invite code is incorrect.",
+    "playerNotFound": "Could not find that nickname in Albion.",
+    "duplicateAccount": "An account already exists for this nickname.",
+    "saveFailed": "Could not save the account.",
+    "invalidLogin": "Nickname or password is incorrect.",
+    "server": {
+      "west": "Americas / West",
+      "east": "Asia / East",
+      "europe": "Europe"
+    }
   }
 }

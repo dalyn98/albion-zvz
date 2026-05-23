@@ -11,7 +11,13 @@ import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { createDraftEvent } from '@/app/actions/admin'
-import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, type EventCategory } from '@/types'
+import {
+  CATEGORY_I18N_SLUG,
+  EVENT_CATEGORIES,
+  EVENT_RECRUITMENT_MODES,
+  type EventCategory,
+  type EventRecruitmentMode,
+} from '@/types'
 import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
@@ -26,6 +32,7 @@ export default function NewEventDraftForm({ allowedCategories }: Props) {
   const [title, setTitle] = useState('')
   const visibleCategories = allowedCategories.length > 0 ? allowedCategories : [...EVENT_CATEGORIES]
   const [category, setCategory] = useState<EventCategory>(visibleCategories[0] ?? '전투')
+  const [recruitmentMode, setRecruitmentMode] = useState<EventRecruitmentMode>('slots')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -41,7 +48,7 @@ export default function NewEventDraftForm({ allowedCategories }: Props) {
     }
     setError('')
     setLoading(true)
-    const result = await createDraftEvent({ title: trimmed, category })
+    const result = await createDraftEvent({ title: trimmed, category, recruitmentMode })
     if ('error' in result) {
       setError(result.error)
       setLoading(false)
@@ -85,7 +92,30 @@ export default function NewEventDraftForm({ allowedCategories }: Props) {
             </button>
           ))}
         </div>
-        <p className="text-xs text-gray-500 mt-1.5">{t('categoryHint')}</p>
+      <p className="text-xs text-gray-500 mt-1.5">{t('categoryHint')}</p>
+      </div>
+
+      <div>
+        <label className="text-gray-400 text-xs mb-1 block">{t('recruitmentModeLabel')}</label>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {EVENT_RECRUITMENT_MODES.map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setRecruitmentMode(mode)}
+              className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                recruitmentMode === mode
+                  ? 'border-amber-500/70 bg-amber-500/15 text-amber-100'
+                  : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-amber-500/40'
+              }`}
+            >
+              <span className="block text-sm font-bold">{t(`recruitmentMode.${mode}.title`)}</span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">
+                {t(`recruitmentMode.${mode}.hint`)}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <p className="text-xs text-gray-500 leading-relaxed">{t('draftFormHint')}</p>

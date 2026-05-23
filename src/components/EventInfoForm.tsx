@@ -14,8 +14,8 @@ import {
 } from '@/app/actions/notifications'
 import { defaultGatherParts, parseGatherTime, formatGatherTimeKo, type GatherTimeParts } from '@/lib/gather-time'
 import FourPartTimeInput from './FourPartTimeInput'
-import type { Event, EventCategory } from '@/types'
-import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES } from '@/types'
+import type { Event, EventCategory, EventRecruitmentMode } from '@/types'
+import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, EVENT_RECRUITMENT_MODES } from '@/types'
 
 interface Props {
   initialEvent?: Event
@@ -42,6 +42,9 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
   const [notifyChannelId, setNotifyChannelId] = useState<string>(initialEvent?.notify_channel_id ?? '')
   const [notifyEveryone, setNotifyEveryone] = useState<boolean>(initialEvent?.notify_everyone ?? false)
   const [category, setCategory] = useState<EventCategory>(initialEvent?.category ?? '전투')
+  const [recruitmentMode, setRecruitmentMode] = useState<EventRecruitmentMode>(
+    initialEvent?.recruitment_mode ?? 'slots',
+  )
   const [roles, setRoles] = useState<DiscordRoleOption[] | null>(null)
   const [rolesError, setRolesError] = useState(false)
   const [channels, setChannels] = useState<DiscordChannelOption[] | null>(null)
@@ -154,6 +157,8 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
       gather_time: formatGatherTimeKo(v.dt, tenantTimezone),
       gather_location: gatherLocation.trim(),
       special_notes: specialNotes.trim() || null,
+      category,
+      recruitment_mode: recruitmentMode,
     })
     if ('error' in result && result.error) {
       setError(result.error)
@@ -180,13 +185,14 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
       notifyChannelId,
       notifyEveryone,
       category,
+      recruitmentMode,
     })
   const [cleanSnapshot, setCleanSnapshot] = useState<string>(() => computeSnapshot())
   const currentSnapshot = useMemo(
     () => computeSnapshot(),
     // computeSnapshot 은 closure 로 모든 입력을 참조.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [title, parts, gatherLocation, specialNotes, notifyRoleId, notifyChannelId, notifyEveryone, category],
+    [title, parts, gatherLocation, specialNotes, notifyRoleId, notifyChannelId, notifyEveryone, category, recruitmentMode],
   )
   const isDirty = isEdit && currentSnapshot !== cleanSnapshot
   useReportDirty('event-info', isDirty)
@@ -217,6 +223,7 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
           notify_channel_id: notifyChannelId || null,
           notify_everyone: notifyEveryone,
           category,
+          recruitment_mode: recruitmentMode,
         })
         if ('error' in result && result.error) {
           setError(result.error)
@@ -241,6 +248,7 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
         notify_channel_id: notifyChannelId || null,
         notify_everyone: notifyEveryone,
         category,
+        recruitment_mode: recruitmentMode,
       })
       if ('error' in result && result.error) {
         setError(result.error)
@@ -282,6 +290,29 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
               }`}
             >
               {t(`category_${CATEGORY_I18N_SLUG[c]}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="text-gray-400 text-xs mb-1 block">{t('recruitmentModeLabel')}</label>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {EVENT_RECRUITMENT_MODES.map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setRecruitmentMode(mode)}
+              className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                recruitmentMode === mode
+                  ? 'border-amber-500/70 bg-amber-500/15 text-amber-100'
+                  : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-amber-500/40'
+              }`}
+            >
+              <span className="block text-sm font-bold">{t(`recruitmentMode.${mode}.title`)}</span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">
+                {t(`recruitmentMode.${mode}.hint`)}
+              </span>
             </button>
           ))}
         </div>

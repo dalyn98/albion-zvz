@@ -23,6 +23,7 @@ const SAMPLE_SESSION: SessionPayload = {
   isMember: true,
   isAdmin: false,
   isGuest: false,
+    isLocalGuildAccount: false,
   canCreateEvents: false,
   eventCreatorCategories: [],
   eventScope: null,

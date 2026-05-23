@@ -363,7 +363,22 @@
     "confirmHint": "将根据以下信息创建新活动。创建后可在编辑页面配置小队、槽位和通知频道。",
     "createEvent": "创建活动 →",
     "draftFormHint": "先选好标题然后继续。下一步将构建小队和槽位；准备就绪后填写日期、地点和公告频道，然后按「发布」上线。发布前不会显示在首页。",
-    "draftFormSubmit": "保存草稿并继续"
+    "draftFormSubmit": "保存草稿并继续",
+    "recruitmentModeLabel": "招募方式",
+    "recruitmentMode": {
+      "slots": {
+        "title": "槽位方式",
+        "hint": "直接指定队伍和槽位。"
+      },
+      "build_sheet": {
+        "title": "配装表方式",
+        "hint": "先展示配装表，再收集报名。"
+      },
+      "hybrid": {
+        "title": "混合方式",
+        "hint": "按配装表招募，由管理确认最终槽位。"
+      }
+    }
   },
   "adminRegearAnomaly": {
     "bannerTitle": "检测到异常",
@@ -1204,7 +1219,16 @@
     "noticeImagePreviewAlt": "公告图片预览",
     "saved": "已保存",
     "saving": "保存中…",
-    "save": "保存"
+    "save": "保存",
+    "localAccountTitle": "Albion 账号登录",
+    "localAccountDescription": "允许不使用 Discord 的公会本地账号。访问范围仅限活动报名和 Regear 申请。",
+    "localAccountGuildCode": "公会邀请码",
+    "localAccountRotateCode": "更换公会邀请码",
+    "localAccountGuildCodePlaceholder": "至少 6 个字符",
+    "localAccountRotatePlaceholder": "留空则保留当前代码",
+    "localAccountGuildCodeHint": "不会保存明文，只保存哈希。若代码泄露，请更换新代码。",
+    "enabled": "开启",
+    "disabled": "关闭"
   },
   "eventGuestInvite": {
     "button": "邀请访客",
@@ -1892,7 +1916,8 @@
     "invitePrompt": "这是活动邀请链接。\n使用 Discord 登录即可作为访客进入。",
     "logout": "使用其他账号登录",
     "learnMore": "用我自己的公会试试",
-    "retry": "重试"
+    "retry": "重试",
+    "localGuildLogin": "使用 Albion 账号进入"
   },
   "inAppBrowserNotice": {
     "title": "请在外部浏览器打开",
@@ -2270,7 +2295,21 @@
         "ranged": "远程"
       }
     },
-    "myStatusGuestName": "访客名称 {name}"
+    "myStatusGuestName": "访客名称 {name}",
+    "myStatusLocalLogin": "Albion 账号",
+    "buildSheetTitle": "本次活动配装表",
+    "buildSheetNoItem": "未设置装备",
+    "buildSheetNoRole": "未设置职责",
+    "recruitmentMode": {
+      "build_sheet": {
+        "eyebrow": "配装表招募",
+        "body": "先确认需要的配装，然后在下方选择匹配的槽位报名。"
+      },
+      "hybrid": {
+        "eyebrow": "混合招募",
+        "body": "成员按配装表报名，管理再确认最终队伍和槽位。"
+      }
+    }
   },
   "eventReport": {
     "reportLabel": "活动结束报告",
@@ -5383,5 +5422,39 @@
     "termsAvailabilityBody": "我们会努力保持服务稳定，但 Albion 官方 API、Discord、Supabase、Vercel 等外部系统状态可能导致临时延迟或故障。",
     "termsChangesTitle": "变更与联系",
     "termsChangesBody": "条款和政策可能随服务状态更新。问题和反馈请通过官方 Discord 频道提交。"
+  },
+  "localGuildAccount": {
+    "eyebrow": "公会专用登录",
+    "title": "使用 Albion 账号进入",
+    "description": "如果不想登录 Discord，可以使用仅限本公会的账号，只能进行活动报名和 Regear 申请。",
+    "loginTab": "登录",
+    "registerTab": "创建账号",
+    "languageLabel": "显示语言",
+    "serverLabel": "服务器",
+    "nicknameLabel": "Albion 昵称",
+    "nicknamePlaceholder": "游戏内昵称",
+    "passwordLabel": "密码",
+    "passwordPlaceholder": "至少 8 个字符",
+    "guildCodeLabel": "公会邀请码",
+    "guildCodePlaceholder": "公会公告的代码",
+    "registerHint": "昵称会通过 Albion Gameinfo 验证。若匹配本公会名单，Regear 申请也会视为可信。",
+    "loginSubmit": "进入",
+    "registerSubmit": "创建并进入",
+    "submitting": "处理中...",
+    "tenantRequired": "只能在公会页面使用。",
+    "disabled": "此公会未启用 Albion 账号登录。",
+    "invalidServer": "请检查服务器。",
+    "invalidNickname": "昵称需为 2-32 个字符。",
+    "invalidPassword": "密码需为 8-72 个字符。",
+    "invalidGuildCode": "公会邀请码不正确。",
+    "playerNotFound": "无法在 Albion 中找到该昵称。",
+    "duplicateAccount": "此昵称已经创建过账号。",
+    "saveFailed": "无法保存账号。",
+    "invalidLogin": "昵称或密码不正确。",
+    "server": {
+      "west": "Americas / West",
+      "east": "Asia / East",
+      "europe": "Europe"
+    }
   }
 }

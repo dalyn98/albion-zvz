@@ -33,6 +33,8 @@ interface Props {
   logoutLabel: string
   learnMoreLabel: string
   learnMoreHref: string
+  localLoginLabel?: string
+  localLoginHref?: string | null
   authErrorLabels: Record<string, string>
   retryLabel: string
   inAppBrowserNotice: {
@@ -56,6 +58,8 @@ export default function AppGate({
   logoutLabel,
   learnMoreLabel,
   learnMoreHref,
+  localLoginLabel,
+  localLoginHref,
   authErrorLabels,
   retryLabel,
   inAppBrowserNotice,
@@ -158,6 +162,14 @@ export default function AppGate({
             >
               <DiscordIcon />
               <span>{showRetry ? retryLabel : loginLabel}</span>
+            </a>
+          )}
+          {localLoginHref && localLoginLabel && (
+            <a
+              href={localLoginHref}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500/35 bg-amber-500/10 py-3 text-sm font-semibold text-amber-200 transition-colors hover:bg-amber-500/20"
+            >
+              <span>{localLoginLabel}</span>
             </a>
           )}
           {showLogout && (

@@ -216,6 +216,7 @@ export default function AppSidebar({
   // 섹션 헤더 (활동/리기어/...) 라벨. NavGroup 안에서만 쓰지만 hook 은
   // 컴포넌트 최상위에서 호출해야 해서 여기서 prop 으로 내려준다.
   const tSection = useTranslations('nav.section')
+  const isLocalGuildAccount = session?.isLocalGuildAccount === true
   // Default collapsed on mobile, expanded on desktop. We hydrate from
   // localStorage after mount so the first paint matches the viewport.
   const [open, setOpen] = useState(false)
@@ -390,6 +391,7 @@ export default function AppSidebar({
           <NavGroup
             title={t('memberGroup')}
             items={memberNavItems
+              .filter((i) => !isLocalGuildAccount || i.href === '/' || i.href === '/regear')
               .filter((i) => !i.memberOnly || session?.isMember)
               .filter((i) => !i.crafterOnly || craftQueueVisible)
               .filter((i) => !i.craftOrdersOnly || craftOrdersVisible)

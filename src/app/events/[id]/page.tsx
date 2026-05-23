@@ -12,6 +12,7 @@ import EventGuestInviteManager from '@/components/EventGuestInviteManager'
 import EventGuestProfileGate from '@/components/EventGuestProfileGate'
 import TentativeSignupSection from '@/components/TentativeSignupSection'
 import EventMyStatusCard, { type EventMyStatusTone } from '@/components/EventMyStatusCard'
+import EventBuildSheetSummary from '@/components/EventBuildSheetSummary'
 import { listTentativeSignups } from '@/app/actions/event-tentative'
 import AutoRefresh from '@/components/AutoRefresh'
 import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil, FileText } from 'lucide-react'
@@ -273,6 +274,12 @@ export default async function EventDetailPage({
   const usernames = Object.fromEntries(usernameMap)
 
   const loginHref = `/api/auth/discord/start?returnTo=${encodeURIComponent(`/events/${id}`)}`
+  const localLoginEnabled =
+    (await getAppSetting('local_guild_accounts_enabled', 'false', guildId)) === 'true' &&
+    (await getAppSetting('local_guild_invite_hash', '', guildId)).trim().length > 0
+  const localLoginHref = localLoginEnabled
+    ? `/guild-login?return=${encodeURIComponent(`/events/${id}`)}`
+    : null
 
   // Edit entry point for non-admin event creators — admins already reach this
   // via the sidebar's admin nav. Members with the event-creator role only see
@@ -392,6 +399,8 @@ export default async function EventDetailPage({
       : undefined
   const myStatusSecondaryAction = session && !canRequestRegear
     ? { href: '#event-slots', label: t('myStatusFindSlot') }
+    : !session && localLoginHref
+      ? { href: localLoginHref, label: t('myStatusLocalLogin') }
     : undefined
 
   return (
@@ -503,6 +512,10 @@ export default async function EventDetailPage({
         <div className="lg:hidden">
           <EventSlotSidebar placement="mobile" parties={parties} avatars={avatars} />
         </div>
+
+        {(event.recruitment_mode === 'build_sheet' || event.recruitment_mode === 'hybrid') && (
+          <EventBuildSheetSummary parties={parties} mode={event.recruitment_mode} />
+        )}
 
         <TentativeSignupSection
           eventId={id}

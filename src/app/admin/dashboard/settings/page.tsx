@@ -45,6 +45,8 @@ export default async function SettingsPage() {
     regearOverchargeEnabledRaw,
     cdBadgeRolesRaw,
     allowUnverifiedMemberAccessRaw,
+    localGuildAccountsEnabledRaw,
+    localGuildInviteHashRaw,
     tenantTimezoneRaw,
     eventDmLeadMinutesRaw,
     { rewards, error: rewardsError },
@@ -74,6 +76,8 @@ export default async function SettingsPage() {
     // 기본값 'true' — 기존 동작(미인증 멤버도 접근 가능) 유지. 관리자가 끌
     // 때만 layout 게이트가 /onboarding/albion 으로 강제 리다이렉트.
     getAppSetting('allow_unverified_member_access', 'true', tenantId),
+    getAppSetting('local_guild_accounts_enabled', 'false', tenantId),
+    getAppSetting('local_guild_invite_hash', '', tenantId),
     // 기본값 'Asia/Seoul' — 기존 멘헤라 동작 유지. 잘못된 값이 박혀 있으면
     // 아래 isValidTenantTimezone 으로 다시 한 번 정규화한다.
     getAppSetting('tenant_timezone', 'Asia/Seoul', tenantId),
@@ -125,6 +129,8 @@ export default async function SettingsPage() {
   const regearOverchargeEnabled = regearOverchargeEnabledRaw === 'true'
   // 'true' 이외는 모두 false 로 해석 — 유일한 opt-out 경로는 명시적 'false'.
   const allowUnverifiedMemberAccess = allowUnverifiedMemberAccessRaw !== 'false'
+  const localGuildAccountsEnabled = localGuildAccountsEnabledRaw === 'true'
+  const localGuildInviteConfigured = localGuildInviteHashRaw.trim().length > 0
   // 손상된 IANA 가 박혀 있어도 화면이 깨지진 않도록 기본값으로 정규화.
   const tenantTimezone = isValidTenantTimezone(tenantTimezoneRaw)
     ? tenantTimezoneRaw
@@ -211,6 +217,8 @@ export default async function SettingsPage() {
         autoRegearSkipLowConfidence={autoRegearSkipLowConfidence}
         cdBadgeRoles={cdBadgeRoles}
         allowUnverifiedMemberAccess={allowUnverifiedMemberAccess}
+        localGuildAccountsEnabled={localGuildAccountsEnabled}
+        localGuildInviteConfigured={localGuildInviteConfigured}
         tenantTimezone={tenantTimezone}
         eventDmLeadMinutes={eventDmLeadMinutes}
         isSuperAdmin={isSuperAdmin}

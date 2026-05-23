@@ -27,11 +27,17 @@ export interface Event {
   // '갱킹' = 소규모 PvP 갱킹. 홈 목록에서 카테고리별로 분리 표시하고, 개인 알림
   // 설정(notify_combat / notify_ff / notify_ganking)에 따라 DM 대상을 필터링한다.
   category: EventCategory
+  // 모집 화면의 기본 UX. slots = 기존 파티/슬롯 지정, build_sheet = 빌드표
+  // 중심 모집, hybrid = 빌드표로 모집하되 운영진이 슬롯 확정.
+  recruitment_mode: EventRecruitmentMode
   created_at: string
 }
 
 export const EVENT_CATEGORIES = ['전투', 'FF', '갱킹'] as const
 export type EventCategory = (typeof EVENT_CATEGORIES)[number]
+
+export const EVENT_RECRUITMENT_MODES = ['slots', 'build_sheet', 'hybrid'] as const
+export type EventRecruitmentMode = (typeof EVENT_RECRUITMENT_MODES)[number]
 
 // 각 카테고리별 notify 플래그가 매핑되는 DB 컬럼명. 한 군데서만 관리해
 // notifications / discord-dm / 컴포넌트가 동일한 이름을 쓴다.

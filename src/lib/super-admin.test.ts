@@ -33,6 +33,7 @@ function makeSession(overrides: Partial<SessionPayload> = {}): SessionPayload {
     isMember: true,
     isAdmin: false,
     isGuest: false,
+    isLocalGuildAccount: false,
     canCreateEvents: false,
     eventCreatorCategories: [],
     eventScope: null,

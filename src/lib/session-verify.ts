@@ -18,6 +18,9 @@ export interface SessionPayload {
   isMember: boolean
   isAdmin: boolean
   isGuest: boolean
+  // Guild-local Albion account. It is not a Discord identity and is restricted
+  // by layout/sidebar guards to event signup and regear request flows.
+  isLocalGuildAccount: boolean
   // Admin 이거나 app_setting 의 event_creator_role_ids 중 하나를 가진 구성원.
   // 로그인 시점에 계산되므로 역할 리스트 변경은 재로그인 후 반영된다.
   canCreateEvents: boolean
@@ -131,6 +134,7 @@ export async function verifySession(cookieValue: string | undefined): Promise<Se
       isMember: parsed.isMember ?? false,
       isAdmin,
       isGuest: parsed.isGuest ?? false,
+      isLocalGuildAccount: parsed.isLocalGuildAccount ?? false,
       canCreateEvents,
       eventCreatorCategories,
       // 레거시 쿠키(eventScope 도입 이전) 는 undefined → null 로 정규화.

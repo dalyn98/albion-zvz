@@ -79,7 +79,7 @@ export default async function AppShell({ children }: { children: React.ReactNode
     adminBadges = badges
     userStatus = statusSummary
     memberTourEventHref = tourEventHref
-    if (session.isMember && !session.isGuest) {
+    if (session.isMember && !session.isGuest && !session.isLocalGuildAccount) {
       memberTourScope = `${guildId}:${session.discordId}`
     }
     // 좌측 상단 표시 이름은 tenant slug 첫 하이픈 앞부분 — onboarding wizard 에서

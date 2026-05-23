@@ -230,6 +230,7 @@ export async function GET(request: NextRequest) {
       isMember: true,
       isAdmin: true,
       isGuest: false,
+    isLocalGuildAccount: false,
       canCreateEvents: true,
       eventCreatorCategories: [...EVENT_CATEGORIES],
       eventScope: null,
