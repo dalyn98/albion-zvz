@@ -12,9 +12,16 @@ interface Props {
   // 로그인 후 다시 돌아올 경로 (현재 길드 페이지). API 라우트가 returnTo
   // 쿼리를 그대로 redirect 에 사용한다.
   returnTo: string
+  localLoginHref?: string | null
+  isOtherGuildSession?: boolean
 }
 
-export default async function SignedOutCta({ accent, returnTo }: Props) {
+export default async function SignedOutCta({
+  accent,
+  returnTo,
+  localLoginHref,
+  isOtherGuildSession = false,
+}: Props) {
   const t = await getTranslations('publicGuildProfile')
   const href = `/api/auth/discord/start?returnTo=${encodeURIComponent(returnTo)}`
   return (
@@ -24,13 +31,24 @@ export default async function SignedOutCta({ accent, returnTo }: Props) {
       <span className={`shrink-0 ${accent.heading}`}>
         <LogIn size={14} />
       </span>
-      <p className="text-gray-300 text-xs flex-1 min-w-0">{t('signedOutCtaText')}</p>
+      <p className="text-gray-300 text-xs flex-1 min-w-0">
+        {isOtherGuildSession ? t('otherGuildCtaText') : t('signedOutCtaText')}
+      </p>
+      {localLoginHref && (
+        <a
+          href={localLoginHref}
+          className={`shrink-0 inline-flex items-center gap-1.5 ${accent.heading} ${accent.border} border bg-gray-900/60 hover:bg-gray-900 text-xs font-semibold px-3.5 py-2.5 rounded-lg transition-colors min-h-[40px]`}
+        >
+          <LogIn size={12} />
+          {t('localGuildLoginCta')}
+        </a>
+      )}
       <a
         href={href}
         className={`shrink-0 inline-flex items-center gap-1.5 ${accent.heading} ${accent.border} border bg-gray-900/60 hover:bg-gray-900 text-xs font-semibold px-3.5 py-2.5 rounded-lg transition-colors min-h-[40px]`}
       >
         <LogIn size={12} />
-        {t('signedOutCtaLink')}
+        {isOtherGuildSession ? t('switchDiscordCtaLink') : t('signedOutCtaLink')}
       </a>
     </div>
   )

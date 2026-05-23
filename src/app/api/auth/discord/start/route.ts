@@ -3,6 +3,11 @@ import { buildAuthorizeUrl } from '@/lib/discord'
 import { signOAuthState } from '@/lib/oauth-state'
 import { LOCALE_COOKIE, isLocale } from '@/i18n/locales'
 import { detectLocaleFromAcceptLanguage } from '@/lib/accept-language'
+import {
+  DISCORD_REAUTH_COOKIE_NAME,
+  clearDiscordReauthCookieOptions,
+  shouldUseDiscordConsentPrompt,
+} from '@/lib/discord-reauth'
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
@@ -25,6 +30,12 @@ export async function GET(request: NextRequest) {
   // 사례가 있어 처음부터 명시 consent 로 보낸다. 초대 링크는 신규/외부 유저
   // 비중이 높아 동의 화면을 한 번 보는 편이 실패율보다 낫다.
   const retry = url.searchParams.get('retry') === '1'
+  const reauthCookieValue = request.cookies.get(DISCORD_REAUTH_COOKIE_NAME)?.value
+  const useConsentPrompt = shouldUseDiscordConsentPrompt({
+    retry,
+    invite,
+    reauthCookieValue,
+  })
   const cookieLocale = request.cookies.get(LOCALE_COOKIE)?.value
   const preferredLocale = isLocale(cookieLocale)
     ? cookieLocale
@@ -36,7 +47,11 @@ export async function GET(request: NextRequest) {
     invite: invite || null,
     preferredLocale,
   })
-  return NextResponse.redirect(
-    buildAuthorizeUrl(state, { prompt: retry || invite ? 'consent' : 'none' }),
+  const response = NextResponse.redirect(
+    buildAuthorizeUrl(state, { prompt: useConsentPrompt ? 'consent' : 'none' }),
   )
+  if (reauthCookieValue) {
+    response.cookies.set(DISCORD_REAUTH_COOKIE_NAME, '', clearDiscordReauthCookieOptions())
+  }
+  return response
 }

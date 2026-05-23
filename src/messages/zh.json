@@ -57,7 +57,8 @@
       "adminSupply": "补给/资金",
       "adminInsight": "分析/记录",
       "adminSettings": "公会设置"
-    }
+    },
+    "buildTemplates": "配装表"
   },
   "common": {
     "close": "关闭",
@@ -1181,7 +1182,10 @@
     "joinStepsAddLabel": "添加加入步骤",
     "joinStepsPlaceholder": "例如：加入 Discord → 验证阿尔比恩角色名 → 1 周试用",
     "eventScheduleAddLabel": "添加活动日程",
-    "eventSchedulePlaceholder": "例如：周二/四/日 22:00 例行活动"
+    "eventSchedulePlaceholder": "例如：周二/四/日 22:00 例行活动",
+    "otherGuildCtaText": "你当前登录的是其他公会账号。若要使用此公会站点，请使用此公会的登录入口。",
+    "localGuildLoginCta": "使用 Albion 账号进入",
+    "switchDiscordCtaLink": "切换 Discord 账号"
   },
   "adminSettings": {
     "pageTitle": "设置",
@@ -5456,5 +5460,35 @@
       "east": "Asia / East",
       "europe": "Europe"
     }
+  },
+  "adminBuildTemplates": {
+    "pageTitle": "配装表",
+    "pageDescription": "按职责和分类预先维护常用 ZvZ 配装。活动编辑页的配装面板可以一键套用这些配装。",
+    "createButton": "新建配装",
+    "createTitle": "创建配装",
+    "createSubmit": "创建",
+    "creatingDots": "创建中...",
+    "createConflict": "已存在名为“{name}”的配装。",
+    "createConflictGoEdit": "编辑已有配装",
+    "namePlaceholder": "例如：洛克斯 4.3 抗性配装",
+    "searchPlaceholder": "按配装名称或职责搜索",
+    "empty": "还没有保存的配装。",
+    "roleNone": "未设置职责",
+    "editAction": "编辑",
+    "deleteAction": "删除",
+    "deleteConfirm": "要删除“{name}”配装吗？",
+    "backToList": "配装表列表",
+    "editTitle": "编辑配装",
+    "editDescription": "这个配装可以在活动槽位编辑页的配装面板中加载。",
+    "nameLabel": "配装名称",
+    "categoryLabel": "分类",
+    "buildConfigTitle": "配装内容",
+    "buildConfigDescription": "保存职责、装备、技能和装等要求。不包含活动报名成员信息。",
+    "savedMessage": "已保存",
+    "saveButton": "保存配装",
+    "savingDots": "保存中...",
+    "overwriteTitle": "已存在同名配装",
+    "overwriteBody": "存在另一个名为“{name}”的配装。覆盖会删除原配装，并用当前编辑的配装保存为该名称。",
+    "overwriteConfirm": "覆盖保存"
   }
 }

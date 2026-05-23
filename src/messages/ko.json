@@ -57,7 +57,8 @@
       "adminSupply": "보급/재화",
       "adminInsight": "분석/기록",
       "adminSettings": "길드 설정"
-    }
+    },
+    "buildTemplates": "빌드표"
   },
   "common": {
     "close": "닫기",
@@ -1181,7 +1182,10 @@
     "joinStepsAddLabel": "가입 절차 추가",
     "joinStepsPlaceholder": "예: Discord 가입 → 알비온 닉네임 인증 → 1주 견습",
     "eventScheduleAddLabel": "이벤트 일정 추가",
-    "eventSchedulePlaceholder": "예: 화/목/일 22시 정기 이벤트"
+    "eventSchedulePlaceholder": "예: 화/목/일 22시 정기 이벤트",
+    "otherGuildCtaText": "현재 다른 길드 계정으로 로그인되어 있어요. 이 길드 사이트를 이용하려면 이 길드용 로그인으로 들어가세요.",
+    "localGuildLoginCta": "Albion 계정으로 입장",
+    "switchDiscordCtaLink": "Discord 계정 전환"
   },
   "adminSettings": {
     "pageTitle": "설정",
@@ -5456,5 +5460,35 @@
       "east": "Asia / East",
       "europe": "Europe"
     }
+  },
+  "adminBuildTemplates": {
+    "pageTitle": "빌드표",
+    "pageDescription": "자주 쓰는 ZvZ 빌드를 미리 만들어 역할군·카테고리별로 관리합니다. 이벤트 편집 화면의 빌드 팔레트에서 이 빌드표를 바로 불러올 수 있습니다.",
+    "createButton": "새 빌드",
+    "createTitle": "새 빌드 만들기",
+    "createSubmit": "만들기",
+    "creatingDots": "만드는 중...",
+    "createConflict": "이미 \"{name}\" 라는 이름의 빌드가 있습니다.",
+    "createConflictGoEdit": "기존 빌드 편집으로 이동",
+    "namePlaceholder": "예: 로커스 4.3 저항 빌드",
+    "searchPlaceholder": "빌드 이름이나 역할군으로 검색",
+    "empty": "저장된 빌드가 없습니다.",
+    "roleNone": "역할 미지정",
+    "editAction": "수정",
+    "deleteAction": "삭제",
+    "deleteConfirm": "\"{name}\" 빌드를 삭제하시겠습니까?",
+    "backToList": "빌드표 목록",
+    "editTitle": "빌드 편집",
+    "editDescription": "이 빌드는 이벤트 슬롯 편집 화면의 빌드 팔레트에서 불러올 수 있습니다.",
+    "nameLabel": "빌드 이름",
+    "categoryLabel": "카테고리",
+    "buildConfigTitle": "빌드 구성",
+    "buildConfigDescription": "역할군, 장비, 스킬, 플랫 조건을 저장합니다. 이벤트 신청자 정보는 포함되지 않습니다.",
+    "savedMessage": "저장되었습니다",
+    "saveButton": "빌드 저장",
+    "savingDots": "저장 중...",
+    "overwriteTitle": "동일한 이름의 빌드가 이미 있어요",
+    "overwriteBody": "\"{name}\" 라는 이름의 다른 빌드가 있어요. 덮어쓰면 기존 빌드가 삭제되고 지금 편집 중인 빌드가 그 이름으로 저장됩니다.",
+    "overwriteConfirm": "덮어쓰기 저장"
   }
 }

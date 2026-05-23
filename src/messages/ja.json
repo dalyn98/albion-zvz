@@ -57,7 +57,8 @@
       "adminSupply": "補給・資金",
       "adminInsight": "分析・記録",
       "adminSettings": "ギルド設定"
-    }
+    },
+    "buildTemplates": "ビルド表"
   },
   "common": {
     "close": "閉じる",
@@ -1181,7 +1182,10 @@
     "joinStepsAddLabel": "加入手順を追加",
     "joinStepsPlaceholder": "例: Discord 加入 → アルビオン名認証 → 1週間の見習い",
     "eventScheduleAddLabel": "イベント日程を追加",
-    "eventSchedulePlaceholder": "例: 火/木/日 22時 定期イベント"
+    "eventSchedulePlaceholder": "例: 火/木/日 22時 定期イベント",
+    "otherGuildCtaText": "現在、別のギルドのアカウントでログインしています。このギルドサイトを利用するには、このギルド用のログインで入ってください。",
+    "localGuildLoginCta": "Albionアカウントで入る",
+    "switchDiscordCtaLink": "Discordアカウントを切り替え"
   },
   "adminSettings": {
     "pageTitle": "設定",
@@ -5456,5 +5460,35 @@
       "east": "Asia / East",
       "europe": "Europe"
     }
+  },
+  "adminBuildTemplates": {
+    "pageTitle": "ビルド表",
+    "pageDescription": "よく使うZvZビルドを役割・カテゴリ別に事前登録します。イベント編集画面のビルドパレットからワンクリックで読み込めます。",
+    "createButton": "新規ビルド",
+    "createTitle": "ビルドを作成",
+    "createSubmit": "作成",
+    "creatingDots": "作成中...",
+    "createConflict": "\"{name}\" という名前のビルドはすでに存在します。",
+    "createConflictGoEdit": "既存ビルドを編集",
+    "namePlaceholder": "例: ローカス 4.3 耐久ビルド",
+    "searchPlaceholder": "ビルド名または役割で検索",
+    "empty": "保存されたビルドはありません。",
+    "roleNone": "役割未設定",
+    "editAction": "編集",
+    "deleteAction": "削除",
+    "deleteConfirm": "\"{name}\" ビルドを削除しますか？",
+    "backToList": "ビルド表一覧",
+    "editTitle": "ビルド編集",
+    "editDescription": "このビルドはイベントスロット編集画面のビルドパレットから読み込めます。",
+    "nameLabel": "ビルド名",
+    "categoryLabel": "カテゴリ",
+    "buildConfigTitle": "ビルド構成",
+    "buildConfigDescription": "役割、装備、スキル、フラット条件を保存します。イベント申請者情報は含まれません。",
+    "savedMessage": "保存しました",
+    "saveButton": "ビルドを保存",
+    "savingDots": "保存中...",
+    "overwriteTitle": "同じ名前のビルドがすでにあります",
+    "overwriteBody": "\"{name}\" という名前の別ビルドがあります。上書きすると既存ビルドを削除し、現在編集中のビルドをその名前で保存します。",
+    "overwriteConfirm": "上書き保存"
   }
 }

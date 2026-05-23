@@ -57,7 +57,8 @@
       "adminSupply": "Supply & funds",
       "adminInsight": "Reports & logs",
       "adminSettings": "Guild settings"
-    }
+    },
+    "buildTemplates": "Build sheets"
   },
   "common": {
     "close": "Close",
@@ -1181,7 +1182,10 @@
     "joinStepsAddLabel": "Add join steps",
     "joinStepsPlaceholder": "e.g., Join Discord → verify Albion name → 1-week trial",
     "eventScheduleAddLabel": "Add event schedule",
-    "eventSchedulePlaceholder": "e.g., Tue/Thu/Sun 22:00 regular events"
+    "eventSchedulePlaceholder": "e.g., Tue/Thu/Sun 22:00 regular events",
+    "otherGuildCtaText": "You are currently signed in for another guild. Use this guild's login to access this guild site.",
+    "localGuildLoginCta": "Enter with Albion account",
+    "switchDiscordCtaLink": "Switch Discord account"
   },
   "adminSettings": {
     "pageTitle": "Settings",
@@ -5456,5 +5460,35 @@
       "east": "Asia / East",
       "europe": "Europe"
     }
+  },
+  "adminBuildTemplates": {
+    "pageTitle": "Build sheets",
+    "pageDescription": "Prepare reusable ZvZ builds by role and category. These builds appear in the event editor palette for one-click slot setup.",
+    "createButton": "New build",
+    "createTitle": "Create build",
+    "createSubmit": "Create",
+    "creatingDots": "Creating...",
+    "createConflict": "A build named \"{name}\" already exists.",
+    "createConflictGoEdit": "Open the existing build",
+    "namePlaceholder": "Example: Locus 4.3 resistance build",
+    "searchPlaceholder": "Search by build name or role",
+    "empty": "No builds saved yet.",
+    "roleNone": "No role",
+    "editAction": "Edit",
+    "deleteAction": "Delete",
+    "deleteConfirm": "Delete the \"{name}\" build?",
+    "backToList": "Build sheet list",
+    "editTitle": "Edit build",
+    "editDescription": "This build can be loaded from the build palette in the event slot editor.",
+    "nameLabel": "Build name",
+    "categoryLabel": "Category",
+    "buildConfigTitle": "Build setup",
+    "buildConfigDescription": "Save the role, gear, spells, and flat requirements. Event applicants are not included.",
+    "savedMessage": "Saved",
+    "saveButton": "Save build",
+    "savingDots": "Saving...",
+    "overwriteTitle": "A build with this name already exists",
+    "overwriteBody": "Another build named \"{name}\" exists. Overwriting deletes that build and saves this one under the same name.",
+    "overwriteConfirm": "Overwrite and save"
   }
 }

@@ -36,6 +36,7 @@ import {
   KeyRound,
   Zap,
   ExternalLink,
+  LayoutTemplate,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -102,6 +103,7 @@ const ADMIN_NAV: NavItem[] = [
   // `/admin/dashboard`는 다른 모든 관리자 라우트의 부모이기도 해서,
   // exact 매칭이 없으면 하위 페이지에 있을 때도 "이벤트 관리"가 계속 하이라이트됨.
   { href: '/admin/dashboard', labelKey: 'eventAdmin', icon: CalendarDays, exact: true, section: 'ops' },
+  { href: '/admin/dashboard/builds', labelKey: 'buildTemplates', icon: LayoutTemplate, section: 'ops' },
   { href: '/admin/dashboard/approvals', labelKey: 'approvals', icon: ShieldCheck, section: 'ops' },
   // 보급/재화
   { href: '/admin/dashboard/shop', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'adminSupply' },

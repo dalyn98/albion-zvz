@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import MarketingNav from '@/components/MarketingNav'
 import { getMarketingPaths } from '@/lib/marketing-paths'
-import { resolveTenantBySlugAnyStatus } from '@/lib/tenant-resolver'
+import { buildTenantHostUrl, resolveTenantBySlugAnyStatus } from '@/lib/tenant-resolver'
 import { loadGuildProfileSettings, ACCENT_CLASS_MAP } from '@/lib/guild-profile'
 import { toYoutubeEmbedUrl } from '@/lib/youtube-embed'
 import { getAppSetting } from '@/lib/app-settings'
@@ -180,6 +180,12 @@ export default async function GuildProfilePage({
   // 멘헤라만 활성, 나머지는 기존 공개 페이지 동작 그대로 유지.
   const memberDashboardEnabled =
     (await getAppSetting('member_dashboard_enabled', 'false', tenant.tenantId)) === 'true'
+  const [localAccountsEnabledRaw, localInviteHash] = await Promise.all([
+    getAppSetting('local_guild_accounts_enabled', 'false', tenant.tenantId),
+    getAppSetting('local_guild_invite_hash', '', tenant.tenantId),
+  ])
+  const localLoginEnabled =
+    localAccountsEnabledRaw === 'true' && localInviteHash.trim().length > 0
 
   // 이번 주 활동 KPI 위젯도 같은 길드별 토글(`home_weekly_stats_enabled`) — 원래
   // 홈(`/`) 페이지에 있던 위젯이 길드 공개 페이지로 이동했다 (#208). 설정 키는
@@ -210,6 +216,12 @@ export default async function GuildProfilePage({
     session !== null &&
     session.guildId === tenant.tenantId &&
     (session.isMember || session.isAdmin)
+  const isOtherGuildSession =
+    session !== null &&
+    session.guildId !== tenant.tenantId
+  const localLoginHref = localLoginEnabled
+    ? buildTenantHostUrl(tenant.slug, `/guild-login?return=${encodeURIComponent('/')}`)
+    : null
   // 본인 길드의 어드민일 때만 인라인 편집 활성화 — 별도 어드민 폼 대신 페이지
   // 자체에서 클릭 → 편집 → 저장 후 router.refresh() 로 즉시 반영. 일반 길드원
   // (isMember) 에게는 편집 UI 자체가 렌더되지 않아 추가 비용 0.
@@ -400,8 +412,13 @@ export default async function GuildProfilePage({
             accent={accent}
           />
         )}
-        {memberDashboardEnabled && !session && (
-          <SignedOutCta accent={accent} returnTo={`/g/${tenant.slug}`} />
+        {(memberDashboardEnabled || localLoginEnabled) && !viewingOwnGuild && (
+          <SignedOutCta
+            accent={accent}
+            returnTo={`/g/${tenant.slug}`}
+            localLoginHref={localLoginHref}
+            isOtherGuildSession={isOtherGuildSession}
+          />
         )}
 
         {/* 활동 — 이번 주 KPI 줄 + 최근 추적된 전투 + 이번 주 탑 킬러. 가입을

@@ -60,6 +60,15 @@ export const ADMIN_ROUTE_ACCESS_RULES: readonly AdminRouteAccessRule[] = [
     ],
   },
   {
+    href: '/admin/dashboard/builds',
+    capabilities: [
+      CAP.EVENT_CREATE_COMBAT,
+      CAP.EVENT_CREATE_FF,
+      CAP.EVENT_CREATE_GANKING,
+      CAP.EVENT_MANAGE,
+    ],
+  },
+  {
     href: '/admin/dashboard/approvals',
     capabilities: [
       CAP.REGEAR_APPROVE,
