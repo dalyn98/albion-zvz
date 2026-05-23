@@ -288,6 +288,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const isPublic = isPublicPathname(pathname)
   const isMarketingRaw = isMarketingPathname(pathname)
   const isOnboard = isOnboardPathname(pathname)
+  const hostClassification = classifyHost(headersList.get('host'))
+  const hostTenant =
+    hostClassification.kind === 'tenant'
+      ? await resolveTenantBySlug(hostClassification.slug)
+      : null
+  const sessionGuildId = session ? await getSessionGuildId(session) : null
+  const sessionBelongsToHostTenant =
+    hostTenant !== null && sessionGuildId !== null && sessionGuildId === hostTenant.tenantId
+  const sessionBelongsToOtherTenant =
+    hostTenant !== null && session !== null && !sessionBelongsToHostTenant
 
   // `/public/g/<slug>` 페이지에서, 그 길드의 멤버 본인이 접속한 경우에만 marketing
   // 처리를 끄고 AppShell(사이드바) 을 둘러준다. 다른 길드 멤버나 비로그인 방문자는
@@ -298,12 +308,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     isMarketingRaw &&
     session &&
     (session.isMember || session.isAdmin) &&
-    session.guildId
+    sessionGuildId
   ) {
     const slug = extractGuildSlugFromPathname(pathname)
     if (slug) {
       const tenant = await resolveTenantBySlug(slug)
-      if (tenant && tenant.tenantId === session.guildId) {
+      if (tenant && tenant.tenantId === sessionGuildId) {
         viewingOwnGuildProfile = true
       }
     }
@@ -314,7 +324,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // next request rather than waiting for the 7-day cookie to expire. Public
   // routes skip this — anyone can see them regardless of session state.
   let guestRevoked = false
-  if (!isPublic && session && !session.isMember && session.isGuest) {
+  if (!isPublic && session && !sessionBelongsToOtherTenant && !session.isMember && session.isGuest) {
     const guildId = await getSessionGuildId(session)
     const { data } = await getAdminClient()
       .from('guests')
@@ -331,6 +341,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   if (
     !isPublic &&
     session?.isGuest &&
+    !sessionBelongsToOtherTenant &&
     !guestRevoked &&
     session.eventScope &&
     !isAllowedForEventScope(pathname, session.eventScope)
@@ -341,6 +352,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   if (
     !isPublic &&
     session?.isLocalGuildAccount &&
+    !sessionBelongsToOtherTenant &&
     !isAllowedForLocalGuildAccount(pathname)
   ) {
     redirect('/')
@@ -362,6 +374,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   if (
     !isPublic &&
     session?.isMember &&
+    !sessionBelongsToOtherTenant &&
     !isSuperAdminSession(session) &&
     !skipAlbionOnboardingModal(pathname)
   ) {
@@ -401,7 +414,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locked =
     !isPublic &&
     !(isOnboard && session) &&
-    (!session || (!session.isMember && !session.isGuest) || guestRevoked)
+    (
+      !session ||
+      sessionBelongsToOtherTenant ||
+      (!session.isMember && !session.isGuest) ||
+      guestRevoked
+    )
 
   let gateContent: React.ReactNode = null
   if (locked) {
@@ -410,22 +428,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // primary tenant fallback. siteName 은 sidebar/모바일 헤더와 동일하게 slug
     // 첫 하이픈 앞부분에서 파생 — Discord 길드명(tenant.name) 대신 사용자가
     // wizard 에서 정한 식별자가 그대로 보이도록.
-    const hostHeader = headersList.get('host')
-    const classification = classifyHost(hostHeader)
     let resolvedTenantSlug: string | null = null
     let gateGuildId: string
-    if (session) {
-      gateGuildId = await getSessionGuildId(session)
-      const cfg = await getTenantDiscordConfig(gateGuildId)
+    if (hostTenant) {
+      gateGuildId = hostTenant.tenantId
+      resolvedTenantSlug = hostTenant.slug
+    } else if (sessionGuildId) {
+      gateGuildId = sessionGuildId
+      const cfg = await getTenantDiscordConfig(sessionGuildId)
       resolvedTenantSlug = cfg?.slug ?? null
-    } else if (classification.kind === 'tenant') {
-      const resolved = await resolveTenantBySlug(classification.slug)
-      if (resolved) {
-        gateGuildId = resolved.tenantId
-        resolvedTenantSlug = resolved.slug
-      } else {
-        gateGuildId = await getPrimaryTenantId()
-      }
     } else {
       gateGuildId = await getPrimaryTenantId()
     }
@@ -445,11 +456,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // canonical 루트로 연다. `/public/landing` 를 그대로 쓰면 공유 URL 이 길드
     // 컨텍스트를 띠게 된다.
     const learnMoreHref =
-      classification.kind === 'tenant'
+      hostClassification.kind === 'tenant'
         ? `https://${getCanonicalRootDomain()}/`
         : '/public/landing'
     const localLoginEnabled =
-      classification.kind === 'tenant' &&
+      hostClassification.kind === 'tenant' &&
       localAccountsEnabledRaw === 'true' &&
       localInviteHash.trim().length > 0
     const localLoginHref = localLoginEnabled
