@@ -3,6 +3,7 @@ import { ListChecks, AlertCircle, ArrowRight, Sparkles } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getAppSetting } from '@/lib/app-settings'
 import { getTenantDiscordConfig } from '@/lib/tenant'
+import { getAdminClient } from '@/lib/supabase-admin'
 
 interface Props {
   guildId: string
@@ -11,6 +12,8 @@ interface Props {
 type RequiredKey = 'eventChannel' | 'albionHomeGuildId'
 type RecommendedKey =
   | 'guildProfileEnabled'
+  | 'buildTemplatesReady'
+  | 'localGuildAccountsReady'
   | 'autoRegearEnabled'
   | 'craftRegearEnabled'
   | 'memberDashboardEnabled'
@@ -31,17 +34,27 @@ export default async function SetupChecklist({ guildId }: Props) {
     tenantConfig,
     albionHomeGuildId,
     guildProfileEnabled,
+    localGuildAccountsEnabled,
+    localGuildInviteHash,
     autoRegearEnabled,
     craftRegearEnabled,
     memberDashboardEnabled,
+    buildTemplateCount,
   ] = await Promise.all([
     getTranslations('setupChecklist'),
     getTenantDiscordConfig(guildId),
     getAppSetting('albion_home_guild_id', '', guildId),
     getAppSetting('guild_profile_enabled', 'false', guildId),
+    getAppSetting('local_guild_accounts_enabled', 'false', guildId),
+    getAppSetting('local_guild_invite_hash', '', guildId),
     getAppSetting('auto_regear_enabled', 'false', guildId),
     getAppSetting('craft_regear_enabled', 'false', guildId),
     getAppSetting('member_dashboard_enabled', 'false', guildId),
+    getAdminClient()
+      .from('slot_templates')
+      .select('id', { count: 'exact', head: true })
+      .eq('guild_id', guildId)
+      .then(({ count }) => count ?? 0),
   ])
 
   const required: ChecklistItem<RequiredKey>[] = [
@@ -74,6 +87,24 @@ export default async function SetupChecklist({ guildId }: Props) {
       description: t('guildProfileEnabledDescription'),
       hint: t('guildProfileEnabledHint'),
       configureLabel: t('configureGuildProfile'),
+    },
+    {
+      key: 'buildTemplatesReady',
+      done: buildTemplateCount > 0,
+      href: '/admin/dashboard/builds',
+      label: t('buildTemplatesReadyLabel'),
+      description: t('buildTemplatesReadyDescription'),
+      hint: t('buildTemplatesReadyHint'),
+      configureLabel: t('configureBuildTemplates'),
+    },
+    {
+      key: 'localGuildAccountsReady',
+      done: localGuildAccountsEnabled === 'true' && localGuildInviteHash.trim().length > 0,
+      href: '/admin/dashboard/settings?tab=guild',
+      label: t('localGuildAccountsReadyLabel'),
+      description: t('localGuildAccountsReadyDescription'),
+      hint: t('localGuildAccountsReadyHint'),
+      configureLabel: t('configureLocalGuildAccounts'),
     },
     {
       key: 'autoRegearEnabled',
@@ -195,4 +226,3 @@ function Section<K extends string>({ tone, icon, title, description, items }: Se
     </div>
   )
 }
-

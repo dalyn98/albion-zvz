@@ -14,6 +14,8 @@ import {
   Users,
   Wallet,
   Zap,
+  KeyRound,
+  LayoutTemplate,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
@@ -77,6 +79,11 @@ export default async function PublicLandingPage() {
       icon: Calendar,
       title: t('memberEventsTitle'),
       body: t('memberEventsBody'),
+    },
+    {
+      icon: KeyRound,
+      title: t('memberLocalAccountTitle'),
+      body: t('memberLocalAccountBody'),
     },
     {
       icon: Wallet,
@@ -152,6 +159,15 @@ export default async function PublicLandingPage() {
     },
     {
       imagePosition: 'left',
+      icon: LayoutTemplate,
+      title: tFeat('f6Title'),
+      body: tFeat('f6Body'),
+      bullets: [tFeat('f6Bullet1'), tFeat('f6Bullet2'), tFeat('f6Bullet3')],
+      screenshotLabel: tFeat('f6ScreenshotLabel'),
+      screenshotKey: 'events',
+    },
+    {
+      imagePosition: 'right',
       icon: ShoppingBag,
       title: tFeat('f3Title'),
       body: tFeat('f3Body'),
@@ -160,7 +176,7 @@ export default async function PublicLandingPage() {
       screenshotKey: 'shop',
     },
     {
-      imagePosition: 'right',
+      imagePosition: 'left',
       icon: Hammer,
       title: tFeat('f5Title'),
       body: tFeat('f5Body'),

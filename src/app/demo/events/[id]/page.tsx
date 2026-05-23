@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, Clock, FileText, Info, MapPin, Swords } from 'lucide-react'
 import EventMyStatusCard from '@/components/EventMyStatusCard'
+import EventBuildSheetSummary from '@/components/EventBuildSheetSummary'
 import EventPartyGrid from '@/components/EventPartyGrid'
 import EventSlotSidebar from '@/components/EventSlotSidebar'
 import TentativeSignupSection from '@/components/TentativeSignupSection'
@@ -16,6 +17,7 @@ import DemoGuidedTour from '../../_components/DemoGuidedTour'
 const EVENT_DETAIL_TOUR_STEPS = [
   { id: 'event-detail-summary' },
   { id: 'event-detail-my-status' },
+  { id: 'event-detail-build-sheet' },
   { id: 'event-detail-tentative' },
   { id: 'event-detail-slots' },
 ] as const
@@ -169,6 +171,10 @@ export default async function DemoEventDetailPage({
             avatars={{}}
             memberHrefPrefix="/demo/members"
           />
+        </div>
+
+        <div data-tour-id="event-detail-build-sheet">
+          <EventBuildSheetSummary parties={parties} mode="hybrid" />
         </div>
 
         <div data-tour-id="event-detail-tentative">

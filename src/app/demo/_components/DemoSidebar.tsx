@@ -33,6 +33,7 @@ import {
   KeyRound,
   ScrollText,
   Zap,
+  LayoutTemplate,
 } from 'lucide-react'
 import { DEMO_ADMIN_BADGES } from '@/data/demo-seed'
 
@@ -78,6 +79,7 @@ const MEMBER_NAV: NavItem[] = [
 const ADMIN_NAV: NavItem[] = [
   // 운영
   { href: '/demo/events', labelKey: 'eventAdmin', icon: CalendarDays, exact: true, section: 'ops' },
+  { href: '/demo/builds', labelKey: 'buildTemplates', icon: LayoutTemplate, section: 'ops' },
   {
     href: '/demo/regear',
     labelKey: 'approvals',
@@ -154,7 +156,7 @@ export default function DemoSidebar({ brandName }: DemoSidebarProps) {
     // mount-only localStorage hydration. SSR 단계에선 알 수 없는 클라이언트 prefs.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(stored === null ? wideScreen : stored === 'true')
-    const onAdminLikeRoute = ['/demo/stats', '/demo/audit', '/demo/settings', '/demo/backup'].some(
+    const onAdminLikeRoute = ['/demo/builds', '/demo/stats', '/demo/audit', '/demo/settings', '/demo/backup'].some(
       (href) => window.location.pathname.startsWith(href),
     )
     if (memberStored !== null) setMemberOpen(memberStored === 'true')

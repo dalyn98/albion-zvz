@@ -6,6 +6,7 @@ import DocCardGrid from '@/components/DocCardGrid'
 
 <DocCardGrid cards={[
   { href: '/docs/events/create', title: '생성 / 편집', description: '집결 시간, 장소, 파티 구성, 슬롯 템플릿을 준비합니다.' },
+  { href: '/docs/events/build-sheets', title: '빌드표 모집', description: '반복되는 ZvZ 빌드를 이미지 중심 팔레트로 저장하고 이벤트에 적용합니다.' },
   { href: '/docs/events/publish', title: '발행 / 알림', description: '초안 상태에서 공개 모집판으로 전환하고 Discord 알림을 보냅니다.' },
   { href: '/docs/events/slots', title: '슬롯 신청', description: '길드원이 원하는 역할 슬롯에 신청하고, 관리자가 배정을 정리합니다.' },
   { href: '/docs/events/tentative', title: '참가예정', description: '조합 확정 전 가능한 역할군만 먼저 등록하는 흐름입니다.' },
@@ -16,3 +17,9 @@ import DocCardGrid from '@/components/DocCardGrid'
 ## 왜 이벤트가 중심인가
 
 AGM 은 단순한 관리자 도구가 아니라 길드원이 실제로 들어와 쓰는 운영 앱입니다. 길드원이 이벤트 상세 페이지에서 슬롯을 신청하고, 전투 후에는 출석·통계·리기어 청구가 이어집니다. 그래서 이벤트는 통계, 리기어, 포인트, 게스트 권한의 출발점입니다.
+
+## 빌드표와 슬롯 템플릿을 쓰는 이유
+
+ZvZ 조합은 길드마다 반복되는 패턴이 있습니다. 매번 새로 슬롯을 만들면 운영 시간이 길어지고 실수가 늘어나므로, 자주 쓰는 파티 구성은 이벤트 템플릿으로, 자주 쓰는 개별 장비 빌드는 빌드표로 저장해 두는 것이 좋습니다.
+
+빌드표는 이벤트 편집 화면의 빌드 팔레트에서 이미지와 역할군으로 고를 수 있어, “로커스 8.1”, “저항 탱커”, “원거리 DPS”처럼 비슷한 장비가 반복되는 대형 ZvZ에서 특히 시간을 줄여줍니다.

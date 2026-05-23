@@ -29,6 +29,7 @@ export const DOCS_NAV: DocsNavSection[] = [
           { slug: 'onboarding/login', itemKey: 'onboardingLogin' },
           { slug: 'onboarding/setup-wizard', itemKey: 'onboardingWizard' },
           { slug: 'onboarding/character-link', itemKey: 'onboardingCharacterLink' },
+          { slug: 'onboarding/local-account', itemKey: 'onboardingLocalAccount' },
         ],
       },
       {
@@ -36,6 +37,7 @@ export const DOCS_NAV: DocsNavSection[] = [
         itemKey: 'events',
         subItems: [
           { slug: 'events/create', itemKey: 'eventsCreate' },
+          { slug: 'events/build-sheets', itemKey: 'eventsBuildSheets' },
           { slug: 'events/publish', itemKey: 'eventsPublish' },
           { slug: 'events/slots', itemKey: 'eventsSlots' },
           { slug: 'events/tentative', itemKey: 'eventsTentative' },

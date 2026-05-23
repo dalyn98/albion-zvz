@@ -76,6 +76,11 @@ export default function DemoSettingsTabs() {
               value={tDemo('toggleOn')}
               valueKind="toggle"
             />
+            <DemoFormRow
+              label={t('localAccountTitle')}
+              value={tDemo('localAccountEnabled')}
+              valueKind="toggle"
+            />
           </DemoSettingsGroup>
         )}
         {active === 'permissions' && (
