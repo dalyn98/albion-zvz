@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { CAP, parseCapabilities } from '@/lib/permissions'
+import { CAP, CAPABILITY_PRESETS, parseCapabilities } from '@/lib/permissions'
 import {
+  TEST_AUTH_PRESET_ROLES,
   buildTestSession,
   isTestAuthRouteEnabled,
   isValidTestAuthSecret,
@@ -37,6 +38,7 @@ describe('test auth session helpers', () => {
   it('parses only supported roles', () => {
     expect(parseTestAuthRole('admin')).toBe('admin')
     expect(parseTestAuthRole('localGuildAccount')).toBe('localGuildAccount')
+    expect(parseTestAuthRole('logOfficer')).toBe('logOfficer')
     expect(parseTestAuthRole('owner')).toBeNull()
     expect(parseTestAuthRole(null)).toBeNull()
   })
@@ -76,6 +78,29 @@ describe('test auth session helpers', () => {
     expect(session.canCreateEvents).toBe(true)
     expect((bits & CAP.EVENT_CREATE_COMBAT) !== 0n).toBe(true)
     expect((bits & CAP.SETTINGS_GENERAL) !== 0n).toBe(false)
+  })
+
+  it('keeps test auth preset roles aligned with capability presets', () => {
+    expect([...TEST_AUTH_PRESET_ROLES]).toEqual(
+      CAPABILITY_PRESETS.map((preset) => preset.key),
+    )
+
+    for (const preset of CAPABILITY_PRESETS) {
+      const session = buildTestSession({ role: preset.key, guildId: 'tenant-1' })
+      expect(parseCapabilities(session.capabilities)).toBeGreaterThan(0n)
+    }
+  })
+
+  it('builds a log officer session for log operation QA', () => {
+    const session = buildTestSession({ role: 'logOfficer', guildId: 'tenant-1' })
+    const bits = parseCapabilities(session.capabilities)
+
+    expect(session.isAdmin).toBe(false)
+    expect(session.isMember).toBe(true)
+    expect((bits & CAP.CHEST_LOG_PASTE) !== 0n).toBe(true)
+    expect((bits & CAP.SIPHON_MANAGE) !== 0n).toBe(true)
+    expect((bits & CAP.AUDIT_VIEW) !== 0n).toBe(true)
+    expect((bits & CAP.SETTINGS_PERMISSIONS) !== 0n).toBe(false)
   })
 
   it('builds a guest session scoped to one event', () => {

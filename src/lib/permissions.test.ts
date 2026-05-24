@@ -4,7 +4,9 @@ import {
   ALL_CAPABILITIES,
   ACTIVE_CAPABILITY_KEYS,
   CAPABILITY_GROUPS,
+  CAPABILITY_PRESETS,
   DEPRECATED_CAPABILITY_KEYS,
+  getCapabilityPresetBits,
   serializeCapabilities,
   parseCapabilities,
   hasCapability,
@@ -44,6 +46,27 @@ describe('CAP definitions', () => {
     for (const key of DEPRECATED_CAPABILITY_KEYS) {
       expect(grouped.has(key)).toBe(false)
       expect(CAP[key]).toBeDefined()
+    }
+  })
+
+  it('role presets stay aligned with delegated route capabilities', () => {
+    const presets = new Map(CAPABILITY_PRESETS.map((preset) => [preset.key, preset]))
+
+    expect(presets.get('shopQuartermaster')?.capabilities).toContain('CHEST_LOG_PASTE')
+    expect(presets.get('logOfficer')?.capabilities).toEqual([
+      'CHEST_LOG_PASTE',
+      'SIPHON_MANAGE',
+      'AUDIT_VIEW',
+    ])
+    expect(presets.get('analyst')?.capabilities).toEqual([
+      'STATS_VIEW',
+      'KILLBOARD_SYNC',
+      'BATTLES_MANAGE',
+      'AUDIT_VIEW',
+    ])
+
+    for (const preset of CAPABILITY_PRESETS) {
+      expect(getCapabilityPresetBits(preset.capabilities)).toBeGreaterThan(0n)
     }
   })
 })

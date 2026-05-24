@@ -12,6 +12,7 @@ import {
 } from '@/lib/tenant-resolver'
 import {
   TEST_AUTH_SECRET_HEADER,
+  TEST_AUTH_ROLES,
   buildTestSession,
   isTestAuthRouteEnabled,
   isValidTestAuthSecret,
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
   const role = parseTestAuthRole(body.role)
   if (!role) {
     return NextResponse.json(
-      { error: 'invalid_role', roles: ['admin', 'member', 'eventCreator', 'localGuildAccount', 'guest'] },
+      { error: 'invalid_role', roles: TEST_AUTH_ROLES },
       { status: 400 },
     )
   }

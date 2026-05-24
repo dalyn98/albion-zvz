@@ -30,6 +30,12 @@ curl -i -X POST http://localhost:3000/api/test/auth/session \
 - `eventCreator`: 이벤트 생성 담당관 세션
 - `localGuildAccount`: Discord 없는 Albion 계정 세션
 - `guest`: 이벤트 초대 게스트 세션. `eventScope`가 필요합니다.
+- `regearOfficer`: 리기어 승인/가격/일괄 처리 담당관 세션
+- `shopQuartermaster`: 상점·재고·상자 로그 담당관 세션
+- `logOfficer`: 상자 로그, 사이펀, 루팅 검증 감사 담당관 세션
+- `craftLead`: 제작 요청 생성/납품/관리 담당관 세션
+- `analyst`: 통계, 킬보드 동기화, 전투 관리, 감사 조회 담당관 세션
+- `guildSettings`: 길드 기본 설정/토글/프로필 담당관 세션
 
 브라우저 자동화에서는 이 POST 응답의 `set-cookie`를 브라우저 컨텍스트에 넣거나, `{"redirect":true}`를 함께 보내 303 응답으로 원하는 경로에 진입시키면 됩니다.
 

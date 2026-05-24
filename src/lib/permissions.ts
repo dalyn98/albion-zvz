@@ -120,6 +120,45 @@ export const CAPABILITY_GROUPS: Record<string, CapabilityKey[]> = {
   ],
 }
 
+export const CAPABILITY_PRESETS = [
+  {
+    key: 'regearOfficer',
+    capabilities: ['REGEAR_APPROVE', 'REGEAR_EDIT_PRICE', 'REGEAR_BULK_ACTION'],
+  },
+  {
+    key: 'shopQuartermaster',
+    capabilities: ['INVENTORY_MANAGE', 'INVENTORY_DELIVER', 'SHOP_PRICING', 'CHEST_LOG_PASTE'],
+  },
+  {
+    key: 'logOfficer',
+    capabilities: ['CHEST_LOG_PASTE', 'SIPHON_MANAGE', 'AUDIT_VIEW'],
+  },
+  {
+    key: 'craftLead',
+    capabilities: ['CRAFT_TASK_CREATE', 'CRAFT_TASK_DELIVER', 'CRAFT_MASTER'],
+  },
+  {
+    key: 'analyst',
+    capabilities: ['STATS_VIEW', 'KILLBOARD_SYNC', 'BATTLES_MANAGE', 'AUDIT_VIEW'],
+  },
+  {
+    key: 'guildSettings',
+    capabilities: ['SETTINGS_GENERAL', 'SETTINGS_TOGGLES', 'SETTINGS_GUILD_PROFILE'],
+  },
+] as const satisfies readonly {
+  key: string
+  capabilities: readonly CapabilityKey[]
+}[]
+
+export type CapabilityPreset = (typeof CAPABILITY_PRESETS)[number]
+export type CapabilityPresetKey = CapabilityPreset['key']
+
+export function getCapabilityPresetBits(
+  capabilities: readonly CapabilityKey[],
+): bigint {
+  return capabilities.reduce((bits, key) => bits | CAP[key], 0n)
+}
+
 // ─── 직렬화 / 검사 ─────────────────────────────────────────────
 
 // BigInt 는 JSON 친화적이지 않으니 string 으로 보관 (cookie / DB row → string).

@@ -5205,7 +5205,7 @@
           "step1Title": "Base role settings",
           "step1Body": "Review admin roles, event creator roles, and active member roles in one place.",
           "step2Title": "Role presets",
-          "step2Body": "Choose job-based presets such as regear officer, quartermaster, craft lead, or analyst.",
+          "step2Body": "Choose job-based presets such as regear officer, quartermaster, log operations officer, craft lead, or analyst.",
           "step3Title": "Capability toggles",
           "step3Body": "Tune role permissions such as regear approval, event creation, inventory management, and stats access.",
           "step4Title": "User overrides",
@@ -5518,6 +5518,7 @@
       "description": "Start from the job this officer will do, then fine-tune individual permissions.",
       "regearOfficer": "Regear officer",
       "shopQuartermaster": "Shop quartermaster",
+      "logOfficer": "Log operations officer",
       "craftLead": "Craft lead",
       "analyst": "Analyst",
       "guildSettings": "Guild settings"

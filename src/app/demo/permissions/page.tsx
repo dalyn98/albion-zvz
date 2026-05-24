@@ -5,7 +5,12 @@ import { useTranslations } from 'next-intl'
 import { Check, KeyRound, Save, Sparkles, UserCog } from 'lucide-react'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 import { useDemoToast } from '../_components/DemoFeedbackProvider'
-import { CAPABILITY_GROUPS, type CapabilityKey } from '@/lib/permissions'
+import {
+  CAPABILITY_GROUPS,
+  CAPABILITY_PRESETS,
+  type CapabilityKey,
+  type CapabilityPreset,
+} from '@/lib/permissions'
 
 const PERMISSIONS_TOUR_STEPS = [
   { id: 'permissions-role-settings' },
@@ -13,16 +18,6 @@ const PERMISSIONS_TOUR_STEPS = [
   { id: 'permissions-role-grants' },
   { id: 'permissions-user-overrides' },
 ] as const
-
-type PresetKey = 'regearOfficer' | 'shopQuartermaster' | 'craftLead' | 'analyst' | 'guildSettings'
-
-const PRESETS: Record<PresetKey, readonly CapabilityKey[]> = {
-  regearOfficer: ['REGEAR_APPROVE', 'REGEAR_EDIT_PRICE', 'REGEAR_BULK_ACTION'],
-  shopQuartermaster: ['INVENTORY_MANAGE', 'INVENTORY_DELIVER', 'SHOP_PRICING', 'CHEST_LOG_PASTE'],
-  craftLead: ['CRAFT_TASK_CREATE', 'CRAFT_TASK_DELIVER', 'CRAFT_MASTER'],
-  analyst: ['STATS_VIEW', 'KILLBOARD_SYNC', 'BATTLES_MANAGE', 'AUDIT_VIEW'],
-  guildSettings: ['SETTINGS_GENERAL', 'SETTINGS_TOGGLES', 'SETTINGS_GUILD_PROFILE'],
-}
 
 const INITIAL_ROLE_CAPABILITIES: readonly CapabilityKey[] = [
   'REGEAR_APPROVE',
@@ -54,9 +49,9 @@ export default function DemoPermissionsPage() {
     })
   }
 
-  const applyPreset = (preset: PresetKey) => {
-    setSelectedRole(t(`presets.${preset}`))
-    setCapabilities(new Set(PRESETS[preset]))
+  const applyPreset = (preset: CapabilityPreset) => {
+    setSelectedRole(t(`presets.${preset.key}`))
+    setCapabilities(new Set(preset.capabilities))
     showToast(tDemo('toastPreset'))
   }
 
@@ -104,14 +99,14 @@ export default function DemoPermissionsPage() {
           <p className="mt-1 text-sm text-gray-400">{t('presets.description')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {(Object.keys(PRESETS) as PresetKey[]).map((preset) => (
+          {CAPABILITY_PRESETS.map((preset) => (
             <button
-              key={preset}
+              key={preset.key}
               type="button"
               onClick={() => applyPreset(preset)}
               className="rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-xs font-semibold text-gray-200 transition-colors hover:border-amber-500/50 hover:text-amber-200"
             >
-              {t(`presets.${preset}`)}
+              {t(`presets.${preset.key}`)}
             </button>
           ))}
         </div>

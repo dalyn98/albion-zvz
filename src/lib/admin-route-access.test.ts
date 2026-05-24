@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { CAP, serializeCapabilities } from './permissions'
+import {
+  CAP,
+  CAPABILITY_PRESETS,
+  getCapabilityPresetBits,
+  serializeCapabilities,
+} from './permissions'
 import {
   canAccessAdminPath,
   canAccessAnyOfficerAdminRoute,
@@ -55,6 +60,11 @@ describe('admin route access', () => {
       serializeCapabilities(CAP.CHEST_LOG_PASTE),
     )).toBe(true)
     expect(canAccessAdminPath(
+      '/admin/dashboard/loot-audit',
+      false,
+      serializeCapabilities(CAP.CHEST_LOG_PASTE),
+    )).toBe(true)
+    expect(canAccessAdminPath(
       '/admin/dashboard/craft',
       false,
       serializeCapabilities(CAP.CRAFT_TASK_DELIVER),
@@ -64,6 +74,17 @@ describe('admin route access', () => {
       false,
       serializeCapabilities(CAP.SETTINGS_GUILD_PROFILE),
     )).toBe(true)
+  })
+
+  it('keeps log operations preset aligned with log routes', () => {
+    const logOfficer = CAPABILITY_PRESETS.find((preset) => preset.key === 'logOfficer')
+    expect(logOfficer).toBeDefined()
+    const caps = serializeCapabilities(getCapabilityPresetBits(logOfficer?.capabilities ?? []))
+
+    expect(canAccessAdminPath('/admin/dashboard/siphon', false, caps)).toBe(true)
+    expect(canAccessAdminPath('/admin/dashboard/loot-audit', false, caps)).toBe(true)
+    expect(canAccessAdminPath('/admin/dashboard/audit', false, caps)).toBe(true)
+    expect(canAccessAdminPath('/admin/dashboard/permissions', false, caps)).toBe(false)
   })
 
   it('keeps delegated permission officers on the permissions page', () => {

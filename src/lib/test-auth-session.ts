@@ -1,16 +1,37 @@
 import { timingSafeEqual } from 'node:crypto'
 import { EVENT_CATEGORIES, type EventCategory } from '@/types'
-import { ALL_CAPABILITIES, CAP, serializeCapabilities } from '@/lib/permissions'
+import {
+  ALL_CAPABILITIES,
+  CAP,
+  CAPABILITY_PRESETS,
+  type CapabilityPresetKey,
+  getCapabilityPresetBits,
+  serializeCapabilities,
+} from '@/lib/permissions'
 import type { SessionPayload } from '@/lib/session'
 
 export const TEST_AUTH_SECRET_HEADER = 'x-test-auth-secret'
 
-export const TEST_AUTH_ROLES = [
+const TEST_AUTH_BASE_ROLES = [
   'admin',
   'member',
   'eventCreator',
   'localGuildAccount',
   'guest',
+] as const
+
+export const TEST_AUTH_PRESET_ROLES = [
+  'regearOfficer',
+  'shopQuartermaster',
+  'logOfficer',
+  'craftLead',
+  'analyst',
+  'guildSettings',
+] as const satisfies readonly CapabilityPresetKey[]
+
+export const TEST_AUTH_ROLES = [
+  ...TEST_AUTH_BASE_ROLES,
+  ...TEST_AUTH_PRESET_ROLES,
 ] as const
 
 export type TestAuthRole = (typeof TEST_AUTH_ROLES)[number]
@@ -64,6 +85,10 @@ function roleCapabilities(role: TestAuthRole): string {
         CAP.EVENT_CREATE_GANKING |
         CAP.EVENT_MANAGE,
     )
+  }
+  const preset = CAPABILITY_PRESETS.find((candidate) => candidate.key === role)
+  if (preset) {
+    return serializeCapabilities(getCapabilityPresetBits(preset.capabilities))
   }
   return '0'
 }
