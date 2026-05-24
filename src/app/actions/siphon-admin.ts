@@ -513,6 +513,54 @@ export async function getSiphonBalances(): Promise<
   }
 }
 
+// ─── 전체 초기화 (운영 시작점 재설정/재임포트용) ─────────────────────
+
+export interface ResetSiphonLedgerResult {
+  deletedRows: number
+  error?: string
+}
+
+export async function resetSiphonLedger(): Promise<ResetSiphonLedgerResult> {
+  const empty: ResetSiphonLedgerResult = { deletedRows: 0 }
+  try {
+    const session = await getSession()
+    if (!session) return { ...empty, error: 'Unauthorized' }
+    if (!sessionHas(session, CAP.SIPHON_MANAGE)) {
+      return { ...empty, error: 'Unauthorized' }
+    }
+    const guildId = await getSessionGuildId(session)
+    const db = getAdminClient()
+
+    const { data: deletedRows, error } = await db
+      .from('siphon_ledger')
+      .delete()
+      .eq('guild_id', guildId)
+      .not('id', 'is', null)
+      .select('id')
+
+    if (error) return { ...empty, error: error.message }
+
+    const deletedRowsCount = deletedRows?.length ?? 0
+    revalidatePath('/admin/dashboard/siphon')
+    revalidatePath('/me')
+    revalidatePath('/me/siphon')
+
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'siphon.log.reset',
+      targetKind: 'siphon_ledger',
+      details: {
+        deletedRows: deletedRowsCount,
+      },
+    })
+
+    return { deletedRows: deletedRowsCount }
+  } catch (e) {
+    return { ...empty, error: e instanceof Error ? e.message : 'Server error' }
+  }
+}
+
 // ─── 단일 행 삭제 (운영자 실수 정정용) ───────────────────────────
 
 const deleteInputSchema = z.object({

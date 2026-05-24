@@ -63,6 +63,7 @@ export const ADMIN_ACTIONS = [
   'permission.user.delete',
   'siphon.log.import',
   'siphon.log.delete',
+  'siphon.log.reset',
   'loot_audit.create',
   'loot_audit.finding.resolve',
 ] as const

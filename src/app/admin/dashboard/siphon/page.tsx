@@ -14,6 +14,7 @@ import {
 import SiphonImportForm from './SiphonImportForm'
 import SiphonBalanceTable from './SiphonBalanceTable'
 import SiphonLogTable from './SiphonLogTable'
+import SiphonResetPanel from './SiphonResetPanel'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 
 export const dynamic = 'force-dynamic'
@@ -93,6 +94,8 @@ export default async function AdminSiphonPage(props: SearchParams) {
       )}
 
       <SiphonImportForm lastImportAt={lastImportAt} />
+
+      <SiphonResetPanel />
 
       <SiphonBalanceTable balances={balances} />
 
