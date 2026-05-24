@@ -221,6 +221,8 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
   const t = useTranslations('adminLootAuditPage')
   const summary = preview.summary
   const hasParseWarnings = preview.lootParseErrors.length > 0 || preview.depositParseErrors.length > 0
+  const skippedBeforeStart =
+    preview.skippedBeforeStart.lootRows + preview.skippedBeforeStart.depositRows
   return (
     <div className="rounded-lg border border-gray-700 bg-gray-900/70 p-4 sm:p-5">
       <div className="mb-4 flex items-center gap-2">
@@ -228,13 +230,24 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
         <h2 className="font-semibold text-white">{t('previewTitle')}</h2>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
         <StatCell label={t('statLootRows')} value={summary.totalLootRows} />
         <StatCell label={t('statDepositRows')} value={summary.totalDepositRows} />
         <StatCell label={t('statIgnoredRows')} value={summary.ignoredLootRows} />
+        <StatCell label={t('statSkippedBeforeStart')} value={skippedBeforeStart} />
         <StatCell label={t('statFindings')} value={summary.findings.length} accent={summary.findings.length > 0 ? 'amber' : 'emerald'} />
         <StatCell label={t('statMissingValue')} value={formatSilver(summary.missingEstimatedValue)} accent={summary.missingEstimatedValue > 0 ? 'amber' : 'emerald'} />
       </div>
+
+      {skippedBeforeStart > 0 && (
+        <div className="mt-4 rounded-md border border-indigo-500/30 bg-indigo-500/5 p-3 text-xs text-indigo-100">
+          {t('skippedBeforeStartNotice', {
+            count: skippedBeforeStart,
+            loot: preview.skippedBeforeStart.lootRows,
+            deposit: preview.skippedBeforeStart.depositRows,
+          })}
+        </div>
+      )}
 
       {hasParseWarnings && (
         <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-100">

@@ -15,6 +15,7 @@ import ShopAnomalyPanel from '@/components/ShopAnomalyPanel'
 import { parseShopDiscountRate } from '@/lib/shop/price'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { categoryRank } from '@/lib/shop/category-order'
+import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,6 +31,14 @@ export default async function AdminShopPage() {
     getTranslations('nav'),
     getTranslations('adminShopPage'),
   ])
+  const operatingStart = await getLogOperatingStart('shopChest', guildId)
+  let lastLogQuery = db
+    .from('shop_chest_logs')
+    .select('imported_at')
+    .eq('guild_id', guildId)
+  if (operatingStart) {
+    lastLogQuery = lastLogQuery.gte('logged_at', operatingStart.toISOString())
+  }
   const [
     { data: blacklist },
     { data: inventory },
@@ -52,10 +61,7 @@ export default async function AdminShopPage() {
       )
       .eq('guild_id', guildId)
       .order('name_ko', { ascending: true }),
-    db
-      .from('shop_chest_logs')
-      .select('imported_at')
-      .eq('guild_id', guildId)
+    lastLogQuery
       .order('imported_at', { ascending: false })
       .limit(1)
       .maybeSingle(),

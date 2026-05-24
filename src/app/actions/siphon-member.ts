@@ -9,6 +9,7 @@ import {
   type SiphonAccountLedgerRow,
   type SiphonAccountSummary,
 } from '@/lib/siphon/member-siphon'
+import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 
 export type MySiphonAccountResult =
   | { status: 'ready'; account: SiphonAccountSummary }
@@ -35,15 +36,18 @@ export async function getMySiphonAccount(
 
     const safeLimit = Math.min(Math.max(0, Math.trunc(recentLimit)), RECENT_LIMIT_MAX)
     const db = getAdminClient()
+    const operatingStart = await getLogOperatingStart('siphon', guildId)
     const rows: SiphonAccountLedgerRow[] = []
     let from = 0
 
     while (true) {
-      const { data, error } = await db
+      let q = db
         .from('siphon_ledger')
         .select('logged_at, item_name_raw, quantity')
         .eq('guild_id', guildId)
         .eq('player', nickname)
+      if (operatingStart) q = q.gte('logged_at', operatingStart.toISOString())
+      const { data, error } = await q
         .order('logged_at', { ascending: false })
         .range(from, from + PAGE_SIZE - 1)
 

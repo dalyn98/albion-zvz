@@ -16,6 +16,7 @@ import EventAutoStartForm from './EventAutoStartForm'
 import AlbionHomeGuildForm from './AlbionHomeGuildForm'
 import AllowUnverifiedAccessForm from './AllowUnverifiedAccessForm'
 import TenantTimezoneForm from './TenantTimezoneForm'
+import LogOperatingStartSettingsForm from './LogOperatingStartSettingsForm'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
 import RegearModeCard from './RegearModeCard'
 import CdBadgeRolesForm from './CdBadgeRolesForm'
@@ -88,6 +89,9 @@ interface Props {
   localGuildAccountsEnabled: boolean
   localGuildInviteConfigured: boolean
   tenantTimezone: string
+  logStartShopChestAt: string
+  logStartSiphonAt: string
+  logStartLootAuditAt: string
   eventDmLeadMinutes: number
   isSuperAdmin: boolean
 }
@@ -137,6 +141,9 @@ export default function SettingsTabs({
   localGuildAccountsEnabled,
   localGuildInviteConfigured,
   tenantTimezone,
+  logStartShopChestAt,
+  logStartSiphonAt,
+  logStartLootAuditAt,
   eventDmLeadMinutes,
   isSuperAdmin,
 }: Props) {
@@ -202,6 +209,13 @@ export default function SettingsTabs({
               isSuperAdmin={isSuperAdmin}
             />
             <TenantTimezoneForm embedded initialTimezone={tenantTimezone} />
+            <LogOperatingStartSettingsForm
+              embedded
+              timezone={tenantTimezone}
+              initialShopChestStartAt={logStartShopChestAt}
+              initialSiphonStartAt={logStartSiphonAt}
+              initialLootAuditStartAt={logStartLootAuditAt}
+            />
             <AllowUnverifiedAccessForm
               embedded
               initialAllowed={allowUnverifiedMemberAccess}

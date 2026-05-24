@@ -49,6 +49,9 @@ export default async function SettingsPage() {
     localGuildAccountsEnabledRaw,
     localGuildInviteHashRaw,
     tenantTimezoneRaw,
+    logStartShopChestAt,
+    logStartSiphonAt,
+    logStartLootAuditAt,
     eventDmLeadMinutesRaw,
     { rewards, error: rewardsError },
     tLanding,
@@ -83,6 +86,9 @@ export default async function SettingsPage() {
     // 기본값 'Asia/Seoul' — 기존 멘헤라 동작 유지. 잘못된 값이 박혀 있으면
     // 아래 isValidTenantTimezone 으로 다시 한 번 정규화한다.
     getAppSetting('tenant_timezone', 'Asia/Seoul', tenantId),
+    getAppSetting('log_start_shop_chest_at', '', tenantId),
+    getAppSetting('log_start_siphon_at', '', tenantId),
+    getAppSetting('log_start_loot_audit_at', '', tenantId),
     getAppSetting('event_dm_lead_minutes', '35', tenantId),
     listRoleRewards(),
     getTranslations('landing'),
@@ -223,6 +229,9 @@ export default async function SettingsPage() {
         localGuildAccountsEnabled={localGuildAccountsEnabled}
         localGuildInviteConfigured={localGuildInviteConfigured}
         tenantTimezone={tenantTimezone}
+        logStartShopChestAt={logStartShopChestAt}
+        logStartSiphonAt={logStartSiphonAt}
+        logStartLootAuditAt={logStartLootAuditAt}
         eventDmLeadMinutes={eventDmLeadMinutes}
         isSuperAdmin={isSuperAdmin}
       />

@@ -14,6 +14,10 @@ import { SLOT_ROLES, SLOT_KEYS } from '@/types'
 import { logAdminAction } from '@/lib/admin-audit'
 import { toYoutubeEmbedUrl } from '@/lib/youtube-embed'
 import { CAP } from '@/lib/permissions'
+import {
+  LOG_OPERATING_START_KEYS,
+  isValidLogOperatingStart,
+} from '@/lib/log-operating-start'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
@@ -32,6 +36,9 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'regear_payout_rate_percent',
   'shop_discount_rate',
   'shop_delivery_notice',
+  'log_start_shop_chest_at',
+  'log_start_siphon_at',
+  'log_start_loot_audit_at',
   'albion_server',
   'albion_home_guild_id',
   'aodp_cities',
@@ -94,6 +101,12 @@ function settingCaps(key: AppSettingKey): readonly bigint[] {
   ) {
     return [CAP.SHOP_PRICING]
   }
+  if (key === 'log_start_shop_chest_at' || key === 'log_start_loot_audit_at') {
+    return [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE]
+  }
+  if (key === 'log_start_siphon_at') {
+    return [CAP.SIPHON_MANAGE]
+  }
   if (
     key === 'auto_regear_enabled' ||
     key === 'auto_regear_skip_low_confidence' ||
@@ -117,6 +130,10 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   'events_notice_message',
   // 빈 값 = /shop 상단 공지 배너 숨김.
   'shop_delivery_notice',
+  // 빈 값 = 해당 로그 기능은 과거 전체를 운영 대상에 포함.
+  'log_start_shop_chest_at',
+  'log_start_siphon_at',
+  'log_start_loot_audit_at',
   // Empty JSON array '[]' = admin-only event creation.
   'event_creator_role_ids',
   'event_creator_role_ids_combat',
@@ -204,6 +221,12 @@ const BOOLEAN_KEYS: readonly AppSettingKey[] = [
   'guild_profile_show_weapons',
   'guild_profile_show_rivals',
   'guild_profile_show_activity',
+] as const
+
+const DATE_TIME_KEYS: readonly AppSettingKey[] = [
+  LOG_OPERATING_START_KEYS.shopChest,
+  LOG_OPERATING_START_KEYS.siphon,
+  LOG_OPERATING_START_KEYS.lootAudit,
 ] as const
 
 // Enum-string keys. Value must be exactly one of the listed members.
@@ -316,6 +339,9 @@ export async function updateAppSetting(
         return { error: tErr('invalidBoolean') }
       }
     }
+    if (trimmed && DATE_TIME_KEYS.includes(key) && !isValidLogOperatingStart(trimmed)) {
+      return { error: tErr('invalidDateTime') }
+    }
     const allowedEnum = ENUM_VALUES[key]
     if (trimmed && allowedEnum && !allowedEnum.includes(trimmed)) {
       return { error: tErr('invalidEnumValue', { values: allowedEnum.join(', ') }) }
@@ -355,6 +381,7 @@ export async function updateAppSetting(
     revalidatePath('/admin/dashboard/settings')
     if (
       key === 'shop_delivery_notice' ||
+      key === 'log_start_shop_chest_at' ||
       key === 'shop_discount_rate' ||
       key === 'aodp_cities' ||
       key === 'aodp_price_mode' ||
@@ -362,6 +389,14 @@ export async function updateAppSetting(
     ) {
       revalidatePath('/admin/dashboard/shop')
       revalidatePath('/shop')
+    }
+    if (key === 'log_start_siphon_at') {
+      revalidatePath('/admin/dashboard/siphon')
+      revalidatePath('/me')
+      revalidatePath('/me/siphon')
+    }
+    if (key === 'log_start_loot_audit_at') {
+      revalidatePath('/admin/dashboard/loot-audit')
     }
     if (key === 'auto_regear_enabled') {
       // 슬롯 편집기의 opt-out 체크박스 가시성이 이 값에 의존.

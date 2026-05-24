@@ -22,6 +22,8 @@ import {
 } from '@/lib/siphon/parse-siphon-log'
 import { logAdminAction } from '@/lib/admin-audit'
 import { summarizeLogContinuity, type LogContinuityResult } from '@/lib/log-continuity'
+import { filterByLogOperatingStart } from '@/lib/log-operating-start'
+import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 
 // 한 번에 받을 수 있는 원본 entry 수. 5000 은 shop chest_log 와 동일 — 정상적인
 // 인게임 한 번 export 가 이 한도를 넘지 않는다.
@@ -34,6 +36,8 @@ export interface SiphonImportSummary {
   parseErrors: Array<{ line: number; text: string; reason: string }>
   // siphon ledger 에 저장 가능한 행.
   siphonRows: number
+  // 운영 시작시간 이전이라 공식 집계/import 에서 제외한 행.
+  skippedBeforeStart: number
   // 그 중 실제로 새로 INSERT 된 행. dryRun 시 0.
   inserted: number
   // 같은 (길드/시간/플레이어/아이템/스펙/수량) 키가 이미 DB 에 있어 skip 된 행.
@@ -85,6 +89,7 @@ function emptySummary(): SiphonImportSummary {
     parsedTotal: 0,
     parseErrors: [],
     siphonRows: 0,
+    skippedBeforeStart: 0,
     inserted: 0,
     duplicatesSkipped: 0,
     nonSiphonRows: 0,
@@ -127,6 +132,7 @@ export async function importSiphonLog(
     }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
+    const operatingStart = await getLogOperatingStart('siphon', guildId)
 
     const { entries, errors, parsedTotal, nonSiphonRows } = parseSiphonLog(parsed.data.raw)
     if (parsedTotal === 0) {
@@ -146,24 +152,32 @@ export async function importSiphonLog(
       }
     }
 
-    if (entries.length === 0) {
+    const official = filterByLogOperatingStart(
+      entries,
+      (entry) => entry.loggedAt,
+      operatingStart,
+    )
+
+    if (official.entries.length === 0) {
       return {
         ...emptySummary(),
         parsedTotal,
         parseErrors: errors,
         nonSiphonRows,
+        skippedBeforeStart: official.skippedBeforeStart,
       }
     }
 
     // 0 수량 행은 마이그 CHECK 제약 (quantity <> 0) 에 걸리므로 미리 제거.
     // 인게임 로그에 0 은 안 나오지만 방어적으로.
-    const validEntries = entries.filter((e) => e.quantity !== 0)
+    const validEntries = official.entries.filter((e) => e.quantity !== 0)
     if (validEntries.length === 0) {
       return {
         ...emptySummary(),
         parsedTotal,
         parseErrors: errors,
         nonSiphonRows,
+        skippedBeforeStart: official.skippedBeforeStart,
       }
     }
 
@@ -200,10 +214,14 @@ export async function importSiphonLog(
     const newEntries = validEntries.filter(isNewEntry)
     const duplicatesSkipped = validEntries.length - newEntries.length
 
-    const { data: latestRow, error: latestErr } = await db
+    let latestQuery = db
       .from('siphon_ledger')
       .select('logged_at, player, item_name_raw, enchant, quality, quantity')
       .eq('guild_id', guildId)
+    if (operatingStart) {
+      latestQuery = latestQuery.gte('logged_at', operatingStart.toISOString())
+    }
+    const { data: latestRow, error: latestErr } = await latestQuery
       .order('logged_at', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -256,6 +274,7 @@ export async function importSiphonLog(
         parsedTotal,
         parseErrors: errors,
         siphonRows: validEntries.length,
+        skippedBeforeStart: official.skippedBeforeStart,
         inserted: 0,
         duplicatesSkipped,
         nonSiphonRows,
@@ -289,6 +308,7 @@ export async function importSiphonLog(
             parsedTotal,
             parseErrors: errors,
             siphonRows: validEntries.length,
+            skippedBeforeStart: official.skippedBeforeStart,
             nonSiphonRows,
             error: error.message,
           }
@@ -309,6 +329,7 @@ export async function importSiphonLog(
         inserted,
         duplicatesSkipped,
         nonSiphonRows,
+        skippedBeforeStart: official.skippedBeforeStart,
         depositTotal,
         withdrawTotal,
         affectedPlayers: playersInBatch.size,
@@ -324,6 +345,7 @@ export async function importSiphonLog(
       parsedTotal,
       parseErrors: errors,
       siphonRows: validEntries.length,
+      skippedBeforeStart: official.skippedBeforeStart,
       inserted,
       duplicatesSkipped,
       nonSiphonRows,
@@ -377,6 +399,7 @@ export async function listSiphonLedger(
     if (!sessionHas(session, CAP.SIPHON_MANAGE)) return { error: 'Unauthorized' }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
+    const operatingStart = await getLogOperatingStart('siphon', guildId)
 
     const limit = parsed.data.limit ?? LEDGER_DEFAULT_LIMIT
     const offset = parsed.data.offset ?? 0
@@ -389,6 +412,7 @@ export async function listSiphonLedger(
       })
       .eq('guild_id', guildId)
     if (player) q = q.eq('player', player)
+    if (operatingStart) q = q.gte('logged_at', operatingStart.toISOString())
     q = q
       .order('logged_at', { ascending: false })
       .range(offset, offset + limit - 1)
@@ -431,6 +455,7 @@ export async function getSiphonBalances(): Promise<
     if (!sessionHas(session, CAP.SIPHON_MANAGE)) return { error: 'Unauthorized' }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
+    const operatingStart = await getLogOperatingStart('siphon', guildId)
 
     // 전체 ledger 를 끌어와 메모리에서 집계. siphon 은 한 길드당 수만 행 수준이라
     // RPC 없이도 OK. 행 수가 부담되면 추후 SQL view / materialized 로 옮긴다.
@@ -441,10 +466,12 @@ export async function getSiphonBalances(): Promise<
     >()
     let from = 0
     while (true) {
-      const { data, error } = await db
+      let q = db
         .from('siphon_ledger')
         .select('player, quantity, logged_at')
         .eq('guild_id', guildId)
+      if (operatingStart) q = q.gte('logged_at', operatingStart.toISOString())
+      const { data, error } = await q
         .order('logged_at', { ascending: false })
         .range(from, from + PAGE - 1)
       if (error) return { error: error.message }

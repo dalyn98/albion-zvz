@@ -15,6 +15,8 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { logAdminAction } from '@/lib/admin-audit'
 import { CAP } from '@/lib/permissions'
 import { summarizeLogContinuity } from '@/lib/log-continuity'
+import { filterByLogOperatingStart } from '@/lib/log-operating-start'
+import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 import { syncShopPrices, type PriceSyncSummary } from './shop-inventory'
 
 export interface ImportSummary {
@@ -22,6 +24,7 @@ export interface ImportSummary {
   parseErrors: Array<{ line: number; text: string; reason: string }>
   inserted: number
   duplicatesSkipped: number
+  skippedBeforeStart: number
   blacklistedRows: number
   unresolvedRows: number
   unresolvedNames: string[]
@@ -95,6 +98,7 @@ export async function importChestLog(
     parseErrors: [],
     inserted: 0,
     duplicatesSkipped: 0,
+    skippedBeforeStart: 0,
     blacklistedRows: 0,
     unresolvedRows: 0,
     unresolvedNames: [],
@@ -110,9 +114,10 @@ export async function importChestLog(
     if (!session) return { ...empty, error: 'Unauthorized' }
     const db = await requireAnyCapability(SHOP_IMPORT_CAPS)
     const guildId = await getSessionGuildId(session)
+    const operatingStart = await getLogOperatingStart('shopChest', guildId)
 
-    const { entries, errors } = parseChestLog(raw)
-    if (entries.length === 0) {
+    const { entries: parsedEntries, errors } = parseChestLog(raw)
+    if (parsedEntries.length === 0) {
       return {
         ...empty,
         parseErrors: errors,
@@ -121,11 +126,26 @@ export async function importChestLog(
           : tErr('importEmptyLog'),
       }
     }
-    if (entries.length > IMPORT_ROW_LIMIT) {
+    if (parsedEntries.length > IMPORT_ROW_LIMIT) {
       return {
         ...empty,
         parseErrors: errors,
-        error: tErr('importRowLimit', { max: IMPORT_ROW_LIMIT, current: entries.length }),
+        error: tErr('importRowLimit', { max: IMPORT_ROW_LIMIT, current: parsedEntries.length }),
+      }
+    }
+
+    const official = filterByLogOperatingStart(
+      parsedEntries,
+      (entry) => entry.loggedAt,
+      operatingStart,
+    )
+    const entries = official.entries
+    if (entries.length === 0) {
+      return {
+        ...empty,
+        parsed: parsedEntries.length,
+        parseErrors: errors,
+        skippedBeforeStart: official.skippedBeforeStart,
       }
     }
 
@@ -171,10 +191,14 @@ export async function importChestLog(
 
     // 마지막 로그 감지 — DB 전체에서 가장 최신 timestamp 의 모든 행을 조회.
     // 사용자에게 "이 지점까지 저장돼있고, 그 이후 N건이 신규" 를 알려주기 위함.
-    const { data: latestRow, error: latestErr } = await db
+    let latestQuery = db
       .from('shop_chest_logs')
       .select('logged_at, player, item_name_raw, enchant, quality, quantity')
       .eq('guild_id', guildId)
+    if (operatingStart) {
+      latestQuery = latestQuery.gte('logged_at', operatingStart.toISOString())
+    }
+    const { data: latestRow, error: latestErr } = await latestQuery
       .order('logged_at', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -260,10 +284,11 @@ export async function importChestLog(
         })
       }
       return {
-        parsed: entries.length,
+        parsed: parsedEntries.length,
         parseErrors: errors,
         inserted: 0,
         duplicatesSkipped,
+        skippedBeforeStart: official.skippedBeforeStart,
         blacklistedRows,
         unresolvedRows,
         unresolvedNames,
@@ -316,10 +341,11 @@ export async function importChestLog(
       })
       if (error) {
         return {
-          parsed: entries.length,
+          parsed: parsedEntries.length,
           parseErrors: errors,
           inserted,
           duplicatesSkipped,
+          skippedBeforeStart: official.skippedBeforeStart,
           blacklistedRows,
           unresolvedRows,
           unresolvedNames,
@@ -357,16 +383,18 @@ export async function importChestLog(
         kind: 'chest.import',
         inserted,
         duplicatesSkipped,
+        skippedBeforeStart: official.skippedBeforeStart,
         stockChanges: stockChanges.length,
         unresolvedRows,
       },
     })
 
     return {
-      parsed: entries.length,
+      parsed: parsedEntries.length,
       parseErrors: errors,
       inserted,
       duplicatesSkipped,
+      skippedBeforeStart: official.skippedBeforeStart,
       blacklistedRows,
       unresolvedRows,
       unresolvedNames,

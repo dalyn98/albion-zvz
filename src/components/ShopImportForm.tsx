@@ -333,6 +333,7 @@ interface Totals {
   parsed: number
   newEntries: number
   duplicatesSkipped: number
+  skippedBeforeStart: number
   blacklistedRows: number
   unresolvedRows: number
   unresolvedNames: string[]
@@ -345,6 +346,7 @@ function aggregateTotals(batches: StagedBatch[]): Totals {
     parsed: 0,
     newEntries: 0,
     duplicatesSkipped: 0,
+    skippedBeforeStart: 0,
     blacklistedRows: 0,
     unresolvedRows: 0,
     unresolvedNames: [],
@@ -359,6 +361,7 @@ function aggregateTotals(batches: StagedBatch[]): Totals {
     // 상한선에 가깝다. 엄밀한 전역 계산은 commit 시 재계산되므로 여기선 휴리스틱.
     acc.newEntries += p.newEntriesAfterLast
     acc.duplicatesSkipped += p.duplicatesSkipped
+    acc.skippedBeforeStart += p.skippedBeforeStart
     acc.blacklistedRows += p.blacklistedRows
     acc.unresolvedRows += p.unresolvedRows
     for (const n of p.unresolvedNames) unresolvedSet.add(n)
@@ -396,7 +399,10 @@ function StagingStatusCard({ preview, t }: { preview: ImportSummary; t: ImportTr
     newEntriesAfterLast,
     gapFromLastKnownMs,
   } = preview
-  const saveableRows = Math.max(0, preview.parsed - preview.duplicatesSkipped)
+  const saveableRows = Math.max(
+    0,
+    preview.parsed - preview.skippedBeforeStart - preview.duplicatesSkipped,
+  )
 
   // tone 은 최종 본문을 쓸 때 다시 덮어씀. 초기값은 '이전 기록 없음' 케이스 기준.
   let tone: 'ok' | 'warn' | 'danger' | 'info' = 'info'
@@ -511,6 +517,7 @@ function StagedBatchesCard({
                     parsed: p.parsed,
                     newCount: p.newEntriesAfterLast,
                     dup: p.duplicatesSkipped,
+                    skipped: p.skippedBeforeStart,
                   })}
                   {p.unresolvedRows > 0 && (
                     <span className="text-amber-300">
@@ -585,7 +592,7 @@ function RunningTotalsCard({
           <Check size={16} className="text-emerald-400" />
           <h3 className="font-bold text-white">{t('runningTotalsTitle')}</h3>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
           <StatCell label={t('statParsed')} value={totals.parsed} />
           <StatCell
             label={t('statNewEntries')}
@@ -593,6 +600,7 @@ function RunningTotalsCard({
             accent="emerald"
           />
           <StatCell label={t('statDuplicates')} value={totals.duplicatesSkipped} />
+          <StatCell label={t('statSkippedBeforeStart')} value={totals.skippedBeforeStart} />
           <StatCell label={t('statBlacklist')} value={totals.blacklistedRows} />
           <StatCell
             label={t('statUnresolved')}
@@ -729,9 +737,10 @@ function CommitResultCard({ summary, t }: { summary: ImportSummary; t: ImportTra
         <Check size={16} className="text-emerald-400" />
         <h3 className="font-bold text-white">{t('commitResultTitle')}</h3>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <StatCell label={t('commitStatNew')} value={summary.inserted} accent="emerald" />
         <StatCell label={t('commitStatDup')} value={summary.duplicatesSkipped} />
+        <StatCell label={t('commitStatSkippedBeforeStart')} value={summary.skippedBeforeStart} />
         <StatCell label={t('commitStatStockChanges')} value={summary.stockChanges.length} />
         <StatCell
           label={t('commitStatPriceUpdate')}

@@ -14,6 +14,7 @@ import {
 import SiphonImportForm from './SiphonImportForm'
 import SiphonBalanceTable from './SiphonBalanceTable'
 import SiphonLogTable from './SiphonLogTable'
+import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,15 +39,21 @@ export default async function AdminSiphonPage(props: SearchParams) {
   const t = await getTranslations('adminSiphonPage')
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
+  const operatingStart = await getLogOperatingStart('siphon', guildId)
+
+  let lastImportQuery = db
+    .from('siphon_ledger')
+    .select('imported_at')
+    .eq('guild_id', guildId)
+  if (operatingStart) {
+    lastImportQuery = lastImportQuery.gte('logged_at', operatingStart.toISOString())
+  }
 
   // 병렬 read: balances + ledger 1 페이지 + 마지막 import 시각.
   const [balancesResult, ledgerResult, lastImportRow] = await Promise.all([
     getSiphonBalances(),
     listSiphonLedger({ limit: LOG_PAGE_SIZE, offset, player: playerFilter }),
-    db
-      .from('siphon_ledger')
-      .select('imported_at')
-      .eq('guild_id', guildId)
+    lastImportQuery
       .order('imported_at', { ascending: false })
       .limit(1)
       .maybeSingle(),

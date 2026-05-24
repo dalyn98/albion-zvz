@@ -199,12 +199,16 @@ function PreviewCard({
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-3">
       <SiphonContinuityCard preview={preview} t={t} />
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <StatCell label={t('previewParsed')} value={preview.parsedTotal} />
         <StatCell
           label={t('previewSiphon')}
           value={preview.siphonRows}
           accent="emerald"
+        />
+        <StatCell
+          label={t('previewSkippedBeforeStart')}
+          value={preview.skippedBeforeStart}
         />
         <StatCell
           label={t('previewNonSiphon')}

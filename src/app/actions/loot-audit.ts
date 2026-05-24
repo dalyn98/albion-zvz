@@ -18,6 +18,8 @@ import {
   type LootLogEntry,
   type LootLogParseError,
 } from '@/lib/loot-audit'
+import { filterByLogOperatingStart } from '@/lib/log-operating-start'
+import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 
 const LOOT_AUDIT_CAPS = [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
 const RAW_MAX_LENGTH = 2_000_000
@@ -46,6 +48,11 @@ export interface LootAuditPreviewResult {
   lootParseErrors: LootLogParseError[]
   depositParseErrors: LootLogParseError[]
   unresolvedDepositItemNames: string[]
+  skippedBeforeStart: {
+    operatingStartAt: string | null
+    lootRows: number
+    depositRows: number
+  }
   error?: string
 }
 
@@ -111,8 +118,10 @@ export async function previewLootAudit(
     const session = await getSession()
     if (!session) return previewError(tErr('unauthorized'))
     await requireAnyCapability(LOOT_AUDIT_CAPS)
+    const guildId = await getSessionGuildId(session)
+    const operatingStart = await getLogOperatingStart('lootAudit', guildId)
 
-    return parseAuditInput(parsed.data, tErr).preview
+    return parseAuditInput(parsed.data, tErr, operatingStart).preview
   } catch (e) {
     return previewError(e instanceof Error ? e.message : tErr('serverError'))
   }
@@ -133,8 +142,9 @@ export async function createLootAudit(
     if (!session) return { ...previewError(tErr('unauthorized')) }
     const db = await requireAnyCapability(LOOT_AUDIT_CAPS)
     guildId = await getSessionGuildId(session)
+    const operatingStart = await getLogOperatingStart('lootAudit', guildId)
 
-    const parsedAudit = parseAuditInput(parsed.data, tErr)
+    const parsedAudit = parseAuditInput(parsed.data, tErr, operatingStart)
     if (parsedAudit.preview.error) return { ...parsedAudit.preview }
 
     const { summary } = parsedAudit.preview
@@ -175,6 +185,8 @@ export async function createLootAudit(
         title: parsed.data.title,
         lootRows: summary.totalLootRows,
         depositRows: summary.totalDepositRows,
+        lootRowsBeforeStart: parsedAudit.preview.skippedBeforeStart.lootRows,
+        depositRowsBeforeStart: parsedAudit.preview.skippedBeforeStart.depositRows,
         findings: summary.findings.length,
         missingEstimatedValue: summary.missingEstimatedValue,
       },
@@ -355,28 +367,44 @@ export async function updateLootAuditFinding(input: z.input<typeof findingUpdate
 function parseAuditInput(
   input: z.infer<typeof auditInputSchema>,
   tErr: Awaited<ReturnType<typeof getTranslations>>,
+  operatingStart: Date | null,
 ): ParsedAuditInput {
   const lootResult = parseLootLogCsv(input.lootLogRaw)
   const depositResult = parseDepositLog(input.depositLogRaw)
-  const rowCount = lootResult.entries.length + depositResult.entries.length
+  const lootOfficial = filterByLogOperatingStart(
+    lootResult.entries,
+    (entry) => entry.lootedAt,
+    operatingStart,
+  )
+  const depositOfficial = filterByLogOperatingStart(
+    depositResult.entries,
+    (entry) => entry.depositedAt,
+    operatingStart,
+  )
+  const skippedBeforeStart = {
+    operatingStartAt: operatingStart?.toISOString() ?? null,
+    lootRows: lootOfficial.skippedBeforeStart,
+    depositRows: depositOfficial.skippedBeforeStart,
+  }
+  const rowCount = lootOfficial.entries.length + depositOfficial.entries.length
 
-  if (lootResult.entries.length === 0) {
+  if (lootOfficial.entries.length === 0) {
     return {
       lootEntries: [],
       depositEntries: [],
       preview: {
-        ...previewError(tErr('lootAuditNoLootRows')),
+        ...previewError(tErr('lootAuditNoLootRows'), skippedBeforeStart),
         lootParseErrors: lootResult.errors,
         depositParseErrors: depositResult.errors,
       },
     }
   }
-  if (depositResult.entries.length === 0) {
+  if (depositOfficial.entries.length === 0) {
     return {
-      lootEntries: lootResult.entries,
+      lootEntries: lootOfficial.entries,
       depositEntries: [],
       preview: {
-        ...previewError(tErr('lootAuditNoDepositRows')),
+        ...previewError(tErr('lootAuditNoDepositRows'), skippedBeforeStart),
         lootParseErrors: lootResult.errors,
         depositParseErrors: depositResult.errors,
       },
@@ -384,35 +412,51 @@ function parseAuditInput(
   }
   if (rowCount > ROW_LIMIT) {
     return {
-      lootEntries: lootResult.entries,
-      depositEntries: depositResult.entries,
+      lootEntries: lootOfficial.entries,
+      depositEntries: depositOfficial.entries,
       preview: {
-        ...previewError(tErr('importRowLimit', { max: ROW_LIMIT, current: rowCount })),
+        ...previewError(tErr('importRowLimit', { max: ROW_LIMIT, current: rowCount }), skippedBeforeStart),
         lootParseErrors: lootResult.errors,
         depositParseErrors: depositResult.errors,
       },
     }
   }
 
-  const summary = buildLootAuditSummary(lootResult.entries, depositResult.entries)
+  const unresolvedDepositItemNames = Array.from(
+    new Set(
+      depositOfficial.entries
+        .filter((entry) => !entry.itemId)
+        .map((entry) => entry.itemName),
+    ),
+  ).sort((a, b) => a.localeCompare(b))
+  const summary = buildLootAuditSummary(lootOfficial.entries, depositOfficial.entries)
   return {
-    lootEntries: lootResult.entries,
-    depositEntries: depositResult.entries,
+    lootEntries: lootOfficial.entries,
+    depositEntries: depositOfficial.entries,
     preview: {
       summary,
       lootParseErrors: lootResult.errors,
       depositParseErrors: depositResult.errors,
-      unresolvedDepositItemNames: depositResult.unresolvedItemNames,
+      unresolvedDepositItemNames,
+      skippedBeforeStart,
     },
   }
 }
 
-function previewError(error: string): LootAuditPreviewResult {
+function previewError(
+  error: string,
+  skippedBeforeStart: LootAuditPreviewResult['skippedBeforeStart'] = {
+    operatingStartAt: null,
+    lootRows: 0,
+    depositRows: 0,
+  },
+): LootAuditPreviewResult {
   return {
     summary: emptySummary,
     lootParseErrors: [],
     depositParseErrors: [],
     unresolvedDepositItemNames: [],
+    skippedBeforeStart,
     error,
   }
 }

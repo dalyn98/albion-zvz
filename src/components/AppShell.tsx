@@ -11,6 +11,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getMarketingPaths } from '@/lib/marketing-paths'
 import { canAccessAnyOfficerAdminRoute } from '@/lib/admin-route-access'
 import { CAP } from '@/lib/permissions'
+import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 import AppSidebar from './AppSidebar'
 import UserStatusChip, {
   type UserStatusSiphonState,
@@ -263,13 +264,16 @@ async function loadUserSiphonSummary(
 
   let balance = 0
   let from = 0
+  const operatingStart = await getLogOperatingStart('siphon', guildId)
 
   while (true) {
-    const { data, error } = await db
+    let q = db
       .from('siphon_ledger')
       .select('quantity')
       .eq('guild_id', guildId)
       .eq('player', player)
+    if (operatingStart) q = q.gte('logged_at', operatingStart.toISOString())
+    const { data, error } = await q
       .order('id', { ascending: true })
       .range(from, from + SIPHON_PAGE_SIZE - 1)
 

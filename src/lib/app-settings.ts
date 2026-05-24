@@ -58,6 +58,11 @@ export type AppSettingKey =
   // /shop 상단에 뜨는 관리자 공지 — 아이템 전달 방법 등을 자유롭게 안내.
   // 빈 문자열이면 배너 비표시.
   | 'shop_delivery_notice'
+  // 인게임 로그 기반 기능의 공식 운영 시작시각. 빈 문자열이면 과거 전체 허용.
+  // 각 기능은 이 시각 이전의 로그를 import / 집계 / 검증 대상에서 제외한다.
+  | 'log_start_shop_chest_at'
+  | 'log_start_siphon_at'
+  | 'log_start_loot_audit_at'
   // 킬보드 API 가 붙을 알비온 서버. 'west' | 'east' | 'europe'.
   // 잘못 설정되면 /search 와 /deaths 모두 빈 응답이 돌아와 리기어 자동 검증이
   // 항상 실패한다. 기본 'east' — 레거시 하드코딩값(gameinfo-sgp) 유지.
