@@ -133,9 +133,8 @@ export const DEMO_REGEAR_LIST: DemoRegearListItem[] = [
   },
 ]
 
-export const DEMO_REGEAR_DETAIL: DemoRegearDetail = {
-  ...DEMO_REGEAR_LIST[0]!,
-  pieces: [
+const DEMO_REGEAR_DETAIL_PIECES: Record<string, DemoRegearPiece[]> = {
+  'rg-1': [
     { slot: 'head', itemLabel: 'Specter Hood (8.1)', estimatedSilver: 128_000 },
     { slot: 'armor', itemLabel: 'Knight Armor (8.0)', estimatedSilver: 94_000 },
     { slot: 'shoes', itemLabel: 'Heretic Boots (8.0)', estimatedSilver: 76_000 },
@@ -143,3 +142,10 @@ export const DEMO_REGEAR_DETAIL: DemoRegearDetail = {
     { slot: 'cape', itemLabel: 'Lymhurst Cape (8.0)', estimatedSilver: 64_000 },
   ],
 }
+
+export const DEMO_REGEAR_DETAILS: DemoRegearDetail[] = DEMO_REGEAR_LIST.map((request) => ({
+  ...request,
+  pieces: DEMO_REGEAR_DETAIL_PIECES[request.id] ?? [],
+}))
+
+export const DEMO_REGEAR_DETAIL: DemoRegearDetail = DEMO_REGEAR_DETAILS[0]!

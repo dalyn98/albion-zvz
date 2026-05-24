@@ -5,6 +5,10 @@ import { getLocale, getTranslations } from 'next-intl/server'
 import { listLootAudits } from '@/app/actions/loot-audit'
 import { CAP } from '@/lib/permissions'
 import { getSession, sessionHasAny } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
+import { getAppSetting } from '@/lib/app-settings'
+import { getTenantTimezone } from '@/lib/timezone-server'
+import LogOperatingStartSettingsForm from '@/components/LogOperatingStartSettingsForm'
 import LootAuditForm from './LootAuditForm'
 
 export const dynamic = 'force-dynamic'
@@ -18,10 +22,13 @@ export default async function AdminLootAuditPage() {
     redirect('/admin/dashboard')
   }
 
-  const [t, locale, auditResult] = await Promise.all([
+  const guildId = await getSessionGuildId(session)
+  const [t, locale, auditResult, tenantTimezone, logStartLootAuditAt] = await Promise.all([
     getTranslations('adminLootAuditPage'),
     getLocale(),
     listLootAudits(),
+    getTenantTimezone(guildId),
+    getAppSetting('log_start_loot_audit_at', '', guildId),
   ])
 
   return (
@@ -42,6 +49,14 @@ export default async function AdminLootAuditPage() {
           <p>{auditResult.error}</p>
         </div>
       )}
+
+      <LogOperatingStartSettingsForm
+        domains={['lootAudit']}
+        timezone={tenantTimezone}
+        initialShopChestStartAt=""
+        initialSiphonStartAt=""
+        initialLootAuditStartAt={logStartLootAuditAt}
+      />
 
       <LootAuditForm />
 

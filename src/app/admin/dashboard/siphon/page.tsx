@@ -5,6 +5,7 @@ import { getSession, sessionHas } from '@/lib/session'
 import { CAP } from '@/lib/permissions'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { getAppSetting } from '@/lib/app-settings'
 import {
   getSiphonBalances,
   listSiphonLedger,
@@ -16,6 +17,8 @@ import SiphonBalanceTable from './SiphonBalanceTable'
 import SiphonLogTable from './SiphonLogTable'
 import SiphonResetPanel from './SiphonResetPanel'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
+import { getTenantTimezone } from '@/lib/timezone-server'
+import LogOperatingStartSettingsForm from '@/components/LogOperatingStartSettingsForm'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,7 +43,11 @@ export default async function AdminSiphonPage(props: SearchParams) {
   const t = await getTranslations('adminSiphonPage')
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
-  const operatingStart = await getLogOperatingStart('siphon', guildId)
+  const [operatingStart, tenantTimezone, logStartSiphonAt] = await Promise.all([
+    getLogOperatingStart('siphon', guildId),
+    getTenantTimezone(guildId),
+    getAppSetting('log_start_siphon_at', '', guildId),
+  ])
 
   let lastImportQuery = db
     .from('siphon_ledger')
@@ -94,6 +101,14 @@ export default async function AdminSiphonPage(props: SearchParams) {
       )}
 
       <SiphonImportForm lastImportAt={lastImportAt} />
+
+      <LogOperatingStartSettingsForm
+        domains={['siphon']}
+        timezone={tenantTimezone}
+        initialShopChestStartAt=""
+        initialSiphonStartAt={logStartSiphonAt}
+        initialLootAuditStartAt=""
+      />
 
       <SiphonResetPanel />
 

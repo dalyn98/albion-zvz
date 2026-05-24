@@ -17,6 +17,7 @@ interface Props {
   initialSiphonStartAt: string
   initialLootAuditStartAt: string
   timezone: string
+  domains?: readonly LogOperatingStartDomain[]
   embedded?: boolean
 }
 
@@ -33,11 +34,13 @@ export default function LogOperatingStartSettingsForm({
   initialSiphonStartAt,
   initialLootAuditStartAt,
   timezone,
+  domains,
   embedded = false,
 }: Props) {
   const router = useRouter()
   const tc = useTranslations('common')
   const t = useTranslations('adminLogOperatingStart')
+  const visibleDomains = domains ?? DOMAINS
   const initialValues = useMemo<Values>(
     () => ({
       shopChest: formatLogOperatingStartInput(initialShopChestStartAt, timezone),
@@ -52,8 +55,8 @@ export default function LogOperatingStartSettingsForm({
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
 
-  const dirty = DOMAINS.some((domain) => values[domain] !== savedValues[domain])
-  useReportDirty('log-operating-start', dirty)
+  const dirty = visibleDomains.some((domain) => values[domain] !== savedValues[domain])
+  useReportDirty(`log-operating-start:${visibleDomains.join(',')}`, dirty)
 
   const handleChange = (domain: LogOperatingStartDomain, value: string) => {
     setValues((prev) => ({ ...prev, [domain]: value }))
@@ -65,7 +68,7 @@ export default function LogOperatingStartSettingsForm({
     setError('')
     setSaved(false)
 
-    for (const domain of DOMAINS) {
+    for (const domain of visibleDomains) {
       if (values[domain] === savedValues[domain]) continue
       const result = await updateAppSetting(
         LOG_OPERATING_START_KEYS[domain],
@@ -87,6 +90,8 @@ export default function LogOperatingStartSettingsForm({
   const containerClass = embedded
     ? 'space-y-3'
     : 'bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-4'
+  const gridClass =
+    visibleDomains.length === 1 ? 'grid gap-3' : 'grid gap-3 lg:grid-cols-3'
 
   return (
     <div className={containerClass}>
@@ -107,8 +112,8 @@ export default function LogOperatingStartSettingsForm({
         </div>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-3">
-        {DOMAINS.map((domain) => (
+      <div className={gridClass}>
+        {visibleDomains.map((domain) => (
           <label
             key={domain}
             className="block rounded-lg border border-gray-700 bg-gray-800/40 px-3 py-3"

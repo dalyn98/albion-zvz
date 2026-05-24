@@ -12,10 +12,12 @@ import ShopInventoryEditor, { type InventoryRow } from '@/components/ShopInvento
 import NoticeSettingForm, { NOTICE_MAX_LENGTH } from '@/components/NoticeSettingForm'
 import AodpSettingsForm from '@/components/AodpSettingsForm'
 import ShopAnomalyPanel from '@/components/ShopAnomalyPanel'
+import LogOperatingStartSettingsForm from '@/components/LogOperatingStartSettingsForm'
 import { parseShopDiscountRate } from '@/lib/shop/price'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { categoryRank } from '@/lib/shop/category-order'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,6 +50,8 @@ export default async function AdminShopPage() {
     aodpCitiesRaw,
     aodpPriceModeRaw,
     aodpMinQualityRaw,
+    tenantTimezone,
+    logStartShopChestAt,
   ] = await Promise.all([
     db
       .from('shop_blacklist')
@@ -70,6 +74,8 @@ export default async function AdminShopPage() {
     getAppSetting('aodp_cities', '', guildId),
     getAppSetting('aodp_price_mode', 'spot', guildId),
     getAppSetting('aodp_min_quality', '1', guildId),
+    getTenantTimezone(guildId),
+    getAppSetting('log_start_shop_chest_at', '', guildId),
   ])
 
   const lastImportAt = (lastLog?.imported_at as string | null | undefined) ?? null
@@ -178,6 +184,13 @@ export default async function AdminShopPage() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="space-y-4">
           <ShopImportForm lastImportAt={lastImportAt} isImportStale={isImportStale} />
+          <LogOperatingStartSettingsForm
+            domains={['shopChest']}
+            timezone={tenantTimezone}
+            initialShopChestStartAt={logStartShopChestAt}
+            initialSiphonStartAt=""
+            initialLootAuditStartAt=""
+          />
           <ShopInventoryEditor rows={inventoryRows} discountRate={discountRate} />
         </div>
         <div className="space-y-4">
