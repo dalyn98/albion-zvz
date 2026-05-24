@@ -33,6 +33,8 @@ interface Props {
 
 export default function DemoSettingsTabs({ initialTab = 'guild' }: Props) {
   const t = useTranslations('adminSettings')
+  const tLogStart = useTranslations('adminLogOperatingStart')
+  const tRegearMode = useTranslations('adminRegearMode')
   const tDemo = useTranslations('demo.settings')
   const tFeedback = useTranslations('demo.feedback')
   const { showToast } = useDemoToast()
@@ -69,23 +71,33 @@ export default function DemoSettingsTabs({ initialTab = 'guild' }: Props) {
 
       <div role="tabpanel">
         {active === 'guild' && (
-          <DemoSettingsGroup
-            title={t('guildGroupTitle')}
-            description={t('guildGroupDescription')}
-          >
-            <DemoFormRow label={tDemo('homeGuildLabel')} value={DEMO_GUILD_NAME} />
-            <DemoFormRow label={tDemo('timezoneLabel')} value="Asia/Seoul" />
-            <DemoFormRow
-              label={tDemo('unverifiedAccessLabel')}
-              value={tDemo('toggleOn')}
-              valueKind="toggle"
-            />
-            <DemoFormRow
-              label={t('localAccountTitle')}
-              value={tDemo('localAccountEnabled')}
-              valueKind="toggle"
-            />
-          </DemoSettingsGroup>
+          <div className="space-y-4">
+            <DemoSettingsGroup
+              title={t('guildGroupTitle')}
+              description={t('guildGroupDescription')}
+            >
+              <DemoFormRow label={tDemo('homeGuildLabel')} value={DEMO_GUILD_NAME} />
+              <DemoFormRow label={tDemo('timezoneLabel')} value="Asia/Seoul" />
+              <DemoFormRow
+                label={tDemo('unverifiedAccessLabel')}
+                value={tDemo('toggleOn')}
+                valueKind="toggle"
+              />
+              <DemoFormRow
+                label={t('localAccountTitle')}
+                value={tDemo('localAccountEnabled')}
+                valueKind="toggle"
+              />
+            </DemoSettingsGroup>
+            <DemoSettingsGroup
+              title={tLogStart('title')}
+              description={tLogStart('description')}
+            >
+              <DemoFormRow label={tLogStart('shopChestLabel')} value="2026-05-01 00:00" />
+              <DemoFormRow label={tLogStart('siphonLabel')} value="2026-05-24 00:00" />
+              <DemoFormRow label={tLogStart('lootAuditLabel')} value="2026-05-24 00:00" />
+            </DemoSettingsGroup>
+          </div>
         )}
         {active === 'permissions' && (
           <div className="space-y-4">
@@ -143,6 +155,21 @@ export default function DemoSettingsTabs({ initialTab = 'guild' }: Props) {
             <DemoFormRow
               label={tDemo('craftRegearLabel')}
               value={tDemo('toggleOn')}
+              valueKind="toggle"
+            />
+            <DemoFormRow
+              label={tRegearMode('verifyLabel')}
+              value={tDemo('toggleOn')}
+              valueKind="toggle"
+            />
+            <DemoFormRow
+              label={tRegearMode('overchargeLabel')}
+              value={tDemo('toggleOn')}
+              valueKind="toggle"
+            />
+            <DemoFormRow
+              label={tRegearMode('skipLowConfidenceLabel')}
+              value={tDemo('toggleOff')}
               valueKind="toggle"
             />
           </DemoSettingsGroup>

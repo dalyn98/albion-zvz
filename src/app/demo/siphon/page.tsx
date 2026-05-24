@@ -2,7 +2,16 @@
 
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { ListChecks, PackageCheck, PackageMinus, Search, Sparkles, Zap } from 'lucide-react'
+import {
+  AlertTriangle,
+  ListChecks,
+  PackageCheck,
+  PackageMinus,
+  RotateCcw,
+  Search,
+  Sparkles,
+  Zap,
+} from 'lucide-react'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 import { useDemoToast } from '../_components/DemoFeedbackProvider'
 import {
@@ -61,6 +70,14 @@ export default function DemoSiphonPage() {
     setRawLog('')
     setHasPreview(false)
     showToast(tDemo('toastCleared'))
+  }
+
+  const handleReset = () => {
+    setRawLog(DEMO_SIPHON_IMPORT_SAMPLE)
+    setHasPreview(true)
+    setPlayerFilter('')
+    setLastSavedAt(tDemo('lastImportDemo'))
+    showToast(tDemo('toastReset'))
   }
 
   return (
@@ -135,6 +152,28 @@ export default function DemoSiphonPage() {
             className="inline-flex items-center gap-2 rounded-lg border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-300 transition-colors hover:border-gray-500"
           >
             {t('discard')}
+          </button>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-rose-900/50 bg-rose-950/10 p-4 sm:p-5 space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <AlertTriangle size={18} className="mt-0.5 shrink-0 text-rose-300" />
+            <div className="min-w-0">
+              <h2 className="font-bold text-white">{t('resetTitle')}</h2>
+              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-rose-100/75">
+                {t('resetDescription')}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleReset}
+            className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg bg-rose-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-rose-500 sm:w-auto"
+          >
+            <RotateCcw size={14} />
+            {t('resetButton')}
           </button>
         </div>
       </section>

@@ -19,6 +19,8 @@ import {
   ShoppingBag,
   Database,
   Library,
+  ScrollText,
+  Zap,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { notFound } from 'next/navigation'
@@ -60,7 +62,7 @@ const CATEGORIES: CategoryDef[] = [
     id: 'community',
     icon: <ShoppingBag size={16} className="text-amber-400" />,
     titleKey: 'community',
-    sectionIds: ['shop', 'notifications'],
+    sectionIds: ['shop', 'siphon', 'lootAudit', 'notifications'],
   },
   {
     id: 'data',
@@ -242,6 +244,28 @@ export default async function AdminGuidePage() {
         >
           <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
             {t('shop.body')}
+          </p>
+        </GuideSection>
+
+        <GuideSection
+          icon={<Zap size={18} className="text-amber-400" />}
+          title={t('siphon.title')}
+          href="/admin/dashboard/siphon"
+          linkLabel={t('siphon.cta')}
+        >
+          <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
+            {t('siphon.body')}
+          </p>
+        </GuideSection>
+
+        <GuideSection
+          icon={<ScrollText size={18} className="text-amber-400" />}
+          title={t('lootAudit.title')}
+          href="/admin/dashboard/loot-audit"
+          linkLabel={t('lootAudit.cta')}
+        >
+          <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
+            {t('lootAudit.body')}
           </p>
         </GuideSection>
 

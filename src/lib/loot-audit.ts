@@ -1,5 +1,6 @@
 import { parseChestLog } from '@/lib/shop/parse-chest-log'
 import { resolveKoItem } from '@/lib/shop/resolve-item'
+import { compareStrings } from './sort-strings'
 
 export interface LootLogParseError {
   line: number
@@ -233,7 +234,7 @@ export function parseDepositLog(
   return {
     entries,
     errors: parsed.errors,
-    unresolvedItemNames: [...unresolved].sort((a, b) => a.localeCompare(b)),
+    unresolvedItemNames: [...unresolved].sort(compareStrings),
   }
 }
 
@@ -326,14 +327,14 @@ export function buildLootAuditSummary(
     if (b.missingEstimatedValue !== a.missingEstimatedValue) {
       return b.missingEstimatedValue - a.missingEstimatedValue
     }
-    return a.lootedByName.localeCompare(b.lootedByName) || a.itemId.localeCompare(b.itemId)
+    return compareStrings(a.lootedByName, b.lootedByName) || compareStrings(a.itemId, b.itemId)
   })
 
   const memberSummaries = [...memberSummaryMap.values()].sort((a, b) => {
     if (b.missingEstimatedValue !== a.missingEstimatedValue) {
       return b.missingEstimatedValue - a.missingEstimatedValue
     }
-    return a.lootedByName.localeCompare(b.lootedByName)
+    return compareStrings(a.lootedByName, b.lootedByName)
   })
 
   return {

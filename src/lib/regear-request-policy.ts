@@ -2,6 +2,8 @@ import type { RegearType } from '@/types'
 
 export const MANUAL_REGEAR_MAX_BATCH_ENTRIES = 3
 
+export type ManualRegearPhase = 'type' | 'count' | 'entries'
+
 export function getRemainingDeathClaims(
   activeDeathCount: number,
   maxDeaths: number,
@@ -33,6 +35,14 @@ export function getEntryLimitForRequestType(
 ): number {
   if (requestType === 'overcharge') return 1
   return getDeathBatchEntryLimit(activeDeathCount, maxDeaths)
+}
+
+export function getInitialManualRegearPhase(
+  overchargeEnabled: boolean,
+  deathEntryLimit: number,
+): ManualRegearPhase {
+  if (overchargeEnabled) return 'type'
+  return deathEntryLimit > 1 ? 'count' : 'entries'
 }
 
 export function canOpenManualRegearRequest(input: {

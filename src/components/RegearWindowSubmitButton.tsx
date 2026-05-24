@@ -14,7 +14,9 @@ import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import {
   canOpenManualRegearRequest,
   getDeathBatchEntryLimit,
+  getInitialManualRegearPhase,
   isDeathLimitReached,
+  type ManualRegearPhase,
 } from '@/lib/regear-request-policy'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
@@ -33,8 +35,6 @@ interface Props {
 }
 
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
-
-type Phase = 'type' | 'count' | 'entries'
 
 interface EntryState {
   id: string
@@ -77,8 +77,8 @@ export default function RegearWindowSubmitButton({
   // 한 신청 batch 에서 최대로 입력할 수 있는 데스 수. 제품 batch 한도와
   // 1인당 잔여 데스 한도 중 작은 쪽. 오버차지는 이 한도를 쓰지 않는다.
   const maxEntries = getDeathBatchEntryLimit(existingActiveCount, w.maxDeathsPerMember)
-  const initialPhase: Phase = overchargeEnabled ? 'type' : maxEntries > 1 ? 'count' : 'entries'
-  const [phase, setPhase] = useState<Phase>(initialPhase)
+  const initialPhase = getInitialManualRegearPhase(overchargeEnabled, maxEntries)
+  const [phase, setPhase] = useState<ManualRegearPhase>(initialPhase)
   const [requestType, setRequestType] = useState<RequestType>('death')
   const [entries, setEntries] = useState<EntryState[]>(() =>
     initialPhase === 'entries' ? [newEntry()] : [],

@@ -19,6 +19,8 @@ import {
   ShoppingBag,
   Database,
   Library,
+  ScrollText,
+  Zap,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import DemoCTACard from '../_components/DemoCTACard'
@@ -57,7 +59,7 @@ const CATEGORIES: CategoryDef[] = [
     id: 'community',
     icon: <ShoppingBag size={16} className="text-amber-400" />,
     titleKey: 'community',
-    sectionIds: ['shop', 'notifications'],
+    sectionIds: ['shop', 'siphon', 'lootAudit', 'notifications'],
   },
   {
     id: 'data',
@@ -84,6 +86,8 @@ const DEMO_HREF = {
   settingsPermissions: '/demo/settings?tab=permissions',
   craft: '/demo/craft',
   shop: '/demo/shop',
+  siphon: '/demo/siphon',
+  lootAudit: '/demo/loot-audit',
   battles: '/demo/battles',
   stats: '/demo/stats',
 } as const
@@ -256,6 +260,28 @@ export default async function DemoGuidePage() {
         >
           <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
             {t('shop.body')}
+          </p>
+        </GuideSection>
+
+        <GuideSection
+          icon={<Zap size={18} className="text-amber-400" />}
+          title={t('siphon.title')}
+          href={DEMO_HREF.siphon}
+          linkLabel={t('siphon.cta')}
+        >
+          <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
+            {t('siphon.body')}
+          </p>
+        </GuideSection>
+
+        <GuideSection
+          icon={<ScrollText size={18} className="text-amber-400" />}
+          title={t('lootAudit.title')}
+          href={DEMO_HREF.lootAudit}
+          linkLabel={t('lootAudit.cta')}
+        >
+          <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
+            {t('lootAudit.body')}
           </p>
         </GuideSection>
 

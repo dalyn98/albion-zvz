@@ -137,6 +137,7 @@ export const DOCS_NAV: DocsNavSection[] = [
           { slug: 'admin/global-toggles', itemKey: 'adminGlobalToggles' },
           { slug: 'admin/permissions', itemKey: 'adminPermissions' },
           { slug: 'admin/backup', itemKey: 'adminBackup' },
+          { slug: 'admin/logs', itemKey: 'adminLogs' },
           { slug: 'admin/audit', itemKey: 'adminAudit' },
           { slug: 'admin/in-app-guide', itemKey: 'adminInAppGuide' },
         ],

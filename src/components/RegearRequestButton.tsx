@@ -10,8 +10,10 @@ import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import {
   canOpenManualRegearRequest,
   getDeathBatchEntryLimit,
+  getInitialManualRegearPhase,
   getRemainingDeathClaims,
   isDeathLimitReached,
+  type ManualRegearPhase,
 } from '@/lib/regear-request-policy'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { compressImageIfLarge } from '@/lib/image-compress'
@@ -53,8 +55,6 @@ interface Props {
   overchargeEnabled: boolean
 }
 
-type Phase = 'type' | 'count' | 'entries'
-
 function newEntry(): EntryState {
   return {
     id: typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -93,11 +93,20 @@ export default function RegearRequestButton({
   const tToast = useTranslations('toast')
   const toast = useToast()
   const [open, setOpen] = useState(false)
-  // overcharge 비활성 길드는 종류 선택 phase 자체를 건너뛰고 바로 count.
-  const initialPhase: Phase = overchargeEnabled ? 'type' : 'count'
-  const [phase, setPhase] = useState<Phase>(initialPhase)
+  const ceilingMissing = roleReward <= 0
+  const deathLimitReached = isDeathLimitReached(existingActiveCount, maxDeaths)
+  const remaining = getRemainingDeathClaims(existingActiveCount, maxDeaths)
+  // Cap the choices by both the product limit and whatever deaths the user has
+  // left on this event. Overcharge skips this count entirely.
+  const maxEntries = getDeathBatchEntryLimit(existingActiveCount, maxDeaths)
+  // overcharge 비활성 길드는 종류 선택 phase 자체를 건너뛰고, 1건만 가능하면
+  // 자유 리기어와 동일하게 count picker 도 건너뛰어 바로 입력 폼을 연다.
+  const initialPhase = getInitialManualRegearPhase(overchargeEnabled, maxEntries)
+  const [phase, setPhase] = useState<ManualRegearPhase>(initialPhase)
   const [requestType, setRequestType] = useState<RequestType>('death')
-  const [entries, setEntries] = useState<EntryState[]>([])
+  const [entries, setEntries] = useState<EntryState[]>(() =>
+    initialPhase === 'entries' ? [newEntry()] : [],
+  )
   const [entryErrors, setEntryErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
   // 알비온 닉네임 인증이 필요해 서버가 차단한 경우 true. UI 는 에러 대신
@@ -117,12 +126,6 @@ export default function RegearRequestButton({
   // 위에서부터 첫 빈 슬롯 폴백. ref 라 hover 변경에 리렌더 안 함.
   const hoveredSlotRef = useRef<{ entryId: string; slot: 'primary' | 'secondary' } | null>(null)
 
-  const ceilingMissing = roleReward <= 0
-  const deathLimitReached = isDeathLimitReached(existingActiveCount, maxDeaths)
-  const remaining = getRemainingDeathClaims(existingActiveCount, maxDeaths)
-  // Cap the choices by both the product limit and whatever deaths the user has
-  // left on this event. Overcharge skips this count entirely.
-  const maxEntries = getDeathBatchEntryLimit(existingActiveCount, maxDeaths)
   // Client-side "waiting for killboard" check. Server re-validates; this is
   // just to keep the button from opening a modal that will error on submit.
   const windowOpenMs = new Date(windowOpenAt).getTime()
@@ -155,7 +158,7 @@ export default function RegearRequestButton({
   const resetModal = () => {
     setPhase(initialPhase)
     setRequestType('death')
-    setEntries([])
+    setEntries(initialPhase === 'entries' ? [newEntry()] : [])
     setEntryErrors({})
     setError('')
     setNeedsVerification(false)

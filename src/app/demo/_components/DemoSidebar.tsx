@@ -96,6 +96,7 @@ const ADMIN_NAV: NavItem[] = [
   // 보급/재화
   { href: '/demo/shop', labelKey: 'shopAdmin', icon: ShoppingBag, section: 'adminSupply' },
   { href: '/demo/siphon', labelKey: 'siphonAdmin', icon: Zap, section: 'adminSupply' },
+  { href: '/demo/loot-audit', labelKey: 'lootAudit', icon: ScrollText, section: 'adminSupply' },
   { href: '/demo/craft', labelKey: 'craftAdmin', icon: Hammer, section: 'adminSupply' },
   { href: '/demo/inventory', labelKey: 'inventoryAdmin', icon: Boxes, section: 'adminSupply' },
   // 분석/기록

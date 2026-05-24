@@ -3,6 +3,7 @@ import {
   canOpenManualRegearRequest,
   getDeathBatchEntryLimit,
   getEntryLimitForRequestType,
+  getInitialManualRegearPhase,
   getRemainingDeathClaims,
   isDeathLimitReached,
 } from './regear-request-policy'
@@ -39,5 +40,11 @@ describe('manual regear request policy', () => {
   it('caps death batch choices by remaining deaths and the product batch max', () => {
     expect(getDeathBatchEntryLimit(0, 5)).toBe(3)
     expect(getDeathBatchEntryLimit(2, 3)).toBe(1)
+  })
+
+  it('keeps event and free manual regear flows on the same initial phase policy', () => {
+    expect(getInitialManualRegearPhase(true, 1)).toBe('type')
+    expect(getInitialManualRegearPhase(false, 1)).toBe('entries')
+    expect(getInitialManualRegearPhase(false, 2)).toBe('count')
   })
 })

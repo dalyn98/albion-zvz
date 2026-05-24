@@ -777,6 +777,16 @@
       "cta": "Open shop admin",
       "body": "Members exchange points they earned for gear. Stock syncs by copying and pasting the Albion log into the import form.\n\nThe 'discount rate' converts silver prices into point prices. 100% means silver price equals point price; 50% sells at half price.\n\nWhen item prices diverge sharply from current market or look unusual, an automatic warning appears. Review and adjust those rows manually."
     },
+    "siphon": {
+      "title": "Siphon ledger",
+      "cta": "Open siphon admin",
+      "body": "Paste in-game siphon deposit/withdraw logs to calculate each member's balance. Use Settings → Guild → log operating start to define the official accounting start, and if the ledger gets polluted, reset the raw siphon logs from the siphon admin page before importing again."
+    },
+    "lootAudit": {
+      "title": "Loot log audit",
+      "cta": "Open loot audit",
+      "body": "Compare post-ZvZ personal loot CSVs with guild chest deposit logs to find suspected missing returns. Rows before the log operating start are excluded from the official audit, so guilds with incomplete historical logs should set the start point first and create new audits from there."
+    },
     "notifications": {
       "title": "Discord notifications",
       "cta": "Open notification settings",
@@ -2114,6 +2124,7 @@
     "adminGlobalToggles": "Global toggles",
     "adminPermissions": "Permissions",
     "adminInAppGuide": "In-app ops guide",
+    "adminLogs": "Log operations / loot audit",
     "mobileMenuLabel": "Docs menu",
     "nonKoBannerTitle": "Korean-first docs",
     "nonKoBannerBody": "This page is currently Korean-only. Translations are in progress.",
@@ -5008,7 +5019,14 @@
       "ledgerDescription": "Raw records saved from the in-game siphon deposit and withdrawal log.",
       "toastAnalyzed": "Demo log analyzed.",
       "toastSaved": "Demo save flow completed. Live data was not changed.",
-      "toastCleared": "Paste area cleared."
+      "toastCleared": "Paste area cleared.",
+      "toastReset": "Demo siphon logs were reset to the initial sample."
+    },
+    "lootAudit": {
+      "notice": "Demo — preview how personal loot CSVs are compared with guild chest deposit logs. Buttons are for the demo and do not save data.",
+      "findingsDescription": "Compare who looted each item against what was returned to the guild chest.",
+      "ctaTitle": "Audit loot returns in under five minutes",
+      "ctaDescription": "Paste a personal loot CSV and guild chest log to surface suspected missing returns and estimated value immediately."
     },
     "permissions": {
       "notice": "Demo — role presets, permission toggles, and user overrides react like the real app, but nothing is saved.",

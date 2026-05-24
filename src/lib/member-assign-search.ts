@@ -1,3 +1,5 @@
+import { compareStrings } from './sort-strings'
+
 export interface AssignableMember {
   discordId: string
   username: string
@@ -8,7 +10,7 @@ export interface AssignableMember {
 export type AssignableMemberFilter = 'all' | 'available' | 'assigned'
 
 function normalize(value: string): string {
-  return value.trim().toLocaleLowerCase()
+  return value.trim().toLowerCase()
 }
 
 function matchScore(member: AssignableMember, query: string): number {
@@ -40,6 +42,6 @@ export function filterAssignableMembers(
       if (statusDelta !== 0) return statusDelta
       const scoreDelta = matchScore(a, query) - matchScore(b, query)
       if (scoreDelta !== 0) return scoreDelta
-      return a.username.localeCompare(b.username)
+      return compareStrings(a.username, b.username)
     })
 }
