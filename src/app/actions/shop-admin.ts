@@ -14,6 +14,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { logAdminAction } from '@/lib/admin-audit'
 import { CAP } from '@/lib/permissions'
+import { summarizeLogContinuity } from '@/lib/log-continuity'
 import { syncShopPrices, type PriceSyncSummary } from './shop-inventory'
 
 export interface ImportSummary {
@@ -76,6 +77,11 @@ function dedupeKey(e: {
     e.quality,
     e.quantity,
   ].join('|')
+}
+
+function chestLogLabel(entry: { itemName: string; quantity: number }): string {
+  const sign = entry.quantity > 0 ? '+' : ''
+  return `${entry.itemName} ${sign}${entry.quantity}`
 }
 
 export async function importChestLog(
@@ -163,49 +169,51 @@ export async function importChestLog(
     const newEntries = entries.filter(isNewEntry)
     const duplicatesSkipped = entries.length - newEntries.length
 
-    // 마지막 로그 감지 — DB 전체에서 가장 최신 1행 조회.
+    // 마지막 로그 감지 — DB 전체에서 가장 최신 timestamp 의 모든 행을 조회.
     // 사용자에게 "이 지점까지 저장돼있고, 그 이후 N건이 신규" 를 알려주기 위함.
-    const { data: latestRow } = await db
+    const { data: latestRow, error: latestErr } = await db
       .from('shop_chest_logs')
       .select('logged_at, player, item_name_raw, enchant, quality, quantity')
       .eq('guild_id', guildId)
       .order('logged_at', { ascending: false })
       .limit(1)
       .maybeSingle()
-    let lastKnownLoggedAt: string | null = null
-    let lastKnownLabel: string | null = null
-    let lastKnownInBatch = false
-    let newEntriesAfterLast = newEntries.length
-    let gapFromLastKnownMs: number | null = null
+    if (latestErr) return { ...empty, parseErrors: errors, error: latestErr.message }
+
+    let latestStoredEntries: ChestLogEntry[] = []
     if (latestRow) {
-      lastKnownLoggedAt = latestRow.logged_at as string
-      const qty = latestRow.quantity as number
-      const sign = qty > 0 ? '+' : ''
-      lastKnownLabel = `${latestRow.item_name_raw} ${sign}${qty}`
-      const latestKey = dedupeKey({
-        loggedAt: new Date(lastKnownLoggedAt),
-        player: latestRow.player as string,
-        itemName: latestRow.item_name_raw as string,
-        enchant: latestRow.enchant as number,
-        quality: latestRow.quality as number,
-        quantity: qty,
-      })
-      const batchKeys = new Set(entries.map((e) => dedupeKey(e)))
-      lastKnownInBatch = batchKeys.has(latestKey)
-      const latestMs = new Date(lastKnownLoggedAt).getTime()
-      newEntriesAfterLast = newEntries.filter(
-        (e) => e.loggedAt.getTime() >= latestMs,
-      ).length
-      // gap: DB 가 끝난 지점 ~ 이 배치의 "DB 이후 첫 entry" 까지의 공백.
-      // 배치가 DB 최신 행 자체를 포함하면 gap=0 이 맞고 굳이 계산 안함.
-      if (!lastKnownInBatch) {
-        const afterLatest = newEntries.filter((e) => e.loggedAt.getTime() > latestMs)
-        if (afterLatest.length > 0) {
-          const earliestAfter = Math.min(...afterLatest.map((e) => e.loggedAt.getTime()))
-          gapFromLastKnownMs = earliestAfter - latestMs
-        }
-      }
+      const { data: latestRows, error: latestRowsErr } = await db
+        .from('shop_chest_logs')
+        .select('logged_at, player, item_name_raw, enchant, quality, quantity')
+        .eq('guild_id', guildId)
+        .eq('logged_at', latestRow.logged_at as string)
+        .order('player', { ascending: true })
+        .order('item_name_raw', { ascending: true })
+        .order('quantity', { ascending: true })
+      if (latestRowsErr) return { ...empty, parseErrors: errors, error: latestRowsErr.message }
+      latestStoredEntries = (latestRows ?? []).map((row) => ({
+        loggedAt: new Date(row.logged_at as string),
+        player: row.player as string,
+        itemName: row.item_name_raw as string,
+        enchant: row.enchant as number,
+        quality: row.quality as number,
+        quantity: row.quantity as number,
+      }))
     }
+    const {
+      lastKnownLoggedAt,
+      lastKnownLabel,
+      lastKnownInBatch,
+      newEntriesAfterLast,
+      gapFromLastKnownMs,
+    } = summarizeLogContinuity({
+      allEntries: entries,
+      newEntries,
+      latestStoredEntries,
+      getLoggedAt: (entry) => entry.loggedAt,
+      getKey: dedupeKey,
+      getLabel: chestLogLabel,
+    })
 
     // 집계 (원본 보존 + 재고 델타)
     const rows: AggregateRow[] = newEntries.map((entry) => ({

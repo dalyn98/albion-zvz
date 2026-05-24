@@ -19,6 +19,7 @@ import { CAP } from '@/lib/permissions'
 import { parseChestLog, type ChestLogEntry } from '@/lib/shop/parse-chest-log'
 import { isSiphonItemName } from '@/lib/siphon/siphon-items'
 import { logAdminAction } from '@/lib/admin-audit'
+import { summarizeLogContinuity, type LogContinuityResult } from '@/lib/log-continuity'
 
 // 한 번에 받을 수 있는 원본 entry 수. 5000 은 shop chest_log 와 동일 — 정상적인
 // 인게임 한 번 export 가 이 한도를 넘지 않는다.
@@ -43,6 +44,12 @@ export interface SiphonImportSummary {
   withdrawTotal: number
   // 이 batch 안의 unique player.
   affectedPlayers: number
+  // DB 전체에서 가장 최신 logged_at 행 — 기존 누적 로그와 이어지는지 보여준다.
+  lastKnownLoggedAt: string | null
+  lastKnownLabel: string | null
+  lastKnownInBatch: boolean
+  newEntriesAfterLast: number
+  gapFromLastKnownMs: number | null
   error?: string
 }
 
@@ -83,7 +90,20 @@ function emptySummary(): SiphonImportSummary {
     depositTotal: 0,
     withdrawTotal: 0,
     affectedPlayers: 0,
+    lastKnownLoggedAt: null,
+    lastKnownLabel: null,
+    lastKnownInBatch: false,
+    newEntriesAfterLast: 0,
+    gapFromLastKnownMs: null,
   }
+}
+
+function siphonLabel(entry: {
+  itemName: string
+  quantity: number
+}): string {
+  const sign = entry.quantity > 0 ? '+' : ''
+  return `${entry.itemName} ${sign}${entry.quantity}`
 }
 
 export async function importSiphonLog(
@@ -175,6 +195,48 @@ export async function importSiphonLog(
     const newEntries = validEntries.filter(isNewEntry)
     const duplicatesSkipped = validEntries.length - newEntries.length
 
+    const { data: latestRow, error: latestErr } = await db
+      .from('siphon_ledger')
+      .select('logged_at, player, item_name_raw, enchant, quality, quantity')
+      .eq('guild_id', guildId)
+      .order('logged_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (latestErr) {
+      return { ...emptySummary(), parseErrors: errors, error: latestErr.message }
+    }
+
+    let latestStoredEntries: ChestLogEntry[] = []
+    if (latestRow) {
+      const { data: latestRows, error: latestRowsErr } = await db
+        .from('siphon_ledger')
+        .select('logged_at, player, item_name_raw, enchant, quality, quantity')
+        .eq('guild_id', guildId)
+        .eq('logged_at', latestRow.logged_at as string)
+        .order('player', { ascending: true })
+        .order('item_name_raw', { ascending: true })
+        .order('quantity', { ascending: true })
+      if (latestRowsErr) {
+        return { ...emptySummary(), parseErrors: errors, error: latestRowsErr.message }
+      }
+      latestStoredEntries = (latestRows ?? []).map((row) => ({
+        loggedAt: new Date(row.logged_at as string),
+        player: row.player as string,
+        itemName: row.item_name_raw as string,
+        enchant: row.enchant as number,
+        quality: row.quality as number,
+        quantity: row.quantity as number,
+      }))
+    }
+    const continuity: LogContinuityResult = summarizeLogContinuity({
+      allEntries: validEntries,
+      newEntries,
+      latestStoredEntries,
+      getLoggedAt: (entry) => entry.loggedAt,
+      getKey: dedupeKey,
+      getLabel: siphonLabel,
+    })
+
     let depositTotal = 0
     let withdrawTotal = 0
     const playersInBatch = new Set<string>()
@@ -195,6 +257,7 @@ export async function importSiphonLog(
         depositTotal,
         withdrawTotal,
         affectedPlayers: playersInBatch.size,
+        ...continuity,
       }
     }
 
@@ -244,6 +307,11 @@ export async function importSiphonLog(
         depositTotal,
         withdrawTotal,
         affectedPlayers: playersInBatch.size,
+        lastKnownLoggedAt: continuity.lastKnownLoggedAt,
+        lastKnownLabel: continuity.lastKnownLabel,
+        lastKnownInBatch: continuity.lastKnownInBatch,
+        newEntriesAfterLast: continuity.newEntriesAfterLast,
+        gapFromLastKnownMs: continuity.gapFromLastKnownMs,
       },
     })
 
@@ -257,6 +325,7 @@ export async function importSiphonLog(
       depositTotal,
       withdrawTotal,
       affectedPlayers: playersInBatch.size,
+      ...continuity,
     }
   } catch (e) {
     return { ...emptySummary(), error: e instanceof Error ? e.message : 'Server error' }

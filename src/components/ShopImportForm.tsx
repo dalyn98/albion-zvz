@@ -215,6 +215,13 @@ export default function ShopImportForm({ lastImportAt, isImportStale }: Props) {
           <LastImportBadge iso={lastImportAt} stale={isImportStale} t={t} />
         </div>
 
+        {!lastImportAt && (
+          <div className="flex items-start gap-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-xs text-indigo-100">
+            <Info size={14} className="mt-0.5 shrink-0" />
+            <p className="leading-relaxed">{t('firstImportHint')}</p>
+          </div>
+        )}
+
         <div
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -389,6 +396,7 @@ function StagingStatusCard({ preview, t }: { preview: ImportSummary; t: ImportTr
     newEntriesAfterLast,
     gapFromLastKnownMs,
   } = preview
+  const saveableRows = Math.max(0, preview.parsed - preview.duplicatesSkipped)
 
   // tone 은 최종 본문을 쓸 때 다시 덮어씀. 초기값은 '이전 기록 없음' 케이스 기준.
   let tone: 'ok' | 'warn' | 'danger' | 'info' = 'info'
@@ -411,9 +419,15 @@ function StagingStatusCard({ preview, t }: { preview: ImportSummary; t: ImportTr
       title = t('stagingNoNewTitle')
       body = t('stagingNoNewBody', { when, tail })
     } else if (newEntriesAfterLast === 0 && !lastKnownInBatch) {
-      tone = 'warn'
-      title = t('stagingSkippedTitle')
-      body = t('stagingSkippedBody', { when, tail })
+      if (saveableRows > 0) {
+        tone = 'warn'
+        title = t('stagingBackfillTitle')
+        body = t('stagingBackfillBody', { when, tail, count: saveableRows })
+      } else {
+        tone = 'warn'
+        title = t('stagingSkippedTitle')
+        body = t('stagingSkippedBody', { when, tail })
+      }
     } else if (newEntriesAfterLast > 0 && lastKnownInBatch) {
       tone = 'ok'
       title = t('stagingContinuedTitle')
