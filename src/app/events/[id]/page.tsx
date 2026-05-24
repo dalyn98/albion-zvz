@@ -17,8 +17,9 @@ import { listTentativeSignups } from '@/app/actions/event-tentative'
 import AutoRefresh from '@/components/AutoRefresh'
 import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil, FileText } from 'lucide-react'
 import Link from 'next/link'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
+import { CAP } from '@/lib/permissions'
 import { getAvatarsByDiscordIds, getUsernamesByDiscordIds } from '@/lib/discord-avatar'
 import { formatGatherTimeFor, isEnded } from '@/lib/gather-time'
 import { formatDateTimeShort } from '@/lib/format-datetime'
@@ -281,13 +282,15 @@ export default async function EventDetailPage({
     ? `/guild-login?return=${encodeURIComponent(`/events/${id}`)}`
     : null
 
-  // Edit entry point for non-admin event creators — admins already reach this
-  // via the sidebar's admin nav. Members with the event-creator role only see
-  // the button on events they own (matches `requireEventCreatorForEvent`).
+  // Edit entry point for delegated event managers and event owners.
+  // Plain event creators only see it on events they own; EVENT_MANAGE officers
+  // can manage existing events in the guild.
   const canEdit =
     !!session &&
     (session.isAdmin ||
+      sessionHas(session, CAP.EVENT_MANAGE) ||
       (session.canCreateEvents && !!event.created_by && event.created_by === session.discordId))
+  const canManageTentativeSignups = canEdit
 
   // 게스트 초대 관리도 같은 권한(관리자 or 이벤트 작성자). 서버에서 미리
   // 활성 토큰 목록을 로드해 모달이 즉시 열리도록 prefill.
@@ -523,11 +526,7 @@ export default async function EventDetailPage({
           avatars={avatars}
           currentDiscordId={session?.discordId ?? null}
           isAdmin={session?.isAdmin ?? false}
-          isEventOwner={
-            !!session?.canCreateEvents
-            && !!event.created_by
-            && event.created_by === session.discordId
-          }
+          isEventOwner={canManageTentativeSignups}
           loginHref={loginHref}
           battleStarted={!!event.battle_started_at}
         />

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { SessionPayload } from './session'
+import { CAP } from '@/lib/permissions'
 
 const getSessionMock = vi.fn<() => Promise<SessionPayload | null>>()
 const getSessionGuildIdMock = vi.fn<(s: SessionPayload) => Promise<string | null>>()
@@ -168,6 +169,15 @@ describe('requireEventCreatorForEvent', () => {
     expect(c).toMatchObject(ADMIN_SENTINEL)
   })
 
+  it('EVENT_MANAGE officer can edit an existing event without ownership', async () => {
+    getSessionMock.mockResolvedValue(
+      session({ discordId: 'manager-1', capabilities: CAP.EVENT_MANAGE.toString() }),
+    )
+    nextEventResult = { data: { created_by: 'owner-1' }, error: null }
+    const c = await requireEventCreatorForEvent('evt-1')
+    expect(c).toMatchObject(ADMIN_SENTINEL)
+  })
+
   it('non-owner blocked even with canCreateEvents', async () => {
     getSessionMock.mockResolvedValue(
       session({ canCreateEvents: true, discordId: 'rando' }),
@@ -176,7 +186,16 @@ describe('requireEventCreatorForEvent', () => {
     await expect(requireEventCreatorForEvent('evt-1')).rejects.toThrow(/Unauthorized/)
   })
 
-  it('legacy events with null created_by stay admin-only', async () => {
+  it('EVENT_MANAGE officer can manage legacy events with null created_by', async () => {
+    getSessionMock.mockResolvedValue(
+      session({ discordId: 'manager-1', capabilities: CAP.EVENT_MANAGE.toString() }),
+    )
+    nextEventResult = { data: { created_by: null }, error: null }
+    const c = await requireEventCreatorForEvent('evt-1')
+    expect(c).toMatchObject(ADMIN_SENTINEL)
+  })
+
+  it('legacy events with null created_by stay blocked for plain event creators', async () => {
     getSessionMock.mockResolvedValue(
       session({ canCreateEvents: true, discordId: 'owner-1' }),
     )
@@ -210,6 +229,15 @@ describe('requireEventCreatorOrPartyCaller', () => {
 
   it('event owner gets isAdminOrOwner=true', async () => {
     getSessionMock.mockResolvedValue(session({ discordId: 'owner-1' }))
+    nextEventResult = { data: { created_by: 'owner-1' }, error: null }
+    const r = await requireEventCreatorOrPartyCaller('evt-1', 'p-1')
+    expect(r.isAdminOrOwner).toBe(true)
+  })
+
+  it('EVENT_MANAGE officer gets isAdminOrOwner=true', async () => {
+    getSessionMock.mockResolvedValue(
+      session({ discordId: 'manager-1', capabilities: CAP.EVENT_MANAGE.toString() }),
+    )
     nextEventResult = { data: { created_by: 'owner-1' }, error: null }
     const r = await requireEventCreatorOrPartyCaller('evt-1', 'p-1')
     expect(r.isAdminOrOwner).toBe(true)
@@ -286,6 +314,26 @@ describe('requireEventCreatorForSlot', () => {
     }
     const c = await requireEventCreatorForSlot('slot-1')
     expect(c).toMatchObject(ADMIN_SENTINEL)
+  })
+
+  it('EVENT_MANAGE officer can edit slots without owning the joined event', async () => {
+    getSessionMock.mockResolvedValue(
+      session({ discordId: 'manager-1', capabilities: CAP.EVENT_MANAGE.toString() }),
+    )
+    nextSlotResult = {
+      data: { parties: { events: { created_by: 'owner-1' } } },
+      error: null,
+    }
+    const c = await requireEventCreatorForSlot('slot-1')
+    expect(c).toMatchObject(ADMIN_SENTINEL)
+  })
+
+  it('EVENT_MANAGE officer is still blocked when the slot join is missing', async () => {
+    getSessionMock.mockResolvedValue(
+      session({ discordId: 'manager-1', capabilities: CAP.EVENT_MANAGE.toString() }),
+    )
+    nextSlotResult = { data: null, error: null }
+    await expect(requireEventCreatorForSlot('slot-1')).rejects.toThrow(/Unauthorized/)
   })
 
   it('non-owner of joined event blocked', async () => {

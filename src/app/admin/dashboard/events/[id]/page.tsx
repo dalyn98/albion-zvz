@@ -19,8 +19,9 @@ import TentativeSignupSection from '@/components/TentativeSignupSection'
 import { listTentativeSignups } from '@/app/actions/event-tentative'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
+import { CAP } from '@/lib/permissions'
 import { isEnded } from '@/lib/gather-time'
 import { getTenantTimezone } from '@/lib/timezone-server'
 
@@ -156,6 +157,10 @@ export default async function EditEventPage({
     username: m.username,
   }))
   const avatars = Object.fromEntries(avatarMap)
+  const canManageTentativeSignups =
+    session.isAdmin ||
+    sessionHas(session, CAP.EVENT_MANAGE) ||
+    (!!session.canCreateEvents && !!event.created_by && event.created_by === session.discordId)
 
   return (
     <EventEditSaveProvider>
@@ -179,11 +184,7 @@ export default async function EditEventPage({
             avatars={avatars}
             currentDiscordId={session.discordId}
             isAdmin={session.isAdmin}
-            isEventOwner={
-              !!session.canCreateEvents
-              && !!event.created_by
-              && event.created_by === session.discordId
-            }
+            isEventOwner={canManageTentativeSignups}
             loginHref="/api/auth/discord/start"
             battleStarted={!!event.battle_started_at}
             memberDirectory={tentativeDirectory}

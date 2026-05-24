@@ -2,9 +2,10 @@
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { CAP } from '@/lib/permissions'
 import { SLOT_ROLES, type SlotRole } from '@/types'
 
 export interface TentativeSignupRow {
@@ -118,7 +119,8 @@ export async function removeTentativeSignup(
 
   const isSelf = session.discordId === discordId
   const isEventOwner = !!event.created_by && event.created_by === session.discordId
-  if (!isSelf && !session.isAdmin && !isEventOwner) {
+  const isEventManager = sessionHas(session, CAP.EVENT_MANAGE)
+  if (!isSelf && !session.isAdmin && !isEventManager && !isEventOwner) {
     return { error: tAction('notAuthorized') }
   }
 
@@ -160,7 +162,8 @@ export async function adminUpsertTentativeSignup(
   if (!event) return { error: tAction('eventNotFound') }
 
   const isEventOwner = !!event.created_by && event.created_by === session.discordId
-  if (!session.isAdmin && !isEventOwner) {
+  const isEventManager = sessionHas(session, CAP.EVENT_MANAGE)
+  if (!session.isAdmin && !isEventManager && !isEventOwner) {
     return { error: tAction('notAuthorized') }
   }
 

@@ -2,15 +2,15 @@
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { CAP } from '@/lib/permissions'
 import type { AssignableMember } from '@/lib/member-assign-search'
 
 // Approve / reject sign-ups on a bomb squad party. Authorization passes if the
-// caller is either:
-//   - a verified event creator (admins + event owner), OR
-//   - the party's caller_discord_id (the designated bomb squad sub-caller).
+// caller is an admin, delegated event manager, event owner, or the party's
+// caller_discord_id (the designated bomb squad sub-caller).
 //
 // The RPC trusts its caller — all authorization happens in this action layer,
 // mirroring the regear-admin pattern.
@@ -44,13 +44,14 @@ async function authorizeBombSquadAction(slotId: string): Promise<
   if (!party?.is_bomb_squad) return { ok: false, error: tAction('notBombSquad') }
   if (!event) return { ok: false, error: tAction('slotNotFound') }
 
-  // 관리자·이벤트 소유자·콜러는 전투 시작 후에도 승인/거절/직접 지정이 가능해야
-  // 한다 (admin kick 과 동등). 단, 솔로밤 슬롯은 콜러를 제외 — "콜러 없이
-  // 운영" 가능한 역할이라 승인 권한은 어드민/이벤트 작성자에 한정한다.
+  // 관리자·위임 이벤트 관리자·이벤트 소유자·콜러는 전투 시작 후에도 승인/거절이
+  // 가능해야 한다 (admin kick 과 동등). 단, 솔로밤 슬롯은 콜러를 제외 — "콜러
+  // 없이 운영" 가능한 역할이라 승인 권한은 관리자/이벤트 관리자/작성자에 한정한다.
   const isEventOwner = !!event.created_by && event.created_by === session.discordId
+  const isEventManager = sessionHas(session, CAP.EVENT_MANAGE)
   const isSoloBomb = !!data.is_solo_bomb
   const isCaller = !isSoloBomb && !!party.caller_discord_id && party.caller_discord_id === session.discordId
-  if (!session.isAdmin && !isEventOwner && !isCaller) {
+  if (!session.isAdmin && !isEventManager && !isEventOwner && !isCaller) {
     return { ok: false, error: tAction('bombSquadNotAuthorized') }
   }
   return { ok: true, db, eventId: event.id, guildId }
@@ -89,12 +90,13 @@ async function authorizeDirectAssignAction(slotId: string): Promise<
     !!session.canCreateEvents &&
     !!event.created_by &&
     event.created_by === session.discordId
+  const isEventManager = sessionHas(session, CAP.EVENT_MANAGE)
   const isCaller =
     !data.is_solo_bomb &&
     !!party?.is_bomb_squad &&
     !!party.caller_discord_id &&
     party.caller_discord_id === session.discordId
-  if (!session.isAdmin && !isEventOwner && !isCaller) {
+  if (!session.isAdmin && !isEventManager && !isEventOwner && !isCaller) {
     return { ok: false, error: tAction('slotAssignNotAuthorized') }
   }
   return { ok: true, db, eventId: event.id, guildId }
@@ -136,8 +138,8 @@ export async function rejectSlotRequest(slotId: string): Promise<{ error?: strin
 }
 
 // Caller 가 본인 파티의 빈 슬롯에 멤버를 직접 "지정" 한다. 신청 → 승인 플로우를
-// 우회하므로 권한은 authorizeBombSquadAction 과 동일 (관리자 / 이벤트 소유자 /
-// 파티 콜러). RPC 가 is_bomb_squad + 빈 슬롯 + cross-party 중복 체크까지 한다.
+// 우회하므로 권한은 관리자 / 위임 이벤트 관리자 / 이벤트 소유자 / 파티 콜러로
+// 제한한다. RPC 가 is_bomb_squad + 빈 슬롯 + cross-party 중복 체크까지 한다.
 export async function directAssignMember(
   slotId: string,
   memberDiscordId: string,
@@ -182,7 +184,7 @@ export async function directAssignMember(
 
 // 콜러 지정 모달이 쓰는 멤버 목록. 현재 이벤트에 이미 속한 멤버에는
 // `alreadyInEvent=true` 플래그를 붙여 모달에서 비활성화 표시한다.
-// 권한: 관리자 / 이벤트 소유자 / 이 이벤트 내 "어떤 파티" 콜러.
+// 권한: 관리자 / 위임 이벤트 관리자 / 이벤트 소유자 / 이 이벤트 내 "어떤 파티" 콜러.
 export async function listAssignableMembers(
   eventId: string,
 ): Promise<{
@@ -207,9 +209,10 @@ export async function listAssignableMembers(
     !!session.canCreateEvents &&
     !!eventRow.created_by &&
     eventRow.created_by === session.discordId
+  const isEventManager = sessionHas(session, CAP.EVENT_MANAGE)
   const parties = (eventRow.parties ?? []) as { caller_discord_id: string | null }[]
   const isAnyCaller = parties.some((p) => p.caller_discord_id === session.discordId)
-  if (!session.isAdmin && !isOwner && !isAnyCaller) {
+  if (!session.isAdmin && !isEventManager && !isOwner && !isAnyCaller) {
     return { error: tAction('slotAssignNotAuthorized') }
   }
 

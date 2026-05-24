@@ -1,6 +1,7 @@
 import { getSession, sessionHas, sessionHasAny } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSessionGuildId } from '@/lib/tenant'
+import { CAP } from '@/lib/permissions'
 
 // Server-action gate: throws if the caller is not a verified guild admin,
 // otherwise returns the service-role client. Use at the top of every admin
@@ -39,15 +40,17 @@ export async function requireEventCreator() {
 }
 
 // Stricter gate for actions that mutate a specific event (update, delete,
-// party/slot edits, battle recording, etc.). Admins pass unconditionally;
-// non-admin event creators only pass when they own the event (events.created_by
-// matches their Discord ID). Legacy events with a null created_by remain
-// admin-only since we can't retroactively attribute ownership.
+// party/slot edits, battle recording, etc.). Admins and EVENT_MANAGE officers
+// pass for existing events in their guild; non-admin event creators only pass
+// when they own the event (events.created_by matches their Discord ID).
+// Legacy events with a null created_by remain blocked for plain event creators
+// since we can't retroactively attribute ownership.
 export async function requireEventCreatorForEvent(eventId: string) {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   if (session.isAdmin) return getAdminClient()
-  if (!session.canCreateEvents) throw new Error('Unauthorized')
+  const canManageAnyEvent = sessionHas(session, CAP.EVENT_MANAGE)
+  if (!session.canCreateEvents && !canManageAnyEvent) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
   const { data, error } = await db
@@ -58,6 +61,7 @@ export async function requireEventCreatorForEvent(eventId: string) {
     .maybeSingle()
   if (error) throw new Error(error.message)
   if (!data) throw new Error('Event not found')
+  if (canManageAnyEvent) return db
   if (data.created_by !== session.discordId) throw new Error('Unauthorized')
   return db
 }
@@ -85,7 +89,10 @@ export async function requireEventCreatorOrPartyCaller(
     .maybeSingle()
   if (eventError) throw new Error(eventError.message)
   if (!event) throw new Error('Event not found')
-  if (event.created_by && event.created_by === session.discordId) {
+  if (
+    sessionHas(session, CAP.EVENT_MANAGE) ||
+    (event.created_by && event.created_by === session.discordId)
+  ) {
     return { db, isAdminOrOwner: true }
   }
 
@@ -113,7 +120,8 @@ export async function requireEventCreatorForSlot(slotId: string) {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   if (session.isAdmin) return getAdminClient()
-  if (!session.canCreateEvents) throw new Error('Unauthorized')
+  const canManageAnyEvent = sessionHas(session, CAP.EVENT_MANAGE)
+  if (!session.canCreateEvents && !canManageAnyEvent) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
   const { data, error } = await db
@@ -127,7 +135,9 @@ export async function requireEventCreatorForSlot(slotId: string) {
   // arrives as array or single.
   const party = Array.isArray(data?.parties) ? data?.parties[0] : data?.parties
   const event = Array.isArray(party?.events) ? party?.events[0] : party?.events
+  if (!event) throw new Error('Unauthorized')
   const createdBy = event?.created_by ?? null
+  if (canManageAnyEvent) return db
   if (!createdBy) throw new Error('Unauthorized')
   if (createdBy !== session.discordId) throw new Error('Unauthorized')
   return db
