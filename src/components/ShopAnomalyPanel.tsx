@@ -1,8 +1,9 @@
 import { AlertTriangle } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireAnyCapability } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { CAP } from '@/lib/permissions'
 import { formatRelativeCoarse } from '@/lib/relative-time'
 import { getLocale } from '@/lib/locale'
 import { getLocalizedItemName } from '@/lib/item-names'
@@ -18,6 +19,12 @@ import { getLocalizedItemName } from '@/lib/item-names'
 
 const STALE_DAYS = 30
 const MAX_LIST = 20
+const SHOP_ANOMALY_VIEW_CAPS = [
+  CAP.INVENTORY_MANAGE,
+  CAP.INVENTORY_DELIVER,
+  CAP.SHOP_PRICING,
+  CAP.CHEST_LOG_PASTE,
+] as const
 
 interface AnomalyRow {
   uniqueName: string
@@ -31,7 +38,7 @@ interface AnomalyRow {
 type AnomalyTranslator = Awaited<ReturnType<typeof getTranslations<'adminShopAnomaly'>>>
 
 export default async function ShopAnomalyPanel() {
-  const db = await requireAdmin()
+  const db = await requireAnyCapability(SHOP_ANOMALY_VIEW_CAPS)
   const session = await getSession()
   if (!session) return null
   const guildId = await getSessionGuildId(session)

@@ -1,16 +1,18 @@
 import Link from 'next/link'
 import { ArrowLeft, Shield } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireAnyCapability } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { CAP } from '@/lib/permissions'
 import ShopBaselineForm from '@/components/ShopBaselineForm'
 import { formatDateTime } from '@/lib/format-datetime'
 
 export const dynamic = 'force-dynamic'
+const SHOP_BASELINE_PAGE_CAPS = [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
 
 export default async function ShopBaselinePage() {
-  const db = await requireAdmin()
+  const db = await requireAnyCapability(SHOP_BASELINE_PAGE_CAPS)
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)

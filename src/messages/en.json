@@ -780,12 +780,12 @@
     "siphon": {
       "title": "Siphon ledger",
       "cta": "Open siphon admin",
-      "body": "Paste in-game siphon deposit/withdraw logs to calculate each member's balance. Use Settings → Guild → log operating start to define the official accounting start, and if the ledger gets polluted, reset the raw siphon logs from the siphon admin page before importing again."
+      "body": "Paste in-game siphon deposit/withdraw logs to calculate each member's balance. Set the official accounting start on the siphon admin page (or Settings → Guild), and if the ledger gets polluted, reset the raw siphon logs from the same page before importing again."
     },
     "lootAudit": {
       "title": "Loot log audit",
       "cta": "Open loot audit",
-      "body": "Compare post-ZvZ personal loot CSVs with guild chest deposit logs to find suspected missing returns. Rows before the log operating start are excluded from the official audit, so guilds with incomplete historical logs should set the start point first and create new audits from there."
+      "body": "Compare post-ZvZ personal loot CSVs with guild chest deposit logs to find suspected missing returns. Rows before the loot-audit operating start are excluded from the official audit, so guilds with incomplete historical logs should set the start point on the loot audit page before creating new audits."
     },
     "notifications": {
       "title": "Discord notifications",
@@ -5027,7 +5027,7 @@
       "toastAnalyzed": "Demo log analyzed.",
       "toastSaved": "Demo save flow completed. Live data was not changed.",
       "toastCleared": "Paste area cleared.",
-      "toastReset": "Demo siphon logs were reset to the initial sample."
+      "toastReset": "Demo raw siphon logs and balances were reset."
     },
     "lootAudit": {
       "notice": "Demo — preview how personal loot CSVs are compared with guild chest deposit logs. Buttons are for the demo and do not save data.",
@@ -5200,10 +5200,12 @@
           "introBody": "An admin view for pasting in-game siphon deposit and withdrawal logs and tracking each member's Siphoned Energy balance.",
           "step1Title": "Paste logs",
           "step1Body": "Paste the date/player/purpose/quantity log copied from the game. The app calculates deposits and withdrawals.",
-          "step2Title": "Member balances",
-          "step2Body": "See who deposited and who used siphons, with positive and negative balances.",
-          "step3Title": "Raw ledger",
-          "step3Body": "When questions come up, trace the original time, player, quantity, and importing officer.",
+          "step2Title": "Reset raw logs",
+          "step2Body": "If a wrong file was saved or old logs were mixed in, delete only this guild's raw siphon logs and import again from the same start point.",
+          "step3Title": "Member balances",
+          "step3Body": "See who deposited and who used siphons, with positive and negative balances.",
+          "step4Title": "Raw ledger",
+          "step4Body": "When questions come up, trace the original time, player, quantity, and importing officer.",
           "completedBody": "Admins manage the full ledger; members check only their own siphon balance."
         },
         "permissions": {

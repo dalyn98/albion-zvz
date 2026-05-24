@@ -1,10 +1,11 @@
 import Link from 'next/link'
 import { Shield, ShoppingBag, Info } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireAnyCapability } from '@/lib/auth'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { CAP } from '@/lib/permissions'
 import ShopImportForm from '@/components/ShopImportForm'
 import ShopBlacklistEditor from '@/components/ShopBlacklistEditor'
 import ShopSilverRateForm from '@/components/ShopSilverRateForm'
@@ -23,9 +24,15 @@ export const dynamic = 'force-dynamic'
 
 type AodpPriceMode = 'spot' | 'avg_1d' | 'avg_3d' | 'avg_7d' | 'avg_14d'
 type AodpQuality = 1 | 2 | 3 | 4 | 5
+const SHOP_PAGE_CAPS = [
+  CAP.INVENTORY_MANAGE,
+  CAP.INVENTORY_DELIVER,
+  CAP.SHOP_PRICING,
+  CAP.CHEST_LOG_PASTE,
+] as const
 
 export default async function AdminShopPage() {
-  const db = await requireAdmin()
+  const db = await requireAnyCapability(SHOP_PAGE_CAPS)
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)

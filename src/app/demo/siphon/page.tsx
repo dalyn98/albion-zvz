@@ -22,9 +22,11 @@ import {
   type DemoSiphonLedgerRow,
 } from '@/data/demo-seed'
 import { parseSiphonLog } from '@/lib/siphon/parse-siphon-log'
+import { useConfirm } from '@/components/ConfirmDialog'
 
 const SIPHON_TOUR_STEPS = [
   { id: 'siphon-import' },
+  { id: 'siphon-reset' },
   { id: 'siphon-balances' },
   { id: 'siphon-ledger' },
 ] as const
@@ -33,28 +35,34 @@ export default function DemoSiphonPage() {
   const t = useTranslations('adminSiphonPage')
   const tDemo = useTranslations('demo.siphon')
   const { showToast } = useDemoToast()
+  const askConfirm = useConfirm()
   const [rawLog, setRawLog] = useState(DEMO_SIPHON_IMPORT_SAMPLE)
   const [hasPreview, setHasPreview] = useState(true)
   const [playerFilter, setPlayerFilter] = useState('')
   const [lastSavedAt, setLastSavedAt] = useState(tDemo('lastImportDemo'))
+  const [ledgerSource, setLedgerSource] =
+    useState<readonly DemoSiphonLedgerRow[]>(DEMO_SIPHON_LEDGER)
+  const [balanceSource, setBalanceSource] =
+    useState<readonly DemoSiphonBalance[]>(DEMO_SIPHON_BALANCES)
 
   const normalizedFilter = playerFilter.trim().toLowerCase()
   const balances = useMemo(
     () =>
-      DEMO_SIPHON_BALANCES.filter((balance) =>
+      balanceSource.filter((balance) =>
         balance.player.toLowerCase().includes(normalizedFilter),
       ),
-    [normalizedFilter],
+    [balanceSource, normalizedFilter],
   )
   const ledgerRows = useMemo(
     () =>
-      DEMO_SIPHON_LEDGER.filter((row) =>
+      ledgerSource.filter((row) =>
         row.player.toLowerCase().includes(normalizedFilter),
       ),
-    [normalizedFilter],
+    [ledgerSource, normalizedFilter],
   )
 
   const preview = useMemo(() => parsePreview(rawLog), [rawLog])
+  const canSave = hasPreview && preview.siphonRows > 0
 
   const handleAnalyze = () => {
     setHasPreview(true)
@@ -62,6 +70,9 @@ export default function DemoSiphonPage() {
   }
 
   const handleSave = () => {
+    if (!canSave) return
+    setLedgerSource(DEMO_SIPHON_LEDGER)
+    setBalanceSource(DEMO_SIPHON_BALANCES)
     setLastSavedAt(tDemo('lastImportJustNow'))
     showToast(tDemo('toastSaved'))
   }
@@ -72,11 +83,19 @@ export default function DemoSiphonPage() {
     showToast(tDemo('toastCleared'))
   }
 
-  const handleReset = () => {
-    setRawLog(DEMO_SIPHON_IMPORT_SAMPLE)
-    setHasPreview(true)
+  const handleReset = async () => {
+    const ok = await askConfirm({
+      body: t('resetConfirm'),
+      destructive: true,
+    })
+    if (!ok) return
+
+    setRawLog('')
+    setHasPreview(false)
     setPlayerFilter('')
-    setLastSavedAt(tDemo('lastImportDemo'))
+    setLedgerSource([])
+    setBalanceSource([])
+    setLastSavedAt(tDemo('lastImportJustNow'))
     showToast(tDemo('toastReset'))
   }
 
@@ -142,7 +161,8 @@ export default function DemoSiphonPage() {
           <button
             type="button"
             onClick={handleSave}
-            className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-200 transition-colors hover:bg-emerald-500/20"
+            disabled={!canSave}
+            className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-200 transition-colors hover:bg-emerald-500/20 disabled:border-gray-800 disabled:bg-gray-900 disabled:text-gray-600"
           >
             {t('saveButtonWithCount', { items: preview.siphonRows })}
           </button>
@@ -156,7 +176,10 @@ export default function DemoSiphonPage() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-rose-900/50 bg-rose-950/10 p-4 sm:p-5 space-y-3">
+      <section
+        data-tour-id="siphon-reset"
+        className="rounded-xl border border-rose-900/50 bg-rose-950/10 p-4 sm:p-5 space-y-3"
+      >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             <AlertTriangle size={18} className="mt-0.5 shrink-0 text-rose-300" />
@@ -206,9 +229,17 @@ export default function DemoSiphonPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
-              {balances.map((balance) => (
-                <BalanceRow key={balance.player} balance={balance} />
-              ))}
+              {balances.length > 0 ? (
+                balances.map((balance) => (
+                  <BalanceRow key={balance.player} balance={balance} />
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-3 py-8 text-center text-sm text-gray-500">
+                    {t('balanceEmpty')}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -230,9 +261,15 @@ export default function DemoSiphonPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
-              {ledgerRows.map((row) => (
-                <LedgerRow key={row.id} row={row} />
-              ))}
+              {ledgerRows.length > 0 ? (
+                ledgerRows.map((row) => <LedgerRow key={row.id} row={row} />)
+              ) : (
+                <tr>
+                  <td colSpan={4} className="px-3 py-8 text-center text-sm text-gray-500">
+                    {t('logEmpty')}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
