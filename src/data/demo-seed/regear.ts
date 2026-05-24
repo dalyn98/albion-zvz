@@ -4,6 +4,7 @@ import type { DemoTimeLabel } from './shared'
 
 export type DemoRegearStatus = 'pending' | 'approved' | 'rejected'
 export type DemoRegearOrigin = 'auto' | 'manual'
+export type DemoRegearType = 'death' | 'overcharge'
 export type DemoRegearSlot = 'head' | 'armor' | 'shoes' | 'weapon' | 'offhand' | 'cape'
 
 export type DemoRegearPiece = {
@@ -21,6 +22,7 @@ export type DemoRegearListItem = {
   killerWeapon: string
   status: DemoRegearStatus
   origin: DemoRegearOrigin
+  requestType?: DemoRegearType
   totalSilver: number
   // 추가: 승인 시 처리자 / 상한 대비 청구 비율 등.
   handledBy?: string
@@ -67,6 +69,19 @@ export const DEMO_REGEAR_LIST: DemoRegearListItem[] = [
     origin: 'manual',
     totalSilver: 318_000,
     capSilver: 380_000,
+  },
+  {
+    id: 'rg-8',
+    victim: 'Eternia',
+    battleLabel: 'Black Zone — Mercia',
+    diedAt: { day: 'today', time: '12:16' },
+    killerName: 'Overcharge',
+    killerWeapon: 'Guild call',
+    status: 'pending',
+    origin: 'manual',
+    requestType: 'overcharge',
+    totalSilver: 148_000,
+    capSilver: 600_000,
   },
   {
     id: 'rg-3',

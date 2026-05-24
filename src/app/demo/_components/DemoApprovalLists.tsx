@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
-  Check, X, ShieldCheck, ChevronDown, ChevronUp, Users,
+  Check, X, ShieldAlert, ShieldCheck, ChevronDown, ChevronUp, Users,
 } from 'lucide-react'
 import SearchBox from '@/components/SearchBox'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
@@ -95,6 +95,11 @@ export function DemoRegearReviewList({ requests }: { requests: DemoRegearListIte
                           {t('originManual')}
                         </span>
                       )}
+                      {r.requestType === 'overcharge' && (
+                        <span className="inline-flex items-center gap-1 bg-orange-500 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded">
+                          {t('requestTypeOverchargeBadge')}
+                        </span>
+                      )}
                       <span className="text-gray-400 text-xs truncate">· {r.battleLabel}</span>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap text-xs text-gray-400">
@@ -115,12 +120,20 @@ export function DemoRegearReviewList({ requests }: { requests: DemoRegearListIte
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="flex items-center gap-1 text-green-400 text-xs">
-                    <ShieldCheck size={13} /> {t('killboardVerified')}
-                  </span>
-                  <span className="text-[11px] text-gray-500">
-                    · {r.killerName} <span className="text-gray-600">({r.killerWeapon})</span>
-                  </span>
+                  {r.requestType === 'overcharge' ? (
+                    <span className="flex items-center gap-1 text-orange-300 text-xs">
+                      <ShieldAlert size={13} /> {t('overchargeNoKillboard')}
+                    </span>
+                  ) : (
+                    <>
+                      <span className="flex items-center gap-1 text-green-400 text-xs">
+                        <ShieldCheck size={13} /> {t('killboardVerified')}
+                      </span>
+                      <span className="text-[11px] text-gray-500">
+                        · {r.killerName} <span className="text-gray-600">({r.killerWeapon})</span>
+                      </span>
+                    </>
+                  )}
                 </div>
 
                 {effectiveStatus === 'pending' && (

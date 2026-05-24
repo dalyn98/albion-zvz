@@ -169,6 +169,11 @@ export default function MyManualRegearEditor({ detail }: Props) {
         <h1 className="text-lg font-bold text-white">{detail.eventTitle}</h1>
         <div className="flex items-center flex-wrap gap-2 text-xs text-gray-400">
           <span className="bg-gray-800 px-2 py-0.5 rounded">{detail.roleName}</span>
+          {detail.requestType === 'overcharge' && (
+            <span className="rounded bg-orange-500 px-2 py-0.5 font-extrabold uppercase tracking-wide text-black">
+              {t('overchargeBadge')}
+            </span>
+          )}
           <span
             className={`px-2 py-0.5 rounded font-semibold ${
               detail.status === 'pending'
@@ -187,8 +192,15 @@ export default function MyManualRegearEditor({ detail }: Props) {
         <div>
           <h2 className="text-sm font-semibold text-white">{t('manualEditTitle')}</h2>
           <p className="text-xs text-gray-500 leading-relaxed mt-1">
-            {t('manualEditDescription', { cap: formatSilver(detail.roleCap) })}
+            {detail.requestType === 'overcharge'
+              ? t('overchargeEditDescription', { cap: formatSilver(detail.roleCap) })
+              : t('manualEditDescription', { cap: formatSilver(detail.roleCap) })}
           </p>
+          {detail.requestType === 'overcharge' && (
+            <p className="mt-2 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-xs leading-relaxed text-orange-200">
+              {t('overchargeNoKillboard')}
+            </p>
+          )}
         </div>
 
         <div className="space-y-1">

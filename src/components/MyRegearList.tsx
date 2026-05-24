@@ -6,6 +6,7 @@ import { formatSilver } from '@/lib/silver'
 import { formatDateTime } from '@/lib/format-datetime'
 import { regearPayoutSilver } from '@/types'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import { shouldShowKillboardUnverified } from '@/lib/regear-display'
 import RegearRequestCancelButton from './RegearRequestCancelButton'
 
 const STATUS_CLASS: Record<string, string> = {
@@ -55,7 +56,14 @@ export default async function MyRegearList({
           className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 space-y-1"
         >
           <div className="flex items-center justify-between gap-2">
-            <p className="text-white text-sm font-medium truncate">{r.event_title}</p>
+            <div className="min-w-0 flex items-center gap-2">
+              <p className="text-white text-sm font-medium truncate">{r.event_title}</p>
+              {r.request_type === 'overcharge' && (
+                <span className="shrink-0 rounded bg-orange-500 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-black">
+                  {tMe('regearOverchargeBadge')}
+                </span>
+              )}
+            </div>
             <span className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS[r.status]}`}>
               {tStatus(r.status)}
             </span>
@@ -66,7 +74,14 @@ export default async function MyRegearList({
               {tMe('claimed')} {formatSilver(regearPayoutSilver(r))}
               <span className="text-gray-500"> / {tMe('ceiling')} {formatSilver(r.silver)}</span>
             </span>
-            {!r.killboard_verified && r.status === 'pending' && (
+            {r.request_type === 'overcharge' && (
+              <span className="text-orange-300">{tMe('regearOverchargeNoKillboard')}</span>
+            )}
+            {shouldShowKillboardUnverified({
+              requestType: r.request_type,
+              killboardVerified: r.killboard_verified,
+              status: r.status,
+            }) && (
               <span className="text-yellow-400">{tMe('killboardUnverified')}</span>
             )}
           </div>

@@ -101,14 +101,27 @@ export default async function DemoMyRequestsPage() {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-white">{request.battleLabel}</p>
                   <p className="mt-1 text-xs text-gray-500">
-                    {formatTimeLabel(tDemo, request.diedAt)}
-                    <span className="mx-1">·</span>
-                    {request.killerName}
+                    {request.requestType === 'overcharge'
+                      ? tMe('regearOverchargeNoKillboard')
+                      : (
+                          <>
+                            {formatTimeLabel(tDemo, request.diedAt)}
+                            <span className="mx-1">·</span>
+                            {request.killerName}
+                          </>
+                        )}
                   </p>
                 </div>
                 <StatusPill status={request.status} label={tStatus(request.status)} />
               </div>
-              <p className="mt-2 text-sm font-mono text-amber-200">{formatSilver(request.totalSilver)}</p>
+              <div className="mt-2 flex items-center gap-2">
+                <p className="text-sm font-mono text-amber-200">{formatSilver(request.totalSilver)}</p>
+                {request.requestType === 'overcharge' && (
+                  <span className="rounded bg-orange-500 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-black">
+                    {tMe('regearOverchargeBadge')}
+                  </span>
+                )}
+              </div>
             </li>
           ))}
         </ul>
