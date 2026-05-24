@@ -1882,8 +1882,24 @@
     "statusChipPoints": "{points}",
     "statusChipPending": "保留 {count}件",
     "statusChipNoPending": "新しい通知なし",
-    "statusChipAria": "{name}、ポイント {points}、{pending}",
-    "statusChipAriaGuest": "{name}、{pending}"
+    "statusChipCheckCount": "確認 {count}件",
+    "statusChipNoCheck": "確認事項なし",
+    "statusChipSiphonCount": "{count}個",
+    "statusChipSiphonUnverified": "認証が必要",
+    "statusChipUnavailable": "確認不可",
+    "statusChipAria": "マイページを開く、{name}、ポイント {points}、{pending}",
+    "statusChipAriaGuest": "マイページを開く、{name}、{pending}",
+    "statusPopoverTitle": "マイ情報サマリー",
+    "statusPopoverEyebrow": "マイページ",
+    "statusPopoverDescription": "ポイント、サイフォン、今確認すべき項目をすばやく確認します。",
+    "statusPopoverPoints": "ポイント残高",
+    "statusPopoverSiphon": "サイフォン残量",
+    "statusPopoverChecks": "今確認すること",
+    "statusPopoverNoChecks": "保留申請や必須確認はありません",
+    "statusPopoverCheckBreakdown": "リギア {regear} · 交換 {exchange} · 寄付 {donation}",
+    "statusPopoverOpenMe": "マイページ全体を見る",
+    "statusPopoverOpenRequests": "申請履歴",
+    "statusPopoverOpenSiphon": "サイフォン履歴"
   },
   "home": {
     "title": "戦闘スケジュール",
@@ -5522,8 +5538,8 @@
         "body": "ポイント残高、サイフォン残量、今確認すべき項目を上部ですぐ確認できます。"
       },
       "statusChip": {
-        "title": "上部サマリーは近道です",
-        "body": "ニックネーム、ポイント残高、未処理通知を短く表示します。クリックするとマイ情報や申請履歴へ移動できます。"
+        "title": "上部のマイページチップは近道です",
+        "body": "チップを開くと、ポイント残高、サイフォン残量、今確認すべき項目を先に見てから詳細ページへ移動できます。"
       },
       "regear": {
         "title": "リギア申請はここで行います",

@@ -1882,8 +1882,24 @@
     "statusChipPoints": "{points}",
     "statusChipPending": "待处理 {count} 项",
     "statusChipNoPending": "暂无新提醒",
-    "statusChipAria": "{name}, 积分 {points}, {pending}",
-    "statusChipAriaGuest": "{name}, {pending}"
+    "statusChipCheckCount": "待看 {count} 项",
+    "statusChipNoCheck": "无需查看",
+    "statusChipSiphonCount": "{count} 个",
+    "statusChipSiphonUnverified": "需要认证",
+    "statusChipUnavailable": "无法查看",
+    "statusChipAria": "打开我的页面, {name}, 积分 {points}, {pending}",
+    "statusChipAriaGuest": "打开我的页面, {name}, {pending}",
+    "statusPopoverTitle": "我的信息摘要",
+    "statusPopoverEyebrow": "我的页面",
+    "statusPopoverDescription": "快速查看积分、虹吸余额和当前待确认事项。",
+    "statusPopoverPoints": "积分余额",
+    "statusPopoverSiphon": "虹吸余额",
+    "statusPopoverChecks": "当前待确认",
+    "statusPopoverNoChecks": "没有待处理申请或必需确认",
+    "statusPopoverCheckBreakdown": "补装 {regear} · 兑换 {exchange} · 捐赠 {donation}",
+    "statusPopoverOpenMe": "查看完整我的页面",
+    "statusPopoverOpenRequests": "申请记录",
+    "statusPopoverOpenSiphon": "虹吸记录"
   },
   "home": {
     "title": "战斗日程",
@@ -5522,8 +5538,8 @@
         "body": "积分余额、虹吸余额和当前需要确认的事项会显示在页面顶部。"
       },
       "statusChip": {
-        "title": "顶部摘要是快速入口",
-        "body": "这里会简短显示昵称、积分余额和待处理提醒。点击后可直接进入我的信息或申请记录。"
+        "title": "顶部我的页面标签是快速入口",
+        "body": "打开标签后可先预览积分余额、虹吸余额和当前待确认事项，再进入完整页面。"
       },
       "regear": {
         "title": "补装申请在这里提交",

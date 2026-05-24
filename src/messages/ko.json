@@ -1882,8 +1882,24 @@
     "statusChipPoints": "{points}",
     "statusChipPending": "대기 {count}건",
     "statusChipNoPending": "새 알림 없음",
-    "statusChipAria": "{name}, 포인트 {points}, {pending}",
-    "statusChipAriaGuest": "{name}, {pending}"
+    "statusChipCheckCount": "확인 {count}건",
+    "statusChipNoCheck": "확인할 것 없음",
+    "statusChipSiphonCount": "{count}개",
+    "statusChipSiphonUnverified": "인증 필요",
+    "statusChipUnavailable": "확인 불가",
+    "statusChipAria": "내 정보 열기, {name}, 포인트 {points}, {pending}",
+    "statusChipAriaGuest": "내 정보 열기, {name}, {pending}",
+    "statusPopoverTitle": "내 정보 요약",
+    "statusPopoverEyebrow": "내 정보",
+    "statusPopoverDescription": "포인트, 사이펀, 지금 확인할 것을 빠르게 봅니다.",
+    "statusPopoverPoints": "포인트 잔액",
+    "statusPopoverSiphon": "사이펀 잔량",
+    "statusPopoverChecks": "지금 확인할 것",
+    "statusPopoverNoChecks": "대기 신청이나 필수 확인 없음",
+    "statusPopoverCheckBreakdown": "리기어 {regear} · 환전 {exchange} · 기부 {donation}",
+    "statusPopoverOpenMe": "내정보 전체 보기",
+    "statusPopoverOpenRequests": "신청 내역",
+    "statusPopoverOpenSiphon": "사이펀 내역"
   },
   "home": {
     "title": "전투 일정",
@@ -5522,8 +5538,8 @@
         "body": "포인트 잔액, 사이펀 잔량, 지금 확인할 일을 첫 화면에서 바로 볼 수 있습니다."
       },
       "statusChip": {
-        "title": "상단 요약은 빠른 진입점입니다",
-        "body": "닉네임, 포인트 잔액, 처리 대기 알림을 항상 짧게 보여줍니다. 누르면 내 정보나 신청 내역으로 바로 이동합니다."
+        "title": "상단 내정보 칩은 빠른 진입점입니다",
+        "body": "내정보 칩에서 포인트 잔액, 사이펀 잔량, 지금 확인할 것을 팝오버로 먼저 보고 전체 페이지로 이동합니다."
       },
       "regear": {
         "title": "리기어 신청은 여기서 합니다",

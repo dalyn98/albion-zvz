@@ -12,13 +12,17 @@ import { getMarketingPaths } from '@/lib/marketing-paths'
 import { canAccessAnyOfficerAdminRoute } from '@/lib/admin-route-access'
 import { CAP } from '@/lib/permissions'
 import AppSidebar from './AppSidebar'
-import UserStatusChip, { type UserStatusSummary } from './UserStatusChip'
+import UserStatusChip, {
+  type UserStatusSiphonState,
+  type UserStatusSummary,
+} from './UserStatusChip'
 import MemberGuidedTour from './MemberGuidedTour'
 
 // 어떤 tenant 에도 매칭되지 않을 때 표시되는 generic 브랜드명. 과거에 'Menhera'
 // 로 하드코딩돼 있었으나 multi-tenant SaaS 가 되면서 다른 길드에 멘헤라 라벨이
 // 노출되는 문제 → 제품명으로 대체.
 const DEFAULT_BRAND_NAME = 'Albion ZvZ'
+const SIPHON_PAGE_SIZE = 1000
 
 export default async function AppShell({ children }: { children: React.ReactNode }) {
   const session = await getSession()
@@ -179,6 +183,11 @@ async function loadUserStatusSummary(
       displayName: session.username,
       balance: null,
       pendingCount: 0,
+      pendingRegearCount: 0,
+      pendingExchangeCount: 0,
+      pendingDonationCount: 0,
+      siphonBalance: null,
+      siphonState: 'unavailable',
     }
   }
 
@@ -186,7 +195,7 @@ async function loadUserStatusSummary(
   const [avatarRes, ledgerRes, regearRes, exchangeRes, donationRes] = await Promise.all([
     db
       .from('guild_avatars')
-      .select('username, albion_nickname')
+      .select('username, albion_nickname, albion_verified_at')
       .eq('guild_id', guildId)
       .eq('discord_id', session.discordId)
       .maybeSingle(),
@@ -215,17 +224,66 @@ async function loadUserStatusSummary(
       .eq('status', 'pending'),
   ])
 
-  const avatar = avatarRes.data as { username?: string | null; albion_nickname?: string | null } | null
+  const avatar = avatarRes.data as {
+    username?: string | null
+    albion_nickname?: string | null
+    albion_verified_at?: string | null
+  } | null
   const displayName =
     avatar?.albion_nickname?.trim() ||
     avatar?.username?.trim() ||
     session.username
   const balance = (ledgerRes.data ?? []).reduce((sum, row) => sum + (Number(row.delta) || 0), 0)
+  const pendingRegearCount = regearRes.count ?? 0
+  const pendingExchangeCount = exchangeRes.count ?? 0
+  const pendingDonationCount = donationRes.count ?? 0
+  const siphon = await loadUserSiphonSummary(db, guildId, avatar)
+
   return {
     displayName,
     balance,
-    pendingCount: (regearRes.count ?? 0) + (exchangeRes.count ?? 0) + (donationRes.count ?? 0),
+    pendingCount: pendingRegearCount + pendingExchangeCount + pendingDonationCount,
+    pendingRegearCount,
+    pendingExchangeCount,
+    pendingDonationCount,
+    siphonBalance: siphon.balance,
+    siphonState: siphon.state,
   }
+}
+
+async function loadUserSiphonSummary(
+  db: ReturnType<typeof getAdminClient>,
+  guildId: string,
+  avatar: { albion_nickname?: string | null; albion_verified_at?: string | null } | null,
+): Promise<{ balance: number | null; state: UserStatusSiphonState }> {
+  const player = avatar?.albion_nickname?.trim()
+  if (!avatar?.albion_verified_at || !player) {
+    return { balance: null, state: 'unverified' }
+  }
+
+  let balance = 0
+  let from = 0
+
+  while (true) {
+    const { data, error } = await db
+      .from('siphon_ledger')
+      .select('quantity')
+      .eq('guild_id', guildId)
+      .eq('player', player)
+      .order('id', { ascending: true })
+      .range(from, from + SIPHON_PAGE_SIZE - 1)
+
+    if (error) return { balance: null, state: 'unavailable' }
+
+    const rows = data ?? []
+    for (const row of rows) {
+      balance += Number(row.quantity) || 0
+    }
+    if (rows.length < SIPHON_PAGE_SIZE) break
+    from += SIPHON_PAGE_SIZE
+  }
+
+  return { balance, state: 'ready' }
 }
 
 // guild_avatars.is_crafter 직접 조회. craft.ts 의 loadIsCrafter 와 동일 — 'use server'

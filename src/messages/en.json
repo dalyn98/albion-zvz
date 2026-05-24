@@ -1882,8 +1882,24 @@
     "statusChipPoints": "{points}",
     "statusChipPending": "{count} pending",
     "statusChipNoPending": "No new alerts",
-    "statusChipAria": "{name}, {points} points, {pending}",
-    "statusChipAriaGuest": "{name}, {pending}"
+    "statusChipCheckCount": "{count} to check",
+    "statusChipNoCheck": "Nothing to check",
+    "statusChipSiphonCount": "{count}",
+    "statusChipSiphonUnverified": "Verification needed",
+    "statusChipUnavailable": "Unavailable",
+    "statusChipAria": "Open My page, {name}, {points} points, {pending}",
+    "statusChipAriaGuest": "Open My page, {name}, {pending}",
+    "statusPopoverTitle": "My info summary",
+    "statusPopoverEyebrow": "My page",
+    "statusPopoverDescription": "Quickly check points, siphon, and current action items.",
+    "statusPopoverPoints": "Point balance",
+    "statusPopoverSiphon": "Siphon balance",
+    "statusPopoverChecks": "Things to check now",
+    "statusPopoverNoChecks": "No pending requests or required checks",
+    "statusPopoverCheckBreakdown": "Regear {regear} · exchange {exchange} · donation {donation}",
+    "statusPopoverOpenMe": "Open full My page",
+    "statusPopoverOpenRequests": "Requests",
+    "statusPopoverOpenSiphon": "Siphon"
   },
   "home": {
     "title": "Battle schedule",
@@ -5522,8 +5538,8 @@
         "body": "Your point balance, siphon balance, and current things to check are visible at the top."
       },
       "statusChip": {
-        "title": "The top summary is a shortcut",
-        "body": "It keeps your nickname, point balance, and pending alerts visible. Click it to jump to My info or your request history."
+        "title": "The My page chip is a shortcut",
+        "body": "Open the chip to preview point balance, siphon balance, and current checks before jumping into the full page."
       },
       "regear": {
         "title": "Submit regear requests here",
