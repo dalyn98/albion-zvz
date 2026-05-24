@@ -7,6 +7,12 @@ import { useTranslations } from 'next-intl'
 import { ShieldCheck, X, ArrowRight } from 'lucide-react'
 import { requestRegear } from '@/app/actions/regear'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
+import {
+  canOpenManualRegearRequest,
+  getDeathBatchEntryLimit,
+  getRemainingDeathClaims,
+  isDeathLimitReached,
+} from '@/lib/regear-request-policy'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { compressImageIfLarge } from '@/lib/image-compress'
 import { useToast } from './ToastProvider'
@@ -48,8 +54,6 @@ interface Props {
 }
 
 type Phase = 'type' | 'count' | 'entries'
-
-const MAX_ENTRIES = 3
 
 function newEntry(): EntryState {
   return {
@@ -114,11 +118,11 @@ export default function RegearRequestButton({
   const hoveredSlotRef = useRef<{ entryId: string; slot: 'primary' | 'secondary' } | null>(null)
 
   const ceilingMissing = roleReward <= 0
-  const atLimit = existingActiveCount >= maxDeaths
-  const remaining = Math.max(0, maxDeaths - existingActiveCount)
-  // Cap the choices by both the product limit (3) and whatever deaths
-  // the user has left on this event.
-  const maxEntries = Math.max(1, Math.min(MAX_ENTRIES, remaining))
+  const deathLimitReached = isDeathLimitReached(existingActiveCount, maxDeaths)
+  const remaining = getRemainingDeathClaims(existingActiveCount, maxDeaths)
+  // Cap the choices by both the product limit and whatever deaths the user has
+  // left on this event. Overcharge skips this count entirely.
+  const maxEntries = getDeathBatchEntryLimit(existingActiveCount, maxDeaths)
   // Client-side "waiting for killboard" check. Server re-validates; this is
   // just to keep the button from opening a modal that will error on submit.
   const windowOpenMs = new Date(windowOpenAt).getTime()
@@ -126,13 +130,20 @@ export default function RegearRequestButton({
   // 다음 인터랙션 시 재평가되면 충분하므로 render purity 위배는 의도된 가드.
   // eslint-disable-next-line react-hooks/purity
   const windowPending = Number.isFinite(windowOpenMs) && Date.now() < windowOpenMs
-  const disabled = atLimit || !roleName || ceilingMissing || windowPending
-  const buttonLabel = atLimit
-    ? t('buttonDone')
-    : windowPending
-      ? t('buttonWindowPending', { opensAt: formatWindowOpen(windowOpenAt) })
-      : ceilingMissing
-        ? t('buttonCeilingMissing')
+  const disabled = !canOpenManualRegearRequest({
+    baseEnabled: Boolean(roleName) && !ceilingMissing && !windowPending,
+    activeDeathCount: existingActiveCount,
+    maxDeaths,
+    overchargeEnabled,
+  })
+  const buttonLabel = windowPending
+    ? t('buttonWindowPending', { opensAt: formatWindowOpen(windowOpenAt) })
+    : ceilingMissing
+      ? t('buttonCeilingMissing')
+      : deathLimitReached
+        ? overchargeEnabled
+          ? t('buttonOverchargeOnly')
+          : t('buttonDone')
         : maxDeaths > 1 && existingActiveCount > 0
           ? t('buttonRequestRemaining', { remaining })
           : t('buttonRequest')
@@ -151,10 +162,21 @@ export default function RegearRequestButton({
   }
 
   const pickRequestType = (type: RequestType) => {
+    if (type === 'death' && deathLimitReached) return
     setRequestType(type)
     setEntryErrors({})
     setError('')
     setNeedsVerification(false)
+    if (type === 'overcharge') {
+      setEntries(createEntries(1))
+      setPhase('entries')
+      return
+    }
+    if (maxEntries <= 1) {
+      setEntries(createEntries(1))
+      setPhase('entries')
+      return
+    }
     setPhase('count')
   }
 
@@ -172,6 +194,14 @@ export default function RegearRequestButton({
     setError('')
     setNeedsVerification(false)
     setPhase('count')
+  }
+
+  const backFromEntries = () => {
+    if (overchargeEnabled && (requestType === 'overcharge' || maxEntries <= 1)) {
+      backToType()
+      return
+    }
+    backToCount()
   }
 
   const backToType = () => {
@@ -278,11 +308,13 @@ export default function RegearRequestButton({
     }
     const validated: { entry: EntryState; parsedClaim: number }[] = []
     const nextErrors: Record<string, string> = {}
+    const requiredMessage =
+      requestType === 'overcharge' ? t('allOverchargeEntriesRequired') : t('allEntriesRequired')
     for (const entry of entries) {
       const hasFile = entry.file !== null
       const hasClaim = entry.claimedInput.trim().length > 0
       if (!hasFile || !hasClaim) {
-        nextErrors[entry.id] = t('allEntriesRequired')
+        nextErrors[entry.id] = requiredMessage
         continue
       }
       const parsed = parseSilverInput(entry.claimedInput)
@@ -427,7 +459,7 @@ export default function RegearRequestButton({
               </div>
 
               {phase === 'type' ? (
-                <RequestTypePicker onPick={pickRequestType} />
+                <RequestTypePicker onPick={pickRequestType} deathDisabled={deathLimitReached} />
               ) : phase === 'count' ? (
                 <>
                   {overchargeEnabled && (
@@ -452,17 +484,19 @@ export default function RegearRequestButton({
                 <>
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-gray-400 text-[11px]">
-                      {overchargeEnabled && requestType === 'overcharge'
-                        ? `${t('typeOverchargeLabel')} · ${t('deathCountOption', { n: entries.length })}`
+                      {requestType === 'overcharge'
+                        ? t('typeOverchargeLabel')
                         : t('deathCountOption', { n: entries.length })}
                     </p>
                     <button
                       type="button"
-                      onClick={backToCount}
+                      onClick={backFromEntries}
                       disabled={pending}
                       className="text-[11px] text-gray-500 hover:text-amber-400 disabled:opacity-50"
                     >
-                      {t('deathCountBack')}
+                      {overchargeEnabled && (requestType === 'overcharge' || maxEntries <= 1)
+                        ? t('typeBack')
+                        : t('deathCountBack')}
                     </button>
                   </div>
                   <FulfillmentModeNotice craftEnabled={craftEnabled} />

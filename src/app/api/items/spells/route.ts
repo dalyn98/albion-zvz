@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import itemSpells from '@/data/albion-item-spells.json'
 import type { SpellPoolEntry } from '@/types'
 
-// Edge runtime: lookups are pure in-memory map reads, no network egress.
-export const runtime = 'edge'
+// Keep the default Node.js runtime. Vercel Fluid Compute is the platform default
+// and this route only performs in-memory map lookups.
 
 // Enchantment variants share the base item's spell pool. items.xml only
 // defines the base (e.g. T8_MAIN_MACE); the @N suffix is assembled by

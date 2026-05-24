@@ -4,6 +4,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { Image as ImageIcon, Shield, Timer, Coins, Building2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import NotificationSettingsForm from './NotificationSettingsForm'
+import EventChannelSetting from './EventChannelSetting'
 import EventDmLeadMinutesForm from './EventDmLeadMinutesForm'
 import RoleRewardsEditor from './RoleRewardsEditor'
 import LandingBannerForm from './LandingBannerForm'
@@ -55,6 +56,7 @@ const DEFAULT_TAB: TabKey = 'guild'
 interface Props {
   adminRoleIds: string[]
   notificationMessage: string
+  eventChannelId: string
   rewards: RoleReward[]
   rewardsError?: string
   landingBannerUrl: string
@@ -103,6 +105,7 @@ function isTabKey(value: string | null): value is TabKey {
 export default function SettingsTabs({
   adminRoleIds,
   notificationMessage,
+  eventChannelId,
   rewards,
   rewardsError,
   landingBannerUrl,
@@ -235,6 +238,7 @@ export default function SettingsTabs({
               title={t('eventNoticeGroupTitle')}
               description={t('eventNoticeGroupDescription')}
             >
+              <EventChannelSetting embedded initialChannelId={eventChannelId} />
               <NotificationSettingsForm embedded initialMessage={notificationMessage} />
               <EventDmLeadMinutesForm embedded initialMinutes={eventDmLeadMinutes} />
             </SettingsGroup>

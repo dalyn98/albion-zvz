@@ -105,6 +105,10 @@ export const ADMIN_ROUTE_ACCESS_RULES: readonly AdminRouteAccessRule[] = [
     capabilities: [CAP.SIPHON_MANAGE],
   },
   {
+    href: '/admin/dashboard/loot-audit',
+    capabilities: [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE],
+  },
+  {
     href: '/admin/dashboard/audit',
     capabilities: [CAP.AUDIT_VIEW],
   },

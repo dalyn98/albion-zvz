@@ -35,11 +35,6 @@ import {
 
 type ImportTranslator = ReturnType<typeof useTranslations<'adminShopImport'>>
 
-const PLACEHOLDER = `예시:
-"04/21/2026 15:59:10"\t"SoonSem"\t"페기물"\t"0"\t"1"\t"-1"
-"04/21/2026 13:42:13"\t"WarGloves"\t"스위프트클로"\t"1"\t"2"\t"1"
-`
-
 interface StagedBatch {
   id: string
   raw: string
@@ -234,7 +229,7 @@ export default function ShopImportForm({ lastImportAt, isImportStale }: Props) {
             onPaste={handlePaste}
             rows={6}
             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-amber-500 font-mono resize-y"
-            placeholder={PLACEHOLDER}
+            placeholder={t('placeholder')}
           />
           {previewing && (
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center bg-gray-900/70 rounded-lg">

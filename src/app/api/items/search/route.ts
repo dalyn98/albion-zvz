@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import items from '@/data/albion-items.json'
 import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale, type Locale } from '@/i18n/locales'
 
-// Edge runtime has sub-50ms cold starts and runs in the nearest region. The
-// bundled items list is 45KB — well under any Edge size limit — and all
-// filtering is pure CPU on in-memory data. No network round-trips per request.
-export const runtime = 'edge'
+// Keep the default Node.js runtime. Vercel Fluid Compute is the platform default
+// and avoids Edge runtime compatibility drift while this route stays pure
+// in-memory filtering with no network round-trips per request.
 
 interface BundledItem {
   u: string // UniqueName

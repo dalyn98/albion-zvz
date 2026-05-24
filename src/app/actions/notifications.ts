@@ -7,7 +7,6 @@ import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { isValidTenantTimezone } from '@/lib/timezone'
-import { requireEventCreator } from '@/lib/auth'
 import { log } from '@/lib/log'
 import { CATEGORY_NOTIFY_COLUMN, EVENT_CATEGORIES, type EventCategory } from '@/types'
 import { CAP } from '@/lib/permissions'
@@ -281,9 +280,15 @@ export async function listGuildChannels(): Promise<{
 }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    await requireEventCreator()
     const session = await getSession()
     if (!session) return { channels: [], error: tErr('serverError') }
+    if (
+      !session.isAdmin &&
+      !session.canCreateEvents &&
+      !sessionHasAny(session, [CAP.SETTINGS_GENERAL])
+    ) {
+      throw new Error('Unauthorized')
+    }
     const sessionGuildId = await getSessionGuildId(session)
     const tenantConfig = await getTenantDiscordConfig(sessionGuildId)
     const botToken = process.env.DISCORD_BOT_TOKEN

@@ -15,7 +15,10 @@ import {
   type GameinfoPlayer,
 } from '@/lib/albion-gameinfo'
 import { requireAdmin } from '@/lib/auth'
-import { getMemberAlbionIdentity, type MemberAlbionIdentity } from '@/lib/albion-identity'
+import {
+  getAlbionOnboardingGateState,
+  type MemberAlbionIdentity,
+} from '@/lib/albion-identity'
 import { changeGuildMemberNickname } from '@/lib/discord'
 import { log } from '@/lib/log'
 import {
@@ -53,12 +56,12 @@ export async function getOnboardingState(): Promise<OnboardingState> {
   const session = await getSession()
   if (!session) return { identity: null, homeGuildConfigured: false }
   const guildId = await getSessionGuildId(session)
-  const [identity, homeGuildId] = await Promise.all([
-    getMemberAlbionIdentity(session.discordId, guildId),
+  const [onboardingGate, homeGuildId] = await Promise.all([
+    getAlbionOnboardingGateState(session.discordId, guildId),
     getAppSetting('albion_home_guild_id', '', guildId),
   ])
   return {
-    identity,
+    identity: onboardingGate.identity,
     homeGuildConfigured: homeGuildId.trim().length > 0,
   }
 }

@@ -20,31 +20,41 @@ export default async function RegearWindowsSection() {
   if (!session) return null
   const guildId = await getSessionGuildId(session)
 
-  const [{ windows }, { options }, payoutRatePercent, t, tenantTimezone, craftEnabledRaw] =
-    await Promise.all([
-      listRegearWindows('open'),
-      listRegearRoleOptions(),
-      getRegearPayoutRatePercent(),
-      getTranslations('regearWindow'),
-      getTenantTimezone(guildId),
-      getAppSetting('craft_regear_enabled', 'false', guildId),
-    ])
+  const [
+    { windows },
+    { options },
+    payoutRatePercent,
+    t,
+    tenantTimezone,
+    craftEnabledRaw,
+    overchargeEnabledRaw,
+  ] = await Promise.all([
+    listRegearWindows('open'),
+    listRegearRoleOptions(),
+    getRegearPayoutRatePercent(),
+    getTranslations('regearWindow'),
+    getTenantTimezone(guildId),
+    getAppSetting('craft_regear_enabled', 'false', guildId),
+    getAppSetting('regear_overcharge_enabled', 'false', guildId),
+  ])
   const craftEnabled = craftEnabledRaw === 'true'
+  const overchargeEnabled = overchargeEnabledRaw === 'true'
 
   if (windows.length === 0) return null
 
-  // 같은 윈도우에 대한 본인의 non-rejected 신청 수 — 카드에서 "X/Y회" 표시 +
-  // 한도 도달 시 버튼 비활성화에 쓴다.
+  // 같은 윈도우에 대한 본인의 non-rejected death 신청 수 — 카드에서 "X/Y회" 표시 +
+  // 데스 한도 도달 시 버튼의 death 선택 비활성화에 쓴다. 오버차지는 제외.
   const db = getAdminClient()
   const { data: existingRows } = await db
     .from('regear_requests')
-    .select('regear_window_id')
+    .select('regear_window_id, request_type')
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
     .neq('status', 'rejected')
     .not('regear_window_id', 'is', null)
   const countMap = new Map<string, number>()
   for (const row of existingRows ?? []) {
+    if ((row.request_type ?? 'death') !== 'death') continue
     const wid = row.regear_window_id as string
     countMap.set(wid, (countMap.get(wid) ?? 0) + 1)
   }
@@ -95,6 +105,7 @@ export default async function RegearWindowsSection() {
                   payoutRatePercent={payoutRatePercent}
                   existingActiveCount={existingActive}
                   craftEnabled={craftEnabled}
+                  overchargeEnabled={overchargeEnabled}
                 />
               </div>
             </li>

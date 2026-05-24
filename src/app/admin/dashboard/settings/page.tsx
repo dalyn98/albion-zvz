@@ -5,7 +5,7 @@ import { getGuild, isAlbionServer, type AlbionServer } from '@/lib/albion-gamein
 import { getTranslations } from 'next-intl/server'
 import { SLOT_ROLES, SLOT_KEYS, type SlotRole, type SlotKey } from '@/types'
 import { getSession } from '@/lib/session'
-import { getSessionGuildId } from '@/lib/tenant'
+import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { DEFAULT_TENANT_TIMEZONE, isValidTenantTimezone } from '@/lib/timezone'
 import { isSuperAdminSession } from '@/lib/super-admin'
 import { loadAdminPermissionRoleSettings } from '@/lib/admin-permission-settings'
@@ -27,6 +27,7 @@ export default async function SettingsPage() {
 
   const [
     permissionRoleSettings,
+    tenantConfig,
     message,
     bannerUrl,
     ctaText,
@@ -54,6 +55,7 @@ export default async function SettingsPage() {
     t,
   ] = await Promise.all([
     loadAdminPermissionRoleSettings(tenantId),
+    getTenantDiscordConfig(tenantId),
     getAppSetting('event_notification_message', '', tenantId),
     getAppSetting('landing_banner_url', '', tenantId),
     getAppSetting('landing_cta_text', '', tenantId),
@@ -189,6 +191,7 @@ export default async function SettingsPage() {
       <SettingsTabs
         adminRoleIds={permissionRoleSettings.adminRoleIds}
         notificationMessage={message}
+        eventChannelId={tenantConfig?.eventChannelId ?? ''}
         rewards={rewards}
         rewardsError={rewardsError}
         landingBannerUrl={bannerUrl}

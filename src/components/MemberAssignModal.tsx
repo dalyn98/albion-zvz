@@ -3,31 +3,59 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { X, UserPlus, Bomb } from 'lucide-react'
+import { CheckCircle2, Search, Users, X } from 'lucide-react'
 import { directAssignMember, listAssignableMembers } from '@/app/actions/bomb-squad'
-
-interface Member {
-  discordId: string
-  username: string
-  alreadyInEvent: boolean
-}
+import {
+  filterAssignableMembers,
+  type AssignableMember,
+  type AssignableMemberFilter,
+} from '@/lib/member-assign-search'
+import MemberAvatar from './MemberAvatar'
 
 interface Props {
   eventId: string
   slotId: string
   slotLabel: string
+  tone?: 'amber' | 'rose'
   onClose: () => void
 }
 
-export default function MemberAssignModal({ eventId, slotId, slotLabel, onClose }: Props) {
-  const t = useTranslations('slot.bombSquad.callerAssign')
-  const [members, setMembers] = useState<Member[] | null>(null)
+export default function MemberAssignModal({
+  eventId,
+  slotId,
+  slotLabel,
+  tone = 'amber',
+  onClose,
+}: Props) {
+  const t = useTranslations('slot.directAssign')
+  const [members, setMembers] = useState<AssignableMember[] | null>(null)
   const [fetchError, setFetchError] = useState('')
   const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState<AssignableMemberFilter>('available')
   const [actionError, setActionError] = useState('')
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const router = useRouter()
+  const toneClasses =
+    tone === 'rose'
+      ? {
+          border: 'border-rose-500/40',
+          icon: 'text-rose-400',
+          focus: 'focus:border-rose-500/60',
+          active: 'bg-rose-500/15 border-rose-500/50 text-rose-200',
+          hover: 'hover:border-rose-500/50 hover:bg-rose-500/10',
+          assigning: 'bg-rose-500/15 border-rose-500/40 text-rose-200',
+          subtle: 'text-rose-300',
+        }
+      : {
+          border: 'border-amber-500/40',
+          icon: 'text-amber-400',
+          focus: 'focus:border-amber-500/60',
+          active: 'bg-amber-500/15 border-amber-500/50 text-amber-200',
+          hover: 'hover:border-amber-500/50 hover:bg-amber-500/10',
+          assigning: 'bg-amber-500/15 border-amber-500/40 text-amber-200',
+          subtle: 'text-amber-300',
+        }
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -60,12 +88,12 @@ export default function MemberAssignModal({ eventId, slotId, slotLabel, onClose 
 
   const filtered = useMemo(() => {
     if (!members) return []
-    const q = query.trim().toLowerCase()
-    if (!q) return members
-    return members.filter((m) => m.username.toLowerCase().includes(q))
-  }, [members, query])
+    return filterAssignableMembers(members, query, filter)
+  }, [members, query, filter])
+  const totalAvailable = members?.filter((m) => !m.alreadyInEvent).length ?? 0
+  const totalAssigned = members?.filter((m) => m.alreadyInEvent).length ?? 0
 
-  const handleAssign = (member: Member) => {
+  const handleAssign = (member: AssignableMember) => {
     if (member.alreadyInEvent) return
     setActionError('')
     setPendingId(member.discordId)
@@ -90,12 +118,12 @@ export default function MemberAssignModal({ eventId, slotId, slotLabel, onClose 
         role="dialog"
         aria-modal="true"
         aria-labelledby="member-assign-modal-title"
-        className="bg-gray-900 border border-rose-500/40 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl flex flex-col max-h-[92dvh]"
+        className={`bg-gray-900 border ${toneClasses.border} w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl flex flex-col max-h-[92dvh]`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <Bomb size={16} className="text-rose-400 flex-shrink-0" />
+            <Users size={16} className={`${toneClasses.icon} flex-shrink-0`} />
             <div className="min-w-0">
               <h3 id="member-assign-modal-title" className="font-bold text-white text-base truncate">{t('title')}</h3>
               <p className="text-gray-400 text-xs truncate">{slotLabel}</p>
@@ -112,15 +140,47 @@ export default function MemberAssignModal({ eventId, slotId, slotLabel, onClose 
         </div>
 
         <div className="px-4 py-3 border-b border-gray-800 flex-shrink-0">
-          <p className="text-gray-400 text-xs mb-2">{t('subtitle')}</p>
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('searchPlaceholder')}
-            autoFocus
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-rose-500/60"
-          />
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t('searchPlaceholder')}
+              autoFocus
+              className={`w-full bg-gray-800 border border-gray-700 rounded-lg pl-9 pr-9 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none ${toneClasses.focus}`}
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-white"
+                aria-label={t('clearSearch')}
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+          <div className="mt-2 flex items-center gap-1.5 overflow-x-auto">
+            {([
+              ['available', t('filterAvailable', { count: totalAvailable })],
+              ['all', t('filterAll', { count: members?.length ?? 0 })],
+              ['assigned', t('filterAssigned', { count: totalAssigned })],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setFilter(value)}
+                className={`whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                  filter === value
+                    ? toneClasses.active
+                    : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-gray-600 hover:text-white'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto p-2">
@@ -134,41 +194,52 @@ export default function MemberAssignModal({ eventId, slotId, slotLabel, onClose 
             <p className="text-center text-gray-500 text-sm py-6">{t('noMatches')}</p>
           )}
           {members !== null && !fetchError && filtered.length > 0 && (
-            <ul className="space-y-1">
-              {filtered.map((m) => {
-                const isAssigning = pendingId === m.discordId && pending
-                const disabled = m.alreadyInEvent || pending
-                return (
-                  <li key={m.discordId}>
-                    <button
-                      type="button"
-                      onClick={() => handleAssign(m)}
-                      disabled={disabled}
-                      className={`w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2 border text-left transition-colors ${
-                        m.alreadyInEvent
-                          ? 'bg-gray-800/40 border-gray-800 text-gray-500 cursor-not-allowed'
-                          : isAssigning
-                            ? 'bg-rose-500/15 border-rose-500/40 text-rose-200'
-                            : 'bg-gray-800 border-gray-700 text-white hover:border-rose-500/50 hover:bg-rose-500/10 disabled:opacity-60 disabled:cursor-not-allowed'
-                      }`}
-                    >
-                      <span className="text-sm font-medium truncate">{m.username}</span>
-                      {m.alreadyInEvent ? (
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-gray-700/60 text-gray-400 flex-shrink-0">
-                          {t('alreadyInEvent')}
+            <div className="space-y-2">
+              <p className="px-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                {t('resultSummary', { count: filtered.length })}
+              </p>
+              <ul className="space-y-1">
+                {filtered.map((m) => {
+                  const isAssigning = pendingId === m.discordId && pending
+                  const disabled = m.alreadyInEvent || pending
+                  return (
+                    <li key={m.discordId}>
+                      <button
+                        type="button"
+                        onClick={() => handleAssign(m)}
+                        disabled={disabled}
+                        className={`w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2 border text-left transition-colors ${
+                          m.alreadyInEvent
+                            ? 'bg-gray-800/40 border-gray-800 text-gray-500 cursor-not-allowed'
+                            : isAssigning
+                              ? toneClasses.assigning
+                              : `bg-gray-800 border-gray-700 text-white ${toneClasses.hover} disabled:opacity-60 disabled:cursor-not-allowed`
+                        }`}
+                      >
+                        <span className="flex items-center gap-2 min-w-0">
+                          <MemberAvatar discordId={m.discordId} avatar={m.avatar} size={24} />
+                          <span className="min-w-0">
+                            <span className="block text-sm font-semibold truncate">{m.username}</span>
+                            <span className="block text-[11px] text-gray-500 truncate">{m.discordId}</span>
+                          </span>
                         </span>
-                      ) : isAssigning ? (
-                        <span className="text-[11px] font-semibold text-rose-300 flex-shrink-0">
-                          {t('assigning')}
-                        </span>
-                      ) : (
-                        <UserPlus size={14} className="text-rose-300 flex-shrink-0" />
-                      )}
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
+                        {m.alreadyInEvent ? (
+                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-gray-700/60 text-gray-400 flex-shrink-0">
+                            {t('alreadyInEvent')}
+                          </span>
+                        ) : isAssigning ? (
+                          <span className={`text-[11px] font-semibold ${toneClasses.subtle} flex-shrink-0`}>
+                            {t('assigning')}
+                          </span>
+                        ) : (
+                          <CheckCircle2 size={15} className={`${toneClasses.subtle} flex-shrink-0`} />
+                        )}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
           )}
         </div>
 

@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
+import type { AssignableMember } from '@/lib/member-assign-search'
 
 // Approve / reject sign-ups on a bomb squad party. Authorization passes if the
 // caller is either:
@@ -55,6 +56,50 @@ async function authorizeBombSquadAction(slotId: string): Promise<
   return { ok: true, db, eventId: event.id, guildId }
 }
 
+async function authorizeDirectAssignAction(slotId: string): Promise<
+  | { ok: true; db: ReturnType<typeof getAdminClient>; eventId: string; guildId: string }
+  | { ok: false; error: string }
+> {
+  const tAction = await getTranslations('slotAction')
+  const session = await getSession()
+  if (!session) return { ok: false, error: tAction('loginRequired') }
+  const guildId = await getSessionGuildId(session)
+
+  const db = getAdminClient()
+  const { data, error } = await db
+    .from('slots')
+    .select(
+      'id, is_solo_bomb, parties!inner(is_bomb_squad, caller_discord_id, events!inner(id, created_by))',
+    )
+    .eq('guild_id', guildId)
+    .eq('id', slotId)
+    .maybeSingle()
+  if (error) return { ok: false, error: error.message }
+  if (!data) return { ok: false, error: tAction('slotNotFound') }
+
+  const party = Array.isArray(data.parties) ? data.parties[0] : data.parties
+  const event = party
+    ? Array.isArray(party.events)
+      ? party.events[0]
+      : party.events
+    : null
+  if (!event) return { ok: false, error: tAction('slotNotFound') }
+
+  const isEventOwner =
+    !!session.canCreateEvents &&
+    !!event.created_by &&
+    event.created_by === session.discordId
+  const isCaller =
+    !data.is_solo_bomb &&
+    !!party?.is_bomb_squad &&
+    !!party.caller_discord_id &&
+    party.caller_discord_id === session.discordId
+  if (!session.isAdmin && !isEventOwner && !isCaller) {
+    return { ok: false, error: tAction('slotAssignNotAuthorized') }
+  }
+  return { ok: true, db, eventId: event.id, guildId }
+}
+
 export async function approveSlotRequest(slotId: string): Promise<{ error?: string }> {
   const tAction = await getTranslations('slotAction')
   const auth = await authorizeBombSquadAction(slotId)
@@ -98,7 +143,7 @@ export async function directAssignMember(
   memberDiscordId: string,
 ): Promise<{ error?: string }> {
   const tAction = await getTranslations('slotAction')
-  const auth = await authorizeBombSquadAction(slotId)
+  const auth = await authorizeDirectAssignAction(slotId)
   if (!auth.ok) return { error: auth.error }
   const { db, eventId, guildId } = auth
 
@@ -114,7 +159,7 @@ export async function directAssignMember(
   if (!member) return { error: tAction('memberNotFound') }
   if (member.withdrawn_at) return { error: tAction('memberWithdrawn') }
 
-  const { error } = await db.rpc('caller_assign_slot', {
+  const { error } = await db.rpc('direct_assign_slot', {
     p_slot_id: slotId,
     p_discord_id: memberDiscordId,
     p_username: member.username,
@@ -122,7 +167,6 @@ export async function directAssignMember(
   if (error) {
     const message = error.message ?? ''
     if (message.includes('SLOT_NOT_FOUND')) return { error: tAction('slotNotFound') }
-    if (message.includes('NOT_BOMB_SQUAD')) return { error: tAction('notBombSquad') }
     if (message.includes('SOLO_BOMB_REQUIRES_REQUEST')) return { error: tAction('soloBombRequiresRequest') }
     if (message.includes('SLOT_TAKEN')) return { error: tAction('slotTaken') }
     if (message.includes('SLOT_PENDING')) return { error: tAction('slotPending') }
@@ -142,7 +186,7 @@ export async function directAssignMember(
 export async function listAssignableMembers(
   eventId: string,
 ): Promise<{
-  members?: Array<{ discordId: string; username: string; alreadyInEvent: boolean }>
+  members?: AssignableMember[]
   error?: string
 }> {
   const tAction = await getTranslations('slotAction')
@@ -159,17 +203,21 @@ export async function listAssignableMembers(
     .maybeSingle()
   if (eventError) return { error: eventError.message }
   if (!eventRow) return { error: tAction('eventNotFound') }
-  const isOwner = !!eventRow.created_by && eventRow.created_by === session.discordId
+  const isOwner =
+    !!session.canCreateEvents &&
+    !!eventRow.created_by &&
+    eventRow.created_by === session.discordId
   const parties = (eventRow.parties ?? []) as { caller_discord_id: string | null }[]
   const isAnyCaller = parties.some((p) => p.caller_discord_id === session.discordId)
   if (!session.isAdmin && !isOwner && !isAnyCaller) {
-    return { error: tAction('bombSquadNotAuthorized') }
+    return { error: tAction('slotAssignNotAuthorized') }
   }
 
   const { data: members, error: membersError } = await db
     .from('guild_avatars')
-    .select('discord_id, username, withdrawn_at')
+    .select('discord_id, username, avatar, withdrawn_at')
     .eq('guild_id', guildId)
+    .is('withdrawn_at', null)
     .order('username', { ascending: true })
   if (membersError) return { error: membersError.message }
 
@@ -190,10 +238,10 @@ export async function listAssignableMembers(
 
   return {
     members: (members ?? [])
-      .filter((m) => !m.withdrawn_at)
       .map((m) => ({
         discordId: m.discord_id as string,
         username: m.username as string,
+        avatar: (m.avatar as string | null) ?? null,
         alreadyInEvent: blocked.has(m.discord_id as string),
       })),
   }

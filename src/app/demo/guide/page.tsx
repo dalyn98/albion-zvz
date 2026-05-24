@@ -77,12 +77,13 @@ const CATEGORIES: CategoryDef[] = [
 // /demo/* 로 재바인딩, 없으면 데모 홈으로 (가이드의 CTA 가 "어디로 가는지"
 // 안 보이는 일이 없게).
 const DEMO_HREF = {
-  settingsEvents: '/demo/settings',
+  settingsGuild: '/demo/settings?tab=guild',
+  settingsEvents: '/demo/settings?tab=events',
+  settingsRegear: '/demo/settings?tab=regear',
   dashboard: '/demo',
-  settingsPermissions: '/demo/settings',
+  settingsPermissions: '/demo/settings?tab=permissions',
   craft: '/demo/craft',
   shop: '/demo/shop',
-  settingsNotices: '/demo/settings',
   battles: '/demo/battles',
   stats: '/demo/stats',
 } as const
@@ -143,7 +144,7 @@ export default async function DemoGuidePage() {
         <GuideSection
           icon={<ListChecks size={18} className="text-emerald-400" />}
           title={t('quickStart.title')}
-          href={DEMO_HREF.settingsEvents}
+          href={DEMO_HREF.settingsGuild}
           linkLabel={t('quickStart.cta')}
         >
           <p className="text-sm text-gray-300 leading-relaxed mb-3">{t('quickStart.intro')}</p>
@@ -179,7 +180,7 @@ export default async function DemoGuidePage() {
         <GuideSection
           icon={<Users size={18} className="text-amber-400" />}
           title={t('onboarding.title')}
-          href={DEMO_HREF.settingsEvents}
+          href={DEMO_HREF.settingsGuild}
           linkLabel={t('onboarding.cta')}
         >
           <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
@@ -190,7 +191,7 @@ export default async function DemoGuidePage() {
         <GuideSection
           icon={<Globe size={18} className="text-amber-400" />}
           title={t('timezone.title')}
-          href={DEMO_HREF.settingsEvents}
+          href={DEMO_HREF.settingsGuild}
           linkLabel={t('timezone.cta')}
         >
           <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
@@ -215,7 +216,7 @@ export default async function DemoGuidePage() {
         <GuideSection
           icon={<ShieldCheck size={18} className="text-amber-400" />}
           title={t('regear.title')}
-          href={DEMO_HREF.settingsEvents}
+          href={DEMO_HREF.settingsRegear}
           linkLabel={t('regear.cta')}
         >
           <p className="text-sm text-gray-300 leading-relaxed">{t('regear.body')}</p>
@@ -261,7 +262,7 @@ export default async function DemoGuidePage() {
         <GuideSection
           icon={<Bell size={18} className="text-amber-400" />}
           title={t('notifications.title')}
-          href={DEMO_HREF.settingsNotices}
+          href={DEMO_HREF.settingsEvents}
           linkLabel={t('notifications.cta')}
         >
           <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">

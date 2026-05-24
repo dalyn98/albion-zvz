@@ -444,6 +444,41 @@ export async function updateTenantAdminRoles(
   }
 }
 
+// tenants.event_channel_id 는 이벤트 공지의 기본 Discord 채널이다. 온보딩에서
+// "나중에 설정" 으로 넘긴 길드도 Settings > Events 에서 회복할 수 있어야 한다.
+export async function updateTenantEventChannel(
+  channelId: string,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const trimmed = channelId.trim()
+    if (trimmed && !/^\d{5,30}$/.test(trimmed)) {
+      return { error: tErr('invalidInput') }
+    }
+    const db = await requireAnyCapability([CAP.SETTINGS_GENERAL])
+    const session = await getSession()
+    if (!session) return { error: tErr('serverError') }
+    const guildId = await getSessionGuildId(session)
+    const { error } = await db
+      .from('tenants')
+      .update({ event_channel_id: trimmed || null })
+      .eq('id', guildId)
+    if (error) return { error: error.message }
+    revalidatePath('/admin/dashboard')
+    revalidatePath('/admin/dashboard/settings')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'settings.update',
+      targetKind: 'setting',
+      details: { kind: 'event_channel_id', channelId: trimmed || null },
+    })
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
 // tenant_timezone 은 IANA 문자열이라 ENUM_VALUES 검증으로 처리하기엔 fallback
 // 의미가 너무 강해 (잘못된 값은 reject 가 아니라 'Asia/Seoul' 로 degrade 가 맞음).
 // 별도 액션으로 두고 isValidTenantTimezone 으로 4개 프리셋 중 하나만 통과시킨다.

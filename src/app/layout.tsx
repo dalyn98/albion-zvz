@@ -16,7 +16,10 @@ import { UnsavedChangesProvider } from '@/components/UnsavedChangesProvider'
 import { getSession } from '@/lib/session'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getMemberAlbionIdentity } from '@/lib/albion-identity'
+import {
+  getAlbionOnboardingGateState,
+  type MemberAlbionIdentity,
+} from '@/lib/albion-identity'
 import { getSessionGuildId, getPrimaryTenantId, getTenantDiscordConfig } from '@/lib/tenant'
 import { isSuperAdminSession } from '@/lib/super-admin'
 import { classifyHost, getCanonicalRootDomain, resolveTenantBySlug } from '@/lib/tenant-resolver'
@@ -126,6 +129,7 @@ function isIndexablePathname(pathname: string): boolean {
   if (pathname === '/' || pathname === '/landing') return true
   if (
     pathname === '/pricing' ||
+    pathname === '/features' ||
     pathname === '/faq' ||
     pathname === '/privacy' ||
     pathname === '/terms' ||
@@ -136,6 +140,7 @@ function isIndexablePathname(pathname: string): boolean {
   // 캐노니컬 호스트에서 proxy rewrite 가 안 걸린 직접 path 도 동일하게 허용.
   if (
     pathname === '/public/landing' ||
+    pathname === '/public/features' ||
     pathname === '/public/pricing' ||
     pathname === '/public/faq' ||
     pathname === '/public/privacy' ||
@@ -360,7 +365,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   // 알비온 온보딩 강제: 멤버가 아직 서버를 고르지 않았으면 랜딩 위에 모달을
   // 덮는다. 리디렉트 대신 overlay 방식 — 로그인 직후 대문 페이지에서 바로
-  // 인증할 수 있게. DB 1회 조회(부분 인덱스로 O(log N)).
+  // 인증할 수 있게.
+  // 계정 기반 Albion identity 도 함께 본다. 레거시 guild_avatars 필드만 보면
+  // account_albion_tenant_links 에 이미 연동된 기존 멤버가 매 로그인마다 신규
+  // 온보딩으로 오판될 수 있다.
   //
   // 슈퍼어드민 예외: 슈퍼어드민(개발자/운영자) 은 다른 테넌트를 점검할 때
   // 해당 테넌트의 guild_avatars 행이 없을 수 있고, 본질적으로 그 테넌트의
@@ -368,7 +376,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // 전부 skip.
   let onboardingModalProps: {
     discordNickname: string
-    initialIdentity: Awaited<ReturnType<typeof getMemberAlbionIdentity>>
+    initialIdentity: MemberAlbionIdentity | null
     homeGuildConfigured: boolean
   } | null = null
   if (
@@ -379,31 +387,23 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     !skipAlbionOnboardingModal(pathname)
   ) {
     const guildId = await getSessionGuildId(session)
-    const { data: avatarRow } = await getAdminClient()
-      .from('guild_avatars')
-      .select('albion_server, albion_verified_at')
-      .eq('guild_id', guildId)
-      .eq('discord_id', session.discordId)
-      .maybeSingle()
+    const onboardingGate = await getAlbionOnboardingGateState(session.discordId, guildId)
 
     // 관리자가 /admin/dashboard/settings 의 "미인증 길드원 접속 허용" 을 끈
     // 경우, 인증되지 않은 멤버를 /onboarding/albion 으로 강제 리디렉트. 관리자
     // 자신은 사이트 관리 접근권이 있어야 하므로 예외 — isAdmin 은 통과.
-    if (!session.isAdmin && !avatarRow?.albion_verified_at) {
+    if (!session.isAdmin && !onboardingGate.siteAccessVerified) {
       const allowUnverified = await getAppSetting('allow_unverified_member_access', 'true', guildId)
       if (allowUnverified === 'false') {
         redirect('/onboarding/albion')
       }
     }
 
-    if (!avatarRow?.albion_server) {
-      const [identity, homeGuildId] = await Promise.all([
-        getMemberAlbionIdentity(session.discordId, guildId),
-        getAppSetting('albion_home_guild_id', '', guildId),
-      ])
+    if (!onboardingGate.hasStartedOnboarding) {
+      const homeGuildId = await getAppSetting('albion_home_guild_id', '', guildId)
       onboardingModalProps = {
         discordNickname: session.username,
-        initialIdentity: identity,
+        initialIdentity: onboardingGate.identity,
         homeGuildConfigured: homeGuildId.trim().length > 0,
       }
     }

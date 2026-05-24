@@ -14,6 +14,7 @@ interface Props {
   loginHref: string
   battleStarted: boolean
   isAdmin: boolean
+  canManageSlots?: boolean
   eventId: string
   avatars: Record<string, string | null>
   usernames: Record<string, string | null>
@@ -37,6 +38,7 @@ export default function EventPartyGrid({
   loginHref,
   battleStarted,
   isAdmin,
+  canManageSlots = false,
   eventId,
   avatars,
   usernames,
@@ -402,6 +404,7 @@ export default function EventPartyGrid({
                     loginHref={loginHref}
                     battleStarted={battleStarted}
                     isAdmin={isAdmin}
+                    canManageSlots={canManageSlots}
                     assignedAvatar={
                       slot.assigned_discord_id ? avatars[slot.assigned_discord_id] ?? null : null
                     }

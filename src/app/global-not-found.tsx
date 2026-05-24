@@ -14,6 +14,7 @@ import { getCanonicalRootDomain } from '@/lib/tenant-resolver'
 // `src/app/not-found.tsx` (또는 더 가까운 segment-level not-found.tsx) 가 처리.
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://albion-guildmanager.com'),
   title: '404 — Albion Guild Manager',
   description: 'Page not found',
   robots: { index: false, follow: false },

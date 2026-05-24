@@ -7,6 +7,7 @@ import type { AlbionServer } from '@/lib/albion-gameinfo'
 import {
   canUseGuildResourceFeatures,
   getAccountAlbionIdentityView,
+  type AccountAlbionIdentityView,
 } from '@/lib/account-albion-identity'
 
 export interface MemberAlbionIdentity {
@@ -16,6 +17,13 @@ export interface MemberAlbionIdentity {
   nickname: string | null
   guildId: string | null
   verifiedAt: string | null
+}
+
+export interface AlbionOnboardingGateState {
+  identity: MemberAlbionIdentity | null
+  hasStartedOnboarding: boolean
+  siteAccessVerified: boolean
+  resourceTrusted: boolean
 }
 
 // guild_avatars 에서 알비온 identity 관련 컬럼만 꺼낸다. 로그인 직후 upsert
@@ -46,6 +54,71 @@ export async function getMemberAlbionIdentity(
 
 export function isAlbionVerified(identity: MemberAlbionIdentity | null): boolean {
   return Boolean(identity?.verifiedAt)
+}
+
+function hasLegacyAlbionIdentity(identity: MemberAlbionIdentity | null): boolean {
+  return Boolean(identity?.server || identity?.playerId || identity?.nickname)
+}
+
+function hasActiveAccountAlbionIdentity(
+  identity: AccountAlbionIdentityView | null,
+): identity is AccountAlbionIdentityView {
+  if (!identity || identity.trustStatus === 'revoked') return false
+  return Boolean(identity.server || identity.playerId || identity.nickname)
+}
+
+function accountToMemberIdentity(
+  discordId: string,
+  identity: AccountAlbionIdentityView | null,
+): MemberAlbionIdentity | null {
+  if (!hasActiveAccountAlbionIdentity(identity)) return null
+  const resourceTrusted = canUseGuildResourceFeatures({
+    relation: identity.relation,
+    trustStatus: identity.trustStatus,
+  })
+  return {
+    discordId,
+    server: identity.server,
+    playerId: identity.playerId,
+    nickname: identity.nickname,
+    guildId: identity.currentGuildId,
+    verifiedAt: resourceTrusted ? (identity.trustedAt ?? identity.verifiedAt) : null,
+  }
+}
+
+export function resolveAlbionOnboardingGate(input: {
+  discordId: string
+  legacyIdentity: MemberAlbionIdentity | null
+  accountIdentity: AccountAlbionIdentityView | null
+}): AlbionOnboardingGateState {
+  const accountRevoked = input.accountIdentity?.trustStatus === 'revoked'
+  const accountTrusted = input.accountIdentity
+    ? canUseGuildResourceFeatures({
+        relation: input.accountIdentity.relation,
+        trustStatus: input.accountIdentity.trustStatus,
+      })
+    : false
+  const accountIdentity = accountToMemberIdentity(input.discordId, input.accountIdentity)
+  const hasLegacyIdentity = hasLegacyAlbionIdentity(input.legacyIdentity)
+  const legacyVerified = isAlbionVerified(input.legacyIdentity)
+
+  return {
+    identity: accountRevoked ? null : hasLegacyIdentity ? input.legacyIdentity : accountIdentity,
+    hasStartedOnboarding: accountRevoked ? false : hasLegacyIdentity || Boolean(accountIdentity),
+    siteAccessVerified: accountRevoked ? false : accountTrusted || legacyVerified,
+    resourceTrusted: input.accountIdentity ? accountTrusted : legacyVerified,
+  }
+}
+
+export async function getAlbionOnboardingGateState(
+  discordId: string,
+  guildId: string,
+): Promise<AlbionOnboardingGateState> {
+  const [legacyIdentity, accountIdentity] = await Promise.all([
+    getMemberAlbionIdentity(discordId, guildId),
+    getAccountAlbionIdentityView(guildId, discordId),
+  ])
+  return resolveAlbionOnboardingGate({ discordId, legacyIdentity, accountIdentity })
 }
 
 // 온보딩 첫 진입 여부 판단용. 서버를 한 번도 고르지 않았으면 true.

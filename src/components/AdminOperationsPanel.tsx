@@ -27,6 +27,7 @@ interface OperationsSnapshot {
   activeMembers: number
   unverifiedMembers: number
   requiredMissing: number
+  setupHref: string
   staleSyncCount: number
   autoRegearEnabled: boolean
 }
@@ -120,11 +121,19 @@ async function loadSnapshot(
     badges.eventPayout +
     badges.craft
 
+  const botMissing = !tenantConfig?.botInstalled
+  const eventChannelMissing = !tenantConfig?.eventChannelId
+  const homeGuildMissing = !homeGuildId
   const requiredMissing = [
-    !tenantConfig?.botInstalled,
-    !tenantConfig?.eventChannelId,
-    !homeGuildId,
+    botMissing,
+    eventChannelMissing,
+    homeGuildMissing,
   ].filter(Boolean).length
+  const setupHref = botMissing
+    ? '/onboard'
+    : eventChannelMissing && !homeGuildMissing
+      ? '/admin/dashboard/settings?tab=events'
+      : '/admin/dashboard/settings'
 
   return {
     pendingTotal,
@@ -133,6 +142,7 @@ async function loadSnapshot(
     activeMembers: activeMembersRes.count ?? 0,
     unverifiedMembers: unverifiedMembersRes.count ?? 0,
     requiredMissing,
+    setupHref,
     staleSyncCount,
     autoRegearEnabled,
   }
@@ -159,7 +169,7 @@ export default async function AdminOperationsPanel({ guildId, tenantConfig }: Pr
     },
     {
       key: 'setup',
-      href: '/admin/dashboard/settings',
+      href: snapshot.setupHref,
       icon: Settings,
       tone: snapshot.requiredMissing > 0 ? 'danger' : 'good',
       title: t('setupTitle'),
@@ -218,7 +228,7 @@ export default async function AdminOperationsPanel({ guildId, tenantConfig }: Pr
       tone: 'danger',
       title: t('actionSetupTitle'),
       body: t('actionSetupBody'),
-      href: '/admin/dashboard/settings',
+      href: snapshot.setupHref,
       link: t('actionSetupLink'),
     })
   }

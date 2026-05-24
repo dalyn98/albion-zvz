@@ -11,10 +11,16 @@ import {
   type WindowRoleOption,
 } from '@/app/actions/regear-windows'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
+import {
+  canOpenManualRegearRequest,
+  getDeathBatchEntryLimit,
+  isDeathLimitReached,
+} from '@/lib/regear-request-policy'
 import { formatSilver, parseSilverInput } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
 import { compressImageIfLarge } from '@/lib/image-compress'
 import { useToast } from './ToastProvider'
+import { RequestTypePicker, type RequestType } from './RegearRequestModalParts'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 
 interface Props {
@@ -23,12 +29,12 @@ interface Props {
   payoutRatePercent: number
   existingActiveCount: number
   craftEnabled: boolean
+  overchargeEnabled: boolean
 }
 
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
-const MAX_ENTRIES = 3
 
-type Phase = 'count' | 'entries'
+type Phase = 'type' | 'count' | 'entries'
 
 interface EntryState {
   id: string
@@ -58,6 +64,7 @@ export default function RegearWindowSubmitButton({
   payoutRatePercent,
   existingActiveCount,
   craftEnabled,
+  overchargeEnabled,
 }: Props) {
   const router = useRouter()
   const t = useTranslations('regear')
@@ -67,15 +74,14 @@ export default function RegearWindowSubmitButton({
   const toast = useToast()
   const [open, setOpen] = useState(false)
   const [roleName, setRoleName] = useState<string>(roleOptions[0]?.roleName ?? '')
-  const remaining = Math.max(0, w.maxDeathsPerMember - existingActiveCount)
-  // 한 신청 batch 에서 최대로 입력할 수 있는 데스 수. MAX_ENTRIES 와 윈도우의
-  // 1인당 잔여 한도 중 작은 쪽. 윈도우에 한 번도 신청 안 한 maxDeathsPerMember=3
-  // 멤버 → 3, 이미 2 신청해 1 만 남으면 1.
-  const maxEntries = Math.max(1, Math.min(MAX_ENTRIES, remaining))
-  const initialPhase: Phase = maxEntries > 1 ? 'count' : 'entries'
+  // 한 신청 batch 에서 최대로 입력할 수 있는 데스 수. 제품 batch 한도와
+  // 1인당 잔여 데스 한도 중 작은 쪽. 오버차지는 이 한도를 쓰지 않는다.
+  const maxEntries = getDeathBatchEntryLimit(existingActiveCount, w.maxDeathsPerMember)
+  const initialPhase: Phase = overchargeEnabled ? 'type' : maxEntries > 1 ? 'count' : 'entries'
   const [phase, setPhase] = useState<Phase>(initialPhase)
+  const [requestType, setRequestType] = useState<RequestType>('death')
   const [entries, setEntries] = useState<EntryState[]>(() =>
-    maxEntries > 1 ? [] : [newEntry()],
+    initialPhase === 'entries' ? [newEntry()] : [],
   )
   const [entryErrors, setEntryErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
@@ -90,15 +96,21 @@ export default function RegearWindowSubmitButton({
   const hoveredSlotRef = useRef<{ entryId: string; slot: 'primary' | 'secondary' } | null>(null)
 
   const selectedReward = roleOptions.find((o) => o.roleName === roleName)?.silver ?? 0
-  const atLimit = existingActiveCount >= w.maxDeathsPerMember
-  const canSubmit = w.isOpen && roleOptions.length > 0 && !atLimit
+  const deathLimitReached = isDeathLimitReached(existingActiveCount, w.maxDeathsPerMember)
+  const canSubmit = canOpenManualRegearRequest({
+    baseEnabled: w.isOpen && roleOptions.length > 0,
+    activeDeathCount: existingActiveCount,
+    maxDeaths: w.maxDeathsPerMember,
+    overchargeEnabled,
+  })
   const ceilingMissing = selectedReward <= 0
 
   const reset = () => {
     const initialRole = roleOptions[0]?.roleName ?? ''
     setRoleName(initialRole)
     setPhase(initialPhase)
-    setEntries(maxEntries > 1 ? [] : [newEntry()])
+    setRequestType('death')
+    setEntries(initialPhase === 'entries' ? [newEntry()] : [])
     setEntryErrors({})
     setError('')
     setNeedsVerification(false)
@@ -116,12 +128,47 @@ export default function RegearWindowSubmitButton({
     setPhase('entries')
   }
 
+  const pickRequestType = (type: RequestType) => {
+    if (type === 'death' && deathLimitReached) return
+    setRequestType(type)
+    setEntryErrors({})
+    setError('')
+    setNeedsVerification(false)
+    if (type === 'overcharge') {
+      setEntries(createEntries(1))
+      setPhase('entries')
+      return
+    }
+    if (maxEntries <= 1) {
+      setEntries(createEntries(1))
+      setPhase('entries')
+      return
+    }
+    setPhase('count')
+  }
+
   const backToCount = () => {
     setEntries([])
     setEntryErrors({})
     setError('')
     setNeedsVerification(false)
     setPhase('count')
+  }
+
+  const backToType = () => {
+    setEntries([])
+    setEntryErrors({})
+    setError('')
+    setNeedsVerification(false)
+    setPhase('type')
+  }
+
+  const backFromEntries = () => {
+    if (overchargeEnabled && (requestType === 'overcharge' || maxEntries <= 1)) {
+      backToType()
+      return
+    }
+    backToCount()
   }
 
   useEffect(() => {
@@ -220,11 +267,13 @@ export default function RegearWindowSubmitButton({
     }
     const validated: { entry: EntryState; parsedClaim: number }[] = []
     const nextErrors: Record<string, string> = {}
+    const requiredMessage =
+      requestType === 'overcharge' ? t('allOverchargeEntriesRequired') : t('allEntriesRequired')
     for (const entry of entries) {
       const hasFile = entry.file !== null
       const hasClaim = entry.claimedInput.trim().length > 0
       if (!hasFile || !hasClaim) {
-        nextErrors[entry.id] = t('allEntriesRequired')
+        nextErrors[entry.id] = requiredMessage
         continue
       }
       const parsed = parseSilverInput(entry.claimedInput)
@@ -258,6 +307,7 @@ export default function RegearWindowSubmitButton({
         form.append('roleName', roleName)
         form.append('claimedSilver', parsedClaim.toString())
         form.append('screenshot', entry.file!)
+        form.append('requestType', requestType)
         if (entry.file2) form.append('screenshot2', entry.file2)
         const r = await requestWindowRegear(form)
         if (r.error && r.error.startsWith(REGEAR_VERIFICATION_ERROR_PREFIX)) {
@@ -306,10 +356,12 @@ export default function RegearWindowSubmitButton({
     })
   }
 
-  const buttonLabel = atLimit
-    ? tWin('btnDone')
-    : !w.isOpen
-      ? tWin('btnClosed')
+  const buttonLabel = !w.isOpen
+    ? tWin('btnClosed')
+    : deathLimitReached
+      ? overchargeEnabled
+        ? tWin('btnOverchargeOnly')
+        : tWin('btnDone')
       : tWin('btnSubmit')
 
   return (
@@ -374,22 +426,28 @@ export default function RegearWindowSubmitButton({
                     </select>
                   </div>
 
-                  {phase === 'count' ? (
+                  {phase === 'type' ? (
+                    <RequestTypePicker onPick={pickRequestType} deathDisabled={deathLimitReached} />
+                  ) : phase === 'count' ? (
                     <DeathCountPicker maxEntries={maxEntries} onPick={pickDeathCount} />
                   ) : (
                     <>
-                      {maxEntries > 1 && (
+                      {(overchargeEnabled || maxEntries > 1) && (
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-gray-400 text-[11px]">
-                            {t('deathCountOption', { n: entries.length })}
+                            {requestType === 'overcharge'
+                              ? t('typeOverchargeLabel')
+                              : t('deathCountOption', { n: entries.length })}
                           </p>
                           <button
                             type="button"
-                            onClick={backToCount}
+                            onClick={backFromEntries}
                             disabled={pending}
                             className="text-[11px] text-gray-500 hover:text-amber-400 disabled:opacity-50"
                           >
-                            {t('deathCountBack')}
+                            {overchargeEnabled && (requestType === 'overcharge' || maxEntries <= 1)
+                              ? t('typeBack')
+                              : t('deathCountBack')}
                           </button>
                         </div>
                       )}
@@ -450,7 +508,7 @@ export default function RegearWindowSubmitButton({
                 <button
                   type="button"
                   onClick={submit}
-                  disabled={pending || roleOptions.length === 0}
+                  disabled={pending || roleOptions.length === 0 || (requestType === 'death' && deathLimitReached)}
                   className="px-4 py-1.5 rounded-md bg-amber-500 hover:bg-amber-400 disabled:bg-amber-700/50 disabled:cursor-not-allowed text-sm font-bold text-black"
                 >
                   {pending ? t('submitting') : t('submit')}

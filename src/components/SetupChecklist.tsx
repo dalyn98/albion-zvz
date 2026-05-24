@@ -61,7 +61,7 @@ export default async function SetupChecklist({ guildId }: Props) {
     {
       key: 'eventChannel',
       done: !!tenantConfig?.eventChannelId,
-      href: '/admin/dashboard/settings',
+      href: '/admin/dashboard/settings?tab=events',
       label: t('eventChannelLabel'),
       description: t('eventChannelDescription'),
       hint: t('eventChannelHint'),
@@ -109,7 +109,7 @@ export default async function SetupChecklist({ guildId }: Props) {
     {
       key: 'autoRegearEnabled',
       done: autoRegearEnabled === 'true',
-      href: '/admin/dashboard/regear',
+      href: '/admin/dashboard/settings?tab=regear',
       label: t('autoRegearEnabledLabel'),
       description: t('autoRegearEnabledDescription'),
       hint: t('autoRegearEnabledHint'),

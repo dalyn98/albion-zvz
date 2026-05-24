@@ -6,10 +6,10 @@ import { Image as ImageIcon, Shield, Timer, Coins, Building2 } from 'lucide-reac
 import { useDemoToast } from './DemoFeedbackProvider'
 import { DEMO_GUILD_NAME } from '@/data/demo-seed'
 
-type TabKey = 'guild' | 'permissions' | 'events' | 'regear' | 'landing'
+export type DemoSettingsTabKey = 'guild' | 'permissions' | 'events' | 'regear' | 'landing'
 
 interface TabDef {
-  key: TabKey
+  key: DemoSettingsTabKey
   labelKey:
     | 'tabGuild'
     | 'tabPermissions'
@@ -27,12 +27,16 @@ const TABS: readonly TabDef[] = [
   { key: 'landing', labelKey: 'tabLanding', icon: ImageIcon },
 ]
 
-export default function DemoSettingsTabs() {
+interface Props {
+  initialTab?: DemoSettingsTabKey
+}
+
+export default function DemoSettingsTabs({ initialTab = 'guild' }: Props) {
   const t = useTranslations('adminSettings')
   const tDemo = useTranslations('demo.settings')
   const tFeedback = useTranslations('demo.feedback')
   const { showToast } = useDemoToast()
-  const [active, setActive] = useState<TabKey>('guild')
+  const [active, setActive] = useState<DemoSettingsTabKey>(initialTab)
 
   return (
     <div className="space-y-4">
@@ -86,13 +90,13 @@ export default function DemoSettingsTabs() {
         {active === 'permissions' && (
           <div className="space-y-4">
             <DemoSettingsGroup title={tDemo('adminRoleTitle')}>
-              <DemoTagInput tags={['Officer', 'Caller']} />
+              <DemoTagInput tags={['Officer', 'Caller']} addLabel={tDemo('addRolePlaceholder')} />
             </DemoSettingsGroup>
             <DemoSettingsGroup title={tDemo('eventCreatorRolesTitle')}>
-              <DemoTagInput tags={['Officer', 'Caller']} />
+              <DemoTagInput tags={['Officer', 'Caller']} addLabel={tDemo('addRolePlaceholder')} />
             </DemoSettingsGroup>
             <DemoSettingsGroup title={tDemo('activeMemberRolesTitle')}>
-              <DemoTagInput tags={['Member', 'Veteran']} />
+              <DemoTagInput tags={['Member', 'Veteran']} addLabel={tDemo('addRolePlaceholder')} />
             </DemoSettingsGroup>
           </div>
         )}
@@ -113,9 +117,10 @@ export default function DemoSettingsTabs() {
               title={t('eventNoticeGroupTitle')}
               description={t('eventNoticeGroupDescription')}
             >
+              <DemoFormRow label={t('eventChannelLabel')} value="#zvz-announcements" />
               <DemoFormRow
                 label={tDemo('notificationMessageLabel')}
-                value="@everyone 21시 정모!"
+                value={tDemo('notificationMessageValue')}
               />
               <DemoFormRow label={tDemo('eventDmLeadLabel')} value="35 min" />
             </DemoSettingsGroup>
@@ -145,12 +150,12 @@ export default function DemoSettingsTabs() {
         {active === 'landing' && (
           <div className="space-y-4">
             <DemoSettingsGroup title={tDemo('landingCtaTextLabel')}>
-              <DemoFormRow label="" value="우리 길드와 함께 ZvZ 합시다!" />
+              <DemoFormRow label="" value={tDemo('landingCtaTextValue')} />
             </DemoSettingsGroup>
             <DemoSettingsGroup title={tDemo('landingBannerLabel')}>
               <div className="aspect-[3/1] w-full rounded-md border border-dashed border-gray-700 bg-gray-950 flex items-center justify-center text-xs text-gray-500">
                 <ImageIcon size={20} className="mr-2" />
-                Banner preview · 1920×640
+                {tDemo('bannerPreview')}
               </div>
             </DemoSettingsGroup>
           </div>
@@ -221,7 +226,7 @@ function DemoFormRow({
   )
 }
 
-function DemoTagInput({ tags }: { tags: string[] }) {
+function DemoTagInput({ tags, addLabel }: { tags: string[]; addLabel: string }) {
   return (
     <div className="flex flex-wrap items-center gap-2 rounded border border-gray-700 bg-gray-950 px-3 py-2 cursor-not-allowed opacity-90">
       {tags.map((tag) => (
@@ -232,7 +237,7 @@ function DemoTagInput({ tags }: { tags: string[] }) {
           @{tag}
         </span>
       ))}
-      <span className="text-xs text-gray-600">+ Add role</span>
+      <span className="text-xs text-gray-600">{addLabel}</span>
     </div>
   )
 }

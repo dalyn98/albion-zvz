@@ -9,7 +9,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import { requireAlbionVerified } from '@/lib/albion-identity'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
-import { SLOT_KEYS, SLOT_ROLES, type BuildSnapshot, type SlotRole } from '@/types'
+import { SLOT_KEYS, SLOT_ROLES, type BuildSnapshot, type RegearType, type SlotRole } from '@/types'
 
 // 이벤트와 무관한 자유 신청 창구 (regear_windows). 관리자가 윈도우를 열고
 // (open) / 닫고 (close), 멤버는 열려 있는 윈도우에 manual flow 로 신청한다.
@@ -301,6 +301,13 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   const file = formData.get('screenshot')
   const file2 = formData.get('screenshot2')
   const buildSnapshotRaw = String(formData.get('buildSnapshot') ?? '')
+  const requestTypeRaw = String(formData.get('requestType') ?? 'death')
+  const requestType: RegearType = requestTypeRaw === 'overcharge' ? 'overcharge' : 'death'
+  if (requestType === 'overcharge') {
+    const overchargeEnabled =
+      (await getAppSetting('regear_overcharge_enabled', 'false', guildId)) === 'true'
+    if (!overchargeEnabled) return { error: tErr('overchargeDisabled') }
+  }
   // 청구 방식은 길드 단위 강제. craft_regear_enabled='true' 면 모든 신규 요청이
   // 'crafted', 'false' 면 'silver'. 멤버는 모드를 선택할 수 없다.
   const craftEnabled =
@@ -342,18 +349,21 @@ export async function requestWindowRegear(formData: FormData): Promise<{
     return { error: tErr('regearWindowClosed') }
   }
 
-  // 2) 1인당 신청 한도 (window 컬럼). non-rejected 만 카운트.
+  // 2) 1인당 데스 신청 한도 (window 컬럼). 오버차지는 데스 횟수에 포함하지 않는다.
   const maxDeaths = windowRow.max_deaths_per_member ?? DEFAULT_MAX_DEATHS_PER_WINDOW
-  const { count: activeCount, error: countError } = await db
-    .from('regear_requests')
-    .select('id', { count: 'exact', head: true })
-    .eq('guild_id', guildId)
-    .eq('regear_window_id', windowId)
-    .eq('discord_id', session.discordId)
-    .neq('status', 'rejected')
-  if (countError) return { error: countError.message }
-  if ((activeCount ?? 0) >= maxDeaths) {
-    return { error: tErr('regearDeathsLimitReached', { max: maxDeaths }) }
+  if (requestType === 'death') {
+    const { count: activeCount, error: countError } = await db
+      .from('regear_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('guild_id', guildId)
+      .eq('regear_window_id', windowId)
+      .eq('discord_id', session.discordId)
+      .eq('request_type', 'death')
+      .neq('status', 'rejected')
+    if (countError) return { error: countError.message }
+    if ((activeCount ?? 0) >= maxDeaths) {
+      return { error: tErr('regearDeathsLimitReached', { max: maxDeaths }) }
+    }
   }
 
   // 3) 역할 ceiling. 0 이면 차단.
@@ -408,6 +418,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
       role_name: roleName as SlotRole,
       silver,
       claimed_silver: claimedSilver,
+      request_type: requestType,
       screenshot_path: path,
       screenshot_path_2: path2,
       killboard_verified: false,

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { HelpCircle } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
@@ -5,6 +6,24 @@ import MarketingNav from '@/components/MarketingNav'
 import { getMarketingPaths } from '@/lib/marketing-paths'
 
 export const dynamic = 'force-dynamic'
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta')
+  return {
+    title: t('faqTitle'),
+    description: t('faqDescription'),
+    openGraph: {
+      type: 'website',
+      title: t('faqTitle'),
+      description: t('faqDescription'),
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: t('faqTitle'),
+      description: t('faqDescription'),
+    },
+  }
+}
 
 const FAQ_KEYS = [
   'q1', 'q2', 'q3', 'q4', 'q5', 'q6',

@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server'
 import { Sparkles } from 'lucide-react'
 import DemoSettingsTabs from '../_components/DemoSettingsTabs'
+import type { DemoSettingsTabKey } from '../_components/DemoSettingsTabs'
 import DemoCTACard from '../_components/DemoCTACard'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 
@@ -9,12 +10,32 @@ const SETTINGS_TOUR_STEPS = [
   { id: 'settings-notice' },
 ] as const
 
+interface DemoSettingsPageProps {
+  searchParams?: Promise<{ tab?: string | string[] }>
+}
+
+function getInitialTab(value: string | string[] | undefined): DemoSettingsTabKey | undefined {
+  const tab = Array.isArray(value) ? value[0] : value
+  if (
+    tab === 'guild' ||
+    tab === 'permissions' ||
+    tab === 'events' ||
+    tab === 'regear' ||
+    tab === 'landing'
+  ) {
+    return tab
+  }
+  return undefined
+}
+
 // `/demo/settings` — `/admin/dashboard/settings` 의 정적 비주얼 클론.
 // 5개 탭 (guild/permissions/events/regear/landing) 구조 그대로, 각 form 은
 // 대표 항목만 disabled 상태로 노출. 실제 SettingsTabs 의 클라이언트 컴포넌트
 // 들을 그대로 가져오면 server action 이 생성돼 데모에선 부적절 — 시각적으로
 // 동등한 더미만 렌더한다.
-export default async function DemoSettingsPage() {
+export default async function DemoSettingsPage({ searchParams }: DemoSettingsPageProps) {
+  const params = searchParams ? await searchParams : undefined
+  const initialTab = getInitialTab(params?.tab)
   const [t, tDemo, tCta] = await Promise.all([
     getTranslations('adminSettings'),
     getTranslations('demo.settings'),
@@ -35,7 +56,7 @@ export default async function DemoSettingsPage() {
       </div>
 
       <div data-tour-id="settings-tabs">
-        <DemoSettingsTabs />
+        <DemoSettingsTabs key={initialTab ?? 'guild'} initialTab={initialTab} />
       </div>
 
       <DemoCTACard

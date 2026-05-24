@@ -124,7 +124,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<ListChecks size={18} className="text-emerald-400" />}
           title={t('quickStart.title')}
-          href="/admin/dashboard/settings?tab=events"
+          href="/admin/dashboard/settings?tab=guild"
           linkLabel={t('quickStart.cta')}
         >
           <p className="text-sm text-gray-300 leading-relaxed mb-3">
@@ -162,7 +162,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<Users size={18} className="text-amber-400" />}
           title={t('onboarding.title')}
-          href="/admin/dashboard/settings?tab=events"
+          href="/admin/dashboard/settings?tab=guild"
           linkLabel={t('onboarding.cta')}
         >
           <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
@@ -173,7 +173,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<Globe size={18} className="text-amber-400" />}
           title={t('timezone.title')}
-          href="/admin/dashboard/settings?tab=events"
+          href="/admin/dashboard/settings?tab=guild"
           linkLabel={t('timezone.cta')}
         >
           <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">
@@ -198,7 +198,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<ShieldCheck size={18} className="text-amber-400" />}
           title={t('regear.title')}
-          href="/admin/dashboard/settings?tab=events"
+          href="/admin/dashboard/settings?tab=regear"
           linkLabel={t('regear.cta')}
         >
           <p className="text-sm text-gray-300 leading-relaxed">
@@ -248,7 +248,7 @@ export default async function AdminGuidePage() {
         <GuideSection
           icon={<Bell size={18} className="text-amber-400" />}
           title={t('notifications.title')}
-          href="/admin/dashboard/settings?tab=notices"
+          href="/admin/dashboard/settings?tab=events"
           linkLabel={t('notifications.cta')}
         >
           <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-line">

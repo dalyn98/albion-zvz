@@ -127,8 +127,8 @@ export interface RegearEligibleEvent {
   battle_started_at: string
   role_name: string
   role_reward: number
-  // Non-rejected regear requests the current user already has for this event.
-  // Button disables when this hits `maxDeaths` (loaded separately on the page).
+  // Non-rejected death regear requests the current user already has for this event.
+  // Overcharge requests do not consume this count.
   existing_active_count: number
   // Most recent active auto-generated request id for this event/member.
   // When set, the page renders a read-only "auto submitted" card variant —
@@ -250,38 +250,42 @@ async function requestRegearInner(
 
   const { windowMinutes, maxDeaths, eligibilityDays } = await loadRegearLimits(guildId)
 
-  // 1a) Supersede policy: pending 자동 리기어 행이 있으면 반려로 밀어내고 수동을
-  //     받는다. 자동이 cron 에서 선행되어 pending 으로 자리 잡았더라도, 실제
+  // 1a) Supersede policy: pending 자동 리기어 행이 있으면 반려로 밀어내고 수동
+  //     death 를 받는다. 자동이 cron 에서 선행되어 pending 으로 자리 잡았더라도, 실제
   //     사망한 유저가 직접 신청서를 올리는 쪽을 최종 소스 오브 트루스로 취급.
+  //     오버차지는 사망이 아니므로 자동 death row 를 대체하지 않는다.
   //     비고 컬럼에 사유를 남겨 관리자/청구자가 내역에서 구분 가능.
-  const { error: supersedeError } = await db
-    .from('regear_requests')
-    .update({
-      status: 'rejected',
-      resolved_at: new Date().toISOString(),
-      admin_notes: '수동 리기어 신청으로 자동 대체됨',
-    })
-    .eq('guild_id', guildId)
-    .eq('event_id', eventId)
-    .eq('discord_id', session.discordId)
-    .eq('auto_generated', true)
-    .eq('status', 'pending')
-  if (supersedeError) return { error: supersedeError.message }
+  if (requestType === 'death') {
+    const { error: supersedeError } = await db
+      .from('regear_requests')
+      .update({
+        status: 'rejected',
+        resolved_at: new Date().toISOString(),
+        admin_notes: '수동 리기어 신청으로 자동 대체됨',
+      })
+      .eq('guild_id', guildId)
+      .eq('event_id', eventId)
+      .eq('discord_id', session.discordId)
+      .eq('auto_generated', true)
+      .eq('request_type', 'death')
+      .eq('status', 'pending')
+    if (supersedeError) return { error: supersedeError.message }
 
-  // 2) Per-event death cap. Non-rejected rows count toward the limit so a user
-  //    can re-submit after a rejection but can't spam past the admin-configured
-  //    cap. Migration 043 removed the DB partial-unique; this is now the only
-  //    gate, so the count query runs before the upload.
-  const { count: activeCount, error: countError } = await db
-    .from('regear_requests')
-    .select('id', { count: 'exact', head: true })
-    .eq('guild_id', guildId)
-    .eq('event_id', eventId)
-    .eq('discord_id', session.discordId)
-    .neq('status', 'rejected')
-  if (countError) return { error: countError.message }
-  if ((activeCount ?? 0) >= maxDeaths) {
-    return { error: tErr('regearDeathsLimitReached', { max: maxDeaths }) }
+    // 2) Per-event death cap. Non-rejected death rows count toward the limit so
+    //    a user can re-submit after a rejection but can't spam past the
+    //    admin-configured death cap. Overcharge requests are outside this count.
+    const { count: activeCount, error: countError } = await db
+      .from('regear_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('guild_id', guildId)
+      .eq('event_id', eventId)
+      .eq('discord_id', session.discordId)
+      .eq('request_type', 'death')
+      .neq('status', 'rejected')
+    if (countError) return { error: countError.message }
+    if ((activeCount ?? 0) >= maxDeaths) {
+      return { error: tErr('regearDeathsLimitReached', { max: maxDeaths }) }
+    }
   }
 
   // 3) Submission gate — `regear_window_minutes` 은 킬보드 indexing 대기 시간이며
@@ -558,7 +562,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
       : Promise.resolve({ data: [] as { role_name: string; silver: number }[], error: null }),
     db
       .from('regear_requests')
-      .select('id, event_id, auto_generated, created_at')
+      .select('id, event_id, auto_generated, request_type, created_at')
       .eq('guild_id', guildId)
       .eq('discord_id', session.discordId)
       .neq('status', 'rejected')
@@ -574,6 +578,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
   // 정렬돼 있으므로 첫 매칭이 곧 최신).
   const autoRequestByEvent = new Map<string, string>()
   for (const row of requestRes.data ?? []) {
+    if ((row.request_type ?? 'death') !== 'death') continue
     countByEvent.set(row.event_id, (countByEvent.get(row.event_id) ?? 0) + 1)
     if (row.auto_generated && !autoRequestByEvent.has(row.event_id)) {
       autoRequestByEvent.set(row.event_id, row.id)

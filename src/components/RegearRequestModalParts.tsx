@@ -20,9 +20,10 @@ export type RequestType = 'death' | 'overcharge'
 
 interface RequestTypePickerProps {
   onPick: (type: RequestType) => void
+  deathDisabled?: boolean
 }
 
-export function RequestTypePicker({ onPick }: RequestTypePickerProps) {
+export function RequestTypePicker({ onPick, deathDisabled = false }: RequestTypePickerProps) {
   const t = useTranslations('regear')
   return (
     <div className="space-y-3">
@@ -33,11 +34,32 @@ export function RequestTypePicker({ onPick }: RequestTypePickerProps) {
       <div className="space-y-2">
         <button
           type="button"
+          disabled={deathDisabled}
           onClick={() => onPick('death')}
-          className="w-full text-left rounded-lg border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 px-4 py-3 transition-colors"
+          className={`w-full text-left rounded-lg border px-4 py-3 transition-colors ${
+            deathDisabled
+              ? 'border-gray-700 bg-gray-800/60 opacity-60 cursor-not-allowed'
+              : 'border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20'
+          }`}
         >
-          <div className="text-rose-200 font-bold text-sm">{t('typeDeathLabel')}</div>
-          <div className="text-rose-300/70 text-[11px] mt-0.5">{t('typeDeathHint')}</div>
+          <div
+            className={
+              deathDisabled
+                ? 'text-gray-300 font-bold text-sm'
+                : 'text-rose-200 font-bold text-sm'
+            }
+          >
+            {t('typeDeathLabel')}
+          </div>
+          <div
+            className={
+              deathDisabled
+                ? 'text-gray-500 text-[11px] mt-0.5'
+                : 'text-rose-300/70 text-[11px] mt-0.5'
+            }
+          >
+            {deathDisabled ? t('typeDeathLimitReachedHint') : t('typeDeathHint')}
+          </div>
         </button>
         <button
           type="button"

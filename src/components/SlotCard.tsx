@@ -42,6 +42,7 @@ interface Props {
   loginHref: string
   battleStarted: boolean
   isAdmin: boolean
+  canManageSlots?: boolean
   assignedAvatar?: string | null
   requestedAvatar?: string | null
   cdBadgeRoles: readonly SlotRole[]
@@ -89,6 +90,7 @@ export default function SlotCard({
   loginHref,
   battleStarted,
   isAdmin,
+  canManageSlots = false,
   assignedAvatar = null,
   requestedAvatar = null,
   cdBadgeRoles,
@@ -119,6 +121,7 @@ export default function SlotCard({
   const isMine = isTaken && slot.assigned_discord_id === currentDiscordId
   const isLoggedIn = currentDiscordId !== null
   const roleStyle = getRoleStyle(slot.role_name)
+  const isSoloBomb = !!slot.is_solo_bomb
   // Bomb squad pending request state. Only relevant when the slot is empty
   // (requested_* is cleared once approve_slot_request moves data to assigned_*).
   const hasPendingRequest = !isTaken && slot.requested_discord_id !== null
@@ -129,10 +132,14 @@ export default function SlotCard({
   // 콜러/관리자는 전투 시작 후에도 승인/거절이 가능 (admin kick 과 동일 정책).
   // 단 사후 변경은 통계/리기어 자격에 영향을 주므로 한 번 더 확인.
   const canReviewPending = hasPendingRequest && isCallerOrAdmin
-  // 빈 슬롯에 한해 콜러/관리자가 "멤버 지정" 모달을 열 수 있게 한다.
+  // 빈 슬롯에 한해 관리자/이벤트 생성자/밤스쿼드 콜러가 "멤버 지정" 모달을
+  // 열 수 있게 한다.
   // 신청(requested_*) 이 걸려 있으면 먼저 승인/거절을 처리해야 한다.
-  const canCallerAssign =
-    !isTaken && !hasPendingRequest && isBombSquadParty && isCallerOrAdmin
+  const canDirectAssign =
+    !isTaken &&
+    !hasPendingRequest &&
+    !isSoloBomb &&
+    (canManageSlots || (isBombSquadParty && isCallerOrAdmin))
 
   // Slot kinds that need a choice at signup time: the admin marked them multi
   // and the member hasn't been assigned yet.
@@ -140,7 +147,6 @@ export default function SlotCard({
     () => SLOT_KEYS.filter((k) => hasGearOptions(slot, k)),
     [slot],
   )
-  const isSoloBomb = !!slot.is_solo_bomb
   // 솔로밤 슬롯은 항상 멤버가 자기 빌드를 직접 입력 → 옵션이 비어 있어도
   // free-form 모달을 열어야 한다.
   const needsPicks = multiOptionKinds.length > 0 || isSoloBomb
@@ -261,7 +267,7 @@ export default function SlotCard({
       return
     }
     if (battleStarted) {
-      const ok = await askConfirm({ body: t('bombSquad.confirmAssignAfterStart'), destructive: false })
+      const ok = await askConfirm({ body: t('confirmDirectAssignAfterStart'), destructive: false })
       if (!ok) return
     }
     setAssignModalOpen(true)
@@ -376,15 +382,19 @@ export default function SlotCard({
       {slot.notes && <NoteTooltip notes={slot.notes} />}
 
       {renderAction()}
-      {canCallerAssign && (
+      {canDirectAssign && (
         <button
           type="button"
           onClick={handleOpenAssignModal}
-          title={battleStarted ? t('bombSquad.callerAssignAfterStartTooltip') : undefined}
-          className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[12px] font-semibold bg-gray-800/80 hover:bg-rose-500/15 text-rose-200 border border-rose-500/40 transition-colors"
+          title={battleStarted ? t('directAssignAfterStartTooltip') : undefined}
+          className={`w-full flex items-center justify-center gap-1 py-1 rounded-md text-[12px] font-semibold bg-gray-800/80 transition-colors ${
+            isBombSquadParty
+              ? 'hover:bg-rose-500/15 text-rose-200 border border-rose-500/40'
+              : 'hover:bg-amber-500/15 text-amber-300 border border-amber-500/40'
+          }`}
         >
           <UserPlus size={11} />
-          {t('bombSquad.callerAssignButton')}
+          {t('directAssignButton')}
         </button>
       )}
       {error && <p className="text-red-400 text-[12px] leading-tight">{error}</p>}
@@ -416,6 +426,7 @@ export default function SlotCard({
           eventId={eventId}
           slotId={slot.id}
           slotLabel={slotLabel}
+          tone={isBombSquadParty ? 'rose' : 'amber'}
           onClose={() => setAssignModalOpen(false)}
         />
       )}

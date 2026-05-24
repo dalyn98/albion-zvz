@@ -1,0 +1,107 @@
+import { describe, expect, it } from 'vitest'
+import {
+  buildLootAuditSummary,
+  parseDepositLog,
+  parseLootLogCsv,
+} from './loot-audit'
+
+const SAMPLE_LOOT_CSV = [
+  'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name;died;died_player_guild;killed_by;killed_by_guild;average_est_market_value;cluster',
+  '2026-05-24T05:00:01Z;RIFT;Menhera;MonKKu;T5_ARMOR_LEATHER_HELL@3;전문가의 지옥불 재킷;2;ARCH;Enemy;VictimA;false;Enemy;MonKKu;Menhera;125000;Battlebrae Flatland',
+  '2026-05-24T05:01:02Z;RIFT;Menhera;MonKKu;T5_ARMOR_LEATHER_HELL@3;전문가의 지옥불 재킷;1;ARCH;Enemy;VictimB;false;Enemy;MonKKu;Menhera;125000;Battlebrae Flatland',
+  '2026-05-24T05:02:03Z;RIFT;Menhera;OtherHealer;T4_TRASH;Trash;6;ARCH;Enemy;VictimC;false;Enemy;OtherHealer;Menhera;0;Battlebrae Flatland',
+].join('\n')
+
+const makeResolver = (name: string) => {
+  if (name === '전문가의 지옥불 재킷') return 'T5_ARMOR_LEATHER_HELL'
+  return null
+}
+
+describe('parseLootLogCsv', () => {
+  it('parses semicolon-delimited Albion loot logger CSV rows', () => {
+    const result = parseLootLogCsv(SAMPLE_LOOT_CSV)
+
+    expect(result.entries).toHaveLength(3)
+    expect(result.errors).toEqual([])
+    expect(result.entries[0]).toMatchObject({
+      lootedByName: 'MonKKu',
+      itemId: 'T5_ARMOR_LEATHER_HELL@3',
+      itemName: '전문가의 지옥불 재킷',
+      quantity: 2,
+      estimatedMarketValue: 125000,
+      cluster: 'Battlebrae Flatland',
+      line: 2,
+    })
+  })
+
+  it('reports invalid numeric rows without dropping valid rows', () => {
+    const raw = [
+      'timestamp_utc;looted_by__name;item_id;item_name;quantity;average_est_market_value',
+      '2026-05-24T05:00:01Z;MonKKu;T5_ARMOR_LEATHER_HELL@3;전문가의 지옥불 재킷;bad;100',
+      '2026-05-24T05:00:02Z;MonKKu;T5_ARMOR_LEATHER_HELL@3;전문가의 지옥불 재킷;1;100',
+    ].join('\n')
+
+    const result = parseLootLogCsv(raw)
+
+    expect(result.entries).toHaveLength(1)
+    expect(result.errors).toEqual([
+      expect.objectContaining({ line: 2, reason: expect.stringContaining('quantity') }),
+    ])
+  })
+})
+
+describe('parseDepositLog', () => {
+  it('keeps only positive guild chest rows and resolves item ids with enchant', () => {
+    const raw = [
+      '"05/24/2026 14:05:00"\t"MonKKu"\t"전문가의 지옥불 재킷"\t"3"\t"1"\t"2"',
+      '"05/24/2026 14:06:00"\t"MonKKu"\t"전문가의 지옥불 재킷"\t"3"\t"1"\t"-1"',
+    ].join('\n')
+
+    const result = parseDepositLog(raw, { resolveItemName: makeResolver })
+
+    expect(result.entries).toHaveLength(1)
+    expect(result.entries[0]).toMatchObject({
+      player: 'MonKKu',
+      itemId: 'T5_ARMOR_LEATHER_HELL@3',
+      quantity: 2,
+      enchant: 3,
+      quality: 1,
+      line: 1,
+    })
+  })
+})
+
+describe('buildLootAuditSummary', () => {
+  it('matches loot to same-member deposits and reports only missing quantity', () => {
+    const loot = parseLootLogCsv(SAMPLE_LOOT_CSV).entries
+    const deposits = parseDepositLog(
+      '"05/24/2026 14:05:00"\t"MonKKu"\t"전문가의 지옥불 재킷"\t"3"\t"1"\t"2"',
+      { resolveItemName: makeResolver },
+    ).entries
+
+    const summary = buildLootAuditSummary(loot, deposits)
+
+    expect(summary.totalLootRows).toBe(3)
+    expect(summary.auditedLootRows).toBe(2)
+    expect(summary.totalEstimatedValue).toBe(375000)
+    expect(summary.missingEstimatedValue).toBe(125000)
+    expect(summary.findings).toEqual([
+      expect.objectContaining({
+        lootedByName: 'MonKKu',
+        itemId: 'T5_ARMOR_LEATHER_HELL@3',
+        expectedQuantity: 3,
+        depositedQuantity: 2,
+        missingQuantity: 1,
+        unitEstimatedValue: 125000,
+      }),
+    ])
+  })
+
+  it('does not count zero-value trash as a suspect finding', () => {
+    const loot = parseLootLogCsv(SAMPLE_LOOT_CSV).entries
+    const summary = buildLootAuditSummary(loot, [])
+
+    expect(summary.ignoredLootRows).toBe(1)
+    expect(summary.findings.map((f) => f.itemId)).not.toContain('T4_TRASH')
+  })
+})

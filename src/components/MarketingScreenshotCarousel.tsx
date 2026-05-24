@@ -4,10 +4,16 @@ import { useEffect, useRef, useState, useTransition } from 'react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import {
+  BarChart3,
+  CalendarDays,
   ImageIcon,
   ChevronLeft,
   ChevronRight,
+  CheckCircle2,
+  Coins,
+  Hammer,
   Plus,
+  ShoppingBag,
   Trash2,
   Loader2,
 } from 'lucide-react'
@@ -36,6 +42,118 @@ const ASPECT_CLASS: Record<NonNullable<Props['aspect']>, string> = {
 }
 
 const ACCEPT = 'image/png,image/jpeg,image/webp'
+
+const PREVIEW_CONFIG: Record<MarketingScreenshotKey, {
+  Icon: typeof ImageIcon
+  badgeClass: string
+  iconClass: string
+  barClass: string
+  chipClass: string
+}> = {
+  events: {
+    Icon: CalendarDays,
+    badgeClass: 'border-amber-400/30 bg-amber-400/10 text-amber-100',
+    iconClass: 'text-amber-300',
+    barClass: 'bg-amber-300/70',
+    chipClass: 'border-amber-400/20 bg-amber-400/10 text-amber-100',
+  },
+  regear: {
+    Icon: Coins,
+    badgeClass: 'border-emerald-400/30 bg-emerald-400/10 text-emerald-100',
+    iconClass: 'text-emerald-300',
+    barClass: 'bg-emerald-300/70',
+    chipClass: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-100',
+  },
+  shop: {
+    Icon: ShoppingBag,
+    badgeClass: 'border-violet-400/30 bg-violet-400/10 text-violet-100',
+    iconClass: 'text-violet-300',
+    barClass: 'bg-violet-300/70',
+    chipClass: 'border-violet-400/20 bg-violet-400/10 text-violet-100',
+  },
+  stats: {
+    Icon: BarChart3,
+    badgeClass: 'border-sky-400/30 bg-sky-400/10 text-sky-100',
+    iconClass: 'text-sky-300',
+    barClass: 'bg-sky-300/70',
+    chipClass: 'border-sky-400/20 bg-sky-400/10 text-sky-100',
+  },
+  craft: {
+    Icon: Hammer,
+    badgeClass: 'border-rose-400/30 bg-rose-400/10 text-rose-100',
+    iconClass: 'text-rose-300',
+    barClass: 'bg-rose-300/70',
+    chipClass: 'border-rose-400/20 bg-rose-400/10 text-rose-100',
+  },
+}
+
+function EmptyMarketingPreview({
+  aspectClass,
+  badge,
+  chips,
+  fallbackLabel,
+  slot,
+}: {
+  aspectClass: string
+  badge: string
+  chips: [string, string, string]
+  fallbackLabel: string
+  slot?: MarketingScreenshotKey
+}) {
+  const config = slot ? PREVIEW_CONFIG[slot] : null
+  const Icon = config?.Icon ?? ImageIcon
+  const barClass = config?.barClass ?? 'bg-gray-500/70'
+  const chipClass = config?.chipClass ?? 'border-gray-600 bg-gray-800 text-gray-300'
+  const badgeClass = config?.badgeClass ?? 'border-gray-600 bg-gray-800 text-gray-300'
+  const iconClass = config?.iconClass ?? 'text-gray-500'
+
+  return (
+    <div
+      role="img"
+      aria-label={fallbackLabel}
+      className={`${aspectClass} relative w-full overflow-hidden rounded-xl border border-gray-800 bg-gray-950 px-5 py-4`}
+    >
+      <div className="relative z-10 flex h-full flex-col justify-between">
+        <div className="flex items-center justify-between gap-3">
+          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${badgeClass}`}>
+            <Icon size={12} className={iconClass} />
+            {badge}
+          </span>
+          <div className="flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300/70" />
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-300/70" />
+            <span className="h-1.5 w-1.5 rounded-full bg-rose-300/70" />
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <p className="text-sm font-bold leading-snug text-white sm:text-base">
+            {fallbackLabel}
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {[0, 1, 2].map((idx) => (
+              <div key={idx} className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
+                <div className={`h-1.5 rounded-full ${barClass} ${idx === 0 ? 'w-10/12' : idx === 1 ? 'w-7/12' : 'w-5/12'}`} />
+                <div className="mt-2 space-y-1">
+                  <div className="h-1 rounded-full bg-white/15" />
+                  <div className="h-1 w-2/3 rounded-full bg-white/10" />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {[0, 1, 2].map((idx) => (
+              <span key={idx} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${chipClass}`}>
+                <CheckCircle2 size={10} />
+                {chips[idx]}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function MarketingScreenshotCarousel({
   images,
@@ -192,12 +310,19 @@ export default function MarketingScreenshotCarousel({
     }
     return (
       <div
-        className={`${aspectClass} w-full rounded-xl border border-dashed border-gray-700 bg-gradient-to-br from-gray-900 to-gray-950 flex items-center justify-center text-center px-6`}
+        className="w-full"
       >
-        <div className="space-y-2">
-          <ImageIcon size={28} className="mx-auto text-gray-600" />
-          <p className="text-xs text-gray-500 font-mono">{fallbackLabel}</p>
-        </div>
+        <EmptyMarketingPreview
+          aspectClass={aspectClass}
+          badge={t('carouselPreviewBadge')}
+          chips={[
+            t('carouselPreviewChipLive'),
+            t('carouselPreviewChipOps'),
+            t('carouselPreviewChipData'),
+          ]}
+          fallbackLabel={fallbackLabel}
+          slot={slot}
+        />
       </div>
     )
   }

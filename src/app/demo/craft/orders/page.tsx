@@ -14,6 +14,14 @@ import { useDemoToast } from '../../_components/DemoFeedbackProvider'
 // 초기 상태로 돌아간다.
 
 type ClaimStatus = 'claimed' | 'delivered'
+type DemoCraftOrderTextKey =
+  | 'orderPostedToday1420'
+  | 'orderPostedToday1108'
+  | 'orderPostedYesterday2245'
+  | 'orderPostedYesterday1900'
+  | 'orderPostedTwoDaysAgo'
+  | 'orderNoteHeavyMace'
+  | 'orderNoteHolyAvalon'
 
 interface OrderRow {
   orderId: string
@@ -24,8 +32,8 @@ interface OrderRow {
   remaining: number
   unitPrice: string
   postedBy: string
-  postedAt: string
-  notes?: string
+  postedAtKey: DemoCraftOrderTextKey
+  notesKey?: DemoCraftOrderTextKey
   myClaim?: { qty: number; status: ClaimStatus }
 }
 
@@ -41,8 +49,8 @@ const INITIAL_ORDERS: ReadonlyArray<OrderRow> = [
     remaining: 7,
     unitPrice: '850,000',
     postedBy: DEMO_MEMBERS[0].ign,
-    postedAt: '오늘 14:20',
-    notes: '인챈트 +3 고정, 품질 무관. Bridgewatch 보관함 1~10번 사용 가능.',
+    postedAtKey: 'orderPostedToday1420',
+    notesKey: 'orderNoteHeavyMace',
   },
   {
     orderId: 'o2',
@@ -53,8 +61,8 @@ const INITIAL_ORDERS: ReadonlyArray<OrderRow> = [
     remaining: 5,
     unitPrice: '1,200,000',
     postedBy: DEMO_MEMBERS[1].ign,
-    postedAt: '오늘 11:08',
-    notes: '아발론 무기 — Caerleon 만 제작 가능합니다.',
+    postedAtKey: 'orderPostedToday1108',
+    notesKey: 'orderNoteHolyAvalon',
   },
   {
     orderId: 'o3',
@@ -65,7 +73,7 @@ const INITIAL_ORDERS: ReadonlyArray<OrderRow> = [
     remaining: 14,
     unitPrice: '380,000',
     postedBy: DEMO_MEMBERS[0].ign,
-    postedAt: '어제 22:45',
+    postedAtKey: 'orderPostedYesterday2245',
   },
   {
     orderId: 'o4',
@@ -76,7 +84,7 @@ const INITIAL_ORDERS: ReadonlyArray<OrderRow> = [
     remaining: 8,
     unitPrice: '720,000',
     postedBy: DEMO_MEMBERS[0].ign,
-    postedAt: '어제 19:00',
+    postedAtKey: 'orderPostedYesterday1900',
   },
   {
     orderId: 'o5',
@@ -87,7 +95,7 @@ const INITIAL_ORDERS: ReadonlyArray<OrderRow> = [
     remaining: 0,
     unitPrice: '320,000',
     postedBy: DEMO_MEMBERS[1].ign,
-    postedAt: '2일 전',
+    postedAtKey: 'orderPostedTwoDaysAgo',
     myClaim: { qty: 6, status: 'claimed' },
   },
 ]
@@ -283,7 +291,8 @@ export default function DemoCraftOrdersPage() {
                       )}
                     </p>
                     <p className="text-[11px] text-gray-500">
-                      {t('postedByLabel', { name: order.postedBy })} · {t('postedAtLabel', { ts: order.postedAt })}
+                      {t('postedByLabel', { name: order.postedBy })} ·{' '}
+                      {t('postedAtLabel', { ts: tDemoCraft(order.postedAtKey) })}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-0.5 shrink-0 text-right">
@@ -310,10 +319,14 @@ export default function DemoCraftOrdersPage() {
                   </div>
                 </div>
 
-                {order.notes && (
+                {order.notesKey && (
                   <div className="bg-gray-950 border border-gray-800 rounded-lg px-3 py-2">
-                    <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">메모</p>
-                    <p className="text-xs text-gray-300 leading-relaxed">{order.notes}</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">
+                      {t('orderNotesLabel')}
+                    </p>
+                    <p className="text-xs text-gray-300 leading-relaxed">
+                      {tDemoCraft(order.notesKey)}
+                    </p>
                   </div>
                 )}
 
