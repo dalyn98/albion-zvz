@@ -3116,6 +3116,13 @@
     "description": "Private account details and your activity record for this guild.",
     "myPoints": "My points",
     "summary": "Earned {earned} · exchanged {spent}",
+    "priorityPointsLabel": "Point balance",
+    "priorityPointsReadySub": "Available for exchange, shop orders, and transfers.",
+    "priorityPointsPendingSub": "{amount} exchange request is waiting for review.",
+    "prioritySiphonLabel": "Siphon balance",
+    "prioritySiphonUnverifiedValue": "Verify first",
+    "prioritySiphonUnverifiedSub": "Verify your Albion character to see your own balance.",
+    "prioritySiphonErrorSub": "Could not load siphon data.",
     "actionTitle": "What to check now",
     "actionDescription": "Only the items you might miss and care about are shown first.",
     "actionVerifyTitle": "Verify Albion character",
@@ -5277,8 +5284,8 @@
           "introBody": "How members see their verification, wallet, siphon, and combat metrics.",
           "step1Title": "Verification",
           "step1Body": "Confirm Discord and Albion character linkage.",
-          "step2Title": "Personal summary",
-          "step2Body": "Review next event, points, participation, K/D, and survival.",
+          "step2Title": "Core balances",
+          "step2Body": "Check point balance and siphon balance first.",
           "step3Title": "Siphon balance",
           "step3Body": "Check deposited, withdrawn, and available siphon energy.",
           "step4Title": "Wallet",
@@ -5511,8 +5518,8 @@
         "body": "Review the parties and role slots, then request the position that fits you. Your current sign-up state is visible here too."
       },
       "me": {
-        "title": "My info shows your account state",
-        "body": "Your Discord account, Albion character, current guild site, and private activity record are summarized for you only."
+        "title": "My info puts key balances first",
+        "body": "Your point balance, siphon balance, and current things to check are visible at the top."
       },
       "statusChip": {
         "title": "The top summary is a shortcut",

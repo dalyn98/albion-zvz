@@ -18,6 +18,7 @@ import { DEMO_MEMBERS } from '@/data/demo-seed'
 import BadgeGrid from '@/components/BadgeGrid'
 import MemberNextActionsPanel from '@/components/MemberNextActionsPanel'
 import MyHomeDashboardCard from '@/components/MyHomeDashboardCard'
+import MemberPriorityMetrics from '@/components/MemberPriorityMetrics'
 import DemoActionButton from '../_components/DemoActionButton'
 import DemoCTACard from '../_components/DemoCTACard'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
@@ -170,19 +171,27 @@ export default async function DemoMePage() {
         </span>
       </div>
 
-      <section data-tour-id="me-verified" className="flex items-start gap-3 rounded-2xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-200 p-4">
-        <ShieldCheck size={20} className="flex-shrink-0 mt-0.5" />
-        <div className="min-w-0 flex-1 space-y-1">
-          <p className="text-sm font-semibold flex items-center gap-2 flex-wrap">
-            <span>Albion Verified</span>
-            <span className="text-xs opacity-80 font-mono">
-              {ME.ign}
-              <span className="ml-1 opacity-70">· {tDemoMe('profileServerLabel')}</span>
-            </span>
-          </p>
-          <p className="text-xs leading-relaxed opacity-80">{tDemoMe('verifiedNote')}</p>
-        </div>
-      </section>
+      <MemberPriorityMetrics
+        tourId="me-summary"
+        items={[
+          {
+            href: '#wallet',
+            icon: <Coins size={22} />,
+            label: t('priorityPointsLabel'),
+            value: formatSilver(ME.points),
+            sub: t('priorityPointsPendingSub', { amount: formatSilver(PENDING_EXCHANGE_AMOUNT) }),
+            tone: 'points',
+          },
+          {
+            href: '#siphon',
+            icon: <Zap size={22} />,
+            label: t('prioritySiphonLabel'),
+            value: t('siphonUnit', { count: `+${SIPHON_NET.toLocaleString('en-US')}` }),
+            sub: t('siphonPositiveSub'),
+            tone: 'positive',
+          },
+        ]}
+      />
 
       <MemberNextActionsPanel
         albionVerified
@@ -214,13 +223,25 @@ export default async function DemoMePage() {
         eventHrefPrefix="/demo/events"
       />
 
-      <div data-tour-id="me-summary">
-        <MyHomeDashboardCard
-          data={DEMO_DASHBOARD}
-          weeklyStatsEnabled
-          eventHrefPrefix="/demo/events"
-        />
-      </div>
+      <section data-tour-id="me-verified" className="flex items-start gap-3 rounded-2xl border bg-emerald-500/10 border-emerald-500/30 text-emerald-200 p-4">
+        <ShieldCheck size={20} className="flex-shrink-0 mt-0.5" />
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="text-sm font-semibold flex items-center gap-2 flex-wrap">
+            <span>Albion Verified</span>
+            <span className="text-xs opacity-80 font-mono">
+              {ME.ign}
+              <span className="ml-1 opacity-70">· {tDemoMe('profileServerLabel')}</span>
+            </span>
+          </p>
+          <p className="text-xs leading-relaxed opacity-80">{tDemoMe('verifiedNote')}</p>
+        </div>
+      </section>
+
+      <MyHomeDashboardCard
+        data={DEMO_DASHBOARD}
+        weeklyStatsEnabled
+        eventHrefPrefix="/demo/events"
+      />
 
       <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <QuickLinkCard

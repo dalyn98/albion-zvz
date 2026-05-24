@@ -3116,6 +3116,13 @@
     "description": "사이트 계정 정보와 이 길드에서의 내 활동 기록을 본인만 확인합니다.",
     "myPoints": "내 포인트",
     "summary": "누적 지급 {earned} · 누적 환전 {spent}",
+    "priorityPointsLabel": "포인트 잔액",
+    "priorityPointsReadySub": "환전, 상점, 양도에 바로 쓸 수 있는 잔액",
+    "priorityPointsPendingSub": "환전 신청 {amount} 처리 대기 중",
+    "prioritySiphonLabel": "사이펀 잔량",
+    "prioritySiphonUnverifiedValue": "인증 필요",
+    "prioritySiphonUnverifiedSub": "알비온 캐릭터 인증 후 내 잔량을 볼 수 있습니다.",
+    "prioritySiphonErrorSub": "사이펀 정보를 불러오지 못했습니다.",
     "actionTitle": "지금 확인할 것",
     "actionDescription": "내가 놓치면 손해 보는 항목만 먼저 모았습니다.",
     "actionVerifyTitle": "알비온 캐릭터 인증",
@@ -5277,8 +5284,8 @@
           "introBody": "길드원이 자신의 인증, 지갑, 사이펀, 전투 지표를 한눈에 보는 화면입니다.",
           "step1Title": "인증 상태",
           "step1Body": "Discord 계정과 Albion 캐릭터 연결 상태를 확인합니다.",
-          "step2Title": "개인 요약",
-          "step2Body": "다음 이벤트, 포인트, 참여, K/D, 생존률을 모아 봅니다.",
+          "step2Title": "핵심 잔액",
+          "step2Body": "포인트 잔액과 사이펀 잔량을 가장 먼저 확인합니다.",
           "step3Title": "사이펀 잔액",
           "step3Body": "입출금 누적과 현재 사용 가능 수량을 확인합니다.",
           "step4Title": "내 지갑",
@@ -5511,8 +5518,8 @@
         "body": "파티와 역할 슬롯을 확인하고 본인에게 맞는 자리를 신청합니다. 이미 신청한 상태도 이 페이지에서 바로 확인할 수 있습니다."
       },
       "me": {
-        "title": "내 정보에서 계정 상태를 확인합니다",
-        "body": "Discord 계정, 알비온 캐릭터, 현재 길드 사이트, 개인 활동 기록을 본인만 볼 수 있는 형태로 정리합니다."
+        "title": "내 정보에서 핵심 잔액을 먼저 확인합니다",
+        "body": "포인트 잔액, 사이펀 잔량, 지금 확인할 일을 첫 화면에서 바로 볼 수 있습니다."
       },
       "statusChip": {
         "title": "상단 요약은 빠른 진입점입니다",

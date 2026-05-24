@@ -41,6 +41,10 @@ import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { formatSilver } from '@/lib/silver'
 import MyHomeDashboardCard from '@/components/MyHomeDashboardCard'
 import MemberNextActionsPanel from '@/components/MemberNextActionsPanel'
+import MemberPriorityMetrics, {
+  type MemberPriorityMetricItem,
+  type MemberPriorityMetricTone,
+} from '@/components/MemberPriorityMetrics'
 import BadgeGrid from '@/components/BadgeGrid'
 import RequestExchangeForm from '@/components/RequestExchangeForm'
 import TransferPointsForm from '@/components/TransferPointsForm'
@@ -171,6 +175,7 @@ export default async function MePage() {
     deadline: formatDateTime(event.deadline_at),
     href: event.auto_request_id ? `/me/regear/${event.auto_request_id}` : '/regear',
   }))
+  const siphonPriority = getSiphonPriority(siphonAccount, t)
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -179,8 +184,52 @@ export default async function MePage() {
         <p className="text-gray-400 text-sm">{t('description')}</p>
       </div>
 
+      <MemberPriorityMetrics
+        tourId="member-tour-me"
+        items={[
+          {
+            href: '#wallet',
+            icon: <Coins size={22} />,
+            label: t('priorityPointsLabel'),
+            value: formatSilver(balance),
+            sub: pendingExchange
+              ? t('priorityPointsPendingSub', { amount: formatSilver(pendingExchange.silver) })
+              : t('priorityPointsReadySub'),
+            tone: 'points',
+          },
+          siphonPriority,
+        ]}
+      />
+
+      <MemberNextActionsPanel
+        albionVerified={albionVerified}
+        pendingTotal={pendingTotal}
+        nextEvent={nextEventForAction}
+        regearItems={regearActionItems}
+        labels={{
+          title: t('actionTitle'),
+          description: t('actionDescription'),
+          verifyTitle: t('actionVerifyTitle'),
+          verifyBody: t('actionVerifyBody'),
+          requestsTitle: t('actionRequestsTitle'),
+          requestsBody: t('actionRequestsBody', { count: pendingTotal }),
+          nextEventTitle: t('actionNextEventTitle'),
+          pendingEventTitle: t('actionPendingEventTitle'),
+          tentativeEventTitle: t('actionTentativeEventTitle'),
+          availableEventTitle: t('actionAvailableEventTitle'),
+          regearTitle: t('actionRegearTitle'),
+          regearBody: (item) => t('actionRegearBody', {
+            role: item.roleName,
+            reward: item.reward,
+            deadline: item.deadline,
+          }),
+          noItemsTitle: t('actionNoItemsTitle'),
+          noItemsBody: t('actionNoItemsBody'),
+          open: t('actionOpen'),
+        }}
+      />
+
       <section
-        data-tour-id="member-tour-me"
         className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-4"
       >
         <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -270,34 +319,6 @@ export default async function MePage() {
           )}
         </div>
       </section>
-
-      <MemberNextActionsPanel
-        albionVerified={albionVerified}
-        pendingTotal={pendingTotal}
-        nextEvent={nextEventForAction}
-        regearItems={regearActionItems}
-        labels={{
-          title: t('actionTitle'),
-          description: t('actionDescription'),
-          verifyTitle: t('actionVerifyTitle'),
-          verifyBody: t('actionVerifyBody'),
-          requestsTitle: t('actionRequestsTitle'),
-          requestsBody: t('actionRequestsBody', { count: pendingTotal }),
-          nextEventTitle: t('actionNextEventTitle'),
-          pendingEventTitle: t('actionPendingEventTitle'),
-          tentativeEventTitle: t('actionTentativeEventTitle'),
-          availableEventTitle: t('actionAvailableEventTitle'),
-          regearTitle: t('actionRegearTitle'),
-          regearBody: (item) => t('actionRegearBody', {
-            role: item.roleName,
-            reward: item.reward,
-            deadline: item.deadline,
-          }),
-          noItemsTitle: t('actionNoItemsTitle'),
-          noItemsBody: t('actionNoItemsBody'),
-          open: t('actionOpen'),
-        }}
-      />
 
       <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <QuickLinkCard
@@ -695,6 +716,50 @@ async function loadPrivateGuildActivityRecords(
 
 function normalizeActivityKey(value: unknown, allowed: readonly string[]): string {
   return typeof value === 'string' && allowed.includes(value) ? value : 'unknown'
+}
+
+function getSiphonPriority(
+  result: MySiphonAccountResult,
+  t: Awaited<ReturnType<typeof getTranslations<'me'>>>,
+): MemberPriorityMetricItem {
+  if (result.status === 'unverified') {
+    return {
+      href: '/onboarding/albion?return=%2Fme',
+      icon: <Zap size={22} />,
+      label: t('prioritySiphonLabel'),
+      value: t('prioritySiphonUnverifiedValue'),
+      sub: t('prioritySiphonUnverifiedSub'),
+      tone: 'warning',
+    }
+  }
+  if (result.status === 'error') {
+    return {
+      href: '#siphon',
+      icon: <Zap size={22} />,
+      label: t('prioritySiphonLabel'),
+      value: '-',
+      sub: t('prioritySiphonErrorSub'),
+      tone: 'neutral',
+    }
+  }
+
+  const tone: MemberPriorityMetricTone =
+    result.account.net < 0 ? 'negative' : result.account.net > 0 ? 'positive' : 'neutral'
+  const sub =
+    result.account.net < 0
+      ? t('siphonNegativeSub')
+      : result.account.net > 0
+        ? t('siphonPositiveSub')
+        : t('siphonZeroSub')
+
+  return {
+    href: '#siphon',
+    icon: <Zap size={22} />,
+    label: t('prioritySiphonLabel'),
+    value: formatSiphonCount(result.account.net, t),
+    sub,
+    tone,
+  }
 }
 
 function QuickLinkCard({

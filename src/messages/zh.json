@@ -3116,6 +3116,13 @@
     "description": "仅本人查看站点账号信息,以及你在当前公会的活动记录。",
     "myPoints": "我的积分",
     "summary": "已获得 {earned} · 已兑换 {spent}",
+    "priorityPointsLabel": "积分余额",
+    "priorityPointsReadySub": "可用于兑换、商店订单和转让。",
+    "priorityPointsPendingSub": "{amount} 兑换申请正在等待处理。",
+    "prioritySiphonLabel": "虹吸余额",
+    "prioritySiphonUnverifiedValue": "需要验证",
+    "prioritySiphonUnverifiedSub": "验证 Albion 角色后即可查看自己的余额。",
+    "prioritySiphonErrorSub": "无法加载虹吸信息。",
     "actionTitle": "现在需要确认",
     "actionDescription": "优先显示可能影响你的重要事项。",
     "actionVerifyTitle": "验证 Albion 角色",
@@ -5277,8 +5284,8 @@
           "introBody": "成员一眼查看自己的认证、余额、虹吸和活动。",
           "step1Title": "认证状态",
           "step1Body": "确认 Discord 和 Albion 角色是否已绑定。",
-          "step2Title": "个人摘要",
-          "step2Body": "汇总出勤、补装、点数等常用信息。",
+          "step2Title": "核心余额",
+          "step2Body": "优先查看积分余额和虹吸余额。",
           "step3Title": "虹吸余额",
           "step3Body": "确认个人存入的虹吸剩余数量。",
           "step4Title": "钱包",
@@ -5511,8 +5518,8 @@
         "body": "查看队伍和角色槽位，然后申请适合自己的位置。你当前的报名状态也会显示在这里。"
       },
       "me": {
-        "title": "我的信息显示你的账号状态",
-        "body": "Discord 账号、阿尔比恩角色、当前公会站点和私人活动记录只会汇总给你本人查看。"
+        "title": "我的信息优先显示核心余额",
+        "body": "积分余额、虹吸余额和当前需要确认的事项会显示在页面顶部。"
       },
       "statusChip": {
         "title": "顶部摘要是快速入口",

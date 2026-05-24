@@ -3116,6 +3116,13 @@
     "description": "サイトアカウント情報と、このギルドでの自分の活動記録を本人だけが確認できます。",
     "myPoints": "マイポイント",
     "summary": "累計支給 {earned} · 累計両替 {spent}",
+    "priorityPointsLabel": "ポイント残高",
+    "priorityPointsReadySub": "両替・ショップ注文・譲渡に使える残高です。",
+    "priorityPointsPendingSub": "両替申請 {amount} が処理待ちです。",
+    "prioritySiphonLabel": "サイフォン残量",
+    "prioritySiphonUnverifiedValue": "認証が必要",
+    "prioritySiphonUnverifiedSub": "Albion キャラクターを認証すると自分の残量を確認できます。",
+    "prioritySiphonErrorSub": "サイフォン情報を読み込めませんでした。",
     "actionTitle": "今確認すること",
     "actionDescription": "見落とすと困る項目だけを先にまとめています。",
     "actionVerifyTitle": "Albion キャラクター認証",
@@ -5277,8 +5284,8 @@
           "introBody": "メンバーが自分の認証、残高、サイフォン、活動を一目で見る画面です.",
           "step1Title": "認証状態",
           "step1Body": "Discordとアルビオンキャラクターの連携状態を確認します.",
-          "step2Title": "自分のサマリー",
-          "step2Body": "出席、リギア、ポイントなどよく見る情報をまとめています.",
+          "step2Title": "重要残高",
+          "step2Body": "ポイント残高とサイフォン残量を最初に確認します.",
           "step3Title": "サイフォン残高",
           "step3Body": "個人が預けたサイフォンの残量を確認します.",
           "step4Title": "ウォレット",
@@ -5511,8 +5518,8 @@
         "body": "パーティーと役割スロットを確認し、自分に合う枠を申請します。現在の申請状態もここで確認できます。"
       },
       "me": {
-        "title": "マイ情報でアカウント状態を確認します",
-        "body": "Discord アカウント、アルビオンキャラクター、現在のギルドサイト、非公開の活動記録を自分だけに表示します。"
+        "title": "マイ情報では重要な残高を先に確認します",
+        "body": "ポイント残高、サイフォン残量、今確認すべき項目を上部ですぐ確認できます。"
       },
       "statusChip": {
         "title": "上部サマリーは近道です",
