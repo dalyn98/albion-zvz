@@ -2,9 +2,9 @@
 
 // 사이펀(Siphoned Energy) 관리자 액션.
 //
-// 알비온 인게임 길드 금고 로그를 텍스트로 붙여넣으면 siphon-ledger 에 적재.
-// shop chest_log 와 같은 6필드 TSV/RTF 포맷이라 parseChestLog 를 재사용하되,
-// siphon 화이트리스트 (isSiphonItemName) 를 통과한 행만 저장한다.
+// 알비온 인게임 사이펀 입출금 로그를 텍스트로 붙여넣으면 siphon-ledger 에 적재.
+// 현재 운영 로그는 4필드 TSV(날짜/플레이어/목적/수량)이고, 과거 6필드
+// guild chest log 도 하위 호환으로 수용한다.
 //
 // 양수 quantity = 입금, 음수 = 출금. UI 는 보통 per-player 순 사용량을 본다 —
 // getSiphonBalances 가 그 집계를 반환.
@@ -16,8 +16,10 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
-import { parseChestLog, type ChestLogEntry } from '@/lib/shop/parse-chest-log'
-import { isSiphonItemName } from '@/lib/siphon/siphon-items'
+import {
+  parseSiphonLog,
+  type SiphonLogEntry,
+} from '@/lib/siphon/parse-siphon-log'
 import { logAdminAction } from '@/lib/admin-audit'
 import { summarizeLogContinuity, type LogContinuityResult } from '@/lib/log-continuity'
 
@@ -26,18 +28,17 @@ import { summarizeLogContinuity, type LogContinuityResult } from '@/lib/log-cont
 const IMPORT_ROW_LIMIT = 5000
 
 export interface SiphonImportSummary {
-  // 원본 텍스트에서 파싱된 총 entry 수 (siphon 외 다른 행도 포함).
+  // 원본 텍스트에서 파싱된 총 entry 수. 과거 6필드 로그에서는 siphon 외 행도 포함.
   parsedTotal: number
   // 파싱 자체가 실패한 라인.
   parseErrors: Array<{ line: number; text: string; reason: string }>
-  // siphon 화이트리스트 통과 후 남은 행.
+  // siphon ledger 에 저장 가능한 행.
   siphonRows: number
   // 그 중 실제로 새로 INSERT 된 행. dryRun 시 0.
   inserted: number
-  // 같은 (시간/플레이어/수량) 키가 이미 DB 에 있어 skip 된 행.
+  // 같은 (길드/시간/플레이어/아이템/스펙/수량) 키가 이미 DB 에 있어 skip 된 행.
   duplicatesSkipped: number
-  // siphon 외 다른 아이템이라 무시한 행 수 — 사용자에게 "10건은 사이펀, 47건은
-  // 다른 아이템이라 무시" 같은 피드백을 주기 위함.
+  // 과거 6필드 로그에서 siphon 외 다른 아이템이라 무시한 행 수.
   nonSiphonRows: number
   // 음수/양수 합계 (이번 batch 만). 양수 = 입금 합, 음수 = 출금 합.
   depositTotal: number
@@ -127,8 +128,8 @@ export async function importSiphonLog(
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
 
-    const { entries, errors } = parseChestLog(parsed.data.raw)
-    if (entries.length === 0) {
+    const { entries, errors, parsedTotal, nonSiphonRows } = parseSiphonLog(parsed.data.raw)
+    if (parsedTotal === 0) {
       return {
         ...emptySummary(),
         parseErrors: errors,
@@ -137,22 +138,18 @@ export async function importSiphonLog(
           : tErr('importEmptyLog'),
       }
     }
-    if (entries.length > IMPORT_ROW_LIMIT) {
+    if (parsedTotal > IMPORT_ROW_LIMIT) {
       return {
         ...emptySummary(),
         parseErrors: errors,
-        error: tErr('importRowLimit', { max: IMPORT_ROW_LIMIT, current: entries.length }),
+        error: tErr('importRowLimit', { max: IMPORT_ROW_LIMIT, current: parsedTotal }),
       }
     }
 
-    // siphon 화이트리스트 필터
-    const siphonEntries = entries.filter((e) => isSiphonItemName(e.itemName))
-    const nonSiphonRows = entries.length - siphonEntries.length
-
-    if (siphonEntries.length === 0) {
+    if (entries.length === 0) {
       return {
         ...emptySummary(),
-        parsedTotal: entries.length,
+        parsedTotal,
         parseErrors: errors,
         nonSiphonRows,
       }
@@ -160,7 +157,15 @@ export async function importSiphonLog(
 
     // 0 수량 행은 마이그 CHECK 제약 (quantity <> 0) 에 걸리므로 미리 제거.
     // 인게임 로그에 0 은 안 나오지만 방어적으로.
-    const validEntries = siphonEntries.filter((e) => e.quantity !== 0)
+    const validEntries = entries.filter((e) => e.quantity !== 0)
+    if (validEntries.length === 0) {
+      return {
+        ...emptySummary(),
+        parsedTotal,
+        parseErrors: errors,
+        nonSiphonRows,
+      }
+    }
 
     // 중복 검출: import 범위의 logged_at 만 기존 DB 와 비교.
     const loggedTimes = validEntries.map((e) => e.loggedAt.getTime())
@@ -189,7 +194,7 @@ export async function importSiphonLog(
       ),
     )
 
-    const isNewEntry = (e: ChestLogEntry) =>
+    const isNewEntry = (e: SiphonLogEntry) =>
       !existingKeys.has(dedupeKey({ ...e, itemName: e.itemName }))
 
     const newEntries = validEntries.filter(isNewEntry)
@@ -206,7 +211,7 @@ export async function importSiphonLog(
       return { ...emptySummary(), parseErrors: errors, error: latestErr.message }
     }
 
-    let latestStoredEntries: ChestLogEntry[] = []
+    let latestStoredEntries: SiphonLogEntry[] = []
     if (latestRow) {
       const { data: latestRows, error: latestRowsErr } = await db
         .from('siphon_ledger')
@@ -248,7 +253,7 @@ export async function importSiphonLog(
 
     if (dryRun) {
       return {
-        parsedTotal: entries.length,
+        parsedTotal,
         parseErrors: errors,
         siphonRows: validEntries.length,
         inserted: 0,
@@ -281,7 +286,7 @@ export async function importSiphonLog(
         if (!error.message.includes('duplicate key')) {
           return {
             ...emptySummary(),
-            parsedTotal: entries.length,
+            parsedTotal,
             parseErrors: errors,
             siphonRows: validEntries.length,
             nonSiphonRows,
@@ -316,7 +321,7 @@ export async function importSiphonLog(
     })
 
     return {
-      parsedTotal: entries.length,
+      parsedTotal,
       parseErrors: errors,
       siphonRows: validEntries.length,
       inserted,

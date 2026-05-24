@@ -1,5 +1,5 @@
 // 데모 사이펀 시드 — 관리자 사이펀 입출금 관리와 멤버 내 사이펀 화면에서 사용.
-// 실제 데이터는 인게임 길드 보관함 로그 기반이지만, 데모에서는 결정적 상수로만
+// 실제 데이터는 인게임 사이펀 입출금 로그 기반이지만, 데모에서는 결정적 상수로만
 // 구성해 새로고침해도 항상 같은 체험을 제공한다.
 
 export type DemoSiphonLedgerRow = {
@@ -133,7 +133,7 @@ export const DEMO_SIPHON_BALANCES: readonly DemoSiphonBalance[] = [
   },
 ] as const
 
-export const DEMO_SIPHON_IMPORT_SAMPLE = `"05/21/2026 23:18:12"\t"Eternia"\t"Siphoned Energy"\t"0"\t"1"\t"-12"
-"05/21/2026 22:41:33"\t"Daewi"\t"Siphoned Energy"\t"0"\t"1"\t"-8"
-"05/21/2026 21:05:02"\t"MoonRabbit"\t"Siphoned Energy"\t"0"\t"1"\t"40"
-"05/21/2026 20:44:19"\t"ShadowAce"\t"Martlock Cape"\t"3"\t"2"\t"1"`
+export const DEMO_SIPHON_IMPORT_SAMPLE = `"날짜"\t"플레이어"\t"목적"\t"수량"
+"2026-05-21 23:18:12"\t"Eternia"\t"출금"\t"-12"
+"2026-05-21 22:41:33"\t"Daewi"\t"출금"\t"-8"
+"2026-05-21 21:05:02"\t"MoonRabbit"\t"입금"\t"40"`

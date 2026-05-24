@@ -12,6 +12,7 @@ import {
   type DemoSiphonBalance,
   type DemoSiphonLedgerRow,
 } from '@/data/demo-seed'
+import { parseSiphonLog } from '@/lib/siphon/parse-siphon-log'
 
 const SIPHON_TOUR_STEPS = [
   { id: 'siphon-import' },
@@ -209,22 +210,14 @@ function parsePreview(raw: string): {
   withdrawTotal: number
   affectedPlayers: number
 } {
-  const rows = raw
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-  const siphonRows = rows.filter((line) => /siphoned energy|착취한 에너지/i.test(line))
-  const quantities = siphonRows.map((line) => {
-    const match = line.match(/"(-?\d+)"\s*$/)
-    return match ? Number(match[1]) : 0
-  })
-  const players = new Set(
-    siphonRows.map((line) => line.split('\t')[1]?.replaceAll('"', '') ?? '').filter(Boolean),
-  )
+  const result = parseSiphonLog(raw)
+  const quantities = result.entries.map((entry) => entry.quantity)
+  const players = new Set(result.entries.map((entry) => entry.player))
+
   return {
-    parsedTotal: rows.length,
-    siphonRows: siphonRows.length,
-    nonSiphonRows: rows.length - siphonRows.length,
+    parsedTotal: result.parsedTotal,
+    siphonRows: result.entries.length,
+    nonSiphonRows: result.nonSiphonRows,
     depositTotal: quantities.filter((qty) => qty > 0).reduce((sum, qty) => sum + qty, 0),
     withdrawTotal: quantities.filter((qty) => qty < 0).reduce((sum, qty) => sum + qty, 0),
     affectedPlayers: players.size,

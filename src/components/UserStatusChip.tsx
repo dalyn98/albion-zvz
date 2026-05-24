@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { Bell, ChevronDown, Coins, ListChecks, Zap } from 'lucide-react'
+import { Bell, ChevronDown, ChevronRight, Coins, ListChecks, Zap } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { GuardedLink } from './UnsavedChangesProvider'
 
@@ -150,12 +150,16 @@ export default function UserStatusChip({ summary, compact = false, className = '
 
           <div className="grid gap-2 px-3 py-3">
             <PopoverMetric
+              href="/me#wallet"
+              onNavigate={() => setOpen(false)}
               icon={<Coins size={15} />}
               label={t('statusPopoverPoints')}
               value={balanceLabel ?? t('statusChipUnavailable')}
               tone="accent"
             />
             <PopoverMetric
+              href="/me#siphon"
+              onNavigate={() => setOpen(false)}
               icon={<Zap size={15} />}
               label={t('statusPopoverSiphon')}
               value={siphonLabel}
@@ -168,6 +172,8 @@ export default function UserStatusChip({ summary, compact = false, className = '
               }
             />
             <PopoverMetric
+              href="/me/requests"
+              onNavigate={() => setOpen(false)}
               icon={<ListChecks size={15} />}
               label={t('statusPopoverChecks')}
               value={pendingLabel}
@@ -237,12 +243,16 @@ function pendingDetail(
 }
 
 function PopoverMetric({
+  href,
+  onNavigate,
   icon,
   label,
   value,
   detail,
   tone,
 }: {
+  href?: string
+  onNavigate?: () => void
   icon: ReactNode
   label: string
   value: string
@@ -258,8 +268,10 @@ function PopoverMetric({
           ? 'bg-danger-soft text-danger-soft-foreground'
           : 'bg-surface-2 text-muted'
 
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-background/35 px-3 py-2.5">
+  const className =
+    'group flex items-center gap-3 rounded-xl border border-border bg-background/35 px-3 py-2.5 text-left transition-colors hover:border-accent/45 hover:bg-background/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60'
+  const content = (
+    <>
       <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${toneClass}`}>
         {icon}
       </span>
@@ -268,6 +280,27 @@ function PopoverMetric({
         <span className="block truncate text-sm font-bold text-foreground">{value}</span>
         {detail && <span className="block truncate text-[11px] text-subtle">{detail}</span>}
       </span>
+      {href && (
+        <ChevronRight
+          size={15}
+          className="shrink-0 text-subtle transition-colors group-hover:text-accent"
+          aria-hidden="true"
+        />
+      )}
+    </>
+  )
+
+  if (href) {
+    return (
+      <GuardedLink href={href} onClick={onNavigate} className={className}>
+        {content}
+      </GuardedLink>
+    )
+  }
+
+  return (
+    <div className={className}>
+      {content}
     </div>
   )
 }
