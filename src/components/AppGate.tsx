@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from 'next/navigation'
 import DiscordIcon from '@/components/DiscordIcon'
 import InAppBrowserNotice from '@/components/InAppBrowserNotice'
 import type { InAppBrowserKind } from '@/lib/user-agent'
+import { buildDiscordStartHref } from '@/lib/discord-auth-url'
 
 const AUTH_ERROR_KEY_MAP: Record<string, string> = {
   denied: 'denied',
@@ -100,9 +101,7 @@ export default function AppGate({
   const invite = searchParams.get('invite')?.trim() ?? ''
   const hasInvite = invite.length > 0
   const returnTo = pathname && pathname.startsWith('/') && !pathname.startsWith('//') ? pathname : '/'
-  const params = new URLSearchParams({ returnTo })
-  if (invite) params.set('invite', invite)
-  const loginHref = `/api/auth/discord/start?${params.toString()}`
+  const loginHref = buildDiscordStartHref({ returnTo, invite: invite || null })
 
   // 초대 링크가 있으면 어떤 reason 이든 Discord 로그인 버튼이 우선이다 — 다른
   // 계정으로 들어와 있는 사용자도 OAuth 한번 돌면 콜백이 게스트 세션을 발급해

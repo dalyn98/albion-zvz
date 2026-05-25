@@ -36,6 +36,7 @@ import {
   getEventGuestProfile,
 } from '@/lib/event-guest-profile'
 import { getEventInteractionSession } from '@/lib/event-session'
+import { buildDiscordStartHref } from '@/lib/discord-auth-url'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -287,9 +288,7 @@ export default async function EventDetailPage({
   const eventReturnPath = inviteToken
     ? `/events/${id}?invite=${encodeURIComponent(inviteToken)}`
     : `/events/${id}`
-  const loginParams = new URLSearchParams({ returnTo: eventReturnPath })
-  if (inviteToken) loginParams.set('invite', inviteToken)
-  const loginHref = `/api/auth/discord/start?${loginParams.toString()}`
+  const loginHref = buildDiscordStartHref({ returnTo: eventReturnPath, invite: inviteToken })
   const localLoginEnabled =
     (await getAppSetting('local_guild_accounts_enabled', 'false', guildId)) === 'true' &&
     (await getAppSetting('local_guild_invite_hash', '', guildId)).trim().length > 0

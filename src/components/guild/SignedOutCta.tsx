@@ -4,6 +4,7 @@
 import { LogIn } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { ACCENT_CLASS_MAP } from '@/lib/guild-profile'
+import { buildDiscordStartHref } from '@/lib/discord-auth-url'
 
 type Accent = (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
 
@@ -23,7 +24,7 @@ export default async function SignedOutCta({
   isOtherGuildSession = false,
 }: Props) {
   const t = await getTranslations('publicGuildProfile')
-  const href = `/api/auth/discord/start?returnTo=${encodeURIComponent(returnTo)}`
+  const href = buildDiscordStartHref({ returnTo, forceConsent: isOtherGuildSession })
   return (
     <div
       className={`rounded-lg border ${accent.border} bg-gray-900/40 backdrop-blur-sm px-4 py-3 flex items-center gap-3 flex-wrap`}
