@@ -1,4 +1,4 @@
-// Host-aware path helpers for marketing pages. features 는 /landing 의 anchor 로
+// Host-aware path helpers for marketing pages. features 는 homepage anchor 로
 // 노출되고, pricing/FAQ/legal/docs 는 별도 canonical 페이지로 분리된다.
 //
 // 공식 사이트는 항상 canonical root (`albion-guildmanager.com`) 로 열려야 한다.

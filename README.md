@@ -5,7 +5,7 @@ Albion Online ZvZ 길드 운영을 위한 멀티테넌트 SaaS. 이벤트 운영
 - 프로덕션: <https://albion-guildmanager.com>
 - 봇 초대 단축 URL: <https://albion-guildmanager.com/invite>
 - 어드민용 사용법 가이드: 사이트 로그인 후 어드민 → 사용법 가이드 (i18n: ko / ja / en / zh)
-- 마케팅·FAQ: `/landing`, `/pricing`, `/faq`
+- 마케팅·FAQ: `/`, `/pricing`, `/faq`
 
 ## 핵심 기능
 

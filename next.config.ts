@@ -75,19 +75,20 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // 통합된 /landing 으로 흡수된 기능 페이지의 인바운드 링크를 anchor 로 308
-  // redirect. 정적 redirect 는 Next.js 라우팅 이전에 fire 되므로 anchor 가
-  // 그대로 Location 헤더에 실린다. 봇 초대 단축 URL(`/invite`) 은 Discord
-  // OAuth scope/permissions drift 를 막기 위해 route handler 에서 공용 URL
-  // 생성 함수를 사용한다.
+  // 마케팅 legacy path 는 canonical root 로 모으고, 통합된 랜딩에 흡수된 기능
+  // 페이지의 인바운드 링크는 anchor 로 308 redirect. 정적 redirect 는 Next.js
+  // 라우팅 이전에 fire 되므로 anchor 가 그대로 Location 헤더에 실린다. 봇 초대
+  // 단축 URL(`/invite`) 은 Discord OAuth scope/permissions drift 를 막기 위해
+  // route handler 에서 공용 URL 생성 함수를 사용한다.
   async redirects() {
     return [
+      { source: '/landing', destination: '/', permanent: true },
       { source: '/features', destination: '/#features', permanent: true },
       { source: '/public/features', destination: '/public/landing#features', permanent: true },
     ]
   },
   // 인덱싱 정책 (robots.txt + meta robots 와 3중 신호):
-  //   - 마케팅/공개 path (/, /landing, /pricing, /faq, /privacy, /terms, /docs, /g/*) 와 그 직접 형식
+  //   - 마케팅/공개 path (/, /pricing, /faq, /privacy, /terms, /docs, /g/*) 와 그 직접 형식
   //     (/public/*) 은 검색 인덱싱 허용
   //   - 그 외 모든 path 는 noindex (앱 path /admin /shop /events /api 등)
   //
@@ -110,7 +111,6 @@ const nextConfig: NextConfig = {
       { source: '/:path*', headers: [noindexHeader] },
       // 2) 마케팅/공개 surface — 인덱싱 허용 (위 wildcard 를 override)
       { source: '/', headers: [indexHeader] },
-      { source: '/landing', headers: [indexHeader] },
       { source: '/pricing', headers: [indexHeader] },
       { source: '/faq', headers: [indexHeader] },
       { source: '/privacy', headers: [indexHeader] },
