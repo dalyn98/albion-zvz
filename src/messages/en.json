@@ -3704,6 +3704,7 @@
     "loginRequired": "Login required.",
     "noMemberRole": "You don't have an eligible role.",
     "guestProfileRequired": "Please enter your event nickname before signing up for a slot.",
+    "guestWrongEvent": "Please log in again with this event's guest invite link.",
     "battleAlreadyStarted": "The battle has already started and cannot be cancelled.",
     "eventFinalized": "This event has ended; new sign-ups are closed.",
     "adminOnly": "Admin only.",

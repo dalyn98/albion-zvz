@@ -9,6 +9,14 @@ import {
   shouldUseDiscordConsentPrompt,
 } from '@/lib/discord-reauth'
 
+function inviteFromReturnTo(returnTo: string): string {
+  try {
+    return new URL(returnTo, 'https://albion-guildmanager.local').searchParams.get('invite')?.trim() ?? ''
+  } catch {
+    return ''
+  }
+}
+
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
   const requested = url.searchParams.get('returnTo') ?? '/'
@@ -18,7 +26,7 @@ export async function GET(request: NextRequest) {
   // Guest-invite token carried through the OAuth round-trip so the callback can
   // validate it. Encoded inside the signed state (cookies can't cross the
   // canonical-hop subdomains).
-  const invite = url.searchParams.get('invite')?.trim() ?? ''
+  const invite = url.searchParams.get('invite')?.trim() || inviteFromReturnTo(returnTo)
 
   // `originHost` lets the callback (running on the canonical domain) decide
   // which tenant subdomain to hop back to, preserving the subdomain the user

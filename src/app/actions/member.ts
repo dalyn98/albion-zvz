@@ -134,6 +134,9 @@ export async function assignSlot(
 
   // 이벤트 스코프 게스트는 자신이 초대받은 이벤트 슬롯만 지원 가능. 다른
   // 이벤트의 slotId 로 crafted 요청이 오면 차단.
+  if (session.isGuest && session.eventScope && partyObj?.event_id !== session.eventScope) {
+    return { error: tAction('guestWrongEvent') }
+  }
   if (session.eventScope && partyObj?.event_id !== session.eventScope) {
     return { error: tAction('slotNotFound') }
   }
@@ -193,6 +196,9 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
     return { error: tAction('battleAlreadyStarted') }
   }
   // 이벤트 스코프 게스트는 자기 이벤트의 슬롯만 취소 가능.
+  if (session.isGuest && session.eventScope && partyRow?.event_id !== session.eventScope) {
+    return { error: tAction('guestWrongEvent') }
+  }
   if (session.eventScope && partyRow?.event_id !== session.eventScope) {
     return { error: tAction('slotNotFound') }
   }

@@ -35,6 +35,7 @@ import {
   getEventGuestDisplayNamesByDiscordIds,
   getEventGuestProfile,
 } from '@/lib/event-guest-profile'
+import { getEventInteractionSession } from '@/lib/event-session'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -195,12 +196,14 @@ export default async function EventDetailPage({
   ])
   const rawInvite = Array.isArray(sp.invite) ? sp.invite[0] : sp.invite
   const inviteToken = rawInvite?.trim() || null
-  // 로그인된 멤버/게스트는 세션의 tenant 를 사용한다. 미로그인 게스트 초대는
-  // 토큰이 가리키는 이벤트 tenant 를 먼저 사용해, 예전에 루트 도메인으로 복사된
-  // 초대 링크도 primary tenant 로 잘못 조회하지 않게 한다.
-  const guildId = session
-    ? await getSessionGuildId(session)
-    : (await resolvePublicEventGuildId(id, inviteToken, headersList)) ?? await getPrimaryTenantId()
+  const [sessionGuildId, inviteGuildId] = await Promise.all([
+    session ? getSessionGuildId(session) : Promise.resolve(null),
+    resolvePublicEventGuildId(id, inviteToken, headersList),
+  ])
+  // Public event pages should prefer a valid invite/host tenant over an
+  // unrelated existing session. Otherwise a guest scoped to an older event can
+  // see this public page as "logged in" and hit server-side slot scope guards.
+  const guildId = inviteGuildId ?? sessionGuildId ?? await getPrimaryTenantId()
   const [
     { event, parties },
     t,
@@ -241,6 +244,12 @@ export default async function EventDetailPage({
   // admin 이라도 draft 미리보기 용도로 쓰고 싶다면 관리자 경로 (/admin/dashboard/events/[id])
   // 로 들어가야 한다. 여기서 굳이 우회 열어주지 않는 편이 실수 공개를 방지한다.
   if (!event || event.status === 'draft') notFound()
+  const interactionSession = getEventInteractionSession({
+    session,
+    sessionGuildId,
+    eventGuildId: guildId,
+    eventId: id,
+  })
 
   const displayGatherTime = event.gather_at
     ? formatGatherTimeFor(locale, event.gather_at, tz)
@@ -278,7 +287,9 @@ export default async function EventDetailPage({
   const eventReturnPath = inviteToken
     ? `/events/${id}?invite=${encodeURIComponent(inviteToken)}`
     : `/events/${id}`
-  const loginHref = `/api/auth/discord/start?returnTo=${encodeURIComponent(eventReturnPath)}`
+  const loginParams = new URLSearchParams({ returnTo: eventReturnPath })
+  if (inviteToken) loginParams.set('invite', inviteToken)
+  const loginHref = `/api/auth/discord/start?${loginParams.toString()}`
   const localLoginEnabled =
     (await getAppSetting('local_guild_accounts_enabled', 'false', guildId)) === 'true' &&
     (await getAppSetting('local_guild_invite_hash', '', guildId)).trim().length > 0
@@ -290,12 +301,12 @@ export default async function EventDetailPage({
   // Plain event creators only see it on events they own; EVENT_MANAGE officers
   // can manage existing events in the guild.
   const canEdit =
-    !!session &&
-    (session.isAdmin ||
-      sessionHas(session, CAP.EVENT_MANAGE) ||
-      (sessionCanCreateOrManageEvents(session) &&
+    !!interactionSession &&
+    (interactionSession.isAdmin ||
+      sessionHas(interactionSession, CAP.EVENT_MANAGE) ||
+      (sessionCanCreateOrManageEvents(interactionSession) &&
         !!event.created_by &&
-        event.created_by === session.discordId))
+        event.created_by === interactionSession.discordId))
   const canManageTentativeSignups = canEdit
 
   // 게스트 초대 관리도 같은 권한(관리자 or 이벤트 작성자). 서버에서 미리
@@ -305,8 +316,8 @@ export default async function EventDetailPage({
     ? await listEventGuestTokens(id)
     : { tokens: [] as const }
   const guestProfile =
-    session?.isGuest && session.eventScope === id
-      ? await getEventGuestProfile(guildId, id, session.discordId)
+    interactionSession?.isGuest && interactionSession.eventScope === id
+      ? await getEventGuestProfile(guildId, id, interactionSession.discordId)
       : null
 
   // Pre-battle & in-progress battles get live polling. Once the battle is
@@ -325,28 +336,28 @@ export default async function EventDetailPage({
   let myPending:
     | { partyName: string; slotNumber: number; roleName: string | null }
     | null = null
-  if (session) {
+  if (interactionSession) {
     for (const party of parties) {
       const customName = party.name?.trim()
       const partyName = party.is_bomb_squad && customName
         ? customName
         : t('partyNumber', { number: party.party_number })
       for (const slot of party.slots) {
-        if (!myAssigned && slot.assigned_discord_id === session.discordId) {
+        if (!myAssigned && slot.assigned_discord_id === interactionSession.discordId) {
           myAssigned = { partyName, slotNumber: slot.slot_number, roleName: slot.role_name }
         }
-        if (!myPending && slot.requested_discord_id === session.discordId) {
+        if (!myPending && slot.requested_discord_id === interactionSession.discordId) {
           myPending = { partyName, slotNumber: slot.slot_number, roleName: slot.role_name }
         }
       }
     }
   }
-  const myTentative = session
-    ? tentativeRows.find((row) => row.discord_id === session.discordId) ?? null
+  const myTentative = interactionSession
+    ? tentativeRows.find((row) => row.discord_id === interactionSession.discordId) ?? null
     : null
   const myTentativeRoleNames =
     myTentative?.possible_roles.map((role) => translateSlotRole(role, tRole)).filter(Boolean) ?? []
-  const myStatusTone: EventMyStatusTone = !session
+  const myStatusTone: EventMyStatusTone = !interactionSession
     ? 'guest'
     : myAssigned
       ? 'success'
@@ -377,10 +388,10 @@ export default async function EventDetailPage({
         ? myTentativeRoleNames.length > 0
           ? [t('myStatusTentativeRoles', { roles: myTentativeRoleNames.join(', ') })]
           : []
-        : session?.isGuest && guestProfile
+        : interactionSession?.isGuest && guestProfile
           ? [t('myStatusGuestName', { name: guestProfile.displayName })]
           : []
-  const myStatusTitle = !session
+  const myStatusTitle = !interactionSession
     ? t('myStatusGuestTitle')
     : myAssigned
       ? t('myStatusAssignedTitle')
@@ -389,7 +400,7 @@ export default async function EventDetailPage({
         : myTentative
           ? t('myStatusTentativeTitle')
           : t('myStatusNoneTitle')
-  const myStatusDescription = !session
+  const myStatusDescription = !interactionSession
     ? t('myStatusGuestBody')
     : myAssigned
       ? event.battle_started_at
@@ -400,21 +411,21 @@ export default async function EventDetailPage({
         : myTentative
           ? t('myStatusTentativeBody')
           : t('myStatusNoneBody')
-  const canRequestRegear = !!session?.isMember && !!myAssigned && !!event.battle_started_at
-  const myStatusPrimaryAction = !session
+  const canRequestRegear = !!interactionSession?.isMember && !!myAssigned && !!event.battle_started_at
+  const myStatusPrimaryAction = !interactionSession
     ? { href: loginHref, label: t('myStatusLogin') }
     : canRequestRegear
       ? { href: '/regear', label: t('myStatusRegear') }
       : undefined
-  const myStatusSecondaryAction = session && !canRequestRegear && !myAssigned
+  const myStatusSecondaryAction = interactionSession && !canRequestRegear && !myAssigned
     ? { href: '#event-slots', label: t('myStatusFindSlot') }
-    : !session && localLoginHref
+    : !interactionSession && localLoginHref
       ? { href: localLoginHref, label: t('myStatusLocalLogin') }
     : undefined
 
   return (
     <div className="flex-1 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 py-6 sm:py-8 flex flex-col lg:flex-row lg:gap-6 space-y-4 lg:space-y-0">
-      {session?.isGuest && session.eventScope === id && (
+      {interactionSession?.isGuest && interactionSession.eventScope === id && (
         <EventGuestProfileGate eventId={id} initialProfile={guestProfile} />
       )}
       {shouldPoll && <AutoRefresh intervalMs={pollIntervalMs} />}
@@ -530,8 +541,8 @@ export default async function EventDetailPage({
           eventId={id}
           rows={tentativeRows}
           avatars={avatars}
-          currentDiscordId={session?.discordId ?? null}
-          isAdmin={session?.isAdmin ?? false}
+          currentDiscordId={interactionSession?.discordId ?? null}
+          isAdmin={interactionSession?.isAdmin ?? false}
           isEventOwner={canManageTentativeSignups}
           loginHref={loginHref}
           battleStarted={!!event.battle_started_at}
@@ -540,10 +551,10 @@ export default async function EventDetailPage({
         <div id="event-slots" data-tour-id="member-tour-event-detail" className="scroll-mt-20">
           <EventPartyGrid
             parties={parties}
-            currentDiscordId={session?.discordId ?? null}
+            currentDiscordId={interactionSession?.discordId ?? null}
             loginHref={loginHref}
             battleStarted={!!event.battle_started_at}
-            isAdmin={session?.isAdmin ?? false}
+            isAdmin={interactionSession?.isAdmin ?? false}
             canManageSlots={canEdit}
             eventId={id}
             avatars={avatars}
