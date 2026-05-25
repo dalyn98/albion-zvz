@@ -2490,7 +2490,7 @@
     "directAssign": {
       "title": "分配成员",
       "close": "关闭",
-      "searchPlaceholder": "搜索成员名称或 Discord ID",
+      "searchPlaceholder": "搜索成员名称、Albion 昵称或 Discord ID",
       "clearSearch": "清除搜索",
       "filterAvailable": "可分配 {count}",
       "filterAll": "全部 {count}",
@@ -2498,6 +2498,7 @@
       "resultSummary": "{count} 个结果",
       "loading": "加载中…",
       "noMatches": "无匹配成员。",
+      "albionName": "Albion",
       "alreadyInEvent": "已在活动中",
       "assigning": "分配中…"
     },

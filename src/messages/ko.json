@@ -2491,7 +2491,7 @@
     "directAssign": {
       "title": "멤버 지정",
       "close": "닫기",
-      "searchPlaceholder": "멤버 이름 또는 Discord ID 검색",
+      "searchPlaceholder": "멤버 이름, 알비온 닉네임 또는 Discord ID 검색",
       "clearSearch": "검색어 지우기",
       "filterAvailable": "지정 가능 {count}",
       "filterAll": "전체 {count}",
@@ -2499,6 +2499,7 @@
       "resultSummary": "결과 {count}명",
       "loading": "불러오는 중…",
       "noMatches": "일치하는 멤버가 없습니다.",
+      "albionName": "알비온",
       "alreadyInEvent": "이미 참여중",
       "assigning": "지정 중…"
     },

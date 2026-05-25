@@ -2490,7 +2490,7 @@
     "directAssign": {
       "title": "Assign member",
       "close": "Close",
-      "searchPlaceholder": "Search member name or Discord ID",
+      "searchPlaceholder": "Search member name, Albion nickname, or Discord ID",
       "clearSearch": "Clear search",
       "filterAvailable": "Available {count}",
       "filterAll": "All {count}",
@@ -2498,6 +2498,7 @@
       "resultSummary": "{count} result(s)",
       "loading": "Loading…",
       "noMatches": "No matching members.",
+      "albionName": "Albion",
       "alreadyInEvent": "Already in event",
       "assigning": "Assigning…"
     },

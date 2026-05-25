@@ -2490,7 +2490,7 @@
     "directAssign": {
       "title": "メンバー指定",
       "close": "閉じる",
-      "searchPlaceholder": "メンバー名またはDiscord IDを検索",
+      "searchPlaceholder": "メンバー名、Albion ニックネーム、Discord IDを検索",
       "clearSearch": "検索をクリア",
       "filterAvailable": "指定可能 {count}",
       "filterAll": "全員 {count}",
@@ -2498,6 +2498,7 @@
       "resultSummary": "結果 {count}件",
       "loading": "読み込み中…",
       "noMatches": "一致するメンバーがいません。",
+      "albionName": "Albion",
       "alreadyInEvent": "既に参加中",
       "assigning": "指定中…"
     },

@@ -257,7 +257,7 @@ export async function listAssignableMembers(
 
   const { data: members, error: membersError } = await db
     .from('guild_avatars')
-    .select('discord_id, username, avatar, withdrawn_at')
+    .select('discord_id, username, albion_nickname, avatar, withdrawn_at')
     .eq('guild_id', guildId)
     .is('withdrawn_at', null)
     .order('username', { ascending: true })
@@ -283,6 +283,7 @@ export async function listAssignableMembers(
       .map((m) => ({
         discordId: m.discord_id as string,
         username: m.username as string,
+        albionNickname: (m.albion_nickname as string | null) ?? null,
         avatar: (m.avatar as string | null) ?? null,
         alreadyInEvent: blocked.has(m.discord_id as string),
       })),

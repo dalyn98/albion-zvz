@@ -220,7 +220,11 @@ export default function MemberAssignModal({
                           <MemberAvatar discordId={m.discordId} avatar={m.avatar} size={24} />
                           <span className="min-w-0">
                             <span className="block text-sm font-semibold truncate">{m.username}</span>
-                            <span className="block text-[11px] text-gray-500 truncate">{m.discordId}</span>
+                            <span className="block text-[11px] text-gray-500 truncate">
+                              {m.albionNickname
+                                ? `${t('albionName')}: ${m.albionNickname} · ${m.discordId}`
+                                : m.discordId}
+                            </span>
                           </span>
                         </span>
                         {m.alreadyInEvent ? (

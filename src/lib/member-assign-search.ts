@@ -3,6 +3,7 @@ import { compareStrings } from './sort-strings'
 export interface AssignableMember {
   discordId: string
   username: string
+  albionNickname: string | null
   avatar: string | null
   alreadyInEvent: boolean
 }
@@ -16,11 +17,18 @@ function normalize(value: string): string {
 function matchScore(member: AssignableMember, query: string): number {
   if (!query) return 10
   const username = normalize(member.username)
+  const albionNickname = normalize(member.albionNickname ?? '')
   const discordId = normalize(member.discordId)
   if (username === query) return 0
+  if (albionNickname === query) return 0
   if (username.startsWith(query)) return 1
-  if (username.split(/\s+/).some((part) => part.startsWith(query))) return 2
+  if (albionNickname.startsWith(query)) return 1
+  if (
+    username.split(/\s+/).some((part) => part.startsWith(query)) ||
+    albionNickname.split(/\s+/).some((part) => part.startsWith(query))
+  ) return 2
   if (username.includes(query)) return 3
+  if (albionNickname.includes(query)) return 3
   if (discordId.includes(query)) return 4
   return Number.POSITIVE_INFINITY
 }
