@@ -19,16 +19,21 @@ import { getLocalizedItemName } from '@/lib/item-names'
 import { canonicalT8WeaponId } from '@/lib/weapon-display'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import type { AlbionMemberDetail, MemberKillEvent } from '@/app/actions/members-admin'
+import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 
 interface Props {
   detail: AlbionMemberDetail
+  timezone?: string
 }
 
 // Albion 미연동 멤버 전용 슬림 상세 뷰. MemberDetailView (Discord 가입자) 와는
 // 보여줄 데이터셋이 다르므로 독립 컴포넌트로 둔다 — 잔액/리기어/환전/포인트/
 // 랭킹/슬롯 이벤트 섹션이 모두 빠진다. 헤더와 통계 카드 디자인은 의도적으로
 // 동일한 톤을 유지해 두 페이지가 시각적으로 형제처럼 보이도록.
-export default async function AlbionMemberDetailView({ detail }: Props) {
+export default async function AlbionMemberDetailView({
+  detail,
+  timezone = DEFAULT_TENANT_TIMEZONE,
+}: Props) {
   const t = await getTranslations('albionMemberDetail')
   const tShared = await getTranslations('memberDetail')
   const tCommon = await getTranslations('common')
@@ -54,9 +59,9 @@ export default async function AlbionMemberDetailView({ detail }: Props) {
             {tCommon(ALBION_SERVER_LABEL_KEY[detail.albion_server])} · {detail.albion_guild_name}
           </p>
           <p className="text-gray-500 text-xs">
-            {t('joinedAt', { date: formatDate(detail.first_seen_at) })}
+            {t('joinedAt', { date: formatDate(detail.first_seen_at, timezone) })}
             <span className="ml-2 text-gray-600">
-              · {t('lastSeenAt', { date: formatDate(detail.last_seen_at) })}
+              · {t('lastSeenAt', { date: formatDate(detail.last_seen_at, timezone) })}
             </span>
           </p>
         </div>
@@ -240,6 +245,7 @@ export default async function AlbionMemberDetailView({ detail }: Props) {
                   opponentUnknownLabel={tShared('killOpponentUnknown')}
                   itemPowerLabel={(value) => tShared('killItemPower', { value })}
                   fameLabel={(fame) => tShared('killFameLabel', { fame })}
+                  timezone={timezone}
                 />
               ))}
             </ul>
@@ -257,6 +263,7 @@ interface KillHistoryRowProps {
   opponentUnknownLabel: string
   itemPowerLabel: (value: number) => string
   fameLabel: (fame: string) => string
+  timezone: string
 }
 
 function KillHistoryRow({
@@ -266,6 +273,7 @@ function KillHistoryRow({
   opponentUnknownLabel,
   itemPowerLabel,
   fameLabel,
+  timezone,
 }: KillHistoryRowProps) {
   const isKiller = entry.role === 'killer'
   const roleBadgeClass = isKiller
@@ -288,7 +296,7 @@ function KillHistoryRow({
       <div className="min-w-0 flex-1">
         <p className="text-white text-sm truncate">{opponent}</p>
         <p className="text-gray-500 text-[10px] font-mono">
-          {formatDateTime(entry.occurred_at)}
+          {formatDateTime(entry.occurred_at, timezone)}
           {entry.item_power != null && (
             <span className="ml-2 text-gray-400">{itemPowerLabel(entry.item_power)}</span>
           )}

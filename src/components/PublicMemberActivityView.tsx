@@ -20,12 +20,17 @@ import { getRoleStyle } from '@/types'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import type { GuildMemberDetail } from '@/app/actions/members-admin'
+import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 
 interface Props {
   detail: GuildMemberDetail
+  timezone?: string
 }
 
-export default async function PublicMemberActivityView({ detail }: Props) {
+export default async function PublicMemberActivityView({
+  detail,
+  timezone = DEFAULT_TENANT_TIMEZONE,
+}: Props) {
   const t = await getTranslations('publicActivity')
   const tMember = await getTranslations('memberDetail')
   const tRole = await getTranslations('slotRole')
@@ -190,7 +195,7 @@ export default async function PublicMemberActivityView({ detail }: Props) {
                     >
                       {translateSlotRole(event.role, tRole)}
                     </span>
-                    <span className="text-gray-400 text-xs font-mono">{formatDate(whenIso)}</span>
+                    <span className="text-gray-400 text-xs font-mono">{formatDate(whenIso, timezone)}</span>
                   </li>
                 )
               })}
@@ -217,7 +222,7 @@ export default async function PublicMemberActivityView({ detail }: Props) {
                       {entry.role === 'killer' ? tMember('killRoleKiller') : tMember('killRoleVictim')}
                     </span>
                     <span className="text-gray-500 text-[11px] font-mono">
-                      {formatDateTime(entry.occurred_at)}
+                      {formatDateTime(entry.occurred_at, timezone)}
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-gray-400 truncate">

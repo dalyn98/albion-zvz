@@ -8,6 +8,7 @@ import { getGuildMemberDetail } from '@/app/actions/members-admin-detail'
 import MemberDetailView from '@/components/MemberDetailView'
 import AdminPointAdjuster from '@/components/AdminPointAdjuster'
 import RealtimeKillboardListener from '@/components/RealtimeKillboardListener'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,10 +24,11 @@ export default async function MemberDetailPage({
     redirect(`/api/auth/discord/start?returnTo=/members/${discordId}`)
   }
 
-  const [{ detail, error }, t, guildId] = await Promise.all([
+  const guildId = await getSessionGuildId(session)
+  const [{ detail, error }, t, timezone] = await Promise.all([
     getGuildMemberDetail(discordId),
     getTranslations('members'),
-    getSessionGuildId(session),
+    getTenantTimezone(guildId),
   ])
   if (!detail && !error) notFound()
 
@@ -59,7 +61,7 @@ export default async function MemberDetailPage({
         </div>
       )}
 
-      {detail && <MemberDetailView detail={detail} />}
+      {detail && <MemberDetailView detail={detail} timezone={timezone} />}
       <RealtimeKillboardListener guildId={guildId} />
     </main>
   )

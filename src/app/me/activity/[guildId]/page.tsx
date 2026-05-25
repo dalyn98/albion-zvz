@@ -7,6 +7,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
 import { getMyMemberDetailForGuild } from '@/app/actions/members-admin-detail'
 import MemberDetailView from '@/components/MemberDetailView'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,10 +27,11 @@ export default async function MyActivityDetailPage({
   }
   if (!session.isMember) redirect('/')
 
-  const [{ detail, error }, tenant, t] = await Promise.all([
+  const [{ detail, error }, tenant, t, timezone] = await Promise.all([
     getMyMemberDetailForGuild(guildId),
     loadTenantSummary(guildId),
     getTranslations('me'),
+    getTenantTimezone(guildId),
   ])
 
   if (!detail && !error) notFound()
@@ -75,6 +77,7 @@ export default async function MyActivityDetailPage({
       {detail && (
         <MemberDetailView
           detail={detail}
+          timezone={timezone}
           showDiscordId={false}
           allowIdentityRefresh={false}
         />

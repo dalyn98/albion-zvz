@@ -3,8 +3,10 @@ import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { getAlbionMemberDetail } from '@/app/actions/members-admin-detail'
 import AlbionMemberDetailView from '@/components/AlbionMemberDetailView'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,9 +22,11 @@ export default async function AlbionMemberDetailPage({
     redirect(`/api/auth/discord/start?returnTo=/members/albion/${playerId}`)
   }
 
-  const [{ detail, error }, t] = await Promise.all([
+  const guildId = await getSessionGuildId(session)
+  const [{ detail, error }, t, timezone] = await Promise.all([
     getAlbionMemberDetail(playerId),
     getTranslations('albionMemberDetail'),
+    getTenantTimezone(guildId),
   ])
   if (!detail && !error) notFound()
 
@@ -44,7 +48,7 @@ export default async function AlbionMemberDetailPage({
         </div>
       )}
 
-      {detail && <AlbionMemberDetailView detail={detail} />}
+      {detail && <AlbionMemberDetailView detail={detail} timezone={timezone} />}
     </main>
   )
 }

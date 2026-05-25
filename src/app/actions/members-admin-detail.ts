@@ -411,10 +411,11 @@ export async function getMyMemberDetailForGuild(targetGuildId: string): Promise<
 export async function getPublicMemberActivityByToken(token: string): Promise<{
   detail: GuildMemberDetail | null
   guildName: string | null
+  timezone: string | null
   error?: string
 }> {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token)) {
-    return { detail: null, guildName: null }
+    return { detail: null, guildName: null, timezone: null }
   }
 
   const db = getAdminClient()
@@ -426,8 +427,8 @@ export async function getPublicMemberActivityByToken(token: string): Promise<{
     .is('revoked_at', null)
     .maybeSingle()
 
-  if (error) return { detail: null, guildName: null, error: error.message }
-  if (!data) return { detail: null, guildName: null }
+  if (error) return { detail: null, guildName: null, timezone: null, error: error.message }
+  if (!data) return { detail: null, guildName: null, timezone: null }
 
   const guildId = data.guild_id as string
   const tenant = Array.isArray(data.tenants) ? data.tenants[0] : data.tenants
@@ -438,6 +439,7 @@ export async function getPublicMemberActivityByToken(token: string): Promise<{
   return {
     detail: result.detail,
     guildName: displayNameFromSlug(slug) || name || guildId,
+    timezone: await getTenantTimezone(guildId),
     error: result.error,
   }
 }

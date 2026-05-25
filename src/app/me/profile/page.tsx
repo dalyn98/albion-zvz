@@ -1,8 +1,10 @@
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { getMyMemberDetail } from '@/app/actions/members-admin-detail'
 import MemberDetailView from '@/components/MemberDetailView'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,9 +14,11 @@ export default async function MyProfilePage() {
     redirect('/api/auth/discord/start?returnTo=/me/profile')
   }
 
-  const [{ detail, error }, t] = await Promise.all([
+  const guildId = await getSessionGuildId(session)
+  const [{ detail, error }, t, timezone] = await Promise.all([
     getMyMemberDetail(),
     getTranslations('myProfile'),
+    getTenantTimezone(guildId),
   ])
 
   return (
@@ -32,6 +36,7 @@ export default async function MyProfilePage() {
       {detail && (
         <MemberDetailView
           detail={detail}
+          timezone={timezone}
           showDiscordId={false}
           allowIdentityRefresh
         />

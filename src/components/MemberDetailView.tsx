@@ -33,6 +33,7 @@ import {
   type AlbionIdentityTrustStatus,
 } from '@/lib/account-albion-identity'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
+import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 import { getRoleStyle, regearPayoutSilver } from '@/types'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import type {
@@ -71,6 +72,7 @@ interface StatusLabels {
 
 interface Props {
   detail: GuildMemberDetail
+  timezone?: string
   // Admin view shows the raw Discord ID under the username; member self-view hides it.
   showDiscordId?: boolean
   // Self profile can trigger the once-per-day Gameinfo refresh.
@@ -79,6 +81,7 @@ interface Props {
 
 export default async function MemberDetailView({
   detail,
+  timezone = DEFAULT_TENANT_TIMEZONE,
   showDiscordId = true,
   allowIdentityRefresh = false,
 }: Props) {
@@ -107,13 +110,14 @@ export default async function MemberDetailView({
           {showDiscordId && (
             <p className="text-gray-500 text-xs mt-0.5 font-mono truncate">{detail.discord_id}</p>
           )}
-          <p className="text-gray-500 text-xs">{t('recentLogin', { date: formatDate(detail.updated_at) })}</p>
+          <p className="text-gray-500 text-xs">{t('recentLogin', { date: formatDate(detail.updated_at, timezone) })}</p>
         </div>
       </header>
 
       {detail.albion_identity && (
         <AlbionIdentityPanel
           identity={detail.albion_identity}
+          timezone={timezone}
           allowRefresh={allowIdentityRefresh}
           t={tIdentity}
           serverLabel={(key) => tCommon(key)}
@@ -370,6 +374,7 @@ export default async function MemberDetailView({
                   opponentUnknownLabel={t('killOpponentUnknown')}
                   itemPowerLabel={(value) => t('killItemPower', { value })}
                   fameLabel={(fame) => t('killFameLabel', { fame })}
+                  timezone={timezone}
                 />
               ))}
             </ul>
@@ -401,7 +406,7 @@ export default async function MemberDetailView({
                     </span>
                     <span className="text-white text-sm truncate flex-1">{e.event_title}</span>
                     <span className="text-gray-500 text-xs font-mono flex-shrink-0">
-                      {formatDate(whenIso)}
+                      {formatDate(whenIso, timezone)}
                     </span>
                     <ChevronRight size={14} className="text-gray-600 group-hover:text-gray-300 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
                   </Link>
@@ -441,10 +446,10 @@ export default async function MemberDetailView({
                     </span>
                   </div>
                   <p className="text-gray-600 text-[11px] font-mono">
-                    {t('requestedAt', { when: formatDateTime(r.created_at) })}
+                    {t('requestedAt', { when: formatDateTime(r.created_at, timezone) })}
                     {r.resolved_at && statusKey !== 'pending' && (
                       <span className="ml-2">
-                        · {t('resolvedAt', { status: statusLabels[statusKey], when: formatDateTime(r.resolved_at) })}
+                        · {t('resolvedAt', { status: statusLabels[statusKey], when: formatDateTime(r.resolved_at, timezone) })}
                         {r.handled_by_username && (
                           <span className="ml-1 text-gray-700">
                             · {t('handledBy', { handler: r.handled_by_username })}
@@ -480,6 +485,7 @@ export default async function MemberDetailView({
                 key={e.id}
                 entry={e}
                 statusLabels={statusLabels}
+                timezone={timezone}
                 manualAdjustLabel={t('manualAdjust')}
                 adjustedAtLabel={(when) => t('adjustedAt', { when })}
                 requestedAtLabel={(when) => t('requestedAt', { when })}
@@ -496,11 +502,13 @@ export default async function MemberDetailView({
 
 function AlbionIdentityPanel({
   identity,
+  timezone,
   allowRefresh,
   t,
   serverLabel,
 }: {
   identity: NonNullable<GuildMemberDetail['albion_identity']>
+  timezone: string
   allowRefresh: boolean
   t: Awaited<ReturnType<typeof getTranslations>>
   serverLabel: (key: string) => string
@@ -557,11 +565,11 @@ function AlbionIdentityPanel({
         />
         <IdentityField
           label={t('lastSynced')}
-          value={identity.lastSyncedAt ? formatDateTime(identity.lastSyncedAt) : t('notSynced')}
+          value={identity.lastSyncedAt ? formatDateTime(identity.lastSyncedAt, timezone) : t('notSynced')}
         />
         <IdentityField
           label={t('trustedAt')}
-          value={identity.trustedAt ? formatDateTime(identity.trustedAt) : t('notTrusted')}
+          value={identity.trustedAt ? formatDateTime(identity.trustedAt, timezone) : t('notTrusted')}
         />
       </div>
     </section>
@@ -601,6 +609,7 @@ function relationKey(relation: AlbionIdentityRelation) {
 interface ExchangeRowProps {
   entry: MemberExchangeEntry
   statusLabels: StatusLabels
+  timezone: string
   manualAdjustLabel: string
   adjustedAtLabel: (when: string) => string
   requestedAtLabel: (when: string) => string
@@ -611,6 +620,7 @@ interface ExchangeRowProps {
 function ExchangeRow({
   entry,
   statusLabels,
+  timezone,
   manualAdjustLabel,
   adjustedAtLabel,
   requestedAtLabel,
@@ -627,7 +637,7 @@ function ExchangeRow({
             {formatSilver(Math.abs(entry.delta))}
           </p>
           <p className="text-gray-600 text-[11px] font-mono">
-            {adjustedAtLabel(formatDateTime(entry.created_at))}
+            {adjustedAtLabel(formatDateTime(entry.created_at, timezone))}
             {entry.handled_by_username && (
               <span className="ml-1 text-gray-700">
                 · {handledByLabel(entry.handled_by_username)}
@@ -651,10 +661,10 @@ function ExchangeRow({
       <div className="min-w-0 flex-1">
         <p className="text-white text-sm font-mono">{formatSilver(entry.silver)}</p>
         <p className="text-gray-600 text-[11px] font-mono">
-          {requestedAtLabel(formatDateTime(entry.created_at))}
+          {requestedAtLabel(formatDateTime(entry.created_at, timezone))}
           {entry.resolved_at && statusKey !== 'pending' && (
             <span className="ml-2">
-              · {resolvedAtLabel(statusLabels[statusKey], formatDateTime(entry.resolved_at))}
+              · {resolvedAtLabel(statusLabels[statusKey], formatDateTime(entry.resolved_at, timezone))}
               {entry.handled_by_username && (
                 <span className="ml-1 text-gray-700">
                   · {handledByLabel(entry.handled_by_username)}
@@ -683,6 +693,7 @@ interface KillHistoryRowProps {
   opponentUnknownLabel: string
   itemPowerLabel: (value: number) => string
   fameLabel: (fame: string) => string
+  timezone: string
 }
 
 function KillHistoryRow({
@@ -692,6 +703,7 @@ function KillHistoryRow({
   opponentUnknownLabel,
   itemPowerLabel,
   fameLabel,
+  timezone,
 }: KillHistoryRowProps) {
   const isKiller = entry.role === 'killer'
   const roleBadgeClass = isKiller
@@ -714,7 +726,7 @@ function KillHistoryRow({
       <div className="min-w-0 flex-1">
         <p className="text-white text-sm truncate">{opponent}</p>
         <p className="text-gray-500 text-[10px] font-mono">
-          {formatDateTime(entry.occurred_at)}
+          {formatDateTime(entry.occurred_at, timezone)}
           {entry.item_power != null && (
             <span className="ml-2 text-gray-400">{itemPowerLabel(entry.item_power)}</span>
           )}
