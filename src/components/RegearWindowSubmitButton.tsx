@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { ShieldCheck, X, Upload, Clipboard } from 'lucide-react'
+import { ArrowRight, ShieldCheck, X, Upload, Clipboard } from 'lucide-react'
 import {
   requestWindowRegear,
   type RegearWindow,
@@ -35,6 +35,7 @@ interface Props {
 }
 
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
+const REGEAR_VERIFY_HREF = '/onboarding/albion?return=%2Fregear'
 
 interface EntryState {
   id: string
@@ -486,10 +487,12 @@ export default function RegearWindowSubmitButton({
                   <p>{error}</p>
                   {needsVerification && (
                     <Link
-                      href="/me/profile"
-                      className="inline-block text-[11px] text-amber-300 hover:text-amber-200 underline"
+                      href={REGEAR_VERIFY_HREF}
+                      className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-amber-500 px-2.5 py-1.5 text-[11px] font-bold text-black hover:bg-amber-400"
                     >
+                      <ShieldCheck size={12} />
                       {t('verifyCtaLabel')}
+                      <ArrowRight size={12} />
                     </Link>
                   )}
                 </div>

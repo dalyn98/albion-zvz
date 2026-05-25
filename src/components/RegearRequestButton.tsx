@@ -28,6 +28,8 @@ import {
   type RequestType,
 } from './RegearRequestModalParts'
 
+const REGEAR_VERIFY_HREF = '/onboarding/albion?return=%2Fregear'
+
 interface Props {
   eventId: string
   roleName: string | null
@@ -538,7 +540,7 @@ export default function RegearRequestButton({
               )}
               {needsVerification && (
                 <Link
-                  href="/onboarding/albion"
+                  href={REGEAR_VERIFY_HREF}
                   onClick={() => setOpen(false)}
                   className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-sm rounded-lg px-4 py-2.5"
                 >

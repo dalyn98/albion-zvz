@@ -56,6 +56,9 @@ export default async function DemoEventDetailPage({
     (sum, party) => sum + party.slots.filter((slot) => slot.assigned_discord_id).length,
     0,
   )
+  const myStatusSecondaryAction = !mySlot
+    ? { href: '#event-slots', label: tEvent('myStatusFindSlot') }
+    : undefined
 
   return (
     <div className="flex-1 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto flex flex-col lg:flex-row lg:gap-6 space-y-4 lg:space-y-0">
@@ -169,7 +172,7 @@ export default async function DemoEventDetailPage({
                   ? { href: '/demo/regear', label: tEvent('myStatusRegear') }
                   : undefined
               }
-              secondaryAction={{ href: '#event-slots', label: tEvent('myStatusFindSlot') }}
+              secondaryAction={myStatusSecondaryAction}
             />
           </div>
         </div>
