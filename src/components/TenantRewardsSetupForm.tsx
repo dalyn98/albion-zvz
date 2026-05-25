@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { saveTenantRewards } from '@/app/actions/onboard'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
@@ -56,7 +57,7 @@ interface Props {
 // 위저드 3단계: 리기어 정책 토글 + 역할별 기본 실버 + 이벤트 자동 시작. 모든
 // 항목은 admin 설정 페이지에 동일하게 존재해 추후 변경 가능. 저장 성공 시 tenant
 // 가 active 로 flip 되고 서버가 subdomain hop 용 redirectUrl 을 돌려준다 —
-// window.location 으로 이동해 서브도메인 쿠키가 /api/auth/finish 에서 심어지도록
+// cross-host 이동으로 서브도메인 쿠키가 /api/auth/finish 에서 심어지도록
 // 한다.
 export default function TenantRewardsSetupForm({
   tenantId,
@@ -64,6 +65,7 @@ export default function TenantRewardsSetupForm({
   initialPolicy,
   labels,
 }: Props) {
+  const router = useRouter()
   const tRole = useTranslations('slotRole')
   const [values, setValues] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {}
@@ -135,7 +137,7 @@ export default function TenantRewardsSetupForm({
         window.location.href = res.redirectUrl
         return
       }
-      window.location.reload()
+      router.refresh()
     })
   }
 
