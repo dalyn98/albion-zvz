@@ -80,21 +80,23 @@ export async function resolveEventGuestAuthScope(
       .maybeSingle()
     const token = tokenRow as TokenRow | null
     if (
-      tokenError ||
-      !token ||
-      token.revoked_at ||
-      (token.expires_at && token.expires_at <= nowIso)
+      !tokenError &&
+      token &&
+      !token.revoked_at &&
+      (!token.expires_at || token.expires_at > nowIso)
     ) {
-      return null
+      const eventRow = await resolveEventRow(db, token.event_id)
+      if (eventRow) {
+        return {
+          eventId: token.event_id,
+          guildId: eventRow.guild_id,
+          source: 'invite',
+        }
+      }
     }
-
-    const eventRow = await resolveEventRow(db, token.event_id)
-    if (!eventRow) return null
-    return {
-      eventId: token.event_id,
-      guildId: eventRow.guild_id,
-      source: 'invite',
-    }
+    // A stale invite query should not strand a public event login on the
+    // admin bot-install flow. If the visible return path is a live event,
+    // continue with the public-event fallback below.
   }
 
   const eventId = extractEventIdFromReturnTo(input.returnTo)

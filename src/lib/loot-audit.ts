@@ -41,6 +41,15 @@ export interface DepositLogEntry {
   rowHash: string
 }
 
+export type LootAuditLooterRelation = 'guild' | 'alliance' | 'other'
+
+export type LootAuditCheckStatus = 'complete' | 'partial' | 'missing'
+
+export interface LootAuditScopeContext {
+  homeGuildName?: string | null
+  homeAllianceNames?: readonly (string | null | undefined)[]
+}
+
 export interface LootLogParseResult {
   entries: LootLogEntry[]
   errors: LootLogParseError[]
@@ -54,6 +63,7 @@ export interface DepositLogParseResult {
 
 export interface LootAuditFinding {
   lootedByName: string
+  looterRelation: LootAuditLooterRelation
   itemId: string
   itemName: string
   expectedQuantity: number
@@ -65,10 +75,30 @@ export interface LootAuditFinding {
 
 export interface LootAuditMemberSummary {
   lootedByName: string
+  looterRelation: LootAuditLooterRelation
   expectedQuantity: number
   depositedQuantity: number
   missingQuantity: number
   missingEstimatedValue: number
+}
+
+export interface LootAuditRelationCounts {
+  guild: number
+  alliance: number
+  other: number
+}
+
+export interface LootAuditCheckRow {
+  lootedByName: string
+  looterRelation: LootAuditLooterRelation
+  itemId: string
+  itemName: string
+  expectedQuantity: number
+  depositedQuantity: number
+  missingQuantity: number
+  unitEstimatedValue: number
+  missingEstimatedValue: number
+  status: LootAuditCheckStatus
 }
 
 export interface LootAuditSummary {
@@ -79,8 +109,10 @@ export interface LootAuditSummary {
   matchedDepositRows: number
   totalEstimatedValue: number
   missingEstimatedValue: number
+  relationCounts: LootAuditRelationCounts
   findings: LootAuditFinding[]
   memberSummaries: LootAuditMemberSummary[]
+  checkRows: LootAuditCheckRow[]
 }
 
 export interface ParseDepositLogOptions {
@@ -89,6 +121,7 @@ export interface ParseDepositLogOptions {
 
 interface LootAccumulator {
   lootedByName: string
+  looterRelation: LootAuditLooterRelation
   itemId: string
   itemName: string
   expectedQuantity: number
@@ -241,28 +274,34 @@ export function parseDepositLog(
 export function buildLootAuditSummary(
   lootEntries: readonly LootLogEntry[],
   depositEntries: readonly DepositLogEntry[],
+  context: LootAuditScopeContext = {},
 ): LootAuditSummary {
   const lootByMemberItem = new Map<string, LootAccumulator>()
   let auditedLootRows = 0
   let ignoredLootRows = 0
   let totalEstimatedValue = 0
+  const relationCounts: LootAuditRelationCounts = { guild: 0, alliance: 0, other: 0 }
 
   for (const entry of lootEntries) {
     if (shouldIgnoreLootEntry(entry)) {
       ignoredLootRows += 1
       continue
     }
+    const looterRelation = classifyLootEntry(entry, context)
     auditedLootRows += 1
+    relationCounts[looterRelation] += 1
     totalEstimatedValue += entry.quantity * entry.estimatedMarketValue
     const key = memberItemKey(entry.lootedByName, entry.itemId)
     const existing = lootByMemberItem.get(key)
     if (existing) {
       existing.expectedQuantity += entry.quantity
       existing.estimatedValue += entry.quantity * entry.estimatedMarketValue
+      existing.looterRelation = mergeLooterRelation(existing.looterRelation, looterRelation)
       continue
     }
     lootByMemberItem.set(key, {
       lootedByName: entry.lootedByName,
+      looterRelation,
       itemId: entry.itemId,
       itemName: entry.itemName,
       expectedQuantity: entry.quantity,
@@ -281,6 +320,7 @@ export function buildLootAuditSummary(
   }
 
   const findings: LootAuditFinding[] = []
+  const checkRows: LootAuditCheckRow[] = []
   const memberSummaryMap = new Map<string, LootAuditMemberSummary>()
   let matchedDepositRows = 0
   let missingEstimatedValue = 0
@@ -296,14 +336,33 @@ export function buildLootAuditSummary(
       : 0
     const missingValue = missingQuantity * unitEstimatedValue
     missingEstimatedValue += missingValue
+    const status: LootAuditCheckStatus =
+      missingQuantity <= 0 ? 'complete' : depositedQuantity > 0 ? 'partial' : 'missing'
+    checkRows.push({
+      lootedByName: expected.lootedByName,
+      looterRelation: expected.looterRelation,
+      itemId: expected.itemId,
+      itemName: expected.itemName,
+      expectedQuantity: expected.expectedQuantity,
+      depositedQuantity,
+      missingQuantity,
+      unitEstimatedValue,
+      missingEstimatedValue: missingValue,
+      status,
+    })
 
     const memberSummary = memberSummaryMap.get(expected.lootedByName) ?? {
       lootedByName: expected.lootedByName,
+      looterRelation: expected.looterRelation,
       expectedQuantity: 0,
       depositedQuantity: 0,
       missingQuantity: 0,
       missingEstimatedValue: 0,
     }
+    memberSummary.looterRelation = mergeLooterRelation(
+      memberSummary.looterRelation,
+      expected.looterRelation,
+    )
     memberSummary.expectedQuantity += expected.expectedQuantity
     memberSummary.depositedQuantity += Math.min(expected.expectedQuantity, depositedQuantity)
     memberSummary.missingQuantity += missingQuantity
@@ -313,6 +372,7 @@ export function buildLootAuditSummary(
     if (missingQuantity <= 0) continue
     findings.push({
       lootedByName: expected.lootedByName,
+      looterRelation: expected.looterRelation,
       itemId: expected.itemId,
       itemName: expected.itemName,
       expectedQuantity: expected.expectedQuantity,
@@ -326,6 +386,16 @@ export function buildLootAuditSummary(
   findings.sort((a, b) => {
     if (b.missingEstimatedValue !== a.missingEstimatedValue) {
       return b.missingEstimatedValue - a.missingEstimatedValue
+    }
+    return compareStrings(a.lootedByName, b.lootedByName) || compareStrings(a.itemId, b.itemId)
+  })
+
+  checkRows.sort((a, b) => {
+    if (b.missingEstimatedValue !== a.missingEstimatedValue) {
+      return b.missingEstimatedValue - a.missingEstimatedValue
+    }
+    if (b.missingQuantity !== a.missingQuantity) {
+      return b.missingQuantity - a.missingQuantity
     }
     return compareStrings(a.lootedByName, b.lootedByName) || compareStrings(a.itemId, b.itemId)
   })
@@ -345,9 +415,32 @@ export function buildLootAuditSummary(
     matchedDepositRows,
     totalEstimatedValue,
     missingEstimatedValue,
+    relationCounts,
     findings,
     memberSummaries,
+    checkRows,
   }
+}
+
+export function classifyLootEntry(
+  entry: Pick<LootLogEntry, 'lootedByGuild' | 'lootedByAlliance'>,
+  context: LootAuditScopeContext = {},
+): LootAuditLooterRelation {
+  const homeGuild = normalizeRelationText(context.homeGuildName)
+  if (homeGuild && normalizeRelationText(entry.lootedByGuild) === homeGuild) {
+    return 'guild'
+  }
+
+  const allianceNames = new Set(
+    (context.homeAllianceNames ?? [])
+      .map(normalizeRelationText)
+      .filter((v): v is string => !!v),
+  )
+  if (allianceNames.size > 0 && allianceNames.has(normalizeRelationText(entry.lootedByAlliance))) {
+    return 'alliance'
+  }
+
+  return 'other'
 }
 
 export function shouldIgnoreLootEntry(entry: LootLogEntry): boolean {
@@ -421,6 +514,19 @@ function memberItemKey(memberName: string, itemId: string): string {
 
 function normalizeMemberName(name: string): string {
   return name.trim().toLowerCase()
+}
+
+function normalizeRelationText(value: string | null | undefined): string {
+  return (value ?? '').trim().toLowerCase()
+}
+
+function mergeLooterRelation(
+  a: LootAuditLooterRelation,
+  b: LootAuditLooterRelation,
+): LootAuditLooterRelation {
+  if (a === 'guild' || b === 'guild') return 'guild'
+  if (a === 'alliance' || b === 'alliance') return 'alliance'
+  return 'other'
 }
 
 function lootRowHash(entry: LootLogEntry): string {

@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   sessionHas: vi.fn(),
   getSessionGuildId: vi.fn(),
+  getEventGuestProfile: vi.fn(),
   revalidatePath: vi.fn(),
 }))
 
@@ -22,7 +23,7 @@ vi.mock('@/lib/tenant', () => ({
 }))
 
 vi.mock('@/lib/event-guest-profile', () => ({
-  getEventGuestProfile: vi.fn(),
+  getEventGuestProfile: mocks.getEventGuestProfile,
 }))
 
 vi.mock('next/cache', () => ({
@@ -33,7 +34,7 @@ vi.mock('next-intl/server', () => ({
   getTranslations: vi.fn(async () => (key: string) => key),
 }))
 
-import { adminCancelSlot } from './member'
+import { adminCancelSlot, assignSlot } from './member'
 
 interface QueryCall {
   method: string
@@ -89,7 +90,51 @@ describe('adminCancelSlot', () => {
     mocks.getSession.mockReset()
     mocks.sessionHas.mockReset()
     mocks.getSessionGuildId.mockReset()
+    mocks.getEventGuestProfile.mockReset()
     mocks.revalidatePath.mockReset()
+  })
+
+  it('allows an event-scoped guest to assign using the event slot scope even with a stale guild fallback', async () => {
+    const { query, calls } = createSlotQuery({
+      guild_id: 'event-guild',
+      is_hidden: false,
+      parties: {
+        event_id: 'event-1',
+        party_number: 1,
+        is_bomb_squad: false,
+      },
+    })
+    const rpc = vi.fn().mockResolvedValue({ error: null })
+
+    mocks.getSession.mockResolvedValue({
+      discordId: 'guest-1',
+      username: 'Discord Guest',
+      isMember: false,
+      isGuest: true,
+      eventScope: 'event-1',
+    })
+    mocks.getSessionGuildId.mockResolvedValue('stale-primary-guild')
+    mocks.getEventGuestProfile.mockResolvedValue({ displayName: 'Guest Alias' })
+    mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
+
+    await expect(assignSlot('slot-1')).resolves.toEqual({ pending: false })
+
+    expect(calls).toEqual([
+      {
+        method: 'select',
+        args: ['guild_id, is_hidden, parties!inner(is_bomb_squad, event_id, party_number)'],
+      },
+      { method: 'eq', args: ['id', 'slot-1'] },
+      { method: 'eq', args: ['parties.event_id', 'event-1'] },
+      { method: 'maybeSingle', args: [] },
+    ])
+    expect(mocks.getEventGuestProfile).toHaveBeenCalledWith('event-guild', 'event-1', 'guest-1')
+    expect(rpc).toHaveBeenCalledWith('assign_slot', {
+      p_slot_id: 'slot-1',
+      p_discord_id: 'guest-1',
+      p_username: 'Guest Alias',
+      p_picks: null,
+    })
   })
 
   it('allows delegated event managers to remove an assigned member from an event slot', async () => {

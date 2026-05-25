@@ -230,11 +230,14 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
         <h2 className="font-semibold text-white">{t('previewTitle')}</h2>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-9">
         <StatCell label={t('statLootRows')} value={summary.totalLootRows} />
         <StatCell label={t('statDepositRows')} value={summary.totalDepositRows} />
         <StatCell label={t('statIgnoredRows')} value={summary.ignoredLootRows} />
         <StatCell label={t('statSkippedBeforeStart')} value={skippedBeforeStart} />
+        <StatCell label={t('relationGuild')} value={summary.relationCounts.guild} accent="emerald" />
+        <StatCell label={t('relationAlliance')} value={summary.relationCounts.alliance} />
+        <StatCell label={t('relationOther')} value={summary.relationCounts.other} />
         <StatCell label={t('statFindings')} value={summary.findings.length} accent={summary.findings.length > 0 ? 'amber' : 'emerald'} />
         <StatCell label={t('statMissingValue')} value={formatSilver(summary.missingEstimatedValue)} accent={summary.missingEstimatedValue > 0 ? 'amber' : 'emerald'} />
       </div>

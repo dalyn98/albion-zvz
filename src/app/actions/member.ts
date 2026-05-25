@@ -110,21 +110,27 @@ export async function assignSlot(
   const payload = Object.keys(cleanPicks).length > 0 ? cleanPicks : null
 
   const db = getAdminClient()
-  const guildId = await getSessionGuildId(session)
+  const sessionGuildId = await getSessionGuildId(session)
 
   // Hidden slots are intentionally invisible to members — guard the action so
   // a crafted request with a stale slot id can't silently bypass the UI hide.
   // The party's bomb-squad flag decides whether the action returns pending:true
   // (bomb squad) or pending:false (regular).
-  const { data: slotCheck, error: slotLookupError } = await db
+  let slotLookup = db
     .from('slots')
-    .select('is_hidden, parties!inner(is_bomb_squad, event_id, party_number)')
-    .eq('guild_id', guildId)
+    .select('guild_id, is_hidden, parties!inner(is_bomb_squad, event_id, party_number)')
     .eq('id', slotId)
+
+  slotLookup = session.eventScope
+    ? slotLookup.eq('parties.event_id', session.eventScope)
+    : slotLookup.eq('guild_id', sessionGuildId)
+
+  const { data: slotCheck, error: slotLookupError } = await slotLookup
     .maybeSingle()
   if (slotLookupError) return { error: slotLookupError.message }
   if (!slotCheck) return { error: tAction('slotNotFound') }
   if (slotCheck.is_hidden) return { error: tAction('slotNotFound') }
+  const guildId = (slotCheck.guild_id as string | null) ?? sessionGuildId
   const partyJoin = slotCheck.parties as
     | { is_bomb_squad: boolean | null; event_id: string; party_number: number }
     | { is_bomb_squad: boolean | null; event_id: string; party_number: number }[]
@@ -164,29 +170,39 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
   const tGear = await getTranslations('gear')
   const session = await getSession()
   if (!session) return { error: tAction('loginRequired') }
-  const guildId = await getSessionGuildId(session)
+  const sessionGuildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
 
   // Once the admin starts the battle, assignments are locked in — members
   // cannot cancel. UI also disables the button but the server guard is what
   // actually matters if someone crafts the request by hand.
-  const { data: slotRow, error: slotLookupError } = await db
+  let slotLookup = db
     .from('slots')
-    .select('party_id')
-    .eq('guild_id', guildId)
+    .select('guild_id, party_id, parties!inner(event_id, party_number, events(battle_started_at))')
     .eq('id', slotId)
+
+  slotLookup = session.eventScope
+    ? slotLookup.eq('parties.event_id', session.eventScope)
+    : slotLookup.eq('guild_id', sessionGuildId)
+
+  const { data: slotRow, error: slotLookupError } = await slotLookup
     .maybeSingle()
   if (slotLookupError) return { error: slotLookupError.message }
   if (!slotRow) return { error: tAction('slotNotFound') }
-
-  const { data: partyRow, error: partyLookupError } = await db
-    .from('parties')
-    .select('event_id, party_number, events(battle_started_at)')
-    .eq('guild_id', guildId)
-    .eq('id', slotRow.party_id)
-    .maybeSingle()
-  if (partyLookupError) return { error: partyLookupError.message }
+  const partyJoin = slotRow.parties as
+    | {
+        event_id: string
+        party_number: number
+        events: { battle_started_at: string | null } | { battle_started_at: string | null }[] | null
+      }
+    | {
+        event_id: string
+        party_number: number
+        events: { battle_started_at: string | null } | { battle_started_at: string | null }[] | null
+      }[]
+    | null
+  const partyRow = Array.isArray(partyJoin) ? partyJoin[0] : partyJoin
   const eventJoin = partyRow?.events as
     | { battle_started_at: string | null }
     | { battle_started_at: string | null }[]

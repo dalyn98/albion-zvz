@@ -83,6 +83,7 @@ describe('buildLootAuditSummary', () => {
 
     expect(summary.totalLootRows).toBe(3)
     expect(summary.auditedLootRows).toBe(2)
+    expect(summary.relationCounts).toEqual({ guild: 0, alliance: 0, other: 2 })
     expect(summary.totalEstimatedValue).toBe(375000)
     expect(summary.missingEstimatedValue).toBe(125000)
     expect(summary.findings).toEqual([
@@ -95,6 +96,14 @@ describe('buildLootAuditSummary', () => {
         unitEstimatedValue: 125000,
       }),
     ])
+    expect(summary.checkRows).toEqual([
+      expect.objectContaining({
+        lootedByName: 'MonKKu',
+        status: 'partial',
+        expectedQuantity: 3,
+        depositedQuantity: 2,
+      }),
+    ])
   })
 
   it('does not count zero-value trash as a suspect finding', () => {
@@ -103,5 +112,31 @@ describe('buildLootAuditSummary', () => {
 
     expect(summary.ignoredLootRows).toBe(1)
     expect(summary.findings.map((f) => f.itemId)).not.toContain('T4_TRASH')
+  })
+
+  it('classifies looters as guild, alliance, or other for filtering', () => {
+    const raw = [
+      'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name;died;died_player_guild;killed_by;killed_by_guild;average_est_market_value;cluster',
+      '2026-05-24T05:00:01Z;RIFT;Menhera;MonKKu;T5_ARMOR_LEATHER_HELL@3;전문가의 지옥불 재킷;1;ARCH;Enemy;VictimA;false;Enemy;MonKKu;Menhera;100;Battlebrae Flatland',
+      '2026-05-24T05:00:02Z;RIFT;AllyGuild;AllianceGuy;T5_ARMOR_LEATHER_HELL@3;전문가의 지옥불 재킷;1;ARCH;Enemy;VictimB;false;Enemy;AllianceGuy;AllyGuild;100;Battlebrae Flatland',
+      '2026-05-24T05:00:03Z;NOPE;OtherGuild;Outsider;T5_ARMOR_LEATHER_HELL@3;전문가의 지옥불 재킷;1;ARCH;Enemy;VictimC;false;Enemy;Outsider;OtherGuild;100;Battlebrae Flatland',
+    ].join('\n')
+    const deposits = parseDepositLog(
+      '"05/24/2026 14:05:00"\t"MonKKu"\t"전문가의 지옥불 재킷"\t"3"\t"1"\t"1"',
+      { resolveItemName: makeResolver },
+    ).entries
+
+    const summary = buildLootAuditSummary(parseLootLogCsv(raw).entries, deposits, {
+      homeGuildName: 'Menhera',
+      homeAllianceNames: ['RIFT'],
+    })
+
+    expect(summary.relationCounts).toEqual({ guild: 1, alliance: 1, other: 1 })
+    expect(summary.checkRows.map((row) => [row.lootedByName, row.looterRelation, row.status]))
+      .toEqual([
+        ['AllianceGuy', 'alliance', 'missing'],
+        ['Outsider', 'other', 'missing'],
+        ['MonKKu', 'guild', 'complete'],
+      ])
   })
 })

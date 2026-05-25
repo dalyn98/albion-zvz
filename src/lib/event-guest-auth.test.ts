@@ -78,7 +78,7 @@ describe('event guest auth scope', () => {
     })
   })
 
-  it('does not fall back to public event login when an invite token is expired', async () => {
+  it('falls back to public event login when an invite token is expired but the event is live', async () => {
     const { db } = createDb({
       event_guest_tokens: {
         event_id: 'event-from-token',
@@ -94,7 +94,11 @@ describe('event guest auth scope', () => {
         returnTo: '/events/event-from-url',
         nowIso: '2026-05-25T00:00:00.000Z',
       }),
-    ).resolves.toBeNull()
+    ).resolves.toEqual({
+      eventId: 'event-from-url',
+      guildId: 'guild-from-url',
+      source: 'public-event',
+    })
   })
 
   it('resolves a published public event return path when no invite token exists', async () => {

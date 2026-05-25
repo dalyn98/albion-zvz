@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server'
 import { z } from 'zod'
 import { requireAnyCapability } from '@/lib/auth'
 import { logAdminAction } from '@/lib/admin-audit'
+import { getAppSetting } from '@/lib/app-settings'
 import { CAP } from '@/lib/permissions'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
@@ -12,12 +13,17 @@ import {
   buildLootAuditSummary,
   parseDepositLog,
   parseLootLogCsv,
+  type LootAuditCheckRow,
   type DepositLogEntry,
   type LootAuditFinding,
+  type LootAuditLooterRelation,
+  type LootAuditRelationCounts,
+  type LootAuditScopeContext,
   type LootAuditSummary,
   type LootLogEntry,
   type LootLogParseError,
 } from '@/lib/loot-audit'
+import { getGuild, isAlbionServer } from '@/lib/albion-gameinfo'
 import { filterByLogOperatingStart } from '@/lib/log-operating-start'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 
@@ -86,6 +92,8 @@ export interface LootAuditFindingRow extends LootAuditFinding {
 export interface LootAuditDetail {
   audit: LootAuditListItem
   findings: LootAuditFindingRow[]
+  checkRows: LootAuditCheckRow[]
+  relationCounts: LootAuditRelationCounts
   unresolvedDepositItemNames: string[]
 }
 
@@ -103,8 +111,10 @@ const emptySummary: LootAuditSummary = {
   matchedDepositRows: 0,
   totalEstimatedValue: 0,
   missingEstimatedValue: 0,
+  relationCounts: { guild: 0, alliance: 0, other: 0 },
   findings: [],
   memberSummaries: [],
+  checkRows: [],
 }
 
 export async function previewLootAudit(
@@ -119,9 +129,12 @@ export async function previewLootAudit(
     if (!session) return previewError(tErr('unauthorized'))
     await requireAnyCapability(LOOT_AUDIT_CAPS)
     const guildId = await getSessionGuildId(session)
-    const operatingStart = await getLogOperatingStart('lootAudit', guildId)
+    const [operatingStart, auditContext] = await Promise.all([
+      getLogOperatingStart('lootAudit', guildId),
+      getLootAuditScopeContext(guildId),
+    ])
 
-    return parseAuditInput(parsed.data, tErr, operatingStart).preview
+    return parseAuditInput(parsed.data, tErr, operatingStart, auditContext).preview
   } catch (e) {
     return previewError(e instanceof Error ? e.message : tErr('serverError'))
   }
@@ -142,9 +155,12 @@ export async function createLootAudit(
     if (!session) return { ...previewError(tErr('unauthorized')) }
     const db = await requireAnyCapability(LOOT_AUDIT_CAPS)
     guildId = await getSessionGuildId(session)
-    const operatingStart = await getLogOperatingStart('lootAudit', guildId)
+    const [operatingStart, auditContext] = await Promise.all([
+      getLogOperatingStart('lootAudit', guildId),
+      getLootAuditScopeContext(guildId),
+    ])
 
-    const parsedAudit = parseAuditInput(parsed.data, tErr, operatingStart)
+    const parsedAudit = parseAuditInput(parsed.data, tErr, operatingStart, auditContext)
     if (parsedAudit.preview.error) return { ...parsedAudit.preview }
 
     const { summary } = parsedAudit.preview
@@ -257,7 +273,7 @@ export async function getLootAuditDetail(
     if (auditError) return { error: auditError.message }
     if (!auditRow) return { error: 'not-found' }
 
-    const [findingsResult, unresolvedResult] = await Promise.all([
+    const [findingsResult, unresolvedResult, lootRowsResult, depositRowsResult, auditContext] = await Promise.all([
       db
         .from('loot_audit_findings')
         .select(
@@ -273,19 +289,56 @@ export async function getLootAuditDetail(
         .eq('guild_id', guildId)
         .eq('audit_id', parsedId.data)
         .is('item_id', null),
+      db
+        .from('loot_audit_loot_rows')
+        .select(
+          'looted_at, looted_by_alliance, looted_by_guild, looted_by_name, item_id, item_name, quantity, looted_from_alliance, looted_from_guild, looted_from_name, died, died_player_guild, killed_by, killed_by_guild, estimated_market_value, cluster, source_line, row_hash',
+        )
+        .eq('guild_id', guildId)
+        .eq('audit_id', parsedId.data),
+      db
+        .from('loot_audit_deposit_rows')
+        .select(
+          'deposited_at, player, item_name_raw, item_id, enchant, quality, quantity, source_line, row_hash',
+        )
+        .eq('guild_id', guildId)
+        .eq('audit_id', parsedId.data),
+      getLootAuditScopeContext(guildId),
     ])
 
     if (findingsResult.error) return { error: findingsResult.error.message }
     if (unresolvedResult.error) return { error: unresolvedResult.error.message }
+    if (lootRowsResult.error) return { error: lootRowsResult.error.message }
+    if (depositRowsResult.error) return { error: depositRowsResult.error.message }
 
     const unresolvedNames = new Set<string>()
     for (const row of unresolvedResult.data ?? []) {
       unresolvedNames.add(row.item_name_raw as string)
     }
+    const summary = buildLootAuditSummary(
+      (lootRowsResult.data ?? []).map(mapStoredLootRow),
+      (depositRowsResult.data ?? []).map(mapStoredDepositRow),
+      auditContext,
+    )
+    const relationByFindingKey = new Map(
+      summary.checkRows.map((row) => [
+        findingKey(row.lootedByName, row.itemId),
+        row.looterRelation,
+      ]),
+    )
 
     return {
       audit: mapAuditRow(auditRow),
-      findings: (findingsResult.data ?? []).map(mapFindingRow),
+      findings: (findingsResult.data ?? []).map((row) =>
+        mapFindingRow(
+          row,
+          relationByFindingKey.get(
+            findingKey(row.looted_by_name as string, row.item_id as string),
+          ) ?? 'other',
+        ),
+      ),
+      checkRows: summary.checkRows,
+      relationCounts: summary.relationCounts,
       unresolvedDepositItemNames: [...unresolvedNames].sort((a, b) => a.localeCompare(b)),
     }
   } catch (e) {
@@ -368,6 +421,7 @@ function parseAuditInput(
   input: z.infer<typeof auditInputSchema>,
   tErr: Awaited<ReturnType<typeof getTranslations>>,
   operatingStart: Date | null,
+  auditContext: LootAuditScopeContext,
 ): ParsedAuditInput {
   const lootResult = parseLootLogCsv(input.lootLogRaw)
   const depositResult = parseDepositLog(input.depositLogRaw)
@@ -429,7 +483,7 @@ function parseAuditInput(
         .map((entry) => entry.itemName),
     ),
   ).sort((a, b) => a.localeCompare(b))
-  const summary = buildLootAuditSummary(lootOfficial.entries, depositOfficial.entries)
+  const summary = buildLootAuditSummary(lootOfficial.entries, depositOfficial.entries, auditContext)
   return {
     lootEntries: lootOfficial.entries,
     depositEntries: depositOfficial.entries,
@@ -588,10 +642,14 @@ function mapAuditRow(row: Record<string, unknown>): LootAuditListItem {
   }
 }
 
-function mapFindingRow(row: Record<string, unknown>): LootAuditFindingRow {
+function mapFindingRow(
+  row: Record<string, unknown>,
+  looterRelation: LootAuditLooterRelation,
+): LootAuditFindingRow {
   return {
     id: row.id as string,
     lootedByName: row.looted_by_name as string,
+    looterRelation,
     itemId: row.item_id as string,
     itemName: row.item_name as string,
     expectedQuantity: row.expected_quantity as number,
@@ -604,6 +662,80 @@ function mapFindingRow(row: Record<string, unknown>): LootAuditFindingRow {
     resolvedByDiscordId: (row.resolved_by_discord_id as string | null) ?? null,
     resolvedAt: (row.resolved_at as string | null) ?? null,
     createdAt: row.created_at as string,
+  }
+}
+
+function mapStoredLootRow(row: Record<string, unknown>): LootLogEntry {
+  return {
+    lootedAt: new Date(row.looted_at as string),
+    lootedByAlliance: (row.looted_by_alliance as string | null) ?? '',
+    lootedByGuild: (row.looted_by_guild as string | null) ?? '',
+    lootedByName: row.looted_by_name as string,
+    itemId: row.item_id as string,
+    itemName: row.item_name as string,
+    quantity: row.quantity as number,
+    lootedFromAlliance: (row.looted_from_alliance as string | null) ?? '',
+    lootedFromGuild: (row.looted_from_guild as string | null) ?? '',
+    lootedFromName: (row.looted_from_name as string | null) ?? '',
+    died: (row.died as string | null) ?? '',
+    diedPlayerGuild: (row.died_player_guild as string | null) ?? '',
+    killedBy: (row.killed_by as string | null) ?? '',
+    killedByGuild: (row.killed_by_guild as string | null) ?? '',
+    estimatedMarketValue: Number(row.estimated_market_value ?? 0),
+    cluster: (row.cluster as string | null) ?? '',
+    line: (row.source_line as number | null) ?? 0,
+    rowHash: (row.row_hash as string | null) ?? '',
+  }
+}
+
+function mapStoredDepositRow(row: Record<string, unknown>): DepositLogEntry {
+  return {
+    depositedAt: new Date(row.deposited_at as string),
+    player: row.player as string,
+    itemName: row.item_name_raw as string,
+    itemId: (row.item_id as string | null) ?? null,
+    enchant: row.enchant as number,
+    quality: row.quality as number,
+    quantity: row.quantity as number,
+    line: (row.source_line as number | null) ?? 0,
+    rowHash: (row.row_hash as string | null) ?? '',
+  }
+}
+
+function findingKey(memberName: string, itemId: string): string {
+  return `${memberName.trim().toLowerCase()}|${itemId}`
+}
+
+async function getLootAuditScopeContext(guildId: string): Promise<LootAuditScopeContext> {
+  const [homeGuildNameRaw, homeGuildIdRaw, serverRaw] = await Promise.all([
+    getAppSetting('albion_home_guild_name', '', guildId),
+    getAppSetting('albion_home_guild_id', '', guildId),
+    getAppSetting('albion_server', '', guildId),
+  ])
+  const homeGuildName = homeGuildNameRaw.trim()
+  const homeGuildId = homeGuildIdRaw.trim()
+  const homeAllianceNames: string[] = []
+
+  if (homeGuildId && isAlbionServer(serverRaw)) {
+    try {
+      const homeGuild = await getGuild(serverRaw, homeGuildId)
+      for (const value of [
+        homeGuild?.AllianceTag,
+        homeGuild?.AllianceName,
+        homeGuild?.AllianceId,
+      ]) {
+        const trimmed = value?.trim()
+        if (trimmed) homeAllianceNames.push(trimmed)
+      }
+    } catch {
+      // Relation filtering is best-effort. If Gameinfo is unavailable, guild
+      // matching still works and alliance rows fall back to "other".
+    }
+  }
+
+  return {
+    homeGuildName,
+    homeAllianceNames,
   }
 }
 
