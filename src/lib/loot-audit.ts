@@ -118,10 +118,13 @@ export interface LootAuditDepositCheckRow {
 export interface LootAuditSummary {
   totalLootRows: number
   auditedLootRows: number
+  targetLootRows: number
+  externalLootRows: number
   ignoredLootRows: number
   totalDepositRows: number
   matchedDepositRows: number
   totalEstimatedValue: number
+  externalEstimatedValue: number
   missingEstimatedValue: number
   relationCounts: LootAuditRelationCounts
   findings: LootAuditFinding[]
@@ -303,8 +306,11 @@ export function buildLootAuditSummary(
 ): LootAuditSummary {
   const lootByMemberItem = new Map<string, LootAccumulator>()
   let auditedLootRows = 0
+  let targetLootRows = 0
+  let externalLootRows = 0
   let ignoredLootRows = 0
   let totalEstimatedValue = 0
+  let externalEstimatedValue = 0
   const relationCounts: LootAuditRelationCounts = { guild: 0, alliance: 0, other: 0 }
 
   for (const entry of lootEntries) {
@@ -313,14 +319,21 @@ export function buildLootAuditSummary(
       continue
     }
     const looterRelation = classifyLootEntry(entry, context)
+    const estimatedValue = entry.quantity * entry.estimatedMarketValue
     auditedLootRows += 1
     relationCounts[looterRelation] += 1
-    totalEstimatedValue += entry.quantity * entry.estimatedMarketValue
+    if (isLootAuditTargetRelation(looterRelation)) {
+      targetLootRows += 1
+      totalEstimatedValue += estimatedValue
+    } else {
+      externalLootRows += 1
+      externalEstimatedValue += estimatedValue
+    }
     const key = memberItemKey(entry.lootedByName, entry.itemId)
     const existing = lootByMemberItem.get(key)
     if (existing) {
       existing.expectedQuantity += entry.quantity
-      existing.estimatedValue += entry.quantity * entry.estimatedMarketValue
+      existing.estimatedValue += estimatedValue
       existing.looterRelation = mergeLooterRelation(existing.looterRelation, looterRelation)
       continue
     }
@@ -330,7 +343,7 @@ export function buildLootAuditSummary(
       itemId: entry.itemId,
       itemName: entry.itemName,
       expectedQuantity: entry.quantity,
-      estimatedValue: entry.quantity * entry.estimatedMarketValue,
+      estimatedValue,
     })
   }
 
@@ -380,7 +393,10 @@ export function buildLootAuditSummary(
       ? Math.round(expected.estimatedValue / expected.expectedQuantity)
       : 0
     const missingValue = missingQuantity * unitEstimatedValue
-    missingEstimatedValue += missingValue
+    const isTargetExpected = isLootAuditTargetRelation(expected.looterRelation)
+    if (isTargetExpected) {
+      missingEstimatedValue += missingValue
+    }
     const status: LootAuditCheckStatus =
       missingQuantity <= 0 ? 'complete' : depositedQuantity > 0 ? 'partial' : 'missing'
     checkRows.push({
@@ -396,25 +412,27 @@ export function buildLootAuditSummary(
       status,
     })
 
-    const memberSummary = memberSummaryMap.get(expected.lootedByName) ?? {
-      lootedByName: expected.lootedByName,
-      looterRelation: expected.looterRelation,
-      expectedQuantity: 0,
-      depositedQuantity: 0,
-      missingQuantity: 0,
-      missingEstimatedValue: 0,
+    if (isTargetExpected) {
+      const memberSummary = memberSummaryMap.get(expected.lootedByName) ?? {
+        lootedByName: expected.lootedByName,
+        looterRelation: expected.looterRelation,
+        expectedQuantity: 0,
+        depositedQuantity: 0,
+        missingQuantity: 0,
+        missingEstimatedValue: 0,
+      }
+      memberSummary.looterRelation = mergeLooterRelation(
+        memberSummary.looterRelation,
+        expected.looterRelation,
+      )
+      memberSummary.expectedQuantity += expected.expectedQuantity
+      memberSummary.depositedQuantity += Math.min(expected.expectedQuantity, depositedQuantity)
+      memberSummary.missingQuantity += missingQuantity
+      memberSummary.missingEstimatedValue += missingValue
+      memberSummaryMap.set(expected.lootedByName, memberSummary)
     }
-    memberSummary.looterRelation = mergeLooterRelation(
-      memberSummary.looterRelation,
-      expected.looterRelation,
-    )
-    memberSummary.expectedQuantity += expected.expectedQuantity
-    memberSummary.depositedQuantity += Math.min(expected.expectedQuantity, depositedQuantity)
-    memberSummary.missingQuantity += missingQuantity
-    memberSummary.missingEstimatedValue += missingValue
-    memberSummaryMap.set(expected.lootedByName, memberSummary)
 
-    if (missingQuantity <= 0) continue
+    if (!isTargetExpected || missingQuantity <= 0) continue
     findings.push({
       lootedByName: expected.lootedByName,
       looterRelation: expected.looterRelation,
@@ -500,10 +518,13 @@ export function buildLootAuditSummary(
   return {
     totalLootRows: lootEntries.length,
     auditedLootRows,
+    targetLootRows,
+    externalLootRows,
     ignoredLootRows,
     totalDepositRows: depositEntries.length,
     matchedDepositRows,
     totalEstimatedValue,
+    externalEstimatedValue,
     missingEstimatedValue,
     relationCounts,
     findings,
@@ -511,6 +532,12 @@ export function buildLootAuditSummary(
     checkRows,
     depositCheckRows,
   }
+}
+
+export function isLootAuditTargetRelation(
+  relation: LootAuditLooterRelation | null | undefined,
+): relation is 'guild' | 'alliance' {
+  return relation === 'guild' || relation === 'alliance'
 }
 
 export function classifyLootEntry(

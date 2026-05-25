@@ -8,6 +8,7 @@ import type {
   LootAuditDepositCheckStatus,
   LootAuditLooterRelation,
 } from '@/lib/loot-audit'
+import { isLootAuditTargetRelation } from '@/lib/loot-audit'
 import { CAP } from '@/lib/permissions'
 import { getSession, sessionHasAny } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
@@ -18,7 +19,7 @@ import LootAuditFindingActions from './LootAuditFindingActions'
 export const dynamic = 'force-dynamic'
 
 const LOOT_AUDIT_CAPS = [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
-type RelationFilter = LootAuditLooterRelation | 'all'
+type RelationFilter = LootAuditLooterRelation | 'all' | 'target'
 
 export default async function LootAuditDetailPage({
   params,
@@ -48,15 +49,16 @@ export default async function LootAuditDetailPage({
   const relationFilter = parseRelationFilter(
     Array.isArray(sp.relation) ? sp.relation[0] : sp.relation,
   )
-  const filteredCheckRows = relationFilter === 'all'
-    ? detail.checkRows
-    : detail.checkRows.filter((row) => row.looterRelation === relationFilter)
-  const filteredFindings = relationFilter === 'all'
-    ? detail.findings
-    : detail.findings.filter((finding) => finding.looterRelation === relationFilter)
-  const filteredDepositRows = relationFilter === 'all'
-    ? detail.depositCheckRows
-    : detail.depositCheckRows.filter((row) => row.looterRelation === relationFilter)
+  const filteredCheckRows = detail.checkRows.filter((row) =>
+    matchesRelationFilter(row.looterRelation, relationFilter),
+  )
+  const filteredFindings = detail.findings.filter((finding) =>
+    matchesRelationFilter(finding.looterRelation, relationFilter),
+  )
+  const filteredDepositRows =
+    relationFilter === 'target' || relationFilter === 'all'
+      ? detail.depositCheckRows
+      : detail.depositCheckRows.filter((row) => row.looterRelation === relationFilter)
   const checkRelationCounts = detail.checkRows.reduce(
     (acc, row) => {
       acc[row.looterRelation] += 1
@@ -66,7 +68,9 @@ export default async function LootAuditDetailPage({
   )
   const allRelationCount =
     checkRelationCounts.guild + checkRelationCounts.alliance + checkRelationCounts.other
+  const targetRelationCount = checkRelationCounts.guild + checkRelationCounts.alliance
   const relationTabs: { key: RelationFilter; label: string; count: number }[] = [
+    { key: 'target', label: t('relationTarget'), count: targetRelationCount },
     { key: 'all', label: t('relationAll'), count: allRelationCount },
     { key: 'guild', label: t('relationGuild'), count: checkRelationCounts.guild },
     { key: 'alliance', label: t('relationAlliance'), count: checkRelationCounts.alliance },
@@ -135,8 +139,15 @@ export default async function LootAuditDetailPage({
         })}
       </div>
 
+      <p className="rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-sm leading-relaxed text-amber-100">
+        {t('targetAuditNotice')}
+      </p>
+
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-white">{t('depositLogTitle')}</h2>
+        <div>
+          <h2 className="text-lg font-semibold text-white">{t('depositLogTitle')}</h2>
+          <p className="mt-1 text-sm text-gray-400">{t('depositLogDescription')}</p>
+        </div>
         <div className="overflow-x-auto rounded-lg border border-gray-700 bg-gray-900/60">
           <table className="w-full min-w-[920px] text-left text-sm">
             <thead className="border-b border-gray-700 bg-gray-800/70 text-xs text-gray-400">
@@ -446,10 +457,22 @@ function formatSilver(value: number): string {
 }
 
 function parseRelationFilter(value: string | undefined): RelationFilter {
-  return value === 'guild' || value === 'alliance' || value === 'other' ? value : 'all'
+  if (value === 'all' || value === 'guild' || value === 'alliance' || value === 'other') {
+    return value
+  }
+  return 'target'
 }
 
 function relationHref(auditId: string, filter: RelationFilter): string {
-  if (filter === 'all') return `/admin/dashboard/loot-audit/${auditId}`
+  if (filter === 'target') return `/admin/dashboard/loot-audit/${auditId}`
   return `/admin/dashboard/loot-audit/${auditId}?relation=${filter}`
+}
+
+function matchesRelationFilter(
+  relation: LootAuditLooterRelation,
+  filter: RelationFilter,
+): boolean {
+  if (filter === 'all') return true
+  if (filter === 'target') return isLootAuditTargetRelation(relation)
+  return relation === filter
 }

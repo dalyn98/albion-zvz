@@ -18,7 +18,7 @@ import {
   previewLootAudit,
   type LootAuditPreviewResult,
 } from '@/app/actions/loot-audit'
-import type { LootAuditDepositCheckStatus } from '@/lib/loot-audit'
+import type { LootAuditDepositCheckStatus, LootAuditLooterRelation } from '@/lib/loot-audit'
 
 const TOP_FINDINGS = 12
 const TOP_DEPOSITS = 12
@@ -227,16 +227,23 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
     preview.skippedBeforeStart.lootRows + preview.skippedBeforeStart.depositRows
   return (
     <div className="rounded-lg border border-gray-700 bg-gray-900/70 p-4 sm:p-5">
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-3 flex items-center gap-2">
         <Check size={16} className="text-emerald-300" />
         <h2 className="font-semibold text-white">{t('previewTitle')}</h2>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-9">
+      <p className="mb-4 rounded-md border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs leading-relaxed text-amber-100">
+        {t('targetAuditNotice')}
+      </p>
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <StatCell label={t('statLootRows')} value={summary.totalLootRows} />
+        <StatCell label={t('statTargetRows')} value={summary.targetLootRows} accent="emerald" />
+        <StatCell label={t('statExternalRows')} value={summary.externalLootRows} />
         <StatCell label={t('statDepositRows')} value={summary.totalDepositRows} />
         <StatCell label={t('statIgnoredRows')} value={summary.ignoredLootRows} />
         <StatCell label={t('statSkippedBeforeStart')} value={skippedBeforeStart} />
+        <StatCell label={t('statTargetValue')} value={formatSilver(summary.totalEstimatedValue)} />
         <StatCell label={t('relationGuild')} value={summary.relationCounts.guild} accent="emerald" />
         <StatCell label={t('relationAlliance')} value={summary.relationCounts.alliance} />
         <StatCell label={t('relationOther')} value={summary.relationCounts.other} />
@@ -275,8 +282,9 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
       )}
 
       <div className="mt-4 overflow-x-auto rounded-md border border-gray-800">
-        <div className="border-b border-gray-800 bg-gray-800/60 px-3 py-2 text-xs font-semibold text-gray-300">
-          {t('depositLogTitle')}
+        <div className="border-b border-gray-800 bg-gray-800/60 px-3 py-2">
+          <p className="text-xs font-semibold text-gray-300">{t('depositLogTitle')}</p>
+          <p className="mt-1 text-[11px] text-gray-500">{t('depositLogDescription')}</p>
         </div>
         <table className="w-full min-w-[760px] text-left text-xs">
           <thead className="bg-gray-800/80 text-gray-400">
@@ -332,6 +340,7 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
         <table className="w-full text-left text-xs">
           <thead className="bg-gray-800/80 text-gray-400">
             <tr>
+              <th className="px-3 py-2 font-medium">{t('colRelation')}</th>
               <th className="px-3 py-2 font-medium">{t('colMember')}</th>
               <th className="px-3 py-2 font-medium">{t('colItem')}</th>
               <th className="px-3 py-2 font-medium">{t('colExpected')}</th>
@@ -343,13 +352,23 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
           <tbody className="divide-y divide-gray-800">
             {summary.findings.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
+                <td colSpan={7} className="px-3 py-6 text-center text-gray-500">
                   {t('noFindings')}
                 </td>
               </tr>
             ) : (
               summary.findings.slice(0, TOP_FINDINGS).map((finding) => (
                 <tr key={`${finding.lootedByName}-${finding.itemId}`} className="text-gray-200">
+                  <td className="px-3 py-2">
+                    <RelationPill
+                      relation={finding.looterRelation}
+                      labels={{
+                        guild: t('relationGuild'),
+                        alliance: t('relationAlliance'),
+                        other: t('relationOther'),
+                      }}
+                    />
+                  </td>
                   <td className="px-3 py-2 font-medium text-white">{finding.lootedByName}</td>
                   <td className="px-3 py-2">
                     <p className="text-gray-200">{finding.itemName}</p>
@@ -368,6 +387,26 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
         </table>
       </div>
     </div>
+  )
+}
+
+function RelationPill({
+  relation,
+  labels,
+}: {
+  relation: LootAuditLooterRelation
+  labels: Record<LootAuditLooterRelation, string>
+}) {
+  const color =
+    relation === 'guild'
+      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+      : relation === 'alliance'
+        ? 'border-sky-500/40 bg-sky-500/10 text-sky-200'
+        : 'border-gray-500/40 bg-gray-500/10 text-gray-300'
+  return (
+    <span className={`inline-flex rounded-md border px-2 py-1 ${color}`}>
+      {labels[relation]}
+    </span>
   )
 }
 

@@ -11,6 +11,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import {
   buildLootAuditSummary,
+  isLootAuditTargetRelation,
   parseDepositLog,
   parseLootLogCsv,
   type LootAuditCheckRow,
@@ -108,10 +109,13 @@ interface ParsedAuditInput {
 const emptySummary: LootAuditSummary = {
   totalLootRows: 0,
   auditedLootRows: 0,
+  targetLootRows: 0,
+  externalLootRows: 0,
   ignoredLootRows: 0,
   totalDepositRows: 0,
   matchedDepositRows: 0,
   totalEstimatedValue: 0,
+  externalEstimatedValue: 0,
   missingEstimatedValue: 0,
   relationCounts: { guild: 0, alliance: 0, other: 0 },
   findings: [],
@@ -329,17 +333,28 @@ export async function getLootAuditDetail(
         row.looterRelation,
       ]),
     )
-
-    return {
-      audit: mapAuditRow(auditRow),
-      findings: (findingsResult.data ?? []).map((row) =>
+    const findings = (findingsResult.data ?? [])
+      .map((row) =>
         mapFindingRow(
           row,
           relationByFindingKey.get(
             findingKey(row.looted_by_name as string, row.item_id as string),
           ) ?? 'other',
         ),
-      ),
+      )
+      .filter((finding) => isLootAuditTargetRelation(finding.looterRelation))
+    const openFindingsCount = findings.filter((finding) => finding.status === 'open').length
+    const audit = mapAuditRow(auditRow)
+
+    return {
+      audit: {
+        ...audit,
+        status: audit.status === 'archived' ? 'archived' : openFindingsCount > 0 ? 'open' : 'resolved',
+        totalEstimatedValue: summary.totalEstimatedValue,
+        missingEstimatedValue: summary.missingEstimatedValue,
+        unresolvedFindingsCount: openFindingsCount,
+      },
+      findings,
       checkRows: summary.checkRows,
       depositCheckRows: summary.depositCheckRows,
       relationCounts: summary.relationCounts,
@@ -610,15 +625,35 @@ async function refreshAuditFindingStats(
   guildId: string,
   auditId: string,
 ) {
-  const { count, error } = await db
-    .from('loot_audit_findings')
-    .select('id', { count: 'exact', head: true })
-    .eq('guild_id', guildId)
-    .eq('audit_id', auditId)
-    .eq('status', 'open')
-  if (error) throw new Error(error.message)
+  const [findingsResult, lootRowsResult, auditContext] = await Promise.all([
+    db
+      .from('loot_audit_findings')
+      .select('looted_by_name, item_id, status')
+      .eq('guild_id', guildId)
+      .eq('audit_id', auditId),
+    db
+      .from('loot_audit_loot_rows')
+      .select(
+        'looted_at, looted_by_alliance, looted_by_guild, looted_by_name, item_id, item_name, quantity, looted_from_alliance, looted_from_guild, looted_from_name, died, died_player_guild, killed_by, killed_by_guild, estimated_market_value, cluster, source_line, row_hash',
+      )
+      .eq('guild_id', guildId)
+      .eq('audit_id', auditId),
+    getLootAuditScopeContext(guildId),
+  ])
+  if (findingsResult.error) throw new Error(findingsResult.error.message)
+  if (lootRowsResult.error) throw new Error(lootRowsResult.error.message)
 
-  const openCount = count ?? 0
+  const relationByFindingKey = new Map(
+    buildLootAuditSummary((lootRowsResult.data ?? []).map(mapStoredLootRow), [], auditContext)
+      .checkRows
+      .map((row) => [findingKey(row.lootedByName, row.itemId), row.looterRelation]),
+  )
+  const openCount = (findingsResult.data ?? []).filter((row) => {
+    const relation = relationByFindingKey.get(
+      findingKey(row.looted_by_name as string, row.item_id as string),
+    )
+    return row.status === 'open' && isLootAuditTargetRelation(relation)
+  }).length
   const { error: updateError } = await db
     .from('loot_audits')
     .update({

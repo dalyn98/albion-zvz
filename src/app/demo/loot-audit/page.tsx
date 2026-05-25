@@ -105,6 +105,10 @@ export default async function DemoLootAuditPage() {
         <p className="text-amber-200 text-sm">{tDemo('notice')}</p>
       </div>
 
+      <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-sm leading-relaxed text-amber-100">
+        {t('targetAuditNotice')}
+      </div>
+
       <section className="rounded-xl border border-gray-800 bg-gray-900 p-4 sm:p-5 space-y-4">
         <div className="grid gap-3 lg:grid-cols-2">
           <DemoLogDropzone
@@ -131,10 +135,11 @@ export default async function DemoLootAuditPage() {
         </div>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-6">
         <Metric label={t('statLootRows')} value="186" />
+        <Metric label={t('statTargetRows')} value="152" tone="amber" />
+        <Metric label={t('statExternalRows')} value="34" />
         <Metric label={t('statDepositRows')} value="142" />
-        <Metric label={t('statSkippedBeforeStart')} value="12" />
         <Metric label={t('statFindings')} value="4" tone="amber" />
         <Metric label={t('statMissingValue')} value={formatSilver(2020000)} tone="rose" />
       </section>
@@ -142,7 +147,7 @@ export default async function DemoLootAuditPage() {
       <section className="space-y-3">
         <div>
           <h2 className="text-lg font-semibold text-white">{t('depositLogTitle')}</h2>
-          <p className="mt-1 text-sm text-gray-400">{tDemo('depositDescription')}</p>
+          <p className="mt-1 text-sm text-gray-400">{t('depositLogDescription')}</p>
         </div>
         <div className="overflow-x-auto rounded-lg border border-gray-700 bg-gray-900/60">
           <table className="w-full min-w-[860px] text-left text-sm">

@@ -79,11 +79,16 @@ describe('buildLootAuditSummary', () => {
       { resolveItemName: makeResolver },
     ).entries
 
-    const summary = buildLootAuditSummary(loot, deposits)
+    const summary = buildLootAuditSummary(loot, deposits, {
+      homeGuildName: 'Menhera',
+      homeAllianceNames: ['RIFT'],
+    })
 
     expect(summary.totalLootRows).toBe(3)
     expect(summary.auditedLootRows).toBe(2)
-    expect(summary.relationCounts).toEqual({ guild: 0, alliance: 0, other: 2 })
+    expect(summary.targetLootRows).toBe(2)
+    expect(summary.externalLootRows).toBe(0)
+    expect(summary.relationCounts).toEqual({ guild: 2, alliance: 0, other: 0 })
     expect(summary.totalEstimatedValue).toBe(375000)
     expect(summary.missingEstimatedValue).toBe(125000)
     expect(summary.findings).toEqual([
@@ -144,6 +149,10 @@ describe('buildLootAuditSummary', () => {
     })
 
     expect(summary.relationCounts).toEqual({ guild: 1, alliance: 1, other: 1 })
+    expect(summary.totalEstimatedValue).toBe(200)
+    expect(summary.externalEstimatedValue).toBe(100)
+    expect(summary.missingEstimatedValue).toBe(100)
+    expect(summary.findings.map((finding) => finding.lootedByName)).toEqual(['AllianceGuy'])
     expect(summary.checkRows.map((row) => [row.lootedByName, row.looterRelation, row.status]))
       .toEqual([
         ['AllianceGuy', 'alliance', 'missing'],
@@ -201,6 +210,33 @@ describe('buildLootAuditSummary', () => {
         matchedQuantity: 0,
         extraQuantity: 1,
       },
+    ])
+  })
+
+  it('keeps other looters as reference rows but excludes them from official findings', () => {
+    const raw = [
+      'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name;died;died_player_guild;killed_by;killed_by_guild;average_est_market_value;cluster',
+      '2026-05-24T05:00:01Z;NOPE;OtherGuild;Outsider;T5_ARMOR_LEATHER_HELL@3;전문가의 지옥불 재킷;2;ARCH;Enemy;VictimA;false;Enemy;Outsider;OtherGuild;500;Battlebrae Flatland',
+    ].join('\n')
+
+    const summary = buildLootAuditSummary(parseLootLogCsv(raw).entries, [], {
+      homeGuildName: 'Menhera',
+      homeAllianceNames: ['RIFT'],
+    })
+
+    expect(summary.relationCounts).toEqual({ guild: 0, alliance: 0, other: 1 })
+    expect(summary.externalLootRows).toBe(1)
+    expect(summary.totalEstimatedValue).toBe(0)
+    expect(summary.externalEstimatedValue).toBe(1000)
+    expect(summary.missingEstimatedValue).toBe(0)
+    expect(summary.findings).toEqual([])
+    expect(summary.checkRows).toEqual([
+      expect.objectContaining({
+        lootedByName: 'Outsider',
+        looterRelation: 'other',
+        missingQuantity: 2,
+        missingEstimatedValue: 1000,
+      }),
     ])
   })
 })
