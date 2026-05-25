@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { DOCS_NAV } from '@/lib/docs-nav'
+import { DEMO_SITEMAP_ROUTES } from '@/lib/demo-routes'
 
 const BASE_URL = 'https://albion-guildmanager.com'
 
@@ -71,6 +72,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: now,
       changeFrequency: 'monthly' as const,
       priority: 0.7,
+    })),
+    ...DEMO_SITEMAP_ROUTES.map((path) => ({
+      url: `${BASE_URL}${path}`,
+      lastModified: now,
+      changeFrequency: 'monthly' as const,
+      priority: path === '/demo' ? 0.85 : 0.65,
     })),
   ]
   const guildEntries: MetadataRoute.Sitemap = guildSlugs.map((slug) => ({
