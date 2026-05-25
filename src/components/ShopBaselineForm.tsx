@@ -29,6 +29,7 @@ import { formatDateTimeWithSeconds } from '@/lib/format-datetime'
 import { getLocalizedItemName } from '@/lib/item-names'
 import type { Locale } from '@/i18n/locales'
 import { useReportDirty } from './UnsavedChangesProvider'
+import { useConfirm } from './ConfirmDialog'
 
 function fmtDate(iso: string | null, timezone: string): string {
   if (!iso) return '—'
@@ -62,6 +63,7 @@ export default function ShopBaselineForm({ timezone }: ShopBaselineFormProps) {
   const [confirmResult, setConfirmResult] = useState<string | null>(null)
   const [confirmDrift, setConfirmDrift] = useState<DriftReport | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const askConfirm = useConfirm()
 
   // raw 로그 또는 notes 가 입력돼 있고 아직 확정 결과가 없으면 작성 중.
   useReportDirty(
@@ -89,17 +91,16 @@ export default function ShopBaselineForm({ timezone }: ShopBaselineFormProps) {
   }
 
   const runConfirm = async () => {
-    if (
-      !preview ||
-      !confirm(
-        t('confirmDialog', {
-          types: preview.items.length,
-          total: preview.totalItems.toLocaleString(),
-        }),
-      )
-    ) {
-      return
-    }
+    if (!preview) return
+    const ok = await askConfirm({
+      body: t('confirmDialog', {
+        types: preview.items.length,
+        total: preview.totalItems.toLocaleString(),
+      }),
+      confirmLabel: t('confirm'),
+      destructive: true,
+    })
+    if (!ok) return
     setConfirming(true)
     setError(null)
     try {

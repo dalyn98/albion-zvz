@@ -15,6 +15,7 @@ import SearchBox from './SearchBox'
 import GearPreview from './GearPreview'
 import { emptySlotInput } from './SlotEditor'
 import { buildDisplaySlot } from './BuildPreview'
+import { useConfirm } from './ConfirmDialog'
 
 interface Props {
   templates: SlotTemplateCard[]
@@ -30,6 +31,7 @@ export default function BuildTemplateList({ templates, timezone = DEFAULT_TENANT
   const [items, setItems] = useState(templates)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const askConfirm = useConfirm()
 
   const filtered = useMemo(() => {
     const q = normalizeQuery(search)
@@ -38,7 +40,11 @@ export default function BuildTemplateList({ templates, timezone = DEFAULT_TENANT
   }, [items, search])
 
   const remove = async (template: SlotTemplateCard) => {
-    if (!window.confirm(t('deleteConfirm', { name: template.name }))) return
+    const ok = await askConfirm({
+      body: t('deleteConfirm', { name: template.name }),
+      destructive: true,
+    })
+    if (!ok) return
     setDeletingId(template.id)
     setError('')
     const result = await deleteSlotTemplate(template.id)

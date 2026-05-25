@@ -6,6 +6,7 @@ import {
   setMyActivityVisibility,
   type SetMyActivityVisibilityResult,
 } from '@/app/actions/member-activity-visibility'
+import { useConfirm } from './ConfirmDialog'
 
 interface Labels {
   publicBadge: string
@@ -36,10 +37,14 @@ export default function ActivityRecordVisibilityControl({
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const askConfirm = useConfirm()
 
-  const toggle = () => {
+  const toggle = async () => {
     const next = !enabled
-    if (next && !window.confirm(labels.confirmEnable)) return
+    if (next) {
+      const ok = await askConfirm(labels.confirmEnable)
+      if (!ok) return
+    }
 
     setError(null)
     startTransition(async () => {

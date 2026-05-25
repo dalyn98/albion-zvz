@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Trash2, Loader2 } from 'lucide-react'
 import { deleteSiphonRow } from '@/app/actions/siphon-admin'
+import { useConfirm } from '@/components/ConfirmDialog'
 
 interface Props {
   id: string
@@ -15,10 +16,15 @@ export default function SiphonRowDeleteButton({ id }: Props) {
   const t = useTranslations('adminSiphonPage')
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const askConfirm = useConfirm()
 
-  const handleClick = () => {
+  const handleClick = async () => {
     if (pending) return
-    if (!confirm(t('logDeleteConfirm'))) return
+    const ok = await askConfirm({
+      body: t('logDeleteConfirm'),
+      destructive: true,
+    })
+    if (!ok) return
     setError(null)
     startTransition(async () => {
       const result = await deleteSiphonRow(id)

@@ -21,6 +21,7 @@ import {
   type RoleGrantRow,
   type UserOverrideRow,
 } from '@/app/actions/permissions'
+import { useConfirm } from '@/components/ConfirmDialog'
 
 interface Props {
   initialRoleGrants: RoleGrantRow[]
@@ -326,9 +327,14 @@ function RoleGrantRowItem({ grant }: RoleGrantRowItemProps) {
   const [editing, setEditing] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const askConfirm = useConfirm()
 
-  function remove() {
-    if (!window.confirm(t('actions.deleteConfirm'))) return
+  async function remove() {
+    const ok = await askConfirm({
+      body: t('actions.deleteConfirm'),
+      destructive: true,
+    })
+    if (!ok) return
     setError(null)
     startTransition(async () => {
       const res = await deleteRoleGrant(grant.discordRoleId)
@@ -397,9 +403,14 @@ function UserOverrideRowItem({ override }: UserOverrideRowItemProps) {
   const [editing, setEditing] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const askConfirm = useConfirm()
 
-  function remove() {
-    if (!window.confirm(t('actions.deleteConfirm'))) return
+  async function remove() {
+    const ok = await askConfirm({
+      body: t('actions.deleteConfirm'),
+      destructive: true,
+    })
+    if (!ok) return
     setError(null)
     startTransition(async () => {
       const res = await deleteUserOverride(override.discordId)
