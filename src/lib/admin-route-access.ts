@@ -1,5 +1,6 @@
 import { CAP, hasAnyCapability, parseCapabilities } from '@/lib/permissions'
 import { REGEAR_WINDOW_MANAGE_CAPS } from '@/lib/regear-window-permissions'
+import { SETTINGS_PAGE_CAPABILITIES } from '@/lib/settings-access'
 
 interface AdminRouteAccessRule {
   href: string
@@ -123,11 +124,7 @@ export const ADMIN_ROUTE_ACCESS_RULES: readonly AdminRouteAccessRule[] = [
   },
   {
     href: '/admin/dashboard/settings',
-    capabilities: [
-      CAP.SETTINGS_GENERAL,
-      CAP.SETTINGS_TOGGLES,
-      CAP.SETTINGS_GUILD_PROFILE,
-    ],
+    capabilities: SETTINGS_PAGE_CAPABILITIES,
   },
   {
     href: '/admin/dashboard/guide',

@@ -79,6 +79,11 @@ describe('admin route access', () => {
       false,
       serializeCapabilities(CAP.SETTINGS_GUILD_PROFILE),
     )).toBe(true)
+    expect(canAccessAdminPath(
+      '/admin/dashboard/settings',
+      false,
+      serializeCapabilities(CAP.SIPHON_MANAGE),
+    )).toBe(true)
   })
 
   it('keeps log operations preset aligned with log routes', () => {
@@ -95,7 +100,7 @@ describe('admin route access', () => {
   it('keeps delegated permission officers on the permissions page', () => {
     const caps = serializeCapabilities(CAP.SETTINGS_PERMISSIONS)
     expect(canAccessAdminPath('/admin/dashboard/permissions', false, caps)).toBe(true)
-    expect(canAccessAdminPath('/admin/dashboard/settings', false, caps)).toBe(false)
+    expect(canAccessAdminPath('/admin/dashboard/settings', false, caps)).toBe(true)
     expect(getFirstAccessibleAdminPath(false, caps)).toBe('/admin/dashboard/permissions')
   })
 

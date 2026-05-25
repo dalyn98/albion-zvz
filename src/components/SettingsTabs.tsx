@@ -25,16 +25,15 @@ import PermissionRoleSettingsPanel from './PermissionRoleSettingsPanel'
 import LocalGuildAccountSettingsForm from './LocalGuildAccountSettingsForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
 import type { SlotRole, SlotKey } from '@/types'
-
-type TabKey =
-  | 'guild'
-  | 'permissions'
-  | 'events'
-  | 'regear'
-  | 'landing'
+import {
+  getAvailableSettingsTabs,
+  type SettingsAccessFlags,
+  type SettingsTabKey,
+} from '@/lib/settings-access'
+import type { LogOperatingStartDomain } from '@/lib/log-operating-start'
 
 interface TabDef {
-  key: TabKey
+  key: SettingsTabKey
   labelKey:
     | 'tabGuild'
     | 'tabPermissions'
@@ -52,9 +51,10 @@ const TABS: readonly TabDef[] = [
   { key: 'landing', labelKey: 'tabLanding', icon: ImageIcon },
 ]
 
-const DEFAULT_TAB: TabKey = 'guild'
+const DEFAULT_TAB: SettingsTabKey = 'guild'
 
 interface Props {
+  access: SettingsAccessFlags
   adminRoleIds: string[]
   notificationMessage: string
   eventChannelId: string
@@ -96,7 +96,7 @@ interface Props {
   isSuperAdmin: boolean
 }
 
-function isTabKey(value: string | null): value is TabKey {
+function isTabKey(value: string | null): value is SettingsTabKey {
   return (
     value === 'guild' ||
     value === 'permissions' ||
@@ -107,6 +107,7 @@ function isTabKey(value: string | null): value is TabKey {
 }
 
 export default function SettingsTabs({
+  access,
   adminRoleIds,
   notificationMessage,
   eventChannelId,
@@ -153,9 +154,21 @@ export default function SettingsTabs({
   const pathname = usePathname()
 
   const rawTab = searchParams.get('tab')
-  const active: TabKey = isTabKey(rawTab) ? rawTab : DEFAULT_TAB
+  const availableTabKeys = getAvailableSettingsTabs(access)
+  const availableKeySet = new Set<SettingsTabKey>(availableTabKeys)
+  const availableTabs = TABS.filter((tab) => availableKeySet.has(tab.key))
+  const active = isTabKey(rawTab) && availableKeySet.has(rawTab)
+    ? rawTab
+    : availableTabs[0]?.key
+  const logOperatingDomains: LogOperatingStartDomain[] = [
+    ...(access.shopChestLogStart ? (['shopChest'] as const) : []),
+    ...(access.siphonLogStart ? (['siphon'] as const) : []),
+    ...(access.lootAuditLogStart ? (['lootAudit'] as const) : []),
+  ]
 
-  const selectTab = (next: TabKey) => {
+  if (!active) return null
+
+  const selectTab = (next: SettingsTabKey) => {
     if (next === active) return
     const params = new URLSearchParams(searchParams.toString())
     if (next === DEFAULT_TAB) params.delete('tab')
@@ -171,7 +184,7 @@ export default function SettingsTabs({
         aria-label={t('categoryLabel')}
         className="flex gap-1 border-b border-gray-800 overflow-x-auto"
       >
-        {TABS.map(({ key, labelKey, icon: Icon }) => {
+        {availableTabs.map(({ key, labelKey, icon: Icon }) => {
           const isActive = active === key
           return (
             <button
@@ -199,35 +212,46 @@ export default function SettingsTabs({
             title={t('guildGroupTitle')}
             description={t('guildGroupDescription')}
           >
-            <AlbionHomeGuildForm
-              embedded
-              initialServer={albionServer}
-              initialGuildId={albionHomeGuildId}
-              initialGuildName={albionHomeGuildName}
-              editable={!albionHomeGuildId.trim() || isSuperAdmin}
-              showFirstTimeWarning={!albionHomeGuildId.trim()}
-              isSuperAdmin={isSuperAdmin}
-            />
-            <TenantTimezoneForm embedded initialTimezone={tenantTimezone} />
-            <LogOperatingStartSettingsForm
-              embedded
-              timezone={tenantTimezone}
-              initialShopChestStartAt={logStartShopChestAt}
-              initialSiphonStartAt={logStartSiphonAt}
-              initialLootAuditStartAt={logStartLootAuditAt}
-            />
-            <AllowUnverifiedAccessForm
-              embedded
-              initialAllowed={allowUnverifiedMemberAccess}
-            />
-            <LocalGuildAccountSettingsForm
-              embedded
-              initialEnabled={localGuildAccountsEnabled}
-              hasInviteCode={localGuildInviteConfigured}
-            />
+            {access.general && (
+              <AlbionHomeGuildForm
+                embedded
+                initialServer={albionServer}
+                initialGuildId={albionHomeGuildId}
+                initialGuildName={albionHomeGuildName}
+                editable={!albionHomeGuildId.trim() || isSuperAdmin}
+                showFirstTimeWarning={!albionHomeGuildId.trim()}
+                isSuperAdmin={isSuperAdmin}
+              />
+            )}
+            {access.general && (
+              <TenantTimezoneForm embedded initialTimezone={tenantTimezone} />
+            )}
+            {logOperatingDomains.length > 0 && (
+              <LogOperatingStartSettingsForm
+                embedded
+                timezone={tenantTimezone}
+                domains={logOperatingDomains}
+                initialShopChestStartAt={logStartShopChestAt}
+                initialSiphonStartAt={logStartSiphonAt}
+                initialLootAuditStartAt={logStartLootAuditAt}
+              />
+            )}
+            {access.toggles && (
+              <AllowUnverifiedAccessForm
+                embedded
+                initialAllowed={allowUnverifiedMemberAccess}
+              />
+            )}
+            {access.general && (
+              <LocalGuildAccountSettingsForm
+                embedded
+                initialEnabled={localGuildAccountsEnabled}
+                hasInviteCode={localGuildInviteConfigured}
+              />
+            )}
           </SettingsGroup>
         )}
-        {active === 'permissions' && (
+        {active === 'permissions' && access.permissions && (
           <PermissionRoleSettingsPanel
             adminRoleIds={adminRoleIds}
             eventCreatorRoleIds={eventCreatorRoleIds}
@@ -241,21 +265,27 @@ export default function SettingsTabs({
         )}
         {active === 'events' && (
           <div className="space-y-4">
-            <SettingsGroup
-              title={t('eventOpsGroupTitle')}
-              description={t('eventOpsGroupDescription')}
-            >
-              <EventAutoStartForm embedded initialEnabled={eventsAutoStartEnabled} />
-              <CdBadgeRolesForm embedded initialRoles={cdBadgeRoles} />
-            </SettingsGroup>
-            <SettingsGroup
-              title={t('eventNoticeGroupTitle')}
-              description={t('eventNoticeGroupDescription')}
-            >
-              <EventChannelSetting embedded initialChannelId={eventChannelId} />
-              <NotificationSettingsForm embedded initialMessage={notificationMessage} />
-              <EventDmLeadMinutesForm embedded initialMinutes={eventDmLeadMinutes} />
-            </SettingsGroup>
+            {(access.toggles || access.general) && (
+              <SettingsGroup
+                title={t('eventOpsGroupTitle')}
+                description={t('eventOpsGroupDescription')}
+              >
+                {access.toggles && (
+                  <EventAutoStartForm embedded initialEnabled={eventsAutoStartEnabled} />
+                )}
+                {access.general && <CdBadgeRolesForm embedded initialRoles={cdBadgeRoles} />}
+              </SettingsGroup>
+            )}
+            {access.general && (
+              <SettingsGroup
+                title={t('eventNoticeGroupTitle')}
+                description={t('eventNoticeGroupDescription')}
+              >
+                <EventChannelSetting embedded initialChannelId={eventChannelId} />
+                <NotificationSettingsForm embedded initialMessage={notificationMessage} />
+                <EventDmLeadMinutesForm embedded initialMinutes={eventDmLeadMinutes} />
+              </SettingsGroup>
+            )}
           </div>
         )}
         {active === 'regear' && (
@@ -264,35 +294,43 @@ export default function SettingsTabs({
               title={t('regearGroupTitle')}
               description={t('regearGroupDescription')}
             >
-              <RegearModeCard
-                embedded
-                initialAutoEnabled={autoRegearEnabled}
-                initialCraftEnabled={craftRegearEnabled}
-                initialRequireVerification={regearRequireVerification}
-                initialOverchargeEnabled={regearOverchargeEnabled}
-                initialSkipLowConfidence={autoRegearSkipLowConfidence}
-              />
-              <RegearLimitsForm
-                embedded
-                initialWindowMinutes={regearWindowMinutes}
-                initialMaxDeaths={regearMaxDeaths}
-                initialEligibilityDays={regearEligibilityDays}
-              />
-              <RegearPayoutRateForm embedded initialPercent={regearPayoutRatePercent} />
-              <AutoRegearSlotsForm embedded initialExcluded={autoRegearExcludedSlots} />
-              <div className="space-y-3">
-                <p className="text-gray-500 text-xs">{t('rewardsDescription')}</p>
-                {rewardsError && (
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
-                    <p className="text-red-400 text-sm">{rewardsError}</p>
-                  </div>
-                )}
-                <RoleRewardsEditor rewards={rewards} />
-              </div>
+              {access.toggles && (
+                <RegearModeCard
+                  embedded
+                  initialAutoEnabled={autoRegearEnabled}
+                  initialCraftEnabled={craftRegearEnabled}
+                  initialRequireVerification={regearRequireVerification}
+                  initialOverchargeEnabled={regearOverchargeEnabled}
+                  initialSkipLowConfidence={autoRegearSkipLowConfidence}
+                />
+              )}
+              {access.general && (
+                <>
+                  <RegearLimitsForm
+                    embedded
+                    initialWindowMinutes={regearWindowMinutes}
+                    initialMaxDeaths={regearMaxDeaths}
+                    initialEligibilityDays={regearEligibilityDays}
+                  />
+                  <RegearPayoutRateForm embedded initialPercent={regearPayoutRatePercent} />
+                  <AutoRegearSlotsForm embedded initialExcluded={autoRegearExcludedSlots} />
+                </>
+              )}
+              {access.roleRewards && (
+                <div className="space-y-3">
+                  <p className="text-gray-500 text-xs">{t('rewardsDescription')}</p>
+                  {rewardsError && (
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+                      <p className="text-red-400 text-sm">{rewardsError}</p>
+                    </div>
+                  )}
+                  <RoleRewardsEditor rewards={rewards} />
+                </div>
+              )}
             </SettingsGroup>
           </div>
         )}
-        {active === 'landing' && (
+        {active === 'landing' && access.guildProfile && (
           <div className="space-y-4">
             <LandingCtaTextForm
               initialText={landingCtaText}

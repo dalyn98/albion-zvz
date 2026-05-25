@@ -8,7 +8,11 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { DEFAULT_TENANT_TIMEZONE, isValidTenantTimezone } from '@/lib/timezone'
 import { isSuperAdminSession } from '@/lib/super-admin'
-import { loadAdminPermissionRoleSettings } from '@/lib/admin-permission-settings'
+import {
+  loadAdminPermissionRoleSettings,
+  type AdminPermissionRoleSettings,
+} from '@/lib/admin-permission-settings'
+import { getSettingsAccessFlags } from '@/lib/settings-access'
 
 // 알림 메시지의 기본값은 빈 문자열 — 폼은 초기값이 비어 있으면 locale 별
 // `messagePlaceholder` 를 노출하므로, 관리자는 자신이 사용하는 언어의 예시를
@@ -24,6 +28,21 @@ export default async function SettingsPage() {
   if (!session) throw new Error('Unauthorized')
   const tenantId = await getSessionGuildId(session)
   const isSuperAdmin = isSuperAdminSession(session)
+  const settingsAccess = getSettingsAccessFlags(session.isAdmin, session.capabilities)
+  const canManageAnyLogOperatingStart =
+    settingsAccess.shopChestLogStart ||
+    settingsAccess.siphonLogStart ||
+    settingsAccess.lootAuditLogStart
+  const emptyPermissionRoleSettings: AdminPermissionRoleSettings = {
+    adminRoleIds: [],
+    eventCreatorRoleIds: [],
+    eventCreatorCombatRoleIds: [],
+    eventCreatorFfRoleIds: [],
+    eventCreatorGankingRoleIds: [],
+    bombSquadCallerRoleIds: [],
+    activeMemberRoleIds: [],
+    lastMemberSyncAt: null,
+  }
 
   const [
     permissionRoleSettings,
@@ -57,40 +76,94 @@ export default async function SettingsPage() {
     tLanding,
     t,
   ] = await Promise.all([
-    loadAdminPermissionRoleSettings(tenantId),
-    getTenantDiscordConfig(tenantId),
-    getAppSetting('event_notification_message', '', tenantId),
-    getAppSetting('landing_banner_url', '', tenantId),
-    getAppSetting('landing_cta_text', '', tenantId),
-    getAppSetting('regear_window_minutes', '60', tenantId),
-    getAppSetting('regear_max_deaths_per_event', '1', tenantId),
-    getAppSetting('regear_eligibility_days', '14', tenantId),
-    getAppSetting('regear_payout_rate_percent', '100', tenantId),
-    getAppSetting('events_auto_start_enabled', 'false', tenantId),
+    settingsAccess.permissions
+      ? loadAdminPermissionRoleSettings(tenantId)
+      : Promise.resolve(emptyPermissionRoleSettings),
+    settingsAccess.general ? getTenantDiscordConfig(tenantId) : Promise.resolve(null),
+    settingsAccess.general
+      ? getAppSetting('event_notification_message', '', tenantId)
+      : Promise.resolve(''),
+    settingsAccess.guildProfile
+      ? getAppSetting('landing_banner_url', '', tenantId)
+      : Promise.resolve(''),
+    settingsAccess.guildProfile
+      ? getAppSetting('landing_cta_text', '', tenantId)
+      : Promise.resolve(''),
+    settingsAccess.general
+      ? getAppSetting('regear_window_minutes', '60', tenantId)
+      : Promise.resolve('60'),
+    settingsAccess.general
+      ? getAppSetting('regear_max_deaths_per_event', '1', tenantId)
+      : Promise.resolve('1'),
+    settingsAccess.general
+      ? getAppSetting('regear_eligibility_days', '14', tenantId)
+      : Promise.resolve('14'),
+    settingsAccess.general
+      ? getAppSetting('regear_payout_rate_percent', '100', tenantId)
+      : Promise.resolve('100'),
+    settingsAccess.toggles
+      ? getAppSetting('events_auto_start_enabled', 'false', tenantId)
+      : Promise.resolve('false'),
     // 빈 문자열 폴백 — 'east' 폴백은 west/eu 테넌트의 자가-인증 위반.
     // isAlbionServer 로 검증 후 null 로 전달, UI 에서 명시적 선택을 강제한다.
-    getAppSetting('albion_server', '', tenantId),
-    getAppSetting('albion_home_guild_id', '', tenantId),
-    getAppSetting('auto_regear_enabled', 'false', tenantId),
-    getAppSetting('auto_regear_excluded_slots', '["food","cape","mount","potion"]', tenantId),
-    getAppSetting('auto_regear_skip_low_confidence', 'false', tenantId),
-    getAppSetting('craft_regear_enabled', 'false', tenantId),
-    getAppSetting('regear_require_verification', 'true', tenantId),
-    getAppSetting('regear_overcharge_enabled', 'false', tenantId),
-    getAppSetting('cd_badge_roles', '["Dps"]', tenantId),
+    settingsAccess.general
+      ? getAppSetting('albion_server', '', tenantId)
+      : Promise.resolve(''),
+    settingsAccess.general
+      ? getAppSetting('albion_home_guild_id', '', tenantId)
+      : Promise.resolve(''),
+    settingsAccess.toggles
+      ? getAppSetting('auto_regear_enabled', 'false', tenantId)
+      : Promise.resolve('false'),
+    settingsAccess.general
+      ? getAppSetting('auto_regear_excluded_slots', '["food","cape","mount","potion"]', tenantId)
+      : Promise.resolve('["food","cape","mount","potion"]'),
+    settingsAccess.toggles
+      ? getAppSetting('auto_regear_skip_low_confidence', 'false', tenantId)
+      : Promise.resolve('false'),
+    settingsAccess.toggles
+      ? getAppSetting('craft_regear_enabled', 'false', tenantId)
+      : Promise.resolve('false'),
+    settingsAccess.toggles
+      ? getAppSetting('regear_require_verification', 'true', tenantId)
+      : Promise.resolve('true'),
+    settingsAccess.toggles
+      ? getAppSetting('regear_overcharge_enabled', 'false', tenantId)
+      : Promise.resolve('false'),
+    settingsAccess.general
+      ? getAppSetting('cd_badge_roles', '["Dps"]', tenantId)
+      : Promise.resolve('["Dps"]'),
     // 기본값 'true' — 기존 동작(미인증 멤버도 접근 가능) 유지. 관리자가 끌
     // 때만 layout 게이트가 /onboarding/albion 으로 강제 리다이렉트.
-    getAppSetting('allow_unverified_member_access', 'true', tenantId),
-    getAppSetting('local_guild_accounts_enabled', 'false', tenantId),
-    getAppSetting('local_guild_invite_hash', '', tenantId),
+    settingsAccess.toggles
+      ? getAppSetting('allow_unverified_member_access', 'true', tenantId)
+      : Promise.resolve('true'),
+    settingsAccess.general
+      ? getAppSetting('local_guild_accounts_enabled', 'false', tenantId)
+      : Promise.resolve('false'),
+    settingsAccess.general
+      ? getAppSetting('local_guild_invite_hash', '', tenantId)
+      : Promise.resolve(''),
     // 기본값 'Asia/Seoul' — 기존 멘헤라 동작 유지. 잘못된 값이 박혀 있으면
     // 아래 isValidTenantTimezone 으로 다시 한 번 정규화한다.
-    getAppSetting('tenant_timezone', 'Asia/Seoul', tenantId),
-    getAppSetting('log_start_shop_chest_at', '', tenantId),
-    getAppSetting('log_start_siphon_at', '', tenantId),
-    getAppSetting('log_start_loot_audit_at', '', tenantId),
-    getAppSetting('event_dm_lead_minutes', '35', tenantId),
-    listRoleRewards(),
+    settingsAccess.general || canManageAnyLogOperatingStart
+      ? getAppSetting('tenant_timezone', 'Asia/Seoul', tenantId)
+      : Promise.resolve('Asia/Seoul'),
+    settingsAccess.shopChestLogStart
+      ? getAppSetting('log_start_shop_chest_at', '', tenantId)
+      : Promise.resolve(''),
+    settingsAccess.siphonLogStart
+      ? getAppSetting('log_start_siphon_at', '', tenantId)
+      : Promise.resolve(''),
+    settingsAccess.lootAuditLogStart
+      ? getAppSetting('log_start_loot_audit_at', '', tenantId)
+      : Promise.resolve(''),
+    settingsAccess.general
+      ? getAppSetting('event_dm_lead_minutes', '35', tenantId)
+      : Promise.resolve('35'),
+    settingsAccess.roleRewards
+      ? listRoleRewards()
+      : Promise.resolve({ rewards: [], error: undefined }),
     getTranslations('landing'),
     getTranslations('adminSettings'),
   ])
@@ -234,6 +307,7 @@ export default async function SettingsPage() {
         logStartLootAuditAt={logStartLootAuditAt}
         eventDmLeadMinutes={eventDmLeadMinutes}
         isSuperAdmin={isSuperAdmin}
+        access={settingsAccess}
       />
     </div>
   )
