@@ -28,9 +28,9 @@ type GearCard = {
 }
 
 const DEMO_GEAR: ReadonlyArray<GearCard> = [
-  { baseItemId: 'T8_2H_MACE_HEAVY', uniqueName: 'T8_2H_MACE_HEAVY', nameKo: 'Heavy Mace', slot: 'weapon', tier: 8,
+  { baseItemId: 'T8_2H_MACE', uniqueName: 'T8_2H_MACE', nameKo: 'Heavy Mace', slot: 'weapon', tier: 8,
     enchantQty: [{ enchant: 0, qty: 0 }, { enchant: 1, qty: 3 }, { enchant: 2, qty: 7 }, { enchant: 3, qty: 12 }, { enchant: 4, qty: 2 }] },
-  { baseItemId: 'T8_2H_HOLYSTAFF_AVALON', uniqueName: 'T8_2H_HOLYSTAFF_AVALON', nameKo: 'Holy Staff (Avalon)', slot: 'weapon', tier: 8,
+  { baseItemId: 'T8_MAIN_HOLYSTAFF_AVALON', uniqueName: 'T8_MAIN_HOLYSTAFF_AVALON', nameKo: 'Hallowfall', slot: 'weapon', tier: 8,
     enchantQty: [{ enchant: 0, qty: 0 }, { enchant: 1, qty: 2 }, { enchant: 2, qty: 5 }, { enchant: 3, qty: 8 }, { enchant: 4, qty: 1 }] },
   { baseItemId: 'T8_2H_DAGGERPAIR', uniqueName: 'T8_2H_DAGGERPAIR', nameKo: 'Dagger Pair', slot: 'weapon', tier: 8,
     enchantQty: [{ enchant: 0, qty: 0 }, { enchant: 1, qty: 1 }, { enchant: 2, qty: 4 }, { enchant: 3, qty: 6 }, { enchant: 4, qty: 0 }] },
@@ -59,7 +59,7 @@ const DEMO_GEAR: ReadonlyArray<GearCard> = [
     enchantQty: [{ enchant: 0, qty: 0 }, { enchant: 1, qty: 2 }, { enchant: 2, qty: 4 }, { enchant: 3, qty: 13 }, { enchant: 4, qty: 1 }] },
   { baseItemId: 'T8_OFF_SHIELD', uniqueName: 'T8_OFF_SHIELD', nameKo: 'Stalwart Shield', slot: 'offhand', tier: 8,
     enchantQty: [{ enchant: 0, qty: 0 }, { enchant: 1, qty: 1 }, { enchant: 2, qty: 3 }, { enchant: 3, qty: 7 }, { enchant: 4, qty: 0 }] },
-  { baseItemId: 'T7_2H_MACE_HEAVY', uniqueName: 'T7_2H_MACE_HEAVY', nameKo: 'Heavy Mace', slot: 'weapon', tier: 7,
+  { baseItemId: 'T7_2H_MACE', uniqueName: 'T7_2H_MACE', nameKo: 'Heavy Mace', slot: 'weapon', tier: 7,
     enchantQty: [{ enchant: 0, qty: 2 }, { enchant: 1, qty: 4 }, { enchant: 2, qty: 6 }, { enchant: 3, qty: 8 }, { enchant: 4, qty: 0 }] },
   { baseItemId: 'T7_HEAD_PLATE_SET1', uniqueName: 'T7_HEAD_PLATE_SET1', nameKo: 'Soldier Helmet', slot: 'head', tier: 7,
     enchantQty: [{ enchant: 0, qty: 1 }, { enchant: 1, qty: 3 }, { enchant: 2, qty: 5 }, { enchant: 3, qty: 9 }, { enchant: 4, qty: 0 }] },

@@ -3,7 +3,6 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import Image from 'next/image'
 import {
   ShoppingCart,
   X,
@@ -18,6 +17,7 @@ import {
 import { submitShopOrder } from '@/app/actions/shop-member'
 import { getLocalizedItemName } from '@/lib/item-names'
 import type { Locale } from '@/i18n/locales'
+import AlbionItemImage from './AlbionItemImage'
 import HoverTip from './HoverTip'
 
 export type ShopPriceWarning = 'quality' | 'window' | 'bluezone' | 'redzone' | null
@@ -410,13 +410,12 @@ function ShopTile({
           둥근 모서리를 이미지/배지들이 덮지 않도록 여기에만 둔다 — 타일 바깥으로는
           자식이 나갈 수 있어야 (HoverTip) 하므로 button 전체에는 걸지 않는다. */}
       <div className="relative aspect-square overflow-hidden rounded-t-md">
-        <Image
+        <AlbionItemImage
           src={imageUrl(item.uniqueName, item.enchant, item.quality, 96)}
           alt={item.nameKo}
           fill
           className="object-contain p-1 pixel-img"
           sizes="100px"
-          unoptimized
         />
 
         {/* 인챈트 (왼쪽 위) */}
@@ -653,12 +652,11 @@ function CartLineRow({
   return (
     <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-800 rounded-lg px-2 py-1.5">
       <div className="relative w-9 h-9 rounded bg-gray-950 flex-shrink-0">
-        <Image
+        <AlbionItemImage
           src={imageUrl(line.item.uniqueName, line.item.enchant, line.item.quality, 48)}
           alt={displayName}
           fill
           className="object-contain pixel-img"
-          unoptimized
         />
       </div>
       <div className="flex-1 min-w-0">

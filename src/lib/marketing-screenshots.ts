@@ -43,10 +43,38 @@ function emptyMap(): MarketingScreenshotsBySlot {
 
 function fallbackMap(): MarketingScreenshotsBySlot {
   const map = emptyMap()
+  map.events.push({
+    id: 'fallback-events-demo',
+    url: '/screenshots/events-demo.png',
+    alt: 'Event detail and slot signup demo screen',
+    position: 0,
+    source: 'fallback',
+  })
   map.regear.push({
     id: 'fallback-regear-approval-demo',
     url: '/screenshots/regear-approval-demo.png',
     alt: 'Regear approval workflow demo screen',
+    position: 0,
+    source: 'fallback',
+  })
+  map.craft.push({
+    id: 'fallback-craft-demo',
+    url: '/screenshots/craft-demo.png',
+    alt: 'Crafting queue and task management demo screen',
+    position: 0,
+    source: 'fallback',
+  })
+  map.shop.push({
+    id: 'fallback-shop-demo',
+    url: '/screenshots/shop-demo.png',
+    alt: 'Guild shop catalog demo screen',
+    position: 0,
+    source: 'fallback',
+  })
+  map.stats.push({
+    id: 'fallback-stats-demo',
+    url: '/screenshots/stats-demo.png',
+    alt: 'Guild statistics dashboard demo screen',
     position: 0,
     source: 'fallback',
   })

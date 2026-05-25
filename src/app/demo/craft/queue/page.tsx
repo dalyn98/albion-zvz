@@ -57,7 +57,7 @@ const INITIAL_QUEUE: ReadonlyArray<QueueRow> = [
     role: 'tank',
     city: 'bridgewatch',
     pieces: [
-      { itemId: 'T8_2H_MACE_HEAVY', label: 'Heavy Mace', qty: 1, enchant: 3 },
+      { itemId: 'T8_2H_MACE', label: 'Heavy Mace', qty: 1, enchant: 3 },
       { itemId: 'T8_ARMOR_PLATE_KEEPER', label: 'Guardian Armor', qty: 1, enchant: 3 },
       { itemId: 'T8_HEAD_PLATE_KEEPER', label: 'Guardian Helmet', qty: 1, enchant: 3 },
       { itemId: 'T8_SHOES_PLATE_KEEPER', label: 'Guardian Boots', qty: 1, enchant: 3 },
@@ -70,7 +70,7 @@ const INITIAL_QUEUE: ReadonlyArray<QueueRow> = [
     role: 'healer',
     city: 'lymhurst',
     pieces: [
-      { itemId: 'T8_2H_HOLYSTAFF_AVALON', label: 'Holy Staff (Avalon)', qty: 1, enchant: 3 },
+      { itemId: 'T8_MAIN_HOLYSTAFF_AVALON', label: 'Hallowfall', qty: 1, enchant: 3 },
       { itemId: 'T8_ARMOR_CLOTH_HELL', label: 'Hellion Jacket', qty: 1, enchant: 3 },
       { itemId: 'T8_HEAD_CLOTH_HELL', label: 'Hellion Hood', qty: 1, enchant: 2 },
     ],
@@ -94,7 +94,7 @@ const INITIAL_QUEUE: ReadonlyArray<QueueRow> = [
     city: 'thetford',
     pieces: [
       { itemId: 'T8_2H_CROSSBOWLARGE', label: 'Heavy Crossbow', qty: 1, enchant: 3 },
-      { itemId: 'T8_OFF_TOWERSHIELD_AVALON', label: 'Stalwart Shield', qty: 1, enchant: 2 },
+      { itemId: 'T8_OFF_SHIELD', label: 'Shield', qty: 1, enchant: 2 },
     ],
     silver: '1.3M',
   },
@@ -104,7 +104,7 @@ const INITIAL_QUEUE: ReadonlyArray<QueueRow> = [
     role: 'support',
     city: 'fortsterling',
     pieces: [
-      { itemId: 'T8_CAPE_KEEPER', label: 'Keeper Cape', qty: 1, enchant: 2 },
+      { itemId: 'T8_CAPEITEM_KEEPER', label: 'Keeper Cape', qty: 1, enchant: 2 },
       { itemId: 'T8_OFF_HORN_KEEPER', label: 'Battle Horn', qty: 1, enchant: 2 },
     ],
     silver: '0.6M',
@@ -121,8 +121,8 @@ const CRAFT_QUEUE_TOUR_STEPS = [
 
 // 베이스 재고 — 잡힌 작업만큼 needed 가 줄어들고 부족 여부도 다시 계산됨.
 const BASE_STOCK: Record<string, number> = {
-  T8_2H_MACE_HEAVY: 0,
-  T8_2H_HOLYSTAFF_AVALON: 2,
+  T8_2H_MACE: 0,
+  T8_MAIN_HOLYSTAFF_AVALON: 2,
   T8_2H_DAGGERPAIR: 1,
   T8_2H_CROSSBOWLARGE: 0,
   T8_ARMOR_PLATE_KEEPER: 4,
@@ -131,8 +131,8 @@ const BASE_STOCK: Record<string, number> = {
   T8_ARMOR_CLOTH_HELL: 2,
   T8_HEAD_CLOTH_HELL: 1,
   T8_ARMOR_LEATHER_HELL: 1,
-  T8_OFF_TOWERSHIELD_AVALON: 0,
-  T8_CAPE_KEEPER: 0,
+  T8_OFF_SHIELD: 0,
+  T8_CAPEITEM_KEEPER: 0,
   T8_OFF_HORN_KEEPER: 1,
 }
 

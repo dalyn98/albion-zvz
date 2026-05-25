@@ -255,7 +255,7 @@ export const DEMO_SHOP_REGEAR_STATS: DemoShopRegearStats = {
   silverPaid: 18_420_000,
   topSoldItems: [
     {
-      uniqueName: 'T8_2H_MACE_HEAVY',
+      uniqueName: 'T8_2H_MACE',
       enchant: 3,
       quality: 3,
       nameKo: 'Heavy Mace',
@@ -263,10 +263,10 @@ export const DEMO_SHOP_REGEAR_STATS: DemoShopRegearStats = {
       points: 1_440,
     },
     {
-      uniqueName: 'T8_2H_HOLYSTAFF_AVALON',
+      uniqueName: 'T8_MAIN_HOLYSTAFF_AVALON',
       enchant: 3,
       quality: 3,
-      nameKo: 'Holy Staff',
+      nameKo: 'Hallowfall',
       quantity: 14,
       points: 1_120,
     },

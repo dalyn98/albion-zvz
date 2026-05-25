@@ -8,9 +8,11 @@
 
 `src/lib/marketing-screenshots.ts` 의 키와 1:1 로 맞춥니다.
 
+- `events-demo.png` — 이벤트 상세, 내 슬롯 상태, 파티/슬롯 신청 화면
 - `regear-approval-demo.png` — 자동 리기어 청구 또는 어드민 승인 화면
-- `shop.png` — 길드 상점 카탈로그 또는 환전 화면
-- `stats.png` — 멤버 통계 / 리더보드 / K/D 화면
+- `craft-demo.png` — 제작 큐와 제작 작업 화면
+- `shop-demo.png` — 길드 상점 카탈로그 또는 환전 화면
+- `stats-demo.png` — 멤버 통계 / 리더보드 / K/D 화면
 
 ## 권장 사양
 

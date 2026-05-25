@@ -42,7 +42,7 @@ type Tab = 'available' | 'mine'
 const INITIAL_ORDERS: ReadonlyArray<OrderRow> = [
   {
     orderId: 'o1',
-    itemId: 'T8_2H_MACE_HEAVY',
+    itemId: 'T8_2H_MACE',
     itemLabel: 'Heavy Mace',
     enchant: 3,
     quantity: 10,
@@ -54,8 +54,8 @@ const INITIAL_ORDERS: ReadonlyArray<OrderRow> = [
   },
   {
     orderId: 'o2',
-    itemId: 'T8_2H_HOLYSTAFF_AVALON',
-    itemLabel: 'Holy Staff (Avalon)',
+    itemId: 'T8_MAIN_HOLYSTAFF_AVALON',
+    itemLabel: 'Hallowfall',
     enchant: 3,
     quantity: 5,
     remaining: 5,

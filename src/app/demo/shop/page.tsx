@@ -17,8 +17,8 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const HOUR_MS = 60 * 60 * 1000
 
 const DEMO_CATALOG: CatalogItem[] = [
-  { id: '1', uniqueName: 'T8_2H_MACE_HEAVY', enchant: 3, quality: 3, stock: 12, nameKo: 'Heavy Mace', category: 'weapon', tier: 8, pointPrice: 80, priceWarning: null },
-  { id: '2', uniqueName: 'T8_2H_HOLYSTAFF_AVALON', enchant: 3, quality: 3, stock: 8, nameKo: 'Holy Staff', category: 'weapon', tier: 8, pointPrice: 80, priceWarning: 'quality' },
+  { id: '1', uniqueName: 'T8_2H_MACE', enchant: 3, quality: 3, stock: 12, nameKo: 'Heavy Mace', category: 'weapon', tier: 8, pointPrice: 80, priceWarning: null },
+  { id: '2', uniqueName: 'T8_MAIN_HOLYSTAFF_AVALON', enchant: 3, quality: 3, stock: 8, nameKo: 'Hallowfall', category: 'weapon', tier: 8, pointPrice: 80, priceWarning: 'quality' },
   { id: '3', uniqueName: 'T8_2H_DAGGERPAIR', enchant: 3, quality: 3, stock: 6, nameKo: 'Dagger Pair', category: 'weapon', tier: 8, pointPrice: 80, priceWarning: null },
   { id: '4', uniqueName: 'T8_2H_FIRESTAFF', enchant: 3, quality: 3, stock: 4, nameKo: 'Great Fire Staff', category: 'weapon', tier: 8, pointPrice: 80, priceWarning: null },
   { id: '5', uniqueName: 'T8_2H_CROSSBOWLARGE', enchant: 3, quality: 3, stock: 5, nameKo: 'Heavy Crossbow', category: 'weapon', tier: 8, pointPrice: 80, priceWarning: 'window' },
@@ -27,7 +27,7 @@ const DEMO_CATALOG: CatalogItem[] = [
   { id: '8', uniqueName: 'T8_SHOES_PLATE_SET1', enchant: 3, quality: 3, stock: 13, nameKo: 'Guardian Boots', category: 'armor', tier: 8, pointPrice: 32, priceWarning: null },
   { id: '9', uniqueName: 'T8_OFF_SHIELD', enchant: 3, quality: 3, stock: 7, nameKo: 'Stalwart Shield', category: 'offhand', tier: 8, pointPrice: 36, priceWarning: 'bluezone' },
   { id: '10', uniqueName: 'T8_CAPE', enchant: 3, quality: 3, stock: 22, nameKo: 'Cape', category: 'cape', tier: 8, pointPrice: 24, priceWarning: null },
-  { id: '11', uniqueName: 'T7_2H_MACE_HEAVY', enchant: 2, quality: 3, stock: 18, nameKo: 'Heavy Mace', category: 'weapon', tier: 7, pointPrice: 40, priceWarning: null },
+  { id: '11', uniqueName: 'T7_2H_MACE', enchant: 2, quality: 3, stock: 18, nameKo: 'Heavy Mace', category: 'weapon', tier: 7, pointPrice: 40, priceWarning: null },
   { id: '12', uniqueName: 'T7_2H_HOLYSTAFF', enchant: 2, quality: 3, stock: 9, nameKo: 'Holy Staff', category: 'weapon', tier: 7, pointPrice: 38, priceWarning: null },
 ]
 
@@ -46,7 +46,7 @@ function getDemoOrders(nowMs: number): MyOrderRow[] {
     createdAt: new Date(nowMs - 2 * HOUR_MS).toISOString(),
     resolvedAt: null,
     items: [
-      { uniqueName: 'T8_2H_MACE_HEAVY', enchant: 3, quality: 3, nameKo: 'Heavy Mace', quantity: 1, unitPoints: 80 },
+      { uniqueName: 'T8_2H_MACE', enchant: 3, quality: 3, nameKo: 'Heavy Mace', quantity: 1, unitPoints: 80 },
       { uniqueName: 'T8_OFF_SHIELD', enchant: 3, quality: 3, nameKo: 'Stalwart Shield', quantity: 1, unitPoints: 36 },
     ],
   },

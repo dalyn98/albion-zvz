@@ -55,7 +55,7 @@ const INITIAL_TASKS: ReadonlyArray<MyTask> = [
     city: 'bridgewatch',
     role: 'tank',
     pieces: [
-      { itemId: 'T8_2H_MACE_HEAVY', label: 'Heavy Mace', enchant: 3 },
+      { itemId: 'T8_2H_MACE', label: 'Heavy Mace', enchant: 3 },
       { itemId: 'T8_ARMOR_PLATE_KEEPER', label: 'Guardian Armor', enchant: 3 },
       { itemId: 'T8_HEAD_PLATE_KEEPER', label: 'Guardian Helmet', enchant: 3 },
       { itemId: 'T8_SHOES_PLATE_KEEPER', label: 'Guardian Boots', enchant: 3 },
@@ -68,7 +68,7 @@ const INITIAL_TASKS: ReadonlyArray<MyTask> = [
     city: 'lymhurst',
     role: 'healer',
     pieces: [
-      { itemId: 'T8_2H_HOLYSTAFF_AVALON', label: 'Holy Staff (Avalon)', enchant: 3 },
+      { itemId: 'T8_MAIN_HOLYSTAFF_AVALON', label: 'Hallowfall', enchant: 3 },
       { itemId: 'T8_ARMOR_CLOTH_HELL', label: 'Hellion Jacket', enchant: 3 },
       { itemId: 'T8_HEAD_CLOTH_HELL', label: 'Hellion Hood', enchant: 2 },
     ],
@@ -80,8 +80,8 @@ const INITIAL_TASKS: ReadonlyArray<MyTask> = [
     city: 'fortsterling',
     role: 'tank',
     pieces: [
-      { itemId: 'T8_2H_MACE_HEAVY', label: 'Heavy Mace', enchant: 3 },
-      { itemId: 'T8_OFF_SHIELD_KEEPER', label: 'Keeper Shield', enchant: 2 },
+      { itemId: 'T8_2H_MACE', label: 'Heavy Mace', enchant: 3 },
+      { itemId: 'T8_OFF_SHIELD', label: 'Shield', enchant: 2 },
     ],
     boxNumber: 4,
     materialSilver: '0.85M',
@@ -89,14 +89,14 @@ const INITIAL_TASKS: ReadonlyArray<MyTask> = [
 ]
 
 const BASE_STOCK: Record<string, number> = {
-  T8_2H_MACE_HEAVY: 0,
-  T8_2H_HOLYSTAFF_AVALON: 2,
+  T8_2H_MACE: 0,
+  T8_MAIN_HOLYSTAFF_AVALON: 2,
   T8_ARMOR_PLATE_KEEPER: 4,
   T8_HEAD_PLATE_KEEPER: 6,
   T8_SHOES_PLATE_KEEPER: 3,
   T8_ARMOR_CLOTH_HELL: 2,
   T8_HEAD_CLOTH_HELL: 1,
-  T8_OFF_SHIELD_KEEPER: 2,
+  T8_OFF_SHIELD: 2,
 }
 
 // 잡힌 작업의 박스 번호 시드. 납품 시 자동 배정 흉내.
