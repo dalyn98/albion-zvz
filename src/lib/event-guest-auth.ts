@@ -1,3 +1,5 @@
+import { classifyHost, resolveTenantBySlug } from '@/lib/tenant-resolver'
+
 export interface EventGuestAuthScope {
   eventId: string
   guildId: string
@@ -105,4 +107,48 @@ export async function resolveEventGuestAuthScope(
     guildId: eventRow.guild_id,
     source: 'public-event',
   }
+}
+
+export async function resolvePublicEventPageGuildId(
+  db: EventGuestAuthDb,
+  input: {
+    eventId: string
+    inviteToken: string | null | undefined
+    hostHeader: string | null | undefined
+    nowIso?: string
+  },
+): Promise<string | null> {
+  const inviteToken = input.inviteToken?.trim() || null
+  const nowIso = input.nowIso ?? new Date().toISOString()
+
+  if (inviteToken) {
+    const { data: tokenRow, error: tokenError } = await (db.from('event_guest_tokens') as SelectQueryBuilder)
+      .select('event_id, revoked_at, expires_at')
+      .eq('token', inviteToken)
+      .eq('event_id', input.eventId)
+      .maybeSingle()
+    const token = tokenRow as TokenRow | null
+    if (
+      !tokenError &&
+      token &&
+      !token.revoked_at &&
+      (!token.expires_at || token.expires_at > nowIso)
+    ) {
+      const eventRow = await resolveEventRow(db, token.event_id)
+      if (eventRow) return eventRow.guild_id
+    }
+  }
+
+  const classification = classifyHost(input.hostHeader)
+  if (classification.kind === 'tenant') {
+    const tenant = await resolveTenantBySlug(classification.slug)
+    return tenant?.tenantId ?? null
+  }
+
+  if (classification.kind !== 'root' && classification.kind !== 'localhost' && classification.kind !== 'preview') {
+    return null
+  }
+
+  const eventRow = await resolveEventRow(db, input.eventId)
+  return eventRow?.guild_id ?? null
 }

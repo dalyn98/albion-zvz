@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   extractEventIdFromReturnTo,
   resolveEventGuestAuthScope,
+  resolvePublicEventPageGuildId,
 } from './event-guest-auth'
 
 interface QueryStep {
@@ -138,5 +139,38 @@ describe('event guest auth scope', () => {
       }),
     ).resolves.toBeNull()
     expect(db.from).not.toHaveBeenCalled()
+  })
+
+  it('resolves a root-host public event page by event id when no invite or session guild exists', async () => {
+    const { db, calls } = createDb({
+      events: { guild_id: 'guild-from-public-event', status: 'published' },
+    })
+
+    await expect(
+      resolvePublicEventPageGuildId(db, {
+        eventId: 'event-1',
+        inviteToken: null,
+        hostHeader: 'albion-guildmanager.com',
+      }),
+    ).resolves.toBe('guild-from-public-event')
+    expect(calls).toContainEqual({
+      table: 'events',
+      method: 'eq',
+      args: ['id', 'event-1'],
+    })
+  })
+
+  it('does not resolve draft events through the root-host public page fallback', async () => {
+    const { db } = createDb({
+      events: { guild_id: 'guild-from-public-event', status: 'draft' },
+    })
+
+    await expect(
+      resolvePublicEventPageGuildId(db, {
+        eventId: 'draft-event',
+        inviteToken: null,
+        hostHeader: 'albion-guildmanager.com',
+      }),
+    ).resolves.toBeNull()
   })
 })

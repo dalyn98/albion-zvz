@@ -37,6 +37,7 @@ import {
 } from '@/lib/event-guest-profile'
 import { getEventInteractionSession } from '@/lib/event-session'
 import { buildDiscordStartHref } from '@/lib/discord-auth-url'
+import { resolvePublicEventPageGuildId } from '@/lib/event-guest-auth'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -48,41 +49,6 @@ function requestOriginFromHeaders(headersList: Headers): string {
   if (!host) return ''
   const proto = headersList.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https')
   return `${proto}://${host}`.replace(/\/$/, '')
-}
-
-async function resolvePublicEventGuildId(
-  eventId: string,
-  inviteToken: string | null,
-  headersList: Headers,
-): Promise<string | null> {
-  if (inviteToken) {
-    const nowIso = new Date().toISOString()
-    const { data: tokenRow } = await getAdminClient()
-      .from('event_guest_tokens')
-      .select('event_id, revoked_at, expires_at')
-      .eq('token', inviteToken)
-      .eq('event_id', eventId)
-      .maybeSingle()
-    if (
-      tokenRow &&
-      !tokenRow.revoked_at &&
-      (!tokenRow.expires_at || tokenRow.expires_at > nowIso)
-    ) {
-      const { data: eventRow } = await getAdminClient()
-        .from('events')
-        .select('guild_id')
-        .eq('id', eventId)
-        .maybeSingle()
-      return (eventRow?.guild_id as string | undefined) ?? null
-    }
-  }
-
-  const classification = classifyHost(headersList.get('host'))
-  if (classification.kind === 'tenant') {
-    const tenant = await resolveTenantBySlug(classification.slug)
-    return tenant?.tenantId ?? null
-  }
-  return null
 }
 
 export const dynamic = 'force-dynamic'
@@ -199,7 +165,11 @@ export default async function EventDetailPage({
   const inviteToken = rawInvite?.trim() || null
   const [sessionGuildId, inviteGuildId] = await Promise.all([
     session ? getSessionGuildId(session) : Promise.resolve(null),
-    resolvePublicEventGuildId(id, inviteToken, headersList),
+    resolvePublicEventPageGuildId(getAdminClient(), {
+      eventId: id,
+      inviteToken,
+      hostHeader: headersList.get('host'),
+    }),
   ])
   // Public event pages should prefer a valid invite/host tenant over an
   // unrelated existing session. Otherwise a guest scoped to an older event can
