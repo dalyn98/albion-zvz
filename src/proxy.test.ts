@@ -42,4 +42,30 @@ describe('proxy pathname forwarding', () => {
     expect(getRewrittenUrl(response)).toBe('https://albion-guildmanager.com/public/landing')
     expect(forwardedPathname(response)).toBe('/public/landing')
   })
+
+  it('rewrites clean guild profile links on localhost for local QA', async () => {
+    const response = await proxy(
+      new NextRequest('http://localhost:3000/g/menhera', {
+        headers: { host: 'localhost:3000' },
+      }),
+    )
+
+    expect(isRewrite(response)).toBe(true)
+    expect(getRewrittenUrl(response)).toBe('http://localhost:3000/public/g/menhera')
+    expect(forwardedPathname(response)).toBe('/public/g/menhera')
+  })
+
+  it('rewrites clean guild profile links on Vercel previews', async () => {
+    const response = await proxy(
+      new NextRequest('https://albion-guildmanager-git-main-dalyn8690.vercel.app/g/menhera', {
+        headers: { host: 'albion-guildmanager-git-main-dalyn8690.vercel.app' },
+      }),
+    )
+
+    expect(isRewrite(response)).toBe(true)
+    expect(getRewrittenUrl(response)).toBe(
+      'https://albion-guildmanager-git-main-dalyn8690.vercel.app/public/g/menhera',
+    )
+    expect(forwardedPathname(response)).toBe('/public/g/menhera')
+  })
 })

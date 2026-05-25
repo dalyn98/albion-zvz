@@ -117,8 +117,16 @@ function rewriteGuildProfile(request: NextRequest): NextResponse | null {
   if (!target) return null
   const host = request.headers.get('host')
   const classification = classifyHost(host)
-  // legacy 는 위 redirect 단계에서 이미 처리됨. unknown host 만 컷.
-  if (classification.kind !== 'root' && classification.kind !== 'tenant') return null
+  // legacy 는 위 redirect 단계에서 이미 처리됨. localhost/preview 에서도
+  // clean public URLs 를 살려야 QA/preview 링크가 production 과 같은 모양으로 동작한다.
+  if (
+    classification.kind !== 'root' &&
+    classification.kind !== 'tenant' &&
+    classification.kind !== 'localhost' &&
+    classification.kind !== 'preview'
+  ) {
+    return null
+  }
   const rewritten = new URL(target, request.url)
   rewritten.search = request.nextUrl.search
   return rewriteWithPathname(request, rewritten, target)
