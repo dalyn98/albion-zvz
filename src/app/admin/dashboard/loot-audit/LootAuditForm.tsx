@@ -18,8 +18,10 @@ import {
   previewLootAudit,
   type LootAuditPreviewResult,
 } from '@/app/actions/loot-audit'
+import type { LootAuditDepositCheckStatus } from '@/lib/loot-audit'
 
 const TOP_FINDINGS = 12
+const TOP_DEPOSITS = 12
 
 export default function LootAuditForm() {
   const router = useRouter()
@@ -272,6 +274,60 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
         </div>
       )}
 
+      <div className="mt-4 overflow-x-auto rounded-md border border-gray-800">
+        <div className="border-b border-gray-800 bg-gray-800/60 px-3 py-2 text-xs font-semibold text-gray-300">
+          {t('depositLogTitle')}
+        </div>
+        <table className="w-full min-w-[760px] text-left text-xs">
+          <thead className="bg-gray-800/80 text-gray-400">
+            <tr>
+              <th className="px-3 py-2 font-medium">{t('colDepositStatus')}</th>
+              <th className="px-3 py-2 font-medium">{t('colMember')}</th>
+              <th className="px-3 py-2 font-medium">{t('colItem')}</th>
+              <th className="px-3 py-2 font-medium">{t('colDeposited')}</th>
+              <th className="px-3 py-2 font-medium">{t('colExpected')}</th>
+              <th className="px-3 py-2 font-medium">{t('colMatched')}</th>
+              <th className="px-3 py-2 font-medium">{t('colExtra')}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-800">
+            {summary.depositCheckRows.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-3 py-6 text-center text-gray-500">
+                  {t('noDepositLogRows')}
+                </td>
+              </tr>
+            ) : (
+              summary.depositCheckRows.slice(0, TOP_DEPOSITS).map((row) => (
+                <tr key={`${row.player}-${row.itemId ?? row.itemName}`} className="text-gray-200">
+                  <td className="px-3 py-2">
+                    <DepositCheckStatusPill
+                      status={row.status}
+                      labels={{
+                        matched: t('depositCheckStatusMatched'),
+                        extra: t('depositCheckStatusExtra'),
+                        unresolved: t('depositCheckStatusUnresolved'),
+                      }}
+                    />
+                  </td>
+                  <td className="px-3 py-2 font-medium text-white">{row.player}</td>
+                  <td className="px-3 py-2">
+                    <p className="text-gray-200">{row.itemName}</p>
+                    <p className="font-mono text-[11px] text-gray-500">
+                      {row.itemId ?? t('depositItemUnresolved')}
+                    </p>
+                  </td>
+                  <td className="px-3 py-2 font-mono">{row.depositedQuantity}</td>
+                  <td className="px-3 py-2 font-mono">{row.expectedQuantity}</td>
+                  <td className="px-3 py-2 font-mono text-emerald-200">{row.matchedQuantity}</td>
+                  <td className="px-3 py-2 font-mono text-amber-200">{row.extraQuantity}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
       <div className="mt-4 overflow-hidden rounded-md border border-gray-800">
         <table className="w-full text-left text-xs">
           <thead className="bg-gray-800/80 text-gray-400">
@@ -312,6 +368,26 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
         </table>
       </div>
     </div>
+  )
+}
+
+function DepositCheckStatusPill({
+  status,
+  labels,
+}: {
+  status: LootAuditDepositCheckStatus
+  labels: Record<LootAuditDepositCheckStatus, string>
+}) {
+  const color =
+    status === 'matched'
+      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+      : status === 'extra'
+        ? 'border-amber-500/40 bg-amber-500/10 text-amber-200'
+        : 'border-sky-500/40 bg-sky-500/10 text-sky-200'
+  return (
+    <span className={`inline-flex rounded-md border px-2 py-1 ${color}`}>
+      {labels[status]}
+    </span>
   )
 }
 

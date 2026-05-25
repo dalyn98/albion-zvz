@@ -104,6 +104,18 @@ describe('buildLootAuditSummary', () => {
         depositedQuantity: 2,
       }),
     ])
+    expect(summary.depositCheckRows).toEqual([
+      expect.objectContaining({
+        player: 'MonKKu',
+        itemId: 'T5_ARMOR_LEATHER_HELL@3',
+        status: 'matched',
+        expectedQuantity: 3,
+        depositedQuantity: 2,
+        matchedQuantity: 2,
+        extraQuantity: 0,
+        rowCount: 1,
+      }),
+    ])
   })
 
   it('does not count zero-value trash as a suspect finding', () => {
@@ -138,5 +150,57 @@ describe('buildLootAuditSummary', () => {
         ['Outsider', 'other', 'missing'],
         ['MonKKu', 'guild', 'complete'],
       ])
+  })
+
+  it('lists extra and unresolved guild chest deposits for admin review', () => {
+    const loot = parseLootLogCsv(SAMPLE_LOOT_CSV).entries
+    const deposits = parseDepositLog(
+      [
+        '"05/24/2026 14:05:00"\t"MonKKu"\t"전문가의 지옥불 재킷"\t"3"\t"1"\t"4"',
+        '"05/24/2026 14:06:00"\t"OtherBanker"\t"전문가의 지옥불 재킷"\t"3"\t"1"\t"1"',
+        '"05/24/2026 14:07:00"\t"MonKKu"\t"매칭 안 되는 아이템"\t"0"\t"1"\t"2"',
+      ].join('\n'),
+      { resolveItemName: makeResolver },
+    ).entries
+
+    const summary = buildLootAuditSummary(loot, deposits)
+
+    expect(summary.depositCheckRows.map((row) => ({
+      player: row.player,
+      itemId: row.itemId,
+      status: row.status,
+      depositedQuantity: row.depositedQuantity,
+      expectedQuantity: row.expectedQuantity,
+      matchedQuantity: row.matchedQuantity,
+      extraQuantity: row.extraQuantity,
+    }))).toEqual([
+      {
+        player: 'MonKKu',
+        itemId: null,
+        status: 'unresolved',
+        depositedQuantity: 2,
+        expectedQuantity: 0,
+        matchedQuantity: 0,
+        extraQuantity: 2,
+      },
+      {
+        player: 'MonKKu',
+        itemId: 'T5_ARMOR_LEATHER_HELL@3',
+        status: 'extra',
+        depositedQuantity: 4,
+        expectedQuantity: 3,
+        matchedQuantity: 3,
+        extraQuantity: 1,
+      },
+      {
+        player: 'OtherBanker',
+        itemId: 'T5_ARMOR_LEATHER_HELL@3',
+        status: 'extra',
+        depositedQuantity: 1,
+        expectedQuantity: 0,
+        matchedQuantity: 0,
+        extraQuantity: 1,
+      },
+    ])
   })
 })

@@ -44,6 +44,7 @@ export interface DepositLogEntry {
 export type LootAuditLooterRelation = 'guild' | 'alliance' | 'other'
 
 export type LootAuditCheckStatus = 'complete' | 'partial' | 'missing'
+export type LootAuditDepositCheckStatus = 'matched' | 'extra' | 'unresolved'
 
 export interface LootAuditScopeContext {
   homeGuildName?: string | null
@@ -101,6 +102,19 @@ export interface LootAuditCheckRow {
   status: LootAuditCheckStatus
 }
 
+export interface LootAuditDepositCheckRow {
+  player: string
+  looterRelation: LootAuditLooterRelation | null
+  itemId: string | null
+  itemName: string
+  depositedQuantity: number
+  expectedQuantity: number
+  matchedQuantity: number
+  extraQuantity: number
+  rowCount: number
+  status: LootAuditDepositCheckStatus
+}
+
 export interface LootAuditSummary {
   totalLootRows: number
   auditedLootRows: number
@@ -113,6 +127,7 @@ export interface LootAuditSummary {
   findings: LootAuditFinding[]
   memberSummaries: LootAuditMemberSummary[]
   checkRows: LootAuditCheckRow[]
+  depositCheckRows: LootAuditDepositCheckRow[]
 }
 
 export interface ParseDepositLogOptions {
@@ -129,6 +144,16 @@ interface LootAccumulator {
 }
 
 interface DepositAccumulator {
+  player: string
+  itemId: string
+  itemName: string
+  depositedQuantity: number
+  rowCount: number
+}
+
+interface UnresolvedDepositAccumulator {
+  player: string
+  itemName: string
   depositedQuantity: number
   rowCount: number
 }
@@ -310,10 +335,29 @@ export function buildLootAuditSummary(
   }
 
   const depositByMemberItem = new Map<string, DepositAccumulator>()
+  const unresolvedDepositByMemberItem = new Map<string, UnresolvedDepositAccumulator>()
   for (const entry of depositEntries) {
-    if (!entry.itemId) continue
+    if (!entry.itemId) {
+      const key = unresolvedDepositKey(entry.player, entry.itemName)
+      const existing = unresolvedDepositByMemberItem.get(key) ?? {
+        player: entry.player,
+        itemName: entry.itemName,
+        depositedQuantity: 0,
+        rowCount: 0,
+      }
+      existing.depositedQuantity += entry.quantity
+      existing.rowCount += 1
+      unresolvedDepositByMemberItem.set(key, existing)
+      continue
+    }
     const key = memberItemKey(entry.player, entry.itemId)
-    const existing = depositByMemberItem.get(key) ?? { depositedQuantity: 0, rowCount: 0 }
+    const existing = depositByMemberItem.get(key) ?? {
+      player: entry.player,
+      itemId: entry.itemId,
+      itemName: entry.itemName,
+      depositedQuantity: 0,
+      rowCount: 0,
+    }
     existing.depositedQuantity += entry.quantity
     existing.rowCount += 1
     depositByMemberItem.set(key, existing)
@@ -321,6 +365,7 @@ export function buildLootAuditSummary(
 
   const findings: LootAuditFinding[] = []
   const checkRows: LootAuditCheckRow[] = []
+  const depositCheckRows: LootAuditDepositCheckRow[] = []
   const memberSummaryMap = new Map<string, LootAuditMemberSummary>()
   let matchedDepositRows = 0
   let missingEstimatedValue = 0
@@ -383,6 +428,40 @@ export function buildLootAuditSummary(
     })
   }
 
+  for (const [key, deposit] of depositByMemberItem) {
+    const expected = lootByMemberItem.get(key)
+    const expectedQuantity = expected?.expectedQuantity ?? 0
+    const matchedQuantity = Math.min(deposit.depositedQuantity, expectedQuantity)
+    const extraQuantity = Math.max(0, deposit.depositedQuantity - expectedQuantity)
+    depositCheckRows.push({
+      player: deposit.player,
+      looterRelation: expected?.looterRelation ?? null,
+      itemId: deposit.itemId,
+      itemName: expected?.itemName ?? deposit.itemName,
+      depositedQuantity: deposit.depositedQuantity,
+      expectedQuantity,
+      matchedQuantity,
+      extraQuantity,
+      rowCount: deposit.rowCount,
+      status: extraQuantity > 0 ? 'extra' : 'matched',
+    })
+  }
+
+  for (const deposit of unresolvedDepositByMemberItem.values()) {
+    depositCheckRows.push({
+      player: deposit.player,
+      looterRelation: null,
+      itemId: null,
+      itemName: deposit.itemName,
+      depositedQuantity: deposit.depositedQuantity,
+      expectedQuantity: 0,
+      matchedQuantity: 0,
+      extraQuantity: deposit.depositedQuantity,
+      rowCount: deposit.rowCount,
+      status: 'unresolved',
+    })
+  }
+
   findings.sort((a, b) => {
     if (b.missingEstimatedValue !== a.missingEstimatedValue) {
       return b.missingEstimatedValue - a.missingEstimatedValue
@@ -407,6 +486,17 @@ export function buildLootAuditSummary(
     return compareStrings(a.lootedByName, b.lootedByName)
   })
 
+  depositCheckRows.sort((a, b) => {
+    const statusOrder =
+      depositCheckStatusRank(a.status) - depositCheckStatusRank(b.status)
+    if (statusOrder !== 0) return statusOrder
+    if (b.extraQuantity !== a.extraQuantity) return b.extraQuantity - a.extraQuantity
+    if (b.depositedQuantity !== a.depositedQuantity) {
+      return b.depositedQuantity - a.depositedQuantity
+    }
+    return compareStrings(a.player, b.player) || compareStrings(a.itemName, b.itemName)
+  })
+
   return {
     totalLootRows: lootEntries.length,
     auditedLootRows,
@@ -419,6 +509,7 @@ export function buildLootAuditSummary(
     findings,
     memberSummaries,
     checkRows,
+    depositCheckRows,
   }
 }
 
@@ -512,6 +603,10 @@ function memberItemKey(memberName: string, itemId: string): string {
   return `${normalizeMemberName(memberName)}|${itemId}`
 }
 
+function unresolvedDepositKey(memberName: string, itemName: string): string {
+  return `${normalizeMemberName(memberName)}|${itemName.trim().toLowerCase()}`
+}
+
 function normalizeMemberName(name: string): string {
   return name.trim().toLowerCase()
 }
@@ -527,6 +622,12 @@ function mergeLooterRelation(
   if (a === 'guild' || b === 'guild') return 'guild'
   if (a === 'alliance' || b === 'alliance') return 'alliance'
   return 'other'
+}
+
+function depositCheckStatusRank(status: LootAuditDepositCheckStatus): number {
+  if (status === 'unresolved') return 0
+  if (status === 'extra') return 1
+  return 2
 }
 
 function lootRowHash(entry: LootLogEntry): string {

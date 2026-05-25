@@ -14,6 +14,7 @@ import {
   parseDepositLog,
   parseLootLogCsv,
   type LootAuditCheckRow,
+  type LootAuditDepositCheckRow,
   type DepositLogEntry,
   type LootAuditFinding,
   type LootAuditLooterRelation,
@@ -93,6 +94,7 @@ export interface LootAuditDetail {
   audit: LootAuditListItem
   findings: LootAuditFindingRow[]
   checkRows: LootAuditCheckRow[]
+  depositCheckRows: LootAuditDepositCheckRow[]
   relationCounts: LootAuditRelationCounts
   unresolvedDepositItemNames: string[]
 }
@@ -115,6 +117,7 @@ const emptySummary: LootAuditSummary = {
   findings: [],
   memberSummaries: [],
   checkRows: [],
+  depositCheckRows: [],
 }
 
 export async function previewLootAudit(
@@ -338,6 +341,7 @@ export async function getLootAuditDetail(
         ),
       ),
       checkRows: summary.checkRows,
+      depositCheckRows: summary.depositCheckRows,
       relationCounts: summary.relationCounts,
       unresolvedDepositItemNames: [...unresolvedNames].sort((a, b) => a.localeCompare(b)),
     }
