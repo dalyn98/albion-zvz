@@ -9,6 +9,7 @@ import BattleRecordList, {
   type BattleListTab,
 } from '@/components/BattleRecordList'
 import { isSizeCategory, SIZE_CATEGORIES } from '@/lib/albion-battles'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -71,7 +72,10 @@ export default async function BattlesPage({
   if (activeTab !== 'recent') query = query.eq('size_category', activeTab)
   if (outcomeFilter) query = query.eq('outcome', outcomeFilter)
 
-  const { data, error } = await query
+  const [tenantTimezone, { data, error }] = await Promise.all([
+    getTenantTimezone(guildId),
+    query,
+  ])
 
   const rows: BattleRecordRow[] = (data ?? []).map((r) => {
     const battle = Array.isArray(r.battle_records) ? r.battle_records[0] : r.battle_records
@@ -197,6 +201,7 @@ export default async function BattlesPage({
 
       <BattleRecordList
         rows={rows}
+        timezone={tenantTimezone}
         activeTab={activeTab}
         outcomeFilter={outcomeFilter}
         emptyLabel={t('empty')}

@@ -45,9 +45,10 @@ interface Props {
   // /battles/[id] 의 라우팅 id — cross-link 생성에 필요. detail.id 는 활성
   // tenant 의 row id 라 cross 시점일 땐 다른 값일 수 있어서 별도 prop 으로 받는다.
   battleId: string
+  timezone: string
 }
 
-export default async function BattleDetailView({ detail, battleId }: Props) {
+export default async function BattleDetailView({ detail, battleId, timezone }: Props) {
   const t = await getTranslations('battleDetail')
   const tList = await getTranslations('battleTracking')
 
@@ -179,7 +180,7 @@ export default async function BattleDetailView({ detail, battleId }: Props) {
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-400 text-xs mt-2">
               <span className="inline-flex items-center gap-1">
                 <Clock size={11} />
-                {formatDateTime(detail.startedAt)}
+                {formatDateTime(detail.startedAt, timezone)}
               </span>
               {detail.clusterName && (
                 <span className="inline-flex items-center gap-1">
@@ -310,6 +311,7 @@ export default async function BattleDetailView({ detail, battleId }: Props) {
                 opponentUnknownLabel={t('eventOpponentUnknown')}
                 itemPowerLabel={(value) => t('eventItemPower', { value })}
                 fameLabel={(fame) => t('eventFame', { fame })}
+                timezone={timezone}
               />
             ))}
           </ul>
@@ -419,6 +421,7 @@ interface ParticipantRowProps {
   opponentUnknownLabel: string
   itemPowerLabel: (value: number) => string
   fameLabel: (fame: string) => string
+  timezone: string
 }
 
 function ParticipantRow({
@@ -432,6 +435,7 @@ function ParticipantRow({
   opponentUnknownLabel,
   itemPowerLabel,
   fameLabel,
+  timezone,
 }: ParticipantRowProps) {
   return (
     <li className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
@@ -500,7 +504,7 @@ function ParticipantRow({
                 </span>
                 <span className="text-gray-300 truncate flex-1">{opponent}</span>
                 <span className="text-gray-500 font-mono text-[10px] flex-shrink-0">
-                  {formatTime(e.occurred_at)}
+                  {formatTime(e.occurred_at, timezone)}
                   {e.item_power != null && (
                     <span className="ml-2">{itemPowerLabel(e.item_power)}</span>
                   )}
@@ -520,4 +524,3 @@ function formatFame(n: number): string {
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
   return String(n)
 }
-

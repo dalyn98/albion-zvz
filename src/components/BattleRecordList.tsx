@@ -71,6 +71,7 @@ export interface BattleRecordRow {
 
 interface Props {
   rows: BattleRecordRow[]
+  timezone: string
   activeTab: BattleListTab
   outcomeFilter: 'win' | 'loss' | 'tie' | null
   emptyLabel: string
@@ -105,8 +106,8 @@ function formatFame(n: number): string {
   return String(n)
 }
 
-function formatStartedAt(iso: string): string {
-  return formatDateTimeShort(iso)
+function formatStartedAt(iso: string, timezone: string): string {
+  return formatDateTimeShort(iso, timezone)
 }
 
 function computeGroupRoles(rows: BattleRecordRow[]): GroupRole[] {
@@ -135,6 +136,7 @@ function computeGroupRoles(rows: BattleRecordRow[]): GroupRole[] {
 
 export default function BattleRecordList({
   rows,
+  timezone,
   activeTab,
   outcomeFilter,
   emptyLabel,
@@ -244,6 +246,7 @@ export default function BattleRecordList({
                     matchSplitLabel={matchSplitLabel}
                     sameBattleLabel={sameBattleLabel}
                     provisionalLabel={provisionalLabel}
+                    timezone={timezone}
                     router={router}
                   />
                 ))
@@ -264,6 +267,7 @@ interface BattleRowProps {
   matchSplitLabel: string
   sameBattleLabel: string
   provisionalLabel: string
+  timezone: string
   router: ReturnType<typeof useRouter>
 }
 
@@ -275,6 +279,7 @@ function BattleRow({
   matchSplitLabel,
   sameBattleLabel,
   provisionalLabel,
+  timezone,
   router,
 }: BattleRowProps) {
   const outcomeColor =
@@ -324,7 +329,7 @@ function BattleRow({
             onClick={(e) => e.stopPropagation()}
             className="hover:text-white"
           >
-            {formatStartedAt(row.startedAt)}
+            {formatStartedAt(row.startedAt, timezone)}
           </Link>
         )}
       </td>

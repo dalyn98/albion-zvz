@@ -3,8 +3,10 @@ import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { getBattleDetail } from '@/app/actions/battles'
 import BattleDetailView from '@/components/BattleDetailView'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,9 +31,11 @@ export default async function BattleDetailPage({
     redirect(`/api/auth/discord/start?returnTo=${encodeURIComponent(returnTo)}`)
   }
 
-  const [{ detail, error }, t] = await Promise.all([
+  const guildId = await getSessionGuildId(session)
+  const [{ detail, error }, t, tenantTimezone] = await Promise.all([
     getBattleDetail(id, sp.perspective),
     getTranslations('battleDetail'),
+    getTenantTimezone(guildId),
   ])
   if (!detail && !error) notFound()
 
@@ -57,7 +61,7 @@ export default async function BattleDetailPage({
         </div>
       )}
 
-      {detail && <BattleDetailView detail={detail} battleId={id} />}
+      {detail && <BattleDetailView detail={detail} battleId={id} timezone={tenantTimezone} />}
     </main>
   )
 }

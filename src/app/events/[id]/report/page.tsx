@@ -17,12 +17,14 @@ import {
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { getEventReport } from '@/app/actions/event-report'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { formatSilver } from '@/lib/silver'
 import MemberAvatar from '@/components/MemberAvatar'
 import MemberLink from '@/components/MemberLink'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,10 +39,12 @@ export default async function EventReportPage({
     redirect(`/api/auth/discord/start?returnTo=${encodeURIComponent(`/events/${id}/report`)}`)
   }
 
-  const [result, t, tRole] = await Promise.all([
+  const guildId = await getSessionGuildId(session)
+  const [result, t, tRole, tenantTimezone] = await Promise.all([
     getEventReport(id),
     getTranslations('eventReport'),
     getTranslations('slotRole'),
+    getTenantTimezone(guildId),
   ])
   if (!result) notFound()
   const { event, report } = result
@@ -86,13 +90,13 @@ export default async function EventReportPage({
         <div className="flex flex-wrap gap-4 text-xs text-gray-400">
           <span className="flex items-center gap-1.5">
             <Clock size={12} className="text-amber-400" />
-            {formatDateTimeShort(event.battle_started_at)} –{' '}
-            {formatDateTimeShort(event.battle_ended_at)}
+            {formatDateTimeShort(event.battle_started_at, tenantTimezone)} –{' '}
+            {formatDateTimeShort(event.battle_ended_at, tenantTimezone)}
           </span>
           {event.finalized_at && (
             <span className="flex items-center gap-1.5">
               <ShieldCheck size={12} className="text-emerald-400" />
-              {t('finalizedAt', { at: formatDateTimeShort(event.finalized_at) })}
+              {t('finalizedAt', { at: formatDateTimeShort(event.finalized_at, tenantTimezone) })}
             </span>
           )}
         </div>
