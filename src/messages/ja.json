@@ -4359,6 +4359,7 @@
     "resetTargetCount": "削除対象の原本ログ: {count} 件",
     "resetTargetEmpty": "削除するサイフォンログはありません。",
     "resetTargetUnknown": "削除対象数を確認できませんでした。権限とネットワーク状態を確認してから実行してください。",
+    "resetPhraseLabel": "続行するには {phrase} と入力してください。",
     "resetFailed": "初期化失敗: {error}",
     "resetSuccess": "{count} 件のサイフォンログを削除しました。",
     "emptyState": "サイフォンログがまだありません。上にゲーム内ログを貼り付けて開始してください。",

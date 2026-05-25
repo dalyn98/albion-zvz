@@ -26,6 +26,7 @@ export interface MarketingScreenshotImage {
   url: string
   alt: string | null
   position: number
+  source: 'database' | 'fallback'
 }
 
 export type MarketingScreenshotsBySlot = Record<MarketingScreenshotKey, MarketingScreenshotImage[]>
@@ -37,6 +38,29 @@ function emptyMap(): MarketingScreenshotsBySlot {
     craft: [],
     shop: [],
     stats: [],
+  }
+}
+
+function fallbackMap(): MarketingScreenshotsBySlot {
+  const map = emptyMap()
+  map.regear.push({
+    id: 'fallback-regear-approval-demo',
+    url: '/screenshots/regear-approval-demo.png',
+    alt: 'Regear approval workflow demo screen',
+    position: 0,
+    source: 'fallback',
+  })
+  return map
+}
+
+function withFallbacks(map: MarketingScreenshotsBySlot): MarketingScreenshotsBySlot {
+  const fallbacks = fallbackMap()
+  return {
+    events: map.events.length > 0 ? map.events : fallbacks.events,
+    regear: map.regear.length > 0 ? map.regear : fallbacks.regear,
+    craft: map.craft.length > 0 ? map.craft : fallbacks.craft,
+    shop: map.shop.length > 0 ? map.shop : fallbacks.shop,
+    stats: map.stats.length > 0 ? map.stats : fallbacks.stats,
   }
 }
 
@@ -55,7 +79,7 @@ async function loadMarketingScreenshotsUncached(): Promise<MarketingScreenshotsB
     .order('slot', { ascending: true })
     .order('position', { ascending: true })
     .order('created_at', { ascending: true })
-  if (error || !data) return emptyMap()
+  if (error || !data) return fallbackMap()
 
   const map = emptyMap()
   for (const row of data as Array<{
@@ -71,9 +95,10 @@ async function loadMarketingScreenshotsUncached(): Promise<MarketingScreenshotsB
       url: row.image_url,
       alt: row.alt_text,
       position: row.position,
+      source: 'database',
     })
   }
-  return map
+  return withFallbacks(map)
 }
 
 // revalidate 1 h — write 시 tag 무효화로 즉시 갱신되므로 안전망용 상한.

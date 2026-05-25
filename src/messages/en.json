@@ -4359,6 +4359,7 @@
     "resetTargetCount": "Raw logs to delete: {count}",
     "resetTargetEmpty": "There are no siphon logs to delete.",
     "resetTargetUnknown": "Could not confirm the delete target count. Check permissions and network status before continuing.",
+    "resetPhraseLabel": "Type {phrase} to continue.",
     "resetFailed": "Reset failed: {error}",
     "resetSuccess": "Deleted {count} siphon log rows.",
     "emptyState": "No siphon logs yet. Paste an in-game log above to start.",

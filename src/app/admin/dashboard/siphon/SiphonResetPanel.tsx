@@ -11,6 +11,8 @@ interface Props {
   logCount: number | null
 }
 
+const RESET_CONFIRM_TEXT = 'RESET'
+
 export default function SiphonResetPanel({ logCount }: Props) {
   const router = useRouter()
   const t = useTranslations('adminSiphonPage')
@@ -18,11 +20,18 @@ export default function SiphonResetPanel({ logCount }: Props) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [deletedRows, setDeletedRows] = useState<number | null>(null)
+  const [confirmText, setConfirmText] = useState('')
   const effectiveLogCount = deletedRows !== null ? 0 : logCount
+  const hasUnknownLogCount = effectiveLogCount === null
   const hasNoLogs = effectiveLogCount === 0
+  const canReset =
+    !pending &&
+    !hasUnknownLogCount &&
+    !hasNoLogs &&
+    confirmText.trim().toUpperCase() === RESET_CONFIRM_TEXT
 
   const handleReset = async () => {
-    if (hasNoLogs) return
+    if (!canReset) return
 
     const ok = await askConfirm({
       body: t('resetConfirm'),
@@ -39,6 +48,7 @@ export default function SiphonResetPanel({ logCount }: Props) {
         return
       }
       setDeletedRows(result.deletedRows)
+      setConfirmText('')
       router.refresh()
     })
   }
@@ -62,12 +72,27 @@ export default function SiphonResetPanel({ logCount }: Props) {
                       count: effectiveLogCount.toLocaleString('en-US'),
                     })}
             </p>
+            {!hasUnknownLogCount && !hasNoLogs && (
+              <label className="mt-3 block max-w-xs text-xs font-semibold text-rose-100">
+                <span>{t('resetPhraseLabel', { phrase: RESET_CONFIRM_TEXT })}</span>
+                <input
+                  type="text"
+                  value={confirmText}
+                  onChange={(event) => setConfirmText(event.target.value)}
+                  disabled={pending}
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder={RESET_CONFIRM_TEXT}
+                  className="mt-1 h-9 w-full rounded-lg border border-rose-800/70 bg-gray-950 px-3 text-xs text-white outline-none transition-colors placeholder:text-gray-600 focus:border-rose-400 disabled:cursor-not-allowed disabled:opacity-60"
+                />
+              </label>
+            )}
           </div>
         </div>
         <button
           type="button"
           onClick={handleReset}
-          disabled={pending || hasNoLogs}
+          disabled={!canReset}
           className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg bg-rose-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-rose-500 disabled:bg-gray-800 disabled:text-gray-500 sm:w-auto"
         >
           {pending ? (

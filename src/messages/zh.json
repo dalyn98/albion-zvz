@@ -4359,6 +4359,7 @@
     "resetTargetCount": "将删除的原始日志: {count} 条",
     "resetTargetEmpty": "没有可删除的虹吸日志。",
     "resetTargetUnknown": "无法确认删除目标数量。继续前请检查权限和网络状态。",
+    "resetPhraseLabel": "输入 {phrase} 后继续。",
     "resetFailed": "重置失败: {error}",
     "resetSuccess": "已删除 {count} 条虹吸日志。",
     "emptyState": "尚无虹吸记录。请在上方粘贴游戏内日志以开始。",

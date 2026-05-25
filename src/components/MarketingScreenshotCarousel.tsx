@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
   BarChart3,
@@ -162,6 +163,7 @@ export default function MarketingScreenshotCarousel({
   editable = false,
   slot,
 }: Props) {
+  const router = useRouter()
   const t = useTranslations('publicMarketing')
   const scrollerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -241,6 +243,7 @@ export default function MarketingScreenshotCarousel({
     setError(null)
     const arr = Array.from(files)
     startTransition(async () => {
+      let hasError = false
       for (const file of arr) {
         const fd = new FormData()
         fd.set('slot', slot)
@@ -248,10 +251,12 @@ export default function MarketingScreenshotCarousel({
         const { error } = await uploadMarketingScreenshot(fd)
         if (error) {
           setError(error)
+          hasError = true
           break
         }
       }
       if (fileInputRef.current) fileInputRef.current.value = ''
+      if (!hasError) router.refresh()
     })
   }
 
@@ -259,12 +264,14 @@ export default function MarketingScreenshotCarousel({
     if (!canEdit) return
     const target = images[safeIndex]
     if (!target) return
+    if (target.source === 'fallback') return
     const ok = await askConfirm({ body: t('carouselDeleteConfirm'), destructive: true })
     if (!ok) return
     setError(null)
     startTransition(async () => {
       const { error } = await deleteMarketingScreenshot(target.id)
       if (error) setError(error)
+      else router.refresh()
     })
   }
 
@@ -328,6 +335,8 @@ export default function MarketingScreenshotCarousel({
   }
 
   const showControls = images.length > 1
+  const currentImage = images[safeIndex]
+  const canDeleteCurrent = canEdit && currentImage?.source === 'database'
 
   return (
     <div className="space-y-2">
@@ -411,16 +420,18 @@ export default function MarketingScreenshotCarousel({
               )}
               <span>{t('carouselUpload')}</span>
             </label>
-            <button
-              type="button"
-              onClick={handleDeleteCurrent}
-              disabled={isPending}
-              aria-label={t('carouselDeleteLabel')}
-              className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold shadow-lg bg-rose-500/90 text-white hover:bg-rose-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Trash2 size={11} />
-              <span>{t('carouselDelete')}</span>
-            </button>
+            {canDeleteCurrent && (
+              <button
+                type="button"
+                onClick={handleDeleteCurrent}
+                disabled={isPending}
+                aria-label={t('carouselDeleteLabel')}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold shadow-lg bg-rose-500/90 text-white hover:bg-rose-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Trash2 size={11} />
+                <span>{t('carouselDelete')}</span>
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -275,12 +275,15 @@ export default async function EventDetailPage({
   const avatars = Object.fromEntries(avatarMap)
   const usernames = Object.fromEntries(usernameMap)
 
-  const loginHref = `/api/auth/discord/start?returnTo=${encodeURIComponent(`/events/${id}`)}`
+  const eventReturnPath = inviteToken
+    ? `/events/${id}?invite=${encodeURIComponent(inviteToken)}`
+    : `/events/${id}`
+  const loginHref = `/api/auth/discord/start?returnTo=${encodeURIComponent(eventReturnPath)}`
   const localLoginEnabled =
     (await getAppSetting('local_guild_accounts_enabled', 'false', guildId)) === 'true' &&
     (await getAppSetting('local_guild_invite_hash', '', guildId)).trim().length > 0
   const localLoginHref = localLoginEnabled
-    ? `/guild-login?return=${encodeURIComponent(`/events/${id}`)}`
+    ? `/guild-login?return=${encodeURIComponent(eventReturnPath)}`
     : null
 
   // Edit entry point for delegated event managers and event owners.
@@ -403,7 +406,7 @@ export default async function EventDetailPage({
     : canRequestRegear
       ? { href: '/regear', label: t('myStatusRegear') }
       : undefined
-  const myStatusSecondaryAction = session && !canRequestRegear
+  const myStatusSecondaryAction = session && !canRequestRegear && !myAssigned
     ? { href: '#event-slots', label: t('myStatusFindSlot') }
     : !session && localLoginHref
       ? { href: localLoginHref, label: t('myStatusLocalLogin') }

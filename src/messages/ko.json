@@ -4359,6 +4359,7 @@
     "resetTargetCount": "삭제 대상 원본 로그: {count}건",
     "resetTargetEmpty": "삭제할 사이펀 로그가 없습니다.",
     "resetTargetUnknown": "삭제 대상 수를 확인하지 못했습니다. 권한과 네트워크 상태를 확인한 뒤 실행하세요.",
+    "resetPhraseLabel": "계속하려면 {phrase}을 입력하세요.",
     "resetFailed": "초기화 실패: {error}",
     "resetSuccess": "{count}건의 사이펀 로그를 삭제했습니다.",
     "emptyState": "아직 사이펀 로그가 없습니다. 위에 인게임 로그를 붙여넣어 시작하세요.",

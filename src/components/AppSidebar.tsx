@@ -493,7 +493,7 @@ export default function AppSidebar({
           {session ? (
             <div className={`flex ${navExpanded ? 'items-center justify-between gap-2' : 'flex-col items-center gap-2'}`}>
               <GuardedLink
-                href="/me/profile"
+                href="/me"
                 className={`flex items-center gap-2 min-w-0 flex-1 hover:text-foreground transition-colors ${navExpanded ? '' : 'justify-center'}`}
                 aria-label={t('myInfo')}
                 title={t('myInfo')}
