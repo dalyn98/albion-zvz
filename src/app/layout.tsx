@@ -24,7 +24,7 @@ import { getSessionGuildId, getPrimaryTenantId, getTenantDiscordConfig } from '@
 import { isSuperAdminSession } from '@/lib/super-admin'
 import { classifyHost, getCanonicalRootDomain, resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
-import { isPublicPathname } from '@/lib/app-route-classification'
+import { isIndexablePathname, isPublicPathname } from '@/lib/app-route-classification'
 
 // 마케팅 페이지(/public/(marketing)/*) 는 자체 헤더(MarketingNav) + 푸터를
 // 갖고 있어 PublicShell/AppShell 의 sticky 헤더를 한 번 더 깔면 시각적 충돌이
@@ -111,35 +111,6 @@ function skipAlbionOnboardingModal(pathname: string): boolean {
   if (pathname.startsWith('/super-admin')) return true
   if (pathname === '/demo' || pathname.startsWith('/demo/')) return true
   if (pathname === '/logout') return true
-  return false
-}
-
-// canonical 루트 도메인의 마케팅 surface 만 검색 인덱싱·OG 임베드 허용.
-// /g/<slug> 는 별도 페이지 generateMetadata 가 openGraph 까지 덮어쓰므로
-// 여기서는 robots 만 풀어 주면 충분하다.
-function isIndexablePathname(pathname: string): boolean {
-  if (pathname === '/') return true
-  if (
-    pathname === '/pricing' ||
-    pathname === '/features' ||
-    pathname === '/faq' ||
-    pathname === '/privacy' ||
-    pathname === '/terms' ||
-    pathname === '/docs' ||
-    pathname.startsWith('/docs/')
-  ) return true
-  if (pathname === '/g' || pathname.startsWith('/g/')) return true
-  // 캐노니컬 호스트에서 proxy rewrite 가 안 걸린 직접 path 도 동일하게 허용.
-  if (
-    pathname === '/public/landing' ||
-    pathname === '/public/features' ||
-    pathname === '/public/pricing' ||
-    pathname === '/public/faq' ||
-    pathname === '/public/privacy' ||
-    pathname === '/public/terms'
-  ) return true
-  if (pathname === '/public/docs' || pathname.startsWith('/public/docs/')) return true
-  if (pathname === '/public/g' || pathname.startsWith('/public/g/')) return true
   return false
 }
 
