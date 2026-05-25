@@ -36,6 +36,53 @@ const SAMPLE_FINDINGS = [
   },
 ] as const
 
+const SAMPLE_DEPOSITS = [
+  {
+    member: 'MonKKu',
+    item: "Elder's Hellion Jacket",
+    itemId: 'T8_ARMOR_LEATHER_HELL@1',
+    deposited: 1,
+    expected: 3,
+    matched: 1,
+    extra: 0,
+    rows: 1,
+    status: 'matched',
+  },
+  {
+    member: 'Chovy',
+    item: "Elder's Cleric Robe",
+    itemId: 'T8_ARMOR_CLOTH_CLERIC',
+    deposited: 2,
+    expected: 2,
+    matched: 2,
+    extra: 0,
+    rows: 1,
+    status: 'matched',
+  },
+  {
+    member: 'OtherBanker',
+    item: "Elder's Hellion Jacket",
+    itemId: 'T8_ARMOR_LEATHER_HELL@1',
+    deposited: 1,
+    expected: 0,
+    matched: 0,
+    extra: 1,
+    rows: 1,
+    status: 'extra',
+  },
+  {
+    member: 'MonKKu',
+    item: 'Unresolved Korean item name',
+    itemId: null,
+    deposited: 2,
+    expected: 0,
+    matched: 0,
+    extra: 2,
+    rows: 1,
+    status: 'unresolved',
+  },
+] as const
+
 export default async function DemoLootAuditPage() {
   const [t, tDemo, tCta] = await Promise.all([
     getTranslations('adminLootAuditPage'),
@@ -94,11 +141,68 @@ export default async function DemoLootAuditPage() {
 
       <section className="space-y-3">
         <div>
+          <h2 className="text-lg font-semibold text-white">{t('depositLogTitle')}</h2>
+          <p className="mt-1 text-sm text-gray-400">{tDemo('depositDescription')}</p>
+        </div>
+        <div className="overflow-x-auto rounded-lg border border-gray-700 bg-gray-900/60">
+          <table className="w-full min-w-[860px] text-left text-sm">
+            <thead className="border-b border-gray-700 bg-gray-800/70 text-xs text-gray-400">
+              <tr>
+                <th className="px-3 py-2 font-medium">{t('colDepositStatus')}</th>
+                <th className="px-3 py-2 font-medium">{t('colMember')}</th>
+                <th className="px-3 py-2 font-medium">{t('colItem')}</th>
+                <th className="px-3 py-2 text-right font-medium">{t('colDeposited')}</th>
+                <th className="px-3 py-2 text-right font-medium">{t('colExpected')}</th>
+                <th className="px-3 py-2 text-right font-medium">{t('colMatched')}</th>
+                <th className="px-3 py-2 text-right font-medium">{t('colExtra')}</th>
+                <th className="px-3 py-2 text-right font-medium">{t('colLogRows')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {SAMPLE_DEPOSITS.map((deposit) => (
+                <tr key={`${deposit.member}-${deposit.item}`} className="text-gray-200">
+                  <td className="px-3 py-3">
+                    <DepositStatus
+                      status={deposit.status}
+                      label={
+                        deposit.status === 'matched'
+                          ? t('depositCheckStatusMatched')
+                          : deposit.status === 'extra'
+                            ? t('depositCheckStatusExtra')
+                            : t('depositCheckStatusUnresolved')
+                      }
+                    />
+                  </td>
+                  <td className="px-3 py-3 font-semibold text-white">{deposit.member}</td>
+                  <td className="px-3 py-3">
+                    <p className="text-gray-300">{deposit.item}</p>
+                    <p className="font-mono text-[11px] text-gray-500">
+                      {deposit.itemId ?? t('depositItemUnresolved')}
+                    </p>
+                  </td>
+                  <td className="px-3 py-3 text-right font-mono">{deposit.deposited}</td>
+                  <td className="px-3 py-3 text-right font-mono">{deposit.expected}</td>
+                  <td className="px-3 py-3 text-right font-mono text-emerald-200">
+                    {deposit.matched}
+                  </td>
+                  <td className="px-3 py-3 text-right font-mono text-amber-200">
+                    {deposit.extra}
+                  </td>
+                  <td className="px-3 py-3 text-right font-mono">{deposit.rows}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div>
           <h2 className="text-lg font-semibold text-white">{t('findingsTitle')}</h2>
           <p className="mt-1 text-sm text-gray-400">{tDemo('findingsDescription')}</p>
         </div>
-        <div className="overflow-hidden rounded-lg border border-gray-700 bg-gray-900/60">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto rounded-lg border border-gray-700 bg-gray-900/60">
+          <table className="w-full min-w-[820px] text-left text-sm">
             <thead className="border-b border-gray-700 bg-gray-800/70 text-xs text-gray-400">
               <tr>
                 <th className="px-3 py-2 font-medium">{t('colMember')}</th>
@@ -172,6 +276,26 @@ function DemoLogDropzone({
         {placeholder}
       </p>
     </div>
+  )
+}
+
+function DepositStatus({
+  status,
+  label,
+}: {
+  status: (typeof SAMPLE_DEPOSITS)[number]['status']
+  label: string
+}) {
+  const color =
+    status === 'matched'
+      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+      : status === 'extra'
+        ? 'border-amber-500/40 bg-amber-500/10 text-amber-200'
+        : 'border-sky-500/40 bg-sky-500/10 text-sky-200'
+  return (
+    <span className={`inline-flex rounded-md border px-2 py-1 text-xs ${color}`}>
+      {label}
+    </span>
   )
 }
 

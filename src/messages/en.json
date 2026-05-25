@@ -5082,6 +5082,7 @@
     "lootAudit": {
       "notice": "Demo — preview how personal loot CSVs are compared with guild chest deposit logs. Buttons are for the demo and do not save data.",
       "findingsDescription": "Compare who looted each item against what was returned to the guild chest.",
+      "depositDescription": "Review what actually entered the chest first, separating matched returns from extra or unmatched deposits.",
       "ctaTitle": "Audit loot returns in under five minutes",
       "ctaDescription": "Paste a personal loot CSV and guild chest log to surface suspected missing returns and estimated value immediately."
     },
