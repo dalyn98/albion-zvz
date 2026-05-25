@@ -43,6 +43,28 @@ describe('proxy pathname forwarding', () => {
     expect(forwardedPathname(response)).toBe('/public/landing')
   })
 
+  it('redirects direct public guild profile URLs to the clean canonical URL', async () => {
+    const response = await proxy(
+      new NextRequest('https://albion-guildmanager.com/public/g/menhera?from=discord'),
+    )
+
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe(
+      'https://albion-guildmanager.com/g/menhera?from=discord',
+    )
+  })
+
+  it('redirects tenant-host direct public member activity URLs to the root canonical URL', async () => {
+    const response = await proxy(
+      new NextRequest('https://menhera.albion-guildmanager.com/public/u/share-token'),
+    )
+
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe(
+      'https://albion-guildmanager.com/u/share-token',
+    )
+  })
+
   it('rewrites clean guild profile links on localhost for local QA', async () => {
     const response = await proxy(
       new NextRequest('http://localhost:3000/g/menhera', {

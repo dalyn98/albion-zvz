@@ -65,7 +65,7 @@ function resolvePublicUserActivityRewriteTarget(pathname: string): string | null
   return null
 }
 
-function resolvePublicMarketingCanonicalPath(pathname: string): string | null {
+function resolvePublicCanonicalPath(pathname: string): string | null {
   if (pathname === '/public/landing') return '/'
   if (pathname === '/public/features') return '/features'
   if (pathname === '/public/pricing') return '/pricing'
@@ -76,11 +76,17 @@ function resolvePublicMarketingCanonicalPath(pathname: string): string | null {
   if (pathname.startsWith('/public/docs/')) {
     return pathname.slice('/public'.length)
   }
+  if (pathname === '/public/g' || pathname.startsWith('/public/g/')) {
+    return pathname.slice('/public'.length)
+  }
+  if (pathname === '/public/u' || pathname.startsWith('/public/u/')) {
+    return pathname.slice('/public'.length)
+  }
   return null
 }
 
-function redirectPublicMarketingToCanonical(request: NextRequest): NextResponse | null {
-  const targetPath = resolvePublicMarketingCanonicalPath(request.nextUrl.pathname)
+function redirectPublicToCanonical(request: NextRequest): NextResponse | null {
+  const targetPath = resolvePublicCanonicalPath(request.nextUrl.pathname)
   if (!targetPath) return null
 
   const classification = classifyHost(request.headers.get('host'))
@@ -206,8 +212,8 @@ export async function proxy(request: NextRequest) {
   const legacyRedirect = redirectLegacyHost(request)
   if (legacyRedirect) return legacyRedirect
 
-  const publicMarketingRedirect = redirectPublicMarketingToCanonical(request)
-  if (publicMarketingRedirect) return publicMarketingRedirect
+  const publicCanonicalRedirect = redirectPublicToCanonical(request)
+  if (publicCanonicalRedirect) return publicCanonicalRedirect
 
   const marketingRewrite = rewriteCanonicalMarketing(request)
   if (marketingRewrite) return marketingRewrite
