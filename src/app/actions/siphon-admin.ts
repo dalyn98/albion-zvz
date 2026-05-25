@@ -538,16 +538,14 @@ export async function resetSiphonLedger(): Promise<ResetSiphonLedgerResult> {
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
 
-    const { data: deletedRows, error } = await db
+    const { count, error } = await db
       .from('siphon_ledger')
-      .delete()
+      .delete({ count: 'exact' })
       .eq('guild_id', guildId)
-      .not('id', 'is', null)
-      .select('id')
 
     if (error) return { ...empty, error: error.message }
 
-    const deletedRowsCount = deletedRows?.length ?? 0
+    const deletedRowsCount = count ?? 0
     revalidateSiphonLedgerSurfaces()
 
     await logAdminAction({

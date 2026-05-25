@@ -41,9 +41,19 @@ interface DeleteResult {
   error: { message: string } | null
 }
 
+interface DeleteCountResult {
+  count: number | null
+  error: { message: string } | null
+}
+
 interface QueryCall {
   method: string
   args: unknown[]
+}
+
+interface DeleteCountQuery {
+  delete: (options?: { count: 'exact' }) => DeleteCountQuery
+  eq: (column: string, value: unknown) => Promise<DeleteCountResult>
 }
 
 interface DeleteQuery {
@@ -51,6 +61,24 @@ interface DeleteQuery {
   eq: (column: string, value: unknown) => DeleteQuery
   not: (column: string, operator: string, value: unknown) => DeleteQuery
   select: (columns: string) => Promise<DeleteResult>
+}
+
+function createDeleteCountQuery(result: DeleteCountResult): {
+  query: DeleteCountQuery
+  calls: QueryCall[]
+} {
+  const calls: QueryCall[] = []
+  const query: DeleteCountQuery = {
+    delete: (options) => {
+      calls.push({ method: 'delete', args: options ? [options] : [] })
+      return query
+    },
+    eq: (column, value) => {
+      calls.push({ method: 'eq', args: [column, value] })
+      return Promise.resolve(result)
+    },
+  }
+  return { query, calls }
 }
 
 function createDeleteQuery(result: DeleteResult): {
@@ -109,8 +137,8 @@ describe('resetSiphonLedger', () => {
   })
 
   it('deletes only the current guild siphon rows and writes an audit entry', async () => {
-    const { query, calls } = createDeleteQuery({
-      data: [{ id: 'row-1' }, { id: 'row-2' }],
+    const { query, calls } = createDeleteCountQuery({
+      count: 2,
       error: null,
     })
     const from = vi.fn((table: string) => {
@@ -126,10 +154,8 @@ describe('resetSiphonLedger', () => {
     await expect(resetSiphonLedger()).resolves.toEqual({ deletedRows: 2 })
 
     expect(calls).toEqual([
-      { method: 'delete', args: [] },
+      { method: 'delete', args: [{ count: 'exact' }] },
       { method: 'eq', args: ['guild_id', 'guild-1'] },
-      { method: 'not', args: ['id', 'is', null] },
-      { method: 'select', args: ['id'] },
     ])
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/siphon')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/me')
@@ -147,8 +173,8 @@ describe('resetSiphonLedger', () => {
   })
 
   it('returns the database error without writing audit logs', async () => {
-    const { query } = createDeleteQuery({
-      data: null,
+    const { query } = createDeleteCountQuery({
+      count: null,
       error: { message: 'db down' },
     })
     const from = vi.fn(() => query)
