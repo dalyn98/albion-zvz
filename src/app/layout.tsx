@@ -24,16 +24,7 @@ import { getSessionGuildId, getPrimaryTenantId, getTenantDiscordConfig } from '@
 import { isSuperAdminSession } from '@/lib/super-admin'
 import { classifyHost, getCanonicalRootDomain, resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
-
-// Routes that should render for anyone, even without a session. The proxy
-// forwards the pathname via x-pathname so we can decide here without duplicating
-// the matcher logic.
-function isPublicPathname(pathname: string): boolean {
-  if (pathname.startsWith('/public/')) return true
-  if (pathname === '/demo' || pathname.startsWith('/demo/')) return true
-  if (pathname === '/guild-login') return true
-  return false
-}
+import { isPublicPathname } from '@/lib/app-route-classification'
 
 // 마케팅 페이지(/public/(marketing)/*) 는 자체 헤더(MarketingNav) + 푸터를
 // 갖고 있어 PublicShell/AppShell 의 sticky 헤더를 한 번 더 깔면 시각적 충돌이
