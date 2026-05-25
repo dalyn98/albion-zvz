@@ -261,6 +261,7 @@ export default function SettingsTabs({
             bombSquadCallerRoleIds={bombSquadCallerRoleIds}
             activeMemberRoleIds={activeMemberRoleIds}
             lastMemberSyncAt={lastMemberSyncAt}
+            timezone={tenantTimezone}
           />
         )}
         {active === 'events' && (

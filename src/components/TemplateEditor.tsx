@@ -21,6 +21,11 @@ import { GEAR_ENCHANT_MAX, GEAR_ENCHANT_MIN, GEAR_TIER_MAX, GEAR_TIER_MIN, SLOT_
 import { updateTemplate, type TemplateData, type TemplateRecord } from '@/app/actions/templates'
 import { useReportDirty } from './UnsavedChangesProvider'
 
+interface TemplateEditorProps {
+  template: TemplateRecord
+  timezone: string
+}
+
 // 옵션별 스킬을 dedupe + trim. 비어있으면 undefined 반환해 JSONB 용량 절감
 // (호출부가 `opt.spells ?? []` 패턴으로 읽으므로 undefined/[] 동등).
 function sanitizeOptionSpells(raw: unknown): string[] | undefined {
@@ -222,7 +227,7 @@ function partyStatesToTemplateData(parties: PartyState[]): TemplateData {
   }
 }
 
-export default function TemplateEditor({ template }: { template: TemplateRecord }) {
+export default function TemplateEditor({ template, timezone }: TemplateEditorProps) {
   const t = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
   const router = useRouter()
@@ -346,6 +351,7 @@ export default function TemplateEditor({ template }: { template: TemplateRecord 
                 onDeleteSlot={(idx) => deleteSlot(party.party_number, idx)}
                 onMoveSlot={(idx, dir) => moveSlot(party.party_number, idx, dir)}
                 onReplaceSlots={(next) => replaceSlots(party.party_number, next)}
+                timezone={timezone}
               />
             ))}
           </div>
@@ -423,6 +429,7 @@ export default function TemplateEditor({ template }: { template: TemplateRecord 
 
 interface PartyPanelProps {
   party: PartyState
+  timezone: string
   onAddSlot: () => void
   onUpdateSlot: (idx: number, updated: SlotInput) => void
   onDeleteSlot: (idx: number) => void
@@ -430,7 +437,15 @@ interface PartyPanelProps {
   onReplaceSlots: (next: SlotInput[]) => void
 }
 
-function PartyPanel({ party, onAddSlot, onUpdateSlot, onDeleteSlot, onMoveSlot, onReplaceSlots }: PartyPanelProps) {
+function PartyPanel({
+  party,
+  timezone,
+  onAddSlot,
+  onUpdateSlot,
+  onDeleteSlot,
+  onMoveSlot,
+  onReplaceSlots,
+}: PartyPanelProps) {
   const t = useTranslations('adminTemplates')
   const tParty = useTranslations('adminParty')
   // 리컨실러가 매 렌더마다 open 을 강제 동기화하면 유저가 수동으로 닫아도
@@ -568,6 +583,7 @@ function PartyPanel({ party, onAddSlot, onUpdateSlot, onDeleteSlot, onMoveSlot, 
               slot={slot}
               partyNumber={party.party_number}
               autoRegearEnabled={false}
+              timezone={timezone}
               onChange={(updated) => onUpdateSlot(idx, updated)}
               onDelete={() => onDeleteSlot(idx)}
             />

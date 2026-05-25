@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { getSession, sessionHas } from '@/lib/session'
 import { CAP } from '@/lib/permissions'
 import { getSessionGuildId } from '@/lib/tenant'
+import { getTenantTimezone } from '@/lib/timezone-server'
 import { loadAdminPermissionRoleSettings } from '@/lib/admin-permission-settings'
 import { listPermissions } from '@/app/actions/permissions'
 import PermissionRoleSettingsPanel from '@/components/PermissionRoleSettingsPanel'
@@ -20,9 +21,10 @@ export default async function PermissionsPage() {
 
   const t = await getTranslations('permissions')
   const guildId = await getSessionGuildId(session)
-  const [roleSettings, { roleGrants, userOverrides, error }] = await Promise.all([
+  const [roleSettings, { roleGrants, userOverrides, error }, timezone] = await Promise.all([
     loadAdminPermissionRoleSettings(guildId),
     listPermissions(),
+    getTenantTimezone(guildId),
   ])
 
   return (
@@ -50,6 +52,7 @@ export default async function PermissionsPage() {
         bombSquadCallerRoleIds={roleSettings.bombSquadCallerRoleIds}
         activeMemberRoleIds={roleSettings.activeMemberRoleIds}
         lastMemberSyncAt={roleSettings.lastMemberSyncAt}
+        timezone={timezone}
       />
 
       <Suspense fallback={<div className="text-sm text-gray-500">…</div>}>

@@ -6,6 +6,7 @@ import { getSession, sessionHas } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSessionGuildId } from '@/lib/tenant'
+import { getTenantTimezone } from '@/lib/timezone-server'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 import { CAP } from '@/lib/permissions'
 import type { EventCategory, PartyWithSlots } from '@/types'
@@ -73,9 +74,10 @@ export default async function CallerPartyEditPage({
   if (!session) notFound()
 
   const guildId = await getSessionGuildId(session)
-  const [{ event, party }, autoRegearRaw] = await Promise.all([
+  const [{ event, party }, autoRegearRaw, tenantTimezone] = await Promise.all([
     loadContext(eventId, partyNumber, guildId),
     getAppSetting('auto_regear_enabled', 'false', guildId),
+    getTenantTimezone(guildId),
   ])
   if (!event || !party) notFound()
 
@@ -142,6 +144,7 @@ export default async function CallerPartyEditPage({
           memberDirectory={memberDirectory}
           autoRegearEnabled={autoRegearEnabled}
           eventCategory={eventCategory}
+          timezone={tenantTimezone}
           isCallerScoped={!isAdminOrOwner}
           defaultOpen
         />

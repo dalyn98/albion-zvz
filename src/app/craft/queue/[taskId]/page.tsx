@@ -8,6 +8,8 @@ import {
 } from '@/app/actions/craft'
 import { getCraftQueueTaskDetail } from '@/app/actions/craft-queue'
 import CraftTaskDetail from '@/components/CraftTaskDetail'
+import { getSessionGuildId } from '@/lib/tenant'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 // 단일 craft task 상세. 큐 카드의 "상세" 링크에서 진입. 권한 검사는 server
 // action 안에서 isCrafter / isAdmin 체크로 처리.
@@ -27,11 +29,13 @@ export default async function CraftQueueTaskDetailPage({ params }: PageProps) {
     redirect('/')
   }
 
-  const [{ detail, error }, profile, config, t] = await Promise.all([
+  const guildId = await getSessionGuildId(session)
+  const [{ detail, error }, profile, config, t, timezone] = await Promise.all([
     getCraftQueueTaskDetail(taskId),
     getMyCrafterProfile(),
     getCraftConfig(),
     getTranslations('craftQueue'),
+    getTenantTimezone(guildId),
   ])
 
   if (!config.enabled) {
@@ -66,6 +70,7 @@ export default async function CraftQueueTaskDetailPage({ params }: PageProps) {
         detail={detail}
         profile={profile}
         config={config}
+        timezone={timezone}
       />
     </main>
   )

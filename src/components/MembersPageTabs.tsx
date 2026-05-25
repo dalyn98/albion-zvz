@@ -44,6 +44,7 @@ interface Props {
   withdrawnError?: string
   rosterError?: string
   isAdmin: boolean
+  timezone: string
   memberHrefPrefix?: string
   albionMemberHrefPrefix?: string | null
 }
@@ -67,6 +68,7 @@ export default function MembersPageTabs({
   withdrawnError,
   rosterError,
   isAdmin,
+  timezone,
   memberHrefPrefix,
   albionMemberHrefPrefix,
 }: Props) {
@@ -170,7 +172,7 @@ export default function MembersPageTabs({
                 <p className="text-red-400 text-sm">{withdrawnError}</p>
               </div>
             )}
-            <GuildWithdrawnList members={withdrawnMembers} />
+            <GuildWithdrawnList members={withdrawnMembers} timezone={timezone} />
           </>
         )}
       </div>

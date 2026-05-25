@@ -12,12 +12,14 @@ import {
 import { applyTemplateToSlotInput } from '@/lib/slot-template-shape'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { formatDate } from '@/lib/format-datetime'
+import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, getRoleStyle, type EventCategory } from '@/types'
 import type { SlotInput } from './SlotEditor'
 
 interface Props {
   slot: SlotInput
   onLoad: (next: SlotInput) => void
+  timezone?: string
   // 편집 중인 이벤트 카테고리 — 전달되면 카테고리 필터가 초기값으로 세팅된다.
   // 관리자 템플릿 페이지처럼 이벤트 컨텍스트가 없는 곳에서는 생략.
   defaultCategoryFilter?: EventCategory
@@ -29,7 +31,12 @@ const ROLE_FILTER_ALL = '__all__'
 const ROLE_FILTER_NONE = '__none__'
 const CATEGORY_FILTER_ALL = '__all__'
 
-export default function LoadSlotTemplateButton({ slot, onLoad, defaultCategoryFilter }: Props) {
+export default function LoadSlotTemplateButton({
+  slot,
+  onLoad,
+  timezone = DEFAULT_TENANT_TIMEZONE,
+  defaultCategoryFilter,
+}: Props) {
   const t = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
   const tRole = useTranslations('slotRole')
@@ -252,7 +259,7 @@ export default function LoadSlotTemplateButton({ slot, onLoad, defaultCategoryFi
                           </span>
                         )}
                         <span className="text-gray-500 text-[10px] font-mono flex-shrink-0">
-                          {formatDate(tpl.created_at)}
+                          {formatDate(tpl.created_at, timezone)}
                         </span>
                       </button>
                       <button

@@ -209,6 +209,7 @@ function TemplatesSection({
       ) : (
         <TemplateList
           templates={DEMO_TEMPLATES.map((template, index) => toTemplate(template, index, nowMs))}
+          timezone={DEFAULT_TENANT_TIMEZONE}
           detailHrefPrefix={null}
           interactionMode="demo"
         />

@@ -32,6 +32,7 @@ interface Props {
   // 편집 중인 이벤트의 카테고리. SlotEditor 에 내려 슬롯 템플릿 저장/불러오기
   // 다이얼로그가 이벤트 카테고리를 기본값으로 쓰게 한다.
   eventCategory?: EventCategory
+  timezone: string
   // 콜러 전용 모드: 파티 메타(밤스쿼드 토글/이름/콜러) 설정 섹션을 숨기고
   // 슬롯 편집 UI 만 노출. 저장 시 partyMeta 는 서버에서도 방어적으로 무시
   // 되지만, 우선 UI 수준에서 차단해 혼란 방지.
@@ -48,6 +49,7 @@ export default function PartyEditorPanel({
   memberDirectory,
   autoRegearEnabled,
   eventCategory,
+  timezone,
   isCallerScoped = false,
   defaultOpen = false,
 }: Props) {
@@ -485,6 +487,7 @@ export default function PartyEditorPanel({
                     autoRegearEnabled={autoRegearEnabled}
                     isBombSquadParty={isBombSquad}
                     eventCategory={eventCategory}
+                    timezone={timezone}
                     onChange={(updated) => updateSlot(idx, updated)}
                     onDelete={() => deleteSlot(idx)}
                   />

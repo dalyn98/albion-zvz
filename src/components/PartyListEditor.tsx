@@ -22,6 +22,7 @@ interface Props {
   memberDirectory: MemberDirectoryEntry[]
   autoRegearEnabled: boolean
   eventCategory: EventCategory
+  timezone: string
 }
 
 // 카테고리별 파티 수 제한을 반영해 PartyEditorPanel 목록을 렌더하는 클라이언트
@@ -34,6 +35,7 @@ export default function PartyListEditor({
   memberDirectory,
   autoRegearEnabled,
   eventCategory,
+  timezone,
 }: Props) {
   const t = useTranslations('adminEditEvent')
   const limits = CATEGORY_PARTY_LIMITS[eventCategory]
@@ -64,6 +66,7 @@ export default function PartyListEditor({
             memberDirectory={memberDirectory}
             autoRegearEnabled={autoRegearEnabled}
             eventCategory={eventCategory}
+            timezone={timezone}
           />
         )
       })}

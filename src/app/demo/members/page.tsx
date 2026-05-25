@@ -3,6 +3,7 @@ import { DEMO_MEMBERS } from '@/data/demo-seed'
 import MembersPageTabs from '@/components/MembersPageTabs'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 import DemoCTACard from '../_components/DemoCTACard'
+import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 import type {
   AlbionRosterEntry,
   GuildGuestSummary,
@@ -166,6 +167,7 @@ export default async function DemoMembersPage() {
           withdrawnMembers={withdrawnMembers}
           roster={roster}
           isAdmin={false}
+          timezone={DEFAULT_TENANT_TIMEZONE}
           memberHrefPrefix="/demo/members"
           albionMemberHrefPrefix={null}
         />

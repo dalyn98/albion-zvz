@@ -8,6 +8,7 @@ import { deleteSlotTemplate, type SlotTemplateCard } from '@/app/actions/slot-te
 import { applyTemplateToSlotInput } from '@/lib/slot-template-shape'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { formatDate } from '@/lib/format-datetime'
+import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
 import { CATEGORY_I18N_SLUG, getRoleStyle, SLOT_KEYS } from '@/types'
 import SearchBox from './SearchBox'
@@ -17,9 +18,10 @@ import { buildDisplaySlot } from './BuildPreview'
 
 interface Props {
   templates: SlotTemplateCard[]
+  timezone?: string
 }
 
-export default function BuildTemplateList({ templates }: Props) {
+export default function BuildTemplateList({ templates, timezone = DEFAULT_TENANT_TIMEZONE }: Props) {
   const t = useTranslations('adminBuildTemplates')
   const tTemplates = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
@@ -74,7 +76,9 @@ export default function BuildTemplateList({ templates }: Props) {
                 <div className="flex items-start justify-between gap-3">
                   <Link href={`/admin/dashboard/builds/${template.id}`} className="min-w-0">
                     <p className="text-white text-sm font-semibold truncate">{template.name}</p>
-                    <p className="text-gray-500 text-xs font-mono mt-0.5">{formatDate(template.created_at)}</p>
+                    <p className="text-gray-500 text-xs font-mono mt-0.5">
+                      {formatDate(template.created_at, timezone)}
+                    </p>
                   </Link>
                   <div className="flex items-center gap-1">
                     <Link

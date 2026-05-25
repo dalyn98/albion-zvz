@@ -2,13 +2,20 @@ import { getTranslations } from 'next-intl/server'
 import { listSlotTemplateCards } from '@/app/actions/slot-templates'
 import BuildTemplateList from '@/components/BuildTemplateList'
 import CreateBuildTemplateButton from '@/components/CreateBuildTemplateButton'
+import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 export const dynamic = 'force-dynamic'
 
 export default async function BuildTemplatesPage() {
-  const [{ templates, error }, t] = await Promise.all([
+  const session = await getSession()
+  if (!session) throw new Error('Unauthorized')
+  const guildId = await getSessionGuildId(session)
+  const [{ templates, error }, t, tenantTimezone] = await Promise.all([
     listSlotTemplateCards(),
     getTranslations('adminBuildTemplates'),
+    getTenantTimezone(guildId),
   ])
 
   return (
@@ -26,7 +33,7 @@ export default async function BuildTemplatesPage() {
           <p className="text-red-400 text-sm">{error}</p>
         </div>
       ) : (
-        <BuildTemplateList templates={templates} />
+        <BuildTemplateList templates={templates} timezone={tenantTimezone} />
       )}
     </div>
   )

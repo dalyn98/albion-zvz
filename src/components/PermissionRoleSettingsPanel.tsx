@@ -16,6 +16,7 @@ interface Props {
   bombSquadCallerRoleIds: string[]
   activeMemberRoleIds: string[]
   lastMemberSyncAt: string | null
+  timezone: string
 }
 
 export default function PermissionRoleSettingsPanel({
@@ -27,6 +28,7 @@ export default function PermissionRoleSettingsPanel({
   bombSquadCallerRoleIds,
   activeMemberRoleIds,
   lastMemberSyncAt,
+  timezone,
 }: Props) {
   const t = useTranslations('permissions.roleSettings')
 
@@ -43,6 +45,7 @@ export default function PermissionRoleSettingsPanel({
       <ActiveMemberRolesSetting
         initialRoleIds={activeMemberRoleIds}
         initialLastSyncAt={lastMemberSyncAt}
+        timezone={timezone}
         embedded
       />
     </SettingsGroup>

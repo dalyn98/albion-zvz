@@ -143,9 +143,13 @@ async function EventsSection() {
 }
 
 async function TemplatesSection() {
-  const [{ templates, error }, t] = await Promise.all([
+  const session = await getSession()
+  if (!session) throw new Error('Unauthorized')
+  const guildId = await getSessionGuildId(session)
+  const [{ templates, error }, t, tenantTimezone] = await Promise.all([
     listTemplates(),
     getTranslations('adminTemplates'),
+    getTenantTimezone(guildId),
   ])
 
   return (
@@ -162,7 +166,7 @@ async function TemplatesSection() {
       {templates.length === 0 && !error ? (
         <p className="text-subtle text-sm py-8 text-center">{t('noTemplates')}</p>
       ) : (
-        <TemplateList templates={templates} />
+        <TemplateList templates={templates} timezone={tenantTimezone} />
       )}
     </div>
   )

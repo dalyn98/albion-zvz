@@ -9,16 +9,19 @@ import DuplicateTemplateButton from './DuplicateTemplateButton'
 import SearchBox from './SearchBox'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
 import { formatDate } from '@/lib/format-datetime'
+import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 import type { TemplateSummary } from '@/app/actions/templates'
 
 interface TemplateListProps {
   templates: TemplateSummary[]
+  timezone?: string
   detailHrefPrefix?: string | null
   interactionMode?: 'live' | 'demo'
 }
 
 export default function TemplateList({
   templates,
+  timezone = DEFAULT_TENANT_TIMEZONE,
   detailHrefPrefix = '/admin/dashboard/templates',
   interactionMode = 'live',
 }: TemplateListProps) {
@@ -43,7 +46,9 @@ export default function TemplateList({
             const body = (
               <>
                 <p className="text-white text-sm font-medium truncate">{tpl.name}</p>
-                <p className="text-gray-500 text-xs font-mono">{formatDate(tpl.created_at)}</p>
+                <p className="text-gray-500 text-xs font-mono">
+                  {formatDate(tpl.created_at, timezone)}
+                </p>
               </>
             )
             return (

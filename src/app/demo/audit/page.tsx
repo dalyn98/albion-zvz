@@ -12,6 +12,7 @@ import {
   type AdminAuditTargetKind,
 } from '@/lib/admin-audit'
 import { formatDateTimeWithSeconds } from '@/lib/format-datetime'
+import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 import { getDemoAuditLog, getDemoAuditUsernames } from '@/data/demo-seed'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 import DemoCTACard from '../_components/DemoCTACard'
@@ -312,7 +313,7 @@ function AuditTable({
             return (
               <tr key={row.id} className="hover:bg-gray-800/40 align-top">
                 <td className="px-3 py-2 text-xs text-gray-400 font-mono whitespace-nowrap">
-                  {formatDateTimeWithSeconds(row.createdAt)}
+                  {formatDateTimeWithSeconds(row.createdAt, DEFAULT_TENANT_TIMEZONE)}
                 </td>
                 <td className="px-3 py-2 text-xs text-gray-200">
                   <div className="font-medium text-gray-100 truncate max-w-[160px]">

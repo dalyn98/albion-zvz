@@ -46,7 +46,7 @@ export default async function ShopBaselinePage() {
         </Link>
       </div>
 
-      <ShopBaselineForm />
+      <ShopBaselineForm timezone={tenantTimezone} />
 
       {history && history.length > 0 && (
         <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-4 space-y-2">

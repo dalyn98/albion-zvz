@@ -14,11 +14,12 @@ import type { WithdrawnMemberSummary } from '@/app/actions/members-admin'
 
 interface Props {
   members: WithdrawnMemberSummary[]
+  timezone: string
 }
 
 type SortKey = 'withdrawnAt' | 'participation'
 
-export default function GuildWithdrawnList({ members }: Props) {
+export default function GuildWithdrawnList({ members, timezone }: Props) {
   const t = useTranslations('members')
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('withdrawnAt')
@@ -70,7 +71,7 @@ export default function GuildWithdrawnList({ members }: Props) {
       ) : (
         <ul className="space-y-2 xl:grid xl:grid-cols-2 xl:gap-2 xl:space-y-0 2xl:grid-cols-3">
           {filtered.map((m) => (
-            <WithdrawnRow key={m.discord_id} member={m} />
+            <WithdrawnRow key={m.discord_id} member={m} timezone={timezone} />
           ))}
         </ul>
       )}
@@ -102,11 +103,17 @@ function SortChip({
   )
 }
 
-function WithdrawnRow({ member }: { member: WithdrawnMemberSummary }) {
+function WithdrawnRow({
+  member,
+  timezone,
+}: {
+  member: WithdrawnMemberSummary
+  timezone: string
+}) {
   const t = useTranslations('members')
   const tRole = useTranslations('slotRole')
 
-  const formattedWithdrawnAt = formatDate(member.withdrawn_at)
+  const formattedWithdrawnAt = formatDate(member.withdrawn_at, timezone)
 
   return (
     <li className="bg-gray-900 border border-gray-800 rounded-lg opacity-80">

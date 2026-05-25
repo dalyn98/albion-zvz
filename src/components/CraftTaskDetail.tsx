@@ -27,7 +27,7 @@ import { formatSilver } from '@/lib/silver'
 import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/locales'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
-import { DEFAULT_TENANT_TIMEZONE, toZonedParts } from '@/lib/timezone'
+import { toZonedParts } from '@/lib/timezone'
 import ItemImage from './ItemImage'
 import { useToast } from './ToastProvider'
 
@@ -35,9 +35,10 @@ interface Props {
   detail: CraftQueueTaskDetail
   profile: CrafterProfile | null
   config: CraftBoxConfig
+  timezone: string
 }
 
-export default function CraftTaskDetail({ detail, profile, config }: Props) {
+export default function CraftTaskDetail({ detail, profile, config, timezone }: Props) {
   const t = useTranslations('craftQueue')
   const tRole = useTranslations('slotRole')
   const router = useRouter()
@@ -66,9 +67,9 @@ export default function CraftTaskDetail({ detail, profile, config }: Props) {
         </div>
       </header>
 
-      <Timeline task={task} t={t} />
+      <Timeline task={task} t={t} timezone={timezone} />
 
-      <InfoCard task={task} event={event} tRole={tRole} t={t} />
+      <InfoCard task={task} event={event} tRole={tRole} t={t} timezone={timezone} />
 
       <SlotsCard
         buildSnapshot={task.buildSnapshot}
@@ -133,21 +134,25 @@ function StatusBadge({
 function Timeline({
   task,
   t,
+  timezone,
 }: {
   task: CraftQueueTaskDetail['task']
   t: ReturnType<typeof useTranslations>
+  timezone: string
 }) {
   return (
     <ol className="bg-gray-900 border border-gray-700 rounded-2xl p-4 grid grid-cols-3 gap-2 text-center">
-      <TimelineStep label={t('timelineRequested')} at={task.createdAt} active />
+      <TimelineStep label={t('timelineRequested')} at={task.createdAt} timezone={timezone} active />
       <TimelineStep
         label={t('timelineClaimed')}
         at={task.claimedAt}
+        timezone={timezone}
         active={task.claimedAt != null}
       />
       <TimelineStep
         label={t('timelineDelivered')}
         at={task.deliveredAt}
+        timezone={timezone}
         active={task.deliveredAt != null}
       />
     </ol>
@@ -157,10 +162,12 @@ function Timeline({
 function TimelineStep({
   label,
   at,
+  timezone,
   active,
 }: {
   label: string
   at: string | null
+  timezone: string
   active: boolean
 }) {
   return (
@@ -173,16 +180,16 @@ function TimelineStep({
         {label}
       </span>
       <span className="text-[11px] font-mono text-gray-300">
-        {at ? formatDateTime(at) : '—'}
+        {at ? formatDateTime(at, timezone) : '—'}
       </span>
     </li>
   )
 }
 
-function formatDateTime(iso: string): string {
+function formatDateTime(iso: string, timezone: string): string {
   try {
     if (Number.isNaN(new Date(iso).getTime())) return iso
-    const p = toZonedParts(iso, DEFAULT_TENANT_TIMEZONE)
+    const p = toZonedParts(iso, timezone)
     const yy = String(p.year).slice(2)
     const mm = String(p.month).padStart(2, '0')
     const dd = String(p.day).padStart(2, '0')
@@ -199,11 +206,13 @@ function InfoCard({
   event,
   tRole,
   t,
+  timezone,
 }: {
   task: CraftQueueTaskDetail['task']
   event: CraftQueueTaskDetail['event']
   tRole: ReturnType<typeof useTranslations>
   t: ReturnType<typeof useTranslations>
+  timezone: string
 }) {
   return (
     <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 space-y-3">
@@ -225,7 +234,9 @@ function InfoCard({
         </InfoRow>
         {event?.gatherAt && (
           <InfoRow label={t('detailInfoGatherAt')}>
-            <span className="font-mono text-gray-300">{formatDateTime(event.gatherAt)}</span>
+            <span className="font-mono text-gray-300">
+              {formatDateTime(event.gatherAt, timezone)}
+            </span>
           </InfoRow>
         )}
         <InfoRow label={t('detailInfoRequester')}>
@@ -589,4 +600,3 @@ function DeliveredSummary({ task }: { task: CraftQueueTaskDetail['task'] }) {
     </section>
   )
 }
-

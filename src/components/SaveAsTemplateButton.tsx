@@ -6,16 +6,23 @@ import { useTranslations } from 'next-intl'
 import { Save, X, AlertTriangle } from 'lucide-react'
 import { saveEventAsTemplate, type TemplateSummary } from '@/app/actions/templates'
 import { formatDate } from '@/lib/format-datetime'
+import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 
 interface Props {
   eventId: string
   defaultName: string
   templates: TemplateSummary[]
+  timezone?: string
 }
 
 type Mode = 'new' | 'overwrite'
 
-export default function SaveAsTemplateButton({ eventId, defaultName, templates }: Props) {
+export default function SaveAsTemplateButton({
+  eventId,
+  defaultName,
+  templates,
+  timezone = DEFAULT_TENANT_TIMEZONE,
+}: Props) {
   const t = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
   const router = useRouter()
@@ -207,7 +214,9 @@ export default function SaveAsTemplateButton({ eventId, defaultName, templates }
                       >
                         <span className="text-white text-sm truncate">{tpl.name}</span>
                         <span className="text-gray-500 text-[10px] font-mono flex-shrink-0">
-                          {t('saveOverwriteByIdSavedAt', { when: formatDate(tpl.created_at) })}
+                          {t('saveOverwriteByIdSavedAt', {
+                            when: formatDate(tpl.created_at, timezone),
+                          })}
                         </span>
                       </button>
                     ))}

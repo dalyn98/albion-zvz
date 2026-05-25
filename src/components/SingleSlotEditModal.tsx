@@ -15,6 +15,7 @@ interface Props {
   partyNumber: number
   autoRegearEnabled: boolean
   eventCategory?: EventCategory
+  timezone: string
   onClose: () => void
 }
 
@@ -27,6 +28,7 @@ export default function SingleSlotEditModal({
   partyNumber,
   autoRegearEnabled,
   eventCategory,
+  timezone,
   onClose,
 }: Props) {
   const t = useTranslations('slot')
@@ -91,6 +93,7 @@ export default function SingleSlotEditModal({
       partyNumber={partyNumber}
       autoRegearEnabled={autoRegearEnabled}
       eventCategory={eventCategory}
+      timezone={timezone}
       onChange={setInput}
       onDelete={() => {}}
       standaloneMode={{

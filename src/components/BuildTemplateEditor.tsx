@@ -13,7 +13,12 @@ import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, type EventCategory } from '@/type
 import SlotEditor, { emptySlotInput, type SlotInput } from './SlotEditor'
 import { useReportDirty } from './UnsavedChangesProvider'
 
-export default function BuildTemplateEditor({ template }: { template: SlotTemplateRecord }) {
+interface BuildTemplateEditorProps {
+  template: SlotTemplateRecord
+  timezone: string
+}
+
+export default function BuildTemplateEditor({ template, timezone }: BuildTemplateEditorProps) {
   const t = useTranslations('adminBuildTemplates')
   const tTemplates = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
@@ -108,6 +113,7 @@ export default function BuildTemplateEditor({ template }: { template: SlotTempla
           partyNumber={1}
           autoRegearEnabled={false}
           eventCategory={category}
+          timezone={timezone}
           onChange={setSlot}
           onDelete={() => setSlot(emptySlotInput(1))}
         />

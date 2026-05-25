@@ -30,9 +30,9 @@ import { getLocalizedItemName } from '@/lib/item-names'
 import type { Locale } from '@/i18n/locales'
 import { useReportDirty } from './UnsavedChangesProvider'
 
-function fmtDate(iso: string | null): string {
+function fmtDate(iso: string | null, timezone: string): string {
   if (!iso) return '—'
-  return formatDateTimeWithSeconds(iso)
+  return formatDateTimeWithSeconds(iso, timezone)
 }
 
 function useFmtDuration() {
@@ -47,7 +47,11 @@ function useFmtDuration() {
   }
 }
 
-export default function ShopBaselineForm() {
+interface ShopBaselineFormProps {
+  timezone: string
+}
+
+export default function ShopBaselineForm({ timezone }: ShopBaselineFormProps) {
   const router = useRouter()
   const t = useTranslations('shopBaselineForm')
   const [raw, setRaw] = useState('')
@@ -159,6 +163,7 @@ export default function ShopBaselineForm() {
         <CurrentBaselineCard
           confirmedAt={preview.currentBaseline.confirmedAt}
           totalItems={preview.currentBaseline.totalItems}
+          timezone={timezone}
         />
       )}
 
@@ -211,7 +216,7 @@ export default function ShopBaselineForm() {
 
       {confirmDrift && <DriftPanel drift={confirmDrift} />}
 
-      {preview && !confirmResult && <PreviewPanel preview={preview} />}
+      {preview && !confirmResult && <PreviewPanel preview={preview} timezone={timezone} />}
 
       {preview && !confirmResult && (
         <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-4 space-y-3">
@@ -247,9 +252,11 @@ export default function ShopBaselineForm() {
 function CurrentBaselineCard({
   confirmedAt,
   totalItems,
+  timezone,
 }: {
   confirmedAt: string | null
   totalItems: number
+  timezone: string
 }) {
   const t = useTranslations('shopBaselineForm')
   return (
@@ -257,7 +264,7 @@ function CurrentBaselineCard({
       <div className="flex items-center gap-2 text-zinc-300">
         <Clock size={14} />
         {t('currentBaselineLine', {
-          at: fmtDate(confirmedAt),
+          at: fmtDate(confirmedAt, timezone),
           total: totalItems.toLocaleString(),
         })}
       </div>
@@ -266,7 +273,13 @@ function CurrentBaselineCard({
   )
 }
 
-function PreviewPanel({ preview }: { preview: BaselinePreview }) {
+function PreviewPanel({
+  preview,
+  timezone,
+}: {
+  preview: BaselinePreview
+  timezone: string
+}) {
   const t = useTranslations('shopBaselineForm')
   const fmtDuration = useFmtDuration()
   return (
@@ -310,11 +323,13 @@ function PreviewPanel({ preview }: { preview: BaselinePreview }) {
 
       <div className="rounded-md bg-zinc-950 p-3 text-xs text-zinc-400">
         <div>
-          <span className="text-zinc-500">{t('firstDeposit')}</span> {fmtDate(preview.firstEvent?.at ?? null)} · {preview.firstEvent?.player} ·{' '}
+          <span className="text-zinc-500">{t('firstDeposit')}</span>{' '}
+          {fmtDate(preview.firstEvent?.at ?? null, timezone)} · {preview.firstEvent?.player} ·{' '}
           <span className="text-zinc-200">{preview.firstEvent?.itemName}</span> +{preview.firstEvent?.quantity}
         </div>
         <div>
-          <span className="text-zinc-500">{t('lastDeposit')}</span> {fmtDate(preview.lastEvent?.at ?? null)} · {preview.lastEvent?.player} ·{' '}
+          <span className="text-zinc-500">{t('lastDeposit')}</span>{' '}
+          {fmtDate(preview.lastEvent?.at ?? null, timezone)} · {preview.lastEvent?.player} ·{' '}
           <span className="text-zinc-200">{preview.lastEvent?.itemName}</span> +{preview.lastEvent?.quantity}
         </div>
         {preview.depositors.length > 0 && (

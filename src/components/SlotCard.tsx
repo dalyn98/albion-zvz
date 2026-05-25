@@ -50,6 +50,7 @@ interface Props {
   // 노출 여부 / 템플릿 저장 다이얼로그의 카테고리 기본값을 판단한다.
   autoRegearEnabled: boolean
   eventCategory?: EventCategory
+  timezone: string
   interactionMode?: 'live' | 'demo'
   memberHrefPrefix?: string
 }
@@ -96,6 +97,7 @@ export default function SlotCard({
   cdBadgeRoles,
   autoRegearEnabled,
   eventCategory,
+  timezone,
   interactionMode = 'live',
   memberHrefPrefix = '/members',
 }: Props) {
@@ -440,6 +442,7 @@ export default function SlotCard({
           partyNumber={partyNumber}
           autoRegearEnabled={autoRegearEnabled}
           eventCategory={eventCategory}
+          timezone={timezone}
           onClose={() => setEditOpen(false)}
         />
       )}

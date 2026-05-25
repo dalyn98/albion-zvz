@@ -8,6 +8,8 @@ import {
   listAlbionRoster,
 } from '@/app/actions/members-admin'
 import MembersPageTabs from '@/components/MembersPageTabs'
+import { getSessionGuildId } from '@/lib/tenant'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,18 +19,21 @@ export default async function MembersPage() {
     redirect('/api/auth/discord/start?returnTo=/members')
   }
 
+  const guildId = await getSessionGuildId(session)
   const [
     { members, error: membersError },
     { guests, error: guestsError },
     { members: withdrawnMembers, error: withdrawnError },
     { roster, error: rosterError },
     t,
+    timezone,
   ] = await Promise.all([
     listGuildMembers(),
     listGuildGuests(),
     listWithdrawnMembers(),
     listAlbionRoster(),
     getTranslations('members'),
+    getTenantTimezone(guildId),
   ])
 
   return (
@@ -48,6 +53,7 @@ export default async function MembersPage() {
         withdrawnError={withdrawnError}
         rosterError={rosterError}
         isAdmin={session.isAdmin}
+        timezone={timezone}
       />
     </main>
   )

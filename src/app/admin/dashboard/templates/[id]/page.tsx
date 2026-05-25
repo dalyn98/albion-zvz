@@ -4,6 +4,9 @@ import { ChevronLeft } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import { getTemplate } from '@/app/actions/templates'
 import TemplateEditor from '@/components/TemplateEditor'
+import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,9 +16,13 @@ export default async function TemplateEditPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const [{ template, error }, t] = await Promise.all([
+  const session = await getSession()
+  if (!session) throw new Error('Unauthorized')
+  const guildId = await getSessionGuildId(session)
+  const [{ template, error }, t, tenantTimezone] = await Promise.all([
     getTemplate(id),
     getTranslations('adminTemplates'),
+    getTenantTimezone(guildId),
   ])
 
   if (error || !template) notFound()
@@ -29,7 +36,7 @@ export default async function TemplateEditPage({
         <ChevronLeft size={14} /> {t('backToList')}
       </Link>
       <h1 className="text-xl sm:text-2xl font-bold text-white">{t('editTitle')}</h1>
-      <TemplateEditor template={template} />
+      <TemplateEditor template={template} timezone={tenantTimezone} />
     </div>
   )
 }

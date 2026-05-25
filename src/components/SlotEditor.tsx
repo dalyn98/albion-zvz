@@ -20,6 +20,7 @@ import GearPreview from './GearPreview'
 import { slotInputToTemplateData } from '@/lib/slot-template-shape'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { saveRecentBuild } from '@/lib/recent-builds'
+import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 import type {
   EventCategory,
   GearSpec,
@@ -67,6 +68,7 @@ interface Props {
   // 카테고리 기본값/필터로 사용한다. 관리자 템플릿 페이지처럼 이벤트 컨텍스트가
   // 없는 곳에서는 생략 가능.
   eventCategory?: EventCategory
+  timezone?: string
   onChange: (updated: SlotInput) => void
   onDelete: () => void
   // 단일 슬롯 편집 모드. 이 prop 이 주어지면:
@@ -82,7 +84,17 @@ interface Props {
   }
 }
 
-export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, isBombSquadParty = false, eventCategory, onChange, onDelete, standaloneMode }: Props) {
+export default function SlotEditor({
+  slot,
+  partyNumber,
+  autoRegearEnabled,
+  isBombSquadParty = false,
+  eventCategory,
+  timezone = DEFAULT_TENANT_TIMEZONE,
+  onChange,
+  onDelete,
+  standaloneMode,
+}: Props) {
   const t = useTranslations('adminParty')
   const tCommon = useTranslations('common')
   const tRole = useTranslations('slotRole')
@@ -393,11 +405,13 @@ export default function SlotEditor({ slot, partyNumber, autoRegearEnabled, isBom
                 <SaveSlotAsTemplateButton
                   slot={slot}
                   defaultName={slot.role_name ? t('buildName', { role: translateSlotRole(slot.role_name, tRole) }) : ''}
+                  timezone={timezone}
                   defaultCategory={eventCategory}
                 />
                 <LoadSlotTemplateButton
                   slot={slot}
                   onLoad={onChange}
+                  timezone={timezone}
                   defaultCategoryFilter={eventCategory}
                 />
                 <RecentBuildsDropdown slot={slot} onLoad={onChange} />

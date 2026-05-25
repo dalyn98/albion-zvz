@@ -12,12 +12,14 @@ import { formatDateTime } from '@/lib/format-datetime'
 interface Props {
   initialRoleIds: string[]
   initialLastSyncAt: string | null
+  timezone: string
   embedded?: boolean
 }
 
 export default function ActiveMemberRolesSetting({
   initialRoleIds,
   initialLastSyncAt,
+  timezone,
   embedded = false,
 }: Props) {
   const t = useTranslations('adminActiveMemberRoles')
@@ -113,8 +115,8 @@ export default function ActiveMemberRolesSetting({
 
   const lastSyncLabel = useMemo(() => {
     if (!lastSyncAt) return t('neverSynced')
-    return t('lastSyncAt', { time: formatDateTime(lastSyncAt) })
-  }, [lastSyncAt, t])
+    return t('lastSyncAt', { time: formatDateTime(lastSyncAt, timezone) })
+  }, [lastSyncAt, t, timezone])
 
   const containerClass = embedded
     ? 'space-y-3'

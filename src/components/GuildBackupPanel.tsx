@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useTransition } from 'react'
-import { useFormatter, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { Download, Upload, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import {
   exportGuildBackupAction,
@@ -9,8 +9,18 @@ import {
   previewGuildBackupImportAction,
 } from '@/app/actions/guild-backup'
 import type { BackupImportPlan, BackupImportSummary } from '@/lib/guild-backup'
+import { formatDateTime } from '@/lib/format-datetime'
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
+
+function formatBackupExportedAt(iso: string, timezone: string): string {
+  if (Number.isNaN(new Date(iso).getTime())) return iso
+  try {
+    return formatDateTime(iso, timezone)
+  } catch {
+    return iso
+  }
+}
 
 interface PreviewState {
   rawJson: string
@@ -19,9 +29,12 @@ interface PreviewState {
   meta: { exportedAt: string; sourceGuildName: string | null; sourceGuildId: string }
 }
 
-export default function GuildBackupPanel() {
+interface GuildBackupPanelProps {
+  timezone: string
+}
+
+export default function GuildBackupPanel({ timezone }: GuildBackupPanelProps) {
   const t = useTranslations('adminBackup')
-  const formatter = useFormatter()
   const fileRef = useRef<HTMLInputElement>(null)
   const [exporting, startExport] = useTransition()
   const [previewing, startPreview] = useTransition()
@@ -85,12 +98,6 @@ export default function GuildBackupPanel() {
     if (fileRef.current) fileRef.current.value = ''
   }
 
-  const formatDate = (iso: string): string => {
-    const d = new Date(iso)
-    if (Number.isNaN(d.getTime())) return iso
-    return formatter.dateTime(d, { dateStyle: 'medium', timeStyle: 'short' })
-  }
-
   return (
     <div className="space-y-6">
       <section className="rounded-lg border border-border bg-card p-5 space-y-4">
@@ -142,7 +149,7 @@ export default function GuildBackupPanel() {
               {preview.meta.exportedAt && (
                 <div>
                   <span className="text-muted-foreground">{t('previewExportedAtLabel')}</span>{' '}
-                  <span>{formatDate(preview.meta.exportedAt)}</span>
+                  <span>{formatBackupExportedAt(preview.meta.exportedAt, timezone)}</span>
                 </div>
               )}
               {preview.meta.sourceGuildName && (

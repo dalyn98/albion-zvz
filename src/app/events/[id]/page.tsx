@@ -548,6 +548,7 @@ export default async function EventDetailPage({
             cdBadgeRoles={cdBadgeRoles}
             autoRegearEnabled={autoRegearEnabled}
             eventCategory={event.category}
+            timezone={tz}
             suggestedRoles={myTentative?.possible_roles ?? []}
           />
         </div>

@@ -6,15 +6,22 @@ import { useTranslations } from 'next-intl'
 import { FolderDown, X, AlertTriangle } from 'lucide-react'
 import { applyTemplate, type TemplateSummary } from '@/app/actions/templates'
 import { formatDate } from '@/lib/format-datetime'
+import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 
 interface Props {
   eventId: string
   templates: TemplateSummary[]
+  timezone?: string
   // 이벤트에 이미 파티가 있으면 적용 시 덮어쓰기 확인을 한 번 더 받는다.
   hasExistingParties: boolean
 }
 
-export default function LoadTemplateButton({ eventId, templates, hasExistingParties }: Props) {
+export default function LoadTemplateButton({
+  eventId,
+  templates,
+  timezone = DEFAULT_TENANT_TIMEZONE,
+  hasExistingParties,
+}: Props) {
   const t = useTranslations('adminTemplates')
   const tCommon = useTranslations('common')
   const router = useRouter()
@@ -112,7 +119,7 @@ export default function LoadTemplateButton({ eventId, templates, hasExistingPart
                   >
                     <span className="text-white text-sm truncate">{tpl.name}</span>
                     <span className="text-gray-500 text-[10px] font-mono flex-shrink-0">
-                      {formatDate(tpl.created_at)}
+                      {formatDate(tpl.created_at, timezone)}
                     </span>
                   </button>
                 ))

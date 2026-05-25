@@ -23,6 +23,7 @@ interface Props {
   // 내려가는 컨텍스트. 관리자가 아니면 사용되지 않으므로 SSR 비용은 없음.
   autoRegearEnabled: boolean
   eventCategory?: EventCategory
+  timezone: string
   suggestedRoles?: readonly SlotRole[]
   interactionMode?: 'live' | 'demo'
   memberHrefPrefix?: string
@@ -45,6 +46,7 @@ export default function EventPartyGrid({
   cdBadgeRoles,
   autoRegearEnabled,
   eventCategory,
+  timezone,
   suggestedRoles = [],
   interactionMode = 'live',
   memberHrefPrefix = '/members',
@@ -414,6 +416,7 @@ export default function EventPartyGrid({
                     cdBadgeRoles={cdBadgeRoles}
                     autoRegearEnabled={autoRegearEnabled}
                     eventCategory={eventCategory}
+                    timezone={timezone}
                     interactionMode={interactionMode}
                     memberHrefPrefix={memberHrefPrefix}
                   />

@@ -212,6 +212,7 @@ export default async function EditEventPage({
                 <LoadTemplateButton
                   eventId={id}
                   templates={templates}
+                  timezone={tenantTimezone}
                   hasExistingParties={hasParties}
                 />
                 {hasSlots && (
@@ -219,6 +220,7 @@ export default async function EditEventPage({
                     eventId={id}
                     defaultName={event.title}
                     templates={templates}
+                    timezone={tenantTimezone}
                   />
                 )}
               </div>
@@ -232,6 +234,7 @@ export default async function EditEventPage({
               memberDirectory={memberDirectory}
               autoRegearEnabled={autoRegearEnabled}
               eventCategory={eventCategory}
+              timezone={tenantTimezone}
             />
           </section>
 

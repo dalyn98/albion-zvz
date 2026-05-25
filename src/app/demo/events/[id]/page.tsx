@@ -15,6 +15,7 @@ import {
   type DemoEventSlot,
 } from '@/data/demo-seed'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 import type { TentativeSignupRow } from '@/app/actions/event-tentative'
 import type { PartyWithSlots, Slot, SlotRole } from '@/types'
 import { formatTimeLabel } from '../../_lib/format'
@@ -213,6 +214,7 @@ export default async function DemoEventDetailPage({
             cdBadgeRoles={['Dps']}
             autoRegearEnabled
             eventCategory={listEvent.category}
+            timezone={DEFAULT_TENANT_TIMEZONE}
             suggestedRoles={['DefTanker', 'Dps']}
             interactionMode="demo"
             memberHrefPrefix="/demo/members"
