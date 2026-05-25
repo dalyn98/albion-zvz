@@ -35,12 +35,14 @@ interface Props {
   // 위젯 자체를 숨긴다. 빈 섹션이 보이면 더 시끄럽다.
   weeklyStatsEnabled?: boolean
   eventHrefPrefix?: string
+  timezone?: string
 }
 
 export default async function MyHomeDashboardCard({
   data,
   weeklyStatsEnabled = false,
   eventHrefPrefix = '/events',
+  timezone,
 }: Props) {
   const t = await getTranslations('me')
   const tWeekly = await getTranslations('me.weekly')
@@ -84,7 +86,7 @@ export default async function MyHomeDashboardCard({
               </p>
               <p className="text-gray-400 text-xs">
                 {nextEvent.gather_at
-                  ? formatGatherTimeFor(locale, nextEvent.gather_at)
+                  ? formatGatherTimeFor(locale, nextEvent.gather_at, timezone)
                   : nextEvent.gather_time}
                 {nextEvent.role_name && (
                   <span className="ml-2 text-gray-500">

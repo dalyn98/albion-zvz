@@ -173,7 +173,7 @@ export default async function MePage() {
     title: event.title,
     roleName: translateSlotRole(event.role_name, tRole),
     reward: formatSilver(event.role_reward),
-    deadline: formatDateTime(event.deadline_at),
+    deadline: formatDateTime(event.deadline_at, tz),
     href: '/regear',
   }))
   const siphonPriority = getSiphonPriority(siphonAccount, t)
@@ -355,7 +355,11 @@ export default async function MePage() {
       </section>
 
       {dashboard && (
-        <MyHomeDashboardCard data={dashboard} weeklyStatsEnabled={weeklyStatsEnabled} />
+        <MyHomeDashboardCard
+          data={dashboard}
+          weeklyStatsEnabled={weeklyStatsEnabled}
+          timezone={tz}
+        />
       )}
 
       <MyCraftPickupsSection />
