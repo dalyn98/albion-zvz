@@ -3,9 +3,10 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getEventGuestProfile } from '@/lib/event-guest-profile'
+import { CAP } from '@/lib/permissions'
 import type { GearOption, SlotKey } from '@/types'
 
 export type SlotPicks = Partial<Record<SlotKey, GearOption>>
@@ -205,34 +206,60 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
   return {}
 }
 
-// Admin can remove anyone from a slot. Bypasses both the ownership check
-// (regular cancelSlot only allows the slot owner to cancel) and the battle-
-// started gate (regular members can't cancel after the battle starts to keep
-// participation tracking intact). Admins sometimes need to remove a no-show
-// after the battle has already begun, so the gate doesn't apply to them.
+// Event managers / event owners / bomb-squad callers can remove someone from
+// slots they manage. Bypasses both the ownership check (regular cancelSlot only
+// allows the slot owner to cancel) and the battle-started gate (regular members
+// can't cancel after battle start to keep participation tracking intact).
 export async function adminCancelSlot(slotId: string): Promise<{ error?: string }> {
   const tAction = await getTranslations('slotAction')
   const session = await getSession()
   if (!session) return { error: tAction('loginRequired') }
-  if (!session.isAdmin) return { error: tAction('adminOnly') }
   const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
 
   const { data: slotRow, error: slotLookupError } = await db
     .from('slots')
-    .select('assigned_discord_id, parties!inner(event_id, party_number)')
+    .select(
+      'assigned_discord_id, is_solo_bomb, parties!inner(event_id, party_number, is_bomb_squad, caller_discord_id, events!inner(created_by))',
+    )
     .eq('guild_id', guildId)
     .eq('id', slotId)
     .maybeSingle()
   if (slotLookupError) return { error: slotLookupError.message }
   if (!slotRow) return { error: tAction('slotNotFound') }
-  if (!slotRow.assigned_discord_id) return { error: tAction('slotEmpty') }
   const partyJoin = slotRow.parties as
-    | { event_id: string; party_number: number }
-    | { event_id: string; party_number: number }[]
+    | {
+        event_id: string
+        party_number: number
+        is_bomb_squad: boolean | null
+        caller_discord_id: string | null
+        events: { created_by: string | null } | { created_by: string | null }[] | null
+      }
+    | {
+        event_id: string
+        party_number: number
+        is_bomb_squad: boolean | null
+        caller_discord_id: string | null
+        events: { created_by: string | null } | { created_by: string | null }[] | null
+      }[]
     | null
   const party = Array.isArray(partyJoin) ? partyJoin[0] : partyJoin
+  const event = Array.isArray(party?.events) ? party?.events[0] : party?.events
+  const isEventOwner =
+    !!session.canCreateEvents &&
+    !!event?.created_by &&
+    event.created_by === session.discordId
+  const isEventManager = sessionHas(session, CAP.EVENT_MANAGE)
+  const isBombSquadCaller =
+    !slotRow.is_solo_bomb &&
+    !!party?.is_bomb_squad &&
+    !!party.caller_discord_id &&
+    party.caller_discord_id === session.discordId
+  if (!session.isAdmin && !isEventManager && !isEventOwner && !isBombSquadCaller) {
+    return { error: tAction('slotAssignNotAuthorized') }
+  }
+  if (!slotRow.assigned_discord_id) return { error: tAction('slotEmpty') }
 
   // Pass the current owner's discord id to cancel_slot so the RPC's
   // NOT_OWNER guard passes while we keep a single code path for the update.

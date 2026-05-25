@@ -36,6 +36,29 @@ const SLOT_DIFF_COLUMNS =
   'cape_name, cape_id, cape_options, ' +
   'mount_name, mount_id, mount_options'
 
+const CLEAR_ASSIGNED_SLOT_FIELDS = {
+  assigned_discord_id: null,
+  assigned_username: null,
+  assigned_weapon_name: null,
+  assigned_weapon_id: null,
+  assigned_head_name: null,
+  assigned_head_id: null,
+  assigned_armor_name: null,
+  assigned_armor_id: null,
+  assigned_shoes_name: null,
+  assigned_shoes_id: null,
+  assigned_offhand_name: null,
+  assigned_offhand_id: null,
+  assigned_potion_name: null,
+  assigned_potion_id: null,
+  assigned_food_name: null,
+  assigned_food_id: null,
+  assigned_cape_name: null,
+  assigned_cape_id: null,
+  assigned_mount_name: null,
+  assigned_mount_id: null,
+} as const
+
 function stableCompareValue(value: unknown): string {
   if (value == null) return 'null'
   if (typeof value === 'object') return JSON.stringify(value)
@@ -328,7 +351,7 @@ export async function clearSlotAssignment(slotId: string): Promise<{ error?: str
 
     const { error } = await db
       .from('slots')
-      .update({ assigned_discord_id: null, assigned_username: null })
+      .update(CLEAR_ASSIGNED_SLOT_FIELDS)
       .eq('guild_id', guildId)
       .eq('id', slotId)
     if (error) return { error: error.message }

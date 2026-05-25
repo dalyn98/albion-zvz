@@ -129,9 +129,12 @@ export default function SlotCard({
   const isCallerOrAdmin =
     isLoggedIn &&
     (isAdmin || (!!bombSquadCallerId && bombSquadCallerId === currentDiscordId))
+  const canManageThisSlot =
+    canManageSlots || (isBombSquadParty && isCallerOrAdmin && !isSoloBomb)
   // 콜러/관리자는 전투 시작 후에도 승인/거절이 가능 (admin kick 과 동일 정책).
   // 단 사후 변경은 통계/리기어 자격에 영향을 주므로 한 번 더 확인.
-  const canReviewPending = hasPendingRequest && isCallerOrAdmin
+  const canReviewPending =
+    hasPendingRequest && (canManageSlots || (isCallerOrAdmin && !isSoloBomb))
   // 빈 슬롯에 한해 관리자/이벤트 생성자/밤스쿼드 콜러가 "멤버 지정" 모달을
   // 열 수 있게 한다.
   // 신청(requested_*) 이 걸려 있으면 먼저 승인/거절을 처리해야 한다.
@@ -139,7 +142,7 @@ export default function SlotCard({
     !isTaken &&
     !hasPendingRequest &&
     !isSoloBomb &&
-    (canManageSlots || (isBombSquadParty && isCallerOrAdmin))
+    canManageThisSlot
 
   // Slot kinds that need a choice at signup time: the admin marked them multi
   // and the member hasn't been assigned yet.
@@ -311,7 +314,7 @@ export default function SlotCard({
               {t('soloBomb.badge')}
             </span>
           )}
-          {isAdmin && (
+          {canManageSlots && (
             <button
               type="button"
               onClick={() => setEditOpen(true)}
@@ -431,7 +434,7 @@ export default function SlotCard({
         />
       )}
 
-      {editOpen && isAdmin && (
+      {editOpen && canManageSlots && (
         <SingleSlotEditModal
           slot={slot}
           partyNumber={partyNumber}
@@ -480,7 +483,7 @@ export default function SlotCard({
       )
     }
     if (isTaken) {
-      if (isAdmin) {
+      if (canManageThisSlot) {
         return (
           <button
             onClick={handleAdminKick}

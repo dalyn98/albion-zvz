@@ -169,12 +169,12 @@ export default async function MePage() {
       }
     : null
   const regearActionItems = eligibleRegears.events.slice(0, 3).map((event) => ({
-    id: event.auto_request_id ?? event.id,
+    id: event.id,
     title: event.title,
     roleName: translateSlotRole(event.role_name, tRole),
     reward: formatSilver(event.role_reward),
     deadline: formatDateTime(event.deadline_at),
-    href: event.auto_request_id ? `/me/regear/${event.auto_request_id}` : '/regear',
+    href: '/regear',
   }))
   const siphonPriority = getSiphonPriority(siphonAccount, t)
 

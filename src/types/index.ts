@@ -271,7 +271,7 @@ export function getDisplayGear(
 ): { name: string | null; id: string | null } {
   const assignedName = slot[`assigned_${key}_name`]
   const assignedId = slot[`assigned_${key}_id`]
-  if (assignedId) return { name: assignedName, id: assignedId }
+  if (assignedName || assignedId) return { name: assignedName, id: assignedId }
   return { name: slot[`${key}_name`], id: slot[`${key}_id`] }
 }
 
