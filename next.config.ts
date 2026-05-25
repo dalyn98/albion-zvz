@@ -75,17 +75,13 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // 짧고 외우기 쉬운 봇 초대 URL + 통합된 /landing 으로 흡수된 기능 페이지의
-  // 인바운드 링크를 anchor 로 308 redirect. 정적 redirect 는 Next.js 라우팅
-  // 이전에 fire 되므로 anchor 가 그대로 Location 헤더에 실린다.
+  // 통합된 /landing 으로 흡수된 기능 페이지의 인바운드 링크를 anchor 로 308
+  // redirect. 정적 redirect 는 Next.js 라우팅 이전에 fire 되므로 anchor 가
+  // 그대로 Location 헤더에 실린다. 봇 초대 단축 URL(`/invite`) 은 Discord
+  // OAuth scope/permissions drift 를 막기 위해 route handler 에서 공용 URL
+  // 생성 함수를 사용한다.
   async redirects() {
     return [
-      {
-        source: '/invite',
-        destination:
-          'https://discord.com/oauth2/authorize?client_id=1495149595238469742&permissions=201346048&response_type=code&redirect_uri=https%3A%2F%2Falbion-guildmanager.com%2Fapi%2Fauth%2Fdiscord%2Fbot-callback&integration_type=0&scope=bot',
-        permanent: false,
-      },
       { source: '/features', destination: '/#features', permanent: true },
       { source: '/public/features', destination: '/public/landing#features', permanent: true },
     ]

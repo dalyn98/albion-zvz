@@ -74,17 +74,32 @@ export function buildAuthorizeUrl(
 
 // 봇 설치용 OAuth URL. `bot` + `applications.commands` scope 와 필요 권한 bitmask.
 // VIEW_CHANNEL(0x400) + SEND_MESSAGES(0x800) + EMBED_LINKS(0x4000) +
-// MANAGE_NICKNAMES(0x8000000) = 134236036.
+// MANAGE_NICKNAMES(0x8000000) = 134237184.
 // 멤버 역할/관리 역할은 설치 시점에 결정되지 않으므로 MANAGE_ROLES 는 제외 —
 // 길드 운영자가 수동으로 역할을 부여한다.
 const BOT_PERMISSIONS = (0x400 | 0x800 | 0x4000 | 0x8000000).toString()
+
+function buildBotInstallAuthorizeUrl(params: URLSearchParams): string {
+  return `https://discord.com/oauth2/authorize?${params.toString()}`
+}
+
+function createBotInstallParams(state: string): URLSearchParams {
+  const { clientId, appUrl } = getDiscordOAuthConfig()
+  const redirectUri = `${appUrl.replace(/\/$/, '')}/api/auth/discord/bot-callback`
+  return new URLSearchParams({
+    client_id: clientId,
+    response_type: 'code',
+    scope: 'bot applications.commands identify',
+    permissions: BOT_PERMISSIONS,
+    redirect_uri: redirectUri,
+    state,
+  })
+}
 
 export function buildBotInstallUrl(options: {
   guildId: string
   state: string
 }): string {
-  const { clientId, appUrl } = getDiscordOAuthConfig()
-  const redirectUri = `${appUrl.replace(/\/$/, '')}/api/auth/discord/bot-callback`
   // identify 스코프를 같이 묶는 이유: 사용자가 사이트와 Discord 앱/웹에서 서로
   // 다른 계정을 쓸 수 있다. 사이트 세션이 A 계정인데 봇 설치는 B 계정으로 한
   // 경우 — A 를 tenant 소유자로 박으면 정작 MANAGE_GUILD 를 가진 B 가 사이트에
@@ -96,17 +111,17 @@ export function buildBotInstallUrl(options: {
   // 거부한다 ("Integration requires code grant"). 이전에 빼두었을 때 봇 설치
   // 단계가 스킵된다고 오진단했지만, 실제 원인은 다른 데 있었던 듯 (Discord 가
   // bot scope + code grant 조합에서도 항상 봇 설치 동의 화면을 띄운다).
-  const params = new URLSearchParams({
-    client_id: clientId,
-    response_type: 'code',
-    scope: 'bot applications.commands identify',
-    permissions: BOT_PERMISSIONS,
-    guild_id: options.guildId,
-    disable_guild_select: 'true',
-    redirect_uri: redirectUri,
-    state: options.state,
-  })
-  return `https://discord.com/oauth2/authorize?${params.toString()}`
+  const params = createBotInstallParams(options.state)
+  params.set('guild_id', options.guildId)
+  params.set('disable_guild_select', 'true')
+  return buildBotInstallAuthorizeUrl(params)
+}
+
+// 공개 단축 URL(`/invite`) 에서 쓰는 봇 설치 URL. 특정 Discord 서버를 미리
+// 알 수 없으므로 guild 선택을 Discord 화면에 맡기되, bot-callback 이 설치자를
+// 식별할 수 있도록 identify + code grant 흐름은 동일하게 유지한다.
+export function buildOpenBotInstallUrl(options: { state: string }): string {
+  return buildBotInstallAuthorizeUrl(createBotInstallParams(options.state))
 }
 
 // 봇 설치 OAuth 의 code 를 access_token 으로 교환. user OAuth 와는 redirect_uri

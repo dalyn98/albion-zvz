@@ -5,10 +5,9 @@ import Link from 'next/link'
 // 쓰지 않고 직접 매핑한다 — 사이트 톤 (gray-900 배경, amber accent) 과 prose
 // 기본 광택이 안 맞고, 길이가 긴 docs 에서 폰트/여백을 정확히 컨트롤하기 위함.
 
-// next.config.ts 에서 외부 도메인으로 308 redirect 되는 path 들. Next <Link>
-// 가 hover 시 RSC prefetch 를 보내면 redirect → discord.com preflight 가
-// 콘솔에 CORS 에러로 박힌다. 같은 색/텍스트지만 plain <a target="_blank"> 로
-// 렌더해 prefetch 를 막는다.
+// 외부 도메인으로 redirect 되는 path 들. Next <Link> 가 hover 시 RSC prefetch 를
+// 보내면 redirect → discord.com preflight 가 콘솔에 CORS 에러로 박힌다. 같은
+// 색/텍스트지만 plain <a target="_blank"> 로 렌더해 prefetch 를 막는다.
 const REDIRECT_TO_EXTERNAL = new Set(['/invite'])
 
 const components: MDXComponents = {
