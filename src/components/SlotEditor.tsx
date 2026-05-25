@@ -78,7 +78,7 @@ interface Props {
   // - 모달 dismiss (X/ESC/backdrop) 시 onClose 가 호출되어 부모가 unmount 한다
   standaloneMode?: {
     onSave: () => Promise<boolean>
-    onClose: () => void
+    onClose: () => void | Promise<void>
     saveLabel: string
     savingLabel: string
   }
@@ -103,7 +103,7 @@ export default function SlotEditor({
 
   const closeModal = useCallback(() => {
     if (standaloneMode) {
-      standaloneMode.onClose()
+      void standaloneMode.onClose()
     } else {
       setOpen(false)
     }
@@ -615,7 +615,7 @@ export default function SlotEditor({
                     setSaving(true)
                     const ok = await standaloneMode.onSave()
                     setSaving(false)
-                    if (ok) standaloneMode.onClose()
+                    if (ok) void standaloneMode.onClose()
                     return
                   }
                   // Auto-stash the current build in browser-local recents so

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import SlotEditor, { type SlotInput } from './SlotEditor'
 import { useToast } from './ToastProvider'
+import { useConfirm } from './ConfirmDialog'
 import { updateSingleSlot } from '@/app/actions/admin'
 import { slotToInput } from '@/lib/slot-to-input'
 import type { EventCategory, Slot } from '@/types'
@@ -35,6 +36,7 @@ export default function SingleSlotEditModal({
   const tCommon = useTranslations('common')
   const tUnsaved = useTranslations('unsavedChanges')
   const toast = useToast()
+  const confirm = useConfirm()
   const router = useRouter()
   const initialSnap = JSON.stringify(slotToInput(slot))
   const [input, setInput] = useState<SlotInput>(() => slotToInput(slot))
@@ -81,11 +83,19 @@ export default function SingleSlotEditModal({
   // 이 모달 안의 미저장만 검사한다 (모달 닫기는 페이지 이탈이 아니다).
   // dirty 를 closure 가 아닌 ref + 현재 input 비교로 재계산해야 같은 클릭의
   // save → close 순차 호출에서 "방금 저장한 상태" 를 정확히 반영한다.
-  const handleClose = useCallback(() => {
+  const handleClose = useCallback(async () => {
     const currentDirty = JSON.stringify(input) !== savedRef.current
-    if (currentDirty && !window.confirm(tUnsaved('confirmLeave'))) return
+    if (currentDirty) {
+      const ok = await confirm({
+        body: tUnsaved('confirmLeave'),
+        confirmLabel: tCommon('confirm'),
+        cancelLabel: tCommon('cancel'),
+        destructive: true,
+      })
+      if (!ok) return
+    }
     onClose()
-  }, [input, onClose, tUnsaved])
+  }, [confirm, input, onClose, tCommon, tUnsaved])
 
   return (
     <SlotEditor
