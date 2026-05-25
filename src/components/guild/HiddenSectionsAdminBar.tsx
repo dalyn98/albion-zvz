@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Eye, Loader2 } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
 import type { AppSettingKey } from '@/lib/app-settings'
+import { useToast } from '@/components/ToastProvider'
 
 export interface HiddenSectionEntry {
   settingKey: AppSettingKey
@@ -25,6 +26,7 @@ export default function HiddenSectionsAdminBar({ enabled, hiddenSections }: Prop
   const router = useRouter()
   const [pendingKey, setPendingKey] = useState<AppSettingKey | null>(null)
   const [, startTransition] = useTransition()
+  const toast = useToast()
 
   if (!enabled || hiddenSections.length === 0) return null
 
@@ -34,7 +36,7 @@ export default function HiddenSectionsAdminBar({ enabled, hiddenSections }: Prop
       const result = await updateAppSetting(key, 'true')
       setPendingKey(null)
       if (result.error) {
-        alert(result.error)
+        toast.error(result.error)
         return
       }
       router.refresh()

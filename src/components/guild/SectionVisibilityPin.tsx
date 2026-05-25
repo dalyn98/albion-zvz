@@ -7,6 +7,7 @@ import { EyeOff, Loader2 } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
 import type { AppSettingKey } from '@/lib/app-settings'
 import { useConfirm } from '@/components/ConfirmDialog'
+import { useToast } from '@/components/ToastProvider'
 
 interface Props {
   enabled: boolean
@@ -26,6 +27,7 @@ export default function SectionVisibilityPin({
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const askConfirm = useConfirm()
+  const toast = useToast()
 
   if (!enabled) return null
 
@@ -35,7 +37,7 @@ export default function SectionVisibilityPin({
     startTransition(async () => {
       const result = await updateAppSetting(settingKey, 'false')
       if (result.error) {
-        alert(result.error)
+        toast.error(result.error)
         return
       }
       router.refresh()

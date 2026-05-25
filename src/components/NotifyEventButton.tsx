@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { Bell, Check, Loader2 } from 'lucide-react'
 import { notifyEvent } from '@/app/actions/admin'
 import { useConfirm } from '@/components/ConfirmDialog'
+import { useToast } from '@/components/ToastProvider'
 
 // How long to show the "sent" checkmark before reverting to the bell icon.
 const SUCCESS_FLASH_MS = 2000
@@ -21,6 +22,7 @@ export default function NotifyEventButton({
   const t = useTranslations('adminDashboard')
   const [state, setState] = useState<'idle' | 'loading' | 'success'>('idle')
   const askConfirm = useConfirm()
+  const toast = useToast()
 
   const handleClick = async () => {
     if (disabled || state !== 'idle') return
@@ -29,7 +31,7 @@ export default function NotifyEventButton({
     setState('loading')
     const result = await notifyEvent(eventId)
     if (result.error) {
-      alert(`${t('notifyErrorPrefix')}: ${result.error}`)
+      toast.error(`${t('notifyErrorPrefix')}: ${result.error}`)
       setState('idle')
       return
     }

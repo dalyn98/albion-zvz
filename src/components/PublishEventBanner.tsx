@@ -19,6 +19,7 @@ import { Send, AlertCircle } from 'lucide-react'
 import { publishEvent } from '@/app/actions/admin'
 import { useEventEditSaveAll } from './EventEditSaveRegistry'
 import type { Event } from '@/types'
+import { useToast } from '@/components/ToastProvider'
 
 interface Props {
   event: Event
@@ -38,6 +39,7 @@ export default function PublishEventBanner({ event, summary }: Props) {
   const saveCtx = useEventEditSaveAll()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const toast = useToast()
 
   // 서버 검증이 publishEvent 내부에서 이루어지지만, 최소한의 로컬 힌트를 위해
   // 누락 필드를 표시해 사용자가 "왜 발행이 안되는지" 를 바로 알 수 있게 한다.
@@ -70,10 +72,10 @@ export default function PublishEventBanner({ event, summary }: Props) {
       return
     }
     // 발행은 성공했지만 자동 알림이 실패한 경우 — 발행 자체는 막지 않고
-    // 사용자에게 알림 실패 사유를 alert 로 알려준다. 종 버튼으로 수동 재시도
+    // 사용자에게 알림 실패 사유를 toast 로 알려준다. 종 버튼으로 수동 재시도
     // 가능하므로 페이지 이동은 정상 진행.
     if (result.warning) {
-      alert(t('publishedNotifyFailed', { error: result.warning }))
+      toast.error(t('publishedNotifyFailed', { error: result.warning }))
     }
     // 발행 성공 시 이벤트 목록(대시보드)으로 이동 — 편집 화면에 머무르면 발행 후
     // 또 무엇을 해야 할지 사용자가 망설이게 된다. publishEvent 가 이미 dashboard

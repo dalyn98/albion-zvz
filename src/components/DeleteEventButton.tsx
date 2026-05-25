@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { Trash2 } from 'lucide-react'
 import { deleteEvent } from '@/app/actions/admin'
 import { useConfirm } from '@/components/ConfirmDialog'
+import { useToast } from '@/components/ToastProvider'
 
 interface Props {
   eventId: string
@@ -17,13 +18,14 @@ export default function DeleteEventButton({ eventId, redirectTo, variant = 'icon
   const t = useTranslations('adminDashboard')
   const tCommon = useTranslations('common')
   const askConfirm = useConfirm()
+  const toast = useToast()
 
   const handleDelete = async () => {
     const ok = await askConfirm({ body: t('confirmDeleteEvent'), destructive: true })
     if (!ok) return
     const result = await deleteEvent(eventId)
     if (result.error) {
-      alert(result.error)
+      toast.error(result.error)
       return
     }
     if (redirectTo) {

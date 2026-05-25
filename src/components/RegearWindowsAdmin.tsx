@@ -17,6 +17,7 @@ import {
 import FourPartTimeInput, { BLANK_GATHER_PARTS, isAllBlank } from './FourPartTimeInput'
 import { formatDateTime } from '@/lib/format-datetime'
 import { useConfirm } from '@/components/ConfirmDialog'
+import { useToast } from '@/components/ToastProvider'
 
 interface RegearWindowsAdminProps {
   initialWindows: RegearWindow[]
@@ -30,6 +31,7 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
   const [formError, setFormError] = useState<string | null>(null)
   const [parts, setParts] = useState<GatherTimeParts>(BLANK_GATHER_PARTS)
   const askConfirm = useConfirm()
+  const toast = useToast()
 
   const allBlank = isAllBlank(parts)
   const parsed = allBlank ? null : parseGatherTime(parts, { timezone: tenantTimezone })
@@ -85,7 +87,7 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
     startTransition(async () => {
       const res = await closeRegearWindow(id)
       if (res.error) {
-        alert(res.error)
+        toast.error(res.error)
         return
       }
       setWindows((prev) =>
@@ -104,7 +106,7 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
     startTransition(async () => {
       const res = await deleteRegearWindow(id)
       if (res.error) {
-        alert(res.error)
+        toast.error(res.error)
         return
       }
       setWindows((prev) => prev.filter((w) => w.id !== id))
