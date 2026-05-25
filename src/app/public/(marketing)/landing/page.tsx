@@ -462,7 +462,7 @@ export default async function PublicLandingPage() {
                 {t('pricingCta')}
               </Link>
               <Link
-                href="/demo"
+                href={paths.demo}
                 className="inline-flex items-center justify-center bg-gray-800/60 hover:bg-gray-800 border border-gray-700 text-white font-semibold px-5 py-2.5 rounded-lg transition-colors"
               >
                 {t('tryDemoButton')}
