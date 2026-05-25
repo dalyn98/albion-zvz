@@ -13,7 +13,7 @@ import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { getLocalizedItemName } from '@/lib/item-names'
-import { DEFAULT_TENANT_TIMEZONE, toZonedParts } from '@/lib/timezone'
+import { toZonedParts } from '@/lib/timezone'
 import type { Locale } from '@/i18n/locales'
 import {
   Upload,
@@ -53,12 +53,13 @@ interface AggregatedStockChange {
 
 interface Props {
   lastImportAt: string | null
+  timezone: string
   // 서버가 요청 시점 기준으로 계산한 stale 여부. 클라에서 Date.now() 를
   // render 시 호출하면 react-compiler purity 룰 위반 — 그래서 prop 으로 받음.
   isImportStale: boolean
 }
 
-export default function ShopImportForm({ lastImportAt, isImportStale }: Props) {
+export default function ShopImportForm({ lastImportAt, timezone, isImportStale }: Props) {
   const router = useRouter()
   const t = useTranslations('adminShopImport')
   const [text, setText] = useState('')
@@ -212,7 +213,7 @@ export default function ShopImportForm({ lastImportAt, isImportStale }: Props) {
             <h2 className="font-bold text-white">{t('title')}</h2>
             <p className="text-gray-500 text-xs mt-1">{t('description')}</p>
           </div>
-          <LastImportBadge iso={lastImportAt} stale={isImportStale} t={t} />
+          <LastImportBadge iso={lastImportAt} stale={isImportStale} timezone={timezone} t={t} />
         </div>
 
         {!lastImportAt && (
@@ -303,10 +304,17 @@ export default function ShopImportForm({ lastImportAt, isImportStale }: Props) {
         )}
       </div>
 
-      {latestBatch && <StagingStatusCard preview={latestBatch.preview} t={t} />}
+      {latestBatch && (
+        <StagingStatusCard preview={latestBatch.preview} timezone={timezone} t={t} />
+      )}
 
       {batches.length > 0 && (
-        <StagedBatchesCard batches={batches} onDiscard={handleDiscardBatch} t={t} />
+        <StagedBatchesCard
+          batches={batches}
+          onDiscard={handleDiscardBatch}
+          timezone={timezone}
+          t={t}
+        />
       )}
 
       {batches.length > 0 && (
@@ -391,7 +399,15 @@ function aggregateStockChanges(batches: StagedBatch[]): AggregatedStockChange[] 
   return [...byKey.values()].sort((a, b) => b.delta - a.delta)
 }
 
-function StagingStatusCard({ preview, t }: { preview: ImportSummary; t: ImportTranslator }) {
+function StagingStatusCard({
+  preview,
+  timezone,
+  t,
+}: {
+  preview: ImportSummary
+  timezone: string
+  t: ImportTranslator
+}) {
   const {
     lastKnownLoggedAt,
     lastKnownLabel,
@@ -418,7 +434,7 @@ function StagingStatusCard({ preview, t }: { preview: ImportSummary; t: ImportTr
     title = t('stagingNoPrevTitle')
     body = t('stagingNoPrevBody', { count: newEntriesAfterLast })
   } else {
-    const when = formatLoggedAt(lastKnownLoggedAt)
+    const when = formatLoggedAt(lastKnownLoggedAt, timezone)
     const tail = lastKnownLabel ? ` · ${lastKnownLabel}` : ''
     if (newEntriesAfterLast === 0 && lastKnownInBatch) {
       tone = 'ok'
@@ -493,10 +509,12 @@ function formatGap(ms: number | null, t: ImportTranslator): string | null {
 function StagedBatchesCard({
   batches,
   onDiscard,
+  timezone,
   t,
 }: {
   batches: StagedBatch[]
   onDiscard: (id: string) => void
+  timezone: string
   t: ImportTranslator
 }) {
   return (
@@ -525,7 +543,7 @@ function StagedBatchesCard({
                     </span>
                   )}
                 </span>
-                <span className="text-gray-500">{formatLoggedAt(b.pastedAtIso)}</span>
+                <span className="text-gray-500">{formatLoggedAt(b.pastedAtIso, timezone)}</span>
               </div>
               <button
                 type="button"
@@ -546,10 +564,12 @@ function StagedBatchesCard({
 function LastImportBadge({
   iso,
   stale,
+  timezone,
   t,
 }: {
   iso: string | null
   stale: boolean
+  timezone: string
   t: ImportTranslator
 }) {
   if (!iso) {
@@ -565,7 +585,7 @@ function LastImportBadge({
     <div className={`flex items-center gap-1 text-[11px] shrink-0 ${color}`}>
       <Clock size={11} />
       <span>
-        {t('importBadgeLast', { when: formatLoggedAt(iso) })}
+        {t('importBadgeLast', { when: formatLoggedAt(iso, timezone) })}
         {stale && <span className="ml-1">{t('importBadgeStale')}</span>}
       </span>
     </div>
@@ -787,9 +807,9 @@ function StatCell({
   )
 }
 
-function formatLoggedAt(iso: string): string {
+function formatLoggedAt(iso: string, timezone: string): string {
   if (Number.isNaN(new Date(iso).getTime())) return iso
-  const p = toZonedParts(iso, DEFAULT_TENANT_TIMEZONE)
+  const p = toZonedParts(iso, timezone)
   const mm = String(p.month).padStart(2, '0')
   const dd = String(p.day).padStart(2, '0')
   const hh = String(p.hour).padStart(2, '0')

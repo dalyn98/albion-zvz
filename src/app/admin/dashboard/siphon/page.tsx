@@ -100,7 +100,7 @@ export default async function AdminSiphonPage(props: SearchParams) {
         </div>
       )}
 
-      <SiphonImportForm lastImportAt={lastImportAt} />
+      <SiphonImportForm lastImportAt={lastImportAt} timezone={tenantTimezone} />
 
       <LogOperatingStartSettingsForm
         domains={['siphon']}
@@ -112,7 +112,7 @@ export default async function AdminSiphonPage(props: SearchParams) {
 
       <SiphonResetPanel />
 
-      <SiphonBalanceTable balances={balances} />
+      <SiphonBalanceTable balances={balances} timezone={tenantTimezone} />
 
       <SiphonLogTable
         rows={ledgerRows}
@@ -120,6 +120,7 @@ export default async function AdminSiphonPage(props: SearchParams) {
         page={page}
         pageSize={LOG_PAGE_SIZE}
         playerFilter={playerFilter ?? null}
+        timezone={tenantTimezone}
       />
     </div>
   )

@@ -11,13 +11,14 @@ import {
   importSiphonLog,
   type SiphonImportSummary,
 } from '@/app/actions/siphon-admin'
-import { DEFAULT_TENANT_TIMEZONE, toZonedParts } from '@/lib/timezone'
+import { toZonedParts } from '@/lib/timezone'
 
 interface Props {
   lastImportAt: string | null
+  timezone: string
 }
 
-export default function SiphonImportForm({ lastImportAt }: Props) {
+export default function SiphonImportForm({ lastImportAt, timezone }: Props) {
   const router = useRouter()
   const t = useTranslations('adminSiphonPage')
   const [text, setText] = useState('')
@@ -95,7 +96,7 @@ export default function SiphonImportForm({ lastImportAt }: Props) {
               {t('importDescription')}
             </p>
           </div>
-          <LastImportBadge iso={lastImportAt} />
+          <LastImportBadge iso={lastImportAt} timezone={timezone} />
         </div>
 
         {!lastImportAt && (
@@ -172,7 +173,7 @@ export default function SiphonImportForm({ lastImportAt }: Props) {
         )}
       </div>
 
-      {preview && <PreviewCard preview={preview} t={t} />}
+      {preview && <PreviewCard preview={preview} t={t} timezone={timezone} />}
 
       {commitResult && (
         <div className="bg-emerald-500/10 border border-emerald-500/40 rounded-xl p-4 flex items-center gap-2">
@@ -192,13 +193,15 @@ export default function SiphonImportForm({ lastImportAt }: Props) {
 function PreviewCard({
   preview,
   t,
+  timezone,
 }: {
   preview: SiphonImportSummary
   t: ReturnType<typeof useTranslations<'adminSiphonPage'>>
+  timezone: string
 }) {
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 space-y-3">
-      <SiphonContinuityCard preview={preview} t={t} />
+      <SiphonContinuityCard preview={preview} t={t} timezone={timezone} />
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <StatCell label={t('previewParsed')} value={preview.parsedTotal} />
         <StatCell
@@ -257,9 +260,11 @@ function PreviewCard({
 function SiphonContinuityCard({
   preview,
   t,
+  timezone,
 }: {
   preview: SiphonImportSummary
   t: ReturnType<typeof useTranslations<'adminSiphonPage'>>
+  timezone: string
 }) {
   const {
     lastKnownLoggedAt,
@@ -282,7 +287,7 @@ function SiphonContinuityCard({
     title = t('continuityNoPrevTitle')
     body = t('continuityNoPrevBody', { count: newEntriesAfterLast })
   } else {
-    const when = formatLoggedAt(lastKnownLoggedAt)
+    const when = formatLoggedAt(lastKnownLoggedAt, timezone)
     const tail = lastKnownLabel ? ` · ${lastKnownLabel}` : ''
     if (newEntriesAfterLast === 0 && lastKnownInBatch) {
       tone = 'ok'
@@ -356,8 +361,8 @@ function formatGap(
   return t('gapDays', { days, hours: hours % 24 })
 }
 
-function formatLoggedAt(iso: string): string {
-  const p = toZonedParts(iso, DEFAULT_TENANT_TIMEZONE)
+function formatLoggedAt(iso: string, timezone: string): string {
+  const p = toZonedParts(iso, timezone)
   return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(
     2,
     '0',
@@ -389,9 +394,9 @@ function StatCell({
   )
 }
 
-function LastImportBadge({ iso }: { iso: string | null }) {
+function LastImportBadge({ iso, timezone }: { iso: string | null; timezone: string }) {
   if (!iso) return null
-  const formatted = formatLoggedAt(iso)
+  const formatted = formatLoggedAt(iso, timezone)
   return (
     <div className="flex items-center gap-1 text-[11px] text-gray-400 shrink-0">
       <Clock size={11} />

@@ -6,13 +6,14 @@
 import { getTranslations } from 'next-intl/server'
 import { Wallet } from 'lucide-react'
 import type { SiphonPlayerBalance } from '@/app/actions/siphon-admin'
-import { DEFAULT_TENANT_TIMEZONE, toZonedParts } from '@/lib/timezone'
+import { toZonedParts } from '@/lib/timezone'
 
 interface Props {
   balances: SiphonPlayerBalance[]
+  timezone: string
 }
 
-export default async function SiphonBalanceTable({ balances }: Props) {
+export default async function SiphonBalanceTable({ balances, timezone }: Props) {
   const t = await getTranslations('adminSiphonPage')
   // net asc → "많이 쓴 사람" 위. 같은 net 이면 player 알파벳 순.
   const sorted = [...balances].sort((a, b) => {
@@ -82,7 +83,7 @@ export default async function SiphonBalanceTable({ balances }: Props) {
                     {b.net.toLocaleString()}
                   </td>
                   <td className="py-1.5 text-right text-xs text-gray-500">
-                    {b.lastActivityAt ? formatLoggedAt(b.lastActivityAt) : '—'}
+                    {b.lastActivityAt ? formatLoggedAt(b.lastActivityAt, timezone) : '—'}
                   </td>
                 </tr>
               ))}
@@ -94,8 +95,8 @@ export default async function SiphonBalanceTable({ balances }: Props) {
   )
 }
 
-function formatLoggedAt(iso: string): string {
+function formatLoggedAt(iso: string, timezone: string): string {
   if (Number.isNaN(new Date(iso).getTime())) return iso
-  const p = toZonedParts(iso, DEFAULT_TENANT_TIMEZONE)
+  const p = toZonedParts(iso, timezone)
   return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')} ${String(p.hour).padStart(2, '0')}:${String(p.minute).padStart(2, '0')}`
 }

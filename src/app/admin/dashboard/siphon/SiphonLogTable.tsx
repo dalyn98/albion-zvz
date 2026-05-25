@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { ScrollText } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import type { SiphonLedgerRow } from '@/app/actions/siphon-admin'
-import { DEFAULT_TENANT_TIMEZONE, toZonedParts } from '@/lib/timezone'
+import { toZonedParts } from '@/lib/timezone'
 import SiphonRowDeleteButton from './SiphonRowDeleteButton'
 
 interface Props {
@@ -14,6 +14,7 @@ interface Props {
   page: number
   pageSize: number
   playerFilter: string | null
+  timezone: string
 }
 
 export default async function SiphonLogTable({
@@ -22,6 +23,7 @@ export default async function SiphonLogTable({
   page,
   pageSize,
   playerFilter,
+  timezone,
 }: Props) {
   const t = await getTranslations('adminSiphonPage')
   const offsetStart = total === 0 ? 0 : (page - 1) * pageSize + 1
@@ -73,7 +75,7 @@ export default async function SiphonLogTable({
                 {rows.map((r) => (
                   <tr key={r.id} className="border-b border-gray-800/50">
                     <td className="py-1.5 text-xs text-gray-400 font-mono">
-                      {formatLoggedAt(r.loggedAt)}
+                      {formatLoggedAt(r.loggedAt, timezone)}
                     </td>
                     <td className="py-1.5 text-sm text-gray-200">
                       {r.player}
@@ -135,8 +137,8 @@ export default async function SiphonLogTable({
   )
 }
 
-function formatLoggedAt(iso: string): string {
+function formatLoggedAt(iso: string, timezone: string): string {
   if (Number.isNaN(new Date(iso).getTime())) return iso
-  const p = toZonedParts(iso, DEFAULT_TENANT_TIMEZONE)
+  const p = toZonedParts(iso, timezone)
   return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')} ${String(p.hour).padStart(2, '0')}:${String(p.minute).padStart(2, '0')}`
 }

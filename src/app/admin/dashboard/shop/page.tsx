@@ -190,7 +190,11 @@ export default async function AdminShopPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="space-y-4">
-          <ShopImportForm lastImportAt={lastImportAt} isImportStale={isImportStale} />
+          <ShopImportForm
+            lastImportAt={lastImportAt}
+            timezone={tenantTimezone}
+            isImportStale={isImportStale}
+          />
           <LogOperatingStartSettingsForm
             domains={['shopChest']}
             timezone={tenantTimezone}
