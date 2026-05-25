@@ -135,6 +135,7 @@ export async function importGuildBackupAction(
     revalidatePath('/shop')
     revalidatePath('/me')
     revalidatePath('/me/profile')
+    revalidatePath('/', 'layout')
     return { summary }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -148,4 +149,3 @@ function safeParseJson(raw: string): { ok: true; value: unknown } | { ok: false 
     return { ok: false }
   }
 }
-

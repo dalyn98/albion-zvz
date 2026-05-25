@@ -12,7 +12,9 @@ import {
   clearManualPrice,
   deleteInventoryRow,
   resetShopInventory,
+  rebuildShopInventoryFromOperatingStart,
   type PriceSyncSummary,
+  type RebuildInventoryResult,
 } from '@/app/actions/shop-inventory'
 import { computePointPrice } from '@/lib/shop/price'
 import { formatRelativeFine } from '@/lib/relative-time'
@@ -134,6 +136,7 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
     stockRowsZeroed: number
     logsDeleted: number
   } | null>(null)
+  const [rebuildSummary, setRebuildSummary] = useState<RebuildInventoryResult | null>(null)
   const [query, setQuery] = useState('')
   const [filterTier, setFilterTier] = useState<number | 'all'>('all')
   const askConfirm = useConfirm()
@@ -166,6 +169,7 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
     setError('')
     setSyncSummary(null)
     setResetSummary(null)
+    setRebuildSummary(null)
     startTransition(async () => {
       const result = await syncShopPrices()
       setSyncSummary(result)
@@ -180,6 +184,7 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
     setError('')
     setSyncSummary(null)
     setResetSummary(null)
+    setRebuildSummary(null)
     startTransition(async () => {
       const result = await resetShopInventory()
       if (result.error) {
@@ -190,6 +195,24 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
         stockRowsZeroed: result.stockRowsZeroed,
         logsDeleted: result.logsDeleted,
       })
+      router.refresh()
+    })
+  }
+
+  const handleRebuild = async () => {
+    const ok = await askConfirm({ body: t('rebuildConfirm'), destructive: true })
+    if (!ok) return
+    setError('')
+    setSyncSummary(null)
+    setResetSummary(null)
+    setRebuildSummary(null)
+    startTransition(async () => {
+      const result = await rebuildShopInventoryFromOperatingStart()
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      setRebuildSummary(result)
       router.refresh()
     })
   }
@@ -224,6 +247,16 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
           <RotateCcw size={12} />
           {t('resetButton')}
         </button>
+        <button
+          type="button"
+          onClick={handleRebuild}
+          disabled={pending}
+          className="flex items-center gap-1.5 bg-gray-800 hover:bg-sky-900/40 hover:border-sky-700 border border-gray-700 disabled:bg-gray-900 disabled:text-gray-600 disabled:border-gray-800 text-sky-200 px-3 py-1.5 rounded-lg transition-colors text-xs"
+          title={t('rebuildTitle')}
+        >
+          <RefreshCw size={12} />
+          {t('rebuildButton')}
+        </button>
       </div>
 
       <p className="text-gray-500 text-xs">
@@ -245,6 +278,15 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
           {t('resetSummary', {
             rows: resetSummary.stockRowsZeroed.toLocaleString(),
             logs: resetSummary.logsDeleted.toLocaleString(),
+          })}
+        </div>
+      )}
+      {rebuildSummary !== null && (
+        <div className="text-xs text-sky-200 bg-sky-500/10 border border-sky-500/30 rounded-lg px-3 py-1.5">
+          {t('rebuildSummary', {
+            before: rebuildSummary.beforeTotal.toLocaleString(),
+            after: rebuildSummary.afterTotal.toLocaleString(),
+            changed: rebuildSummary.changedItems.toLocaleString(),
           })}
         </div>
       )}

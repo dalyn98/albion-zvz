@@ -34,6 +34,7 @@ import { getTenantTimezone } from '@/lib/timezone-server'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAccountAlbionIdentityView } from '@/lib/account-albion-identity'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
+import { listMemberPointLedgerEntries } from '@/lib/point-ledger'
 import {
   aggregateKillboardRows,
   type KillboardRow,
@@ -120,11 +121,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
         .eq('guild_id', guildId)
         .eq('discord_id', discordId)
         .order('created_at', { ascending: false }),
-      db
-        .from('point_ledger')
-        .select('id, delta, reason, memo, created_at, handled_by_username')
-        .eq('guild_id', guildId)
-        .eq('discord_id', discordId),
+      listMemberPointLedgerEntries(db, guildId, discordId),
       // killboard_events 는 albion_player_id 가 비어있는 (resolve 전) 멤버에는
       // 행이 없으므로 빈 결과로 안전하게 떨어진다.
       memberAlbionId
@@ -147,7 +144,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     if (slotsRes.error) return { detail: null, error: slotsRes.error.message }
     if (regearsRes.error) return { detail: null, error: regearsRes.error.message }
     if (exchangesRes.error) return { detail: null, error: exchangesRes.error.message }
-    if (ledgerRes.error) return { detail: null, error: ledgerRes.error.message }
+    if (ledgerRes.error) return { detail: null, error: ledgerRes.error }
     // killboard_events 는 cron sync 실패·지연 등으로 비어 있을 수 있으므로
     // 오류가 나더라도 상세 페이지 자체를 막지 않고 0 으로 fallback.
 
@@ -236,7 +233,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     let earned = 0
     let spent = 0
     const adjustEntries: MemberExchangeEntry[] = []
-    for (const row of ledgerRes.data ?? []) {
+    for (const row of ledgerRes.rows) {
       balance += row.delta
       if (row.delta > 0) earned += row.delta
       else spent += -row.delta
@@ -246,8 +243,8 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
           id: row.id,
           delta: row.delta,
           memo: row.memo,
-          created_at: row.created_at,
-          handled_by_username: row.handled_by_username ?? null,
+          created_at: row.createdAt,
+          handled_by_username: row.handledByUsername,
         })
       }
     }

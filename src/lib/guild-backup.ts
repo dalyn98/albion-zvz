@@ -17,6 +17,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { TemplateData } from '@/app/actions/templates'
 import type { SlotTemplateData } from '@/app/actions/slot-templates'
 import { EVENT_CATEGORIES, type EventCategory } from '@/types'
+import { listGuildPointDeltas } from './point-ledger'
 
 export const BACKUP_VERSION = 1
 const POINT_MEMO_PREFIX = 'backup_restore'
@@ -102,22 +103,13 @@ export async function exportGuildBackup(
 }
 
 async function fetchPointBalances(db: Db, guildId: string): Promise<PointBackupEntry[]> {
-  // ledger 합산. 한 길드의 멤버 수가 보통 < 200 이라 단순히 전체를 끌어다
-  // 메모리 그룹으로 처리해도 무리 없다.
-  const { data, error } = await db
-    .from('point_ledger')
-    .select('discord_id, delta, handled_by_username')
-    .eq('guild_id', guildId)
-  if (error) throw new Error(error.message)
+  const { rows, error } = await listGuildPointDeltas(db, guildId)
+  if (error) throw new Error(error)
   const balances = new Map<string, { balance: number; username: string | null }>()
-  for (const row of (data ?? []) as Array<{
-    discord_id: string
-    delta: number
-    handled_by_username: string | null
-  }>) {
-    const prev = balances.get(row.discord_id)
-    const sum = (prev?.balance ?? 0) + (row.delta ?? 0)
-    balances.set(row.discord_id, { balance: sum, username: prev?.username ?? null })
+  for (const row of rows) {
+    const prev = balances.get(row.discordId)
+    const sum = (prev?.balance ?? 0) + row.delta
+    balances.set(row.discordId, { balance: sum, username: prev?.username ?? null })
   }
   // 닉네임은 guild_avatars.username 에서 가져와 채워준다 — 백업 보고용 표시 필드.
   const { data: avatars, error: avatarErr } = await db
@@ -387,14 +379,11 @@ async function fetchGuildMemberDiscordIds(db: Db, guildId: string): Promise<Set<
 }
 
 async function fetchCurrentBalances(db: Db, guildId: string): Promise<Map<string, number>> {
-  const { data, error } = await db
-    .from('point_ledger')
-    .select('discord_id, delta')
-    .eq('guild_id', guildId)
-  if (error) throw new Error(error.message)
+  const { rows, error } = await listGuildPointDeltas(db, guildId)
+  if (error) throw new Error(error)
   const balances = new Map<string, number>()
-  for (const r of (data ?? []) as Array<{ discord_id: string; delta: number }>) {
-    balances.set(r.discord_id, (balances.get(r.discord_id) ?? 0) + (r.delta ?? 0))
+  for (const r of rows) {
+    balances.set(r.discordId, (balances.get(r.discordId) ?? 0) + r.delta)
   }
   return balances
 }

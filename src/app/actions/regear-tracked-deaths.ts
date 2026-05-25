@@ -293,6 +293,7 @@ export async function submitTrackedAdHocRegear(
   revalidatePath('/regear')
   revalidatePath('/me')
   revalidatePath('/admin/dashboard/regear')
+  revalidatePath('/', 'layout')
   return { id: inserted.id as string }
 }
 

@@ -6,6 +6,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { requireAlbionVerified } from '@/lib/albion-identity'
+import { getMemberPointBalance } from '@/lib/point-ledger'
 
 export interface MyExchangeRequest {
   id: string
@@ -34,13 +35,8 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
   // Check balance — the DB unique-partial index blocks multiple pending
   // requests per user, and approve_exchange_request re-checks under lock,
   // so this is just a fast pre-validation for UX.
-  const { data: ledger, error: ledgerError } = await db
-    .from('point_ledger')
-    .select('delta')
-    .eq('guild_id', guildId)
-    .eq('discord_id', session.discordId)
-  if (ledgerError) return { error: ledgerError.message }
-  const balance = (ledger ?? []).reduce((sum, row) => sum + row.delta, 0)
+  const { balance, error: balanceError } = await getMemberPointBalance(db, guildId, session.discordId)
+  if (balanceError) return { error: balanceError }
   if (balance < silver) {
     return { error: tErr('insufficientBalance', { balance: balance.toLocaleString() }) }
   }
@@ -65,6 +61,7 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
 
   revalidatePath('/me')
   revalidatePath('/admin/dashboard/exchanges')
+  revalidatePath('/', 'layout')
   return { id: data.id }
 }
 
@@ -99,6 +96,7 @@ export async function cancelMyExchangeRequest(id: string): Promise<{ error?: str
 
   revalidatePath('/me')
   revalidatePath('/admin/dashboard/exchanges')
+  revalidatePath('/', 'layout')
   return {}
 }
 
@@ -127,13 +125,8 @@ export async function updateMyExchangeRequest(
   if (row.status !== 'pending') return { error: tErr('alreadyProcessedCannotEdit') }
 
   // Re-check balance against current ledger — same guard requestExchange uses.
-  const { data: ledger, error: ledgerError } = await db
-    .from('point_ledger')
-    .select('delta')
-    .eq('guild_id', guildId)
-    .eq('discord_id', session.discordId)
-  if (ledgerError) return { error: ledgerError.message }
-  const balance = (ledger ?? []).reduce((sum, r) => sum + r.delta, 0)
+  const { balance, error: balanceError } = await getMemberPointBalance(db, guildId, session.discordId)
+  if (balanceError) return { error: balanceError }
   if (balance < silver) {
     return { error: tErr('insufficientBalance', { balance: balance.toLocaleString() }) }
   }
@@ -148,6 +141,7 @@ export async function updateMyExchangeRequest(
 
   revalidatePath('/me')
   revalidatePath('/admin/dashboard/exchanges')
+  revalidatePath('/', 'layout')
   return {}
 }
 

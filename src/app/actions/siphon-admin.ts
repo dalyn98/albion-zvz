@@ -29,6 +29,13 @@ import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 // 인게임 한 번 export 가 이 한도를 넘지 않는다.
 const IMPORT_ROW_LIMIT = 5000
 
+function revalidateSiphonLedgerSurfaces(): void {
+  revalidatePath('/admin/dashboard/siphon')
+  revalidatePath('/me')
+  revalidatePath('/me/siphon')
+  revalidatePath('/', 'layout')
+}
+
 export interface SiphonImportSummary {
   // 원본 텍스트에서 파싱된 총 entry 수. 과거 6필드 로그에서는 siphon 외 행도 포함.
   parsedTotal: number
@@ -318,7 +325,7 @@ export async function importSiphonLog(
       }
     }
 
-    revalidatePath('/admin/dashboard/siphon')
+    revalidateSiphonLedgerSurfaces()
 
     await logAdminAction({
       guildId,
@@ -541,9 +548,7 @@ export async function resetSiphonLedger(): Promise<ResetSiphonLedgerResult> {
     if (error) return { ...empty, error: error.message }
 
     const deletedRowsCount = deletedRows?.length ?? 0
-    revalidatePath('/admin/dashboard/siphon')
-    revalidatePath('/me')
-    revalidatePath('/me/siphon')
+    revalidateSiphonLedgerSurfaces()
 
     await logAdminAction({
       guildId,
@@ -592,7 +597,7 @@ export async function deleteSiphonRow(
       return { error: 'not-found' }
     }
 
-    revalidatePath('/admin/dashboard/siphon')
+    revalidateSiphonLedgerSurfaces()
 
     await logAdminAction({
       guildId,

@@ -14,6 +14,11 @@ import { getTranslations } from 'next-intl/server'
 import { getAdminBadgeCounts } from '@/lib/admin-badges'
 import { getAdminClient } from '@/lib/supabase-admin'
 import type { TenantDiscordConfig } from '@/lib/tenant'
+import {
+  canUseGuildResourceFeatures,
+  type AlbionIdentityRelation,
+  type AlbionIdentityTrustStatus,
+} from '@/lib/account-albion-identity'
 
 interface Props {
   guildId: string
@@ -43,6 +48,21 @@ const SYNC_KEYS = [
   'last_auto_regear_at',
 ] as const
 
+const RELATIONS = ['home_guild', 'alliance', 'external', 'unknown'] as const
+const TRUST_STATUSES = ['claimed', 'roster_matched', 'trusted', 'disputed', 'revoked'] as const
+const PAGE_SIZE = 1000
+
+interface ActiveMemberIdentityRow {
+  discord_id: string
+  albion_verified_at: string | null
+}
+
+interface TenantLinkIdentityRow {
+  discord_id: string
+  relation: string | null
+  trust_status: string | null
+}
+
 function minutesSince(iso: string | null | undefined, nowMs: number): number | null {
   if (!iso) return null
   const ms = Date.parse(iso)
@@ -53,6 +73,70 @@ function minutesSince(iso: string | null | undefined, nowMs: number): number | n
 function isFresh(iso: string | null | undefined, nowMs: number, maxAgeMinutes: number): boolean {
   const age = minutesSince(iso, nowMs)
   return age !== null && age <= maxAgeMinutes
+}
+
+function normalizeRelation(value: unknown): AlbionIdentityRelation | null {
+  return typeof value === 'string' && (RELATIONS as readonly string[]).includes(value)
+    ? value as AlbionIdentityRelation
+    : null
+}
+
+function normalizeTrustStatus(value: unknown): AlbionIdentityTrustStatus | null {
+  return typeof value === 'string' && (TRUST_STATUSES as readonly string[]).includes(value)
+    ? value as AlbionIdentityTrustStatus
+    : null
+}
+
+function isResourceVerifiedMember(
+  member: ActiveMemberIdentityRow,
+  link: TenantLinkIdentityRow | undefined,
+): boolean {
+  if (link) {
+    return canUseGuildResourceFeatures({
+      relation: normalizeRelation(link.relation) ?? 'unknown',
+      trustStatus: normalizeTrustStatus(link.trust_status) ?? 'claimed',
+    })
+  }
+  return Boolean(member.albion_verified_at)
+}
+
+async function listActiveMemberIdentityRows(
+  db: ReturnType<typeof getAdminClient>,
+  guildId: string,
+): Promise<ActiveMemberIdentityRow[]> {
+  const rows: ActiveMemberIdentityRow[] = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await db
+      .from('guild_avatars')
+      .select('discord_id, albion_verified_at')
+      .eq('guild_id', guildId)
+      .is('withdrawn_at', null)
+      .order('discord_id', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1)
+    if (error) return rows
+    const page = (data ?? []) as ActiveMemberIdentityRow[]
+    rows.push(...page)
+    if (page.length < PAGE_SIZE) return rows
+  }
+}
+
+async function listTenantLinkIdentityRows(
+  db: ReturnType<typeof getAdminClient>,
+  guildId: string,
+): Promise<TenantLinkIdentityRow[]> {
+  const rows: TenantLinkIdentityRow[] = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await db
+      .from('account_albion_tenant_links')
+      .select('discord_id, relation, trust_status')
+      .eq('guild_id', guildId)
+      .order('discord_id', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1)
+    if (error) return rows
+    const page = (data ?? []) as TenantLinkIdentityRow[]
+    rows.push(...page)
+    if (page.length < PAGE_SIZE) return rows
+  }
 }
 
 async function loadSnapshot(
@@ -67,8 +151,8 @@ async function loadSnapshot(
     settingsRes,
     upcomingEventsRes,
     draftEventsRes,
-    activeMembersRes,
-    unverifiedMembersRes,
+    activeMembers,
+    identityLinks,
   ] = await Promise.all([
     getAdminBadgeCounts(guildId),
     db
@@ -87,17 +171,8 @@ async function loadSnapshot(
       .select('id', { count: 'exact', head: true })
       .eq('guild_id', guildId)
       .eq('status', 'draft'),
-    db
-      .from('guild_avatars')
-      .select('discord_id', { count: 'exact', head: true })
-      .eq('guild_id', guildId)
-      .is('withdrawn_at', null),
-    db
-      .from('guild_avatars')
-      .select('discord_id', { count: 'exact', head: true })
-      .eq('guild_id', guildId)
-      .is('withdrawn_at', null)
-      .is('albion_verified_at', null),
+    listActiveMemberIdentityRows(db, guildId),
+    listTenantLinkIdentityRows(db, guildId),
   ])
 
   const settingMap = new Map(
@@ -120,6 +195,10 @@ async function loadSnapshot(
     badges.shop +
     badges.eventPayout +
     badges.craft
+  const identityLinkMap = new Map(identityLinks.map((link) => [link.discord_id, link]))
+  const unverifiedMembers = activeMembers.filter(
+    (member) => !isResourceVerifiedMember(member, identityLinkMap.get(member.discord_id)),
+  ).length
 
   const botMissing = !tenantConfig?.botInstalled
   const eventChannelMissing = !tenantConfig?.eventChannelId
@@ -139,8 +218,8 @@ async function loadSnapshot(
     pendingTotal,
     upcomingEvents: upcomingEventsRes.count ?? 0,
     draftEvents: draftEventsRes.count ?? 0,
-    activeMembers: activeMembersRes.count ?? 0,
-    unverifiedMembers: unverifiedMembersRes.count ?? 0,
+    activeMembers: activeMembers.length,
+    unverifiedMembers,
     requiredMissing,
     setupHref,
     staleSyncCount,

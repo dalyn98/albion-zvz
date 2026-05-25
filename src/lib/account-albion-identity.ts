@@ -346,9 +346,16 @@ export async function refreshMemberAlbionIdentity(
       .eq('discord_id', discordId)
   }
 
+  revalidatePath('/admin/dashboard')
+  revalidatePath('/admin/dashboard/stats')
+  revalidatePath(`/members/${discordId}`)
   revalidatePath('/me')
   revalidatePath('/me/profile')
-  revalidatePath('/admin/dashboard/stats')
+  revalidatePath('/me/siphon')
+  revalidatePath('/', 'layout')
+  if (opts.manual) {
+    revalidatePath('/onboarding/albion')
+  }
   return { ok: true, view: await getAccountAlbionIdentityView(guildId, discordId) ?? undefined }
 }
 

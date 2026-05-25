@@ -72,6 +72,7 @@ export async function cancelMyRegearRequest(id: string): Promise<{ error?: strin
   revalidatePath('/regear')
   revalidatePath('/me')
   revalidatePath('/admin/dashboard/regear')
+  revalidatePath('/', 'layout')
   return {}
 }
 

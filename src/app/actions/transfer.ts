@@ -6,6 +6,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { requireAlbionVerified } from '@/lib/albion-identity'
+import { getMemberPointBalance } from '@/lib/point-ledger'
 
 // 길드원 → 길드원 포인트 양도. 여러 명 일괄 지급 지원.
 // 원자성은 RPC transfer_points 가 보장(advisory lock + 잔액 체크 + 쌍 기록).
@@ -69,13 +70,8 @@ export async function transferPoints(
   // 서버에서 잔액을 먼저 확인 (UX 용 빠른 실패). RPC 가 lock 아래에서 재확인하므로
   // 이 체크가 race 를 유발하진 않는다.
   const total = transfers.reduce((sum, t) => sum + t.amount, 0)
-  const { data: ledger, error: ledgerError } = await db
-    .from('point_ledger')
-    .select('delta')
-    .eq('guild_id', guildId)
-    .eq('discord_id', session.discordId)
-  if (ledgerError) return { error: ledgerError.message }
-  const balance = (ledger ?? []).reduce((sum, r) => sum + r.delta, 0)
+  const { balance, error: balanceError } = await getMemberPointBalance(db, guildId, session.discordId)
+  if (balanceError) return { error: balanceError }
   if (balance < total) {
     return { error: tErr('insufficientBalance', { balance: balance.toLocaleString() }) }
   }
@@ -101,6 +97,7 @@ export async function transferPoints(
     revalidatePath(`/members/${t.discordId}`)
   }
   revalidatePath('/members')
+  revalidatePath('/', 'layout')
 
   return { refId: typeof data === 'string' ? data : undefined }
 }

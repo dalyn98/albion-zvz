@@ -355,6 +355,7 @@ export async function convertCraftTaskToSilverAdmin(
 
     revalidatePath('/admin/dashboard/craft')
     revalidatePath('/me')
+    revalidatePath('/', 'layout')
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,
@@ -407,6 +408,7 @@ export async function revertCraftTaskToPendingAdmin(
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/craft/queue')
     revalidatePath('/me')
+    revalidatePath('/', 'layout')
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,

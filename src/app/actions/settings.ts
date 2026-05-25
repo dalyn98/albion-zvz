@@ -394,6 +394,7 @@ export async function updateAppSetting(
       revalidatePath('/admin/dashboard/siphon')
       revalidatePath('/me')
       revalidatePath('/me/siphon')
+      revalidatePath('/', 'layout')
     }
     if (key === 'log_start_loot_audit_at') {
       revalidatePath('/admin/dashboard/loot-audit')

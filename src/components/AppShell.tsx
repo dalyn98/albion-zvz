@@ -11,7 +11,10 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getMarketingPaths } from '@/lib/marketing-paths'
 import { canAccessAnyOfficerAdminRoute } from '@/lib/admin-route-access'
 import { CAP } from '@/lib/permissions'
+import { getAlbionOnboardingGateState } from '@/lib/albion-identity'
+import { resolveSiphonPlayer } from '@/lib/siphon/member-siphon'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
+import { getMemberPointBalance } from '@/lib/point-ledger'
 import AppSidebar from './AppSidebar'
 import UserStatusChip, {
   type UserStatusSiphonState,
@@ -193,18 +196,15 @@ async function loadUserStatusSummary(
   }
 
   const db = getAdminClient()
-  const [avatarRes, ledgerRes, regearRes, exchangeRes, donationRes] = await Promise.all([
+  const [avatarRes, identityGate, pointBalance, regearRes, exchangeRes, donationRes] = await Promise.all([
     db
       .from('guild_avatars')
-      .select('username, albion_nickname, albion_verified_at')
+      .select('username')
       .eq('guild_id', guildId)
       .eq('discord_id', session.discordId)
       .maybeSingle(),
-    db
-      .from('point_ledger')
-      .select('delta')
-      .eq('guild_id', guildId)
-      .eq('discord_id', session.discordId),
+    getAlbionOnboardingGateState(session.discordId, guildId),
+    getMemberPointBalance(db, guildId, session.discordId),
     db
       .from('regear_requests')
       .select('id', { head: true, count: 'exact' })
@@ -227,18 +227,17 @@ async function loadUserStatusSummary(
 
   const avatar = avatarRes.data as {
     username?: string | null
-    albion_nickname?: string | null
-    albion_verified_at?: string | null
   } | null
+  const siphonPlayer = resolveSiphonPlayer(identityGate)
   const displayName =
-    avatar?.albion_nickname?.trim() ||
+    identityGate.identity?.nickname?.trim() ||
     avatar?.username?.trim() ||
     session.username
-  const balance = (ledgerRes.data ?? []).reduce((sum, row) => sum + (Number(row.delta) || 0), 0)
+  const balance = pointBalance.error ? 0 : pointBalance.balance
   const pendingRegearCount = regearRes.count ?? 0
   const pendingExchangeCount = exchangeRes.count ?? 0
   const pendingDonationCount = donationRes.count ?? 0
-  const siphon = await loadUserSiphonSummary(db, guildId, avatar)
+  const siphon = await loadUserSiphonSummary(db, guildId, siphonPlayer)
 
   return {
     displayName,
@@ -255,10 +254,9 @@ async function loadUserStatusSummary(
 async function loadUserSiphonSummary(
   db: ReturnType<typeof getAdminClient>,
   guildId: string,
-  avatar: { albion_nickname?: string | null; albion_verified_at?: string | null } | null,
+  player: ReturnType<typeof resolveSiphonPlayer>,
 ): Promise<{ balance: number | null; state: UserStatusSiphonState }> {
-  const player = avatar?.albion_nickname?.trim()
-  if (!avatar?.albion_verified_at || !player) {
+  if (player.status === 'unverified') {
     return { balance: null, state: 'unverified' }
   }
 
@@ -271,7 +269,7 @@ async function loadUserSiphonSummary(
       .from('siphon_ledger')
       .select('quantity')
       .eq('guild_id', guildId)
-      .eq('player', player)
+      .eq('player', player.player)
     if (operatingStart) q = q.gte('logged_at', operatingStart.toISOString())
     const { data, error } = await q
       .order('id', { ascending: true })

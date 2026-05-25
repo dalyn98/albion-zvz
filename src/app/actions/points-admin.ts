@@ -58,6 +58,7 @@ export async function adjustMemberPoints(
     revalidatePath('/members')
     revalidatePath('/me')
     revalidatePath('/me/profile')
+    revalidatePath('/', 'layout')
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,

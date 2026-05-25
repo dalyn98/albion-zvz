@@ -38,6 +38,7 @@ import { getLocale } from '@/lib/locale'
 import { formatDateTime } from '@/lib/format-datetime'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import { getPointBalancesByGuildForMember } from '@/lib/point-ledger'
 import { formatSilver } from '@/lib/silver'
 import MyHomeDashboardCard from '@/components/MyHomeDashboardCard'
 import MemberNextActionsPanel from '@/components/MemberNextActionsPanel'
@@ -626,7 +627,7 @@ async function loadPrivateGuildActivityRecords(
 
   const [
     tenantsRes,
-    ledgerRes,
+    pointBalances,
     regearRes,
     exchangeRes,
     donationRes,
@@ -634,7 +635,7 @@ async function loadPrivateGuildActivityRecords(
     tentativeRes,
   ] = await Promise.all([
     db.from('tenants').select('id, slug, name').in('id', guildIds),
-    db.from('point_ledger').select('guild_id, delta').in('guild_id', guildIds).eq('discord_id', discordId),
+    getPointBalancesByGuildForMember(db, guildIds, discordId),
     db.from('regear_requests').select('guild_id, id').in('guild_id', guildIds).eq('discord_id', discordId),
     db.from('exchange_requests').select('guild_id, id').in('guild_id', guildIds).eq('discord_id', discordId),
     db.from('donation_requests').select('guild_id, id').in('guild_id', guildIds).eq('discord_id', discordId),
@@ -658,11 +659,7 @@ async function loadPrivateGuildActivityRecords(
     tenantNames.set(id, displayNameFromSlug(slug) || name || id)
   }
 
-  const balances = new Map<string, number>()
-  for (const row of ledgerRes.data ?? []) {
-    const guildId = row.guild_id as string
-    balances.set(guildId, (balances.get(guildId) ?? 0) + (Number(row.delta) || 0))
-  }
+  const balances = pointBalances.error ? new Map<string, number>() : pointBalances.balances
 
   const requestCounts = new Map<string, number>()
   for (const rows of [regearRes.data ?? [], exchangeRes.data ?? [], donationRes.data ?? []]) {

@@ -24,7 +24,7 @@ import {
 } from './admin-slot-sanitizers'
 
 const SLOT_DIFF_COLUMNS =
-  'id, party_id, slot_number, is_hidden, role_name, notes, spells, gear_specs, conditional_options, ' +
+  'id, party_id, slot_number, assigned_discord_id, requested_discord_id, is_hidden, role_name, notes, spells, gear_specs, conditional_options, ' +
   'auto_regear_excluded, manual_regear_excluded, is_solo_bomb, ' +
   'weapon_name, weapon_id, weapon_options, ' +
   'head_name, head_id, head_options, ' +
@@ -51,6 +51,37 @@ function slotRowMatches(
     if (stableCompareValue(existing[key]) !== stableCompareValue(value)) return false
   }
   return true
+}
+
+function addSlotDiscordIds(
+  target: Set<string>,
+  row: Record<string, unknown> | undefined,
+): void {
+  if (typeof row?.assigned_discord_id === 'string' && row.assigned_discord_id) {
+    target.add(row.assigned_discord_id)
+  }
+  if (typeof row?.requested_discord_id === 'string' && row.requested_discord_id) {
+    target.add(row.requested_discord_id)
+  }
+}
+
+function revalidateSlotEditorSurfaces(
+  eventId: string,
+  partyNumber: number,
+  discordIds: Iterable<string> = [],
+): void {
+  revalidatePath(`/admin/dashboard/events/${eventId}`)
+  revalidatePath(`/events/${eventId}`)
+  revalidatePath(`/events/${eventId}/party/${partyNumber}`)
+  revalidatePath('/')
+  const ids = Array.from(new Set(discordIds))
+  if (ids.length === 0) return
+  revalidatePath('/me')
+  revalidatePath('/members')
+  revalidatePath('/admin/dashboard/stats')
+  for (const discordId of ids) {
+    revalidatePath(`/members/${discordId}`)
+  }
 }
 
 export async function savePartySlots(
@@ -168,6 +199,18 @@ export async function savePartySlots(
       : originalSlotIds
     const keptIds = new Set(slots.map((s) => s.id).filter(Boolean) as string[])
     const removedIds = effectiveOriginalSlotIds.filter((id) => !keptIds.has(id))
+    const { data: assignmentRows, error: assignmentRowsError } =
+      effectiveOriginalSlotIds.length > 0
+        ? await db
+            .from('slots')
+            .select('id, assigned_discord_id, requested_discord_id')
+            .eq('guild_id', guildId)
+            .in('id', effectiveOriginalSlotIds)
+        : { data: [] as Record<string, unknown>[], error: null }
+    if (assignmentRowsError) return { error: assignmentRowsError.message }
+    const assignmentRowsById = new Map(
+      ((assignmentRows ?? []) as Record<string, unknown>[]).map((row) => [row.id as string, row]),
+    )
 
     // Delete removed slots first so their slot_numbers free up before we renumber kept ones
     if (removedIds.length > 0) {
@@ -245,17 +288,20 @@ export async function savePartySlots(
 
     // Insert new slots last
     const newSlots = slots.filter((s) => !s.id)
+    const newSlotRows = newSlots.map((s) => slotToRow(resolvedPartyId, s, guildId))
     if (newSlots.length > 0) {
-      const { error } = await db
-        .from('slots')
-        .insert(newSlots.map((s) => slotToRow(resolvedPartyId, s, guildId)))
+      const { error } = await db.from('slots').insert(newSlotRows)
       if (error) return { error: error.message }
     }
 
-    revalidatePath(`/admin/dashboard/events/${eventId}`)
-    revalidatePath(`/events/${eventId}`)
-    revalidatePath(`/events/${eventId}/party/${partyNumber}`)
-    revalidatePath('/')
+    const affectedDiscordIds = new Set<string>()
+    for (const id of removedIds) addSlotDiscordIds(affectedDiscordIds, assignmentRowsById.get(id))
+    for (const slot of changedKept) {
+      addSlotDiscordIds(affectedDiscordIds, assignmentRowsById.get(slot.id!))
+      addSlotDiscordIds(affectedDiscordIds, desiredRowsById.get(slot.id!))
+    }
+    for (const row of newSlotRows) addSlotDiscordIds(affectedDiscordIds, row)
+    revalidateSlotEditorSurfaces(eventId, partyNumber, affectedDiscordIds)
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -269,13 +315,26 @@ export async function clearSlotAssignment(slotId: string): Promise<{ error?: str
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireEventCreatorForSlot(slotId)
     const guildId = await getSessionGuildId(session)
+    const { data: slotRow, error: slotError } = await db
+      .from('slots')
+      .select('assigned_discord_id, parties!inner(event_id, party_number)')
+      .eq('guild_id', guildId)
+      .eq('id', slotId)
+      .maybeSingle()
+    if (slotError) return { error: slotError.message }
+    if (!slotRow) return { error: tErr('slotNotFound') }
+    const party = Array.isArray(slotRow.parties) ? slotRow.parties[0] : slotRow.parties
+    if (!party) return { error: tErr('serverError') }
+
     const { error } = await db
       .from('slots')
       .update({ assigned_discord_id: null, assigned_username: null })
       .eq('guild_id', guildId)
       .eq('id', slotId)
     if (error) return { error: error.message }
-    revalidatePath('/')
+    const affectedDiscordIds = new Set<string>()
+    addSlotDiscordIds(affectedDiscordIds, slotRow)
+    revalidateSlotEditorSurfaces(party.event_id, party.party_number, affectedDiscordIds)
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -299,7 +358,7 @@ export async function updateSingleSlot(
 
     const { data: slotRow, error: slotErr } = await db
       .from('slots')
-      .select('party_id, slot_number, parties!inner(event_id, party_number)')
+      .select('party_id, slot_number, assigned_discord_id, requested_discord_id, parties!inner(event_id, party_number)')
       .eq('guild_id', guildId)
       .eq('id', slotId)
       .maybeSingle()
@@ -321,10 +380,9 @@ export async function updateSingleSlot(
       .eq('id', slotId)
     if (updErr) return { error: updErr.message }
 
-    revalidatePath(`/admin/dashboard/events/${party.event_id}`)
-    revalidatePath(`/events/${party.event_id}`)
-    revalidatePath(`/events/${party.event_id}/party/${party.party_number}`)
-    revalidatePath('/')
+    const affectedDiscordIds = new Set<string>()
+    addSlotDiscordIds(affectedDiscordIds, slotRow)
+    revalidateSlotEditorSurfaces(party.event_id, party.party_number, affectedDiscordIds)
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

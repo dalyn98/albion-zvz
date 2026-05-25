@@ -104,6 +104,30 @@ describe('resolveAlbionOnboardingGate', () => {
     expect(state.resourceTrusted).toBe(false)
   })
 
+  it('prefers a trusted account identity over stale legacy fields', () => {
+    const state = resolveAlbionOnboardingGate({
+      discordId: DISCORD_ID,
+      legacyIdentity: legacyIdentity({
+        server: 'east' as AlbionServer,
+        playerId: 'legacy-player',
+        nickname: 'OldPlayer',
+        guildId: 'legacy-guild',
+        verifiedAt: '2026-04-01T00:00:00.000Z',
+      }),
+      accountIdentity: accountIdentity({
+        nickname: 'CurrentPlayer',
+        trustedAt: '2026-05-03T00:00:00.000Z',
+      }),
+    })
+
+    expect(state.siteAccessVerified).toBe(true)
+    expect(state.resourceTrusted).toBe(true)
+    expect(state.identity).toMatchObject({
+      nickname: 'CurrentPlayer',
+      verifiedAt: '2026-05-03T00:00:00.000Z',
+    })
+  })
+
   it('keeps admin-reset revoked account identities eligible for onboarding again', () => {
     const state = resolveAlbionOnboardingGate({
       discordId: DISCORD_ID,

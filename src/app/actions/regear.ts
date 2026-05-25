@@ -11,6 +11,7 @@ import { requireAlbionVerified } from '@/lib/albion-identity'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import { findTrackedBattleIdsForEvent } from '@/lib/auto-regear-matching'
 import { log } from '@/lib/log'
+import { getMemberPointSummary } from '@/lib/point-ledger'
 import {
   ALLOWED_MIME,
   MAX_SCREENSHOT_BYTES,
@@ -428,6 +429,7 @@ async function requestRegearInner(
   revalidatePath(`/events/${eventId}`)
   revalidatePath('/admin/dashboard/regear')
   revalidatePath('/me')
+  revalidatePath('/', 'layout')
   return { id: inserted.id }
 }
 
@@ -652,20 +654,9 @@ export async function getMyPointsSummary(): Promise<{
   const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
-  const { data, error } = await db
-    .from('point_ledger')
-    .select('delta')
-    .eq('guild_id', guildId)
-    .eq('discord_id', session.discordId)
-  if (error) return { error: error.message }
-
-  let earned = 0
-  let spent = 0
-  for (const row of data ?? []) {
-    if (row.delta >= 0) earned += row.delta
-    else spent += -row.delta
-  }
-  return { summary: { balance: earned - spent, lifetimeEarned: earned, lifetimeSpent: spent } }
+  const { summary, error } = await getMemberPointSummary(db, guildId, session.discordId)
+  if (error) return { error }
+  return { summary }
 }
 
 export interface MyRegearDetail {

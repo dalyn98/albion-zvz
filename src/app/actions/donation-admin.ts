@@ -106,6 +106,7 @@ export async function approveDonationRequest(id: string): Promise<{ error?: stri
     }
     revalidatePath('/admin/dashboard/donations')
     revalidatePath('/me')
+    revalidatePath('/', 'layout')
     const { data: row } = await db
       .from('donation_requests')
       .select('discord_id, silver')
@@ -160,6 +161,7 @@ export async function rejectDonationRequest(
     }
     revalidatePath('/admin/dashboard/donations')
     revalidatePath('/me')
+    revalidatePath('/', 'layout')
     const { data: row } = await db
       .from('donation_requests')
       .select('discord_id, silver')

@@ -86,6 +86,7 @@ export async function approveRegearRequest(
     revalidatePath('/craft/queue')
     revalidatePath('/craft/my-tasks')
     revalidatePath('/me')
+    revalidatePath('/', 'layout')
     // 승인 직후 요청자에게 Discord DM. 실패해도 승인은 성공한 상태이므로 무시.
     const { data: row } = await db
       .from('regear_requests')
@@ -192,6 +193,7 @@ export async function approveRegearFromStock(
     revalidatePath('/admin/dashboard/regear')
     revalidatePath('/admin/dashboard/inventory')
     revalidatePath('/me')
+    revalidatePath('/', 'layout')
 
     // 승인 DM — 재고 출고 사실을 본문에 명시.
     const { data: row } = await db
@@ -292,6 +294,7 @@ export async function approveRegearAsCrafted(
     revalidatePath('/admin/dashboard/craft')
     revalidatePath('/craft/queue')
     revalidatePath('/me')
+    revalidatePath('/', 'layout')
 
     // DM 은 보내지 않는다 — 청구자 입장에서는 큐 진입 자체가 의미 있는
     // 상태 변화가 아니라, 제작자가 박스에 장비를 채운 시점 (delivery) 에만
@@ -496,6 +499,7 @@ export async function rejectRegearRequest(
     }
     revalidatePath('/admin/dashboard/regear')
     revalidatePath('/me')
+    revalidatePath('/', 'layout')
     const { data: row } = await db
       .from('regear_requests')
       .select('discord_id, event_title_snapshot')

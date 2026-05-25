@@ -65,6 +65,23 @@ function safeGearLabel(slotKey: SlotKey, tGear: GearTranslator): string {
   }
 }
 
+function revalidateSlotAssignmentSurfaces(
+  eventId: string | null | undefined,
+  partyNumber: number | null | undefined,
+  discordId: string | null | undefined,
+): void {
+  revalidatePath('/')
+  if (eventId) {
+    revalidatePath(`/events/${eventId}`)
+    revalidatePath(`/admin/dashboard/events/${eventId}`)
+    if (partyNumber) revalidatePath(`/events/${eventId}/party/${partyNumber}`)
+  }
+  revalidatePath('/me')
+  revalidatePath('/members')
+  revalidatePath('/admin/dashboard/stats')
+  if (discordId) revalidatePath(`/members/${discordId}`)
+}
+
 export async function assignSlot(
   slotId: string,
   picks: SlotPicks = {},
@@ -99,7 +116,7 @@ export async function assignSlot(
   // (bomb squad) or pending:false (regular).
   const { data: slotCheck, error: slotLookupError } = await db
     .from('slots')
-    .select('is_hidden, parties!inner(is_bomb_squad, event_id)')
+    .select('is_hidden, parties!inner(is_bomb_squad, event_id, party_number)')
     .eq('guild_id', guildId)
     .eq('id', slotId)
     .maybeSingle()
@@ -107,8 +124,8 @@ export async function assignSlot(
   if (!slotCheck) return { error: tAction('slotNotFound') }
   if (slotCheck.is_hidden) return { error: tAction('slotNotFound') }
   const partyJoin = slotCheck.parties as
-    | { is_bomb_squad: boolean | null; event_id: string }
-    | { is_bomb_squad: boolean | null; event_id: string }[]
+    | { is_bomb_squad: boolean | null; event_id: string; party_number: number }
+    | { is_bomb_squad: boolean | null; event_id: string; party_number: number }[]
     | null
   const partyObj = Array.isArray(partyJoin) ? partyJoin[0] : partyJoin
   const isBomb = !!partyObj?.is_bomb_squad
@@ -133,7 +150,7 @@ export async function assignSlot(
   })
   if (error) return { error: mapRpcError(error.message, tAction, tGear) }
 
-  revalidatePath('/')
+  revalidateSlotAssignmentSurfaces(partyObj?.event_id, partyObj?.party_number, session.discordId)
   return { pending: isBomb }
 }
 
@@ -160,7 +177,7 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
 
   const { data: partyRow, error: partyLookupError } = await db
     .from('parties')
-    .select('event_id, events(battle_started_at)')
+    .select('event_id, party_number, events(battle_started_at)')
     .eq('guild_id', guildId)
     .eq('id', slotRow.party_id)
     .maybeSingle()
@@ -184,7 +201,7 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
   })
   if (error) return { error: mapRpcError(error.message, tAction, tGear) }
 
-  revalidatePath('/')
+  revalidateSlotAssignmentSurfaces(partyRow?.event_id, partyRow?.party_number, session.discordId)
   return {}
 }
 
@@ -204,13 +221,18 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
 
   const { data: slotRow, error: slotLookupError } = await db
     .from('slots')
-    .select('assigned_discord_id')
+    .select('assigned_discord_id, parties!inner(event_id, party_number)')
     .eq('guild_id', guildId)
     .eq('id', slotId)
     .maybeSingle()
   if (slotLookupError) return { error: slotLookupError.message }
   if (!slotRow) return { error: tAction('slotNotFound') }
   if (!slotRow.assigned_discord_id) return { error: tAction('slotEmpty') }
+  const partyJoin = slotRow.parties as
+    | { event_id: string; party_number: number }
+    | { event_id: string; party_number: number }[]
+    | null
+  const party = Array.isArray(partyJoin) ? partyJoin[0] : partyJoin
 
   // Pass the current owner's discord id to cancel_slot so the RPC's
   // NOT_OWNER guard passes while we keep a single code path for the update.
@@ -220,7 +242,7 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
   })
   if (error) return { error: error.message }
 
-  revalidatePath('/')
+  revalidateSlotAssignmentSurfaces(party?.event_id, party?.party_number, slotRow.assigned_discord_id)
   return {}
 }
 

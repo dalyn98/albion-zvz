@@ -15,7 +15,14 @@ import type { AssignableMember } from '@/lib/member-assign-search'
 // The RPC trusts its caller — all authorization happens in this action layer,
 // mirroring the regear-admin pattern.
 async function authorizeBombSquadAction(slotId: string): Promise<
-  | { ok: true; db: ReturnType<typeof getAdminClient>; eventId: string; guildId: string }
+  | {
+      ok: true
+      db: ReturnType<typeof getAdminClient>
+      eventId: string
+      guildId: string
+      partyNumber: number | null
+      requestedDiscordId: string | null
+    }
   | { ok: false; error: string }
 > {
   const tAction = await getTranslations('slotAction')
@@ -27,7 +34,7 @@ async function authorizeBombSquadAction(slotId: string): Promise<
   const { data, error } = await db
     .from('slots')
     .select(
-      'id, requested_discord_id, is_solo_bomb, parties!inner(is_bomb_squad, caller_discord_id, events!inner(id, created_by))',
+      'id, requested_discord_id, is_solo_bomb, parties!inner(is_bomb_squad, caller_discord_id, party_number, events!inner(id, created_by))',
     )
     .eq('guild_id', guildId)
     .eq('id', slotId)
@@ -54,11 +61,24 @@ async function authorizeBombSquadAction(slotId: string): Promise<
   if (!session.isAdmin && !isEventManager && !isEventOwner && !isCaller) {
     return { ok: false, error: tAction('bombSquadNotAuthorized') }
   }
-  return { ok: true, db, eventId: event.id, guildId }
+  return {
+    ok: true,
+    db,
+    eventId: event.id,
+    guildId,
+    partyNumber: (party.party_number as number | null | undefined) ?? null,
+    requestedDiscordId: (data.requested_discord_id as string | null) ?? null,
+  }
 }
 
 async function authorizeDirectAssignAction(slotId: string): Promise<
-  | { ok: true; db: ReturnType<typeof getAdminClient>; eventId: string; guildId: string }
+  | {
+      ok: true
+      db: ReturnType<typeof getAdminClient>
+      eventId: string
+      guildId: string
+      partyNumber: number | null
+    }
   | { ok: false; error: string }
 > {
   const tAction = await getTranslations('slotAction')
@@ -70,7 +90,7 @@ async function authorizeDirectAssignAction(slotId: string): Promise<
   const { data, error } = await db
     .from('slots')
     .select(
-      'id, is_solo_bomb, parties!inner(is_bomb_squad, caller_discord_id, events!inner(id, created_by))',
+      'id, is_solo_bomb, parties!inner(is_bomb_squad, caller_discord_id, party_number, events!inner(id, created_by))',
     )
     .eq('guild_id', guildId)
     .eq('id', slotId)
@@ -99,14 +119,35 @@ async function authorizeDirectAssignAction(slotId: string): Promise<
   if (!session.isAdmin && !isEventManager && !isEventOwner && !isCaller) {
     return { ok: false, error: tAction('slotAssignNotAuthorized') }
   }
-  return { ok: true, db, eventId: event.id, guildId }
+  return {
+    ok: true,
+    db,
+    eventId: event.id,
+    guildId,
+    partyNumber: (party?.party_number as number | null | undefined) ?? null,
+  }
+}
+
+function revalidateSlotAssignmentSurfaces(
+  eventId: string,
+  partyNumber: number | null,
+  discordId: string | null,
+): void {
+  revalidatePath(`/events/${eventId}`)
+  revalidatePath(`/admin/dashboard/events/${eventId}`)
+  if (partyNumber) revalidatePath(`/events/${eventId}/party/${partyNumber}`)
+  revalidatePath('/')
+  revalidatePath('/me')
+  revalidatePath('/members')
+  revalidatePath('/admin/dashboard/stats')
+  if (discordId) revalidatePath(`/members/${discordId}`)
 }
 
 export async function approveSlotRequest(slotId: string): Promise<{ error?: string }> {
   const tAction = await getTranslations('slotAction')
   const auth = await authorizeBombSquadAction(slotId)
   if (!auth.ok) return { error: auth.error }
-  const { db, eventId } = auth
+  const { db, eventId, partyNumber, requestedDiscordId } = auth
 
   const { error } = await db.rpc('approve_slot_request', { p_slot_id: slotId })
   if (error) {
@@ -116,9 +157,7 @@ export async function approveSlotRequest(slotId: string): Promise<{ error?: stri
     return { error: message || tAction('serverError') }
   }
 
-  revalidatePath(`/events/${eventId}`)
-  revalidatePath(`/admin/dashboard/events/${eventId}`)
-  revalidatePath('/')
+  revalidateSlotAssignmentSurfaces(eventId, partyNumber, requestedDiscordId)
   return {}
 }
 
@@ -126,14 +165,12 @@ export async function rejectSlotRequest(slotId: string): Promise<{ error?: strin
   const tAction = await getTranslations('slotAction')
   const auth = await authorizeBombSquadAction(slotId)
   if (!auth.ok) return { error: auth.error }
-  const { db, eventId } = auth
+  const { db, eventId, partyNumber, requestedDiscordId } = auth
 
   const { error } = await db.rpc('reject_slot_request', { p_slot_id: slotId })
   if (error) return { error: error.message || tAction('serverError') }
 
-  revalidatePath(`/events/${eventId}`)
-  revalidatePath(`/admin/dashboard/events/${eventId}`)
-  revalidatePath('/')
+  revalidateSlotAssignmentSurfaces(eventId, partyNumber, requestedDiscordId)
   return {}
 }
 
@@ -147,7 +184,7 @@ export async function directAssignMember(
   const tAction = await getTranslations('slotAction')
   const auth = await authorizeDirectAssignAction(slotId)
   if (!auth.ok) return { error: auth.error }
-  const { db, eventId, guildId } = auth
+  const { db, eventId, guildId, partyNumber } = auth
 
   // guild_avatars 는 service-role 로만 읽을 수 있어 auth 에서 받은 admin db 를
   // 그대로 재사용한다. withdrawn 된 멤버는 명단에 뜨지도 않지만 방어적으로 체크.
@@ -176,9 +213,7 @@ export async function directAssignMember(
     return { error: message || tAction('serverError') }
   }
 
-  revalidatePath(`/events/${eventId}`)
-  revalidatePath(`/admin/dashboard/events/${eventId}`)
-  revalidatePath('/')
+  revalidateSlotAssignmentSurfaces(eventId, partyNumber, memberDiscordId)
   return {}
 }
 

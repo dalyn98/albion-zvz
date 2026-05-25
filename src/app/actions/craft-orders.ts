@@ -506,6 +506,7 @@ export async function approveCraftOrderTaskAdmin(
     revalidatePath('/admin/dashboard/inventory')
     revalidatePath('/craft/orders')
     revalidatePath('/me')
+    revalidatePath('/', 'layout')
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -570,6 +571,7 @@ export async function rejectCraftOrderTaskAdmin(
     revalidatePath('/admin/dashboard/craft')
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/craft/orders')
+    revalidatePath('/', 'layout')
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -702,6 +704,7 @@ export async function deliverCraftOrderTask(
     revalidatePath('/craft/orders')
     revalidatePath('/admin/dashboard/craft')
     revalidatePath('/admin/dashboard/approvals')
+    revalidatePath('/', 'layout')
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

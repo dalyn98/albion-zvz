@@ -34,10 +34,10 @@ vi.mock('next-intl/server', () => ({
   getTranslations: vi.fn(),
 }))
 
-import { resetSiphonLedger } from './siphon-admin'
+import { deleteSiphonRow, resetSiphonLedger } from './siphon-admin'
 
 interface DeleteResult {
-  data: Array<{ id: string }> | null
+  data: Array<{ id: string; [key: string]: unknown }> | null
   error: { message: string } | null
 }
 
@@ -134,6 +134,7 @@ describe('resetSiphonLedger', () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/siphon')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/me')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/me/siphon')
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/', 'layout')
     expect(mocks.logAdminAction).toHaveBeenCalledWith({
       guildId: 'guild-1',
       adminDiscordId: 'admin-1',
@@ -163,5 +164,66 @@ describe('resetSiphonLedger', () => {
     })
     expect(mocks.logAdminAction).not.toHaveBeenCalled()
     expect(mocks.revalidatePath).not.toHaveBeenCalled()
+  })
+})
+
+describe('deleteSiphonRow', () => {
+  beforeEach(() => {
+    mocks.getAdminClient.mockReset()
+    mocks.getSession.mockReset()
+    mocks.sessionHas.mockReset()
+    mocks.getSessionGuildId.mockReset()
+    mocks.logAdminAction.mockReset()
+    mocks.revalidatePath.mockReset()
+  })
+
+  it('deletes only the current guild row and refreshes every siphon surface', async () => {
+    const rowId = '11111111-1111-4111-8111-111111111111'
+    const { query, calls } = createDeleteQuery({
+      data: [
+        {
+          id: rowId,
+          player: 'MonKKu',
+          item_name_raw: 'Siphoned Energy',
+          quantity: -10,
+          logged_at: '2026-05-24T08:48:30.000Z',
+        },
+      ],
+      error: null,
+    })
+    const from = vi.fn((table: string) => {
+      expect(table).toBe('siphon_ledger')
+      return query
+    })
+
+    mocks.getSession.mockResolvedValue({ discordId: 'admin-1' })
+    mocks.sessionHas.mockReturnValue(true)
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAdminClient.mockReturnValue({ from })
+
+    await expect(deleteSiphonRow(rowId)).resolves.toEqual({})
+
+    expect(calls).toEqual([
+      { method: 'delete', args: [] },
+      { method: 'eq', args: ['guild_id', 'guild-1'] },
+      { method: 'eq', args: ['id', rowId] },
+      { method: 'select', args: ['id, player, item_name_raw, quantity, logged_at'] },
+    ])
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/siphon')
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/me')
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/me/siphon')
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/', 'layout')
+    expect(mocks.logAdminAction).toHaveBeenCalledWith({
+      guildId: 'guild-1',
+      adminDiscordId: 'admin-1',
+      action: 'siphon.log.delete',
+      targetId: rowId,
+      targetKind: 'siphon_ledger',
+      details: {
+        player: 'MonKKu',
+        quantity: -10,
+        loggedAt: '2026-05-24T08:48:30.000Z',
+      },
+    })
   })
 })

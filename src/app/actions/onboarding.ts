@@ -52,6 +52,17 @@ function isSafeShortInput(value: string, maxLength: number): boolean {
   return value.length > 0 && value.length <= maxLength && !hasControlChars(value)
 }
 
+function revalidateAlbionIdentitySurfaces(discordId: string): void {
+  revalidatePath('/me')
+  revalidatePath('/me/profile')
+  revalidatePath('/me/siphon')
+  revalidatePath('/onboarding/albion')
+  revalidatePath('/admin/dashboard')
+  revalidatePath('/admin/dashboard/stats')
+  revalidatePath(`/members/${discordId}`)
+  revalidatePath('/', 'layout')
+}
+
 export async function getOnboardingState(): Promise<OnboardingState> {
   const session = await getSession()
   if (!session) return { identity: null, homeGuildConfigured: false }
@@ -188,8 +199,7 @@ export async function confirmAlbionIdentity(input: {
     }
   }
 
-  revalidatePath('/me')
-  revalidatePath('/onboarding/albion')
+  revalidateAlbionIdentitySurfaces(session.discordId)
   return {
     ok: true,
     verified,
@@ -236,8 +246,7 @@ export async function setAlbionIdentityManually(input: {
   })
   if (updated.error) return { error: updated.error }
 
-  revalidatePath('/me')
-  revalidatePath('/onboarding/albion')
+  revalidateAlbionIdentitySurfaces(session.discordId)
   return { ok: true }
 }
 

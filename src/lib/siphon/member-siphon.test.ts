@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { summarizeSiphonAccount } from './member-siphon'
+import { resolveSiphonPlayer, summarizeSiphonAccount } from './member-siphon'
 
 describe('summarizeSiphonAccount', () => {
   it('calculates deposit, withdrawal, net balance, and latest activity', () => {
@@ -40,3 +40,22 @@ describe('summarizeSiphonAccount', () => {
   })
 })
 
+describe('resolveSiphonPlayer', () => {
+  it('uses trusted account identity nicknames even when legacy avatar verification is empty', () => {
+    expect(
+      resolveSiphonPlayer({
+        resourceTrusted: true,
+        identity: { nickname: '  MonKKu  ' },
+      }),
+    ).toEqual({ status: 'ready', player: 'MonKKu' })
+  })
+
+  it('does not expose siphon balances while account identity still needs review', () => {
+    expect(
+      resolveSiphonPlayer({
+        resourceTrusted: false,
+        identity: { nickname: 'MonKKu' },
+      }),
+    ).toEqual({ status: 'unverified', nickname: 'MonKKu' })
+  })
+})

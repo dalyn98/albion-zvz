@@ -14,6 +14,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { syncTenantShopPrices } from '@/lib/shop/price-sync'
 import { logAdminAction } from '@/lib/admin-audit'
 import { CAP } from '@/lib/permissions'
+import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 
 export interface PriceSyncSummary {
   requested: number
@@ -166,11 +167,21 @@ export interface ResetInventoryResult {
   error?: string
 }
 
+export interface RebuildInventoryResult {
+  beforeTotal: number
+  afterTotal: number
+  changedItems: number
+  restored: number
+  cleared: number
+  increased: number
+  decreased: number
+  error?: string
+}
+
 // 전 재고의 stock 을 0 으로 초기화하고 shop_chest_logs 원본도 삭제한다.
-// manual_price, auto_price, 카테고리 등 행 자체는 보존 — 다음 임포트 때
-// pricing config 가 재사용되게 둔다. 로그를 같이 지워야 동일 로그 재임포트가
-// dedupe 에 막히지 않는다. shop_orders, shop_blacklist, shop_name_overrides 는
-// 건드리지 않음.
+// DB 트리거가 stock<=0 행을 정리하므로 재고 행에 묶인 가격 메타는 사라질 수 있다.
+// 로그를 같이 지워야 동일 로그 재임포트가 dedupe 에 막히지 않는다.
+// shop_orders, shop_blacklist, shop_name_overrides 는 건드리지 않음.
 export async function resetShopInventory(): Promise<ResetInventoryResult> {
   const tErr = await getTranslations('adminActionError')
   const empty: ResetInventoryResult = { stockRowsZeroed: 0, logsDeleted: 0 }
@@ -219,6 +230,64 @@ export async function resetShopInventory(): Promise<ResetInventoryResult> {
       stockRowsZeroed: zeroed?.length ?? 0,
       logsDeleted: deleted?.length ?? 0,
     }
+  } catch (e) {
+    return { ...empty, error: e instanceof Error ? e.message : 'Server error' }
+  }
+}
+
+function parseRebuildResult(raw: unknown): RebuildInventoryResult {
+  const obj = (raw ?? {}) as Record<string, unknown>
+  return {
+    beforeTotal: Number(obj.before_total ?? 0),
+    afterTotal: Number(obj.after_total ?? 0),
+    changedItems: Number(obj.changed_items ?? 0),
+    restored: Number(obj.restored ?? 0),
+    cleared: Number(obj.cleared ?? 0),
+    increased: Number(obj.increased ?? 0),
+    decreased: Number(obj.decreased ?? 0),
+  }
+}
+
+export async function rebuildShopInventoryFromOperatingStart(): Promise<RebuildInventoryResult> {
+  const empty: RebuildInventoryResult = {
+    beforeTotal: 0,
+    afterTotal: 0,
+    changedItems: 0,
+    restored: 0,
+    cleared: 0,
+    increased: 0,
+    decreased: 0,
+  }
+  try {
+    const session = await getSession()
+    if (!session) return { ...empty, error: 'Unauthorized' }
+    const guildId = await getSessionGuildId(session)
+    const db = await requireAnyCapability([CAP.INVENTORY_MANAGE])
+    const operatingStart = await getLogOperatingStart('shopChest', guildId)
+
+    const { data, error } = await db.rpc('rebuild_shop_inventory_from_chest_logs', {
+      p_guild_id: guildId,
+      p_start_at: operatingStart?.toISOString() ?? null,
+    })
+    if (error) return { ...empty, error: error.message }
+
+    const result = parseRebuildResult(data)
+    revalidatePath('/admin/dashboard/shop')
+    revalidatePath('/shop')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'shop.item.update',
+      targetKind: 'shop_item',
+      details: {
+        kind: 'inventory.rebuild_from_operating_start',
+        operatingStartAt: operatingStart?.toISOString() ?? null,
+        beforeTotal: result.beforeTotal,
+        afterTotal: result.afterTotal,
+        changedItems: result.changedItems,
+      },
+    })
+    return result
   } catch (e) {
     return { ...empty, error: e instanceof Error ? e.message : 'Server error' }
   }

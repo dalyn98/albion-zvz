@@ -9,6 +9,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { computePointPrice, parseShopDiscountRate } from '@/lib/shop/price'
 import { getAppSetting } from '@/lib/app-settings'
+import { getMemberPointBalance } from '@/lib/point-ledger'
 
 export interface OrderLineInput {
   inventoryId: string
@@ -29,13 +30,9 @@ export async function getMyPointBalance(): Promise<number> {
   if (!session?.isMember) return 0
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
-  const { data, error } = await db
-    .from('point_ledger')
-    .select('delta')
-    .eq('guild_id', guildId)
-    .eq('discord_id', session.discordId)
+  const { balance, error } = await getMemberPointBalance(db, guildId, session.discordId)
   if (error) return 0
-  return (data ?? []).reduce((sum, r) => sum + (r.delta as number), 0)
+  return balance
 }
 
 export async function submitShopOrder(
@@ -125,13 +122,8 @@ export async function submitShopOrder(
     if (total <= 0) return { ok: false, error: tErr('orderTotalNotPositive') }
 
     // 잔액 체크 (UX 용 사전 검증; approve RPC 에서 재확인함).
-    const { data: ledger, error: ledgerErr } = await db
-      .from('point_ledger')
-      .select('delta')
-      .eq('guild_id', guildId)
-      .eq('discord_id', session.discordId)
-    if (ledgerErr) return { ok: false, error: ledgerErr.message }
-    const balance = (ledger ?? []).reduce((sum, r) => sum + (r.delta as number), 0)
+    const { balance, error: balanceError } = await getMemberPointBalance(db, guildId, session.discordId)
+    if (balanceError) return { ok: false, error: balanceError }
     if (balance < total) {
       return { ok: false, error: tErr('insufficientPointsWithDetail', { balance, total }) }
     }
@@ -161,6 +153,7 @@ export async function submitShopOrder(
     revalidatePath('/shop')
     revalidatePath('/me')
     revalidatePath('/admin/dashboard/approvals')
+    revalidatePath('/', 'layout')
     return { ok: true, orderId: orderId as string }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Server error' }
@@ -248,6 +241,7 @@ export async function cancelMyOrder(orderId: string): Promise<{ error?: string }
     revalidatePath('/shop')
     revalidatePath('/me')
     revalidatePath('/admin/dashboard/approvals')
+    revalidatePath('/', 'layout')
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Server error' }

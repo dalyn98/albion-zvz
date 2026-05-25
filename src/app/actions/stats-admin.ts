@@ -13,6 +13,7 @@ import type {
   AlbionIdentityRelation,
   AlbionIdentityTrustStatus,
 } from '@/lib/account-albion-identity'
+import { listGuildPointDeltas, listGuildPointFlowRowsSince } from '@/lib/point-ledger'
 
 export interface TopHolder {
   discordId: string
@@ -108,16 +109,16 @@ export async function getPointStats(): Promise<{ stats?: PointStats; error?: str
     const db = await requireCapability(CAP.STATS_VIEW)
     const guildId = await getSessionGuildId(session)
     const [ledgerRes, avatarsRes] = await Promise.all([
-      db.from('point_ledger').select('discord_id, delta').eq('guild_id', guildId),
+      listGuildPointDeltas(db, guildId),
       db
         .from('guild_avatars')
         .select('discord_id, username, avatar, is_admin, withdrawn_at')
         .eq('guild_id', guildId),
     ])
-    if (ledgerRes.error) return { error: ledgerRes.error.message }
+    if (ledgerRes.error) return { error: ledgerRes.error }
     if (avatarsRes.error) return { error: avatarsRes.error.message }
 
-    const rows = ledgerRes.data ?? []
+    const rows = ledgerRes.rows
     const avatars = avatarsRes.data ?? []
 
     // discord_id → { balance, earned, spent } 집계.
@@ -127,7 +128,7 @@ export async function getPointStats(): Promise<{ stats?: PointStats; error?: str
     for (const row of rows) {
       const delta = Number(row.delta ?? 0)
       if (!Number.isFinite(delta)) continue
-      const cur = balances.get(row.discord_id) ?? { balance: 0, earned: 0, spent: 0 }
+      const cur = balances.get(row.discordId) ?? { balance: 0, earned: 0, spent: 0 }
       cur.balance += delta
       if (delta > 0) {
         cur.earned += delta
@@ -136,7 +137,7 @@ export async function getPointStats(): Promise<{ stats?: PointStats; error?: str
         cur.spent += -delta
         lifetimeSpent += -delta
       }
-      balances.set(row.discord_id, cur)
+      balances.set(row.discordId, cur)
     }
 
     // 이름/아바타 매칭 — 원장에만 있고 guild_avatars 에 없는 유저(탈퇴한 멤버)
@@ -632,6 +633,16 @@ export async function disputeMemberAlbionIdentity(
   return updateMemberAlbionTrust(discordId, 'disputed', 'admin_disputed')
 }
 
+function revalidateAlbionIdentitySurfaces(discordId: string): void {
+  revalidatePath('/admin/dashboard')
+  revalidatePath('/admin/dashboard/stats')
+  revalidatePath(`/members/${discordId}`)
+  revalidatePath('/me')
+  revalidatePath('/me/profile')
+  revalidatePath('/me/siphon')
+  revalidatePath('/', 'layout')
+}
+
 async function updateMemberAlbionTrust(
   discordId: string,
   trustStatus: 'trusted' | 'disputed',
@@ -692,8 +703,7 @@ async function updateMemberAlbionTrust(
       reason,
     })
 
-    revalidatePath('/admin/dashboard/stats')
-    revalidatePath(`/members/${discordId}`)
+    revalidateAlbionIdentitySurfaces(discordId)
     return { ok: true }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -739,7 +749,7 @@ export async function resetMemberAlbionOnboarding(
       })
       .eq('guild_id', guildId)
       .eq('discord_id', discordId)
-    revalidatePath('/admin/dashboard/stats')
+    revalidateAlbionIdentitySurfaces(discordId)
     return { ok: true }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -844,14 +854,10 @@ export async function getFinanceFlowStats(): Promise<{
     const tz = await getTenantTimezone(guildId)
     const since = daysAgoIso(FINANCE_WINDOW_DAYS)
 
-    const ledgerRes = await db
-      .from('point_ledger')
-      .select('delta, reason, created_at')
-      .eq('guild_id', guildId)
-      .gte('created_at', since)
-    if (ledgerRes.error) return { error: ledgerRes.error.message }
+    const ledgerRes = await listGuildPointFlowRowsSince(db, guildId, since)
+    if (ledgerRes.error) return { error: ledgerRes.error }
 
-    const rows = ledgerRes.data ?? []
+    const rows = ledgerRes.rows
 
     let totalEarned = 0
     let totalSpent = 0
@@ -862,8 +868,8 @@ export async function getFinanceFlowStats(): Promise<{
     for (const row of rows) {
       const delta = Number(row.delta ?? 0)
       if (!Number.isFinite(delta) || delta === 0) continue
-      const reason = typeof row.reason === 'string' ? row.reason : 'unknown'
-      const createdAt = typeof row.created_at === 'string' ? row.created_at : null
+      const reason = row.reason
+      const createdAt = row.createdAt
       if (!createdAt) continue
       const dateKey = tenantDateKey(createdAt, tz)
       if (!dateKey) continue

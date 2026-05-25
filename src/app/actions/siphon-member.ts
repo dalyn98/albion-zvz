@@ -3,8 +3,9 @@
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getMemberAlbionIdentity, isAlbionVerified } from '@/lib/albion-identity'
+import { getAlbionOnboardingGateState } from '@/lib/albion-identity'
 import {
+  resolveSiphonPlayer,
   summarizeSiphonAccount,
   type SiphonAccountLedgerRow,
   type SiphonAccountSummary,
@@ -28,10 +29,10 @@ export async function getMySiphonAccount(
     if (!session || !session.isMember) return { status: 'error', error: 'Unauthorized' }
 
     const guildId = await getSessionGuildId(session)
-    const identity = await getMemberAlbionIdentity(session.discordId, guildId)
-    const nickname = identity?.nickname?.trim() || null
-    if (!isAlbionVerified(identity) || !nickname) {
-      return { status: 'unverified', nickname }
+    const identityGate = await getAlbionOnboardingGateState(session.discordId, guildId)
+    const player = resolveSiphonPlayer(identityGate)
+    if (player.status === 'unverified') {
+      return { status: 'unverified', nickname: player.nickname }
     }
 
     const safeLimit = Math.min(Math.max(0, Math.trunc(recentLimit)), RECENT_LIMIT_MAX)
@@ -45,7 +46,7 @@ export async function getMySiphonAccount(
         .from('siphon_ledger')
         .select('logged_at, item_name_raw, quantity')
         .eq('guild_id', guildId)
-        .eq('player', nickname)
+        .eq('player', player.player)
       if (operatingStart) q = q.gte('logged_at', operatingStart.toISOString())
       const { data, error } = await q
         .order('logged_at', { ascending: false })
@@ -68,7 +69,7 @@ export async function getMySiphonAccount(
 
     return {
       status: 'ready',
-      account: summarizeSiphonAccount(nickname, rows, safeLimit),
+      account: summarizeSiphonAccount(player.player, rows, safeLimit),
     }
   } catch {
     return { status: 'error', error: 'server-error' }

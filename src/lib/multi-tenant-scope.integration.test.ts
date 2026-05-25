@@ -124,6 +124,433 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
       .eq('quality', baseRow.quality)
     expect(aRows?.[0]?.stock).toBe(99) // tenant A 의 값은 보존
   })
+
+  it('does not create negative inventory when a withdrawal log is the first delta', async () => {
+    const client = getTestServiceClient()
+
+    const { data: stock, error } = await client.rpc('apply_shop_stock_delta', {
+      p_guild_id: tenantA.guildId,
+      p_unique_name: 'T8_MAIN_CURSEDSTAFF',
+      p_enchant: 1,
+      p_quality: 2,
+      p_delta: -3,
+      p_name_ko: '저주받은 지팡이 테스트',
+      p_category: 'magic',
+      p_tier: 8,
+    })
+
+    expect(error).toBeNull()
+    expect(stock).toBe(0)
+
+    const { data: rows } = await client
+      .from('shop_inventory')
+      .select('id')
+      .eq('guild_id', tenantA.guildId)
+      .eq('unique_name', 'T8_MAIN_CURSEDSTAFF')
+
+    expect(rows).toEqual([])
+  })
+
+  it('preserves pricing metadata and replays post-baseline logs in order when applying a shop baseline', async () => {
+    const client = getTestServiceClient()
+    const key = {
+      unique_name: 'T7_2H_FIRESTAFF',
+      enchant: 2,
+      quality: 3,
+    }
+    const zeroKey = {
+      unique_name: 'T7_MAIN_ARCANESTAFF',
+      enchant: 1,
+      quality: 2,
+    }
+
+    const { error: insertErr } = await client.from('shop_inventory').insert([
+      {
+        guild_id: tenantA.guildId,
+        ...key,
+        stock: 9,
+        name_ko: '화염 지팡이 테스트',
+        category: 'magic',
+        tier: 7,
+        manual_price: 12345,
+        auto_price_silver: 45678,
+        price_source: 'manual',
+        price_warning_level: 'quality',
+        price_updated_at: '2026-05-01T00:00:00Z',
+      },
+      {
+        guild_id: tenantA.guildId,
+        ...zeroKey,
+        stock: 6,
+        name_ko: '신비 지팡이 가격 보존 테스트',
+        category: 'magic',
+        tier: 7,
+        manual_price: 22222,
+        price_source: 'manual',
+      },
+    ])
+    expect(insertErr).toBeNull()
+
+    const { error: logsErr } = await client.from('shop_chest_logs').insert([
+      {
+        guild_id: tenantA.guildId,
+        logged_at: '2026-05-02T00:10:00Z',
+        import_sequence: 0,
+        player: 'after-withdraw-first',
+        item_name_raw: '화염 지팡이 테스트',
+        enchant: key.enchant,
+        quality: key.quality,
+        quantity: -10,
+        unique_name: key.unique_name,
+      },
+      {
+        guild_id: tenantA.guildId,
+        logged_at: '2026-05-02T00:10:00Z',
+        import_sequence: 1,
+        player: 'after-deposit',
+        item_name_raw: '화염 지팡이 테스트',
+        enchant: key.enchant,
+        quality: key.quality,
+        quantity: 5,
+        unique_name: key.unique_name,
+      },
+      {
+        guild_id: tenantA.guildId,
+        logged_at: '2026-05-02T00:10:00Z',
+        import_sequence: 2,
+        player: 'after-withdraw',
+        item_name_raw: '화염 지팡이 테스트',
+        enchant: key.enchant,
+        quality: key.quality,
+        quantity: -2,
+        unique_name: key.unique_name,
+      },
+    ])
+    expect(logsErr).toBeNull()
+
+    const { error } = await client.rpc('apply_shop_baseline', {
+      p_guild_id: tenantA.guildId,
+      p_baseline_at: '2026-05-02T00:00:00Z',
+      p_baseline_start: '2026-05-02T00:00:00Z',
+      p_snapshot: [
+        {
+          uniqueName: key.unique_name,
+          nameKo: '화염 지팡이 테스트',
+          category: 'magic',
+          tier: 7,
+          enchant: key.enchant,
+          quality: key.quality,
+          quantity: 4,
+        },
+      ],
+      p_total_items: 4,
+      p_total_events: 1,
+      p_depositor: 'Tester',
+      p_admin_id: 'admin',
+      p_notes: null,
+    })
+
+    expect(error).toBeNull()
+
+    const { data: row } = await client
+      .from('shop_inventory')
+      .select('stock, manual_price, auto_price_silver, price_source, price_warning_level, price_updated_at')
+      .eq('guild_id', tenantA.guildId)
+      .eq('unique_name', key.unique_name)
+      .eq('enchant', key.enchant)
+      .eq('quality', key.quality)
+      .single()
+
+    expect(row?.stock).toBe(3)
+    expect(row?.manual_price).toBe(12345)
+    expect(row?.auto_price_silver).toBe(45678)
+    expect(row?.price_source).toBe('manual')
+    expect(row?.price_warning_level).toBe('quality')
+    expect(new Date(row?.price_updated_at as string).toISOString()).toBe(
+      '2026-05-01T00:00:00.000Z',
+    )
+
+    const { data: zeroRow } = await client
+      .from('shop_inventory')
+      .select('stock, manual_price, price_source')
+      .eq('guild_id', tenantA.guildId)
+      .eq('unique_name', zeroKey.unique_name)
+      .eq('enchant', zeroKey.enchant)
+      .eq('quality', zeroKey.quality)
+      .single()
+
+    expect(zeroRow?.stock).toBe(0)
+    expect(zeroRow?.manual_price).toBe(22222)
+    expect(zeroRow?.price_source).toBe('manual')
+  })
+
+  it('seeds the latest confirmed shop baseline before rebuilding from chest logs', async () => {
+    const client = getTestServiceClient()
+    const key = {
+      unique_name: 'T7_MAIN_FROSTSTAFF',
+      enchant: 1,
+      quality: 2,
+    }
+
+    const { error: baselineErr } = await client.rpc('apply_shop_baseline', {
+      p_guild_id: tenantA.guildId,
+      p_baseline_at: '2026-05-02T00:00:00Z',
+      p_baseline_start: '2026-05-02T00:00:00Z',
+      p_snapshot: [
+        {
+          uniqueName: key.unique_name,
+          nameKo: '서리 지팡이 테스트',
+          category: 'magic',
+          tier: 7,
+          enchant: key.enchant,
+          quality: key.quality,
+          quantity: 4,
+        },
+      ],
+      p_total_items: 4,
+      p_total_events: 1,
+      p_depositor: 'Tester',
+      p_admin_id: 'admin',
+      p_notes: null,
+    })
+    expect(baselineErr).toBeNull()
+
+    const { error: logErr } = await client.from('shop_chest_logs').insert([
+      {
+        guild_id: tenantA.guildId,
+        logged_at: '2026-05-01T00:00:00Z',
+        player: 'before-baseline',
+        item_name_raw: '서리 지팡이 테스트',
+        enchant: key.enchant,
+        quality: key.quality,
+        quantity: 100,
+        unique_name: key.unique_name,
+      },
+      {
+        guild_id: tenantA.guildId,
+        logged_at: '2026-05-02T00:10:00Z',
+        player: 'after-baseline-deposit',
+        item_name_raw: '서리 지팡이 테스트',
+        enchant: key.enchant,
+        quality: key.quality,
+        quantity: 6,
+        unique_name: key.unique_name,
+      },
+      {
+        guild_id: tenantA.guildId,
+        logged_at: '2026-05-02T00:20:00Z',
+        player: 'after-baseline-withdraw',
+        item_name_raw: '서리 지팡이 테스트',
+        enchant: key.enchant,
+        quality: key.quality,
+        quantity: -3,
+        unique_name: key.unique_name,
+      },
+    ])
+    expect(logErr).toBeNull()
+
+    const { error: corruptErr } = await client
+      .from('shop_inventory')
+      .update({ stock: 99, manual_price: 44444, price_source: 'manual' })
+      .eq('guild_id', tenantA.guildId)
+      .eq('unique_name', key.unique_name)
+      .eq('enchant', key.enchant)
+      .eq('quality', key.quality)
+    expect(corruptErr).toBeNull()
+
+    const { data: drift, error } = await client.rpc('rebuild_shop_inventory_from_chest_logs', {
+      p_guild_id: tenantA.guildId,
+      p_start_at: '2026-05-01T00:00:00Z',
+    })
+
+    expect(error).toBeNull()
+    expect((drift as Record<string, unknown>).before_total).toBe(99)
+    expect((drift as Record<string, unknown>).after_total).toBe(7)
+
+    const { data: row } = await client
+      .from('shop_inventory')
+      .select('stock, manual_price, price_source')
+      .eq('guild_id', tenantA.guildId)
+      .eq('unique_name', key.unique_name)
+      .eq('enchant', key.enchant)
+      .eq('quality', key.quality)
+      .single()
+
+    expect(row?.stock).toBe(7)
+    expect(row?.manual_price).toBe(44444)
+    expect(row?.price_source).toBe('manual')
+
+    const { error: recorruptErr } = await client
+      .from('shop_inventory')
+      .update({ stock: 99 })
+      .eq('guild_id', tenantA.guildId)
+      .eq('unique_name', key.unique_name)
+      .eq('enchant', key.enchant)
+      .eq('quality', key.quality)
+    expect(recorruptErr).toBeNull()
+
+    const { data: startAfterBaselineDrift, error: startAfterBaselineErr } = await client.rpc(
+      'rebuild_shop_inventory_from_chest_logs',
+      {
+        p_guild_id: tenantA.guildId,
+        p_start_at: '2026-05-02T00:15:00Z',
+      },
+    )
+
+    expect(startAfterBaselineErr).toBeNull()
+    expect((startAfterBaselineDrift as Record<string, unknown>).before_total).toBe(99)
+    expect((startAfterBaselineDrift as Record<string, unknown>).after_total).toBe(0)
+
+    const { data: rowAfterMovedStart } = await client
+      .from('shop_inventory')
+      .select('stock, manual_price, price_source')
+      .eq('guild_id', tenantA.guildId)
+      .eq('unique_name', key.unique_name)
+      .eq('enchant', key.enchant)
+      .eq('quality', key.quality)
+      .single()
+
+    expect(rowAfterMovedStart?.stock).toBe(0)
+    expect(rowAfterMovedStart?.manual_price).toBe(44444)
+    expect(rowAfterMovedStart?.price_source).toBe('manual')
+  })
+
+  it('rebuilds shop inventory from chest logs after the operating start within tenant scope', async () => {
+    const client = getTestServiceClient()
+    const key = {
+      unique_name: 'T6_MAIN_SPEAR',
+      enchant: 1,
+      quality: 2,
+    }
+    const zeroKey = {
+      unique_name: 'T6_MAIN_RAPIER',
+      enchant: 0,
+      quality: 1,
+    }
+
+    const { error: invErr } = await client.from('shop_inventory').insert([
+      {
+        guild_id: tenantA.guildId,
+        ...key,
+        stock: 99,
+        name_ko: '창 테스트',
+        category: 'melee',
+        tier: 6,
+        manual_price: 777,
+      },
+      {
+        guild_id: tenantB.guildId,
+        ...key,
+        stock: 42,
+        name_ko: '창 테스트 B',
+        category: 'melee',
+        tier: 6,
+      },
+      {
+        guild_id: tenantA.guildId,
+        ...zeroKey,
+        stock: 12,
+        name_ko: '레이피어 가격 보존 테스트',
+        category: 'melee',
+        tier: 6,
+        manual_price: 999,
+        price_source: 'manual',
+      },
+    ])
+    expect(invErr).toBeNull()
+
+    const { error: logErr } = await client.from('shop_chest_logs').insert([
+      {
+        guild_id: tenantA.guildId,
+        logged_at: '2026-05-01T00:00:00Z',
+        player: 'A-before',
+        item_name_raw: '창 테스트',
+        enchant: key.enchant,
+        quality: key.quality,
+        quantity: 30,
+        unique_name: key.unique_name,
+      },
+      {
+        guild_id: tenantA.guildId,
+        logged_at: '2026-05-02T00:00:00Z',
+        player: 'A-after-early-withdraw',
+        item_name_raw: '창 테스트',
+        enchant: key.enchant,
+        quality: key.quality,
+        quantity: -10,
+        unique_name: key.unique_name,
+      },
+      {
+        guild_id: tenantA.guildId,
+        logged_at: '2026-05-02T01:00:00Z',
+        player: 'A-after-deposit',
+        item_name_raw: '창 테스트',
+        enchant: key.enchant,
+        quality: key.quality,
+        quantity: 5,
+        unique_name: key.unique_name,
+      },
+      {
+        guild_id: tenantA.guildId,
+        logged_at: '2026-05-02T02:00:00Z',
+        player: 'A-after-withdraw',
+        item_name_raw: '창 테스트',
+        enchant: key.enchant,
+        quality: key.quality,
+        quantity: -2,
+        unique_name: key.unique_name,
+      },
+      {
+        guild_id: tenantB.guildId,
+        logged_at: '2026-05-02T00:00:00Z',
+        player: 'B-after',
+        item_name_raw: '창 테스트',
+        enchant: key.enchant,
+        quality: key.quality,
+        quantity: 50,
+        unique_name: key.unique_name,
+      },
+    ])
+    expect(logErr).toBeNull()
+
+    const { data: drift, error } = await client.rpc('rebuild_shop_inventory_from_chest_logs', {
+      p_guild_id: tenantA.guildId,
+      p_start_at: '2026-05-02T00:00:00Z',
+    })
+
+    expect(error).toBeNull()
+    expect((drift as Record<string, unknown>).before_total).toBe(111)
+    expect((drift as Record<string, unknown>).after_total).toBe(3)
+
+    const { data: tenantARow } = await client
+      .from('shop_inventory')
+      .select('stock, manual_price, category, tier')
+      .eq('guild_id', tenantA.guildId)
+      .eq('unique_name', key.unique_name)
+      .single()
+    expect(tenantARow?.stock).toBe(3)
+    expect(tenantARow?.manual_price).toBe(777)
+    expect(tenantARow?.category).toBe('melee')
+    expect(tenantARow?.tier).toBe(6)
+
+    const { data: zeroRow } = await client
+      .from('shop_inventory')
+      .select('stock, manual_price, price_source')
+      .eq('guild_id', tenantA.guildId)
+      .eq('unique_name', zeroKey.unique_name)
+      .single()
+    expect(zeroRow?.stock).toBe(0)
+    expect(zeroRow?.manual_price).toBe(999)
+    expect(zeroRow?.price_source).toBe('manual')
+
+    const { data: tenantBRow } = await client
+      .from('shop_inventory')
+      .select('stock')
+      .eq('guild_id', tenantB.guildId)
+      .eq('unique_name', key.unique_name)
+      .single()
+    expect(tenantBRow?.stock).toBe(42)
+  })
 })
 
 describeIntegration('killboard_events tenant scope (mig 156)', () => {

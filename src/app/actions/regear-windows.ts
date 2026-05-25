@@ -440,5 +440,6 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   revalidatePath('/me')
   revalidatePath('/admin/dashboard/regear')
   revalidatePath('/admin/dashboard/regear-windows')
+  revalidatePath('/', 'layout')
   return { id: inserted.id }
 }

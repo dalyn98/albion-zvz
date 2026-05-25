@@ -1,10 +1,13 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft, ScrollText } from 'lucide-react'
-import { getLocale, getTranslations } from 'next-intl/server'
+import { getTranslations } from 'next-intl/server'
 import { getLootAuditDetail } from '@/app/actions/loot-audit'
 import { CAP } from '@/lib/permissions'
 import { getSession, sessionHasAny } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
+import { getTenantTimezone } from '@/lib/timezone-server'
+import { formatDateTime } from '@/lib/format-datetime'
 import LootAuditFindingActions from './LootAuditFindingActions'
 
 export const dynamic = 'force-dynamic'
@@ -22,10 +25,11 @@ export default async function LootAuditDetailPage({
     redirect('/admin/dashboard')
   }
 
-  const [{ id }, t, locale] = await Promise.all([
+  const guildId = await getSessionGuildId(session)
+  const [{ id }, t, tenantTimezone] = await Promise.all([
     params,
     getTranslations('adminLootAuditPage'),
-    getLocale(),
+    getTenantTimezone(guildId),
   ])
   const detail = await getLootAuditDetail(id)
   if ('error' in detail) {
@@ -53,7 +57,7 @@ export default async function LootAuditDetailPage({
         <p className="text-sm text-gray-400">
           {t('detailMeta', {
             user: detail.audit.createdByUsername,
-            date: formatFullDate(detail.audit.createdAt, locale),
+            date: formatDateTime(detail.audit.createdAt, tenantTimezone),
           })}
         </p>
       </header>
@@ -182,14 +186,4 @@ function StatCell({
 
 function formatSilver(value: number): string {
   return Math.round(value).toLocaleString()
-}
-
-function formatFullDate(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(iso))
 }

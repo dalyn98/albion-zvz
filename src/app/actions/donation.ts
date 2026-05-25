@@ -90,6 +90,7 @@ export async function requestDonation(
 
   revalidatePath('/me')
   revalidatePath('/admin/dashboard/donations')
+  revalidatePath('/', 'layout')
   return { id: data.id }
 }
 
@@ -129,6 +130,7 @@ export async function cancelMyDonationRequest(id: string): Promise<{ error?: str
 
   revalidatePath('/me')
   revalidatePath('/admin/dashboard/donations')
+  revalidatePath('/', 'layout')
   return {}
 }
 

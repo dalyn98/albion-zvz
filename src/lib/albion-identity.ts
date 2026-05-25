@@ -101,9 +101,14 @@ export function resolveAlbionOnboardingGate(input: {
   const accountIdentity = accountToMemberIdentity(input.discordId, input.accountIdentity)
   const hasLegacyIdentity = hasLegacyAlbionIdentity(input.legacyIdentity)
   const legacyVerified = isAlbionVerified(input.legacyIdentity)
+  const resolvedIdentity = accountTrusted && accountIdentity
+    ? accountIdentity
+    : hasLegacyIdentity
+      ? input.legacyIdentity
+      : accountIdentity
 
   return {
-    identity: accountRevoked ? null : hasLegacyIdentity ? input.legacyIdentity : accountIdentity,
+    identity: accountRevoked ? null : resolvedIdentity,
     hasStartedOnboarding: accountRevoked ? false : hasLegacyIdentity || Boolean(accountIdentity),
     siteAccessVerified: accountRevoked ? false : accountTrusted || legacyVerified,
     resourceTrusted: input.accountIdentity ? accountTrusted : legacyVerified,

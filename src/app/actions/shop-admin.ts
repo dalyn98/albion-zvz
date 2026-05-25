@@ -10,6 +10,12 @@ import { requireAnyCapability } from '@/lib/auth'
 import { parseChestLog, type ChestLogEntry } from '@/lib/shop/parse-chest-log'
 import { resolveKoItem } from '@/lib/shop/resolve-item'
 import { aggregateStock, type AggregateRow } from '@/lib/shop/aggregate-stock'
+import {
+  buildOrderedStockReplayDeltas,
+  stockReplayKey,
+  summarizeStockReplayChanges,
+  type StockReplayDelta,
+} from '@/lib/shop/stock-replay'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { logAdminAction } from '@/lib/admin-audit'
@@ -17,6 +23,7 @@ import { CAP } from '@/lib/permissions'
 import { summarizeLogContinuity } from '@/lib/log-continuity'
 import { filterByLogOperatingStart } from '@/lib/log-operating-start'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
+import { getPointBalancesByMember } from '@/lib/point-ledger'
 import { syncShopPrices, type PriceSyncSummary } from './shop-inventory'
 
 export interface ImportSummary {
@@ -85,6 +92,32 @@ function dedupeKey(e: {
 function chestLogLabel(entry: { itemName: string; quantity: number }): string {
   const sign = entry.quantity > 0 ? '+' : ''
   return `${entry.itemName} ${sign}${entry.quantity}`
+}
+
+async function loadCurrentStockByKey(
+  db: Awaited<ReturnType<typeof requireAnyCapability>>,
+  guildId: string,
+  deltas: readonly StockReplayDelta[],
+): Promise<Map<string, number>> {
+  const uniqueNames = Array.from(new Set(deltas.map((d) => d.uniqueName)))
+  const stockByKey = new Map<string, number>()
+  if (uniqueNames.length === 0) return stockByKey
+  const { data } = await db
+    .from('shop_inventory')
+    .select('unique_name, enchant, quality, stock')
+    .eq('guild_id', guildId)
+    .in('unique_name', uniqueNames)
+  for (const row of data ?? []) {
+    stockByKey.set(
+      stockReplayKey({
+        uniqueName: row.unique_name as string,
+        enchant: row.enchant as number,
+        quality: row.quality as number,
+      }),
+      row.stock as number,
+    )
+  }
+  return stockByKey
 }
 
 export async function importChestLog(
@@ -245,44 +278,20 @@ export async function importChestLog(
       resolved: resolveKoItem(entry.itemName),
       isBlacklisted: blacklist.has(entry.itemName),
     }))
-    const { toInsert, stockDeltas, unresolvedNames } = aggregateStock(rows)
+    const { toInsert, unresolvedNames } = aggregateStock(rows)
+    const stockDeltas = buildOrderedStockReplayDeltas(rows)
 
     const blacklistedRows = newEntries.filter((e) => blacklist.has(e.itemName)).length
     const unresolvedRows = newEntries.filter(
       (e) => !blacklist.has(e.itemName) && !resolveKoItem(e.itemName),
     ).length
 
-    const stockChanges: ImportSummary['stockChanges'] = []
+    let stockChanges: ImportSummary['stockChanges'] = []
 
     if (dryRun) {
       // 미리보기: 현재 재고를 조회해 "적용 시 예상 재고" 를 계산한다. DB 는 건드리지 않음.
-      const uniqueNames = Array.from(new Set(stockDeltas.map((d) => d.uniqueName)))
-      const existingStockByKey = new Map<string, number>()
-      if (uniqueNames.length > 0) {
-        const { data: invRows } = await db
-          .from('shop_inventory')
-          .select('unique_name, enchant, quality, stock')
-          .eq('guild_id', guildId)
-          .in('unique_name', uniqueNames)
-        for (const r of invRows ?? []) {
-          existingStockByKey.set(
-            `${r.unique_name}|${r.enchant}|${r.quality}`,
-            r.stock as number,
-          )
-        }
-      }
-      for (const d of stockDeltas) {
-        const key = `${d.uniqueName}|${d.enchant}|${d.quality}`
-        const current = existingStockByKey.get(key) ?? 0
-        stockChanges.push({
-          uniqueName: d.uniqueName,
-          nameKo: d.nameKo,
-          enchant: d.enchant,
-          quality: d.quality,
-          delta: d.delta,
-          newStock: current + d.delta,
-        })
-      }
+      const existingStockByKey = await loadCurrentStockByKey(db, guildId, stockDeltas)
+      stockChanges = summarizeStockReplayChanges(existingStockByKey, stockDeltas)
       return {
         parsed: parsedEntries.length,
         parseErrors: errors,
@@ -308,6 +317,7 @@ export async function importChestLog(
       const slice = toInsert.slice(i, i + BATCH).map((r) => ({
         guild_id: guildId,
         logged_at: r.loggedAt.toISOString(),
+        import_sequence: r.importSequence,
         player: r.player,
         item_name_raw: r.itemNameRaw,
         enchant: r.enchant,
@@ -327,9 +337,11 @@ export async function importChestLog(
       }
     }
 
-    // 재고 RPC 호출 — 각 (item × enchant × quality) 단위로 원자 누적.
+    // 재고 RPC 호출 — 저장된 로그와 같은 시간 순서로 적용한다. 출고 로그가 먼저
+    // 나오더라도 뒤따르는 입고를 잃지 않게 해야 rebuild/import 결과가 일치한다.
+    const initialStockByKey = await loadCurrentStockByKey(db, guildId, stockDeltas)
     for (const d of stockDeltas) {
-      const { data: newStock, error } = await db.rpc('apply_shop_stock_delta', {
+      const { error } = await db.rpc('apply_shop_stock_delta', {
         p_guild_id: guildId,
         p_unique_name: d.uniqueName,
         p_enchant: d.enchant,
@@ -358,15 +370,8 @@ export async function importChestLog(
           error: tErr('stockApplyFailed', { uniqueName: d.uniqueName, reason: error.message }),
         }
       }
-      stockChanges.push({
-        uniqueName: d.uniqueName,
-        nameKo: d.nameKo,
-        enchant: d.enchant,
-        quality: d.quality,
-        delta: d.delta,
-        newStock: typeof newStock === 'number' ? newStock : Number(newStock ?? 0),
-      })
     }
+    stockChanges = summarizeStockReplayChanges(initialStockByKey, stockDeltas)
 
     // 재고가 갱신됐으므로 AODP 시세도 이어서 sync — 실패해도 import 결과는 그대로 반환.
     const priceSync = await syncShopPrices()
@@ -548,16 +553,9 @@ export async function listShopOrders(
 
     // 잔액 — 전부 한 번에.
     const discordIds = Array.from(new Set(orders.map((o) => o.discord_id as string)))
-    const { data: ledgerRows } = await db
-      .from('point_ledger')
-      .select('discord_id, delta')
-      .eq('guild_id', guildId)
-      .in('discord_id', discordIds)
-    const balanceByUser = new Map<string, number>()
-    for (const row of ledgerRows ?? []) {
-      const k = row.discord_id as string
-      balanceByUser.set(k, (balanceByUser.get(k) ?? 0) + (row.delta as number))
-    }
+    const { balances: balanceByUser, error: balancesError } =
+      await getPointBalancesByMember(db, guildId, discordIds)
+    if (balancesError) return { orders: [], error: balancesError }
 
     const itemsByOrder = new Map<string, AdminShopOrder['items']>()
     for (const it of items ?? []) {
@@ -634,6 +632,7 @@ export async function approveShopOrder(
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')
+    revalidatePath('/', 'layout')
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,
@@ -677,6 +676,7 @@ export async function rejectShopOrder(
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')
+    revalidatePath('/', 'layout')
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,

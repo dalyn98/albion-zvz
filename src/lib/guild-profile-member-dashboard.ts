@@ -11,6 +11,7 @@ import {
   groupMemberKillsByBattle,
   mergeMemberBattles,
 } from './tracked-kills'
+import { getMemberPointBalance } from './point-ledger'
 import type { BattleOutcome } from './guild-profile-activity'
 
 const RECENT_LEDGER_LIMIT = 3
@@ -83,10 +84,9 @@ export async function loadMemberDashboardSummary(
   const bundleSplits =
     (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
 
-  const [ledgerSum, recentLedgerRes, regearAggRes, recentRegearRes, recentBattles] =
+  const [pointBalance, recentLedgerRes, regearAggRes, recentRegearRes, recentBattles] =
     await Promise.all([
-      // balance = sum(delta). point_ledger 는 append-only 라 delta 합이 곧 잔액.
-      db.from('point_ledger').select('delta').eq('guild_id', guildId).eq('discord_id', discordId),
+      getMemberPointBalance(db, guildId, discordId),
       db
         .from('point_ledger')
         .select('id, delta, reason, memo, created_at')
@@ -112,8 +112,7 @@ export async function loadMemberDashboardSummary(
       loadRecentMemberBattles(guildId, discordId, albionPlayerId, bundleSplits),
     ])
 
-  let balance = 0
-  for (const row of ledgerSum.data ?? []) balance += Number(row.delta) || 0
+  const balance = pointBalance.error ? 0 : pointBalance.balance
 
   const recentLedger: MemberLedgerEntry[] = (recentLedgerRes.data ?? []).map((r) => ({
     id: r.id as string,

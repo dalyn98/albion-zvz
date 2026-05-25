@@ -13,6 +13,25 @@ export interface SiphonAccountSummary {
   rows: SiphonAccountLedgerRow[]
 }
 
+export interface SiphonIdentityGate {
+  identity: { nickname?: string | null } | null
+  resourceTrusted: boolean
+}
+
+export type SiphonPlayerResolution =
+  | { status: 'ready'; player: string }
+  | { status: 'unverified'; nickname: string | null }
+
+export function resolveSiphonPlayer(
+  gate: SiphonIdentityGate,
+): SiphonPlayerResolution {
+  const nickname = gate.identity?.nickname?.trim() || null
+  if (!gate.resourceTrusted || !nickname) {
+    return { status: 'unverified', nickname }
+  }
+  return { status: 'ready', player: nickname }
+}
+
 export function summarizeSiphonAccount(
   player: string,
   rows: readonly SiphonAccountLedgerRow[],
@@ -36,4 +55,3 @@ export function summarizeSiphonAccount(
     rows: sorted.slice(0, Math.max(0, recentLimit)),
   }
 }
-

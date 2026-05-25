@@ -1,13 +1,14 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { AlertCircle, ExternalLink, ScrollText } from 'lucide-react'
-import { getLocale, getTranslations } from 'next-intl/server'
+import { getTranslations } from 'next-intl/server'
 import { listLootAudits } from '@/app/actions/loot-audit'
 import { CAP } from '@/lib/permissions'
 import { getSession, sessionHasAny } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAppSetting } from '@/lib/app-settings'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import { formatDateTimeShort } from '@/lib/format-datetime'
 import LogOperatingStartSettingsForm from '@/components/LogOperatingStartSettingsForm'
 import LootAuditForm from './LootAuditForm'
 
@@ -23,9 +24,8 @@ export default async function AdminLootAuditPage() {
   }
 
   const guildId = await getSessionGuildId(session)
-  const [t, locale, auditResult, tenantTimezone, logStartLootAuditAt] = await Promise.all([
+  const [t, auditResult, tenantTimezone, logStartLootAuditAt] = await Promise.all([
     getTranslations('adminLootAuditPage'),
-    getLocale(),
     listLootAudits(),
     getTenantTimezone(guildId),
     getAppSetting('log_start_loot_audit_at', '', guildId),
@@ -116,7 +116,7 @@ export default async function AdminLootAuditPage() {
                       />
                     </td>
                     <td className="px-3 py-3 text-xs text-gray-500">
-                      {formatDate(audit.createdAt, locale)}
+                      {formatDateTimeShort(audit.createdAt, tenantTimezone)}
                     </td>
                     <td className="px-3 py-3 text-right">
                       <Link
@@ -159,13 +159,4 @@ function StatusPill({
 
 function formatSilver(value: number): string {
   return `${Math.round(value).toLocaleString()}`
-}
-
-function formatDate(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(iso))
 }

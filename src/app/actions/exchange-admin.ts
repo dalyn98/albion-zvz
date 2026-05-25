@@ -12,6 +12,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { formatSilver } from '@/lib/silver'
 import { logAdminAction } from '@/lib/admin-audit'
+import { getPointBalancesByMember } from '@/lib/point-ledger'
 import type { AdminExchangeRequest, RoleReward } from './regear-admin-types'
 
 export async function listExchangeRequests(
@@ -37,19 +38,10 @@ export async function listExchangeRequests(
 
     // Attach balance per user — a small N+1 that's fine at admin-scale volume.
     const rows = data ?? []
-    const balances = new Map<string, number>()
     const uniqueIds = Array.from(new Set(rows.map((r) => r.discord_id)))
-    if (uniqueIds.length > 0) {
-      const { data: ledger, error: ledgerError } = await db
-        .from('point_ledger')
-        .select('discord_id, delta')
-        .eq('guild_id', guildId)
-        .in('discord_id', uniqueIds)
-      if (ledgerError) return { requests: [], error: ledgerError.message }
-      for (const row of ledger ?? []) {
-        balances.set(row.discord_id, (balances.get(row.discord_id) ?? 0) + row.delta)
-      }
-    }
+    const { balances, error: balancesError } =
+      await getPointBalancesByMember(db, guildId, uniqueIds)
+    if (balancesError) return { requests: [], error: balancesError }
 
     return {
       requests: rows.map((r) => ({
@@ -96,6 +88,7 @@ export async function approveExchangeRequest(id: string): Promise<{ error?: stri
     }
     revalidatePath('/admin/dashboard/exchanges')
     revalidatePath('/me')
+    revalidatePath('/', 'layout')
     const { data: row } = await db
       .from('exchange_requests')
       .select('discord_id, silver')
@@ -150,6 +143,7 @@ export async function rejectExchangeRequest(
     }
     revalidatePath('/admin/dashboard/exchanges')
     revalidatePath('/me')
+    revalidatePath('/', 'layout')
     const { data: row } = await db
       .from('exchange_requests')
       .select('discord_id, silver')

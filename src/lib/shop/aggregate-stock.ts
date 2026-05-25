@@ -22,6 +22,7 @@ export interface AggregateRow {
 
 export interface ChestLogInsert {
   loggedAt: Date
+  importSequence: number
   player: string
   itemNameRaw: string
   enchant: number
@@ -41,9 +42,11 @@ export function aggregateStock(rows: AggregateRow[]): AggregateResult {
   const bucket = new Map<string, StockDelta>()
   const unresolved = new Set<string>()
 
-  for (const { entry, resolved, isBlacklisted } of rows) {
+  for (let importSequence = 0; importSequence < rows.length; importSequence++) {
+    const { entry, resolved, isBlacklisted } = rows[importSequence]
     toInsert.push({
       loggedAt: entry.loggedAt,
+      importSequence,
       player: entry.player,
       itemNameRaw: entry.itemName,
       enchant: entry.enchant,

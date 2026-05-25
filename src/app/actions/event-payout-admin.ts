@@ -149,6 +149,7 @@ export async function createEventPayoutRequest(
 
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath(`/admin/dashboard/events/${input.eventId}`)
+    revalidatePath('/', 'layout')
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,
@@ -243,6 +244,7 @@ export async function approveEventPayoutRequest(
     }
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/me')
+    revalidatePath('/', 'layout')
 
     // DM all participants — non-blocking. 신청자가 많을 수 있으니 fire-and-forget.
     const { data: row } = await db
@@ -305,6 +307,7 @@ export async function rejectEventPayoutRequest(
       return { error: error.message }
     }
     revalidatePath('/admin/dashboard/approvals')
+    revalidatePath('/', 'layout')
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,
