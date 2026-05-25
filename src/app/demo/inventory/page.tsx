@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import { Boxes, Lock, Minus, Plus, Search, Shield, Sparkles } from 'lucide-react'
+import AlbionItemImage from '@/components/AlbionItemImage'
 import DemoCTACard from '../_components/DemoCTACard'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 
@@ -323,13 +323,12 @@ function InventoryCard({ card, qtyOverride, onAdjust }: InventoryCardProps) {
   return (
     <div className="group relative flex flex-col rounded-lg bg-gray-950 border border-gray-800 hover:border-amber-500/60 transition-colors overflow-hidden">
       <div className="relative aspect-square w-full bg-gradient-to-br from-gray-900 to-gray-950">
-        <Image
+        <AlbionItemImage
           src={imageUrl(card.uniqueName, heroEnchant, 96)}
           alt={card.nameKo}
           fill
           className="object-contain p-1 pixel-img"
           sizes="100px"
-          unoptimized
         />
         <span className="absolute top-1 left-1 text-[10px] font-bold text-amber-300 bg-black/70 rounded px-1.5 py-0.5">
           T{card.tier}

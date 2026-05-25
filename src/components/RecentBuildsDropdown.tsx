@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Image from 'next/image'
 import { useLocale, useTranslations } from 'next-intl'
 import { History, Trash2 } from 'lucide-react'
 import {
@@ -15,6 +14,7 @@ import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import { applyTemplateToSlotInput } from '@/lib/slot-template-shape'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import type { SlotInput } from './SlotEditor'
+import AlbionItemImage from './AlbionItemImage'
 
 interface Props {
   slot: SlotInput
@@ -110,12 +110,11 @@ export default function RecentBuildsDropdown({ slot, onLoad }: Props) {
                     >
                       <div className="w-10 h-10 flex-shrink-0 rounded-md bg-black/40 border border-gray-800 overflow-hidden relative">
                         {sample.id ? (
-                          <Image
+                          <AlbionItemImage
                             src={`https://render.albiononline.com/v1/item/${sample.id}.png`}
                             alt=""
                             fill
                             className="object-contain pixel-img"
-                            unoptimized
                           />
                         ) : (
                           <span className="absolute inset-0 flex items-center justify-center text-gray-600 text-[10px]">—</span>

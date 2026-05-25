@@ -3,7 +3,6 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import Image from 'next/image'
 import { Check, X, Loader2 } from 'lucide-react'
 import {
   approveShopOrder,
@@ -17,6 +16,7 @@ import MemberLink from './MemberLink'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
 import { getLocalizedItemName } from '@/lib/item-names'
 import type { Locale } from '@/i18n/locales'
+import AlbionItemImage from './AlbionItemImage'
 
 const STATUS_CLASS: Record<string, string> = {
   pending: 'bg-yellow-500/20 text-yellow-300',
@@ -172,12 +172,11 @@ function OrderRow({
               }`}
             >
               <div className="relative w-7 h-7 rounded bg-gray-950 flex-shrink-0">
-                <Image
+                <AlbionItemImage
                   src={imageUrl(it.uniqueName, it.enchant, it.quality)}
                   alt={displayName}
                   fill
                   className="object-contain pixel-img"
-                  unoptimized
                 />
               </div>
               <span className="text-gray-200 flex-1 truncate">

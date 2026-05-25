@@ -27,6 +27,7 @@ import type { TrackedItemSearchEntry } from '@/lib/inventory-name-search'
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/locales'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { useToast } from './ToastProvider'
+import AlbionItemImage from './AlbionItemImage'
 import TrackedItemManager from './TrackedItemManager'
 
 type Tracked = TrackedItemSearchEntry & { sortOrder: number }
@@ -438,14 +439,13 @@ function InventoryCard({
         aria-label={`${row.localizedName} (${total})`}
       >
         <div className="relative w-full aspect-square">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <AlbionItemImage
             src={baseImageUrl}
             alt={row.localizedName}
+            fill
             className={`absolute inset-0 w-full h-full object-contain p-1 pixel-img ${
               isZero ? 'opacity-30 grayscale' : ''
             }`}
-            loading="lazy"
           />
           <span
             className={`absolute top-0.5 left-0.5 rounded px-1 py-0.5 text-[10px] font-bold tabular-nums leading-none ${

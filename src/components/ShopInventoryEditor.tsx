@@ -3,7 +3,6 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import Image from 'next/image'
 import { Package, RefreshCw, Loader2, Pencil, Check, X, Trash2, Search, RotateCcw } from 'lucide-react'
 import {
   syncShopPrices,
@@ -21,6 +20,7 @@ import { formatRelativeFine } from '@/lib/relative-time'
 import { getLocalizedItemName } from '@/lib/item-names'
 import type { Locale } from '@/i18n/locales'
 import { useConfirm } from '@/components/ConfirmDialog'
+import AlbionItemImage from './AlbionItemImage'
 import { useReportDirty } from './UnsavedChangesProvider'
 
 export type InventoryPriceWarning = 'quality' | 'window' | 'bluezone' | 'redzone' | null
@@ -450,12 +450,11 @@ function InventoryListItem({
   return (
     <div className="flex items-center gap-2 bg-gray-800/40 border border-gray-800 rounded-lg px-2 py-1.5">
       <div className="relative w-10 h-10 rounded overflow-hidden bg-gray-900 border border-gray-700 flex-shrink-0">
-        <Image
+        <AlbionItemImage
           src={imageUrl(row.uniqueName, row.enchant, row.quality, 48)}
           alt={row.nameKo}
           fill
           className="object-contain pixel-img"
-          unoptimized
         />
       </div>
 

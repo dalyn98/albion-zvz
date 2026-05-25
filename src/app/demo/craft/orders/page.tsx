@@ -1,9 +1,9 @@
 'use client'
 
-import Image from 'next/image'
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { ClipboardList, Sparkles } from 'lucide-react'
+import AlbionItemImage from '@/components/AlbionItemImage'
 import { DEMO_MEMBERS } from '@/data/demo-seed'
 import DemoCTACard from '../../_components/DemoCTACard'
 import DemoGuidedTour from '../../_components/DemoGuidedTour'
@@ -275,13 +275,12 @@ export default function DemoCraftOrdersPage() {
                 className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3"
               >
                 <header className="flex items-start gap-3">
-                  <Image
+                  <AlbionItemImage
                     src={itemUrl(order.itemId, order.enchant)}
                     alt={order.itemLabel}
                     width={48}
                     height={48}
                     className="shrink-0 rounded"
-                    unoptimized
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-base font-semibold text-white truncate">

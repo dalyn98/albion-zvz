@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
@@ -12,6 +11,7 @@ import {
   Sparkles,
   User,
 } from 'lucide-react'
+import AlbionItemImage from '@/components/AlbionItemImage'
 import { DEMO_MEMBERS } from '@/data/demo-seed'
 import DemoCTACard from '../../_components/DemoCTACard'
 import DemoGuidedTour from '../../_components/DemoGuidedTour'
@@ -284,13 +284,12 @@ export default function DemoCraftMyTasksPage() {
             <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {aggregateRows.map((item) => (
                 <li key={`${item.itemId}-${item.enchant}`} className="bg-gray-950 border border-gray-800 rounded-lg p-2 flex items-center gap-2">
-                  <Image
+                  <AlbionItemImage
                     src={itemUrl(item.itemId, item.enchant)}
                     alt={item.label}
                     width={32}
                     height={32}
                     className="shrink-0"
-                    unoptimized
                   />
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] text-white truncate">{item.label}</p>
@@ -390,13 +389,12 @@ export default function DemoCraftMyTasksPage() {
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           {row.pieces.map((p) => (
                             <div key={p.itemId} className="bg-gray-950 border border-gray-800 rounded-lg p-2 flex items-center gap-2">
-                              <Image
+                              <AlbionItemImage
                                 src={itemUrl(p.itemId, p.enchant)}
                                 alt={p.label}
                                 width={28}
                                 height={28}
                                 className="shrink-0"
-                                unoptimized
                               />
                               <div className="min-w-0">
                                 <p className="text-[10px] text-white truncate">{p.label}</p>
@@ -454,13 +452,12 @@ export default function DemoCraftMyTasksPage() {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {row.pieces.map((p) => (
                         <div key={p.itemId} className="bg-gray-950 border border-gray-800 rounded-lg p-2 flex items-center gap-2">
-                          <Image
+                          <AlbionItemImage
                             src={itemUrl(p.itemId, p.enchant)}
                             alt={p.label}
                             width={28}
                             height={28}
                             className="shrink-0"
-                            unoptimized
                           />
                           <div className="min-w-0">
                             <p className="text-[10px] text-white truncate">{p.label}</p>

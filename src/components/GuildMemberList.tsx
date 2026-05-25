@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { ChevronRight, Crown, Users, X } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import SearchBox from './SearchBox'
@@ -16,6 +15,7 @@ import { getLocalizedItemName } from '@/lib/item-names'
 import { canonicalT8WeaponId } from '@/lib/weapon-display'
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/locales'
 import { compareStrings } from '@/lib/sort-strings'
+import AlbionItemImage from './AlbionItemImage'
 
 // 무기군 필터/뱃지에 쓸 라벨. 킬보드 샘플(T6_... 등) 을 그대로 로컬라이즈하면
 // "마스터의 ~" 같이 티어별로 쪼개져 보여서, 같은 무기군을 T8.0 canonical 로
@@ -263,13 +263,12 @@ export default function GuildMemberList({ members, memberHrefPrefix = '/members'
                     }`}
                   >
                     {iconId ? (
-                      <Image
+                      <AlbionItemImage
                         src={`https://render.albiononline.com/v1/item/${iconId}.png`}
                         alt=""
                         width={20}
                         height={20}
                         className="rounded-sm bg-black/40 pixel-img"
-                        unoptimized
                       />
                     ) : null}
                     <span>{label}</span>
@@ -346,13 +345,12 @@ function WeaponDropdown({
   return (
     <div className="flex items-center gap-2">
       {selectedIconId ? (
-        <Image
+        <AlbionItemImage
           src={`https://render.albiononline.com/v1/item/${selectedIconId}.png`}
           alt=""
           width={24}
           height={24}
           className="rounded-sm bg-black/40 pixel-img flex-shrink-0"
-          unoptimized
         />
       ) : null}
       <select
@@ -473,13 +471,12 @@ function MemberRow({
                 {(() => {
                   const iconId = resolveWeaponIconId(matchedWeapon.sample_weapon_id ?? null)
                   return iconId ? (
-                    <Image
+                    <AlbionItemImage
                       src={`https://render.albiononline.com/v1/item/${iconId}.png`}
                       alt=""
                       width={14}
                       height={14}
                       className="pixel-img"
-                      unoptimized
                     />
                   ) : null
                 })()}

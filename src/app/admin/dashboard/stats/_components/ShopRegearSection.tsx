@@ -1,8 +1,8 @@
-import Image from 'next/image'
 import { ShoppingBag, ShieldCheck, Clock, Trophy } from 'lucide-react'
 import { getShopRegearStats } from '@/app/actions/stats-admin'
 import { getLocalizedItemName } from '@/lib/item-names'
 import type { Locale } from '@/i18n/locales'
+import AlbionItemImage from '@/components/AlbionItemImage'
 import CollapsibleList from '@/components/CollapsibleList'
 import { STATS_COLLAPSED_ROWS, itemImageUrl, type StatsTranslator } from './shared'
 
@@ -125,12 +125,11 @@ export default async function ShopRegearSection({
               >
                 <span className="text-xs text-gray-500 font-mono w-6 text-right">{idx + 1}</span>
                 <div className="relative w-8 h-8 rounded bg-gray-950 flex-shrink-0">
-                  <Image
+                  <AlbionItemImage
                     src={itemImageUrl(item.uniqueName, item.enchant, item.quality)}
                     alt={displayName}
                     fill
                     className="object-contain pixel-img"
-                    unoptimized
                   />
                 </div>
                 <span className="flex-1 text-sm text-gray-200 truncate">

@@ -16,6 +16,7 @@ import {
   searchTrackedItemsAction,
 } from '@/app/actions/inventory-tracked'
 import type { TrackedItemSearchEntry } from '@/lib/inventory-name-search'
+import AlbionItemImage from './AlbionItemImage'
 import { useToast } from './ToastProvider'
 
 type Tracked = TrackedItemSearchEntry & { sortOrder: number }
@@ -153,12 +154,12 @@ export default function TrackedItemManager({ initialTracked }: Props) {
                       onClick={() => handleAdd(r.baseSuffix)}
                       className="w-full flex items-center gap-3 px-3 py-2 hover:bg-amber-500/10 text-left"
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                      <AlbionItemImage
                         src={`https://render.albiononline.com/v1/item/${r.sampleItemId}.png`}
                         alt=""
-                        className="w-8 h-8 object-contain pixel-img flex-shrink-0"
-                        loading="lazy"
+                        width={32}
+                        height={32}
+                        className="object-contain pixel-img flex-shrink-0"
                       />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-white truncate">
@@ -201,12 +202,12 @@ export default function TrackedItemManager({ initialTracked }: Props) {
                 key={row.baseSuffix}
                 className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-800 border border-gray-700 text-xs text-gray-200"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <AlbionItemImage
                   src={`https://render.albiononline.com/v1/item/${row.sampleItemId}.png`}
                   alt=""
-                  className="w-4 h-4 object-contain pixel-img"
-                  loading="lazy"
+                  width={16}
+                  height={16}
+                  className="object-contain pixel-img"
                 />
                 <span className="truncate max-w-[160px]">
                   {getDisplayName(row)}
