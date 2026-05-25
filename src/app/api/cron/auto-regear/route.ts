@@ -3,6 +3,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { processAutoRegear } from '@/lib/auto-regear'
 import { revalidatePath } from 'next/cache'
 import { listActiveTenants } from '@/lib/tenant'
+import { log } from '@/lib/log'
 
 // 자동 리기어 cron. GitHub Actions 가 5분 주기로 호출. 내부에서 전역 toggle
 // (auto_regear_enabled) 과 이벤트 단위 processed gate 로 중복 처리를 방지한다.
@@ -54,8 +55,6 @@ export async function GET(request: Request) {
     revalidatePath('/admin/dashboard/approvals')
   }
 
-  // Vercel runtime 로그에 한 줄로 직렬화. "왜 청구가 안 만들어지나" 디버그
-  // 시 vercel logs -q "/api/cron/auto-regear" -x 로 즉시 카운트를 볼 수 있다.
-  console.log(JSON.stringify({ cron: 'auto-regear', tenants: results }))
+  log.info('[cron/auto-regear] complete', { tenants: results })
   return NextResponse.json({ tenants: results })
 }

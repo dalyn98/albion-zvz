@@ -129,7 +129,11 @@ export async function GET(request: Request) {
         })
         continue
       }
-      console.log(`[cron/event-imminent] auto-started event ${row.id} (gather_at=${gatherAt}) for tenant ${tenant.id}`)
+      log.info('[cron/event-imminent] auto-started event', {
+        tenant_id: tenant.id,
+        event_id: row.id,
+        gather_at: gatherAt,
+      })
       autoStartResults.push({ event_id: row.id, battle_started_at: gatherAt })
     }
   }

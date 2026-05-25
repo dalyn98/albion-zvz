@@ -3,6 +3,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { revalidatePath } from 'next/cache'
 import { listActiveTenants } from '@/lib/tenant'
 import { syncTenantShopPrices } from '@/lib/shop/price-sync'
+import { log } from '@/lib/log'
 
 // /shop 의 auto_price_silver staleness 해소용 cron. 1시간 주기로 모든 active
 // 테넌트를 순회하면서 syncTenantShopPrices 호출. 자동 리기어가 매 cron 라이브
@@ -49,6 +50,6 @@ export async function GET(request: Request) {
     revalidatePath('/shop')
   }
 
-  console.log(JSON.stringify({ cron: 'shop-price-sync', tenants: results }))
+  log.info('[cron/shop-price-sync] complete', { tenants: results })
   return NextResponse.json({ tenants: results })
 }
