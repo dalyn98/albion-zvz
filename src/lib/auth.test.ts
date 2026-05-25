@@ -228,10 +228,22 @@ describe('requireEventCreatorOrPartyCaller', () => {
   })
 
   it('event owner gets isAdminOrOwner=true', async () => {
-    getSessionMock.mockResolvedValue(session({ discordId: 'owner-1' }))
+    getSessionMock.mockResolvedValue(session({ canCreateEvents: true, discordId: 'owner-1' }))
     nextEventResult = { data: { created_by: 'owner-1' }, error: null }
     const r = await requireEventCreatorOrPartyCaller('evt-1', 'p-1')
     expect(r.isAdminOrOwner).toBe(true)
+  })
+
+  it('former event owner without event creation authority is not treated as owner', async () => {
+    getSessionMock.mockResolvedValue(session({ canCreateEvents: false, discordId: 'owner-1' }))
+    nextEventResult = { data: { created_by: 'owner-1' }, error: null }
+    nextPartyResult = {
+      data: { event_id: 'evt-1', caller_discord_id: 'caller-1' },
+      error: null,
+    }
+    await expect(
+      requireEventCreatorOrPartyCaller('evt-1', 'p-1'),
+    ).rejects.toThrow(/Unauthorized/)
   })
 
   it('EVENT_MANAGE officer gets isAdminOrOwner=true', async () => {

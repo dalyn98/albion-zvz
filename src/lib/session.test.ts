@@ -1,11 +1,18 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { CAP } from './permissions'
 
 vi.mock('next/headers', () => ({
   cookies: async () => ({ get: () => undefined }),
 }))
 
-import { vi } from 'vitest'
-import { signSession, verifySession, type SessionPayload } from './session'
+import {
+  sessionHas,
+  sessionHasAll,
+  sessionHasAny,
+  signSession,
+  verifySession,
+  type SessionPayload,
+} from './session'
 
 beforeAll(() => {
   process.env.COOKIE_SECRET = 'test-secret-do-not-use-in-prod'
@@ -18,7 +25,7 @@ const basePayload = (overrides: Partial<SessionPayload> = {}): SessionPayload =>
   isMember: true,
   isAdmin: false,
   isGuest: false,
-    isLocalGuildAccount: false,
+  isLocalGuildAccount: false,
   canCreateEvents: false,
   eventCreatorCategories: [],
   eventScope: null,
@@ -42,7 +49,7 @@ describe('session sign/verify round trip', () => {
   it('rejects a tampered payload (signature mismatch)', async () => {
     const original = basePayload()
     const cookie = await signSession(original)
-    // Flip last char of the payload portion (before the dot)
+    // Flip last char of the payload portion (before the dot).
     const [payloadB64, sig] = cookie.split('.')
     const lastChar = payloadB64.slice(-1)
     const tamperedChar = lastChar === 'A' ? 'B' : 'A'
@@ -81,7 +88,6 @@ describe('session sign/verify round trip', () => {
   })
 
   it('legacy cookie without guildId returns null guildId (fallback handled by caller)', async () => {
-    // Manually create a session without the guildId field to simulate a pre-tenant cookie.
     const legacyPayload = {
       discordId: 'legacy',
       username: 'old',
@@ -89,15 +95,39 @@ describe('session sign/verify round trip', () => {
       isMember: true,
       isAdmin: false,
       isGuest: false,
-    isLocalGuildAccount: false,
+      isLocalGuildAccount: false,
       canCreateEvents: false,
       eventCreatorCategories: [],
       eventScope: null,
       issuedAt: Date.now(),
     }
-    // Sign without guildId — use the raw signing path.
     const cookie = await signSession(legacyPayload as unknown as SessionPayload)
     const verified = await verifySession(cookie)
     expect(verified?.guildId).toBeNull()
+  })
+})
+
+describe('session capability helpers', () => {
+  it('treats admin sessions as having every capability even with legacy empty bits', () => {
+    const admin = basePayload({ isAdmin: true, capabilities: '' })
+
+    expect(sessionHas(admin, CAP.SIPHON_MANAGE)).toBe(true)
+    expect(sessionHasAny(admin, [CAP.CHEST_LOG_PASTE, CAP.AUDIT_VIEW])).toBe(true)
+    expect(sessionHasAll(admin, [CAP.SETTINGS_PERMISSIONS, CAP.EVENT_MANAGE])).toBe(true)
+  })
+
+  it('keeps non-admin sessions limited to their explicit capability bits', () => {
+    const officer = basePayload({ capabilities: CAP.SIPHON_MANAGE.toString() })
+
+    expect(sessionHas(officer, CAP.SIPHON_MANAGE)).toBe(true)
+    expect(sessionHas(officer, CAP.AUDIT_VIEW)).toBe(false)
+    expect(sessionHasAny(officer, [CAP.CHEST_LOG_PASTE, CAP.AUDIT_VIEW])).toBe(false)
+    expect(sessionHasAll(officer, [CAP.SIPHON_MANAGE, CAP.AUDIT_VIEW])).toBe(false)
+  })
+
+  it('returns false for missing sessions', () => {
+    expect(sessionHas(null, CAP.SIPHON_MANAGE)).toBe(false)
+    expect(sessionHasAny(null, [CAP.SIPHON_MANAGE])).toBe(false)
+    expect(sessionHasAll(null, [CAP.SIPHON_MANAGE])).toBe(false)
   })
 })

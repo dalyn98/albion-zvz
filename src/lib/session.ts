@@ -44,15 +44,16 @@ export const getSession = cache(async (): Promise<SessionPayload | null> => {
 // ─── capability helpers ───────────────────────────────────────
 // SessionPayload.capabilities 는 BigInt 직렬화된 string. 라우트별 게이트가
 // 매번 BigInt 파싱하지 않게 helper 가 변환을 캡슐화한다. 빈 세션이면 false.
-// 점진 마이그 도중에는 호출자가 isAdmin OR capability 두 조건 모두 체크하는
-// 패턴이 자연스럽다 — legacy admin 은 ALL_CAPABILITIES 보유라 capability 만
-// 으로도 통과하지만, 마이그 안 끝난 라우트의 fallback 으로 isAdmin 도 유지.
+// Admin 은 모든 capability 를 가진 것으로 취급한다. capability 필드가 없던
+// 레거시 admin cookie 도 페이지/액션 단위 capability gate 에서 막히지 않게 하기
+// 위한 fallback 이다.
 
 export function sessionHas(
   session: SessionPayload | null,
   cap: bigint,
 ): boolean {
   if (!session) return false
+  if (session.isAdmin) return true
   return hasCapability(parseCapabilities(session.capabilities), cap)
 }
 
@@ -61,6 +62,7 @@ export function sessionHasAny(
   caps: readonly bigint[],
 ): boolean {
   if (!session) return false
+  if (session.isAdmin) return true
   return hasAnyCapability(parseCapabilities(session.capabilities), caps)
 }
 
@@ -69,5 +71,6 @@ export function sessionHasAll(
   caps: readonly bigint[],
 ): boolean {
   if (!session) return false
+  if (session.isAdmin) return true
   return hasAllCapabilities(parseCapabilities(session.capabilities), caps)
 }

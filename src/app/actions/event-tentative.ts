@@ -118,7 +118,10 @@ export async function removeTentativeSignup(
   if (!event) return { error: tAction('eventNotFound') }
 
   const isSelf = session.discordId === discordId
-  const isEventOwner = !!event.created_by && event.created_by === session.discordId
+  const isEventOwner =
+    !!session.canCreateEvents &&
+    !!event.created_by &&
+    event.created_by === session.discordId
   const isEventManager = sessionHas(session, CAP.EVENT_MANAGE)
   if (!isSelf && !session.isAdmin && !isEventManager && !isEventOwner) {
     return { error: tAction('notAuthorized') }
@@ -161,7 +164,10 @@ export async function adminUpsertTentativeSignup(
   if (eventErr) return { error: eventErr.message }
   if (!event) return { error: tAction('eventNotFound') }
 
-  const isEventOwner = !!event.created_by && event.created_by === session.discordId
+  const isEventOwner =
+    !!session.canCreateEvents &&
+    !!event.created_by &&
+    event.created_by === session.discordId
   const isEventManager = sessionHas(session, CAP.EVENT_MANAGE)
   if (!session.isAdmin && !isEventManager && !isEventOwner) {
     return { error: tAction('notAuthorized') }

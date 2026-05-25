@@ -141,9 +141,10 @@ export async function verifySession(cookieValue: string | undefined): Promise<Se
       eventScope: parsed.eventScope ?? null,
       // 레거시 쿠키(guildId 도입 이전) 는 null. 소비 측에서 primary tenant 로 fallback.
       guildId: parsed.guildId ?? null,
-      // 레거시 쿠키 (capabilities 도입 이전) 는 빈 문자열. sessionHas 가 0n 으로
-      // 파싱해 모든 capability 체크 false → 자연스럽게 legacy isAdmin 게이트만
-      // 통과. 재로그인 시 OAuth callback 에서 resolveUserCapabilities 가 갱신.
+      // 레거시 쿠키 (capabilities 도입 이전) 는 빈 문자열. 일반 멤버는 0n 으로
+      // 파싱되고, admin 은 sessionHas* helper 의 isAdmin fallback 으로 모든
+      // capability gate 를 통과한다. 재로그인 시 OAuth callback 에서
+      // resolveUserCapabilities 가 갱신.
       capabilities: typeof parsed.capabilities === 'string' ? parsed.capabilities : '',
       issuedAt: parsed.issuedAt,
     }

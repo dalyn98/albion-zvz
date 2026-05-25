@@ -81,7 +81,10 @@ export default async function CallerPartyEditPage({
   const categoryMax = CATEGORY_PARTY_LIMITS[eventCategory]?.max ?? HARD_MAX_PARTIES
   if (partyNumber > categoryMax) notFound()
 
-  const isOwner = !!event.created_by && event.created_by === session.discordId
+  const isOwner =
+    !!session.canCreateEvents &&
+    !!event.created_by &&
+    event.created_by === session.discordId
   const isCaller =
     !!party.caller_discord_id && party.caller_discord_id === session.discordId
   const isAdminOrOwner = session.isAdmin || isOwner

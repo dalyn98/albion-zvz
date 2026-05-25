@@ -91,7 +91,7 @@ export async function requireEventCreatorOrPartyCaller(
   if (!event) throw new Error('Event not found')
   if (
     sessionHas(session, CAP.EVENT_MANAGE) ||
-    (event.created_by && event.created_by === session.discordId)
+    (session.canCreateEvents && event.created_by && event.created_by === session.discordId)
   ) {
     return { db, isAdminOrOwner: true }
   }
