@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Plus, Lock, Trash2 } from 'lucide-react'
 import {
   openRegearWindow,
+  listRegearWindows,
   closeRegearWindow,
   deleteRegearWindow,
   type RegearWindow,
@@ -26,6 +28,7 @@ interface RegearWindowsAdminProps {
 
 export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: RegearWindowsAdminProps) {
   const t = useTranslations('adminRegearWindows')
+  const router = useRouter()
   const [windows, setWindows] = useState<RegearWindow[]>(initialWindows)
   const [isPending, startTransition] = useTransition()
   const [formError, setFormError] = useState<string | null>(null)
@@ -42,15 +45,6 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
     day: t('partDay'),
     hour: t('partHour'),
     minute: t('partMinute'),
-  }
-
-  function refreshFromServer() {
-    fetch('/admin/dashboard/regear-windows', { cache: 'no-store' })
-      .catch(() => null)
-      .finally(() => {
-        // server-side `dynamic` revalidation will refresh on next nav; we also
-        // optimistically update local state from action results below.
-      })
   }
 
   async function handleSubmit(formData: FormData) {
@@ -76,8 +70,13 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
       const form = document.getElementById('regear-window-form') as HTMLFormElement | null
       form?.reset()
       setParts(BLANK_GATHER_PARTS)
-      refreshFromServer()
-      if (typeof window !== 'undefined') window.location.reload()
+      const latest = await listRegearWindows('all')
+      if (latest.error) {
+        toast.error(latest.error)
+      } else {
+        setWindows(latest.windows)
+      }
+      router.refresh()
     })
   }
 
@@ -97,6 +96,7 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
             : w,
         ),
       )
+      router.refresh()
     })
   }
 
@@ -110,6 +110,7 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
         return
       }
       setWindows((prev) => prev.filter((w) => w.id !== id))
+      router.refresh()
     })
   }
 
