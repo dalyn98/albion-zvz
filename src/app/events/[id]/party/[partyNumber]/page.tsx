@@ -2,10 +2,12 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSessionGuildId } from '@/lib/tenant'
+import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
+import { CAP } from '@/lib/permissions'
 import type { EventCategory, PartyWithSlots } from '@/types'
 import { CATEGORY_PARTY_LIMITS } from '@/types'
 import PartyEditorPanel from '@/components/PartyEditorPanel'
@@ -82,12 +84,12 @@ export default async function CallerPartyEditPage({
   if (partyNumber > categoryMax) notFound()
 
   const isOwner =
-    !!session.canCreateEvents &&
+    sessionCanCreateOrManageEvents(session) &&
     !!event.created_by &&
     event.created_by === session.discordId
   const isCaller =
     !!party.caller_discord_id && party.caller_discord_id === session.discordId
-  const isAdminOrOwner = session.isAdmin || isOwner
+  const isAdminOrOwner = session.isAdmin || sessionHas(session, CAP.EVENT_MANAGE) || isOwner
   if (!isAdminOrOwner && !isCaller) notFound()
 
   // memberDirectory 는 PartyEditorPanel 의 caller dropdown 과 헤더 배지용.

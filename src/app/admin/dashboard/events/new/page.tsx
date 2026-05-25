@@ -5,7 +5,8 @@ import DuplicateEventButton from '@/components/DuplicateEventButton'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { EVENT_CATEGORIES, type EventCategory } from '@/types'
+import { getCreatableEventCategories } from '@/lib/event-permissions'
+import type { EventCategory } from '@/types'
 import { listTemplates } from '@/app/actions/templates'
 
 interface RecentEvent {
@@ -32,19 +33,18 @@ export default async function NewEventPage() {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
-  const allowedCategories: EventCategory[] = session?.isAdmin
-    ? [...EVENT_CATEGORIES]
-    : session?.eventCreatorCategories ?? []
+  const allowedCategories: EventCategory[] = getCreatableEventCategories(session)
+  if (allowedCategories.length === 0) throw new Error('Unauthorized')
   const [recentEvents, templateResult] = await Promise.all([
     listRecentEvents(guildId),
-    session.isAdmin ? listTemplates() : Promise.resolve({ templates: [] }),
+    listTemplates(),
   ])
   return (
     <div className="space-y-6 max-w-3xl">
       <h1 className="text-2xl font-bold text-white">{t('title')}</h1>
       <p className="text-gray-400 text-sm">{t('subtitle')}</p>
       <NewEventDraftForm allowedCategories={allowedCategories} />
-      {session.isAdmin && (
+      {allowedCategories.length > 0 && (
         <NewEventFromTemplateForm
           templates={templateResult.templates}
           allowedCategories={allowedCategories}

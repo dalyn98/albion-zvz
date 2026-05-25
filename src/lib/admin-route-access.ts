@@ -1,4 +1,5 @@
 import { CAP, hasAnyCapability, parseCapabilities } from '@/lib/permissions'
+import { REGEAR_WINDOW_MANAGE_CAPS } from '@/lib/regear-window-permissions'
 
 interface AdminRouteAccessRule {
   href: string
@@ -94,7 +95,7 @@ export const ADMIN_ROUTE_ACCESS_RULES: readonly AdminRouteAccessRule[] = [
   },
   {
     href: '/admin/dashboard/regear-windows',
-    capabilities: [CAP.REGEAR_APPROVE, CAP.SETTINGS_TOGGLES],
+    capabilities: REGEAR_WINDOW_MANAGE_CAPS,
   },
   {
     href: '/admin/dashboard/stats',

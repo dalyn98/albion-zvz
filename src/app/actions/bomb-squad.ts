@@ -6,6 +6,7 @@ import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { CAP } from '@/lib/permissions'
+import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 import type { AssignableMember } from '@/lib/member-assign-search'
 
 // Approve / reject sign-ups on a bomb squad party. Authorization passes if the
@@ -55,7 +56,7 @@ async function authorizeBombSquadAction(slotId: string): Promise<
   // 가능해야 한다 (admin kick 과 동등). 단, 솔로밤 슬롯은 콜러를 제외 — "콜러
   // 없이 운영" 가능한 역할이라 승인 권한은 관리자/이벤트 관리자/작성자에 한정한다.
   const isEventOwner =
-    !!session.canCreateEvents &&
+    sessionCanCreateOrManageEvents(session) &&
     !!event.created_by &&
     event.created_by === session.discordId
   const isEventManager = sessionHas(session, CAP.EVENT_MANAGE)
@@ -110,7 +111,7 @@ async function authorizeDirectAssignAction(slotId: string): Promise<
   if (!event) return { ok: false, error: tAction('slotNotFound') }
 
   const isEventOwner =
-    !!session.canCreateEvents &&
+    sessionCanCreateOrManageEvents(session) &&
     !!event.created_by &&
     event.created_by === session.discordId
   const isEventManager = sessionHas(session, CAP.EVENT_MANAGE)
@@ -244,7 +245,7 @@ export async function listAssignableMembers(
   if (eventError) return { error: eventError.message }
   if (!eventRow) return { error: tAction('eventNotFound') }
   const isOwner =
-    !!session.canCreateEvents &&
+    sessionCanCreateOrManageEvents(session) &&
     !!eventRow.created_by &&
     eventRow.created_by === session.discordId
   const isEventManager = sessionHas(session, CAP.EVENT_MANAGE)

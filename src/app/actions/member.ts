@@ -7,6 +7,7 @@ import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getEventGuestProfile } from '@/lib/event-guest-profile'
 import { CAP } from '@/lib/permissions'
+import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 import type { GearOption, SlotKey } from '@/types'
 
 export type SlotPicks = Partial<Record<SlotKey, GearOption>>
@@ -247,7 +248,7 @@ export async function adminCancelSlot(slotId: string): Promise<{ error?: string 
   const party = Array.isArray(partyJoin) ? partyJoin[0] : partyJoin
   const event = Array.isArray(party?.events) ? party?.events[0] : party?.events
   const isEventOwner =
-    !!session.canCreateEvents &&
+    sessionCanCreateOrManageEvents(session) &&
     !!event?.created_by &&
     event.created_by === session.discordId
   const isEventManager = sessionHas(session, CAP.EVENT_MANAGE)

@@ -6,6 +6,7 @@ import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { CAP } from '@/lib/permissions'
+import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 import { SLOT_ROLES, type SlotRole } from '@/types'
 
 export interface TentativeSignupRow {
@@ -119,7 +120,7 @@ export async function removeTentativeSignup(
 
   const isSelf = session.discordId === discordId
   const isEventOwner =
-    !!session.canCreateEvents &&
+    sessionCanCreateOrManageEvents(session) &&
     !!event.created_by &&
     event.created_by === session.discordId
   const isEventManager = sessionHas(session, CAP.EVENT_MANAGE)
@@ -165,7 +166,7 @@ export async function adminUpsertTentativeSignup(
   if (!event) return { error: tAction('eventNotFound') }
 
   const isEventOwner =
-    !!session.canCreateEvents &&
+    sessionCanCreateOrManageEvents(session) &&
     !!event.created_by &&
     event.created_by === session.discordId
   const isEventManager = sessionHas(session, CAP.EVENT_MANAGE)

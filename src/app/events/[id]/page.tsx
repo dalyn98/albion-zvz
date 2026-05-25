@@ -20,6 +20,7 @@ import Link from 'next/link'
 import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
+import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 import { getAvatarsByDiscordIds, getUsernamesByDiscordIds } from '@/lib/discord-avatar'
 import { formatGatherTimeFor, isEnded } from '@/lib/gather-time'
 import { formatDateTimeShort } from '@/lib/format-datetime'
@@ -289,7 +290,9 @@ export default async function EventDetailPage({
     !!session &&
     (session.isAdmin ||
       sessionHas(session, CAP.EVENT_MANAGE) ||
-      (session.canCreateEvents && !!event.created_by && event.created_by === session.discordId))
+      (sessionCanCreateOrManageEvents(session) &&
+        !!event.created_by &&
+        event.created_by === session.discordId))
   const canManageTentativeSignups = canEdit
 
   // 게스트 초대 관리도 같은 권한(관리자 or 이벤트 작성자). 서버에서 미리

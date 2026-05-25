@@ -22,6 +22,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
+import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 import { isEnded } from '@/lib/gather-time'
 import { getTenantTimezone } from '@/lib/timezone-server'
 
@@ -112,6 +113,13 @@ export default async function EditEventPage({
   const autoRegearEnabled = autoRegearRaw === 'true'
 
   if (!event) notFound()
+  const canEditEvent =
+    session.isAdmin ||
+    sessionHas(session, CAP.EVENT_MANAGE) ||
+    (sessionCanCreateOrManageEvents(session) &&
+      !!event.created_by &&
+      event.created_by === session.discordId)
+  if (!canEditEvent) notFound()
 
   const eventCategory: EventCategory = event.category
   const partyLimits = CATEGORY_PARTY_LIMITS[eventCategory]
@@ -157,10 +165,7 @@ export default async function EditEventPage({
     username: m.username,
   }))
   const avatars = Object.fromEntries(avatarMap)
-  const canManageTentativeSignups =
-    session.isAdmin ||
-    sessionHas(session, CAP.EVENT_MANAGE) ||
-    (!!session.canCreateEvents && !!event.created_by && event.created_by === session.discordId)
+  const canManageTentativeSignups = canEditEvent
 
   return (
     <EventEditSaveProvider>

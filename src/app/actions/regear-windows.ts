@@ -2,13 +2,14 @@
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireAnyCapability } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import { requireAlbionVerified } from '@/lib/albion-identity'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
+import { REGEAR_WINDOW_MANAGE_CAPS } from '@/lib/regear-window-permissions'
 import { SLOT_KEYS, SLOT_ROLES, type BuildSnapshot, type RegearType, type SlotRole } from '@/types'
 
 // 이벤트와 무관한 자유 신청 창구 (regear_windows). 관리자가 윈도우를 열고
@@ -181,7 +182,7 @@ export async function openRegearWindow(formData: FormData): Promise<{
   const tErr = await getTranslations('adminActionError')
   const session = await getSession()
   if (!session) return { error: tErr('unauthorized') }
-  const db = await requireAdmin()
+  const db = await requireAnyCapability(REGEAR_WINDOW_MANAGE_CAPS)
   const guildId = await getSessionGuildId(session)
 
   const title = String(formData.get('title') ?? '').trim()
@@ -230,7 +231,7 @@ export async function closeRegearWindow(id: string): Promise<{ error?: string }>
   const tErr = await getTranslations('adminActionError')
   const session = await getSession()
   if (!session) return { error: tErr('unauthorized') }
-  const db = await requireAdmin()
+  const db = await requireAnyCapability(REGEAR_WINDOW_MANAGE_CAPS)
   const guildId = await getSessionGuildId(session)
 
   const { error } = await db
@@ -253,7 +254,7 @@ export async function deleteRegearWindow(id: string): Promise<{ error?: string }
   const tErr = await getTranslations('adminActionError')
   const session = await getSession()
   if (!session) return { error: tErr('unauthorized') }
-  const db = await requireAdmin()
+  const db = await requireAnyCapability(REGEAR_WINDOW_MANAGE_CAPS)
   const guildId = await getSessionGuildId(session)
 
   // 신청이 하나라도 매달려 있으면 삭제 차단 (CASCADE 로 신청까지 사라지면 ledger

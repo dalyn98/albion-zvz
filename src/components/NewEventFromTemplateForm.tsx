@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { LayoutTemplate } from 'lucide-react'
 import { createEventFromTemplate, type TemplateSummary } from '@/app/actions/templates'
-import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, type EventCategory } from '@/types'
+import { CATEGORY_I18N_SLUG, type EventCategory } from '@/types'
 import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
@@ -22,9 +22,7 @@ export default function NewEventFromTemplateForm({
   const tForm = useTranslations('adminEventForm')
   const tCommon = useTranslations('common')
   const titleId = useId()
-  const visibleCategories: EventCategory[] = allowedCategories.length > 0
-    ? allowedCategories
-    : [...EVENT_CATEGORIES]
+  const visibleCategories: EventCategory[] = allowedCategories
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? '')
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState<EventCategory>(visibleCategories[0] ?? '전투')

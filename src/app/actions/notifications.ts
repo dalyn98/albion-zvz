@@ -10,6 +10,7 @@ import { isValidTenantTimezone } from '@/lib/timezone'
 import { log } from '@/lib/log'
 import { CATEGORY_NOTIFY_COLUMN, EVENT_CATEGORIES, type EventCategory } from '@/types'
 import { CAP } from '@/lib/permissions'
+import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 
 // 사용자(길드원/게스트) 본인의 Discord DM 수신 토글과 관리자용 Discord 역할
 // 목록 조회를 담당. 웹 푸시 스택(actions/push.ts) 을 대체한다.
@@ -228,7 +229,7 @@ export async function listGuildRoles(): Promise<{
     if (!session) return { roles: [], error: tErr('serverError') }
     if (
       !session.isAdmin &&
-      !session.canCreateEvents &&
+      !sessionCanCreateOrManageEvents(session) &&
       !sessionHasAny(session, [
         CAP.SETTINGS_PERMISSIONS,
         CAP.SETTINGS_GENERAL,
@@ -284,7 +285,7 @@ export async function listGuildChannels(): Promise<{
     if (!session) return { channels: [], error: tErr('serverError') }
     if (
       !session.isAdmin &&
-      !session.canCreateEvents &&
+      !sessionCanCreateOrManageEvents(session) &&
       !sessionHasAny(session, [CAP.SETTINGS_GENERAL])
     ) {
       throw new Error('Unauthorized')

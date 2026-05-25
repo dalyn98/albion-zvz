@@ -17,6 +17,7 @@ import HomeEventList, {
 import NoticeBannerWithAdmin from '@/components/NoticeBannerWithAdmin'
 import HomeAdminPendingCard from '@/components/HomeAdminPendingCard'
 import { getAdminBadgeCounts } from '@/lib/admin-badges'
+import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 
 // Homepage reflects the live DB, so never prerender at build — a static
 // snapshot would show stale or deleted events.
@@ -170,7 +171,7 @@ export default async function HomePage() {
             <Archive size={14} />
             {t('home.viewArchive')}
           </Link>
-          {session?.canCreateEvents && (
+          {sessionCanCreateOrManageEvents(session) && (
             <Link
               href="/admin/dashboard/events/new"
               className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold px-3 py-2 rounded-lg transition-colors text-sm whitespace-nowrap flex-1 sm:flex-initial"

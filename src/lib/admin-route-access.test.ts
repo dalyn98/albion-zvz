@@ -70,6 +70,11 @@ describe('admin route access', () => {
       serializeCapabilities(CAP.CRAFT_TASK_DELIVER),
     )).toBe(true)
     expect(canAccessAdminPath(
+      '/admin/dashboard/regear-windows',
+      false,
+      serializeCapabilities(CAP.REGEAR_APPROVE),
+    )).toBe(true)
+    expect(canAccessAdminPath(
       '/admin/dashboard/settings',
       false,
       serializeCapabilities(CAP.SETTINGS_GUILD_PROFILE),

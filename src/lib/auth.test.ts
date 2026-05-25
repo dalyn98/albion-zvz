@@ -141,6 +141,13 @@ describe('requireEventCreator', () => {
     const c = await requireEventCreator()
     expect(c).toMatchObject(ADMIN_SENTINEL)
   })
+  it('passes with a delegated event-create capability', async () => {
+    getSessionMock.mockResolvedValue(
+      session({ canCreateEvents: false, capabilities: CAP.EVENT_CREATE_COMBAT.toString() }),
+    )
+    const c = await requireEventCreator()
+    expect(c).toMatchObject(ADMIN_SENTINEL)
+  })
 })
 
 describe('requireEventCreatorForEvent', () => {
@@ -163,6 +170,19 @@ describe('requireEventCreatorForEvent', () => {
   it('owner passes (created_by matches discordId)', async () => {
     getSessionMock.mockResolvedValue(
       session({ canCreateEvents: true, discordId: 'owner-1' }),
+    )
+    nextEventResult = { data: { created_by: 'owner-1' }, error: null }
+    const c = await requireEventCreatorForEvent('evt-1')
+    expect(c).toMatchObject(ADMIN_SENTINEL)
+  })
+
+  it('owner with delegated event-create capability passes', async () => {
+    getSessionMock.mockResolvedValue(
+      session({
+        canCreateEvents: false,
+        discordId: 'owner-1',
+        capabilities: CAP.EVENT_CREATE_COMBAT.toString(),
+      }),
     )
     nextEventResult = { data: { created_by: 'owner-1' }, error: null }
     const c = await requireEventCreatorForEvent('evt-1')

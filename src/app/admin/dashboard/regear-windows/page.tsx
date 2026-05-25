@@ -2,8 +2,9 @@ import { getTranslations } from 'next-intl/server'
 import { listRegearWindows } from '@/app/actions/regear-windows'
 import RegearWindowsAdmin from '@/components/RegearWindowsAdmin'
 import { getTenantTimezone } from '@/lib/timezone-server'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHasAny } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { REGEAR_WINDOW_MANAGE_CAPS } from '@/lib/regear-window-permissions'
 
 // 이벤트와 무관한 자유 리기어 신청 창구 관리. 관리자는 윈도우를 열고 (open),
 // 마감 시각이 오거나 직접 닫을 (close) 수 있으며, 멤버는 열려 있는 윈도우에
@@ -13,6 +14,7 @@ export const dynamic = 'force-dynamic'
 export default async function RegearWindowsPage() {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
+  if (!sessionHasAny(session, REGEAR_WINDOW_MANAGE_CAPS)) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
   const [{ windows, error }, t, tenantTimezone] = await Promise.all([
     listRegearWindows('all'),

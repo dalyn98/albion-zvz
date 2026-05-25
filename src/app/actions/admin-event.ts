@@ -11,6 +11,10 @@ import {
   requireEventCreator,
   requireEventCreatorForEvent,
 } from '@/lib/auth'
+import {
+  sessionCanCreateEventCategory,
+  sessionCanCreateOrManageEvents,
+} from '@/lib/event-permissions'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { sendEventNotification, DiscordChannelMessageError, type EventNotificationPayload } from '@/lib/discord'
@@ -104,8 +108,8 @@ export async function createDraftEvent(
         ? payload.recruitmentMode
         : 'slots'
     const session = await getSession()
-    if (!session?.canCreateEvents) return { error: tErr('unauthorized') }
-    if (!session.isAdmin && !session.eventCreatorCategories.includes(category)) {
+    if (!sessionCanCreateOrManageEvents(session)) return { error: tErr('unauthorized') }
+    if (!sessionCanCreateEventCategory(session, category)) {
       return { error: tErr('unauthorized') }
     }
     const db = await requireEventCreator()
@@ -150,10 +154,10 @@ export async function createEvent(payload: EventPayload): Promise<{ id: string }
     const invalid = validateEventPayload(payload, tErr, { publishing: false })
     if (invalid) return { error: invalid }
     const session = await getSession()
-    if (!session?.canCreateEvents) return { error: tErr('unauthorized') }
+    if (!sessionCanCreateOrManageEvents(session)) return { error: tErr('unauthorized') }
     const requestedCategory: EventCategory =
       payload.category && EVENT_CATEGORIES.includes(payload.category) ? payload.category : '전투'
-    if (!session.isAdmin && !session.eventCreatorCategories.includes(requestedCategory)) {
+    if (!sessionCanCreateEventCategory(session, requestedCategory)) {
       return { error: tErr('unauthorized') }
     }
     const db = await requireEventCreator()
@@ -443,7 +447,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
   const tDash = await getTranslations('adminDashboard')
   try {
     const session = await getSession()
-    if (!session?.canCreateEvents) return { error: tErr('unauthorized') }
+    if (!sessionCanCreateOrManageEvents(session)) return { error: tErr('unauthorized') }
     const db = await requireEventCreator()
     const guildId = await getSessionGuildId(session)
 
@@ -455,6 +459,12 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
       .maybeSingle()
     if (sourceErr) return { error: sourceErr.message }
     if (!source) return { error: tErr('eventNotFound') }
+    const category: EventCategory = EVENT_CATEGORIES.includes(source.category as EventCategory)
+      ? (source.category as EventCategory)
+      : '전투'
+    if (!sessionCanCreateEventCategory(session, category)) {
+      return { error: tErr('unauthorized') }
+    }
 
     // Shift gather_at forward by 7 days so the copy lands on the same weekday
     // at the same hour. Admin can still edit if needed.
@@ -477,9 +487,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
         notify_role_id: source.notify_role_id,
         notify_channel_id: source.notify_channel_id,
         notify_everyone: source.notify_everyone,
-        category: EVENT_CATEGORIES.includes(source.category as EventCategory)
-          ? source.category
-          : '전투',
+        category,
         // 복제는 늘 draft 로 시작 — 관리자가 날짜/공지 확인 후 명시적으로 발행.
         status: 'draft',
         created_by: session.discordId,

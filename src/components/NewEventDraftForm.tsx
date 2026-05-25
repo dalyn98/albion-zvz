@@ -13,7 +13,6 @@ import { useTranslations } from 'next-intl'
 import { createDraftEvent } from '@/app/actions/admin'
 import {
   CATEGORY_I18N_SLUG,
-  EVENT_CATEGORIES,
   EVENT_RECRUITMENT_MODES,
   type EventCategory,
   type EventRecruitmentMode,
@@ -30,7 +29,7 @@ export default function NewEventDraftForm({ allowedCategories }: Props) {
   const tCommon = useTranslations('common')
   const titleId = useId()
   const [title, setTitle] = useState('')
-  const visibleCategories = allowedCategories.length > 0 ? allowedCategories : [...EVENT_CATEGORIES]
+  const visibleCategories = allowedCategories
   const [category, setCategory] = useState<EventCategory>(visibleCategories[0] ?? '전투')
   const [recruitmentMode, setRecruitmentMode] = useState<EventRecruitmentMode>('slots')
   const [loading, setLoading] = useState(false)

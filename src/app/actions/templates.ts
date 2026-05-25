@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireEventCreator, requireEventCreatorForEvent } from '@/lib/auth'
+import { sessionCanCreateEventCategory } from '@/lib/event-permissions'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import {
@@ -72,7 +73,7 @@ export interface TemplateRecord {
   created_at: string
 }
 
-type TemplateDb = Awaited<ReturnType<typeof requireAdmin>>
+type TemplateDb = Awaited<ReturnType<typeof requireEventCreator>>
 type TemplateErrorTranslator = Awaited<ReturnType<typeof getTranslations<'adminActionError'>>>
 
 async function insertTemplateParties(
@@ -146,9 +147,9 @@ export async function saveEventAsTemplate(
 ): Promise<{ error?: string; conflictId?: string; conflictName?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
+    const db = await requireEventCreatorForEvent(eventId)
     const guildId = await getSessionGuildId(session)
 
     const { data: parties, error } = await db
@@ -244,9 +245,9 @@ export async function createTemplate(
     if (!trimmed) return { error: tErr('templateNameRequired') }
     if (trimmed.length > 80) return { error: tErr('templateNameTooLong', { max: 80 }) }
 
-    const db = await requireAdmin()
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
+    const db = await requireEventCreator()
     const guildId = await getSessionGuildId(session)
 
     const { data: existingRows, error: existingErr } = await db
@@ -282,9 +283,9 @@ export async function listTemplates(): Promise<{
 }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
     const session = await getSession()
     if (!session) return { templates: [], error: tErr('unauthorized') }
+    const db = await requireEventCreator()
     const guildId = await getSessionGuildId(session)
     const { data, error } = await db
       .from('event_templates')
@@ -309,9 +310,12 @@ export async function createEventFromTemplate(
     const category = payload.category ?? '전투'
     if (!EVENT_CATEGORIES.includes(category)) return { error: tErr('serverError') }
 
-    const db = await requireAdmin()
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
+    if (!sessionCanCreateEventCategory(session, category)) {
+      return { error: tErr('unauthorized') }
+    }
+    const db = await requireEventCreator()
     const guildId = await getSessionGuildId(session)
 
     const { data: template, error: templateError } = await db
@@ -362,9 +366,9 @@ export async function getTemplate(id: string): Promise<{
 }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
+    const db = await requireEventCreator()
     const guildId = await getSessionGuildId(session)
     const { data, error } = await db
       .from('event_templates')
@@ -396,9 +400,9 @@ export async function updateTemplate(
     if (trimmed.length > 80) return { error: tErr('templateNameTooLong', { max: 80 }) }
     if (!data?.parties) return { error: tErr('invalidTemplateData') }
 
-    const db = await requireAdmin()
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
+    const db = await requireEventCreator()
     const guildId = await getSessionGuildId(session)
 
     const { data: conflictRows, error: conflictErr } = await db
@@ -450,9 +454,9 @@ export async function duplicateTemplate(
   const tErr = await getTranslations('adminActionError')
   const tTpl = await getTranslations('adminTemplates')
   try {
-    const db = await requireAdmin()
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
+    const db = await requireEventCreator()
     const guildId = await getSessionGuildId(session)
 
     const { data: source, error: fetchErr } = await db
@@ -495,9 +499,9 @@ export async function duplicateTemplate(
 export async function deleteTemplate(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
+    const db = await requireEventCreator()
     const guildId = await getSessionGuildId(session)
     const { error } = await db
       .from('event_templates')
@@ -522,9 +526,9 @@ export async function applyTemplate(
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
+    const db = await requireEventCreatorForEvent(eventId)
     const guildId = await getSessionGuildId(session)
 
     const { count, error: countError } = await db
