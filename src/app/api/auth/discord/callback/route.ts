@@ -26,6 +26,7 @@ import {
 import { isLocale } from '@/i18n/locales'
 import { recordAdminLogin } from '@/lib/tenant-activity'
 import { signHopToken, signOAuthState, verifyOAuthState, type OAuthStatePayload } from '@/lib/oauth-state'
+import { resolveEventGuestAuthScope } from '@/lib/event-guest-auth'
 import {
   buildTenantHostUrl,
   classifyHost,
@@ -218,34 +219,18 @@ export async function GET(request: NextRequest) {
     const returnTo =
       state.returnTo.startsWith('/') && !state.returnTo.startsWith('//') ? state.returnTo : '/'
 
-    // 초대 토큰을 미리 검증해 invite 의 tenant 를 분리해 둔다. 사용자가 다른
-    // 길드의 멤버여도 (matchedTenants 가 비어있지 않아도) invite 가 가리키는
-    // 이벤트의 tenant 가 그 안에 없으면 member path 가 아닌 guest path 로 분기.
-    // 그렇지 않으면 "내 길드 A 멤버가 길드 B 이벤트 초대 링크를 클릭" 했을 때
-    // 길드 A 세션이 발급돼 invite 가 무시되는 회귀가 발생한다.
-    let inviteEventScope: string | null = null
-    let inviteTenantId: string | null = null
-    if (state.invite) {
-      const nowIso = new Date().toISOString()
-      const { data: tokenRow } = await getAdminClient()
-        .from('event_guest_tokens')
-        .select('event_id, revoked_at, expires_at')
-        .eq('token', state.invite)
-        .maybeSingle()
-      if (
-        tokenRow &&
-        !tokenRow.revoked_at &&
-        (!tokenRow.expires_at || tokenRow.expires_at > nowIso)
-      ) {
-        inviteEventScope = tokenRow.event_id as string
-        const { data: scopeEvent } = await getAdminClient()
-          .from('events')
-          .select('guild_id')
-          .eq('id', inviteEventScope)
-          .maybeSingle()
-        inviteTenantId = (scopeEvent?.guild_id as string | undefined) ?? null
-      }
-    }
+    // 이벤트 게스트 스코프를 먼저 해석한다.
+    // - invite 토큰이 있으면 유효/만료/폐기 여부를 엄격히 본다.
+    // - invite 토큰이 없는 공개 이벤트 링크(`/events/:id`)도 published 이벤트면
+    //   이벤트 스코프 게스트로 로그인시킨다. 외부 지원자가 공개 이벤트 링크에서
+    //   Discord 로그인을 눌렀을 때 `/onboard` 봇 설치 화면으로 빠지는 회귀를 막기
+    //   위한 분기다.
+    const guestAuthScope = await resolveEventGuestAuthScope(getAdminClient(), {
+      inviteToken: state.invite,
+      returnTo,
+    })
+    const inviteEventScope = guestAuthScope?.eventId ?? null
+    const inviteTenantId = guestAuthScope?.guildId ?? null
     const inviteForcesGuestPath =
       inviteEventScope !== null &&
       inviteTenantId !== null &&
@@ -442,7 +427,7 @@ export async function GET(request: NextRequest) {
     // ───── Guest path & Onboarding ─────
     const db = getAdminClient()
 
-    // 위에서 이미 검증한 invite 결과 재사용 — DB 라운드트립 절약 + 분기 일관성.
+    // 위에서 이미 검증한 이벤트 게스트 결과 재사용 — DB 라운드트립 절약 + 분기 일관성.
     const eventScope: string | null = inviteEventScope
 
     if (!eventScope) {
