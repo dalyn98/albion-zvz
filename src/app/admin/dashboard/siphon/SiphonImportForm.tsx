@@ -239,22 +239,62 @@ function PreviewCard({
         />
       </div>
       {preview.parseErrors.length > 0 && (
-        <div className="bg-amber-500/5 border border-amber-500/30 rounded-lg p-3 text-xs text-amber-200 space-y-1">
+        <div className="bg-amber-500/5 border border-amber-500/30 rounded-lg p-3 text-xs text-amber-100 space-y-2">
           <div className="flex items-center gap-2">
             <AlertCircle size={12} />
             <p className="font-semibold">
-              {preview.parseErrors.length}
+              {t('parseErrorsTitle', { count: preview.parseErrors.length })}
             </p>
           </div>
           {preview.parseErrors.slice(0, 3).map((e, i) => (
-            <p key={`${e.line}-${i}`} className="font-mono truncate opacity-80">
-              #{e.line} {e.text}
-            </p>
+            <div key={`${e.line}-${i}`} className="space-y-0.5">
+              <p className="font-semibold text-amber-200">
+                {t('parseErrorLine', {
+                  line: e.line,
+                  reason: formatParseErrorReason(e, t),
+                })}
+              </p>
+              <p
+                className="font-mono truncate text-amber-100/70"
+                title={e.text}
+              >
+                {e.text}
+              </p>
+            </div>
           ))}
+          {preview.parseErrors.length > 3 && (
+            <p className="text-amber-100/60">
+              {t('parseErrorsOverflow', { count: preview.parseErrors.length - 3 })}
+            </p>
+          )}
         </div>
       )}
     </div>
   )
+}
+
+function formatParseErrorReason(
+  error: SiphonImportSummary['parseErrors'][number],
+  t: ReturnType<typeof useTranslations<'adminSiphonPage'>>,
+): string {
+  switch (error.code) {
+    case 'ledger_format':
+      return t('parseErrorReasonLedgerFormat')
+    case 'ledger_date':
+      return t('parseErrorReasonLedgerDate')
+    case 'ledger_player':
+      return t('parseErrorReasonLedgerPlayer')
+    case 'ledger_quantity_integer':
+      return t('parseErrorReasonLedgerQuantityInteger')
+    case 'ledger_quantity_zero':
+      return t('parseErrorReasonLedgerQuantityZero')
+    case 'ledger_purpose':
+      return t('parseErrorReasonLedgerPurpose')
+    case 'legacy_chest_format':
+      return t('parseErrorReasonLegacyChestFormat')
+    default:
+      return t('parseErrorReasonUnknown')
+  }
 }
 
 function SiphonContinuityCard({

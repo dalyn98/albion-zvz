@@ -62,9 +62,21 @@ describe('parseSiphonLog', () => {
 
     expect(result.entries).toHaveLength(1)
     expect(result.errors).toEqual([
-      expect.objectContaining({ line: 3, reason: expect.stringContaining('날짜') }),
-      expect.objectContaining({ line: 4, reason: expect.stringContaining('목적') }),
-      expect.objectContaining({ line: 5, reason: expect.stringContaining('0') }),
+      expect.objectContaining({
+        line: 3,
+        code: 'ledger_date',
+        reason: expect.stringContaining('날짜'),
+      }),
+      expect.objectContaining({
+        line: 4,
+        code: 'ledger_purpose',
+        reason: expect.stringContaining('목적'),
+      }),
+      expect.objectContaining({
+        line: 5,
+        code: 'ledger_quantity_zero',
+        reason: expect.stringContaining('0'),
+      }),
     ])
   })
 })

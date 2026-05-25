@@ -10,9 +10,22 @@ import {
 
 export type SiphonLogEntry = ChestLogEntry
 
+export type SiphonLogParseErrorCode =
+  | 'ledger_format'
+  | 'ledger_date'
+  | 'ledger_player'
+  | 'ledger_quantity_integer'
+  | 'ledger_quantity_zero'
+  | 'ledger_purpose'
+  | 'legacy_chest_format'
+
+export interface SiphonLogParseError extends ChestLogParseError {
+  code?: SiphonLogParseErrorCode
+}
+
 export interface SiphonLogParseResult {
   entries: SiphonLogEntry[]
-  errors: ChestLogParseError[]
+  errors: SiphonLogParseError[]
   parsedTotal: number
   nonSiphonRows: number
 }
@@ -64,7 +77,7 @@ export function parseSiphonLog(raw: string): SiphonLogParseResult {
 
   return {
     entries,
-    errors: chestResult.errors,
+    errors: withLegacySiphonErrorCodes(chestResult.errors),
     parsedTotal: chestResult.entries.length,
     nonSiphonRows: chestResult.entries.length - entries.length,
   }
@@ -72,7 +85,7 @@ export function parseSiphonLog(raw: string): SiphonLogParseResult {
 
 function parseSiphonLedgerLog(raw: string): SiphonLedgerParseResult {
   const entries: SiphonLogEntry[] = []
-  const errors: ChestLogParseError[] = []
+  const errors: SiphonLogParseError[] = []
   let detected = false
 
   const lines = raw.split(/\r?\n/)
@@ -92,6 +105,7 @@ function parseSiphonLedgerLog(raw: string): SiphonLedgerParseResult {
           line: i + 1,
           text: line,
           reason: '형식 불일치 (날짜/플레이어/목적/수량 4필드 필요)',
+          code: 'ledger_format',
         })
       }
       continue
@@ -100,7 +114,7 @@ function parseSiphonLedgerLog(raw: string): SiphonLedgerParseResult {
     detected = true
     const parsed = parseSiphonLedgerLine(fields)
     if ('error' in parsed) {
-      errors.push({ line: i + 1, text: line, reason: parsed.error })
+      errors.push({ line: i + 1, text: line, ...parsed.error })
       continue
     }
     entries.push(parsed.entry)
@@ -117,23 +131,40 @@ function parseSiphonLedgerLog(raw: string): SiphonLedgerParseResult {
 
 function parseSiphonLedgerLine(
   fields: readonly string[],
-): { entry: SiphonLogEntry } | { error: string } {
+): { entry: SiphonLogEntry } | { error: Pick<SiphonLogParseError, 'reason' | 'code'> } {
   const [dateStr, player, purpose, quantityStr] = fields
   const loggedAt = parseSiphonDate(dateStr)
   if (!loggedAt) {
-    return { error: '날짜 형식 불일치 (YYYY-MM-DD HH:mm:ss 필요)' }
+    return {
+      error: {
+        reason: '날짜 형식 불일치 (YYYY-MM-DD HH:mm:ss 필요)',
+        code: 'ledger_date',
+      },
+    }
   }
 
   const playerName = player.trim()
-  if (!playerName) return { error: '플레이어 필요' }
+  if (!playerName) {
+    return { error: { reason: '플레이어 필요', code: 'ledger_player' } }
+  }
 
   const quantity = parseIntegerQuantity(quantityStr)
-  if (quantity == null) return { error: '수량은 정수여야 함' }
-  if (quantity === 0) return { error: '수량 0은 저장할 수 없음' }
+  if (quantity == null) {
+    return {
+      error: { reason: '수량은 정수여야 함', code: 'ledger_quantity_integer' },
+    }
+  }
+  if (quantity === 0) {
+    return {
+      error: { reason: '수량 0은 저장할 수 없음', code: 'ledger_quantity_zero' },
+    }
+  }
 
   const signedQuantity = signedQuantityForPurpose(purpose, quantity)
   if (signedQuantity == null) {
-    return { error: '목적은 입금/출금이어야 함' }
+    return {
+      error: { reason: '목적은 입금/출금이어야 함', code: 'ledger_purpose' },
+    }
   }
 
   return {
@@ -257,6 +288,15 @@ function parseIntegerQuantity(raw: string): number | null {
   const quantity = Number(raw.trim().replace(/,/g, ''))
   if (!Number.isInteger(quantity)) return null
   return quantity
+}
+
+function withLegacySiphonErrorCodes(
+  errors: readonly ChestLogParseError[],
+): SiphonLogParseError[] {
+  return errors.map((error) => ({
+    ...error,
+    code: 'legacy_chest_format',
+  }))
 }
 
 function signedQuantityForPurpose(

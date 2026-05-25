@@ -19,6 +19,7 @@ import { CAP } from '@/lib/permissions'
 import {
   parseSiphonLog,
   type SiphonLogEntry,
+  type SiphonLogParseError,
 } from '@/lib/siphon/parse-siphon-log'
 import { logAdminAction } from '@/lib/admin-audit'
 import { summarizeLogContinuity, type LogContinuityResult } from '@/lib/log-continuity'
@@ -40,7 +41,7 @@ export interface SiphonImportSummary {
   // 원본 텍스트에서 파싱된 총 entry 수. 과거 6필드 로그에서는 siphon 외 행도 포함.
   parsedTotal: number
   // 파싱 자체가 실패한 라인.
-  parseErrors: Array<{ line: number; text: string; reason: string }>
+  parseErrors: SiphonLogParseError[]
   // siphon ledger 에 저장 가능한 행.
   siphonRows: number
   // 운영 시작시간 이전이라 공식 집계/import 에서 제외한 행.
@@ -147,7 +148,7 @@ export async function importSiphonLog(
         ...emptySummary(),
         parseErrors: errors,
         error: errors.length
-          ? tErr('importNoParseableRows')
+          ? tErr('importSiphonNoParseableRows')
           : tErr('importEmptyLog'),
       }
     }
