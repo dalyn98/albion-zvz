@@ -7,35 +7,12 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { CAP } from '@/lib/permissions'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
-import { SLOT_ROLES, type SlotRole } from '@/types'
-
-export interface TentativeSignupRow {
-  id: string
-  event_id: string
-  discord_id: string
-  username: string
-  possible_roles: SlotRole[]
-  notes: string | null
-  created_at: string
-  updated_at: string
-}
-
-const slotRoleSet: ReadonlySet<string> = new Set(SLOT_ROLES)
-
-function sanitizeRoles(input: unknown): SlotRole[] {
-  if (!Array.isArray(input)) return []
-  const seen = new Set<SlotRole>()
-  const out: SlotRole[] = []
-  for (const v of input) {
-    if (typeof v !== 'string') continue
-    if (!slotRoleSet.has(v)) continue
-    const role = v as SlotRole
-    if (seen.has(role)) continue
-    seen.add(role)
-    out.push(role)
-  }
-  return out
-}
+import {
+  listTentativeSignupsForGuild,
+  sanitizeTentativeRoles,
+  type TentativeSignupRow,
+} from '@/lib/event-tentative-signups'
+export type { TentativeSignupRow } from '@/lib/event-tentative-signups'
 
 async function ensureEventBelongsToGuild(
   eventId: string,
@@ -72,7 +49,7 @@ export async function submitMyTentativeSignup(
   const guard = await ensureEventBelongsToGuild(eventId, guildId)
   if (!guard.ok) return { error: guard.error }
 
-  const roles = sanitizeRoles(rawRoles)
+  const roles = sanitizeTentativeRoles(rawRoles)
   if (roles.length === 0) return { error: tAction('rolesRequired') }
 
   const trimmedNotes = (notes ?? '').trim() || null
@@ -180,7 +157,7 @@ export async function adminUpsertTentativeSignup(
     return { error: tAction('memberRequired') }
   }
 
-  const roles = sanitizeRoles(rawRoles)
+  const roles = sanitizeTentativeRoles(rawRoles)
   if (roles.length === 0) return { error: tAction('rolesRequired') }
 
   const trimmedNotes = (notes ?? '').trim() || null
@@ -215,18 +192,5 @@ export async function listTentativeSignups(
   if (!session) return { rows: [], error: 'unauthorized' }
   const guildId = await getSessionGuildId(session)
 
-  const db = getAdminClient()
-  const { data, error } = await db
-    .from('event_tentative_signups')
-    .select('id, event_id, discord_id, username, possible_roles, notes, created_at, updated_at')
-    .eq('guild_id', guildId)
-    .eq('event_id', eventId)
-    .order('created_at', { ascending: true })
-  if (error) return { rows: [], error: error.message }
-
-  const rows = (data ?? []).map((r) => ({
-    ...r,
-    possible_roles: sanitizeRoles(r.possible_roles),
-  })) as TentativeSignupRow[]
-  return { rows }
+  return listTentativeSignupsForGuild(eventId, guildId)
 }

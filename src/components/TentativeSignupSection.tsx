@@ -30,6 +30,7 @@ interface Props {
   rows: TentativeSignupRow[]
   avatars: Record<string, string | null>
   currentDiscordId: string | null
+  isGuest?: boolean
   isAdmin: boolean
   // 이벤트 작성자(직접 만든 멤버) 도 어드민과 동일한 관리 권한 — 참가예정 행을
   // 누구든 제거하거나 본인 외 멤버를 대신 등록 가능.
@@ -47,6 +48,7 @@ export default function TentativeSignupSection({
   rows,
   avatars,
   currentDiscordId,
+  isGuest = false,
   isAdmin,
   isEventOwner,
   loginHref,
@@ -91,7 +93,7 @@ export default function TentativeSignupSection({
         eventId={eventId}
         myRow={myRow}
         currentDiscordId={currentDiscordId}
-        isGuest={false}
+        isGuest={isGuest}
         loginHref={loginHref}
         battleStarted={battleStarted}
         avatar={currentDiscordId ? avatars[currentDiscordId] ?? null : null}

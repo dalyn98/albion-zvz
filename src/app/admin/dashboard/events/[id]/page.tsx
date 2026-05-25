@@ -16,7 +16,7 @@ import { EventEditSaveProvider } from '@/components/EventEditSaveRegistry'
 import EventEditSaveBar from '@/components/EventEditSaveBar'
 import { listTemplates } from '@/app/actions/templates'
 import TentativeSignupSection from '@/components/TentativeSignupSection'
-import { listTentativeSignups } from '@/app/actions/event-tentative'
+import { listTentativeSignupsForGuild } from '@/lib/event-tentative-signups'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSession, sessionHas } from '@/lib/session'
@@ -107,7 +107,7 @@ export default async function EditEventPage({
     getTranslations('adminEditEvent'),
     getAppSetting('auto_regear_enabled', 'false', guildId),
     getTenantTimezone(guildId),
-    listTentativeSignups(id),
+    listTentativeSignupsForGuild(id, guildId),
     getTenantDiscordConfig(guildId),
   ])
   const autoRegearEnabled = autoRegearRaw === 'true'

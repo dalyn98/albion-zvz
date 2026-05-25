@@ -13,7 +13,7 @@ import EventGuestProfileGate from '@/components/EventGuestProfileGate'
 import TentativeSignupSection from '@/components/TentativeSignupSection'
 import EventMyStatusCard, { type EventMyStatusTone } from '@/components/EventMyStatusCard'
 import EventBuildSheetSummary from '@/components/EventBuildSheetSummary'
-import { listTentativeSignups } from '@/app/actions/event-tentative'
+import { listTentativeSignupsForGuild } from '@/lib/event-tentative-signups'
 import AutoRefresh from '@/components/AutoRefresh'
 import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil, FileText } from 'lucide-react'
 import Link from 'next/link'
@@ -192,7 +192,7 @@ export default async function EventDetailPage({
     getAppSetting('cd_badge_roles', '["Dps"]', guildId),
     getAppSetting('auto_regear_enabled', 'false', guildId),
     getTenantTimezone(guildId),
-    listTentativeSignups(id),
+    listTentativeSignupsForGuild(id, guildId),
   ])
   const autoRegearEnabled = autoRegearRaw === 'true'
 
@@ -511,6 +511,7 @@ export default async function EventDetailPage({
           rows={tentativeRows}
           avatars={avatars}
           currentDiscordId={interactionSession?.discordId ?? null}
+          isGuest={interactionSession?.isGuest ?? false}
           isAdmin={interactionSession?.isAdmin ?? false}
           isEventOwner={canManageTentativeSignups}
           loginHref={loginHref}
