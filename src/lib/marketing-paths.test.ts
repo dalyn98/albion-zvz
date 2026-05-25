@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getMarketingPathsForHost } from './marketing-paths'
+import { getMarketingPathsForHost, resolveMarketingHref } from './marketing-paths'
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -54,6 +54,32 @@ describe('getMarketingPathsForHost', () => {
     })
     expect(getMarketingPathsForHost('albion-guildmanager-git-main.vercel.app').home).toBe(
       '/public/landing',
+    )
+  })
+
+  it('normalizes clean docs links for localhost and preview public routes', () => {
+    const paths = getMarketingPathsForHost('localhost:3000')
+
+    expect(resolveMarketingHref(paths, '/docs')).toBe('/public/docs')
+    expect(resolveMarketingHref(paths, '/docs/events/create')).toBe(
+      '/public/docs/events/create',
+    )
+    expect(resolveMarketingHref(paths, '/pricing')).toBe('/public/pricing')
+    expect(resolveMarketingHref(paths, '/g/menhera')).toBe('/public/g/menhera')
+    expect(resolveMarketingHref(paths, 'https://example.com/docs')).toBe(
+      'https://example.com/docs',
+    )
+  })
+
+  it('normalizes clean docs links to canonical absolute URLs on tenant hosts', () => {
+    vi.stubEnv('TENANT_ROOT_DOMAIN', 'albion-guildmanager.com')
+    const paths = getMarketingPathsForHost('menhera.albion-guildmanager.com')
+
+    expect(resolveMarketingHref(paths, '/docs/admin/logs')).toBe(
+      'https://albion-guildmanager.com/docs/admin/logs',
+    )
+    expect(resolveMarketingHref(paths, '/g/menhera')).toBe(
+      'https://albion-guildmanager.com/g/menhera',
     )
   })
 })

@@ -71,6 +71,24 @@ export function getMarketingPathsForHost(hostHeader: string | null | undefined):
   return PUBLIC_PATHS
 }
 
+export function resolveMarketingHref(paths: MarketingPaths, href: string): string {
+  if (!href.startsWith('/')) return href
+
+  if (href === '/') return paths.home
+  if (href === '/#features' || href === '/features') return paths.features
+  if (href === '/pricing') return paths.pricing
+  if (href === '/faq') return paths.faq
+  if (href === '/docs') return paths.docs
+  if (href.startsWith('/docs/')) return `${paths.docs}${href.slice('/docs'.length)}`
+  if (href === '/privacy') return paths.privacy
+  if (href === '/terms') return paths.terms
+  if (href === '/demo') return paths.demo
+  if (href === '/g') return paths.guildPage
+  if (href.startsWith('/g/')) return `${paths.guildPage}${href.slice('/g'.length)}`
+
+  return href
+}
+
 export async function getMarketingPaths(): Promise<MarketingPaths> {
   const headersList = await headers()
   return getMarketingPathsForHost(headersList.get('host'))
