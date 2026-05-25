@@ -102,11 +102,9 @@ function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
   if (classification.kind !== 'root') return null
   const rewritten = new URL(target, request.url)
   rewritten.search = request.nextUrl.search
-  const response = NextResponse.rewrite(rewritten)
   // layout 의 isPublicPathname 분기는 x-pathname 헤더를 본다. rewrite target 인
   // /public/* 으로 보내야 PublicShell + AppGate 우회가 정확히 동작한다.
-  response.headers.set('x-pathname', target)
-  return response
+  return rewriteWithPathname(request, rewritten, target)
 }
 
 // 공개 길드 프로필 rewrite — canonical / tenant 서브도메인 양쪽에서 동작.
@@ -123,17 +121,32 @@ function rewriteGuildProfile(request: NextRequest): NextResponse | null {
   if (classification.kind !== 'root' && classification.kind !== 'tenant') return null
   const rewritten = new URL(target, request.url)
   rewritten.search = request.nextUrl.search
-  const response = NextResponse.rewrite(rewritten)
-  response.headers.set('x-pathname', target)
-  return response
+  return rewriteWithPathname(request, rewritten, target)
 }
 
-function withPathname(response: NextResponse, pathname: string): NextResponse {
-  // Forwards the current pathname so the root layout can decide whether to
-  // render the AppGate — layouts can't read nextUrl directly. Any response
-  // we return carries this header so the downstream render knows where it is.
-  response.headers.set('x-pathname', pathname)
-  return response
+function requestHeadersWithPathname(request: NextRequest, pathname: string): Headers {
+  // RootLayout reads `headers().get('x-pathname')`; in Proxy this must be
+  // forwarded as an upstream request header, not exposed as a client response
+  // header. See NextResponse.next({ request: { headers } }).
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-pathname', pathname)
+  return requestHeaders
+}
+
+function nextWithPathname(request: NextRequest, pathname: string): NextResponse {
+  return NextResponse.next({
+    request: { headers: requestHeadersWithPathname(request, pathname) },
+  })
+}
+
+function rewriteWithPathname(
+  request: NextRequest,
+  destination: string | URL,
+  pathname: string,
+): NextResponse {
+  return NextResponse.rewrite(destination, {
+    request: { headers: requestHeadersWithPathname(request, pathname) },
+  })
 }
 
 async function rememberTenantFromSession(
@@ -174,10 +187,8 @@ function handleSuperAdminPath(request: NextRequest): NextResponse | null {
     const rest = pathname.slice(ext.length)
     const rewritten = new URL(`${internal}${rest}`, request.url)
     rewritten.search = request.nextUrl.search
-    const response = NextResponse.rewrite(rewritten)
     // layout 의 path 분기는 canonical 기준이므로 x-pathname 도 canonical 로.
-    response.headers.set('x-pathname', `${internal}${rest}`)
-    return response
+    return rewriteWithPathname(request, rewritten, `${internal}${rest}`)
   }
 
   return null
@@ -208,23 +219,20 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!pathname.startsWith('/admin/dashboard')) {
-    return rememberTenantFromSession(request, withPathname(NextResponse.next(), pathname))
+    return rememberTenantFromSession(request, nextWithPathname(request, pathname))
   }
 
   const cookie = request.cookies.get(SESSION_COOKIE_NAME)?.value
   const session = await verifySession(cookie)
 
   if (!session) {
-    return withPathname(NextResponse.redirect(new URL('/admin', request.url)), pathname)
+    return NextResponse.redirect(new URL('/admin', request.url))
   }
   if (!canAccessAdminPath(pathname, session.isAdmin, session.capabilities)) {
-    return withPathname(
-      NextResponse.redirect(new URL('/admin?error=not_admin', request.url)),
-      pathname,
-    )
+    return NextResponse.redirect(new URL('/admin?error=not_admin', request.url))
   }
 
-  return rememberTenantFromSession(request, withPathname(NextResponse.next(), pathname))
+  return rememberTenantFromSession(request, nextWithPathname(request, pathname))
 }
 
 export const config = {
