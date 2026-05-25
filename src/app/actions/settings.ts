@@ -46,12 +46,14 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'aodp_min_quality',
   'auto_regear_enabled',
   'auto_regear_skip_low_confidence',
+  'craft_regear_enabled',
   'auto_regear_excluded_slots',
   'cd_badge_roles',
   'active_member_role_ids',
   'allow_unverified_member_access',
   'regear_require_verification',
   'regear_overcharge_enabled',
+  'event_dm_lead_minutes',
   'guild_profile_enabled',
   'member_dashboard_enabled',
   'guild_profile_description',
@@ -110,6 +112,7 @@ function settingCaps(key: AppSettingKey): readonly bigint[] {
   if (
     key === 'auto_regear_enabled' ||
     key === 'auto_regear_skip_low_confidence' ||
+    key === 'craft_regear_enabled' ||
     key === 'events_auto_start_enabled' ||
     key === 'allow_unverified_member_access' ||
     key === 'member_dashboard_enabled' ||
@@ -192,6 +195,7 @@ const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
   regear_max_deaths_per_event: { min: 1, max: 10 },
   regear_eligibility_days: { min: 1, max: 90 },
   regear_payout_rate_percent: { min: 1, max: 100 },
+  event_dm_lead_minutes: { min: 5, max: 1440 },
   // 1 Normal, 2 Good, 3 Outstanding, 4 Excellent, 5 Masterpiece.
   aodp_min_quality: { min: 1, max: 5 },
 }
@@ -207,6 +211,7 @@ const BOOLEAN_KEYS: readonly AppSettingKey[] = [
   'events_auto_start_enabled',
   'auto_regear_enabled',
   'auto_regear_skip_low_confidence',
+  'craft_regear_enabled',
   'allow_unverified_member_access',
   'regear_require_verification',
   'regear_overcharge_enabled',
@@ -402,6 +407,13 @@ export async function updateAppSetting(
     if (key === 'auto_regear_enabled') {
       // 슬롯 편집기의 opt-out 체크박스 가시성이 이 값에 의존.
       revalidatePath('/admin/dashboard/events', 'layout')
+    }
+    if (key === 'craft_regear_enabled') {
+      revalidatePath('/admin/dashboard/craft')
+      revalidatePath('/craft/queue')
+      revalidatePath('/craft/orders')
+      revalidatePath('/craft/my-tasks')
+      revalidatePath('/', 'layout')
     }
     if (key === 'auto_regear_excluded_slots') {
       revalidatePath('/admin/dashboard/settings')
