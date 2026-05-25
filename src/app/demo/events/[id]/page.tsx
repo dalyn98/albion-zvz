@@ -7,7 +7,13 @@ import EventBuildSheetSummary from '@/components/EventBuildSheetSummary'
 import EventPartyGrid from '@/components/EventPartyGrid'
 import EventSlotSidebar from '@/components/EventSlotSidebar'
 import TentativeSignupSection from '@/components/TentativeSignupSection'
-import { DEMO_EVENTS, DEMO_EVENT_DETAIL, DEMO_MEMBERS, type DemoEventSlot } from '@/data/demo-seed'
+import {
+  DEMO_EVENTS,
+  DEMO_EVENT_DETAIL,
+  DEMO_MEMBERS,
+  getDemoEventReport,
+  type DemoEventSlot,
+} from '@/data/demo-seed'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import type { TentativeSignupRow } from '@/app/actions/event-tentative'
 import type { PartyWithSlots, Slot, SlotRole } from '@/types'
@@ -43,6 +49,7 @@ export default async function DemoEventDetailPage({
   const parties = toDemoParties(id, DEMO_EVENT_DETAIL.parties)
   const tentativeRows = toDemoTentativeRows(id)
   const mySlot = findDemoSlot(parties, DEMO_MEMBER_IGN)
+  const hasReport = getDemoEventReport(id) !== null
   const totalSlots = parties.reduce((sum, party) => sum + party.slots.length, 0)
   const totalAssigned = parties.reduce(
     (sum, party) => sum + party.slots.filter((slot) => slot.assigned_discord_id).length,
@@ -77,13 +84,15 @@ export default async function DemoEventDetailPage({
             <div className="flex items-center gap-2 flex-wrap">
               {listEvent.battleStarted && (
                 <>
-                  <Link
-                    href={`/demo/events/${id}/report`}
-                    className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/40 hover:bg-amber-500/20 text-amber-300 text-sm font-bold px-2.5 py-1 rounded-full transition-colors"
-                  >
-                    <FileText size={12} />
-                    {tEvent('viewReport')}
-                  </Link>
+                  {hasReport && (
+                    <Link
+                      href={`/demo/events/${id}/report`}
+                      className="inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/40 hover:bg-amber-500/20 text-amber-300 text-sm font-bold px-2.5 py-1 rounded-full transition-colors"
+                    >
+                      <FileText size={12} />
+                      {tEvent('viewReport')}
+                    </Link>
+                  )}
                   <span className="inline-flex items-center gap-1.5 bg-rose-500/20 border border-rose-500/40 text-rose-200 text-sm font-bold px-2.5 py-1 rounded-full">
                     <Swords size={12} />
                     {tDemo('status.eventLive')}

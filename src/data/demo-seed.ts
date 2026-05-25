@@ -11,6 +11,7 @@
 export * from './demo-seed/shared'
 export * from './demo-seed/members'
 export * from './demo-seed/events'
+export * from './demo-seed/event-reports'
 export * from './demo-seed/regear'
 export * from './demo-seed/approvals'
 export * from './demo-seed/stats'
