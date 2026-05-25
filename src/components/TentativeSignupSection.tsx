@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ClipboardList, Plus, Pencil, X, Check, LogIn, Loader2, UserPlus } from 'lucide-react'
+import { ClipboardList, Plus, Pencil, X, Check, LogIn, Loader2, Search, UserPlus } from 'lucide-react'
 import {
   submitMyTentativeSignup,
   removeTentativeSignup,
@@ -12,6 +12,7 @@ import {
 } from '@/app/actions/event-tentative'
 import { SLOT_ROLES, type SlotRole, getRoleStyle } from '@/types'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import { filterAssignableMembers, type AssignableMember } from '@/lib/member-assign-search'
 import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
 import { useConfirm } from '@/components/ConfirmDialog'
@@ -20,6 +21,8 @@ import { useToast } from './ToastProvider'
 interface DirectoryMember {
   discord_id: string
   username: string
+  albion_nickname?: string | null
+  avatar?: string | null
 }
 
 interface Props {
@@ -565,6 +568,7 @@ function AdminAddPanel({
 }) {
   const [open, setOpen] = useState(false)
   const [selectedMember, setSelectedMember] = useState('')
+  const [memberQuery, setMemberQuery] = useState('')
   const [selected, setSelected] = useState<SlotRole[]>([])
   const [notes, setNotes] = useState('')
   const [pending, startTransition] = useTransition()
@@ -575,6 +579,22 @@ function AdminAddPanel({
       memberDirectory.filter((m) => !existingDiscordIds.includes(m.discord_id)),
     [memberDirectory, existingDiscordIds],
   )
+  const searchableMembers = useMemo<AssignableMember[]>(
+    () =>
+      eligible.map((m) => ({
+        discordId: m.discord_id,
+        username: m.username,
+        albionNickname: m.albion_nickname ?? null,
+        avatar: m.avatar ?? null,
+        alreadyInEvent: false,
+      })),
+    [eligible],
+  )
+  const filteredMembers = useMemo(
+    () => filterAssignableMembers(searchableMembers, memberQuery, 'available').slice(0, 8),
+    [searchableMembers, memberQuery],
+  )
+  const selectedMemberInfo = eligible.find((m) => m.discord_id === selectedMember) ?? null
 
   const toggleRole = (role: SlotRole) => {
     setSelected((prev) =>
@@ -597,6 +617,7 @@ function AdminAddPanel({
       if (isDemo) {
         toast.info(demoActionLabel)
         setSelectedMember('')
+        setMemberQuery('')
         setSelected([])
         setNotes('')
         setOpen(false)
@@ -615,6 +636,7 @@ function AdminAddPanel({
       }
       toast.success(t('toastAdded'))
       setSelectedMember('')
+      setMemberQuery('')
       setSelected([])
       setNotes('')
       setOpen(false)
@@ -640,18 +662,87 @@ function AdminAddPanel({
       <p className="text-xs font-semibold text-gray-200">{t('adminAddTitle')}</p>
       <div>
         <label className="block text-[11px] text-gray-400 mb-1">{t('adminMemberLabel')}</label>
-        <select
-          value={selectedMember}
-          onChange={(e) => setSelectedMember(e.target.value)}
-          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
-        >
-          <option value="">{t('adminMemberPlaceholder')}</option>
-          {eligible.map((m) => (
-            <option key={m.discord_id} value={m.discord_id}>
-              {m.username}
-            </option>
-          ))}
-        </select>
+        <div className="space-y-2">
+          <div className="relative">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
+            <input
+              type="text"
+              value={memberQuery}
+              onChange={(e) => setMemberQuery(e.target.value)}
+              placeholder={t('adminMemberSearchPlaceholder')}
+              className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-8 pr-8 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
+            />
+            {memberQuery && (
+              <button
+                type="button"
+                onClick={() => setMemberQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-white"
+                aria-label={t('adminMemberClearSearch')}
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          {selectedMemberInfo ? (
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-2">
+              <MemberCandidateSummary
+                member={selectedMemberInfo}
+                albionLabel={t('adminMemberAlbionLabel')}
+                selectedLabel={t('adminMemberSelected')}
+              />
+              <button
+                type="button"
+                onClick={() => setSelectedMember('')}
+                className="rounded p-1 text-amber-200/80 hover:bg-amber-500/10 hover:text-amber-100"
+                aria-label={t('adminMemberClearSelection')}
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ) : (
+            <p className="rounded-lg border border-gray-800 bg-gray-900/60 px-2.5 py-2 text-xs text-gray-500">
+              {t('adminMemberPlaceholder')}
+            </p>
+          )}
+
+          <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-800 bg-gray-950/40 p-1">
+            <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+              {t('adminMemberAvailableSummary', { count: eligible.length })}
+            </p>
+            {filteredMembers.length === 0 ? (
+              <p className="px-2 py-3 text-center text-xs text-gray-500">
+                {t('adminMemberNoMatches')}
+              </p>
+            ) : (
+              <ul className="space-y-1">
+                {filteredMembers.map((m) => (
+                  <li key={m.discordId}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMember(m.discordId)}
+                      className={`w-full rounded-md px-2 py-2 text-left transition-colors ${
+                        selectedMember === m.discordId
+                          ? 'bg-amber-500/15 text-amber-100'
+                          : 'text-gray-200 hover:bg-gray-800'
+                      }`}
+                    >
+                      <MemberCandidateSummary
+                        member={{
+                          discord_id: m.discordId,
+                          username: m.username,
+                          albion_nickname: m.albionNickname,
+                          avatar: m.avatar,
+                        }}
+                        albionLabel={t('adminMemberAlbionLabel')}
+                      />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
       </div>
       <div>
         <p className="text-[11px] text-gray-400 mb-1">{t('formPickRoles')}</p>
@@ -707,6 +798,7 @@ function AdminAddPanel({
           onClick={() => {
             setOpen(false)
             setError('')
+            setMemberQuery('')
           }}
           disabled={pending}
           className="text-gray-400 hover:text-white text-xs px-3 py-1.5"
@@ -715,5 +807,36 @@ function AdminAddPanel({
         </button>
       </div>
     </div>
+  )
+}
+
+function MemberCandidateSummary({
+  member,
+  albionLabel,
+  selectedLabel,
+}: {
+  member: DirectoryMember
+  albionLabel: string
+  selectedLabel?: string
+}) {
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      <MemberAvatar discordId={member.discord_id} avatar={member.avatar ?? null} size={22} />
+      <span className="min-w-0">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate text-xs font-semibold text-white">{member.username}</span>
+          {selectedLabel && (
+            <span className="shrink-0 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-200">
+              {selectedLabel}
+            </span>
+          )}
+        </span>
+        <span className="block truncate text-[10px] text-gray-500">
+          {member.albion_nickname
+            ? `${albionLabel}: ${member.albion_nickname} · ${member.discord_id}`
+            : member.discord_id}
+        </span>
+      </span>
+    </span>
   )
 }

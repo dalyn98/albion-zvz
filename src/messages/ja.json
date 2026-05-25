@@ -2300,7 +2300,14 @@
     "adminAddButton": "他メンバーを代理登録",
     "adminAddTitle": "他メンバーの参加予定を登録",
     "adminMemberLabel": "メンバー",
-    "adminMemberPlaceholder": "メンバーを選択してください"
+    "adminMemberPlaceholder": "メンバーを選択してください",
+    "adminMemberSearchPlaceholder": "メンバー名、Albion ニックネーム、Discord IDを検索",
+    "adminMemberClearSearch": "検索をクリア",
+    "adminMemberAvailableSummary": "登録可能 {count}人",
+    "adminMemberNoMatches": "一致するメンバーがいません。",
+    "adminMemberSelected": "選択中",
+    "adminMemberClearSelection": "選択解除",
+    "adminMemberAlbionLabel": "Albion"
   },
   "eventTentativeAction": {
     "loginRequired": "ログインが必要です。",

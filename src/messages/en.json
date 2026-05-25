@@ -2300,7 +2300,14 @@
     "adminAddButton": "Add another member",
     "adminAddTitle": "Register tentative attendance for another member",
     "adminMemberLabel": "Member",
-    "adminMemberPlaceholder": "Select a member"
+    "adminMemberPlaceholder": "Select a member",
+    "adminMemberSearchPlaceholder": "Search member name, Albion nickname, or Discord ID",
+    "adminMemberClearSearch": "Clear search",
+    "adminMemberAvailableSummary": "{count} available",
+    "adminMemberNoMatches": "No matching members.",
+    "adminMemberSelected": "Selected",
+    "adminMemberClearSelection": "Clear selection",
+    "adminMemberAlbionLabel": "Albion"
   },
   "eventTentativeAction": {
     "loginRequired": "Login required.",

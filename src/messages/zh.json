@@ -2300,7 +2300,14 @@
     "adminAddButton": "添加其他成员",
     "adminAddTitle": "为其他成员登记预报名",
     "adminMemberLabel": "成员",
-    "adminMemberPlaceholder": "选择成员"
+    "adminMemberPlaceholder": "选择成员",
+    "adminMemberSearchPlaceholder": "搜索成员名称、Albion 昵称或 Discord ID",
+    "adminMemberClearSearch": "清除搜索",
+    "adminMemberAvailableSummary": "{count} 名可登记",
+    "adminMemberNoMatches": "没有匹配的成员。",
+    "adminMemberSelected": "已选择",
+    "adminMemberClearSelection": "清除选择",
+    "adminMemberAlbionLabel": "Albion"
   },
   "eventTentativeAction": {
     "loginRequired": "需要登录。",

@@ -151,7 +151,7 @@ export default async function EditEventPage({
   const [tentativeDirectoryRes, avatarMap] = await Promise.all([
     adminClient
       .from('guild_avatars')
-      .select('discord_id, username')
+      .select('discord_id, username, albion_nickname, avatar')
       .eq('guild_id', guildId)
       .is('withdrawn_at', null)
       .order('username'),
@@ -163,6 +163,8 @@ export default async function EditEventPage({
   const tentativeDirectory = (tentativeDirectoryRes.data ?? []).map((m) => ({
     discord_id: m.discord_id,
     username: m.username,
+    albion_nickname: m.albion_nickname ?? null,
+    avatar: m.avatar ?? null,
   }))
   const avatars = Object.fromEntries(avatarMap)
   const canManageTentativeSignups = canEditEvent
