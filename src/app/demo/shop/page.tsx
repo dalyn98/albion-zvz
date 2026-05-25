@@ -5,6 +5,7 @@ import ShopMyOrders from '@/components/ShopMyOrders'
 import DemoCTACard from '../_components/DemoCTACard'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 import type { MyOrderRow } from '@/app/actions/shop-member'
+import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 
 const BALANCE = 4280
 const SHOP_TOUR_STEPS = [
@@ -112,7 +113,11 @@ export default async function DemoShopPage() {
         <p className="text-amber-100/90 text-xs whitespace-pre-wrap">{tDemoShop('deliveryNotice')}</p>
       </div>
 
-      <ShopMyOrders orders={demoOrders} interactionMode="demo" />
+      <ShopMyOrders
+        orders={demoOrders}
+        timezone={DEFAULT_TENANT_TIMEZONE}
+        interactionMode="demo"
+      />
 
       <div data-tour-id="shop-cart">
         <div data-tour-id="shop-catalog">

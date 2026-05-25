@@ -12,6 +12,7 @@ import { useConfirm } from '@/components/ConfirmDialog'
 
 interface Props {
   orders: MyOrderRow[]
+  timezone: string
   interactionMode?: 'live' | 'demo'
 }
 
@@ -29,7 +30,7 @@ const STATUS_LABEL_KEY: Record<MyOrderRow['status'], string> = {
   cancelled: 'statusCancelled',
 }
 
-export default function ShopMyOrders({ orders, interactionMode = 'live' }: Props) {
+export default function ShopMyOrders({ orders, timezone, interactionMode = 'live' }: Props) {
   const t = useTranslations('shopMyOrders')
   const [expanded, setExpanded] = useState(false)
   const [demoCancelledIds, setDemoCancelledIds] = useState<Set<string>>(() => new Set())
@@ -69,6 +70,7 @@ export default function ShopMyOrders({ orders, interactionMode = 'live' }: Props
             <OrderCard
               key={order.id}
               order={order}
+              timezone={timezone}
               interactionMode={interactionMode}
               onDemoCancel={() =>
                 setDemoCancelledIds((prev) => {
@@ -87,10 +89,12 @@ export default function ShopMyOrders({ orders, interactionMode = 'live' }: Props
 
 function OrderCard({
   order,
+  timezone,
   interactionMode,
   onDemoCancel,
 }: {
   order: MyOrderRow
+  timezone: string
   interactionMode: 'live' | 'demo'
   onDemoCancel: () => void
 }) {
@@ -134,7 +138,7 @@ function OrderCard({
           })}
         </span>
         <span className="ml-auto text-gray-500 font-mono">
-          {formatDateTimeShort(order.createdAt)}
+          {formatDateTimeShort(order.createdAt, timezone)}
         </span>
       </div>
       <div className="text-xs text-gray-400 space-y-0.5">

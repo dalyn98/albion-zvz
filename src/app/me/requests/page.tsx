@@ -111,7 +111,7 @@ export default async function MyRequestsPage() {
 
       <section className="space-y-3">
         <h2 className="text-lg font-bold text-white">{tMe('regearListTitle')}</h2>
-        <MyRegearList requests={regears} />
+        <MyRegearList requests={regears} timezone={tz} />
       </section>
 
       <section className="space-y-3">

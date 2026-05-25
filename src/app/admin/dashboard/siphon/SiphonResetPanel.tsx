@@ -7,15 +7,23 @@ import { AlertTriangle, Loader2, RotateCcw } from 'lucide-react'
 import { resetSiphonLedger } from '@/app/actions/siphon-admin'
 import { useConfirm } from '@/components/ConfirmDialog'
 
-export default function SiphonResetPanel() {
+interface Props {
+  logCount: number | null
+}
+
+export default function SiphonResetPanel({ logCount }: Props) {
   const router = useRouter()
   const t = useTranslations('adminSiphonPage')
   const askConfirm = useConfirm()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [deletedRows, setDeletedRows] = useState<number | null>(null)
+  const effectiveLogCount = deletedRows !== null ? 0 : logCount
+  const hasNoLogs = effectiveLogCount === 0
 
   const handleReset = async () => {
+    if (hasNoLogs) return
+
     const ok = await askConfirm({
       body: t('resetConfirm'),
       destructive: true,
@@ -45,12 +53,21 @@ export default function SiphonResetPanel() {
             <p className="mt-1 max-w-2xl text-xs leading-relaxed text-rose-100/75">
               {t('resetDescription')}
             </p>
+            <p className="mt-2 text-xs font-semibold text-rose-100">
+              {effectiveLogCount === null
+                ? t('resetTargetUnknown')
+                : effectiveLogCount === 0
+                  ? t('resetTargetEmpty')
+                  : t('resetTargetCount', {
+                      count: effectiveLogCount.toLocaleString('en-US'),
+                    })}
+            </p>
           </div>
         </div>
         <button
           type="button"
           onClick={handleReset}
-          disabled={pending}
+          disabled={pending || hasNoLogs}
           className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg bg-rose-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-rose-500 disabled:bg-gray-800 disabled:text-gray-500 sm:w-auto"
         >
           {pending ? (

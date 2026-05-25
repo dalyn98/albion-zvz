@@ -8,6 +8,7 @@ import { regearPayoutSilver } from '@/types'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { shouldShowKillboardUnverified } from '@/lib/regear-display'
 import RegearRequestCancelButton from './RegearRequestCancelButton'
+import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 
 const STATUS_CLASS: Record<string, string> = {
   pending: 'bg-yellow-500/20 text-yellow-300',
@@ -26,12 +27,14 @@ function sortPendingFirst(items: MyRegearRequest[]): MyRegearRequest[] {
 
 interface Props {
   requests: MyRegearRequest[]
+  timezone?: string
   detailHrefPrefix?: string
   interactionMode?: 'live' | 'demo'
 }
 
 export default async function MyRegearList({
   requests,
+  timezone = DEFAULT_TENANT_TIMEZONE,
   detailHrefPrefix = '/me/regear',
   interactionMode = 'live',
 }: Props) {
@@ -95,10 +98,10 @@ export default async function MyRegearList({
             <p className="text-gray-500 text-xs truncate">{r.admin_notes}</p>
           )}
           <p className="text-gray-400 text-xs font-mono">
-            {tMe('requestedAt', { when: formatDateTime(r.created_at) })}
+            {tMe('requestedAt', { when: formatDateTime(r.created_at, timezone) })}
             {r.resolved_at && r.status !== 'pending' && (
               <span className="ml-2">
-                · {tStatus(r.status)} {formatDateTime(r.resolved_at)}
+                · {tStatus(r.status)} {formatDateTime(r.resolved_at, timezone)}
                 {r.handled_by_username && (
                   <span className="ml-1 text-gray-400">
                     · {tMe('handledBy', { handler: r.handled_by_username })}

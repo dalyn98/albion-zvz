@@ -2,8 +2,10 @@ import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { ClipboardList } from 'lucide-react'
 import { getSession } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
 import { listOpenCraftOrdersForMember } from '@/app/actions/craft-orders'
 import CraftOrdersMemberClient from '@/components/CraftOrdersMemberClient'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 // 길드 발주 멤버 페이지 — 관리자가 등록한 발주를 길드원이 일부 수주해 직접
 // 제작·납품, 관리자 승인 후 단가 × 수량을 포인트로 받는다. 데스로그/리기어와
@@ -19,9 +21,11 @@ export default async function CraftOrdersPage() {
     redirect('/')
   }
 
-  const [{ orders, error }, t] = await Promise.all([
+  const guildId = await getSessionGuildId(session)
+  const [{ orders, error }, t, timezone] = await Promise.all([
     listOpenCraftOrdersForMember(),
     getTranslations('craftOrders'),
+    getTenantTimezone(guildId),
   ])
 
   return (
@@ -43,6 +47,7 @@ export default async function CraftOrdersPage() {
       <CraftOrdersMemberClient
         initialOrders={orders}
         currentUserDiscordId={session.discordId}
+        timezone={timezone}
       />
     </main>
   )

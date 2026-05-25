@@ -26,6 +26,7 @@ function parseEnchant(itemId: string): number {
 interface Props {
   initialOrders: CraftOrderWithTasks[]
   currentUserDiscordId: string
+  timezone: string
 }
 
 type Tab = 'available' | 'mine'
@@ -34,6 +35,7 @@ type Tab = 'available' | 'mine'
 export default function CraftOrdersMemberClient({
   initialOrders,
   currentUserDiscordId,
+  timezone,
 }: Props) {
   const t = useTranslations('craftOrders')
   const [tab, setTab] = useState<Tab>('available')
@@ -85,6 +87,7 @@ export default function CraftOrdersMemberClient({
               key={entry.order.id}
               entry={entry}
               currentUserDiscordId={currentUserDiscordId}
+              timezone={timezone}
               hideClaimForm={tab === 'mine'}
             />
           ))}
@@ -132,10 +135,12 @@ function TabButton({
 function OrderCard({
   entry,
   currentUserDiscordId,
+  timezone,
   hideClaimForm,
 }: {
   entry: CraftOrderWithTasks
   currentUserDiscordId: string
+  timezone: string
   hideClaimForm: boolean
 }) {
   const t = useTranslations('craftOrders')
@@ -192,7 +197,7 @@ function OrderCard({
         </p>
         <p className="text-[11px] text-gray-400 mt-1">
           {t('postedByLabel', { name: order.postedByUsername ?? order.postedByDiscordId })} ·{' '}
-          {formatDateTime(order.createdAt)}
+          {formatDateTime(order.createdAt, timezone)}
         </p>
         {order.notes && (
           <p className="text-[11px] text-gray-300 mt-1 whitespace-pre-line">{order.notes}</p>

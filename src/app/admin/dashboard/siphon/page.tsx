@@ -57,14 +57,18 @@ export default async function AdminSiphonPage(props: SearchParams) {
     lastImportQuery = lastImportQuery.gte('logged_at', operatingStart.toISOString())
   }
 
-  // 병렬 read: balances + ledger 1 페이지 + 마지막 import 시각.
-  const [balancesResult, ledgerResult, lastImportRow] = await Promise.all([
+  // 병렬 read: balances + ledger 1 페이지 + 마지막 import 시각 + reset 대상 수.
+  const [balancesResult, ledgerResult, lastImportRow, resetCountResult] = await Promise.all([
     getSiphonBalances(),
     listSiphonLedger({ limit: LOG_PAGE_SIZE, offset, player: playerFilter }),
     lastImportQuery
       .order('imported_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
+    db
+      .from('siphon_ledger')
+      .select('id', { count: 'exact', head: true })
+      .eq('guild_id', guildId),
   ])
 
   const balances: SiphonPlayerBalance[] =
@@ -72,6 +76,7 @@ export default async function AdminSiphonPage(props: SearchParams) {
   const ledgerRows: SiphonLedgerRow[] =
     'rows' in ledgerResult ? ledgerResult.rows : []
   const ledgerTotal = 'total' in ledgerResult ? ledgerResult.total : 0
+  const resetLogCount = resetCountResult.error ? null : resetCountResult.count ?? 0
   const lastImportAt =
     (lastImportRow.data?.imported_at as string | null | undefined) ?? null
 
@@ -110,7 +115,7 @@ export default async function AdminSiphonPage(props: SearchParams) {
         initialLootAuditStartAt=""
       />
 
-      <SiphonResetPanel />
+      <SiphonResetPanel logCount={resetLogCount} />
 
       <SiphonBalanceTable balances={balances} timezone={tenantTimezone} />
 

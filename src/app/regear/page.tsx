@@ -205,7 +205,7 @@ export default async function RegearPage() {
               </ul>
             )
           }
-          historySection={<MyRegearList requests={myRegears} />}
+          historySection={<MyRegearList requests={myRegears} timezone={tz} />}
         />
       </div>
 

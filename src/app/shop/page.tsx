@@ -14,6 +14,7 @@ import ShopCatalog, {
   type ShopPriceWarning,
 } from '@/components/ShopCatalog'
 import ShopMyOrders from '@/components/ShopMyOrders'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 // 관리자 설정에서 저장된 aodp_cities (JSON 배열) 에서 첫 항목을 꺼낸다. 파싱
 // 실패하거나 허용된 도시가 아니면 기본값(카에르레온) 으로 폴백 — 관리자가
@@ -40,23 +41,31 @@ export default async function PublicShopPage() {
   const db = getAdminClient()
   const guildId = session ? await getSessionGuildId(session) : await getPrimaryTenantId()
 
-  const [tNav, tShop, deliveryNotice, discountRateSetting, aodpCitiesSetting, { data: invRows }] =
-    await Promise.all([
-      getTranslations('nav'),
-      getTranslations('shopPublic'),
-      getAppSetting('shop_delivery_notice', '', guildId),
-      getAppSetting('shop_discount_rate', '1', guildId),
-      getAppSetting('aodp_cities', '', guildId),
-      db
-        .from('shop_inventory')
-        .select(
-          'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver, price_warning_level',
-        )
-        .eq('guild_id', guildId)
-        .gt('stock', 0)
-        .order('name_ko', { ascending: true })
-        .limit(500),
-    ])
+  const [
+    tNav,
+    tShop,
+    deliveryNotice,
+    discountRateSetting,
+    aodpCitiesSetting,
+    tenantTimezone,
+    { data: invRows },
+  ] = await Promise.all([
+    getTranslations('nav'),
+    getTranslations('shopPublic'),
+    getAppSetting('shop_delivery_notice', '', guildId),
+    getAppSetting('shop_discount_rate', '1', guildId),
+    getAppSetting('aodp_cities', '', guildId),
+    getTenantTimezone(guildId),
+    db
+      .from('shop_inventory')
+      .select(
+        'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver, price_warning_level',
+      )
+      .eq('guild_id', guildId)
+      .gt('stock', 0)
+      .order('name_ko', { ascending: true })
+      .limit(500),
+  ])
 
   const discountRate = parseShopDiscountRate(discountRateSetting)
   const baseCity = parseBaseCity(aodpCitiesSetting)
@@ -131,7 +140,7 @@ export default async function PublicShopPage() {
         </div>
       )}
 
-      {orders.length > 0 && <ShopMyOrders orders={orders} />}
+      {orders.length > 0 && <ShopMyOrders orders={orders} timezone={tenantTimezone} />}
 
       <ShopCatalog
         items={items}
