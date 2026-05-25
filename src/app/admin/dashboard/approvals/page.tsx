@@ -245,11 +245,12 @@ async function RegearSection({
   origin: RegearOrigin
   guildId: string
 }) {
-  const [{ requests, error }, t, ratePercent, { counts }] = await Promise.all([
+  const [{ requests, error }, t, ratePercent, { counts }, timezone] = await Promise.all([
     listRegearRequests(scope, origin),
     getTranslations('adminRegearReview'),
     getRegearPayoutRatePercent(),
     getRegearOriginCounts(scope),
+    getTenantTimezone(guildId),
   ])
   // pending+crafted+build_snapshot 만 재고 체크 대상. 한 번의 묶인 쿼리로 N+1 회피.
   const stockEntries: Array<{ regearId: string; snapshot: BuildSnapshot }> = requests
@@ -296,6 +297,7 @@ async function RegearSection({
           requests={requests}
           avatars={avatars}
           ratePercent={ratePercent}
+          timezone={timezone}
           groupByEvent
           sortRowsByMember={origin === 'auto'}
           anomalies={anomalies}
@@ -367,9 +369,10 @@ function RegearOriginTabs({ active, scope, counts, tKeys }: RegearOriginTabsProp
 }
 
 async function ExchangeSection({ scope, guildId }: { scope: Scope; guildId: string }) {
-  const [{ requests, error }, t] = await Promise.all([
+  const [{ requests, error }, t, timezone] = await Promise.all([
     listExchangeRequests(scope),
     getTranslations('adminExchangeReview'),
+    getTenantTimezone(guildId),
   ])
   const avatarMap = await getAvatarsByDiscordIds(guildId, requests.map((r) => r.discord_id))
   const avatars = Object.fromEntries(avatarMap)
@@ -392,16 +395,17 @@ async function ExchangeSection({ scope, guildId }: { scope: Scope; guildId: stri
           {scope === 'pending' ? t('noPending') : t('noRequests')}
         </p>
       ) : (
-        <ExchangeReviewList requests={requests} avatars={avatars} />
+        <ExchangeReviewList requests={requests} avatars={avatars} timezone={timezone} />
       )}
     </div>
   )
 }
 
 async function ShopSection({ scope, guildId }: { scope: Scope; guildId: string }) {
-  const [{ orders, error }, t] = await Promise.all([
+  const [{ orders, error }, t, timezone] = await Promise.all([
     listShopOrders(scope),
     getTranslations('adminShopReview'),
+    getTenantTimezone(guildId),
   ])
   const avatarMap = await getAvatarsByDiscordIds(guildId, orders.map((o) => o.discordId))
   const avatars = Object.fromEntries(avatarMap)
@@ -424,7 +428,7 @@ async function ShopSection({ scope, guildId }: { scope: Scope; guildId: string }
           {scope === 'pending' ? t('noPending') : t('noRequests')}
         </p>
       ) : (
-        <ShopOrderReviewList orders={orders} avatars={avatars} />
+        <ShopOrderReviewList orders={orders} avatars={avatars} timezone={timezone} />
       )}
     </div>
   )
@@ -462,9 +466,10 @@ async function EventPayoutSection({ scope, guildId }: { scope: Scope; guildId: s
 }
 
 async function CraftSection({ scope, guildId }: { scope: Scope; guildId: string }) {
-  const [{ tasks, error }, t] = await Promise.all([
+  const [{ tasks, error }, t, timezone] = await Promise.all([
     listCraftOrderTasksForReview(scope),
     getTranslations('adminCraftOrderReview'),
+    getTenantTimezone(guildId),
   ])
   const avatarMap = await getAvatarsByDiscordIds(
     guildId,
@@ -490,16 +495,17 @@ async function CraftSection({ scope, guildId }: { scope: Scope; guildId: string 
           {scope === 'pending' ? t('noPending') : t('noRequests')}
         </p>
       ) : (
-        <CraftOrderReviewList tasks={tasks} avatars={avatars} />
+        <CraftOrderReviewList tasks={tasks} avatars={avatars} timezone={timezone} />
       )}
     </div>
   )
 }
 
 async function DonationSection({ scope, guildId }: { scope: Scope; guildId: string }) {
-  const [{ requests, error }, t] = await Promise.all([
+  const [{ requests, error }, t, timezone] = await Promise.all([
     listDonationRequests(scope),
     getTranslations('adminDonationReview'),
+    getTenantTimezone(guildId),
   ])
   const avatarMap = await getAvatarsByDiscordIds(guildId, requests.map((r) => r.discord_id))
   const avatars = Object.fromEntries(avatarMap)
@@ -522,7 +528,7 @@ async function DonationSection({ scope, guildId }: { scope: Scope; guildId: stri
           {scope === 'pending' ? t('noPending') : t('noRequests')}
         </p>
       ) : (
-        <DonationReviewList requests={requests} avatars={avatars} />
+        <DonationReviewList requests={requests} avatars={avatars} timezone={timezone} />
       )}
     </div>
   )

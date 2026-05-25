@@ -7,6 +7,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
 import ShopBaselineForm from '@/components/ShopBaselineForm'
 import { formatDateTime } from '@/lib/format-datetime'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 export const dynamic = 'force-dynamic'
 const SHOP_BASELINE_PAGE_CAPS = [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
@@ -16,7 +17,10 @@ export default async function ShopBaselinePage() {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
-  const t = await getTranslations('adminShopBaseline')
+  const [t, tenantTimezone] = await Promise.all([
+    getTranslations('adminShopBaseline'),
+    getTenantTimezone(guildId),
+  ])
 
   // 이력 표시용 — 최근 10건 (confirmed / superseded 모두 포함)
   const { data: history } = await db
@@ -70,10 +74,10 @@ export default async function ShopBaselinePage() {
                   return (
                     <tr key={row.id as string} className="border-t border-zinc-800">
                       <td className="p-2 font-mono">
-                        {formatDateTime(row.confirmed_at as string)}
+                        {formatDateTime(row.confirmed_at as string, tenantTimezone)}
                       </td>
                       <td className="p-2 font-mono">
-                        {formatDateTime(row.baseline_at as string)}
+                        {formatDateTime(row.baseline_at as string, tenantTimezone)}
                       </td>
                       <td className="p-2 text-right font-mono">
                         {t('itemsSummary', {

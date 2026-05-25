@@ -35,10 +35,11 @@ const STATUS_CLASS: Record<string, string> = {
 
 interface Props {
   tasks: CraftOrderTaskReviewRow[]
+  timezone: string
   avatars?: Record<string, string | null>
 }
 
-export default function CraftOrderReviewList({ tasks, avatars = {} }: Props) {
+export default function CraftOrderReviewList({ tasks, timezone, avatars = {} }: Props) {
   const t = useTranslations('adminCraftOrderReview')
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
@@ -64,6 +65,7 @@ export default function CraftOrderReviewList({ tasks, avatars = {} }: Props) {
               key={task.taskId}
               task={task}
               avatar={avatars[task.crafterDiscordId] ?? null}
+              timezone={timezone}
             />
           ))}
         </ul>
@@ -75,9 +77,11 @@ export default function CraftOrderReviewList({ tasks, avatars = {} }: Props) {
 function TaskRow({
   task,
   avatar,
+  timezone,
 }: {
   task: CraftOrderTaskReviewRow
   avatar: string | null
+  timezone: string
 }) {
   const router = useRouter()
   const t = useTranslations('adminCraftOrderReview')
@@ -140,7 +144,7 @@ function TaskRow({
               className="text-white font-medium text-sm"
             />
             <p className="text-[11px] text-gray-500">
-              {task.deliveredAt ? formatDateTimeShort(task.deliveredAt) : '-'}
+              {task.deliveredAt ? formatDateTimeShort(task.deliveredAt, timezone) : '-'}
             </p>
           </div>
         </div>

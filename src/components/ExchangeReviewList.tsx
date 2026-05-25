@@ -25,10 +25,15 @@ const STATUS_CLASS: Record<string, string> = {
 
 interface ExchangeReviewListProps {
   requests: AdminExchangeRequest[]
+  timezone: string
   avatars?: Record<string, string | null>
 }
 
-export default function ExchangeReviewList({ requests, avatars = {} }: ExchangeReviewListProps) {
+export default function ExchangeReviewList({
+  requests,
+  timezone,
+  avatars = {},
+}: ExchangeReviewListProps) {
   const t = useTranslations('adminExchangeReview')
   const tCommon = useTranslations('common')
   const [search, setSearch] = useState('')
@@ -51,7 +56,12 @@ export default function ExchangeReviewList({ requests, avatars = {} }: ExchangeR
       ) : (
         <ul className="space-y-3">
           {filtered.map((r) => (
-            <ExchangeRow key={r.id} request={r} avatar={avatars[r.discord_id] ?? null} />
+            <ExchangeRow
+              key={r.id}
+              request={r}
+              avatar={avatars[r.discord_id] ?? null}
+              timezone={timezone}
+            />
           ))}
         </ul>
       )}
@@ -59,7 +69,15 @@ export default function ExchangeReviewList({ requests, avatars = {} }: ExchangeR
   )
 }
 
-function ExchangeRow({ request, avatar }: { request: AdminExchangeRequest; avatar: string | null }) {
+function ExchangeRow({
+  request,
+  avatar,
+  timezone,
+}: {
+  request: AdminExchangeRequest
+  avatar: string | null
+  timezone: string
+}) {
   const router = useRouter()
   const t = useTranslations('adminExchangeReview')
   const tCommon = useTranslations('common')
@@ -120,7 +138,9 @@ function ExchangeRow({ request, avatar }: { request: AdminExchangeRequest; avata
           <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
             <span className="font-mono text-amber-400">{formatSilver(request.silver)}</span>
             <span className="text-gray-500">{t('balanceLabel', { amount: formatSilver(request.balance) })}</span>
-            <span className="font-mono text-gray-600">{formatDateTimeShort(request.created_at)}</span>
+            <span className="font-mono text-gray-600">
+              {formatDateTimeShort(request.created_at, timezone)}
+            </span>
           </div>
         </div>
         <span className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS[request.status]}`}>
@@ -204,7 +224,10 @@ function ExchangeRow({ request, avatar }: { request: AdminExchangeRequest; avata
       {request.resolved_at && request.status !== 'pending' && (
         <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2 space-y-0.5">
           <p>
-            {t('resolvedAt', { status: statusLabel(request.status), datetime: formatDateTimeShort(request.resolved_at) })}
+            {t('resolvedAt', {
+              status: statusLabel(request.status),
+              datetime: formatDateTimeShort(request.resolved_at, timezone),
+            })}
           </p>
           <p>
             {t('handledBy', {

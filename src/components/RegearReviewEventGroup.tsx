@@ -23,6 +23,7 @@ interface EventGroupProps {
   group: EventGroupRow
   avatars: Record<string, string | null>
   ratePercent: number
+  timezone: string
   forceExpanded: boolean
   anomalies: Record<string, RegearAnomalyFlag[]>
   stockChecks: Record<string, StockCheckResult>
@@ -32,6 +33,7 @@ export default function EventGroup({
   group,
   avatars,
   ratePercent,
+  timezone,
   forceExpanded,
   anomalies,
   stockChecks,
@@ -125,7 +127,7 @@ export default function EventGroup({
               <div className="text-sm font-semibold text-white truncate">{group.eventTitle}</div>
               {latestAt && (
                 <div className="text-[11px] text-gray-500 mt-0.5 font-mono">
-                  {t('groupLatest', { datetime: formatDateTimeShort(latestAt) })}
+                  {t('groupLatest', { datetime: formatDateTimeShort(latestAt, timezone) })}
                 </div>
               )}
             </div>
@@ -186,6 +188,7 @@ export default function EventGroup({
                       request={c.rows[0]}
                       avatar={avatars[c.discordId] ?? null}
                       ratePercent={ratePercent}
+                      timezone={timezone}
                       anomalyFlags={anomalies[c.rows[0].id]}
                       stockCheck={stockChecks[c.rows[0].id]}
                     />
@@ -196,6 +199,7 @@ export default function EventGroup({
                     group={c}
                     avatar={avatars[c.discordId] ?? null}
                     ratePercent={ratePercent}
+                    timezone={timezone}
                     anomalies={anomalies}
                     stockChecks={stockChecks}
                     forceExpanded={forceExpanded}
@@ -213,6 +217,7 @@ export default function EventGroup({
                   request={r}
                   avatar={avatars[r.discord_id] ?? null}
                   ratePercent={ratePercent}
+                  timezone={timezone}
                   anomalyFlags={anomalies[r.id]}
                   stockCheck={stockChecks[r.id]}
                 />
@@ -229,6 +234,7 @@ interface ClaimerGroupProps {
   group: ClaimerSubGroup
   avatar: string | null
   ratePercent: number
+  timezone: string
   anomalies: Record<string, RegearAnomalyFlag[]>
   stockChecks: Record<string, StockCheckResult>
   forceExpanded: boolean
@@ -240,6 +246,7 @@ function ClaimerGroup({
   group,
   avatar,
   ratePercent,
+  timezone,
   anomalies,
   stockChecks,
   forceExpanded,
@@ -308,6 +315,7 @@ function ClaimerGroup({
               request={r}
               avatar={avatar}
               ratePercent={ratePercent}
+              timezone={timezone}
               anomalyFlags={anomalies[r.id]}
               stockCheck={stockChecks[r.id]}
             />

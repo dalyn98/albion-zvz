@@ -20,6 +20,7 @@ interface RegearReviewListProps {
   // Current payout rate (1..100). Approve button and pending-row hint use this
   // so admins see the exact silver amount the RPC will credit.
   ratePercent: number
+  timezone: string
   // When true, 이벤트별로 묶어서 아코디언 UI 로 보여준다. `전체` 스코프에서만 켠다.
   groupByEvent?: boolean
   // 자동 리기어 탭에서 켠다. true 면 각 이벤트 그룹 내부를 멤버별로 클러스터 정렬해서
@@ -36,6 +37,7 @@ export default function RegearReviewList({
   requests,
   avatars = {},
   ratePercent,
+  timezone,
   groupByEvent = false,
   sortRowsByMember = false,
   anomalies = {},
@@ -93,6 +95,7 @@ export default function RegearReviewList({
               group={g}
               avatars={avatars}
               ratePercent={ratePercent}
+              timezone={timezone}
               forceExpanded={searchActive}
               anomalies={anomalies}
               stockChecks={stockChecks}
@@ -107,6 +110,7 @@ export default function RegearReviewList({
               request={r}
               avatar={avatars[r.discord_id] ?? null}
               ratePercent={ratePercent}
+              timezone={timezone}
               anomalyFlags={anomalies[r.id]}
               stockCheck={stockChecks[r.id]}
             />

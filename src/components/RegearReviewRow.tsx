@@ -54,6 +54,7 @@ interface Props {
   request: AdminRegearRequest
   avatar: string | null
   ratePercent: number
+  timezone: string
   anomalyFlags?: RegearAnomalyFlag[]
   stockCheck?: StockCheckResult
 }
@@ -62,6 +63,7 @@ export default function RegearReviewRow({
   request,
   avatar,
   ratePercent,
+  timezone,
   anomalyFlags,
   stockCheck,
 }: Props) {
@@ -296,7 +298,9 @@ export default function RegearReviewRow({
                 {t('paidOut', { amount: formatSilver(approvedPayout) })}
               </span>
             )}
-            <span className="font-mono text-gray-500">{formatDateTimeShort(request.created_at)}</span>
+            <span className="font-mono text-gray-500">
+              {formatDateTimeShort(request.created_at, timezone)}
+            </span>
           </div>
         </div>
         <span className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${REGEAR_STATUS_CLASS[request.status]}`}>
@@ -458,7 +462,7 @@ export default function RegearReviewRow({
             )}
           </div>
           <p className="text-gray-500 font-mono text-[10px]">
-            {formatDateTimeShort(request.kill_summary.occurred_at)}
+            {formatDateTimeShort(request.kill_summary.occurred_at, timezone)}
           </p>
         </div>
       )}
@@ -677,7 +681,10 @@ export default function RegearReviewRow({
       {request.resolved_at && request.status !== 'pending' && (
         <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2 space-y-0.5">
           <p>
-            {t('resolvedAt', { status: statusLabel(request.status), datetime: formatDateTimeShort(request.resolved_at) })}
+            {t('resolvedAt', {
+              status: statusLabel(request.status),
+              datetime: formatDateTimeShort(request.resolved_at, timezone),
+            })}
           </p>
           <p>
             {t('handledBy', {

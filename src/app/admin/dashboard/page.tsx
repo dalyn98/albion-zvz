@@ -14,6 +14,7 @@ import TemplateList from '@/components/TemplateList'
 import CreateTemplateButton from '@/components/CreateTemplateButton'
 import AdminOperationsPanel from '@/components/AdminOperationsPanel'
 import { listTemplates } from '@/app/actions/templates'
+import { getTenantTimezone } from '@/lib/timezone-server'
 
 type Section = 'events' | 'templates'
 
@@ -119,7 +120,11 @@ async function EventsSection() {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
-  const [events, t] = await Promise.all([getEvents(guildId), getTranslations('adminDashboard')])
+  const [events, t, tenantTimezone] = await Promise.all([
+    getEvents(guildId),
+    getTranslations('adminDashboard'),
+    getTenantTimezone(guildId),
+  ])
   if (events.length === 0) {
     return (
       <div className="bg-surface border border-border rounded-xl p-12 text-center shadow-card">
@@ -134,7 +139,7 @@ async function EventsSection() {
       </div>
     )
   }
-  return <DashboardEventList events={events} />
+  return <DashboardEventList events={events} timezone={tenantTimezone} />
 }
 
 async function TemplatesSection() {

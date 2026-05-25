@@ -30,12 +30,14 @@ function isEventEnded(event: Event): boolean {
 
 interface DashboardEventListProps {
   events: Event[]
+  timezone: string
   detailHrefPrefix?: string
   interactionMode?: 'live' | 'demo'
 }
 
 export default function DashboardEventList({
   events,
+  timezone,
   detailHrefPrefix = '/admin/dashboard/events',
   interactionMode = 'live',
 }: DashboardEventListProps) {
@@ -172,7 +174,7 @@ export default function DashboardEventList({
                     </div>
                     <p className="text-gray-400 text-sm truncate">
                       {event.gather_at
-                        ? formatGatherTimeFor(locale, event.gather_at)
+                        ? formatGatherTimeFor(locale, event.gather_at, timezone)
                         : event.gather_time || t('draftScheduleMissing')}
                       {event.gather_location.trim() ? ` · ${event.gather_location}` : ''}
                     </p>

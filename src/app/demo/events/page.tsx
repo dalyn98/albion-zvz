@@ -9,6 +9,7 @@ import DemoActionButton from '../_components/DemoActionButton'
 import DemoCTACard from '../_components/DemoCTACard'
 import DemoOperationsOverview from '../_components/DemoOperationsOverview'
 import { DEMO_EVENTS, DEMO_GUILD_NAME, DEMO_TEMPLATES, type DemoTimeLabel } from '@/data/demo-seed'
+import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 import type { TemplateSummary } from '@/app/actions/templates'
 import type { Event } from '@/types'
 
@@ -180,6 +181,7 @@ function EventsSection({
   return (
     <DashboardEventList
       events={DEMO_EVENTS.map((event, index) => toEvent(event, index, nowMs))}
+      timezone={DEFAULT_TENANT_TIMEZONE}
       detailHrefPrefix="/demo/events"
       interactionMode="demo"
     />

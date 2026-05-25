@@ -33,10 +33,11 @@ function imageUrl(uniqueName: string, enchant: number, quality: number): string 
 
 interface Props {
   orders: AdminShopOrder[]
+  timezone: string
   avatars?: Record<string, string | null>
 }
 
-export default function ShopOrderReviewList({ orders, avatars = {} }: Props) {
+export default function ShopOrderReviewList({ orders, timezone, avatars = {} }: Props) {
   const t = useTranslations('adminShopOrderReview')
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
@@ -58,7 +59,12 @@ export default function ShopOrderReviewList({ orders, avatars = {} }: Props) {
       ) : (
         <ul className="space-y-3">
           {filtered.map((o) => (
-            <OrderRow key={o.id} order={o} avatar={avatars[o.discordId] ?? null} />
+            <OrderRow
+              key={o.id}
+              order={o}
+              avatar={avatars[o.discordId] ?? null}
+              timezone={timezone}
+            />
           ))}
         </ul>
       )}
@@ -66,7 +72,15 @@ export default function ShopOrderReviewList({ orders, avatars = {} }: Props) {
   )
 }
 
-function OrderRow({ order, avatar }: { order: AdminShopOrder; avatar: string | null }) {
+function OrderRow({
+  order,
+  avatar,
+  timezone,
+}: {
+  order: AdminShopOrder
+  avatar: string | null
+  timezone: string
+}) {
   const router = useRouter()
   const t = useTranslations('adminShopOrderReview')
   const locale = useLocale() as Locale
@@ -131,7 +145,7 @@ function OrderRow({ order, avatar }: { order: AdminShopOrder; avatar: string | n
               {t('balanceLabel', { amount: order.balance.toLocaleString() })}
             </span>
             <span className="font-mono text-gray-600">
-              {formatDateTimeShort(order.createdAt)}
+              {formatDateTimeShort(order.createdAt, timezone)}
             </span>
           </div>
         </div>
@@ -274,7 +288,7 @@ function OrderRow({ order, avatar }: { order: AdminShopOrder; avatar: string | n
         <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2">
           {t('statusTimestamp', {
             status: statusLabel(order.status),
-            datetime: formatDateTimeShort(order.resolvedAt),
+            datetime: formatDateTimeShort(order.resolvedAt, timezone),
           })}
         </div>
       )}

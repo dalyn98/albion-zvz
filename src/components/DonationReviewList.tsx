@@ -27,10 +27,15 @@ const STATUS_CLASS: Record<string, string> = {
 
 interface DonationReviewListProps {
   requests: AdminDonationRequest[]
+  timezone: string
   avatars?: Record<string, string | null>
 }
 
-export default function DonationReviewList({ requests, avatars = {} }: DonationReviewListProps) {
+export default function DonationReviewList({
+  requests,
+  timezone,
+  avatars = {},
+}: DonationReviewListProps) {
   const t = useTranslations('adminDonationReview')
   const tCommon = useTranslations('common')
   const [search, setSearch] = useState('')
@@ -53,7 +58,12 @@ export default function DonationReviewList({ requests, avatars = {} }: DonationR
       ) : (
         <ul className="space-y-3">
           {filtered.map((r) => (
-            <DonationRow key={r.id} request={r} avatar={avatars[r.discord_id] ?? null} />
+            <DonationRow
+              key={r.id}
+              request={r}
+              avatar={avatars[r.discord_id] ?? null}
+              timezone={timezone}
+            />
           ))}
         </ul>
       )}
@@ -61,7 +71,15 @@ export default function DonationReviewList({ requests, avatars = {} }: DonationR
   )
 }
 
-function DonationRow({ request, avatar }: { request: AdminDonationRequest; avatar: string | null }) {
+function DonationRow({
+  request,
+  avatar,
+  timezone,
+}: {
+  request: AdminDonationRequest
+  avatar: string | null
+  timezone: string
+}) {
   const router = useRouter()
   const t = useTranslations('adminDonationReview')
   const tCommon = useTranslations('common')
@@ -139,7 +157,9 @@ function DonationRow({ request, avatar }: { request: AdminDonationRequest; avata
             <span className="font-mono text-emerald-400">
               {t('claimed', { amount: formatSilver(request.silver) })}
             </span>
-            <span className="font-mono text-gray-500">{formatDateTimeShort(request.created_at)}</span>
+            <span className="font-mono text-gray-500">
+              {formatDateTimeShort(request.created_at, timezone)}
+            </span>
           </div>
         </div>
         <span className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS[request.status]}`}>
@@ -269,7 +289,10 @@ function DonationRow({ request, avatar }: { request: AdminDonationRequest; avata
       {request.resolved_at && request.status !== 'pending' && (
         <div className="text-gray-500 text-[11px] font-mono border-t border-gray-800 pt-2 space-y-0.5">
           <p>
-            {t('resolvedAt', { status: statusLabel(request.status), datetime: formatDateTimeShort(request.resolved_at) })}
+            {t('resolvedAt', {
+              status: statusLabel(request.status),
+              datetime: formatDateTimeShort(request.resolved_at, timezone),
+            })}
           </p>
           <p>
             {t('handledBy', {
