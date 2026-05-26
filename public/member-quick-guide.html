@@ -1,0 +1,1861 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Albion ZvZ 길드원 빠른 사용법</title>
+    <meta
+      name="description"
+      content="Albion ZvZ 길드원이 이벤트 신청, 내정보 확인, 리기어 신청, 상점 이용을 빠르게 이해할 수 있는 한 장짜리 안내서입니다."
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #090d12;
+        --panel: #111821;
+        --panel-2: #151f2b;
+        --ink: #f6f7f8;
+        --muted: #a8b3c2;
+        --subtle: #728097;
+        --line: rgba(255, 255, 255, 0.12);
+        --gold: #f7b500;
+        --gold-soft: rgba(247, 181, 0, 0.14);
+        --green: #24d39b;
+        --green-soft: rgba(36, 211, 155, 0.13);
+        --red: #ff6b6b;
+        --red-soft: rgba(255, 107, 107, 0.12);
+        --blue: #65a8ff;
+        --blue-soft: rgba(101, 168, 255, 0.14);
+        --purple: #b28dff;
+        --purple-soft: rgba(178, 141, 255, 0.13);
+        --shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+        --radius: 8px;
+        --content: 1160px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        background:
+          radial-gradient(circle at 18% 0%, rgba(247, 181, 0, 0.16), transparent 34rem),
+          radial-gradient(circle at 90% 12%, rgba(101, 168, 255, 0.13), transparent 36rem),
+          linear-gradient(180deg, #0b1016 0%, #090d12 42%, #070a0e 100%);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+        letter-spacing: 0;
+        line-height: 1.6;
+      }
+
+      img {
+        display: block;
+        max-width: 100%;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .page {
+        overflow: hidden;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        border-bottom: 1px solid var(--line);
+        background: rgba(9, 13, 18, 0.86);
+        backdrop-filter: blur(16px);
+      }
+
+      .topbar-inner {
+        width: min(var(--content), calc(100% - 32px));
+        margin: 0 auto;
+        display: flex;
+        min-height: 64px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        font-weight: 850;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 32px;
+        height: 32px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid rgba(247, 181, 0, 0.42);
+        border-radius: 8px;
+        background: linear-gradient(135deg, rgba(247, 181, 0, 0.24), rgba(247, 181, 0, 0.07));
+        color: var(--gold);
+      }
+
+      .brand-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .nav {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .nav a {
+        display: inline-flex;
+        min-height: 34px;
+        align-items: center;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        padding: 6px 11px;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .nav a:hover {
+        border-color: rgba(247, 181, 0, 0.36);
+        color: var(--ink);
+        background: rgba(247, 181, 0, 0.08);
+      }
+
+      .topbar-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .locale-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        border-radius: 999px;
+        padding: 3px;
+        background: rgba(255, 255, 255, 0.045);
+      }
+
+      .locale-button {
+        min-height: 28px;
+        border: 0;
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: transparent;
+        color: var(--muted);
+        font: inherit;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .locale-button[aria-pressed="true"] {
+        background: var(--gold-soft);
+        color: #ffd978;
+      }
+
+      .hero {
+        width: min(var(--content), calc(100% - 32px));
+        margin: 0 auto;
+        padding: 70px 0 34px;
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 0.92fr) minmax(420px, 1.08fr);
+        align-items: center;
+        gap: 36px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid rgba(247, 181, 0, 0.24);
+        border-radius: 999px;
+        padding: 6px 10px;
+        background: rgba(247, 181, 0, 0.09);
+        color: #ffd978;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        margin-top: 18px;
+        max-width: 740px;
+        font-size: clamp(40px, 6vw, 76px);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .hero-copy {
+        margin-top: 20px;
+        max-width: 660px;
+        color: var(--muted);
+        font-size: 18px;
+      }
+
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 28px;
+      }
+
+      .button {
+        display: inline-flex;
+        min-height: 44px;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border: 1px solid rgba(247, 181, 0, 0.38);
+        border-radius: 8px;
+        padding: 10px 14px;
+        background: rgba(247, 181, 0, 0.14);
+        color: #ffca38;
+        font-size: 14px;
+        font-weight: 850;
+        text-decoration: none;
+      }
+
+      .button.secondary {
+        border-color: rgba(255, 255, 255, 0.13);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--ink);
+      }
+
+      .hero-shot {
+        position: relative;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: var(--radius);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .browser-bar {
+        display: flex;
+        height: 38px;
+        align-items: center;
+        gap: 7px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+        padding: 0 13px;
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #ff6b6b;
+      }
+
+      .dot:nth-child(2) {
+        background: #f7b500;
+      }
+
+      .dot:nth-child(3) {
+        background: #24d39b;
+      }
+
+      .hero-shot img {
+        aspect-ratio: 16 / 9;
+        width: 100%;
+        object-fit: cover;
+      }
+
+      .hero-foot {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 24px;
+      }
+
+      .metric {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 14px;
+        background: rgba(255, 255, 255, 0.045);
+      }
+
+      .metric b {
+        display: block;
+        color: var(--ink);
+        font-size: 20px;
+        line-height: 1.2;
+      }
+
+      .metric span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .section {
+        width: min(var(--content), calc(100% - 32px));
+        margin: 0 auto;
+        padding: 52px 0;
+      }
+
+      .section-head {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(280px, 0.52fr);
+        align-items: end;
+        gap: 24px;
+        margin-bottom: 22px;
+      }
+
+      .section h2 {
+        font-size: clamp(28px, 4vw, 46px);
+        line-height: 1.07;
+      }
+
+      .section-lead {
+        color: var(--muted);
+      }
+
+      .quick-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .quick-card,
+      .step-card,
+      .feature-card,
+      .account-card,
+      .help-card {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.045);
+      }
+
+      .quick-card {
+        min-height: 176px;
+        padding: 18px;
+      }
+
+      .quick-number {
+        display: inline-grid;
+        width: 32px;
+        height: 32px;
+        place-items: center;
+        border-radius: 8px;
+        background: var(--gold-soft);
+        color: var(--gold);
+        font-weight: 900;
+      }
+
+      .quick-card h3,
+      .step-card h3,
+      .feature-card h3,
+      .account-card h3,
+      .help-card h3 {
+        margin-top: 14px;
+        font-size: 18px;
+        line-height: 1.25;
+      }
+
+      .quick-card p,
+      .step-card p,
+      .feature-card p,
+      .account-card p,
+      .help-card p {
+        margin-top: 9px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .step-card {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        overflow: hidden;
+      }
+
+      .step-card .shot {
+        position: relative;
+        border-bottom: 1px solid var(--line);
+        background: #0d141c;
+      }
+
+      .step-card .shot img {
+        aspect-ratio: 16 / 9;
+        width: 100%;
+        object-fit: cover;
+      }
+
+      .step-body {
+        padding: 18px;
+      }
+
+      .tag-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 14px;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        border-radius: 999px;
+        padding: 4px 8px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 750;
+      }
+
+      .tag.good {
+        border-color: rgba(36, 211, 155, 0.28);
+        color: #8ff0cc;
+        background: var(--green-soft);
+      }
+
+      .tag.warn {
+        border-color: rgba(247, 181, 0, 0.28);
+        color: #ffd978;
+        background: var(--gold-soft);
+      }
+
+      .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .feature-card {
+        display: grid;
+        grid-template-columns: minmax(180px, 0.7fr) minmax(0, 1fr);
+        gap: 18px;
+        align-items: center;
+        padding: 14px;
+      }
+
+      .feature-card .feature-shot {
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--radius);
+        background: #0c1219;
+      }
+
+      .feature-card .feature-shot.text-panel {
+        display: grid;
+        gap: 10px;
+        padding: 16px;
+        text-decoration: none;
+      }
+
+      .mini-request {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 10px;
+        align-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 10px;
+        background: rgba(255, 255, 255, 0.045);
+      }
+
+      .mini-request strong {
+        display: block;
+        font-size: 13px;
+        line-height: 1.2;
+      }
+
+      .mini-request span {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .mini-badge {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 8px;
+        background: var(--gold-soft);
+        color: var(--gold);
+        font-weight: 900;
+      }
+
+      .feature-card img {
+        aspect-ratio: 16 / 10;
+        width: 100%;
+        object-fit: cover;
+      }
+
+      .feature-copy {
+        min-width: 0;
+      }
+
+      .feature-copy h3 {
+        margin-top: 0;
+      }
+
+      .checklist {
+        display: grid;
+        gap: 8px;
+        margin-top: 15px;
+        padding: 0;
+        list-style: none;
+      }
+
+      .checklist li {
+        display: grid;
+        grid-template-columns: 22px minmax(0, 1fr);
+        gap: 8px;
+        align-items: start;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .check {
+        display: grid;
+        width: 20px;
+        height: 20px;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--green-soft);
+        color: var(--green);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .priority {
+        display: grid;
+        grid-template-columns: 0.78fr 1.22fr;
+        gap: 18px;
+        align-items: stretch;
+        border: 1px solid rgba(247, 181, 0, 0.22);
+        border-radius: var(--radius);
+        padding: 18px;
+        background:
+          linear-gradient(135deg, rgba(247, 181, 0, 0.11), rgba(255, 255, 255, 0.03)),
+          rgba(255, 255, 255, 0.035);
+      }
+
+      .priority-main {
+        display: grid;
+        align-content: center;
+        gap: 14px;
+      }
+
+      .priority h2 {
+        font-size: clamp(26px, 3.5vw, 42px);
+      }
+
+      .money-grid {
+        display: grid;
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 14px;
+      }
+
+      .money-card {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.045);
+      }
+
+      .money-card.primary {
+        border-color: rgba(247, 181, 0, 0.28);
+        background:
+          linear-gradient(135deg, rgba(247, 181, 0, 0.12), rgba(255, 255, 255, 0.035)),
+          rgba(255, 255, 255, 0.035);
+      }
+
+      .money-card h3 {
+        margin-top: 12px;
+        font-size: 22px;
+        line-height: 1.18;
+      }
+
+      .money-card p {
+        margin-top: 9px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .money-steps {
+        display: grid;
+        gap: 10px;
+        margin-top: 16px;
+        padding: 0;
+        list-style: none;
+      }
+
+      .money-steps li {
+        display: grid;
+        grid-template-columns: 30px minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .money-steps b {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        place-items: center;
+        border-radius: 8px;
+        background: var(--gold-soft);
+        color: var(--gold);
+        font-size: 13px;
+      }
+
+      .money-note {
+        margin-top: 16px;
+        border: 1px solid rgba(101, 168, 255, 0.22);
+        border-radius: var(--radius);
+        padding: 12px;
+        background: var(--blue-soft);
+        color: #c8ddff;
+        font-size: 13px;
+      }
+
+      .status-stack {
+        display: grid;
+        gap: 10px;
+      }
+
+      .status-row {
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        border-radius: var(--radius);
+        padding: 12px;
+        background: rgba(4, 7, 10, 0.38);
+      }
+
+      .status-icon {
+        display: grid;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.07);
+        font-weight: 900;
+      }
+
+      .status-row strong {
+        display: block;
+        line-height: 1.2;
+      }
+
+      .status-row span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .status-value {
+        border-radius: 8px;
+        padding: 7px 9px;
+        color: #ffd978;
+        background: var(--gold-soft);
+        font-size: 13px;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+
+      .account-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .account-card {
+        padding: 18px;
+      }
+
+      .account-card.member {
+        border-color: rgba(36, 211, 155, 0.26);
+      }
+
+      .account-card.alliance {
+        border-color: rgba(101, 168, 255, 0.28);
+      }
+
+      .account-card.local {
+        border-color: rgba(178, 141, 255, 0.26);
+      }
+
+      .matrix {
+        width: 100%;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      table {
+        width: 100%;
+        min-width: 760px;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 13px 14px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.045);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      td {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .yes {
+        color: #8ff0cc;
+        font-weight: 850;
+      }
+
+      .no {
+        color: #ff9a9a;
+        font-weight: 850;
+      }
+
+      .limited {
+        color: #ffd978;
+        font-weight: 850;
+      }
+
+      .help-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .help-card {
+        padding: 18px;
+      }
+
+      .footer {
+        border-top: 1px solid var(--line);
+        margin-top: 40px;
+        padding: 26px 0 42px;
+        color: var(--subtle);
+        font-size: 13px;
+      }
+
+      .footer-inner {
+        width: min(var(--content), calc(100% - 32px));
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      @media (max-width: 980px) {
+        .hero-grid,
+        .section-head,
+        .priority,
+        .money-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .hero {
+          padding-top: 42px;
+        }
+
+        .quick-grid,
+        .flow,
+        .account-grid,
+        .help-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .feature-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .topbar-inner {
+          align-items: flex-start;
+          flex-direction: column;
+          padding: 12px 0;
+        }
+
+        .nav {
+          justify-content: flex-start;
+        }
+
+        .topbar-actions {
+          justify-content: flex-start;
+        }
+
+        .hero-foot,
+        .quick-grid,
+        .flow,
+        .feature-card,
+        .account-grid,
+        .help-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .section {
+          padding: 38px 0;
+        }
+
+        .feature-card {
+          gap: 12px;
+        }
+
+        .status-row {
+          grid-template-columns: 38px minmax(0, 1fr);
+        }
+
+        .status-value {
+          grid-column: 2;
+          justify-self: start;
+        }
+      }
+
+      @media print {
+        body {
+          background: #fff;
+          color: #111;
+        }
+
+        .topbar,
+        .hero-actions {
+          display: none;
+        }
+
+        .quick-card,
+        .step-card,
+        .feature-card,
+        .money-card,
+        .account-card,
+        .help-card,
+        .priority,
+        .matrix,
+        .metric {
+          break-inside: avoid;
+          border-color: #ddd;
+          background: #fff;
+          box-shadow: none;
+        }
+
+        .section {
+          padding: 28px 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <a class="brand" href="#top" aria-label="처음으로">
+            <span class="brand-mark">⚔</span>
+            <span class="brand-text">Albion ZvZ 길드원 빠른 사용법</span>
+          </a>
+          <div class="topbar-actions">
+            <nav class="nav" aria-label="빠른 이동">
+              <a href="#start">처음 3분</a>
+              <a href="#event">이벤트</a>
+              <a href="#profile">내정보</a>
+              <a href="#daily">빠른 동선</a>
+              <a href="#money">환전/사이펀</a>
+              <a href="#regear">리기어</a>
+              <a href="#account">계정 차이</a>
+            </nav>
+            <div class="locale-switch" aria-label="언어 변경">
+              <button class="locale-button" type="button" data-locale="ko" aria-pressed="true">한국어</button>
+              <button class="locale-button" type="button" data-locale="en" aria-pressed="false">English</button>
+              <button class="locale-button" type="button" data-locale="ja" aria-pressed="false">日本語</button>
+              <button class="locale-button" type="button" data-locale="zh" aria-pressed="false">中文</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main id="top">
+        <section class="hero" aria-labelledby="hero-title">
+          <div class="hero-grid">
+            <div>
+              <span class="eyebrow">길드원용 한 장 가이드</span>
+              <h1 id="hero-title">공지 대신 이 화면만 보면 됩니다</h1>
+              <p class="hero-copy">
+                이벤트 신청, 슬롯 선택, 내 포인트 확인, 리기어 요청까지 길드원이 실제로 자주 쓰는 흐름만 모았습니다.
+                복잡한 안내글 대신 필요한 순간에 바로 따라 하는 용도입니다.
+              </p>
+              <div class="hero-actions">
+                <a class="button" href="#start">처음 3분 보기</a>
+                <a class="button secondary" href="#event">이벤트 신청 방법</a>
+              </div>
+            </div>
+
+            <figure class="hero-shot" aria-label="이벤트 화면 예시">
+              <div class="browser-bar" aria-hidden="true">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+              </div>
+              <img src="/screenshots/events-demo.png" alt="이벤트 상세 화면과 슬롯 신청 화면" />
+            </figure>
+          </div>
+
+          <div class="hero-foot" aria-label="핵심 요약">
+            <div class="metric">
+              <b>1</b>
+              <span>로그인 후 Albion 캐릭터 인증</span>
+            </div>
+            <div class="metric">
+              <b>2</b>
+              <span>이벤트에서 내 역할 슬롯 신청</span>
+            </div>
+            <div class="metric">
+              <b>3</b>
+              <span>내정보에서 잔액과 할 일 확인</span>
+            </div>
+            <div class="metric">
+              <b>4</b>
+              <span>사망 후 리기어 요청</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="start" class="section" aria-labelledby="start-title">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">처음 3분</span>
+              <h2 id="start-title">가입 직후 해야 할 것</h2>
+            </div>
+            <p class="section-lead">
+              사이트를 처음 열었을 때는 아래 4개만 처리하면 기본 기능을 바로 쓸 수 있습니다.
+            </p>
+          </div>
+
+          <div class="quick-grid">
+            <article class="quick-card">
+              <span class="quick-number">1</span>
+              <h3>Discord로 로그인</h3>
+              <p>길드 Discord 계정으로 로그인합니다. 길드원이면 내정보, 상점, 리기어까지 열립니다.</p>
+            </article>
+            <article class="quick-card">
+              <span class="quick-number">2</span>
+              <h3>Albion 캐릭터 인증</h3>
+              <p>인게임 닉네임을 연결합니다. 이벤트 신청, 리기어, 통계가 정확히 연결됩니다.</p>
+            </article>
+            <article class="quick-card">
+              <span class="quick-number">3</span>
+              <h3>내정보 확인</h3>
+              <p>포인트 잔액, 사이펀 잔량, 지금 처리할 일을 먼저 봅니다.</p>
+            </article>
+            <article class="quick-card">
+              <span class="quick-number">4</span>
+              <h3>이벤트 신청</h3>
+              <p>참여할 이벤트를 열고 내 무기와 역할에 맞는 슬롯에 신청합니다.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="event" class="section" aria-labelledby="event-title">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">이벤트 당일</span>
+              <h2 id="event-title">참여 신청은 슬롯에서 끝납니다</h2>
+            </div>
+            <p class="section-lead">
+              가장 자주 들어오는 화면은 이벤트 상세입니다. 여기서 파티 구성, 내 신청 상태, 노트, 스펠 조건을 확인합니다.
+            </p>
+          </div>
+
+          <div class="flow">
+            <article class="step-card">
+              <div class="shot">
+                <img src="/screenshots/events-demo.png" alt="이벤트 목록과 상세 화면" />
+              </div>
+              <div class="step-body">
+                <span class="tag good">1단계</span>
+                <h3>이벤트를 엽니다</h3>
+                <p>홈에서 오늘 진행되는 이벤트를 선택합니다. CTA, 집결 시간, 파티별 슬롯 상태를 먼저 확인합니다.</p>
+                <div class="tag-row">
+                  <span class="tag">집결 시간</span>
+                  <span class="tag">CTA</span>
+                  <span class="tag">파티 구성</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="step-card">
+              <div class="shot">
+                <img src="/screenshots/events-demo.png" alt="슬롯 신청 영역" />
+              </div>
+              <div class="step-body">
+                <span class="tag good">2단계</span>
+                <h3>내 역할 슬롯에 신청합니다</h3>
+                <p>탱커, 힐러, 서포트, DPS 등 현재 장비와 콜에 맞는 슬롯을 고르고 Apply를 누릅니다.</p>
+                <div class="tag-row">
+                  <span class="tag">무기 조건</span>
+                  <span class="tag">스펠 조건</span>
+                  <span class="tag">노트 확인</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="step-card">
+              <div class="shot">
+                <img src="/screenshots/stats-demo.png" alt="참여 기록과 통계 화면" />
+              </div>
+              <div class="step-body">
+                <span class="tag warn">참고</span>
+                <h3>불확실하면 참석 미정</h3>
+                <p>시간이 애매하면 무리해서 슬롯을 잡지 말고 참석 미정으로 남겨 콜러가 인원을 예측하게 합니다.</p>
+                <div class="tag-row">
+                  <span class="tag">참석</span>
+                  <span class="tag">미정</span>
+                  <span class="tag">취소</span>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="profile" class="section" aria-labelledby="profile-title">
+          <div class="priority">
+            <div class="priority-main">
+              <span class="eyebrow">내정보에서 먼저 볼 것</span>
+              <h2 id="profile-title">잔액, 사이펀, 지금 할 일</h2>
+              <p class="section-lead">
+                내정보는 길드원 개인 대시보드입니다. 긴 설명을 찾기 전에 이 세 항목을 먼저 확인하면 대부분의 질문이 줄어듭니다.
+              </p>
+            </div>
+            <div class="status-stack" aria-label="내정보 핵심 정보">
+              <div class="status-row">
+                <span class="status-icon">P</span>
+                <div>
+                  <strong>포인트 잔액</strong>
+                  <span>상점 구매, 정산, 리워드 상태의 기준입니다.</span>
+                </div>
+                <span class="status-value">먼저 확인</span>
+              </div>
+              <div class="status-row">
+                <span class="status-icon">S</span>
+                <div>
+                  <strong>사이펀 잔량</strong>
+                  <span>출금과 입금 기록을 보고 부족분을 맞춥니다.</span>
+                </div>
+                <span class="status-value">자주 확인</span>
+              </div>
+              <div class="status-row">
+                <span class="status-icon">!</span>
+                <div>
+                  <strong>지금 확인할 것</strong>
+                  <span>대기 중인 리기어, 미처리 요청, 최근 변동을 모아 봅니다.</span>
+                </div>
+                <span class="status-value">오늘 처리</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="daily" class="section" aria-labelledby="daily-title">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">자주 막히는 흐름</span>
+              <h2 id="daily-title">물어보기 전에 여기부터 확인합니다</h2>
+            </div>
+            <p class="section-lead">
+              길드원이 실제로 자주 막히는 상황만 모았습니다. 이벤트 당일에는 이 네 가지를 먼저 확인하면 대부분 바로 해결됩니다.
+            </p>
+          </div>
+
+          <div class="quick-grid">
+            <article class="quick-card">
+              <span class="quick-number">1</span>
+              <h3>신청을 바꾸거나 취소할 때</h3>
+              <p>이벤트 상세에서 내 슬롯 상태를 확인하고, 잘못 잡은 슬롯은 취소한 뒤 다시 신청합니다. 시간이 애매하면 참석 미정으로 바꿉니다.</p>
+            </article>
+            <article class="quick-card">
+              <span class="quick-number">2</span>
+              <h3>상단 상태칩으로 바로 이동</h3>
+              <p>우측 상단 내 상태칩을 열면 포인트, 사이펀, 지금 확인할 것이 보입니다. 각 항목을 누르면 해당 화면으로 이동합니다.</p>
+            </article>
+            <article class="quick-card">
+              <span class="quick-number">3</span>
+              <h3>알림과 DM 설정</h3>
+              <p>이벤트 알림이나 리기어·환전 처리 알림이 많거나 적으면 내 설정에서 DM 항목을 확인합니다. Discord DM이 막혀 있으면 알림이 오지 않을 수 있습니다.</p>
+            </article>
+            <article class="quick-card">
+              <span class="quick-number">4</span>
+              <h3>Albion 인증이 막힐 때</h3>
+              <p>닉네임 철자, 서버, 현재 길드·연합 소속을 먼저 확인합니다. 캐릭터를 바꿨다면 인증 화면에서 다시 연결합니다.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="money" class="section" aria-labelledby="money-title">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">포인트 / 환전 / 사이펀</span>
+              <h2 id="money-title">길드 재화는 내정보에서 출발합니다</h2>
+            </div>
+            <p class="section-lead">
+              길드원이 가장 많이 묻는 돈 관련 질문은 포인트가 어디서 쌓이고, 어떻게 실버로 받고, 사이펀 잔량을 어디서 보느냐입니다.
+            </p>
+          </div>
+
+          <div class="money-grid">
+            <article class="money-card primary">
+              <span class="tag good">환전 신청</span>
+              <h3>포인트를 실버로 받고 싶을 때</h3>
+              <p>
+                리기어, 이벤트 보상, 제작, 기여로 쌓인 포인트를 실버로 받고 싶으면 내정보의 지갑 영역에서 환전을 신청합니다.
+                지급이 완료되면 해당 포인트가 차감되고 요청 상태가 바뀝니다.
+              </p>
+              <ol class="money-steps">
+                <li><b>1</b><span>내정보에서 포인트 잔액을 확인합니다.</span></li>
+                <li><b>2</b><span>받고 싶은 실버 금액만큼 환전 신청을 넣습니다.</span></li>
+                <li><b>3</b><span>대기 중 신청이 있으면 중복 신청하지 않고 처리 상태를 봅니다.</span></li>
+                <li><b>4</b><span>지급 완료 후 포인트 원장에 차감 기록이 남습니다.</span></li>
+              </ol>
+              <div class="money-note">
+                환전은 길드원 전용 재화 기능입니다. 같은 연합원, 게스트 링크, 일반 사이트 계정은 이벤트 참여는 가능해도 환전은 사용할 수 없습니다.
+              </div>
+            </article>
+
+            <article class="money-card">
+              <span class="tag">포인트가 쌓이는 곳</span>
+              <h3>포인트는 길드 내부 잔액입니다</h3>
+              <p>
+                포인트는 출석 보상, 리기어 처리, 제작 보상, 기부 처리 같은 길드 활동으로 적립되고
+                상점 구매나 환전 처리 시 차감됩니다.
+              </p>
+              <ul class="checklist">
+                <li><span class="check">✓</span><span>포인트 잔액은 내정보와 상단 상태칩에서 먼저 확인합니다.</span></li>
+                <li><span class="check">✓</span><span>상점 가격은 길드 환율 정책에 따라 포인트 가격으로 표시됩니다.</span></li>
+                <li><span class="check">✓</span><span>내 요청 화면에서 리기어, 환전, 기부 처리 상태를 같이 봅니다.</span></li>
+              </ul>
+            </article>
+
+            <article class="money-card">
+              <span class="tag">사이펀 잔량</span>
+              <h3>내가 맡긴 사이펀을 확인할 때</h3>
+              <p>
+                사이펀은 사이트에 등록된 인게임 입출금 로그를 기준으로 개인별 장부가 계산됩니다.
+                내정보와 내 사이펀 화면에서 본인 캐릭터 기준 입금, 출금, 잔량을 확인합니다.
+              </p>
+              <ul class="checklist">
+                <li><span class="check">✓</span><span>입금은 맡긴 수량, 출금은 사용하거나 찾아간 수량입니다.</span></li>
+                <li><span class="check">✓</span><span>최근 활동이 이상하면 날짜와 수량을 먼저 확인합니다.</span></li>
+                <li><span class="check">✓</span><span>길드가 정한 기준 시각 이전 로그는 잔량에서 제외될 수 있습니다.</span></li>
+              </ul>
+            </article>
+
+            <article class="money-card">
+              <span class="tag warn">헷갈리는 차이</span>
+              <h3>환전, 상점, 사이펀은 서로 다릅니다</h3>
+              <p>
+                환전은 포인트를 실버로 받는 요청이고, 상점은 포인트로 길드 아이템을 사는 기능입니다.
+                사이펀은 포인트가 아니라 인게임 Siphoned Energy 입출금 장부입니다.
+              </p>
+              <ul class="checklist">
+                <li><span class="check">✓</span><span>실버로 받고 싶으면 환전 신청을 사용합니다.</span></li>
+                <li><span class="check">✓</span><span>아이템을 받고 싶으면 상점을 사용합니다.</span></li>
+                <li><span class="check">✓</span><span>사이펀 수량이 이상하면 사이펀 내역에서 확인합니다.</span></li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section id="regear" class="section" aria-labelledby="regear-title">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">자주 쓰는 기능</span>
+              <h2 id="regear-title">길드원이 실제로 쓰는 화면</h2>
+            </div>
+            <p class="section-lead">
+              아래 기능은 권한이 열려 있어도 사용 조건이 다릅니다. 특히 리기어는 이벤트와 사망 기록이 맞아야 처리가 빠릅니다.
+            </p>
+          </div>
+
+          <div class="feature-grid">
+            <article class="feature-card">
+              <div class="feature-shot text-panel" aria-label="내 리기어 요청 상태 예시">
+                <div class="mini-request">
+                  <span class="mini-badge">1</span>
+                  <div>
+                    <strong>사망 기록 확인</strong>
+                    <span>이벤트와 장비를 먼저 맞춥니다.</span>
+                  </div>
+                </div>
+                <div class="mini-request">
+                  <span class="mini-badge">2</span>
+                  <div>
+                    <strong>청구 금액 입력</strong>
+                    <span>필요하면 부위별 금액을 확인합니다.</span>
+                  </div>
+                </div>
+                <div class="mini-request">
+                  <span class="mini-badge">3</span>
+                  <div>
+                    <strong>처리 상태 확인</strong>
+                    <span>대기, 완료, 반려 상태를 내 요청에서 봅니다.</span>
+                  </div>
+                </div>
+              </div>
+              <div class="feature-copy">
+                <h3>리기어 신청</h3>
+                <p>블랙존 ZvZ에서 사망했다면 리기어 화면에서 청구합니다. 자동 기록이 없으면 수동 신청을 사용합니다.</p>
+                <ul class="checklist">
+                  <li><span class="check">✓</span><span>사망한 이벤트와 장비를 확인합니다.</span></li>
+                  <li><span class="check">✓</span><span>오버차지 리기어는 길드 정책에 따라 가능하거나 불가능할 수 있습니다.</span></li>
+                  <li><span class="check">✓</span><span>오버차지는 데스 횟수에 포함되지 않습니다.</span></li>
+                </ul>
+              </div>
+            </article>
+
+            <article class="feature-card">
+              <a class="feature-shot" href="/screenshots/shop-demo.png">
+                <img src="/screenshots/shop-demo.png" alt="길드 상점 화면" />
+              </a>
+              <div class="feature-copy">
+                <h3>상점과 포인트</h3>
+                <p>상점은 포인트 잔액으로 구매합니다. 가격은 길드 환율에 따라 달라질 수 있습니다.</p>
+                <ul class="checklist">
+                  <li><span class="check">✓</span><span>구매 전 포인트 잔액을 확인합니다.</span></li>
+                  <li><span class="check">✓</span><span>아이템 수령 방식은 길드 공지를 따릅니다.</span></li>
+                  <li><span class="check">✓</span><span>연합원과 게스트는 상점을 사용할 수 없습니다.</span></li>
+                </ul>
+              </div>
+            </article>
+
+            <article class="feature-card">
+              <a class="feature-shot" href="/screenshots/craft-demo.png">
+                <img src="/screenshots/craft-demo.png" alt="제작 큐와 제작 작업 화면" />
+              </a>
+              <div class="feature-copy">
+                <h3>제작 작업</h3>
+                <p>길드 제작 큐가 열려 있으면 내가 맡은 제작 작업과 준비물을 확인합니다.</p>
+                <ul class="checklist">
+                  <li><span class="check">✓</span><span>작업 수량과 아이템 이름을 먼저 봅니다.</span></li>
+                  <li><span class="check">✓</span><span>상자 픽업이 필요한 경우 위치와 상태를 확인합니다.</span></li>
+                  <li><span class="check">✓</span><span>납품 후에는 작업 상태를 완료로 바꿉니다.</span></li>
+                </ul>
+              </div>
+            </article>
+
+            <article class="feature-card">
+              <a class="feature-shot" href="/screenshots/stats-demo.png">
+                <img src="/screenshots/stats-demo.png" alt="통계와 리더보드 화면" />
+              </a>
+              <div class="feature-copy">
+                <h3>통계와 리더보드</h3>
+                <p>내 전투 기록, 무기 사용, 참여 기록을 봅니다. 통계는 집계 조건에 맞는 전투만 반영됩니다.</p>
+                <ul class="checklist">
+                  <li><span class="check">✓</span><span>소규모 갱킹성 전투는 제외될 수 있습니다.</span></li>
+                  <li><span class="check">✓</span><span>무기 통계는 카테고리 기준으로 묶입니다.</span></li>
+                  <li><span class="check">✓</span><span>가입 전 기록은 길드 운영 통계와 다르게 보일 수 있습니다.</span></li>
+                </ul>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="account" class="section" aria-labelledby="account-title">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">계정 유형</span>
+              <h2 id="account-title">내가 어떤 방식으로 접속했는지에 따라 열리는 기능이 다릅니다</h2>
+            </div>
+            <p class="section-lead">
+              같은 화면을 열어도 Discord 길드원, 연합원, 사이트 계정, 게스트 링크는 권한이 다릅니다.
+            </p>
+          </div>
+
+          <div class="account-grid">
+            <article class="account-card member">
+              <span class="tag good">Discord 길드원</span>
+              <h3>전체 개인 기능 사용</h3>
+              <p>이벤트, 내정보, 리기어, 상점, 사이펀, 통계 등 길드원용 기능이 열립니다.</p>
+            </article>
+            <article class="account-card alliance">
+              <span class="tag">같은 연합원</span>
+              <h3>이벤트 참여 중심</h3>
+              <p>Albion 인증 후 이벤트 목록과 신청은 가능하지만 길드 자원 기능은 막힙니다.</p>
+            </article>
+            <article class="account-card local">
+              <span class="tag">사이트 계정</span>
+              <h3>Discord 없이 제한 사용</h3>
+              <p>길드가 허용한 경우 초대코드로 로그인하며 이벤트와 리기어 흐름 위주로 사용합니다.</p>
+            </article>
+          </div>
+
+          <div class="matrix" style="margin-top: 16px" aria-label="계정 유형별 사용 가능 기능">
+            <table>
+              <thead>
+                <tr>
+                  <th>기능</th>
+                  <th>Discord 길드원</th>
+                  <th>같은 연합원</th>
+                  <th>사이트 계정</th>
+                  <th>게스트 링크</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>이벤트 목록 보기</td>
+                  <td class="yes">가능</td>
+                  <td class="yes">가능</td>
+                  <td class="yes">가능</td>
+                  <td class="no">불가</td>
+                </tr>
+                <tr>
+                  <td>이벤트 상세와 슬롯 신청</td>
+                  <td class="yes">가능</td>
+                  <td class="yes">가능</td>
+                  <td class="yes">가능</td>
+                  <td class="limited">초대받은 이벤트만</td>
+                </tr>
+                <tr>
+                  <td>내정보, 포인트, 사이펀</td>
+                  <td class="yes">가능</td>
+                  <td class="no">불가</td>
+                  <td class="limited">리기어 일부만</td>
+                  <td class="no">불가</td>
+                </tr>
+                <tr>
+                  <td>상점 이용</td>
+                  <td class="yes">가능</td>
+                  <td class="no">불가</td>
+                  <td class="no">불가</td>
+                  <td class="no">불가</td>
+                </tr>
+                <tr>
+                  <td>밤스쿼드 콜러 구성</td>
+                  <td class="limited">지정된 경우</td>
+                  <td class="limited">콜러 역할과 지정 필요</td>
+                  <td class="no">불가</td>
+                  <td class="no">불가</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" aria-labelledby="help-title">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">문제가 생기면</span>
+              <h2 id="help-title">대부분은 이 셋 중 하나입니다</h2>
+            </div>
+            <p class="section-lead">
+              아래 상태를 먼저 확인하면 대부분의 문제를 빠르게 좁힐 수 있습니다.
+            </p>
+          </div>
+
+          <div class="help-grid">
+            <article class="help-card">
+              <span class="tag warn">로그인</span>
+              <h3>다른 길드 화면이 보입니다</h3>
+              <p>브라우저에 이전 세션이 남아 있을 수 있습니다. 로그아웃 후 현재 길드 도메인에서 다시 로그인합니다.</p>
+            </article>
+            <article class="help-card">
+              <span class="tag warn">신청</span>
+              <h3>슬롯 신청이 안 됩니다</h3>
+              <p>이미 닫힌 이벤트인지, Albion 인증이 끝났는지, 게스트 링크 범위를 벗어나지 않았는지 확인합니다.</p>
+            </article>
+            <article class="help-card">
+              <span class="tag warn">리기어</span>
+              <h3>사망 기록이 안 보입니다</h3>
+              <p>기록 동기화까지 시간이 걸릴 수 있습니다. 자동 기록이 없으면 수동 리기어 신청을 사용합니다.</p>
+            </article>
+            <article class="help-card">
+              <span class="tag warn">Albion 인증</span>
+              <h3>캐릭터 인증이 통과되지 않습니다</h3>
+              <p>닉네임 대소문자, 서버, 현재 길드·연합 소속을 확인합니다. 최근에 캐릭터를 옮겼다면 잠시 뒤 다시 시도합니다.</p>
+            </article>
+            <article class="help-card">
+              <span class="tag warn">알림</span>
+              <h3>DM 알림이 오지 않습니다</h3>
+              <p>내 설정의 DM 항목과 Discord 개인 DM 허용 상태를 확인합니다. 이벤트 알림은 배정 상태와 집결 시각에 따라 달라질 수 있습니다.</p>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <div class="footer-inner">
+          <span>Albion ZvZ Guild Manager · Member Quick Guide</span>
+          <span>이 문서는 길드원이 자주 쓰는 기능만 빠르게 안내하기 위한 정적 HTML입니다.</span>
+        </div>
+      </footer>
+    </div>
+    <script>
+      (() => {
+        const titleKey = 'Albion ZvZ 길드원 빠른 사용법'
+        const descriptionKey = 'Albion ZvZ 길드원이 이벤트 신청, 내정보 확인, 리기어 신청, 상점 이용을 빠르게 이해할 수 있는 한 장짜리 안내서입니다.'
+        const locales = {
+          ko: { htmlLang: 'ko', label: '한국어' },
+          en: { htmlLang: 'en', label: 'English' },
+          ja: { htmlLang: 'ja', label: '日本語' },
+          zh: { htmlLang: 'zh', label: '中文' },
+        }
+        const text = {
+          'Albion ZvZ 길드원 빠른 사용법': {
+            en: 'Albion ZvZ Member Quick Guide',
+            ja: 'Albion ZvZ ギルドメンバー簡単ガイド',
+            zh: 'Albion ZvZ 公会成员快速指南',
+          },
+          'Albion ZvZ 길드원이 이벤트 신청, 내정보 확인, 리기어 신청, 상점 이용을 빠르게 이해할 수 있는 한 장짜리 안내서입니다.': {
+            en: 'A one-page guide that helps Albion ZvZ guild members quickly understand event signup, My Info, regear requests, and the shop.',
+            ja: 'Albion ZvZ のギルドメンバーがイベント申請、マイ情報、リギア申請、ショップ利用をすばやく理解できる1ページガイドです。',
+            zh: '一页式指南，帮助 Albion ZvZ 公会成员快速了解活动报名、我的信息、补装申请和商店使用。',
+          },
+          '처음으로': { en: 'Back to top', ja: '先頭へ', zh: '返回顶部' },
+          '빠른 이동': { en: 'Quick navigation', ja: 'クイック移動', zh: '快速导航' },
+          '언어 변경': { en: 'Change language', ja: '言語を変更', zh: '切换语言' },
+          '처음 3분': { en: 'First 3 minutes', ja: '最初の3分', zh: '前 3 分钟' },
+          '이벤트': { en: 'Events', ja: 'イベント', zh: '活动' },
+          '내정보': { en: 'My Info', ja: 'マイ情報', zh: '我的信息' },
+          '빠른 동선': { en: 'Quick paths', ja: 'クイック動線', zh: '快速入口' },
+          '환전/사이펀': { en: 'Exchange / Siphon', ja: '換金 / サイフォン', zh: '兑换 / 能量' },
+          '리기어': { en: 'Regear', ja: 'リギア', zh: '补装' },
+          '계정 차이': { en: 'Account access', ja: 'アカウント差分', zh: '账号差异' },
+          '길드원용 한 장 가이드': { en: 'One-page guide for members', ja: 'メンバー向け1ページガイド', zh: '成员一页指南' },
+          '공지 대신 이 화면만 보면 됩니다': {
+            en: 'Use this page instead of asking in chat',
+            ja: '告知を探す前にこの画面を見れば大丈夫です',
+            zh: '不用翻公告，看这一页就够了',
+          },
+          '이벤트 신청, 슬롯 선택, 내 포인트 확인, 리기어 요청까지 길드원이 실제로 자주 쓰는 흐름만 모았습니다. 복잡한 안내글 대신 필요한 순간에 바로 따라 하는 용도입니다.': {
+            en: 'This page keeps only the flows members actually use often: event signup, slot choice, point checks, and regear requests. It is meant to be followed at the moment you need it.',
+            ja: 'イベント申請、スロット選択、自分のポイント確認、リギア申請など、メンバーが実際によく使う流れだけをまとめました。必要な時にそのまま追える案内です。',
+            zh: '这里只保留成员最常用的流程：活动报名、选择槽位、查看点数、提交补装。需要时直接照着做即可。',
+          },
+          '처음 3분 보기': { en: 'Start with the first 3 minutes', ja: '最初の3分を見る', zh: '查看前 3 分钟' },
+          '이벤트 신청 방법': { en: 'How to sign up for events', ja: 'イベント申請方法', zh: '活动报名方法' },
+          '이벤트 화면 예시': { en: 'Event screen example', ja: 'イベント画面の例', zh: '活动页面示例' },
+          '이벤트 상세 화면과 슬롯 신청 화면': { en: 'Event detail and slot signup screen', ja: 'イベント詳細とスロット申請画面', zh: '活动详情与槽位报名页面' },
+          '핵심 요약': { en: 'Key summary', ja: '要点まとめ', zh: '核心摘要' },
+          '로그인 후 Albion 캐릭터 인증': { en: 'Log in and verify your Albion character', ja: 'ログインして Albion キャラクターを認証', zh: '登录后认证 Albion 角色' },
+          '이벤트에서 내 역할 슬롯 신청': { en: 'Apply to your role slot in the event', ja: 'イベントで自分の役割スロットに申請', zh: '在活动中申请自己的职责槽位' },
+          '내정보에서 잔액과 할 일 확인': { en: 'Check balance and tasks in My Info', ja: 'マイ情報で残高とやることを確認', zh: '在我的信息中查看余额和待办' },
+          '사망 후 리기어 요청': { en: 'Request regear after death', ja: '死亡後にリギアを申請', zh: '死亡后提交补装申请' },
+          '가입 직후 해야 할 것': { en: 'What to do right after joining', ja: '参加直後にやること', zh: '加入后先做什么' },
+          '사이트를 처음 열었을 때는 아래 4개만 처리하면 기본 기능을 바로 쓸 수 있습니다.': {
+            en: 'When you first open the site, complete these four steps to use the basic features.',
+            ja: '初めてサイトを開いたら、まずこの4つを済ませると基本機能をすぐ使えます。',
+            zh: '第一次打开网站时，完成下面 4 项即可使用基础功能。',
+          },
+          'Discord로 로그인': { en: 'Log in with Discord', ja: 'Discord でログイン', zh: '用 Discord 登录' },
+          '길드 Discord 계정으로 로그인합니다. 길드원이면 내정보, 상점, 리기어까지 열립니다.': {
+            en: 'Log in with your guild Discord account. Members can access My Info, the shop, and regear.',
+            ja: 'ギルドの Discord アカウントでログインします。メンバーならマイ情報、ショップ、リギアを使えます。',
+            zh: '使用公会 Discord 账号登录。公会成员可以使用我的信息、商店和补装。',
+          },
+          'Albion 캐릭터 인증': { en: 'Verify your Albion character', ja: 'Albion キャラクター認証', zh: '认证 Albion 角色' },
+          '인게임 닉네임을 연결합니다. 이벤트 신청, 리기어, 통계가 정확히 연결됩니다.': {
+            en: 'Link your in-game name so event signup, regear, and stats connect correctly.',
+            ja: 'ゲーム内ニックネームを連携します。イベント申請、リギア、統計が正しく紐づきます。',
+            zh: '绑定游戏内昵称后，活动报名、补装和统计会正确关联。',
+          },
+          '내정보 확인': { en: 'Check My Info', ja: 'マイ情報を確認', zh: '查看我的信息' },
+          '포인트 잔액, 사이펀 잔량, 지금 처리할 일을 먼저 봅니다.': {
+            en: 'First check your point balance, siphon balance, and current tasks.',
+            ja: 'まずポイント残高、サイフォン残量、今処理することを確認します。',
+            zh: '先查看点数余额、能量余额和当前要处理的事项。',
+          },
+          '이벤트 신청': { en: 'Event signup', ja: 'イベント申請', zh: '活动报名' },
+          '참여할 이벤트를 열고 내 무기와 역할에 맞는 슬롯에 신청합니다.': {
+            en: 'Open the event you will join and apply to the slot that matches your weapon and role.',
+            ja: '参加するイベントを開き、自分の武器と役割に合うスロットへ申請します。',
+            zh: '打开要参加的活动，申请符合自己武器和职责的槽位。',
+          },
+          '이벤트 당일': { en: 'On event day', ja: 'イベント当日', zh: '活动当天' },
+          '참여 신청은 슬롯에서 끝납니다': { en: 'Signup ends at the slot', ja: '参加申請はスロットで完了します', zh: '报名在槽位中完成' },
+          '가장 자주 들어오는 화면은 이벤트 상세입니다. 여기서 파티 구성, 내 신청 상태, 노트, 스펠 조건을 확인합니다.': {
+            en: 'The event detail page is the page members visit most often. Check party setup, your signup status, notes, and spell requirements there.',
+            ja: '一番よく開くのはイベント詳細です。ここでパーティ構成、自分の申請状態、メモ、スペル条件を確認します。',
+            zh: '成员最常进入的是活动详情页。在这里查看队伍配置、自己的报名状态、备注和技能要求。',
+          },
+          '이벤트 목록과 상세 화면': { en: 'Event list and detail screen', ja: 'イベント一覧と詳細画面', zh: '活动列表与详情页面' },
+          '1단계': { en: 'Step 1', ja: 'ステップ1', zh: '步骤 1' },
+          '이벤트를 엽니다': { en: 'Open the event', ja: 'イベントを開きます', zh: '打开活动' },
+          '홈에서 오늘 진행되는 이벤트를 선택합니다. CTA, 집결 시간, 파티별 슬롯 상태를 먼저 확인합니다.': {
+            en: 'Select today’s event from Home. First check CTA, gather time, and slot status by party.',
+            ja: 'ホームで今日のイベントを選びます。CTA、集合時間、パーティ別スロット状態を先に確認します。',
+            zh: '在首页选择今天的活动。先确认 CTA、集合时间和各队槽位状态。',
+          },
+          '집결 시간': { en: 'Gather time', ja: '集合時間', zh: '集合时间' },
+          '파티 구성': { en: 'Party setup', ja: 'パーティ構成', zh: '队伍配置' },
+          '슬롯 신청 영역': { en: 'Slot signup area', ja: 'スロット申請エリア', zh: '槽位报名区域' },
+          '2단계': { en: 'Step 2', ja: 'ステップ2', zh: '步骤 2' },
+          '내 역할 슬롯에 신청합니다': { en: 'Apply to your role slot', ja: '自分の役割スロットに申請します', zh: '申请自己的职责槽位' },
+          '탱커, 힐러, 서포트, DPS 등 현재 장비와 콜에 맞는 슬롯을 고르고 Apply를 누릅니다.': {
+            en: 'Choose the slot that matches your current gear and call, such as tank, healer, support, or DPS, then press Apply.',
+            ja: 'タンク、ヒーラー、サポート、DPS など、現在の装備とコールに合うスロットを選んで Apply を押します。',
+            zh: '选择符合当前装备和指挥要求的槽位，例如坦克、治疗、辅助或 DPS，然后点击 Apply。',
+          },
+          '무기 조건': { en: 'Weapon requirement', ja: '武器条件', zh: '武器要求' },
+          '스펠 조건': { en: 'Spell requirement', ja: 'スペル条件', zh: '技能要求' },
+          '노트 확인': { en: 'Check notes', ja: 'メモ確認', zh: '查看备注' },
+          '참여 기록과 통계 화면': { en: 'Participation and stats screen', ja: '参加記録と統計画面', zh: '参与记录与统计页面' },
+          '참고': { en: 'Note', ja: '参考', zh: '参考' },
+          '불확실하면 참석 미정': { en: 'If unsure, mark tentative', ja: '不確実なら未定にする', zh: '不确定就标记为待定' },
+          '시간이 애매하면 무리해서 슬롯을 잡지 말고 참석 미정으로 남겨 콜러가 인원을 예측하게 합니다.': {
+            en: 'If your schedule is uncertain, do not take a slot. Mark yourself tentative so the caller can estimate attendance.',
+            ja: '時間が微妙なら無理にスロットを取らず、参加未定にしてコーラーが人数を予測できるようにします。',
+            zh: '时间不确定时不要强占槽位，标记为待定，方便指挥预估人数。',
+          },
+          '참석': { en: 'Attending', ja: '参加', zh: '参加' },
+          '미정': { en: 'Tentative', ja: '未定', zh: '待定' },
+          '취소': { en: 'Cancel', ja: 'キャンセル', zh: '取消' },
+          '내정보에서 먼저 볼 것': { en: 'Check these first in My Info', ja: 'マイ情報で最初に見るもの', zh: '先看我的信息里的这些内容' },
+          '잔액, 사이펀, 지금 할 일': { en: 'Balance, siphon, and what needs attention', ja: '残高、サイフォン、今やること', zh: '余额、能量和当前待办' },
+          '내정보는 길드원 개인 대시보드입니다. 긴 설명을 찾기 전에 이 세 항목을 먼저 확인하면 대부분의 질문이 줄어듭니다.': {
+            en: 'My Info is your personal dashboard. Check these three items first before looking for longer explanations.',
+            ja: 'マイ情報はメンバー個人のダッシュボードです。長い説明を探す前に、この3項目を先に確認してください。',
+            zh: '我的信息是成员个人面板。先看这三项，再去找更长说明。',
+          },
+          '내정보 핵심 정보': { en: 'Key My Info data', ja: 'マイ情報の重要項目', zh: '我的信息核心内容' },
+          '포인트 잔액': { en: 'Point balance', ja: 'ポイント残高', zh: '点数余额' },
+          '상점 구매, 정산, 리워드 상태의 기준입니다.': {
+            en: 'This is the basis for shop purchases, settlements, and reward status.',
+            ja: 'ショップ購入、精算、報酬状態の基準です。',
+            zh: '这是商店购买、结算和奖励状态的基础。',
+          },
+          '먼저 확인': { en: 'Check first', ja: '先に確認', zh: '先查看' },
+          '사이펀 잔량': { en: 'Siphon balance', ja: 'サイフォン残量', zh: '能量余额' },
+          '출금과 입금 기록을 보고 부족분을 맞춥니다.': {
+            en: 'Use deposit and withdrawal history to understand the remaining amount.',
+            ja: '出金と入金履歴を見て残量を確認します。',
+            zh: '通过出入记录确认剩余数量。',
+          },
+          '자주 확인': { en: 'Check often', ja: 'こまめに確認', zh: '经常查看' },
+          '지금 확인할 것': { en: 'Things to check now', ja: '今確認すること', zh: '当前要确认的事' },
+          '대기 중인 리기어, 미처리 요청, 최근 변동을 모아 봅니다.': {
+            en: 'Review pending regear, unresolved requests, and recent changes together.',
+            ja: '保留中のリギア、未処理リクエスト、最近の変動をまとめて確認します。',
+            zh: '集中查看待处理补装、未处理请求和最近变动。',
+          },
+          '오늘 처리': { en: 'Handle today', ja: '今日処理', zh: '今天处理' },
+          '자주 막히는 흐름': { en: 'Common friction points', ja: 'よく詰まる流れ', zh: '常见卡点' },
+          '물어보기 전에 여기부터 확인합니다': { en: 'Check here before asking', ja: '聞く前にここから確認します', zh: '提问前先看这里' },
+          '길드원이 실제로 자주 막히는 상황만 모았습니다. 이벤트 당일에는 이 네 가지를 먼저 확인하면 대부분 바로 해결됩니다.': {
+            en: 'These are the situations members actually get stuck on most often. On event day, checking these four first usually solves the issue.',
+            ja: 'メンバーが実際によく詰まる状況だけをまとめました。イベント当日はこの4つを先に確認すると、多くはすぐ解決します。',
+            zh: '这里只整理成员最常遇到的卡点。活动当天先确认这四项，通常就能解决。',
+          },
+          '신청을 바꾸거나 취소할 때': { en: 'When changing or canceling signup', ja: '申請を変更またはキャンセルする時', zh: '修改或取消报名时' },
+          '이벤트 상세에서 내 슬롯 상태를 확인하고, 잘못 잡은 슬롯은 취소한 뒤 다시 신청합니다. 시간이 애매하면 참석 미정으로 바꿉니다.': {
+            en: 'Check your slot status on the event detail page. If you took the wrong slot, cancel it and apply again. If your time is uncertain, switch to tentative.',
+            ja: 'イベント詳細で自分のスロット状態を確認します。間違ったスロットを取った場合はキャンセルして再申請します。時間が微妙なら参加未定に変更します。',
+            zh: '在活动详情页查看自己的槽位状态。选错槽位时先取消再重新申请；时间不确定时改为待定。',
+          },
+          '상단 상태칩으로 바로 이동': { en: 'Use the top status chip', ja: '上部ステータスチップから移動', zh: '使用顶部状态标签' },
+          '우측 상단 내 상태칩을 열면 포인트, 사이펀, 지금 확인할 것이 보입니다. 각 항목을 누르면 해당 화면으로 이동합니다.': {
+            en: 'Open your status chip in the top right to see points, siphon, and items needing attention. Click an item to move to that screen.',
+            ja: '右上の自分のステータスチップを開くと、ポイント、サイフォン、今確認する項目が見えます。各項目を押すと該当画面へ移動します。',
+            zh: '打开右上角的个人状态标签，可以看到点数、能量和当前待查看事项。点击各项即可前往对应页面。',
+          },
+          '알림과 DM 설정': { en: 'Notifications and DM settings', ja: '通知とDM設定', zh: '通知和 DM 设置' },
+          '이벤트 알림이나 리기어·환전 처리 알림이 많거나 적으면 내 설정에서 DM 항목을 확인합니다. Discord DM이 막혀 있으면 알림이 오지 않을 수 있습니다.': {
+            en: 'If event notifications or regear/exchange processing alerts feel too many or too few, check DM options in My Settings. If Discord DMs are blocked, alerts may not arrive.',
+            ja: 'イベント通知やリギア・換金処理通知が多すぎる、または少なすぎる場合は、マイ設定でDM項目を確認します。Discord DMが拒否されていると通知が届かない場合があります。',
+            zh: '如果活动通知或补装/兑换处理提醒太多或太少，请在我的设置中查看 DM 项。若 Discord DM 被关闭，可能收不到提醒。',
+          },
+          'Albion 인증이 막힐 때': { en: 'When Albion verification is blocked', ja: 'Albion 認証で詰まった時', zh: 'Albion 认证卡住时' },
+          '닉네임 철자, 서버, 현재 길드·연합 소속을 먼저 확인합니다. 캐릭터를 바꿨다면 인증 화면에서 다시 연결합니다.': {
+            en: 'First check nickname spelling, server, and current guild/alliance membership. If you changed characters, reconnect from the verification screen.',
+            ja: 'まずニックネームの表記、サーバー、現在のギルド・同盟所属を確認します。キャラクターを変えた場合は認証画面で再連携します。',
+            zh: '先确认昵称拼写、服务器、当前公会/联盟归属。如果更换了角色，请在认证页面重新绑定。',
+          },
+          '포인트 / 환전 / 사이펀': { en: 'Points / Exchange / Siphon', ja: 'ポイント / 換金 / サイフォン', zh: '点数 / 兑换 / 能量' },
+          '길드 재화는 내정보에서 출발합니다': { en: 'Guild resources start from My Info', ja: 'ギルド資産はマイ情報から確認します', zh: '公会资源从我的信息开始查看' },
+          '길드원이 가장 많이 묻는 돈 관련 질문은 포인트가 어디서 쌓이고, 어떻게 실버로 받고, 사이펀 잔량을 어디서 보느냐입니다.': {
+            en: 'The most common resource questions are where points come from, how to receive silver, and where to check siphon balance.',
+            ja: '資産まわりで多い質問は、ポイントがどこで増えるか、どうやってシルバーで受け取るか、サイフォン残量をどこで見るかです。',
+            zh: '资源相关最常见的问题是点数从哪里来、如何兑换成银币、在哪里查看能量余额。',
+          },
+          '환전 신청': { en: 'Exchange request', ja: '換金申請', zh: '兑换申请' },
+          '포인트를 실버로 받고 싶을 때': { en: 'When you want points as silver', ja: 'ポイントをシルバーで受け取りたい時', zh: '想把点数换成银币时' },
+          '리기어, 이벤트 보상, 제작, 기여로 쌓인 포인트를 실버로 받고 싶으면 내정보의 지갑 영역에서 환전을 신청합니다. 지급이 완료되면 해당 포인트가 차감되고 요청 상태가 바뀝니다.': {
+            en: 'If you want to receive points earned from regear, event rewards, crafting, or contributions as silver, request exchange from the wallet area in My Info. Once paid, the points are deducted and the request status changes.',
+            ja: 'リギア、イベント報酬、製作、貢献で貯まったポイントをシルバーで受け取りたい場合は、マイ情報のウォレット領域から換金を申請します。支払いが完了するとポイントが差し引かれ、リクエスト状態が変わります。',
+            zh: '如果想把补装、活动奖励、制作或贡献获得的点数换成银币，请在我的信息的钱包区域提交兑换。发放完成后，点数会扣除，请求状态会更新。',
+          },
+          '내정보에서 포인트 잔액을 확인합니다.': { en: 'Check your point balance in My Info.', ja: 'マイ情報でポイント残高を確認します。', zh: '在我的信息中查看点数余额。' },
+          '받고 싶은 실버 금액만큼 환전 신청을 넣습니다.': { en: 'Submit an exchange request for the silver amount you want.', ja: '受け取りたいシルバー額で換金申請します。', zh: '按想领取的银币金额提交兑换申请。' },
+          '대기 중 신청이 있으면 중복 신청하지 않고 처리 상태를 봅니다.': { en: 'If a request is pending, do not submit a duplicate and check the status instead.', ja: '保留中の申請がある場合は重複申請せず、処理状態を確認します。', zh: '如果已有待处理申请，不要重复提交，先查看处理状态。' },
+          '지급 완료 후 포인트 원장에 차감 기록이 남습니다.': { en: 'After payout, a deduction appears in the point ledger.', ja: '支払い完了後、ポイント元帳に差し引き記録が残ります。', zh: '发放完成后，点数账本会留下扣除记录。' },
+          '환전은 길드원 전용 재화 기능입니다. 같은 연합원, 게스트 링크, 일반 사이트 계정은 이벤트 참여는 가능해도 환전은 사용할 수 없습니다.': {
+            en: 'Exchange is a member-only resource feature. Alliance users, guest links, and regular site accounts may join events but cannot use exchange.',
+            ja: '換金はギルドメンバー専用の資産機能です。同盟メンバー、ゲストリンク、通常のサイトアカウントはイベント参加はできても換金は使えません。',
+            zh: '兑换是公会成员专用资源功能。同盟成员、访客链接和普通网站账号可以参加活动，但不能使用兑换。',
+          },
+          '포인트가 쌓이는 곳': { en: 'Where points come from', ja: 'ポイントが増える場所', zh: '点数来源' },
+          '포인트는 길드 내부 잔액입니다': { en: 'Points are your internal guild balance', ja: 'ポイントはギルド内部の残高です', zh: '点数是公会内部余额' },
+          '포인트는 출석 보상, 리기어 처리, 제작 보상, 기부 처리 같은 길드 활동으로 적립되고 상점 구매나 환전 처리 시 차감됩니다.': {
+            en: 'Points are earned through guild activities such as attendance rewards, regear processing, crafting rewards, and donation processing. They are spent on shop purchases or exchange processing.',
+            ja: 'ポイントは出席報酬、リギア処理、製作報酬、寄付処理などのギルド活動で増え、ショップ購入や換金処理で差し引かれます。',
+            zh: '点数来自出勤奖励、补装处理、制作奖励、捐赠处理等公会活动；购买商店物品或兑换时会扣除。',
+          },
+          '포인트 잔액은 내정보와 상단 상태칩에서 먼저 확인합니다.': { en: 'Check point balance in My Info or the top status chip first.', ja: 'ポイント残高はマイ情報と上部ステータスチップで先に確認します。', zh: '先在我的信息或顶部状态标签查看点数余额。' },
+          '상점 가격은 길드 환율 정책에 따라 포인트 가격으로 표시됩니다.': { en: 'Shop prices are shown as point prices based on the guild exchange rate.', ja: 'ショップ価格はギルドの換算率に基づいてポイント価格で表示されます。', zh: '商店价格会按公会兑换率显示为点数价格。' },
+          '내 요청 화면에서 리기어, 환전, 기부 처리 상태를 같이 봅니다.': { en: 'Use My Requests to check regear, exchange, and donation status together.', ja: 'マイリクエストでリギア、換金、寄付の処理状態をまとめて確認します。', zh: '在我的请求中一起查看补装、兑换、捐赠处理状态。' },
+          '내가 맡긴 사이펀을 확인할 때': { en: 'When checking siphon you deposited', ja: '預けたサイフォンを確認する時', zh: '查看自己存入的能量时' },
+          '사이펀은 사이트에 등록된 인게임 입출금 로그를 기준으로 개인별 장부가 계산됩니다. 내정보와 내 사이펀 화면에서 본인 캐릭터 기준 입금, 출금, 잔량을 확인합니다.': {
+            en: 'Siphon balances are calculated from in-game deposit and withdrawal logs registered in the site. Check deposits, withdrawals, and remaining balance for your character in My Info and My Siphon.',
+            ja: 'サイフォンはサイトに登録されたゲーム内入出金ログを基準に個人別台帳が計算されます。マイ情報とマイサイフォンで自分のキャラクター基準の入金、出金、残量を確認します。',
+            zh: '能量余额根据网站登记的游戏内存取日志计算。可在我的信息和我的能量页面查看本人角色的入账、出账和余额。',
+          },
+          '입금은 맡긴 수량, 출금은 사용하거나 찾아간 수량입니다.': { en: 'Deposits are amounts you put in; withdrawals are amounts used or taken out.', ja: '入金は預けた数量、出金は使用または引き出した数量です。', zh: '入账是存入数量，出账是使用或取走的数量。' },
+          '최근 활동이 이상하면 날짜와 수량을 먼저 확인합니다.': { en: 'If recent activity looks wrong, first check the date and quantity.', ja: '最近の活動が変に見える場合は、まず日付と数量を確認します。', zh: '如果最近记录看起来异常，先确认日期和数量。' },
+          '길드가 정한 기준 시각 이전 로그는 잔량에서 제외될 수 있습니다.': { en: 'Logs before the guild’s chosen start time may be excluded from the balance.', ja: 'ギルドが決めた基準時刻より前のログは残量から除外される場合があります。', zh: '公会设定基准时间之前的日志可能不会计入余额。' },
+          '헷갈리는 차이': { en: 'Common confusion', ja: '混同しやすい違い', zh: '容易混淆的区别' },
+          '환전, 상점, 사이펀은 서로 다릅니다': { en: 'Exchange, shop, and siphon are different', ja: '換金、ショップ、サイフォンは別物です', zh: '兑换、商店和能量不同' },
+          '환전은 포인트를 실버로 받는 요청이고, 상점은 포인트로 길드 아이템을 사는 기능입니다. 사이펀은 포인트가 아니라 인게임 Siphoned Energy 입출금 장부입니다.': {
+            en: 'Exchange is a request to receive silver for points. The shop lets you buy guild items with points. Siphon is not points; it is a ledger for in-game Siphoned Energy deposits and withdrawals.',
+            ja: '換金はポイントをシルバーで受け取るリクエストです。ショップはポイントでギルドアイテムを買う機能です。サイフォンはポイントではなく、ゲーム内 Siphoned Energy の入出金台帳です。',
+            zh: '兑换是用点数领取银币的请求；商店是用点数购买公会物品；能量不是点数，而是游戏内 Siphoned Energy 的出入账本。',
+          },
+          '실버로 받고 싶으면 환전 신청을 사용합니다.': { en: 'Use exchange if you want silver.', ja: 'シルバーで受け取りたい場合は換金申請を使います。', zh: '想领取银币时使用兑换申请。' },
+          '아이템을 받고 싶으면 상점을 사용합니다.': { en: 'Use the shop if you want items.', ja: 'アイテムを受け取りたい場合はショップを使います。', zh: '想获得物品时使用商店。' },
+          '사이펀 수량이 이상하면 사이펀 내역에서 확인합니다.': { en: 'If siphon quantity looks wrong, check the siphon history.', ja: 'サイフォン数量が変に見える場合はサイフォン履歴を確認します。', zh: '如果能量数量异常，请查看能量记录。' },
+          '자주 쓰는 기능': { en: 'Frequently used features', ja: 'よく使う機能', zh: '常用功能' },
+          '길드원이 실제로 쓰는 화면': { en: 'Screens members actually use', ja: 'メンバーが実際に使う画面', zh: '成员实际使用的页面' },
+          '아래 기능은 권한이 열려 있어도 사용 조건이 다릅니다. 특히 리기어는 이벤트와 사망 기록이 맞아야 처리가 빠릅니다.': {
+            en: 'These features have different usage conditions even when you have access. Regear is fastest when the event and death record match.',
+            ja: '以下の機能は権限があっても利用条件が異なります。特にリギアはイベントと死亡記録が合っていると処理が早くなります。',
+            zh: '即使有权限，下面功能的使用条件也不同。补装在活动和死亡记录匹配时处理最快。',
+          },
+          '내 리기어 요청 상태 예시': { en: 'My regear request status example', ja: '自分のリギア申請状態の例', zh: '我的补装请求状态示例' },
+          '사망 기록 확인': { en: 'Check death record', ja: '死亡記録確認', zh: '确认死亡记录' },
+          '이벤트와 장비를 먼저 맞춥니다.': { en: 'Match the event and gear first.', ja: 'まずイベントと装備を合わせます。', zh: '先匹配活动和装备。' },
+          '청구 금액 입력': { en: 'Enter claim amount', ja: '請求額入力', zh: '输入申请金额' },
+          '필요하면 부위별 금액을 확인합니다.': { en: 'Check item-part amounts if needed.', ja: '必要なら部位別金額を確認します。', zh: '需要时确认各部位金额。' },
+          '처리 상태 확인': { en: 'Check request status', ja: '処理状態確認', zh: '查看处理状态' },
+          '대기, 완료, 반려 상태를 내 요청에서 봅니다.': { en: 'See pending, completed, or rejected status in My Requests.', ja: '保留、完了、却下状態をマイリクエストで確認します。', zh: '在我的请求中查看待处理、完成或退回状态。' },
+          '리기어 신청': { en: 'Regear request', ja: 'リギア申請', zh: '补装申请' },
+          '블랙존 ZvZ에서 사망했다면 리기어 화면에서 청구합니다. 자동 기록이 없으면 수동 신청을 사용합니다.': {
+            en: 'If you died in black-zone ZvZ, claim it on the regear screen. If there is no automatic record, use manual request.',
+            ja: 'ブラックゾーン ZvZ で死亡した場合はリギア画面で請求します。自動記録がない場合は手動申請を使います。',
+            zh: '如果在黑区 ZvZ 中死亡，请在补装页面申请。没有自动记录时使用手动申请。',
+          },
+          '사망한 이벤트와 장비를 확인합니다.': { en: 'Check the event and gear for the death.', ja: '死亡したイベントと装備を確認します。', zh: '确认死亡对应的活动和装备。' },
+          '오버차지 리기어는 길드 정책에 따라 가능하거나 불가능할 수 있습니다.': { en: 'Overcharge regear may or may not be available depending on guild policy.', ja: 'オーバーチャージのリギアはギルド方針によって可能な場合と不可能な場合があります。', zh: '过载补装是否可用取决于公会政策。' },
+          '오버차지는 데스 횟수에 포함되지 않습니다.': { en: 'Overcharge does not count as a death count.', ja: 'オーバーチャージはデス回数に含まれません。', zh: '过载不计入死亡次数。' },
+          '길드 상점 화면': { en: 'Guild shop screen', ja: 'ギルドショップ画面', zh: '公会商店页面' },
+          '상점과 포인트': { en: 'Shop and points', ja: 'ショップとポイント', zh: '商店和点数' },
+          '상점은 포인트 잔액으로 구매합니다. 가격은 길드 환율에 따라 달라질 수 있습니다.': { en: 'The shop uses your point balance. Prices may vary by the guild exchange rate.', ja: 'ショップではポイント残高で購入します。価格はギルド換算率によって変わることがあります。', zh: '商店使用点数余额购买。价格可能随公会兑换率变化。' },
+          '구매 전 포인트 잔액을 확인합니다.': { en: 'Check your point balance before buying.', ja: '購入前にポイント残高を確認します。', zh: '购买前确认点数余额。' },
+          '아이템 수령 방식은 길드 공지를 따릅니다.': { en: 'Follow guild notices for item pickup.', ja: 'アイテム受け取り方法はギルド告知に従います。', zh: '物品领取方式以公会公告为准。' },
+          '연합원과 게스트는 상점을 사용할 수 없습니다.': { en: 'Alliance users and guests cannot use the shop.', ja: '同盟メンバーとゲストはショップを使えません。', zh: '同盟成员和访客不能使用商店。' },
+          '제작 큐와 제작 작업 화면': { en: 'Crafting queue and task screen', ja: '製作キューと製作タスク画面', zh: '制作队列和任务页面' },
+          '제작 작업': { en: 'Crafting tasks', ja: '製作タスク', zh: '制作任务' },
+          '길드 제작 큐가 열려 있으면 내가 맡은 제작 작업과 준비물을 확인합니다.': { en: 'If the guild crafting queue is open, check your assigned tasks and required materials.', ja: 'ギルド製作キューが開いている場合、自分が担当する製作タスクと準備物を確認します。', zh: '如果公会制作队列开启，请查看自己负责的制作任务和材料。' },
+          '작업 수량과 아이템 이름을 먼저 봅니다.': { en: 'First check quantity and item name.', ja: 'まず作業数量とアイテム名を確認します。', zh: '先看任务数量和物品名称。' },
+          '상자 픽업이 필요한 경우 위치와 상태를 확인합니다.': { en: 'If box pickup is needed, check location and status.', ja: '箱ピックアップが必要な場合は場所と状態を確認します。', zh: '需要从箱子取物时，确认位置和状态。' },
+          '납품 후에는 작업 상태를 완료로 바꿉니다.': { en: 'After delivery, mark the task as complete.', ja: '納品後はタスク状態を完了に変更します。', zh: '交付后将任务状态改为完成。' },
+          '통계와 리더보드 화면': { en: 'Stats and leaderboard screen', ja: '統計とリーダーボード画面', zh: '统计和排行榜页面' },
+          '통계와 리더보드': { en: 'Stats and leaderboard', ja: '統計とリーダーボード', zh: '统计和排行榜' },
+          '내 전투 기록, 무기 사용, 참여 기록을 봅니다. 통계는 집계 조건에 맞는 전투만 반영됩니다.': { en: 'Review your combat records, weapon usage, and participation. Stats include only battles that match the aggregation rules.', ja: '自分の戦闘記録、武器使用、参加記録を確認します。統計は集計条件に合う戦闘だけ反映されます。', zh: '查看自己的战斗记录、武器使用和参与记录。统计只包含符合汇总条件的战斗。' },
+          '소규모 갱킹성 전투는 제외될 수 있습니다.': { en: 'Small ganking-style fights may be excluded.', ja: '小規模なガンク系戦闘は除外される場合があります。', zh: '小规模抓人战斗可能会被排除。' },
+          '무기 통계는 카테고리 기준으로 묶입니다.': { en: 'Weapon stats are grouped by category.', ja: '武器統計はカテゴリ単位でまとめられます。', zh: '武器统计按类别汇总。' },
+          '가입 전 기록은 길드 운영 통계와 다르게 보일 수 있습니다.': { en: 'Records before joining may differ from guild activity stats.', ja: '加入前の記録はギルド活動統計と違って見える場合があります。', zh: '加入前记录可能与公会活动统计不同。' },
+          '계정 유형': { en: 'Account type', ja: 'アカウント種別', zh: '账号类型' },
+          '내가 어떤 방식으로 접속했는지에 따라 열리는 기능이 다릅니다': { en: 'Available features depend on how you access the site', ja: '接続方法によって使える機能が変わります', zh: '可用功能取决于你的登录方式' },
+          '같은 화면을 열어도 Discord 길드원, 연합원, 사이트 계정, 게스트 링크는 권한이 다릅니다.': { en: 'Even on the same screen, Discord members, alliance users, site accounts, and guest links have different access.', ja: '同じ画面でも、Discord ギルドメンバー、同盟メンバー、サイトアカウント、ゲストリンクでは権限が異なります。', zh: '即使打开同一页面，Discord 公会成员、同盟成员、网站账号和访客链接的权限也不同。' },
+          'Discord 길드원': { en: 'Discord guild member', ja: 'Discord ギルドメンバー', zh: 'Discord 公会成员' },
+          '전체 개인 기능 사용': { en: 'Full personal features', ja: '個人機能をすべて使用', zh: '使用完整个人功能' },
+          '이벤트, 내정보, 리기어, 상점, 사이펀, 통계 등 길드원용 기능이 열립니다.': { en: 'Member features open, including events, My Info, regear, shop, siphon, and stats.', ja: 'イベント、マイ情報、リギア、ショップ、サイフォン、統計などメンバー向け機能が開きます。', zh: '可使用活动、我的信息、补装、商店、能量、统计等成员功能。' },
+          '같은 연합원': { en: 'Same alliance user', ja: '同じ同盟メンバー', zh: '同联盟成员' },
+          '이벤트 참여 중심': { en: 'Event participation only', ja: 'イベント参加中心', zh: '以活动参与为主' },
+          'Albion 인증 후 이벤트 목록과 신청은 가능하지만 길드 자원 기능은 막힙니다.': { en: 'After Albion verification, event list and signup are available, but guild resource features remain blocked.', ja: 'Albion 認証後、イベント一覧と申請は可能ですが、ギルド資産機能は使えません。', zh: '完成 Albion 认证后可查看活动列表并报名，但公会资源功能不可用。' },
+          '사이트 계정': { en: 'Site account', ja: 'サイトアカウント', zh: '网站账号' },
+          'Discord 없이 제한 사용': { en: 'Limited use without Discord', ja: 'Discord なしで制限利用', zh: '无需 Discord 的受限使用' },
+          '길드가 허용한 경우 초대코드로 로그인하며 이벤트와 리기어 흐름 위주로 사용합니다.': { en: 'If the guild allows it, log in with an invite code and mainly use event and regear flows.', ja: 'ギルドが許可している場合、招待コードでログインし、イベントとリギアの流れを中心に使います。', zh: '如果公会允许，可用邀请码登录，主要使用活动和补装流程。' },
+          '계정 유형별 사용 가능 기능': { en: 'Features by account type', ja: 'アカウント種別ごとの利用可能機能', zh: '各账号类型可用功能' },
+          '기능': { en: 'Feature', ja: '機能', zh: '功能' },
+          '게스트 링크': { en: 'Guest link', ja: 'ゲストリンク', zh: '访客链接' },
+          '이벤트 목록 보기': { en: 'View event list', ja: 'イベント一覧を見る', zh: '查看活动列表' },
+          '가능': { en: 'Available', ja: '可能', zh: '可用' },
+          '불가': { en: 'Blocked', ja: '不可', zh: '不可用' },
+          '이벤트 상세와 슬롯 신청': { en: 'Event detail and slot signup', ja: 'イベント詳細とスロット申請', zh: '活动详情和槽位报名' },
+          '초대받은 이벤트만': { en: 'Invited event only', ja: '招待されたイベントのみ', zh: '仅受邀活动' },
+          '내정보, 포인트, 사이펀': { en: 'My Info, points, siphon', ja: 'マイ情報、ポイント、サイフォン', zh: '我的信息、点数、能量' },
+          '리기어 일부만': { en: 'Regear only in part', ja: 'リギアの一部のみ', zh: '仅部分补装' },
+          '상점 이용': { en: 'Use shop', ja: 'ショップ利用', zh: '使用商店' },
+          '밤스쿼드 콜러 구성': { en: 'Bomb squad caller setup', ja: 'ボムスクワッドコーラー構成', zh: '炸弹小队指挥配置' },
+          '지정된 경우': { en: 'If assigned', ja: '指定された場合', zh: '被指定时' },
+          '콜러 역할과 지정 필요': { en: 'Caller role and assignment required', ja: 'コーラー役割と指定が必要', zh: '需要指挥角色和指定' },
+          '문제가 생기면': { en: 'If something goes wrong', ja: '問題が起きたら', zh: '出现问题时' },
+          '대부분은 이 셋 중 하나입니다': { en: 'Most issues are one of these three', ja: '多くはこの3つのどれかです', zh: '大多数问题属于这三类' },
+          '아래 상태를 먼저 확인하면 대부분의 문제를 빠르게 좁힐 수 있습니다.': { en: 'Check these states first to narrow down most issues quickly.', ja: 'まず以下の状態を確認すると、多くの問題をすばやく絞り込めます。', zh: '先检查下面状态，通常能快速缩小问题范围。' },
+          '로그인': { en: 'Login', ja: 'ログイン', zh: '登录' },
+          '다른 길드 화면이 보입니다': { en: 'I see another guild screen', ja: '別のギルド画面が見えます', zh: '看到其他公会页面' },
+          '브라우저에 이전 세션이 남아 있을 수 있습니다. 로그아웃 후 현재 길드 도메인에서 다시 로그인합니다.': { en: 'An old session may remain in the browser. Log out, then log in again on the current guild domain.', ja: 'ブラウザに以前のセッションが残っている可能性があります。ログアウト後、現在のギルドドメインで再ログインします。', zh: '浏览器可能保留了旧会话。请退出后在当前公会域名重新登录。' },
+          '신청': { en: 'Signup', ja: '申請', zh: '报名' },
+          '슬롯 신청이 안 됩니다': { en: 'Slot signup does not work', ja: 'スロット申請ができません', zh: '无法报名槽位' },
+          '이미 닫힌 이벤트인지, Albion 인증이 끝났는지, 게스트 링크 범위를 벗어나지 않았는지 확인합니다.': { en: 'Check whether the event is closed, Albion verification is complete, or you are outside guest-link scope.', ja: 'イベントが閉じていないか、Albion 認証が終わっているか、ゲストリンクの範囲外でないか確認します。', zh: '确认活动是否已关闭、Albion 认证是否完成、是否超出访客链接范围。' },
+          '사망 기록이 안 보입니다': { en: 'Death record is missing', ja: '死亡記録が見えません', zh: '看不到死亡记录' },
+          '기록 동기화까지 시간이 걸릴 수 있습니다. 자동 기록이 없으면 수동 리기어 신청을 사용합니다.': { en: 'Record sync can take time. If no automatic record appears, use manual regear request.', ja: '記録同期には時間がかかる場合があります。自動記録がなければ手動リギア申請を使います。', zh: '记录同步可能需要时间。没有自动记录时，请使用手动补装申请。' },
+          'Albion 인증': { en: 'Albion verification', ja: 'Albion 認証', zh: 'Albion 认证' },
+          '캐릭터 인증이 통과되지 않습니다': { en: 'Character verification does not pass', ja: 'キャラクター認証が通りません', zh: '角色认证未通过' },
+          '닉네임 대소문자, 서버, 현재 길드·연합 소속을 확인합니다. 최근에 캐릭터를 옮겼다면 잠시 뒤 다시 시도합니다.': {
+            en: 'Check nickname capitalization, server, and current guild/alliance membership. If you recently moved the character, try again after a short wait.',
+            ja: 'ニックネームの大文字小文字、サーバー、現在のギルド・同盟所属を確認します。最近キャラクターを移動した場合は、少し待ってから再試行します。',
+            zh: '确认昵称大小写、服务器、当前公会/联盟归属。如果最近转移了角色，请稍后再试。',
+          },
+          '알림': { en: 'Notifications', ja: '通知', zh: '通知' },
+          'DM 알림이 오지 않습니다': { en: 'DM notifications do not arrive', ja: 'DM通知が届きません', zh: '收不到 DM 通知' },
+          '내 설정의 DM 항목과 Discord 개인 DM 허용 상태를 확인합니다. 이벤트 알림은 배정 상태와 집결 시각에 따라 달라질 수 있습니다.': {
+            en: 'Check DM options in My Settings and whether Discord private DMs are allowed. Event alerts may depend on assignment status and gather time.',
+            ja: 'マイ設定のDM項目と Discord の個人DM許可状態を確認します。イベント通知は割り当て状態と集合時刻によって変わる場合があります。',
+            zh: '检查我的设置中的 DM 项，以及 Discord 私信是否允许。活动提醒可能会根据分配状态和集合时间变化。',
+          },
+          '이 문서는 길드원이 자주 쓰는 기능만 빠르게 안내하기 위한 정적 HTML입니다.': {
+            en: 'This static HTML is for quickly explaining only the features members use often.',
+            ja: 'この静的 HTML は、メンバーがよく使う機能だけをすばやく案内するためのものです。',
+            zh: '此静态 HTML 用于快速说明成员常用功能。',
+          },
+        }
+
+        const textNodes = []
+        const attrNodes = []
+        const normalize = (value) => value.replace(/\s+/g, ' ').trim()
+        const translate = (key, locale) => {
+          if (locale === 'ko') return key
+          return text[key]?.[locale] ?? key
+        }
+        const isTranslatableNode = (node) => {
+          const parent = node.parentElement
+          if (!parent) return false
+          if (['SCRIPT', 'STYLE'].includes(parent.tagName)) return false
+          return normalize(node.nodeValue || '').length > 0
+        }
+
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+        while (walker.nextNode()) {
+          const node = walker.currentNode
+          if (!isTranslatableNode(node)) continue
+          const key = normalize(node.nodeValue || '')
+          if (!text[key]) continue
+          textNodes.push({
+            node,
+            key,
+            leading: (node.nodeValue || '').match(/^\s*/)?.[0] || '',
+            trailing: (node.nodeValue || '').match(/\s*$/)?.[0] || '',
+          })
+        }
+
+        document.querySelectorAll('[aria-label], [alt], [title]').forEach((node) => {
+          ;['aria-label', 'alt', 'title'].forEach((name) => {
+            const value = node.getAttribute(name)
+            if (!value) return
+            const key = normalize(value)
+            if (!text[key]) return
+            attrNodes.push({ node, name, key })
+          })
+        })
+
+        const setLocale = (locale) => {
+          if (!locales[locale]) locale = 'ko'
+          document.documentElement.lang = locales[locale].htmlLang
+          document.title = translate(titleKey, locale)
+          const meta = document.querySelector('meta[name="description"]')
+          if (meta) meta.setAttribute('content', translate(descriptionKey, locale))
+          textNodes.forEach(({ node, key, leading, trailing }) => {
+            node.nodeValue = `${leading}${translate(key, locale)}${trailing}`
+          })
+          attrNodes.forEach(({ node, name, key }) => {
+            node.setAttribute(name, translate(key, locale))
+          })
+          document.querySelectorAll('.locale-button').forEach((button) => {
+            const active = button.dataset.locale === locale
+            button.setAttribute('aria-pressed', active ? 'true' : 'false')
+          })
+          try {
+            window.localStorage.setItem('memberQuickGuideLocale', locale)
+            document.cookie = `member_quick_guide_locale=${locale}; path=/; max-age=31536000; SameSite=Lax`
+          } catch {
+            // Language switching remains usable even when storage is blocked.
+          }
+        }
+
+        const readCookieLocale = () => {
+          const match = document.cookie.match(/(?:^|;\s*)member_quick_guide_locale=(ko|en|ja|zh)\b/)
+          return match?.[1] || null
+        }
+        const readInitialLocale = () => {
+          try {
+            const stored = window.localStorage.getItem('memberQuickGuideLocale')
+            if (stored && locales[stored]) return stored
+          } catch {
+            // Ignore storage errors and continue with cookie or browser locale.
+          }
+          const cookieLocale = readCookieLocale()
+          if (cookieLocale) return cookieLocale
+          return 'ko'
+        }
+
+        document.querySelectorAll('.locale-button').forEach((button) => {
+          button.addEventListener('click', () => setLocale(button.dataset.locale || 'ko'))
+        })
+        setLocale(readInitialLocale())
+      })()
+    </script>
+  </body>
+</html>
