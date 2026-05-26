@@ -31,6 +31,7 @@ import {
   buildTenantHostUrl,
   classifyHost,
   FALLBACK_TENANT_SLUG,
+  resolveTenantBySlug,
 } from '@/lib/tenant-resolver'
 import { log } from '@/lib/log'
 import { recordAuthFailure } from '@/lib/auth-telemetry'
@@ -100,15 +101,50 @@ function errorRedirect(
     ...(extra ?? {}),
   })
   const origin = buildErrorOrigin(state)
-  const target = new URL('/', origin)
+  const target = new URL(buildErrorPath(state), origin)
   target.searchParams.set('auth_error', reason)
   return NextResponse.redirect(target)
+}
+
+function buildErrorPath(state: OAuthStatePayload | null): string {
+  const returnTo = state?.returnTo
+  if (!returnTo || !returnTo.startsWith('/') || returnTo.startsWith('//')) return '/'
+  if (returnTo.startsWith('/api/')) return '/'
+  return returnTo
 }
 
 function extractOriginSlug(originHost: string): string | null {
   const classified = classifyHost(originHost)
   if (classified.kind === 'tenant') return classified.slug
   return null
+}
+
+async function resolveOriginTenantFallback(
+  state: OAuthStatePayload,
+  matchedTenants: readonly TenantDiscordConfig[],
+): Promise<TenantDiscordConfig | null> {
+  const originSlug = extractOriginSlug(state.originHost)
+  if (!originSlug || matchedTenants.some((tenant) => tenant.slug === originSlug)) {
+    return null
+  }
+
+  const resolved = await resolveTenantBySlug(originSlug)
+  if (!resolved) return null
+
+  const tenant = await getTenantDiscordConfig(resolved.tenantId)
+  if (!tenant?.botInstalled) return null
+  return tenant
+}
+
+function mergeTenantMatches(
+  originTenantFallback: TenantDiscordConfig | null,
+  matchedTenants: readonly TenantDiscordConfig[],
+): TenantDiscordConfig[] {
+  if (!originTenantFallback) return [...matchedTenants]
+  return [
+    originTenantFallback,
+    ...matchedTenants.filter((tenant) => tenant.id !== originTenantFallback.id),
+  ]
 }
 
 async function buildHopRedirect(
@@ -195,11 +231,19 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  if (discordError) return errorRedirect(request, null, 'denied', { discord_error: discordError })
+  if (discordError) {
+    const errorState = returnedState ? await verifyOAuthState(returnedState) : null
+    return errorRedirect(request, errorState, 'denied', { discord_error: discordError })
+  }
   if (!code || !returnedState) return errorRedirect(request, null, 'invalid')
 
   const state = await verifyOAuthState(returnedState)
-  if (!state) return errorRedirect(request, null, 'state_mismatch')
+  if (!state) {
+    return errorRedirect(request, null, 'state_mismatch', {
+      state_present: !!returnedState,
+      state_length: returnedState.length,
+    })
+  }
 
   try {
     const token = await exchangeCode(code)
@@ -233,10 +277,12 @@ export async function GET(request: NextRequest) {
     })
     const inviteEventScope = guestAuthScope?.eventId ?? null
     const inviteTenantId = guestAuthScope?.guildId ?? null
+    const originTenantFallback = await resolveOriginTenantFallback(state, matchedTenants)
+    const loginCandidateTenants = mergeTenantMatches(originTenantFallback, matchedTenants)
     const inviteForcesGuestPath =
       inviteEventScope !== null &&
       inviteTenantId !== null &&
-      !matchedTenants.some((t) => t.id === inviteTenantId)
+      !loginCandidateTenants.some((t) => t.id === inviteTenantId)
 
     // /onboard 흐름은 새 길드에 봇을 설치하려는 의도. 사용자가 기존 tenant
     // 의 멤버여도 그 tenant subdomain 으로 hop 하면 안 된다 — onboard cookie
@@ -248,7 +294,7 @@ export async function GET(request: NextRequest) {
     // 길드원 초대 링크로 들어온 사용자를 admin onboarding 으로 잘못 보낸다.
     const isAdminOnboard = returnTo === '/onboard' || returnTo.startsWith('/onboard/')
     if (isAdminOnboard) {
-      const matchedTenantGuildIds = new Set(matchedTenants.map((t) => t.discordGuildId))
+      const matchedTenantGuildIds = new Set(loginCandidateTenants.map((t) => t.discordGuildId))
       const onboardableGuilds = userGuilds.filter((g) => {
         if (matchedTenantGuildIds.has(g.id)) return false
         try {
@@ -262,21 +308,29 @@ export async function GET(request: NextRequest) {
     }
 
     // ───── Member path ─────
-    if (matchedTenants.length > 0 && !inviteForcesGuestPath) {
+    if (loginCandidateTenants.length > 0 && !inviteForcesGuestPath) {
       // 초대가 가리키는 tenant 의 멤버라면 그 tenant 우선. 아니면 originHost
       // 매칭, 그것도 없으면 [0] fallback. (inviteForcesGuestPath 가 true 면 이
       // 블록 자체를 skip 해서 게스트 path 로 직행.)
       const inviteTenantMatch =
-        inviteTenantId ? matchedTenants.find((t) => t.id === inviteTenantId) : undefined
+        inviteTenantId ? loginCandidateTenants.find((t) => t.id === inviteTenantId) : undefined
       const originSlug = extractOriginSlug(state.originHost)
       const tenant =
         inviteTenantMatch ??
-        (originSlug ? matchedTenants.find((t) => t.slug === originSlug) : undefined) ??
-        matchedTenants[0]
+        (originSlug ? loginCandidateTenants.find((t) => t.slug === originSlug) : undefined) ??
+        loginCandidateTenants[0]
 
       const memberByBot = await getGuildMemberByBot(tenant.discordGuildId, user.id)
       const member = memberByBot ? { ...memberByBot, user: memberByBot.user ?? user } : null
-      if (!member) return errorRedirect(request, state, 'not_in_guild', { tenant_id: tenant.id })
+      if (!member && (!inviteEventScope || inviteTenantId !== tenant.id)) {
+        return errorRedirect(request, state, 'not_in_guild', {
+          tenant_id: tenant.id,
+          matched_tenants: loginCandidateTenants.length,
+          user_guild_matched_tenants: matchedTenants.length,
+          origin_tenant_fallback: originTenantFallback?.id ?? null,
+        })
+      }
+      if (member) {
       // 멤버 역할 판정은 admin 이 설정 UI 에서 바꾼 active_member_role_ids 를
       // 우선 적용 — 비어있으면 onboarding 시점 시드된 tenant.member_role_ids
       // 로 폴백. member-sync.ts 와 동일한 우선순위.
@@ -428,6 +482,7 @@ export async function GET(request: NextRequest) {
           isLocale(preferred) ? preferred : null,
         )
       }
+      }
       // isMember == false → 봇은 있으나 member/admin 역할이 없는 경우.
       // 게스트 경로로 폴백해 invite/onboarding 분기를 다시 탄다.
     }
@@ -439,7 +494,7 @@ export async function GET(request: NextRequest) {
     const eventScope: string | null = inviteEventScope
 
     if (!eventScope) {
-      const matchedTenantGuildIds = new Set(matchedTenants.map((t) => t.discordGuildId))
+      const matchedTenantGuildIds = new Set(loginCandidateTenants.map((t) => t.discordGuildId))
       const onboardableGuilds = userGuilds.filter((g) => {
         if (matchedTenantGuildIds.has(g.id)) return false
         try {
@@ -452,9 +507,16 @@ export async function GET(request: NextRequest) {
       if (onboardableGuilds.length > 0) {
         return onboardingResponse(url.origin, user, onboardableGuilds)
       }
-      return errorRedirect(request, state, matchedTenants.length > 0 ? 'no_role' : 'not_in_guild', {
-        matched_tenants: matchedTenants.length,
-      })
+      return errorRedirect(
+        request,
+        state,
+        loginCandidateTenants.length > 0 ? 'no_role' : 'not_in_guild',
+        {
+          matched_tenants: loginCandidateTenants.length,
+          user_guild_matched_tenants: matchedTenants.length,
+          origin_tenant_fallback: originTenantFallback?.id ?? null,
+        },
+      )
     }
 
     // 게스트: 이벤트 스코프로 로그인. 이벤트가 속한 tenant 의 서브도메인으로 hop.
