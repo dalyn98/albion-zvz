@@ -43,6 +43,8 @@ export async function GET(request: NextRequest) {
     retry,
     invite,
     reauthCookieValue,
+    returnTo,
+    userAgent: request.headers.get('user-agent'),
   })
   const cookieLocale = request.cookies.get(LOCALE_COOKIE)?.value
   const preferredLocale = isLocale(cookieLocale)

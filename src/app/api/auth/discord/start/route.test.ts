@@ -50,7 +50,7 @@ describe('GET /api/auth/discord/start', () => {
     const returnTo = '/events/event-1?invite=guest-token'
     const request = new NextRequest(
       `https://guild.albion-guildmanager.com/api/auth/discord/start?returnTo=${encodeURIComponent(returnTo)}`,
-      { headers: { host: 'guild.albion-guildmanager.com' } },
+      { headers: { host: 'guild.albion-guildmanager.com', 'user-agent': 'TestAgent' } },
     )
 
     await GET(request)
@@ -65,6 +65,8 @@ describe('GET /api/auth/discord/start', () => {
       retry: false,
       invite: 'guest-token',
       reauthCookieValue: undefined,
+      returnTo,
+      userAgent: 'TestAgent',
     })
   })
 })

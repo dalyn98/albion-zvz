@@ -56,6 +56,7 @@ describe('bot install URLs', () => {
     expect(url.searchParams.get('client_id')).toBe('test-client')
     expect(url.searchParams.get('response_type')).toBe('code')
     expect(url.searchParams.get('scope')).toBe('bot applications.commands identify')
+    expect(url.searchParams.get('integration_type')).toBe('0')
     expect(url.searchParams.get('redirect_uri')).toBe(
       'https://example.test/api/auth/discord/bot-callback',
     )
@@ -69,6 +70,7 @@ describe('bot install URLs', () => {
     const url = new URL(buildOpenBotInstallUrl({ state: 'STATE_ABC' }))
 
     expect(url.searchParams.get('scope')).toBe('bot applications.commands identify')
+    expect(url.searchParams.get('integration_type')).toBe('0')
     expect(url.searchParams.get('permissions')).toBe('134237184')
     expect(url.searchParams.get('redirect_uri')).toBe(
       'https://example.test/api/auth/discord/bot-callback',

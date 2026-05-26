@@ -90,6 +90,9 @@ function createBotInstallParams(state: string): URLSearchParams {
     client_id: clientId,
     response_type: 'code',
     scope: 'bot applications.commands identify',
+    // GUILD_INSTALL. Discord OAuth docs mark this as the installation context
+    // when applications.commands is present; keep bot onboarding explicit.
+    integration_type: '0',
     permissions: BOT_PERMISSIONS,
     redirect_uri: redirectUri,
     state,
