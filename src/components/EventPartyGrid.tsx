@@ -25,6 +25,7 @@ interface Props {
   eventCategory?: EventCategory
   timezone: string
   suggestedRoles?: readonly SlotRole[]
+  canApplyToSlots?: boolean
   interactionMode?: 'live' | 'demo'
   memberHrefPrefix?: string
 }
@@ -48,6 +49,7 @@ export default function EventPartyGrid({
   eventCategory,
   timezone,
   suggestedRoles = [],
+  canApplyToSlots = true,
   interactionMode = 'live',
   memberHrefPrefix = '/members',
 }: Props) {
@@ -407,6 +409,7 @@ export default function EventPartyGrid({
                     battleStarted={battleStarted}
                     isAdmin={isAdmin}
                     canManageSlots={canManageSlots}
+                    canApplyToSlots={canApplyToSlots}
                     assignedAvatar={
                       slot.assigned_discord_id ? avatars[slot.assigned_discord_id] ?? null : null
                     }

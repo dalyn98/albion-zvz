@@ -201,6 +201,7 @@ interface AppSidebarProps {
   // preview/localhost 에서는 `/public/landing` 가 들어온다. 모든 세션 (게스트 포함) 에게 노출.
   landingHref: string
   userStatus: UserStatusSummary | null
+  allianceEventAllowed: boolean
 }
 
 export default function AppSidebar({
@@ -216,6 +217,7 @@ export default function AppSidebar({
   publicProfileHref,
   landingHref,
   userStatus,
+  allianceEventAllowed,
 }: AppSidebarProps) {
   const pathname = usePathname()
   const t = useTranslations('sidebar')
@@ -224,6 +226,23 @@ export default function AppSidebar({
   // 컴포넌트 최상위에서 호출해야 해서 여기서 prop 으로 내려준다.
   const tSection = useTranslations('nav.section')
   const isLocalGuildAccount = session?.isLocalGuildAccount === true
+  const isBombSquadCallerOnly =
+    session?.isBombSquadCaller === true &&
+    !session.isMember &&
+    !session.isAdmin &&
+    !session.isGuest
+  const isAllianceCandidateOnly =
+    session?.isAllianceCandidate === true &&
+    !session.isMember &&
+    !session.isAdmin &&
+    !session.isGuest &&
+    !session.isBombSquadCaller
+  const isAllianceEventOnly =
+    allianceEventAllowed &&
+    !!session &&
+    !session.isMember &&
+    !session.isAdmin &&
+    !session.isGuest
   // Default collapsed on mobile, expanded on desktop. We hydrate from
   // localStorage after mount so the first paint matches the viewport.
   const [open, setOpen] = useState(false)
@@ -316,12 +335,22 @@ export default function AppSidebar({
   // "홈" 항목은 사이드바 최상단 — 길드의 캐노니컬 진입점 역할 (헤더 브랜드
   // 클릭과 동일 경로). AppShell 이 enable + slug 둘 다 충족해야 href 를 채워주고
   // (그 외엔 null → 항목 자체를 숨김), 활동 섹션의 첫 행으로 끼워 넣는다.
-  const memberNavItems: NavItem[] = publicProfileHref
+  const baseMemberNavItems = isAllianceCandidateOnly && !allianceEventAllowed
+    ? []
+    : isBombSquadCallerOnly || isAllianceEventOnly
+    ? MEMBER_NAV.filter((item) => item.href === '/')
+    : MEMBER_NAV
+  const memberNavItems: NavItem[] = publicProfileHref && !isBombSquadCallerOnly && !isAllianceEventOnly
     ? [
         { href: publicProfileHref, labelKey: 'publicProfile', icon: Home, section: 'activity' },
-        ...MEMBER_NAV,
+        ...baseMemberNavItems,
       ]
-    : MEMBER_NAV
+    : baseMemberNavItems
+  const sessionProfileHref = isAllianceCandidateOnly && !allianceEventAllowed
+    ? '/onboarding/albion'
+    : isBombSquadCallerOnly || isAllianceEventOnly
+      ? '/'
+      : '/me'
 
   return (
     <>
@@ -497,7 +526,7 @@ export default function AppSidebar({
           {session ? (
             <div className={`flex ${navExpanded ? 'items-center justify-between gap-2' : 'flex-col items-center gap-2'}`}>
               <GuardedLink
-                href="/me"
+                href={sessionProfileHref}
                 className={`flex items-center gap-2 min-w-0 flex-1 hover:text-foreground transition-colors ${navExpanded ? '' : 'justify-center'}`}
                 aria-label={t('myInfo')}
                 title={t('myInfo')}
@@ -649,6 +678,7 @@ function NavGroup({
   collapsedSections,
   onToggleSection,
 }: NavGroupProps) {
+  if (items.length === 0) return null
   const buckets = bucketBySection(items)
   // 그룹 안에 sub-section 이 1개면 헤더를 표시할 의미가 없다 (super-admin nav 케이스).
   // 또 사이드바를 접은 상태 (좁은 폭) 에선 sub-section 헤더를 숨기고 아이콘만.

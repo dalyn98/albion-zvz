@@ -60,6 +60,10 @@ export interface ResourceGateInput {
   trustStatus: AlbionIdentityTrustStatus
 }
 
+export interface ManualRegearGateInput extends ResourceGateInput {
+  allianceRegearEnabled: boolean
+}
+
 interface ClaimInput {
   guildId: string
   discordId: string
@@ -111,6 +115,17 @@ export function resolveInitialTenantTrust(input: TenantTrustInput): AlbionIdenti
 
 export function canUseGuildResourceFeatures(input: ResourceGateInput): boolean {
   return input.relation === 'home_guild' && input.trustStatus === 'trusted'
+}
+
+export function canUseManualRegearFeature(input: ManualRegearGateInput): boolean {
+  if (canUseGuildResourceFeatures(input)) return true
+  if (!input.allianceRegearEnabled || input.relation !== 'alliance') return false
+  return input.trustStatus === 'claimed' || input.trustStatus === 'roster_matched' || input.trustStatus === 'trusted'
+}
+
+export function canUseAllianceEventFeatures(input: ResourceGateInput): boolean {
+  if (input.relation !== 'alliance') return false
+  return input.trustStatus === 'claimed' || input.trustStatus === 'roster_matched' || input.trustStatus === 'trusted'
 }
 
 export async function getAccountAlbionIdentityView(
@@ -594,7 +609,7 @@ function isMissingAccountTable(error: { code?: string; message?: string } | null
   return isMissingAccountAlbionTable(error)
 }
 
-function isAlbionIdentityRelation(value: unknown): value is AlbionIdentityRelation {
+export function isAlbionIdentityRelation(value: unknown): value is AlbionIdentityRelation {
   return (
     value === 'home_guild' ||
     value === 'alliance' ||

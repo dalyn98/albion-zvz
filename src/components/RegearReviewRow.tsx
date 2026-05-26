@@ -252,6 +252,11 @@ export default function RegearReviewRow({
                 {t('requestTypeOverchargeBadge')}
               </span>
             )}
+            {request.requester_relation === 'alliance' && (
+              <span className="inline-flex items-center gap-1 bg-violet-400 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded">
+                {t('requesterAllianceBadge')}
+              </span>
+            )}
             {hasUserEdits(request) && (
               <span className="inline-flex items-center gap-1 bg-sky-400 text-black text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded">
                 {t('userEditedRowBadge')}

@@ -25,6 +25,7 @@ import { listMyRegearEligibleEvents } from '@/app/actions/regear'
 import { getMySiphonAccount, type MySiphonAccountResult } from '@/app/actions/siphon-member'
 import { getMemberAlbionIdentity, isAlbionVerified } from '@/lib/albion-identity'
 import {
+  canUseManualRegearFeature,
   canUseGuildResourceFeatures,
   getAccountAlbionIdentityView,
 } from '@/lib/account-albion-identity'
@@ -95,6 +96,7 @@ export default async function MePage() {
     activityRecords,
     eligibleRegears,
     weeklyStatsEnabledRaw,
+    allianceRegearEnabledRaw,
     t,
     tRequests,
     tOnboarding,
@@ -116,6 +118,7 @@ export default async function MePage() {
     // 길드별 토글 — 기본 OFF. SaaS 다른 테넌트에는 노출하지 않는다. 우리 길드는
     // 별도 SQL upsert 로 'true' 설정.
     getAppSetting('me_weekly_stats_enabled', 'false', guildId),
+    getAppSetting('alliance_regear_enabled', 'false', guildId),
     getTranslations('me'),
     getTranslations('myRequests'),
     getTranslations('albionOnboarding'),
@@ -126,6 +129,7 @@ export default async function MePage() {
   ])
 
   const weeklyStatsEnabled = weeklyStatsEnabledRaw === 'true'
+  const allianceRegearEnabled = allianceRegearEnabledRaw === 'true'
 
   const albionVerified = accountAlbionIdentity
     ? canUseGuildResourceFeatures({
@@ -137,6 +141,18 @@ export default async function MePage() {
     ? accountAlbionIdentity.trustStatus === 'roster_matched' ||
       accountAlbionIdentity.trustStatus === 'disputed'
     : false
+  const manualRegearAllowed = accountAlbionIdentity
+    ? canUseManualRegearFeature({
+        relation: accountAlbionIdentity.relation,
+        trustStatus: accountAlbionIdentity.trustStatus,
+        allianceRegearEnabled,
+      })
+    : albionVerified
+  const albionAccountSub = albionVerified
+    ? t('accountAlbionTrusted')
+    : manualRegearAllowed && accountAlbionIdentity?.relation === 'alliance'
+      ? t('accountAlbionRegearOnly')
+      : t('accountAlbionNeedsCheck')
   const albionDisplayName = accountAlbionIdentity?.nickname ?? albionIdentity?.nickname ?? null
   const albionDisplayServer = accountAlbionIdentity?.server ?? albionIdentity?.server ?? null
   const currentGuildName =
@@ -262,7 +278,7 @@ export default async function MePage() {
                 : t('accountAlbionMissing')
             }
             valueClass={albionDisplayName ? 'text-white' : 'text-gray-500'}
-            sub={albionVerified ? t('accountAlbionTrusted') : t('accountAlbionNeedsCheck')}
+            sub={albionAccountSub}
           />
           <WalletMetric
             label={t('accountCurrentGuildLabel')}

@@ -17,6 +17,7 @@ import { useToast } from './ToastProvider'
 interface Props {
   discordNickname: string
   initialIdentity: MemberAlbionIdentity | null
+  initialAllianceEventAllowed?: boolean
   homeGuildConfigured: boolean
   returnTo: string
   // 모달 variant 에서 주입. 넘기면 기본 router.replace(returnTo) 대신 이
@@ -25,7 +26,7 @@ interface Props {
 }
 
 type Step = 'server' | 'search' | 'done'
-type CompletionStatus = 'trusted' | 'needs_review' | 'unverified'
+type CompletionStatus = 'trusted' | 'alliance' | 'needs_review' | 'unverified'
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -38,6 +39,7 @@ const SERVER_HINT_KEY: Record<AlbionServer, 'serverHintEast' | 'serverHintWest' 
 export default function AlbionOnboardingWizard({
   discordNickname,
   initialIdentity,
+  initialAllianceEventAllowed = false,
   homeGuildConfigured,
   returnTo,
   onFinish,
@@ -49,6 +51,7 @@ export default function AlbionOnboardingWizard({
 
   const [step, setStep] = useState<Step>(() => {
     if (initialIdentity?.verifiedAt) return 'done'
+    if (initialAllianceEventAllowed) return 'done'
     if (initialIdentity?.server) return 'search'
     return 'server'
   })
@@ -60,7 +63,13 @@ export default function AlbionOnboardingWizard({
   // confirm/manual 직후 UI 에 인증 결과를 즉시 반영하기 위한 state. 초기 방문
   // 시에는 initialIdentity 로부터 파생, 이후엔 액션 응답으로 덮어씀.
   const [finalStatus, setFinalStatus] = useState<CompletionStatus | null>(
-    initialIdentity?.verifiedAt ? 'trusted' : initialIdentity?.server ? 'unverified' : null,
+    initialIdentity?.verifiedAt
+      ? 'trusted'
+      : initialAllianceEventAllowed
+        ? 'alliance'
+        : initialIdentity?.server
+          ? 'unverified'
+          : null,
   )
 
   // debounce 검색어 → /search 호출. query 나 server 가 바뀔 때마다 재실행.
@@ -104,6 +113,9 @@ export default function AlbionOnboardingWizard({
       if (res.trusted) {
         toast.success(t('toastVerified'))
         setFinalStatus('trusted')
+      } else if (res.allianceEventAllowed) {
+        toast.success(t('toastAlliance'))
+        setFinalStatus('alliance')
       } else if (res.needsReview) {
         toast.success(t('toastNeedsReview'))
         setFinalStatus('needs_review')
@@ -275,6 +287,7 @@ interface DoneViewProps {
 function DoneView({ status, onFinish }: DoneViewProps) {
   const t = useTranslations('albionOnboarding')
   const verified = status === 'trusted'
+  const alliance = status === 'alliance'
   const needsReview = status === 'needs_review'
   return (
     <section className="space-y-4">
@@ -282,6 +295,8 @@ function DoneView({ status, onFinish }: DoneViewProps) {
         className={`rounded-lg p-4 border ${
           verified
             ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-200'
+            : alliance
+              ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-200'
             : needsReview
               ? 'bg-sky-500/10 border-sky-500/40 text-sky-200'
             : 'bg-yellow-500/10 border-yellow-500/40 text-yellow-200'
@@ -291,6 +306,8 @@ function DoneView({ status, onFinish }: DoneViewProps) {
           {verified ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
           {verified
             ? t('doneVerifiedTitle')
+            : alliance
+              ? t('doneAllianceTitle')
             : needsReview
               ? t('doneNeedsReviewTitle')
               : t('doneUnverifiedTitle')}
@@ -298,6 +315,8 @@ function DoneView({ status, onFinish }: DoneViewProps) {
         <p className="text-xs leading-relaxed opacity-90">
           {verified
             ? t('doneVerifiedDescription')
+            : alliance
+              ? t('doneAllianceDescription')
             : needsReview
               ? t('doneNeedsReviewDescription')
               : t('doneUnverifiedDescription')}

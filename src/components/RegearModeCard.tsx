@@ -4,6 +4,7 @@
 //   - 자동 리기어 (auto_regear_enabled): cron 이 victim → AODP → pending 자동 생성
 //   - 제작 리기어 (craft_regear_enabled): 박스 픽업 모드 활성화
 //   - 인증 게이트 (regear_require_verification): 미인증 길드원 신청 차단
+//   - 연합 리기어 (alliance_regear_enabled): 연합원 수동 신청만 허용
 //   - 오버차지 리기어 (regear_overcharge_enabled): 오버차지로 장비 파괴 시 신청 받기
 // 각 토글은 독립 app_setting 이라 Save 버튼은 변경된 키만 일괄 update.
 
@@ -17,6 +18,7 @@ interface Props {
   initialAutoEnabled: boolean
   initialCraftEnabled: boolean
   initialRequireVerification: boolean
+  initialAllianceRegearEnabled: boolean
   initialOverchargeEnabled: boolean
   initialSkipLowConfidence: boolean
   embedded?: boolean
@@ -26,6 +28,7 @@ export default function RegearModeCard({
   initialAutoEnabled,
   initialCraftEnabled,
   initialRequireVerification,
+  initialAllianceRegearEnabled,
   initialOverchargeEnabled,
   initialSkipLowConfidence,
   embedded = false,
@@ -36,6 +39,9 @@ export default function RegearModeCard({
   const [autoEnabled, setAutoEnabled] = useState(initialAutoEnabled)
   const [craftEnabled, setCraftEnabled] = useState(initialCraftEnabled)
   const [requireVerification, setRequireVerification] = useState(initialRequireVerification)
+  const [allianceRegearEnabled, setAllianceRegearEnabled] = useState(
+    initialAllianceRegearEnabled,
+  )
   const [overchargeEnabled, setOverchargeEnabled] = useState(initialOverchargeEnabled)
   const [skipLowConfidence, setSkipLowConfidence] = useState(initialSkipLowConfidence)
   const [loading, setLoading] = useState(false)
@@ -46,6 +52,7 @@ export default function RegearModeCard({
     autoEnabled !== initialAutoEnabled ||
     craftEnabled !== initialCraftEnabled ||
     requireVerification !== initialRequireVerification ||
+    allianceRegearEnabled !== initialAllianceRegearEnabled ||
     overchargeEnabled !== initialOverchargeEnabled ||
     skipLowConfidence !== initialSkipLowConfidence
 
@@ -73,6 +80,17 @@ export default function RegearModeCard({
       const r = await updateAppSetting(
         'regear_require_verification',
         requireVerification ? 'true' : 'false',
+      )
+      if (r.error) {
+        setError(r.error)
+        setLoading(false)
+        return
+      }
+    }
+    if (allianceRegearEnabled !== initialAllianceRegearEnabled) {
+      const r = await updateAppSetting(
+        'alliance_regear_enabled',
+        allianceRegearEnabled ? 'true' : 'false',
       )
       if (r.error) {
         setError(r.error)
@@ -152,6 +170,15 @@ export default function RegearModeCard({
           }}
           label={t('verifyLabel')}
           hint={t('verifyHint')}
+        />
+        <ToggleRow
+          checked={allianceRegearEnabled}
+          onChange={(v) => {
+            setAllianceRegearEnabled(v)
+            setSaved(false)
+          }}
+          label={t('allianceLabel')}
+          hint={t('allianceHint')}
         />
         <ToggleRow
           checked={overchargeEnabled}

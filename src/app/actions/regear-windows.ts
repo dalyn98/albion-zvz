@@ -7,7 +7,8 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
-import { requireAlbionVerified } from '@/lib/albion-identity'
+import { requireManualRegearAllowed } from '@/lib/albion-identity'
+import type { AlbionIdentityRelation } from '@/lib/account-albion-identity'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import { REGEAR_WINDOW_MANAGE_CAPS } from '@/lib/regear-window-permissions'
 import { SLOT_KEYS, SLOT_ROLES, type BuildSnapshot, type RegearType, type SlotRole } from '@/types'
@@ -291,9 +292,11 @@ export async function requestWindowRegear(formData: FormData): Promise<{
 
   const requireVerification =
     (await getAppSetting('regear_require_verification', 'true', guildId)) !== 'false'
+  let requesterRelation: AlbionIdentityRelation = 'unknown'
   if (requireVerification) {
-    const albionError = await requireAlbionVerified(session.discordId, guildId)
-    if (albionError) return { error: `${REGEAR_VERIFICATION_ERROR_PREFIX}${albionError}` }
+    const gate = await requireManualRegearAllowed(session.discordId, guildId)
+    requesterRelation = gate.relation
+    if (gate.error) return { error: `${REGEAR_VERIFICATION_ERROR_PREFIX}${gate.error}` }
   }
 
   const windowId = String(formData.get('windowId') ?? '')
@@ -428,6 +431,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
       build_snapshot: parsedBuildSnapshot,
       auto_generated: false,
       fulfillment_mode: fulfillmentMode,
+      requester_relation: requesterRelation,
     })
     .select('id')
     .single()

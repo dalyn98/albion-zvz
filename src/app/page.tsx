@@ -19,6 +19,7 @@ import HomeAdminPendingCard from '@/components/HomeAdminPendingCard'
 import { getAdminBadgeCounts } from '@/lib/admin-badges'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 import { CAP } from '@/lib/permissions'
+import { canUseAllianceEventFeaturesForSession } from '@/lib/albion-identity'
 
 // Homepage reflects the live DB, so never prerender at build — a static
 // snapshot would show stale or deleted events.
@@ -95,8 +96,9 @@ function classifyScheduled(event: Event): HomeEventKind {
   return 'upcoming'
 }
 
-// Layout-level gate (src/app/layout.tsx) blocks non-members before this
-// component runs — by the time HomePage renders, the viewer is a guild member.
+// Layout-level gate (src/app/layout.tsx) blocks general non-members before
+// this component runs. Same-alliance participants can also reach this page,
+// but resource/admin surfaces stay hidden by their own gates.
 export default async function HomePage() {
   const [t, locale, session, marketingPaths] = await Promise.all([
     getTranslations(),
@@ -125,6 +127,21 @@ export default async function HomePage() {
 
   const adminPendingEnabled = adminPendingEnabledRaw === 'true' && (session?.isAdmin ?? false)
   const adminBadges = adminPendingEnabled ? await getAdminBadgeCounts(guildId) : null
+  const allianceEventAllowed = session
+    ? await canUseAllianceEventFeaturesForSession(session.discordId, guildId)
+    : false
+  const isBombSquadCallerOnly =
+    session?.isBombSquadCaller === true &&
+    !session.isMember &&
+    !session.isAdmin &&
+    !session.isGuest &&
+    !allianceEventAllowed
+  const isAllianceEventOnly =
+    allianceEventAllowed &&
+    !!session &&
+    !session.isMember &&
+    !session.isAdmin &&
+    !session.isGuest
 
   // Prefer gather_at (ISO) for locale-aware formatting; fall back to stored
   // gather_time (always Korean) for legacy rows that predate gather_at.
@@ -165,13 +182,15 @@ export default async function HomePage() {
           </Link>
           {/* `/archive` 사이드바 링크가 빠진 후 유일한 진입점 — 종료된 전투 회고가
               필요한 시점은 결국 events 페이지에서 시작하는 흐름이라 자연스럽다. */}
-          <Link
-            href="/archive"
-            className="flex items-center justify-center gap-1.5 text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-2 rounded-lg transition-colors text-sm whitespace-nowrap flex-1 sm:flex-initial"
-          >
-            <Archive size={14} />
-            {t('home.viewArchive')}
-          </Link>
+          {!isBombSquadCallerOnly && !isAllianceEventOnly && (
+            <Link
+              href="/archive"
+              className="flex items-center justify-center gap-1.5 text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-2 rounded-lg transition-colors text-sm whitespace-nowrap flex-1 sm:flex-initial"
+            >
+              <Archive size={14} />
+              {t('home.viewArchive')}
+            </Link>
+          )}
           {sessionCanCreateOrManageEvents(session) && (
             <Link
               href="/admin/dashboard/events/new"

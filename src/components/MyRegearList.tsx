@@ -66,6 +66,11 @@ export default async function MyRegearList({
                   {tMe('regearOverchargeBadge')}
                 </span>
               )}
+              {r.requester_relation === 'alliance' && (
+                <span className="shrink-0 rounded bg-violet-400 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-black">
+                  {tMe('regearAllianceBadge')}
+                </span>
+              )}
             </div>
             <span className={`text-xs font-semibold px-2 py-0.5 rounded flex-shrink-0 ${STATUS_CLASS[r.status]}`}>
               {tStatus(r.status)}

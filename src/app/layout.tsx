@@ -17,6 +17,7 @@ import { getSession } from '@/lib/session'
 import { getAppSetting } from '@/lib/app-settings'
 import { getAdminClient } from '@/lib/supabase-admin'
 import {
+  canUseAllianceEventFeaturesForSession,
   getAlbionOnboardingGateState,
   type MemberAlbionIdentity,
 } from '@/lib/albion-identity'
@@ -88,6 +89,32 @@ function isAllowedForLocalGuildAccount(pathname: string): boolean {
   if (pathname.startsWith('/me/regear/')) return true
   if (pathname.startsWith('/welcome-language')) return true
   if (pathname.startsWith('/public/')) return true
+  return false
+}
+
+function isAllowedForBombSquadCaller(pathname: string): boolean {
+  if (pathname === '/') return true
+  if (pathname === '/events' || pathname.startsWith('/events/')) return true
+  if (pathname.startsWith('/onboarding/albion')) return true
+  if (pathname.startsWith('/welcome-language')) return true
+  if (pathname.startsWith('/public/')) return true
+  return false
+}
+
+function isAllowedForAllianceEventParticipant(pathname: string): boolean {
+  if (pathname === '/') return true
+  if (pathname === '/events' || pathname.startsWith('/events/')) return true
+  if (pathname.startsWith('/onboarding/albion')) return true
+  if (pathname.startsWith('/welcome-language')) return true
+  if (pathname.startsWith('/public/')) return true
+  return false
+}
+
+function isAllowedForAllianceCandidate(pathname: string): boolean {
+  if (pathname.startsWith('/onboarding/albion')) return true
+  if (pathname.startsWith('/welcome-language')) return true
+  if (pathname.startsWith('/public/')) return true
+  if (pathname === '/logout') return true
   return false
 }
 
@@ -303,6 +330,27 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     if (!data) guestRevoked = true
   }
 
+  let allianceEventAllowed = false
+  const isAllianceCandidateSession =
+    session?.isAllianceCandidate === true &&
+    !session.isMember &&
+    !session.isAdmin &&
+    !session.isGuest &&
+    !session.isBombSquadCaller
+  if (
+    session &&
+    (session.isAllianceCandidate || session.isBombSquadCaller) &&
+    !sessionBelongsToOtherTenant &&
+    !session.isMember &&
+    !session.isAdmin &&
+    !session.isGuest
+  ) {
+    allianceEventAllowed = await canUseAllianceEventFeaturesForSession(
+      session.discordId,
+      await getSessionGuildId(session),
+    )
+  }
+
   // 이벤트 스코프 게스트: 자신이 초대받은 이벤트 외 페이지 접근 시 redirect.
   // gate(AppGate) 가 발동하기 전에 먼저 실행해야 "로그인된 게스트" 가 다른
   // 페이지 URL 을 직접 치는 경로를 막는다.
@@ -322,6 +370,38 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     session?.isLocalGuildAccount &&
     !sessionBelongsToOtherTenant &&
     !isAllowedForLocalGuildAccount(pathname)
+  ) {
+    redirect('/')
+  }
+
+  if (
+    !isPublic &&
+    session?.isBombSquadCaller &&
+    !session.isMember &&
+    !session.isAdmin &&
+    !session.isGuest &&
+    !sessionBelongsToOtherTenant &&
+    !isAllowedForBombSquadCaller(pathname)
+  ) {
+    redirect('/')
+  }
+
+  if (
+    !isPublic &&
+    isAllianceCandidateSession &&
+    !sessionBelongsToOtherTenant &&
+    !allianceEventAllowed &&
+    !isAllowedForAllianceCandidate(pathname)
+  ) {
+    redirect('/onboarding/albion')
+  }
+
+  if (
+    !isPublic &&
+    isAllianceCandidateSession &&
+    !sessionBelongsToOtherTenant &&
+    allianceEventAllowed &&
+    !isAllowedForAllianceEventParticipant(pathname)
   ) {
     redirect('/')
   }
@@ -380,7 +460,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     (
       !session ||
       sessionBelongsToOtherTenant ||
-      (!session.isMember && !session.isGuest) ||
+      (
+        !session.isMember &&
+        !session.isGuest &&
+        !session.isBombSquadCaller &&
+        !session.isAllianceCandidate &&
+        !allianceEventAllowed
+      ) ||
       guestRevoked
     )
 
@@ -484,6 +570,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // 버튼이 보이면 "로그인이 필요한 페이지" 로 오해될 수 있음. AppShell 도 마찬가지로
   // 사이드바가 데모 흐름을 깬다.
   const isDemo = pathname === '/demo' || pathname.startsWith('/demo/')
+  const usePublicShellForAllianceOnboarding =
+    pathname.startsWith('/onboarding/albion') &&
+    isAllianceCandidateSession &&
+    !allianceEventAllowed
 
   // Public routes: if the visitor has a real session, give them the normal
   // AppShell so the sidebar stays consistent; otherwise wrap in a minimal
@@ -498,9 +588,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       ? children
       : isOnboard
         ? <PublicShell>{children}</PublicShell>
+        : usePublicShellForAllianceOnboarding
+          ? <PublicShell>{children}</PublicShell>
         : isPublic && !session
           ? <PublicShell>{children}</PublicShell>
-          : <AppShell>{children}</AppShell>
+          : <AppShell allianceEventAllowed={allianceEventAllowed}>{children}</AppShell>
 
   return (
     <html lang={locale} className="h-full antialiased">

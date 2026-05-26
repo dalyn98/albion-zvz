@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  canUseAllianceEventFeatures,
+  canUseManualRegearFeature,
   canUseGuildResourceFeatures,
   resolveAlbionIdentityRelation,
   resolveInitialTenantTrust,
@@ -73,6 +75,21 @@ describe('account Albion identity trust model', () => {
     expect(relation).toBe('alliance')
     expect(trust).toBe('claimed')
     expect(canUseGuildResourceFeatures({ relation, trustStatus: trust })).toBe(false)
+    expect(canUseAllianceEventFeatures({ relation, trustStatus: trust })).toBe(true)
+    expect(
+      canUseManualRegearFeature({
+        relation,
+        trustStatus: trust,
+        allianceRegearEnabled: true,
+      }),
+    ).toBe(true)
+    expect(
+      canUseManualRegearFeature({
+        relation,
+        trustStatus: trust,
+        allianceRegearEnabled: false,
+      }),
+    ).toBe(false)
   })
 
   it('flags duplicate character claims as disputed before resource access', () => {
@@ -86,6 +103,34 @@ describe('account Albion identity trust model', () => {
 
     expect(trust).toBe('disputed')
     expect(canUseGuildResourceFeatures({ relation: 'home_guild', trustStatus: trust })).toBe(false)
+    expect(canUseAllianceEventFeatures({ relation: 'alliance', trustStatus: trust })).toBe(false)
+    expect(
+      canUseManualRegearFeature({
+        relation: 'alliance',
+        trustStatus: trust,
+        allianceRegearEnabled: true,
+      }),
+    ).toBe(false)
+  })
+
+  it('allows trusted home-guild members to use manual regear regardless of the alliance switch', () => {
+    expect(
+      canUseManualRegearFeature({
+        relation: 'home_guild',
+        trustStatus: 'trusted',
+        allianceRegearEnabled: false,
+      }),
+    ).toBe(true)
+  })
+
+  it('does not allow external identities to use manual regear through the alliance switch', () => {
+    expect(
+      canUseManualRegearFeature({
+        relation: 'external',
+        trustStatus: 'claimed',
+        allianceRegearEnabled: true,
+      }),
+    ).toBe(false)
   })
 
   it('keeps manual nickname entries as claimed only', () => {

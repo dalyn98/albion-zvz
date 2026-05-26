@@ -37,6 +37,7 @@ describe('test auth session helpers', () => {
 
   it('parses only supported roles', () => {
     expect(parseTestAuthRole('admin')).toBe('admin')
+    expect(parseTestAuthRole('bombSquadCaller')).toBe('bombSquadCaller')
     expect(parseTestAuthRole('localGuildAccount')).toBe('localGuildAccount')
     expect(parseTestAuthRole('logOfficer')).toBe('logOfficer')
     expect(parseTestAuthRole('owner')).toBeNull()
@@ -113,5 +114,13 @@ describe('test auth session helpers', () => {
     expect(session.isGuest).toBe(true)
     expect(session.eventScope).toBe('event-1')
     expect(session.guildId).toBe('tenant-1')
+  })
+
+  it('builds a bomb squad caller session without member capabilities', () => {
+    const session = buildTestSession({ role: 'bombSquadCaller', guildId: 'tenant-1' })
+    expect(session.isMember).toBe(false)
+    expect(session.isGuest).toBe(false)
+    expect(session.isBombSquadCaller).toBe(true)
+    expect(session.capabilities).toBe('0')
   })
 })

@@ -8,6 +8,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getEventGuestProfile } from '@/lib/event-guest-profile'
 import { CAP } from '@/lib/permissions'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
+import { canUseAllianceEventFeaturesForSession } from '@/lib/albion-identity'
 import type { GearOption, SlotKey } from '@/types'
 
 export type SlotPicks = Partial<Record<SlotKey, GearOption>>
@@ -92,9 +93,6 @@ export async function assignSlot(
   const tGear = await getTranslations('gear')
   const session = await getSession()
   if (!session) return { error: tAction('loginRequired') }
-  // Guests can sign up for slots too (Option B) — only fully unroled sessions
-  // are blocked, which shouldn't happen since the layout gate rejects them.
-  if (!session.isMember && !session.isGuest) return { error: tAction('noMemberRole') }
 
   // Filter out empty picks before sending — the RPC treats a missing kind the
   // same as an explicit null, so trimming keeps the payload minimal.
@@ -137,6 +135,14 @@ export async function assignSlot(
     | null
   const partyObj = Array.isArray(partyJoin) ? partyJoin[0] : partyJoin
   const isBomb = !!partyObj?.is_bomb_squad
+  const canApplyAsAlliance =
+    !session.isMember &&
+    !session.isGuest &&
+    (await canUseAllianceEventFeaturesForSession(session.discordId, guildId))
+  // Guests and verified same-alliance participants can sign up for slots too.
+  if (!session.isMember && !session.isGuest && !canApplyAsAlliance) {
+    return { error: tAction('noMemberRole') }
+  }
 
   // 이벤트 스코프 게스트는 자신이 초대받은 이벤트 슬롯만 지원 가능. 다른
   // 이벤트의 slotId 로 crafted 요청이 오면 차단.

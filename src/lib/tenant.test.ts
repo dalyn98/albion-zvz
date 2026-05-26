@@ -45,6 +45,7 @@ const baseSession = (guildId: string | null = null, discordId = 'user-123'): Ses
   canCreateEvents: false,
   eventCreatorCategories: [],
   isBombSquadCaller: false,
+  isAllianceCandidate: false,
   guildId,
 } as unknown as SessionPayload)
 

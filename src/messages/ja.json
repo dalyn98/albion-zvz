@@ -487,7 +487,11 @@
     "claimerTotalClaim": "請求合計 {amount}",
     "claimerScreenshotCount": "スクショ {n} 枚",
     "claimerBulkApproveButton": "申請者一括承認",
-    "claimerBulkApproveTitle": "この申請者の保留中 {n} 件を一括承認 ({amount} 支給)"
+    "claimerBulkApproveTitle": "この申請者の保留中 {n} 件を一括承認 ({amount} 支給)",
+    "relationHomeGuild": "ギルドメンバー",
+    "relationAlliance": "同盟メンバー",
+    "relationAll": "全所属",
+    "requesterAllianceBadge": "同盟"
   },
   "adminExchangeReview": {
     "pageTitle": "両替申請",
@@ -1365,7 +1369,7 @@
   },
   "adminRegearMode": {
     "title": "リギア運営モード",
-    "description": "リギアフローの主要スイッチ 3 種 — 自動生成、制作モード、認証ゲート。それぞれ独立して切り替えられます。",
+    "description": "リギアフローの主要スイッチ — 自動生成、制作モード、認証ゲート、同盟メンバーの手動申請。それぞれ独立して切り替えられます。",
     "autoLabel": "自動リギア",
     "autoHint": "イベント終了後にキルログの戦死を装備相場で換算し、保留中の請求を自動生成します。OFF にすると手動申請のみ可能。",
     "craftLabel": "制作リギア",
@@ -1375,7 +1379,9 @@
     "overchargeLabel": "オーバーチャージリギア許可",
     "overchargeHint": "ギルド指示でオーバーチャージし装備が破壊された場合の申請を受け付けます。OFFにするとメンバーのフォームに種別選択が表示されません。",
     "skipLowConfidenceLabel": "信頼度の低いスロットを自動除外",
-    "skipLowConfidenceHint": "AODP 相場が取得できず redzone/bluezone または単一サンプルにフォールバックしたスロットを自動請求から除外し、申請者が手入力します。合算金額がゲーム内相場とかけ離れるのを防ぎます。"
+    "skipLowConfidenceHint": "AODP 相場が取得できず redzone/bluezone または単一サンプルにフォールバックしたスロットを自動請求から除外し、申請者が手入力します。合算金額がゲーム内相場とかけ離れるのを防ぎます。",
+    "allianceLabel": "同盟メンバーの手動リギアを許可",
+    "allianceHint": "ON にすると同じ Albion 同盟として確認されたアカウントも手動リギアのみ申請できます。自動リギア、ショップ、サイフォン、ポイント機能は引き続きブロックされます。"
   },
   "adminActiveMemberRoles": {
     "title": "活動メンバー役割",
@@ -2285,6 +2291,7 @@
     "loginToSignup": "参加予定に登録するにはログインしてください。",
     "loginButton": "ログイン",
     "guestNotAllowed": "ゲストは参加予定に登録できません。",
+    "callerReadOnly": "コーラーロールのアカウントは、割り当てられたボムスクワッドパーティのみ管理できます。",
     "battleStartedReadOnly": "戦闘が開始されたため、参加予定を登録できません。",
     "selfSignupHint": "編成が決まっていない場合は対応可能なロールだけ先に登録してください。スロットが埋まれば自動で整理されます。",
     "signupButton": "参加予定を登録",
@@ -2313,6 +2320,7 @@
   "eventTentativeAction": {
     "loginRequired": "ログインが必要です。",
     "guestNotAllowed": "ゲストは参加予定に登録できません。",
+    "memberOnly": "ギルドメンバーのみ参加予定を登録できます。",
     "eventNotFound": "イベントが見つかりません。",
     "rolesRequired": "対応可能なロールを1つ以上選択してください。",
     "notAuthorized": "権限がありません。",
@@ -2362,6 +2370,8 @@
     "myStatusPendingBody": "ボムスクワッドまたはスタッフ確認が必要なスロット申請があります。",
     "myStatusTentativeTitle": "参加予定を保存済み",
     "myStatusTentativeBody": "可能な役割を登録しました。スタッフが確定するとここに表示されます。",
+    "myStatusCallerTitle": "ボムスクワッドコーラー権限",
+    "myStatusCallerBody": "このアカウントはメンバー権限なしでコーラーロールとしてログインしています。割り当てられたボムスクワッドパーティのみ管理できます。",
     "myStatusNoneTitle": "まだ申請していません",
     "myStatusNoneBody": "下のスロットで役割と装備を確認して申請してください。",
     "myStatusGuestTitle": "ログインが必要です",
@@ -3349,7 +3359,9 @@
     "activityRecordTrust_roster_matched": "ロスター一致",
     "activityRecordTrust_trusted": "信頼済み",
     "activityRecordTrust_disputed": "確認が必要",
-    "activityRecordTrust_revoked": "接続解除済み"
+    "activityRecordTrust_revoked": "接続解除済み",
+    "regearAllianceBadge": "同盟",
+    "accountAlbionRegearOnly": "同盟として手動リギアのみ利用可能"
   },
   "publicActivity": {
     "eyebrow": "公開活動記録",
@@ -3426,10 +3438,13 @@
     "manualNicknameTooShort": "2文字以上入力してください。",
     "toastVerified": "認証が完了しました。",
     "toastNeedsReview": "ギルド所属は確認できました。管理者が承認すると資源機能を利用できます。",
+    "toastAlliance": "アライアンス所属を確認しました。イベント一覧とスロット申請を利用できます。",
     "toastUnverified": "ギルド所属が確認できず [未認証] として保存されました。",
     "toastManualSaved": "手動入力で保存しました。[未認証] 状態です。",
     "doneVerifiedTitle": "認証完了",
     "doneVerifiedDescription": "ギルド所属が確認されました。すべての機能を利用できます。",
+    "doneAllianceTitle": "アライアンスメンバー確認完了",
+    "doneAllianceDescription": "同じアライアンス所属として確認されました。イベント一覧とスロット申請は利用できますが、リギア・ショップ・サイフォン・ポイント機能はギルドメンバー専用です。",
     "doneNeedsReviewTitle": "管理者確認待ち",
     "doneNeedsReviewDescription": "ギルド所属は確認されましたが、資源機能は管理者承認後に利用できます。",
     "doneUnverifiedTitle": "未認証として保存されました",
@@ -3917,7 +3932,8 @@
     "trackedDeathNotFound": "該当する戦死記録が見つかりません。",
     "trackedDeathNotEligible": "この戦死はトラッキング戦闘の集計に含まれていないか、14日を超過しています。",
     "trackedDeathAlreadyClaimed": "この戦死に対するリギア申請が既に存在します。",
-    "overchargeDisabled": "このギルドではオーバーチャージリギア申請を受け付けていません。"
+    "overchargeDisabled": "このギルドではオーバーチャージリギア申請を受け付けていません。",
+    "allianceRegearDisabled": "このギルドでは同盟メンバーのリギア申請を受け付けていません。ホームギルド所属でない場合は管理者に連絡してください。"
   },
   "errors": {
     "title": "問題が発生しました",

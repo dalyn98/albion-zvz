@@ -25,7 +25,9 @@ const basePayload = (overrides: Partial<SessionPayload> = {}): SessionPayload =>
   isMember: true,
   isAdmin: false,
   isGuest: false,
+  isBombSquadCaller: false,
   isLocalGuildAccount: false,
+  isAllianceCandidate: false,
   canCreateEvents: false,
   eventCreatorCategories: [],
   eventScope: null,
@@ -37,12 +39,18 @@ const basePayload = (overrides: Partial<SessionPayload> = {}): SessionPayload =>
 
 describe('session sign/verify round trip', () => {
   it('verifies a freshly-signed session and recovers all fields', async () => {
-    const original = basePayload({ guildId: 'tenant-XYZ', isAdmin: true, canCreateEvents: true })
+    const original = basePayload({
+      guildId: 'tenant-XYZ',
+      isAdmin: true,
+      isBombSquadCaller: true,
+      canCreateEvents: true,
+    })
     const cookie = await signSession(original)
     const verified = await verifySession(cookie)
     expect(verified).not.toBeNull()
     expect(verified?.guildId).toBe('tenant-XYZ')
     expect(verified?.isAdmin).toBe(true)
+    expect(verified?.isBombSquadCaller).toBe(true)
     expect(verified?.canCreateEvents).toBe(true)
   })
 
@@ -96,6 +104,7 @@ describe('session sign/verify round trip', () => {
       isAdmin: false,
       isGuest: false,
       isLocalGuildAccount: false,
+      isAllianceCandidate: false,
       canCreateEvents: false,
       eventCreatorCategories: [],
       eventScope: null,
@@ -104,6 +113,7 @@ describe('session sign/verify round trip', () => {
     const cookie = await signSession(legacyPayload as unknown as SessionPayload)
     const verified = await verifySession(cookie)
     expect(verified?.guildId).toBeNull()
+    expect(verified?.isBombSquadCaller).toBe(false)
   })
 })
 

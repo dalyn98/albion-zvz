@@ -144,7 +144,9 @@ async function onboardingResponse(
     isMember: false,
     isAdmin: false,
     isGuest: false,
+    isBombSquadCaller: false,
     isLocalGuildAccount: false,
+    isAllianceCandidate: false,
     canCreateEvents: false,
     eventCreatorCategories: [],
     eventScope: null,
@@ -282,9 +284,16 @@ export async function GET(request: NextRequest) {
         activeMemberRoleIds.length > 0 ? activeMemberRoleIds : tenant.memberRoleIds
       const identity = identityFromMember(member, effectiveMemberRoleIds, tenant.adminRoleIds)
       const isTenantOwner = tenant.createdByDiscordId === user.id
-      if (!identity && !isTenantOwner) {
-        return errorRedirect(request, state, 'no_identity', { tenant_id: tenant.id })
-      }
+      const [legacyIds, combatIds, ffIds, gankingIds, bombSquadCallerRoleIds] =
+        await Promise.all([
+          loadRoleIdSetting('event_creator_role_ids', tenant.id),
+          loadRoleIdSetting('event_creator_role_ids_combat', tenant.id),
+          loadRoleIdSetting('event_creator_role_ids_ff', tenant.id),
+          loadRoleIdSetting('event_creator_role_ids_ganking', tenant.id),
+          loadRoleIdSetting('bomb_squad_caller_role_ids', tenant.id),
+        ])
+      const memberRoleSet = new Set(member.roles)
+      const isBombSquadCaller = bombSquadCallerRoleIds.some((id) => memberRoleSet.has(id))
       // 슈퍼어드민이 부여한 admin 오버라이드. 길드 역할 없이도 admin 권한을
       // 강제 부여한다 — 운영/지원 시나리오용. row 가 있으면 isAdmin=true.
       const { data: overrideRow } = await getAdminClient()
@@ -302,49 +311,43 @@ export async function GET(request: NextRequest) {
         isTenantOwner,
       })
 
-      if (isMember) {
-        const [legacyIds, combatIds, ffIds, gankingIds, bombSquadCallerRoleIds] = await Promise.all(
-          [
-            loadRoleIdSetting('event_creator_role_ids', tenant.id),
-            loadRoleIdSetting('event_creator_role_ids_combat', tenant.id),
-            loadRoleIdSetting('event_creator_role_ids_ff', tenant.id),
-            loadRoleIdSetting('event_creator_role_ids_ganking', tenant.id),
-            loadRoleIdSetting('bomb_squad_caller_role_ids', tenant.id),
-          ],
-        )
-        const memberRoleSet = new Set(member.roles)
+      const isAllianceCandidate = !isMember && !isAdmin
+      if (isMember || isBombSquadCaller || isAllianceCandidate) {
         const hasLegacy = legacyIds.some((id) => memberRoleSet.has(id))
         const eventCreatorCategories: EventCategory[] = isAdmin
           ? [...EVENT_CATEGORIES]
-          : [
-              ...(hasLegacy || combatIds.some((id) => memberRoleSet.has(id))
-                ? (['전투'] as const)
-                : []),
-              ...(hasLegacy || ffIds.some((id) => memberRoleSet.has(id))
-                ? (['FF'] as const)
-                : []),
-              ...(hasLegacy || gankingIds.some((id) => memberRoleSet.has(id))
-                ? (['갱킹'] as const)
-                : []),
-            ]
+          : isMember
+            ? [
+                ...(hasLegacy || combatIds.some((id) => memberRoleSet.has(id))
+                  ? (['전투'] as const)
+                  : []),
+                ...(hasLegacy || ffIds.some((id) => memberRoleSet.has(id))
+                  ? (['FF'] as const)
+                  : []),
+                ...(hasLegacy || gankingIds.some((id) => memberRoleSet.has(id))
+                  ? (['갱킹'] as const)
+                  : []),
+              ]
+            : []
         const canCreateEvents = isAdmin || eventCreatorCategories.length > 0
-        const isBombSquadCaller = bombSquadCallerRoleIds.some((id) => memberRoleSet.has(id))
         const displayName = identity?.username ?? member.nick ?? user.global_name ?? user.username
 
-        try {
-          await upsertGuildAvatar(
-            tenant.id,
-            user.id,
-            displayName,
-            user.avatar,
-            isAdmin,
-            isBombSquadCaller,
-          )
-        } catch (err) {
-          log.error('[discord-callback] upsertGuildAvatar failed', err, {
-            tenant_id: tenant.id,
-            discord_id: user.id,
-          })
+        if (isMember || isBombSquadCaller) {
+          try {
+            await upsertGuildAvatar(
+              tenant.id,
+              user.id,
+              displayName,
+              user.avatar,
+              isAdmin,
+              isBombSquadCaller,
+            )
+          } catch (err) {
+            log.error('[discord-callback] upsertGuildAvatar failed', err, {
+              tenant_id: tenant.id,
+              discord_id: user.id,
+            })
+          }
         }
 
         const db = getAdminClient()
@@ -380,12 +383,14 @@ export async function GET(request: NextRequest) {
         // 사고 0. DB 조회 실패 시에도 로그인은 계속 진행 (capabilities='0').
         let capabilitiesBits = 0n
         try {
-          capabilitiesBits = await resolveUserCapabilities(getAdminClient(), {
-            guildId: tenant.id,
-            discordId: user.id,
-            discordRoleIds: member.roles,
-            isLegacyAdmin: isAdmin,
-          })
+          capabilitiesBits = isMember
+            ? await resolveUserCapabilities(getAdminClient(), {
+                guildId: tenant.id,
+                discordId: user.id,
+                discordRoleIds: member.roles,
+                isLegacyAdmin: isAdmin,
+              })
+            : 0n
         } catch (err) {
           log.error('[discord-callback] resolveUserCapabilities failed', err, {
             tenant_id: tenant.id,
@@ -397,10 +402,12 @@ export async function GET(request: NextRequest) {
           discordId: user.id,
           username: displayName,
           avatar: user.avatar,
-          isMember: true,
+          isMember,
           isAdmin,
           isGuest: false,
-    isLocalGuildAccount: false,
+          isBombSquadCaller,
+          isLocalGuildAccount: false,
+          isAllianceCandidate,
           canCreateEvents,
           eventCreatorCategories,
           eventScope: null,
@@ -507,7 +514,9 @@ export async function GET(request: NextRequest) {
       isMember: false,
       isAdmin: false,
       isGuest: true,
+      isBombSquadCaller: false,
       isLocalGuildAccount: false,
+      isAllianceCandidate: false,
       canCreateEvents: false,
       eventCreatorCategories: [],
       eventScope,

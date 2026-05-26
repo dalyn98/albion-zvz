@@ -7,7 +7,11 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { verifyDeathInWindow } from '@/lib/killboard'
 import { getAppSetting } from '@/lib/app-settings'
-import { requireAlbionVerified } from '@/lib/albion-identity'
+import { requireManualRegearAllowed } from '@/lib/albion-identity'
+import {
+  isAlbionIdentityRelation,
+  type AlbionIdentityRelation,
+} from '@/lib/account-albion-identity'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import { findTrackedBattleIdsForEvent } from '@/lib/auto-regear-matching'
 import { log } from '@/lib/log'
@@ -112,6 +116,7 @@ export interface MyRegearRequest {
   build_snapshot: BuildSnapshot | null
   // 자동 생성 여부 — true 이면 status=pending 동안 청구자가 부위별 가격을 수정할 수 있다.
   auto_generated: boolean
+  requester_relation: AlbionIdentityRelation
 }
 
 export interface MyPointsSummary {
@@ -191,9 +196,11 @@ async function requestRegearInner(
   const guildId = await getSessionGuildId(session)
   const requireVerification =
     (await getAppSetting('regear_require_verification', 'true', guildId)) !== 'false'
+  let requesterRelation: AlbionIdentityRelation = 'unknown'
   if (requireVerification) {
-    const albionError = await requireAlbionVerified(session.discordId, guildId)
-    if (albionError) return { error: `${REGEAR_VERIFICATION_ERROR_PREFIX}${albionError}` }
+    const gate = await requireManualRegearAllowed(session.discordId, guildId)
+    requesterRelation = gate.relation
+    if (gate.error) return { error: `${REGEAR_VERIFICATION_ERROR_PREFIX}${gate.error}` }
   }
 
   const eventId = String(formData.get('eventId') ?? '')
@@ -417,6 +424,7 @@ async function requestRegearInner(
       admin_notes: kbResult.reason, // Shown to admin as the killboard hint.
       build_snapshot: buildSnapshot,
       fulfillment_mode: fulfillmentMode,
+      requester_relation: requesterRelation,
     })
     .select('id')
     .single()
@@ -448,7 +456,7 @@ export async function listMyRegearRequests(): Promise<{
   const { data, error } = await db
     .from('regear_requests')
     .select(
-      'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, status, killboard_verified, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, build_snapshot, auto_generated, events(title)',
+      'id, event_id, event_title_snapshot, role_name, silver, request_type, claimed_silver, payout_silver, status, killboard_verified, admin_notes, reject_reason_code, created_at, resolved_at, handled_by_username, build_snapshot, auto_generated, requester_relation, events(title)',
     )
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
@@ -479,6 +487,9 @@ export async function listMyRegearRequests(): Promise<{
       handled_by_username: row.handled_by_username ?? null,
       build_snapshot: (row.build_snapshot as BuildSnapshot | null) ?? null,
       auto_generated: Boolean(row.auto_generated),
+      requester_relation: isAlbionIdentityRelation(row.requester_relation)
+        ? row.requester_relation
+        : 'home_guild',
     }
   })
   return { requests }
@@ -493,6 +504,12 @@ export async function listMyRegearEligibleEvents(): Promise<{
   if (!session) return { events: [], error: tErr('loginRequired') }
   if (!session.isMember) return { events: [], error: tErr('memberOnlyRegear') }
   const guildId = await getSessionGuildId(session)
+  const requireVerification =
+    (await getAppSetting('regear_require_verification', 'true', guildId)) !== 'false'
+  if (requireVerification) {
+    const gate = await requireManualRegearAllowed(session.discordId, guildId)
+    if (gate.error) return { events: [], error: `${REGEAR_VERIFICATION_ERROR_PREFIX}${gate.error}` }
+  }
 
   const db = getAdminClient()
 

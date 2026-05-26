@@ -52,6 +52,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'active_member_role_ids',
   'allow_unverified_member_access',
   'regear_require_verification',
+  'alliance_regear_enabled',
   'regear_overcharge_enabled',
   'event_dm_lead_minutes',
   'guild_profile_enabled',
@@ -117,6 +118,7 @@ function settingCaps(key: AppSettingKey): readonly bigint[] {
     key === 'allow_unverified_member_access' ||
     key === 'member_dashboard_enabled' ||
     key === 'regear_require_verification' ||
+    key === 'alliance_regear_enabled' ||
     key === 'regear_overcharge_enabled'
   ) {
     return [CAP.SETTINGS_TOGGLES]
@@ -214,6 +216,7 @@ const BOOLEAN_KEYS: readonly AppSettingKey[] = [
   'craft_regear_enabled',
   'allow_unverified_member_access',
   'regear_require_verification',
+  'alliance_regear_enabled',
   'regear_overcharge_enabled',
   'guild_profile_enabled',
   'member_dashboard_enabled',

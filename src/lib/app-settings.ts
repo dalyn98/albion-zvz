@@ -26,8 +26,8 @@ export type AppSettingKey =
   | 'event_creator_role_ids_ganking'
   // JSON array (string) of Discord role IDs. Holders are eligible to be
   // assigned as a bomb squad caller on a per-party basis. The flag is baked
-  // into `guild_avatars.is_bomb_squad_caller` at login, so role changes take
-  // effect after the member's next login.
+  // into `guild_avatars.is_bomb_squad_caller` at login/member-sync, including
+  // caller-role holders who do not have the active member role.
   | 'bomb_squad_caller_role_ids'
   // Regear submission window in minutes, measured from `events.battle_started_at`.
   // Stored as an integer string. Killboard verification uses the same window.
@@ -143,6 +143,10 @@ export type AppSettingKey =
   // 미인증 멤버에겐 /onboarding/albion 으로 안내하는 CTA 를 포함한 에러가 반환.
   // 기본 'true' (migration 070 이전의 항상-ON 동작 유지). 'false' 면 게이트 해제.
   | 'regear_require_verification'
+  // Boolean 문자열. 'true' 면 같은 알비온 연합으로 확인된 계정도 수동 리기어만
+  // 신청 가능. 자동 리기어/상점/사이펀/환전/양도/기부는 계속 홈 길드 trusted
+  // 멤버에게만 열어 둔다. 기본 'false'.
+  | 'alliance_regear_enabled'
   // Boolean 문자열. 'true' 면 길드원이 "오버차지" 종류로 리기어 신청 가능 —
   // 길드 명령에 따른 오버차지로 장비가 파괴된 경우. 'false' 면 멤버 폼에 종류
   // 선택 자체가 안 보이고 모든 신청이 'death' 로 처리. 기본 'false'.

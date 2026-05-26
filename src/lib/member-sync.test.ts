@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-type DiscordMember = { user: { id: string } | null; roles: string[] }
+type DiscordMember = {
+  user: {
+    id: string
+    username?: string
+    global_name?: string | null
+    avatar?: string | null
+  } | null
+  nick?: string | null
+  roles: string[]
+}
 type AvatarRow = {
   discord_id: string
   withdrawn_at: string | null
@@ -44,9 +53,11 @@ vi.mock('next/cache', () => ({
 
 let avatarRows: AvatarRow[] = []
 let adminOverrideRows: Array<{ discord_id: string }> = []
+let accountLinkRows: Array<{ discord_id: string; relation: string; trust_status: string }> = []
 let avatarsError: { message: string } | null = null
 const updates: Array<{ patch: Record<string, unknown>; discord_ids: string[] }> = []
 const upserts: Array<{ key: string; value: string }> = []
+const avatarUpserts: Record<string, unknown>[] = []
 
 vi.mock('@/lib/supabase-admin', () => ({
   getAdminClient: () => ({
@@ -64,6 +75,10 @@ vi.mock('@/lib/supabase-admin', () => ({
               },
             }),
           }),
+          upsert: (rows: Record<string, unknown> | Record<string, unknown>[]) => {
+            avatarUpserts.push(...(Array.isArray(rows) ? rows : [rows]))
+            return Promise.resolve({ error: null })
+          },
         }
       }
       if (table === 'tenant_admin_overrides') {
@@ -72,6 +87,13 @@ vi.mock('@/lib/supabase-admin', () => ({
             eq: () => Promise.resolve({ data: adminOverrideRows, error: null }),
           }),
         }
+      }
+      if (table === 'account_albion_tenant_links') {
+        const chain = {
+          select: () => chain,
+          eq: () => Promise.resolve({ data: accountLinkRows, error: null }),
+        }
+        return chain
       }
       if (table === 'app_settings') {
         return {
@@ -99,9 +121,11 @@ beforeEach(() => {
   revalidatePathMock.mockReset()
   avatarRows = []
   adminOverrideRows = []
+  accountLinkRows = []
   avatarsError = null
   updates.length = 0
   upserts.length = 0
+  avatarUpserts.length = 0
 })
 
 describe('runMemberSync throttle', () => {
@@ -266,6 +290,84 @@ describe('runMemberSync withdraw / rejoin transitions', () => {
       patch: { is_bomb_squad_caller: true },
       discord_ids: ['a'],
     })
+  })
+
+  it('keeps caller-role holders active even without the active member role', async () => {
+    settings.active_member_role_ids = JSON.stringify(['role-active'])
+    settings.bomb_squad_caller_role_ids = JSON.stringify(['role-bomb'])
+    avatarRows = [{ discord_id: 'a', withdrawn_at: null, is_bomb_squad_caller: false }]
+    listGuildMembersBulkMock.mockResolvedValueOnce([
+      { user: { id: 'a' }, roles: ['role-bomb'] },
+    ])
+    const r = await runMemberSync('tenant-1', { skipThrottle: true })
+    if (r.kind === 'ok') {
+      expect(r.result.withdrawn).toBe(0)
+      expect(r.result.bombSquadCallerUpdated).toBe(1)
+    }
+    expect(updates).not.toContainEqual({
+      patch: { withdrawn_at: expect.any(String) },
+      discord_ids: ['a'],
+    })
+  })
+
+  it('keeps same-alliance participants active even without the active member role', async () => {
+    settings.active_member_role_ids = JSON.stringify(['role-active'])
+    avatarRows = [{ discord_id: 'ally', withdrawn_at: null }]
+    accountLinkRows = [{ discord_id: 'ally', relation: 'alliance', trust_status: 'claimed' }]
+    listGuildMembersBulkMock.mockResolvedValueOnce([
+      { user: { id: 'ally' }, roles: ['role-other'] },
+    ])
+
+    const r = await runMemberSync('tenant-1', { skipThrottle: true })
+    if (r.kind === 'ok') expect(r.result.withdrawn).toBe(0)
+    expect(updates).not.toContainEqual({
+      patch: { withdrawn_at: expect.any(String) },
+      discord_ids: ['ally'],
+    })
+  })
+
+  it('withdraws disputed alliance participants when they lack the active member role', async () => {
+    settings.active_member_role_ids = JSON.stringify(['role-active'])
+    avatarRows = [{ discord_id: 'ally', withdrawn_at: null }]
+    accountLinkRows = [{ discord_id: 'ally', relation: 'alliance', trust_status: 'disputed' }]
+    listGuildMembersBulkMock.mockResolvedValueOnce([
+      { user: { id: 'ally' }, roles: ['role-other'] },
+    ])
+
+    const r = await runMemberSync('tenant-1', { skipThrottle: true })
+    if (r.kind === 'ok') expect(r.result.withdrawn).toBe(1)
+  })
+
+  it('upserts missing caller-role holders so admins can select them as callers', async () => {
+    settings.active_member_role_ids = JSON.stringify(['role-active'])
+    settings.bomb_squad_caller_role_ids = JSON.stringify(['role-bomb'])
+    avatarRows = []
+    listGuildMembersBulkMock.mockResolvedValueOnce([
+      {
+        user: {
+          id: 'caller-1',
+          username: 'caller',
+          global_name: 'Caller One',
+          avatar: 'avatar-hash',
+        },
+        nick: null,
+        roles: ['role-bomb'],
+      },
+    ])
+
+    const r = await runMemberSync('tenant-1', { skipThrottle: true })
+    if (r.kind === 'ok') expect(r.result.bombSquadCallerUpdated).toBe(1)
+    expect(avatarUpserts).toContainEqual(
+      expect.objectContaining({
+        guild_id: 'tenant-1',
+        discord_id: 'caller-1',
+        username: 'Caller One',
+        avatar: 'avatar-hash',
+        is_admin: false,
+        is_bomb_squad_caller: true,
+        withdrawn_at: null,
+      }),
+    )
   })
 
   it('treats every server member as active when activeRoleIds is empty', async () => {

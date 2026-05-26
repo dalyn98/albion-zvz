@@ -10,6 +10,9 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import type { RegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import type { BuildSnapshot, RegearType } from '@/types'
+import type { AlbionIdentityRelation } from '@/lib/account-albion-identity'
+
+export type RegearRequesterRelation = AlbionIdentityRelation
 
 export type AdminRegearRequest = {
   id: string
@@ -20,6 +23,7 @@ export type AdminRegearRequest = {
   event_title: string
   discord_id: string
   username: string
+  requester_relation: RegearRequesterRelation
   role_name: string
   silver: number
   request_type: RegearType
@@ -106,9 +110,17 @@ export type RoleReward = {
 
 export type RegearOrigin = 'auto' | 'manual' | 'all'
 
+export type RegearRelationFilter = 'home_guild' | 'alliance' | 'all'
+
 export type RegearOriginCounts = {
   auto: number
   manual: number
+  all: number
+}
+
+export type RegearRelationCounts = {
+  home_guild: number
+  alliance: number
   all: number
 }
 

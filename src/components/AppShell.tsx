@@ -28,7 +28,13 @@ import MemberGuidedTour from './MemberGuidedTour'
 const DEFAULT_BRAND_NAME = 'Albion ZvZ'
 const SIPHON_PAGE_SIZE = 1000
 
-export default async function AppShell({ children }: { children: React.ReactNode }) {
+export default async function AppShell({
+  children,
+  allianceEventAllowed = false,
+}: {
+  children: React.ReactNode
+  allianceEventAllowed?: boolean
+}) {
   const session = await getSession()
   // Only admins see (and pay for) the pending-count queries on every render.
   let adminBadges: AdminBadgeCounts | null = null
@@ -59,6 +65,22 @@ export default async function AppShell({ children }: { children: React.ReactNode
   let memberTourEventHref: string | null = null
   if (session) {
     const guildId = await getSessionGuildId(session)
+    const isBombSquadCallerOnly =
+      session.isBombSquadCaller &&
+      !session.isMember &&
+      !session.isAdmin &&
+      !session.isGuest
+    const isAllianceEventOnly =
+      allianceEventAllowed &&
+      !session.isMember &&
+      !session.isAdmin &&
+      !session.isGuest
+    const isAllianceCandidateOnly =
+      session.isAllianceCandidate &&
+      !session.isMember &&
+      !session.isAdmin &&
+      !session.isGuest &&
+      !session.isBombSquadCaller
     // craft 탭 노출은 어드민/멤버 둘 다 영향. 멤버는 toggle on + is_crafter
     // 또는 admin 일 때만 큐가 보이고, 어드민은 toggle on 하나로 craft 운영 탭이
     // 보인다. 어느 쪽이든 craft_regear_enabled 가 OFF 면 craft 관련 탭은 다 숨김.
@@ -81,7 +103,9 @@ export default async function AppShell({ children }: { children: React.ReactNode
           : Promise.resolve('false'),
         session.isMember ? loadIsCrafter(guildId, session.discordId) : Promise.resolve(false),
         getAppSetting('guild_profile_enabled', 'false', guildId),
-        loadUserStatusSummary(guildId, session),
+        isBombSquadCallerOnly || isAllianceEventOnly || isAllianceCandidateOnly
+          ? Promise.resolve(null)
+          : loadUserStatusSummary(guildId, session),
         session.isMember ? loadMemberTourEventHref(guildId) : Promise.resolve(null),
       ])
     adminBadges = badges
@@ -144,6 +168,7 @@ export default async function AppShell({ children }: { children: React.ReactNode
         publicProfileHref={publicProfileHref}
         landingHref={landingHref}
         userStatus={userStatus}
+        allianceEventAllowed={allianceEventAllowed}
       />
       <div className="flex-1 min-w-0 flex flex-col">
         {userStatus && (

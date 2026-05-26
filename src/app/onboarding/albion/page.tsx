@@ -18,16 +18,17 @@ export default async function AlbionOnboardingPage({ searchParams }: Props) {
   if (!session) {
     redirect('/api/auth/discord/start?returnTo=/onboarding/albion')
   }
-  if (!session.isMember) {
+  if (!session.isMember && !session.isAllianceCandidate && !session.isBombSquadCaller) {
     redirect('/')
   }
 
   const params = await searchParams
   const returnParam = params.return
+  const defaultReturn = session.isMember ? '/me' : '/'
   const safeReturn =
     typeof returnParam === 'string' && returnParam.startsWith('/') && !returnParam.startsWith('//')
       ? returnParam
-      : '/me'
+      : defaultReturn
 
   const state = await getOnboardingState()
   const t = await getTranslations('albionOnboarding')
@@ -41,6 +42,7 @@ export default async function AlbionOnboardingPage({ searchParams }: Props) {
       <AlbionOnboardingWizard
         discordNickname={session.username}
         initialIdentity={state.identity}
+        initialAllianceEventAllowed={state.allianceEventAllowed}
         homeGuildConfigured={state.homeGuildConfigured}
         returnTo={safeReturn}
       />

@@ -18,9 +18,17 @@ export interface SessionPayload {
   isMember: boolean
   isAdmin: boolean
   isGuest: boolean
+  // Discord bomb-squad caller role holder. This does not imply member access:
+  // caller-only sessions can manage their assigned bomb squad party, but they
+  // must not receive shop/siphon/point/admin capabilities.
+  isBombSquadCaller: boolean
   // Guild-local Albion account. It is not a Discord identity and is restricted
   // by layout/sidebar guards to event signup and regear request flows.
   isLocalGuildAccount: boolean
+  // Discord server member without the active member role. This only opens the
+  // Albion onboarding path; event interaction is granted later by the
+  // account_albion_tenant_links same-alliance check.
+  isAllianceCandidate: boolean
   // Admin 이거나 app_setting 의 event_creator_role_ids 중 하나를 가진 구성원.
   // 로그인 시점에 계산되므로 역할 리스트 변경은 재로그인 후 반영된다.
   canCreateEvents: boolean
@@ -134,7 +142,9 @@ export async function verifySession(cookieValue: string | undefined): Promise<Se
       isMember: parsed.isMember ?? false,
       isAdmin,
       isGuest: parsed.isGuest ?? false,
+      isBombSquadCaller: parsed.isBombSquadCaller ?? false,
       isLocalGuildAccount: parsed.isLocalGuildAccount ?? false,
+      isAllianceCandidate: parsed.isAllianceCandidate ?? false,
       canCreateEvents,
       eventCreatorCategories,
       // 레거시 쿠키(eventScope 도입 이전) 는 undefined → null 로 정규화.

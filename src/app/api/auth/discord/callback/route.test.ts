@@ -167,6 +167,7 @@ describe('GET /api/auth/discord/callback', () => {
     mocks.buildTenantHostUrl.mockImplementation(
       (slug: string, path: string) => `https://${slug}.example.test${path}`,
     )
+    mocks.classifyHost.mockReturnValue({ kind: 'tenant', slug: 'menhera' })
     mocks.signSession.mockResolvedValue('session-cookie')
     mocks.cookieOptions.mockReturnValue({ path: '/', httpOnly: true })
   })
@@ -200,5 +201,63 @@ describe('GET /api/auth/discord/callback', () => {
       preferredLocale: 'en',
     })
     expect(mocks.signSession).not.toHaveBeenCalled()
+  })
+
+  it('issues an alliance-candidate session for Discord server users without the active member role', async () => {
+    mocks.verifyOAuthState.mockResolvedValue({
+      originHost: 'menhera.albion-guildmanager.com',
+      returnTo: '/',
+      invite: null,
+      preferredLocale: 'en',
+    })
+    mocks.listUserGuilds.mockResolvedValue([
+      {
+        id: 'discord-guild-1',
+        name: 'Menhera',
+        icon: null,
+        owner: false,
+        permissions: '0',
+      },
+    ])
+    mocks.getTenantDiscordConfigByDiscordGuildId.mockResolvedValue({
+      id: 'guild-1',
+      discordGuildId: 'discord-guild-1',
+      slug: 'menhera',
+      name: 'Menhera',
+      createdByDiscordId: null,
+      memberRoleIds: ['member-role'],
+      adminRoleIds: [],
+      eventChannelId: null,
+      botInstalled: true,
+    })
+    mocks.getGuildMember.mockResolvedValue({ roles: [], nick: null })
+    mocks.identityFromMember.mockReturnValue(null)
+    mocks.getAppSetting.mockResolvedValue('[]')
+    mocks.resolveTenantLoginAccess.mockReturnValue({ isMember: false, isAdmin: false })
+    mocks.mapDiscordLocale.mockReturnValue('en')
+    mocks.serializeCapabilities.mockReturnValue('0')
+
+    const response = await GET(
+      new NextRequest(
+        'https://albion-guildmanager.com/api/auth/discord/callback?code=CODE&state=STATE',
+      ),
+    )
+
+    expect(response.headers.get('location')).toBe(
+      'https://menhera.example.test/api/auth/finish?token=hop-token',
+    )
+    expect(mocks.signHopToken).toHaveBeenCalledWith({
+      session: expect.objectContaining({
+        discordId: 'guest-1',
+        isMember: false,
+        isGuest: false,
+        isBombSquadCaller: false,
+        isAllianceCandidate: true,
+        guildId: 'guild-1',
+      }),
+      returnTo: '/',
+      preferredLocale: 'en',
+    })
+    expect(mocks.upsertGuildAvatar).not.toHaveBeenCalled()
   })
 })

@@ -16,6 +16,7 @@ const TEST_AUTH_BASE_ROLES = [
   'admin',
   'member',
   'eventCreator',
+  'bombSquadCaller',
   'localGuildAccount',
   'guest',
 ] as const
@@ -102,6 +103,7 @@ function eventCreatorCategories(role: TestAuthRole): EventCategory[] {
 export function buildTestSession(input: BuildTestSessionInput): SessionPayload {
   const isAdmin = input.role === 'admin'
   const isGuest = input.role === 'guest'
+  const isBombSquadCaller = input.role === 'bombSquadCaller'
   const isLocalGuildAccount = input.role === 'localGuildAccount'
   const categories = eventCreatorCategories(input.role)
   const discordId = input.discordId?.trim() || `test-auth:${input.role}`
@@ -111,10 +113,12 @@ export function buildTestSession(input: BuildTestSessionInput): SessionPayload {
     discordId,
     username,
     avatar: input.avatar ?? null,
-    isMember: !isGuest,
+    isMember: !isGuest && !isBombSquadCaller,
     isAdmin,
     isGuest,
+    isBombSquadCaller,
     isLocalGuildAccount,
+    isAllianceCandidate: false,
     canCreateEvents: categories.length > 0,
     eventCreatorCategories: categories,
     eventScope: isGuest ? input.eventScope ?? null : null,

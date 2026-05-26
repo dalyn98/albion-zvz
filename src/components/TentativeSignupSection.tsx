@@ -31,6 +31,7 @@ interface Props {
   avatars: Record<string, string | null>
   currentDiscordId: string | null
   isGuest?: boolean
+  canSelfSignup?: boolean
   isAdmin: boolean
   // 이벤트 작성자(직접 만든 멤버) 도 어드민과 동일한 관리 권한 — 참가예정 행을
   // 누구든 제거하거나 본인 외 멤버를 대신 등록 가능.
@@ -49,6 +50,7 @@ export default function TentativeSignupSection({
   avatars,
   currentDiscordId,
   isGuest = false,
+  canSelfSignup = true,
   isAdmin,
   isEventOwner,
   loginHref,
@@ -94,6 +96,7 @@ export default function TentativeSignupSection({
         myRow={myRow}
         currentDiscordId={currentDiscordId}
         isGuest={isGuest}
+        canSelfSignup={canSelfSignup}
         loginHref={loginHref}
         battleStarted={battleStarted}
         avatar={currentDiscordId ? avatars[currentDiscordId] ?? null : null}
@@ -153,6 +156,7 @@ interface SelfRowProps {
   myRow: TentativeSignupRow | null
   currentDiscordId: string | null
   isGuest: boolean
+  canSelfSignup: boolean
   loginHref: string
   battleStarted: boolean
   avatar: string | null
@@ -171,6 +175,7 @@ function SelfRow({
   myRow,
   currentDiscordId,
   isGuest,
+  canSelfSignup,
   loginHref,
   battleStarted,
   avatar,
@@ -208,6 +213,14 @@ function SelfRow({
     return (
       <div className="bg-gray-950/60 border border-gray-800 rounded-lg px-3 py-2.5">
         <p className="text-xs text-gray-400">{t('guestNotAllowed')}</p>
+      </div>
+    )
+  }
+
+  if (!canSelfSignup) {
+    return (
+      <div className="bg-gray-950/60 border border-gray-800 rounded-lg px-3 py-2.5">
+        <p className="text-xs text-gray-400">{t('callerReadOnly')}</p>
       </div>
     )
   }

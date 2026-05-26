@@ -17,6 +17,8 @@ export type {
   RoleReward,
   RegearOrigin,
   RegearOriginCounts,
+  RegearRelationCounts,
+  RegearRelationFilter,
   BulkRegearActionResult,
   RecheckKillboardResult,
 } from './regear-admin-types'
@@ -24,6 +26,7 @@ export type {
 export {
   listRegearRequests,
   getRegearOriginCounts,
+  getRegearRelationCounts,
   getScreenshotUrl,
   getRegearAnomalyMap,
 } from './regear-admin-list'

@@ -19,15 +19,19 @@ import {
   SCREENSHOT_BUCKET,
   SCREENSHOT_URL_TTL_SECONDS,
   type AdminRegearRequest,
+  type RegearRelationCounts,
+  type RegearRelationFilter,
   type RegearOrigin,
   type RegearOriginCounts,
 } from './regear-admin-types'
+import { isAlbionIdentityRelation } from '@/lib/account-albion-identity'
 
 const REGEAR_REVIEW_CAPS = [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION] as const
 
 export async function listRegearRequests(
   scope: 'pending' | 'all' = 'pending',
   origin: RegearOrigin = 'all',
+  relation: RegearRelationFilter = 'all',
 ): Promise<{ requests: AdminRegearRequest[]; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
@@ -38,7 +42,7 @@ export async function listRegearRequests(
     let query = db
       .from('regear_requests')
       .select(
-        'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
+        'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, requester_relation, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
       )
       .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
@@ -46,6 +50,7 @@ export async function listRegearRequests(
     if (scope === 'pending') query = query.eq('status', 'pending')
     if (origin === 'auto') query = query.eq('auto_generated', true)
     if (origin === 'manual') query = query.eq('auto_generated', false)
+    if (relation !== 'all') query = query.eq('requester_relation', relation)
 
     const { data, error } = await query
     if (error) return { requests: [], error: error.message }
@@ -136,6 +141,9 @@ export async function listRegearRequests(
         event_title: liveTitle || row.event_title_snapshot || deletedEventLabel,
         discord_id: row.discord_id,
         username: row.username,
+        requester_relation: isAlbionIdentityRelation(row.requester_relation)
+          ? row.requester_relation
+          : 'home_guild',
         role_name: row.role_name,
         silver: row.silver,
         request_type: (row.request_type ?? 'death') as RegearType,
@@ -180,6 +188,7 @@ export async function listRegearRequests(
 // 동일한 필터를 적용해 "지금 보고 있는 목록 기준의 분포" 가 되도록 한다.
 export async function getRegearOriginCounts(
   scope: 'pending' | 'all' = 'pending',
+  relation: RegearRelationFilter = 'all',
 ): Promise<{ counts: RegearOriginCounts; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
@@ -193,6 +202,7 @@ export async function getRegearOriginCounts(
         .select('id', { count: 'exact', head: true })
         .eq('guild_id', guildId)
       if (scope === 'pending') q = q.eq('status', 'pending')
+      if (relation !== 'all') q = q.eq('requester_relation', relation)
       return q
     }
     const [autoRes, manualRes] = await Promise.all([
@@ -207,6 +217,65 @@ export async function getRegearOriginCounts(
   } catch (e) {
     return {
       counts: { auto: 0, manual: 0, all: 0 },
+      error: e instanceof Error ? e.message : tErr('serverError'),
+    }
+  }
+}
+
+export async function getRegearRelationCounts(
+  scope: 'pending' | 'all' = 'pending',
+  origin: RegearOrigin = 'all',
+): Promise<{ counts: RegearRelationCounts; error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const session = await getSession()
+    if (!session) {
+      return {
+        counts: { home_guild: 0, alliance: 0, all: 0 },
+        error: tErr('unauthorized'),
+      }
+    }
+    const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
+    const guildId = await getSessionGuildId(session)
+    const baseQuery = () => {
+      let q = db
+        .from('regear_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('guild_id', guildId)
+      if (scope === 'pending') q = q.eq('status', 'pending')
+      if (origin === 'auto') q = q.eq('auto_generated', true)
+      if (origin === 'manual') q = q.eq('auto_generated', false)
+      return q
+    }
+    const [allRes, homeRes, allianceRes] = await Promise.all([
+      baseQuery(),
+      baseQuery().eq('requester_relation', 'home_guild'),
+      baseQuery().eq('requester_relation', 'alliance'),
+    ])
+    if (allRes.error) {
+      return {
+        counts: { home_guild: 0, alliance: 0, all: 0 },
+        error: allRes.error.message,
+      }
+    }
+    if (homeRes.error) {
+      return {
+        counts: { home_guild: 0, alliance: 0, all: 0 },
+        error: homeRes.error.message,
+      }
+    }
+    if (allianceRes.error) {
+      return {
+        counts: { home_guild: 0, alliance: 0, all: 0 },
+        error: allianceRes.error.message,
+      }
+    }
+    const homeGuild = homeRes.count ?? 0
+    const alliance = allianceRes.count ?? 0
+    return { counts: { home_guild: homeGuild, alliance, all: allRes.count ?? 0 } }
+  } catch (e) {
+    return {
+      counts: { home_guild: 0, alliance: 0, all: 0 },
       error: e instanceof Error ? e.message : tErr('serverError'),
     }
   }

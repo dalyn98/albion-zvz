@@ -38,6 +38,7 @@ import {
 import { getEventInteractionSession } from '@/lib/event-session'
 import { buildDiscordStartHref } from '@/lib/discord-auth-url'
 import { resolvePublicEventPageGuildId } from '@/lib/event-guest-auth'
+import { canUseAllianceEventFeaturesForSession } from '@/lib/albion-identity'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -215,12 +216,24 @@ export default async function EventDetailPage({
   // admin 이라도 draft 미리보기 용도로 쓰고 싶다면 관리자 경로 (/admin/dashboard/events/[id])
   // 로 들어가야 한다. 여기서 굳이 우회 열어주지 않는 편이 실수 공개를 방지한다.
   if (!event || event.status === 'draft') notFound()
+  const allianceEventAllowed = session && sessionGuildId === guildId
+    ? await canUseAllianceEventFeaturesForSession(session.discordId, guildId)
+    : false
   const interactionSession = getEventInteractionSession({
     session,
     sessionGuildId,
     eventGuildId: guildId,
     eventId: id,
+    allowAllianceParticipant: allianceEventAllowed,
   })
+  const isBombSquadCallerOnly =
+    interactionSession?.isBombSquadCaller === true &&
+    !interactionSession.isMember &&
+    !interactionSession.isAdmin &&
+    !interactionSession.isGuest &&
+    !allianceEventAllowed
+  const canApplyToSlots =
+    !!interactionSession && (interactionSession.isMember || interactionSession.isGuest || allianceEventAllowed)
 
   const displayGatherTime = event.gather_at
     ? formatGatherTimeFor(locale, event.gather_at, tz)
@@ -368,6 +381,8 @@ export default async function EventDetailPage({
         ? t('myStatusPendingTitle')
         : myTentative
           ? t('myStatusTentativeTitle')
+          : isBombSquadCallerOnly
+            ? t('myStatusCallerTitle')
           : t('myStatusNoneTitle')
   const myStatusDescription = !interactionSession
     ? t('myStatusGuestBody')
@@ -379,6 +394,8 @@ export default async function EventDetailPage({
         ? t('myStatusPendingBody')
         : myTentative
           ? t('myStatusTentativeBody')
+          : isBombSquadCallerOnly
+            ? t('myStatusCallerBody')
           : t('myStatusNoneBody')
   const canRequestRegear = !!interactionSession?.isMember && !!myAssigned && !!event.battle_started_at
   const myStatusPrimaryAction = !interactionSession
@@ -387,7 +404,9 @@ export default async function EventDetailPage({
       ? { href: '/regear', label: t('myStatusRegear') }
       : undefined
   const myStatusSecondaryAction = interactionSession && !canRequestRegear && !myAssigned
-    ? { href: '#event-slots', label: t('myStatusFindSlot') }
+    ? isBombSquadCallerOnly
+      ? undefined
+      : { href: '#event-slots', label: t('myStatusFindSlot') }
     : !interactionSession && localLoginHref
       ? { href: localLoginHref, label: t('myStatusLocalLogin') }
     : undefined
@@ -512,6 +531,7 @@ export default async function EventDetailPage({
           avatars={avatars}
           currentDiscordId={interactionSession?.discordId ?? null}
           isGuest={interactionSession?.isGuest ?? false}
+          canSelfSignup={!isBombSquadCallerOnly}
           isAdmin={interactionSession?.isAdmin ?? false}
           isEventOwner={canManageTentativeSignups}
           loginHref={loginHref}
@@ -534,6 +554,7 @@ export default async function EventDetailPage({
             eventCategory={event.category}
             timezone={tz}
             suggestedRoles={myTentative?.possible_roles ?? []}
+            canApplyToSlots={canApplyToSlots}
           />
         </div>
       </main>

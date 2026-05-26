@@ -3,11 +3,15 @@
 
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { getAppSetting } from '@/lib/app-settings'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
 import {
+  canUseAllianceEventFeatures,
   canUseGuildResourceFeatures,
+  canUseManualRegearFeature,
   getAccountAlbionIdentityView,
   type AccountAlbionIdentityView,
+  type AlbionIdentityRelation,
 } from '@/lib/account-albion-identity'
 
 export interface MemberAlbionIdentity {
@@ -24,6 +28,12 @@ export interface AlbionOnboardingGateState {
   hasStartedOnboarding: boolean
   siteAccessVerified: boolean
   resourceTrusted: boolean
+  allianceEventAllowed: boolean
+}
+
+export interface ManualRegearGateResult {
+  error: string | null
+  relation: AlbionIdentityRelation
 }
 
 // guild_avatars 에서 알비온 identity 관련 컬럼만 꺼낸다. 로그인 직후 upsert
@@ -98,6 +108,12 @@ export function resolveAlbionOnboardingGate(input: {
         trustStatus: input.accountIdentity.trustStatus,
       })
     : false
+  const allianceEventAllowed = input.accountIdentity
+    ? canUseAllianceEventFeatures({
+        relation: input.accountIdentity.relation,
+        trustStatus: input.accountIdentity.trustStatus,
+      })
+    : false
   const accountIdentity = accountToMemberIdentity(input.discordId, input.accountIdentity)
   const hasLegacyIdentity = hasLegacyAlbionIdentity(input.legacyIdentity)
   const legacyVerified = isAlbionVerified(input.legacyIdentity)
@@ -112,6 +128,7 @@ export function resolveAlbionOnboardingGate(input: {
     hasStartedOnboarding: accountRevoked ? false : hasLegacyIdentity || Boolean(accountIdentity),
     siteAccessVerified: accountRevoked ? false : accountTrusted || legacyVerified,
     resourceTrusted: input.accountIdentity ? accountTrusted : legacyVerified,
+    allianceEventAllowed: accountRevoked ? false : allianceEventAllowed,
   }
 }
 
@@ -129,6 +146,19 @@ export async function getAlbionOnboardingGateState(
 // 온보딩 첫 진입 여부 판단용. 서버를 한 번도 고르지 않았으면 true.
 export function needsAlbionOnboarding(identity: MemberAlbionIdentity | null): boolean {
   return !identity?.server
+}
+
+export async function canUseAllianceEventFeaturesForSession(
+  discordId: string,
+  guildId: string,
+): Promise<boolean> {
+  const accountIdentity = await getAccountAlbionIdentityView(guildId, discordId)
+  return accountIdentity
+    ? canUseAllianceEventFeatures({
+        relation: accountIdentity.relation,
+        trustStatus: accountIdentity.trustStatus,
+      })
+    : false
 }
 
 // 페널티 게이트 헬퍼. 알비온 인증이 필요한 Server Action 앞에서 호출하고,
@@ -161,4 +191,41 @@ export async function requireAlbionVerified(
   if (isAlbionVerified(identity)) return null
   const tErr = await getTranslations('memberActionError')
   return tErr('albionVerificationRequired')
+}
+
+export async function requireManualRegearAllowed(
+  discordId: string,
+  guildId: string,
+): Promise<ManualRegearGateResult> {
+  const [accountIdentity, allianceRegearRaw] = await Promise.all([
+    getAccountAlbionIdentityView(guildId, discordId),
+    getAppSetting('alliance_regear_enabled', 'false', guildId),
+  ])
+  const allianceRegearEnabled = allianceRegearRaw === 'true'
+
+  if (
+    accountIdentity &&
+    canUseManualRegearFeature({
+      relation: accountIdentity.relation,
+      trustStatus: accountIdentity.trustStatus,
+      allianceRegearEnabled,
+    })
+  ) {
+    return { error: null, relation: accountIdentity.relation }
+  }
+  if (accountIdentity) {
+    const tErr = await getTranslations('memberActionError')
+    const error = accountIdentity.relation === 'alliance' && !allianceRegearEnabled
+      ? tErr('allianceRegearDisabled')
+      : tErr('albionTrustedRequired')
+    return { error, relation: accountIdentity.relation }
+  }
+
+  // Compatibility fallback for deployments where migration 158/159 has not
+  // been applied yet. Existing trusted members keep working until the account
+  // identity tables are present and backfilled.
+  const identity = await getMemberAlbionIdentity(discordId, guildId)
+  if (isAlbionVerified(identity)) return { error: null, relation: 'home_guild' }
+  const tErr = await getTranslations('memberActionError')
+  return { error: tErr('albionVerificationRequired'), relation: 'unknown' }
 }

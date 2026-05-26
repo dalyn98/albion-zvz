@@ -62,6 +62,7 @@ export default async function SettingsPage() {
     autoRegearSkipLowConfidenceRaw,
     craftRegearEnabledRaw,
     regearRequireVerificationRaw,
+    allianceRegearEnabledRaw,
     regearOverchargeEnabledRaw,
     cdBadgeRolesRaw,
     allowUnverifiedMemberAccessRaw,
@@ -127,6 +128,9 @@ export default async function SettingsPage() {
     settingsAccess.toggles
       ? getAppSetting('regear_require_verification', 'true', tenantId)
       : Promise.resolve('true'),
+    settingsAccess.toggles
+      ? getAppSetting('alliance_regear_enabled', 'false', tenantId)
+      : Promise.resolve('false'),
     settingsAccess.toggles
       ? getAppSetting('regear_overcharge_enabled', 'false', tenantId)
       : Promise.resolve('false'),
@@ -206,6 +210,8 @@ export default async function SettingsPage() {
   const craftRegearEnabled = craftRegearEnabledRaw === 'true'
   // 기본값 'true' — 인증 게이트가 켜진 상태로 시작. 'false' 만 OFF 로 해석.
   const regearRequireVerification = regearRequireVerificationRaw !== 'false'
+  // 기본값 'false' — 연합원 수동 리기어는 길드가 명시적으로 켜야 한다.
+  const allianceRegearEnabled = allianceRegearEnabledRaw === 'true'
   // 기본값 'false' — 오버차지 신청은 길드가 명시적으로 켜야 멤버 폼에 노출.
   const regearOverchargeEnabled = regearOverchargeEnabledRaw === 'true'
   // 'true' 이외는 모두 false 로 해석 — 유일한 opt-out 경로는 명시적 'false'.
@@ -295,6 +301,7 @@ export default async function SettingsPage() {
         autoRegearExcludedSlots={autoRegearExcludedSlots}
         craftRegearEnabled={craftRegearEnabled}
         regearRequireVerification={regearRequireVerification}
+        allianceRegearEnabled={allianceRegearEnabled}
         regearOverchargeEnabled={regearOverchargeEnabled}
         autoRegearSkipLowConfidence={autoRegearSkipLowConfidence}
         cdBadgeRoles={cdBadgeRoles}

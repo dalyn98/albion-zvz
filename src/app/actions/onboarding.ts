@@ -22,6 +22,7 @@ import {
 import { changeGuildMemberNickname } from '@/lib/discord'
 import { log } from '@/lib/log'
 import {
+  canUseAllianceEventFeatures,
   canUseGuildResourceFeatures,
   getAccountAlbionIdentityView,
   recordAlbionIdentityClaim,
@@ -39,6 +40,7 @@ export interface AlbionPlayerCandidate {
 
 export interface OnboardingState {
   identity: MemberAlbionIdentity | null
+  allianceEventAllowed: boolean
   // 설정된 홈 길드가 있는지 — 비어 있으면 인증 자체가 불가능하므로 UI 에서
   // "관리자에게 홈 길드 설정 요청" 안내로 유도.
   homeGuildConfigured: boolean
@@ -65,7 +67,7 @@ function revalidateAlbionIdentitySurfaces(discordId: string): void {
 
 export async function getOnboardingState(): Promise<OnboardingState> {
   const session = await getSession()
-  if (!session) return { identity: null, homeGuildConfigured: false }
+  if (!session) return { identity: null, allianceEventAllowed: false, homeGuildConfigured: false }
   const guildId = await getSessionGuildId(session)
   const [onboardingGate, homeGuildId] = await Promise.all([
     getAlbionOnboardingGateState(session.discordId, guildId),
@@ -73,6 +75,7 @@ export async function getOnboardingState(): Promise<OnboardingState> {
   ])
   return {
     identity: onboardingGate.identity,
+    allianceEventAllowed: onboardingGate.allianceEventAllowed,
     homeGuildConfigured: homeGuildId.trim().length > 0,
   }
 }
@@ -108,7 +111,14 @@ function toCandidate(p: GameinfoPlayer): AlbionPlayerCandidate {
 export async function confirmAlbionIdentity(input: {
   server: string
   playerId: string
-}): Promise<{ ok?: true; verified?: boolean; trusted?: boolean; needsReview?: boolean; error?: string }> {
+}): Promise<{
+  ok?: true
+  verified?: boolean
+  trusted?: boolean
+  needsReview?: boolean
+  allianceEventAllowed?: boolean
+  error?: string
+}> {
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
@@ -167,6 +177,12 @@ export async function confirmAlbionIdentity(input: {
         trustStatus: accountClaim.trustStatus,
       })
     : verified
+  const allianceEventAllowed = accountModelAvailable
+    ? canUseAllianceEventFeatures({
+        relation: accountClaim.relation,
+        trustStatus: accountClaim.trustStatus,
+      })
+    : false
   const updated = await upsertAlbionIdentity(session.discordId, sessionGuildId, {
     server: input.server,
     playerId: player.Id,
@@ -205,6 +221,7 @@ export async function confirmAlbionIdentity(input: {
     verified,
     trusted: resourceTrusted,
     needsReview: verified && !resourceTrusted,
+    allianceEventAllowed,
   }
 }
 

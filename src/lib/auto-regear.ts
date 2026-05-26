@@ -36,6 +36,11 @@ import {
   extractGearKeys,
   type EquipmentItem,
 } from '@/lib/auto-regear-equipment'
+import {
+  canUseGuildResourceFeatures,
+  type AlbionIdentityRelation,
+  type AlbionIdentityTrustStatus,
+} from '@/lib/account-albion-identity'
 
 // 외부 모듈(regear-tracked-deaths 등) 이 기존 import 경로를 유지하도록 re-export.
 export { equipmentToBuildSnapshot, type EquipmentItem } from '@/lib/auto-regear-equipment'
@@ -52,6 +57,9 @@ export interface AutoRegearResult {
   // role_rewards.silver 가 0 또는 미등록인 역할 (= "리기어 차단" 의도).
   // 수동 flow 와 동일하게 자동도 지급 없이 스킵.
   requests_skipped_no_role_cap: number
+  // account identity 기준 홈 길드 trusted 가 아닌 대상. 연합원 리기어는 수동 신청만
+  // 허용하므로 자동 리기어에서는 건너뛴다.
+  requests_skipped_not_home_guild: number
   // 매칭된 블랙존 전투의 ended_at + 30분 이 아직 안 지났거나, 그 시각 이후로
   // killboard/battle-tracker sync 가 한 번도 안 돈 이벤트. 다음 cron 에 재시도
   // 하도록 mark-processed 하지 않고 연기.
@@ -205,6 +213,7 @@ export async function processAutoRegear(
       requests_skipped_no_slot: 0,
       requests_skipped_manual_exists: 0,
       requests_skipped_no_role_cap: 0,
+      requests_skipped_not_home_guild: 0,
       events_deferred_sync_lag: 0,
       events_deferred_battle_tracker_lag: 0,
       events_skipped_retroactive: 0,
@@ -228,6 +237,7 @@ export async function processAutoRegear(
       requests_skipped_no_slot: 0,
       requests_skipped_manual_exists: 0,
       requests_skipped_no_role_cap: 0,
+      requests_skipped_not_home_guild: 0,
       events_deferred_sync_lag: 0,
       events_deferred_battle_tracker_lag: 0,
       events_skipped_retroactive: 0,
@@ -352,6 +362,7 @@ export async function processAutoRegear(
       requests_skipped_no_slot: 0,
       requests_skipped_manual_exists: 0,
       requests_skipped_no_role_cap: 0,
+      requests_skipped_not_home_guild: 0,
       events_deferred_sync_lag: 0,
       events_deferred_battle_tracker_lag: 0,
       events_skipped_retroactive: 0,
@@ -412,6 +423,7 @@ export async function processAutoRegear(
   let skippedNoSlot = 0
   let skippedManualExists = 0
   let skippedNoRoleCap = 0
+  let skippedNotHomeGuild = 0
   let deferredSyncLag = 0
   let deferredBattleTrackerLag = 0
   let skippedRetroactive = 0
@@ -558,6 +570,32 @@ export async function processAutoRegear(
       if (victimsErr) throw new Error(`killboard: ${victimsErr.message}`)
       const victimRows = (victims ?? []) as KillboardVictimRow[]
 
+      const requesterGateByDiscord = new Map<
+        string,
+        { relation: AlbionIdentityRelation; trustStatus: AlbionIdentityTrustStatus }
+      >()
+      const victimDiscordIds = Array.from(new Set(victimRows.map((v) => v.discord_id)))
+      if (victimDiscordIds.length > 0) {
+        const { data: accountRows, error: accountErr } = await db
+          .from('account_albion_tenant_links')
+          .select('discord_id, relation, trust_status')
+          .eq('guild_id', guildId)
+          .in('discord_id', victimDiscordIds)
+        if (accountErr && accountErr.code !== '42P01' && accountErr.code !== 'PGRST205') {
+          throw new Error(`account-albion: ${accountErr.message}`)
+        }
+        for (const row of (accountRows ?? []) as Array<{
+          discord_id: string
+          relation: AlbionIdentityRelation
+          trust_status: AlbionIdentityTrustStatus
+        }>) {
+          requesterGateByDiscord.set(row.discord_id, {
+            relation: row.relation,
+            trustStatus: row.trust_status,
+          })
+        }
+      }
+
       // 같은 discord_id + 창 안에 여러 사망이 있어도 전부 별개의 killboard_event.
       // RPC 가 (event_id, killboard_event_id) 단위로 idempotent 하므로 그냥 순회.
       //
@@ -573,6 +611,17 @@ export async function processAutoRegear(
       const allKeys: AodpPriceKey[] = []
       const seenKeys = new Set<string>()
       for (const v of victimRows) {
+        const requesterGate = requesterGateByDiscord.get(v.discord_id)
+        if (
+          requesterGate &&
+          !canUseGuildResourceFeatures({
+            relation: requesterGate.relation,
+            trustStatus: requesterGate.trustStatus,
+          })
+        ) {
+          skippedNotHomeGuild += 1
+          continue
+        }
         const slot = slotByDiscord.get(v.discord_id)
         if (!slot) {
           skippedNoSlot += 1
@@ -730,6 +779,7 @@ export async function processAutoRegear(
     requests_skipped_no_slot: skippedNoSlot,
     requests_skipped_manual_exists: skippedManualExists,
     requests_skipped_no_role_cap: skippedNoRoleCap,
+    requests_skipped_not_home_guild: skippedNotHomeGuild,
     events_deferred_sync_lag: deferredSyncLag,
     events_deferred_battle_tracker_lag: deferredBattleTrackerLag,
     events_skipped_retroactive: skippedRetroactive,

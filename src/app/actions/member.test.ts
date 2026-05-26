@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   sessionHas: vi.fn(),
   getSessionGuildId: vi.fn(),
   getEventGuestProfile: vi.fn(),
+  canUseAllianceEventFeaturesForSession: vi.fn(),
   revalidatePath: vi.fn(),
 }))
 
@@ -24,6 +25,10 @@ vi.mock('@/lib/tenant', () => ({
 
 vi.mock('@/lib/event-guest-profile', () => ({
   getEventGuestProfile: mocks.getEventGuestProfile,
+}))
+
+vi.mock('@/lib/albion-identity', () => ({
+  canUseAllianceEventFeaturesForSession: mocks.canUseAllianceEventFeaturesForSession,
 }))
 
 vi.mock('next/cache', () => ({
@@ -91,6 +96,7 @@ describe('adminCancelSlot', () => {
     mocks.sessionHas.mockReset()
     mocks.getSessionGuildId.mockReset()
     mocks.getEventGuestProfile.mockReset()
+    mocks.canUseAllianceEventFeaturesForSession.mockReset()
     mocks.revalidatePath.mockReset()
   })
 
@@ -133,6 +139,40 @@ describe('adminCancelSlot', () => {
       p_slot_id: 'slot-1',
       p_discord_id: 'guest-1',
       p_username: 'Guest Alias',
+      p_picks: null,
+    })
+  })
+
+  it('allows a verified same-alliance participant to assign a visible event slot', async () => {
+    const { query } = createSlotQuery({
+      guild_id: 'guild-1',
+      is_hidden: false,
+      parties: {
+        event_id: 'event-1',
+        party_number: 1,
+        is_bomb_squad: false,
+      },
+    })
+    const rpc = vi.fn().mockResolvedValue({ error: null })
+
+    mocks.getSession.mockResolvedValue({
+      discordId: 'ally-1',
+      username: 'Ally',
+      isMember: false,
+      isGuest: false,
+      isAllianceCandidate: true,
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.canUseAllianceEventFeaturesForSession.mockResolvedValue(true)
+    mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
+
+    await expect(assignSlot('slot-1')).resolves.toEqual({ pending: false })
+
+    expect(mocks.canUseAllianceEventFeaturesForSession).toHaveBeenCalledWith('ally-1', 'guild-1')
+    expect(rpc).toHaveBeenCalledWith('assign_slot', {
+      p_slot_id: 'slot-1',
+      p_discord_id: 'ally-1',
+      p_username: 'Ally',
       p_picks: null,
     })
   })

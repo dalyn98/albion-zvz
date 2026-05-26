@@ -10,7 +10,9 @@ function session(overrides: Partial<SessionPayload> = {}): SessionPayload {
     isMember: true,
     isAdmin: false,
     isGuest: false,
+    isBombSquadCaller: false,
     isLocalGuildAccount: false,
+    isAllianceCandidate: false,
     canCreateEvents: false,
     eventCreatorCategories: [],
     eventScope: null,
@@ -54,6 +56,55 @@ describe('getEventInteractionSession', () => {
         eventId: 'event-1',
       }),
     ).toBe(current)
+  })
+
+  it('allows a caller-role session without member role to interact with the event', () => {
+    const current = session({
+      isMember: false,
+      isBombSquadCaller: true,
+    })
+
+    expect(
+      getEventInteractionSession({
+        session: current,
+        sessionGuildId: 'guild-1',
+        eventGuildId: 'guild-1',
+        eventId: 'event-1',
+      }),
+    ).toBe(current)
+  })
+
+  it('allows a verified same-alliance participant without member role to interact', () => {
+    const current = session({
+      isMember: false,
+      isAllianceCandidate: true,
+    })
+
+    expect(
+      getEventInteractionSession({
+        session: current,
+        sessionGuildId: 'guild-1',
+        eventGuildId: 'guild-1',
+        eventId: 'event-1',
+        allowAllianceParticipant: true,
+      }),
+    ).toBe(current)
+  })
+
+  it('blocks an unverified alliance candidate from interacting', () => {
+    const current = session({
+      isMember: false,
+      isAllianceCandidate: true,
+    })
+
+    expect(
+      getEventInteractionSession({
+        session: current,
+        sessionGuildId: 'guild-1',
+        eventGuildId: 'guild-1',
+        eventId: 'event-1',
+      }),
+    ).toBeNull()
   })
 
   it('treats a session from another guild as signed out for this event', () => {

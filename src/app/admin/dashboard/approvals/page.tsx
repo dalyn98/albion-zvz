@@ -7,8 +7,11 @@ import {
   listExchangeRequests,
   getRegearAnomalyMap,
   getRegearOriginCounts,
+  getRegearRelationCounts,
   type RegearOrigin,
   type RegearOriginCounts,
+  type RegearRelationCounts,
+  type RegearRelationFilter,
 } from '@/app/actions/regear-admin'
 import { getRegearPayoutRatePercent } from '@/app/actions/regear-admin-types'
 import { checkBuildSnapshotStockBatch } from '@/lib/inventory'
@@ -37,6 +40,7 @@ interface SearchParams {
   tab?: string
   scope?: string
   origin?: string
+  relation?: string
 }
 
 function resolveType(v: string | undefined): TypeKey {
@@ -59,6 +63,11 @@ function resolveScope(v: string | undefined): Scope {
 function resolveOrigin(v: string | undefined): RegearOrigin {
   if (v === 'manual' || v === 'all') return v
   return 'auto'
+}
+
+function resolveRelation(v: string | undefined): RegearRelationFilter {
+  if (v === 'home_guild' || v === 'alliance') return v
+  return 'all'
 }
 
 const APPROVAL_TAB_CAPABILITIES: Record<TypeKey, readonly bigint[]> = {
@@ -97,6 +106,7 @@ export default async function ApprovalsPage({
   const type = resolveType(sp.tab)
   const scope = resolveScope(sp.scope)
   const origin = resolveOrigin(sp.origin)
+  const relation = resolveRelation(sp.relation)
 
   const session = await getSession()
   if (!session) {
@@ -129,7 +139,14 @@ export default async function ApprovalsPage({
 
       <TypeTabs active={type} tabs={tabs} tabsLabel={tApprovals('tabsLabel')} />
 
-      {type === 'regear' && <RegearSection scope={scope} origin={origin} guildId={guildId} />}
+      {type === 'regear' && (
+        <RegearSection
+          scope={scope}
+          origin={origin}
+          relation={relation}
+          guildId={guildId}
+        />
+      )}
       {type === 'exchange' && <ExchangeSection scope={scope} guildId={guildId} />}
       {type === 'donation' && <DonationSection scope={scope} guildId={guildId} />}
       {type === 'shop' && <ShopSection scope={scope} guildId={guildId} />}
@@ -239,17 +256,27 @@ function ScopeTabs({ baseHref, active, tKeys, accent }: ScopeTabsProps) {
 async function RegearSection({
   scope,
   origin,
+  relation,
   guildId,
 }: {
   scope: Scope
   origin: RegearOrigin
+  relation: RegearRelationFilter
   guildId: string
 }) {
-  const [{ requests, error }, t, ratePercent, { counts }, timezone] = await Promise.all([
-    listRegearRequests(scope, origin),
+  const [
+    { requests, error },
+    t,
+    ratePercent,
+    { counts },
+    { counts: relationCounts },
+    timezone,
+  ] = await Promise.all([
+    listRegearRequests(scope, origin, relation),
     getTranslations('adminRegearReview'),
     getRegearPayoutRatePercent(),
-    getRegearOriginCounts(scope),
+    getRegearOriginCounts(scope, relation),
+    getRegearRelationCounts(scope, origin),
     getTenantTimezone(guildId),
   ])
   // pending+crafted+build_snapshot 만 재고 체크 대상. 한 번의 묶인 쿼리로 N+1 회피.
@@ -270,6 +297,7 @@ async function RegearSection({
       <RegearOriginTabs
         active={origin}
         scope={scope}
+        relation={relation}
         counts={counts}
         tKeys={{
           auto: t('originAuto'),
@@ -277,8 +305,19 @@ async function RegearSection({
           all: t('originAll'),
         }}
       />
+      <RegearRelationTabs
+        active={relation}
+        scope={scope}
+        origin={origin}
+        counts={relationCounts}
+        tKeys={{
+          home_guild: t('relationHomeGuild'),
+          alliance: t('relationAlliance'),
+          all: t('relationAll'),
+        }}
+      />
       <ScopeTabs
-        baseHref={originBaseHref(origin)}
+        baseHref={regearBaseHref(origin, relation)}
         active={scope}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
@@ -308,16 +347,18 @@ async function RegearSection({
   )
 }
 
-function originBaseHref(origin: RegearOrigin): string {
-  // origin=auto 가 기본값이라 URL 에 명시 X — 다른 값일 때만 쿼리 추가.
-  return origin === 'auto'
-    ? '/admin/dashboard/approvals'
-    : `/admin/dashboard/approvals?origin=${origin}`
+function regearBaseHref(origin: RegearOrigin, relation: RegearRelationFilter): string {
+  const params = new URLSearchParams()
+  if (origin !== 'auto') params.set('origin', origin)
+  if (relation !== 'all') params.set('relation', relation)
+  const qs = params.toString()
+  return qs ? `/admin/dashboard/approvals?${qs}` : '/admin/dashboard/approvals'
 }
 
 interface RegearOriginTabsProps {
   active: RegearOrigin
   scope: Scope
+  relation: RegearRelationFilter
   counts: RegearOriginCounts
   tKeys: {
     auto: string
@@ -326,7 +367,7 @@ interface RegearOriginTabsProps {
   }
 }
 
-function RegearOriginTabs({ active, scope, counts, tKeys }: RegearOriginTabsProps) {
+function RegearOriginTabs({ active, scope, relation, counts, tKeys }: RegearOriginTabsProps) {
   const origins: Array<{ value: RegearOrigin; label: string; count: number }> = [
     { value: 'auto', label: tKeys.auto, count: counts.auto },
     { value: 'manual', label: tKeys.manual, count: counts.manual },
@@ -338,6 +379,7 @@ function RegearOriginTabs({ active, scope, counts, tKeys }: RegearOriginTabsProp
         const isActive = active === value
         const params = new URLSearchParams()
         if (value !== 'auto') params.set('origin', value)
+        if (relation !== 'all') params.set('relation', relation)
         if (scope === 'all') params.set('scope', 'all')
         const qs = params.toString()
         const href = qs ? `/admin/dashboard/approvals?${qs}` : '/admin/dashboard/approvals'
@@ -356,6 +398,67 @@ function RegearOriginTabs({ active, scope, counts, tKeys }: RegearOriginTabsProp
               className={`text-[10px] font-semibold rounded px-1.5 py-px ${
                 isActive
                   ? 'bg-sky-500/30 text-sky-200'
+                  : 'bg-gray-800 text-gray-300'
+              }`}
+            >
+              {count}
+            </span>
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}
+
+interface RegearRelationTabsProps {
+  active: RegearRelationFilter
+  scope: Scope
+  origin: RegearOrigin
+  counts: RegearRelationCounts
+  tKeys: {
+    home_guild: string
+    alliance: string
+    all: string
+  }
+}
+
+function RegearRelationTabs({
+  active,
+  scope,
+  origin,
+  counts,
+  tKeys,
+}: RegearRelationTabsProps) {
+  const relations: Array<{ value: RegearRelationFilter; label: string; count: number }> = [
+    { value: 'all', label: tKeys.all, count: counts.all },
+    { value: 'home_guild', label: tKeys.home_guild, count: counts.home_guild },
+    { value: 'alliance', label: tKeys.alliance, count: counts.alliance },
+  ]
+  return (
+    <nav className="flex items-center gap-2">
+      {relations.map(({ value, label, count }) => {
+        const isActive = active === value
+        const params = new URLSearchParams()
+        if (origin !== 'auto') params.set('origin', origin)
+        if (value !== 'all') params.set('relation', value)
+        if (scope === 'all') params.set('scope', 'all')
+        const qs = params.toString()
+        const href = qs ? `/admin/dashboard/approvals?${qs}` : '/admin/dashboard/approvals'
+        return (
+          <Link
+            key={value}
+            href={href}
+            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border ${
+              isActive
+                ? 'bg-violet-500/20 border-violet-500/50 text-violet-300'
+                : 'bg-gray-900 border-gray-700 text-gray-400 hover:text-white'
+            }`}
+          >
+            <span>{label}</span>
+            <span
+              className={`text-[10px] font-semibold rounded px-1.5 py-px ${
+                isActive
+                  ? 'bg-violet-500/30 text-violet-200'
                   : 'bg-gray-800 text-gray-300'
               }`}
             >

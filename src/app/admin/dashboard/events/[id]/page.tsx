@@ -41,8 +41,8 @@ async function getData(id: string, guildId: string) {
       .order('party_number'),
     // Bomb squad caller picker — admin picks from members whose Discord
     // role(s) are listed under the `bomb_squad_caller_role_ids` app setting.
-    // The flag is refreshed at login; newly-granted callers must re-login
-    // before appearing here.
+    // The flag is refreshed at login and member-sync. Caller role holders can
+    // be listed here even when they do not have the active member role.
     admin
       .from('guild_avatars')
       .select('discord_id, username')

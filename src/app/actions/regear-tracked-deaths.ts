@@ -23,9 +23,13 @@ import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { getAppSetting } from '@/lib/app-settings'
 import { fetchTrackedBattleWindows } from '@/lib/tracked-kills'
 import { equipmentToBuildSnapshot, type EquipmentItem } from '@/lib/auto-regear'
 import { getRegearEligibilityDays } from '@/app/actions/regear'
+import { requireManualRegearAllowed } from '@/lib/albion-identity'
+import type { AlbionIdentityRelation } from '@/lib/account-albion-identity'
+import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import type { BuildSnapshot } from '@/types'
 
 // 스크린샷은 옵션 — killboard_verified=true 가 이미 검증 소스라 필수가 아니지만,
@@ -78,6 +82,14 @@ export async function listMyTrackedAdHocDeaths(): Promise<{
   if (!session.isMember) return { deaths: [], error: tErr('memberOnly') }
 
   const guildId = await getSessionGuildId(session)
+  const requireVerification =
+    (await getAppSetting('regear_require_verification', 'true', guildId)) !== 'false'
+  if (requireVerification) {
+    const gate = await requireManualRegearAllowed(session.discordId, guildId)
+    if (gate.error) {
+      return { deaths: [], error: `${REGEAR_VERIFICATION_ERROR_PREFIX}${gate.error}` }
+    }
+  }
   const db = getAdminClient()
 
   const eligibilityDays = await getRegearEligibilityDays(guildId)
@@ -164,6 +176,14 @@ export async function submitTrackedAdHocRegear(
   if (!session.isMember) return { error: tErr('memberOnly') }
 
   const guildId = await getSessionGuildId(session)
+  const requireVerification =
+    (await getAppSetting('regear_require_verification', 'true', guildId)) !== 'false'
+  let requesterRelation: AlbionIdentityRelation = 'unknown'
+  if (requireVerification) {
+    const gate = await requireManualRegearAllowed(session.discordId, guildId)
+    requesterRelation = gate.relation
+    if (gate.error) return { error: `${REGEAR_VERIFICATION_ERROR_PREFIX}${gate.error}` }
+  }
   const db = getAdminClient()
 
   const kbId = Math.trunc(Number(formData.get('killboardEventId') ?? 0))
@@ -280,6 +300,7 @@ export async function submitTrackedAdHocRegear(
       build_snapshot: buildSnapshot,
       auto_generated: false,
       fulfillment_mode: 'silver',
+      requester_relation: requesterRelation,
     })
     .select('id')
     .single()

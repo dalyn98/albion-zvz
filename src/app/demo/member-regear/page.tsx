@@ -48,6 +48,7 @@ function toMyRegearRequest(
     handled_by_username: request.handledBy ?? null,
     build_snapshot: null,
     auto_generated: request.origin === 'auto',
+    requester_relation: 'home_guild',
   }
 }
 

@@ -43,6 +43,7 @@ interface Props {
   battleStarted: boolean
   isAdmin: boolean
   canManageSlots?: boolean
+  canApplyToSlots?: boolean
   assignedAvatar?: string | null
   requestedAvatar?: string | null
   cdBadgeRoles: readonly SlotRole[]
@@ -92,6 +93,7 @@ export default function SlotCard({
   battleStarted,
   isAdmin,
   canManageSlots = false,
+  canApplyToSlots = true,
   assignedAvatar = null,
   requestedAvatar = null,
   cdBadgeRoles,
@@ -553,6 +555,16 @@ export default function SlotCard({
         >
           <Hourglass size={11} />
           {t('bombSquad.pendingOther')}
+        </button>
+      )
+    }
+    if (!canApplyToSlots) {
+      return (
+        <button
+          disabled
+          className="w-full py-1 rounded-md text-[13px] font-medium bg-gray-800/50 text-gray-500 border border-gray-800 cursor-not-allowed"
+        >
+          {t('cannotApply')}
         </button>
       )
     }

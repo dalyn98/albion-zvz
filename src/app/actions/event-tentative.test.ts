@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   sessionHas: vi.fn(),
   getSessionGuildId: vi.fn(),
+  canUseAllianceEventFeaturesForSession: vi.fn(),
   revalidatePath: vi.fn(),
 }))
 
@@ -21,6 +22,10 @@ vi.mock('@/lib/tenant', () => ({
   getSessionGuildId: mocks.getSessionGuildId,
 }))
 
+vi.mock('@/lib/albion-identity', () => ({
+  canUseAllianceEventFeaturesForSession: mocks.canUseAllianceEventFeaturesForSession,
+}))
+
 vi.mock('next/cache', () => ({
   revalidatePath: mocks.revalidatePath,
 }))
@@ -32,6 +37,7 @@ vi.mock('next-intl/server', () => ({
 import {
   adminUpsertTentativeSignup,
   removeTentativeSignup,
+  submitMyTentativeSignup,
 } from './event-tentative'
 
 interface QueryCall {
@@ -73,7 +79,44 @@ describe('event tentative signup management permissions', () => {
     mocks.getSession.mockReset()
     mocks.sessionHas.mockReset()
     mocks.getSessionGuildId.mockReset()
+    mocks.canUseAllianceEventFeaturesForSession.mockReset()
     mocks.revalidatePath.mockReset()
+  })
+
+  it('lets a verified same-alliance participant submit their tentative roles', async () => {
+    const { query } = createEventQuery({ id: 'event-1', status: 'published' })
+    const upsert = vi.fn().mockResolvedValue({ error: null })
+    const from = vi.fn((table: string) => {
+      if (table === 'events') return query
+      if (table === 'event_tentative_signups') return { upsert }
+      throw new Error(`unexpected table: ${table}`)
+    })
+
+    mocks.getSession.mockResolvedValue({
+      discordId: 'ally-1',
+      username: 'Ally',
+      isAdmin: false,
+      isMember: false,
+      isGuest: false,
+      isAllianceCandidate: true,
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.canUseAllianceEventFeaturesForSession.mockResolvedValue(true)
+    mocks.getAdminClient.mockReturnValue({ from })
+
+    await expect(submitMyTentativeSignup('event-1', ['Dps'], 'can dps')).resolves.toEqual({})
+
+    expect(upsert).toHaveBeenCalledWith(
+      {
+        guild_id: 'guild-1',
+        event_id: 'event-1',
+        discord_id: 'ally-1',
+        username: 'Ally',
+        possible_roles: ['Dps'],
+        notes: 'can dps',
+      },
+      { onConflict: 'guild_id,event_id,discord_id' },
+    )
   })
 
   it('does not let a former event creator remove someone else from tentative signups', async () => {

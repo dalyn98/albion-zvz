@@ -81,6 +81,28 @@ describe('resolveAlbionOnboardingGate', () => {
     expect(state.identity?.verifiedAt).toBeNull()
   })
 
+  it('marks same-alliance identities as event-allowed without resource trust', () => {
+    const state = resolveAlbionOnboardingGate({
+      discordId: DISCORD_ID,
+      legacyIdentity: legacyIdentity(),
+      accountIdentity: accountIdentity({
+        relation: 'alliance',
+        trustStatus: 'claimed',
+        currentGuildId: 'ally-guild',
+        currentGuildName: 'Ally Guild',
+        currentAllianceId: 'home-alliance',
+        currentAllianceName: 'Home Alliance',
+        verifiedAt: null,
+        trustedAt: null,
+      }),
+    })
+
+    expect(state.hasStartedOnboarding).toBe(true)
+    expect(state.siteAccessVerified).toBe(false)
+    expect(state.resourceTrusted).toBe(false)
+    expect(state.allianceEventAllowed).toBe(true)
+  })
+
   it('keeps legacy verified members past the site gate even if the account link needs review', () => {
     const state = resolveAlbionOnboardingGate({
       discordId: DISCORD_ID,

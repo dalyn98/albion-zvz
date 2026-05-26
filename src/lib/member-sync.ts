@@ -12,6 +12,11 @@ import { getAppSetting } from '@/lib/app-settings'
 import { listGuildMembersBulk } from '@/lib/discord'
 import { getTenantDiscordConfig } from '@/lib/tenant'
 import { log } from '@/lib/log'
+import {
+  canUseAllianceEventFeatures,
+  type AlbionIdentityRelation,
+  type AlbionIdentityTrustStatus,
+} from '@/lib/account-albion-identity'
 
 // 직전 성공 후 20시간 내면 skip — cron 재시도가 하루 2회 이상 돌지 않게 수렴.
 // KST 04:00 스케줄이 약간 앞당겨져도 다음날 실행이 건너뛰지 않도록 20h.
@@ -43,6 +48,13 @@ function parseRoleIds(raw: string): string[] {
   } catch {
     return []
   }
+}
+
+function displayNameFromDiscordMember(member: {
+  user: { username: string; global_name?: string | null } | null
+  nick: string | null
+}): string {
+  return member.nick || member.user?.global_name || member.user?.username || 'Unknown'
 }
 
 interface RunOptions {
@@ -87,17 +99,33 @@ export async function runMemberSync(
   const [
     { data: avatars, error: avatarsError },
     { data: adminOverrides, error: overrideError },
+    { data: accountLinks, error: accountLinksError },
   ] = await Promise.all([
     db
       .from('guild_avatars')
       .select('discord_id, withdrawn_at, is_admin, is_bomb_squad_caller')
       .eq('guild_id', guildId),
     db.from('tenant_admin_overrides').select('discord_id').eq('tenant_id', guildId),
+    db
+      .from('account_albion_tenant_links')
+      .select('discord_id, relation, trust_status')
+      .eq('guild_id', guildId),
   ])
   if (overrideError) return { kind: 'error', message: overrideError.message }
+  if (accountLinksError) return { kind: 'error', message: accountLinksError.message }
   if (avatarsError) return { kind: 'error', message: avatarsError.message }
 
   const adminOverrideIds = new Set((adminOverrides ?? []).map((r) => r.discord_id as string))
+  const allianceEventParticipantIds = new Set(
+    (accountLinks ?? [])
+      .filter((row) =>
+        canUseAllianceEventFeatures({
+          relation: row.relation as AlbionIdentityRelation,
+          trustStatus: row.trust_status as AlbionIdentityTrustStatus,
+        }),
+      )
+      .map((row) => row.discord_id as string),
+  )
 
   let members: Awaited<ReturnType<typeof listGuildMembersBulk>>
   try {
@@ -117,6 +145,23 @@ export async function runMemberSync(
     memberRoles.set(m.user.id, m.roles)
   }
 
+  const existingAvatarIds = new Set((avatars ?? []).map((row) => row.discord_id as string))
+  const callerRowsToUpsert = members
+    .filter((m) => {
+      if (!m.user || existingAvatarIds.has(m.user.id)) return false
+      return bombSquadCallerRoleIds.some((id) => m.roles.includes(id))
+    })
+    .map((m) => ({
+      guild_id: guildId,
+      discord_id: m.user!.id,
+      username: displayNameFromDiscordMember(m),
+      avatar: m.user!.avatar,
+      is_admin: false,
+      is_bomb_squad_caller: true,
+      withdrawn_at: null,
+      updated_at: nowIso,
+    }))
+
   const toWithdraw: string[] = []
   const toRejoin: string[] = []
   const toAdminTrue: string[] = []
@@ -132,10 +177,13 @@ export async function runMemberSync(
     const shouldBeAdmin = inServer && (hasAdminRole || isTenantOwner || hasAdminOverride)
     const shouldBeBombSquadCaller =
       inServer && bombSquadCallerRoleIds.some((id) => roles?.includes(id) ?? false)
+    const isAllianceEventParticipant = allianceEventParticipantIds.has(row.discord_id)
     const hasActiveRole =
       activeRoleIds.length === 0 ? true : activeRoleIds.some((id) => roles?.includes(id) ?? false)
     // 로그인 판정과 맞춘다: 관리자/테넌트 소유자는 멤버 역할을 겸한다.
-    const isActive = inServer && (hasActiveRole || shouldBeAdmin)
+    const isActive =
+      inServer &&
+      (hasActiveRole || shouldBeAdmin || shouldBeBombSquadCaller || isAllianceEventParticipant)
     const wasActive = row.withdrawn_at === null
 
     if (isActive && !wasActive) toRejoin.push(row.discord_id)
@@ -207,6 +255,12 @@ export async function runMemberSync(
       .in('discord_id', toCallerFalse)
     if (error) return { kind: 'error', message: error.message }
   }
+  if (callerRowsToUpsert.length > 0) {
+    const { error } = await db
+      .from('guild_avatars')
+      .upsert(callerRowsToUpsert, { onConflict: 'guild_id,discord_id' })
+    if (error) return { kind: 'error', message: error.message }
+  }
 
   await db
     .from('app_settings')
@@ -216,7 +270,8 @@ export async function runMemberSync(
     )
 
   const adminUpdated = toAdminTrue.length + toAdminFalse.length
-  const bombSquadCallerUpdated = toCallerTrue.length + toCallerFalse.length
+  const bombSquadCallerUpdated =
+    toCallerTrue.length + toCallerFalse.length + callerRowsToUpsert.length
   if (
     toWithdraw.length > 0 ||
     toRejoin.length > 0 ||

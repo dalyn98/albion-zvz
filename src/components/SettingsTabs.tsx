@@ -82,6 +82,7 @@ interface Props {
   autoRegearExcludedSlots: SlotKey[]
   craftRegearEnabled: boolean
   regearRequireVerification: boolean
+  allianceRegearEnabled: boolean
   regearOverchargeEnabled: boolean
   autoRegearSkipLowConfidence: boolean
   cdBadgeRoles: SlotRole[]
@@ -135,6 +136,7 @@ export default function SettingsTabs({
   autoRegearExcludedSlots,
   craftRegearEnabled,
   regearRequireVerification,
+  allianceRegearEnabled,
   regearOverchargeEnabled,
   autoRegearSkipLowConfidence,
   cdBadgeRoles,
@@ -301,6 +303,7 @@ export default function SettingsTabs({
                   initialAutoEnabled={autoRegearEnabled}
                   initialCraftEnabled={craftRegearEnabled}
                   initialRequireVerification={regearRequireVerification}
+                  initialAllianceRegearEnabled={allianceRegearEnabled}
                   initialOverchargeEnabled={regearOverchargeEnabled}
                   initialSkipLowConfidence={autoRegearSkipLowConfidence}
                 />
