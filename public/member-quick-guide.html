@@ -468,46 +468,11 @@
         padding: 20px;
       }
 
-      .step-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 12px;
-      }
-
-      .step-card,
       .notice,
       .mini-card {
         border: 1px solid var(--line);
         border-radius: var(--radius);
         background: var(--panel);
-      }
-
-      .step-card {
-        padding: 16px;
-      }
-
-      .step-number {
-        display: grid;
-        width: 30px;
-        height: 30px;
-        place-items: center;
-        border-radius: 50%;
-        background: rgba(242, 184, 75, 0.14);
-        color: var(--gold);
-        font-size: 13px;
-        font-weight: 900;
-      }
-
-      .step-card h3 {
-        margin-top: 12px;
-        font-size: 1.06rem;
-        line-height: 1.25;
-      }
-
-      .step-card p {
-        margin-top: 8px;
-        color: var(--muted);
-        font-size: 14px;
       }
 
       .notice {
@@ -650,7 +615,6 @@
         .guide-shell,
         .panel-head,
         .guide-visual,
-        .step-grid,
         .mini-grid {
           grid-template-columns: 1fr;
         }
@@ -734,19 +698,19 @@
       <main>
         <section class="hero" aria-labelledby="hero-title">
           <div>
-            <span class="eyebrow" data-i18n="heroKicker">사진으로 먼저 확인</span>
-            <h1 id="hero-title" data-i18n="heroTitle">사진에서 버튼 위치를 보고 따라 하세요</h1>
+            <span class="eyebrow" data-i18n="heroKicker">사진 보고 바로 찾기</span>
+            <h1 id="hero-title" data-i18n="heroTitle">어떤 메뉴를 눌러야 하는지 사진으로 확인하세요</h1>
             <p class="lead" data-i18n="heroLead">
-              각 탭은 스크린샷에 번호를 찍어 어떤 메뉴와 버튼을 눌러야 하는지 보여줍니다.
-              이미지는 클릭하면 크게 볼 수 있습니다.
+              각 탭은 실제 화면 위치에 번호를 표시했습니다.
+              번호 설명대로 클릭하고, 이미지가 작으면 눌러서 크게 보세요.
             </p>
           </div>
           <aside class="hero-card" aria-label="Guide summary">
             <h2 data-i18n="heroCardTitle">보는 순서</h2>
             <ul>
-              <li data-i18n="heroBullet1">스크린샷의 번호가 찍힌 위치를 먼저 봅니다.</li>
-              <li data-i18n="heroBullet2">오른쪽의 같은 번호 설명을 순서대로 따라갑니다.</li>
-              <li data-i18n="heroBullet3">작게 보이면 이미지를 클릭해 확대합니다.</li>
+              <li data-i18n="heroBullet1">필요한 기능 탭을 먼저 선택합니다.</li>
+              <li data-i18n="heroBullet2">사진의 번호 위치를 보고 같은 번호 설명을 따라갑니다.</li>
+              <li data-i18n="heroBullet3">완료 확인과 안 될 때 보낼 정보를 마지막에 확인합니다.</li>
             </ul>
           </aside>
         </section>
@@ -755,7 +719,7 @@
           <nav class="tabs" role="tablist" aria-label="Guide topics">
             <button class="tab-button" type="button" id="tab-start" role="tab" aria-selected="true" aria-controls="panel-start" data-tab="start">
               <span class="tab-icon">1</span>
-              <span class="tab-label" data-i18n="tabStart">처음 설정</span>
+              <span class="tab-label" data-i18n="tabStart">첫 화면</span>
             </button>
             <button class="tab-button" type="button" id="tab-events" role="tab" aria-selected="false" aria-controls="panel-events" data-tab="events">
               <span class="tab-icon">2</span>
@@ -771,7 +735,7 @@
             </button>
             <button class="tab-button" type="button" id="tab-shop" role="tab" aria-selected="false" aria-controls="panel-shop" data-tab="shop">
               <span class="tab-icon">5</span>
-              <span class="tab-label" data-i18n="tabShop">상점/환전</span>
+              <span class="tab-label" data-i18n="tabShop">상점</span>
             </button>
             <button class="tab-button" type="button" id="tab-help" role="tab" aria-selected="false" aria-controls="panel-help" data-tab="help">
               <span class="tab-icon">6</span>
@@ -783,61 +747,44 @@
             <article class="panel active" id="panel-start" role="tabpanel" aria-labelledby="tab-start" data-panel="start">
               <div class="panel-head">
                 <div>
-                  <span class="panel-kicker" data-i18n="startKicker">가입 직후</span>
-                  <h2 data-i18n="startTitle">로그인과 캐릭터 연결을 끝내는 순서</h2>
-                  <p class="panel-summary" data-i18n="startSummary">사이트 첫 사용자는 홈에서 로그인하고, 내정보에서 캐릭터와 포인트 영역을 확인하면 됩니다.</p>
+                  <span class="panel-kicker" data-i18n="startKicker">로그인 후</span>
+                  <h2 data-i18n="startTitle">처음 들어오면 이벤트와 내 정보를 먼저 확인합니다</h2>
+                  <p class="panel-summary" data-i18n="startSummary">기본 화면에서 이벤트를 열고, 왼쪽 메뉴로 리기어 신청과 내 정보로 이동합니다.</p>
                 </div>
                 <div class="mini-card">
-                  <strong data-i18n="startMiniTitle">먼저 갈 곳</strong>
-                  <span data-i18n="startMiniBody">길드 사이트 홈 → Discord 로그인 → 내정보</span>
+                  <strong data-i18n="startMiniTitle">기본 이동</strong>
+                  <span data-i18n="startMiniBody">이벤트 → 리기어 신청 → 내 정보</span>
                 </div>
               </div>
               <div class="panel-body">
                 <div class="guide-visual">
                   <figure class="screenshot guide-shot">
-                    <button class="zoom-trigger" type="button" data-zoom-src="/screenshots/member-home-guide.png" data-zoom-alt="Home screen with sidebar, event list, and user menu">
-                      <img src="/screenshots/member-home-guide.png" alt="Home screen with sidebar, event list, and user menu" loading="lazy" />
-                      <span class="pin" style="--x: 8%; --y: 18%;">1</span>
-                      <span class="pin" style="--x: 89%; --y: 3%;">2</span>
-                      <span class="pin" style="--x: 5%; --y: 97%;">3</span>
-                      <span class="zoom-hint" data-i18n="zoomHint">클릭해서 확대</span>
+                    <button class="zoom-trigger" type="button" data-zoom-src="/screenshots/member-guide-home.png" data-zoom-alt="Member event list screen with sidebar and guide buttons">
+                      <img src="/screenshots/member-guide-home.png" alt="Member event list screen with sidebar and guide buttons" loading="lazy" />
+                      <span class="pin" style="--x: 1.5%; --y: 17%;">1</span>
+                      <span class="pin" style="--x: 79%; --y: 5%;">2</span>
+                      <span class="pin" style="--x: 1.5%; --y: 94%;">3</span>
+                      <span class="zoom-hint" data-i18n="zoomHint">이미지 확대</span>
                     </button>
                   </figure>
                   <ol class="visual-steps">
                     <li>
                       <span class="callout-number">1</span>
-                      <p><strong data-i18n="loginTitle">어디서 하나요</strong><span data-i18n="loginBody">길드 사이트 홈에서 Discord 로그인 버튼을 누릅니다.</span></p>
+                      <p><strong data-i18n="loginTitle">이벤트 메뉴</strong><span data-i18n="loginBody">왼쪽 사이드바의 달력 아이콘을 누르면 참여할 이벤트 목록이 열립니다.</span></p>
                     </li>
                     <li>
                       <span class="callout-number">2</span>
-                      <p><strong data-i18n="verifyTitle">어떻게 하나요</strong><span data-i18n="verifyBody">로그인 후 안내되는 캐릭터 인증 화면에서 Albion 닉네임을 연결합니다.</span></p>
+                      <p><strong data-i18n="verifyTitle">가이드 다시 열기</strong><span data-i18n="verifyBody">오른쪽 위 가이드 버튼에서 이 사용법을 다시 열 수 있습니다.</span></p>
                     </li>
                     <li>
                       <span class="callout-number">3</span>
-                      <p><strong data-i18n="profileOpenTitle">무엇을 확인하나요</strong><span data-i18n="profileOpenBody">내정보에서 캐릭터 이름, 포인트, 요청 상태가 보이면 준비 완료입니다.</span></p>
+                      <p><strong data-i18n="profileOpenTitle">내 정보로 이동</strong><span data-i18n="profileOpenBody">왼쪽 아래 지갑 아이콘을 누르면 포인트와 환전 화면으로 이동합니다.</span></p>
                     </li>
                   </ol>
                 </div>
-                <div class="step-grid">
-                  <section class="step-card">
-                    <span class="step-number">1</span>
-                    <h3 data-i18n="loginTitle">어디서 하나요</h3>
-                    <p data-i18n="loginBody">길드 사이트 홈에서 Discord 로그인 버튼을 누릅니다.</p>
-                  </section>
-                  <section class="step-card">
-                    <span class="step-number">2</span>
-                    <h3 data-i18n="verifyTitle">어떻게 하나요</h3>
-                    <p data-i18n="verifyBody">로그인 후 안내되는 캐릭터 인증 화면에서 Albion 닉네임을 연결합니다.</p>
-                  </section>
-                  <section class="step-card">
-                    <span class="step-number">3</span>
-                    <h3 data-i18n="profileOpenTitle">무엇을 확인하나요</h3>
-                    <p data-i18n="profileOpenBody">내정보에서 캐릭터 이름, 포인트, 요청 상태가 보이면 준비 완료입니다.</p>
-                  </section>
-                </div>
                 <div class="notice">
                   <span class="notice-mark">!</span>
-                  <p><strong data-i18n="startNoticeTitle">안 될 때</strong><span data-i18n="startNoticeBody">다른 길드 화면이 보이면 로그아웃 후 현재 길드 도메인에서 다시 로그인하세요.</span></p>
+                  <p><strong data-i18n="startNoticeTitle">로그인이 안 보일 때</strong><span data-i18n="startNoticeBody">로그인 전이면 Discord 로그인 버튼이 먼저 보입니다. 다른 길드 화면이 보이면 로그아웃 후 현재 길드 주소에서 다시 로그인하세요.</span></p>
                 </div>
               </div>
             </article>
@@ -846,55 +793,38 @@
               <div class="panel-head">
                 <div>
                   <span class="panel-kicker" data-i18n="eventsKicker">이벤트 당일</span>
-                  <h2 data-i18n="eventsTitle">이벤트 상세에서 신청하고 상태를 확인합니다</h2>
-                  <p class="panel-summary" data-i18n="eventsSummary">홈의 이벤트 카드 또는 이벤트 목록에서 해당 이벤트를 열고, 슬롯 신청 후 내 이름이 표시되는지 확인하세요.</p>
+                  <h2 data-i18n="eventsTitle">이벤트를 열고 원하는 슬롯에 신청합니다</h2>
+                  <p class="panel-summary" data-i18n="eventsSummary">이벤트 목록에서 전투 카드를 열고, 역할과 장비를 확인한 뒤 빈 슬롯의 신청 버튼을 누릅니다.</p>
                 </div>
                 <figure class="screenshot" aria-label="Event screen screenshot">
-                  <img src="/screenshots/events-demo.png" alt="Event list and event detail screen" />
+                  <img src="/screenshots/member-guide-event-detail.png" alt="Event detail screen with party slots" />
                 </figure>
               </div>
               <div class="panel-body">
                 <div class="guide-visual">
                   <figure class="screenshot guide-shot">
-                    <button class="zoom-trigger" type="button" data-zoom-src="/screenshots/events-demo.png" data-zoom-alt="Event detail screen with event status, party slots, and apply button">
-                      <img src="/screenshots/events-demo.png" alt="Event detail screen with event status, party slots, and apply button" loading="lazy" />
-                      <span class="pin" style="--x: 2%; --y: 20%;">1</span>
-                      <span class="pin" style="--x: 66%; --y: 57%;">2</span>
-                      <span class="pin" style="--x: 86%; --y: 45%;">3</span>
-                      <span class="zoom-hint" data-i18n="zoomHint">클릭해서 확대</span>
+                    <button class="zoom-trigger" type="button" data-zoom-src="/screenshots/member-guide-event-detail.png" data-zoom-alt="Event detail screen with party slots and signup button">
+                      <img src="/screenshots/member-guide-event-detail.png" alt="Event detail screen with party slots and signup button" loading="lazy" />
+                      <span class="pin" style="--x: 1.5%; --y: 17%;">1</span>
+                      <span class="pin" style="--x: 69%; --y: 66%;">2</span>
+                      <span class="pin" style="--x: 81%; --y: 12%;">3</span>
+                      <span class="zoom-hint" data-i18n="zoomHint">이미지 확대</span>
                     </button>
                   </figure>
                   <ol class="visual-steps">
                     <li>
                       <span class="callout-number">1</span>
-                      <p><strong data-i18n="openEventTitle">어디서 하나요</strong><span data-i18n="openEventBody">홈 이벤트 카드나 이벤트 목록에서 오늘 참여할 이벤트를 엽니다.</span></p>
+                      <p><strong data-i18n="openEventTitle">이벤트 카드 열기</strong><span data-i18n="openEventBody">왼쪽 이벤트 메뉴에서 참여할 전투 카드를 누릅니다.</span></p>
                     </li>
                     <li>
                       <span class="callout-number">2</span>
-                      <p><strong data-i18n="slotTitle">어떻게 하나요</strong><span data-i18n="slotBody">집결 시간과 CTA를 확인한 뒤, 무기와 역할이 맞는 슬롯을 선택해 신청합니다.</span></p>
+                      <p><strong data-i18n="slotTitle">빈 슬롯 신청</strong><span data-i18n="slotBody">역할과 장비를 확인하고, 비어 있는 슬롯 카드의 신청 버튼을 누릅니다.</span></p>
                     </li>
                     <li>
                       <span class="callout-number">3</span>
-                      <p><strong data-i18n="changeTitle">무엇을 확인하나요</strong><span data-i18n="changeBody">내 이름이나 신청 상태가 슬롯에 표시되는지 확인합니다. 잘못 신청했다면 같은 화면에서 취소 후 다시 신청합니다.</span></p>
+                      <p><strong data-i18n="changeTitle">신청 상태 확인</strong><span data-i18n="changeBody">내 이름이 슬롯이나 오른쪽 전체 신청 현황에 보이면 신청된 상태입니다.</span></p>
                     </li>
                   </ol>
-                </div>
-                <div class="step-grid">
-                  <section class="step-card">
-                    <span class="step-number">1</span>
-                    <h3 data-i18n="openEventTitle">어디서 하나요</h3>
-                    <p data-i18n="openEventBody">홈 이벤트 카드나 이벤트 목록에서 오늘 참여할 이벤트를 엽니다.</p>
-                  </section>
-                  <section class="step-card">
-                    <span class="step-number">2</span>
-                    <h3 data-i18n="slotTitle">어떻게 하나요</h3>
-                    <p data-i18n="slotBody">집결 시간과 CTA를 확인한 뒤, 무기와 역할이 맞는 슬롯을 선택해 신청합니다.</p>
-                  </section>
-                  <section class="step-card">
-                    <span class="step-number">3</span>
-                    <h3 data-i18n="changeTitle">무엇을 확인하나요</h3>
-                    <p data-i18n="changeBody">내 이름이나 신청 상태가 슬롯에 표시되는지 확인합니다. 잘못 신청했다면 같은 화면에서 취소 후 다시 신청합니다.</p>
-                  </section>
                 </div>
                 <div class="notice">
                   <span class="notice-mark">!</span>
@@ -906,62 +836,45 @@
             <article class="panel" id="panel-profile" role="tabpanel" aria-labelledby="tab-profile" data-panel="profile" hidden>
               <div class="panel-head">
                 <div>
-                  <span class="panel-kicker" data-i18n="profileKicker">개인 대시보드</span>
-                  <h2 data-i18n="profileTitle">내 지갑에서 포인트와 요청 상태를 확인합니다</h2>
-                  <p class="panel-summary" data-i18n="profileSummary">포인트 잔액, 환전, 리기어, 상점 주문 상태가 궁금하면 먼저 내 지갑을 여세요.</p>
+                  <span class="panel-kicker" data-i18n="profileKicker">내 정보</span>
+                  <h2 data-i18n="profileTitle">포인트와 환전은 내 정보에서 확인합니다</h2>
+                  <p class="panel-summary" data-i18n="profileSummary">포인트 잔액, 환전 신청, 최근 처리 내역을 확인하려면 내 정보의 포인트와 환전 영역으로 이동하세요.</p>
                 </div>
                 <div class="mini-grid">
-                  <div class="mini-card"><strong data-i18n="pointsTitle">포인트</strong><span data-i18n="pointsBody">상점, 환전, 보상 기준 잔액</span></div>
-                  <div class="mini-card"><strong data-i18n="requestsTitle">요청</strong><span data-i18n="requestsBody">리기어, 환전, 제작 처리 상태</span></div>
-                  <div class="mini-card"><strong data-i18n="settingsTitle">설정</strong><span data-i18n="settingsBody">캐릭터와 Discord DM 상태</span></div>
+                  <div class="mini-card"><strong data-i18n="pointsTitle">잔액</strong><span data-i18n="pointsBody">상점과 환전에 쓸 포인트</span></div>
+                  <div class="mini-card"><strong data-i18n="requestsTitle">환전</strong><span data-i18n="requestsBody">실버 지급 신청과 대기 상태</span></div>
+                  <div class="mini-card"><strong data-i18n="settingsTitle">신청 내역</strong><span data-i18n="settingsBody">리기어, 환전, 기부 처리 기록</span></div>
                 </div>
               </div>
               <div class="panel-body">
                 <div class="guide-visual">
                   <figure class="screenshot guide-shot">
-                    <button class="zoom-trigger" type="button" data-zoom-src="/screenshots/member-home-guide.png" data-zoom-alt="Member home screen with My Info navigation and user menu">
-                      <img src="/screenshots/member-home-guide.png" alt="Member home screen with My Info navigation and user menu" loading="lazy" />
-                      <span class="pin" style="--x: 5%; --y: 57%;">1</span>
-                      <span class="pin" style="--x: 89%; --y: 3%;">2</span>
-                      <span class="pin" style="--x: 5%; --y: 97%;">3</span>
-                      <span class="zoom-hint" data-i18n="zoomHint">클릭해서 확대</span>
+                    <button class="zoom-trigger" type="button" data-zoom-src="/screenshots/member-guide-wallet.png" data-zoom-alt="My info wallet section with points, exchange, and request history">
+                      <img src="/screenshots/member-guide-wallet.png" alt="My info wallet section with points, exchange, and request history" loading="lazy" />
+                      <span class="pin" style="--x: 1.5%; --y: 71%;">1</span>
+                      <span class="pin" style="--x: 24%; --y: 23%;">2</span>
+                      <span class="pin" style="--x: 86%; --y: 40%;">3</span>
+                      <span class="zoom-hint" data-i18n="zoomHint">이미지 확대</span>
                     </button>
                   </figure>
                   <ol class="visual-steps">
                     <li>
                       <span class="callout-number">1</span>
-                      <p><strong data-i18n="profileStep1Title">내 지갑 접근</strong><span data-i18n="profileStep1Body">왼쪽 사이드바의 내 정보 섹션을 펼치고 내 지갑을 누릅니다. 메뉴가 접혀 있으면 지갑 아이콘을 선택합니다.</span></p>
+                      <p><strong data-i18n="profileStep1Title">내 정보 열기</strong><span data-i18n="profileStep1Body">왼쪽 사이드바의 지갑 아이콘을 누르거나, 상단 내 정보 칩에서 포인트 항목을 누릅니다.</span></p>
                     </li>
                     <li>
                       <span class="callout-number">2</span>
-                      <p><strong data-i18n="profileStep2Title">어떻게 보나요</strong><span data-i18n="profileStep2Body">포인트 잔액, 리기어, 환전, 제작 요청 목록을 위에서부터 확인합니다.</span></p>
+                      <p><strong data-i18n="profileStep2Title">잔액 확인</strong><span data-i18n="profileStep2Body">포인트와 환전 영역에서 현재 잔액, 대기 환전, 누적 흐름을 확인합니다.</span></p>
                     </li>
                     <li>
                       <span class="callout-number">3</span>
-                      <p><strong data-i18n="profileStep3Title">무엇을 확인하나요</strong><span data-i18n="profileStep3Body">요청이 대기, 처리 완료, 반려 중 어디에 있는지 확인합니다.</span></p>
+                      <p><strong data-i18n="profileStep3Title">환전 신청</strong><span data-i18n="profileStep3Body">실버가 필요하면 환전 신청 버튼을 누릅니다. 처리 상태는 신청 내역에서 확인합니다.</span></p>
                     </li>
                   </ol>
                 </div>
-                <div class="step-grid">
-                  <section class="step-card">
-                    <span class="step-number">1</span>
-                    <h3 data-i18n="profileStep1Title">내 지갑 접근</h3>
-                    <p data-i18n="profileStep1Body">왼쪽 사이드바의 내 정보 섹션을 펼치고 내 지갑을 누릅니다. 메뉴가 접혀 있으면 지갑 아이콘을 선택합니다.</p>
-                  </section>
-                  <section class="step-card">
-                    <span class="step-number">2</span>
-                    <h3 data-i18n="profileStep2Title">어떻게 보나요</h3>
-                    <p data-i18n="profileStep2Body">포인트 잔액, 리기어, 환전, 제작 요청 목록을 위에서부터 확인합니다.</p>
-                  </section>
-                  <section class="step-card">
-                    <span class="step-number">3</span>
-                    <h3 data-i18n="profileStep3Title">무엇을 확인하나요</h3>
-                    <p data-i18n="profileStep3Body">요청이 대기, 처리 완료, 반려 중 어디에 있는지 확인합니다.</p>
-                  </section>
-                </div>
                 <div class="notice">
                   <span class="notice-mark">!</span>
-                  <p><strong data-i18n="profileNoticeTitle">안 될 때</strong><span data-i18n="profileNoticeBody">캐릭터를 바꿨거나 기록이 맞지 않으면 내정보의 인증 화면에서 다시 연결하세요.</span></p>
+                  <p><strong data-i18n="profileNoticeTitle">잔액이 안 맞을 때</strong><span data-i18n="profileNoticeBody">최근 리기어, 상점 주문, 환전이 아직 처리 중일 수 있습니다. 신청 내역의 상태와 시간을 함께 확인하세요.</span></p>
                 </div>
               </div>
             </article>
@@ -970,59 +883,42 @@
               <div class="panel-head">
                 <div>
                   <span class="panel-kicker" data-i18n="regearKicker">사망 후</span>
-                  <h2 data-i18n="regearTitle">리기어는 리기어 화면에서 신청하고 내정보에서 추적합니다</h2>
-                  <p class="panel-summary" data-i18n="regearSummary">블랙존 ZvZ 사망 후 리기어 화면에서 이벤트와 사망 기록을 맞춰 제출하세요.</p>
+                  <h2 data-i18n="regearTitle">리기어 신청에서 자동 청구와 수동 청구를 선택합니다</h2>
+                  <p class="panel-summary" data-i18n="regearSummary">블랙존 ZvZ 사망 후 리기어 신청 화면을 열고, 자동 기록이 있으면 자동 청구로, 없으면 수동 청구로 제출합니다.</p>
                 </div>
                 <figure class="screenshot" aria-label="Regear screen screenshot">
-                  <img src="/screenshots/regear-approval-demo.png" alt="Regear request review screen" />
+                  <img src="/screenshots/member-guide-regear.png" alt="Member regear request screen" />
                 </figure>
               </div>
               <div class="panel-body">
                 <div class="guide-visual">
                   <figure class="screenshot guide-shot">
-                    <button class="zoom-trigger" type="button" data-zoom-src="/screenshots/member-regear-guide.png" data-zoom-alt="Member regear request screen with sidebar and request cards">
-                      <img src="/screenshots/member-regear-guide.png" alt="Member regear request screen with sidebar and request cards" loading="lazy" />
-                      <span class="pin" style="--x: 5%; --y: 41%;">1</span>
-                      <span class="pin" style="--x: 58%; --y: 41%;">2</span>
-                      <span class="pin" style="--x: 23%; --y: 22%;">3</span>
-                      <span class="zoom-hint" data-i18n="zoomHint">클릭해서 확대</span>
+                    <button class="zoom-trigger" type="button" data-zoom-src="/screenshots/member-guide-regear.png" data-zoom-alt="Member regear request screen with automatic and manual claim cards">
+                      <img src="/screenshots/member-guide-regear.png" alt="Member regear request screen with automatic and manual claim cards" loading="lazy" />
+                      <span class="pin" style="--x: 1.5%; --y: 25%;">1</span>
+                      <span class="pin" style="--x: 19%; --y: 29%;">2</span>
+                      <span class="pin" style="--x: 56%; --y: 30%;">3</span>
+                      <span class="zoom-hint" data-i18n="zoomHint">이미지 확대</span>
                     </button>
                   </figure>
                   <ol class="visual-steps">
                     <li>
                       <span class="callout-number">1</span>
-                      <p><strong data-i18n="regearStep1Title">어디서 하나요</strong><span data-i18n="regearStep1Body">사이드바의 리기어 신청 또는 이벤트 상세의 내 상태 영역에서 시작합니다.</span></p>
+                      <p><strong data-i18n="regearStep1Title">리기어 신청 열기</strong><span data-i18n="regearStep1Body">왼쪽 사이드바의 방패 아이콘 또는 리기어 신청 메뉴를 누릅니다.</span></p>
                     </li>
                     <li>
                       <span class="callout-number">2</span>
-                      <p><strong data-i18n="regearStep2Title">어떻게 하나요</strong><span data-i18n="regearStep2Body">사망한 이벤트를 고르고 자동 사망 기록이 보이면 그 기록으로 신청합니다.</span></p>
+                      <p><strong data-i18n="regearStep2Title">자동 청구 보기</strong><span data-i18n="regearStep2Body">자동 리기어 확인 카드에서 자동 청구 보기를 눌러 생성된 신청을 확인합니다.</span></p>
                     </li>
                     <li>
                       <span class="callout-number">3</span>
-                      <p><strong data-i18n="regearStep3Title">무엇을 확인하나요</strong><span data-i18n="regearStep3Body">제출 후 내정보 또는 리기어 목록에서 요청이 대기 상태로 생겼는지 확인합니다.</span></p>
+                      <p><strong data-i18n="regearStep3Title">수동 청구 작성</strong><span data-i18n="regearStep3Body">자동 기록이 없으면 수동 청구 작성 버튼을 눌러 사망 기록과 스크린샷을 제출합니다.</span></p>
                     </li>
                   </ol>
                 </div>
-                <div class="step-grid">
-                  <section class="step-card">
-                    <span class="step-number">1</span>
-                    <h3 data-i18n="regearStep1Title">어디서 하나요</h3>
-                    <p data-i18n="regearStep1Body">사이드바의 리기어 신청 또는 이벤트 상세의 내 상태 영역에서 시작합니다.</p>
-                  </section>
-                  <section class="step-card">
-                    <span class="step-number">2</span>
-                    <h3 data-i18n="regearStep2Title">어떻게 하나요</h3>
-                    <p data-i18n="regearStep2Body">사망한 이벤트를 고르고 자동 사망 기록이 보이면 그 기록으로 신청합니다.</p>
-                  </section>
-                  <section class="step-card">
-                    <span class="step-number">3</span>
-                    <h3 data-i18n="regearStep3Title">무엇을 확인하나요</h3>
-                    <p data-i18n="regearStep3Body">제출 후 내정보 또는 리기어 목록에서 요청이 대기 상태로 생겼는지 확인합니다.</p>
-                  </section>
-                </div>
                 <div class="notice">
                   <span class="notice-mark">!</span>
-                  <p><strong data-i18n="regearNoticeTitle">안 될 때</strong><span data-i18n="regearNoticeBody">자동 기록이 없으면 잠시 기다리거나 수동 신청을 사용합니다. 오버차지, 제외 부위, 지급 방식은 길드 정책을 따릅니다.</span></p>
+                  <p><strong data-i18n="regearNoticeTitle">완료 확인</strong><span data-i18n="regearNoticeBody">제출 후 내 정보 또는 리기어 화면의 내 신청 내역에서 대기 상태가 생겼는지 확인합니다. 오버차지, 제외 부위, 지급 방식은 길드 정책을 따릅니다.</span></p>
                 </div>
               </div>
             </article>
@@ -1031,61 +927,44 @@
               <div class="panel-head">
                 <div>
                   <span class="panel-kicker" data-i18n="shopKicker">포인트 사용</span>
-                  <h2 data-i18n="shopTitle">상점, 환전, 사이펀은 들어가는 곳이 다릅니다</h2>
-                  <p class="panel-summary" data-i18n="shopSummary">아이템 구매는 상점, 실버 지급 요청은 내정보의 요청 영역, 사이펀 잔량은 내정보 또는 사이펀 화면에서 확인합니다.</p>
+                  <h2 data-i18n="shopTitle">길드 상점에서 아이템을 담고 주문합니다</h2>
+                  <p class="panel-summary" data-i18n="shopSummary">아이템 구매는 길드 상점에서 진행합니다. 포인트를 실버로 바꾸는 환전은 내 정보의 포인트와 환전 영역에서 신청합니다.</p>
                 </div>
                 <div class="mini-grid">
-                  <div class="mini-card"><strong data-i18n="shopMini1Title">상점</strong><span data-i18n="shopMini1Body">포인트로 아이템 구매</span></div>
-                  <div class="mini-card"><strong data-i18n="shopMini2Title">환전</strong><span data-i18n="shopMini2Body">포인트를 실버로 요청</span></div>
-                  <div class="mini-card"><strong data-i18n="shopMini3Title">사이펀</strong><span data-i18n="shopMini3Body">Siphoned Energy 입출금</span></div>
+                  <div class="mini-card"><strong data-i18n="shopMini1Title">상점</strong><span data-i18n="shopMini1Body">포인트로 아이템 주문</span></div>
+                  <div class="mini-card"><strong data-i18n="shopMini2Title">환전</strong><span data-i18n="shopMini2Body">내 정보에서 실버로 신청</span></div>
+                  <div class="mini-card"><strong data-i18n="shopMini3Title">내 주문</strong><span data-i18n="shopMini3Body">대기/승인 상태 확인</span></div>
                 </div>
               </div>
               <div class="panel-body">
                 <div class="guide-visual">
                   <figure class="screenshot guide-shot">
-                    <button class="zoom-trigger" type="button" data-zoom-src="/screenshots/shop-demo.png" data-zoom-alt="Shop screen with sidebar, item cards, cart, and order button">
-                      <img src="/screenshots/shop-demo.png" alt="Shop screen with sidebar, item cards, cart, and order button" loading="lazy" />
-                      <span class="pin" style="--x: 2%; --y: 46%;">1</span>
-                      <span class="pin" style="--x: 29%; --y: 61%;">2</span>
-                      <span class="pin" style="--x: 87%; --y: 73%;">3</span>
-                      <span class="zoom-hint" data-i18n="zoomHint">클릭해서 확대</span>
+                    <button class="zoom-trigger" type="button" data-zoom-src="/screenshots/member-guide-shop.png" data-zoom-alt="Guild shop screen with item tiles, cart, and order button">
+                      <img src="/screenshots/member-guide-shop.png" alt="Guild shop screen with item tiles, cart, and order button" loading="lazy" />
+                      <span class="pin" style="--x: 1.5%; --y: 71%;">1</span>
+                      <span class="pin" style="--x: 28%; --y: 48%;">2</span>
+                      <span class="pin" style="--x: 86%; --y: 60%;">3</span>
+                      <span class="zoom-hint" data-i18n="zoomHint">이미지 확대</span>
                     </button>
                   </figure>
                   <ol class="visual-steps">
                     <li>
                       <span class="callout-number">1</span>
-                      <p><strong data-i18n="shopStep1Title">어디서 하나요</strong><span data-i18n="shopStep1Body">아이템은 사이드바의 상점, 사이펀은 내정보 또는 사이펀 화면에서 확인합니다.</span></p>
+                      <p><strong data-i18n="shopStep1Title">길드 상점 열기</strong><span data-i18n="shopStep1Body">왼쪽 사이드바의 쇼핑백 아이콘 또는 길드 상점 메뉴를 누릅니다.</span></p>
                     </li>
                     <li>
                       <span class="callout-number">2</span>
-                      <p><strong data-i18n="shopStep2Title">어떻게 하나요</strong><span data-i18n="shopStep2Body">상점에서는 상품을 선택해 구매하고, 실버가 필요하면 환전 요청을 제출합니다.</span></p>
+                      <p><strong data-i18n="shopStep2Title">아이템 담기</strong><span data-i18n="shopStep2Body">필요한 아이템 타일을 클릭하면 오른쪽 장바구니에 담깁니다.</span></p>
                     </li>
                     <li>
                       <span class="callout-number">3</span>
-                      <p><strong data-i18n="shopStep3Title">무엇을 확인하나요</strong><span data-i18n="shopStep3Body">주문 또는 환전 요청이 내정보의 요청 목록에 생겼는지 확인합니다.</span></p>
+                      <p><strong data-i18n="shopStep3Title">주문 요청</strong><span data-i18n="shopStep3Body">장바구니의 총액과 잔액을 확인한 뒤 주문 요청 버튼을 누릅니다.</span></p>
                     </li>
                   </ol>
                 </div>
-                <div class="step-grid">
-                  <section class="step-card">
-                    <span class="step-number">1</span>
-                    <h3 data-i18n="shopStep1Title">어디서 하나요</h3>
-                    <p data-i18n="shopStep1Body">아이템은 사이드바의 상점, 사이펀은 내정보 또는 사이펀 화면에서 확인합니다.</p>
-                  </section>
-                  <section class="step-card">
-                    <span class="step-number">2</span>
-                    <h3 data-i18n="shopStep2Title">어떻게 하나요</h3>
-                    <p data-i18n="shopStep2Body">상점에서는 상품을 선택해 구매하고, 실버가 필요하면 환전 요청을 제출합니다.</p>
-                  </section>
-                  <section class="step-card">
-                    <span class="step-number">3</span>
-                    <h3 data-i18n="shopStep3Title">무엇을 확인하나요</h3>
-                    <p data-i18n="shopStep3Body">주문 또는 환전 요청이 내정보의 요청 목록에 생겼는지 확인합니다.</p>
-                  </section>
-                </div>
                 <div class="notice">
                   <span class="notice-mark">!</span>
-                  <p><strong data-i18n="shopNoticeTitle">안 될 때</strong><span data-i18n="shopNoticeBody">아이템 수령 방식과 환전 처리 시간은 길드 공지를 따르세요. 주문명과 요청 시각을 관리자에게 보내면 확인이 빠릅니다.</span></p>
+                  <p><strong data-i18n="shopNoticeTitle">주문 후 확인</strong><span data-i18n="shopNoticeBody">주문 처리 시간과 수령 방식은 길드 공지를 따릅니다. 주문명과 요청 시각을 관리자에게 보내면 확인이 빠릅니다.</span></p>
                 </div>
               </div>
             </article>
@@ -1094,8 +973,8 @@
               <div class="panel-head">
                 <div>
                   <span class="panel-kicker" data-i18n="helpKicker">막혔을 때</span>
-                  <h2 data-i18n="helpTitle">관리자에게 보낼 정보를 먼저 모읍니다</h2>
-                  <p class="panel-summary" data-i18n="helpSummary">어디에서 막혔는지, 어떤 버튼을 눌렀는지, 화면에 어떤 상태가 보이는지 함께 보내세요.</p>
+                  <h2 data-i18n="helpTitle">막힌 화면과 누른 버튼을 같이 보냅니다</h2>
+                  <p class="panel-summary" data-i18n="helpSummary">관리자가 바로 확인할 수 있도록 메뉴 이름, 누른 버튼, 화면 상태를 한 번에 보내세요.</p>
                 </div>
                 <div class="mini-card">
                   <strong data-i18n="helpMiniTitle">보내면 좋은 정보</strong>
@@ -1105,49 +984,32 @@
               <div class="panel-body">
                 <div class="guide-visual">
                   <figure class="screenshot guide-shot">
-                    <button class="zoom-trigger" type="button" data-zoom-src="/screenshots/member-home-guide.png" data-zoom-alt="Member screen with current menu, guide button, and user menu">
-                      <img src="/screenshots/member-home-guide.png" alt="Member screen with current menu, guide button, and user menu" loading="lazy" />
-                      <span class="pin" style="--x: 18%; --y: 10%;">1</span>
-                      <span class="pin" style="--x: 84%; --y: 11%;">2</span>
-                      <span class="pin" style="--x: 89%; --y: 3%;">3</span>
-                      <span class="zoom-hint" data-i18n="zoomHint">클릭해서 확대</span>
+                    <button class="zoom-trigger" type="button" data-zoom-src="/screenshots/member-guide-home.png" data-zoom-alt="Member screen with sidebar menu and guide button">
+                      <img src="/screenshots/member-guide-home.png" alt="Member screen with sidebar menu and guide button" loading="lazy" />
+                      <span class="pin" style="--x: 1.5%; --y: 17%;">1</span>
+                      <span class="pin" style="--x: 79%; --y: 5%;">2</span>
+                      <span class="pin" style="--x: 1.5%; --y: 94%;">3</span>
+                      <span class="zoom-hint" data-i18n="zoomHint">이미지 확대</span>
                     </button>
                   </figure>
                   <ol class="visual-steps">
                     <li>
                       <span class="callout-number">1</span>
-                      <p><strong data-i18n="helpStep1Title">어디서 막혔나요</strong><span data-i18n="helpStep1Body">현재 길드 도메인과 메뉴 이름을 확인합니다. 예: 이벤트 상세, 리기어 신청, 상점.</span></p>
+                      <p><strong data-i18n="helpStep1Title">메뉴 이름 확인</strong><span data-i18n="helpStep1Body">왼쪽 메뉴에서 현재 위치를 확인합니다. 예: 이벤트, 리기어 신청, 길드 상점, 내 정보.</span></p>
                     </li>
                     <li>
                       <span class="callout-number">2</span>
-                      <p><strong data-i18n="helpStep2Title">어떻게 했나요</strong><span data-i18n="helpStep2Body">누른 버튼, 선택한 이벤트, 신청한 슬롯이나 요청 종류를 적습니다.</span></p>
+                      <p><strong data-i18n="helpStep2Title">누른 버튼 적기</strong><span data-i18n="helpStep2Body">누른 버튼 이름, 선택한 이벤트, 신청한 슬롯이나 요청 종류를 적습니다.</span></p>
                     </li>
                     <li>
                       <span class="callout-number">3</span>
-                      <p><strong data-i18n="helpStep3Title">무엇을 보내나요</strong><span data-i18n="helpStep3Body">계정, 캐릭터명, 이벤트 이름, 발생 시각, 화면 스크린샷을 함께 보냅니다.</span></p>
+                      <p><strong data-i18n="helpStep3Title">스크린샷 보내기</strong><span data-i18n="helpStep3Body">계정, 캐릭터명, 발생 시각, 화면 스크린샷을 함께 보내면 확인이 빠릅니다.</span></p>
                     </li>
                   </ol>
                 </div>
-                <div class="step-grid">
-                  <section class="step-card">
-                    <span class="step-number">1</span>
-                    <h3 data-i18n="helpStep1Title">어디서 막혔나요</h3>
-                    <p data-i18n="helpStep1Body">현재 길드 도메인과 메뉴 이름을 확인합니다. 예: 이벤트 상세, 리기어 신청, 상점.</p>
-                  </section>
-                  <section class="step-card">
-                    <span class="step-number">2</span>
-                    <h3 data-i18n="helpStep2Title">어떻게 했나요</h3>
-                    <p data-i18n="helpStep2Body">누른 버튼, 선택한 이벤트, 신청한 슬롯이나 요청 종류를 적습니다.</p>
-                  </section>
-                  <section class="step-card">
-                    <span class="step-number">3</span>
-                    <h3 data-i18n="helpStep3Title">무엇을 보내나요</h3>
-                    <p data-i18n="helpStep3Body">계정, 캐릭터명, 이벤트 이름, 발생 시각, 화면 스크린샷을 함께 보냅니다.</p>
-                  </section>
-                </div>
                 <div class="notice">
                   <span class="notice-mark">!</span>
-                  <p><strong data-i18n="helpNoticeTitle">범위</strong><span data-i18n="helpNoticeBody">관리자 화면, 권한 설정, 정산 규칙은 이 가이드에서 제외했습니다. 이 문제는 길드 관리자에게 문의하세요.</span></p>
+                  <p><strong data-i18n="helpNoticeTitle">권한 문제</strong><span data-i18n="helpNoticeBody">메뉴가 보이지 않으면 권한이나 길드 가입 상태 문제일 수 있습니다. 현재 URL과 보이지 않는 메뉴 이름을 함께 보내세요.</span></p>
                 </div>
               </div>
             </article>
@@ -1155,7 +1017,7 @@
         </section>
       </main>
 
-      <footer class="footer" data-i18n="footer">Albion Guild Manager 길드원 빠른 가이드. 메뉴 위치와 진행 순서만 탭으로 정리했습니다.</footer>
+      <footer class="footer" data-i18n="footer">Albion Guild Manager 길드원 가이드. 사진의 번호 위치와 실제 버튼 순서만 정리했습니다.</footer>
     </div>
 
     <div class="image-modal" id="image-modal" role="dialog" aria-modal="true" aria-labelledby="image-modal-title" hidden>
@@ -1175,419 +1037,419 @@
       const translations = {
         ko: {
           title: 'Albion Guild Manager 빠른 사용 가이드',
-          description: '길드원이 Albion Guild Manager에서 메뉴 위치, 클릭 순서, 완료 확인, 문제 해결 정보를 탭으로 확인하는 빠른 가이드입니다.',
-          brand: 'Albion Guild Manager 빠른 가이드',
-          heroKicker: '사진으로 먼저 확인',
-          heroTitle: '사진에서 버튼 위치를 보고 따라 하세요',
-          heroLead: '각 탭은 스크린샷에 번호를 찍어 어떤 메뉴와 버튼을 눌러야 하는지 보여줍니다. 이미지는 클릭하면 크게 볼 수 있습니다.',
+          description: '길드원이 Albion Guild Manager에서 실제 메뉴 위치와 버튼 순서를 사진으로 확인하는 빠른 가이드입니다.',
+          brand: 'Albion Guild Manager 길드원 가이드',
+          heroKicker: '사진 보고 바로 찾기',
+          heroTitle: '어떤 메뉴를 눌러야 하는지 사진으로 확인하세요',
+          heroLead: '각 탭은 실제 화면 위치에 번호를 표시했습니다. 번호 설명대로 클릭하고, 이미지가 작으면 눌러서 크게 보세요.',
           heroCardTitle: '보는 순서',
-          heroBullet1: '스크린샷의 번호가 찍힌 위치를 먼저 봅니다.',
-          heroBullet2: '오른쪽의 같은 번호 설명을 순서대로 따라갑니다.',
-          heroBullet3: '작게 보이면 이미지를 클릭해 확대합니다.',
-          zoomHint: '클릭해서 확대',
+          heroBullet1: '필요한 기능 탭을 먼저 선택합니다.',
+          heroBullet2: '사진의 번호 위치를 보고 같은 번호 설명을 따라갑니다.',
+          heroBullet3: '완료 확인과 안 될 때 보낼 정보를 마지막에 확인합니다.',
+          zoomHint: '이미지 확대',
           modalTitle: '스크린샷 확대 보기',
           zoomClose: '닫기',
-          tabStart: '처음 설정',
+          tabStart: '첫 화면',
           tabEvents: '이벤트',
           tabProfile: '내 지갑',
           tabRegear: '리기어',
-          tabShop: '상점/환전',
+          tabShop: '상점',
           tabHelp: '문제 해결',
-          startKicker: '가입 직후',
-          startTitle: '로그인과 캐릭터 연결을 끝내는 순서',
-          startSummary: '사이트 첫 사용자는 홈에서 로그인하고, 내정보에서 캐릭터와 포인트 영역을 확인하면 됩니다.',
-          startMiniTitle: '먼저 갈 곳',
-          startMiniBody: '길드 사이트 홈 → Discord 로그인 → 내정보',
-          loginTitle: '어디서 하나요',
-          loginBody: '길드 사이트 홈에서 Discord 로그인 버튼을 누릅니다.',
-          verifyTitle: '어떻게 하나요',
-          verifyBody: '로그인 후 안내되는 캐릭터 인증 화면에서 Albion 닉네임을 연결합니다.',
-          profileOpenTitle: '무엇을 확인하나요',
-          profileOpenBody: '내정보에서 캐릭터 이름, 포인트, 요청 상태가 보이면 준비 완료입니다.',
-          startNoticeTitle: '안 될 때',
-          startNoticeBody: '다른 길드 화면이 보이면 로그아웃 후 현재 길드 도메인에서 다시 로그인하세요.',
+          startKicker: '로그인 후',
+          startTitle: '처음 들어오면 이벤트와 내 정보를 먼저 확인합니다',
+          startSummary: '기본 화면에서 이벤트를 열고, 왼쪽 메뉴로 리기어 신청과 내 정보로 이동합니다.',
+          startMiniTitle: '기본 이동',
+          startMiniBody: '이벤트 → 리기어 신청 → 내 정보',
+          loginTitle: '이벤트 메뉴',
+          loginBody: '왼쪽 사이드바의 달력 아이콘을 누르면 참여할 이벤트 목록이 열립니다.',
+          verifyTitle: '가이드 다시 열기',
+          verifyBody: '오른쪽 위 가이드 버튼에서 이 사용법을 다시 열 수 있습니다.',
+          profileOpenTitle: '내 정보로 이동',
+          profileOpenBody: '왼쪽 아래 지갑 아이콘을 누르면 포인트와 환전 화면으로 이동합니다.',
+          startNoticeTitle: '로그인이 안 보일 때',
+          startNoticeBody: '로그인 전이면 Discord 로그인 버튼이 먼저 보입니다. 다른 길드 화면이 보이면 로그아웃 후 현재 길드 주소에서 다시 로그인하세요.',
           eventsKicker: '이벤트 당일',
-          eventsTitle: '이벤트 상세에서 신청하고 상태를 확인합니다',
-          eventsSummary: '홈의 이벤트 카드 또는 이벤트 목록에서 해당 이벤트를 열고, 슬롯 신청 후 내 이름이 표시되는지 확인하세요.',
-          openEventTitle: '어디서 하나요',
-          openEventBody: '홈 이벤트 카드나 이벤트 목록에서 오늘 참여할 이벤트를 엽니다.',
-          slotTitle: '어떻게 하나요',
-          slotBody: '집결 시간과 CTA를 확인한 뒤, 무기와 역할이 맞는 슬롯을 선택해 신청합니다.',
-          changeTitle: '무엇을 확인하나요',
-          changeBody: '내 이름이나 신청 상태가 슬롯에 표시되는지 확인합니다. 잘못 신청했다면 같은 화면에서 취소 후 다시 신청합니다.',
+          eventsTitle: '이벤트를 열고 원하는 슬롯에 신청합니다',
+          eventsSummary: '이벤트 목록에서 전투 카드를 열고, 역할과 장비를 확인한 뒤 빈 슬롯의 신청 버튼을 누릅니다.',
+          openEventTitle: '이벤트 카드 열기',
+          openEventBody: '왼쪽 이벤트 메뉴에서 참여할 전투 카드를 누릅니다.',
+          slotTitle: '빈 슬롯 신청',
+          slotBody: '역할과 장비를 확인하고, 비어 있는 슬롯 카드의 신청 버튼을 누릅니다.',
+          changeTitle: '신청 상태 확인',
+          changeBody: '내 이름이 슬롯이나 오른쪽 전체 신청 현황에 보이면 신청된 상태입니다.',
           eventsNoticeTitle: '안 될 때',
           eventsNoticeBody: '이벤트가 닫혔거나 신청 시간이 지난 경우 슬롯 변경이 제한될 수 있습니다. 이벤트 이름과 화면 캡처를 관리자에게 보내세요.',
-          profileKicker: '개인 대시보드',
-          profileTitle: '내 지갑에서 포인트와 요청 상태를 확인합니다',
-          profileSummary: '포인트 잔액, 환전, 리기어, 상점 주문 상태가 궁금하면 먼저 내 지갑을 여세요.',
-          pointsTitle: '포인트',
-          pointsBody: '상점, 환전, 보상 기준 잔액',
-          requestsTitle: '요청',
-          requestsBody: '리기어, 환전, 제작 처리 상태',
-          settingsTitle: '설정',
-          settingsBody: '캐릭터와 Discord DM 상태',
-          profileStep1Title: '내 지갑 접근',
-          profileStep1Body: '왼쪽 사이드바의 내 정보 섹션을 펼치고 내 지갑을 누릅니다. 메뉴가 접혀 있으면 지갑 아이콘을 선택합니다.',
-          profileStep2Title: '어떻게 보나요',
-          profileStep2Body: '포인트 잔액, 리기어, 환전, 제작 요청 목록을 위에서부터 확인합니다.',
-          profileStep3Title: '무엇을 확인하나요',
-          profileStep3Body: '요청이 대기, 처리 완료, 반려 중 어디에 있는지 확인합니다.',
-          profileNoticeTitle: '안 될 때',
-          profileNoticeBody: '캐릭터를 바꿨거나 기록이 맞지 않으면 내정보의 인증 화면에서 다시 연결하세요.',
+          profileKicker: '내 정보',
+          profileTitle: '포인트와 환전은 내 정보에서 확인합니다',
+          profileSummary: '포인트 잔액, 환전 신청, 최근 처리 내역을 확인하려면 내 정보의 포인트와 환전 영역으로 이동하세요.',
+          pointsTitle: '잔액',
+          pointsBody: '상점과 환전에 쓸 포인트',
+          requestsTitle: '환전',
+          requestsBody: '실버 지급 신청과 대기 상태',
+          settingsTitle: '신청 내역',
+          settingsBody: '리기어, 환전, 기부 처리 기록',
+          profileStep1Title: '내 정보 열기',
+          profileStep1Body: '왼쪽 사이드바의 지갑 아이콘을 누르거나, 상단 내 정보 칩에서 포인트 항목을 누릅니다.',
+          profileStep2Title: '잔액 확인',
+          profileStep2Body: '포인트와 환전 영역에서 현재 잔액, 대기 환전, 누적 흐름을 확인합니다.',
+          profileStep3Title: '환전 신청',
+          profileStep3Body: '실버가 필요하면 환전 신청 버튼을 누릅니다. 처리 상태는 신청 내역에서 확인합니다.',
+          profileNoticeTitle: '잔액이 안 맞을 때',
+          profileNoticeBody: '최근 리기어, 상점 주문, 환전이 아직 처리 중일 수 있습니다. 신청 내역의 상태와 시간을 함께 확인하세요.',
           regearKicker: '사망 후',
-          regearTitle: '리기어는 리기어 화면에서 신청하고 내정보에서 추적합니다',
-          regearSummary: '블랙존 ZvZ 사망 후 리기어 화면에서 이벤트와 사망 기록을 맞춰 제출하세요.',
-          regearStep1Title: '어디서 하나요',
-          regearStep1Body: '사이드바의 리기어 신청 또는 이벤트 상세의 내 상태 영역에서 시작합니다.',
-          regearStep2Title: '어떻게 하나요',
-          regearStep2Body: '사망한 이벤트를 고르고 자동 사망 기록이 보이면 그 기록으로 신청합니다.',
-          regearStep3Title: '무엇을 확인하나요',
-          regearStep3Body: '제출 후 내정보 또는 리기어 목록에서 요청이 대기 상태로 생겼는지 확인합니다.',
-          regearNoticeTitle: '안 될 때',
-          regearNoticeBody: '자동 기록이 없으면 잠시 기다리거나 수동 신청을 사용합니다. 오버차지, 제외 부위, 지급 방식은 길드 정책을 따릅니다.',
+          regearTitle: '리기어 신청에서 자동 청구와 수동 청구를 선택합니다',
+          regearSummary: '블랙존 ZvZ 사망 후 리기어 신청 화면을 열고, 자동 기록이 있으면 자동 청구로, 없으면 수동 청구로 제출합니다.',
+          regearStep1Title: '리기어 신청 열기',
+          regearStep1Body: '왼쪽 사이드바의 방패 아이콘 또는 리기어 신청 메뉴를 누릅니다.',
+          regearStep2Title: '자동 청구 보기',
+          regearStep2Body: '자동 리기어 확인 카드에서 자동 청구 보기를 눌러 생성된 신청을 확인합니다.',
+          regearStep3Title: '수동 청구 작성',
+          regearStep3Body: '자동 기록이 없으면 수동 청구 작성 버튼을 눌러 사망 기록과 스크린샷을 제출합니다.',
+          regearNoticeTitle: '완료 확인',
+          regearNoticeBody: '제출 후 내 정보 또는 리기어 화면의 내 신청 내역에서 대기 상태가 생겼는지 확인합니다. 오버차지, 제외 부위, 지급 방식은 길드 정책을 따릅니다.',
           shopKicker: '포인트 사용',
-          shopTitle: '상점, 환전, 사이펀은 들어가는 곳이 다릅니다',
-          shopSummary: '아이템 구매는 상점, 실버 지급 요청은 내정보의 요청 영역, 사이펀 잔량은 내정보 또는 사이펀 화면에서 확인합니다.',
+          shopTitle: '길드 상점에서 아이템을 담고 주문합니다',
+          shopSummary: '아이템 구매는 길드 상점에서 진행합니다. 포인트를 실버로 바꾸는 환전은 내 정보의 포인트와 환전 영역에서 신청합니다.',
           shopMini1Title: '상점',
-          shopMini1Body: '포인트로 아이템 구매',
+          shopMini1Body: '포인트로 아이템 주문',
           shopMini2Title: '환전',
-          shopMini2Body: '포인트를 실버로 요청',
-          shopMini3Title: '사이펀',
-          shopMini3Body: 'Siphoned Energy 입출금',
-          shopStep1Title: '어디서 하나요',
-          shopStep1Body: '아이템은 사이드바의 상점, 사이펀은 내정보 또는 사이펀 화면에서 확인합니다.',
-          shopStep2Title: '어떻게 하나요',
-          shopStep2Body: '상점에서는 상품을 선택해 구매하고, 실버가 필요하면 환전 요청을 제출합니다.',
-          shopStep3Title: '무엇을 확인하나요',
-          shopStep3Body: '주문 또는 환전 요청이 내정보의 요청 목록에 생겼는지 확인합니다.',
-          shopNoticeTitle: '안 될 때',
-          shopNoticeBody: '아이템 수령 방식과 환전 처리 시간은 길드 공지를 따르세요. 주문명과 요청 시각을 관리자에게 보내면 확인이 빠릅니다.',
+          shopMini2Body: '내 정보에서 실버로 신청',
+          shopMini3Title: '내 주문',
+          shopMini3Body: '대기/승인 상태 확인',
+          shopStep1Title: '길드 상점 열기',
+          shopStep1Body: '왼쪽 사이드바의 쇼핑백 아이콘 또는 길드 상점 메뉴를 누릅니다.',
+          shopStep2Title: '아이템 담기',
+          shopStep2Body: '필요한 아이템 타일을 클릭하면 오른쪽 장바구니에 담깁니다.',
+          shopStep3Title: '주문 요청',
+          shopStep3Body: '장바구니의 총액과 잔액을 확인한 뒤 주문 요청 버튼을 누릅니다.',
+          shopNoticeTitle: '주문 후 확인',
+          shopNoticeBody: '주문 처리 시간과 수령 방식은 길드 공지를 따릅니다. 주문명과 요청 시각을 관리자에게 보내면 확인이 빠릅니다.',
           helpKicker: '막혔을 때',
-          helpTitle: '관리자에게 보낼 정보를 먼저 모읍니다',
-          helpSummary: '어디에서 막혔는지, 어떤 버튼을 눌렀는지, 화면에 어떤 상태가 보이는지 함께 보내세요.',
+          helpTitle: '막힌 화면과 누른 버튼을 같이 보냅니다',
+          helpSummary: '관리자가 바로 확인할 수 있도록 메뉴 이름, 누른 버튼, 화면 상태를 한 번에 보내세요.',
           helpMiniTitle: '보내면 좋은 정보',
           helpMiniBody: '계정, 캐릭터, 이벤트 이름, 문제 화면 스크린샷',
-          helpStep1Title: '어디서 막혔나요',
-          helpStep1Body: '현재 길드 도메인과 메뉴 이름을 확인합니다. 예: 이벤트 상세, 리기어 신청, 상점.',
-          helpStep2Title: '어떻게 했나요',
-          helpStep2Body: '누른 버튼, 선택한 이벤트, 신청한 슬롯이나 요청 종류를 적습니다.',
-          helpStep3Title: '무엇을 보내나요',
-          helpStep3Body: '계정, 캐릭터명, 이벤트 이름, 발생 시각, 화면 스크린샷을 함께 보냅니다.',
-          helpNoticeTitle: '범위',
-          helpNoticeBody: '관리자 화면, 권한 설정, 정산 규칙은 이 가이드에서 제외했습니다. 이 문제는 길드 관리자에게 문의하세요.',
-          footer: 'Albion Guild Manager 길드원 빠른 가이드. 메뉴 위치와 진행 순서만 탭으로 정리했습니다.',
+          helpStep1Title: '메뉴 이름 확인',
+          helpStep1Body: '왼쪽 메뉴에서 현재 위치를 확인합니다. 예: 이벤트, 리기어 신청, 길드 상점, 내 정보.',
+          helpStep2Title: '누른 버튼 적기',
+          helpStep2Body: '누른 버튼 이름, 선택한 이벤트, 신청한 슬롯이나 요청 종류를 적습니다.',
+          helpStep3Title: '스크린샷 보내기',
+          helpStep3Body: '계정, 캐릭터명, 발생 시각, 화면 스크린샷을 함께 보내면 확인이 빠릅니다.',
+          helpNoticeTitle: '권한 문제',
+          helpNoticeBody: '메뉴가 보이지 않으면 권한이나 길드 가입 상태 문제일 수 있습니다. 현재 URL과 보이지 않는 메뉴 이름을 함께 보내세요.',
+          footer: 'Albion Guild Manager 길드원 가이드. 사진의 번호 위치와 실제 버튼 순서만 정리했습니다.',
         },
         en: {
           title: 'Albion Guild Manager Quick Guide',
-          description: 'A tabbed member guide focused on menu location, click order, completion checks, and troubleshooting info.',
-          brand: 'Albion Guild Manager Quick Guide',
-          heroKicker: 'Check the screenshot first',
-          heroTitle: 'Follow the button positions in the image',
-          heroLead: 'Each tab marks the screenshot with numbers so you can see which menu or button to use. Click an image to enlarge it.',
+          description: 'A visual member guide for finding real menu locations and button order in Albion Guild Manager.',
+          brand: 'Albion Guild Manager Member Guide',
+          heroKicker: 'Find it from the screenshot',
+          heroTitle: 'Use the screenshot to find the right menu',
+          heroLead: 'Each tab marks real screen positions with numbers. Follow the matching notes, and click the image if you need a larger view.',
           heroCardTitle: 'How to read',
-          heroBullet1: 'First look at the numbered spots on the screenshot.',
-          heroBullet2: 'Then follow the matching numbered notes in order.',
-          heroBullet3: 'If it is small, click the image to enlarge it.',
-          zoomHint: 'Click to enlarge',
+          heroBullet1: 'Choose the feature tab you need.',
+          heroBullet2: 'Match the numbered position in the image with the same numbered note.',
+          heroBullet3: 'Finish by checking the completion note and what to send if blocked.',
+          zoomHint: 'Enlarge image',
           modalTitle: 'Enlarged screenshot',
           zoomClose: 'Close',
-          tabStart: 'Setup',
+          tabStart: 'First screen',
           tabEvents: 'Events',
-          tabProfile: 'Wallet',
+          tabProfile: 'My info',
           tabRegear: 'Regear',
-          tabShop: 'Shop/Exchange',
+          tabShop: 'Shop',
           tabHelp: 'Troubleshooting',
-          startKicker: 'After joining',
-          startTitle: 'Finish login and character linking',
-          startSummary: 'On first use, log in from the home page and confirm your character and points area in My Info.',
-          startMiniTitle: 'Start here',
-          startMiniBody: 'Guild site home -> Discord login -> My Info',
-          loginTitle: 'Where',
-          loginBody: 'Press the Discord login button on your guild site home page.',
-          verifyTitle: 'How',
-          verifyBody: 'After login, use the character verification screen to link your Albion name.',
-          profileOpenTitle: 'Check',
-          profileOpenBody: 'You are ready when My Info shows your character name, points, and request status.',
-          startNoticeTitle: 'If it fails',
-          startNoticeBody: 'If another guild appears, log out and log in again on the current guild domain.',
+          startKicker: 'After login',
+          startTitle: 'Start by checking events and My Info',
+          startSummary: 'From the default screen, open events and use the left menu to move to Regear Request and My Info.',
+          startMiniTitle: 'Main path',
+          startMiniBody: 'Events -> Regear Request -> My Info',
+          loginTitle: 'Events menu',
+          loginBody: 'Click the calendar icon in the left sidebar to open the event list.',
+          verifyTitle: 'Open guide again',
+          verifyBody: 'Use the Guide button at the top right to reopen this guide.',
+          profileOpenTitle: 'Go to My Info',
+          profileOpenBody: 'Click the wallet icon near the bottom of the left sidebar to move to points and exchange.',
+          startNoticeTitle: 'If login is missing',
+          startNoticeBody: 'Before login, you will see the Discord login button first. If another guild appears, log out and log in again from the current guild URL.',
           eventsKicker: 'Event day',
-          eventsTitle: 'Apply and check status on the event detail page',
-          eventsSummary: 'Open the event from the home event card or event list, apply to a slot, and confirm your name appears.',
-          openEventTitle: 'Where',
-          openEventBody: 'Open the event you will join from the home event card or event list.',
-          slotTitle: 'How',
-          slotBody: 'Check gather time and CTA, then choose a slot matching your weapon and role.',
-          changeTitle: 'Check',
-          changeBody: 'Confirm your name or application status appears on the slot. If wrong, cancel and apply again on the same page.',
+          eventsTitle: 'Open an event and apply to the slot you want',
+          eventsSummary: 'Open a battle card from the event list, check role and gear, then press the Apply button on an empty slot.',
+          openEventTitle: 'Open event card',
+          openEventBody: 'Use the Events menu on the left and click the battle card you will join.',
+          slotTitle: 'Apply to empty slot',
+          slotBody: 'Check role and gear, then press Apply on an empty slot card.',
+          changeTitle: 'Check signup status',
+          changeBody: 'You are signed up when your name appears on the slot or in the right-side signup summary.',
           eventsNoticeTitle: 'If it fails',
           eventsNoticeBody: 'Closed events or events past signup time may restrict slot changes. Send the event name and a screenshot to an admin.',
-          profileKicker: 'Personal dashboard',
-          profileTitle: 'Check points and requests in Wallet',
-          profileSummary: 'Open Wallet first when you need point balance, exchange, regear, or shop order status.',
-          pointsTitle: 'Points',
-          pointsBody: 'Balance for shop, exchange, and rewards',
-          requestsTitle: 'Requests',
-          requestsBody: 'Regear, exchange, and crafting status',
-          settingsTitle: 'Settings',
-          settingsBody: 'Character and Discord DM status',
-          profileStep1Title: 'Open Wallet',
-          profileStep1Body: 'Expand the My Info section in the left sidebar and click Wallet. If the menu is collapsed, select the wallet icon.',
-          profileStep2Title: 'How',
-          profileStep2Body: 'Read points, regear, exchange, and crafting request lists from top to bottom.',
-          profileStep3Title: 'Check',
-          profileStep3Body: 'Confirm whether each request is pending, completed, or rejected.',
-          profileNoticeTitle: 'If it fails',
-          profileNoticeBody: 'If your character changed or records do not match, reconnect it from the verification screen in My Info.',
+          profileKicker: 'My Info',
+          profileTitle: 'Check points and exchange in My Info',
+          profileSummary: 'Open the Points and Exchange area in My Info to see point balance, exchange requests, and recent handling history.',
+          pointsTitle: 'Balance',
+          pointsBody: 'Points used for shop and exchange',
+          requestsTitle: 'Exchange',
+          requestsBody: 'Silver payout requests and pending status',
+          settingsTitle: 'Request history',
+          settingsBody: 'Regear, exchange, and donation records',
+          profileStep1Title: 'Open My Info',
+          profileStep1Body: 'Click the wallet icon in the left sidebar, or open the points item from the My Info chip at the top.',
+          profileStep2Title: 'Check balance',
+          profileStep2Body: 'In Points and Exchange, check current balance, pending exchange, and lifetime flow.',
+          profileStep3Title: 'Request exchange',
+          profileStep3Body: 'If you need silver, press Request Exchange. Track handling status from Request History.',
+          profileNoticeTitle: 'If balance looks wrong',
+          profileNoticeBody: 'Recent regear, shop order, or exchange may still be pending. Check the status and time in Request History.',
           regearKicker: 'After death',
-          regearTitle: 'Request regear from Regear and track it in My Info',
-          regearSummary: 'After a black-zone ZvZ death, submit from Regear after matching the event and death record.',
-          regearStep1Title: 'Where',
-          regearStep1Body: 'Start from Regear Request in the sidebar or the My Status area on the event detail page.',
-          regearStep2Title: 'How',
-          regearStep2Body: 'Choose the event where you died, then use the automatic death record if it appears.',
-          regearStep3Title: 'Check',
-          regearStep3Body: 'After submitting, confirm the request appears as pending in My Info or the regear list.',
-          regearNoticeTitle: 'If it fails',
-          regearNoticeBody: 'If no automatic record appears, wait briefly or use manual request. Overcharge, excluded slots, and payout method follow guild policy.',
+          regearTitle: 'Choose automatic or manual claim in Regear Request',
+          regearSummary: 'After a black-zone ZvZ death, open Regear Request. Use automatic claim if a record exists, or submit a manual claim if it does not.',
+          regearStep1Title: 'Open Regear Request',
+          regearStep1Body: 'Click the shield icon in the left sidebar or the Regear Request menu.',
+          regearStep2Title: 'View automatic claim',
+          regearStep2Body: 'Press View automatic claim on the automatic regear card to check the generated request.',
+          regearStep3Title: 'Write manual claim',
+          regearStep3Body: 'If no automatic record exists, press Write manual claim and submit death details with screenshots.',
+          regearNoticeTitle: 'Completion check',
+          regearNoticeBody: 'After submitting, confirm a pending item appears in My Info or in My Requests on the regear screen. Overcharge, excluded pieces, and payout method follow guild policy.',
           shopKicker: 'Using points',
-          shopTitle: 'Shop, exchange, and siphon start in different places',
-          shopSummary: 'Items start in Shop, silver payout requests in My Info requests, and siphon balance in My Info or Siphon.',
+          shopTitle: 'Add items to the guild shop cart and order',
+          shopSummary: 'Buy items from Guild Shop. Exchange points for silver from the Points and Exchange area in My Info.',
           shopMini1Title: 'Shop',
-          shopMini1Body: 'Buy items with points',
+          shopMini1Body: 'Order items with points',
           shopMini2Title: 'Exchange',
-          shopMini2Body: 'Request silver for points',
-          shopMini3Title: 'Siphon',
-          shopMini3Body: 'Siphoned Energy ledger',
-          shopStep1Title: 'Where',
-          shopStep1Body: 'Use Shop in the sidebar for items. Check siphon in My Info or the Siphon screen.',
-          shopStep2Title: 'How',
-          shopStep2Body: 'In Shop, choose an item and buy it. For silver, submit an exchange request.',
-          shopStep3Title: 'Check',
-          shopStep3Body: 'Confirm the order or exchange request appears in the request list in My Info.',
-          shopNoticeTitle: 'If it fails',
-          shopNoticeBody: 'Follow guild notices for item pickup and exchange handling time. Send the order name and request time to an admin.',
+          shopMini2Body: 'Request silver in My Info',
+          shopMini3Title: 'My orders',
+          shopMini3Body: 'Check pending or approved status',
+          shopStep1Title: 'Open Guild Shop',
+          shopStep1Body: 'Click the shopping bag icon in the left sidebar or the Guild Shop menu.',
+          shopStep2Title: 'Add item',
+          shopStep2Body: 'Click an item tile to add it to the cart on the right.',
+          shopStep3Title: 'Request order',
+          shopStep3Body: 'Check cart total and balance, then press Request Order.',
+          shopNoticeTitle: 'After ordering',
+          shopNoticeBody: 'Item handling time and pickup method follow guild notices. Send the order name and request time to an admin for faster checking.',
           helpKicker: 'When stuck',
-          helpTitle: 'Collect the info an admin needs',
-          helpSummary: 'Send where you got stuck, which button you pressed, and what status the screen shows.',
+          helpTitle: 'Send the stuck screen and clicked button together',
+          helpSummary: 'Send the menu name, clicked button, and visible screen status so an admin can check quickly.',
           helpMiniTitle: 'Useful info to send',
           helpMiniBody: 'Account, character, event name, screenshot',
-          helpStep1Title: 'Where',
-          helpStep1Body: 'Check the current guild domain and menu name. Example: event detail, regear request, shop.',
-          helpStep2Title: 'How',
-          helpStep2Body: 'Write down the button pressed, selected event, selected slot, or request type.',
-          helpStep3Title: 'Send',
-          helpStep3Body: 'Send account, character name, event name, time, and a screenshot together.',
-          helpNoticeTitle: 'Scope',
-          helpNoticeBody: 'Admin screens, permission settings, and settlement rules are excluded from this guide. Ask your guild admin for those.',
-          footer: 'Albion Guild Manager member quick guide. Menu locations and action order are organized into tabs.',
+          helpStep1Title: 'Check menu name',
+          helpStep1Body: 'Check where you are in the left menu. Examples: Events, Regear Request, Guild Shop, My Info.',
+          helpStep2Title: 'Write clicked button',
+          helpStep2Body: 'Write the button name, selected event, selected slot, or request type.',
+          helpStep3Title: 'Send screenshot',
+          helpStep3Body: 'Send account, character name, time, and a screen screenshot together.',
+          helpNoticeTitle: 'Permission issue',
+          helpNoticeBody: 'If a menu is missing, it may be a permission or guild membership issue. Send the current URL and missing menu name together.',
+          footer: 'Albion Guild Manager member guide. It only lists numbered screen positions and real button order.',
         },
         ja: {
           title: 'Albion Guild Manager クイックガイド',
-          description: 'メニュー位置、クリック順、完了確認、困ったときに送る情報をタブで確認するメンバー向けクイックガイドです。',
-          brand: 'Albion Guild Manager クイックガイド',
-          heroKicker: 'まず画像で確認',
-          heroTitle: '画像のボタン位置を見て進めます',
-          heroLead: '各タブではスクリーンショットに番号を付け、どのメニューやボタンを使うかを示します。画像はクリックすると拡大できます。',
+          description: 'Albion Guild Manager の実際のメニュー位置とボタン順を画像で確認するメンバー向けガイドです。',
+          brand: 'Albion Guild Manager メンバーガイド',
+          heroKicker: '画像で場所を確認',
+          heroTitle: '押すメニューを画像で確認します',
+          heroLead: '各タブでは実際の画面位置に番号を付けています。同じ番号の説明に沿って操作し、画像が小さい場合はクリックして拡大してください。',
           heroCardTitle: '見る順番',
-          heroBullet1: 'まずスクリーンショットの番号位置を見ます。',
-          heroBullet2: '次に同じ番号の説明を順番に追います。',
-          heroBullet3: '小さい場合は画像をクリックして拡大します。',
-          zoomHint: 'クリックして拡大',
+          heroBullet1: '必要な機能タブを選びます。',
+          heroBullet2: '画像の番号位置と同じ番号の説明を合わせて見ます。',
+          heroBullet3: '最後に完了確認と、困ったときに送る情報を確認します。',
+          zoomHint: '画像を拡大',
           modalTitle: 'スクリーンショット拡大表示',
           zoomClose: '閉じる',
-          tabStart: '初期設定',
+          tabStart: '最初の画面',
           tabEvents: 'イベント',
-          tabProfile: 'ウォレット',
+          tabProfile: 'マイ情報',
           tabRegear: 'リギア',
-          tabShop: 'ショップ/換金',
+          tabShop: 'ショップ',
           tabHelp: 'トラブル確認',
-          startKicker: '参加直後',
-          startTitle: 'ログインとキャラクター連携を終わらせる順番',
-          startSummary: '初回はホームでログインし、マイ情報でキャラクターとポイント欄を確認します。',
-          startMiniTitle: '最初に行く場所',
-          startMiniBody: 'ギルドサイトのホーム → Discordログイン → マイ情報',
-          loginTitle: 'どこで行うか',
-          loginBody: 'ギルドサイトのホームでDiscordログインボタンを押します。',
-          verifyTitle: 'どう進めるか',
-          verifyBody: 'ログイン後に案内されるキャラクター認証画面でAlbion名を連携します。',
-          profileOpenTitle: '何を確認するか',
-          profileOpenBody: 'マイ情報にキャラクター名、ポイント、申請状態が見えれば準備完了です。',
-          startNoticeTitle: 'できないとき',
-          startNoticeBody: '別のギルド画面が見えたら、ログアウトして現在のギルドドメインで再ログインしてください。',
+          startKicker: 'ログイン後',
+          startTitle: '最初にイベントとマイ情報を確認します',
+          startSummary: '基本画面でイベントを開き、左メニューからリギア申請とマイ情報へ移動します。',
+          startMiniTitle: '基本の移動',
+          startMiniBody: 'イベント → リギア申請 → マイ情報',
+          loginTitle: 'イベントメニュー',
+          loginBody: '左サイドバーのカレンダーアイコンを押すと、参加できるイベント一覧が開きます。',
+          verifyTitle: 'ガイドを再表示',
+          verifyBody: '右上のガイドボタンから、この使い方をもう一度開けます。',
+          profileOpenTitle: 'マイ情報へ移動',
+          profileOpenBody: '左下のウォレットアイコンを押すと、ポイントと換金画面へ移動します。',
+          startNoticeTitle: 'ログインが見えないとき',
+          startNoticeBody: 'ログイン前は Discord ログインボタンが先に表示されます。別のギルド画面が出た場合は、ログアウトして現在のギルドURLから再ログインしてください。',
           eventsKicker: 'イベント当日',
-          eventsTitle: 'イベント詳細で申請し、状態を確認します',
-          eventsSummary: 'ホームのイベントカード、またはイベント一覧から対象イベントを開き、スロット申請後に自分の名前が表示されるか確認します。',
-          openEventTitle: 'どこで行うか',
-          openEventBody: 'ホームのイベントカード、またはイベント一覧から参加するイベントを開きます。',
-          slotTitle: 'どう進めるか',
-          slotBody: '集合時間とCTAを確認し、武器と役割に合うスロットを選んで申請します。',
-          changeTitle: '何を確認するか',
-          changeBody: '自分の名前、または申請状態がスロットに表示されるか確認します。間違えた場合は同じ画面でキャンセルして再申請します。',
+          eventsTitle: 'イベントを開き、希望するスロットに申請します',
+          eventsSummary: 'イベント一覧から戦闘カードを開き、役割と装備を確認して空きスロットの申請ボタンを押します。',
+          openEventTitle: 'イベントカードを開く',
+          openEventBody: '左のイベントメニューから、参加する戦闘カードを押します。',
+          slotTitle: '空きスロットに申請',
+          slotBody: '役割と装備を確認し、空いているスロットカードの申請ボタンを押します。',
+          changeTitle: '申請状態を確認',
+          changeBody: '自分の名前がスロット、または右側の申請状況に表示されれば申請済みです。',
           eventsNoticeTitle: 'できないとき',
           eventsNoticeBody: '閉じたイベントや申請時間を過ぎたイベントはスロット変更が制限される場合があります。イベント名と画面キャプチャを管理者へ送ってください。',
-          profileKicker: '個人ダッシュボード',
-          profileTitle: 'ウォレットでポイントと申請状態を確認します',
-          profileSummary: 'ポイント残高、換金、リギア、ショップ注文状態を確認したい場合は、まずウォレットを開きます。',
-          pointsTitle: 'ポイント',
-          pointsBody: 'ショップ、換金、報酬の基準残高',
-          requestsTitle: '申請',
-          requestsBody: 'リギア、換金、製作の処理状態',
-          settingsTitle: '設定',
-          settingsBody: 'キャラクターとDiscord DM状態',
-          profileStep1Title: 'ウォレットを開く',
-          profileStep1Body: '左サイドバーのマイ情報セクションを開き、ウォレットを押します。メニューが折りたたまれている場合はウォレットアイコンを選びます。',
-          profileStep2Title: 'どう見るか',
-          profileStep2Body: 'ポイント残高、リギア、換金、製作申請の一覧を上から確認します。',
-          profileStep3Title: '何を確認するか',
-          profileStep3Body: '申請が待機、完了、却下のどの状態か確認します。',
-          profileNoticeTitle: 'できないとき',
-          profileNoticeBody: 'キャラクターを変えた、または記録が合わない場合は、マイ情報の認証画面で再連携してください。',
+          profileKicker: 'マイ情報',
+          profileTitle: 'ポイントと換金はマイ情報で確認します',
+          profileSummary: 'ポイント残高、換金申請、最近の処理履歴はマイ情報のポイントと換金エリアで確認します。',
+          pointsTitle: '残高',
+          pointsBody: 'ショップと換金に使うポイント',
+          requestsTitle: '換金',
+          requestsBody: 'シルバー支給申請と待機状態',
+          settingsTitle: '申請履歴',
+          settingsBody: 'リギア、換金、寄付の処理記録',
+          profileStep1Title: 'マイ情報を開く',
+          profileStep1Body: '左サイドバーのウォレットアイコン、または上部のマイ情報チップ内のポイント項目を押します。',
+          profileStep2Title: '残高を確認',
+          profileStep2Body: 'ポイントと換金エリアで現在残高、待機中の換金、累計フローを確認します。',
+          profileStep3Title: '換金申請',
+          profileStep3Body: 'シルバーが必要な場合は換金申請ボタンを押します。処理状態は申請履歴で確認します。',
+          profileNoticeTitle: '残高が合わないとき',
+          profileNoticeBody: '最近のリギア、ショップ注文、換金がまだ処理中の場合があります。申請履歴の状態と時刻を確認してください。',
           regearKicker: '死亡後',
-          regearTitle: 'リギア画面で申請し、マイ情報で追跡します',
-          regearSummary: 'ブラックゾーンZvZで死亡したら、リギア画面でイベントと死亡記録を合わせて提出します。',
-          regearStep1Title: 'どこで行うか',
-          regearStep1Body: 'サイドバーのリギア申請、またはイベント詳細の自分の状態エリアから始めます。',
-          regearStep2Title: 'どう進めるか',
-          regearStep2Body: '死亡したイベントを選び、自動死亡記録が表示されたらその記録で申請します。',
-          regearStep3Title: '何を確認するか',
-          regearStep3Body: '提出後、マイ情報またはリギア一覧で申請が待機状態として作成されたか確認します。',
-          regearNoticeTitle: 'できないとき',
-          regearNoticeBody: '自動記録がない場合は少し待つか、手動申請を使います。オーバーチャージ、除外部位、支給方式はギルド方針に従います。',
+          regearTitle: 'リギア申請で自動請求と手動請求を選びます',
+          regearSummary: 'ブラックゾーン ZvZ で死亡した後、リギア申請画面を開きます。自動記録があれば自動請求、なければ手動請求で提出します。',
+          regearStep1Title: 'リギア申請を開く',
+          regearStep1Body: '左サイドバーの盾アイコン、またはリギア申請メニューを押します。',
+          regearStep2Title: '自動請求を見る',
+          regearStep2Body: '自動リギア確認カードの自動請求表示を押し、作成された申請を確認します。',
+          regearStep3Title: '手動請求を作成',
+          regearStep3Body: '自動記録がない場合は手動請求作成ボタンを押し、死亡記録とスクリーンショットを提出します。',
+          regearNoticeTitle: '完了確認',
+          regearNoticeBody: '提出後、マイ情報またはリギア画面の申請履歴に待機状態が表示されるか確認します。オーバーチャージ、除外部位、支給方式はギルド方針に従います。',
           shopKicker: 'ポイント利用',
-          shopTitle: 'ショップ、換金、サイフォンは入口が違います',
-          shopSummary: 'アイテム購入はショップ、シルバー支給申請はマイ情報の申請エリア、サイフォン残量はマイ情報またはサイフォン画面で確認します。',
+          shopTitle: 'ギルドショップでアイテムをカートに入れて注文します',
+          shopSummary: 'アイテム購入はギルドショップで行います。ポイントをシルバーに換金する場合は、マイ情報のポイントと換金エリアで申請します。',
           shopMini1Title: 'ショップ',
-          shopMini1Body: 'ポイントでアイテム購入',
+          shopMini1Body: 'ポイントでアイテム注文',
           shopMini2Title: '換金',
-          shopMini2Body: 'ポイントをシルバーで申請',
-          shopMini3Title: 'サイフォン',
-          shopMini3Body: 'Siphoned Energy台帳',
-          shopStep1Title: 'どこで行うか',
-          shopStep1Body: 'アイテムはサイドバーのショップ、サイフォンはマイ情報またはサイフォン画面で確認します。',
-          shopStep2Title: 'どう進めるか',
-          shopStep2Body: 'ショップでは商品を選んで購入し、シルバーが必要な場合は換金申請を提出します。',
-          shopStep3Title: '何を確認するか',
-          shopStep3Body: '注文または換金申請がマイ情報の申請一覧に作成されたか確認します。',
-          shopNoticeTitle: 'できないとき',
-          shopNoticeBody: 'アイテム受け取り方法と換金処理時間はギルド告知に従ってください。注文名と申請時刻を管理者へ送ると確認が早くなります。',
+          shopMini2Body: 'マイ情報でシルバー申請',
+          shopMini3Title: '自分の注文',
+          shopMini3Body: '待機/承認状態を確認',
+          shopStep1Title: 'ギルドショップを開く',
+          shopStep1Body: '左サイドバーの買い物バッグアイコン、またはギルドショップメニューを押します。',
+          shopStep2Title: 'アイテムを入れる',
+          shopStep2Body: '必要なアイテムタイルをクリックすると、右側のカートに入ります。',
+          shopStep3Title: '注文を申請',
+          shopStep3Body: 'カートの合計と残高を確認し、注文申請ボタンを押します。',
+          shopNoticeTitle: '注文後の確認',
+          shopNoticeBody: '注文処理時間と受け取り方法はギルド告知に従います。注文名と申請時刻を管理者へ送ると確認が早くなります。',
           helpKicker: '困ったとき',
-          helpTitle: '管理者へ送る情報を先に集めます',
-          helpSummary: 'どこで止まったか、どのボタンを押したか、画面にどんな状態が見えるかを一緒に送ってください。',
+          helpTitle: '止まった画面と押したボタンを一緒に送ります',
+          helpSummary: '管理者がすぐ確認できるように、メニュー名、押したボタン、画面の状態をまとめて送ります。',
           helpMiniTitle: '送るとよい情報',
           helpMiniBody: 'アカウント、キャラクター、イベント名、スクリーンショット',
-          helpStep1Title: 'どこで止まったか',
-          helpStep1Body: '現在のギルドドメインとメニュー名を確認します。例: イベント詳細、リギア申請、ショップ。',
-          helpStep2Title: 'どう操作したか',
-          helpStep2Body: '押したボタン、選んだイベント、申請したスロットや申請種類を書きます。',
-          helpStep3Title: '何を送るか',
-          helpStep3Body: 'アカウント、キャラクター名、イベント名、発生時刻、画面キャプチャを一緒に送ります。',
-          helpNoticeTitle: '範囲',
-          helpNoticeBody: '管理者画面、権限設定、精算ルールはこのガイドから除外しています。これらはギルド管理者へ確認してください。',
-          footer: 'Albion Guild Manager メンバー向けクイックガイド。メニュー位置と進行順だけをタブでまとめました。',
+          helpStep1Title: 'メニュー名を確認',
+          helpStep1Body: '左メニューで現在位置を確認します。例: イベント、リギア申請、ギルドショップ、マイ情報。',
+          helpStep2Title: '押したボタンを書く',
+          helpStep2Body: '押したボタン名、選んだイベント、申請したスロットや申請種類を書きます。',
+          helpStep3Title: 'スクリーンショットを送る',
+          helpStep3Body: 'アカウント、キャラクター名、発生時刻、画面スクリーンショットを一緒に送ると確認が早くなります。',
+          helpNoticeTitle: '権限の問題',
+          helpNoticeBody: 'メニューが見えない場合は、権限またはギルド加入状態の問題かもしれません。現在のURLと見えないメニュー名を一緒に送ってください。',
+          footer: 'Albion Guild Manager メンバーガイド。画像の番号位置と実際のボタン順だけをまとめました。',
         },
         zh: {
           title: 'Albion Guild Manager 快速指南',
-          description: '成员用标签查看菜单位置、点击顺序、完成确认和遇到问题时要发送的信息。',
-          brand: 'Albion Guild Manager 快速指南',
-          heroKicker: '先看截图',
-          heroTitle: '照着图片里的按钮位置操作',
-          heroLead: '每个标签都会在截图上标出编号，说明要使用哪个菜单或按钮。点击图片可以放大查看。',
+          description: '成员通过图片确认 Albion Guild Manager 中真实菜单位置和按钮顺序的快速指南。',
+          brand: 'Albion Guild Manager 成员指南',
+          heroKicker: '看图找到位置',
+          heroTitle: '用截图确认要点击的菜单',
+          heroLead: '每个标签都在真实界面位置标出编号。按相同编号的说明操作，图片太小时点击放大。',
           heroCardTitle: '查看顺序',
-          heroBullet1: '先看截图上标号的位置。',
-          heroBullet2: '再按右侧相同编号的说明操作。',
-          heroBullet3: '如果太小，点击图片放大。',
-          zoomHint: '点击放大',
+          heroBullet1: '先选择需要的功能标签。',
+          heroBullet2: '对照图片编号和相同编号的说明。',
+          heroBullet3: '最后确认完成状态和遇到问题时要发送的信息。',
+          zoomHint: '放大图片',
           modalTitle: '放大截图',
           zoomClose: '关闭',
-          tabStart: '初始设置',
+          tabStart: '首屏',
           tabEvents: '活动',
-          tabProfile: '我的钱包',
+          tabProfile: '我的信息',
           tabRegear: '补装',
-          tabShop: '商店/兑换',
+          tabShop: '商店',
           tabHelp: '问题处理',
-          startKicker: '加入后',
-          startTitle: '完成登录和角色绑定的顺序',
-          startSummary: '第一次使用时，从首页登录，并在我的信息中确认角色和点数区域。',
-          startMiniTitle: '先去这里',
-          startMiniBody: '公会网站首页 → Discord 登录 → 我的信息',
-          loginTitle: '在哪里做',
-          loginBody: '在公会网站首页点击 Discord 登录按钮。',
-          verifyTitle: '怎么做',
-          verifyBody: '登录后，在提示的角色认证页面绑定 Albion 昵称。',
-          profileOpenTitle: '确认什么',
-          profileOpenBody: '我的信息中能看到角色名、点数和请求状态，就表示准备完成。',
-          startNoticeTitle: '无法完成时',
-          startNoticeBody: '如果看到其他公会页面，请退出后在当前公会域名重新登录。',
+          startKicker: '登录后',
+          startTitle: '第一次进入时先确认活动和我的信息',
+          startSummary: '在默认页面打开活动，并通过左侧菜单进入补装申请和我的信息。',
+          startMiniTitle: '基本路径',
+          startMiniBody: '活动 → 补装申请 → 我的信息',
+          loginTitle: '活动菜单',
+          loginBody: '点击左侧边栏的日历图标即可打开活动列表。',
+          verifyTitle: '重新打开指南',
+          verifyBody: '可通过右上角的指南按钮重新打开本说明。',
+          profileOpenTitle: '进入我的信息',
+          profileOpenBody: '点击左下方的钱包图标即可进入点数与兑换页面。',
+          startNoticeTitle: '看不到登录时',
+          startNoticeBody: '登录前会先显示 Discord 登录按钮。如果出现其他公会页面，请退出后从当前公会地址重新登录。',
           eventsKicker: '活动当天',
-          eventsTitle: '在活动详情页报名并确认状态',
-          eventsSummary: '从首页活动卡片或活动列表打开目标活动，申请槽位后确认自己的名字是否显示。',
-          openEventTitle: '在哪里做',
-          openEventBody: '从首页活动卡片或活动列表打开要参加的活动。',
-          slotTitle: '怎么做',
-          slotBody: '确认集合时间和 CTA 后，选择符合武器和职责的槽位并申请。',
-          changeTitle: '确认什么',
-          changeBody: '确认自己的名字或申请状态是否显示在槽位上。申请错了就在同一页面取消后重新申请。',
+          eventsTitle: '打开活动并申请想要的槽位',
+          eventsSummary: '从活动列表打开战斗卡片，确认职责和装备后点击空槽位的申请按钮。',
+          openEventTitle: '打开活动卡片',
+          openEventBody: '从左侧活动菜单点击要参加的战斗卡片。',
+          slotTitle: '申请空槽位',
+          slotBody: '确认职责和装备后，点击空槽位卡片上的申请按钮。',
+          changeTitle: '确认报名状态',
+          changeBody: '如果自己的名字显示在槽位或右侧整体申请状态中，就表示已申请。',
           eventsNoticeTitle: '无法完成时',
           eventsNoticeBody: '已关闭或超过报名时间的活动，可能无法修改槽位。请把活动名称和截图发给管理员。',
-          profileKicker: '个人面板',
-          profileTitle: '在我的钱包中确认点数和请求状态',
-          profileSummary: '想确认点数余额、兑换、补装或商店订单状态时，请先打开我的钱包。',
-          pointsTitle: '点数',
-          pointsBody: '商店、兑换、奖励的余额',
-          requestsTitle: '请求',
-          requestsBody: '补装、兑换、制作处理状态',
-          settingsTitle: '设置',
-          settingsBody: '角色和 Discord DM 状态',
-          profileStep1Title: '打开我的钱包',
-          profileStep1Body: '展开左侧边栏的我的信息区域，点击我的钱包。菜单折叠时请选择钱包图标。',
-          profileStep2Title: '怎么查看',
-          profileStep2Body: '从上到下查看点数余额、补装、兑换和制作请求列表。',
-          profileStep3Title: '确认什么',
-          profileStep3Body: '确认每个请求是等待、完成还是拒绝。',
-          profileNoticeTitle: '无法完成时',
-          profileNoticeBody: '如果换了角色或记录不一致，请在我的信息的认证页面重新绑定。',
+          profileKicker: '我的信息',
+          profileTitle: '点数与兑换在我的信息中确认',
+          profileSummary: '要查看点数余额、兑换申请和最近处理记录，请进入我的信息里的点数与兑换区域。',
+          pointsTitle: '余额',
+          pointsBody: '用于商店和兑换的点数',
+          requestsTitle: '兑换',
+          requestsBody: '银币发放申请和等待状态',
+          settingsTitle: '申请历史',
+          settingsBody: '补装、兑换、捐赠处理记录',
+          profileStep1Title: '打开我的信息',
+          profileStep1Body: '点击左侧边栏的钱包图标，或从顶部我的信息卡片中点击点数项目。',
+          profileStep2Title: '确认余额',
+          profileStep2Body: '在点数与兑换区域确认当前余额、待处理兑换和累计流向。',
+          profileStep3Title: '申请兑换',
+          profileStep3Body: '需要银币时点击兑换申请按钮。处理状态可在申请历史中确认。',
+          profileNoticeTitle: '余额不一致时',
+          profileNoticeBody: '最近的补装、商店订单或兑换可能还在处理中。请一起确认申请历史中的状态和时间。',
           regearKicker: '死亡后',
-          regearTitle: '在补装页面申请，并在我的信息中追踪',
-          regearSummary: '黑区 ZvZ 死亡后，在补装页面匹配活动和死亡记录后提交。',
-          regearStep1Title: '在哪里做',
-          regearStep1Body: '从侧边栏的补装申请，或活动详情页的我的状态区域开始。',
-          regearStep2Title: '怎么做',
-          regearStep2Body: '选择死亡对应的活动，如果出现自动死亡记录，就用该记录申请。',
-          regearStep3Title: '确认什么',
-          regearStep3Body: '提交后，在我的信息或补装列表中确认请求是否以等待状态创建。',
-          regearNoticeTitle: '无法完成时',
-          regearNoticeBody: '没有自动记录时可以稍等，或使用手动申请。过载、排除部位和发放方式按公会政策处理。',
+          regearTitle: '在补装申请中选择自动或手动申请',
+          regearSummary: '黑区 ZvZ 死亡后打开补装申请页面。有自动记录时用自动申请，没有时提交手动申请。',
+          regearStep1Title: '打开补装申请',
+          regearStep1Body: '点击左侧边栏的盾牌图标或补装申请菜单。',
+          regearStep2Title: '查看自动申请',
+          regearStep2Body: '在自动补装确认卡片中点击查看自动申请，确认生成的申请。',
+          regearStep3Title: '填写手动申请',
+          regearStep3Body: '没有自动记录时，点击填写手动申请并提交死亡记录和截图。',
+          regearNoticeTitle: '完成确认',
+          regearNoticeBody: '提交后，在我的信息或补装页面的我的申请历史中确认是否出现等待状态。过载、排除部位和发放方式按公会政策处理。',
           shopKicker: '使用点数',
-          shopTitle: '商店、兑换、能量入口不同',
-          shopSummary: '物品购买从商店开始，银币发放请求在我的信息请求区域，能量余额在我的信息或能量页面查看。',
+          shopTitle: '在公会商店把物品加入购物车并下单',
+          shopSummary: '物品购买在公会商店进行。将点数兑换成银币则在我的信息的点数与兑换区域申请。',
           shopMini1Title: '商店',
-          shopMini1Body: '用点数购买物品',
+          shopMini1Body: '用点数订购物品',
           shopMini2Title: '兑换',
-          shopMini2Body: '把点数换成银币',
-          shopMini3Title: '能量',
-          shopMini3Body: 'Siphoned Energy 账本',
-          shopStep1Title: '在哪里做',
-          shopStep1Body: '物品在侧边栏的商店处理，能量在我的信息或能量页面查看。',
-          shopStep2Title: '怎么做',
-          shopStep2Body: '在商店选择商品并购买；需要银币时提交兑换请求。',
-          shopStep3Title: '确认什么',
-          shopStep3Body: '确认订单或兑换请求是否出现在我的信息请求列表中。',
-          shopNoticeTitle: '无法完成时',
-          shopNoticeBody: '物品领取方式和兑换处理时间请以公会公告为准。把订单名和请求时间发给管理员会更快确认。',
+          shopMini2Body: '在我的信息中申请银币',
+          shopMini3Title: '我的订单',
+          shopMini3Body: '确认等待/批准状态',
+          shopStep1Title: '打开公会商店',
+          shopStep1Body: '点击左侧边栏的购物袋图标或公会商店菜单。',
+          shopStep2Title: '加入物品',
+          shopStep2Body: '点击需要的物品卡片，物品会加入右侧购物车。',
+          shopStep3Title: '提交订单',
+          shopStep3Body: '确认购物车总额和余额后，点击订单请求按钮。',
+          shopNoticeTitle: '下单后确认',
+          shopNoticeBody: '订单处理时间和领取方式以公会公告为准。把订单名和申请时间发给管理员会更快确认。',
           helpKicker: '遇到问题',
-          helpTitle: '先整理要发给管理员的信息',
-          helpSummary: '请一起发送卡在哪个位置、按了哪个按钮，以及页面显示的状态。',
+          helpTitle: '把卡住的画面和点击的按钮一起发送',
+          helpSummary: '请一次性发送菜单名、点击的按钮和页面显示状态，方便管理员快速确认。',
           helpMiniTitle: '建议发送的信息',
           helpMiniBody: '账号、角色、活动名称、截图',
-          helpStep1Title: '卡在哪里',
-          helpStep1Body: '确认当前公会域名和菜单名称。例如：活动详情、补装申请、商店。',
-          helpStep2Title: '怎么操作的',
-          helpStep2Body: '记录按过的按钮、选择的活动、申请的槽位或请求类型。',
-          helpStep3Title: '发送什么',
-          helpStep3Body: '把账号、角色名、活动名称、发生时间和截图一起发送。',
-          helpNoticeTitle: '范围',
-          helpNoticeBody: '管理员页面、权限设置和结算规则不包含在本指南中。这类问题请询问公会管理员。',
-          footer: 'Albion Guild Manager 成员快速指南。菜单位置和操作顺序已整理为标签。',
+          helpStep1Title: '确认菜单名',
+          helpStep1Body: '从左侧菜单确认当前位置。例如：活动、补装申请、公会商店、我的信息。',
+          helpStep2Title: '写下点击的按钮',
+          helpStep2Body: '记录按钮名称、选择的活动、申请的槽位或请求类型。',
+          helpStep3Title: '发送截图',
+          helpStep3Body: '把账号、角色名、发生时间和页面截图一起发送会更快确认。',
+          helpNoticeTitle: '权限问题',
+          helpNoticeBody: '如果看不到菜单，可能是权限或公会加入状态问题。请一起发送当前 URL 和看不到的菜单名。',
+          footer: 'Albion Guild Manager 成员指南。只整理图片编号位置和实际按钮顺序。',
         },
       }
 
