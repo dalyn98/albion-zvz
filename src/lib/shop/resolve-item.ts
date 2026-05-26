@@ -1,39 +1,45 @@
-// 상자 로그의 한글 아이템명을 Albion UniqueName 으로 변환한다.
+// 상자 로그의 아이템명을 Albion UniqueName 으로 변환한다.
 //
 // 해결 순서:
 //   1. 관리자가 설정한 shop_name_overrides (item_name_raw → unique_name)
-//   2. 번들 사전 src/data/albion-items.json 의 k (korean name) 일치
+//   2. 번들 사전 src/data/albion-items.json 의 locale 별 이름 일치
 //   3. 매칭 실패 시 null — 관리자 UI 에서 수동 매핑하도록 유도
 //
-// 한글명에는 티어 접두사 ("마스터의", "전문가의", ...) 가 이미 포함되므로
-// 인챈트/품질은 상자 로그의 별도 컬럼을 그대로 사용한다. 티어는 UniqueName
-// 의 T{N}_ 프리픽스에서 파싱.
+// 알비온 locale 별 아이템명에는 티어 접두사/접미사가 포함되므로 인챈트/품질은
+// 상자 로그의 별도 컬럼을 그대로 사용한다. 티어는 UniqueName 의 T{N}_ 프리픽스에서 파싱.
 
 import items from '@/data/albion-items.json'
 
 interface BundledItem {
   u: string
   c: string
-  // `k` 는 소문자 정규화된 한글명 (도시명 등 라틴 문자 포함 시 lookup 일관성 때문).
-  // `d` 는 표시용 원문 — 대소문자/띄어쓰기 그대로.
-  k: string
-  d: string
+  e?: string
+  k?: string
+  j?: string
+  z?: string
+  d?: string
+  de?: string
+  dj?: string
+  dz?: string
 }
 
 const ITEMS = items as BundledItem[]
 
-// BY_KO 의 키는 lowercase — resolve 쪽에서도 lowercase 로 조회한다.
-// 로그 원본이 "장로의 Lymhurst 망토" 처럼 대문자로 와도 "장로의 lymhurst 망토"
-// 번들 엔트리와 매칭되어야 하기 때문.
-const BY_KO = new Map<string, BundledItem[]>()
+const LOCALIZED_NAME_FIELDS = ['e', 'k', 'j', 'z', 'd', 'de', 'dj', 'dz'] as const
+
+const BY_LOCALIZED_NAME = new Map<string, BundledItem[]>()
 for (const it of ITEMS) {
-  const arr = BY_KO.get(it.k)
-  if (arr) arr.push(it)
-  else BY_KO.set(it.k, [it])
+  for (const field of LOCALIZED_NAME_FIELDS) {
+    const name = it[field]
+    if (!name) continue
+    addLocalizedItemName(name, it)
+  }
 }
 
 const BY_UNIQUE = new Map<string, BundledItem>()
 for (const it of ITEMS) BY_UNIQUE.set(it.u, it)
+const BY_UNIQUE_NORMALIZED = new Map<string, BundledItem>()
+for (const it of ITEMS) BY_UNIQUE_NORMALIZED.set(normalizeItemLookupKey(it.u), it)
 
 export interface ResolvedItem {
   uniqueName: string
@@ -51,10 +57,16 @@ export function resolveKoItem(
   rawName: string,
   overrides?: Map<string, string>,
 ): ResolvedItem | null {
+  return resolveAlbionItem(rawName, overrides)
+}
+
+export function resolveAlbionItem(
+  rawName: string,
+  overrides?: Map<string, string>,
+): ResolvedItem | null {
   const trimmed = rawName.trim()
   if (!trimmed) return null
-  // overrides 는 로그 원문 키 그대로 맞추고, 번들 조회는 lowercase.
-  const lookupKey = trimmed.toLowerCase()
+  const lookupKey = normalizeItemLookupKey(trimmed)
 
   const overrideUnique = overrides?.get(trimmed)
   if (overrideUnique) {
@@ -63,7 +75,7 @@ export function resolveKoItem(
       return {
         uniqueName: item.u,
         category: item.c,
-        nameKo: item.d,
+        nameKo: item.d ?? item.k ?? item.de ?? item.e ?? item.u,
         tier: tierFromUniqueName(item.u),
       }
     }
@@ -76,20 +88,45 @@ export function resolveKoItem(
     }
   }
 
-  const candidates = BY_KO.get(lookupKey)
+  const directUnique = BY_UNIQUE_NORMALIZED.get(lookupKey)
+  if (directUnique) return toResolvedItem(directUnique, directUnique.u)
+  const directBaseUnique = BY_UNIQUE_NORMALIZED.get(
+    normalizeItemLookupKey(trimmed.split('@', 1)[0] ?? ''),
+  )
+  if (directBaseUnique) return toResolvedItem(directBaseUnique, directBaseUnique.u)
+
+  const candidates = BY_LOCALIZED_NAME.get(lookupKey)
   if (!candidates || candidates.length === 0) return null
-  // 동일 한글명이 여러 UniqueName 에 매핑되는 경우는 스킨 변형 등 드문 케이스.
+  // 동일 표시명이 여러 UniqueName 에 매핑되는 경우는 스킨 변형 등 드문 케이스.
   // 가장 높은 티어를 선호 (장로의 > 마스터의 ...). 필요하면 관리자가 override 로 재지정.
   const ranked = [...candidates].sort((a, b) => {
     const ta = tierFromUniqueName(a.u) ?? 0
     const tb = tierFromUniqueName(b.u) ?? 0
     return tb - ta
   })
-  const chosen = ranked[0]
+  return toResolvedItem(ranked[0], ranked[0].u)
+}
+
+function addLocalizedItemName(name: string, item: BundledItem): void {
+  const key = normalizeItemLookupKey(name)
+  if (!key) return
+  const arr = BY_LOCALIZED_NAME.get(key)
+  if (arr) {
+    if (!arr.some((existing) => existing.u === item.u)) arr.push(item)
+    return
+  }
+  BY_LOCALIZED_NAME.set(key, [item])
+}
+
+function normalizeItemLookupKey(value: string): string {
+  return value.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function toResolvedItem(chosen: BundledItem, uniqueName: string): ResolvedItem {
   return {
-    uniqueName: chosen.u,
+    uniqueName,
     category: chosen.c,
-    nameKo: chosen.d,
-    tier: tierFromUniqueName(chosen.u),
+    nameKo: chosen.d ?? chosen.k ?? chosen.de ?? chosen.e ?? uniqueName,
+    tier: tierFromUniqueName(uniqueName),
   }
 }

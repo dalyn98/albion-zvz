@@ -117,6 +117,8 @@ const emptySummary: LootAuditSummary = {
   totalEstimatedValue: 0,
   externalEstimatedValue: 0,
   missingEstimatedValue: 0,
+  deathLostQuantity: 0,
+  deathLostEstimatedValue: 0,
   relationCounts: { guild: 0, alliance: 0, other: 0 },
   findings: [],
   memberSummaries: [],

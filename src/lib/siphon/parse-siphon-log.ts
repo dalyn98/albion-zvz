@@ -38,11 +38,15 @@ const DEPOSIT_PURPOSES: ReadonlySet<string> = new Set([
   '입금',
   '입고',
   'deposit',
+  'deposits',
   'deposited',
   'in',
   '入金',
   '入庫',
+  '預入',
+  '預け入れ',
   '存入',
+  '存款',
   '入库',
 ])
 
@@ -50,12 +54,18 @@ const WITHDRAW_PURPOSES: ReadonlySet<string> = new Set([
   '출금',
   '출고',
   'withdraw',
+  'withdraws',
   'withdrawal',
+  'withdrawals',
   'withdrawn',
   'out',
   '出金',
   '出庫',
+  '引き出し',
+  '取り出し',
   '取出',
+  '提取',
+  '提款',
   '出库',
 ])
 
@@ -199,9 +209,9 @@ function isSiphonLedgerHeader(fields: readonly string[]): boolean {
   if (fields.length < 4) return false
   const normalized = fields.map((field) => normalizePurpose(field))
   return (
-    ['날짜', 'date', '日時', '日期'].includes(normalized[0]) &&
+    ['날짜', 'date', 'time', 'datetime', 'timestamp', '日時', '日付', '時間', '日期', '时间'].includes(normalized[0]) &&
     ['플레이어', 'player', 'プレイヤー', '玩家'].includes(normalized[1]) &&
-    ['목적', 'purpose', '種別', '用途', '目的'].includes(normalized[2]) &&
+    ['목적', 'purpose', 'type', 'action', '種別', '用途', '目的', '类型', '類型'].includes(normalized[2]) &&
     ['수량', 'quantity', 'qty', '数量', '數量'].includes(normalized[3])
   )
 }
@@ -310,5 +320,5 @@ function signedQuantityForPurpose(
 }
 
 function normalizePurpose(raw: string): string {
-  return raw.trim().toLowerCase().replace(/\s+/g, ' ')
+  return raw.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ')
 }

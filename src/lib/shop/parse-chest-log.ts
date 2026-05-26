@@ -41,8 +41,8 @@ export function parseChestLog(raw: string): ChestLogParseResult {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim()
     if (!line) continue
-    // 헤더 행 — "날짜" 로 시작하거나 탭 없이 단독
-    if (line.startsWith('"날짜"')) continue
+    // 헤더 행은 클라이언트 언어에 따라 달라진다.
+    if (isChestLogHeader(line)) continue
 
     const parsed = parseLine(line)
     if (!parsed) {
@@ -79,6 +79,42 @@ function parseLine(line: string): ChestLogEntry | null {
   }
 }
 
+function isChestLogHeader(line: string): boolean {
+  const fields = splitQuotedTabs(line)
+  if (fields.length < 6) return false
+  return (
+    isHeaderAlias(fields[0], CHEST_HEADER_ALIASES.date) &&
+    isHeaderAlias(fields[1], CHEST_HEADER_ALIASES.player) &&
+    isHeaderAlias(fields[2], CHEST_HEADER_ALIASES.item) &&
+    isHeaderAlias(fields[3], CHEST_HEADER_ALIASES.enchant) &&
+    isHeaderAlias(fields[4], CHEST_HEADER_ALIASES.quality) &&
+    isHeaderAlias(fields[5], CHEST_HEADER_ALIASES.quantity)
+  )
+}
+
+const CHEST_HEADER_ALIASES = {
+  date: ['날짜', 'date', 'time', 'datetime', 'timestamp', '日時', '日付', '時間', '日期', '时间'],
+  player: ['플레이어', 'player', 'player name', 'プレイヤー', '玩家'],
+  item: ['아이템', '아이템명', 'item', 'item name', 'アイテム', 'アイテム名', '物品', '物品名称'],
+  enchant: ['인챈트', 'enchant', 'enchantment', 'エンチャント', '附魔'],
+  quality: ['품질', 'quality', '品質', '质量'],
+  quantity: ['수량', 'quantity', 'qty', '数量', '數量'],
+} as const
+
+function isHeaderAlias(value: string, aliases: readonly string[]): boolean {
+  const normalized = normalizeHeaderCell(value)
+  return aliases.some((alias) => normalizeHeaderCell(alias) === normalized)
+}
+
+function normalizeHeaderCell(value: string): string {
+  return value
+    .normalize('NFKC')
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+}
+
 // 각 셀은 쌍따옴표로 감싸이고 셀 사이는 탭. 셀 내부에 쌍따옴표가 없다고
 // 가정한다 (Albion 로그는 그렇다). 탭이나 공백으로 분리된 셀 모두 수용.
 function splitQuotedTabs(line: string): string[] {
@@ -86,13 +122,65 @@ function splitQuotedTabs(line: string): string[] {
   return cells.map((c) => c.trim().replace(/^"(.*)"$/, '$1'))
 }
 
-// "MM/DD/YYYY HH:MM:SS" KST — 인게임 시간은 한국 서버 기준.
+// "MM/DD/YYYY HH:MM:SS" 또는 "YYYY-MM-DD HH:MM:SS" KST — 인게임 시간은 한국 서버 기준.
 function parseChestDate(s: string): Date | null {
-  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/)
-  if (!m) return null
-  const [, mm, dd, yyyy, hh, min, ss] = m
-  const iso = `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}+09:00`
-  const d = new Date(iso)
+  const trimmed = s.trim()
+  const isoLike = trimmed.match(
+    /^(\d{4})[-/.](\d{2})[-/.](\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/,
+  )
+  if (isoLike) {
+    const [, yyyy, mm, dd, hh, min, ss] = isoLike
+    return toKstDate(yyyy, mm, dd, hh, min, ss)
+  }
+
+  const usLike = trimmed.match(
+    /^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/,
+  )
+  if (usLike) {
+    const [, mm, dd, yyyy, hh, min, ss] = usLike
+    return toKstDate(yyyy, mm, dd, hh, min, ss)
+  }
+
+  return null
+}
+
+function toKstDate(
+  yyyy: string,
+  mm: string,
+  dd: string,
+  hh: string,
+  min: string,
+  ss: string,
+): Date | null {
+  const year = Number(yyyy)
+  const month = Number(mm)
+  const day = Number(dd)
+  const hour = Number(hh)
+  const minute = Number(min)
+  const second = Number(ss)
+  if (
+    !Number.isInteger(year) ||
+    year < 1970 ||
+    !Number.isInteger(month) ||
+    month < 1 ||
+    month > 12 ||
+    !Number.isInteger(day) ||
+    day < 1 ||
+    day > new Date(Date.UTC(year, month, 0)).getUTCDate() ||
+    !Number.isInteger(hour) ||
+    hour < 0 ||
+    hour > 23 ||
+    !Number.isInteger(minute) ||
+    minute < 0 ||
+    minute > 59 ||
+    !Number.isInteger(second) ||
+    second < 0 ||
+    second > 59
+  ) {
+    return null
+  }
+
+  const d = new Date(`${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}+09:00`)
   return Number.isNaN(d.getTime()) ? null : d
 }
 

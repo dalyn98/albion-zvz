@@ -30,6 +30,21 @@ describe('parseSiphonLog', () => {
     expect(result.entries[0].loggedAt.toISOString()).toBe('2026-05-24T08:48:30.000Z')
   })
 
+  it('accepts localized ledger headers and purpose labels', () => {
+    const raw = [
+      '"Date"\t"Player"\t"Purpose"\t"Quantity"',
+      '"2026-05-24 17:48:30"\t"MonKKu"\t"Deposit"\t"7"',
+      '"2026-05-24 15:15:00"\t"SEXYECHAN"\t"Withdrawal"\t"10"',
+      '"2026-05-24 15:14:34"\t"caxtoy"\t"預け入れ"\t"3"',
+      '"2026-05-24 15:10:16"\t"Tagilla"\t"提取"\t"2"',
+    ].join('\n')
+
+    const result = parseSiphonLog(raw)
+
+    expect(result.errors).toEqual([])
+    expect(result.entries.map((entry) => entry.quantity)).toEqual([7, -10, 3, -2])
+  })
+
   it('keeps legacy 6-column guild chest siphon rows for backwards compatibility', () => {
     const raw = [
       '"05/24/2026 14:05:00"\t"MonKKu"\t"착취한 에너지"\t"0"\t"1"\t"7"',

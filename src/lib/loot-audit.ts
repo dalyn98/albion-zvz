@@ -1,5 +1,5 @@
 import { parseChestLog } from '@/lib/shop/parse-chest-log'
-import { resolveKoItem } from '@/lib/shop/resolve-item'
+import { resolveAlbionItem } from '@/lib/shop/resolve-item'
 import { compareStrings } from './sort-strings'
 
 export interface LootLogParseError {
@@ -43,7 +43,12 @@ export interface DepositLogEntry {
 
 export type LootAuditLooterRelation = 'guild' | 'alliance' | 'other'
 
-export type LootAuditCheckStatus = 'complete' | 'partial' | 'missing'
+export type LootAuditCheckStatus =
+  | 'complete'
+  | 'partial'
+  | 'missing'
+  | 'death_loss'
+  | 'partial_death_loss'
 export type LootAuditDepositCheckStatus = 'matched' | 'extra' | 'unresolved'
 
 export interface LootAuditScopeContext {
@@ -77,10 +82,13 @@ export interface LootAuditFinding {
 export interface LootAuditMemberSummary {
   lootedByName: string
   looterRelation: LootAuditLooterRelation
+  lootedQuantity: number
   expectedQuantity: number
   depositedQuantity: number
   missingQuantity: number
   missingEstimatedValue: number
+  deathLostQuantity: number
+  deathLostEstimatedValue: number
 }
 
 export interface LootAuditRelationCounts {
@@ -94,11 +102,14 @@ export interface LootAuditCheckRow {
   looterRelation: LootAuditLooterRelation
   itemId: string
   itemName: string
+  lootedQuantity: number
   expectedQuantity: number
   depositedQuantity: number
   missingQuantity: number
   unitEstimatedValue: number
   missingEstimatedValue: number
+  deathLostQuantity: number
+  deathLostEstimatedValue: number
   status: LootAuditCheckStatus
 }
 
@@ -126,6 +137,8 @@ export interface LootAuditSummary {
   totalEstimatedValue: number
   externalEstimatedValue: number
   missingEstimatedValue: number
+  deathLostQuantity: number
+  deathLostEstimatedValue: number
   relationCounts: LootAuditRelationCounts
   findings: LootAuditFinding[]
   memberSummaries: LootAuditMemberSummary[]
@@ -142,8 +155,10 @@ interface LootAccumulator {
   looterRelation: LootAuditLooterRelation
   itemId: string
   itemName: string
-  expectedQuantity: number
+  lootedQuantity: number
+  deathLostQuantity: number
   estimatedValue: number
+  deathLostEstimatedValue: number
 }
 
 interface DepositAccumulator {
@@ -169,6 +184,154 @@ const REQUIRED_LOOT_HEADERS = [
   'quantity',
 ] as const
 
+const LOOT_HEADER_ALIASES: Record<string, readonly string[]> = {
+  timestamp_utc: [
+    'timestamp_utc',
+    'timestamp utc',
+    'timestamp',
+    'datetime',
+    'date',
+    'time',
+    '시간',
+    '일시',
+    '날짜',
+    '日時',
+    '日付',
+    '時間',
+    '日期',
+    '时间',
+  ],
+  looted_by__alliance: [
+    'looted_by__alliance',
+    'looted_by_alliance',
+    'looter_alliance',
+    'looted by alliance',
+    'looter alliance',
+    '획득자 연합',
+    '루터 연합',
+    'ルーター同盟',
+    '獲得者同盟',
+    '拾取者联盟',
+  ],
+  looted_by__guild: [
+    'looted_by__guild',
+    'looted_by_guild',
+    'looter_guild',
+    'looted by guild',
+    'looter guild',
+    '획득자 길드',
+    '루터 길드',
+    'ルーターギルド',
+    '獲得者ギルド',
+    '拾取者公会',
+  ],
+  looted_by__name: [
+    'looted_by__name',
+    'looted_by_name',
+    'looter',
+    'looter_name',
+    'looted by',
+    'looted by name',
+    'player',
+    'player name',
+    '획득자',
+    '루터',
+    '루팅한 사람',
+    'プレイヤー',
+    '獲得者',
+    '拾取者',
+    '玩家',
+  ],
+  item_id: [
+    'item_id',
+    'item id',
+    'unique_name',
+    'unique name',
+    'item unique name',
+    '아이템 id',
+    '아이템 코드',
+    'アイテムid',
+    'アイテムコード',
+    '物品id',
+    '物品代码',
+  ],
+  item_name: [
+    'item_name',
+    'item name',
+    'item',
+    '아이템명',
+    '아이템',
+    'アイテム名',
+    'アイテム',
+    '物品名称',
+    '物品',
+  ],
+  quantity: ['quantity', 'qty', '수량', '数量', '數量'],
+  looted_from__alliance: [
+    'looted_from__alliance',
+    'looted_from_alliance',
+    'looted from alliance',
+    'victim alliance',
+    '피해자 연합',
+    '被害者同盟',
+    '被拾取者联盟',
+  ],
+  looted_from__guild: [
+    'looted_from__guild',
+    'looted_from_guild',
+    'looted from guild',
+    'victim guild',
+    '피해자 길드',
+    '被害者ギルド',
+    '被拾取者公会',
+  ],
+  looted_from__name: [
+    'looted_from__name',
+    'looted_from_name',
+    'looted from',
+    'victim',
+    'victim name',
+    '피해자',
+    '被害者',
+    '被拾取者',
+  ],
+  died: ['died', 'dead', 'death', '사망', '死亡'],
+  died_player_guild: [
+    'died_player_guild',
+    'died player guild',
+    'dead player guild',
+    '사망자 길드',
+    '死亡者ギルド',
+    '死亡玩家公会',
+  ],
+  killed_by: ['killed_by', 'killed by', 'killer', '처치자', '킬러', 'キラー', '击杀者'],
+  killed_by_guild: [
+    'killed_by_guild',
+    'killed by guild',
+    'killer guild',
+    '처치자 길드',
+    'キラーギルド',
+    '击杀者公会',
+  ],
+  average_est_market_value: [
+    'average_est_market_value',
+    'average est market value',
+    'estimated_market_value',
+    'estimated market value',
+    'market value',
+    'value',
+    '평균 추정가',
+    '추정가',
+    '推定価格',
+    '平均推定市場価値',
+    '估价',
+    '平均估计市场价值',
+  ],
+  cluster: ['cluster', 'map', 'location', 'zone', '지역', '맵', 'クラスター', '場所', '区域', '地图'],
+}
+
+const LOOT_HEADER_ALIAS_TO_CANONICAL = buildLootHeaderAliasMap()
+
 export function parseLootLogCsv(raw: string): LootLogParseResult {
   const text = raw.trim()
   if (!text) return { entries: [], errors: [] }
@@ -176,7 +339,7 @@ export function parseLootLogCsv(raw: string): LootLogParseResult {
   const lines = text.split(/\r?\n/)
   const headerLine = lines[0]
   const delimiter = detectDelimiter(headerLine)
-  const headers = splitDelimitedLine(headerLine, delimiter).map(normalizeHeader)
+  const headers = splitDelimitedLine(headerLine, delimiter).map(canonicalLootHeader)
   const headerIndex = new Map(headers.map((h, i) => [h, i]))
   const missingHeaders = REQUIRED_LOOT_HEADERS.filter((header) => !headerIndex.has(header))
   if (missingHeaders.length > 0) {
@@ -320,6 +483,7 @@ export function buildLootAuditSummary(
     }
     const looterRelation = classifyLootEntry(entry, context)
     const estimatedValue = entry.quantity * entry.estimatedMarketValue
+    const isDeathLoss = isDeathLossEntry(entry)
     auditedLootRows += 1
     relationCounts[looterRelation] += 1
     if (isLootAuditTargetRelation(looterRelation)) {
@@ -332,8 +496,12 @@ export function buildLootAuditSummary(
     const key = memberItemKey(entry.lootedByName, entry.itemId)
     const existing = lootByMemberItem.get(key)
     if (existing) {
-      existing.expectedQuantity += entry.quantity
+      existing.lootedQuantity += entry.quantity
       existing.estimatedValue += estimatedValue
+      if (isDeathLoss) {
+        existing.deathLostQuantity += entry.quantity
+        existing.deathLostEstimatedValue += estimatedValue
+      }
       existing.looterRelation = mergeLooterRelation(existing.looterRelation, looterRelation)
       continue
     }
@@ -342,8 +510,10 @@ export function buildLootAuditSummary(
       looterRelation,
       itemId: entry.itemId,
       itemName: entry.itemName,
-      expectedQuantity: entry.quantity,
+      lootedQuantity: entry.quantity,
+      deathLostQuantity: isDeathLoss ? entry.quantity : 0,
       estimatedValue,
+      deathLostEstimatedValue: isDeathLoss ? estimatedValue : 0,
     })
   }
 
@@ -382,33 +552,54 @@ export function buildLootAuditSummary(
   const memberSummaryMap = new Map<string, LootAuditMemberSummary>()
   let matchedDepositRows = 0
   let missingEstimatedValue = 0
+  let deathLostQuantity = 0
+  let deathLostEstimatedValue = 0
 
   for (const [key, expected] of lootByMemberItem) {
     const deposited = depositByMemberItem.get(key)
     const depositedQuantity = deposited?.depositedQuantity ?? 0
     if (deposited) matchedDepositRows += deposited.rowCount
 
-    const missingQuantity = Math.max(0, expected.expectedQuantity - depositedQuantity)
-    const unitEstimatedValue = expected.expectedQuantity > 0
-      ? Math.round(expected.estimatedValue / expected.expectedQuantity)
+    const accountableQuantity = expected.lootedQuantity - expected.deathLostQuantity
+    const accountableEstimatedValue = expected.estimatedValue - expected.deathLostEstimatedValue
+    const deathLossCoveredByDeposit = Math.max(0, depositedQuantity - accountableQuantity)
+    const remainingDeathLostQuantity = Math.max(
+      0,
+      expected.deathLostQuantity - deathLossCoveredByDeposit,
+    )
+    const unitEstimatedValue = accountableQuantity > 0
+      ? Math.round(accountableEstimatedValue / accountableQuantity)
       : 0
+    const unitDeathLostEstimatedValue = expected.deathLostQuantity > 0
+      ? Math.round(expected.deathLostEstimatedValue / expected.deathLostQuantity)
+      : 0
+    const remainingDeathLostValue = remainingDeathLostQuantity * unitDeathLostEstimatedValue
+    const missingQuantity = Math.max(0, accountableQuantity - depositedQuantity)
     const missingValue = missingQuantity * unitEstimatedValue
     const isTargetExpected = isLootAuditTargetRelation(expected.looterRelation)
     if (isTargetExpected) {
       missingEstimatedValue += missingValue
+      deathLostQuantity += remainingDeathLostQuantity
+      deathLostEstimatedValue += remainingDeathLostValue
     }
-    const status: LootAuditCheckStatus =
-      missingQuantity <= 0 ? 'complete' : depositedQuantity > 0 ? 'partial' : 'missing'
+    const status = getLootAuditCheckStatus({
+      missingQuantity,
+      depositedQuantity,
+      deathLostQuantity: remainingDeathLostQuantity,
+    })
     checkRows.push({
       lootedByName: expected.lootedByName,
       looterRelation: expected.looterRelation,
       itemId: expected.itemId,
       itemName: expected.itemName,
-      expectedQuantity: expected.expectedQuantity,
+      lootedQuantity: expected.lootedQuantity,
+      expectedQuantity: accountableQuantity,
       depositedQuantity,
       missingQuantity,
       unitEstimatedValue,
       missingEstimatedValue: missingValue,
+      deathLostQuantity: remainingDeathLostQuantity,
+      deathLostEstimatedValue: remainingDeathLostValue,
       status,
     })
 
@@ -416,19 +607,25 @@ export function buildLootAuditSummary(
       const memberSummary = memberSummaryMap.get(expected.lootedByName) ?? {
         lootedByName: expected.lootedByName,
         looterRelation: expected.looterRelation,
+        lootedQuantity: 0,
         expectedQuantity: 0,
         depositedQuantity: 0,
         missingQuantity: 0,
         missingEstimatedValue: 0,
+        deathLostQuantity: 0,
+        deathLostEstimatedValue: 0,
       }
       memberSummary.looterRelation = mergeLooterRelation(
         memberSummary.looterRelation,
         expected.looterRelation,
       )
-      memberSummary.expectedQuantity += expected.expectedQuantity
-      memberSummary.depositedQuantity += Math.min(expected.expectedQuantity, depositedQuantity)
+      memberSummary.lootedQuantity += expected.lootedQuantity
+      memberSummary.expectedQuantity += accountableQuantity
+      memberSummary.depositedQuantity += Math.min(accountableQuantity, depositedQuantity)
       memberSummary.missingQuantity += missingQuantity
       memberSummary.missingEstimatedValue += missingValue
+      memberSummary.deathLostQuantity += remainingDeathLostQuantity
+      memberSummary.deathLostEstimatedValue += remainingDeathLostValue
       memberSummaryMap.set(expected.lootedByName, memberSummary)
     }
 
@@ -438,7 +635,7 @@ export function buildLootAuditSummary(
       looterRelation: expected.looterRelation,
       itemId: expected.itemId,
       itemName: expected.itemName,
-      expectedQuantity: expected.expectedQuantity,
+      expectedQuantity: accountableQuantity,
       depositedQuantity,
       missingQuantity,
       unitEstimatedValue,
@@ -448,7 +645,9 @@ export function buildLootAuditSummary(
 
   for (const [key, deposit] of depositByMemberItem) {
     const expected = lootByMemberItem.get(key)
-    const expectedQuantity = expected?.expectedQuantity ?? 0
+    const expectedQuantity = expected
+      ? expected.lootedQuantity - expected.deathLostQuantity
+      : 0
     const matchedQuantity = Math.min(deposit.depositedQuantity, expectedQuantity)
     const extraQuantity = Math.max(0, deposit.depositedQuantity - expectedQuantity)
     depositCheckRows.push({
@@ -526,12 +725,37 @@ export function buildLootAuditSummary(
     totalEstimatedValue,
     externalEstimatedValue,
     missingEstimatedValue,
+    deathLostQuantity,
+    deathLostEstimatedValue,
     relationCounts,
     findings,
     memberSummaries,
     checkRows,
     depositCheckRows,
   }
+}
+
+export function isDeathLossEntry(entry: Pick<LootLogEntry, 'died'>): boolean {
+  const normalized = entry.died.trim().toLowerCase()
+  if (!normalized) return false
+  return ![
+    '0',
+    'false',
+    'no',
+    'n',
+    'alive',
+    'survived',
+    '아니오',
+    '아님',
+    '생존',
+    'いいえ',
+    '生存',
+    '否',
+    '没有',
+    '無',
+    '无',
+    '未死亡',
+  ].includes(normalized)
 }
 
 export function isLootAuditTargetRelation(
@@ -607,7 +831,30 @@ function splitDelimitedLine(line: string, delimiter: string): string[] {
 }
 
 function normalizeHeader(header: string): string {
-  return header.trim().toLowerCase().replace(/^\uFEFF/, '')
+  return header
+    .normalize('NFKC')
+    .trim()
+    .toLowerCase()
+    .replace(/^\uFEFF/, '')
+    .replace(/[.\-\/]+/g, '_')
+    .replace(/\s+/g, '_')
+    .replace(/_+/g, '_')
+}
+
+function canonicalLootHeader(header: string): string {
+  const normalized = normalizeHeader(header)
+  return LOOT_HEADER_ALIAS_TO_CANONICAL.get(normalized) ?? normalized
+}
+
+function buildLootHeaderAliasMap(): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const [canonical, aliases] of Object.entries(LOOT_HEADER_ALIASES)) {
+    map.set(normalizeHeader(canonical), canonical)
+    for (const alias of aliases) {
+      map.set(normalizeHeader(alias), canonical)
+    }
+  }
+  return map
 }
 
 function parseInteger(raw: string): number | null {
@@ -618,7 +865,7 @@ function parseInteger(raw: string): number | null {
 }
 
 function defaultResolveItemName(itemName: string): string | null {
-  return resolveKoItem(itemName)?.uniqueName ?? null
+  return resolveAlbionItem(itemName)?.uniqueName ?? null
 }
 
 function applyEnchant(uniqueName: string, enchant: number): string {
@@ -655,6 +902,23 @@ function depositCheckStatusRank(status: LootAuditDepositCheckStatus): number {
   if (status === 'unresolved') return 0
   if (status === 'extra') return 1
   return 2
+}
+
+function getLootAuditCheckStatus({
+  missingQuantity,
+  depositedQuantity,
+  deathLostQuantity,
+}: {
+  missingQuantity: number
+  depositedQuantity: number
+  deathLostQuantity: number
+}): LootAuditCheckStatus {
+  if (deathLostQuantity > 0) {
+    if (missingQuantity > 0 || depositedQuantity > 0) return 'partial_death_loss'
+    return 'death_loss'
+  }
+  if (missingQuantity <= 0) return 'complete'
+  return depositedQuantity > 0 ? 'partial' : 'missing'
 }
 
 function lootRowHash(entry: LootLogEntry): string {

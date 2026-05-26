@@ -135,13 +135,14 @@ export default async function DemoLootAuditPage() {
         </div>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-6">
+      <section className="grid gap-3 md:grid-cols-7">
         <Metric label={t('statLootRows')} value="186" />
         <Metric label={t('statTargetRows')} value="152" tone="amber" />
         <Metric label={t('statExternalRows')} value="34" />
         <Metric label={t('statDepositRows')} value="142" />
         <Metric label={t('statFindings')} value="4" tone="amber" />
         <Metric label={t('statMissingValue')} value={formatSilver(2020000)} tone="rose" />
+        <Metric label={t('statDeathLossValue')} value={formatSilver(680000)} tone="amber" />
       </section>
 
       <section className="space-y-3">
@@ -277,7 +278,7 @@ function DemoLogDropzone({
         <span className="text-amber-300">{icon}</span>
         {label}
       </div>
-      <p className="min-h-16 rounded border border-gray-800 bg-black/20 p-3 font-mono text-xs text-gray-500">
+      <p className="min-h-16 break-all rounded border border-gray-800 bg-black/20 p-3 font-mono text-xs text-gray-500">
         {placeholder}
       </p>
     </div>

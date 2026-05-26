@@ -69,6 +69,9 @@ export default async function LootAuditDetailPage({
   const allRelationCount =
     checkRelationCounts.guild + checkRelationCounts.alliance + checkRelationCounts.other
   const targetRelationCount = checkRelationCounts.guild + checkRelationCounts.alliance
+  const targetDeathLostEstimatedValue = detail.checkRows
+    .filter((row) => isLootAuditTargetRelation(row.looterRelation))
+    .reduce((sum, row) => sum + row.deathLostEstimatedValue, 0)
   const relationTabs: { key: RelationFilter; label: string; count: number }[] = [
     { key: 'target', label: t('relationTarget'), count: targetRelationCount },
     { key: 'all', label: t('relationAll'), count: allRelationCount },
@@ -102,11 +105,12 @@ export default async function LootAuditDetailPage({
         </p>
       </header>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
         <StatCell label={t('statLootRows')} value={detail.audit.lootRowsCount} />
         <StatCell label={t('statDepositRows')} value={detail.audit.depositRowsCount} />
         <StatCell label={t('statTotalValue')} value={formatSilver(detail.audit.totalEstimatedValue)} />
         <StatCell label={t('statMissingValue')} value={formatSilver(detail.audit.missingEstimatedValue)} accent={detail.audit.missingEstimatedValue > 0 ? 'amber' : 'emerald'} />
+        <StatCell label={t('statDeathLossValue')} value={formatSilver(targetDeathLostEstimatedValue)} accent={targetDeathLostEstimatedValue > 0 ? 'amber' : 'emerald'} />
         <StatCell label={t('statOpenFindings')} value={detail.audit.unresolvedFindingsCount} accent={detail.audit.unresolvedFindingsCount > 0 ? 'amber' : 'emerald'} />
       </div>
 
@@ -208,15 +212,17 @@ export default async function LootAuditDetailPage({
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-white">{t('chestCheckTitle')}</h2>
         <div className="overflow-x-auto rounded-lg border border-gray-700 bg-gray-900/60">
-          <table className="w-full min-w-[900px] text-left text-sm">
+          <table className="w-full min-w-[1040px] text-left text-sm">
             <thead className="border-b border-gray-700 bg-gray-800/70 text-xs text-gray-400">
               <tr>
                 <th className="px-3 py-2 font-medium">{t('colRelation')}</th>
                 <th className="px-3 py-2 font-medium">{t('colMember')}</th>
                 <th className="px-3 py-2 font-medium">{t('colItem')}</th>
+                <th className="px-3 py-2 font-medium">{t('colLooted')}</th>
                 <th className="px-3 py-2 font-medium">{t('colExpected')}</th>
                 <th className="px-3 py-2 font-medium">{t('colDeposited')}</th>
                 <th className="px-3 py-2 font-medium">{t('colMissing')}</th>
+                <th className="px-3 py-2 font-medium">{t('colDeathLoss')}</th>
                 <th className="px-3 py-2 font-medium">{t('colMissingValue')}</th>
                 <th className="px-3 py-2 font-medium">{t('colDepositStatus')}</th>
               </tr>
@@ -224,7 +230,7 @@ export default async function LootAuditDetailPage({
             <tbody className="divide-y divide-gray-800">
               {filteredCheckRows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-3 py-8 text-center text-sm text-gray-500">
+                  <td colSpan={10} className="px-3 py-8 text-center text-sm text-gray-500">
                     {t('noChestCheckRows')}
                   </td>
                 </tr>
@@ -246,9 +252,11 @@ export default async function LootAuditDetailPage({
                       <p>{row.itemName}</p>
                       <p className="font-mono text-[11px] text-gray-500">{row.itemId}</p>
                     </td>
+                    <td className="px-3 py-3 font-mono text-xs">{row.lootedQuantity}</td>
                     <td className="px-3 py-3 font-mono text-xs">{row.expectedQuantity}</td>
                     <td className="px-3 py-3 font-mono text-xs">{row.depositedQuantity}</td>
                     <td className="px-3 py-3 font-mono text-xs text-amber-200">{row.missingQuantity}</td>
+                    <td className="px-3 py-3 font-mono text-xs text-sky-200">{row.deathLostQuantity}</td>
                     <td className="px-3 py-3 font-mono text-xs text-amber-200">
                       {formatSilver(row.missingEstimatedValue)}
                     </td>
@@ -259,6 +267,8 @@ export default async function LootAuditDetailPage({
                           complete: t('depositStatusComplete'),
                           partial: t('depositStatusPartial'),
                           missing: t('depositStatusMissing'),
+                          death_loss: t('depositStatusDeathLoss'),
+                          partial_death_loss: t('depositStatusPartialDeathLoss'),
                         }}
                       />
                     </td>
@@ -420,7 +430,9 @@ function DepositStatus({
       ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
       : status === 'partial'
         ? 'border-amber-500/40 bg-amber-500/10 text-amber-200'
-        : 'border-rose-500/40 bg-rose-500/10 text-rose-200'
+        : status === 'death_loss' || status === 'partial_death_loss'
+          ? 'border-sky-500/40 bg-sky-500/10 text-sky-200'
+          : 'border-rose-500/40 bg-rose-500/10 text-rose-200'
   return (
     <span className={`inline-flex rounded-md border px-2 py-1 text-xs ${color}`}>
       {labels[status]}

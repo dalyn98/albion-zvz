@@ -48,6 +48,24 @@ describe('parseLootLogCsv', () => {
       expect.objectContaining({ line: 2, reason: expect.stringContaining('quantity') }),
     ])
   })
+
+  it('accepts localized loot CSV headers', () => {
+    const raw = [
+      '일시;획득자 연합;획득자 길드;획득자;아이템 ID;아이템명;수량;피해자 연합;피해자 길드;피해자;사망;사망자 길드;처치자;처치자 길드;평균 추정가;지역',
+      "2026-05-24T05:00:01Z;RIFT;Menhera;MonKKu;T5_ARMOR_LEATHER_HELL@3;Expert's Hellion Jacket;2;ARCH;Enemy;VictimA;아니오;Enemy;MonKKu;Menhera;125000;Battlebrae Flatland",
+    ].join('\n')
+
+    const result = parseLootLogCsv(raw)
+
+    expect(result.errors).toEqual([])
+    expect(result.entries[0]).toMatchObject({
+      lootedByName: 'MonKKu',
+      itemId: 'T5_ARMOR_LEATHER_HELL@3',
+      itemName: "Expert's Hellion Jacket",
+      quantity: 2,
+      estimatedMarketValue: 125000,
+    })
+  })
 })
 
 describe('parseDepositLog', () => {
@@ -67,6 +85,23 @@ describe('parseDepositLog', () => {
       enchant: 3,
       quality: 1,
       line: 1,
+    })
+  })
+
+  it('resolves non-Korean chest item names for deposit matching', () => {
+    const raw = [
+      '"Date"\t"Player"\t"Item"\t"Enchantment"\t"Quality"\t"Quantity"',
+      '"05/24/2026 14:05:00"\t"MonKKu"\t"Expert\'s Hellion Jacket"\t"3"\t"1"\t"2"',
+    ].join('\n')
+
+    const result = parseDepositLog(raw)
+
+    expect(result.errors).toEqual([])
+    expect(result.unresolvedItemNames).toEqual([])
+    expect(result.entries[0]).toMatchObject({
+      player: 'MonKKu',
+      itemId: 'T5_ARMOR_LEATHER_HELL@3',
+      quantity: 2,
     })
   })
 })
@@ -236,6 +271,89 @@ describe('buildLootAuditSummary', () => {
         looterRelation: 'other',
         missingQuantity: 2,
         missingEstimatedValue: 1000,
+      }),
+    ])
+  })
+
+  it('separates death-lost target loot from official missing findings', () => {
+    const raw = [
+      'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name;died;died_player_guild;killed_by;killed_by_guild;average_est_market_value;cluster',
+      '2026-05-24T05:00:01Z;RIFT;Menhera;MonKKu;T5_ARMOR_LEATHER_HELL@3;전문가의 지옥불 재킷;1;ARCH;Enemy;VictimA;false;Enemy;MonKKu;Menhera;100;Battlebrae Flatland',
+      '2026-05-24T05:00:02Z;RIFT;Menhera;MonKKu;T5_ARMOR_LEATHER_HELL@3;전문가의 지옥불 재킷;2;ARCH;Enemy;VictimB;true;Enemy;MonKKu;Menhera;100;Battlebrae Flatland',
+    ].join('\n')
+    const deposits = parseDepositLog(
+      '"05/24/2026 14:05:00"\t"MonKKu"\t"전문가의 지옥불 재킷"\t"3"\t"1"\t"1"',
+      { resolveItemName: makeResolver },
+    ).entries
+
+    const summary = buildLootAuditSummary(parseLootLogCsv(raw).entries, deposits, {
+      homeGuildName: 'Menhera',
+      homeAllianceNames: ['RIFT'],
+    })
+
+    expect(summary.totalEstimatedValue).toBe(300)
+    expect(summary.missingEstimatedValue).toBe(0)
+    expect(summary.deathLostQuantity).toBe(2)
+    expect(summary.deathLostEstimatedValue).toBe(200)
+    expect(summary.findings).toEqual([])
+    expect(summary.checkRows).toEqual([
+      expect.objectContaining({
+        lootedByName: 'MonKKu',
+        lootedQuantity: 3,
+        expectedQuantity: 1,
+        depositedQuantity: 1,
+        missingQuantity: 0,
+        deathLostQuantity: 2,
+        deathLostEstimatedValue: 200,
+        status: 'partial_death_loss',
+      }),
+    ])
+    expect(summary.depositCheckRows).toEqual([
+      expect.objectContaining({
+        player: 'MonKKu',
+        expectedQuantity: 1,
+        depositedQuantity: 1,
+        matchedQuantity: 1,
+        extraQuantity: 0,
+        status: 'matched',
+      }),
+    ])
+  })
+
+  it('still reports accountable missing quantity when only part of a death-mixed stack is returned', () => {
+    const raw = [
+      'timestamp_utc;looted_by__alliance;looted_by__guild;looted_by__name;item_id;item_name;quantity;looted_from__alliance;looted_from__guild;looted_from__name;died;died_player_guild;killed_by;killed_by_guild;average_est_market_value;cluster',
+      '2026-05-24T05:00:01Z;RIFT;Menhera;MonKKu;T5_ARMOR_LEATHER_HELL@3;전문가의 지옥불 재킷;2;ARCH;Enemy;VictimA;false;Enemy;MonKKu;Menhera;100;Battlebrae Flatland',
+      '2026-05-24T05:00:02Z;RIFT;Menhera;MonKKu;T5_ARMOR_LEATHER_HELL@3;전문가의 지옥불 재킷;1;ARCH;Enemy;VictimB;true;Enemy;MonKKu;Menhera;100;Battlebrae Flatland',
+    ].join('\n')
+    const deposits = parseDepositLog(
+      '"05/24/2026 14:05:00"\t"MonKKu"\t"전문가의 지옥불 재킷"\t"3"\t"1"\t"1"',
+      { resolveItemName: makeResolver },
+    ).entries
+
+    const summary = buildLootAuditSummary(parseLootLogCsv(raw).entries, deposits, {
+      homeGuildName: 'Menhera',
+      homeAllianceNames: ['RIFT'],
+    })
+
+    expect(summary.missingEstimatedValue).toBe(100)
+    expect(summary.deathLostEstimatedValue).toBe(100)
+    expect(summary.findings).toEqual([
+      expect.objectContaining({
+        lootedByName: 'MonKKu',
+        expectedQuantity: 2,
+        depositedQuantity: 1,
+        missingQuantity: 1,
+        missingEstimatedValue: 100,
+      }),
+    ])
+    expect(summary.checkRows).toEqual([
+      expect.objectContaining({
+        expectedQuantity: 2,
+        depositedQuantity: 1,
+        missingQuantity: 1,
+        deathLostQuantity: 1,
+        status: 'partial_death_loss',
       }),
     ])
   })

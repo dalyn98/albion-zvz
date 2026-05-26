@@ -249,6 +249,7 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
         <StatCell label={t('relationOther')} value={summary.relationCounts.other} />
         <StatCell label={t('statFindings')} value={summary.findings.length} accent={summary.findings.length > 0 ? 'amber' : 'emerald'} />
         <StatCell label={t('statMissingValue')} value={formatSilver(summary.missingEstimatedValue)} accent={summary.missingEstimatedValue > 0 ? 'amber' : 'emerald'} />
+        <StatCell label={t('statDeathLossValue')} value={formatSilver(summary.deathLostEstimatedValue)} accent={summary.deathLostEstimatedValue > 0 ? 'amber' : 'emerald'} />
       </div>
 
       {skippedBeforeStart > 0 && (
