@@ -33,6 +33,39 @@ const COMMANDS = [
     description: 'Show the most imminent upcoming event for this guild',
     type: 1,
   },
+  {
+    name: 'killbot',
+    description: 'Manage Albion killbot notifications for this guild',
+    type: 1,
+    default_member_permissions: '32',
+    options: [
+      {
+        name: 'setup',
+        description: 'Enable killbot notifications in the current channel',
+        type: 1,
+      },
+      {
+        name: 'status',
+        description: 'Show current killbot status',
+        type: 1,
+      },
+      {
+        name: 'test',
+        description: 'Send a killbot test message',
+        type: 1,
+      },
+      {
+        name: 'pause',
+        description: 'Pause killbot notifications',
+        type: 1,
+      },
+      {
+        name: 'resume',
+        description: 'Resume killbot notifications',
+        type: 1,
+      },
+    ],
+  },
 ]
 
 async function main() {

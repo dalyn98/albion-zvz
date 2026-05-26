@@ -12,6 +12,12 @@ import { mapDiscordLocale } from '@/lib/discord'
 import { tenantUrl } from '@/lib/tenant-resolver'
 import { DEFAULT_LOCALE, type Locale } from '@/i18n/locales'
 import {
+  getKillbotConfig,
+  killbotDashboardUrl,
+  saveKillbotConfig,
+  sendKillbotTestMessage,
+} from '@/lib/killbot'
+import {
   ephemeralReply,
   type DiscordInteractionPayload,
   type DiscordInteractionResponse,
@@ -21,8 +27,14 @@ import {
 export const COMMAND_HOME = 'home'
 export const COMMAND_DOCS = 'docs'
 export const COMMAND_UPCOMING = 'upcoming'
+export const COMMAND_KILLBOT = 'killbot'
 
-export const ALL_COMMAND_NAMES = [COMMAND_HOME, COMMAND_DOCS, COMMAND_UPCOMING] as const
+export const ALL_COMMAND_NAMES = [
+  COMMAND_HOME,
+  COMMAND_DOCS,
+  COMMAND_UPCOMING,
+  COMMAND_KILLBOT,
+] as const
 
 interface DiscordBotMessages {
   notInGuild: string
@@ -32,6 +44,15 @@ interface DiscordBotMessages {
   docsReady: string
   upcomingNone: string
   upcoming: string
+  killbotNoPermission: string
+  killbotNoChannel: string
+  killbotSetup: string
+  killbotPaused: string
+  killbotResumed: string
+  killbotStatus: string
+  killbotTestSent: string
+  killbotNotConfigured: string
+  killbotError: string
 }
 
 // next-intl 의 messages JSON 에서 discordBot 네임스페이스만 꺼내 평탄화.
@@ -49,11 +70,41 @@ async function loadMessages(locale: Locale): Promise<DiscordBotMessages> {
     docsReady: ns.docsReady ?? '',
     upcomingNone: ns.upcomingNone ?? '',
     upcoming: ns.upcoming ?? '',
+    killbotNoPermission: ns.killbotNoPermission ?? '',
+    killbotNoChannel: ns.killbotNoChannel ?? '',
+    killbotSetup: ns.killbotSetup ?? '',
+    killbotPaused: ns.killbotPaused ?? '',
+    killbotResumed: ns.killbotResumed ?? '',
+    killbotStatus: ns.killbotStatus ?? '',
+    killbotTestSent: ns.killbotTestSent ?? '',
+    killbotNotConfigured: ns.killbotNotConfigured ?? '',
+    killbotError: ns.killbotError ?? '',
   }
 }
 
 function format(template: string, vars: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (_, key: string) => vars[key] ?? `{${key}}`)
+}
+
+const DISCORD_PERMISSION_ADMINISTRATOR = 1n << 3n
+const DISCORD_PERMISSION_MANAGE_GUILD = 1n << 5n
+
+export function canManageKillbot(payload: DiscordInteractionPayload): boolean {
+  const raw = payload.member?.permissions
+  if (!raw) return false
+  try {
+    const bits = BigInt(raw)
+    return (
+      (bits & DISCORD_PERMISSION_ADMINISTRATOR) !== 0n ||
+      (bits & DISCORD_PERMISSION_MANAGE_GUILD) !== 0n
+    )
+  } catch {
+    return false
+  }
+}
+
+function getSubcommandName(payload: DiscordInteractionPayload): string {
+  return payload.data?.options?.[0]?.name ?? 'status'
 }
 
 interface TenantBindResult {
@@ -148,6 +199,8 @@ export async function handleSlashCommand(
       return handleDocs(messages)
     case COMMAND_UPCOMING:
       return handleUpcoming(tenant, messages)
+    case COMMAND_KILLBOT:
+      return handleKillbot(payload, tenant, messages)
     default:
       // 등록되지 않은 명령 — 등록 스크립트와 sync 안 됐을 때만 발생.
       return ephemeralReply(messages.guildNotLinked)
@@ -193,4 +246,95 @@ async function handleUpcoming(
       url: eventUrl,
     }),
   )
+}
+
+async function handleKillbot(
+  payload: DiscordInteractionPayload,
+  tenant: TenantBindResult | null,
+  messages: DiscordBotMessages,
+): Promise<DiscordInteractionResponse> {
+  if (!tenant) {
+    const docsUrl = tenantUrl(null, '/faq')
+    return ephemeralReply(format(messages.guildNotLinkedDocs, { docsUrl }))
+  }
+  if (!canManageKillbot(payload)) {
+    return ephemeralReply(messages.killbotNoPermission)
+  }
+
+  const db = getAdminClient()
+  const subcommand = getSubcommandName(payload)
+  const dashboardUrl = killbotDashboardUrl(tenant.slug)
+
+  try {
+    if (subcommand === 'setup') {
+      const channelId = payload.channel_id
+      if (!channelId) return ephemeralReply(messages.killbotNoChannel)
+      const current = await getKillbotConfig(db, tenant.id)
+      await saveKillbotConfig(db, tenant.id, {
+        ...current,
+        enabled: true,
+        channelId,
+      })
+      return ephemeralReply(
+        format(messages.killbotSetup, {
+          channel: `<#${channelId}>`,
+          dashboardUrl,
+        }),
+      )
+    }
+
+    if (subcommand === 'pause') {
+      const current = await getKillbotConfig(db, tenant.id)
+      await saveKillbotConfig(db, tenant.id, {
+        ...current,
+        enabled: false,
+        channelId: current.channelId,
+      })
+      return ephemeralReply(format(messages.killbotPaused, { dashboardUrl }))
+    }
+
+    if (subcommand === 'resume') {
+      const current = await getKillbotConfig(db, tenant.id)
+      const channelId = current.channelId ?? payload.channel_id ?? null
+      if (!channelId) return ephemeralReply(messages.killbotNoChannel)
+      await saveKillbotConfig(db, tenant.id, {
+        ...current,
+        enabled: true,
+        channelId,
+      })
+      return ephemeralReply(
+        format(messages.killbotResumed, {
+          channel: `<#${channelId}>`,
+          dashboardUrl,
+        }),
+      )
+    }
+
+    if (subcommand === 'test') {
+      const current = await getKillbotConfig(db, tenant.id)
+      const channelId = current.channelId ?? payload.channel_id ?? null
+      if (!channelId) return ephemeralReply(messages.killbotNoChannel)
+      await sendKillbotTestMessage(db, tenant.id, channelId)
+      return ephemeralReply(format(messages.killbotTestSent, { channel: `<#${channelId}>` }))
+    }
+
+    const current = await getKillbotConfig(db, tenant.id)
+    if (!current.channelId) {
+      return ephemeralReply(format(messages.killbotNotConfigured, { dashboardUrl }))
+    }
+    return ephemeralReply(
+      format(messages.killbotStatus, {
+        status: current.enabled ? 'ON' : 'OFF',
+        channel: `<#${current.channelId}>`,
+        minFame: current.minFame.toLocaleString('en-US'),
+        dashboardUrl,
+      }),
+    )
+  } catch (err) {
+    return ephemeralReply(
+      format(messages.killbotError, {
+        message: err instanceof Error ? err.message : String(err),
+      }),
+    )
+  }
 }

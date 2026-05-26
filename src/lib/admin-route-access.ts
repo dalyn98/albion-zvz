@@ -103,6 +103,10 @@ export const ADMIN_ROUTE_ACCESS_RULES: readonly AdminRouteAccessRule[] = [
     capabilities: [CAP.STATS_VIEW],
   },
   {
+    href: '/admin/dashboard/killbot',
+    capabilities: [CAP.SETTINGS_GENERAL],
+  },
+  {
     href: '/admin/dashboard/siphon',
     capabilities: [CAP.SIPHON_MANAGE],
   },

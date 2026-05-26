@@ -38,6 +38,7 @@ import {
   ExternalLink,
   LayoutTemplate,
   Wrench,
+  Bot,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -114,6 +115,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/dashboard/inventory', labelKey: 'inventoryAdmin', icon: Boxes, craftAdminOnly: true, section: 'adminSupply' },
   // 분석/기록
   { href: '/admin/dashboard/stats', labelKey: 'stats', icon: BarChart3, section: 'adminInsight' },
+  { href: '/admin/dashboard/killbot', labelKey: 'killbot', icon: Bot, section: 'adminInsight' },
   { href: '/admin/dashboard/audit', labelKey: 'audit', icon: ScrollText, section: 'adminInsight' },
   // 길드 설정
   { href: '/admin/dashboard/guild-profile', labelKey: 'guildProfile', icon: Sparkles, section: 'adminSettings' },

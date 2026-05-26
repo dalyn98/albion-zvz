@@ -31,6 +31,15 @@ export interface DiscordInteractionUser {
 export interface DiscordInteractionMember {
   user?: DiscordInteractionUser
   nick?: string | null
+  roles?: string[]
+  permissions?: string
+}
+
+export interface DiscordInteractionOption {
+  name: string
+  type: number
+  value?: string | number | boolean
+  options?: DiscordInteractionOption[]
 }
 
 // Discord 가 보내는 interaction payload. 우리는 슬래시 커맨드 (type 2) 만
@@ -43,9 +52,12 @@ export interface DiscordInteractionPayload {
     id: string
     name: string
     type: number
+    options?: DiscordInteractionOption[]
   }
   // 길드 안에서 친 명령이면 채워짐. DM 에서 친 명령이면 null/undefined.
   guild_id?: string
+  // 명령이 실행된 채널. /killbot setup 은 현재 채널을 알림 채널로 저장한다.
+  channel_id?: string
   // 유저의 디스코드 클라이언트 언어 (BCP-47). i18n 에 사용.
   locale?: string
   member?: DiscordInteractionMember
