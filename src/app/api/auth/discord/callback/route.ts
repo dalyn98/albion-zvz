@@ -3,7 +3,7 @@ import {
   buildAuthorizeUrl,
   exchangeCode,
   getCurrentUser,
-  getGuildMember,
+  getGuildMemberByBot,
   identityFromMember,
   listUserGuilds,
   mapDiscordLocale,
@@ -274,7 +274,8 @@ export async function GET(request: NextRequest) {
         (originSlug ? matchedTenants.find((t) => t.slug === originSlug) : undefined) ??
         matchedTenants[0]
 
-      const member = await getGuildMember(token.access_token, tenant.discordGuildId)
+      const memberByBot = await getGuildMemberByBot(tenant.discordGuildId, user.id)
+      const member = memberByBot ? { ...memberByBot, user: memberByBot.user ?? user } : null
       if (!member) return errorRedirect(request, state, 'not_in_guild', { tenant_id: tenant.id })
       // 멤버 역할 판정은 admin 이 설정 UI 에서 바꾼 active_member_role_ids 를
       // 우선 적용 — 비어있으면 onboarding 시점 시드된 tenant.member_role_ids

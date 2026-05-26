@@ -1,17 +1,17 @@
 // Discord OAuth2 + guild-member role check.
 //
-// Flow: redirect user to Discord with `identify guilds.members.read`, exchange
-// the returned code for a bearer token, then read the user's member object
-// in *our* guild to confirm they actually belong and carry the right role.
-// `guilds.members.read` is the scope that lets us fetch roles without a bot.
+// Flow: redirect user to Discord with minimal user scopes, exchange the returned
+// code for a bearer token, then use the bot token to read the user's member
+// object in *our* guild to confirm they actually belong and carry the right role.
 
 import { tenantUrl } from '@/lib/tenant-resolver'
 import type { Locale } from '@/i18n/locales'
 
 const DISCORD_API = 'https://discord.com/api/v10'
 // identify: 유저 기본 프로필. guilds: 유저의 길드 목록 (tenant 매칭).
-// guilds.members.read: 선택된 길드 내 역할 조회.
-const OAUTH_SCOPES = 'identify guilds guilds.members.read'
+// 역할 조회는 봇 토큰으로 수행한다. guilds.members.read 를 OAuth 에 포함하면
+// Discord 승인 화면이 무거워지고 일부 PC/모바일에서 승인 후 멈추는 사례가 있다.
+const OAUTH_SCOPES = 'identify guilds'
 
 export interface DiscordUser {
   id: string

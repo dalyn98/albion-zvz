@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   buildAuthorizeUrl: vi.fn(),
   exchangeCode: vi.fn(),
   getCurrentUser: vi.fn(),
-  getGuildMember: vi.fn(),
+  getGuildMemberByBot: vi.fn(),
   identityFromMember: vi.fn(),
   listUserGuilds: vi.fn(),
   mapDiscordLocale: vi.fn(),
@@ -33,7 +33,7 @@ vi.mock('@/lib/discord', () => ({
   buildAuthorizeUrl: mocks.buildAuthorizeUrl,
   exchangeCode: mocks.exchangeCode,
   getCurrentUser: mocks.getCurrentUser,
-  getGuildMember: mocks.getGuildMember,
+  getGuildMemberByBot: mocks.getGuildMemberByBot,
   identityFromMember: mocks.identityFromMember,
   listUserGuilds: mocks.listUserGuilds,
   mapDiscordLocale: mocks.mapDiscordLocale,
@@ -230,7 +230,7 @@ describe('GET /api/auth/discord/callback', () => {
       eventChannelId: null,
       botInstalled: true,
     })
-    mocks.getGuildMember.mockResolvedValue({ roles: [], nick: null })
+    mocks.getGuildMemberByBot.mockResolvedValue({ user: null, roles: [], nick: null })
     mocks.identityFromMember.mockReturnValue(null)
     mocks.getAppSetting.mockResolvedValue('[]')
     mocks.resolveTenantLoginAccess.mockReturnValue({ isMember: false, isAdmin: false })

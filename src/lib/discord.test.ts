@@ -21,6 +21,7 @@ describe('buildAuthorizeUrl', () => {
     expect(url.searchParams.has('prompt')).toBe(false)
     expect(url.searchParams.get('state')).toBe('STATE_ABC')
     expect(url.searchParams.get('client_id')).toBe('test-client')
+    expect(url.searchParams.get('scope')).toBe('identify guilds')
     expect(url.searchParams.get('redirect_uri')).toBe(
       'https://example.test/api/auth/discord/callback',
     )
