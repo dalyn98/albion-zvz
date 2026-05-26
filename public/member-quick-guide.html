@@ -56,6 +56,10 @@
         line-height: 1.6;
       }
 
+      body.modal-open {
+        overflow: hidden;
+      }
+
       img {
         display: block;
         max-width: 100%;
@@ -176,6 +180,114 @@
         color: #ffd978;
       }
 
+      .language-modal,
+      .image-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      .language-modal[hidden],
+      .image-modal[hidden] {
+        display: none;
+      }
+
+      .modal-backdrop,
+      .image-modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(3, 6, 10, 0.76);
+        backdrop-filter: blur(12px);
+      }
+
+      .language-dialog,
+      .image-modal-dialog {
+        position: relative;
+        width: min(640px, 100%);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: var(--radius);
+        background: rgba(14, 21, 29, 0.98);
+        box-shadow: var(--shadow);
+      }
+
+      .language-dialog {
+        padding: 24px;
+      }
+
+      .language-dialog h2,
+      .image-modal-dialog h2 {
+        font-size: 24px;
+        line-height: 1.2;
+      }
+
+      .language-dialog p {
+        margin-top: 10px;
+        color: var(--muted);
+      }
+
+      .language-choices {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 22px;
+      }
+
+      .language-choice {
+        display: grid;
+        gap: 3px;
+        min-height: 78px;
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        border-radius: var(--radius);
+        padding: 14px;
+        background: rgba(255, 255, 255, 0.045);
+        color: var(--ink);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .language-choice:hover,
+      .language-choice:focus-visible,
+      .language-choice[aria-pressed="true"] {
+        border-color: rgba(247, 181, 0, 0.48);
+        background: rgba(247, 181, 0, 0.12);
+        outline: none;
+      }
+
+      .language-choice-name {
+        font-size: 18px;
+        font-weight: 900;
+      }
+
+      .language-choice-meta {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 750;
+      }
+
+      .language-continue {
+        width: 100%;
+        min-height: 42px;
+        margin-top: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--ink);
+        font: inherit;
+        font-weight: 850;
+        cursor: pointer;
+      }
+
+      .language-continue:hover,
+      .language-continue:focus-visible {
+        border-color: rgba(247, 181, 0, 0.42);
+        background: rgba(247, 181, 0, 0.12);
+        outline: none;
+      }
+
       .hero {
         width: min(var(--content), calc(100% - 32px));
         margin: 0 auto;
@@ -291,6 +403,91 @@
         aspect-ratio: 16 / 9;
         width: 100%;
         object-fit: cover;
+      }
+
+      .zoom-trigger {
+        cursor: zoom-in;
+      }
+
+      .zoom-trigger::after {
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        display: grid;
+        width: 32px;
+        height: 32px;
+        place-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 8px;
+        background: rgba(5, 9, 13, 0.72);
+        color: #fff;
+        content: "⤢";
+        font-size: 16px;
+        font-weight: 900;
+        opacity: 0;
+        transition: opacity 160ms ease, transform 160ms ease;
+      }
+
+      .zoom-trigger:hover::after,
+      .zoom-trigger:focus-visible::after {
+        opacity: 1;
+        transform: translateY(-1px);
+      }
+
+      .image-modal {
+        z-index: 110;
+      }
+
+      .image-modal-dialog {
+        display: grid;
+        width: min(1120px, 100%);
+        max-height: calc(100vh - 48px);
+        overflow: hidden;
+      }
+
+      .image-modal-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        border-bottom: 1px solid var(--line);
+        padding: 14px 16px;
+      }
+
+      .image-modal-close {
+        display: grid;
+        width: 36px;
+        height: 36px;
+        place-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--ink);
+        font: inherit;
+        font-size: 22px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .image-modal-close:hover,
+      .image-modal-close:focus-visible {
+        border-color: rgba(247, 181, 0, 0.42);
+        background: rgba(247, 181, 0, 0.12);
+        outline: none;
+      }
+
+      .image-modal-img {
+        width: 100%;
+        max-height: min(74vh, 760px);
+        object-fit: contain;
+        background: #070a0e;
+      }
+
+      .image-modal-caption {
+        border-top: 1px solid var(--line);
+        padding: 12px 16px;
+        color: var(--muted);
+        font-size: 14px;
       }
 
       .hero-foot {
@@ -469,6 +666,7 @@
       }
 
       .feature-card .feature-shot {
+        position: relative;
         overflow: hidden;
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: var(--radius);
@@ -867,6 +1065,23 @@
           grid-column: 2;
           justify-self: start;
         }
+
+        .language-modal,
+        .image-modal {
+          padding: 14px;
+        }
+
+        .language-dialog {
+          padding: 18px;
+        }
+
+        .language-choices {
+          grid-template-columns: 1fr;
+        }
+
+        .image-modal-dialog {
+          max-height: calc(100vh - 28px);
+        }
       }
 
       @media print {
@@ -876,7 +1091,9 @@
         }
 
         .topbar,
-        .hero-actions {
+        .hero-actions,
+        .language-modal,
+        .image-modal {
           display: none;
         }
 
@@ -902,6 +1119,52 @@
     </style>
   </head>
   <body>
+    <div class="language-modal" id="language-modal" hidden>
+      <div class="modal-backdrop" aria-hidden="true"></div>
+      <section
+        class="language-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="language-modal-title"
+        aria-describedby="language-modal-description"
+      >
+        <span class="eyebrow">언어 선택</span>
+        <h2 id="language-modal-title">먼저 사용할 언어를 선택해 주세요</h2>
+        <p id="language-modal-description">
+          이 안내 페이지는 한국어, 영어, 일본어, 중국어로 볼 수 있습니다. 선택한 언어는 상단에서도 다시 바꿀 수 있습니다.
+        </p>
+        <div class="language-choices" aria-label="언어 변경">
+          <button class="language-choice" type="button" data-modal-locale="ko" aria-pressed="false">
+            <span class="language-choice-name">한국어</span>
+            <span class="language-choice-meta">한국어로 보기</span>
+          </button>
+          <button class="language-choice" type="button" data-modal-locale="en" aria-pressed="false">
+            <span class="language-choice-name">English</span>
+            <span class="language-choice-meta">View in English</span>
+          </button>
+          <button class="language-choice" type="button" data-modal-locale="ja" aria-pressed="false">
+            <span class="language-choice-name">日本語</span>
+            <span class="language-choice-meta">日本語で見る</span>
+          </button>
+          <button class="language-choice" type="button" data-modal-locale="zh" aria-pressed="false">
+            <span class="language-choice-name">中文</span>
+            <span class="language-choice-meta">用中文查看</span>
+          </button>
+        </div>
+        <button class="language-continue" type="button" data-language-continue>현재 언어로 계속 보기</button>
+      </section>
+    </div>
+    <div class="image-modal" id="image-modal" hidden>
+      <div class="image-modal-backdrop" data-image-close aria-hidden="true"></div>
+      <section class="image-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="image-modal-title">
+        <div class="image-modal-head">
+          <h2 id="image-modal-title">스크린샷 확대</h2>
+          <button class="image-modal-close" type="button" data-image-close aria-label="닫기">×</button>
+        </div>
+        <img class="image-modal-img" id="image-modal-img" src="" alt="" />
+        <p class="image-modal-caption" id="image-modal-caption"></p>
+      </section>
+    </div>
     <div class="page">
       <header class="topbar">
         <div class="topbar-inner">
@@ -1466,6 +1729,16 @@
           '처음으로': { en: 'Back to top', ja: '先頭へ', zh: '返回顶部' },
           '빠른 이동': { en: 'Quick navigation', ja: 'クイック移動', zh: '快速导航' },
           '언어 변경': { en: 'Change language', ja: '言語を変更', zh: '切换语言' },
+          '언어 선택': { en: 'Language', ja: '言語選択', zh: '选择语言' },
+          '먼저 사용할 언어를 선택해 주세요': { en: 'Choose your language first', ja: '最初に使用する言語を選んでください', zh: '请先选择使用语言' },
+          '이 안내 페이지는 한국어, 영어, 일본어, 중국어로 볼 수 있습니다. 선택한 언어는 상단에서도 다시 바꿀 수 있습니다.': {
+            en: 'This guide is available in Korean, English, Japanese, and Chinese. You can change the selected language again from the top bar.',
+            ja: 'このガイドは韓国語、英語、日本語、中国語で表示できます。選択した言語は上部バーからいつでも変更できます。',
+            zh: '此指南支持韩语、英语、日语和中文。之后也可以在顶部栏再次切换语言。',
+          },
+          '현재 언어로 계속 보기': { en: 'Continue with current language', ja: '現在の言語で続ける', zh: '继续使用当前语言' },
+          '스크린샷 확대': { en: 'Zoom screenshot', ja: 'スクリーンショットを拡大', zh: '放大截图' },
+          '닫기': { en: 'Close', ja: '閉じる', zh: '关闭' },
           '처음 3분': { en: 'First 3 minutes', ja: '最初の3分', zh: '前 3 分钟' },
           '이벤트': { en: 'Events', ja: 'イベント', zh: '活动' },
           '내정보': { en: 'My Info', ja: 'マイ情報', zh: '我的信息' },
@@ -1811,8 +2084,99 @@
           })
         })
 
+        let currentLocale = 'ko'
+        let lastFocusedElement = null
+        const languageModal = document.querySelector('#language-modal')
+        const imageModal = document.querySelector('#image-modal')
+        const imageModalImage = document.querySelector('#image-modal-img')
+        const imageModalCaption = document.querySelector('#image-modal-caption')
+        const modalIsOpen = (modal) => modal && !modal.hidden
+        const syncModalState = () => {
+          document.body.classList.toggle(
+            'modal-open',
+            Boolean(modalIsOpen(languageModal) || modalIsOpen(imageModal)),
+          )
+        }
+        const markLanguagePromptSeen = () => {
+          try {
+            window.sessionStorage.setItem('memberQuickGuideLanguagePromptSeen', '1')
+          } catch {
+            // Session storage can be blocked; the modal still works for this visit.
+          }
+        }
+        const languagePromptSeen = () => {
+          try {
+            return window.sessionStorage.getItem('memberQuickGuideLanguagePromptSeen') === '1'
+          } catch {
+            return false
+          }
+        }
+        const showLanguageModal = () => {
+          if (!languageModal) return
+          lastFocusedElement = document.activeElement
+          languageModal.hidden = false
+          syncModalState()
+          const activeChoice = languageModal.querySelector(`[data-modal-locale="${currentLocale}"]`)
+          ;(activeChoice || languageModal.querySelector('[data-modal-locale]'))?.focus()
+        }
+        const closeLanguageModal = () => {
+          if (!languageModal) return
+          languageModal.hidden = true
+          markLanguagePromptSeen()
+          syncModalState()
+          if (lastFocusedElement instanceof HTMLElement) lastFocusedElement.focus()
+        }
+        const zoomTriggers = []
+        const updateZoomTriggerLabels = (locale) => {
+          const action = translate('스크린샷 확대', locale)
+          zoomTriggers.forEach(({ trigger, image }) => {
+            const alt = image.getAttribute('alt') || ''
+            trigger.setAttribute('aria-label', alt ? `${action}: ${alt}` : action)
+            trigger.setAttribute('title', action)
+          })
+        }
+        const openImageModal = (image) => {
+          if (!imageModal || !imageModalImage || !imageModalCaption) return
+          lastFocusedElement = document.activeElement
+          const src = image.currentSrc || image.getAttribute('src') || ''
+          const alt = image.getAttribute('alt') || translate('스크린샷 확대', currentLocale)
+          imageModalImage.setAttribute('src', src)
+          imageModalImage.setAttribute('alt', alt)
+          imageModalCaption.textContent = alt
+          imageModal.hidden = false
+          syncModalState()
+          imageModal.querySelector('.image-modal-close')?.focus()
+        }
+        const closeImageModal = () => {
+          if (!imageModal || !imageModalImage || !imageModalCaption) return
+          imageModal.hidden = true
+          imageModalImage.setAttribute('src', '')
+          imageModalCaption.textContent = ''
+          syncModalState()
+          if (lastFocusedElement instanceof HTMLElement) lastFocusedElement.focus()
+        }
+
+        document.querySelectorAll('.hero-shot img, .shot img, .feature-shot img').forEach((image) => {
+          const trigger = image.closest('a.feature-shot') || image.closest('.shot') || image.closest('.hero-shot')
+          if (!(trigger instanceof HTMLElement)) return
+          trigger.classList.add('zoom-trigger')
+          trigger.setAttribute('role', 'button')
+          trigger.setAttribute('tabindex', '0')
+          zoomTriggers.push({ trigger, image })
+          trigger.addEventListener('click', (event) => {
+            event.preventDefault()
+            openImageModal(image)
+          })
+          trigger.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return
+            event.preventDefault()
+            openImageModal(image)
+          })
+        })
+
         const setLocale = (locale) => {
           if (!locales[locale]) locale = 'ko'
+          currentLocale = locale
           document.documentElement.lang = locales[locale].htmlLang
           document.title = translate(titleKey, locale)
           const meta = document.querySelector('meta[name="description"]')
@@ -1827,6 +2191,11 @@
             const active = button.dataset.locale === locale
             button.setAttribute('aria-pressed', active ? 'true' : 'false')
           })
+          document.querySelectorAll('.language-choice').forEach((button) => {
+            const active = button.dataset.modalLocale === locale
+            button.setAttribute('aria-pressed', active ? 'true' : 'false')
+          })
+          updateZoomTriggerLabels(locale)
           try {
             window.localStorage.setItem('memberQuickGuideLocale', locale)
             document.cookie = `member_quick_guide_locale=${locale}; path=/; max-age=31536000; SameSite=Lax`
@@ -1848,13 +2217,38 @@
           }
           const cookieLocale = readCookieLocale()
           if (cookieLocale) return cookieLocale
+          const browserLocale = navigator.languages?.[0] || navigator.language || ''
+          if (browserLocale.startsWith('en')) return 'en'
+          if (browserLocale.startsWith('ja')) return 'ja'
+          if (browserLocale.startsWith('zh')) return 'zh'
+          if (browserLocale.startsWith('ko')) return 'ko'
           return 'ko'
         }
 
         document.querySelectorAll('.locale-button').forEach((button) => {
           button.addEventListener('click', () => setLocale(button.dataset.locale || 'ko'))
         })
+        document.querySelectorAll('.language-choice').forEach((button) => {
+          button.addEventListener('click', () => {
+            setLocale(button.dataset.modalLocale || 'ko')
+            closeLanguageModal()
+          })
+        })
+        document.querySelector('[data-language-continue]')?.addEventListener('click', closeLanguageModal)
+        document.querySelectorAll('[data-image-close]').forEach((node) => {
+          node.addEventListener('click', closeImageModal)
+        })
+        document.addEventListener('keydown', (event) => {
+          if (event.key !== 'Escape') return
+          if (modalIsOpen(imageModal)) {
+            closeImageModal()
+            return
+          }
+          if (modalIsOpen(languageModal)) closeLanguageModal()
+        })
+
         setLocale(readInitialLocale())
+        if (!languagePromptSeen()) showLanguageModal()
       })()
     </script>
   </body>

@@ -5607,6 +5607,7 @@
     "guildNotLinkedDocs": "此公会尚未与 AlbionGuildManager 绑定。官方指南\n{docsUrl}",
     "homeReady": "🏠 打开 **{name}** 主页\n{url}",
     "docsReady": "📖 官方指南\n{url}",
+    "guideReady": "📘 公会成员快速指南\n{url}",
     "upcomingNone": "📭 暂无即将开始的活动。活动列表\n{url}",
     "upcoming": "⏰ 最临近的活动\n**{title}**\n🕒 {when}\n🔗 {url}",
     "killbotNoPermission": "只有拥有管理服务器权限的用户可以修改击杀机器人设置。",

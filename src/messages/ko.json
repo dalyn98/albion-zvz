@@ -5607,6 +5607,7 @@
     "guildNotLinkedDocs": "이 길드는 아직 AlbionGuildManager 와 연동되지 않았어요. 공식 가이드\n{docsUrl}",
     "homeReady": "🏠 **{name}** 홈으로 이동\n{url}",
     "docsReady": "📖 공식 가이드\n{url}",
+    "guideReady": "📘 길드원 빠른 사용법\n{url}",
     "upcomingNone": "📭 예정된 이벤트가 없어요. 이벤트 목록\n{url}",
     "upcoming": "⏰ 가장 임박한 이벤트\n**{title}**\n🕒 {when}\n🔗 {url}",
     "killbotNoPermission": "킬봇 설정은 서버 관리 권한이 있는 사용자만 변경할 수 있어요.",

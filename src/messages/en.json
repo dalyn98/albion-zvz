@@ -5607,6 +5607,7 @@
     "guildNotLinkedDocs": "This guild isn't linked to AlbionGuildManager yet. Official guide:\n{docsUrl}",
     "homeReady": "🏠 Open **{name}** home:\n{url}",
     "docsReady": "📖 Official guide:\n{url}",
+    "guideReady": "📘 Member quick guide:\n{url}",
     "upcomingNone": "📭 No upcoming events. Event list:\n{url}",
     "upcoming": "⏰ Most imminent event\n**{title}**\n🕒 {when}\n🔗 {url}",
     "killbotNoPermission": "Only users with Manage Server permission can change killbot settings.",

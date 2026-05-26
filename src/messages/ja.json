@@ -5607,6 +5607,7 @@
     "guildNotLinkedDocs": "このギルドはまだ AlbionGuildManager と連携されていません。公式ガイド\n{docsUrl}",
     "homeReady": "🏠 **{name}** のホームを開く\n{url}",
     "docsReady": "📖 公式ガイド\n{url}",
+    "guideReady": "📘 ギルドメンバー簡単ガイド\n{url}",
     "upcomingNone": "📭 予定されているイベントはありません。イベント一覧\n{url}",
     "upcoming": "⏰ 直近のイベント\n**{title}**\n🕒 {when}\n🔗 {url}",
     "killbotNoPermission": "キルボット設定はサーバー管理権限を持つユーザーのみ変更できます。",

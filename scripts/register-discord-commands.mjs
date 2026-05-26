@@ -29,6 +29,11 @@ const COMMANDS = [
     type: 1,
   },
   {
+    name: 'guide',
+    description: 'Open the member quick guide',
+    type: 1,
+  },
+  {
     name: 'upcoming',
     description: 'Show the most imminent upcoming event for this guild',
     type: 1,

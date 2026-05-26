@@ -1,8 +1,9 @@
 // Discord 슬래시 커맨드 핸들러 — interactions endpoint 가 라우팅한 뒤 호출.
 //
-// 3 개 명령:
+// Slash commands:
 //   /home      — 길드 홈으로 이동 (테넌트 미연동 시 공식 가이드 폴백)
 //   /docs      — 공식 가이드 (/faq) 로 이동
+//   /guide     — 길드원 빠른 사용법 페이지로 이동
 //   /upcoming  — 가장 임박한 이벤트 링크 (없으면 /events 목록)
 //
 // 모든 응답은 ephemeral — 명령을 친 본인만 보임. 채널을 어지럽히지 않게.
@@ -26,12 +27,14 @@ import {
 // 슬래시 커맨드 이름은 영어 단일 — 사용자가 i18n 비활성을 명시함.
 export const COMMAND_HOME = 'home'
 export const COMMAND_DOCS = 'docs'
+export const COMMAND_GUIDE = 'guide'
 export const COMMAND_UPCOMING = 'upcoming'
 export const COMMAND_KILLBOT = 'killbot'
 
 export const ALL_COMMAND_NAMES = [
   COMMAND_HOME,
   COMMAND_DOCS,
+  COMMAND_GUIDE,
   COMMAND_UPCOMING,
   COMMAND_KILLBOT,
 ] as const
@@ -42,6 +45,7 @@ interface DiscordBotMessages {
   guildNotLinkedDocs: string
   homeReady: string
   docsReady: string
+  guideReady: string
   upcomingNone: string
   upcoming: string
   killbotNoPermission: string
@@ -68,6 +72,7 @@ async function loadMessages(locale: Locale): Promise<DiscordBotMessages> {
     guildNotLinkedDocs: ns.guildNotLinkedDocs ?? '',
     homeReady: ns.homeReady ?? '',
     docsReady: ns.docsReady ?? '',
+    guideReady: ns.guideReady ?? '',
     upcomingNone: ns.upcomingNone ?? '',
     upcoming: ns.upcoming ?? '',
     killbotNoPermission: ns.killbotNoPermission ?? '',
@@ -185,6 +190,10 @@ export async function handleSlashCommand(
   const locale = resolveLocale(payload)
   const messages = await loadMessages(locale)
 
+  if (commandName === COMMAND_GUIDE) {
+    return handleGuide(messages)
+  }
+
   // DM 등 길드 컨텍스트 없는 호출은 처리 안 함 — guild_id 없으면 안내만.
   if (!payload.guild_id) {
     return ephemeralReply(messages.notInGuild)
@@ -197,6 +206,8 @@ export async function handleSlashCommand(
       return handleHome(tenant, messages)
     case COMMAND_DOCS:
       return handleDocs(messages)
+    case COMMAND_GUIDE:
+      return handleGuide(messages)
     case COMMAND_UPCOMING:
       return handleUpcoming(tenant, messages)
     case COMMAND_KILLBOT:
@@ -222,6 +233,11 @@ function handleHome(
 function handleDocs(messages: DiscordBotMessages): DiscordInteractionResponse {
   const docsUrl = tenantUrl(null, '/faq')
   return ephemeralReply(format(messages.docsReady, { url: docsUrl }))
+}
+
+function handleGuide(messages: DiscordBotMessages): DiscordInteractionResponse {
+  const guideUrl = tenantUrl(null, '/member-quick-guide.html')
+  return ephemeralReply(format(messages.guideReady, { url: guideUrl }))
 }
 
 async function handleUpcoming(
