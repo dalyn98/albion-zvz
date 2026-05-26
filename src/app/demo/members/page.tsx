@@ -166,7 +166,7 @@ export default async function DemoMembersPage() {
           guests={guests}
           withdrawnMembers={withdrawnMembers}
           roster={roster}
-          isAdmin={false}
+          canManageGuests={false}
           timezone={DEFAULT_TENANT_TIMEZONE}
           memberHrefPrefix="/demo/members"
           albionMemberHrefPrefix={null}

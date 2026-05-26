@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import {
   listGuildMembers,
   listGuildGuests,
@@ -10,6 +10,7 @@ import {
 import MembersPageTabs from '@/components/MembersPageTabs'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import { CAP } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,7 +53,7 @@ export default async function MembersPage() {
         guestsError={guestsError}
         withdrawnError={withdrawnError}
         rosterError={rosterError}
-        isAdmin={session.isAdmin}
+        canManageGuests={sessionHas(session, CAP.MEMBERS_MANAGE)}
         timezone={timezone}
       />
     </main>

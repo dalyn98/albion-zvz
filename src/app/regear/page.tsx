@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Clock, MapPin, Swords, ShieldCheck, Gift, Sparkles, ArrowRight } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getRegearLimits, listMyRegearEligibleEvents, listMyRegearRequests } from '@/app/actions/regear'
 import { getRegearPayoutRatePercent } from '@/app/actions/regear-admin-types'
@@ -19,6 +19,7 @@ import NoticeBannerWithAdmin from '@/components/NoticeBannerWithAdmin'
 import MyRegearList from '@/components/MyRegearList'
 import RegearPageTabs from '@/components/RegearPageTabs'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import { CAP } from '@/lib/permissions'
 
 export const dynamic = 'force-dynamic'
 
@@ -91,7 +92,7 @@ export default async function RegearPage() {
         message={noticeMessage}
         imageUrl={noticeImageUrl}
         target="regear"
-        isAdmin={session.isAdmin}
+        canManageNotice={sessionHas(session, CAP.SETTINGS_GENERAL)}
       />
 
       <RegearWindowsSection />

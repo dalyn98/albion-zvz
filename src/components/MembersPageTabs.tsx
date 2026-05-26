@@ -43,7 +43,7 @@ interface Props {
   guestsError?: string
   withdrawnError?: string
   rosterError?: string
-  isAdmin: boolean
+  canManageGuests: boolean
   timezone: string
   memberHrefPrefix?: string
   albionMemberHrefPrefix?: string | null
@@ -67,7 +67,7 @@ export default function MembersPageTabs({
   guestsError,
   withdrawnError,
   rosterError,
-  isAdmin,
+  canManageGuests,
   timezone,
   memberHrefPrefix,
   albionMemberHrefPrefix,
@@ -162,7 +162,7 @@ export default function MembersPageTabs({
                 <p className="text-red-400 text-sm">{guestsError}</p>
               </div>
             )}
-            <GuildGuestList guests={guests} isAdmin={isAdmin} />
+            <GuildGuestList guests={guests} canManageGuests={canManageGuests} />
           </>
         )}
         {active === 'withdrawn' && (

@@ -23,7 +23,7 @@ import {
 } from '@/lib/siphon/parse-siphon-log'
 import { logAdminAction } from '@/lib/admin-audit'
 import { summarizeLogContinuity, type LogContinuityResult } from '@/lib/log-continuity'
-import { filterByLogOperatingStart } from '@/lib/log-operating-start'
+import { selectOfficialLogEntries } from '@/lib/log-import-official'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 
 // 한 번에 받을 수 있는 원본 entry 수. 5000 은 shop chest_log 와 동일 — 정상적인
@@ -160,7 +160,7 @@ export async function importSiphonLog(
       }
     }
 
-    const official = filterByLogOperatingStart(
+    const official = selectOfficialLogEntries(
       entries,
       (entry) => entry.loggedAt,
       operatingStart,

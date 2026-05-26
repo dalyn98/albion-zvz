@@ -1,11 +1,23 @@
-import { parseChestLog } from '@/lib/shop/parse-chest-log'
+import {
+  parseChestLog,
+  type ChestLogParseErrorCode,
+} from '@/lib/shop/parse-chest-log'
 import { resolveAlbionItem } from '@/lib/shop/resolve-item'
 import { compareStrings } from './sort-strings'
+
+export type LootLogParseErrorCode =
+  | ChestLogParseErrorCode
+  | 'loot_missing_headers'
+  | 'loot_timestamp'
+  | 'loot_required_fields'
+  | 'loot_quantity'
+  | 'loot_market_value'
 
 export interface LootLogParseError {
   line: number
   text: string
   reason: string
+  code?: LootLogParseErrorCode
 }
 
 export interface LootLogEntry {
@@ -350,6 +362,7 @@ export function parseLootLogCsv(raw: string): LootLogParseResult {
           line: 1,
           text: headerLine,
           reason: `missing required headers: ${missingHeaders.join(', ')}`,
+          code: 'loot_missing_headers',
         },
       ],
     }
@@ -371,7 +384,12 @@ export function parseLootLogCsv(raw: string): LootLogParseResult {
     const timestamp = value('timestamp_utc')
     const lootedAt = new Date(timestamp)
     if (!timestamp || Number.isNaN(lootedAt.getTime())) {
-      errors.push({ line: lineNumber, text: line, reason: 'invalid timestamp_utc' })
+      errors.push({
+        line: lineNumber,
+        text: line,
+        reason: 'invalid timestamp_utc',
+        code: 'loot_timestamp',
+      })
       continue
     }
 
@@ -379,20 +397,35 @@ export function parseLootLogCsv(raw: string): LootLogParseResult {
     const itemId = value('item_id')
     const itemName = value('item_name')
     if (!lootedByName || !itemId || !itemName) {
-      errors.push({ line: lineNumber, text: line, reason: 'missing looted_by__name/item_id/item_name' })
+      errors.push({
+        line: lineNumber,
+        text: line,
+        reason: 'missing looted_by__name/item_id/item_name',
+        code: 'loot_required_fields',
+      })
       continue
     }
 
     const quantity = parseInteger(value('quantity'))
     if (quantity === null || quantity <= 0) {
-      errors.push({ line: lineNumber, text: line, reason: 'invalid quantity' })
+      errors.push({
+        line: lineNumber,
+        text: line,
+        reason: 'invalid quantity',
+        code: 'loot_quantity',
+      })
       continue
     }
 
     const marketValueRaw = value('average_est_market_value')
     const estimatedMarketValue = marketValueRaw ? parseInteger(marketValueRaw) : 0
     if (estimatedMarketValue === null || estimatedMarketValue < 0) {
-      errors.push({ line: lineNumber, text: line, reason: 'invalid average_est_market_value' })
+      errors.push({
+        line: lineNumber,
+        text: line,
+        reason: 'invalid average_est_market_value',
+        code: 'loot_market_value',
+      })
       continue
     }
 

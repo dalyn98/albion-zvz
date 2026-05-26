@@ -17,12 +17,12 @@ import { useConfirm } from '@/components/ConfirmDialog'
 
 interface Props {
   guests: GuildGuestSummary[]
-  isAdmin: boolean
+  canManageGuests: boolean
 }
 
 type SortKey = 'participation' | 'recent'
 
-export default function GuildGuestList({ guests, isAdmin }: Props) {
+export default function GuildGuestList({ guests, canManageGuests }: Props) {
   const t = useTranslations('members')
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('recent')
@@ -73,7 +73,11 @@ export default function GuildGuestList({ guests, isAdmin }: Props) {
       ) : (
         <ul className="space-y-2 xl:grid xl:grid-cols-2 xl:gap-2 xl:space-y-0 2xl:grid-cols-3">
           {filtered.map((g) => (
-            <GuestRow key={g.discord_id} guest={g} isAdmin={isAdmin} />
+            <GuestRow
+              key={g.discord_id}
+              guest={g}
+              canManageGuests={canManageGuests}
+            />
           ))}
         </ul>
       )}
@@ -105,7 +109,13 @@ function SortChip({
   )
 }
 
-function GuestRow({ guest, isAdmin }: { guest: GuildGuestSummary; isAdmin: boolean }) {
+function GuestRow({
+  guest,
+  canManageGuests,
+}: {
+  guest: GuildGuestSummary
+  canManageGuests: boolean
+}) {
   const t = useTranslations('members')
   const tRole = useTranslations('slotRole')
   const router = useRouter()
@@ -163,7 +173,7 @@ function GuestRow({ guest, isAdmin }: { guest: GuildGuestSummary; isAdmin: boole
           <p className="text-sky-400 font-mono font-semibold text-sm">{guest.participation_count}</p>
           <p className="text-gray-500 text-[10px]">{t('participation')}</p>
         </div>
-        {isAdmin && (
+        {canManageGuests && (
           <button
             type="button"
             onClick={handleRevoke}

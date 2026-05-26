@@ -6,7 +6,7 @@ import { Archive, BookOpen, Plus } from 'lucide-react'
 import { formatGatherTimeFor, isImminent, isEnded } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
 import { getAppSetting } from '@/lib/app-settings'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { getMarketingPaths } from '@/lib/marketing-paths'
@@ -18,6 +18,7 @@ import NoticeBannerWithAdmin from '@/components/NoticeBannerWithAdmin'
 import HomeAdminPendingCard from '@/components/HomeAdminPendingCard'
 import { getAdminBadgeCounts } from '@/lib/admin-badges'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
+import { CAP } from '@/lib/permissions'
 
 // Homepage reflects the live DB, so never prerender at build — a static
 // snapshot would show stale or deleted events.
@@ -187,7 +188,7 @@ export default async function HomePage() {
         message={noticeMessage}
         imageUrl={noticeImageUrl}
         target="events"
-        isAdmin={session?.isAdmin ?? false}
+        canManageNotice={sessionHas(session, CAP.SETTINGS_GENERAL)}
       />
 
       {adminBadges && <HomeAdminPendingCard badges={adminBadges} />}

@@ -35,4 +35,21 @@ describe('parseChestLog', () => {
     expect(result.entries).toHaveLength(1)
     expect(result.entries[0].loggedAt.toISOString()).toBe('2026-05-24T05:05:00.000Z')
   })
+
+  it('reports specific parse error codes for malformed chest rows', () => {
+    const raw = [
+      '"bad date"\t"MonKKu"\t"Expert\'s Hellion Jacket"\t"3"\t"1"\t"2"',
+      '"05/24/2026 14:05:00"\t"MonKKu"\t"Expert\'s Hellion Jacket"\t"bad"\t"1"\t"2"',
+      '"05/24/2026 14:05:00"\t"MonKKu"\t"Expert\'s Hellion Jacket"',
+    ].join('\n')
+
+    const result = parseChestLog(raw)
+
+    expect(result.entries).toEqual([])
+    expect(result.errors.map((error) => error.code)).toEqual([
+      'chest_date',
+      'chest_numeric_fields',
+      'chest_format',
+    ])
+  })
 })

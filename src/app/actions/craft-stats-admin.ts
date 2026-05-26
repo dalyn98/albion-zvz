@@ -8,8 +8,9 @@
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { requireAdmin } from '@/lib/auth'
+import { requireAnyCapability } from '@/lib/auth'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { CAP } from '@/lib/permissions'
 import {
   aggregateBuildSnapshots,
   type CraftItemAggregateRow,
@@ -53,6 +54,9 @@ export interface CraftDemandStatsResult {
 export type CraftDemandStatsMode = 'all' | 'delivered'
 
 const DEMAND_TOP_ITEM_LIMIT = 8
+const CRAFT_STATS_CAPS = [CAP.CRAFT_TASK_CREATE, CAP.CRAFT_TASK_DELIVER, CAP.CRAFT_MASTER] as const
+
+type CraftStatsDb = Awaited<ReturnType<typeof requireAnyCapability>>
 
 export async function loadCraftDemandStatsAdmin(
   mode: CraftDemandStatsMode = 'delivered',
@@ -62,7 +66,7 @@ export async function loadCraftDemandStatsAdmin(
 }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(CRAFT_STATS_CAPS)
     const session = await getSession()
     if (!session) return { stats: null, error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
@@ -98,7 +102,7 @@ interface DemandSnapshotResult {
 }
 
 async function fetchAllDemandSnapshots(
-  db: Awaited<ReturnType<typeof requireAdmin>>,
+  db: CraftStatsDb,
   guildId: string,
   weekSinceIso: string,
 ): Promise<DemandSnapshotResult> {
@@ -130,7 +134,7 @@ async function fetchAllDemandSnapshots(
 }
 
 async function fetchDeliveredDemandSnapshots(
-  db: Awaited<ReturnType<typeof requireAdmin>>,
+  db: CraftStatsDb,
   guildId: string,
   weekSinceIso: string,
 ): Promise<DemandSnapshotResult> {
@@ -223,7 +227,7 @@ export async function loadCraftActiveMaterialStatsAdmin(): Promise<{
 }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    await requireAdmin()
+    await requireAnyCapability(CRAFT_STATS_CAPS)
     const session = await getSession()
     if (!session) return { result: null, error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)

@@ -16,8 +16,9 @@ import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { requireAdmin } from '@/lib/auth'
+import { requireCapability } from '@/lib/auth'
 import { logAdminAction } from '@/lib/admin-audit'
+import { CAP } from '@/lib/permissions'
 import { isLocale, type Locale } from '@/i18n/locales'
 import { runMemberSync, type RolesSource } from '@/lib/member-sync'
 import { extractWeaponCategory } from '@/lib/weapon-category'
@@ -31,7 +32,7 @@ import type { RegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import type { AccountAlbionIdentityView } from '@/lib/account-albion-identity'
 
 // 길드원 열람(목록/상세)은 로그인만 되어 있으면 모두 가능하게 열어주고,
-// 포인트 조정 같은 mutation은 별도로 requireAdmin()을 거치게 둔다.
+// 포인트 조정 같은 mutation은 별도 액션에서 더 강한 권한 게이트를 둔다.
 async function requireSessionWithGuild(): Promise<{
   db: ReturnType<typeof getAdminClient>
   guildId: string
@@ -582,7 +583,7 @@ export async function revokeGuest(discordId: string): Promise<{ error?: string }
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    const db = await requireCapability(CAP.MEMBERS_MANAGE)
     const guildId = await getSessionGuildId(session)
     const { error } = await db
       .from('guests')

@@ -19,7 +19,7 @@ export type SiphonLogParseErrorCode =
   | 'ledger_purpose'
   | 'legacy_chest_format'
 
-export interface SiphonLogParseError extends ChestLogParseError {
+export interface SiphonLogParseError extends Omit<ChestLogParseError, 'code'> {
   code?: SiphonLogParseErrorCode
 }
 

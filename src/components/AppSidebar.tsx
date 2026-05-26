@@ -37,6 +37,7 @@ import {
   Zap,
   ExternalLink,
   LayoutTemplate,
+  Wrench,
 } from 'lucide-react'
 import type { SessionPayload } from '@/lib/session'
 import type { AdminBadgeCounts } from '@/lib/admin-badges'
@@ -139,6 +140,7 @@ function buildSuperAdminNav(basePath: string): SuperAdminNavItem[] {
     { href: basePath, label: '시스템 대시보드', icon: BarChart3, exact: true },
     { href: `${basePath}/tenants`, label: '테넌트', icon: Users },
     { href: `${basePath}/notices`, label: '시스템 공지', icon: ShieldAlert },
+    { href: `${basePath}/diagnostics`, label: '진단/백필', icon: Wrench },
     { href: `${basePath}/audit`, label: '감사 로그', icon: BookOpen },
   ]
 }

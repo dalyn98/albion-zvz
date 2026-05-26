@@ -20,10 +20,16 @@ export interface ChestLogEntry {
   quantity: number
 }
 
+export type ChestLogParseErrorCode =
+  | 'chest_format'
+  | 'chest_date'
+  | 'chest_numeric_fields'
+
 export interface ChestLogParseError {
   line: number
   text: string
   reason: string
+  code?: ChestLogParseErrorCode
 }
 
 export interface ChestLogParseResult {
@@ -45,37 +51,60 @@ export function parseChestLog(raw: string): ChestLogParseResult {
     if (isChestLogHeader(line)) continue
 
     const parsed = parseLine(line)
-    if (!parsed) {
-      errors.push({ line: i + 1, text: line, reason: '형식 불일치 (6필드 탭 구분 필요)' })
+    if ('error' in parsed) {
+      errors.push({ line: i + 1, text: line, ...parsed.error })
       continue
     }
-    entries.push(parsed)
+    entries.push(parsed.entry)
   }
 
   return { entries, errors }
 }
 
-function parseLine(line: string): ChestLogEntry | null {
+function parseLine(
+  line: string,
+): { entry: ChestLogEntry } | { error: Pick<ChestLogParseError, 'reason' | 'code'> } {
   const fields = splitQuotedTabs(line)
-  if (fields.length !== 6) return null
+  if (fields.length !== 6) {
+    return {
+      error: {
+        reason: 'chest log row must have 6 fields',
+        code: 'chest_format',
+      },
+    }
+  }
 
   const [dateStr, player, itemName, enchantStr, qualityStr, qtyStr] = fields
   const loggedAt = parseChestDate(dateStr)
-  if (!loggedAt) return null
+  if (!loggedAt) {
+    return {
+      error: {
+        reason: 'invalid chest log date',
+        code: 'chest_date',
+      },
+    }
+  }
   const enchant = Number(enchantStr)
   const quality = Number(qualityStr)
   const quantity = Number(qtyStr)
   if (!Number.isFinite(enchant) || !Number.isFinite(quality) || !Number.isFinite(quantity)) {
-    return null
+    return {
+      error: {
+        reason: 'invalid chest log numeric fields',
+        code: 'chest_numeric_fields',
+      },
+    }
   }
 
   return {
-    loggedAt,
-    player: player.trim(),
-    itemName: itemName.trim(),
-    enchant,
-    quality,
-    quantity,
+    entry: {
+      loggedAt,
+      player: player.trim(),
+      itemName: itemName.trim(),
+      enchant,
+      quality,
+      quantity,
+    },
   }
 }
 

@@ -266,9 +266,17 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
         <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-100">
           <p className="font-semibold">{t('parseWarnings')}</p>
           {[...preview.lootParseErrors, ...preview.depositParseErrors].slice(0, 4).map((err, idx) => (
-            <p key={`${err.line}-${idx}`} className="mt-1 truncate font-mono text-amber-100/80">
-              #{err.line} {err.reason}
-            </p>
+            <div key={`${err.line}-${idx}`} className="mt-1 space-y-0.5">
+              <p className="font-semibold text-amber-200">
+                {t('parseErrorLine', {
+                  line: err.line,
+                  reason: formatLootAuditParseErrorReason(err, t),
+                })}
+              </p>
+              <p className="truncate font-mono text-amber-100/70" title={err.text}>
+                {err.text}
+              </p>
+            </div>
           ))}
         </div>
       )}
@@ -389,6 +397,32 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
       </div>
     </div>
   )
+}
+
+function formatLootAuditParseErrorReason(
+  error: LootAuditPreviewResult['lootParseErrors'][number],
+  t: ReturnType<typeof useTranslations<'adminLootAuditPage'>>,
+): string {
+  switch (error.code) {
+    case 'loot_missing_headers':
+      return t('parseErrorReasonLootMissingHeaders')
+    case 'loot_timestamp':
+      return t('parseErrorReasonLootTimestamp')
+    case 'loot_required_fields':
+      return t('parseErrorReasonLootRequiredFields')
+    case 'loot_quantity':
+      return t('parseErrorReasonLootQuantity')
+    case 'loot_market_value':
+      return t('parseErrorReasonLootMarketValue')
+    case 'chest_format':
+      return t('parseErrorReasonChestFormat')
+    case 'chest_date':
+      return t('parseErrorReasonChestDate')
+    case 'chest_numeric_fields':
+      return t('parseErrorReasonChestNumericFields')
+    default:
+      return t('parseErrorReasonUnknown')
+  }
 }
 
 function RelationPill({

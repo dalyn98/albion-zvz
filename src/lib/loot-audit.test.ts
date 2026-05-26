@@ -45,7 +45,23 @@ describe('parseLootLogCsv', () => {
 
     expect(result.entries).toHaveLength(1)
     expect(result.errors).toEqual([
-      expect.objectContaining({ line: 2, reason: expect.stringContaining('quantity') }),
+      expect.objectContaining({
+        line: 2,
+        code: 'loot_quantity',
+        reason: expect.stringContaining('quantity'),
+      }),
+    ])
+  })
+
+  it('reports missing required headers with a stable code', () => {
+    const result = parseLootLogCsv('timestamp_utc;item_id;item_name;quantity')
+
+    expect(result.entries).toEqual([])
+    expect(result.errors).toEqual([
+      expect.objectContaining({
+        line: 1,
+        code: 'loot_missing_headers',
+      }),
     ])
   })
 
@@ -103,6 +119,20 @@ describe('parseDepositLog', () => {
       itemId: 'T5_ARMOR_LEATHER_HELL@3',
       quantity: 2,
     })
+  })
+
+  it('passes through chest parse error codes for deposit logs', () => {
+    const result = parseDepositLog(
+      '"not-a-date"\t"MonKKu"\t"Expert\'s Hellion Jacket"\t"3"\t"1"\t"2"',
+    )
+
+    expect(result.entries).toEqual([])
+    expect(result.errors).toEqual([
+      expect.objectContaining({
+        line: 1,
+        code: 'chest_date',
+      }),
+    ])
   })
 })
 

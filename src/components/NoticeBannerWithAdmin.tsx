@@ -4,9 +4,9 @@
 // 종전에는 어드민 설정 페이지의 별도 카드에서만 편집할 수 있었지만, 공지를
 // 보는 위치 (홈/리기어 페이지 상단) 에서 바로 손볼 수 있도록 옮긴 것.
 //
-//   비어드민 → 공지가 있으면 배너만, 없으면 null
-//   어드민 + 공지 없음 → "공지 추가" 점선 버튼 (배너가 들어갈 자리)
-//   어드민 + 공지 있음 → 배너 + 우상단 펜 아이콘
+//   편집 권한 없음 → 공지가 있으면 배너만, 없으면 null
+//   편집 권한 있음 + 공지 없음 → "공지 추가" 점선 버튼 (배너가 들어갈 자리)
+//   편집 권한 있음 + 공지 있음 → 배너 + 우상단 펜 아이콘
 // 펜 / 추가 버튼 모두 `NoticeSettingForm` 을 모달로 띄운다 (embedded=true).
 
 import { useState } from 'react'
@@ -21,7 +21,7 @@ interface Props {
   message: string
   imageUrl: string
   target: NoticeTarget
-  isAdmin: boolean
+  canManageNotice: boolean
 }
 
 const SETTING_KEY_BY_TARGET: Record<NoticeTarget, AppSettingKey> = {
@@ -38,7 +38,7 @@ export default function NoticeBannerWithAdmin({
   message,
   imageUrl,
   target,
-  isAdmin,
+  canManageNotice,
 }: Props) {
   const [open, setOpen] = useState(false)
   const tBanner = useTranslations('noticeBannerAdmin')
@@ -49,14 +49,14 @@ export default function NoticeBannerWithAdmin({
   const trimmedImage = imageUrl.trim()
   const hasNotice = trimmed.length > 0 || trimmedImage.length > 0
 
-  if (!isAdmin && !hasNotice) return null
+  if (!canManageNotice && !hasNotice) return null
 
   return (
     <>
       {hasNotice ? (
         <div className="relative">
           <DismissibleNoticeBanner message={message} imageUrl={imageUrl} />
-          {isAdmin && (
+          {canManageNotice && (
             <button
               type="button"
               onClick={() => setOpen(true)}

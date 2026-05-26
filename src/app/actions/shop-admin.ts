@@ -21,7 +21,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { logAdminAction } from '@/lib/admin-audit'
 import { CAP } from '@/lib/permissions'
 import { summarizeLogContinuity } from '@/lib/log-continuity'
-import { filterByLogOperatingStart } from '@/lib/log-operating-start'
+import { selectOfficialLogEntries } from '@/lib/log-import-official'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 import { getPointBalancesByMember } from '@/lib/point-ledger'
 import { syncShopPrices, type PriceSyncSummary } from './shop-inventory'
@@ -167,7 +167,7 @@ export async function importChestLog(
       }
     }
 
-    const official = filterByLogOperatingStart(
+    const official = selectOfficialLogEntries(
       parsedEntries,
       (entry) => entry.loggedAt,
       operatingStart,

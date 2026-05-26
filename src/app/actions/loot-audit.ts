@@ -26,7 +26,7 @@ import {
   type LootLogParseError,
 } from '@/lib/loot-audit'
 import { getGuild, isAlbionServer } from '@/lib/albion-gameinfo'
-import { filterByLogOperatingStart } from '@/lib/log-operating-start'
+import { selectOfficialLogEntries } from '@/lib/log-import-official'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 
 const LOOT_AUDIT_CAPS = [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
@@ -446,18 +446,18 @@ function parseAuditInput(
 ): ParsedAuditInput {
   const lootResult = parseLootLogCsv(input.lootLogRaw)
   const depositResult = parseDepositLog(input.depositLogRaw)
-  const lootOfficial = filterByLogOperatingStart(
+  const lootOfficial = selectOfficialLogEntries(
     lootResult.entries,
     (entry) => entry.lootedAt,
     operatingStart,
   )
-  const depositOfficial = filterByLogOperatingStart(
+  const depositOfficial = selectOfficialLogEntries(
     depositResult.entries,
     (entry) => entry.depositedAt,
     operatingStart,
   )
   const skippedBeforeStart = {
-    operatingStartAt: operatingStart?.toISOString() ?? null,
+    operatingStartAt: lootOfficial.operatingStartAt,
     lootRows: lootOfficial.skippedBeforeStart,
     depositRows: depositOfficial.skippedBeforeStart,
   }
