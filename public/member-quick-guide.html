@@ -49,6 +49,10 @@
         line-height: 1.58;
       }
 
+      body.modal-open {
+        overflow: hidden;
+      }
+
       a {
         color: inherit;
       }
@@ -350,6 +354,114 @@
         object-fit: cover;
       }
 
+      .zoom-trigger {
+        position: relative;
+        display: block;
+        width: 100%;
+        border: 0;
+        padding: 0;
+        background: transparent;
+        color: inherit;
+        cursor: zoom-in;
+        text-align: left;
+      }
+
+      .guide-visual {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
+        gap: 14px;
+        align-items: stretch;
+      }
+
+      .guide-shot {
+        align-self: start;
+      }
+
+      .guide-shot img {
+        width: 100%;
+        height: auto;
+        aspect-ratio: auto;
+        object-fit: contain;
+      }
+
+      .pin {
+        position: absolute;
+        left: var(--x);
+        top: var(--y);
+        display: grid;
+        width: 30px;
+        height: 30px;
+        place-items: center;
+        border: 2px solid #111827;
+        border-radius: 999px;
+        background: var(--gold);
+        color: #111827;
+        font-size: 13px;
+        font-weight: 950;
+        transform: translate(-50%, -50%);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+      }
+
+      .zoom-hint {
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 999px;
+        padding: 5px 9px;
+        background: rgba(11, 15, 20, 0.82);
+        color: var(--ink);
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      .visual-steps {
+        display: grid;
+        gap: 10px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .visual-steps li {
+        display: grid;
+        grid-template-columns: 30px minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--panel);
+        padding: 12px;
+      }
+
+      .visual-steps strong,
+      .visual-steps span:not(.callout-number) {
+        display: block;
+      }
+
+      .visual-steps strong {
+        color: var(--ink);
+        font-size: 14px;
+      }
+
+      .visual-steps span:not(.callout-number) {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .callout-number {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        place-items: center;
+        border-radius: 999px;
+        background: rgba(242, 184, 75, 0.14);
+        color: var(--gold);
+        font-size: 13px;
+        font-weight: 950;
+      }
+
       .panel-body {
         display: grid;
         gap: 16px;
@@ -459,11 +571,85 @@
         font-size: 13px;
       }
 
+      .image-modal[hidden] {
+        display: none;
+      }
+
+      .image-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+      }
+
+      .image-modal-backdrop {
+        position: absolute;
+        inset: 0;
+        border: 0;
+        background: rgba(0, 0, 0, 0.78);
+        cursor: zoom-out;
+      }
+
+      .image-modal-shell {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        width: min(1180px, 100%);
+        max-height: min(820px, calc(100vh - 36px));
+        overflow: hidden;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius);
+        background: #06090d;
+        box-shadow: var(--shadow);
+      }
+
+      .image-modal-top {
+        display: flex;
+        min-height: 50px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid var(--line);
+        padding: 10px 12px;
+      }
+
+      .image-modal-top h2 {
+        margin: 0;
+        font-size: 15px;
+      }
+
+      .image-modal-close {
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius);
+        background: var(--panel);
+        color: var(--ink);
+        cursor: pointer;
+        padding: 6px 10px;
+        font-size: 13px;
+        font-weight: 850;
+      }
+
+      .image-modal-body {
+        min-height: 0;
+        overflow: auto;
+        padding: 12px;
+      }
+
+      .image-modal-body img {
+        width: 100%;
+        max-width: none;
+        height: auto;
+      }
+
       @media (max-width: 920px) {
         .topbar-inner,
         .hero,
         .guide-shell,
         .panel-head,
+        .guide-visual,
         .step-grid,
         .mini-grid {
           grid-template-columns: 1fr;
@@ -548,19 +734,19 @@
       <main>
         <section class="hero" aria-labelledby="hero-title">
           <div>
-            <span class="eyebrow" data-i18n="heroKicker">위치와 순서만 빠르게</span>
-            <h1 id="hero-title" data-i18n="heroTitle">어디서, 어떻게 하는지만 확인하세요</h1>
+            <span class="eyebrow" data-i18n="heroKicker">사진으로 먼저 확인</span>
+            <h1 id="hero-title" data-i18n="heroTitle">사진에서 버튼 위치를 보고 따라 하세요</h1>
             <p class="lead" data-i18n="heroLead">
-              각 탭은 들어갈 위치, 실제 클릭 순서, 완료 후 확인할 것, 막힐 때 보낼 정보만
-              담았습니다.
+              각 탭은 스크린샷에 번호를 찍어 어떤 메뉴와 버튼을 눌러야 하는지 보여줍니다.
+              이미지는 클릭하면 크게 볼 수 있습니다.
             </p>
           </div>
           <aside class="hero-card" aria-label="Guide summary">
-            <h2 data-i18n="heroCardTitle">탭마다 보는 순서</h2>
+            <h2 data-i18n="heroCardTitle">보는 순서</h2>
             <ul>
-              <li data-i18n="heroBullet1">먼저 어느 메뉴에서 시작하는지 확인합니다.</li>
-              <li data-i18n="heroBullet2">그다음 화면에서 눌러야 할 순서만 따라갑니다.</li>
-              <li data-i18n="heroBullet3">마지막으로 완료 표시나 관리자에게 보낼 정보를 확인합니다.</li>
+              <li data-i18n="heroBullet1">스크린샷의 번호가 찍힌 위치를 먼저 봅니다.</li>
+              <li data-i18n="heroBullet2">오른쪽의 같은 번호 설명을 순서대로 따라갑니다.</li>
+              <li data-i18n="heroBullet3">작게 보이면 이미지를 클릭해 확대합니다.</li>
             </ul>
           </aside>
         </section>
@@ -577,7 +763,7 @@
             </button>
             <button class="tab-button" type="button" id="tab-profile" role="tab" aria-selected="false" aria-controls="panel-profile" data-tab="profile">
               <span class="tab-icon">3</span>
-              <span class="tab-label" data-i18n="tabProfile">내정보</span>
+              <span class="tab-label" data-i18n="tabProfile">내 지갑</span>
             </button>
             <button class="tab-button" type="button" id="tab-regear" role="tab" aria-selected="false" aria-controls="panel-regear" data-tab="regear">
               <span class="tab-icon">4</span>
@@ -607,6 +793,31 @@
                 </div>
               </div>
               <div class="panel-body">
+                <div class="guide-visual">
+                  <figure class="screenshot guide-shot">
+                    <button class="zoom-trigger" type="button" data-zoom-src="/screenshots/member-home-guide.png" data-zoom-alt="Home screen with sidebar, event list, and user menu">
+                      <img src="/screenshots/member-home-guide.png" alt="Home screen with sidebar, event list, and user menu" loading="lazy" />
+                      <span class="pin" style="--x: 8%; --y: 18%;">1</span>
+                      <span class="pin" style="--x: 89%; --y: 3%;">2</span>
+                      <span class="pin" style="--x: 5%; --y: 97%;">3</span>
+                      <span class="zoom-hint" data-i18n="zoomHint">클릭해서 확대</span>
+                    </button>
+                  </figure>
+                  <ol class="visual-steps">
+                    <li>
+                      <span class="callout-number">1</span>
+                      <p><strong data-i18n="loginTitle">어디서 하나요</strong><span data-i18n="loginBody">길드 사이트 홈에서 Discord 로그인 버튼을 누릅니다.</span></p>
+                    </li>
+                    <li>
+                      <span class="callout-number">2</span>
+                      <p><strong data-i18n="verifyTitle">어떻게 하나요</strong><span data-i18n="verifyBody">로그인 후 안내되는 캐릭터 인증 화면에서 Albion 닉네임을 연결합니다.</span></p>
+                    </li>
+                    <li>
+                      <span class="callout-number">3</span>
+                      <p><strong data-i18n="profileOpenTitle">무엇을 확인하나요</strong><span data-i18n="profileOpenBody">내정보에서 캐릭터 이름, 포인트, 요청 상태가 보이면 준비 완료입니다.</span></p>
+                    </li>
+                  </ol>
+                </div>
                 <div class="step-grid">
                   <section class="step-card">
                     <span class="step-number">1</span>
@@ -643,6 +854,31 @@
                 </figure>
               </div>
               <div class="panel-body">
+                <div class="guide-visual">
+                  <figure class="screenshot guide-shot">
+                    <button class="zoom-trigger" type="button" data-zoom-src="/screenshots/events-demo.png" data-zoom-alt="Event detail screen with event status, party slots, and apply button">
+                      <img src="/screenshots/events-demo.png" alt="Event detail screen with event status, party slots, and apply button" loading="lazy" />
+                      <span class="pin" style="--x: 2%; --y: 20%;">1</span>
+                      <span class="pin" style="--x: 66%; --y: 57%;">2</span>
+                      <span class="pin" style="--x: 86%; --y: 45%;">3</span>
+                      <span class="zoom-hint" data-i18n="zoomHint">클릭해서 확대</span>
+                    </button>
+                  </figure>
+                  <ol class="visual-steps">
+                    <li>
+                      <span class="callout-number">1</span>
+                      <p><strong data-i18n="openEventTitle">어디서 하나요</strong><span data-i18n="openEventBody">홈 이벤트 카드나 이벤트 목록에서 오늘 참여할 이벤트를 엽니다.</span></p>
+                    </li>
+                    <li>
+                      <span class="callout-number">2</span>
+                      <p><strong data-i18n="slotTitle">어떻게 하나요</strong><span data-i18n="slotBody">집결 시간과 CTA를 확인한 뒤, 무기와 역할이 맞는 슬롯을 선택해 신청합니다.</span></p>
+                    </li>
+                    <li>
+                      <span class="callout-number">3</span>
+                      <p><strong data-i18n="changeTitle">무엇을 확인하나요</strong><span data-i18n="changeBody">내 이름이나 신청 상태가 슬롯에 표시되는지 확인합니다. 잘못 신청했다면 같은 화면에서 취소 후 다시 신청합니다.</span></p>
+                    </li>
+                  </ol>
+                </div>
                 <div class="step-grid">
                   <section class="step-card">
                     <span class="step-number">1</span>
@@ -671,8 +907,8 @@
               <div class="panel-head">
                 <div>
                   <span class="panel-kicker" data-i18n="profileKicker">개인 대시보드</span>
-                  <h2 data-i18n="profileTitle">내정보에서 포인트와 요청 상태를 확인합니다</h2>
-                  <p class="panel-summary" data-i18n="profileSummary">상점 구매, 환전, 리기어 처리 상태가 궁금하면 먼저 내정보를 여세요.</p>
+                  <h2 data-i18n="profileTitle">내 지갑에서 포인트와 요청 상태를 확인합니다</h2>
+                  <p class="panel-summary" data-i18n="profileSummary">포인트 잔액, 환전, 리기어, 상점 주문 상태가 궁금하면 먼저 내 지갑을 여세요.</p>
                 </div>
                 <div class="mini-grid">
                   <div class="mini-card"><strong data-i18n="pointsTitle">포인트</strong><span data-i18n="pointsBody">상점, 환전, 보상 기준 잔액</span></div>
@@ -681,11 +917,36 @@
                 </div>
               </div>
               <div class="panel-body">
+                <div class="guide-visual">
+                  <figure class="screenshot guide-shot">
+                    <button class="zoom-trigger" type="button" data-zoom-src="/screenshots/member-home-guide.png" data-zoom-alt="Member home screen with My Info navigation and user menu">
+                      <img src="/screenshots/member-home-guide.png" alt="Member home screen with My Info navigation and user menu" loading="lazy" />
+                      <span class="pin" style="--x: 5%; --y: 57%;">1</span>
+                      <span class="pin" style="--x: 89%; --y: 3%;">2</span>
+                      <span class="pin" style="--x: 5%; --y: 97%;">3</span>
+                      <span class="zoom-hint" data-i18n="zoomHint">클릭해서 확대</span>
+                    </button>
+                  </figure>
+                  <ol class="visual-steps">
+                    <li>
+                      <span class="callout-number">1</span>
+                      <p><strong data-i18n="profileStep1Title">내 지갑 접근</strong><span data-i18n="profileStep1Body">왼쪽 사이드바의 내 정보 섹션을 펼치고 내 지갑을 누릅니다. 메뉴가 접혀 있으면 지갑 아이콘을 선택합니다.</span></p>
+                    </li>
+                    <li>
+                      <span class="callout-number">2</span>
+                      <p><strong data-i18n="profileStep2Title">어떻게 보나요</strong><span data-i18n="profileStep2Body">포인트 잔액, 리기어, 환전, 제작 요청 목록을 위에서부터 확인합니다.</span></p>
+                    </li>
+                    <li>
+                      <span class="callout-number">3</span>
+                      <p><strong data-i18n="profileStep3Title">무엇을 확인하나요</strong><span data-i18n="profileStep3Body">요청이 대기, 처리 완료, 반려 중 어디에 있는지 확인합니다.</span></p>
+                    </li>
+                  </ol>
+                </div>
                 <div class="step-grid">
                   <section class="step-card">
                     <span class="step-number">1</span>
-                    <h3 data-i18n="profileStep1Title">어디서 하나요</h3>
-                    <p data-i18n="profileStep1Body">사이드바의 내 정보 섹션에서 내정보 또는 지갑 화면을 엽니다.</p>
+                    <h3 data-i18n="profileStep1Title">내 지갑 접근</h3>
+                    <p data-i18n="profileStep1Body">왼쪽 사이드바의 내 정보 섹션을 펼치고 내 지갑을 누릅니다. 메뉴가 접혀 있으면 지갑 아이콘을 선택합니다.</p>
                   </section>
                   <section class="step-card">
                     <span class="step-number">2</span>
@@ -717,6 +978,31 @@
                 </figure>
               </div>
               <div class="panel-body">
+                <div class="guide-visual">
+                  <figure class="screenshot guide-shot">
+                    <button class="zoom-trigger" type="button" data-zoom-src="/screenshots/member-regear-guide.png" data-zoom-alt="Member regear request screen with sidebar and request cards">
+                      <img src="/screenshots/member-regear-guide.png" alt="Member regear request screen with sidebar and request cards" loading="lazy" />
+                      <span class="pin" style="--x: 5%; --y: 41%;">1</span>
+                      <span class="pin" style="--x: 58%; --y: 41%;">2</span>
+                      <span class="pin" style="--x: 23%; --y: 22%;">3</span>
+                      <span class="zoom-hint" data-i18n="zoomHint">클릭해서 확대</span>
+                    </button>
+                  </figure>
+                  <ol class="visual-steps">
+                    <li>
+                      <span class="callout-number">1</span>
+                      <p><strong data-i18n="regearStep1Title">어디서 하나요</strong><span data-i18n="regearStep1Body">사이드바의 리기어 신청 또는 이벤트 상세의 내 상태 영역에서 시작합니다.</span></p>
+                    </li>
+                    <li>
+                      <span class="callout-number">2</span>
+                      <p><strong data-i18n="regearStep2Title">어떻게 하나요</strong><span data-i18n="regearStep2Body">사망한 이벤트를 고르고 자동 사망 기록이 보이면 그 기록으로 신청합니다.</span></p>
+                    </li>
+                    <li>
+                      <span class="callout-number">3</span>
+                      <p><strong data-i18n="regearStep3Title">무엇을 확인하나요</strong><span data-i18n="regearStep3Body">제출 후 내정보 또는 리기어 목록에서 요청이 대기 상태로 생겼는지 확인합니다.</span></p>
+                    </li>
+                  </ol>
+                </div>
                 <div class="step-grid">
                   <section class="step-card">
                     <span class="step-number">1</span>
@@ -755,6 +1041,31 @@
                 </div>
               </div>
               <div class="panel-body">
+                <div class="guide-visual">
+                  <figure class="screenshot guide-shot">
+                    <button class="zoom-trigger" type="button" data-zoom-src="/screenshots/shop-demo.png" data-zoom-alt="Shop screen with sidebar, item cards, cart, and order button">
+                      <img src="/screenshots/shop-demo.png" alt="Shop screen with sidebar, item cards, cart, and order button" loading="lazy" />
+                      <span class="pin" style="--x: 2%; --y: 46%;">1</span>
+                      <span class="pin" style="--x: 29%; --y: 61%;">2</span>
+                      <span class="pin" style="--x: 87%; --y: 73%;">3</span>
+                      <span class="zoom-hint" data-i18n="zoomHint">클릭해서 확대</span>
+                    </button>
+                  </figure>
+                  <ol class="visual-steps">
+                    <li>
+                      <span class="callout-number">1</span>
+                      <p><strong data-i18n="shopStep1Title">어디서 하나요</strong><span data-i18n="shopStep1Body">아이템은 사이드바의 상점, 사이펀은 내정보 또는 사이펀 화면에서 확인합니다.</span></p>
+                    </li>
+                    <li>
+                      <span class="callout-number">2</span>
+                      <p><strong data-i18n="shopStep2Title">어떻게 하나요</strong><span data-i18n="shopStep2Body">상점에서는 상품을 선택해 구매하고, 실버가 필요하면 환전 요청을 제출합니다.</span></p>
+                    </li>
+                    <li>
+                      <span class="callout-number">3</span>
+                      <p><strong data-i18n="shopStep3Title">무엇을 확인하나요</strong><span data-i18n="shopStep3Body">주문 또는 환전 요청이 내정보의 요청 목록에 생겼는지 확인합니다.</span></p>
+                    </li>
+                  </ol>
+                </div>
                 <div class="step-grid">
                   <section class="step-card">
                     <span class="step-number">1</span>
@@ -792,6 +1103,31 @@
                 </div>
               </div>
               <div class="panel-body">
+                <div class="guide-visual">
+                  <figure class="screenshot guide-shot">
+                    <button class="zoom-trigger" type="button" data-zoom-src="/screenshots/member-home-guide.png" data-zoom-alt="Member screen with current menu, guide button, and user menu">
+                      <img src="/screenshots/member-home-guide.png" alt="Member screen with current menu, guide button, and user menu" loading="lazy" />
+                      <span class="pin" style="--x: 18%; --y: 10%;">1</span>
+                      <span class="pin" style="--x: 84%; --y: 11%;">2</span>
+                      <span class="pin" style="--x: 89%; --y: 3%;">3</span>
+                      <span class="zoom-hint" data-i18n="zoomHint">클릭해서 확대</span>
+                    </button>
+                  </figure>
+                  <ol class="visual-steps">
+                    <li>
+                      <span class="callout-number">1</span>
+                      <p><strong data-i18n="helpStep1Title">어디서 막혔나요</strong><span data-i18n="helpStep1Body">현재 길드 도메인과 메뉴 이름을 확인합니다. 예: 이벤트 상세, 리기어 신청, 상점.</span></p>
+                    </li>
+                    <li>
+                      <span class="callout-number">2</span>
+                      <p><strong data-i18n="helpStep2Title">어떻게 했나요</strong><span data-i18n="helpStep2Body">누른 버튼, 선택한 이벤트, 신청한 슬롯이나 요청 종류를 적습니다.</span></p>
+                    </li>
+                    <li>
+                      <span class="callout-number">3</span>
+                      <p><strong data-i18n="helpStep3Title">무엇을 보내나요</strong><span data-i18n="helpStep3Body">계정, 캐릭터명, 이벤트 이름, 발생 시각, 화면 스크린샷을 함께 보냅니다.</span></p>
+                    </li>
+                  </ol>
+                </div>
                 <div class="step-grid">
                   <section class="step-card">
                     <span class="step-number">1</span>
@@ -822,22 +1158,38 @@
       <footer class="footer" data-i18n="footer">Albion Guild Manager 길드원 빠른 가이드. 메뉴 위치와 진행 순서만 탭으로 정리했습니다.</footer>
     </div>
 
+    <div class="image-modal" id="image-modal" role="dialog" aria-modal="true" aria-labelledby="image-modal-title" hidden>
+      <button class="image-modal-backdrop" type="button" data-close-zoom aria-label="Close image preview"></button>
+      <div class="image-modal-shell">
+        <div class="image-modal-top">
+          <h2 id="image-modal-title" data-i18n="modalTitle">스크린샷 확대 보기</h2>
+          <button class="image-modal-close" type="button" data-close-zoom data-i18n="zoomClose">닫기</button>
+        </div>
+        <div class="image-modal-body">
+          <img id="modal-image" alt="" />
+        </div>
+      </div>
+    </div>
+
     <script>
       const translations = {
         ko: {
           title: 'Albion Guild Manager 빠른 사용 가이드',
           description: '길드원이 Albion Guild Manager에서 메뉴 위치, 클릭 순서, 완료 확인, 문제 해결 정보를 탭으로 확인하는 빠른 가이드입니다.',
           brand: 'Albion Guild Manager 빠른 가이드',
-          heroKicker: '위치와 순서만 빠르게',
-          heroTitle: '어디서, 어떻게 하는지만 확인하세요',
-          heroLead: '각 탭은 들어갈 위치, 실제 클릭 순서, 완료 후 확인할 것, 막힐 때 보낼 정보만 담았습니다.',
-          heroCardTitle: '탭마다 보는 순서',
-          heroBullet1: '먼저 어느 메뉴에서 시작하는지 확인합니다.',
-          heroBullet2: '그다음 화면에서 눌러야 할 순서만 따라갑니다.',
-          heroBullet3: '마지막으로 완료 표시나 관리자에게 보낼 정보를 확인합니다.',
+          heroKicker: '사진으로 먼저 확인',
+          heroTitle: '사진에서 버튼 위치를 보고 따라 하세요',
+          heroLead: '각 탭은 스크린샷에 번호를 찍어 어떤 메뉴와 버튼을 눌러야 하는지 보여줍니다. 이미지는 클릭하면 크게 볼 수 있습니다.',
+          heroCardTitle: '보는 순서',
+          heroBullet1: '스크린샷의 번호가 찍힌 위치를 먼저 봅니다.',
+          heroBullet2: '오른쪽의 같은 번호 설명을 순서대로 따라갑니다.',
+          heroBullet3: '작게 보이면 이미지를 클릭해 확대합니다.',
+          zoomHint: '클릭해서 확대',
+          modalTitle: '스크린샷 확대 보기',
+          zoomClose: '닫기',
           tabStart: '처음 설정',
           tabEvents: '이벤트',
-          tabProfile: '내정보',
+          tabProfile: '내 지갑',
           tabRegear: '리기어',
           tabShop: '상점/환전',
           tabHelp: '문제 해결',
@@ -866,16 +1218,16 @@
           eventsNoticeTitle: '안 될 때',
           eventsNoticeBody: '이벤트가 닫혔거나 신청 시간이 지난 경우 슬롯 변경이 제한될 수 있습니다. 이벤트 이름과 화면 캡처를 관리자에게 보내세요.',
           profileKicker: '개인 대시보드',
-          profileTitle: '내정보에서 포인트와 요청 상태를 확인합니다',
-          profileSummary: '상점 구매, 환전, 리기어 처리 상태가 궁금하면 먼저 내정보를 여세요.',
+          profileTitle: '내 지갑에서 포인트와 요청 상태를 확인합니다',
+          profileSummary: '포인트 잔액, 환전, 리기어, 상점 주문 상태가 궁금하면 먼저 내 지갑을 여세요.',
           pointsTitle: '포인트',
           pointsBody: '상점, 환전, 보상 기준 잔액',
           requestsTitle: '요청',
           requestsBody: '리기어, 환전, 제작 처리 상태',
           settingsTitle: '설정',
           settingsBody: '캐릭터와 Discord DM 상태',
-          profileStep1Title: '어디서 하나요',
-          profileStep1Body: '사이드바의 내 정보 섹션에서 내정보 또는 지갑 화면을 엽니다.',
+          profileStep1Title: '내 지갑 접근',
+          profileStep1Body: '왼쪽 사이드바의 내 정보 섹션을 펼치고 내 지갑을 누릅니다. 메뉴가 접혀 있으면 지갑 아이콘을 선택합니다.',
           profileStep2Title: '어떻게 보나요',
           profileStep2Body: '포인트 잔액, 리기어, 환전, 제작 요청 목록을 위에서부터 확인합니다.',
           profileStep3Title: '무엇을 확인하나요',
@@ -929,16 +1281,19 @@
           title: 'Albion Guild Manager Quick Guide',
           description: 'A tabbed member guide focused on menu location, click order, completion checks, and troubleshooting info.',
           brand: 'Albion Guild Manager Quick Guide',
-          heroKicker: 'Location and steps only',
-          heroTitle: 'See where to go and what to click',
-          heroLead: 'Each tab covers where to start, the exact action order, what confirms completion, and what to send when blocked.',
-          heroCardTitle: 'Order inside each tab',
-          heroBullet1: 'First check which menu starts the task.',
-          heroBullet2: 'Then follow only the buttons and screens listed.',
-          heroBullet3: 'Finally check the completion state or the info to send an admin.',
+          heroKicker: 'Check the screenshot first',
+          heroTitle: 'Follow the button positions in the image',
+          heroLead: 'Each tab marks the screenshot with numbers so you can see which menu or button to use. Click an image to enlarge it.',
+          heroCardTitle: 'How to read',
+          heroBullet1: 'First look at the numbered spots on the screenshot.',
+          heroBullet2: 'Then follow the matching numbered notes in order.',
+          heroBullet3: 'If it is small, click the image to enlarge it.',
+          zoomHint: 'Click to enlarge',
+          modalTitle: 'Enlarged screenshot',
+          zoomClose: 'Close',
           tabStart: 'Setup',
           tabEvents: 'Events',
-          tabProfile: 'My Info',
+          tabProfile: 'Wallet',
           tabRegear: 'Regear',
           tabShop: 'Shop/Exchange',
           tabHelp: 'Troubleshooting',
@@ -967,16 +1322,16 @@
           eventsNoticeTitle: 'If it fails',
           eventsNoticeBody: 'Closed events or events past signup time may restrict slot changes. Send the event name and a screenshot to an admin.',
           profileKicker: 'Personal dashboard',
-          profileTitle: 'Check points and request status in My Info',
-          profileSummary: 'If you need shop, exchange, or regear status, open My Info first.',
+          profileTitle: 'Check points and requests in Wallet',
+          profileSummary: 'Open Wallet first when you need point balance, exchange, regear, or shop order status.',
           pointsTitle: 'Points',
           pointsBody: 'Balance for shop, exchange, and rewards',
           requestsTitle: 'Requests',
           requestsBody: 'Regear, exchange, and crafting status',
           settingsTitle: 'Settings',
           settingsBody: 'Character and Discord DM status',
-          profileStep1Title: 'Where',
-          profileStep1Body: 'Open My Info or Wallet from the My Info section in the sidebar.',
+          profileStep1Title: 'Open Wallet',
+          profileStep1Body: 'Expand the My Info section in the left sidebar and click Wallet. If the menu is collapsed, select the wallet icon.',
           profileStep2Title: 'How',
           profileStep2Body: 'Read points, regear, exchange, and crafting request lists from top to bottom.',
           profileStep3Title: 'Check',
@@ -1030,16 +1385,19 @@
           title: 'Albion Guild Manager クイックガイド',
           description: 'メニュー位置、クリック順、完了確認、困ったときに送る情報をタブで確認するメンバー向けクイックガイドです。',
           brand: 'Albion Guild Manager クイックガイド',
-          heroKicker: '場所と手順だけをすばやく',
-          heroTitle: 'どこで、どう進めるかだけ確認します',
-          heroLead: '各タブは、開始する場所、実際のクリック順、完了後の確認、困ったときに送る情報だけをまとめています。',
-          heroCardTitle: '各タブで見る順番',
-          heroBullet1: 'まずどのメニューから始めるか確認します。',
-          heroBullet2: '次に画面で押す順番だけを追います。',
-          heroBullet3: '最後に完了表示、または管理者へ送る情報を確認します。',
+          heroKicker: 'まず画像で確認',
+          heroTitle: '画像のボタン位置を見て進めます',
+          heroLead: '各タブではスクリーンショットに番号を付け、どのメニューやボタンを使うかを示します。画像はクリックすると拡大できます。',
+          heroCardTitle: '見る順番',
+          heroBullet1: 'まずスクリーンショットの番号位置を見ます。',
+          heroBullet2: '次に同じ番号の説明を順番に追います。',
+          heroBullet3: '小さい場合は画像をクリックして拡大します。',
+          zoomHint: 'クリックして拡大',
+          modalTitle: 'スクリーンショット拡大表示',
+          zoomClose: '閉じる',
           tabStart: '初期設定',
           tabEvents: 'イベント',
-          tabProfile: 'マイ情報',
+          tabProfile: 'ウォレット',
           tabRegear: 'リギア',
           tabShop: 'ショップ/換金',
           tabHelp: 'トラブル確認',
@@ -1068,16 +1426,16 @@
           eventsNoticeTitle: 'できないとき',
           eventsNoticeBody: '閉じたイベントや申請時間を過ぎたイベントはスロット変更が制限される場合があります。イベント名と画面キャプチャを管理者へ送ってください。',
           profileKicker: '個人ダッシュボード',
-          profileTitle: 'マイ情報でポイントと申請状態を確認します',
-          profileSummary: 'ショップ購入、換金、リギア処理状態が気になる場合は、まずマイ情報を開きます。',
+          profileTitle: 'ウォレットでポイントと申請状態を確認します',
+          profileSummary: 'ポイント残高、換金、リギア、ショップ注文状態を確認したい場合は、まずウォレットを開きます。',
           pointsTitle: 'ポイント',
           pointsBody: 'ショップ、換金、報酬の基準残高',
           requestsTitle: '申請',
           requestsBody: 'リギア、換金、製作の処理状態',
           settingsTitle: '設定',
           settingsBody: 'キャラクターとDiscord DM状態',
-          profileStep1Title: 'どこで行うか',
-          profileStep1Body: 'サイドバーのマイ情報セクションからマイ情報、またはウォレット画面を開きます。',
+          profileStep1Title: 'ウォレットを開く',
+          profileStep1Body: '左サイドバーのマイ情報セクションを開き、ウォレットを押します。メニューが折りたたまれている場合はウォレットアイコンを選びます。',
           profileStep2Title: 'どう見るか',
           profileStep2Body: 'ポイント残高、リギア、換金、製作申請の一覧を上から確認します。',
           profileStep3Title: '何を確認するか',
@@ -1131,16 +1489,19 @@
           title: 'Albion Guild Manager 快速指南',
           description: '成员用标签查看菜单位置、点击顺序、完成确认和遇到问题时要发送的信息。',
           brand: 'Albion Guild Manager 快速指南',
-          heroKicker: '只看位置和步骤',
-          heroTitle: '确认在哪里做、怎么做即可',
-          heroLead: '每个标签只说明从哪里开始、实际点击顺序、完成后确认什么，以及卡住时要发给管理员的信息。',
-          heroCardTitle: '每个标签的查看顺序',
-          heroBullet1: '先确认从哪个菜单开始。',
-          heroBullet2: '再按页面上要点击的顺序操作。',
-          heroBullet3: '最后确认完成状态，或准备发给管理员的信息。',
+          heroKicker: '先看截图',
+          heroTitle: '照着图片里的按钮位置操作',
+          heroLead: '每个标签都会在截图上标出编号，说明要使用哪个菜单或按钮。点击图片可以放大查看。',
+          heroCardTitle: '查看顺序',
+          heroBullet1: '先看截图上标号的位置。',
+          heroBullet2: '再按右侧相同编号的说明操作。',
+          heroBullet3: '如果太小，点击图片放大。',
+          zoomHint: '点击放大',
+          modalTitle: '放大截图',
+          zoomClose: '关闭',
           tabStart: '初始设置',
           tabEvents: '活动',
-          tabProfile: '我的信息',
+          tabProfile: '我的钱包',
           tabRegear: '补装',
           tabShop: '商店/兑换',
           tabHelp: '问题处理',
@@ -1169,16 +1530,16 @@
           eventsNoticeTitle: '无法完成时',
           eventsNoticeBody: '已关闭或超过报名时间的活动，可能无法修改槽位。请把活动名称和截图发给管理员。',
           profileKicker: '个人面板',
-          profileTitle: '在我的信息中确认点数和请求状态',
-          profileSummary: '想确认商店购买、兑换或补装处理状态时，请先打开我的信息。',
+          profileTitle: '在我的钱包中确认点数和请求状态',
+          profileSummary: '想确认点数余额、兑换、补装或商店订单状态时，请先打开我的钱包。',
           pointsTitle: '点数',
           pointsBody: '商店、兑换、奖励的余额',
           requestsTitle: '请求',
           requestsBody: '补装、兑换、制作处理状态',
           settingsTitle: '设置',
           settingsBody: '角色和 Discord DM 状态',
-          profileStep1Title: '在哪里做',
-          profileStep1Body: '在侧边栏的我的信息区域，打开我的信息或钱包页面。',
+          profileStep1Title: '打开我的钱包',
+          profileStep1Body: '展开左侧边栏的我的信息区域，点击我的钱包。菜单折叠时请选择钱包图标。',
           profileStep2Title: '怎么查看',
           profileStep2Body: '从上到下查看点数余额、补装、兑换和制作请求列表。',
           profileStep3Title: '确认什么',
@@ -1231,6 +1592,10 @@
       }
 
       const validTabs = ['start', 'events', 'profile', 'regear', 'shop', 'help']
+      const zoomModal = document.getElementById('image-modal')
+      const modalImage = document.getElementById('modal-image')
+      const modalClose = document.querySelector('.image-modal-close')
+      let lastZoomTrigger = null
 
       function getInitialLocale() {
         try {
@@ -1282,9 +1647,42 @@
         }
       }
 
+      function openZoom(trigger) {
+        if (!zoomModal || !modalImage) return
+        lastZoomTrigger = trigger
+        const src = trigger.getAttribute('data-zoom-src')
+        const alt = trigger.getAttribute('data-zoom-alt') || ''
+        if (!src) return
+        modalImage.setAttribute('src', src)
+        modalImage.setAttribute('alt', alt)
+        zoomModal.hidden = false
+        document.body.classList.add('modal-open')
+        if (modalClose) modalClose.focus()
+      }
+
+      function closeZoom() {
+        if (!zoomModal || !modalImage) return
+        zoomModal.hidden = true
+        modalImage.removeAttribute('src')
+        modalImage.setAttribute('alt', '')
+        document.body.classList.remove('modal-open')
+        if (lastZoomTrigger) lastZoomTrigger.focus()
+      }
+
       setLocale(getInitialLocale())
       setActiveTab(location.hash.replace('#', ''), { skipHash: true })
 
+      document.querySelectorAll('.zoom-trigger').forEach((button) => {
+        button.addEventListener('click', () => openZoom(button))
+      })
+      document.querySelectorAll('[data-close-zoom]').forEach((button) => {
+        button.addEventListener('click', closeZoom)
+      })
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && zoomModal && !zoomModal.hidden) {
+          closeZoom()
+        }
+      })
       document.querySelectorAll('[data-locale]').forEach((button) => {
         button.addEventListener('click', () => setLocale(button.getAttribute('data-locale')))
       })
