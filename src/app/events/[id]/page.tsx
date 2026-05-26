@@ -13,6 +13,8 @@ import EventGuestProfileGate from '@/components/EventGuestProfileGate'
 import TentativeSignupSection from '@/components/TentativeSignupSection'
 import EventMyStatusCard, { type EventMyStatusTone } from '@/components/EventMyStatusCard'
 import EventBuildSheetSummary from '@/components/EventBuildSheetSummary'
+import BuildSheetApplicationPanel from '@/components/BuildSheetApplicationPanel'
+import BuildSheetAssignmentBoard from '@/components/BuildSheetAssignmentBoard'
 import { listTentativeSignupsForGuild } from '@/lib/event-tentative-signups'
 import AutoRefresh from '@/components/AutoRefresh'
 import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil, FileText } from 'lucide-react'
@@ -31,6 +33,10 @@ import { classifyHost, resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { resolveAlbionDisplayName } from '@/lib/albion-display-name'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { loadGuildProfileSettings } from '@/lib/guild-profile'
+import {
+  getBuildSheetAssignedPartyNumbers,
+  loadBuildSheetEventState,
+} from '@/lib/build-sheet-data'
 import {
   getEventGuestDisplayNamesByDiscordIds,
   getEventGuestProfile,
@@ -290,6 +296,24 @@ export default async function EventDetailPage({
         !!event.created_by &&
         event.created_by === interactionSession.discordId))
   const canManageTentativeSignups = canEdit
+  const buildSheetMode =
+    event.recruitment_mode === 'build_sheet' || event.recruitment_mode === 'hybrid'
+  const buildSheetManageableParties =
+    buildSheetMode && interactionSession
+      ? await getBuildSheetAssignedPartyNumbers(id, guildId, interactionSession.discordId)
+      : []
+  const buildSheetState = buildSheetMode
+    ? await loadBuildSheetEventState(id, guildId, {
+        includeApplications: !!interactionSession,
+      })
+    : null
+  const myBuildSheetApplication =
+    interactionSession && buildSheetState
+      ? buildSheetState.applications.find(
+          (app) => app.applicant_discord_id === interactionSession.discordId,
+        ) ?? null
+      : null
+  const canManageBuildSheet = canEdit || buildSheetManageableParties.length > 0
 
   // 게스트 초대 관리도 같은 권한(관리자 or 이벤트 작성자). 서버에서 미리
   // 활성 토큰 목록을 로드해 모달이 즉시 열리도록 prefill.
@@ -522,7 +546,29 @@ export default async function EventDetailPage({
         </div>
 
         {(event.recruitment_mode === 'build_sheet' || event.recruitment_mode === 'hybrid') && (
-          <EventBuildSheetSummary parties={parties} mode={event.recruitment_mode} />
+          <>
+            <BuildSheetApplicationPanel
+              eventId={id}
+              entries={buildSheetState?.entries ?? []}
+              demands={buildSheetState?.demands ?? []}
+              myApplication={myBuildSheetApplication}
+              canApply={canApplyToSlots}
+              loginHref={loginHref}
+              battleStarted={!!event.battle_started_at}
+            />
+            {canManageBuildSheet && (
+              <BuildSheetAssignmentBoard
+                eventId={id}
+                demands={buildSheetState?.demands ?? []}
+                applications={buildSheetState?.applications ?? []}
+                canManageAll={canEdit}
+                manageablePartyNumbers={buildSheetManageableParties}
+              />
+            )}
+            {totalSlots > 0 && (
+              <EventBuildSheetSummary parties={parties} mode={event.recruitment_mode} />
+            )}
+          </>
         )}
 
         <TentativeSignupSection
@@ -554,7 +600,7 @@ export default async function EventDetailPage({
             eventCategory={event.category}
             timezone={tz}
             suggestedRoles={myTentative?.possible_roles ?? []}
-            canApplyToSlots={canApplyToSlots}
+            canApplyToSlots={canApplyToSlots && !buildSheetMode}
           />
         </div>
       </main>

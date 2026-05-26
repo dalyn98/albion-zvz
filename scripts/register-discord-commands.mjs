@@ -34,6 +34,11 @@ const COMMANDS = [
     type: 1,
   },
   {
+    name: 'killbotguild',
+    description: 'Open the killbot guide for guild operators',
+    type: 1,
+  },
+  {
     name: 'upcoming',
     description: 'Show the most imminent upcoming event for this guild',
     type: 1,

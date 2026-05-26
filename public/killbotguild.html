@@ -1,0 +1,1072 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AlbionGuildManager 킬봇 운영 설명서</title>
+    <meta
+      name="description"
+      content="AlbionGuildManager의 Discord 킬봇 기능 설정, 동작 방식, slash command, 운영 확인 절차를 정리한 HTML 설명서입니다."
+    />
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f7fa;
+        --paper: #ffffff;
+        --paper-soft: #f9fbfd;
+        --ink: #151922;
+        --muted: #5d6676;
+        --subtle: #8791a1;
+        --line: #d8dee8;
+        --line-strong: #b9c2d0;
+        --amber: #b76f00;
+        --amber-soft: #fff2d4;
+        --green: #137a52;
+        --green-soft: #e2f6ed;
+        --red: #b83131;
+        --red-soft: #ffe5e5;
+        --blue: #215a9e;
+        --blue-soft: #e7f0ff;
+        --violet: #6954b8;
+        --violet-soft: #eeeaff;
+        --shadow: 0 18px 60px rgba(24, 36, 58, 0.12);
+        --radius: 8px;
+        --content: 1120px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        background:
+          linear-gradient(180deg, #eef2f7 0%, var(--bg) 260px),
+          var(--bg);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+        letter-spacing: 0;
+        line-height: 1.65;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      code {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #f1f4f8;
+        padding: 0.1rem 0.32rem;
+        color: #202838;
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, ui-monospace, monospace;
+        font-size: 0.92em;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        border-bottom: 1px solid rgba(216, 222, 232, 0.86);
+        background: rgba(255, 255, 255, 0.86);
+        backdrop-filter: blur(16px);
+      }
+
+      .topbar-inner {
+        width: min(var(--content), calc(100% - 32px));
+        min-height: 64px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        font-weight: 850;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid #e0aa45;
+        border-radius: var(--radius);
+        background: #fff6df;
+        color: var(--amber);
+        font-size: 18px;
+        font-weight: 900;
+      }
+
+      .brand-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .nav {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 6px;
+      }
+
+      .nav a {
+        display: inline-flex;
+        min-height: 34px;
+        align-items: center;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        padding: 6px 10px;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 750;
+        text-decoration: none;
+      }
+
+      .nav a:hover {
+        border-color: #e5bd70;
+        background: var(--amber-soft);
+        color: #533504;
+      }
+
+      .page {
+        width: min(var(--content), calc(100% - 32px));
+        margin: 0 auto;
+        padding: 42px 0 56px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.02fr) minmax(330px, 0.72fr);
+        gap: 28px;
+        align-items: stretch;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #e2b152;
+        border-radius: 999px;
+        background: var(--amber-soft);
+        padding: 6px 10px;
+        color: #6e4300;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        line-height: 1.18;
+        letter-spacing: 0;
+      }
+
+      h1 {
+        margin-top: 18px;
+        max-width: 760px;
+        font-size: clamp(2.15rem, 5vw, 4.1rem);
+      }
+
+      .lead {
+        max-width: 760px;
+        margin: 18px 0 0;
+        color: var(--muted);
+        font-size: 18px;
+      }
+
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 26px;
+      }
+
+      .button {
+        display: inline-flex;
+        min-height: 42px;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius);
+        padding: 9px 14px;
+        background: var(--paper);
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 820;
+        text-decoration: none;
+      }
+
+      .button.primary {
+        border-color: #cf8b13;
+        background: #d9890b;
+        color: #fff;
+      }
+
+      .button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 22px rgba(24, 36, 58, 0.1);
+      }
+
+      .summary-card,
+      .card,
+      .embed-preview,
+      .flow-card {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--paper);
+        box-shadow: var(--shadow);
+      }
+
+      .summary-card {
+        padding: 22px;
+      }
+
+      .summary-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 14px;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        background: var(--green-soft);
+        padding: 5px 9px;
+        color: var(--green);
+        font-size: 12px;
+        font-weight: 850;
+        white-space: nowrap;
+      }
+
+      .summary-list {
+        display: grid;
+        gap: 13px;
+        margin: 18px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .summary-list li {
+        display: grid;
+        grid-template-columns: 114px minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .summary-list strong {
+        color: var(--ink);
+      }
+
+      .section {
+        margin-top: 34px;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 14px;
+      }
+
+      .section h2 {
+        font-size: clamp(1.45rem, 3vw, 2rem);
+      }
+
+      .section-note {
+        max-width: 640px;
+        margin: 8px 0 0;
+        color: var(--muted);
+      }
+
+      .grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .grid.two {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grid.three {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .card {
+        padding: 18px;
+      }
+
+      .card h3 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 1.02rem;
+      }
+
+      .card p,
+      .card li {
+        color: var(--muted);
+      }
+
+      .card p {
+        margin: 10px 0 0;
+      }
+
+      .card ul,
+      .card ol {
+        margin: 12px 0 0;
+        padding-left: 1.18rem;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 3px 8px;
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      .tag.blue {
+        background: var(--blue-soft);
+        color: var(--blue);
+      }
+
+      .tag.green {
+        background: var(--green-soft);
+        color: var(--green);
+      }
+
+      .tag.red {
+        background: var(--red-soft);
+        color: var(--red);
+      }
+
+      .tag.violet {
+        background: var(--violet-soft);
+        color: var(--violet);
+      }
+
+      .steps {
+        counter-reset: step;
+        display: grid;
+        gap: 12px;
+      }
+
+      .step {
+        display: grid;
+        grid-template-columns: 38px minmax(0, 1fr);
+        gap: 13px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--paper);
+        padding: 15px;
+      }
+
+      .step::before {
+        counter-increment: step;
+        content: counter(step);
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: var(--radius);
+        background: #202838;
+        color: #fff;
+        font-weight: 850;
+      }
+
+      .step h3 {
+        font-size: 1rem;
+      }
+
+      .step p {
+        margin: 5px 0 0;
+        color: var(--muted);
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .flow-card {
+        position: relative;
+        min-height: 124px;
+        padding: 16px;
+      }
+
+      .flow-card:not(:last-child)::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        right: -10px;
+        width: 10px;
+        height: 2px;
+        background: var(--line-strong);
+      }
+
+      .flow-card strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .flow-card span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .embed-preview {
+        overflow: hidden;
+        background: #30343d;
+        color: #f4f6fb;
+      }
+
+      .embed-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        background: #252932;
+        padding: 12px 14px;
+      }
+
+      .embed-body {
+        padding: 16px;
+      }
+
+      .embed-line {
+        border-left: 4px solid #22c55e;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.06);
+        padding: 13px 14px;
+      }
+
+      .embed-line.death {
+        border-left-color: #ef4444;
+      }
+
+      .embed-title {
+        color: #fff;
+        font-weight: 850;
+      }
+
+      .embed-description {
+        margin-top: 5px;
+        color: #cbd3df;
+        font-size: 14px;
+      }
+
+      .embed-fields {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .embed-field {
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.06);
+        padding: 10px;
+      }
+
+      .embed-field-label {
+        display: block;
+        color: #9da8b8;
+        font-size: 12px;
+      }
+
+      .embed-field-value {
+        display: block;
+        margin-top: 2px;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 780;
+      }
+
+      .command-table {
+        width: 100%;
+        border-collapse: collapse;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--paper);
+      }
+
+      .command-table th,
+      .command-table td {
+        border-bottom: 1px solid var(--line);
+        padding: 12px 13px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .command-table th {
+        background: var(--paper-soft);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      .command-table tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .command-table td {
+        color: var(--muted);
+      }
+
+      .callout {
+        border: 1px solid #e2b152;
+        border-radius: var(--radius);
+        background: var(--amber-soft);
+        padding: 15px 16px;
+      }
+
+      .callout strong {
+        color: #633d00;
+      }
+
+      .callout p {
+        margin: 5px 0 0;
+        color: #71551d;
+      }
+
+      .checklist {
+        display: grid;
+        gap: 8px;
+        margin: 12px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .checklist li {
+        display: grid;
+        grid-template-columns: 22px minmax(0, 1fr);
+        gap: 8px;
+        color: var(--muted);
+      }
+
+      .checklist li::before {
+        content: "";
+        width: 14px;
+        height: 14px;
+        margin-top: 6px;
+        border: 2px solid var(--green);
+        border-radius: 4px;
+      }
+
+      footer {
+        margin-top: 42px;
+        border-top: 1px solid var(--line);
+        padding-top: 20px;
+        color: var(--subtle);
+        font-size: 13px;
+      }
+
+      @media (max-width: 940px) {
+        .hero,
+        .grid.two,
+        .grid.three,
+        .flow {
+          grid-template-columns: 1fr;
+        }
+
+        .flow-card:not(:last-child)::after {
+          top: auto;
+          right: auto;
+          bottom: -10px;
+          left: 22px;
+          width: 2px;
+          height: 10px;
+        }
+
+        .embed-fields {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .topbar-inner {
+          align-items: flex-start;
+          flex-direction: column;
+          padding: 12px 0;
+        }
+
+        .nav {
+          justify-content: flex-start;
+        }
+
+        .page {
+          padding-top: 28px;
+        }
+
+        .summary-list li {
+          grid-template-columns: 1fr;
+          gap: 2px;
+        }
+
+        .command-table,
+        .command-table tbody,
+        .command-table tr,
+        .command-table td {
+          display: block;
+          width: 100%;
+        }
+
+        .command-table thead {
+          display: none;
+        }
+
+        .command-table tr {
+          border-bottom: 1px solid var(--line);
+        }
+
+        .command-table td {
+          border-bottom: 0;
+          padding: 9px 13px;
+        }
+
+        .command-table td:first-child {
+          padding-top: 13px;
+        }
+
+        .command-table td:last-child {
+          padding-bottom: 13px;
+        }
+      }
+
+      @media print {
+        .topbar,
+        .hero-actions {
+          display: none;
+        }
+
+        body {
+          background: #fff;
+        }
+
+        .page {
+          width: 100%;
+          padding: 0;
+        }
+
+        .summary-card,
+        .card,
+        .embed-preview,
+        .flow-card,
+        .step {
+          box-shadow: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand" aria-label="AlbionGuildManager">
+          <span class="brand-mark">K</span>
+          <span class="brand-text">AlbionGuildManager 킬봇 설명서</span>
+        </div>
+        <nav class="nav" aria-label="문서 목차">
+          <a href="#setup">설정</a>
+          <a href="#commands">명령어</a>
+          <a href="#how-it-works">동작 방식</a>
+          <a href="#ops">운영 확인</a>
+          <a href="#troubleshooting">문제 해결</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page">
+      <section class="hero" aria-labelledby="page-title">
+        <div>
+          <span class="eyebrow">현재 구현 기준 · 2026-05-26</span>
+          <h1 id="page-title">Discord 채널에 알비온 킬·데스를 자동 공지하는 킬봇</h1>
+          <p class="lead">
+            킬봇은 알비온 공식 이벤트 API를 주기적으로 확인해 우리 길드가 관여한
+            킬과 데스를 Discord 채널에 embed 메시지로 전송합니다. 대시보드에서
+            세부 설정을 관리하고, Discord slash command로 빠르게 켜고 끌 수 있습니다.
+          </p>
+          <div class="hero-actions" aria-label="주요 이동">
+            <a class="button primary" href="https://albion-guildmanager.com/admin/dashboard/killbot">관리자 킬봇 설정 열기</a>
+            <a class="button" href="https://albion-guildmanager.com/docs/killboard">킬보드 문서 보기</a>
+          </div>
+        </div>
+
+        <aside class="summary-card" aria-label="기능 요약">
+          <div class="summary-title">
+            <h2>요약</h2>
+            <span class="status-pill">5분 주기 cron</span>
+          </div>
+          <ul class="summary-list">
+            <li>
+              <strong>대상</strong>
+              <span>홈 길드가 킬러 또는 피해자인 Albion killboard event</span>
+            </li>
+            <li>
+              <strong>전송 위치</strong>
+              <span>설정된 Discord 텍스트 채널</span>
+            </li>
+            <li>
+              <strong>필터</strong>
+              <span>최소 fame, 킬 포함, 데스 포함, 내부 길드 킬 제외</span>
+            </li>
+            <li>
+              <strong>중복 방지</strong>
+              <span><code>guild_id + event_id + feed_type</code> 기준 1회만 전송</span>
+            </li>
+            <li>
+              <strong>관리 권한</strong>
+              <span>앱 관리자 또는 일반 설정 권한, Discord는 서버 관리 권한</span>
+            </li>
+          </ul>
+        </aside>
+      </section>
+
+      <section class="section" id="setup" aria-labelledby="setup-title">
+        <div class="section-head">
+          <div>
+            <h2 id="setup-title">대시보드 설정</h2>
+            <p class="section-note">
+              경로는 <code>/admin/dashboard/killbot</code> 입니다. 앱 안에서는 관리자 사이드바의
+              <strong>킬봇</strong> 메뉴로 접근합니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="steps">
+          <div class="step">
+            <div>
+              <h3>홈 길드와 알비온 서버 확인</h3>
+              <p>
+                킬봇은 테넌트의 <code>albion_server</code>, <code>albion_home_guild_id</code>,
+                <code>albion_home_guild_name</code> 설정을 사용합니다. 값이 없으면 실제
+                킬·데스 알림을 보낼 수 없습니다.
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <h3>Discord 채널 선택</h3>
+              <p>
+                봇이 접근 가능한 서버 채널 중 알림을 받을 채널을 선택합니다. 채널 목록을
+                불러오지 못하면 Discord 연동 또는 봇 권한을 먼저 확인합니다.
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <h3>알림 조건 저장</h3>
+              <p>
+                <strong>킬봇 알림 사용</strong>, 최소 fame, juicy 기준 fame, 우리 길드 킬 알림,
+                우리 길드 데스 알림을 정하고 저장합니다.
+              </p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <h3>테스트 전송</h3>
+              <p>
+                저장 후 <strong>테스트 전송</strong>을 눌러 Discord 메시지가 실제 채널에 도착하는지
+                확인합니다. 테스트도 최근 전송 기록에 남습니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="commands" aria-labelledby="commands-title">
+        <div class="section-head">
+          <div>
+            <h2 id="commands-title">Discord slash command</h2>
+            <p class="section-note">
+              <code>/killbot</code> 명령은 Discord 서버 안에서만 동작합니다. 응답은 모두
+              ephemeral이라 명령을 실행한 사람에게만 보입니다.
+            </p>
+          </div>
+        </div>
+
+        <table class="command-table">
+          <thead>
+            <tr>
+              <th>명령</th>
+              <th>동작</th>
+              <th>권한/주의</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>/killbot setup</code></td>
+              <td>현재 Discord 채널을 알림 채널로 저장하고 킬봇을 켭니다.</td>
+              <td>Discord 관리자 또는 서버 관리 권한이 필요합니다.</td>
+            </tr>
+            <tr>
+              <td><code>/killbot status</code></td>
+              <td>현재 ON/OFF, 채널, 최소 fame, 대시보드 링크를 보여줍니다.</td>
+              <td>채널이 없으면 setup 또는 대시보드 설정을 안내합니다.</td>
+            </tr>
+            <tr>
+              <td><code>/killbot test</code></td>
+              <td>설정된 채널 또는 현재 채널로 테스트 embed를 전송합니다.</td>
+              <td>전송 실패 시 Discord 권한, 봇 토큰, 채널 접근 권한을 확인합니다.</td>
+            </tr>
+            <tr>
+              <td><code>/killbot pause</code></td>
+              <td>채널 설정은 유지하고 킬봇만 끕니다.</td>
+              <td>재개 전까지 cron이 해당 길드 알림을 보내지 않습니다.</td>
+            </tr>
+            <tr>
+              <td><code>/killbot resume</code></td>
+              <td>기존 채널 또는 현재 채널로 킬봇을 다시 켭니다.</td>
+              <td>저장된 채널도 현재 채널도 없으면 실행할 수 없습니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="section" id="how-it-works" aria-labelledby="how-title">
+        <div class="section-head">
+          <div>
+            <h2 id="how-title">동작 방식</h2>
+            <p class="section-note">
+              현재 구현은 별도 Discord webhook이 아니라 bot token으로 Discord channel message를
+              직접 보냅니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="flow" aria-label="킬봇 처리 흐름">
+          <div class="flow-card">
+            <strong>1. cron 실행</strong>
+            <span><code>/api/cron/killbot-feed</code>가 5분마다 실행됩니다.</span>
+          </div>
+          <div class="flow-card">
+            <strong>2. 활성 설정 조회</strong>
+            <span><code>enabled=true</code>이고 채널이 있는 길드만 처리합니다.</span>
+          </div>
+          <div class="flow-card">
+            <strong>3. Albion event 조회</strong>
+            <span>서버별 최근 이벤트 최대 51개를 가져옵니다.</span>
+          </div>
+          <div class="flow-card">
+            <strong>4. 킬/데스 분류</strong>
+            <span>홈 길드가 killer면 kill, victim이면 death로 분류합니다.</span>
+          </div>
+          <div class="flow-card">
+            <strong>5. Discord 전송</strong>
+            <span>중복 ledger 예약 후 embed를 전송하고 결과를 기록합니다.</span>
+          </div>
+        </div>
+
+        <div class="grid two" style="margin-top: 14px">
+          <article class="card">
+            <h3><span class="tag green">포함</span> 알림 대상</h3>
+            <ul>
+              <li>홈 길드가 킬러인 이벤트, <code>include_kills=true</code>인 경우</li>
+              <li>홈 길드가 피해자인 이벤트, <code>include_deaths=true</code>인 경우</li>
+              <li><code>TotalVictimKillFame</code>이 최소 fame 이상인 이벤트</li>
+              <li>홈 길드 ID가 우선 매칭되며, 없으면 홈 길드 이름으로 fallback 매칭</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3><span class="tag red">제외</span> 알림 제외</h3>
+            <ul>
+              <li>홈 길드가 킬러도 피해자도 아닌 이벤트</li>
+              <li>킬러와 피해자가 모두 홈 길드인 내부 킬</li>
+              <li>최소 fame 미만 이벤트</li>
+              <li>이미 같은 <code>event_id</code>와 <code>feed_type</code>으로 기록된 이벤트</li>
+            </ul>
+          </article>
+        </div>
+
+        <div class="grid two" style="margin-top: 14px">
+          <article class="embed-preview" aria-label="Discord embed 예시">
+            <div class="embed-header">
+              <strong>Discord embed 예시</strong>
+              <span class="tag green">Kill</span>
+            </div>
+            <div class="embed-body">
+              <div class="embed-line">
+                <div class="embed-title">Juicy Kill: HomeCaller vs EnemyDPS</div>
+                <div class="embed-description">Menhera scored a kill.</div>
+                <div class="embed-fields">
+                  <div class="embed-field">
+                    <span class="embed-field-label">Fame</span>
+                    <strong class="embed-field-value">1,250,000</strong>
+                  </div>
+                  <div class="embed-field">
+                    <span class="embed-field-label">Event ID</span>
+                    <strong class="embed-field-value">123456789</strong>
+                  </div>
+                  <div class="embed-field">
+                    <span class="embed-field-label">Battle</span>
+                    <strong class="embed-field-value">987654</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+          <article class="card">
+            <h3><span class="tag blue">메시지 내용</span> embed 필드</h3>
+            <ul>
+              <li>제목: <code>Kill</code> 또는 <code>Death</code>, 기준 이상이면 <code>Juicy</code> prefix</li>
+              <li>링크: 알비온 공식 killboard 이벤트 URL</li>
+              <li>필드: Fame, Event ID, Battle ID, Killer, Victim</li>
+              <li>색상: 킬은 초록, 데스는 빨강</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="ops" aria-labelledby="ops-title">
+        <div class="section-head">
+          <div>
+            <h2 id="ops-title">운영 확인</h2>
+            <p class="section-note">
+              대시보드의 동작 상태와 최근 전송 표는 운영 중 문제를 확인하는 1차 화면입니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="grid three">
+          <article class="card">
+            <h3><span class="tag blue">상태</span> 마지막 확인</h3>
+            <p>
+              <code>last_polled_at</code>은 cron이 해당 길드 설정을 마지막으로 처리한 시각입니다.
+              값이 갱신되지 않으면 cron 인증 또는 배포 설정을 확인합니다.
+            </p>
+          </article>
+          <article class="card">
+            <h3><span class="tag green">전송</span> 마지막 전송</h3>
+            <p>
+              <code>last_sent_at</code>은 Discord 메시지가 성공적으로 전송된 마지막 시각입니다.
+              조건에 맞는 이벤트가 없으면 갱신되지 않을 수 있습니다.
+            </p>
+          </article>
+          <article class="card">
+            <h3><span class="tag red">오류</span> 마지막 오류</h3>
+            <p>
+              Discord API 실패, 봇 토큰 누락, 채널 권한 문제, 홈 길드 설정 누락은
+              <code>last_error</code>에 남습니다.
+            </p>
+          </article>
+        </div>
+
+        <div class="callout" style="margin-top: 14px">
+          <strong>전송 ledger</strong>
+          <p>
+            <code>killbot_deliveries</code>는 전송 시도 이력을 저장합니다. 최근 20건이
+            대시보드에 표시되며 상태는 <code>pending</code>, <code>sent</code>,
+            <code>failed</code>, <code>skipped</code> 중 하나입니다.
+          </p>
+        </div>
+      </section>
+
+      <section class="section" id="limits" aria-labelledby="limits-title">
+        <div class="section-head">
+          <div>
+            <h2 id="limits-title">현재 제한 사항</h2>
+            <p class="section-note">
+              운영자가 기대치를 맞추기 위해 알아야 하는 구현상 제한입니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="grid two">
+          <article class="card">
+            <h3>최근 이벤트 51개 기준</h3>
+            <p>
+              알비온 이벤트 조회는 서버별 최근 51개를 사용합니다. 5분 사이 이벤트가 매우 많이
+              발생해 51개를 넘으면 오래된 일부 이벤트는 킬봇 알림에서 빠질 수 있습니다.
+            </p>
+          </article>
+          <article class="card">
+            <h3>홈 길드 단위 매칭</h3>
+            <p>
+              현재 분류는 홈 길드 ID 또는 홈 길드 이름 기준입니다. 동맹 전체 killfeed가 아니라
+              해당 길드의 킬·데스 알림으로 이해해야 합니다.
+            </p>
+          </article>
+          <article class="card">
+            <h3>대시보드 role mention 미노출</h3>
+            <p>
+              데이터 모델에는 <code>mention_role_id</code>가 있지만 현재 관리자 화면과
+              <code>/killbot</code> 명령은 역할 멘션 설정 UI를 제공하지 않습니다.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Discord 권한 의존</h3>
+            <p>
+              봇이 채널을 볼 수 없거나 메시지를 보낼 수 없으면 설정 저장은 되어도 실제 전송은
+              실패합니다. 테스트 전송으로 반드시 확인합니다.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="troubleshooting" aria-labelledby="trouble-title">
+        <div class="section-head">
+          <div>
+            <h2 id="trouble-title">문제 해결 체크리스트</h2>
+            <p class="section-note">알림이 오지 않을 때는 아래 순서로 확인합니다.</p>
+          </div>
+        </div>
+
+        <div class="grid two">
+          <article class="card">
+            <h3>설정 확인</h3>
+            <ul class="checklist">
+              <li>킬봇 알림 사용이 켜져 있는지 확인</li>
+              <li>Discord 채널이 선택되어 있는지 확인</li>
+              <li>홈 길드와 알비온 서버 설정이 완료되어 있는지 확인</li>
+              <li>최소 fame이 너무 높지 않은지 확인</li>
+              <li>킬 알림 또는 데스 알림이 필요한 방향으로 켜져 있는지 확인</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>전송 확인</h3>
+            <ul class="checklist">
+              <li>테스트 전송이 성공하는지 확인</li>
+              <li>최근 전송 표에 <code>failed</code> 상태가 있는지 확인</li>
+              <li>마지막 오류에 Discord API 또는 채널 권한 오류가 있는지 확인</li>
+              <li>같은 이벤트가 이미 전송된 것은 아닌지 확인</li>
+              <li>Discord 서버에서 slash command 권한이 있는 계정으로 실행했는지 확인</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <footer>
+        이 문서는 repository의 현재 killbot 구현을 기준으로 작성되었습니다. 관련 구현:
+        <code>src/lib/killbot.ts</code>, <code>src/lib/discord-commands.ts</code>,
+        <code>src/app/admin/dashboard/killbot</code>, <code>supabase/migrations/170_killbot.sql</code>.
+      </footer>
+    </main>
+  </body>
+</html>

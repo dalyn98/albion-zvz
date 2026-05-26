@@ -4,6 +4,7 @@
 //   /home      — 길드 홈으로 이동 (테넌트 미연동 시 공식 가이드 폴백)
 //   /docs      — 공식 가이드 (/faq) 로 이동
 //   /guide     — 길드원 빠른 사용법 페이지로 이동
+//   /killbotguild — 킬봇 운영 설명서로 이동
 //   /upcoming  — 가장 임박한 이벤트 링크 (없으면 /events 목록)
 //
 // 모든 응답은 ephemeral — 명령을 친 본인만 보임. 채널을 어지럽히지 않게.
@@ -28,6 +29,7 @@ import {
 export const COMMAND_HOME = 'home'
 export const COMMAND_DOCS = 'docs'
 export const COMMAND_GUIDE = 'guide'
+export const COMMAND_KILLBOT_GUILD = 'killbotguild'
 export const COMMAND_UPCOMING = 'upcoming'
 export const COMMAND_KILLBOT = 'killbot'
 
@@ -35,6 +37,7 @@ export const ALL_COMMAND_NAMES = [
   COMMAND_HOME,
   COMMAND_DOCS,
   COMMAND_GUIDE,
+  COMMAND_KILLBOT_GUILD,
   COMMAND_UPCOMING,
   COMMAND_KILLBOT,
 ] as const
@@ -46,6 +49,7 @@ interface DiscordBotMessages {
   homeReady: string
   docsReady: string
   guideReady: string
+  killbotGuildReady: string
   upcomingNone: string
   upcoming: string
   killbotNoPermission: string
@@ -73,6 +77,7 @@ async function loadMessages(locale: Locale): Promise<DiscordBotMessages> {
     homeReady: ns.homeReady ?? '',
     docsReady: ns.docsReady ?? '',
     guideReady: ns.guideReady ?? '',
+    killbotGuildReady: ns.killbotGuildReady ?? '',
     upcomingNone: ns.upcomingNone ?? '',
     upcoming: ns.upcoming ?? '',
     killbotNoPermission: ns.killbotNoPermission ?? '',
@@ -190,8 +195,10 @@ export async function handleSlashCommand(
   const locale = resolveLocale(payload)
   const messages = await loadMessages(locale)
 
-  if (commandName === COMMAND_GUIDE) {
-    return handleGuide(messages)
+  if (commandName === COMMAND_GUIDE || commandName === COMMAND_KILLBOT_GUILD) {
+    return commandName === COMMAND_GUIDE
+      ? handleGuide(messages)
+      : handleKillbotGuildGuide(messages)
   }
 
   // DM 등 길드 컨텍스트 없는 호출은 처리 안 함 — guild_id 없으면 안내만.
@@ -208,6 +215,8 @@ export async function handleSlashCommand(
       return handleDocs(messages)
     case COMMAND_GUIDE:
       return handleGuide(messages)
+    case COMMAND_KILLBOT_GUILD:
+      return handleKillbotGuildGuide(messages)
     case COMMAND_UPCOMING:
       return handleUpcoming(tenant, messages)
     case COMMAND_KILLBOT:
@@ -238,6 +247,11 @@ function handleDocs(messages: DiscordBotMessages): DiscordInteractionResponse {
 function handleGuide(messages: DiscordBotMessages): DiscordInteractionResponse {
   const guideUrl = tenantUrl(null, '/member-quick-guide.html')
   return ephemeralReply(format(messages.guideReady, { url: guideUrl }))
+}
+
+function handleKillbotGuildGuide(messages: DiscordBotMessages): DiscordInteractionResponse {
+  const guideUrl = tenantUrl(null, '/killbotguild.html')
+  return ephemeralReply(format(messages.killbotGuildReady, { url: guideUrl }))
 }
 
 async function handleUpcoming(

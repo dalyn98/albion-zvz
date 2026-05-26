@@ -12,6 +12,8 @@ import LoadTemplateButton from '@/components/LoadTemplateButton'
 import DeleteEventButton from '@/components/DeleteEventButton'
 import EventPayoutRequestButton from '@/components/EventPayoutRequestButton'
 import EventBuildSheetSummary from '@/components/EventBuildSheetSummary'
+import BuildSheetPlanner from '@/components/BuildSheetPlanner'
+import BuildSheetAssignmentBoard from '@/components/BuildSheetAssignmentBoard'
 import { EventEditSaveProvider } from '@/components/EventEditSaveRegistry'
 import EventEditSaveBar from '@/components/EventEditSaveBar'
 import { listTemplates } from '@/app/actions/templates'
@@ -25,6 +27,7 @@ import { CAP } from '@/lib/permissions'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
 import { isEnded } from '@/lib/gather-time'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import { loadBuildSheetEventState } from '@/lib/build-sheet-data'
 
 async function getData(id: string, guildId: string) {
   // guild_avatars 는 anon/authenticated 에 revoke 되어 있어 (migration 008)
@@ -120,6 +123,10 @@ export default async function EditEventPage({
       !!event.created_by &&
       event.created_by === session.discordId)
   if (!canEditEvent) notFound()
+  const buildSheetState =
+    event.recruitment_mode === 'build_sheet' || event.recruitment_mode === 'hybrid'
+      ? await loadBuildSheetEventState(id, guildId, { includeApplications: true })
+      : null
 
   const eventCategory: EventCategory = event.category
   const partyLimits = CATEGORY_PARTY_LIMITS[eventCategory]
@@ -228,7 +235,26 @@ export default async function EditEventPage({
               </div>
             </div>
             {(event.recruitment_mode === 'build_sheet' || event.recruitment_mode === 'hybrid') && (
-              <EventBuildSheetSummary parties={parties} mode={event.recruitment_mode} />
+              <>
+                <BuildSheetPlanner
+                  eventId={id}
+                  demands={buildSheetState?.demands ?? []}
+                  assigners={buildSheetState?.assigners ?? []}
+                  memberDirectory={memberDirectory}
+                  defaultPartyCount={partyLimits.default}
+                  maxPartyCount={partyLimits.max}
+                />
+                <BuildSheetAssignmentBoard
+                  eventId={id}
+                  demands={buildSheetState?.demands ?? []}
+                  applications={buildSheetState?.applications ?? []}
+                  canManageAll
+                  manageablePartyNumbers={[]}
+                />
+                {hasSlots && (
+                  <EventBuildSheetSummary parties={parties} mode={event.recruitment_mode} />
+                )}
+              </>
             )}
             <PartyListEditor
               eventId={id}

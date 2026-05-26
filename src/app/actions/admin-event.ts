@@ -453,7 +453,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
 
     const { data: source, error: sourceErr } = await db
       .from('events')
-      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone, category')
+      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone, category, recruitment_mode')
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
@@ -488,6 +488,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
         notify_channel_id: source.notify_channel_id,
         notify_everyone: source.notify_everyone,
         category,
+        recruitment_mode: source.recruitment_mode ?? 'slots',
         // 복제는 늘 draft 로 시작 — 관리자가 날짜/공지 확인 후 명시적으로 발행.
         status: 'draft',
         created_by: session.discordId,
@@ -496,6 +497,42 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
       .single()
     if (insErr) return { error: insErr.message }
     const newId = newEvent.id
+
+    const [{ data: buildDemands, error: buildDemandErr }, { data: buildAssigners, error: buildAssignerErr }] =
+      await Promise.all([
+        db
+          .from('event_build_role_demands')
+          .select('party_number, role_type, required_count')
+          .eq('guild_id', guildId)
+          .eq('event_id', id),
+        db
+          .from('event_build_party_assigners')
+          .select('party_number, caller_discord_id')
+          .eq('guild_id', guildId)
+          .eq('event_id', id),
+      ])
+    if (buildDemandErr || buildAssignerErr) {
+      await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
+      return { error: buildDemandErr?.message ?? buildAssignerErr?.message ?? tErr('serverError') }
+    }
+    if (buildDemands && buildDemands.length > 0) {
+      const { error: copyDemandErr } = await db
+        .from('event_build_role_demands')
+        .insert(buildDemands.map((row) => ({ ...row, guild_id: guildId, event_id: newId })))
+      if (copyDemandErr) {
+        await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
+        return { error: copyDemandErr.message }
+      }
+    }
+    if (buildAssigners && buildAssigners.length > 0) {
+      const { error: copyAssignerErr } = await db
+        .from('event_build_party_assigners')
+        .insert(buildAssigners.map((row) => ({ ...row, guild_id: guildId, event_id: newId })))
+      if (copyAssignerErr) {
+        await db.from('events').delete().eq('guild_id', guildId).eq('id', newId)
+        return { error: copyAssignerErr.message }
+      }
+    }
 
     const { data: parties, error: partyErr } = await db
       .from('parties')
