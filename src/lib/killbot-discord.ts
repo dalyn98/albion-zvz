@@ -1,5 +1,6 @@
 import { EQUIPMENT_SLOTS, type EquipmentItem } from '@/lib/auto-regear-equipment'
 import { renderKillbotCardPng } from '@/lib/killbot-card'
+import type { KillbotVictimValueEstimate } from '@/lib/killbot-value'
 import type {
   AlbionKillbotEvent,
   KillbotConfig,
@@ -198,10 +199,11 @@ export async function buildKillbotDiscordMessage(
   match: KillbotMatch,
   config: KillbotConfig,
   target: KillbotTarget,
+  valueEstimate?: KillbotVictimValueEstimate | null,
 ): Promise<DiscordChannelMessage> {
   const payload = buildKillbotDiscordPayload(event, match, config, target)
   try {
-    const card = await renderKillbotCardPng(event, match, target)
+    const card = await renderKillbotCardPng(event, match, target, valueEstimate)
     return {
       payload: withKillbotCardImage(payload),
       files: [

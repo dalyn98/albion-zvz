@@ -7,6 +7,10 @@ import { resolveAlbionServer } from '@/lib/killboard'
 import { tenantUrl } from '@/lib/tenant-resolver'
 import type { EquipmentItem } from '@/lib/auto-regear-equipment'
 import {
+  estimateKillbotVictimValue,
+  type KillbotVictimValueEstimate,
+} from '@/lib/killbot-value'
+import {
   buildKillbotDiscordMessage,
   sendDiscordChannelMessage,
 } from '@/lib/killbot-discord'
@@ -519,9 +523,19 @@ export async function runKillbotFeed(db: SupabaseClient): Promise<KillbotRunResu
           continue
         }
         try {
+          const valueEstimate = await estimateKillbotVictimValue(
+            event,
+            config.guildId,
+          ).catch(() => null)
           const discordMessageId = await sendDiscordChannelMessage(
             channelId,
-            await buildKillbotDiscordMessage(event, match, config, target),
+            await buildKillbotDiscordMessage(
+              event,
+              match,
+              config,
+              target,
+              valueEstimate,
+            ),
           )
           await markDelivery(db, config.guildId, Number(event.EventId), match.feedType, {
             status: 'sent',
@@ -566,6 +580,15 @@ export async function sendKillbotTestMessage(
   if (!channelId) throw new Error('killbot channel is not configured')
 
   const testGuildName = target.homeGuildName || 'Configured guild'
+  const sampleValueEstimate: KillbotVictimValueEstimate = {
+    totalSilver: 12_450_000,
+    gearSilver: 10_800_000,
+    inventorySilver: 1_650_000,
+    totalItems: 17,
+    pricedItems: 17,
+    missingItems: 0,
+    isPartial: false,
+  }
   const message = await buildKillbotDiscordMessage(
     {
       EventId: Date.now(),
@@ -617,6 +640,7 @@ export async function sendKillbotTestMessage(
     },
     { ...config, mentionRoleId: null },
     target,
+    sampleValueEstimate,
   )
   const payload = { ...message.payload, content: undefined }
   const firstEmbed = payload.embeds[0]

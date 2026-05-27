@@ -2,20 +2,21 @@ import { Buffer } from 'node:buffer'
 import path from 'node:path'
 import sharp, { type OverlayOptions } from 'sharp'
 import { EQUIPMENT_SLOTS, type EquipmentItem } from '@/lib/auto-regear-equipment'
+import type { KillbotVictimValueEstimate } from '@/lib/killbot-value'
 import type { AlbionKillbotEvent, KillbotMatch, KillbotTarget } from '@/lib/killbot'
 
 const CARD_WIDTH = 920
 const CARD_HEIGHT = 650
-const SLOT_SIZE = 74
+const SLOT_SIZE = 54
 const SLOT_RADIUS = 12
 const ICON_TIMEOUT_MS = 2500
-const INVENTORY_COLS = 9
-const INVENTORY_ROWS = 3
+const INVENTORY_COLS = 14
+const INVENTORY_ROWS = 2
 const INVENTORY_LIMIT = INVENTORY_COLS * INVENTORY_ROWS
-const INVENTORY_SLOT_SIZE = 58
-const INVENTORY_START_X = 70
-const INVENTORY_START_Y = 438
-const INVENTORY_GAP_X = 18
+const INVENTORY_SLOT_SIZE = 39
+const INVENTORY_START_X = 109
+const INVENTORY_START_Y = 543
+const INVENTORY_GAP_X = 12
 const INVENTORY_GAP_Y = 8
 const CARD_FONT_FAMILY = 'Geist'
 const CARD_FONT_FILE = path.join(
@@ -45,27 +46,27 @@ interface TextLayer {
 }
 
 const LEFT_EQUIPMENT_LAYOUT: Array<{ slot: EquipmentSlot; x: number; y: number }> = [
-  { slot: 'Cape', x: 70, y: 108 },
-  { slot: 'Head', x: 158, y: 108 },
-  { slot: 'MainHand', x: 246, y: 108 },
-  { slot: 'Potion', x: 70, y: 198 },
-  { slot: 'Armor', x: 158, y: 198 },
-  { slot: 'OffHand', x: 246, y: 198 },
-  { slot: 'Food', x: 70, y: 288 },
-  { slot: 'Shoes', x: 158, y: 288 },
-  { slot: 'Mount', x: 246, y: 288 },
+  { slot: 'Cape', x: 142, y: 320 },
+  { slot: 'Head', x: 214, y: 320 },
+  { slot: 'MainHand', x: 286, y: 320 },
+  { slot: 'Potion', x: 142, y: 375 },
+  { slot: 'Armor', x: 214, y: 375 },
+  { slot: 'OffHand', x: 286, y: 375 },
+  { slot: 'Food', x: 142, y: 430 },
+  { slot: 'Shoes', x: 214, y: 430 },
+  { slot: 'Mount', x: 286, y: 430 },
 ]
 
 const RIGHT_EQUIPMENT_LAYOUT: Array<{ slot: EquipmentSlot; x: number; y: number }> = [
-  { slot: 'MainHand', x: 604, y: 108 },
-  { slot: 'Head', x: 692, y: 108 },
-  { slot: 'Cape', x: 780, y: 108 },
-  { slot: 'OffHand', x: 604, y: 198 },
-  { slot: 'Armor', x: 692, y: 198 },
-  { slot: 'Potion', x: 780, y: 198 },
-  { slot: 'Mount', x: 604, y: 288 },
-  { slot: 'Shoes', x: 692, y: 288 },
-  { slot: 'Food', x: 780, y: 288 },
+  { slot: 'MainHand', x: 581, y: 320 },
+  { slot: 'Head', x: 653, y: 320 },
+  { slot: 'Cape', x: 725, y: 320 },
+  { slot: 'OffHand', x: 581, y: 375 },
+  { slot: 'Armor', x: 653, y: 375 },
+  { slot: 'Potion', x: 725, y: 375 },
+  { slot: 'Mount', x: 581, y: 430 },
+  { slot: 'Shoes', x: 653, y: 430 },
+  { slot: 'Food', x: 725, y: 430 },
 ]
 
 function escapeText(value: string): string {
@@ -100,6 +101,46 @@ function playerIp(player: AlbionKillbotEvent['Killer'] | undefined | null): stri
 
 function formatNumber(value: number): string {
   return Math.max(0, Math.floor(value)).toLocaleString('en-US')
+}
+
+function formatCompactSilver(value: number): string {
+  const n = Math.max(0, Math.floor(value))
+  if (n >= 1_000_000_000) {
+    const scaled = n / 1_000_000_000
+    return `${scaled >= 10 ? scaled.toFixed(1) : scaled.toFixed(2)}B`
+  }
+  if (n >= 1_000_000) {
+    const scaled = n / 1_000_000
+    return `${scaled >= 10 ? scaled.toFixed(1) : scaled.toFixed(2)}M`
+  }
+  if (n >= 1_000) {
+    const scaled = n / 1_000
+    return `${scaled >= 10 ? scaled.toFixed(0) : scaled.toFixed(1)}K`
+  }
+  return formatNumber(n)
+}
+
+function estimateValueLabel(valueEstimate: KillbotVictimValueEstimate | null | undefined): string {
+  if (!valueEstimate || valueEstimate.totalItems === 0 || valueEstimate.totalSilver <= 0) {
+    return '--'
+  }
+  return `${valueEstimate.isPartial ? '~' : ''}${formatCompactSilver(valueEstimate.totalSilver)}`
+}
+
+function estimateBreakdownLabel(
+  valueEstimate: KillbotVictimValueEstimate | null | undefined,
+): string {
+  if (!valueEstimate || valueEstimate.totalItems === 0) return 'AODP estimate unavailable'
+  const parts = [
+    `Gear ${formatCompactSilver(valueEstimate.gearSilver)}`,
+    `Bag ${formatCompactSilver(valueEstimate.inventorySilver)}`,
+  ]
+  if (valueEstimate.missingItems > 0) parts.push(`${valueEstimate.missingItems} unpriced`)
+  return parts.join(' · ')
+}
+
+function pluralizeItems(count: number): string {
+  return count === 1 ? '1 item' : `${count} items`
 }
 
 function formatEventDate(value: string): string {
@@ -142,6 +183,14 @@ function inventoryItems(event: AlbionKillbotEvent): CardItem[] {
     .map((item) => normalizeItem(item))
     .filter((item): item is CardItem => item !== null)
     .slice(0, INVENTORY_LIMIT)
+}
+
+function victimInventoryCount(event: AlbionKillbotEvent): number {
+  const rawInventory = event.Victim?.Inventory
+  if (!Array.isArray(rawInventory)) return 0
+  return rawInventory
+    .map((item) => normalizeItem(item))
+    .filter((item): item is CardItem => item !== null).length
 }
 
 function itemImageUrl(itemId: string): string {
@@ -400,83 +449,6 @@ function inventoryTextLayers(items: CardItem[], icons: Map<string, string | null
   return layers
 }
 
-function renderPlayerHeader(args: {
-  x: number
-  y: number
-  name: string
-  guildLine: string
-  ip: string
-  anchor: 'start' | 'end'
-}): string {
-  const ipText = args.ip ? `IP ${args.ip}` : ''
-  return `
-    ${renderText({ x: args.x, y: args.y, value: args.name, size: 25, weight: 800, anchor: args.anchor })}
-    ${renderText({
-      x: args.x,
-      y: args.y + 26,
-      value: args.guildLine,
-      size: 16,
-      weight: 700,
-      fill: '#5f4631',
-      anchor: args.anchor,
-    })}
-    ${renderText({
-      x: args.x,
-      y: args.y + 48,
-      value: ipText,
-      size: 14,
-      weight: 800,
-      fill: '#876143',
-      anchor: args.anchor,
-      opacity: ipText ? 1 : 0,
-    })}
-  `
-}
-
-function playerHeaderTextLayers(args: {
-  x: number
-  y: number
-  name: string
-  guildLine: string
-  ip: string
-  anchor: 'start' | 'end'
-}): TextLayer[] {
-  const width = args.anchor === 'end' ? 290 : 300
-  const ipText = args.ip ? `IP ${args.ip}` : ''
-  return [
-    textLayer({
-      x: args.x,
-      y: args.y,
-      value: truncateCardText(args.name, 24),
-      size: 25,
-      weight: 800,
-      anchor: args.anchor,
-      width,
-    }),
-    textLayer({
-      x: args.x,
-      y: args.y + 26,
-      value: truncateCardText(args.guildLine, 32),
-      size: 16,
-      weight: 700,
-      fill: '#5f4631',
-      anchor: args.anchor,
-      width,
-    }),
-    textLayer({
-      x: args.x,
-      y: args.y + 48,
-      value: ipText,
-      size: 14,
-      weight: 800,
-      fill: '#876143',
-      anchor: args.anchor,
-      opacity: ipText ? 1 : 0,
-      width,
-    }),
-  ]
-}
-
 function buildTextLayers(args: {
   event: AlbionKillbotEvent
   match: KillbotMatch
@@ -485,6 +457,7 @@ function buildTextLayers(args: {
   rightEquipment: Partial<Record<EquipmentSlot, CardItem>>
   inventory: CardItem[]
   icons: Map<string, string | null>
+  valueEstimate?: KillbotVictimValueEstimate | null
 }): TextLayer[] {
   const killerName = playerName(args.event.Killer)
   const victimName = playerName(args.event.Victim)
@@ -494,97 +467,230 @@ function buildTextLayers(args: {
   const victimIp = playerIp(args.event.Victim)
   const homeGuild = args.target.homeGuildName || 'Albion Guild Manager'
   const eventDate = formatEventDate(args.event.TimeStamp)
+  const inventoryCount = victimInventoryCount(args.event)
   const battleId = Number(args.event.BattleId)
   const battleText = Number.isFinite(battleId) && battleId > 0
     ? `BATTLE #${Math.trunc(battleId)}`
     : `EVENT #${args.event.EventId}`
+  const reportTitle = `${killerName} killed ${victimName}`
+  const contextLine = [
+    killerGuild ? `Killer ${killerGuild}` : null,
+    victimGuild ? `Victim ${victimGuild}` : null,
+  ]
+    .filter((part): part is string => !!part)
+    .join(' · ')
+  const killerMeta = [killerGuild, killerIp ? `IP ${killerIp}` : null]
+    .filter((part): part is string => !!part)
+    .join(' · ')
+  const victimMeta = [victimGuild, victimIp ? `IP ${victimIp}` : null]
+    .filter((part): part is string => !!part)
+    .join(' · ')
+  const inventoryShown = Math.min(inventoryCount, INVENTORY_LIMIT)
+  const inventoryLabel = inventoryCount > INVENTORY_LIMIT
+    ? `${inventoryShown}/${inventoryCount} shown`
+    : pluralizeItems(inventoryCount)
 
   return [
-    ...playerHeaderTextLayers({
+    textLayer({
       x: 70,
-      y: 64,
-      name: killerName,
-      guildLine: killerGuild,
-      ip: killerIp,
-      anchor: 'start',
-    }),
-    ...playerHeaderTextLayers({
-      x: 850,
-      y: 64,
-      name: victimName,
-      guildLine: victimGuild,
-      ip: victimIp,
-      anchor: 'end',
+      y: 65,
+      value: 'KILL REPORT',
+      size: 14,
+      weight: 900,
+      fill: '#8de8ad',
+      width: 180,
     }),
     textLayer({
-      x: 460,
-      y: 80,
+      x: 70,
+      y: 100,
+      value: truncateCardText(reportTitle, 50),
+      size: 29,
+      weight: 900,
+      fill: '#f7f4ef',
+      width: 650,
+    }),
+    textLayer({
+      x: 70,
+      y: 128,
+      value: truncateCardText(contextLine || homeGuild, 74),
+      size: 15,
+      weight: 700,
+      fill: '#c5c6d2',
+      width: 720,
+    }),
+    textLayer({
+      x: 850,
+      y: 75,
       value: battleText,
       size: 13,
       weight: 900,
-      fill: '#7a563a',
-      anchor: 'middle',
-      width: 260,
+      fill: '#c5c6d2',
+      anchor: 'end',
+      width: 210,
     }),
     textLayer({
-      x: 460,
-      y: 132,
-      value: formatNumber(args.match.fame),
-      size: 24,
-      weight: 900,
-      fill: '#2b2321',
-      anchor: 'middle',
+      x: 850,
+      y: 103,
+      value: eventDate,
+      size: 13,
+      weight: 800,
+      fill: '#9b9dab',
+      anchor: 'end',
       width: 220,
     }),
     textLayer({
-      x: 460,
-      y: 154,
-      value: 'KILL FAME',
+      x: 82,
+      y: 187,
+      value: 'ESTIMATED LOSS',
       size: 13,
       weight: 900,
-      fill: '#7a563a',
-      anchor: 'middle',
-      width: 150,
+      fill: '#69503b',
+      width: 220,
     }),
     textLayer({
-      x: 460,
-      y: 226,
-      value: args.match.feedType === 'kill' ? 'KILL' : 'DEATH',
+      x: 82,
+      y: 219,
+      value: estimateValueLabel(args.valueEstimate),
+      size: 30,
+      weight: 900,
+      fill: '#2c211a',
+      width: 220,
+    }),
+    textLayer({
+      x: 82,
+      y: 244,
+      value: truncateCardText(estimateBreakdownLabel(args.valueEstimate), 34),
+      size: 13,
+      weight: 700,
+      fill: '#77553c',
+      width: 245,
+    }),
+    textLayer({
+      x: 364,
+      y: 187,
+      value: 'DEATH FAME',
+      size: 13,
+      weight: 900,
+      fill: '#69503b',
+      width: 220,
+    }),
+    textLayer({
+      x: 364,
+      y: 219,
+      value: formatNumber(args.match.fame),
+      size: 30,
+      weight: 900,
+      fill: '#2c211a',
+      width: 220,
+    }),
+    textLayer({
+      x: 364,
+      y: 244,
+      value: args.match.isJuicy ? 'Juicy kill threshold met' : 'Kill fame from victim',
+      size: 13,
+      weight: 700,
+      fill: '#77553c',
+      width: 245,
+    }),
+    textLayer({
+      x: 646,
+      y: 187,
+      value: 'VICTIM INVENTORY',
+      size: 13,
+      weight: 900,
+      fill: '#69503b',
+      width: 220,
+    }),
+    textLayer({
+      x: 646,
+      y: 219,
+      value: inventoryLabel,
+      size: 30,
+      weight: 900,
+      fill: '#2c211a',
+      width: 220,
+    }),
+    textLayer({
+      x: 646,
+      y: 244,
+      value: `Inventory value ${formatCompactSilver(args.valueEstimate?.inventorySilver ?? 0)}`,
+      size: 13,
+      weight: 700,
+      fill: '#77553c',
+      width: 245,
+    }),
+    textLayer({
+      x: 72,
+      y: 290,
+      value: 'KILLER LOADOUT',
+      size: 15,
+      weight: 900,
+      fill: '#2b6441',
+      width: 250,
+    }),
+    textLayer({
+      x: 72,
+      y: 312,
+      value: truncateCardText(killerName, 24),
       size: 18,
       weight: 900,
-      fill: '#f6dfbd',
-      anchor: 'middle',
-      width: 90,
+      fill: '#2b2321',
+      width: 250,
     }),
     textLayer({
-      x: 460,
-      y: 250,
-      value: truncateCardText(homeGuild, 20),
-      size: 11,
-      weight: 800,
-      fill: '#d7b789',
-      anchor: 'middle',
-      width: 120,
+      x: 72,
+      y: 507,
+      value: truncateCardText(killerMeta, 40),
+      size: 12,
+      weight: 700,
+      fill: '#6f5038',
+      width: 350,
     }),
     textLayer({
-      x: 460,
-      y: 322,
-      value: eventDate,
+      x: 510,
+      y: 290,
+      value: 'VICTIM LOST GEAR',
       size: 15,
+      weight: 900,
+      fill: '#8d3d34',
+      width: 250,
+    }),
+    textLayer({
+      x: 510,
+      y: 312,
+      value: truncateCardText(victimName, 24),
+      size: 18,
+      weight: 900,
+      fill: '#2b2321',
+      width: 250,
+    }),
+    textLayer({
+      x: 510,
+      y: 507,
+      value: truncateCardText(victimMeta, 40),
+      size: 12,
       weight: 800,
-      fill: '#5c4432',
-      anchor: 'middle',
+      fill: '#6f5038',
+      width: 350,
+    }),
+    textLayer({
+      x: 70,
+      y: 531,
+      value: 'VICTIM INVENTORY',
+      size: 15,
+      weight: 900,
+      fill: '#513b2a',
       width: 240,
     }),
     textLayer({
-      x: 460,
-      y: 412,
-      value: "VICTIM'S INVENTORY",
-      size: 16,
-      weight: 900,
-      fill: '#513b2a',
-      anchor: 'middle',
-      width: 250,
+      x: 850,
+      y: 531,
+      value: `${homeGuild} Killbot`,
+      size: 12,
+      weight: 800,
+      fill: '#6b4d36',
+      anchor: 'end',
+      width: 260,
     }),
     ...equipmentTextLayers({
       layout: LEFT_EQUIPMENT_LAYOUT,
@@ -603,59 +709,57 @@ function buildTextLayers(args: {
 function buildSvg(args: {
   event: AlbionKillbotEvent
   match: KillbotMatch
-  target: KillbotTarget
   leftEquipment: Partial<Record<EquipmentSlot, CardItem>>
   rightEquipment: Partial<Record<EquipmentSlot, CardItem>>
   inventory: CardItem[]
   icons: Map<string, string | null>
 }): string {
-  const killerName = playerName(args.event.Killer)
-  const victimName = playerName(args.event.Victim)
-  const killerGuild = playerGuildLine(args.event.Killer)
-  const victimGuild = playerGuildLine(args.event.Victim)
-  const killerIp = playerIp(args.event.Killer)
-  const victimIp = playerIp(args.event.Victim)
-  const homeGuild = args.target.homeGuildName || 'Albion Guild Manager'
-  const eventDate = formatEventDate(args.event.TimeStamp)
-  const battleId = Number(args.event.BattleId)
-  const battleText = Number.isFinite(battleId) && battleId > 0 ? `BATTLE #${Math.trunc(battleId)}` : `EVENT #${args.event.EventId}`
+  const accent = args.match.feedType === 'kill' ? '#26d07c' : '#ef5b5b'
 
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" viewBox="0 0 ${CARD_WIDTH} ${CARD_HEIGHT}">
       <defs>
         <filter id="cardShadow" x="-8%" y="-8%" width="116%" height="116%">
-          <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#5b3a23" flood-opacity="0.28"/>
+          <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#090b10" flood-opacity="0.42"/>
         </filter>
         <filter id="slotShadow" x="-18%" y="-18%" width="136%" height="136%">
           <feDropShadow dx="0" dy="3" stdDeviation="2.4" flood-color="#4a2f1e" flood-opacity="0.35"/>
         </filter>
         <linearGradient id="cardBg" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stop-color="#dabb98"/>
-          <stop offset="50%" stop-color="#d2ad88"/>
-          <stop offset="100%" stop-color="#c99f78"/>
+          <stop offset="0%" stop-color="#e0c09a"/>
+          <stop offset="52%" stop-color="#d3ad84"/>
+          <stop offset="100%" stop-color="#bd8f67"/>
+        </linearGradient>
+        <linearGradient id="headerBg" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stop-color="#242833"/>
+          <stop offset="100%" stop-color="#1b1f2a"/>
         </linearGradient>
       </defs>
-      <rect x="0" y="0" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" rx="34" fill="#1f2028"/>
+      <rect x="0" y="0" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" rx="34" fill="#141821"/>
       <rect x="18" y="18" width="${CARD_WIDTH - 36}" height="${CARD_HEIGHT - 36}" rx="30" fill="url(#cardBg)" filter="url(#cardShadow)"/>
-      <rect x="34" y="34" width="${CARD_WIDTH - 68}" height="${CARD_HEIGHT - 68}" rx="24" fill="none" stroke="#ead0ad" stroke-width="2" opacity="0.35"/>
+      <rect x="36" y="36" width="${CARD_WIDTH - 72}" height="118" rx="24" fill="url(#headerBg)"/>
+      <rect x="36" y="36" width="8" height="118" rx="4" fill="${accent}"/>
+      <rect x="52" y="52" width="3" height="72" rx="2" fill="${accent}" opacity="0.5"/>
 
-      ${renderPlayerHeader({ x: 70, y: 64, name: killerName, guildLine: killerGuild, ip: killerIp, anchor: 'start' })}
-      ${renderPlayerHeader({ x: 850, y: 64, name: victimName, guildLine: victimGuild, ip: victimIp, anchor: 'end' })}
+      <rect x="60" y="166" width="245" height="86" rx="18" fill="#f1d8b2" opacity="0.72"/>
+      <rect x="342" y="166" width="245" height="86" rx="18" fill="#f1d8b2" opacity="0.72"/>
+      <rect x="624" y="166" width="245" height="86" rx="18" fill="#f1d8b2" opacity="0.72"/>
+      <rect x="60" y="166" width="245" height="86" rx="18" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.22"/>
+      <rect x="342" y="166" width="245" height="86" rx="18" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.22"/>
+      <rect x="624" y="166" width="245" height="86" rx="18" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.22"/>
 
-      ${renderText({ x: 460, y: 80, value: battleText, size: 13, weight: 900, fill: '#7a563a', anchor: 'middle' })}
-      ${renderText({ x: 460, y: 132, value: formatNumber(args.match.fame), size: 24, weight: 900, fill: '#2b2321', anchor: 'middle' })}
-      ${renderText({ x: 460, y: 154, value: 'KILL FAME', size: 13, weight: 900, fill: '#7a563a', anchor: 'middle' })}
-      <circle cx="460" cy="230" r="45" fill="#4d403a" opacity="0.95"/>
-      <circle cx="460" cy="230" r="35" fill="#2d2b34" stroke="#b4936f" stroke-width="4"/>
-      ${renderText({ x: 460, y: 226, value: args.match.feedType === 'kill' ? 'KILL' : 'DEATH', size: 18, weight: 900, fill: '#f6dfbd', anchor: 'middle' })}
-      ${renderText({ x: 460, y: 250, value: homeGuild, size: 11, weight: 800, fill: '#d7b789', anchor: 'middle' })}
-      ${renderText({ x: 460, y: 322, value: eventDate, size: 15, weight: 800, fill: '#5c4432', anchor: 'middle' })}
+      <rect x="42" y="266" width="396" height="244" rx="22" fill="#ddb88f" opacity="0.78"/>
+      <rect x="42" y="266" width="6" height="244" rx="3" fill="#28c76f"/>
+      <rect x="482" y="266" width="396" height="244" rx="22" fill="#ddb88f" opacity="0.78"/>
+      <rect x="872" y="266" width="6" height="244" rx="3" fill="#e5574f"/>
+      <rect x="42" y="266" width="396" height="244" rx="22" fill="none" stroke="#f5d9b4" stroke-width="1.5" opacity="0.36"/>
+      <rect x="482" y="266" width="396" height="244" rx="22" fill="none" stroke="#f5d9b4" stroke-width="1.5" opacity="0.36"/>
 
       ${renderEquipmentGroup({ layout: LEFT_EQUIPMENT_LAYOUT, equipment: args.leftEquipment, icons: args.icons })}
       ${renderEquipmentGroup({ layout: RIGHT_EQUIPMENT_LAYOUT, equipment: args.rightEquipment, icons: args.icons })}
 
-      ${renderText({ x: 460, y: 412, value: "VICTIM'S INVENTORY", size: 16, weight: 900, fill: '#513b2a', anchor: 'middle' })}
-      <rect x="60" y="425" width="800" height="1.5" rx="1" fill="#8f6748" opacity="0.28"/>
+      <rect x="42" y="518" width="836" height="114" rx="20" fill="#e4c199" opacity="0.78"/>
+      <rect x="60" y="538" width="800" height="1.5" rx="1" fill="#8f6748" opacity="0.32"/>
       ${renderInventory({ items: args.inventory, icons: args.icons })}
     </svg>
   `
@@ -665,6 +769,7 @@ export async function renderKillbotCardPng(
   event: AlbionKillbotEvent,
   match: KillbotMatch,
   target: KillbotTarget,
+  valueEstimate?: KillbotVictimValueEstimate | null,
 ): Promise<Buffer> {
   const leftEquipment = equipmentBySlot(event.Killer)
   const rightEquipment = equipmentBySlot(event.Victim)
@@ -678,7 +783,6 @@ export async function renderKillbotCardPng(
   const svg = buildSvg({
     event,
     match,
-    target,
     leftEquipment,
     rightEquipment,
     inventory,
@@ -692,6 +796,7 @@ export async function renderKillbotCardPng(
     rightEquipment,
     inventory,
     icons,
+    valueEstimate,
   })
     .map(textToComposite)
     .filter((overlay): overlay is OverlayOptions => overlay !== null)
