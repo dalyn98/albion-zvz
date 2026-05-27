@@ -7,17 +7,17 @@ import type { AlbionKillbotEvent, KillbotMatch, KillbotTarget } from '@/lib/kill
 
 const CARD_WIDTH = 920
 const CARD_HEIGHT = 650
-const SLOT_SIZE = 54
+const SLOT_SIZE = 66
 const SLOT_RADIUS = 12
 const ICON_TIMEOUT_MS = 2500
-const INVENTORY_COLS = 14
+const INVENTORY_COLS = 12
 const INVENTORY_ROWS = 2
 const INVENTORY_LIMIT = INVENTORY_COLS * INVENTORY_ROWS
-const INVENTORY_SLOT_SIZE = 39
-const INVENTORY_START_X = 109
-const INVENTORY_START_Y = 543
-const INVENTORY_GAP_X = 12
-const INVENTORY_GAP_Y = 8
+const INVENTORY_SLOT_SIZE = 42
+const INVENTORY_START_X = 158
+const INVENTORY_START_Y = 546
+const INVENTORY_GAP_X = 9
+const INVENTORY_GAP_Y = 4
 const CARD_FONT_FAMILY = 'Geist'
 const CARD_FONT_FILE = path.join(
   process.cwd(),
@@ -46,27 +46,27 @@ interface TextLayer {
 }
 
 const LEFT_EQUIPMENT_LAYOUT: Array<{ slot: EquipmentSlot; x: number; y: number }> = [
-  { slot: 'Cape', x: 142, y: 320 },
-  { slot: 'Head', x: 214, y: 320 },
-  { slot: 'MainHand', x: 286, y: 320 },
-  { slot: 'Potion', x: 142, y: 375 },
-  { slot: 'Armor', x: 214, y: 375 },
-  { slot: 'OffHand', x: 286, y: 375 },
-  { slot: 'Food', x: 142, y: 430 },
-  { slot: 'Shoes', x: 214, y: 430 },
-  { slot: 'Mount', x: 286, y: 430 },
+  { slot: 'Cape', x: 116, y: 318 },
+  { slot: 'Head', x: 198, y: 318 },
+  { slot: 'MainHand', x: 280, y: 318 },
+  { slot: 'Potion', x: 116, y: 388 },
+  { slot: 'Armor', x: 198, y: 388 },
+  { slot: 'OffHand', x: 280, y: 388 },
+  { slot: 'Food', x: 116, y: 458 },
+  { slot: 'Shoes', x: 198, y: 458 },
+  { slot: 'Mount', x: 280, y: 458 },
 ]
 
 const RIGHT_EQUIPMENT_LAYOUT: Array<{ slot: EquipmentSlot; x: number; y: number }> = [
-  { slot: 'MainHand', x: 581, y: 320 },
-  { slot: 'Head', x: 653, y: 320 },
-  { slot: 'Cape', x: 725, y: 320 },
-  { slot: 'OffHand', x: 581, y: 375 },
-  { slot: 'Armor', x: 653, y: 375 },
-  { slot: 'Potion', x: 725, y: 375 },
-  { slot: 'Mount', x: 581, y: 430 },
-  { slot: 'Shoes', x: 653, y: 430 },
-  { slot: 'Food', x: 725, y: 430 },
+  { slot: 'MainHand', x: 558, y: 318 },
+  { slot: 'Head', x: 640, y: 318 },
+  { slot: 'Cape', x: 722, y: 318 },
+  { slot: 'OffHand', x: 558, y: 388 },
+  { slot: 'Armor', x: 640, y: 388 },
+  { slot: 'Potion', x: 722, y: 388 },
+  { slot: 'Mount', x: 558, y: 458 },
+  { slot: 'Shoes', x: 640, y: 458 },
+  { slot: 'Food', x: 722, y: 458 },
 ]
 
 function escapeText(value: string): string {
@@ -91,12 +91,6 @@ function playerGuildLine(player: AlbionKillbotEvent['Killer'] | undefined | null
   if (guild) return `[${guild}]`
   if (alliance) return alliance
   return ''
-}
-
-function playerIp(player: AlbionKillbotEvent['Killer'] | undefined | null): string {
-  const ip = Number(player?.AverageItemPower)
-  if (!Number.isFinite(ip) || ip <= 0) return ''
-  return Math.round(ip).toLocaleString('en-US')
 }
 
 function formatNumber(value: number): string {
@@ -135,7 +129,7 @@ function estimateBreakdownLabel(
     `Gear ${formatCompactSilver(valueEstimate.gearSilver)}`,
     `Bag ${formatCompactSilver(valueEstimate.inventorySilver)}`,
   ]
-  if (valueEstimate.missingItems > 0) parts.push(`${valueEstimate.missingItems} unpriced`)
+  if (valueEstimate.missingItems > 0) parts.push(`${valueEstimate.missingItems} missing`)
   return parts.join(' · ')
 }
 
@@ -301,8 +295,9 @@ function textToComposite(layer: TextLayer): OverlayOptions | null {
 
 function renderEmptySlot(x: number, y: number, size = SLOT_SIZE): string {
   return `
-    <rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${SLOT_RADIUS}" fill="#c09b79" opacity="0.45"/>
-    <rect x="${x + 6}" y="${y + 6}" width="${size - 12}" height="${size - 12}" rx="${SLOT_RADIUS - 4}" fill="#d8bc9d" opacity="0.35"/>
+    <rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${SLOT_RADIUS}" fill="#9c7452" opacity="0.30"/>
+    <rect x="${x + 5}" y="${y + 5}" width="${size - 10}" height="${size - 10}" rx="${SLOT_RADIUS - 4}" fill="#d9b58f" opacity="0.20"/>
+    <rect x="${x + 1}" y="${y + 1}" width="${size - 2}" height="${size - 2}" rx="${SLOT_RADIUS}" fill="none" stroke="#6f5038" stroke-width="2" opacity="0.24"/>
   `
 }
 
@@ -314,14 +309,15 @@ function renderItemSlot(args: {
   size?: number
 }): string {
   const size = args.size ?? SLOT_SIZE
-  const inner = size - 10
+  const padding = size >= 60 ? 4 : 3
+  const inner = size - padding * 2
   const item = args.item
   const icon = item ? args.icons.get(item.itemId) : null
   const clipId = `clip-${args.x}-${args.y}-${size}`
   const countBadge =
     item && item.count > 1
       ? `
-        <rect x="${args.x + size - 29}" y="${args.y + size - 22}" width="26" height="18" rx="7" fill="#473322" opacity="0.88"/>
+        <rect x="${args.x + size - 31}" y="${args.y + size - 23}" width="28" height="20" rx="7" fill="#211912" opacity="0.94"/>
         ${renderText({
           x: args.x + size - 16,
           y: args.y + size - 8,
@@ -346,13 +342,15 @@ function renderItemSlot(args: {
     <g filter="url(#slotShadow)">
       <defs>
         <clipPath id="${clipId}">
-          <rect x="${args.x + 5}" y="${args.y + 5}" width="${inner}" height="${inner}" rx="${SLOT_RADIUS - 3}"/>
+          <rect x="${args.x + padding}" y="${args.y + padding}" width="${inner}" height="${inner}" rx="${SLOT_RADIUS - 3}"/>
         </clipPath>
       </defs>
-      <rect x="${args.x}" y="${args.y}" width="${size}" height="${size}" rx="${SLOT_RADIUS}" fill="#8b765f"/>
-      <image href="${escapeAttr(icon)}" x="${args.x + 5}" y="${args.y + 5}" width="${inner}" height="${inner}" clip-path="url(#${clipId})" preserveAspectRatio="xMidYMid meet"/>
-      <rect x="${args.x + 1.5}" y="${args.y + 1.5}" width="${size - 3}" height="${size - 3}" rx="${SLOT_RADIUS}" fill="none" stroke="#7c5a3c" stroke-width="3" opacity="0.55"/>
-      <rect x="${args.x + 5}" y="${args.y + 5}" width="${inner}" height="${inner}" rx="${SLOT_RADIUS - 3}" fill="none" stroke="#f4dfb9" stroke-width="2" opacity="0.38"/>
+      <rect x="${args.x - 2}" y="${args.y - 2}" width="${size + 4}" height="${size + 4}" rx="${SLOT_RADIUS + 2}" fill="#2b211b" opacity="0.70"/>
+      <rect x="${args.x}" y="${args.y}" width="${size}" height="${size}" rx="${SLOT_RADIUS}" fill="#5b3f2b"/>
+      <image href="${escapeAttr(icon)}" x="${args.x + padding}" y="${args.y + padding}" width="${inner}" height="${inner}" clip-path="url(#${clipId})" preserveAspectRatio="xMidYMid meet"/>
+      <rect x="${args.x + 1.5}" y="${args.y + 1.5}" width="${size - 3}" height="${size - 3}" rx="${SLOT_RADIUS}" fill="none" stroke="#2a1d14" stroke-width="3" opacity="0.65"/>
+      <rect x="${args.x + 4}" y="${args.y + 4}" width="${size - 8}" height="${size - 8}" rx="${SLOT_RADIUS - 3}" fill="none" stroke="#fff1c9" stroke-width="2.5" opacity="0.72"/>
+      <rect x="${args.x + 0.5}" y="${args.y + 0.5}" width="${size - 1}" height="${size - 1}" rx="${SLOT_RADIUS}" fill="none" stroke="#f9d48c" stroke-width="1.5" opacity="0.52"/>
       ${countBadge}
     </g>
   `
@@ -463,8 +461,6 @@ function buildTextLayers(args: {
   const victimName = playerName(args.event.Victim)
   const killerGuild = playerGuildLine(args.event.Killer)
   const victimGuild = playerGuildLine(args.event.Victim)
-  const killerIp = playerIp(args.event.Killer)
-  const victimIp = playerIp(args.event.Victim)
   const homeGuild = args.target.homeGuildName || 'Albion Guild Manager'
   const eventDate = formatEventDate(args.event.TimeStamp)
   const inventoryCount = victimInventoryCount(args.event)
@@ -477,12 +473,6 @@ function buildTextLayers(args: {
     killerGuild ? `Killer ${killerGuild}` : null,
     victimGuild ? `Victim ${victimGuild}` : null,
   ]
-    .filter((part): part is string => !!part)
-    .join(' · ')
-  const killerMeta = [killerGuild, killerIp ? `IP ${killerIp}` : null]
-    .filter((part): part is string => !!part)
-    .join(' · ')
-  const victimMeta = [victimGuild, victimIp ? `IP ${victimIp}` : null]
     .filter((part): part is string => !!part)
     .join(' · ')
   const inventoryShown = Math.min(inventoryCount, INVENTORY_LIMIT)
@@ -638,15 +628,6 @@ function buildTextLayers(args: {
       width: 250,
     }),
     textLayer({
-      x: 72,
-      y: 507,
-      value: truncateCardText(killerMeta, 40),
-      size: 12,
-      weight: 700,
-      fill: '#6f5038',
-      width: 350,
-    }),
-    textLayer({
       x: 510,
       y: 290,
       value: 'VICTIM LOST GEAR',
@@ -663,34 +644,6 @@ function buildTextLayers(args: {
       weight: 900,
       fill: '#2b2321',
       width: 250,
-    }),
-    textLayer({
-      x: 510,
-      y: 507,
-      value: truncateCardText(victimMeta, 40),
-      size: 12,
-      weight: 800,
-      fill: '#6f5038',
-      width: 350,
-    }),
-    textLayer({
-      x: 70,
-      y: 531,
-      value: 'VICTIM INVENTORY',
-      size: 15,
-      weight: 900,
-      fill: '#513b2a',
-      width: 240,
-    }),
-    textLayer({
-      x: 850,
-      y: 531,
-      value: `${homeGuild} Killbot`,
-      size: 12,
-      weight: 800,
-      fill: '#6b4d36',
-      anchor: 'end',
-      width: 260,
     }),
     ...equipmentTextLayers({
       layout: LEFT_EQUIPMENT_LAYOUT,
@@ -723,7 +676,7 @@ function buildSvg(args: {
           <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#090b10" flood-opacity="0.42"/>
         </filter>
         <filter id="slotShadow" x="-18%" y="-18%" width="136%" height="136%">
-          <feDropShadow dx="0" dy="3" stdDeviation="2.4" flood-color="#4a2f1e" flood-opacity="0.35"/>
+          <feDropShadow dx="0" dy="4" stdDeviation="3.4" flood-color="#170f0a" flood-opacity="0.60"/>
         </filter>
         <linearGradient id="cardBg" x1="0" x2="1" y1="0" y2="1">
           <stop offset="0%" stop-color="#e0c09a"/>
@@ -741,25 +694,24 @@ function buildSvg(args: {
       <rect x="36" y="36" width="8" height="118" rx="4" fill="${accent}"/>
       <rect x="52" y="52" width="3" height="72" rx="2" fill="${accent}" opacity="0.5"/>
 
-      <rect x="60" y="166" width="245" height="86" rx="18" fill="#f1d8b2" opacity="0.72"/>
-      <rect x="342" y="166" width="245" height="86" rx="18" fill="#f1d8b2" opacity="0.72"/>
-      <rect x="624" y="166" width="245" height="86" rx="18" fill="#f1d8b2" opacity="0.72"/>
+      <rect x="60" y="166" width="245" height="86" rx="18" fill="#f4ddb7" opacity="0.84"/>
+      <rect x="342" y="166" width="245" height="86" rx="18" fill="#f4ddb7" opacity="0.84"/>
+      <rect x="624" y="166" width="245" height="86" rx="18" fill="#f4ddb7" opacity="0.84"/>
       <rect x="60" y="166" width="245" height="86" rx="18" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.22"/>
       <rect x="342" y="166" width="245" height="86" rx="18" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.22"/>
       <rect x="624" y="166" width="245" height="86" rx="18" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.22"/>
 
-      <rect x="42" y="266" width="396" height="244" rx="22" fill="#ddb88f" opacity="0.78"/>
-      <rect x="42" y="266" width="6" height="244" rx="3" fill="#28c76f"/>
-      <rect x="482" y="266" width="396" height="244" rx="22" fill="#ddb88f" opacity="0.78"/>
-      <rect x="872" y="266" width="6" height="244" rx="3" fill="#e5574f"/>
-      <rect x="42" y="266" width="396" height="244" rx="22" fill="none" stroke="#f5d9b4" stroke-width="1.5" opacity="0.36"/>
-      <rect x="482" y="266" width="396" height="244" rx="22" fill="none" stroke="#f5d9b4" stroke-width="1.5" opacity="0.36"/>
+      <rect x="42" y="266" width="396" height="266" rx="22" fill="#e3bf95" opacity="0.88"/>
+      <rect x="42" y="266" width="6" height="266" rx="3" fill="#28c76f"/>
+      <rect x="482" y="266" width="396" height="266" rx="22" fill="#e3bf95" opacity="0.88"/>
+      <rect x="872" y="266" width="6" height="266" rx="3" fill="#e5574f"/>
+      <rect x="42" y="266" width="396" height="266" rx="22" fill="none" stroke="#fff0cf" stroke-width="1.5" opacity="0.52"/>
+      <rect x="482" y="266" width="396" height="266" rx="22" fill="none" stroke="#fff0cf" stroke-width="1.5" opacity="0.52"/>
 
       ${renderEquipmentGroup({ layout: LEFT_EQUIPMENT_LAYOUT, equipment: args.leftEquipment, icons: args.icons })}
       ${renderEquipmentGroup({ layout: RIGHT_EQUIPMENT_LAYOUT, equipment: args.rightEquipment, icons: args.icons })}
 
-      <rect x="42" y="518" width="836" height="114" rx="20" fill="#e4c199" opacity="0.78"/>
-      <rect x="60" y="538" width="800" height="1.5" rx="1" fill="#8f6748" opacity="0.32"/>
+      <rect x="42" y="532" width="836" height="104" rx="20" fill="#e8c79f" opacity="0.90"/>
       ${renderInventory({ items: args.inventory, icons: args.icons })}
     </svg>
   `
