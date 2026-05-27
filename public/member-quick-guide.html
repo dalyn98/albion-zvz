@@ -603,10 +603,28 @@
         padding: 12px;
       }
 
-      .image-modal-body img {
+      .image-modal-figure {
+        position: relative;
+        width: 100%;
+      }
+
+      .image-modal-figure img {
+        display: block;
         width: 100%;
         max-width: none;
         height: auto;
+      }
+
+      .modal-pins {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+
+      .modal-pins .pin {
+        width: 34px;
+        height: 34px;
+        font-size: 14px;
       }
 
       @media (max-width: 920px) {
@@ -1028,7 +1046,10 @@
           <button class="image-modal-close" type="button" data-close-zoom data-i18n="zoomClose">닫기</button>
         </div>
         <div class="image-modal-body">
-          <img id="modal-image" alt="" />
+          <div class="image-modal-figure">
+            <img id="modal-image" alt="" />
+            <div class="modal-pins" id="modal-pins" aria-hidden="true"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -1456,6 +1477,7 @@
       const validTabs = ['start', 'events', 'profile', 'regear', 'shop', 'help']
       const zoomModal = document.getElementById('image-modal')
       const modalImage = document.getElementById('modal-image')
+      const modalPins = document.getElementById('modal-pins')
       const modalClose = document.querySelector('.image-modal-close')
       let lastZoomTrigger = null
 
@@ -1510,23 +1532,34 @@
       }
 
       function openZoom(trigger) {
-        if (!zoomModal || !modalImage) return
+        if (!zoomModal || !modalImage || !modalPins) return
         lastZoomTrigger = trigger
         const src = trigger.getAttribute('data-zoom-src')
         const alt = trigger.getAttribute('data-zoom-alt') || ''
         if (!src) return
         modalImage.setAttribute('src', src)
         modalImage.setAttribute('alt', alt)
+        const pinLayer = document.createDocumentFragment()
+        trigger.querySelectorAll('.pin').forEach((pin) => {
+          const modalPin = document.createElement('span')
+          modalPin.className = 'pin'
+          modalPin.style.setProperty('--x', pin.style.getPropertyValue('--x'))
+          modalPin.style.setProperty('--y', pin.style.getPropertyValue('--y'))
+          modalPin.textContent = pin.textContent
+          pinLayer.append(modalPin)
+        })
+        modalPins.replaceChildren(pinLayer)
         zoomModal.hidden = false
         document.body.classList.add('modal-open')
         if (modalClose) modalClose.focus()
       }
 
       function closeZoom() {
-        if (!zoomModal || !modalImage) return
+        if (!zoomModal || !modalImage || !modalPins) return
         zoomModal.hidden = true
         modalImage.removeAttribute('src')
         modalImage.setAttribute('alt', '')
+        modalPins.replaceChildren()
         document.body.classList.remove('modal-open')
         if (lastZoomTrigger) lastZoomTrigger.focus()
       }
