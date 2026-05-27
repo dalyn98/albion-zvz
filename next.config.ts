@@ -12,6 +12,11 @@ const extraOrigins = (process.env.ALLOWED_ORIGINS ?? '')
   .map((o) => o.trim())
   .filter(Boolean)
 
+const swcTracingIncludes = ['./node_modules/@swc/helpers/**/*']
+const killbotCardTracingIncludes = [
+  './node_modules/next/dist/compiled/@vercel/og/Geist-Regular.ttf',
+]
+
 const nextConfig: NextConfig = {
   // MDX 페이지 (`/docs/*` 의 page.mdx) 를 라우트로 인식시킨다. .md 는 사용 안
   // 함 — 모든 docs 본문은 .mdx 로 통일.
@@ -30,8 +35,14 @@ const nextConfig: NextConfig = {
   // serverExternalPackages 는 제거 — 외부 require 유지하면 여전히 /var/task 의존,
   // 디폴트(번들 inline) 로 두면 헬퍼 파일이 함수 번들에 직접 박힌다.
   outputFileTracingIncludes: {
-    '/': ['./node_modules/@swc/helpers/**/*'],
-    '/(.*)': ['./node_modules/@swc/helpers/**/*'],
+    '/': swcTracingIncludes,
+    '/(.*)': swcTracingIncludes,
+    // Killbot cards are rendered inside serverless functions with sharp's Pango
+    // text layer. Vercel NFT can miss the font when it is only referenced as a
+    // runtime fontfile path, which turns all card text into tofu boxes in Discord.
+    '/api/cron/killbot-feed': [...swcTracingIncludes, ...killbotCardTracingIncludes],
+    '/api/discord/interactions': [...swcTracingIncludes, ...killbotCardTracingIncludes],
+    '/admin/dashboard/killbot': [...swcTracingIncludes, ...killbotCardTracingIncludes],
   },
   experimental: {
     serverActions: {

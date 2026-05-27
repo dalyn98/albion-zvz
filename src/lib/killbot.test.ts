@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildKillbotDiscordMessage,
@@ -9,6 +10,7 @@ import {
   type KillbotConfig,
   type KillbotTarget,
 } from './killbot'
+import { KILLBOT_CARD_FONT_FILE } from './killbot-card'
 import type { KillbotVictimValueEstimate } from './killbot-value'
 
 afterEach(() => {
@@ -322,5 +324,12 @@ describe('buildKillbotDiscordPayload', () => {
     expect(metadata).toMatchObject({ width: 920, height: 760, format: 'png' })
     expect(message.payload.embeds[0]?.image?.url).toBe('attachment://killbot-card.png')
     expect(message.payload.embeds[0]?.thumbnail).toBeUndefined()
+  })
+})
+
+describe('killbot card font', () => {
+  it('resolves the bundled card font used by sharp text rendering', () => {
+    expect(KILLBOT_CARD_FONT_FILE).toMatch(/Geist-Regular\.ttf$/)
+    expect(existsSync(KILLBOT_CARD_FONT_FILE)).toBe(true)
   })
 })

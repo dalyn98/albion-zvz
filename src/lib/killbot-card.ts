@@ -19,7 +19,7 @@ const INVENTORY_START_Y = 656
 const INVENTORY_GAP_X = 9
 const INVENTORY_GAP_Y = 4
 const CARD_FONT_FAMILY = 'Geist'
-const CARD_FONT_FILE = path.join(
+export const KILLBOT_CARD_FONT_FILE = path.join(
   process.cwd(),
   'node_modules/next/dist/compiled/@vercel/og/Geist-Regular.ttf',
 )
@@ -284,7 +284,7 @@ function textToComposite(layer: TextLayer): OverlayOptions | null {
       text: {
         text: `<span foreground="${fill}">${pangoEscape(layer.value)}</span>`,
         font: `${CARD_FONT_FAMILY} ${layer.size}`,
-        fontfile: CARD_FONT_FILE,
+        fontfile: KILLBOT_CARD_FONT_FILE,
         width,
         align: textLayerAlign(layer),
         rgba: true,
