@@ -7,6 +7,7 @@ import {
   type KillbotConfig,
   type KillbotTarget,
 } from './killbot'
+import type { KillbotVictimValueEstimate } from './killbot-value'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -166,6 +167,15 @@ describe('buildKillbotDiscordPayload', () => {
   })
 
   it('attaches the generated kill card image when building a sendable message', async () => {
+    const valueEstimate: KillbotVictimValueEstimate = {
+      totalSilver: 1_012_000,
+      gearSilver: 1_000_000,
+      inventorySilver: 12_000,
+      totalItems: 2,
+      pricedItems: 2,
+      missingItems: 0,
+      isPartial: false,
+    }
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response('', { status: 404 })),
@@ -203,6 +213,7 @@ describe('buildKillbotDiscordPayload', () => {
       },
       fullConfig,
       target,
+      valueEstimate,
     )
 
     const file = message.files?.[0]
