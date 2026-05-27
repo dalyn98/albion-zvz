@@ -303,6 +303,34 @@ function renderEmptySlot(x: number, y: number, size = SLOT_SIZE): string {
   `
 }
 
+function countBadgeMetrics(x: number, y: number, size: number): {
+  x: number
+  y: number
+  width: number
+  height: number
+  radius: number
+  textX: number
+  textY: number
+  textSize: number
+} {
+  const compact = size < 50
+  const width = compact ? 22 : 28
+  const height = compact ? 16 : 20
+  const margin = compact ? 2 : 3
+  const badgeX = x + size - width - margin
+  const badgeY = y + size - height - margin
+  return {
+    x: badgeX,
+    y: badgeY,
+    width,
+    height,
+    radius: compact ? 6 : 7,
+    textX: badgeX + width / 2,
+    textY: badgeY + height - (compact ? 3 : 5),
+    textSize: compact ? 9 : 11,
+  }
+}
+
 function renderItemSlot(args: {
   x: number
   y: number
@@ -316,15 +344,16 @@ function renderItemSlot(args: {
   const item = args.item
   const icon = item ? args.icons.get(item.itemId) : null
   const clipId = `clip-${args.x}-${args.y}-${size}`
+  const badge = countBadgeMetrics(args.x, args.y, size)
   const countBadge =
     item && item.count > 1
       ? `
-        <rect x="${args.x + size - 31}" y="${args.y + size - 23}" width="28" height="20" rx="7" fill="#211912" opacity="0.94"/>
+        <rect x="${badge.x}" y="${badge.y}" width="${badge.width}" height="${badge.height}" rx="${badge.radius}" fill="#211912" opacity="0.94"/>
         ${renderText({
-          x: args.x + size - 16,
-          y: args.y + size - 8,
+          x: badge.textX,
+          y: badge.textY,
           value: item.count > 99 ? '99+' : String(item.count),
-          size: 11,
+          size: badge.textSize,
           weight: 800,
           fill: '#fff3df',
           anchor: 'middle',
@@ -384,16 +413,17 @@ function itemSlotText(args: {
 }): TextLayer[] {
   const size = args.size ?? SLOT_SIZE
   if (!args.item || args.item.count <= 1 || !args.icons.get(args.item.itemId)) return []
+  const badge = countBadgeMetrics(args.x, args.y, size)
   return [
     textLayer({
-      x: args.x + size - 16,
-      y: args.y + size - 8,
+      x: badge.textX,
+      y: badge.textY,
       value: args.item.count > 99 ? '99+' : String(args.item.count),
-      size: 11,
+      size: badge.textSize,
       weight: 800,
       fill: '#fff3df',
       anchor: 'middle',
-      width: 30,
+      width: badge.width,
     }),
   ]
 }
