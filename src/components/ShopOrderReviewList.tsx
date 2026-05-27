@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { Check, X, Loader2 } from 'lucide-react'
+import { Check, X, Loader2, Pencil } from 'lucide-react'
 import {
   approveShopOrder,
   rejectShopOrder,
@@ -87,6 +87,8 @@ function OrderRow({
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [rejectMode, setRejectMode] = useState(false)
+  const [adjustMode, setAdjustMode] = useState(false)
+  const [totalInput, setTotalInput] = useState('')
   const [note, setNote] = useState('')
 
   const statusLabel = (status: string) => {
@@ -100,16 +102,34 @@ function OrderRow({
   const insufficientStock = order.items.some((it) => it.stockAvailable < it.quantity)
   const blockedApprove = insufficientBalance || insufficientStock
 
-  const approve = () => {
+  const approve = (totalPointsOverride?: number) => {
     setError('')
     startTransition(async () => {
-      const result = await approveShopOrder(order.id, note)
+      const result = await approveShopOrder(order.id, note, totalPointsOverride ?? null)
       if (result.error) {
         setError(result.error)
         return
       }
       router.refresh()
     })
+  }
+
+  const approveWithAdjustedTotal = () => {
+    const trimmed = totalInput.trim().replace(/,/g, '')
+    if (!trimmed) {
+      approve()
+      return
+    }
+    const n = Number(trimmed)
+    if (!Number.isInteger(n) || n <= 0) {
+      setError(t('totalMustBePositiveInt'))
+      return
+    }
+    if (n > order.balance) {
+      setError(t('adjustInsufficientBalance', { amount: order.balance.toLocaleString() }))
+      return
+    }
+    approve(n)
   }
 
   const reject = () => {
@@ -226,12 +246,25 @@ function OrderRow({
           />
           <button
             type="button"
-            onClick={approve}
+            onClick={() => approve()}
             disabled={pending || blockedApprove}
             className="flex items-center gap-1 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 px-3 py-1.5 rounded disabled:opacity-40"
           >
             {pending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
             {t('approveButton')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setTotalInput(String(order.totalPoints))
+              setAdjustMode(true)
+            }}
+            disabled={pending || insufficientStock}
+            className="flex items-center gap-1 text-xs bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 px-3 py-1.5 rounded disabled:opacity-40"
+            title={t('adjustTotalTitle')}
+          >
+            <Pencil size={13} />
+            {t('adjustTotalButton')}
           </button>
           <button
             type="button"
@@ -241,6 +274,54 @@ function OrderRow({
           >
             <X size={13} /> {t('rejectButton')}
           </button>
+        </div>
+      )}
+
+      {adjustMode && order.status === 'pending' && !rejectMode && (
+        <div className="bg-amber-500/5 border border-amber-500/30 rounded-lg px-3 py-2 space-y-2">
+          <p className="text-xs text-amber-200/80">
+            {t('adjustTotalPrompt', {
+              total: order.totalPoints.toLocaleString(),
+              balance: order.balance.toLocaleString(),
+            })}
+          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={totalInput}
+              onChange={(e) => setTotalInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') approveWithAdjustedTotal()
+                if (e.key === 'Escape') setAdjustMode(false)
+              }}
+              className="bg-gray-900 border border-amber-500/60 rounded-lg px-3 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-amber-400 w-32 text-right"
+              placeholder={String(order.totalPoints)}
+              autoFocus
+              disabled={pending}
+            />
+            <span className="text-xs text-gray-400 font-mono">{t('pointsUnit')}</span>
+            <button
+              type="button"
+              onClick={approveWithAdjustedTotal}
+              disabled={pending || insufficientStock}
+              className="flex items-center gap-1 text-xs bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 px-3 py-1.5 rounded disabled:opacity-50"
+            >
+              {pending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+              {t('adjustApproveButton')}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAdjustMode(false)
+                setTotalInput('')
+              }}
+              disabled={pending}
+              className="text-gray-400 hover:text-white text-xs px-3 py-1.5"
+            >
+              {t('cancelButton')}
+            </button>
+          </div>
         </div>
       )}
 

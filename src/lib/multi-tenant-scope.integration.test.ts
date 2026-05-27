@@ -151,6 +151,97 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
     expect(rows).toEqual([])
   })
 
+  it('approves a shop order with an adjusted total against tenant-scoped balance and stock', async () => {
+    const client = getTestServiceClient()
+    const orderId = crypto.randomUUID()
+    const discordId = `shop-buyer-${crypto.randomUUID()}`
+    const itemKey = {
+      unique_name: 'T8_MAIN_FIRESTAFF',
+      enchant: 0,
+      quality: 1,
+    }
+
+    const { error: balanceErr } = await client.from('point_ledger').insert({
+      guild_id: tenantA.guildId,
+      discord_id: discordId,
+      delta: 700,
+      reason: 'admin_adjust',
+      memo: 'test seed',
+    })
+    expect(balanceErr).toBeNull()
+
+    const { error: stockErr } = await client.from('shop_inventory').insert({
+      guild_id: tenantA.guildId,
+      ...itemKey,
+      stock: 2,
+      name_ko: '화염 지팡이 테스트',
+      category: 'magic',
+      tier: 8,
+    })
+    expect(stockErr).toBeNull()
+
+    const { error: orderErr } = await client.from('shop_orders').insert({
+      id: orderId,
+      guild_id: tenantA.guildId,
+      discord_id: discordId,
+      username: 'Shop Buyer',
+      total_points: 1000,
+      status: 'pending',
+    })
+    expect(orderErr).toBeNull()
+
+    const { error: itemErr } = await client.from('shop_order_items').insert({
+      guild_id: tenantA.guildId,
+      order_id: orderId,
+      ...itemKey,
+      name_ko: '화염 지팡이 테스트',
+      quantity: 1,
+      unit_points: 1000,
+      subtotal_points: 1000,
+    })
+    expect(itemErr).toBeNull()
+
+    const { error: approveErr } = await client.rpc('approve_shop_order', {
+      p_id: orderId,
+      p_admin_id: 'admin-discord',
+      p_guild_id: tenantA.guildId,
+      p_admin_note: 'adjusted total',
+      p_total_points_override: 700,
+    })
+    expect(approveErr).toBeNull()
+
+    const { data: order } = await client
+      .from('shop_orders')
+      .select('status, total_points, admin_note')
+      .eq('guild_id', tenantA.guildId)
+      .eq('id', orderId)
+      .single()
+    expect(order).toMatchObject({
+      status: 'approved',
+      total_points: 700,
+      admin_note: 'adjusted total',
+    })
+
+    const { data: stock } = await client
+      .from('shop_inventory')
+      .select('stock')
+      .eq('guild_id', tenantA.guildId)
+      .eq('unique_name', itemKey.unique_name)
+      .eq('enchant', itemKey.enchant)
+      .eq('quality', itemKey.quality)
+      .single()
+    expect(stock?.stock).toBe(1)
+
+    const { data: debit } = await client
+      .from('point_ledger')
+      .select('delta, reason')
+      .eq('guild_id', tenantA.guildId)
+      .eq('discord_id', discordId)
+      .eq('ref_id', orderId)
+      .single()
+    expect(debit).toMatchObject({ delta: -700, reason: 'shop_purchase' })
+  })
+
   it('preserves pricing metadata and replays post-baseline logs in order when applying a shop baseline', async () => {
     const client = getTestServiceClient()
     const key = {

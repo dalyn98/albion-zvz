@@ -62,6 +62,7 @@ const IMPORT_ROW_LIMIT = 5000
 // 승인/거절 시 admin 메모 최대 길이. 컬럼 자체에는 길이 제약이 없지만 UI 와
 // DB 양쪽에서 비정상적으로 큰 입력을 막아 두면 페이지 렌더가 깨지지 않는다.
 const ADMIN_NOTE_MAX_LENGTH = 1000
+const MAX_ORDER_TOTAL_POINTS = 2_147_483_647
 const SHOP_IMPORT_CAPS = [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
 const SHOP_REVIEW_CAPS = [CAP.INVENTORY_MANAGE, CAP.INVENTORY_DELIVER] as const
 
@@ -599,6 +600,7 @@ export async function listShopOrders(
 export async function approveShopOrder(
   orderId: string,
   adminNote?: string,
+  totalPointsOverride?: number | null,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
@@ -608,16 +610,44 @@ export async function approveShopOrder(
     if (trimmedNote && trimmedNote.length > ADMIN_NOTE_MAX_LENGTH) {
       return { error: tErr('adminNoteTooLong', { max: ADMIN_NOTE_MAX_LENGTH }) }
     }
+    let normalizedTotalOverride: number | null = null
+    if (totalPointsOverride !== undefined && totalPointsOverride !== null) {
+      const parsed = Number(totalPointsOverride)
+      if (
+        !Number.isInteger(parsed) ||
+        parsed <= 0 ||
+        parsed > MAX_ORDER_TOTAL_POINTS
+      ) {
+        return { error: tErr('shopOrderTotalInvalid') }
+      }
+      normalizedTotalOverride = parsed
+    }
     const guildId = await getSessionGuildId(session)
     const db = await requireAnyCapability([CAP.INVENTORY_DELIVER])
+    let requestedTotalPoints: number | null = null
+    if (normalizedTotalOverride !== null) {
+      const { data: orderRow, error: orderErr } = await db
+        .from('shop_orders')
+        .select('total_points')
+        .eq('guild_id', guildId)
+        .eq('id', orderId)
+        .eq('status', 'pending')
+        .maybeSingle()
+      if (orderErr) return { error: orderErr.message }
+      requestedTotalPoints = (orderRow?.total_points as number | null | undefined) ?? null
+    }
     const { error } = await db.rpc('approve_shop_order', {
       p_id: orderId,
       p_admin_id: session.discordId,
       p_guild_id: guildId,
       p_admin_note: trimmedNote,
+      p_total_points_override: normalizedTotalOverride,
     })
     if (error) {
       // RPC raise exception 메시지를 사용자 친화 문구로.
+      if (error.message.includes('INVALID_TOTAL_POINTS')) {
+        return { error: tErr('shopOrderTotalInvalid') }
+      }
       if (error.message.includes('INSUFFICIENT_BALANCE')) {
         return { error: tErr('insufficientPoints') }
       }
@@ -632,6 +662,7 @@ export async function approveShopOrder(
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')
+    revalidatePath('/me')
     revalidatePath('/', 'layout')
     await logAdminAction({
       guildId,
@@ -639,7 +670,15 @@ export async function approveShopOrder(
       action: 'shop.order.approve',
       targetId: orderId,
       targetKind: 'shop_order',
-      details: { adminNote: trimmedNote },
+      details: {
+        adminNote: trimmedNote,
+        ...(normalizedTotalOverride !== null
+          ? {
+              requestedTotalPoints,
+              approvedTotalPoints: normalizedTotalOverride,
+            }
+          : {}),
+      },
     })
     return {}
   } catch (e) {
