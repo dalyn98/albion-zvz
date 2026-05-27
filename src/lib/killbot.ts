@@ -5,17 +5,21 @@ import { type AlbionServer } from '@/lib/albion-gameinfo'
 import { fetchJsonWithRetry } from '@/lib/http-retry'
 import { resolveAlbionServer } from '@/lib/killboard'
 import { tenantUrl } from '@/lib/tenant-resolver'
-import { EQUIPMENT_SLOTS, type EquipmentItem } from '@/lib/auto-regear-equipment'
-import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
+import type { EquipmentItem } from '@/lib/auto-regear-equipment'
+import {
+  buildKillbotDiscordMessage,
+  sendDiscordChannelMessage,
+} from '@/lib/killbot-discord'
 
-const DISCORD_API = 'https://discord.com/api/v10'
+export {
+  buildKillbotDiscordMessage,
+  buildKillbotDiscordPayload,
+} from '@/lib/killbot-discord'
+
 const KILLBOT_EVENTS_LIMIT = 51
 const DEFAULT_MIN_FAME = 1
 const DEFAULT_JUICY_FAME = 1_000_000
 const MAX_FAME_SETTING = 2_147_483_647
-const DISCORD_FIELD_VALUE_LIMIT = 1024
-const DISCORD_TITLE_LIMIT = 256
-const DISCORD_INLINE_FIELD_LIMIT = 25
 
 export type KillbotFeedType = 'kill' | 'death' | 'test'
 export type KillbotDeliveryStatus = 'pending' | 'sent' | 'failed' | 'skipped'
@@ -62,6 +66,7 @@ interface PlayerRef {
   AllianceName?: string | null
   AverageItemPower?: number | string | null
   Equipment?: Record<string, EquipmentItem | null> | null
+  Inventory?: Array<EquipmentItem | null> | null
 }
 
 export interface AlbionKillbotEvent {
@@ -367,210 +372,6 @@ function eventTimeOrNull(event: AlbionKillbotEvent): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString()
 }
 
-function killboardUrl(eventId: number): string {
-  return `https://albiononline.com/killboard/kill/${eventId}`
-}
-
-function battleUrl(event: AlbionKillbotEvent): string | null {
-  const battleId = Number(event.BattleId)
-  if (!Number.isFinite(battleId) || battleId <= 0) return null
-  return `https://albiononline.com/killboard/battles/${Math.trunc(battleId)}`
-}
-
-function formatFame(value: number): string {
-  return value.toLocaleString('en-US')
-}
-
-function playerLine(player: PlayerRef | null | undefined): string {
-  const name = playerName(player)
-  const guild = String(player?.GuildName ?? '').trim()
-  const alliance = String(player?.AllianceName ?? '').trim()
-  const guildPart = guild ? ` [${guild}]` : ''
-  const alliancePart = alliance ? ` · ${alliance}` : ''
-  return `${name}${guildPart}${alliancePart}`
-}
-
-function playerTitle(player: PlayerRef | null | undefined, fallbackName: string): string {
-  const name = fallbackName.trim() || playerName(player)
-  const itemPower = Number(player?.AverageItemPower)
-  if (!Number.isFinite(itemPower) || itemPower <= 0) return name
-  return `${name} (${Math.round(itemPower)})`
-}
-
-function truncateDiscord(value: string, limit: number): string {
-  if (value.length <= limit) return value
-  return `${value.slice(0, Math.max(0, limit - 1))}…`
-}
-
-function itemImageUrl(itemId: string): string {
-  return `https://render.albiononline.com/v1/item/${encodeURIComponent(itemId)}.png?size=128`
-}
-
-function equipmentItemType(item: EquipmentItem | null | undefined): string | null {
-  const type = typeof item?.Type === 'string' ? item.Type.trim() : ''
-  return type.length > 0 ? type : null
-}
-
-function formatItemName(itemId: string): string {
-  const localized = getLocalizedItemNameWithEnchant(itemId, 'en', null)
-  if (localized) return localized
-  return itemId
-    .replace(/^T(\d+)_/, 'T$1 ')
-    .replace(/_/g, ' ')
-    .replace(/@(\d+)$/, '.$1')
-}
-
-const EQUIPMENT_LABELS: Record<string, string> = {
-  MainHand: 'Weapon',
-  OffHand: 'Offhand',
-  Head: 'Helmet',
-  Armor: 'Armor',
-  Shoes: 'Boots',
-  Bag: 'Bag',
-  Cape: 'Cape',
-  Mount: 'Mount',
-  Potion: 'Potion',
-  Food: 'Food',
-}
-
-function equipmentEntries(player: PlayerRef | null | undefined): Array<{
-  slot: string
-  label: string
-  itemId: string
-  itemName: string
-}> {
-  const equipment = player?.Equipment
-  if (!equipment) return []
-  const entries: Array<{ slot: string; label: string; itemId: string; itemName: string }> = []
-  for (const slot of EQUIPMENT_SLOTS) {
-    const itemId = equipmentItemType(equipment[slot])
-    if (!itemId) continue
-    entries.push({
-      slot,
-      label: EQUIPMENT_LABELS[slot] ?? slot,
-      itemId,
-      itemName: formatItemName(itemId),
-    })
-  }
-  return entries
-}
-
-function equipmentSummary(entries: ReturnType<typeof equipmentEntries>): string {
-  if (entries.length === 0) return 'No equipment data from Albion.'
-  return truncateDiscord(
-    entries
-      .map((entry) => `${entry.label}: ${entry.itemName}`)
-      .join('\n'),
-    DISCORD_FIELD_VALUE_LIMIT,
-  )
-}
-
-function participantSummary(event: AlbionKillbotEvent): string | null {
-  const killerId = String(event.Killer?.Id ?? '').trim()
-  const killerName = playerName(event.Killer)
-  const names = (event.Participants ?? [])
-    .filter((player) => {
-      const id = String(player?.Id ?? '').trim()
-      if (killerId && id === killerId) return false
-      return playerName(player) !== killerName
-    })
-    .map((player) => playerName(player))
-    .filter((name) => name !== 'Unknown')
-
-  const uniqueNames = Array.from(new Set(names)).slice(0, DISCORD_INLINE_FIELD_LIMIT)
-  if (uniqueNames.length === 0) return null
-  return truncateDiscord(uniqueNames.join(', '), DISCORD_FIELD_VALUE_LIMIT)
-}
-
-export function buildKillbotDiscordPayload(
-  event: AlbionKillbotEvent,
-  match: KillbotMatch,
-  config: KillbotConfig,
-  target: KillbotTarget,
-) {
-  const color = match.feedType === 'kill' ? 0x22c55e : 0xef4444
-  const title = truncateDiscord(
-    `${playerTitle(event.Killer, match.killerName)} ⚔ ${playerTitle(event.Victim, match.victimName)}`,
-    DISCORD_TITLE_LIMIT,
-  )
-  const eventId = Number(event.EventId)
-  const victimEquipment = equipmentEntries(event.Victim)
-  const primaryItem = victimEquipment.find((entry) => entry.slot === 'MainHand') ?? victimEquipment[0]
-  const eventUrl = killboardUrl(eventId)
-  const battleLink = battleUrl(event)
-  const homeGuild = target.homeGuildName || 'Home guild'
-  const participants = participantSummary(event)
-  const fields = [
-    { name: 'Fame', value: formatFame(match.fame), inline: true },
-    {
-      name: 'Battle',
-      value: battleLink ? `[${event.BattleId}](${battleLink})` : 'Unknown',
-      inline: true,
-    },
-    { name: 'Event', value: `[${eventId}](${eventUrl})`, inline: true },
-    { name: 'Killer', value: truncateDiscord(playerLine(event.Killer), DISCORD_FIELD_VALUE_LIMIT), inline: false },
-    { name: 'Victim', value: truncateDiscord(playerLine(event.Victim), DISCORD_FIELD_VALUE_LIMIT), inline: false },
-    ...(participants ? [{ name: 'Participants', value: participants, inline: false }] : []),
-    {
-      name: 'Victim build',
-      value: equipmentSummary(victimEquipment),
-      inline: false,
-    },
-  ]
-
-  return {
-    content: config.mentionRoleId ? `<@&${config.mentionRoleId}>` : undefined,
-    allowed_mentions: config.mentionRoleId
-      ? { parse: [], roles: [config.mentionRoleId] }
-      : { parse: [] },
-    embeds: [
-      {
-        title,
-        url: eventUrl,
-        color,
-        author: { name: `${homeGuild} Killbot` },
-        timestamp: eventTimeOrNull(event) ?? undefined,
-        thumbnail: primaryItem ? { url: itemImageUrl(primaryItem.itemId) } : undefined,
-        description:
-          match.feedType === 'kill'
-            ? `${homeGuild} kill${match.isJuicy ? ' · Juicy' : ''}`
-            : `${homeGuild} death${match.isJuicy ? ' · Juicy' : ''}`,
-        fields,
-        footer: { text: `AlbionGuildManager Killbot · 1 kill / 1 embed` },
-      },
-    ],
-  }
-}
-
-async function sendDiscordChannelMessage(
-  channelId: string,
-  payload: unknown,
-): Promise<string> {
-  const botToken = process.env.DISCORD_BOT_TOKEN
-  if (!botToken) throw new Error('DISCORD_BOT_TOKEN is not configured')
-
-  const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bot ${botToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  })
-
-  const text = await res.text()
-  if (!res.ok) {
-    throw new Error(`Discord channel message failed (${res.status}): ${text.slice(0, 500)}`)
-  }
-  if (!text) return ''
-  try {
-    const data = JSON.parse(text) as { id?: string }
-    return String(data.id ?? '')
-  } catch {
-    return ''
-  }
-}
-
 async function reserveDelivery(
   db: SupabaseClient,
   guildId: string,
@@ -720,7 +521,7 @@ export async function runKillbotFeed(db: SupabaseClient): Promise<KillbotRunResu
         try {
           const discordMessageId = await sendDiscordChannelMessage(
             channelId,
-            buildKillbotDiscordPayload(event, match, config, target),
+            await buildKillbotDiscordMessage(event, match, config, target),
           )
           await markDelivery(db, config.guildId, Number(event.EventId), match.feedType, {
             status: 'sent',
@@ -765,53 +566,62 @@ export async function sendKillbotTestMessage(
   if (!channelId) throw new Error('killbot channel is not configured')
 
   const testGuildName = target.homeGuildName || 'Configured guild'
-  const payload = {
-    ...buildKillbotDiscordPayload(
-      {
-        EventId: Date.now(),
-        TimeStamp: new Date().toISOString(),
-        TotalVictimKillFame: config.juicyFameThreshold || DEFAULT_JUICY_FAME,
-        BattleId: 123456789,
-        Killer: {
-          Name: testGuildName,
-          GuildName: testGuildName,
-          GuildId: target.homeGuildId || 'home-guild',
-          Equipment: {
-            MainHand: { Type: 'T8_MAIN_HOLYSTAFF@3' },
-            Armor: { Type: 'T8_ARMOR_CLOTH_SET3@2' },
-          },
-        },
-        Victim: {
-          Name: 'Enemy Player',
-          GuildName: 'Enemy Guild',
-          GuildId: 'enemy-guild',
-          Equipment: {
-            MainHand: { Type: 'T8_2H_CLAYMORE_AVALON@2' },
-            OffHand: { Type: 'T8_OFF_SHIELD@1' },
-            Head: { Type: 'T8_HEAD_PLATE_SET3@2' },
-            Armor: { Type: 'T8_ARMOR_PLATE_SET3@2' },
-            Shoes: { Type: 'T8_SHOES_PLATE_SET3@2' },
-            Cape: { Type: 'T8_CAPEITEM_FW_LYMHURST' },
-            Mount: { Type: 'T8_MOUNT_HORSE_UNDEAD' },
-            Potion: { Type: 'T8_POTION_HEAL' },
-            Food: { Type: 'T8_MEAL_OMELETTE' },
-          },
+  const message = await buildKillbotDiscordMessage(
+    {
+      EventId: Date.now(),
+      TimeStamp: new Date().toISOString(),
+      TotalVictimKillFame: config.juicyFameThreshold || DEFAULT_JUICY_FAME,
+      BattleId: 123456789,
+      Killer: {
+        Name: testGuildName,
+        GuildName: testGuildName,
+        GuildId: target.homeGuildId || 'home-guild',
+        Equipment: {
+          MainHand: { Type: 'T8_MAIN_HOLYSTAFF@3' },
+          Armor: { Type: 'T8_ARMOR_CLOTH_SET3@2' },
         },
       },
-      {
-        feedType: 'kill',
-        fame: config.juicyFameThreshold || DEFAULT_JUICY_FAME,
-        isJuicy: true,
-        killerName: testGuildName,
-        victimName: 'Enemy Player',
+      Victim: {
+        Name: 'Enemy Player',
+        GuildName: 'Enemy Guild',
+        GuildId: 'enemy-guild',
+        Equipment: {
+          MainHand: { Type: 'T8_2H_CLAYMORE_AVALON@2' },
+          OffHand: { Type: 'T8_OFF_SHIELD@1' },
+          Head: { Type: 'T8_HEAD_PLATE_SET3@2' },
+          Armor: { Type: 'T8_ARMOR_PLATE_SET3@2' },
+          Shoes: { Type: 'T8_SHOES_PLATE_SET3@2' },
+          Cape: { Type: 'T8_CAPEITEM_FW_LYMHURST' },
+          Mount: { Type: 'T8_MOUNT_HORSE_UNDEAD' },
+          Potion: { Type: 'T8_POTION_HEAL' },
+          Food: { Type: 'T8_MEAL_OMELETTE' },
+        },
+        Inventory: [
+          { Type: 'T8_BAG', Count: 1 },
+          { Type: 'T8_CAPEITEM_FW_LYMHURST', Count: 1 },
+          { Type: 'T8_MAIN_HOLYSTAFF@3', Count: 1 },
+          { Type: 'T8_POTION_HEAL', Count: 3 },
+          { Type: 'T8_MEAL_OMELETTE', Count: 2 },
+          { Type: 'T8_RUNE', Count: 12 },
+          { Type: 'T8_SOUL', Count: 8 },
+          { Type: 'T8_RELIC', Count: 4 },
+        ],
       },
-      { ...config, mentionRoleId: null },
-      target,
-    ),
-    content: undefined,
-  }
+    },
+    {
+      feedType: 'kill',
+      fame: config.juicyFameThreshold || DEFAULT_JUICY_FAME,
+      isJuicy: true,
+      killerName: testGuildName,
+      victimName: 'Enemy Player',
+    },
+    { ...config, mentionRoleId: null },
+    target,
+  )
+  const payload = { ...message.payload, content: undefined }
   const firstEmbed = payload.embeds[0]
-  const firstEmbedFields = 'fields' in firstEmbed ? firstEmbed.fields : []
+  if (!firstEmbed) throw new Error('killbot test payload missing embed')
+  const firstEmbedFields = firstEmbed?.fields ?? []
   payload.embeds[0] = {
     ...firstEmbed,
     title: 'AlbionGuildManager Killbot test',
@@ -824,8 +634,9 @@ export async function sendKillbotTestMessage(
       ...firstEmbedFields,
     ],
   }
+  const testMessage = { ...message, payload }
 
-  const discordMessageId = await sendDiscordChannelMessage(channelId, payload)
+  const discordMessageId = await sendDiscordChannelMessage(channelId, testMessage)
   const eventId = Date.now()
   await db.from('killbot_deliveries').insert({
     guild_id: guildId,

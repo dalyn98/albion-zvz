@@ -1,11 +1,16 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  buildKillbotDiscordMessage,
   buildKillbotDiscordPayload,
   classifyKillbotEvent,
   type AlbionKillbotEvent,
   type KillbotConfig,
   type KillbotTarget,
 } from './killbot'
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 const target: KillbotTarget = {
   server: 'east',
@@ -94,7 +99,7 @@ describe('classifyKillbotEvent', () => {
 })
 
 describe('buildKillbotDiscordPayload', () => {
-  it('builds one Discord embed per kill with the kill details in the same card', () => {
+  it('builds a compact Discord embed for a kill', () => {
     const payload = buildKillbotDiscordPayload(
       event({
         BattleId: 77,
@@ -122,6 +127,10 @@ describe('buildKillbotDiscordPayload', () => {
             Potion: { Type: 'T8_POTION_HEAL' },
             Food: { Type: 'T8_MEAL_OMELETTE' },
           },
+          Inventory: [
+            { Type: 'T8_POTION_HEAL', Count: 3 },
+            { Type: 'T8_MEAL_OMELETTE', Count: 2 },
+          ],
         },
         Participants: [
           { Id: 'killer', Name: 'Killer', GuildId: 'guild-home', GuildName: 'Menhera' },
@@ -153,10 +162,66 @@ describe('buildKillbotDiscordPayload', () => {
     if (!('fields' in mainEmbed)) throw new Error('expected main embed fields')
     expect(mainEmbed.fields).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({ name: 'Fame', value: '1,200' }),
         expect.objectContaining({ name: 'Battle', value: '[77](https://albiononline.com/killboard/battles/77)' }),
-        expect.objectContaining({ name: 'Participants', value: 'Assistant' }),
-        expect.objectContaining({ name: 'Victim build', value: expect.stringContaining('Weapon:') }),
+        expect.objectContaining({ name: 'Event', value: '[1](https://albiononline.com/killboard/kill/1)' }),
       ]),
     )
+    expect(mainEmbed.description).toContain('Participants: Assistant')
+    expect(mainEmbed.footer?.text).toBe('Powered by Albion Guild Manager · Killbot')
+  })
+
+  it('attaches the generated kill card image when building a sendable message', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('', { status: 404 })),
+    )
+    const message = await buildKillbotDiscordMessage(
+      event({
+        Killer: {
+          Id: 'killer',
+          Name: 'Killer',
+          GuildId: 'guild-home',
+          GuildName: 'Menhera',
+          AverageItemPower: 1942.4,
+          Equipment: {
+            MainHand: { Type: 'T8_MAIN_HOLYSTAFF@4' },
+          },
+        },
+        Victim: {
+          Id: 'victim',
+          Name: 'Victim',
+          GuildId: 'enemy',
+          GuildName: 'Enemy',
+          AverageItemPower: 1208,
+          Equipment: {
+            MainHand: { Type: 'T8_2H_CLAYMORE_AVALON@2' },
+          },
+          Inventory: [{ Type: 'T8_POTION_HEAL', Count: 3 }],
+        },
+      }),
+      {
+        feedType: 'kill',
+        fame: 1200,
+        isJuicy: true,
+        killerName: 'Killer',
+        victimName: 'Victim',
+      },
+      fullConfig,
+      target,
+    )
+
+    const file = message.files?.[0]
+    expect(file).toMatchObject({
+      filename: 'killbot-card.png',
+      contentType: 'image/png',
+    })
+    if (!file) throw new Error('expected killbot card file')
+    expect(file.data.byteLength).toBeGreaterThan(1000)
+    const { default: sharp } = await import('sharp')
+    const metadata = await sharp(file.data).metadata()
+    expect(metadata).toMatchObject({ width: 920, height: 650, format: 'png' })
+    expect(message.payload.embeds[0]?.image?.url).toBe('attachment://killbot-card.png')
+    expect(message.payload.embeds[0]?.thumbnail).toBeUndefined()
   })
 })
