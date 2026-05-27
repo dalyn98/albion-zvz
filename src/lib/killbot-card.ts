@@ -304,6 +304,7 @@ function renderEmptySlot(x: number, y: number, size = SLOT_SIZE): string {
 }
 
 function countBadgeMetrics(x: number, y: number, size: number): {
+  compact: boolean
   x: number
   y: number
   width: number
@@ -312,23 +313,32 @@ function countBadgeMetrics(x: number, y: number, size: number): {
   textX: number
   textY: number
   textSize: number
+  textAnchor: 'middle' | 'end'
+  textWidth: number
 } {
   const compact = size < 50
-  const width = compact ? 22 : 28
-  const height = compact ? 16 : 20
-  const margin = compact ? 2 : 3
+  const width = compact ? 0 : 28
+  const height = compact ? 0 : 20
+  const margin = 3
   const badgeX = x + size - width - margin
   const badgeY = y + size - height - margin
   return {
+    compact,
     x: badgeX,
     y: badgeY,
     width,
     height,
     radius: compact ? 6 : 7,
-    textX: badgeX + width / 2,
-    textY: badgeY + height - (compact ? 3 : 5),
-    textSize: compact ? 9 : 11,
+    textX: compact ? x + size - 4 : badgeX + width / 2,
+    textY: compact ? y + size - 4 : badgeY + height - 5,
+    textSize: compact ? 10 : 11,
+    textAnchor: compact ? 'end' : 'middle',
+    textWidth: compact ? 34 : width,
   }
+}
+
+function itemCountLabel(count: number): string {
+  return count > 99 ? '99+' : String(count)
 }
 
 function renderItemSlot(args: {
@@ -346,17 +356,17 @@ function renderItemSlot(args: {
   const clipId = `clip-${args.x}-${args.y}-${size}`
   const badge = countBadgeMetrics(args.x, args.y, size)
   const countBadge =
-    item && item.count > 1
+    item && item.count > 1 && !badge.compact
       ? `
         <rect x="${badge.x}" y="${badge.y}" width="${badge.width}" height="${badge.height}" rx="${badge.radius}" fill="#211912" opacity="0.94"/>
         ${renderText({
           x: badge.textX,
           y: badge.textY,
-          value: item.count > 99 ? '99+' : String(item.count),
+          value: itemCountLabel(item.count),
           size: badge.textSize,
           weight: 800,
           fill: '#fff3df',
-          anchor: 'middle',
+          anchor: badge.textAnchor,
         })}
       `
       : ''
@@ -414,16 +424,46 @@ function itemSlotText(args: {
   const size = args.size ?? SLOT_SIZE
   if (!args.item || args.item.count <= 1 || !args.icons.get(args.item.itemId)) return []
   const badge = countBadgeMetrics(args.x, args.y, size)
+  const value = itemCountLabel(args.item.count)
+  const baseLayer = {
+    value,
+    size: badge.textSize,
+    weight: 900,
+    anchor: badge.textAnchor,
+    width: badge.textWidth,
+  } satisfies Pick<TextLayer, 'value' | 'size' | 'weight' | 'anchor' | 'width'>
+
+  if (badge.compact) {
+    return [
+      [-1, -1],
+      [1, -1],
+      [-1, 1],
+      [1, 1],
+      [0, 1],
+    ].map(([dx, dy]) =>
+      textLayer({
+        ...baseLayer,
+        x: badge.textX + dx,
+        y: badge.textY + dy,
+        fill: '#1b120c',
+        opacity: 0.95,
+      }),
+    ).concat(
+      textLayer({
+        ...baseLayer,
+        x: badge.textX,
+        y: badge.textY,
+        fill: '#fff4d2',
+      }),
+    )
+  }
+
   return [
     textLayer({
+      ...baseLayer,
       x: badge.textX,
       y: badge.textY,
-      value: args.item.count > 99 ? '99+' : String(args.item.count),
-      size: badge.textSize,
-      weight: 800,
       fill: '#fff3df',
-      anchor: 'middle',
-      width: badge.width,
     }),
   ]
 }
