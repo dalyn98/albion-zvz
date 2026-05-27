@@ -3,6 +3,8 @@ import {
   buildKillbotDiscordMessage,
   buildKillbotDiscordPayload,
   classifyKillbotEvent,
+  fetchRecentKillbotEvents,
+  isKillbotEventInsideProcessWindow,
   type AlbionKillbotEvent,
   type KillbotConfig,
   type KillbotTarget,
@@ -96,6 +98,98 @@ describe('classifyKillbotEvent', () => {
       config,
     )
     expect(matches).toHaveLength(0)
+  })
+})
+
+describe('fetchRecentKillbotEvents', () => {
+  it('continues beyond the first global events page', async () => {
+    const now = new Date('2026-05-27T12:00:00Z')
+    const firstPage = Array.from({ length: 51 }, (_, index) =>
+      event({
+        EventId: 1000 + index,
+        TimeStamp: new Date(now.getTime() - index * 1000).toISOString(),
+        Killer: { Id: `killer-${index}`, Name: `Killer ${index}`, GuildId: 'other', GuildName: 'Other' },
+        Victim: { Id: `victim-${index}`, Name: `Victim ${index}`, GuildId: 'enemy', GuildName: 'Enemy' },
+      }),
+    )
+    const delayedHomeKill = event({
+      EventId: 2000,
+      TimeStamp: new Date(now.getTime() - 6 * 60 * 1000).toISOString(),
+      Killer: { Id: 'home', Name: 'Home Killer', GuildId: 'guild-home', GuildName: 'Menhera' },
+      Victim: { Id: 'victim', Name: 'Victim', GuildId: 'enemy', GuildName: 'Enemy' },
+    })
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input))
+      const offset = Number(url.searchParams.get('offset') ?? 0)
+      const body = offset === 0 ? firstPage : [delayedHomeKill]
+      return new Response(JSON.stringify(body), { status: 200 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const events = await fetchRecentKillbotEvents('east', {
+      now,
+      lookbackMs: 20 * 60 * 1000,
+      maxPages: 3,
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(events.map((e) => e.EventId)).toContain(2000)
+  })
+
+  it('stops paging after reaching the lookback cutoff', async () => {
+    const now = new Date('2026-05-27T12:00:00Z')
+    const recentPage = Array.from({ length: 51 }, (_, index) =>
+      event({
+        EventId: 3000 + index,
+        TimeStamp: new Date(now.getTime() - index * 1000).toISOString(),
+      }),
+    )
+    const oldPage = Array.from({ length: 51 }, (_, index) =>
+      event({
+        EventId: 4000 + index,
+        TimeStamp: new Date(now.getTime() - 30 * 60 * 1000 - index * 1000).toISOString(),
+      }),
+    )
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input))
+      const offset = Number(url.searchParams.get('offset') ?? 0)
+      const body = offset === 0 ? recentPage : oldPage
+      return new Response(JSON.stringify(body), { status: 200 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const events = await fetchRecentKillbotEvents('east', {
+      now,
+      lookbackMs: 20 * 60 * 1000,
+      maxPages: 4,
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(events.some((e) => e.EventId >= 4000)).toBe(false)
+  })
+})
+
+describe('isKillbotEventInsideProcessWindow', () => {
+  it('keeps an overlap before the previous successful poll', () => {
+    const delayedEvent = event({ TimeStamp: '2026-05-27T12:15:00Z' })
+    expect(
+      isKillbotEventInsideProcessWindow(
+        delayedEvent,
+        '2026-05-27T12:19:00Z',
+        '2026-05-27T12:24:00Z',
+      ),
+    ).toBe(true)
+  })
+
+  it('does not turn the wider fetch into a historical backfill', () => {
+    const oldEvent = event({ TimeStamp: '2026-05-27T12:15:00Z' })
+    expect(
+      isKillbotEventInsideProcessWindow(
+        oldEvent,
+        '2026-05-27T12:24:00Z',
+        '2026-05-27T12:25:00Z',
+      ),
+    ).toBe(false)
   })
 })
 

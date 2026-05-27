@@ -20,7 +20,10 @@ export {
   buildKillbotDiscordPayload,
 } from '@/lib/killbot-discord'
 
-const KILLBOT_EVENTS_LIMIT = 51
+const KILLBOT_EVENTS_PAGE_LIMIT = 51
+const KILLBOT_EVENTS_FETCH_LOOKBACK_MS = 20 * 60 * 1000
+const KILLBOT_EVENTS_PROCESS_OVERLAP_MS = 8 * 60 * 1000
+const KILLBOT_EVENTS_MAX_PAGES = 20
 const DEFAULT_MIN_FAME = 1
 const DEFAULT_JUICY_FAME = 1_000_000
 const MAX_FAME_SETTING = 2_147_483_647
@@ -143,6 +146,13 @@ export interface SaveKillbotConfigInput {
   includeKills: boolean
   includeDeaths: boolean
   mentionRoleId?: string | null
+}
+
+interface FetchRecentKillbotEventsOptions {
+  now?: Date
+  lookbackMs?: number
+  maxPages?: number
+  pageLimit?: number
 }
 
 function defaultConfig(guildId: string): KillbotConfig {
@@ -316,15 +326,46 @@ export async function loadKillbotAdminState(
 
 export async function fetchRecentKillbotEvents(
   server: AlbionServer,
+  options: FetchRecentKillbotEventsOptions = {},
 ): Promise<AlbionKillbotEvent[]> {
   const base = ALBION_GAMEINFO_ENDPOINTS[server]
-  const url = `${base}/events?limit=${KILLBOT_EVENTS_LIMIT}&offset=0`
-  const data = await fetchJsonWithRetry<AlbionKillbotEvent[]>(url, {
-    label: 'killbot',
-    userAgent: 'albion-zvz-killbot/1.0',
-    fetchInit: { cache: 'no-store' },
-  })
-  return Array.isArray(data) ? data : []
+  const nowMs = options.now?.getTime() ?? Date.now()
+  const lookbackMs = Math.max(0, options.lookbackMs ?? KILLBOT_EVENTS_FETCH_LOOKBACK_MS)
+  const cutoffMs = nowMs - lookbackMs
+  const maxPages = Math.max(1, Math.floor(options.maxPages ?? KILLBOT_EVENTS_MAX_PAGES))
+  const pageLimit = Math.max(
+    1,
+    Math.min(KILLBOT_EVENTS_PAGE_LIMIT, Math.floor(options.pageLimit ?? KILLBOT_EVENTS_PAGE_LIMIT)),
+  )
+  const eventsById = new Map<number, AlbionKillbotEvent>()
+
+  for (let page = 0; page < maxPages; page += 1) {
+    const offset = page * pageLimit
+    const url = `${base}/events?limit=${pageLimit}&offset=${offset}`
+    const data = await fetchJsonWithRetry<AlbionKillbotEvent[]>(url, {
+      label: 'killbot',
+      userAgent: 'albion-zvz-killbot/1.0',
+      fetchInit: { cache: 'no-store' },
+    })
+    if (!Array.isArray(data) || data.length === 0) break
+
+    let reachedCutoff = false
+    for (const event of data) {
+      const eventMs = new Date(event.TimeStamp).getTime()
+      if (Number.isFinite(eventMs) && eventMs < cutoffMs) {
+        reachedCutoff = true
+        continue
+      }
+      const eventId = Number(event.EventId)
+      if (Number.isFinite(eventId)) {
+        eventsById.set(eventId, event)
+      }
+    }
+
+    if (data.length < pageLimit || reachedCutoff) break
+  }
+
+  return Array.from(eventsById.values())
 }
 
 function sameGuild(player: PlayerRef | null | undefined, target: KillbotTarget): boolean {
@@ -374,6 +415,28 @@ export function classifyKillbotEvent(
 function eventTimeOrNull(event: AlbionKillbotEvent): string | null {
   const date = new Date(event.TimeStamp)
   return Number.isNaN(date.getTime()) ? null : date.toISOString()
+}
+
+function killbotProcessWindowStart(lastPolledAt: string | null, polledAt: string): number {
+  const polledAtMs = new Date(polledAt).getTime()
+  const fallbackNow = Number.isFinite(polledAtMs) ? polledAtMs : Date.now()
+  const lookbackStart = fallbackNow - KILLBOT_EVENTS_FETCH_LOOKBACK_MS
+  const lastPolledAtMs = new Date(lastPolledAt ?? '').getTime()
+  if (!Number.isFinite(lastPolledAtMs)) {
+    return Math.max(lookbackStart, fallbackNow - KILLBOT_EVENTS_PROCESS_OVERLAP_MS)
+  }
+  const anchor = Math.min(lastPolledAtMs, fallbackNow)
+  return Math.max(lookbackStart, anchor - KILLBOT_EVENTS_PROCESS_OVERLAP_MS)
+}
+
+export function isKillbotEventInsideProcessWindow(
+  event: AlbionKillbotEvent,
+  lastPolledAt: string | null,
+  polledAt: string,
+): boolean {
+  const eventMs = new Date(event.TimeStamp).getTime()
+  if (!Number.isFinite(eventMs)) return true
+  return eventMs >= killbotProcessWindowStart(lastPolledAt, polledAt)
 }
 
 async function reserveDelivery(
@@ -503,7 +566,9 @@ export async function runKillbotFeed(db: SupabaseClient): Promise<KillbotRunResu
     }
     result.tenants_ready += 1
     const polledAt = new Date().toISOString()
-    const events = eventsByServer.get(target.server) ?? []
+    const events = (eventsByServer.get(target.server) ?? []).filter((event) =>
+      isKillbotEventInsideProcessWindow(event, config.lastPolledAt, polledAt),
+    )
     let lastSentAt: string | null = null
     let lastError: string | null = null
 
