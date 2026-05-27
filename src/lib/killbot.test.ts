@@ -10,7 +10,7 @@ import {
   type KillbotConfig,
   type KillbotTarget,
 } from './killbot'
-import { KILLBOT_CARD_FONT_FILE } from './killbot-card'
+import { KILLBOT_CARD_FONT_FILE, renderKillbotCardPng } from './killbot-card'
 import type { KillbotVictimValueEstimate } from './killbot-value'
 
 afterEach(() => {
@@ -331,5 +331,47 @@ describe('killbot card font', () => {
   it('resolves the bundled card font used by sharp text rendering', () => {
     expect(KILLBOT_CARD_FONT_FILE).toMatch(/Geist-Regular\.ttf$/)
     expect(existsSync(KILLBOT_CARD_FONT_FILE)).toBe(true)
+  })
+})
+
+describe('killbot card item icons', () => {
+  it('does not keep a transient icon fetch failure cached as an empty slot', async () => {
+    const onePixelPng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
+      'base64',
+    )
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(new Response(onePixelPng, {
+        status: 200,
+        headers: { 'content-type': 'image/png' },
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const sampleEvent = event({
+      Killer: {
+        Id: 'killer',
+        Name: 'Killer',
+        GuildId: 'guild-home',
+        GuildName: 'Menhera',
+        Equipment: {
+          MainHand: { Type: 'T4_MAIN_SWORD_ICON_CACHE_TEST' },
+        },
+      },
+    })
+    const match = {
+      feedType: 'kill' as const,
+      fame: 1200,
+      isJuicy: true,
+      killerName: 'Killer',
+      victimName: 'Victim',
+    }
+
+    await renderKillbotCardPng(sampleEvent, match, target)
+    await renderKillbotCardPng(sampleEvent, match, target)
+
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 })

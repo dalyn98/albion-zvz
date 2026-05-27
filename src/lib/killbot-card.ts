@@ -9,7 +9,9 @@ const CARD_WIDTH = 920
 const CARD_HEIGHT = 760
 const SLOT_SIZE = 66
 const SLOT_RADIUS = 12
-const ICON_TIMEOUT_MS = 2500
+const ICON_TIMEOUT_MS = 6000
+const ICON_FETCH_ATTEMPTS = 2
+const ICON_FETCH_CONCURRENCY = 6
 const INVENTORY_COLS = 12
 const INVENTORY_ROWS = 2
 const INVENTORY_LIMIT = INVENTORY_COLS * INVENTORY_ROWS
@@ -193,11 +195,15 @@ function itemImageUrl(itemId: string): string {
   return `https://render.albiononline.com/v1/item/${encodeURIComponent(itemId)}.png?size=128`
 }
 
-async function fetchIconDataUri(itemId: string): Promise<string | null> {
-  const cached = iconCache.get(itemId)
-  if (cached) return cached
+function iconItemIdCandidates(itemId: string): string[] {
+  const trimmed = itemId.trim()
+  if (!trimmed) return []
+  const base = trimmed.replace(/@\d+$/, '')
+  return base === trimmed ? [trimmed] : [trimmed, base]
+}
 
-  const promise = (async () => {
+async function fetchIconCandidateDataUri(itemId: string): Promise<string | null> {
+  for (let attempt = 1; attempt <= ICON_FETCH_ATTEMPTS; attempt += 1) {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), ICON_TIMEOUT_MS)
     try {
@@ -205,25 +211,57 @@ async function fetchIconDataUri(itemId: string): Promise<string | null> {
         cache: 'force-cache',
         signal: controller.signal,
       })
-      if (!res.ok) return null
+      if (!res.ok) continue
       const contentType = res.headers.get('content-type')?.split(';')[0] || 'image/png'
       const data = Buffer.from(await res.arrayBuffer()).toString('base64')
+      if (!data) continue
       return `data:${contentType};base64,${data}`
     } catch {
-      return null
+      continue
     } finally {
       clearTimeout(timeout)
     }
+  }
+  return null
+}
+
+async function fetchIconDataUri(itemId: string): Promise<string | null> {
+  const cached = iconCache.get(itemId)
+  if (cached) return cached
+
+  const promise = (async () => {
+    for (const candidate of iconItemIdCandidates(itemId)) {
+      const icon = await fetchIconCandidateDataUri(candidate)
+      if (icon) return icon
+    }
+    return null
   })()
 
   iconCache.set(itemId, promise)
+  promise.then((icon) => {
+    if (!icon) iconCache.delete(itemId)
+  }, () => {
+    iconCache.delete(itemId)
+  })
   return promise
 }
 
 async function loadIcons(items: CardItem[]): Promise<Map<string, string | null>> {
   const ids = Array.from(new Set(items.map((item) => item.itemId)))
-  const entries = await Promise.all(ids.map(async (id) => [id, await fetchIconDataUri(id)] as const))
-  return new Map(entries)
+  const icons = new Map<string, string | null>()
+  let nextIndex = 0
+  const workers = Array.from(
+    { length: Math.min(ICON_FETCH_CONCURRENCY, ids.length) },
+    async () => {
+      while (nextIndex < ids.length) {
+        const id = ids[nextIndex]
+        nextIndex += 1
+        icons.set(id, await fetchIconDataUri(id))
+      }
+    },
+  )
+  await Promise.all(workers)
+  return icons
 }
 
 function renderText(args: {
@@ -341,6 +379,13 @@ function itemCountLabel(count: number): string {
   return count > 99 ? '99+' : String(count)
 }
 
+function itemTierLabel(itemId: string): string {
+  const tier = /^T(\d+)/.exec(itemId)?.[1]
+  if (!tier) return 'ITEM'
+  const enchant = /@(\d+)$/.exec(itemId)?.[1]
+  return enchant && enchant !== '0' ? `T${tier}.${enchant}` : `T${tier}`
+}
+
 function renderItemSlot(args: {
   x: number
   y: number
@@ -371,10 +416,23 @@ function renderItemSlot(args: {
       `
       : ''
 
-  if (!icon) {
+  if (!item) {
     return `
       <g filter="url(#slotShadow)">
         ${renderEmptySlot(args.x, args.y, size)}
+      </g>
+    `
+  }
+
+  if (!icon) {
+    return `
+      <g filter="url(#slotShadow)">
+        <rect x="${args.x - 2}" y="${args.y - 2}" width="${size + 4}" height="${size + 4}" rx="${SLOT_RADIUS + 2}" fill="#2b211b" opacity="0.70"/>
+        <rect x="${args.x}" y="${args.y}" width="${size}" height="${size}" rx="${SLOT_RADIUS}" fill="#6d4b31"/>
+        <rect x="${args.x + 5}" y="${args.y + 5}" width="${size - 10}" height="${size - 10}" rx="${SLOT_RADIUS - 4}" fill="#b68154" opacity="0.58"/>
+        <rect x="${args.x + 1.5}" y="${args.y + 1.5}" width="${size - 3}" height="${size - 3}" rx="${SLOT_RADIUS}" fill="none" stroke="#2a1d14" stroke-width="3" opacity="0.65"/>
+        <rect x="${args.x + 4}" y="${args.y + 4}" width="${size - 8}" height="${size - 8}" rx="${SLOT_RADIUS - 3}" fill="none" stroke="#fff1c9" stroke-width="2.5" opacity="0.72"/>
+        <rect x="${args.x + 0.5}" y="${args.y + 0.5}" width="${size - 1}" height="${size - 1}" rx="${SLOT_RADIUS}" fill="none" stroke="#f9d48c" stroke-width="1.5" opacity="0.52"/>
       </g>
     `
   }
@@ -422,8 +480,23 @@ function itemSlotText(args: {
   size?: number
 }): TextLayer[] {
   const size = args.size ?? SLOT_SIZE
-  if (!args.item || args.item.count <= 1 || !args.icons.get(args.item.itemId)) return []
+  if (!args.item) return []
   const badge = countBadgeMetrics(args.x, args.y, size)
+  if (!args.icons.get(args.item.itemId)) {
+    return [
+      textLayer({
+        x: args.x + size / 2,
+        y: args.y + size / 2 + (size < 50 ? 4 : 6),
+        value: itemTierLabel(args.item.itemId),
+        size: size < 50 ? 10 : 16,
+        weight: 900,
+        fill: '#fff3df',
+        anchor: 'middle',
+        width: size,
+      }),
+    ]
+  }
+  if (args.item.count <= 1) return []
   const value = itemCountLabel(args.item.count)
   const baseLayer = {
     value,
