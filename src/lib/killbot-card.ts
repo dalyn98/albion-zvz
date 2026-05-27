@@ -6,7 +6,7 @@ import type { KillbotVictimValueEstimate } from '@/lib/killbot-value'
 import type { AlbionKillbotEvent, KillbotMatch, KillbotTarget } from '@/lib/killbot'
 
 const CARD_WIDTH = 920
-const CARD_HEIGHT = 650
+const CARD_HEIGHT = 760
 const SLOT_SIZE = 66
 const SLOT_RADIUS = 12
 const ICON_TIMEOUT_MS = 2500
@@ -15,7 +15,7 @@ const INVENTORY_ROWS = 2
 const INVENTORY_LIMIT = INVENTORY_COLS * INVENTORY_ROWS
 const INVENTORY_SLOT_SIZE = 42
 const INVENTORY_START_X = 158
-const INVENTORY_START_Y = 546
+const INVENTORY_START_Y = 656
 const INVENTORY_GAP_X = 9
 const INVENTORY_GAP_Y = 4
 const CARD_FONT_FAMILY = 'Geist'
@@ -46,27 +46,29 @@ interface TextLayer {
 }
 
 const LEFT_EQUIPMENT_LAYOUT: Array<{ slot: EquipmentSlot; x: number; y: number }> = [
-  { slot: 'Cape', x: 116, y: 318 },
-  { slot: 'Head', x: 198, y: 318 },
-  { slot: 'MainHand', x: 280, y: 318 },
-  { slot: 'Potion', x: 116, y: 388 },
-  { slot: 'Armor', x: 198, y: 388 },
-  { slot: 'OffHand', x: 280, y: 388 },
-  { slot: 'Food', x: 116, y: 458 },
-  { slot: 'Shoes', x: 198, y: 458 },
-  { slot: 'Mount', x: 280, y: 458 },
+  { slot: 'Bag', x: 104, y: 328 },
+  { slot: 'Head', x: 207, y: 328 },
+  { slot: 'Cape', x: 310, y: 328 },
+  { slot: 'MainHand', x: 104, y: 402 },
+  { slot: 'Armor', x: 207, y: 402 },
+  { slot: 'OffHand', x: 310, y: 402 },
+  { slot: 'Potion', x: 104, y: 476 },
+  { slot: 'Shoes', x: 207, y: 476 },
+  { slot: 'Food', x: 310, y: 476 },
+  { slot: 'Mount', x: 207, y: 550 },
 ]
 
 const RIGHT_EQUIPMENT_LAYOUT: Array<{ slot: EquipmentSlot; x: number; y: number }> = [
-  { slot: 'MainHand', x: 558, y: 318 },
-  { slot: 'Head', x: 640, y: 318 },
-  { slot: 'Cape', x: 722, y: 318 },
-  { slot: 'OffHand', x: 558, y: 388 },
-  { slot: 'Armor', x: 640, y: 388 },
-  { slot: 'Potion', x: 722, y: 388 },
-  { slot: 'Mount', x: 558, y: 458 },
-  { slot: 'Shoes', x: 640, y: 458 },
-  { slot: 'Food', x: 722, y: 458 },
+  { slot: 'Bag', x: 544, y: 328 },
+  { slot: 'Head', x: 647, y: 328 },
+  { slot: 'Cape', x: 750, y: 328 },
+  { slot: 'MainHand', x: 544, y: 402 },
+  { slot: 'Armor', x: 647, y: 402 },
+  { slot: 'OffHand', x: 750, y: 402 },
+  { slot: 'Potion', x: 544, y: 476 },
+  { slot: 'Shoes', x: 647, y: 476 },
+  { slot: 'Food', x: 750, y: 476 },
+  { slot: 'Mount', x: 647, y: 550 },
 ]
 
 function escapeText(value: string): string {
@@ -701,17 +703,17 @@ function buildSvg(args: {
       <rect x="342" y="166" width="245" height="86" rx="18" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.22"/>
       <rect x="624" y="166" width="245" height="86" rx="18" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.22"/>
 
-      <rect x="42" y="266" width="396" height="266" rx="22" fill="#e3bf95" opacity="0.88"/>
-      <rect x="42" y="266" width="6" height="266" rx="3" fill="#28c76f"/>
-      <rect x="482" y="266" width="396" height="266" rx="22" fill="#e3bf95" opacity="0.88"/>
-      <rect x="872" y="266" width="6" height="266" rx="3" fill="#e5574f"/>
-      <rect x="42" y="266" width="396" height="266" rx="22" fill="none" stroke="#fff0cf" stroke-width="1.5" opacity="0.52"/>
-      <rect x="482" y="266" width="396" height="266" rx="22" fill="none" stroke="#fff0cf" stroke-width="1.5" opacity="0.52"/>
+      <rect x="42" y="266" width="396" height="356" rx="22" fill="#e3bf95" opacity="0.88"/>
+      <rect x="42" y="266" width="6" height="356" rx="3" fill="#28c76f"/>
+      <rect x="482" y="266" width="396" height="356" rx="22" fill="#e3bf95" opacity="0.88"/>
+      <rect x="872" y="266" width="6" height="356" rx="3" fill="#e5574f"/>
+      <rect x="42" y="266" width="396" height="356" rx="22" fill="none" stroke="#fff0cf" stroke-width="1.5" opacity="0.52"/>
+      <rect x="482" y="266" width="396" height="356" rx="22" fill="none" stroke="#fff0cf" stroke-width="1.5" opacity="0.52"/>
 
       ${renderEquipmentGroup({ layout: LEFT_EQUIPMENT_LAYOUT, equipment: args.leftEquipment, icons: args.icons })}
       ${renderEquipmentGroup({ layout: RIGHT_EQUIPMENT_LAYOUT, equipment: args.rightEquipment, icons: args.icons })}
 
-      <rect x="42" y="532" width="836" height="104" rx="20" fill="#e8c79f" opacity="0.90"/>
+      <rect x="42" y="642" width="836" height="100" rx="20" fill="#e8c79f" opacity="0.90"/>
       ${renderInventory({ items: args.inventory, icons: args.icons })}
     </svg>
   `

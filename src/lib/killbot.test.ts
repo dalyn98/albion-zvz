@@ -225,7 +225,7 @@ describe('buildKillbotDiscordPayload', () => {
     expect(file.data.byteLength).toBeGreaterThan(1000)
     const { default: sharp } = await import('sharp')
     const metadata = await sharp(file.data).metadata()
-    expect(metadata).toMatchObject({ width: 920, height: 650, format: 'png' })
+    expect(metadata).toMatchObject({ width: 920, height: 760, format: 'png' })
     expect(message.payload.embeds[0]?.image?.url).toBe('attachment://killbot-card.png')
     expect(message.payload.embeds[0]?.thumbnail).toBeUndefined()
   })
