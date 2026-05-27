@@ -621,18 +621,16 @@ export async function sendKillbotTestMessage(
   const payload = { ...message.payload, content: undefined }
   const firstEmbed = payload.embeds[0]
   if (!firstEmbed) throw new Error('killbot test payload missing embed')
-  const firstEmbedFields = firstEmbed?.fields ?? []
   payload.embeds[0] = {
     ...firstEmbed,
     title: 'AlbionGuildManager Killbot test',
-    description: target.homeGuildName
-      ? `Notifications are ready for ${target.homeGuildName}. This is a preview of the rich kill embed.`
-      : 'Notification delivery works, but the Albion home guild is not configured yet.',
-    fields: [
-      { name: 'Server', value: target.server ?? 'Not configured', inline: true },
-      { name: 'Channel', value: `<#${channelId}>`, inline: true },
-      ...firstEmbedFields,
-    ],
+    description: [
+      target.homeGuildName
+        ? `Notifications are ready for ${target.homeGuildName}.`
+        : 'Notification delivery works, but the Albion home guild is not configured yet.',
+      `Server ${target.server ?? 'Not configured'} · Channel <#${channelId}>`,
+    ].join('\n'),
+    fields: undefined,
   }
   const testMessage = { ...message, payload }
 

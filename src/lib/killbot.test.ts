@@ -159,14 +159,8 @@ describe('buildKillbotDiscordPayload', () => {
       },
     })
     const mainEmbed = payload.embeds[0]
-    if (!('fields' in mainEmbed)) throw new Error('expected main embed fields')
-    expect(mainEmbed.fields).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ name: 'Fame', value: '1,200' }),
-        expect.objectContaining({ name: 'Battle', value: '[77](https://albiononline.com/killboard/battles/77)' }),
-        expect.objectContaining({ name: 'Event', value: '[1](https://albiononline.com/killboard/kill/1)' }),
-      ]),
-    )
+    expect(mainEmbed.fields).toBeUndefined()
+    expect(mainEmbed.description).toContain('Menhera kill · Juicy · Fame 1,200 · Battle 77')
     expect(mainEmbed.description).toContain('Participants: Assistant')
     expect(mainEmbed.footer?.text).toBe('Powered by Albion Guild Manager · Killbot')
   })

@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer'
-import sharp from 'sharp'
+import path from 'node:path'
+import sharp, { type OverlayOptions } from 'sharp'
 import { EQUIPMENT_SLOTS, type EquipmentItem } from '@/lib/auto-regear-equipment'
 import type { AlbionKillbotEvent, KillbotMatch, KillbotTarget } from '@/lib/killbot'
 
@@ -11,6 +12,16 @@ const ICON_TIMEOUT_MS = 2500
 const INVENTORY_COLS = 9
 const INVENTORY_ROWS = 3
 const INVENTORY_LIMIT = INVENTORY_COLS * INVENTORY_ROWS
+const INVENTORY_SLOT_SIZE = 58
+const INVENTORY_START_X = 70
+const INVENTORY_START_Y = 438
+const INVENTORY_GAP_X = 18
+const INVENTORY_GAP_Y = 8
+const CARD_FONT_FAMILY = 'Geist'
+const CARD_FONT_FILE = path.join(
+  process.cwd(),
+  'node_modules/next/dist/compiled/@vercel/og/Geist-Regular.ttf',
+)
 
 const iconCache = new Map<string, Promise<string | null>>()
 
@@ -21,28 +32,40 @@ interface CardItem {
 
 type EquipmentSlot = (typeof EQUIPMENT_SLOTS)[number]
 
+interface TextLayer {
+  x: number
+  y: number
+  value: string
+  size: number
+  weight?: number
+  fill?: string
+  anchor?: 'start' | 'middle' | 'end'
+  opacity?: number
+  width?: number
+}
+
 const LEFT_EQUIPMENT_LAYOUT: Array<{ slot: EquipmentSlot; x: number; y: number }> = [
-  { slot: 'MainHand', x: 70, y: 108 },
+  { slot: 'Cape', x: 70, y: 108 },
   { slot: 'Head', x: 158, y: 108 },
-  { slot: 'Cape', x: 246, y: 108 },
-  { slot: 'OffHand', x: 70, y: 198 },
+  { slot: 'MainHand', x: 246, y: 108 },
+  { slot: 'Potion', x: 70, y: 198 },
   { slot: 'Armor', x: 158, y: 198 },
-  { slot: 'Potion', x: 246, y: 198 },
-  { slot: 'Mount', x: 70, y: 288 },
+  { slot: 'OffHand', x: 246, y: 198 },
+  { slot: 'Food', x: 70, y: 288 },
   { slot: 'Shoes', x: 158, y: 288 },
-  { slot: 'Food', x: 246, y: 288 },
+  { slot: 'Mount', x: 246, y: 288 },
 ]
 
 const RIGHT_EQUIPMENT_LAYOUT: Array<{ slot: EquipmentSlot; x: number; y: number }> = [
-  { slot: 'Cape', x: 604, y: 108 },
+  { slot: 'MainHand', x: 604, y: 108 },
   { slot: 'Head', x: 692, y: 108 },
-  { slot: 'MainHand', x: 780, y: 108 },
-  { slot: 'Potion', x: 604, y: 198 },
+  { slot: 'Cape', x: 780, y: 108 },
+  { slot: 'OffHand', x: 604, y: 198 },
   { slot: 'Armor', x: 692, y: 198 },
-  { slot: 'OffHand', x: 780, y: 198 },
-  { slot: 'Food', x: 604, y: 288 },
+  { slot: 'Potion', x: 780, y: 198 },
+  { slot: 'Mount', x: 604, y: 288 },
   { slot: 'Shoes', x: 692, y: 288 },
-  { slot: 'Mount', x: 780, y: 288 },
+  { slot: 'Food', x: 780, y: 288 },
 ]
 
 function escapeText(value: string): string {
@@ -168,11 +191,63 @@ function renderText(args: {
   anchor?: 'start' | 'middle' | 'end'
   opacity?: number
 }): string {
-  const anchor = args.anchor ?? 'start'
-  const weight = args.weight ?? 600
-  const fill = args.fill ?? '#211c1c'
-  const opacity = args.opacity ?? 1
-  return `<text x="${args.x}" y="${args.y}" text-anchor="${anchor}" font-size="${args.size}" font-weight="${weight}" fill="${fill}" opacity="${opacity}">${escapeText(args.value)}</text>`
+  void args
+  return ''
+}
+
+function textLayer(args: TextLayer): TextLayer {
+  return args
+}
+
+function pangoEscape(value: string): string {
+  return escapeText(value).replace(/"/g, '&quot;')
+}
+
+function truncateCardText(value: string, maxLength: number): string {
+  return value.length <= maxLength ? value : `${value.slice(0, Math.max(0, maxLength - 1))}…`
+}
+
+function textLayerWidth(layer: TextLayer): number {
+  if (layer.width) return layer.width
+  if (layer.anchor === 'middle') return Math.max(40, Math.ceil(layer.value.length * layer.size * 0.68 + 24))
+  if (layer.anchor === 'end') return 300
+  return Math.max(40, Math.ceil(layer.value.length * layer.size * 0.68 + 16))
+}
+
+function textLayerLeft(layer: TextLayer, width: number): number {
+  if (layer.anchor === 'middle') return Math.round(layer.x - width / 2)
+  if (layer.anchor === 'end') return Math.round(layer.x - width)
+  return Math.round(layer.x)
+}
+
+function textLayerAlign(layer: TextLayer): 'left' | 'center' | 'right' {
+  if (layer.anchor === 'middle') return 'center'
+  if (layer.anchor === 'end') return 'right'
+  return 'left'
+}
+
+function textLayerTop(layer: TextLayer): number {
+  return Math.max(0, Math.round(layer.y - layer.size * 1.05))
+}
+
+function textToComposite(layer: TextLayer): OverlayOptions | null {
+  if (!layer.value || layer.opacity === 0) return null
+  const width = textLayerWidth(layer)
+  const fill = layer.fill ?? '#211c1c'
+  return {
+    input: {
+      text: {
+        text: `<span foreground="${fill}">${pangoEscape(layer.value)}</span>`,
+        font: `${CARD_FONT_FAMILY} ${layer.size}`,
+        fontfile: CARD_FONT_FILE,
+        width,
+        align: textLayerAlign(layer),
+        rgba: true,
+      },
+    },
+    left: textLayerLeft(layer, width),
+    top: textLayerTop(layer),
+  }
 }
 
 function renderEmptySlot(x: number, y: number, size = SLOT_SIZE): string {
@@ -251,26 +326,78 @@ function renderEquipmentGroup(args: {
     .join('')
 }
 
+function itemSlotText(args: {
+  x: number
+  y: number
+  item: CardItem | null | undefined
+  icons: Map<string, string | null>
+  size?: number
+}): TextLayer[] {
+  const size = args.size ?? SLOT_SIZE
+  if (!args.item || args.item.count <= 1 || !args.icons.get(args.item.itemId)) return []
+  return [
+    textLayer({
+      x: args.x + size - 16,
+      y: args.y + size - 8,
+      value: args.item.count > 99 ? '99+' : String(args.item.count),
+      size: 11,
+      weight: 800,
+      fill: '#fff3df',
+      anchor: 'middle',
+      width: 30,
+    }),
+  ]
+}
+
+function equipmentTextLayers(args: {
+  layout: Array<{ slot: EquipmentSlot; x: number; y: number }>
+  equipment: Partial<Record<EquipmentSlot, CardItem>>
+  icons: Map<string, string | null>
+}): TextLayer[] {
+  return args.layout.flatMap((entry) =>
+    itemSlotText({
+      x: entry.x,
+      y: entry.y,
+      item: args.equipment[entry.slot],
+      icons: args.icons,
+    }),
+  )
+}
+
 function renderInventory(args: { items: CardItem[]; icons: Map<string, string | null> }): string {
-  const startX = 70
-  const startY = 442
-  const size = 62
-  const gap = 16
   const slots: string[] = []
   for (let i = 0; i < INVENTORY_LIMIT; i += 1) {
     const col = i % INVENTORY_COLS
     const row = Math.floor(i / INVENTORY_COLS)
     slots.push(
       renderItemSlot({
-        x: startX + col * (size + gap),
-        y: startY + row * (size + 14),
+        x: INVENTORY_START_X + col * (INVENTORY_SLOT_SIZE + INVENTORY_GAP_X),
+        y: INVENTORY_START_Y + row * (INVENTORY_SLOT_SIZE + INVENTORY_GAP_Y),
         item: args.items[i],
         icons: args.icons,
-        size,
+        size: INVENTORY_SLOT_SIZE,
       }),
     )
   }
   return slots.join('')
+}
+
+function inventoryTextLayers(items: CardItem[], icons: Map<string, string | null>): TextLayer[] {
+  const layers: TextLayer[] = []
+  for (let i = 0; i < INVENTORY_LIMIT; i += 1) {
+    const col = i % INVENTORY_COLS
+    const row = Math.floor(i / INVENTORY_COLS)
+    layers.push(
+      ...itemSlotText({
+        x: INVENTORY_START_X + col * (INVENTORY_SLOT_SIZE + INVENTORY_GAP_X),
+        y: INVENTORY_START_Y + row * (INVENTORY_SLOT_SIZE + INVENTORY_GAP_Y),
+        item: items[i],
+        icons,
+        size: INVENTORY_SLOT_SIZE,
+      }),
+    )
+  }
+  return layers
 }
 
 function renderPlayerHeader(args: {
@@ -304,6 +431,173 @@ function renderPlayerHeader(args: {
       opacity: ipText ? 1 : 0,
     })}
   `
+}
+
+function playerHeaderTextLayers(args: {
+  x: number
+  y: number
+  name: string
+  guildLine: string
+  ip: string
+  anchor: 'start' | 'end'
+}): TextLayer[] {
+  const width = args.anchor === 'end' ? 290 : 300
+  const ipText = args.ip ? `IP ${args.ip}` : ''
+  return [
+    textLayer({
+      x: args.x,
+      y: args.y,
+      value: truncateCardText(args.name, 24),
+      size: 25,
+      weight: 800,
+      anchor: args.anchor,
+      width,
+    }),
+    textLayer({
+      x: args.x,
+      y: args.y + 26,
+      value: truncateCardText(args.guildLine, 32),
+      size: 16,
+      weight: 700,
+      fill: '#5f4631',
+      anchor: args.anchor,
+      width,
+    }),
+    textLayer({
+      x: args.x,
+      y: args.y + 48,
+      value: ipText,
+      size: 14,
+      weight: 800,
+      fill: '#876143',
+      anchor: args.anchor,
+      opacity: ipText ? 1 : 0,
+      width,
+    }),
+  ]
+}
+
+function buildTextLayers(args: {
+  event: AlbionKillbotEvent
+  match: KillbotMatch
+  target: KillbotTarget
+  leftEquipment: Partial<Record<EquipmentSlot, CardItem>>
+  rightEquipment: Partial<Record<EquipmentSlot, CardItem>>
+  inventory: CardItem[]
+  icons: Map<string, string | null>
+}): TextLayer[] {
+  const killerName = playerName(args.event.Killer)
+  const victimName = playerName(args.event.Victim)
+  const killerGuild = playerGuildLine(args.event.Killer)
+  const victimGuild = playerGuildLine(args.event.Victim)
+  const killerIp = playerIp(args.event.Killer)
+  const victimIp = playerIp(args.event.Victim)
+  const homeGuild = args.target.homeGuildName || 'Albion Guild Manager'
+  const eventDate = formatEventDate(args.event.TimeStamp)
+  const battleId = Number(args.event.BattleId)
+  const battleText = Number.isFinite(battleId) && battleId > 0
+    ? `BATTLE #${Math.trunc(battleId)}`
+    : `EVENT #${args.event.EventId}`
+
+  return [
+    ...playerHeaderTextLayers({
+      x: 70,
+      y: 64,
+      name: killerName,
+      guildLine: killerGuild,
+      ip: killerIp,
+      anchor: 'start',
+    }),
+    ...playerHeaderTextLayers({
+      x: 850,
+      y: 64,
+      name: victimName,
+      guildLine: victimGuild,
+      ip: victimIp,
+      anchor: 'end',
+    }),
+    textLayer({
+      x: 460,
+      y: 80,
+      value: battleText,
+      size: 13,
+      weight: 900,
+      fill: '#7a563a',
+      anchor: 'middle',
+      width: 260,
+    }),
+    textLayer({
+      x: 460,
+      y: 132,
+      value: formatNumber(args.match.fame),
+      size: 24,
+      weight: 900,
+      fill: '#2b2321',
+      anchor: 'middle',
+      width: 220,
+    }),
+    textLayer({
+      x: 460,
+      y: 154,
+      value: 'KILL FAME',
+      size: 13,
+      weight: 900,
+      fill: '#7a563a',
+      anchor: 'middle',
+      width: 150,
+    }),
+    textLayer({
+      x: 460,
+      y: 226,
+      value: args.match.feedType === 'kill' ? 'KILL' : 'DEATH',
+      size: 18,
+      weight: 900,
+      fill: '#f6dfbd',
+      anchor: 'middle',
+      width: 90,
+    }),
+    textLayer({
+      x: 460,
+      y: 250,
+      value: truncateCardText(homeGuild, 20),
+      size: 11,
+      weight: 800,
+      fill: '#d7b789',
+      anchor: 'middle',
+      width: 120,
+    }),
+    textLayer({
+      x: 460,
+      y: 322,
+      value: eventDate,
+      size: 15,
+      weight: 800,
+      fill: '#5c4432',
+      anchor: 'middle',
+      width: 240,
+    }),
+    textLayer({
+      x: 460,
+      y: 412,
+      value: "VICTIM'S INVENTORY",
+      size: 16,
+      weight: 900,
+      fill: '#513b2a',
+      anchor: 'middle',
+      width: 250,
+    }),
+    ...equipmentTextLayers({
+      layout: LEFT_EQUIPMENT_LAYOUT,
+      equipment: args.leftEquipment,
+      icons: args.icons,
+    }),
+    ...equipmentTextLayers({
+      layout: RIGHT_EQUIPMENT_LAYOUT,
+      equipment: args.rightEquipment,
+      icons: args.icons,
+    }),
+    ...inventoryTextLayers(args.inventory, args.icons),
+  ]
 }
 
 function buildSvg(args: {
@@ -390,5 +684,17 @@ export async function renderKillbotCardPng(
     inventory,
     icons,
   })
-  return sharp(Buffer.from(svg)).png().toBuffer()
+  const textComposites = buildTextLayers({
+    event,
+    match,
+    target,
+    leftEquipment,
+    rightEquipment,
+    inventory,
+    icons,
+  })
+    .map(textToComposite)
+    .filter((overlay): overlay is OverlayOptions => overlay !== null)
+  const base = sharp(Buffer.from(svg))
+  return (textComposites.length > 0 ? base.composite(textComposites) : base).png().toBuffer()
 }

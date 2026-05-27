@@ -8,7 +8,6 @@ import type {
 } from '@/lib/killbot'
 
 const DISCORD_API = 'https://discord.com/api/v10'
-const DISCORD_FIELD_VALUE_LIMIT = 1024
 const DISCORD_TITLE_LIMIT = 256
 const DISCORD_INLINE_FIELD_LIMIT = 25
 const KILLBOT_CARD_FILENAME = 'killbot-card.png'
@@ -53,12 +52,6 @@ function eventTimeOrNull(event: AlbionKillbotEvent): string | null {
 
 function killboardUrl(eventId: number): string {
   return `https://albiononline.com/killboard/kill/${eventId}`
-}
-
-function battleUrl(event: AlbionKillbotEvent): string | null {
-  const battleId = Number(event.BattleId)
-  if (!Number.isFinite(battleId) || battleId <= 0) return null
-  return `https://albiononline.com/killboard/battles/${Math.trunc(battleId)}`
 }
 
 function formatFame(value: number): string {
@@ -122,7 +115,28 @@ function participantSummary(event: AlbionKillbotEvent): string | null {
 
   const uniqueNames = Array.from(new Set(names)).slice(0, DISCORD_INLINE_FIELD_LIMIT)
   if (uniqueNames.length === 0) return null
-  return truncateDiscord(uniqueNames.join(', '), DISCORD_FIELD_VALUE_LIMIT)
+  return truncateDiscord(uniqueNames.join(', '), 240)
+}
+
+function compactDescription(args: {
+  event: AlbionKillbotEvent
+  match: KillbotMatch
+  homeGuild: string
+  participants: string | null
+}): string {
+  const battleId = Number(args.event.BattleId)
+  const battlePart = Number.isFinite(battleId) && battleId > 0
+    ? `Battle ${Math.trunc(battleId)}`
+    : `Event ${args.event.EventId}`
+  const typePart = args.match.feedType === 'kill'
+    ? `${args.homeGuild} kill${args.match.isJuicy ? ' · Juicy' : ''}`
+    : `${args.homeGuild} death${args.match.isJuicy ? ' · Juicy' : ''}`
+  return [
+    `${typePart} · Fame ${formatFame(args.match.fame)} · ${battlePart}`,
+    args.participants ? `Participants: ${args.participants}` : null,
+  ]
+    .filter((line): line is string => !!line)
+    .join('\n')
 }
 
 export function buildKillbotDiscordPayload(
@@ -140,18 +154,8 @@ export function buildKillbotDiscordPayload(
   const victimEquipment = equipmentEntries(event.Victim)
   const primaryItem = victimEquipment.find((entry) => entry.slot === 'MainHand') ?? victimEquipment[0]
   const eventUrl = killboardUrl(eventId)
-  const battleLink = battleUrl(event)
   const homeGuild = target.homeGuildName || 'Home guild'
   const participants = participantSummary(event)
-  const fields: DiscordEmbed['fields'] = [
-    { name: 'Fame', value: formatFame(match.fame), inline: true },
-    {
-      name: 'Battle',
-      value: battleLink ? `[${event.BattleId}](${battleLink})` : 'Unknown',
-      inline: true,
-    },
-    { name: 'Event', value: `[${eventId}](${eventUrl})`, inline: true },
-  ]
 
   return {
     content: config.mentionRoleId ? `<@&${config.mentionRoleId}>` : undefined,
@@ -166,15 +170,7 @@ export function buildKillbotDiscordPayload(
         author: { name: `${homeGuild} Killbot` },
         timestamp: eventTimeOrNull(event) ?? undefined,
         thumbnail: primaryItem ? { url: itemImageUrl(primaryItem.itemId) } : undefined,
-        description: [
-          match.feedType === 'kill'
-            ? `${homeGuild} kill${match.isJuicy ? ' · Juicy' : ''}`
-            : `${homeGuild} death${match.isJuicy ? ' · Juicy' : ''}`,
-          participants ? `Participants: ${participants}` : null,
-        ]
-          .filter((line): line is string => !!line)
-          .join('\n'),
-        fields,
+        description: compactDescription({ event, match, homeGuild, participants }),
         footer: { text: 'Powered by Albion Guild Manager · Killbot' },
       },
     ],
