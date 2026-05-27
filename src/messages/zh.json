@@ -4281,13 +4281,28 @@
     "closeAriaLabel": "关闭",
     "emptyStock": "商店暂无库存。",
     "emptySearch": "无搜索结果。",
+    "qualityLabel": "品质",
+    "stockLabel": "库存",
+    "itemType": {
+      "weapon": "武器",
+      "head": "头部",
+      "armor": "护甲",
+      "shoes": "鞋子",
+      "offhand": "副手",
+      "cape": "披风",
+      "bag": "背包",
+      "mount": "坐骑",
+      "potion": "药水",
+      "food": "食物",
+      "other": "其他"
+    },
     "tile": {
       "stockPrefix": "库存 {stock} 件",
       "cartPrefix": "购物车中 {qty}",
       "resetHint": "点击清除"
     },
     "cart": {
-      "empty": "点击物品图标将其加入购物车。",
+      "empty": "将物品加入购物车。",
       "totalLabel": "合计",
       "insufficient": "(余额不足)",
       "notePlaceholder": "给管理员的备注(可选)",

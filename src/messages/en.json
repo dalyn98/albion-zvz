@@ -4281,13 +4281,28 @@
     "closeAriaLabel": "Close",
     "emptyStock": "The shop is out of stock.",
     "emptySearch": "No results.",
+    "qualityLabel": "Quality",
+    "stockLabel": "Stock",
+    "itemType": {
+      "weapon": "Weapon",
+      "head": "Head",
+      "armor": "Armor",
+      "shoes": "Shoes",
+      "offhand": "Offhand",
+      "cape": "Cape",
+      "bag": "Bag",
+      "mount": "Mount",
+      "potion": "Potion",
+      "food": "Food",
+      "other": "Other"
+    },
     "tile": {
       "stockPrefix": "Stock: {stock}",
       "cartPrefix": "In cart: {qty}",
       "resetHint": "Click to clear"
     },
     "cart": {
-      "empty": "Click a tile to add it to your cart.",
+      "empty": "Add items to your cart.",
       "totalLabel": "Total",
       "insufficient": "(insufficient)",
       "notePlaceholder": "Note to admin (optional)",

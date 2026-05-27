@@ -15,7 +15,8 @@ import {
   Info,
 } from 'lucide-react'
 import { submitShopOrder } from '@/app/actions/shop-member'
-import { getLocalizedItemName } from '@/lib/item-names'
+import { getLocalizedItemName, stripLocalizedTierName } from '@/lib/item-names'
+import { categorizeGearItem, type GearSlot } from '@/lib/inventory-types'
 import type { Locale } from '@/i18n/locales'
 import AlbionItemImage from './AlbionItemImage'
 import HoverTip from './HoverTip'
@@ -65,8 +66,14 @@ interface Props {
 }
 
 interface CartLine {
-  item: CatalogItem
+  item: CatalogDisplayItem
   qty: number
+}
+
+interface CatalogDisplayItem extends CatalogItem {
+  displayName: string
+  localizedName: string
+  originalName: string
 }
 
 const QUALITY_RING: Record<number, string> = {
@@ -77,10 +84,45 @@ const QUALITY_RING: Record<number, string> = {
   5: 'ring-amber-300/90',
 }
 
+type ShopItemTypeKey =
+  | GearSlot
+  | 'mount'
+  | 'potion'
+  | 'food'
+
+const SHOP_ITEM_TYPE_KEYS = new Set<string>([
+  'weapon',
+  'head',
+  'armor',
+  'shoes',
+  'offhand',
+  'cape',
+  'bag',
+  'mount',
+  'potion',
+  'food',
+  'other',
+])
+
 function imageUrl(uniqueName: string, enchant: number, quality: number, size = 96): string {
   const id = enchant > 0 ? `${uniqueName}@${enchant}` : uniqueName
   const params = new URLSearchParams({ quality: String(quality), size: String(size) })
   return `https://render.albiononline.com/v1/item/${id}.png?${params.toString()}`
+}
+
+function tierEnchantLabel(item: CatalogItem): string {
+  if (item.tier == null) return '-'
+  return `${item.tier}.${item.enchant}`
+}
+
+function shopItemTypeKey(item: CatalogItem): ShopItemTypeKey {
+  const slot = categorizeGearItem(item.uniqueName).slot
+  if (slot !== 'other') return slot
+  const category = item.category?.toLowerCase()
+  if (category && SHOP_ITEM_TYPE_KEYS.has(category)) {
+    return category as ShopItemTypeKey
+  }
+  return 'other'
 }
 
 export default function ShopCatalog({
@@ -102,11 +144,18 @@ export default function ShopCatalog({
   const [pending, startTransition] = useTransition()
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
 
-  const localizedItems = useMemo<CatalogItem[]>(() => {
-    return items.map((it) => ({
-      ...it,
-      nameKo: getLocalizedItemName(it.uniqueName, locale, it.nameKo) ?? it.nameKo,
-    }))
+  const localizedItems = useMemo<CatalogDisplayItem[]>(() => {
+    return items.map((it) => {
+      const localizedName = getLocalizedItemName(it.uniqueName, locale, it.nameKo) ?? it.nameKo
+      const displayName = stripLocalizedTierName(localizedName, locale) || localizedName
+      return {
+        ...it,
+        nameKo: localizedName,
+        displayName,
+        localizedName,
+        originalName: it.nameKo,
+      }
+    })
   }, [items, locale])
 
   const filtered = useMemo(() => {
@@ -115,8 +164,12 @@ export default function ShopCatalog({
       if (tier !== 'all' && it.tier !== tier) return false
       if (!q) return true
       return (
-        it.nameKo.toLowerCase().includes(q) ||
-        it.uniqueName.toLowerCase().includes(q)
+        it.displayName.toLowerCase().includes(q) ||
+        it.localizedName.toLowerCase().includes(q) ||
+        it.originalName.toLowerCase().includes(q) ||
+        it.uniqueName.toLowerCase().includes(q) ||
+        tierEnchantLabel(it).includes(q) ||
+        shopItemTypeKey(it).toLowerCase().includes(q)
       )
     })
   }, [localizedItems, query, tier])
@@ -125,7 +178,7 @@ export default function ShopCatalog({
   const totalPoints = cart.reduce((s, l) => s + l.qty * l.item.pointPrice, 0)
   const insufficient = totalPoints > balance
 
-  const addToCart = (item: CatalogItem) => {
+  const addToCart = (item: CatalogDisplayItem) => {
     setCart((prev) => {
       const existing = prev.find((l) => l.item.id === item.id)
       if (!existing) return [...prev, { item, qty: 1 }]
@@ -262,25 +315,15 @@ export default function ShopCatalog({
           </div>
         )}
 
-        {/* 인게임 상자처럼 파치먼트 배경 위에 아이템 슬롯 그리드 */}
-        <div
-          className="rounded-xl p-3 sm:p-4"
-          style={{
-            background:
-              'linear-gradient(145deg, #3a2d1f 0%, #2a1f15 40%, #1f170f 100%)',
-            border: '1px solid #6b5033',
-            boxShadow:
-              'inset 0 0 30px rgba(0,0,0,0.4), inset 0 0 2px rgba(255,218,150,0.2)',
-          }}
-        >
+        <div className="rounded-xl border border-gray-800 bg-gray-900/40">
           {filtered.length === 0 ? (
-            <p className="text-amber-100/80 text-base text-center py-12 font-medium">
+            <p className="text-gray-300 text-base text-center py-12 font-medium">
               {items.length === 0 ? t('emptyStock') : t('emptySearch')}
             </p>
           ) : (
-            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-6 xl:grid-cols-8 gap-1.5 sm:gap-2">
+            <div className="divide-y divide-gray-800">
               {filtered.map((item) => (
-                <ShopTile
+                <ShopItemRow
                   key={item.id}
                   item={item}
                   cartQty={cart.find((l) => l.item.id === item.id)?.qty ?? 0}
@@ -359,13 +402,13 @@ export default function ShopCatalog({
   )
 }
 
-function ShopTile({
+function ShopItemRow({
   item,
   cartQty,
   onAdd,
   disabled,
 }: {
-  item: CatalogItem
+  item: CatalogDisplayItem
   cartQty: number
   onAdd: () => void
   disabled: boolean
@@ -373,120 +416,118 @@ function ShopTile({
   const t = useTranslations('shop')
   const tc = useTranslations('shopCatalog')
   const quality = t(`quality.${qualityKey(item.quality)}`)
+  const typeLabel = tc(`itemType.${shopItemTypeKey(item)}`)
+  const tierEnchant = tierEnchantLabel(item)
   const qualityRing = QUALITY_RING[item.quality] ?? QUALITY_RING[1]
   const inCart = cartQty > 0
-  // 장바구니에 담긴 타일은 quality ring 을 덮어쓰고 에메랄드로 강하게 표시 —
-  // "선택됨" 상태가 한눈에 들어오도록 외곽 링과 이너 글로우를 함께 바꾼다.
-  const ringClass = inCart ? 'ring-2 ring-emerald-400' : `ring-1 ${qualityRing}`
   const atMax = cartQty >= item.stock
 
-  // aria-label 에 타일이 담고 있는 정보를 풀어 넣는다. 이전에 title 로 쓰던 내용을
-  // 그대로 옮겨온 것 — 스크린 리더 사용자에게는 가격/재고/담긴 수량이 여전히 전달되고,
-  // 마우스 호버 시 뜨던 OS 기본 툴팁은 제거된다 (타일 안에 이미 같은 정보가 시각적으로
-  // 다 보이므로 시각 사용자에겐 중복이었음).
   const stockLabel = tc('tile.stockPrefix', { stock: item.stock.toLocaleString() })
   const cartLabel = inCart ? ` / ${tc('tile.cartPrefix', { qty: cartQty })}` : ''
   const resetLabel = atMax ? ` / ${tc('tile.resetHint')}` : ''
-  const ariaLabel = `${item.nameKo}${item.enchant > 0 ? ` .${item.enchant}` : ''} / ${quality} / ${item.pointPrice.toLocaleString()}p / ${stockLabel}${cartLabel}${resetLabel}`
+  const ariaLabel = `${tierEnchant} ${item.displayName} / ${typeLabel} / ${quality} / ${item.pointPrice.toLocaleString()}p / ${stockLabel}${cartLabel}${resetLabel}`
 
   return (
-    <button
-      type="button"
-      onClick={onAdd}
-      disabled={disabled}
-      aria-label={ariaLabel}
-      className={`group relative flex flex-col rounded-md bg-[#1a140c] ${ringClass} hover:ring-2 ${
-        inCart ? 'hover:ring-emerald-300' : 'hover:ring-amber-300'
-      } transition-all ${
-        disabled ? 'opacity-70 cursor-not-allowed' : ''
+    <div
+      className={`grid grid-cols-[2.75rem_minmax(0,1fr)_auto_auto] items-center gap-3 px-3 py-2.5 sm:grid-cols-[3rem_minmax(0,1fr)_5rem_5.5rem_4.75rem_auto] sm:px-4 transition-colors ${
+        inCart ? 'bg-emerald-500/5' : 'hover:bg-gray-800/35'
       }`}
-      style={{
-        boxShadow: inCart
-          ? 'inset 0 0 0 1px rgba(16,185,129,0.35), 0 0 0 2px rgba(16,185,129,0.15), 0 1px 2px rgba(0,0,0,0.5)'
-          : 'inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 2px rgba(0,0,0,0.5)',
-      }}
     >
-      {/* 아이콘 영역 (정사각형). overflow-hidden + rounded-t-md 는 타일의 상단
-          둥근 모서리를 이미지/배지들이 덮지 않도록 여기에만 둔다 — 타일 바깥으로는
-          자식이 나갈 수 있어야 (HoverTip) 하므로 button 전체에는 걸지 않는다. */}
-      <div className="relative aspect-square overflow-hidden rounded-t-md">
+      <div className={`relative h-11 w-11 sm:h-12 sm:w-12 rounded-md overflow-hidden bg-gray-950 ring-1 ${qualityRing} flex-shrink-0`}>
         <AlbionItemImage
-          src={imageUrl(item.uniqueName, item.enchant, item.quality, 96)}
-          alt={item.nameKo}
+          src={imageUrl(item.uniqueName, item.enchant, item.quality, 64)}
+          alt={item.displayName}
           fill
-          className="object-contain p-1 pixel-img"
-          sizes="100px"
+          className="object-contain p-0.5 pixel-img"
+          sizes="48px"
         />
-
-        {/* 인챈트 (왼쪽 위) */}
-        {item.enchant > 0 && (
-          <span className="absolute top-0.5 left-1 text-[10px] font-bold text-cyan-200 drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
-            .{item.enchant}
-          </span>
-        )}
-
-        {/* 재고 (오른쪽 위) — 작은 배지 */}
-        <span className="absolute top-0.5 right-1 text-[10px] font-bold text-white/90 bg-black/60 rounded px-1 drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)]">
-          ×{item.stock.toLocaleString()}
-        </span>
-
-        {/* 선택된 수량 오버레이 — 중앙 하단에 크게. 작은 코너 배지 대신 한눈에
-            "이만큼 담김" 을 읽게 한다. */}
         {inCart && (
-          <div className="absolute inset-x-0 bottom-0 flex items-end justify-center pointer-events-none">
-            <span className="bg-emerald-500 text-white text-[12px] sm:text-sm font-bold font-mono rounded-md px-2 py-0.5 shadow-[0_2px_6px_rgba(0,0,0,0.7)] ring-1 ring-emerald-300/60 mb-1">
-              ×{cartQty}
-            </span>
-          </div>
+          <span className="absolute -right-1 -bottom-1 min-w-5 rounded bg-emerald-500 px-1 text-center text-[11px] font-bold text-white ring-1 ring-emerald-300/70">
+            ×{cartQty}
+          </span>
         )}
-
       </div>
 
-      {/* 시세 경고 라벨 — 가격 바 위에 풀 폭으로. 심각도에 따라 색상 차등.
-          구매자가 "이 가격은 추정치 / 실거래가 다를 수 있음" 을 놓치지 않게
-          가격 바 바로 위에 별도 줄로 배치. 가장 눈에 띄는 위치. */}
-      {item.priceWarning && (
-        <HoverTip
-          label={t(`priceWarningBuyer.${item.priceWarning}`)}
-          placement="top"
-          triggerClassName="block w-full"
-        >
-          <span
-            className={`block text-[10px] sm:text-[11px] font-bold text-center leading-tight py-0.5 ${PRICE_WARNING_COLOR[item.priceWarning]}`}
-          >
-            ⚠ {t('priceWarning')}
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="font-mono text-sm sm:text-base font-bold text-amber-200 tabular-nums">
+            {tierEnchant}
           </span>
-        </HoverTip>
-      )}
+          <span className="text-sm sm:text-[15px] font-semibold text-white truncate">
+            {item.displayName}
+          </span>
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-gray-400">
+          <span className="rounded border border-gray-700 bg-gray-950/60 px-1.5 py-0.5 text-gray-300">
+            {typeLabel}
+          </span>
+          <span className="sm:hidden">{quality}</span>
+          <span className="sm:hidden">{stockLabel}</span>
+          {item.priceWarning && (
+            <HoverTip
+              label={t(`priceWarningBuyer.${item.priceWarning}`)}
+              placement="top"
+              triggerClassName="inline-flex sm:hidden"
+            >
+              <span
+                className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${PRICE_WARNING_COLOR[item.priceWarning]}`}
+              >
+                {t('priceWarning')}
+              </span>
+            </HoverTip>
+          )}
+          {inCart && (
+            <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-emerald-300">
+              {tc('tile.cartPrefix', { qty: cartQty })}
+            </span>
+          )}
+        </div>
+      </div>
 
-      {/* 가격 바 (하단 전체 폭). rounded-b-md 로 타일의 하단 둥근 모서리를 덮어쓴다
-          — 상단의 rounded-t-md 대칭. */}
-      <div
-        className={`px-1.5 py-1 text-center border-t rounded-b-md ${
-          inCart ? 'border-emerald-400/40' : 'border-amber-400/30'
-        }`}
-        style={{
-          background: inCart
-            ? 'linear-gradient(to bottom, rgba(16,185,129,0.18) 0%, rgba(6,95,70,0.28) 100%)'
-            : 'linear-gradient(to bottom, rgba(245,158,11,0.18) 0%, rgba(180,83,9,0.28) 100%)',
-        }}
-      >
-        <p
-          className={`text-[13px] sm:text-sm font-bold font-mono leading-tight tracking-tight ${
-            inCart ? 'text-emerald-100' : 'text-amber-200'
-          }`}
-        >
+      <div className="hidden sm:block min-w-0">
+        <p className="text-[11px] text-gray-500">{tc('qualityLabel')}</p>
+        <p className="truncate text-xs font-medium text-gray-300">{quality}</p>
+      </div>
+
+      <div className="hidden sm:block text-right">
+        <p className="text-[11px] text-gray-500">{tc('stockLabel')}</p>
+        <p className="font-mono text-sm font-semibold text-gray-200">{item.stock.toLocaleString()}</p>
+      </div>
+
+      <div className="text-right">
+        <p className="font-mono text-sm sm:text-base font-bold text-amber-300">
           {item.pointPrice.toLocaleString()}
-          <span
-            className={`text-[10px] ml-0.5 ${
-              inCart ? 'text-emerald-300/80' : 'text-amber-300/70'
-            }`}
-          >
-            P
-          </span>
+          <span className="ml-0.5 text-[10px] text-amber-300/70">P</span>
         </p>
+        {item.priceWarning && (
+          <HoverTip
+            label={t(`priceWarningBuyer.${item.priceWarning}`)}
+            placement="top"
+            triggerClassName="hidden sm:inline-flex"
+          >
+            <span
+              className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${PRICE_WARNING_COLOR[item.priceWarning]}`}
+            >
+              {t('priceWarning')}
+            </span>
+          </HoverTip>
+        )}
       </div>
-    </button>
+
+      <button
+        type="button"
+        onClick={onAdd}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+          atMax
+            ? 'bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25'
+            : 'bg-amber-500 text-black hover:bg-amber-400'
+        } disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed`}
+      >
+        {atMax ? <X size={15} /> : <Plus size={15} />}
+      </button>
+    </div>
   )
 }
 
@@ -646,9 +687,8 @@ function CartLineRow({
   onRemove: () => void
 }) {
   const t = useTranslations('shopCatalog.cart')
-  const locale = useLocale() as Locale
-  const displayName =
-    getLocalizedItemName(line.item.uniqueName, locale, line.item.nameKo) ?? line.item.nameKo
+  const tierEnchant = tierEnchantLabel(line.item)
+  const displayName = line.item.displayName
   return (
     <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-800 rounded-lg px-2 py-1.5">
       <div className="relative w-9 h-9 rounded bg-gray-950 flex-shrink-0">
@@ -660,11 +700,11 @@ function CartLineRow({
         />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[11px] text-white truncate font-medium">
-          {displayName}
-          {line.item.enchant > 0 && (
-            <span className="text-cyan-300 ml-1 font-mono">.{line.item.enchant}</span>
+        <p className="flex min-w-0 items-center gap-1 text-[11px] text-white font-medium">
+          {tierEnchant !== '-' && (
+            <span className="flex-shrink-0 font-mono text-amber-200">{tierEnchant}</span>
           )}
+          <span className="truncate">{displayName}</span>
         </p>
         <p className="text-[10px] text-gray-500 font-mono">
           {line.item.pointPrice.toLocaleString()}p × {line.qty} ={' '}

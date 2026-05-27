@@ -4281,13 +4281,28 @@
     "closeAriaLabel": "닫기",
     "emptyStock": "상점 재고가 비었습니다.",
     "emptySearch": "검색 결과 없음.",
+    "qualityLabel": "품질",
+    "stockLabel": "재고",
+    "itemType": {
+      "weapon": "무기",
+      "head": "머리",
+      "armor": "갑옷",
+      "shoes": "신발",
+      "offhand": "보조무기",
+      "cape": "망토",
+      "bag": "가방",
+      "mount": "탈것",
+      "potion": "포션",
+      "food": "음식",
+      "other": "기타"
+    },
     "tile": {
       "stockPrefix": "재고 {stock}",
       "cartPrefix": "담긴 수량 {qty}",
       "resetHint": "클릭 시 비우기"
     },
     "cart": {
-      "empty": "타일을 클릭해 담아보세요.",
+      "empty": "아이템을 담아보세요.",
       "totalLabel": "총액",
       "insufficient": "(부족)",
       "notePlaceholder": "관리자에게 전달할 메모 (선택)",

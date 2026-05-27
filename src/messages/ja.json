@@ -4281,13 +4281,28 @@
     "closeAriaLabel": "閉じる",
     "emptyStock": "ショップの在庫が空です。",
     "emptySearch": "検索結果がありません。",
+    "qualityLabel": "品質",
+    "stockLabel": "在庫",
+    "itemType": {
+      "weapon": "武器",
+      "head": "頭",
+      "armor": "胴",
+      "shoes": "靴",
+      "offhand": "オフハンド",
+      "cape": "ケープ",
+      "bag": "バッグ",
+      "mount": "マウント",
+      "potion": "ポーション",
+      "food": "食料",
+      "other": "その他"
+    },
     "tile": {
       "stockPrefix": "在庫 {stock}",
       "cartPrefix": "カート {qty}",
       "resetHint": "クリックで空にする"
     },
     "cart": {
-      "empty": "タイルをクリックして追加してください。",
+      "empty": "アイテムをカートに追加してください。",
       "totalLabel": "合計",
       "insufficient": "(不足)",
       "notePlaceholder": "管理者へのメモ (任意)",
