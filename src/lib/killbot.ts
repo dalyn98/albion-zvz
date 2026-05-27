@@ -13,9 +13,9 @@ const KILLBOT_EVENTS_LIMIT = 51
 const DEFAULT_MIN_FAME = 1
 const DEFAULT_JUICY_FAME = 1_000_000
 const MAX_FAME_SETTING = 2_147_483_647
-const DISCORD_MAX_EMBEDS = 10
 const DISCORD_FIELD_VALUE_LIMIT = 1024
 const DISCORD_TITLE_LIMIT = 256
+const DISCORD_INLINE_FIELD_LIMIT = 25
 
 export type KillbotFeedType = 'kill' | 'death' | 'test'
 export type KillbotDeliveryStatus = 'pending' | 'sent' | 'failed' | 'skipped'
@@ -60,6 +60,7 @@ interface PlayerRef {
   GuildName?: string | null
   AllianceId?: string | null
   AllianceName?: string | null
+  AverageItemPower?: number | string | null
   Equipment?: Record<string, EquipmentItem | null> | null
 }
 
@@ -70,6 +71,7 @@ export interface AlbionKillbotEvent {
   BattleId?: number | null
   Killer?: PlayerRef | null
   Victim?: PlayerRef | null
+  Participants?: PlayerRef[] | null
 }
 
 export interface KillbotMatch {
@@ -388,6 +390,13 @@ function playerLine(player: PlayerRef | null | undefined): string {
   return `${name}${guildPart}${alliancePart}`
 }
 
+function playerTitle(player: PlayerRef | null | undefined, fallbackName: string): string {
+  const name = fallbackName.trim() || playerName(player)
+  const itemPower = Number(player?.AverageItemPower)
+  if (!Number.isFinite(itemPower) || itemPower <= 0) return name
+  return `${name} (${Math.round(itemPower)})`
+}
+
 function truncateDiscord(value: string, limit: number): string {
   if (value.length <= limit) return value
   return `${value.slice(0, Math.max(0, limit - 1))}…`
@@ -456,15 +465,21 @@ function equipmentSummary(entries: ReturnType<typeof equipmentEntries>): string 
   )
 }
 
-function buildEquipmentEmbeds(
-  entries: ReturnType<typeof equipmentEntries>,
-  color: number,
-) {
-  return entries.slice(0, DISCORD_MAX_EMBEDS - 1).map((entry) => ({
-    title: truncateDiscord(`${entry.label} · ${entry.itemName}`, DISCORD_TITLE_LIMIT),
-    color,
-    thumbnail: { url: itemImageUrl(entry.itemId) },
-  }))
+function participantSummary(event: AlbionKillbotEvent): string | null {
+  const killerId = String(event.Killer?.Id ?? '').trim()
+  const killerName = playerName(event.Killer)
+  const names = (event.Participants ?? [])
+    .filter((player) => {
+      const id = String(player?.Id ?? '').trim()
+      if (killerId && id === killerId) return false
+      return playerName(player) !== killerName
+    })
+    .map((player) => playerName(player))
+    .filter((name) => name !== 'Unknown')
+
+  const uniqueNames = Array.from(new Set(names)).slice(0, DISCORD_INLINE_FIELD_LIMIT)
+  if (uniqueNames.length === 0) return null
+  return truncateDiscord(uniqueNames.join(', '), DISCORD_FIELD_VALUE_LIMIT)
 }
 
 export function buildKillbotDiscordPayload(
@@ -474,15 +489,35 @@ export function buildKillbotDiscordPayload(
   target: KillbotTarget,
 ) {
   const color = match.feedType === 'kill' ? 0x22c55e : 0xef4444
-  const titlePrefix = match.feedType === 'kill' ? 'Kill secured' : 'Member down'
-  const title = `${match.isJuicy ? 'Juicy ' : ''}${titlePrefix}: ${match.killerName} vs ${match.victimName}`
+  const title = truncateDiscord(
+    `${playerTitle(event.Killer, match.killerName)} ⚔ ${playerTitle(event.Victim, match.victimName)}`,
+    DISCORD_TITLE_LIMIT,
+  )
   const eventId = Number(event.EventId)
   const victimEquipment = equipmentEntries(event.Victim)
   const primaryItem = victimEquipment.find((entry) => entry.slot === 'MainHand') ?? victimEquipment[0]
   const eventUrl = killboardUrl(eventId)
   const battleLink = battleUrl(event)
   const homeGuild = target.homeGuildName || 'Home guild'
-  const equipmentEmbeds = buildEquipmentEmbeds(victimEquipment, color)
+  const participants = participantSummary(event)
+  const fields = [
+    { name: 'Fame', value: formatFame(match.fame), inline: true },
+    {
+      name: 'Battle',
+      value: battleLink ? `[${event.BattleId}](${battleLink})` : 'Unknown',
+      inline: true,
+    },
+    { name: 'Event', value: `[${eventId}](${eventUrl})`, inline: true },
+    { name: 'Killer', value: truncateDiscord(playerLine(event.Killer), DISCORD_FIELD_VALUE_LIMIT), inline: false },
+    { name: 'Victim', value: truncateDiscord(playerLine(event.Victim), DISCORD_FIELD_VALUE_LIMIT), inline: false },
+    ...(participants ? [{ name: 'Participants', value: participants, inline: false }] : []),
+    {
+      name: 'Victim build',
+      value: equipmentSummary(victimEquipment),
+      inline: false,
+    },
+  ]
+
   return {
     content: config.mentionRoleId ? `<@&${config.mentionRoleId}>` : undefined,
     allowed_mentions: config.mentionRoleId
@@ -498,27 +533,11 @@ export function buildKillbotDiscordPayload(
         thumbnail: primaryItem ? { url: itemImageUrl(primaryItem.itemId) } : undefined,
         description:
           match.feedType === 'kill'
-            ? `${homeGuild} scored a kill. Victim build is shown below.`
-            : `${homeGuild} member died. Lost build is shown below.`,
-        fields: [
-          { name: 'Kill Fame', value: formatFame(match.fame), inline: true },
-          { name: 'Event ID', value: String(eventId), inline: true },
-          {
-            name: 'Battle',
-            value: battleLink ? `[${event.BattleId}](${battleLink})` : 'Unknown',
-            inline: true,
-          },
-          { name: 'Killer', value: truncateDiscord(playerLine(event.Killer), DISCORD_FIELD_VALUE_LIMIT), inline: false },
-          { name: 'Victim', value: truncateDiscord(playerLine(event.Victim), DISCORD_FIELD_VALUE_LIMIT), inline: false },
-          {
-            name: 'Victim build',
-            value: equipmentSummary(victimEquipment),
-            inline: false,
-          },
-        ],
-        footer: { text: `AlbionGuildManager Killbot · ${match.feedType}` },
+            ? `${homeGuild} kill${match.isJuicy ? ' · Juicy' : ''}`
+            : `${homeGuild} death${match.isJuicy ? ' · Juicy' : ''}`,
+        fields,
+        footer: { text: `AlbionGuildManager Killbot · 1 kill / 1 embed` },
       },
-      ...equipmentEmbeds,
     ],
   }
 }

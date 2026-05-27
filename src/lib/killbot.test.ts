@@ -94,15 +94,23 @@ describe('classifyKillbotEvent', () => {
 })
 
 describe('buildKillbotDiscordPayload', () => {
-  it('builds a rich embed with victim equipment item images', () => {
+  it('builds one Discord embed per kill with the kill details in the same card', () => {
     const payload = buildKillbotDiscordPayload(
       event({
         BattleId: 77,
+        Killer: {
+          Id: 'killer',
+          Name: 'Killer',
+          GuildId: 'guild-home',
+          GuildName: 'Menhera',
+          AverageItemPower: 1942.4,
+        },
         Victim: {
           Id: 'victim',
           Name: 'Victim',
           GuildId: 'enemy',
           GuildName: 'Enemy',
+          AverageItemPower: 1208,
           Equipment: {
             MainHand: { Type: 'T8_MAIN_HOLYSTAFF@4' },
             OffHand: { Type: 'T8_OFF_BOOK@2' },
@@ -115,6 +123,10 @@ describe('buildKillbotDiscordPayload', () => {
             Food: { Type: 'T8_MEAL_OMELETTE' },
           },
         },
+        Participants: [
+          { Id: 'killer', Name: 'Killer', GuildId: 'guild-home', GuildName: 'Menhera' },
+          { Id: 'assist-1', Name: 'Assistant', GuildId: 'guild-home', GuildName: 'Menhera' },
+        ],
       }),
       {
         feedType: 'kill',
@@ -129,10 +141,9 @@ describe('buildKillbotDiscordPayload', () => {
 
     expect(payload.content).toBe('<@&99999>')
     expect(payload.allowed_mentions).toEqual({ parse: [], roles: ['99999'] })
-    expect(payload.embeds.length).toBeGreaterThan(1)
-    expect(payload.embeds.length).toBeLessThanOrEqual(10)
+    expect(payload.embeds).toHaveLength(1)
     expect(payload.embeds[0]).toMatchObject({
-      title: 'Juicy Kill secured: Killer vs Victim',
+      title: 'Killer (1942) ⚔ Victim (1208)',
       url: 'https://albiononline.com/killboard/kill/1',
       thumbnail: {
         url: 'https://render.albiononline.com/v1/item/T8_MAIN_HOLYSTAFF%404.png?size=128',
@@ -143,14 +154,9 @@ describe('buildKillbotDiscordPayload', () => {
     expect(mainEmbed.fields).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: 'Battle', value: '[77](https://albiononline.com/killboard/battles/77)' }),
+        expect.objectContaining({ name: 'Participants', value: 'Assistant' }),
         expect.objectContaining({ name: 'Victim build', value: expect.stringContaining('Weapon:') }),
       ]),
     )
-    expect(payload.embeds[1]).toMatchObject({
-      title: expect.stringContaining('Weapon ·'),
-      thumbnail: {
-        url: 'https://render.albiononline.com/v1/item/T8_MAIN_HOLYSTAFF%404.png?size=128',
-      },
-    })
   })
 })
