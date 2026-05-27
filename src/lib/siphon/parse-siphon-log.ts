@@ -223,7 +223,7 @@ function parseSiphonDate(raw: string): Date | null {
   )
   if (isoLike) {
     const [, yyyy, mm, dd, hh, min, ss] = isoLike
-    return toKstDate(yyyy, mm, dd, hh, min, ss)
+    return toUtcDate(yyyy, mm, dd, hh, min, ss)
   }
 
   const usLike = s.match(
@@ -231,13 +231,13 @@ function parseSiphonDate(raw: string): Date | null {
   )
   if (usLike) {
     const [, mm, dd, yyyy, hh, min, ss] = usLike
-    return toKstDate(yyyy, mm, dd, hh, min, ss)
+    return toUtcDate(yyyy, mm, dd, hh, min, ss)
   }
 
   return null
 }
 
-function toKstDate(
+function toUtcDate(
   yyyy: string,
   mm: string,
   dd: string,
@@ -264,7 +264,7 @@ function toKstDate(
     return null
   }
 
-  const d = new Date(`${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}+09:00`)
+  const d = new Date(Date.UTC(year, month - 1, day, hour, minute, second))
   return Number.isNaN(d.getTime()) ? null : d
 }
 

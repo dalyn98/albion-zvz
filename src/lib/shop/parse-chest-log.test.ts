@@ -20,7 +20,7 @@ describe('parseChestLog', () => {
         quantity: 2,
       }),
     ])
-    expect(result.entries[0].loggedAt.toISOString()).toBe('2026-05-24T05:05:00.000Z')
+    expect(result.entries[0].loggedAt.toISOString()).toBe('2026-05-24T14:05:00.000Z')
   })
 
   it('accepts ISO-like dates used by localized exports', () => {
@@ -33,7 +33,7 @@ describe('parseChestLog', () => {
 
     expect(result.errors).toEqual([])
     expect(result.entries).toHaveLength(1)
-    expect(result.entries[0].loggedAt.toISOString()).toBe('2026-05-24T05:05:00.000Z')
+    expect(result.entries[0].loggedAt.toISOString()).toBe('2026-05-24T14:05:00.000Z')
   })
 
   it('reports specific parse error codes for malformed chest rows', () => {

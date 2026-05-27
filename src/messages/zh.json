@@ -1262,7 +1262,7 @@
   "adminLogOperatingStart": {
     "title": "日志运营开始时间",
     "description": "早于此时间的游戏内日志会从新导入、虹吸余额和官方拾取核验结果中排除。现有数据不会删除。",
-    "timezoneHint": "输入时区：{timezone}",
+    "timezoneHint": "输入时区：UTC（Albion 日志时间）",
     "shopChestLabel": "公会箱子",
     "shopChestHint": "影响商店库存的银行日志开始时间。",
     "siphonLabel": "虹吸",
@@ -3832,7 +3832,9 @@
     "unauthorized": "您没有执行此操作的权限。",
     "invalidInput": "输入不正确。",
     "lootAuditNoLootRows": "没有可解析的拾取日志行。",
+    "lootAuditAllLootRowsBeforeStart": "已解析 {count} 行拾取日志，但全部早于运营开始时间，已被排除。",
     "lootAuditNoDepositRows": "没有可解析的公会箱子存入行。",
+    "lootAuditAllDepositRowsBeforeStart": "已解析 {count} 行公会箱子存入日志，但全部早于运营开始时间，已被排除。",
     "lootAuditFindingNotFound": "未找到拾取核验项。",
     "lootAuditNoteTooLong": "备注不能超过 {max} 个字符。",
     "invalidJsonArray": "无法保存职业列表。",

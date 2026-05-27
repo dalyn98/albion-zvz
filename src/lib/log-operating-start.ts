@@ -1,9 +1,5 @@
 import type { AppSettingKey } from '@/lib/app-settings'
-import {
-  DEFAULT_TENANT_TIMEZONE,
-  toZonedParts,
-  zonedPartsToUtc,
-} from '@/lib/timezone'
+import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
 
 export type LogOperatingStartDomain = 'shopChest' | 'siphon' | 'lootAudit'
 
@@ -20,21 +16,32 @@ export function parseLogOperatingStart(
   raw: string,
   timezone: string = DEFAULT_TENANT_TIMEZONE,
 ): Date | null {
+  void timezone
   const value = raw.trim()
   if (!value) return null
 
   const local = value.match(LOCAL_DATE_TIME_RE)
   if (local) {
-    const [, yyyy, mm, dd, hh, min] = local
+    const [, yyyy, mm, dd, hh, min, ss] = local
     const parts = {
       year: Number(yyyy),
       month: Number(mm),
       day: Number(dd),
       hour: Number(hh),
       minute: Number(min),
+      second: ss ? Number(ss) : 0,
     }
     if (!isValidWallClockParts(parts)) return null
-    return zonedPartsToUtc(parts, timezone)
+    return new Date(
+      Date.UTC(
+        parts.year,
+        parts.month - 1,
+        parts.day,
+        parts.hour,
+        parts.minute,
+        parts.second,
+      ),
+    )
   }
 
   const parsed = new Date(value)
@@ -52,11 +59,16 @@ export function formatLogOperatingStartInput(
   raw: string,
   timezone: string = DEFAULT_TENANT_TIMEZONE,
 ): string {
+  void timezone
   const parsed = parseLogOperatingStart(raw, timezone)
   if (!parsed) return ''
-  const parts = toZonedParts(parsed, timezone)
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}T${pad(parts.hour)}:${pad(parts.minute)}`
+  const date = [
+    parsed.getUTCFullYear(),
+    pad(parsed.getUTCMonth() + 1),
+    pad(parsed.getUTCDate()),
+  ].join('-')
+  return `${date}T${pad(parsed.getUTCHours())}:${pad(parsed.getUTCMinutes())}`
 }
 
 export function filterByLogOperatingStart<T>(
@@ -85,6 +97,7 @@ function isValidWallClockParts(parts: {
   day: number
   hour: number
   minute: number
+  second?: number
 }): boolean {
   if (!Number.isInteger(parts.year) || parts.year < 1970 || parts.year > 2100) {
     return false
@@ -100,6 +113,12 @@ function isValidWallClockParts(parts: {
     return false
   }
   if (!Number.isInteger(parts.minute) || parts.minute < 0 || parts.minute > 59) {
+    return false
+  }
+  if (
+    parts.second !== undefined &&
+    (!Number.isInteger(parts.second) || parts.second < 0 || parts.second > 59)
+  ) {
     return false
   }
   return true

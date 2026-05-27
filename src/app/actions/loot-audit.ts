@@ -464,22 +464,30 @@ function parseAuditInput(
   const rowCount = lootOfficial.entries.length + depositOfficial.entries.length
 
   if (lootOfficial.entries.length === 0) {
+    const error =
+      lootResult.entries.length > 0 && skippedBeforeStart.lootRows > 0
+        ? tErr('lootAuditAllLootRowsBeforeStart', { count: skippedBeforeStart.lootRows })
+        : tErr('lootAuditNoLootRows')
     return {
       lootEntries: [],
       depositEntries: [],
       preview: {
-        ...previewError(tErr('lootAuditNoLootRows'), skippedBeforeStart),
+        ...previewError(error, skippedBeforeStart),
         lootParseErrors: lootResult.errors,
         depositParseErrors: depositResult.errors,
       },
     }
   }
   if (depositOfficial.entries.length === 0) {
+    const error =
+      depositResult.entries.length > 0 && skippedBeforeStart.depositRows > 0
+        ? tErr('lootAuditAllDepositRowsBeforeStart', { count: skippedBeforeStart.depositRows })
+        : tErr('lootAuditNoDepositRows')
     return {
       lootEntries: lootOfficial.entries,
       depositEntries: [],
       preview: {
-        ...previewError(tErr('lootAuditNoDepositRows'), skippedBeforeStart),
+        ...previewError(error, skippedBeforeStart),
         lootParseErrors: lootResult.errors,
         depositParseErrors: depositResult.errors,
       },

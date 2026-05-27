@@ -1262,7 +1262,7 @@
   "adminLogOperatingStart": {
     "title": "로그 운영 시작시간",
     "description": "기준 시각 이전의 인게임 로그는 새 import, 사이펀 잔액, 루팅 검증 공식 결과에서 제외합니다. 기존 데이터는 삭제하지 않습니다.",
-    "timezoneHint": "입력 기준 시간대: {timezone}",
+    "timezoneHint": "입력 기준 시간대: UTC (Albion 로그 시간)",
     "shopChestLabel": "길드 상자",
     "shopChestHint": "상점 재고에 반영할 은행 로그의 시작 시각입니다.",
     "siphonLabel": "사이펀",
@@ -3834,7 +3834,9 @@
     "unauthorized": "이 작업을 수행할 권한이 없습니다.",
     "invalidInput": "입력값이 올바르지 않습니다.",
     "lootAuditNoLootRows": "파싱 가능한 루팅 로그 행이 없습니다.",
+    "lootAuditAllLootRowsBeforeStart": "루팅 로그 {count}행을 파싱했지만 모두 운영 시작시간 이전이라 제외되었습니다.",
     "lootAuditNoDepositRows": "파싱 가능한 길드 금고 입금 행이 없습니다.",
+    "lootAuditAllDepositRowsBeforeStart": "길드 금고 입금 로그 {count}행을 파싱했지만 모두 운영 시작시간 이전이라 제외되었습니다.",
     "lootAuditFindingNotFound": "루팅 검증 항목을 찾을 수 없습니다.",
     "lootAuditNoteTooLong": "메모는 {max}자 이내로 입력해 주세요.",
     "invalidJsonArray": "역할 목록을 올바르게 저장할 수 없습니다.",

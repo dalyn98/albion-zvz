@@ -6,7 +6,7 @@
 //
 // 출력 레코드 한 줄 예시:
 //   "04/21/2026 15:59:10"	"SoonSem"	"헤기물"	"0"	"1"	"-1"
-//   → { loggedAt: Date(KST), player: "SoonSem", itemName: "헤기물",
+//   → { loggedAt: Date(UTC), player: "SoonSem", itemName: "헤기물",
 //       enchant: 0, quality: 1, quantity: -1 }
 //
 // 수량: 양수는 입고, 음수는 출고.
@@ -151,7 +151,7 @@ function splitQuotedTabs(line: string): string[] {
   return cells.map((c) => c.trim().replace(/^"(.*)"$/, '$1'))
 }
 
-// "MM/DD/YYYY HH:MM:SS" 또는 "YYYY-MM-DD HH:MM:SS" KST — 인게임 시간은 한국 서버 기준.
+// "MM/DD/YYYY HH:MM:SS" 또는 "YYYY-MM-DD HH:MM:SS" UTC — Albion 인게임 로그 기준.
 function parseChestDate(s: string): Date | null {
   const trimmed = s.trim()
   const isoLike = trimmed.match(
@@ -159,7 +159,7 @@ function parseChestDate(s: string): Date | null {
   )
   if (isoLike) {
     const [, yyyy, mm, dd, hh, min, ss] = isoLike
-    return toKstDate(yyyy, mm, dd, hh, min, ss)
+    return toUtcDate(yyyy, mm, dd, hh, min, ss)
   }
 
   const usLike = trimmed.match(
@@ -167,13 +167,13 @@ function parseChestDate(s: string): Date | null {
   )
   if (usLike) {
     const [, mm, dd, yyyy, hh, min, ss] = usLike
-    return toKstDate(yyyy, mm, dd, hh, min, ss)
+    return toUtcDate(yyyy, mm, dd, hh, min, ss)
   }
 
   return null
 }
 
-function toKstDate(
+function toUtcDate(
   yyyy: string,
   mm: string,
   dd: string,
@@ -209,7 +209,7 @@ function toKstDate(
     return null
   }
 
-  const d = new Date(`${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}+09:00`)
+  const d = new Date(Date.UTC(year, month - 1, day, hour, minute, second))
   return Number.isNaN(d.getTime()) ? null : d
 }
 

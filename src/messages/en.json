@@ -1262,7 +1262,7 @@
   "adminLogOperatingStart": {
     "title": "Log operating start",
     "description": "In-game logs before this time are excluded from new imports, siphon balances, and official loot audit results. Existing rows are not deleted.",
-    "timezoneHint": "Input timezone: {timezone}",
+    "timezoneHint": "Input timezone: UTC (Albion log time)",
     "shopChestLabel": "Guild chest",
     "shopChestHint": "Start time for bank logs that affect shop stock.",
     "siphonLabel": "Siphon",
@@ -3832,7 +3832,9 @@
     "unauthorized": "You don't have permission to perform this action.",
     "invalidInput": "Invalid input.",
     "lootAuditNoLootRows": "No parseable loot log rows were found.",
+    "lootAuditAllLootRowsBeforeStart": "{count} loot log row(s) were parsed, but all were excluded because they are before the operating start.",
     "lootAuditNoDepositRows": "No parseable guild chest deposit rows were found.",
+    "lootAuditAllDepositRowsBeforeStart": "{count} guild chest deposit row(s) were parsed, but all were excluded because they are before the operating start.",
     "lootAuditFindingNotFound": "Loot audit finding not found.",
     "lootAuditNoteTooLong": "Memo must be {max} characters or fewer.",
     "invalidJsonArray": "Could not save the role list.",

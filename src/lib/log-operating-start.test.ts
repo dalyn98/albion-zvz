@@ -7,16 +7,16 @@ import {
 } from './log-operating-start'
 
 describe('log operating start', () => {
-  it('parses datetime-local values in the configured timezone', () => {
+  it('parses datetime-local values as Albion log UTC time', () => {
     const parsed = parseLogOperatingStart('2026-05-24T17:30', 'Asia/Seoul')
 
-    expect(parsed?.toISOString()).toBe('2026-05-24T08:30:00.000Z')
+    expect(parsed?.toISOString()).toBe('2026-05-24T17:30:00.000Z')
   })
 
-  it('formats stored ISO values back to datetime-local inputs', () => {
+  it('formats stored ISO values back to UTC datetime-local inputs', () => {
     expect(
       formatLogOperatingStartInput('2026-05-24T08:30:00.000Z', 'Asia/Seoul'),
-    ).toBe('2026-05-24T17:30')
+    ).toBe('2026-05-24T08:30')
   })
 
   it('rejects impossible wall-clock dates', () => {
@@ -27,9 +27,9 @@ describe('log operating start', () => {
     const start = parseLogOperatingStart('2026-05-24T17:30', 'Asia/Seoul')
     const result = filterByLogOperatingStart(
       [
-        { at: new Date('2026-05-24T08:29:59.000Z') },
-        { at: new Date('2026-05-24T08:30:00.000Z') },
-        { at: new Date('2026-05-24T09:00:00.000Z') },
+        { at: new Date('2026-05-24T17:29:59.000Z') },
+        { at: new Date('2026-05-24T17:30:00.000Z') },
+        { at: new Date('2026-05-24T18:00:00.000Z') },
       ],
       (row) => row.at,
       start,

@@ -1262,7 +1262,7 @@
   "adminLogOperatingStart": {
     "title": "ログ運用開始時刻",
     "description": "この時刻より前のゲーム内ログは、新規インポート、サイフォン残高、ルート検証の公式結果から除外します。既存データは削除しません。",
-    "timezoneHint": "入力基準タイムゾーン: {timezone}",
+    "timezoneHint": "入力基準タイムゾーン: UTC (Albionログ時刻)",
     "shopChestLabel": "ギルド金庫",
     "shopChestHint": "ショップ在庫に反映する銀行ログの開始時刻です。",
     "siphonLabel": "サイフォン",
@@ -3832,7 +3832,9 @@
     "unauthorized": "この操作を実行する権限がありません。",
     "invalidInput": "入力値が正しくありません。",
     "lootAuditNoLootRows": "解析可能なルートログ行がありません。",
+    "lootAuditAllLootRowsBeforeStart": "{count} 件のルートログ行を解析しましたが、すべて運用開始時刻より前のため除外されました。",
     "lootAuditNoDepositRows": "解析可能なギルド金庫の入庫行がありません。",
+    "lootAuditAllDepositRowsBeforeStart": "{count} 件のギルド金庫入庫行を解析しましたが、すべて運用開始時刻より前のため除外されました。",
     "lootAuditFindingNotFound": "ルート検証項目が見つかりません。",
     "lootAuditNoteTooLong": "メモは {max} 文字以内で入力してください。",
     "invalidJsonArray": "役割一覧を保存できませんでした。",

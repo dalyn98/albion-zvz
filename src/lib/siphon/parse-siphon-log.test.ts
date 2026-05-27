@@ -27,7 +27,7 @@ describe('parseSiphonLog', () => {
       enchant: 0,
       quality: 1,
     })
-    expect(result.entries[0].loggedAt.toISOString()).toBe('2026-05-24T08:48:30.000Z')
+    expect(result.entries[0].loggedAt.toISOString()).toBe('2026-05-24T17:48:30.000Z')
   })
 
   it('accepts localized ledger headers and purpose labels', () => {
