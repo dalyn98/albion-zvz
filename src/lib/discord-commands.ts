@@ -4,6 +4,7 @@
 //   /home      — 길드 홈으로 이동 (테넌트 미연동 시 공식 가이드 폴백)
 //   /docs      — 공식 가이드 (/faq) 로 이동
 //   /guide     — 길드원 빠른 사용법 페이지로 이동
+//   /wallet    — 길드원 내 지갑으로 이동
 //   /killbotguild — 킬봇 운영 설명서로 이동
 //   /upcoming  — 가장 임박한 이벤트 링크 (없으면 /events 목록)
 //
@@ -29,6 +30,7 @@ import {
 export const COMMAND_HOME = 'home'
 export const COMMAND_DOCS = 'docs'
 export const COMMAND_GUIDE = 'guide'
+export const COMMAND_WALLET = 'wallet'
 export const COMMAND_KILLBOT_GUILD = 'killbotguild'
 export const COMMAND_UPCOMING = 'upcoming'
 export const COMMAND_KILLBOT = 'killbot'
@@ -37,6 +39,7 @@ export const ALL_COMMAND_NAMES = [
   COMMAND_HOME,
   COMMAND_DOCS,
   COMMAND_GUIDE,
+  COMMAND_WALLET,
   COMMAND_KILLBOT_GUILD,
   COMMAND_UPCOMING,
   COMMAND_KILLBOT,
@@ -49,6 +52,7 @@ interface DiscordBotMessages {
   homeReady: string
   docsReady: string
   guideReady: string
+  walletReady: string
   killbotGuildReady: string
   upcomingNone: string
   upcoming: string
@@ -77,6 +81,7 @@ async function loadMessages(locale: Locale): Promise<DiscordBotMessages> {
     homeReady: ns.homeReady ?? '',
     docsReady: ns.docsReady ?? '',
     guideReady: ns.guideReady ?? '',
+    walletReady: ns.walletReady ?? '',
     killbotGuildReady: ns.killbotGuildReady ?? '',
     upcomingNone: ns.upcomingNone ?? '',
     upcoming: ns.upcoming ?? '',
@@ -215,6 +220,8 @@ export async function handleSlashCommand(
       return handleDocs(messages)
     case COMMAND_GUIDE:
       return handleGuide(messages)
+    case COMMAND_WALLET:
+      return handleWallet(tenant, messages)
     case COMMAND_KILLBOT_GUILD:
       return handleKillbotGuildGuide(messages)
     case COMMAND_UPCOMING:
@@ -247,6 +254,18 @@ function handleDocs(messages: DiscordBotMessages): DiscordInteractionResponse {
 function handleGuide(messages: DiscordBotMessages): DiscordInteractionResponse {
   const guideUrl = tenantUrl(null, '/member-quick-guide.html')
   return ephemeralReply(format(messages.guideReady, { url: guideUrl }))
+}
+
+function handleWallet(
+  tenant: TenantBindResult | null,
+  messages: DiscordBotMessages,
+): DiscordInteractionResponse {
+  if (!tenant) {
+    const docsUrl = tenantUrl(null, '/faq')
+    return ephemeralReply(format(messages.guildNotLinkedDocs, { docsUrl }))
+  }
+  const walletUrl = tenantUrl(tenant.slug, '/me/wallet')
+  return ephemeralReply(format(messages.walletReady, { name: tenant.name, url: walletUrl }))
 }
 
 function handleKillbotGuildGuide(messages: DiscordBotMessages): DiscordInteractionResponse {

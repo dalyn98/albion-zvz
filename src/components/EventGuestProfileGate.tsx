@@ -10,10 +10,11 @@ import type { EventGuestProfile } from '@/lib/event-guest-profile'
 
 interface Props {
   eventId: string
+  inviteToken?: string | null
   initialProfile: EventGuestProfile | null
 }
 
-export default function EventGuestProfileGate({ eventId, initialProfile }: Props) {
+export default function EventGuestProfileGate({ eventId, inviteToken = null, initialProfile }: Props) {
   const t = useTranslations('eventGuestProfile')
   const activeLocale = useLocale() as Locale
   const router = useRouter()
@@ -31,6 +32,7 @@ export default function EventGuestProfileGate({ eventId, initialProfile }: Props
     startTransition(async () => {
       const result = await saveEventGuestProfile({
         eventId,
+        inviteToken,
         displayName: nextName,
         locale: nextLocale,
       })

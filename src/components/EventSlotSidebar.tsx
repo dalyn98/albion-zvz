@@ -8,6 +8,7 @@ import { getLocale } from '@/lib/locale'
 import type { Locale } from '@/i18n/locales'
 import { getMountDisarray } from '@/lib/battle-mounts'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import { isAnonymousEventGuestId } from '@/lib/event-guest-identity'
 import ItemImage from './ItemImage'
 import MemberAvatar from './MemberAvatar'
 import { ChevronDown, ChevronUp, Users, Shield, Zap, Swords } from 'lucide-react'
@@ -525,6 +526,12 @@ function SidebarRow({
       </div>
 
       {slot.assigned_username && slot.assigned_discord_id ? (
+        isAnonymousEventGuestId(slot.assigned_discord_id) ? (
+          <div className="flex items-center gap-1 flex-shrink-0 max-w-[90px] text-right text-green-400">
+            <MemberAvatar discordId={slot.assigned_discord_id} avatar={avatar} size={14} />
+            <span className="text-[13px] font-medium truncate">{slot.assigned_username}</span>
+          </div>
+        ) : (
         <Link
           href={`${memberHrefPrefix}/${slot.assigned_discord_id}`}
           className="flex items-center gap-1 flex-shrink-0 max-w-[90px] text-right text-green-400 hover:text-green-300 hover:underline underline-offset-2"
@@ -533,6 +540,7 @@ function SidebarRow({
           <MemberAvatar discordId={slot.assigned_discord_id} avatar={avatar} size={14} />
           <span className="text-[13px] font-medium truncate">{slot.assigned_username}</span>
         </Link>
+        )
       ) : (
         <div className="flex items-center gap-1 flex-shrink-0 max-w-[90px] text-right text-gray-600">
           <span className="text-[13px] font-medium truncate">{labels.empty}</span>

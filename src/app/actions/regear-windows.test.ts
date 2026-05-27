@@ -148,7 +148,7 @@ describe('regear window admin actions', () => {
     formData.set('title', 'CTA 리기어')
     formData.set('description', 'free claims')
     formData.set('maxDeathsPerMember', '2')
-    formData.set('closesAt', '2026-05-26T12:00:00.000Z')
+    formData.set('closesAt', '2999-05-26T12:00:00.000Z')
 
     await expect(openRegearWindow(formData)).resolves.toEqual({ id: 'window-1' })
 
@@ -160,7 +160,7 @@ describe('regear window admin actions', () => {
       title: 'CTA 리기어',
       description: 'free claims',
       max_deaths_per_member: 2,
-      closes_at: '2026-05-26T12:00:00.000Z',
+      closes_at: '2999-05-26T12:00:00.000Z',
       created_by_discord_id: 'officer-1',
       created_by_username: 'Officer',
     })

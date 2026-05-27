@@ -115,6 +115,16 @@ function createDb() {
         select: vi.fn(() => chain),
         eq: vi.fn(() => chain),
         maybeSingle: vi.fn(async () => {
+          if (table === 'event_guest_tokens') {
+            return {
+              data: {
+                event_id: 'event-1',
+                revoked_at: null,
+                expires_at: '2999-01-01T00:00:00.000Z',
+              },
+              error: null,
+            }
+          }
           if (table === 'events') {
             return { data: { guild_id: 'guild-1', status: 'published' }, error: null }
           }
@@ -175,11 +185,11 @@ describe('GET /api/auth/discord/callback', () => {
     mocks.cookieOptions.mockReturnValue({ path: '/', httpOnly: true })
   })
 
-  it('turns a public event login into an event-scoped guest instead of onboarding', async () => {
+  it('turns a guest invite login into an event-scoped guest', async () => {
     mocks.verifyOAuthState.mockResolvedValue({
       originHost: 'menhera.albion-guildmanager.com',
-      returnTo: '/events/event-1',
-      invite: null,
+      returnTo: '/events/event-1?invite=guest-token',
+      invite: 'guest-token',
       preferredLocale: 'en',
     })
 
@@ -204,6 +214,36 @@ describe('GET /api/auth/discord/callback', () => {
       preferredLocale: 'en',
     })
     expect(mocks.signSession).not.toHaveBeenCalled()
+  })
+
+  it('does not turn a regular event login into a guest session', async () => {
+    mocks.verifyOAuthState.mockResolvedValue({
+      originHost: 'menhera.albion-guildmanager.com',
+      returnTo: '/events/event-1',
+      invite: null,
+      preferredLocale: 'en',
+    })
+
+    const response = await GET(
+      new NextRequest(
+        'https://albion-guildmanager.com/api/auth/discord/callback?code=CODE&state=STATE',
+      ),
+    )
+
+    expect(response.headers.get('location')).toBe(
+      'https://menhera.albion-guildmanager.com/events/event-1?auth_error=not_in_guild',
+    )
+    expect(mocks.signHopToken).not.toHaveBeenCalled()
+    expect(mocks.signSession).not.toHaveBeenCalled()
+    expect(mocks.recordAuthFailure).toHaveBeenCalledWith(
+      expect.any(NextRequest),
+      'callback',
+      'not_in_guild',
+      expect.objectContaining({
+        return_to: '/events/event-1',
+        has_invite: false,
+      }),
+    )
   })
 
   it('keeps OAuth errors on the original event URL when signed state is valid', async () => {
@@ -338,7 +378,7 @@ describe('GET /api/auth/discord/callback', () => {
     })
   })
 
-  it('keeps an origin-tenant event login on the guest path when the user is not a Discord member', async () => {
+  it('rejects an origin-tenant regular event login when the user is not a Discord member', async () => {
     mocks.verifyOAuthState.mockResolvedValue({
       originHost: 'menhera.albion-guildmanager.com',
       returnTo: '/events/event-1',
@@ -361,20 +401,17 @@ describe('GET /api/auth/discord/callback', () => {
     )
 
     expect(response.headers.get('location')).toBe(
-      'https://menhera.example.test/api/auth/finish?token=hop-token',
+      'https://menhera.albion-guildmanager.com/events/event-1?auth_error=not_in_guild',
     )
     expect(mocks.getGuildMemberByBot).toHaveBeenCalledWith('discord-guild-1', 'guest-1')
-    expect(mocks.recordAuthFailure).not.toHaveBeenCalled()
-    expect(mocks.signHopToken).toHaveBeenCalledWith({
-      session: expect.objectContaining({
-        discordId: 'guest-1',
-        isGuest: true,
-        isMember: false,
-        eventScope: 'event-1',
-        guildId: 'guild-1',
+    expect(mocks.signHopToken).not.toHaveBeenCalled()
+    expect(mocks.recordAuthFailure).toHaveBeenCalledWith(
+      expect.any(NextRequest),
+      'callback',
+      'not_in_guild',
+      expect.objectContaining({
+        origin_tenant_fallback: 'guild-1',
       }),
-      returnTo: '/events/event-1',
-      preferredLocale: 'en',
-    })
+    )
   })
 })

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   extractEventIdFromReturnTo,
   resolveEventGuestAuthScope,
+  resolveEventGuestInviteScope,
   resolvePublicEventPageGuildId,
 } from './event-guest-auth'
 
@@ -45,7 +46,7 @@ describe('event guest auth scope', () => {
     expect(extractEventIdFromReturnTo('//evil.example/events/event-1')).toBeNull()
   })
 
-  it('resolves a valid invite token before considering public event fallback', async () => {
+  it('resolves a valid invite token for the requested event', async () => {
     const { db, calls } = createDb({
       event_guest_tokens: {
         event_id: 'event-from-token',
@@ -56,9 +57,9 @@ describe('event guest auth scope', () => {
     })
 
     await expect(
-      resolveEventGuestAuthScope(db, {
+      resolveEventGuestInviteScope(db, {
         inviteToken: 'token-1',
-        returnTo: '/events/event-from-url',
+        eventId: 'event-from-token',
         nowIso: '2026-05-25T00:00:00.000Z',
       }),
     ).resolves.toEqual({
@@ -78,7 +79,7 @@ describe('event guest auth scope', () => {
     })
   })
 
-  it('falls back to public event login when an invite token is expired but the event is live', async () => {
+  it('does not create a guest scope from an expired invite token', async () => {
     const { db } = createDb({
       event_guest_tokens: {
         event_id: 'event-from-token',
@@ -94,14 +95,10 @@ describe('event guest auth scope', () => {
         returnTo: '/events/event-from-url',
         nowIso: '2026-05-25T00:00:00.000Z',
       }),
-    ).resolves.toEqual({
-      eventId: 'event-from-url',
-      guildId: 'guild-from-url',
-      source: 'public-event',
-    })
+    ).resolves.toBeNull()
   })
 
-  it('resolves a published public event return path when no invite token exists', async () => {
+  it('does not create a guest scope from a regular event URL without an invite token', async () => {
     const { db } = createDb({
       events: { guild_id: 'guild-from-url', status: 'published' },
     })
@@ -112,11 +109,7 @@ describe('event guest auth scope', () => {
         returnTo: '/events/event-from-url',
         nowIso: '2026-05-25T00:00:00.000Z',
       }),
-    ).resolves.toEqual({
-      eventId: 'event-from-url',
-      guildId: 'guild-from-url',
-      source: 'public-event',
-    })
+    ).resolves.toBeNull()
   })
 
   it('never creates a public guest scope for draft events', async () => {

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { classifyKillbotEvent, type AlbionKillbotEvent, type KillbotTarget } from './killbot'
+import {
+  buildKillbotDiscordPayload,
+  classifyKillbotEvent,
+  type AlbionKillbotEvent,
+  type KillbotConfig,
+  type KillbotTarget,
+} from './killbot'
 
 const target: KillbotTarget = {
   server: 'east',
@@ -12,6 +18,21 @@ const config = {
   juicyFameThreshold: 1000,
   includeKills: true,
   includeDeaths: true,
+}
+
+const fullConfig: KillbotConfig = {
+  guildId: 'guild-1',
+  enabled: true,
+  channelId: '12345',
+  minFame: 1,
+  juicyFameThreshold: 1000,
+  includeKills: true,
+  includeDeaths: true,
+  mentionRoleId: '99999',
+  lastPolledAt: null,
+  lastSentAt: null,
+  lastError: null,
+  updatedAt: null,
 }
 
 function event(overrides: Partial<AlbionKillbotEvent> = {}): AlbionKillbotEvent {
@@ -69,5 +90,67 @@ describe('classifyKillbotEvent', () => {
       config,
     )
     expect(matches).toHaveLength(0)
+  })
+})
+
+describe('buildKillbotDiscordPayload', () => {
+  it('builds a rich embed with victim equipment item images', () => {
+    const payload = buildKillbotDiscordPayload(
+      event({
+        BattleId: 77,
+        Victim: {
+          Id: 'victim',
+          Name: 'Victim',
+          GuildId: 'enemy',
+          GuildName: 'Enemy',
+          Equipment: {
+            MainHand: { Type: 'T8_MAIN_HOLYSTAFF@4' },
+            OffHand: { Type: 'T8_OFF_BOOK@2' },
+            Head: { Type: 'T8_HEAD_CLOTH_SET3@1' },
+            Armor: { Type: 'T8_ARMOR_CLOTH_SET3@1' },
+            Shoes: { Type: 'T8_SHOES_CLOTH_SET3@1' },
+            Cape: { Type: 'T8_CAPEITEM_FW_LYMHURST' },
+            Mount: { Type: 'T8_MOUNT_HORSE_UNDEAD' },
+            Potion: { Type: 'T8_POTION_HEAL' },
+            Food: { Type: 'T8_MEAL_OMELETTE' },
+          },
+        },
+      }),
+      {
+        feedType: 'kill',
+        fame: 1200,
+        isJuicy: true,
+        killerName: 'Killer',
+        victimName: 'Victim',
+      },
+      fullConfig,
+      target,
+    )
+
+    expect(payload.content).toBe('<@&99999>')
+    expect(payload.allowed_mentions).toEqual({ parse: [], roles: ['99999'] })
+    expect(payload.embeds.length).toBeGreaterThan(1)
+    expect(payload.embeds.length).toBeLessThanOrEqual(10)
+    expect(payload.embeds[0]).toMatchObject({
+      title: 'Juicy Kill secured: Killer vs Victim',
+      url: 'https://albiononline.com/killboard/kill/1',
+      thumbnail: {
+        url: 'https://render.albiononline.com/v1/item/T8_MAIN_HOLYSTAFF%404.png?size=128',
+      },
+    })
+    const mainEmbed = payload.embeds[0]
+    if (!('fields' in mainEmbed)) throw new Error('expected main embed fields')
+    expect(mainEmbed.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'Battle', value: '[77](https://albiononline.com/killboard/battles/77)' }),
+        expect.objectContaining({ name: 'Victim build', value: expect.stringContaining('Weapon:') }),
+      ]),
+    )
+    expect(payload.embeds[1]).toMatchObject({
+      title: expect.stringContaining('Weapon ·'),
+      thumbnail: {
+        url: 'https://render.albiononline.com/v1/item/T8_MAIN_HOLYSTAFF%404.png?size=128',
+      },
+    })
   })
 })

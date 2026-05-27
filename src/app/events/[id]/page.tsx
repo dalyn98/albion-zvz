@@ -1,5 +1,5 @@
 import { getAdminClient } from '@/lib/supabase-admin'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { headers } from 'next/headers'
 import type { Metadata } from 'next'
@@ -17,7 +17,7 @@ import BuildSheetApplicationPanel from '@/components/BuildSheetApplicationPanel'
 import BuildSheetAssignmentBoard from '@/components/BuildSheetAssignmentBoard'
 import { listTentativeSignupsForGuild } from '@/lib/event-tentative-signups'
 import AutoRefresh from '@/components/AutoRefresh'
-import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil, FileText } from 'lucide-react'
+import { Clock, MapPin, ArrowLeft, Swords, Info, Pencil, FileText, LogIn, ShieldAlert } from 'lucide-react'
 import Link from 'next/link'
 import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId, getPrimaryTenantId } from '@/lib/tenant'
@@ -43,7 +43,7 @@ import {
 } from '@/lib/event-guest-profile'
 import { getEventInteractionSession } from '@/lib/event-session'
 import { buildDiscordStartHref } from '@/lib/discord-auth-url'
-import { resolvePublicEventPageGuildId } from '@/lib/event-guest-auth'
+import { resolveEventGuestInviteScope, resolvePublicEventPageGuildId } from '@/lib/event-guest-auth'
 import { canUseAllianceEventFeaturesForSession } from '@/lib/albion-identity'
 
 function formatStartedAt(iso: string, tz: string): string {
@@ -56,6 +56,53 @@ function requestOriginFromHeaders(headersList: Headers): string {
   if (!host) return ''
   const proto = headersList.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https')
   return `${proto}://${host}`.replace(/\/$/, '')
+}
+
+function EventAccessGate({
+  title,
+  description,
+  primaryAction,
+  secondaryAction,
+}: {
+  title: string
+  description: string
+  primaryAction?: { href: string; label: string }
+  secondaryAction?: { href: string; label: string }
+}) {
+  return (
+    <div className="flex-1 w-full max-w-3xl mx-auto px-4 py-10 sm:py-16">
+      <div className="rounded-2xl border border-gray-800 bg-gray-950/70 p-6 sm:p-8 text-center shadow-xl">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-300">
+          <ShieldAlert size={24} />
+        </div>
+        <h1 className="text-xl sm:text-2xl font-bold text-white">{title}</h1>
+        <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-gray-400">
+          {description}
+        </p>
+        {(primaryAction || secondaryAction) && (
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            {primaryAction && (
+              <Link
+                href={primaryAction.href}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-black transition-colors hover:bg-amber-400"
+              >
+                <LogIn size={15} />
+                {primaryAction.label}
+              </Link>
+            )}
+            {secondaryAction && (
+              <Link
+                href={secondaryAction.href}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-300 transition-colors hover:border-amber-500/50 hover:text-amber-200"
+              >
+                {secondaryAction.label}
+              </Link>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export const dynamic = 'force-dynamic'
@@ -170,18 +217,27 @@ export default async function EventDetailPage({
   ])
   const rawInvite = Array.isArray(sp.invite) ? sp.invite[0] : sp.invite
   const inviteToken = rawInvite?.trim() || null
-  const [sessionGuildId, inviteGuildId] = await Promise.all([
+  const db = getAdminClient()
+  const [sessionGuildId, publicPageGuildId, guestInviteScope] = await Promise.all([
     session ? getSessionGuildId(session) : Promise.resolve(null),
-    resolvePublicEventPageGuildId(getAdminClient(), {
+    resolvePublicEventPageGuildId(db, {
       eventId: id,
       inviteToken,
       hostHeader: headersList.get('host'),
     }),
+    resolveEventGuestInviteScope(db, {
+      eventId: id,
+      inviteToken,
+    }),
   ])
+  const hasGuestInvite = guestInviteScope?.eventId === id
+  if (session?.isGuest && session.eventScope && session.eventScope !== id && !hasGuestInvite) {
+    redirect(`/events/${session.eventScope}`)
+  }
   // Public event pages should prefer a valid invite/host tenant over an
   // unrelated existing session. Otherwise a guest scoped to an older event can
   // see this public page as "logged in" and hit server-side slot scope guards.
-  const guildId = inviteGuildId ?? sessionGuildId ?? await getPrimaryTenantId()
+  const guildId = guestInviteScope?.guildId ?? publicPageGuildId ?? sessionGuildId ?? await getPrimaryTenantId()
   const [
     { event, parties },
     t,
@@ -284,6 +340,25 @@ export default async function EventDetailPage({
   const localLoginHref = localLoginEnabled
     ? `/guild-login?return=${encodeURIComponent(eventReturnPath)}`
     : null
+  const scopedGuestAccessAllowed =
+    interactionSession?.isGuest === true && interactionSession.eventScope === id
+  const regularAccessAllowed =
+    !!interactionSession &&
+    !interactionSession.isGuest &&
+    (interactionSession.isMember ||
+      interactionSession.isAdmin ||
+      interactionSession.isBombSquadCaller ||
+      allianceEventAllowed)
+  if (!hasGuestInvite && !scopedGuestAccessAllowed && !regularAccessAllowed) {
+    return (
+      <EventAccessGate
+        title={session ? t('privateNoAccessTitle') : t('privateTitle')}
+        description={session ? t('privateNoAccessBody') : t('privateBody')}
+        primaryAction={!session ? { href: loginHref, label: t('privateLogin') } : undefined}
+        secondaryAction={!session && localLoginHref ? { href: localLoginHref, label: t('privateLocalLogin') } : undefined}
+      />
+    )
+  }
 
   // Edit entry point for delegated event managers and event owners.
   // Plain event creators only see it on events they own; EVENT_MANAGE officers
@@ -325,6 +400,9 @@ export default async function EventDetailPage({
     interactionSession?.isGuest && interactionSession.eventScope === id
       ? await getEventGuestProfile(guildId, id, interactionSession.discordId)
       : null
+  const shouldShowGuestProfileGate =
+    (interactionSession?.isGuest && interactionSession.eventScope === id && !guestProfile) ||
+    (hasGuestInvite && (!interactionSession || interactionSession.isGuest))
 
   // Pre-battle & in-progress battles get live polling. Once the battle is
   // finished (battle_started_at + 1h), slots are frozen — no reason to keep
@@ -437,8 +515,12 @@ export default async function EventDetailPage({
 
   return (
     <div className="flex-1 w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 py-6 sm:py-8 flex flex-col lg:flex-row lg:gap-6 space-y-4 lg:space-y-0">
-      {interactionSession?.isGuest && interactionSession.eventScope === id && (
-        <EventGuestProfileGate eventId={id} initialProfile={guestProfile} />
+      {shouldShowGuestProfileGate && (
+        <EventGuestProfileGate
+          eventId={id}
+          inviteToken={hasGuestInvite ? inviteToken : null}
+          initialProfile={guestProfile}
+        />
       )}
       {shouldPoll && <AutoRefresh intervalMs={pollIntervalMs} />}
       <main className="flex-1 min-w-0 space-y-6 sm:space-y-8">

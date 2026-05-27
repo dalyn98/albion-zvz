@@ -26,7 +26,7 @@ import {
 import { isLocale } from '@/i18n/locales'
 import { recordAdminLogin } from '@/lib/tenant-activity'
 import { signHopToken, signOAuthState, verifyOAuthState, type OAuthStatePayload } from '@/lib/oauth-state'
-import { resolveEventGuestAuthScope } from '@/lib/event-guest-auth'
+import { extractEventIdFromReturnTo, resolveEventGuestAuthScope } from '@/lib/event-guest-auth'
 import {
   buildTenantHostUrl,
   classifyHost,
@@ -264,13 +264,11 @@ export async function GET(request: NextRequest) {
 
     const returnTo =
       state.returnTo.startsWith('/') && !state.returnTo.startsWith('//') ? state.returnTo : '/'
+    const isRegularEventLogin = !state.invite && extractEventIdFromReturnTo(returnTo) !== null
 
     // 이벤트 게스트 스코프를 먼저 해석한다.
-    // - invite 토큰이 있으면 유효/만료/폐기 여부를 엄격히 본다.
-    // - invite 토큰이 없는 공개 이벤트 링크(`/events/:id`)도 published 이벤트면
-    //   이벤트 스코프 게스트로 로그인시킨다. 외부 지원자가 공개 이벤트 링크에서
-    //   Discord 로그인을 눌렀을 때 `/onboard` 봇 설치 화면으로 빠지는 회귀를 막기
-    //   위한 분기다.
+    // - 게스트 권한은 유효한 invite 토큰이 있을 때만 부여한다.
+    // - 일반 이벤트 링크(`/events/:id`)는 길드원/연합원 로그인 전용이다.
     const guestAuthScope = await resolveEventGuestAuthScope(getAdminClient(), {
       inviteToken: state.invite,
       returnTo,
@@ -504,7 +502,7 @@ export async function GET(request: NextRequest) {
           return g.owner
         }
       })
-      if (onboardableGuilds.length > 0) {
+      if (!isRegularEventLogin && onboardableGuilds.length > 0) {
         return onboardingResponse(url.origin, user, onboardableGuilds)
       }
       return errorRedirect(

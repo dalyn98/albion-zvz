@@ -3,7 +3,7 @@ import { classifyHost, resolveTenantBySlug } from '@/lib/tenant-resolver'
 export interface EventGuestAuthScope {
   eventId: string
   guildId: string
-  source: 'invite' | 'public-event'
+  source: 'invite'
 }
 
 interface SelectQueryBuilder {
@@ -62,6 +62,43 @@ async function resolveEventRow(
   return row
 }
 
+export async function resolveEventGuestInviteScope(
+  db: EventGuestAuthDb,
+  input: {
+    inviteToken: string | null | undefined
+    eventId?: string | null | undefined
+    nowIso?: string
+  },
+): Promise<EventGuestAuthScope | null> {
+  const inviteToken = input.inviteToken?.trim() || null
+  if (!inviteToken) return null
+
+  const nowIso = input.nowIso ?? new Date().toISOString()
+  const query = (db.from('event_guest_tokens') as SelectQueryBuilder)
+    .select('event_id, revoked_at, expires_at')
+    .eq('token', inviteToken)
+  if (input.eventId) query.eq('event_id', input.eventId)
+
+  const { data: tokenRow, error: tokenError } = await query.maybeSingle()
+  const token = tokenRow as TokenRow | null
+  if (
+    tokenError ||
+    !token ||
+    token.revoked_at ||
+    (token.expires_at && token.expires_at <= nowIso)
+  ) {
+    return null
+  }
+
+  const eventRow = await resolveEventRow(db, token.event_id)
+  if (!eventRow) return null
+  return {
+    eventId: token.event_id,
+    guildId: eventRow.guild_id,
+    source: 'invite',
+  }
+}
+
 export async function resolveEventGuestAuthScope(
   db: EventGuestAuthDb,
   input: {
@@ -70,45 +107,12 @@ export async function resolveEventGuestAuthScope(
     nowIso?: string
   },
 ): Promise<EventGuestAuthScope | null> {
-  const inviteToken = input.inviteToken?.trim() || null
-  const nowIso = input.nowIso ?? new Date().toISOString()
-
-  if (inviteToken) {
-    const { data: tokenRow, error: tokenError } = await (db.from('event_guest_tokens') as SelectQueryBuilder)
-      .select('event_id, revoked_at, expires_at')
-      .eq('token', inviteToken)
-      .maybeSingle()
-    const token = tokenRow as TokenRow | null
-    if (
-      !tokenError &&
-      token &&
-      !token.revoked_at &&
-      (!token.expires_at || token.expires_at > nowIso)
-    ) {
-      const eventRow = await resolveEventRow(db, token.event_id)
-      if (eventRow) {
-        return {
-          eventId: token.event_id,
-          guildId: eventRow.guild_id,
-          source: 'invite',
-        }
-      }
-    }
-    // A stale invite query should not strand a public event login on the
-    // admin bot-install flow. If the visible return path is a live event,
-    // continue with the public-event fallback below.
-  }
-
   const eventId = extractEventIdFromReturnTo(input.returnTo)
-  if (!eventId) return null
-
-  const eventRow = await resolveEventRow(db, eventId)
-  if (!eventRow) return null
-  return {
+  return resolveEventGuestInviteScope(db, {
+    inviteToken: input.inviteToken,
     eventId,
-    guildId: eventRow.guild_id,
-    source: 'public-event',
-  }
+    nowIso: input.nowIso,
+  })
 }
 
 export async function resolvePublicEventPageGuildId(
@@ -124,21 +128,12 @@ export async function resolvePublicEventPageGuildId(
   const nowIso = input.nowIso ?? new Date().toISOString()
 
   if (inviteToken) {
-    const { data: tokenRow, error: tokenError } = await (db.from('event_guest_tokens') as SelectQueryBuilder)
-      .select('event_id, revoked_at, expires_at')
-      .eq('token', inviteToken)
-      .eq('event_id', input.eventId)
-      .maybeSingle()
-    const token = tokenRow as TokenRow | null
-    if (
-      !tokenError &&
-      token &&
-      !token.revoked_at &&
-      (!token.expires_at || token.expires_at > nowIso)
-    ) {
-      const eventRow = await resolveEventRow(db, token.event_id)
-      if (eventRow) return eventRow.guild_id
-    }
+    const inviteScope = await resolveEventGuestInviteScope(db, {
+      inviteToken,
+      eventId: input.eventId,
+      nowIso,
+    })
+    if (inviteScope) return inviteScope.guildId
   }
 
   const classification = classifyHost(input.hostHeader)

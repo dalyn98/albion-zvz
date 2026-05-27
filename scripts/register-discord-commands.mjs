@@ -34,6 +34,11 @@ const COMMANDS = [
     type: 1,
   },
   {
+    name: 'wallet',
+    description: 'Open your member wallet',
+    type: 1,
+  },
+  {
     name: 'killbotguild',
     description: 'Open the killbot guide for guild operators',
     type: 1,
