@@ -58,6 +58,10 @@ export type AppSettingKey =
   // /shop 상단에 뜨는 관리자 공지 — 아이템 전달 방법 등을 자유롭게 안내.
   // 빈 문자열이면 배너 비표시.
   | 'shop_delivery_notice'
+  // 길드 상점 상자 로그 import 시 티어+인챈트 합 기준으로 행을 제외한다.
+  // 빈 문자열이면 해당 하한/상한 조건 비활성. 예: T8.2 = 10.
+  | 'shop_import_exclude_tier_enchant_sum_lte'
+  | 'shop_import_exclude_tier_enchant_sum_gte'
   // 인게임 로그 기반 기능의 공식 운영 시작시각. 빈 문자열이면 과거 전체 허용.
   // 각 기능은 이 시각 이전의 로그를 import / 집계 / 검증 대상에서 제외한다.
   | 'log_start_shop_chest_at'

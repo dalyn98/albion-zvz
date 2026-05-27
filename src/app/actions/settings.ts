@@ -18,6 +18,11 @@ import {
   LOG_OPERATING_START_KEYS,
   isValidLogOperatingStart,
 } from '@/lib/log-operating-start'
+import {
+  TIER_ENCHANT_SUM_MAX,
+  TIER_ENCHANT_SUM_MIN,
+  parseTierEnchantSumSetting,
+} from '@/lib/shop/import-tier-enchant-filter'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
@@ -36,6 +41,8 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'regear_payout_rate_percent',
   'shop_discount_rate',
   'shop_delivery_notice',
+  'shop_import_exclude_tier_enchant_sum_lte',
+  'shop_import_exclude_tier_enchant_sum_gte',
   'log_start_shop_chest_at',
   'log_start_siphon_at',
   'log_start_loot_audit_at',
@@ -104,7 +111,12 @@ function settingCaps(key: AppSettingKey): readonly bigint[] {
   ) {
     return [CAP.SHOP_PRICING]
   }
-  if (key === 'log_start_shop_chest_at' || key === 'log_start_loot_audit_at') {
+  if (
+    key === 'log_start_shop_chest_at' ||
+    key === 'log_start_loot_audit_at' ||
+    key === 'shop_import_exclude_tier_enchant_sum_lte' ||
+    key === 'shop_import_exclude_tier_enchant_sum_gte'
+  ) {
     return [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE]
   }
   if (key === 'log_start_siphon_at') {
@@ -135,6 +147,9 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   'events_notice_message',
   // 빈 값 = /shop 상단 공지 배너 숨김.
   'shop_delivery_notice',
+  // 빈 값 = 해당 티어+인챈트 합계 조건은 비활성.
+  'shop_import_exclude_tier_enchant_sum_lte',
+  'shop_import_exclude_tier_enchant_sum_gte',
   // 빈 값 = 해당 로그 기능은 과거 전체를 운영 대상에 포함.
   'log_start_shop_chest_at',
   'log_start_siphon_at',
@@ -189,7 +204,7 @@ const JSON_ARRAY_KEYS: readonly AppSettingKey[] = [
   'auto_regear_excluded_slots',
 ] as const
 
-// Integer-string keys. Must parse as a positive integer within the declared
+// Integer-string keys. Must parse as an integer within the declared
 // range. UI stores raw numbers; the app layer reads via getAppSetting and
 // re-parses with a fallback.
 const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }>> = {
@@ -198,6 +213,14 @@ const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
   regear_eligibility_days: { min: 1, max: 90 },
   regear_payout_rate_percent: { min: 1, max: 100 },
   event_dm_lead_minutes: { min: 5, max: 1440 },
+  shop_import_exclude_tier_enchant_sum_lte: {
+    min: TIER_ENCHANT_SUM_MIN,
+    max: TIER_ENCHANT_SUM_MAX,
+  },
+  shop_import_exclude_tier_enchant_sum_gte: {
+    min: TIER_ENCHANT_SUM_MIN,
+    max: TIER_ENCHANT_SUM_MAX,
+  },
   // 1 Normal, 2 Good, 3 Outstanding, 4 Excellent, 5 Masterpiece.
   aodp_min_quality: { min: 1, max: 5 },
 }
@@ -381,6 +404,25 @@ export async function updateAppSetting(
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
+    if (
+      key === 'shop_import_exclude_tier_enchant_sum_lte' ||
+      key === 'shop_import_exclude_tier_enchant_sum_gte'
+    ) {
+      const otherKey =
+        key === 'shop_import_exclude_tier_enchant_sum_lte'
+          ? 'shop_import_exclude_tier_enchant_sum_gte'
+          : 'shop_import_exclude_tier_enchant_sum_lte'
+      const otherValue = await getAppSetting(otherKey, '', guildId)
+      const lteValue =
+        key === 'shop_import_exclude_tier_enchant_sum_lte' ? trimmed : otherValue
+      const gteValue =
+        key === 'shop_import_exclude_tier_enchant_sum_gte' ? trimmed : otherValue
+      const lte = parseTierEnchantSumSetting(lteValue)
+      const gte = parseTierEnchantSumSetting(gteValue)
+      if (lte !== null && gte !== null && lte >= gte) {
+        return { error: tErr('invalidInput') }
+      }
+    }
     const { error } = await db.from('app_settings').upsert(
       { guild_id: guildId, key, value: trimmed, updated_at: new Date().toISOString() },
       { onConflict: 'guild_id,key' },
@@ -390,6 +432,8 @@ export async function updateAppSetting(
     if (
       key === 'shop_delivery_notice' ||
       key === 'log_start_shop_chest_at' ||
+      key === 'shop_import_exclude_tier_enchant_sum_lte' ||
+      key === 'shop_import_exclude_tier_enchant_sum_gte' ||
       key === 'shop_discount_rate' ||
       key === 'aodp_cities' ||
       key === 'aodp_price_mode' ||

@@ -7,9 +7,14 @@
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import { requireAnyCapability } from '@/lib/auth'
+import { getAppSetting } from '@/lib/app-settings'
 import { parseChestLog, type ChestLogEntry } from '@/lib/shop/parse-chest-log'
 import { resolveKoItem } from '@/lib/shop/resolve-item'
 import { aggregateStock, type AggregateRow } from '@/lib/shop/aggregate-stock'
+import {
+  applyTierEnchantSumFilter,
+  parseTierEnchantSumFilter,
+} from '@/lib/shop/import-tier-enchant-filter'
 import {
   buildOrderedStockReplayDeltas,
   stockReplayKey,
@@ -33,6 +38,7 @@ export interface ImportSummary {
   duplicatesSkipped: number
   skippedBeforeStart: number
   blacklistedRows: number
+  tierEnchantExcludedRows: number
   unresolvedRows: number
   unresolvedNames: string[]
   stockChanges: Array<{
@@ -48,7 +54,7 @@ export interface ImportSummary {
   lastKnownLabel: string | null
   // 붙여넣은 배치 안에 DB 최신 행과 일치하는 entry 가 있는가. true 면 배치가 이어진다는 근거.
   lastKnownInBatch: boolean
-  // 이번 배치에서 DB 최신 행 이후로 발생한 신규 entry 개수. 0 이면 저장할 게 없음.
+  // 이번 배치에서 DB 최신 행 이후로 발생한 저장 대상 신규 entry 개수. 0 이면 저장할 게 없음.
   newEntriesAfterLast: number
   // DB 최신 logged_at 과 이 배치의 "DB 이후 첫 entry" 사이의 시간 차 (ms).
   // lastKnownInBatch=false 이고 배치에 DB 이후 entry 가 있을 때만 계산 — 그 외엔 null.
@@ -70,6 +76,11 @@ export interface ImportOptions {
   // true 면 DB insert / 재고 RPC / 시세 동기화 / revalidate 모두 스킵하고
   // 예측 결과만 반환 — 붙여넣기 미리보기용.
   dryRun?: boolean
+}
+
+export interface ResetShopChestLogsResult {
+  deletedRows: number
+  error?: string
 }
 
 function dedupeKey(e: {
@@ -121,6 +132,42 @@ async function loadCurrentStockByKey(
   return stockByKey
 }
 
+export async function resetShopChestLogs(): Promise<ResetShopChestLogsResult> {
+  const empty: ResetShopChestLogsResult = { deletedRows: 0 }
+  try {
+    const session = await getSession()
+    if (!session) return { ...empty, error: 'Unauthorized' }
+    const db = await requireAnyCapability(SHOP_IMPORT_CAPS)
+    const guildId = await getSessionGuildId(session)
+
+    const { count, error } = await db
+      .from('shop_chest_logs')
+      .delete({ count: 'exact' })
+      .eq('guild_id', guildId)
+
+    if (error) return { ...empty, error: error.message }
+
+    const deletedRows = count ?? 0
+    revalidatePath('/admin/dashboard/shop')
+    revalidatePath('/shop')
+
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'shop.item.update',
+      targetKind: 'shop_item',
+      details: {
+        kind: 'chest_logs.reset',
+        deletedRows,
+      },
+    })
+
+    return { deletedRows }
+  } catch (e) {
+    return { ...empty, error: e instanceof Error ? e.message : 'Server error' }
+  }
+}
+
 export async function importChestLog(
   raw: string,
   options: ImportOptions = {},
@@ -134,6 +181,7 @@ export async function importChestLog(
     duplicatesSkipped: 0,
     skippedBeforeStart: 0,
     blacklistedRows: 0,
+    tierEnchantExcludedRows: 0,
     unresolvedRows: 0,
     unresolvedNames: [],
     stockChanges: [],
@@ -183,12 +231,25 @@ export async function importChestLog(
       }
     }
 
-    // 블랙리스트 로드
-    const { data: blacklistRows } = await db
-      .from('shop_blacklist')
-      .select('item_name_raw')
-      .eq('guild_id', guildId)
+    // 블랙리스트와 import 필터 설정은 길드 단위로 읽는다.
+    const [
+      { data: blacklistRows, error: blacklistErr },
+      excludeAtOrBelowRaw,
+      excludeAtOrAboveRaw,
+    ] = await Promise.all([
+      db
+        .from('shop_blacklist')
+        .select('item_name_raw')
+        .eq('guild_id', guildId),
+      getAppSetting('shop_import_exclude_tier_enchant_sum_lte', '', guildId),
+      getAppSetting('shop_import_exclude_tier_enchant_sum_gte', '', guildId),
+    ])
+    if (blacklistErr) return { ...empty, parseErrors: errors, error: blacklistErr.message }
     const blacklist = new Set((blacklistRows ?? []).map((r) => r.item_name_raw))
+    const tierEnchantFilter = parseTierEnchantSumFilter({
+      excludeAtOrBelow: excludeAtOrBelowRaw,
+      excludeAtOrAbove: excludeAtOrAboveRaw,
+    })
 
     // 중복 검출: 임포트 행들의 logged_at 범위를 잡아 기존 로그를 한 번에 조회 →
     // dedupe 키 세트로 비교. UNIQUE 제약이 있어 INSERT 중 레이스가 발생해도
@@ -258,6 +319,15 @@ export async function importChestLog(
         quantity: row.quantity as number,
       }))
     }
+    // 집계 (원본 보존 + 재고 델타)
+    const candidateRows: AggregateRow[] = newEntries.map((entry) => ({
+      entry,
+      resolved: resolveKoItem(entry.itemName),
+      isBlacklisted: blacklist.has(entry.itemName),
+    }))
+    const { rows, excludedRows: tierEnchantExcludedRows } =
+      applyTierEnchantSumFilter(candidateRows, tierEnchantFilter)
+    const importableEntries = rows.map((row) => row.entry)
     const {
       lastKnownLoggedAt,
       lastKnownLabel,
@@ -266,26 +336,17 @@ export async function importChestLog(
       gapFromLastKnownMs,
     } = summarizeLogContinuity({
       allEntries: entries,
-      newEntries,
+      newEntries: importableEntries,
       latestStoredEntries,
       getLoggedAt: (entry) => entry.loggedAt,
       getKey: dedupeKey,
       getLabel: chestLogLabel,
     })
-
-    // 집계 (원본 보존 + 재고 델타)
-    const rows: AggregateRow[] = newEntries.map((entry) => ({
-      entry,
-      resolved: resolveKoItem(entry.itemName),
-      isBlacklisted: blacklist.has(entry.itemName),
-    }))
     const { toInsert, unresolvedNames } = aggregateStock(rows)
     const stockDeltas = buildOrderedStockReplayDeltas(rows)
 
-    const blacklistedRows = newEntries.filter((e) => blacklist.has(e.itemName)).length
-    const unresolvedRows = newEntries.filter(
-      (e) => !blacklist.has(e.itemName) && !resolveKoItem(e.itemName),
-    ).length
+    const blacklistedRows = rows.filter((row) => row.isBlacklisted).length
+    const unresolvedRows = rows.filter((row) => !row.isBlacklisted && !row.resolved).length
 
     let stockChanges: ImportSummary['stockChanges'] = []
 
@@ -300,6 +361,7 @@ export async function importChestLog(
         duplicatesSkipped,
         skippedBeforeStart: official.skippedBeforeStart,
         blacklistedRows,
+        tierEnchantExcludedRows,
         unresolvedRows,
         unresolvedNames,
         stockChanges,
@@ -360,6 +422,7 @@ export async function importChestLog(
           duplicatesSkipped,
           skippedBeforeStart: official.skippedBeforeStart,
           blacklistedRows,
+          tierEnchantExcludedRows,
           unresolvedRows,
           unresolvedNames,
           stockChanges,
@@ -391,6 +454,7 @@ export async function importChestLog(
         duplicatesSkipped,
         skippedBeforeStart: official.skippedBeforeStart,
         stockChanges: stockChanges.length,
+        tierEnchantExcludedRows,
         unresolvedRows,
       },
     })
@@ -402,6 +466,7 @@ export async function importChestLog(
       duplicatesSkipped,
       skippedBeforeStart: official.skippedBeforeStart,
       blacklistedRows,
+      tierEnchantExcludedRows,
       unresolvedRows,
       unresolvedNames,
       stockChanges,

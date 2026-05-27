@@ -7,6 +7,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
 import ShopImportForm from '@/components/ShopImportForm'
+import ShopImportTierFilterForm from '@/components/ShopImportTierFilterForm'
 import ShopBlacklistEditor from '@/components/ShopBlacklistEditor'
 import ShopSilverRateForm from '@/components/ShopSilverRateForm'
 import ShopInventoryEditor, { type InventoryRow } from '@/components/ShopInventoryEditor'
@@ -59,6 +60,8 @@ export default async function AdminShopPage() {
     aodpMinQualityRaw,
     tenantTimezone,
     logStartShopChestAt,
+    importExcludeTierEnchantLte,
+    importExcludeTierEnchantGte,
   ] = await Promise.all([
     db
       .from('shop_blacklist')
@@ -83,6 +86,8 @@ export default async function AdminShopPage() {
     getAppSetting('aodp_min_quality', '1', guildId),
     getTenantTimezone(guildId),
     getAppSetting('log_start_shop_chest_at', '', guildId),
+    getAppSetting('shop_import_exclude_tier_enchant_sum_lte', '', guildId),
+    getAppSetting('shop_import_exclude_tier_enchant_sum_gte', '', guildId),
   ])
 
   const lastImportAt = (lastLog?.imported_at as string | null | undefined) ?? null
@@ -194,6 +199,10 @@ export default async function AdminShopPage() {
             lastImportAt={lastImportAt}
             timezone={tenantTimezone}
             isImportStale={isImportStale}
+          />
+          <ShopImportTierFilterForm
+            initialExcludeAtOrBelow={importExcludeTierEnchantLte}
+            initialExcludeAtOrAbove={importExcludeTierEnchantGte}
           />
           <LogOperatingStartSettingsForm
             domains={['shopChest']}

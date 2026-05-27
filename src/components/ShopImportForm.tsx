@@ -25,13 +25,16 @@ import {
   Coins,
   Clock,
   Trash2,
+  RotateCcw,
   Info,
 } from 'lucide-react'
 import {
   importChestLog,
+  resetShopChestLogs,
   addBlacklist,
   type ImportSummary,
 } from '@/app/actions/shop-admin'
+import { useConfirm } from '@/components/ConfirmDialog'
 
 type ImportTranslator = ReturnType<typeof useTranslations<'adminShopImport'>>
 
@@ -62,6 +65,7 @@ interface Props {
 export default function ShopImportForm({ lastImportAt, timezone, isImportStale }: Props) {
   const router = useRouter()
   const t = useTranslations('adminShopImport')
+  const askConfirm = useConfirm()
   const [text, setText] = useState('')
   const [batches, setBatches] = useState<StagedBatch[]>([])
   const [previewing, setPreviewing] = useState(false)
@@ -71,6 +75,9 @@ export default function ShopImportForm({ lastImportAt, timezone, isImportStale }
   const [commitError, setCommitError] = useState<string | null>(null)
   const [blacklistingName, setBlacklistingName] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [resettingLogs, setResettingLogs] = useState(false)
+  const [resetLogCount, setResetLogCount] = useState<number | null>(null)
+  const [resetLogError, setResetLogError] = useState<string | null>(null)
 
   // 붙여넣기/파일 드롭 공용 preview 러너. dryRun=true 로 DB 변경 없이 결과만 받아온다.
   const runPreview = useCallback(async (raw: string) => {
@@ -99,6 +106,8 @@ export default function ShopImportForm({ lastImportAt, timezone, isImportStale }
       // 새 배치가 추가되면 직전 commit 결과/에러는 스쳐 지난 정보라 치움.
       setCommitResult(null)
       setCommitError(null)
+      setResetLogCount(null)
+      setResetLogError(null)
     } finally {
       setPreviewing(false)
     }
@@ -124,6 +133,8 @@ export default function ShopImportForm({ lastImportAt, timezone, isImportStale }
     if (batches.length === 0) return
     setCommitting(true)
     setCommitError(null)
+    setResetLogCount(null)
+    setResetLogError(null)
     try {
       const combined = batches.map((b) => b.raw).join('\n')
       const result = await importChestLog(combined)
@@ -139,6 +150,32 @@ export default function ShopImportForm({ lastImportAt, timezone, isImportStale }
     }
   }
 
+  const handleResetLogs = async () => {
+    const ok = await askConfirm({
+      body: t('resetLogsConfirm'),
+      destructive: true,
+    })
+    if (!ok) return
+    setResettingLogs(true)
+    setPreviewError(null)
+    setCommitError(null)
+    setCommitResult(null)
+    setResetLogCount(null)
+    setResetLogError(null)
+    try {
+      const result = await resetShopChestLogs()
+      if (result.error) {
+        setResetLogError(result.error)
+        return
+      }
+      setBatches([])
+      setResetLogCount(result.deletedRows)
+      router.refresh()
+    } finally {
+      setResettingLogs(false)
+    }
+  }
+
   const handleDiscardBatch = (id: string) => {
     setBatches((prev) => prev.filter((b) => b.id !== id))
   }
@@ -148,6 +185,8 @@ export default function ShopImportForm({ lastImportAt, timezone, isImportStale }
     setCommitResult(null)
     setCommitError(null)
     setPreviewError(null)
+    setResetLogCount(null)
+    setResetLogError(null)
   }
 
   const handleBlacklist = async (name: string) => {
@@ -203,7 +242,7 @@ export default function ShopImportForm({ lastImportAt, timezone, isImportStale }
   // 여러 배치를 쌓았다면 가장 나중 붙여넣은 쪽이 DB 와의 "연결 지점" 을 가장 잘 반영.
   const latestBatch = batches.length > 0 ? batches[batches.length - 1] : null
 
-  const isBusy = previewing || committing
+  const isBusy = previewing || committing || resettingLogs
 
   return (
     <div className="space-y-4">
@@ -290,6 +329,20 @@ export default function ShopImportForm({ lastImportAt, timezone, isImportStale }
               {t('discardAll')}
             </button>
           )}
+          <button
+            type="button"
+            onClick={handleResetLogs}
+            disabled={isBusy}
+            className="ml-auto flex items-center gap-1.5 bg-gray-800 hover:bg-red-900/40 hover:border-red-700 border border-gray-700 disabled:bg-gray-900 disabled:text-gray-600 disabled:border-gray-800 text-red-300 px-3 py-1.5 rounded-lg transition-colors text-xs"
+            title={t('resetLogsTitle')}
+          >
+            {resettingLogs ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <RotateCcw size={12} />
+            )}
+            {t('resetLogsButton')}
+          </button>
         </div>
 
         {previewError && (
@@ -300,6 +353,20 @@ export default function ShopImportForm({ lastImportAt, timezone, isImportStale }
         {commitError && (
           <div className="bg-red-500/10 border border-red-500/40 rounded-lg px-3 py-2">
             <p className="text-red-300 text-xs">{t('saveFailed', { error: commitError })}</p>
+          </div>
+        )}
+        {resetLogError && (
+          <div className="bg-red-500/10 border border-red-500/40 rounded-lg px-3 py-2">
+            <p className="text-red-300 text-xs">
+              {t('resetLogsFailed', { error: resetLogError })}
+            </p>
+          </div>
+        )}
+        {resetLogCount !== null && (
+          <div className="bg-emerald-500/10 border border-emerald-500/40 rounded-lg px-3 py-2">
+            <p className="text-emerald-300 text-xs">
+              {t('resetLogsSummary', { count: resetLogCount })}
+            </p>
           </div>
         )}
       </div>
@@ -343,6 +410,7 @@ interface Totals {
   duplicatesSkipped: number
   skippedBeforeStart: number
   blacklistedRows: number
+  tierEnchantExcludedRows: number
   unresolvedRows: number
   unresolvedNames: string[]
   parseErrors: Array<{ line: number; text: string; reason: string }>
@@ -356,6 +424,7 @@ function aggregateTotals(batches: StagedBatch[]): Totals {
     duplicatesSkipped: 0,
     skippedBeforeStart: 0,
     blacklistedRows: 0,
+    tierEnchantExcludedRows: 0,
     unresolvedRows: 0,
     unresolvedNames: [],
     parseErrors: [],
@@ -371,6 +440,7 @@ function aggregateTotals(batches: StagedBatch[]): Totals {
     acc.duplicatesSkipped += p.duplicatesSkipped
     acc.skippedBeforeStart += p.skippedBeforeStart
     acc.blacklistedRows += p.blacklistedRows
+    acc.tierEnchantExcludedRows += p.tierEnchantExcludedRows
     acc.unresolvedRows += p.unresolvedRows
     for (const n of p.unresolvedNames) unresolvedSet.add(n)
     acc.parseErrors.push(...p.parseErrors)
@@ -417,7 +487,10 @@ function StagingStatusCard({
   } = preview
   const saveableRows = Math.max(
     0,
-    preview.parsed - preview.skippedBeforeStart - preview.duplicatesSkipped,
+    preview.parsed -
+      preview.skippedBeforeStart -
+      preview.duplicatesSkipped -
+      preview.tierEnchantExcludedRows,
   )
 
   // tone 은 최종 본문을 쓸 때 다시 덮어씀. 초기값은 '이전 기록 없음' 케이스 기준.
@@ -542,6 +615,11 @@ function StagedBatchesCard({
                       {t('batchUnresolvedChip', { count: p.unresolvedRows })}
                     </span>
                   )}
+                  {p.tierEnchantExcludedRows > 0 && (
+                    <span className="text-sky-300">
+                      {t('batchTierFilterChip', { count: p.tierEnchantExcludedRows })}
+                    </span>
+                  )}
                 </span>
                 <span className="text-gray-500">{formatLoggedAt(b.pastedAtIso, timezone)}</span>
               </div>
@@ -612,7 +690,7 @@ function RunningTotalsCard({
           <Check size={16} className="text-emerald-400" />
           <h3 className="font-bold text-white">{t('runningTotalsTitle')}</h3>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-7 gap-3">
           <StatCell label={t('statParsed')} value={totals.parsed} />
           <StatCell
             label={t('statNewEntries')}
@@ -621,6 +699,11 @@ function RunningTotalsCard({
           />
           <StatCell label={t('statDuplicates')} value={totals.duplicatesSkipped} />
           <StatCell label={t('statSkippedBeforeStart')} value={totals.skippedBeforeStart} />
+          <StatCell
+            label={t('statTierFilter')}
+            value={totals.tierEnchantExcludedRows}
+            accent={totals.tierEnchantExcludedRows > 0 ? 'amber' : undefined}
+          />
           <StatCell label={t('statBlacklist')} value={totals.blacklistedRows} />
           <StatCell
             label={t('statUnresolved')}
@@ -757,10 +840,11 @@ function CommitResultCard({ summary, t }: { summary: ImportSummary; t: ImportTra
         <Check size={16} className="text-emerald-400" />
         <h3 className="font-bold text-white">{t('commitResultTitle')}</h3>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
         <StatCell label={t('commitStatNew')} value={summary.inserted} accent="emerald" />
         <StatCell label={t('commitStatDup')} value={summary.duplicatesSkipped} />
         <StatCell label={t('commitStatSkippedBeforeStart')} value={summary.skippedBeforeStart} />
+        <StatCell label={t('commitStatTierFilter')} value={summary.tierEnchantExcludedRows} />
         <StatCell label={t('commitStatStockChanges')} value={summary.stockChanges.length} />
         <StatCell
           label={t('commitStatPriceUpdate')}
