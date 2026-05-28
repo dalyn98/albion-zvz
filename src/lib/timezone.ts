@@ -69,9 +69,10 @@ export function toZonedParts(input: string | Date | number, tz: string): ZonedPa
 // 1h "spring forward" gap or "fall back" overlap we deterministically pick the
 // later/standard time, since users typing event times don't care about ambiguity.
 export function zonedPartsToUtc(
-  parts: { year: number; month: number; day: number; hour: number; minute: number },
+  parts: { year: number; month: number; day: number; hour: number; minute: number; second?: number },
   tz: string,
 ): Date {
+  const second = parts.second ?? 0
   // First guess: treat the parts as UTC. The offset of *that* UTC moment in tz
   // is approximately what we need — for non-DST and stable periods, it's exact.
   const guessUtc = Date.UTC(
@@ -80,7 +81,7 @@ export function zonedPartsToUtc(
     parts.day,
     parts.hour,
     parts.minute,
-    0,
+    second,
   )
   const seenInTz = toZonedParts(guessUtc, tz)
   // Compute the difference between the guess (interpreted as UTC) and what the

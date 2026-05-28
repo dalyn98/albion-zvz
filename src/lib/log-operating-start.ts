@@ -1,36 +1,58 @@
 import type { AppSettingKey } from '@/lib/app-settings'
-import { DEFAULT_TENANT_TIMEZONE } from '@/lib/timezone'
+import { DEFAULT_TENANT_TIMEZONE, toZonedParts, zonedPartsToUtc } from '@/lib/timezone'
 
-export type LogOperatingStartDomain = 'shopChest' | 'siphon'
+export type LogOperatingStartDomain = 'shopChest' | 'siphon' | 'lootAudit'
 
 export const LOG_OPERATING_START_KEYS = {
   shopChest: 'log_start_shop_chest_at',
   siphon: 'log_start_siphon_at',
+  lootAudit: 'log_start_loot_audit_at',
 } as const satisfies Record<LogOperatingStartDomain, AppSettingKey>
 
 const LOCAL_DATE_TIME_RE =
   /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/
 
+interface WallClockParts {
+  year: number
+  month: number
+  day: number
+  hour: number
+  minute: number
+  second: number
+}
+
 export function parseLogOperatingStart(
   raw: string,
   timezone: string = DEFAULT_TENANT_TIMEZONE,
 ): Date | null {
-  void timezone
   const value = raw.trim()
   if (!value) return null
 
-  const local = value.match(LOCAL_DATE_TIME_RE)
-  if (local) {
-    const [, yyyy, mm, dd, hh, min, ss] = local
-    const parts = {
-      year: Number(yyyy),
-      month: Number(mm),
-      day: Number(dd),
-      hour: Number(hh),
-      minute: Number(min),
-      second: ss ? Number(ss) : 0,
+  const isBareWallClock = LOCAL_DATE_TIME_RE.test(value)
+  const parts = parseWallClockParts(value)
+  if (parts) {
+    try {
+      return zonedPartsToUtc(parts, timezone)
+    } catch {
+      return null
     }
-    if (!isValidWallClockParts(parts)) return null
+  }
+  if (isBareWallClock) return null
+
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+// Stored UTC ISO values are parsed as absolute instants. Bare datetime-local
+// strings are legacy values from the old UTC-input form, so keep interpreting
+// them as UTC rather than shifting existing operating-start boundaries.
+export function parseStoredLogOperatingStart(raw: string): Date | null {
+  const value = raw.trim()
+  if (!value) return null
+
+  const isBareWallClock = LOCAL_DATE_TIME_RE.test(value)
+  const parts = parseWallClockParts(value)
+  if (parts) {
     return new Date(
       Date.UTC(
         parts.year,
@@ -42,6 +64,7 @@ export function parseLogOperatingStart(
       ),
     )
   }
+  if (isBareWallClock) return null
 
   const parsed = new Date(value)
   return Number.isNaN(parsed.getTime()) ? null : parsed
@@ -58,16 +81,36 @@ export function formatLogOperatingStartInput(
   raw: string,
   timezone: string = DEFAULT_TENANT_TIMEZONE,
 ): string {
-  void timezone
-  const parsed = parseLogOperatingStart(raw, timezone)
+  const parsed = parseStoredLogOperatingStart(raw)
   if (!parsed) return ''
   const pad = (n: number) => String(n).padStart(2, '0')
-  const date = [
-    parsed.getUTCFullYear(),
-    pad(parsed.getUTCMonth() + 1),
-    pad(parsed.getUTCDate()),
-  ].join('-')
-  return `${date}T${pad(parsed.getUTCHours())}:${pad(parsed.getUTCMinutes())}`
+  try {
+    const parts = toZonedParts(parsed, timezone)
+    const date = [
+      parts.year,
+      pad(parts.month),
+      pad(parts.day),
+    ].join('-')
+    return `${date}T${pad(parts.hour)}:${pad(parts.minute)}`
+  } catch {
+    return ''
+  }
+}
+
+function parseWallClockParts(value: string): WallClockParts | null {
+  const local = value.match(LOCAL_DATE_TIME_RE)
+  if (!local) return null
+
+  const [, yyyy, mm, dd, hh, min, ss] = local
+  const parts = {
+    year: Number(yyyy),
+    month: Number(mm),
+    day: Number(dd),
+    hour: Number(hh),
+    minute: Number(min),
+    second: ss ? Number(ss) : 0,
+  }
+  return isValidWallClockParts(parts) ? parts : null
 }
 
 export function filterByLogOperatingStart<T>(

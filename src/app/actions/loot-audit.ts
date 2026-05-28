@@ -29,6 +29,7 @@ import {
   type LootLogParseError,
 } from '@/lib/loot-audit'
 import { getGuild, isAlbionServer } from '@/lib/albion-gameinfo'
+import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 
 const LOOT_AUDIT_CAPS = [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
 const RAW_MAX_LENGTH = 2_000_000
@@ -141,9 +142,12 @@ export async function previewLootAudit(
     if (!session) return previewError(tErr('unauthorized'))
     await requireAnyCapability(LOOT_AUDIT_CAPS)
     const guildId = await getSessionGuildId(session)
-    const auditContext = await getLootAuditScopeContext(guildId)
+    const [auditContext, operatingStart] = await Promise.all([
+      getLootAuditScopeContext(guildId),
+      getLogOperatingStart('lootAudit', guildId),
+    ])
 
-    return parseAuditInput(parsed.data, tErr, auditContext).preview
+    return parseAuditInput(parsed.data, tErr, auditContext, operatingStart).preview
   } catch (e) {
     return previewError(e instanceof Error ? e.message : tErr('serverError'))
   }
@@ -164,9 +168,12 @@ export async function createLootAudit(
     if (!session) return { ...previewError(tErr('unauthorized')) }
     const db = await requireAnyCapability(LOOT_AUDIT_CAPS)
     guildId = await getSessionGuildId(session)
-    const auditContext = await getLootAuditScopeContext(guildId)
+    const [auditContext, operatingStart] = await Promise.all([
+      getLootAuditScopeContext(guildId),
+      getLogOperatingStart('lootAudit', guildId),
+    ])
 
-    const parsedAudit = parseAuditInput(parsed.data, tErr, auditContext)
+    const parsedAudit = parseAuditInput(parsed.data, tErr, auditContext, operatingStart)
     if (parsedAudit.preview.error) return { ...parsedAudit.preview }
 
     const { summary } = parsedAudit.preview
@@ -447,10 +454,15 @@ function parseAuditInput(
   input: z.infer<typeof auditInputSchema>,
   tErr: Awaited<ReturnType<typeof getTranslations>>,
   auditContext: LootAuditScopeContext,
+  operatingStart: Date | null,
 ): ParsedAuditInput {
   const lootResult = parseLootLogCsv(input.lootLogRaw)
   const depositResult = parseDepositLog(input.depositLogRaw)
-  const selectedEntries = selectLootAuditEntries(lootResult.entries, depositResult.entries)
+  const selectedEntries = selectLootAuditEntries(
+    lootResult.entries,
+    depositResult.entries,
+    operatingStart,
+  )
   const skippedBeforeStart = {
     operatingStartAt: selectedEntries.operatingStartAt,
     lootRows: selectedEntries.skippedBeforeStart.lootRows,
@@ -459,11 +471,15 @@ function parseAuditInput(
   const rowCount = selectedEntries.lootEntries.length + selectedEntries.depositEntries.length
 
   if (selectedEntries.lootEntries.length === 0) {
+    const error =
+      lootResult.entries.length > 0 && skippedBeforeStart.lootRows > 0
+        ? tErr('lootAuditAllLootRowsBeforeStart', { count: skippedBeforeStart.lootRows })
+        : tErr('lootAuditNoLootRows')
     return {
       lootEntries: [],
       depositEntries: [],
       preview: {
-        ...previewError(tErr('lootAuditNoLootRows'), skippedBeforeStart),
+        ...previewError(error, skippedBeforeStart),
         lootParseErrors: lootResult.errors,
         depositParseErrors: depositResult.errors,
       },

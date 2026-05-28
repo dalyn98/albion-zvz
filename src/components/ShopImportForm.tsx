@@ -22,7 +22,6 @@ import {
   Loader2,
   Ban,
   Package,
-  Coins,
   Clock,
   Trash2,
   RotateCcw,
@@ -840,30 +839,17 @@ function CommitResultCard({ summary, t }: { summary: ImportSummary; t: ImportTra
         <Check size={16} className="text-emerald-400" />
         <h3 className="font-bold text-white">{t('commitResultTitle')}</h3>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <StatCell label={t('commitStatNew')} value={summary.inserted} accent="emerald" />
         <StatCell label={t('commitStatDup')} value={summary.duplicatesSkipped} />
         <StatCell label={t('commitStatSkippedBeforeStart')} value={summary.skippedBeforeStart} />
         <StatCell label={t('commitStatTierFilter')} value={summary.tierEnchantExcludedRows} />
         <StatCell label={t('commitStatStockChanges')} value={summary.stockChanges.length} />
-        <StatCell
-          label={t('commitStatPriceUpdate')}
-          value={summary.priceSync?.updated ?? 0}
-          accent={summary.priceSync && summary.priceSync.missing > 0 ? 'amber' : undefined}
-        />
       </div>
-      {summary.priceSync && (
-        <div className="flex items-center gap-2 text-xs text-gray-400">
-          <Coins size={12} />
-          <span>
-            {t('commitAodpSummary', {
-              requested: summary.priceSync.requested,
-              updated: summary.priceSync.updated,
-              missing: summary.priceSync.missing,
-            })}
-          </span>
-        </div>
-      )}
+      <div className="flex items-center gap-2 text-xs text-gray-400">
+        <Info size={12} className="shrink-0" />
+        <span>{t('commitPriceSyncDeferred')}</span>
+      </div>
     </div>
   )
 }

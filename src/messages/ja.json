@@ -1277,7 +1277,7 @@
   "adminLogOperatingStart": {
     "title": "ログ運用開始時刻",
     "description": "この時刻より前のゲーム内ログは、新規インポート、サイフォン残高、ルート検証の公式結果から除外します。既存データは削除しません。",
-    "timezoneHint": "入力基準タイムゾーン: UTC (Albionログ時刻)",
+    "timezoneHint": "入力基準: ギルド基準時刻({timezone})。保存とフィルタはUTCへ自動変換されます。",
     "shopChestLabel": "ギルド金庫",
     "shopChestHint": "ショップ在庫に反映する銀行ログの開始時刻です。",
     "siphonLabel": "サイフォン",
@@ -1739,8 +1739,7 @@
     "commitStatSkippedBeforeStart": "開始前スキップ",
     "commitStatTierFilter": "ティア除外",
     "commitStatStockChanges": "在庫変動",
-    "commitStatPriceUpdate": "価格更新",
-    "commitAodpSummary": "相場更新: 要求 {requested} · 更新 {updated} · 価格なし {missing}"
+    "commitPriceSyncDeferred": "在庫は反映されました。価格更新は上部の装備価格更新ボタン、または自動同期で別途処理されます。"
   },
   "adminShopImportFilter": {
     "title": "インポートのティアフィルター",
@@ -4550,7 +4549,7 @@
     "parseErrorReasonChestDate": "金庫ログの日付を読み取れません。",
     "parseErrorReasonChestNumericFields": "金庫ログのエンチャント、品質、数量は数値である必要があります。",
     "parseErrorReasonUnknown": "不明な解析エラーです。",
-    "skippedBeforeStartNotice": "最初のルート時刻より前の入庫 {deposit} 行を除外しました。",
+    "skippedBeforeStartNotice": "基準時刻より前のログを除外しました: ルート {loot} 件、入庫 {deposit} 件。",
     "unresolvedDepositItems": "金庫ログのアイテム名 {count} 種を照合できませんでした: {names}",
     "recentTitle": "最近の検証",
     "recentCount": "{count} 件",

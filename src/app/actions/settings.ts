@@ -9,6 +9,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 import { isValidTenantTimezone } from '@/lib/timezone'
+import { getTenantTimezone } from '@/lib/timezone-server'
 import { isSuperAdminSession } from '@/lib/super-admin'
 import { SLOT_ROLES, SLOT_KEYS } from '@/types'
 import { logAdminAction } from '@/lib/admin-audit'
@@ -17,6 +18,7 @@ import { CAP } from '@/lib/permissions'
 import {
   LOG_OPERATING_START_KEYS,
   isValidLogOperatingStart,
+  parseLogOperatingStart,
 } from '@/lib/log-operating-start'
 import {
   TIER_ENCHANT_SUM_MAX,
@@ -45,6 +47,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'shop_import_exclude_tier_enchant_sum_gte',
   'log_start_shop_chest_at',
   'log_start_siphon_at',
+  'log_start_loot_audit_at',
   'albion_server',
   'albion_home_guild_id',
   'aodp_cities',
@@ -112,6 +115,7 @@ function settingCaps(key: AppSettingKey): readonly bigint[] {
   }
   if (
     key === 'log_start_shop_chest_at' ||
+    key === 'log_start_loot_audit_at' ||
     key === 'shop_import_exclude_tier_enchant_sum_lte' ||
     key === 'shop_import_exclude_tier_enchant_sum_gte'
   ) {
@@ -151,6 +155,7 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   // 빈 값 = 해당 로그 기능은 과거 전체를 운영 대상에 포함.
   'log_start_shop_chest_at',
   'log_start_siphon_at',
+  'log_start_loot_audit_at',
   // Empty JSON array '[]' = admin-only event creation.
   'event_creator_role_ids',
   'event_creator_role_ids_combat',
@@ -254,7 +259,20 @@ const BOOLEAN_KEYS: readonly AppSettingKey[] = [
 const DATE_TIME_KEYS: readonly AppSettingKey[] = [
   LOG_OPERATING_START_KEYS.shopChest,
   LOG_OPERATING_START_KEYS.siphon,
+  LOG_OPERATING_START_KEYS.lootAudit,
 ] as const
+
+async function normalizeSettingValue(
+  key: AppSettingKey,
+  value: string,
+  guildId: string,
+): Promise<string | null> {
+  if (!value || !DATE_TIME_KEYS.includes(key)) return value
+
+  const timezone = await getTenantTimezone(guildId)
+  const parsed = parseLogOperatingStart(value, timezone)
+  return parsed ? parsed.toISOString() : null
+}
 
 // Enum-string keys. Value must be exactly one of the listed members.
 const ENUM_VALUES: Partial<Record<AppSettingKey, readonly string[]>> = {
@@ -400,6 +418,8 @@ export async function updateAppSetting(
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
+    const normalizedValue = await normalizeSettingValue(key, trimmed, guildId)
+    if (normalizedValue === null) return { error: tErr('invalidDateTime') }
     if (
       key === 'shop_import_exclude_tier_enchant_sum_lte' ||
       key === 'shop_import_exclude_tier_enchant_sum_gte'
@@ -420,7 +440,7 @@ export async function updateAppSetting(
       }
     }
     const { error } = await db.from('app_settings').upsert(
-      { guild_id: guildId, key, value: trimmed, updated_at: new Date().toISOString() },
+      { guild_id: guildId, key, value: normalizedValue, updated_at: new Date().toISOString() },
       { onConflict: 'guild_id,key' },
     )
     if (error) return { error: error.message }
@@ -437,6 +457,9 @@ export async function updateAppSetting(
     ) {
       revalidatePath('/admin/dashboard/shop')
       revalidatePath('/shop')
+    }
+    if (key === 'log_start_loot_audit_at') {
+      revalidatePath('/admin/dashboard/loot-audit')
     }
     if (key === 'log_start_siphon_at') {
       revalidatePath('/admin/dashboard/siphon')
@@ -483,7 +506,7 @@ export async function updateAppSetting(
       adminDiscordId: session.discordId,
       action: 'settings.update',
       targetKind: 'setting',
-      details: { kind: 'app_setting', key, value: trimmed },
+      details: { kind: 'app_setting', key, value: normalizedValue },
     })
     return {}
   } catch (e) {

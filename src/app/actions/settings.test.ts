@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   requireAnyCapability: vi.fn(),
   getSession: vi.fn(),
   getSessionGuildId: vi.fn(),
+  getTenantTimezone: vi.fn(),
   logAdminAction: vi.fn(),
   revalidatePath: vi.fn(),
 }))
@@ -19,6 +20,10 @@ vi.mock('@/lib/session', () => ({
 
 vi.mock('@/lib/tenant', () => ({
   getSessionGuildId: mocks.getSessionGuildId,
+}))
+
+vi.mock('@/lib/timezone-server', () => ({
+  getTenantTimezone: mocks.getTenantTimezone,
 }))
 
 vi.mock('@/lib/admin-audit', () => ({
@@ -63,10 +68,12 @@ describe('updateAppSetting', () => {
     mocks.requireAnyCapability.mockReset()
     mocks.getSession.mockReset()
     mocks.getSessionGuildId.mockReset()
+    mocks.getTenantTimezone.mockReset()
     mocks.logAdminAction.mockReset()
     mocks.revalidatePath.mockReset()
     mocks.getSession.mockResolvedValue({ discordId: 'admin-1' })
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getTenantTimezone.mockResolvedValue('Asia/Seoul')
   })
 
   it('saves the event DM lead-time setting with general settings permission', async () => {
@@ -122,5 +129,31 @@ describe('updateAppSetting', () => {
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/craft/orders')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/craft/my-tasks')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/', 'layout')
+  })
+
+  it('normalizes log operating start values from guild time to UTC before saving', async () => {
+    const { db, calls } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(updateAppSetting('log_start_shop_chest_at', '2026-05-24T17:30')).resolves.toEqual({})
+
+    expect(mocks.requireAnyCapability).toHaveBeenCalledWith([
+      CAP.INVENTORY_MANAGE,
+      CAP.CHEST_LOG_PASTE,
+    ])
+    expect(mocks.getTenantTimezone).toHaveBeenCalledWith('guild-1')
+    expect(calls[0].row).toMatchObject({
+      guild_id: 'guild-1',
+      key: 'log_start_shop_chest_at',
+      value: '2026-05-24T08:30:00.000Z',
+    })
+    expect(mocks.logAdminAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        details: expect.objectContaining({
+          key: 'log_start_shop_chest_at',
+          value: '2026-05-24T08:30:00.000Z',
+        }),
+      }),
+    )
   })
 })

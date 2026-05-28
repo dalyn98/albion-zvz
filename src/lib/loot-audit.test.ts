@@ -494,4 +494,41 @@ describe('selectLootAuditEntries', () => {
     expect(selected.depositEntries).toHaveLength(1)
     expect(selected.skippedBeforeStart).toEqual({ lootRows: 0, depositRows: 1 })
   })
+
+  it('applies configured loot-audit operating start before the per-audit loot timestamp', () => {
+    const loot = parseLootLogCsv(
+      [
+        'timestamp_utc;looted_by__name;item_id;item_name;quantity;average_est_market_value',
+        '2026-05-24T04:59:59Z;MonKKu;T5_ARMOR_LEATHER_HELL@3;전문가의 지옥불 재킷;1;100',
+        '2026-05-24T05:10:00Z;MonKKu;T5_ARMOR_LEATHER_HELL@3;전문가의 지옥불 재킷;1;100',
+      ].join('\n'),
+    ).entries
+    const deposits = [
+      {
+        ...parseDepositLog(
+          '"05/24/2026 05:00:00"\t"MonKKu"\t"전문가의 지옥불 재킷"\t"3"\t"1"\t"1"',
+          { resolveItemName: makeResolver },
+        ).entries[0],
+        depositedAt: new Date('2026-05-24T05:00:00Z'),
+      },
+      {
+        ...parseDepositLog(
+          '"05/24/2026 05:10:00"\t"MonKKu"\t"전문가의 지옥불 재킷"\t"3"\t"1"\t"1"',
+          { resolveItemName: makeResolver },
+        ).entries[0],
+        depositedAt: new Date('2026-05-24T05:10:00Z'),
+      },
+    ]
+
+    const selected = selectLootAuditEntries(
+      loot,
+      deposits,
+      new Date('2026-05-24T05:00:00.000Z'),
+    )
+
+    expect(selected.operatingStartAt).toBe('2026-05-24T05:10:00.000Z')
+    expect(selected.lootEntries).toHaveLength(1)
+    expect(selected.depositEntries).toHaveLength(1)
+    expect(selected.skippedBeforeStart).toEqual({ lootRows: 1, depositRows: 1 })
+  })
 })

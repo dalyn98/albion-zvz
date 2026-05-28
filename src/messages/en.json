@@ -1277,7 +1277,7 @@
   "adminLogOperatingStart": {
     "title": "Log operating start",
     "description": "In-game logs before this time are excluded from new imports, siphon balances, and official loot audit results. Existing rows are not deleted.",
-    "timezoneHint": "Input timezone: UTC (Albion log time)",
+    "timezoneHint": "Input timezone: guild time ({timezone}). Saving and filtering are converted to UTC automatically.",
     "shopChestLabel": "Guild chest",
     "shopChestHint": "Start time for bank logs that affect shop stock.",
     "siphonLabel": "Siphon",
@@ -1739,8 +1739,7 @@
     "commitStatSkippedBeforeStart": "Pre-start skipped",
     "commitStatTierFilter": "Tier-filtered",
     "commitStatStockChanges": "Stock changes",
-    "commitStatPriceUpdate": "Price updates",
-    "commitAodpSummary": "Price refresh: requested {requested} · updated {updated} · missing {missing}"
+    "commitPriceSyncDeferred": "Stock is updated. Price refresh now runs separately via the equipment price refresh button above or the automatic sync."
   },
   "adminShopImportFilter": {
     "title": "Import tier filter",
@@ -4550,7 +4549,7 @@
     "parseErrorReasonChestDate": "The chest-log date could not be read.",
     "parseErrorReasonChestNumericFields": "Chest-log enchantment, quality, and quantity must be numeric.",
     "parseErrorReasonUnknown": "Unknown parsing error.",
-    "skippedBeforeStartNotice": "Excluded {deposit} deposit row(s) before the first loot timestamp.",
+    "skippedBeforeStartNotice": "Excluded rows before the reference time: {loot} loot row(s), {deposit} deposit row(s).",
     "unresolvedDepositItems": "{count} chest-log item names could not be matched: {names}",
     "recentTitle": "Recent audits",
     "recentCount": "{count} audits",

@@ -1,7 +1,7 @@
 'use server'
 
 // 길드 상점 관리자 액션.
-// - importChestLog: 붙여넣은 상자 로그 파싱 → 원본 보존 + 재고 반영 + 시세 sync
+// - importChestLog: 붙여넣은 상자 로그 파싱 → 원본 보존 + 재고 반영
 // - addBlacklist / removeBlacklist: 잡템 필터
 
 import { revalidatePath } from 'next/cache'
@@ -29,7 +29,6 @@ import { summarizeLogContinuity } from '@/lib/log-continuity'
 import { selectOfficialLogEntries } from '@/lib/log-import-official'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 import { getPointBalancesByMember } from '@/lib/point-ledger'
-import { syncShopPrices, type PriceSyncSummary } from './shop-inventory'
 
 export interface ImportSummary {
   parsed: number
@@ -60,7 +59,6 @@ export interface ImportSummary {
   // lastKnownInBatch=false 이고 배치에 DB 이후 entry 가 있을 때만 계산 — 그 외엔 null.
   // 이 값이 크면 인게임 로그가 잘리기 전에 중간 구간을 놓쳤을 가능성이 큼.
   gapFromLastKnownMs: number | null
-  priceSync?: PriceSyncSummary
   error?: string
 }
 
@@ -73,7 +71,7 @@ const SHOP_IMPORT_CAPS = [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
 const SHOP_REVIEW_CAPS = [CAP.INVENTORY_MANAGE, CAP.INVENTORY_DELIVER] as const
 
 export interface ImportOptions {
-  // true 면 DB insert / 재고 RPC / 시세 동기화 / revalidate 모두 스킵하고
+  // true 면 DB insert / 재고 RPC / revalidate 모두 스킵하고
   // 예측 결과만 반환 — 붙여넣기 미리보기용.
   dryRun?: boolean
 }
@@ -104,6 +102,65 @@ function dedupeKey(e: {
 function chestLogLabel(entry: { itemName: string; quantity: number }): string {
   const sign = entry.quantity > 0 ? '+' : ''
   return `${entry.itemName} ${sign}${entry.quantity}`
+}
+
+interface StockApplyError {
+  uniqueName: string
+  message: string
+}
+
+function isMissingBatchStockDeltaRpcError(error: { code?: string; message: string }): boolean {
+  if (error.code === 'PGRST202' || error.code === '42883') return true
+  return (
+    error.message.includes('apply_shop_stock_deltas') &&
+    /could not find|does not exist|schema cache/i.test(error.message)
+  )
+}
+
+function toStockDeltaRpcPayload(delta: StockReplayDelta) {
+  return {
+    unique_name: delta.uniqueName,
+    enchant: delta.enchant,
+    quality: delta.quality,
+    delta: delta.delta,
+    name_ko: delta.nameKo,
+    category: delta.category,
+    tier: delta.tier,
+  }
+}
+
+async function applyShopStockDeltas(
+  db: Awaited<ReturnType<typeof requireAnyCapability>>,
+  guildId: string,
+  deltas: readonly StockReplayDelta[],
+): Promise<StockApplyError | null> {
+  if (deltas.length === 0) return null
+
+  const { error: batchError } = await db.rpc('apply_shop_stock_deltas', {
+    p_guild_id: guildId,
+    p_deltas: deltas.map(toStockDeltaRpcPayload),
+  })
+  if (!batchError) return null
+  if (!isMissingBatchStockDeltaRpcError(batchError)) {
+    return { uniqueName: 'batch', message: batchError.message }
+  }
+
+  // 배포 순서 보호: 마이그레이션이 아직 적용되지 않은 환경에서는 기존 단건 RPC 로 처리한다.
+  for (const d of deltas) {
+    const { error } = await db.rpc('apply_shop_stock_delta', {
+      p_guild_id: guildId,
+      p_unique_name: d.uniqueName,
+      p_enchant: d.enchant,
+      p_quality: d.quality,
+      p_delta: d.delta,
+      p_name_ko: d.nameKo,
+      p_category: d.category,
+      p_tier: d.tier,
+    })
+    if (error) return { uniqueName: d.uniqueName, message: error.message }
+  }
+
+  return null
 }
 
 async function loadCurrentStockByKey(
@@ -403,42 +460,31 @@ export async function importChestLog(
     // 재고 RPC 호출 — 저장된 로그와 같은 시간 순서로 적용한다. 출고 로그가 먼저
     // 나오더라도 뒤따르는 입고를 잃지 않게 해야 rebuild/import 결과가 일치한다.
     const initialStockByKey = await loadCurrentStockByKey(db, guildId, stockDeltas)
-    for (const d of stockDeltas) {
-      const { error } = await db.rpc('apply_shop_stock_delta', {
-        p_guild_id: guildId,
-        p_unique_name: d.uniqueName,
-        p_enchant: d.enchant,
-        p_quality: d.quality,
-        p_delta: d.delta,
-        p_name_ko: d.nameKo,
-        p_category: d.category,
-        p_tier: d.tier,
-      })
-      if (error) {
-        return {
-          parsed: parsedEntries.length,
-          parseErrors: errors,
-          inserted,
-          duplicatesSkipped,
-          skippedBeforeStart: official.skippedBeforeStart,
-          blacklistedRows,
-          tierEnchantExcludedRows,
-          unresolvedRows,
-          unresolvedNames,
-          stockChanges,
-          lastKnownLoggedAt,
-          lastKnownLabel,
-          lastKnownInBatch,
-          newEntriesAfterLast,
-          gapFromLastKnownMs,
-          error: tErr('stockApplyFailed', { uniqueName: d.uniqueName, reason: error.message }),
-        }
+    const stockApplyError = await applyShopStockDeltas(db, guildId, stockDeltas)
+    if (stockApplyError) {
+      return {
+        parsed: parsedEntries.length,
+        parseErrors: errors,
+        inserted,
+        duplicatesSkipped,
+        skippedBeforeStart: official.skippedBeforeStart,
+        blacklistedRows,
+        tierEnchantExcludedRows,
+        unresolvedRows,
+        unresolvedNames,
+        stockChanges,
+        lastKnownLoggedAt,
+        lastKnownLabel,
+        lastKnownInBatch,
+        newEntriesAfterLast,
+        gapFromLastKnownMs,
+        error: tErr('stockApplyFailed', {
+          uniqueName: stockApplyError.uniqueName,
+          reason: stockApplyError.message,
+        }),
       }
     }
     stockChanges = summarizeStockReplayChanges(initialStockByKey, stockDeltas)
-
-    // 재고가 갱신됐으므로 AODP 시세도 이어서 sync — 실패해도 import 결과는 그대로 반환.
-    const priceSync = await syncShopPrices()
 
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')
@@ -475,7 +521,6 @@ export async function importChestLog(
       lastKnownInBatch,
       newEntriesAfterLast,
       gapFromLastKnownMs,
-      priceSync,
     }
   } catch (e) {
     return { ...empty, error: e instanceof Error ? e.message : 'Server error' }

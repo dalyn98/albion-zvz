@@ -151,6 +151,75 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
     expect(rows).toEqual([])
   })
 
+  it('applies ordered batch stock deltas within tenant scope', async () => {
+    const client = getTestServiceClient()
+    const uniqueName = 'T7_MAIN_SPEAR'
+    await expect(
+      client.from('shop_inventory').insert({
+        guild_id: tenantB.guildId,
+        unique_name: uniqueName,
+        enchant: 0,
+        quality: 1,
+        stock: 99,
+        name_ko: '창 테스트',
+      }),
+    ).resolves.toMatchObject({ error: null })
+
+    const { data: applied, error } = await client.rpc('apply_shop_stock_deltas', {
+      p_guild_id: tenantA.guildId,
+      p_deltas: [
+        {
+          unique_name: uniqueName,
+          enchant: 0,
+          quality: 1,
+          delta: -2,
+          name_ko: '창 테스트',
+          category: 'melee',
+          tier: 7,
+        },
+        {
+          unique_name: uniqueName,
+          enchant: 0,
+          quality: 1,
+          delta: 5,
+          name_ko: '창 테스트',
+          category: 'melee',
+          tier: 7,
+        },
+        {
+          unique_name: uniqueName,
+          enchant: 0,
+          quality: 1,
+          delta: -3,
+          name_ko: '창 테스트',
+          category: 'melee',
+          tier: 7,
+        },
+      ],
+    })
+
+    expect(error).toBeNull()
+    expect(applied).toBe(3)
+
+    const { data: tenantARow } = await client
+      .from('shop_inventory')
+      .select('stock, category, tier')
+      .eq('guild_id', tenantA.guildId)
+      .eq('unique_name', uniqueName)
+      .single()
+    expect(tenantARow?.stock).toBe(2)
+    expect(tenantARow?.category).toBe('melee')
+    expect(tenantARow?.tier).toBe(7)
+
+    const { data: tenantBRow } = await client
+      .from('shop_inventory')
+      .select('stock')
+      .eq('guild_id', tenantB.guildId)
+      .eq('unique_name', uniqueName)
+      .single()
+    expect(tenantBRow?.stock).toBe(99)
+  })
+
   it('approves a shop order with an adjusted total against tenant-scoped balance and stock', async () => {
     const client = getTestServiceClient()
     const orderId = crypto.randomUUID()

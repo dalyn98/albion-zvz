@@ -1277,7 +1277,7 @@
   "adminLogOperatingStart": {
     "title": "日志运营开始时间",
     "description": "早于此时间的游戏内日志会从新导入、虹吸余额和官方拾取核验结果中排除。现有数据不会删除。",
-    "timezoneHint": "输入时区：UTC（Albion 日志时间）",
+    "timezoneHint": "输入基准：公会时间（{timezone}）。保存和筛选会自动转换为 UTC。",
     "shopChestLabel": "公会箱子",
     "shopChestHint": "影响商店库存的银行日志开始时间。",
     "siphonLabel": "虹吸",
@@ -1739,8 +1739,7 @@
     "commitStatSkippedBeforeStart": "开始前跳过",
     "commitStatTierFilter": "层级排除",
     "commitStatStockChanges": "库存变化",
-    "commitStatPriceUpdate": "价格更新",
-    "commitAodpSummary": "价格刷新：请求 {requested} · 更新 {updated} · 缺失 {missing}"
+    "commitPriceSyncDeferred": "库存已更新。价格刷新会通过上方的装备价格刷新按钮或自动同步单独处理。"
   },
   "adminShopImportFilter": {
     "title": "导入层级过滤",
@@ -4550,7 +4549,7 @@
     "parseErrorReasonChestDate": "无法读取箱子日志日期。",
     "parseErrorReasonChestNumericFields": "箱子日志的附魔、品质、数量必须是数字。",
     "parseErrorReasonUnknown": "未知解析错误。",
-    "skippedBeforeStartNotice": "已排除第一条拾取时间之前的 {deposit} 行存入日志。",
+    "skippedBeforeStartNotice": "已排除早于基准时间的日志：拾取 {loot} 行，存入 {deposit} 行。",
     "unresolvedDepositItems": "有 {count} 种箱子日志物品名无法匹配: {names}",
     "recentTitle": "最近核验",
     "recentCount": "{count} 项",
