@@ -63,13 +63,23 @@ describe('shouldUseDiscordConsentPrompt', () => {
     })).toBe(false)
   })
 
-  it('does not force consent for mobile non-event paths', () => {
+  it('uses consent immediately for mobile non-event paths', () => {
     expect(shouldUseDiscordConsentPrompt({
       retry: false,
       invite: '',
       reauthCookieValue: undefined,
       returnTo: '/me',
       userAgent: ANDROID_CHROME_UA,
-    })).toBe(false)
+    })).toBe(true)
+  })
+
+  it('uses consent immediately for mobile admin onboarding', () => {
+    expect(shouldUseDiscordConsentPrompt({
+      retry: false,
+      invite: '',
+      reauthCookieValue: undefined,
+      returnTo: '/onboard',
+      userAgent: DISCORD_IOS_WEBVIEW_UA,
+    })).toBe(true)
   })
 })

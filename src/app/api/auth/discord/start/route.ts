@@ -33,10 +33,9 @@ export async function GET(request: NextRequest) {
   // started from.
   const originHost = request.headers.get('host') ?? ''
 
-  // 일반 로그인 첫 시도는 prompt=none — 이미 동의한 사용자는 Discord 동의 화면 skip.
-  // 게스트 초대는 모바일/인앱 브라우저에서 prompt=none 이 빈 화면처럼 멈추는
-  // 사례가 있어 처음부터 명시 consent 로 보낸다. 초대 링크는 신규/외부 유저
-  // 비중이 높아 동의 화면을 한 번 보는 편이 실패율보다 낫다.
+  // 데스크탑 일반 로그인 첫 시도는 prompt=none — 이미 동의한 사용자는 Discord
+  // 동의 화면 skip. 모바일/인앱 브라우저는 prompt=none 이 빈 화면처럼 멈추는
+  // 사례가 있어 모든 경로를 처음부터 명시 consent 로 보낸다.
   const retry = url.searchParams.get('retry') === '1'
   const reauthCookieValue = request.cookies.get(DISCORD_REAUTH_COOKIE_NAME)?.value
   const useConsentPrompt = shouldUseDiscordConsentPrompt({

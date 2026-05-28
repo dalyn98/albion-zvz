@@ -31,18 +31,6 @@ export function shouldUseDiscordConsentPrompt(options: {
   if (options.retry || options.invite.length > 0 || options.reauthCookieValue === '1') {
     return true
   }
-  if (!isEventReturnTo(options.returnTo)) return false
   const ua = options.userAgent ?? null
   return detectInAppBrowser(ua) !== null || detectMobilePlatform(ua) !== null
-}
-
-function isEventReturnTo(returnTo: string | undefined): boolean {
-  if (!returnTo || !returnTo.startsWith('/') || returnTo.startsWith('//')) return false
-  try {
-    const pathname = new URL(returnTo, 'https://albion-guildmanager.local').pathname
-    const segments = pathname.split('/').filter(Boolean)
-    return segments.length >= 2 && segments[0] === 'events' && segments[1].length > 0
-  } catch {
-    return false
-  }
 }
