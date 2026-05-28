@@ -23,6 +23,7 @@ describe('app route classification', () => {
     expect(isPublicPathname('/public/landing')).toBe(true)
     expect(isPublicPathname('/demo/events/evt-1')).toBe(true)
     expect(isPublicPathname('/guild-login')).toBe(true)
+    expect(isPublicPathname('/invite/open')).toBe(true)
   })
 
   it('keeps sitemap marketing demo routes indexable for metadata robots', () => {

@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   signOAuthState: vi.fn(),
   detectLocaleFromAcceptLanguage: vi.fn(),
   shouldUseDiscordConsentPrompt: vi.fn(),
+  recordAuthStart: vi.fn(),
 }))
 
 vi.mock('@/lib/discord', () => ({
@@ -31,6 +32,10 @@ vi.mock('@/lib/discord-reauth', () => ({
   shouldUseDiscordConsentPrompt: mocks.shouldUseDiscordConsentPrompt,
 }))
 
+vi.mock('@/lib/auth-telemetry', () => ({
+  recordAuthStart: mocks.recordAuthStart,
+}))
+
 import { GET } from './route'
 
 describe('GET /api/auth/discord/start', () => {
@@ -39,6 +44,7 @@ describe('GET /api/auth/discord/start', () => {
     mocks.signOAuthState.mockReset()
     mocks.detectLocaleFromAcceptLanguage.mockReset()
     mocks.shouldUseDiscordConsentPrompt.mockReset()
+    mocks.recordAuthStart.mockReset()
 
     mocks.signOAuthState.mockResolvedValue('STATE')
     mocks.buildAuthorizeUrl.mockReturnValue('https://discord.example/oauth?state=STATE')
@@ -67,6 +73,11 @@ describe('GET /api/auth/discord/start', () => {
       reauthCookieValue: undefined,
       returnTo,
       userAgent: 'TestAgent',
+    })
+    expect(mocks.recordAuthStart).toHaveBeenCalledWith(request, 'discord_oauth', {
+      has_invite: true,
+      prompt: 'consent',
+      return_to: returnTo,
     })
   })
 })

@@ -2039,6 +2039,13 @@
     "hintWechat": "微信 右上の … → 在浏览器中打开 (ブラウザで開く) を押してください。",
     "hintUnknown": "現在の画面の右上/右下メニューから「外部ブラウザで開く」を探して押してください。"
   },
+  "discordInstallBridge": {
+    "title": "Discord 認証の準備",
+    "description": "モバイルやアプリ内ブラウザでは Discord ボット認証画面が止まる場合があるため、確認画面を挟んで安定させます。可能なら通常ブラウザで進めてください。",
+    "continueButton": "Discord 認証を続ける",
+    "hint": "ボタンを押すと Discord のボットインストール認証画面に移動します。",
+    "backToOnboard": "サーバー一覧に戻る"
+  },
   "publicLanding": {
     "siteName": "Albion Guild Manager",
     "tagline": "強いギルド、楽しむギルドリーダー。",

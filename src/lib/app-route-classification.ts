@@ -17,6 +17,7 @@ export function isPublicPathname(pathname: string): boolean {
   if (normalized.startsWith('/public/')) return true
   if (normalized === '/demo' || normalized.startsWith('/demo/')) return true
   if (normalized === '/guild-login') return true
+  if (normalized === '/invite/open') return true
   if (isPublicEventDetailPathname(normalized)) return true
   return false
 }

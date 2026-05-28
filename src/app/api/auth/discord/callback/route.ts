@@ -34,7 +34,7 @@ import {
   resolveTenantBySlug,
 } from '@/lib/tenant-resolver'
 import { log } from '@/lib/log'
-import { recordAuthFailure } from '@/lib/auth-telemetry'
+import { recordAuthFailure, recordAuthSuccess } from '@/lib/auth-telemetry'
 
 // Onboarding cookie stays on the canonical domain (it's consumed by /onboard
 // which is served from the canonical host until the new tenant exists).
@@ -302,6 +302,11 @@ export async function GET(request: NextRequest) {
           return g.owner
         }
       })
+      recordAuthSuccess(request, 'callback', {
+        mode: 'onboard',
+        onboardable_guilds: onboardableGuilds.length,
+        return_to: returnTo,
+      })
       return onboardingResponse(url.origin, user, onboardableGuilds)
     }
 
@@ -473,6 +478,15 @@ export async function GET(request: NextRequest) {
           await recordAdminLogin(tenant.id)
         }
         const destination = resolvePostLoginPath(returnTo, preferred)
+        recordAuthSuccess(request, 'callback', {
+          mode: isMember
+            ? 'member'
+            : isBombSquadCaller
+              ? 'bomb_squad_caller'
+              : 'alliance_candidate',
+          tenant_id: tenant.id,
+          return_to: returnTo,
+        })
         return buildHopRedirect(
           tenant.slug,
           session,
@@ -503,6 +517,11 @@ export async function GET(request: NextRequest) {
         }
       })
       if (!isRegularEventLogin && onboardableGuilds.length > 0) {
+        recordAuthSuccess(request, 'callback', {
+          mode: 'onboard',
+          onboardable_guilds: onboardableGuilds.length,
+          return_to: returnTo,
+        })
         return onboardingResponse(url.origin, user, onboardableGuilds)
       }
       return errorRedirect(
@@ -588,6 +607,12 @@ export async function GET(request: NextRequest) {
       issuedAt: Date.now(),
     }
     const scopedReturnTo = `/events/${eventScope}`
+    recordAuthSuccess(request, 'callback', {
+      mode: 'guest',
+      tenant_id: guestGuildId,
+      return_to: returnTo,
+      event_scope: eventScope,
+    })
     return buildHopRedirect(
       guestSlug,
       guestSession,

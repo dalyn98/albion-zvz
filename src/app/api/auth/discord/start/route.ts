@@ -8,6 +8,7 @@ import {
   clearDiscordReauthCookieOptions,
   shouldUseDiscordConsentPrompt,
 } from '@/lib/discord-reauth'
+import { recordAuthStart } from '@/lib/auth-telemetry'
 
 function inviteFromReturnTo(returnTo: string): string {
   try {
@@ -59,6 +60,11 @@ export async function GET(request: NextRequest) {
   const response = NextResponse.redirect(
     buildAuthorizeUrl(state, { prompt: useConsentPrompt ? 'consent' : 'none' }),
   )
+  recordAuthStart(request, 'discord_oauth', {
+    has_invite: invite.length > 0,
+    prompt: useConsentPrompt ? 'consent' : 'none',
+    return_to: returnTo,
+  })
   if (reauthCookieValue) {
     response.cookies.set(DISCORD_REAUTH_COOKIE_NAME, '', clearDiscordReauthCookieOptions())
   }

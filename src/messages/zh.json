@@ -2039,6 +2039,13 @@
     "hintWechat": "点击微信右上角 … → 在浏览器中打开。",
     "hintUnknown": "请在当前应用的右上或底部菜单中找到「在外部浏览器中打开」选项。"
   },
+  "discordInstallBridge": {
+    "title": "准备 Discord 授权",
+    "description": "在移动端或应用内浏览器中,Discord 机器人授权页面可能卡住。因此这里先经过一个确认页面。建议尽量使用独立浏览器继续。",
+    "continueButton": "继续 Discord 授权",
+    "hint": "点击按钮后会打开 Discord 的机器人安装授权页面。",
+    "backToOnboard": "返回服务器列表"
+  },
   "publicLanding": {
     "siteName": "Albion Guild Manager",
     "tagline": "更强的公会,享受游戏的公会长。",

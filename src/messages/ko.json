@@ -2039,6 +2039,13 @@
     "hintWechat": "微信 우측 상단의 … → 在浏览器中打开 (브라우저에서 열기) 를 눌러주세요.",
     "hintUnknown": "현재 화면 우측 상단/하단의 메뉴에서 \"외부 브라우저로 열기\" 를 찾아 눌러주세요."
   },
+  "discordInstallBridge": {
+    "title": "Discord 승인 준비",
+    "description": "모바일이나 인앱 브라우저에서는 Discord 봇 승인 화면이 멈출 수 있어 중간 확인 화면을 거칩니다. 가능하면 기본 브라우저에서 진행해 주세요.",
+    "continueButton": "Discord 승인 계속",
+    "hint": "버튼을 누르면 Discord의 봇 설치 승인 화면으로 이동합니다.",
+    "backToOnboard": "서버 목록으로 돌아가기"
+  },
   "publicLanding": {
     "siteName": "Albion Guild Manager",
     "tagline": "강한 길드, 즐기는 길드장.",

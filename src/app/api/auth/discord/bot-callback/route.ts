@@ -8,6 +8,7 @@ import { upsertGuildAvatar } from '@/lib/discord-avatar'
 import { recordAdminLogin } from '@/lib/tenant-activity'
 import { LAST_GUILD_COOKIE, lastGuildCookieOptions } from '@/lib/last-guild-cookie'
 import { log } from '@/lib/log'
+import { recordAuthSuccess } from '@/lib/auth-telemetry'
 import { SLOT_ROLES, EVENT_CATEGORIES } from '@/types'
 
 const ONBOARD_GUILDS_COOKIE = 'discord_onboard_guilds'
@@ -106,6 +107,7 @@ export async function GET(request: NextRequest) {
     let tenantId: string
     let tenantSlug: string
     let tenantOwnerDiscordId: string
+    let createdTenant = false
     if (existing) {
       tenantId = existing.id as string
       tenantSlug = existing.slug as string
@@ -162,6 +164,7 @@ export async function GET(request: NextRequest) {
       tenantId = tenantRow.id
       tenantSlug = tenantRow.slug
       tenantOwnerDiscordId = installerDiscordId
+      createdTenant = true
 
       // 새 tenant 에 기본 role_rewards 8개 seed (silver=0 = "미설정, 리기어 차단").
       // onboarding 위저드 3단계에서 관리자가 실버 값을 채운다. 실패해도 tenant
@@ -254,6 +257,11 @@ export async function GET(request: NextRequest) {
       lastGuildCookieOptions(request.headers.get('host')),
     )
     response.cookies.delete(ONBOARD_GUILDS_COOKIE)
+    recordAuthSuccess(request, 'bot_callback', {
+      tenant_id: tenantId,
+      discord_guild_id: guildId,
+      created_tenant: createdTenant,
+    })
     return response
   } catch (e) {
     log.error('[bot-callback] unhandled', e, { guild_id: guildId })

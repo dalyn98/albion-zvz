@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   classifyHost: vi.fn(),
   resolveTenantBySlug: vi.fn(),
   recordAuthFailure: vi.fn(),
+  recordAuthSuccess: vi.fn(),
 }))
 
 vi.mock('@/lib/discord', () => ({
@@ -96,6 +97,7 @@ vi.mock('@/lib/tenant-resolver', () => ({
 
 vi.mock('@/lib/auth-telemetry', () => ({
   recordAuthFailure: mocks.recordAuthFailure,
+  recordAuthSuccess: mocks.recordAuthSuccess,
 }))
 
 vi.mock('@/lib/log', () => ({
@@ -214,6 +216,15 @@ describe('GET /api/auth/discord/callback', () => {
       preferredLocale: 'en',
     })
     expect(mocks.signSession).not.toHaveBeenCalled()
+    expect(mocks.recordAuthSuccess).toHaveBeenCalledWith(
+      expect.any(NextRequest),
+      'callback',
+      expect.objectContaining({
+        mode: 'guest',
+        tenant_id: 'guild-1',
+        return_to: '/events/event-1?invite=guest-token',
+      }),
+    )
   })
 
   it('does not turn a regular event login into a guest session', async () => {

@@ -57,6 +57,10 @@ function isOnboardPathname(pathname: string): boolean {
   return pathname === '/onboard' || pathname.startsWith('/onboard/')
 }
 
+function isStandalonePublicPathname(pathname: string): boolean {
+  return pathname === '/invite/open'
+}
+
 // `/public/g/<slug>` 는 길드 공개 프로필이라 기본은 marketing 처리(자체
 // MarketingNav, 사이드바 없음). 하지만 그 길드의 멤버 본인이 보고 있다면
 // "내 길드 홈" 이 되므로 AppShell 의 사이드바를 둘러줘야 길드 내 다른 페이지
@@ -282,6 +286,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const pathname = headersList.get('x-pathname') ?? ''
   const isPublic = isPublicPathname(pathname)
   const isMarketingRaw = isMarketingPathname(pathname)
+  const isStandalonePublic = isStandalonePublicPathname(pathname)
   const isOnboard = isOnboardPathname(pathname)
   const hostClassification = classifyHost(headersList.get('host'))
   const hostTenant =
@@ -584,7 +589,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // 디자인이 무너진다.
   const body = locked
     ? gateContent
-    : isDemo || isMarketing
+    : isDemo || isMarketing || isStandalonePublic
       ? children
       : isOnboard
         ? <PublicShell>{children}</PublicShell>

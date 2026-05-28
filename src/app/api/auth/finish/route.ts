@@ -16,7 +16,7 @@ import { getTenantDiscordConfig } from '@/lib/tenant'
 import { LAST_GUILD_COOKIE, lastGuildCookieOptions } from '@/lib/last-guild-cookie'
 import { LOCALE_COOKIE, isLocale } from '@/i18n/locales'
 import { localeCookieOptions } from '@/lib/locale-cookie'
-import { recordAuthFailure } from '@/lib/auth-telemetry'
+import { recordAuthFailure, recordAuthSuccess } from '@/lib/auth-telemetry'
 
 function errorRedirect(
   request: NextRequest,
@@ -81,5 +81,9 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  recordAuthSuccess(request, 'finish', {
+    tenant_id: session.guildId,
+    return_to: returnTo,
+  })
   return response
 }

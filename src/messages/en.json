@@ -2039,6 +2039,13 @@
     "hintWechat": "Tap the … menu in the top-right of WeChat → Open in Browser (在浏览器中打开).",
     "hintUnknown": "Find the \"Open in external browser\" option in the top-right or bottom menu of your current app."
   },
+  "discordInstallBridge": {
+    "title": "Prepare Discord authorization",
+    "description": "Discord bot authorization can hang on mobile or in-app browsers, so this confirmation step keeps the flow more stable. Use a standalone browser when possible.",
+    "continueButton": "Continue to Discord",
+    "hint": "This opens Discord's bot install authorization screen.",
+    "backToOnboard": "Back to server list"
+  },
   "publicLanding": {
     "siteName": "Albion Guild Manager",
     "tagline": "A stronger guild. A guild leader who plays again.",
