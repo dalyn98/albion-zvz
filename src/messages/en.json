@@ -2365,7 +2365,8 @@
     "rolesRequired": "Select at least one role.",
     "notAuthorized": "Not authorized.",
     "memberRequired": "Select a member.",
-    "confirmRemove": "Cancel tentative attendance for {name}?"
+    "confirmRemove": "Cancel tentative attendance for {name}?",
+    "albionVerificationRequired": "Complete Albion nickname verification before joining this event."
   },
   "event": {
     "defaultNotificationMessage": "A new event has been scheduled.",
@@ -2390,6 +2391,9 @@
     "privateLocalLogin": "Log in with site account",
     "privateNoAccessTitle": "You cannot view this event",
     "privateNoAccessBody": "This event is available only to guild members or allowed alliance members. Guests need a guest link from an admin.",
+    "albionVerificationRequiredTitle": "Albion verification required",
+    "albionVerificationRequiredBody": "Complete Albion nickname verification before joining this event.",
+    "albionVerificationRequiredAction": "Verify Albion nickname",
     "filterMyRole": "Show my role only ({role})",
     "filterMyRoleActive": "Clear {role} filter",
     "filterOpen": "Open slots only",
@@ -3765,6 +3769,7 @@
     "notOwner": "You can only cancel slots you applied for.",
     "loginRequired": "Login required.",
     "noMemberRole": "You don't have an eligible role.",
+    "albionVerificationRequired": "Complete Albion nickname verification before signing up for a slot.",
     "guestProfileRequired": "Please enter your event nickname before signing up for a slot.",
     "guestWrongEvent": "Please log in again with this event's guest invite link.",
     "battleAlreadyStarted": "The battle has already started and cannot be cancelled.",

@@ -2365,7 +2365,8 @@
     "rolesRequired": "请至少选择一个职业。",
     "notAuthorized": "无权操作。",
     "memberRequired": "请选择成员。",
-    "confirmRemove": "取消 {name} 的预报名吗?"
+    "confirmRemove": "取消 {name} 的预报名吗?",
+    "albionVerificationRequired": "参加此活动前请先完成阿尔比恩昵称验证。"
   },
   "event": {
     "defaultNotificationMessage": "新活动已安排。",
@@ -2390,6 +2391,9 @@
     "privateLocalLogin": "使用站点账号登录",
     "privateNoAccessTitle": "无法查看此活动",
     "privateNoAccessBody": "此活动仅对公会成员或已允许的联盟成员开放。访客需要向管理员获取访客链接。",
+    "albionVerificationRequiredTitle": "需要阿尔比恩验证",
+    "albionVerificationRequiredBody": "参加此活动前请先完成阿尔比恩昵称验证。",
+    "albionVerificationRequiredAction": "验证阿尔比恩昵称",
     "filterMyRole": "仅显示我的职业({role})",
     "filterMyRoleActive": "清除 {role} 筛选",
     "filterOpen": "仅空槽位",
@@ -3765,6 +3769,7 @@
     "notOwner": "您只能取消您自己申请的槽位。",
     "loginRequired": "需要登录。",
     "noMemberRole": "您没有可申请的职业。",
+    "albionVerificationRequired": "申请槽位前请先完成阿尔比恩昵称验证。",
     "guestProfileRequired": "申请槽位前,请先输入此活动使用的昵称。",
     "guestWrongEvent": "请使用此活动的访客邀请链接重新登录。",
     "battleAlreadyStarted": "战斗已开始,无法取消。",

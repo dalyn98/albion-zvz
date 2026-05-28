@@ -2365,7 +2365,8 @@
     "rolesRequired": "가능 역할군을 1개 이상 선택해야 합니다.",
     "notAuthorized": "권한이 없습니다.",
     "memberRequired": "멤버를 선택해야 합니다.",
-    "confirmRemove": "{name} 님의 참가예정을 취소할까요?"
+    "confirmRemove": "{name} 님의 참가예정을 취소할까요?",
+    "albionVerificationRequired": "이벤트 참가 전에 알비온 닉네임 인증을 완료해 주세요."
   },
   "event": {
     "defaultNotificationMessage": "새 이벤트가 등록되었습니다.",
@@ -2390,6 +2391,9 @@
     "privateLocalLogin": "사이트 계정으로 로그인",
     "privateNoAccessTitle": "이 이벤트를 볼 수 없습니다",
     "privateNoAccessBody": "이 이벤트는 길드원 또는 허용된 연합원에게만 공개됩니다. 게스트는 관리자에게 게스트 링크를 받아 접속해야 합니다.",
+    "albionVerificationRequiredTitle": "알비온 인증이 필요합니다",
+    "albionVerificationRequiredBody": "이 이벤트에 참여하려면 먼저 알비온 닉네임 인증을 완료해야 합니다.",
+    "albionVerificationRequiredAction": "알비온 인증하기",
     "filterMyRole": "내 역할만 보기 ({role})",
     "filterMyRoleActive": "{role} 필터 해제",
     "filterOpen": "빈 슬롯만",
@@ -3772,6 +3776,7 @@
     "slotAssignNotAuthorized": "이 슬롯을 관리할 권한이 없습니다.",
     "loginRequired": "로그인이 필요합니다.",
     "noMemberRole": "신청할 수 있는 역할이 없습니다.",
+    "albionVerificationRequired": "슬롯 신청 전에 알비온 닉네임 인증을 완료해 주세요.",
     "guestProfileRequired": "슬롯 신청 전에 이벤트 닉네임을 입력해 주세요.",
     "guestWrongEvent": "이 이벤트의 게스트 초대 링크로 다시 로그인해 주세요.",
     "battleAlreadyStarted": "전투가 이미 시작되어 취소할 수 없습니다.",

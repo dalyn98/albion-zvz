@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   sessionHas: vi.fn(),
   getSessionGuildId: vi.fn(),
-  canUseAllianceEventFeaturesForSession: vi.fn(),
+  getAlbionEventAccessGateState: vi.fn(),
   revalidatePath: vi.fn(),
 }))
 
@@ -23,7 +23,7 @@ vi.mock('@/lib/tenant', () => ({
 }))
 
 vi.mock('@/lib/albion-identity', () => ({
-  canUseAllianceEventFeaturesForSession: mocks.canUseAllianceEventFeaturesForSession,
+  getAlbionEventAccessGateState: mocks.getAlbionEventAccessGateState,
 }))
 
 vi.mock('next/cache', () => ({
@@ -79,7 +79,7 @@ describe('event tentative signup management permissions', () => {
     mocks.getSession.mockReset()
     mocks.sessionHas.mockReset()
     mocks.getSessionGuildId.mockReset()
-    mocks.canUseAllianceEventFeaturesForSession.mockReset()
+    mocks.getAlbionEventAccessGateState.mockReset()
     mocks.revalidatePath.mockReset()
   })
 
@@ -101,7 +101,11 @@ describe('event tentative signup management permissions', () => {
       isAllianceCandidate: true,
     })
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
-    mocks.canUseAllianceEventFeaturesForSession.mockResolvedValue(true)
+    mocks.getAlbionEventAccessGateState.mockResolvedValue({
+      memberEventAccessAllowed: true,
+      memberEventVerificationRequired: false,
+      allianceEventAllowed: true,
+    })
     mocks.getAdminClient.mockReturnValue({ from })
 
     await expect(submitMyTentativeSignup('event-1', ['Dps'], 'can dps')).resolves.toEqual({})
@@ -117,6 +121,31 @@ describe('event tentative signup management permissions', () => {
       },
       { onConflict: 'guild_id,event_id,discord_id' },
     )
+  })
+
+  it('blocks an unverified member from tentative signup when event access requires Albion verification', async () => {
+    const from = vi.fn(() => {
+      throw new Error('event lookup should not run')
+    })
+
+    mocks.getSession.mockResolvedValue({
+      discordId: 'member-1',
+      username: 'Member',
+      isAdmin: false,
+      isMember: true,
+      isGuest: false,
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAlbionEventAccessGateState.mockResolvedValue({
+      memberEventAccessAllowed: false,
+      memberEventVerificationRequired: true,
+      allianceEventAllowed: false,
+    })
+    mocks.getAdminClient.mockReturnValue({ from })
+
+    await expect(submitMyTentativeSignup('event-1', ['Dps'])).resolves.toEqual({
+      error: 'albionVerificationRequired',
+    })
   })
 
   it('does not let a former event creator remove someone else from tentative signups', async () => {

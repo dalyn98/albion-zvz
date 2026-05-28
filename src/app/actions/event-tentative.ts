@@ -7,7 +7,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { CAP } from '@/lib/permissions'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
-import { canUseAllianceEventFeaturesForSession } from '@/lib/albion-identity'
+import { getAlbionEventAccessGateState } from '@/lib/albion-identity'
 import {
   listTentativeSignupsForGuild,
   sanitizeTentativeRoles,
@@ -46,9 +46,18 @@ export async function submitMyTentativeSignup(
   // 게스트는 참가예정 등록 불가 — 본인 식별이 단편적이라 잘못된 데이터가 쌓이기 쉬움.
   if (session.isGuest) return { error: tAction('guestNotAllowed') }
   const guildId = await getSessionGuildId(session)
+  const albionEventGate = await getAlbionEventAccessGateState({
+    discordId: session.discordId,
+    guildId,
+    isMember: session.isMember === true,
+    isAdmin: session.isAdmin === true,
+  })
+  if (albionEventGate.memberEventVerificationRequired) {
+    return { error: tAction('albionVerificationRequired') }
+  }
   const canSignUpAsAlliance =
     !session.isMember &&
-    (await canUseAllianceEventFeaturesForSession(session.discordId, guildId))
+    albionEventGate.allianceEventAllowed
   if (!session.isMember && !canSignUpAsAlliance) return { error: tAction('memberOnly') }
 
   const guard = await ensureEventBelongsToGuild(eventId, guildId)

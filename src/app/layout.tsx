@@ -145,6 +145,11 @@ function skipAlbionOnboardingModal(pathname: string): boolean {
   return false
 }
 
+function albionOnboardingRedirect(pathname: string): string {
+  const returnTo = pathname.startsWith('/') && !pathname.startsWith('//') ? pathname : '/'
+  return `/onboarding/albion?return=${encodeURIComponent(returnTo)}`
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const [t, headersList] = await Promise.all([
     getTranslations('meta'),
@@ -398,7 +403,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     !allianceEventAllowed &&
     !isAllowedForAllianceCandidate(pathname)
   ) {
-    redirect('/onboarding/albion')
+    redirect(albionOnboardingRedirect(pathname))
   }
 
   if (
@@ -443,7 +448,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     if (!session.isAdmin && !onboardingGate.siteAccessVerified) {
       const allowUnverified = await getAppSetting('allow_unverified_member_access', 'true', guildId)
       if (allowUnverified === 'false') {
-        redirect('/onboarding/albion')
+        redirect(albionOnboardingRedirect(pathname))
       }
     }
 

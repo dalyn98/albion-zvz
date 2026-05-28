@@ -31,6 +31,12 @@ export interface AlbionOnboardingGateState {
   allianceEventAllowed: boolean
 }
 
+export interface AlbionEventAccessGateState {
+  memberEventAccessAllowed: boolean
+  memberEventVerificationRequired: boolean
+  allianceEventAllowed: boolean
+}
+
 export interface ManualRegearGateResult {
   error: string | null
   relation: AlbionIdentityRelation
@@ -141,6 +147,47 @@ export async function getAlbionOnboardingGateState(
     getAccountAlbionIdentityView(guildId, discordId),
   ])
   return resolveAlbionOnboardingGate({ discordId, legacyIdentity, accountIdentity })
+}
+
+export function resolveAlbionEventAccessGate(input: {
+  onboardingGate: AlbionOnboardingGateState
+  allowUnverifiedMemberAccess: boolean
+  isMember: boolean
+  isAdmin: boolean
+}): AlbionEventAccessGateState {
+  const memberEventVerificationRequired =
+    input.isMember &&
+    !input.isAdmin &&
+    !input.allowUnverifiedMemberAccess &&
+    !input.onboardingGate.siteAccessVerified
+
+  return {
+    memberEventAccessAllowed: !memberEventVerificationRequired,
+    memberEventVerificationRequired,
+    allianceEventAllowed: input.onboardingGate.allianceEventAllowed,
+  }
+}
+
+export async function getAlbionEventAccessGateState(input: {
+  discordId: string
+  guildId: string
+  isMember: boolean
+  isAdmin: boolean
+}): Promise<AlbionEventAccessGateState> {
+  const shouldLoadMemberPolicy = input.isMember && !input.isAdmin
+  const [onboardingGate, allowUnverifiedRaw] = await Promise.all([
+    getAlbionOnboardingGateState(input.discordId, input.guildId),
+    shouldLoadMemberPolicy
+      ? getAppSetting('allow_unverified_member_access', 'true', input.guildId)
+      : Promise.resolve('true'),
+  ])
+
+  return resolveAlbionEventAccessGate({
+    onboardingGate,
+    allowUnverifiedMemberAccess: allowUnverifiedRaw !== 'false',
+    isMember: input.isMember,
+    isAdmin: input.isAdmin,
+  })
 }
 
 // 온보딩 첫 진입 여부 판단용. 서버를 한 번도 고르지 않았으면 true.

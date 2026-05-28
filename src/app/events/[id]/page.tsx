@@ -44,7 +44,7 @@ import {
 import { getEventInteractionSession } from '@/lib/event-session'
 import { buildDiscordStartHref } from '@/lib/discord-auth-url'
 import { resolveEventGuestInviteScope, resolvePublicEventPageGuildId } from '@/lib/event-guest-auth'
-import { canUseAllianceEventFeaturesForSession } from '@/lib/albion-identity'
+import { getAlbionEventAccessGateState } from '@/lib/albion-identity'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -56,6 +56,10 @@ function requestOriginFromHeaders(headersList: Headers): string {
   if (!host) return ''
   const proto = headersList.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https')
   return `${proto}://${host}`.replace(/\/$/, '')
+}
+
+function buildAlbionOnboardingHref(returnTo: string): string {
+  return `/onboarding/albion?return=${encodeURIComponent(returnTo)}`
 }
 
 function EventAccessGate({
@@ -278,11 +282,19 @@ export default async function EventDetailPage({
   // admin 이라도 draft 미리보기 용도로 쓰고 싶다면 관리자 경로 (/admin/dashboard/events/[id])
   // 로 들어가야 한다. 여기서 굳이 우회 열어주지 않는 편이 실수 공개를 방지한다.
   if (!event || event.status === 'draft') notFound()
-  const allianceEventAllowed = session && sessionGuildId === guildId
-    ? await canUseAllianceEventFeaturesForSession(session.discordId, guildId)
-    : false
+  const albionEventGate = session && sessionGuildId === guildId
+    ? await getAlbionEventAccessGateState({
+        discordId: session.discordId,
+        guildId,
+        isMember: session.isMember === true,
+        isAdmin: session.isAdmin === true,
+      })
+    : null
+  const allianceEventAllowed = albionEventGate?.allianceEventAllowed ?? false
+  const memberEventVerificationRequired =
+    albionEventGate?.memberEventVerificationRequired ?? false
   const interactionSession = getEventInteractionSession({
-    session,
+    session: memberEventVerificationRequired ? null : session,
     sessionGuildId,
     eventGuildId: guildId,
     eventId: id,
@@ -334,6 +346,7 @@ export default async function EventDetailPage({
     ? `/events/${id}?invite=${encodeURIComponent(inviteToken)}`
     : `/events/${id}`
   const loginHref = buildDiscordStartHref({ returnTo: eventReturnPath, invite: inviteToken })
+  const onboardingHref = buildAlbionOnboardingHref(eventReturnPath)
   const localLoginEnabled =
     (await getAppSetting('local_guild_accounts_enabled', 'false', guildId)) === 'true' &&
     (await getAppSetting('local_guild_invite_hash', '', guildId)).trim().length > 0
@@ -349,13 +362,45 @@ export default async function EventDetailPage({
       interactionSession.isAdmin ||
       interactionSession.isBombSquadCaller ||
       allianceEventAllowed)
+  const shouldOfferAlbionOnboarding =
+    !!session &&
+    sessionGuildId === guildId &&
+    (memberEventVerificationRequired ||
+      (session.isAllianceCandidate === true &&
+        !session.isMember &&
+        !session.isAdmin &&
+        !session.isGuest &&
+        !session.isBombSquadCaller &&
+        !allianceEventAllowed))
   if (!hasGuestInvite && !scopedGuestAccessAllowed && !regularAccessAllowed) {
     return (
       <EventAccessGate
-        title={session ? t('privateNoAccessTitle') : t('privateTitle')}
-        description={session ? t('privateNoAccessBody') : t('privateBody')}
-        primaryAction={!session ? { href: loginHref, label: t('privateLogin') } : undefined}
-        secondaryAction={!session && localLoginHref ? { href: localLoginHref, label: t('privateLocalLogin') } : undefined}
+        title={
+          shouldOfferAlbionOnboarding
+            ? t('albionVerificationRequiredTitle')
+            : session
+              ? t('privateNoAccessTitle')
+              : t('privateTitle')
+        }
+        description={
+          shouldOfferAlbionOnboarding
+            ? t('albionVerificationRequiredBody')
+            : session
+              ? t('privateNoAccessBody')
+              : t('privateBody')
+        }
+        primaryAction={
+          shouldOfferAlbionOnboarding
+            ? { href: onboardingHref, label: t('albionVerificationRequiredAction') }
+            : !session
+              ? { href: loginHref, label: t('privateLogin') }
+              : undefined
+        }
+        secondaryAction={
+          !shouldOfferAlbionOnboarding && !session && localLoginHref
+            ? { href: localLoginHref, label: t('privateLocalLogin') }
+            : undefined
+        }
       />
     )
   }

@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   sessionHas: vi.fn(),
   getSessionGuildId: vi.fn(),
   getEventGuestProfile: vi.fn(),
-  canUseAllianceEventFeaturesForSession: vi.fn(),
+  getAlbionEventAccessGateState: vi.fn(),
   revalidatePath: vi.fn(),
 }))
 
@@ -28,7 +28,7 @@ vi.mock('@/lib/event-guest-profile', () => ({
 }))
 
 vi.mock('@/lib/albion-identity', () => ({
-  canUseAllianceEventFeaturesForSession: mocks.canUseAllianceEventFeaturesForSession,
+  getAlbionEventAccessGateState: mocks.getAlbionEventAccessGateState,
 }))
 
 vi.mock('next/cache', () => ({
@@ -96,7 +96,7 @@ describe('adminCancelSlot', () => {
     mocks.sessionHas.mockReset()
     mocks.getSessionGuildId.mockReset()
     mocks.getEventGuestProfile.mockReset()
-    mocks.canUseAllianceEventFeaturesForSession.mockReset()
+    mocks.getAlbionEventAccessGateState.mockReset()
     mocks.revalidatePath.mockReset()
   })
 
@@ -163,18 +163,61 @@ describe('adminCancelSlot', () => {
       isAllianceCandidate: true,
     })
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
-    mocks.canUseAllianceEventFeaturesForSession.mockResolvedValue(true)
+    mocks.getAlbionEventAccessGateState.mockResolvedValue({
+      memberEventAccessAllowed: true,
+      memberEventVerificationRequired: false,
+      allianceEventAllowed: true,
+    })
     mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
 
     await expect(assignSlot('slot-1')).resolves.toEqual({ pending: false })
 
-    expect(mocks.canUseAllianceEventFeaturesForSession).toHaveBeenCalledWith('ally-1', 'guild-1')
+    expect(mocks.getAlbionEventAccessGateState).toHaveBeenCalledWith({
+      discordId: 'ally-1',
+      guildId: 'guild-1',
+      isAdmin: false,
+      isMember: false,
+    })
     expect(rpc).toHaveBeenCalledWith('assign_slot', {
       p_slot_id: 'slot-1',
       p_discord_id: 'ally-1',
       p_username: 'Ally',
       p_picks: null,
     })
+  })
+
+  it('blocks an unverified member from assigning a slot when event access requires Albion verification', async () => {
+    const { query } = createSlotQuery({
+      guild_id: 'guild-1',
+      is_hidden: false,
+      parties: {
+        event_id: 'event-1',
+        party_number: 1,
+        is_bomb_squad: false,
+      },
+    })
+    const rpc = vi.fn().mockResolvedValue({ error: null })
+
+    mocks.getSession.mockResolvedValue({
+      discordId: 'member-1',
+      username: 'Member',
+      isAdmin: false,
+      isMember: true,
+      isGuest: false,
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAlbionEventAccessGateState.mockResolvedValue({
+      memberEventAccessAllowed: false,
+      memberEventVerificationRequired: true,
+      allianceEventAllowed: false,
+    })
+    mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
+
+    await expect(assignSlot('slot-1')).resolves.toEqual({
+      error: 'albionVerificationRequired',
+    })
+
+    expect(rpc).not.toHaveBeenCalled()
   })
 
   it('allows delegated event managers to remove an assigned member from an event slot', async () => {

@@ -8,7 +8,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getEventGuestProfile } from '@/lib/event-guest-profile'
 import { CAP } from '@/lib/permissions'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
-import { canUseAllianceEventFeaturesForSession } from '@/lib/albion-identity'
+import { getAlbionEventAccessGateState } from '@/lib/albion-identity'
 import type { GearOption, SlotKey } from '@/types'
 
 export type SlotPicks = Partial<Record<SlotKey, GearOption>>
@@ -135,10 +135,21 @@ export async function assignSlot(
     | null
   const partyObj = Array.isArray(partyJoin) ? partyJoin[0] : partyJoin
   const isBomb = !!partyObj?.is_bomb_squad
+  const albionEventGate = session.isGuest
+    ? null
+    : await getAlbionEventAccessGateState({
+        discordId: session.discordId,
+        guildId,
+        isMember: session.isMember === true,
+        isAdmin: session.isAdmin === true,
+      })
+  if (albionEventGate?.memberEventVerificationRequired) {
+    return { error: tAction('albionVerificationRequired') }
+  }
   const canApplyAsAlliance =
     !session.isMember &&
     !session.isGuest &&
-    (await canUseAllianceEventFeaturesForSession(session.discordId, guildId))
+    (albionEventGate?.allianceEventAllowed ?? false)
   // Guests and verified same-alliance participants can sign up for slots too.
   if (!session.isMember && !session.isGuest && !canApplyAsAlliance) {
     return { error: tAction('noMemberRole') }

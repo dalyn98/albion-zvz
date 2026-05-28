@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { AlbionServer } from './albion-gameinfo'
 import type { AccountAlbionIdentityView } from './account-albion-identity'
 import {
+  resolveAlbionEventAccessGate,
   resolveAlbionOnboardingGate,
   type MemberAlbionIdentity,
 } from './albion-identity'
@@ -185,5 +186,59 @@ describe('resolveAlbionOnboardingGate', () => {
     expect(state.siteAccessVerified).toBe(true)
     expect(state.resourceTrusted).toBe(true)
     expect(state.identity?.nickname).toBe('LegacyPlayer')
+  })
+})
+
+describe('resolveAlbionEventAccessGate', () => {
+  it('requires verification for an unverified member when unverified site access is disabled', () => {
+    const onboardingGate = resolveAlbionOnboardingGate({
+      discordId: DISCORD_ID,
+      legacyIdentity: legacyIdentity(),
+      accountIdentity: accountIdentity({
+        trustStatus: 'roster_matched',
+        statusReason: 'roster_match',
+        trustedAt: null,
+      }),
+    })
+
+    expect(
+      resolveAlbionEventAccessGate({
+        onboardingGate,
+        allowUnverifiedMemberAccess: false,
+        isMember: true,
+        isAdmin: false,
+      }),
+    ).toMatchObject({
+      memberEventAccessAllowed: false,
+      memberEventVerificationRequired: true,
+    })
+  })
+
+  it('lets verified alliance candidates proceed as alliance event participants', () => {
+    const onboardingGate = resolveAlbionOnboardingGate({
+      discordId: DISCORD_ID,
+      legacyIdentity: legacyIdentity(),
+      accountIdentity: accountIdentity({
+        relation: 'alliance',
+        trustStatus: 'claimed',
+        currentGuildId: 'ally-guild',
+        currentAllianceId: 'home-alliance',
+        verifiedAt: null,
+        trustedAt: null,
+      }),
+    })
+
+    expect(
+      resolveAlbionEventAccessGate({
+        onboardingGate,
+        allowUnverifiedMemberAccess: false,
+        isMember: false,
+        isAdmin: false,
+      }),
+    ).toMatchObject({
+      memberEventAccessAllowed: true,
+      memberEventVerificationRequired: false,
+      allianceEventAllowed: true,
+    })
   })
 })

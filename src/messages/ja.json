@@ -2365,7 +2365,8 @@
     "rolesRequired": "対応可能なロールを1つ以上選択してください。",
     "notAuthorized": "権限がありません。",
     "memberRequired": "メンバーを選択してください。",
-    "confirmRemove": "{name} さんの参加予定を取り消しますか？"
+    "confirmRemove": "{name} さんの参加予定を取り消しますか？",
+    "albionVerificationRequired": "イベント参加前にアルビオンのニックネーム認証を完了してください。"
   },
   "event": {
     "defaultNotificationMessage": "新しいイベントが登録されました。",
@@ -2390,6 +2391,9 @@
     "privateLocalLogin": "サイトアカウントでログイン",
     "privateNoAccessTitle": "このイベントを閲覧できません",
     "privateNoAccessBody": "このイベントはギルドメンバー、または許可された同盟メンバーだけに公開されています。ゲストは管理者からゲストリンクを受け取ってください。",
+    "albionVerificationRequiredTitle": "アルビオン認証が必要です",
+    "albionVerificationRequiredBody": "このイベントに参加するには、先にアルビオンのニックネーム認証を完了してください。",
+    "albionVerificationRequiredAction": "アルビオン認証へ",
     "filterMyRole": "自分の役割だけ表示 ({role})",
     "filterMyRoleActive": "{role} フィルター解除",
     "filterOpen": "空きスロットのみ",
@@ -3765,6 +3769,7 @@
     "notOwner": "自分で申請したスロットのみキャンセルできます。",
     "loginRequired": "ログインが必要です。",
     "noMemberRole": "申請できる役割がありません。",
+    "albionVerificationRequired": "スロット申請前にアルビオンのニックネーム認証を完了してください。",
     "guestProfileRequired": "スロット申請前にイベント用ニックネームを入力してください。",
     "guestWrongEvent": "このイベントのゲスト招待リンクから再度ログインしてください。",
     "battleAlreadyStarted": "戦闘が既に開始されており、キャンセルできません。",
