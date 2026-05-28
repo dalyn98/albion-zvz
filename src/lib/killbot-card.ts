@@ -73,28 +73,32 @@ export const KILLBOT_CENTER_LAYOUT = {
   roles: {
     killer: {
       label: 'KILLER',
-      badgeX: 166,
-      badgeY: 98,
-      badgeWidth: 100,
-      badgeHeight: 24,
-      textX: 216,
-      textY: 116,
-      railX: 30,
-      railY: 122,
-      railHeight: 456,
+      markerStyle: 'underline',
+      labelX: 216,
+      labelY: 38,
+      labelSize: 16,
+      nameX: 216,
+      nameY: 72,
+      guildX: 216,
+      guildY: 108,
+      underlineX: 142,
+      underlineY: 118,
+      underlineWidth: 148,
       color: '#25945c',
     },
     victim: {
       label: 'VICTIM',
-      badgeX: 936,
-      badgeY: 98,
-      badgeWidth: 100,
-      badgeHeight: 24,
-      textX: 986,
-      textY: 116,
-      railX: 1164,
-      railY: 122,
-      railHeight: 456,
+      markerStyle: 'underline',
+      labelX: 986,
+      labelY: 38,
+      labelSize: 16,
+      nameX: 986,
+      nameY: 72,
+      guildX: 986,
+      guildY: 108,
+      underlineX: 912,
+      underlineY: 118,
+      underlineWidth: 148,
       color: '#bf3f3a',
     },
   },
@@ -697,12 +701,8 @@ function renderSilverMetricIcon(icon: string | null): string {
 function renderRoleMarkers(): string {
   const { killer, victim } = KILLBOT_CENTER_LAYOUT.roles
   return `
-    <rect x="${killer.railX}" y="${killer.railY}" width="5" height="${killer.railHeight}" rx="2.5" fill="${killer.color}" opacity="0.82"/>
-    <rect x="${victim.railX}" y="${victim.railY}" width="5" height="${victim.railHeight}" rx="2.5" fill="${victim.color}" opacity="0.82"/>
-    <rect x="${killer.badgeX}" y="${killer.badgeY}" width="${killer.badgeWidth}" height="${killer.badgeHeight}" rx="6" fill="${killer.color}" opacity="0.18"/>
-    <rect x="${killer.badgeX}" y="${killer.badgeY}" width="${killer.badgeWidth}" height="${killer.badgeHeight}" rx="6" fill="none" stroke="${killer.color}" stroke-width="1.5" opacity="0.55"/>
-    <rect x="${victim.badgeX}" y="${victim.badgeY}" width="${victim.badgeWidth}" height="${victim.badgeHeight}" rx="6" fill="${victim.color}" opacity="0.18"/>
-    <rect x="${victim.badgeX}" y="${victim.badgeY}" width="${victim.badgeWidth}" height="${victim.badgeHeight}" rx="6" fill="none" stroke="${victim.color}" stroke-width="1.5" opacity="0.55"/>
+    <rect x="${killer.underlineX}" y="${killer.underlineY}" width="${killer.underlineWidth}" height="3" rx="1.5" fill="${killer.color}" opacity="0.68"/>
+    <rect x="${victim.underlineX}" y="${victim.underlineY}" width="${victim.underlineWidth}" height="3" rx="1.5" fill="${victim.color}" opacity="0.68"/>
   `
 }
 
@@ -775,8 +775,18 @@ function buildTextLayers(args: {
 
   return [
     textLayer({
-      x: 216,
-      y: 52,
+      x: killerRole.labelX,
+      y: killerRole.labelY,
+      value: killerRole.label,
+      size: killerRole.labelSize,
+      weight: 900,
+      fill: killerRole.color,
+      anchor: 'middle',
+      width: 118,
+    }),
+    textLayer({
+      x: killerRole.nameX,
+      y: killerRole.nameY,
       value: truncateCardText(killerName, 24),
       size: 34,
       weight: 900,
@@ -784,23 +794,13 @@ function buildTextLayers(args: {
       anchor: 'middle',
     }),
     textLayer({
-      x: 216,
-      y: 88,
+      x: killerRole.guildX,
+      y: killerRole.guildY,
       value: truncateCardText(killerGuild, 32),
       size: 24,
       weight: 700,
       fill: '#2c2520',
       anchor: 'middle',
-    }),
-    textLayer({
-      x: killerRole.textX,
-      y: killerRole.textY,
-      value: killerRole.label,
-      size: 13,
-      weight: 900,
-      fill: killerRole.color,
-      anchor: 'middle',
-      width: killerRole.badgeWidth,
     }),
     textLayer({
       x: 600,
@@ -812,8 +812,18 @@ function buildTextLayers(args: {
       anchor: 'middle',
     }),
     textLayer({
-      x: 986,
-      y: 52,
+      x: victimRole.labelX,
+      y: victimRole.labelY,
+      value: victimRole.label,
+      size: victimRole.labelSize,
+      weight: 900,
+      fill: victimRole.color,
+      anchor: 'middle',
+      width: 118,
+    }),
+    textLayer({
+      x: victimRole.nameX,
+      y: victimRole.nameY,
       value: truncateCardText(victimName, 24),
       size: 34,
       weight: 900,
@@ -821,8 +831,8 @@ function buildTextLayers(args: {
       anchor: 'middle',
     }),
     textLayer({
-      x: 986,
-      y: 88,
+      x: victimRole.guildX,
+      y: victimRole.guildY,
       value: truncateCardText(victimGuild, 32),
       size: 24,
       weight: 700,
@@ -857,16 +867,6 @@ function buildTextLayers(args: {
       weight: 900,
       fill: '#0f0d0b',
       anchor: 'middle',
-    }),
-    textLayer({
-      x: victimRole.textX,
-      y: victimRole.textY,
-      value: victimRole.label,
-      size: 13,
-      weight: 900,
-      fill: victimRole.color,
-      anchor: 'middle',
-      width: victimRole.badgeWidth,
     }),
     textLayer({
       x: 600,

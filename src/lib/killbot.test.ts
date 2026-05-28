@@ -372,6 +372,16 @@ describe('killbot card center layout', () => {
     expect(KILLBOT_CENTER_LAYOUT.metrics.silver.valueAnchor).toBe('start')
     expect(KILLBOT_CENTER_LAYOUT.roles.killer.label).toBe('KILLER')
     expect(KILLBOT_CENTER_LAYOUT.roles.victim.label).toBe('VICTIM')
+    expect(KILLBOT_CENTER_LAYOUT.roles.killer.markerStyle).toBe('underline')
+    expect(KILLBOT_CENTER_LAYOUT.roles.victim.markerStyle).toBe('underline')
+    expect(KILLBOT_CENTER_LAYOUT.roles.killer.labelSize).toBeGreaterThanOrEqual(16)
+    expect(KILLBOT_CENTER_LAYOUT.roles.victim.labelSize).toBeGreaterThanOrEqual(16)
+    expect(KILLBOT_CENTER_LAYOUT.roles.killer.labelY).toBeLessThan(
+      KILLBOT_CENTER_LAYOUT.roles.killer.nameY,
+    )
+    expect(KILLBOT_CENTER_LAYOUT.roles.victim.labelY).toBeLessThan(
+      KILLBOT_CENTER_LAYOUT.roles.victim.nameY,
+    )
     expect(KILLBOT_CENTER_LAYOUT.kill.source).toBe('official-monster-kill')
   })
 })
