@@ -7,6 +7,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { requireAlbionVerified } from '@/lib/albion-identity'
 import { getMemberPointBalance } from '@/lib/point-ledger'
+import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
 
 export interface MyExchangeRequest {
   id: string
@@ -23,6 +24,9 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
+  if (isLocalGuildAccountRestrictedFromResources(session)) {
+    return { error: tErr('localAccountResourceBlocked') }
+  }
   const guildId = await getSessionGuildId(session)
   const albionError = await requireAlbionVerified(session.discordId, guildId)
   if (albionError) return { error: albionError }
@@ -69,6 +73,9 @@ export async function cancelMyExchangeRequest(id: string): Promise<{ error?: str
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
+  if (isLocalGuildAccountRestrictedFromResources(session)) {
+    return { error: tErr('localAccountResourceBlocked') }
+  }
   const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
@@ -107,6 +114,9 @@ export async function updateMyExchangeRequest(
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
+  if (isLocalGuildAccountRestrictedFromResources(session)) {
+    return { error: tErr('localAccountResourceBlocked') }
+  }
   if (!Number.isInteger(silver) || silver <= 0) {
     return { error: tErr('invalidAmount') }
   }
@@ -152,6 +162,9 @@ export async function listMyExchangeRequests(): Promise<{
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { requests: [], error: tErr('loginRequired') }
+  if (isLocalGuildAccountRestrictedFromResources(session)) {
+    return { requests: [], error: tErr('localAccountResourceBlocked') }
+  }
   const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()

@@ -6,6 +6,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { requireAlbionVerified } from '@/lib/albion-identity'
+import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
 
 // 길드 기부 신청 — 유저 측 액션. 관리자 측은 donation-admin.ts.
 //
@@ -38,6 +39,9 @@ export async function requestDonation(
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
+  if (isLocalGuildAccountRestrictedFromResources(session)) {
+    return { error: tErr('localAccountResourceBlocked') }
+  }
   const guildId = await getSessionGuildId(session)
   const albionError = await requireAlbionVerified(session.discordId, guildId)
   if (albionError) return { error: albionError }
@@ -98,6 +102,9 @@ export async function cancelMyDonationRequest(id: string): Promise<{ error?: str
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
+  if (isLocalGuildAccountRestrictedFromResources(session)) {
+    return { error: tErr('localAccountResourceBlocked') }
+  }
   const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()
@@ -141,6 +148,9 @@ export async function listMyDonationRequests(): Promise<{
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { requests: [], error: tErr('loginRequired') }
+  if (isLocalGuildAccountRestrictedFromResources(session)) {
+    return { requests: [], error: tErr('localAccountResourceBlocked') }
+  }
   const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()

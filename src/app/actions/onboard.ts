@@ -237,36 +237,34 @@ export async function saveTenantAlbion(
   if (homeGuildName.length > MAX_HOME_GUILD_NAME_LENGTH) {
     return { error: t('errorGeneric') }
   }
+  if (!homeGuildId || !homeGuildName) {
+    return { error: t('homeGuildRequired') }
+  }
 
   const db = getAdminClient()
 
-  // 길드를 실제로 선택했을 때만 (skip 흐름 아닐 때) 중복 검사 + slug 갱신.
-  if (homeGuildId.length > 0) {
-    const conflict = await findHomeGuildConflict(db, homeGuildId, input.tenantId)
-    if (conflict) return { error: t('homeGuildAlreadyRegistered') }
+  const conflict = await findHomeGuildConflict(db, homeGuildId, input.tenantId)
+  if (conflict) return { error: t('homeGuildAlreadyRegistered') }
 
-    if (homeGuildName.length > 0) {
-      const base = slugBaseFromAlbionGuildName(homeGuildName)
-      // base 가 비었거나 reserved 단어와 매칭되는 등 invalid 라면 slug 갱신을
-      // 포기하고 기존 자동 slug ("guild-xxxx") 그대로 유지. 한글/한자 길드명이
-      // 흔히 이 케이스 — 그래도 사이트 동작에는 문제 없음.
-      if (base.length > 0) {
-        const newSlug = await findUniqueSlug(db, base, input.tenantId)
-        if (newSlug) {
-          const { error: slugError } = await db
-            .from('tenants')
-            .update({ slug: newSlug })
-            .eq('id', input.tenantId)
-          if (slugError) {
-            // race 로 인한 충돌 — 다음 시도에서 새 random suffix 로 회피 가능.
-            // 위저드 진행을 막지 않기 위해 로그만 남기고 통과.
-            log.warn('[saveTenantAlbion] slug update failed', {
-              tenant_id: input.tenantId,
-              new_slug: newSlug,
-              error: slugError.message,
-            })
-          }
-        }
+  const base = slugBaseFromAlbionGuildName(homeGuildName)
+  // base 가 비었거나 reserved 단어와 매칭되는 등 invalid 라면 slug 갱신을
+  // 포기하고 기존 자동 slug ("guild-xxxx") 그대로 유지. 한글/한자 길드명이
+  // 흔히 이 케이스 — 그래도 사이트 동작에는 문제 없음.
+  if (base.length > 0) {
+    const newSlug = await findUniqueSlug(db, base, input.tenantId)
+    if (newSlug) {
+      const { error: slugError } = await db
+        .from('tenants')
+        .update({ slug: newSlug })
+        .eq('id', input.tenantId)
+      if (slugError) {
+        // race 로 인한 충돌 — 다음 시도에서 새 random suffix 로 회피 가능.
+        // 위저드 진행을 막지 않기 위해 로그만 남기고 통과.
+        log.warn('[saveTenantAlbion] slug update failed', {
+          tenant_id: input.tenantId,
+          new_slug: newSlug,
+          error: slugError.message,
+        })
       }
     }
   }

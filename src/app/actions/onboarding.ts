@@ -159,6 +159,11 @@ export async function confirmAlbionIdentity(input: {
     currentAccount.playerId === player.Id &&
     currentAccount.server === input.server &&
     currentAccount.statusReason === 'legacy_trusted'
+  const keepAdminApproved =
+    currentAccount?.trustStatus === 'trusted' &&
+    currentAccount.playerId === player.Id &&
+    currentAccount.server === input.server &&
+    currentAccount.statusReason === 'admin_approved'
   const accountClaim = await recordAlbionIdentityClaim({
     guildId: sessionGuildId,
     discordId: session.discordId,
@@ -166,6 +171,7 @@ export async function confirmAlbionIdentity(input: {
     player,
     nickname: player.Name,
     legacyTrusted: keepTrusted,
+    adminApprovedTrusted: keepAdminApproved,
     source: 'member_onboarding',
   })
   if (accountClaim.error) return { error: accountClaim.error }

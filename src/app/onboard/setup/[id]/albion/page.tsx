@@ -52,7 +52,6 @@ export default async function TenantAlbionSetupPage({ params }: Props) {
           albionAodpCityLabel: t('albionAodpCityLabel'),
           albionAodpCityHelp: t('albionAodpCityHelp'),
           nextButton: t('nextButton'),
-          skipButton: t('skipButton'),
           savingButton: t('savingButton'),
           errorGeneric: t('errorGeneric'),
         }}

@@ -4,6 +4,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAlbionOnboardingGateState } from '@/lib/albion-identity'
+import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
 import {
   resolveSiphonPlayer,
   summarizeSiphonAccount,
@@ -27,6 +28,9 @@ export async function getMySiphonAccount(
   try {
     const session = await getSession()
     if (!session || !session.isMember) return { status: 'error', error: 'Unauthorized' }
+    if (isLocalGuildAccountRestrictedFromResources(session)) {
+      return { status: 'error', error: 'local-account-resource-blocked' }
+    }
 
     const guildId = await getSessionGuildId(session)
     const identityGate = await getAlbionOnboardingGateState(session.discordId, guildId)

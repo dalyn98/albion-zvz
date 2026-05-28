@@ -26,6 +26,7 @@ import { isSuperAdminSession } from '@/lib/super-admin'
 import { classifyHost, getCanonicalRootDomain, resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { displayNameFromSlug } from '@/lib/tenant-slug'
 import { isIndexablePathname, isPublicPathname } from '@/lib/app-route-classification'
+import { getLocalGuildAccountBySubject } from '@/lib/local-guild-account'
 
 // 마케팅 페이지(/public/(marketing)/*) 는 자체 헤더(MarketingNav) + 푸터를
 // 갖고 있어 PublicShell/AppShell 의 sticky 헤더를 한 번 더 깔면 시각적 충돌이
@@ -384,6 +385,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     redirect('/')
   }
 
+  if (!isPublic && session?.isLocalGuildAccount && !sessionBelongsToOtherTenant) {
+    const guildId = await getSessionGuildId(session)
+    const localAccount = await getLocalGuildAccountBySubject(guildId, session.discordId)
+    if (!localAccount || localAccount.revoked_at) {
+      redirect('/guild-login')
+    }
+  }
+
   if (
     !isPublic &&
     session?.isBombSquadCaller &&
@@ -446,8 +455,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // 경우, 인증되지 않은 멤버를 /onboarding/albion 으로 강제 리디렉트. 관리자
     // 자신은 사이트 관리 접근권이 있어야 하므로 예외 — isAdmin 은 통과.
     if (!session.isAdmin && !onboardingGate.siteAccessVerified) {
-      const allowUnverified = await getAppSetting('allow_unverified_member_access', 'true', guildId)
-      if (allowUnverified === 'false') {
+      const allowUnverified = await getAppSetting('allow_unverified_member_access', 'false', guildId)
+      if (allowUnverified !== 'true') {
         redirect(albionOnboardingRedirect(pathname))
       }
     }

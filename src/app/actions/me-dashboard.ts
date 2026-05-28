@@ -18,6 +18,7 @@ import { getMyPointsSummary } from '@/app/actions/regear'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { getCurrentWeekStartIso } from '@/lib/timezone'
 import { getAppSetting } from '@/lib/app-settings'
+import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
 
 export type MyDashboardNextEventKind = 'assigned' | 'pending' | 'tentative' | 'available'
 
@@ -128,6 +129,7 @@ function isEarlierEvent(
 export async function getMyDashboard(): Promise<MyDashboardData | null> {
   const session = await getSession()
   if (!session || !session.isMember) return null
+  if (isLocalGuildAccountRestrictedFromResources(session)) return null
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
 

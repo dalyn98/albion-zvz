@@ -1,5 +1,6 @@
 import { getAppSetting } from '@/lib/app-settings'
 import { listRoleRewards } from '@/app/actions/regear-admin'
+import type { LocalGuildAccountSummary } from '@/app/actions/local-guild-account'
 import SettingsTabs from '@/components/SettingsTabs'
 import { getGuild, isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 import { getTranslations } from 'next-intl/server'
@@ -13,12 +14,40 @@ import {
   type AdminPermissionRoleSettings,
 } from '@/lib/admin-permission-settings'
 import { getSettingsAccessFlags } from '@/lib/settings-access'
+import { getAdminClient } from '@/lib/supabase-admin'
 
 // 알림 메시지의 기본값은 빈 문자열 — 폼은 초기값이 비어 있으면 locale 별
 // `messagePlaceholder` 를 노출하므로, 관리자는 자신이 사용하는 언어의 예시를
 // 본 채로 직접 입력하게 된다. 비-한국어 길드 관리자가 한국어 기본값을 그대로
 // 보던 문제 해결.
 export const dynamic = 'force-dynamic'
+
+async function loadLocalGuildAccountSummaries(
+  tenantId: string,
+  allowed: boolean,
+): Promise<LocalGuildAccountSummary[]> {
+  if (!allowed) return []
+  const { data, error } = await getAdminClient()
+    .from('guild_local_accounts')
+    .select(
+      'id, subject, albion_server, albion_player_name, relation, trust_status, created_at, last_login_at, revoked_at',
+    )
+    .eq('guild_id', tenantId)
+    .order('updated_at', { ascending: false })
+    .limit(200)
+  if (error) return []
+  return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    id: row.id as string,
+    subject: row.subject as string,
+    server: row.albion_server as string,
+    nickname: row.albion_player_name as string,
+    relation: row.relation as string,
+    trustStatus: row.trust_status as string,
+    createdAt: (row.created_at as string | null) ?? null,
+    lastLoginAt: (row.last_login_at as string | null) ?? null,
+    revokedAt: (row.revoked_at as string | null) ?? null,
+  }))
+}
 
 export default async function SettingsPage() {
   // 관리자 역할은 app_settings 이 아니라 tenants.admin_role_ids 에 저장된다.
@@ -67,6 +96,7 @@ export default async function SettingsPage() {
     allowUnverifiedMemberAccessRaw,
     localGuildAccountsEnabledRaw,
     localGuildInviteHashRaw,
+    initialLocalGuildAccounts,
     tenantTimezoneRaw,
     logStartShopChestAt,
     logStartSiphonAt,
@@ -135,17 +165,18 @@ export default async function SettingsPage() {
     settingsAccess.general
       ? getAppSetting('cd_badge_roles', '["Dps"]', tenantId)
       : Promise.resolve('["Dps"]'),
-    // 기본값 'true' — 기존 동작(미인증 멤버도 접근 가능) 유지. 관리자가 끌
-    // 때만 layout 게이트가 /onboarding/albion 으로 강제 리다이렉트.
+    // 기본값 'false' — 홈 길드 인증을 완료하지 않은 멤버는 기본적으로
+    // /onboarding/albion 을 끝내기 전까지 사이트 진입을 막는다.
     settingsAccess.toggles
-      ? getAppSetting('allow_unverified_member_access', 'true', tenantId)
-      : Promise.resolve('true'),
+      ? getAppSetting('allow_unverified_member_access', 'false', tenantId)
+      : Promise.resolve('false'),
     settingsAccess.general
       ? getAppSetting('local_guild_accounts_enabled', 'false', tenantId)
       : Promise.resolve('false'),
     settingsAccess.general
       ? getAppSetting('local_guild_invite_hash', '', tenantId)
       : Promise.resolve(''),
+    loadLocalGuildAccountSummaries(tenantId, settingsAccess.general),
     // 기본값 'Asia/Seoul' — 기존 멘헤라 동작 유지. 잘못된 값이 박혀 있으면
     // 아래 isValidTenantTimezone 으로 다시 한 번 정규화한다.
     settingsAccess.general || canManageAnyLogOperatingStart
@@ -303,6 +334,7 @@ export default async function SettingsPage() {
         allowUnverifiedMemberAccess={allowUnverifiedMemberAccess}
         localGuildAccountsEnabled={localGuildAccountsEnabled}
         localGuildInviteConfigured={localGuildInviteConfigured}
+        initialLocalGuildAccounts={initialLocalGuildAccounts}
         tenantTimezone={tenantTimezone}
         logStartShopChestAt={logStartShopChestAt}
         logStartSiphonAt={logStartSiphonAt}

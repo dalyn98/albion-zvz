@@ -10,6 +10,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { computePointPrice, parseShopDiscountRate } from '@/lib/shop/price'
 import { getAppSetting } from '@/lib/app-settings'
 import { getMemberPointBalance } from '@/lib/point-ledger'
+import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
 
 export interface OrderLineInput {
   inventoryId: string
@@ -28,6 +29,7 @@ const MAX_LINES = 50
 export async function getMyPointBalance(): Promise<number> {
   const session = await getSession()
   if (!session?.isMember) return 0
+  if (isLocalGuildAccountRestrictedFromResources(session)) return 0
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
   const { balance, error } = await getMemberPointBalance(db, guildId, session.discordId)
@@ -44,6 +46,9 @@ export async function submitShopOrder(
     const session = await getSession()
     if (!session) return { ok: false, error: tErr('loginRequired') }
     if (!session.isMember) return { ok: false, error: tErr('memberOnlyOrder') }
+    if (isLocalGuildAccountRestrictedFromResources(session)) {
+      return { ok: false, error: tErr('localAccountResourceBlocked') }
+    }
     if (!Array.isArray(lines) || lines.length === 0) {
       return { ok: false, error: tErr('cartEmpty') }
     }
@@ -181,6 +186,7 @@ export interface MyOrderRow {
 export async function listMyShopOrders(limit = 20): Promise<MyOrderRow[]> {
   const session = await getSession()
   if (!session) return []
+  if (isLocalGuildAccountRestrictedFromResources(session)) return []
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
   const { data: orders } = await db
@@ -228,6 +234,9 @@ export async function cancelMyOrder(orderId: string): Promise<{ error?: string }
   try {
     const session = await getSession()
     if (!session) return { error: tErr('loginRequired') }
+    if (isLocalGuildAccountRestrictedFromResources(session)) {
+      return { error: tErr('localAccountResourceBlocked') }
+    }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
     const { error } = await db

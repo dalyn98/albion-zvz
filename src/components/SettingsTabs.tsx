@@ -24,6 +24,7 @@ import AutoRegearSlotsForm from './AutoRegearSlotsForm'
 import PermissionRoleSettingsPanel from './PermissionRoleSettingsPanel'
 import LocalGuildAccountSettingsForm from './LocalGuildAccountSettingsForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
+import type { LocalGuildAccountSummary } from '@/app/actions/local-guild-account'
 import type { SlotRole, SlotKey } from '@/types'
 import {
   getAvailableSettingsTabs,
@@ -89,6 +90,7 @@ interface Props {
   allowUnverifiedMemberAccess: boolean
   localGuildAccountsEnabled: boolean
   localGuildInviteConfigured: boolean
+  initialLocalGuildAccounts: LocalGuildAccountSummary[]
   tenantTimezone: string
   logStartShopChestAt: string
   logStartSiphonAt: string
@@ -142,6 +144,7 @@ export default function SettingsTabs({
   allowUnverifiedMemberAccess,
   localGuildAccountsEnabled,
   localGuildInviteConfigured,
+  initialLocalGuildAccounts,
   tenantTimezone,
   logStartShopChestAt,
   logStartSiphonAt,
@@ -245,6 +248,7 @@ export default function SettingsTabs({
                 embedded
                 initialEnabled={localGuildAccountsEnabled}
                 hasInviteCode={localGuildInviteConfigured}
+                initialAccounts={initialLocalGuildAccounts}
               />
             )}
           </SettingsGroup>

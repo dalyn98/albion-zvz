@@ -2,26 +2,52 @@
 
 import { useState, useTransition } from 'react'
 import { useTranslations } from 'next-intl'
-import { KeyRound, Loader2 } from 'lucide-react'
-import { updateLocalGuildAccountSettings } from '@/app/actions/local-guild-account'
+import { Ban, KeyRound, Loader2, RotateCcw } from 'lucide-react'
+import {
+  listLocalGuildAccounts,
+  resetLocalGuildAccountPassword,
+  revokeLocalGuildAccount,
+  updateLocalGuildAccountSettings,
+  type LocalGuildAccountSummary,
+} from '@/app/actions/local-guild-account'
 import { useToast } from './ToastProvider'
 
 interface Props {
   embedded?: boolean
   initialEnabled: boolean
   hasInviteCode: boolean
+  initialAccounts: LocalGuildAccountSummary[]
 }
 
 export default function LocalGuildAccountSettingsForm({
   initialEnabled,
   hasInviteCode,
+  initialAccounts,
 }: Props) {
   const t = useTranslations('adminSettings')
   const toast = useToast()
   const [enabled, setEnabled] = useState(initialEnabled)
   const [guildCode, setGuildCode] = useState('')
   const [error, setError] = useState('')
+  const [accountError, setAccountError] = useState('')
+  const [accounts, setAccounts] = useState<LocalGuildAccountSummary[]>(initialAccounts)
+  const [loadingAccounts, setLoadingAccounts] = useState(false)
+  const [passwordById, setPasswordById] = useState<Record<string, string>>({})
   const [pending, startTransition] = useTransition()
+  const [accountPending, startAccountTransition] = useTransition()
+
+  const refreshAccounts = async () => {
+    setLoadingAccounts(true)
+    setAccountError('')
+    const result = await listLocalGuildAccounts()
+    if (result.error) {
+      setAccountError(result.error)
+      setAccounts([])
+    } else {
+      setAccounts(result.accounts)
+    }
+    setLoadingAccounts(false)
+  }
 
   const save = () => {
     setError('')
@@ -33,7 +59,46 @@ export default function LocalGuildAccountSettingsForm({
       }
       setGuildCode('')
       toast.success(t('saved'))
+      void refreshAccounts()
     })
+  }
+
+  const resetPassword = (account: LocalGuildAccountSummary) => {
+    const password = (passwordById[account.id] ?? '').trim()
+    if (!password) {
+      setAccountError(t('localAccountPasswordRequired'))
+      return
+    }
+    setAccountError('')
+    startAccountTransition(async () => {
+      const result = await resetLocalGuildAccountPassword(account.id, password)
+      if (result.error) {
+        setAccountError(result.error)
+        return
+      }
+      setPasswordById((prev) => ({ ...prev, [account.id]: '' }))
+      toast.success(t('localAccountPasswordResetDone'))
+      await refreshAccounts()
+    })
+  }
+
+  const revokeAccount = (account: LocalGuildAccountSummary) => {
+    if (!window.confirm(t('localAccountRevokeConfirm', { name: account.nickname }))) return
+    setAccountError('')
+    startAccountTransition(async () => {
+      const result = await revokeLocalGuildAccount(account.id)
+      if (result.error) {
+        setAccountError(result.error)
+        return
+      }
+      toast.success(t('localAccountRevokedDone'))
+      await refreshAccounts()
+    })
+  }
+
+  const formatDate = (value: string | null) => {
+    if (!value) return t('localAccountNever')
+    return new Date(value).toLocaleString()
   }
 
   return (
@@ -84,6 +149,108 @@ export default function LocalGuildAccountSettingsForm({
         {pending && <Loader2 size={12} className="animate-spin" />}
         {t('save')}
       </button>
+
+      <div className="border-t border-gray-800 pt-3">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h4 className="text-xs font-bold text-white">{t('localAccountListTitle')}</h4>
+            <p className="mt-0.5 text-[11px] text-gray-500">{t('localAccountListHint')}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void refreshAccounts()}
+            disabled={loadingAccounts || accountPending}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-700 bg-gray-900 text-gray-300 hover:bg-gray-800 disabled:opacity-50"
+            title={t('localAccountRefresh')}
+            aria-label={t('localAccountRefresh')}
+          >
+            {loadingAccounts ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <RotateCcw size={13} />
+            )}
+          </button>
+        </div>
+
+        {accountError && (
+          <p className="mt-2 rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+            {accountError}
+          </p>
+        )}
+
+        <div className="mt-2 space-y-2">
+          {accounts.length === 0 && !loadingAccounts ? (
+            <p className="rounded border border-dashed border-gray-800 px-3 py-3 text-xs text-gray-500">
+              {t('localAccountListEmpty')}
+            </p>
+          ) : (
+            accounts.map((account) => {
+              const revoked = Boolean(account.revokedAt)
+              return (
+                <div
+                  key={account.id}
+                  className="rounded-md border border-gray-800 bg-gray-900/55 p-2"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-white">
+                        {account.nickname}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-gray-500">
+                        {account.server} · {account.relation} · {account.trustStatus}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-gray-600">
+                        {t('localAccountLastLogin', { time: formatDate(account.lastLoginAt) })}
+                      </p>
+                    </div>
+                    <span
+                      className={`rounded px-2 py-0.5 text-[11px] font-semibold ${
+                        revoked
+                          ? 'bg-red-500/15 text-red-300'
+                          : 'bg-emerald-500/15 text-emerald-300'
+                      }`}
+                    >
+                      {revoked ? t('localAccountRevoked') : t('localAccountActive')}
+                    </span>
+                  </div>
+
+                  {!revoked && (
+                    <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                      <input
+                        type="password"
+                        value={passwordById[account.id] ?? ''}
+                        onChange={(e) =>
+                          setPasswordById((prev) => ({ ...prev, [account.id]: e.target.value }))
+                        }
+                        placeholder={t('localAccountNewPasswordPlaceholder')}
+                        className="min-w-0 flex-1 rounded-md border border-gray-700 bg-gray-950 px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:border-amber-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => resetPassword(account)}
+                        disabled={accountPending}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-md border border-gray-700 bg-gray-800 px-2.5 py-1.5 text-xs font-semibold text-gray-200 hover:bg-gray-700 disabled:opacity-50"
+                      >
+                        {accountPending && <Loader2 size={12} className="animate-spin" />}
+                        {t('localAccountResetPassword')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => revokeAccount(account)}
+                        disabled={accountPending}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-md border border-red-500/40 bg-red-500/10 px-2.5 py-1.5 text-xs font-semibold text-red-200 hover:bg-red-500/20 disabled:opacity-50"
+                      >
+                        <Ban size={12} />
+                        {t('localAccountRevoke')}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          )}
+        </div>
+      </div>
     </div>
   )
 }

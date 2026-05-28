@@ -56,6 +56,20 @@ describe('account Albion identity trust model', () => {
     expect(canUseGuildResourceFeatures({ relation: 'home_guild', trustStatus: trust })).toBe(true)
   })
 
+  it('keeps admin-approved home-guild members trusted across later refreshes', () => {
+    const trust = resolveInitialTenantTrust({
+      relation: 'home_guild',
+      hasPlayerId: true,
+      hasDuplicateClaim: false,
+      legacyTrusted: false,
+      adminApprovedTrusted: true,
+      hasTrustedDiscordMemberRole: false,
+    })
+
+    expect(trust).toBe('trusted')
+    expect(canUseGuildResourceFeatures({ relation: 'home_guild', trustStatus: trust })).toBe(true)
+  })
+
   it('never allows alliance guests to use guild resource features without home-guild relation', () => {
     const relation = resolveAlbionIdentityRelation({
       homeGuildId: 'home-guild',

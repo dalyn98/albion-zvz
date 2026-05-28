@@ -58,6 +58,13 @@ function revalidateBuildSheetSurfaces(eventId: string): void {
   revalidatePath('/me')
 }
 
+function isGuestOutsideEventScope(
+  session: { isGuest?: boolean; eventScope?: string | null },
+  eventId: string,
+): boolean {
+  return Boolean(session.isGuest) && session.eventScope !== eventId
+}
+
 async function loadEventForGuild(eventId: string, guildId: string): Promise<EventAuthRow | null> {
   const db = getAdminClient()
   const { data, error } = await db
@@ -204,6 +211,9 @@ export async function submitBuildSheetApplication(
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     if (!isBuildSheetRole(roleType)) return { error: t('errors.invalidRole') }
+    if (isGuestOutsideEventScope(session, eventId)) {
+      return { error: t('errors.guestWrongEvent') }
+    }
     const guildId = await getSessionGuildId(session)
     const event = await loadEventForGuild(eventId, guildId)
     if (!event || event.status === 'draft') return { error: tErr('eventNotFound') }
@@ -304,6 +314,9 @@ export async function cancelBuildSheetApplication(eventId: string): BuildSheetAc
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
+    if (isGuestOutsideEventScope(session, eventId)) {
+      return { error: t('errors.guestWrongEvent') }
+    }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
     const { data: current, error: currentError } = await db

@@ -17,6 +17,7 @@ import {
   createLocalGuildAccount,
   findExactAlbionPlayer,
   hashSecret,
+  isLocalAccountSubject,
   isAlbionServerOrNull,
   isValidLocalAccountPassword,
   localGuildAccountsEnabled,
@@ -27,6 +28,18 @@ import {
   verifySecret,
   type LocalGuildAccountRow,
 } from '@/lib/local-guild-account'
+
+export interface LocalGuildAccountSummary {
+  id: string
+  subject: string
+  server: string
+  nickname: string
+  relation: string
+  trustStatus: string
+  createdAt: string | null
+  lastLoginAt: string | null
+  revokedAt: string | null
+}
 
 function sanitizeReturnTo(raw: string): string {
   return raw.startsWith('/') && !raw.startsWith('//') ? raw : '/'
@@ -208,5 +221,163 @@ export async function updateLocalGuildAccountSettings(input: {
   })
   revalidatePath('/admin/dashboard/settings')
   revalidatePath('/', 'layout')
+  return {}
+}
+
+function mapLocalGuildAccountRow(row: Record<string, unknown>): LocalGuildAccountSummary {
+  return {
+    id: row.id as string,
+    subject: row.subject as string,
+    server: row.albion_server as string,
+    nickname: row.albion_player_name as string,
+    relation: row.relation as string,
+    trustStatus: row.trust_status as string,
+    createdAt: (row.created_at as string | null) ?? null,
+    lastLoginAt: (row.last_login_at as string | null) ?? null,
+    revokedAt: (row.revoked_at as string | null) ?? null,
+  }
+}
+
+function revalidateLocalGuildAccountSurfaces(): void {
+  revalidatePath('/admin/dashboard/settings')
+  revalidatePath('/events')
+  revalidatePath('/regear')
+  revalidatePath('/', 'layout')
+}
+
+export async function listLocalGuildAccounts(): Promise<{
+  accounts: LocalGuildAccountSummary[]
+  error?: string
+}> {
+  const tErr = await getTranslations('adminActionError')
+  const db = await requireAnyCapability([CAP.SETTINGS_GENERAL])
+  const session = await getSession()
+  if (!session) return { accounts: [], error: tErr('serverError') }
+  const guildId = await getSessionGuildId(session)
+  const { data, error } = await db
+    .from('guild_local_accounts')
+    .select(
+      'id, subject, albion_server, albion_player_name, relation, trust_status, created_at, last_login_at, revoked_at',
+    )
+    .eq('guild_id', guildId)
+    .order('updated_at', { ascending: false })
+    .limit(200)
+  if (error) return { accounts: [], error: error.message }
+  return { accounts: ((data ?? []) as Record<string, unknown>[]).map(mapLocalGuildAccountRow) }
+}
+
+export async function revokeLocalGuildAccount(id: string): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  const db = await requireAnyCapability([CAP.SETTINGS_GENERAL])
+  const session = await getSession()
+  if (!session) return { error: tErr('serverError') }
+  const guildId = await getSessionGuildId(session)
+  const { data: account, error: accountError } = await db
+    .from('guild_local_accounts')
+    .select('id, subject, albion_player_name, revoked_at')
+    .eq('guild_id', guildId)
+    .eq('id', id)
+    .maybeSingle()
+  if (accountError) return { error: accountError.message }
+  if (!account) return { error: tErr('memberNotFound') }
+  const subject = account.subject as string
+  if (!isLocalAccountSubject(subject)) return { error: tErr('invalidInput') }
+
+  const nowIso = new Date().toISOString()
+  const { error } = await db
+    .from('guild_local_accounts')
+    .update({
+      trust_status: 'revoked',
+      revoked_at: (account.revoked_at as string | null) ?? nowIso,
+    })
+    .eq('guild_id', guildId)
+    .eq('id', id)
+  if (error) return { error: error.message }
+
+  await Promise.all([
+    db
+      .from('guild_avatars')
+      .update({
+        withdrawn_at: nowIso,
+        albion_verified_at: null,
+        updated_at: nowIso,
+      })
+      .eq('guild_id', guildId)
+      .eq('discord_id', subject),
+    db
+      .from('account_albion_tenant_links')
+      .update({
+        trust_status: 'revoked',
+        status_reason: 'revoked',
+        verified_at: null,
+        trusted_at: null,
+        revoked_at: nowIso,
+        updated_at: nowIso,
+      })
+      .eq('guild_id', guildId)
+      .eq('discord_id', subject),
+    db
+      .from('account_albion_profiles')
+      .update({ revoked_at: nowIso, updated_at: nowIso })
+      .eq('discord_id', subject),
+  ])
+
+  await logAdminAction({
+    guildId,
+    adminDiscordId: session.discordId,
+    action: 'settings.update',
+    targetKind: 'setting',
+    targetId: id,
+    targetDiscordId: subject,
+    details: {
+      kind: 'local_guild_account_revoke',
+      nickname: account.albion_player_name,
+    },
+  })
+  revalidateLocalGuildAccountSurfaces()
+  return {}
+}
+
+export async function resetLocalGuildAccountPassword(
+  id: string,
+  password: string,
+): Promise<{ error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  const db = await requireAnyCapability([CAP.SETTINGS_GENERAL])
+  const session = await getSession()
+  if (!session) return { error: tErr('serverError') }
+  const trimmedPassword = password.trim()
+  if (!isValidLocalAccountPassword(trimmedPassword)) return { error: tErr('invalidInput') }
+  const guildId = await getSessionGuildId(session)
+  const { data: account, error: accountError } = await db
+    .from('guild_local_accounts')
+    .select('id, subject, albion_player_name, revoked_at')
+    .eq('guild_id', guildId)
+    .eq('id', id)
+    .maybeSingle()
+  if (accountError) return { error: accountError.message }
+  if (!account) return { error: tErr('memberNotFound') }
+  if (account.revoked_at) return { error: tErr('invalidInput') }
+
+  const { error } = await db
+    .from('guild_local_accounts')
+    .update({ password_hash: hashSecret(trimmedPassword) })
+    .eq('guild_id', guildId)
+    .eq('id', id)
+  if (error) return { error: error.message }
+
+  await logAdminAction({
+    guildId,
+    adminDiscordId: session.discordId,
+    action: 'settings.update',
+    targetKind: 'setting',
+    targetId: id,
+    targetDiscordId: account.subject as string,
+    details: {
+      kind: 'local_guild_account_password_reset',
+      nickname: account.albion_player_name,
+    },
+  })
+  revalidateLocalGuildAccountSurfaces()
   return {}
 }

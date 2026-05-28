@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { buildPublicActivityUrl } from '@/lib/member-activity-public-url'
+import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
 
 export interface SetMyActivityVisibilityResult {
   ok: boolean
@@ -19,6 +20,9 @@ export async function setMyActivityVisibility(
   const session = await getSession()
   if (!session || !session.isMember) {
     return { ok: false, error: 'unauthorized' }
+  }
+  if (isLocalGuildAccountRestrictedFromResources(session)) {
+    return { ok: false, error: 'local_account_resource_blocked' }
   }
 
   const db = getAdminClient()

@@ -178,8 +178,8 @@ export async function getAlbionEventAccessGateState(input: {
   const [onboardingGate, allowUnverifiedRaw] = await Promise.all([
     getAlbionOnboardingGateState(input.discordId, input.guildId),
     shouldLoadMemberPolicy
-      ? getAppSetting('allow_unverified_member_access', 'true', input.guildId)
-      : Promise.resolve('true'),
+      ? getAppSetting('allow_unverified_member_access', 'false', input.guildId)
+      : Promise.resolve('false'),
   ])
 
   return resolveAlbionEventAccessGate({

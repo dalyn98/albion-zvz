@@ -44,6 +44,7 @@ export interface TenantTrustInput {
   hasPlayerId: boolean
   hasDuplicateClaim: boolean
   legacyTrusted: boolean
+  adminApprovedTrusted?: boolean
   hasTrustedDiscordMemberRole: boolean
 }
 
@@ -71,6 +72,7 @@ interface ClaimInput {
   player: GameinfoPlayer | null
   nickname: string
   legacyTrusted: boolean
+  adminApprovedTrusted?: boolean
   source: 'member_onboarding' | 'manual_entry' | 'manual_refresh' | 'cron_sync' | 'legacy_backfill'
 }
 
@@ -105,7 +107,7 @@ export function resolveInitialTenantTrust(input: TenantTrustInput): AlbionIdenti
   if (!input.hasPlayerId) return 'claimed'
   if (
     input.relation === 'home_guild' &&
-    (input.legacyTrusted || input.hasTrustedDiscordMemberRole)
+    (input.legacyTrusted || input.adminApprovedTrusted || input.hasTrustedDiscordMemberRole)
   ) {
     return 'trusted'
   }
@@ -215,12 +217,14 @@ export async function recordAlbionIdentityClaim(input: ClaimInput): Promise<Clai
     hasPlayerId: !!playerId,
     hasDuplicateClaim,
     legacyTrusted: input.legacyTrusted,
+    adminApprovedTrusted: input.adminApprovedTrusted,
     hasTrustedDiscordMemberRole,
   })
   const verifiedAt = relation === 'home_guild' ? nowIso : null
   const trustedAt = trustStatus === 'trusted' ? nowIso : null
   const statusReason = statusReasonFor(trustStatus, relation, {
     legacyTrusted: input.legacyTrusted,
+    adminApprovedTrusted: input.adminApprovedTrusted,
     hasTrustedDiscordMemberRole,
   })
 
@@ -319,6 +323,8 @@ export async function refreshMemberAlbionIdentity(
     player,
     nickname: current.nickname,
     legacyTrusted: current.trustStatus === 'trusted' && current.statusReason === 'legacy_trusted',
+    adminApprovedTrusted:
+      current.trustStatus === 'trusted' && current.statusReason === 'admin_approved',
     source: opts.manual ? 'manual_refresh' : 'cron_sync',
   })
   if (claim.error) return { error: claim.error }
@@ -584,10 +590,15 @@ async function writeIdentityAudit(input: {
 function statusReasonFor(
   trustStatus: AlbionIdentityTrustStatus,
   relation: AlbionIdentityRelation,
-  opts: { legacyTrusted: boolean; hasTrustedDiscordMemberRole: boolean },
+  opts: {
+    legacyTrusted: boolean
+    adminApprovedTrusted?: boolean
+    hasTrustedDiscordMemberRole: boolean
+  },
 ): string {
   if (trustStatus === 'disputed') return 'duplicate_claim'
   if (trustStatus === 'trusted') {
+    if (opts.adminApprovedTrusted) return 'admin_approved'
     return opts.hasTrustedDiscordMemberRole ? 'discord_role_and_roster_match' : 'legacy_trusted'
   }
   if (trustStatus === 'roster_matched') {

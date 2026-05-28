@@ -30,7 +30,6 @@ interface Labels {
   albionAodpCityLabel: string
   albionAodpCityHelp: string
   nextButton: string
-  skipButton: string
   savingButton: string
   errorGeneric: string
 }
@@ -43,8 +42,7 @@ interface Props {
 const SEARCH_DEBOUNCE_MS = 300
 
 // 위저드 2단계: 알비온 서버 + 홈 길드. 서버를 바꾸면 UUID 가 무효가 되므로 선택
-// 길드를 초기화한다. 홈 길드는 건너뛸 수 있지만 empty 로 저장된다는 점을 UI 에
-// 명시한다 — 나중에 설정 페이지에서 복구 가능.
+// 길드를 초기화한다. 홈 길드는 이후 멤버 인증의 기준이라 최초 설정에서 필수다.
 export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
   const router = useRouter()
   // 초기 서버 미선택 — 한 서버 (east) 를 default 로 박으면 west/eu 길드 사용자가
@@ -120,27 +118,6 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
         server,
         homeGuildId: guildId,
         homeGuildName: guildName,
-        aodpCity,
-      })
-      if (res.error) {
-        setError(res.error)
-        return
-      }
-      router.push(`/onboard/setup/${tenantId}/rewards`)
-    })
-  }
-
-  // 길드 미선택 시에도 다음 단계로 진행 — 알비온 인증/킬보드 sync 는 비활성으로
-  // 시작하고, 관리자가 나중에 설정 페이지에서 채울 수 있다. 단 서버는 필수.
-  const handleSkip = () => {
-    if (!server) return
-    setError('')
-    startTransition(async () => {
-      const res = await saveTenantAlbion({
-        tenantId,
-        server,
-        homeGuildId: '',
-        homeGuildName: '',
         aodpCity,
       })
       if (res.error) {
@@ -316,14 +293,6 @@ export default function TenantAlbionSetupForm({ tenantId, labels }: Props) {
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       <div className="flex items-center gap-2 pt-2">
-        <button
-          type="button"
-          onClick={handleSkip}
-          disabled={isPending || !server}
-          className="rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-60 text-gray-300 text-sm font-semibold px-4 py-2.5"
-        >
-          {labels.skipButton}
-        </button>
         <button
           type="submit"
           disabled={isPending || !server || !guildId}

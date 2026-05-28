@@ -40,6 +40,12 @@ export function isLocalAccountSubject(value: string | null | undefined): boolean
   return typeof value === 'string' && value.startsWith(LOCAL_ACCOUNT_SUBJECT_PREFIX)
 }
 
+export function isLocalGuildAccountRestrictedFromResources(
+  session: { isLocalGuildAccount?: boolean } | null | undefined,
+): boolean {
+  return Boolean(session?.isLocalGuildAccount)
+}
+
 export function normalizeLocalAccountName(raw: string): string {
   return raw.trim().replace(/\s+/g, ' ')
 }

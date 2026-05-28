@@ -7,6 +7,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { requireAlbionVerified } from '@/lib/albion-identity'
 import { getMemberPointBalance } from '@/lib/point-ledger'
+import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
 
 // 길드원 → 길드원 포인트 양도. 여러 명 일괄 지급 지원.
 // 원자성은 RPC transfer_points 가 보장(advisory lock + 잔액 체크 + 쌍 기록).
@@ -40,6 +41,9 @@ export async function transferPoints(
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
+  if (isLocalGuildAccountRestrictedFromResources(session)) {
+    return { error: tErr('localAccountResourceBlocked') }
+  }
   const guildId = await getSessionGuildId(session)
   const albionError = await requireAlbionVerified(session.discordId, guildId)
   if (albionError) return { error: albionError }
@@ -116,6 +120,9 @@ export async function listTransferCandidates(): Promise<{
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) return { candidates: [], error: tErr('loginRequired') }
+  if (isLocalGuildAccountRestrictedFromResources(session)) {
+    return { candidates: [], error: tErr('localAccountResourceBlocked') }
+  }
   const guildId = await getSessionGuildId(session)
 
   const db = getAdminClient()

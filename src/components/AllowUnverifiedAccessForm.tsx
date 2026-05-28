@@ -1,8 +1,8 @@
 'use client'
 
-// 인증 안 된 길드원 접속 허용 toggle. 기본은 허용(true) — 기존 동작 그대로.
-// OFF 로 바꾸면 `src/app/layout.tsx` 게이트가 미인증 멤버를 `/onboarding/albion`
-// 으로 강제 리디렉트한다. 관리자/게스트/OAuth 콜백/공개 경로는 항상 제외.
+// 인증 안 된 길드원 접속 허용 toggle. 기본은 차단(false).
+// ON 으로 바꾸면 미인증 멤버도 사이트 진입은 가능하지만 재화 기능은 별도 인증
+// 게이트를 계속 탄다. 관리자/게스트/OAuth 콜백/공개 경로는 항상 제외.
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
