@@ -21,10 +21,10 @@ const INVENTORY_START_X = 115
 const INVENTORY_START_Y = 665
 const INVENTORY_GAP_X = 14
 const INVENTORY_GAP_Y = 0
-const CARD_FONT_FAMILY = 'Geist'
+export const KILLBOT_CARD_FONT_FAMILY = 'MedievalSharp'
 export const KILLBOT_CARD_FONT_FILE = path.join(
   process.cwd(),
-  'node_modules/next/dist/compiled/@vercel/og/Geist-Regular.ttf',
+  'public/killbot/MedievalSharp.ttf',
 )
 
 export const KILLBOT_CENTER_ICON_ASSETS = {
@@ -48,18 +48,18 @@ export const KILLBOT_CENTER_LAYOUT = {
       iconCenterX: 538,
       iconCenterY: 134,
       iconSize: 52,
-      valueX: 580,
+      valueX: 570,
       valueY: 154,
-      valueWidth: 178,
+      valueWidth: 220,
       valueAnchor: 'start',
     },
     silver: {
       iconCenterX: 538,
       iconCenterY: 244,
       iconSize: 56,
-      valueX: 580,
+      valueX: 570,
       valueY: 264,
-      valueWidth: 178,
+      valueWidth: 220,
       valueAnchor: 'start',
     },
   },
@@ -200,11 +200,13 @@ function formatCompactSilver(value: number): string {
   return formatNumber(n)
 }
 
-function estimateValueLabel(valueEstimate: KillbotVictimValueEstimate | null | undefined): string {
+export function formatKillbotVictimValueLabel(
+  valueEstimate: KillbotVictimValueEstimate | null | undefined,
+): string {
   if (!valueEstimate || valueEstimate.totalItems === 0 || valueEstimate.totalSilver <= 0) {
     return '--'
   }
-  return `${valueEstimate.isPartial ? '~' : ''}${formatCompactSilver(valueEstimate.totalSilver)}`
+  return `${valueEstimate.isPartial ? '~' : ''}${formatNumber(valueEstimate.totalSilver)}`
 }
 
 function formatEventDate(value: string): string {
@@ -229,6 +231,29 @@ function averageItemPowerLabel(
 
 function compactStatLine(parts: Array<string | null | undefined>): string {
   return parts.filter((part): part is string => !!part).join('  ')
+}
+
+function nonNegativeIntegerOrNull(value: unknown): number | null {
+  const n = Number(value)
+  if (!Number.isFinite(n) || n < 0) return null
+  return Math.floor(n)
+}
+
+export function getKillbotDisplayedDeathFame(
+  event: AlbionKillbotEvent,
+  match: KillbotMatch,
+): number {
+  return (
+    nonNegativeIntegerOrNull(event.Victim?.DeathFame) ??
+    nonNegativeIntegerOrNull(event.TotalVictimKillFame) ??
+    Math.max(0, Math.floor(match.fame))
+  )
+}
+
+function centerMetricTextSize(value: string): number {
+  if (value.length >= 13) return 27
+  if (value.length >= 11) return 30
+  return 34
 }
 
 function isRenderableItemId(itemId: string): boolean {
@@ -430,7 +455,7 @@ function textToComposite(layer: TextLayer): OverlayOptions | null {
     input: {
       text: {
         text: `<span foreground="${fill}" weight="${layer.weight ?? 400}">${pangoEscape(layer.value)}</span>`,
-        font: `${CARD_FONT_FAMILY} ${layer.size}`,
+        font: `${KILLBOT_CARD_FONT_FAMILY} ${layer.size}`,
         fontfile: KILLBOT_CARD_FONT_FILE,
         width,
         align: textLayerAlign(layer),
@@ -772,6 +797,8 @@ function buildTextLayers(args: {
   const silverMetric = KILLBOT_CENTER_LAYOUT.metrics.silver
   const killerRole = KILLBOT_CENTER_LAYOUT.roles.killer
   const victimRole = KILLBOT_CENTER_LAYOUT.roles.victim
+  const deathFameLabel = formatNumber(getKillbotDisplayedDeathFame(args.event, args.match))
+  const victimValueLabel = formatKillbotVictimValueLabel(args.valueEstimate)
 
   return [
     textLayer({
@@ -810,6 +837,7 @@ function buildTextLayers(args: {
       weight: 900,
       fill: '#6a5b4f',
       anchor: 'middle',
+      width: 360,
     }),
     textLayer({
       x: victimRole.labelX,
@@ -842,8 +870,8 @@ function buildTextLayers(args: {
     textLayer({
       x: fameMetric.valueX,
       y: fameMetric.valueY,
-      value: formatNumber(args.match.fame),
-      size: 34,
+      value: deathFameLabel,
+      size: centerMetricTextSize(deathFameLabel),
       weight: 900,
       fill: '#171412',
       anchor: fameMetric.valueAnchor,
@@ -852,8 +880,8 @@ function buildTextLayers(args: {
     textLayer({
       x: silverMetric.valueX,
       y: silverMetric.valueY,
-      value: estimateValueLabel(args.valueEstimate),
-      size: 34,
+      value: victimValueLabel,
+      size: centerMetricTextSize(victimValueLabel),
       weight: 900,
       fill: '#171412',
       anchor: silverMetric.valueAnchor,

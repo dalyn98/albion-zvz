@@ -72,6 +72,8 @@ interface PlayerRef {
   AllianceId?: string | null
   AllianceName?: string | null
   AverageItemPower?: number | string | null
+  KillFame?: number | string | null
+  DeathFame?: number | string | null
   Equipment?: Record<string, EquipmentItem | null> | null
   Inventory?: Array<EquipmentItem | null> | null
 }

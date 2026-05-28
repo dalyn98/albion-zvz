@@ -14,7 +14,7 @@ const extraOrigins = (process.env.ALLOWED_ORIGINS ?? '')
 
 const swcTracingIncludes = ['./node_modules/@swc/helpers/**/*']
 const killbotCardTracingIncludes = [
-  './node_modules/next/dist/compiled/@vercel/og/Geist-Regular.ttf',
+  './public/killbot/MedievalSharp.ttf',
 ]
 
 const nextConfig: NextConfig = {

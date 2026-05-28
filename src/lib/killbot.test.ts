@@ -11,6 +11,9 @@ import {
   type KillbotTarget,
 } from './killbot'
 import {
+  formatKillbotVictimValueLabel,
+  getKillbotDisplayedDeathFame,
+  KILLBOT_CARD_FONT_FAMILY,
   KILLBOT_CARD_FONT_FILE,
   KILLBOT_CENTER_LAYOUT,
   KILLBOT_CENTER_ICON_ASSETS,
@@ -334,8 +337,52 @@ describe('buildKillbotDiscordPayload', () => {
 
 describe('killbot card font', () => {
   it('resolves the bundled card font used by sharp text rendering', () => {
-    expect(KILLBOT_CARD_FONT_FILE).toMatch(/Geist-Regular\.ttf$/)
+    expect(KILLBOT_CARD_FONT_FAMILY).toBe('MedievalSharp')
+    expect(KILLBOT_CARD_FONT_FILE).toMatch(/MedievalSharp\.ttf$/)
     expect(existsSync(KILLBOT_CARD_FONT_FILE)).toBe(true)
+  })
+})
+
+describe('killbot card center metrics', () => {
+  it('uses victim death fame for the center fame value', () => {
+    const sampleEvent = event({
+      TotalVictimKillFame: 1200,
+      Victim: {
+        Id: 'victim',
+        Name: 'Victim',
+        GuildId: 'enemy',
+        GuildName: 'Enemy',
+        DeathFame: 987654,
+      },
+    })
+    const match = {
+      feedType: 'kill' as const,
+      fame: 1200,
+      isJuicy: true,
+      killerName: 'Killer',
+      victimName: 'Victim',
+    }
+
+    expect(getKillbotDisplayedDeathFame(sampleEvent, match)).toBe(987654)
+  })
+
+  it('prints victim estimated value without compact M/K/B units', () => {
+    const estimate: KillbotVictimValueEstimate = {
+      totalSilver: 12_450_000,
+      gearSilver: 10_800_000,
+      inventorySilver: 1_650_000,
+      totalItems: 17,
+      pricedItems: 17,
+      missingItems: 0,
+      isPartial: false,
+    }
+
+    expect(formatKillbotVictimValueLabel(estimate)).toBe('12,450,000')
+  })
+
+  it('keeps center values wide enough for full silver numbers', () => {
+    expect(KILLBOT_CENTER_LAYOUT.metrics.fame.valueWidth).toBeGreaterThanOrEqual(220)
+    expect(KILLBOT_CENTER_LAYOUT.metrics.silver.valueWidth).toBeGreaterThanOrEqual(220)
   })
 })
 
