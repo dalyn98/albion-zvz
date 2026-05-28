@@ -220,6 +220,41 @@ describe('adminCancelSlot', () => {
     expect(rpc).not.toHaveBeenCalled()
   })
 
+  it('blocks a reset member from assigning a slot even when unverified access is otherwise allowed', async () => {
+    const { query } = createSlotQuery({
+      guild_id: 'guild-1',
+      is_hidden: false,
+      parties: {
+        event_id: 'event-1',
+        party_number: 1,
+        is_bomb_squad: false,
+      },
+    })
+    const rpc = vi.fn().mockResolvedValue({ error: null })
+
+    mocks.getSession.mockResolvedValue({
+      discordId: 'member-1',
+      username: 'Member',
+      isAdmin: false,
+      isMember: true,
+      isGuest: false,
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAlbionEventAccessGateState.mockResolvedValue({
+      memberEventAccessAllowed: false,
+      memberOnboardingRequired: true,
+      memberEventVerificationRequired: false,
+      allianceEventAllowed: false,
+    })
+    mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
+
+    await expect(assignSlot('slot-1')).resolves.toEqual({
+      error: 'albionVerificationRequired',
+    })
+
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
   it('allows delegated event managers to remove an assigned member from an event slot', async () => {
     const { query, calls } = createSlotQuery(assignedSlot())
     const from = vi.fn((table: string) => {

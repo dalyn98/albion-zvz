@@ -282,6 +282,10 @@ export default async function EventDetailPage({
   // admin 이라도 draft 미리보기 용도로 쓰고 싶다면 관리자 경로 (/admin/dashboard/events/[id])
   // 로 들어가야 한다. 여기서 굳이 우회 열어주지 않는 편이 실수 공개를 방지한다.
   if (!event || event.status === 'draft') notFound()
+  const eventReturnPath = inviteToken
+    ? `/events/${id}?invite=${encodeURIComponent(inviteToken)}`
+    : `/events/${id}`
+  const onboardingHref = buildAlbionOnboardingHref(eventReturnPath)
   const albionEventGate = session && sessionGuildId === guildId
     ? await getAlbionEventAccessGateState({
         discordId: session.discordId,
@@ -291,8 +295,12 @@ export default async function EventDetailPage({
       })
     : null
   const allianceEventAllowed = albionEventGate?.allianceEventAllowed ?? false
+  const memberOnboardingRequired = albionEventGate?.memberOnboardingRequired ?? false
   const memberEventVerificationRequired =
     albionEventGate?.memberEventVerificationRequired ?? false
+  if (memberOnboardingRequired) {
+    redirect(onboardingHref)
+  }
   const interactionSession = getEventInteractionSession({
     session: memberEventVerificationRequired ? null : session,
     sessionGuildId,
@@ -342,11 +350,7 @@ export default async function EventDetailPage({
   const avatars = Object.fromEntries(avatarMap)
   const usernames = Object.fromEntries(usernameMap)
 
-  const eventReturnPath = inviteToken
-    ? `/events/${id}?invite=${encodeURIComponent(inviteToken)}`
-    : `/events/${id}`
   const loginHref = buildDiscordStartHref({ returnTo: eventReturnPath, invite: inviteToken })
-  const onboardingHref = buildAlbionOnboardingHref(eventReturnPath)
   const localLoginEnabled =
     (await getAppSetting('local_guild_accounts_enabled', 'false', guildId)) === 'true' &&
     (await getAppSetting('local_guild_invite_hash', '', guildId)).trim().length > 0

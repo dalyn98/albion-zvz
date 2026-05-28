@@ -187,9 +187,50 @@ describe('resolveAlbionOnboardingGate', () => {
     expect(state.resourceTrusted).toBe(true)
     expect(state.identity?.nickname).toBe('LegacyPlayer')
   })
+
+  it('does not treat a player id cached by killboard sync as completed first-run onboarding', () => {
+    const state = resolveAlbionOnboardingGate({
+      discordId: DISCORD_ID,
+      legacyIdentity: legacyIdentity({
+        playerId: 'cached-player-id',
+      }),
+      accountIdentity: null,
+    })
+
+    expect(state.hasStartedOnboarding).toBe(false)
+    expect(state.siteAccessVerified).toBe(false)
+    expect(state.resourceTrusted).toBe(false)
+    expect(state.identity).toBeNull()
+  })
 })
 
 describe('resolveAlbionEventAccessGate', () => {
+  it('requires onboarding for a reset member on public event pages even when unverified access is allowed', () => {
+    const onboardingGate = resolveAlbionOnboardingGate({
+      discordId: DISCORD_ID,
+      legacyIdentity: legacyIdentity(),
+      accountIdentity: accountIdentity({
+        trustStatus: 'revoked',
+        statusReason: 'admin_reset',
+        verifiedAt: null,
+        trustedAt: null,
+      }),
+    })
+
+    expect(
+      resolveAlbionEventAccessGate({
+        onboardingGate,
+        allowUnverifiedMemberAccess: true,
+        isMember: true,
+        isAdmin: false,
+      }),
+    ).toMatchObject({
+      memberEventAccessAllowed: false,
+      memberOnboardingRequired: true,
+      memberEventVerificationRequired: false,
+    })
+  })
+
   it('requires verification for an unverified member when unverified site access is disabled', () => {
     const onboardingGate = resolveAlbionOnboardingGate({
       discordId: DISCORD_ID,

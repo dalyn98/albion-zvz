@@ -143,7 +143,7 @@ export async function assignSlot(
         isMember: session.isMember === true,
         isAdmin: session.isAdmin === true,
       })
-  if (albionEventGate?.memberEventVerificationRequired) {
+  if (albionEventGate?.memberOnboardingRequired || albionEventGate?.memberEventVerificationRequired) {
     return { error: tAction('albionVerificationRequired') }
   }
   const canApplyAsAlliance =

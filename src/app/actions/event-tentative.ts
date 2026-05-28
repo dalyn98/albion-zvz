@@ -52,7 +52,7 @@ export async function submitMyTentativeSignup(
     isMember: session.isMember === true,
     isAdmin: session.isAdmin === true,
   })
-  if (albionEventGate.memberEventVerificationRequired) {
+  if (albionEventGate.memberOnboardingRequired || albionEventGate.memberEventVerificationRequired) {
     return { error: tAction('albionVerificationRequired') }
   }
   const canSignUpAsAlliance =

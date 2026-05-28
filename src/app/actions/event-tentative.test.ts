@@ -148,6 +148,32 @@ describe('event tentative signup management permissions', () => {
     })
   })
 
+  it('blocks a reset member from tentative signup even when unverified access is otherwise allowed', async () => {
+    const from = vi.fn(() => {
+      throw new Error('event lookup should not run')
+    })
+
+    mocks.getSession.mockResolvedValue({
+      discordId: 'member-1',
+      username: 'Member',
+      isAdmin: false,
+      isMember: true,
+      isGuest: false,
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAlbionEventAccessGateState.mockResolvedValue({
+      memberEventAccessAllowed: false,
+      memberOnboardingRequired: true,
+      memberEventVerificationRequired: false,
+      allianceEventAllowed: false,
+    })
+    mocks.getAdminClient.mockReturnValue({ from })
+
+    await expect(submitMyTentativeSignup('event-1', ['Dps'])).resolves.toEqual({
+      error: 'albionVerificationRequired',
+    })
+  })
+
   it('does not let a former event creator remove someone else from tentative signups', async () => {
     const { query } = createEventQuery({ id: 'event-1', created_by: 'owner-1' })
     const deleteQuery = {

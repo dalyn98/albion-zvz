@@ -33,6 +33,7 @@ export interface AlbionOnboardingGateState {
 
 export interface AlbionEventAccessGateState {
   memberEventAccessAllowed: boolean
+  memberOnboardingRequired: boolean
   memberEventVerificationRequired: boolean
   allianceEventAllowed: boolean
 }
@@ -73,7 +74,9 @@ export function isAlbionVerified(identity: MemberAlbionIdentity | null): boolean
 }
 
 function hasLegacyAlbionIdentity(identity: MemberAlbionIdentity | null): boolean {
-  return Boolean(identity?.server || identity?.playerId || identity?.nickname)
+  // killboard sync may cache albion_player_id from a Discord display-name match.
+  // That is not proof that the member has chosen a server or completed onboarding.
+  return Boolean(identity?.server || identity?.nickname || identity?.verifiedAt)
 }
 
 function hasActiveAccountAlbionIdentity(
@@ -155,14 +158,20 @@ export function resolveAlbionEventAccessGate(input: {
   isMember: boolean
   isAdmin: boolean
 }): AlbionEventAccessGateState {
+  const memberOnboardingRequired =
+    input.isMember &&
+    !input.isAdmin &&
+    !input.onboardingGate.hasStartedOnboarding
   const memberEventVerificationRequired =
     input.isMember &&
     !input.isAdmin &&
+    !memberOnboardingRequired &&
     !input.allowUnverifiedMemberAccess &&
     !input.onboardingGate.siteAccessVerified
 
   return {
-    memberEventAccessAllowed: !memberEventVerificationRequired,
+    memberEventAccessAllowed: !(memberOnboardingRequired || memberEventVerificationRequired),
+    memberOnboardingRequired,
     memberEventVerificationRequired,
     allianceEventAllowed: input.onboardingGate.allianceEventAllowed,
   }
