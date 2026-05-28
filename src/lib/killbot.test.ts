@@ -10,7 +10,12 @@ import {
   type KillbotConfig,
   type KillbotTarget,
 } from './killbot'
-import { KILLBOT_CARD_FONT_FILE, renderKillbotCardPng } from './killbot-card'
+import {
+  KILLBOT_CARD_FONT_FILE,
+  KILLBOT_CENTER_LAYOUT,
+  KILLBOT_CENTER_ICON_ASSETS,
+  renderKillbotCardPng,
+} from './killbot-card'
 import type { KillbotVictimValueEstimate } from './killbot-value'
 
 afterEach(() => {
@@ -321,7 +326,7 @@ describe('buildKillbotDiscordPayload', () => {
     expect(file.data.byteLength).toBeGreaterThan(1000)
     const { default: sharp } = await import('sharp')
     const metadata = await sharp(file.data).metadata()
-    expect(metadata).toMatchObject({ width: 920, height: 760, format: 'png' })
+    expect(metadata).toMatchObject({ width: 1200, height: 800, format: 'png' })
     expect(message.payload.embeds[0]?.image?.url).toBe('attachment://killbot-card.png')
     expect(message.payload.embeds[0]?.thumbnail).toBeUndefined()
   })
@@ -334,7 +339,74 @@ describe('killbot card font', () => {
   })
 })
 
+describe('killbot card center icons', () => {
+  it('uses bundled official wiki image assets for fame and silver', async () => {
+    expect(KILLBOT_CENTER_ICON_ASSETS.fame.sourceUrl).toBe(
+      'https://wiki.albiononline.com/wiki/File:This._Is._Albion!_Icon.png',
+    )
+    expect(KILLBOT_CENTER_ICON_ASSETS.silver.sourceUrl).toBe(
+      'https://wiki.albiononline.com/wiki/File:SilverCoins.png',
+    )
+    expect(KILLBOT_CENTER_ICON_ASSETS.kill.sourceUrl).toBe(
+      'https://wiki.albiononline.com/wiki/File:M-m-m-monster_Kill!_Icon.png',
+    )
+
+    const { default: sharp } = await import('sharp')
+    for (const asset of Object.values(KILLBOT_CENTER_ICON_ASSETS)) {
+      expect(asset.filePath).toContain('/public/killbot/')
+      expect(existsSync(asset.filePath)).toBe(true)
+      const metadata = await sharp(asset.filePath).metadata()
+      expect(metadata.format).toBe('png')
+      expect(metadata.width).toBeGreaterThanOrEqual(24)
+      expect(metadata.height).toBeGreaterThanOrEqual(24)
+    }
+  })
+})
+
+describe('killbot card center layout', () => {
+  it('aligns fame and silver values and labels killer/victim sides', () => {
+    expect(KILLBOT_CENTER_LAYOUT.metrics.fame.valueX).toBe(
+      KILLBOT_CENTER_LAYOUT.metrics.silver.valueX,
+    )
+    expect(KILLBOT_CENTER_LAYOUT.metrics.fame.valueAnchor).toBe('start')
+    expect(KILLBOT_CENTER_LAYOUT.metrics.silver.valueAnchor).toBe('start')
+    expect(KILLBOT_CENTER_LAYOUT.roles.killer.label).toBe('KILLER')
+    expect(KILLBOT_CENTER_LAYOUT.roles.victim.label).toBe('VICTIM')
+    expect(KILLBOT_CENTER_LAYOUT.kill.source).toBe('official-monster-kill')
+  })
+})
+
 describe('killbot card item icons', () => {
+  it('ignores tier-only placeholder item ids from Albion event payloads', async () => {
+    const fetchMock = vi.fn(async () => new Response('', { status: 404 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const sampleEvent = event({
+      Victim: {
+        Id: 'victim',
+        Name: 'Victim',
+        GuildId: 'enemy',
+        GuildName: 'Enemy',
+        Equipment: {
+          MainHand: { Type: 'T7' },
+          Armor: { Type: 'T7@1' },
+        },
+        Inventory: [{ Type: 'T7', Count: 3 }],
+      },
+    })
+    const match = {
+      feedType: 'kill' as const,
+      fame: 1200,
+      isJuicy: true,
+      killerName: 'Killer',
+      victimName: 'Victim',
+    }
+
+    await renderKillbotCardPng(sampleEvent, match, target)
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('does not keep a transient icon fetch failure cached as an empty slot', async () => {
     const onePixelPng = Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
@@ -373,5 +445,73 @@ describe('killbot card item icons', () => {
     await renderKillbotCardPng(sampleEvent, match, target)
 
     expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+})
+
+describe('killbot card layout', () => {
+  it('keeps inventory item rendering out of the bottom crop-risk strip', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('', { status: 404 })),
+    )
+    const match = {
+      feedType: 'kill' as const,
+      fame: 1200,
+      isJuicy: true,
+      killerName: 'Killer',
+      victimName: 'Victim',
+    }
+    const noInventory = await renderKillbotCardPng(
+      event({
+        Victim: {
+          Id: 'victim',
+          Name: 'Victim',
+          GuildId: 'enemy',
+          GuildName: 'Enemy',
+          Inventory: [],
+        },
+      }),
+      match,
+      target,
+    )
+    const manyInventory = await renderKillbotCardPng(
+      event({
+        Victim: {
+          Id: 'victim',
+          Name: 'Victim',
+          GuildId: 'enemy',
+          GuildName: 'Enemy',
+          Inventory: Array.from({ length: 24 }, (_, index) => ({
+            Type: `T8_RENDER_TEST_ITEM_${index}`,
+            Count: index + 1,
+          })),
+        },
+      }),
+      match,
+      target,
+    )
+
+    const { default: sharp } = await import('sharp')
+    const metadata = await sharp(noInventory).metadata()
+    const width = metadata.width
+    const height = metadata.height
+    if (!width || !height) throw new Error('expected killbot card dimensions')
+    const stripHeight = 18
+    const extractBottomStrip = async (png: Uint8Array) =>
+      sharp(png)
+        .ensureAlpha()
+        .extract({ left: 0, top: height - stripHeight, width, height: stripHeight })
+        .raw()
+        .toBuffer()
+    const [emptyStrip, filledStrip] = await Promise.all([
+      extractBottomStrip(noInventory),
+      extractBottomStrip(manyInventory),
+    ])
+    const differingBytes = filledStrip.reduce(
+      (count, value, index) => count + (value === emptyStrip[index] ? 0 : 1),
+      0,
+    )
+
+    expect(differingBytes).toBeLessThanOrEqual(16)
   })
 })
