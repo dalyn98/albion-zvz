@@ -92,7 +92,6 @@ interface Props {
   tenantTimezone: string
   logStartShopChestAt: string
   logStartSiphonAt: string
-  logStartLootAuditAt: string
   eventDmLeadMinutes: number
   isSuperAdmin: boolean
 }
@@ -146,7 +145,6 @@ export default function SettingsTabs({
   tenantTimezone,
   logStartShopChestAt,
   logStartSiphonAt,
-  logStartLootAuditAt,
   eventDmLeadMinutes,
   isSuperAdmin,
 }: Props) {
@@ -165,7 +163,6 @@ export default function SettingsTabs({
   const logOperatingDomains: LogOperatingStartDomain[] = [
     ...(access.shopChestLogStart ? (['shopChest'] as const) : []),
     ...(access.siphonLogStart ? (['siphon'] as const) : []),
-    ...(access.lootAuditLogStart ? (['lootAudit'] as const) : []),
   ]
 
   if (!active) return null
@@ -235,7 +232,6 @@ export default function SettingsTabs({
                 domains={logOperatingDomains}
                 initialShopChestStartAt={logStartShopChestAt}
                 initialSiphonStartAt={logStartSiphonAt}
-                initialLootAuditStartAt={logStartLootAuditAt}
               />
             )}
             {access.toggles && (

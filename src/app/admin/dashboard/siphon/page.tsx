@@ -112,7 +112,6 @@ export default async function AdminSiphonPage(props: SearchParams) {
         timezone={tenantTimezone}
         initialShopChestStartAt=""
         initialSiphonStartAt={logStartSiphonAt}
-        initialLootAuditStartAt=""
       />
 
       <SiphonResetPanel logCount={resetLogCount} />

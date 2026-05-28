@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  LOOT_AUDIT_ITEM_POOL_MEMBER,
   buildLootAuditSummary,
   parseDepositLog,
   parseLootLogCsv,
+  selectLootAuditEntries,
 } from './loot-audit'
 
 const SAMPLE_LOOT_CSV = [
@@ -158,7 +160,8 @@ describe('buildLootAuditSummary', () => {
     expect(summary.missingEstimatedValue).toBe(125000)
     expect(summary.findings).toEqual([
       expect.objectContaining({
-        lootedByName: 'MonKKu',
+        scope: 'item_pool',
+        lootedByName: LOOT_AUDIT_ITEM_POOL_MEMBER,
         itemId: 'T5_ARMOR_LEATHER_HELL@3',
         expectedQuantity: 3,
         depositedQuantity: 2,
@@ -217,7 +220,13 @@ describe('buildLootAuditSummary', () => {
     expect(summary.totalEstimatedValue).toBe(200)
     expect(summary.externalEstimatedValue).toBe(100)
     expect(summary.missingEstimatedValue).toBe(100)
-    expect(summary.findings.map((finding) => finding.lootedByName)).toEqual(['AllianceGuy'])
+    expect(summary.findings).toEqual([
+      expect.objectContaining({
+        scope: 'item_pool',
+        lootedByName: LOOT_AUDIT_ITEM_POOL_MEMBER,
+        missingQuantity: 1,
+      }),
+    ])
     expect(summary.checkRows.map((row) => [row.lootedByName, row.looterRelation, row.status]))
       .toEqual([
         ['AllianceGuy', 'alliance', 'missing'],
@@ -271,10 +280,72 @@ describe('buildLootAuditSummary', () => {
         itemId: 'T5_ARMOR_LEATHER_HELL@3',
         status: 'extra',
         depositedQuantity: 1,
-        expectedQuantity: 0,
+        expectedQuantity: 3,
         matchedQuantity: 0,
         extraQuantity: 1,
       },
+    ])
+  })
+
+  it('matches target loot by item totals when a different member deposits it', () => {
+    const loot = parseLootLogCsv(SAMPLE_LOOT_CSV).entries
+    const deposits = parseDepositLog(
+      '"05/24/2026 14:05:00"\t"OtherBanker"\t"전문가의 지옥불 재킷"\t"3"\t"1"\t"3"',
+      { resolveItemName: makeResolver },
+    ).entries
+
+    const summary = buildLootAuditSummary(loot, deposits, {
+      homeGuildName: 'Menhera',
+      homeAllianceNames: ['RIFT'],
+    })
+
+    expect(summary.findings).toEqual([])
+    expect(summary.missingEstimatedValue).toBe(0)
+    expect(summary.itemCheckRows).toEqual([
+      expect.objectContaining({
+        itemId: 'T5_ARMOR_LEATHER_HELL@3',
+        lootedQuantity: 3,
+        expectedQuantity: 3,
+        depositedQuantity: 3,
+        missingQuantity: 0,
+        status: 'complete',
+      }),
+    ])
+    expect(summary.depositCheckRows).toEqual([
+      expect.objectContaining({
+        player: 'OtherBanker',
+        itemId: 'T5_ARMOR_LEATHER_HELL@3',
+        status: 'matched',
+        expectedQuantity: 3,
+        depositedQuantity: 3,
+        matchedQuantity: 3,
+        extraQuantity: 0,
+      }),
+    ])
+  })
+
+  it('reports official missing findings at the item-pool level', () => {
+    const loot = parseLootLogCsv(SAMPLE_LOOT_CSV).entries
+    const deposits = parseDepositLog(
+      '"05/24/2026 14:05:00"\t"OtherBanker"\t"전문가의 지옥불 재킷"\t"3"\t"1"\t"1"',
+      { resolveItemName: makeResolver },
+    ).entries
+
+    const summary = buildLootAuditSummary(loot, deposits, {
+      homeGuildName: 'Menhera',
+      homeAllianceNames: ['RIFT'],
+    })
+
+    expect(summary.findings).toEqual([
+      expect.objectContaining({
+        scope: 'item_pool',
+        lootedByName: LOOT_AUDIT_ITEM_POOL_MEMBER,
+        itemId: 'T5_ARMOR_LEATHER_HELL@3',
+        expectedQuantity: 3,
+        depositedQuantity: 1,
+        missingQuantity: 2,
+        missingEstimatedValue: 250000,
+      }),
     ])
   })
 
@@ -370,7 +441,8 @@ describe('buildLootAuditSummary', () => {
     expect(summary.deathLostEstimatedValue).toBe(100)
     expect(summary.findings).toEqual([
       expect.objectContaining({
-        lootedByName: 'MonKKu',
+        scope: 'item_pool',
+        lootedByName: LOOT_AUDIT_ITEM_POOL_MEMBER,
         expectedQuantity: 2,
         depositedQuantity: 1,
         missingQuantity: 1,
@@ -386,5 +458,40 @@ describe('buildLootAuditSummary', () => {
         status: 'partial_death_loss',
       }),
     ])
+  })
+})
+
+describe('selectLootAuditEntries', () => {
+  it('uses the earliest loot row timestamp as the audit start and only filters deposits', () => {
+    const loot = parseLootLogCsv(
+      [
+        'timestamp_utc;looted_by__name;item_id;item_name;quantity;average_est_market_value',
+        '2026-05-24T05:10:00Z;MonKKu;T5_ARMOR_LEATHER_HELL@3;전문가의 지옥불 재킷;1;100',
+        '2026-05-24T05:00:00Z;MonKKu;T5_ARMOR_LEATHER_HELL@3;전문가의 지옥불 재킷;1;100',
+      ].join('\n'),
+    ).entries
+    const deposits = [
+      {
+        ...parseDepositLog(
+          '"05/24/2026 04:59:59"\t"MonKKu"\t"전문가의 지옥불 재킷"\t"3"\t"1"\t"1"',
+          { resolveItemName: makeResolver },
+        ).entries[0],
+        depositedAt: new Date('2026-05-24T04:59:59Z'),
+      },
+      {
+        ...parseDepositLog(
+          '"05/24/2026 05:00:00"\t"MonKKu"\t"전문가의 지옥불 재킷"\t"3"\t"1"\t"1"',
+          { resolveItemName: makeResolver },
+        ).entries[0],
+        depositedAt: new Date('2026-05-24T05:00:00Z'),
+      },
+    ]
+
+    const selected = selectLootAuditEntries(loot, deposits)
+
+    expect(selected.operatingStartAt).toBe('2026-05-24T05:00:00.000Z')
+    expect(selected.lootEntries).toHaveLength(2)
+    expect(selected.depositEntries).toHaveLength(1)
+    expect(selected.skippedBeforeStart).toEqual({ lootRows: 0, depositRows: 1 })
   })
 })

@@ -49,7 +49,7 @@ export default async function LootAuditDetailPage({
   const relationFilter = parseRelationFilter(
     Array.isArray(sp.relation) ? sp.relation[0] : sp.relation,
   )
-  const filteredCheckRows = detail.checkRows.filter((row) =>
+  const filteredItemRows = detail.itemCheckRows.filter((row) =>
     matchesRelationFilter(row.looterRelation, relationFilter),
   )
   const filteredFindings = detail.findings.filter((finding) =>
@@ -59,7 +59,7 @@ export default async function LootAuditDetailPage({
     relationFilter === 'target' || relationFilter === 'all'
       ? detail.depositCheckRows
       : detail.depositCheckRows.filter((row) => row.looterRelation === relationFilter)
-  const checkRelationCounts = detail.checkRows.reduce(
+  const checkRelationCounts = detail.itemCheckRows.reduce(
     (acc, row) => {
       acc[row.looterRelation] += 1
       return acc
@@ -69,7 +69,7 @@ export default async function LootAuditDetailPage({
   const allRelationCount =
     checkRelationCounts.guild + checkRelationCounts.alliance + checkRelationCounts.other
   const targetRelationCount = checkRelationCounts.guild + checkRelationCounts.alliance
-  const targetDeathLostEstimatedValue = detail.checkRows
+  const targetDeathLostEstimatedValue = detail.itemCheckRows
     .filter((row) => isLootAuditTargetRelation(row.looterRelation))
     .reduce((sum, row) => sum + row.deathLostEstimatedValue, 0)
   const relationTabs: { key: RelationFilter; label: string; count: number }[] = [
@@ -210,13 +210,16 @@ export default async function LootAuditDetailPage({
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-white">{t('chestCheckTitle')}</h2>
+        <div>
+          <h2 className="text-lg font-semibold text-white">{t('chestCheckTitle')}</h2>
+          <p className="mt-1 text-sm text-gray-400">{t('itemCheckDescription')}</p>
+        </div>
         <div className="overflow-x-auto rounded-lg border border-gray-700 bg-gray-900/60">
           <table className="w-full min-w-[1040px] text-left text-sm">
             <thead className="border-b border-gray-700 bg-gray-800/70 text-xs text-gray-400">
               <tr>
                 <th className="px-3 py-2 font-medium">{t('colRelation')}</th>
-                <th className="px-3 py-2 font-medium">{t('colMember')}</th>
+                <th className="px-3 py-2 font-medium">{t('colLooters')}</th>
                 <th className="px-3 py-2 font-medium">{t('colItem')}</th>
                 <th className="px-3 py-2 font-medium">{t('colLooted')}</th>
                 <th className="px-3 py-2 font-medium">{t('colExpected')}</th>
@@ -228,15 +231,15 @@ export default async function LootAuditDetailPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
-              {filteredCheckRows.length === 0 ? (
+              {filteredItemRows.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="px-3 py-8 text-center text-sm text-gray-500">
                     {t('noChestCheckRows')}
                   </td>
                 </tr>
               ) : (
-                filteredCheckRows.map((row) => (
-                  <tr key={`${row.lootedByName}-${row.itemId}`} className="align-top text-gray-200">
+                filteredItemRows.map((row) => (
+                  <tr key={row.itemId} className="align-top text-gray-200">
                     <td className="px-3 py-3">
                       <RelationBadge
                         relation={row.looterRelation}
@@ -247,7 +250,9 @@ export default async function LootAuditDetailPage({
                         }}
                       />
                     </td>
-                    <td className="px-3 py-3 font-medium text-white">{row.lootedByName}</td>
+                    <td className="px-3 py-3 text-xs text-gray-300">
+                      {formatLooterNames(row.looterNames)}
+                    </td>
                     <td className="px-3 py-3">
                       <p>{row.itemName}</p>
                       <p className="font-mono text-[11px] text-gray-500">{row.itemId}</p>
@@ -287,7 +292,7 @@ export default async function LootAuditDetailPage({
             <thead className="border-b border-gray-700 bg-gray-800/70 text-xs text-gray-400">
               <tr>
                 <th className="px-3 py-2 font-medium">{t('colRelation')}</th>
-                <th className="px-3 py-2 font-medium">{t('colMember')}</th>
+                <th className="px-3 py-2 font-medium">{t('colScope')}</th>
                 <th className="px-3 py-2 font-medium">{t('colItem')}</th>
                 <th className="px-3 py-2 font-medium">{t('colExpected')}</th>
                 <th className="px-3 py-2 font-medium">{t('colDeposited')}</th>
@@ -323,7 +328,11 @@ export default async function LootAuditDetailPage({
                         }}
                       />
                     </td>
-                    <td className="px-3 py-3 font-medium text-white">{finding.lootedByName}</td>
+                    <td className="px-3 py-3 font-medium text-white">
+                      {finding.scope === 'item_pool'
+                        ? t('findingScopeItemPool')
+                        : finding.lootedByName}
+                    </td>
                     <td className="px-3 py-3">
                       <p>{finding.itemName}</p>
                       <p className="font-mono text-[11px] text-gray-500">{finding.itemId}</p>
@@ -466,6 +475,11 @@ function StatCell({
 
 function formatSilver(value: number): string {
   return Math.round(value).toLocaleString()
+}
+
+function formatLooterNames(names: readonly string[]): string {
+  if (names.length <= 3) return names.join(', ')
+  return `${names.slice(0, 3).join(', ')} +${names.length - 3}`
 }
 
 function parseRelationFilter(value: string | undefined): RelationFilter {

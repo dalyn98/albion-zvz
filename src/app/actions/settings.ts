@@ -45,7 +45,6 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'shop_import_exclude_tier_enchant_sum_gte',
   'log_start_shop_chest_at',
   'log_start_siphon_at',
-  'log_start_loot_audit_at',
   'albion_server',
   'albion_home_guild_id',
   'aodp_cities',
@@ -113,7 +112,6 @@ function settingCaps(key: AppSettingKey): readonly bigint[] {
   }
   if (
     key === 'log_start_shop_chest_at' ||
-    key === 'log_start_loot_audit_at' ||
     key === 'shop_import_exclude_tier_enchant_sum_lte' ||
     key === 'shop_import_exclude_tier_enchant_sum_gte'
   ) {
@@ -153,7 +151,6 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   // 빈 값 = 해당 로그 기능은 과거 전체를 운영 대상에 포함.
   'log_start_shop_chest_at',
   'log_start_siphon_at',
-  'log_start_loot_audit_at',
   // Empty JSON array '[]' = admin-only event creation.
   'event_creator_role_ids',
   'event_creator_role_ids_combat',
@@ -257,7 +254,6 @@ const BOOLEAN_KEYS: readonly AppSettingKey[] = [
 const DATE_TIME_KEYS: readonly AppSettingKey[] = [
   LOG_OPERATING_START_KEYS.shopChest,
   LOG_OPERATING_START_KEYS.siphon,
-  LOG_OPERATING_START_KEYS.lootAudit,
 ] as const
 
 // Enum-string keys. Value must be exactly one of the listed members.
@@ -447,9 +443,6 @@ export async function updateAppSetting(
       revalidatePath('/me')
       revalidatePath('/me/siphon')
       revalidatePath('/', 'layout')
-    }
-    if (key === 'log_start_loot_audit_at') {
-      revalidatePath('/admin/dashboard/loot-audit')
     }
     if (key === 'auto_regear_enabled') {
       // 슬롯 편집기의 opt-out 체크박스 가시성이 이 값에 의존.

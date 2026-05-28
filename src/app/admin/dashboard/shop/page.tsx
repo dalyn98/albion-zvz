@@ -209,7 +209,6 @@ export default async function AdminShopPage() {
             timezone={tenantTimezone}
             initialShopChestStartAt={logStartShopChestAt}
             initialSiphonStartAt=""
-            initialLootAuditStartAt=""
           />
           <ShopInventoryEditor rows={inventoryRows} discountRate={discountRate} />
         </div>

@@ -11,13 +11,16 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import {
   buildLootAuditSummary,
+  isLootAuditItemPoolMember,
   isLootAuditTargetRelation,
   parseDepositLog,
   parseLootLogCsv,
+  selectLootAuditEntries,
   type LootAuditCheckRow,
   type LootAuditDepositCheckRow,
   type DepositLogEntry,
   type LootAuditFinding,
+  type LootAuditItemCheckRow,
   type LootAuditLooterRelation,
   type LootAuditRelationCounts,
   type LootAuditScopeContext,
@@ -26,8 +29,6 @@ import {
   type LootLogParseError,
 } from '@/lib/loot-audit'
 import { getGuild, isAlbionServer } from '@/lib/albion-gameinfo'
-import { selectOfficialLogEntries } from '@/lib/log-import-official'
-import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 
 const LOOT_AUDIT_CAPS = [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
 const RAW_MAX_LENGTH = 2_000_000
@@ -94,6 +95,7 @@ export interface LootAuditFindingRow extends LootAuditFinding {
 export interface LootAuditDetail {
   audit: LootAuditListItem
   findings: LootAuditFindingRow[]
+  itemCheckRows: LootAuditItemCheckRow[]
   checkRows: LootAuditCheckRow[]
   depositCheckRows: LootAuditDepositCheckRow[]
   relationCounts: LootAuditRelationCounts
@@ -122,6 +124,7 @@ const emptySummary: LootAuditSummary = {
   relationCounts: { guild: 0, alliance: 0, other: 0 },
   findings: [],
   memberSummaries: [],
+  itemCheckRows: [],
   checkRows: [],
   depositCheckRows: [],
 }
@@ -138,12 +141,9 @@ export async function previewLootAudit(
     if (!session) return previewError(tErr('unauthorized'))
     await requireAnyCapability(LOOT_AUDIT_CAPS)
     const guildId = await getSessionGuildId(session)
-    const [operatingStart, auditContext] = await Promise.all([
-      getLogOperatingStart('lootAudit', guildId),
-      getLootAuditScopeContext(guildId),
-    ])
+    const auditContext = await getLootAuditScopeContext(guildId)
 
-    return parseAuditInput(parsed.data, tErr, operatingStart, auditContext).preview
+    return parseAuditInput(parsed.data, tErr, auditContext).preview
   } catch (e) {
     return previewError(e instanceof Error ? e.message : tErr('serverError'))
   }
@@ -164,12 +164,9 @@ export async function createLootAudit(
     if (!session) return { ...previewError(tErr('unauthorized')) }
     const db = await requireAnyCapability(LOOT_AUDIT_CAPS)
     guildId = await getSessionGuildId(session)
-    const [operatingStart, auditContext] = await Promise.all([
-      getLogOperatingStart('lootAudit', guildId),
-      getLootAuditScopeContext(guildId),
-    ])
+    const auditContext = await getLootAuditScopeContext(guildId)
 
-    const parsedAudit = parseAuditInput(parsed.data, tErr, operatingStart, auditContext)
+    const parsedAudit = parseAuditInput(parsed.data, tErr, auditContext)
     if (parsedAudit.preview.error) return { ...parsedAudit.preview }
 
     const { summary } = parsedAudit.preview
@@ -335,16 +332,23 @@ export async function getLootAuditDetail(
         row.looterRelation,
       ]),
     )
+    const relationByItemId = new Map(
+      summary.itemCheckRows.map((row) => [row.itemId, row.looterRelation]),
+    )
     const findings = (findingsResult.data ?? [])
       .map((row) =>
         mapFindingRow(
           row,
-          relationByFindingKey.get(
-            findingKey(row.looted_by_name as string, row.item_id as string),
-          ) ?? 'other',
+          isLootAuditItemPoolMember(row.looted_by_name as string)
+            ? relationByItemId.get(row.item_id as string) ?? 'guild'
+            : relationByFindingKey.get(
+              findingKey(row.looted_by_name as string, row.item_id as string),
+            ) ?? 'other',
         ),
       )
-      .filter((finding) => isLootAuditTargetRelation(finding.looterRelation))
+      .filter((finding) =>
+        finding.scope === 'item_pool' || isLootAuditTargetRelation(finding.looterRelation),
+      )
     const openFindingsCount = findings.filter((finding) => finding.status === 'open').length
     const audit = mapAuditRow(auditRow)
 
@@ -357,6 +361,7 @@ export async function getLootAuditDetail(
         unresolvedFindingsCount: openFindingsCount,
       },
       findings,
+      itemCheckRows: summary.itemCheckRows,
       checkRows: summary.checkRows,
       depositCheckRows: summary.depositCheckRows,
       relationCounts: summary.relationCounts,
@@ -441,50 +446,36 @@ export async function updateLootAuditFinding(input: z.input<typeof findingUpdate
 function parseAuditInput(
   input: z.infer<typeof auditInputSchema>,
   tErr: Awaited<ReturnType<typeof getTranslations>>,
-  operatingStart: Date | null,
   auditContext: LootAuditScopeContext,
 ): ParsedAuditInput {
   const lootResult = parseLootLogCsv(input.lootLogRaw)
   const depositResult = parseDepositLog(input.depositLogRaw)
-  const lootOfficial = selectOfficialLogEntries(
-    lootResult.entries,
-    (entry) => entry.lootedAt,
-    operatingStart,
-  )
-  const depositOfficial = selectOfficialLogEntries(
-    depositResult.entries,
-    (entry) => entry.depositedAt,
-    operatingStart,
-  )
+  const selectedEntries = selectLootAuditEntries(lootResult.entries, depositResult.entries)
   const skippedBeforeStart = {
-    operatingStartAt: lootOfficial.operatingStartAt,
-    lootRows: lootOfficial.skippedBeforeStart,
-    depositRows: depositOfficial.skippedBeforeStart,
+    operatingStartAt: selectedEntries.operatingStartAt,
+    lootRows: selectedEntries.skippedBeforeStart.lootRows,
+    depositRows: selectedEntries.skippedBeforeStart.depositRows,
   }
-  const rowCount = lootOfficial.entries.length + depositOfficial.entries.length
+  const rowCount = selectedEntries.lootEntries.length + selectedEntries.depositEntries.length
 
-  if (lootOfficial.entries.length === 0) {
-    const error =
-      lootResult.entries.length > 0 && skippedBeforeStart.lootRows > 0
-        ? tErr('lootAuditAllLootRowsBeforeStart', { count: skippedBeforeStart.lootRows })
-        : tErr('lootAuditNoLootRows')
+  if (selectedEntries.lootEntries.length === 0) {
     return {
       lootEntries: [],
       depositEntries: [],
       preview: {
-        ...previewError(error, skippedBeforeStart),
+        ...previewError(tErr('lootAuditNoLootRows'), skippedBeforeStart),
         lootParseErrors: lootResult.errors,
         depositParseErrors: depositResult.errors,
       },
     }
   }
-  if (depositOfficial.entries.length === 0) {
+  if (selectedEntries.depositEntries.length === 0) {
     const error =
       depositResult.entries.length > 0 && skippedBeforeStart.depositRows > 0
         ? tErr('lootAuditAllDepositRowsBeforeStart', { count: skippedBeforeStart.depositRows })
         : tErr('lootAuditNoDepositRows')
     return {
-      lootEntries: lootOfficial.entries,
+      lootEntries: selectedEntries.lootEntries,
       depositEntries: [],
       preview: {
         ...previewError(error, skippedBeforeStart),
@@ -495,8 +486,8 @@ function parseAuditInput(
   }
   if (rowCount > ROW_LIMIT) {
     return {
-      lootEntries: lootOfficial.entries,
-      depositEntries: depositOfficial.entries,
+      lootEntries: selectedEntries.lootEntries,
+      depositEntries: selectedEntries.depositEntries,
       preview: {
         ...previewError(tErr('importRowLimit', { max: ROW_LIMIT, current: rowCount }), skippedBeforeStart),
         lootParseErrors: lootResult.errors,
@@ -507,15 +498,19 @@ function parseAuditInput(
 
   const unresolvedDepositItemNames = Array.from(
     new Set(
-      depositOfficial.entries
+      selectedEntries.depositEntries
         .filter((entry) => !entry.itemId)
         .map((entry) => entry.itemName),
     ),
   ).sort((a, b) => a.localeCompare(b))
-  const summary = buildLootAuditSummary(lootOfficial.entries, depositOfficial.entries, auditContext)
+  const summary = buildLootAuditSummary(
+    selectedEntries.lootEntries,
+    selectedEntries.depositEntries,
+    auditContext,
+  )
   return {
-    lootEntries: lootOfficial.entries,
-    depositEntries: depositOfficial.entries,
+    lootEntries: selectedEntries.lootEntries,
+    depositEntries: selectedEntries.depositEntries,
     preview: {
       summary,
       lootParseErrors: lootResult.errors,
@@ -659,6 +654,9 @@ async function refreshAuditFindingStats(
       .map((row) => [findingKey(row.lootedByName, row.itemId), row.looterRelation]),
   )
   const openCount = (findingsResult.data ?? []).filter((row) => {
+    if (isLootAuditItemPoolMember(row.looted_by_name as string)) {
+      return row.status === 'open'
+    }
     const relation = relationByFindingKey.get(
       findingKey(row.looted_by_name as string, row.item_id as string),
     )
@@ -695,9 +693,11 @@ function mapFindingRow(
   row: Record<string, unknown>,
   looterRelation: LootAuditLooterRelation,
 ): LootAuditFindingRow {
+  const lootedByName = row.looted_by_name as string
   return {
     id: row.id as string,
-    lootedByName: row.looted_by_name as string,
+    scope: isLootAuditItemPoolMember(lootedByName) ? 'item_pool' : 'looter',
+    lootedByName,
     looterRelation,
     itemId: row.item_id as string,
     itemName: row.item_name as string,

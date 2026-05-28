@@ -22,6 +22,7 @@ import type { LootAuditDepositCheckStatus, LootAuditLooterRelation } from '@/lib
 
 const TOP_FINDINGS = 12
 const TOP_DEPOSITS = 12
+const TOP_ITEM_CHECKS = 12
 
 export default function LootAuditForm() {
   const router = useRouter()
@@ -292,6 +293,63 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
 
       <div className="mt-4 overflow-x-auto rounded-md border border-gray-800">
         <div className="border-b border-gray-800 bg-gray-800/60 px-3 py-2">
+          <p className="text-xs font-semibold text-gray-300">{t('chestCheckTitle')}</p>
+          <p className="mt-1 text-[11px] text-gray-500">{t('itemCheckDescription')}</p>
+        </div>
+        <table className="w-full min-w-[860px] text-left text-xs">
+          <thead className="bg-gray-800/80 text-gray-400">
+            <tr>
+              <th className="px-3 py-2 font-medium">{t('colRelation')}</th>
+              <th className="px-3 py-2 font-medium">{t('colLooters')}</th>
+              <th className="px-3 py-2 font-medium">{t('colItem')}</th>
+              <th className="px-3 py-2 font-medium">{t('colExpected')}</th>
+              <th className="px-3 py-2 font-medium">{t('colDeposited')}</th>
+              <th className="px-3 py-2 font-medium">{t('colMissing')}</th>
+              <th className="px-3 py-2 font-medium">{t('colMissingValue')}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-800">
+            {summary.itemCheckRows.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-3 py-6 text-center text-gray-500">
+                  {t('noChestCheckRows')}
+                </td>
+              </tr>
+            ) : (
+              summary.itemCheckRows.slice(0, TOP_ITEM_CHECKS).map((row) => (
+                <tr key={row.itemId} className="text-gray-200">
+                  <td className="px-3 py-2">
+                    <RelationPill
+                      relation={row.looterRelation}
+                      labels={{
+                        guild: t('relationGuild'),
+                        alliance: t('relationAlliance'),
+                        other: t('relationOther'),
+                      }}
+                    />
+                  </td>
+                  <td className="px-3 py-2 text-gray-300">
+                    {formatLooterNames(row.looterNames)}
+                  </td>
+                  <td className="px-3 py-2">
+                    <p className="text-gray-200">{row.itemName}</p>
+                    <p className="font-mono text-[11px] text-gray-500">{row.itemId}</p>
+                  </td>
+                  <td className="px-3 py-2 font-mono">{row.expectedQuantity}</td>
+                  <td className="px-3 py-2 font-mono text-emerald-200">{row.depositedQuantity}</td>
+                  <td className="px-3 py-2 font-mono text-amber-200">{row.missingQuantity}</td>
+                  <td className="px-3 py-2 font-mono text-amber-200">
+                    {formatSilver(row.missingEstimatedValue)}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-4 overflow-x-auto rounded-md border border-gray-800">
+        <div className="border-b border-gray-800 bg-gray-800/60 px-3 py-2">
           <p className="text-xs font-semibold text-gray-300">{t('depositLogTitle')}</p>
           <p className="mt-1 text-[11px] text-gray-500">{t('depositLogDescription')}</p>
         </div>
@@ -350,7 +408,7 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
           <thead className="bg-gray-800/80 text-gray-400">
             <tr>
               <th className="px-3 py-2 font-medium">{t('colRelation')}</th>
-              <th className="px-3 py-2 font-medium">{t('colMember')}</th>
+              <th className="px-3 py-2 font-medium">{t('colScope')}</th>
               <th className="px-3 py-2 font-medium">{t('colItem')}</th>
               <th className="px-3 py-2 font-medium">{t('colExpected')}</th>
               <th className="px-3 py-2 font-medium">{t('colDeposited')}</th>
@@ -378,7 +436,11 @@ function PreviewPanel({ preview }: { preview: LootAuditPreviewResult }) {
                       }}
                     />
                   </td>
-                  <td className="px-3 py-2 font-medium text-white">{finding.lootedByName}</td>
+                  <td className="px-3 py-2 font-medium text-white">
+                    {finding.scope === 'item_pool'
+                      ? t('findingScopeItemPool')
+                      : finding.lootedByName}
+                  </td>
                   <td className="px-3 py-2">
                     <p className="text-gray-200">{finding.itemName}</p>
                     <p className="font-mono text-[11px] text-gray-500">{finding.itemId}</p>
@@ -491,4 +553,9 @@ function StatCell({
 
 function formatSilver(value: number): string {
   return Math.round(value).toLocaleString()
+}
+
+function formatLooterNames(names: readonly string[]): string {
+  if (names.length <= 3) return names.join(', ')
+  return `${names.slice(0, 3).join(', ')} +${names.length - 3}`
 }

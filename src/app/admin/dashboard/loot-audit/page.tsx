@@ -6,10 +6,8 @@ import { listLootAudits } from '@/app/actions/loot-audit'
 import { CAP } from '@/lib/permissions'
 import { getSession, sessionHasAny } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { getAppSetting } from '@/lib/app-settings'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { formatDateTimeShort } from '@/lib/format-datetime'
-import LogOperatingStartSettingsForm from '@/components/LogOperatingStartSettingsForm'
 import LootAuditForm from './LootAuditForm'
 
 export const dynamic = 'force-dynamic'
@@ -24,11 +22,10 @@ export default async function AdminLootAuditPage() {
   }
 
   const guildId = await getSessionGuildId(session)
-  const [t, auditResult, tenantTimezone, logStartLootAuditAt] = await Promise.all([
+  const [t, auditResult, tenantTimezone] = await Promise.all([
     getTranslations('adminLootAuditPage'),
     listLootAudits(),
     getTenantTimezone(guildId),
-    getAppSetting('log_start_loot_audit_at', '', guildId),
   ])
 
   return (
@@ -49,14 +46,6 @@ export default async function AdminLootAuditPage() {
           <p>{auditResult.error}</p>
         </div>
       )}
-
-      <LogOperatingStartSettingsForm
-        domains={['lootAudit']}
-        timezone={tenantTimezone}
-        initialShopChestStartAt=""
-        initialSiphonStartAt=""
-        initialLootAuditStartAt={logStartLootAuditAt}
-      />
 
       <LootAuditForm />
 

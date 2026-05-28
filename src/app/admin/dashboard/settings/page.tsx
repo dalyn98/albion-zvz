@@ -31,8 +31,7 @@ export default async function SettingsPage() {
   const settingsAccess = getSettingsAccessFlags(session.isAdmin, session.capabilities)
   const canManageAnyLogOperatingStart =
     settingsAccess.shopChestLogStart ||
-    settingsAccess.siphonLogStart ||
-    settingsAccess.lootAuditLogStart
+    settingsAccess.siphonLogStart
   const emptyPermissionRoleSettings: AdminPermissionRoleSettings = {
     adminRoleIds: [],
     eventCreatorRoleIds: [],
@@ -71,7 +70,6 @@ export default async function SettingsPage() {
     tenantTimezoneRaw,
     logStartShopChestAt,
     logStartSiphonAt,
-    logStartLootAuditAt,
     eventDmLeadMinutesRaw,
     { rewards, error: rewardsError },
     tLanding,
@@ -158,9 +156,6 @@ export default async function SettingsPage() {
       : Promise.resolve(''),
     settingsAccess.siphonLogStart
       ? getAppSetting('log_start_siphon_at', '', tenantId)
-      : Promise.resolve(''),
-    settingsAccess.lootAuditLogStart
-      ? getAppSetting('log_start_loot_audit_at', '', tenantId)
       : Promise.resolve(''),
     settingsAccess.general
       ? getAppSetting('event_dm_lead_minutes', '35', tenantId)
@@ -311,7 +306,6 @@ export default async function SettingsPage() {
         tenantTimezone={tenantTimezone}
         logStartShopChestAt={logStartShopChestAt}
         logStartSiphonAt={logStartSiphonAt}
-        logStartLootAuditAt={logStartLootAuditAt}
         eventDmLeadMinutes={eventDmLeadMinutes}
         isSuperAdmin={isSuperAdmin}
         access={settingsAccess}
