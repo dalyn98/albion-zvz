@@ -230,6 +230,85 @@
         border-radius: 50%;
       }
 
+      .command-guide {
+        width: min(var(--content), calc(100% - 28px));
+        margin: 0 auto 18px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: rgba(16, 23, 32, 0.9);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .command-guide-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: start;
+        border-bottom: 1px solid var(--line);
+        padding: 18px;
+        background: rgba(242, 184, 75, 0.08);
+      }
+
+      .command-guide h2 {
+        margin-top: 8px;
+        font-size: clamp(1.45rem, 2.4vw, 2rem);
+        line-height: 1.18;
+      }
+
+      .command-guide p {
+        margin-top: 8px;
+        color: var(--muted);
+      }
+
+      .command-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 34px;
+        border: 1px solid rgba(242, 184, 75, 0.38);
+        border-radius: 999px;
+        padding: 6px 12px;
+        background: rgba(242, 184, 75, 0.12);
+        color: #ffd990;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size: 13px;
+        font-weight: 850;
+        white-space: nowrap;
+      }
+
+      .command-list {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin: 0;
+        padding: 14px;
+        list-style: none;
+      }
+
+      .command-list li {
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--panel);
+        padding: 12px;
+      }
+
+      .command-list code {
+        display: block;
+        color: var(--gold);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size: 13px;
+        font-weight: 850;
+        word-break: break-word;
+      }
+
+      .command-list span {
+        display: block;
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
       .guide-shell {
         display: grid;
         grid-template-columns: 250px minmax(0, 1fr);
@@ -633,6 +712,8 @@
         .guide-shell,
         .panel-head,
         .guide-visual,
+        .command-guide-head,
+        .command-list,
         .mini-grid {
           grid-template-columns: 1fr;
         }
@@ -676,6 +757,7 @@
 
       @media (max-width: 560px) {
         .hero,
+        .command-guide,
         .guide-shell,
         .topbar-inner {
           width: min(100% - 24px, var(--content));
@@ -731,6 +813,43 @@
               <li data-i18n="heroBullet3">완료 확인과 안 될 때 보낼 정보를 마지막에 확인합니다.</li>
             </ul>
           </aside>
+        </section>
+
+        <section class="command-guide" aria-labelledby="discord-command-title">
+          <div class="command-guide-head">
+            <div>
+              <span class="eyebrow" data-i18n="commandKicker">Discord에서 바로가기</span>
+              <h2 id="discord-command-title" data-i18n="commandTitle">/agm 명령어로 필요한 화면을 바로 엽니다</h2>
+              <p data-i18n="commandLead">Discord 명령어는 신청이나 승인 대신, 사이트의 정확한 기능 화면으로 이동하는 입구입니다.</p>
+            </div>
+            <span class="command-pill">/agm</span>
+          </div>
+          <ul class="command-list">
+            <li>
+              <code>/agm verify</code>
+              <span data-i18n="commandVerify">Albion 인증 / 재온보딩</span>
+            </li>
+            <li>
+              <code>/agm events</code>
+              <span data-i18n="commandEvents">이벤트 목록과 다음 이벤트</span>
+            </li>
+            <li>
+              <code>/agm me</code>
+              <span data-i18n="commandMe">내 대시보드</span>
+            </li>
+            <li>
+              <code>/agm regear</code>
+              <span data-i18n="commandRegear">리기어 화면</span>
+            </li>
+            <li>
+              <code>/agm shop</code>
+              <span data-i18n="commandShop">길드 상점</span>
+            </li>
+            <li>
+              <code>/agm guide</code>
+              <span data-i18n="commandGuide">이 가이드 다시 열기</span>
+            </li>
+          </ul>
         </section>
 
         <section class="guide-shell" aria-label="Member guide tabs">
@@ -1067,6 +1186,15 @@
           heroBullet1: '필요한 기능 탭을 먼저 선택합니다.',
           heroBullet2: '사진의 번호 위치를 보고 같은 번호 설명을 따라갑니다.',
           heroBullet3: '완료 확인과 안 될 때 보낼 정보를 마지막에 확인합니다.',
+          commandKicker: 'Discord에서 바로가기',
+          commandTitle: '/agm 명령어로 필요한 화면을 바로 엽니다',
+          commandLead: 'Discord 명령어는 신청이나 승인 대신, 사이트의 정확한 기능 화면으로 이동하는 입구입니다.',
+          commandVerify: 'Albion 인증 / 재온보딩',
+          commandEvents: '이벤트 목록과 다음 이벤트',
+          commandMe: '내 대시보드',
+          commandRegear: '리기어 화면',
+          commandShop: '길드 상점',
+          commandGuide: '이 가이드 다시 열기',
           zoomHint: '이미지 확대',
           modalTitle: '스크린샷 확대 보기',
           zoomClose: '닫기',
@@ -1171,6 +1299,15 @@
           heroBullet1: 'Choose the feature tab you need.',
           heroBullet2: 'Match the numbered position in the image with the same numbered note.',
           heroBullet3: 'Finish by checking the completion note and what to send if blocked.',
+          commandKicker: 'Open from Discord',
+          commandTitle: 'Use /agm to open the screen you need',
+          commandLead: 'Discord commands are entry points to the right site screen, not places to submit or approve requests.',
+          commandVerify: 'Albion verification / re-onboarding',
+          commandEvents: 'Event list and next event',
+          commandMe: 'My dashboard',
+          commandRegear: 'Regear screen',
+          commandShop: 'Guild shop',
+          commandGuide: 'Open this guide again',
           zoomHint: 'Enlarge image',
           modalTitle: 'Enlarged screenshot',
           zoomClose: 'Close',
@@ -1275,6 +1412,15 @@
           heroBullet1: '必要な機能タブを選びます。',
           heroBullet2: '画像の番号位置と同じ番号の説明を合わせて見ます。',
           heroBullet3: '最後に完了確認と、困ったときに送る情報を確認します。',
+          commandKicker: 'Discord から開く',
+          commandTitle: '/agm コマンドで必要な画面を直接開きます',
+          commandLead: 'Discord コマンドは申請や承認を行う場所ではなく、サイトの正しい機能画面へ移動する入口です。',
+          commandVerify: 'Albion 認証 / 再オンボーディング',
+          commandEvents: 'イベント一覧と次のイベント',
+          commandMe: 'マイダッシュボード',
+          commandRegear: 'リギア画面',
+          commandShop: 'ギルドショップ',
+          commandGuide: 'このガイドを再表示',
           zoomHint: '画像を拡大',
           modalTitle: 'スクリーンショット拡大表示',
           zoomClose: '閉じる',
@@ -1379,6 +1525,15 @@
           heroBullet1: '先选择需要的功能标签。',
           heroBullet2: '对照图片编号和相同编号的说明。',
           heroBullet3: '最后确认完成状态和遇到问题时要发送的信息。',
+          commandKicker: '从 Discord 直接打开',
+          commandTitle: '使用 /agm 打开需要的页面',
+          commandLead: 'Discord 命令只负责进入正确的网站页面，不用于提交申请或审批。',
+          commandVerify: 'Albion 认证 / 重新引导',
+          commandEvents: '活动列表和下一个活动',
+          commandMe: '我的仪表盘',
+          commandRegear: '补装页面',
+          commandShop: '公会商店',
+          commandGuide: '重新打开本指南',
           zoomHint: '放大图片',
           modalTitle: '放大截图',
           zoomClose: '关闭',
