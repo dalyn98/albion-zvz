@@ -337,8 +337,8 @@ describe('buildKillbotDiscordPayload', () => {
 
 describe('killbot card font', () => {
   it('resolves the bundled card font used by sharp text rendering', () => {
-    expect(KILLBOT_CARD_FONT_FAMILY).toBe('MedievalSharp')
-    expect(KILLBOT_CARD_FONT_FILE).toMatch(/MedievalSharp\.ttf$/)
+    expect(KILLBOT_CARD_FONT_FAMILY).toBe('Arimo')
+    expect(KILLBOT_CARD_FONT_FILE).toMatch(/Arimo\.ttf$/)
     expect(existsSync(KILLBOT_CARD_FONT_FILE)).toBe(true)
   })
 })

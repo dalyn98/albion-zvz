@@ -21,10 +21,10 @@ const INVENTORY_START_X = 115
 const INVENTORY_START_Y = 665
 const INVENTORY_GAP_X = 14
 const INVENTORY_GAP_Y = 0
-export const KILLBOT_CARD_FONT_FAMILY = 'MedievalSharp'
+export const KILLBOT_CARD_FONT_FAMILY = 'Arimo'
 export const KILLBOT_CARD_FONT_FILE = path.join(
   process.cwd(),
-  'public/killbot/MedievalSharp.ttf',
+  'public/killbot/Arimo.ttf',
 )
 
 export const KILLBOT_CENTER_ICON_ASSETS = {
