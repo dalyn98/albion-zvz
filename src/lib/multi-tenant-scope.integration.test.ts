@@ -311,6 +311,108 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
     expect(debit).toMatchObject({ delta: -700, reason: 'shop_purchase' })
   })
 
+  it('maintains member point balance projections within tenant scope', async () => {
+    const client = getTestServiceClient()
+    const discordId = `projection-${crypto.randomUUID()}`
+
+    const { error: insertErr } = await client.from('point_ledger').insert([
+      {
+        guild_id: tenantA.guildId,
+        discord_id: discordId,
+        delta: 500,
+        reason: 'admin_adjust',
+        memo: 'projection credit',
+      },
+      {
+        guild_id: tenantA.guildId,
+        discord_id: discordId,
+        delta: -120,
+        reason: 'admin_adjust',
+        memo: 'projection debit',
+      },
+      {
+        guild_id: tenantB.guildId,
+        discord_id: discordId,
+        delta: 999,
+        reason: 'admin_adjust',
+        memo: 'other tenant credit',
+      },
+    ])
+    expect(insertErr).toBeNull()
+
+    const { data: tenantABalance, error: balanceErrA } = await client
+      .from('member_point_balances')
+      .select('balance, lifetime_earned, lifetime_spent, entries_count')
+      .eq('guild_id', tenantA.guildId)
+      .eq('discord_id', discordId)
+      .single()
+    expect(balanceErrA).toBeNull()
+    expect(tenantABalance).toMatchObject({
+      balance: 380,
+      lifetime_earned: 500,
+      lifetime_spent: 120,
+      entries_count: 2,
+    })
+
+    const { data: tenantBBalance, error: balanceErrB } = await client
+      .from('member_point_balances')
+      .select('balance, lifetime_earned, lifetime_spent, entries_count')
+      .eq('guild_id', tenantB.guildId)
+      .eq('discord_id', discordId)
+      .single()
+    expect(balanceErrB).toBeNull()
+    expect(tenantBBalance).toMatchObject({
+      balance: 999,
+      lifetime_earned: 999,
+      lifetime_spent: 0,
+      entries_count: 1,
+    })
+  })
+
+  it('uses cron run table leases to skip overlapping jobs', async () => {
+    const client = getTestServiceClient()
+    const jobName = `test-cron-${crypto.randomUUID()}`
+
+    const { data: first, error: firstErr } = await client.rpc('try_start_cron_run', {
+      p_job_name: jobName,
+      p_lease_seconds: 300,
+    })
+    expect(firstErr).toBeNull()
+    expect(first?.[0]?.started).toBe(true)
+    const runId = first?.[0]?.run_id as string
+
+    const { data: second, error: secondErr } = await client.rpc('try_start_cron_run', {
+      p_job_name: jobName,
+      p_lease_seconds: 300,
+    })
+    expect(secondErr).toBeNull()
+    expect(second?.[0]).toMatchObject({ started: false, reason: 'lock-held' })
+
+    const { error: finishErr } = await client.rpc('finish_cron_run', {
+      p_run_id: runId,
+      p_status: 'succeeded',
+      p_response: { ok: true },
+      p_error: null,
+    })
+    expect(finishErr).toBeNull()
+
+    const { data: third, error: thirdErr } = await client.rpc('try_start_cron_run', {
+      p_job_name: jobName,
+      p_lease_seconds: 300,
+    })
+    expect(thirdErr).toBeNull()
+    expect(third?.[0]?.started).toBe(true)
+
+    await client.rpc('finish_cron_run', {
+      p_run_id: third?.[0]?.run_id,
+      p_status: 'succeeded',
+      p_response: { ok: true },
+      p_error: null,
+    })
+    await client.from('cron_locks').delete().eq('job_name', jobName)
+    await client.from('cron_runs').delete().eq('job_name', jobName)
+  })
+
   it('preserves pricing metadata and replays post-baseline logs in order when applying a shop baseline', async () => {
     const client = getTestServiceClient()
     const key = {

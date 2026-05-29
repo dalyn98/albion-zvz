@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
-import { getAdminClient } from '@/lib/supabase-admin'
 import { revalidatePath } from 'next/cache'
 import { listActiveTenants } from '@/lib/tenant'
 import { syncTenantShopPrices } from '@/lib/shop/price-sync'
 import { log } from '@/lib/log'
+import { withCronRun } from '@/lib/cron-run'
 
 // /shop 의 auto_price_silver staleness 해소용 cron. 1시간 주기로 모든 active
 // 테넌트를 순회하면서 syncTenantShopPrices 호출. 자동 리기어가 매 cron 라이브
@@ -18,38 +18,30 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET
-  if (!secret) {
-    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })
-  }
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  return withCronRun(request, { jobName: 'shop-price-sync', leaseSeconds: 900 }, async ({ db }) => {
+    const tenants = await listActiveTenants()
+    const results: Array<Record<string, unknown>> = []
+    let anyUpdated = false
 
-  const db = getAdminClient()
-  const tenants = await listActiveTenants()
-  const results: Array<Record<string, unknown>> = []
-  let anyUpdated = false
-
-  for (const tenant of tenants) {
-    try {
-      const r = await syncTenantShopPrices(db, tenant.id)
-      if (r.updated > 0) anyUpdated = true
-      results.push({ tenant: tenant.slug, ...r })
-    } catch (e) {
-      results.push({
-        tenant: tenant.slug,
-        error: e instanceof Error ? e.message : String(e),
-      })
+    for (const tenant of tenants) {
+      try {
+        const r = await syncTenantShopPrices(db, tenant.id)
+        if (r.updated > 0) anyUpdated = true
+        results.push({ tenant: tenant.slug, ...r })
+      } catch (e) {
+        results.push({
+          tenant: tenant.slug,
+          error: e instanceof Error ? e.message : String(e),
+        })
+      }
     }
-  }
 
-  if (anyUpdated) {
-    revalidatePath('/admin/dashboard/shop')
-    revalidatePath('/shop')
-  }
+    if (anyUpdated) {
+      revalidatePath('/admin/dashboard/shop')
+      revalidatePath('/shop')
+    }
 
-  log.info('[cron/shop-price-sync] complete', { tenants: results })
-  return NextResponse.json({ tenants: results })
+    log.info('[cron/shop-price-sync] complete', { tenants: results })
+    return NextResponse.json({ tenants: results })
+  })
 }

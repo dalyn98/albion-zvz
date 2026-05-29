@@ -13,7 +13,10 @@ import type {
   AlbionIdentityRelation,
   AlbionIdentityTrustStatus,
 } from '@/lib/account-albion-identity'
-import { listGuildPointDeltas, listGuildPointFlowRowsSince } from '@/lib/point-ledger'
+import {
+  listGuildPointBalanceSummaries,
+  listGuildPointFlowRowsSince,
+} from '@/lib/point-ledger'
 
 export interface TopHolder {
   discordId: string
@@ -108,36 +111,23 @@ export async function getPointStats(): Promise<{ stats?: PointStats; error?: str
     if (!session) return { error: tErr('unauthorized') }
     const db = await requireCapability(CAP.STATS_VIEW)
     const guildId = await getSessionGuildId(session)
-    const [ledgerRes, avatarsRes] = await Promise.all([
-      listGuildPointDeltas(db, guildId),
+    const [balanceRes, avatarsRes] = await Promise.all([
+      listGuildPointBalanceSummaries(db, guildId),
       db
         .from('guild_avatars')
         .select('discord_id, username, avatar, is_admin, withdrawn_at')
         .eq('guild_id', guildId),
     ])
-    if (ledgerRes.error) return { error: ledgerRes.error }
+    if (balanceRes.error) return { error: balanceRes.error }
     if (avatarsRes.error) return { error: avatarsRes.error.message }
 
-    const rows = ledgerRes.rows
+    const rows = balanceRes.rows
     const avatars = avatarsRes.data ?? []
-
-    // discord_id → { balance, earned, spent } 집계.
-    const balances = new Map<string, { balance: number; earned: number; spent: number }>()
     let lifetimeEarned = 0
     let lifetimeSpent = 0
     for (const row of rows) {
-      const delta = Number(row.delta ?? 0)
-      if (!Number.isFinite(delta)) continue
-      const cur = balances.get(row.discordId) ?? { balance: 0, earned: 0, spent: 0 }
-      cur.balance += delta
-      if (delta > 0) {
-        cur.earned += delta
-        lifetimeEarned += delta
-      } else if (delta < 0) {
-        cur.spent += -delta
-        lifetimeSpent += -delta
-      }
-      balances.set(row.discordId, cur)
+      lifetimeEarned += row.lifetimeEarned
+      lifetimeSpent += row.lifetimeSpent
     }
 
     // 이름/아바타 매칭 — 원장에만 있고 guild_avatars 에 없는 유저(탈퇴한 멤버)
@@ -149,25 +139,27 @@ export async function getPointStats(): Promise<{ stats?: PointStats; error?: str
     const withdrawnHolders: TopHolder[] = []
     let totalHeld = 0
     let withdrawnHeld = 0
-    for (const [discordId, v] of balances.entries()) {
-      totalHeld += v.balance
+    let entriesCount = 0
+    for (const row of rows) {
+      totalHeld += row.balance
+      entriesCount += row.entriesCount
       // 보유 포인트가 0 이하인 사람은 "top" 에서 제외 — 0 이면 표시 가치 없고,
       // 음수면 이상 상태(관리자 조정 중) 이므로 별도 섹션이 필요하면 추후에.
-      if (v.balance <= 0) continue
-      const a = avatarsByDiscord.get(discordId)
+      if (row.balance <= 0) continue
+      const a = avatarsByDiscord.get(row.discordId)
       const entry: TopHolder = {
-        discordId,
+        discordId: row.discordId,
         username: a?.username ?? tCommon('unknownName'),
         avatar: a?.avatar ?? null,
         isAdmin: a?.is_admin ?? false,
-        balance: v.balance,
+        balance: row.balance,
       }
       // 탈퇴자는 별도 섹션으로. guild_avatars 에 없는 경우(= 레거시, avatar 미등록)
       // 는 "정상" 으로 간주 — 이 케이스는 게스트/과거 로그인 없이 ledger 만 쌓인
       // 엣지케이스라 탈퇴 분류에 포함시키면 오히려 혼동된다.
       if (a?.withdrawn_at) {
         withdrawnHolders.push(entry)
-        withdrawnHeld += v.balance
+        withdrawnHeld += row.balance
       } else {
         topHolders.push(entry)
       }
@@ -180,8 +172,8 @@ export async function getPointStats(): Promise<{ stats?: PointStats; error?: str
         totalHeld,
         lifetimeEarned,
         lifetimeSpent,
-        entriesCount: rows.length,
-        memberCount: balances.size,
+        entriesCount,
+        memberCount: rows.length,
         topHolders: topHolders.slice(0, 50),
         withdrawnHeld,
         withdrawnHolders,

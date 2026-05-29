@@ -16,6 +16,14 @@ export interface GuildPointDeltaRow {
   delta: number
 }
 
+export interface GuildPointBalanceSummaryRow {
+  discordId: string
+  balance: number
+  lifetimeEarned: number
+  lifetimeSpent: number
+  entriesCount: number
+}
+
 export interface MemberPointLedgerEntryRow {
   id: string
   delta: number
@@ -29,14 +37,6 @@ export interface GuildPointFlowRow {
   delta: number
   reason: string
   createdAt: string
-}
-
-function applyDelta(summary: MemberPointSummary, delta: number): MemberPointSummary {
-  return {
-    balance: summary.balance + delta,
-    lifetimeEarned: summary.lifetimeEarned + (delta > 0 ? delta : 0),
-    lifetimeSpent: summary.lifetimeSpent + (delta < 0 ? -delta : 0),
-  }
 }
 
 function emptySummary(): MemberPointSummary {
@@ -56,23 +56,21 @@ export async function getMemberPointSummary(
   guildId: string,
   discordId: string,
 ): Promise<{ summary: MemberPointSummary; error?: string }> {
-  let summary = emptySummary()
-  for (let from = 0; ; from += POINT_LEDGER_PAGE_SIZE) {
-    const { data, error } = await db
-      .from('point_ledger')
-      .select('delta')
-      .eq('guild_id', guildId)
-      .eq('discord_id', discordId)
-      .order('id', { ascending: true })
-      .range(from, from + POINT_LEDGER_PAGE_SIZE - 1)
+  const { data, error } = await db
+    .from('member_point_balances')
+    .select('balance, lifetime_earned, lifetime_spent')
+    .eq('guild_id', guildId)
+    .eq('discord_id', discordId)
+    .maybeSingle()
 
-    if (error) return { summary, error: error.message }
-    const rows = data ?? []
-    for (const row of rows) {
-      const delta = Number(row.delta) || 0
-      summary = applyDelta(summary, delta)
-    }
-    if (rows.length < POINT_LEDGER_PAGE_SIZE) return { summary }
+  if (error) return { summary: emptySummary(), error: error.message }
+  if (!data) return { summary: emptySummary() }
+  return {
+    summary: {
+      balance: Number(data.balance) || 0,
+      lifetimeEarned: Number(data.lifetime_earned) || 0,
+      lifetimeSpent: Number(data.lifetime_spent) || 0,
+    },
   }
 }
 
@@ -95,22 +93,17 @@ export async function getPointBalancesByMember(
   if (uniqueIds.length === 0) return { balances }
 
   for (const idChunk of chunks(uniqueIds, IN_FILTER_CHUNK_SIZE)) {
-    for (let from = 0; ; from += POINT_LEDGER_PAGE_SIZE) {
-      const { data, error } = await db
-        .from('point_ledger')
-        .select('discord_id, delta')
-        .eq('guild_id', guildId)
-        .in('discord_id', idChunk)
-        .order('id', { ascending: true })
-        .range(from, from + POINT_LEDGER_PAGE_SIZE - 1)
+    const { data, error } = await db
+      .from('member_point_balances')
+      .select('discord_id, balance')
+      .eq('guild_id', guildId)
+      .in('discord_id', idChunk)
+      .range(0, idChunk.length - 1)
 
-      if (error) return { balances, error: error.message }
-      const rows = data ?? []
-      for (const row of rows) {
-        const discordId = row.discord_id as string
-        balances.set(discordId, (balances.get(discordId) ?? 0) + (Number(row.delta) || 0))
-      }
-      if (rows.length < POINT_LEDGER_PAGE_SIZE) break
+    if (error) return { balances, error: error.message }
+    for (const row of data ?? []) {
+      const discordId = row.discord_id as string
+      balances.set(discordId, Number(row.balance) || 0)
     }
   }
 
@@ -127,26 +120,49 @@ export async function getPointBalancesByGuildForMember(
   if (uniqueGuildIds.length === 0) return { balances }
 
   for (const guildChunk of chunks(uniqueGuildIds, IN_FILTER_CHUNK_SIZE)) {
-    for (let from = 0; ; from += POINT_LEDGER_PAGE_SIZE) {
-      const { data, error } = await db
-        .from('point_ledger')
-        .select('guild_id, delta')
-        .in('guild_id', guildChunk)
-        .eq('discord_id', discordId)
-        .order('id', { ascending: true })
-        .range(from, from + POINT_LEDGER_PAGE_SIZE - 1)
+    const { data, error } = await db
+      .from('member_point_balances')
+      .select('guild_id, balance')
+      .in('guild_id', guildChunk)
+      .eq('discord_id', discordId)
+      .range(0, guildChunk.length - 1)
 
-      if (error) return { balances, error: error.message }
-      const rows = data ?? []
-      for (const row of rows) {
-        const guildId = row.guild_id as string
-        balances.set(guildId, (balances.get(guildId) ?? 0) + (Number(row.delta) || 0))
-      }
-      if (rows.length < POINT_LEDGER_PAGE_SIZE) break
+    if (error) return { balances, error: error.message }
+    for (const row of data ?? []) {
+      const guildId = row.guild_id as string
+      balances.set(guildId, Number(row.balance) || 0)
     }
   }
 
   return { balances }
+}
+
+export async function listGuildPointBalanceSummaries(
+  db: SupabaseAdminClient,
+  guildId: string,
+): Promise<{ rows: GuildPointBalanceSummaryRow[]; error?: string }> {
+  const rows: GuildPointBalanceSummaryRow[] = []
+  for (let from = 0; ; from += POINT_LEDGER_PAGE_SIZE) {
+    const { data, error } = await db
+      .from('member_point_balances')
+      .select('discord_id, balance, lifetime_earned, lifetime_spent, entries_count')
+      .eq('guild_id', guildId)
+      .order('balance', { ascending: false })
+      .range(from, from + POINT_LEDGER_PAGE_SIZE - 1)
+
+    if (error) return { rows, error: error.message }
+    const page = data ?? []
+    rows.push(
+      ...page.map((row) => ({
+        discordId: row.discord_id as string,
+        balance: Number(row.balance) || 0,
+        lifetimeEarned: Number(row.lifetime_earned) || 0,
+        lifetimeSpent: Number(row.lifetime_spent) || 0,
+        entriesCount: Number(row.entries_count) || 0,
+      })),
+    )
+    if (page.length < POINT_LEDGER_PAGE_SIZE) return { rows }
+  }
 }
 
 export async function listGuildPointDeltas(

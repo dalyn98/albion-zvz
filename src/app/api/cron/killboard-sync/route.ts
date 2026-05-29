@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { getAdminClient } from '@/lib/supabase-admin'
 import { syncKillboard } from '@/lib/killboard-sync'
 import { listActiveTenants } from '@/lib/tenant'
+import { withCronRun } from '@/lib/cron-run'
 
 // 킬보드 동기화 cron. Vercel Pro native cron (vercel.json) 으로 5분 주기 호출 →
 // 모든 활성 테넌트에 대해 sync 를 실행한다. battle-tracker 와 동일한 tick 으로
@@ -27,58 +27,50 @@ const DEADLINE_MS = 240_000
 const PER_TENANT_TIMEOUT_MS = 90_000
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET
-  if (!secret) {
-    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })
-  }
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  return withCronRun(request, { jobName: 'killboard-sync', leaseSeconds: 600 }, async ({ db }) => {
+    const tenants = await listActiveTenants()
+    const nowIso = new Date().toISOString()
+    const startedAt = Date.now()
+    const results: Array<Record<string, unknown>> = []
+    const skipped: Array<{ tenant: string; reason: string }> = []
 
-  const db = getAdminClient()
-  const tenants = await listActiveTenants()
-  const nowIso = new Date().toISOString()
-  const startedAt = Date.now()
-  const results: Array<Record<string, unknown>> = []
-  const skipped: Array<{ tenant: string; reason: string }> = []
-
-  async function processTenant(tenant: { id: string; slug: string }): Promise<void> {
-    try {
-      const timeout = new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error(`per-tenant timeout (${PER_TENANT_TIMEOUT_MS}ms)`)),
-          PER_TENANT_TIMEOUT_MS,
-        ),
-      )
-      const result = await Promise.race([syncKillboard(db, tenant.id), timeout])
-      const finishIso = new Date().toISOString()
-      await db
-        .from('app_settings')
-        .upsert(
-          { guild_id: tenant.id, key: 'last_killboard_sync_at', value: finishIso, updated_at: finishIso },
-          { onConflict: 'guild_id,key' },
+    async function processTenant(tenant: { id: string; slug: string }): Promise<void> {
+      try {
+        const timeout = new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`per-tenant timeout (${PER_TENANT_TIMEOUT_MS}ms)`)),
+            PER_TENANT_TIMEOUT_MS,
+          ),
         )
-      results.push({ tenant: tenant.slug, ...result })
-    } catch (e) {
-      results.push({
-        tenant: tenant.slug,
-        error: e instanceof Error ? e.message : String(e),
-      })
-    }
-  }
-
-  // 단순 chunk 병렬 — Promise.all 묶음 단위로 진행, 묶음 사이 deadline 체크.
-  for (let i = 0; i < tenants.length; i += TENANT_CONCURRENCY) {
-    if (Date.now() - startedAt > DEADLINE_MS) {
-      for (const t of tenants.slice(i)) {
-        skipped.push({ tenant: t.slug, reason: 'deadline-reached' })
+        const result = await Promise.race([syncKillboard(db, tenant.id), timeout])
+        const finishIso = new Date().toISOString()
+        await db
+          .from('app_settings')
+          .upsert(
+            { guild_id: tenant.id, key: 'last_killboard_sync_at', value: finishIso, updated_at: finishIso },
+            { onConflict: 'guild_id,key' },
+          )
+        results.push({ tenant: tenant.slug, ...result })
+      } catch (e) {
+        results.push({
+          tenant: tenant.slug,
+          error: e instanceof Error ? e.message : String(e),
+        })
       }
-      break
     }
-    const chunk = tenants.slice(i, i + TENANT_CONCURRENCY)
-    await Promise.all(chunk.map(processTenant))
-  }
 
-  return NextResponse.json({ tenants: results, skipped, started_at: nowIso })
+    // 단순 chunk 병렬 — Promise.all 묶음 단위로 진행, 묶음 사이 deadline 체크.
+    for (let i = 0; i < tenants.length; i += TENANT_CONCURRENCY) {
+      if (Date.now() - startedAt > DEADLINE_MS) {
+        for (const t of tenants.slice(i)) {
+          skipped.push({ tenant: t.slug, reason: 'deadline-reached' })
+        }
+        break
+      }
+      const chunk = tenants.slice(i, i + TENANT_CONCURRENCY)
+      await Promise.all(chunk.map(processTenant))
+    }
+
+    return NextResponse.json({ tenants: results, skipped, started_at: nowIso })
+  })
 }

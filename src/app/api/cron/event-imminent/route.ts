@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getTranslations } from 'next-intl/server'
-import { getAdminClient } from '@/lib/supabase-admin'
 import { isDiscordDmConfigured, sendDiscordDmsToUsers } from '@/lib/discord-dm'
 import { getAppSetting } from '@/lib/app-settings'
 import { listActiveTenants } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { isValidTenantTimezone } from '@/lib/timezone'
 import { log } from '@/lib/log'
+import { withCronRun } from '@/lib/cron-run'
 import type { EventCategory } from '@/types'
 
 // 이벤트 집결 시간이 다가오면 파티에 편성된 멤버들에게 Discord DM 을 보낸다.
@@ -78,16 +78,7 @@ function effectiveLead(override: number | null | undefined, guildDefault: number
 }
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET
-  if (!secret) {
-    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })
-  }
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const db = getAdminClient()
+  return withCronRun(request, { jobName: 'event-imminent', leaseSeconds: 300 }, async ({ db }) => {
   const now = new Date()
   const tenants = await listActiveTenants()
 
@@ -332,4 +323,5 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({ scanned: events.length, results, auto_started: autoStartResults })
+  })
 }

@@ -14,7 +14,7 @@ const extraOrigins = (process.env.ALLOWED_ORIGINS ?? '')
 
 const swcTracingIncludes = ['./node_modules/@swc/helpers/**/*']
 const killbotCardTracingIncludes = [
-  './public/killbot/MedievalSharp.ttf',
+  './public/killbot/Arimo.ttf',
 ]
 
 const nextConfig: NextConfig = {

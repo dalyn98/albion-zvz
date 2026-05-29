@@ -17,6 +17,7 @@ import { listTemplates } from '@/app/actions/templates'
 import { getTenantTimezone } from '@/lib/timezone-server'
 
 type Section = 'events' | 'templates'
+const DASHBOARD_EVENT_LIMIT = 200
 
 interface SearchParams {
   section?: string
@@ -36,9 +37,12 @@ async function getEvents(guildId: string): Promise<Event[]> {
   const db = getAdminClient()
   const { data } = await db
     .from('events')
-    .select('*')
+    .select(
+      'id, title, gather_time, gather_at, gather_location, special_notes, is_active, battle_started_at, notify_role_id, notify_channel_id, notify_everyone, created_by, status, category, recruitment_mode, created_at',
+    )
     .eq('guild_id', guildId)
     .order('created_at', { ascending: false })
+    .limit(DASHBOARD_EVENT_LIMIT)
   return data ?? []
 }
 

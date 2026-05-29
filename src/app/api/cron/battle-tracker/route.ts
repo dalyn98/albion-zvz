@@ -19,6 +19,7 @@ import {
   type KillboardPair,
   type TenantBattleRow,
 } from '@/lib/battle-tracking-helpers'
+import { withCronRun } from '@/lib/cron-run'
 
 // killboard_events 가 hint 한 battle_id 중 battle_records 에 없는 것을 ID 로
 // 직접 fetch 해 채우는 백필 윈도. /battles?sort=recent 가 인스턴스 간 결과
@@ -62,15 +63,7 @@ interface TenantTrackingInfo {
 }
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET
-  if (!secret) {
-    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })
-  }
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
+  return withCronRun(request, { jobName: 'battle-tracker', leaseSeconds: 600 }, async ({ db }) => {
   // pages 쿼리스트링으로 fetchRecentBattles 의 페이지 수 조절. Albion API 는
   // 전투가 끝난 직후 즉시 노출하지 않고 5~10분 publishing 지연이 있어, pages=2
   // (=100건) 로는 피크 시간대에 publishing 지연 동안 100건 이상 신규 전투가
@@ -82,7 +75,6 @@ export async function GET(request: Request) {
     ? Math.min(Math.max(pagesParam, 1), 20)
     : 6
 
-  const db = getAdminClient()
   const tenants = await listActiveTenants()
 
   const tracking: TenantTrackingInfo[] = []
@@ -365,6 +357,7 @@ export async function GET(request: Request) {
     tracked_tenants: tracking.length,
     pages,
     servers: results,
+  })
   })
 }
 
