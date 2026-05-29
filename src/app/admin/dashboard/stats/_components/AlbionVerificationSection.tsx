@@ -1,5 +1,6 @@
 import {
   Users,
+  Handshake,
   ShieldCheck,
   ShieldAlert,
   ShieldQuestion,
@@ -57,6 +58,15 @@ export default async function AlbionVerificationSection({
       bg: 'bg-emerald-500/5',
     },
     {
+      label: tStats('verificationAllianceLabel'),
+      value: stats.allianceVerified,
+      hint: tStats('verificationAllianceHint'),
+      icon: Handshake,
+      accent: stats.allianceVerified > 0 ? 'text-cyan-300' : 'text-gray-400',
+      ring: stats.allianceVerified > 0 ? 'border-cyan-500/30' : 'border-gray-700',
+      bg: stats.allianceVerified > 0 ? 'bg-cyan-500/5' : 'bg-gray-800/40',
+    },
+    {
       label: tStats('verificationUnverifiedLabel'),
       value: stats.unverified,
       hint: tStats('verificationUnverifiedHint'),
@@ -100,7 +110,7 @@ export default async function AlbionVerificationSection({
         )}
       </p>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         {cards.map((card) => {
           const Icon = card.icon
           return (
@@ -139,6 +149,17 @@ export default async function AlbionVerificationSection({
         emptyLabel={tStats('reviewMembersEmpty')}
         members={stats.reviewMembers}
         mode="review"
+        canManage={stats.canManageIdentityReview}
+        tStats={tStats}
+        tCommon={tCommon}
+      />
+      <VerificationMemberList
+        title={tStats('allianceMembersTitle')}
+        icon={Handshake}
+        accent="text-cyan-300"
+        emptyLabel={tStats('allianceMembersEmpty')}
+        members={stats.allianceMembers}
+        mode="alliance"
         canManage={stats.canManageIdentityReview}
         tStats={tStats}
         tCommon={tCommon}
@@ -185,7 +206,7 @@ function VerificationMemberList({
   accent: string
   emptyLabel: string
   members: VerificationMember[]
-  mode: 'pending' | 'review' | 'unverified' | 'verified'
+  mode: 'pending' | 'review' | 'alliance' | 'unverified' | 'verified'
   canManage: boolean
   tStats: StatsTranslator
   tCommon: CommonTranslator
@@ -225,7 +246,7 @@ function VerificationMemberList({
                   </span>
                 )}
               </div>
-              {(mode === 'review' || mode === 'unverified' || mode === 'verified') && (
+              {(mode === 'review' || mode === 'alliance' || mode === 'unverified' || mode === 'verified') && (
                 <div className="hidden sm:flex flex-col items-end text-[11px] text-gray-500 min-w-0">
                   <span className="text-gray-300 truncate max-w-[140px]">
                     {m.nickname ?? '—'}
@@ -236,6 +257,10 @@ function VerificationMemberList({
                       m.guildMatchesHome ? (
                         <span className="ml-1 text-emerald-400">
                           · {tStats('verificationGuildMatch')}
+                        </span>
+                      ) : m.relation === 'alliance' ? (
+                        <span className="ml-1 text-cyan-300">
+                          · {tStats('verificationAllianceMatch')}
                         </span>
                       ) : (
                         <span className="ml-1 text-rose-400">

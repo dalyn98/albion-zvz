@@ -15,10 +15,10 @@ import { getAdminBadgeCounts } from '@/lib/admin-badges'
 import { getAdminClient } from '@/lib/supabase-admin'
 import type { TenantDiscordConfig } from '@/lib/tenant'
 import {
-  canUseGuildResourceFeatures,
-  type AlbionIdentityRelation,
-  type AlbionIdentityTrustStatus,
-} from '@/lib/account-albion-identity'
+  isRecognizedAlbionIdentity,
+  normalizeAlbionIdentityRelation,
+  normalizeAlbionIdentityTrustStatus,
+} from '@/lib/albion-verification-status'
 
 interface Props {
   guildId: string
@@ -48,8 +48,6 @@ const SYNC_KEYS = [
   'last_auto_regear_at',
 ] as const
 
-const RELATIONS = ['home_guild', 'alliance', 'external', 'unknown'] as const
-const TRUST_STATUSES = ['claimed', 'roster_matched', 'trusted', 'disputed', 'revoked'] as const
 const PAGE_SIZE = 1000
 
 interface ActiveMemberIdentityRow {
@@ -75,26 +73,14 @@ function isFresh(iso: string | null | undefined, nowMs: number, maxAgeMinutes: n
   return age !== null && age <= maxAgeMinutes
 }
 
-function normalizeRelation(value: unknown): AlbionIdentityRelation | null {
-  return typeof value === 'string' && (RELATIONS as readonly string[]).includes(value)
-    ? value as AlbionIdentityRelation
-    : null
-}
-
-function normalizeTrustStatus(value: unknown): AlbionIdentityTrustStatus | null {
-  return typeof value === 'string' && (TRUST_STATUSES as readonly string[]).includes(value)
-    ? value as AlbionIdentityTrustStatus
-    : null
-}
-
-function isResourceVerifiedMember(
+function hasRecognizedAlbionIdentity(
   member: ActiveMemberIdentityRow,
   link: TenantLinkIdentityRow | undefined,
 ): boolean {
   if (link) {
-    return canUseGuildResourceFeatures({
-      relation: normalizeRelation(link.relation) ?? 'unknown',
-      trustStatus: normalizeTrustStatus(link.trust_status) ?? 'claimed',
+    return isRecognizedAlbionIdentity({
+      relation: normalizeAlbionIdentityRelation(link.relation),
+      trustStatus: normalizeAlbionIdentityTrustStatus(link.trust_status),
     })
   }
   return Boolean(member.albion_verified_at)
@@ -197,7 +183,7 @@ async function loadSnapshot(
     badges.craft
   const identityLinkMap = new Map(identityLinks.map((link) => [link.discord_id, link]))
   const unverifiedMembers = activeMembers.filter(
-    (member) => !isResourceVerifiedMember(member, identityLinkMap.get(member.discord_id)),
+    (member) => !hasRecognizedAlbionIdentity(member, identityLinkMap.get(member.discord_id)),
   ).length
 
   const botMissing = !tenantConfig?.botInstalled

@@ -8,11 +8,16 @@ import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { getTranslations } from 'next-intl/server'
-import type { AlbionServer } from '@/lib/albion-gameinfo'
+import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 import type {
   AlbionIdentityRelation,
   AlbionIdentityTrustStatus,
 } from '@/lib/account-albion-identity'
+import {
+  classifyAlbionVerification,
+  normalizeAlbionIdentityRelation,
+  normalizeAlbionIdentityTrustStatus,
+} from '@/lib/albion-verification-status'
 import {
   listGuildPointBalanceSummaries,
   listGuildPointFlowRowsSince,
@@ -469,14 +474,17 @@ export interface VerificationStats {
   onboardingPending: number
   // server 는 골랐지만 verified_at 이 null (수동 입력 또는 길드 불일치).
   unverified: number
-  // verified_at IS NOT NULL.
+  // 홈 길드 trusted 상태. 재화 기능까지 허용된다.
   verified: number
+  // 같은 연합으로 확인된 상태. 이벤트 참여는 가능하지만 재화 기능은 제한된다.
+  allianceVerified: number
   // roster matched but not admin-trusted yet, plus disputed duplicate claims.
   needsReview: number
   homeGuildConfigured: boolean
   // 온보딩 미완료 + 미인증 멤버 목록 — 관리자가 바로 식별할 수 있게 탑 N.
   pendingMembers: VerificationMember[]
   reviewMembers: VerificationMember[]
+  allianceMembers: VerificationMember[]
   unverifiedMembers: VerificationMember[]
   // 인증 완료 멤버 — 관리자가 "다른 캐릭터로 갈아타고 싶다" 같은 케이스에서
   // 재인증 트리거할 수 있도록 노출. CollapsibleList 가 기본 collapse 처리.
@@ -506,7 +514,7 @@ export async function getAlbionVerificationStats(): Promise<{
       db
         .from('account_albion_tenant_links')
         .select(
-          'discord_id, current_guild_name, current_alliance_name, relation, trust_status, status_reason, trusted_at, last_synced_at',
+          'discord_id, albion_server, albion_player_name, current_guild_id, current_guild_name, current_alliance_name, relation, trust_status, status_reason, trusted_at, last_synced_at',
         )
         .eq('guild_id', guildId),
       getAppSetting('albion_home_guild_id', '', guildId),
@@ -517,10 +525,13 @@ export async function getAlbionVerificationStats(): Promise<{
       linkRows.map((row) => [
         row.discord_id as string,
         {
+          server: isAlbionServer(row.albion_server) ? row.albion_server : null,
+          nickname: (row.albion_player_name as string | null) ?? null,
+          guildId: (row.current_guild_id as string | null) ?? null,
           guildName: (row.current_guild_name as string | null) ?? null,
           allianceName: (row.current_alliance_name as string | null) ?? null,
-          relation: normalizeRelation(row.relation),
-          trustStatus: normalizeTrustStatus(row.trust_status),
+          relation: normalizeAlbionIdentityRelation(row.relation),
+          trustStatus: normalizeAlbionIdentityTrustStatus(row.trust_status),
           statusReason: (row.status_reason as string | null) ?? null,
           trustedAt: (row.trusted_at as string | null) ?? null,
           lastSyncedAt: (row.last_synced_at as string | null) ?? null,
@@ -534,17 +545,20 @@ export async function getAlbionVerificationStats(): Promise<{
     let onboardingPending = 0
     let unverified = 0
     let verified = 0
+    let allianceVerified = 0
     let needsReview = 0
     const pendingMembers: VerificationMember[] = []
     const reviewMembers: VerificationMember[] = []
+    const allianceMembers: VerificationMember[] = []
     const unverifiedMembers: VerificationMember[] = []
     const verifiedMembers: VerificationMember[] = []
 
     for (const a of rows) {
-      const server = (a.albion_server ?? null) as AlbionServer | null
-      const memberGuildId = (a.albion_guild_id ?? null) as string | null
-      const guildMatchesHome = Boolean(home) && memberGuildId === home
       const link = linkMap.get(a.discord_id as string)
+      const avatarServer = isAlbionServer(a.albion_server) ? a.albion_server : null
+      const server = avatarServer ?? link?.server ?? null
+      const memberGuildId = ((a.albion_guild_id ?? null) as string | null) ?? link?.guildId ?? null
+      const guildMatchesHome = Boolean(home) && memberGuildId === home
       const fallbackTrust: AlbionIdentityTrustStatus = a.albion_verified_at ? 'trusted' : 'claimed'
       const trustStatus = link?.trustStatus ?? fallbackTrust
       const relation = link?.relation ?? (guildMatchesHome ? 'home_guild' : memberGuildId ? 'external' : 'unknown')
@@ -554,7 +568,7 @@ export async function getAlbionVerificationStats(): Promise<{
         avatar: (a.avatar as string | null) ?? null,
         isAdmin: Boolean(a.is_admin),
         server,
-        nickname: (a.albion_nickname as string | null) ?? null,
+        nickname: ((a.albion_nickname as string | null) ?? null) ?? link?.nickname ?? null,
         guildId: memberGuildId,
         guildName: link?.guildName ?? null,
         allianceName: link?.allianceName ?? null,
@@ -566,28 +580,34 @@ export async function getAlbionVerificationStats(): Promise<{
         lastSyncedAt: link?.lastSyncedAt ?? null,
         guildMatchesHome,
       }
-      if (!server) {
-        onboardingPending += 1
-        pendingMembers.push(entry)
-        continue
-      }
-      if (trustStatus === 'roster_matched' || trustStatus === 'disputed') {
-        needsReview += 1
-        reviewMembers.push(entry)
-        continue
-      }
-      if (trustStatus === 'trusted' && relation === 'home_guild') {
-        verified += 1
-        verifiedMembers.push(entry)
-      } else {
-        unverified += 1
-        unverifiedMembers.push(entry)
+      switch (classifyAlbionVerification({ server, relation, trustStatus })) {
+        case 'onboarding_pending':
+          onboardingPending += 1
+          pendingMembers.push(entry)
+          break
+        case 'needs_review':
+          needsReview += 1
+          reviewMembers.push(entry)
+          break
+        case 'guild_verified':
+          verified += 1
+          verifiedMembers.push(entry)
+          break
+        case 'alliance_verified':
+          allianceVerified += 1
+          allianceMembers.push(entry)
+          break
+        case 'unverified':
+          unverified += 1
+          unverifiedMembers.push(entry)
+          break
       }
     }
 
     // 관리자가 상단에서 즉시 식별할 수 있도록 이름순 정렬.
     pendingMembers.sort((a, b) => a.username.localeCompare(b.username))
     reviewMembers.sort((a, b) => a.username.localeCompare(b.username))
+    allianceMembers.sort((a, b) => a.username.localeCompare(b.username))
     unverifiedMembers.sort((a, b) => a.username.localeCompare(b.username))
     verifiedMembers.sort((a, b) => a.username.localeCompare(b.username))
 
@@ -597,10 +617,12 @@ export async function getAlbionVerificationStats(): Promise<{
         onboardingPending,
         unverified,
         verified,
+        allianceVerified,
         needsReview,
         homeGuildConfigured: home.length > 0,
         pendingMembers: pendingMembers.slice(0, 50),
         reviewMembers: reviewMembers.slice(0, 100),
+        allianceMembers: allianceMembers.slice(0, 100),
         unverifiedMembers: unverifiedMembers.slice(0, 50),
         // 인증 완료 멤버는 길드 규모에 따라 100+ 가능 — 200 cap 으로 페이로드
         // 보호. CollapsibleList 가 기본 8행으로 접어 노출 부담 줄인다.
@@ -657,7 +679,7 @@ async function updateMemberAlbionTrust(
     if (linkError) return { error: linkError.message }
     if (!link) return { error: tErr('memberNotFound') }
 
-    const relation = normalizeRelation(link.relation)
+    const relation = normalizeAlbionIdentityRelation(link.relation)
     const verifiedAt =
       relation === 'home_guild' && trustStatus === 'trusted'
         ? ((link.verified_at as string | null) ?? nowIso)
@@ -746,31 +768,6 @@ export async function resetMemberAlbionOnboarding(
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
   }
-}
-
-function normalizeRelation(value: unknown): AlbionIdentityRelation {
-  if (
-    value === 'home_guild' ||
-    value === 'alliance' ||
-    value === 'external' ||
-    value === 'unknown'
-  ) {
-    return value
-  }
-  return 'unknown'
-}
-
-function normalizeTrustStatus(value: unknown): AlbionIdentityTrustStatus {
-  if (
-    value === 'claimed' ||
-    value === 'roster_matched' ||
-    value === 'trusted' ||
-    value === 'disputed' ||
-    value === 'revoked'
-  ) {
-    return value
-  }
-  return 'claimed'
 }
 
 // 재정 흐름 집계 창: 30일. 월간 부채 추이 감시 용도로 적절한 기간.
