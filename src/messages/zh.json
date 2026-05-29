@@ -5693,6 +5693,7 @@
   "discordBot": {
     "notInGuild": "此命令只能在 Discord 服务器内使用。",
     "guildNotLinked": "此公会尚未与 AlbionGuildManager 绑定。官方指南\n{docsUrl}",
+    "adminOnly": "只有网站管理员可以使用此命令。",
     "unknownCommand": "旧的独立命令已停用。请使用 `/agm` 打开需要的页面。",
     "guideReady": "使用指南\n成员快速指南: {guideUrl}\n官方 FAQ: {docsUrl}",
     "homeReady": "**{name}** 公会主页\n{url}",

@@ -5693,6 +5693,7 @@
   "discordBot": {
     "notInGuild": "This command only works inside a Discord server.",
     "guildNotLinked": "This guild is not linked to AlbionGuildManager yet. Official guide:\n{docsUrl}",
+    "adminOnly": "Only site admins can use this command.",
     "unknownCommand": "Legacy standalone commands have been retired. Use `/agm` to open the screen you need.",
     "guideReady": "Guides\nMember quick guide: {guideUrl}\nOfficial FAQ: {docsUrl}",
     "homeReady": "**{name}** guild home\n{url}",

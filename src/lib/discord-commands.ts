@@ -36,10 +36,12 @@ export const AGM_SUBCOMMANDS = [
 export type AgmSubcommand = typeof AGM_SUBCOMMANDS[number]
 
 export const ALL_COMMAND_NAMES = [COMMAND_AGM] as const
+const ADMIN_ONLY_AGM_SUBCOMMANDS = ['admin', 'killbot'] as const satisfies readonly AgmSubcommand[]
 
 interface DiscordBotMessages {
   notInGuild: string
   guildNotLinked: string
+  adminOnly: string
   unknownCommand: string
   guideReady: string
   homeReady: string
@@ -65,6 +67,7 @@ async function loadMessages(locale: Locale): Promise<DiscordBotMessages> {
   return {
     notInGuild: ns.notInGuild ?? '',
     guildNotLinked: ns.guildNotLinked ?? '',
+    adminOnly: ns.adminOnly ?? '',
     unknownCommand: ns.unknownCommand ?? '',
     guideReady: ns.guideReady ?? '',
     homeReady: ns.homeReady ?? '',
@@ -89,6 +92,8 @@ interface TenantBindResult {
   id: string
   slug: string
   name: string
+  createdByDiscordId: string | null
+  adminRoleIds: string[]
 }
 
 // Discord guild_id 로 active tenant 를 찾는다. status 가 active 가 아닌
@@ -99,7 +104,7 @@ async function findTenantByDiscordGuild(
   const db = getAdminClient()
   const { data } = await db
     .from('tenants')
-    .select('id, slug, name')
+    .select('id, slug, name, created_by_discord_id, admin_role_ids')
     .eq('discord_guild_id', discordGuildId)
     .eq('status', 'active')
     .maybeSingle()
@@ -108,7 +113,38 @@ async function findTenantByDiscordGuild(
     id: data.id as string,
     slug: data.slug as string,
     name: data.name as string,
+    createdByDiscordId: (data.created_by_discord_id as string | null) ?? null,
+    adminRoleIds: (data.admin_role_ids as string[] | null) ?? [],
   }
+}
+
+function getInvokerDiscordId(payload: DiscordInteractionPayload): string | null {
+  return payload.member?.user?.id ?? payload.user?.id ?? null
+}
+
+function isAdminOnlySubcommand(destination: AgmSubcommand): boolean {
+  return (ADMIN_ONLY_AGM_SUBCOMMANDS as readonly string[]).includes(destination)
+}
+
+async function isSiteAdminForTenant(
+  tenant: TenantBindResult,
+  payload: DiscordInteractionPayload,
+): Promise<boolean> {
+  const discordId = getInvokerDiscordId(payload)
+  if (!discordId) return false
+  if (tenant.createdByDiscordId === discordId) return true
+
+  const memberRoles = payload.member?.roles ?? []
+  if (tenant.adminRoleIds.some((roleId) => memberRoles.includes(roleId))) return true
+
+  const db = getAdminClient()
+  const { data } = await db
+    .from('tenant_admin_overrides')
+    .select('discord_id')
+    .eq('tenant_id', tenant.id)
+    .eq('discord_id', discordId)
+    .maybeSingle()
+  return !!data
 }
 
 interface UpcomingEventResult {
@@ -175,10 +211,6 @@ export async function handleSlashCommand(
     return handleGuide(messages)
   }
 
-  if (destination === 'killbot' && !payload.guild_id) {
-    return handleKillbot(null, messages)
-  }
-
   // DM 등 길드 컨텍스트 없는 호출은 길드별 링크를 만들 수 없으므로 안내만.
   if (!payload.guild_id) {
     return ephemeralReply(messages.notInGuild)
@@ -186,12 +218,17 @@ export async function handleSlashCommand(
 
   const tenant = await findTenantByDiscordGuild(payload.guild_id)
 
-  if (destination === 'killbot') {
-    return handleKillbot(tenant, messages)
-  }
   if (!tenant) {
     const docsUrl = tenantUrl(null, '/faq')
     return ephemeralReply(format(messages.guildNotLinked, { docsUrl }))
+  }
+
+  if (isAdminOnlySubcommand(destination) && !(await isSiteAdminForTenant(tenant, payload))) {
+    return ephemeralReply(messages.adminOnly)
+  }
+
+  if (destination === 'killbot') {
+    return handleKillbot(tenant, messages)
   }
 
   switch (destination) {

@@ -3,35 +3,45 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Save } from 'lucide-react'
+import { Save, Send } from 'lucide-react'
+import { publishEvent } from '@/app/actions/admin'
 import { useEventEditSaveAll } from './EventEditSaveRegistry'
+import { useToast } from '@/components/ToastProvider'
 
 interface Props {
   // published 이벤트 저장 성공 시 상세 페이지로 이동할 때 사용. draft 는
   // 편집 화면에 남아 있어야 게시 전 추가 수정이 가능하다.
   eventId: string
   eventStatus: 'draft' | 'published'
+  showPublishAction?: boolean
 }
 
 // 이벤트 편집 화면 하단 고정 저장 바. 등록된 섹션 전체를 순차 저장하고
 // 에러를 모아 표시. 섹션별 save 버튼을 숨기고 이 바로만 커밋하게 한다.
-export default function EventEditSaveBar({ eventId, eventStatus }: Props) {
+export default function EventEditSaveBar({
+  eventId,
+  eventStatus,
+  showPublishAction = false,
+}: Props) {
   const ctx = useEventEditSaveAll()
   const t = useTranslations('adminEditEvent')
   const tCommon = useTranslations('common')
+  const tPublish = useTranslations('publishEventBanner')
   const router = useRouter()
-  const [saving, setSaving] = useState(false)
+  const toast = useToast()
+  const [activeAction, setActiveAction] = useState<'save' | 'publish' | null>(null)
   const [errors, setErrors] = useState<Array<{ id: string; label: string; error: string }>>([])
   const [justSaved, setJustSaved] = useState(false)
+  const isBusy = activeAction !== null
 
   const handleClick = async () => {
-    if (!ctx || saving) return
-    setSaving(true)
+    if (!ctx || isBusy) return
+    setActiveAction('save')
     setErrors([])
     setJustSaved(false)
     const errs = await ctx.triggerSaveAll()
     setErrors(errs)
-    setSaving(false)
+    setActiveAction(null)
     if (errs.length === 0) {
       setJustSaved(true)
       if (eventStatus === 'published') {
@@ -40,6 +50,29 @@ export default function EventEditSaveBar({ eventId, eventStatus }: Props) {
         router.refresh()
       }
     }
+  }
+
+  const handlePublish = async () => {
+    if (!ctx || isBusy) return
+    setActiveAction('publish')
+    setErrors([])
+    setJustSaved(false)
+    const errs = await ctx.triggerSaveAll()
+    if (errs.length > 0) {
+      setErrors(errs)
+      setActiveAction(null)
+      return
+    }
+    const result = await publishEvent(eventId)
+    if (result.error) {
+      setErrors([{ id: 'publish', label: tPublish('publishButton'), error: result.error }])
+      setActiveAction(null)
+      return
+    }
+    if (result.warning) {
+      toast.error(tPublish('publishedNotifyFailed', { error: result.warning }))
+    }
+    router.push('/admin/dashboard')
   }
 
   // 성공 플래시를 타이머 기반으로 한 번만 띄우되, 언마운트/재저장 시 이전
@@ -61,8 +94,8 @@ export default function EventEditSaveBar({ eventId, eventStatus }: Props) {
           ))}
         </ul>
       )}
-      <div className="flex items-center justify-end gap-3">
-        {ctx?.hasUnsavedChanges && !saving && !justSaved && (
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3">
+        {ctx?.hasUnsavedChanges && !isBusy && !justSaved && (
           <span className="text-amber-300 text-xs">{t('unsavedChanges')}</span>
         )}
         {justSaved && (
@@ -71,12 +104,27 @@ export default function EventEditSaveBar({ eventId, eventStatus }: Props) {
         <button
           type="button"
           onClick={handleClick}
-          disabled={saving || !ctx}
-          className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold px-6 py-2.5 rounded-lg transition-colors"
+          disabled={isBusy || !ctx}
+          className={`inline-flex w-full sm:w-auto items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed font-bold px-6 py-2.5 rounded-lg transition-colors ${
+            showPublishAction
+              ? 'bg-gray-800 hover:bg-gray-700 text-gray-100 border border-gray-700'
+              : 'bg-amber-500 hover:bg-amber-400 text-black'
+          }`}
         >
           <Save size={15} />
-          {saving ? tCommon('saving') : t('saveAll')}
+          {activeAction === 'save' ? tCommon('saving') : t('saveAll')}
         </button>
+        {showPublishAction && (
+          <button
+            type="button"
+            onClick={handlePublish}
+            disabled={isBusy || !ctx}
+            className="inline-flex w-full sm:w-auto items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold px-6 py-2.5 rounded-lg transition-colors"
+          >
+            <Send size={15} />
+            {activeAction === 'publish' ? tPublish('publishing') : tPublish('publishButton')}
+          </button>
+        )}
       </div>
     </div>
   )

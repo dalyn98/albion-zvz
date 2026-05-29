@@ -5693,6 +5693,7 @@
   "discordBot": {
     "notInGuild": "このコマンドは Discord サーバー内でのみ使用できます。",
     "guildNotLinked": "このギルドはまだ AlbionGuildManager と連携されていません。公式ガイド\n{docsUrl}",
+    "adminOnly": "このコマンドはサイト管理者のみ使用できます。",
     "unknownCommand": "従来の個別コマンドは終了しました。必要な画面へは `/agm` を使用してください。",
     "guideReady": "使い方ガイド\nメンバー簡単ガイド: {guideUrl}\n公式FAQ: {docsUrl}",
     "homeReady": "**{name}** ギルドホーム\n{url}",

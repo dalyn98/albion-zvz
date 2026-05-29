@@ -65,7 +65,7 @@ const COMMANDS = [
       },
       {
         name: 'admin',
-        description: 'Open the admin dashboard',
+        description: 'Open the admin dashboard (site admins only)',
         type: 1,
       },
       {
@@ -75,7 +75,7 @@ const COMMANDS = [
       },
       {
         name: 'killbot',
-        description: 'Open killbot guide and settings',
+        description: 'Open killbot guide and settings (site admins only)',
         type: 1,
       },
     ],
