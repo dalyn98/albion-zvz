@@ -56,7 +56,8 @@ export interface DiscordInteractionPayload {
   }
   // 길드 안에서 친 명령이면 채워짐. DM 에서 친 명령이면 null/undefined.
   guild_id?: string
-  // 명령이 실행된 채널. /killbot setup 은 현재 채널을 알림 채널로 저장한다.
+  // 명령이 실행된 채널. 현재 /agm 은 상태 변경을 하지 않지만 Discord payload 를
+  // 있는 그대로 모델링한다.
   channel_id?: string
   // 유저의 디스코드 클라이언트 언어 (BCP-47). i18n 에 사용.
   locale?: string

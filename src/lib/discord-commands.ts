@@ -1,70 +1,58 @@
 // Discord 슬래시 커맨드 핸들러 — interactions endpoint 가 라우팅한 뒤 호출.
 //
-// Slash commands:
-//   /home      — 길드 홈으로 이동 (테넌트 미연동 시 공식 가이드 폴백)
-//   /docs      — 공식 가이드 (/faq) 로 이동
-//   /guide     — 길드원 빠른 사용법 페이지로 이동
-//   /wallet    — 길드원 내 지갑으로 이동
-//   /killbotguild — 킬봇 운영 설명서로 이동
-//   /upcoming  — 가장 임박한 이벤트 링크 (없으면 /events 목록)
+// Slash command:
+//   /agm <destination> — 사이트 기능으로 이동하는 단일 네비게이션 명령어.
 //
-// 모든 응답은 ephemeral — 명령을 친 본인만 보임. 채널을 어지럽히지 않게.
+// Discord 명령어는 상태 변경을 하지 않는다. 복잡한 입력, 승인, 업로드, 설정은
+// 모두 웹 화면에서 처리하고, 여기서는 정확한 진입점 링크만 ephemeral 로 돌려준다.
 
 import { getAdminClient } from '@/lib/supabase-admin'
 import { mapDiscordLocale } from '@/lib/discord'
 import { tenantUrl } from '@/lib/tenant-resolver'
 import { DEFAULT_LOCALE, type Locale } from '@/i18n/locales'
-import {
-  getKillbotConfig,
-  killbotDashboardUrl,
-  saveKillbotConfig,
-  sendKillbotTestMessage,
-} from '@/lib/killbot'
+import { killbotDashboardUrl } from '@/lib/killbot'
 import {
   ephemeralReply,
   type DiscordInteractionPayload,
   type DiscordInteractionResponse,
 } from '@/lib/discord-interactions'
 
-// 슬래시 커맨드 이름은 영어 단일 — 사용자가 i18n 비활성을 명시함.
-export const COMMAND_HOME = 'home'
-export const COMMAND_DOCS = 'docs'
-export const COMMAND_GUIDE = 'guide'
-export const COMMAND_WALLET = 'wallet'
-export const COMMAND_KILLBOT_GUILD = 'killbotguild'
-export const COMMAND_UPCOMING = 'upcoming'
-export const COMMAND_KILLBOT = 'killbot'
+export const COMMAND_AGM = 'agm'
 
-export const ALL_COMMAND_NAMES = [
-  COMMAND_HOME,
-  COMMAND_DOCS,
-  COMMAND_GUIDE,
-  COMMAND_WALLET,
-  COMMAND_KILLBOT_GUILD,
-  COMMAND_UPCOMING,
-  COMMAND_KILLBOT,
+export const AGM_SUBCOMMANDS = [
+  'home',
+  'me',
+  'verify',
+  'events',
+  'regear',
+  'shop',
+  'craft',
+  'wallet',
+  'admin',
+  'guide',
+  'killbot',
 ] as const
+
+export type AgmSubcommand = typeof AGM_SUBCOMMANDS[number]
+
+export const ALL_COMMAND_NAMES = [COMMAND_AGM] as const
 
 interface DiscordBotMessages {
   notInGuild: string
   guildNotLinked: string
-  guildNotLinkedDocs: string
-  homeReady: string
-  docsReady: string
+  unknownCommand: string
   guideReady: string
+  homeReady: string
+  meReady: string
+  verifyReady: string
+  eventsReady: string
+  eventsNextBlock: string
+  regearReady: string
+  shopReady: string
+  craftReady: string
   walletReady: string
-  killbotGuildReady: string
-  upcomingNone: string
-  upcoming: string
-  killbotNoPermission: string
-  killbotNoChannel: string
-  killbotSetup: string
-  killbotPaused: string
-  killbotResumed: string
-  killbotStatus: string
-  killbotTestSent: string
-  killbotNotConfigured: string
-  killbotError: string
+  adminReady: string
+  killbotReady: string
 }
 
 // next-intl 의 messages JSON 에서 discordBot 네임스페이스만 꺼내 평탄화.
@@ -77,49 +65,24 @@ async function loadMessages(locale: Locale): Promise<DiscordBotMessages> {
   return {
     notInGuild: ns.notInGuild ?? '',
     guildNotLinked: ns.guildNotLinked ?? '',
-    guildNotLinkedDocs: ns.guildNotLinkedDocs ?? '',
-    homeReady: ns.homeReady ?? '',
-    docsReady: ns.docsReady ?? '',
+    unknownCommand: ns.unknownCommand ?? '',
     guideReady: ns.guideReady ?? '',
+    homeReady: ns.homeReady ?? '',
+    meReady: ns.meReady ?? '',
+    verifyReady: ns.verifyReady ?? '',
+    eventsReady: ns.eventsReady ?? '',
+    eventsNextBlock: ns.eventsNextBlock ?? '',
+    regearReady: ns.regearReady ?? '',
+    shopReady: ns.shopReady ?? '',
+    craftReady: ns.craftReady ?? '',
     walletReady: ns.walletReady ?? '',
-    killbotGuildReady: ns.killbotGuildReady ?? '',
-    upcomingNone: ns.upcomingNone ?? '',
-    upcoming: ns.upcoming ?? '',
-    killbotNoPermission: ns.killbotNoPermission ?? '',
-    killbotNoChannel: ns.killbotNoChannel ?? '',
-    killbotSetup: ns.killbotSetup ?? '',
-    killbotPaused: ns.killbotPaused ?? '',
-    killbotResumed: ns.killbotResumed ?? '',
-    killbotStatus: ns.killbotStatus ?? '',
-    killbotTestSent: ns.killbotTestSent ?? '',
-    killbotNotConfigured: ns.killbotNotConfigured ?? '',
-    killbotError: ns.killbotError ?? '',
+    adminReady: ns.adminReady ?? '',
+    killbotReady: ns.killbotReady ?? '',
   }
 }
 
 function format(template: string, vars: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (_, key: string) => vars[key] ?? `{${key}}`)
-}
-
-const DISCORD_PERMISSION_ADMINISTRATOR = 1n << 3n
-const DISCORD_PERMISSION_MANAGE_GUILD = 1n << 5n
-
-export function canManageKillbot(payload: DiscordInteractionPayload): boolean {
-  const raw = payload.member?.permissions
-  if (!raw) return false
-  try {
-    const bits = BigInt(raw)
-    return (
-      (bits & DISCORD_PERMISSION_ADMINISTRATOR) !== 0n ||
-      (bits & DISCORD_PERMISSION_MANAGE_GUILD) !== 0n
-    )
-  } catch {
-    return false
-  }
-}
-
-function getSubcommandName(payload: DiscordInteractionPayload): string {
-  return payload.data?.options?.[0]?.name ?? 'status'
 }
 
 interface TenantBindResult {
@@ -154,9 +117,8 @@ interface UpcomingEventResult {
   gatherAt: string | null
 }
 
-// 길드의 가장 임박한 미래 이벤트 1 건. 정렬 기준은 gather_at asc — 이미
-// 시작된 (battle_started_at != null) 이벤트는 제외해서 "다음에 모일 것" 만
-// 노출한다. status='published' 인 것만 (draft 는 어드민 전용).
+// 길드의 가장 임박한 미래 이벤트 1 건. /agm events 는 이벤트 목록을 주 링크로
+// 주되, 바로 들어갈 수 있는 다음 이벤트가 있으면 보조 링크로 덧붙인다.
 async function findUpcomingEvent(guildId: string): Promise<UpcomingEventResult | null> {
   const db = getAdminClient()
   const nowIso = new Date().toISOString()
@@ -193,197 +155,119 @@ function formatGatherTimestamp(iso: string): string {
   return `<t:${unix}:F>`
 }
 
+function getAgmSubcommandName(payload: DiscordInteractionPayload): AgmSubcommand | null {
+  const name = payload.data?.options?.[0]?.name
+  return AGM_SUBCOMMANDS.includes(name as AgmSubcommand) ? (name as AgmSubcommand) : null
+}
+
 export async function handleSlashCommand(
   payload: DiscordInteractionPayload,
 ): Promise<DiscordInteractionResponse> {
-  const commandName = payload.data?.name
   const locale = resolveLocale(payload)
   const messages = await loadMessages(locale)
 
-  if (commandName === COMMAND_GUIDE || commandName === COMMAND_KILLBOT_GUILD) {
-    return commandName === COMMAND_GUIDE
-      ? handleGuide(messages)
-      : handleKillbotGuildGuide(messages)
+  if (payload.data?.name !== COMMAND_AGM) {
+    return ephemeralReply(messages.unknownCommand)
   }
 
-  // DM 등 길드 컨텍스트 없는 호출은 처리 안 함 — guild_id 없으면 안내만.
+  const destination = getAgmSubcommandName(payload)
+  if (!destination || destination === 'guide') {
+    return handleGuide(messages)
+  }
+
+  if (destination === 'killbot' && !payload.guild_id) {
+    return handleKillbot(null, messages)
+  }
+
+  // DM 등 길드 컨텍스트 없는 호출은 길드별 링크를 만들 수 없으므로 안내만.
   if (!payload.guild_id) {
     return ephemeralReply(messages.notInGuild)
   }
 
   const tenant = await findTenantByDiscordGuild(payload.guild_id)
 
-  switch (commandName) {
-    case COMMAND_HOME:
-      return handleHome(tenant, messages)
-    case COMMAND_DOCS:
-      return handleDocs(messages)
-    case COMMAND_GUIDE:
-      return handleGuide(messages)
-    case COMMAND_WALLET:
-      return handleWallet(tenant, messages)
-    case COMMAND_KILLBOT_GUILD:
-      return handleKillbotGuildGuide(messages)
-    case COMMAND_UPCOMING:
-      return handleUpcoming(tenant, messages)
-    case COMMAND_KILLBOT:
-      return handleKillbot(payload, tenant, messages)
-    default:
-      // 등록되지 않은 명령 — 등록 스크립트와 sync 안 됐을 때만 발생.
-      return ephemeralReply(messages.guildNotLinked)
+  if (destination === 'killbot') {
+    return handleKillbot(tenant, messages)
   }
-}
-
-function handleHome(
-  tenant: TenantBindResult | null,
-  messages: DiscordBotMessages,
-): DiscordInteractionResponse {
   if (!tenant) {
     const docsUrl = tenantUrl(null, '/faq')
     return ephemeralReply(format(messages.guildNotLinked, { docsUrl }))
   }
-  const homeUrl = tenantUrl(tenant.slug, '/')
-  return ephemeralReply(format(messages.homeReady, { name: tenant.name, url: homeUrl }))
+
+  switch (destination) {
+    case 'home':
+      return replyWithTenantLink(messages.homeReady, tenant, '/')
+    case 'me':
+      return replyWithTenantLink(messages.meReady, tenant, '/me')
+    case 'verify':
+      return replyWithTenantLink(messages.verifyReady, tenant, '/onboarding/albion')
+    case 'events':
+      return handleEvents(tenant, messages)
+    case 'regear':
+      return replyWithTenantLink(messages.regearReady, tenant, '/regear')
+    case 'shop':
+      return replyWithTenantLink(messages.shopReady, tenant, '/shop')
+    case 'craft':
+      return replyWithTenantLink(messages.craftReady, tenant, '/craft/queue')
+    case 'wallet':
+      return replyWithTenantLink(messages.walletReady, tenant, '/me/wallet')
+    case 'admin':
+      return replyWithTenantLink(messages.adminReady, tenant, '/admin/dashboard')
+  }
 }
 
-function handleDocs(messages: DiscordBotMessages): DiscordInteractionResponse {
-  const docsUrl = tenantUrl(null, '/faq')
-  return ephemeralReply(format(messages.docsReady, { url: docsUrl }))
-}
-
-function handleGuide(messages: DiscordBotMessages): DiscordInteractionResponse {
-  const guideUrl = tenantUrl(null, '/member-quick-guide.html')
-  return ephemeralReply(format(messages.guideReady, { url: guideUrl }))
-}
-
-function handleWallet(
-  tenant: TenantBindResult | null,
-  messages: DiscordBotMessages,
+function replyWithTenantLink(
+  template: string,
+  tenant: TenantBindResult,
+  path: string,
 ): DiscordInteractionResponse {
-  if (!tenant) {
-    const docsUrl = tenantUrl(null, '/faq')
-    return ephemeralReply(format(messages.guildNotLinkedDocs, { docsUrl }))
-  }
-  const walletUrl = tenantUrl(tenant.slug, '/me/wallet')
-  return ephemeralReply(format(messages.walletReady, { name: tenant.name, url: walletUrl }))
-}
-
-function handleKillbotGuildGuide(messages: DiscordBotMessages): DiscordInteractionResponse {
-  const guideUrl = tenantUrl(null, '/killbotguild.html')
-  return ephemeralReply(format(messages.killbotGuildReady, { url: guideUrl }))
-}
-
-async function handleUpcoming(
-  tenant: TenantBindResult | null,
-  messages: DiscordBotMessages,
-): Promise<DiscordInteractionResponse> {
-  if (!tenant) {
-    const docsUrl = tenantUrl(null, '/faq')
-    return ephemeralReply(format(messages.guildNotLinkedDocs, { docsUrl }))
-  }
-  const event = await findUpcomingEvent(tenant.id)
-  if (!event) {
-    const eventsUrl = tenantUrl(tenant.slug, '/events')
-    return ephemeralReply(format(messages.upcomingNone, { url: eventsUrl }))
-  }
-  const eventUrl = tenantUrl(tenant.slug, `/events/${event.id}`)
-  const when = event.gatherAt ? formatGatherTimestamp(event.gatherAt) : '—'
   return ephemeralReply(
-    format(messages.upcoming, {
-      title: event.title,
-      when,
-      url: eventUrl,
+    format(template, {
+      name: tenant.name,
+      url: tenantUrl(tenant.slug, path),
     }),
   )
 }
 
-async function handleKillbot(
-  payload: DiscordInteractionPayload,
-  tenant: TenantBindResult | null,
+function handleGuide(messages: DiscordBotMessages): DiscordInteractionResponse {
+  return ephemeralReply(
+    format(messages.guideReady, {
+      guideUrl: tenantUrl(null, '/member-quick-guide.html'),
+      docsUrl: tenantUrl(null, '/faq'),
+    }),
+  )
+}
+
+async function handleEvents(
+  tenant: TenantBindResult,
   messages: DiscordBotMessages,
 ): Promise<DiscordInteractionResponse> {
-  if (!tenant) {
-    const docsUrl = tenantUrl(null, '/faq')
-    return ephemeralReply(format(messages.guildNotLinkedDocs, { docsUrl }))
-  }
-  if (!canManageKillbot(payload)) {
-    return ephemeralReply(messages.killbotNoPermission)
-  }
-
-  const db = getAdminClient()
-  const subcommand = getSubcommandName(payload)
-  const dashboardUrl = killbotDashboardUrl(tenant.slug)
-
-  try {
-    if (subcommand === 'setup') {
-      const channelId = payload.channel_id
-      if (!channelId) return ephemeralReply(messages.killbotNoChannel)
-      const current = await getKillbotConfig(db, tenant.id)
-      await saveKillbotConfig(db, tenant.id, {
-        ...current,
-        enabled: true,
-        channelId,
+  const event = await findUpcomingEvent(tenant.id)
+  const nextBlock = event
+    ? format(messages.eventsNextBlock, {
+        title: event.title,
+        when: event.gatherAt ? formatGatherTimestamp(event.gatherAt) : '-',
+        eventUrl: tenantUrl(tenant.slug, `/events/${event.id}`),
       })
-      return ephemeralReply(
-        format(messages.killbotSetup, {
-          channel: `<#${channelId}>`,
-          dashboardUrl,
-        }),
-      )
-    }
+    : ''
 
-    if (subcommand === 'pause') {
-      const current = await getKillbotConfig(db, tenant.id)
-      await saveKillbotConfig(db, tenant.id, {
-        ...current,
-        enabled: false,
-        channelId: current.channelId,
-      })
-      return ephemeralReply(format(messages.killbotPaused, { dashboardUrl }))
-    }
+  return ephemeralReply(
+    format(messages.eventsReady, {
+      name: tenant.name,
+      url: tenantUrl(tenant.slug, '/events'),
+      nextBlock,
+    }),
+  )
+}
 
-    if (subcommand === 'resume') {
-      const current = await getKillbotConfig(db, tenant.id)
-      const channelId = current.channelId ?? payload.channel_id ?? null
-      if (!channelId) return ephemeralReply(messages.killbotNoChannel)
-      await saveKillbotConfig(db, tenant.id, {
-        ...current,
-        enabled: true,
-        channelId,
-      })
-      return ephemeralReply(
-        format(messages.killbotResumed, {
-          channel: `<#${channelId}>`,
-          dashboardUrl,
-        }),
-      )
-    }
-
-    if (subcommand === 'test') {
-      const current = await getKillbotConfig(db, tenant.id)
-      const channelId = current.channelId ?? payload.channel_id ?? null
-      if (!channelId) return ephemeralReply(messages.killbotNoChannel)
-      await sendKillbotTestMessage(db, tenant.id, channelId)
-      return ephemeralReply(format(messages.killbotTestSent, { channel: `<#${channelId}>` }))
-    }
-
-    const current = await getKillbotConfig(db, tenant.id)
-    if (!current.channelId) {
-      return ephemeralReply(format(messages.killbotNotConfigured, { dashboardUrl }))
-    }
-    return ephemeralReply(
-      format(messages.killbotStatus, {
-        status: current.enabled ? 'ON' : 'OFF',
-        channel: `<#${current.channelId}>`,
-        minFame: current.minFame.toLocaleString('en-US'),
-        dashboardUrl,
-      }),
-    )
-  } catch (err) {
-    return ephemeralReply(
-      format(messages.killbotError, {
-        message: err instanceof Error ? err.message : String(err),
-      }),
-    )
-  }
+function handleKillbot(
+  tenant: TenantBindResult | null,
+  messages: DiscordBotMessages,
+): DiscordInteractionResponse {
+  return ephemeralReply(
+    format(messages.killbotReady, {
+      guideUrl: tenantUrl(null, '/killbotguild.html'),
+      dashboardUrl: tenant ? killbotDashboardUrl(tenant.slug) : tenantUrl(null, '/onboard'),
+    }),
+  )
 }

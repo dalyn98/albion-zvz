@@ -19,64 +19,63 @@ const DISCORD_API = 'https://discord.com/api/v10'
 
 const COMMANDS = [
   {
-    name: 'home',
-    description: 'Open your guild home on AlbionGuildManager',
+    name: 'agm',
+    description: 'Open AlbionGuildManager screens',
     type: 1,
-  },
-  {
-    name: 'docs',
-    description: 'Open the official AlbionGuildManager guide',
-    type: 1,
-  },
-  {
-    name: 'guide',
-    description: 'Open the member quick guide',
-    type: 1,
-  },
-  {
-    name: 'wallet',
-    description: 'Open your member wallet',
-    type: 1,
-  },
-  {
-    name: 'killbotguild',
-    description: 'Open the killbot guide for guild operators',
-    type: 1,
-  },
-  {
-    name: 'upcoming',
-    description: 'Show the most imminent upcoming event for this guild',
-    type: 1,
-  },
-  {
-    name: 'killbot',
-    description: 'Manage Albion killbot notifications for this guild',
-    type: 1,
-    default_member_permissions: '32',
     options: [
       {
-        name: 'setup',
-        description: 'Enable killbot notifications in the current channel',
+        name: 'home',
+        description: 'Open your guild home',
         type: 1,
       },
       {
-        name: 'status',
-        description: 'Show current killbot status',
+        name: 'me',
+        description: 'Open your member dashboard',
         type: 1,
       },
       {
-        name: 'test',
-        description: 'Send a killbot test message',
+        name: 'verify',
+        description: 'Open Albion verification and re-onboarding',
         type: 1,
       },
       {
-        name: 'pause',
-        description: 'Pause killbot notifications',
+        name: 'events',
+        description: 'Open guild events',
         type: 1,
       },
       {
-        name: 'resume',
-        description: 'Resume killbot notifications',
+        name: 'regear',
+        description: 'Open regear',
+        type: 1,
+      },
+      {
+        name: 'shop',
+        description: 'Open guild shop',
+        type: 1,
+      },
+      {
+        name: 'craft',
+        description: 'Open crafting queue',
+        type: 1,
+      },
+      {
+        name: 'wallet',
+        description: 'Open your wallet',
+        type: 1,
+      },
+      {
+        name: 'admin',
+        description: 'Open the admin dashboard',
+        type: 1,
+      },
+      {
+        name: 'guide',
+        description: 'Open member guides',
+        type: 1,
+      },
+      {
+        name: 'killbot',
+        description: 'Open killbot guide and settings',
         type: 1,
       },
     ],
