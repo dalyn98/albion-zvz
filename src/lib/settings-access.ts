@@ -3,6 +3,7 @@ import { CAP, hasAnyCapability, parseCapabilities } from '@/lib/permissions'
 export type SettingsTabKey =
   | 'guild'
   | 'permissions'
+  | 'notifications'
   | 'events'
   | 'regear'
   | 'landing'
@@ -11,6 +12,7 @@ export interface SettingsAccessFlags {
   general: boolean
   toggles: boolean
   permissions: boolean
+  notifications: boolean
   guildProfile: boolean
   shopChestLogStart: boolean
   siphonLogStart: boolean
@@ -40,6 +42,7 @@ export function getSettingsAccessFlags(
     general: can([CAP.SETTINGS_GENERAL]),
     toggles: can([CAP.SETTINGS_TOGGLES]),
     permissions: can([CAP.SETTINGS_PERMISSIONS]),
+    notifications: can([CAP.SETTINGS_PERMISSIONS]),
     guildProfile: can([CAP.SETTINGS_GUILD_PROFILE]),
     shopChestLogStart: can([CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE]),
     siphonLogStart: can([CAP.SIPHON_MANAGE]),
@@ -64,6 +67,7 @@ export function getAvailableSettingsTabs(
     tabs.push('guild')
   }
   if (access.permissions) tabs.push('permissions')
+  if (access.notifications) tabs.push('notifications')
   if (access.general || access.toggles) tabs.push('events')
   if (access.general || access.toggles || access.roleRewards) tabs.push('regear')
   if (access.guildProfile) tabs.push('landing')

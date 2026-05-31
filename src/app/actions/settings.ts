@@ -15,6 +15,7 @@ import { SLOT_ROLES, SLOT_KEYS } from '@/types'
 import { logAdminAction } from '@/lib/admin-audit'
 import { toYoutubeEmbedUrl } from '@/lib/youtube-embed'
 import { CAP } from '@/lib/permissions'
+import { isAdminNotificationTopic } from '@/lib/admin-notification-topics'
 import {
   LOG_OPERATING_START_KEYS,
   isValidLogOperatingStart,
@@ -86,6 +87,11 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'guild_profile_join_steps',
   'guild_profile_event_schedule',
   'guild_profile_youtube_url',
+  'admin_notifications_enabled',
+  'admin_notification_channel_id',
+  'admin_notification_role_ids',
+  'admin_notification_topics',
+  'admin_notification_digest_minutes',
 ] as const
 
 const MAX_VALUE_LENGTH = 500
@@ -97,7 +103,12 @@ function settingCaps(key: AppSettingKey): readonly bigint[] {
     key === 'event_creator_role_ids_ff' ||
     key === 'event_creator_role_ids_ganking' ||
     key === 'bomb_squad_caller_role_ids' ||
-    key === 'active_member_role_ids'
+    key === 'active_member_role_ids' ||
+    key === 'admin_notifications_enabled' ||
+    key === 'admin_notification_channel_id' ||
+    key === 'admin_notification_role_ids' ||
+    key === 'admin_notification_topics' ||
+    key === 'admin_notification_digest_minutes'
   ) {
     return [CAP.SETTINGS_PERMISSIONS]
   }
@@ -191,6 +202,8 @@ const ALLOW_EMPTY_KEYS: readonly AppSettingKey[] = [
   'guild_profile_event_schedule',
   // 빈 값 = YouTube 위젯 숨김.
   'guild_profile_youtube_url',
+  // 빈 값 = 관리자 알림 채널 미설정. enabled=true 여도 전송하지 않는다.
+  'admin_notification_channel_id',
 ] as const
 
 // JSON array string keys. Must parse to string[] or the upsert is rejected.
@@ -204,6 +217,8 @@ const JSON_ARRAY_KEYS: readonly AppSettingKey[] = [
   'cd_badge_roles',
   'active_member_role_ids',
   'auto_regear_excluded_slots',
+  'admin_notification_role_ids',
+  'admin_notification_topics',
 ] as const
 
 // Integer-string keys. Must parse as an integer within the declared
@@ -215,6 +230,7 @@ const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
   regear_eligibility_days: { min: 1, max: 90 },
   regear_payout_rate_percent: { min: 1, max: 100 },
   event_dm_lead_minutes: { min: 5, max: 1440 },
+  admin_notification_digest_minutes: { min: 0, max: 1440 },
   shop_import_exclude_tier_enchant_sum_lte: {
     min: TIER_ENCHANT_SUM_MIN,
     max: TIER_ENCHANT_SUM_MAX,
@@ -254,6 +270,7 @@ const BOOLEAN_KEYS: readonly AppSettingKey[] = [
   'guild_profile_show_weapons',
   'guild_profile_show_rivals',
   'guild_profile_show_activity',
+  'admin_notifications_enabled',
 ] as const
 
 const DATE_TIME_KEYS: readonly AppSettingKey[] = [
@@ -352,6 +369,18 @@ export async function updateAppSetting(
             return { error: tErr('invalidEnumValue', { values: SLOT_KEYS.join(', ') }) }
           }
         }
+        if (key === 'admin_notification_role_ids') {
+          const invalid = (parsed as string[]).filter((id) => !/^\d{5,30}$/.test(id))
+          if (invalid.length > 0) {
+            return { error: tErr('invalidInput') }
+          }
+        }
+        if (key === 'admin_notification_topics') {
+          const invalid = (parsed as string[]).filter((topic) => !isAdminNotificationTopic(topic))
+          if (invalid.length > 0) {
+            return { error: tErr('invalidInput') }
+          }
+        }
       } catch {
         return { error: tErr('invalidJsonArray') }
       }
@@ -411,6 +440,9 @@ export async function updateAppSetting(
       if (!toYoutubeEmbedUrl(trimmed)) {
         return { error: tErr('invalidYoutubeUrl') }
       }
+    }
+    if (trimmed && key === 'admin_notification_channel_id' && !/^\d{5,30}$/.test(trimmed)) {
+      return { error: tErr('invalidInput') }
     }
     const db = await requireAnyCapability(settingCaps(key))
     // Multi-tenant: app_settings PK 가 (guild_id, key) 복합이므로 upsert 타겟도
@@ -487,9 +519,15 @@ export async function updateAppSetting(
       key === 'event_creator_role_ids_ff' ||
       key === 'event_creator_role_ids_ganking' ||
       key === 'bomb_squad_caller_role_ids' ||
-      key === 'active_member_role_ids'
+      key === 'active_member_role_ids' ||
+      key === 'admin_notifications_enabled' ||
+      key === 'admin_notification_channel_id' ||
+      key === 'admin_notification_role_ids' ||
+      key === 'admin_notification_topics' ||
+      key === 'admin_notification_digest_minutes'
     ) {
       revalidatePath('/admin/dashboard/permissions')
+      revalidatePath('/admin/dashboard/settings')
     }
     if (key.startsWith('guild_profile_')) {
       // 공개 프로필 페이지가 이 값들을 직접 읽어 표시 — 어드민 저장 즉시 반영.

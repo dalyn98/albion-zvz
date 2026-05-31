@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { Image as ImageIcon, Shield, Timer, Coins, Building2 } from 'lucide-react'
+import { Bell, Image as ImageIcon, Shield, Timer, Coins, Building2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import NotificationSettingsForm from './NotificationSettingsForm'
 import EventChannelSetting from './EventChannelSetting'
@@ -23,9 +23,11 @@ import CdBadgeRolesForm from './CdBadgeRolesForm'
 import AutoRegearSlotsForm from './AutoRegearSlotsForm'
 import PermissionRoleSettingsPanel from './PermissionRoleSettingsPanel'
 import LocalGuildAccountSettingsForm from './LocalGuildAccountSettingsForm'
+import AdminNotificationSettingsForm from './AdminNotificationSettingsForm'
 import type { RoleReward } from '@/app/actions/regear-admin'
 import type { LocalGuildAccountSummary } from '@/app/actions/local-guild-account'
 import type { SlotRole, SlotKey } from '@/types'
+import type { AdminNotificationTopic } from '@/lib/admin-notification-topics'
 import {
   getAvailableSettingsTabs,
   type SettingsAccessFlags,
@@ -38,6 +40,7 @@ interface TabDef {
   labelKey:
     | 'tabGuild'
     | 'tabPermissions'
+    | 'tabNotifications'
     | 'tabEvents'
     | 'tabRegear'
     | 'tabLanding'
@@ -47,6 +50,7 @@ interface TabDef {
 const TABS: readonly TabDef[] = [
   { key: 'guild', labelKey: 'tabGuild', icon: Building2 },
   { key: 'permissions', labelKey: 'tabPermissions', icon: Shield },
+  { key: 'notifications', labelKey: 'tabNotifications', icon: Bell },
   { key: 'events', labelKey: 'tabEvents', icon: Timer },
   { key: 'regear', labelKey: 'tabRegear', icon: Coins },
   { key: 'landing', labelKey: 'tabLanding', icon: ImageIcon },
@@ -91,6 +95,11 @@ interface Props {
   localGuildAccountsEnabled: boolean
   localGuildInviteConfigured: boolean
   initialLocalGuildAccounts: LocalGuildAccountSummary[]
+  adminNotificationsEnabled: boolean
+  adminNotificationChannelId: string
+  adminNotificationRoleIds: string[]
+  adminNotificationTopics: AdminNotificationTopic[]
+  adminNotificationDigestMinutes: number
   tenantTimezone: string
   logStartShopChestAt: string
   logStartSiphonAt: string
@@ -103,6 +112,7 @@ function isTabKey(value: string | null): value is SettingsTabKey {
   return (
     value === 'guild' ||
     value === 'permissions' ||
+    value === 'notifications' ||
     value === 'events' ||
     value === 'regear' ||
     value === 'landing'
@@ -146,6 +156,11 @@ export default function SettingsTabs({
   localGuildAccountsEnabled,
   localGuildInviteConfigured,
   initialLocalGuildAccounts,
+  adminNotificationsEnabled,
+  adminNotificationChannelId,
+  adminNotificationRoleIds,
+  adminNotificationTopics,
+  adminNotificationDigestMinutes,
   tenantTimezone,
   logStartShopChestAt,
   logStartSiphonAt,
@@ -269,6 +284,21 @@ export default function SettingsTabs({
             lastMemberSyncAt={lastMemberSyncAt}
             timezone={tenantTimezone}
           />
+        )}
+        {active === 'notifications' && access.notifications && (
+          <SettingsGroup
+            title={t('adminNotificationGroupTitle')}
+            description={t('adminNotificationGroupDescription')}
+          >
+            <AdminNotificationSettingsForm
+              embedded
+              initialEnabled={adminNotificationsEnabled}
+              initialChannelId={adminNotificationChannelId}
+              initialRoleIds={adminNotificationRoleIds}
+              initialTopics={adminNotificationTopics}
+              initialDigestMinutes={adminNotificationDigestMinutes}
+            />
+          </SettingsGroup>
         )}
         {active === 'events' && (
           <div className="space-y-4">

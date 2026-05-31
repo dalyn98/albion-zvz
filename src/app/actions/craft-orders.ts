@@ -14,6 +14,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { autoTrackSuffixesFromItemIds } from '@/lib/inventory'
 import { CAP } from '@/lib/permissions'
+import { sendAdminNotification } from '@/lib/admin-notifications'
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -668,6 +669,7 @@ export async function deliverCraftOrderTask(
   input: DeliverCraftOrderInput,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
+  const tAdminNotify = await getTranslations('adminNotificationMessages')
   try {
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
@@ -701,10 +703,34 @@ export async function deliverCraftOrderTask(
       }
       return { error: error.message }
     }
+    const { data: task } = await db
+      .from('craft_tasks')
+      .select(
+        'id, order_quantity, craft_orders!inner(item_name, item_id)',
+      )
+      .eq('guild_id', guildId)
+      .eq('id', input.taskId)
+      .maybeSingle()
     revalidatePath('/craft/orders')
     revalidatePath('/admin/dashboard/craft')
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/', 'layout')
+    const order = task?.craft_orders
+      ? Array.isArray(task.craft_orders) ? task.craft_orders[0] : task.craft_orders
+      : null
+    void sendAdminNotification({
+      guildId,
+      topic: 'craft',
+      sourceTable: 'craft_tasks',
+      sourceId: input.taskId,
+      title: tAdminNotify('craftTitle'),
+      body: tAdminNotify('craftBody', {
+        user: session.username,
+        item: (order?.item_name as string | null) ?? (order?.item_id as string | undefined) ?? input.taskId,
+        quantity: String(task?.order_quantity ?? 0),
+      }),
+      url: '/admin/dashboard/approvals?tab=craft',
+    })
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

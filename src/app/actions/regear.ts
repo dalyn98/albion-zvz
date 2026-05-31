@@ -36,6 +36,7 @@ import {
   type RegearRejectReasonCode,
 } from '@/lib/regear-reject-reasons'
 import { countsTowardDeathLimit } from '@/lib/regear-request-policy'
+import { sendAdminNotification } from '@/lib/admin-notifications'
 
 // User-facing regear actions. Admin-side lives in `regear-admin.ts`,
 // member-side inline edit actions in `regear-edit.ts`.
@@ -190,6 +191,7 @@ async function requestRegearInner(
   formData: FormData,
 ): Promise<{ error?: string; id?: string }> {
   const tErr = await getTranslations('memberActionError')
+  const tAdminNotify = await getTranslations('adminNotificationMessages')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
@@ -439,6 +441,19 @@ async function requestRegearInner(
   revalidatePath('/admin/dashboard/regear')
   revalidatePath('/me')
   revalidatePath('/', 'layout')
+  void sendAdminNotification({
+    guildId,
+    topic: 'regear',
+    sourceTable: 'regear_requests',
+    sourceId: inserted.id as string,
+    title: tAdminNotify('regearTitle'),
+    body: tAdminNotify('regearBody', {
+      user: session.username,
+      event: event.title,
+      silver: claimedSilver.toLocaleString('en-US'),
+    }),
+    url: '/admin/dashboard/approvals',
+  })
   return { id: inserted.id }
 }
 

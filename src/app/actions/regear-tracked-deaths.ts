@@ -31,6 +31,7 @@ import { requireManualRegearAllowed } from '@/lib/albion-identity'
 import type { AlbionIdentityRelation } from '@/lib/account-albion-identity'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import type { BuildSnapshot } from '@/types'
+import { sendAdminNotification } from '@/lib/admin-notifications'
 
 // 스크린샷은 옵션 — killboard_verified=true 가 이미 검증 소스라 필수가 아니지만,
 // 청구자가 갱크 상황·잔여 인원·아이템 등 추가 컨텍스트를 첨부할 수 있게 한다.
@@ -171,6 +172,7 @@ export async function submitTrackedAdHocRegear(
   formData: FormData,
 ): Promise<{ id?: string; error?: string }> {
   const tErr = await getTranslations('memberActionError')
+  const tAdminNotify = await getTranslations('adminNotificationMessages')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
@@ -315,6 +317,18 @@ export async function submitTrackedAdHocRegear(
   revalidatePath('/me')
   revalidatePath('/admin/dashboard/regear')
   revalidatePath('/', 'layout')
+  void sendAdminNotification({
+    guildId,
+    topic: 'regear',
+    sourceTable: 'regear_requests',
+    sourceId: inserted.id as string,
+    title: tAdminNotify('trackedRegearTitle'),
+    body: tAdminNotify('trackedRegearBody', {
+      user: session.username,
+      silver: claimedSilver.toLocaleString('en-US'),
+    }),
+    url: '/admin/dashboard/approvals',
+  })
   return { id: inserted.id as string }
 }
 

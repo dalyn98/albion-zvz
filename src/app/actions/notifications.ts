@@ -286,7 +286,7 @@ export async function listGuildChannels(): Promise<{
     if (
       !session.isAdmin &&
       !sessionCanCreateOrManageEvents(session) &&
-      !sessionHasAny(session, [CAP.SETTINGS_GENERAL])
+      !sessionHasAny(session, [CAP.SETTINGS_GENERAL, CAP.SETTINGS_PERMISSIONS])
     ) {
       throw new Error('Unauthorized')
     }

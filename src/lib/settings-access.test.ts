@@ -48,7 +48,7 @@ describe('settings access', () => {
       getAvailableSettingsTabs(
         getSettingsAccessFlags(false, serializeCapabilities(CAP.SETTINGS_PERMISSIONS)),
       ),
-    ).toEqual(['permissions'])
+    ).toEqual(['permissions', 'notifications'])
   })
 
   it('gives legacy admins every settings surface including role rewards', () => {
@@ -57,6 +57,7 @@ describe('settings access', () => {
     expect(getAvailableSettingsTabs(access)).toEqual([
       'guild',
       'permissions',
+      'notifications',
       'events',
       'regear',
       'landing',

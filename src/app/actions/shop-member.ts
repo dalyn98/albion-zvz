@@ -11,6 +11,7 @@ import { computePointPrice, parseShopDiscountRate } from '@/lib/shop/price'
 import { getAppSetting } from '@/lib/app-settings'
 import { getMemberPointBalance } from '@/lib/point-ledger'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
+import { sendAdminNotification } from '@/lib/admin-notifications'
 
 export interface OrderLineInput {
   inventoryId: string
@@ -42,6 +43,7 @@ export async function submitShopOrder(
   memberNote: string,
 ): Promise<SubmitOrderResult> {
   const tErr = await getTranslations('memberActionError')
+  const tAdminNotify = await getTranslations('adminNotificationMessages')
   try {
     const session = await getSession()
     if (!session) return { ok: false, error: tErr('loginRequired') }
@@ -159,6 +161,18 @@ export async function submitShopOrder(
     revalidatePath('/me')
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/', 'layout')
+    void sendAdminNotification({
+      guildId,
+      topic: 'shop',
+      sourceTable: 'shop_orders',
+      sourceId: orderId as string,
+      title: tAdminNotify('shopTitle'),
+      body: tAdminNotify('shopBody', {
+        user: session.username,
+        points: total.toLocaleString('en-US'),
+      }),
+      url: '/admin/dashboard/approvals?tab=shop',
+    })
     return { ok: true, orderId: orderId as string }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Server error' }

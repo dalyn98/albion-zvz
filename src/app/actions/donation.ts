@@ -7,6 +7,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { requireAlbionVerified } from '@/lib/albion-identity'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
+import { sendAdminNotification } from '@/lib/admin-notifications'
 
 // 길드 기부 신청 — 유저 측 액션. 관리자 측은 donation-admin.ts.
 //
@@ -36,6 +37,7 @@ export async function requestDonation(
   formData: FormData,
 ): Promise<{ error?: string; id?: string }> {
   const tErr = await getTranslations('memberActionError')
+  const tAdminNotify = await getTranslations('adminNotificationMessages')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
@@ -95,6 +97,18 @@ export async function requestDonation(
   revalidatePath('/me')
   revalidatePath('/admin/dashboard/donations')
   revalidatePath('/', 'layout')
+  void sendAdminNotification({
+    guildId,
+    topic: 'donation',
+    sourceTable: 'donation_requests',
+    sourceId: data.id as string,
+    title: tAdminNotify('donationTitle'),
+    body: tAdminNotify('donationBody', {
+      user: session.username,
+      silver: silver.toLocaleString('en-US'),
+    }),
+    url: '/admin/dashboard/approvals?tab=donation',
+  })
   return { id: data.id }
 }
 

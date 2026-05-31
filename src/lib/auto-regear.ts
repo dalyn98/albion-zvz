@@ -18,6 +18,7 @@
 // 반려할 수도 있다.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { getTranslations } from 'next-intl/server'
 import {
   fetchAodpPrices,
   loadAodpOptions,
@@ -41,6 +42,7 @@ import {
   type AlbionIdentityRelation,
   type AlbionIdentityTrustStatus,
 } from '@/lib/account-albion-identity'
+import { sendAdminNotification } from '@/lib/admin-notifications'
 
 // 외부 모듈(regear-tracked-deaths 등) 이 기존 import 경로를 유지하도록 re-export.
 export { equipmentToBuildSnapshot, type EquipmentItem } from '@/lib/auto-regear-equipment'
@@ -430,9 +432,11 @@ export async function processAutoRegear(
   let skippedNoTrackedBattle = 0
   let skippedRoyalZone = 0
   let processed = 0
+  const tAdminNotify = await getTranslations({ locale: 'ko', namespace: 'adminNotificationMessages' })
 
   for (const event of eventRows) {
     try {
+      let eventRequestsCreated = 0
       // retroactive 가드: 관리자가 battle 이후 이벤트를 만든 케이스.
       // 수동으로 이미 보상이 처리됐을 가능성이 높으므로 park 처리하고 skip.
       // 정상 flow(이벤트 생성 → 배틀) 는 created_at <= battle_started_at.
@@ -748,6 +752,7 @@ export async function processAutoRegear(
           skippedManualExists += 1
         } else {
           requestsCreated += 1
+          eventRequestsCreated += 1
         }
       }
 
@@ -761,6 +766,20 @@ export async function processAutoRegear(
         errors.push({ event_id: event.id, step: 'mark-processed', message: markErr.message })
       } else {
         processed += 1
+      }
+      if (eventRequestsCreated > 0) {
+        void sendAdminNotification({
+          guildId,
+          topic: 'regear',
+          sourceTable: 'events',
+          sourceId: `${event.id}:auto-regear`,
+          title: tAdminNotify('autoRegearTitle'),
+          body: tAdminNotify('autoRegearBody', {
+            event: event.title,
+            count: eventRequestsCreated.toLocaleString('en-US'),
+          }),
+          url: '/admin/dashboard/approvals',
+        })
       }
     } catch (e) {
       errors.push({

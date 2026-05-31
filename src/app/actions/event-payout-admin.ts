@@ -10,6 +10,7 @@ import { formatSilver } from '@/lib/silver'
 import { isEnded } from '@/lib/gather-time'
 import { logAdminAction } from '@/lib/admin-audit'
 import { CAP } from '@/lib/permissions'
+import { sendAdminNotification } from '@/lib/admin-notifications'
 
 const MEMO_MAX = 500
 const EVENT_PAYOUT_CAPS = [CAP.EVENT_MANAGE] as const
@@ -98,6 +99,7 @@ export async function createEventPayoutRequest(
   try {
     const db = await requireAnyCapability(EVENT_PAYOUT_CAPS)
     const session = await getSession()
+    const tAdminNotify = await getTranslations('adminNotificationMessages')
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
 
@@ -150,6 +152,19 @@ export async function createEventPayoutRequest(
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath(`/admin/dashboard/events/${input.eventId}`)
     revalidatePath('/', 'layout')
+    void sendAdminNotification({
+      guildId,
+      topic: 'event_payout',
+      sourceTable: 'event_payout_requests',
+      sourceId: inserted.id as string,
+      title: tAdminNotify('eventPayoutTitle'),
+      body: tAdminNotify('eventPayoutBody', {
+        event: event.title,
+        count: participants.length.toLocaleString('en-US'),
+        silver: totalSilver.toLocaleString('en-US'),
+      }),
+      url: '/admin/dashboard/approvals?tab=event_payout',
+    })
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,

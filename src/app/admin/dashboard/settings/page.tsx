@@ -15,6 +15,10 @@ import {
 } from '@/lib/admin-permission-settings'
 import { getSettingsAccessFlags } from '@/lib/settings-access'
 import { getAdminClient } from '@/lib/supabase-admin'
+import {
+  DEFAULT_ADMIN_NOTIFICATION_TOPICS,
+  parseAdminNotificationTopics,
+} from '@/lib/admin-notification-topics'
 
 // 알림 메시지의 기본값은 빈 문자열 — 폼은 초기값이 비어 있으면 locale 별
 // `messagePlaceholder` 를 노출하므로, 관리자는 자신이 사용하는 언어의 예시를
@@ -98,6 +102,11 @@ export default async function SettingsPage() {
     localGuildAccountsEnabledRaw,
     localGuildInviteHashRaw,
     initialLocalGuildAccounts,
+    adminNotificationsEnabledRaw,
+    adminNotificationChannelId,
+    adminNotificationRoleIdsRaw,
+    adminNotificationTopicsRaw,
+    adminNotificationDigestMinutesRaw,
     tenantTimezoneRaw,
     logStartShopChestAt,
     logStartSiphonAt,
@@ -179,6 +188,21 @@ export default async function SettingsPage() {
       ? getAppSetting('local_guild_invite_hash', '', tenantId)
       : Promise.resolve(''),
     loadLocalGuildAccountSummaries(tenantId, settingsAccess.general),
+    settingsAccess.notifications
+      ? getAppSetting('admin_notifications_enabled', 'false', tenantId)
+      : Promise.resolve('false'),
+    settingsAccess.notifications
+      ? getAppSetting('admin_notification_channel_id', '', tenantId)
+      : Promise.resolve(''),
+    settingsAccess.notifications
+      ? getAppSetting('admin_notification_role_ids', '[]', tenantId)
+      : Promise.resolve('[]'),
+    settingsAccess.notifications
+      ? getAppSetting('admin_notification_topics', JSON.stringify(DEFAULT_ADMIN_NOTIFICATION_TOPICS), tenantId)
+      : Promise.resolve(JSON.stringify(DEFAULT_ADMIN_NOTIFICATION_TOPICS)),
+    settingsAccess.notifications
+      ? getAppSetting('admin_notification_digest_minutes', '0', tenantId)
+      : Promise.resolve('0'),
     // 기본값 'Asia/Seoul' — 기존 멘헤라 동작 유지. 잘못된 값이 박혀 있으면
     // 아래 isValidTenantTimezone 으로 다시 한 번 정규화한다.
     settingsAccess.general || canManageAnyLogOperatingStart
@@ -249,6 +273,25 @@ export default async function SettingsPage() {
   const allowUnverifiedMemberAccess = allowUnverifiedMemberAccessRaw !== 'false'
   const localGuildAccountsEnabled = localGuildAccountsEnabledRaw === 'true'
   const localGuildInviteConfigured = localGuildInviteHashRaw.trim().length > 0
+  const adminNotificationsEnabled = adminNotificationsEnabledRaw === 'true'
+  const adminNotificationRoleIds = (() => {
+    try {
+      const parsed = JSON.parse(adminNotificationRoleIdsRaw)
+      return Array.isArray(parsed)
+        ? parsed.filter((v): v is string => typeof v === 'string' && /^\d{5,30}$/.test(v))
+        : []
+    } catch {
+      return []
+    }
+  })()
+  const adminNotificationTopics = parseAdminNotificationTopics(adminNotificationTopicsRaw)
+  const parsedAdminDigest = Number(adminNotificationDigestMinutesRaw)
+  const adminNotificationDigestMinutes =
+    Number.isFinite(parsedAdminDigest) &&
+    Number.isInteger(parsedAdminDigest) &&
+    [0, 30, 60, 180, 1440].includes(parsedAdminDigest)
+      ? parsedAdminDigest
+      : 0
   // 손상된 IANA 가 박혀 있어도 화면이 깨지진 않도록 기본값으로 정규화.
   const tenantTimezone = isValidTenantTimezone(tenantTimezoneRaw)
     ? tenantTimezoneRaw
@@ -340,6 +383,11 @@ export default async function SettingsPage() {
         localGuildAccountsEnabled={localGuildAccountsEnabled}
         localGuildInviteConfigured={localGuildInviteConfigured}
         initialLocalGuildAccounts={initialLocalGuildAccounts}
+        adminNotificationsEnabled={adminNotificationsEnabled}
+        adminNotificationChannelId={adminNotificationChannelId}
+        adminNotificationRoleIds={adminNotificationRoleIds}
+        adminNotificationTopics={adminNotificationTopics}
+        adminNotificationDigestMinutes={adminNotificationDigestMinutes}
         tenantTimezone={tenantTimezone}
         logStartShopChestAt={logStartShopChestAt}
         logStartSiphonAt={logStartSiphonAt}

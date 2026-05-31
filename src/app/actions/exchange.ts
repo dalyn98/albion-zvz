@@ -8,6 +8,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { requireAlbionVerified } from '@/lib/albion-identity'
 import { getMemberPointBalance } from '@/lib/point-ledger'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
+import { sendAdminNotification } from '@/lib/admin-notifications'
 
 export interface MyExchangeRequest {
   id: string
@@ -21,6 +22,7 @@ export interface MyExchangeRequest {
 
 export async function requestExchange(silver: number): Promise<{ error?: string; id?: string }> {
   const tErr = await getTranslations('memberActionError')
+  const tAdminNotify = await getTranslations('adminNotificationMessages')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
   if (!session.isMember) return { error: tErr('memberOnly') }
@@ -66,6 +68,18 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
   revalidatePath('/me')
   revalidatePath('/admin/dashboard/exchanges')
   revalidatePath('/', 'layout')
+  void sendAdminNotification({
+    guildId,
+    topic: 'exchange',
+    sourceTable: 'exchange_requests',
+    sourceId: data.id as string,
+    title: tAdminNotify('exchangeTitle'),
+    body: tAdminNotify('exchangeBody', {
+      user: session.username,
+      silver: silver.toLocaleString('en-US'),
+    }),
+    url: '/admin/dashboard/approvals?tab=exchange',
+  })
   return { id: data.id }
 }
 

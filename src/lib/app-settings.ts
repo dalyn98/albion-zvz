@@ -254,6 +254,14 @@ export type AppSettingKey =
   // 홈 페이지 어드민 전용 "처리 대기" 카드 토글. admin 세션 + 'true' 일 때만 렌더.
   // 모바일에서 사이드바 햄버거를 열지 않아도 처리할 일을 한눈에 볼 수 있게.
   | 'home_admin_pending_card_enabled'
+  // 관리자 전용 운영 알림. 이벤트 공지/개인 DM 과 분리된 내부 알림 채널이다.
+  // enabled=true + channel_id 설정 + topic 활성화일 때만 전송된다.
+  | 'admin_notifications_enabled'
+  | 'admin_notification_channel_id'
+  | 'admin_notification_role_ids'
+  | 'admin_notification_topics'
+  | 'admin_notification_digest_minutes'
+  | 'last_admin_notification_digest_at'
   // /me 페이지 "이번 주 내 활동" 미니 섹션 토글. 'true' 일 때만 렌더.
   // 길드별 단계적 롤아웃 — 기본 OFF, 검증된 길드만 'true'.
   | 'me_weekly_stats_enabled'
