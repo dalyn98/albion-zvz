@@ -41,7 +41,7 @@ export default function DemoTemplateList({ templates }: Props) {
               <div className="flex-1 min-w-0 px-4 py-3">
                 <p className="text-white text-sm font-medium truncate">{tpl.name}</p>
                 <p className="text-gray-500 text-xs font-mono truncate">
-                  {tpl.totalSlots}명 · {tpl.zoneHint}
+                  {t('demoSlotSummary', { count: tpl.totalSlots, zone: tpl.zoneHint })}
                 </p>
               </div>
               <DemoIconRow editLabel={t('editAction')} duplicateLabel={t('duplicateAction')} />
@@ -55,6 +55,7 @@ export default function DemoTemplateList({ templates }: Props) {
 
 function DemoIconRow({ editLabel, duplicateLabel }: { editLabel: string; duplicateLabel: string }) {
   const tFeedback = useTranslations('demo.feedback')
+  const tCommon = useTranslations('common')
   const { showToast } = useDemoToast()
   const onClick = () => showToast(tFeedback('actionAcknowledged'))
   return (
@@ -80,7 +81,7 @@ function DemoIconRow({ editLabel, duplicateLabel }: { editLabel: string; duplica
         <button
           type="button"
           onClick={onClick}
-          aria-label="delete"
+          aria-label={tCommon('delete')}
           className="p-2 text-rose-300 hover:text-rose-200 hover:bg-rose-500/10 rounded transition-colors"
         >
           <Trash2 size={13} />

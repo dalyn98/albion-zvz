@@ -13,7 +13,7 @@ import { CAP } from '@/lib/permissions'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { formatSilver } from '@/lib/silver'
 import { calcPayoutSilver } from '@/lib/regear-payout'
-import { verifyDeathInWindow } from '@/lib/killboard'
+import { formatKillboardVerificationReason, verifyDeathInWindow } from '@/lib/killboard'
 import { estimateSilverFromEquipment } from '@/lib/regear-estimate'
 import { checkBuildSnapshotStock } from '@/lib/inventory'
 import { isRegearRejectReasonCode } from '@/lib/regear-reject-reasons'
@@ -328,6 +328,7 @@ export async function recheckKillboardVerification(
   id: string,
 ): Promise<RecheckKillboardResult> {
   const tErr = await getTranslations('adminActionError')
+  const tKillboard = await getTranslations('killboardVerify')
   const empty: RecheckKillboardResult = {
     killboard_verified: false,
     killboard_event_id: null,
@@ -364,6 +365,7 @@ export async function recheckKillboardVerification(
       new Date().toISOString(),
       { guildId },
     )
+    const adminNotes = formatKillboardVerificationReason(result, tKillboard)
 
     // 재확인이 성공하고 equipment 가 있으면 AODP 시세로 추산액을 계산.
     // 실패 케이스(equipment 없음, AODP 전부 null 등) 는 조용히 null 로 둔다 —
@@ -387,7 +389,7 @@ export async function recheckKillboardVerification(
       .update({
         killboard_verified: result.verified,
         killboard_event_id: result.matchedEventId,
-        admin_notes: result.reason,
+        admin_notes: adminNotes,
         gear_breakdown: breakdown,
       })
       .eq('guild_id', guildId)
@@ -400,7 +402,7 @@ export async function recheckKillboardVerification(
     return {
       killboard_verified: result.verified,
       killboard_event_id: result.matchedEventId,
-      admin_notes: result.reason,
+      admin_notes: adminNotes,
       estimated_silver: estimatedSilver,
     }
   } catch (e) {

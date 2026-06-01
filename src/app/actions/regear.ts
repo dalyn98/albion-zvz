@@ -5,7 +5,7 @@ import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
-import { verifyDeathInWindow } from '@/lib/killboard'
+import { formatKillboardVerificationReason, verifyDeathInWindow } from '@/lib/killboard'
 import { getAppSetting } from '@/lib/app-settings'
 import { requireManualRegearAllowed } from '@/lib/albion-identity'
 import {
@@ -191,6 +191,8 @@ async function requestRegearInner(
   formData: FormData,
 ): Promise<{ error?: string; id?: string }> {
   const tErr = await getTranslations('memberActionError')
+  const tKillboard = await getTranslations('killboardVerify')
+  const tRegear = await getTranslations('regear')
   const tAdminNotify = await getTranslations('adminNotificationMessages')
   const session = await getSession()
   if (!session) return { error: tErr('loginRequired') }
@@ -272,7 +274,7 @@ async function requestRegearInner(
       .update({
         status: 'rejected',
         resolved_at: new Date().toISOString(),
-        admin_notes: '수동 리기어 신청으로 자동 대체됨',
+        admin_notes: tRegear('autoSupersededByManual'),
       })
       .eq('guild_id', guildId)
       .eq('event_id', eventId)
@@ -396,13 +398,21 @@ async function requestRegearInner(
   //    매치될 일이 없고, false negative 가 admin_notes 로 노이즈를 만든다.
   const kbResult =
     requestType === 'overcharge'
-      ? { verified: false, matchedEventId: null, reason: null }
+      ? {
+          verified: false,
+          matchedEventId: null,
+          reason: null,
+          reasonCode: null,
+          reasonValues: null,
+          matchedEquipment: null,
+        }
       : await verifyDeathInWindow(
           session.username,
           new Date(battleStartMs).toISOString(),
           new Date().toISOString(),
           { guildId },
         )
+  const killboardNote = formatKillboardVerificationReason(kbResult, tKillboard)
 
   // 7) Insert the request. request_type 는 mig 010 에서 추가된 컬럼.
   //    mig 018 이 type-branched check 를 풀어서 application 흐름은 통일됐고,
@@ -423,7 +433,7 @@ async function requestRegearInner(
       screenshot_path_2: path2,
       killboard_verified: kbResult.verified,
       killboard_event_id: kbResult.matchedEventId,
-      admin_notes: kbResult.reason, // Shown to admin as the killboard hint.
+      admin_notes: killboardNote, // Shown to admin as the killboard hint.
       build_snapshot: buildSnapshot,
       fulfillment_mode: fulfillmentMode,
       requester_relation: requesterRelation,

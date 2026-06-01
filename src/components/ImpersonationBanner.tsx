@@ -1,4 +1,5 @@
 import { Eye } from 'lucide-react'
+import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { isSuperAdminSession } from '@/lib/super-admin'
 import { getImpersonationFromCookies } from '@/lib/super-admin-impersonation'
@@ -17,6 +18,7 @@ export default async function ImpersonationBanner() {
 
   const tenant = await getTenantDiscordConfig(impersonation.tenantId)
   const tenantLabel = tenant ? `${tenant.name} (${tenant.slug})` : impersonation.tenantId
+  const t = await getTranslations('impersonationBanner')
 
   return (
     <div className="bg-rose-600 text-white px-4 py-2">
@@ -24,7 +26,7 @@ export default async function ImpersonationBanner() {
         <div className="flex items-center gap-2 text-xs sm:text-sm">
           <Eye size={14} />
           <span>
-            <strong>임퍼소네이션 모드</strong> · {tenantLabel} 의 관리자로 보고 있습니다
+            <strong>{t('label')}</strong> · {t('viewingAs', { tenant: tenantLabel })}
           </span>
         </div>
         <form action={endImpersonation}>
@@ -32,7 +34,7 @@ export default async function ImpersonationBanner() {
             type="submit"
             className="text-xs font-bold bg-white/20 hover:bg-white/30 px-3 py-1 rounded-md"
           >
-            종료
+            {t('end')}
           </button>
         </form>
       </div>

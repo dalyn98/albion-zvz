@@ -7,7 +7,7 @@ vi.mock('@/lib/app-settings', () => ({
     getAppSettingMock(key, fallback, guildId),
 }))
 
-import { resolveAlbionServer } from './killboard'
+import { formatKillboardVerificationReason, resolveAlbionServer } from './killboard'
 
 describe('resolveAlbionServer', () => {
   beforeEach(() => {
@@ -40,5 +40,33 @@ describe('resolveAlbionServer', () => {
     getAppSettingMock.mockResolvedValueOnce('east')
     await resolveAlbionServer('tenant-XYZ')
     expect(getAppSettingMock).toHaveBeenCalledWith('albion_server', '', 'tenant-XYZ')
+  })
+})
+
+describe('formatKillboardVerificationReason', () => {
+  it('formats the structured reason through the provided locale translator', () => {
+    const reason = formatKillboardVerificationReason(
+      {
+        reason: 'Death records in the selected time window belonged to a different guild (Other).',
+        reasonCode: 'guildMismatch',
+        reasonValues: { guilds: 'Other' },
+      },
+      (key, values) => `${key}:${values?.guilds ?? ''}`,
+    )
+
+    expect(reason).toBe('guildMismatch:Other')
+  })
+
+  it('falls back to the raw reason for legacy results without a code', () => {
+    const reason = formatKillboardVerificationReason(
+      {
+        reason: 'Legacy note',
+        reasonCode: null,
+        reasonValues: null,
+      },
+      (key) => key,
+    )
+
+    expect(reason).toBe('Legacy note')
   })
 })

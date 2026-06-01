@@ -11,11 +11,12 @@ import { getAdminClient } from '@/lib/supabase-admin'
 // (`actions/marketing-screenshots.ts`) 의 revalidate() 가 같은 tag 로 무효화.
 export const MARKETING_SCREENSHOTS_TAG = 'marketing-screenshots'
 
-export type MarketingScreenshotKey = 'events' | 'regear' | 'craft' | 'shop' | 'stats'
+export type MarketingScreenshotKey = 'events' | 'regear' | 'craft' | 'shop' | 'stats' | 'builds'
 
 export const MARKETING_SCREENSHOT_KEYS: MarketingScreenshotKey[] = [
   'events',
   'regear',
+  'builds',
   'craft',
   'shop',
   'stats',
@@ -35,6 +36,7 @@ function emptyMap(): MarketingScreenshotsBySlot {
   return {
     events: [],
     regear: [],
+    builds: [],
     craft: [],
     shop: [],
     stats: [],
@@ -54,6 +56,13 @@ function fallbackMap(): MarketingScreenshotsBySlot {
     id: 'fallback-regear-approval-demo',
     url: '/screenshots/regear-approval-demo.png',
     alt: 'Regear approval workflow demo screen',
+    position: 0,
+    source: 'fallback',
+  })
+  map.builds.push({
+    id: 'fallback-builds-demo',
+    url: '/screenshots/builds-demo.png',
+    alt: 'Build template palette demo screen',
     position: 0,
     source: 'fallback',
   })
@@ -86,6 +95,7 @@ function withFallbacks(map: MarketingScreenshotsBySlot): MarketingScreenshotsByS
   return {
     events: map.events.length > 0 ? map.events : fallbacks.events,
     regear: map.regear.length > 0 ? map.regear : fallbacks.regear,
+    builds: map.builds.length > 0 ? map.builds : fallbacks.builds,
     craft: map.craft.length > 0 ? map.craft : fallbacks.craft,
     shop: map.shop.length > 0 ? map.shop : fallbacks.shop,
     stats: map.stats.length > 0 ? map.stats : fallbacks.stats,
@@ -132,6 +142,6 @@ async function loadMarketingScreenshotsUncached(): Promise<MarketingScreenshotsB
 // revalidate 1 h — write 시 tag 무효화로 즉시 갱신되므로 안전망용 상한.
 export const loadMarketingScreenshots = unstable_cache(
   loadMarketingScreenshotsUncached,
-  ['marketing-screenshots:all'],
+  ['marketing-screenshots:all:v2'],
   { tags: [MARKETING_SCREENSHOTS_TAG], revalidate: 3600 },
 )

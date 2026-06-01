@@ -45,9 +45,6 @@ const RECRUITMENT_STYLE: Record<RecruitmentStatus, { bg: string; text: string; b
   closed: { bg: 'bg-gray-700/40', text: 'text-gray-400', border: 'border-gray-600' },
 }
 
-const DEMO_GUILD_DESCRIPTION = `ZvZ 위주로 활동하는 한국어 길드입니다. 매주 토·일 19시 정모.
-신규 환영, 캐릭 만들고 1주 안에 ZvZ 데려갑니다.`
-
 const DEMO_DISCORD_INVITE = 'https://discord.gg/demo-guild'
 
 const DEMO_PREVIEW_HREF = '/g/demo-guild'
@@ -108,7 +105,7 @@ export default async function DemoGuildProfilePage() {
           asDiv
           className="w-full min-h-[100px] bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 cursor-text hover:border-gray-600 whitespace-pre-wrap"
         >
-          {DEMO_GUILD_DESCRIPTION}
+          {tDemoGuildProfile('descriptionSample')}
         </DemoActionButton>
       </section>
 

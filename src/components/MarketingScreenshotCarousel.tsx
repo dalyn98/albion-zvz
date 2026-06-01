@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Coins,
   Hammer,
+  LayoutTemplate,
   Plus,
   ShoppingBag,
   Trash2,
@@ -29,7 +30,7 @@ import type {
 } from '@/lib/marketing-screenshots'
 
 interface Props {
-  images: MarketingScreenshotImage[]
+  images?: MarketingScreenshotImage[]
   fallbackLabel: string
   aspect?: '16/9' | '4/3'
   // 슈퍼어드민이 랜딩에서 직접 업로드/삭제 가능. slot 없으면 비활성.
@@ -85,6 +86,13 @@ const PREVIEW_CONFIG: Record<MarketingScreenshotKey, {
     iconClass: 'text-rose-300',
     barClass: 'bg-rose-300/70',
     chipClass: 'border-rose-400/20 bg-rose-400/10 text-rose-100',
+  },
+  builds: {
+    Icon: LayoutTemplate,
+    badgeClass: 'border-indigo-400/30 bg-indigo-400/10 text-indigo-100',
+    iconClass: 'text-indigo-300',
+    barClass: 'bg-indigo-300/70',
+    chipClass: 'border-indigo-400/20 bg-indigo-400/10 text-indigo-100',
   },
 }
 
@@ -177,29 +185,30 @@ export default function MarketingScreenshotCarousel({
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const askConfirm = useConfirm()
+  const safeImages = images ?? []
 
   const canEdit = editable && !!slot
 
   useEffect(() => {
     const scroller = scrollerRef.current
-    if (!scroller || images.length <= 1) return
+    if (!scroller || safeImages.length <= 1) return
 
     function update() {
       if (!scroller) return
       const { scrollLeft, clientWidth } = scroller
       const idx = Math.round(scrollLeft / clientWidth)
-      setActiveIndex(Math.min(Math.max(0, idx), images.length - 1))
+      setActiveIndex(Math.min(Math.max(0, idx), safeImages.length - 1))
     }
 
     scroller.addEventListener('scroll', update, { passive: true })
     update()
     return () => scroller.removeEventListener('scroll', update)
-  }, [images.length])
+  }, [safeImages.length])
 
   // 삭제 후 activeIndex 가 범위 밖으로 가지 않도록 렌더 시 보정.
-  const safeIndex = images.length === 0
+  const safeIndex = safeImages.length === 0
     ? 0
-    : Math.min(Math.max(0, activeIndex), images.length - 1)
+    : Math.min(Math.max(0, activeIndex), safeImages.length - 1)
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     if (e.pointerType === 'mouse' && e.button !== 0) return
@@ -262,7 +271,7 @@ export default function MarketingScreenshotCarousel({
 
   async function handleDeleteCurrent() {
     if (!canEdit) return
-    const target = images[safeIndex]
+    const target = safeImages[safeIndex]
     if (!target) return
     if (target.source === 'fallback') return
     const ok = await askConfirm({ body: t('carouselDeleteConfirm'), destructive: true })
@@ -277,7 +286,7 @@ export default function MarketingScreenshotCarousel({
 
   const aspectClass = ASPECT_CLASS[aspect]
 
-  if (images.length === 0) {
+  if (safeImages.length === 0) {
     if (canEdit) {
       return (
         <div className="space-y-1.5">
@@ -334,8 +343,8 @@ export default function MarketingScreenshotCarousel({
     )
   }
 
-  const showControls = images.length > 1
-  const currentImage = images[safeIndex]
+  const showControls = safeImages.length > 1
+  const currentImage = safeImages[safeIndex]
   const canDeleteCurrent = canEdit && currentImage?.source === 'database'
 
   return (
@@ -353,7 +362,7 @@ export default function MarketingScreenshotCarousel({
           onPointerCancel={onPointerUp}
         >
           <div className="flex h-full">
-            {images.map((img, idx) => (
+            {safeImages.map((img, idx) => (
               <div
                 key={img.id}
                 className="relative w-full h-full flex-shrink-0 snap-center"
@@ -382,7 +391,7 @@ export default function MarketingScreenshotCarousel({
             <ChevronLeft size={18} />
           </button>
         )}
-        {showControls && safeIndex < images.length - 1 && (
+        {showControls && safeIndex < safeImages.length - 1 && (
           <button
             type="button"
             onClick={() => scrollToIndex(safeIndex + 1)}
@@ -437,7 +446,7 @@ export default function MarketingScreenshotCarousel({
       </div>
       {showControls && (
         <div className="flex items-center justify-center gap-1.5">
-          {images.map((img, idx) => (
+          {safeImages.map((img, idx) => (
             <button
               key={img.id}
               type="button"

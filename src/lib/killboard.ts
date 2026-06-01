@@ -101,11 +101,50 @@ async function getPlayerDeaths(baseUrl: string, playerId: string): Promise<Killb
 interface VerifyResult {
   verified: boolean
   matchedEventId: number | null
-  // Reason the check didn't verify, for admin display. null if verified.
+  // Backward-compatible fallback reason. UI/server actions should prefer
+  // reasonCode + formatKillboardVerificationReason() so the visible copy can
+  // follow the current locale.
   reason: string | null
+  reasonCode: KillboardVerificationReasonCode | null
+  reasonValues: Record<string, string> | null
   // Equipment JSONB from the matched death, if any. Used downstream to
   // estimate regear silver from market prices without re-hitting the API.
   matchedEquipment: Record<string, unknown> | null
+}
+
+export type KillboardVerificationReasonCode =
+  | 'guildNameMissing'
+  | 'playerNotFound'
+  | 'noDeathInWindow'
+  | 'guildMismatch'
+  | 'fetchFailed'
+
+type KillboardReasonTranslator = (
+  key: KillboardVerificationReasonCode,
+  values?: Record<string, string>,
+) => string
+
+function unverifiedResult(
+  reasonCode: KillboardVerificationReasonCode,
+  reason: string,
+  reasonValues: Record<string, string> | null = null,
+): VerifyResult {
+  return {
+    verified: false,
+    matchedEventId: null,
+    reason,
+    reasonCode,
+    reasonValues,
+    matchedEquipment: null,
+  }
+}
+
+export function formatKillboardVerificationReason(
+  result: Pick<VerifyResult, 'reason' | 'reasonCode' | 'reasonValues'>,
+  t: KillboardReasonTranslator,
+): string | null {
+  if (!result.reasonCode) return result.reason
+  return t(result.reasonCode, result.reasonValues ?? undefined)
 }
 
 // Check whether `username` died in `guildName` during [windowStartIso, windowEndIso].
@@ -119,23 +158,19 @@ export async function verifyDeathInWindow(
 ): Promise<VerifyResult> {
   const guildName = (opts.guildName ?? (await resolveGuildName(opts.guildId))).trim()
   if (!guildName) {
-    return {
-      verified: false,
-      matchedEventId: null,
-      reason: '관리자가 길드명을 설정하지 않아 자동 검증을 건너뜁니다.',
-      matchedEquipment: null,
-    }
+    return unverifiedResult(
+      'guildNameMissing',
+      'Guild name is not configured; automatic verification was skipped.',
+    )
   }
   try {
     const baseUrl = await resolveBaseUrl(opts.guildId)
     const player = await searchPlayerByName(baseUrl, username)
     if (!player) {
-      return {
-        verified: false,
-        matchedEventId: null,
-        reason: '킬보드에서 해당 닉네임을 찾지 못했습니다.',
-        matchedEquipment: null,
-      }
+      return unverifiedResult(
+        'playerNotFound',
+        'The nickname was not found on the killboard.',
+      )
     }
 
     // 길드 일치 검증은 사망 시점 기준(Victim.GuildName) 으로 한다.
@@ -150,25 +185,25 @@ export async function verifyDeathInWindow(
       return Number.isFinite(t) && t >= startMs && t <= endMs
     })
     if (inWindow.length === 0) {
-      return {
-        verified: false,
-        matchedEventId: null,
-        reason: '해당 시간대 내 사망 기록을 찾지 못했습니다.',
-        matchedEquipment: null,
-      }
+      return unverifiedResult(
+        'noDeathInWindow',
+        'No death record was found in the selected time window.',
+      )
     }
     const match = inWindow.find(
       (d) => (d.Victim.GuildName ?? '').toLowerCase() === target,
     )
     if (!match) {
       const others = inWindow
-        .map((d) => d.Victim.GuildName ?? '길드 없음')
+        .map((d) => d.Victim.GuildName ?? 'No guild')
         .filter((g, i, arr) => arr.indexOf(g) === i)
         .join(', ')
       return {
         verified: false,
         matchedEventId: null,
-        reason: `해당 시간대 사망 기록의 길드가 일치하지 않습니다 (${others}).`,
+        reason: `Death records in the selected time window belonged to a different guild (${others}).`,
+        reasonCode: 'guildMismatch',
+        reasonValues: { guilds: others },
         matchedEquipment: null,
       }
     }
@@ -176,14 +211,16 @@ export async function verifyDeathInWindow(
       verified: true,
       matchedEventId: match.EventId,
       reason: null,
+      reasonCode: null,
+      reasonValues: null,
       matchedEquipment: match.Victim.Equipment ?? null,
     }
   } catch (e) {
-    return {
-      verified: false,
-      matchedEventId: null,
-      reason: e instanceof Error ? `킬보드 조회 실패: ${e.message}` : '킬보드 조회 실패',
-      matchedEquipment: null,
-    }
+    const message = e instanceof Error ? e.message : 'Unknown error'
+    return unverifiedResult(
+      'fetchFailed',
+      `Killboard lookup failed: ${message}`,
+      { message },
+    )
   }
 }

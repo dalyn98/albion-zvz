@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto'
 // 는 server action 에서 read-your-own-writes 보장. 슈퍼어드민이 업로드 직후
 // 자기 화면(super-admin/marketing-screenshots)에서 즉시 갱신을 봐야 하므로 후자.
 import { revalidatePath, updateTag } from 'next/cache'
+import { getTranslations } from 'next-intl/server'
 import { requireSuperAdmin } from '@/lib/super-admin'
 import { getAdminClient } from '@/lib/supabase-admin'
 import {
@@ -48,27 +49,31 @@ function extFromMime(mime: string): string {
 function revalidate() {
   updateTag(MARKETING_SCREENSHOTS_TAG)
   revalidatePath('/super-admin/marketing-screenshots')
+  revalidatePath('/', 'page')
+  revalidatePath('/landing', 'page')
   revalidatePath('/public/landing', 'page')
+  revalidatePath('/features', 'page')
   revalidatePath('/public/features', 'page')
 }
 
 export async function uploadMarketingScreenshot(
   formData: FormData,
 ): Promise<{ error?: string }> {
+  const t = await getTranslations('publicMarketing')
   try {
     const session = await requireSuperAdmin()
     const slotRaw = formData.get('slot')
     const file = formData.get('file')
     const altRaw = (formData.get('alt') as string | null) ?? ''
 
-    if (!isValidSlot(slotRaw)) return { error: '슬롯이 올바르지 않습니다.' }
-    if (!(file instanceof File)) return { error: '파일이 없습니다.' }
-    if (file.size === 0) return { error: '빈 파일입니다.' }
+    if (!isValidSlot(slotRaw)) return { error: t('carouselErrorInvalidSlot') }
+    if (!(file instanceof File)) return { error: t('carouselErrorMissingFile') }
+    if (file.size === 0) return { error: t('carouselErrorEmptyFile') }
     if (file.size > MAX_FILE_SIZE) {
-      return { error: `파일이 너무 큽니다 (최대 ${MAX_FILE_SIZE / 1024 / 1024}MB).` }
+      return { error: t('carouselErrorFileTooLarge', { maxMb: MAX_FILE_SIZE / 1024 / 1024 }) }
     }
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return { error: 'PNG / JPG / WEBP 만 허용됩니다.' }
+      return { error: t('carouselErrorUnsupportedType') }
     }
 
     const slot = slotRaw
@@ -90,7 +95,7 @@ export async function uploadMarketingScreenshot(
       .from(BUCKET)
       .upload(path, file, { contentType: file.type, upsert: false })
     if (uploadError) {
-      return { error: `업로드 실패: ${uploadError.message}` }
+      return { error: t('carouselErrorUploadFailed', { reason: uploadError.message }) }
     }
 
     const { data: urlData } = db.storage.from(BUCKET).getPublicUrl(path)
@@ -111,13 +116,14 @@ export async function uploadMarketingScreenshot(
     revalidate()
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'serverError' }
+    return { error: e instanceof Error ? e.message : t('carouselErrorServer') }
   }
 }
 
 export async function deleteMarketingScreenshot(
   id: string,
 ): Promise<{ error?: string }> {
+  const t = await getTranslations('publicMarketing')
   try {
     await requireSuperAdmin()
     const db = getAdminClient()
@@ -127,7 +133,7 @@ export async function deleteMarketingScreenshot(
       .select('id, slot, image_url')
       .eq('id', id)
       .maybeSingle()
-    if (!row) return { error: '존재하지 않는 항목입니다.' }
+    if (!row) return { error: t('carouselErrorNotFound') }
 
     const { error: deleteError } = await db
       .from('marketing_screenshots')
@@ -159,7 +165,7 @@ export async function deleteMarketingScreenshot(
     revalidate()
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'serverError' }
+    return { error: e instanceof Error ? e.message : t('carouselErrorServer') }
   }
 }
 
@@ -167,6 +173,7 @@ export async function moveMarketingScreenshot(
   id: string,
   direction: 'up' | 'down',
 ): Promise<{ error?: string }> {
+  const t = await getTranslations('publicMarketing')
   try {
     await requireSuperAdmin()
     const db = getAdminClient()
@@ -176,7 +183,7 @@ export async function moveMarketingScreenshot(
       .select('id, slot')
       .eq('id', id)
       .maybeSingle()
-    if (!target) return { error: '존재하지 않는 항목입니다.' }
+    if (!target) return { error: t('carouselErrorNotFound') }
 
     const { data: rows } = await db
       .from('marketing_screenshots')
@@ -184,10 +191,10 @@ export async function moveMarketingScreenshot(
       .eq('slot', target.slot as string)
       .order('position', { ascending: true })
       .order('created_at', { ascending: true })
-    if (!rows || rows.length === 0) return { error: '재정렬 대상이 없습니다.' }
+    if (!rows || rows.length === 0) return { error: t('carouselErrorNoReorderTargets') }
 
     const idx = rows.findIndex((r) => r.id === id)
-    if (idx === -1) return { error: '대상을 찾지 못했습니다.' }
+    if (idx === -1) return { error: t('carouselErrorTargetMissing') }
     const swapIdx = direction === 'up' ? idx - 1 : idx + 1
     if (swapIdx < 0 || swapIdx >= rows.length) return {}
 
@@ -207,7 +214,7 @@ export async function moveMarketingScreenshot(
     revalidate()
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'serverError' }
+    return { error: e instanceof Error ? e.message : t('carouselErrorServer') }
   }
 }
 
@@ -215,6 +222,7 @@ export async function updateMarketingScreenshotAlt(
   id: string,
   alt: string,
 ): Promise<{ error?: string }> {
+  const t = await getTranslations('publicMarketing')
   try {
     await requireSuperAdmin()
     const db = getAdminClient()
@@ -227,6 +235,6 @@ export async function updateMarketingScreenshotAlt(
     revalidate()
     return {}
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'serverError' }
+    return { error: e instanceof Error ? e.message : t('carouselErrorServer') }
   }
 }

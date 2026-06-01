@@ -24,6 +24,7 @@ import { useDemoToast } from '../../_components/DemoFeedbackProvider'
 type City = 'fortsterling' | 'lymhurst' | 'bridgewatch'
 type Role = 'tank' | 'healer'
 type TaskStatus = 'claimed' | 'delivered'
+type CraftRoleLabelKey = 'roleTank' | 'roleHealer'
 
 interface MyTask {
   taskId: string
@@ -36,9 +37,9 @@ interface MyTask {
   materialSilver?: string
 }
 
-const ROLE_BADGE: Record<Role, { bg: string; text: string; labelKo: string }> = {
-  tank: { bg: 'bg-amber-500/15', text: 'text-amber-300', labelKo: '탱커' },
-  healer: { bg: 'bg-emerald-500/15', text: 'text-emerald-300', labelKo: '힐러' },
+const ROLE_BADGE: Record<Role, { bg: string; text: string; labelKey: CraftRoleLabelKey }> = {
+  tank: { bg: 'bg-amber-500/15', text: 'text-amber-300', labelKey: 'roleTank' },
+  healer: { bg: 'bg-emerald-500/15', text: 'text-emerald-300', labelKey: 'roleHealer' },
 }
 
 const CITY_BADGE: Record<City, { bg: string; text: string; border: string; label: string }> = {
@@ -377,7 +378,7 @@ export default function DemoCraftMyTasksPage() {
                           <div>
                             <p className="text-sm font-semibold text-white">{t('requesterLine', { name: row.requester })}</p>
                             <p className="text-[11px] text-gray-500 flex items-center gap-1.5 flex-wrap">
-                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${role.bg} ${role.text}`}>{role.labelKo}</span>
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${role.bg} ${role.text}`}>{tDemoCraft(role.labelKey)}</span>
                               <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${city.bg} ${city.text} border ${city.border}`}>
                                 <MapPin size={9} />
                                 {city.label}
@@ -440,7 +441,7 @@ export default function DemoCraftMyTasksPage() {
                       <div>
                         <p className="text-sm font-semibold text-white">{t('requesterLine', { name: row.requester })}</p>
                         <p className="text-[11px] text-gray-500 flex items-center gap-1.5 flex-wrap">
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${role.bg} ${role.text}`}>{role.labelKo}</span>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${role.bg} ${role.text}`}>{tDemoCraft(role.labelKey)}</span>
                           <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${city.bg} ${city.text} border ${city.border}`}>
                             <MapPin size={9} />
                             {city.label}

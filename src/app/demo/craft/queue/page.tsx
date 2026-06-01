@@ -33,12 +33,14 @@ interface QueueRow {
   silver: string
 }
 
-const ROLE_BADGE: Record<QueueRow['role'], { bg: string; text: string; labelKo: string }> = {
-  tank: { bg: 'bg-amber-500/15', text: 'text-amber-300', labelKo: '탱커' },
-  dps: { bg: 'bg-rose-500/15', text: 'text-rose-300', labelKo: '딜러' },
-  healer: { bg: 'bg-emerald-500/15', text: 'text-emerald-300', labelKo: '힐러' },
-  caller: { bg: 'bg-violet-500/15', text: 'text-violet-300', labelKo: '콜러' },
-  support: { bg: 'bg-sky-500/15', text: 'text-sky-300', labelKo: '서포트' },
+type CraftRoleLabelKey = 'roleTank' | 'roleDps' | 'roleHealer' | 'roleCaller' | 'roleSupport'
+
+const ROLE_BADGE: Record<QueueRow['role'], { bg: string; text: string; labelKey: CraftRoleLabelKey }> = {
+  tank: { bg: 'bg-amber-500/15', text: 'text-amber-300', labelKey: 'roleTank' },
+  dps: { bg: 'bg-rose-500/15', text: 'text-rose-300', labelKey: 'roleDps' },
+  healer: { bg: 'bg-emerald-500/15', text: 'text-emerald-300', labelKey: 'roleHealer' },
+  caller: { bg: 'bg-violet-500/15', text: 'text-violet-300', labelKey: 'roleCaller' },
+  support: { bg: 'bg-sky-500/15', text: 'text-sky-300', labelKey: 'roleSupport' },
 }
 
 const CITY_BADGE: Record<City, { bg: string; text: string; border: string; label: string }> = {
@@ -405,7 +407,7 @@ export default function DemoCraftQueuePage() {
                             <div>
                               <p className="text-sm font-semibold text-white">{t('requesterLine', { name: row.requester })}</p>
                               <p className="text-[11px] text-gray-500 flex items-center gap-1.5 flex-wrap">
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${role.bg} ${role.text}`}>{role.labelKo}</span>
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${role.bg} ${role.text}`}>{tDemoCraft(role.labelKey)}</span>
                                 <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${city.bg} ${city.text} border ${city.border}`}>
                                   <MapPin size={9} />
                                   {city.label}

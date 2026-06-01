@@ -164,7 +164,7 @@ export default async function PublicLandingPage() {
       body: tFeat('f6Body'),
       bullets: [tFeat('f6Bullet1'), tFeat('f6Bullet2'), tFeat('f6Bullet3')],
       screenshotLabel: tFeat('f6ScreenshotLabel'),
-      screenshotKey: 'events',
+      screenshotKey: 'builds',
     },
     {
       imagePosition: 'right',
@@ -270,6 +270,13 @@ export default async function PublicLandingPage() {
                   aspect="16/9"
                   editable={isAdmin}
                   slot="events"
+                />
+                <MarketingScreenshotCarousel
+                  images={screenshots.builds}
+                  fallbackLabel={tFeat('f6ScreenshotLabel')}
+                  aspect="16/9"
+                  editable={isAdmin}
+                  slot="builds"
                 />
                 <MarketingScreenshotCarousel
                   images={screenshots.shop}

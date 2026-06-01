@@ -11,6 +11,7 @@ export const dynamic = 'force-dynamic'
 const SLOT_LABELS: Record<MarketingScreenshotKey, string> = {
   events: '이벤트 (정모/소집)',
   regear: '리기어 (장비 청구)',
+  builds: '빌드표 모집',
   craft: '제작 리기어',
   shop: '길드 상점',
   stats: '통계 / 리더보드',
