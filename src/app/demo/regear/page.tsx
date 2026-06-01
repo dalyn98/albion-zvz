@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { cookies } from 'next/headers'
 import { ShieldCheck, Wallet, Gift, ShoppingBag, Coins, ClipboardList } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
 import {
@@ -22,6 +23,10 @@ import {
 import ReorderableFilterChips from '@/components/ReorderableFilterChips'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 import DemoCTACard from '../_components/DemoCTACard'
+import {
+  firstOrderedFilterValue,
+  storedFilterOrderValues,
+} from '@/lib/filter-order'
 
 const REGEAR_TOUR_STEPS = [
   { id: 'regear-types' },
@@ -58,13 +63,39 @@ function resolveType(v: string | undefined): TypeKey {
   return 'regear'
 }
 
-function resolveScope(v: string | undefined): Scope {
-  return v === 'all' ? 'all' : 'pending'
+const SCOPE_FILTER_ORDER = ['pending', 'all'] as const satisfies readonly Scope[]
+const REGEAR_ORIGIN_FILTER_ORDER = [
+  'auto',
+  'manual',
+  'all',
+] as const satisfies readonly RegearOrigin[]
+
+const DEMO_FILTER_ORDER_STORAGE_KEYS = {
+  regearOrigin: 'agm.filter-order.demo-approvals.regear-origin.v1',
+  regearScope: 'agm.filter-order.demo-approvals.regear-scope.v1',
+  exchangeScope: 'agm.filter-order.demo-approvals.exchange-scope.v1',
+  donationScope: 'agm.filter-order.demo-approvals.donation-scope.v1',
+  shopScope: 'agm.filter-order.demo-approvals.shop-scope.v1',
+  eventPayoutScope: 'agm.filter-order.demo-approvals.event-payout-scope.v1',
+  craftScope: 'agm.filter-order.demo-approvals.craft-scope.v1',
+} as const
+
+const DEMO_SCOPE_FILTER_ORDER_STORAGE_KEYS: Record<TypeKey, string> = {
+  regear: DEMO_FILTER_ORDER_STORAGE_KEYS.regearScope,
+  exchange: DEMO_FILTER_ORDER_STORAGE_KEYS.exchangeScope,
+  donation: DEMO_FILTER_ORDER_STORAGE_KEYS.donationScope,
+  shop: DEMO_FILTER_ORDER_STORAGE_KEYS.shopScope,
+  event_payout: DEMO_FILTER_ORDER_STORAGE_KEYS.eventPayoutScope,
+  craft: DEMO_FILTER_ORDER_STORAGE_KEYS.craftScope,
 }
 
-function resolveOrigin(v: string | undefined): RegearOrigin {
-  if (v === 'manual' || v === 'all') return v
-  return 'auto'
+function resolveScope(v: string | undefined, fallback: Scope): Scope {
+  return v === 'pending' || v === 'all' ? v : fallback
+}
+
+function resolveOrigin(v: string | undefined, fallback: RegearOrigin): RegearOrigin {
+  if (v === 'auto' || v === 'manual' || v === 'all') return v
+  return fallback
 }
 
 export default async function DemoApprovalsPage({
@@ -74,8 +105,27 @@ export default async function DemoApprovalsPage({
 }) {
   const sp = await searchParams
   const type = resolveType(sp.tab)
-  const scope = resolveScope(sp.scope)
-  const origin = resolveOrigin(sp.origin)
+  const cookieStore = await cookies()
+  const scopeStorageKey = DEMO_SCOPE_FILTER_ORDER_STORAGE_KEYS[type]
+  const scopeOrder = storedFilterOrderValues(
+    SCOPE_FILTER_ORDER,
+    cookieStore.get(scopeStorageKey)?.value,
+  )
+  const originOrder = storedFilterOrderValues(
+    REGEAR_ORIGIN_FILTER_ORDER,
+    cookieStore.get(DEMO_FILTER_ORDER_STORAGE_KEYS.regearOrigin)?.value,
+  )
+  const scope = resolveScope(
+    sp.scope,
+    firstOrderedFilterValue(SCOPE_FILTER_ORDER, cookieStore.get(scopeStorageKey)?.value),
+  )
+  const origin = resolveOrigin(
+    sp.origin,
+    firstOrderedFilterValue(
+      REGEAR_ORIGIN_FILTER_ORDER,
+      cookieStore.get(DEMO_FILTER_ORDER_STORAGE_KEYS.regearOrigin)?.value,
+    ),
+  )
 
   const [tApprovals, tCta] = await Promise.all([
     getTranslations('adminApprovals'),
@@ -103,12 +153,21 @@ export default async function DemoApprovalsPage({
         <TypeTabs active={type} tabs={tabs} tabsLabel={tApprovals('tabsLabel')} />
       </div>
 
-      {type === 'regear' && <RegearSection scope={scope} origin={origin} />}
-      {type === 'exchange' && <ExchangeSection scope={scope} />}
-      {type === 'donation' && <DonationSection scope={scope} />}
-      {type === 'shop' && <ShopSection scope={scope} />}
-      {type === 'event_payout' && <EventPayoutSection scope={scope} />}
-      {type === 'craft' && <CraftSection scope={scope} />}
+      {type === 'regear' && (
+        <RegearSection
+          scope={scope}
+          origin={origin}
+          scopeOrder={scopeOrder}
+          originOrder={originOrder}
+        />
+      )}
+      {type === 'exchange' && <ExchangeSection scope={scope} scopeOrder={scopeOrder} />}
+      {type === 'donation' && <DonationSection scope={scope} scopeOrder={scopeOrder} />}
+      {type === 'shop' && <ShopSection scope={scope} scopeOrder={scopeOrder} />}
+      {type === 'event_payout' && (
+        <EventPayoutSection scope={scope} scopeOrder={scopeOrder} />
+      )}
+      {type === 'craft' && <CraftSection scope={scope} scopeOrder={scopeOrder} />}
 
       <DemoCTACard
         eyebrow={tCta('eyebrow')}
@@ -175,12 +234,20 @@ function TypeTabs({
 interface ScopeTabsProps {
   baseHref: string
   active: Scope
+  initialOrder: readonly Scope[]
   tKeys: { pending: string; all: string }
   accent: 'amber' | 'emerald'
   storageKey: string
 }
 
-function ScopeTabs({ baseHref, active, tKeys, accent, storageKey }: ScopeTabsProps) {
+function ScopeTabs({
+  baseHref,
+  active,
+  initialOrder,
+  tKeys,
+  accent,
+  storageKey,
+}: ScopeTabsProps) {
   const activeClass =
     accent === 'emerald'
       ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
@@ -194,6 +261,8 @@ function ScopeTabs({ baseHref, active, tKeys, accent, storageKey }: ScopeTabsPro
   return (
     <ReorderableFilterChips
       storageKey={storageKey}
+      initialQueryParam="scope"
+      initialOrder={initialOrder}
       activeValue={active}
       activeClassName={activeClass}
       items={scopes.map(({ value, label }) => ({
@@ -207,7 +276,17 @@ function ScopeTabs({ baseHref, active, tKeys, accent, storageKey }: ScopeTabsPro
   )
 }
 
-async function RegearSection({ scope, origin }: { scope: Scope; origin: RegearOrigin }) {
+async function RegearSection({
+  scope,
+  origin,
+  scopeOrder,
+  originOrder,
+}: {
+  scope: Scope
+  origin: RegearOrigin
+  scopeOrder: readonly Scope[]
+  originOrder: readonly RegearOrigin[]
+}) {
   const t = await getTranslations('adminRegearReview')
 
   const filtered = filterRegear(DEMO_REGEAR_LIST, scope, origin)
@@ -219,6 +298,7 @@ async function RegearSection({ scope, origin }: { scope: Scope; origin: RegearOr
         <RegearOriginTabs
           active={origin}
           scope={scope}
+          initialOrder={originOrder}
           counts={counts}
           tKeys={{
             auto: t('originAuto'),
@@ -230,9 +310,10 @@ async function RegearSection({ scope, origin }: { scope: Scope; origin: RegearOr
       <ScopeTabs
         baseHref={originBaseHref(origin)}
         active={scope}
+        initialOrder={scopeOrder}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
-        storageKey="agm.filter-order.demo-approvals.regear-scope.v1"
+        storageKey={DEMO_FILTER_ORDER_STORAGE_KEYS.regearScope}
       />
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-8">
@@ -254,11 +335,18 @@ function originBaseHref(origin: RegearOrigin): string {
 interface RegearOriginTabsProps {
   active: RegearOrigin
   scope: Scope
+  initialOrder: readonly RegearOrigin[]
   counts: { auto: number; manual: number; all: number }
   tKeys: { auto: string; manual: string; all: string }
 }
 
-function RegearOriginTabs({ active, scope, counts, tKeys }: RegearOriginTabsProps) {
+function RegearOriginTabs({
+  active,
+  scope,
+  initialOrder,
+  counts,
+  tKeys,
+}: RegearOriginTabsProps) {
   const origins: Array<{ value: RegearOrigin; label: string; count: number }> = [
     { value: 'auto', label: tKeys.auto, count: counts.auto },
     { value: 'manual', label: tKeys.manual, count: counts.manual },
@@ -266,7 +354,9 @@ function RegearOriginTabs({ active, scope, counts, tKeys }: RegearOriginTabsProp
   ]
   return (
     <ReorderableFilterChips
-      storageKey="agm.filter-order.demo-approvals.regear-origin.v1"
+      storageKey={DEMO_FILTER_ORDER_STORAGE_KEYS.regearOrigin}
+      initialQueryParam="origin"
+      initialOrder={initialOrder}
       activeValue={active}
       activeClassName="bg-sky-500/20 border-sky-500/50 text-sky-300"
       countActiveClassName="bg-sky-500/30 text-sky-200"
@@ -309,7 +399,13 @@ function countRegear(scope: Scope): { auto: number; manual: number; all: number 
   }
 }
 
-async function ExchangeSection({ scope }: { scope: Scope }) {
+async function ExchangeSection({
+  scope,
+  scopeOrder,
+}: {
+  scope: Scope
+  scopeOrder: readonly Scope[]
+}) {
   const t = await getTranslations('adminExchangeReview')
   const filtered = scope === 'pending'
     ? DEMO_EXCHANGE_REQUESTS.filter((r) => r.status === 'pending')
@@ -320,9 +416,10 @@ async function ExchangeSection({ scope }: { scope: Scope }) {
       <ScopeTabs
         baseHref="/demo/regear?tab=exchange"
         active={scope}
+        initialOrder={scopeOrder}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
-        storageKey="agm.filter-order.demo-approvals.exchange-scope.v1"
+        storageKey={DEMO_FILTER_ORDER_STORAGE_KEYS.exchangeScope}
       />
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-8">
@@ -335,7 +432,13 @@ async function ExchangeSection({ scope }: { scope: Scope }) {
   )
 }
 
-async function DonationSection({ scope }: { scope: Scope }) {
+async function DonationSection({
+  scope,
+  scopeOrder,
+}: {
+  scope: Scope
+  scopeOrder: readonly Scope[]
+}) {
   const t = await getTranslations('adminDonationReview')
   const filtered = scope === 'pending'
     ? DEMO_DONATION_REQUESTS.filter((r) => r.status === 'pending')
@@ -346,9 +449,10 @@ async function DonationSection({ scope }: { scope: Scope }) {
       <ScopeTabs
         baseHref="/demo/regear?tab=donation"
         active={scope}
+        initialOrder={scopeOrder}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="emerald"
-        storageKey="agm.filter-order.demo-approvals.donation-scope.v1"
+        storageKey={DEMO_FILTER_ORDER_STORAGE_KEYS.donationScope}
       />
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-8">
@@ -361,7 +465,13 @@ async function DonationSection({ scope }: { scope: Scope }) {
   )
 }
 
-async function ShopSection({ scope }: { scope: Scope }) {
+async function ShopSection({
+  scope,
+  scopeOrder,
+}: {
+  scope: Scope
+  scopeOrder: readonly Scope[]
+}) {
   const t = await getTranslations('adminShopReview')
   const filtered = scope === 'pending'
     ? DEMO_SHOP_ORDERS.filter((o) => o.status === 'pending')
@@ -372,9 +482,10 @@ async function ShopSection({ scope }: { scope: Scope }) {
       <ScopeTabs
         baseHref="/demo/regear?tab=shop"
         active={scope}
+        initialOrder={scopeOrder}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
-        storageKey="agm.filter-order.demo-approvals.shop-scope.v1"
+        storageKey={DEMO_FILTER_ORDER_STORAGE_KEYS.shopScope}
       />
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-8">
@@ -387,7 +498,13 @@ async function ShopSection({ scope }: { scope: Scope }) {
   )
 }
 
-async function EventPayoutSection({ scope }: { scope: Scope }) {
+async function EventPayoutSection({
+  scope,
+  scopeOrder,
+}: {
+  scope: Scope
+  scopeOrder: readonly Scope[]
+}) {
   const t = await getTranslations('adminEventPayoutReview')
   const filtered = scope === 'pending'
     ? DEMO_EVENT_PAYOUTS.filter((e) => e.status === 'pending')
@@ -398,9 +515,10 @@ async function EventPayoutSection({ scope }: { scope: Scope }) {
       <ScopeTabs
         baseHref="/demo/regear?tab=event_payout"
         active={scope}
+        initialOrder={scopeOrder}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
-        storageKey="agm.filter-order.demo-approvals.event-payout-scope.v1"
+        storageKey={DEMO_FILTER_ORDER_STORAGE_KEYS.eventPayoutScope}
       />
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-8">
@@ -413,7 +531,13 @@ async function EventPayoutSection({ scope }: { scope: Scope }) {
   )
 }
 
-async function CraftSection({ scope }: { scope: Scope }) {
+async function CraftSection({
+  scope,
+  scopeOrder,
+}: {
+  scope: Scope
+  scopeOrder: readonly Scope[]
+}) {
   const t = await getTranslations('adminCraftOrderReview')
   const filtered = scope === 'pending'
     ? DEMO_CRAFT_ORDERS.filter((c) => c.status === 'pending')
@@ -424,9 +548,10 @@ async function CraftSection({ scope }: { scope: Scope }) {
       <ScopeTabs
         baseHref="/demo/regear?tab=craft"
         active={scope}
+        initialOrder={scopeOrder}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
-        storageKey="agm.filter-order.demo-approvals.craft-scope.v1"
+        storageKey={DEMO_FILTER_ORDER_STORAGE_KEYS.craftScope}
       />
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-8">

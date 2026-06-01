@@ -1,10 +1,19 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, ArrowRight, GripHorizontal, RotateCcw } from 'lucide-react'
-import { moveFilterValue, orderedFilterValues, type FilterOrderDirection } from '@/lib/filter-order'
+import {
+  getInitialFilterHref,
+  moveFilterValue,
+  orderedFilterValues,
+  parseStoredFilterOrder,
+  type FilterOrderDirection,
+} from '@/lib/filter-order'
+
+const FILTER_ORDER_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
 
 export interface ReorderableFilterChipItem {
   value: string
@@ -25,23 +34,40 @@ interface Props {
   navClassName?: string
   listClassName?: string
   ariaLabel?: string
+  initialQueryParam?: string
+  initialOrder?: readonly string[]
 }
 
 function readStoredOrder(storageKey: string): string[] | null {
   try {
     const raw = window.localStorage.getItem(storageKey)
-    if (!raw) return null
-    const parsed: unknown = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return null
-    return parsed.filter((value): value is string => typeof value === 'string')
+    return parseStoredFilterOrder(raw)
   } catch {
     return null
+  }
+}
+
+function writeStoredOrderCookie(storageKey: string, order: readonly string[]) {
+  try {
+    const value = encodeURIComponent(JSON.stringify(order))
+    document.cookie = `${storageKey}=${value}; Path=/; Max-Age=${FILTER_ORDER_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`
+  } catch {
+    // Preference storage is best-effort; filter navigation must still work.
   }
 }
 
 function writeStoredOrder(storageKey: string, order: readonly string[]) {
   try {
     window.localStorage.setItem(storageKey, JSON.stringify(order))
+  } catch {
+    // Preference storage is best-effort; filter navigation must still work.
+  }
+  writeStoredOrderCookie(storageKey, order)
+}
+
+function removeStoredOrderCookie(storageKey: string) {
+  try {
+    document.cookie = `${storageKey}=; Path=/; Max-Age=0; SameSite=Lax`
   } catch {
     // Preference storage is best-effort; filter navigation must still work.
   }
@@ -53,6 +79,7 @@ function removeStoredOrder(storageKey: string) {
   } catch {
     // Preference storage is best-effort; filter navigation must still work.
   }
+  removeStoredOrderCookie(storageKey)
 }
 
 export default function ReorderableFilterChips({
@@ -67,17 +94,29 @@ export default function ReorderableFilterChips({
   navClassName = 'flex items-center gap-2 flex-wrap',
   listClassName = 'flex items-center gap-2 flex-wrap',
   ariaLabel,
+  initialQueryParam,
+  initialOrder,
 }: Props) {
   const t = useTranslations('common')
+  const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
   const defaultOrder = useMemo(() => items.map((item) => item.value), [items])
-  const [order, setOrder] = useState<string[]>(defaultOrder)
+  const initialOrderedValues = useMemo(
+    () => orderedFilterValues(defaultOrder, initialOrder),
+    [defaultOrder, initialOrder],
+  )
+  const [order, setOrder] = useState<string[]>(initialOrderedValues)
+  const [hasHydratedOrder, setHasHydratedOrder] = useState(false)
 
   useEffect(() => {
     // localStorage is browser-only; hydrate after mount so SSR markup stays stable.
+    const storedOrder = readStoredOrder(storageKey)
+    const nextOrder = orderedFilterValues(defaultOrder, storedOrder ?? initialOrder)
+    if (storedOrder) writeStoredOrderCookie(storageKey, nextOrder)
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setOrder(orderedFilterValues(defaultOrder, readStoredOrder(storageKey)))
-  }, [defaultOrder, storageKey])
+    setOrder(nextOrder)
+    setHasHydratedOrder(true)
+  }, [defaultOrder, initialOrder, storageKey])
 
   const orderedItems = useMemo(() => {
     const itemsByValue = new Map(items.map((item) => [item.value, item]))
@@ -85,6 +124,22 @@ export default function ReorderableFilterChips({
       .map((value) => itemsByValue.get(value))
       .filter((item): item is ReorderableFilterChipItem => !!item)
   }, [defaultOrder, items, order])
+
+  useEffect(() => {
+    if (!hasHydratedOrder) return
+    if (!initialQueryParam) return
+    const targetHref = getInitialFilterHref({
+      activeValue,
+      queryParam: initialQueryParam,
+      search: window.location.search,
+      items: orderedItems,
+    })
+    if (!targetHref) return
+
+    const currentHref = `${window.location.pathname}${window.location.search}`
+    if (targetHref === currentHref) return
+    router.replace(targetHref, { scroll: false })
+  }, [activeValue, hasHydratedOrder, initialQueryParam, orderedItems, router])
 
   const persistOrder = (nextOrder: string[]) => {
     setOrder(nextOrder)

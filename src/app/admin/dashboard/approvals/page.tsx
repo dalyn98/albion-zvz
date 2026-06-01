@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { ShieldCheck, Wallet, Gift, ShoppingBag, Coins, ClipboardList } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
@@ -33,6 +34,10 @@ import { getSession, sessionHasAny } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { CAP } from '@/lib/permissions'
+import {
+  firstOrderedFilterValue,
+  storedFilterOrderValues,
+} from '@/lib/filter-order'
 
 type TypeKey = 'regear' | 'exchange' | 'donation' | 'shop' | 'event_payout' | 'craft'
 type Scope = 'pending' | 'all'
@@ -57,18 +62,53 @@ function resolveType(v: string | undefined): TypeKey {
   return 'regear'
 }
 
-function resolveScope(v: string | undefined): Scope {
-  return v === 'all' ? 'all' : 'pending'
+const SCOPE_FILTER_ORDER = ['pending', 'all'] as const satisfies readonly Scope[]
+const REGEAR_ORIGIN_FILTER_ORDER = [
+  'auto',
+  'manual',
+  'all',
+] as const satisfies readonly RegearOrigin[]
+const REGEAR_RELATION_FILTER_ORDER = [
+  'all',
+  'home_guild',
+  'alliance',
+] as const satisfies readonly RegearRelationFilter[]
+
+const ADMIN_FILTER_ORDER_STORAGE_KEYS = {
+  regearOrigin: 'agm.filter-order.admin-approvals.regear-origin.v1',
+  regearRelation: 'agm.filter-order.admin-approvals.regear-relation.v1',
+  regearScope: 'agm.filter-order.admin-approvals.regear-scope.v1',
+  exchangeScope: 'agm.filter-order.admin-approvals.exchange-scope.v1',
+  donationScope: 'agm.filter-order.admin-approvals.donation-scope.v1',
+  shopScope: 'agm.filter-order.admin-approvals.shop-scope.v1',
+  eventPayoutScope: 'agm.filter-order.admin-approvals.event-payout-scope.v1',
+  craftScope: 'agm.filter-order.admin-approvals.craft-scope.v1',
+} as const
+
+const ADMIN_SCOPE_FILTER_ORDER_STORAGE_KEYS: Record<TypeKey, string> = {
+  regear: ADMIN_FILTER_ORDER_STORAGE_KEYS.regearScope,
+  exchange: ADMIN_FILTER_ORDER_STORAGE_KEYS.exchangeScope,
+  donation: ADMIN_FILTER_ORDER_STORAGE_KEYS.donationScope,
+  shop: ADMIN_FILTER_ORDER_STORAGE_KEYS.shopScope,
+  event_payout: ADMIN_FILTER_ORDER_STORAGE_KEYS.eventPayoutScope,
+  craft: ADMIN_FILTER_ORDER_STORAGE_KEYS.craftScope,
 }
 
-function resolveOrigin(v: string | undefined): RegearOrigin {
-  if (v === 'manual' || v === 'all') return v
-  return 'auto'
+function resolveScope(v: string | undefined, fallback: Scope): Scope {
+  return v === 'pending' || v === 'all' ? v : fallback
 }
 
-function resolveRelation(v: string | undefined): RegearRelationFilter {
-  if (v === 'home_guild' || v === 'alliance') return v
-  return 'all'
+function resolveOrigin(v: string | undefined, fallback: RegearOrigin): RegearOrigin {
+  if (v === 'auto' || v === 'manual' || v === 'all') return v
+  return fallback
+}
+
+function resolveRelation(
+  v: string | undefined,
+  fallback: RegearRelationFilter,
+): RegearRelationFilter {
+  if (v === 'all' || v === 'home_guild' || v === 'alliance') return v
+  return fallback
 }
 
 const APPROVAL_TAB_CAPABILITIES: Record<TypeKey, readonly bigint[]> = {
@@ -105,9 +145,38 @@ export default async function ApprovalsPage({
 }) {
   const sp = await searchParams
   const type = resolveType(sp.tab)
-  const scope = resolveScope(sp.scope)
-  const origin = resolveOrigin(sp.origin)
-  const relation = resolveRelation(sp.relation)
+  const cookieStore = await cookies()
+  const scopeStorageKey = ADMIN_SCOPE_FILTER_ORDER_STORAGE_KEYS[type]
+  const scopeOrder = storedFilterOrderValues(
+    SCOPE_FILTER_ORDER,
+    cookieStore.get(scopeStorageKey)?.value,
+  )
+  const originOrder = storedFilterOrderValues(
+    REGEAR_ORIGIN_FILTER_ORDER,
+    cookieStore.get(ADMIN_FILTER_ORDER_STORAGE_KEYS.regearOrigin)?.value,
+  )
+  const relationOrder = storedFilterOrderValues(
+    REGEAR_RELATION_FILTER_ORDER,
+    cookieStore.get(ADMIN_FILTER_ORDER_STORAGE_KEYS.regearRelation)?.value,
+  )
+  const scope = resolveScope(
+    sp.scope,
+    firstOrderedFilterValue(SCOPE_FILTER_ORDER, cookieStore.get(scopeStorageKey)?.value),
+  )
+  const origin = resolveOrigin(
+    sp.origin,
+    firstOrderedFilterValue(
+      REGEAR_ORIGIN_FILTER_ORDER,
+      cookieStore.get(ADMIN_FILTER_ORDER_STORAGE_KEYS.regearOrigin)?.value,
+    ),
+  )
+  const relation = resolveRelation(
+    sp.relation,
+    firstOrderedFilterValue(
+      REGEAR_RELATION_FILTER_ORDER,
+      cookieStore.get(ADMIN_FILTER_ORDER_STORAGE_KEYS.regearRelation)?.value,
+    ),
+  )
 
   const session = await getSession()
   if (!session) {
@@ -145,14 +214,27 @@ export default async function ApprovalsPage({
           scope={scope}
           origin={origin}
           relation={relation}
+          scopeOrder={scopeOrder}
+          originOrder={originOrder}
+          relationOrder={relationOrder}
           guildId={guildId}
         />
       )}
-      {type === 'exchange' && <ExchangeSection scope={scope} guildId={guildId} />}
-      {type === 'donation' && <DonationSection scope={scope} guildId={guildId} />}
-      {type === 'shop' && <ShopSection scope={scope} guildId={guildId} />}
-      {type === 'event_payout' && <EventPayoutSection scope={scope} guildId={guildId} />}
-      {type === 'craft' && <CraftSection scope={scope} guildId={guildId} />}
+      {type === 'exchange' && (
+        <ExchangeSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
+      )}
+      {type === 'donation' && (
+        <DonationSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
+      )}
+      {type === 'shop' && (
+        <ShopSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
+      )}
+      {type === 'event_payout' && (
+        <EventPayoutSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
+      )}
+      {type === 'craft' && (
+        <CraftSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
+      )}
     </div>
   )
 }
@@ -213,6 +295,7 @@ function TypeTabs({ active, tabs, tabsLabel }: TypeTabsProps) {
 interface ScopeTabsProps {
   baseHref: string
   active: Scope
+  initialOrder: readonly Scope[]
   tKeys: {
     pending: string
     all: string
@@ -221,7 +304,14 @@ interface ScopeTabsProps {
   storageKey: string
 }
 
-function ScopeTabs({ baseHref, active, tKeys, accent, storageKey }: ScopeTabsProps) {
+function ScopeTabs({
+  baseHref,
+  active,
+  initialOrder,
+  tKeys,
+  accent,
+  storageKey,
+}: ScopeTabsProps) {
   const activeClass =
     accent === 'emerald'
       ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
@@ -235,6 +325,8 @@ function ScopeTabs({ baseHref, active, tKeys, accent, storageKey }: ScopeTabsPro
   return (
     <ReorderableFilterChips
       storageKey={storageKey}
+      initialQueryParam="scope"
+      initialOrder={initialOrder}
       activeValue={active}
       activeClassName={activeClass}
       items={scopes.map(({ value, label }) => ({
@@ -252,11 +344,17 @@ async function RegearSection({
   scope,
   origin,
   relation,
+  scopeOrder,
+  originOrder,
+  relationOrder,
   guildId,
 }: {
   scope: Scope
   origin: RegearOrigin
   relation: RegearRelationFilter
+  scopeOrder: readonly Scope[]
+  originOrder: readonly RegearOrigin[]
+  relationOrder: readonly RegearRelationFilter[]
   guildId: string
 }) {
   const [
@@ -293,6 +391,7 @@ async function RegearSection({
         active={origin}
         scope={scope}
         relation={relation}
+        initialOrder={originOrder}
         counts={counts}
         tKeys={{
           auto: t('originAuto'),
@@ -304,6 +403,7 @@ async function RegearSection({
         active={relation}
         scope={scope}
         origin={origin}
+        initialOrder={relationOrder}
         counts={relationCounts}
         tKeys={{
           home_guild: t('relationHomeGuild'),
@@ -314,9 +414,10 @@ async function RegearSection({
       <ScopeTabs
         baseHref={regearBaseHref(origin, relation)}
         active={scope}
+        initialOrder={scopeOrder}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
-        storageKey="agm.filter-order.admin-approvals.regear-scope.v1"
+        storageKey={ADMIN_FILTER_ORDER_STORAGE_KEYS.regearScope}
       />
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
@@ -355,6 +456,7 @@ interface RegearOriginTabsProps {
   active: RegearOrigin
   scope: Scope
   relation: RegearRelationFilter
+  initialOrder: readonly RegearOrigin[]
   counts: RegearOriginCounts
   tKeys: {
     auto: string
@@ -363,7 +465,14 @@ interface RegearOriginTabsProps {
   }
 }
 
-function RegearOriginTabs({ active, scope, relation, counts, tKeys }: RegearOriginTabsProps) {
+function RegearOriginTabs({
+  active,
+  scope,
+  relation,
+  initialOrder,
+  counts,
+  tKeys,
+}: RegearOriginTabsProps) {
   const origins: Array<{ value: RegearOrigin; label: string; count: number }> = [
     { value: 'auto', label: tKeys.auto, count: counts.auto },
     { value: 'manual', label: tKeys.manual, count: counts.manual },
@@ -371,7 +480,9 @@ function RegearOriginTabs({ active, scope, relation, counts, tKeys }: RegearOrig
   ]
   return (
     <ReorderableFilterChips
-      storageKey="agm.filter-order.admin-approvals.regear-origin.v1"
+      storageKey={ADMIN_FILTER_ORDER_STORAGE_KEYS.regearOrigin}
+      initialQueryParam="origin"
+      initialOrder={initialOrder}
       activeValue={active}
       activeClassName="bg-sky-500/20 border-sky-500/50 text-sky-300"
       countActiveClassName="bg-sky-500/30 text-sky-200"
@@ -396,6 +507,7 @@ interface RegearRelationTabsProps {
   active: RegearRelationFilter
   scope: Scope
   origin: RegearOrigin
+  initialOrder: readonly RegearRelationFilter[]
   counts: RegearRelationCounts
   tKeys: {
     home_guild: string
@@ -408,6 +520,7 @@ function RegearRelationTabs({
   active,
   scope,
   origin,
+  initialOrder,
   counts,
   tKeys,
 }: RegearRelationTabsProps) {
@@ -418,7 +531,9 @@ function RegearRelationTabs({
   ]
   return (
     <ReorderableFilterChips
-      storageKey="agm.filter-order.admin-approvals.regear-relation.v1"
+      storageKey={ADMIN_FILTER_ORDER_STORAGE_KEYS.regearRelation}
+      initialQueryParam="relation"
+      initialOrder={initialOrder}
       activeValue={active}
       activeClassName="bg-violet-500/20 border-violet-500/50 text-violet-300"
       countActiveClassName="bg-violet-500/30 text-violet-200"
@@ -439,7 +554,15 @@ function RegearRelationTabs({
   )
 }
 
-async function ExchangeSection({ scope, guildId }: { scope: Scope; guildId: string }) {
+async function ExchangeSection({
+  scope,
+  scopeOrder,
+  guildId,
+}: {
+  scope: Scope
+  scopeOrder: readonly Scope[]
+  guildId: string
+}) {
   const [{ requests, error }, t, timezone] = await Promise.all([
     listExchangeRequests(scope),
     getTranslations('adminExchangeReview'),
@@ -453,9 +576,10 @@ async function ExchangeSection({ scope, guildId }: { scope: Scope; guildId: stri
       <ScopeTabs
         baseHref="/admin/dashboard/approvals?tab=exchange"
         active={scope}
+        initialOrder={scopeOrder}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
-        storageKey="agm.filter-order.admin-approvals.exchange-scope.v1"
+        storageKey={ADMIN_FILTER_ORDER_STORAGE_KEYS.exchangeScope}
       />
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
@@ -473,7 +597,15 @@ async function ExchangeSection({ scope, guildId }: { scope: Scope; guildId: stri
   )
 }
 
-async function ShopSection({ scope, guildId }: { scope: Scope; guildId: string }) {
+async function ShopSection({
+  scope,
+  scopeOrder,
+  guildId,
+}: {
+  scope: Scope
+  scopeOrder: readonly Scope[]
+  guildId: string
+}) {
   const [{ orders, error }, t, timezone] = await Promise.all([
     listShopOrders(scope),
     getTranslations('adminShopReview'),
@@ -487,9 +619,10 @@ async function ShopSection({ scope, guildId }: { scope: Scope; guildId: string }
       <ScopeTabs
         baseHref="/admin/dashboard/approvals?tab=shop"
         active={scope}
+        initialOrder={scopeOrder}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
-        storageKey="agm.filter-order.admin-approvals.shop-scope.v1"
+        storageKey={ADMIN_FILTER_ORDER_STORAGE_KEYS.shopScope}
       />
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
@@ -507,7 +640,15 @@ async function ShopSection({ scope, guildId }: { scope: Scope; guildId: string }
   )
 }
 
-async function EventPayoutSection({ scope, guildId }: { scope: Scope; guildId: string }) {
+async function EventPayoutSection({
+  scope,
+  scopeOrder,
+  guildId,
+}: {
+  scope: Scope
+  scopeOrder: readonly Scope[]
+  guildId: string
+}) {
   const [{ requests, error }, t, tz] = await Promise.all([
     listEventPayoutRequests(scope),
     getTranslations('adminEventPayoutReview'),
@@ -519,9 +660,10 @@ async function EventPayoutSection({ scope, guildId }: { scope: Scope; guildId: s
       <ScopeTabs
         baseHref="/admin/dashboard/approvals?tab=event_payout"
         active={scope}
+        initialOrder={scopeOrder}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
-        storageKey="agm.filter-order.admin-approvals.event-payout-scope.v1"
+        storageKey={ADMIN_FILTER_ORDER_STORAGE_KEYS.eventPayoutScope}
       />
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
@@ -539,7 +681,15 @@ async function EventPayoutSection({ scope, guildId }: { scope: Scope; guildId: s
   )
 }
 
-async function CraftSection({ scope, guildId }: { scope: Scope; guildId: string }) {
+async function CraftSection({
+  scope,
+  scopeOrder,
+  guildId,
+}: {
+  scope: Scope
+  scopeOrder: readonly Scope[]
+  guildId: string
+}) {
   const [{ tasks, error }, t, timezone] = await Promise.all([
     listCraftOrderTasksForReview(scope),
     getTranslations('adminCraftOrderReview'),
@@ -556,9 +706,10 @@ async function CraftSection({ scope, guildId }: { scope: Scope; guildId: string 
       <ScopeTabs
         baseHref="/admin/dashboard/approvals?tab=craft"
         active={scope}
+        initialOrder={scopeOrder}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
-        storageKey="agm.filter-order.admin-approvals.craft-scope.v1"
+        storageKey={ADMIN_FILTER_ORDER_STORAGE_KEYS.craftScope}
       />
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
@@ -576,7 +727,15 @@ async function CraftSection({ scope, guildId }: { scope: Scope; guildId: string 
   )
 }
 
-async function DonationSection({ scope, guildId }: { scope: Scope; guildId: string }) {
+async function DonationSection({
+  scope,
+  scopeOrder,
+  guildId,
+}: {
+  scope: Scope
+  scopeOrder: readonly Scope[]
+  guildId: string
+}) {
   const [{ requests, error }, t, timezone] = await Promise.all([
     listDonationRequests(scope),
     getTranslations('adminDonationReview'),
@@ -590,9 +749,10 @@ async function DonationSection({ scope, guildId }: { scope: Scope; guildId: stri
       <ScopeTabs
         baseHref="/admin/dashboard/approvals?tab=donation"
         active={scope}
+        initialOrder={scopeOrder}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="emerald"
-        storageKey="agm.filter-order.admin-approvals.donation-scope.v1"
+        storageKey={ADMIN_FILTER_ORDER_STORAGE_KEYS.donationScope}
       />
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
