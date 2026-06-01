@@ -1287,6 +1287,10 @@
     "channelHint": "Choose a Discord channel visible only to operators.",
     "channelsLoading": "Loading channel list…",
     "channelRequired": "Choose a channel before enabling admin alerts.",
+    "channelIdPlaceholder": "Enter Discord channel ID",
+    "channelManualHint": "You can save by entering a channel ID even when the list cannot be loaded.",
+    "channelUnknown": "#{id} (saved channel)",
+    "channelLoadError": "Could not load Discord channels. Try again shortly or enter the channel ID manually.",
     "digestLabel": "Digest alerts",
     "digestOff": "Off",
     "digest30": "Every 30 minutes",
@@ -1300,6 +1304,7 @@
     "roleSearchPlaceholder": "Search roles",
     "rolesLoading": "Loading roles…",
     "rolesEmpty": "No roles available.",
+    "roleLoadError": "Could not load Discord roles. You can save without role mentions.",
     "clearSelection": "Clear all",
     "noMatches": "No matching roles.",
     "topicsLabel": "Alert topics",
@@ -1323,7 +1328,6 @@
       "sync": "Digest killboard, battle, and member sync delays.",
       "members": "Digest unverified or review-pending members."
     },
-    "loadError": "Could not load Discord channels or roles.",
     "save": "Save",
     "saving": "Saving…",
     "saved": "Saved"

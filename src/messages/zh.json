@@ -1287,6 +1287,10 @@
     "channelHint": "请选择仅运营者可见的 Discord 频道。",
     "channelsLoading": "正在加载频道列表…",
     "channelRequired": "启用管理员通知前必须选择频道。",
+    "channelIdPlaceholder": "输入 Discord 频道 ID",
+    "channelManualHint": "即使无法加载列表，也可以直接输入频道 ID 后保存。",
+    "channelUnknown": "#{id}（已保存频道）",
+    "channelLoadError": "无法加载 Discord 频道列表。请稍后重试，或直接输入频道 ID。",
     "digestLabel": "摘要通知",
     "digestOff": "不使用",
     "digest30": "每 30 分钟",
@@ -1300,6 +1304,7 @@
     "roleSearchPlaceholder": "按角色名搜索",
     "rolesLoading": "正在加载角色列表…",
     "rolesEmpty": "没有可用角色。",
+    "roleLoadError": "无法加载 Discord 角色列表。可以不提及角色直接保存。",
     "clearSelection": "全部清除",
     "noMatches": "没有匹配的角色。",
     "topicsLabel": "通知项目",
@@ -1323,7 +1328,6 @@
       "sync": "汇总击杀板、战斗和成员同步延迟。",
       "members": "汇总未验证或待审核成员。"
     },
-    "loadError": "无法加载 Discord 频道或角色列表。",
     "save": "保存",
     "saving": "保存中…",
     "saved": "已保存"

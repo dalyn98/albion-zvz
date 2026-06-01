@@ -1287,6 +1287,10 @@
     "channelHint": "運営者だけが見られる Discord チャンネルを選択してください。",
     "channelsLoading": "チャンネル一覧を読み込み中…",
     "channelRequired": "管理者通知をオンにするにはチャンネルを選択してください。",
+    "channelIdPlaceholder": "Discord チャンネル ID を入力",
+    "channelManualHint": "一覧を読み込めない場合でも、チャンネル ID を直接入力して保存できます。",
+    "channelUnknown": "#{id}（保存済みチャンネル）",
+    "channelLoadError": "Discord チャンネル一覧を読み込めませんでした。しばらくしてから再試行するか、チャンネル ID を直接入力してください。",
     "digestLabel": "要約通知",
     "digestOff": "使用しない",
     "digest30": "30分ごと",
@@ -1300,6 +1304,7 @@
     "roleSearchPlaceholder": "役職名で検索",
     "rolesLoading": "役職一覧を読み込み中…",
     "rolesEmpty": "利用可能な役職がありません。",
+    "roleLoadError": "Discord 役職一覧を読み込めませんでした。役職メンションなしで保存できます。",
     "clearSelection": "すべて解除",
     "noMatches": "一致する役職がありません。",
     "topicsLabel": "通知項目",
@@ -1323,7 +1328,6 @@
       "sync": "キルボード・戦闘・メンバー同期の遅延を要約します。",
       "members": "未認証または確認待ちメンバーを要約します。"
     },
-    "loadError": "Discord チャンネルまたは役職一覧を読み込めませんでした。",
     "save": "保存",
     "saving": "保存中…",
     "saved": "保存しました"

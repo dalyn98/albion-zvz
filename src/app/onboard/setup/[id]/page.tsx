@@ -1,26 +1,16 @@
 import { getTranslations } from 'next-intl/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import TenantSetupForm from '@/components/TenantSetupForm'
+import {
+  fetchDiscordGuildChannels,
+  fetchDiscordGuildRoles,
+  isDiscordGuildResourceError,
+  type RawDiscordChannel,
+  type RawDiscordRole,
+} from '@/lib/discord-guild-resources'
+import { log } from '@/lib/log'
 
 export const dynamic = 'force-dynamic'
-
-interface RawDiscordRole {
-  id: string
-  name: string
-  color: number
-  position: number
-  managed?: boolean
-  // Discord permission bitmask as decimal string ("8" = ADMINISTRATOR).
-  permissions?: string
-}
-
-interface RawDiscordChannel {
-  id: string
-  name: string
-  type: number
-  position: number
-  parent_id: string | null
-}
 
 interface DiscordRoleOption {
   id: string
@@ -56,6 +46,21 @@ interface DiscordChannelOption {
   parent_id: string | null
 }
 
+function logDiscordSetupLoadFailure(error: unknown, discordGuildId: string): void {
+  if (isDiscordGuildResourceError(error)) {
+    log.error('[onboard/setup] failed to load Discord guild resource', undefined, {
+      discord_guild_id: discordGuildId,
+      resource: error.resource,
+      status: error.status,
+      response: error.response,
+    })
+    return
+  }
+  log.error('[onboard/setup] failed to load Discord guild resource', error, {
+    discord_guild_id: discordGuildId,
+  })
+}
+
 // /onboard/setup/[id] — 위저드 1단계: Discord 역할 + 공지 채널. 세션·소유권 검증은
 // layout.tsx 가 담당하고, 여기서는 discord_guild_id 만 다시 불러 Discord API 로
 // 역할/채널 후보를 프리로드한다.
@@ -78,48 +83,39 @@ export default async function TenantSetupPage({ params }: Props) {
   const t = await getTranslations('onboard')
 
   // Discord 역할/채널 프리로드. 실패하면 빈 배열로 대체하고 폼에서 안내.
-  const botToken = process.env.DISCORD_BOT_TOKEN
   let roles: DiscordRoleOption[] = []
   let channels: DiscordChannelOption[] = []
-  if (botToken && discordGuildId) {
-    try {
-      const [rolesRes, channelsRes] = await Promise.all([
-        fetch(`https://discord.com/api/v10/guilds/${discordGuildId}/roles`, {
-          headers: { Authorization: `Bot ${botToken}` },
-          cache: 'no-store',
-        }),
-        fetch(`https://discord.com/api/v10/guilds/${discordGuildId}/channels`, {
-          headers: { Authorization: `Bot ${botToken}` },
-          cache: 'no-store',
-        }),
-      ])
-      if (rolesRes.ok) {
-        const raw = (await rolesRes.json()) as RawDiscordRole[]
-        roles = raw
-          .filter((r) => r.id !== discordGuildId && !r.managed)
-          .map((r) => ({
-            id: r.id,
-            name: r.name,
-            color: r.color,
-            position: r.position,
-            hasAdminPerm: hasAdminPermissionBit(r.permissions),
-          }))
-          .sort((a, b) => b.position - a.position)
-      }
-      if (channelsRes.ok) {
-        const raw = (await channelsRes.json()) as RawDiscordChannel[]
-        channels = raw
-          .filter((c) => c.type === 0 || c.type === 5)
-          .map((c) => ({
-            id: c.id,
-            name: c.name,
-            position: c.position,
-            parent_id: c.parent_id,
-          }))
-          .sort((a, b) => a.position - b.position)
-      }
-    } catch (e) {
-      console.error('[onboard/setup] failed to load Discord roles/channels', e)
+  if (discordGuildId) {
+    const [rolesResult, channelsResult] = await Promise.allSettled([
+      fetchDiscordGuildRoles(discordGuildId),
+      fetchDiscordGuildChannels(discordGuildId),
+    ])
+    if (rolesResult.status === 'fulfilled') {
+      roles = rolesResult.value
+        .filter((r: RawDiscordRole) => r.id !== discordGuildId && !r.managed)
+        .map((r: RawDiscordRole) => ({
+          id: r.id,
+          name: r.name,
+          color: r.color,
+          position: r.position,
+          hasAdminPerm: hasAdminPermissionBit(r.permissions),
+        }))
+        .sort((a, b) => b.position - a.position)
+    } else {
+      logDiscordSetupLoadFailure(rolesResult.reason, discordGuildId)
+    }
+    if (channelsResult.status === 'fulfilled') {
+      channels = channelsResult.value
+        .filter((c: RawDiscordChannel) => c.type === 0 || c.type === 5)
+        .map((c: RawDiscordChannel) => ({
+          id: c.id,
+          name: c.name,
+          position: c.position,
+          parent_id: c.parent_id,
+        }))
+        .sort((a, b) => a.position - b.position)
+    } else {
+      logDiscordSetupLoadFailure(channelsResult.reason, discordGuildId)
     }
   }
 

@@ -11,6 +11,11 @@ import { log } from '@/lib/log'
 import { CATEGORY_NOTIFY_COLUMN, EVENT_CATEGORIES, type EventCategory } from '@/types'
 import { CAP } from '@/lib/permissions'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
+import {
+  fetchDiscordGuildChannels,
+  fetchDiscordGuildRoles,
+  isDiscordGuildResourceError,
+} from '@/lib/discord-guild-resources'
 
 // 사용자(길드원/게스트) 본인의 Discord DM 수신 토글과 관리자용 Discord 역할
 // 목록 조회를 담당. 웹 푸시 스택(actions/push.ts) 을 대체한다.
@@ -199,23 +204,6 @@ export interface DiscordChannelOption {
   parent_id: string | null
 }
 
-interface RawDiscordRole {
-  id: string
-  name: string
-  color: number
-  position: number
-  managed?: boolean
-}
-
-interface RawDiscordChannel {
-  id: string
-  name: string
-  // type 0 = GUILD_TEXT, 5 = GUILD_ANNOUNCEMENT. Others (voice/forum/etc.) 배제.
-  type: number
-  position: number
-  parent_id: string | null
-}
-
 // 관리자 이벤트 편집 UI 에서 "어떤 역할을 태그할지" 고르는 드롭다운용.
 // Discord API 로 길드 역할 전체를 한 번에 받아 UI 에 보낸다.
 // @everyone 와 관리 역할(봇 자동 생성) 은 제외.
@@ -224,6 +212,8 @@ export async function listGuildRoles(): Promise<{
   error?: string
 }> {
   const tErr = await getTranslations('adminActionError')
+  let sessionGuildId: string | null = null
+  let discordGuildId: string | null = null
   try {
     const session = await getSession()
     if (!session) return { roles: [], error: tErr('serverError') }
@@ -238,28 +228,13 @@ export async function listGuildRoles(): Promise<{
     ) {
       throw new Error('Unauthorized')
     }
-    const sessionGuildId = await getSessionGuildId(session)
+    sessionGuildId = await getSessionGuildId(session)
     const tenantConfig = await getTenantDiscordConfig(sessionGuildId)
-    const botToken = process.env.DISCORD_BOT_TOKEN
-    if (!botToken || !tenantConfig) {
+    if (!tenantConfig) {
       return { roles: [], error: tErr('serverError') }
     }
-    const discordGuildId = tenantConfig.discordGuildId
-    const res = await fetch(`https://discord.com/api/v10/guilds/${discordGuildId}/roles`, {
-      headers: { Authorization: `Bot ${botToken}` },
-      cache: 'no-store',
-    })
-    if (!res.ok) {
-      const text = await res.text().catch(() => '')
-      log.error('[notifications] listGuildRoles failed', undefined, {
-        tenant_id: sessionGuildId,
-        discord_guild_id: discordGuildId,
-        status: res.status,
-        response: text,
-      })
-      return { roles: [], error: tErr('serverError') }
-    }
-    const raw = (await res.json()) as RawDiscordRole[]
+    discordGuildId = tenantConfig.discordGuildId
+    const raw = await fetchDiscordGuildRoles(discordGuildId)
     // @everyone 은 id === guildId 로 식별된다. Discord API 특성.
     // managed=true 는 봇/Integration 이 자동 생성한 역할 — 수동 멘션 대상 아님.
     const roles = raw
@@ -268,6 +243,15 @@ export async function listGuildRoles(): Promise<{
       .sort((a, b) => b.position - a.position)
     return { roles }
   } catch (e) {
+    if (isDiscordGuildResourceError(e)) {
+      log.error('[notifications] listGuildRoles failed', undefined, {
+        tenant_id: sessionGuildId,
+        discord_guild_id: discordGuildId ?? e.discordGuildId,
+        status: e.status,
+        response: e.response,
+      })
+      return { roles: [], error: tErr('serverError') }
+    }
     return { roles: [], error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }
@@ -280,6 +264,8 @@ export async function listGuildChannels(): Promise<{
   error?: string
 }> {
   const tErr = await getTranslations('adminActionError')
+  let sessionGuildId: string | null = null
+  let discordGuildId: string | null = null
   try {
     const session = await getSession()
     if (!session) return { channels: [], error: tErr('serverError') }
@@ -290,27 +276,13 @@ export async function listGuildChannels(): Promise<{
     ) {
       throw new Error('Unauthorized')
     }
-    const sessionGuildId = await getSessionGuildId(session)
+    sessionGuildId = await getSessionGuildId(session)
     const tenantConfig = await getTenantDiscordConfig(sessionGuildId)
-    const botToken = process.env.DISCORD_BOT_TOKEN
-    if (!botToken || !tenantConfig) {
+    if (!tenantConfig) {
       return { channels: [], error: tErr('serverError') }
     }
-    const res = await fetch(`https://discord.com/api/v10/guilds/${tenantConfig.discordGuildId}/channels`, {
-      headers: { Authorization: `Bot ${botToken}` },
-      cache: 'no-store',
-    })
-    if (!res.ok) {
-      const text = await res.text().catch(() => '')
-      log.error('[notifications] listGuildChannels failed', undefined, {
-        tenant_id: sessionGuildId,
-        discord_guild_id: tenantConfig.discordGuildId,
-        status: res.status,
-        response: text,
-      })
-      return { channels: [], error: tErr('serverError') }
-    }
-    const raw = (await res.json()) as RawDiscordChannel[]
+    discordGuildId = tenantConfig.discordGuildId
+    const raw = await fetchDiscordGuildChannels(discordGuildId)
     // GUILD_TEXT(0) 과 GUILD_ANNOUNCEMENT(5) 만 — 그 외 카테고리/보이스/포럼은
     // 봇 메시지 대상이 아니라서 UI 에 노출 안함.
     const channels = raw
@@ -319,6 +291,15 @@ export async function listGuildChannels(): Promise<{
       .sort((a, b) => a.position - b.position)
     return { channels }
   } catch (e) {
+    if (isDiscordGuildResourceError(e)) {
+      log.error('[notifications] listGuildChannels failed', undefined, {
+        tenant_id: sessionGuildId,
+        discord_guild_id: discordGuildId ?? e.discordGuildId,
+        status: e.status,
+        response: e.response,
+      })
+      return { channels: [], error: tErr('serverError') }
+    }
     return { channels: [], error: e instanceof Error ? e.message : tErr('serverError') }
   }
 }

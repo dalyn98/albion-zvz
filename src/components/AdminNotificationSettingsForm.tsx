@@ -47,7 +47,8 @@ export default function AdminNotificationSettingsForm({
   const roleBoxRef = useRef<HTMLDivElement>(null)
   const [channels, setChannels] = useState<DiscordChannelOption[] | null>(null)
   const [roles, setRoles] = useState<DiscordRoleOption[] | null>(null)
-  const [loadError, setLoadError] = useState('')
+  const [channelLoadError, setChannelLoadError] = useState('')
+  const [roleLoadError, setRoleLoadError] = useState('')
   const [enabled, setEnabled] = useState(initialEnabled)
   const [channelId, setChannelId] = useState(initialChannelId)
   const [roleIds, setRoleIds] = useState<Set<string>>(new Set(initialRoleIds))
@@ -65,13 +66,25 @@ export default function AdminNotificationSettingsForm({
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const [channelRes, roleRes] = await Promise.all([listGuildChannels(), listGuildRoles()])
+      const [channelResult, roleResult] = await Promise.allSettled([
+        listGuildChannels(),
+        listGuildRoles(),
+      ])
       if (cancelled) return
-      if (channelRes.error || roleRes.error) {
-        setLoadError(t('loadError'))
+      if (channelResult.status === 'fulfilled') {
+        setChannelLoadError(channelResult.value.error ? t('channelLoadError') : '')
+        setChannels(channelResult.value.channels)
+      } else {
+        setChannelLoadError(t('channelLoadError'))
+        setChannels([])
       }
-      setChannels(channelRes.channels)
-      setRoles(roleRes.roles)
+      if (roleResult.status === 'fulfilled') {
+        setRoleLoadError(roleResult.value.error ? t('roleLoadError') : '')
+        setRoles(roleResult.value.roles)
+      } else {
+        setRoleLoadError(t('roleLoadError'))
+        setRoles([])
+      }
     })()
     return () => {
       cancelled = true
@@ -114,6 +127,8 @@ export default function AdminNotificationSettingsForm({
     if (!roles) return []
     return roles.filter((role) => roleIds.has(role.id))
   }, [roles, roleIds])
+  const selectedChannelMissing =
+    channels !== null && !!channelId && !channels.some((channel) => channel.id === channelId)
 
   const toggleRole = (id: string) => {
     setRoleIds((prev) => {
@@ -177,12 +192,6 @@ export default function AdminNotificationSettingsForm({
         <p className="text-gray-500 text-xs mt-1 leading-relaxed">{t('description')}</p>
       </div>
 
-      {loadError && (
-        <div className="bg-red-900/30 border border-red-700 rounded-lg px-3 py-2 text-red-300 text-xs">
-          {loadError}
-        </div>
-      )}
-
       <label className="flex items-start gap-3 rounded-lg border border-gray-800 bg-gray-950/50 p-3">
         <input
           type="checkbox"
@@ -205,25 +214,50 @@ export default function AdminNotificationSettingsForm({
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <label className="mb-1 block text-xs text-gray-400">{t('channelLabel')}</label>
-          <select
-            value={channelId}
-            onChange={(e) => {
-              setChannelId(e.target.value)
-              setSaved(false)
-            }}
-            disabled={saving || channels === null}
-            className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white focus:border-amber-500 focus:outline-none disabled:opacity-50"
-          >
-            <option value="">{t('channelNone')}</option>
-            {(channels ?? []).map((channel) => (
-              <option key={channel.id} value={channel.id}>
-                #{channel.name}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1.5 text-xs text-gray-500">
-            {channels === null ? t('channelsLoading') : t('channelHint')}
-          </p>
+          {channelLoadError ? (
+            <>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={channelId}
+                onChange={(e) => {
+                  setChannelId(e.target.value.trim())
+                  setSaved(false)
+                }}
+                disabled={saving}
+                placeholder={t('channelIdPlaceholder')}
+                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white placeholder-gray-600 focus:border-amber-500 focus:outline-none disabled:opacity-50"
+              />
+              <p className="mt-1.5 text-xs text-red-400">{channelLoadError}</p>
+              <p className="mt-1 text-xs text-gray-500">{t('channelManualHint')}</p>
+            </>
+          ) : (
+            <>
+              <select
+                value={channelId}
+                onChange={(e) => {
+                  setChannelId(e.target.value)
+                  setSaved(false)
+                }}
+                disabled={saving || channels === null}
+                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2.5 text-sm text-white focus:border-amber-500 focus:outline-none disabled:opacity-50"
+              >
+                <option value="">{t('channelNone')}</option>
+                {selectedChannelMissing && (
+                  <option value={channelId}>{t('channelUnknown', { id: channelId })}</option>
+                )}
+                {(channels ?? []).map((channel) => (
+                  <option key={channel.id} value={channel.id}>
+                    #{channel.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-xs text-gray-500">
+                {channels === null ? t('channelsLoading') : t('channelHint')}
+              </p>
+            </>
+          )}
         </div>
 
         <div>
@@ -249,7 +283,9 @@ export default function AdminNotificationSettingsForm({
 
       <div>
         <label className="mb-1 block text-xs text-gray-400">{t('roleLabel')}</label>
-        {roles === null ? (
+        {roleLoadError ? (
+          <p className="text-xs text-red-400">{roleLoadError}</p>
+        ) : roles === null ? (
           <p className="text-xs text-gray-500">{t('rolesLoading')}</p>
         ) : roles.length === 0 ? (
           <p className="text-xs text-gray-500">{t('rolesEmpty')}</p>
