@@ -4,6 +4,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { listActiveTenants } from '@/lib/tenant'
 import {
   ALBION_SERVERS,
+  getGuild,
   isAlbionServer,
   type AlbionServer,
 } from '@/lib/albion-gameinfo'
@@ -19,6 +20,7 @@ import {
   type KillboardPair,
   type TenantBattleRow,
 } from '@/lib/battle-tracking-helpers'
+import { upsertBattleLedgerShadow } from '@/lib/battle-ledger-shadow-db'
 import { withCronRun } from '@/lib/cron-run'
 
 // killboard_events 가 hint 한 battle_id 중 battle_records 에 없는 것을 ID 로
@@ -60,6 +62,8 @@ interface TenantTrackingInfo {
   tenantId: string
   server: AlbionServer
   homeGuildId: string
+  homeGuildName: string
+  homeAllianceId: string | null
 }
 
 export async function GET(request: Request) {
@@ -79,18 +83,22 @@ export async function GET(request: Request) {
 
   const tracking: TenantTrackingInfo[] = []
   for (const tenant of tenants) {
-    const [homeGuildId, serverRaw] = await Promise.all([
+    const [homeGuildId, homeGuildNameRaw, serverRaw] = await Promise.all([
       getAppSetting('albion_home_guild_id', '', tenant.id),
+      getAppSetting('albion_home_guild_name', '', tenant.id),
       getAppSetting('albion_server', '', tenant.id),
     ])
     if (!homeGuildId) continue
     // albion_server row 가 없으면 ('' 반환) skip — 'east' 로 silent 폴백하면
     // west/eu tenant 가 잘못된 server API 로 추적되어 battle_records 가 오염된다.
     if (!isAlbionServer(serverRaw)) continue
+    const guild = await getGuild(serverRaw, homeGuildId)
     tracking.push({
       tenantId: tenant.id,
       server: serverRaw,
       homeGuildId,
+      homeGuildName: homeGuildNameRaw.trim() || guild?.Name || homeGuildId,
+      homeAllianceId: guild?.AllianceId?.trim() || null,
     })
   }
 
@@ -111,6 +119,10 @@ export async function GET(request: Request) {
     backfill_battle_records_upserted: number
     backfill_tenant_provisional_upserted: number
     backfill_404: number
+    shadow_registry_entities: number
+    shadow_snapshots: number
+    shadow_participants: number
+    shadow_projections: number
     matchups_evaluated: number
     matchups_finalized_rows: number
     matchups_deleted: number
@@ -133,6 +145,10 @@ export async function GET(request: Request) {
         backfill_battle_records_upserted: 0,
         backfill_tenant_provisional_upserted: 0,
         backfill_404: 0,
+        shadow_registry_entities: 0,
+        shadow_snapshots: 0,
+        shadow_participants: 0,
+        shadow_projections: 0,
         matchups_evaluated: 0,
         matchups_finalized_rows: 0,
         matchups_deleted: 0,
@@ -147,6 +163,10 @@ export async function GET(request: Request) {
     let backfillBR = 0
     let backfillTR = 0
     let backfill404 = 0
+    let shadowRegistryEntities = 0
+    let shadowSnapshots = 0
+    let shadowParticipants = 0
+    let shadowProjections = 0
     let matchupsEvaluated = 0
     let matchupsFinalizedRows = 0
     let matchupsDeleted = 0
@@ -170,6 +190,20 @@ export async function GET(request: Request) {
 
         // 이 서버를 쓰는 tenant 들에 대해 각 battle 별 provisional row 작성.
         const serverTenants = tracking.filter((t) => t.server === server)
+        const shadowRes = await upsertBattleLedgerShadow({
+          db,
+          server,
+          battles,
+          battleRecordIdMap,
+          tenants: serverTenants,
+          fetchedAt: new Date().toISOString(),
+        })
+        shadowRegistryEntities += shadowRes.registryEntities
+        shadowSnapshots += shadowRes.snapshots
+        shadowParticipants += shadowRes.participants
+        shadowProjections += shadowRes.projections
+        for (const e of shadowRes.errors) errors.push(e)
+
         const provisionalRows: TenantBattleRow[] = []
         for (const tenant of serverTenants) {
           for (const battle of battles) {
@@ -266,6 +300,20 @@ export async function GET(request: Request) {
           for (const r of upBR ?? []) {
             idMap.set(r.albion_battle_id as number, r.id as string)
           }
+          const shadowRes = await upsertBattleLedgerShadow({
+            db,
+            server,
+            battles: fetchedBattles,
+            battleRecordIdMap: idMap,
+            tenants: serverTenantsForBackfill,
+            fetchedAt: new Date().toISOString(),
+          })
+          shadowRegistryEntities += shadowRes.registryEntities
+          shadowSnapshots += shadowRes.snapshots
+          shadowParticipants += shadowRes.participants
+          shadowProjections += shadowRes.projections
+          for (const e of shadowRes.errors) errors.push(e)
+
           const backfillRows: TenantBattleRow[] = []
           for (const tenant of serverTenantsForBackfill) {
             for (const battle of fetchedBattles) {
@@ -326,6 +374,10 @@ export async function GET(request: Request) {
       backfill_battle_records_upserted: backfillBR,
       backfill_tenant_provisional_upserted: backfillTR,
       backfill_404: backfill404,
+      shadow_registry_entities: shadowRegistryEntities,
+      shadow_snapshots: shadowSnapshots,
+      shadow_participants: shadowParticipants,
+      shadow_projections: shadowProjections,
       matchups_evaluated: matchupsEvaluated,
       matchups_finalized_rows: matchupsFinalizedRows,
       matchups_deleted: matchupsDeleted,
