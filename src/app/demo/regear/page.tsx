@@ -19,6 +19,7 @@ import {
   DemoEventPayoutReviewList,
   DemoCraftOrderReviewList,
 } from '../_components/DemoApprovalLists'
+import ReorderableFilterChips from '@/components/ReorderableFilterChips'
 import DemoGuidedTour from '../_components/DemoGuidedTour'
 import DemoCTACard from '../_components/DemoCTACard'
 
@@ -176,9 +177,10 @@ interface ScopeTabsProps {
   active: Scope
   tKeys: { pending: string; all: string }
   accent: 'amber' | 'emerald'
+  storageKey: string
 }
 
-function ScopeTabs({ baseHref, active, tKeys, accent }: ScopeTabsProps) {
+function ScopeTabs({ baseHref, active, tKeys, accent, storageKey }: ScopeTabsProps) {
   const activeClass =
     accent === 'emerald'
       ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
@@ -190,23 +192,18 @@ function ScopeTabs({ baseHref, active, tKeys, accent }: ScopeTabsProps) {
   ]
 
   return (
-    <nav className="flex items-center gap-2">
-      {scopes.map(({ value, label }) => {
-        const isActive = active === value
-        const href = value === 'pending' ? baseHref : `${baseHref}${baseHref.includes('?') ? '&' : '?'}scope=all`
-        return (
-          <Link
-            key={value}
-            href={href}
-            className={`text-xs font-medium px-3 py-1.5 rounded-full border ${
-              isActive ? activeClass : 'bg-gray-900 border-gray-700 text-gray-400 hover:text-white'
-            }`}
-          >
-            {label}
-          </Link>
-        )
-      })}
-    </nav>
+    <ReorderableFilterChips
+      storageKey={storageKey}
+      activeValue={active}
+      activeClassName={activeClass}
+      items={scopes.map(({ value, label }) => ({
+        value,
+        label,
+        href: value === 'pending'
+          ? baseHref
+          : `${baseHref}${baseHref.includes('?') ? '&' : '?'}scope=all`,
+      }))}
+    />
   )
 }
 
@@ -235,6 +232,7 @@ async function RegearSection({ scope, origin }: { scope: Scope; origin: RegearOr
         active={scope}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
+        storageKey="agm.filter-order.demo-approvals.regear-scope.v1"
       />
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-8">
@@ -267,36 +265,24 @@ function RegearOriginTabs({ active, scope, counts, tKeys }: RegearOriginTabsProp
     { value: 'all', label: tKeys.all, count: counts.all },
   ]
   return (
-    <nav className="flex items-center gap-2">
-      {origins.map(({ value, label, count }) => {
-        const isActive = active === value
+    <ReorderableFilterChips
+      storageKey="agm.filter-order.demo-approvals.regear-origin.v1"
+      activeValue={active}
+      activeClassName="bg-sky-500/20 border-sky-500/50 text-sky-300"
+      countActiveClassName="bg-sky-500/30 text-sky-200"
+      items={origins.map(({ value, label, count }) => {
         const params = new URLSearchParams()
         if (value !== 'auto') params.set('origin', value)
         if (scope === 'all') params.set('scope', 'all')
         const qs = params.toString()
-        const href = qs ? `/demo/regear?${qs}` : '/demo/regear'
-        return (
-          <Link
-            key={value}
-            href={href}
-            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border ${
-              isActive
-                ? 'bg-sky-500/20 border-sky-500/50 text-sky-300'
-                : 'bg-gray-900 border-gray-700 text-gray-400 hover:text-white'
-            }`}
-          >
-            <span>{label}</span>
-            <span
-              className={`text-[10px] font-semibold rounded px-1.5 py-px ${
-                isActive ? 'bg-sky-500/30 text-sky-200' : 'bg-gray-800 text-gray-300'
-              }`}
-            >
-              {count}
-            </span>
-          </Link>
-        )
+        return {
+          value,
+          label,
+          count,
+          href: qs ? `/demo/regear?${qs}` : '/demo/regear',
+        }
       })}
-    </nav>
+    />
   )
 }
 
@@ -336,6 +322,7 @@ async function ExchangeSection({ scope }: { scope: Scope }) {
         active={scope}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
+        storageKey="agm.filter-order.demo-approvals.exchange-scope.v1"
       />
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-8">
@@ -361,6 +348,7 @@ async function DonationSection({ scope }: { scope: Scope }) {
         active={scope}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="emerald"
+        storageKey="agm.filter-order.demo-approvals.donation-scope.v1"
       />
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-8">
@@ -386,6 +374,7 @@ async function ShopSection({ scope }: { scope: Scope }) {
         active={scope}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
+        storageKey="agm.filter-order.demo-approvals.shop-scope.v1"
       />
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-8">
@@ -411,6 +400,7 @@ async function EventPayoutSection({ scope }: { scope: Scope }) {
         active={scope}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
+        storageKey="agm.filter-order.demo-approvals.event-payout-scope.v1"
       />
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-8">
@@ -436,6 +426,7 @@ async function CraftSection({ scope }: { scope: Scope }) {
         active={scope}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
+        storageKey="agm.filter-order.demo-approvals.craft-scope.v1"
       />
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-sm text-center py-8">

@@ -26,6 +26,7 @@ import DonationReviewList from '@/components/DonationReviewList'
 import ShopOrderReviewList from '@/components/ShopOrderReviewList'
 import EventPayoutReviewList from '@/components/EventPayoutReviewList'
 import CraftOrderReviewList from '@/components/CraftOrderReviewList'
+import ReorderableFilterChips from '@/components/ReorderableFilterChips'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 import { getAdminBadgeCounts } from '@/lib/admin-badges'
 import { getSession, sessionHasAny } from '@/lib/session'
@@ -217,9 +218,10 @@ interface ScopeTabsProps {
     all: string
   }
   accent: 'amber' | 'emerald'
+  storageKey: string
 }
 
-function ScopeTabs({ baseHref, active, tKeys, accent }: ScopeTabsProps) {
+function ScopeTabs({ baseHref, active, tKeys, accent, storageKey }: ScopeTabsProps) {
   const activeClass =
     accent === 'emerald'
       ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
@@ -231,25 +233,18 @@ function ScopeTabs({ baseHref, active, tKeys, accent }: ScopeTabsProps) {
   ]
 
   return (
-    <nav className="flex items-center gap-2">
-      {scopes.map(({ value, label }) => {
-        const isActive = active === value
-        const href = value === 'pending' ? baseHref : `${baseHref}${baseHref.includes('?') ? '&' : '?'}scope=all`
-        return (
-          <Link
-            key={value}
-            href={href}
-            className={`text-xs font-medium px-3 py-1.5 rounded-full border ${
-              isActive
-                ? activeClass
-                : 'bg-gray-900 border-gray-700 text-gray-400 hover:text-white'
-            }`}
-          >
-            {label}
-          </Link>
-        )
-      })}
-    </nav>
+    <ReorderableFilterChips
+      storageKey={storageKey}
+      activeValue={active}
+      activeClassName={activeClass}
+      items={scopes.map(({ value, label }) => ({
+        value,
+        label,
+        href: value === 'pending'
+          ? baseHref
+          : `${baseHref}${baseHref.includes('?') ? '&' : '?'}scope=all`,
+      }))}
+    />
   )
 }
 
@@ -321,6 +316,7 @@ async function RegearSection({
         active={scope}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
+        storageKey="agm.filter-order.admin-approvals.regear-scope.v1"
       />
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
@@ -374,39 +370,25 @@ function RegearOriginTabs({ active, scope, relation, counts, tKeys }: RegearOrig
     { value: 'all', label: tKeys.all, count: counts.all },
   ]
   return (
-    <nav className="flex items-center gap-2">
-      {origins.map(({ value, label, count }) => {
-        const isActive = active === value
+    <ReorderableFilterChips
+      storageKey="agm.filter-order.admin-approvals.regear-origin.v1"
+      activeValue={active}
+      activeClassName="bg-sky-500/20 border-sky-500/50 text-sky-300"
+      countActiveClassName="bg-sky-500/30 text-sky-200"
+      items={origins.map(({ value, label, count }) => {
         const params = new URLSearchParams()
         if (value !== 'auto') params.set('origin', value)
         if (relation !== 'all') params.set('relation', relation)
         if (scope === 'all') params.set('scope', 'all')
         const qs = params.toString()
-        const href = qs ? `/admin/dashboard/approvals?${qs}` : '/admin/dashboard/approvals'
-        return (
-          <Link
-            key={value}
-            href={href}
-            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border ${
-              isActive
-                ? 'bg-sky-500/20 border-sky-500/50 text-sky-300'
-                : 'bg-gray-900 border-gray-700 text-gray-400 hover:text-white'
-            }`}
-          >
-            <span>{label}</span>
-            <span
-              className={`text-[10px] font-semibold rounded px-1.5 py-px ${
-                isActive
-                  ? 'bg-sky-500/30 text-sky-200'
-                  : 'bg-gray-800 text-gray-300'
-              }`}
-            >
-              {count}
-            </span>
-          </Link>
-        )
+        return {
+          value,
+          label,
+          count,
+          href: qs ? `/admin/dashboard/approvals?${qs}` : '/admin/dashboard/approvals',
+        }
       })}
-    </nav>
+    />
   )
 }
 
@@ -435,39 +417,25 @@ function RegearRelationTabs({
     { value: 'alliance', label: tKeys.alliance, count: counts.alliance },
   ]
   return (
-    <nav className="flex items-center gap-2">
-      {relations.map(({ value, label, count }) => {
-        const isActive = active === value
+    <ReorderableFilterChips
+      storageKey="agm.filter-order.admin-approvals.regear-relation.v1"
+      activeValue={active}
+      activeClassName="bg-violet-500/20 border-violet-500/50 text-violet-300"
+      countActiveClassName="bg-violet-500/30 text-violet-200"
+      items={relations.map(({ value, label, count }) => {
         const params = new URLSearchParams()
         if (origin !== 'auto') params.set('origin', origin)
         if (value !== 'all') params.set('relation', value)
         if (scope === 'all') params.set('scope', 'all')
         const qs = params.toString()
-        const href = qs ? `/admin/dashboard/approvals?${qs}` : '/admin/dashboard/approvals'
-        return (
-          <Link
-            key={value}
-            href={href}
-            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border ${
-              isActive
-                ? 'bg-violet-500/20 border-violet-500/50 text-violet-300'
-                : 'bg-gray-900 border-gray-700 text-gray-400 hover:text-white'
-            }`}
-          >
-            <span>{label}</span>
-            <span
-              className={`text-[10px] font-semibold rounded px-1.5 py-px ${
-                isActive
-                  ? 'bg-violet-500/30 text-violet-200'
-                  : 'bg-gray-800 text-gray-300'
-              }`}
-            >
-              {count}
-            </span>
-          </Link>
-        )
+        return {
+          value,
+          label,
+          count,
+          href: qs ? `/admin/dashboard/approvals?${qs}` : '/admin/dashboard/approvals',
+        }
       })}
-    </nav>
+    />
   )
 }
 
@@ -487,6 +455,7 @@ async function ExchangeSection({ scope, guildId }: { scope: Scope; guildId: stri
         active={scope}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
+        storageKey="agm.filter-order.admin-approvals.exchange-scope.v1"
       />
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
@@ -520,6 +489,7 @@ async function ShopSection({ scope, guildId }: { scope: Scope; guildId: string }
         active={scope}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
+        storageKey="agm.filter-order.admin-approvals.shop-scope.v1"
       />
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
@@ -551,6 +521,7 @@ async function EventPayoutSection({ scope, guildId }: { scope: Scope; guildId: s
         active={scope}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
+        storageKey="agm.filter-order.admin-approvals.event-payout-scope.v1"
       />
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
@@ -587,6 +558,7 @@ async function CraftSection({ scope, guildId }: { scope: Scope; guildId: string 
         active={scope}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="amber"
+        storageKey="agm.filter-order.admin-approvals.craft-scope.v1"
       />
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
@@ -620,6 +592,7 @@ async function DonationSection({ scope, guildId }: { scope: Scope; guildId: stri
         active={scope}
         tKeys={{ pending: t('scopePending'), all: t('scopeAll') }}
         accent="emerald"
+        storageKey="agm.filter-order.admin-approvals.donation-scope.v1"
       />
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
