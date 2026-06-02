@@ -17,6 +17,33 @@ import { withCronRun } from '@/lib/cron-run'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
+const SUMMARY_FIELDS = ['requested', 'updated', 'missing'] as const
+
+function numeric(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+function includeDetails(request: Request): boolean {
+  return new URL(request.url).searchParams.get('details') === '1'
+}
+
+function summarizeResults(results: Array<Record<string, unknown>>): Record<string, number> {
+  const summary: Record<string, number> = {
+    tenants: results.length,
+    tenants_with_errors: 0,
+  }
+  for (const field of SUMMARY_FIELDS) summary[field] = 0
+
+  for (const result of results) {
+    if (typeof result.error === 'string') summary.tenants_with_errors += 1
+    for (const field of SUMMARY_FIELDS) {
+      summary[field] += numeric(result[field])
+    }
+  }
+
+  return summary
+}
+
 export async function GET(request: Request) {
   return withCronRun(request, { jobName: 'shop-price-sync', leaseSeconds: 900 }, async ({ db }) => {
     const tenants = await listActiveTenants()
@@ -41,7 +68,12 @@ export async function GET(request: Request) {
       revalidatePath('/shop')
     }
 
-    log.info('[cron/shop-price-sync] complete', { tenants: results })
-    return NextResponse.json({ tenants: results })
+    const summary = summarizeResults(results)
+    if (summary.updated > 0 || summary.tenants_with_errors > 0) {
+      log.info('[cron/shop-price-sync] complete', summary)
+    }
+    return NextResponse.json(
+      includeDetails(request) ? { summary, tenants: results } : { summary },
+    )
   })
 }

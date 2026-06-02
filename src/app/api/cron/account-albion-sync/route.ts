@@ -10,13 +10,56 @@ import { withCronRun } from '@/lib/cron-run'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
+const DEFAULT_CRON_BATCH_SIZE = 10
+const SUMMARY_FIELDS = ['scanned', 'refreshed', 'failed', 'skipped'] as const
+
+function boundedInt(value: string | null | undefined, min: number, max: number): number | null {
+  if (!value) return null
+  const parsed = Number.parseInt(value, 10)
+  if (!Number.isFinite(parsed)) return null
+  return Math.min(Math.max(parsed, min), max)
+}
+
+function numeric(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+function includeDetails(request: Request): boolean {
+  return new URL(request.url).searchParams.get('details') === '1'
+}
+
+function summarizeResults(results: Array<Record<string, unknown>>, batchSize: number): Record<string, number> {
+  const summary: Record<string, number> = {
+    batch_size: batchSize,
+    tenants: results.length,
+    tenants_skipped: 0,
+    tenants_with_errors: 0,
+  }
+  for (const field of SUMMARY_FIELDS) summary[field] = 0
+
+  for (const result of results) {
+    if (typeof result.skipped === 'string') summary.tenants_skipped += 1
+    if (typeof result.error === 'string') summary.tenants_with_errors += 1
+    for (const field of SUMMARY_FIELDS) {
+      summary[field] += numeric(result[field])
+    }
+  }
+
+  return summary
+}
+
 export async function GET(request: Request) {
   return withCronRun(request, { jobName: 'account-albion-sync', leaseSeconds: 300 }, async () => {
+    const url = new URL(request.url)
+    const batchSize =
+      boundedInt(url.searchParams.get('batch_size'), 1, 50) ??
+      boundedInt(process.env.ACCOUNT_ALBION_SYNC_BATCH_SIZE, 1, 50) ??
+      DEFAULT_CRON_BATCH_SIZE
     const tenants = await listActiveTenants()
     const results: Array<Record<string, unknown>> = []
     for (const tenant of tenants) {
       try {
-        const outcome = await runAccountAlbionSync(tenant.id)
+        const outcome = await runAccountAlbionSync(tenant.id, { batchSize })
         if (outcome.kind === 'skipped') {
           results.push({ tenant: tenant.slug, skipped: outcome.reason })
         } else if (outcome.kind === 'error') {
@@ -32,6 +75,9 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({ tenants: results })
+    const summary = summarizeResults(results, batchSize)
+    return NextResponse.json(
+      includeDetails(request) ? { summary, tenants: results } : { summary },
+    )
   })
 }

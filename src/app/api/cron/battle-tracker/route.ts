@@ -21,6 +21,7 @@ import {
   type TenantBattleRow,
 } from '@/lib/battle-tracking-helpers'
 import { upsertBattleLedgerShadow } from '@/lib/battle-ledger-shadow-db'
+import { refreshBattleProjectionDiffs } from '@/lib/battle-ledger-diff-db'
 import { withCronRun } from '@/lib/cron-run'
 
 // killboard_events 가 hint 한 battle_id 중 battle_records 에 없는 것을 ID 로
@@ -35,6 +36,29 @@ const MAX_BACKFILL_PER_TICK = 80
 // 안정되어 매치업이 확정된다는 가정. 너무 짧으면(<1h) killboard sync 지연 시
 // "교전 없음" 으로 잘못 판정될 위험, 너무 길면 매번 cron 마다 큰 SELECT.
 const REEVALUATE_LOOKBACK_MS = 6 * 60 * 60 * 1000
+const TRUE_VALUES = new Set(['1', 'true', 'yes', 'on'])
+const FALSE_VALUES = new Set(['0', 'false', 'no', 'off'])
+
+function truthyFlag(value: string | null | undefined): boolean | null {
+  if (value === null || value === undefined) return null
+  const normalized = value.trim().toLowerCase()
+  if (TRUE_VALUES.has(normalized)) return true
+  if (FALSE_VALUES.has(normalized)) return false
+  return null
+}
+
+function isShadowSyncEnabled(url: URL): boolean {
+  const queryOverride = truthyFlag(url.searchParams.get('shadow'))
+  if (queryOverride !== null) return queryOverride
+  return truthyFlag(process.env.BATTLE_LEDGER_SHADOW_SYNC_ENABLED) === true
+}
+
+function isProjectionDiffSyncEnabled(url: URL, shadowSyncEnabled: boolean): boolean {
+  if (!shadowSyncEnabled) return false
+  const queryOverride = truthyFlag(url.searchParams.get('projection_diffs'))
+  if (queryOverride !== null) return queryOverride
+  return truthyFlag(process.env.BATTLE_LEDGER_PROJECTION_DIFF_SYNC_ENABLED) === true
+}
 
 // 5분 주기로 돌면서 home_guild_id + server 가 설정된 모든 테넌트의 홈 길드가
 // 참여한 공개 전투를 수집한다. 규모 카테고리(small/middle/large/zerg) 는
@@ -78,6 +102,8 @@ export async function GET(request: Request) {
   const pages = Number.isFinite(pagesParam)
     ? Math.min(Math.max(pagesParam, 1), 20)
     : 6
+  const shadowSyncEnabled = isShadowSyncEnabled(url)
+  const projectionDiffSyncEnabled = isProjectionDiffSyncEnabled(url, shadowSyncEnabled)
 
   const tenants = await listActiveTenants()
 
@@ -123,6 +149,12 @@ export async function GET(request: Request) {
     shadow_snapshots: number
     shadow_participants: number
     shadow_projections: number
+    projection_diffs_compared_battles: number
+    projection_diffs_active: number
+    projection_diffs_inserted: number
+    projection_diffs_refreshed: number
+    projection_diffs_reactivated: number
+    projection_diffs_resolved: number
     matchups_evaluated: number
     matchups_finalized_rows: number
     matchups_deleted: number
@@ -149,6 +181,12 @@ export async function GET(request: Request) {
         shadow_snapshots: 0,
         shadow_participants: 0,
         shadow_projections: 0,
+        projection_diffs_compared_battles: 0,
+        projection_diffs_active: 0,
+        projection_diffs_inserted: 0,
+        projection_diffs_refreshed: 0,
+        projection_diffs_reactivated: 0,
+        projection_diffs_resolved: 0,
         matchups_evaluated: 0,
         matchups_finalized_rows: 0,
         matchups_deleted: 0,
@@ -167,9 +205,16 @@ export async function GET(request: Request) {
     let shadowSnapshots = 0
     let shadowParticipants = 0
     let shadowProjections = 0
+    let projectionDiffsComparedBattles = 0
+    let projectionDiffsActive = 0
+    let projectionDiffsInserted = 0
+    let projectionDiffsRefreshed = 0
+    let projectionDiffsReactivated = 0
+    let projectionDiffsResolved = 0
     let matchupsEvaluated = 0
     let matchupsFinalizedRows = 0
     let matchupsDeleted = 0
+    const comparisonBattleRecordIds = new Set<string>()
 
     if (battles.length > 0) {
       // battle_records 에 먼저 upsert (tenant 무관). onConflict (server, id) 로
@@ -185,24 +230,28 @@ export async function GET(request: Request) {
         battleRecordsUpserted = upserted?.length ?? 0
         const battleRecordIdMap = new Map<number, string>()
         for (const r of upserted ?? []) {
-          battleRecordIdMap.set(r.albion_battle_id as number, r.id as string)
+          const battleRecordId = r.id as string
+          battleRecordIdMap.set(r.albion_battle_id as number, battleRecordId)
+          comparisonBattleRecordIds.add(battleRecordId)
         }
 
         // 이 서버를 쓰는 tenant 들에 대해 각 battle 별 provisional row 작성.
         const serverTenants = tracking.filter((t) => t.server === server)
-        const shadowRes = await upsertBattleLedgerShadow({
-          db,
-          server,
-          battles,
-          battleRecordIdMap,
-          tenants: serverTenants,
-          fetchedAt: new Date().toISOString(),
-        })
-        shadowRegistryEntities += shadowRes.registryEntities
-        shadowSnapshots += shadowRes.snapshots
-        shadowParticipants += shadowRes.participants
-        shadowProjections += shadowRes.projections
-        for (const e of shadowRes.errors) errors.push(e)
+        if (shadowSyncEnabled) {
+          const shadowRes = await upsertBattleLedgerShadow({
+            db,
+            server,
+            battles,
+            battleRecordIdMap,
+            tenants: serverTenants,
+            fetchedAt: new Date().toISOString(),
+          })
+          shadowRegistryEntities += shadowRes.registryEntities
+          shadowSnapshots += shadowRes.snapshots
+          shadowParticipants += shadowRes.participants
+          shadowProjections += shadowRes.projections
+          for (const e of shadowRes.errors) errors.push(e)
+        }
 
         const provisionalRows: TenantBattleRow[] = []
         for (const tenant of serverTenants) {
@@ -298,21 +347,25 @@ export async function GET(request: Request) {
           backfillBR = upBR?.length ?? 0
           const idMap = new Map<number, string>()
           for (const r of upBR ?? []) {
-            idMap.set(r.albion_battle_id as number, r.id as string)
+            const battleRecordId = r.id as string
+            idMap.set(r.albion_battle_id as number, battleRecordId)
+            comparisonBattleRecordIds.add(battleRecordId)
           }
-          const shadowRes = await upsertBattleLedgerShadow({
-            db,
-            server,
-            battles: fetchedBattles,
-            battleRecordIdMap: idMap,
-            tenants: serverTenantsForBackfill,
-            fetchedAt: new Date().toISOString(),
-          })
-          shadowRegistryEntities += shadowRes.registryEntities
-          shadowSnapshots += shadowRes.snapshots
-          shadowParticipants += shadowRes.participants
-          shadowProjections += shadowRes.projections
-          for (const e of shadowRes.errors) errors.push(e)
+          if (shadowSyncEnabled) {
+            const shadowRes = await upsertBattleLedgerShadow({
+              db,
+              server,
+              battles: fetchedBattles,
+              battleRecordIdMap: idMap,
+              tenants: serverTenantsForBackfill,
+              fetchedAt: new Date().toISOString(),
+            })
+            shadowRegistryEntities += shadowRes.registryEntities
+            shadowSnapshots += shadowRes.snapshots
+            shadowParticipants += shadowRes.participants
+            shadowProjections += shadowRes.projections
+            for (const e of shadowRes.errors) errors.push(e)
+          }
 
           const backfillRows: TenantBattleRow[] = []
           for (const tenant of serverTenantsForBackfill) {
@@ -360,9 +413,32 @@ export async function GET(request: Request) {
       matchupsEvaluated = evalRes.evaluated
       matchupsFinalizedRows = evalRes.finalized
       matchupsDeleted = evalRes.deleted
+      for (const battleRecordId of evalRes.battleRecordIds) {
+        comparisonBattleRecordIds.add(battleRecordId)
+      }
       for (const e of evalRes.errors) errors.push(e)
     } catch (e) {
       errors.push(`reevaluate: ${e instanceof Error ? e.message : String(e)}`)
+    }
+
+    if (projectionDiffSyncEnabled) {
+      const diffRes = await refreshBattleProjectionDiffs({
+        db,
+        battleRecordIds: [...comparisonBattleRecordIds],
+        subjects: serverTenantsForBackfill.map((tenant) => ({
+          tenantId: tenant.tenantId,
+          homeGuildId: tenant.homeGuildId,
+          homeGuildName: tenant.homeGuildName,
+        })),
+        comparedAt: new Date().toISOString(),
+      })
+      projectionDiffsComparedBattles = diffRes.comparedBattleRecords
+      projectionDiffsActive = diffRes.activeDiffs
+      projectionDiffsInserted = diffRes.insertedDiffs
+      projectionDiffsRefreshed = diffRes.refreshedDiffs
+      projectionDiffsReactivated = diffRes.reactivatedDiffs
+      projectionDiffsResolved = diffRes.resolvedDiffs
+      for (const e of diffRes.errors) errors.push(e)
     }
 
     results.push({
@@ -378,6 +454,12 @@ export async function GET(request: Request) {
       shadow_snapshots: shadowSnapshots,
       shadow_participants: shadowParticipants,
       shadow_projections: shadowProjections,
+      projection_diffs_compared_battles: projectionDiffsComparedBattles,
+      projection_diffs_active: projectionDiffsActive,
+      projection_diffs_inserted: projectionDiffsInserted,
+      projection_diffs_refreshed: projectionDiffsRefreshed,
+      projection_diffs_reactivated: projectionDiffsReactivated,
+      projection_diffs_resolved: projectionDiffsResolved,
       matchups_evaluated: matchupsEvaluated,
       matchups_finalized_rows: matchupsFinalizedRows,
       matchups_deleted: matchupsDeleted,
@@ -408,6 +490,8 @@ export async function GET(request: Request) {
   return NextResponse.json({
     tracked_tenants: tracking.length,
     pages,
+    shadow_sync_enabled: shadowSyncEnabled,
+    projection_diff_sync_enabled: projectionDiffSyncEnabled,
     servers: results,
   })
   })
@@ -424,15 +508,16 @@ async function reevaluateMatchups(input: {
   server: AlbionServer
   tenantTracking: TenantTrackingInfo[]
   sinceIso: string
-}): Promise<{ evaluated: number; finalized: number; deleted: number; errors: string[] }> {
+}): Promise<{ evaluated: number; finalized: number; deleted: number; battleRecordIds: string[]; errors: string[] }> {
   const { db, server, tenantTracking, sinceIso } = input
   const errors: string[] = []
   let evaluated = 0
   let finalized = 0
   let deleted = 0
+  const battleRecordIds = new Set<string>()
 
   if (tenantTracking.length === 0) {
-    return { evaluated, finalized, deleted, errors }
+    return { evaluated, finalized, deleted, battleRecordIds: [], errors }
   }
   const tenantIds = tenantTracking.map((t) => t.tenantId)
   const homeGuildByTenant = new Map(
@@ -455,10 +540,10 @@ async function reevaluateMatchups(input: {
 
   if (provErr) {
     errors.push(`provisional select: ${provErr.message}`)
-    return { evaluated, finalized, deleted, errors }
+    return { evaluated, finalized, deleted, battleRecordIds: [], errors }
   }
   if (!provRows || provRows.length === 0) {
-    return { evaluated, finalized, deleted, errors }
+    return { evaluated, finalized, deleted, battleRecordIds: [], errors }
   }
 
   const evaluatedAt = new Date().toISOString()
@@ -466,6 +551,7 @@ async function reevaluateMatchups(input: {
   for (const prov of provRows) {
     const tenantId = prov.guild_id as string
     const battleRecordId = prov.battle_record_id as string
+    battleRecordIds.add(battleRecordId)
     const homeGuildId = homeGuildByTenant.get(tenantId)
     if (!homeGuildId) continue
     const brJoin = prov.battle_records as
@@ -536,7 +622,7 @@ async function reevaluateMatchups(input: {
   // ※ 서버 변수는 placeholder 호환을 위해 받아둠(추후 server 별 분기 시 사용).
   void server
 
-  return { evaluated, finalized, deleted, errors }
+  return { evaluated, finalized, deleted, battleRecordIds: [...battleRecordIds], errors }
 }
 
 export const maxDuration = 300

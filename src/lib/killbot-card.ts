@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer'
-import { readFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import sharp, { type OverlayOptions } from 'sharp'
 import { EQUIPMENT_SLOTS, type EquipmentItem } from '@/lib/auto-regear-equipment'
@@ -26,6 +26,9 @@ export const KILLBOT_CARD_FONT_FILE = path.join(
   process.cwd(),
   'public/killbot/Arimo.ttf',
 )
+const KILLBOT_FONTCONFIG_DIR = path.join('/tmp', 'albion-killbot-fontconfig')
+const KILLBOT_FONTCONFIG_FILE = path.join(KILLBOT_FONTCONFIG_DIR, 'fonts.conf')
+let fontconfigSetup: Promise<void> | null = null
 
 export const KILLBOT_CENTER_ICON_ASSETS = {
   fame: {
@@ -116,6 +119,34 @@ type EquipmentSlot = (typeof EQUIPMENT_SLOTS)[number]
 type CenterIconKey = keyof typeof KILLBOT_CENTER_ICON_ASSETS
 
 type CenterIcons = Record<CenterIconKey, string | null>
+
+function fontconfigXml(): string {
+  return [
+    '<?xml version="1.0"?>',
+    '<!DOCTYPE fontconfig SYSTEM "fonts.dtd">',
+    '<fontconfig>',
+    `  <dir>${path.dirname(KILLBOT_CARD_FONT_FILE)}</dir>`,
+    '  <cachedir>/tmp/fontconfig-cache</cachedir>',
+    '</fontconfig>',
+    '',
+  ].join('\n')
+}
+
+async function ensureKillbotFontconfig(): Promise<void> {
+  if (process.env.FONTCONFIG_PATH) return
+  if (!fontconfigSetup) {
+    fontconfigSetup = (async () => {
+      process.env.FONTCONFIG_PATH = KILLBOT_FONTCONFIG_DIR
+      process.env.FONTCONFIG_FILE = KILLBOT_FONTCONFIG_FILE
+      await mkdir(KILLBOT_FONTCONFIG_DIR, { recursive: true })
+      await writeFile(KILLBOT_FONTCONFIG_FILE, fontconfigXml(), 'utf8')
+    })().catch(() => {
+      process.env.FONTCONFIG_PATH = ''
+      process.env.FONTCONFIG_FILE = ''
+    })
+  }
+  await fontconfigSetup
+}
 
 interface TextLayer {
   x: number
@@ -1026,6 +1057,7 @@ export async function renderKillbotCardPng(
   ].filter((item): item is CardItem => item !== undefined)
   const icons = await loadIcons(allItems)
   const centerIcons = await loadCenterIcons()
+  await ensureKillbotFontconfig()
   const svg = buildSvg({
     event,
     match,
