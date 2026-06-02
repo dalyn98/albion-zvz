@@ -4,6 +4,7 @@
 // - syncShopPrices: AODP 최저가 조회 후 auto_price_silver 갱신
 // - updateInventoryStock: 재고 수동 보정
 // - setManualPrice / clearManualPrice: 포인트 가격 수동 고정 / 자동으로 복귀
+// - resetShopInventory: 현재 길드의 상점 아이템 전체 삭제 + 원본 로그 삭제 + pending 주문 취소
 // - deleteInventoryRow: 재고=0 && 수동 가격 없음인 행 제거 (정리용)
 
 import { revalidatePath } from 'next/cache'
@@ -162,8 +163,9 @@ export async function clearManualPrice(id: string): Promise<{ error?: string }> 
 }
 
 export interface ResetInventoryResult {
-  stockRowsZeroed: number
+  inventoryRowsDeleted: number
   logsDeleted: number
+  ordersCancelled: number
   error?: string
 }
 
@@ -178,58 +180,59 @@ export interface RebuildInventoryResult {
   error?: string
 }
 
-// 전 재고의 stock 을 0 으로 초기화하고 shop_chest_logs 원본도 삭제한다.
-// DB 트리거가 stock<=0 행을 정리하므로 재고 행에 묶인 가격 메타는 사라질 수 있다.
+function countFromRpc(value: unknown): number {
+  const n = Number(value ?? 0)
+  return Number.isFinite(n) && n > 0 ? Math.trunc(n) : 0
+}
+
+function parseResetInventoryResult(raw: unknown): Omit<ResetInventoryResult, 'error'> {
+  const obj = (raw ?? {}) as Record<string, unknown>
+  return {
+    inventoryRowsDeleted: countFromRpc(obj.inventory_rows_deleted),
+    logsDeleted: countFromRpc(obj.logs_deleted),
+    ordersCancelled: countFromRpc(obj.orders_cancelled),
+  }
+}
+
+// 현재 길드의 상점 아이템 행 전체와 shop_chest_logs 원본을 삭제하고 pending 주문을 취소한다.
+// 가격 메타데이터까지 함께 지워 "상점 아이템 없음" 상태로 되돌린다.
 // 로그를 같이 지워야 동일 로그 재임포트가 dedupe 에 막히지 않는다.
-// shop_orders, shop_blacklist, shop_name_overrides 는 건드리지 않음.
+// approved/rejected/cancelled 주문, shop_blacklist, shop_name_overrides 는 건드리지 않음.
 export async function resetShopInventory(): Promise<ResetInventoryResult> {
-  const tErr = await getTranslations('adminActionError')
-  const empty: ResetInventoryResult = { stockRowsZeroed: 0, logsDeleted: 0 }
+  const t = await getTranslations('adminShopInventory')
+  const empty: ResetInventoryResult = { inventoryRowsDeleted: 0, logsDeleted: 0, ordersCancelled: 0 }
   try {
     const session = await getSession()
     if (!session) return { ...empty, error: 'Unauthorized' }
     const guildId = await getSessionGuildId(session)
     const db = await requireAnyCapability([CAP.INVENTORY_MANAGE])
 
-    const { data: zeroed, error: zeroErr } = await db
-      .from('shop_inventory')
-      .update({ stock: 0, updated_at: new Date().toISOString() })
-      .eq('guild_id', guildId)
-      .gt('stock', 0)
-      .select('id')
-    if (zeroErr) return { ...empty, error: zeroErr.message }
+    const { data, error } = await db.rpc('reset_shop_inventory_all', {
+      p_guild_id: guildId,
+      p_admin_id: session.discordId,
+      p_cancel_note: t('resetAutoCancelNote'),
+    })
+    if (error) return { ...empty, error: error.message }
 
-    const { data: deleted, error: delErr } = await db
-      .from('shop_chest_logs')
-      .delete()
-      .eq('guild_id', guildId)
-      .not('id', 'is', null)
-      .select('id')
-    if (delErr) {
-      return {
-        stockRowsZeroed: zeroed?.length ?? 0,
-        logsDeleted: 0,
-        error: tErr('logDeleteFailed', { reason: delErr.message }),
-      }
-    }
-
+    const result = parseResetInventoryResult(data)
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')
+    revalidatePath('/admin/dashboard/approvals')
+    revalidatePath('/me')
+    revalidatePath('/', 'layout')
     await logAdminAction({
       guildId,
       adminDiscordId: session.discordId,
-      action: 'shop.item.update',
+      action: 'shop.item.remove',
       targetKind: 'shop_item',
       details: {
-        kind: 'inventory.reset',
-        stockRowsZeroed: zeroed?.length ?? 0,
-        logsDeleted: deleted?.length ?? 0,
+        kind: 'inventory.reset_all',
+        inventoryRowsDeleted: result.inventoryRowsDeleted,
+        logsDeleted: result.logsDeleted,
+        ordersCancelled: result.ordersCancelled,
       },
     })
-    return {
-      stockRowsZeroed: zeroed?.length ?? 0,
-      logsDeleted: deleted?.length ?? 0,
-    }
+    return result
   } catch (e) {
     return { ...empty, error: e instanceof Error ? e.message : 'Server error' }
   }

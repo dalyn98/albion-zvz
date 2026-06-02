@@ -29,6 +29,8 @@ import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 // 한 번에 받을 수 있는 원본 entry 수. 5000 은 shop chest_log 와 동일 — 정상적인
 // 인게임 한 번 export 가 이 한도를 넘지 않는다.
 const IMPORT_ROW_LIMIT = 5000
+const EXISTING_DEDUPE_PAGE_SIZE = 1000
+const INSERT_BATCH_SIZE = 500
 
 function revalidateSiphonLedgerSurfaces(): void {
   revalidatePath('/admin/dashboard/siphon')
@@ -90,6 +92,167 @@ function dedupeKey(e: {
     e.quality,
     e.quantity,
   ].join('|')
+}
+
+function isDuplicateKeyError(error: { code?: string; message: string }): boolean {
+  return error.code === '23505' || error.message.includes('duplicate key')
+}
+
+interface ExistingSiphonLedgerRow {
+  id: string
+  logged_at: string
+  player: string
+  item_name_raw: string
+  enchant: number
+  quality: number
+  quantity: number
+}
+
+async function loadExistingSiphonDedupeKeys(
+  db: ReturnType<typeof getAdminClient>,
+  guildId: string,
+  minLogged: string,
+  maxLogged: string,
+): Promise<{ keys: Set<string>; error?: string }> {
+  const keys = new Set<string>()
+  let from = 0
+
+  while (true) {
+    const { data, error } = await db
+      .from('siphon_ledger')
+      .select('id, logged_at, player, item_name_raw, enchant, quality, quantity')
+      .eq('guild_id', guildId)
+      .gte('logged_at', minLogged)
+      .lte('logged_at', maxLogged)
+      .order('logged_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + EXISTING_DEDUPE_PAGE_SIZE - 1)
+    if (error) return { keys, error: error.message }
+
+    const rows = (data ?? []) as ExistingSiphonLedgerRow[]
+    for (const row of rows) {
+      keys.add(
+        dedupeKey({
+          loggedAt: new Date(row.logged_at),
+          player: row.player,
+          itemName: row.item_name_raw,
+          enchant: row.enchant,
+          quality: row.quality,
+          quantity: row.quantity,
+        }),
+      )
+    }
+
+    if (rows.length < EXISTING_DEDUPE_PAGE_SIZE) break
+    from += EXISTING_DEDUPE_PAGE_SIZE
+  }
+
+  return { keys }
+}
+
+function filterNewSiphonEntries(
+  entries: readonly SiphonLogEntry[],
+  existingKeys: ReadonlySet<string>,
+): { entries: SiphonLogEntry[]; duplicatesSkipped: number } {
+  const seen = new Set(existingKeys)
+  const newEntries: SiphonLogEntry[] = []
+  let duplicatesSkipped = 0
+
+  for (const entry of entries) {
+    const key = dedupeKey({ ...entry, itemName: entry.itemName })
+    if (seen.has(key)) {
+      duplicatesSkipped += 1
+      continue
+    }
+    seen.add(key)
+    newEntries.push(entry)
+  }
+
+  return { entries: newEntries, duplicatesSkipped }
+}
+
+interface SiphonEntryTotals {
+  depositTotal: number
+  withdrawTotal: number
+  affectedPlayers: number
+}
+
+function summarizeSiphonEntries(entries: readonly SiphonLogEntry[]): SiphonEntryTotals {
+  let depositTotal = 0
+  let withdrawTotal = 0
+  const players = new Set<string>()
+
+  for (const entry of entries) {
+    if (entry.quantity > 0) depositTotal += entry.quantity
+    else withdrawTotal += entry.quantity
+    players.add(entry.player)
+  }
+
+  return {
+    depositTotal,
+    withdrawTotal,
+    affectedPlayers: players.size,
+  }
+}
+
+function toSiphonLedgerInsertRow(
+  guildId: string,
+  importedBy: string,
+  entry: SiphonLogEntry,
+) {
+  return {
+    guild_id: guildId,
+    logged_at: entry.loggedAt.toISOString(),
+    player: entry.player,
+    item_name_raw: entry.itemName,
+    enchant: entry.enchant,
+    quality: entry.quality,
+    quantity: entry.quantity,
+    imported_by: importedBy,
+  }
+}
+
+async function insertSiphonEntries(
+  db: ReturnType<typeof getAdminClient>,
+  guildId: string,
+  importedBy: string,
+  entries: readonly SiphonLogEntry[],
+): Promise<{
+  insertedEntries: SiphonLogEntry[]
+  duplicatesSkipped: number
+  error?: string
+}> {
+  const insertedEntries: SiphonLogEntry[] = []
+  let duplicatesSkipped = 0
+
+  for (let i = 0; i < entries.length; i += INSERT_BATCH_SIZE) {
+    const slice = entries.slice(i, i + INSERT_BATCH_SIZE)
+    const { error } = await db
+      .from('siphon_ledger')
+      .insert(slice.map((entry) => toSiphonLedgerInsertRow(guildId, importedBy, entry)))
+    if (!error) {
+      insertedEntries.push(...slice)
+      continue
+    }
+    if (!isDuplicateKeyError(error)) {
+      return { insertedEntries, duplicatesSkipped, error: error.message }
+    }
+
+    for (const entry of slice) {
+      const { error: rowError } = await db
+        .from('siphon_ledger')
+        .insert([toSiphonLedgerInsertRow(guildId, importedBy, entry)])
+      if (!rowError) {
+        insertedEntries.push(entry)
+      } else if (isDuplicateKeyError(rowError)) {
+        duplicatesSkipped += 1
+      } else {
+        return { insertedEntries, duplicatesSkipped, error: rowError.message }
+      }
+    }
+  }
+
+  return { insertedEntries, duplicatesSkipped }
 }
 
 function emptySummary(): SiphonImportSummary {
@@ -193,34 +356,18 @@ export async function importSiphonLog(
     const loggedTimes = validEntries.map((e) => e.loggedAt.getTime())
     const minLogged = new Date(Math.min(...loggedTimes)).toISOString()
     const maxLogged = new Date(Math.max(...loggedTimes)).toISOString()
-    const { data: existingRows, error: existingErr } = await db
-      .from('siphon_ledger')
-      .select('logged_at, player, item_name_raw, enchant, quality, quantity')
-      .eq('guild_id', guildId)
-      .gte('logged_at', minLogged)
-      .lte('logged_at', maxLogged)
-    if (existingErr) {
-      return { ...emptySummary(), parseErrors: errors, error: existingErr.message }
-    }
-
-    const existingKeys = new Set(
-      (existingRows ?? []).map((r) =>
-        dedupeKey({
-          loggedAt: new Date(r.logged_at as string),
-          player: r.player as string,
-          itemName: r.item_name_raw as string,
-          enchant: r.enchant as number,
-          quality: r.quality as number,
-          quantity: r.quantity as number,
-        }),
-      ),
+    const { keys: existingKeys, error: existingErr } = await loadExistingSiphonDedupeKeys(
+      db,
+      guildId,
+      minLogged,
+      maxLogged,
     )
+    if (existingErr) return { ...emptySummary(), parseErrors: errors, error: existingErr }
 
-    const isNewEntry = (e: SiphonLogEntry) =>
-      !existingKeys.has(dedupeKey({ ...e, itemName: e.itemName }))
-
-    const newEntries = validEntries.filter(isNewEntry)
-    const duplicatesSkipped = validEntries.length - newEntries.length
+    const {
+      entries: newEntries,
+      duplicatesSkipped: precheckedDuplicatesSkipped,
+    } = filterNewSiphonEntries(validEntries, existingKeys)
 
     let latestQuery = db
       .from('siphon_ledger')
@@ -268,14 +415,7 @@ export async function importSiphonLog(
       getLabel: siphonLabel,
     })
 
-    let depositTotal = 0
-    let withdrawTotal = 0
-    const playersInBatch = new Set<string>()
-    for (const e of newEntries) {
-      if (e.quantity > 0) depositTotal += e.quantity
-      else withdrawTotal += e.quantity
-      playersInBatch.add(e.player)
-    }
+    const previewTotals = summarizeSiphonEntries(newEntries)
 
     if (dryRun) {
       return {
@@ -284,48 +424,37 @@ export async function importSiphonLog(
         siphonRows: validEntries.length,
         skippedBeforeStart: official.skippedBeforeStart,
         inserted: 0,
-        duplicatesSkipped,
+        duplicatesSkipped: precheckedDuplicatesSkipped,
         nonSiphonRows,
-        depositTotal,
-        withdrawTotal,
-        affectedPlayers: playersInBatch.size,
+        ...previewTotals,
         ...continuity,
       }
     }
 
-    // INSERT — 500 batch 로 나눠 안전하게.
-    let inserted = 0
-    const BATCH = 500
-    for (let i = 0; i < newEntries.length; i += BATCH) {
-      const slice = newEntries.slice(i, i + BATCH).map((r) => ({
-        guild_id: guildId,
-        logged_at: r.loggedAt.toISOString(),
-        player: r.player,
-        item_name_raw: r.itemName,
-        enchant: r.enchant,
-        quality: r.quality,
-        quantity: r.quantity,
-        imported_by: session.discordId,
-      }))
-      const { error } = await db.from('siphon_ledger').insert(slice)
-      if (error) {
-        // UNIQUE 동시 import 충돌만 무시 — 나머지는 그대로 throw.
-        if (!error.message.includes('duplicate key')) {
-          return {
-            ...emptySummary(),
-            parsedTotal,
-            parseErrors: errors,
-            siphonRows: validEntries.length,
-            skippedBeforeStart: official.skippedBeforeStart,
-            nonSiphonRows,
-            error: error.message,
-          }
-        }
-      } else {
-        inserted += slice.length
+    const insertResult = await insertSiphonEntries(
+      db,
+      guildId,
+      session.discordId,
+      newEntries,
+    )
+    const duplicatesSkipped = precheckedDuplicatesSkipped + insertResult.duplicatesSkipped
+    if (insertResult.error) {
+      return {
+        ...emptySummary(),
+        parsedTotal,
+        parseErrors: errors,
+        siphonRows: validEntries.length,
+        skippedBeforeStart: official.skippedBeforeStart,
+        inserted: insertResult.insertedEntries.length,
+        duplicatesSkipped,
+        nonSiphonRows,
+        ...summarizeSiphonEntries(insertResult.insertedEntries),
+        error: insertResult.error,
       }
     }
 
+    const inserted = insertResult.insertedEntries.length
+    const committedTotals = summarizeSiphonEntries(insertResult.insertedEntries)
     revalidateSiphonLedgerSurfaces()
 
     await logAdminAction({
@@ -338,9 +467,7 @@ export async function importSiphonLog(
         duplicatesSkipped,
         nonSiphonRows,
         skippedBeforeStart: official.skippedBeforeStart,
-        depositTotal,
-        withdrawTotal,
-        affectedPlayers: playersInBatch.size,
+        ...committedTotals,
         lastKnownLoggedAt: continuity.lastKnownLoggedAt,
         lastKnownLabel: continuity.lastKnownLabel,
         lastKnownInBatch: continuity.lastKnownInBatch,
@@ -357,9 +484,7 @@ export async function importSiphonLog(
       inserted,
       duplicatesSkipped,
       nonSiphonRows,
-      depositTotal,
-      withdrawTotal,
-      affectedPlayers: playersInBatch.size,
+      ...committedTotals,
       ...continuity,
     }
   } catch (e) {

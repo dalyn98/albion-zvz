@@ -69,16 +69,15 @@ const ADMIN_NOTE_MAX_LENGTH = 1000
 const MAX_ORDER_TOTAL_POINTS = 2_147_483_647
 const SHOP_IMPORT_CAPS = [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
 const SHOP_REVIEW_CAPS = [CAP.INVENTORY_MANAGE, CAP.INVENTORY_DELIVER] as const
+const EXISTING_DEDUPE_PAGE_SIZE = 1000
+const INSERT_BATCH_SIZE = 500
+
+type CapabilityDb = Awaited<ReturnType<typeof requireAnyCapability>>
 
 export interface ImportOptions {
   // true 면 DB insert / 재고 RPC / revalidate 모두 스킵하고
   // 예측 결과만 반환 — 붙여넣기 미리보기용.
   dryRun?: boolean
-}
-
-export interface ResetShopChestLogsResult {
-  deletedRows: number
-  error?: string
 }
 
 function dedupeKey(e: {
@@ -102,6 +101,83 @@ function dedupeKey(e: {
 function chestLogLabel(entry: { itemName: string; quantity: number }): string {
   const sign = entry.quantity > 0 ? '+' : ''
   return `${entry.itemName} ${sign}${entry.quantity}`
+}
+
+function isDuplicateKeyError(error: { code?: string; message: string }): boolean {
+  return error.code === '23505' || error.message.includes('duplicate key')
+}
+
+interface ExistingChestLogRow {
+  id: string
+  logged_at: string
+  player: string
+  item_name_raw: string
+  enchant: number
+  quality: number
+  quantity: number
+}
+
+async function loadExistingChestDedupeKeys(
+  db: CapabilityDb,
+  guildId: string,
+  minLogged: string,
+  maxLogged: string,
+): Promise<{ keys: Set<string>; error?: string }> {
+  const keys = new Set<string>()
+  let from = 0
+
+  while (true) {
+    const { data, error } = await db
+      .from('shop_chest_logs')
+      .select('id, logged_at, player, item_name_raw, enchant, quality, quantity')
+      .eq('guild_id', guildId)
+      .gte('logged_at', minLogged)
+      .lte('logged_at', maxLogged)
+      .order('logged_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + EXISTING_DEDUPE_PAGE_SIZE - 1)
+    if (error) return { keys, error: error.message }
+
+    const rows = (data ?? []) as ExistingChestLogRow[]
+    for (const row of rows) {
+      keys.add(
+        dedupeKey({
+          loggedAt: new Date(row.logged_at),
+          player: row.player,
+          itemName: row.item_name_raw,
+          enchant: row.enchant,
+          quality: row.quality,
+          quantity: row.quantity,
+        }),
+      )
+    }
+
+    if (rows.length < EXISTING_DEDUPE_PAGE_SIZE) break
+    from += EXISTING_DEDUPE_PAGE_SIZE
+  }
+
+  return { keys }
+}
+
+function filterNewChestLogEntries(
+  entries: readonly ChestLogEntry[],
+  existingKeys: ReadonlySet<string>,
+): { entries: ChestLogEntry[]; duplicatesSkipped: number } {
+  const seen = new Set(existingKeys)
+  const newEntries: ChestLogEntry[] = []
+  let duplicatesSkipped = 0
+
+  for (const entry of entries) {
+    const key = dedupeKey({ ...entry, itemName: entry.itemName })
+    if (seen.has(key)) {
+      duplicatesSkipped += 1
+      continue
+    }
+    seen.add(key)
+    newEntries.push(entry)
+  }
+
+  return { entries: newEntries, duplicatesSkipped }
 }
 
 interface StockApplyError {
@@ -130,7 +206,7 @@ function toStockDeltaRpcPayload(delta: StockReplayDelta) {
 }
 
 async function applyShopStockDeltas(
-  db: Awaited<ReturnType<typeof requireAnyCapability>>,
+  db: CapabilityDb,
   guildId: string,
   deltas: readonly StockReplayDelta[],
 ): Promise<StockApplyError | null> {
@@ -164,7 +240,7 @@ async function applyShopStockDeltas(
 }
 
 async function loadCurrentStockByKey(
-  db: Awaited<ReturnType<typeof requireAnyCapability>>,
+  db: CapabilityDb,
   guildId: string,
   deltas: readonly StockReplayDelta[],
 ): Promise<Map<string, number>> {
@@ -189,40 +265,68 @@ async function loadCurrentStockByKey(
   return stockByKey
 }
 
-export async function resetShopChestLogs(): Promise<ResetShopChestLogsResult> {
-  const empty: ResetShopChestLogsResult = { deletedRows: 0 }
-  try {
-    const session = await getSession()
-    if (!session) return { ...empty, error: 'Unauthorized' }
-    const db = await requireAnyCapability(SHOP_IMPORT_CAPS)
-    const guildId = await getSessionGuildId(session)
-
-    const { count, error } = await db
-      .from('shop_chest_logs')
-      .delete({ count: 'exact' })
-      .eq('guild_id', guildId)
-
-    if (error) return { ...empty, error: error.message }
-
-    const deletedRows = count ?? 0
-    revalidatePath('/admin/dashboard/shop')
-    revalidatePath('/shop')
-
-    await logAdminAction({
-      guildId,
-      adminDiscordId: session.discordId,
-      action: 'shop.item.update',
-      targetKind: 'shop_item',
-      details: {
-        kind: 'chest_logs.reset',
-        deletedRows,
-      },
-    })
-
-    return { deletedRows }
-  } catch (e) {
-    return { ...empty, error: e instanceof Error ? e.message : 'Server error' }
+function toChestLogInsertRow(
+  guildId: string,
+  importedBy: string,
+  row: AggregateRow,
+  importSequence: number,
+) {
+  return {
+    guild_id: guildId,
+    logged_at: row.entry.loggedAt.toISOString(),
+    import_sequence: importSequence,
+    player: row.entry.player,
+    item_name_raw: row.entry.itemName,
+    enchant: row.entry.enchant,
+    quality: row.entry.quality,
+    quantity: row.entry.quantity,
+    unique_name: row.resolved?.uniqueName ?? null,
+    imported_by: importedBy,
   }
+}
+
+async function insertShopChestRows(
+  db: CapabilityDb,
+  guildId: string,
+  importedBy: string,
+  rows: readonly AggregateRow[],
+): Promise<{
+  insertedRows: AggregateRow[]
+  duplicatesSkipped: number
+  error?: string
+}> {
+  const insertedRows: AggregateRow[] = []
+  let duplicatesSkipped = 0
+
+  for (let i = 0; i < rows.length; i += INSERT_BATCH_SIZE) {
+    const slice = rows.slice(i, i + INSERT_BATCH_SIZE)
+    const { error } = await db
+      .from('shop_chest_logs')
+      .insert(slice.map((row, offset) => toChestLogInsertRow(guildId, importedBy, row, i + offset)))
+    if (!error) {
+      insertedRows.push(...slice)
+      continue
+    }
+    if (!isDuplicateKeyError(error)) {
+      return { insertedRows, duplicatesSkipped, error: error.message }
+    }
+
+    for (let offset = 0; offset < slice.length; offset += 1) {
+      const row = slice[offset]
+      const { error: rowError } = await db
+        .from('shop_chest_logs')
+        .insert([toChestLogInsertRow(guildId, importedBy, row, i + offset)])
+      if (!rowError) {
+        insertedRows.push(row)
+      } else if (isDuplicateKeyError(rowError)) {
+        duplicatesSkipped += 1
+      } else {
+        return { insertedRows, duplicatesSkipped, error: rowError.message }
+      }
+    }
+  }
+
+  return { insertedRows, duplicatesSkipped }
 }
 
 export async function importChestLog(
@@ -314,32 +418,18 @@ export async function importChestLog(
     const loggedTimes = entries.map((e) => e.loggedAt.getTime())
     const minLogged = new Date(Math.min(...loggedTimes)).toISOString()
     const maxLogged = new Date(Math.max(...loggedTimes)).toISOString()
-    const { data: existingRows, error: existingErr } = await db
-      .from('shop_chest_logs')
-      .select('logged_at, player, item_name_raw, enchant, quality, quantity')
-      .eq('guild_id', guildId)
-      .gte('logged_at', minLogged)
-      .lte('logged_at', maxLogged)
-    if (existingErr) return { ...empty, parseErrors: errors, error: existingErr.message }
-
-    const existingKeys = new Set(
-      (existingRows ?? []).map((r) =>
-        dedupeKey({
-          loggedAt: new Date(r.logged_at as string),
-          player: r.player as string,
-          itemName: r.item_name_raw as string,
-          enchant: r.enchant as number,
-          quality: r.quality as number,
-          quantity: r.quantity as number,
-        }),
-      ),
+    const { keys: existingKeys, error: existingErr } = await loadExistingChestDedupeKeys(
+      db,
+      guildId,
+      minLogged,
+      maxLogged,
     )
+    if (existingErr) return { ...empty, parseErrors: errors, error: existingErr }
 
-    const isNewEntry = (e: ChestLogEntry) =>
-      !existingKeys.has(dedupeKey({ ...e, itemName: e.itemName }))
-
-    const newEntries = entries.filter(isNewEntry)
-    const duplicatesSkipped = entries.length - newEntries.length
+    const {
+      entries: newEntries,
+      duplicatesSkipped: precheckedDuplicatesSkipped,
+    } = filterNewChestLogEntries(entries, existingKeys)
 
     // 마지막 로그 감지 — DB 전체에서 가장 최신 timestamp 의 모든 행을 조회.
     // 사용자에게 "이 지점까지 저장돼있고, 그 이후 N건이 신규" 를 알려주기 위함.
@@ -399,7 +489,7 @@ export async function importChestLog(
       getKey: dedupeKey,
       getLabel: chestLogLabel,
     })
-    const { toInsert, unresolvedNames } = aggregateStock(rows)
+    const { unresolvedNames } = aggregateStock(rows)
     const stockDeltas = buildOrderedStockReplayDeltas(rows)
 
     const blacklistedRows = rows.filter((row) => row.isBlacklisted).length
@@ -415,7 +505,7 @@ export async function importChestLog(
         parsed: parsedEntries.length,
         parseErrors: errors,
         inserted: 0,
-        duplicatesSkipped,
+        duplicatesSkipped: precheckedDuplicatesSkipped,
         skippedBeforeStart: official.skippedBeforeStart,
         blacklistedRows,
         tierEnchantExcludedRows,
@@ -430,37 +520,42 @@ export async function importChestLog(
       }
     }
 
-    // 원본 로그 INSERT. 배치 크기 500 으로 나눠 대용량도 안전하게.
-    let inserted = 0
-    const BATCH = 500
-    for (let i = 0; i < toInsert.length; i += BATCH) {
-      const slice = toInsert.slice(i, i + BATCH).map((r) => ({
-        guild_id: guildId,
-        logged_at: r.loggedAt.toISOString(),
-        import_sequence: r.importSequence,
-        player: r.player,
-        item_name_raw: r.itemNameRaw,
-        enchant: r.enchant,
-        quality: r.quality,
-        quantity: r.quantity,
-        unique_name: r.uniqueName,
-        imported_by: session.discordId,
-      }))
-      const { error } = await db.from('shop_chest_logs').insert(slice)
-      if (error) {
-        // UNIQUE 제약 위반(동시 임포트)은 무시하고 통계만 조정.
-        if (!error.message.includes('duplicate key')) {
-          return { ...empty, parseErrors: errors, error: error.message }
-        }
-      } else {
-        inserted += slice.length
-      }
-    }
+    const insertResult = await insertShopChestRows(db, guildId, session.discordId, rows)
+    const inserted = insertResult.insertedRows.length
+    const duplicatesSkipped = precheckedDuplicatesSkipped + insertResult.duplicatesSkipped
+    const committedRows = insertResult.insertedRows
+    const committedAggregate = aggregateStock(committedRows)
+    const committedStockDeltas = buildOrderedStockReplayDeltas(committedRows)
+    const committedBlacklistedRows = committedRows.filter((row) => row.isBlacklisted).length
+    const committedUnresolvedRows = committedRows.filter(
+      (row) => !row.isBlacklisted && !row.resolved,
+    ).length
 
     // 재고 RPC 호출 — 저장된 로그와 같은 시간 순서로 적용한다. 출고 로그가 먼저
     // 나오더라도 뒤따르는 입고를 잃지 않게 해야 rebuild/import 결과가 일치한다.
-    const initialStockByKey = await loadCurrentStockByKey(db, guildId, stockDeltas)
-    const stockApplyError = await applyShopStockDeltas(db, guildId, stockDeltas)
+    const initialStockByKey = await loadCurrentStockByKey(db, guildId, committedStockDeltas)
+    const stockApplyError = await applyShopStockDeltas(db, guildId, committedStockDeltas)
+    stockChanges = summarizeStockReplayChanges(initialStockByKey, committedStockDeltas)
+    if (insertResult.error) {
+      return {
+        parsed: parsedEntries.length,
+        parseErrors: errors,
+        inserted,
+        duplicatesSkipped,
+        skippedBeforeStart: official.skippedBeforeStart,
+        blacklistedRows: committedBlacklistedRows,
+        tierEnchantExcludedRows,
+        unresolvedRows: committedUnresolvedRows,
+        unresolvedNames: committedAggregate.unresolvedNames,
+        stockChanges,
+        lastKnownLoggedAt,
+        lastKnownLabel,
+        lastKnownInBatch,
+        newEntriesAfterLast,
+        gapFromLastKnownMs,
+        error: insertResult.error,
+      }
+    }
     if (stockApplyError) {
       return {
         parsed: parsedEntries.length,
@@ -468,10 +563,10 @@ export async function importChestLog(
         inserted,
         duplicatesSkipped,
         skippedBeforeStart: official.skippedBeforeStart,
-        blacklistedRows,
+        blacklistedRows: committedBlacklistedRows,
         tierEnchantExcludedRows,
-        unresolvedRows,
-        unresolvedNames,
+        unresolvedRows: committedUnresolvedRows,
+        unresolvedNames: committedAggregate.unresolvedNames,
         stockChanges,
         lastKnownLoggedAt,
         lastKnownLabel,
@@ -484,7 +579,6 @@ export async function importChestLog(
         }),
       }
     }
-    stockChanges = summarizeStockReplayChanges(initialStockByKey, stockDeltas)
 
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')
@@ -501,7 +595,7 @@ export async function importChestLog(
         skippedBeforeStart: official.skippedBeforeStart,
         stockChanges: stockChanges.length,
         tierEnchantExcludedRows,
-        unresolvedRows,
+        unresolvedRows: committedUnresolvedRows,
       },
     })
 
@@ -511,10 +605,10 @@ export async function importChestLog(
       inserted,
       duplicatesSkipped,
       skippedBeforeStart: official.skippedBeforeStart,
-      blacklistedRows,
+      blacklistedRows: committedBlacklistedRows,
       tierEnchantExcludedRows,
-      unresolvedRows,
-      unresolvedNames,
+      unresolvedRows: committedUnresolvedRows,
+      unresolvedNames: committedAggregate.unresolvedNames,
       stockChanges,
       lastKnownLoggedAt,
       lastKnownLabel,

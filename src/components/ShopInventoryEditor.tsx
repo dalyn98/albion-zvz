@@ -133,8 +133,9 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
   const [error, setError] = useState('')
   const [syncSummary, setSyncSummary] = useState<PriceSyncSummary | null>(null)
   const [resetSummary, setResetSummary] = useState<{
-    stockRowsZeroed: number
+    inventoryRowsDeleted: number
     logsDeleted: number
+    ordersCancelled: number
   } | null>(null)
   const [rebuildSummary, setRebuildSummary] = useState<RebuildInventoryResult | null>(null)
   const [query, setQuery] = useState('')
@@ -192,8 +193,9 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
         return
       }
       setResetSummary({
-        stockRowsZeroed: result.stockRowsZeroed,
+        inventoryRowsDeleted: result.inventoryRowsDeleted,
         logsDeleted: result.logsDeleted,
+        ordersCancelled: result.ordersCancelled,
       })
       router.refresh()
     })
@@ -276,8 +278,9 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
       {resetSummary !== null && (
         <div className="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-1.5">
           {t('resetSummary', {
-            rows: resetSummary.stockRowsZeroed.toLocaleString(),
+            rows: resetSummary.inventoryRowsDeleted.toLocaleString(),
             logs: resetSummary.logsDeleted.toLocaleString(),
+            orders: resetSummary.ordersCancelled.toLocaleString(),
           })}
         </div>
       )}

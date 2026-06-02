@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   sessionHas: vi.fn(),
   getSessionGuildId: vi.fn(),
+  getTranslations: vi.fn(),
+  getLogOperatingStart: vi.fn(),
   logAdminAction: vi.fn(),
   revalidatePath: vi.fn(),
 }))
@@ -31,10 +33,14 @@ vi.mock('next/cache', () => ({
 }))
 
 vi.mock('next-intl/server', () => ({
-  getTranslations: vi.fn(),
+  getTranslations: mocks.getTranslations,
 }))
 
-import { deleteSiphonRow, resetSiphonLedger } from './siphon-admin'
+vi.mock('@/lib/log-operating-start-server', () => ({
+  getLogOperatingStart: mocks.getLogOperatingStart,
+}))
+
+import { deleteSiphonRow, importSiphonLog, resetSiphonLedger } from './siphon-admin'
 
 interface DeleteResult {
   data: Array<{ id: string; [key: string]: unknown }> | null
@@ -107,12 +113,160 @@ function createDeleteQuery(result: DeleteResult): {
   return { query, calls }
 }
 
+interface ImportQuery {
+  select: (columns: string) => ImportQuery
+  eq: (column: string, value: unknown) => ImportQuery
+  gte: (column: string, value: unknown) => ImportQuery
+  lte: (column: string, value: unknown) => ImportQuery
+  order: (column: string, options?: { ascending?: boolean }) => ImportQuery
+  range: (from: number, to: number) => Promise<{ data: unknown[]; error: null }>
+  limit: (count: number) => ImportQuery
+  maybeSingle: () => Promise<{ data: null; error: null }>
+  insert: (rows: unknown[]) => Promise<{ error: { message: string } | null }>
+}
+
+function createImportDb(insertResults: Array<{ error: { message: string } | null }>) {
+  const calls: QueryCall[] = []
+  const query: ImportQuery = {
+    select: (columns) => {
+      calls.push({ method: 'select', args: [columns] })
+      return query
+    },
+    eq: (column, value) => {
+      calls.push({ method: 'eq', args: [column, value] })
+      return query
+    },
+    gte: (column, value) => {
+      calls.push({ method: 'gte', args: [column, value] })
+      return query
+    },
+    lte: (column, value) => {
+      calls.push({ method: 'lte', args: [column, value] })
+      return query
+    },
+    range: (from, to) => {
+      calls.push({ method: 'range', args: [from, to] })
+      return Promise.resolve({ data: [], error: null })
+    },
+    order: (column, options) => {
+      calls.push({ method: 'order', args: options ? [column, options] : [column] })
+      return query
+    },
+    limit: (count) => {
+      calls.push({ method: 'limit', args: [count] })
+      return query
+    },
+    maybeSingle: () => {
+      calls.push({ method: 'maybeSingle', args: [] })
+      return Promise.resolve({ data: null, error: null })
+    },
+    insert: (rows) => {
+      calls.push({ method: 'insert', args: [rows] })
+      const next = insertResults.shift() ?? { error: null }
+      return Promise.resolve(next)
+    },
+  }
+  const from = vi.fn((table: string) => {
+    expect(table).toBe('siphon_ledger')
+    return query
+  })
+  return { db: { from }, calls, from }
+}
+
+describe('importSiphonLog', () => {
+  beforeEach(() => {
+    mocks.getAdminClient.mockReset()
+    mocks.getSession.mockReset()
+    mocks.sessionHas.mockReset()
+    mocks.getSessionGuildId.mockReset()
+    mocks.getTranslations.mockReset()
+    mocks.getLogOperatingStart.mockReset()
+    mocks.logAdminAction.mockReset()
+    mocks.revalidatePath.mockReset()
+
+    mocks.getTranslations.mockResolvedValue((key: string) => key)
+    mocks.getSession.mockResolvedValue({ discordId: 'admin-1' })
+    mocks.sessionHas.mockReturnValue(true)
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getLogOperatingStart.mockResolvedValue(null)
+  })
+
+  it('falls back to row-level inserts when a batch contains an unobserved duplicate', async () => {
+    const duplicateError = { message: 'duplicate key value violates unique constraint' }
+    const { db, calls } = createImportDb([
+      { error: duplicateError },
+      { error: duplicateError },
+      { error: null },
+    ])
+    mocks.getAdminClient.mockReturnValue(db)
+
+    const raw = [
+      '"날짜"\t"플레이어"\t"목적"\t"수량"',
+      '"2026-05-29 12:23:03"\t"sarangzzang"\t"출금"\t"-6797"',
+      '"2026-05-29 12:23:05"\t"sarangzzang"\t"입금"\t"6807"',
+    ].join('\n')
+
+    await expect(importSiphonLog(raw)).resolves.toMatchObject({
+      parsedTotal: 2,
+      siphonRows: 2,
+      inserted: 1,
+      duplicatesSkipped: 1,
+      depositTotal: 6807,
+      withdrawTotal: 0,
+      affectedPlayers: 1,
+    })
+
+    const insertCalls = calls.filter((call) => call.method === 'insert')
+    expect(insertCalls).toHaveLength(3)
+    expect((insertCalls[0].args[0] as unknown[])).toHaveLength(2)
+    expect((insertCalls[1].args[0] as unknown[])).toHaveLength(1)
+    expect((insertCalls[2].args[0] as unknown[])).toHaveLength(1)
+    expect(mocks.logAdminAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        guildId: 'guild-1',
+        action: 'siphon.log.import',
+        details: expect.objectContaining({
+          inserted: 1,
+          duplicatesSkipped: 1,
+          depositTotal: 6807,
+          withdrawTotal: 0,
+        }),
+      }),
+    )
+  })
+
+  it('counts duplicate rows inside the pasted batch during dry-run', async () => {
+    const { db, calls } = createImportDb([])
+    mocks.getAdminClient.mockReturnValue(db)
+
+    const raw = [
+      '"날짜"\t"플레이어"\t"목적"\t"수량"',
+      '"2026-05-29 12:23:05"\t"sarangzzang"\t"입금"\t"6807"',
+      '"2026-05-29 12:23:05"\t"sarangzzang"\t"입금"\t"6807"',
+    ].join('\n')
+
+    await expect(importSiphonLog(raw, { dryRun: true })).resolves.toMatchObject({
+      parsedTotal: 2,
+      siphonRows: 2,
+      inserted: 0,
+      duplicatesSkipped: 1,
+      depositTotal: 6807,
+      withdrawTotal: 0,
+      affectedPlayers: 1,
+    })
+
+    expect(calls.filter((call) => call.method === 'insert')).toEqual([])
+  })
+})
+
 describe('resetSiphonLedger', () => {
   beforeEach(() => {
     mocks.getAdminClient.mockReset()
     mocks.getSession.mockReset()
     mocks.sessionHas.mockReset()
     mocks.getSessionGuildId.mockReset()
+    mocks.getTranslations.mockReset()
+    mocks.getLogOperatingStart.mockReset()
     mocks.logAdminAction.mockReset()
     mocks.revalidatePath.mockReset()
   })

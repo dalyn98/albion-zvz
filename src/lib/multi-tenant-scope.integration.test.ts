@@ -311,6 +311,150 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
     expect(debit).toMatchObject({ delta: -700, reason: 'shop_purchase' })
   })
 
+  it('resets shop inventory for one tenant and cancels only pending shop orders', async () => {
+    const client = getTestServiceClient()
+    const tenantAOrderPending = crypto.randomUUID()
+    const tenantAOrderApproved = crypto.randomUUID()
+    const tenantBOrderPending = crypto.randomUUID()
+    const itemKey = {
+      unique_name: 'T7_MAIN_CURSEDSTAFF',
+      enchant: 1,
+      quality: 2,
+    }
+
+    const { error: invErr } = await client.from('shop_inventory').insert([
+      {
+        guild_id: tenantA.guildId,
+        ...itemKey,
+        stock: 3,
+        name_ko: '저주 지팡이 테스트',
+        category: 'magic',
+        tier: 7,
+      },
+      {
+        guild_id: tenantB.guildId,
+        ...itemKey,
+        stock: 5,
+        name_ko: '저주 지팡이 테스트',
+        category: 'magic',
+        tier: 7,
+      },
+    ])
+    expect(invErr).toBeNull()
+
+    const { error: logErr } = await client.from('shop_chest_logs').insert([
+      {
+        guild_id: tenantA.guildId,
+        logged_at: '2026-05-01T00:00:00.000Z',
+        player: 'TenantA',
+        item_name_raw: '저주 지팡이 테스트',
+        enchant: 1,
+        quality: 2,
+        quantity: 3,
+        unique_name: itemKey.unique_name,
+      },
+      {
+        guild_id: tenantB.guildId,
+        logged_at: '2026-05-01T00:00:00.000Z',
+        player: 'TenantB',
+        item_name_raw: '저주 지팡이 테스트',
+        enchant: 1,
+        quality: 2,
+        quantity: 5,
+        unique_name: itemKey.unique_name,
+      },
+    ])
+    expect(logErr).toBeNull()
+
+    const { error: orderErr } = await client.from('shop_orders').insert([
+      {
+        id: tenantAOrderPending,
+        guild_id: tenantA.guildId,
+        discord_id: 'tenant-a-pending',
+        username: 'Tenant A Pending',
+        total_points: 100,
+        status: 'pending',
+      },
+      {
+        id: tenantAOrderApproved,
+        guild_id: tenantA.guildId,
+        discord_id: 'tenant-a-approved',
+        username: 'Tenant A Approved',
+        total_points: 100,
+        status: 'approved',
+      },
+      {
+        id: tenantBOrderPending,
+        guild_id: tenantB.guildId,
+        discord_id: 'tenant-b-pending',
+        username: 'Tenant B Pending',
+        total_points: 100,
+        status: 'pending',
+      },
+    ])
+    expect(orderErr).toBeNull()
+
+    const { data, error } = await client.rpc('reset_shop_inventory_all', {
+      p_guild_id: tenantA.guildId,
+      p_admin_id: 'admin-discord',
+      p_cancel_note: 'reset note',
+    })
+    expect(error).toBeNull()
+    expect(data).toMatchObject({
+      inventory_rows_deleted: 1,
+      logs_deleted: 1,
+      orders_cancelled: 1,
+    })
+
+    const { count: tenantAInventoryCount } = await client
+      .from('shop_inventory')
+      .select('id', { count: 'exact', head: true })
+      .eq('guild_id', tenantA.guildId)
+    expect(tenantAInventoryCount).toBe(0)
+
+    const { count: tenantALogCount } = await client
+      .from('shop_chest_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('guild_id', tenantA.guildId)
+    expect(tenantALogCount).toBe(0)
+
+    const { data: tenantAOrders } = await client
+      .from('shop_orders')
+      .select('id, status, admin_note, resolved_by')
+      .eq('guild_id', tenantA.guildId)
+      .in('id', [tenantAOrderPending, tenantAOrderApproved])
+    expect(tenantAOrders).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: tenantAOrderPending,
+          status: 'cancelled',
+          admin_note: 'reset note',
+          resolved_by: 'admin-discord',
+        }),
+        expect.objectContaining({
+          id: tenantAOrderApproved,
+          status: 'approved',
+        }),
+      ]),
+    )
+
+    const { data: tenantBInventory } = await client
+      .from('shop_inventory')
+      .select('stock')
+      .eq('guild_id', tenantB.guildId)
+      .eq('unique_name', itemKey.unique_name)
+      .single()
+    expect(tenantBInventory?.stock).toBe(5)
+
+    const { data: tenantBOrder } = await client
+      .from('shop_orders')
+      .select('status')
+      .eq('guild_id', tenantB.guildId)
+      .eq('id', tenantBOrderPending)
+      .single()
+    expect(tenantBOrder?.status).toBe('pending')
+  })
+
   it('maintains member point balance projections within tenant scope', async () => {
     const client = getTestServiceClient()
     const discordId = `projection-${crypto.randomUUID()}`
