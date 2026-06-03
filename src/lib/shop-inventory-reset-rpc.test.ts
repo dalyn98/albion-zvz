@@ -31,4 +31,14 @@ describe('shop inventory reset RPC', () => {
     expect(baselineUpdate).toContain("and status = 'confirmed'")
     expect(sql).toContain("'baselines_superseded', v_baselines_superseded")
   })
+
+  it('deletes manual stock adjustments during full reset', () => {
+    const sql = latestFunctionDefinition('reset_shop_inventory_all')
+    const adjustmentDelete = sql.match(
+      /delete\s+from\s+public\.shop_inventory_adjustments[\s\S]*?get\s+diagnostics\s+v_adjustments_deleted\s*=\s*row_count;/i,
+    )?.[0]
+
+    expect(adjustmentDelete).toContain('where guild_id = p_guild_id')
+    expect(sql).toContain("'adjustments_deleted', v_adjustments_deleted")
+  })
 })

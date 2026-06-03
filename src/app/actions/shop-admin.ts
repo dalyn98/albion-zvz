@@ -831,6 +831,7 @@ export interface AdminShopOrder {
   totalPoints: number
   suggestedTotalPoints: number | null
   priceReviewRequired: boolean
+  stockReservedAt: string | null
   balance: number
   status: 'pending' | 'approved' | 'rejected' | 'cancelled'
   memberNote: string | null
@@ -874,7 +875,7 @@ export async function listShopOrders(
     const q = db
       .from('shop_orders')
       .select(
-        'id, discord_id, username, total_points, price_review_required, status, member_note, admin_note, created_at, resolved_at, resolved_by',
+        'id, discord_id, username, total_points, price_review_required, stock_reserved_at, status, member_note, admin_note, created_at, resolved_at, resolved_by',
       )
       .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
@@ -968,6 +969,7 @@ export async function listShopOrders(
           totalPoints: o.total_points as number,
           suggestedTotalPoints: quoteTotal,
           priceReviewRequired: Boolean(o.price_review_required),
+          stockReservedAt: (o.stock_reserved_at as string | null) ?? null,
           balance: balanceByUser.get(o.discord_id as string) ?? 0,
           status: o.status as AdminShopOrder['status'],
           memberNote: (o.member_note as string | null) ?? null,

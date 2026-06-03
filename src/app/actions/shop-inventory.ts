@@ -27,6 +27,33 @@ export interface PriceSyncSummary {
 const INVENTORY_MANAGE_CAPS = [CAP.INVENTORY_MANAGE, CAP.SHOP_PRICING] as const
 const SHOP_PRICING_CAPS = [CAP.SHOP_PRICING, CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
 
+interface StockAdjustmentRpcResult {
+  inventoryId: string
+  uniqueName: string
+  enchant: number
+  quality: number
+  nameKo: string
+  beforeStock: number
+  afterStock: number
+}
+
+function parseStockAdjustmentResult(
+  raw: unknown,
+  fallbackId: string,
+  fallbackStock: number,
+): StockAdjustmentRpcResult {
+  const obj = (raw ?? {}) as Record<string, unknown>
+  return {
+    inventoryId: String(obj.inventory_id ?? fallbackId),
+    uniqueName: String(obj.unique_name ?? ''),
+    enchant: Number(obj.enchant ?? 0),
+    quality: Number(obj.quality ?? 1),
+    nameKo: String(obj.name_ko ?? ''),
+    beforeStock: Number(obj.before_stock ?? fallbackStock),
+    afterStock: Number(obj.after_stock ?? fallbackStock),
+  }
+}
+
 export async function syncShopPrices(): Promise<PriceSyncSummary> {
   const tErr = await getTranslations('adminActionError')
   try {
@@ -68,12 +95,22 @@ export async function updateInventoryStock(
     if (!Number.isInteger(stock) || stock < 0) return { error: tErr('nonNegativeInteger') }
     const guildId = await getSessionGuildId(session)
     const db = await requireAnyCapability(INVENTORY_MANAGE_CAPS)
-    const { error } = await db
-      .from('shop_inventory')
-      .update({ stock, updated_at: new Date().toISOString() })
-      .eq('guild_id', guildId)
-      .eq('id', id)
-    if (error) return { error: error.message }
+    const { data, error } = await db.rpc('set_shop_inventory_stock', {
+      p_guild_id: guildId,
+      p_inventory_id: id,
+      p_admin_id: session.discordId,
+      p_stock: stock,
+    })
+    if (error) {
+      if (error.message.includes('INVENTORY_NOT_FOUND')) {
+        return { error: tErr('inventoryNotFound') }
+      }
+      if (error.message.includes('INVALID_STOCK')) {
+        return { error: tErr('nonNegativeInteger') }
+      }
+      return { error: error.message }
+    }
+    const adjustment = parseStockAdjustmentResult(data, id, stock)
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/shop')
     await logAdminAction({
@@ -82,7 +119,16 @@ export async function updateInventoryStock(
       action: 'shop.item.update',
       targetId: id,
       targetKind: 'shop_item',
-      details: { kind: 'manual_stock_edit', stock },
+      details: {
+        kind: 'manual_stock_edit',
+        stock,
+        beforeStock: adjustment.beforeStock,
+        afterStock: adjustment.afterStock,
+        uniqueName: adjustment.uniqueName,
+        enchant: adjustment.enchant,
+        quality: adjustment.quality,
+        nameKo: adjustment.nameKo,
+      },
     })
     return {}
   } catch (e) {

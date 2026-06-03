@@ -17,6 +17,10 @@ import MemberLink from './MemberLink'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
 import { getLocalizedItemName } from '@/lib/item-names'
 import { buildAlbionItemImageUrlCandidates } from '@/lib/albion-render'
+import {
+  hasBlockingShopOrderLineStockShortage,
+  hasBlockingShopOrderStockShortage,
+} from '@/lib/shop/order-approval'
 import type { Locale } from '@/i18n/locales'
 import AlbionItemImage from './AlbionItemImage'
 
@@ -99,7 +103,10 @@ function OrderRow({
   }
 
   const insufficientBalance = order.balance < order.totalPoints
-  const insufficientStock = order.items.some((it) => it.stockAvailable < it.quantity)
+  const insufficientStock = hasBlockingShopOrderStockShortage({
+    stockReservedAt: order.stockReservedAt,
+    items: order.items,
+  })
   const blockedApprove = insufficientBalance || insufficientStock
   const quoteApproveTotal = order.suggestedTotalPoints
   const quoteApproveBlocked =
@@ -215,7 +222,10 @@ function OrderRow({
       {/* 아이템 리스트 */}
       <div className="space-y-1">
         {order.items.map((it, idx) => {
-          const short = insufficientStock && it.stockAvailable < it.quantity
+          const short = hasBlockingShopOrderLineStockShortage({
+            stockReservedAt: order.stockReservedAt,
+            item: it,
+          })
           const displayName =
             getLocalizedItemName(it.uniqueName, locale, it.nameKo) ?? it.nameKo
           const quoteDelta =
