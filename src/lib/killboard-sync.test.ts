@@ -5,6 +5,9 @@ const getAppSettingMock = vi.fn<(k: string, f: string, g: string) => Promise<str
   async (_k, fallback) => fallback,
 )
 const fetchJsonWithRetryMock = vi.fn()
+const broadcastGuildEventMock = vi.fn(
+  async (_scope: 'killboard' | 'battles' | 'regear', _guildId: string, _count: number) => undefined,
+)
 
 vi.mock('@/lib/killboard', () => ({
   resolveAlbionServer: (g: string) => resolveAlbionServerMock(g),
@@ -16,7 +19,8 @@ vi.mock('@/lib/http-retry', () => ({
   fetchJsonWithRetry: (...args: unknown[]) => fetchJsonWithRetryMock(...args),
 }))
 vi.mock('@/lib/realtime-broadcast', () => ({
-  broadcastGuildEvent: vi.fn(async () => undefined),
+  broadcastGuildEvent: (scope: 'killboard' | 'battles' | 'regear', guildId: string, count: number) =>
+    broadcastGuildEventMock(scope, guildId, count),
 }))
 
 import { syncKillboard } from './killboard-sync'
@@ -73,6 +77,7 @@ beforeEach(() => {
   resolveAlbionServerMock.mockReset()
   getAppSettingMock.mockReset().mockImplementation(async (_k, f) => f)
   fetchJsonWithRetryMock.mockReset()
+  broadcastGuildEventMock.mockClear()
 })
 
 describe('syncKillboard early-skip behavior', () => {
@@ -127,6 +132,23 @@ describe('syncKillboard early-skip behavior', () => {
     await syncKillboard(db, 'tenant-XYZ')
 
     expect(resolveAlbionServerMock).toHaveBeenCalledWith('tenant-XYZ')
+  })
+
+  it('fails before tenant work starts when the caller signal is already aborted', async () => {
+    const controller = new AbortController()
+    controller.abort(new Error('tenant timed out'))
+    const db = makeDb({
+      guildAvatarsResult: async () => ({ data: [], error: null }),
+      albionOnlyResult: async () => ({ data: [], error: null }),
+      upsertResult: async () => ({ data: null, error: null, count: 0 }),
+    })
+
+    await expect(syncKillboard(db, 'tenant-1', { signal: controller.signal })).rejects.toThrow(
+      'tenant timed out',
+    )
+
+    expect(resolveAlbionServerMock).not.toHaveBeenCalled()
+    expect(fetchJsonWithRetryMock).not.toHaveBeenCalled()
   })
 
   it('reads guildName from app-settings scoped to guildId', async () => {
@@ -230,5 +252,47 @@ describe('syncKillboard early-skip behavior', () => {
       role: 'killer',
       battle_id: 67890,
     })
+  })
+
+  it('propagates the caller abort signal to Albion API fetches', async () => {
+    resolveAlbionServerMock.mockResolvedValue('west')
+    getAppSettingMock.mockResolvedValue('My Guild')
+    fetchJsonWithRetryMock.mockResolvedValue([])
+    const controller = new AbortController()
+    const db = makeDb({
+      guildAvatarsResult: async () => ({
+        data: [{ discord_id: 'discord-1', username: 'Player', albion_player_id: 'player-1' }],
+        error: null,
+      }),
+      albionOnlyResult: async () => ({ data: [], error: null }),
+      upsertResult: async () => ({ data: null, error: null, count: 0 }),
+    })
+
+    await syncKillboard(db, 'tenant-1', { signal: controller.signal })
+
+    expect(fetchJsonWithRetryMock).toHaveBeenCalled()
+    for (const [, opts] of fetchJsonWithRetryMock.mock.calls) {
+      expect(opts).toMatchObject({ signal: controller.signal })
+    }
+  })
+
+  it('stops before post-poll side effects when the caller signal aborts during tenant work', async () => {
+    resolveAlbionServerMock.mockResolvedValue('west')
+    getAppSettingMock.mockResolvedValue('My Guild')
+    const controller = new AbortController()
+    const db = makeDb({
+      guildAvatarsResult: async () => ({ data: [], error: null }),
+      albionOnlyResult: async () => {
+        controller.abort(new Error('tenant timed out'))
+        return { data: [], error: null }
+      },
+      upsertResult: async () => ({ data: null, error: null, count: 0 }),
+    })
+
+    await expect(syncKillboard(db, 'tenant-1', { signal: controller.signal })).rejects.toThrow(
+      'tenant timed out',
+    )
+
+    expect(broadcastGuildEventMock).not.toHaveBeenCalled()
   })
 })

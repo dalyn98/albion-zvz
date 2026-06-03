@@ -36,6 +36,8 @@ export interface FetchJsonOpts {
   baseBackoffMs?: number
   // fetch 의 cache/next 등 추가 init. signal/headers 는 본 헬퍼가 채운다.
   fetchInit?: Omit<RequestInit, 'signal' | 'headers'>
+  // 호출자 레벨 취소 신호. 크론 전체/tenant timeout 이 attempt retry 보다 우선한다.
+  signal?: AbortSignal
 }
 
 // 408 (Request Timeout), 425 (Too Early), 429 (Too Many Requests), 5xx 는
@@ -45,8 +47,32 @@ function isRetryableStatus(status: number): boolean {
   return status === 408 || status === 425 || status === 429 || status >= 500
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+function abortError(signal: AbortSignal): Error {
+  if (signal.reason instanceof Error) return signal.reason
+  return new Error(typeof signal.reason === 'string' ? signal.reason : 'operation aborted')
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw abortError(signal)
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  throwIfAborted(signal)
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      cleanup()
+      resolve()
+    }, ms)
+    function cleanup() {
+      signal?.removeEventListener('abort', onAbort)
+    }
+    function onAbort() {
+      clearTimeout(timer)
+      cleanup()
+      reject(abortError(signal!))
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
 }
 
 export async function fetchJsonWithRetry<T>(
@@ -60,13 +86,17 @@ export async function fetchJsonWithRetry<T>(
     maxAttempts = DEFAULT_MAX_ATTEMPTS,
     baseBackoffMs = DEFAULT_BASE_BACKOFF_MS,
     fetchInit = {},
+    signal,
   } = opts
 
   let lastError: Error = new HttpFetchError(label, null, `${label}: no attempt made`)
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    throwIfAborted(signal)
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
+    const onAbort = () => controller.abort(signal?.reason)
+    signal?.addEventListener('abort', onAbort, { once: true })
     let retryable = false
 
     try {
@@ -83,11 +113,13 @@ export async function fetchJsonWithRetry<T>(
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err))
       // 네트워크 끊김 / AbortError (timeout) → retry.
-      retryable = true
+      retryable = !signal?.aborted
     } finally {
       clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
     }
 
+    throwIfAborted(signal)
     if (!retryable || attempt === maxAttempts) {
       throw lastError
     }
@@ -101,7 +133,7 @@ export async function fetchJsonWithRetry<T>(
     // 75-125% jitter 가 붙은 지수 백오프 (500/1000/2000ms ±25%)
     const jitter = 0.75 + Math.random() * 0.5
     const delay = Math.round(baseBackoffMs * 2 ** (attempt - 1) * jitter)
-    await sleep(delay)
+    await sleep(delay, signal)
   }
 
   throw lastError

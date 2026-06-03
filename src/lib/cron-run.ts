@@ -1,7 +1,9 @@
 import 'server-only'
+import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { log } from '@/lib/log'
+import { withNoStore } from '@/lib/no-store-response'
 
 type SupabaseAdminClient = ReturnType<typeof getAdminClient>
 
@@ -23,21 +25,30 @@ interface CronRunOptions {
 
 type CronRunHandler = (ctx: CronRunContext) => Promise<Response | NextResponse | unknown>
 
-function cronAuthError(request: Request): NextResponse | null {
+function isValidCronAuthorization(authHeader: string | null, secret: string): boolean {
+  if (!authHeader?.startsWith('Bearer ')) return false
+  const candidate = authHeader.slice('Bearer '.length)
+  const expectedBytes = Buffer.from(secret)
+  const candidateBytes = Buffer.from(candidate)
+  if (expectedBytes.length !== candidateBytes.length) return false
+  return timingSafeEqual(expectedBytes, candidateBytes)
+}
+
+export function validateCronRequest(request: Request): NextResponse | null {
   const secret = process.env.CRON_SECRET
   if (!secret) {
-    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })
+    return withNoStore(NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 }))
   }
   const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isValidCronAuthorization(authHeader, secret)) {
+    return withNoStore(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
   }
   return null
 }
 
 function asResponse(result: Response | NextResponse | unknown): Response {
-  if (result instanceof Response) return result
-  return NextResponse.json(result ?? {})
+  if (result instanceof Response) return withNoStore(result)
+  return withNoStore(NextResponse.json(result ?? {}))
 }
 
 async function responseBodyForLog(response: Response): Promise<unknown> {
@@ -63,7 +74,7 @@ export async function withCronRun(
   options: CronRunOptions,
   handler: CronRunHandler,
 ): Promise<Response> {
-  const authError = cronAuthError(request)
+  const authError = validateCronRequest(request)
   if (authError) return authError
 
   const db = getAdminClient()
@@ -73,19 +84,21 @@ export async function withCronRun(
   })
   if (error) {
     log.error('[cron] start failed', error, { job_name: options.jobName })
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return withNoStore(NextResponse.json({ error: error.message }, { status: 500 }))
   }
 
   const start = Array.isArray(data) ? (data[0] as CronRunStartRow | undefined) : undefined
   if (!start?.run_id) {
     log.error('[cron] start returned no run id', undefined, { job_name: options.jobName })
-    return NextResponse.json({ error: 'cron start failed' }, { status: 500 })
+    return withNoStore(NextResponse.json({ error: 'cron start failed' }, { status: 500 }))
   }
 
   if (!start.started) {
-    return NextResponse.json(
-      { skipped: start.reason ?? 'lock-held', run_id: start.run_id },
-      { status: 202 },
+    return withNoStore(
+      NextResponse.json(
+        { skipped: start.reason ?? 'lock-held', run_id: start.run_id },
+        { status: 202 },
+      ),
     )
   }
 
@@ -123,6 +136,6 @@ export async function withCronRun(
       job_name: options.jobName,
       run_id: start.run_id,
     })
-    return NextResponse.json({ error: message }, { status: 500 })
+    return withNoStore(NextResponse.json({ error: message }, { status: 500 }))
   }
 }

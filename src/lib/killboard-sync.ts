@@ -72,11 +72,12 @@ interface SearchResponse {
 }
 
 // 기본은 no-store — kills/deaths 는 매 cron 마다 최신 50건이 필요.
-async function fetchJson<T>(url: string): Promise<T> {
+async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   return fetchJsonWithRetry<T>(url, {
     label: 'killboard',
     userAgent: 'albion-zvz-killboard-sync/1.0',
     fetchInit: { cache: 'no-store' },
+    signal,
   })
 }
 
@@ -84,25 +85,51 @@ async function fetchJson<T>(url: string): Promise<T> {
 // 사실상 immutable. 같은 cron 사이클에서 upsert 실패로 재검색되는 케이스나,
 // 다수 tenant 가 동일 닉네임을 동시에 조회하는 케이스(동명이인 검색)도
 // 1h 안에서 한 번만 API 가 호출되도록 보장.
-async function fetchSearchCached<T>(url: string): Promise<T> {
+async function fetchSearchCached<T>(url: string, signal?: AbortSignal): Promise<T> {
   return fetchJsonWithRetry<T>(url, {
     label: 'killboard',
     userAgent: 'albion-zvz-killboard-sync/1.0',
     fetchInit: { next: { revalidate: 3600 } },
+    signal,
   })
 }
 
-async function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+function abortError(signal: AbortSignal): Error {
+  if (signal.reason instanceof Error) return signal.reason
+  return new Error(typeof signal.reason === 'string' ? signal.reason : 'killboard sync aborted')
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw abortError(signal)
+}
+
+async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  throwIfAborted(signal)
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      cleanup()
+      resolve()
+    }, ms)
+    function cleanup() {
+      signal?.removeEventListener('abort', onAbort)
+    }
+    function onAbort() {
+      clearTimeout(timer)
+      cleanup()
+      reject(abortError(signal!))
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
 }
 
 async function searchPlayerId(
   baseUrl: string,
   username: string,
   guildName: string,
+  signal?: AbortSignal,
 ): Promise<string | null> {
   const url = `${baseUrl}/search?q=${encodeURIComponent(username)}`
-  const data = await fetchSearchCached<SearchResponse>(url)
+  const data = await fetchSearchCached<SearchResponse>(url, signal)
   const target = username.trim().toLowerCase()
   // 길드명까지 일치하는 레코드 우선 — 동명이인 중 자기 길드 소속을 고른다.
   const guildMatch = data.players.find(
@@ -119,9 +146,10 @@ async function fetchEvents(
   baseUrl: string,
   playerId: string,
   kind: 'kills' | 'deaths',
+  signal?: AbortSignal,
 ): Promise<KillboardEvent[]> {
   const url = `${baseUrl}/players/${encodeURIComponent(playerId)}/${kind}?range=day&limit=${KILLS_LIMIT}&offset=0`
-  const data = await fetchJson<KillboardEvent[]>(url)
+  const data = await fetchJson<KillboardEvent[]>(url, signal)
   return Array.isArray(data) ? data : []
 }
 
@@ -159,10 +187,17 @@ export interface KillboardSyncResult {
   duration_ms: number
 }
 
+export interface KillboardSyncOptions {
+  signal?: AbortSignal
+}
+
 export async function syncKillboard(
   db: SupabaseClient,
   guildId: string,
+  options: KillboardSyncOptions = {},
 ): Promise<KillboardSyncResult> {
+  const { signal } = options
+  throwIfAborted(signal)
   const startedAt = Date.now()
   // albion_server 미설정 — 신규 길드가 onboarding 중간에 cron 에 도달한 케이스.
   // 'east' 로 silent 폴백하면 west/eu 길드의 킬이 영원히 안 잡혀 자기-인증
@@ -171,6 +206,7 @@ export async function syncKillboard(
   try {
     server = await resolveAlbionServer(guildId)
   } catch {
+    throwIfAborted(signal)
     return {
       server: null,
       members_total: 0,
@@ -185,11 +221,13 @@ export async function syncKillboard(
       duration_ms: Date.now() - startedAt,
     }
   }
+  throwIfAborted(signal)
   const baseUrl = SERVER_ENDPOINTS[server]
   // tenant 의 알비온 길드명 — 동명이인 중 자기 길드원을 고르는 데 사용. 위저드
   // step 2 에서 albion_home_guild_id 와 함께 저장. 미설정이면 매칭 자체를 skip
   // (잘못된 길드원을 매핑하는 게 더 위험).
   const guildName = (await getAppSetting('albion_home_guild_name', '', guildId)).trim()
+  throwIfAborted(signal)
 
   const errors: Array<{ member: string; step: string; message: string }> = []
 
@@ -214,6 +252,7 @@ export async function syncKillboard(
     .select('discord_id, username, albion_player_id')
     .eq('guild_id', guildId)
     .order('updated_at', { ascending: false })
+  throwIfAborted(signal)
   if (membersError) {
     throw new Error(`guild_avatars query failed: ${membersError.message}`)
   }
@@ -223,14 +262,16 @@ export async function syncKillboard(
   const needsResolve = memberRows.filter((m) => !m.albion_player_id).slice(0, MAX_SEARCH_PER_RUN)
   let newlyResolved = 0
   for (const m of needsResolve) {
+    throwIfAborted(signal)
     try {
-      const id = await searchPlayerId(baseUrl, m.username, guildName)
+      const id = await searchPlayerId(baseUrl, m.username, guildName, signal)
       if (id) {
         const { error } = await db
           .from('guild_avatars')
           .update({ albion_player_id: id })
           .eq('guild_id', guildId)
           .eq('discord_id', m.discord_id)
+        throwIfAborted(signal)
         if (error) {
           errors.push({ member: m.username, step: 'update-player-id', message: error.message })
         } else {
@@ -239,13 +280,14 @@ export async function syncKillboard(
         }
       }
     } catch (e) {
+      throwIfAborted(signal)
       errors.push({
         member: m.username,
         step: 'search',
         message: e instanceof Error ? e.message : String(e),
       })
     }
-    await sleep(API_DELAY_MS)
+    await sleep(API_DELAY_MS, signal)
   }
 
   // Phase 2: player_id 가 있는 Discord 가입자들의 kills/deaths 조회 → upsert.
@@ -260,9 +302,10 @@ export async function syncKillboard(
   const resolvedTargets = resolvedShuffled.slice(0, MAX_DISCORD_LINKED_PER_RUN)
   let upserted = 0
   for (const m of resolvedTargets) {
+    throwIfAborted(signal)
     const playerId = m.albion_player_id!
     try {
-      const newRows = await pollAndBuildRows(baseUrl, playerId, m, guildId)
+      const newRows = await pollAndBuildRows(baseUrl, playerId, m, guildId, signal)
       if (newRows.length > 0) {
         const { error, count } = await db
           .from('killboard_events')
@@ -271,6 +314,7 @@ export async function syncKillboard(
             ignoreDuplicates: true,
             count: 'exact',
           })
+        throwIfAborted(signal)
         if (error) {
           errors.push({ member: m.username, step: 'upsert', message: error.message })
         } else {
@@ -278,13 +322,14 @@ export async function syncKillboard(
         }
       }
     } catch (e) {
+      throwIfAborted(signal)
       errors.push({
         member: m.username,
         step: 'fetch-events',
         message: e instanceof Error ? e.message : String(e),
       })
     }
-    await sleep(API_DELAY_MS)
+    await sleep(API_DELAY_MS, signal)
   }
 
   // Phase 3: Discord 미연동 Albion 멤버 (albion_guild_members) 의 kills/deaths.
@@ -298,6 +343,7 @@ export async function syncKillboard(
     .select('albion_player_id, albion_player_name')
     .eq('guild_id', guildId)
     .is('left_at', null)
+  throwIfAborted(signal)
   if (albionOnlyError) {
     errors.push({ member: '*', step: 'fetch-albion-only', message: albionOnlyError.message })
   }
@@ -314,6 +360,7 @@ export async function syncKillboard(
   const albionOnlyTargets = shuffled.slice(0, MAX_ALBION_ONLY_PER_RUN)
 
   for (const r of albionOnlyTargets) {
+    throwIfAborted(signal)
     const playerId = r.albion_player_id
     const member: MemberForRow = {
       discord_id: null,
@@ -321,7 +368,7 @@ export async function syncKillboard(
       albion_player_id: playerId,
     }
     try {
-      const newRows = await pollAndBuildRows(baseUrl, playerId, member, guildId)
+      const newRows = await pollAndBuildRows(baseUrl, playerId, member, guildId, signal)
       if (newRows.length > 0) {
         const { error, count } = await db
           .from('killboard_events')
@@ -330,6 +377,7 @@ export async function syncKillboard(
             ignoreDuplicates: true,
             count: 'exact',
           })
+        throwIfAborted(signal)
         if (error) {
           errors.push({ member: r.albion_player_name, step: 'upsert-albion-only', message: error.message })
         } else {
@@ -337,18 +385,20 @@ export async function syncKillboard(
         }
       }
     } catch (e) {
+      throwIfAborted(signal)
       errors.push({
         member: r.albion_player_name,
         step: 'fetch-events-albion-only',
         message: e instanceof Error ? e.message : String(e),
       })
     }
-    await sleep(API_DELAY_MS)
+    await sleep(API_DELAY_MS, signal)
   }
 
   // Phase 2/3 이후 새 row 가 commit 됐다면 길드 채널에 broadcast — 구독 중인
   // 클라이언트가 router.refresh() 로 즉시 새 kill 을 받아옴. broadcast 실패는
   // non-fatal (DB 는 이미 commit, 다음 page reload 에서 보임).
+  throwIfAborted(signal)
   await broadcastGuildEvent('killboard', guildId, upserted)
 
   return {
@@ -371,10 +421,11 @@ async function pollAndBuildRows(
   playerId: string,
   member: MemberForRow,
   guildId: string,
+  signal?: AbortSignal,
 ) {
   const [kills, deaths] = await Promise.all([
-    fetchEvents(baseUrl, playerId, 'kills'),
-    fetchEvents(baseUrl, playerId, 'deaths'),
+    fetchEvents(baseUrl, playerId, 'kills', signal),
+    fetchEvents(baseUrl, playerId, 'deaths', signal),
   ])
   return [
     ...kills.map((e) => toRow(e, 'killer', member, playerId, guildId)),

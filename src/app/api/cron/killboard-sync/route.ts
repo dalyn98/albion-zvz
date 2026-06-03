@@ -22,9 +22,25 @@ const DEADLINE_MS = 240_000
 // 한 tenant 가 절대 넘기지 못하는 sync 시간. 정상치: 60명 Discord 가입자 +
 // 30명 미연동 = 90 × 2(kills+deaths) × ~300ms ≈ 54s. 90s 면 충분한 헤드룸이며,
 // 한 tenant 의 외부 API 스톨이 같은 chunk 의 다른 tenant 결과를 막지 못하게 함.
-// 타임아웃되더라도 in-flight 호출은 백그라운드에서 자연 종료될 때까지 계속됨 —
-// AbortSignal 까지 엮으면 코드가 복잡해지므로 의도적 단순화.
+// timeout 시 AbortSignal 로 Albion fetch/sleep 도 끊어 다음 tick 부하를 줄인다.
 const PER_TENANT_TIMEOUT_MS = 90_000
+
+function tenantTimeoutSignal(tenantSlug: string): {
+  signal: AbortSignal
+  cancel: () => void
+  timeout: Promise<never>
+} {
+  const controller = new AbortController()
+  const error = new Error(`per-tenant timeout (${PER_TENANT_TIMEOUT_MS}ms): ${tenantSlug}`)
+  const timer = setTimeout(() => controller.abort(error), PER_TENANT_TIMEOUT_MS)
+  return {
+    signal: controller.signal,
+    cancel: () => clearTimeout(timer),
+    timeout: new Promise((_, reject) => {
+      controller.signal.addEventListener('abort', () => reject(error), { once: true })
+    }),
+  }
+}
 
 export async function GET(request: Request) {
   return withCronRun(request, { jobName: 'killboard-sync', leaseSeconds: 600 }, async ({ db }) => {
@@ -35,14 +51,12 @@ export async function GET(request: Request) {
     const skipped: Array<{ tenant: string; reason: string }> = []
 
     async function processTenant(tenant: { id: string; slug: string }): Promise<void> {
+      const timeout = tenantTimeoutSignal(tenant.slug)
       try {
-        const timeout = new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new Error(`per-tenant timeout (${PER_TENANT_TIMEOUT_MS}ms)`)),
-            PER_TENANT_TIMEOUT_MS,
-          ),
-        )
-        const result = await Promise.race([syncKillboard(db, tenant.id), timeout])
+        const result = await Promise.race([
+          syncKillboard(db, tenant.id, { signal: timeout.signal }),
+          timeout.timeout,
+        ])
         const finishIso = new Date().toISOString()
         await db
           .from('app_settings')
@@ -56,6 +70,8 @@ export async function GET(request: Request) {
           tenant: tenant.slug,
           error: e instanceof Error ? e.message : String(e),
         })
+      } finally {
+        timeout.cancel()
       }
     }
 
