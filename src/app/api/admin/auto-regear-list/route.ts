@@ -2,16 +2,21 @@ import { NextResponse } from 'next/server'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getSuperAdminSession } from '@/lib/super-admin'
+import { withNoStore } from '@/lib/no-store-response'
 
 // 최근 auto_generated regear_requests 의 상태 분포를 read-only 로 노출.
 // auto-approval 이 일어났는지 검증용. AGENTS.md force-static 금지 룰 적용.
 
 export const dynamic = 'force-dynamic'
 
+function json(body: unknown, init?: ResponseInit) {
+  return withNoStore(NextResponse.json(body, init))
+}
+
 export async function GET(request: Request) {
   const session = await getSuperAdminSession()
   if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return json({ error: 'Unauthorized' }, { status: 401 })
   }
   const guildId = await getSessionGuildId(session)
 
@@ -19,7 +24,7 @@ export async function GET(request: Request) {
   const sinceHoursRaw = url.searchParams.get('since_hours')
   const sinceHours = sinceHoursRaw ? Number(sinceHoursRaw) : 48
   if (!Number.isFinite(sinceHours) || sinceHours <= 0 || sinceHours > 720) {
-    return NextResponse.json({ error: 'since_hours must be in (0, 720]' }, { status: 400 })
+    return json({ error: 'since_hours must be in (0, 720]' }, { status: 400 })
   }
   const sinceIso = new Date(Date.now() - sinceHours * 60 * 60 * 1000).toISOString()
 
@@ -35,7 +40,7 @@ export async function GET(request: Request) {
     .order('created_at', { ascending: false })
     .limit(100)
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return json({ error: error.message }, { status: 500 })
   }
 
   type Row = {
@@ -50,13 +55,10 @@ export async function GET(request: Request) {
     byStatus.set(r.status, (byStatus.get(r.status) ?? 0) + 1)
   }
 
-  return NextResponse.json(
-    {
-      since: sinceIso,
-      total: rows.length,
-      by_status: Object.fromEntries(byStatus),
-      rows: data,
-    },
-    { headers: { 'cache-control': 'no-store' } },
-  )
+  return json({
+    since: sinceIso,
+    total: rows.length,
+    by_status: Object.fromEntries(byStatus),
+    rows: data,
+  })
 }

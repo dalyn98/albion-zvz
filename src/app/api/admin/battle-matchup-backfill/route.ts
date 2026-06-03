@@ -4,7 +4,10 @@ import {
   buildLegacyBackfillRows,
   type KillboardPair,
 } from '@/lib/battle-tracking-helpers'
+import { validateCronRequest } from '@/lib/cron-run'
+import { parseBoundedInt } from '@/lib/parse-bounded-int'
 import type { AlbionBattle } from '@/lib/albion-battles'
+import { withNoStore } from '@/lib/no-store-response'
 
 // 마이그 098 이전 legacy row (force_key='__legacy__') 를 새 mainOpponent 모델로
 // 일괄 변환하는 일회성 백필. cron 과 동일하게 Bearer CRON_SECRET 으로 인증.
@@ -29,25 +32,20 @@ export const maxDuration = 300
 const DEFAULT_LIMIT = 200
 const MAX_LIMIT = 1000
 
+function json(body: unknown, init?: ResponseInit) {
+  return withNoStore(NextResponse.json(body, init))
+}
+
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET
-  if (!secret) {
-    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })
-  }
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authError = validateCronRequest(request)
+  if (authError) return withNoStore(authError)
 
   const url = new URL(request.url)
-  const limitParam = Number.parseInt(url.searchParams.get('limit') ?? '', 10)
-  const limit = Number.isFinite(limitParam)
-    ? Math.min(Math.max(limitParam, 1), MAX_LIMIT)
-    : DEFAULT_LIMIT
+  const limit = parseBoundedInt(url.searchParams.get('limit'), 1, MAX_LIMIT) ?? DEFAULT_LIMIT
   const mode = url.searchParams.get('mode') === 'stale' ? 'stale' : 'legacy'
   const beforeIso = url.searchParams.get('before')
   if (mode === 'stale' && !beforeIso) {
-    return NextResponse.json(
+    return json(
       { error: 'mode=stale requires ?before=<ISO timestamp>' },
       { status: 400 },
     )
@@ -80,13 +78,13 @@ export async function GET(request: Request) {
     .limit(limit)
 
   if (selErr) {
-    return NextResponse.json(
+    return json(
       { error: `select: ${selErr.message}` },
       { status: 500 },
     )
   }
   if (!legacyRows || legacyRows.length === 0) {
-    return NextResponse.json({
+    return json({
       mode,
       processed: 0,
       inserted: 0,
@@ -209,7 +207,7 @@ export async function GET(request: Request) {
   }
   const { count: remainingCount } = await remainingQuery
 
-  return NextResponse.json({
+  return json({
     mode,
     processed,
     inserted,

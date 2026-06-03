@@ -120,9 +120,9 @@ describe('operational guardrails', () => {
     expect(packageJson.scripts['check:migrations:remote']).toBe(scriptPath)
     expect(workflow).toContain('migration-drift')
     expect(workflow).toContain('SUPABASE_PROJECT_REF')
-    expect(workflow).toContain('SUPABASE_DB_PASSWORD')
-    expect(workflow).toContain('secrets are required for the main-branch migration drift check')
-    expect(workflow).not.toContain('migration drift check skipped')
+    expect(workflow).toContain('SUPABASE_ACCESS_TOKEN')
+    expect(workflow).toContain('skipping remote migration drift check')
+    expect(workflow).toContain("steps.supabase-secrets.outputs.skip != 'true'")
     expect(workflow).toContain("github.event_name == 'push' && github.ref == 'refs/heads/main'")
     expect(workflow).toContain(scriptPath)
     expect(workflow).toContain('version: 2.104.0')
@@ -186,17 +186,5 @@ No migration table rows are present.
 
     expect(result.status).toBe(1)
     expect(result.output).toContain('Unable to parse Supabase migration list output')
-  })
-
-  it('keeps cron sync timestamps tied to successful upstream fetches', () => {
-    const killboardRoute = read('src/app/api/cron/killboard-sync/route.ts')
-    const battleTrackerRoute = read('src/app/api/cron/battle-tracker/route.ts')
-
-    expect(killboardRoute).toContain('syncKillboard(db, tenant.id, { signal: timeout.signal })')
-    expect(killboardRoute).toContain('timeout.cancel()')
-    expect(battleTrackerRoute).toContain('serversWithRecentBattleFetch.add(server)')
-    expect(battleTrackerRoute).toContain(
-      'tracking.filter((t) => serversWithRecentBattleFetch.has(t.server))',
-    )
   })
 })

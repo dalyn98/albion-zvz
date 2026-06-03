@@ -3,6 +3,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { processAutoRegear } from '@/lib/auto-regear'
 import { getSuperAdminSession } from '@/lib/super-admin'
+import { withNoStore } from '@/lib/no-store-response'
 
 // Auto-regear backfill. 매칭 윈도우 변경 후 과거 이벤트를 재처리할 때 사용.
 // since_hours (기본 24h) 안에 auto_regear_processed_at 이 set 된 이벤트들의
@@ -15,10 +16,14 @@ import { getSuperAdminSession } from '@/lib/super-admin'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
 
+function json(body: unknown, init?: ResponseInit) {
+  return withNoStore(NextResponse.json(body, init))
+}
+
 export async function POST(request: Request) {
   const session = await getSuperAdminSession()
   if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return json({ error: 'Unauthorized' }, { status: 401 })
   }
   const guildId = await getSessionGuildId(session)
 
@@ -27,7 +32,7 @@ export async function POST(request: Request) {
   const sinceHoursRaw = url.searchParams.get('since_hours')
   const sinceHours = sinceHoursRaw ? Number(sinceHoursRaw) : 24
   if (!Number.isFinite(sinceHours) || sinceHours <= 0 || sinceHours > 168) {
-    return NextResponse.json({ error: 'since_hours must be in (0, 168]' }, { status: 400 })
+    return json({ error: 'since_hours must be in (0, 168]' }, { status: 400 })
   }
 
   const db = getAdminClient()
@@ -43,7 +48,7 @@ export async function POST(request: Request) {
       .not('auto_regear_processed_at', 'is', null)
       .select('id')
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return json({ error: error.message }, { status: 500 })
     }
     resetEventIds = (data ?? []).map((r: { id: string }) => r.id)
   } else {
@@ -56,7 +61,7 @@ export async function POST(request: Request) {
       .gte('battle_started_at', sinceIso)
       .select('id, title, battle_started_at')
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return json({ error: error.message }, { status: 500 })
     }
     resetEventIds = (data ?? []).map((r: { id: string }) => r.id)
   }
@@ -64,12 +69,9 @@ export async function POST(request: Request) {
   // 즉시 cron 로직 실행 (다음 5분 cron 까지 안 기다리고).
   const result = await processAutoRegear(db, guildId)
 
-  return NextResponse.json(
-    {
-      reset_event_count: resetEventIds.length,
-      reset_event_ids: resetEventIds,
-      auto_regear_result: result,
-    },
-    { headers: { 'cache-control': 'no-store' } },
-  )
+  return json({
+    reset_event_count: resetEventIds.length,
+    reset_event_ids: resetEventIds,
+    auto_regear_result: result,
+  })
 }

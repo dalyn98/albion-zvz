@@ -9,6 +9,7 @@ import {
   AUTO_REGEAR_MATCH_TIMEOUT_MS,
   AUTO_REGEAR_PRE_PICK_MS,
 } from '@/lib/auto-regear'
+import { withNoStore } from '@/lib/no-store-response'
 
 // dry-run 진단 엔드포인트. cron 의 모든 게이트를 read-only 로 추적해 어디서
 // 막혀 청구 0건이 됐는지 즉시 확인. mark-processed/RPC insert 안 함.
@@ -18,16 +19,20 @@ import {
 // AGENTS.md 의 force-static 금지 룰 적용.
 export const dynamic = 'force-dynamic'
 
+function json(body: unknown, init?: ResponseInit) {
+  return withNoStore(NextResponse.json(body, init))
+}
+
 export async function GET(request: Request) {
   const session = await getSuperAdminSession()
   if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return json({ error: 'Unauthorized' }, { status: 401 })
   }
   const guildId = await getSessionGuildId(session)
   const url = new URL(request.url)
   const eventId = url.searchParams.get('event_id')
   if (!eventId) {
-    return NextResponse.json({ error: 'event_id required' }, { status: 400 })
+    return json({ error: 'event_id required' }, { status: 400 })
   }
 
   const db = getAdminClient()
@@ -62,10 +67,10 @@ export async function GET(request: Request) {
     .eq('id', eventId)
     .maybeSingle()
   if (eventErr) {
-    return NextResponse.json({ error: eventErr.message }, { status: 500 })
+    return json({ error: eventErr.message }, { status: 500 })
   }
   if (!event) {
-    return NextResponse.json({ error: 'event not found' }, { status: 404 })
+    return json({ error: 'event not found' }, { status: 404 })
   }
 
   const stages: Array<{ stage: string; ok: boolean; detail?: unknown }> = []
@@ -96,7 +101,7 @@ export async function GET(request: Request) {
   })
 
   if (!battleStartedAt) {
-    return NextResponse.json({ event_id: eventId, stages, conclusion: 'battle_started_at_null' })
+    return json({ event_id: eventId, stages, conclusion: 'battle_started_at_null' })
   }
 
   // pre-pick cut
@@ -177,7 +182,7 @@ export async function GET(request: Request) {
 
   if (trackedBattles.length === 0) {
     const matchTimeoutMs = battleStartedMs + AUTO_REGEAR_MATCH_TIMEOUT_MS
-    return NextResponse.json({
+    return json({
       event_id: eventId,
       stages,
       conclusion: Date.now() > matchTimeoutMs ? 'no_tracked_battle_after_timeout' : 'deferred_battle_tracker_lag',
@@ -193,7 +198,7 @@ export async function GET(request: Request) {
   })
 
   if (blackzoneBattles.length === 0) {
-    return NextResponse.json({ event_id: eventId, stages, conclusion: 'all_royal_zone' })
+    return json({ event_id: eventId, stages, conclusion: 'all_royal_zone' })
   }
 
   const trackedBattleIds = blackzoneBattles.map((b) => b.albionBattleId)
@@ -229,7 +234,7 @@ export async function GET(request: Request) {
     .eq('guild_id', guildId)
     .eq('event_id', eventId)
   if (partiesErr) {
-    return NextResponse.json({ error: partiesErr.message, stages }, { status: 500 })
+    return json({ error: partiesErr.message, stages }, { status: 500 })
   }
   type SlotRow = {
     assigned_discord_id: string | null
@@ -252,7 +257,7 @@ export async function GET(request: Request) {
     },
   })
   if (slotByDiscord.size === 0) {
-    return NextResponse.json({ event_id: eventId, stages, conclusion: 'no_slots_assigned' })
+    return json({ event_id: eventId, stages, conclusion: 'no_slots_assigned' })
   }
 
   // 5) role_rewards 매칭
@@ -282,7 +287,7 @@ export async function GET(request: Request) {
     .in('discord_id', Array.from(slotByDiscord.keys()))
     .in('battle_id', trackedBattleIds)
   if (victimsErr) {
-    return NextResponse.json({ error: victimsErr.message, stages }, { status: 500 })
+    return json({ error: victimsErr.message, stages }, { status: 500 })
   }
   stages.push({
     stage: 'killboard_victim_match',
@@ -471,12 +476,11 @@ export async function GET(request: Request) {
     },
   })
 
-  return NextResponse.json(
+  return json(
     {
       event_id: eventId,
       stages,
       conclusion: 'completed',
     },
-    { headers: { 'cache-control': 'no-store' } },
   )
 }

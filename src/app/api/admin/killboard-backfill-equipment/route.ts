@@ -4,6 +4,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { resolveAlbionServer } from '@/lib/killboard'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
 import { getSuperAdminSession } from '@/lib/super-admin'
+import { withNoStore } from '@/lib/no-store-response'
 
 // 슈퍼어드민 전용 일회성 백필. killboard_events 의 role='killer' 행은 예전 sync
 // 설계상 equipment 가 null 로 저장됐다. 0데스 킬러(DPS 등) 의 무기 통계를
@@ -22,6 +23,10 @@ const SERVER_ENDPOINTS: Record<AlbionServer, string> = {
 }
 
 const API_DELAY_MS = 250
+
+function json(body: unknown, init?: ResponseInit) {
+  return withNoStore(NextResponse.json(body, init))
+}
 
 interface AlbionEventResponse {
   EventId: number
@@ -55,7 +60,7 @@ function sleep(ms: number): Promise<void> {
 export async function POST(req: Request) {
   const session = await getSuperAdminSession()
   if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return json({ error: 'Unauthorized' }, { status: 401 })
   }
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
@@ -76,7 +81,7 @@ export async function POST(req: Request) {
           .eq('role', 'killer')
           .is('equipment', null)
   if (queryError) {
-    return NextResponse.json({ error: queryError.message }, { status: 500 })
+    return json({ error: queryError.message }, { status: 500 })
   }
 
   const eventIds = Array.from(
@@ -91,7 +96,7 @@ export async function POST(req: Request) {
   try {
     server = await resolveAlbionServer(guildId)
   } catch (e) {
-    return NextResponse.json(
+    return json(
       { error: e instanceof Error ? e.message : 'albion_server not configured' },
       { status: 400 },
     )
@@ -132,15 +137,12 @@ export async function POST(req: Request) {
     }
   }
 
-  return NextResponse.json(
-    {
-      scope,
-      server,
-      candidate_events: eventIds.length,
-      rows_updated: updated,
-      events_missing_remote: missingRemote,
-      errors,
-    },
-    { headers: { 'cache-control': 'no-store' } },
-  )
+  return json({
+    scope,
+    server,
+    candidate_events: eventIds.length,
+    rows_updated: updated,
+    events_missing_remote: missingRemote,
+    errors,
+  })
 }

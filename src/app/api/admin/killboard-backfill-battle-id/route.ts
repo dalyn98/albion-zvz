@@ -4,6 +4,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { resolveAlbionServer } from '@/lib/killboard'
 import type { AlbionServer } from '@/lib/albion-gameinfo'
 import { getSuperAdminSession } from '@/lib/super-admin'
+import { withNoStore } from '@/lib/no-store-response'
 
 // 슈퍼어드민 전용 일회성 백필. killboard_events.battle_id 는 마이그 096 부터 채워지므로
 // 그 이전 sync 행은 NULL. tracked-kills 매칭이 battle_id 정확 매칭을 우선하기 때문에
@@ -27,6 +28,10 @@ const SERVER_ENDPOINTS: Record<AlbionServer, string> = {
 // 한 번의 호출로 충분히 커버.
 const PLAYER_EVENTS_LIMIT = 50
 const API_DELAY_MS = 250
+
+function json(body: unknown, init?: ResponseInit) {
+  return withNoStore(NextResponse.json(body, init))
+}
 
 interface PlayerEventResponse {
   EventId: number
@@ -64,7 +69,7 @@ function sleep(ms: number): Promise<void> {
 export async function POST() {
   const session = await getSuperAdminSession()
   if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return json({ error: 'Unauthorized' }, { status: 401 })
   }
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
@@ -78,7 +83,7 @@ export async function POST() {
     .is('battle_id', null)
     .not('albion_player_id', 'is', null)
   if (queryError) {
-    return NextResponse.json({ error: queryError.message }, { status: 500 })
+    return json({ error: queryError.message }, { status: 500 })
   }
 
   const nullEventCount = nullRows?.length ?? 0
@@ -96,7 +101,7 @@ export async function POST() {
   try {
     server = await resolveAlbionServer(guildId)
   } catch (e) {
-    return NextResponse.json(
+    return json(
       { error: e instanceof Error ? e.message : 'albion_server not configured' },
       { status: 400 },
     )
@@ -153,16 +158,13 @@ export async function POST() {
   // 매칭 못 한 NULL 행 — Albion API 의 month 윈도우 밖이라 응답에 없음.
   unmatched = Math.max(0, nullEventCount - updated)
 
-  return NextResponse.json(
-    {
-      server,
-      null_rows_before: nullEventCount,
-      distinct_players: playerIds.length,
-      events_resolved_from_api: eventToBattle.size,
-      rows_updated: updated,
-      rows_still_null: unmatched,
-      errors,
-    },
-    { headers: { 'cache-control': 'no-store' } },
-  )
+  return json({
+    server,
+    null_rows_before: nullEventCount,
+    distinct_players: playerIds.length,
+    events_resolved_from_api: eventToBattle.size,
+    rows_updated: updated,
+    rows_still_null: unmatched,
+    errors,
+  })
 }

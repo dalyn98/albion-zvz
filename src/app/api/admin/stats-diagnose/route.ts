@@ -3,6 +3,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { fetchTrackedBattleWindows } from '@/lib/tracked-kills'
 import { getSuperAdminSession } from '@/lib/super-admin'
+import { withNoStore } from '@/lib/no-store-response'
 
 // 임시 진단 엔드포인트. tenant_battle_records 시간창이 events.battle_started_at /
 // killboard_events.occurred_at 와 어떻게 맞물리는지 눈으로 확인하기 위함.
@@ -10,10 +11,14 @@ import { getSuperAdminSession } from '@/lib/super-admin'
 
 export const dynamic = 'force-dynamic'
 
+function json(body: unknown, init?: ResponseInit) {
+  return withNoStore(NextResponse.json(body, init))
+}
+
 export async function GET() {
   const session = await getSuperAdminSession()
   if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return json({ error: 'Unauthorized' }, { status: 401 })
   }
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
@@ -111,21 +116,18 @@ export async function GET() {
   const eventsMatched = eventMatches.filter((e) => e.matched_outcome != null).length
   const killsMatched = killMatches.filter((k) => k.within_tracked_window).length
 
-  return NextResponse.json(
-    {
-      guild_id: guildId,
-      summary: {
-        tracked_windows_count: windows.length,
-        tracked_battle_id_count: byBattleId.size,
-        recent_events_count: eventMatches.length,
-        events_matched_to_window: eventsMatched,
-        recent_kills_count: killMatches.length,
-        kills_within_window: killsMatched,
-      },
-      tracked_windows: windowList,
-      recent_events: eventMatches,
-      recent_kills: killMatches,
+  return json({
+    guild_id: guildId,
+    summary: {
+      tracked_windows_count: windows.length,
+      tracked_battle_id_count: byBattleId.size,
+      recent_events_count: eventMatches.length,
+      events_matched_to_window: eventsMatched,
+      recent_kills_count: killMatches.length,
+      kills_within_window: killsMatched,
     },
-    { headers: { 'cache-control': 'no-store' } },
-  )
+    tracked_windows: windowList,
+    recent_events: eventMatches,
+    recent_kills: killMatches,
+  })
 }

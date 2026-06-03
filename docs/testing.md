@@ -12,7 +12,7 @@
 |----|------|------|-----------|----|
 | 단위 (Phase 0+1) | `src/lib/*.ts` 순수 함수 | node (외부 의존 0) | `npm test` | 매 push/PR (GitHub Actions) |
 | 통합 (Phase 2) | 실 Postgres 가 결정하는 invariant | 로컬 supabase (docker) | `npm run test:integration` | env 없으면 자동 skip |
-| 원격 마이그 드리프트 | 로컬 migration 파일과 linked Supabase 적용 상태 | Supabase CLI + 운영 프로젝트 secrets | `npm run check:migrations:remote` | main push 에서 필수 실행, secrets 누락/불일치 시 실패 |
+| 원격 마이그 드리프트 | 로컬 migration 파일과 linked Supabase 적용 상태 | Supabase CLI + 운영 프로젝트 secrets | `npm run check:migrations:remote` | main push 에서 secrets 설정 시 실행, 불일치 시 실패 |
 
 선택 기준: **"실 Postgres 동작이 결과를 결정하는가?"** YES → 통합, NO → 단위.
 
@@ -191,8 +191,9 @@ npm run check:migrations:remote
 CI 조건:
 
 - PR 에서는 운영 Supabase secrets 를 쓰지 않는다. 대신 `npm test` 안의 migration 정적 검사로 중복 번호/누락 번호를 막는다.
-- `main` push 에서는 `.github/workflows/test.yml` 의 `migration-drift` job 이 반드시 실행된다.
-- `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD` 중 하나라도 없으면 job 은 skip 하지 않고 실패한다.
+- `main` push 에서는 `.github/workflows/test.yml` 의 `migration-drift` job 이 실행된다.
+- `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF` secrets 가 있으면 Supabase CLI 를 설치하고 원격 drift 를 검사한다. `SUPABASE_DB_PASSWORD` 는 필요할 때만 선택적으로 쓴다.
+- repo secrets 가 아직 없으면 job 은 warning 을 남기고 원격 drift 단계만 skip 한다. 이 경우 push 전 로컬에서 `npm run check:migrations:remote` 를 반드시 실행한다.
 - `scripts/check-supabase-migration-drift.sh` 는 `supabase migration list --linked` 출력의 3자리 `Local` / `Remote` 버전이 정확히 같은지 확인한다.
 
 실패 해석:
@@ -203,7 +204,7 @@ CI 조건:
 | `remote-only migration NNN` | 원격 DB 에 적용됐지만 repo 에 파일이 없음 | 누락된 migration 파일 복구 또는 branch 동기화 |
 | `Unable to parse Supabase migration list output` | Supabase CLI 출력 형식이 바뀌어 파서가 검증 불가 | 스크립트 파서를 고친 뒤 재실행 |
 
-이 가드는 main push 시점에 원격과 repo 가 **정확히 같은 migration version set** 을 갖는지 보는 최종 안전망이다. 새 migration 이 pending 인 상태도 main 에서는 실패로 취급한다.
+이 가드는 secrets 가 설정된 main push 또는 로컬 수동 실행 시점에 원격과 repo 가 **정확히 같은 migration version set** 을 갖는지 보는 안전망이다. 새 migration 이 pending 인 상태도 실패로 취급한다.
 
 ### 2-8. 흔한 함정 & 해결
 
