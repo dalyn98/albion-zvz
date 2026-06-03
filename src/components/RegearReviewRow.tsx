@@ -86,7 +86,7 @@ export default function RegearReviewRow({
   const [screenshot2Url, setScreenshot2Url] = useState<string | null>(null)
   const [loadingScreenshot2, setLoadingScreenshot2] = useState(false)
   const [zoomed2, setZoomed2] = useState(false)
-  // 관리자가 청구 금액을 재량으로 조정해서 승인할 수 있게 — 빈 값 = 요율 기본.
+  // 관리자가 요율 적용 전 기준 금액을 조정해서 승인할 수 있게 — 빈 값 = 기존 청구액.
   const [overrideMode, setOverrideMode] = useState(false)
   const [overrideInput, setOverrideInput] = useState('')
 
@@ -102,6 +102,12 @@ export default function RegearReviewRow({
   const claimed = request.claimed_silver ?? request.silver
   const approvedPayout = request.payout_silver
   const pendingPayout = calcPayoutSilver(claimed, ratePercent)
+  const normalizedOverrideInput = overrideInput.trim().replace(/,/g, '')
+  const overrideBasis = normalizedOverrideInput ? Number(normalizedOverrideInput) : claimed
+  const overridePayoutPreview =
+    Number.isInteger(overrideBasis) && overrideBasis >= 0 && overrideBasis <= claimed
+      ? calcPayoutSilver(overrideBasis, ratePercent)
+      : null
 
   const loadScreenshot = () => {
     if (loadingScreenshot || screenshotUrl || !request.screenshot_path) return
@@ -557,7 +563,7 @@ export default function RegearReviewRow({
             <button
               type="button"
               onClick={() => {
-                setOverrideInput(String(pendingPayout))
+                setOverrideInput(String(claimed))
                 setOverrideMode(true)
               }}
               disabled={pending}
@@ -583,6 +589,14 @@ export default function RegearReviewRow({
           <p className="text-xs text-amber-200/80">
             {t('adjustPrompt', { amount: formatSilver(claimed), rate: ratePercent })}
           </p>
+          {overridePayoutPreview !== null && (
+            <p className="text-xs text-emerald-300 font-mono">
+              {t('adjustPayoutPreview', {
+                amount: formatSilver(overridePayoutPreview),
+                rate: ratePercent,
+              })}
+            </p>
+          )}
           <div className="flex items-center gap-2 flex-wrap">
             <input
               type="text"
@@ -594,7 +608,7 @@ export default function RegearReviewRow({
                 if (e.key === 'Escape') setOverrideMode(false)
               }}
               className="bg-gray-900 border border-amber-500/60 rounded-lg px-3 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-amber-400 w-36 text-right"
-              placeholder={String(pendingPayout)}
+              placeholder={String(claimed)}
               autoFocus
               disabled={pending}
             />

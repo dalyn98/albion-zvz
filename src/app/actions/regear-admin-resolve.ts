@@ -12,7 +12,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { formatSilver } from '@/lib/silver'
-import { calcPayoutSilver } from '@/lib/regear-payout'
+import { resolveRegearApprovalPayout } from '@/lib/regear-payout'
 import { formatKillboardVerificationReason, verifyDeathInWindow } from '@/lib/killboard'
 import { estimateSilverFromEquipment } from '@/lib/regear-estimate'
 import { checkBuildSnapshotStock } from '@/lib/inventory'
@@ -39,11 +39,9 @@ export async function approveRegearRequest(
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
-    // Compute the actual credit using the current rate. RPC also clamps to
-    // [0, claimed]; this client-side calc is for the DM body and the
-    // approved row's payout_silver column. If the admin typed an explicit
-    // override, use that value verbatim (clamped to [0, claimed] by the RPC
-    // too — 재고 없는 신청은 위에서 거르고 들어옴).
+    // Compute the actual credit using the current rate. If the admin typed an
+    // explicit override, treat it as the adjusted claim basis, then apply the
+    // guild payout rate before passing the final payout into the RPC.
     const { data: pending } = await db
       .from('regear_requests')
       .select('claimed_silver')
@@ -53,19 +51,16 @@ export async function approveRegearRequest(
       .maybeSingle()
     const claimed = pending?.claimed_silver ?? 0
     const ratePercent = await loadPayoutRatePercent(guildId)
-    const defaultPayout = calcPayoutSilver(claimed, ratePercent)
-    let payout = defaultPayout
-    if (typeof overrideSilver === 'number') {
-      if (!Number.isInteger(overrideSilver) || overrideSilver < 0) {
-        return { error: tErr('nonNegativeInteger') }
-      }
-      // 상한은 claimed (원래 청구한 실버) — RPC 가 다시 클램프하지만 사용자에게
-      // 명확한 에러를 주기 위해 여기서도 검증.
-      if (overrideSilver > claimed) {
-        return { error: tErr('payoutExceedsClaim', { claimed: claimed.toLocaleString() }) }
-      }
-      payout = overrideSilver
+    const payoutResult = resolveRegearApprovalPayout({
+      claimedSilver: claimed,
+      ratePercent,
+      overrideSilver,
+    })
+    if ('error' in payoutResult) {
+      if (payoutResult.error === 'nonNegativeInteger') return { error: tErr('nonNegativeInteger') }
+      return { error: tErr('payoutExceedsClaim', { claimed: claimed.toLocaleString() }) }
     }
+    const payout = payoutResult.payoutSilver
     const { error } = await db.rpc('approve_regear_request', {
       p_id: id,
       p_admin_id: session.discordId,
@@ -159,17 +154,16 @@ export async function approveRegearFromStock(
 
     const claimed = pending.claimed_silver ?? 0
     const ratePercent = await loadPayoutRatePercent(guildId)
-    const defaultPayout = calcPayoutSilver(claimed, ratePercent)
-    let payout = defaultPayout
-    if (typeof overrideSilver === 'number') {
-      if (!Number.isInteger(overrideSilver) || overrideSilver < 0) {
-        return { error: tErr('nonNegativeInteger') }
-      }
-      if (overrideSilver > claimed) {
-        return { error: tErr('payoutExceedsClaim', { claimed: claimed.toLocaleString() }) }
-      }
-      payout = overrideSilver
+    const payoutResult = resolveRegearApprovalPayout({
+      claimedSilver: claimed,
+      ratePercent,
+      overrideSilver,
+    })
+    if ('error' in payoutResult) {
+      if (payoutResult.error === 'nonNegativeInteger') return { error: tErr('nonNegativeInteger') }
+      return { error: tErr('payoutExceedsClaim', { claimed: claimed.toLocaleString() }) }
     }
+    const payout = payoutResult.payoutSilver
 
     const { error } = await db.rpc('approve_regear_from_stock', {
       p_id: id,
@@ -260,17 +254,16 @@ export async function approveRegearAsCrafted(
 
     const claimed = pending.claimed_silver ?? 0
     const ratePercent = await loadPayoutRatePercent(guildId)
-    const defaultPayout = calcPayoutSilver(claimed, ratePercent)
-    let payout = defaultPayout
-    if (typeof overrideSilver === 'number') {
-      if (!Number.isInteger(overrideSilver) || overrideSilver < 0) {
-        return { error: tErr('nonNegativeInteger') }
-      }
-      if (overrideSilver > claimed) {
-        return { error: tErr('payoutExceedsClaim', { claimed: claimed.toLocaleString() }) }
-      }
-      payout = overrideSilver
+    const payoutResult = resolveRegearApprovalPayout({
+      claimedSilver: claimed,
+      ratePercent,
+      overrideSilver,
+    })
+    if ('error' in payoutResult) {
+      if (payoutResult.error === 'nonNegativeInteger') return { error: tErr('nonNegativeInteger') }
+      return { error: tErr('payoutExceedsClaim', { claimed: claimed.toLocaleString() }) }
     }
+    const payout = payoutResult.payoutSilver
 
     const { error } = await db.rpc('approve_regear_as_crafted', {
       p_id: id,
