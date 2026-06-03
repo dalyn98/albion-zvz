@@ -35,6 +35,7 @@ import {
 } from '@/lib/tenant-resolver'
 import { log } from '@/lib/log'
 import { recordAuthFailure, recordAuthSuccess } from '@/lib/auth-telemetry'
+import { removeGuestRecordForMember } from '@/lib/guest-membership-transition'
 
 // Onboarding cookie stays on the canonical domain (it's consumed by /onboard
 // which is served from the canonical host until the new tenant exists).
@@ -409,6 +410,14 @@ export async function GET(request: NextRequest) {
         }
 
         const db = getAdminClient()
+        if (isMember) {
+          await removeGuestRecordForMember(db, {
+            guildId: tenant.id,
+            discordId: user.id,
+            source: 'member_login',
+          })
+        }
+
         const { data: langRow } = await db
           .from('guild_avatars')
           .select('preferred_language')

@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
   resolveTenantBySlug: vi.fn(),
   recordAuthFailure: vi.fn(),
   recordAuthSuccess: vi.fn(),
+  removeGuestRecordForMember: vi.fn(),
 }))
 
 vi.mock('@/lib/discord', () => ({
@@ -106,6 +107,10 @@ vi.mock('@/lib/log', () => ({
     warn: vi.fn(),
     info: vi.fn(),
   },
+}))
+
+vi.mock('@/lib/guest-membership-transition', () => ({
+  removeGuestRecordForMember: mocks.removeGuestRecordForMember,
 }))
 
 import { GET } from './route'
@@ -342,6 +347,86 @@ describe('GET /api/auth/discord/callback', () => {
       preferredLocale: 'en',
     })
     expect(mocks.upsertGuildAvatar).not.toHaveBeenCalled()
+    expect(mocks.removeGuestRecordForMember).not.toHaveBeenCalled()
+  })
+
+  it('removes a stale guest row when the Discord login resolves to an active member', async () => {
+    mocks.verifyOAuthState.mockResolvedValue({
+      originHost: 'menhera.albion-guildmanager.com',
+      returnTo: '/',
+      invite: null,
+      preferredLocale: 'en',
+    })
+    mocks.listUserGuilds.mockResolvedValue([
+      {
+        id: 'discord-guild-1',
+        name: 'Menhera',
+        icon: null,
+        owner: false,
+        permissions: '0',
+      },
+    ])
+    mocks.getTenantDiscordConfigByDiscordGuildId.mockResolvedValue({
+      id: 'guild-1',
+      discordGuildId: 'discord-guild-1',
+      slug: 'menhera',
+      name: 'Menhera',
+      createdByDiscordId: null,
+      memberRoleIds: ['member-role'],
+      adminRoleIds: [],
+      eventChannelId: null,
+      botInstalled: true,
+    })
+    mocks.getGuildMemberByBot.mockResolvedValue({
+      user: {
+        id: 'guest-1',
+        username: 'GuestUser',
+        global_name: 'Guest User',
+        avatar: null,
+      },
+      roles: ['member-role'],
+      nick: 'AlbionMember',
+    })
+    mocks.identityFromMember.mockReturnValue({
+      discordId: 'guest-1',
+      username: 'AlbionMember',
+      avatar: null,
+      isMember: true,
+      isAdmin: false,
+    })
+    mocks.getAppSetting.mockResolvedValue('[]')
+    mocks.resolveTenantLoginAccess.mockReturnValue({ isMember: true, isAdmin: false })
+    mocks.mapDiscordLocale.mockReturnValue('en')
+    mocks.resolveUserCapabilities.mockResolvedValue(0n)
+    mocks.serializeCapabilities.mockReturnValue('0')
+
+    const response = await GET(
+      new NextRequest(
+        'https://albion-guildmanager.com/api/auth/discord/callback?code=CODE&state=STATE',
+      ),
+    )
+
+    expect(response.headers.get('location')).toBe(
+      'https://menhera.example.test/api/auth/finish?token=hop-token',
+    )
+    expect(mocks.removeGuestRecordForMember).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        guildId: 'guild-1',
+        discordId: 'guest-1',
+        source: 'member_login',
+      },
+    )
+    expect(mocks.signHopToken).toHaveBeenCalledWith({
+      session: expect.objectContaining({
+        discordId: 'guest-1',
+        isMember: true,
+        isGuest: false,
+        guildId: 'guild-1',
+      }),
+      returnTo: '/',
+      preferredLocale: 'en',
+    })
   })
 
   it('falls back to the origin tenant when Discord guild listing misses the tenant', async () => {

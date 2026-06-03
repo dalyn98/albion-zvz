@@ -11,6 +11,7 @@ import {
 } from '@/lib/albion-gameinfo'
 import { log } from '@/lib/log'
 import { getTenantDiscordConfig } from '@/lib/tenant'
+import { removeGuestRecordForMember } from '@/lib/guest-membership-transition'
 
 export type AlbionIdentityRelation = 'home_guild' | 'alliance' | 'external' | 'unknown'
 
@@ -335,6 +336,13 @@ export async function refreshMemberAlbionIdentity(
     relation: claim.relation,
     trustStatus: claim.trustStatus,
   })
+  if (resourceAllowed) {
+    await removeGuestRecordForMember(db, {
+      guildId,
+      discordId,
+      source: opts.manual ? 'albion_manual_refresh' : 'albion_auto_refresh',
+    })
+  }
   const { error: avatarError } = await db
     .from('guild_avatars')
     .update({

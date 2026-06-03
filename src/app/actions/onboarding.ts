@@ -28,6 +28,7 @@ import {
   recordAlbionIdentityClaim,
   refreshMemberAlbionIdentity,
 } from '@/lib/account-albion-identity'
+import { removeGuestRecordForMember } from '@/lib/guest-membership-transition'
 
 // 드롭다운에서 유저가 고르기 편하도록 정리한 후보 구조.
 export interface AlbionPlayerCandidate {
@@ -202,6 +203,14 @@ export async function confirmAlbionIdentity(input: {
     fallbackAvatar: session.avatar,
   })
   if (updated.error) return { error: updated.error }
+
+  if (resourceTrusted) {
+    await removeGuestRecordForMember(getAdminClient(), {
+      guildId: sessionGuildId,
+      discordId: session.discordId,
+      source: 'albion_identity_confirm',
+    })
+  }
 
   // 인증 성공 시 디스코드 길드 닉네임도 알비온 닉으로 변경 시도. 봇 권한/역할
   // 순위로 실패할 수 있으므로 best-effort — 로그만 남기고 온보딩은 성공 반환.
