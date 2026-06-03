@@ -57,6 +57,7 @@ interface Props {
   rows: InventoryRow[]
   // 상점 할인율 (0 < rate ≤ 1). 수동/자동 가격(모두 실버) 에 곱해 최종 포인트 계산.
   discountRate: number
+  canResetShop: boolean
 }
 
 const QUALITY_KEYS = ['unknown', 'normal', 'good', 'outstanding', 'excellent', 'masterpiece'] as const
@@ -125,7 +126,7 @@ function priceSourceTooltip(source: string | null, t: InventoryTranslator, tShop
   return source
 }
 
-export default function ShopInventoryEditor({ rows, discountRate }: Props) {
+export default function ShopInventoryEditor({ rows, discountRate, canResetShop }: Props) {
   const router = useRouter()
   const t = useTranslations('adminShopInventory')
   const locale = useLocale() as Locale
@@ -136,6 +137,7 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
     inventoryRowsDeleted: number
     logsDeleted: number
     ordersCancelled: number
+    baselinesSuperseded: number
   } | null>(null)
   const [rebuildSummary, setRebuildSummary] = useState<RebuildInventoryResult | null>(null)
   const [query, setQuery] = useState('')
@@ -196,6 +198,7 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
         inventoryRowsDeleted: result.inventoryRowsDeleted,
         logsDeleted: result.logsDeleted,
         ordersCancelled: result.ordersCancelled,
+        baselinesSuperseded: result.baselinesSuperseded,
       })
       router.refresh()
     })
@@ -254,16 +257,18 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
           {t('recoveryDescription')}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={handleReset}
-            disabled={pending}
-            className="flex items-center gap-1.5 bg-gray-800 hover:bg-red-900/40 hover:border-red-700 border border-gray-700 disabled:bg-gray-900 disabled:text-gray-600 disabled:border-gray-800 text-red-300 px-3 py-1.5 rounded-lg transition-colors text-xs"
-            title={t('resetTitle')}
-          >
-            <RotateCcw size={12} />
-            {t('resetButton')}
-          </button>
+          {canResetShop && (
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={pending}
+              className="flex items-center gap-1.5 bg-gray-800 hover:bg-red-900/40 hover:border-red-700 border border-gray-700 disabled:bg-gray-900 disabled:text-gray-600 disabled:border-gray-800 text-red-300 px-3 py-1.5 rounded-lg transition-colors text-xs"
+              title={t('resetTitle')}
+            >
+              <RotateCcw size={12} />
+              {t('resetButton')}
+            </button>
+          )}
           <button
             type="button"
             onClick={handleRebuild}
@@ -292,6 +297,7 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
             rows: resetSummary.inventoryRowsDeleted.toLocaleString(),
             logs: resetSummary.logsDeleted.toLocaleString(),
             orders: resetSummary.ordersCancelled.toLocaleString(),
+            baselines: resetSummary.baselinesSuperseded.toLocaleString(),
           })}
         </div>
       )}

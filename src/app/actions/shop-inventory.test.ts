@@ -55,6 +55,7 @@ function createResetDb(options: {
       inventory_rows_deleted: 4,
       logs_deleted: 7,
       orders_cancelled: 2,
+      baselines_superseded: 1,
     },
     error: null,
   }
@@ -88,6 +89,7 @@ describe('resetShopInventory', () => {
       inventoryRowsDeleted: 0,
       logsDeleted: 0,
       ordersCancelled: 0,
+      baselinesSuperseded: 0,
       error: 'Unauthorized',
     })
     expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
@@ -103,6 +105,7 @@ describe('resetShopInventory', () => {
       inventoryRowsDeleted: 4,
       logsDeleted: 7,
       ordersCancelled: 2,
+      baselinesSuperseded: 1,
     })
 
     expect(rpc).toHaveBeenCalledWith('reset_shop_inventory_all', {
@@ -125,6 +128,7 @@ describe('resetShopInventory', () => {
         inventoryRowsDeleted: 4,
         logsDeleted: 7,
         ordersCancelled: 2,
+        baselinesSuperseded: 1,
       },
     })
   })
@@ -144,6 +148,7 @@ describe('resetShopInventory', () => {
       inventoryRowsDeleted: 0,
       logsDeleted: 0,
       ordersCancelled: 0,
+      baselinesSuperseded: 0,
       error: 'reset failed',
     })
     expect(mocks.revalidatePath).not.toHaveBeenCalled()

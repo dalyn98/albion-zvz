@@ -12,10 +12,11 @@ import {
 import { getTranslations } from 'next-intl/server'
 import { requireAnyCapability } from '@/lib/auth'
 import { getAppSetting } from '@/lib/app-settings'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
 import ShopImportForm from '@/components/ShopImportForm'
+import ShopResetPanel from '@/components/ShopResetPanel'
 import ShopImportTierFilterForm from '@/components/ShopImportTierFilterForm'
 import ShopBlacklistEditor from '@/components/ShopBlacklistEditor'
 import ShopSilverRateForm from '@/components/ShopSilverRateForm'
@@ -57,6 +58,7 @@ export default async function AdminShopPage() {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
+  const canResetShop = session.isAdmin || sessionHas(session, CAP.INVENTORY_MANAGE)
   const [tNav, tPage] = await Promise.all([
     getTranslations('nav'),
     getTranslations('adminShopPage'),
@@ -265,6 +267,7 @@ export default async function AdminShopPage() {
           timezone={tenantTimezone}
           isImportStale={isImportStale}
         />
+        {canResetShop && <ShopResetPanel />}
         <details className="rounded-xl border border-gray-800 bg-gray-900 p-4">
           <summary className="cursor-pointer text-sm font-semibold text-gray-200">
             {tPage('logAdvancedSummary')}
@@ -291,7 +294,11 @@ export default async function AdminShopPage() {
             title={tPage('itemsSectionTitle')}
             description={tPage('itemsSectionDescription')}
           />
-          <ShopInventoryEditor rows={inventoryRows} discountRate={discountRate} />
+          <ShopInventoryEditor
+            rows={inventoryRows}
+            discountRate={discountRate}
+            canResetShop={canResetShop}
+          />
         </section>
         <section id="shop-settings" className="scroll-mt-24 space-y-4">
           <SectionHeading

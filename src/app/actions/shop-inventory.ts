@@ -4,7 +4,7 @@
 // - syncShopPrices: AODP 최저가 조회 후 auto_price_silver 갱신
 // - updateInventoryStock: 재고 수동 보정
 // - setManualPrice / clearManualPrice: 포인트 가격 수동 고정 / 자동으로 복귀
-// - resetShopInventory: 현재 길드의 상점 아이템 전체 삭제 + 원본 로그 삭제 + pending 주문 취소
+// - resetShopInventory: 현재 길드의 상점 아이템 전체 삭제 + 원본 로그 삭제 + baseline 비활성화 + pending 주문 취소
 // - deleteInventoryRow: 재고=0 && 수동 가격 없음인 행 제거 (정리용)
 
 import { revalidatePath } from 'next/cache'
@@ -166,6 +166,7 @@ export interface ResetInventoryResult {
   inventoryRowsDeleted: number
   logsDeleted: number
   ordersCancelled: number
+  baselinesSuperseded: number
   error?: string
 }
 
@@ -191,16 +192,23 @@ function parseResetInventoryResult(raw: unknown): Omit<ResetInventoryResult, 'er
     inventoryRowsDeleted: countFromRpc(obj.inventory_rows_deleted),
     logsDeleted: countFromRpc(obj.logs_deleted),
     ordersCancelled: countFromRpc(obj.orders_cancelled),
+    baselinesSuperseded: countFromRpc(obj.baselines_superseded),
   }
 }
 
 // 현재 길드의 상점 아이템 행 전체와 shop_chest_logs 원본을 삭제하고 pending 주문을 취소한다.
 // 가격 메타데이터까지 함께 지워 "상점 아이템 없음" 상태로 되돌린다.
+// confirmed baseline 은 superseded 로 바꿔 이후 재빌드가 이전 스냅샷을 되살리지 않게 한다.
 // 로그를 같이 지워야 동일 로그 재임포트가 dedupe 에 막히지 않는다.
 // approved/rejected/cancelled 주문, shop_blacklist, shop_name_overrides 는 건드리지 않음.
 export async function resetShopInventory(): Promise<ResetInventoryResult> {
   const t = await getTranslations('adminShopInventory')
-  const empty: ResetInventoryResult = { inventoryRowsDeleted: 0, logsDeleted: 0, ordersCancelled: 0 }
+  const empty: ResetInventoryResult = {
+    inventoryRowsDeleted: 0,
+    logsDeleted: 0,
+    ordersCancelled: 0,
+    baselinesSuperseded: 0,
+  }
   try {
     const session = await getSession()
     if (!session) return { ...empty, error: 'Unauthorized' }
@@ -230,6 +238,7 @@ export async function resetShopInventory(): Promise<ResetInventoryResult> {
         inventoryRowsDeleted: result.inventoryRowsDeleted,
         logsDeleted: result.logsDeleted,
         ordersCancelled: result.ordersCancelled,
+        baselinesSuperseded: result.baselinesSuperseded,
       },
     })
     return result
