@@ -12,6 +12,11 @@ import { parseChestLog, type ChestLogEntry } from '@/lib/shop/parse-chest-log'
 import { resolveKoItem } from '@/lib/shop/resolve-item'
 import { aggregateStock, type AggregateRow } from '@/lib/shop/aggregate-stock'
 import {
+  reconcileShopOrderFulfillmentRows,
+  type MatchedShopOrderFulfillment,
+  type ShopOrderFulfillmentCandidate,
+} from '@/lib/shop/order-fulfillment-reconciliation'
+import {
   applyTierEnchantSumFilter,
   parseTierEnchantSumFilter,
 } from '@/lib/shop/import-tier-enchant-filter'
@@ -117,6 +122,27 @@ interface ExistingChestLogRow {
   quantity: number
 }
 
+interface ApprovedShopOrderRow {
+  id: string
+  created_at: string
+  resolved_at: string | null
+}
+
+interface ShopOrderItemCandidateRow {
+  id: string
+  order_id: string
+  unique_name: string
+  enchant: number
+  quality: number
+  quantity: number
+}
+
+interface FulfilledChestLogRow {
+  matched_order_item_id: string | null
+  ignored_quantity: number | null
+  matched_order_items: unknown
+}
+
 async function loadExistingChestDedupeKeys(
   db: CapabilityDb,
   guildId: string,
@@ -178,6 +204,115 @@ function filterNewChestLogEntries(
   }
 
   return { entries: newEntries, duplicatesSkipped }
+}
+
+function parseMatchedOrderItems(value: unknown): MatchedShopOrderFulfillment[] {
+  if (!Array.isArray(value)) return []
+  const parsed: MatchedShopOrderFulfillment[] = []
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') continue
+    const record = entry as Record<string, unknown>
+    const orderId = typeof record.orderId === 'string' ? record.orderId : null
+    const orderItemId = typeof record.orderItemId === 'string' ? record.orderItemId : null
+    if (typeof record.quantity !== 'number' || !Number.isFinite(record.quantity) || record.quantity <= 0) {
+      continue
+    }
+    if (!orderId || !orderItemId) continue
+    const quantity = record.quantity
+    parsed.push({ orderId, orderItemId, quantity })
+  }
+  return parsed
+}
+
+function addFulfilledQuantity(
+  fulfilledByItemId: Map<string, number>,
+  orderItemId: string,
+  quantity: number,
+) {
+  if (quantity <= 0) return
+  fulfilledByItemId.set(orderItemId, (fulfilledByItemId.get(orderItemId) ?? 0) + quantity)
+}
+
+async function loadShopOrderFulfillmentCandidates(
+  db: CapabilityDb,
+  guildId: string,
+  rows: readonly AggregateRow[],
+): Promise<{ candidates: ShopOrderFulfillmentCandidate[]; error?: string }> {
+  const negativeResolvedRows = rows.filter(
+    (row) => row.entry.quantity < 0 && !row.isBlacklisted && row.resolved,
+  )
+  if (negativeResolvedRows.length === 0) return { candidates: [] }
+
+  const uniqueNames = Array.from(
+    new Set(negativeResolvedRows.map((row) => row.resolved?.uniqueName).filter(Boolean)),
+  ) as string[]
+  if (uniqueNames.length === 0) return { candidates: [] }
+
+  const { data: orders, error: ordersError } = await db
+    .from('shop_orders')
+    .select('id, created_at, resolved_at')
+    .eq('guild_id', guildId)
+    .eq('status', 'approved')
+    .not('resolved_at', 'is', null)
+    .order('resolved_at', { ascending: true })
+    .limit(1000)
+  if (ordersError) return { candidates: [], error: ordersError.message }
+
+  const orderRows = (orders ?? []) as ApprovedShopOrderRow[]
+  const orderIds = orderRows.map((order) => order.id)
+  if (orderIds.length === 0) return { candidates: [] }
+
+  const { data: itemRowsData, error: itemsError } = await db
+    .from('shop_order_items')
+    .select('id, order_id, unique_name, enchant, quality, quantity')
+    .eq('guild_id', guildId)
+    .in('order_id', orderIds)
+    .in('unique_name', uniqueNames)
+  if (itemsError) return { candidates: [], error: itemsError.message }
+
+  const itemRows = (itemRowsData ?? []) as ShopOrderItemCandidateRow[]
+  if (itemRows.length === 0) return { candidates: [] }
+
+  const { data: fulfilledRowsData, error: fulfilledError } = await db
+    .from('shop_chest_logs')
+    .select('matched_order_item_id, ignored_quantity, matched_order_items')
+    .eq('guild_id', guildId)
+    .eq('ignored_reason', 'shop_order_fulfillment')
+  if (fulfilledError) return { candidates: [], error: fulfilledError.message }
+
+  const fulfilledByItemId = new Map<string, number>()
+  for (const row of (fulfilledRowsData ?? []) as FulfilledChestLogRow[]) {
+    const matches = parseMatchedOrderItems(row.matched_order_items)
+    if (matches.length > 0) {
+      for (const match of matches) {
+        addFulfilledQuantity(fulfilledByItemId, match.orderItemId, match.quantity)
+      }
+      continue
+    }
+    if (row.matched_order_item_id) {
+      addFulfilledQuantity(fulfilledByItemId, row.matched_order_item_id, Math.abs(row.ignored_quantity ?? 0))
+    }
+  }
+
+  const ordersById = new Map(orderRows.map((order) => [order.id, order]))
+  const candidates: ShopOrderFulfillmentCandidate[] = []
+  for (const item of itemRows) {
+    const order = ordersById.get(item.order_id)
+    if (!order?.resolved_at) continue
+    candidates.push({
+      orderId: item.order_id,
+      orderItemId: item.id,
+      uniqueName: item.unique_name,
+      enchant: item.enchant,
+      quality: item.quality,
+      quantity: item.quantity,
+      fulfilledQuantity: fulfilledByItemId.get(item.id) ?? 0,
+      createdAt: new Date(order.created_at),
+      resolvedAt: new Date(order.resolved_at),
+    })
+  }
+
+  return { candidates }
 }
 
 interface StockApplyError {
@@ -280,6 +415,12 @@ function toChestLogInsertRow(
     enchant: row.entry.enchant,
     quality: row.entry.quality,
     quantity: row.entry.quantity,
+    applied_quantity: row.appliedQuantity ?? row.entry.quantity,
+    ignored_quantity: row.ignoredQuantity ?? 0,
+    ignored_reason: row.ignoredReason ?? null,
+    matched_order_id: row.matchedOrderId ?? null,
+    matched_order_item_id: row.matchedOrderItemId ?? null,
+    matched_order_items: row.matchedOrderItems ?? [],
     unique_name: row.resolved?.uniqueName ?? null,
     imported_by: importedBy,
   }
@@ -489,11 +630,17 @@ export async function importChestLog(
       getKey: dedupeKey,
       getLabel: chestLogLabel,
     })
-    const { unresolvedNames } = aggregateStock(rows)
-    const stockDeltas = buildOrderedStockReplayDeltas(rows)
+    const fulfillmentResult = await loadShopOrderFulfillmentCandidates(db, guildId, rows)
+    if (fulfillmentResult.error) {
+      return { ...empty, parseErrors: errors, error: fulfillmentResult.error }
+    }
+    const reconciledRows = reconcileShopOrderFulfillmentRows(rows, fulfillmentResult.candidates)
 
-    const blacklistedRows = rows.filter((row) => row.isBlacklisted).length
-    const unresolvedRows = rows.filter((row) => !row.isBlacklisted && !row.resolved).length
+    const { unresolvedNames } = aggregateStock(reconciledRows)
+    const stockDeltas = buildOrderedStockReplayDeltas(reconciledRows)
+
+    const blacklistedRows = reconciledRows.filter((row) => row.isBlacklisted).length
+    const unresolvedRows = reconciledRows.filter((row) => !row.isBlacklisted && !row.resolved).length
 
     let stockChanges: ImportSummary['stockChanges'] = []
 
@@ -520,7 +667,7 @@ export async function importChestLog(
       }
     }
 
-    const insertResult = await insertShopChestRows(db, guildId, session.discordId, rows)
+    const insertResult = await insertShopChestRows(db, guildId, session.discordId, reconciledRows)
     const inserted = insertResult.insertedRows.length
     const duplicatesSkipped = precheckedDuplicatesSkipped + insertResult.duplicatesSkipped
     const committedRows = insertResult.insertedRows

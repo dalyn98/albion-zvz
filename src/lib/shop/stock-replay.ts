@@ -21,11 +21,13 @@ export function buildOrderedStockReplayDeltas(rows: AggregateRow[]): StockReplay
   return rows
     .map((row, sequence): StockReplayDelta | null => {
       if (row.isBlacklisted || !row.resolved) return null
+      const delta = row.appliedQuantity ?? row.entry.quantity
+      if (delta === 0) return null
       return {
         uniqueName: row.resolved.uniqueName,
         enchant: row.entry.enchant,
         quality: row.entry.quality,
-        delta: row.entry.quantity,
+        delta,
         nameKo: row.resolved.nameKo || row.entry.itemName,
         category: row.resolved.category ?? null,
         tier: row.resolved.tier,

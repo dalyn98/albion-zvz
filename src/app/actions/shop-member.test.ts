@@ -86,20 +86,9 @@ function createShopOrderDb(options: {
   return { db: { from, rpc }, inventoryQuery, rpc }
 }
 
-function createCancelOrderDb(updateResult: {
-  data: Array<{ id: string }> | null
-  error: { message: string } | null
-}) {
-  const updateQuery = {
-    update: vi.fn(() => updateQuery),
-    eq: vi.fn(() => updateQuery),
-    select: vi.fn(async () => updateResult),
-  }
-  const from = vi.fn((table: string) => {
-    if (table === 'shop_orders') return updateQuery
-    throw new Error(`unexpected table: ${table}`)
-  })
-  return { db: { from }, updateQuery }
+function createCancelOrderDb(error: { message: string } | null = null) {
+  const rpc = vi.fn(async () => ({ error }))
+  return { db: { rpc }, rpc }
 }
 
 describe('submitShopOrder', () => {
@@ -310,15 +299,34 @@ describe('cancelMyOrder', () => {
     mocks.isLocalGuildAccountRestrictedFromResources.mockReturnValue(false)
   })
 
-  it('does not report success when no pending order row was cancelled', async () => {
-    const { db, updateQuery } = createCancelOrderDb({ data: [], error: null })
+  it('cancels pending orders through the stock-restoring RPC', async () => {
+    const { db, rpc } = createCancelOrderDb()
+    mocks.getAdminClient.mockReturnValue(db)
+
+    await expect(cancelMyOrder('order-1')).resolves.toEqual({})
+
+    expect(rpc).toHaveBeenCalledWith('cancel_shop_order', {
+      p_id: 'order-1',
+      p_guild_id: 'guild-1',
+      p_discord_id: 'member-1',
+    })
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/shop')
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/me')
+  })
+
+  it('does not report success when the stock-restoring RPC cannot cancel a pending order', async () => {
+    const { db, rpc } = createCancelOrderDb({ message: 'ORDER_NOT_PENDING' })
     mocks.getAdminClient.mockReturnValue(db)
 
     await expect(cancelMyOrder('order-1')).resolves.toEqual({
       error: 'alreadyProcessedCannotCancel',
     })
 
-    expect(updateQuery.select).toHaveBeenCalledWith('id')
+    expect(rpc).toHaveBeenCalledWith('cancel_shop_order', {
+      p_id: 'order-1',
+      p_guild_id: 'guild-1',
+      p_discord_id: 'member-1',
+    })
     expect(mocks.revalidatePath).not.toHaveBeenCalled()
   })
 })

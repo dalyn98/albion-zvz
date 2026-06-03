@@ -67,6 +67,20 @@ vi.mock('./shop-inventory', () => ({
 function createImportDb(options: {
   batchStockError?: { code?: string; message: string }
   insertResults?: Array<{ error: { code?: string; message: string } | null }>
+  approvedOrders?: Array<{ id: string; created_at: string; resolved_at: string | null }>
+  orderItems?: Array<{
+    id: string
+    order_id: string
+    unique_name: string
+    enchant: number
+    quality: number
+    quantity: number
+  }>
+  fulfilledLogs?: Array<{
+    matched_order_item_id: string | null
+    ignored_quantity: number | null
+    matched_order_items: unknown
+  }>
 } = {}) {
   const blacklistQuery = {
     select: vi.fn(() => blacklistQuery),
@@ -101,10 +115,41 @@ function createImportDb(options: {
     eq: vi.fn(() => inventoryQuery),
     in: vi.fn().mockResolvedValue({ data: [], error: null }),
   }
+  const approvedOrdersQuery = {
+    select: vi.fn(() => approvedOrdersQuery),
+    eq: vi.fn(() => approvedOrdersQuery),
+    not: vi.fn(() => approvedOrdersQuery),
+    order: vi.fn(() => approvedOrdersQuery),
+    limit: vi.fn().mockResolvedValue({
+      data: options.approvedOrders ?? [],
+      error: null,
+    }),
+  }
+  const orderItemsQuery = {
+    select: vi.fn(() => orderItemsQuery),
+    eq: vi.fn(() => orderItemsQuery),
+    in: vi.fn((column: string) => {
+      if (column === 'unique_name') {
+        return Promise.resolve({ data: options.orderItems ?? [], error: null })
+      }
+      return orderItemsQuery
+    }),
+  }
+  const fulfilledLogsQuery = {
+    select: vi.fn(() => fulfilledLogsQuery),
+    eq: vi.fn((column: string) => {
+      if (column === 'ignored_reason') {
+        return Promise.resolve({ data: options.fulfilledLogs ?? [], error: null })
+      }
+      return fulfilledLogsQuery
+    }),
+  }
   let chestLogReadCount = 0
   const from = vi.fn((table: string) => {
     if (table === 'shop_blacklist') return blacklistQuery
     if (table === 'shop_inventory') return inventoryQuery
+    if (table === 'shop_orders') return approvedOrdersQuery
+    if (table === 'shop_order_items') return orderItemsQuery
     if (table === 'shop_chest_logs') {
       if (chestLogReadCount === 0) {
         chestLogReadCount += 1
@@ -113,6 +158,10 @@ function createImportDb(options: {
       if (chestLogReadCount === 1) {
         chestLogReadCount += 1
         return latestLogQuery
+      }
+      if (options.fulfilledLogs && chestLogReadCount === 2) {
+        chestLogReadCount += 1
+        return fulfilledLogsQuery
       }
       return createInsertLogQuery()
     }
@@ -357,6 +406,12 @@ describe('importChestLog', () => {
         enchant: 0,
         quality: 1,
         quantity: 2,
+        applied_quantity: 2,
+        ignored_quantity: 0,
+        ignored_reason: null,
+        matched_order_id: null,
+        matched_order_item_id: null,
+        matched_order_items: [],
         unique_name: 'T4_TEST_ITEM',
         imported_by: 'admin-1',
       },
@@ -393,6 +448,87 @@ describe('importChestLog', () => {
         unresolvedRows: 0,
       },
     })
+  })
+
+  it('stores shop-order fulfillment withdrawals without applying another stock delta', async () => {
+    const { db, rpc, insertCalls } = createImportDb({
+      approvedOrders: [
+        {
+          id: 'order-1',
+          created_at: '2026-05-01T00:00:00.000Z',
+          resolved_at: '2026-05-01T01:00:00.000Z',
+        },
+      ],
+      orderItems: [
+        {
+          id: 'order-item-1',
+          order_id: 'order-1',
+          unique_name: 'T4_TEST_ITEM',
+          enchant: 0,
+          quality: 1,
+          quantity: 1,
+        },
+      ],
+      fulfilledLogs: [],
+    })
+    const loggedAt = new Date('2026-05-01T02:00:00.000Z')
+    mocks.requireAnyCapability.mockResolvedValue(db)
+    mocks.parseChestLog.mockReturnValue({
+      entries: [
+        {
+          loggedAt,
+          player: 'Quartermaster',
+          itemName: '테스트 장비',
+          enchant: 0,
+          quality: 1,
+          quantity: -1,
+        },
+      ],
+      errors: [],
+    })
+    mocks.resolveKoItem.mockReturnValue({
+      uniqueName: 'T4_TEST_ITEM',
+      category: 'armor',
+      nameKo: '테스트 장비',
+      tier: 4,
+    })
+
+    const result = await importChestLog('raw chest log')
+
+    expect(result.error).toBeUndefined()
+    expect(result).toMatchObject({
+      parsed: 1,
+      inserted: 1,
+      stockChanges: [],
+    })
+    expect(insertCalls).toEqual([[
+      {
+        guild_id: 'guild-1',
+        logged_at: '2026-05-01T02:00:00.000Z',
+        import_sequence: 0,
+        player: 'Quartermaster',
+        item_name_raw: '테스트 장비',
+        enchant: 0,
+        quality: 1,
+        quantity: -1,
+        applied_quantity: 0,
+        ignored_quantity: -1,
+        ignored_reason: 'shop_order_fulfillment',
+        matched_order_id: 'order-1',
+        matched_order_item_id: 'order-item-1',
+        matched_order_items: [
+          {
+            orderId: 'order-1',
+            orderItemId: 'order-item-1',
+            quantity: 1,
+          },
+        ],
+        unique_name: 'T4_TEST_ITEM',
+        imported_by: 'admin-1',
+      },
+    ]])
+    expect(rpc).not.toHaveBeenCalledWith('apply_shop_stock_deltas', expect.anything())
+    expect(rpc).not.toHaveBeenCalledWith('apply_shop_stock_delta', expect.anything())
   })
 
   it('falls back to per-row stock RPC while the batch migration is not applied', async () => {

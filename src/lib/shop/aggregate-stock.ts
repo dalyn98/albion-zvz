@@ -3,6 +3,7 @@
 
 import type { ChestLogEntry } from './parse-chest-log'
 import type { ResolvedItem } from './resolve-item'
+import type { MatchedShopOrderFulfillment } from './order-fulfillment-reconciliation'
 
 export interface StockDelta {
   uniqueName: string
@@ -18,6 +19,12 @@ export interface AggregateRow {
   entry: ChestLogEntry
   resolved: ResolvedItem | null
   isBlacklisted: boolean
+  appliedQuantity?: number
+  ignoredQuantity?: number
+  ignoredReason?: 'shop_order_fulfillment'
+  matchedOrderId?: string
+  matchedOrderItemId?: string
+  matchedOrderItems?: MatchedShopOrderFulfillment[]
 }
 
 export interface ChestLogInsert {
@@ -28,6 +35,12 @@ export interface ChestLogInsert {
   enchant: number
   quality: number
   quantity: number
+  appliedQuantity: number
+  ignoredQuantity: number
+  ignoredReason: 'shop_order_fulfillment' | null
+  matchedOrderId: string | null
+  matchedOrderItemId: string | null
+  matchedOrderItems: MatchedShopOrderFulfillment[]
   uniqueName: string | null
 }
 
@@ -43,7 +56,9 @@ export function aggregateStock(rows: AggregateRow[]): AggregateResult {
   const unresolved = new Set<string>()
 
   for (let importSequence = 0; importSequence < rows.length; importSequence++) {
-    const { entry, resolved, isBlacklisted } = rows[importSequence]
+    const row = rows[importSequence]
+    const { entry, resolved, isBlacklisted } = row
+    const appliedQuantity = row.appliedQuantity ?? entry.quantity
     toInsert.push({
       loggedAt: entry.loggedAt,
       importSequence,
@@ -52,6 +67,12 @@ export function aggregateStock(rows: AggregateRow[]): AggregateResult {
       enchant: entry.enchant,
       quality: entry.quality,
       quantity: entry.quantity,
+      appliedQuantity,
+      ignoredQuantity: row.ignoredQuantity ?? 0,
+      ignoredReason: row.ignoredReason ?? null,
+      matchedOrderId: row.matchedOrderId ?? null,
+      matchedOrderItemId: row.matchedOrderItemId ?? null,
+      matchedOrderItems: row.matchedOrderItems ?? [],
       uniqueName: resolved?.uniqueName ?? null,
     })
 
@@ -64,14 +85,14 @@ export function aggregateStock(rows: AggregateRow[]): AggregateResult {
     const key = `${resolved.uniqueName}|${entry.enchant}|${entry.quality}`
     const existing = bucket.get(key)
     if (existing) {
-      existing.delta += entry.quantity
+      existing.delta += appliedQuantity
       continue
     }
     bucket.set(key, {
       uniqueName: resolved.uniqueName,
       enchant: entry.enchant,
       quality: entry.quality,
-      delta: entry.quantity,
+      delta: appliedQuantity,
       nameKo: resolved.nameKo || entry.itemName,
       category: resolved.category ?? null,
       tier: resolved.tier,

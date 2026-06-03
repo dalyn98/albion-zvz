@@ -403,17 +403,16 @@ export async function cancelMyOrder(orderId: string): Promise<{ error?: string }
     }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
-    const { data: updatedRows, error } = await db
-      .from('shop_orders')
-      .update({ status: 'cancelled', resolved_at: new Date().toISOString(), resolved_by: session.discordId })
-      .eq('guild_id', guildId)
-      .eq('id', orderId)
-      .eq('discord_id', session.discordId)
-      .eq('status', 'pending')
-      .select('id')
-    if (error) return { error: error.message }
-    if (!updatedRows || updatedRows.length === 0) {
-      return { error: tErr('alreadyProcessedCannotCancel') }
+    const { error } = await db.rpc('cancel_shop_order', {
+      p_id: orderId,
+      p_guild_id: guildId,
+      p_discord_id: session.discordId,
+    })
+    if (error) {
+      if (error.message.includes('ORDER_NOT_PENDING')) {
+        return { error: tErr('alreadyProcessedCannotCancel') }
+      }
+      return { error: error.message }
     }
     revalidatePath('/shop')
     revalidatePath('/me')
