@@ -73,6 +73,17 @@ export function buildSnapshotFromSlot(
   return { role_name: roleName || null, ...gear }
 }
 
+export function buildSnapshotFromRole(roleName: string): BuildSnapshot {
+  const gear = SLOT_KEYS.reduce(
+    (acc, k) => {
+      acc[k] = { name: null, id: null }
+      return acc
+    },
+    {} as Record<SlotKey, { name: string | null; id: string | null }>,
+  )
+  return { role_name: roleName || null, ...gear }
+}
+
 export function normalizeBreakdownItems(raw: unknown): RegearLineItem[] {
   if (!Array.isArray(raw)) return []
   return raw

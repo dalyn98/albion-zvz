@@ -19,22 +19,25 @@ import EventEditSaveBar from '@/components/EventEditSaveBar'
 import { listTemplates } from '@/app/actions/templates'
 import TentativeSignupSection from '@/components/TentativeSignupSection'
 import { listTentativeSignupsForGuild } from '@/lib/event-tentative-signups'
+import { listEventRegearParticipantsForGuild } from '@/lib/event-regear-participants'
 import { getAvatarsByDiscordIds } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId, getTenantDiscordConfig } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
 import { sessionCanCreateOrManageEvents } from '@/lib/event-permissions'
+import { canUseEventRegearPolicy } from '@/lib/regear-event-policy'
 import { isEnded } from '@/lib/gather-time'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { loadBuildSheetEventState } from '@/lib/build-sheet-data'
+import EventRegearParticipantsPanel from '@/components/EventRegearParticipantsPanel'
 
 async function getData(id: string, guildId: string) {
   // guild_avatars 는 anon/authenticated 에 revoke 되어 있어 (migration 008)
   // service-role client 로만 읽을 수 있다. 이 server component 는 admin 전용
   // 레이아웃 하위라 service-role 사용이 안전.
   const admin = getAdminClient()
-  const [{ data: event }, { data: parties }, { data: directory }] = await Promise.all([
+  const [{ data: event }, { data: parties }, { data: directory }, regearParticipants] = await Promise.all([
     admin.from('events').select('*').eq('guild_id', guildId).eq('id', id).single(),
     admin
       .from('parties')
@@ -52,6 +55,7 @@ async function getData(id: string, guildId: string) {
       .eq('guild_id', guildId)
       .eq('is_bomb_squad_caller', true)
       .order('username'),
+    listEventRegearParticipantsForGuild(id, guildId),
   ])
 
   const sorted = (parties ?? []).map((p) => ({
@@ -84,6 +88,7 @@ async function getData(id: string, guildId: string) {
     event: event as Event | null,
     parties: sorted,
     memberDirectory,
+    regearParticipants: regearParticipants.rows,
   }
 }
 
@@ -97,7 +102,7 @@ export default async function EditEventPage({
   if (!session) throw new Error('Unauthorized')
   const guildId = await getSessionGuildId(session)
   const [
-    { event, parties, memberDirectory },
+    { event, parties, memberDirectory, regearParticipants },
     { templates },
     t,
     autoRegearRaw,
@@ -165,6 +170,7 @@ export default async function EditEventPage({
     getAvatarsByDiscordIds(guildId, [
       ...assignedDiscordIds,
       ...tentativeRows.map((r) => r.discord_id),
+      ...regearParticipants.map((r) => r.discord_id),
     ]),
   ])
   const tentativeDirectory = (tentativeDirectoryRes.data ?? []).map((m) => ({
@@ -195,6 +201,16 @@ export default async function EditEventPage({
             tenantTimezone={tenantTimezone}
             canManageRegearPolicy={session.isAdmin}
           />
+
+          {canUseEventRegearPolicy(event.category) && (
+            <EventRegearParticipantsPanel
+              eventId={id}
+              rows={regearParticipants}
+              avatars={avatars}
+              memberDirectory={tentativeDirectory}
+              canManage={canEditEvent}
+            />
+          )}
 
           <TentativeSignupSection
             eventId={id}

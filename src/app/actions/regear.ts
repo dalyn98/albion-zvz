@@ -20,6 +20,7 @@ import {
   ALLOWED_MIME,
   MAX_SCREENSHOT_BYTES,
   SCREENSHOT_BUCKET,
+  buildSnapshotFromRole,
   buildSnapshotFromSlot,
   computeMarketSilverFromItems,
   computeRegearEligibilityDeadlineMs,
@@ -37,6 +38,10 @@ import {
 } from '@/lib/regear-reject-reasons'
 import { countsTowardDeathLimit } from '@/lib/regear-request-policy'
 import { sendAdminNotification } from '@/lib/admin-notifications'
+import {
+  buildManualRegearEligibilityRoleMap,
+  buildRegearEventRoleMap,
+} from '@/lib/regear-eligible-events'
 import { resolveManualRegearPolicy, type EventRegearPolicy } from '@/lib/regear-event-policy'
 
 // User-facing regear actions. Admin-side lives in `regear-admin.ts`,
@@ -243,10 +248,23 @@ async function requestRegearInner(
 
   const db = getAdminClient()
 
-  // 1) Must be assigned to a slot with a role in that event. Pull the full
-  //    gear so we can snapshot the build — the regear admin uses this to
-  //    verify in-game that the member wore what they applied with. Columns
-  //    are spelled out because Supabase's select parser needs a literal.
+  // 1) Resolve the event first so FF/ganking can use the event-local regear
+  //    participant list instead of the constantly changing party slots.
+  const { data: event, error: eventError } = await db
+    .from('events')
+    .select('id, title, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member')
+    .eq('guild_id', guildId)
+    .eq('id', eventId)
+    .single()
+  if (eventError) return { error: eventError.message }
+  const eventCategory: EventCategory = EVENT_CATEGORIES.includes(event.category as EventCategory)
+    ? (event.category as EventCategory)
+    : '전투'
+  const usesEventParticipantList = eventCategory !== '전투'
+
+  // Combat events still require a current assigned slot. For FF/ganking, a slot
+  // snapshot is used when present, but eligibility comes from
+  // event_regear_participants.
   const { data: slot, error: slotError } = await db
     .from('slots')
     .select(
@@ -255,14 +273,33 @@ async function requestRegearInner(
     .eq('guild_id', guildId)
     .eq('assigned_discord_id', session.discordId)
     .eq('parties.event_id', eventId)
+    .limit(1)
     .maybeSingle()
   if (slotError) return { error: slotError.message }
-  if (!slot) return { error: tErr('noAssignedSlot') }
-  if (slot.manual_regear_excluded === true) return { error: tErr('manualRegearExcluded') }
-  const roleName = (slot.role_name ?? '').trim()
-  if (!roleName) return { error: tErr('slotRoleMissing') }
 
-  const buildSnapshot = buildSnapshotFromSlot(slot as unknown as SlotGearDisplay, roleName)
+  let roleName = ''
+  let buildSnapshot: BuildSnapshot
+  if (usesEventParticipantList) {
+    const { data: participant, error: participantError } = await db
+      .from('event_regear_participants')
+      .select('role_name')
+      .eq('guild_id', guildId)
+      .eq('event_id', eventId)
+      .eq('discord_id', session.discordId)
+      .maybeSingle()
+    if (participantError) return { error: participantError.message }
+    roleName = (participant?.role_name ?? '').trim()
+    if (!roleName) return { error: tErr('eventRegearParticipantRequired') }
+    buildSnapshot = slot
+      ? buildSnapshotFromSlot(slot as unknown as SlotGearDisplay, roleName)
+      : buildSnapshotFromRole(roleName)
+  } else {
+    if (!slot) return { error: tErr('noAssignedSlot') }
+    if (slot.manual_regear_excluded === true) return { error: tErr('manualRegearExcluded') }
+    roleName = (slot.role_name ?? '').trim()
+    if (!roleName) return { error: tErr('slotRoleMissing') }
+    buildSnapshot = buildSnapshotFromSlot(slot as unknown as SlotGearDisplay, roleName)
+  }
 
   const { windowMinutes, maxDeaths: globalMaxDeaths, eligibilityDays } = await loadRegearLimits(guildId)
 
@@ -271,13 +308,6 @@ async function requestRegearInner(
   //    tracked battle 의 ended_at (Albion /battles 가 보고하는 실측치) 을
   //    anchor 로 쓴다. 매칭 0건(솔로 갱크/sync 지연) 은 battle_started_at 으로
   //    폴백. Title 은 여기서 스냅샷해 이벤트 삭제돼도 이력에 남게 한다.
-  const { data: event, error: eventError } = await db
-    .from('events')
-    .select('id, title, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member')
-    .eq('guild_id', guildId)
-    .eq('id', eventId)
-    .single()
-  if (eventError) return { error: eventError.message }
   if (!event.battle_started_at) {
     return { error: tErr('battleNotStarted') }
   }
@@ -317,9 +347,6 @@ async function requestRegearInner(
     .eq('role_name', roleName)
     .maybeSingle()
   if (rewardError) return { error: rewardError.message }
-  const eventCategory: EventCategory = EVENT_CATEGORIES.includes(event.category as EventCategory)
-    ? (event.category as EventCategory)
-    : '전투'
   const resolvedPolicy = resolveManualRegearPolicy({
     category: eventCategory,
     eventPolicy: event.regear_policy,
@@ -561,10 +588,8 @@ export async function listMyRegearEligibleEvents(): Promise<{
     Date.now() - eligibilityDays * 24 * 60 * 60 * 1000,
   ).toISOString()
 
-  // Find slots I'm assigned to, joined through parties to events with a battle
-  // start. Battle start is the gate — no start means no regear window yet.
-  // We don't gate by isEnded here: members can still submit from the site after
-  // the in-game 1-hour window (the cutoff is for the screenshot itself).
+  // Combat uses assigned slots. FF/ganking uses the event-local regear
+  // participant list so party swaps do not silently remove eligibility.
   const { data: slots, error: slotError } = await db
     .from('slots')
     .select('role_name, party_id, manual_regear_excluded')
@@ -572,21 +597,43 @@ export async function listMyRegearEligibleEvents(): Promise<{
     .eq('assigned_discord_id', session.discordId)
     .eq('manual_regear_excluded', false)
   if (slotError) return { events: [], error: slotError.message }
-  if (!slots || slots.length === 0) return { events: [] }
 
-  const { data: parties, error: partiesError } = await db
-    .from('parties')
-    .select('id, event_id')
+  const { data: participantRows, error: participantError } = await db
+    .from('event_regear_participants')
+    .select('event_id, role_name')
     .eq('guild_id', guildId)
-    .in(
-      'id',
-      slots.map((s) => s.party_id),
-    )
-  if (partiesError) return { events: [], error: partiesError.message }
-  if (!parties || parties.length === 0) return { events: [] }
+    .eq('discord_id', session.discordId)
+  if (participantError) return { events: [], error: participantError.message }
+
+  if ((!slots || slots.length === 0) && (!participantRows || participantRows.length === 0)) {
+    return { events: [] }
+  }
+
+  const partyIds = Array.from(
+    new Set((slots ?? []).map((slot) => slot.party_id).filter((id): id is string => Boolean(id))),
+  )
+  let parties: { id: string; event_id: string }[] = []
+  if (partyIds.length > 0) {
+    const { data, error } = await db
+      .from('parties')
+      .select('id, event_id')
+      .eq('guild_id', guildId)
+      .in('id', partyIds)
+    if (error) return { events: [], error: error.message }
+    parties = data ?? []
+  }
 
   const partyToEvent = new Map(parties.map((p) => [p.id, p.event_id]))
-  const eventIds = Array.from(new Set(parties.map((p) => p.event_id)))
+  const participantRoleByEvent = buildRegearEventRoleMap(
+    (participantRows ?? []).map((row) => ({
+      eventId: row.event_id,
+      roleName: row.role_name,
+    })),
+  )
+  const eventIds = Array.from(
+    new Set([...parties.map((p) => p.event_id), ...participantRoleByEvent.keys()]),
+  )
+  if (eventIds.length === 0) return { events: [] }
 
   const { data: events, error: eventsError } = await db
     .from('events')
@@ -601,18 +648,28 @@ export async function listMyRegearEligibleEvents(): Promise<{
 
   const eventIdSet = new Set(events.map((e) => e.id))
 
-  // Map each event to my role (first matching slot wins — a member shouldn't
-  // hold multiple slots in one event, but guard against it anyway).
-  const eventToRole = new Map<string, string>()
-  for (const slot of slots) {
-    const eventId = partyToEvent.get(slot.party_id)
-    if (!eventId || !eventIdSet.has(eventId)) continue
-    const role = (slot.role_name ?? '').trim()
-    if (!role) continue
-    if (!eventToRole.has(eventId)) eventToRole.set(eventId, role)
-  }
+  // Map each event to my regear role. Combat keeps slot behavior. FF/ganking
+  // must come from the regear participant list.
+  const slotRoleByEvent = buildRegearEventRoleMap(
+    (slots ?? [])
+      .map((slot) => ({
+        eventId: partyToEvent.get(slot.party_id),
+        roleName: slot.role_name,
+      }))
+      .filter((slot) => slot.eventId && eventIdSet.has(slot.eventId)),
+  )
+  const eventToRole = buildManualRegearEligibilityRoleMap(
+    events.map((event) => ({
+      eventId: event.id,
+      category: event.category,
+    })),
+    slotRoleByEvent,
+    participantRoleByEvent,
+  )
 
-  const roleNames = Array.from(new Set(Array.from(eventToRole.values())))
+  const roleNames = Array.from(
+    new Set(Array.from(eventToRole.values()).filter((role) => role.length > 0)),
+  )
   const [rewardRes, requestRes] = await Promise.all([
     roleNames.length > 0
       ? db
