@@ -5913,7 +5913,7 @@
     "guideReady": "使用指南\n成员快速指南: {guideUrl}\n官方 FAQ: {docsUrl}",
     "homeReady": "**{name}** 公会主页\n{url}",
     "meReady": "**{name}** 我的仪表盘\n{url}",
-    "verifyReady": "**{name}** Albion 认证 / 重新引导\n{url}",
+    "verifyReady": "**{name}** 重新确认 Discord 成员身份 + Albion 认证\n{url}",
     "eventsReady": "**{name}** 活动\n列表: {url}{nextBlock}",
     "eventsNextBlock": "\n下一个活动: **{title}** ({when})\n{eventUrl}",
     "regearReady": "**{name}** 补装\n{url}",

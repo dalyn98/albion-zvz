@@ -35,7 +35,7 @@ const COMMANDS = [
       },
       {
         name: 'verify',
-        description: 'Open Albion verification and re-onboarding',
+        description: 'Refresh Discord membership and open Albion verification',
         type: 1,
       },
       {

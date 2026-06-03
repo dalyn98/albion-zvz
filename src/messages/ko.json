@@ -5913,7 +5913,7 @@
     "guideReady": "사용법 가이드\n길드원 빠른 사용법: {guideUrl}\n공식 FAQ: {docsUrl}",
     "homeReady": "**{name}** 길드 홈\n{url}",
     "meReady": "**{name}** 내 대시보드\n{url}",
-    "verifyReady": "**{name}** Albion 인증 / 재온보딩\n{url}",
+    "verifyReady": "**{name}** Discord 멤버십 재확인 + Albion 인증\n{url}",
     "eventsReady": "**{name}** 이벤트\n목록: {url}{nextBlock}",
     "eventsNextBlock": "\n다음 이벤트: **{title}** ({when})\n{eventUrl}",
     "regearReady": "**{name}** 리기어\n{url}",

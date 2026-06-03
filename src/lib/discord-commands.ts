@@ -7,6 +7,7 @@
 // 모두 웹 화면에서 처리하고, 여기서는 정확한 진입점 링크만 ephemeral 로 돌려준다.
 
 import { getAdminClient } from '@/lib/supabase-admin'
+import { buildDiscordStartHref } from '@/lib/discord-auth-url'
 import { mapDiscordLocale } from '@/lib/discord'
 import { tenantUrl } from '@/lib/tenant-resolver'
 import { DEFAULT_LOCALE, type Locale } from '@/i18n/locales'
@@ -237,7 +238,14 @@ export async function handleSlashCommand(
     case 'me':
       return replyWithTenantLink(messages.meReady, tenant, '/me')
     case 'verify':
-      return replyWithTenantLink(messages.verifyReady, tenant, '/onboarding/albion')
+      return replyWithTenantLink(
+        messages.verifyReady,
+        tenant,
+        buildDiscordStartHref({
+          returnTo: '/onboarding/albion',
+          forceConsent: true,
+        }),
+      )
     case 'events':
       return handleEvents(tenant, messages)
     case 'regear':
@@ -261,9 +269,18 @@ function replyWithTenantLink(
   return ephemeralReply(
     format(template, {
       name: tenant.name,
-      url: tenantUrl(tenant.slug, path),
+      url: tenantCommandUrl(tenant, path),
     }),
   )
+}
+
+function tenantCommandUrl(tenant: TenantBindResult, path: string): string {
+  const base = tenantUrl(tenant.slug, '/')
+  try {
+    return new URL(path, base.endsWith('/') ? base : `${base}/`).toString().replace(/\/$/, '')
+  } catch {
+    return tenantUrl(tenant.slug, path)
+  }
 }
 
 function handleGuide(messages: DiscordBotMessages): DiscordInteractionResponse {

@@ -134,16 +134,16 @@ describe('agm slash command navigation', () => {
     expect(mocks.tenantEqStatus).toHaveBeenCalledWith('status', 'active')
   })
 
-  it('routes /agm verify to the tenant Albion onboarding entry point', async () => {
+  it('routes /agm verify through Discord reauth before Albion onboarding', async () => {
     vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
     mockTenant()
 
     const response = await handleSlashCommand(agmPayload('verify'))
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(response.data?.content).toContain('Albion 인증')
+    expect(response.data?.content).toContain('Discord 멤버십')
     expect(response.data?.content).toContain(
-      'https://menhera.albion-guildmanager.com/onboarding/albion',
+      'https://menhera.albion-guildmanager.com/api/auth/discord/start?returnTo=%2Fonboarding%2Falbion&retry=1',
     )
   })
 

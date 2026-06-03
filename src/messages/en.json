@@ -5913,7 +5913,7 @@
     "guideReady": "Guides\nMember quick guide: {guideUrl}\nOfficial FAQ: {docsUrl}",
     "homeReady": "**{name}** guild home\n{url}",
     "meReady": "**{name}** my dashboard\n{url}",
-    "verifyReady": "**{name}** Albion verification / re-onboarding\n{url}",
+    "verifyReady": "**{name}** Refresh Discord membership + Albion verification\n{url}",
     "eventsReady": "**{name}** events\nList: {url}{nextBlock}",
     "eventsNextBlock": "\nNext event: **{title}** ({when})\n{eventUrl}",
     "regearReady": "**{name}** regear\n{url}",
