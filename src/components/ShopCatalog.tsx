@@ -13,6 +13,8 @@ import {
   Loader2,
   Trash2,
   Info,
+  Pencil,
+  AlertTriangle,
 } from 'lucide-react'
 import { submitShopOrder } from '@/app/actions/shop-member'
 import { getLocalizedItemName, stripLocalizedTierName } from '@/lib/item-names'
@@ -36,7 +38,7 @@ export interface CatalogItem {
   nameKo: string
   category: string | null
   tier: number | null
-  pointPrice: number
+  pointPrice: number | null
   priceWarning: ShopPriceWarning
 }
 
@@ -62,12 +64,18 @@ interface Props {
   isMember: boolean
   // AODP 기준 도시 한글 라벨 — /shop 상단에 "시세 기준: ○○" 로 노출한다.
   baseCityLabel: string
+  discountRate: number
   interactionMode?: 'live' | 'demo'
 }
 
 interface CartLine {
   item: CatalogDisplayItem
   qty: number
+  quoteUnitSilver: string
+  quoteCity: string
+  quoteNote: string
+  quoteEvidenceUrl: string
+  quoteOpen: boolean
 }
 
 interface CatalogDisplayItem extends CatalogItem {
@@ -125,11 +133,32 @@ function shopItemTypeKey(item: CatalogItem): ShopItemTypeKey {
   return 'other'
 }
 
+function parsePositiveIntegerInput(value: string): number | null {
+  const trimmed = value.trim().replace(/,/g, '')
+  if (!trimmed) return null
+  const n = Number(trimmed)
+  if (!Number.isInteger(n) || n <= 0) return null
+  return n
+}
+
+function quoteUnitPoints(line: CartLine, discountRate: number): number | null {
+  const unitSilver = parsePositiveIntegerInput(line.quoteUnitSilver)
+  if (unitSilver === null) return null
+  return Math.max(1, Math.ceil(unitSilver * discountRate))
+}
+
+function lineOrderPoints(line: CartLine, discountRate: number): number | null {
+  if (line.item.pointPrice !== null) return line.item.pointPrice * line.qty
+  const quotePoints = quoteUnitPoints(line, discountRate)
+  return quotePoints === null ? null : quotePoints * line.qty
+}
+
 export default function ShopCatalog({
   items,
   balance,
   isMember,
   baseCityLabel,
+  discountRate,
   interactionMode = 'live',
 }: Props) {
   const router = useRouter()
@@ -175,13 +204,46 @@ export default function ShopCatalog({
   }, [localizedItems, query, tier])
 
   const totalQty = cart.reduce((s, l) => s + l.qty, 0)
-  const totalPoints = cart.reduce((s, l) => s + l.qty * l.item.pointPrice, 0)
-  const insufficient = totalPoints > balance
+  const totalPoints = cart.reduce((sum, line) => {
+    const linePoints = lineOrderPoints(line, discountRate)
+    return sum + (linePoints ?? 0)
+  }, 0)
+  const hasRequiredQuoteMissing = cart.some(
+    (line) => line.item.pointPrice === null && quoteUnitPoints(line, discountRate) === null,
+  )
+  const hasInvalidOptionalQuote = cart.some(
+    (line) => {
+      const hasPriceInput = line.quoteUnitSilver.trim() !== ''
+      const hasQuoteMeta =
+        line.quoteCity.trim() !== '' ||
+        line.quoteNote.trim() !== '' ||
+        line.quoteEvidenceUrl.trim() !== ''
+      return (
+        (hasPriceInput && quoteUnitPoints(line, discountRate) === null) ||
+        (!hasPriceInput && hasQuoteMeta)
+      )
+    },
+  )
+  const totalKnown = !hasRequiredQuoteMissing
+  const insufficient = totalKnown && totalPoints > balance
 
   const addToCart = (item: CatalogDisplayItem) => {
     setCart((prev) => {
       const existing = prev.find((l) => l.item.id === item.id)
-      if (!existing) return [...prev, { item, qty: 1 }]
+      if (!existing) {
+        return [
+          ...prev,
+          {
+            item,
+            qty: 1,
+            quoteUnitSilver: '',
+            quoteCity: '',
+            quoteNote: '',
+            quoteEvidenceUrl: '',
+            quoteOpen: item.pointPrice === null,
+          },
+        ]
+      }
       // 재고만큼 담긴 상태에서 또 클릭하면 "초과"로 보고 장바구니에서 완전히 뺀다.
       // 0 → 1 → … → stock → 0 사이클 — 잘못 담았을 때 빠르게 리셋하는 용도.
       if (existing.qty >= item.stock) {
@@ -206,6 +268,14 @@ export default function ShopCatalog({
     setCart((prev) => prev.filter((l) => l.item.id !== id))
   }
 
+  const updateQuote = (
+    id: string,
+    patch: Partial<Pick<CartLine, 'quoteUnitSilver' | 'quoteCity' | 'quoteNote' | 'quoteEvidenceUrl' | 'quoteOpen'>>,
+  ) => {
+    setCart((prev) => prev.map((line) => (line.item.id === id ? { ...line, ...patch } : line)))
+    setResult(null)
+  }
+
   const clearCart = () => {
     setCart([])
     setNote('')
@@ -224,7 +294,17 @@ export default function ShopCatalog({
     }
     startTransition(async () => {
       const res = await submitShopOrder(
-        cart.map((l) => ({ inventoryId: l.item.id, quantity: l.qty })),
+        cart.map((l) => {
+          const quoteSilver = parsePositiveIntegerInput(l.quoteUnitSilver)
+          return {
+            inventoryId: l.item.id,
+            quantity: l.qty,
+            memberQuoteUnitSilver: quoteSilver,
+            memberQuoteCity: l.quoteCity.trim() || null,
+            memberQuoteNote: l.quoteNote.trim() || null,
+            memberQuoteEvidenceUrl: l.quoteEvidenceUrl.trim() || null,
+          }
+        }),
         note,
       )
       if (res.ok) {
@@ -341,13 +421,17 @@ export default function ShopCatalog({
         <CartPanel
           cart={cart}
           totalPoints={totalPoints}
+          totalKnown={totalKnown}
+          hasInvalidOptionalQuote={hasInvalidOptionalQuote}
           balance={balance}
           insufficient={insufficient}
+          discountRate={discountRate}
           note={note}
           onNoteChange={setNote}
           onInc={(id) => updateQty(id, 1)}
           onDec={(id) => updateQty(id, -1)}
           onRemove={removeLine}
+          onQuoteChange={updateQuote}
           onClear={clearCart}
           onSubmit={handleSubmit}
           pending={pending}
@@ -381,13 +465,17 @@ export default function ShopCatalog({
               <CartPanel
                 cart={cart}
                 totalPoints={totalPoints}
+                totalKnown={totalKnown}
+                hasInvalidOptionalQuote={hasInvalidOptionalQuote}
                 balance={balance}
                 insufficient={insufficient}
+                discountRate={discountRate}
                 note={note}
                 onNoteChange={setNote}
                 onInc={(id) => updateQty(id, 1)}
                 onDec={(id) => updateQty(id, -1)}
                 onRemove={removeLine}
+                onQuoteChange={updateQuote}
                 onClear={clearCart}
                 onSubmit={handleSubmit}
                 pending={pending}
@@ -425,7 +513,11 @@ function ShopItemRow({
   const stockLabel = tc('tile.stockPrefix', { stock: item.stock.toLocaleString() })
   const cartLabel = inCart ? ` / ${tc('tile.cartPrefix', { qty: cartQty })}` : ''
   const resetLabel = atMax ? ` / ${tc('tile.resetHint')}` : ''
-  const ariaLabel = `${tierEnchant} ${item.displayName} / ${typeLabel} / ${quality} / ${item.pointPrice.toLocaleString()}p / ${stockLabel}${cartLabel}${resetLabel}`
+  const priceLabel =
+    item.pointPrice === null
+      ? tc('quoteRequired')
+      : `${item.pointPrice.toLocaleString()}p`
+  const ariaLabel = `${tierEnchant} ${item.displayName} / ${typeLabel} / ${quality} / ${priceLabel} / ${stockLabel}${cartLabel}${resetLabel}`
 
   return (
     <div
@@ -495,10 +587,17 @@ function ShopItemRow({
       </div>
 
       <div className="text-right">
-        <p className="font-mono text-sm sm:text-base font-bold text-amber-300">
-          {item.pointPrice.toLocaleString()}
-          <span className="ml-0.5 text-[10px] text-amber-300/70">P</span>
-        </p>
+        {item.pointPrice === null ? (
+          <span className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold text-amber-200">
+            <AlertTriangle size={10} />
+            {tc('quoteRequired')}
+          </span>
+        ) : (
+          <p className="font-mono text-sm sm:text-base font-bold text-amber-300">
+            {item.pointPrice.toLocaleString()}
+            <span className="ml-0.5 text-[10px] text-amber-300/70">P</span>
+          </p>
+        )}
         {item.priceWarning && (
           <HoverTip
             label={t(`priceWarningBuyer.${item.priceWarning}`)}
@@ -534,13 +633,17 @@ function ShopItemRow({
 function CartPanel({
   cart,
   totalPoints,
+  totalKnown,
+  hasInvalidOptionalQuote,
   balance,
   insufficient,
+  discountRate,
   note,
   onNoteChange,
   onInc,
   onDec,
   onRemove,
+  onQuoteChange,
   onClear,
   onSubmit,
   pending,
@@ -549,13 +652,20 @@ function CartPanel({
 }: {
   cart: CartLine[]
   totalPoints: number
+  totalKnown: boolean
+  hasInvalidOptionalQuote: boolean
   balance: number
   insufficient: boolean
+  discountRate: number
   note: string
   onNoteChange: (next: string) => void
   onInc: (id: string) => void
   onDec: (id: string) => void
   onRemove: (id: string) => void
+  onQuoteChange: (
+    id: string,
+    patch: Partial<Pick<CartLine, 'quoteUnitSilver' | 'quoteCity' | 'quoteNote' | 'quoteEvidenceUrl' | 'quoteOpen'>>,
+  ) => void
   onClear: () => void
   onSubmit: () => void
   pending: boolean
@@ -598,9 +708,11 @@ function CartPanel({
             <CartLineRow
               key={line.item.id}
               line={line}
+              discountRate={discountRate}
               onInc={() => onInc(line.item.id)}
               onDec={() => onDec(line.item.id)}
               onRemove={() => onRemove(line.item.id)}
+              onQuoteChange={(patch) => onQuoteChange(line.item.id, patch)}
             />
           ))
         )}
@@ -610,9 +722,21 @@ function CartPanel({
         <div className="flex justify-between text-sm">
           <span className="text-gray-400">{t('cart.totalLabel')}</span>
           <span className="font-mono font-bold text-amber-300">
-            {totalPoints.toLocaleString()}p
+            {totalKnown ? `${totalPoints.toLocaleString()}p` : t('cart.quotePendingTotal')}
           </span>
         </div>
+        {!totalKnown && (
+          <p className="flex items-center gap-1 text-[11px] text-amber-300/90">
+            <AlertTriangle size={11} />
+            {t('cart.quoteRequiredHint')}
+          </p>
+        )}
+        {hasInvalidOptionalQuote && (
+          <p className="flex items-center gap-1 text-[11px] text-red-300">
+            <AlertTriangle size={11} />
+            {t('cart.quoteInvalidHint')}
+          </p>
+        )}
         <div className="flex justify-between text-xs">
           <span className="text-gray-500">{t('balanceLabel')}</span>
           <span className={`font-mono ${insufficient ? 'text-red-400' : 'text-gray-300'}`}>
@@ -653,7 +777,14 @@ function CartPanel({
           <button
             type="button"
             onClick={onSubmit}
-            disabled={pending || cart.length === 0 || insufficient || !isMember}
+            disabled={
+              pending ||
+              cart.length === 0 ||
+              insufficient ||
+              !isMember ||
+              !totalKnown ||
+              hasInvalidOptionalQuote
+            }
             className="ml-auto flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-3.5 py-1.5 rounded-lg text-xs"
           >
             {pending ? (
@@ -677,70 +808,162 @@ function CartPanel({
 
 function CartLineRow({
   line,
+  discountRate,
   onInc,
   onDec,
   onRemove,
+  onQuoteChange,
 }: {
   line: CartLine
+  discountRate: number
   onInc: () => void
   onDec: () => void
   onRemove: () => void
+  onQuoteChange: (
+    patch: Partial<Pick<CartLine, 'quoteUnitSilver' | 'quoteCity' | 'quoteNote' | 'quoteEvidenceUrl' | 'quoteOpen'>>,
+  ) => void
 }) {
   const t = useTranslations('shopCatalog.cart')
   const tierEnchant = tierEnchantLabel(line.item)
   const displayName = line.item.displayName
+  const quotePoints = quoteUnitPoints(line, discountRate)
+  const quoteRequired = line.item.pointPrice === null
+  const quoteOpen = quoteRequired || line.quoteOpen
+  const quoteInvalid = line.quoteUnitSilver.trim() !== '' && quotePoints === null
   return (
-    <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-800 rounded-lg px-2 py-1.5">
-      <div className="relative w-9 h-9 rounded bg-gray-950 flex-shrink-0">
-        <AlbionItemImage
-          src={imageUrl(line.item.uniqueName, line.item.enchant, line.item.quality, 48)}
-          alt={displayName}
-          fill
-          className="object-contain pixel-img"
-        />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="flex min-w-0 items-center gap-1 text-[11px] text-white font-medium">
-          {tierEnchant !== '-' && (
-            <span className="flex-shrink-0 font-mono text-amber-200">{tierEnchant}</span>
+    <div className="bg-gray-800/60 border border-gray-800 rounded-lg px-2 py-1.5 space-y-2">
+      <div className="flex items-center gap-2">
+        <div className="relative w-9 h-9 rounded bg-gray-950 flex-shrink-0">
+          <AlbionItemImage
+            src={imageUrl(line.item.uniqueName, line.item.enchant, line.item.quality, 48)}
+            alt={displayName}
+            fill
+            className="object-contain pixel-img"
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="flex min-w-0 items-center gap-1 text-[11px] text-white font-medium">
+            {tierEnchant !== '-' && (
+              <span className="flex-shrink-0 font-mono text-amber-200">{tierEnchant}</span>
+            )}
+            <span className="truncate">{displayName}</span>
+          </p>
+          <p className="text-[10px] text-gray-500 font-mono">
+            {line.item.pointPrice === null ? (
+              <span className="text-amber-300">{t('quoteRequiredLine')}</span>
+            ) : (
+              <>
+                {line.item.pointPrice.toLocaleString()}p × {line.qty} ={' '}
+                <span className="text-amber-300 font-bold">
+                  {(line.item.pointPrice * line.qty).toLocaleString()}p
+                </span>
+              </>
+            )}
+          </p>
+          {!quoteRequired && !quoteOpen && (
+            <button
+              type="button"
+              onClick={() => onQuoteChange({ quoteOpen: true })}
+              className="mt-1 inline-flex items-center gap-1 text-[10px] text-gray-400 hover:text-amber-300"
+            >
+              <Pencil size={10} />
+              {t('openQuoteButton')}
+            </button>
           )}
-          <span className="truncate">{displayName}</span>
-        </p>
-        <p className="text-[10px] text-gray-500 font-mono">
-          {line.item.pointPrice.toLocaleString()}p × {line.qty} ={' '}
-          <span className="text-amber-300 font-bold">
-            {(line.item.pointPrice * line.qty).toLocaleString()}p
-          </span>
-        </p>
+        </div>
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={onDec}
+            className="w-6 h-6 flex items-center justify-center bg-gray-900 hover:bg-gray-700 rounded text-gray-300"
+            aria-label={t('decAriaLabel')}
+          >
+            <Minus size={11} />
+          </button>
+          <span className="text-xs text-white font-mono w-6 text-center">{line.qty}</span>
+          <button
+            type="button"
+            onClick={onInc}
+            disabled={line.qty >= line.item.stock}
+            className="w-6 h-6 flex items-center justify-center bg-gray-900 hover:bg-gray-700 disabled:bg-gray-900/50 disabled:text-gray-700 rounded text-gray-300"
+            aria-label={t('incAriaLabel')}
+          >
+            <Plus size={11} />
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="ml-1 text-gray-500 hover:text-red-400 p-1"
+            aria-label={t('removeAriaLabel')}
+          >
+            <Trash2 size={11} />
+          </button>
+        </div>
       </div>
-      <div className="flex items-center gap-0.5">
-        <button
-          type="button"
-          onClick={onDec}
-          className="w-6 h-6 flex items-center justify-center bg-gray-900 hover:bg-gray-700 rounded text-gray-300"
-          aria-label={t('decAriaLabel')}
-        >
-          <Minus size={11} />
-        </button>
-        <span className="text-xs text-white font-mono w-6 text-center">{line.qty}</span>
-        <button
-          type="button"
-          onClick={onInc}
-          disabled={line.qty >= line.item.stock}
-          className="w-6 h-6 flex items-center justify-center bg-gray-900 hover:bg-gray-700 disabled:bg-gray-900/50 disabled:text-gray-700 rounded text-gray-300"
-          aria-label={t('incAriaLabel')}
-        >
-          <Plus size={11} />
-        </button>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="ml-1 text-gray-500 hover:text-red-400 p-1"
-          aria-label={t('removeAriaLabel')}
-        >
-          <Trash2 size={11} />
-        </button>
-      </div>
+
+      {quoteOpen && (
+        <div className="space-y-1.5 border-t border-gray-700/70 pt-2">
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={line.quoteUnitSilver}
+              onChange={(e) => onQuoteChange({ quoteUnitSilver: e.target.value })}
+              placeholder={t('quoteUnitSilverPlaceholder')}
+              className={`min-w-0 flex-1 bg-gray-900 border rounded px-2 py-1 text-[11px] text-white placeholder-gray-500 focus:outline-none ${
+                quoteInvalid || (quoteRequired && quotePoints === null)
+                  ? 'border-red-500/60 focus:border-red-400'
+                  : 'border-gray-700 focus:border-amber-500'
+              }`}
+            />
+            <span className="w-20 text-right text-[10px] font-mono text-amber-300">
+              {quotePoints !== null ? `${quotePoints.toLocaleString()}p` : t('quotePending')}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+            <input
+              type="text"
+              value={line.quoteCity}
+              onChange={(e) => onQuoteChange({ quoteCity: e.target.value.slice(0, 40) })}
+              placeholder={t('quoteCityPlaceholder')}
+              className="min-w-0 bg-gray-900 border border-gray-700 rounded px-2 py-1 text-[11px] text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
+            />
+            <input
+              type="url"
+              value={line.quoteEvidenceUrl}
+              onChange={(e) => onQuoteChange({ quoteEvidenceUrl: e.target.value.slice(0, 300) })}
+              placeholder={t('quoteEvidenceUrlPlaceholder')}
+              className="min-w-0 bg-gray-900 border border-gray-700 rounded px-2 py-1 text-[11px] text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
+            />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              value={line.quoteNote}
+              onChange={(e) => onQuoteChange({ quoteNote: e.target.value.slice(0, 200) })}
+              placeholder={t('quoteNotePlaceholder')}
+              className="min-w-0 flex-1 bg-gray-900 border border-gray-700 rounded px-2 py-1 text-[11px] text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
+            />
+            {!quoteRequired && (
+              <button
+                type="button"
+                onClick={() =>
+                  onQuoteChange({
+                    quoteOpen: false,
+                    quoteUnitSilver: '',
+                    quoteCity: '',
+                    quoteNote: '',
+                    quoteEvidenceUrl: '',
+                  })
+                }
+                className="px-1.5 py-1 text-[10px] text-gray-500 hover:text-gray-300"
+              >
+                {t('closeQuoteButton')}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

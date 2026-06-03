@@ -9,6 +9,7 @@ import { computePointPrice, parseShopDiscountRate } from '@/lib/shop/price'
 import { categoryRank } from '@/lib/shop/category-order'
 import { getMyPointBalance, listMyShopOrders } from '@/app/actions/shop-member'
 import { AODP_ALLOWED_CITIES, type AodpCity } from '@/lib/shop/aodp-constants'
+import { loadPublicShopCatalogRows } from '@/lib/shop/inventory-queries'
 import ShopCatalog, {
   type CatalogItem,
   type ShopPriceWarning,
@@ -48,7 +49,7 @@ export default async function PublicShopPage() {
     discountRateSetting,
     aodpCitiesSetting,
     tenantTimezone,
-    { data: invRows },
+    inventoryResult,
   ] = await Promise.all([
     getTranslations('nav'),
     getTranslations('shopPublic'),
@@ -56,43 +57,38 @@ export default async function PublicShopPage() {
     getAppSetting('shop_discount_rate', '1', guildId),
     getAppSetting('aodp_cities', '', guildId),
     getTenantTimezone(guildId),
-    db
-      .from('shop_inventory')
-      .select(
-        'id, unique_name, enchant, quality, stock, name_ko, category, tier, manual_price, auto_price_silver, price_warning_level',
-      )
-      .eq('guild_id', guildId)
-      .gt('stock', 0)
-      .order('name_ko', { ascending: true })
-      .limit(500),
+    loadPublicShopCatalogRows(db, guildId),
   ])
+  if (inventoryResult.error) {
+    throw new Error(`Failed to load shop inventory: ${inventoryResult.error}`)
+  }
 
   const discountRate = parseShopDiscountRate(discountRateSetting)
   const baseCity = parseBaseCity(aodpCitiesSetting)
 
-  // 가격 계산 후 카테고리 → 이름 순으로 안정 정렬. DB 가 name_ko asc 로 반환하므로
-  // 카테고리 랭크만 비교하면 동일 카테고리 내 이름순이 자동 유지된다.
+  // 가격 계산 후 카테고리 → 이름 순으로 안정 정렬. 가격 미정 재고도 견적
+  // 주문 대상으로 노출한다. DB 가 name_ko asc 로 반환하므로 카테고리 랭크만
+  // 비교하면 동일 카테고리 내 이름순이 자동 유지된다.
   const items: CatalogItem[] = []
-  for (const r of invRows ?? []) {
-    const manualPrice = r.manual_price as number | null
+  for (const r of inventoryResult.rows) {
+    const manualPrice = r.manual_price
     const price = computePointPrice({
       manualPrice,
-      autoPriceSilver: r.auto_price_silver as number | null,
+      autoPriceSilver: r.auto_price_silver,
       discountRate,
     })
-    if (price === null) continue // 가격 미정 아이템은 노출하지 않음
     // 수동 가격이 있으면 관리자가 확정한 값이라 AODP 경고를 숨긴다.
     const rawWarning = r.price_warning_level as ShopPriceWarning | null
     const priceWarning: ShopPriceWarning = manualPrice !== null ? null : rawWarning
     items.push({
-      id: r.id as string,
-      uniqueName: r.unique_name as string,
-      enchant: r.enchant as number,
-      quality: r.quality as number,
-      stock: r.stock as number,
-      nameKo: r.name_ko as string,
-      category: (r.category as string | null) ?? null,
-      tier: (r.tier as number | null) ?? null,
+      id: r.id,
+      uniqueName: r.unique_name,
+      enchant: r.enchant,
+      quality: r.quality,
+      stock: r.stock,
+      nameKo: r.name_ko,
+      category: r.category,
+      tier: r.tier,
       pointPrice: price,
       priceWarning,
     })
@@ -147,6 +143,7 @@ export default async function PublicShopPage() {
         balance={balance}
         isMember={isMember}
         baseCityLabel={baseCity}
+        discountRate={discountRate}
       />
     </div>
   )

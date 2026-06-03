@@ -16,6 +16,10 @@ import { sendAdminNotification } from '@/lib/admin-notifications'
 export interface OrderLineInput {
   inventoryId: string
   quantity: number
+  memberQuoteUnitSilver?: number | null
+  memberQuoteCity?: string | null
+  memberQuoteNote?: string | null
+  memberQuoteEvidenceUrl?: string | null
 }
 
 export interface SubmitOrderResult {
@@ -26,6 +30,49 @@ export interface SubmitOrderResult {
 
 const MEMO_MAX = 500
 const MAX_LINES = 50
+const QUOTE_CITY_MAX = 40
+const QUOTE_NOTE_MAX = 200
+const QUOTE_EVIDENCE_URL_MAX = 300
+const POSTGRES_INT_MAX = 2147483647
+
+interface NormalizedQuote {
+  unitSilver: number
+  city: string | null
+  note: string | null
+  evidenceUrl: string | null
+}
+
+interface NormalizedOrderInputLine {
+  inventoryId: string
+  quantity: number
+  quote: NormalizedQuote | null
+}
+
+function trimOptionalString(value: unknown): string | null {
+  if (value === null || value === undefined) return null
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+function sameQuote(a: NormalizedQuote | null, b: NormalizedQuote | null): boolean {
+  if (a === null || b === null) return a === b
+  return (
+    a.unitSilver === b.unitSilver &&
+    a.city === b.city &&
+    a.note === b.note &&
+    a.evidenceUrl === b.evidenceUrl
+  )
+}
 
 export async function getMyPointBalance(): Promise<number> {
   const session = await getSession()
@@ -62,6 +109,67 @@ export async function submitShopOrder(
       return { ok: false, error: tErr('shopMemoTooLong', { max: MEMO_MAX }) }
     }
 
+    const lineByInventoryId = new Map<string, NormalizedOrderInputLine>()
+    for (const line of lines) {
+      if (typeof line.inventoryId !== 'string' || !line.inventoryId.trim()) {
+        return { ok: false, error: tErr('unknownItem') }
+      }
+      if (
+        !Number.isInteger(line.quantity) ||
+        line.quantity <= 0 ||
+        line.quantity > POSTGRES_INT_MAX
+      ) {
+        return { ok: false, error: tErr('quantityMustBePositiveInt') }
+      }
+      const city = trimOptionalString(line.memberQuoteCity)
+      const note = trimOptionalString(line.memberQuoteNote)
+      const evidenceUrl = trimOptionalString(line.memberQuoteEvidenceUrl)
+      if (city && city.length > QUOTE_CITY_MAX) {
+        return { ok: false, error: tErr('shopQuoteCityTooLong', { max: QUOTE_CITY_MAX }) }
+      }
+      if (note && note.length > QUOTE_NOTE_MAX) {
+        return { ok: false, error: tErr('shopQuoteNoteTooLong', { max: QUOTE_NOTE_MAX }) }
+      }
+      if (evidenceUrl && evidenceUrl.length > QUOTE_EVIDENCE_URL_MAX) {
+        return { ok: false, error: tErr('shopQuoteEvidenceUrlTooLong', { max: QUOTE_EVIDENCE_URL_MAX }) }
+      }
+      if (evidenceUrl && !isHttpUrl(evidenceUrl)) {
+        return { ok: false, error: tErr('shopQuoteEvidenceUrlInvalid') }
+      }
+
+      const rawQuote = line.memberQuoteUnitSilver
+      const hasQuoteMeta = city !== null || note !== null || evidenceUrl !== null
+      let quote: NormalizedQuote | null = null
+      if (rawQuote !== null && rawQuote !== undefined) {
+        const unitSilver = Number(rawQuote)
+        if (
+          !Number.isInteger(unitSilver) ||
+          unitSilver <= 0 ||
+          unitSilver > POSTGRES_INT_MAX
+        ) {
+          return { ok: false, error: tErr('shopQuotePriceInvalid') }
+        }
+        quote = { unitSilver, city, note, evidenceUrl }
+      } else if (hasQuoteMeta) {
+        return { ok: false, error: tErr('shopQuotePriceRequired') }
+      }
+
+      const current = lineByInventoryId.get(line.inventoryId)
+      const currentQuantity = current?.quantity ?? 0
+      if (current && !sameQuote(current.quote, quote)) {
+        return { ok: false, error: tErr('shopQuoteDuplicateConflict') }
+      }
+      const nextQuantity = currentQuantity + line.quantity
+      if (nextQuantity > POSTGRES_INT_MAX) {
+        return { ok: false, error: tErr('quantityMustBePositiveInt') }
+      }
+      lineByInventoryId.set(line.inventoryId, {
+        inventoryId: line.inventoryId,
+        quantity: nextQuantity,
+        quote,
+      })
+    }
+
     const db = getAdminClient()
     const guildId = await getSessionGuildId(session)
 
@@ -69,7 +177,7 @@ export async function submitShopOrder(
     const rateSetting = await getAppSetting('shop_discount_rate', '1', guildId)
     const discountRate = parseShopDiscountRate(rateSetting)
 
-    const ids = Array.from(new Set(lines.map((l) => l.inventoryId)))
+    const ids = Array.from(lineByInventoryId.keys())
     const { data: inventoryRows, error: invErr } = await db
       .from('shop_inventory')
       .select(
@@ -91,38 +199,70 @@ export async function submitShopOrder(
       quantity: number
       unitPoints: number
       subtotalPoints: number
+      pricingSource: 'catalog' | 'member_quote'
+      catalogUnitSilverSnapshot: number | null
+      memberQuoteUnitSilver: number | null
+      memberQuoteUnitPoints: number | null
+      memberQuoteCity: string | null
+      memberQuoteNote: string | null
+      memberQuoteEvidenceUrl: string | null
     }> = []
     let total = 0
-    for (const l of lines) {
-      if (!Number.isInteger(l.quantity) || l.quantity <= 0) {
-        return { ok: false, error: tErr('quantityMustBePositiveInt') }
-      }
-      const inv = invMap.get(l.inventoryId)
+    let priceReviewRequired = false
+    for (const line of lineByInventoryId.values()) {
+      const inv = invMap.get(line.inventoryId)
       if (!inv) return { ok: false, error: tErr('unknownItem') }
-      if ((inv.stock as number) < l.quantity) {
+      if ((inv.stock as number) < line.quantity) {
         return {
           ok: false,
           error: tErr('itemStockShort', { name: inv.name_ko as string, stock: inv.stock as number }),
         }
       }
-      const unit = computePointPrice({
+      const catalogUnitSilver =
+        typeof inv.manual_price === 'number' && inv.manual_price >= 0
+          ? inv.manual_price
+          : typeof inv.auto_price_silver === 'number' && inv.auto_price_silver > 0
+            ? inv.auto_price_silver
+            : null
+      const catalogUnitPoints = computePointPrice({
         manualPrice: inv.manual_price as number | null,
         autoPriceSilver: inv.auto_price_silver as number | null,
         discountRate,
       })
+      const quoteUnitPoints = line.quote
+        ? computePointPrice({
+            manualPrice: line.quote.unitSilver,
+            autoPriceSilver: null,
+            discountRate,
+          })
+        : null
+      const unit =
+        catalogUnitPoints ??
+        (line.quote && quoteUnitPoints !== null ? quoteUnitPoints : null)
       if (unit === null) {
-        return { ok: false, error: tErr('itemPriceNotSet', { name: inv.name_ko as string }) }
+        return { ok: false, error: tErr('itemPriceQuoteRequired', { name: inv.name_ko as string }) }
       }
-      const sub = unit * l.quantity
+      if (line.quote) priceReviewRequired = true
+      const sub = unit * line.quantity
+      if (sub > POSTGRES_INT_MAX || total + sub > POSTGRES_INT_MAX) {
+        return { ok: false, error: tErr('invalidAmount') }
+      }
       total += sub
       orderLines.push({
         uniqueName: inv.unique_name as string,
         enchant: inv.enchant as number,
         quality: inv.quality as number,
         nameKo: inv.name_ko as string,
-        quantity: l.quantity,
+        quantity: line.quantity,
         unitPoints: unit,
         subtotalPoints: sub,
+        pricingSource: catalogUnitPoints !== null ? 'catalog' : 'member_quote',
+        catalogUnitSilverSnapshot: catalogUnitSilver,
+        memberQuoteUnitSilver: line.quote?.unitSilver ?? null,
+        memberQuoteUnitPoints: quoteUnitPoints,
+        memberQuoteCity: line.quote?.city ?? null,
+        memberQuoteNote: line.quote?.note ?? null,
+        memberQuoteEvidenceUrl: line.quote?.evidenceUrl ?? null,
       })
     }
 
@@ -145,6 +285,13 @@ export async function submitShopOrder(
       quantity: l.quantity,
       unit_points: l.unitPoints,
       subtotal_points: l.subtotalPoints,
+      pricing_source: l.pricingSource,
+      catalog_unit_silver_snapshot: l.catalogUnitSilverSnapshot,
+      member_quote_unit_silver: l.memberQuoteUnitSilver,
+      member_quote_unit_points: l.memberQuoteUnitPoints,
+      member_quote_city: l.memberQuoteCity,
+      member_quote_note: l.memberQuoteNote,
+      member_quote_evidence_url: l.memberQuoteEvidenceUrl,
     }))
     const { data: orderId, error: rpcErr } = await db.rpc('submit_shop_order', {
       p_guild_id: guildId,
@@ -152,6 +299,7 @@ export async function submitShopOrder(
       p_username: session.username,
       p_total_points: total,
       p_member_note: trimmedNote || null,
+      p_price_review_required: priceReviewRequired,
       p_lines: linesPayload,
     })
     if (rpcErr) return { ok: false, error: rpcErr.message }
@@ -182,6 +330,7 @@ export async function submitShopOrder(
 export interface MyOrderRow {
   id: string
   totalPoints: number
+  priceReviewRequired: boolean
   status: 'pending' | 'approved' | 'rejected' | 'cancelled'
   memberNote: string | null
   adminNote: string | null
@@ -205,7 +354,7 @@ export async function listMyShopOrders(limit = 20): Promise<MyOrderRow[]> {
   const db = getAdminClient()
   const { data: orders } = await db
     .from('shop_orders')
-    .select('id, total_points, status, member_note, admin_note, created_at, resolved_at')
+    .select('id, total_points, price_review_required, status, member_note, admin_note, created_at, resolved_at')
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
     .order('created_at', { ascending: false })
@@ -234,6 +383,7 @@ export async function listMyShopOrders(limit = 20): Promise<MyOrderRow[]> {
   return orders.map((o) => ({
     id: o.id as string,
     totalPoints: o.total_points as number,
+    priceReviewRequired: Boolean(o.price_review_required),
     status: o.status as MyOrderRow['status'],
     memberNote: (o.member_note as string | null) ?? null,
     adminNote: (o.admin_note as string | null) ?? null,
@@ -253,14 +403,18 @@ export async function cancelMyOrder(orderId: string): Promise<{ error?: string }
     }
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
-    const { error } = await db
+    const { data: updatedRows, error } = await db
       .from('shop_orders')
       .update({ status: 'cancelled', resolved_at: new Date().toISOString(), resolved_by: session.discordId })
       .eq('guild_id', guildId)
       .eq('id', orderId)
       .eq('discord_id', session.discordId)
       .eq('status', 'pending')
+      .select('id')
     if (error) return { error: error.message }
+    if (!updatedRows || updatedRows.length === 0) {
+      return { error: tErr('alreadyProcessedCannotCancel') }
+    }
     revalidatePath('/shop')
     revalidatePath('/me')
     revalidatePath('/admin/dashboard/approvals')

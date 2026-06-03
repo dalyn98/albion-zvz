@@ -682,6 +682,8 @@ export interface AdminShopOrder {
   discordId: string
   username: string
   totalPoints: number
+  suggestedTotalPoints: number | null
+  priceReviewRequired: boolean
   balance: number
   status: 'pending' | 'approved' | 'rejected' | 'cancelled'
   memberNote: string | null
@@ -690,6 +692,7 @@ export interface AdminShopOrder {
   resolvedAt: string | null
   resolvedBy: string | null
   items: Array<{
+    inventoryId: string | null
     nameKo: string
     uniqueName: string
     enchant: number
@@ -698,6 +701,13 @@ export interface AdminShopOrder {
     unitPoints: number
     subtotalPoints: number
     stockAvailable: number
+    pricingSource: 'catalog' | 'member_quote'
+    catalogUnitSilverSnapshot: number | null
+    memberQuoteUnitSilver: number | null
+    memberQuoteUnitPoints: number | null
+    memberQuoteCity: string | null
+    memberQuoteNote: string | null
+    memberQuoteEvidenceUrl: string | null
   }>
 }
 
@@ -717,7 +727,7 @@ export async function listShopOrders(
     const q = db
       .from('shop_orders')
       .select(
-        'id, discord_id, username, total_points, status, member_note, admin_note, created_at, resolved_at, resolved_by',
+        'id, discord_id, username, total_points, price_review_required, status, member_note, admin_note, created_at, resolved_at, resolved_by',
       )
       .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
@@ -731,7 +741,7 @@ export async function listShopOrders(
     const { data: items, error: itemsErr } = await db
       .from('shop_order_items')
       .select(
-        'order_id, name_ko, unique_name, enchant, quality, quantity, unit_points, subtotal_points',
+        'order_id, name_ko, unique_name, enchant, quality, quantity, unit_points, subtotal_points, pricing_source, catalog_unit_silver_snapshot, member_quote_unit_silver, member_quote_unit_points, member_quote_city, member_quote_note, member_quote_evidence_url',
       )
       .eq('guild_id', guildId)
       .in('order_id', ids)
@@ -745,14 +755,14 @@ export async function listShopOrders(
     const uniqueNames = Array.from(new Set((items ?? []).map((i) => i.unique_name as string)))
     const { data: invRows } = await db
       .from('shop_inventory')
-      .select('unique_name, enchant, quality, stock')
+      .select('id, unique_name, enchant, quality, stock')
       .eq('guild_id', guildId)
       .in('unique_name', uniqueNames)
-    const stockByKey = new Map<string, number>()
+    const inventoryByKey = new Map<string, { id: string; stock: number }>()
     for (const r of invRows ?? []) {
-      stockByKey.set(
+      inventoryByKey.set(
         `${r.unique_name}|${r.enchant}|${r.quality}`,
-        r.stock as number,
+        { id: r.id as string, stock: r.stock as number },
       )
     }
 
@@ -766,7 +776,9 @@ export async function listShopOrders(
     for (const it of items ?? []) {
       const key = it.order_id as string
       const arr = itemsByOrder.get(key) ?? []
+      const inventory = inventoryByKey.get(`${it.unique_name}|${it.enchant}|${it.quality}`) ?? null
       arr.push({
+        inventoryId: inventory?.id ?? null,
         nameKo: it.name_ko as string,
         uniqueName: it.unique_name as string,
         enchant: it.enchant as number,
@@ -774,27 +786,51 @@ export async function listShopOrders(
         quantity: it.quantity as number,
         unitPoints: it.unit_points as number,
         subtotalPoints: it.subtotal_points as number,
-        stockAvailable:
-          stockByKey.get(`${it.unique_name}|${it.enchant}|${it.quality}`) ?? 0,
+        stockAvailable: inventory?.stock ?? 0,
+        pricingSource:
+          it.pricing_source === 'member_quote' ? 'member_quote' : 'catalog',
+        catalogUnitSilverSnapshot:
+          (it.catalog_unit_silver_snapshot as number | null | undefined) ?? null,
+        memberQuoteUnitSilver:
+          (it.member_quote_unit_silver as number | null | undefined) ?? null,
+        memberQuoteUnitPoints:
+          (it.member_quote_unit_points as number | null | undefined) ?? null,
+        memberQuoteCity: (it.member_quote_city as string | null | undefined) ?? null,
+        memberQuoteNote: (it.member_quote_note as string | null | undefined) ?? null,
+        memberQuoteEvidenceUrl:
+          (it.member_quote_evidence_url as string | null | undefined) ?? null,
       })
       itemsByOrder.set(key, arr)
     }
 
     return {
-      orders: orders.map((o) => ({
-        id: o.id as string,
-        discordId: o.discord_id as string,
-        username: o.username as string,
-        totalPoints: o.total_points as number,
-        balance: balanceByUser.get(o.discord_id as string) ?? 0,
-        status: o.status as AdminShopOrder['status'],
-        memberNote: (o.member_note as string | null) ?? null,
-        adminNote: (o.admin_note as string | null) ?? null,
-        createdAt: o.created_at as string,
-        resolvedAt: (o.resolved_at as string | null) ?? null,
-        resolvedBy: (o.resolved_by as string | null) ?? null,
-        items: itemsByOrder.get(o.id as string) ?? [],
-      })),
+      orders: orders.map((o) => {
+        const orderItems = itemsByOrder.get(o.id as string) ?? []
+        const quoteTotal = orderItems.some((it) => it.memberQuoteUnitPoints !== null)
+          ? orderItems.reduce(
+              (sum, it) =>
+                sum +
+                (it.memberQuoteUnitPoints ?? it.unitPoints) * it.quantity,
+              0,
+            )
+          : null
+        return {
+          id: o.id as string,
+          discordId: o.discord_id as string,
+          username: o.username as string,
+          totalPoints: o.total_points as number,
+          suggestedTotalPoints: quoteTotal,
+          priceReviewRequired: Boolean(o.price_review_required),
+          balance: balanceByUser.get(o.discord_id as string) ?? 0,
+          status: o.status as AdminShopOrder['status'],
+          memberNote: (o.member_note as string | null) ?? null,
+          adminNote: (o.admin_note as string | null) ?? null,
+          createdAt: o.created_at as string,
+          resolvedAt: (o.resolved_at as string | null) ?? null,
+          resolvedBy: (o.resolved_by as string | null) ?? null,
+          items: orderItems,
+        }
+      }),
     }
   } catch (e) {
     return { orders: [], error: e instanceof Error ? e.message : 'Server error' }

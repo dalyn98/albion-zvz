@@ -137,6 +137,11 @@ function OrderCard({
             types: order.items.length,
           })}
         </span>
+        {order.priceReviewRequired && (
+          <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold text-amber-200">
+            {t('priceReviewBadge')}
+          </span>
+        )}
         <span className="ml-auto text-gray-500 font-mono">
           {formatDateTimeShort(order.createdAt, timezone)}
         </span>

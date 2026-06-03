@@ -3,12 +3,13 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { Check, X, Loader2, Pencil } from 'lucide-react'
+import { Check, X, Loader2, Pencil, ExternalLink, Save } from 'lucide-react'
 import {
   approveShopOrder,
   rejectShopOrder,
   type AdminShopOrder,
 } from '@/app/actions/shop-admin'
+import { setManualPrice } from '@/app/actions/shop-inventory'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import SearchBox from './SearchBox'
 import MemberAvatar from './MemberAvatar'
@@ -101,6 +102,12 @@ function OrderRow({
   const insufficientBalance = order.balance < order.totalPoints
   const insufficientStock = order.items.some((it) => it.stockAvailable < it.quantity)
   const blockedApprove = insufficientBalance || insufficientStock
+  const quoteApproveTotal = order.suggestedTotalPoints
+  const quoteApproveBlocked =
+    quoteApproveTotal === null ||
+    quoteApproveTotal <= 0 ||
+    quoteApproveTotal > order.balance ||
+    insufficientStock
 
   const approve = (totalPointsOverride?: number) => {
     setError('')
@@ -132,6 +139,24 @@ function OrderRow({
     approve(n)
   }
 
+  const approveWithQuoteTotal = () => {
+    if (quoteApproveTotal === null) return
+    approve(quoteApproveTotal)
+  }
+
+  const saveQuoteAsManualPrice = (item: AdminShopOrder['items'][number]) => {
+    if (!item.inventoryId || item.memberQuoteUnitSilver === null) return
+    setError('')
+    startTransition(async () => {
+      const result = await setManualPrice(item.inventoryId as string, item.memberQuoteUnitSilver as number)
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      router.refresh()
+    })
+  }
+
   const reject = () => {
     setError('')
     startTransition(async () => {
@@ -161,6 +186,16 @@ function OrderRow({
             <span className="font-mono text-amber-300 font-bold">
               {order.totalPoints.toLocaleString()}p
             </span>
+            {order.priceReviewRequired && (
+              <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold text-amber-200">
+                {t('priceReviewBadge')}
+              </span>
+            )}
+            {quoteApproveTotal !== null && quoteApproveTotal !== order.totalPoints && (
+              <span className="text-amber-200/80">
+                {t('quoteTotalLabel', { amount: quoteApproveTotal.toLocaleString() })}
+              </span>
+            )}
             <span className="text-gray-500">
               {t('balanceLabel', { amount: order.balance.toLocaleString() })}
             </span>
@@ -184,10 +219,18 @@ function OrderRow({
           const short = insufficientStock && it.stockAvailable < it.quantity
           const displayName =
             getLocalizedItemName(it.uniqueName, locale, it.nameKo) ?? it.nameKo
+          const quoteDelta =
+            it.memberQuoteUnitSilver !== null && it.catalogUnitSilverSnapshot !== null
+              ? it.memberQuoteUnitSilver - it.catalogUnitSilverSnapshot
+              : null
+          const quoteDeltaPercent =
+            quoteDelta !== null && it.catalogUnitSilverSnapshot && it.catalogUnitSilverSnapshot > 0
+              ? Math.round((quoteDelta / it.catalogUnitSilverSnapshot) * 100)
+              : null
           return (
             <div
               key={idx}
-              className={`flex items-center gap-2 rounded px-2 py-1 text-xs ${
+              className={`flex items-start gap-2 rounded px-2 py-1.5 text-xs ${
                 short ? 'bg-red-500/10 border border-red-500/30' : 'bg-gray-800/40'
               }`}
             >
@@ -199,19 +242,77 @@ function OrderRow({
                   className="object-contain pixel-img"
                 />
               </div>
-              <span className="text-gray-200 flex-1 truncate">
-                {displayName}
-                {it.enchant > 0 && (
-                  <span className="text-amber-300 ml-1 font-mono">.{it.enchant}</span>
+              <div className="min-w-0 flex-1 space-y-1">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-gray-200 flex-1 truncate">
+                    {displayName}
+                    {it.enchant > 0 && (
+                      <span className="text-amber-300 ml-1 font-mono">.{it.enchant}</span>
+                    )}
+                  </span>
+                  <span className="text-gray-400 font-mono">× {it.quantity}</span>
+                  <span className={`font-mono w-16 text-right ${short ? 'text-red-300' : 'text-gray-500'}`}>
+                    {t('stockShort', { stock: it.stockAvailable })}
+                  </span>
+                  <span className="text-amber-300 font-mono w-20 text-right">
+                    {it.subtotalPoints.toLocaleString()}p
+                  </span>
+                </div>
+                {it.memberQuoteUnitSilver !== null && (
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-amber-100/85">
+                    <span className="font-mono">
+                      {t('quotePriceLabel', {
+                        silver: it.memberQuoteUnitSilver.toLocaleString(),
+                        points: (it.memberQuoteUnitPoints ?? 0).toLocaleString(),
+                      })}
+                    </span>
+                    {quoteDeltaPercent !== null && (
+                      <span
+                        className={
+                          quoteDeltaPercent < 0
+                            ? 'text-emerald-300'
+                            : quoteDeltaPercent > 0
+                              ? 'text-red-300'
+                              : 'text-gray-400'
+                        }
+                      >
+                        {t('quoteDeltaLabel', { percent: quoteDeltaPercent })}
+                      </span>
+                    )}
+                    {it.memberQuoteCity && (
+                      <span className="text-gray-400">{t('quoteCityLabel', { city: it.memberQuoteCity })}</span>
+                    )}
+                    {it.memberQuoteNote && (
+                      <span className="text-gray-400 truncate max-w-[18rem]">
+                        {t('quoteNoteLabel', { note: it.memberQuoteNote })}
+                      </span>
+                    )}
+                    {it.memberQuoteEvidenceUrl && (
+                      <a
+                        href={it.memberQuoteEvidenceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-0.5 text-sky-300 hover:text-sky-200"
+                      >
+                        <ExternalLink size={10} />
+                        {t('quoteEvidenceLabel')}
+                      </a>
+                    )}
+                    {order.status === 'pending' && it.inventoryId && (
+                      <button
+                        type="button"
+                        onClick={() => saveQuoteAsManualPrice(it)}
+                        disabled={pending}
+                        className="inline-flex items-center gap-0.5 rounded border border-amber-500/30 px-1.5 py-0.5 text-amber-300 hover:bg-amber-500/10 disabled:opacity-40"
+                        title={t('saveQuotePriceTitle')}
+                      >
+                        <Save size={10} />
+                        {t('saveQuotePriceButton')}
+                      </button>
+                    )}
+                  </div>
                 )}
-              </span>
-              <span className="text-gray-400 font-mono">× {it.quantity}</span>
-              <span className={`font-mono w-16 text-right ${short ? 'text-red-300' : 'text-gray-500'}`}>
-                {t('stockShort', { stock: it.stockAvailable })}
-              </span>
-              <span className="text-amber-300 font-mono w-20 text-right">
-                {it.subtotalPoints.toLocaleString()}p
-              </span>
+              </div>
             </div>
           )
         })}
@@ -253,6 +354,18 @@ function OrderRow({
             {pending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
             {t('approveButton')}
           </button>
+          {quoteApproveTotal !== null && quoteApproveTotal !== order.totalPoints && (
+            <button
+              type="button"
+              onClick={approveWithQuoteTotal}
+              disabled={pending || quoteApproveBlocked}
+              className="flex items-center gap-1 text-xs bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/40 text-sky-300 px-3 py-1.5 rounded disabled:opacity-40"
+              title={t('quoteApproveTitle')}
+            >
+              {pending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+              {t('quoteApproveButton')}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {

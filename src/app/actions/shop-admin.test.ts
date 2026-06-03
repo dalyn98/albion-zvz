@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { importChestLog } from './shop-admin'
+import { importChestLog, listShopOrders } from './shop-admin'
 
 const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   resolveKoItem: vi.fn(),
   logAdminAction: vi.fn(),
   syncShopPrices: vi.fn(),
+  getPointBalancesByMember: vi.fn(),
 }))
 
 vi.mock('next/cache', () => ({
@@ -41,6 +42,10 @@ vi.mock('@/lib/tenant', () => ({
 
 vi.mock('@/lib/admin-audit', () => ({
   logAdminAction: mocks.logAdminAction,
+}))
+
+vi.mock('@/lib/point-ledger', () => ({
+  getPointBalancesByMember: mocks.getPointBalancesByMember,
 }))
 
 vi.mock('@/lib/log-operating-start-server', () => ({
@@ -132,6 +137,148 @@ function createImportDb(options: {
   }
 }
 
+function createListOrdersDb() {
+  const orderRows = [
+    {
+      id: 'order-1',
+      discord_id: 'member-1',
+      username: 'MemberOne',
+      total_points: 100,
+      price_review_required: true,
+      status: 'pending',
+      member_note: null,
+      admin_note: null,
+      created_at: '2026-06-03T00:00:00.000Z',
+      resolved_at: null,
+      resolved_by: null,
+    },
+  ]
+  const orderQuery = {
+    select: vi.fn(() => orderQuery),
+    eq: vi.fn((column: string) => {
+      if (column === 'status') return Promise.resolve({ data: orderRows, error: null })
+      return orderQuery
+    }),
+    order: vi.fn(() => orderQuery),
+    limit: vi.fn(() => orderQuery),
+  }
+  const itemsQuery = {
+    select: vi.fn(() => itemsQuery),
+    eq: vi.fn(() => itemsQuery),
+    in: vi.fn(async () => ({
+      data: [
+        {
+          order_id: 'order-1',
+          name_ko: '테스트 장비',
+          unique_name: 'T4_TEST_ITEM',
+          enchant: 0,
+          quality: 1,
+          quantity: 1,
+          unit_points: 100,
+          subtotal_points: 100,
+          pricing_source: 'catalog',
+          catalog_unit_silver_snapshot: 100,
+          member_quote_unit_silver: 70,
+          member_quote_unit_points: 70,
+          member_quote_city: 'Martlock',
+          member_quote_note: 'market looked cheaper',
+          member_quote_evidence_url: 'https://example.com/price',
+        },
+      ],
+      error: null,
+    })),
+  }
+  const inventoryQuery = {
+    select: vi.fn(() => inventoryQuery),
+    eq: vi.fn(() => inventoryQuery),
+    in: vi.fn(async () => ({
+      data: [
+        {
+          id: 'inventory-1',
+          unique_name: 'T4_TEST_ITEM',
+          enchant: 0,
+          quality: 1,
+          stock: 3,
+        },
+      ],
+      error: null,
+    })),
+  }
+  const from = vi.fn((table: string) => {
+    if (table === 'shop_orders') return orderQuery
+    if (table === 'shop_order_items') return itemsQuery
+    if (table === 'shop_inventory') return inventoryQuery
+    throw new Error(`Unexpected table: ${table}`)
+  })
+  return { db: { from }, orderQuery, itemsQuery, inventoryQuery }
+}
+
+describe('listShopOrders', () => {
+  beforeEach(() => {
+    mocks.requireAnyCapability.mockReset()
+    mocks.getSession.mockReset()
+    mocks.getSessionGuildId.mockReset()
+    mocks.getPointBalancesByMember.mockReset()
+
+    mocks.getSession.mockResolvedValue({ discordId: 'admin-1' })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getPointBalancesByMember.mockResolvedValue({
+      balances: new Map([['member-1', 500]]),
+      error: null,
+    })
+  })
+
+  it('maps member quote fields and suggested quote total for admin review', async () => {
+    const { db, orderQuery, itemsQuery, inventoryQuery } = createListOrdersDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(listShopOrders('pending')).resolves.toEqual({
+      orders: [
+        {
+          id: 'order-1',
+          discordId: 'member-1',
+          username: 'MemberOne',
+          totalPoints: 100,
+          suggestedTotalPoints: 70,
+          priceReviewRequired: true,
+          balance: 500,
+          status: 'pending',
+          memberNote: null,
+          adminNote: null,
+          createdAt: '2026-06-03T00:00:00.000Z',
+          resolvedAt: null,
+          resolvedBy: null,
+          items: [
+            {
+              inventoryId: 'inventory-1',
+              nameKo: '테스트 장비',
+              uniqueName: 'T4_TEST_ITEM',
+              enchant: 0,
+              quality: 1,
+              quantity: 1,
+              unitPoints: 100,
+              subtotalPoints: 100,
+              stockAvailable: 3,
+              pricingSource: 'catalog',
+              catalogUnitSilverSnapshot: 100,
+              memberQuoteUnitSilver: 70,
+              memberQuoteUnitPoints: 70,
+              memberQuoteCity: 'Martlock',
+              memberQuoteNote: 'market looked cheaper',
+              memberQuoteEvidenceUrl: 'https://example.com/price',
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(orderQuery.eq).toHaveBeenCalledWith('guild_id', 'guild-1')
+    expect(orderQuery.eq).toHaveBeenCalledWith('status', 'pending')
+    expect(itemsQuery.eq).toHaveBeenCalledWith('guild_id', 'guild-1')
+    expect(inventoryQuery.eq).toHaveBeenCalledWith('guild_id', 'guild-1')
+  })
+})
+
 describe('importChestLog', () => {
   beforeEach(() => {
     mocks.revalidatePath.mockReset()
@@ -145,6 +292,7 @@ describe('importChestLog', () => {
     mocks.resolveKoItem.mockReset()
     mocks.logAdminAction.mockReset()
     mocks.syncShopPrices.mockReset()
+    mocks.getPointBalancesByMember.mockReset()
 
     mocks.getTranslations.mockResolvedValue((key: string) => key)
     mocks.getSession.mockResolvedValue({ discordId: 'admin-1' })

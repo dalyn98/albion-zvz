@@ -41,6 +41,7 @@ function getDemoOrders(nowMs: number): MyOrderRow[] {
     id: 'ord-3',
     status: 'pending',
     totalPoints: 116,
+    priceReviewRequired: false,
     memberNote: 'Mercia CTA before reset',
     adminNote: null,
     createdAt: new Date(nowMs - 2 * HOUR_MS).toISOString(),
@@ -54,6 +55,7 @@ function getDemoOrders(nowMs: number): MyOrderRow[] {
     id: 'ord-2',
     status: 'approved',
     totalPoints: 112,
+    priceReviewRequired: false,
     memberNote: null,
     adminNote: 'Delivered to guild chest tab 2',
     createdAt: new Date(nowMs - DAY_MS - HOUR_MS).toISOString(),
@@ -68,6 +70,7 @@ function getDemoOrders(nowMs: number): MyOrderRow[] {
     id: 'ord-1',
     status: 'rejected',
     totalPoints: 160,
+    priceReviewRequired: false,
     memberNote: null,
     adminNote: 'Stock reserved for next CTA',
     createdAt: new Date(nowMs - 3 * DAY_MS).toISOString(),
@@ -126,6 +129,7 @@ export default async function DemoShopPage() {
             balance={BALANCE}
             isMember
             baseCityLabel="Caerleon"
+            discountRate={1}
             interactionMode="demo"
           />
         </div>
