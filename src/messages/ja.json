@@ -4486,6 +4486,7 @@
   "shopCatalog": {
     "baseCityLabel": "相場基準",
     "aodpAriaLabel": "装備相場データの説明",
+    "quoteRequired": "見積もり必要",
     "searchPlaceholder": "アイテム検索",
     "tierAll": "全 Tier",
     "balanceLabel": "残高",
@@ -4503,7 +4504,6 @@
       "offhand": "オフハンド",
       "cape": "ケープ",
       "bag": "バッグ",
-    "quoteRequired": "見積もり必要",
       "mount": "マウント",
       "potion": "ポーション",
       "food": "食料",
@@ -4517,6 +4517,9 @@
     "cart": {
       "empty": "アイテムをカートに追加してください。",
       "totalLabel": "合計",
+      "quotePendingTotal": "見積もり入力が必要",
+      "quoteRequiredHint": "価格のないアイテムは最近の購入価格を入力すると注文できます。",
+      "quoteInvalidHint": "価格提案には 1 以上の整数価格を入力してください。",
       "insufficient": "(不足)",
       "notePlaceholder": "管理者へのメモ (任意)",
       "clearButton": "空にする",
@@ -4542,9 +4545,6 @@
     "minutesAgo": "{n}分前",
     "hoursAgo": "{n}時間前",
     "today": "今日",
-      "quotePendingTotal": "見積もり入力が必要",
-      "quoteRequiredHint": "価格のないアイテムは最近の購入価格を入力すると注文できます。",
-      "quoteInvalidHint": "価格提案には 1 以上の整数価格を入力してください。",
     "daysAgo": "{n}日前",
     "monthsAgo": "{n}ヶ月前",
     "yearsAgo": "{n}年前"

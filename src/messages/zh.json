@@ -4486,6 +4486,7 @@
   "shopCatalog": {
     "baseCityLabel": "价格基准",
     "aodpAriaLabel": "市场价格数据说明",
+    "quoteRequired": "需要报价",
     "searchPlaceholder": "搜索物品",
     "tierAll": "全部品级",
     "balanceLabel": "余额",
@@ -4503,7 +4504,6 @@
       "offhand": "副手",
       "cape": "披风",
       "bag": "背包",
-    "quoteRequired": "需要报价",
       "mount": "坐骑",
       "potion": "药水",
       "food": "食物",
@@ -4517,6 +4517,9 @@
     "cart": {
       "empty": "将物品加入购物车。",
       "totalLabel": "合计",
+      "quotePendingTotal": "需要报价",
+      "quoteRequiredHint": "未定价物品需要填写近期购买价后才能提交。",
+      "quoteInvalidHint": "价格建议必须包含 1 以上的整数价格。",
       "insufficient": "(余额不足)",
       "notePlaceholder": "给管理员的备注(可选)",
       "clearButton": "清空",
@@ -4542,9 +4545,6 @@
     "minutesAgo": "{n}分钟前",
     "hoursAgo": "{n}小时前",
     "today": "今天",
-      "quotePendingTotal": "需要报价",
-      "quoteRequiredHint": "未定价物品需要填写近期购买价后才能提交。",
-      "quoteInvalidHint": "价格建议必须包含 1 以上的整数价格。",
     "daysAgo": "{n}天前",
     "monthsAgo": "{n}个月前",
     "yearsAgo": "{n}年前"

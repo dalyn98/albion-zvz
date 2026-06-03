@@ -19,6 +19,7 @@ import {
 import { submitShopOrder } from '@/app/actions/shop-member'
 import { getLocalizedItemName, stripLocalizedTierName } from '@/lib/item-names'
 import { categorizeGearItem, type GearSlot } from '@/lib/inventory-types'
+import { buildAlbionItemImageUrlCandidates } from '@/lib/albion-render'
 import type { Locale } from '@/i18n/locales'
 import AlbionItemImage from './AlbionItemImage'
 import HoverTip from './HoverTip'
@@ -112,10 +113,8 @@ const SHOP_ITEM_TYPE_KEYS = new Set<string>([
   'other',
 ])
 
-function imageUrl(uniqueName: string, enchant: number, quality: number, size = 96): string {
-  const id = enchant > 0 ? `${uniqueName}@${enchant}` : uniqueName
-  const params = new URLSearchParams({ quality: String(quality), size: String(size) })
-  return `https://render.albiononline.com/v1/item/${id}.png?${params.toString()}`
+function imageSrcs(uniqueName: string, enchant: number, quality: number, size = 96): string[] {
+  return buildAlbionItemImageUrlCandidates({ uniqueName, enchant, quality, size })
 }
 
 function tierEnchantLabel(item: CatalogItem): string {
@@ -518,6 +517,7 @@ function ShopItemRow({
       ? tc('quoteRequired')
       : `${item.pointPrice.toLocaleString()}p`
   const ariaLabel = `${tierEnchant} ${item.displayName} / ${typeLabel} / ${quality} / ${priceLabel} / ${stockLabel}${cartLabel}${resetLabel}`
+  const itemImageSrcs = imageSrcs(item.uniqueName, item.enchant, item.quality, 64)
 
   return (
     <div
@@ -527,7 +527,8 @@ function ShopItemRow({
     >
       <div className={`relative h-11 w-11 sm:h-12 sm:w-12 rounded-md overflow-hidden bg-gray-950 ring-1 ${qualityRing} flex-shrink-0`}>
         <AlbionItemImage
-          src={imageUrl(item.uniqueName, item.enchant, item.quality, 64)}
+          src={itemImageSrcs[0]}
+          fallbackSrcs={itemImageSrcs.slice(1)}
           alt={item.displayName}
           fill
           className="object-contain p-0.5 pixel-img"
@@ -830,12 +831,14 @@ function CartLineRow({
   const quoteRequired = line.item.pointPrice === null
   const quoteOpen = quoteRequired || line.quoteOpen
   const quoteInvalid = line.quoteUnitSilver.trim() !== '' && quotePoints === null
+  const itemImageSrcs = imageSrcs(line.item.uniqueName, line.item.enchant, line.item.quality, 48)
   return (
     <div className="bg-gray-800/60 border border-gray-800 rounded-lg px-2 py-1.5 space-y-2">
       <div className="flex items-center gap-2">
         <div className="relative w-9 h-9 rounded bg-gray-950 flex-shrink-0">
           <AlbionItemImage
-            src={imageUrl(line.item.uniqueName, line.item.enchant, line.item.quality, 48)}
+            src={itemImageSrcs[0]}
+            fallbackSrcs={itemImageSrcs.slice(1)}
             alt={displayName}
             fill
             className="object-contain pixel-img"

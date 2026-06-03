@@ -16,6 +16,7 @@ import MemberAvatar from './MemberAvatar'
 import MemberLink from './MemberLink'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
 import { getLocalizedItemName } from '@/lib/item-names'
+import { buildAlbionItemImageUrlCandidates } from '@/lib/albion-render'
 import type { Locale } from '@/i18n/locales'
 import AlbionItemImage from './AlbionItemImage'
 
@@ -26,10 +27,8 @@ const STATUS_CLASS: Record<string, string> = {
   cancelled: 'bg-gray-700 text-gray-300',
 }
 
-function imageUrl(uniqueName: string, enchant: number, quality: number): string {
-  const id = enchant > 0 ? `${uniqueName}@${enchant}` : uniqueName
-  const params = new URLSearchParams({ quality: String(quality), size: '48' })
-  return `https://render.albiononline.com/v1/item/${id}.png?${params.toString()}`
+function imageSrcs(uniqueName: string, enchant: number, quality: number): string[] {
+  return buildAlbionItemImageUrlCandidates({ uniqueName, enchant, quality, size: 48 })
 }
 
 interface Props {
@@ -227,6 +226,7 @@ function OrderRow({
             quoteDelta !== null && it.catalogUnitSilverSnapshot && it.catalogUnitSilverSnapshot > 0
               ? Math.round((quoteDelta / it.catalogUnitSilverSnapshot) * 100)
               : null
+          const itemImageSrcs = imageSrcs(it.uniqueName, it.enchant, it.quality)
           return (
             <div
               key={idx}
@@ -236,7 +236,8 @@ function OrderRow({
             >
               <div className="relative w-7 h-7 rounded bg-gray-950 flex-shrink-0">
                 <AlbionItemImage
-                  src={imageUrl(it.uniqueName, it.enchant, it.quality)}
+                  src={itemImageSrcs[0]}
+                  fallbackSrcs={itemImageSrcs.slice(1)}
                   alt={displayName}
                   fill
                   className="object-contain pixel-img"

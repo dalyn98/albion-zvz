@@ -18,6 +18,7 @@ import {
 import { computePointPrice } from '@/lib/shop/price'
 import { formatRelativeFine } from '@/lib/relative-time'
 import { getLocalizedItemName } from '@/lib/item-names'
+import { buildAlbionItemImageUrlCandidates } from '@/lib/albion-render'
 import type { Locale } from '@/i18n/locales'
 import { useConfirm } from '@/components/ConfirmDialog'
 import AlbionItemImage from './AlbionItemImage'
@@ -66,10 +67,8 @@ function qualityKey(idx: number): QualityKey {
   return QUALITY_KEYS[idx] ?? 'unknown'
 }
 
-function imageUrl(uniqueName: string, enchant: number, quality: number, size = 60): string {
-  const id = enchant > 0 ? `${uniqueName}@${enchant}` : uniqueName
-  const params = new URLSearchParams({ quality: String(quality), size: String(size) })
-  return `https://render.albiononline.com/v1/item/${id}.png?${params.toString()}`
+function imageSrcs(uniqueName: string, enchant: number, quality: number, size = 60): string[] {
+  return buildAlbionItemImageUrlCandidates({ uniqueName, enchant, quality, size })
 }
 
 // price_source 는 `aodp:{city}[:spot][:q{n}]` 또는 `manual`.
@@ -466,12 +465,14 @@ function InventoryListItem({
       onDone()
     })
   }
+  const itemImageSrcs = imageSrcs(row.uniqueName, row.enchant, row.quality, 48)
 
   return (
     <div className="flex items-center gap-2 bg-gray-800/40 border border-gray-800 rounded-lg px-2 py-1.5">
       <div className="relative w-10 h-10 rounded overflow-hidden bg-gray-900 border border-gray-700 flex-shrink-0">
         <AlbionItemImage
-          src={imageUrl(row.uniqueName, row.enchant, row.quality, 48)}
+          src={itemImageSrcs[0]}
+          fallbackSrcs={itemImageSrcs.slice(1)}
           alt={row.nameKo}
           fill
           className="object-contain pixel-img"

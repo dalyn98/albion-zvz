@@ -4486,6 +4486,7 @@
   "shopCatalog": {
     "baseCityLabel": "시세 기준",
     "aodpAriaLabel": "장비 시세 데이터 설명",
+    "quoteRequired": "견적 필요",
     "searchPlaceholder": "아이템 검색",
     "tierAll": "전체 Tier",
     "balanceLabel": "잔액",
@@ -4503,7 +4504,6 @@
       "offhand": "보조무기",
       "cape": "망토",
       "bag": "가방",
-    "quoteRequired": "견적 필요",
       "mount": "탈것",
       "potion": "포션",
       "food": "음식",
@@ -4517,6 +4517,9 @@
     "cart": {
       "empty": "아이템을 담아보세요.",
       "totalLabel": "총액",
+      "quotePendingTotal": "견적 입력 필요",
+      "quoteRequiredHint": "가격 없는 아이템은 최근 구매가를 입력해야 주문할 수 있습니다.",
+      "quoteInvalidHint": "가격 제안은 1 이상의 정수 가격과 함께 입력해 주세요.",
       "insufficient": "(부족)",
       "notePlaceholder": "관리자에게 전달할 메모 (선택)",
       "clearButton": "비우기",
@@ -4542,9 +4545,6 @@
     "minutesAgo": "{n}분 전",
     "hoursAgo": "{n}시간 전",
     "today": "오늘",
-      "quotePendingTotal": "견적 입력 필요",
-      "quoteRequiredHint": "가격 없는 아이템은 최근 구매가를 입력해야 주문할 수 있습니다.",
-      "quoteInvalidHint": "가격 제안은 1 이상의 정수 가격과 함께 입력해 주세요.",
     "daysAgo": "{n}일 전",
     "monthsAgo": "{n}달 전",
     "yearsAgo": "{n}년 전"

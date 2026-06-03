@@ -4486,6 +4486,7 @@
   "shopCatalog": {
     "baseCityLabel": "Price basis",
     "aodpAriaLabel": "Market price data info",
+    "quoteRequired": "Quote needed",
     "searchPlaceholder": "Search items",
     "tierAll": "All tiers",
     "balanceLabel": "Balance",
@@ -4503,7 +4504,6 @@
       "offhand": "Offhand",
       "cape": "Cape",
       "bag": "Bag",
-    "quoteRequired": "Quote needed",
       "mount": "Mount",
       "potion": "Potion",
       "food": "Food",
@@ -4517,6 +4517,9 @@
     "cart": {
       "empty": "Add items to your cart.",
       "totalLabel": "Total",
+      "quotePendingTotal": "Quote needed",
+      "quoteRequiredHint": "Items without a price need a recent purchase price before you can submit.",
+      "quoteInvalidHint": "Price suggestions need a positive integer price.",
       "insufficient": "(insufficient)",
       "notePlaceholder": "Note to admin (optional)",
       "clearButton": "Clear",
@@ -4542,9 +4545,6 @@
     "minutesAgo": "{n}m ago",
     "hoursAgo": "{n}h ago",
     "today": "today",
-      "quotePendingTotal": "Quote needed",
-      "quoteRequiredHint": "Items without a price need a recent purchase price before you can submit.",
-      "quoteInvalidHint": "Price suggestions need a positive integer price.",
     "daysAgo": "{n}d ago",
     "monthsAgo": "{n}mo ago",
     "yearsAgo": "{n}y ago"
