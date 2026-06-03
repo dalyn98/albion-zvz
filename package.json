@@ -7,10 +7,17 @@
     "prebuild": "node scripts/build-items.mjs && node scripts/build-item-spells.mjs && node scripts/build-spell-cooldowns.mjs",
     "build": "next build --webpack",
     "start": "next start -H 0.0.0.0",
+    "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "update:albion-data": "AO_DATA_REFRESH=1 node scripts/build-items.mjs && AO_DATA_REFRESH=1 node scripts/build-item-spells.mjs && AO_DATA_REFRESH=1 node scripts/build-spell-cooldowns.mjs",
+    "check:migrations:remote": "scripts/check-supabase-migration-drift.sh"
+  },
+  "engines": {
+    "node": ">=24 <26",
+    "npm": ">=11 <12"
   },
   "dependencies": {
     "@mdx-js/loader": "^3.1.1",

@@ -12,6 +12,7 @@
 |----|------|------|-----------|----|
 | 단위 (Phase 0+1) | `src/lib/*.ts` 순수 함수 | node (외부 의존 0) | `npm test` | 매 push/PR (GitHub Actions) |
 | 통합 (Phase 2) | 실 Postgres 가 결정하는 invariant | 로컬 supabase (docker) | `npm run test:integration` | env 없으면 자동 skip |
+| 원격 마이그 드리프트 | 로컬 migration 파일과 linked Supabase 적용 상태 | Supabase CLI + 운영 프로젝트 secrets | `npm run check:migrations:remote` | main push 에서 필수 실행, secrets 누락/불일치 시 실패 |
 
 선택 기준: **"실 Postgres 동작이 결과를 결정하는가?"** YES → 통합, NO → 단위.
 
@@ -43,9 +44,9 @@ describe('<함수 이름>', () => {
 })
 ```
 
-### 1-4. 현재 커버 (8 files / 80 cases)
+### 1-4. 현재 커버
 
-`battle-bundling`, `albion-battles`, `tracked-kills`, `low-engagement-cut`, `auto-regear`, `weapon-category`, `weapon-display`, `member-stats` — 모두 AGENTS.md 의 hard rules (#7 무기 카테고리, #8 /battles 판정 등) 화석화.
+정확한 파일/케이스 수는 `npm test` 출력 기준으로 본다. 주요 커버 축은 `battle-bundling`, `albion-battles`, `tracked-kills`, `low-engagement-cut`, `auto-regear`, `weapon-category`, `weapon-display`, `member-stats`, API/route guard, i18n parity, migration 정적 검사다.
 
 ### 1-5. 새 단위 테스트 추가 — 5축 체크의 "테스트" 축
 
@@ -117,6 +118,8 @@ describeIntegration('<invariant 설명>', () => {
 ### 2-4. 핵심 컨벤션
 
 - **`describe.skip` 가드 필수** — env 없는 환경에서 빨강 X
+- **localhost 기본값** — `TEST_SUPABASE_URL` 은 기본적으로 `localhost` / `127.0.0.1` / `::1` 만 허용. 전용 remote test project 는 `ALLOW_REMOTE_TEST_SUPABASE=1` 이 필요
+- **prod env 재사용 금지** — `TEST_SUPABASE_URL === NEXT_PUBLIC_SUPABASE_URL` 또는 `TEST_SUPABASE_SERVICE_KEY === SUPABASE_SERVICE_ROLE_KEY` 면 fail-fast
 - **`createTestTenant` + `tenant.cleanup` 페어** — 테스트 격리. cleanup 이 CASCADE 로 child rows 한 번에 정리
 - **항상 `tenant.guildId` 사용** — 멀티테넌트 격리 검증 가능
 - **service-role 클라이언트** (`getTestServiceClient`) — RLS 우회. anon 클라이언트가 필요하면 직접 `createClient` 해서 별도 변수
@@ -135,18 +138,19 @@ describeIntegration('<invariant 설명>', () => {
    ```
    - **반드시 프로젝트 디렉터리에서 실행** — HOME 에서 띄우면 별개 프로젝트 (`dalyn1234`) 가 만들어져 포트 충돌
 
-3) 마이그 모두 적용 (148+개)
+3) 마이그 모두 적용
    ```bash
    supabase db reset
    ```
-   - 000_initial_schema 가 베이스 테이블 (events/parties/slots/event_templates + assign_slot/cancel_slot RPC + 3 anon select policy) 생성
-   - 그 다음 001~ 가 누적 변경 적용
+   - `000_initial_schema` 가 베이스 테이블/RPC/policy 를 생성
+   - 그 다음 `001~` 최신 번호까지 누적 변경 적용
    - "Finished supabase db reset on local database" 나오면 OK
 
 4) `.env.local` 에 두 줄 추가 (`supabase status` 의 `Secret` 키 사용)
    ```
    TEST_SUPABASE_URL=http://127.0.0.1:54321
    TEST_SUPABASE_SERVICE_KEY=sb_secret_...
+   ALLOW_REMOTE_TEST_SUPABASE=0
    ```
    ⚠️ **prod 의 `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` 와 절대 공유 금지** — 실수로 prod 가리키면 테스트 길드 생성 + CASCADE 로 다른 테넌트 데이터 손실
 
@@ -170,9 +174,38 @@ npm run test:integration
 
 # 특정 파일만:
 npm run test:integration -- multi-tenant-scope
+
+# 운영 DB migration 적용 상태 확인 (main push 와 같은 strict check):
+npm run check:migrations:remote
 ```
 
-### 2-7. 흔한 함정 & 해결
+### 2-7. 원격 마이그 드리프트 가드
+
+운영 DB 마이그가 필요한 main 반영 순서:
+
+1. `supabase/migrations/<3자리>_*.sql` 추가, `npm test` 로 파일명/연속성 정적 검사 통과.
+2. `./scripts/safe-db-push.sh <label>` 로 linked Supabase 에 마이그 적용. `supabase db push --linked` 직접 실행 금지.
+3. 필요하면 `npm run check:migrations:remote` 로 로컬 파일과 원격 적용 이력이 정확히 같은지 확인.
+4. `git push origin main`.
+
+CI 조건:
+
+- PR 에서는 운영 Supabase secrets 를 쓰지 않는다. 대신 `npm test` 안의 migration 정적 검사로 중복 번호/누락 번호를 막는다.
+- `main` push 에서는 `.github/workflows/test.yml` 의 `migration-drift` job 이 반드시 실행된다.
+- `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD` 중 하나라도 없으면 job 은 skip 하지 않고 실패한다.
+- `scripts/check-supabase-migration-drift.sh` 는 `supabase migration list --linked` 출력의 3자리 `Local` / `Remote` 버전이 정확히 같은지 확인한다.
+
+실패 해석:
+
+| 메시지 | 의미 | 조치 |
+|--------|------|------|
+| `local-only migration NNN` | repo 에는 있지만 원격 DB 에 아직 적용되지 않음 | `./scripts/safe-db-push.sh <label>` 실행 후 다시 확인 |
+| `remote-only migration NNN` | 원격 DB 에 적용됐지만 repo 에 파일이 없음 | 누락된 migration 파일 복구 또는 branch 동기화 |
+| `Unable to parse Supabase migration list output` | Supabase CLI 출력 형식이 바뀌어 파서가 검증 불가 | 스크립트 파서를 고친 뒤 재실행 |
+
+이 가드는 main push 시점에 원격과 repo 가 **정확히 같은 migration version set** 을 갖는지 보는 최종 안전망이다. 새 migration 이 pending 인 상태도 main 에서는 실패로 취급한다.
+
+### 2-8. 흔한 함정 & 해결
 
 | 증상 | 원인 | 해결 |
 |------|------|------|
@@ -228,10 +261,11 @@ npm run test:integration -- multi-tenant-scope
 | `vitest.config.ts` | 단위 테스트 설정 (`*.integration.test.ts` exclude) |
 | `vitest.integration.config.ts` | 통합 테스트 설정 (include integration only, `fileParallelism: false`, 30s timeout) |
 | `src/test/integration-helpers.ts` | `hasTestEnv` / `getTestServiceClient` / `createTestTenant` 공용 픽스처 |
-| `src/lib/*.test.ts` | 단위 테스트 (8 files / 80 cases) |
+| `src/lib/*.test.ts` | 단위 테스트 |
 | `src/**/*.integration.test.ts` | 통합 테스트 |
 | `supabase/migrations/000_initial_schema.sql` | 베이스 테이블/RPC/policy (idempotent) |
-| `supabase/migrations/<3자리>_*.sql` | 누적 마이그 (148+) |
-| `.github/workflows/test.yml` | CI 정의 (Node 22 + tsc + lint + vitest) |
+| `supabase/migrations/<3자리>_*.sql` | 누적 마이그 |
+| `scripts/check-supabase-migration-drift.sh` | linked Supabase 원격 적용 상태와 로컬 migration 파일 비교 |
+| `.github/workflows/test.yml` | CI 정의 (Node version file + tsc + lint + vitest + main-push migration drift) |
 | `.env.local` | 로컬 비밀 (TEST_SUPABASE_URL/SERVICE_KEY) — git ignore |
 | `.env.local.example` | 셋업 템플릿 |

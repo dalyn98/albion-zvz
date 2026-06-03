@@ -195,6 +195,17 @@ async function main() {
   const here = dirname(fileURLToPath(import.meta.url))
   const cacheDir = resolve(here, '..', '.cache')
   const cachePath = resolve(cacheDir, 'items.xml')
+  const outPath = resolve(here, '..', 'src', 'data', 'albion-item-spells.json')
+  const slotOutPath = resolve(here, '..', 'src', 'data', 'albion-spell-slots.json')
+
+  if (
+    process.env.AO_DATA_REFRESH !== '1' &&
+    existsSync(outPath) &&
+    existsSync(slotOutPath)
+  ) {
+    console.log(`[build-item-spells] Using checked-in spell maps; set AO_DATA_REFRESH=1 to refresh from upstream`)
+    return
+  }
 
   let xml
   if (process.env.AO_ITEMS_XML) {
@@ -245,7 +256,6 @@ async function main() {
   }
   console.log(`[build-item-spells] Emitting ${emitted} item→spell mappings`)
 
-  const outPath = resolve(here, '..', 'src', 'data', 'albion-item-spells.json')
   await mkdir(dirname(outPath), { recursive: true })
   await writeFile(outPath, JSON.stringify(map))
   const outSize = JSON.stringify(map).length
@@ -263,7 +273,6 @@ async function main() {
       slotMap[s.name] = { slot: s.slot, type: s.type }
     }
   }
-  const slotOutPath = resolve(here, '..', 'src', 'data', 'albion-spell-slots.json')
   const slotJson = JSON.stringify(slotMap)
   await writeFile(slotOutPath, slotJson)
   console.log(

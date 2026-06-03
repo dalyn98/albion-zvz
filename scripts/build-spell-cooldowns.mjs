@@ -195,6 +195,12 @@ async function main() {
   const cacheDir = resolve(here, '..', '.cache')
   const spellsCache = resolve(cacheDir, 'spells.xml')
   const itemsCache = resolve(cacheDir, 'items.xml')
+  const outPath = resolve(here, '..', 'src', 'data', 'albion-spell-cooldowns.json')
+
+  if (process.env.AO_DATA_REFRESH !== '1' && existsSync(outPath)) {
+    console.log(`[build-spell-cooldowns] Using checked-in ${outPath}; set AO_DATA_REFRESH=1 to refresh from upstream`)
+    return
+  }
 
   const spellsXml = await loadXml('AO_SPELLS_XML', SPELLS_XML_URL, spellsCache, 'spells.xml')
   const itemsXml = await loadXml('AO_ITEMS_XML', ITEMS_XML_URL, itemsCache, 'items.xml')
@@ -211,7 +217,6 @@ async function main() {
   )
 
   const out = { spells, modifiers, foodSpell }
-  const outPath = resolve(here, '..', 'src', 'data', 'albion-spell-cooldowns.json')
   await mkdir(dirname(outPath), { recursive: true })
   const json = JSON.stringify(out)
   await writeFile(outPath, json)

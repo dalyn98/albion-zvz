@@ -111,6 +111,12 @@ async function main() {
   const here = dirname(fileURLToPath(import.meta.url))
   const cacheDir = resolve(here, '..', '.cache')
   const cachePath = resolve(cacheDir, 'items.json')
+  const outPath = resolve(here, '..', 'src', 'data', 'albion-items.json')
+
+  if (process.env.AO_DATA_REFRESH !== '1' && existsSync(outPath)) {
+    console.log(`[build-items] Using checked-in ${outPath}; set AO_DATA_REFRESH=1 to refresh from upstream`)
+    return
+  }
 
   let raw
   try {
@@ -212,7 +218,6 @@ async function main() {
     `[build-items] Kept ${processed.length} items (${totalMounts} mounts total, ${seenMountIds.size} from overrides) after filter`,
   )
 
-  const outPath = resolve(here, '..', 'src', 'data', 'albion-items.json')
   await mkdir(dirname(outPath), { recursive: true })
   await writeFile(outPath, JSON.stringify(processed))
   console.log(`[build-items] Wrote ${outPath}`)
