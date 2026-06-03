@@ -393,7 +393,30 @@
         "title": "混合方式",
         "hint": "ビルド表で募集し、運営がスロットを確定します。"
       }
-    }
+    },
+    "eventRegearPolicyLabel": "リギア制限",
+    "eventRegearPolicy": {
+      "role": {
+        "title": "役割上限",
+        "hint": "設定の役割別金額を使用します。"
+      },
+      "event": {
+        "title": "イベント上限",
+        "hint": "このイベントの金額と申請回数を使用します。"
+      },
+      "disabled": {
+        "title": "リギア停止",
+        "hint": "このイベントでは申請を受けません。"
+      }
+    },
+    "eventRegearSilverCapLabel": "1回の請求上限",
+    "eventRegearSilverCapPlaceholder": "例: 300000",
+    "eventRegearSilverCapHint": "メンバーが入力できる最大 silver です。",
+    "eventRegearSilverCapInvalid": "1回の請求上限を有効な整数で入力してください。",
+    "eventRegearMaxDeathsLabel": "1人あたり申請数",
+    "eventRegearMaxDeathsHint": "{min}～{max}回",
+    "eventRegearMaxDeathsInvalid": "1人あたり申請数を有効な整数で入力してください。",
+    "eventRegearCombatLockedHint": "戦闘イベントは役割別上限のみを使用します。FF/ギャンクを選ぶと、管理者専用のイベント制限を設定できます。"
   },
   "adminRegearAnomaly": {
     "bannerTitle": "異常を検出",
@@ -2802,19 +2825,19 @@
     "modalTitle": "リギア申請",
     "close": "閉じる",
     "unassigned": "未指定",
-    "roleCeiling": "役割上限",
+    "roleCeiling": "リギア上限",
     "windowOpensAt": "申請オープン",
     "windowRule": "戦闘開始から{minutes}分経過するか、戦闘が終了すると即座にオープンします。",
     "claimAmount": "請求金額 (最大 {max} silver)",
     "claimPlaceholder": "例: 1500000",
-    "ceilingNotSet": "役割上限が設定されていないため申請できません。管理者に問い合わせてください。",
+    "ceilingNotSet": "リギア上限が設定されていないため申請できません。管理者に問い合わせてください。",
     "claimAmountPrefix": "請求金額:",
     "claimAmountWithUnit": "{amount} silver",
-    "overCeiling": "(役割上限超過)",
+    "overCeiling": "(リギア上限超過)",
     "expectedPayout": "→ 予想支給 {amount} ({rate}%)",
     "screenshotMissing": "スクリーンショットを選択してください。",
     "claimInvalid": "請求金額は整数で入力してください。",
-    "claimOverCeiling": "請求金額は役割上限({ceiling})以下にしてください。",
+    "claimOverCeiling": "請求金額はリギア上限({ceiling})以下にしてください。",
     "screenshotAlt": "スクリーンショットプレビュー",
     "pickOrPaste": "クリックして選択 · ドラッグ · 貼り付け",
     "pasteHint": "Ctrl/⌘ + V でクリップボード画像を添付",
@@ -2858,7 +2881,9 @@
     "typeDeathLimitReachedHint": "死亡申請の上限に達しています。オーバーチャージは別で申請できます。",
     "typeOverchargeLabel": "オーバーチャージ",
     "typeOverchargeHint": "ギルド指示によるオーバーチャージで装備が破壊",
-    "typeBack": "← 種別を選び直す"
+    "typeBack": "← 種別を選び直す",
+    "buttonRoleMissing": "役割未指定",
+    "buttonEventDisabled": "イベントリギア停止"
   },
   "killboardVerify": {
     "guildNameMissing": "管理者設定にギルド名がないため、自動検証をスキップしました。",
@@ -4063,7 +4088,9 @@
     "craftTaskKindMismatch": "この作業は発注作業ではありません。",
     "craftTaskNotDeliverable": "納品状態ではない作業です。",
     "craftTaskDeliverFailed": "納品処理に失敗しました(受注状態か確認してください)。",
-    "craftBoxAlreadyTaken": "すでに使用中のボックス番号です。別の番号を選んでください。"
+    "craftBoxAlreadyTaken": "すでに使用中のボックス番号です。別の番号を選んでください。",
+    "invalidEventRegearSilverCap": "イベントのリギア上限が正しくありません。",
+    "invalidEventRegearDeaths": "イベントのリギア申請数が正しくありません。"
   },
   "memberActionError": {
     "loginRequired": "ログインが必要です。",
@@ -4089,7 +4116,7 @@
     "regearDeathsLimitReached": "このイベントでは最大 {max}回まで申請できます。",
     "ceilingNotSetForRole": "この役割のリギア上限が設定されていません。管理者にお問い合わせください。",
     "invalidClaimAmount": "請求金額は整数で入力してください。",
-    "claimOverCeiling": "請求金額は役割上限 ({ceiling}) 以下にしてください。",
+    "claimOverCeiling": "請求金額はリギア上限 ({ceiling}) 以下にしてください。",
     "requestNotFound": "申請情報が見つかりません。",
     "onlyOwnCancel": "自分の申請のみキャンセルできます。",
     "onlyOwnEdit": "自分の申請のみ編集できます。",
@@ -4158,7 +4185,9 @@
     "trackedDeathNotEligible": "この戦死はトラッキング戦闘の集計に含まれていないか、14日を超過しています。",
     "trackedDeathAlreadyClaimed": "この戦死に対するリギア申請が既に存在します。",
     "overchargeDisabled": "このギルドではオーバーチャージリギア申請を受け付けていません。",
-    "allianceRegearDisabled": "このギルドでは同盟メンバーのリギア申請を受け付けていません。ホームギルド所属でない場合は管理者に連絡してください。"
+    "allianceRegearDisabled": "このギルドでは同盟メンバーのリギア申請を受け付けていません。ホームギルド所属でない場合は管理者に連絡してください。",
+    "eventRegearDisabled": "このイベントではリギア申請を受け付けていません。",
+    "eventRegearLimitInvalid": "このイベントのリギア制限が正しくありません。管理者にお問い合わせください。"
   },
   "errors": {
     "title": "問題が発生しました",

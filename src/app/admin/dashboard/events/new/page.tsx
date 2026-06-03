@@ -43,7 +43,10 @@ export default async function NewEventPage() {
     <div className="space-y-6 max-w-3xl">
       <h1 className="text-2xl font-bold text-white">{t('title')}</h1>
       <p className="text-gray-400 text-sm">{t('subtitle')}</p>
-      <NewEventDraftForm allowedCategories={allowedCategories} />
+      <NewEventDraftForm
+        allowedCategories={allowedCategories}
+        canManageRegearPolicy={session.isAdmin}
+      />
       {allowedCategories.length > 0 && (
         <NewEventFromTemplateForm
           templates={templateResult.templates}

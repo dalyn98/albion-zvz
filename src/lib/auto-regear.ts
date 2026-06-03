@@ -79,6 +79,8 @@ export interface AutoRegearResult {
   // tracked battle 의 cluster_name 이 Royal Continent 로 분류된 이벤트 (도시/외곽
   // /Brecilien/Crystal League). AGENTS.md hard rule #5 의 "블랙존 한정" 가드.
   events_skipped_royal_zone: number
+  // FF/갱킹 등 비전투 카테고리. 자동 리기어는 정식 전투 이벤트만 처리한다.
+  events_skipped_non_combat: number
   // 진단 breakdown: events_considered=0 일 때 왜 0 인지 분리. 최근 7일 events
   // 기준으로 각 필터 통과/탈락을 카운팅한다. 운영 디버그 전용 — 로직에는 영향 X.
   diag?: {
@@ -133,6 +135,7 @@ interface EventRow {
   id: string
   title: string
   battle_started_at: string
+  category: string | null
   created_at: string
   auto_regear_processed_at: string | null
 }
@@ -221,6 +224,7 @@ export async function processAutoRegear(
       events_skipped_retroactive: 0,
       events_skipped_no_tracked_battle: 0,
       events_skipped_royal_zone: 0,
+      events_skipped_non_combat: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
@@ -245,6 +249,7 @@ export async function processAutoRegear(
       events_skipped_retroactive: 0,
       events_skipped_no_tracked_battle: 0,
       events_skipped_royal_zone: 0,
+      events_skipped_non_combat: 0,
       errors,
       duration_ms: Date.now() - startedAt,
     }
@@ -277,7 +282,7 @@ export async function processAutoRegear(
   const cutoffIso = new Date(Date.now() - AUTO_REGEAR_PRE_PICK_MS).toISOString()
   const { data: events, error: eventsErr } = await db
     .from('events')
-    .select('id, title, battle_started_at, created_at, auto_regear_processed_at')
+    .select('id, title, battle_started_at, category, created_at, auto_regear_processed_at')
     .eq('guild_id', guildId)
     .not('battle_started_at', 'is', null)
     .is('auto_regear_processed_at', null)
@@ -296,7 +301,7 @@ export async function processAutoRegear(
     const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
     const { data: recentEvents } = await db
       .from('events')
-      .select('id, title, battle_started_at, auto_regear_processed_at, created_at')
+      .select('id, title, battle_started_at, category, auto_regear_processed_at, created_at')
       .eq('guild_id', guildId)
       .gte('created_at', sevenDaysAgoIso)
       .order('created_at', { ascending: false })
@@ -370,6 +375,7 @@ export async function processAutoRegear(
       events_skipped_retroactive: 0,
       events_skipped_no_tracked_battle: 0,
       events_skipped_royal_zone: 0,
+      events_skipped_non_combat: 0,
       diag: {
         events_recent_total: recentRows.length,
         events_with_null_battle_started: nullBattleStarted,
@@ -431,12 +437,25 @@ export async function processAutoRegear(
   let skippedRetroactive = 0
   let skippedNoTrackedBattle = 0
   let skippedRoyalZone = 0
+  let skippedNonCombat = 0
   let processed = 0
   const tAdminNotify = await getTranslations({ locale: 'ko', namespace: 'adminNotificationMessages' })
 
   for (const event of eventRows) {
     try {
       let eventRequestsCreated = 0
+      if (event.category !== '전투') {
+        const nowIso = new Date().toISOString()
+        await db
+          .from('events')
+          .update({ auto_regear_processed_at: nowIso })
+          .eq('id', event.id)
+          .eq('guild_id', guildId)
+        skippedNonCombat += 1
+        processed += 1
+        continue
+      }
+
       // retroactive 가드: 관리자가 battle 이후 이벤트를 만든 케이스.
       // 수동으로 이미 보상이 처리됐을 가능성이 높으므로 park 처리하고 skip.
       // 정상 flow(이벤트 생성 → 배틀) 는 created_at <= battle_started_at.
@@ -804,6 +823,7 @@ export async function processAutoRegear(
     events_skipped_retroactive: skippedRetroactive,
     events_skipped_no_tracked_battle: skippedNoTrackedBattle,
     events_skipped_royal_zone: skippedRoyalZone,
+    events_skipped_non_combat: skippedNonCombat,
     errors,
     duration_ms: Date.now() - startedAt,
   }

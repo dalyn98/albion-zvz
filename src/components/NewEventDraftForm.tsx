@@ -14,16 +14,29 @@ import { createDraftEvent } from '@/app/actions/admin'
 import {
   CATEGORY_I18N_SLUG,
   EVENT_RECRUITMENT_MODES,
+  EVENT_REGEAR_POLICIES,
   type EventCategory,
+  type EventRegearPolicy,
   type EventRecruitmentMode,
 } from '@/types'
 import { useReportDirty } from './UnsavedChangesProvider'
+import {
+  DEFAULT_EVENT_REGEAR_POLICY,
+  EVENT_REGEAR_MAX_DEATHS_MAX,
+  EVENT_REGEAR_MAX_DEATHS_MIN,
+  EVENT_REGEAR_SILVER_CAP_MAX,
+  EVENT_REGEAR_SILVER_CAP_MIN,
+  canUseEventRegearPolicy,
+  isValidEventRegearMaxDeaths,
+  isValidEventRegearSilverCap,
+} from '@/lib/regear-event-policy'
 
 interface Props {
   allowedCategories: EventCategory[]
+  canManageRegearPolicy: boolean
 }
 
-export default function NewEventDraftForm({ allowedCategories }: Props) {
+export default function NewEventDraftForm({ allowedCategories, canManageRegearPolicy }: Props) {
   const router = useRouter()
   const t = useTranslations('adminEventForm')
   const tCommon = useTranslations('common')
@@ -32,12 +45,60 @@ export default function NewEventDraftForm({ allowedCategories }: Props) {
   const visibleCategories = allowedCategories
   const [category, setCategory] = useState<EventCategory>(visibleCategories[0] ?? '전투')
   const [recruitmentMode, setRecruitmentMode] = useState<EventRecruitmentMode>('slots')
+  const [regearPolicy, setRegearPolicy] = useState<EventRegearPolicy>(DEFAULT_EVENT_REGEAR_POLICY)
+  const [regearSilverCap, setRegearSilverCap] = useState('')
+  const [regearMaxDeaths, setRegearMaxDeaths] = useState(String(EVENT_REGEAR_MAX_DEATHS_MIN))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const canUseEventPolicy = canUseEventRegearPolicy(category)
 
   // 제목 입력만 있어도 "작성 중" 으로 간주. 카테고리만 바꾼 상태는 사용자가
   // 입력한 텍스트가 없으므로 손실 걱정 대상이 아니다.
-  useReportDirty('new-event-draft', title.trim() !== '')
+  useReportDirty(
+    'new-event-draft',
+    title.trim() !== '' ||
+      (canManageRegearPolicy &&
+        canUseEventPolicy &&
+        (regearPolicy !== DEFAULT_EVENT_REGEAR_POLICY ||
+          regearSilverCap.trim() !== '' ||
+          regearMaxDeaths !== String(EVENT_REGEAR_MAX_DEATHS_MIN))),
+  )
+
+  const buildRegearPolicyPayload = ():
+    | {
+        regear_policy: EventRegearPolicy
+        regear_silver_cap: number | null
+        regear_max_deaths_per_member: number | null
+      }
+    | { error: string } => {
+    if (!canManageRegearPolicy || !canUseEventPolicy) {
+      return {
+        regear_policy: DEFAULT_EVENT_REGEAR_POLICY,
+        regear_silver_cap: null,
+        regear_max_deaths_per_member: null,
+      }
+    }
+    if (regearPolicy !== 'event') {
+      return {
+        regear_policy: regearPolicy,
+        regear_silver_cap: null,
+        regear_max_deaths_per_member: null,
+      }
+    }
+    const silverCap = Number(regearSilverCap)
+    if (!isValidEventRegearSilverCap(silverCap)) {
+      return { error: t('eventRegearSilverCapInvalid') }
+    }
+    const maxDeaths = Number(regearMaxDeaths)
+    if (!isValidEventRegearMaxDeaths(maxDeaths)) {
+      return { error: t('eventRegearMaxDeathsInvalid') }
+    }
+    return {
+      regear_policy: 'event',
+      regear_silver_cap: silverCap,
+      regear_max_deaths_per_member: maxDeaths,
+    }
+  }
 
   const handleSubmit = async () => {
     const trimmed = title.trim()
@@ -45,9 +106,14 @@ export default function NewEventDraftForm({ allowedCategories }: Props) {
       setError(t('titleRequired'))
       return
     }
+    const regearPayload = buildRegearPolicyPayload()
+    if ('error' in regearPayload) {
+      setError(regearPayload.error)
+      return
+    }
     setError('')
     setLoading(true)
-    const result = await createDraftEvent({ title: trimmed, category, recruitmentMode })
+    const result = await createDraftEvent({ title: trimmed, category, recruitmentMode, ...regearPayload })
     if ('error' in result) {
       setError(result.error)
       setLoading(false)
@@ -116,6 +182,80 @@ export default function NewEventDraftForm({ allowedCategories }: Props) {
           ))}
         </div>
       </div>
+
+      {canManageRegearPolicy && (
+        <div className="border-t border-gray-800 pt-4 space-y-3">
+          <div>
+            <label className="text-gray-400 text-xs mb-1 block">{t('eventRegearPolicyLabel')}</label>
+            {canUseEventPolicy ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {EVENT_REGEAR_POLICIES.map((policy) => (
+                  <button
+                    key={policy}
+                    type="button"
+                    onClick={() => setRegearPolicy(policy)}
+                    className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                      regearPolicy === policy
+                        ? 'border-amber-500/70 bg-amber-500/15 text-amber-100'
+                        : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-amber-500/40'
+                    }`}
+                  >
+                    <span className="block text-sm font-bold">{t(`eventRegearPolicy.${policy}.title`)}</span>
+                    <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">
+                      {t(`eventRegearPolicy.${policy}.hint`)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-xs text-gray-400">
+                {t('eventRegearCombatLockedHint')}
+              </p>
+            )}
+          </div>
+
+          {canUseEventPolicy && regearPolicy === 'event' && (
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-gray-400 text-xs mb-1 block">
+                  {t('eventRegearSilverCapLabel')}
+                </label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={EVENT_REGEAR_SILVER_CAP_MIN}
+                  max={EVENT_REGEAR_SILVER_CAP_MAX}
+                  value={regearSilverCap}
+                  onChange={(e) => setRegearSilverCap(e.target.value)}
+                  placeholder={t('eventRegearSilverCapPlaceholder')}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
+                />
+                <p className="text-[11px] text-gray-500 mt-1">{t('eventRegearSilverCapHint')}</p>
+              </div>
+              <div>
+                <label className="text-gray-400 text-xs mb-1 block">
+                  {t('eventRegearMaxDeathsLabel')}
+                </label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={EVENT_REGEAR_MAX_DEATHS_MIN}
+                  max={EVENT_REGEAR_MAX_DEATHS_MAX}
+                  value={regearMaxDeaths}
+                  onChange={(e) => setRegearMaxDeaths(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
+                />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  {t('eventRegearMaxDeathsHint', {
+                    min: EVENT_REGEAR_MAX_DEATHS_MIN,
+                    max: EVENT_REGEAR_MAX_DEATHS_MAX,
+                  })}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <p className="text-xs text-gray-500 leading-relaxed">{t('draftFormHint')}</p>
 

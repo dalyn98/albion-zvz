@@ -38,7 +38,7 @@ async function getEvents(guildId: string): Promise<Event[]> {
   const { data } = await db
     .from('events')
     .select(
-      'id, title, gather_time, gather_at, gather_location, special_notes, is_active, battle_started_at, notify_role_id, notify_channel_id, notify_everyone, created_by, status, category, recruitment_mode, created_at',
+      'id, title, gather_time, gather_at, gather_location, special_notes, is_active, battle_started_at, notify_role_id, notify_channel_id, notify_everyone, created_by, status, category, recruitment_mode, regear_policy, regear_silver_cap, regear_max_deaths_per_member, created_at',
     )
     .eq('guild_id', guildId)
     .order('created_at', { ascending: false })

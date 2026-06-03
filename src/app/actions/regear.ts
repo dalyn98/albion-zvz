@@ -30,13 +30,14 @@ import {
   type RawBreakdown,
   type RegearLineItem,
 } from '@/lib/regear-helpers'
-import { type BuildSnapshot, type RegearType, type SlotGearDisplay } from '@/types'
+import { EVENT_CATEGORIES, type BuildSnapshot, type EventCategory, type RegearType, type SlotGearDisplay } from '@/types'
 import {
   isRegearRejectReasonCode,
   type RegearRejectReasonCode,
 } from '@/lib/regear-reject-reasons'
 import { countsTowardDeathLimit } from '@/lib/regear-request-policy'
 import { sendAdminNotification } from '@/lib/admin-notifications'
+import { resolveManualRegearPolicy, type EventRegearPolicy } from '@/lib/regear-event-policy'
 
 // User-facing regear actions. Admin-side lives in `regear-admin.ts`,
 // member-side inline edit actions in `regear-edit.ts`.
@@ -135,6 +136,8 @@ export interface RegearEligibleEvent {
   battle_started_at: string
   role_name: string
   role_reward: number
+  max_deaths_per_member: number
+  regear_policy: EventRegearPolicy
   // Non-rejected death regear requests the current user already has for this event.
   // Overcharge requests do not consume this count.
   existing_active_count: number
@@ -261,54 +264,16 @@ async function requestRegearInner(
 
   const buildSnapshot = buildSnapshotFromSlot(slot as unknown as SlotGearDisplay, roleName)
 
-  const { windowMinutes, maxDeaths, eligibilityDays } = await loadRegearLimits(guildId)
+  const { windowMinutes, maxDeaths: globalMaxDeaths, eligibilityDays } = await loadRegearLimits(guildId)
 
-  // 1a) Supersede policy: pending 자동 리기어 행이 있으면 반려로 밀어내고 수동
-  //     death 를 받는다. 자동이 cron 에서 선행되어 pending 으로 자리 잡았더라도, 실제
-  //     사망한 유저가 직접 신청서를 올리는 쪽을 최종 소스 오브 트루스로 취급.
-  //     오버차지는 사망이 아니므로 자동 death row 를 대체하지 않는다.
-  //     비고 컬럼에 사유를 남겨 관리자/청구자가 내역에서 구분 가능.
-  if (requestType === 'death') {
-    const { error: supersedeError } = await db
-      .from('regear_requests')
-      .update({
-        status: 'rejected',
-        resolved_at: new Date().toISOString(),
-        admin_notes: tRegear('autoSupersededByManual'),
-      })
-      .eq('guild_id', guildId)
-      .eq('event_id', eventId)
-      .eq('discord_id', session.discordId)
-      .eq('auto_generated', true)
-      .eq('request_type', 'death')
-      .eq('status', 'pending')
-    if (supersedeError) return { error: supersedeError.message }
-
-    // 2) Per-event death cap. Non-rejected death rows count toward the limit so
-    //    a user can re-submit after a rejection but can't spam past the
-    //    admin-configured death cap. Overcharge requests are outside this count.
-    const { count: activeCount, error: countError } = await db
-      .from('regear_requests')
-      .select('id', { count: 'exact', head: true })
-      .eq('guild_id', guildId)
-      .eq('event_id', eventId)
-      .eq('discord_id', session.discordId)
-      .eq('request_type', 'death')
-      .neq('status', 'rejected')
-    if (countError) return { error: countError.message }
-    if ((activeCount ?? 0) >= maxDeaths) {
-      return { error: tErr('regearDeathsLimitReached', { max: maxDeaths }) }
-    }
-  }
-
-  // 3) Submission gate — `regear_window_minutes` 은 킬보드 indexing 대기 시간이며
+  // 2) Submission gate — `regear_window_minutes` 은 킬보드 indexing 대기 시간이며
   //    상한이 아니다. 호스트가 누른 battle_started_at 은 부정확하므로 매칭된
   //    tracked battle 의 ended_at (Albion /battles 가 보고하는 실측치) 을
   //    anchor 로 쓴다. 매칭 0건(솔로 갱크/sync 지연) 은 battle_started_at 으로
   //    폴백. Title 은 여기서 스냅샷해 이벤트 삭제돼도 이력에 남게 한다.
   const { data: event, error: eventError } = await db
     .from('events')
-    .select('id, title, battle_started_at')
+    .select('id, title, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member')
     .eq('guild_id', guildId)
     .eq('id', eventId)
     .single()
@@ -343,8 +308,8 @@ async function requestRegearInner(
     return { error: tErr('regearWindowNotOpen', { minutes: windowMinutes }) }
   }
 
-  // 4) Snapshot the role's silver ceiling. A ceiling of 0 blocks the role
-  //    from regear entirely; admin must set it in the settings page first.
+  // 3) Resolve the silver ceiling/death count. Combat events always use
+  //    role_rewards; FF/ganking events may replace it with an event-local cap.
   const { data: reward, error: rewardError } = await db
     .from('role_rewards')
     .select('silver')
@@ -352,9 +317,60 @@ async function requestRegearInner(
     .eq('role_name', roleName)
     .maybeSingle()
   if (rewardError) return { error: rewardError.message }
-  const silver = reward?.silver ?? 0
-  if (silver <= 0) {
+  const eventCategory: EventCategory = EVENT_CATEGORIES.includes(event.category as EventCategory)
+    ? (event.category as EventCategory)
+    : '전투'
+  const resolvedPolicy = resolveManualRegearPolicy({
+    category: eventCategory,
+    eventPolicy: event.regear_policy,
+    eventSilverCap: event.regear_silver_cap,
+    eventMaxDeathsPerMember: event.regear_max_deaths_per_member,
+    roleSilver: reward?.silver ?? 0,
+    globalMaxDeaths,
+  })
+  if (!resolvedPolicy.enabled) {
+    if (resolvedPolicy.source === 'disabled') return { error: tErr('eventRegearDisabled') }
+    if (resolvedPolicy.source === 'event') return { error: tErr('eventRegearLimitInvalid') }
     return { error: tErr('ceilingNotSetForRole') }
+  }
+  const silver = resolvedPolicy.silverCap
+  const maxDeaths = resolvedPolicy.maxDeathsPerMember
+
+  // 4) Supersede policy: pending 자동 리기어 행이 있으면 반려로 밀어내고 수동
+  //    death 를 받는다. 자동이 cron 에서 선행되어 pending 으로 자리 잡았더라도, 실제
+  //    사망한 유저가 직접 신청서를 올리는 쪽을 최종 소스 오브 트루스로 취급.
+  //    오버차지는 사망이 아니므로 자동 death row 를 대체하지 않는다.
+  //    비고 컬럼에 사유를 남겨 관리자/청구자가 내역에서 구분 가능.
+  if (requestType === 'death') {
+    const { error: supersedeError } = await db
+      .from('regear_requests')
+      .update({
+        status: 'rejected',
+        resolved_at: new Date().toISOString(),
+        admin_notes: tRegear('autoSupersededByManual'),
+      })
+      .eq('guild_id', guildId)
+      .eq('event_id', eventId)
+      .eq('discord_id', session.discordId)
+      .eq('auto_generated', true)
+      .eq('request_type', 'death')
+      .eq('status', 'pending')
+    if (supersedeError) return { error: supersedeError.message }
+
+    // Non-rejected death rows count toward the event-specific limit so a user
+    // can re-submit after a rejection but can't spam past the configured cap.
+    const { count: activeCount, error: countError } = await db
+      .from('regear_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('guild_id', guildId)
+      .eq('event_id', eventId)
+      .eq('discord_id', session.discordId)
+      .eq('request_type', 'death')
+      .neq('status', 'rejected')
+    if (countError) return { error: countError.message }
+    if ((activeCount ?? 0) >= maxDeaths) {
+      return { error: tErr('regearDeathsLimitReached', { max: maxDeaths }) }
+    }
   }
 
   // 4a) Validate the member's claimed amount against the ceiling.
@@ -574,7 +590,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
 
   const { data: events, error: eventsError } = await db
     .from('events')
-    .select('id, title, gather_time, gather_at, gather_location, battle_started_at')
+    .select('id, title, gather_time, gather_at, gather_location, battle_started_at, category, regear_policy, regear_silver_cap, regear_max_deaths_per_member')
     .eq('guild_id', guildId)
     .in('id', eventIds)
     .not('battle_started_at', 'is', null)
@@ -645,7 +661,7 @@ export async function listMyRegearEligibleEvents(): Promise<{
   // (computeRegearWindowOpenMs). tenant_battle_records 쿼리가 일시적으로 실패해도
   // /regear 페이지 전체가 죽지 않도록 allSettled — 실패한 이벤트는
   // battle_started_at 기준으로 폴백되어 클라이언트는 정상 표시.
-  const { windowMinutes } = await loadRegearLimits(guildId)
+  const { windowMinutes, maxDeaths: globalMaxDeaths } = await loadRegearLimits(guildId)
   const eligibleEvents = events.filter((e) => eventToRole.has(e.id))
   const matchedSettled = await Promise.allSettled(
     eligibleEvents.map((e) =>
@@ -672,6 +688,17 @@ export async function listMyRegearEligibleEvents(): Promise<{
 
   const result: RegearEligibleEvent[] = eligibleEvents.map((e) => {
     const role = eventToRole.get(e.id) ?? ''
+    const eventCategory: EventCategory = EVENT_CATEGORIES.includes(e.category as EventCategory)
+      ? (e.category as EventCategory)
+      : '전투'
+    const resolvedPolicy = resolveManualRegearPolicy({
+      category: eventCategory,
+      eventPolicy: e.regear_policy,
+      eventSilverCap: e.regear_silver_cap,
+      eventMaxDeathsPerMember: e.regear_max_deaths_per_member,
+      roleSilver: rewardMap.get(role) ?? 0,
+      globalMaxDeaths,
+    })
     return {
       id: e.id,
       title: e.title,
@@ -680,7 +707,9 @@ export async function listMyRegearEligibleEvents(): Promise<{
       gather_location: e.gather_location,
       battle_started_at: e.battle_started_at as string,
       role_name: role,
-      role_reward: rewardMap.get(role) ?? 0,
+      role_reward: resolvedPolicy.silverCap,
+      max_deaths_per_member: resolvedPolicy.maxDeathsPerMember,
+      regear_policy: resolvedPolicy.source,
       existing_active_count: countByEvent.get(e.id) ?? 0,
       auto_request_id: autoRequestByEvent.get(e.id) ?? null,
       window_open_at:

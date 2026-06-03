@@ -122,7 +122,10 @@ export default async function RegearPage() {
                   const showRequestButton =
                     !event.auto_request_id ||
                     overchargeEnabled ||
-                    event.existing_active_count < limits.maxDeaths
+                    event.existing_active_count < event.max_deaths_per_member
+                  const roleLabel = event.role_name
+                    ? translateSlotRole(event.role_name, tRole)
+                    : t('unassigned')
                   return (
                     <li
                       key={event.id}
@@ -159,7 +162,7 @@ export default async function RegearPage() {
                       <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-800">
                         <div className="text-xs text-gray-400 min-w-0 flex-1">
                           <span className="text-gray-500">{t('role')} </span>
-                          <span className="text-white font-semibold">{translateSlotRole(event.role_name, tRole)}</span>
+                          <span className="text-white font-semibold">{roleLabel}</span>
                           <span className="text-gray-500"> · {t('expectedReward')} </span>
                           <span className="text-amber-400 font-mono font-semibold">{formatSilver(event.role_reward)}</span>
                           <span className="text-gray-500"> · {t('requestDeadline')} </span>
@@ -181,8 +184,9 @@ export default async function RegearPage() {
                               eventId={event.id}
                               roleName={event.role_name}
                               roleReward={event.role_reward}
+                              eventRegearDisabled={event.regear_policy === 'disabled'}
                               existingActiveCount={event.existing_active_count}
-                              maxDeaths={limits.maxDeaths}
+                              maxDeaths={event.max_deaths_per_member}
                               payoutRatePercent={payoutRatePercent}
                               windowOpenAt={event.window_open_at}
                               windowMinutes={limits.windowMinutes}

@@ -393,7 +393,30 @@
         "title": "Hybrid mode",
         "hint": "Recruit from the build sheet, then staff confirm slots."
       }
-    }
+    },
+    "eventRegearPolicyLabel": "Regear limit",
+    "eventRegearPolicy": {
+      "role": {
+        "title": "Role cap",
+        "hint": "Use the role amounts from settings."
+      },
+      "event": {
+        "title": "Event cap",
+        "hint": "Use this event's amount and request count."
+      },
+      "disabled": {
+        "title": "Block regear",
+        "hint": "Do not accept claims for this event."
+      }
+    },
+    "eventRegearSilverCapLabel": "Claim cap",
+    "eventRegearSilverCapPlaceholder": "e.g. 300000",
+    "eventRegearSilverCapHint": "Maximum silver a member can claim.",
+    "eventRegearSilverCapInvalid": "Enter a valid integer claim cap.",
+    "eventRegearMaxDeathsLabel": "Claims per member",
+    "eventRegearMaxDeathsHint": "{min}-{max} claims",
+    "eventRegearMaxDeathsInvalid": "Enter a valid integer claim count.",
+    "eventRegearCombatLockedHint": "Combat events always use role caps. Select FF or ganking to configure admin-only event limits."
   },
   "adminRegearAnomaly": {
     "bannerTitle": "Anomaly detected",
@@ -2802,19 +2825,19 @@
     "modalTitle": "Regear request",
     "close": "Close",
     "unassigned": "Unassigned",
-    "roleCeiling": "Role cap",
+    "roleCeiling": "Regear cap",
     "windowOpensAt": "Submissions open",
     "windowRule": "Opens {minutes} minutes after battle start, or as soon as the battle ends — whichever comes first.",
     "claimAmount": "Claim amount (max {max} silver)",
     "claimPlaceholder": "e.g. 1500000",
-    "ceilingNotSet": "This role's regear cap isn't set, so you cannot apply. Please contact an admin.",
+    "ceilingNotSet": "The regear cap isn't set, so you cannot apply. Please contact an admin.",
     "claimAmountPrefix": "Claim:",
     "claimAmountWithUnit": "{amount} silver",
-    "overCeiling": "(over role cap)",
+    "overCeiling": "(over regear cap)",
     "expectedPayout": "→ est. payout {amount} ({rate}%)",
     "screenshotMissing": "Please select a screenshot.",
     "claimInvalid": "Claim amount must be an integer.",
-    "claimOverCeiling": "Claim must be at or below the role cap ({ceiling}).",
+    "claimOverCeiling": "Claim must be at or below the regear cap ({ceiling}).",
     "screenshotAlt": "Screenshot preview",
     "pickOrPaste": "Click to pick · drag · paste",
     "pasteHint": "Ctrl/⌘ + V to paste a clipboard image",
@@ -2858,7 +2881,9 @@
     "typeDeathLimitReachedHint": "You've reached the death claim limit. You can still submit overcharge separately.",
     "typeOverchargeLabel": "Overcharge",
     "typeOverchargeHint": "Gear destroyed by overcharge under guild orders",
-    "typeBack": "← Pick a different type"
+    "typeBack": "← Pick a different type",
+    "buttonRoleMissing": "Role not assigned",
+    "buttonEventDisabled": "Event regear blocked"
   },
   "killboardVerify": {
     "guildNameMissing": "Guild name is not configured; automatic verification was skipped.",
@@ -4063,7 +4088,9 @@
     "craftTaskKindMismatch": "This task is not a guild-order task.",
     "craftTaskNotDeliverable": "Task is not in a deliverable state.",
     "craftTaskDeliverFailed": "Delivery failed (check that the task is in the claimed state).",
-    "craftBoxAlreadyTaken": "That box number is already in use. Pick another."
+    "craftBoxAlreadyTaken": "That box number is already in use. Pick another.",
+    "invalidEventRegearSilverCap": "Event regear cap is invalid.",
+    "invalidEventRegearDeaths": "Event regear claim count is invalid."
   },
   "memberActionError": {
     "loginRequired": "Login required.",
@@ -4089,7 +4116,7 @@
     "regearDeathsLimitReached": "You've already submitted the max ({max}) regear requests for this event.",
     "ceilingNotSetForRole": "This role's regear cap isn't set. Please contact an admin.",
     "invalidClaimAmount": "Claim amount must be an integer.",
-    "claimOverCeiling": "Claim must be at or below the role cap ({ceiling}).",
+    "claimOverCeiling": "Claim must be at or below the regear cap ({ceiling}).",
     "requestNotFound": "Request info not found.",
     "onlyOwnCancel": "You can only cancel your own requests.",
     "onlyOwnEdit": "You can only edit your own requests.",
@@ -4158,7 +4185,9 @@
     "trackedDeathNotEligible": "This death isn't part of the tracked battle set, or it's older than 14 days.",
     "trackedDeathAlreadyClaimed": "A regear request already exists for this death.",
     "overchargeDisabled": "Overcharge regear claims are not accepted in this guild.",
-    "allianceRegearDisabled": "This guild does not accept alliance-member regear claims. If you are not in the home guild, contact an admin."
+    "allianceRegearDisabled": "This guild does not accept alliance-member regear claims. If you are not in the home guild, contact an admin.",
+    "eventRegearDisabled": "This event does not accept regear requests.",
+    "eventRegearLimitInvalid": "This event's regear limit is invalid. Please contact an admin."
   },
   "errors": {
     "title": "Something went wrong",

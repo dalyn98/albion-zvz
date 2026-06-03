@@ -24,8 +24,15 @@ import { getTenantTimezone } from '@/lib/timezone-server'
 import { log } from '@/lib/log'
 import { logAdminAction } from '@/lib/admin-audit'
 import type { Locale } from '@/i18n/locales'
-import type { EventCategory, EventRecruitmentMode } from '@/types'
+import type { EventCategory, EventRegearPolicy, EventRecruitmentMode } from '@/types'
 import { EVENT_CATEGORIES, EVENT_RECRUITMENT_MODES } from '@/types'
+import {
+  canUseEventRegearPolicy,
+  DEFAULT_EVENT_REGEAR_POLICY,
+  isEventRegearPolicy,
+  isValidEventRegearMaxDeaths,
+  isValidEventRegearSilverCap,
+} from '@/lib/regear-event-policy'
 import type { AdminErrorTranslator } from './admin-slot-sanitizers'
 
 // next-intl locale 코드(ko/ja/en/zh) → Intl.DateTimeFormat 이 받는 BCP 47 태그.
@@ -59,6 +66,111 @@ interface EventPayload {
   // 생략하면 DB 기본값 '전투' 가 적용된다.
   category?: EventCategory
   recruitment_mode?: EventRecruitmentMode
+  regear_policy?: EventRegearPolicy | null
+  regear_silver_cap?: number | null
+  regear_max_deaths_per_member?: number | null
+}
+
+interface NormalizedEventRegearFields {
+  regear_policy: EventRegearPolicy
+  regear_silver_cap: number | null
+  regear_max_deaths_per_member: number | null
+}
+
+const DEFAULT_EVENT_REGEAR_FIELDS: NormalizedEventRegearFields = {
+  regear_policy: DEFAULT_EVENT_REGEAR_POLICY,
+  regear_silver_cap: null,
+  regear_max_deaths_per_member: null,
+}
+
+function normalizeIntegerInput(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value)) {
+    return value
+  }
+  if (typeof value === 'string' && /^\d+$/.test(value.trim())) {
+    const parsed = Number(value.trim())
+    return Number.isSafeInteger(parsed) ? parsed : null
+  }
+  return null
+}
+
+function normalizeEventRegearFields(
+  payload: Pick<EventPayload, 'category' | 'regear_policy' | 'regear_silver_cap' | 'regear_max_deaths_per_member'>,
+  tErr: AdminErrorTranslator,
+): NormalizedEventRegearFields | { error: string } {
+  const category: EventCategory =
+    payload.category && EVENT_CATEGORIES.includes(payload.category) ? payload.category : '전투'
+  if (!canUseEventRegearPolicy(category)) {
+    return {
+      regear_policy: DEFAULT_EVENT_REGEAR_POLICY,
+      regear_silver_cap: null,
+      regear_max_deaths_per_member: null,
+    }
+  }
+
+  const policy = isEventRegearPolicy(payload.regear_policy)
+    ? payload.regear_policy
+    : DEFAULT_EVENT_REGEAR_POLICY
+
+  if (policy !== 'event') {
+    return {
+      regear_policy: policy,
+      regear_silver_cap: null,
+      regear_max_deaths_per_member: null,
+    }
+  }
+
+  const silverCap = normalizeIntegerInput(payload.regear_silver_cap)
+  if (!isValidEventRegearSilverCap(silverCap)) {
+    return { error: tErr('invalidEventRegearSilverCap') }
+  }
+  const maxDeaths = normalizeIntegerInput(payload.regear_max_deaths_per_member)
+  if (!isValidEventRegearMaxDeaths(maxDeaths)) {
+    return { error: tErr('invalidEventRegearDeaths') }
+  }
+
+  return {
+    regear_policy: 'event',
+    regear_silver_cap: silverCap,
+    regear_max_deaths_per_member: maxDeaths,
+  }
+}
+
+function normalizeCreateEventRegearFields(
+  payload: Pick<EventPayload, 'category' | 'regear_policy' | 'regear_silver_cap' | 'regear_max_deaths_per_member'>,
+  tErr: AdminErrorTranslator,
+  canManageRegearPolicy: boolean,
+): NormalizedEventRegearFields | { error: string } {
+  if (!canManageRegearPolicy) return DEFAULT_EVENT_REGEAR_FIELDS
+  return normalizeEventRegearFields(payload, tErr)
+}
+
+function normalizeUpdateEventRegearFields(
+  payload: Pick<EventPayload, 'category' | 'regear_policy' | 'regear_silver_cap' | 'regear_max_deaths_per_member'>,
+  tErr: AdminErrorTranslator,
+  canManageRegearPolicy: boolean,
+): NormalizedEventRegearFields | null | { error: string } {
+  if (canManageRegearPolicy) return normalizeEventRegearFields(payload, tErr)
+  const category: EventCategory =
+    payload.category && EVENT_CATEGORIES.includes(payload.category) ? payload.category : '전투'
+  return canUseEventRegearPolicy(category) ? null : DEFAULT_EVENT_REGEAR_FIELDS
+}
+
+function stripEventRegearPayload<
+  T extends {
+    regear_policy?: unknown
+    regear_silver_cap?: unknown
+    regear_max_deaths_per_member?: unknown
+  },
+>(payload: T): Omit<
+  T,
+  'regear_policy' | 'regear_silver_cap' | 'regear_max_deaths_per_member'
+> {
+  const rest = { ...payload }
+  delete rest.regear_policy
+  delete rest.regear_silver_cap
+  delete rest.regear_max_deaths_per_member
+  return rest
 }
 
 // Final check in case the client bypassed validation — a bad ISO string would
@@ -69,7 +181,7 @@ interface EventPayload {
 function validateEventPayload(
   payload: EventPayload,
   tErr: AdminErrorTranslator,
-  opts: { publishing: boolean } = { publishing: true },
+  opts: { publishing: boolean; canManageRegearPolicy?: boolean } = { publishing: true },
 ): string | null {
   if (!payload.title.trim()) return tErr('missingTitle')
   if (opts.publishing) {
@@ -90,13 +202,24 @@ function validateEventPayload(
   ) {
     return tErr('serverError')
   }
+  if (opts.canManageRegearPolicy ?? true) {
+    const regearFields = normalizeEventRegearFields(payload, tErr)
+    if ('error' in regearFields) return regearFields.error
+  }
   return null
 }
 
 // 이벤트를 draft 상태로 생성. 제목만 받아 빈 껍질을 만든 뒤 편집/발행 단계로 넘긴다.
 // 기존 createEvent 와 달리 gather_at 을 요구하지 않으며 공개 /events 에도 뜨지 않는다.
 export async function createDraftEvent(
-  payload: { title: string; category?: EventCategory; recruitmentMode?: EventRecruitmentMode },
+  payload: {
+    title: string
+    category?: EventCategory
+    recruitmentMode?: EventRecruitmentMode
+    regear_policy?: EventRegearPolicy | null
+    regear_silver_cap?: number | null
+    regear_max_deaths_per_member?: number | null
+  },
 ): Promise<{ id: string } | { error: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
@@ -112,6 +235,17 @@ export async function createDraftEvent(
     if (!sessionCanCreateEventCategory(session, category)) {
       return { error: tErr('unauthorized') }
     }
+    const regearFields = normalizeCreateEventRegearFields(
+      {
+        category,
+        regear_policy: payload.regear_policy,
+        regear_silver_cap: payload.regear_silver_cap,
+        regear_max_deaths_per_member: payload.regear_max_deaths_per_member,
+      },
+      tErr,
+      session.isAdmin === true,
+    )
+    if (regearFields && 'error' in regearFields) return { error: regearFields.error }
     const db = await requireEventCreator()
     const guildId = await getSessionGuildId(session)
     const { data, error } = await db
@@ -126,6 +260,7 @@ export async function createDraftEvent(
         status: 'draft',
         category,
         recruitment_mode: recruitmentMode,
+        ...regearFields,
         created_by: session.discordId,
       })
       .select('id')
@@ -151,10 +286,14 @@ export async function createDraftEvent(
 export async function createEvent(payload: EventPayload): Promise<{ id: string } | { error: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const invalid = validateEventPayload(payload, tErr, { publishing: false })
-    if (invalid) return { error: invalid }
     const session = await getSession()
     if (!sessionCanCreateOrManageEvents(session)) return { error: tErr('unauthorized') }
+    const canManageRegearPolicy = session.isAdmin === true
+    const invalid = validateEventPayload(payload, tErr, {
+      publishing: false,
+      canManageRegearPolicy,
+    })
+    if (invalid) return { error: invalid }
     const requestedCategory: EventCategory =
       payload.category && EVENT_CATEGORIES.includes(payload.category) ? payload.category : '전투'
     if (!sessionCanCreateEventCategory(session, requestedCategory)) {
@@ -162,9 +301,21 @@ export async function createEvent(payload: EventPayload): Promise<{ id: string }
     }
     const db = await requireEventCreator()
     const guildId = await getSessionGuildId(session)
+    const regearFields = normalizeCreateEventRegearFields(
+      { ...payload, category: requestedCategory },
+      tErr,
+      canManageRegearPolicy,
+    )
+    if (regearFields && 'error' in regearFields) return { error: regearFields.error }
     const { data, error } = await db
       .from('events')
-      .insert({ ...payload, guild_id: guildId, status: 'draft', created_by: session.discordId })
+      .insert({
+        ...stripEventRegearPayload(payload),
+        ...regearFields,
+        guild_id: guildId,
+        status: 'draft',
+        created_by: session.discordId,
+      })
       .select('id')
       .single()
     if (error) return { error: error.message }
@@ -185,12 +336,16 @@ export async function createEvent(payload: EventPayload): Promise<{ id: string }
 export async function updateEvent(id: string, payload: EventPayload): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    // draft 편집 중에도 부분 저장을 허용해야 하므로 publishing=false. 발행 단계
-    // 에서 한 번 더 strict 검증을 거친다.
-    const invalid = validateEventPayload(payload, tErr, { publishing: false })
-    if (invalid) return { error: invalid }
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
+    const canManageRegearPolicy = session.isAdmin === true
+    // draft 편집 중에도 부분 저장을 허용해야 하므로 publishing=false. 발행 단계
+    // 에서 한 번 더 strict 검증을 거친다.
+    const invalid = validateEventPayload(payload, tErr, {
+      publishing: false,
+      canManageRegearPolicy,
+    })
+    if (invalid) return { error: invalid }
     const db = await requireEventCreatorForEvent(id)
     const guildId = await getSessionGuildId(session)
 
@@ -205,7 +360,12 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
       .maybeSingle()
     const previousGatherAt = (current?.gather_at ?? null) as string | null
     const gatherAtChanged = previousGatherAt !== payload.gather_at
-    const finalPayload: Record<string, unknown> = { ...payload }
+    const regearFields = normalizeUpdateEventRegearFields(payload, tErr, canManageRegearPolicy)
+    if (regearFields && 'error' in regearFields) return { error: regearFields.error }
+    const finalPayload: Record<string, unknown> = {
+      ...stripEventRegearPayload(payload),
+      ...(regearFields ?? {}),
+    }
     if (gatherAtChanged) {
       finalPayload.battle_started_at = null
       // legacy 컬럼이지만 운영 데이터가 남아 있어 같이 비워준다 (기존 cron 잔재).
@@ -221,6 +381,7 @@ export async function updateEvent(id: string, payload: EventPayload): Promise<{ 
       const { error: clearError } = await db
         .from('event_dm_sent')
         .delete()
+        .eq('guild_id', guildId)
         .eq('event_id', id)
       if (clearError) {
         log.error('[admin/updateEvent] event_dm_sent clear failed', clearError, {
@@ -453,7 +614,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
 
     const { data: source, error: sourceErr } = await db
       .from('events')
-      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone, category, recruitment_mode')
+      .select('title, gather_at, gather_time, gather_location, special_notes, notify_role_id, notify_channel_id, notify_everyone, category, recruitment_mode, regear_policy, regear_silver_cap, regear_max_deaths_per_member')
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
@@ -465,6 +626,19 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
     if (!sessionCanCreateEventCategory(session, category)) {
       return { error: tErr('unauthorized') }
     }
+    const regearFields = normalizeCreateEventRegearFields(
+      session.isAdmin
+        ? {
+            category,
+            regear_policy: source.regear_policy as EventRegearPolicy | null,
+            regear_silver_cap: source.regear_silver_cap as number | null,
+            regear_max_deaths_per_member: source.regear_max_deaths_per_member as number | null,
+          }
+        : { category },
+      tErr,
+      session.isAdmin === true,
+    )
+    if ('error' in regearFields) return { error: regearFields.error }
 
     // Shift gather_at forward by 7 days so the copy lands on the same weekday
     // at the same hour. Admin can still edit if needed.
@@ -489,6 +663,7 @@ export async function cloneEvent(id: string): Promise<{ id?: string; error?: str
         notify_everyone: source.notify_everyone,
         category,
         recruitment_mode: source.recruitment_mode ?? 'slots',
+        ...regearFields,
         // 복제는 늘 draft 로 시작 — 관리자가 날짜/공지 확인 후 명시적으로 발행.
         status: 'draft',
         created_by: session.discordId,
@@ -714,6 +889,7 @@ export async function resetBattleStart(id: string): Promise<{ error?: string }> 
     const { error: clearError } = await db
       .from('event_dm_sent')
       .delete()
+      .eq('guild_id', guildId)
       .eq('event_id', id)
     if (clearError) {
       log.error('[admin/resetBattleStart] event_dm_sent clear failed', clearError, {

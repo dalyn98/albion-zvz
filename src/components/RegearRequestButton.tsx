@@ -34,6 +34,7 @@ interface Props {
   eventId: string
   roleName: string | null
   roleReward: number
+  eventRegearDisabled?: boolean
   existingActiveCount: number
   maxDeaths: number
   // Current payout rate (1..100). If <100 we surface an "expected payout"
@@ -82,6 +83,7 @@ export default function RegearRequestButton({
   eventId,
   roleName,
   roleReward,
+  eventRegearDisabled = false,
   existingActiveCount,
   maxDeaths,
   payoutRatePercent,
@@ -95,7 +97,8 @@ export default function RegearRequestButton({
   const tToast = useTranslations('toast')
   const toast = useToast()
   const [open, setOpen] = useState(false)
-  const ceilingMissing = roleReward <= 0
+  const roleMissing = !roleName
+  const ceilingMissing = !eventRegearDisabled && roleReward <= 0
   const deathLimitReached = isDeathLimitReached(existingActiveCount, maxDeaths)
   const remaining = getRemainingDeathClaims(existingActiveCount, maxDeaths)
   // Cap the choices by both the product limit and whatever deaths the user has
@@ -136,14 +139,18 @@ export default function RegearRequestButton({
   // eslint-disable-next-line react-hooks/purity
   const windowPending = Number.isFinite(windowOpenMs) && Date.now() < windowOpenMs
   const disabled = !canOpenManualRegearRequest({
-    baseEnabled: Boolean(roleName) && !ceilingMissing && !windowPending,
+    baseEnabled: !eventRegearDisabled && !roleMissing && !ceilingMissing && !windowPending,
     activeDeathCount: existingActiveCount,
     maxDeaths,
     overchargeEnabled,
   })
   const buttonLabel = windowPending
     ? t('buttonWindowPending', { opensAt: formatWindowOpen(windowOpenAt) })
-    : ceilingMissing
+    : eventRegearDisabled
+      ? t('buttonEventDisabled')
+    : roleMissing
+      ? t('buttonRoleMissing')
+      : ceilingMissing
       ? t('buttonCeilingMissing')
       : deathLimitReached
         ? overchargeEnabled

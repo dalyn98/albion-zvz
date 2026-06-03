@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { X } from 'lucide-react'
 import { createEvent, updateEvent } from '@/app/actions/admin'
 import { useRegisterSave, useReportDirty } from './EventEditSaveRegistry'
@@ -12,18 +12,41 @@ import {
   type DiscordRoleOption,
   type DiscordChannelOption,
 } from '@/app/actions/notifications'
-import { defaultGatherParts, parseGatherTime, formatGatherTimeKo, type GatherTimeParts } from '@/lib/gather-time'
+import {
+  defaultGatherParts,
+  formatGatherTimeFor,
+  formatGatherTimeKo,
+  parseGatherTime,
+  type GatherTimeParts,
+} from '@/lib/gather-time'
 import FourPartTimeInput from './FourPartTimeInput'
-import type { Event, EventCategory, EventRecruitmentMode } from '@/types'
-import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, EVENT_RECRUITMENT_MODES } from '@/types'
+import type { Locale } from '@/i18n/locales'
+import type { Event, EventCategory, EventRegearPolicy, EventRecruitmentMode } from '@/types'
+import { CATEGORY_I18N_SLUG, EVENT_CATEGORIES, EVENT_RECRUITMENT_MODES, EVENT_REGEAR_POLICIES } from '@/types'
+import {
+  DEFAULT_EVENT_REGEAR_POLICY,
+  EVENT_REGEAR_MAX_DEATHS_MAX,
+  EVENT_REGEAR_MAX_DEATHS_MIN,
+  EVENT_REGEAR_SILVER_CAP_MAX,
+  EVENT_REGEAR_SILVER_CAP_MIN,
+  canUseEventRegearPolicy,
+  isValidEventRegearMaxDeaths,
+  isValidEventRegearSilverCap,
+} from '@/lib/regear-event-policy'
 
 interface Props {
   initialEvent?: Event
   tenantTimezone: string
+  canManageRegearPolicy: boolean
 }
 
-export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
+export default function EventInfoForm({
+  initialEvent,
+  tenantTimezone,
+  canManageRegearPolicy,
+}: Props) {
   const router = useRouter()
+  const locale = useLocale() as Locale
   const t = useTranslations('adminEventForm')
   const tCommon = useTranslations('common')
   const titleId = useId()
@@ -31,6 +54,8 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
   const notesId = useId()
   const channelId = useId()
   const roleId = useId()
+  const regearSilverCapId = useId()
+  const regearMaxDeathsId = useId()
   const isEdit = !!initialEvent
   const [title, setTitle] = useState(initialEvent?.title ?? '')
   const [parts, setParts] = useState<GatherTimeParts>(() =>
@@ -44,6 +69,15 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
   const [category, setCategory] = useState<EventCategory>(initialEvent?.category ?? '전투')
   const [recruitmentMode, setRecruitmentMode] = useState<EventRecruitmentMode>(
     initialEvent?.recruitment_mode ?? 'slots',
+  )
+  const [regearPolicy, setRegearPolicy] = useState<EventRegearPolicy>(
+    initialEvent?.regear_policy ?? DEFAULT_EVENT_REGEAR_POLICY,
+  )
+  const [regearSilverCap, setRegearSilverCap] = useState(
+    initialEvent?.regear_silver_cap ? String(initialEvent.regear_silver_cap) : '',
+  )
+  const [regearMaxDeaths, setRegearMaxDeaths] = useState(
+    String(initialEvent?.regear_max_deaths_per_member ?? EVENT_REGEAR_MAX_DEATHS_MIN),
   )
   const [roles, setRoles] = useState<DiscordRoleOption[] | null>(null)
   const [rolesError, setRolesError] = useState(false)
@@ -88,7 +122,8 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
   }, [confirmOpen, loading])
 
   const parsed = parseGatherTime(parts, { timezone: tenantTimezone })
-  const preview = parsed ? formatGatherTimeKo(parsed, tenantTimezone) : null
+  const preview = parsed ? formatGatherTimeFor(locale, parsed, tenantTimezone) : null
+  const canUseEventPolicy = canUseEventRegearPolicy(category)
 
   const partLabels = {
     month: t('partMonth'),
@@ -109,6 +144,43 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
     })
     if (!dt) return { error: t('gatherTimeInvalid') }
     return { dt }
+  }
+
+  const buildRegearPolicyPayload = ():
+    | {
+        regear_policy: EventRegearPolicy
+        regear_silver_cap: number | null
+        regear_max_deaths_per_member: number | null
+      }
+    | { error: string } => {
+    if (!canManageRegearPolicy || !canUseEventPolicy) {
+      return {
+        regear_policy: DEFAULT_EVENT_REGEAR_POLICY,
+        regear_silver_cap: null,
+        regear_max_deaths_per_member: null,
+      }
+    }
+    if (regearPolicy !== 'event') {
+      return {
+        regear_policy: regearPolicy,
+        regear_silver_cap: null,
+        regear_max_deaths_per_member: null,
+      }
+    }
+
+    const silverCap = Number(regearSilverCap)
+    if (!isValidEventRegearSilverCap(silverCap)) {
+      return { error: t('eventRegearSilverCapInvalid') }
+    }
+    const maxDeaths = Number(regearMaxDeaths)
+    if (!isValidEventRegearMaxDeaths(maxDeaths)) {
+      return { error: t('eventRegearMaxDeathsInvalid') }
+    }
+    return {
+      regear_policy: 'event',
+      regear_silver_cap: silverCap,
+      regear_max_deaths_per_member: maxDeaths,
+    }
   }
 
   // Draft 편집 시에는 날짜 / 장소가 비어 있어도 저장이 되어야 한다 (publishEvent
@@ -136,6 +208,11 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
       setError(v.error)
       return
     }
+    const regearPayload = buildRegearPolicyPayload()
+    if ('error' in regearPayload) {
+      setError(regearPayload.error)
+      return
+    }
     setError('')
     setConfirmOpen(true)
   }
@@ -149,6 +226,13 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
     }
     setError('')
     setLoading(true)
+    const regearPayload = buildRegearPolicyPayload()
+    if ('error' in regearPayload) {
+      setError(regearPayload.error)
+      setConfirmOpen(false)
+      setLoading(false)
+      return
+    }
     // 생성 단계에서는 공지 대상(역할/채널) 을 보내지 않는다. 생성 후
     // 편집 화면에서 고르는 흐름.
     const result = await createEvent({
@@ -159,6 +243,7 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
       special_notes: specialNotes.trim() || null,
       category,
       recruitment_mode: recruitmentMode,
+      ...regearPayload,
     })
     if ('error' in result && result.error) {
       setError(result.error)
@@ -186,13 +271,20 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
       notifyEveryone,
       category,
       recruitmentMode,
+      ...(canManageRegearPolicy
+        ? {
+            regearPolicy,
+            regearSilverCap,
+            regearMaxDeaths,
+          }
+        : {}),
     })
   const [cleanSnapshot, setCleanSnapshot] = useState<string>(() => computeSnapshot())
   const currentSnapshot = useMemo(
     () => computeSnapshot(),
     // computeSnapshot 은 closure 로 모든 입력을 참조.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [title, parts, gatherLocation, specialNotes, notifyRoleId, notifyChannelId, notifyEveryone, category, recruitmentMode],
+    [title, parts, gatherLocation, specialNotes, notifyRoleId, notifyChannelId, notifyEveryone, category, recruitmentMode, canManageRegearPolicy, regearPolicy, regearSilverCap, regearMaxDeaths],
   )
   const isDirty = isEdit && currentSnapshot !== cleanSnapshot
   useReportDirty('event-info', isDirty)
@@ -213,6 +305,11 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
           setError(v.error)
           return { error: v.error }
         }
+        const regearPayload = buildRegearPolicyPayload()
+        if ('error' in regearPayload) {
+          setError(regearPayload.error)
+          return { error: regearPayload.error }
+        }
         const result = await updateEvent(initialEvent.id, {
           title: v.title,
           gather_at: v.dtIso,
@@ -224,6 +321,7 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
           notify_everyone: notifyEveryone,
           category,
           recruitment_mode: recruitmentMode,
+          ...regearPayload,
         })
         if ('error' in result && result.error) {
           setError(result.error)
@@ -238,6 +336,11 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
         setError(v.error)
         return { error: v.error }
       }
+      const regearPayload = buildRegearPolicyPayload()
+      if ('error' in regearPayload) {
+        setError(regearPayload.error)
+        return { error: regearPayload.error }
+      }
       const result = await updateEvent(initialEvent.id, {
         title: title.trim(),
         gather_at: v.dt.toISOString(),
@@ -249,6 +352,7 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
         notify_everyone: notifyEveryone,
         category,
         recruitment_mode: recruitmentMode,
+        ...regearPayload,
       })
       if ('error' in result && result.error) {
         setError(result.error)
@@ -317,6 +421,84 @@ export default function EventInfoForm({ initialEvent, tenantTimezone }: Props) {
           ))}
         </div>
       </div>
+
+      {canManageRegearPolicy && (
+        <div className="border-t border-gray-800 pt-4 space-y-3">
+          <div>
+            <label className="text-gray-400 text-xs mb-1 block">{t('eventRegearPolicyLabel')}</label>
+            {canUseEventPolicy ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {EVENT_REGEAR_POLICIES.map((policy) => (
+                  <button
+                    key={policy}
+                    type="button"
+                    onClick={() => setRegearPolicy(policy)}
+                    className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                      regearPolicy === policy
+                        ? 'border-amber-500/70 bg-amber-500/15 text-amber-100'
+                        : 'border-gray-700 bg-gray-800 text-gray-300 hover:border-amber-500/40'
+                    }`}
+                  >
+                    <span className="block text-sm font-bold">{t(`eventRegearPolicy.${policy}.title`)}</span>
+                    <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">
+                      {t(`eventRegearPolicy.${policy}.hint`)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2 text-xs text-gray-400">
+                {t('eventRegearCombatLockedHint')}
+              </p>
+            )}
+          </div>
+
+          {canUseEventPolicy && regearPolicy === 'event' && (
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label htmlFor={regearSilverCapId} className="text-gray-400 text-xs mb-1 block">
+                  {t('eventRegearSilverCapLabel')}
+                </label>
+                <input
+                  id={regearSilverCapId}
+                  type="number"
+                  inputMode="numeric"
+                  min={EVENT_REGEAR_SILVER_CAP_MIN}
+                  max={EVENT_REGEAR_SILVER_CAP_MAX}
+                  value={regearSilverCap}
+                  onChange={(e) => setRegearSilverCap(e.target.value)}
+                  placeholder={t('eventRegearSilverCapPlaceholder')}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
+                />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  {t('eventRegearSilverCapHint')}
+                </p>
+              </div>
+              <div>
+                <label htmlFor={regearMaxDeathsId} className="text-gray-400 text-xs mb-1 block">
+                  {t('eventRegearMaxDeathsLabel')}
+                </label>
+                <input
+                  id={regearMaxDeathsId}
+                  type="number"
+                  inputMode="numeric"
+                  min={EVENT_REGEAR_MAX_DEATHS_MIN}
+                  max={EVENT_REGEAR_MAX_DEATHS_MAX}
+                  value={regearMaxDeaths}
+                  onChange={(e) => setRegearMaxDeaths(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-amber-500"
+                />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  {t('eventRegearMaxDeathsHint', {
+                    min: EVENT_REGEAR_MAX_DEATHS_MIN,
+                    max: EVENT_REGEAR_MAX_DEATHS_MAX,
+                  })}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div>
         <label className="text-gray-400 text-xs mb-1 block">{t('gatherTimeLabel')}</label>

@@ -30,6 +30,11 @@ export interface Event {
   // 모집 화면의 기본 UX. slots = 기존 파티/슬롯 지정, build_sheet = 빌드표
   // 중심 모집, hybrid = 빌드표로 모집하되 운영진이 슬롯 확정.
   recruitment_mode: EventRecruitmentMode
+  // FF/갱킹 이벤트에서 수동 리기어 상한을 이벤트 단위로 override 할 수 있다.
+  // 전투 카테고리는 application code 에서 항상 'role' 로 강제한다.
+  regear_policy: EventRegearPolicy
+  regear_silver_cap: number | null
+  regear_max_deaths_per_member: number | null
   created_at: string
 }
 
@@ -38,6 +43,9 @@ export type EventCategory = (typeof EVENT_CATEGORIES)[number]
 
 export const EVENT_RECRUITMENT_MODES = ['slots', 'build_sheet', 'hybrid'] as const
 export type EventRecruitmentMode = (typeof EVENT_RECRUITMENT_MODES)[number]
+
+export const EVENT_REGEAR_POLICIES = ['role', 'event', 'disabled'] as const
+export type EventRegearPolicy = (typeof EVENT_REGEAR_POLICIES)[number]
 
 // 각 카테고리별 notify 플래그가 매핑되는 DB 컬럼명. 한 군데서만 관리해
 // notifications / discord-dm / 컴포넌트가 동일한 이름을 쓴다.

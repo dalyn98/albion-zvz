@@ -393,7 +393,30 @@
         "title": "混合方式",
         "hint": "按配装表招募，由管理确认最终槽位。"
       }
-    }
+    },
+    "eventRegearPolicyLabel": "补装限制",
+    "eventRegearPolicy": {
+      "role": {
+        "title": "职业上限",
+        "hint": "使用设置中的职业金额。"
+      },
+      "event": {
+        "title": "活动上限",
+        "hint": "使用此活动的金额和申请次数。"
+      },
+      "disabled": {
+        "title": "禁止补装",
+        "hint": "此活动不接受申请。"
+      }
+    },
+    "eventRegearSilverCapLabel": "单次申请上限",
+    "eventRegearSilverCapPlaceholder": "例如: 300000",
+    "eventRegearSilverCapHint": "成员可填写的最高 silver。",
+    "eventRegearSilverCapInvalid": "请输入有效整数作为单次申请上限。",
+    "eventRegearMaxDeathsLabel": "每人申请次数",
+    "eventRegearMaxDeathsHint": "{min}-{max} 次",
+    "eventRegearMaxDeathsInvalid": "请输入有效整数作为每人申请次数。",
+    "eventRegearCombatLockedHint": "战斗活动始终使用角色上限。选择 FF 或 ganking 后，管理员可以设置该活动专用限制。"
   },
   "adminRegearAnomaly": {
     "bannerTitle": "检测到异常",
@@ -2802,19 +2825,19 @@
     "modalTitle": "补装申请",
     "close": "关闭",
     "unassigned": "未分配",
-    "roleCeiling": "职业上限",
+    "roleCeiling": "补装上限",
     "windowOpensAt": "申请开放时间",
     "windowRule": "战斗开始 {minutes} 分钟后,或战斗结束时(取较早者)立即开放申请。",
     "claimAmount": "申请金额(最高 {max} 银币)",
     "claimPlaceholder": "例如 1500000",
-    "ceilingNotSet": "此职业的补装上限尚未设置,无法申请。请联系管理员。",
+    "ceilingNotSet": "补装上限尚未设置,无法申请。请联系管理员。",
     "claimAmountPrefix": "申请:",
     "claimAmountWithUnit": "{amount} 银币",
-    "overCeiling": "(超出职业上限)",
+    "overCeiling": "(超出补装上限)",
     "expectedPayout": "→ 预计发放 {amount}({rate}%)",
     "screenshotMissing": "请选择截图。",
     "claimInvalid": "申请金额必须为整数。",
-    "claimOverCeiling": "申请金额必须不超过职业上限({ceiling})。",
+    "claimOverCeiling": "申请金额必须不超过补装上限({ceiling})。",
     "screenshotAlt": "截图预览",
     "pickOrPaste": "点击选择 · 拖拽 · 粘贴",
     "pasteHint": "Ctrl/⌘ + V 粘贴剪贴板图片",
@@ -2858,7 +2881,9 @@
     "typeDeathLimitReachedHint": "已达到阵亡申请上限。过载仍可单独申请。",
     "typeOverchargeLabel": "过载",
     "typeOverchargeHint": "在公会指令下因过载而装备损坏",
-    "typeBack": "← 重新选择类型"
+    "typeBack": "← 重新选择类型",
+    "buttonRoleMissing": "未分配职业",
+    "buttonEventDisabled": "活动补装已禁止"
   },
   "killboardVerify": {
     "guildNameMissing": "管理员设置中未配置公会名称，已跳过自动验证。",
@@ -4063,7 +4088,9 @@
     "craftTaskKindMismatch": "该任务不是公会订单任务。",
     "craftTaskNotDeliverable": "任务不在可交付状态。",
     "craftTaskDeliverFailed": "交付失败(请确认任务处于已认领状态)。",
-    "craftBoxAlreadyTaken": "该箱号已被占用,请选择其他号。"
+    "craftBoxAlreadyTaken": "该箱号已被占用,请选择其他号。",
+    "invalidEventRegearSilverCap": "活动补装上限无效。",
+    "invalidEventRegearDeaths": "活动补装申请次数无效。"
   },
   "memberActionError": {
     "loginRequired": "需要登录。",
@@ -4089,7 +4116,7 @@
     "regearDeathsLimitReached": "您已为此活动提交了最多({max})次补装申请。",
     "ceilingNotSetForRole": "此职业的补装上限尚未设置,请联系管理员。",
     "invalidClaimAmount": "申请金额必须为整数。",
-    "claimOverCeiling": "申请金额必须不超过职业上限({ceiling})。",
+    "claimOverCeiling": "申请金额必须不超过补装上限({ceiling})。",
     "requestNotFound": "未找到申请信息。",
     "onlyOwnCancel": "您只能取消自己的申请。",
     "onlyOwnEdit": "您只能编辑自己的申请。",
@@ -4158,7 +4185,9 @@
     "trackedDeathNotEligible": "此阵亡不属于已记录战斗范围,或已超过 14 天。",
     "trackedDeathAlreadyClaimed": "此阵亡已存在补装申请。",
     "overchargeDisabled": "本公会不接受过载补装申请。",
-    "allianceRegearDisabled": "此公会不接受联盟成员补装申请。如果你不是主公会成员，请联系管理员。"
+    "allianceRegearDisabled": "此公会不接受联盟成员补装申请。如果你不是主公会成员，请联系管理员。",
+    "eventRegearDisabled": "此活动不接受补装申请。",
+    "eventRegearLimitInvalid": "此活动的补装限制无效,请联系管理员。"
   },
   "errors": {
     "title": "出错了",

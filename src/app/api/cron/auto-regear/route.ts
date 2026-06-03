@@ -29,6 +29,7 @@ const SUMMARY_FIELDS = [
   'events_skipped_retroactive',
   'events_skipped_no_tracked_battle',
   'events_skipped_royal_zone',
+  'events_skipped_non_combat',
   'duration_ms',
 ] as const
 

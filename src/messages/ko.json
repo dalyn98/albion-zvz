@@ -393,7 +393,30 @@
         "title": "혼합 방식",
         "hint": "빌드표로 모집하고 운영진이 슬롯을 확정합니다."
       }
-    }
+    },
+    "eventRegearPolicyLabel": "리기어 제한",
+    "eventRegearPolicy": {
+      "role": {
+        "title": "역할군 상한",
+        "hint": "설정의 역할별 금액을 사용합니다."
+      },
+      "event": {
+        "title": "이벤트 상한",
+        "hint": "이 이벤트의 금액과 신청 수를 사용합니다."
+      },
+      "disabled": {
+        "title": "리기어 차단",
+        "hint": "이 이벤트에서는 신청을 받지 않습니다."
+      }
+    },
+    "eventRegearSilverCapLabel": "1회 청구 상한",
+    "eventRegearSilverCapPlaceholder": "예: 300000",
+    "eventRegearSilverCapHint": "멤버가 입력할 수 있는 최대 silver 입니다.",
+    "eventRegearSilverCapInvalid": "1회 청구 상한을 올바른 정수로 입력해주세요.",
+    "eventRegearMaxDeathsLabel": "1인당 신청 수",
+    "eventRegearMaxDeathsHint": "{min}~{max}회",
+    "eventRegearMaxDeathsInvalid": "1인당 신청 수를 올바른 정수로 입력해주세요.",
+    "eventRegearCombatLockedHint": "전투 이벤트는 역할군 상한만 사용합니다. FF/갱킹을 선택하면 관리자 전용 제한 옵션을 설정할 수 있습니다."
   },
   "adminRegearAnomaly": {
     "bannerTitle": "이상치 감지됨",
@@ -2802,19 +2825,19 @@
     "modalTitle": "리기어 신청",
     "close": "닫기",
     "unassigned": "미지정",
-    "roleCeiling": "역할 상한",
+    "roleCeiling": "리기어 상한",
     "windowOpensAt": "신청 오픈",
     "windowRule": "전투 시작 후 {minutes}분이 지나거나, 전투가 종료되면 즉시 오픈됩니다.",
     "claimAmount": "청구 금액 (최대 {max} silver)",
     "claimPlaceholder": "예: 1500000",
-    "ceilingNotSet": "역할 상한이 설정되지 않아 신청할 수 없습니다. 관리자에게 문의하세요.",
+    "ceilingNotSet": "리기어 상한이 설정되지 않아 신청할 수 없습니다. 관리자에게 문의하세요.",
     "claimAmountPrefix": "청구 금액:",
     "claimAmountWithUnit": "{amount} silver",
-    "overCeiling": "(역할 상한 초과)",
+    "overCeiling": "(리기어 상한 초과)",
     "expectedPayout": "→ 예상 지급 {amount} ({rate}%)",
     "screenshotMissing": "스크린샷을 선택해 주세요.",
     "claimInvalid": "청구 금액을 정수로 입력해 주세요.",
-    "claimOverCeiling": "청구 금액은 역할 상한({ceiling}) 이하여야 합니다.",
+    "claimOverCeiling": "청구 금액은 리기어 상한({ceiling}) 이하여야 합니다.",
     "screenshotAlt": "스크린샷 미리보기",
     "pickOrPaste": "클릭해서 선택 · 드래그 · 붙여넣기",
     "pasteHint": "Ctrl/⌘ + V 로 클립보드 이미지 첨부",
@@ -2858,7 +2881,9 @@
     "typeDeathLimitReachedHint": "데스 신청 한도에 도달했습니다. 오버차지는 별도로 신청할 수 있어요.",
     "typeOverchargeLabel": "오버차지",
     "typeOverchargeHint": "길드 명령에 따른 오버차지로 장비 파괴",
-    "typeBack": "← 종류 다시 선택"
+    "typeBack": "← 종류 다시 선택",
+    "buttonRoleMissing": "역할 미지정",
+    "buttonEventDisabled": "이벤트 리기어 차단"
   },
   "killboardVerify": {
     "guildNameMissing": "관리자 설정에 길드명이 없어 자동 검증을 건너뜁니다.",
@@ -4063,7 +4088,9 @@
     "craftTaskKindMismatch": "이 작업은 발주 작업이 아닙니다.",
     "craftTaskNotDeliverable": "납품 상태가 아닌 작업입니다.",
     "craftTaskDeliverFailed": "납품 처리에 실패했습니다 (수주 상태인지 확인하세요).",
-    "craftBoxAlreadyTaken": "이미 사용 중인 박스 번호입니다. 다른 번호를 선택해 주세요."
+    "craftBoxAlreadyTaken": "이미 사용 중인 박스 번호입니다. 다른 번호를 선택해 주세요.",
+    "invalidEventRegearSilverCap": "이벤트 리기어 상한이 올바르지 않습니다.",
+    "invalidEventRegearDeaths": "이벤트 리기어 신청 수가 올바르지 않습니다."
   },
   "memberActionError": {
     "loginRequired": "로그인이 필요합니다.",
@@ -4090,7 +4117,7 @@
     "regearDeathsLimitReached": "이 이벤트에서 최대 {max}회까지 신청 가능합니다.",
     "ceilingNotSetForRole": "해당 역할의 리기어 상한이 설정되지 않았습니다. 관리자에게 문의하세요.",
     "invalidClaimAmount": "청구 금액을 정수로 입력해 주세요.",
-    "claimOverCeiling": "청구 금액은 역할 상한({ceiling}) 이하여야 합니다.",
+    "claimOverCeiling": "청구 금액은 리기어 상한({ceiling}) 이하여야 합니다.",
     "requestNotFound": "신청 정보를 찾을 수 없습니다.",
     "onlyOwnCancel": "본인의 신청만 취소할 수 있습니다.",
     "onlyOwnEdit": "본인의 신청만 편집할 수 있습니다.",
@@ -4158,7 +4185,9 @@
     "trackedDeathNotFound": "해당 사망 기록을 찾을 수 없습니다.",
     "trackedDeathNotEligible": "이 사망은 트래킹 전투 집계에 포함되지 않거나 14일을 넘겼습니다.",
     "trackedDeathAlreadyClaimed": "이미 이 사망에 대한 리기어 신청이 있습니다.",
-    "overchargeDisabled": "이 길드에서는 오버차지 리기어 신청을 받지 않습니다."
+    "overchargeDisabled": "이 길드에서는 오버차지 리기어 신청을 받지 않습니다.",
+    "eventRegearDisabled": "이 이벤트에서는 리기어 신청을 받지 않습니다.",
+    "eventRegearLimitInvalid": "이벤트 리기어 제한이 올바르지 않습니다. 관리자에게 문의하세요."
   },
   "errors": {
     "title": "문제가 발생했어요",

@@ -190,7 +190,11 @@ export default async function EditEventPage({
             </div>
           </div>
           {event.status === 'draft' && <PublishEventBanner event={event} summary={publishSummary} />}
-          <EventInfoForm initialEvent={event} tenantTimezone={tenantTimezone} />
+          <EventInfoForm
+            initialEvent={event}
+            tenantTimezone={tenantTimezone}
+            canManageRegearPolicy={session.isAdmin}
+          />
 
           <TentativeSignupSection
             eventId={id}
