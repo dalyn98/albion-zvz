@@ -3645,6 +3645,8 @@
     "doneUnverifiedTitle": "未認証として保存されました",
     "doneUnverifiedDescription": "プロフィールは保存されましたが、ギルド所属は確認できませんでした。リギア・送金・換金・寄付を使うには、プロフィールから再認証してください。",
     "finish": "続ける",
+    "changeCharacter": "別キャラクターに変更",
+    "changeConfirm": "認証キャラクターを {current} から {next} に変更しますか？ポイントとリギア履歴は Discord アカウントに残り、戦闘統計は新しいキャラクター基準で表示されます。",
     "profileBadgeVerified": "アルビオン認証済み",
     "profileBadgeNeedsReview": "アルビオン認証確認待ち",
     "profileBadgeUnverified": "アルビオン未認証",

@@ -3645,6 +3645,8 @@
     "doneUnverifiedTitle": "Saved as Unverified",
     "doneUnverifiedDescription": "Your profile was saved, but guild membership was not confirmed. Reverify from your profile to use regear/transfer/exchange/donation.",
     "finish": "Continue",
+    "changeCharacter": "Change character",
+    "changeConfirm": "Change your verified character from {current} to {next}? Points and regear history stay on your Discord account, and battle stats will use the new character.",
     "profileBadgeVerified": "Albion verified",
     "profileBadgeNeedsReview": "Albion review pending",
     "profileBadgeUnverified": "Albion unverified",

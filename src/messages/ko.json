@@ -3650,6 +3650,8 @@
     "doneUnverifiedTitle": "미인증 상태로 저장되었습니다",
     "doneUnverifiedDescription": "프로필은 저장되었지만 길드 소속이 확인되지 않았습니다. 리기어/송금/환전/기부 기능을 쓰려면 프로필에서 다시 인증해주세요.",
     "finish": "계속",
+    "changeCharacter": "다른 캐릭터로 변경",
+    "changeConfirm": "현재 인증 캐릭터를 {current}에서 {next}(으)로 변경할까요? 포인트/리기어 기록은 유지되고 전투 통계는 새 캐릭터 기준으로 표시됩니다.",
     "profileBadgeVerified": "알비온 인증 완료",
     "profileBadgeNeedsReview": "알비온 인증 검토 대기",
     "profileBadgeUnverified": "알비온 미인증",

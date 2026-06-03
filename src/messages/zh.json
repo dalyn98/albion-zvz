@@ -3645,6 +3645,8 @@
     "doneUnverifiedTitle": "保存为未验证",
     "doneUnverifiedDescription": "您的资料已保存,但未确认公会成员身份。请前往个人资料重新验证后才能使用补装/转移/兑换/捐赠功能。",
     "finish": "继续",
+    "changeCharacter": "更换为其他角色",
+    "changeConfirm": "将已验证角色从 {current} 更换为 {next} 吗？积分和补装记录仍保留在 Discord 账号下，战斗统计将按新角色显示。",
     "profileBadgeVerified": "阿尔比恩已验证",
     "profileBadgeNeedsReview": "阿尔比恩验证待审核",
     "profileBadgeUnverified": "阿尔比恩未验证",

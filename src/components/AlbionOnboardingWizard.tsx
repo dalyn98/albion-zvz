@@ -3,7 +3,16 @@
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Check, ChevronRight, Loader2, Search, ShieldAlert, ShieldCheck, Globe } from 'lucide-react'
+import {
+  Check,
+  ChevronRight,
+  Globe,
+  Loader2,
+  RefreshCw,
+  Search,
+  ShieldAlert,
+  ShieldCheck,
+} from 'lucide-react'
 import {
   searchAlbionPlayerCandidates,
   confirmAlbionIdentity,
@@ -71,6 +80,9 @@ export default function AlbionOnboardingWizard({
           ? 'unverified'
           : null,
   )
+  const hasExistingIdentity = Boolean(
+    initialIdentity?.server || initialIdentity?.playerId || initialIdentity?.nickname,
+  )
 
   // debounce 검색어 → /search 호출. query 나 server 가 바뀔 때마다 재실행.
   const latestRequestRef = useRef(0)
@@ -102,8 +114,23 @@ export default function AlbionOnboardingWizard({
     setStep('search')
   }
 
+  const confirmIdentityReplacement = (nextPlayerId: string | null, nextName: string) => {
+    if (!hasExistingIdentity) return true
+    if (nextPlayerId && initialIdentity?.playerId === nextPlayerId) return true
+    if (!nextPlayerId && initialIdentity?.nickname?.trim().toLowerCase() === nextName.toLowerCase()) {
+      return true
+    }
+    return window.confirm(
+      t('changeConfirm', {
+        current: initialIdentity?.nickname ?? discordNickname,
+        next: nextName,
+      }),
+    )
+  }
+
   const handleConfirm = (candidate: AlbionPlayerCandidate) => {
     if (!server) return
+    if (!confirmIdentityReplacement(candidate.id, candidate.name)) return
     startTransition(async () => {
       const res = await confirmAlbionIdentity({ server, playerId: candidate.id })
       if (res.error) {
@@ -135,6 +162,7 @@ export default function AlbionOnboardingWizard({
       toast.error(t('manualNicknameTooShort'))
       return
     }
+    if (!confirmIdentityReplacement(null, nickname)) return
     startTransition(async () => {
       const res = await setAlbionIdentityManually({ server, nickname })
       if (res.error) {
@@ -155,6 +183,13 @@ export default function AlbionOnboardingWizard({
     }
     router.replace(returnTo)
     router.refresh()
+  }
+
+  const handleChangeCharacter = () => {
+    latestRequestRef.current += 1
+    setCandidates([])
+    setSearching(false)
+    setStep(server ? 'search' : 'server')
   }
 
   return (
@@ -273,7 +308,11 @@ export default function AlbionOnboardingWizard({
       )}
 
       {step === 'done' && (
-        <DoneView status={finalStatus ?? 'unverified'} onFinish={handleFinish} />
+        <DoneView
+          status={finalStatus ?? 'unverified'}
+          onFinish={handleFinish}
+          onChangeCharacter={handleChangeCharacter}
+        />
       )}
     </div>
   )
@@ -282,9 +321,10 @@ export default function AlbionOnboardingWizard({
 interface DoneViewProps {
   status: CompletionStatus
   onFinish: () => void
+  onChangeCharacter: () => void
 }
 
-function DoneView({ status, onFinish }: DoneViewProps) {
+function DoneView({ status, onFinish, onChangeCharacter }: DoneViewProps) {
   const t = useTranslations('albionOnboarding')
   const verified = status === 'trusted'
   const alliance = status === 'alliance'
@@ -322,13 +362,23 @@ function DoneView({ status, onFinish }: DoneViewProps) {
               : t('doneUnverifiedDescription')}
         </p>
       </div>
-      <button
-        type="button"
-        onClick={onFinish}
-        className="w-full bg-amber-500 hover:bg-amber-400 text-gray-950 font-semibold rounded-lg px-4 py-2.5 text-sm"
-      >
-        {t('finish')}
-      </button>
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={onFinish}
+          className="w-full bg-amber-500 hover:bg-amber-400 text-gray-950 font-semibold rounded-lg px-4 py-2.5 text-sm"
+        >
+          {t('finish')}
+        </button>
+        <button
+          type="button"
+          onClick={onChangeCharacter}
+          className="w-full flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-amber-500/40 text-gray-200 font-semibold rounded-lg px-4 py-2.5 text-sm"
+        >
+          <RefreshCw size={14} />
+          {t('changeCharacter')}
+        </button>
+      </div>
     </section>
   )
 }
