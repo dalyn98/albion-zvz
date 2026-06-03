@@ -239,32 +239,43 @@ export default function ShopInventoryEditor({ rows, discountRate }: Props) {
           {pending ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
           {t('syncButton')}
         </button>
-        <button
-          type="button"
-          onClick={handleReset}
-          disabled={pending}
-          className="flex items-center gap-1.5 bg-gray-800 hover:bg-red-900/40 hover:border-red-700 border border-gray-700 disabled:bg-gray-900 disabled:text-gray-600 disabled:border-gray-800 text-red-300 px-3 py-1.5 rounded-lg transition-colors text-xs"
-          title={t('resetTitle')}
-        >
-          <RotateCcw size={12} />
-          {t('resetButton')}
-        </button>
-        <button
-          type="button"
-          onClick={handleRebuild}
-          disabled={pending}
-          className="flex items-center gap-1.5 bg-gray-800 hover:bg-sky-900/40 hover:border-sky-700 border border-gray-700 disabled:bg-gray-900 disabled:text-gray-600 disabled:border-gray-800 text-sky-200 px-3 py-1.5 rounded-lg transition-colors text-xs"
-          title={t('rebuildTitle')}
-        >
-          <RefreshCw size={12} />
-          {t('rebuildButton')}
-        </button>
       </div>
 
       <p className="text-gray-500 text-xs">
         {t('descriptionPrefix')}{' '}
         <code className="text-gray-400">×{discountRate}</code> {t('descriptionSuffix')}
       </p>
+
+      <details className="rounded-lg border border-gray-800 bg-gray-950/40 px-3 py-2">
+        <summary className="cursor-pointer text-xs font-semibold text-gray-300">
+          {t('recoverySummary')}
+        </summary>
+        <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+          {t('recoveryDescription')}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={handleReset}
+            disabled={pending}
+            className="flex items-center gap-1.5 bg-gray-800 hover:bg-red-900/40 hover:border-red-700 border border-gray-700 disabled:bg-gray-900 disabled:text-gray-600 disabled:border-gray-800 text-red-300 px-3 py-1.5 rounded-lg transition-colors text-xs"
+            title={t('resetTitle')}
+          >
+            <RotateCcw size={12} />
+            {t('resetButton')}
+          </button>
+          <button
+            type="button"
+            onClick={handleRebuild}
+            disabled={pending}
+            className="flex items-center gap-1.5 bg-gray-800 hover:bg-sky-900/40 hover:border-sky-700 border border-gray-700 disabled:bg-gray-900 disabled:text-gray-600 disabled:border-gray-800 text-sky-200 px-3 py-1.5 rounded-lg transition-colors text-xs"
+            title={t('rebuildTitle')}
+          >
+            <RefreshCw size={12} />
+            {t('rebuildButton')}
+          </button>
+        </div>
+      </details>
 
       {syncSummary && !syncSummary.error && (
         <div className="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-1.5">

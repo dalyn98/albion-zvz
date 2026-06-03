@@ -48,13 +48,27 @@ interface AggregatedStockChange {
 
 interface Props {
   lastImportAt: string | null
+  lastChestLog: LastShopChestLog | null
   timezone: string
   // 서버가 요청 시점 기준으로 계산한 stale 여부. 클라에서 Date.now() 를
   // render 시 호출하면 react-compiler purity 룰 위반 — 그래서 prop 으로 받음.
   isImportStale: boolean
 }
 
-export default function ShopImportForm({ lastImportAt, timezone, isImportStale }: Props) {
+interface LastShopChestLog {
+  importedAt: string
+  loggedAt: string
+  player: string
+  itemNameRaw: string
+  quantity: number
+}
+
+export default function ShopImportForm({
+  lastImportAt,
+  lastChestLog,
+  timezone,
+  isImportStale,
+}: Props) {
   const router = useRouter()
   const t = useTranslations('adminShopImport')
   const [text, setText] = useState('')
@@ -211,6 +225,10 @@ export default function ShopImportForm({ lastImportAt, timezone, isImportStale }
           <LastImportBadge iso={lastImportAt} stale={isImportStale} timezone={timezone} t={t} />
         </div>
 
+        <LogSyncGuideCard t={t} />
+
+        <LastLogCheckpointCard lastChestLog={lastChestLog} timezone={timezone} t={t} />
+
         {!lastImportAt && (
           <div className="flex items-start gap-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-xs text-indigo-100">
             <Info size={14} className="mt-0.5 shrink-0" />
@@ -271,7 +289,7 @@ export default function ShopImportForm({ lastImportAt, timezone, isImportStale }
               <Check size={14} />
             )}
             {batches.length > 0
-              ? t('saveButtonWithCount', { batches: batches.length, items: totals.newEntries })
+              ? t('saveButtonWithCount', { batches: batches.length, items: totals.applicableRows })
               : t('saveButton')}
           </button>
           {batches.length > 0 && (
@@ -331,10 +349,73 @@ export default function ShopImportForm({ lastImportAt, timezone, isImportStale }
   )
 }
 
+function LogSyncGuideCard({ t }: { t: ImportTranslator }) {
+  return (
+    <div className="rounded-lg border border-sky-500/30 bg-sky-500/5 px-3 py-3">
+      <div className="flex items-start gap-2">
+        <Info size={14} className="mt-0.5 shrink-0 text-sky-300" />
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-sky-100">{t('syncGuideTitle')}</p>
+          <ol className="grid gap-2 text-[11px] leading-relaxed text-sky-100/80 sm:grid-cols-3">
+            <li>{t('syncGuideStepCopy')}</li>
+            <li>{t('syncGuideStepCheck')}</li>
+            <li>{t('syncGuideStepApply')}</li>
+          </ol>
+          <p className="text-[11px] leading-relaxed text-sky-100/70">
+            {t('syncGuideOverlapHint')}
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function LastLogCheckpointCard({
+  lastChestLog,
+  timezone,
+  t,
+}: {
+  lastChestLog: LastShopChestLog | null
+  timezone: string
+  t: ImportTranslator
+}) {
+  if (!lastChestLog) {
+    return (
+      <div className="rounded-lg border border-gray-800 bg-gray-950/50 px-3 py-2 text-xs text-gray-400">
+        <span className="font-semibold text-gray-300">{t('checkpointTitle')}</span>
+        <span className="ml-2">{t('checkpointEmpty')}</span>
+      </div>
+    )
+  }
+
+  const quantity =
+    lastChestLog.quantity > 0
+      ? `+${lastChestLog.quantity}`
+      : String(lastChestLog.quantity)
+
+  return (
+    <div className="rounded-lg border border-gray-800 bg-gray-950/50 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+        <span className="font-semibold text-gray-300">{t('checkpointTitle')}</span>
+        <span className="font-mono text-amber-200">
+          {formatLoggedAt(lastChestLog.loggedAt, timezone)}
+        </span>
+        <span className="text-gray-400">{lastChestLog.player}</span>
+        <span className="truncate text-gray-200">{lastChestLog.itemNameRaw}</span>
+        <span className="font-mono text-gray-400">{quantity}</span>
+      </div>
+      <p className="mt-1 text-[11px] text-gray-500">
+        {t('checkpointSavedAt', { when: formatLoggedAt(lastChestLog.importedAt, timezone) })}
+      </p>
+    </div>
+  )
+}
+
 interface Totals {
   batches: number
   parsed: number
   newEntries: number
+  applicableRows: number
   duplicatesSkipped: number
   skippedBeforeStart: number
   blacklistedRows: number
@@ -349,6 +430,7 @@ function aggregateTotals(batches: StagedBatch[]): Totals {
     batches: batches.length,
     parsed: 0,
     newEntries: 0,
+    applicableRows: 0,
     duplicatesSkipped: 0,
     skippedBeforeStart: 0,
     blacklistedRows: 0,
@@ -365,6 +447,10 @@ function aggregateTotals(batches: StagedBatch[]): Totals {
     // 여러 배치를 합치면 겹치는 경우가 있으므로, 각 배치의 newEntriesAfterLast 합은
     // 상한선에 가깝다. 엄밀한 전역 계산은 commit 시 재계산되므로 여기선 휴리스틱.
     acc.newEntries += p.newEntriesAfterLast
+    acc.applicableRows += Math.max(
+      0,
+      p.parsed - p.skippedBeforeStart - p.duplicatesSkipped - p.tierEnchantExcludedRows,
+    )
     acc.duplicatesSkipped += p.duplicatesSkipped
     acc.skippedBeforeStart += p.skippedBeforeStart
     acc.blacklistedRows += p.blacklistedRows
@@ -622,7 +708,7 @@ function RunningTotalsCard({
           <StatCell label={t('statParsed')} value={totals.parsed} />
           <StatCell
             label={t('statNewEntries')}
-            value={totals.newEntries}
+            value={totals.applicableRows}
             accent="emerald"
           />
           <StatCell label={t('statDuplicates')} value={totals.duplicatesSkipped} />
