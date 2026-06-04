@@ -1285,6 +1285,14 @@
     "noticeImageFileTooLarge": "파일 크기는 5MB를 넘을 수 없습니다.",
     "noticeImageSelectFirst": "파일을 먼저 선택해 주세요.",
     "noticeImagePreviewAlt": "공지 이미지 미리보기",
+    "noticeImageSizeLabel": "이미지 표시 크기",
+    "noticeImageSizeDescription": "상점 공지에서 이미지가 차지하는 폭을 조절합니다.",
+    "noticeImageSize": {
+      "full": "전체 폭",
+      "large": "크게",
+      "medium": "보통",
+      "small": "작게"
+    },
     "saved": "저장됨",
     "saving": "저장 중…",
     "save": "저장",

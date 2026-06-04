@@ -31,6 +31,7 @@ import { categoryRank } from '@/lib/shop/category-order'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { loadAdminShopInventoryRows } from '@/lib/shop/inventory-queries'
+import { normalizeNoticeImageSize } from '@/lib/notice-image-size'
 
 export const dynamic = 'force-dynamic'
 
@@ -78,6 +79,7 @@ export default async function AdminShopPage() {
     { count: pendingOrderCount },
     deliveryNotice,
     deliveryNoticeImageUrl,
+    deliveryNoticeImageSizeRaw,
     discountRateSetting,
     aodpCitiesRaw,
     aodpPriceModeRaw,
@@ -104,6 +106,7 @@ export default async function AdminShopPage() {
       .eq('status', 'pending'),
     getAppSetting('shop_delivery_notice', '', guildId),
     getAppSetting('shop_delivery_notice_image_url', '', guildId),
+    getAppSetting('shop_delivery_notice_image_size', 'full', guildId),
     getAppSetting('shop_discount_rate', '1', guildId),
     getAppSetting('aodp_cities', '', guildId),
     getAppSetting('aodp_price_mode', 'spot', guildId),
@@ -172,6 +175,7 @@ export default async function AdminShopPage() {
       : 1
 
   const discountRate = parseShopDiscountRate(discountRateSetting)
+  const deliveryNoticeImageSize = normalizeNoticeImageSize(deliveryNoticeImageSizeRaw)
   // DB 가 name_ko asc 로 반환 → stable sort 로 카테고리만 재정렬하면
   // (카테고리 랭크, 이름) 순이 된다.
   const inventoryRows: InventoryRow[] = inventoryResult.rows
@@ -311,8 +315,10 @@ export default async function AdminShopPage() {
           <NoticeSettingForm
             settingKey="shop_delivery_notice"
             target="shop"
+            imageSizeSettingKey="shop_delivery_notice_image_size"
             initialMessage={deliveryNotice}
             initialImageUrl={deliveryNoticeImageUrl}
+            initialImageSize={deliveryNoticeImageSize}
             title={tPage('deliveryNoticeTitle')}
             description={tPage('deliveryNoticeDescription')}
             label={tPage('deliveryNoticeLabel')}

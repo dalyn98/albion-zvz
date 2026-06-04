@@ -1,17 +1,30 @@
 import { Megaphone } from 'lucide-react'
+import {
+  normalizeNoticeImageSize,
+  type NoticeImageSize,
+} from '@/lib/notice-image-size'
 
 interface Props {
   message: string
   imageUrl?: string
+  imageSize?: NoticeImageSize
+}
+
+const IMAGE_SIZE_CLASS: Record<NoticeImageSize, string> = {
+  full: 'w-full',
+  large: 'w-full max-w-3xl mx-auto',
+  medium: 'w-full max-w-xl mx-auto',
+  small: 'w-full max-w-sm mx-auto',
 }
 
 // Admin-authored notice banner shared between the events list and the regear
 // page. Always rendered (no dismiss). 사용자가 임의로 닫지 못하게 해 운영 공지가
 // 항상 보이도록 한다 — 닫기를 추가하려면 별도 정책이 정해진 뒤 다시 이 파일에
 // 상호작용을 추가하는 게 안전.
-export default function DismissibleNoticeBanner({ message, imageUrl }: Props) {
+export default function DismissibleNoticeBanner({ message, imageUrl, imageSize }: Props) {
   const trimmed = message.trim()
   const trimmedImage = (imageUrl ?? '').trim()
+  const normalizedImageSize = normalizeNoticeImageSize(imageSize)
   if (!trimmed && !trimmedImage) return null
 
   return (
@@ -29,7 +42,7 @@ export default function DismissibleNoticeBanner({ message, imageUrl }: Props) {
             <img
               src={trimmedImage}
               alt=""
-              className="w-full h-auto rounded-md border border-amber-500/20 block"
+              className={`${IMAGE_SIZE_CLASS[normalizedImageSize]} h-auto rounded-md border border-amber-500/20 block`}
             />
           )}
         </div>

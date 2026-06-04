@@ -1285,6 +1285,14 @@
     "noticeImageFileTooLarge": "文件大小不能超过 5MB。",
     "noticeImageSelectFirst": "请先选择文件。",
     "noticeImagePreviewAlt": "公告图片预览",
+    "noticeImageSizeLabel": "图片显示尺寸",
+    "noticeImageSizeDescription": "调整商店公告中图片占用的宽度。",
+    "noticeImageSize": {
+      "full": "全宽",
+      "large": "大",
+      "medium": "中",
+      "small": "小"
+    },
     "saved": "已保存",
     "saving": "保存中…",
     "save": "保存",

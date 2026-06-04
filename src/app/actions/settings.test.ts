@@ -201,6 +201,34 @@ describe('updateAppSetting', () => {
       }),
     )
   })
+
+  it('saves the shop notice image size with shop pricing permission and refreshes shop pages', async () => {
+    const { db, calls } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(
+      updateAppSetting('shop_delivery_notice_image_size', 'medium'),
+    ).resolves.toEqual({})
+
+    expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SHOP_PRICING])
+    expect(calls[0].row).toMatchObject({
+      guild_id: 'guild-1',
+      key: 'shop_delivery_notice_image_size',
+      value: 'medium',
+    })
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/shop')
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/shop')
+  })
+
+  it('rejects unsupported shop notice image sizes before saving', async () => {
+    await expect(
+      updateAppSetting('shop_delivery_notice_image_size', 'giant'),
+    ).resolves.toEqual({
+      error: 'invalidEnumValue:{"values":"full, large, medium, small"}',
+    })
+
+    expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
+  })
 })
 
 describe('updateTenantAdminRoles', () => {

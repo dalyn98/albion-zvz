@@ -1285,6 +1285,14 @@
     "noticeImageFileTooLarge": "File size cannot exceed 5MB.",
     "noticeImageSelectFirst": "Please select a file first.",
     "noticeImagePreviewAlt": "Notice image preview",
+    "noticeImageSizeLabel": "Image display size",
+    "noticeImageSizeDescription": "Adjust how much width the image uses in the shop notice.",
+    "noticeImageSize": {
+      "full": "Full width",
+      "large": "Large",
+      "medium": "Medium",
+      "small": "Small"
+    },
     "saved": "Saved",
     "saving": "Saving…",
     "save": "Save",

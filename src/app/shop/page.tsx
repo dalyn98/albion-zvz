@@ -17,6 +17,7 @@ import ShopCatalog, {
 import ShopMyOrders from '@/components/ShopMyOrders'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
+import { normalizeNoticeImageSize } from '@/lib/notice-image-size'
 
 // 관리자 설정에서 저장된 aodp_cities (JSON 배열) 에서 첫 항목을 꺼낸다. 파싱
 // 실패하거나 허용된 도시가 아니면 기본값(카에르레온) 으로 폴백 — 관리자가
@@ -48,6 +49,7 @@ export default async function PublicShopPage() {
     tShop,
     deliveryNotice,
     deliveryNoticeImageUrl,
+    deliveryNoticeImageSizeRaw,
     discountRateSetting,
     aodpCitiesSetting,
     tenantTimezone,
@@ -57,6 +59,7 @@ export default async function PublicShopPage() {
     getTranslations('shopPublic'),
     getAppSetting('shop_delivery_notice', '', guildId),
     getAppSetting('shop_delivery_notice_image_url', '', guildId),
+    getAppSetting('shop_delivery_notice_image_size', 'full', guildId),
     getAppSetting('shop_discount_rate', '1', guildId),
     getAppSetting('aodp_cities', '', guildId),
     getTenantTimezone(guildId),
@@ -68,6 +71,7 @@ export default async function PublicShopPage() {
 
   const discountRate = parseShopDiscountRate(discountRateSetting)
   const baseCity = parseBaseCity(aodpCitiesSetting)
+  const deliveryNoticeImageSize = normalizeNoticeImageSize(deliveryNoticeImageSizeRaw)
 
   // 가격 계산 후 카테고리 → 이름 순으로 안정 정렬. 가격 미정 재고도 견적
   // 주문 대상으로 노출한다. DB 가 name_ko asc 로 반환하므로 카테고리 랭크만
@@ -112,6 +116,7 @@ export default async function PublicShopPage() {
       <DismissibleNoticeBanner
         message={deliveryNotice}
         imageUrl={deliveryNoticeImageUrl}
+        imageSize={deliveryNoticeImageSize}
       />
 
       {!session && (

@@ -1285,6 +1285,14 @@
     "noticeImageFileTooLarge": "ファイルサイズは 5MB を超えることはできません。",
     "noticeImageSelectFirst": "ファイルを先に選択してください。",
     "noticeImagePreviewAlt": "お知らせ画像プレビュー",
+    "noticeImageSizeLabel": "画像の表示サイズ",
+    "noticeImageSizeDescription": "ショップのお知らせで画像が使う幅を調整します。",
+    "noticeImageSize": {
+      "full": "全幅",
+      "large": "大きめ",
+      "medium": "標準",
+      "small": "小さめ"
+    },
     "saved": "保存しました",
     "saving": "保存中…",
     "save": "保存",

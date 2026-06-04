@@ -14,6 +14,10 @@ import { Image as ImageIcon, Save, Eraser, Upload, Trash2 } from 'lucide-react'
 import ImageCropModal from '@/components/ImageCropModal'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { useReportDirty } from './UnsavedChangesProvider'
+import {
+  NOTICE_IMAGE_SIZE_VALUES,
+  type NoticeImageSize,
+} from '@/lib/notice-image-size'
 
 export const NOTICE_MAX_LENGTH = 500
 const MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -23,8 +27,10 @@ interface Props {
   // target/initialImageUrl are optional. When omitted, this becomes a text-only
   // notice editor.
   target?: NoticeTarget
+  imageSizeSettingKey?: AppSettingKey
   initialMessage: string
   initialImageUrl?: string
+  initialImageSize?: NoticeImageSize
   title: string
   description: string
   label: string
@@ -38,8 +44,10 @@ interface Props {
 export default function NoticeSettingForm({
   settingKey,
   target,
+  imageSizeSettingKey,
   initialMessage,
   initialImageUrl = '',
+  initialImageSize = 'full',
   title,
   description,
   label,
@@ -53,6 +61,7 @@ export default function NoticeSettingForm({
   const t = useTranslations('adminSettings')
   const router = useRouter()
   const textareaId = useId()
+  const imageSizeSelectId = useId()
   const [text, setText] = useState(initialMessage)
   const [savedText, setSavedText] = useState(initialMessage)
   const [loading, setLoading] = useState(false)
@@ -66,16 +75,22 @@ export default function NoticeSettingForm({
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [imgError, setImgError] = useState('')
   const [imgPending, startImgTransition] = useTransition()
+  const [imageSize, setImageSize] = useState<NoticeImageSize>(initialImageSize)
+  const [savedImageSize, setSavedImageSize] = useState<NoticeImageSize>(initialImageSize)
+  const [imageSizeError, setImageSizeError] = useState('')
+  const [imageSizeSaved, setImageSizeSaved] = useState(false)
+  const [imageSizePending, startImageSizeTransition] = useTransition()
   const askConfirm = useConfirm()
 
   const dirty = text !== savedText
+  const imageSizeDirty = imageSizeSettingKey ? imageSize !== savedImageSize : false
   const tooLong = text.length > NOTICE_MAX_LENGTH
   const displayImageUrl = previewUrl || initialImageUrl
   // settingKey 로 instance 식별 — 한 페이지에 여러 NoticeSettingForm 이 동시에 마운트될 수 있음.
   // pendingFile/croppedFile 도 unsaved upload 로 간주.
   useReportDirty(
     `notice-setting:${settingKey}`,
-    dirty || pendingFile !== null || croppedFile !== null,
+    dirty || pendingFile !== null || croppedFile !== null || imageSizeDirty,
   )
 
   const handleSave = async () => {
@@ -173,6 +188,22 @@ export default function NoticeSettingForm({
         return
       }
       resetSelection()
+      router.refresh()
+    })
+  }
+
+  const handleSaveImageSize = () => {
+    if (!imageSizeSettingKey) return
+    setImageSizeError('')
+    setImageSizeSaved(false)
+    startImageSizeTransition(async () => {
+      const result = await updateAppSetting(imageSizeSettingKey, imageSize)
+      if (result.error) {
+        setImageSizeError(result.error)
+        return
+      }
+      setSavedImageSize(imageSize)
+      setImageSizeSaved(true)
       router.refresh()
     })
   }
@@ -307,6 +338,49 @@ export default function NoticeSettingForm({
         </div>
 
         <p className="text-gray-600 text-[11px]">{t('noticeImageFileHint')}</p>
+
+        {imageSizeSettingKey && (
+          <div className="rounded-lg border border-gray-800 bg-gray-950/50 px-3 py-3 space-y-2">
+            <div>
+              <label htmlFor={imageSizeSelectId} className="text-gray-300 text-xs font-semibold">
+                {t('noticeImageSizeLabel')}
+              </label>
+              <p className="text-gray-500 text-[11px] mt-0.5">
+                {t('noticeImageSizeDescription')}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                id={imageSizeSelectId}
+                value={imageSize}
+                onChange={(e) => {
+                  setImageSize(e.target.value as NoticeImageSize)
+                  setImageSizeSaved(false)
+                }}
+                className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+              >
+                {NOTICE_IMAGE_SIZE_VALUES.map((size) => (
+                  <option key={size} value={size}>
+                    {t(`noticeImageSize.${size}`)}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={handleSaveImageSize}
+                disabled={imageSizePending || !imageSizeDirty}
+                className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 disabled:bg-gray-800/40 disabled:text-gray-600 text-gray-200 px-3 py-2 rounded-lg transition-colors text-xs"
+              >
+                <Save size={12} />
+                {imageSizePending ? tCommon('saving') : tCommon('save')}
+              </button>
+              {imageSizeSaved && !imageSizeDirty && (
+                <span className="text-[11px] text-emerald-400">{tCommon('saved')}</span>
+              )}
+            </div>
+            {imageSizeError && <p className="text-red-400 text-xs">{imageSizeError}</p>}
+          </div>
+        )}
       </div>
       )}
 

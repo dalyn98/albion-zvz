@@ -28,6 +28,7 @@ import {
   TIER_ENCHANT_SUM_MIN,
   parseTierEnchantSumSetting,
 } from '@/lib/shop/import-tier-enchant-filter'
+import { NOTICE_IMAGE_SIZE_VALUES } from '@/lib/notice-image-size'
 
 const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'event_notification_message',
@@ -46,6 +47,7 @@ const EDITABLE_KEYS: readonly AppSettingKey[] = [
   'regear_payout_rate_percent',
   'shop_discount_rate',
   'shop_delivery_notice',
+  'shop_delivery_notice_image_size',
   'shop_import_exclude_tier_enchant_sum_lte',
   'shop_import_exclude_tier_enchant_sum_gte',
   'log_start_shop_chest_at',
@@ -120,6 +122,7 @@ function settingCaps(key: AppSettingKey): readonly bigint[] {
   if (
     key === 'shop_discount_rate' ||
     key === 'shop_delivery_notice' ||
+    key === 'shop_delivery_notice_image_size' ||
     key === 'aodp_cities' ||
     key === 'aodp_price_mode' ||
     key === 'aodp_min_quality'
@@ -315,6 +318,7 @@ const ENUM_VALUES: Partial<Record<AppSettingKey, readonly string[]>> = {
   // 빈 문자열을 별도 값으로 취급해 enum 에 포함시킨다 — 어드민이 빈 값으로
   // 명시 저장하면 자동 감지로 돌아감.
   guild_profile_server: ['', 'east', 'west', 'europe'] as const,
+  shop_delivery_notice_image_size: NOTICE_IMAGE_SIZE_VALUES,
 }
 
 // csv 직렬화 키. 콤마로 split 한 각 토큰이 화이트리스트에 들어 있어야 한다.
@@ -488,6 +492,7 @@ export async function updateAppSetting(
     revalidatePath('/admin/dashboard/settings')
     if (
       key === 'shop_delivery_notice' ||
+      key === 'shop_delivery_notice_image_size' ||
       key === 'log_start_shop_chest_at' ||
       key === 'shop_import_exclude_tier_enchant_sum_lte' ||
       key === 'shop_import_exclude_tier_enchant_sum_gte' ||
