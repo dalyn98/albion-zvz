@@ -40,6 +40,8 @@ const baseRow: GuildBattleViewDbRow = {
   legacy_is_provisional: false,
   match_index: 1,
   match_total: 1,
+  has_active_diff: false,
+  active_diff_types: [],
   evaluated_at: '2026-06-04T12:30:00.000Z',
 }
 
@@ -98,6 +100,8 @@ describe('toGuildBattleListRow', () => {
       legacyIsProvisional: false,
       matchIndex: 1,
       matchTotal: 1,
+      hasActiveDiff: false,
+      activeDiffTypes: [],
       evaluatedAt: '2026-06-04T12:30:00.000Z',
     })
   })
@@ -116,6 +120,8 @@ describe('toGuildBattleListRow', () => {
       legacy_row_outcome: null,
       match_index: null,
       match_total: null,
+      has_active_diff: true,
+      active_diff_types: ['missing_legacy_projection'],
     })
 
     expect(row).toMatchObject({
@@ -130,6 +136,8 @@ describe('toGuildBattleListRow', () => {
       legacyRowOutcome: null,
       matchIndex: 1,
       matchTotal: 1,
+      hasActiveDiff: true,
+      activeDiffTypes: ['missing_legacy_projection'],
     })
   })
 })

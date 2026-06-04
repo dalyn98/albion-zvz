@@ -5,6 +5,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import {
   buildBattlePlayerSummaries,
+  categorizeSize,
   computeHomeAllianceStats,
   computeOpponentGuildBreakdown,
   parseRawBattle,
@@ -14,6 +15,13 @@ import {
   type OpponentGuildBreakdown,
   type SizeCategory,
 } from '@/lib/albion-battles'
+import type {
+  BattleProjectionEvidenceSource,
+  BattleProjectionStatus,
+  BattleRelationScope,
+  BattleResultEstimate,
+  BattleViewPolicy,
+} from '@/lib/battle-ledger-shadow'
 
 // 1~2명 스트래글러는 "집계 규모에 맞는 길드" 가 아니다 — small 카테고리 최소
 // 인원 (10) 과 동일한 컷을 적용해 노이즈를 잘라낸다. tenant_battle_records 자체가
@@ -77,6 +85,7 @@ export interface CrossTenantPerspective {
 
 export interface BattleDetail {
   id: string
+  legacyTenantBattleRecordId: string | null
   albionBattleId: number
   clusterName: string | null
   startedAt: string
@@ -104,8 +113,16 @@ export interface BattleDetail {
   matchIndex: number
   matchTotal: number
   isProvisional: boolean
-  sizeCategory: SizeCategory
+  sizeCategory: SizeCategory | null
   outcome: 'win' | 'loss' | 'tie'
+  relationScope: BattleRelationScope
+  viewPolicy: BattleViewPolicy
+  resultEstimate: BattleResultEstimate
+  projectionStatus: BattleProjectionStatus
+  evidenceSource: BattleProjectionEvidenceSource
+  isMeaningful: boolean
+  hasActiveDiff: boolean
+  activeDiffTypes: string[]
   // 상대 측 길드별 분해. raw_battle 에서 직접 계산 — 1~2명 스트래글러 컷오프
   // (OPPONENT_GUILD_MIN_TEAM_SIZE) 적용. raw_battle 이 없는 구 행이면 빈 배열.
   opponentGuilds: OpponentGuildBreakdown[]
@@ -136,6 +153,12 @@ export interface BattleDetail {
 // 이벤트를 최소화. 과하게 잡혀도 동일 배틀 시간대라 UI 상 혼동은 없다.
 const WINDOW_PADDING_MS = 15 * 60 * 1000
 
+function estimateToOutcome(estimate: BattleResultEstimate): 'win' | 'loss' | 'tie' {
+  if (estimate === 'advantage') return 'win'
+  if (estimate === 'disadvantage') return 'loss'
+  return 'tie'
+}
+
 // 자기 tenant 시점 또는 cross-tenant 시점 모두 같은 detail shape 으로 반환.
 // `perspectiveSlug` 가 주어지면 그 slug 의 등록된 tenant 시점으로 해석되어
 // killboard 이벤트는 anonymized 모드 (Discord identity 가려짐) 로 내려간다.
@@ -159,19 +182,115 @@ export async function getBattleDetail(
     const myGuildId = await getSessionGuildId(session)
     const db = getAdminClient()
 
-    // 내 tenant 의 row 부터 조회 — battle_record_id 와 cross-tenant 후보 산출에
-    // 필요. 실패해도 cross 모드일 때는 직접 다른 행을 찾을 수 있지만, 본 페이지는
-    // "내 길드 사이트에서 본 배틀" 진입 흐름이라 항상 내 row 가 존재해야 함.
-    const { data: myRow, error: myErr } = await db
-      .from('tenant_battle_records')
+    type DetailRow = Record<string, unknown> & {
+      __ledger?: {
+        relationScope: BattleRelationScope
+        viewPolicy: BattleViewPolicy
+        resultEstimate: BattleResultEstimate
+        projectionStatus: BattleProjectionStatus
+        evidenceSource: BattleProjectionEvidenceSource
+        isMeaningful: boolean
+        hasActiveDiff: boolean
+        activeDiffTypes: string[]
+        legacyTenantBattleRecordId: string | null
+      }
+    }
+
+    // 새 제품 표면은 guild_battle_views projection id 를 먼저 해석한다. 구
+    // tenant_battle_records id 링크는 아래 fallback 으로 계속 지원한다.
+    let myRow: DetailRow | null = null
+    const { data: ledgerRow, error: ledgerErr } = await db
+      .from('guild_battle_views')
       .select(
-        'id, battle_record_id, home_guild_id, home_guild_name, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, main_opponent_force_kind, main_opponent_force_name, main_opponent_team_size, main_opponent_kills, main_opponent_deaths, main_opponent_kill_fame, match_index, match_total, is_provisional, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name, ended_at, raw_battle)',
+        'id, tenant_id, battle_record_id, legacy_tenant_battle_record_id, albion_battle_id, started_at, ended_at, cluster_name, subject_albion_id, subject_name, subject_alliance_id, subject_alliance_name, relation_scope, opponent_force_key, opponent_force_kind, opponent_force_name, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, subject_team_size, subject_kills, subject_deaths, subject_kill_fame, status, evidence_source, is_meaningful, view_policy, result_estimate, size_category, legacy_outcome, legacy_row_outcome, legacy_is_provisional, match_index, match_total, has_active_diff, active_diff_types',
       )
-      .eq('guild_id', myGuildId)
+      .eq('tenant_id', myGuildId)
       .eq('id', id)
       .maybeSingle()
-    if (myErr) return { detail: null, error: myErr.message }
-    if (!myRow) return { detail: null }
+    if (ledgerErr) return { detail: null, error: ledgerErr.message }
+
+    if (ledgerRow) {
+      const { data: rawBattleRow, error: rawBattleErr } = await db
+        .from('battle_records')
+        .select('albion_battle_id, cluster_name, ended_at, raw_battle')
+        .eq('id', ledgerRow.battle_record_id as string)
+        .maybeSingle()
+      if (rawBattleErr) return { detail: null, error: rawBattleErr.message }
+      if (!rawBattleRow) return { detail: null }
+
+      const resultEstimate = ledgerRow.result_estimate as BattleResultEstimate
+      const sizeCategory =
+        (ledgerRow.size_category as SizeCategory | null) ??
+        categorizeSize(
+          Math.max(
+            ledgerRow.subject_team_size as number,
+            ledgerRow.opponent_team_size as number,
+          ),
+        )
+      const outcome =
+        (ledgerRow.legacy_row_outcome as 'win' | 'loss' | 'tie' | null) ??
+        (ledgerRow.legacy_outcome as 'win' | 'loss' | 'tie' | null) ??
+        estimateToOutcome(resultEstimate)
+
+      myRow = {
+        id: ledgerRow.id,
+        battle_record_id: ledgerRow.battle_record_id,
+        home_guild_id: ledgerRow.subject_albion_id,
+        home_guild_name: ledgerRow.subject_name,
+        home_alliance_name: ledgerRow.subject_alliance_name,
+        home_team_size: ledgerRow.subject_team_size,
+        home_kills: ledgerRow.subject_kills,
+        home_deaths: ledgerRow.subject_deaths,
+        home_kill_fame: ledgerRow.subject_kill_fame,
+        opponent_team_size: ledgerRow.opponent_team_size,
+        opponent_kills: ledgerRow.opponent_kills,
+        opponent_deaths: ledgerRow.opponent_deaths,
+        opponent_kill_fame: ledgerRow.opponent_kill_fame,
+        opponent_guild_names:
+          ledgerRow.opponent_force_kind === 'guild' ? [ledgerRow.opponent_force_name] : [],
+        opponent_alliance_names:
+          ledgerRow.opponent_force_kind === 'alliance' ? [ledgerRow.opponent_force_name] : [],
+        primary_opponent_name: ledgerRow.opponent_force_name,
+        main_opponent_force_kind: ledgerRow.opponent_force_kind,
+        main_opponent_force_name: ledgerRow.opponent_force_name,
+        main_opponent_team_size: ledgerRow.opponent_team_size,
+        main_opponent_kills: ledgerRow.opponent_kills,
+        main_opponent_deaths: ledgerRow.opponent_deaths,
+        main_opponent_kill_fame: ledgerRow.opponent_kill_fame,
+        match_index: ledgerRow.match_index ?? 1,
+        match_total: ledgerRow.match_total ?? 1,
+        is_provisional:
+          ledgerRow.status !== 'final' || ((ledgerRow.legacy_is_provisional as boolean | null) ?? false),
+        size_category: sizeCategory,
+        outcome,
+        started_at: ledgerRow.started_at,
+        battle_records: rawBattleRow,
+        __ledger: {
+          relationScope: ledgerRow.relation_scope as BattleRelationScope,
+          viewPolicy: ledgerRow.view_policy as BattleViewPolicy,
+          resultEstimate,
+          projectionStatus: ledgerRow.status as BattleProjectionStatus,
+          evidenceSource: ledgerRow.evidence_source as BattleProjectionEvidenceSource,
+          isMeaningful: ledgerRow.is_meaningful as boolean,
+          hasActiveDiff: ledgerRow.has_active_diff as boolean,
+          activeDiffTypes: (ledgerRow.active_diff_types as string[] | null) ?? [],
+          legacyTenantBattleRecordId:
+            (ledgerRow.legacy_tenant_battle_record_id as string | null) ?? null,
+        },
+      }
+    } else {
+      const { data: legacyRow, error: myErr } = await db
+        .from('tenant_battle_records')
+        .select(
+          'id, battle_record_id, home_guild_id, home_guild_name, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, main_opponent_force_kind, main_opponent_force_name, main_opponent_team_size, main_opponent_kills, main_opponent_deaths, main_opponent_kill_fame, match_index, match_total, is_provisional, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name, ended_at, raw_battle)',
+        )
+        .eq('guild_id', myGuildId)
+        .eq('id', id)
+        .maybeSingle()
+      if (myErr) return { detail: null, error: myErr.message }
+      if (!legacyRow) return { detail: null }
+      myRow = legacyRow as DetailRow
+    }
 
     const battleRecordId = myRow.battle_record_id as string
 
@@ -404,9 +523,29 @@ export async function getBattleDetail(
       })
     }
     const players = rawBattle ? buildBattlePlayerSummaries(rawBattle, playerEvidenceRows) : []
+    const fallbackResultEstimate: BattleResultEstimate =
+      activeRow.outcome === 'win'
+        ? 'advantage'
+        : activeRow.outcome === 'loss'
+          ? 'disadvantage'
+          : 'even'
+    const ledger = activeRow.__ledger ?? {
+      relationScope: 'direct' as BattleRelationScope,
+      viewPolicy: 'default_meaningful' as BattleViewPolicy,
+      resultEstimate: fallbackResultEstimate,
+      projectionStatus: (activeRow.is_provisional as boolean | null)
+        ? ('provisional' as BattleProjectionStatus)
+        : ('final' as BattleProjectionStatus),
+      evidenceSource: 'battle_summary' as BattleProjectionEvidenceSource,
+      isMeaningful: true,
+      hasActiveDiff: false,
+      activeDiffTypes: [],
+      legacyTenantBattleRecordId: activeRow.id as string,
+    }
 
     const detail: BattleDetail = {
       id: activeRow.id as string,
+      legacyTenantBattleRecordId: ledger.legacyTenantBattleRecordId,
       albionBattleId: battle?.albion_battle_id as number,
       clusterName: (battle?.cluster_name as string | null) ?? null,
       startedAt: activeRow.started_at as string,
@@ -450,8 +589,16 @@ export async function getBattleDetail(
       matchIndex: (activeRow.match_index as number | null) ?? 1,
       matchTotal: (activeRow.match_total as number | null) ?? 1,
       isProvisional: (activeRow.is_provisional as boolean | null) ?? false,
-      sizeCategory: activeRow.size_category as SizeCategory,
+      sizeCategory: activeRow.size_category as SizeCategory | null,
       outcome: activeRow.outcome as 'win' | 'loss' | 'tie',
+      relationScope: ledger.relationScope,
+      viewPolicy: ledger.viewPolicy,
+      resultEstimate: ledger.resultEstimate,
+      projectionStatus: ledger.projectionStatus,
+      evidenceSource: ledger.evidenceSource,
+      isMeaningful: ledger.isMeaningful,
+      hasActiveDiff: ledger.hasActiveDiff,
+      activeDiffTypes: ledger.activeDiffTypes,
       opponentGuilds,
       homeAllianceStats,
       forceEngagements,

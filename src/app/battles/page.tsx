@@ -4,31 +4,25 @@ import { Swords, Info, ChevronRight } from 'lucide-react'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
-import BattleRecordList, {
-  type BattleRecordRow,
-  type BattleListTab,
-} from '@/components/BattleRecordList'
-import { isSizeCategory, SIZE_CATEGORIES } from '@/lib/albion-battles'
+import BattleRecordList from '@/components/BattleRecordList'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import {
+  normalizeGuildBattleListMode,
+  normalizeGuildBattleResultFilter,
+  toGuildBattleListRow,
+  type GuildBattleViewDbRow,
+} from '@/lib/guild-battle-view'
 
 export const dynamic = 'force-dynamic'
 
 interface SearchParams {
+  view?: string
   tab?: string
+  result?: string
   outcome?: string
 }
 
-const RECENT_LIMIT = 20
-const SIZE_LIMIT = 50
-// mig 150 이전 — low-engagement 컷이 TS-side 라 over-fetch 후 슬라이스했다.
-// mig 150 부터는 tenant_battle_records.is_high_engagement 생성 컬럼 + 부분
-// 인덱스 (idx_tenant_battle_records_high_engagement) 로 SQL-side 정확 fetch.
-// over-fetch multiplier 제거 — limit 만큼만 가져온다.
-
-function resolveTab(raw: string | undefined): BattleListTab {
-  if (raw && isSizeCategory(raw)) return raw
-  return 'recent'
-}
+const LIST_LIMIT = 60
 
 export default async function BattlesPage({
   searchParams,
@@ -46,74 +40,43 @@ export default async function BattlesPage({
   }
   const guildId = await getSessionGuildId(session)
 
-  const activeTab = resolveTab(sp.tab)
-  const outcomeFilter =
-    sp.outcome === 'win' || sp.outcome === 'loss' || sp.outcome === 'tie'
-      ? sp.outcome
-      : null
+  const activeMode = normalizeGuildBattleListMode(sp.view ?? sp.tab)
+  const resultFilter = normalizeGuildBattleResultFilter(sp.result ?? sp.outcome)
 
   // guildId 는 session 에서 내려와 사용자가 자기 tenant 외 데이터를 볼 수 없음.
-  // 관리자 클라이언트는 RLS 를 우회해도 .eq('guild_id') 로 명시적 스코프 유지.
+  // 관리자 클라이언트는 RLS 를 우회해도 새 read model 의 tenant_id 로 명시적
+  // 스코프 유지. legacy tenant_battle_records 는 view 내부의 호환 join 일 뿐이다.
   const db = getAdminClient()
-  const limit = activeTab === 'recent' ? RECENT_LIMIT : SIZE_LIMIT
-  // is_high_engagement = (home_kills+home_deaths) >= home_team_size*0.1 OR home_deaths >= 3
-  // (mig 150 의 STORED generated column). SQL-side 필터 + 전용 인덱스로 정확
-  // fetch — TS 측 후처리 필터 제거.
   let query = db
-    .from('tenant_battle_records')
+    .from('guild_battle_views')
     .select(
-      'id, battle_record_id, home_guild_name, home_alliance_name, home_team_size, home_kills, home_deaths, home_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, opponent_guild_names, opponent_alliance_names, primary_opponent_name, main_opponent_force_kind, main_opponent_force_name, main_opponent_team_size, main_opponent_kill_fame, match_index, match_total, is_provisional, size_category, outcome, started_at, battle_records!inner(albion_battle_id, cluster_name)',
+      'id, tenant_id, battle_record_id, legacy_tenant_battle_record_id, albion_server, albion_battle_id, started_at, ended_at, cluster_name, subject_name, subject_alliance_name, relation_scope, opponent_force_kind, opponent_force_name, subject_team_size, subject_kills, subject_deaths, subject_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, status, evidence_source, is_meaningful, view_policy, result_estimate, size_category, legacy_outcome, legacy_row_outcome, legacy_is_provisional, match_index, match_total, has_active_diff, active_diff_types, evaluated_at',
     )
-    .eq('guild_id', guildId)
-    .eq('is_high_engagement', true)
+    .eq('tenant_id', guildId)
     .order('started_at', { ascending: false })
-    .order('match_index', { ascending: true })
-    .limit(limit)
-  if (activeTab !== 'recent') query = query.eq('size_category', activeTab)
-  if (outcomeFilter) query = query.eq('outcome', outcomeFilter)
+    .order('relation_scope', { ascending: true })
+    .order('opponent_team_size', { ascending: false })
+    .limit(LIST_LIMIT)
+
+  if (activeMode === 'default') {
+    query = query.eq('relation_scope', 'direct').eq('view_policy', 'default_meaningful')
+  } else if (activeMode === 'direct') {
+    query = query.eq('relation_scope', 'direct')
+  } else if (activeMode === 'alliance') {
+    query = query.eq('relation_scope', 'alliance')
+  } else if (activeMode === 'excluded') {
+    query = query.eq('view_policy', 'small_or_low_engagement')
+  } else {
+    query = query.eq('has_active_diff', true)
+  }
+  if (resultFilter) query = query.eq('result_estimate', resultFilter)
 
   const [tenantTimezone, { data, error }] = await Promise.all([
     getTenantTimezone(guildId),
     query,
   ])
 
-  const rows: BattleRecordRow[] = (data ?? []).map((r) => {
-    const battle = Array.isArray(r.battle_records) ? r.battle_records[0] : r.battle_records
-    return {
-      id: r.id as string,
-      albionBattleId: battle?.albion_battle_id as number,
-      clusterName: (battle?.cluster_name as string | null) ?? null,
-      startedAt: r.started_at as string,
-      homeGuildName: r.home_guild_name as string,
-      homeAllianceName: (r.home_alliance_name as string | null) ?? null,
-      homeTeamSize: r.home_team_size as number,
-      homeKills: r.home_kills as number,
-      homeDeaths: r.home_deaths as number,
-      homeKillFame: r.home_kill_fame as number,
-      opponentTeamSize: r.opponent_team_size as number,
-      opponentKills: r.opponent_kills as number,
-      opponentDeaths: r.opponent_deaths as number,
-      opponentKillFame: r.opponent_kill_fame as number,
-      opponentGuildNames: (r.opponent_guild_names as string[] | null) ?? [],
-      opponentAllianceNames: (r.opponent_alliance_names as string[] | null) ?? [],
-      primaryOpponentName: (r.primary_opponent_name as string | null) ?? null,
-      mainOpponentTeamSize: (r.main_opponent_team_size as number | null) ?? (r.opponent_team_size as number),
-      mainOpponentKillFame:
-        (r.main_opponent_kill_fame as number | null) ?? (r.opponent_kill_fame as number),
-      mainOpponentName:
-        (r.main_opponent_force_name as string | null) ??
-        (r.primary_opponent_name as string | null) ??
-        '-',
-      mainOpponentKind:
-        (r.main_opponent_force_kind as 'alliance' | 'guild' | 'pending' | 'legacy' | null) ??
-        'legacy',
-      matchIndex: (r.match_index as number | null) ?? 1,
-      matchTotal: (r.match_total as number | null) ?? 1,
-      isProvisional: (r.is_provisional as boolean | null) ?? false,
-      sizeCategory: r.size_category as (typeof SIZE_CATEGORIES)[number],
-      outcome: r.outcome as 'win' | 'loss' | 'tie',
-    }
-  })
+  const rows = ((data ?? []) as GuildBattleViewDbRow[]).map(toGuildBattleListRow)
 
   return (
     <main className="flex-1 w-full max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 py-6 sm:py-8 space-y-5">
@@ -202,17 +165,17 @@ export default async function BattlesPage({
       <BattleRecordList
         rows={rows}
         timezone={tenantTimezone}
-        activeTab={activeTab}
-        outcomeFilter={outcomeFilter}
+        activeMode={activeMode}
+        resultFilter={resultFilter}
         emptyLabel={t('empty')}
-        filterOutcomeLabel={t('filterOutcome')}
+        filterResultLabel={t('filterResult')}
         filterAllLabel={tCommon('all')}
-        tabLabels={{
-          recent: t('tabRecent'),
-          small: t('size_small'),
-          middle: t('size_middle'),
-          large: t('size_large'),
-          zerg: t('size_zerg'),
+        modeLabels={{
+          default: t('viewDefault'),
+          direct: t('viewDirect'),
+          alliance: t('viewAlliance'),
+          excluded: t('viewExcluded'),
+          diffs: t('viewDiffs'),
         }}
         sizeLabels={{
           small: t('size_small'),
@@ -220,19 +183,41 @@ export default async function BattlesPage({
           large: t('size_large'),
           zerg: t('size_zerg'),
         }}
-        outcomeLabels={{
-          win: t('outcome_win'),
-          loss: t('outcome_loss'),
-          tie: t('outcome_tie'),
+        relationLabels={{
+          direct: t('relationDirect'),
+          alliance: t('relationAlliance'),
         }}
-        matchSplitLabel={t('matchSplitLabel')}
+        policyLabels={{
+          default_meaningful: t('policyDefault'),
+          small_or_low_engagement: t('policyExcluded'),
+        }}
+        resultLabels={{
+          advantage: t('result_advantage'),
+          disadvantage: t('result_disadvantage'),
+          even: t('result_even'),
+          unclear: t('result_unclear'),
+        }}
+        statusLabels={{
+          provisional: t('status_provisional'),
+          final: t('status_final'),
+          low_confidence: t('status_lowConfidence'),
+        }}
+        evidenceLabels={{
+          battle_summary: t('evidence_battleSummary'),
+          killboard_events: t('evidence_killboardEvents'),
+        }}
+        opponentKindLabels={{
+          alliance: t('mainOpponentAlliance'),
+          guild: t('mainOpponentGuild'),
+        }}
         sameBattleLabel={t('sameBattleLabel')}
-        provisionalLabel={t('provisionalLabel')}
+        diffLabel={t('diffLabel')}
+        ledgerOnlyLabel={t('ledgerOnlyLabel')}
         columnLabels={{
           startedAt: t('colStartedAt'),
-          size: t('colSize'),
-          outcome: t('colOutcome'),
+          scope: t('colScope'),
           opponent: t('colOpponent'),
+          result: t('colResult'),
           kdfame: t('colKdFame'),
           cluster: t('colCluster'),
         }}

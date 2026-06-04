@@ -58,30 +58,35 @@ export default async function BattleDetailView({ detail, battleId, timezone }: P
   ])
   const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
 
-  const outcomeLabel =
-    detail.outcome === 'win'
-      ? tList('outcome_win')
-      : detail.outcome === 'loss'
-        ? tList('outcome_loss')
-        : tList('outcome_tie')
-  const sizeLabel = tList(
-    detail.sizeCategory === 'small'
-      ? 'size_small'
-      : detail.sizeCategory === 'middle'
-        ? 'size_middle'
-        : detail.sizeCategory === 'large'
-          ? 'size_large'
-          : 'size_zerg',
-  )
+  const outcomeLabel = tList(`result_${detail.resultEstimate}`)
+  const sizeLabel = detail.sizeCategory
+    ? tList(
+        detail.sizeCategory === 'small'
+          ? 'size_small'
+          : detail.sizeCategory === 'middle'
+            ? 'size_middle'
+            : detail.sizeCategory === 'large'
+              ? 'size_large'
+              : 'size_zerg',
+      )
+    : tList('size_unknown')
 
   const outcomeColor =
-    detail.outcome === 'win'
+    detail.resultEstimate === 'advantage'
       ? 'text-emerald-400'
-      : detail.outcome === 'loss'
+      : detail.resultEstimate === 'disadvantage'
         ? 'text-red-400'
-        : 'text-gray-400'
+        : detail.resultEstimate === 'even'
+          ? 'text-gray-400'
+          : 'text-amber-300'
   const OutcomeIcon =
-    detail.outcome === 'win' ? Trophy : detail.outcome === 'loss' ? Skull : Minus
+    detail.resultEstimate === 'advantage'
+      ? Trophy
+      : detail.resultEstimate === 'disadvantage'
+        ? Skull
+        : detail.resultEstimate === 'even'
+          ? Minus
+          : Hourglass
 
   // 헤더 표제 = 주 상대(mainOpponentName). alliance 인 경우엔 알라이언스 명,
   // 단독 길드는 길드 명. 같은 battle 에 다른 force 가 있어도 매치업 분리 row 가
@@ -95,6 +100,18 @@ export default async function BattleDetailView({ detail, battleId, timezone }: P
         : null
   const matchSplitLabel = tList('matchSplitLabel')
   const provisionalLabel = tList('provisionalLabel')
+  const relationLabel = tList(
+    detail.relationScope === 'direct' ? 'relationDirect' : 'relationAlliance',
+  )
+  const policyLabel = tList(
+    detail.viewPolicy === 'default_meaningful' ? 'policyDefault' : 'policyExcluded',
+  )
+  const statusLabel = tList(`status_${detail.projectionStatus === 'low_confidence' ? 'lowConfidence' : detail.projectionStatus}`)
+  const evidenceLabel = tList(
+    detail.evidenceSource === 'battle_summary'
+      ? 'evidence_battleSummary'
+      : 'evidence_killboardEvents',
+  )
 
   const participants = groupByMember(detail.events)
   const playerGuildGroups = groupPlayersByGuild({
@@ -155,6 +172,40 @@ export default async function BattleDetailView({ detail, battleId, timezone }: P
         </div>
       )}
 
+      {detail.relationScope === 'alliance' && (
+        <div className="bg-sky-500/10 border border-sky-500/30 rounded-lg px-3 py-2 flex items-start gap-2">
+          <EyeOff size={14} className="text-sky-300 mt-0.5 flex-shrink-0" />
+          <div className="space-y-0.5 min-w-0 flex-1">
+            <p className="text-sky-100 text-xs font-semibold">{t('ledgerAllianceTitle')}</p>
+            <p className="text-sky-200/70 text-[11px]">{t('ledgerAllianceHint')}</p>
+          </div>
+        </div>
+      )}
+
+      {detail.viewPolicy === 'small_or_low_engagement' && (
+        <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 flex items-start gap-2">
+          <EyeOff size={14} className="text-gray-300 mt-0.5 flex-shrink-0" />
+          <div className="space-y-0.5 min-w-0 flex-1">
+            <p className="text-gray-200 text-xs font-semibold">{t('ledgerExcludedTitle')}</p>
+            <p className="text-gray-400 text-[11px]">{t('ledgerExcludedHint')}</p>
+          </div>
+        </div>
+      )}
+
+      {detail.hasActiveDiff && (
+        <div className="bg-violet-500/10 border border-violet-500/30 rounded-lg px-3 py-2 flex items-start gap-2">
+          <GitBranch size={14} className="text-violet-300 mt-0.5 flex-shrink-0" />
+          <div className="space-y-0.5 min-w-0 flex-1">
+            <p className="text-violet-100 text-xs font-semibold">{t('ledgerDiffTitle')}</p>
+            <p className="text-violet-200/70 text-[11px]">
+              {t('ledgerDiffHint', {
+                types: detail.activeDiffTypes.length > 0 ? detail.activeDiffTypes.join(', ') : '-',
+              })}
+            </p>
+          </div>
+        </div>
+      )}
+
       <header className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 space-y-3">
         <div className="flex items-start gap-3">
           <Swords size={20} className="text-amber-400 mt-1 flex-shrink-0" />
@@ -168,6 +219,14 @@ export default async function BattleDetailView({ detail, battleId, timezone }: P
               {mainOpponentBadgeLabel && (
                 <span className="inline-flex items-center gap-0.5 bg-gray-800 border border-gray-700 rounded px-1.5 py-0.5 text-[10px] text-gray-300">
                   {mainOpponentBadgeLabel}
+                </span>
+              )}
+              <span className="inline-flex items-center gap-0.5 bg-amber-500/10 border border-amber-500/30 rounded px-1.5 py-0.5 text-[10px] text-amber-200">
+                {relationLabel}
+              </span>
+              {detail.viewPolicy === 'small_or_low_engagement' && (
+                <span className="inline-flex items-center gap-0.5 bg-gray-800 border border-gray-700 rounded px-1.5 py-0.5 text-[10px] text-gray-300">
+                  {policyLabel}
                 </span>
               )}
               {detail.matchTotal > 1 && (
@@ -205,6 +264,12 @@ export default async function BattleDetailView({ detail, battleId, timezone }: P
                 <span className="text-gray-500">
                   {detail.homeTeamSize}v{detail.mainOpponentTeamSize}
                 </span>
+              </span>
+              <span className="inline-flex items-center gap-1 bg-gray-800 border border-gray-700 rounded px-2 py-0.5 text-[11px] text-gray-300">
+                {statusLabel}
+              </span>
+              <span className="inline-flex items-center gap-1 bg-gray-800 border border-gray-700 rounded px-2 py-0.5 text-[11px] text-gray-300">
+                {evidenceLabel}
               </span>
             </div>
           </div>

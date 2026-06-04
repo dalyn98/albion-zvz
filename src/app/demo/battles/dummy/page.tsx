@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 
 const DUMMY_BATTLE_DETAIL = {
   id: 'dummy-tenant-battle-record',
+  legacyTenantBattleRecordId: 'dummy-tenant-battle-record',
   albionBattleId: 9900603001,
   clusterName: 'Drytop Oasis',
   startedAt: '2026-06-03T10:12:00.000Z',
@@ -33,6 +34,14 @@ const DUMMY_BATTLE_DETAIL = {
   isProvisional: false,
   sizeCategory: 'small',
   outcome: 'win',
+  relationScope: 'direct',
+  viewPolicy: 'default_meaningful',
+  resultEstimate: 'advantage',
+  projectionStatus: 'final',
+  evidenceSource: 'battle_summary',
+  isMeaningful: true,
+  hasActiveDiff: false,
+  activeDiffTypes: [],
   opponentGuilds: [
     {
       guildId: 'dummy-crimson-order',

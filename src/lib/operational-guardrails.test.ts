@@ -132,6 +132,16 @@ describe('operational guardrails', () => {
     expect(script).toContain('exit 1')
   })
 
+  it('keeps include-all migration push behind the safe backup wrapper', () => {
+    const script = read('scripts/safe-db-push.sh')
+
+    expect(script).toContain('SAFE_DB_PUSH_INCLUDE_ALL')
+    expect(script).toContain('backup-db.sh')
+    expect(script).toContain('push_args=(db push --linked)')
+    expect(script).toContain('push_args+=(--include-all)')
+    expect(script).toContain('supabase "${push_args[@]}"')
+  })
+
   it('allows main-push migration drift only when local and remote versions match exactly', () => {
     const result = runMigrationDriftScript(`
 Connecting to remote database...

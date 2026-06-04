@@ -5,6 +5,8 @@
 # 사용법:
 #   ./scripts/safe-db-push.sh              # 라벨 없이 백업 후 push
 #   ./scripts/safe-db-push.sh mig135       # 라벨 "mig135" 로 백업
+#   SAFE_DB_PUSH_INCLUDE_ALL=1 ./scripts/safe-db-push.sh mig195
+#                                           # 원격에 중간 no-op gap 이 있을 때 include-all
 
 set -euo pipefail
 
@@ -16,6 +18,11 @@ echo "[safe-db-push] 마이그 직전 백업 생성... (label=$LABEL)"
 "$SCRIPT_DIR/backup-db.sh" pre-migration "$LABEL"
 
 echo ""
-echo "[safe-db-push] supabase db push --linked 실행..."
+push_args=(db push --linked)
+if [[ "${SAFE_DB_PUSH_INCLUDE_ALL:-0}" == "1" ]]; then
+  push_args+=(--include-all)
+fi
+
+echo "[safe-db-push] supabase ${push_args[*]} 실행..."
 cd "$PROJECT_DIR"
-supabase db push --linked
+supabase "${push_args[@]}"
