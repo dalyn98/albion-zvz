@@ -58,6 +58,8 @@ export type AppSettingKey =
   // /shop 상단에 뜨는 관리자 공지 — 아이템 전달 방법 등을 자유롭게 안내.
   // 빈 문자열이면 배너 비표시.
   | 'shop_delivery_notice'
+  // /shop 상단 전달 공지에 함께 표시할 이미지 URL. 빈 문자열이면 텍스트만 표시.
+  | 'shop_delivery_notice_image_url'
   // 길드 상점 상자 로그 import 시 티어+인챈트 합 기준으로 행을 제외한다.
   // 빈 문자열이면 해당 하한/상한 조건 비활성. 예: T8.2 = 10.
   | 'shop_import_exclude_tier_enchant_sum_lte'

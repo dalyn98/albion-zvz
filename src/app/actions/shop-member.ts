@@ -236,9 +236,7 @@ export async function submitShopOrder(
             discountRate,
           })
         : null
-      const unit =
-        catalogUnitPoints ??
-        (line.quote && quoteUnitPoints !== null ? quoteUnitPoints : null)
+      const unit = quoteUnitPoints ?? catalogUnitPoints
       if (unit === null) {
         return { ok: false, error: tErr('itemPriceQuoteRequired', { name: inv.name_ko as string }) }
       }
@@ -256,7 +254,7 @@ export async function submitShopOrder(
         quantity: line.quantity,
         unitPoints: unit,
         subtotalPoints: sub,
-        pricingSource: catalogUnitPoints !== null ? 'catalog' : 'member_quote',
+        pricingSource: quoteUnitPoints !== null ? 'member_quote' : 'catalog',
         catalogUnitSilverSnapshot: catalogUnitSilver,
         memberQuoteUnitSilver: line.quote?.unitSilver ?? null,
         memberQuoteUnitPoints: quoteUnitPoints,

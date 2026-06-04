@@ -1,7 +1,7 @@
 'use server'
 
-// 페이지 상단 공지(DismissibleNoticeBanner) 이미지. 홈(/) 과 리기어(/regear)
-// 각각 단일 이미지 슬롯 1 개를 유지한다. landing-banner.ts 패턴과 동일.
+// 페이지 상단 공지(DismissibleNoticeBanner) 이미지. 홈(/), 리기어(/regear),
+// 길드 상점(/shop) 각각 단일 이미지 슬롯 1 개를 유지한다.
 
 import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
@@ -14,20 +14,43 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
 import { validateImageUploadFile } from '@/lib/image-upload'
 
-export type NoticeTarget = 'events' | 'regear'
+export type NoticeTarget = 'events' | 'regear' | 'shop'
 
 const BUCKET = 'notice-images'
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 const PUBLIC_URL_PREFIX = `/storage/v1/object/public/${BUCKET}/`
 const NOTICE_IMAGE_CAPS = [CAP.SETTINGS_GENERAL] as const
+const SHOP_NOTICE_IMAGE_CAPS = [CAP.SHOP_PRICING] as const
 
 function settingKeyFor(target: NoticeTarget): AppSettingKey {
-  return target === 'events' ? 'events_notice_image_url' : 'regear_notice_image_url'
+  if (target === 'events') return 'events_notice_image_url'
+  if (target === 'regear') return 'regear_notice_image_url'
+  return 'shop_delivery_notice_image_url'
 }
 
 function normalizeNoticeTarget(target: unknown): NoticeTarget | null {
-  return target === 'events' || target === 'regear' ? target : null
+  return target === 'events' || target === 'regear' || target === 'shop'
+    ? target
+    : null
+}
+
+function noticeImageCaps(target: NoticeTarget): readonly bigint[] {
+  return target === 'shop' ? SHOP_NOTICE_IMAGE_CAPS : NOTICE_IMAGE_CAPS
+}
+
+function revalidateNoticeTarget(target: NoticeTarget): void {
+  revalidatePath('/admin/dashboard/settings')
+  if (target === 'events') {
+    revalidatePath('/')
+    return
+  }
+  if (target === 'regear') {
+    revalidatePath('/regear')
+    return
+  }
+  revalidatePath('/admin/dashboard/shop')
+  revalidatePath('/shop')
 }
 
 function extractPath(url: string, guildId: string): string | null {
@@ -98,7 +121,7 @@ export async function uploadNoticeImage(
     })
     if (!image.ok) return { error: bannerUploadErrorMessage(tErr, image.error) }
 
-    const db = await requireAnyCapability(NOTICE_IMAGE_CAPS)
+    const db = await requireAnyCapability(noticeImageCaps(noticeTarget))
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
@@ -125,9 +148,7 @@ export async function uploadNoticeImage(
       await db.storage.from(BUCKET).remove([previousPath])
     }
 
-    revalidatePath('/admin/dashboard/settings')
-    if (noticeTarget === 'events') revalidatePath('/')
-    else revalidatePath('/regear')
+    revalidateNoticeTarget(noticeTarget)
     return { url: publicUrl }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
@@ -142,7 +163,7 @@ export async function clearNoticeImage(
     const noticeTarget = normalizeNoticeTarget(target)
     if (!noticeTarget) return { error: tErr('invalidInput') }
 
-    const db = await requireAnyCapability(NOTICE_IMAGE_CAPS)
+    const db = await requireAnyCapability(noticeImageCaps(noticeTarget))
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
@@ -157,9 +178,7 @@ export async function clearNoticeImage(
       await db.storage.from(BUCKET).remove([previousPath])
     }
 
-    revalidatePath('/admin/dashboard/settings')
-    if (noticeTarget === 'events') revalidatePath('/')
-    else revalidatePath('/regear')
+    revalidateNoticeTarget(noticeTarget)
     return {}
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }

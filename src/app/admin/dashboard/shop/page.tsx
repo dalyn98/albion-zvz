@@ -77,6 +77,7 @@ export default async function AdminShopPage() {
     { data: lastLog },
     { count: pendingOrderCount },
     deliveryNotice,
+    deliveryNoticeImageUrl,
     discountRateSetting,
     aodpCitiesRaw,
     aodpPriceModeRaw,
@@ -102,6 +103,7 @@ export default async function AdminShopPage() {
       .eq('guild_id', guildId)
       .eq('status', 'pending'),
     getAppSetting('shop_delivery_notice', '', guildId),
+    getAppSetting('shop_delivery_notice_image_url', '', guildId),
     getAppSetting('shop_discount_rate', '1', guildId),
     getAppSetting('aodp_cities', '', guildId),
     getAppSetting('aodp_price_mode', 'spot', guildId),
@@ -308,7 +310,9 @@ export default async function AdminShopPage() {
           />
           <NoticeSettingForm
             settingKey="shop_delivery_notice"
+            target="shop"
             initialMessage={deliveryNotice}
+            initialImageUrl={deliveryNoticeImageUrl}
             title={tPage('deliveryNoticeTitle')}
             description={tPage('deliveryNoticeDescription')}
             label={tPage('deliveryNoticeLabel')}

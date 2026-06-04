@@ -233,7 +233,7 @@ describe('submitShopOrder', () => {
     })
   })
 
-  it('keeps the catalog total for priced items even when a member suggests a different price', async () => {
+  it('uses a member quote as the requested total even when the item already has a catalog price', async () => {
     const { db, rpc } = createShopOrderDb({ stock: 1, manualPrice: 100 })
     mocks.getAdminClient.mockReturnValue(db)
 
@@ -256,7 +256,7 @@ describe('submitShopOrder', () => {
       p_discord_id: 'member-1',
       p_username: 'MemberOne',
       p_price_review_required: true,
-      p_total_points: 100,
+      p_total_points: 70,
       p_member_note: null,
       p_lines: [
         {
@@ -265,9 +265,9 @@ describe('submitShopOrder', () => {
           quality: 1,
           name_ko: '테스트 장비',
           quantity: 1,
-          unit_points: 100,
-          subtotal_points: 100,
-          pricing_source: 'catalog',
+          unit_points: 70,
+          subtotal_points: 70,
+          pricing_source: 'member_quote',
           catalog_unit_silver_snapshot: 100,
           member_quote_unit_silver: 70,
           member_quote_unit_points: 70,

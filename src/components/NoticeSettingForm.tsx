@@ -20,8 +20,8 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024
 
 interface Props {
   settingKey: AppSettingKey
-  // target/initialImageUrl are optional — the shop delivery notice is text-only,
-  // so image upload UI is suppressed when target is omitted.
+  // target/initialImageUrl are optional. When omitted, this becomes a text-only
+  // notice editor.
   target?: NoticeTarget
   initialMessage: string
   initialImageUrl?: string

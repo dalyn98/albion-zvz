@@ -147,9 +147,10 @@ function quoteUnitPoints(line: CartLine, discountRate: number): number | null {
 }
 
 function lineOrderPoints(line: CartLine, discountRate: number): number | null {
-  if (line.item.pointPrice !== null) return line.item.pointPrice * line.qty
   const quotePoints = quoteUnitPoints(line, discountRate)
-  return quotePoints === null ? null : quotePoints * line.qty
+  if (quotePoints !== null) return quotePoints * line.qty
+  if (line.item.pointPrice !== null) return line.item.pointPrice * line.qty
+  return null
 }
 
 export default function ShopCatalog({
@@ -831,6 +832,7 @@ function CartLineRow({
   const quoteRequired = line.item.pointPrice === null
   const quoteOpen = quoteRequired || line.quoteOpen
   const quoteInvalid = line.quoteUnitSilver.trim() !== '' && quotePoints === null
+  const effectiveUnitPoints = quotePoints ?? line.item.pointPrice
   const itemImageSrcs = imageSrcs(line.item.uniqueName, line.item.enchant, line.item.quality, 48)
   return (
     <div className="bg-gray-800/60 border border-gray-800 rounded-lg px-2 py-1.5 space-y-2">
@@ -852,13 +854,13 @@ function CartLineRow({
             <span className="truncate">{displayName}</span>
           </p>
           <p className="text-[10px] text-gray-500 font-mono">
-            {line.item.pointPrice === null ? (
+            {effectiveUnitPoints === null ? (
               <span className="text-amber-300">{t('quoteRequiredLine')}</span>
             ) : (
               <>
-                {line.item.pointPrice.toLocaleString()}p × {line.qty} ={' '}
+                {effectiveUnitPoints.toLocaleString()}p × {line.qty} ={' '}
                 <span className="text-amber-300 font-bold">
-                  {(line.item.pointPrice * line.qty).toLocaleString()}p
+                  {(effectiveUnitPoints * line.qty).toLocaleString()}p
                 </span>
               </>
             )}

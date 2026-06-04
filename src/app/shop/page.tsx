@@ -1,4 +1,4 @@
-import { ShoppingBag, Info, LogIn, Lock } from 'lucide-react'
+import { ShoppingBag, LogIn, Lock } from 'lucide-react'
 import Link from 'next/link'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
@@ -16,6 +16,7 @@ import ShopCatalog, {
 } from '@/components/ShopCatalog'
 import ShopMyOrders from '@/components/ShopMyOrders'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import DismissibleNoticeBanner from '@/components/DismissibleNoticeBanner'
 
 // 관리자 설정에서 저장된 aodp_cities (JSON 배열) 에서 첫 항목을 꺼낸다. 파싱
 // 실패하거나 허용된 도시가 아니면 기본값(카에르레온) 으로 폴백 — 관리자가
@@ -46,6 +47,7 @@ export default async function PublicShopPage() {
     tNav,
     tShop,
     deliveryNotice,
+    deliveryNoticeImageUrl,
     discountRateSetting,
     aodpCitiesSetting,
     tenantTimezone,
@@ -54,6 +56,7 @@ export default async function PublicShopPage() {
     getTranslations('nav'),
     getTranslations('shopPublic'),
     getAppSetting('shop_delivery_notice', '', guildId),
+    getAppSetting('shop_delivery_notice_image_url', '', guildId),
     getAppSetting('shop_discount_rate', '1', guildId),
     getAppSetting('aodp_cities', '', guildId),
     getTenantTimezone(guildId),
@@ -106,12 +109,10 @@ export default async function PublicShopPage() {
         <h1 className="text-2xl font-bold text-white">{tNav('shop')}</h1>
       </div>
 
-      {deliveryNotice && (
-        <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl px-4 py-3 flex items-start gap-2">
-          <Info size={14} className="text-amber-300 mt-0.5 shrink-0" />
-          <p className="text-amber-100/90 text-xs whitespace-pre-wrap">{deliveryNotice}</p>
-        </div>
-      )}
+      <DismissibleNoticeBanner
+        message={deliveryNotice}
+        imageUrl={deliveryNoticeImageUrl}
+      />
 
       {!session && (
         <div className="bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 flex items-center gap-2">

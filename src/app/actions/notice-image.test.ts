@@ -124,6 +124,27 @@ describe('notice image actions', () => {
     })
   })
 
+  it('stores uploaded shop notice images in the shop notice setting', async () => {
+    const { db, uploadCalls, upsertCalls } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+    const formData = new FormData()
+    formData.set('file', new File([webpBytes], 'shop-notice.webp', { type: 'image/webp' }))
+
+    const result = await uploadNoticeImage('shop', formData)
+
+    expect(result.error).toBeUndefined()
+    expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SHOP_PRICING])
+    expect(uploadCalls).toHaveLength(1)
+    expect(uploadCalls[0].path).toMatch(/^guild-1\/shop-.+\.webp$/)
+    expect(upsertCalls[0].row).toMatchObject({
+      guild_id: 'guild-1',
+      key: 'shop_delivery_notice_image_url',
+      value: expect.stringContaining('/notice-images/guild-1/shop-'),
+    })
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/shop')
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/shop')
+  })
+
   it('rejects invalid upload targets before touching guild settings', async () => {
     const formData = new FormData()
     formData.set('file', new File(['image'], 'notice.webp', { type: 'image/webp' }))

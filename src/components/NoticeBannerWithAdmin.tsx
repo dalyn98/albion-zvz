@@ -17,19 +17,21 @@ import NoticeSettingForm, { NOTICE_MAX_LENGTH } from './NoticeSettingForm'
 import type { NoticeTarget } from '@/app/actions/notice-image'
 import type { AppSettingKey } from '@/lib/app-settings'
 
+type InlineNoticeTarget = Extract<NoticeTarget, 'events' | 'regear'>
+
 interface Props {
   message: string
   imageUrl: string
-  target: NoticeTarget
+  target: InlineNoticeTarget
   canManageNotice: boolean
 }
 
-const SETTING_KEY_BY_TARGET: Record<NoticeTarget, AppSettingKey> = {
+const SETTING_KEY_BY_TARGET: Record<InlineNoticeTarget, AppSettingKey> = {
   events: 'events_notice_message',
   regear: 'regear_notice_message',
 }
 
-const NOTICE_NAMESPACE_BY_TARGET: Record<NoticeTarget, 'adminEventsNotice' | 'adminRegearNotice'> = {
+const NOTICE_NAMESPACE_BY_TARGET: Record<InlineNoticeTarget, 'adminEventsNotice' | 'adminRegearNotice'> = {
   events: 'adminEventsNotice',
   regear: 'adminRegearNotice',
 }
