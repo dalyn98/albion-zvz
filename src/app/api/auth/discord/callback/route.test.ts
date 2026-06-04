@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
   resolveTenantBySlug: vi.fn(),
   recordAuthFailure: vi.fn(),
   recordAuthSuccess: vi.fn(),
+  logError: vi.fn(),
   removeGuestRecordForMember: vi.fn(),
 }))
 
@@ -103,7 +104,7 @@ vi.mock('@/lib/auth-telemetry', () => ({
 
 vi.mock('@/lib/log', () => ({
   log: {
-    error: vi.fn(),
+    error: mocks.logError,
     warn: vi.fn(),
     info: vi.fn(),
   },
@@ -126,6 +127,7 @@ function createDb() {
             return {
               data: {
                 event_id: 'event-1',
+                guild_id: 'guild-1',
                 revoked_at: null,
                 expires_at: '2999-01-01T00:00:00.000Z',
               },
@@ -209,6 +211,7 @@ describe('GET /api/auth/discord/callback', () => {
     expect(response.headers.get('location')).toBe(
       'https://menhera.example.test/api/auth/finish?token=hop-token',
     )
+    expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
     expect(mocks.signHopToken).toHaveBeenCalledWith({
       session: expect.objectContaining({
         discordId: 'guest-1',
@@ -509,5 +512,30 @@ describe('GET /api/auth/discord/callback', () => {
         origin_tenant_fallback: 'guild-1',
       }),
     )
+  })
+
+  it('redacts invite tokens in the unhandled callback error log', async () => {
+    mocks.verifyOAuthState.mockResolvedValue({
+      originHost: 'menhera.albion-guildmanager.com',
+      returnTo: '/events/event-1?invite=guest-token',
+      invite: 'guest-token',
+      preferredLocale: 'en',
+    })
+    mocks.exchangeCode.mockRejectedValue(new Error('discord down'))
+
+    await GET(
+      new NextRequest(
+        'https://albion-guildmanager.com/api/auth/discord/callback?code=CODE&state=STATE',
+      ),
+    )
+
+    expect(mocks.logError).toHaveBeenCalledWith(
+      '[discord-callback] unhandled',
+      expect.any(Error),
+      expect.objectContaining({
+        return_to: '/events/event-1?invite=%5Bredacted%5D',
+      }),
+    )
+    expect(JSON.stringify(mocks.logError.mock.calls)).not.toContain('guest-token')
   })
 })

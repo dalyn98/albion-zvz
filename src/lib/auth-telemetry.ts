@@ -2,15 +2,43 @@ import 'server-only'
 import type { NextRequest } from 'next/server'
 import { log } from '@/lib/log'
 import { detectInAppBrowser, detectMobilePlatform } from '@/lib/user-agent'
+import { redactUrlSearch } from '@/lib/redact-search-params'
 
 type AuthStartStage = 'discord_oauth' | 'bot_install' | 'open_bot_install'
 type AuthSuccessStage = 'callback' | 'finish' | 'bot_callback'
+
+const SENSITIVE_TELEMETRY_KEYS = new Set([
+  'access_token',
+  'authorization',
+  'client_secret',
+  'code',
+  'id_token',
+  'invite',
+  'password',
+  'refresh_token',
+  'secret',
+  'state',
+  'token',
+])
+
+function sanitizeTelemetryValue(key: string, value: unknown): unknown {
+  if (typeof value !== 'string') return value
+  if (SENSITIVE_TELEMETRY_KEYS.has(key.toLowerCase())) return '[redacted]'
+  return redactUrlSearch(value)
+}
+
+function sanitizeTelemetryFields(fields?: Record<string, unknown>): Record<string, unknown> {
+  if (!fields) return {}
+  return Object.fromEntries(
+    Object.entries(fields).map(([key, value]) => [key, sanitizeTelemetryValue(key, value)]),
+  )
+}
 
 function requestContext(request: NextRequest): Record<string, unknown> {
   const userAgent = request.headers.get('user-agent') ?? null
   return {
     host: request.headers.get('host') ?? null,
-    referer: request.headers.get('referer') ?? null,
+    referer: sanitizeTelemetryValue('referer', request.headers.get('referer') ?? null),
     user_agent: userAgent,
     in_app_browser: detectInAppBrowser(userAgent),
     mobile_platform: detectMobilePlatform(userAgent),
@@ -25,7 +53,7 @@ export function recordAuthStart(
   log.info(`[auth/${stage}] start`, {
     stage,
     ...requestContext(request),
-    ...(extra ?? {}),
+    ...sanitizeTelemetryFields(extra),
   })
 }
 
@@ -37,7 +65,7 @@ export function recordAuthSuccess(
   log.info(`[auth/${stage}] success`, {
     stage,
     ...requestContext(request),
-    ...(extra ?? {}),
+    ...sanitizeTelemetryFields(extra),
   })
 }
 
@@ -55,6 +83,6 @@ export function recordAuthFailure(
     stage,
     reason,
     ...requestContext(request),
-    ...(extra ?? {}),
+    ...sanitizeTelemetryFields(extra),
   })
 }

@@ -32,7 +32,7 @@ vi.mock('@/lib/oauth-state', () => ({
   signHopToken: vi.fn(),
 }))
 
-import { saveTenantAlbion } from './onboard'
+import { saveTenantAlbion, saveTenantSetup } from './onboard'
 
 function createTenantQuery() {
   const query = {
@@ -73,5 +73,37 @@ describe('saveTenantAlbion', () => {
       }),
     ).resolves.toEqual({ error: 'homeGuildRequired' })
     expect(from).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('saveTenantSetup', () => {
+  beforeEach(() => {
+    mocks.getAdminClient.mockReset()
+    mocks.getSession.mockReset()
+    mocks.getSession.mockResolvedValue({ discordId: 'admin-1' })
+  })
+
+  it('rejects malformed Discord role and channel IDs before writing setup settings', async () => {
+    await expect(
+      saveTenantSetup({
+        tenantId: 'tenant-1',
+        memberRoleIds: ['not-a-role-id'],
+        adminRoleIds: ['123456789012345678'],
+        eventChannelId: '987654321098765432',
+        timezone: 'Asia/Seoul',
+      }),
+    ).resolves.toEqual({ error: 'errorGeneric' })
+
+    await expect(
+      saveTenantSetup({
+        tenantId: 'tenant-1',
+        memberRoleIds: ['123456789012345678'],
+        adminRoleIds: ['987654321098765432'],
+        eventChannelId: 'not-a-channel-id',
+        timezone: 'Asia/Seoul',
+      }),
+    ).resolves.toEqual({ error: 'errorGeneric' })
+
+    expect(mocks.getAdminClient).not.toHaveBeenCalled()
   })
 })

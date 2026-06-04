@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { getAdminClient } from './supabase-admin'
 
 export interface AdminBadgeCounts {
@@ -13,7 +14,7 @@ export interface AdminBadgeCounts {
 // Service-role client is used because row-level policies on the pending
 // request tables block anonymous reads — admins always have a session here
 // (layout-level gate enforces this before render).
-export async function getAdminBadgeCounts(guildId: string): Promise<AdminBadgeCounts> {
+export const getAdminBadgeCounts = cache(async (guildId: string): Promise<AdminBadgeCounts> => {
   const db = getAdminClient()
   const [regearRes, exchangeRes, donationRes, shopRes, eventPayoutRes, craftRes] = await Promise.all([
     db
@@ -56,4 +57,4 @@ export async function getAdminBadgeCounts(guildId: string): Promise<AdminBadgeCo
     eventPayout: eventPayoutRes.count ?? 0,
     craft: craftRes.count ?? 0,
   }
-}
+})

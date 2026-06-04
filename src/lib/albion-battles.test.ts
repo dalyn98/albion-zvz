@@ -1,5 +1,11 @@
-import { describe, expect, it } from 'vitest'
-import { categorizeSize, computeOutcome, type SidePerspective } from './albion-battles'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  categorizeSize,
+  computeOutcome,
+  fetchRecentBattles,
+  type AlbionBattle,
+  type SidePerspective,
+} from './albion-battles'
 
 // 도메인 invariant 화석화: /battles 판정 규칙 (AGENTS.md #8).
 //
@@ -7,6 +13,43 @@ import { categorizeSize, computeOutcome, type SidePerspective } from './albion-b
 // - 사이즈 컷 (small/middle/large/zerg) 는 안내 라벨이 아니라 집계 grouping 키.
 //   경계 (10/30/31/60/61/100/101) 가 바뀌면 회귀 발생 — 여기서 화석화.
 // - computeOutcome 은 killFame 비교 — kill 수가 적어도 fame 이 높은 쪽이 win.
+
+function makeBattle(id: number): AlbionBattle {
+  return {
+    id,
+    startTime: '2026-01-01T00:00:00Z',
+    endTime: '2026-01-01T00:30:00Z',
+    totalFame: 0,
+    totalKills: 0,
+    clusterName: null,
+    players: {},
+    guilds: {},
+    alliances: {},
+  }
+}
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+describe('fetchRecentBattles — Albion /battles API paging', () => {
+  it('keeps list page size at 50 to stay below the Albion API limit', async () => {
+    const firstPage = Array.from({ length: 50 }, (_, i) => makeBattle(i + 1))
+    const secondPage = [makeBattle(51)]
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+      const offset = new URL(String(url)).searchParams.get('offset')
+      return Response.json(offset === '0' ? firstPage : secondPage)
+    })
+
+    await expect(fetchRecentBattles('east', 2)).resolves.toHaveLength(51)
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    const urls = fetchMock.mock.calls.map(([url]) => new URL(String(url)))
+    expect(urls.map((url) => url.searchParams.get('limit'))).toEqual(['50', '50'])
+    expect(urls.map((url) => url.searchParams.get('offset'))).toEqual(['0', '50'])
+    expect(urls.map((url) => url.searchParams.get('sort'))).toEqual(['recent', 'recent'])
+  })
+})
 
 describe('categorizeSize — /battles cut-off boundaries', () => {
   it('returns null for fewer than 10 players (gank / straggler — excluded)', () => {

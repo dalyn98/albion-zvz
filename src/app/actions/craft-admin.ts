@@ -29,6 +29,7 @@ import {
 } from '@/app/actions/craft'
 import { logAdminAction } from '@/lib/admin-audit'
 import { CAP } from '@/lib/permissions'
+import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 
 export interface AdminCrafterRow {
   discordId: string
@@ -216,20 +217,25 @@ export async function listAllCraftTasksAdmin(
     const guildId = await getSessionGuildId(session)
 
     const activeStatuses: CraftTaskStatus[] = ['queued', 'claimed', 'delivered']
-    let query = db
-      .from('craft_tasks')
-      .select(
-        'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot)',
-      )
-      .eq('guild_id', guildId)
-      .order('created_at', { ascending: false })
-      .limit(500)
-    if (scope === 'active') query = query.in('status', activeStatuses as string[])
-    const { data, error } = await query
-    if (error) return { tasks: [], error: error.message }
+    const page = await selectPagedRows<CraftTaskJoinedRow>({
+      label: 'admin craft tasks',
+      buildQuery: () => {
+        let query = db
+          .from('craft_tasks')
+          .select(
+            'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot)',
+          )
+          .eq('guild_id', guildId)
+        if (scope === 'active') query = query.in('status', activeStatuses as string[])
+        return query
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false }) as unknown as SupabasePagedQuery<CraftTaskJoinedRow>
+      },
+    })
+    if (page.error) return { tasks: [], error: page.error }
 
     const fallback = tCommon('deletedEvent')
-    const rows = (data ?? []) as unknown as CraftTaskJoinedRow[]
+    const rows = page.rows
 
     // 어드민 화면에서도 그룹 헤더용 모임 시각이 필요할 수 있어 events 배치 조회.
     const eventIds = new Set<string>()
@@ -242,6 +248,7 @@ export async function listAllCraftTasksAdmin(
       const { data: evs } = await db
         .from('events')
         .select('id, gather_at')
+        .eq('guild_id', guildId)
         .in('id', Array.from(eventIds))
       for (const ev of evs ?? []) {
         gatherAtByEventId.set(

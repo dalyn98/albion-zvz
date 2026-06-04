@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { resolveSiphonPlayer, summarizeSiphonAccount } from './member-siphon'
+import {
+  normalizeSiphonRecentLimit,
+  resolveSiphonPlayer,
+  summarizeSiphonAccount,
+} from './member-siphon'
+
+describe('normalizeSiphonRecentLimit', () => {
+  const options = { defaultLimit: 50, maxLimit: 200 }
+
+  it('falls back for non-finite or non-number values and clamps numeric limits', () => {
+    expect(normalizeSiphonRecentLimit(Number.NaN, options)).toBe(50)
+    expect(normalizeSiphonRecentLimit('100', options)).toBe(50)
+    expect(normalizeSiphonRecentLimit(-1, options)).toBe(0)
+    expect(normalizeSiphonRecentLimit(3.9, options)).toBe(3)
+    expect(normalizeSiphonRecentLimit(999, options)).toBe(200)
+  })
+})
 
 describe('summarizeSiphonAccount', () => {
   it('calculates deposit, withdrawal, net balance, and latest activity', () => {

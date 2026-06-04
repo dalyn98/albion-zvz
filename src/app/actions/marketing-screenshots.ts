@@ -13,6 +13,7 @@ import {
   MARKETING_SCREENSHOTS_TAG,
   type MarketingScreenshotKey,
 } from '@/lib/marketing-screenshots'
+import { validateImageUploadFile } from '@/lib/image-upload'
 
 const BUCKET = 'marketing-screenshots'
 const MAX_FILE_SIZE = 8 * 1024 * 1024
@@ -33,19 +34,6 @@ function extractPath(url: string): string | null {
   return url.slice(idx + PUBLIC_URL_PREFIX.length)
 }
 
-function extFromMime(mime: string): string {
-  switch (mime) {
-    case 'image/png':
-      return 'png'
-    case 'image/jpeg':
-      return 'jpg'
-    case 'image/webp':
-      return 'webp'
-    default:
-      return 'bin'
-  }
-}
-
 function revalidate() {
   updateTag(MARKETING_SCREENSHOTS_TAG)
   revalidatePath('/super-admin/marketing-screenshots')
@@ -54,6 +42,22 @@ function revalidate() {
   revalidatePath('/public/landing', 'page')
   revalidatePath('/features', 'page')
   revalidatePath('/public/features', 'page')
+}
+
+function uploadErrorMessage(
+  t: Awaited<ReturnType<typeof getTranslations>>,
+  error: 'missing' | 'empty' | 'tooLarge' | 'wrongType',
+): string {
+  switch (error) {
+    case 'missing':
+      return t('carouselErrorMissingFile')
+    case 'empty':
+      return t('carouselErrorEmptyFile')
+    case 'tooLarge':
+      return t('carouselErrorFileTooLarge', { maxMb: MAX_FILE_SIZE / 1024 / 1024 })
+    case 'wrongType':
+      return t('carouselErrorUnsupportedType')
+  }
 }
 
 export async function uploadMarketingScreenshot(
@@ -67,14 +71,11 @@ export async function uploadMarketingScreenshot(
     const altRaw = (formData.get('alt') as string | null) ?? ''
 
     if (!isValidSlot(slotRaw)) return { error: t('carouselErrorInvalidSlot') }
-    if (!(file instanceof File)) return { error: t('carouselErrorMissingFile') }
-    if (file.size === 0) return { error: t('carouselErrorEmptyFile') }
-    if (file.size > MAX_FILE_SIZE) {
-      return { error: t('carouselErrorFileTooLarge', { maxMb: MAX_FILE_SIZE / 1024 / 1024 }) }
-    }
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return { error: t('carouselErrorUnsupportedType') }
-    }
+    const image = await validateImageUploadFile(file, {
+      allowedTypes: ALLOWED_TYPES,
+      maxBytes: MAX_FILE_SIZE,
+    })
+    if (!image.ok) return { error: uploadErrorMessage(t, image.error) }
 
     const slot = slotRaw
     const alt = altRaw.trim().slice(0, ALT_MAX_LENGTH)
@@ -90,10 +91,10 @@ export async function uploadMarketingScreenshot(
       .maybeSingle()
     const nextPosition = ((maxRow?.position as number | undefined) ?? -1) + 1
 
-    const path = `${slot}/${randomUUID()}.${extFromMime(file.type)}`
+    const path = `${slot}/${randomUUID()}.${image.ext}`
     const { error: uploadError } = await db.storage
       .from(BUCKET)
-      .upload(path, file, { contentType: file.type, upsert: false })
+      .upload(path, image.file, { contentType: image.mime, upsert: false })
     if (uploadError) {
       return { error: t('carouselErrorUploadFailed', { reason: uploadError.message }) }
     }

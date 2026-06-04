@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { unstable_cache } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
 import {
   Users,
@@ -81,9 +82,85 @@ interface Params {
   slug: string
 }
 
-// 같은 슬러그가 metadata 와 page 에서 두 번 호출되는 것을 피하지 않고, force-dynamic
-// 이라 매 요청 새로 풀린다 — count 쿼리 묶음만큼 부하지만 비로그인 페이지라
-// 캐시 비용보다 단순함이 이득.
+interface PublicGuildProfileCachedData {
+  stats: Awaited<ReturnType<typeof loadSectionStats>>
+  galleryItems: Awaited<ReturnType<typeof loadGalleryItems>>
+  recentBattle: Awaited<ReturnType<typeof loadRecentTrackedBattle>>
+  topContributors: Awaited<ReturnType<typeof loadTopContributorsThisWeek>>
+  weeklyStats: GuildWeeklyStats | null
+  serverCode: Awaited<ReturnType<typeof resolveProfileServer>>
+  lifetimeStats: Awaited<ReturnType<typeof loadLifetimeBattleStats>> | null
+  weaponDistribution: WeaponCategoryUsage[]
+  rivals: RivalGuild[]
+  adminTeam: Awaited<ReturnType<typeof loadAdminTeam>>
+  alliance: Awaited<ReturnType<typeof loadAllianceInfo>>
+}
+
+async function loadPublicGuildProfileData(
+  guildId: string,
+  showMembers: boolean,
+  showBattles: boolean,
+  showRegearStats: boolean,
+  showLeaderboard: boolean,
+  weeklyStatsEnabled: boolean,
+  serverOverride: string,
+): Promise<PublicGuildProfileCachedData> {
+  const [
+    stats,
+    galleryItems,
+    recentBattle,
+    topContributors,
+    weeklyStats,
+    serverCode,
+    lifetimeStats,
+    weaponDistribution,
+    rivals,
+    adminTeam,
+    alliance,
+  ] = await Promise.all([
+    loadSectionStats(guildId, {
+      showMembers,
+      showBattles,
+      showRegearStats,
+    }),
+    loadGalleryItems(guildId),
+    showBattles ? loadRecentTrackedBattle(guildId) : Promise.resolve(null),
+    showLeaderboard ? loadTopContributorsThisWeek(guildId, 3) : Promise.resolve([]),
+    weeklyStatsEnabled
+      ? loadGuildWeeklyStats(guildId)
+      : Promise.resolve<GuildWeeklyStats | null>(null),
+    resolveProfileServer(guildId, serverOverride),
+    showBattles ? loadLifetimeBattleStats(guildId) : Promise.resolve(null),
+    showBattles ? loadTopWeaponCategoriesLast30d(guildId) : Promise.resolve<WeaponCategoryUsage[]>([]),
+    showBattles ? loadTopRivalsLast30d(guildId) : Promise.resolve<RivalGuild[]>([]),
+    loadAdminTeam(guildId),
+    loadAllianceInfo(guildId, serverOverride),
+  ])
+
+  return {
+    stats,
+    galleryItems,
+    recentBattle,
+    topContributors,
+    weeklyStats,
+    serverCode,
+    lifetimeStats,
+    weaponDistribution,
+    rivals,
+    adminTeam,
+    alliance,
+  }
+}
+
+const loadPublicGuildProfileDataCached = unstable_cache(
+  loadPublicGuildProfileData,
+  ['public-guild-profile-data'],
+  { revalidate: 60 },
+)
+
+// force-dynamic 라우트지만 공개 공통 통계는 세션과 분리해 60초 캐시한다.
+// 본인 멤버 대시보드/어드민 badge 처럼 세션 의존 데이터는 아래 page 함수에서
+// 별도로 uncached 로 읽어 사용자 간 데이터가 섞이지 않게 한다.
 
 export async function generateMetadata({
   params,
@@ -175,9 +252,8 @@ export default async function GuildProfilePage({
     return <GuildProfileDisabledState displayName={displayName} />
   }
 
-  // 멤버 대시보드 섹션은 길드별 staged rollout 토글(`member_dashboard_enabled`)
-  // 로 게이트한다. 'true' 인 길드만 본인 카드 + 비로그인 CTA 배너 노출. v1 은
-  // 멘헤라만 활성, 나머지는 기존 공개 페이지 동작 그대로 유지.
+  // 멤버 대시보드 섹션은 길드별 토글(`member_dashboard_enabled`) 로 게이트한다.
+  // 'true' 인 길드만 본인 카드 + 비로그인 CTA 배너를 노출한다.
   const memberDashboardEnabled =
     (await getAppSetting('member_dashboard_enabled', 'false', tenant.tenantId)) === 'true'
   const [localAccountsEnabledRaw, localInviteHash] = await Promise.all([
@@ -230,13 +306,28 @@ export default async function GuildProfilePage({
     session.guildId === tenant.tenantId &&
     session.isAdmin === true
 
-  const [
+  const [publicData, memberSummary, adminBadges] = await Promise.all([
+    loadPublicGuildProfileDataCached(
+      tenant.tenantId,
+      settings.showMembers,
+      settings.showBattles,
+      settings.showRegearStats,
+      settings.showLeaderboard,
+      weeklyStatsEnabled,
+      settings.serverOverride,
+    ),
+    isThisGuildMember && session
+      ? loadMemberDashboardSummary(session.discordId, tenant.tenantId)
+      : Promise.resolve(null),
+    isThisGuildAdmin
+      ? getAdminBadgeCounts(tenant.tenantId)
+      : Promise.resolve(null),
+  ])
+  const {
     stats,
     galleryItems,
     recentBattle,
     topContributors,
-    memberSummary,
-    adminBadges,
     weeklyStats,
     serverCode,
     lifetimeStats,
@@ -244,47 +335,7 @@ export default async function GuildProfilePage({
     rivals,
     adminTeam,
     alliance,
-  ] = await Promise.all([
-    loadSectionStats(tenant.tenantId, {
-      showMembers: settings.showMembers,
-      showBattles: settings.showBattles,
-      showRegearStats: settings.showRegearStats,
-    }),
-    loadGalleryItems(tenant.tenantId),
-    settings.showBattles
-      ? loadRecentTrackedBattle(tenant.tenantId)
-      : Promise.resolve(null),
-    settings.showLeaderboard
-      ? loadTopContributorsThisWeek(tenant.tenantId, 3)
-      : Promise.resolve([]),
-    isThisGuildMember && session
-      ? loadMemberDashboardSummary(session.discordId, tenant.tenantId)
-      : Promise.resolve(null),
-    isThisGuildAdmin
-      ? getAdminBadgeCounts(tenant.tenantId)
-      : Promise.resolve(null),
-    weeklyStatsEnabled
-      ? loadGuildWeeklyStats(tenant.tenantId)
-      : Promise.resolve<GuildWeeklyStats | null>(null),
-    // hero 칩 — 어드민 override 가 비어 있으면 albion_server 로 fallback.
-    resolveProfileServer(tenant.tenantId, settings.serverOverride),
-    // 라이프타임 K/D + 승률 — showBattles 토글에 묶인다.
-    settings.showBattles
-      ? loadLifetimeBattleStats(tenant.tenantId)
-      : Promise.resolve(null),
-    // 무기 분포 + 라이벌 — 활동 시그널, showBattles 토글.
-    settings.showBattles
-      ? loadTopWeaponCategoriesLast30d(tenant.tenantId)
-      : Promise.resolve<WeaponCategoryUsage[]>([]),
-    settings.showBattles
-      ? loadTopRivalsLast30d(tenant.tenantId)
-      : Promise.resolve<RivalGuild[]>([]),
-    // 어드민 팀 — guild_avatars.is_admin 자동 추출. 토글 없음 (멤버 모집 정보로 항상 유용).
-    loadAdminTeam(tenant.tenantId),
-    // 연합 태그 — Albion Gameinfo API `/guilds/{id}` 의 AllianceTag. 홈 길드 ID
-    // 가 미설정이거나 길드가 alliance 미가입이면 null. 항상 hero 에 노출 (토글 없음).
-    loadAllianceInfo(tenant.tenantId, settings.serverOverride),
-  ])
+  } = publicData
 
   const t = await getTranslations('publicGuildProfile')
   const tTime = await getTranslations('time')

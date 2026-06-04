@@ -14,7 +14,7 @@ import type { GuildMemberSummary } from '@/app/actions/members-admin'
 import { getLocalizedItemName } from '@/lib/item-names'
 import { canonicalT8WeaponId } from '@/lib/weapon-display'
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/locales'
-import { compareStrings } from '@/lib/sort-strings'
+import { compareIsoStringsDesc, compareStrings } from '@/lib/sort-strings'
 import AlbionItemImage from './AlbionItemImage'
 
 // 무기군 필터/뱃지에 쓸 라벨. 킬보드 샘플(T6_... 등) 을 그대로 로컬라이즈하면
@@ -105,7 +105,7 @@ export default function GuildMemberList({ members, memberHrefPrefix = '/members'
         return compareStrings(a.username, b.username)
       })
     } else if (sortKey === 'recent') {
-      sorted.sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+      sorted.sort((a, b) => compareIsoStringsDesc(a.updated_at, b.updated_at))
     } else {
       sorted.sort((a, b) => {
         if (b.participation_count !== a.participation_count) {

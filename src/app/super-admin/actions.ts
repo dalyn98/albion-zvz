@@ -12,6 +12,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { requireSuperAdmin } from '@/lib/super-admin'
 import { logSuperAdminAction } from '@/lib/super-admin-audit'
 import { getSuperAdminPath } from '@/lib/super-admin-path'
+import { normalizePublicImageUrl } from '@/lib/public-image-url'
 import {
   IMPERSONATION_COOKIE_NAME,
   impersonationCookieOptions,
@@ -96,9 +97,11 @@ export async function grantTenantAdmin(formData: FormData): Promise<void> {
 export async function createSystemNotice(formData: FormData): Promise<void> {
   const session = await requireSuperAdmin()
   const message = String(formData.get('message') ?? '').trim()
-  const imageUrl = String(formData.get('imageUrl') ?? '').trim() || null
+  const rawImageUrl = String(formData.get('imageUrl') ?? '').trim()
+  const imageUrl = rawImageUrl ? normalizePublicImageUrl(rawImageUrl) : null
   const expiresAtRaw = String(formData.get('expiresAt') ?? '').trim()
 
+  if (rawImageUrl && !imageUrl) throw new Error('imageUrl must be a valid https URL')
   if (!message && !imageUrl) throw new Error('message or imageUrl required')
 
   let expiresAt: string | null = null

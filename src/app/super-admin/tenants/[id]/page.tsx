@@ -87,7 +87,7 @@ export default async function SuperAdminTenantDetailPage({ params }: PageProps) 
           <a
             href={tenantUrl}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 mt-1"
           >
             <ExternalLink size={12} />

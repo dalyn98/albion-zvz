@@ -36,6 +36,7 @@ describe('GET /invite', () => {
     const response = await GET(request)
 
     expect(response.headers.get('location')).toBe('https://discord.example/install?state=STATE')
+    expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
     expect(mocks.recordAuthStart).toHaveBeenCalledWith(request, 'open_bot_install', {
       bridge: false,
     })
@@ -50,6 +51,7 @@ describe('GET /invite', () => {
     const response = await GET(request)
 
     expect(response.headers.get('location')).toBe('https://albion-guildmanager.com/invite/open')
+    expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
     expect(mocks.recordAuthStart).toHaveBeenCalledWith(request, 'open_bot_install', {
       bridge: true,
     })

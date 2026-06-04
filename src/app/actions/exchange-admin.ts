@@ -13,7 +13,22 @@ import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { formatSilver } from '@/lib/silver'
 import { logAdminAction } from '@/lib/admin-audit'
 import { getPointBalancesByMember } from '@/lib/point-ledger'
+import { isPostgresNonNegativeInt } from '@/lib/postgres-int'
+import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 import type { AdminExchangeRequest, RoleReward } from './regear-admin-types'
+
+interface ExchangeRequestRow {
+  id: string
+  discord_id: string
+  username: string
+  silver: number
+  status: string
+  admin_notes: string | null
+  created_at: string
+  resolved_at: string | null
+  handled_by: string | null
+  handled_by_username: string | null
+}
 
 export async function listExchangeRequests(
   scope: 'pending' | 'all' = 'pending',
@@ -24,20 +39,25 @@ export async function listExchangeRequests(
     if (!session) return { requests: [], error: tErr('unauthorized') }
     const db = await requireAdmin()
     const guildId = await getSessionGuildId(session)
-    let query = db
-      .from('exchange_requests')
-      .select(
-        'id, discord_id, username, silver, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username',
-      )
-      .eq('guild_id', guildId)
-      .order('created_at', { ascending: false })
-      .limit(500)
-    if (scope === 'pending') query = query.eq('status', 'pending')
-    const { data, error } = await query
-    if (error) return { requests: [], error: error.message }
+    const page = await selectPagedRows<ExchangeRequestRow>({
+      label: 'exchange requests',
+      buildQuery: () => {
+        let query = db
+          .from('exchange_requests')
+          .select(
+            'id, discord_id, username, silver, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username',
+          )
+          .eq('guild_id', guildId)
+        if (scope === 'pending') query = query.eq('status', 'pending')
+        return query
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false }) as unknown as SupabasePagedQuery<ExchangeRequestRow>
+      },
+    })
+    if (page.error) return { requests: [], error: page.error }
 
     // Attach balance per user — a small N+1 that's fine at admin-scale volume.
-    const rows = data ?? []
+    const rows = page.rows
     const uniqueIds = Array.from(new Set(rows.map((r) => r.discord_id)))
     const { balances, error: balancesError } =
       await getPointBalancesByMember(db, guildId, uniqueIds)
@@ -200,7 +220,7 @@ export async function updateRoleReward(
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    if (!Number.isInteger(silver) || silver < 0) {
+    if (!isPostgresNonNegativeInt(silver)) {
       return { error: tErr('nonNegativeInteger') }
     }
     const session = await getSession()

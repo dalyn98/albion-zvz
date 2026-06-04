@@ -59,7 +59,7 @@ describe('GET /api/auth/discord/start', () => {
       { headers: { host: 'guild.albion-guildmanager.com', 'user-agent': 'TestAgent' } },
     )
 
-    await GET(request)
+    const response = await GET(request)
 
     expect(mocks.signOAuthState).toHaveBeenCalledWith({
       originHost: 'guild.albion-guildmanager.com',
@@ -78,6 +78,28 @@ describe('GET /api/auth/discord/start', () => {
       has_invite: true,
       prompt: 'consent',
       return_to: returnTo,
+    })
+    expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
+  })
+
+  it('normalizes unsafe returnTo values before signing state', async () => {
+    const request = new NextRequest(
+      'https://guild.albion-guildmanager.com/api/auth/discord/start?returnTo=%2Fapi%2Fauth%2Flogout',
+      { headers: { host: 'guild.albion-guildmanager.com' } },
+    )
+
+    await GET(request)
+
+    expect(mocks.signOAuthState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        returnTo: '/',
+        invite: null,
+      }),
+    )
+    expect(mocks.recordAuthStart).toHaveBeenCalledWith(request, 'discord_oauth', {
+      has_invite: false,
+      prompt: 'consent',
+      return_to: '/',
     })
   })
 })

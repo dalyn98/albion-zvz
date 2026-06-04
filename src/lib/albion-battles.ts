@@ -31,6 +31,17 @@ export interface AlbionBattlePlayer {
   allianceName: string | null
   allianceId: string | null
   id: string
+  averageItemPower?: number | string | null
+  AverageItemPower?: number | string | null
+  itemPower?: number | string | null
+  equipment?: Record<string, AlbionBattleEquipmentItem | null> | null
+  Equipment?: Record<string, AlbionBattleEquipmentItem | null> | null
+}
+
+export interface AlbionBattleEquipmentItem {
+  Type?: string | null
+  Count?: number | string | null
+  Quality?: number | string | null
 }
 
 export interface AlbionBattleGuild {
@@ -61,6 +72,46 @@ export interface AlbionBattle {
   players: Record<string, AlbionBattlePlayer>
   guilds: Record<string, AlbionBattleGuild>
   alliances: Record<string, AlbionBattleAlliance>
+}
+
+export type BattleForceLevel = 'alliance' | 'guild'
+export type BattleForceKind = 'alliance' | 'guild'
+
+export interface BattleForceSummary {
+  forceLevel: BattleForceLevel
+  forceKind: BattleForceKind
+  forceKey: string
+  forceName: string
+  allianceId: string | null
+  allianceName: string | null
+  guildIds: string[]
+  guildNames: string[]
+  teamSize: number
+  kills: number
+  deaths: number
+  killFame: number
+  averageItemPower: number | null
+}
+
+export interface BattlePlayerEquipmentEvidence {
+  playerId: string
+  itemPower: number | null
+  equipment: Record<string, AlbionBattleEquipmentItem | null> | null
+  occurredAt: string | null
+}
+
+export interface BattlePlayerSummary {
+  playerId: string
+  playerName: string
+  guildId: string
+  guildName: string
+  allianceId: string | null
+  allianceName: string | null
+  kills: number
+  deaths: number
+  killFame: number
+  itemPower: number | null
+  weaponId: string | null
 }
 
 // battle_records.raw_battle JSONB 는 우리 cron 이 Albion API 응답을 그대로
@@ -272,6 +323,217 @@ export function collectInvolvedIds(battle: AlbionBattle): {
   const guildIds = Object.keys(battle.guilds ?? {})
   const allianceIds = Object.keys(battle.alliances ?? {}).filter((id) => id !== '')
   return { guildIds, allianceIds }
+}
+
+function numericValue(raw: unknown): number | null {
+  const n = typeof raw === 'string' ? Number(raw) : raw
+  return typeof n === 'number' && Number.isFinite(n) ? n : null
+}
+
+export function getBattlePlayerItemPower(player: AlbionBattlePlayer): number | null {
+  const n =
+    numericValue(player.averageItemPower) ??
+    numericValue(player.AverageItemPower) ??
+    numericValue(player.itemPower)
+  return n === null ? null : Math.round(n)
+}
+
+export function getBattlePlayerEquipment(
+  player: AlbionBattlePlayer,
+): Record<string, AlbionBattleEquipmentItem | null> | null {
+  return player.equipment ?? player.Equipment ?? null
+}
+
+export function getBattlePlayerWeaponId(player: AlbionBattlePlayer): string | null {
+  const raw = getBattlePlayerEquipment(player)?.MainHand?.Type
+  if (typeof raw !== 'string') return null
+  const trimmed = raw.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function averageIp(sum: number, count: number): number | null {
+  if (count <= 0) return null
+  return Math.round(sum / count)
+}
+
+export function computeBattleForceSummaries(battle: AlbionBattle): BattleForceSummary[] {
+  const playersByGuild = new Map<string, { teamSize: number; ipSum: number; ipCount: number }>()
+  for (const player of Object.values(battle.players ?? {})) {
+    const entry = playersByGuild.get(player.guildId) ?? { teamSize: 0, ipSum: 0, ipCount: 0 }
+    entry.teamSize += 1
+    const ip = getBattlePlayerItemPower(player)
+    if (ip !== null) {
+      entry.ipSum += ip
+      entry.ipCount += 1
+    }
+    playersByGuild.set(player.guildId, entry)
+  }
+
+  const summaries: BattleForceSummary[] = []
+  const allianceAcc = new Map<
+    string,
+    {
+      forceKey: string
+      forceName: string
+      allianceId: string
+      allianceName: string
+      guildIds: string[]
+      guildNames: string[]
+      teamSize: number
+      kills: number
+      deaths: number
+      killFame: number
+      ipSum: number
+      ipCount: number
+    }
+  >()
+
+  for (const [guildId, guild] of Object.entries(battle.guilds ?? {})) {
+    const playerStats = playersByGuild.get(guildId) ?? { teamSize: 0, ipSum: 0, ipCount: 0 }
+    const allianceId = guild.allianceId && guild.allianceId !== '' ? guild.allianceId : null
+    const allianceName = allianceId
+      ? (battle.alliances?.[allianceId]?.name ?? guild.alliance) || null
+      : null
+
+    summaries.push({
+      forceLevel: 'guild',
+      forceKind: 'guild',
+      forceKey: `g:${guildId}`,
+      forceName: guild.name,
+      allianceId,
+      allianceName,
+      guildIds: [guildId],
+      guildNames: [guild.name],
+      teamSize: playerStats.teamSize,
+      kills: guild.kills,
+      deaths: guild.deaths,
+      killFame: guild.killFame,
+      averageItemPower: averageIp(playerStats.ipSum, playerStats.ipCount),
+    })
+
+    if (!allianceId) {
+      summaries.push({
+        forceLevel: 'alliance',
+        forceKind: 'guild',
+        forceKey: `g:${guildId}`,
+        forceName: guild.name,
+        allianceId: null,
+        allianceName: null,
+        guildIds: [guildId],
+        guildNames: [guild.name],
+        teamSize: playerStats.teamSize,
+        kills: guild.kills,
+        deaths: guild.deaths,
+        killFame: guild.killFame,
+        averageItemPower: averageIp(playerStats.ipSum, playerStats.ipCount),
+      })
+      continue
+    }
+
+    const acc = allianceAcc.get(allianceId) ?? {
+      forceKey: `a:${allianceId}`,
+      forceName: (allianceName ?? guild.alliance) || guild.name,
+      allianceId,
+      allianceName: allianceName ?? guild.alliance ?? null,
+      guildIds: [],
+      guildNames: [],
+      teamSize: 0,
+      kills: 0,
+      deaths: 0,
+      killFame: 0,
+      ipSum: 0,
+      ipCount: 0,
+    }
+    acc.guildIds.push(guildId)
+    acc.guildNames.push(guild.name)
+    acc.teamSize += playerStats.teamSize
+    acc.kills += guild.kills
+    acc.deaths += guild.deaths
+    acc.killFame += guild.killFame
+    acc.ipSum += playerStats.ipSum
+    acc.ipCount += playerStats.ipCount
+    allianceAcc.set(allianceId, acc)
+  }
+
+  for (const acc of allianceAcc.values()) {
+    summaries.push({
+      forceLevel: 'alliance',
+      forceKind: 'alliance',
+      forceKey: acc.forceKey,
+      forceName: acc.forceName,
+      allianceId: acc.allianceId,
+      allianceName: acc.allianceName,
+      guildIds: acc.guildIds,
+      guildNames: acc.guildNames,
+      teamSize: acc.teamSize,
+      kills: acc.kills,
+      deaths: acc.deaths,
+      killFame: acc.killFame,
+      averageItemPower: averageIp(acc.ipSum, acc.ipCount),
+    })
+  }
+
+  return summaries.sort((a, b) => {
+    if (a.forceLevel !== b.forceLevel) return a.forceLevel.localeCompare(b.forceLevel)
+    if (b.teamSize !== a.teamSize) return b.teamSize - a.teamSize
+    return a.forceName.localeCompare(b.forceName)
+  })
+}
+
+export function buildBattlePlayerSummaries(
+  battle: AlbionBattle,
+  evidenceRows: ReadonlyArray<BattlePlayerEquipmentEvidence> = [],
+): BattlePlayerSummary[] {
+  const evidenceByPlayer = new Map<
+    string,
+    { itemPower: number | null; weaponId: string | null; occurredAt: string | null }
+  >()
+  for (const row of evidenceRows) {
+    if (!row.playerId) continue
+    const current = evidenceByPlayer.get(row.playerId)
+    const nextWeapon =
+      typeof row.equipment?.MainHand?.Type === 'string'
+        ? row.equipment.MainHand.Type.trim() || null
+        : null
+    const shouldReplace =
+      !current ||
+      (row.occurredAt !== null &&
+        (current.occurredAt === null || row.occurredAt > current.occurredAt))
+    if (!shouldReplace) {
+      if (current.weaponId === null && nextWeapon !== null) current.weaponId = nextWeapon
+      if (current.itemPower === null && row.itemPower !== null) current.itemPower = row.itemPower
+      continue
+    }
+    evidenceByPlayer.set(row.playerId, {
+      itemPower: row.itemPower,
+      weaponId: nextWeapon,
+      occurredAt: row.occurredAt,
+    })
+  }
+
+  return Object.values(battle.players ?? {})
+    .map((player) => {
+      const evidence = evidenceByPlayer.get(player.id)
+      return {
+        playerId: player.id,
+        playerName: player.name,
+        guildId: player.guildId,
+        guildName: player.guildName,
+        allianceId: player.allianceId,
+        allianceName: player.allianceName,
+        kills: player.kills,
+        deaths: player.deaths,
+        killFame: player.killFame,
+        itemPower: evidence?.itemPower ?? getBattlePlayerItemPower(player),
+        weaponId: evidence?.weaponId ?? getBattlePlayerWeaponId(player),
+      }
+    })
+    .sort((a, b) => {
+      if (b.kills !== a.kills) return b.kills - a.kills
+      if (b.deaths !== a.deaths) return b.deaths - a.deaths
+      if (b.killFame !== a.killFame) return b.killFame - a.killFame
+      return a.playerName.localeCompare(b.playerName)
+    })
 }
 
 // 상대측 "force" — alliance 단위 또는 단독 길드 단위. 합산 의미가 있는 단위만

@@ -50,6 +50,7 @@ describe('event guest auth scope', () => {
     const { db, calls } = createDb({
       event_guest_tokens: {
         event_id: 'event-from-token',
+        guild_id: 'guild-from-token',
         revoked_at: null,
         expires_at: '2999-01-01T00:00:00.000Z',
       },
@@ -73,6 +74,11 @@ describe('event guest auth scope', () => {
       args: ['token', 'token-1'],
     })
     expect(calls).toContainEqual({
+      table: 'event_guest_tokens',
+      method: 'eq',
+      args: ['event_id', 'event-from-token'],
+    })
+    expect(calls).toContainEqual({
       table: 'events',
       method: 'eq',
       args: ['id', 'event-from-token'],
@@ -83,6 +89,7 @@ describe('event guest auth scope', () => {
     const { db } = createDb({
       event_guest_tokens: {
         event_id: 'event-from-token',
+        guild_id: 'guild-from-url',
         revoked_at: null,
         expires_at: '2026-05-24T00:00:00.000Z',
       },
@@ -93,6 +100,26 @@ describe('event guest auth scope', () => {
       resolveEventGuestAuthScope(db, {
         inviteToken: 'expired',
         returnTo: '/events/event-from-url',
+        nowIso: '2026-05-25T00:00:00.000Z',
+      }),
+    ).resolves.toBeNull()
+  })
+
+  it('rejects invite tokens whose tenant does not match the event tenant', async () => {
+    const { db } = createDb({
+      event_guest_tokens: {
+        event_id: 'event-from-token',
+        guild_id: 'guild-from-token-row',
+        revoked_at: null,
+        expires_at: '2999-01-01T00:00:00.000Z',
+      },
+      events: { guild_id: 'guild-from-event-row', status: 'published' },
+    })
+
+    await expect(
+      resolveEventGuestInviteScope(db, {
+        inviteToken: 'token-1',
+        eventId: 'event-from-token',
         nowIso: '2026-05-25T00:00:00.000Z',
       }),
     ).resolves.toBeNull()

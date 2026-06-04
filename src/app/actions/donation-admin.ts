@@ -8,6 +8,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { formatSilver } from '@/lib/silver'
 import { logAdminAction } from '@/lib/admin-audit'
+import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 
 const SCREENSHOT_BUCKET = 'donation-screenshots'
 // 리기어와 동일 — 관리자가 검토 중 창을 띄워둘 시간만 주면 된다.
@@ -28,6 +29,21 @@ export interface AdminDonationRequest {
   handled_by_username: string | null
 }
 
+interface DonationRequestRow {
+  id: string
+  discord_id: string
+  username: string
+  silver: number
+  memo: string | null
+  screenshot_path: string | null
+  status: string
+  admin_notes: string | null
+  created_at: string
+  resolved_at: string | null
+  handled_by: string | null
+  handled_by_username: string | null
+}
+
 export async function listDonationRequests(
   scope: 'pending' | 'all' = 'pending',
 ): Promise<{ requests: AdminDonationRequest[]; error?: string }> {
@@ -37,18 +53,23 @@ export async function listDonationRequests(
     if (!session) return { requests: [], error: tErr('unauthorized') }
     const db = await requireAdmin()
     const guildId = await getSessionGuildId(session)
-    let query = db
-      .from('donation_requests')
-      .select(
-        'id, discord_id, username, silver, memo, screenshot_path, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username',
-      )
-      .eq('guild_id', guildId)
-      .order('created_at', { ascending: false })
-      .limit(500)
-    if (scope === 'pending') query = query.eq('status', 'pending')
-    const { data, error } = await query
-    if (error) return { requests: [], error: error.message }
-    const requests: AdminDonationRequest[] = (data ?? []).map((row) => ({
+    const page = await selectPagedRows<DonationRequestRow>({
+      label: 'donation requests',
+      buildQuery: () => {
+        let query = db
+          .from('donation_requests')
+          .select(
+            'id, discord_id, username, silver, memo, screenshot_path, status, admin_notes, created_at, resolved_at, handled_by, handled_by_username',
+          )
+          .eq('guild_id', guildId)
+        if (scope === 'pending') query = query.eq('status', 'pending')
+        return query
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false }) as unknown as SupabasePagedQuery<DonationRequestRow>
+      },
+    })
+    if (page.error) return { requests: [], error: page.error }
+    const requests: AdminDonationRequest[] = page.rows.map((row) => ({
       id: row.id,
       discord_id: row.discord_id,
       username: row.username,

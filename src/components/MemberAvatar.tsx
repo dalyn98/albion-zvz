@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { UserCircle2 } from 'lucide-react'
-import { discordAvatarUrl } from '@/lib/discord-avatar'
+import { discordAvatarUrl } from '@/lib/discord-avatar-url'
 
 interface Props {
   discordId: string | null | undefined

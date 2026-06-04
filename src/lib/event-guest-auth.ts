@@ -24,6 +24,7 @@ interface EventGuestAuthDb {
 
 interface TokenRow {
   event_id: string
+  guild_id: string
   revoked_at: string | null
   expires_at: string | null
 }
@@ -75,7 +76,7 @@ export async function resolveEventGuestInviteScope(
 
   const nowIso = input.nowIso ?? new Date().toISOString()
   const query = (db.from('event_guest_tokens') as SelectQueryBuilder)
-    .select('event_id, revoked_at, expires_at')
+    .select('event_id, guild_id, revoked_at, expires_at')
     .eq('token', inviteToken)
   if (input.eventId) query.eq('event_id', input.eventId)
 
@@ -92,6 +93,7 @@ export async function resolveEventGuestInviteScope(
 
   const eventRow = await resolveEventRow(db, token.event_id)
   if (!eventRow) return null
+  if (token.guild_id !== eventRow.guild_id) return null
   return {
     eventId: token.event_id,
     guildId: eventRow.guild_id,

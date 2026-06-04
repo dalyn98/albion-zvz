@@ -1,41 +1,30 @@
 'use client'
 
-// 상점 할인율 설정. 어드민은 "할인 퍼센트(0~99)" 로 입력하지만 실제 저장 형식은
-// multiplier (0.01~1, 1=할인없음). 어드민 멘탈모델("10% 할인") 과 가격 계산
-// 모델(silver × multiplier) 사이의 변환을 폼이 흡수한다. 저장 시 percent →
-// multiplier, 로드 시 multiplier → percent.
+// 상점 환율/할인율 설정. 어드민은 "실버 가격에 적용할 비율(1~100%)" 로 입력하고,
+// 실제 저장 형식은 multiplier (0.01~1) 다. 100% = 1:1, 50% = 절반 가격.
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Save, Percent } from 'lucide-react'
 import { updateAppSetting } from '@/app/actions/settings'
+import {
+  SHOP_RATE_PERCENT_MAX,
+  SHOP_RATE_PERCENT_MIN,
+  shopDiscountRateToPercent,
+  shopRatePercentToDiscountRate,
+} from '@/lib/shop/price'
 import { useReportDirty } from './UnsavedChangesProvider'
 
 interface Props {
   initial: string
 }
 
-const PERCENT_MIN = 0
-const PERCENT_MAX = 99
-
-function multiplierToPercent(multiplier: string): number {
-  const m = Number(multiplier)
-  if (!Number.isFinite(m) || m <= 0 || m > 1) return 0
-  return Math.max(PERCENT_MIN, Math.min(PERCENT_MAX, Math.round((1 - m) * 100)))
-}
-
-function percentToMultiplier(percent: number): string {
-  // 0 → "1", 50 → "0.5", 99 → "0.01". toFixed(2) 후 Number 로 변환해
-  // trailing zero 제거.
-  return Number(((100 - percent) / 100).toFixed(2)).toString()
-}
-
 export default function ShopSilverRateForm({ initial }: Props) {
   const tCommon = useTranslations('common')
   const t = useTranslations('adminShopSilverRate')
   const router = useRouter()
-  const initialPercent = multiplierToPercent(initial)
+  const initialPercent = shopDiscountRateToPercent(initial)
   const [percent, setPercent] = useState(String(initialPercent))
   const [savedPercent, setSavedPercent] = useState(String(initialPercent))
   const [pending, startTransition] = useTransition()
@@ -48,12 +37,12 @@ export default function ShopSilverRateForm({ initial }: Props) {
   const isValid =
     Number.isFinite(parsed) &&
     Number.isInteger(parsed) &&
-    parsed >= PERCENT_MIN &&
-    parsed <= PERCENT_MAX
+    parsed >= SHOP_RATE_PERCENT_MIN &&
+    parsed <= SHOP_RATE_PERCENT_MAX
   const previewText = isValid
     ? t('percentPreview', {
         percent: parsed,
-        points: Math.ceil((1_000_000 * (100 - parsed)) / 100).toLocaleString(),
+        points: Math.ceil((1_000_000 * parsed) / 100).toLocaleString(),
       })
     : t('rangeHint')
 
@@ -61,7 +50,7 @@ export default function ShopSilverRateForm({ initial }: Props) {
     setError('')
     setSaved(false)
     startTransition(async () => {
-      const multiplier = percentToMultiplier(parsed)
+      const multiplier = shopRatePercentToDiscountRate(parsed)
       const result = await updateAppSetting('shop_discount_rate', multiplier)
       if (result.error) {
         setError(result.error)
@@ -96,7 +85,7 @@ export default function ShopSilverRateForm({ initial }: Props) {
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleSave()
             }}
-            placeholder="10"
+            placeholder="100"
             className="w-24 bg-gray-800 border border-gray-700 rounded-lg pl-3 pr-7 py-2 text-sm text-white text-right font-mono focus:outline-none focus:border-amber-500"
             disabled={pending}
           />

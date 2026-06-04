@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { getAdminClient } from '@/lib/supabase-admin'
-import { getAppSetting } from '@/lib/app-settings'
 import { listActiveTenants } from '@/lib/tenant'
 import {
   ALBION_SERVERS,
@@ -14,15 +13,19 @@ import {
   type AlbionBattle,
 } from '@/lib/albion-battles'
 import {
+  buildBattleForceEdgeRows,
+  buildBattleForceSummaryRows,
   buildBattleRecordRow,
   buildFinalMatchupRows,
   buildProvisionalTenantRow,
+  type BattleForceEdgeEvent,
   type KillboardPair,
   type TenantBattleRow,
 } from '@/lib/battle-tracking-helpers'
 import { upsertBattleLedgerShadow } from '@/lib/battle-ledger-shadow-db'
 import { refreshBattleProjectionDiffs } from '@/lib/battle-ledger-diff-db'
 import { withCronRun } from '@/lib/cron-run'
+import { parseBoundedInt } from '@/lib/parse-bounded-int'
 
 // killboard_events 가 hint 한 battle_id 중 battle_records 에 없는 것을 ID 로
 // 직접 fetch 해 채우는 백필 윈도. /battles?sort=recent 가 인스턴스 간 결과
@@ -90,6 +93,43 @@ interface TenantTrackingInfo {
   homeAllianceId: string | null
 }
 
+interface TenantTrackingSettingRow {
+  guild_id: string | null
+  key: string | null
+  value: string | null
+}
+
+async function loadTrackingSettings(
+  db: ReturnType<typeof getAdminClient>,
+  tenantIds: readonly string[],
+): Promise<Map<string, Map<string, string>>> {
+  if (tenantIds.length === 0) return new Map()
+  const { data, error } = await db
+    .from('app_settings')
+    .select('guild_id, key, value')
+    .in('guild_id', tenantIds)
+    .in('key', ['albion_home_guild_id', 'albion_home_guild_name', 'albion_server'])
+
+  if (error) {
+    throw new Error(`tracking settings select: ${error.message}`)
+  }
+
+  const byTenant = new Map<string, Map<string, string>>()
+  for (const row of (data ?? []) as TenantTrackingSettingRow[]) {
+    if (!row.guild_id || !row.key || typeof row.value !== 'string') continue
+    const settings = byTenant.get(row.guild_id) ?? new Map<string, string>()
+    settings.set(row.key, row.value)
+    byTenant.set(row.guild_id, settings)
+  }
+  return byTenant
+}
+
+function normalizeAlbionBattleId(value: number | string | null | undefined): string | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  if (typeof value === 'string' && value.length > 0) return value
+  return null
+}
+
 export async function GET(request: Request) {
   return withCronRun(request, { jobName: 'battle-tracker', leaseSeconds: 600 }, async ({ db }) => {
   // pages 쿼리스트링으로 fetchRecentBattles 의 페이지 수 조절. Albion API 는
@@ -98,27 +138,25 @@ export async function GET(request: Request) {
   // 끼어들면서 누락이 발생함. 기본 6페이지(=300건, ~20-30분 커버) 로 안전 마진
   // 확보. 수동 백필은 ?pages=20 까지 허용 (50*20=1000건).
   const url = new URL(request.url)
-  const pagesParam = Number.parseInt(url.searchParams.get('pages') ?? '', 10)
-  const pages = Number.isFinite(pagesParam)
-    ? Math.min(Math.max(pagesParam, 1), 20)
-    : 6
+  const pages = parseBoundedInt(url.searchParams.get('pages'), 1, 20) ?? 6
   const shadowSyncEnabled = isShadowSyncEnabled(url)
   const projectionDiffSyncEnabled = isProjectionDiffSyncEnabled(url, shadowSyncEnabled)
 
   const tenants = await listActiveTenants()
+  const settingsByTenant = await loadTrackingSettings(db, tenants.map((tenant) => tenant.id))
 
   const tracking: TenantTrackingInfo[] = []
   for (const tenant of tenants) {
-    const [homeGuildId, homeGuildNameRaw, serverRaw] = await Promise.all([
-      getAppSetting('albion_home_guild_id', '', tenant.id),
-      getAppSetting('albion_home_guild_name', '', tenant.id),
-      getAppSetting('albion_server', '', tenant.id),
-    ])
+    const settings = settingsByTenant.get(tenant.id)
+    const homeGuildId = settings?.get('albion_home_guild_id')?.trim() ?? ''
+    const homeGuildNameRaw = settings?.get('albion_home_guild_name') ?? ''
+    const serverRaw = settings?.get('albion_server') ?? ''
     if (!homeGuildId) continue
     // albion_server row 가 없으면 ('' 반환) skip — 'east' 로 silent 폴백하면
     // west/eu tenant 가 잘못된 server API 로 추적되어 battle_records 가 오염된다.
     if (!isAlbionServer(serverRaw)) continue
-    const guild = await getGuild(serverRaw, homeGuildId)
+    const needsGuildLookup = shadowSyncEnabled || homeGuildNameRaw.trim().length === 0
+    const guild = needsGuildLookup ? await getGuild(serverRaw, homeGuildId) : null
     tracking.push({
       tenantId: tenant.id,
       server: serverRaw,
@@ -155,17 +193,21 @@ export async function GET(request: Request) {
     projection_diffs_refreshed: number
     projection_diffs_reactivated: number
     projection_diffs_resolved: number
+    force_summaries_upserted: number
+    force_edges_upserted: number
     matchups_evaluated: number
     matchups_finalized_rows: number
     matchups_deleted: number
     errors: string[]
   }> = []
+  const serversWithRecentBattleFetch = new Set<AlbionServer>()
 
   for (const server of serversInUse) {
     const errors: string[] = []
     let battles: AlbionBattle[] = []
     try {
       battles = await fetchRecentBattles(server, pages)
+      serversWithRecentBattleFetch.add(server)
     } catch (e) {
       errors.push(`fetchRecentBattles: ${e instanceof Error ? e.message : String(e)}`)
       results.push({
@@ -187,6 +229,8 @@ export async function GET(request: Request) {
         projection_diffs_refreshed: 0,
         projection_diffs_reactivated: 0,
         projection_diffs_resolved: 0,
+        force_summaries_upserted: 0,
+        force_edges_upserted: 0,
         matchups_evaluated: 0,
         matchups_finalized_rows: 0,
         matchups_deleted: 0,
@@ -211,6 +255,8 @@ export async function GET(request: Request) {
     let projectionDiffsRefreshed = 0
     let projectionDiffsReactivated = 0
     let projectionDiffsResolved = 0
+    let forceSummariesUpserted = 0
+    let forceEdgesUpserted = 0
     let matchupsEvaluated = 0
     let matchupsFinalizedRows = 0
     let matchupsDeleted = 0
@@ -254,6 +300,7 @@ export async function GET(request: Request) {
         }
 
         const provisionalRows: TenantBattleRow[] = []
+        const forceSummaryBattles = new Map<string, AlbionBattle>()
         for (const tenant of serverTenants) {
           for (const battle of battles) {
             const battleRecordId = battleRecordIdMap.get(battle.id)
@@ -265,7 +312,10 @@ export async function GET(request: Request) {
               homeGuildId: tenant.homeGuildId,
               startedAt: battle.startTime,
             })
-            if (row) provisionalRows.push(row)
+            if (row) {
+              provisionalRows.push(row)
+              forceSummaryBattles.set(battleRecordId, battle)
+            }
           }
         }
 
@@ -280,6 +330,12 @@ export async function GET(request: Request) {
             errors.push(`provisional upsert: ${tErr.message}`)
           } else {
             tenantProvisionalUpserted = provisionalRows.length
+            const forceSummaryRes = await upsertBattleForceSummaries(
+              db,
+              forceSummaryBattles,
+            )
+            forceSummariesUpserted += forceSummaryRes.upserted
+            for (const e of forceSummaryRes.errors) errors.push(e)
           }
         }
       }
@@ -368,6 +424,7 @@ export async function GET(request: Request) {
           }
 
           const backfillRows: TenantBattleRow[] = []
+          const forceSummaryBattles = new Map<string, AlbionBattle>()
           for (const tenant of serverTenantsForBackfill) {
             for (const battle of fetchedBattles) {
               const battleRecordId = idMap.get(battle.id)
@@ -379,7 +436,10 @@ export async function GET(request: Request) {
                 homeGuildId: tenant.homeGuildId,
                 startedAt: battle.startTime,
               })
-              if (row) backfillRows.push(row)
+              if (row) {
+                backfillRows.push(row)
+                forceSummaryBattles.set(battleRecordId, battle)
+              }
             }
           }
           if (backfillRows.length > 0) {
@@ -393,6 +453,12 @@ export async function GET(request: Request) {
               errors.push(`backfill provisional upsert: ${tErr.message}`)
             } else {
               backfillTR = backfillRows.length
+              const forceSummaryRes = await upsertBattleForceSummaries(
+                db,
+                forceSummaryBattles,
+              )
+              forceSummariesUpserted += forceSummaryRes.upserted
+              for (const e of forceSummaryRes.errors) errors.push(e)
             }
           }
         }
@@ -413,6 +479,7 @@ export async function GET(request: Request) {
       matchupsEvaluated = evalRes.evaluated
       matchupsFinalizedRows = evalRes.finalized
       matchupsDeleted = evalRes.deleted
+      forceEdgesUpserted += evalRes.forceEdgesUpserted
       for (const battleRecordId of evalRes.battleRecordIds) {
         comparisonBattleRecordIds.add(battleRecordId)
       }
@@ -460,6 +527,8 @@ export async function GET(request: Request) {
       projection_diffs_refreshed: projectionDiffsRefreshed,
       projection_diffs_reactivated: projectionDiffsReactivated,
       projection_diffs_resolved: projectionDiffsResolved,
+      force_summaries_upserted: forceSummariesUpserted,
+      force_edges_upserted: forceEdgesUpserted,
       matchups_evaluated: matchupsEvaluated,
       matchups_finalized_rows: matchupsFinalizedRows,
       matchups_deleted: matchupsDeleted,
@@ -468,12 +537,14 @@ export async function GET(request: Request) {
   }
 
   // 자동 리기어의 stage 1 (tracked battle 매칭) 가드를 위한 sync 시각 기록.
-  // 한 번이라도 fetch 가 성공한 이번 run 의 시작 시각(nowIso) 을 저장 — server 별
-  // 일부 errors 가 있어도 tenant_battle_records upsert 는 시도된 상태이므로
-  // auto-regear 가 "이번 cron 이후 데이터로 판단해도 됨" 으로 받아들인다.
+  // 해당 tenant 의 Albion server 에서 recent battles fetch 자체가 성공한 경우만 저장.
+  // 서버 fetch 실패까지 성공 시각으로 찍으면 auto-regear 가 아직 동기화되지 않은
+  // 데이터를 "확인 완료"로 오인할 수 있다. 이후 backfill/reevaluate 일부 errors 는
+  // 결과 payload 에 남기되, recent fetch 성공 tenant 는 다음 stage 진행을 허용한다.
   // killboard-sync 와 동일한 패턴(per-tenant upsert with onConflict).
   const nowIso = new Date().toISOString()
-  for (const t of tracking) {
+  const syncTimestampTenants = tracking.filter((t) => serversWithRecentBattleFetch.has(t.server))
+  for (const t of syncTimestampTenants) {
     await db
       .from('app_settings')
       .upsert(
@@ -489,6 +560,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     tracked_tenants: tracking.length,
+    sync_timestamped_tenants: syncTimestampTenants.length,
     pages,
     shadow_sync_enabled: shadowSyncEnabled,
     projection_diff_sync_enabled: projectionDiffSyncEnabled,
@@ -508,16 +580,25 @@ async function reevaluateMatchups(input: {
   server: AlbionServer
   tenantTracking: TenantTrackingInfo[]
   sinceIso: string
-}): Promise<{ evaluated: number; finalized: number; deleted: number; battleRecordIds: string[]; errors: string[] }> {
+}): Promise<{
+  evaluated: number
+  finalized: number
+  deleted: number
+  forceEdgesUpserted: number
+  battleRecordIds: string[]
+  errors: string[]
+}> {
   const { db, server, tenantTracking, sinceIso } = input
   const errors: string[] = []
   let evaluated = 0
   let finalized = 0
   let deleted = 0
+  let forceEdgesUpserted = 0
   const battleRecordIds = new Set<string>()
+  const forceEdgesEvaluatedBattleRecordIds = new Set<string>()
 
   if (tenantTracking.length === 0) {
-    return { evaluated, finalized, deleted, battleRecordIds: [], errors }
+    return { evaluated, finalized, deleted, forceEdgesUpserted, battleRecordIds: [], errors }
   }
   const tenantIds = tenantTracking.map((t) => t.tenantId)
   const homeGuildByTenant = new Map(
@@ -540,13 +621,69 @@ async function reevaluateMatchups(input: {
 
   if (provErr) {
     errors.push(`provisional select: ${provErr.message}`)
-    return { evaluated, finalized, deleted, battleRecordIds: [], errors }
+    return { evaluated, finalized, deleted, forceEdgesUpserted, battleRecordIds: [], errors }
   }
   if (!provRows || provRows.length === 0) {
-    return { evaluated, finalized, deleted, battleRecordIds: [], errors }
+    return { evaluated, finalized, deleted, forceEdgesUpserted, battleRecordIds: [], errors }
   }
 
   const evaluatedAt = new Date().toISOString()
+  const albionBattleIds = Array.from(
+    new Set(
+      provRows
+        .map((prov) => {
+          const brJoin = prov.battle_records as
+            | { albion_battle_id: number | string | null; raw_battle: AlbionBattle }
+            | { albion_battle_id: number | string | null; raw_battle: AlbionBattle }[]
+            | null
+          const br = Array.isArray(brJoin) ? brJoin[0] : brJoin
+          return normalizeAlbionBattleId(br?.albion_battle_id)
+        })
+        .filter((id): id is string => id !== null),
+    ),
+  )
+  const pairsByTenantBattle = new Map<string, KillboardPair[]>()
+  const edgeEventsByBattle = new Map<string, BattleForceEdgeEvent[]>()
+  if (albionBattleIds.length > 0) {
+    const { data: pairRows, error: pairErr } = await db
+      .from('killboard_events')
+      .select('event_id, guild_id, battle_id, role, opponent_guild, opponent_alliance, fame')
+      .in('guild_id', tenantIds)
+      .in('battle_id', albionBattleIds)
+    if (pairErr) {
+      errors.push(`killboard pairs batch: ${pairErr.message}`)
+      return { evaluated, finalized, deleted, forceEdgesUpserted, battleRecordIds: [...battleRecordIds], errors }
+    }
+    for (const row of pairRows ?? []) {
+      const guildId = row.guild_id as string | null
+      const battleId = row.battle_id as number | string | null
+      const battleIdKey = normalizeAlbionBattleId(battleId)
+      const role = row.role as 'killer' | 'victim' | null
+      if (!guildId || !battleIdKey || (role !== 'killer' && role !== 'victim')) continue
+      const key = `${guildId}:${battleIdKey}`
+      const list = pairsByTenantBattle.get(key) ?? []
+      list.push({
+        role,
+        opponentGuild: (row.opponent_guild as string | null) ?? null,
+        fame: (row.fame as number | null) ?? 0,
+      })
+      pairsByTenantBattle.set(key, list)
+
+      const sourceHomeGuildId = homeGuildByTenant.get(guildId)
+      const eventId = row.event_id as number | string | null
+      if (!sourceHomeGuildId || eventId === null || eventId === undefined) continue
+      const edgeEvents = edgeEventsByBattle.get(battleIdKey) ?? []
+      edgeEvents.push({
+        eventId: String(eventId),
+        sourceHomeGuildId,
+        role,
+        opponentGuild: (row.opponent_guild as string | null) ?? null,
+        opponentAlliance: (row.opponent_alliance as string | null) ?? null,
+        fame: (row.fame as number | null) ?? 0,
+      })
+      edgeEventsByBattle.set(battleIdKey, edgeEvents)
+    }
+  }
 
   for (const prov of provRows) {
     const tenantId = prov.guild_id as string
@@ -555,32 +692,36 @@ async function reevaluateMatchups(input: {
     const homeGuildId = homeGuildByTenant.get(tenantId)
     if (!homeGuildId) continue
     const brJoin = prov.battle_records as
-      | { albion_battle_id: number; raw_battle: AlbionBattle }
-      | { albion_battle_id: number; raw_battle: AlbionBattle }[]
+      | { albion_battle_id: number | string | null; raw_battle: AlbionBattle }
+      | { albion_battle_id: number | string | null; raw_battle: AlbionBattle }[]
       | null
     const br = Array.isArray(brJoin) ? brJoin[0] : brJoin
     if (!br) continue
     const battle = br.raw_battle
     if (!battle) continue
-    const albionBattleId = br.albion_battle_id
+    const albionBattleId = normalizeAlbionBattleId(br.albion_battle_id)
+    if (!albionBattleId) continue
 
     evaluated++
-
-    // killboard_events 에서 (guild_id, battle_id) pair 조회
-    const { data: pairRows, error: pairErr } = await db
-      .from('killboard_events')
-      .select('role, opponent_guild, fame')
-      .eq('guild_id', tenantId)
-      .eq('battle_id', albionBattleId)
-    if (pairErr) {
-      errors.push(`killboard pairs (battle ${albionBattleId}): ${pairErr.message}`)
-      continue
+    const pairs = pairsByTenantBattle.get(`${tenantId}:${albionBattleId}`) ?? []
+    if (!forceEdgesEvaluatedBattleRecordIds.has(battleRecordId)) {
+      const edgeRows = buildBattleForceEdgeRows({
+        battleRecordId,
+        battle,
+        events: edgeEventsByBattle.get(albionBattleId) ?? [],
+        evaluatedAt,
+      })
+      if (edgeRows.length > 0) {
+        const { error: edgeErr } = await db
+          .from('battle_force_edges')
+          .upsert(edgeRows, {
+            onConflict: 'battle_record_id,force_level,force_a_key,force_b_key',
+          })
+        if (edgeErr) errors.push(`force edges upsert (battle ${albionBattleId}): ${edgeErr.message}`)
+        else forceEdgesUpserted += edgeRows.length
+      }
+      forceEdgesEvaluatedBattleRecordIds.add(battleRecordId)
     }
-    const pairs: KillboardPair[] = (pairRows ?? []).map((r) => ({
-      role: r.role as 'killer' | 'victim',
-      opponentGuild: (r.opponent_guild as string | null) ?? null,
-      fame: (r.fame as number | null) ?? 0,
-    }))
 
     const finalRows = buildFinalMatchupRows({
       guildId: tenantId,
@@ -622,7 +763,22 @@ async function reevaluateMatchups(input: {
   // ※ 서버 변수는 placeholder 호환을 위해 받아둠(추후 server 별 분기 시 사용).
   void server
 
-  return { evaluated, finalized, deleted, battleRecordIds: [...battleRecordIds], errors }
+      return { evaluated, finalized, deleted, forceEdgesUpserted, battleRecordIds: [...battleRecordIds], errors }
+}
+
+async function upsertBattleForceSummaries(
+  db: ReturnType<typeof getAdminClient>,
+  battlesByRecordId: ReadonlyMap<string, AlbionBattle>,
+): Promise<{ upserted: number; errors: string[] }> {
+  const rows = Array.from(battlesByRecordId.entries()).flatMap(([battleRecordId, battle]) =>
+    buildBattleForceSummaryRows(battleRecordId, battle),
+  )
+  if (rows.length === 0) return { upserted: 0, errors: [] }
+  const { error } = await db
+    .from('battle_force_summaries')
+    .upsert(rows, { onConflict: 'battle_record_id,force_level,force_key' })
+  if (error) return { upserted: 0, errors: [`force summaries upsert: ${error.message}`] }
+  return { upserted: rows.length, errors: [] }
 }
 
 export const maxDuration = 300

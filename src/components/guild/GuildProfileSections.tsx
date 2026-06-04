@@ -8,7 +8,7 @@ import {
   Users,
 } from 'lucide-react'
 import type { ACCENT_CLASS_MAP } from '@/lib/guild-profile'
-import type { GalleryItem } from '@/lib/guild-profile-gallery'
+import type { GalleryItem } from '@/lib/guild-profile-gallery-config'
 import type {
   BattleOutcome,
   RecentBattleSummary,

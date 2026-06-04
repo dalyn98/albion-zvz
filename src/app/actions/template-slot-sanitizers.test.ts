@@ -1,0 +1,102 @@
+import { describe, expect, it } from 'vitest'
+import { FREE_ITEM_NAME, SLOT_KEYS, type GearOption } from '@/types'
+import type { SlotTemplateData } from './slot-templates'
+import type { TemplateData } from './templates'
+import { sanitizeSlotTemplateData, sanitizeTemplateData } from './template-slot-sanitizers'
+
+function emptyGearColumns(): Record<string, null> {
+  return SLOT_KEYS.reduce(
+    (acc, key) => ({
+      ...acc,
+      [`${key}_name`]: null,
+      [`${key}_id`]: null,
+      [`${key}_options`]: null,
+    }),
+    {} as Record<string, null>,
+  )
+}
+
+function makeSlotTemplateData(overrides: Partial<SlotTemplateData> = {}): SlotTemplateData {
+  return {
+    role_name: null,
+    notes: null,
+    spells: null,
+    gear_specs: null,
+    conditional_options: null,
+    ...emptyGearColumns(),
+    ...overrides,
+  } as SlotTemplateData
+}
+
+function makeTemplateSlot(
+  overrides: Partial<TemplateData['parties'][number]['slots'][number]> = {},
+): TemplateData['parties'][number]['slots'][number] {
+  return {
+    slot_number: 1,
+    ...makeSlotTemplateData(),
+    gear_specs: null,
+    mount_name: null,
+    mount_id: null,
+    mount_options: null,
+    ...overrides,
+  }
+}
+
+describe('template slot sanitizers', () => {
+  it('sanitizes flat slot template gear, spells, and free markers', () => {
+    const data = sanitizeSlotTemplateData(makeSlotTemplateData({
+      role_name: ' DPS ',
+      notes: ' Notes ',
+      weapon_name: 'Bad weapon',
+      weapon_id: 'T8_MAIN_SWORD<script>',
+      head_name: FREE_ITEM_NAME,
+      head_id: null,
+      armor_name: ' Elder Armor ',
+      armor_id: ' T8_ARMOR_PLATE_SET3 ',
+      offhand_options: [
+        { name: ' Torch ', id: ' T8_OFF_TORCH ', spells: ['PASSIVE_MAXLOAD', '<script>'] },
+        { name: 'Bad', id: '../evil' },
+      ] as GearOption[],
+      spells: {
+        weapon: [' SLOT_SPELL ', 'SLOT_SPELL', '<script>'],
+      },
+    }))
+
+    expect(data.role_name).toBe('DPS')
+    expect(data.notes).toBe('Notes')
+    expect(data.weapon_name).toBeNull()
+    expect(data.weapon_id).toBeNull()
+    expect(data.head_name).toBe(FREE_ITEM_NAME)
+    expect(data.head_id).toBeNull()
+    expect(data.armor_name).toBe('Elder Armor')
+    expect(data.armor_id).toBe('T8_ARMOR_PLATE_SET3')
+    expect(data.offhand_options).toEqual([
+      { name: 'Torch', id: 'T8_OFF_TORCH', spells: ['PASSIVE_MAXLOAD'] },
+    ])
+    expect(data.spells).toEqual({ weapon: ['SLOT_SPELL'] })
+  })
+
+  it('sanitizes event template parties before they are applied to slots', () => {
+    const data = sanitizeTemplateData({
+      parties: [{
+        party_number: -1,
+        slots: [
+          makeTemplateSlot({
+            slot_number: 0,
+            weapon_options: [{ name: 'Sword', id: 'T8_MAIN_SWORD' }],
+            weapon_name: 'Stale fixed weapon',
+            weapon_id: 'T8_STALE',
+          }),
+        ],
+      }],
+    })
+
+    expect(data.parties[0].party_number).toBe(1)
+    expect(data.parties[0].slots[0].slot_number).toBe(1)
+    expect(data.parties[0].slots[0].weapon_options).toEqual([
+      { name: 'Sword', id: 'T8_MAIN_SWORD' },
+    ])
+    expect(data.parties[0].slots[0].weapon_name).toBeNull()
+    expect(data.parties[0].slots[0].weapon_id).toBeNull()
+  })
+})

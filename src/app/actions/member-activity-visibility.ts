@@ -26,11 +26,13 @@ export async function setMyActivityVisibility(
   }
 
   const db = getAdminClient()
+  const nextToken = enabled ? undefined : crypto.randomUUID()
   const { data, error } = await db
     .from('account_albion_tenant_links')
     .update({
       public_activity_enabled: enabled,
       public_activity_enabled_at: enabled ? new Date().toISOString() : null,
+      ...(nextToken ? { public_activity_token: nextToken } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq('guild_id', guildId)

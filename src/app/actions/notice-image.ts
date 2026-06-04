@@ -12,6 +12,7 @@ import type { AppSettingKey } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
+import { validateImageUploadFile } from '@/lib/image-upload'
 
 export type NoticeTarget = 'events' | 'regear'
 
@@ -25,10 +26,15 @@ function settingKeyFor(target: NoticeTarget): AppSettingKey {
   return target === 'events' ? 'events_notice_image_url' : 'regear_notice_image_url'
 }
 
-function extractPath(url: string): string | null {
+function normalizeNoticeTarget(target: unknown): NoticeTarget | null {
+  return target === 'events' || target === 'regear' ? target : null
+}
+
+function extractPath(url: string, guildId: string): string | null {
   const idx = url.indexOf(PUBLIC_URL_PREFIX)
   if (idx === -1) return null
-  return url.slice(idx + PUBLIC_URL_PREFIX.length)
+  const path = url.slice(idx + PUBLIC_URL_PREFIX.length)
+  return path.startsWith(`${guildId}/`) ? path : null
 }
 
 async function readCurrentUrl(
@@ -60,39 +66,49 @@ async function writeUrl(
   return error?.message ?? null
 }
 
-function extFromMime(mime: string): string {
-  switch (mime) {
-    case 'image/png': return 'png'
-    case 'image/jpeg': return 'jpg'
-    case 'image/webp': return 'webp'
-    case 'image/gif': return 'gif'
-    default: return 'bin'
+function bannerUploadErrorMessage(
+  tErr: Awaited<ReturnType<typeof getTranslations>>,
+  error: 'missing' | 'empty' | 'tooLarge' | 'wrongType',
+): string {
+  switch (error) {
+    case 'missing':
+      return tErr('bannerNoFile')
+    case 'empty':
+      return tErr('bannerEmptyFile')
+    case 'tooLarge':
+      return tErr('bannerFileTooLarge')
+    case 'wrongType':
+      return tErr('bannerWrongType')
   }
 }
 
 export async function uploadNoticeImage(
-  target: NoticeTarget,
+  target: unknown,
   formData: FormData,
 ): Promise<{ error?: string; url?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const noticeTarget = normalizeNoticeTarget(target)
+    if (!noticeTarget) return { error: tErr('invalidInput') }
+
     const file = formData.get('file')
-    if (!(file instanceof File)) return { error: tErr('bannerNoFile') }
-    if (file.size === 0) return { error: tErr('bannerEmptyFile') }
-    if (file.size > MAX_FILE_SIZE) return { error: tErr('bannerFileTooLarge') }
-    if (!ALLOWED_TYPES.includes(file.type)) return { error: tErr('bannerWrongType') }
+    const image = await validateImageUploadFile(file, {
+      allowedTypes: ALLOWED_TYPES,
+      maxBytes: MAX_FILE_SIZE,
+    })
+    if (!image.ok) return { error: bannerUploadErrorMessage(tErr, image.error) }
 
     const db = await requireAnyCapability(NOTICE_IMAGE_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
-    const key = settingKeyFor(target)
+    const key = settingKeyFor(noticeTarget)
     const previousUrl = await readCurrentUrl(db, guildId, key)
 
-    const path = `${target}/${randomUUID()}.${extFromMime(file.type)}`
+    const path = `${guildId}/${noticeTarget}-${randomUUID()}.${image.ext}`
     const { error: uploadError } = await db.storage
       .from(BUCKET)
-      .upload(path, file, { contentType: file.type, upsert: false })
+      .upload(path, image.file, { contentType: image.mime, upsert: false })
     if (uploadError) return { error: tErr('bannerUploadFailed', { reason: uploadError.message }) }
 
     const { data: urlData } = db.storage.from(BUCKET).getPublicUrl(path)
@@ -104,13 +120,13 @@ export async function uploadNoticeImage(
       return { error: writeErr }
     }
 
-    const previousPath = previousUrl ? extractPath(previousUrl) : null
+    const previousPath = previousUrl ? extractPath(previousUrl, guildId) : null
     if (previousPath) {
       await db.storage.from(BUCKET).remove([previousPath])
     }
 
     revalidatePath('/admin/dashboard/settings')
-    if (target === 'events') revalidatePath('/')
+    if (noticeTarget === 'events') revalidatePath('/')
     else revalidatePath('/regear')
     return { url: publicUrl }
   } catch (e) {
@@ -119,27 +135,30 @@ export async function uploadNoticeImage(
 }
 
 export async function clearNoticeImage(
-  target: NoticeTarget,
+  target: unknown,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const noticeTarget = normalizeNoticeTarget(target)
+    if (!noticeTarget) return { error: tErr('invalidInput') }
+
     const db = await requireAnyCapability(NOTICE_IMAGE_CAPS)
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
-    const key = settingKeyFor(target)
+    const key = settingKeyFor(noticeTarget)
     const previousUrl = await readCurrentUrl(db, guildId, key)
 
     const writeErr = await writeUrl(db, guildId, key, '')
     if (writeErr) return { error: writeErr }
 
-    const previousPath = previousUrl ? extractPath(previousUrl) : null
+    const previousPath = previousUrl ? extractPath(previousUrl, guildId) : null
     if (previousPath) {
       await db.storage.from(BUCKET).remove([previousPath])
     }
 
     revalidatePath('/admin/dashboard/settings')
-    if (target === 'events') revalidatePath('/')
+    if (noticeTarget === 'events') revalidatePath('/')
     else revalidatePath('/regear')
     return {}
   } catch (e) {

@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session'
 import { buildBotInstallUrl } from '@/lib/discord'
 import { shouldUseDiscordInstallBridge } from '@/lib/discord-install-bridge'
 import { recordAuthStart } from '@/lib/auth-telemetry'
+import { withNoStore } from '@/lib/no-store-response'
 
 // 봇 설치 흐름의 시작점. /onboard 의 길드 목록에서 "봇 설치" 를 누르면 이쪽으로
 // 들어와 Discord OAuth 봇 설치 동의 화면으로 redirect 한다.
@@ -22,13 +23,15 @@ export async function GET(request: NextRequest) {
 
   const session = await getSession()
   if (!session) {
-    return NextResponse.redirect(
-      new URL('/api/auth/discord/start?returnTo=/onboard', url.origin),
+    return withNoStore(
+      NextResponse.redirect(
+        new URL('/api/auth/discord/start?returnTo=/onboard', url.origin),
+      ),
     )
   }
 
   if (!guildId || !/^\d{17,20}$/.test(guildId)) {
-    return NextResponse.redirect(new URL('/onboard', url.origin))
+    return withNoStore(NextResponse.redirect(new URL('/onboard', url.origin)))
   }
 
   const bridge = shouldUseDiscordInstallBridge(request.headers.get('user-agent'))
@@ -40,10 +43,10 @@ export async function GET(request: NextRequest) {
   if (bridge) {
     const bridgeUrl = new URL('/onboard/bot-install/open', url.origin)
     bridgeUrl.searchParams.set('guild_id', guildId)
-    return NextResponse.redirect(bridgeUrl)
+    return withNoStore(NextResponse.redirect(bridgeUrl))
   }
 
   const state = crypto.randomUUID()
   const installUrl = buildBotInstallUrl({ guildId, state })
-  return NextResponse.redirect(installUrl)
+  return withNoStore(NextResponse.redirect(installUrl))
 }

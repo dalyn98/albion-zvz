@@ -5,10 +5,13 @@
 import {
   categorizeSize,
   collectInvolvedIds,
+  computeBattleForceSummaries,
   computeOpposingForces,
   computeOutcome,
   computeSides,
   type AlbionBattle,
+  type BattleForceKind,
+  type BattleForceLevel,
   type OpponentForce,
   type SidePerspective,
   type SizeCategory,
@@ -17,6 +20,7 @@ import type { AlbionServer } from '@/lib/albion-gameinfo'
 
 // 매치업 컷오프. small 시작점(10) 과 동일.
 const MATCHUP_MIN_SIZE = 10
+const MEANINGFUL_FORCE_MIN_TEAM_SIZE = 10
 
 export interface TenantBattleRow {
   guild_id: string
@@ -73,6 +77,56 @@ export interface BattleRecordRow {
   raw_battle: AlbionBattle
 }
 
+export interface BattleForceSummaryRow {
+  battle_record_id: string
+  force_level: BattleForceLevel
+  force_kind: BattleForceKind
+  force_key: string
+  force_name: string
+  alliance_id: string | null
+  alliance_name: string | null
+  guild_ids: string[]
+  guild_names: string[]
+  team_size: number
+  kills: number
+  deaths: number
+  kill_fame: number
+  average_item_power: number | null
+}
+
+export interface BattleForceEdgeEvent {
+  eventId: string
+  sourceHomeGuildId: string
+  role: 'killer' | 'victim'
+  opponentGuild: string | null
+  opponentAlliance: string | null
+  fame: number
+}
+
+export interface BattleForceEdgeRow {
+  battle_record_id: string
+  force_level: BattleForceLevel
+  force_a_key: string
+  force_a_kind: BattleForceKind
+  force_a_name: string
+  force_a_team_size: number
+  force_b_key: string
+  force_b_kind: BattleForceKind
+  force_b_name: string
+  force_b_team_size: number
+  a_kills: number
+  a_deaths: number
+  a_kill_fame: number
+  b_kills: number
+  b_deaths: number
+  b_kill_fame: number
+  event_count: number
+  is_meaningful: boolean
+  confidence: 'killboard_exact' | 'weak'
+  evidence_source: 'killboard_events'
+  evaluated_at: string
+}
+
 // 매치업 K/D/Fame — force 단위로 home 과의 교전 페어만 필터링한 결과.
 // home_* = 우리 길드원이 force 의 길드원을 상대로 발생시킨 페어만 집계.
 // mainOpponent_* = force 의 길드원이 우리 길드원을 상대로 발생시킨 페어 집계.
@@ -85,6 +139,192 @@ interface MatchupStats {
   mainOppKills: number
   mainOppDeaths: number
   mainOppKillFame: number
+}
+
+export function buildBattleForceSummaryRows(
+  battleRecordId: string,
+  battle: AlbionBattle,
+): BattleForceSummaryRow[] {
+  return computeBattleForceSummaries(battle).map((summary) => ({
+    battle_record_id: battleRecordId,
+    force_level: summary.forceLevel,
+    force_kind: summary.forceKind,
+    force_key: summary.forceKey,
+    force_name: summary.forceName,
+    alliance_id: summary.allianceId,
+    alliance_name: summary.allianceName,
+    guild_ids: summary.guildIds,
+    guild_names: summary.guildNames,
+    team_size: summary.teamSize,
+    kills: summary.kills,
+    deaths: summary.deaths,
+    kill_fame: summary.killFame,
+    average_item_power: summary.averageItemPower,
+  }))
+}
+
+function buildGuildLookup(battle: AlbionBattle): {
+  guildById: Map<string, { guildId: string; guildName: string; allianceId: string | null }>
+  guildIdByName: Map<string, string>
+  allianceIdByName: Map<string, string>
+} {
+  const guildById = new Map<string, { guildId: string; guildName: string; allianceId: string | null }>()
+  const guildIdByName = new Map<string, string>()
+  const allianceIdByName = new Map<string, string>()
+  for (const [guildId, guild] of Object.entries(battle.guilds ?? {})) {
+    const allianceId = guild.allianceId && guild.allianceId !== '' ? guild.allianceId : null
+    guildById.set(guildId, { guildId, guildName: guild.name, allianceId })
+    if (!guildIdByName.has(guild.name)) guildIdByName.set(guild.name, guildId)
+  }
+  for (const [allianceId, alliance] of Object.entries(battle.alliances ?? {})) {
+    if (alliance.name && !allianceIdByName.has(alliance.name)) {
+      allianceIdByName.set(alliance.name, allianceId)
+    }
+  }
+  return { guildById, guildIdByName, allianceIdByName }
+}
+
+function allianceLevelKey(
+  guild: { guildId: string; allianceId: string | null },
+): string {
+  return guild.allianceId ? `a:${guild.allianceId}` : `g:${guild.guildId}`
+}
+
+function edgePair(
+  keyA: string,
+  keyB: string,
+): { forceA: string; forceB: string; swapped: boolean } {
+  if (keyA <= keyB) return { forceA: keyA, forceB: keyB, swapped: false }
+  return { forceA: keyB, forceB: keyA, swapped: true }
+}
+
+export function buildBattleForceEdgeRows(input: {
+  battleRecordId: string
+  battle: AlbionBattle
+  events: ReadonlyArray<BattleForceEdgeEvent>
+  evaluatedAt: string
+}): BattleForceEdgeRow[] {
+  const summaries = computeBattleForceSummaries(input.battle)
+  const summaryByLevelKey = new Map<string, (typeof summaries)[number]>()
+  for (const summary of summaries) {
+    summaryByLevelKey.set(`${summary.forceLevel}:${summary.forceKey}`, summary)
+  }
+
+  const { guildById, guildIdByName, allianceIdByName } = buildGuildLookup(input.battle)
+  type MutableEdge = BattleForceEdgeRow & { dedupe: Set<string> }
+  const edgeMap = new Map<string, MutableEdge>()
+
+  function addKill(level: BattleForceLevel, killerKey: string, victimKey: string, eventId: string, fame: number) {
+    if (killerKey === victimKey) return
+    const killer = summaryByLevelKey.get(`${level}:${killerKey}`)
+    const victim = summaryByLevelKey.get(`${level}:${victimKey}`)
+    if (!killer || !victim) return
+    const pair = edgePair(killerKey, victimKey)
+    const edgeKey = `${level}:${pair.forceA}:${pair.forceB}`
+    const dedupeKey = `${eventId}:${level}:${killerKey}->${victimKey}`
+    let edge = edgeMap.get(edgeKey)
+    if (!edge) {
+      edge = {
+        battle_record_id: input.battleRecordId,
+        force_level: level,
+        force_a_key: pair.forceA,
+        force_a_kind: summaryByLevelKey.get(`${level}:${pair.forceA}`)!.forceKind,
+        force_a_name: summaryByLevelKey.get(`${level}:${pair.forceA}`)!.forceName,
+        force_a_team_size: summaryByLevelKey.get(`${level}:${pair.forceA}`)!.teamSize,
+        force_b_key: pair.forceB,
+        force_b_kind: summaryByLevelKey.get(`${level}:${pair.forceB}`)!.forceKind,
+        force_b_name: summaryByLevelKey.get(`${level}:${pair.forceB}`)!.forceName,
+        force_b_team_size: summaryByLevelKey.get(`${level}:${pair.forceB}`)!.teamSize,
+        a_kills: 0,
+        a_deaths: 0,
+        a_kill_fame: 0,
+        b_kills: 0,
+        b_deaths: 0,
+        b_kill_fame: 0,
+        event_count: 0,
+        is_meaningful: false,
+        confidence: 'weak',
+        evidence_source: 'killboard_events',
+        evaluated_at: input.evaluatedAt,
+        dedupe: new Set<string>(),
+      }
+      edgeMap.set(edgeKey, edge)
+    }
+    if (edge.dedupe.has(dedupeKey)) return
+    edge.dedupe.add(dedupeKey)
+    edge.event_count += 1
+    const killerIsA = killerKey === edge.force_a_key
+    if (killerIsA) {
+      edge.a_kills += 1
+      edge.b_deaths += 1
+      edge.a_kill_fame += fame
+    } else {
+      edge.b_kills += 1
+      edge.a_deaths += 1
+      edge.b_kill_fame += fame
+    }
+  }
+
+  for (const event of input.events) {
+    const source = guildById.get(event.sourceHomeGuildId)
+    if (!source || !event.eventId) continue
+
+    const opponentGuildId = event.opponentGuild
+      ? guildIdByName.get(event.opponentGuild) ?? null
+      : null
+    const opponentGuild = opponentGuildId ? guildById.get(opponentGuildId) ?? null : null
+    const opponentAllianceId = event.opponentAlliance
+      ? allianceIdByName.get(event.opponentAlliance) ?? opponentGuild?.allianceId ?? null
+      : opponentGuild?.allianceId ?? null
+
+    if (opponentGuild) {
+      const sourceGuildKey = `g:${source.guildId}`
+      const opponentGuildKey = `g:${opponentGuild.guildId}`
+      const sourceAllianceKey = allianceLevelKey(source)
+      const opponentAllianceKey = opponentAllianceId
+        ? `a:${opponentAllianceId}`
+        : allianceLevelKey(opponentGuild)
+
+      if (event.role === 'killer') {
+        addKill('guild', sourceGuildKey, opponentGuildKey, event.eventId, event.fame)
+        addKill('alliance', sourceAllianceKey, opponentAllianceKey, event.eventId, event.fame)
+      } else {
+        addKill('guild', opponentGuildKey, sourceGuildKey, event.eventId, event.fame)
+        addKill('alliance', opponentAllianceKey, sourceAllianceKey, event.eventId, event.fame)
+      }
+      continue
+    }
+
+    if (!opponentAllianceId) continue
+    const sourceAllianceKey = allianceLevelKey(source)
+    const opponentAllianceKey = `a:${opponentAllianceId}`
+    if (event.role === 'killer') {
+      addKill('alliance', sourceAllianceKey, opponentAllianceKey, event.eventId, event.fame)
+    } else {
+      addKill('alliance', opponentAllianceKey, sourceAllianceKey, event.eventId, event.fame)
+    }
+  }
+
+  const rows: BattleForceEdgeRow[] = []
+  for (const edge of edgeMap.values()) {
+    const isMeaningful =
+      edge.event_count > 0 &&
+      edge.force_a_team_size >= MEANINGFUL_FORCE_MIN_TEAM_SIZE &&
+      edge.force_b_team_size >= MEANINGFUL_FORCE_MIN_TEAM_SIZE
+    const { dedupe: _dedupe, ...row } = edge
+    rows.push({
+      ...row,
+      is_meaningful: isMeaningful,
+      confidence: isMeaningful ? 'killboard_exact' : 'weak',
+    })
+  }
+
+  return rows.sort((a, b) => {
+    if (a.force_level !== b.force_level) return a.force_level.localeCompare(b.force_level)
+    if (b.is_meaningful !== a.is_meaningful) return Number(b.is_meaningful) - Number(a.is_meaningful)
+    if (b.event_count !== a.event_count) return b.event_count - a.event_count
+    return `${a.force_a_key}:${a.force_b_key}`.localeCompare(`${b.force_a_key}:${b.force_b_key}`)
+  })
 }
 
 // killboard_events 페어를 force 별로 필터링해 매치업 K/D/Fame 산출.

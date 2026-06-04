@@ -12,6 +12,8 @@ import type { AlbionIdentityRelation } from '@/lib/account-albion-identity'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import { REGEAR_WINDOW_MANAGE_CAPS } from '@/lib/regear-window-permissions'
 import { SLOT_KEYS, SLOT_ROLES, type BuildSnapshot, type RegearType, type SlotRole } from '@/types'
+import { validateImageUploadFile } from '@/lib/image-upload'
+import { parsePositiveSafeInt } from '@/lib/parse-bounded-int'
 
 // 이벤트와 무관한 자유 신청 창구 (regear_windows). 관리자가 윈도우를 열고
 // (open) / 닫고 (close), 멤버는 열려 있는 윈도우에 manual flow 로 신청한다.
@@ -23,6 +25,21 @@ const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp'])
 
 const DEFAULT_MAX_DEATHS_PER_WINDOW = 1
+
+function screenshotUploadErrorMessage(
+  tErr: Awaited<ReturnType<typeof getTranslations>>,
+  error: 'missing' | 'empty' | 'tooLarge' | 'wrongType',
+): string {
+  switch (error) {
+    case 'missing':
+    case 'empty':
+      return tErr('screenshotMissing')
+    case 'tooLarge':
+      return tErr('screenshotTooLarge')
+    case 'wrongType':
+      return tErr('screenshotWrongType')
+  }
+}
 
 // 클라이언트가 보낸 buildSnapshot JSON 을 검증·정규화. 슬롯 키는 SLOT_KEYS 로
 // 한정하고 각 슬롯은 { name, id } 두 필드만 허용. 둘 다 null 이거나 둘 다 string
@@ -82,6 +99,8 @@ export interface RegearWindow {
   isOpen: boolean
 }
 
+type RegearWindowScope = 'open' | 'all'
+
 interface WindowRow {
   id: string
   title: string
@@ -117,6 +136,10 @@ function rowToWindow(row: WindowRow, now: number): RegearWindow {
   }
 }
 
+function normalizeRegearWindowScope(scope: unknown): RegearWindowScope | null {
+  return scope === 'open' || scope === 'all' ? scope : null
+}
+
 export interface WindowRoleOption {
   roleName: string
   silver: number
@@ -146,14 +169,21 @@ export async function listRegearRoleOptions(): Promise<{
   return { options }
 }
 
-export async function listRegearWindows(scope: 'open' | 'all' = 'all'): Promise<{
+export async function listRegearWindows(scope: unknown = 'open'): Promise<{
   windows: RegearWindow[]
   error?: string
 }> {
+  const tErr = await getTranslations('adminActionError')
+  const normalizedScope = normalizeRegearWindowScope(scope)
+  if (!normalizedScope) return { windows: [], error: tErr('invalidInput') }
+
   const session = await getSession()
   if (!session) return { windows: [] }
   const guildId = await getSessionGuildId(session)
-  const db = getAdminClient()
+  const db =
+    normalizedScope === 'all'
+      ? await requireAnyCapability(REGEAR_WINDOW_MANAGE_CAPS)
+      : getAdminClient()
 
   let query = db
     .from('regear_windows')
@@ -163,14 +193,14 @@ export async function listRegearWindows(scope: 'open' | 'all' = 'all'): Promise<
     .eq('guild_id', guildId)
     .order('created_at', { ascending: false })
     .limit(200)
-  if (scope === 'open') query = query.is('closed_at', null)
+  if (normalizedScope === 'open') query = query.is('closed_at', null)
 
   const { data, error } = await query
   if (error) return { windows: [], error: error.message }
 
   const now = Date.now()
   const windows = (data ?? []).map((row) => rowToWindow(row as WindowRow, now))
-  if (scope === 'open') {
+  if (normalizedScope === 'open') {
     return { windows: windows.filter((w) => w.isOpen) }
   }
   return { windows }
@@ -194,8 +224,8 @@ export async function openRegearWindow(formData: FormData): Promise<{
   if (!title) return { error: tErr('regearWindowTitleRequired') }
   if (title.length > 100) return { error: tErr('regearWindowTitleTooLong') }
 
-  const maxDeaths = Number(maxDeathsRaw)
-  if (!Number.isFinite(maxDeaths) || !Number.isInteger(maxDeaths) || maxDeaths < 1 || maxDeaths > 20) {
+  const maxDeaths = parsePositiveSafeInt(maxDeathsRaw)
+  if (maxDeaths === null || maxDeaths > 20) {
     return { error: tErr('regearWindowMaxDeathsInvalid') }
   }
 
@@ -324,13 +354,20 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   }
   const parsedBuildSnapshot = parseBuildSnapshotInput(buildSnapshotRaw, roleName)
   if (parsedBuildSnapshot === 'invalid') return { error: tErr('invalidInput') }
-  if (!(file instanceof File) || file.size === 0) return { error: tErr('screenshotMissing') }
-  if (file.size > MAX_SCREENSHOT_BYTES) return { error: tErr('screenshotTooLarge') }
-  if (!ALLOWED_MIME.has(file.type)) return { error: tErr('screenshotWrongType') }
+  const image = await validateImageUploadFile(file, {
+    allowedTypes: ALLOWED_MIME,
+    maxBytes: MAX_SCREENSHOT_BYTES,
+  })
+  if (!image.ok) return { error: screenshotUploadErrorMessage(tErr, image.error) }
   const hasFile2 = file2 instanceof File && file2.size > 0
+  const image2 = hasFile2
+    ? await validateImageUploadFile(file2, {
+        allowedTypes: ALLOWED_MIME,
+        maxBytes: MAX_SCREENSHOT_BYTES,
+      })
+    : null
   if (hasFile2) {
-    if (file2.size > MAX_SCREENSHOT_BYTES) return { error: tErr('screenshotTooLarge') }
-    if (!ALLOWED_MIME.has(file2.type)) return { error: tErr('screenshotWrongType') }
+    if (!image2?.ok) return { error: screenshotUploadErrorMessage(tErr, image2?.error ?? 'wrongType') }
   }
 
   const db = getAdminClient()
@@ -381,8 +418,8 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   const silver = reward?.silver ?? 0
   if (silver <= 0) return { error: tErr('ceilingNotSetForRole') }
 
-  const claimedSilver = Number(claimedSilverRaw.replace(/,/g, '').trim())
-  if (!Number.isFinite(claimedSilver) || !Number.isInteger(claimedSilver) || claimedSilver <= 0) {
+  const claimedSilver = parsePositiveSafeInt(claimedSilverRaw.replace(/,/g, ''))
+  if (claimedSilver === null) {
     return { error: tErr('invalidClaimAmount') }
   }
   if (claimedSilver > silver) {
@@ -390,20 +427,18 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   }
 
   // 4) 스크린샷 업로드 → DB insert. windowId 가 path 일부.
-  const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
-  const path = `${session.discordId}/window-${windowId}-${Date.now()}.${ext}`
+  const path = `${session.discordId}/window-${windowId}-${Date.now()}.${image.ext}`
   const { error: uploadError } = await db.storage
     .from(SCREENSHOT_BUCKET)
-    .upload(path, file, { contentType: file.type, upsert: false })
+    .upload(path, image.file, { contentType: image.mime, upsert: false })
   if (uploadError) return { error: tErr('screenshotUploadFailed', { reason: uploadError.message }) }
 
   let path2: string | null = null
-  if (hasFile2) {
-    const ext2 = file2.type === 'image/png' ? 'png' : file2.type === 'image/webp' ? 'webp' : 'jpg'
-    path2 = `${session.discordId}/window-${windowId}-${Date.now()}-2.${ext2}`
+  if (image2?.ok) {
+    path2 = `${session.discordId}/window-${windowId}-${Date.now()}-2.${image2.ext}`
     const { error: upload2Error } = await db.storage
       .from(SCREENSHOT_BUCKET)
-      .upload(path2, file2, { contentType: file2.type, upsert: false })
+      .upload(path2, image2.file, { contentType: image2.mime, upsert: false })
     if (upload2Error) {
       await db.storage.from(SCREENSHOT_BUCKET).remove([path])
       return { error: tErr('screenshotUploadFailed', { reason: upload2Error.message }) }

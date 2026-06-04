@@ -5,6 +5,7 @@ import { getTranslations } from 'next-intl/server'
 import { requireEventCreator } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { sanitizeSlotTemplateData } from './template-slot-sanitizers'
 import { EVENT_CATEGORIES, type ConditionalSlotOptions, type EventCategory, type GearOption, type GearSpecs, type SlotSpells } from '@/types'
 
 // Slot-level template data: role + notes + 8 gear slots + per-slot multi-option
@@ -150,6 +151,7 @@ export async function saveSlotAsTemplate(
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
+    if (!data || typeof data !== 'object') return { error: tErr('invalidTemplateData') }
 
     if (options.overwriteId) {
       // 명시적 덮어쓰기 — 이름·카테고리는 손대지 않고 data 만 갱신.
@@ -163,7 +165,7 @@ export async function saveSlotAsTemplate(
       if (!target) return { error: tErr('templateNotFound') }
       const { error: updateError } = await db
         .from('slot_templates')
-        .update({ data })
+        .update({ data: sanitizeSlotTemplateData(data) })
         .eq('guild_id', guildId)
         .eq('id', options.overwriteId)
       if (updateError) return { error: updateError.message }
@@ -193,7 +195,7 @@ export async function saveSlotAsTemplate(
       }
       const { error: updateError } = await db
         .from('slot_templates')
-        .update({ data, category: resolvedCategory })
+        .update({ data: sanitizeSlotTemplateData(data), category: resolvedCategory })
         .eq('guild_id', guildId)
         .eq('id', existing.id)
       if (updateError) return { error: updateError.message }
@@ -204,7 +206,12 @@ export async function saveSlotAsTemplate(
 
     const { error: insertError } = await db
       .from('slot_templates')
-      .insert({ guild_id: guildId, name: trimmed, data, category: resolvedCategory })
+      .insert({
+        guild_id: guildId,
+        name: trimmed,
+        data: sanitizeSlotTemplateData(data),
+        category: resolvedCategory,
+      })
     if (insertError) return { error: insertError.message }
     revalidatePath('/admin/dashboard/builds')
     return {}
@@ -225,6 +232,7 @@ export async function updateSlotTemplate(
     if (trimmed.length > MAX_NAME_LENGTH) {
       return { error: tErr('templateNameTooLong', { max: MAX_NAME_LENGTH }) }
     }
+    if (!payload.data || typeof payload.data !== 'object') return { error: tErr('invalidTemplateData') }
 
     const db = await requireEventCreator()
     const session = await getSession()
@@ -268,7 +276,7 @@ export async function updateSlotTemplate(
       .update({
         name: trimmed,
         category: resolvedCategory,
-        data: payload.data,
+        data: sanitizeSlotTemplateData(payload.data),
       })
       .eq('guild_id', guildId)
       .eq('id', id)

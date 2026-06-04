@@ -32,6 +32,16 @@ const OFFICER_DASHBOARD_CAPABILITIES = [
   CAP.STATS_VIEW,
 ] as const
 
+const APPROVALS_PAGE_CAPABILITIES = [
+  CAP.REGEAR_APPROVE,
+  CAP.REGEAR_EDIT_PRICE,
+  CAP.REGEAR_BULK_ACTION,
+  CAP.INVENTORY_DELIVER,
+  CAP.EVENT_MANAGE,
+  CAP.CRAFT_TASK_DELIVER,
+  CAP.CRAFT_MASTER,
+] as const
+
 export const ADMIN_ROUTE_ACCESS_RULES: readonly AdminRouteAccessRule[] = [
   {
     href: '/admin/dashboard',
@@ -72,14 +82,26 @@ export const ADMIN_ROUTE_ACCESS_RULES: readonly AdminRouteAccessRule[] = [
   },
   {
     href: '/admin/dashboard/approvals',
+    capabilities: APPROVALS_PAGE_CAPABILITIES,
+  },
+  {
+    href: '/admin/dashboard/exchanges',
+    capabilities: APPROVALS_PAGE_CAPABILITIES,
+  },
+  {
+    href: '/admin/dashboard/donations',
+    capabilities: APPROVALS_PAGE_CAPABILITIES,
+  },
+  {
+    href: '/admin/dashboard/settlements',
+    capabilities: APPROVALS_PAGE_CAPABILITIES,
+  },
+  {
+    href: '/admin/dashboard/regear',
     capabilities: [
       CAP.REGEAR_APPROVE,
       CAP.REGEAR_EDIT_PRICE,
       CAP.REGEAR_BULK_ACTION,
-      CAP.INVENTORY_DELIVER,
-      CAP.EVENT_MANAGE,
-      CAP.CRAFT_TASK_DELIVER,
-      CAP.CRAFT_MASTER,
     ],
   },
   {

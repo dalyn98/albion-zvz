@@ -268,6 +268,7 @@ export default function SettingsTabs({
                 initialEnabled={localGuildAccountsEnabled}
                 hasInviteCode={localGuildInviteConfigured}
                 initialAccounts={initialLocalGuildAccounts}
+                timezone={tenantTimezone}
               />
             )}
           </SettingsGroup>

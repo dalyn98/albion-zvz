@@ -23,6 +23,7 @@ import {
   type RawBreakdown,
   type RegearLineItem,
 } from '@/lib/regear-helpers'
+import { validateImageUploadFile } from '@/lib/image-upload'
 import {
   SLOT_KEYS,
   type BuildSnapshot,
@@ -32,6 +33,21 @@ import {
 // 단위 실버 상한 — int32 를 넘지 않으면서 시세 오입력 방지. 20M 실버/단위면
 // 현재 게임 내 어떤 아이템보다도 훨씬 높아 실질적 상한은 유지된다.
 const MAX_UNIT_SILVER = 20_000_000
+
+function screenshotUploadErrorMessage(
+  tErr: Awaited<ReturnType<typeof getTranslations>>,
+  error: 'missing' | 'empty' | 'tooLarge' | 'wrongType',
+): string {
+  switch (error) {
+    case 'missing':
+    case 'empty':
+      return tErr('screenshotMissing')
+    case 'tooLarge':
+      return tErr('screenshotTooLarge')
+    case 'wrongType':
+      return tErr('screenshotWrongType')
+  }
+}
 
 export async function cancelMyRegearRequest(id: string): Promise<{ error?: string }> {
   const tErr = await getTranslations('memberActionError')
@@ -176,15 +192,21 @@ export async function updateMyManualRegearScreenshots(
 
     const hasPrimary = newPrimary instanceof File && newPrimary.size > 0
     const hasSecondary = newSecondary instanceof File && newSecondary.size > 0
+    const primaryImage = hasPrimary
+      ? await validateImageUploadFile(newPrimary, {
+          allowedTypes: ALLOWED_MIME,
+          maxBytes: MAX_SCREENSHOT_BYTES,
+        })
+      : null
+    const secondaryImage = hasSecondary
+      ? await validateImageUploadFile(newSecondary, {
+          allowedTypes: ALLOWED_MIME,
+          maxBytes: MAX_SCREENSHOT_BYTES,
+        })
+      : null
 
-    if (hasPrimary) {
-      if (newPrimary.size > MAX_SCREENSHOT_BYTES) return { error: tErr('screenshotTooLarge') }
-      if (!ALLOWED_MIME.has(newPrimary.type)) return { error: tErr('screenshotWrongType') }
-    }
-    if (hasSecondary) {
-      if (newSecondary.size > MAX_SCREENSHOT_BYTES) return { error: tErr('screenshotTooLarge') }
-      if (!ALLOWED_MIME.has(newSecondary.type)) return { error: tErr('screenshotWrongType') }
-    }
+    if (primaryImage && !primaryImage.ok) return { error: screenshotUploadErrorMessage(tErr, primaryImage.error) }
+    if (secondaryImage && !secondaryImage.ok) return { error: screenshotUploadErrorMessage(tErr, secondaryImage.error) }
     if (!hasPrimary && !hasSecondary && !removeSecondary) {
       return { error: tErr('noChange') }
     }
@@ -213,17 +235,11 @@ export async function updateMyManualRegearScreenshots(
     const newlyUploaded: string[] = []
     const toRemove: string[] = []
 
-    if (hasPrimary) {
-      const ext =
-        newPrimary.type === 'image/png'
-          ? 'png'
-          : newPrimary.type === 'image/webp'
-            ? 'webp'
-            : 'jpg'
-      const path = `${session.discordId}/${eventId}-${Date.now()}.${ext}`
+    if (primaryImage?.ok) {
+      const path = `${session.discordId}/${eventId}-${Date.now()}.${primaryImage.ext}`
       const { error: upErr } = await db.storage
         .from(SCREENSHOT_BUCKET)
-        .upload(path, newPrimary, { contentType: newPrimary.type, upsert: false })
+        .upload(path, primaryImage.file, { contentType: primaryImage.mime, upsert: false })
       if (upErr) {
         return { error: tErr('screenshotUploadFailed', { reason: upErr.message }) }
       }
@@ -232,17 +248,11 @@ export async function updateMyManualRegearScreenshots(
       nextPrimary = path
     }
 
-    if (hasSecondary) {
-      const ext =
-        newSecondary.type === 'image/png'
-          ? 'png'
-          : newSecondary.type === 'image/webp'
-            ? 'webp'
-            : 'jpg'
-      const path = `${session.discordId}/${eventId}-${Date.now()}-2.${ext}`
+    if (secondaryImage?.ok) {
+      const path = `${session.discordId}/${eventId}-${Date.now()}-2.${secondaryImage.ext}`
       const { error: upErr } = await db.storage
         .from(SCREENSHOT_BUCKET)
-        .upload(path, newSecondary, { contentType: newSecondary.type, upsert: false })
+        .upload(path, secondaryImage.file, { contentType: secondaryImage.mime, upsert: false })
       if (upErr) {
         if (newlyUploaded.length > 0) {
           await db.storage.from(SCREENSHOT_BUCKET).remove(newlyUploaded)

@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   requireAnyCapability: vi.fn(),
   getSession: vi.fn(),
   getSessionGuildId: vi.fn(),
+  getAdminClient: vi.fn(),
   revalidatePath: vi.fn(),
 }))
 
@@ -20,6 +21,10 @@ vi.mock('@/lib/tenant', () => ({
   getSessionGuildId: mocks.getSessionGuildId,
 }))
 
+vi.mock('@/lib/supabase-admin', () => ({
+  getAdminClient: mocks.getAdminClient,
+}))
+
 vi.mock('next/cache', () => ({
   revalidatePath: mocks.revalidatePath,
 }))
@@ -31,6 +36,7 @@ vi.mock('next-intl/server', () => ({
 import {
   closeRegearWindow,
   deleteRegearWindow,
+  listRegearWindows,
   openRegearWindow,
 } from './regear-windows'
 
@@ -129,14 +135,93 @@ function createCountQuery(count: number): {
   return { query, calls }
 }
 
+interface ListQuery {
+  select: (columns: string) => ListQuery
+  eq: (column: string, value: unknown) => ListQuery
+  order: (column: string, options?: Record<string, unknown>) => ListQuery
+  limit: (count: number) => ListQuery
+  is: (column: string, value: unknown) => ListQuery
+  then: (
+    resolve: (value: { data: unknown[]; error: null }) => void,
+    reject?: (reason: unknown) => void,
+  ) => Promise<void>
+}
+
+function createListQuery(data: unknown[]): {
+  query: ListQuery
+  calls: QueryCall[]
+} {
+  const calls: QueryCall[] = []
+  const query: ListQuery = {
+    select: (columns) => {
+      calls.push({ method: 'select', args: [columns] })
+      return query
+    },
+    eq: (column, value) => {
+      calls.push({ method: 'eq', args: [column, value] })
+      return query
+    },
+    order: (column, options = {}) => {
+      calls.push({ method: 'order', args: [column, options] })
+      return query
+    },
+    limit: (count) => {
+      calls.push({ method: 'limit', args: [count] })
+      return query
+    },
+    is: (column, value) => {
+      calls.push({ method: 'is', args: [column, value] })
+      return query
+    },
+    then: (resolve, reject) => Promise.resolve({ data, error: null }).then(resolve, reject),
+  }
+  return { query, calls }
+}
+
 describe('regear window admin actions', () => {
   beforeEach(() => {
     mocks.requireAnyCapability.mockReset()
     mocks.getSession.mockReset()
     mocks.getSessionGuildId.mockReset()
+    mocks.getAdminClient.mockReset()
     mocks.revalidatePath.mockReset()
     mocks.getSession.mockResolvedValue({ discordId: 'officer-1', username: 'Officer' })
     mocks.getSessionGuildId.mockResolvedValue('guild-1')
+  })
+
+  it('requires regear window management capability when listing all windows', async () => {
+    const { query, calls } = createListQuery([
+      {
+        id: 'window-1',
+        title: 'CTA 리기어',
+        description: null,
+        max_deaths_per_member: 1,
+        opens_at: '2000-01-01T00:00:00.000Z',
+        closes_at: null,
+        closed_at: null,
+        closed_by_username: null,
+        created_by_username: 'Officer',
+        created_at: '2000-01-01T00:00:00.000Z',
+      },
+    ])
+    const db = { from: vi.fn(() => query) }
+    mocks.requireAnyCapability.mockResolvedValue(db)
+    mocks.getAdminClient.mockReturnValue(db)
+
+    const result = await listRegearWindows('all')
+
+    expect(mocks.requireAnyCapability).toHaveBeenCalledWith(REGEAR_WINDOW_MANAGE_CAPS)
+    expect(mocks.getAdminClient).not.toHaveBeenCalled()
+    expect(result.windows).toHaveLength(1)
+    expect(calls).toContainEqual({ method: 'eq', args: ['guild_id', 'guild-1'] })
+  })
+
+  it('rejects invalid list scopes before querying windows', async () => {
+    const result = await listRegearWindows('closed' as never)
+
+    expect(result).toEqual({ windows: [], error: 'invalidInput' })
+    expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
+    expect(mocks.getAdminClient).not.toHaveBeenCalled()
   })
 
   it('lets delegated regear window officers open a window', async () => {
@@ -166,6 +251,24 @@ describe('regear window admin actions', () => {
     })
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/admin/dashboard/regear-windows')
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/regear')
+  })
+
+  it('rejects non-decimal max death counts when opening a window', async () => {
+    const { query, calls } = createOpenInsertQuery('window-1')
+    const db = { from: vi.fn(() => query) }
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    const formData = new FormData()
+    formData.set('title', 'CTA 리기어')
+    formData.set('maxDeathsPerMember', '1e1')
+
+    await expect(openRegearWindow(formData)).resolves.toEqual({
+      error: 'regearWindowMaxDeathsInvalid',
+    })
+
+    expect(mocks.requireAnyCapability).toHaveBeenCalledWith(REGEAR_WINDOW_MANAGE_CAPS)
+    expect(db.from).not.toHaveBeenCalled()
+    expect(calls).toHaveLength(0)
   })
 
   it('lets delegated regear window officers close a window', async () => {

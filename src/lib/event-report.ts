@@ -78,7 +78,7 @@ export interface EventReport {
     uniqueAssigned: number
     uniqueAttendees: number
     // 역할별 분포. 가장 많은 역할부터 desc.
-    roleBreakdown: Array<{ role: string; count: number }>
+    roleBreakdown: Array<{ role: string | null; count: number }>
   }
   attendance: {
     // 이벤트에 연결된 Albion battle 수. 이벤트 1개가 여러 battle 을 가질 수 있다.
@@ -143,13 +143,13 @@ export function buildEventReport(input: {
   const totalSlots = slots.length
   const assignedSlots = slots.filter((s) => s.assigned_discord_id).length
   const assigned = new Map<string, { role: string | null }>()
-  const roleCount = new Map<string, number>()
+  const roleCount = new Map<string | null, number>()
   for (const s of slots) {
     if (!s.assigned_discord_id) continue
     if (!assigned.has(s.assigned_discord_id)) {
       assigned.set(s.assigned_discord_id, { role: s.role_name })
     }
-    const role = s.role_name ?? '기타'
+    const role = s.role_name?.trim() || null
     roleCount.set(role, (roleCount.get(role) ?? 0) + 1)
   }
   const roleBreakdown = [...roleCount.entries()]

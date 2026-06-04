@@ -8,6 +8,7 @@ import { requireAnyCapability } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
+import { validateImageUploadFile } from '@/lib/image-upload'
 
 const BANNER_BUCKET = 'landing-banners'
 const MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -50,13 +51,19 @@ async function writeBannerUrl(
   return error?.message ?? null
 }
 
-function extFromMime(mime: string): string {
-  switch (mime) {
-    case 'image/png': return 'png'
-    case 'image/jpeg': return 'jpg'
-    case 'image/webp': return 'webp'
-    case 'image/gif': return 'gif'
-    default: return 'bin'
+function bannerUploadErrorMessage(
+  tErr: Awaited<ReturnType<typeof getTranslations>>,
+  error: 'missing' | 'empty' | 'tooLarge' | 'wrongType',
+): string {
+  switch (error) {
+    case 'missing':
+      return tErr('bannerNoFile')
+    case 'empty':
+      return tErr('bannerEmptyFile')
+    case 'tooLarge':
+      return tErr('bannerFileTooLarge')
+    case 'wrongType':
+      return tErr('bannerWrongType')
   }
 }
 
@@ -66,14 +73,11 @@ export async function uploadLandingBanner(
   const tErr = await getTranslations('adminActionError')
   try {
     const file = formData.get('file')
-    if (!(file instanceof File)) return { error: tErr('bannerNoFile') }
-    if (file.size === 0) return { error: tErr('bannerEmptyFile') }
-    if (file.size > MAX_FILE_SIZE) {
-      return { error: tErr('bannerFileTooLarge') }
-    }
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return { error: tErr('bannerWrongType') }
-    }
+    const image = await validateImageUploadFile(file, {
+      allowedTypes: ALLOWED_TYPES,
+      maxBytes: MAX_FILE_SIZE,
+    })
+    if (!image.ok) return { error: bannerUploadErrorMessage(tErr, image.error) }
 
     const db = await requireAnyCapability(LANDING_BANNER_CAPS)
     const session = await getSession()
@@ -81,10 +85,10 @@ export async function uploadLandingBanner(
     const guildId = await getSessionGuildId(session)
     const previousUrl = await readCurrentBannerUrl(db, guildId)
 
-    const path = `banner-${randomUUID()}.${extFromMime(file.type)}`
+    const path = `${guildId}/banner-${randomUUID()}.${image.ext}`
     const { error: uploadError } = await db.storage
       .from(BANNER_BUCKET)
-      .upload(path, file, { contentType: file.type, upsert: false })
+      .upload(path, image.file, { contentType: image.mime, upsert: false })
     if (uploadError) return { error: tErr('bannerUploadFailed', { reason: uploadError.message }) }
 
     const { data: urlData } = db.storage.from(BANNER_BUCKET).getPublicUrl(path)

@@ -14,6 +14,9 @@ export interface PriceInput {
   discountRate: number
 }
 
+export const SHOP_RATE_PERCENT_MIN = 1
+export const SHOP_RATE_PERCENT_MAX = 100
+
 export function computePointPrice(input: PriceInput): number | null {
   const { manualPrice, autoPriceSilver, discountRate } = input
   const silver =
@@ -35,4 +38,18 @@ export function parseShopDiscountRate(raw: string | null | undefined): number {
   const n = Number(raw)
   if (!Number.isFinite(n) || n <= 0) return 1
   return Math.min(n, 1)
+}
+
+export function shopDiscountRateToPercent(raw: string | null | undefined): number {
+  const rate = parseShopDiscountRate(raw)
+  return Math.max(
+    SHOP_RATE_PERCENT_MIN,
+    Math.min(SHOP_RATE_PERCENT_MAX, Math.round(rate * 100)),
+  )
+}
+
+export function shopRatePercentToDiscountRate(percent: number): string {
+  if (!Number.isFinite(percent) || !Number.isInteger(percent)) return '1'
+  const clamped = Math.max(SHOP_RATE_PERCENT_MIN, Math.min(SHOP_RATE_PERCENT_MAX, percent))
+  return Number((clamped / 100).toFixed(2)).toString()
 }

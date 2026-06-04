@@ -9,6 +9,7 @@ import LanguageBadge from './LanguageBadge'
 import { matchesName, normalizeQuery } from '@/lib/search-match'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { formatDate } from '@/lib/format-datetime'
+import { compareIsoStringsDesc, compareStrings } from '@/lib/sort-strings'
 import { getRoleStyle } from '@/types'
 import type { WithdrawnMemberSummary } from '@/app/actions/members-admin'
 
@@ -33,10 +34,10 @@ export default function GuildWithdrawnList({ members, timezone }: Props) {
         if (b.participation_count !== a.participation_count) {
           return b.participation_count - a.participation_count
         }
-        return a.username.localeCompare(b.username)
+        return compareStrings(a.username, b.username)
       })
     } else {
-      sorted.sort((a, b) => b.withdrawn_at.localeCompare(a.withdrawn_at))
+      sorted.sort((a, b) => compareIsoStringsDesc(a.withdrawn_at, b.withdrawn_at))
     }
     return sorted
   }, [members, search, sortKey])

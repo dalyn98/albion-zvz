@@ -20,7 +20,6 @@ describe('admin route access', () => {
   it('non-admins cannot access routes without an explicit officer capability rule', () => {
     const caps = serializeCapabilities(CAP.SIPHON_MANAGE)
     expect(canAccessAdminPath('/admin/dashboard', false, caps)).toBe(false)
-    expect(canAccessAdminPath('/admin/dashboard/regear', false, caps)).toBe(false)
     expect(canAccessAdminPath('/admin/dashboard/backup', false, caps)).toBe(false)
   })
 
@@ -75,6 +74,11 @@ describe('admin route access', () => {
       serializeCapabilities(CAP.REGEAR_APPROVE),
     )).toBe(true)
     expect(canAccessAdminPath(
+      '/admin/dashboard/regear',
+      false,
+      serializeCapabilities(CAP.REGEAR_APPROVE),
+    )).toBe(true)
+    expect(canAccessAdminPath(
       '/admin/dashboard/settings',
       false,
       serializeCapabilities(CAP.SETTINGS_GUILD_PROFILE),
@@ -83,6 +87,24 @@ describe('admin route access', () => {
       '/admin/dashboard/settings',
       false,
       serializeCapabilities(CAP.SIPHON_MANAGE),
+    )).toBe(true)
+  })
+
+  it('allows delegated approval officers through legacy redirect shim routes', () => {
+    expect(canAccessAdminPath(
+      '/admin/dashboard/exchanges',
+      false,
+      serializeCapabilities(CAP.REGEAR_APPROVE),
+    )).toBe(true)
+    expect(canAccessAdminPath(
+      '/admin/dashboard/donations',
+      false,
+      serializeCapabilities(CAP.REGEAR_APPROVE),
+    )).toBe(true)
+    expect(canAccessAdminPath(
+      '/admin/dashboard/settlements',
+      false,
+      serializeCapabilities(CAP.REGEAR_APPROVE),
     )).toBe(true)
   })
 

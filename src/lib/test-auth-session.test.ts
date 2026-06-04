@@ -16,6 +16,13 @@ describe('test auth session helpers', () => {
       isTestAuthRouteEnabled({
         ENABLE_TEST_AUTH: 'true',
         TEST_AUTH_SECRET: '1234567890123456',
+        NODE_ENV: 'production',
+      }),
+    ).toBe(false)
+    expect(
+      isTestAuthRouteEnabled({
+        ENABLE_TEST_AUTH: 'true',
+        TEST_AUTH_SECRET: '1234567890123456',
         VERCEL_ENV: 'production',
       }),
     ).toBe(false)
@@ -23,6 +30,14 @@ describe('test auth session helpers', () => {
       isTestAuthRouteEnabled({
         ENABLE_TEST_AUTH: 'true',
         TEST_AUTH_SECRET: '1234567890123456',
+        VERCEL_ENV: 'preview',
+      }),
+    ).toBe(true)
+    expect(
+      isTestAuthRouteEnabled({
+        ENABLE_TEST_AUTH: 'true',
+        TEST_AUTH_SECRET: '1234567890123456',
+        NODE_ENV: 'production',
         VERCEL_ENV: 'preview',
       }),
     ).toBe(true)
@@ -48,6 +63,7 @@ describe('test auth session helpers', () => {
     expect(sanitizeTestAuthReturnTo('/admin/dashboard')).toBe('/admin/dashboard')
     expect(sanitizeTestAuthReturnTo('//evil.test')).toBe('/')
     expect(sanitizeTestAuthReturnTo('https://evil.test')).toBe('/')
+    expect(sanitizeTestAuthReturnTo('/api/auth/logout')).toBe('/')
     expect(sanitizeTestAuthReturnTo(undefined)).toBe('/')
   })
 

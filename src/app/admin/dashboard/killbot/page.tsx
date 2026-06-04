@@ -4,6 +4,8 @@ import { getTranslations } from 'next-intl/server'
 import { getKillbotAdminState } from '@/app/actions/killbot-admin'
 import { CAP } from '@/lib/permissions'
 import { getSession, sessionHasAny } from '@/lib/session'
+import { getSessionGuildId } from '@/lib/tenant'
+import { getTenantTimezone } from '@/lib/timezone-server'
 import KillbotSettingsClient from './KillbotSettingsClient'
 
 export const dynamic = 'force-dynamic'
@@ -16,10 +18,12 @@ export default async function AdminKillbotPage() {
   if (!session.isAdmin && !sessionHasAny(session, KILLBOT_MANAGE_CAPS)) {
     redirect('/admin/dashboard')
   }
+  const guildId = await getSessionGuildId(session)
 
-  const [t, result] = await Promise.all([
+  const [t, result, tenantTimezone] = await Promise.all([
     getTranslations('adminKillbotPage'),
     getKillbotAdminState(),
+    getTenantTimezone(guildId),
   ])
 
   return (
@@ -40,7 +44,7 @@ export default async function AdminKillbotPage() {
           <p>{result.error ?? t('loadError')}</p>
         </div>
       ) : (
-        <KillbotSettingsClient initialState={result.state} />
+        <KillbotSettingsClient initialState={result.state} tenantTimezone={tenantTimezone} />
       )}
     </div>
   )

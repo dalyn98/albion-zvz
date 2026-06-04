@@ -1,7 +1,6 @@
 // 공개 길드 프로필 (`/g/<slug>`) 활동 섹션 — 최근 추적된 전투 1건 + 이번 주
 // 탑킬러 3명. tenant_battle_records 와 killboard_events 를 직접 읽어 라이브
-// 활동 시그널을 노출한다. 어드민 카운트와 달리 force-dynamic 페이지의 매 요청
-// 새로 풀린다 (캐시 비용보다 단순함이 이득).
+// 활동 시그널을 노출한다. 호출 페이지에서 공개 공통 데이터는 짧게 캐시한다.
 //
 // 가시성 게이팅은 호출자(공개 페이지)가 settings.showBattles / showLeaderboard
 // 토글을 보고 결정. 이 모듈은 데이터만 모아 돌려준다.
@@ -18,6 +17,8 @@ import {
   groupMemberKillsByBattle,
   mergeMemberBattles,
 } from '@/lib/tracked-kills'
+import { loadGuildBattleRollup } from '@/lib/guild-battle-rollup'
+import { selectPagedRowsOrThrow, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 
 export type BattleOutcome = 'win' | 'loss' | 'tie'
 
@@ -42,81 +43,123 @@ export interface TopContributorSummary {
   kills: number
 }
 
-// 공개 페이지 "전투기록" 카운트. /battles 와 동일하게 low-engagement 컷 + 길드별
-// bundle_split_battles_in_stats 토글을 적용한다. 기존에 events 테이블을 세던
-// 로직은 자동시작 이벤트가 모두 잡혀 실제 전투 수와 어긋났음 — tenant_battle_records
-// 가 진실 소스. 라이프타임 수라 row 가 많아질 수 있지만 force-dynamic 페이지라
-// 매 요청 페치 + JS 필터로 충분 (대부분 길드는 수백 row 미만).
-export async function loadTrackedBattleLifetimeCount(guildId: string): Promise<number> {
-  const db = getAdminClient()
-  const { data } = await db
-    .from('tenant_battle_records')
-    .select(
-      'battle_record_id, outcome, home_kills, home_deaths, home_team_size, main_opponent_team_size',
-    )
-    .eq('guild_id', guildId)
+export interface RecentTrackedBattleRow extends BundleableRow {
+  started_at: string
+  primary_opponent_name: string | null
+  size_category: RecentBattleSummary['sizeCategory']
+}
 
-  const rows = (data ?? []) as BundleableRow[]
-  const bundleEnabled =
-    (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
+export function selectRecentTrackedBattleSummary(
+  rows: ReadonlyArray<RecentTrackedBattleRow>,
+  bundleSplits: boolean,
+): RecentBattleSummary | null {
+  if (bundleSplits) {
+    const grouped = new Map<string, RecentTrackedBattleRow[]>()
+    for (const row of rows) {
+      const list = grouped.get(row.battle_record_id)
+      if (list) list.push(row)
+      else grouped.set(row.battle_record_id, [row])
+    }
 
-  if (bundleEnabled) {
-    const bundled = bundleSplitBattles(rows)
-    let count = 0
-    for (const b of bundled) {
+    const summaries: RecentBattleSummary[] = []
+    for (const group of grouped.values()) {
+      let homeKills = 0
+      let homeDeaths = 0
+      let homeTeamSize = 0
+      let mainRow = group[0]
+      for (const row of group) {
+        homeKills += row.home_kills ?? 0
+        homeDeaths += row.home_deaths ?? 0
+        homeTeamSize = Math.max(homeTeamSize, row.home_team_size ?? 0)
+        if ((row.main_opponent_team_size ?? 0) > (mainRow.main_opponent_team_size ?? 0)) {
+          mainRow = row
+        }
+      }
       if (
-        isHighEngagement({
-          homeKills: b.homeKills,
-          homeDeaths: b.homeDeaths,
-          homeTeamSize: b.homeTeamSize,
+        !isHighEngagement({
+          homeKills,
+          homeDeaths,
+          homeTeamSize,
         })
       ) {
-        count += 1
+        continue
       }
+      summaries.push({
+        startedAt: mainRow.started_at,
+        outcome: mainRow.outcome as BattleOutcome,
+        homeKills,
+        homeDeaths,
+        homeTeamSize,
+        primaryOpponentName: mainRow.primary_opponent_name,
+        sizeCategory: mainRow.size_category,
+      })
     }
-    return count
+    return summaries.sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0] ?? null
   }
 
-  let count = 0
-  for (const row of rows) {
-    if (
+  const latest = [...rows]
+    .filter((row) =>
       isHighEngagement({
         homeKills: row.home_kills,
         homeDeaths: row.home_deaths,
         homeTeamSize: row.home_team_size,
-      })
-    ) {
-      count += 1
-    }
+      }),
+    )
+    .sort((a, b) => b.started_at.localeCompare(a.started_at))[0]
+  if (!latest) return null
+  return {
+    startedAt: latest.started_at,
+    outcome: latest.outcome as BattleOutcome,
+    homeKills: latest.home_kills ?? 0,
+    homeDeaths: latest.home_deaths ?? 0,
+    homeTeamSize: latest.home_team_size ?? 0,
+    primaryOpponentName: latest.primary_opponent_name,
+    sizeCategory: latest.size_category,
   }
-  return count
+}
+
+// 공개 페이지 "전투기록" 카운트. /battles 와 동일하게 low-engagement 컷 + 길드별
+// bundle_split_battles_in_stats 토글을 적용한다. 기존에 events 테이블을 세던
+// 로직은 자동시작 이벤트가 모두 잡혀 실제 전투 수와 어긋났음 — tenant_battle_records
+// 가 진실 소스. 라이프타임 수라 row 가 많아질 수 있어 1000건 단위로 페이지 조회한다.
+export async function loadTrackedBattleLifetimeCount(guildId: string): Promise<number> {
+  return (await loadGuildBattleRollup(guildId)).battleCount
 }
 
 export async function loadRecentTrackedBattle(
   guildId: string,
 ): Promise<RecentBattleSummary | null> {
   const db = getAdminClient()
-  const { data } = await db
-    .from('tenant_battle_records')
-    .select(
-      'started_at, outcome, home_kills, home_deaths, home_team_size, primary_opponent_name, size_category',
-    )
-    .eq('guild_id', guildId)
-    .eq('is_high_engagement', true)
-    .order('started_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const bundleEnabled =
+    (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
+  if (!bundleEnabled) {
+    const { data } = await db
+      .from('tenant_battle_records')
+      .select(
+        'battle_record_id, started_at, outcome, home_kills, home_deaths, home_team_size, main_opponent_team_size, primary_opponent_name, size_category',
+      )
+      .eq('guild_id', guildId)
+      .eq('is_high_engagement', true)
+      .order('started_at', { ascending: false })
+      .limit(1)
 
-  if (!data) return null
-  return {
-    startedAt: data.started_at as string,
-    outcome: data.outcome as BattleOutcome,
-    homeKills: (data.home_kills as number) ?? 0,
-    homeDeaths: (data.home_deaths as number) ?? 0,
-    homeTeamSize: (data.home_team_size as number) ?? 0,
-    primaryOpponentName: (data.primary_opponent_name as string | null) ?? null,
-    sizeCategory: data.size_category as RecentBattleSummary['sizeCategory'],
+    return selectRecentTrackedBattleSummary((data ?? []) as RecentTrackedBattleRow[], bundleEnabled)
   }
+
+  const rows = await selectPagedRowsOrThrow<RecentTrackedBattleRow>({
+    label: 'recent tracked battle bundled rows',
+    buildQuery: () =>
+      db
+        .from('tenant_battle_records')
+        .select(
+          'battle_record_id, started_at, outcome, home_kills, home_deaths, home_team_size, main_opponent_team_size, primary_opponent_name, size_category',
+        )
+        .eq('guild_id', guildId)
+        .order('started_at', { ascending: false })
+        .order('battle_record_id', { ascending: true }) as unknown as SupabasePagedQuery<RecentTrackedBattleRow>,
+  })
+
+  return selectRecentTrackedBattleSummary(rows, bundleEnabled)
 }
 
 // 이번 주 (PT 월요일 00:00 ~ 현재) 길드원 킬 카운트 상위 N명. /leaderboard 와
@@ -143,7 +186,13 @@ export async function loadTopContributorsThisWeek(
   // killboard_events 는 discord_id IS NOT NULL 게이트로 "사이트 가입 이후
   // 발생한 kill" 만 통과시킨다. 리더보드/멤버 상세/RPC 와 동일 정책.
   // (관련 메모: feedback_albion_zvz_stats_membership_policy)
-  const [avatarsRes, killboardRes, trackedBattles, participations] =
+  type KillRow = {
+    albion_player_id: string | null
+    role: string | null
+    occurred_at: string | null
+    battle_id: number | null
+  }
+  const [avatarsRes, killboardRows, trackedBattles, participations] =
     await Promise.all([
       db
         .from('guild_avatars')
@@ -151,12 +200,18 @@ export async function loadTopContributorsThisWeek(
         .eq('guild_id', guildId)
         .is('withdrawn_at', null)
         .not('albion_player_id', 'is', null),
-      db
-        .from('killboard_events')
-        .select('albion_player_id, role, occurred_at, battle_id')
-        .eq('guild_id', guildId)
-        .gte('occurred_at', sinceIso)
-        .not('discord_id', 'is', null),
+      selectPagedRowsOrThrow<KillRow>({
+        label: 'weekly top contributors killboard events',
+        buildQuery: () =>
+          db
+            .from('killboard_events')
+            .select('albion_player_id, role, occurred_at, battle_id')
+            .eq('guild_id', guildId)
+            .gte('occurred_at', sinceIso)
+            .not('discord_id', 'is', null)
+            .order('occurred_at', { ascending: true })
+            .order('event_id', { ascending: true }) as unknown as SupabasePagedQuery<KillRow>,
+      }),
       fetchTrackedBattleWindows(db, guildId, sinceIso, { bundleSplits }),
       fetchMemberBattleParticipations(db, guildId, sinceIso),
     ])
@@ -176,14 +231,8 @@ export async function loadTopContributorsThisWeek(
     })
   }
 
-  type KillRow = {
-    albion_player_id: string | null
-    role: string | null
-    occurred_at: string | null
-    battle_id: number | null
-  }
   const killsByMember = new Map<string, KillRow[]>()
-  for (const ke of (killboardRes.data ?? []) as KillRow[]) {
+  for (const ke of killboardRows) {
     if (!ke.albion_player_id) continue
     let list = killsByMember.get(ke.albion_player_id)
     if (!list) {

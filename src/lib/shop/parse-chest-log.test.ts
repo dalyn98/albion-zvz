@@ -40,6 +40,9 @@ describe('parseChestLog', () => {
     const raw = [
       '"bad date"\t"MonKKu"\t"Expert\'s Hellion Jacket"\t"3"\t"1"\t"2"',
       '"05/24/2026 14:05:00"\t"MonKKu"\t"Expert\'s Hellion Jacket"\t"bad"\t"1"\t"2"',
+      '"05/24/2026 14:05:00"\t"MonKKu"\t"Expert\'s Hellion Jacket"\t"5"\t"1"\t"2"',
+      '"05/24/2026 14:05:00"\t"MonKKu"\t"Expert\'s Hellion Jacket"\t"3"\t"1.5"\t"2"',
+      '"05/24/2026 14:05:00"\t"MonKKu"\t"Expert\'s Hellion Jacket"\t"3"\t"1"\t"2147483648"',
       '"05/24/2026 14:05:00"\t"MonKKu"\t"Expert\'s Hellion Jacket"',
     ].join('\n')
 
@@ -48,6 +51,9 @@ describe('parseChestLog', () => {
     expect(result.entries).toEqual([])
     expect(result.errors.map((error) => error.code)).toEqual([
       'chest_date',
+      'chest_numeric_fields',
+      'chest_numeric_fields',
+      'chest_numeric_fields',
       'chest_numeric_fields',
       'chest_format',
     ])

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildBattleForceEdgeRows,
+  buildBattleForceSummaryRows,
   buildBattleRecordRow,
   buildFinalMatchupRows,
   buildLegacyBackfillRows,
@@ -11,6 +13,7 @@ import type {
   AlbionBattleGuild,
   AlbionBattlePlayer,
 } from './albion-battles'
+import { buildBattlePlayerSummaries } from './albion-battles'
 
 // 도메인 invariant 화석화: AGENTS.md #8 — /battles 판정 규칙.
 //   - 10명 미만 갱크 자동 제외 (home 또는 mainOpp < 10 → 행 없음)
@@ -229,6 +232,151 @@ describe('buildProvisionalTenantRow — 컷오프', () => {
       startedAt: battle.startTime,
     })
     expect(row?.size_category).toBe('zerg')
+  })
+})
+
+describe('battle force summaries / edges — shared battle cache', () => {
+  it('guild level 과 alliance level force summary 를 둘 다 만든다', () => {
+    const battle = makeBattle({
+      alliances: [
+        { id: 'A1', name: 'Ally-A' },
+        { id: 'B1', name: 'Ally-B' },
+      ],
+      guilds: [
+        { id: HOME_GUILD, name: 'Home', teamSize: 12, allianceId: 'A1', allianceName: 'Ally-A', kills: 3, deaths: 2, killFame: 500_000 },
+        { id: 'home-ally', name: 'HomeAlly', teamSize: 8, allianceId: 'A1', allianceName: 'Ally-A', kills: 1, deaths: 1, killFame: 100_000 },
+        { id: 'opp', name: 'Opp', teamSize: 15, allianceId: 'B1', allianceName: 'Ally-B', kills: 2, deaths: 4, killFame: 300_000 },
+      ],
+    })
+
+    const rows = buildBattleForceSummaryRows('br1', battle)
+
+    const allyA = rows.find((r) => r.force_level === 'alliance' && r.force_key === 'a:A1')
+    expect(allyA).toMatchObject({
+      battle_record_id: 'br1',
+      force_kind: 'alliance',
+      force_name: 'Ally-A',
+      team_size: 20,
+      kills: 4,
+      deaths: 3,
+      kill_fame: 600_000,
+      guild_ids: [HOME_GUILD, 'home-ally'],
+    })
+    expect(rows.find((r) => r.force_level === 'guild' && r.force_key === `g:${HOME_GUILD}`)).toMatchObject({
+      force_name: 'Home',
+      team_size: 12,
+    })
+  })
+
+  it('force edge 는 양쪽 tenant 가 같은 EventId 를 수집해도 한 번만 센다', () => {
+    const battle = makeBattle({
+      alliances: [
+        { id: 'A1', name: 'Ally-A' },
+        { id: 'B1', name: 'Ally-B' },
+      ],
+      guilds: [
+        { id: HOME_GUILD, name: 'Home', teamSize: 12, allianceId: 'A1', allianceName: 'Ally-A' },
+        { id: 'opp', name: 'Opp', teamSize: 15, allianceId: 'B1', allianceName: 'Ally-B' },
+      ],
+    })
+
+    const rows = buildBattleForceEdgeRows({
+      battleRecordId: 'br1',
+      battle,
+      evaluatedAt: '2026-05-15T00:30:00Z',
+      events: [
+        {
+          eventId: '100',
+          sourceHomeGuildId: HOME_GUILD,
+          role: 'killer',
+          opponentGuild: 'Opp',
+          opponentAlliance: 'Ally-B',
+          fame: 250_000,
+        },
+        {
+          eventId: '100',
+          sourceHomeGuildId: 'opp',
+          role: 'victim',
+          opponentGuild: 'Home',
+          opponentAlliance: 'Ally-A',
+          fame: 250_000,
+        },
+      ],
+    })
+
+    const guildEdge = rows.find((r) => r.force_level === 'guild')
+    const allianceEdge = rows.find((r) => r.force_level === 'alliance')
+    expect(guildEdge?.event_count).toBe(1)
+    expect(allianceEdge?.event_count).toBe(1)
+    expect(guildEdge?.is_meaningful).toBe(true)
+    expect(allianceEdge?.is_meaningful).toBe(true)
+    expect((guildEdge?.a_kills ?? 0) + (guildEdge?.b_kills ?? 0)).toBe(1)
+    expect((guildEdge?.a_kill_fame ?? 0) + (guildEdge?.b_kill_fame ?? 0)).toBe(250_000)
+  })
+
+  it('직접 이벤트가 있어도 한쪽 force 가 10명 미만이면 weak edge 로 남긴다', () => {
+    const battle = makeBattle({
+      guilds: [
+        { id: HOME_GUILD, name: 'Home', teamSize: 12 },
+        { id: 'small', name: 'Small', teamSize: 5 },
+      ],
+    })
+
+    const rows = buildBattleForceEdgeRows({
+      battleRecordId: 'br1',
+      battle,
+      evaluatedAt: '2026-05-15T00:30:00Z',
+      events: [
+        {
+          eventId: '101',
+          sourceHomeGuildId: HOME_GUILD,
+          role: 'killer',
+          opponentGuild: 'Small',
+          opponentAlliance: null,
+          fame: 10_000,
+        },
+      ],
+    })
+
+    expect(rows.find((r) => r.force_level === 'guild')).toMatchObject({
+      event_count: 1,
+      is_meaningful: false,
+      confidence: 'weak',
+    })
+  })
+
+  it('player summary 는 raw K/D 에 killboard evidence 의 무기/IP 를 보강한다', () => {
+    const battle = makeBattle({
+      guilds: [
+        { id: HOME_GUILD, name: 'Home', teamSize: 1 },
+        { id: 'opp', name: 'Opp', teamSize: 1 },
+      ],
+    })
+    battle.players[`${HOME_GUILD}-p0`] = {
+      ...battle.players[`${HOME_GUILD}-p0`],
+      name: 'PlayerOne',
+      kills: 2,
+      deaths: 1,
+      killFame: 300_000,
+    }
+
+    const players = buildBattlePlayerSummaries(battle, [
+      {
+        playerId: `${HOME_GUILD}-p0`,
+        itemPower: 1475,
+        equipment: { MainHand: { Type: 'T8_MAIN_HOLYSTAFF@3' } },
+        occurredAt: '2026-05-15T00:10:00Z',
+      },
+    ])
+
+    const player = players.find((p) => p.playerId === `${HOME_GUILD}-p0`)
+    expect(player).toMatchObject({
+      playerName: 'PlayerOne',
+      kills: 2,
+      deaths: 1,
+      itemPower: 1475,
+      weaponId: 'T8_MAIN_HOLYSTAFF@3',
+    })
   })
 })
 

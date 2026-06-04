@@ -21,6 +21,7 @@ import { recordAdminLogin } from '@/lib/tenant-activity'
 import { ALL_CAPABILITIES, serializeCapabilities } from '@/lib/permissions'
 import { log } from '@/lib/log'
 import { EVENT_CATEGORIES } from '@/types'
+import { isDiscordId, normalizeDiscordIdList } from '@/lib/discord-id'
 
 // 온보딩 위저드는 3 단계다. 각 단계별 액션은 세션이 tenant 의 created_by_discord_id
 // 와 일치하는지만 독립적으로 검증하고, 세션 자체(isAdmin 등) 는 bot-callback 에서
@@ -78,14 +79,26 @@ export async function saveTenantSetup(
   const session = await getSession()
   if (!session) return { error: t('unauthorized') }
 
-  if (input.memberRoleIds.length === 0) {
+  if (!Array.isArray(input.memberRoleIds) || !Array.isArray(input.adminRoleIds)) {
+    return { error: t('errorGeneric') }
+  }
+
+  const memberRoleIds = normalizeDiscordIdList(input.memberRoleIds)
+  if (!memberRoleIds) return { error: t('errorGeneric') }
+  if (memberRoleIds.length === 0) {
     return { error: t('missingRoles') }
   }
 
   // self-lockout 방어: admin_role_ids 가 비면 세션 만료 후 이 tenant 에
   // 아무도 관리자로 들어올 수 없다. 서버 쪽에서 한 번 더 막는다.
-  if (input.adminRoleIds.length === 0) {
+  const adminRoleIds = normalizeDiscordIdList(input.adminRoleIds)
+  if (!adminRoleIds) return { error: t('errorGeneric') }
+  if (adminRoleIds.length === 0) {
     return { error: t('missingAdminRoles') }
+  }
+
+  if (input.eventChannelId !== null && !isDiscordId(input.eventChannelId)) {
+    return { error: t('errorGeneric') }
   }
 
   if (!isValidTenantTimezone(input.timezone)) {
@@ -99,8 +112,8 @@ export async function saveTenantSetup(
   const { error } = await db
     .from('tenants')
     .update({
-      member_role_ids: input.memberRoleIds,
-      admin_role_ids: input.adminRoleIds,
+      member_role_ids: memberRoleIds,
+      admin_role_ids: adminRoleIds,
       event_channel_id: input.eventChannelId,
     })
     .eq('id', input.tenantId)

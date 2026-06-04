@@ -45,6 +45,7 @@ describe('GET /api/auth/discord/bot-install', () => {
     expect(response.headers.get('location')).toBe(
       'https://albion-guildmanager.com/api/auth/discord/start?returnTo=/onboard',
     )
+    expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
   })
 
   it('redirects desktop users directly to the guild-locked Discord install URL', async () => {
@@ -58,6 +59,7 @@ describe('GET /api/auth/discord/bot-install', () => {
     expect(response.headers.get('location')).toBe(
       'https://discord.example/install?guild_id=123456789012345678',
     )
+    expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
     expect(mocks.recordAuthStart).toHaveBeenCalledWith(request, 'bot_install', {
       bridge: false,
       guild_id: '123456789012345678',
@@ -76,6 +78,7 @@ describe('GET /api/auth/discord/bot-install', () => {
     expect(response.headers.get('location')).toBe(
       'https://albion-guildmanager.com/onboard/bot-install/open?guild_id=123456789012345678',
     )
+    expect(response.headers.get('cache-control')).toBe('no-store, max-age=0')
     expect(mocks.recordAuthStart).toHaveBeenCalledWith(request, 'bot_install', {
       bridge: true,
       guild_id: '123456789012345678',

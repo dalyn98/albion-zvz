@@ -86,6 +86,7 @@ export async function listCraftQueueForCrafter(): Promise<{
     const { data: evs } = await db
       .from('events')
       .select('id, gather_at')
+      .eq('guild_id', guildId)
       .in('id', Array.from(eventIds))
     for (const ev of evs ?? []) {
       gatherAtByEventId.set(
@@ -201,6 +202,7 @@ export async function getCraftQueueTaskDetail(
     const { data: ev } = await db
       .from('events')
       .select('id, title, gather_at')
+      .eq('guild_id', guildId)
       .eq('id', eventId)
       .maybeSingle()
     if (ev) {

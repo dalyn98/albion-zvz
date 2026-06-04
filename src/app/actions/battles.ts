@@ -4,9 +4,12 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
 import {
+  buildBattlePlayerSummaries,
   computeHomeAllianceStats,
   computeOpponentGuildBreakdown,
   parseRawBattle,
+  type BattlePlayerEquipmentEvidence,
+  type BattlePlayerSummary,
   type HomeAllianceStats,
   type OpponentGuildBreakdown,
   type SizeCategory,
@@ -43,6 +46,25 @@ export interface BattleKillEvent {
   fame: number
   item_power: number | null
   occurred_at: string
+}
+
+export interface BattleForceEngagement {
+  forceLevel: 'alliance' | 'guild'
+  forceAKey: string
+  forceAName: string
+  forceAKind: 'alliance' | 'guild'
+  forceATeamSize: number
+  forceBKey: string
+  forceBName: string
+  forceBKind: 'alliance' | 'guild'
+  forceBTeamSize: number
+  aKills: number
+  aDeaths: number
+  aKillFame: number
+  bKills: number
+  bDeaths: number
+  bKillFame: number
+  eventCount: number
 }
 
 // 같은 battle_record_id 를 추적 중인 다른 tenant. 사이트가 등록된 길드끼리
@@ -90,6 +112,12 @@ export interface BattleDetail {
   // 홈 길드가 alliance 에 가입되어 있고 alliance 안에 다른 길드가 있을 때만 채워짐.
   // raw_battle 의 alliance 합산값 — 매치업 분리 X (전체 전투 합산). 단독 가입이면 null.
   homeAllianceStats: HomeAllianceStats | null
+  // 같은 battle 안에서 직접 교전 증거가 있는 force 간 edge. shared battle cache
+  // 에서 읽으며, 없으면 빈 배열로 degrade.
+  forceEngagements: BattleForceEngagement[]
+  // battle_records.raw_battle.players 기반 플레이어 K/D. weapon/IP 는 raw_battle
+  // optional 필드 또는 killboard_events 로 보강된다. 별도 player snapshot 저장 X.
+  players: BattlePlayerSummary[]
   // 전투 시간창 안에서 길드원이 낸 killboard 이벤트. occurred_at 오름차순.
   events: BattleKillEvent[]
   // anonymized 보기 (cross-tenant) 에서는 events 의 discord identity 가 가려지고
@@ -240,6 +268,61 @@ export async function getBattleDetail(
       ? computeHomeAllianceStats(rawBattle, activeRow.home_guild_id as string)
       : null
 
+    const { data: edgeRows, error: edgeErr } = await db
+      .from('battle_force_edges')
+      .select(
+        'force_level, force_a_key, force_a_kind, force_a_name, force_a_team_size, force_b_key, force_b_kind, force_b_name, force_b_team_size, a_kills, a_deaths, a_kill_fame, b_kills, b_deaths, b_kill_fame, event_count',
+      )
+      .eq('battle_record_id', battleRecordId)
+      .eq('is_meaningful', true)
+      .order('force_level', { ascending: true })
+      .order('event_count', { ascending: false })
+    if (edgeErr) return { detail: null, error: edgeErr.message }
+
+    type ForceEdgeRow = {
+      force_level: string | null
+      force_a_key: string | null
+      force_a_kind: string | null
+      force_a_name: string | null
+      force_a_team_size: number | null
+      force_b_key: string | null
+      force_b_kind: string | null
+      force_b_name: string | null
+      force_b_team_size: number | null
+      a_kills: number | null
+      a_deaths: number | null
+      a_kill_fame: number | null
+      b_kills: number | null
+      b_deaths: number | null
+      b_kill_fame: number | null
+      event_count: number | null
+    }
+    const forceEngagements: BattleForceEngagement[] = []
+    for (const row of (edgeRows ?? []) as ForceEdgeRow[]) {
+      if (row.force_level !== 'alliance' && row.force_level !== 'guild') continue
+      if (row.force_a_kind !== 'alliance' && row.force_a_kind !== 'guild') continue
+      if (row.force_b_kind !== 'alliance' && row.force_b_kind !== 'guild') continue
+      if (!row.force_a_key || !row.force_b_key || !row.force_a_name || !row.force_b_name) continue
+      forceEngagements.push({
+        forceLevel: row.force_level,
+        forceAKey: row.force_a_key,
+        forceAName: row.force_a_name,
+        forceAKind: row.force_a_kind,
+        forceATeamSize: row.force_a_team_size ?? 0,
+        forceBKey: row.force_b_key,
+        forceBName: row.force_b_name,
+        forceBKind: row.force_b_kind,
+        forceBTeamSize: row.force_b_team_size ?? 0,
+        aKills: row.a_kills ?? 0,
+        aDeaths: row.a_deaths ?? 0,
+        aKillFame: row.a_kill_fame ?? 0,
+        bKills: row.b_kills ?? 0,
+        bDeaths: row.b_deaths ?? 0,
+        bKillFame: row.b_kill_fame ?? 0,
+        eventCount: row.event_count ?? 0,
+      })
+    }
+
     const startMs = Date.parse(activeRow.started_at as string)
     const endMs = Date.parse(endedAt)
     const windowStart = new Date(startMs - WINDOW_PADDING_MS).toISOString()
@@ -253,7 +336,7 @@ export async function getBattleDetail(
     let eventsQuery = db
       .from('killboard_events')
       .select(
-        'event_id, role, fame, item_power, occurred_at, opponent_name, opponent_guild, opponent_alliance, discord_id, guild_avatars!inner(username, avatar, albion_nickname)',
+        'event_id, role, fame, item_power, occurred_at, opponent_name, opponent_guild, opponent_alliance, discord_id, albion_player_id, player_name, equipment, guild_avatars(username, avatar, albion_nickname)',
       )
       .eq('guild_id', activeGuildId)
     eventsQuery =
@@ -275,6 +358,9 @@ export async function getBattleDetail(
       opponent_guild: string | null
       opponent_alliance: string | null
       discord_id: string | null
+      albion_player_id: string | null
+      player_name: string | null
+      equipment: Record<string, { Type?: string | null } | null> | null
       guild_avatars:
         | { username: string | null; avatar: string | null; albion_nickname: string | null }
         | { username: string | null; avatar: string | null; albion_nickname: string | null }[]
@@ -282,24 +368,32 @@ export async function getBattleDetail(
     }
 
     const battleEvents: BattleKillEvent[] = []
+    const playerEvidenceRows: BattlePlayerEquipmentEvidence[] = []
     for (const row of (events ?? []) as EventRow[]) {
-      if (!row.discord_id || !row.occurred_at) continue
+      if (!row.occurred_at) continue
+      if (row.albion_player_id) {
+        playerEvidenceRows.push({
+          playerId: row.albion_player_id,
+          itemPower: row.item_power,
+          equipment: row.equipment,
+          occurredAt: row.occurred_at,
+        })
+      }
       if (row.role !== 'killer' && row.role !== 'victim') continue
       const avatar = Array.isArray(row.guild_avatars)
         ? row.guild_avatars[0]
         : row.guild_avatars
-      if (!avatar) continue
       // anonymized: Albion 닉네임을 표시명으로. 없으면 row 자체를 스킵 — 표시할
       // 안전한 라벨이 없으면 그냥 안 보여주는 게 낫다.
       const displayName = anonymized
-        ? avatar.albion_nickname ?? null
-        : avatar.username ?? null
+        ? avatar?.albion_nickname ?? row.player_name ?? null
+        : avatar?.username ?? row.player_name ?? null
       if (!displayName) continue
       battleEvents.push({
         event_id: String(row.event_id ?? ''),
         discord_id: anonymized ? null : row.discord_id,
         username: displayName,
-        avatar: anonymized ? null : avatar.avatar,
+        avatar: anonymized ? null : avatar?.avatar ?? null,
         role: row.role,
         opponent_name: row.opponent_name,
         opponent_guild: row.opponent_guild,
@@ -309,6 +403,7 @@ export async function getBattleDetail(
         occurred_at: row.occurred_at,
       })
     }
+    const players = rawBattle ? buildBattlePlayerSummaries(rawBattle, playerEvidenceRows) : []
 
     const detail: BattleDetail = {
       id: activeRow.id as string,
@@ -359,6 +454,8 @@ export async function getBattleDetail(
       outcome: activeRow.outcome as 'win' | 'loss' | 'tie',
       opponentGuilds,
       homeAllianceStats,
+      forceEngagements,
+      players,
       events: battleEvents,
       anonymized,
       crossTenants,

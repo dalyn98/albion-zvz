@@ -8,9 +8,8 @@
 
 import { getAdminClient } from '@/lib/supabase-admin'
 import { buildDiscordStartHref } from '@/lib/discord-auth-url'
-import { mapDiscordLocale } from '@/lib/discord'
 import { tenantUrl } from '@/lib/tenant-resolver'
-import { DEFAULT_LOCALE, type Locale } from '@/i18n/locales'
+import { isLocale, type Locale } from '@/i18n/locales'
 import { killbotDashboardUrl } from '@/lib/killbot'
 import {
   ephemeralReply,
@@ -19,6 +18,7 @@ import {
 } from '@/lib/discord-interactions'
 
 export const COMMAND_AGM = 'agm'
+export const DEFAULT_DISCORD_COMMAND_LOCALE = 'en' satisfies Locale
 
 export const AGM_SUBCOMMANDS = [
   'home',
@@ -39,7 +39,9 @@ export type AgmSubcommand = typeof AGM_SUBCOMMANDS[number]
 export const ALL_COMMAND_NAMES = [COMMAND_AGM] as const
 const ADMIN_ONLY_AGM_SUBCOMMANDS = ['admin', 'killbot'] as const satisfies readonly AgmSubcommand[]
 
-interface DiscordBotMessages {
+export interface DiscordBotMessages {
+  unsupportedInteraction: string
+  handlerFailed: string
   notInGuild: string
   guildNotLinked: string
   adminOnly: string
@@ -62,10 +64,14 @@ interface DiscordBotMessages {
 // getTranslations 는 RSC request-context 가 필요해 interactions API 에서 못
 // 쓴다. 대신 빌드 타임에 같이 번들된 src/messages/{locale}.json 을 동적
 // import 해서 평문 string 만 꺼낸다.
-async function loadMessages(locale: Locale): Promise<DiscordBotMessages> {
+export async function loadDiscordBotMessages(
+  locale: Locale = DEFAULT_DISCORD_COMMAND_LOCALE,
+): Promise<DiscordBotMessages> {
   const dict = (await import(`../messages/${locale}.json`)).default as Record<string, unknown>
   const ns = (dict.discordBot ?? {}) as Record<string, string>
   return {
+    unsupportedInteraction: ns.unsupportedInteraction ?? '',
+    handlerFailed: ns.handlerFailed ?? '',
     notInGuild: ns.notInGuild ?? '',
     guildNotLinked: ns.guildNotLinked ?? '',
     adminOnly: ns.adminOnly ?? '',
@@ -123,6 +129,47 @@ function getInvokerDiscordId(payload: DiscordInteractionPayload): string | null 
   return payload.member?.user?.id ?? payload.user?.id ?? null
 }
 
+async function findPreferredCommandLocale(
+  guildId: string,
+  discordId: string,
+): Promise<Locale | null> {
+  const db = getAdminClient()
+
+  try {
+    const { data: member } = await db
+      .from('guild_avatars')
+      .select('preferred_language')
+      .eq('guild_id', guildId)
+      .eq('discord_id', discordId)
+      .maybeSingle()
+    if (isLocale(member?.preferred_language)) return member.preferred_language
+
+    const { data: guest } = await db
+      .from('guests')
+      .select('preferred_language')
+      .eq('guild_id', guildId)
+      .eq('discord_id', discordId)
+      .maybeSingle()
+    return isLocale(guest?.preferred_language) ? guest.preferred_language : null
+  } catch {
+    return null
+  }
+}
+
+// Discord 명령 응답은 사이트의 저장된 언어 설정을 우선한다. 아직 설정이
+// 없거나 테넌트/사용자를 특정할 수 없으면 영어로 고정한다.
+export async function resolveDiscordCommandLocale(
+  payload: DiscordInteractionPayload,
+  guildId: string | null | undefined,
+): Promise<Locale> {
+  const discordId = getInvokerDiscordId(payload)
+  if (guildId && discordId) {
+    const preferred = await findPreferredCommandLocale(guildId, discordId)
+    if (preferred) return preferred
+  }
+  return DEFAULT_DISCORD_COMMAND_LOCALE
+}
+
 function isAdminOnlySubcommand(destination: AgmSubcommand): boolean {
   return (ADMIN_ONLY_AGM_SUBCOMMANDS as readonly string[]).includes(destination)
 }
@@ -177,11 +224,6 @@ async function findUpcomingEvent(guildId: string): Promise<UpcomingEventResult |
   }
 }
 
-// 디스코드 클라이언트 locale → 우리가 지원하는 Locale. 미지원 언어는 ko 폴백.
-function resolveLocale(payload: DiscordInteractionPayload): Locale {
-  return mapDiscordLocale(payload.locale) ?? DEFAULT_LOCALE
-}
-
 // 이벤트 시간 표시는 디스코드 native timestamp markup `<t:UNIX:F>` 를 쓴다.
 // 클라이언트 측에서 자동으로 사용자 timezone + locale 로 변환해 주므로
 // 서버는 timezone 계산을 안 해도 된다.
@@ -200,8 +242,10 @@ function getAgmSubcommandName(payload: DiscordInteractionPayload): AgmSubcommand
 export async function handleSlashCommand(
   payload: DiscordInteractionPayload,
 ): Promise<DiscordInteractionResponse> {
-  const locale = resolveLocale(payload)
-  const messages = await loadMessages(locale)
+  const tenant = payload.guild_id ? await findTenantByDiscordGuild(payload.guild_id) : null
+  const messages = await loadDiscordBotMessages(
+    await resolveDiscordCommandLocale(payload, tenant?.id),
+  )
 
   if (payload.data?.name !== COMMAND_AGM) {
     return ephemeralReply(messages.unknownCommand)
@@ -216,8 +260,6 @@ export async function handleSlashCommand(
   if (!payload.guild_id) {
     return ephemeralReply(messages.notInGuild)
   }
-
-  const tenant = await findTenantByDiscordGuild(payload.guild_id)
 
   if (!tenant) {
     const docsUrl = tenantUrl(null, '/faq')

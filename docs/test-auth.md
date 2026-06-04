@@ -11,7 +11,7 @@ ENABLE_TEST_AUTH=true
 TEST_AUTH_SECRET=랜덤_16자_이상_긴_문자열
 ```
 
-Vercel production(`VERCEL_ENV=production`)에서는 이 값이 있어도 `/api/test/auth/session`이 항상 404를 반환합니다.
+Vercel production(`VERCEL_ENV=production`)에서는 이 값이 있어도 `/api/test/auth/session`이 항상 404를 반환합니다. Vercel preview(`VERCEL_ENV=preview`)에서는 명시적으로 활성화한 경우 사용할 수 있고, Vercel이 아닌 일반 production 실행(`NODE_ENV=production`)에서는 비활성화됩니다.
 로컬 HTTP 브라우저에서 쿠키가 저장되지 않으면 `.env.local`의 `COOKIE_SECURE=false`를 확인하세요. 이 엔드포인트는 실제 앱 세션과 같은 `cookieOptions()`를 사용합니다.
 
 ## 사용 예시

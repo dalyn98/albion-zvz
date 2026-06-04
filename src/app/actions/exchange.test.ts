@@ -66,4 +66,21 @@ describe('requestExchange local account boundary', () => {
     expect(mocks.requireAlbionVerified).not.toHaveBeenCalled()
     expect(mocks.getAdminClient).not.toHaveBeenCalled()
   })
+
+  it('rejects amounts outside postgres integer range before identity checks run', async () => {
+    mocks.getSession.mockResolvedValue({
+      discordId: 'member-1',
+      username: 'Member',
+      isMember: true,
+      isLocalGuildAccount: false,
+    })
+
+    await expect(requestExchange(2147483648)).resolves.toEqual({
+      error: 'invalidAmount',
+    })
+
+    expect(mocks.getSessionGuildId).not.toHaveBeenCalled()
+    expect(mocks.requireAlbionVerified).not.toHaveBeenCalled()
+    expect(mocks.getAdminClient).not.toHaveBeenCalled()
+  })
 })

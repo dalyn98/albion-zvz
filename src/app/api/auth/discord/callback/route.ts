@@ -35,6 +35,9 @@ import {
 } from '@/lib/tenant-resolver'
 import { log } from '@/lib/log'
 import { recordAuthFailure, recordAuthSuccess } from '@/lib/auth-telemetry'
+import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
+import { withNoStore } from '@/lib/no-store-response'
+import { redactUrlSearch } from '@/lib/redact-search-params'
 import { removeGuestRecordForMember } from '@/lib/guest-membership-transition'
 
 // Onboarding cookie stays on the canonical domain (it's consumed by /onboard
@@ -104,14 +107,11 @@ function errorRedirect(
   const origin = buildErrorOrigin(state)
   const target = new URL(buildErrorPath(state), origin)
   target.searchParams.set('auth_error', reason)
-  return NextResponse.redirect(target)
+  return withNoStore(NextResponse.redirect(target))
 }
 
 function buildErrorPath(state: OAuthStatePayload | null): string {
-  const returnTo = state?.returnTo
-  if (!returnTo || !returnTo.startsWith('/') || returnTo.startsWith('//')) return '/'
-  if (returnTo.startsWith('/api/')) return '/'
-  return returnTo
+  return sanitizeInternalReturnTo(state?.returnTo)
 }
 
 function extractOriginSlug(originHost: string): string | null {
@@ -156,7 +156,7 @@ async function buildHopRedirect(
 ): Promise<NextResponse> {
   const hopToken = await signHopToken({ session, returnTo, preferredLocale })
   const finishPath = `/api/auth/finish?token=${encodeURIComponent(hopToken)}`
-  return NextResponse.redirect(buildTenantHostUrl(slug, finishPath))
+  return withNoStore(NextResponse.redirect(buildTenantHostUrl(slug, finishPath)))
 }
 
 interface OnboardGuild {
@@ -206,7 +206,7 @@ async function onboardingResponse(
     path: '/',
     maxAge: ONBOARD_GUILDS_TTL_SEC,
   })
-  return response
+  return withNoStore(response)
 }
 
 export async function GET(request: NextRequest) {
@@ -228,7 +228,7 @@ export async function GET(request: NextRequest) {
         invite: fallbackState.invite,
         preferredLocale: fallbackState.preferredLocale,
       })
-      return NextResponse.redirect(buildAuthorizeUrl(retryState, { prompt: 'consent' }))
+      return withNoStore(NextResponse.redirect(buildAuthorizeUrl(retryState, { prompt: 'consent' })))
     }
   }
 
@@ -263,8 +263,7 @@ export async function GET(request: NextRequest) {
       if (tenant && tenant.botInstalled) matchedTenants.push(tenant)
     }
 
-    const returnTo =
-      state.returnTo.startsWith('/') && !state.returnTo.startsWith('//') ? state.returnTo : '/'
+    const returnTo = sanitizeInternalReturnTo(state.returnTo)
     const isRegularEventLogin = !state.invite && extractEventIdFromReturnTo(returnTo) !== null
 
     // 이벤트 게스트 스코프를 먼저 해석한다.
@@ -391,6 +390,8 @@ export async function GET(request: NextRequest) {
         const canCreateEvents = isAdmin || eventCreatorCategories.length > 0
         const displayName = identity?.username ?? member.nick ?? user.global_name ?? user.username
 
+        const db = getAdminClient()
+
         if (isMember || isBombSquadCaller) {
           try {
             await upsertGuildAvatar(
@@ -409,7 +410,6 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        const db = getAdminClient()
         if (isMember) {
           await removeGuestRecordForMember(db, {
             guildId: tenant.id,
@@ -629,7 +629,7 @@ export async function GET(request: NextRequest) {
       isLocale(guestPreferred) ? guestPreferred : null,
     )
   } catch (e) {
-    log.error('[discord-callback] unhandled', e, { return_to: state.returnTo })
+    log.error('[discord-callback] unhandled', e, { return_to: redactUrlSearch(state.returnTo) })
     return errorRedirect(request, state, 'server_error')
   }
 }

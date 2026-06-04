@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
+import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
 import { getOnboardingState } from '@/app/actions/onboarding'
 import AlbionOnboardingWizard from '@/components/AlbionOnboardingWizard'
 
@@ -25,10 +26,7 @@ export default async function AlbionOnboardingPage({ searchParams }: Props) {
   const params = await searchParams
   const returnParam = params.return
   const defaultReturn = session.isMember ? '/me' : '/'
-  const safeReturn =
-    typeof returnParam === 'string' && returnParam.startsWith('/') && !returnParam.startsWith('//')
-      ? returnParam
-      : defaultReturn
+  const safeReturn = sanitizeInternalReturnTo(returnParam, defaultReturn)
 
   const state = await getOnboardingState()
   const t = await getTranslations('albionOnboarding')

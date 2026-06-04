@@ -11,6 +11,7 @@ import { isEnded } from '@/lib/gather-time'
 import { logAdminAction } from '@/lib/admin-audit'
 import { CAP } from '@/lib/permissions'
 import { sendAdminNotification } from '@/lib/admin-notifications'
+import { isPostgresPositiveInt } from '@/lib/postgres-int'
 
 const MEMO_MAX = 500
 const EVENT_PAYOUT_CAPS = [CAP.EVENT_MANAGE] as const
@@ -97,19 +98,19 @@ export async function createEventPayoutRequest(
 ): Promise<{ error?: string; id?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
-    const db = await requireAnyCapability(EVENT_PAYOUT_CAPS)
-    const session = await getSession()
-    const tAdminNotify = await getTranslations('adminNotificationMessages')
-    if (!session) return { error: tErr('unauthorized') }
-    const guildId = await getSessionGuildId(session)
-
-    if (!Number.isInteger(input.silverPerMember) || input.silverPerMember <= 0) {
+    if (!isPostgresPositiveInt(input.silverPerMember)) {
       return { error: tErr('invalidAmount') }
     }
     const memo = (input.memo ?? '').trim() || null
     if (memo && memo.length > MEMO_MAX) {
       return { error: tErr('memoTooLong', { max: MEMO_MAX }) }
     }
+
+    const db = await requireAnyCapability(EVENT_PAYOUT_CAPS)
+    const session = await getSession()
+    const tAdminNotify = await getTranslations('adminNotificationMessages')
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
 
     const { data: event, error: eventError } = await db
       .from('events')

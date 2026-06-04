@@ -16,10 +16,12 @@ import {
   Hourglass,
   Flag,
 } from 'lucide-react'
-import { getTranslations } from 'next-intl/server'
+import { getLocale, getTranslations } from 'next-intl/server'
 import MemberAvatar from './MemberAvatar'
 import { formatDateTime, formatTime } from '@/lib/format-datetime'
-import type { BattleDetail, BattleKillEvent } from '@/app/actions/battles'
+import type { BattleDetail, BattleForceEngagement, BattleKillEvent } from '@/app/actions/battles'
+import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
+import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/locales'
 
 // 참가자 카드는 K/D 요약을 기본 노출하고, 해당 전투에서 찍힌 개별 킬로그(상대/
 // IP/fame) 는 <details> 로 접어둔다. 리스트가 길면 페이지가 킬로그로 도배돼
@@ -49,8 +51,12 @@ interface Props {
 }
 
 export default async function BattleDetailView({ detail, battleId, timezone }: Props) {
-  const t = await getTranslations('battleDetail')
-  const tList = await getTranslations('battleTracking')
+  const [t, tList, rawLocale] = await Promise.all([
+    getTranslations('battleDetail'),
+    getTranslations('battleTracking'),
+    getLocale(),
+  ])
+  const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
 
   const outcomeLabel =
     detail.outcome === 'win'
@@ -91,6 +97,12 @@ export default async function BattleDetailView({ detail, battleId, timezone }: P
   const provisionalLabel = tList('provisionalLabel')
 
   const participants = groupByMember(detail.events)
+  const playerGuildGroups = groupPlayersByGuild({
+    players: detail.players,
+    homeGuildName: detail.homeGuildName,
+    mainOpponentName: detail.mainOpponentName,
+    primaryOpponentName: detail.primaryOpponentName,
+  })
   const isCross = detail.perspectiveKind === 'cross'
 
   return (
@@ -249,6 +261,36 @@ export default async function BattleDetailView({ detail, battleId, timezone }: P
 
       <section className="space-y-2">
         <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
+          <GitBranch size={14} className="text-amber-400" />
+          {t('forceEngagementsTitle', { count: detail.forceEngagements.length })}
+        </h2>
+        {detail.forceEngagements.length === 0 ? (
+          <p className="text-gray-500 text-xs">{t('forceEngagementsEmpty')}</p>
+        ) : (
+          <>
+            <p className="text-gray-500 text-[11px]">{t('forceEngagementsHint')}</p>
+            <ul className="space-y-1.5">
+              {detail.forceEngagements.map((edge) => (
+                <ForceEngagementRow
+                  key={`${edge.forceLevel}:${edge.forceAKey}:${edge.forceBKey}`}
+                  edge={edge}
+                  levelLabel={
+                    edge.forceLevel === 'alliance'
+                      ? t('forceLevelAlliance')
+                      : t('forceLevelGuild')
+                  }
+                  eventCountLabel={t('forceEngagementEventCount', {
+                    count: edge.eventCount,
+                  })}
+                />
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
           <Shield size={14} className="text-amber-400" />
           {t('opponentGuildsTitle', { count: detail.opponentGuilds.length })}
         </h2>
@@ -291,6 +333,34 @@ export default async function BattleDetailView({ detail, battleId, timezone }: P
 
       <section className="space-y-2">
         <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
+          <Users size={14} className="text-amber-400" />
+          {t('playersTitle', { count: detail.players.length })}
+        </h2>
+        {detail.players.length === 0 ? (
+          <p className="text-gray-500 text-xs">{t('playersEmpty')}</p>
+        ) : (
+          <>
+            <p className="text-gray-500 text-[11px]">{t('playersHint')}</p>
+            <ul className="space-y-1.5">
+              {playerGuildGroups.map((group) => (
+                <PlayerGuildGroupRow
+                  key={group.guildKey}
+                  group={group}
+                  locale={locale}
+                  averageIpLabel={(value) => t('playerGuildAverageIp', { value })}
+                  averageIpUnknownLabel={t('playerGuildAverageIpUnknown')}
+                  weaponUnknownLabel={t('playerWeaponUnknown')}
+                  playerIpLabel={(value) => t('playerIp', { value })}
+                  playerIpUnknownLabel={t('playerIpUnknown')}
+                />
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-white font-bold text-sm flex items-center gap-1.5">
           <Sword size={14} className="text-amber-400" />
           {t('participantsTitle', { count: participants.length })}
         </h2>
@@ -318,6 +388,308 @@ export default async function BattleDetailView({ detail, battleId, timezone }: P
         )}
       </section>
     </>
+  )
+}
+
+function ForceEngagementRow({
+  edge,
+  levelLabel,
+  eventCountLabel,
+}: {
+  edge: BattleForceEngagement
+  levelLabel: string
+  eventCountLabel: string
+}) {
+  return (
+    <li className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 space-y-1.5">
+      <div className="flex items-center gap-2">
+        <span className="inline-flex items-center rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">
+          {levelLabel}
+        </span>
+        <p className="min-w-0 flex-1 text-sm font-semibold text-white truncate">
+          {edge.forceAName}
+          <span className="mx-1.5 text-gray-600">vs</span>
+          {edge.forceBName}
+        </p>
+        <span className="text-[10px] text-gray-500 flex-shrink-0">{eventCountLabel}</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+        <ForceMiniStat
+          name={edge.forceAName}
+          teamSize={edge.forceATeamSize}
+          kills={edge.aKills}
+          deaths={edge.aDeaths}
+          killFame={edge.aKillFame}
+        />
+        <ForceMiniStat
+          name={edge.forceBName}
+          teamSize={edge.forceBTeamSize}
+          kills={edge.bKills}
+          deaths={edge.bDeaths}
+          killFame={edge.bKillFame}
+        />
+      </div>
+    </li>
+  )
+}
+
+function ForceMiniStat({
+  name,
+  teamSize,
+  kills,
+  deaths,
+  killFame,
+}: {
+  name: string
+  teamSize: number
+  kills: number
+  deaths: number
+  killFame: number
+}) {
+  return (
+    <div className="min-w-0 rounded border border-gray-800 bg-gray-950/40 px-2 py-1">
+      <p className="text-[10px] text-gray-500 truncate">{name}</p>
+      <div className="flex items-center gap-2">
+        <span className="text-gray-400">{teamSize}p</span>
+        <span>
+          <span className="text-emerald-400">{kills}</span>
+          <span className="text-gray-600">/</span>
+          <span className="text-red-400">{deaths}</span>
+        </span>
+        <span className="text-gray-500 truncate">{formatFame(killFame)}</span>
+      </div>
+    </div>
+  )
+}
+
+function formatWeaponLabel(
+  weaponId: string | null,
+  locale: Locale,
+  fallback: string,
+): string {
+  if (!weaponId) return fallback
+  return getLocalizedItemNameWithEnchant(weaponId, locale, weaponId) ?? weaponId
+}
+
+type BattlePlayer = BattleDetail['players'][number]
+
+interface PlayerGuildGroup {
+  guildKey: string
+  guildName: string
+  allianceName: string | null
+  players: BattlePlayer[]
+  teamSize: number
+  kills: number
+  deaths: number
+  killFame: number
+  averageItemPower: number | null
+  topWeapons: Array<{ weaponId: string; count: number }>
+  defaultOpen: boolean
+}
+
+function groupPlayersByGuild({
+  players,
+  homeGuildName,
+  mainOpponentName,
+  primaryOpponentName,
+}: {
+  players: BattlePlayer[]
+  homeGuildName: string
+  mainOpponentName: string
+  primaryOpponentName: string | null
+}): PlayerGuildGroup[] {
+  const map = new Map<string, PlayerGuildGroup>()
+
+  for (const player of players) {
+    const guildKey = player.guildId || `${player.guildName}:${player.allianceName ?? ''}`
+    let group = map.get(guildKey)
+    if (!group) {
+      group = {
+        guildKey,
+        guildName: player.guildName,
+        allianceName: player.allianceName,
+        players: [],
+        teamSize: 0,
+        kills: 0,
+        deaths: 0,
+        killFame: 0,
+        averageItemPower: null,
+        topWeapons: [],
+        defaultOpen: false,
+      }
+      map.set(guildKey, group)
+    }
+
+    group.players.push(player)
+    group.teamSize += 1
+    group.kills += player.kills
+    group.deaths += player.deaths
+    group.killFame += player.killFame
+  }
+
+  const groups = Array.from(map.values())
+  for (const group of groups) {
+    group.players.sort(compareBattlePlayers)
+
+    const itemPowers = group.players
+      .map((p) => p.itemPower)
+      .filter((value): value is number => value !== null)
+    group.averageItemPower =
+      itemPowers.length > 0
+        ? Math.round(itemPowers.reduce((sum, value) => sum + value, 0) / itemPowers.length)
+        : null
+
+    const weaponCounts = new Map<string, number>()
+    for (const player of group.players) {
+      if (!player.weaponId) continue
+      weaponCounts.set(player.weaponId, (weaponCounts.get(player.weaponId) ?? 0) + 1)
+    }
+    group.topWeapons = Array.from(weaponCounts, ([weaponId, count]) => ({ weaponId, count }))
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count
+        return a.weaponId.localeCompare(b.weaponId)
+      })
+      .slice(0, 2)
+  }
+
+  groups.sort((a, b) => {
+    const aPriority = getPlayerGuildPriority(a, homeGuildName, mainOpponentName, primaryOpponentName)
+    const bPriority = getPlayerGuildPriority(b, homeGuildName, mainOpponentName, primaryOpponentName)
+    if (aPriority !== bPriority) return aPriority - bPriority
+    if (b.teamSize !== a.teamSize) return b.teamSize - a.teamSize
+    if (b.kills !== a.kills) return b.kills - a.kills
+    return a.guildName.localeCompare(b.guildName)
+  })
+
+  const mainOpponentGroup = groups.find(
+    (g) =>
+      g.guildName !== homeGuildName &&
+      (g.guildName === mainOpponentName ||
+        g.allianceName === mainOpponentName ||
+        (primaryOpponentName !== null && g.guildName === primaryOpponentName)),
+  )
+  for (const group of groups) {
+    group.defaultOpen =
+      group.guildName === homeGuildName ||
+      (mainOpponentGroup !== undefined && group.guildKey === mainOpponentGroup.guildKey)
+  }
+
+  return groups
+}
+
+function getPlayerGuildPriority(
+  group: PlayerGuildGroup,
+  homeGuildName: string,
+  mainOpponentName: string,
+  primaryOpponentName: string | null,
+): number {
+  if (group.guildName === homeGuildName) return 0
+  if (primaryOpponentName !== null && group.guildName === primaryOpponentName) return 1
+  if (group.guildName === mainOpponentName || group.allianceName === mainOpponentName) return 2
+  return 3
+}
+
+function compareBattlePlayers(a: BattlePlayer, b: BattlePlayer): number {
+  if (b.kills !== a.kills) return b.kills - a.kills
+  if (b.deaths !== a.deaths) return b.deaths - a.deaths
+  if ((b.itemPower ?? 0) !== (a.itemPower ?? 0)) return (b.itemPower ?? 0) - (a.itemPower ?? 0)
+  return a.playerName.localeCompare(b.playerName)
+}
+
+function PlayerGuildGroupRow({
+  group,
+  locale,
+  averageIpLabel,
+  averageIpUnknownLabel,
+  weaponUnknownLabel,
+  playerIpLabel,
+  playerIpUnknownLabel,
+}: {
+  group: PlayerGuildGroup
+  locale: Locale
+  averageIpLabel: (value: number) => string
+  averageIpUnknownLabel: string
+  weaponUnknownLabel: string
+  playerIpLabel: (value: number) => string
+  playerIpUnknownLabel: string
+}) {
+  const topWeaponLabels =
+    group.topWeapons.length > 0
+      ? group.topWeapons
+          .map(
+            ({ weaponId, count }) =>
+              `${formatWeaponLabel(weaponId, locale, weaponUnknownLabel)} x${count}`,
+          )
+          .join(' · ')
+      : weaponUnknownLabel
+
+  return (
+    <li className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <details className="group" open={group.defaultOpen}>
+        <summary className="cursor-pointer list-none hover:bg-gray-800/40 transition-colors">
+          <div className="flex items-start gap-3 px-3 py-2.5">
+            <div className="min-w-0 flex-1">
+              <p className="text-white text-sm font-semibold truncate">{group.guildName}</p>
+              {group.allianceName && (
+                <p className="text-amber-300/80 text-[10px] truncate">[{group.allianceName}]</p>
+              )}
+            </div>
+            <div className="flex items-center gap-3 text-xs font-mono flex-shrink-0">
+              <span className="text-gray-400">{group.teamSize}p</span>
+              <span>
+                <span className="text-emerald-400">{group.kills}</span>
+                <span className="text-gray-600">/</span>
+                <span className="text-red-400">{group.deaths}</span>
+              </span>
+              <span className="hidden sm:inline text-gray-500">{formatFame(group.killFame)}</span>
+              <ChevronDown
+                size={16}
+                className="text-gray-500 transition-transform group-open:rotate-180"
+              />
+            </div>
+          </div>
+          <div className="grid gap-1 border-t border-gray-800/70 px-3 py-2 text-[11px] text-gray-500 sm:grid-cols-[8rem_minmax(0,1fr)]">
+            <span className="font-mono">
+              {group.averageItemPower === null
+                ? averageIpUnknownLabel
+                : averageIpLabel(group.averageItemPower)}
+            </span>
+            <span className="truncate">{topWeaponLabels}</span>
+          </div>
+        </summary>
+        <div className="border-t border-gray-800">
+          <ul className="max-h-80 divide-y divide-gray-800 overflow-y-auto">
+            {group.players.map((p) => (
+              <li
+                key={p.playerId}
+                className="grid gap-2 px-3 py-2 text-xs sm:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)_auto]"
+              >
+                <div className="min-w-0">
+                  <p className="text-white text-sm font-semibold truncate">{p.playerName}</p>
+                  <p className="text-gray-500 text-[10px] truncate">
+                    {p.guildName}
+                    {p.allianceName ? ` [${p.allianceName}]` : ''}
+                  </p>
+                </div>
+                <div className="min-w-0 text-gray-300 truncate">
+                  {formatWeaponLabel(p.weaponId, locale, weaponUnknownLabel)}
+                </div>
+                <div className="flex items-center gap-3 font-mono sm:justify-end">
+                  <span>
+                    <span className="text-emerald-400">{p.kills}</span>
+                    <span className="text-gray-600">/</span>
+                    <span className="text-red-400">{p.deaths}</span>
+                  </span>
+                  <span className="text-gray-400">
+                    {p.itemPower === null ? playerIpUnknownLabel : playerIpLabel(p.itemPower)}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </details>
+    </li>
   )
 }
 

@@ -2,13 +2,13 @@ import DocCardGrid from '@/components/DocCardGrid'
 
 # 리기어 청구
 
-ZvZ 에서 죽은 길드원이 잃은 장비를 보상받는 흐름입니다. 자동 생성과 수동 청구 두 가지 경로가 있고, 보상 수단은 실버 / 제작 듀얼 모드입니다. 길드 정책에 따라 오버차지 비용은 사망 횟수와 분리된 특수 수동 청구로 받을 수 있습니다.
+ZvZ 에서 죽은 길드원이 잃은 장비를 보상받는 흐름입니다. 자동 생성과 수동 청구 두 가지 경로가 있고, 보상 수단은 길드 운영 모드에 따라 실버 또는 제작 후보로 시작합니다. 어드민은 승인 단계에서 실버 지급 / 제작 큐 / 재고 출고 중 하나로 마무리할 수 있습니다. 길드 정책에 따라 오버차지 비용은 사망 횟수와 분리된 특수 수동 청구로 받을 수 있습니다.
 
 
 <DocCardGrid cards={[
   { href: '/docs/regear/auto', title: '자동 리기어', description: '블랙존 ZvZ 사망을 시스템이 자동으로 청구로 잡습니다.' },
   { href: '/docs/regear/manual', title: '수동 청구', description: '자동 매칭 외 사망과 오버차지 비용을 청구자가 직접 입력합니다.' },
-  { href: '/docs/regear/dual-mode', title: '실버 / 제작 듀얼 모드', description: '부위별로 실버 또는 제작 보상을 선택합니다.' },
+  { href: '/docs/regear/dual-mode', title: '실버 / 제작 운영 모드', description: '길드 단위 제작 모드와 승인 단계 지급 선택을 설명합니다.' },
   { href: '/docs/regear/verification', title: '검증 흐름', description: '알비온 데이터로 사망·길드명을 자동 검증.' },
   { href: '/docs/regear/admin-approval', title: '어드민 승인', description: '청구가 들어오면 어드민이 가격·정황을 보고 승인.' },
 ]} />

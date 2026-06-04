@@ -8,25 +8,90 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 //   - TEST_SUPABASE_URL / TEST_SUPABASE_SERVICE_KEY 가 둘 다 있어야 통합
 //     테스트가 활성화된다. 부재 시 hasTestEnv() === false → describe.skip 으로
 //     안전 통과.
+//   - 기본 허용 URL 은 localhost / 127.0.0.1 / ::1 뿐이다.
+//     remote test project 는 ALLOW_REMOTE_TEST_SUPABASE=1 로 명시 opt-in.
 //   - 사용 중인 production .env (NEXT_PUBLIC_SUPABASE_URL 등) 와 절대 공유
 //     금지. 한 번 실수로 prod 를 가리키면 tenants 테이블에 테스트 길드를 만들고
 //     CASCADE 로 다른 테넌트의 데이터까지 손상시킬 수 있다.
 
-const TEST_SUPABASE_URL = process.env.TEST_SUPABASE_URL
-const TEST_SUPABASE_SERVICE_KEY = process.env.TEST_SUPABASE_SERVICE_KEY
+interface TestSupabaseEnv extends Record<string, string | undefined> {
+  TEST_SUPABASE_URL?: string
+  TEST_SUPABASE_SERVICE_KEY?: string
+  NEXT_PUBLIC_SUPABASE_URL?: string
+  SUPABASE_SERVICE_ROLE_KEY?: string
+  ALLOW_REMOTE_TEST_SUPABASE?: string
+}
+
+interface ValidatedTestSupabaseEnv {
+  url: string
+  serviceKey: string
+}
+
+function normalizeEnvValue(value: string | undefined): string | null {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
+}
+
+function parseSupabaseUrl(rawUrl: string): URL {
+  try {
+    return new URL(rawUrl)
+  } catch {
+    throw new Error('TEST_SUPABASE_URL must be a valid URL')
+  }
+}
+
+function isLocalTestSupabaseUrl(url: URL): boolean {
+  return (
+    url.hostname === 'localhost' ||
+    url.hostname === '127.0.0.1' ||
+    url.hostname === '[::1]'
+  )
+}
+
+export function getValidatedTestSupabaseEnv(
+  env: TestSupabaseEnv = process.env,
+): ValidatedTestSupabaseEnv | null {
+  const url = normalizeEnvValue(env.TEST_SUPABASE_URL)
+  const serviceKey = normalizeEnvValue(env.TEST_SUPABASE_SERVICE_KEY)
+  if (!url && !serviceKey) return null
+  if (!url || !serviceKey) {
+    throw new Error('TEST_SUPABASE_URL and TEST_SUPABASE_SERVICE_KEY must be set together')
+  }
+
+  const productionUrl = normalizeEnvValue(env.NEXT_PUBLIC_SUPABASE_URL)
+  if (productionUrl && url === productionUrl) {
+    throw new Error('TEST_SUPABASE_URL must not match NEXT_PUBLIC_SUPABASE_URL')
+  }
+
+  const productionServiceKey = normalizeEnvValue(env.SUPABASE_SERVICE_ROLE_KEY)
+  if (productionServiceKey && serviceKey === productionServiceKey) {
+    throw new Error('TEST_SUPABASE_SERVICE_KEY must not match SUPABASE_SERVICE_ROLE_KEY')
+  }
+
+  const parsedUrl = parseSupabaseUrl(url)
+  const allowRemote = env.ALLOW_REMOTE_TEST_SUPABASE === '1'
+  if (!isLocalTestSupabaseUrl(parsedUrl) && !allowRemote) {
+    throw new Error(
+      'Remote TEST_SUPABASE_URL is blocked by default. Use localhost Supabase or set ALLOW_REMOTE_TEST_SUPABASE=1 for a dedicated test project.',
+    )
+  }
+
+  return { url, serviceKey }
+}
 
 export function hasTestEnv(): boolean {
-  return Boolean(TEST_SUPABASE_URL && TEST_SUPABASE_SERVICE_KEY)
+  return getValidatedTestSupabaseEnv() !== null
 }
 
 export function getTestServiceClient(): SupabaseClient {
-  if (!TEST_SUPABASE_URL || !TEST_SUPABASE_SERVICE_KEY) {
+  const env = getValidatedTestSupabaseEnv()
+  if (!env) {
     throw new Error(
       'TEST_SUPABASE_URL / TEST_SUPABASE_SERVICE_KEY env vars are required for integration tests. ' +
         'See vitest.integration.config.ts header for setup steps.',
     )
   }
-  return createClient(TEST_SUPABASE_URL, TEST_SUPABASE_SERVICE_KEY, {
+  return createClient(env.url, env.serviceKey, {
     auth: { persistSession: false },
   })
 }

@@ -8,6 +8,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { GALLERY_MAX_ITEMS } from '@/lib/guild-profile-gallery'
 import { CAP } from '@/lib/permissions'
+import { validateImageUploadFile } from '@/lib/image-upload'
 
 const BUCKET = 'guild-profiles'
 const MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -16,25 +17,32 @@ const PUBLIC_URL_PREFIX = `/storage/v1/object/public/${BUCKET}/`
 const CAPTION_MAX_LENGTH = 120
 const GUILD_PROFILE_CAPS = [CAP.SETTINGS_GUILD_PROFILE] as const
 
-function extractPath(url: string): string | null {
+function extractPath(url: string, guildId: string): string | null {
   const idx = url.indexOf(PUBLIC_URL_PREFIX)
   if (idx === -1) return null
-  return url.slice(idx + PUBLIC_URL_PREFIX.length)
-}
-
-function extFromMime(mime: string): string {
-  switch (mime) {
-    case 'image/png': return 'png'
-    case 'image/jpeg': return 'jpg'
-    case 'image/webp': return 'webp'
-    case 'image/gif': return 'gif'
-    default: return 'bin'
-  }
+  const path = url.slice(idx + PUBLIC_URL_PREFIX.length)
+  return path.startsWith(`${guildId}/`) ? path : null
 }
 
 function revalidate() {
   revalidatePath('/admin/dashboard/guild-profile')
   revalidatePath('/public/g/[slug]', 'page')
+}
+
+function bannerUploadErrorMessage(
+  tErr: Awaited<ReturnType<typeof getTranslations>>,
+  error: 'missing' | 'empty' | 'tooLarge' | 'wrongType',
+): string {
+  switch (error) {
+    case 'missing':
+      return tErr('bannerNoFile')
+    case 'empty':
+      return tErr('bannerEmptyFile')
+    case 'tooLarge':
+      return tErr('bannerFileTooLarge')
+    case 'wrongType':
+      return tErr('bannerWrongType')
+  }
 }
 
 export async function addGalleryItem(
@@ -44,10 +52,11 @@ export async function addGalleryItem(
   try {
     const file = formData.get('file')
     const captionRaw = (formData.get('caption') as string) ?? ''
-    if (!(file instanceof File)) return { error: tErr('bannerNoFile') }
-    if (file.size === 0) return { error: tErr('bannerEmptyFile') }
-    if (file.size > MAX_FILE_SIZE) return { error: tErr('bannerFileTooLarge') }
-    if (!ALLOWED_TYPES.includes(file.type)) return { error: tErr('bannerWrongType') }
+    const image = await validateImageUploadFile(file, {
+      allowedTypes: ALLOWED_TYPES,
+      maxBytes: MAX_FILE_SIZE,
+    })
+    if (!image.ok) return { error: bannerUploadErrorMessage(tErr, image.error) }
 
     const caption = captionRaw.trim().slice(0, CAPTION_MAX_LENGTH)
 
@@ -65,10 +74,10 @@ export async function addGalleryItem(
       return { error: tErr('galleryAtMax', { max: GALLERY_MAX_ITEMS }) }
     }
 
-    const path = `${guildId}/gallery-${randomUUID()}.${extFromMime(file.type)}`
+    const path = `${guildId}/gallery-${randomUUID()}.${image.ext}`
     const { error: uploadError } = await db.storage
       .from(BUCKET)
-      .upload(path, file, { contentType: file.type, upsert: false })
+      .upload(path, image.file, { contentType: image.mime, upsert: false })
     if (uploadError) {
       return { error: tErr('bannerUploadFailed', { reason: uploadError.message }) }
     }
@@ -124,7 +133,7 @@ export async function removeGalleryItem(
       .eq('guild_id', guildId)
     if (deleteError) return { error: deleteError.message }
 
-    const path = extractPath((row.image_url as string) ?? '')
+    const path = extractPath((row.image_url as string) ?? '', guildId)
     if (path) await db.storage.from(BUCKET).remove([path])
 
     // 남은 행 position 재정렬 (구멍 메우기). 6장 이내라 한 번에 끌어올린다.
@@ -140,7 +149,8 @@ export async function removeGalleryItem(
           db
             .from('guild_profile_gallery_items')
             .update({ position: idx })
-            .eq('id', r.id),
+            .eq('id', r.id)
+            .eq('guild_id', guildId),
         ),
       )
     }
@@ -185,10 +195,12 @@ export async function moveGalleryItem(
       .from('guild_profile_gallery_items')
       .update({ position: bPos })
       .eq('id', a.id)
+      .eq('guild_id', guildId)
     await db
       .from('guild_profile_gallery_items')
       .update({ position: aPos })
       .eq('id', b.id)
+      .eq('guild_id', guildId)
 
     revalidate()
     return {}

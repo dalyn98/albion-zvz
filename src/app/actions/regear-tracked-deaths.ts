@@ -32,6 +32,8 @@ import type { AlbionIdentityRelation } from '@/lib/account-albion-identity'
 import { REGEAR_VERIFICATION_ERROR_PREFIX } from '@/lib/regear-verification'
 import type { BuildSnapshot } from '@/types'
 import { sendAdminNotification } from '@/lib/admin-notifications'
+import { validateImageUploadFile } from '@/lib/image-upload'
+import { parsePositiveSafeInt } from '@/lib/parse-bounded-int'
 
 // 스크린샷은 옵션 — killboard_verified=true 가 이미 검증 소스라 필수가 아니지만,
 // 청구자가 갱크 상황·잔여 인원·아이템 등 추가 컨텍스트를 첨부할 수 있게 한다.
@@ -39,6 +41,21 @@ import { sendAdminNotification } from '@/lib/admin-notifications'
 const SCREENSHOT_BUCKET = 'regear-screenshots'
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp'])
 const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024
+
+function screenshotUploadErrorMessage(
+  tErr: Awaited<ReturnType<typeof getTranslations>>,
+  error: 'missing' | 'empty' | 'tooLarge' | 'wrongType',
+): string {
+  switch (error) {
+    case 'missing':
+    case 'empty':
+      return tErr('screenshotMissing')
+    case 'tooLarge':
+      return tErr('screenshotTooLarge')
+    case 'wrongType':
+      return tErr('screenshotWrongType')
+  }
+}
 
 export interface TrackedDeath {
   killboardEventId: number
@@ -188,23 +205,29 @@ export async function submitTrackedAdHocRegear(
   }
   const db = getAdminClient()
 
-  const kbId = Math.trunc(Number(formData.get('killboardEventId') ?? 0))
-  if (!Number.isFinite(kbId) || kbId <= 0) return { error: tErr('invalidInput') }
+  const killboardEventIdRaw = formData.get('killboardEventId')
+  const kbId = parsePositiveSafeInt(
+    typeof killboardEventIdRaw === 'string' ? killboardEventIdRaw : null,
+  )
+  if (kbId == null) return { error: tErr('invalidInput') }
 
   const roleName = String(formData.get('roleName') ?? '').trim()
   if (!roleName) return { error: tErr('invalidInput') }
 
   const claimedSilverRaw = String(formData.get('claimedSilver') ?? '')
-  const claimedSilver = Number(claimedSilverRaw.replace(/,/g, '').trim())
-  if (!Number.isFinite(claimedSilver) || !Number.isInteger(claimedSilver) || claimedSilver <= 0) {
-    return { error: tErr('invalidClaimAmount') }
-  }
+  const claimedSilver = parsePositiveSafeInt(claimedSilverRaw.replace(/,/g, ''))
+  if (claimedSilver == null) return { error: tErr('invalidClaimAmount') }
 
   const file = formData.get('screenshot')
   const hasFile = file instanceof File && file.size > 0
+  const image = hasFile
+    ? await validateImageUploadFile(file, {
+        allowedTypes: ALLOWED_MIME,
+        maxBytes: MAX_SCREENSHOT_BYTES,
+      })
+    : null
   if (hasFile) {
-    if (file.size > MAX_SCREENSHOT_BYTES) return { error: tErr('screenshotTooLarge') }
-    if (!ALLOWED_MIME.has(file.type)) return { error: tErr('screenshotWrongType') }
+    if (!image?.ok) return { error: screenshotUploadErrorMessage(tErr, image?.error ?? 'wrongType') }
   }
 
   // 1) killboard_events 에 victim 으로 존재하는지, 본인 사망인지, 트래킹 전투인지 확인.
@@ -262,12 +285,11 @@ export async function submitTrackedAdHocRegear(
 
   // 4) 스크린샷이 있으면 storage 업로드 (DB insert 실패 시 롤백).
   let screenshotPath: string | null = null
-  if (hasFile) {
-    const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
-    screenshotPath = `${session.discordId}/adhoc-${kbId}-${Date.now()}.${ext}`
+  if (image?.ok) {
+    screenshotPath = `${session.discordId}/adhoc-${kbId}-${Date.now()}.${image.ext}`
     const { error: uploadError } = await db.storage
       .from(SCREENSHOT_BUCKET)
-      .upload(screenshotPath, file, { contentType: file.type, upsert: false })
+      .upload(screenshotPath, image.file, { contentType: image.mime, upsert: false })
     if (uploadError) {
       return { error: tErr('screenshotUploadFailed', { reason: uploadError.message }) }
     }

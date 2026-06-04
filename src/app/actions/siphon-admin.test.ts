@@ -40,7 +40,7 @@ vi.mock('@/lib/log-operating-start-server', () => ({
   getLogOperatingStart: mocks.getLogOperatingStart,
 }))
 
-import { deleteSiphonRow, importSiphonLog, resetSiphonLedger } from './siphon-admin'
+import { deleteSiphonRow, getSiphonBalances, importSiphonLog, resetSiphonLedger } from './siphon-admin'
 
 interface DeleteResult {
   data: Array<{ id: string; [key: string]: unknown }> | null
@@ -125,8 +125,12 @@ interface ImportQuery {
   insert: (rows: unknown[]) => Promise<{ error: { message: string } | null }>
 }
 
-function createImportDb(insertResults: Array<{ error: { message: string } | null }>) {
+function createImportDb(
+  insertResults: Array<{ error: { message: string } | null }>,
+  options: { rangePages?: unknown[][] } = {},
+) {
   const calls: QueryCall[] = []
+  const rangePages = [...(options.rangePages ?? [])]
   const query: ImportQuery = {
     select: (columns) => {
       calls.push({ method: 'select', args: [columns] })
@@ -146,7 +150,7 @@ function createImportDb(insertResults: Array<{ error: { message: string } | null
     },
     range: (from, to) => {
       calls.push({ method: 'range', args: [from, to] })
-      return Promise.resolve({ data: [], error: null })
+      return Promise.resolve({ data: rangePages.shift() ?? [], error: null })
     },
     order: (column, options) => {
       calls.push({ method: 'order', args: options ? [column, options] : [column] })
@@ -171,6 +175,22 @@ function createImportDb(insertResults: Array<{ error: { message: string } | null
     return query
   })
   return { db: { from }, calls, from }
+}
+
+function existingSiphonLedgerRow(overrides: {
+  logged_at: string
+  player: string
+  quantity: number
+}) {
+  return {
+    id: crypto.randomUUID(),
+    logged_at: overrides.logged_at,
+    player: overrides.player,
+    item_name_raw: 'Siphoned Energy',
+    enchant: 0,
+    quality: 1,
+    quantity: overrides.quantity,
+  }
 }
 
 describe('importSiphonLog', () => {
@@ -256,6 +276,97 @@ describe('importSiphonLog', () => {
     })
 
     expect(calls.filter((call) => call.method === 'insert')).toEqual([])
+  })
+
+  it('checks existing duplicate rows beyond the first 1000-row page', async () => {
+    const firstExistingPage = Array.from({ length: 1000 }, (_, i) =>
+      existingSiphonLedgerRow({
+        logged_at: '2026-05-29T12:23:03.000Z',
+        player: `existing-${i}`,
+        quantity: -1,
+      }),
+    )
+    const duplicateInSecondPage = existingSiphonLedgerRow({
+      logged_at: '2026-05-29T12:23:03.000Z',
+      player: 'sarangzzang',
+      quantity: -6797,
+    })
+    const { db, calls } = createImportDb([{ error: null }], {
+      rangePages: [firstExistingPage, [duplicateInSecondPage]],
+    })
+    mocks.getAdminClient.mockReturnValue(db)
+
+    const raw = [
+      '"날짜"\t"플레이어"\t"목적"\t"수량"',
+      '"2026-05-29 12:23:03"\t"sarangzzang"\t"출금"\t"-6797"',
+      '"2026-05-29 12:23:05"\t"sarangzzang"\t"입금"\t"6807"',
+    ].join('\n')
+
+    await expect(importSiphonLog(raw)).resolves.toMatchObject({
+      parsedTotal: 2,
+      siphonRows: 2,
+      inserted: 1,
+      duplicatesSkipped: 1,
+      depositTotal: 6807,
+      withdrawTotal: 0,
+      affectedPlayers: 1,
+    })
+
+    expect(calls.filter((call) => call.method === 'range').map((call) => call.args)).toEqual([
+      [0, 999],
+      [1000, 1999],
+    ])
+    const insertCalls = calls.filter((call) => call.method === 'insert')
+    expect(insertCalls).toHaveLength(1)
+    expect((insertCalls[0].args[0] as unknown[])).toHaveLength(1)
+  })
+})
+
+describe('getSiphonBalances', () => {
+  beforeEach(() => {
+    mocks.getAdminClient.mockReset()
+    mocks.getSession.mockReset()
+    mocks.sessionHas.mockReset()
+    mocks.getSessionGuildId.mockReset()
+    mocks.getTranslations.mockReset()
+    mocks.getLogOperatingStart.mockReset()
+
+    mocks.getSession.mockResolvedValue({ discordId: 'admin-1' })
+    mocks.sessionHas.mockReturnValue(true)
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getLogOperatingStart.mockResolvedValue(new Date('2026-05-01T00:00:00.000Z'))
+  })
+
+  it('loads per-player balances through the SQL aggregate RPC', async () => {
+    const rpc = vi.fn(async () => ({
+      data: [
+        {
+          player: 'Alpha',
+          deposited: '12',
+          withdrawn: '5',
+          net: '7',
+          last_activity_at: '2026-05-02T00:00:00.000Z',
+        },
+      ],
+      error: null,
+    }))
+    mocks.getAdminClient.mockReturnValue({ rpc })
+
+    await expect(getSiphonBalances()).resolves.toEqual({
+      balances: [
+        {
+          player: 'Alpha',
+          deposited: 12,
+          withdrawn: 5,
+          net: 7,
+          lastActivityAt: '2026-05-02T00:00:00.000Z',
+        },
+      ],
+    })
+    expect(rpc).toHaveBeenCalledWith('get_siphon_balances', {
+      p_guild_id: 'guild-1',
+      p_operating_start: '2026-05-01T00:00:00.000Z',
+    })
   })
 })
 

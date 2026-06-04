@@ -131,4 +131,23 @@ describe('buildEventReport — event attendance vs battle participation', () => 
       ['Walk In C', 'unassigned_battle'],
     ])
   })
+
+  it('keeps missing slot roles as null so the UI can localize the fallback', () => {
+    const report = buildEventReport({
+      profiles,
+      battles: [],
+      regear: [],
+      slots: [
+        { assigned_discord_id: 'discord-a', role_name: null },
+        { assigned_discord_id: 'discord-b', role_name: '기타' },
+      ],
+      killboard: [],
+      battleParticipations: [],
+    })
+
+    expect(report.participation.roleBreakdown).toEqual([
+      { role: null, count: 1 },
+      { role: '기타', count: 1 },
+    ])
+  })
 })

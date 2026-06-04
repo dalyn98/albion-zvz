@@ -17,6 +17,8 @@ import { LAST_GUILD_COOKIE, lastGuildCookieOptions } from '@/lib/last-guild-cook
 import { LOCALE_COOKIE, isLocale } from '@/i18n/locales'
 import { localeCookieOptions } from '@/lib/locale-cookie'
 import { recordAuthFailure, recordAuthSuccess } from '@/lib/auth-telemetry'
+import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
+import { withNoStore } from '@/lib/no-store-response'
 
 function errorRedirect(
   request: NextRequest,
@@ -27,7 +29,7 @@ function errorRedirect(
   recordAuthFailure(request, 'finish', reason, extra)
   const target = new URL('/', origin)
   target.searchParams.set('auth_error', reason)
-  return NextResponse.redirect(target)
+  return withNoStore(NextResponse.redirect(target))
 }
 
 export async function GET(request: NextRequest) {
@@ -59,8 +61,7 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  const returnTo =
-    hop.returnTo.startsWith('/') && !hop.returnTo.startsWith('//') ? hop.returnTo : '/'
+  const returnTo = sanitizeInternalReturnTo(hop.returnTo)
 
   // Re-sign the session with issuedAt=now so cookie age matches delivery,
   // not the callback's earlier sign. Keeps expiry bookkeeping clean.
@@ -85,5 +86,5 @@ export async function GET(request: NextRequest) {
     tenant_id: session.guildId,
     return_to: returnTo,
   })
-  return response
+  return withNoStore(response)
 }

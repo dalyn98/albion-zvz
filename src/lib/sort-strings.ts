@@ -13,3 +13,8 @@ const COLLATOR = new Intl.Collator('en')
 export function compareStrings(a: string, b: string): number {
   return COLLATOR.compare(a, b)
 }
+
+export function compareIsoStringsDesc(a: string, b: string): number {
+  if (a === b) return 0
+  return a < b ? 1 : -1
+}

@@ -3,7 +3,7 @@ import type { Event } from '@/types'
 import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import { Archive, BookOpen, Plus } from 'lucide-react'
-import { formatGatherTimeFor, isImminent, isEnded } from '@/lib/gather-time'
+import { formatGatherTimeFor, isImminent } from '@/lib/gather-time'
 import { getLocale } from '@/lib/locale'
 import { getAppSetting } from '@/lib/app-settings'
 import { getSession, sessionHas } from '@/lib/session'
@@ -25,28 +25,36 @@ import { canUseAllianceEventFeaturesForSession } from '@/lib/albion-identity'
 // snapshot would show stale or deleted events.
 export const dynamic = 'force-dynamic'
 
-interface EventWithCounts extends Event {
+// Keep the same cutoff as isEnded(): ended battles move to /archive, so the
+// home query should not keep pulling historical rows just to discard them.
+const BATTLE_DURATION_MS = 60 * 60 * 1000
+
+type HomeEventRow = Pick<
+  Event,
+  'id' | 'title' | 'gather_time' | 'gather_at' | 'gather_location' | 'battle_started_at' | 'category'
+>
+
+interface EventWithCounts extends HomeEventRow {
   total: number
   assigned: number
 }
 
 async function getActiveEvents(guildId: string): Promise<EventWithCounts[]> {
   const db = getAdminClient()
+  const battleCutoffIso = new Date(Date.now() - BATTLE_DURATION_MS).toISOString()
   const { data: events } = await db
     .from('events')
-    .select('*')
+    .select('id, title, gather_time, gather_at, gather_location, battle_started_at, category')
     .eq('guild_id', guildId)
     // draft 이벤트는 관리자 대시보드에서만 노출 — 공개 홈에서는 숨김.
     .eq('status', 'published')
+    .or(`battle_started_at.is.null,battle_started_at.gte.${battleCutoffIso}`)
     .order('gather_at', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false })
 
   if (!events || events.length === 0) return []
 
-  // 종료된 전투는 /archive 로 이동 — 메인 화면은 예정/임박만.
-  const active = (events as Event[]).filter(
-    (e) => !(e.battle_started_at && isEnded(e.battle_started_at)),
-  )
+  const active = events as HomeEventRow[]
   if (active.length === 0) return []
 
   const ids = active.map((e) => e.id)
@@ -91,7 +99,7 @@ async function getActiveEvents(guildId: string): Promise<EventWithCounts[]> {
   })
 }
 
-function classifyScheduled(event: Event): HomeEventKind {
+function classifyScheduled(event: Pick<HomeEventRow, 'battle_started_at' | 'gather_at'>): HomeEventKind {
   if (event.battle_started_at || isImminent(event.gather_at)) return 'imminent'
   return 'upcoming'
 }
@@ -145,7 +153,7 @@ export default async function HomePage() {
 
   // Prefer gather_at (ISO) for locale-aware formatting; fall back to stored
   // gather_time (always Korean) for legacy rows that predate gather_at.
-  const displayGatherTime = (event: Event): string =>
+  const displayGatherTime = (event: HomeEventRow): string =>
     event.gather_at ? formatGatherTimeFor(locale, event.gather_at, tz) : event.gather_time
 
   const toCard = (event: EventWithCounts): HomeEventCardData => ({

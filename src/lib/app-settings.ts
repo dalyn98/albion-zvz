@@ -184,9 +184,9 @@ export type AppSettingKey =
   // 정수 문자열 (1..30). 박스에 들어간 아이템이 회수되지 않으면 expired 처리되어
   // 박스 풀에서 해제될 때까지의 일수. 기본 '7'.
   | 'craft_box_expiry_days'
-  // 공개 길드 프로필 (`/g/<slug>`) 활성화 토글. 'true' 일 때만 라우트가 렌더되고
-  // 어드민 편집 화면이 켜진다. 단계적 롤아웃을 위한 길드 단위 게이트 — v1 은
-  // 멘헤라만 'true', 나머지는 미설정(=false) 로 두고 사전 동의 후 전환.
+  // 공개 길드 프로필 (`/g/<slug>`) 활성화 토글. 'true' 일 때 외부 방문자에게
+  // 페이지가 공개되고 어드민 편집 화면이 켜진다. 기본 OFF, 길드 어드민이 공개
+  // 범위를 확인한 뒤 직접 전환한다.
   | 'guild_profile_enabled'
   // 프로필 페이지 hero 배경 배너 URL. 빈 문자열이면 단색 fallback. 파일은
   // 'guild-profiles' 스토리지 버킷에 업로드, 여기엔 공개 URL 을 저장한다.
@@ -267,7 +267,7 @@ export type AppSettingKey =
   | 'me_weekly_stats_enabled'
   // 길드 공개 페이지(`/g/<slug>`) 의 길드원 본인 대시보드 섹션 토글.
   // 'true' 일 때만 hero 직후에 4 카드 (잔액/킬·데스/리기어/거래) 가 노출된다.
-  // 길드별 단계적 롤아웃 — 기본 OFF, 검증된 길드만 'true' 로 전환. OFF 일 때는
+  // 기본 OFF, 공개 프로필 설정에서 길드 어드민이 직접 전환한다. OFF 일 때는
   // 비로그인 CTA 배너도 함께 숨겨 페이지 톤을 유지한다.
   | 'member_dashboard_enabled'
   // 매치업 분리 row 들을 통계/업적의 "전투 카운트" 류 메트릭에서 albion_battle_id

@@ -9,7 +9,7 @@ import {
   clearGuildProfileBanner,
   updateGuildProfileBannerOpacity,
 } from '@/app/actions/guild-profile'
-import { BANNER_OPACITY_OPTIONS } from '@/lib/guild-profile'
+import { BANNER_OPACITY_OPTIONS } from '@/lib/guild-profile-config'
 import ImageCropModal from '@/components/ImageCropModal'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { useReportDirty } from '../UnsavedChangesProvider'

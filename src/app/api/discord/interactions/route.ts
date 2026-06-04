@@ -13,12 +13,17 @@
 import { NextResponse } from 'next/server'
 import {
   verifyDiscordSignature,
+  isDiscordSignatureTimestampFresh,
   INTERACTION_TYPE_PING,
   INTERACTION_TYPE_APPLICATION_COMMAND,
   INTERACTION_RESPONSE_TYPE_PONG,
   type DiscordInteractionPayload,
 } from '@/lib/discord-interactions'
-import { handleSlashCommand } from '@/lib/discord-commands'
+import {
+  DEFAULT_DISCORD_COMMAND_LOCALE,
+  handleSlashCommand,
+  loadDiscordBotMessages,
+} from '@/lib/discord-commands'
 import { log } from '@/lib/log'
 
 // Discord 는 3 초 안에 응답이 오지 않으면 endpoint 가 죽었다고 판단해
@@ -37,6 +42,9 @@ export async function POST(request: Request) {
   const signature = request.headers.get('x-signature-ed25519')
   const timestamp = request.headers.get('x-signature-timestamp')
   if (!signature || !timestamp) {
+    return new NextResponse('Bad signature', { status: 401 })
+  }
+  if (!isDiscordSignatureTimestampFresh(timestamp)) {
     return new NextResponse('Bad signature', { status: 401 })
   }
 
@@ -66,7 +74,11 @@ export async function POST(request: Request) {
   if (payload.type !== INTERACTION_TYPE_APPLICATION_COMMAND) {
     // 미지원 인터랙션 타입 (버튼, 모달 등) — 우리는 슬래시 커맨드만 처리.
     // 그래도 200 + 빈 ephemeral 응답을 돌려야 사용자 화면에 에러가 안 뜬다.
-    return NextResponse.json({ type: 4, data: { content: '·', flags: 1 << 6 } })
+    const messages = await loadDiscordBotMessages(DEFAULT_DISCORD_COMMAND_LOCALE)
+    return NextResponse.json({
+      type: 4,
+      data: { content: messages.unsupportedInteraction, flags: 1 << 6 },
+    })
   }
 
   try {
@@ -79,10 +91,11 @@ export async function POST(request: Request) {
       interaction_type: payload.type,
       guild_id: payload.guild_id,
     })
+    const messages = await loadDiscordBotMessages(DEFAULT_DISCORD_COMMAND_LOCALE)
     return NextResponse.json({
       type: 4,
       data: {
-        content: 'Something went wrong. Please try again later.',
+        content: messages.handlerFailed,
         flags: 1 << 6,
       },
     })

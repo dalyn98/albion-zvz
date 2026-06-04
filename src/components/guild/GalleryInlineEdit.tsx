@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Pencil, X } from 'lucide-react'
 import GuildProfileGalleryEditor from '@/components/GuildProfileGalleryEditor'
-import type { GalleryItem } from '@/lib/guild-profile-gallery'
+import type { GalleryItem } from '@/lib/guild-profile-gallery-config'
 
 interface Props {
   enabled: boolean

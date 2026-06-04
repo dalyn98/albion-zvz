@@ -10,6 +10,7 @@ import {
   updateLocalGuildAccountSettings,
   type LocalGuildAccountSummary,
 } from '@/app/actions/local-guild-account'
+import { formatDateTime } from '@/lib/format-datetime'
 import { useToast } from './ToastProvider'
 
 interface Props {
@@ -17,12 +18,14 @@ interface Props {
   initialEnabled: boolean
   hasInviteCode: boolean
   initialAccounts: LocalGuildAccountSummary[]
+  timezone: string
 }
 
 export default function LocalGuildAccountSettingsForm({
   initialEnabled,
   hasInviteCode,
   initialAccounts,
+  timezone,
 }: Props) {
   const t = useTranslations('adminSettings')
   const toast = useToast()
@@ -98,7 +101,8 @@ export default function LocalGuildAccountSettingsForm({
 
   const formatDate = (value: string | null) => {
     if (!value) return t('localAccountNever')
-    return new Date(value).toLocaleString()
+    if (Number.isNaN(new Date(value).getTime())) return value
+    return formatDateTime(value, timezone)
   }
 
   return (

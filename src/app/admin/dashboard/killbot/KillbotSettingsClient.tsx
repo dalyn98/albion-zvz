@@ -9,22 +9,19 @@ import {
   sendKillbotTest,
 } from '@/app/actions/killbot-admin'
 import { listGuildChannels, type DiscordChannelOption } from '@/app/actions/notifications'
+import { formatDateTimeShort } from '@/lib/format-datetime'
 import type { KillbotAdminState, KillbotDeliveryStatus } from '@/lib/killbot'
 
 interface Props {
   initialState: KillbotAdminState
+  tenantTimezone: string
 }
 
-function formatDateTime(value: string | null): string {
+function formatKillbotDateTime(value: string | null, timezone: string): string {
   if (!value) return ''
   const dt = new Date(value)
   if (Number.isNaN(dt.getTime())) return ''
-  return new Intl.DateTimeFormat(undefined, {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(dt)
+  return formatDateTimeShort(value, timezone)
 }
 
 function statusClass(status: KillbotDeliveryStatus): string {
@@ -34,7 +31,7 @@ function statusClass(status: KillbotDeliveryStatus): string {
   return 'border-gray-600 bg-gray-800 text-gray-300'
 }
 
-export default function KillbotSettingsClient({ initialState }: Props) {
+export default function KillbotSettingsClient({ initialState, tenantTimezone }: Props) {
   const t = useTranslations('adminKillbotPage')
   const common = useTranslations('common')
   const [state, setState] = useState(initialState)
@@ -154,7 +151,7 @@ export default function KillbotSettingsClient({ initialState }: Props) {
         <div className="rounded-lg border border-gray-700 bg-gray-900/60 p-4">
           <div className="text-xs text-gray-400">{t('lastPolled')}</div>
           <p className="mt-2 text-lg font-semibold text-white">
-            {formatDateTime(config.lastPolledAt) || t('notYet')}
+            {formatKillbotDateTime(config.lastPolledAt, tenantTimezone) || t('notYet')}
           </p>
         </div>
       </div>
@@ -291,7 +288,7 @@ export default function KillbotSettingsClient({ initialState }: Props) {
             <div className="flex justify-between gap-4">
               <dt className="text-gray-500">{t('lastSent')}</dt>
               <dd className="font-medium text-gray-100">
-                {formatDateTime(config.lastSentAt) || t('notYet')}
+                {formatKillbotDateTime(config.lastSentAt, tenantTimezone) || t('notYet')}
               </dd>
             </div>
             <div className="flex justify-between gap-4">
@@ -345,7 +342,7 @@ export default function KillbotSettingsClient({ initialState }: Props) {
                       )}
                     </td>
                     <td className="px-3 py-3 text-xs text-gray-400">
-                      {formatDateTime(row.createdAt) || t('notYet')}
+                      {formatKillbotDateTime(row.createdAt, tenantTimezone) || t('notYet')}
                     </td>
                   </tr>
                 ))}

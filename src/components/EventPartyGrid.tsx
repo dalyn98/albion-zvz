@@ -7,6 +7,7 @@ import { Bomb, Eye, EyeOff, Filter, Megaphone, Pencil, X } from 'lucide-react'
 import type { EventCategory, PartyWithSlots, SlotRole } from '@/types'
 import SlotCard from './SlotCard'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
+import { filterEventGridParties, getEventGridMyRoleName } from '@/lib/event-party-grid'
 
 interface Props {
   parties: PartyWithSlots[]
@@ -132,15 +133,7 @@ export default function EventPartyGrid({
   )
 
   const myRoleName = useMemo(() => {
-    if (!currentDiscordId) return null
-    for (const party of parties) {
-      for (const slot of party.slots) {
-        if (slot.assigned_discord_id === currentDiscordId && slot.role_name) {
-          return slot.role_name
-        }
-      }
-    }
-    return null
+    return getEventGridMyRoleName(parties, currentDiscordId)
   }, [parties, currentDiscordId])
 
   const hiddenSet = useMemo(() => new Set(hiddenPartyIds), [hiddenPartyIds])
@@ -167,20 +160,25 @@ export default function EventPartyGrid({
   )
 
   const filteredParties = useMemo(() => {
-    const suggestedSet = new Set(suggestedRoles)
-    return visibleParties
-      .map((party) => ({
-        ...party,
-        slots: party.slots.filter((s) => {
-          if (onlyMyRole && myRoleName && s.role_name !== myRoleName) return false
-          if (openOnly && (s.assigned_discord_id || s.requested_discord_id)) return false
-          if (roleFilter && s.role_name !== roleFilter) return false
-          if (suggestedOnly && suggestedSet.size > 0 && !suggestedSet.has(s.role_name as SlotRole)) return false
-          return true
-        }),
-      }))
-      .filter((party) => party.slots.length > 0)
-  }, [visibleParties, onlyMyRole, myRoleName, openOnly, roleFilter, suggestedOnly, suggestedRoles])
+    return filterEventGridParties(visibleParties, {
+      currentDiscordId,
+      onlyMyRole,
+      myRoleName,
+      openOnly,
+      roleFilter,
+      suggestedOnly,
+      suggestedRoles,
+    })
+  }, [
+    visibleParties,
+    currentDiscordId,
+    onlyMyRole,
+    myRoleName,
+    openOnly,
+    roleFilter,
+    suggestedOnly,
+    suggestedRoles,
+  ])
 
   const hasAnyRoleFilter = !!myRoleName
   const canHide = !!currentDiscordId

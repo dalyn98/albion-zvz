@@ -65,6 +65,18 @@ describe('proxy pathname forwarding', () => {
     )
   })
 
+  it('rewrites clean public member activity links to the internal public route', async () => {
+    const response = await proxy(
+      new NextRequest('https://albion-guildmanager.com/u/share-token'),
+    )
+
+    expect(isRewrite(response)).toBe(true)
+    expect(getRewrittenUrl(response)).toBe(
+      'https://albion-guildmanager.com/public/u/share-token',
+    )
+    expect(forwardedPathname(response)).toBe('/public/u/share-token')
+  })
+
   it('rewrites clean guild profile links on localhost for local QA', async () => {
     const response = await proxy(
       new NextRequest('http://localhost:3000/g/menhera', {

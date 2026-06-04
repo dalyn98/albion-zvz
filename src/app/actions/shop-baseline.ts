@@ -267,11 +267,13 @@ export async function previewBaseline(raw: string): Promise<BaselinePreview> {
 // RPC 가 저장한 drift_report 를 읽어 카멜케이스로 normalize.
 async function fetchDriftReport(
   db: Awaited<ReturnType<typeof requireAnyCapability>>,
+  guildId: string,
   baselineId: string,
 ): Promise<DriftReport | null> {
   const { data } = await db
     .from('shop_baselines')
     .select('drift_report')
+    .eq('guild_id', guildId)
     .eq('id', baselineId)
     .maybeSingle()
   const raw = data?.drift_report as Record<string, unknown> | null | undefined
@@ -346,7 +348,7 @@ export async function confirmBaseline(input: {
     }
 
     const id = typeof baselineId === 'string' ? baselineId : undefined
-    const driftReport = id ? await fetchDriftReport(db, id) : null
+    const driftReport = id ? await fetchDriftReport(db, guildId, id) : null
 
     revalidatePath('/admin/dashboard/shop')
     revalidatePath('/admin/dashboard/shop/baseline')

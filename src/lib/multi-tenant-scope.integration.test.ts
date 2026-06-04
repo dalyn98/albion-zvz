@@ -366,6 +366,52 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
     ])
     expect(logErr).toBeNull()
 
+    const { error: baselineErr } = await client.from('shop_baselines').insert([
+      {
+        guild_id: tenantA.guildId,
+        baseline_at: '2026-05-01T00:00:00.000Z',
+        baseline_start: '2026-05-01T00:00:00.000Z',
+        snapshot: [
+          {
+            uniqueName: itemKey.unique_name,
+            nameKo: '저주 지팡이 테스트',
+            category: 'magic',
+            tier: 7,
+            enchant: itemKey.enchant,
+            quality: itemKey.quality,
+            quantity: 3,
+          },
+        ],
+        total_items: 3,
+        total_events: 1,
+        depositor: 'TenantA',
+        status: 'confirmed',
+        confirmed_by: 'admin-discord',
+      },
+      {
+        guild_id: tenantB.guildId,
+        baseline_at: '2026-05-01T00:00:00.000Z',
+        baseline_start: '2026-05-01T00:00:00.000Z',
+        snapshot: [
+          {
+            uniqueName: itemKey.unique_name,
+            nameKo: '저주 지팡이 테스트',
+            category: 'magic',
+            tier: 7,
+            enchant: itemKey.enchant,
+            quality: itemKey.quality,
+            quantity: 5,
+          },
+        ],
+        total_items: 5,
+        total_events: 1,
+        depositor: 'TenantB',
+        status: 'confirmed',
+        confirmed_by: 'admin-discord',
+      },
+    ])
+    expect(baselineErr).toBeNull()
+
     const { error: orderErr } = await client.from('shop_orders').insert([
       {
         id: tenantAOrderPending,
@@ -404,6 +450,7 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
       inventory_rows_deleted: 1,
       logs_deleted: 1,
       orders_cancelled: 1,
+      baselines_superseded: 1,
     })
 
     const { count: tenantAInventoryCount } = await client
@@ -417,6 +464,13 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
       .select('id', { count: 'exact', head: true })
       .eq('guild_id', tenantA.guildId)
     expect(tenantALogCount).toBe(0)
+
+    const { data: tenantABaseline } = await client
+      .from('shop_baselines')
+      .select('status')
+      .eq('guild_id', tenantA.guildId)
+      .single()
+    expect(tenantABaseline?.status).toBe('superseded')
 
     const { data: tenantAOrders } = await client
       .from('shop_orders')
@@ -453,6 +507,13 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
       .eq('id', tenantBOrderPending)
       .single()
     expect(tenantBOrder?.status).toBe('pending')
+
+    const { data: tenantBBaseline } = await client
+      .from('shop_baselines')
+      .select('status')
+      .eq('guild_id', tenantB.guildId)
+      .single()
+    expect(tenantBBaseline?.status).toBe('confirmed')
   })
 
   it('maintains member point balance projections within tenant scope', async () => {

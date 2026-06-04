@@ -10,6 +10,7 @@ import {
   clusterRowsByMember,
   type EventGroupRow,
 } from '@/lib/regear-review-grouping'
+import { compareIsoStringsDesc } from '@/lib/sort-strings'
 import EventGroup from './RegearReviewEventGroup'
 import RegearReviewRow from './RegearReviewRow'
 import SearchBox from './SearchBox'
@@ -77,7 +78,9 @@ export default function RegearReviewList({
     if (sortRowsByMember) {
       for (const g of map.values()) g.rows = clusterRowsByMember(g.rows)
     }
-    return [...map.values()].sort((a, b) => b.rows[0].created_at.localeCompare(a.rows[0].created_at))
+    return [...map.values()].sort((a, b) =>
+      compareIsoStringsDesc(a.rows[0].created_at, b.rows[0].created_at),
+    )
   }, [filtered, groupByEvent, sortRowsByMember])
 
   const searchActive = normalizeQuery(search).length > 0

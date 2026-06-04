@@ -43,6 +43,7 @@ import {
 } from '@/lib/member-killboard-aggregation'
 import type { RegearType } from '@/types'
 import { isRegearRejectReasonCode } from '@/lib/regear-reject-reasons'
+import { selectPagedRowsOrThrow, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 import type {
   RoleCount,
   MemberEventEntry,
@@ -94,7 +95,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       regearsRes,
       exchangesRes,
       ledgerRes,
-      killboardRes,
+      killboardRows,
       rankingRes,
       trackedBattles,
       participationsByMember,
@@ -125,13 +126,19 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       // killboard_events 는 albion_player_id 가 비어있는 (resolve 전) 멤버에는
       // 행이 없으므로 빈 결과로 안전하게 떨어진다.
       memberAlbionId
-        ? db
-            .from('killboard_events')
-            .select('event_id, role, fame, item_power, occurred_at, equipment, opponent_name, opponent_guild, opponent_alliance, battle_id')
-            .eq('guild_id', guildId)
-            .eq('albion_player_id', memberAlbionId)
-            .not('discord_id', 'is', null)
-        : Promise.resolve({ data: [], error: null } as const),
+        ? selectPagedRowsOrThrow<KillboardRow>({
+            label: 'member detail killboard events',
+            buildQuery: () =>
+              db
+                .from('killboard_events')
+                .select('event_id, role, fame, item_power, occurred_at, equipment, opponent_name, opponent_guild, opponent_alliance, battle_id')
+                .eq('guild_id', guildId)
+                .eq('albion_player_id', memberAlbionId)
+                .not('discord_id', 'is', null)
+                .order('occurred_at', { ascending: true })
+                .order('event_id', { ascending: true }) as unknown as SupabasePagedQuery<KillboardRow>,
+          })
+        : Promise.resolve([]),
       // 랭킹 RPC — 길드 전체 멤버의 kills/participations 를 집계해서 반환. 본인
       // 카운트와 비교해 상위 percentile 계산. 기존 PostgREST 쿼리는 group by 를
       // 내려주지 않고 limit 1000 에 걸리므로 RPC 로 한 번에 수행.
@@ -264,7 +271,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     const memberParticipations = memberAlbionId
       ? participationsByMember.byAlbionPlayerId.get(memberAlbionId)
       : undefined
-    const rows = (killboardRes.data ?? []) as KillboardRow[]
+    const rows = killboardRows
     const killBattles = groupMemberKillsByBattle(rows, trackedBattles)
     const battles = mergeMemberBattles(killBattles, memberParticipations, trackedBattles)
 
@@ -497,7 +504,7 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
     const bundleSplits =
       (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
 
-    const [rosterRes, killboardRes, trackedBattles, participationsByMember] = await Promise.all([
+    const [rosterRes, killboardRows, trackedBattles, participationsByMember] = await Promise.all([
       db
         .from('albion_guild_members')
         .select(
@@ -506,11 +513,17 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
         .eq('guild_id', guildId)
         .eq('albion_player_id', albionPlayerId)
         .maybeSingle(),
-      db
-        .from('killboard_events')
-        .select('event_id, role, fame, item_power, occurred_at, equipment, opponent_name, opponent_guild, opponent_alliance, battle_id')
-        .eq('guild_id', guildId)
-        .eq('albion_player_id', albionPlayerId),
+      selectPagedRowsOrThrow<KillboardRow>({
+        label: 'albion member detail killboard events',
+        buildQuery: () =>
+          db
+            .from('killboard_events')
+            .select('event_id, role, fame, item_power, occurred_at, equipment, opponent_name, opponent_guild, opponent_alliance, battle_id')
+            .eq('guild_id', guildId)
+            .eq('albion_player_id', albionPlayerId)
+            .order('occurred_at', { ascending: true })
+            .order('event_id', { ascending: true }) as unknown as SupabasePagedQuery<KillboardRow>,
+      }),
       fetchTrackedBattleWindows(db, guildId, null, { bundleSplits }),
       fetchMemberBattleParticipations(db, guildId),
     ])
@@ -520,7 +533,7 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
     // 활성 행이 없으면 (탈퇴했거나 다른 길드) 상세는 안 보여준다 — 노이즈 차단.
     if (!roster || roster.left_at) return { detail: null }
 
-    const rows = (killboardRes.data ?? []) as KillboardRow[]
+    const rows = killboardRows
 
     // killboard 기반 배틀 + raw_battle.players 기반 0k0d 참여 (mig 093 부터
     // albion_player_id 키) 합집합. 미연동 멤버도 0K0D 참여 (탱커/힐러) 까지

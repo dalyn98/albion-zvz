@@ -30,6 +30,8 @@ export default function ItemPicker({ label, category, tier, itemName, itemId, on
   const [open, setOpen] = useState(false)
   const [searching, setSearching] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+  const requestSeqRef = useRef(0)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Pointer events unify mouse/touch/pen; on iOS, preventDefault on mousedown
@@ -43,22 +45,47 @@ export default function ItemPicker({ label, category, tier, itemName, itemId, on
     return () => document.removeEventListener('pointerdown', handler)
   }, [])
 
+  useEffect(() => {
+    return () => {
+      requestSeqRef.current += 1
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      abortRef.current?.abort()
+    }
+  }, [])
+
   const handleSearch = (value: string) => {
     setQuery(value)
     setOpen(true)
+    requestSeqRef.current += 1
+    const requestSeq = requestSeqRef.current
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (value.length < 2) { setResults([]); return }
+    abortRef.current?.abort()
+    const queryValue = value.trim()
+    if (queryValue.length < 2) {
+      setResults([])
+      setSearching(false)
+      return
+    }
     setSearching(true)
     debounceRef.current = setTimeout(async () => {
+      const controller = new AbortController()
+      abortRef.current = controller
       try {
-        const params = new URLSearchParams({ q: value })
+        const params = new URLSearchParams({ q: queryValue })
         if (category) params.set('category', category)
         if (tier != null) params.set('tier', String(tier))
-        const res = await fetch(`/api/items/search?${params.toString()}`)
+        const res = await fetch(`/api/items/search?${params.toString()}`, {
+          signal: controller.signal,
+        })
         const data = await res.json()
+        if (requestSeqRef.current !== requestSeq) return
         setResults(Array.isArray(data) ? data : [])
-      } catch { setResults([]) }
-      setSearching(false)
+      } catch {
+        if (requestSeqRef.current === requestSeq) setResults([])
+      } finally {
+        if (abortRef.current === controller) abortRef.current = null
+        if (requestSeqRef.current === requestSeq) setSearching(false)
+      }
     }, 300)
   }
 

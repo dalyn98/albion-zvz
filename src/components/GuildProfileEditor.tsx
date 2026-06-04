@@ -11,8 +11,9 @@ import {
   RECRUITMENT_STATUSES,
   type AccentColor,
   type RecruitmentStatus,
-} from '@/lib/guild-profile'
+} from '@/lib/guild-profile-config'
 import { toYoutubeEmbedUrl } from '@/lib/youtube-embed'
+import { toDiscordInviteUrl } from '@/lib/discord-invite-url'
 import { useReportDirty } from './UnsavedChangesProvider'
 
 const DESCRIPTION_MAX_LENGTH = 500
@@ -67,6 +68,8 @@ export default function GuildProfileEditor({
   // (위젯 숨김 의도).
   const youtubeInvalid =
     youtubeUrl.trim().length > 0 && toYoutubeEmbedUrl(youtubeUrl) === null
+  const discordInviteInvalid =
+    discordInviteUrl.trim().length > 0 && toDiscordInviteUrl(discordInviteUrl) === null
   const descDirty = description !== savedDescription
   const urlDirty = discordInviteUrl !== savedDiscordInviteUrl
   const youtubeDirty = youtubeUrl !== savedYoutubeUrl
@@ -81,14 +84,21 @@ export default function GuildProfileEditor({
     setSavingKey(label)
     setSavedKey(null)
     startTransition(async () => {
-      const result = await updateAppSetting(key, value)
+      const normalizedValue =
+        key === 'guild_profile_discord_invite_url' && value.trim()
+          ? toDiscordInviteUrl(value) ?? value
+          : value
+      const result = await updateAppSetting(key, normalizedValue)
       if (result.error) {
         setError(result.error)
         setSavingKey(null)
         return
       }
       if (label === 'description') setSavedDescription(value)
-      else if (label === 'discord') setSavedDiscordInviteUrl(value)
+      else if (label === 'discord') {
+        setDiscordInviteUrl(normalizedValue)
+        setSavedDiscordInviteUrl(normalizedValue)
+      }
       else if (label === 'youtube') setSavedYoutubeUrl(value)
       setSavingKey(null)
       setSavedKey(label)
@@ -230,10 +240,16 @@ export default function GuildProfileEditor({
             value={discordInviteUrl}
             onChange={(e) => setDiscordInviteUrl(e.target.value)}
             placeholder="https://discord.gg/..."
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
+            className={`w-full bg-gray-800 border rounded-lg px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 ${
+              discordInviteInvalid ? 'border-red-700' : 'border-gray-700'
+            }`}
           />
           <div className="flex items-center justify-between mt-1">
-            <span className={`text-[11px] ${urlTooLong ? 'text-red-400' : 'text-gray-500'}`}>
+            <span
+              className={`text-[11px] ${
+                urlTooLong || discordInviteInvalid ? 'text-red-400' : 'text-gray-500'
+              }`}
+            >
               {discordInviteUrl.length}/{URL_MAX_LENGTH}
             </span>
             {savedKey === 'discord' && !urlDirty && (
@@ -243,12 +259,15 @@ export default function GuildProfileEditor({
               </span>
             )}
           </div>
+          {discordInviteInvalid && (
+            <p className="mt-1 text-[11px] text-red-400">{t('discordInviteInvalid')}</p>
+          )}
         </div>
 
         <button
           type="button"
           onClick={() => save('discord', 'guild_profile_discord_invite_url', discordInviteUrl)}
-          disabled={savingKey !== null || !urlDirty || urlTooLong}
+          disabled={savingKey !== null || !urlDirty || urlTooLong || discordInviteInvalid}
           className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-700 disabled:text-gray-500 text-black font-bold px-4 py-2 rounded-lg transition-colors text-sm"
         >
           <Save size={14} />

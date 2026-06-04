@@ -153,10 +153,95 @@ function mapTask(row: RawTaskRow): CraftOrderTaskRow {
 
 const CRAFT_CREATE_CAPS = [CAP.CRAFT_TASK_CREATE, CAP.CRAFT_MASTER] as const
 const CRAFT_REVIEW_CAPS = [CAP.CRAFT_TASK_DELIVER, CAP.CRAFT_MASTER] as const
+const CRAFT_ADMIN_CAPS = [
+  CAP.CRAFT_TASK_CREATE,
+  CAP.CRAFT_TASK_DELIVER,
+  CAP.CRAFT_MASTER,
+] as const
+const POSTGRES_INT_MAX = 2147483647
+
+function isPositivePostgresInt(value: number): boolean {
+  return Number.isInteger(value) && value >= 1 && value <= POSTGRES_INT_MAX
+}
+
+function isNonNegativePostgresInt(value: number): boolean {
+  return Number.isInteger(value) && value >= 0 && value <= POSTGRES_INT_MAX
+}
+
+function isValidCraftOrderPayout(quantity: number, unitPriceSilver: number): boolean {
+  return quantity * unitPriceSilver <= POSTGRES_INT_MAX
+}
 
 // ────────────────────────────────────────────────────────────
 // Reads
 // ────────────────────────────────────────────────────────────
+
+interface ListCraftOrdersForGuildOptions {
+  orderStatus?: CraftOrderStatus
+  visibleTaskOwnerDiscordId?: string
+}
+
+async function listCraftOrdersForGuild(
+  db: ReturnType<typeof getAdminClient>,
+  guildId: string,
+  options: ListCraftOrdersForGuildOptions = {},
+): Promise<{
+  orders: CraftOrderWithTasks[]
+  error?: string
+}> {
+  let orderQuery = db
+    .from('craft_orders')
+    .select(
+      'id, item_id, item_name, quantity, unit_price_silver, notes, status, posted_by_discord_id, posted_by_username, created_at, closed_at, cancelled_at',
+    )
+    .eq('guild_id', guildId)
+    .order('created_at', { ascending: false })
+    .limit(200)
+  if (options.orderStatus) orderQuery = orderQuery.eq('status', options.orderStatus)
+
+  const { data: orderRows, error: orderError } = await orderQuery
+  if (orderError) return { orders: [], error: orderError.message }
+  const orders = (orderRows ?? []) as RawOrderRow[]
+  if (orders.length === 0) return { orders: [] }
+
+  const orderIds = orders.map(o => o.id)
+  const { data: taskRows, error: taskError } = await db
+    .from('craft_tasks')
+    .select(
+      'id, craft_order_id, status, crafter_discord_id, crafter_username, order_quantity, box_number, craft_city, reimbursement_silver, claimed_at, delivered_at, collected_at, cancelled_at',
+    )
+    .eq('guild_id', guildId)
+    .eq('task_kind', 'guild_order')
+    .in('craft_order_id', orderIds)
+
+  if (taskError) return { orders: [], error: taskError.message }
+  const allTasks = ((taskRows ?? []) as RawTaskRow[])
+
+  const tasksByOrder = new Map<string, RawTaskRow[]>()
+  for (const t of allTasks) {
+    const list = tasksByOrder.get(t.craft_order_id) ?? []
+    list.push(t)
+    tasksByOrder.set(t.craft_order_id, list)
+  }
+
+  const result = orders.map(o => {
+    const taskList = tasksByOrder.get(o.id) ?? []
+    const visibleTaskList = options.visibleTaskOwnerDiscordId
+      ? taskList.filter(
+          (task) =>
+            task.crafter_discord_id === options.visibleTaskOwnerDiscordId &&
+            (task.status === 'claimed' || task.status === 'delivered'),
+        )
+      : taskList
+    return {
+      order: mapOrder(o, taskList),
+      tasks: visibleTaskList
+        .sort((a, b) => (a.claimed_at ?? '').localeCompare(b.claimed_at ?? ''))
+        .map(mapTask),
+    }
+  })
+  return { orders: result }
+}
 
 export async function listCraftOrders(): Promise<{
   orders: CraftOrderWithTasks[]
@@ -164,54 +249,11 @@ export async function listCraftOrders(): Promise<{
 }> {
   const tErr = await getTranslations('adminActionError')
   try {
+    const db = await requireAnyCapability(CRAFT_ADMIN_CAPS)
     const session = await getSession()
     if (!session) return { orders: [], error: tErr('unauthorized') }
     const guildId = await getSessionGuildId(session)
-    const db = getAdminClient()
-
-    const { data: orderRows, error: orderError } = await db
-      .from('craft_orders')
-      .select(
-        'id, item_id, item_name, quantity, unit_price_silver, notes, status, posted_by_discord_id, posted_by_username, created_at, closed_at, cancelled_at',
-      )
-      .eq('guild_id', guildId)
-      .order('created_at', { ascending: false })
-      .limit(200)
-
-    if (orderError) return { orders: [], error: orderError.message }
-    const orders = (orderRows ?? []) as RawOrderRow[]
-    if (orders.length === 0) return { orders: [] }
-
-    const orderIds = orders.map(o => o.id)
-    const { data: taskRows, error: taskError } = await db
-      .from('craft_tasks')
-      .select(
-        'id, craft_order_id, status, crafter_discord_id, crafter_username, order_quantity, box_number, craft_city, reimbursement_silver, claimed_at, delivered_at, collected_at, cancelled_at',
-      )
-      .eq('guild_id', guildId)
-      .eq('task_kind', 'guild_order')
-      .in('craft_order_id', orderIds)
-
-    if (taskError) return { orders: [], error: taskError.message }
-    const allTasks = ((taskRows ?? []) as RawTaskRow[])
-
-    const tasksByOrder = new Map<string, RawTaskRow[]>()
-    for (const t of allTasks) {
-      const list = tasksByOrder.get(t.craft_order_id) ?? []
-      list.push(t)
-      tasksByOrder.set(t.craft_order_id, list)
-    }
-
-    const result = orders.map(o => {
-      const taskList = tasksByOrder.get(o.id) ?? []
-      return {
-        order: mapOrder(o, taskList),
-        tasks: taskList
-          .sort((a, b) => (a.claimed_at ?? '').localeCompare(b.claimed_at ?? ''))
-          .map(mapTask),
-      }
-    })
-    return { orders: result }
+    return listCraftOrdersForGuild(db, guildId)
   } catch (e) {
     return { orders: [], error: e instanceof Error ? e.message : tErr('serverError') }
   }
@@ -221,9 +263,18 @@ export async function listOpenCraftOrdersForMember(): Promise<{
   orders: CraftOrderWithTasks[]
   error?: string
 }> {
-  const { orders, error } = await listCraftOrders()
-  if (error) return { orders: [], error }
-  return { orders: orders.filter(o => o.order.status === 'open') }
+  const tErr = await getTranslations('adminActionError')
+  try {
+    const session = await getSession()
+    if (!session?.isMember) return { orders: [], error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+    return listCraftOrdersForGuild(getAdminClient(), guildId, {
+      orderStatus: 'open',
+      visibleTaskOwnerDiscordId: session.discordId,
+    })
+  } catch (e) {
+    return { orders: [], error: e instanceof Error ? e.message : tErr('serverError') }
+  }
 }
 
 // ────────────────────────────────────────────────────────────
@@ -379,10 +430,13 @@ export async function postCraftOrderAdmin(
 
     const trimmedId = input.itemId?.trim() ?? ''
     if (!trimmedId) return { error: tErr('craftOrderItemRequired') }
-    if (!Number.isInteger(input.quantity) || input.quantity < 1) {
+    if (!isPositivePostgresInt(input.quantity)) {
       return { error: tErr('craftOrderQuantityInvalid') }
     }
-    if (!Number.isFinite(input.unitPriceSilver) || input.unitPriceSilver < 0) {
+    if (!isNonNegativePostgresInt(input.unitPriceSilver)) {
+      return { error: tErr('craftOrderPriceInvalid') }
+    }
+    if (!isValidCraftOrderPayout(input.quantity, input.unitPriceSilver)) {
       return { error: tErr('craftOrderPriceInvalid') }
     }
 
@@ -598,7 +652,7 @@ export async function claimCraftOrder(
     const guildId = await getSessionGuildId(session)
     const db = getAdminClient()
 
-    if (!Number.isInteger(input.quantity) || input.quantity < 1) {
+    if (!isPositivePostgresInt(input.quantity)) {
       return { error: tErr('craftOrderQuantityInvalid') }
     }
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { X, Sparkles } from 'lucide-react'
 import SpellImage from './SpellImage'
+import { chunkSpellItemIds } from '@/lib/item-spell-api'
 import type { SpellPoolEntry } from '@/types'
 
 interface Props {
@@ -14,6 +15,11 @@ interface Props {
   spells: string[]
   onAdd: (uniqueName: string) => void
   onRemove: (uniqueName: string) => void
+}
+
+interface LoadError {
+  key: string
+  message: string
 }
 
 function mergePools(pools: SpellPoolEntry[][]): SpellPoolEntry[] {
@@ -72,15 +78,17 @@ function groupByTypeAndSlot(pool: SpellPoolEntry[]): SpellGroup[] {
 const poolCache = new Map<string, SpellPoolEntry[]>()
 
 async function loadMissing(ids: string[]): Promise<void> {
-  const missing = ids.filter((id) => !poolCache.has(id))
+  const missing = Array.from(new Set(ids.filter((id) => !poolCache.has(id))))
   if (missing.length === 0) return
-  const params = new URLSearchParams()
-  for (const id of missing) params.append('id', id)
-  const res = await fetch(`/api/items/spells?${params.toString()}`)
-  if (!res.ok) throw new Error(`Failed to fetch spell pool: ${res.status}`)
-  const data = (await res.json()) as Record<string, SpellPoolEntry[]>
-  for (const id of missing) {
-    poolCache.set(id, Array.isArray(data[id]) ? data[id] : [])
+  for (const batch of chunkSpellItemIds(missing)) {
+    const params = new URLSearchParams()
+    for (const id of batch) params.append('id', id)
+    const res = await fetch(`/api/items/spells?${params.toString()}`)
+    if (!res.ok) throw new Error(`Failed to fetch spell pool: ${res.status}`)
+    const data = (await res.json()) as Record<string, SpellPoolEntry[]>
+    for (const id of batch) {
+      poolCache.set(id, Array.isArray(data[id]) ? data[id] : [])
+    }
   }
 }
 
@@ -95,7 +103,7 @@ export default function SpellPicker({
   // Using a counter rather than state-of-pool avoids sync setState in the
   // effect body (lint rule `react-hooks/set-state-in-effect`).
   const [tick, setTick] = useState(0)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<LoadError | null>(null)
   const key = itemIds.join(',')
 
   const bucketLabel = (type: 'active' | 'passive', slot: number | null): string => {
@@ -111,12 +119,12 @@ export default function SpellPicker({
     loadMissing(itemIds)
       .then(() => {
         if (cancelled) return
-        setError('')
+        setError(null)
         setTick((t) => t + 1)
       })
       .catch(() => {
         if (cancelled) return
-        setError(t('spellLoadFailed'))
+        setError({ key, message: t('spellLoadFailed') })
       })
     return () => {
       cancelled = true
@@ -134,6 +142,7 @@ export default function SpellPicker({
   const hasItems = itemIds.length > 0
   const anyUnfetched = itemIds.some((id) => !poolCache.has(id))
   const isLoading = hasItems && anyUnfetched
+  const errorMessage = error?.key === key ? error.message : ''
 
   const toggle = (spellId: string) => {
     if (spells.includes(spellId)) {
@@ -162,8 +171,8 @@ export default function SpellPicker({
 
       {!hasItems ? (
         <p className="text-[10px] text-gray-600 italic">{t('selectItemFirst')}</p>
-      ) : error ? (
-        <p className="text-[10px] text-red-400">{error}</p>
+      ) : errorMessage ? (
+        <p className="text-[10px] text-red-400">{errorMessage}</p>
       ) : !isLoading && pool.length === 0 ? (
         <p className="text-[10px] text-gray-600 italic">{t('noSpellsForItem')}</p>
       ) : (

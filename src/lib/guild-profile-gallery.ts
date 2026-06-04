@@ -2,15 +2,10 @@
 // 한 길드당 최대 6장. 어드민 폼 / 공개 페이지 둘 다 같은 로더를 쓴다.
 
 import { getAdminClient } from '@/lib/supabase-admin'
+import type { GalleryItem } from '@/lib/guild-profile-gallery-config'
 
-export const GALLERY_MAX_ITEMS = 6
-
-export interface GalleryItem {
-  id: string
-  position: number
-  imageUrl: string
-  caption: string
-}
+export { GALLERY_MAX_ITEMS } from '@/lib/guild-profile-gallery-config'
+export type { GalleryItem } from '@/lib/guild-profile-gallery-config'
 
 export async function loadGalleryItems(guildId: string): Promise<GalleryItem[]> {
   const db = getAdminClient()

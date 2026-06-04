@@ -15,6 +15,7 @@ import {
 } from '@/lib/permissions'
 
 const PERMISSIONS_PATH = '/admin/dashboard/permissions'
+const POSTGRES_BIGINT_MAX_DECIMAL_LENGTH = 19
 
 // Discord snowflake = 17-19 digit string. 잘못된 값이 PK 로 들어가는 걸 막는 보수
 // 적인 검증 — 길이는 살짝 넉넉히. notes 는 운영 메모라 500자 cap.
@@ -27,6 +28,7 @@ const notesSchema = z.string().max(500).default('')
 const capabilitiesStringSchema = z
   .string()
   .trim()
+  .max(POSTGRES_BIGINT_MAX_DECIMAL_LENGTH)
   .regex(/^[0-9]+$/, 'capabilities must be a non-negative decimal integer')
 
 const upsertRoleGrantSchema = z.object({

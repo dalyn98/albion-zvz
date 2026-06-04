@@ -8,17 +8,17 @@ import { MESSAGE_FLAG_EPHEMERAL } from './discord-interactions'
 import type { DiscordInteractionPayload } from './discord-interactions'
 
 const mocks = vi.hoisted(() => {
-  const tenantMaybeSingle = vi.fn()
+  const tenantMaybeSingle = vi.fn(async () => ({ data: null as unknown }))
   const tenantEqStatus = vi.fn(() => ({ maybeSingle: tenantMaybeSingle }))
   const tenantEqGuild = vi.fn(() => ({ eq: tenantEqStatus }))
   const tenantSelect = vi.fn(() => ({ eq: tenantEqGuild }))
 
-  const overrideMaybeSingle = vi.fn()
+  const overrideMaybeSingle = vi.fn(async () => ({ data: null as unknown }))
   const overrideEqDiscord = vi.fn(() => ({ maybeSingle: overrideMaybeSingle }))
   const overrideEqTenant = vi.fn(() => ({ eq: overrideEqDiscord }))
   const overrideSelect = vi.fn(() => ({ eq: overrideEqTenant }))
 
-  const eventMaybeSingle = vi.fn()
+  const eventMaybeSingle = vi.fn(async () => ({ data: null as unknown }))
   const eventLimit = vi.fn(() => ({ maybeSingle: eventMaybeSingle }))
   const eventOrder = vi.fn(() => ({ limit: eventLimit }))
   const eventGte = vi.fn(() => ({ order: eventOrder }))
@@ -27,10 +27,22 @@ const mocks = vi.hoisted(() => {
   const eventGuild = vi.fn(() => ({ eq: eventStatus }))
   const eventSelect = vi.fn(() => ({ eq: eventGuild }))
 
+  const memberLanguageMaybeSingle = vi.fn(async () => ({ data: null as unknown }))
+  const memberLanguageEqDiscord = vi.fn(() => ({ maybeSingle: memberLanguageMaybeSingle }))
+  const memberLanguageEqGuild = vi.fn(() => ({ eq: memberLanguageEqDiscord }))
+  const memberLanguageSelect = vi.fn(() => ({ eq: memberLanguageEqGuild }))
+
+  const guestLanguageMaybeSingle = vi.fn(async () => ({ data: null as unknown }))
+  const guestLanguageEqDiscord = vi.fn(() => ({ maybeSingle: guestLanguageMaybeSingle }))
+  const guestLanguageEqGuild = vi.fn(() => ({ eq: guestLanguageEqDiscord }))
+  const guestLanguageSelect = vi.fn(() => ({ eq: guestLanguageEqGuild }))
+
   const from = vi.fn((table: string) => {
     if (table === 'tenants') return { select: tenantSelect }
     if (table === 'tenant_admin_overrides') return { select: overrideSelect }
     if (table === 'events') return { select: eventSelect }
+    if (table === 'guild_avatars') return { select: memberLanguageSelect }
+    if (table === 'guests') return { select: guestLanguageSelect }
     throw new Error(`Unexpected table: ${table}`)
   })
 
@@ -42,6 +54,12 @@ const mocks = vi.hoisted(() => {
     eventOrder,
     eventStatus,
     from,
+    guestLanguageEqDiscord,
+    guestLanguageEqGuild,
+    guestLanguageMaybeSingle,
+    memberLanguageEqDiscord,
+    memberLanguageEqGuild,
+    memberLanguageMaybeSingle,
     overrideEqDiscord,
     overrideEqTenant,
     overrideMaybeSingle,
@@ -115,7 +133,58 @@ describe('agm slash command navigation', () => {
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
     expect(response.data?.content).toContain('/agm')
-    expect(mocks.from).not.toHaveBeenCalled()
+    expect(mocks.from).toHaveBeenCalledWith('tenants')
+  })
+
+  it('defaults /agm command text to English when no site language is saved', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+
+    const response = await handleSlashCommand(
+      agmPayload('wallet', {
+        locale: 'ko',
+        member: {
+          user: { id: 'member-1', username: 'member' },
+          roles: [],
+        },
+      }),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('my wallet')
+    expect(response.data?.content).not.toContain('내 지갑')
+    expect(response.data?.content).toContain(
+      'https://menhera.albion-guildmanager.com/me/wallet',
+    )
+    expect(mocks.memberLanguageEqGuild).toHaveBeenCalledWith('guild_id', 'tenant-1')
+    expect(mocks.memberLanguageEqDiscord).toHaveBeenCalledWith('discord_id', 'member-1')
+    expect(mocks.guestLanguageEqGuild).toHaveBeenCalledWith('guild_id', 'tenant-1')
+    expect(mocks.guestLanguageEqDiscord).toHaveBeenCalledWith('discord_id', 'member-1')
+  })
+
+  it('uses the saved site language for /agm command text', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+    mocks.memberLanguageMaybeSingle.mockResolvedValueOnce({
+      data: { preferred_language: 'ko' },
+    })
+
+    const response = await handleSlashCommand(
+      agmPayload('wallet', {
+        locale: 'en-US',
+        member: {
+          user: { id: 'member-1', username: 'member' },
+          roles: [],
+        },
+      }),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('내 지갑')
+    expect(response.data?.content).toContain(
+      'https://menhera.albion-guildmanager.com/me/wallet',
+    )
+    expect(mocks.guestLanguageMaybeSingle).not.toHaveBeenCalled()
   })
 
   it('routes /agm wallet to the tenant wallet entry point', async () => {
@@ -125,7 +194,7 @@ describe('agm slash command navigation', () => {
     const response = await handleSlashCommand(agmPayload('wallet'))
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(response.data?.content).toContain('내 지갑')
+    expect(response.data?.content).toContain('my wallet')
     expect(response.data?.content).toContain(
       'https://menhera.albion-guildmanager.com/me/wallet',
     )
@@ -141,7 +210,7 @@ describe('agm slash command navigation', () => {
     const response = await handleSlashCommand(agmPayload('verify'))
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(response.data?.content).toContain('Discord 멤버십')
+    expect(response.data?.content).toContain('Albion verification')
     expect(response.data?.content).toContain(
       'https://menhera.albion-guildmanager.com/api/auth/discord/start?returnTo=%2Fonboarding%2Falbion&retry=1',
     )
@@ -161,7 +230,7 @@ describe('agm slash command navigation', () => {
     const response = await handleSlashCommand(agmPayload('events'))
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(response.data?.content).toContain('이벤트')
+    expect(response.data?.content).toContain('events')
     expect(response.data?.content).toContain(
       'https://menhera.albion-guildmanager.com/events',
     )
@@ -186,7 +255,7 @@ describe('agm slash command navigation', () => {
     )
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(response.data?.content).toContain('사이트 관리자')
+    expect(response.data?.content).toContain('site admins')
     expect(response.data?.content).not.toContain('/admin/dashboard')
     expect(mocks.overrideEqTenant).toHaveBeenCalledWith('tenant_id', 'tenant-1')
     expect(mocks.overrideEqDiscord).toHaveBeenCalledWith('discord_id', 'member-1')
@@ -207,7 +276,7 @@ describe('agm slash command navigation', () => {
     )
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(response.data?.content).toContain('사이트 관리자')
+    expect(response.data?.content).toContain('site admins')
     expect(response.data?.content).not.toContain('/admin/dashboard/killbot')
   })
 
@@ -225,7 +294,7 @@ describe('agm slash command navigation', () => {
     )
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(response.data?.content).toContain('관리자 대시보드')
+    expect(response.data?.content).toContain('admin dashboard')
     expect(response.data?.content).toContain(
       'https://menhera.albion-guildmanager.com/admin/dashboard',
     )
@@ -240,7 +309,7 @@ describe('agm slash command navigation', () => {
         },
       }),
     )
-    expect(killbotResponse.data?.content).toContain('설정 화면')
+    expect(killbotResponse.data?.content).toContain('Settings')
     expect(killbotResponse.data?.content).toContain(
       'https://menhera.albion-guildmanager.com/admin/dashboard/killbot',
     )
@@ -281,7 +350,7 @@ describe('agm slash command navigation', () => {
     const response = await handleSlashCommand(agmPayload('guide', { guild_id: undefined }))
 
     expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
-    expect(response.data?.content).toContain('사용법')
+    expect(response.data?.content).toContain('Guides')
     expect(response.data?.content).toContain(
       'https://albion-guildmanager.com/member-quick-guide.html',
     )

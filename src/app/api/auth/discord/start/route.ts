@@ -9,6 +9,8 @@ import {
   shouldUseDiscordConsentPrompt,
 } from '@/lib/discord-reauth'
 import { recordAuthStart } from '@/lib/auth-telemetry'
+import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
+import { withNoStore } from '@/lib/no-store-response'
 
 function inviteFromReturnTo(returnTo: string): string {
   try {
@@ -21,8 +23,9 @@ function inviteFromReturnTo(returnTo: string): string {
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
   const requested = url.searchParams.get('returnTo') ?? '/'
-  // Only accept relative paths so an attacker can't turn this into an open redirect.
-  const returnTo = requested.startsWith('/') && !requested.startsWith('//') ? requested : '/'
+  // Only accept in-app page paths so an attacker can't turn this into an open
+  // redirect or bounce users into internal API endpoints after login.
+  const returnTo = sanitizeInternalReturnTo(requested)
 
   // Guest-invite token carried through the OAuth round-trip so the callback can
   // validate it. Encoded inside the signed state (cookies can't cross the
@@ -68,5 +71,5 @@ export async function GET(request: NextRequest) {
   if (reauthCookieValue) {
     response.cookies.set(DISCORD_REAUTH_COOKIE_NAME, '', clearDiscordReauthCookieOptions())
   }
-  return response
+  return withNoStore(response)
 }

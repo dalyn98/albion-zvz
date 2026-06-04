@@ -21,6 +21,7 @@ export const INTERACTION_RESPONSE_TYPE_CHANNEL_MESSAGE = 4
 // `flags: 64` (1 << 6) = EPHEMERAL — 명령을 친 본인만 보임. 공개 채널을
 // 어지럽히지 않으려고 모든 응답에 적용한다.
 export const MESSAGE_FLAG_EPHEMERAL = 1 << 6
+export const DISCORD_SIGNATURE_MAX_AGE_MS = 5 * 60 * 1000
 
 export interface DiscordInteractionUser {
   id: string
@@ -59,8 +60,11 @@ export interface DiscordInteractionPayload {
   // 명령이 실행된 채널. 현재 /agm 은 상태 변경을 하지 않지만 Discord payload 를
   // 있는 그대로 모델링한다.
   channel_id?: string
-  // 유저의 디스코드 클라이언트 언어 (BCP-47). i18n 에 사용.
+  // 유저의 디스코드 클라이언트 언어 (BCP-47).
   locale?: string
+  // 명령이 실행된 Discord 서버의 기본 언어. 현재 명령 응답은 사이트에 저장된
+  // 사용자 언어 설정을 우선 사용하므로 타입만 보존한다.
+  guild_locale?: string
   member?: DiscordInteractionMember
   user?: DiscordInteractionUser
 }
@@ -71,6 +75,23 @@ export interface DiscordInteractionResponse {
     content?: string
     flags?: number
   }
+}
+
+export function isDiscordSignatureTimestampFresh(
+  timestamp: string,
+  options: {
+    nowMs?: number
+    maxAgeMs?: number
+  } = {},
+): boolean {
+  if (!/^\d+$/.test(timestamp)) return false
+  const signedAtSeconds = Number(timestamp)
+  if (!Number.isSafeInteger(signedAtSeconds)) return false
+
+  const nowMs = options.nowMs ?? Date.now()
+  const maxAgeMs = options.maxAgeMs ?? DISCORD_SIGNATURE_MAX_AGE_MS
+  const ageMs = nowMs - signedAtSeconds * 1000
+  return Math.abs(ageMs) <= maxAgeMs
 }
 
 // Discord 의 ed25519 public key 는 64 자 hex string 으로 제공된다 (32 bytes).

@@ -7,6 +7,7 @@ import { getAlbionOnboardingGateState } from '@/lib/albion-identity'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
 import {
   resolveSiphonPlayer,
+  normalizeSiphonRecentLimit,
   summarizeSiphonAccount,
   type SiphonAccountLedgerRow,
   type SiphonAccountSummary,
@@ -39,7 +40,10 @@ export async function getMySiphonAccount(
       return { status: 'unverified', nickname: player.nickname }
     }
 
-    const safeLimit = Math.min(Math.max(0, Math.trunc(recentLimit)), RECENT_LIMIT_MAX)
+    const safeLimit = normalizeSiphonRecentLimit(recentLimit, {
+      defaultLimit: RECENT_LIMIT_DEFAULT,
+      maxLimit: RECENT_LIMIT_MAX,
+    })
     const db = getAdminClient()
     const operatingStart = await getLogOperatingStart('siphon', guildId)
     const rows: SiphonAccountLedgerRow[] = []

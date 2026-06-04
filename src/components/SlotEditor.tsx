@@ -44,13 +44,14 @@ import {
   type SlotInput,
   deriveGearMode,
   emptySlotInput,
+  freeSlotItem,
   MAX_GEAR_OPTIONS,
 } from './SlotEditor/slot-input'
 import { GearSection } from './SlotEditor/GearSection'
 import { ConditionalOptionsSection } from './SlotEditor/ConditionalOptionsSection'
 
 // 도메인 모델 / 헬퍼 re-export (기존 import path 호환).
-export { emptySlotInput, deriveGearMode }
+export { emptySlotInput, deriveGearMode, freeSlotItem }
 export type { SlotInput, GearMode }
 
 interface Props {
@@ -228,7 +229,7 @@ export default function SlotEditor({
     if (mode === 'free') {
       onChange({
         ...slot,
-        items: { ...slot.items, [key]: { name: t('itemFree'), id: '' } },
+        items: { ...slot.items, [key]: freeSlotItem() },
         options: { ...slot.options, [key]: [] },
       })
     } else {

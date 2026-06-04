@@ -13,6 +13,7 @@ import {
 } from './tracked-kills'
 import { getMemberPointBalance } from './point-ledger'
 import type { BattleOutcome } from './guild-profile-activity'
+import { selectPagedRowsOrThrow, type SupabasePagedQuery } from './supabase-pagination'
 
 const RECENT_LEDGER_LIMIT = 3
 const RECENT_REGEAR_LIMIT = 3
@@ -56,12 +57,40 @@ export interface MemberRecentBattleEntry {
   sizeCategory: BattleSizeCategory
 }
 
+export interface MemberRecentBattleEnrichRow {
+  id: string
+  battle_record_id: string | null
+  started_at: string
+  home_kills: number | null
+  home_deaths: number | null
+  home_team_size: number | null
+  primary_opponent_name: string | null
+  size_category: string | null
+  main_opponent_team_size: number | null
+}
+
+interface MemberRecentBattleEnrichment {
+  battleId: string
+  startedAt: string
+  homeKills: number
+  homeDeaths: number
+  homeTeamSize: number
+  primaryOpponentName: string | null
+  sizeCategory: BattleSizeCategory
+}
+
 export interface MemberDashboardSummary {
   balance: number
   pendingRegearCount: number
   recentLedger: MemberLedgerEntry[]
   recentRegears: MemberRegearEntry[]
   recentBattles: MemberRecentBattleEntry[]
+}
+
+type MemberDashboardKillboardRow = {
+  role: string | null
+  occurred_at: string | null
+  battle_id: number | null
 }
 
 // 멤버가 길드에 등록되어 있지 않으면 null. 등록되어 있어도 활동이 없으면
@@ -158,20 +187,26 @@ async function loadRecentMemberBattles(
 ): Promise<MemberRecentBattleEntry[]> {
   const db = getAdminClient()
 
-  const [trackedBattles, killboardRes, participationsByMember] = await Promise.all([
+  const [trackedBattles, killboardRows, participationsByMember] = await Promise.all([
     fetchTrackedBattleWindows(db, guildId, null, { bundleSplits }),
-    db
-      .from('killboard_events')
-      .select('role, occurred_at, battle_id')
-      .eq('guild_id', guildId)
-      .eq('discord_id', discordId),
+    selectPagedRowsOrThrow<MemberDashboardKillboardRow>({
+      label: 'guild profile member dashboard killboard events',
+      buildQuery: () =>
+        db
+          .from('killboard_events')
+          .select('role, occurred_at, battle_id')
+          .eq('guild_id', guildId)
+          .eq('discord_id', discordId)
+          .order('occurred_at', { ascending: true })
+          .order('event_id', { ascending: true }) as unknown as SupabasePagedQuery<MemberDashboardKillboardRow>,
+    }),
     fetchMemberBattleParticipations(db, guildId),
   ])
 
   const memberParticipations = albionPlayerId
     ? participationsByMember.byAlbionPlayerId.get(albionPlayerId)
     : undefined
-  const killBattles = groupMemberKillsByBattle(killboardRes.data ?? [], trackedBattles)
+  const killBattles = groupMemberKillsByBattle(killboardRows, trackedBattles)
   const battles = mergeMemberBattles(killBattles, memberParticipations, trackedBattles)
   if (battles.length === 0) return []
 
@@ -184,55 +219,87 @@ async function loadRecentMemberBattles(
   const { data: enrichRaw } = await db
     .from('tenant_battle_records')
     .select(
-      'id, started_at, home_kills, home_deaths, home_team_size, primary_opponent_name, size_category, main_opponent_team_size',
+      'id, battle_record_id, started_at, home_kills, home_deaths, home_team_size, primary_opponent_name, size_category, main_opponent_team_size',
     )
     .eq('guild_id', guildId)
     .in('started_at', startedAts)
 
-  type EnrichRow = {
-    id: string
-    started_at: string
-    home_kills: number | null
-    home_deaths: number | null
-    home_team_size: number | null
-    primary_opponent_name: string | null
-    size_category: string | null
-    main_opponent_team_size: number | null
-  }
-
-  // 같은 started_at 에 split row 가 여러 개 있을 수 있다. canonical 기준으로
-  // main_opponent_team_size 가 가장 큰 row 를 채택 — bundleSplits=true 의 windows
-  // 와 일치하고, false 일 때도 가장 큰 매치업 (= 본 전투의 주적) 을 보여주는 게
-  // "최근 전투 카드" 의 정보 손실이 적다.
-  const enrichByStartedAt = new Map<string, EnrichRow>()
-  for (const row of (enrichRaw ?? []) as EnrichRow[]) {
-    const existing = enrichByStartedAt.get(row.started_at)
-    if (
-      !existing ||
-      (row.main_opponent_team_size ?? 0) > (existing.main_opponent_team_size ?? 0)
-    ) {
-      enrichByStartedAt.set(row.started_at, row)
-    }
-  }
+  const enrichByStartedAt = buildRecentBattleEnrichmentByStartedAt(
+    (enrichRaw ?? []) as MemberRecentBattleEnrichRow[],
+  )
 
   const result: MemberRecentBattleEntry[] = []
   for (const b of topN) {
     const enrich = enrichByStartedAt.get(b.startedAt)
     if (!enrich) continue
     result.push({
-      battleId: enrich.id,
+      battleId: enrich.battleId,
       startedAt: b.startedAt,
       outcome: normalizeBattleOutcome(b.outcome),
       myKills: b.killCount,
       myDeaths: b.deathCount,
-      homeKills: enrich.home_kills ?? 0,
-      homeDeaths: enrich.home_deaths ?? 0,
-      homeTeamSize: enrich.home_team_size ?? 0,
-      primaryOpponentName: enrich.primary_opponent_name,
-      sizeCategory: normalizeSizeCategory(enrich.size_category),
+      homeKills: enrich.homeKills,
+      homeDeaths: enrich.homeDeaths,
+      homeTeamSize: enrich.homeTeamSize,
+      primaryOpponentName: enrich.primaryOpponentName,
+      sizeCategory: enrich.sizeCategory,
     })
   }
   return result
+}
+
+export function buildRecentBattleEnrichmentByStartedAt(
+  rows: ReadonlyArray<MemberRecentBattleEnrichRow>,
+): Map<string, MemberRecentBattleEnrichment> {
+  interface Group {
+    mainRow: MemberRecentBattleEnrichRow
+    homeKills: number
+    homeDeaths: number
+    homeTeamSize: number
+  }
+
+  const grouped = new Map<string, Group>()
+  for (const row of rows) {
+    const groupKey = row.battle_record_id ?? row.started_at
+    const existing = grouped.get(groupKey)
+    const mainRow =
+      !existing ||
+      (row.main_opponent_team_size ?? 0) > (existing.mainRow.main_opponent_team_size ?? 0)
+        ? row
+        : existing.mainRow
+
+    grouped.set(groupKey, {
+      mainRow,
+      homeKills: (existing?.homeKills ?? 0) + (row.home_kills ?? 0),
+      homeDeaths: (existing?.homeDeaths ?? 0) + (row.home_deaths ?? 0),
+      homeTeamSize: Math.max(existing?.homeTeamSize ?? 0, row.home_team_size ?? 0),
+    })
+  }
+
+  const byStartedAt = new Map<string, MemberRecentBattleEnrichment>()
+  for (const group of grouped.values()) {
+    const row = group.mainRow
+    const existing = byStartedAt.get(row.started_at)
+    if (
+      existing &&
+      existing.homeTeamSize > group.homeTeamSize &&
+      existing.homeKills + existing.homeDeaths >= group.homeKills + group.homeDeaths
+    ) {
+      continue
+    }
+
+    byStartedAt.set(row.started_at, {
+      battleId: row.id,
+      startedAt: row.started_at,
+      homeKills: group.homeKills,
+      homeDeaths: group.homeDeaths,
+      homeTeamSize: group.homeTeamSize,
+      primaryOpponentName: row.primary_opponent_name,
+      sizeCategory: normalizeSizeCategory(row.size_category),
+    })
+  }
+
+  return byStartedAt
 }
 
 function normalizeBattleOutcome(raw: string): BattleOutcome {

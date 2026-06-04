@@ -11,6 +11,9 @@
 //
 // 수량: 양수는 입고, 음수는 출고.
 
+const POSTGRES_INT_MIN = -2147483648
+const POSTGRES_INT_MAX = 2147483647
+
 export interface ChestLogEntry {
   loggedAt: Date
   player: string
@@ -84,10 +87,10 @@ function parseLine(
       },
     }
   }
-  const enchant = Number(enchantStr)
-  const quality = Number(qualityStr)
-  const quantity = Number(qtyStr)
-  if (!Number.isFinite(enchant) || !Number.isFinite(quality) || !Number.isFinite(quantity)) {
+  const enchant = parseIntegerInRange(enchantStr, 0, 4)
+  const quality = parseIntegerInRange(qualityStr, 1, 5)
+  const quantity = parseIntegerInRange(qtyStr, POSTGRES_INT_MIN, POSTGRES_INT_MAX)
+  if (enchant === null || quality === null || quantity === null) {
     return {
       error: {
         reason: 'invalid chest log numeric fields',
@@ -106,6 +109,14 @@ function parseLine(
       quantity,
     },
   }
+}
+
+function parseIntegerInRange(raw: string, min: number, max: number): number | null {
+  const trimmed = raw.trim()
+  if (!/^-?\d+$/.test(trimmed)) return null
+  const n = Number(trimmed)
+  if (!Number.isSafeInteger(n)) return null
+  return n >= min && n <= max ? n : null
 }
 
 function isChestLogHeader(line: string): boolean {

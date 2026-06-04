@@ -22,22 +22,50 @@ interface BundledItem {
 const ITEMS = items as BundledItem[]
 
 const MAX_RESULTS = 30
+const MAX_QUERY_LENGTH = 80
+const MAX_CATEGORY_FILTERS = 8
+const MAX_CATEGORY_LENGTH = 32
+const CATEGORY_RE = /^[a-z0-9_-]+$/
+const TIER_RE = /^[1-8]$/
 
 function readLocale(request: NextRequest): Locale {
   const value = request.cookies.get(LOCALE_COOKIE)?.value
   return isLocale(value) ? value : DEFAULT_LOCALE
 }
 
+function normalizeQuery(value: string | null): string | null {
+  const q = value?.trim().toLowerCase()
+  if (!q || q.length < 2 || q.length > MAX_QUERY_LENGTH) return null
+  return q
+}
+
+function normalizeCategories(value: string | null): string[] {
+  if (!value) return []
+  const categories: string[] = []
+  for (const raw of value.split(',')) {
+    const category = raw.trim().toLowerCase()
+    if (!category || category.length > MAX_CATEGORY_LENGTH || !CATEGORY_RE.test(category)) continue
+    if (!categories.includes(category)) categories.push(category)
+    if (categories.length >= MAX_CATEGORY_FILTERS) break
+  }
+  return categories
+}
+
+function jsonWithLocaleVary(body: unknown) {
+  const response = NextResponse.json(body)
+  response.headers.set('Vary', 'Cookie')
+  return response
+}
+
 export function GET(request: NextRequest) {
-  const q = request.nextUrl.searchParams.get('q')?.trim().toLowerCase()
+  const q = normalizeQuery(request.nextUrl.searchParams.get('q'))
   // Comma-separated categories — e.g. `weapon,mount` so the weapon picker can
   // also surface battle mounts. An empty list means no category filter.
-  const categoryRaw = request.nextUrl.searchParams.get('category')?.trim().toLowerCase()
-  const categories = categoryRaw ? categoryRaw.split(',').map((c) => c.trim()).filter(Boolean) : []
+  const categories = normalizeCategories(request.nextUrl.searchParams.get('category'))
   const tierRaw = request.nextUrl.searchParams.get('tier')?.trim()
-  const tierPrefix = tierRaw && /^\d+$/.test(tierRaw) ? `t${tierRaw}_` : null
+  const tierPrefix = tierRaw && TIER_RE.test(tierRaw) ? `t${tierRaw}_` : null
 
-  if (!q || q.length < 2) return NextResponse.json([])
+  if (!q) return jsonWithLocaleVary([])
 
   const locale = readLocale(request)
   const results: { uniqueName: string; displayName: string }[] = []
@@ -57,5 +85,5 @@ export function GET(request: NextRequest) {
     results.push({ uniqueName: item.u, displayName })
     if (results.length >= MAX_RESULTS) break
   }
-  return NextResponse.json(results)
+  return jsonWithLocaleVary(results)
 }

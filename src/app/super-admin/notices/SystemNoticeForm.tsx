@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import FourPartTimeInput, { BLANK_GATHER_PARTS, isAllBlank } from '@/components/FourPartTimeInput'
 import { parseGatherTime, formatGatherTimeKo, type GatherTimeParts } from '@/lib/gather-time'
+import { PUBLIC_IMAGE_URL_MAX_LENGTH } from '@/lib/public-image-url'
 import { createSystemNotice } from '@/app/super-admin/actions'
 
 const SUPER_ADMIN_TZ = 'Asia/Seoul'
@@ -74,6 +75,7 @@ export default function SystemNoticeForm() {
           <input
             type="url"
             name="imageUrl"
+            maxLength={PUBLIC_IMAGE_URL_MAX_LENGTH}
             placeholder="https://..."
             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white"
           />

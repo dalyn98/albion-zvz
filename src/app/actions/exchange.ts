@@ -9,6 +9,7 @@ import { requireAlbionVerified } from '@/lib/albion-identity'
 import { getMemberPointBalance } from '@/lib/point-ledger'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
 import { sendAdminNotification } from '@/lib/admin-notifications'
+import { isPostgresPositiveInt } from '@/lib/postgres-int'
 
 export interface MyExchangeRequest {
   id: string
@@ -29,12 +30,12 @@ export async function requestExchange(silver: number): Promise<{ error?: string;
   if (isLocalGuildAccountRestrictedFromResources(session)) {
     return { error: tErr('localAccountResourceBlocked') }
   }
+  if (!isPostgresPositiveInt(silver)) {
+    return { error: tErr('invalidAmount') }
+  }
   const guildId = await getSessionGuildId(session)
   const albionError = await requireAlbionVerified(session.discordId, guildId)
   if (albionError) return { error: albionError }
-  if (!Number.isInteger(silver) || silver <= 0) {
-    return { error: tErr('invalidAmount') }
-  }
 
   const db = getAdminClient()
 
@@ -131,7 +132,7 @@ export async function updateMyExchangeRequest(
   if (isLocalGuildAccountRestrictedFromResources(session)) {
     return { error: tErr('localAccountResourceBlocked') }
   }
-  if (!Number.isInteger(silver) || silver <= 0) {
+  if (!isPostgresPositiveInt(silver)) {
     return { error: tErr('invalidAmount') }
   }
   const guildId = await getSessionGuildId(session)

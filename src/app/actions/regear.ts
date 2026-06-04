@@ -38,6 +38,7 @@ import {
 } from '@/lib/regear-reject-reasons'
 import { countsTowardDeathLimit } from '@/lib/regear-request-policy'
 import { sendAdminNotification } from '@/lib/admin-notifications'
+import { validateImageUploadFile } from '@/lib/image-upload'
 import {
   buildManualRegearEligibilityRoleMap,
   buildRegearEventRoleMap,
@@ -62,6 +63,21 @@ const DEFAULT_MAX_DEATHS_PER_EVENT = 1
 const DEFAULT_ELIGIBILITY_DAYS = 14
 const MIN_ELIGIBILITY_DAYS = 1
 const MAX_ELIGIBILITY_DAYS = 90
+
+function screenshotUploadErrorMessage(
+  tErr: Awaited<ReturnType<typeof getTranslations>>,
+  error: 'missing' | 'empty' | 'tooLarge' | 'wrongType',
+): string {
+  switch (error) {
+    case 'missing':
+    case 'empty':
+      return tErr('screenshotMissing')
+    case 'tooLarge':
+      return tErr('screenshotTooLarge')
+    case 'wrongType':
+      return tErr('screenshotWrongType')
+  }
+}
 
 async function loadRegearLimits(
   guildId: string,
@@ -236,14 +252,21 @@ async function requestRegearInner(
     (await getAppSetting('craft_regear_enabled', 'false', guildId)) === 'true'
   const fulfillmentMode: 'silver' | 'crafted' = craftEnabled ? 'crafted' : 'silver'
   if (!eventId) return { error: tErr('missingEventInfo') }
-  if (!(file instanceof File) || file.size === 0) return { error: tErr('screenshotMissing') }
-  if (file.size > MAX_SCREENSHOT_BYTES) return { error: tErr('screenshotTooLarge') }
-  if (!ALLOWED_MIME.has(file.type)) return { error: tErr('screenshotWrongType') }
+  const image = await validateImageUploadFile(file, {
+    allowedTypes: ALLOWED_MIME,
+    maxBytes: MAX_SCREENSHOT_BYTES,
+  })
+  if (!image.ok) return { error: screenshotUploadErrorMessage(tErr, image.error) }
   // 두 번째 스크린샷은 선택 사항 — 제출 된 경우에만 검증.
   const hasFile2 = file2 instanceof File && file2.size > 0
+  const image2 = hasFile2
+    ? await validateImageUploadFile(file2, {
+        allowedTypes: ALLOWED_MIME,
+        maxBytes: MAX_SCREENSHOT_BYTES,
+      })
+    : null
   if (hasFile2) {
-    if (file2.size > MAX_SCREENSHOT_BYTES) return { error: tErr('screenshotTooLarge') }
-    if (!ALLOWED_MIME.has(file2.type)) return { error: tErr('screenshotWrongType') }
+    if (!image2?.ok) return { error: screenshotUploadErrorMessage(tErr, image2?.error ?? 'wrongType') }
   }
 
   const db = getAdminClient()
@@ -411,23 +434,21 @@ async function requestRegearInner(
 
   // 5) Upload screenshot first — if the DB insert below fails, an orphaned
   //    file is far cheaper to clean up than a phantom request row.
-  const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
-  const path = `${session.discordId}/${eventId}-${Date.now()}.${ext}`
+  const path = `${session.discordId}/${eventId}-${Date.now()}.${image.ext}`
   const { error: uploadError } = await db.storage
     .from(SCREENSHOT_BUCKET)
-    .upload(path, file, { contentType: file.type, upsert: false })
+    .upload(path, image.file, { contentType: image.mime, upsert: false })
   if (uploadError) return { error: tErr('screenshotUploadFailed', { reason: uploadError.message }) }
 
   // 5a) 두 번째 스크린샷이 있으면 같은 버킷에 업로드. 파일명은 첫 번째 경로에
   //     `-2` 접미사를 붙여 쌍 관계를 쉽게 파악할 수 있게 한다. 업로드 실패 시
   //     앞서 올린 첫 번째 파일도 같이 지워 고아 파일을 남기지 않는다.
   let path2: string | null = null
-  if (hasFile2) {
-    const ext2 = file2.type === 'image/png' ? 'png' : file2.type === 'image/webp' ? 'webp' : 'jpg'
-    path2 = `${session.discordId}/${eventId}-${Date.now()}-2.${ext2}`
+  if (image2?.ok) {
+    path2 = `${session.discordId}/${eventId}-${Date.now()}-2.${image2.ext}`
     const { error: upload2Error } = await db.storage
       .from(SCREENSHOT_BUCKET)
-      .upload(path2, file2, { contentType: file2.type, upsert: false })
+      .upload(path2, image2.file, { contentType: image2.mime, upsert: false })
     if (upload2Error) {
       await db.storage.from(SCREENSHOT_BUCKET).remove([path])
       return { error: tErr('screenshotUploadFailed', { reason: upload2Error.message }) }

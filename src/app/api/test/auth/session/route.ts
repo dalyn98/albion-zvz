@@ -19,6 +19,7 @@ import {
   parseTestAuthRole,
   sanitizeTestAuthReturnTo,
 } from '@/lib/test-auth-session'
+import { withNoStore } from '@/lib/no-store-response'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -89,30 +90,32 @@ function optionalString(value: unknown): string | undefined {
 
 export async function POST(request: NextRequest) {
   if (!isTestAuthRouteEnabled()) {
-    return NextResponse.json({ error: 'not_found' }, { status: 404 })
+    return withNoStore(NextResponse.json({ error: 'not_found' }, { status: 404 }))
   }
 
   if (!isValidTestAuthSecret(request.headers.get(TEST_AUTH_SECRET_HEADER))) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+    return withNoStore(NextResponse.json({ error: 'unauthorized' }, { status: 401 }))
   }
 
   const body = await readBody(request)
   const role = parseTestAuthRole(body.role)
   if (!role) {
-    return NextResponse.json(
-      { error: 'invalid_role', roles: TEST_AUTH_ROLES },
-      { status: 400 },
+    return withNoStore(
+      NextResponse.json(
+        { error: 'invalid_role', roles: TEST_AUTH_ROLES },
+        { status: 400 },
+      ),
     )
   }
 
   const eventScope = optionalString(body.eventScope) ?? null
   if (role === 'guest' && !eventScope) {
-    return NextResponse.json({ error: 'guest_event_scope_required' }, { status: 400 })
+    return withNoStore(NextResponse.json({ error: 'guest_event_scope_required' }, { status: 400 }))
   }
 
   const tenant = await resolveTenant(request, body)
   if (!tenant) {
-    return NextResponse.json({ error: 'tenant_not_found' }, { status: 400 })
+    return withNoStore(NextResponse.json({ error: 'tenant_not_found' }, { status: 400 }))
   }
 
   const session = buildTestSession({
@@ -151,5 +154,5 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  return response
+  return withNoStore(response)
 }

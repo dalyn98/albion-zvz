@@ -19,6 +19,7 @@ import { getTenantTimezone } from '@/lib/timezone-server'
 import { getCurrentWeekStartIso } from '@/lib/timezone'
 import { getAppSetting } from '@/lib/app-settings'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
+import { selectPagedRowsOrThrow, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 
 export type MyDashboardNextEventKind = 'assigned' | 'pending' | 'tentative' | 'available'
 
@@ -68,6 +69,12 @@ export interface MyDashboardData {
   pendingRegearCount: number
   pendingExchangeCount: number
   pendingDonationCount: number
+}
+
+type MyDashboardKillboardRow = {
+  role: string | null
+  occurred_at: string | null
+  battle_id: number | null
 }
 
 type UpcomingSlotEvent = {
@@ -144,7 +151,7 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     tentativeRes,
     openEventsRes,
     avatarRes,
-    killboardRes,
+    killboardRows,
     regearRes,
     exchangeRes,
     donationRes,
@@ -199,11 +206,17 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
       .eq('guild_id', guildId)
       .eq('discord_id', session.discordId)
       .maybeSingle(),
-    db
-      .from('killboard_events')
-      .select('role, occurred_at, battle_id')
-      .eq('guild_id', guildId)
-      .eq('discord_id', session.discordId),
+    selectPagedRowsOrThrow<MyDashboardKillboardRow>({
+      label: 'my dashboard killboard events',
+      buildQuery: () =>
+        db
+          .from('killboard_events')
+          .select('role, occurred_at, battle_id')
+          .eq('guild_id', guildId)
+          .eq('discord_id', session.discordId)
+          .order('occurred_at', { ascending: true })
+          .order('event_id', { ascending: true }) as unknown as SupabasePagedQuery<MyDashboardKillboardRow>,
+    }),
     db
       .from('regear_requests')
       .select('id', { head: true, count: 'exact' })
@@ -233,7 +246,7 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
   const memberParticipations = memberAlbionId
     ? participationsByMember.byAlbionPlayerId.get(memberAlbionId)
     : undefined
-  const killBattles = groupMemberKillsByBattle(killboardRes.data ?? [], trackedBattles)
+  const killBattles = groupMemberKillsByBattle(killboardRows, trackedBattles)
   const battles = mergeMemberBattles(killBattles, memberParticipations, trackedBattles)
 
   let kills = 0

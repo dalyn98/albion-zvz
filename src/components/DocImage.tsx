@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import { getTranslations } from 'next-intl/server'
 
 interface Props {
   src?: string
@@ -8,7 +9,7 @@ interface Props {
   height?: number
 }
 
-export default function DocImage({ src, alt, caption, width = 1280, height = 720 }: Props) {
+export default async function DocImage({ src, alt, caption, width = 1280, height = 720 }: Props) {
   if (src) {
     return (
       <figure className="my-6">
@@ -25,11 +26,12 @@ export default function DocImage({ src, alt, caption, width = 1280, height = 720
       </figure>
     )
   }
+  const t = await getTranslations('docsHome')
   return (
     <figure className="my-6">
       <div className="aspect-video bg-gray-900/50 border border-dashed border-amber-700/40 rounded-lg flex items-center justify-center px-6 py-10">
         <span className="text-gray-500 text-sm text-center leading-relaxed">
-          이미지 슬롯 — {caption}
+          {t('imageSlotPlaceholder', { caption })}
         </span>
       </div>
     </figure>

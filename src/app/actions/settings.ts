@@ -14,8 +14,10 @@ import { isSuperAdminSession } from '@/lib/super-admin'
 import { SLOT_ROLES, SLOT_KEYS } from '@/types'
 import { logAdminAction } from '@/lib/admin-audit'
 import { toYoutubeEmbedUrl } from '@/lib/youtube-embed'
+import { toDiscordInviteUrl } from '@/lib/discord-invite-url'
 import { CAP } from '@/lib/permissions'
 import { isAdminNotificationTopic } from '@/lib/admin-notification-topics'
+import { isDiscordId, normalizeDiscordIdList } from '@/lib/discord-id'
 import {
   LOG_OPERATING_START_KEYS,
   isValidLogOperatingStart,
@@ -245,7 +247,7 @@ const INTEGER_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }
 
 // 실수(decimal) 를 허용하는 키. range 는 inclusive.
 const DECIMAL_RANGES: Partial<Record<AppSettingKey, { min: number; max: number }>> = {
-  // 상점 할인율 — 0 초과 1 이하. 1 이면 할인 없음, 0.5 = 50% 할인.
+  // 상점 환율/할인율 multiplier. 1 = 100% (1:1), 0.5 = 50% (절반 가격).
   shop_discount_rate: { min: 0.01, max: 1 },
 }
 
@@ -370,8 +372,7 @@ export async function updateAppSetting(
           }
         }
         if (key === 'admin_notification_role_ids') {
-          const invalid = (parsed as string[]).filter((id) => !/^\d{5,30}$/.test(id))
-          if (invalid.length > 0) {
+          if (!normalizeDiscordIdList(parsed)) {
             return { error: tErr('invalidInput') }
           }
         }
@@ -441,7 +442,12 @@ export async function updateAppSetting(
         return { error: tErr('invalidYoutubeUrl') }
       }
     }
-    if (trimmed && key === 'admin_notification_channel_id' && !/^\d{5,30}$/.test(trimmed)) {
+    if (trimmed && key === 'guild_profile_discord_invite_url') {
+      if (!toDiscordInviteUrl(trimmed)) {
+        return { error: tErr('invalidDiscordInviteUrl') }
+      }
+    }
+    if (trimmed && key === 'admin_notification_channel_id' && !isDiscordId(trimmed)) {
       return { error: tErr('invalidInput') }
     }
     const db = await requireAnyCapability(settingCaps(key))
@@ -450,7 +456,10 @@ export async function updateAppSetting(
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
     const guildId = await getSessionGuildId(session)
-    const normalizedValue = await normalizeSettingValue(key, trimmed, guildId)
+    const normalizedValue =
+      key === 'guild_profile_discord_invite_url' && trimmed
+        ? toDiscordInviteUrl(trimmed)
+        : await normalizeSettingValue(key, trimmed, guildId)
     if (normalizedValue === null) return { error: tErr('invalidDateTime') }
     if (
       key === 'shop_import_exclude_tier_enchant_sum_lte' ||
@@ -562,13 +571,8 @@ export async function updateTenantAdminRoles(
   const tErr = await getTranslations('adminActionError')
   try {
     if (!Array.isArray(roleIds)) return { error: tErr('invalidJsonArray') }
-    const clean: string[] = []
-    for (const v of roleIds) {
-      if (typeof v !== 'string' || v.length === 0) {
-        return { error: tErr('invalidJsonArray') }
-      }
-      if (!clean.includes(v)) clean.push(v)
-    }
+    const clean = normalizeDiscordIdList(roleIds)
+    if (!clean) return { error: tErr('invalidInput') }
     const db = await requireAnyCapability([CAP.SETTINGS_PERMISSIONS])
     const session = await getSession()
     if (!session) return { error: tErr('serverError') }
@@ -601,7 +605,7 @@ export async function updateTenantEventChannel(
   const tErr = await getTranslations('adminActionError')
   try {
     const trimmed = channelId.trim()
-    if (trimmed && !/^\d{5,30}$/.test(trimmed)) {
+    if (trimmed && !isDiscordId(trimmed)) {
       return { error: tErr('invalidInput') }
     }
     const db = await requireAnyCapability([CAP.SETTINGS_GENERAL])

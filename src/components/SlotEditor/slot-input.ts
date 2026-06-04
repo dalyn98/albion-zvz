@@ -7,7 +7,7 @@ import type {
   GearSpec,
   SlotKey,
 } from '@/types'
-import { SLOT_KEYS, isFreeItem } from '@/types'
+import { FREE_ITEM_NAME, SLOT_KEYS, isFreeItem } from '@/types'
 
 export type GearMode = 'single' | 'multi' | 'free'
 
@@ -70,6 +70,10 @@ export function emptySlotInput(slotNumber: number): SlotInput {
     conditional_options: {},
     assigned_username: null,
   }
+}
+
+export function freeSlotItem(): { name: string; id: string } {
+  return { name: FREE_ITEM_NAME, id: '' }
 }
 
 export function deriveGearMode(slot: SlotInput, key: SlotKey): GearMode {

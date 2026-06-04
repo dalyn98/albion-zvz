@@ -16,6 +16,8 @@ import {
 } from '@/lib/tracked-kills'
 import { getAppSetting } from '@/lib/app-settings'
 import { getCurrentWeekStartIso } from '@/lib/timezone'
+import { isMissingRpcError } from '@/lib/supabase-rpc-errors'
+import { selectPagedRowsOrThrow, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 
 export type LeaderboardWindow = 'week' | 'month' | 'all'
 
@@ -85,6 +87,32 @@ type KillboardRow = {
 
 type LeaderboardCardData = Omit<LeaderboardData, 'window' | 'fetchedAt'>
 
+interface Agg {
+  albion_player_id: string
+  discord_id: string | null
+  username: string
+  avatar: string | null
+  kills: number
+  deaths: number
+  participations: number
+  survivalRate: number | null
+  evaluatedEvents: number
+  wins: number
+  losses: number
+  winRate: number | null
+  evaluatedOutcomeEvents: number
+}
+
+interface MemberLeaderboardRollupRow {
+  albion_player_id: string | null
+  kills: number | string | null
+  deaths: number | string | null
+  participations: number | string | null
+  death_battles: number | string | null
+  wins: number | string | null
+  losses: number | string | null
+}
+
 // killboard sync 가 분 단위로 도므로 60s revalidate 면 두 가지 다 잡힌다:
 // (a) 같은 guild 같은 윈도우의 페이지를 연 사용자들끼리 compute 공유,
 // (b) sync 가 새 row 를 써도 1분 안에는 반영됨.
@@ -131,18 +159,9 @@ async function computeLeaderboardCards(
   // 인 채로 남는다. 따라서 이 필터가 자연스럽게 가입 후 kill 만 통과시킴.
   // 정책: 업적/통계/리더보드 = "사이트 가입자 + 가입 이후 기록".
   // (관련 메모: feedback_albion_zvz_stats_membership_policy)
-  const killboardQ = db
-    .from('killboard_events')
-    .select('albion_player_id, role, occurred_at, battle_id')
-    .eq('guild_id', guildId)
-    .not('discord_id', 'is', null)
-    .gte('occurred_at', cutoff)
-
-  const [avatarsRes, killboardRes, trackedBattles, participations] = await Promise.all([
+  const [avatarsRes, rpcRollups] = await Promise.all([
     avatarsQ,
-    killboardQ,
-    fetchTrackedBattleWindows(db, guildId, cutoff, { bundleSplits }),
-    fetchMemberBattleParticipations(db, guildId, cutoff),
+    fetchMemberLeaderboardRollups(db, guildId, cutoff, bundleSplits),
   ])
 
   // albion_player_id → 표시용 메타 (Discord username/avatar). 모집단에서 이미
@@ -162,10 +181,31 @@ async function computeLeaderboardCards(
     })
   }
 
+  if (rpcRollups) {
+    return leaderboardCardsFromAggs(aggsFromRpcRollups(rpcRollups, metaByAlbionId))
+  }
+
+  const [killboardRes, trackedBattles, participations] = await Promise.all([
+    selectPagedRowsOrThrow<KillboardRow>({
+      label: 'leaderboard killboard events',
+      buildQuery: () =>
+        db
+          .from('killboard_events')
+          .select('albion_player_id, role, occurred_at, battle_id')
+          .eq('guild_id', guildId)
+          .not('discord_id', 'is', null)
+          .gte('occurred_at', cutoff)
+          .order('occurred_at', { ascending: true })
+          .order('event_id', { ascending: true }) as unknown as SupabasePagedQuery<KillboardRow>,
+    }),
+    fetchTrackedBattleWindows(db, guildId, cutoff, { bundleSplits }),
+    fetchMemberBattleParticipations(db, guildId, cutoff),
+  ])
+
   // 멤버별로 killboard row 를 분리. groupMemberKillsByBattle 이 멤버 단위로
   // 배틀을 집계하므로 한 번에 전부 넘기면 멤버 구분이 사라진다.
   const killsByMember = new Map<string, KillboardRow[]>()
-  for (const ke of (killboardRes.data ?? []) as KillboardRow[]) {
+  for (const ke of killboardRes) {
     if (!ke.albion_player_id) continue
     let list = killsByMember.get(ke.albion_player_id)
     if (!list) {
@@ -175,21 +215,6 @@ async function computeLeaderboardCards(
     list.push(ke)
   }
 
-  interface Agg {
-    albion_player_id: string
-    discord_id: string | null
-    username: string
-    avatar: string | null
-    kills: number
-    deaths: number
-    participations: number
-    survivalRate: number | null
-    evaluatedEvents: number
-    wins: number
-    losses: number
-    winRate: number | null
-    evaluatedOutcomeEvents: number
-  }
   const aggs: Agg[] = []
   // (killboard 기준 멤버) ∪ (raw_battle 기준 참여자). 0k0d 참여자는 killsByMember
   // 에 없지만 participations.byAlbionPlayerId 에는 있으므로 합집합이 필요.
@@ -237,6 +262,69 @@ async function computeLeaderboardCards(
     })
   }
 
+  return leaderboardCardsFromAggs(aggs)
+}
+
+async function fetchMemberLeaderboardRollups(
+  db: ReturnType<typeof getAdminClient>,
+  guildId: string,
+  cutoff: string,
+  bundleSplits: boolean,
+): Promise<MemberLeaderboardRollupRow[] | null> {
+  const { data, error } = await db.rpc('member_leaderboard_rollups', {
+    p_guild_id: guildId,
+    p_since: cutoff,
+    p_bundle_splits: bundleSplits,
+  })
+  if (!error) return (data ?? []) as MemberLeaderboardRollupRow[]
+  if (isMissingRpcError(error, 'member_leaderboard_rollups')) return null
+  throw new Error(error.message)
+}
+
+function num(value: number | string | null | undefined): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  return 0
+}
+
+function aggsFromRpcRollups(
+  rows: readonly MemberLeaderboardRollupRow[],
+  metaByAlbionId: ReadonlyMap<string, { discord_id: string; username: string; avatar: string | null }>,
+): Agg[] {
+  const aggs: Agg[] = []
+  for (const row of rows) {
+    if (!row.albion_player_id) continue
+    const meta = metaByAlbionId.get(row.albion_player_id)
+    if (!meta) continue
+    const participations = num(row.participations)
+    if (participations === 0) continue
+    const wins = num(row.wins)
+    const losses = num(row.losses)
+    const deathBattles = num(row.death_battles)
+    const evaluatedOutcomeEvents = wins + losses
+    aggs.push({
+      albion_player_id: row.albion_player_id,
+      discord_id: meta.discord_id,
+      username: meta.username,
+      avatar: meta.avatar,
+      kills: num(row.kills),
+      deaths: num(row.deaths),
+      participations,
+      survivalRate: (participations - deathBattles) / participations,
+      evaluatedEvents: participations,
+      wins,
+      losses,
+      winRate: evaluatedOutcomeEvents === 0 ? null : wins / evaluatedOutcomeEvents,
+      evaluatedOutcomeEvents,
+    })
+  }
+  return aggs
+}
+
+function leaderboardCardsFromAggs(aggs: readonly Agg[]): LeaderboardCardData {
   const baseEntry = (a: Agg): Pick<LeaderboardEntry, 'albion_player_id' | 'discord_id' | 'username' | 'avatar'> => ({
     albion_player_id: a.albion_player_id,
     discord_id: a.discord_id,

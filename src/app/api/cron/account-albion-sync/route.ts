@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { runAccountAlbionSync } from '@/lib/account-albion-sync'
 import { listActiveTenants } from '@/lib/tenant'
 import { withCronRun } from '@/lib/cron-run'
+import { parseBoundedInt } from '@/lib/parse-bounded-int'
 
 // Discord 계정 ↔ Albion 캐릭터 매핑을 하루 1회 최신화한다.
 // 멤버의 길드/연합 상태가 바뀌면 재화 기능 신뢰 상태를 자동으로 낮추고,
@@ -12,13 +13,6 @@ export const maxDuration = 60
 
 const DEFAULT_CRON_BATCH_SIZE = 10
 const SUMMARY_FIELDS = ['scanned', 'refreshed', 'failed', 'skipped'] as const
-
-function boundedInt(value: string | null | undefined, min: number, max: number): number | null {
-  if (!value) return null
-  const parsed = Number.parseInt(value, 10)
-  if (!Number.isFinite(parsed)) return null
-  return Math.min(Math.max(parsed, min), max)
-}
 
 function numeric(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0
@@ -52,8 +46,8 @@ export async function GET(request: Request) {
   return withCronRun(request, { jobName: 'account-albion-sync', leaseSeconds: 300 }, async () => {
     const url = new URL(request.url)
     const batchSize =
-      boundedInt(url.searchParams.get('batch_size'), 1, 50) ??
-      boundedInt(process.env.ACCOUNT_ALBION_SYNC_BATCH_SIZE, 1, 50) ??
+      parseBoundedInt(url.searchParams.get('batch_size'), 1, 50) ??
+      parseBoundedInt(process.env.ACCOUNT_ALBION_SYNC_BATCH_SIZE, 1, 50) ??
       DEFAULT_CRON_BATCH_SIZE
     const tenants = await listActiveTenants()
     const results: Array<Record<string, unknown>> = []

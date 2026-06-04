@@ -5,14 +5,14 @@ import LocalGuildAccountForm from '@/components/LocalGuildAccountForm'
 import { getAppSetting } from '@/lib/app-settings'
 import { classifyHost, resolveTenantBySlug } from '@/lib/tenant-resolver'
 import { isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
+import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
 import { isLocale, DEFAULT_LOCALE, type Locale } from '@/i18n/locales'
 
 export const dynamic = 'force-dynamic'
 
 function safeReturnTo(raw: string | string[] | undefined): string {
   const value = Array.isArray(raw) ? raw[0] : raw
-  if (!value) return '/'
-  return value.startsWith('/') && !value.startsWith('//') ? value : '/'
+  return sanitizeInternalReturnTo(value)
 }
 
 export default async function GuildLoginPage({

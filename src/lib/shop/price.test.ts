@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { computePointPrice, parseShopDiscountRate } from './price'
+import {
+  computePointPrice,
+  parseShopDiscountRate,
+  shopDiscountRateToPercent,
+  shopRatePercentToDiscountRate,
+} from './price'
 
 describe('computePointPrice', () => {
   describe('source selection: manualPrice vs autoPriceSilver', () => {
@@ -178,5 +183,42 @@ describe('parseShopDiscountRate', () => {
     expect(parseShopDiscountRate('1.5')).toBe(1)
     expect(parseShopDiscountRate('2')).toBe(1)
     expect(parseShopDiscountRate('1000')).toBe(1)
+  })
+})
+
+describe('shop rate percent conversion', () => {
+  it('displays stored multipliers as the admin-facing rate percent', () => {
+    expect(shopDiscountRateToPercent('1')).toBe(100)
+    expect(shopDiscountRateToPercent('0.5')).toBe(50)
+    expect(shopDiscountRateToPercent('0.01')).toBe(1)
+  })
+
+  it('falls back to 100% for invalid stored values', () => {
+    expect(shopDiscountRateToPercent(null)).toBe(100)
+    expect(shopDiscountRateToPercent('abc')).toBe(100)
+    expect(shopDiscountRateToPercent('2')).toBe(100)
+  })
+
+  it('stores the admin-facing rate percent as a multiplier', () => {
+    expect(shopRatePercentToDiscountRate(100)).toBe('1')
+    expect(shopRatePercentToDiscountRate(50)).toBe('0.5')
+    expect(shopRatePercentToDiscountRate(1)).toBe('0.01')
+  })
+
+  it('keeps the product rule: 100% is 1:1 and 50% is half price', () => {
+    expect(
+      computePointPrice({
+        manualPrice: 1_000_000,
+        autoPriceSilver: null,
+        discountRate: parseShopDiscountRate(shopRatePercentToDiscountRate(100)),
+      }),
+    ).toBe(1_000_000)
+    expect(
+      computePointPrice({
+        manualPrice: 1_000_000,
+        autoPriceSilver: null,
+        discountRate: parseShopDiscountRate(shopRatePercentToDiscountRate(50)),
+      }),
+    ).toBe(500_000)
   })
 })

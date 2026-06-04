@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import itemSpells from '@/data/albion-item-spells.json'
+import { normalizeSpellItemIds } from '@/lib/item-spell-api'
 import type { SpellPoolEntry } from '@/types'
 
 // Keep the default Node.js runtime. Vercel Fluid Compute is the platform default
@@ -15,17 +16,8 @@ function stripEnchantment(id: string): string {
 
 const POOL = itemSpells as Record<string, SpellPoolEntry[]>
 
-// Defensive cap — one slot/editor opens with ≤20 item ids (weapon options
-// + armor slots). A request asking for hundreds is almost certainly abuse
-// or a client bug, and the response grows ~200 bytes per match.
-const MAX_IDS_PER_REQUEST = 64
-
 export function GET(request: NextRequest) {
-  const ids = request.nextUrl.searchParams
-    .getAll('id')
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, MAX_IDS_PER_REQUEST)
+  const ids = normalizeSpellItemIds(request.nextUrl.searchParams.getAll('id'))
   if (ids.length === 0) return NextResponse.json({})
 
   const out: Record<string, SpellPoolEntry[]> = {}

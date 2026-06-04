@@ -25,6 +25,7 @@ import { logAdminAction } from '@/lib/admin-audit'
 import { summarizeLogContinuity, type LogContinuityResult } from '@/lib/log-continuity'
 import { selectOfficialLogEntries } from '@/lib/log-import-official'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
+import { isMissingRpcError } from '@/lib/supabase-rpc-errors'
 
 // 한 번에 받을 수 있는 원본 entry 수. 5000 은 shop chest_log 와 동일 — 정상적인
 // 인게임 한 번 export 가 이 한도를 넘지 않는다.
@@ -590,8 +591,34 @@ export async function getSiphonBalances(): Promise<
     const db = getAdminClient()
     const operatingStart = await getLogOperatingStart('siphon', guildId)
 
-    // 전체 ledger 를 끌어와 메모리에서 집계. siphon 은 한 길드당 수만 행 수준이라
-    // RPC 없이도 OK. 행 수가 부담되면 추후 SQL view / materialized 로 옮긴다.
+    const { data: rpcRows, error: rpcError } = await db.rpc('get_siphon_balances', {
+      p_guild_id: guildId,
+      p_operating_start: operatingStart?.toISOString() ?? null,
+    })
+    if (!rpcError) {
+      const balances: SiphonPlayerBalance[] = ((rpcRows ?? []) as Array<{
+        player: string | null
+        deposited: number | string | null
+        withdrawn: number | string | null
+        net: number | string | null
+        last_activity_at: string | null
+      }>)
+        .map((row) => ({
+          player: row.player ?? '',
+          deposited: Number(row.deposited ?? 0),
+          withdrawn: Number(row.withdrawn ?? 0),
+          net: Number(row.net ?? 0),
+          lastActivityAt: row.last_activity_at,
+        }))
+        .filter((row) => row.player.length > 0)
+      return { balances }
+    }
+    if (!isMissingRpcError(rpcError, 'get_siphon_balances')) {
+      return { error: rpcError.message }
+    }
+
+    // 배포 순서 보호용 fallback. 운영 DB 에 RPC 마이그레이션이 아직 없으면 기존
+    // 페이지 조회 방식으로 정확도는 유지한다.
     const PAGE = 1000
     const accum = new Map<
       string,

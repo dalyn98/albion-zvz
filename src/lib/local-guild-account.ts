@@ -20,6 +20,8 @@ import { log } from '@/lib/log'
 const HASH_PREFIX = 'scrypt'
 const KEY_LENGTH = 64
 const MAX_PASSWORD_LENGTH = 72
+const MIN_INVITE_CODE_LENGTH = 6
+const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001f\u007f]/
 
 export const LOCAL_ACCOUNT_SUBJECT_PREFIX = 'local:'
 
@@ -51,7 +53,15 @@ export function normalizeLocalAccountName(raw: string): string {
 }
 
 export function isValidLocalAccountPassword(raw: string): boolean {
-  return raw.length >= 8 && raw.length <= MAX_PASSWORD_LENGTH && !/[\u0000-\u001f\u007f]/.test(raw)
+  return raw.length >= 8 && raw.length <= MAX_PASSWORD_LENGTH && !CONTROL_CHARACTER_PATTERN.test(raw)
+}
+
+export function isValidLocalGuildInviteCode(raw: string): boolean {
+  return (
+    raw.length >= MIN_INVITE_CODE_LENGTH &&
+    raw.length <= MAX_PASSWORD_LENGTH &&
+    !CONTROL_CHARACTER_PATTERN.test(raw)
+  )
 }
 
 export function hashSecret(secret: string): string {
@@ -193,10 +203,11 @@ export async function createLocalGuildAccount(input: {
   return { row: data as LocalGuildAccountRow }
 }
 
-export async function touchLocalGuildAccountLogin(id: string): Promise<void> {
+export async function touchLocalGuildAccountLogin(guildId: string, id: string): Promise<void> {
   await getAdminClient()
     .from('guild_local_accounts')
     .update({ last_login_at: new Date().toISOString() })
+    .eq('guild_id', guildId)
     .eq('id', id)
 }
 

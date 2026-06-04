@@ -22,6 +22,14 @@ export type SiphonPlayerResolution =
   | { status: 'ready'; player: string }
   | { status: 'unverified'; nickname: string | null }
 
+export function normalizeSiphonRecentLimit(
+  value: unknown,
+  options: { defaultLimit: number; maxLimit: number },
+): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return options.defaultLimit
+  return Math.min(Math.max(0, Math.trunc(value)), options.maxLimit)
+}
+
 export function resolveSiphonPlayer(
   gate: SiphonIdentityGate,
 ): SiphonPlayerResolution {

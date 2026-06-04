@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { Plus, Lock, Trash2 } from 'lucide-react'
 import {
   openRegearWindow,
@@ -13,13 +13,14 @@ import {
 } from '@/app/actions/regear-windows'
 import {
   parseGatherTime,
-  formatGatherTimeKo,
+  formatGatherTimeFor,
   type GatherTimeParts,
 } from '@/lib/gather-time'
 import FourPartTimeInput, { BLANK_GATHER_PARTS, isAllBlank } from './FourPartTimeInput'
 import { formatDateTime } from '@/lib/format-datetime'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { useToast } from '@/components/ToastProvider'
+import type { Locale } from '@/i18n/locales'
 
 interface RegearWindowsAdminProps {
   initialWindows: RegearWindow[]
@@ -27,6 +28,7 @@ interface RegearWindowsAdminProps {
 }
 
 export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: RegearWindowsAdminProps) {
+  const locale = useLocale() as Locale
   const t = useTranslations('adminRegearWindows')
   const router = useRouter()
   const [windows, setWindows] = useState<RegearWindow[]>(initialWindows)
@@ -38,7 +40,7 @@ export default function RegearWindowsAdmin({ initialWindows, tenantTimezone }: R
 
   const allBlank = isAllBlank(parts)
   const parsed = allBlank ? null : parseGatherTime(parts, { timezone: tenantTimezone })
-  const preview = parsed ? formatGatherTimeKo(parsed, tenantTimezone) : null
+  const preview = parsed ? formatGatherTimeFor(locale, parsed, tenantTimezone) : null
 
   const partLabels = {
     month: t('partMonth'),

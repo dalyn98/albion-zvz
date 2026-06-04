@@ -29,7 +29,6 @@ export function isIndexablePathname(pathname: string): boolean {
   if (normalized === '/') return true
   if (
     normalized === '/pricing' ||
-    normalized === '/features' ||
     normalized === '/faq' ||
     normalized === '/privacy' ||
     normalized === '/terms' ||
@@ -41,7 +40,6 @@ export function isIndexablePathname(pathname: string): boolean {
   // 캐노니컬 호스트에서 proxy rewrite가 안 걸린 직접 path도 동일하게 허용.
   if (
     normalized === '/public/landing' ||
-    normalized === '/public/features' ||
     normalized === '/public/pricing' ||
     normalized === '/public/faq' ||
     normalized === '/public/privacy' ||

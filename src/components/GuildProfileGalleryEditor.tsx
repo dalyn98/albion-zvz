@@ -10,7 +10,7 @@ import {
   moveGalleryItem,
   updateGalleryCaption,
 } from '@/app/actions/guild-profile-gallery'
-import { GALLERY_MAX_ITEMS, type GalleryItem } from '@/lib/guild-profile-gallery'
+import { GALLERY_MAX_ITEMS, type GalleryItem } from '@/lib/guild-profile-gallery-config'
 import ImageCropModal from '@/components/ImageCropModal'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { useReportDirty } from './UnsavedChangesProvider'

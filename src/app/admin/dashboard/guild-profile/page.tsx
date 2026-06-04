@@ -15,8 +15,8 @@ export const dynamic = 'force-dynamic'
 // 어드민이 공개 길드 프로필 (/g/<슬러그>) 의 색상 테마, 모집 상태, Discord
 // 초대 링크를 편집한다. 배너·갤러리·섹션 노출 토글은 인라인 편집으로 옮겨갔다
 // (어드민이 공개 페이지에서 직접 편집).
-// guild_profile_enabled 플래그가 false 면 "기능 미활성화" 라벨로 가린다 — 단계적
-// 롤아웃을 위한 길드 단위 게이트.
+// guild_profile_enabled 플래그가 false 면 공개 페이지를 숨기고 활성화 CTA 만
+// 노출한다. 공개 여부를 길드 단위로 제어하는 게이트.
 export default async function GuildProfileAdminPage() {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')

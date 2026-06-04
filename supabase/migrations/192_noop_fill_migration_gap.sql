@@ -1,0 +1,3 @@
+-- No-op migration to preserve contiguous migration numbering.
+-- 193_event_regear_participants.sql and 194_shop_manual_stock_adjustments.sql
+-- already exist; renaming applied migrations would be unsafe.

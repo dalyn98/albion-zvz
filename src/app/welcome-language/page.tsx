@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
+import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
 import { getMyPreferredLanguage } from '@/app/actions/language'
 import WelcomeLanguageForm from '@/components/WelcomeLanguageForm'
 
@@ -22,10 +23,7 @@ export default async function WelcomeLanguagePage({ searchParams }: Props) {
 
   const params = await searchParams
   const returnParam = params.return
-  const safeReturn =
-    typeof returnParam === 'string' && returnParam.startsWith('/') && !returnParam.startsWith('//')
-      ? returnParam
-      : '/'
+  const safeReturn = sanitizeInternalReturnTo(returnParam)
 
   const { locale } = await getMyPreferredLanguage()
   if (locale) {

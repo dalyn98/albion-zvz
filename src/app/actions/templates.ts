@@ -6,6 +6,7 @@ import { requireEventCreator, requireEventCreatorForEvent } from '@/lib/auth'
 import { sessionCanCreateEventCategory } from '@/lib/event-permissions'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { sanitizeTemplateData } from './template-slot-sanitizers'
 import {
   EVENT_CATEGORIES,
   type ConditionalSlotOptions,
@@ -83,14 +84,15 @@ async function insertTemplateParties(
   data: TemplateData,
   tErr: TemplateErrorTranslator,
 ): Promise<{ error?: string }> {
-  if (!data?.parties?.length) return { error: tErr('templateHasNoParties') }
+  const templateData = sanitizeTemplateData(data)
+  if (!templateData?.parties?.length) return { error: tErr('templateHasNoParties') }
 
   // Batch-insert all parties, then batch-insert all slots in one shot —
   // collapses O(N) roundtrips into 2 regardless of party count.
   const { data: insertedParties, error: partiesError } = await db
     .from('parties')
     .insert(
-      data.parties.map((p) => ({
+      templateData.parties.map((p) => ({
         guild_id: guildId,
         event_id: eventId,
         party_number: p.party_number,
@@ -103,7 +105,7 @@ async function insertTemplateParties(
     (insertedParties ?? []).map((p) => [p.party_number, p.id as string]),
   )
 
-  const slotRows = data.parties.flatMap((party) => {
+  const slotRows = templateData.parties.flatMap((party) => {
     const partyId = partyIdByNumber.get(party.party_number)
     if (!partyId) return []
     return party.slots.map((s) => ({
@@ -163,14 +165,14 @@ export async function saveEventAsTemplate(
       return { error: tErr('noPartiesToSave') }
     }
 
-    const data: TemplateData = {
+    const data: TemplateData = sanitizeTemplateData({
       parties: parties.map((p) => ({
         party_number: p.party_number,
         slots: ((p.slots ?? []) as TemplateSlot[])
           .slice()
           .sort((a, b) => a.slot_number - b.slot_number),
       })),
-    }
+    })
 
     if (options.overwriteId) {
       // 명시적 덮어쓰기 — 이름은 손대지 않고 data 만 갱신.
@@ -326,7 +328,7 @@ export async function createEventFromTemplate(
       .maybeSingle()
     if (templateError) return { error: templateError.message }
     if (!template) return { error: tErr('templateNotFound') }
-    const templateData = template.data as TemplateData
+    const templateData = sanitizeTemplateData(template.data as TemplateData)
     if (!templateData?.parties?.length) return { error: tErr('templateHasNoParties') }
 
     const { data: event, error: eventError } = await db
@@ -340,6 +342,9 @@ export async function createEventFromTemplate(
         special_notes: null,
         status: 'draft',
         category,
+        regear_policy: 'role',
+        regear_silver_cap: null,
+        regear_max_deaths_per_member: null,
         created_by: session.discordId,
       })
       .select('id')
@@ -398,7 +403,8 @@ export async function updateTemplate(
     const trimmed = name.trim()
     if (!trimmed) return { error: tErr('templateNameRequired') }
     if (trimmed.length > 80) return { error: tErr('templateNameTooLong', { max: 80 }) }
-    if (!data?.parties) return { error: tErr('invalidTemplateData') }
+    if (!Array.isArray(data?.parties)) return { error: tErr('invalidTemplateData') }
+    const sanitizedData = sanitizeTemplateData(data)
 
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
@@ -429,7 +435,7 @@ export async function updateTemplate(
 
     const { error } = await db
       .from('event_templates')
-      .update({ name: trimmed, data })
+      .update({ name: trimmed, data: sanitizedData })
       .eq('guild_id', guildId)
       .eq('id', id)
     if (error) return { error: error.message }
@@ -485,7 +491,11 @@ export async function duplicateTemplate(
 
     const { data: inserted, error: insertErr } = await db
       .from('event_templates')
-      .insert({ guild_id: guildId, name: candidate, data: source.data })
+      .insert({
+        guild_id: guildId,
+        name: candidate,
+        data: sanitizeTemplateData(source.data as TemplateData),
+      })
       .select('id')
       .single()
     if (insertErr) return { error: insertErr.message }
@@ -558,7 +568,13 @@ export async function applyTemplate(
       .single()
     if (templateError) return { error: templateError.message }
 
-    const inserted = await insertTemplateParties(db, guildId, eventId, template.data as TemplateData, tErr)
+    const inserted = await insertTemplateParties(
+      db,
+      guildId,
+      eventId,
+      sanitizeTemplateData(template.data as TemplateData),
+      tErr,
+    )
     if (inserted.error) return { error: inserted.error }
 
     revalidatePath(`/admin/dashboard/events/${eventId}`)

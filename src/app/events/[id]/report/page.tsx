@@ -336,10 +336,12 @@ export default async function EventReportPage({
           <ul className="flex flex-wrap gap-1.5">
             {report.participation.roleBreakdown.map((r) => (
               <li
-                key={r.role}
+                key={r.role ?? '__no_role__'}
                 className="flex items-center gap-1.5 bg-gray-950/60 border border-gray-800 rounded-full px-2.5 py-1 text-xs"
               >
-                <span className="text-gray-300 font-semibold">{translateSlotRole(r.role, tRole)}</span>
+                <span className="text-gray-300 font-semibold">
+                  {r.role ? translateSlotRole(r.role, tRole) : t('attendanceNoSlotRole')}
+                </span>
                 <span className="text-amber-300 font-mono font-bold">{r.count}</span>
               </li>
             ))}

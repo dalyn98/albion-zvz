@@ -4,6 +4,7 @@ export const DEMO_SITEMAP_ROUTES = [
   '/demo',
   '/demo/member-events',
   '/demo/battles',
+  '/demo/battles/dummy',
   '/demo/member-regear',
   '/demo/craft',
   '/demo/craft/queue',

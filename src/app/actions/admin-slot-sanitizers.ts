@@ -25,6 +25,7 @@ import {
   GEAR_TIER_MAX,
   GEAR_ENCHANT_MIN,
   GEAR_ENCHANT_MAX,
+  FREE_ITEM_NAME,
   isTierlessSlot,
   isSpecLessSlot,
 } from '@/types'
@@ -40,6 +41,13 @@ export const HARD_MAX_PARTIES = Math.max(
 )
 export const MAX_SLOTS_PER_PARTY = 20
 export const MAX_PARTY_NAME_LENGTH = 40
+
+const MAX_ITEM_ID_LENGTH = 80
+const MAX_ITEM_NAME_LENGTH = 120
+const MAX_SPELL_ID_LENGTH = 80
+const ITEM_ID_RE = /^[A-Z0-9_@]+$/i
+const SPELL_ID_RE = /^[A-Z0-9_]+$/i
+const CONTROL_CHAR_RE = /[\u0000-\u001f\u007f]/
 
 export interface SlotPayload {
   id?: string
@@ -64,6 +72,26 @@ export interface SlotPayload {
   // 기존 *_options 가 그대로 후보로 쓰인다.
   conditional_options?: ConditionalSlotOptions | null
 }
+
+type SlotGearRowFields =
+  & { [K in SlotKey as `${K}_options`]: GearOption[] | null }
+  & { [K in SlotKey as `${K}_name`]: string | null }
+  & { [K in SlotKey as `${K}_id`]: string | null }
+
+export type SlotRow = {
+  guild_id?: string
+  party_id: string
+  slot_number: number
+  is_hidden: boolean
+  role_name: string | null
+  notes: string | null
+  spells: SlotSpells | null
+  gear_specs: GearSpecs | null
+  auto_regear_excluded: boolean
+  manual_regear_excluded: boolean
+  is_solo_bomb: boolean
+  conditional_options: ConditionalSlotOptions | null
+} & SlotGearRowFields
 
 // Migration 041: party-level bomb-squad metadata. All fields optional on input
 // so older callers (templates, tests) can omit. sanitizePartyMeta enforces the
@@ -120,7 +148,7 @@ function sanitizeOptionSpells(raw: unknown): string[] | undefined {
   const out: string[] = []
   for (const v of raw) {
     if (typeof v !== 'string') continue
-    const trimmed = v.trim()
+    const trimmed = sanitizeSpellId(v)
     if (!trimmed || seen.has(trimmed)) continue
     seen.add(trimmed)
     out.push(trimmed)
@@ -128,15 +156,58 @@ function sanitizeOptionSpells(raw: unknown): string[] | undefined {
   return out.length > 0 ? out : undefined
 }
 
-function sanitizeGearOptions(opts: GearOption[]): GearOption[] | null {
+function sanitizeItemId(value: string): string | null {
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.length > MAX_ITEM_ID_LENGTH || !ITEM_ID_RE.test(trimmed)) {
+    return null
+  }
+  return trimmed
+}
+
+function sanitizeSpellId(value: string): string | null {
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.length > MAX_SPELL_ID_LENGTH || !SPELL_ID_RE.test(trimmed)) {
+    return null
+  }
+  return trimmed
+}
+
+function sanitizeDisplayName(value: string): string | null {
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.length > MAX_ITEM_NAME_LENGTH || CONTROL_CHAR_RE.test(trimmed)) {
+    return null
+  }
+  return trimmed
+}
+
+function sanitizeGearOption(option: GearOption): GearOption | null {
+  const id = sanitizeItemId(option.id)
+  const name = sanitizeDisplayName(option.name)
+  if (!id || !name) return null
+  const spells = sanitizeOptionSpells(option.spells)
+  return spells ? { name, id, spells } : { name, id }
+}
+
+export function sanitizeFixedGearItem(
+  item: { name?: unknown; id?: unknown } | null | undefined,
+): { name: string | null; id: string | null } {
+  const rawName = typeof item?.name === 'string' ? item.name : ''
+  const rawId = typeof item?.id === 'string' ? item.id : ''
+  if (rawName === FREE_ITEM_NAME && rawId.trim() === '') {
+    return { name: FREE_ITEM_NAME, id: null }
+  }
+  const id = sanitizeItemId(rawId)
+  const name = sanitizeDisplayName(rawName)
+  if (!id || !name) return { name: null, id: null }
+  return { name, id }
+}
+
+export function sanitizeGearOptions(opts: unknown): GearOption[] | null {
+  if (!Array.isArray(opts)) return null
   const clean = opts
-    .filter((o) => o && typeof o.id === 'string' && typeof o.name === 'string' && o.id && o.name)
-    .map((o) => {
-      const spells = sanitizeOptionSpells(o.spells)
-      // spells 가 비어있으면 필드 자체를 빼서 jsonb 용량을 아낀다. 누락은
-      // undefined/[] 동등 취급 (viewer 가 `opt.spells ?? []` 로 읽는다).
-      return spells ? { name: o.name, id: o.id, spells } : { name: o.name, id: o.id }
-    })
+    .filter((o) => o && typeof o.id === 'string' && typeof o.name === 'string')
+    .map((o) => sanitizeGearOption(o))
+    .filter((o): o is GearOption => o !== null)
   // Dedupe by id, preserving order.
   const seen = new Set<string>()
   const deduped = clean.filter((o) => (seen.has(o.id) ? false : (seen.add(o.id), true)))
@@ -146,7 +217,7 @@ function sanitizeGearOptions(opts: GearOption[]): GearOption[] | null {
 // Drops non-string entries, dedupes within each kind, and strips empty
 // buckets so the stored JSONB stays minimal. Returns null when no bucket
 // has any spells — NULL in the column conveys "not configured".
-function sanitizeSpells(spells: SlotSpells | null | undefined): SlotSpells | null {
+export function sanitizeSpells(spells: SlotSpells | null | undefined): SlotSpells | null {
   if (!spells || typeof spells !== 'object') return null
   const out: SlotSpells = {}
   for (const key of SLOT_KEYS) {
@@ -156,7 +227,7 @@ function sanitizeSpells(spells: SlotSpells | null | undefined): SlotSpells | nul
     const cleaned: string[] = []
     for (const v of raw) {
       if (typeof v !== 'string') continue
-      const trimmed = v.trim()
+      const trimmed = sanitizeSpellId(v)
       if (!trimmed || seen.has(trimmed)) continue
       seen.add(trimmed)
       cleaned.push(trimmed)
@@ -168,7 +239,7 @@ function sanitizeSpells(spells: SlotSpells | null | undefined): SlotSpells | nul
 
 // Drops undefined/out-of-range entries so the stored jsonb stays minimal and
 // well-formed. Returns null when no slot has any spec configured.
-function sanitizeGearSpecs(specs: Partial<Record<SlotKey, GearSpec>> | null | undefined): GearSpecs | null {
+export function sanitizeGearSpecs(specs: Partial<Record<SlotKey, GearSpec>> | null | undefined): GearSpecs | null {
   if (!specs || typeof specs !== 'object') return null
   const out: GearSpecs = {}
   for (const key of SLOT_KEYS) {
@@ -201,7 +272,7 @@ function sanitizeGearSpecs(specs: Partial<Record<SlotKey, GearSpec>> | null | un
 // drop, (2) 좁힌 후보 중 base 의 *_options 에 없는 항목 drop, (3) 빈 매핑/빈
 // 종류는 모두 제거. 베이스 옵션이 비어 있는 종류 (single/free 모드) 도 매핑
 // 의미가 없으니 drop. 결과가 완전히 비면 null 을 반환해 jsonb 컬럼을 비운다.
-function sanitizeConditionalOptions(
+export function sanitizeConditionalOptions(
   raw: ConditionalSlotOptions | null | undefined,
   baseOptions: Record<SlotKey, GearOption[] | null>,
 ): ConditionalSlotOptions | null {
@@ -225,10 +296,10 @@ function sanitizeConditionalOptions(
       const cleaned: GearOption[] = []
       for (const opt of narrowed) {
         if (!opt || typeof opt.id !== 'string' || typeof opt.name !== 'string') continue
-        if (!opt.id || !opt.name) continue
-        if (!baseIds.has(opt.id) || seen.has(opt.id)) continue
-        seen.add(opt.id)
-        cleaned.push({ name: opt.name, id: opt.id })
+        const clean = sanitizeGearOption(opt)
+        if (!clean || !baseIds.has(clean.id) || seen.has(clean.id)) continue
+        seen.add(clean.id)
+        cleaned.push(clean)
       }
       if (cleaned.length > 0) cleanPerWeapon[weaponId] = cleaned
     }
@@ -239,7 +310,7 @@ function sanitizeConditionalOptions(
   return Object.keys(out).length > 0 ? out : null
 }
 
-export function slotToRow(partyId: string, slot: SlotPayload, guildId?: string) {
+export function slotToRow(partyId: string, slot: SlotPayload, guildId?: string): SlotRow {
   const cleanedOptions = SLOT_KEYS.reduce(
     (acc, k) => ({ ...acc, [k]: sanitizeGearOptions(slot.options[k] ?? []) }),
     {} as Record<SlotKey, GearOption[] | null>,
@@ -251,6 +322,16 @@ export function slotToRow(partyId: string, slot: SlotPayload, guildId?: string) 
   // survive a mode switch.
   // guildId 는 INSERT 경로에서만 넘긴다. UPDATE 는 기존 행의 guild_id 를
   // 건드리지 않는다.
+  const gearColumns = SLOT_KEYS.reduce((acc, k) => {
+    const hasOptions = cleanedOptions[k] !== null
+    const fixedItem = sanitizeFixedGearItem(slot.items[k])
+    return {
+      ...acc,
+      [`${k}_options`]: cleanedOptions[k],
+      [`${k}_name`]: hasOptions ? null : fixedItem.name,
+      [`${k}_id`]: hasOptions ? null : fixedItem.id,
+    }
+  }, {} as SlotGearRowFields)
   return {
     ...(guildId !== undefined ? { guild_id: guildId } : {}),
     party_id: partyId,
@@ -264,14 +345,6 @@ export function slotToRow(partyId: string, slot: SlotPayload, guildId?: string) 
     manual_regear_excluded: slot.manual_regear_excluded === true,
     is_solo_bomb: slot.is_solo_bomb === true,
     conditional_options: cleanedConditional,
-    ...SLOT_KEYS.reduce((acc, k) => {
-      const hasOptions = cleanedOptions[k] !== null
-      return {
-        ...acc,
-        [`${k}_options`]: cleanedOptions[k],
-        [`${k}_name`]: hasOptions ? null : slot.items[k].name || null,
-        [`${k}_id`]: hasOptions ? null : slot.items[k].id || null,
-      }
-    }, {}),
+    ...gearColumns,
   }
 }

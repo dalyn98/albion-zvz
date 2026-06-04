@@ -13,6 +13,7 @@
 
 import type { getAdminClient } from '@/lib/supabase-admin'
 import { isHighEngagement } from '@/lib/low-engagement-cut'
+import { selectPagedRowsOrThrow, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 
 type Db = ReturnType<typeof getAdminClient>
 
@@ -43,6 +44,7 @@ export interface TrackedBattles {
 // battle_id 매칭이 안 되는 legacy 행에서만 의미가 있다. 새 데이터는 battle_id
 // 정확 매칭이라 padding 영향을 받지 않는다.
 const WINDOW_PADDING_MS = 15 * 60 * 1000
+const MEMBER_BATTLE_PARTICIPATIONS_PAGE_SIZE = 1000
 
 export interface FetchTrackedBattleWindowsOptions {
   // 'true' 면 같은 albion_battle_id 의 매치업 분리 row 들을 1개의 window 로 묶어
@@ -63,15 +65,6 @@ export async function fetchTrackedBattleWindows(
   // home_kills/deaths/team_size 는 low-engagement 컷 평가용. raw 적재는 그대로
   // 두고 windows 단계에서만 hide — 통계/업적/킬로그 모든 집계에서 자동 제외.
   // main_opponent_team_size 는 bundleSplits=true 일 때 canonical row 선정용.
-  let q = db
-    .from('tenant_battle_records')
-    .select(
-      'started_at, outcome, home_kills, home_deaths, home_team_size, main_opponent_team_size, battle_records!inner(ended_at, albion_battle_id)',
-    )
-    .eq('guild_id', guildId)
-  if (sinceIso) q = q.gte('started_at', sinceIso)
-
-  const { data } = await q
   type Row = {
     started_at: string
     outcome: string
@@ -84,7 +77,21 @@ export async function fetchTrackedBattleWindows(
       | { ended_at: string | null; albion_battle_id: number | string | null }[]
       | null
   }
-  const rows = (data ?? []) as Row[]
+  const rows = await selectPagedRowsOrThrow<Row>({
+    label: 'tracked battle windows',
+    buildQuery: () => {
+      let q = db
+        .from('tenant_battle_records')
+        .select(
+          'started_at, outcome, home_kills, home_deaths, home_team_size, main_opponent_team_size, battle_records!inner(ended_at, albion_battle_id)',
+        )
+        .eq('guild_id', guildId)
+      if (sinceIso) q = q.gte('started_at', sinceIso)
+      return q
+        .order('started_at', { ascending: true })
+        .order('battle_record_id', { ascending: true }) as unknown as SupabasePagedQuery<Row>
+    },
+  })
 
   if (options?.bundleSplits) {
     return buildBundledTrackedBattles(rows)
@@ -410,11 +417,32 @@ export async function fetchMemberBattleParticipations(
   guildId: string,
   sinceIso?: string | null,
 ): Promise<ParticipationsResult> {
-  const { data } = await db.rpc('member_battle_participations', { p_guild_id: guildId })
+  const rows: BattleParticipationRow[] = []
+  let from = 0
+
+  while (true) {
+    const { data, error } = await db
+      .rpc('member_battle_participations', { p_guild_id: guildId })
+      .order('raw_started_at', { ascending: true })
+      .order('albion_player_id', { ascending: true, nullsFirst: false })
+      .order('discord_id', { ascending: true, nullsFirst: false })
+      .range(from, from + MEMBER_BATTLE_PARTICIPATIONS_PAGE_SIZE - 1)
+
+    if (error) {
+      throw new Error(`Failed to load member battle participations: ${error.message}`)
+    }
+
+    const page = (data ?? []) as BattleParticipationRow[]
+    rows.push(...page)
+
+    if (page.length < MEMBER_BATTLE_PARTICIPATIONS_PAGE_SIZE) break
+    from += MEMBER_BATTLE_PARTICIPATIONS_PAGE_SIZE
+  }
+
   const byAlbionPlayerId = new Map<string, Map<string, string>>()
   const discordByAlbionPlayerId = new Map<string, string>()
   const sinceMs = sinceIso ? Date.parse(sinceIso) : null
-  for (const row of (data ?? []) as BattleParticipationRow[]) {
+  for (const row of rows) {
     if (!row.albion_player_id || !row.raw_started_at) continue
     if (sinceMs !== null) {
       const t = Date.parse(row.raw_started_at)

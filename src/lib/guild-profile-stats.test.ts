@@ -77,7 +77,8 @@ interface QueryChain {
   gte: () => QueryChain
   is: () => QueryChain
   not: () => QueryChain
-  order: () => Promise<QueryShape>
+  order: () => QueryChain
+  range: () => Promise<QueryShape>
   then: (onFulfilled: (v: QueryShape) => unknown) => Promise<unknown>
 }
 
@@ -91,7 +92,8 @@ function chain(resolver: () => QueryShape): QueryChain {
     gte: () => c,
     is: () => c,
     not: () => c,
-    order: () => Promise.resolve(resolver()),
+    order: () => c,
+    range: () => Promise.resolve(resolver()),
     then: (onFulfilled) => Promise.resolve(resolver()).then(onFulfilled),
   }
   return c
@@ -99,6 +101,10 @@ function chain(resolver: () => QueryShape): QueryChain {
 
 vi.mock('@/lib/supabase-admin', () => ({
   getAdminClient: () => ({
+    rpc: () => Promise.resolve({
+      data: null,
+      error: { code: 'PGRST202', message: 'rpc not deployed' },
+    }),
     from: (table: string) => {
       if (table === 'tenant_battle_records') {
         return chain(() => ({ data: battleRecords, error: null }))

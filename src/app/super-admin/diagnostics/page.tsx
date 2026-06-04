@@ -53,6 +53,15 @@ const ENDPOINTS: DiagnosticEndpoint[] = [
     note: '승패/킬 통계 0건 원인 추적용 read-only',
   },
   {
+    title: '전투 원장 Diff 리포트',
+    description: '기존 tenant 전투 기록과 새 shadow projection의 미해소 차이를 요약합니다.',
+    method: 'GET',
+    href: '/api/admin/battle-ledger-diff-report?since_hours=168&limit=50',
+    params: 'since_hours=1..2160, limit=1..200',
+    risk: 'read',
+    note: 'read path 전환 전 자동 비교 결과 확인용 read-only',
+  },
+  {
     title: '자동 리기어 백필',
     description: '처리 완료 표시를 해제하고 자동 리기어 프로세서를 즉시 재실행합니다.',
     method: 'POST',
@@ -162,6 +171,7 @@ function DiagnosticCard({ endpoint }: { endpoint: DiagnosticEndpoint }) {
           <Link
             href={endpoint.href}
             target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center gap-1 rounded-md border border-gray-600 px-3 py-2 text-xs font-semibold text-gray-200 hover:border-amber-400 hover:text-amber-200"
           >
             <Activity size={13} />

@@ -22,6 +22,9 @@ import { listGuildPointDeltas } from './point-ledger'
 export const BACKUP_VERSION = 1
 const POINT_MEMO_PREFIX = 'backup_restore'
 const NAME_MAX_LENGTH = 80
+const ITEM_UNIQUE_NAME_MAX_LENGTH = 80
+const ITEM_UNIQUE_NAME_RE = /^[A-Z0-9_@]+$/i
+const POSTGRES_INT_MAX = 2147483647
 
 export interface PointBackupEntry {
   discordId: string
@@ -200,19 +203,31 @@ export function parseGuildBackup(input: unknown): { backup?: GuildBackup; error?
   if (version !== BACKUP_VERSION) return { error: 'unsupportedVersion' }
 
   const points = isPlainObject(input.points) && Array.isArray(input.points.balances)
-    ? input.points.balances.flatMap(normalizePointEntry)
+    ? dedupeByLast(
+        input.points.balances.flatMap(normalizePointEntry),
+        (entry) => entry.discordId,
+      )
     : []
   const events =
     isPlainObject(input.templates) && Array.isArray(input.templates.events)
-      ? input.templates.events.flatMap(normalizeEventTemplate)
+      ? dedupeByLast(
+          input.templates.events.flatMap(normalizeEventTemplate),
+          (entry) => entry.name,
+        )
       : []
   const slots =
     isPlainObject(input.templates) && Array.isArray(input.templates.slots)
-      ? input.templates.slots.flatMap(normalizeSlotTemplate)
+      ? dedupeByLast(
+          input.templates.slots.flatMap(normalizeSlotTemplate),
+          (entry) => entry.name,
+        )
       : []
   const inventory =
     isPlainObject(input.inventory) && Array.isArray(input.inventory.items)
-      ? input.inventory.items.flatMap(normalizeInventoryEntry)
+      ? dedupeByLast(
+          input.inventory.items.flatMap(normalizeInventoryEntry),
+          (entry) => inventoryKey(entry.uniqueName, entry.enchant, entry.quality),
+        )
       : []
 
   return {
@@ -226,6 +241,14 @@ export function parseGuildBackup(input: unknown): { backup?: GuildBackup; error?
       inventory: { items: inventory },
     },
   }
+}
+
+function dedupeByLast<T>(entries: T[], keyOf: (entry: T) => string): T[] {
+  const byKey = new Map<string, T>()
+  for (const entry of entries) {
+    byKey.set(keyOf(entry), entry)
+  }
+  return Array.from(byKey.values())
 }
 
 function normalizePointEntry(raw: unknown): PointBackupEntry[] {
@@ -267,8 +290,15 @@ function normalizeInventoryEntry(raw: unknown): InventoryBackupEntry[] {
   const uniqueName = typeof raw.uniqueName === 'string' ? raw.uniqueName.trim() : ''
   const enchant = toIntInRange(raw.enchant, 0, 4)
   const quality = toIntInRange(raw.quality, 1, 5)
-  const stock = toNonNegativeInt(raw.stock)
-  if (!uniqueName || enchant === null || quality === null || stock === null) return []
+  const stock = toIntInRange(raw.stock, 0, POSTGRES_INT_MAX)
+  if (
+    !uniqueName ||
+    uniqueName.length > ITEM_UNIQUE_NAME_MAX_LENGTH ||
+    !ITEM_UNIQUE_NAME_RE.test(uniqueName) ||
+    enchant === null ||
+    quality === null ||
+    stock === null
+  ) return []
   return [{
     uniqueName,
     enchant,
@@ -278,9 +308,8 @@ function normalizeInventoryEntry(raw: unknown): InventoryBackupEntry[] {
     tier: typeof raw.tier === 'number' && Number.isFinite(raw.tier) ? Math.trunc(raw.tier) : null,
     stock,
     manualPrice:
-      typeof raw.manualPrice === 'number' && Number.isFinite(raw.manualPrice) && raw.manualPrice >= 0
-        ? Math.trunc(raw.manualPrice)
-        : null,
+      toIntInRange(raw.manualPrice, 0, POSTGRES_INT_MAX) ??
+      null,
   }]
 }
 
@@ -292,12 +321,6 @@ function toIntInRange(v: unknown, min: number, max: number): number | null {
   if (typeof v !== 'number' || !Number.isFinite(v)) return null
   const n = Math.trunc(v)
   return n >= min && n <= max ? n : null
-}
-
-function toNonNegativeInt(v: unknown): number | null {
-  if (typeof v !== 'number' || !Number.isFinite(v)) return null
-  const n = Math.trunc(v)
-  return n >= 0 ? n : null
 }
 
 interface ImportContext {

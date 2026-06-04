@@ -11,12 +11,13 @@
 
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
-import { isHighEngagement } from '@/lib/low-engagement-cut'
-import { bundleSplitBattles, type BundleableRow } from '@/lib/battle-bundling'
 import { discordAvatarUrl } from '@/lib/discord-avatar'
 import { extractWeaponCategory } from '@/lib/weapon-category'
+import { loadGuildBattleRollup } from '@/lib/guild-battle-rollup'
 import { fetchTrackedBattleWindows, findTrackedBattleKey } from '@/lib/tracked-kills'
 import { getGuild, isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
+import { isMissingRpcError } from '@/lib/supabase-rpc-errors'
+import { selectPagedRowsOrThrow, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const ROLLING_WINDOW_DAYS = 30
@@ -42,47 +43,12 @@ export interface LifetimeBattleStats {
 export async function loadLifetimeBattleStats(
   guildId: string,
 ): Promise<LifetimeBattleStats> {
-  const db = getAdminClient()
-  const bundleEnabled =
-    (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
-
-  const { data } = await db
-    .from('tenant_battle_records')
-    .select(
-      'battle_record_id, outcome, home_kills, home_deaths, home_team_size, main_opponent_team_size',
-    )
-    .eq('guild_id', guildId)
-
-  const rows = (data ?? []) as BundleableRow[]
-  const evaluated = bundleEnabled
-    ? bundleSplitBattles(rows).map((b) => ({
-        outcome: b.outcome,
-        homeKills: b.homeKills,
-        homeDeaths: b.homeDeaths,
-        homeTeamSize: b.homeTeamSize,
-      }))
-    : rows.map((r) => ({
-        outcome: r.outcome,
-        homeKills: r.home_kills,
-        homeDeaths: r.home_deaths,
-        homeTeamSize: r.home_team_size,
-      }))
-
-  let kills = 0
-  let deaths = 0
-  let wins = 0
-  let losses = 0
-  let ties = 0
-  let count = 0
-  for (const b of evaluated) {
-    if (!isHighEngagement(b)) continue
-    count += 1
-    kills += b.homeKills
-    deaths += b.homeDeaths
-    if (b.outcome === 'win') wins += 1
-    else if (b.outcome === 'loss') losses += 1
-    else if (b.outcome === 'tie') ties += 1
-  }
+  const rollup = await loadGuildBattleRollup(guildId)
+  const kills = rollup.totalKills
+  const deaths = rollup.totalDeaths
+  const wins = rollup.winCount
+  const losses = rollup.lossCount
+  const ties = rollup.tieCount
 
   const decided = wins + losses
   return {
@@ -94,7 +60,7 @@ export async function loadLifetimeBattleStats(
     losses,
     ties,
     winRate: decided === 0 ? null : wins / decided,
-    evaluatedBattles: count,
+    evaluatedBattles: rollup.battleCount,
   }
 }
 
@@ -127,21 +93,26 @@ export async function loadTopWeaponCategoriesLast30d(
   // killboard_events 는 mig 091 부터 미연동 Albion 멤버 행도 담을 수 있어
   // 필터 없으면 사이트에 한 번도 들른 적 없는 길드원의 무기까지 섞인다.
   // 정책은 리더보드/탑킬러 (6d38235) 와 동일 — "앱 내 가입한 길드원 표시".
-  const { data } = await db
-    .from('killboard_events')
-    .select('equipment, occurred_at, battle_id')
-    .eq('guild_id', guildId)
-    .eq('role', 'killer')
-    .gte('occurred_at', cutoffIso)
-    .not('discord_id', 'is', null)
-
   type Row = {
     equipment: { MainHand?: { Type?: string } | null } | null
     occurred_at: string | null
     battle_id: number | string | null
   }
+  const rows = await selectPagedRowsOrThrow<Row>({
+    label: 'guild top weapon killboard events',
+    buildQuery: () =>
+      db
+        .from('killboard_events')
+        .select('equipment, occurred_at, battle_id')
+        .eq('guild_id', guildId)
+        .eq('role', 'killer')
+        .gte('occurred_at', cutoffIso)
+        .not('discord_id', 'is', null)
+        .order('occurred_at', { ascending: true })
+        .order('event_id', { ascending: true }) as unknown as SupabasePagedQuery<Row>,
+  })
   const agg = new Map<string, { sampleId: string; battleKeys: Set<string> }>()
-  for (const row of (data ?? []) as Row[]) {
+  for (const row of rows) {
     const mainHandType = row.equipment?.MainHand?.Type
     if (!mainHandType) continue
     const battleId =
@@ -185,16 +156,45 @@ export async function loadTopRivalsLast30d(
 ): Promise<RivalGuild[]> {
   const db = getAdminClient()
   const cutoff = new Date(Date.now() - ROLLING_WINDOW_DAYS * DAY_MS).toISOString()
-  const { data } = await db
-    .from('tenant_battle_records')
-    .select('primary_opponent_name, outcome')
-    .eq('guild_id', guildId)
-    .eq('is_high_engagement', true)
-    .gte('started_at', cutoff)
+  const { data, error } = await db.rpc('guild_top_rivals', {
+    p_guild_id: guildId,
+    p_cutoff: cutoff,
+    p_limit: TOP_RIVALS,
+  })
+  if (!error) {
+    return ((data ?? []) as Array<{
+      guild_name: string | null
+      battle_count: number | string | null
+      wins: number | string | null
+      losses: number | string | null
+      ties: number | string | null
+    }>).map((row) => ({
+      guildName: row.guild_name ?? '',
+      battleCount: Number(row.battle_count ?? 0),
+      wins: Number(row.wins ?? 0),
+      losses: Number(row.losses ?? 0),
+      ties: Number(row.ties ?? 0),
+    })).filter((row) => row.guildName.length > 0)
+  }
+  if (!isMissingRpcError(error, 'guild_top_rivals')) {
+    throw new Error(error.message)
+  }
 
   type Row = { primary_opponent_name: string | null; outcome: string | null }
+  const rows = await selectPagedRowsOrThrow<Row>({
+    label: 'guild top rivals',
+    buildQuery: () =>
+      db
+        .from('tenant_battle_records')
+        .select('primary_opponent_name, outcome')
+        .eq('guild_id', guildId)
+        .eq('is_high_engagement', true)
+        .gte('started_at', cutoff)
+        .order('started_at', { ascending: true })
+        .order('battle_record_id', { ascending: true }) as unknown as SupabasePagedQuery<Row>,
+  })
   const agg = new Map<string, { count: number; wins: number; losses: number; ties: number }>()
-  for (const row of (data ?? []) as Row[]) {
+  for (const row of rows) {
     const name = row.primary_opponent_name?.trim()
     if (!name) continue
     let entry = agg.get(name)

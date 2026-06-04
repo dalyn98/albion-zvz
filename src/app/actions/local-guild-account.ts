@@ -13,6 +13,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { LOCALE_COOKIE, isLocale, type Locale } from '@/i18n/locales'
 import { localeCookieOptions } from '@/lib/locale-cookie'
 import { logAdminAction } from '@/lib/admin-audit'
+import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
 import {
   createLocalGuildAccount,
   findExactAlbionPlayer,
@@ -20,6 +21,7 @@ import {
   isLocalAccountSubject,
   isAlbionServerOrNull,
   isValidLocalAccountPassword,
+  isValidLocalGuildInviteCode,
   localGuildAccountsEnabled,
   normalizeLocalAccountName,
   resolvePlayerRelation,
@@ -42,7 +44,7 @@ export interface LocalGuildAccountSummary {
 }
 
 function sanitizeReturnTo(raw: string): string {
-  return raw.startsWith('/') && !raw.startsWith('//') ? raw : '/'
+  return sanitizeInternalReturnTo(raw)
 }
 
 async function resolveTenantFromRequest(): Promise<{ guildId: string; slug: string } | null> {
@@ -101,7 +103,9 @@ export async function registerLocalGuildAccount(input: {
   const nickname = normalizeLocalAccountName(input.nickname)
   if (nickname.length < 2 || nickname.length > 32) return { error: t('invalidNickname') }
   if (!isValidLocalAccountPassword(input.password)) return { error: t('invalidPassword') }
-  if (!(await verifyGuildInviteCode(tenant.guildId, input.guildCode))) {
+  const guildCode = input.guildCode.trim()
+  if (!isValidLocalGuildInviteCode(guildCode)) return { error: t('invalidGuildCode') }
+  if (!(await verifyGuildInviteCode(tenant.guildId, guildCode))) {
     return { error: t('invalidGuildCode') }
   }
 
@@ -126,7 +130,7 @@ export async function registerLocalGuildAccount(input: {
     username: created.row.albion_player_name,
     locale,
   })
-  await touchLocalGuildAccountLogin(created.row.id)
+  await touchLocalGuildAccountLogin(tenant.guildId, created.row.id)
   revalidatePath('/')
   return { ok: true, redirectTo: sanitizeReturnTo(input.returnTo) }
 }
@@ -145,7 +149,9 @@ export async function loginLocalGuildAccount(input: {
   const server = isAlbionServerOrNull(input.server)
   if (!server) return { error: t('invalidServer') }
   const nickname = normalizeLocalAccountName(input.nickname)
-  if (!nickname || !input.password) return { error: t('invalidLogin') }
+  if (!nickname || !isValidLocalAccountPassword(input.password)) {
+    return { error: t('invalidLogin') }
+  }
 
   const { data, error } = await getAdminClient()
     .from('guild_local_accounts')
@@ -168,7 +174,7 @@ export async function loginLocalGuildAccount(input: {
     username: row.albion_player_name,
     locale,
   })
-  await touchLocalGuildAccountLogin(row.id)
+  await touchLocalGuildAccountLogin(tenant.guildId, row.id)
   return { ok: true, redirectTo: sanitizeReturnTo(input.returnTo) }
 }
 
@@ -186,7 +192,7 @@ export async function updateLocalGuildAccountSettings(input: {
   if (input.enabled && !existingHash && trimmedCode.length < 6) {
     return { error: tErr('emptyValue') }
   }
-  if (trimmedCode && (trimmedCode.length < 6 || trimmedCode.length > 72)) {
+  if (trimmedCode && !isValidLocalGuildInviteCode(trimmedCode)) {
     return { error: tErr('invalidInput') }
   }
   const nowIso = new Date().toISOString()

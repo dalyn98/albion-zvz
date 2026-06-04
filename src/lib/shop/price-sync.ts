@@ -12,8 +12,9 @@
 // 와 명시적 guildId 를 넘긴다 (cron 은 listActiveTenants 루프, action 은
 // getSessionGuildId).
 //
-// AODP 호출 비용: tenant 당 키 ≤ MAX_SYNC_ROWS 개. fetchAodpPrices 가 100 개
-// chunk 로 나눠 요청하므로 무거운 tenant 도 5 회 이내 HTTP 호출.
+// AODP 호출 비용: fetchAodpPrices 가 100 개 chunk 로 나눠 요청한다.
+// shop_inventory 는 1000 행 단위로 전부 페이지 조회하고, DB 갱신은 batch RPC 로
+// 묶어 per-row round trip 을 피한다.
 
 import {
   fetchAodpPrices,
@@ -21,6 +22,8 @@ import {
   loadAodpOptions,
   type AodpPriceKey,
 } from '@/lib/shop/aodp'
+import { loadShopInventoryPriceKeyRows } from '@/lib/shop/inventory-queries'
+import { isMissingRpcError } from '@/lib/supabase-rpc-errors'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export interface PriceSyncTenantResult {
@@ -30,25 +33,66 @@ export interface PriceSyncTenantResult {
   error?: string
 }
 
-const MAX_SYNC_ROWS = 500
+const PRICE_UPDATE_BATCH_SIZE = 500
+
+interface PriceUpdatePayload {
+  unique_name: string
+  enchant: number
+  quality: number
+  auto_price_silver: number
+  price_source: string
+  price_warning_level: string | null
+  price_updated_at: string
+  updated_at: string
+}
+
+function chunk<T>(items: readonly T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size))
+  }
+  return chunks
+}
+
+async function applyPriceUpdatesIndividually(
+  db: SupabaseClient,
+  guildId: string,
+  updates: readonly PriceUpdatePayload[],
+): Promise<{ updated: number; error?: string }> {
+  let updated = 0
+  for (const update of updates) {
+    const { error } = await db
+      .from('shop_inventory')
+      .update({
+        auto_price_silver: update.auto_price_silver,
+        price_source: update.price_source,
+        price_warning_level: update.price_warning_level,
+        price_updated_at: update.price_updated_at,
+        updated_at: update.updated_at,
+      })
+      .eq('guild_id', guildId)
+      .eq('unique_name', update.unique_name)
+      .eq('enchant', update.enchant)
+      .eq('quality', update.quality)
+    if (error) return { updated, error: error.message }
+    updated += 1
+  }
+  return { updated }
+}
 
 export async function syncTenantShopPrices(
   db: SupabaseClient,
   guildId: string,
 ): Promise<PriceSyncTenantResult> {
-  const { data: rows, error: rowErr } = await db
-    .from('shop_inventory')
-    .select('unique_name, enchant, quality')
-    .eq('guild_id', guildId)
-    .limit(MAX_SYNC_ROWS)
-  if (rowErr) {
-    return { requested: 0, updated: 0, missing: 0, error: rowErr.message }
+  const inventory = await loadShopInventoryPriceKeyRows(db, guildId)
+  if (inventory.error) {
+    return { requested: 0, updated: 0, missing: 0, error: inventory.error }
   }
 
-  const keys: AodpPriceKey[] = (rows ?? []).map((r) => ({
-    uniqueName: r.unique_name as string,
-    enchant: r.enchant as number,
-    quality: r.quality as number,
+  const keys: AodpPriceKey[] = inventory.rows.map((r) => ({
+    uniqueName: r.unique_name,
+    enchant: r.enchant,
+    quality: r.quality,
   }))
   if (keys.length === 0) return { requested: 0, updated: 0, missing: 0 }
 
@@ -58,6 +102,7 @@ export async function syncTenantShopPrices(
   let updated = 0
   let missing = 0
   const now = new Date().toISOString()
+  const updates: PriceUpdatePayload[] = []
 
   for (const k of keys) {
     const mk = inventoryKey(k.uniqueName, k.enchant, k.quality)
@@ -77,20 +122,34 @@ export async function syncTenantShopPrices(
     }
     const sourceTag = parts.join(':')
     const warningLevel = hit.fallbackTier === 'exact' ? null : hit.fallbackTier
-    const { error } = await db
-      .from('shop_inventory')
-      .update({
-        auto_price_silver: hit.price,
-        price_source: sourceTag,
-        price_warning_level: warningLevel,
-        price_updated_at: now,
-        updated_at: now,
-      })
-      .eq('guild_id', guildId)
-      .eq('unique_name', k.uniqueName)
-      .eq('enchant', k.enchant)
-      .eq('quality', k.quality)
+    updates.push({
+      unique_name: k.uniqueName,
+      enchant: k.enchant,
+      quality: k.quality,
+      auto_price_silver: hit.price,
+      price_source: sourceTag,
+      price_warning_level: warningLevel,
+      price_updated_at: now,
+      updated_at: now,
+    })
+  }
+
+  for (const batch of chunk(updates, PRICE_UPDATE_BATCH_SIZE)) {
+    const { data, error } = await db.rpc('apply_shop_inventory_price_updates', {
+      p_guild_id: guildId,
+      p_updates: batch,
+    })
     if (error) {
+      if (isMissingRpcError(error, 'apply_shop_inventory_price_updates')) {
+        const fallback = await applyPriceUpdatesIndividually(db, guildId, updates)
+        const result: PriceSyncTenantResult = {
+          requested: keys.length,
+          updated: fallback.updated,
+          missing,
+        }
+        if (fallback.error) result.error = fallback.error
+        return result
+      }
       return {
         requested: keys.length,
         updated,
@@ -98,7 +157,8 @@ export async function syncTenantShopPrices(
         error: error.message,
       }
     }
-    updated += 1
+    const applied = Number(data ?? batch.length)
+    updated += Number.isFinite(applied) ? applied : batch.length
   }
 
   return { requested: keys.length, updated, missing }

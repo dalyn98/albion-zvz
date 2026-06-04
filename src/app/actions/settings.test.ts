@@ -40,7 +40,10 @@ vi.mock('next-intl/server', () => ({
   ),
 }))
 
-import { updateAppSetting } from './settings'
+import {
+  updateAppSetting,
+  updateTenantAdminRoles,
+} from './settings'
 
 interface UpsertCall {
   row: unknown
@@ -61,6 +64,19 @@ function createDb() {
     }),
   }
   return { db, calls }
+}
+
+function createTenantUpdateDb() {
+  const update = vi.fn(() => query)
+  const eq = vi.fn(async () => ({ error: null }))
+  const query = { update, eq }
+  const db = {
+    from: vi.fn((table: string) => {
+      expect(table).toBe('tenants')
+      return query
+    }),
+  }
+  return { db, update, eq }
 }
 
 describe('updateAppSetting', () => {
@@ -111,6 +127,35 @@ describe('updateAppSetting', () => {
     expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
   })
 
+  it('rejects non-Discord invite URLs before saving public profile settings', async () => {
+    await expect(
+      updateAppSetting('guild_profile_discord_invite_url', 'https://discord.gg.evil.test/demo'),
+    ).resolves.toEqual({
+      error: 'invalidDiscordInviteUrl',
+    })
+
+    expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
+  })
+
+  it('normalizes Discord invite URLs before storing them on the public profile', async () => {
+    const { db, calls } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(
+      updateAppSetting(
+        'guild_profile_discord_invite_url',
+        'https://discord.com/invite/demo-guild?utm=copy',
+      ),
+    ).resolves.toEqual({})
+
+    expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SETTINGS_GUILD_PROFILE])
+    expect(calls[0].row).toMatchObject({
+      guild_id: 'guild-1',
+      key: 'guild_profile_discord_invite_url',
+      value: 'https://discord.gg/demo-guild',
+    })
+  })
+
   it('saves the craft regear toggle with settings toggle permission and refreshes craft surfaces', async () => {
     const { db, calls } = createDb()
     mocks.requireAnyCapability.mockResolvedValue(db)
@@ -155,5 +200,44 @@ describe('updateAppSetting', () => {
         }),
       }),
     )
+  })
+})
+
+describe('updateTenantAdminRoles', () => {
+  beforeEach(() => {
+    mocks.requireAnyCapability.mockReset()
+    mocks.getSession.mockReset()
+    mocks.getSessionGuildId.mockReset()
+    mocks.logAdminAction.mockReset()
+    mocks.revalidatePath.mockReset()
+    mocks.getSession.mockResolvedValue({ discordId: 'admin-1' })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+  })
+
+  it('rejects malformed role IDs before updating tenant admin roles', async () => {
+    await expect(
+      updateTenantAdminRoles(['123456789012345678', 'not-a-role-id']),
+    ).resolves.toEqual({ error: 'invalidInput' })
+
+    expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
+  })
+
+  it('deduplicates role IDs and scopes tenant admin role updates to the current guild', async () => {
+    const { db, update, eq } = createTenantUpdateDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(
+      updateTenantAdminRoles([
+        '123456789012345678',
+        '123456789012345678',
+        '987654321098765432',
+      ]),
+    ).resolves.toEqual({})
+
+    expect(mocks.requireAnyCapability).toHaveBeenCalledWith([CAP.SETTINGS_PERMISSIONS])
+    expect(update).toHaveBeenCalledWith({
+      admin_role_ids: ['123456789012345678', '987654321098765432'],
+    })
+    expect(eq).toHaveBeenCalledWith('id', 'guild-1')
   })
 })

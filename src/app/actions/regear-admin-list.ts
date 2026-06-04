@@ -25,8 +25,41 @@ import {
   type RegearOriginCounts,
 } from './regear-admin-types'
 import { isAlbionIdentityRelation } from '@/lib/account-albion-identity'
+import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 
 const REGEAR_REVIEW_CAPS = [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION] as const
+
+interface RegearRequestListRow {
+  id: string
+  event_id: string | null
+  regear_window_id: string | null
+  event_title_snapshot: string | null
+  discord_id: string
+  username: string
+  requester_relation: string | null
+  role_name: string
+  silver: number
+  request_type: string | null
+  claimed_silver: number
+  payout_silver: number | null
+  screenshot_path: string | null
+  screenshot_path_2: string | null
+  killboard_verified: boolean
+  killboard_event_id: number | null
+  status: string
+  admin_notes: string | null
+  reject_reason_code: string | null
+  created_at: string
+  resolved_at: string | null
+  handled_by: string | null
+  handled_by_username: string | null
+  build_snapshot: unknown
+  gear_breakdown: unknown
+  auto_generated: boolean | null
+  price_warning_level: string | null
+  fulfillment_mode: string | null
+  events: { title?: string } | { title?: string }[] | null
+}
 
 export async function listRegearRequests(
   scope: 'pending' | 'all' = 'pending',
@@ -39,21 +72,26 @@ export async function listRegearRequests(
     if (!session) return { requests: [], error: tErr('unauthorized') }
     const db = await requireAnyCapability(REGEAR_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
-    let query = db
-      .from('regear_requests')
-      .select(
-        'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, requester_relation, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
-      )
-      .eq('guild_id', guildId)
-      .order('created_at', { ascending: false })
-      .limit(500)
-    if (scope === 'pending') query = query.eq('status', 'pending')
-    if (origin === 'auto') query = query.eq('auto_generated', true)
-    if (origin === 'manual') query = query.eq('auto_generated', false)
-    if (relation !== 'all') query = query.eq('requester_relation', relation)
-
-    const { data, error } = await query
-    if (error) return { requests: [], error: error.message }
+    const page = await selectPagedRows<RegearRequestListRow>({
+      label: 'regear requests',
+      buildQuery: () => {
+        let query = db
+          .from('regear_requests')
+          .select(
+            'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, requester_relation, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
+          )
+          .eq('guild_id', guildId)
+        if (scope === 'pending') query = query.eq('status', 'pending')
+        if (origin === 'auto') query = query.eq('auto_generated', true)
+        if (origin === 'manual') query = query.eq('auto_generated', false)
+        if (relation !== 'all') query = query.eq('requester_relation', relation)
+        return query
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false }) as unknown as SupabasePagedQuery<RegearRequestListRow>
+      },
+    })
+    if (page.error) return { requests: [], error: page.error }
+    const data = page.rows
 
     // killboard_event_id → victim row 의 핵심 컬럼만 보조 fetch. 자동·추적사망
     // 건은 screenshot 이 없어 카드에 "어떤 사망인지" 단서가 부족했다.

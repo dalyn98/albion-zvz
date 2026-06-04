@@ -1,9 +1,19 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   isIndexablePathname,
   isPublicEventDetailPathname,
   isPublicPathname,
 } from './app-route-classification'
+
+function appSourceFiles(dir = join(process.cwd(), 'src', 'app')): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = join(dir, entry.name)
+    if (entry.isDirectory()) return appSourceFiles(fullPath)
+    return /\.(ts|tsx)$/.test(entry.name) ? [fullPath] : []
+  })
+}
 
 describe('app route classification', () => {
   it('treats shareable event detail links as public', () => {
@@ -32,10 +42,27 @@ describe('app route classification', () => {
     expect(isIndexablePathname('/demo/me/siphon?tab=ledger')).toBe(true)
   })
 
+  it('does not index redirect-only marketing helper routes', () => {
+    expect(isIndexablePathname('/features')).toBe(false)
+    expect(isIndexablePathname('/public/features')).toBe(false)
+  })
+
   it('keeps operational app routes out of search indexing', () => {
     expect(isIndexablePathname('/admin/dashboard')).toBe(false)
     expect(isIndexablePathname('/events/event-1')).toBe(false)
     expect(isIndexablePathname('/me')).toBe(false)
     expect(isIndexablePathname('/api/health')).toBe(false)
+  })
+
+  it('does not opt app routes into force-static rendering', () => {
+    const offenders = appSourceFiles()
+      .filter((filePath) =>
+        /^\s*export\s+const\s+dynamic\s*=\s*['"]force-static['"]/m.test(
+          readFileSync(filePath, 'utf8'),
+        ),
+      )
+      .map((filePath) => filePath.replace(`${process.cwd()}/`, ''))
+
+    expect(offenders).toEqual([])
   })
 })

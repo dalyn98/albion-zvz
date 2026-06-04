@@ -8,6 +8,7 @@ import {
   getCapabilityPresetBits,
   serializeCapabilities,
 } from '@/lib/permissions'
+import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
 import type { SessionPayload } from '@/lib/session'
 
 export const TEST_AUTH_SECRET_HEADER = 'x-test-auth-secret'
@@ -39,6 +40,7 @@ export type TestAuthRole = (typeof TEST_AUTH_ROLES)[number]
 
 interface TestAuthEnv extends Record<string, string | undefined> {
   ENABLE_TEST_AUTH?: string
+  NODE_ENV?: string
   TEST_AUTH_SECRET?: string
   VERCEL_ENV?: string
 }
@@ -53,8 +55,16 @@ export interface BuildTestSessionInput {
 }
 
 export function isTestAuthRouteEnabled(env: TestAuthEnv = process.env): boolean {
-  if (env.VERCEL_ENV === 'production') return false
-  return env.ENABLE_TEST_AUTH === 'true' && typeof env.TEST_AUTH_SECRET === 'string' && env.TEST_AUTH_SECRET.length >= 16
+  if (env.VERCEL_ENV) {
+    if (env.VERCEL_ENV === 'production') return false
+  } else if (env.NODE_ENV === 'production') {
+    return false
+  }
+  return (
+    env.ENABLE_TEST_AUTH === 'true' &&
+    typeof env.TEST_AUTH_SECRET === 'string' &&
+    env.TEST_AUTH_SECRET.length >= 16
+  )
 }
 
 export function isValidTestAuthSecret(candidate: string | null, env: TestAuthEnv = process.env): boolean {
@@ -73,8 +83,7 @@ export function parseTestAuthRole(value: unknown): TestAuthRole | null {
 }
 
 export function sanitizeTestAuthReturnTo(value: unknown): string {
-  if (typeof value !== 'string') return '/'
-  return value.startsWith('/') && !value.startsWith('//') ? value : '/'
+  return sanitizeInternalReturnTo(value)
 }
 
 function roleCapabilities(role: TestAuthRole): string {

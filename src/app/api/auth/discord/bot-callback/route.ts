@@ -9,6 +9,8 @@ import { recordAdminLogin } from '@/lib/tenant-activity'
 import { LAST_GUILD_COOKIE, lastGuildCookieOptions } from '@/lib/last-guild-cookie'
 import { log } from '@/lib/log'
 import { recordAuthSuccess } from '@/lib/auth-telemetry'
+import { withNoStore } from '@/lib/no-store-response'
+import { redactSearchParams } from '@/lib/redact-search-params'
 import { SLOT_ROLES, EVENT_CATEGORIES } from '@/types'
 
 const ONBOARD_GUILDS_COOKIE = 'discord_onboard_guilds'
@@ -33,7 +35,7 @@ const ONBOARD_GUILDS_COOKIE = 'discord_onboard_guilds'
 function errorRedirect(origin: string, reason: string): NextResponse {
   const url = new URL('/onboard', origin)
   url.searchParams.set('install_error', reason)
-  return NextResponse.redirect(url)
+  return withNoStore(NextResponse.redirect(url))
 }
 
 // guild.name 에서 slug 초안을 뽑는다. 반드시 isValidTenantSlug 를 통과해야 —
@@ -69,13 +71,13 @@ export async function GET(request: NextRequest) {
 
   const guildId = url.searchParams.get('guild_id')
   if (!guildId || !/^\d{17,20}$/.test(guildId)) {
-    log.error('[bot-callback] invalid guild_id', undefined, { params: url.searchParams.toString() })
+    log.error('[bot-callback] invalid guild_id', undefined, { params: redactSearchParams(url.searchParams) })
     return errorRedirect(url.origin, 'guild_id_missing')
   }
 
   const code = url.searchParams.get('code')
   if (!code) {
-    log.error('[bot-callback] missing code', undefined, { params: url.searchParams.toString() })
+    log.error('[bot-callback] missing code', undefined, { params: redactSearchParams(url.searchParams) })
     return errorRedirect(url.origin, 'code_missing')
   }
 
@@ -262,7 +264,7 @@ export async function GET(request: NextRequest) {
       discord_guild_id: guildId,
       created_tenant: createdTenant,
     })
-    return response
+    return withNoStore(response)
   } catch (e) {
     log.error('[bot-callback] unhandled', e, { guild_id: guildId })
     return errorRedirect(url.origin, 'server_error')
