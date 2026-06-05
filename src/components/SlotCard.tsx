@@ -17,6 +17,7 @@ import {
 import { stripTierPrefix } from '@/lib/weapon-display'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { getLocalizedItemName } from '@/lib/item-names'
+import { isRoleExperienceHighlighted } from '@/lib/event-role-experience'
 import type { Locale } from '@/i18n/locales'
 import GearPreview from './GearPreview'
 import SlotSpellPanel, { SlotCooldownBadge } from './SlotSpellPanel'
@@ -46,6 +47,8 @@ interface Props {
   canApplyToSlots?: boolean
   assignedAvatar?: string | null
   requestedAvatar?: string | null
+  assignedRoleExperienceCount?: number | null
+  requestedRoleExperienceCount?: number | null
   cdBadgeRoles: readonly SlotRole[]
   // 관리자 전용 단일 슬롯 편집 버튼용 — SlotEditor 가 "자동 리기어 제외" 체크박스
   // 노출 여부 / 템플릿 저장 다이얼로그의 카테고리 기본값을 판단한다.
@@ -81,6 +84,26 @@ function NoteTooltip({ notes }: { notes: string }) {
   )
 }
 
+function RoleExperienceBadge({ count }: { count: number | null | undefined }) {
+  const t = useTranslations('slot')
+  if (count == null) return null
+
+  const highlighted = isRoleExperienceHighlighted(count)
+  return (
+    <span
+      title={t('roleExperienceTitle', { count })}
+      aria-label={t('roleExperienceTitle', { count })}
+      className={`inline-flex h-4 flex-shrink-0 items-center rounded border px-1 text-[10px] font-bold leading-none tabular-nums whitespace-nowrap ${
+        highlighted
+          ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-200'
+          : 'bg-gray-800/80 border-gray-700 text-gray-400'
+      }`}
+    >
+      {count > 0 ? t('roleExperienceCount', { count }) : t('roleExperienceFirst')}
+    </span>
+  )
+}
+
 export default function SlotCard({
   slot,
   partyNumber,
@@ -96,6 +119,8 @@ export default function SlotCard({
   canApplyToSlots = true,
   assignedAvatar = null,
   requestedAvatar = null,
+  assignedRoleExperienceCount = null,
+  requestedRoleExperienceCount = null,
   cdBadgeRoles,
   autoRegearEnabled,
   eventCategory,
@@ -331,7 +356,7 @@ export default function SlotCard({
           )}
         </div>
         {isTaken ? (
-          <div className={`flex items-center gap-1 text-[12px] flex-shrink-0 ${
+          <div className={`flex items-center gap-1 text-[12px] flex-shrink-0 min-w-0 max-w-[132px] ${
             isMine ? 'text-amber-300' : 'text-green-400'
           }`}>
             <MemberAvatar discordId={slot.assigned_discord_id} avatar={assignedAvatar} size={14} />
@@ -341,9 +366,10 @@ export default function SlotCard({
               hrefPrefix={memberHrefPrefix}
               className="font-semibold truncate max-w-[80px]"
             />
+            <RoleExperienceBadge count={assignedRoleExperienceCount} />
           </div>
         ) : hasPendingRequest && (
-          <div className={`flex items-center gap-1 text-[12px] flex-shrink-0 ${
+          <div className={`flex items-center gap-1 text-[12px] flex-shrink-0 min-w-0 max-w-[132px] ${
             isMyPending ? 'text-rose-300' : 'text-rose-200/80'
           }`}>
             <Hourglass size={11} />
@@ -354,6 +380,7 @@ export default function SlotCard({
               hrefPrefix={memberHrefPrefix}
               className="font-semibold truncate max-w-[80px]"
             />
+            <RoleExperienceBadge count={requestedRoleExperienceCount} />
           </div>
         )}
       </div>

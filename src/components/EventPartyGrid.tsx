@@ -8,6 +8,7 @@ import type { EventCategory, PartyWithSlots, SlotRole } from '@/types'
 import SlotCard from './SlotCard'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { filterEventGridParties, getEventGridMyRoleName } from '@/lib/event-party-grid'
+import { getRoleExperienceCount, type RoleExperienceCounts } from '@/lib/event-role-experience'
 
 interface Props {
   parties: PartyWithSlots[]
@@ -19,6 +20,7 @@ interface Props {
   eventId: string
   avatars: Record<string, string | null>
   usernames: Record<string, string | null>
+  roleExperienceCounts?: RoleExperienceCounts
   cdBadgeRoles: readonly SlotRole[]
   // 관리자 편집 버튼에서 SlotCard → SingleSlotEditModal → SlotEditor 까지
   // 내려가는 컨텍스트. 관리자가 아니면 사용되지 않으므로 SSR 비용은 없음.
@@ -45,6 +47,7 @@ export default function EventPartyGrid({
   eventId,
   avatars,
   usernames,
+  roleExperienceCounts = {},
   cdBadgeRoles,
   autoRegearEnabled,
   eventCategory,
@@ -414,6 +417,16 @@ export default function EventPartyGrid({
                     requestedAvatar={
                       slot.requested_discord_id ? avatars[slot.requested_discord_id] ?? null : null
                     }
+                    assignedRoleExperienceCount={getRoleExperienceCount(
+                      roleExperienceCounts,
+                      slot.assigned_discord_id,
+                      slot.role_name,
+                    )}
+                    requestedRoleExperienceCount={getRoleExperienceCount(
+                      roleExperienceCounts,
+                      slot.requested_discord_id,
+                      slot.role_name,
+                    )}
                     cdBadgeRoles={cdBadgeRoles}
                     autoRegearEnabled={autoRegearEnabled}
                     eventCategory={eventCategory}

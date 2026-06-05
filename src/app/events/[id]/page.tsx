@@ -45,6 +45,7 @@ import { getEventInteractionSession } from '@/lib/event-session'
 import { buildDiscordStartHref } from '@/lib/discord-auth-url'
 import { resolveEventGuestInviteScope, resolvePublicEventPageGuildId } from '@/lib/event-guest-auth'
 import { getAlbionEventAccessGateState } from '@/lib/albion-identity'
+import { loadEventRoleExperienceCounts } from '@/lib/event-role-experience-server'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -339,10 +340,16 @@ export default async function EventDetailPage({
     ...memberIds.filter((id): id is string => !!id),
     ...tentativeRows.map((r) => r.discord_id),
   ]
-  const [avatarMap, usernameMap, eventGuestNameMap] = await Promise.all([
+  const [avatarMap, usernameMap, eventGuestNameMap, roleExperienceCounts] = await Promise.all([
     getAvatarsByDiscordIds(guildId, memberIdList),
     getUsernamesByDiscordIds(guildId, memberIdList),
     getEventGuestDisplayNamesByDiscordIds(guildId, id, memberIdList),
+    loadEventRoleExperienceCounts({
+      db,
+      guildId,
+      currentEventId: id,
+      parties,
+    }),
   ])
   for (const [discordId, displayName] of eventGuestNameMap) {
     usernameMap.set(discordId, displayName)
@@ -726,6 +733,7 @@ export default async function EventDetailPage({
             eventId={id}
             avatars={avatars}
             usernames={usernames}
+            roleExperienceCounts={roleExperienceCounts}
             cdBadgeRoles={cdBadgeRoles}
             autoRegearEnabled={autoRegearEnabled}
             eventCategory={event.category}
