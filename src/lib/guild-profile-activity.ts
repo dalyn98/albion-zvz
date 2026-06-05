@@ -9,7 +9,6 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { discordAvatarUrl } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
 import { isHighEngagement } from '@/lib/low-engagement-cut'
-import { bundleSplitBattles, type BundleableRow } from '@/lib/battle-bundling'
 import { getCurrentWeekStartIso } from '@/lib/timezone'
 import {
   fetchMemberBattleParticipations,
@@ -19,6 +18,7 @@ import {
 } from '@/lib/tracked-kills'
 import { loadGuildBattleRollup } from '@/lib/guild-battle-rollup'
 import { selectPagedRowsOrThrow, type SupabasePagedQuery } from '@/lib/supabase-pagination'
+import type { BundleableRow } from '@/lib/battle-bundling'
 
 export type BattleOutcome = 'win' | 'loss' | 'tie'
 

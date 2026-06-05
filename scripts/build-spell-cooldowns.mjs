@@ -169,7 +169,7 @@ async function loadXml(envVar, url, cachePath, label) {
     console.log(`[build-spell-cooldowns] Using local ${label} from ${process.env[envVar]}`)
     return readFile(process.env[envVar], 'utf8')
   }
-  if (existsSync(cachePath)) {
+  if (process.env.AO_DATA_REFRESH !== '1' && existsSync(cachePath)) {
     console.log(`[build-spell-cooldowns] Using cached ${label} at ${cachePath}`)
     return readFile(cachePath, 'utf8')
   }
@@ -184,7 +184,10 @@ async function loadXml(envVar, url, cachePath, label) {
     }
     return text
   } catch (e) {
-    // existsSync 가 false 일 때만 여기로 — 캐시 없음 + fetch 실패 = 빌드 중단.
+    if (existsSync(cachePath)) {
+      console.warn(`[build-spell-cooldowns] fetch ${label} failed (${e.message}), falling back to cache ${cachePath}`)
+      return readFile(cachePath, 'utf8')
+    }
     console.error(`[build-spell-cooldowns] fetch ${label} failed and no cache available: ${e.message}`)
     throw e
   }

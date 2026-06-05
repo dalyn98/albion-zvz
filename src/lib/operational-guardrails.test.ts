@@ -107,6 +107,10 @@ describe('operational guardrails', () => {
       expect(postGuardIndex, `${scriptPath} must keep refresh work after guard`).toBeGreaterThan(-1)
       expect(guardIndex, `${scriptPath} guard must run before refresh work`).toBeLessThan(postGuardIndex)
     }
+
+    expect(read('scripts/build-spell-cooldowns.mjs')).toContain(
+      "process.env.AO_DATA_REFRESH !== '1' && existsSync(cachePath)",
+    )
   })
 
   it('keeps remote Supabase migration drift visible in CI', () => {

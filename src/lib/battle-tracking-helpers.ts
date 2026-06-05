@@ -211,8 +211,8 @@ export function buildBattleForceEdgeRows(input: {
   }
 
   const { guildById, guildIdByName, allianceIdByName } = buildGuildLookup(input.battle)
-  type MutableEdge = BattleForceEdgeRow & { dedupe: Set<string> }
-  const edgeMap = new Map<string, MutableEdge>()
+  const edgeMap = new Map<string, BattleForceEdgeRow>()
+  const dedupeByEdgeKey = new Map<string, Set<string>>()
 
   function addKill(level: BattleForceLevel, killerKey: string, victimKey: string, eventId: string, fame: number) {
     if (killerKey === victimKey) return
@@ -246,12 +246,13 @@ export function buildBattleForceEdgeRows(input: {
         confidence: 'weak',
         evidence_source: 'killboard_events',
         evaluated_at: input.evaluatedAt,
-        dedupe: new Set<string>(),
       }
       edgeMap.set(edgeKey, edge)
+      dedupeByEdgeKey.set(edgeKey, new Set<string>())
     }
-    if (edge.dedupe.has(dedupeKey)) return
-    edge.dedupe.add(dedupeKey)
+    const dedupe = dedupeByEdgeKey.get(edgeKey)!
+    if (dedupe.has(dedupeKey)) return
+    dedupe.add(dedupeKey)
     edge.event_count += 1
     const killerIsA = killerKey === edge.force_a_key
     if (killerIsA) {
@@ -311,9 +312,8 @@ export function buildBattleForceEdgeRows(input: {
       edge.event_count > 0 &&
       edge.force_a_team_size >= MEANINGFUL_FORCE_MIN_TEAM_SIZE &&
       edge.force_b_team_size >= MEANINGFUL_FORCE_MIN_TEAM_SIZE
-    const { dedupe: _dedupe, ...row } = edge
     rows.push({
-      ...row,
+      ...edge,
       is_meaningful: isMeaningful,
       confidence: isMeaningful ? 'killboard_exact' : 'weak',
     })

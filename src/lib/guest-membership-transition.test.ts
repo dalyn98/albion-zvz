@@ -15,7 +15,7 @@ function createDb(error: { message: string } | null = null) {
   let eqCallCount = 0
   const chain = {
     delete: vi.fn(() => chain),
-    eq: vi.fn((_: string, __: string) => {
+    eq: vi.fn(() => {
       eqCallCount += 1
       if (eqCallCount >= 2) return Promise.resolve({ error })
       return chain

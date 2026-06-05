@@ -5,9 +5,9 @@ const getAppSettingMock = vi.fn<(k: string, f: string, g: string) => Promise<str
   async (_k, fallback) => fallback,
 )
 const fetchJsonWithRetryMock = vi.fn()
-const broadcastGuildEventMock = vi.fn(
-  async (_scope: 'killboard' | 'battles' | 'regear', _guildId: string, _count: number) => undefined,
-)
+const broadcastGuildEventMock = vi.fn<
+  (scope: 'killboard' | 'battles' | 'regear', guildId: string, count: number) => Promise<void>
+>().mockResolvedValue(undefined)
 
 vi.mock('@/lib/killboard', () => ({
   resolveAlbionServer: (g: string) => resolveAlbionServerMock(g),

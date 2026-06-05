@@ -31,6 +31,11 @@ yarn-error.log*
 .pnpm-debug.log*
 .playwright-mcp/
 
+# local agent/audit artifacts
+/.codex-*.png
+/wiki-*.json
+/wiki-*.png
+
 # env files (can opt-in for committing if needed)
 .env*
 !.env.local.example
