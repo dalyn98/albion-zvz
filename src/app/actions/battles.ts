@@ -22,6 +22,7 @@ import type {
   BattleResultEstimate,
   BattleViewPolicy,
 } from '@/lib/battle-ledger-shadow'
+import { resolveGuildBattleDisplayStatus } from '@/lib/guild-battle-view'
 
 // 1~2명 스트래글러는 "집계 규모에 맞는 길드" 가 아니다 — small 카테고리 최소
 // 인원 (10) 과 동일한 컷을 적용해 노이즈를 잘라낸다. tenant_battle_records 자체가
@@ -231,6 +232,10 @@ export async function getBattleDetail(
         (ledgerRow.legacy_row_outcome as 'win' | 'loss' | 'tie' | null) ??
         (ledgerRow.legacy_outcome as 'win' | 'loss' | 'tie' | null) ??
         estimateToOutcome(resultEstimate)
+      const projectionStatus = resolveGuildBattleDisplayStatus(
+        ledgerRow.status as BattleProjectionStatus,
+        ledgerRow.legacy_is_provisional as boolean | null,
+      )
 
       myRow = {
         id: ledgerRow.id,
@@ -259,8 +264,7 @@ export async function getBattleDetail(
         main_opponent_kill_fame: ledgerRow.opponent_kill_fame,
         match_index: ledgerRow.match_index ?? 1,
         match_total: ledgerRow.match_total ?? 1,
-        is_provisional:
-          ledgerRow.status !== 'final' || ((ledgerRow.legacy_is_provisional as boolean | null) ?? false),
+        is_provisional: projectionStatus === 'provisional',
         size_category: sizeCategory,
         outcome,
         started_at: ledgerRow.started_at,
@@ -269,7 +273,7 @@ export async function getBattleDetail(
           relationScope: ledgerRow.relation_scope as BattleRelationScope,
           viewPolicy: ledgerRow.view_policy as BattleViewPolicy,
           resultEstimate,
-          projectionStatus: ledgerRow.status as BattleProjectionStatus,
+          projectionStatus,
           evidenceSource: ledgerRow.evidence_source as BattleProjectionEvidenceSource,
           isMeaningful: ledgerRow.is_meaningful as boolean,
           hasActiveDiff: ledgerRow.has_active_diff as boolean,

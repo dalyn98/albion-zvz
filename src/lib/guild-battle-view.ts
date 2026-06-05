@@ -115,6 +115,15 @@ export function normalizeGuildBattleResultFilter(
     : null
 }
 
+export function resolveGuildBattleDisplayStatus(
+  projectionStatus: BattleProjectionStatus,
+  legacyIsProvisional: boolean | null,
+): BattleProjectionStatus {
+  if (projectionStatus === 'low_confidence') return 'low_confidence'
+  if (legacyIsProvisional === true) return 'provisional'
+  return 'final'
+}
+
 export function toGuildBattleListRow(row: GuildBattleViewDbRow): GuildBattleListRow {
   return {
     id: row.id,
@@ -135,7 +144,7 @@ export function toGuildBattleListRow(row: GuildBattleViewDbRow): GuildBattleList
     opponentKills: row.opponent_kills,
     opponentDeaths: row.opponent_deaths,
     opponentKillFame: row.opponent_kill_fame,
-    status: row.status,
+    status: resolveGuildBattleDisplayStatus(row.status, row.legacy_is_provisional),
     evidenceSource: row.evidence_source,
     isMeaningful: row.is_meaningful,
     viewPolicy: row.view_policy,
