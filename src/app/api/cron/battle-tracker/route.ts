@@ -26,6 +26,10 @@ import { upsertBattleLedgerShadow } from '@/lib/battle-ledger-shadow-db'
 import { refreshBattleProjectionDiffs } from '@/lib/battle-ledger-diff-db'
 import { withCronRun } from '@/lib/cron-run'
 import { parseBoundedInt } from '@/lib/parse-bounded-int'
+import {
+  resolveBattleTrackerProjectionDiffSyncEnabled,
+  resolveBattleTrackerShadowSyncEnabled,
+} from '@/lib/battle-tracker-flags'
 
 // killboard_events 가 hint 한 battle_id 중 battle_records 에 없는 것을 ID 로
 // 직접 fetch 해 채우는 백필 윈도. /battles?sort=recent 가 인스턴스 간 결과
@@ -39,28 +43,20 @@ const MAX_BACKFILL_PER_TICK = 80
 // 안정되어 매치업이 확정된다는 가정. 너무 짧으면(<1h) killboard sync 지연 시
 // "교전 없음" 으로 잘못 판정될 위험, 너무 길면 매번 cron 마다 큰 SELECT.
 const REEVALUATE_LOOKBACK_MS = 6 * 60 * 60 * 1000
-const TRUE_VALUES = new Set(['1', 'true', 'yes', 'on'])
-const FALSE_VALUES = new Set(['0', 'false', 'no', 'off'])
-
-function truthyFlag(value: string | null | undefined): boolean | null {
-  if (value === null || value === undefined) return null
-  const normalized = value.trim().toLowerCase()
-  if (TRUE_VALUES.has(normalized)) return true
-  if (FALSE_VALUES.has(normalized)) return false
-  return null
-}
 
 function isShadowSyncEnabled(url: URL): boolean {
-  const queryOverride = truthyFlag(url.searchParams.get('shadow'))
-  if (queryOverride !== null) return queryOverride
-  return truthyFlag(process.env.BATTLE_LEDGER_SHADOW_SYNC_ENABLED) === true
+  return resolveBattleTrackerShadowSyncEnabled(
+    url.searchParams.get('shadow'),
+    process.env.BATTLE_LEDGER_SHADOW_SYNC_ENABLED,
+  )
 }
 
 function isProjectionDiffSyncEnabled(url: URL, shadowSyncEnabled: boolean): boolean {
-  if (!shadowSyncEnabled) return false
-  const queryOverride = truthyFlag(url.searchParams.get('projection_diffs'))
-  if (queryOverride !== null) return queryOverride
-  return truthyFlag(process.env.BATTLE_LEDGER_PROJECTION_DIFF_SYNC_ENABLED) === true
+  return resolveBattleTrackerProjectionDiffSyncEnabled(
+    url.searchParams.get('projection_diffs'),
+    process.env.BATTLE_LEDGER_PROJECTION_DIFF_SYNC_ENABLED,
+    shadowSyncEnabled,
+  )
 }
 
 // 5분 주기로 돌면서 home_guild_id + server 가 설정된 모든 테넌트의 홈 길드가
