@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   normalizeGuildBattleListMode,
   normalizeGuildBattleResultFilter,
+  resolveGuildBattleDisplayStatus,
   toGuildBattleListRow,
   type GuildBattleViewDbRow,
 } from './guild-battle-view'
@@ -65,6 +66,18 @@ describe('normalizeGuildBattleResultFilter', () => {
     expect(normalizeGuildBattleResultFilter('even')).toBe('even')
     expect(normalizeGuildBattleResultFilter('unclear')).toBe('unclear')
     expect(normalizeGuildBattleResultFilter('win')).toBeNull()
+  })
+})
+
+describe('resolveGuildBattleDisplayStatus', () => {
+  it('does not expose never-finalizing battle-summary projections as pending', () => {
+    expect(resolveGuildBattleDisplayStatus('provisional', false)).toBe('final')
+    expect(resolveGuildBattleDisplayStatus('provisional', null)).toBe('final')
+  })
+
+  it('keeps true pending legacy rows and low-confidence projections visible', () => {
+    expect(resolveGuildBattleDisplayStatus('provisional', true)).toBe('provisional')
+    expect(resolveGuildBattleDisplayStatus('low_confidence', false)).toBe('low_confidence')
   })
 })
 
@@ -139,5 +152,24 @@ describe('toGuildBattleListRow', () => {
       hasActiveDiff: true,
       activeDiffTypes: ['missing_legacy_projection'],
     })
+  })
+
+  it('uses the user-facing display status instead of raw ledger projection status', () => {
+    expect(
+      toGuildBattleListRow({
+        ...baseRow,
+        status: 'provisional',
+        legacy_is_provisional: false,
+      }).status,
+    ).toBe('final')
+
+    expect(
+      toGuildBattleListRow({
+        ...baseRow,
+        legacy_tenant_battle_record_id: null,
+        status: 'provisional',
+        legacy_is_provisional: null,
+      }).status,
+    ).toBe('final')
   })
 })
