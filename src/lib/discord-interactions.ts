@@ -36,6 +36,10 @@ export interface DiscordInteractionMember {
   permissions?: string
 }
 
+export interface DiscordInteractionResolvedMember {
+  nick?: string | null
+}
+
 export interface DiscordInteractionOption {
   name: string
   type: number
@@ -54,6 +58,10 @@ export interface DiscordInteractionPayload {
     name: string
     type: number
     options?: DiscordInteractionOption[]
+    resolved?: {
+      users?: Record<string, DiscordInteractionUser>
+      members?: Record<string, DiscordInteractionResolvedMember>
+    }
   }
   // 길드 안에서 친 명령이면 채워짐. DM 에서 친 명령이면 null/undefined.
   guild_id?: string

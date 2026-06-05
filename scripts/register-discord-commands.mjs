@@ -69,6 +69,34 @@ const COMMANDS = [
         type: 1,
       },
       {
+        name: 'points',
+        description: 'Grant or deduct member points (site admins only)',
+        type: 1,
+        options: [
+          {
+            name: 'member',
+            description: 'Member to adjust',
+            type: 6,
+            required: true,
+          },
+          {
+            name: 'delta',
+            description: 'Positive grants points, negative deducts points',
+            type: 4,
+            required: true,
+            min_value: -2147483647,
+            max_value: 2147483647,
+          },
+          {
+            name: 'memo',
+            description: 'Audit memo',
+            type: 3,
+            required: true,
+            max_length: 200,
+          },
+        ],
+      },
+      {
         name: 'guide',
         description: 'Open member guides',
         type: 1,

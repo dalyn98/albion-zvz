@@ -6045,6 +6045,12 @@
     "craftReady": "**{name}** crafting\n{url}",
     "walletReady": "**{name}** my wallet\n{url}",
     "adminReady": "**{name}** admin dashboard\n{url}",
+    "pointsTargetRequired": "Select the member to adjust.",
+    "pointsInvalidAmount": "Amount must be a non-zero whole number. Allowed range: -{max} to {max}",
+    "pointsMemoRequired": "Enter an audit memo.",
+    "pointsMemoTooLong": "Audit memo can be up to {max} characters.",
+    "pointsMemberNotFound": "That user is not a linked guild member on this site, so points cannot be adjusted.",
+    "pointsReady": "**{name}** points adjusted\nTarget: {user}\nDelta: {delta}p\nMemo: {memo}\nMember page: {url}",
     "killbotReady": "Killbot\nOperator guide: {guideUrl}\nSettings: {dashboardUrl}"
   },
   "permissions": {

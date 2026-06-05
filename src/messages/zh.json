@@ -6045,6 +6045,12 @@
     "craftReady": "**{name}** 制作\n{url}",
     "walletReady": "**{name}** 我的钱包\n{url}",
     "adminReady": "**{name}** 管理员仪表盘\n{url}",
+    "pointsTargetRequired": "请选择要调整的成员。",
+    "pointsInvalidAmount": "金额必须是非零整数。允许范围: -{max} 到 {max}",
+    "pointsMemoRequired": "请输入审计备注。",
+    "pointsMemoTooLong": "审计备注最多 {max} 个字符。",
+    "pointsMemberNotFound": "该用户不是本站已绑定的公会成员，无法调整积分。",
+    "pointsReady": "**{name}** 积分调整完成\n目标: {user}\n变动: {delta}p\n备注: {memo}\n成员页面: {url}",
     "killbotReady": "击杀机器人\n运营指南: {guideUrl}\n设置页面: {dashboardUrl}"
   },
   "permissions": {

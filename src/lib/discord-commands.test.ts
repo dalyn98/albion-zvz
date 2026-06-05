@@ -30,23 +30,38 @@ const mocks = vi.hoisted(() => {
   const memberLanguageMaybeSingle = vi.fn(async () => ({ data: null as unknown }))
   const memberLanguageEqDiscord = vi.fn(() => ({ maybeSingle: memberLanguageMaybeSingle }))
   const memberLanguageEqGuild = vi.fn(() => ({ eq: memberLanguageEqDiscord }))
-  const memberLanguageSelect = vi.fn(() => ({ eq: memberLanguageEqGuild }))
+
+  const pointMemberMaybeSingle = vi.fn(async () => ({
+    data: { discord_id: 'member-1', username: 'Member One' } as unknown,
+  }))
+  const pointMemberEqDiscord = vi.fn(() => ({ maybeSingle: pointMemberMaybeSingle }))
+  const pointMemberEqGuild = vi.fn(() => ({ eq: pointMemberEqDiscord }))
+  const guildAvatarSelect = vi.fn((columns?: string) => {
+    if (columns === 'preferred_language') return { eq: memberLanguageEqGuild }
+    return { eq: pointMemberEqGuild }
+  })
 
   const guestLanguageMaybeSingle = vi.fn(async () => ({ data: null as unknown }))
   const guestLanguageEqDiscord = vi.fn(() => ({ maybeSingle: guestLanguageMaybeSingle }))
   const guestLanguageEqGuild = vi.fn(() => ({ eq: guestLanguageEqDiscord }))
   const guestLanguageSelect = vi.fn(() => ({ eq: guestLanguageEqGuild }))
 
+  const pointLedgerInsert = vi.fn(async () => ({ error: null as unknown }))
+  const adminAuditInsert = vi.fn(async () => ({ error: null as unknown }))
+
   const from = vi.fn((table: string) => {
     if (table === 'tenants') return { select: tenantSelect }
     if (table === 'tenant_admin_overrides') return { select: overrideSelect }
     if (table === 'events') return { select: eventSelect }
-    if (table === 'guild_avatars') return { select: memberLanguageSelect }
+    if (table === 'guild_avatars') return { select: guildAvatarSelect }
     if (table === 'guests') return { select: guestLanguageSelect }
+    if (table === 'point_ledger') return { insert: pointLedgerInsert }
+    if (table === 'admin_audit_log') return { insert: adminAuditInsert }
     throw new Error(`Unexpected table: ${table}`)
   })
 
   return {
+    adminAuditInsert,
     eventBattleStarted,
     eventGte,
     eventGuild,
@@ -57,12 +72,17 @@ const mocks = vi.hoisted(() => {
     guestLanguageEqDiscord,
     guestLanguageEqGuild,
     guestLanguageMaybeSingle,
+    guildAvatarSelect,
     memberLanguageEqDiscord,
     memberLanguageEqGuild,
     memberLanguageMaybeSingle,
     overrideEqDiscord,
     overrideEqTenant,
     overrideMaybeSingle,
+    pointLedgerInsert,
+    pointMemberEqDiscord,
+    pointMemberEqGuild,
+    pointMemberMaybeSingle,
     tenantEqGuild,
     tenantEqStatus,
     tenantMaybeSingle,
@@ -87,6 +107,43 @@ function agmPayload(subcommand: string, overrides: Partial<DiscordInteractionPay
     locale: 'ko',
     ...overrides,
   } as DiscordInteractionPayload
+}
+
+function agmPointsPayload(
+  options: {
+    targetDiscordId?: string
+    delta?: number
+    memo?: string
+  } = {},
+  overrides: Partial<DiscordInteractionPayload> = {},
+) {
+  return agmPayload(
+    'points',
+    {
+      member: {
+        nick: 'Admin Nick',
+        user: { id: 'admin-1', username: 'admin' },
+        roles: ['admin-role'],
+      },
+      data: {
+        id: 'cmd-agm',
+        name: COMMAND_AGM,
+        type: 1,
+        options: [
+          {
+            name: 'points',
+            type: 1,
+            options: [
+              { name: 'member', type: 6, value: options.targetDiscordId ?? 'member-1' },
+              { name: 'delta', type: 4, value: options.delta ?? 1000 },
+              { name: 'memo', type: 3, value: options.memo ?? 'manual correction' },
+            ],
+          },
+        ],
+      },
+      ...overrides,
+    },
+  )
 }
 
 function mockTenant(
@@ -342,6 +399,82 @@ describe('agm slash command navigation', () => {
       }),
     )
     expect(overrideResponse.data?.content).toContain('/admin/dashboard')
+  })
+
+  it('blocks /agm points when the caller is not a site admin', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant()
+    mocks.overrideMaybeSingle.mockResolvedValueOnce({ data: null })
+
+    const response = await handleSlashCommand(
+      agmPointsPayload(
+        { delta: 500 },
+        {
+          member: {
+            user: { id: 'member-2', username: 'member' },
+            roles: ['member-role'],
+          },
+        },
+      ),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('site admins')
+    expect(mocks.pointLedgerInsert).not.toHaveBeenCalled()
+    expect(mocks.adminAuditInsert).not.toHaveBeenCalled()
+  })
+
+  it('allows /agm points for a site admin and writes a tenant-scoped ledger adjustment', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant({ adminRoleIds: ['admin-role'] })
+
+    const response = await handleSlashCommand(
+      agmPointsPayload({ delta: -2500, memo: 'attendance correction' }),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('points adjusted')
+    expect(response.data?.content).toContain('Member One')
+    expect(response.data?.content).toContain('-2,500')
+    expect(mocks.pointMemberEqGuild).toHaveBeenCalledWith('guild_id', 'tenant-1')
+    expect(mocks.pointMemberEqDiscord).toHaveBeenCalledWith('discord_id', 'member-1')
+    expect(mocks.pointLedgerInsert).toHaveBeenCalledWith({
+      guild_id: 'tenant-1',
+      discord_id: 'member-1',
+      delta: -2500,
+      reason: 'admin_adjust',
+      memo: 'attendance correction',
+      handled_by: 'admin-1',
+      handled_by_username: 'Admin Nick',
+    })
+    expect(mocks.adminAuditInsert).toHaveBeenCalledWith({
+      guild_id: 'tenant-1',
+      admin_discord_id: 'admin-1',
+      action: 'points.adjust',
+      target_id: null,
+      target_kind: 'member',
+      target_discord_id: 'member-1',
+      details: {
+        delta: -2500,
+        memo: 'attendance correction',
+        source: 'discord_command',
+      },
+    })
+  })
+
+  it('rejects /agm points when the target is not a linked guild member', async () => {
+    vi.stubEnv('APP_URL', 'https://albion-guildmanager.com')
+    mockTenant({ adminRoleIds: ['admin-role'] })
+    mocks.pointMemberMaybeSingle.mockResolvedValueOnce({ data: null })
+
+    const response = await handleSlashCommand(
+      agmPointsPayload({ targetDiscordId: 'not-member', delta: 500 }),
+    )
+
+    expect(response.data?.flags).toBe(MESSAGE_FLAG_EPHEMERAL)
+    expect(response.data?.content).toContain('linked guild member')
+    expect(mocks.pointLedgerInsert).not.toHaveBeenCalled()
+    expect(mocks.adminAuditInsert).not.toHaveBeenCalled()
   })
 
   it('shows only the public guide links for /agm guide without a guild context', async () => {

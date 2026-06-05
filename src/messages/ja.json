@@ -6045,6 +6045,12 @@
     "craftReady": "**{name}** クラフト\n{url}",
     "walletReady": "**{name}** マイウォレット\n{url}",
     "adminReady": "**{name}** 管理者ダッシュボード\n{url}",
+    "pointsTargetRequired": "調整するメンバーを選択してください。",
+    "pointsInvalidAmount": "金額は 0 以外の整数で入力してください。許可範囲: -{max} 〜 {max}",
+    "pointsMemoRequired": "監査メモを入力してください。",
+    "pointsMemoTooLong": "監査メモは最大 {max} 文字まで入力できます。",
+    "pointsMemberNotFound": "このユーザーはサイトに連携済みのギルドメンバーではないため、ポイントを調整できません。",
+    "pointsReady": "**{name}** ポイント調整完了\n対象: {user}\n変動: {delta}p\nメモ: {memo}\nメンバーページ: {url}",
     "killbotReady": "キルボット\n運用ガイド: {guideUrl}\n設定画面: {dashboardUrl}"
   },
   "permissions": {

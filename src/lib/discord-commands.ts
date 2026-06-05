@@ -3,8 +3,9 @@
 // Slash command:
 //   /agm <destination> — 사이트 기능으로 이동하는 단일 네비게이션 명령어.
 //
-// Discord 명령어는 상태 변경을 하지 않는다. 복잡한 입력, 승인, 업로드, 설정은
-// 모두 웹 화면에서 처리하고, 여기서는 정확한 진입점 링크만 ephemeral 로 돌려준다.
+// 대부분의 Discord 명령어는 정확한 진입점 링크만 ephemeral 로 돌려준다. 예외적으로
+// `/agm points` 는 site admin 전용 수동 포인트 조정이며, 웹 UI 와 같은
+// point_ledger append-only 경로를 사용한다.
 
 import { getAdminClient } from '@/lib/supabase-admin'
 import { buildDiscordStartHref } from '@/lib/discord-auth-url'
@@ -12,13 +13,23 @@ import { tenantUrl } from '@/lib/tenant-resolver'
 import { isLocale, type Locale } from '@/i18n/locales'
 import { killbotDashboardUrl } from '@/lib/killbot'
 import {
+  ADMIN_POINT_ADJUSTMENT_MEMO_MAX_LENGTH,
+  POINT_LEDGER_DELTA_ABS_MAX,
+  applyAdminPointAdjustment,
+  type AdminPointAdjustmentFailure,
+} from '@/lib/admin-point-adjustments'
+import {
   ephemeralReply,
   type DiscordInteractionPayload,
   type DiscordInteractionResponse,
+  type DiscordInteractionOption,
 } from '@/lib/discord-interactions'
 
 export const COMMAND_AGM = 'agm'
 export const DEFAULT_DISCORD_COMMAND_LOCALE = 'en' satisfies Locale
+const DISCORD_OPTION_TYPE_USER = 6
+const DISCORD_OPTION_TYPE_INTEGER = 4
+const DISCORD_OPTION_TYPE_STRING = 3
 
 export const AGM_SUBCOMMANDS = [
   'home',
@@ -30,6 +41,7 @@ export const AGM_SUBCOMMANDS = [
   'craft',
   'wallet',
   'admin',
+  'points',
   'guide',
   'killbot',
 ] as const
@@ -37,7 +49,7 @@ export const AGM_SUBCOMMANDS = [
 export type AgmSubcommand = typeof AGM_SUBCOMMANDS[number]
 
 export const ALL_COMMAND_NAMES = [COMMAND_AGM] as const
-const ADMIN_ONLY_AGM_SUBCOMMANDS = ['admin', 'killbot'] as const satisfies readonly AgmSubcommand[]
+const ADMIN_ONLY_AGM_SUBCOMMANDS = ['admin', 'points', 'killbot'] as const satisfies readonly AgmSubcommand[]
 
 export interface DiscordBotMessages {
   unsupportedInteraction: string
@@ -57,6 +69,12 @@ export interface DiscordBotMessages {
   craftReady: string
   walletReady: string
   adminReady: string
+  pointsTargetRequired: string
+  pointsInvalidAmount: string
+  pointsMemoRequired: string
+  pointsMemoTooLong: string
+  pointsMemberNotFound: string
+  pointsReady: string
   killbotReady: string
 }
 
@@ -87,6 +105,12 @@ export async function loadDiscordBotMessages(
     craftReady: ns.craftReady ?? '',
     walletReady: ns.walletReady ?? '',
     adminReady: ns.adminReady ?? '',
+    pointsTargetRequired: ns.pointsTargetRequired ?? '',
+    pointsInvalidAmount: ns.pointsInvalidAmount ?? '',
+    pointsMemoRequired: ns.pointsMemoRequired ?? '',
+    pointsMemoTooLong: ns.pointsMemoTooLong ?? '',
+    pointsMemberNotFound: ns.pointsMemberNotFound ?? '',
+    pointsReady: ns.pointsReady ?? '',
     killbotReady: ns.killbotReady ?? '',
   }
 }
@@ -239,6 +263,71 @@ function getAgmSubcommandName(payload: DiscordInteractionPayload): AgmSubcommand
   return AGM_SUBCOMMANDS.includes(name as AgmSubcommand) ? (name as AgmSubcommand) : null
 }
 
+function getAgmSubcommandOptions(payload: DiscordInteractionPayload): DiscordInteractionOption[] {
+  return payload.data?.options?.[0]?.options ?? []
+}
+
+function getOption(
+  options: readonly DiscordInteractionOption[],
+  name: string,
+): DiscordInteractionOption | null {
+  return options.find((option) => option.name === name) ?? null
+}
+
+function getInvokerDisplayName(payload: DiscordInteractionPayload): string | null {
+  return (
+    payload.member?.nick?.trim() ||
+    payload.member?.user?.global_name?.trim() ||
+    payload.member?.user?.username?.trim() ||
+    payload.user?.global_name?.trim() ||
+    payload.user?.username?.trim() ||
+    null
+  )
+}
+
+function getTargetDisplayName(
+  payload: DiscordInteractionPayload,
+  targetDiscordId: string,
+  fallback: string | null,
+): string {
+  const resolvedMember = payload.data?.resolved?.members?.[targetDiscordId]
+  const resolvedUser = payload.data?.resolved?.users?.[targetDiscordId]
+  return (
+    resolvedMember?.nick?.trim() ||
+    resolvedUser?.global_name?.trim() ||
+    resolvedUser?.username?.trim() ||
+    fallback?.trim() ||
+    `<@${targetDiscordId}>`
+  )
+}
+
+function formatSignedPoints(delta: number): string {
+  const sign = delta > 0 ? '+' : '-'
+  return `${sign}${Math.abs(delta).toLocaleString('en-US')}`
+}
+
+function pointAdjustmentErrorMessage(
+  error: AdminPointAdjustmentFailure,
+  messages: DiscordBotMessages,
+): string {
+  switch (error.code) {
+    case 'invalid_delta':
+      return format(messages.pointsInvalidAmount, {
+        max: POINT_LEDGER_DELTA_ABS_MAX.toLocaleString('en-US'),
+      })
+    case 'memo_required':
+      return messages.pointsMemoRequired
+    case 'memo_too_long':
+      return format(messages.pointsMemoTooLong, {
+        max: String(ADMIN_POINT_ADJUSTMENT_MEMO_MAX_LENGTH),
+      })
+    case 'member_not_found':
+      return messages.pointsMemberNotFound
+    case 'db_error':
+      return messages.handlerFailed
+  }
+}
+
 export async function handleSlashCommand(
   payload: DiscordInteractionPayload,
 ): Promise<DiscordInteractionResponse> {
@@ -274,6 +363,10 @@ export async function handleSlashCommand(
     return handleKillbot(tenant, messages)
   }
 
+  if (destination === 'points') {
+    return handlePointsAdjustment(tenant, payload, messages)
+  }
+
   switch (destination) {
     case 'home':
       return replyWithTenantLink(messages.homeReady, tenant, '/')
@@ -301,6 +394,56 @@ export async function handleSlashCommand(
     case 'admin':
       return replyWithTenantLink(messages.adminReady, tenant, '/admin/dashboard')
   }
+}
+
+async function handlePointsAdjustment(
+  tenant: TenantBindResult,
+  payload: DiscordInteractionPayload,
+  messages: DiscordBotMessages,
+): Promise<DiscordInteractionResponse> {
+  const adminDiscordId = getInvokerDiscordId(payload)
+  if (!adminDiscordId) return ephemeralReply(messages.adminOnly)
+
+  const options = getAgmSubcommandOptions(payload)
+  const memberOption = getOption(options, 'member')
+  const deltaOption = getOption(options, 'delta')
+  const memoOption = getOption(options, 'memo')
+  const targetDiscordId =
+    memberOption?.type === DISCORD_OPTION_TYPE_USER && typeof memberOption.value === 'string'
+      ? memberOption.value
+      : null
+  if (!targetDiscordId) return ephemeralReply(messages.pointsTargetRequired)
+
+  const delta =
+    deltaOption?.type === DISCORD_OPTION_TYPE_INTEGER && typeof deltaOption.value === 'number'
+      ? deltaOption.value
+      : Number.NaN
+  const memo =
+    memoOption?.type === DISCORD_OPTION_TYPE_STRING && typeof memoOption.value === 'string'
+      ? memoOption.value
+      : ''
+
+  const db = getAdminClient()
+  const result = await applyAdminPointAdjustment(db, {
+    guildId: tenant.id,
+    targetDiscordId,
+    delta,
+    memo,
+    adminDiscordId,
+    adminUsername: getInvokerDisplayName(payload),
+    source: 'discord_command',
+  })
+  if (!result.ok) return ephemeralReply(pointAdjustmentErrorMessage(result, messages))
+
+  return ephemeralReply(
+    format(messages.pointsReady, {
+      name: tenant.name,
+      user: getTargetDisplayName(payload, targetDiscordId, result.targetUsername),
+      delta: formatSignedPoints(result.delta),
+      memo: result.memo,
+      url: tenantCommandUrl(tenant, `/members/${targetDiscordId}`),
+    }),
+  )
 }
 
 function replyWithTenantLink(

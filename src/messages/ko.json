@@ -6045,6 +6045,12 @@
     "craftReady": "**{name}** 제작\n{url}",
     "walletReady": "**{name}** 내 지갑\n{url}",
     "adminReady": "**{name}** 관리자 대시보드\n{url}",
+    "pointsTargetRequired": "조정할 멤버를 선택해 주세요.",
+    "pointsInvalidAmount": "금액은 0이 아닌 정수여야 해요. 허용 범위: -{max} ~ {max}",
+    "pointsMemoRequired": "감사 메모를 입력해 주세요.",
+    "pointsMemoTooLong": "감사 메모는 최대 {max}자까지 입력할 수 있어요.",
+    "pointsMemberNotFound": "이 유저는 사이트에 연동된 길드원이 아니어서 포인트를 조정할 수 없어요.",
+    "pointsReady": "**{name}** 포인트 조정 완료\n대상: {user}\n변동: {delta}p\n메모: {memo}\n멤버 페이지: {url}",
     "killbotReady": "킬봇\n운영 설명서: {guideUrl}\n설정 화면: {dashboardUrl}"
   },
   "permissions": {
