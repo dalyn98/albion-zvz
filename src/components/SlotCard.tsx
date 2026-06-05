@@ -84,23 +84,31 @@ function NoteTooltip({ notes }: { notes: string }) {
   )
 }
 
-function RoleExperienceBadge({ count }: { count: number | null | undefined }) {
+function RoleExperienceHint({ count }: { count: number | null | undefined }) {
   const t = useTranslations('slot')
   if (count == null) return null
 
   const highlighted = isRoleExperienceHighlighted(count)
   return (
-    <span
+    <div
       title={t('roleExperienceTitle', { count })}
       aria-label={t('roleExperienceTitle', { count })}
-      className={`inline-flex h-4 flex-shrink-0 items-center rounded border px-1 text-[10px] font-bold leading-none tabular-nums whitespace-nowrap ${
+      className={`flex min-w-0 max-w-full items-center gap-1 text-[11px] font-medium leading-tight ${
         highlighted
-          ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-200'
-          : 'bg-gray-800/80 border-gray-700 text-gray-400'
+          ? 'text-emerald-300'
+          : 'text-gray-500'
       }`}
     >
-      {count > 0 ? t('roleExperienceCount', { count }) : t('roleExperienceFirst')}
-    </span>
+      <span
+        aria-hidden="true"
+        className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${
+          highlighted ? 'bg-emerald-300' : 'bg-gray-600'
+        }`}
+      />
+      <span className="min-w-0 truncate tabular-nums">
+        {count > 0 ? t('roleExperienceLine', { count }) : t('roleExperienceFirstLine')}
+      </span>
+    </div>
   )
 }
 
@@ -322,67 +330,73 @@ export default function SlotCard({
   const slotLabel = isBombSquadParty && partyName
     ? t('partyLabelCustom', { name: partyName, slot: slot.slot_number })
     : t('partyLabel', { party: partyNumber, slot: slot.slot_number })
+  const roleExperienceCount = isTaken
+    ? assignedRoleExperienceCount
+    : hasPendingRequest
+      ? requestedRoleExperienceCount
+      : null
 
   return (
     <div className={`rounded-xl p-2.5 space-y-2 border transition-colors ${cardStateClasses}`}>
-      <div className="flex items-center justify-between gap-1">
-        <div className="flex items-center gap-1 flex-wrap min-w-0">
-          <span className="text-gray-500 text-[12px] inline-flex items-center gap-1">
-            {isBombSquadParty && <Bomb size={10} className="text-rose-400" />}
-            {slotLabel}
-          </span>
-          {slot.role_name && (
-            <span className={`text-[12px] font-bold px-1.5 py-0.5 rounded ${
-              roleStyle ? roleStyle.badge : 'bg-amber-500/20 text-amber-400'
+      <div className="space-y-1">
+        <div className="flex items-center justify-between gap-1">
+          <div className="flex items-center gap-1 flex-wrap min-w-0">
+            <span className="text-gray-500 text-[12px] inline-flex items-center gap-1">
+              {isBombSquadParty && <Bomb size={10} className="text-rose-400" />}
+              {slotLabel}
+            </span>
+            {slot.role_name && (
+              <span className={`text-[12px] font-bold px-1.5 py-0.5 rounded ${
+                roleStyle ? roleStyle.badge : 'bg-amber-500/20 text-amber-400'
+              }`}>
+                {translateSlotRole(slot.role_name, tRole)}
+              </span>
+            )}
+            {isSoloBomb && (
+              <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/40">
+                {t('soloBomb.badge')}
+              </span>
+            )}
+            {canManageSlots && (
+              <button
+                type="button"
+                onClick={() => setEditOpen(true)}
+                aria-label={t('editBuild')}
+                title={t('editBuild')}
+                className="p-0.5 text-gray-500 hover:text-amber-400 transition-colors"
+              >
+                <Pencil size={11} />
+              </button>
+            )}
+          </div>
+          {isTaken ? (
+            <div className={`flex items-center gap-1 text-[12px] flex-shrink-0 min-w-0 max-w-[116px] ${
+              isMine ? 'text-amber-300' : 'text-green-400'
             }`}>
-              {translateSlotRole(slot.role_name, tRole)}
-            </span>
-          )}
-          {isSoloBomb && (
-            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/40">
-              {t('soloBomb.badge')}
-            </span>
-          )}
-          {canManageSlots && (
-            <button
-              type="button"
-              onClick={() => setEditOpen(true)}
-              aria-label={t('editBuild')}
-              title={t('editBuild')}
-              className="p-0.5 text-gray-500 hover:text-amber-400 transition-colors"
-            >
-              <Pencil size={11} />
-            </button>
+              <MemberAvatar discordId={slot.assigned_discord_id} avatar={assignedAvatar} size={14} />
+              <MemberLink
+                discordId={slot.assigned_discord_id}
+                username={slot.assigned_username ?? ''}
+                hrefPrefix={memberHrefPrefix}
+                className="font-semibold truncate max-w-[96px]"
+              />
+            </div>
+          ) : hasPendingRequest && (
+            <div className={`flex items-center gap-1 text-[12px] flex-shrink-0 min-w-0 max-w-[116px] ${
+              isMyPending ? 'text-rose-300' : 'text-rose-200/80'
+            }`}>
+              <Hourglass size={11} />
+              <MemberAvatar discordId={slot.requested_discord_id} avatar={requestedAvatar} size={14} />
+              <MemberLink
+                discordId={slot.requested_discord_id}
+                username={slot.requested_username ?? ''}
+                hrefPrefix={memberHrefPrefix}
+                className="font-semibold truncate max-w-[78px]"
+              />
+            </div>
           )}
         </div>
-        {isTaken ? (
-          <div className={`flex items-center gap-1 text-[12px] flex-shrink-0 min-w-0 max-w-[132px] ${
-            isMine ? 'text-amber-300' : 'text-green-400'
-          }`}>
-            <MemberAvatar discordId={slot.assigned_discord_id} avatar={assignedAvatar} size={14} />
-            <MemberLink
-              discordId={slot.assigned_discord_id}
-              username={slot.assigned_username ?? ''}
-              hrefPrefix={memberHrefPrefix}
-              className="font-semibold truncate max-w-[80px]"
-            />
-            <RoleExperienceBadge count={assignedRoleExperienceCount} />
-          </div>
-        ) : hasPendingRequest && (
-          <div className={`flex items-center gap-1 text-[12px] flex-shrink-0 min-w-0 max-w-[132px] ${
-            isMyPending ? 'text-rose-300' : 'text-rose-200/80'
-          }`}>
-            <Hourglass size={11} />
-            <MemberAvatar discordId={slot.requested_discord_id} avatar={requestedAvatar} size={14} />
-            <MemberLink
-              discordId={slot.requested_discord_id}
-              username={slot.requested_username ?? ''}
-              hrefPrefix={memberHrefPrefix}
-              className="font-semibold truncate max-w-[80px]"
-            />
-            <RoleExperienceBadge count={requestedRoleExperienceCount} />
-          </div>
-        )}
+        <RoleExperienceHint count={roleExperienceCount} />
       </div>
 
       <div className="grid grid-cols-4 gap-1">
