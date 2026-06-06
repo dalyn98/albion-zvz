@@ -1,9 +1,12 @@
 'use client'
 
+import { Fragment, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   AlertTriangle,
+  ChevronDown,
+  ChevronRight,
   CornerDownRight,
   EyeOff,
   GitBranch,
@@ -14,6 +17,7 @@ import {
   Trophy,
 } from 'lucide-react'
 import type {
+  GuildBattleListGroup,
   GuildBattleListMode,
   GuildBattleListRow,
   GuildBattleResultFilter,
@@ -34,10 +38,8 @@ export type BattleListTab = GuildBattleListMode
 const MODES: GuildBattleListMode[] = ['default', 'direct', 'alliance', 'excluded', 'diffs']
 const RESULTS: GuildBattleResultFilter[] = ['advantage', 'disadvantage', 'even', 'unclear']
 
-type GroupRole = 'single' | 'first' | 'continuation'
-
 interface Props {
-  rows: GuildBattleListRow[]
+  groups: GuildBattleListGroup[]
   timezone: string
   activeMode: GuildBattleListMode
   resultFilter: GuildBattleResultFilter | null
@@ -53,6 +55,9 @@ interface Props {
   evidenceLabels: Record<BattleProjectionEvidenceSource, string>
   opponentKindLabels: Record<'alliance' | 'guild', string>
   sameBattleLabel: string
+  matchupLabel: string
+  expandMatchupsLabel: string
+  collapseMatchupsLabel: string
   diffLabel: string
   ledgerOnlyLabel: string
   columnLabels: {
@@ -71,24 +76,13 @@ function formatFame(n: number): string {
   return String(n)
 }
 
-function computeGroupRoles(rows: ReadonlyArray<GuildBattleListRow>): GroupRole[] {
-  const counts = new Map<number, number>()
-  for (const row of rows) {
-    counts.set(row.albionBattleId, (counts.get(row.albionBattleId) ?? 0) + 1)
-  }
-
-  const seen = new Set<number>()
-  return rows.map((row) => {
-    const count = counts.get(row.albionBattleId) ?? 1
-    if (count === 1) return 'single'
-    if (seen.has(row.albionBattleId)) return 'continuation'
-    seen.add(row.albionBattleId)
-    return 'first'
-  })
+function formatOpponentNames(names: ReadonlyArray<string>): string {
+  if (names.length <= 2) return names.join(', ')
+  return `${names.slice(0, 2).join(', ')} +${names.length - 2}`
 }
 
 export default function BattleRecordList({
-  rows,
+  groups,
   timezone,
   activeMode,
   resultFilter,
@@ -104,6 +98,9 @@ export default function BattleRecordList({
   evidenceLabels,
   opponentKindLabels,
   sameBattleLabel,
+  matchupLabel,
+  expandMatchupsLabel,
+  collapseMatchupsLabel,
   diffLabel,
   ledgerOnlyLabel,
   columnLabels,
@@ -111,6 +108,7 @@ export default function BattleRecordList({
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set())
 
   const selectMode = (next: GuildBattleListMode) => {
     if (next === activeMode) return
@@ -131,7 +129,14 @@ export default function BattleRecordList({
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }
 
-  const groupRoles = computeGroupRoles(rows)
+  const toggleGroup = (key: string) => {
+    setExpandedGroups((current) => {
+      const next = new Set(current)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   return (
     <div className="space-y-3">
@@ -175,7 +180,7 @@ export default function BattleRecordList({
         </div>
       </div>
 
-      {rows.length === 0 ? (
+      {groups.length === 0 ? (
         <div className="bg-gray-900 border border-gray-700 rounded-xl p-12 text-center">
           <p className="text-gray-400 text-sm">{emptyLabel}</p>
         </div>
@@ -193,25 +198,49 @@ export default function BattleRecordList({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, index) => (
-                <BattleRow
-                  key={row.id}
-                  row={row}
-                  groupRole={groupRoles[index]}
-                  timezone={timezone}
-                  sizeLabel={row.sizeCategory ? sizeLabels[row.sizeCategory] : null}
-                  relationLabel={relationLabels[row.relationScope]}
-                  policyLabel={policyLabels[row.viewPolicy]}
-                  resultLabel={resultLabels[row.resultEstimate]}
-                  statusLabel={statusLabels[row.status]}
-                  evidenceLabel={evidenceLabels[row.evidenceSource]}
-                  opponentKindLabel={opponentKindLabels[row.opponentForceKind]}
-                  sameBattleLabel={sameBattleLabel}
-                  diffLabel={diffLabel}
-                  ledgerOnlyLabel={ledgerOnlyLabel}
-                  router={router}
-                />
-              ))}
+              {groups.map((group) => {
+                const isExpanded = expandedGroups.has(group.key)
+                return (
+                  <Fragment key={group.key}>
+                    <BattleGroupRow
+                      group={group}
+                      isExpanded={isExpanded}
+                      timezone={timezone}
+                      sizeLabel={group.sizeCategory ? sizeLabels[group.sizeCategory] : null}
+                      relationLabel={relationLabels[group.relationScope]}
+                      policyLabel={policyLabels[group.viewPolicy]}
+                      resultLabel={resultLabels[group.resultEstimate]}
+                      statusLabel={statusLabels[group.status]}
+                      evidenceLabel={evidenceLabels[group.evidenceSource]}
+                      matchupLabel={matchupLabel}
+                      expandMatchupsLabel={expandMatchupsLabel}
+                      collapseMatchupsLabel={collapseMatchupsLabel}
+                      diffLabel={diffLabel}
+                      ledgerOnlyLabel={ledgerOnlyLabel}
+                      onToggle={toggleGroup}
+                      router={router}
+                    />
+                    {isExpanded &&
+                      group.rows.map((row) => (
+                        <BattleMatchupRow
+                          key={row.id}
+                          row={row}
+                          sizeLabel={row.sizeCategory ? sizeLabels[row.sizeCategory] : null}
+                          relationLabel={relationLabels[row.relationScope]}
+                          policyLabel={policyLabels[row.viewPolicy]}
+                          resultLabel={resultLabels[row.resultEstimate]}
+                          statusLabel={statusLabels[row.status]}
+                          evidenceLabel={evidenceLabels[row.evidenceSource]}
+                          opponentKindLabel={opponentKindLabels[row.opponentForceKind]}
+                          sameBattleLabel={sameBattleLabel}
+                          diffLabel={diffLabel}
+                          ledgerOnlyLabel={ledgerOnlyLabel}
+                          router={router}
+                        />
+                      ))}
+                  </Fragment>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -236,10 +265,162 @@ function relationTone(scope: BattleRelationScope): string {
     : 'border-sky-500/35 bg-sky-500/10 text-sky-200'
 }
 
-interface BattleRowProps {
-  row: GuildBattleListRow
-  groupRole: GroupRole
+interface BattleGroupRowProps {
+  group: GuildBattleListGroup
+  isExpanded: boolean
   timezone: string
+  sizeLabel: string | null
+  relationLabel: string
+  policyLabel: string
+  resultLabel: string
+  statusLabel: string
+  evidenceLabel: string
+  matchupLabel: string
+  expandMatchupsLabel: string
+  collapseMatchupsLabel: string
+  diffLabel: string
+  ledgerOnlyLabel: string
+  onToggle: (key: string) => void
+  router: ReturnType<typeof useRouter>
+}
+
+function BattleGroupRow({
+  group,
+  isExpanded,
+  timezone,
+  sizeLabel,
+  relationLabel,
+  policyLabel,
+  resultLabel,
+  statusLabel,
+  evidenceLabel,
+  matchupLabel,
+  expandMatchupsLabel,
+  collapseMatchupsLabel,
+  diffLabel,
+  ledgerOnlyLabel,
+  onToggle,
+  router,
+}: BattleGroupRowProps) {
+  const { className: resultClassName, Icon: ResultIcon } = resultTone(group.resultEstimate)
+  const href = `/battles/${group.id}`
+  const hasSplitMatchups = group.matchupCount > 1
+  const rowClass = hasSplitMatchups
+    ? 'cursor-pointer hover:bg-gray-800/50 border-t border-gray-800 border-l-2 border-l-violet-500/45 bg-violet-500/[0.035]'
+    : 'border-t border-gray-800 hover:bg-gray-800/40 cursor-pointer'
+
+  return (
+    <tr onClick={() => router.push(href)} className={rowClass}>
+      <td className="px-3 py-2 text-gray-300 font-mono text-sm whitespace-nowrap">
+        <div className="flex items-center gap-2">
+          {hasSplitMatchups ? (
+            <button
+              type="button"
+              aria-label={isExpanded ? collapseMatchupsLabel : expandMatchupsLabel}
+              aria-expanded={isExpanded}
+              onClick={(event) => {
+                event.stopPropagation()
+                onToggle(group.key)
+              }}
+              className="inline-flex h-7 w-7 items-center justify-center rounded border border-violet-500/30 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20"
+            >
+              {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+            </button>
+          ) : (
+            <span className="h-7 w-7" aria-hidden />
+          )}
+          <Link
+            href={href}
+            onClick={(event) => event.stopPropagation()}
+            className="hover:text-white"
+          >
+            {formatDateTimeShort(group.startedAt, timezone)}
+          </Link>
+        </div>
+      </td>
+      <td className="px-3 py-2">
+        <div className="flex flex-wrap items-center gap-1">
+          <span
+            className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs font-semibold ${relationTone(
+              group.relationScope,
+            )}`}
+          >
+            {group.relationScope === 'direct' ? <Shield size={12} /> : <EyeOff size={12} />}
+            {relationLabel}
+          </span>
+          {group.viewPolicy === 'small_or_low_engagement' && (
+            <span className="inline-flex items-center gap-1 rounded border border-gray-600 bg-gray-800 px-1.5 py-0.5 text-[11px] text-gray-300">
+              <AlertTriangle size={11} />
+              {policyLabel}
+            </span>
+          )}
+          {group.hasActiveDiff && (
+            <span className="inline-flex items-center gap-1 rounded border border-violet-500/35 bg-violet-500/10 px-1.5 py-0.5 text-[11px] text-violet-200">
+              <GitBranch size={11} />
+              {diffLabel}
+            </span>
+          )}
+          {group.status !== 'final' && (
+            <span className="inline-flex items-center gap-1 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[11px] text-amber-300">
+              <Hourglass size={11} />
+              {statusLabel}
+            </span>
+          )}
+          {group.hasLedgerOnlyRows && (
+            <span className="rounded border border-sky-500/25 bg-sky-500/10 px-1.5 py-0.5 text-[11px] text-sky-200">
+              {ledgerOnlyLabel}
+            </span>
+          )}
+        </div>
+      </td>
+      <td className="px-3 py-2">
+        <div className="text-base text-white">
+          {formatOpponentNames(group.opponentForceNames)}
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px] text-gray-500">
+          {hasSplitMatchups && (
+            <>
+              <span className="text-violet-300">
+                {group.matchupCount} {matchupLabel}
+              </span>
+              <span aria-hidden>|</span>
+            </>
+          )}
+          {sizeLabel && (
+            <>
+              <span>{sizeLabel}</span>
+              <span aria-hidden>|</span>
+            </>
+          )}
+          <span className="font-mono">
+            {group.subjectTeamSize}v{group.opponentTeamSize}
+          </span>
+        </div>
+      </td>
+      <td className="px-3 py-2">
+        <div className={`inline-flex items-center gap-1 text-sm font-semibold ${resultClassName}`}>
+          <ResultIcon size={14} />
+          {resultLabel}
+        </div>
+        <div className="text-[11px] text-gray-500 mt-0.5">{evidenceLabel}</div>
+      </td>
+      <td className="px-3 py-2 text-right whitespace-nowrap">
+        <div className="text-sm text-gray-300 font-mono">
+          <span className="text-emerald-400">{group.subjectKills}</span>
+          <span className="text-gray-600">/</span>
+          <span className="text-red-400">{group.subjectDeaths}</span>
+        </div>
+        <div className="text-xs text-gray-500 font-mono">
+          {formatFame(group.subjectKillFame)} vs {formatFame(group.opponentKillFame)}
+        </div>
+      </td>
+      <td className="px-3 py-2 text-gray-400 text-sm">{group.clusterName ?? '-'}</td>
+    </tr>
+  )
+}
+
+interface BattleMatchupRowProps {
+  row: GuildBattleListRow
   sizeLabel: string | null
   relationLabel: string
   policyLabel: string
@@ -253,10 +434,8 @@ interface BattleRowProps {
   router: ReturnType<typeof useRouter>
 }
 
-function BattleRow({
+function BattleMatchupRow({
   row,
-  groupRole,
-  timezone,
   sizeLabel,
   relationLabel,
   policyLabel,
@@ -268,41 +447,25 @@ function BattleRow({
   diffLabel,
   ledgerOnlyLabel,
   router,
-}: BattleRowProps) {
+}: BattleMatchupRowProps) {
   const { className: resultClassName, Icon: ResultIcon } = resultTone(row.resultEstimate)
-  const isGrouped = groupRole !== 'single'
-  const isContinuation = groupRole === 'continuation'
   const href = `/battles/${row.id}`
-  const rowClass = isGrouped
-    ? `cursor-pointer hover:bg-gray-800/40 border-l-2 border-l-violet-500/40 bg-violet-500/[0.03] ${
-        isContinuation
-          ? 'border-t border-t-dashed border-violet-500/20'
-          : 'border-t border-gray-800'
-      }`
-    : 'border-t border-gray-800 hover:bg-gray-800/40 cursor-pointer'
 
   return (
-    <tr onClick={() => router.push(href)} className={rowClass}>
+    <tr
+      onClick={() => router.push(href)}
+      className="cursor-pointer border-t border-t-dashed border-violet-500/20 border-l-2 border-l-violet-500/45 bg-violet-500/[0.025] hover:bg-gray-800/40"
+    >
       <td className="px-3 py-2 text-gray-300 font-mono text-sm whitespace-nowrap">
-        {isContinuation ? (
-          <Link
-            href={href}
-            onClick={(event) => event.stopPropagation()}
-            className="inline-flex items-center gap-1 text-violet-300 hover:text-violet-200"
-            title={sameBattleLabel}
-          >
-            <CornerDownRight size={14} />
-            <span className="text-xs uppercase font-semibold">{sameBattleLabel}</span>
-          </Link>
-        ) : (
-          <Link
-            href={href}
-            onClick={(event) => event.stopPropagation()}
-            className="hover:text-white"
-          >
-            {formatDateTimeShort(row.startedAt, timezone)}
-          </Link>
-        )}
+        <Link
+          href={href}
+          onClick={(event) => event.stopPropagation()}
+          className="inline-flex items-center gap-1 text-violet-300 hover:text-violet-200"
+          title={sameBattleLabel}
+        >
+          <CornerDownRight size={14} />
+          <span className="text-xs uppercase font-semibold">{sameBattleLabel}</span>
+        </Link>
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1">

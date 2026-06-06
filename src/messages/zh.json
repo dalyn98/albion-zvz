@@ -1787,7 +1787,7 @@
     "sourceAutoWithTime": "自动 · {time}{suffix}"
   },
   "adminShopOrderReview": {
-    "searchPlaceholder": "搜索名称 / 日期",
+    "searchPlaceholder": "搜索名称 / 物品 / 订单 / 日期",
     "searchNoResults": "无结果。",
     "statusPending": "待处理",
     "statusApproved": "已批准",
@@ -4533,6 +4533,9 @@
     "ledgerOnlyLabel": "仅台账",
     "matchSplitLabel": "同一战斗的拆分对阵",
     "sameBattleLabel": "同一战斗",
+    "matchupLabel": "对阵",
+    "expandMatchupsLabel": "展开对阵",
+    "collapseMatchupsLabel": "收起对阵",
     "provisionalLabel": "待定",
     "mainOpponentAlliance": "联盟",
     "mainOpponentGuild": "独立公会",
@@ -4630,6 +4633,8 @@
     "closeAriaLabel": "关闭",
     "emptyStock": "商店暂无库存。",
     "emptySearch": "无搜索结果。",
+    "showingCount": "已显示 {visible} / {total}",
+    "showMoreButton": "显示更多",
     "qualityLabel": "品质",
     "stockLabel": "库存",
     "itemType": {
@@ -4648,7 +4653,8 @@
     "tile": {
       "stockPrefix": "库存 {stock} 件",
       "cartPrefix": "购物车中 {qty}",
-      "resetHint": "点击清除"
+      "resetHint": "点击清除",
+      "maxHint": "已加入最大库存数量"
     },
     "cart": {
       "empty": "将物品加入购物车。",
@@ -4674,6 +4680,7 @@
       "quotePending": "待输入"
     },
     "orderSuccess": "订单已提交!请等待管理员审批。",
+    "orderFailedRefreshHint": "已重新载入最新库存和余额。购物车会保留。",
     "orderFailedDefault": "下单失败"
   },
   "time": {
@@ -5082,6 +5089,8 @@
     "memberNotePrefix": "备注:{note}",
     "adminNotePrefix": "管理员:{note}",
     "pickupNotePrefix": "领取位置:{note}",
+    "pickupReadySingle": "有可领取的订单",
+    "pickupReadyMultiple": "{count} 个订单可领取",
     "cancelButton": "取消订单",
     "cancelConfirm": "确定取消该订单?"
   },
@@ -6009,11 +6018,17 @@
     "notYet": "暂无",
     "missingAlbionConfig": "必须先设置 Albion 服务器和主公会，才能发送真实击杀/死亡通知。请先在通用设置中指定主公会。",
     "settingsTitle": "通知设置",
-    "settingsDescription": "选择 Discord 频道、最低 fame，以及是否包含击杀/死亡。重复通知会按事件 ID 阻止。",
+    "settingsDescription": "选择 Discord 频道、发送方式、最低 fame，以及是否包含击杀/死亡。重复通知会按战斗/事件来源阻止。",
     "enableLabel": "启用击杀机器人通知",
     "enableHelp": "开启后，5 分钟 cron 会检查最近的 Albion 事件。",
     "channelLabel": "Discord 频道",
     "selectChannel": "选择频道",
+    "feedModeLabel": "发送方式",
+    "feedMode": {
+      "battle": "战斗摘要",
+      "event": "单条日志",
+      "both": "两者"
+    },
     "minFameLabel": "最低 fame",
     "juicyLabel": "Juicy fame 阈值",
     "includeKills": "发送公会击杀",

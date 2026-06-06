@@ -7,6 +7,7 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import BattleRecordList from '@/components/BattleRecordList'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import {
+  groupGuildBattleListRows,
   normalizeGuildBattleListMode,
   normalizeGuildBattleResultFilter,
   toGuildBattleListRow,
@@ -22,7 +23,8 @@ interface SearchParams {
   outcome?: string
 }
 
-const LIST_LIMIT = 60
+const LIST_GROUP_LIMIT = 60
+const LIST_ROW_FETCH_LIMIT = 180
 
 export default async function BattlesPage({
   searchParams,
@@ -56,7 +58,7 @@ export default async function BattlesPage({
     .order('started_at', { ascending: false })
     .order('relation_scope', { ascending: true })
     .order('opponent_team_size', { ascending: false })
-    .limit(LIST_LIMIT)
+    .limit(LIST_ROW_FETCH_LIMIT)
 
   if (activeMode === 'default') {
     query = query.eq('relation_scope', 'direct').eq('view_policy', 'default_meaningful')
@@ -77,6 +79,7 @@ export default async function BattlesPage({
   ])
 
   const rows = ((data ?? []) as GuildBattleViewDbRow[]).map(toGuildBattleListRow)
+  const groups = groupGuildBattleListRows(rows, LIST_GROUP_LIMIT)
 
   return (
     <main className="flex-1 w-full max-w-3xl xl:max-w-6xl 2xl:max-w-7xl mx-auto px-4 py-6 sm:py-8 space-y-5">
@@ -163,7 +166,7 @@ export default async function BattlesPage({
       )}
 
       <BattleRecordList
-        rows={rows}
+        groups={groups}
         timezone={tenantTimezone}
         activeMode={activeMode}
         resultFilter={resultFilter}
@@ -211,6 +214,9 @@ export default async function BattlesPage({
           guild: t('mainOpponentGuild'),
         }}
         sameBattleLabel={t('sameBattleLabel')}
+        matchupLabel={t('matchupLabel')}
+        expandMatchupsLabel={t('expandMatchupsLabel')}
+        collapseMatchupsLabel={t('collapseMatchupsLabel')}
         diffLabel={t('diffLabel')}
         ledgerOnlyLabel={t('ledgerOnlyLabel')}
         columnLabels={{

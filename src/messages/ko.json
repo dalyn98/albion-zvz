@@ -1787,7 +1787,7 @@
     "sourceAutoWithTime": "auto · {time}{suffix}"
   },
   "adminShopOrderReview": {
-    "searchPlaceholder": "이름/날짜 검색",
+    "searchPlaceholder": "이름/아이템/주문/날짜 검색",
     "searchNoResults": "검색 결과 없음.",
     "statusPending": "대기",
     "statusApproved": "승인",
@@ -4533,6 +4533,9 @@
     "ledgerOnlyLabel": "원장 전용",
     "matchSplitLabel": "같은 전투의 분리 매치업",
     "sameBattleLabel": "같은 전투",
+    "matchupLabel": "매치업",
+    "expandMatchupsLabel": "매치업 펼치기",
+    "collapseMatchupsLabel": "매치업 접기",
     "provisionalLabel": "판정 중",
     "mainOpponentAlliance": "알라이언스",
     "mainOpponentGuild": "단독 길드",
@@ -4630,6 +4633,8 @@
     "closeAriaLabel": "닫기",
     "emptyStock": "상점 재고가 비었습니다.",
     "emptySearch": "검색 결과 없음.",
+    "showingCount": "{visible} / {total}개 표시 중",
+    "showMoreButton": "더 보기",
     "qualityLabel": "품질",
     "stockLabel": "재고",
     "itemType": {
@@ -4648,7 +4653,8 @@
     "tile": {
       "stockPrefix": "재고 {stock}",
       "cartPrefix": "담긴 수량 {qty}",
-      "resetHint": "클릭 시 비우기"
+      "resetHint": "클릭 시 비우기",
+      "maxHint": "최대 재고까지 담았습니다"
     },
     "cart": {
       "empty": "아이템을 담아보세요.",
@@ -4674,6 +4680,7 @@
       "quotePending": "대기"
     },
     "orderSuccess": "주문 요청 완료! 관리자 승인을 기다려주세요.",
+    "orderFailedRefreshHint": "최신 재고와 잔액을 다시 불러왔습니다. 장바구니는 유지됩니다.",
     "orderFailedDefault": "주문 실패"
   },
   "time": {
@@ -5082,6 +5089,8 @@
     "memberNotePrefix": "메모: {note}",
     "adminNotePrefix": "관리자: {note}",
     "pickupNotePrefix": "수령 위치: {note}",
+    "pickupReadySingle": "수령 가능한 주문이 있습니다",
+    "pickupReadyMultiple": "수령 가능한 주문 {count}건",
     "cancelButton": "주문 취소",
     "cancelConfirm": "이 주문을 취소합니다. 계속?"
   },
@@ -6009,11 +6018,17 @@
     "notYet": "아직 없음",
     "missingAlbionConfig": "알비온 서버와 홈 길드가 설정되어야 실제 킬/데스 알림을 보낼 수 있습니다. 일반 설정에서 홈 길드를 먼저 지정하세요.",
     "settingsTitle": "알림 설정",
-    "settingsDescription": "Discord 채널, 최소 fame, 킬/데스 포함 여부를 정합니다. 중복 알림은 이벤트 ID 기준으로 차단됩니다.",
+    "settingsDescription": "Discord 채널, 발송 방식, 최소 fame, 킬/데스 포함 여부를 정합니다. 중복 알림은 전투/이벤트 기준으로 차단됩니다.",
     "enableLabel": "킬봇 알림 사용",
     "enableHelp": "켜두면 5분 주기 cron 이 최근 알비온 이벤트를 확인합니다.",
     "channelLabel": "Discord 채널",
     "selectChannel": "채널 선택",
+    "feedModeLabel": "발송 방식",
+    "feedMode": {
+      "battle": "전투 요약",
+      "event": "개별 로그",
+      "both": "둘 다"
+    },
     "minFameLabel": "최소 fame",
     "juicyLabel": "Juicy 기준 fame",
     "includeKills": "우리 길드 킬 알림",

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  groupGuildBattleListRows,
   normalizeGuildBattleListMode,
   normalizeGuildBattleResultFilter,
   resolveGuildBattleDisplayStatus,
@@ -85,6 +86,7 @@ describe('toGuildBattleListRow', () => {
   it('maps a direct meaningful projection to the new ledger list row shape', () => {
     expect(toGuildBattleListRow(baseRow)).toEqual({
       id: 'view-1',
+      battleRecordId: 'battle-1',
       legacyTenantBattleRecordId: 'legacy-1',
       albionBattleId: 123456,
       clusterName: 'Basin of Life',
@@ -139,6 +141,7 @@ describe('toGuildBattleListRow', () => {
 
     expect(row).toMatchObject({
       id: 'view-2',
+      battleRecordId: 'battle-1',
       legacyTenantBattleRecordId: null,
       relationScope: 'alliance',
       isMeaningful: false,
@@ -171,5 +174,80 @@ describe('toGuildBattleListRow', () => {
         legacy_is_provisional: null,
       }).status,
     ).toBe('final')
+  })
+})
+
+describe('groupGuildBattleListRows', () => {
+  it('collapses split matchups into one battle group without duplicating subject totals', () => {
+    const rows = [
+      toGuildBattleListRow({
+        ...baseRow,
+        id: 'view-small',
+        opponent_force_name: 'Small Force',
+        subject_kills: 16,
+        subject_deaths: 9,
+        subject_kill_fame: 12_500_000,
+        opponent_team_size: 12,
+        opponent_kill_fame: 1_000_000,
+      }),
+      toGuildBattleListRow({
+        ...baseRow,
+        id: 'view-large',
+        opponent_force_name: 'Large Force',
+        subject_kills: 16,
+        subject_deaths: 9,
+        subject_kill_fame: 12_500_000,
+        opponent_team_size: 56,
+        opponent_kill_fame: 8_000_000,
+      }),
+    ]
+
+    const groups = groupGuildBattleListRows(rows)
+
+    expect(groups).toHaveLength(1)
+    expect(groups[0]).toMatchObject({
+      id: 'view-large',
+      subjectKills: 16,
+      subjectDeaths: 9,
+      subjectKillFame: 12_500_000,
+      opponentTeamSize: 68,
+      opponentKillFame: 9_000_000,
+      opponentForceNames: ['Large Force', 'Small Force'],
+      matchupCount: 2,
+      resultEstimate: 'advantage',
+      sizeCategory: 'large',
+    })
+  })
+
+  it('keeps direct and alliance observations separate for the same Albion battle', () => {
+    const direct = toGuildBattleListRow(baseRow)
+    const alliance = toGuildBattleListRow({
+      ...baseRow,
+      id: 'view-alliance',
+      relation_scope: 'alliance',
+    })
+
+    const groups = groupGuildBattleListRows([direct, alliance])
+
+    expect(groups).toHaveLength(2)
+    expect(groups.map((group) => group.relationScope)).toEqual(['direct', 'alliance'])
+  })
+
+  it('limits by battle groups rather than raw matchup rows', () => {
+    const groups = groupGuildBattleListRows(
+      [
+        toGuildBattleListRow({ ...baseRow, id: 'b1-a', battle_record_id: 'battle-1' }),
+        toGuildBattleListRow({ ...baseRow, id: 'b1-b', battle_record_id: 'battle-1' }),
+        toGuildBattleListRow({ ...baseRow, id: 'b2', battle_record_id: 'battle-2' }),
+        toGuildBattleListRow({ ...baseRow, id: 'b3', battle_record_id: 'battle-3' }),
+      ],
+      2,
+    )
+
+    expect(groups).toHaveLength(2)
+    expect(groups.map((group) => group.primaryRow.battleRecordId)).toEqual([
+      'battle-1',
+      'battle-2',
+    ])
   })
 })

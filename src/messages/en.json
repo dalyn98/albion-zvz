@@ -1787,7 +1787,7 @@
     "sourceAutoWithTime": "auto · {time}{suffix}"
   },
   "adminShopOrderReview": {
-    "searchPlaceholder": "Search name / date",
+    "searchPlaceholder": "Search name / item / order / date",
     "searchNoResults": "No results.",
     "statusPending": "Pending",
     "statusApproved": "Approved",
@@ -4533,6 +4533,9 @@
     "ledgerOnlyLabel": "Ledger only",
     "matchSplitLabel": "Split matchup of the same battle",
     "sameBattleLabel": "Same battle",
+    "matchupLabel": "matchups",
+    "expandMatchupsLabel": "Expand matchups",
+    "collapseMatchupsLabel": "Collapse matchups",
     "provisionalLabel": "Pending",
     "mainOpponentAlliance": "Alliance",
     "mainOpponentGuild": "Standalone guild",
@@ -4630,6 +4633,8 @@
     "closeAriaLabel": "Close",
     "emptyStock": "The shop is out of stock.",
     "emptySearch": "No results.",
+    "showingCount": "Showing {visible} / {total}",
+    "showMoreButton": "Show more",
     "qualityLabel": "Quality",
     "stockLabel": "Stock",
     "itemType": {
@@ -4648,7 +4653,8 @@
     "tile": {
       "stockPrefix": "Stock: {stock}",
       "cartPrefix": "In cart: {qty}",
-      "resetHint": "Click to clear"
+      "resetHint": "Click to clear",
+      "maxHint": "Maximum stock is already in cart"
     },
     "cart": {
       "empty": "Add items to your cart.",
@@ -4674,6 +4680,7 @@
       "quotePending": "Pending"
     },
     "orderSuccess": "Order submitted! Please wait for admin approval.",
+    "orderFailedRefreshHint": "Latest stock and balance were refreshed. Your cart is still kept.",
     "orderFailedDefault": "Order failed"
   },
   "time": {
@@ -5082,6 +5089,8 @@
     "memberNotePrefix": "Note: {note}",
     "adminNotePrefix": "Admin: {note}",
     "pickupNotePrefix": "Pickup: {note}",
+    "pickupReadySingle": "You have an order ready for pickup",
+    "pickupReadyMultiple": "{count} orders are ready for pickup",
     "cancelButton": "Cancel order",
     "cancelConfirm": "Cancel this order?"
   },
@@ -6009,11 +6018,17 @@
     "notYet": "Not yet",
     "missingAlbionConfig": "Albion server and home guild must be configured before real kill/death alerts can be sent. Set the home guild in general settings first.",
     "settingsTitle": "Notification settings",
-    "settingsDescription": "Choose the Discord channel, minimum fame, and whether kills/deaths are included. Duplicate alerts are blocked by event ID.",
+    "settingsDescription": "Choose the Discord channel, feed mode, minimum fame, and whether kills/deaths are included. Duplicate alerts are blocked by battle/event source.",
     "enableLabel": "Enable killbot alerts",
     "enableHelp": "When enabled, the 5-minute cron checks recent Albion events.",
     "channelLabel": "Discord channel",
     "selectChannel": "Select channel",
+    "feedModeLabel": "Feed mode",
+    "feedMode": {
+      "battle": "Battle summary",
+      "event": "Event logs",
+      "both": "Both"
+    },
     "minFameLabel": "Minimum fame",
     "juicyLabel": "Juicy fame threshold",
     "includeKills": "Post guild kills",

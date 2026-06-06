@@ -1787,7 +1787,7 @@
     "sourceAutoWithTime": "auto · {time}{suffix}"
   },
   "adminShopOrderReview": {
-    "searchPlaceholder": "名前 / 日付で検索",
+    "searchPlaceholder": "名前 / アイテム / 注文 / 日付で検索",
     "searchNoResults": "検索結果なし。",
     "statusPending": "保留",
     "statusApproved": "承認",
@@ -4533,6 +4533,9 @@
     "ledgerOnlyLabel": "台帳のみ",
     "matchSplitLabel": "同じ戦闘の分割マッチアップ",
     "sameBattleLabel": "同じ戦闘",
+    "matchupLabel": "マッチアップ",
+    "expandMatchupsLabel": "マッチアップを開く",
+    "collapseMatchupsLabel": "マッチアップを閉じる",
     "provisionalLabel": "判定中",
     "mainOpponentAlliance": "アライアンス",
     "mainOpponentGuild": "単独ギルド",
@@ -4630,6 +4633,8 @@
     "closeAriaLabel": "閉じる",
     "emptyStock": "ショップの在庫が空です。",
     "emptySearch": "検索結果がありません。",
+    "showingCount": "{visible} / {total} 件を表示中",
+    "showMoreButton": "さらに表示",
     "qualityLabel": "品質",
     "stockLabel": "在庫",
     "itemType": {
@@ -4648,7 +4653,8 @@
     "tile": {
       "stockPrefix": "在庫 {stock}",
       "cartPrefix": "カート {qty}",
-      "resetHint": "クリックで空にする"
+      "resetHint": "クリックで空にする",
+      "maxHint": "最大在庫までカートに入っています"
     },
     "cart": {
       "empty": "アイテムをカートに追加してください。",
@@ -4674,6 +4680,7 @@
       "quotePending": "未入力"
     },
     "orderSuccess": "注文リクエスト完了!管理者の承認をお待ちください。",
+    "orderFailedRefreshHint": "最新の在庫と残高を再読み込みしました。カートは維持されます。",
     "orderFailedDefault": "注文に失敗しました"
   },
   "time": {
@@ -5082,6 +5089,8 @@
     "memberNotePrefix": "メモ: {note}",
     "adminNotePrefix": "管理者: {note}",
     "pickupNotePrefix": "受け取り場所: {note}",
+    "pickupReadySingle": "受け取り可能な注文があります",
+    "pickupReadyMultiple": "受け取り可能な注文 {count} 件",
     "cancelButton": "注文をキャンセル",
     "cancelConfirm": "この注文をキャンセルします。続行しますか?"
   },
@@ -6009,11 +6018,17 @@
     "notYet": "まだありません",
     "missingAlbionConfig": "実際のキル/デス通知を送るには Albion サーバーとホームギルドの設定が必要です。先に一般設定でホームギルドを指定してください。",
     "settingsTitle": "通知設定",
-    "settingsDescription": "Discord チャンネル、最小 fame、キル/デスの投稿有無を設定します。重複通知はイベント ID で防止します。",
+    "settingsDescription": "Discord チャンネル、送信方式、最小 fame、キル/デスの投稿有無を設定します。重複通知は戦闘/イベント単位で防止します。",
     "enableLabel": "キルボット通知を使用",
     "enableHelp": "有効にすると 5 分ごとの cron が最近の Albion イベントを確認します。",
     "channelLabel": "Discord チャンネル",
     "selectChannel": "チャンネルを選択",
+    "feedModeLabel": "送信方式",
+    "feedMode": {
+      "battle": "戦闘サマリー",
+      "event": "個別ログ",
+      "both": "両方"
+    },
     "minFameLabel": "最小 fame",
     "juicyLabel": "Juicy 判定 fame",
     "includeKills": "ギルドのキルを投稿",

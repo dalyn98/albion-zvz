@@ -6,7 +6,7 @@ import type {
   BattleViewPolicy,
 } from './battle-ledger-shadow'
 import type { AlbionServer } from './albion-gameinfo'
-import type { Outcome, SizeCategory } from './albion-battles'
+import { categorizeSize, type Outcome, type SizeCategory } from './albion-battles'
 
 export const GUILD_BATTLE_LIST_MODES = [
   'default',
@@ -68,6 +68,7 @@ export interface GuildBattleViewDbRow {
 
 export interface GuildBattleListRow {
   id: string
+  battleRecordId: string
   legacyTenantBattleRecordId: string | null
   albionBattleId: number
   clusterName: string | null
@@ -101,6 +102,34 @@ export interface GuildBattleListRow {
   evaluatedAt: string
 }
 
+export interface GuildBattleListGroup {
+  key: string
+  id: string
+  primaryRow: GuildBattleListRow
+  rows: GuildBattleListRow[]
+  albionBattleId: number
+  clusterName: string | null
+  startedAt: string
+  subjectName: string
+  subjectAllianceName: string | null
+  relationScope: BattleRelationScope
+  subjectTeamSize: number
+  subjectKills: number
+  subjectDeaths: number
+  subjectKillFame: number
+  opponentTeamSize: number
+  opponentKillFame: number
+  opponentForceNames: string[]
+  status: BattleProjectionStatus
+  evidenceSource: BattleProjectionEvidenceSource
+  viewPolicy: BattleViewPolicy
+  resultEstimate: BattleResultEstimate
+  sizeCategory: SizeCategory | null
+  hasActiveDiff: boolean
+  hasLedgerOnlyRows: boolean
+  matchupCount: number
+}
+
 export function normalizeGuildBattleListMode(raw: unknown): GuildBattleListMode {
   return GUILD_BATTLE_LIST_MODES.includes(raw as GuildBattleListMode)
     ? (raw as GuildBattleListMode)
@@ -127,6 +156,7 @@ export function resolveGuildBattleDisplayStatus(
 export function toGuildBattleListRow(row: GuildBattleViewDbRow): GuildBattleListRow {
   return {
     id: row.id,
+    battleRecordId: row.battle_record_id,
     legacyTenantBattleRecordId: row.legacy_tenant_battle_record_id,
     albionBattleId: row.albion_battle_id,
     clusterName: row.cluster_name,
@@ -159,4 +189,105 @@ export function toGuildBattleListRow(row: GuildBattleViewDbRow): GuildBattleList
     activeDiffTypes: row.active_diff_types,
     evaluatedAt: row.evaluated_at,
   }
+}
+
+function comparePrimaryRows(a: GuildBattleListRow, b: GuildBattleListRow): number {
+  if (b.opponentTeamSize !== a.opponentTeamSize) {
+    return b.opponentTeamSize - a.opponentTeamSize
+  }
+  if (b.opponentKillFame !== a.opponentKillFame) {
+    return b.opponentKillFame - a.opponentKillFame
+  }
+  return a.id.localeCompare(b.id)
+}
+
+function estimateGroupedResult(
+  subjectKillFame: number,
+  opponentKillFame: number,
+): BattleResultEstimate {
+  if (subjectKillFame === 0 && opponentKillFame === 0) return 'unclear'
+  if (subjectKillFame > opponentKillFame) return 'advantage'
+  if (subjectKillFame < opponentKillFame) return 'disadvantage'
+  return 'even'
+}
+
+function resolveGroupedStatus(
+  rows: ReadonlyArray<GuildBattleListRow>,
+): BattleProjectionStatus {
+  if (rows.some((row) => row.status === 'low_confidence')) return 'low_confidence'
+  if (rows.some((row) => row.status === 'provisional')) return 'provisional'
+  return 'final'
+}
+
+function uniqueValues(values: ReadonlyArray<string>): string[] {
+  return [...new Set(values)]
+}
+
+function toGuildBattleListGroup(
+  key: string,
+  rows: ReadonlyArray<GuildBattleListRow>,
+): GuildBattleListGroup {
+  const sorted = [...rows].sort(comparePrimaryRows)
+  const primaryRow = sorted[0]
+  const subjectTeamSize = Math.max(...sorted.map((row) => row.subjectTeamSize))
+  const subjectKills = Math.max(...sorted.map((row) => row.subjectKills))
+  const subjectDeaths = Math.max(...sorted.map((row) => row.subjectDeaths))
+  const subjectKillFame = Math.max(...sorted.map((row) => row.subjectKillFame))
+  const opponentTeamSize = sorted.reduce((sum, row) => sum + row.opponentTeamSize, 0)
+  const opponentKillFame = sorted.reduce((sum, row) => sum + row.opponentKillFame, 0)
+  const sizeCategory =
+    categorizeSize(Math.max(subjectTeamSize, opponentTeamSize)) ?? primaryRow.sizeCategory
+
+  return {
+    key,
+    id: primaryRow.id,
+    primaryRow,
+    rows: sorted,
+    albionBattleId: primaryRow.albionBattleId,
+    clusterName: primaryRow.clusterName,
+    startedAt: primaryRow.startedAt,
+    subjectName: primaryRow.subjectName,
+    subjectAllianceName: primaryRow.subjectAllianceName,
+    relationScope: primaryRow.relationScope,
+    subjectTeamSize,
+    subjectKills,
+    subjectDeaths,
+    subjectKillFame,
+    opponentTeamSize,
+    opponentKillFame,
+    opponentForceNames: uniqueValues(sorted.map((row) => row.opponentForceName)),
+    status: resolveGroupedStatus(sorted),
+    evidenceSource: primaryRow.evidenceSource,
+    viewPolicy: sorted.some((row) => row.viewPolicy === 'default_meaningful')
+      ? 'default_meaningful'
+      : 'small_or_low_engagement',
+    resultEstimate: estimateGroupedResult(subjectKillFame, opponentKillFame),
+    sizeCategory,
+    hasActiveDiff: sorted.some((row) => row.hasActiveDiff),
+    hasLedgerOnlyRows: sorted.some((row) => !row.legacyTenantBattleRecordId),
+    matchupCount: sorted.length,
+  }
+}
+
+export function groupGuildBattleListRows(
+  rows: ReadonlyArray<GuildBattleListRow>,
+  limit = rows.length,
+): GuildBattleListGroup[] {
+  const groups = new Map<string, GuildBattleListRow[]>()
+  const order: string[] = []
+
+  for (const row of rows) {
+    const key = `${row.battleRecordId}:${row.relationScope}`
+    const current = groups.get(key)
+    if (current) {
+      current.push(row)
+    } else {
+      groups.set(key, [row])
+      order.push(key)
+    }
+  }
+
+  return order
+    .map((key) => toGuildBattleListGroup(key, groups.get(key) ?? []))
+    .slice(0, limit)
 }
