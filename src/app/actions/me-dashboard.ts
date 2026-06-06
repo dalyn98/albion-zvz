@@ -9,7 +9,7 @@ import {
   calcSurvivalFromBattles,
 } from '@/lib/member-stats'
 import {
-  fetchMemberBattleParticipations,
+  fetchMemberBattleParticipationsForMember,
   fetchTrackedBattleWindows,
   groupMemberKillsByBattle,
   mergeMemberBattles,
@@ -218,7 +218,7 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     }),
     getMemberPendingRequestCounts(db, guildId, session.discordId),
     fetchTrackedBattleWindows(db, guildId, null, { bundleSplits }),
-    fetchMemberBattleParticipations(db, guildId),
+    fetchMemberBattleParticipationsForMember(db, guildId, { discordId: session.discordId }),
   ])
 
   // killboard 기반 배틀 + raw_battle.players 기반 0K0D 참여 합집합. /members/[id]

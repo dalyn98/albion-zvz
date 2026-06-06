@@ -328,34 +328,7 @@ export default async function EventDetailPage({
     0,
   )
 
-  // Collect both assigned + pending-request IDs and bomb squad caller IDs so
-  // avatars render for all member-facing states (assigned, pending, caller).
-  const memberIds = parties.flatMap((p) => [
-    ...p.slots.map((s) => s.assigned_discord_id),
-    ...p.slots.map((s) => s.requested_discord_id),
-    p.caller_discord_id,
-  ])
   const tentativeRows = tentativeRes.rows
-  const memberIdList = [
-    ...memberIds.filter((id): id is string => !!id),
-    ...tentativeRows.map((r) => r.discord_id),
-  ]
-  const [avatarMap, usernameMap, eventGuestNameMap, roleExperienceCounts] = await Promise.all([
-    getAvatarsByDiscordIds(guildId, memberIdList),
-    getUsernamesByDiscordIds(guildId, memberIdList),
-    getEventGuestDisplayNamesByDiscordIds(guildId, id, memberIdList),
-    loadEventRoleExperienceCounts({
-      db,
-      guildId,
-      currentEventId: id,
-      parties,
-    }),
-  ])
-  for (const [discordId, displayName] of eventGuestNameMap) {
-    usernameMap.set(discordId, displayName)
-  }
-  const avatars = Object.fromEntries(avatarMap)
-  const usernames = Object.fromEntries(usernameMap)
 
   const loginHref = buildDiscordStartHref({ returnTo: eventReturnPath, invite: inviteToken })
   const localLoginEnabled =
@@ -429,15 +402,60 @@ export default async function EventDetailPage({
   const canManageTentativeSignups = canEdit
   const buildSheetMode =
     event.recruitment_mode === 'build_sheet' || event.recruitment_mode === 'hybrid'
-  const buildSheetManageableParties =
+
+  // Collect both assigned + pending-request IDs and bomb squad caller IDs so
+  // avatars render for all member-facing states (assigned, pending, caller).
+  // This stays after the access gate so private event probes do not pay for
+  // member maps, guest display names, or role history.
+  const memberIds = parties.flatMap((p) => [
+    ...p.slots.map((s) => s.assigned_discord_id),
+    ...p.slots.map((s) => s.requested_discord_id),
+    p.caller_discord_id,
+  ])
+  const memberIdList = [
+    ...memberIds.filter((memberId): memberId is string => !!memberId),
+    ...tentativeRows.map((r) => r.discord_id),
+  ]
+
+  const [
+    avatarMap,
+    usernameMap,
+    eventGuestNameMap,
+    roleExperienceCounts,
+    buildSheetManageableParties,
+    buildSheetState,
+    guestTokenResult,
+    guestProfile,
+  ] = await Promise.all([
+    getAvatarsByDiscordIds(guildId, memberIdList),
+    getUsernamesByDiscordIds(guildId, memberIdList),
+    getEventGuestDisplayNamesByDiscordIds(guildId, id, memberIdList),
+    loadEventRoleExperienceCounts({
+      db,
+      guildId,
+      currentEventId: id,
+      parties,
+    }),
     buildSheetMode && interactionSession
-      ? await getBuildSheetAssignedPartyNumbers(id, guildId, interactionSession.discordId)
-      : []
-  const buildSheetState = buildSheetMode
-    ? await loadBuildSheetEventState(id, guildId, {
-        includeApplications: !!interactionSession,
-      })
-    : null
+      ? getBuildSheetAssignedPartyNumbers(id, guildId, interactionSession.discordId)
+      : Promise.resolve([] as number[]),
+    buildSheetMode
+      ? loadBuildSheetEventState(id, guildId, {
+          includeApplications: !!interactionSession,
+        })
+      : Promise.resolve(null),
+    canEdit
+      ? listEventGuestTokens(id)
+      : Promise.resolve({ tokens: [] as const }),
+    interactionSession?.isGuest && interactionSession.eventScope === id
+      ? getEventGuestProfile(guildId, id, interactionSession.discordId)
+      : Promise.resolve(null),
+  ])
+  for (const [discordId, displayName] of eventGuestNameMap) {
+    usernameMap.set(discordId, displayName)
+  }
+  const avatars = Object.fromEntries(avatarMap)
+  const usernames = Object.fromEntries(usernameMap)
   const myBuildSheetApplication =
     interactionSession && buildSheetState
       ? buildSheetState.applications.find(
@@ -449,13 +467,7 @@ export default async function EventDetailPage({
   // 게스트 초대 관리도 같은 권한(관리자 or 이벤트 작성자). 서버에서 미리
   // 활성 토큰 목록을 로드해 모달이 즉시 열리도록 prefill.
   const origin = requestOriginFromHeaders(headersList)
-  const { tokens: guestTokens } = canEdit
-    ? await listEventGuestTokens(id)
-    : { tokens: [] as const }
-  const guestProfile =
-    interactionSession?.isGuest && interactionSession.eventScope === id
-      ? await getEventGuestProfile(guildId, id, interactionSession.discordId)
-      : null
+  const { tokens: guestTokens } = guestTokenResult
   const shouldShowGuestProfileGate =
     (interactionSession?.isGuest && interactionSession.eventScope === id && !guestProfile) ||
     (hasGuestInvite && (!interactionSession || interactionSession.isGuest))

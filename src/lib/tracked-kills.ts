@@ -14,6 +14,7 @@
 import type { getAdminClient } from '@/lib/supabase-admin'
 import { isHighEngagement } from '@/lib/low-engagement-cut'
 import { selectPagedRowsOrThrow, type SupabasePagedQuery } from '@/lib/supabase-pagination'
+import { isMissingRpcError, type SupabaseRpcErrorLike } from '@/lib/supabase-rpc-errors'
 
 type Db = ReturnType<typeof getAdminClient>
 
@@ -412,24 +413,78 @@ export interface ParticipationsResult {
   discordByAlbionPlayerId: Map<string, string>
 }
 
+type BattleParticipationRpcArgs = {
+  p_guild_id: string
+  p_albion_player_id?: string | null
+  p_discord_id?: string | null
+}
+
 export async function fetchMemberBattleParticipations(
   db: Db,
   guildId: string,
   sinceIso?: string | null,
 ): Promise<ParticipationsResult> {
+  const { rows, error } = await loadBattleParticipationRows(db, 'member_battle_participations', {
+    p_guild_id: guildId,
+  })
+
+  if (error) {
+    throw new Error(`Failed to load member battle participations: ${error.message}`)
+  }
+
+  return buildParticipationsResult(rows, sinceIso)
+}
+
+export async function fetchMemberBattleParticipationsForMember(
+  db: Db,
+  guildId: string,
+  target: { albionPlayerId?: string | null; discordId?: string | null },
+  sinceIso?: string | null,
+): Promise<ParticipationsResult> {
+  const albionPlayerId = target.albionPlayerId?.trim() || null
+  const discordId = target.discordId?.trim() || null
+  if (!albionPlayerId && !discordId) return emptyParticipationsResult()
+
+  const rpcName = 'member_battle_participations_for_member'
+  const { rows, error } = await loadBattleParticipationRows(db, rpcName, {
+    p_guild_id: guildId,
+    p_albion_player_id: albionPlayerId,
+    p_discord_id: discordId,
+  })
+
+  if (!error) {
+    return buildParticipationsResult(rows, sinceIso)
+  }
+
+  if (!isMissingRpcError(error, rpcName)) {
+    throw new Error(`Failed to load member battle participations: ${error.message}`)
+  }
+
+  const allParticipations = await fetchMemberBattleParticipations(db, guildId, sinceIso)
+  if (albionPlayerId) {
+    return pickSingleMemberParticipations(allParticipations, albionPlayerId)
+  }
+  return allParticipations
+}
+
+async function loadBattleParticipationRows(
+  db: Db,
+  rpcName: string,
+  args: BattleParticipationRpcArgs,
+): Promise<{ rows: BattleParticipationRow[]; error: null } | { rows: []; error: SupabaseRpcErrorLike }> {
   const rows: BattleParticipationRow[] = []
   let from = 0
 
   while (true) {
     const { data, error } = await db
-      .rpc('member_battle_participations', { p_guild_id: guildId })
+      .rpc(rpcName, args)
       .order('raw_started_at', { ascending: true })
       .order('albion_player_id', { ascending: true, nullsFirst: false })
       .order('discord_id', { ascending: true, nullsFirst: false })
       .range(from, from + MEMBER_BATTLE_PARTICIPATIONS_PAGE_SIZE - 1)
 
     if (error) {
-      throw new Error(`Failed to load member battle participations: ${error.message}`)
+      return { rows: [], error }
     }
 
     const page = (data ?? []) as BattleParticipationRow[]
@@ -439,6 +494,13 @@ export async function fetchMemberBattleParticipations(
     from += MEMBER_BATTLE_PARTICIPATIONS_PAGE_SIZE
   }
 
+  return { rows, error: null }
+}
+
+function buildParticipationsResult(
+  rows: ReadonlyArray<BattleParticipationRow>,
+  sinceIso?: string | null,
+): ParticipationsResult {
   const byAlbionPlayerId = new Map<string, Map<string, string>>()
   const discordByAlbionPlayerId = new Map<string, string>()
   const sinceMs = sinceIso ? Date.parse(sinceIso) : null
@@ -458,6 +520,28 @@ export async function fetchMemberBattleParticipations(
       discordByAlbionPlayerId.set(row.albion_player_id, row.discord_id)
     }
   }
+  return { byAlbionPlayerId, discordByAlbionPlayerId }
+}
+
+function emptyParticipationsResult(): ParticipationsResult {
+  return {
+    byAlbionPlayerId: new Map(),
+    discordByAlbionPlayerId: new Map(),
+  }
+}
+
+function pickSingleMemberParticipations(
+  result: ParticipationsResult,
+  albionPlayerId: string,
+): ParticipationsResult {
+  const byAlbionPlayerId = new Map<string, Map<string, string>>()
+  const inner = result.byAlbionPlayerId.get(albionPlayerId)
+  if (inner) byAlbionPlayerId.set(albionPlayerId, inner)
+
+  const discordByAlbionPlayerId = new Map<string, string>()
+  const discordId = result.discordByAlbionPlayerId.get(albionPlayerId)
+  if (discordId) discordByAlbionPlayerId.set(albionPlayerId, discordId)
+
   return { byAlbionPlayerId, discordByAlbionPlayerId }
 }
 

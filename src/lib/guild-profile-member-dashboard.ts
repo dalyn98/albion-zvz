@@ -7,7 +7,7 @@ import { getAdminClient } from './supabase-admin'
 import { getAppSetting } from './app-settings'
 import {
   fetchTrackedBattleWindows,
-  fetchMemberBattleParticipations,
+  fetchMemberBattleParticipationsForMember,
   groupMemberKillsByBattle,
   mergeMemberBattles,
 } from './tracked-kills'
@@ -200,7 +200,10 @@ async function loadRecentMemberBattles(
           .order('occurred_at', { ascending: true })
           .order('event_id', { ascending: true }) as unknown as SupabasePagedQuery<MemberDashboardKillboardRow>,
     }),
-    fetchMemberBattleParticipations(db, guildId),
+    fetchMemberBattleParticipationsForMember(db, guildId, {
+      albionPlayerId,
+      discordId,
+    }),
   ])
 
   const memberParticipations = albionPlayerId

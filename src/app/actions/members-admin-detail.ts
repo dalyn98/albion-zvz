@@ -25,7 +25,7 @@ import {
   calcSurvivalFromBattles,
 } from '@/lib/member-stats'
 import {
-  fetchMemberBattleParticipations,
+  fetchMemberBattleParticipationsForMember,
   fetchTrackedBattleWindows,
   groupMemberKillsByBattle,
   mergeMemberBattles,
@@ -144,7 +144,7 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       // 내려주지 않고 limit 1000 에 걸리므로 RPC 로 한 번에 수행.
       db.rpc('member_ranking_counts', { p_guild_id: guildId }),
       fetchTrackedBattleWindows(db, guildId, null, { bundleSplits }),
-      fetchMemberBattleParticipations(db, guildId),
+      fetchMemberBattleParticipationsForMember(db, guildId, { albionPlayerId: memberAlbionId }),
       getAccountAlbionIdentityView(guildId, discordId),
     ])
 
@@ -525,7 +525,7 @@ export async function getAlbionMemberDetail(albionPlayerId: string): Promise<{
             .order('event_id', { ascending: true }) as unknown as SupabasePagedQuery<KillboardRow>,
       }),
       fetchTrackedBattleWindows(db, guildId, null, { bundleSplits }),
-      fetchMemberBattleParticipations(db, guildId),
+      fetchMemberBattleParticipationsForMember(db, guildId, { albionPlayerId }),
     ])
 
     if (rosterRes.error) return { detail: null, error: rosterRes.error.message }

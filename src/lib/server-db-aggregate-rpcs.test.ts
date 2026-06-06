@@ -22,6 +22,11 @@ const memberPendingCountSql = readFileSync(
   'utf8',
 )
 
+const memberParticipationSingleSql = readFileSync(
+  join(process.cwd(), 'supabase/migrations/199_single_member_participations_raw_battle.sql'),
+  'utf8',
+)
+
 describe('server/db aggregate RPC migrations', () => {
   it('keeps siphon balances tenant scoped and service-role only', () => {
     expect(sql).toMatch(/create or replace function public\.get_siphon_balances/i)
@@ -87,5 +92,18 @@ describe('server/db aggregate RPC migrations', () => {
     expect(memberPendingCountSql).toMatch(/where dr\.guild_id = p_guild_id/i)
     expect(memberPendingCountSql).toMatch(/and dr\.discord_id = p_discord_id/i)
     expect(memberPendingCountSql).toMatch(/grant execute on function public\.member_pending_request_counts\(uuid, text\) to service_role/i)
+  })
+
+  it('keeps single-member participations tenant scoped and service-role only', () => {
+    expect(memberParticipationSingleSql).toMatch(/create or replace function public\.member_battle_participations_for_member/i)
+    expect(memberParticipationSingleSql).toMatch(/set search_path = public/i)
+    expect(memberParticipationSingleSql).toMatch(/where agm\.guild_id = p_guild_id/i)
+    expect(memberParticipationSingleSql).toMatch(/agm\.albion_player_id = p_albion_player_id/i)
+    expect(memberParticipationSingleSql).toMatch(/ga\.discord_id = p_discord_id/i)
+    expect(memberParticipationSingleSql).toMatch(/where tbr\.guild_id = p_guild_id/i)
+    expect(memberParticipationSingleSql).toMatch(/\(tbr\.home_kills \+ tbr\.home_deaths\) >= \(tbr\.home_team_size \* 0\.1\)/i)
+    expect(memberParticipationSingleSql).toMatch(/jsonb_each\(t\.raw_battle->'players'\)/i)
+    expect(memberParticipationSingleSql).not.toContain('battle_participant_snapshots')
+    expect(memberParticipationSingleSql).toMatch(/grant execute on function public\.member_battle_participations_for_member\(uuid, text, text\) to service_role/i)
   })
 })

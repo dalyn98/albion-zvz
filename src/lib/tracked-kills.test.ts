@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   fetchMemberBattleParticipations,
+  fetchMemberBattleParticipationsForMember,
   fetchTrackedBattleWindows,
   findTrackedBattleKey,
   groupMemberKillsByBattle,
@@ -296,5 +297,73 @@ describe('fetchMemberBattleParticipations — RPC pagination', () => {
       'loss',
     )
     expect(result.discordByAlbionPlayerId.get('player-1001')).toBeUndefined()
+  })
+
+  it('loads only the requested member through the single-member participation RPC', async () => {
+    const rangeCalls: Array<[number, number]> = []
+    const rpc = vi.fn(() => {
+      const builder = {
+        order: vi.fn(() => builder),
+        range: vi.fn(async (from: number, to: number) => {
+          rangeCalls.push([from, to])
+          return {
+            data: [{
+              discord_id: 'discord-1',
+              albion_player_id: 'player-1',
+              raw_started_at: '2026-01-02T10:00:00.000Z',
+              outcome: 'win',
+            }],
+            error: null,
+          }
+        }),
+      }
+      return builder
+    })
+
+    const result = await fetchMemberBattleParticipationsForMember(
+      { rpc } as unknown as Parameters<typeof fetchMemberBattleParticipationsForMember>[0],
+      'guild-1',
+      { albionPlayerId: 'player-1' },
+    )
+
+    expect(rpc).toHaveBeenCalledWith('member_battle_participations_for_member', {
+      p_guild_id: 'guild-1',
+      p_albion_player_id: 'player-1',
+      p_discord_id: null,
+    })
+    expect(rangeCalls).toEqual([[0, 999]])
+    expect(result.byAlbionPlayerId.size).toBe(1)
+    expect(result.byAlbionPlayerId.get('player-1')?.get('2026-01-02T10:00:00.000Z')).toBe('win')
+  })
+
+  it('can target a linked member by discord id without loading the full guild map', async () => {
+    const rpc = vi.fn(() => {
+      const builder = {
+        order: vi.fn(() => builder),
+        range: vi.fn(async () => ({
+          data: [{
+            discord_id: 'discord-1',
+            albion_player_id: 'player-1',
+            raw_started_at: '2026-01-02T10:00:00.000Z',
+            outcome: 'loss',
+          }],
+          error: null,
+        })),
+      }
+      return builder
+    })
+
+    const result = await fetchMemberBattleParticipationsForMember(
+      { rpc } as unknown as Parameters<typeof fetchMemberBattleParticipationsForMember>[0],
+      'guild-1',
+      { discordId: 'discord-1' },
+    )
+
+    expect(rpc).toHaveBeenCalledWith('member_battle_participations_for_member', {
+      p_guild_id: 'guild-1',
+      p_albion_player_id: null,
+      p_discord_id: 'discord-1',
+    })
+    expect(result.discordByAlbionPlayerId.get('player-1')).toBe('discord-1')
   })
 })
