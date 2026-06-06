@@ -49,14 +49,22 @@ describe('crafted regear RPC tenant scope', () => {
     expect(functionDefinition).toContain('security definer')
     expect(functionDefinition).toContain('set search_path = public')
     expect(sql).toContain(
-      'revoke all on function public.approve_regear_as_crafted(uuid, text, text, uuid, integer) from public;',
+      'revoke all on function public.approve_regear_as_crafted(uuid, text, text, uuid, integer, text[]) from public;',
     )
     expect(sql).toContain(
-      'revoke all on function public.approve_regear_as_crafted(uuid, text, text, uuid, integer) from anon, authenticated;',
+      'revoke all on function public.approve_regear_as_crafted(uuid, text, text, uuid, integer, text[]) from anon, authenticated;',
     )
     expect(sql).toContain(
-      'grant execute on function public.approve_regear_as_crafted(uuid, text, text, uuid, integer) to service_role;',
+      'grant execute on function public.approve_regear_as_crafted(uuid, text, text, uuid, integer, text[]) to service_role;',
     )
+  })
+
+  it('persists requested craft slots when auto regear creates a crafted request', () => {
+    const sql = latestFunctionDefinition('create_auto_regear_request')
+
+    expect(sql).toContain('p_craft_requested_slots text[]')
+    expect(sql).toContain('craft_requested_slots')
+    expect(sql).toContain('to_jsonb(p_craft_requested_slots)')
   })
 
   it('persists the final included craft slots when enqueuing crafted regear', () => {
@@ -64,7 +72,7 @@ describe('crafted regear RPC tenant scope', () => {
 
     expect(sql).toContain('p_included_slots text[]')
     expect(sql).toContain('craft_included_slots')
-    expect(sql).toContain('to_jsonb(p_included_slots)')
+    expect(sql).toContain('to_jsonb(v_included_slots)')
   })
 
   it('persists the final included craft slots when approving from stock', () => {
@@ -72,13 +80,13 @@ describe('crafted regear RPC tenant scope', () => {
 
     expect(sql).toContain('p_included_slots text[]')
     expect(sql).toContain('craft_included_slots')
-    expect(sql).toContain('to_jsonb(p_included_slots)')
+    expect(sql).toContain('to_jsonb(v_included_slots)')
   })
 
   it('does not credit crafter reimbursement during delivery', () => {
     const sql = latestFunctionDefinition('deliver_craft_task')
 
-    expect(sql).toContain("reimbursement_status = 'pending'")
+    expect(sql).toContain("then 'pending'")
     expect(sql).not.toContain("values (p_guild_id, p_crafter_discord_id, v_reimbursement")
     expect(sql).not.toContain("'craft_reimbursement', p_task_id")
   })
@@ -95,6 +103,7 @@ describe('crafted regear RPC tenant scope', () => {
 
     expect(functionDefinition).toContain('security definer')
     expect(functionDefinition).toContain('set search_path = public')
+    expect(functionDefinition).toContain('returns integer')
     expect(functionDefinition).toContain("insert into point_ledger")
     expect(functionDefinition).toContain("'craft_reimbursement'")
     expect(sql).toContain(

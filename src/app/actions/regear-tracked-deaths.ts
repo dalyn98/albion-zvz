@@ -34,6 +34,10 @@ import type { BuildSnapshot } from '@/types'
 import { sendAdminNotification } from '@/lib/admin-notifications'
 import { validateImageUploadFile } from '@/lib/image-upload'
 import { parsePositiveSafeInt } from '@/lib/parse-bounded-int'
+import {
+  craftRegearSlots,
+  parseCraftIncludeCapeFormValue,
+} from '@/lib/regear-craft-slots'
 
 // 스크린샷은 옵션 — killboard_verified=true 가 이미 검증 소스라 필수가 아니지만,
 // 청구자가 갱크 상황·잔여 인원·아이템 등 추가 컨텍스트를 첨부할 수 있게 한다.
@@ -195,6 +199,12 @@ export async function submitTrackedAdHocRegear(
   if (!session.isMember) return { error: tErr('memberOnly') }
 
   const guildId = await getSessionGuildId(session)
+  const craftEnabled =
+    (await getAppSetting('craft_regear_enabled', 'false', guildId)) === 'true'
+  const fulfillmentMode: 'silver' | 'crafted' = craftEnabled ? 'crafted' : 'silver'
+  const craftRequestedSlots = craftEnabled
+    ? craftRegearSlots(parseCraftIncludeCapeFormValue(formData.get('craftIncludeCape')))
+    : null
   const requireVerification =
     (await getAppSetting('regear_require_verification', 'true', guildId)) !== 'false'
   let requesterRelation: AlbionIdentityRelation = 'unknown'
@@ -323,7 +333,8 @@ export async function submitTrackedAdHocRegear(
       admin_notes: null,
       build_snapshot: buildSnapshot,
       auto_generated: false,
-      fulfillment_mode: 'silver',
+      fulfillment_mode: fulfillmentMode,
+      craft_requested_slots: craftRequestedSlots,
       requester_relation: requesterRelation,
     })
     .select('id')

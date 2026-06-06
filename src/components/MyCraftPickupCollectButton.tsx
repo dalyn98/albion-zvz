@@ -12,8 +12,8 @@ interface Props {
   taskId: string
 }
 
-// 작업 회수 확정 버튼. 누르면 status='collected' 로 전환되며 reimbursement_silver
-// 만큼 point_ledger 에 craft_reimbursement 가 적립된다.
+// 작업 회수 확정 버튼. 누르면 status='collected' 로 전환되어 박스가 비워진다.
+// 제작자 환급은 납품 후 별도 관리자 승인으로 처리된다.
 export default function MyCraftPickupCollectButton({ taskId }: Props) {
   const t = useTranslations('craftPickup')
   const toast = useToast()

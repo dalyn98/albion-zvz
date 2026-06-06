@@ -10,6 +10,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { requireAnyCapability } from '@/lib/auth'
 import {
+  approveCraftReimbursement,
   cancelCraftTask,
   convertCraftTaskToSilver,
   type CraftTaskStatus,
@@ -223,7 +224,7 @@ export async function listAllCraftTasksAdmin(
         let query = db
           .from('craft_tasks')
           .select(
-            'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot)',
+            'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, reimbursement_status, reimbursement_approved_at, reimbursement_approved_by, reimbursement_approved_by_username, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot, craft_included_slots)',
           )
           .eq('guild_id', guildId)
         if (scope === 'active') query = query.in('status', activeStatuses as string[])
@@ -430,10 +431,58 @@ export async function revertCraftTaskToPendingAdmin(
   }
 }
 
+export async function approveCraftReimbursementAdmin(
+  taskId: string,
+): Promise<{ error?: string; amount?: number }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    await requireAnyCapability(CRAFT_ADMIN_CAPS)
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+
+    let amount = 0
+    try {
+      amount = await approveCraftReimbursement(
+        taskId,
+        guildId,
+        session.discordId,
+        session.username,
+      )
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : tErr('serverError')
+      if (msg.includes('CRAFT_REIMBURSEMENT_NOT_PENDING')) {
+        return { error: tErr('craftReimbursementNotPending') }
+      }
+      if (msg.includes('CRAFT_TASK_NOT_FOUND')) {
+        return { error: tErr('craftTaskNotFound') }
+      }
+      return { error: msg }
+    }
+
+    revalidatePath('/admin/dashboard/craft')
+    revalidatePath('/craft/queue')
+    revalidatePath('/craft/my-tasks')
+    revalidatePath('/me')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'craft.reimbursement.approve',
+      targetId: taskId,
+      targetKind: 'craft_task',
+      details: { amount },
+    })
+    return { amount }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
 // Tenant-wide settings setter (admin only). Validation here mirrors the SQL
 // constraints; UI passes already-coerced numbers.
 export interface UpdateCraftSettingsInput {
   enabled: boolean
+  includeCape: boolean
   rangeMin: number
   rangeMax: number
   expiryDays: number
@@ -468,6 +517,7 @@ export async function updateCraftSettingsAdmin(
 
     const rows = [
       { key: 'craft_regear_enabled', value: input.enabled ? 'true' : 'false' },
+      { key: 'craft_regear_include_cape', value: input.includeCape ? 'true' : 'false' },
       { key: 'craft_box_range_min', value: String(input.rangeMin) },
       { key: 'craft_box_range_max', value: String(input.rangeMax) },
       { key: 'craft_box_expiry_days', value: String(input.expiryDays) },
@@ -486,6 +536,7 @@ export async function updateCraftSettingsAdmin(
       details: {
         kind: 'craft_global',
         enabled: input.enabled,
+        includeCape: input.includeCape,
         rangeMin: input.rangeMin,
         rangeMax: input.rangeMax,
         expiryDays: input.expiryDays,

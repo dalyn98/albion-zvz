@@ -52,6 +52,7 @@ interface Props {
   // 길드 모드. true 면 모든 신규 요청이 'crafted' 로 강제, false 면 'silver'.
   // 멤버는 모드를 선택할 수 없고, UI 에는 안내 배너로만 표시된다.
   craftEnabled: boolean
+  craftIncludeCapeDefault: boolean
   // 길드 정책: 오버차지 리기어 허용 여부. true 면 모달 시작 phase 에서
   // "전투 사망" / "오버차지" 종류를 먼저 고르고, false 면 그 phase 를 건너뛰어
   // 항상 'death' 로 처리한다.
@@ -90,6 +91,7 @@ export default function RegearRequestButton({
   windowOpenAt,
   windowMinutes,
   craftEnabled,
+  craftIncludeCapeDefault,
   overchargeEnabled,
 }: Props) {
   const router = useRouter()
@@ -109,6 +111,7 @@ export default function RegearRequestButton({
   const initialPhase = getInitialManualRegearPhase(overchargeEnabled, maxEntries)
   const [phase, setPhase] = useState<ManualRegearPhase>(initialPhase)
   const [requestType, setRequestType] = useState<RequestType>('death')
+  const [craftIncludeCape, setCraftIncludeCape] = useState(craftIncludeCapeDefault)
   const [entries, setEntries] = useState<EntryState[]>(() =>
     initialPhase === 'entries' ? [newEntry()] : [],
   )
@@ -167,6 +170,7 @@ export default function RegearRequestButton({
   const resetModal = () => {
     setPhase(initialPhase)
     setRequestType('death')
+    setCraftIncludeCape(craftIncludeCapeDefault)
     setEntries(initialPhase === 'entries' ? [newEntry()] : [])
     setEntryErrors({})
     setError('')
@@ -359,6 +363,9 @@ export default function RegearRequestButton({
         }
         form.append('claimedSilver', parsedClaim.toString())
         form.append('requestType', requestType)
+        if (craftEnabled) {
+          form.append('craftIncludeCape', craftIncludeCape ? 'true' : 'false')
+        }
         const r = await requestRegear(form)
         if (r.error && r.error.startsWith(REGEAR_VERIFICATION_ERROR_PREFIX)) {
           // 후속 entry 도 동일 사유로 실패할 것 — 남은 요청은 보내지 않고
@@ -511,7 +518,11 @@ export default function RegearRequestButton({
                         : t('deathCountBack')}
                     </button>
                   </div>
-                  <FulfillmentModeNotice craftEnabled={craftEnabled} />
+                  <FulfillmentModeNotice
+                    craftEnabled={craftEnabled}
+                    includeCape={craftIncludeCape}
+                    onIncludeCapeChange={setCraftIncludeCape}
+                  />
                   <div className="space-y-5">
                     {entries.map((entry, idx) => (
                       <RegearEntryRow

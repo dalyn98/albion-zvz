@@ -9,6 +9,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import type { RegearRejectReasonCode } from '@/lib/regear-reject-reasons'
+import type { CraftRegearSlot } from '@/lib/regear-craft-slots'
 import type { BuildSnapshot, RegearType } from '@/types'
 import type { AlbionIdentityRelation } from '@/lib/account-albion-identity'
 
@@ -49,6 +50,10 @@ export type AdminRegearRequest = {
   handled_by: string | null
   handled_by_username: string | null
   build_snapshot: BuildSnapshot | null
+  // 제작 리기어 요청/승인 시점의 실제 지급 슬롯. 요청값은 멤버가 신청할 때,
+  // 승인값은 관리자가 최종 큐잉/재고출고할 때 고정된다.
+  craft_requested_slots: CraftRegearSlot[]
+  craft_included_slots: CraftRegearSlot[] | null
   // 킬보드 장비 + AODP 시세로 추산한 시장가. 자동 리기어와 관리자 재확인에서
   // 동일 포맷(gear_breakdown.market_silver) 으로 기록한다. null = 추산 없음.
   estimated_silver: number | null

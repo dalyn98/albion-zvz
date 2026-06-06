@@ -33,6 +33,7 @@ import {
   type CraftQueueItem,
 } from '@/app/actions/craft'
 import type { BuildSnapshot } from '@/types'
+import { normalizeCraftRegearSlots } from '@/lib/regear-craft-slots'
 
 // 큐 listing: queued (잡을 수 있는 것) + mine (현재 로그인 크래프터가 잡고 있는
 // 것) 두 리스트를 한 번에 반환. 둘 다 tenant-scoped.
@@ -62,7 +63,7 @@ export async function listCraftQueueForCrafter(): Promise<{
   const { data, error } = await db
     .from('craft_tasks')
     .select(
-      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot)',
+      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, reimbursement_status, reimbursement_approved_at, reimbursement_approved_by, reimbursement_approved_by_username, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot, craft_included_slots)',
     )
     .eq('guild_id', guildId)
     .in('status', ['queued', 'claimed', 'delivered'])
@@ -114,7 +115,9 @@ export async function listCraftQueueForCrafter(): Promise<{
   const allItemIds = new Set<string>()
   for (const item of [...queued, ...mine]) {
     if (!item.buildSnapshot) continue
-    for (const id of extractGearItemIdsFromBuild(item.buildSnapshot)) {
+    for (const id of extractGearItemIdsFromBuild(item.buildSnapshot, {
+      includedSlots: item.craftIncludedSlots,
+    })) {
       allItemIds.add(id)
     }
   }
@@ -170,7 +173,7 @@ export async function getCraftQueueTaskDetail(
   const { data, error } = await db
     .from('craft_tasks')
     .select(
-      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_title_snapshot, claimed_silver, build_snapshot, event_id)',
+      'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, reimbursement_status, reimbursement_approved_at, reimbursement_approved_by, reimbursement_approved_by_username, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_title_snapshot, claimed_silver, build_snapshot, craft_included_slots, event_id)',
     )
     .eq('guild_id', guildId)
     .eq('id', taskId)
@@ -445,7 +448,7 @@ export async function deliverCraftQueueItem(
   const { data: dmRow } = await db
     .from('craft_tasks')
     .select(
-      'box_number, regear_requests!inner(discord_id, event_title_snapshot, build_snapshot)',
+      'box_number, regear_requests!inner(discord_id, event_title_snapshot, build_snapshot, craft_included_slots)',
     )
     .eq('guild_id', guildId)
     .eq('id', input.taskId)
@@ -471,11 +474,16 @@ export async function deliverCraftQueueItem(
   // "경고 납품" (시장 구매로 즉시 리기어) 으로 통계에서 분리한다.
   const buildSnapshot = (r?.build_snapshot as BuildSnapshot | null) ?? null
   if (buildSnapshot) {
+    const includedSlots = normalizeCraftRegearSlots(
+      (r as { craft_included_slots?: unknown } | null)?.craft_included_slots,
+      false,
+    )
     try {
       const result = await decrementBuildForDelivery(
         guildId,
         buildSnapshot,
         session.discordId,
+        { includedSlots },
       )
       if (!result.empty && result.warnedItemIds.length > 0) {
         await db

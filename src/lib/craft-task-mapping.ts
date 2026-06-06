@@ -10,6 +10,11 @@ import type {
   CraftCompensationMode,
   CraftQueueItem,
 } from '@/app/actions/craft'
+import {
+  craftRegearSlots,
+  normalizeCraftRegearSlots,
+  type CraftRegearSlot,
+} from './regear-craft-slots'
 
 export interface RegearRequestJoin {
   id: string
@@ -20,6 +25,7 @@ export interface RegearRequestJoin {
   event_title_snapshot: string | null
   claimed_silver: number | null
   build_snapshot: unknown
+  craft_included_slots?: unknown
 }
 
 export interface CraftTaskJoinedRow extends CraftTaskRow {
@@ -52,6 +58,7 @@ export function toQueueItem(
     gatherAt: eventId ? gatherAtByEventId?.get(eventId) ?? null : null,
     roleName: r?.role_name ?? '',
     buildSnapshot: (r?.build_snapshot as BuildSnapshot | null) ?? null,
+    craftIncludedSlots: normalizeCraftRegearSlots(r?.craft_included_slots, false),
     claimedSilver: r?.claimed_silver ?? null,
     createdAt: row.created_at,
     claimedAt: row.claimed_at,
@@ -64,8 +71,19 @@ export function toQueueItem(
     materialSilverCost: row.material_silver_cost,
     premiumSilver: row.premium_silver,
     reimbursementSilver: row.reimbursement_silver,
+    reimbursementStatus:
+      row.reimbursement_status === 'pending' || row.reimbursement_status === 'approved'
+        ? row.reimbursement_status
+        : 'not_required',
+    reimbursementApprovedAt: row.reimbursement_approved_at,
+    reimbursementApprovedBy: row.reimbursement_approved_by,
+    reimbursementApprovedByUsername: row.reimbursement_approved_by_username,
     compensationMode: row.compensation_mode as CraftCompensationMode | null,
   }
+}
+
+export function defaultCraftIncludedSlots(includeCape: boolean): CraftRegearSlot[] {
+  return craftRegearSlots(includeCape)
 }
 
 export async function loadIsCrafter(

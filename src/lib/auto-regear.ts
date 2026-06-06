@@ -43,6 +43,7 @@ import {
   type AlbionIdentityTrustStatus,
 } from '@/lib/account-albion-identity'
 import { sendAdminNotification } from '@/lib/admin-notifications'
+import { craftRegearSlots } from '@/lib/regear-craft-slots'
 
 // 외부 모듈(regear-tracked-deaths 등) 이 기존 import 경로를 유지하도록 re-export.
 export { equipmentToBuildSnapshot, type EquipmentItem } from '@/lib/auto-regear-equipment'
@@ -189,13 +190,14 @@ export async function processAutoRegear(
   const startedAt = Date.now()
   const errors: AutoRegearResult['errors'] = []
 
-  // 7개 app_settings 를 1번의 round-trip 으로 읽는다.
+  // 자동 리기어가 쓰는 app_settings 를 1번의 round-trip 으로 읽는다.
   const SETTING_KEYS = [
     'auto_regear_enabled',
     'albion_home_guild_id',
     'albion_server',
     'regear_payout_rate_percent',
     'craft_regear_enabled',
+    'craft_regear_include_cape',
     'auto_regear_excluded_slots',
     'auto_regear_skip_low_confidence',
   ] as const
@@ -264,6 +266,9 @@ export async function processAutoRegear(
   // 박는다. 'false' 면 silver 모드(기존 동작).
   const craftMode = (settings.get('craft_regear_enabled') ?? 'false') === 'true'
   const fulfillmentMode: 'silver' | 'crafted' = craftMode ? 'crafted' : 'silver'
+  const craftRequestedSlots = craftMode
+    ? craftRegearSlots((settings.get('craft_regear_include_cape') ?? 'false') === 'true')
+    : null
 
   // 자동 리기어 제외 슬롯. 잘못된 JSON 은 무시(전부 포함 = 안전한 fallback).
   // 기본값은 음식·망토·탈것·포션 — 길드 표준 운영상 리기어 비대상 슬롯.
@@ -763,6 +768,7 @@ export async function processAutoRegear(
           p_price_warning_level: warningLevel,
           p_fulfillment_mode: fulfillmentMode,
           p_build_snapshot: buildSnapshot,
+          p_craft_requested_slots: craftRequestedSlots,
         })
         if (rpcErr) {
           errors.push({ event_id: event.id, step: 'rpc', message: rpcErr.message })

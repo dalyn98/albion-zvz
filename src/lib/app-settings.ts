@@ -180,6 +180,9 @@ export type AppSettingKey =
   // 멤버는 모드를 선택할 수 없고 길드 설정이 강제. 기본 'false'. /craft/queue 탭
   // 노출 여부도 이 값에 묶여 있어, 'false' 면 제작자/관리자에게도 탭이 숨겨진다.
   | 'craft_regear_enabled'
+  // Boolean 문자열. 'true' 면 제작 리기어 요청/작업 슬롯에 망토까지 포함한다.
+  // 기본 'false' 는 기존 무기/방어구 중심 제작 범위를 유지한다.
+  | 'craft_regear_include_cape'
   // 정수 문자열. 길드섬에 비치된 회차 박스 번호 범위 [min..max]. 기본 1..30.
   // 제작자가 delivered 시점에 직접 박스 번호를 입력하면 이 범위 안에서만 허용.
   | 'craft_box_range_min'

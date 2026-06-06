@@ -12,6 +12,7 @@ import { compressImageIfLarge } from '@/lib/image-compress'
 import { useToast } from './ToastProvider'
 import AdHocDeathBuildStrip from './AdHocDeathBuildStrip'
 import type { BuildSnapshot } from '@/types'
+import { FulfillmentModeNotice } from './RegearRequestModalParts'
 
 interface Props {
   killboardEventId: number
@@ -19,6 +20,8 @@ interface Props {
   roleOptions: WindowRoleOption[]
   battleAtLabel: string
   opponentLabel: string
+  craftEnabled: boolean
+  craftIncludeCapeDefault: boolean
 }
 
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
@@ -32,6 +35,8 @@ export default function AdHocDeathSubmitButton({
   roleOptions,
   battleAtLabel,
   opponentLabel,
+  craftEnabled,
+  craftIncludeCapeDefault,
 }: Props) {
   const router = useRouter()
   const t = useTranslations('regear')
@@ -43,6 +48,7 @@ export default function AdHocDeathSubmitButton({
   const [roleName, setRoleName] = useState<string>(roleOptions[0]?.roleName ?? '')
   const [claimedInput, setClaimedInput] = useState('')
   const [file, setFile] = useState<File | null>(null)
+  const [craftIncludeCape, setCraftIncludeCape] = useState(craftIncludeCapeDefault)
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
 
@@ -53,6 +59,7 @@ export default function AdHocDeathSubmitButton({
     setRoleName(roleOptions[0]?.roleName ?? '')
     setClaimedInput('')
     setFile(null)
+    setCraftIncludeCape(craftIncludeCapeDefault)
     setError('')
   }
 
@@ -113,6 +120,9 @@ export default function AdHocDeathSubmitButton({
       form.append('killboardEventId', String(killboardEventId))
       form.append('roleName', roleName)
       form.append('claimedSilver', String(parsed))
+      if (craftEnabled) {
+        form.append('craftIncludeCape', craftIncludeCape ? 'true' : 'false')
+      }
       if (file) form.append('screenshot', file)
       const r = await submitTrackedAdHocRegear(form)
       if (r.error) {
@@ -183,6 +193,12 @@ export default function AdHocDeathSubmitButton({
                 <p className="text-rose-300 text-xs">{t('ceilingNotSet')}</p>
               ) : (
                 <>
+                  <FulfillmentModeNotice
+                    craftEnabled={craftEnabled}
+                    includeCape={craftIncludeCape}
+                    onIncludeCapeChange={setCraftIncludeCape}
+                  />
+
                   <div>
                     <label htmlFor="adhoc-role" className="block text-xs text-gray-400 mb-1">
                       {t('role')}

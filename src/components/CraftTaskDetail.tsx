@@ -597,6 +597,17 @@ function DeliveredSummary({ task }: { task: CraftQueueTaskDetail['task'] }) {
           {t('materialSpent', { silver: formatSilver(task.materialSilverCost) })}
         </p>
       )}
+      {(task.reimbursementSilver ?? 0) > 0 && (
+        <p
+          className={`text-xs font-mono ${
+            task.reimbursementStatus === 'approved' ? 'text-emerald-300' : 'text-amber-300'
+          }`}
+        >
+          {task.reimbursementStatus === 'approved'
+            ? t('reimbursementApproved', { silver: formatSilver(task.reimbursementSilver ?? 0) })
+            : t('reimbursementPending', { silver: formatSilver(task.reimbursementSilver ?? 0) })}
+        </p>
+      )}
     </section>
   )
 }

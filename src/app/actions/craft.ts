@@ -23,6 +23,7 @@ import {
   parseRangeBoundary,
 } from '@/lib/craft-task-mapping'
 import type { BuildSnapshot } from '@/types'
+import type { CraftRegearSlot } from '@/lib/regear-craft-slots'
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -55,6 +56,7 @@ export interface CraftQueueItem {
   gatherAt: string | null
   roleName: string
   buildSnapshot: BuildSnapshot | null
+  craftIncludedSlots: CraftRegearSlot[]
   claimedSilver: number | null
   // When the underlying regear request was approved (== task creation moment).
   createdAt: string
@@ -71,6 +73,10 @@ export interface CraftQueueItem {
   materialSilverCost: number | null
   premiumSilver: number
   reimbursementSilver: number | null
+  reimbursementStatus: 'not_required' | 'pending' | 'approved'
+  reimbursementApprovedAt: string | null
+  reimbursementApprovedBy: string | null
+  reimbursementApprovedByUsername: string | null
   compensationMode: CraftCompensationMode | null
 }
 
@@ -91,6 +97,7 @@ export interface CraftBoxConfig {
   rangeMax: number
   expiryDays: number
   enabled: boolean
+  includeCape: boolean
 }
 
 // ────────────────────────────────────────────────────────────
@@ -101,17 +108,19 @@ export async function getCraftConfig(): Promise<CraftBoxConfig> {
   const session = await getSession()
   // Defaults match the migration's documented defaults.
   if (!session) {
-    return { rangeMin: 1, rangeMax: 30, expiryDays: 7, enabled: false }
+    return { rangeMin: 1, rangeMax: 30, expiryDays: 7, enabled: false, includeCape: false }
   }
   const guildId = await getSessionGuildId(session)
-  const [enabledRaw, minRaw, maxRaw, expiryRaw] = await Promise.all([
+  const [enabledRaw, includeCapeRaw, minRaw, maxRaw, expiryRaw] = await Promise.all([
     getAppSetting('craft_regear_enabled', 'false', guildId),
+    getAppSetting('craft_regear_include_cape', 'false', guildId),
     getAppSetting('craft_box_range_min', '1', guildId),
     getAppSetting('craft_box_range_max', '30', guildId),
     getAppSetting('craft_box_expiry_days', '7', guildId),
   ])
   return {
     enabled: enabledRaw === 'true',
+    includeCape: includeCapeRaw === 'true',
     rangeMin: parseIntegerSetting(minRaw, 1, 1, 999),
     rangeMax: parseIntegerSetting(maxRaw, 30, 1, 999),
     expiryDays: parseIntegerSetting(expiryRaw, 7, 1, 30),
@@ -261,18 +270,12 @@ export async function setMyCrafterDefaults(
 // ────────────────────────────────────────────────────────────
 
 // 자동 박스 배정 — DeliverDialog 가 열릴 때 호출해 모달의 박스 칸을 미리
-// 채운다. 알고리즘:
-//   1) 이 task 의 요청자(R) 가 이미 점유 중인 박스 N 이 있으면 → N 재사용.
-//      "점유 중" = 그 박스에 status='delivered' 인 task 가 하나라도 있음.
-//   2) 없으면 → 이 크래프터의 범위 [start, end] 안에서 다른 요청자가 점유
-//      안 한 가장 작은 박스. ("다른 요청자가 점유" = 그 박스에 다른 사람의
-//      delivered task 가 있음.)
-//   3) 범위 미지정 / 범위 안 박스가 모두 다른 요청자 점유 → null + reason.
+// 채운다. 크래프터의 범위 [start, end] 안에서 현재 delivered task 가 점유하지
+// 않은 가장 작은 박스를 제안한다.
 //
 // 반환되는 reason 으로 클라이언트가 적절한 안내를 띄운다 (예: "범위 미지정,
 // 관리자에게 요청하세요" / "범위 박스가 모두 사용 중").
 export type AutoAssignReason =
-  | 'requesterReuse' // 요청자가 이미 사용 중인 박스 — 같이 모음
   | 'rangeFree' // 범위 안 빈 박스 자동 선택
   | 'rangeFull' // 범위 안 박스가 모두 다른 요청자 점유
   | 'noRange' // 크래프터 범위 미지정
@@ -296,7 +299,7 @@ export async function computeAutoAssignBox(
   const { data: task, error: taskErr } = await db
     .from('craft_tasks')
     .select(
-      'id, guild_id, crafter_discord_id, regear_request_id, regear_requests!inner(discord_id)',
+      'id, guild_id, crafter_discord_id, regear_request_id',
     )
     .eq('id', taskId)
     .eq('guild_id', guildId)
@@ -307,29 +310,7 @@ export async function computeAutoAssignBox(
   if (task.crafter_discord_id !== session.discordId && !session.isAdmin) {
     return { boxNumber: null, reason: 'noRange', error: tErr('craftNotClaimer') }
   }
-  const requesterDiscordId = (
-    task.regear_requests as unknown as { discord_id: string }
-  ).discord_id
-
-  // 1) 이 요청자가 이미 점유 중인 박스가 있는지 — 같은 길드의 status='delivered'
-  //    + 같은 요청자 + 박스 번호 not-null. 있으면 그 박스 그대로 사용.
-  const { data: requesterOccupied } = await db
-    .from('craft_tasks')
-    .select('box_number, regear_requests!inner(discord_id)')
-    .eq('guild_id', guildId)
-    .eq('status', 'delivered')
-    .eq('regear_requests.discord_id', requesterDiscordId)
-    .not('box_number', 'is', null)
-    .order('delivered_at', { ascending: false })
-    .limit(1)
-  if (requesterOccupied && requesterOccupied.length > 0) {
-    const n = requesterOccupied[0].box_number as number | null
-    if (typeof n === 'number') {
-      return { boxNumber: n, reason: 'requesterReuse' }
-    }
-  }
-
-  // 2) 크래프터의 범위 조회. 미지정이면 noRange.
+  // 크래프터의 범위 조회. 미지정이면 noRange.
   const { data: crafter } = await db
     .from('guild_avatars')
     .select('craft_box_range_start, craft_box_range_end')
@@ -342,8 +323,8 @@ export async function computeAutoAssignBox(
     return { boxNumber: null, reason: 'noRange' }
   }
 
-  // 다른 요청자가 점유 중인 박스 번호들. (같은 요청자가 이미 점유 중인 케이스는
-  // 위에서 처리됐으므로 여기 도달했다는 건 이 요청자는 점유 중인 박스 없음.)
+  // DB unique invariant 는 (guild_id, box_number) 이므로 delivered 상태에서
+  // 이미 점유 중인 박스는 누구 요청인지와 무관하게 재사용하지 않는다.
   const { data: occupiedRows } = await db
     .from('craft_tasks')
     .select('box_number')

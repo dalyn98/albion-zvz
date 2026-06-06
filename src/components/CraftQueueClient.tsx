@@ -476,6 +476,19 @@ export default function CraftQueueClient({
                                 · {t('materialSpent', { silver: formatSilver(item.materialSilverCost) })}
                               </span>
                             )}
+                            {(item.reimbursementSilver ?? 0) > 0 && (
+                              <span
+                                className={
+                                  item.reimbursementStatus === 'approved'
+                                    ? 'text-emerald-300 font-mono'
+                                    : 'text-amber-300 font-mono'
+                                }
+                              >
+                                · {item.reimbursementStatus === 'approved'
+                                  ? t('reimbursementApproved', { silver: formatSilver(item.reimbursementSilver ?? 0) })
+                                  : t('reimbursementPending', { silver: formatSilver(item.reimbursementSilver ?? 0) })}
+                              </span>
+                            )}
                             <Link
                               href={`/craft/queue/${item.taskId}`}
                               className="ml-auto text-gray-400 hover:text-white border border-gray-700 hover:border-amber-500/40 rounded-lg px-2 py-1"

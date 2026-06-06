@@ -31,6 +31,7 @@ interface Props {
   payoutRatePercent: number
   existingActiveCount: number
   craftEnabled: boolean
+  craftIncludeCapeDefault: boolean
   overchargeEnabled: boolean
 }
 
@@ -65,6 +66,7 @@ export default function RegearWindowSubmitButton({
   payoutRatePercent,
   existingActiveCount,
   craftEnabled,
+  craftIncludeCapeDefault,
   overchargeEnabled,
 }: Props) {
   const router = useRouter()
@@ -81,6 +83,7 @@ export default function RegearWindowSubmitButton({
   const initialPhase = getInitialManualRegearPhase(overchargeEnabled, maxEntries)
   const [phase, setPhase] = useState<ManualRegearPhase>(initialPhase)
   const [requestType, setRequestType] = useState<RequestType>('death')
+  const [craftIncludeCape, setCraftIncludeCape] = useState(craftIncludeCapeDefault)
   const [entries, setEntries] = useState<EntryState[]>(() =>
     initialPhase === 'entries' ? [newEntry()] : [],
   )
@@ -111,6 +114,7 @@ export default function RegearWindowSubmitButton({
     setRoleName(initialRole)
     setPhase(initialPhase)
     setRequestType('death')
+    setCraftIncludeCape(craftIncludeCapeDefault)
     setEntries(initialPhase === 'entries' ? [newEntry()] : [])
     setEntryErrors({})
     setError('')
@@ -309,6 +313,9 @@ export default function RegearWindowSubmitButton({
         form.append('claimedSilver', parsedClaim.toString())
         form.append('screenshot', entry.file!)
         form.append('requestType', requestType)
+        if (craftEnabled) {
+          form.append('craftIncludeCape', craftIncludeCape ? 'true' : 'false')
+        }
         if (entry.file2) form.append('screenshot2', entry.file2)
         const r = await requestWindowRegear(form)
         if (r.error && r.error.startsWith(REGEAR_VERIFICATION_ERROR_PREFIX)) {
@@ -406,7 +413,11 @@ export default function RegearWindowSubmitButton({
                 <p className="text-rose-300 text-xs">{t('ceilingNotSet')}</p>
               ) : (
                 <>
-                  <FulfillmentModeNotice craftEnabled={craftEnabled} />
+                  <FulfillmentModeNotice
+                    craftEnabled={craftEnabled}
+                    includeCape={craftIncludeCape}
+                    onIncludeCapeChange={setCraftIncludeCape}
+                  />
 
                   <div>
                     <label htmlFor="rw-modal-role" className="block text-xs text-gray-400 mb-1">
@@ -766,9 +777,15 @@ function ScreenshotSlot({ entryId, slot, label, file, onChange, onHover }: Scree
 
 interface FulfillmentModeNoticeProps {
   craftEnabled: boolean
+  includeCape?: boolean
+  onIncludeCapeChange?: (includeCape: boolean) => void
 }
 
-function FulfillmentModeNotice({ craftEnabled }: FulfillmentModeNoticeProps) {
+function FulfillmentModeNotice({
+  craftEnabled,
+  includeCape,
+  onIncludeCapeChange,
+}: FulfillmentModeNoticeProps) {
   const t = useTranslations('regear')
   const label = craftEnabled ? t('modeCraftedLabel') : t('modeSilverLabel')
   const hint = craftEnabled ? t('modeCraftedHint') : t('modeSilverHint')
@@ -777,6 +794,24 @@ function FulfillmentModeNotice({ craftEnabled }: FulfillmentModeNoticeProps) {
       <p className="text-amber-300 text-[11px] font-semibold">{t('modeNoticeLabel')}</p>
       <p className="text-xs font-bold text-amber-200">{label}</p>
       <p className="text-[10px] text-gray-400 leading-relaxed">{hint}</p>
+      {craftEnabled && includeCape != null && onIncludeCapeChange && (
+        <label className="mt-2 flex items-start gap-2 rounded-lg border border-gray-700 bg-gray-950/60 px-2.5 py-2">
+          <input
+            type="checkbox"
+            checked={includeCape}
+            onChange={(e) => onIncludeCapeChange(e.target.checked)}
+            className="mt-0.5 h-4 w-4"
+          />
+          <span className="min-w-0">
+            <span className="block text-[11px] font-semibold text-gray-200">
+              {t('craftIncludeCapeLabel')}
+            </span>
+            <span className="block text-[10px] text-gray-500 leading-relaxed">
+              {t('craftIncludeCapeHint')}
+            </span>
+          </span>
+        </label>
+      )}
     </div>
   )
 }

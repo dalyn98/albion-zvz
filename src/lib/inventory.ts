@@ -12,7 +12,7 @@
 //     decrementBuildForDelivery. 재고가 0 인 itemId 가 있으면 inventory_warned
 //     플래그용 정보를 반환하지만 실제 차감은 RPC floor=0 에 맡겨 0 에서 멈춘다.
 
-import type { BuildSnapshot, SlotKey } from '@/types'
+import type { BuildSnapshot } from '@/types'
 import { getAdminClient } from './supabase-admin'
 import {
   getGearCatalog,
@@ -28,6 +28,10 @@ import {
   type InventoryGearBaseRow,
 } from './inventory-types'
 import { log } from './log'
+import {
+  CRAFT_REGEAR_SLOTS_WITH_CAPE,
+  type CraftRegearSlot,
+} from './regear-craft-slots'
 
 // 클라이언트가 직접 import 할 수 있게 원본 정의는 `./inventory-types` 로 분리.
 // 기존 server-side 호출 사이트 호환을 위해 같은 이름으로 re-export.
@@ -132,19 +136,26 @@ export async function setInventoryGear(
 // Build-snapshot → gear inventory hook
 // ────────────────────────────────────────────────────────────
 
-// 크래프트 deliver 자동 훅이 추적할 슬롯. potion/food/mount/bag 은 장비 재고가
-// 아니다 (소모품 / 마운트 / 가방). 무기·머리·갑옷·신발·보조·망토 6개만 추적.
-const INVENTORY_TRACKED_BUILD_SLOTS: readonly SlotKey[] = [
-  'weapon', 'head', 'armor', 'shoes', 'offhand', 'cape',
-] as const
+export interface BuildGearExtractionOptions {
+  includedSlots?: readonly CraftRegearSlot[]
+}
 
 /**
  * 빌드 스냅샷에서 장비로 인정되는 itemId 만 골라낸다. id 가 없거나(자유 슬롯)
  * 정련 재료/마운트 등 장비 패턴이 아닌 itemId 는 제외.
  */
-export function extractGearItemIdsFromBuild(snapshot: BuildSnapshot): string[] {
+export function extractGearItemIdsFromBuild(snapshot: BuildSnapshot): string[]
+export function extractGearItemIdsFromBuild(
+  snapshot: BuildSnapshot,
+  options: BuildGearExtractionOptions,
+): string[]
+export function extractGearItemIdsFromBuild(
+  snapshot: BuildSnapshot,
+  options: BuildGearExtractionOptions = {},
+): string[] {
   const out: string[] = []
-  for (const slot of INVENTORY_TRACKED_BUILD_SLOTS) {
+  const includedSlots = options.includedSlots ?? CRAFT_REGEAR_SLOTS_WITH_CAPE
+  for (const slot of includedSlots) {
     const id = snapshot[slot]?.id?.trim()
     if (!id) continue
     if (categorizeGearItem(id).slot === 'other') continue
@@ -178,8 +189,9 @@ export async function decrementBuildForDelivery(
   guildId: string,
   snapshot: BuildSnapshot,
   actorDiscordId: string,
+  options: BuildGearExtractionOptions = {},
 ): Promise<DeliveryDecrementResult> {
-  const itemIds = extractGearItemIdsFromBuild(snapshot)
+  const itemIds = extractGearItemIdsFromBuild(snapshot, options)
   if (itemIds.length === 0) {
     return { empty: true, warnedItemIds: [] }
   }
@@ -296,8 +308,9 @@ export interface StockCheckResult {
 export async function checkBuildSnapshotStock(
   guildId: string,
   snapshot: BuildSnapshot,
+  options: BuildGearExtractionOptions = {},
 ): Promise<StockCheckResult> {
-  const itemIds = extractGearItemIdsFromBuild(snapshot)
+  const itemIds = extractGearItemIdsFromBuild(snapshot, options)
   // itemId 별 필요 수량 집계 (현재 빌드 스냅샷 구조상 슬롯당 1개씩이라 보통 1)
   const required = new Map<string, number>()
   for (const id of itemIds) {
@@ -342,15 +355,19 @@ export async function checkBuildSnapshotStock(
  */
 export async function checkBuildSnapshotStockBatch(
   guildId: string,
-  entries: ReadonlyArray<{ regearId: string; snapshot: BuildSnapshot }>,
+  entries: ReadonlyArray<{
+    regearId: string
+    snapshot: BuildSnapshot
+    includedSlots?: readonly CraftRegearSlot[]
+  }>,
 ): Promise<Record<string, StockCheckResult>> {
   if (entries.length === 0) return {}
 
   // 모든 itemId 수집
   const allItemIds = new Set<string>()
   const perRegear = new Map<string, string[]>()
-  for (const { regearId, snapshot } of entries) {
-    const ids = extractGearItemIdsFromBuild(snapshot)
+  for (const { regearId, snapshot, includedSlots } of entries) {
+    const ids = extractGearItemIdsFromBuild(snapshot, { includedSlots })
     perRegear.set(regearId, ids)
     for (const id of ids) allItemIds.add(id)
   }

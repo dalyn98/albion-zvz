@@ -14,6 +14,10 @@ import { REGEAR_WINDOW_MANAGE_CAPS } from '@/lib/regear-window-permissions'
 import { SLOT_KEYS, SLOT_ROLES, type BuildSnapshot, type RegearType, type SlotRole } from '@/types'
 import { validateImageUploadFile } from '@/lib/image-upload'
 import { parsePositiveSafeInt } from '@/lib/parse-bounded-int'
+import {
+  craftRegearSlots,
+  parseCraftIncludeCapeFormValue,
+} from '@/lib/regear-craft-slots'
 
 // 이벤트와 무관한 자유 신청 창구 (regear_windows). 관리자가 윈도우를 열고
 // (open) / 닫고 (close), 멤버는 열려 있는 윈도우에 manual flow 로 신청한다.
@@ -347,6 +351,9 @@ export async function requestWindowRegear(formData: FormData): Promise<{
   const craftEnabled =
     (await getAppSetting('craft_regear_enabled', 'false', guildId)) === 'true'
   const fulfillmentMode: 'silver' | 'crafted' = craftEnabled ? 'crafted' : 'silver'
+  const craftRequestedSlots = craftEnabled
+    ? craftRegearSlots(parseCraftIncludeCapeFormValue(formData.get('craftIncludeCape')))
+    : null
 
   if (!windowId) return { error: tErr('regearWindowMissing') }
   if (!roleName || !(SLOT_ROLES as readonly string[]).includes(roleName)) {
@@ -466,6 +473,7 @@ export async function requestWindowRegear(formData: FormData): Promise<{
       build_snapshot: parsedBuildSnapshot,
       auto_generated: false,
       fulfillment_mode: fulfillmentMode,
+      craft_requested_slots: craftRequestedSlots,
       requester_relation: requesterRelation,
     })
     .select('id')

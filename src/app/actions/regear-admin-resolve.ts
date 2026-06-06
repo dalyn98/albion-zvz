@@ -16,6 +16,11 @@ import { resolveRegearApprovalPayout } from '@/lib/regear-payout'
 import { formatKillboardVerificationReason, verifyDeathInWindow } from '@/lib/killboard'
 import { estimateSilverFromEquipment } from '@/lib/regear-estimate'
 import { checkBuildSnapshotStock } from '@/lib/inventory'
+import {
+  craftRegearSlots,
+  normalizeCraftRegearSlots,
+  type CraftRegearSlot,
+} from '@/lib/regear-craft-slots'
 import { isRegearRejectReasonCode } from '@/lib/regear-reject-reasons'
 import { logAdminAction } from '@/lib/admin-audit'
 import type { BuildSnapshot } from '@/types'
@@ -27,6 +32,15 @@ import {
 
 const REGEAR_REVIEW_CAPS = [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION] as const
 const REGEAR_BULK_CAPS = [CAP.REGEAR_BULK_ACTION, CAP.REGEAR_APPROVE] as const
+
+function resolveCraftIncludedSlots(
+  requestedSlots: unknown,
+  includeCape?: boolean,
+): CraftRegearSlot[] {
+  return typeof includeCape === 'boolean'
+    ? craftRegearSlots(includeCape)
+    : normalizeCraftRegearSlots(requestedSlots, false)
+}
 
 export async function approveRegearRequest(
   id: string,
@@ -119,6 +133,7 @@ export async function approveRegearRequest(
 export async function approveRegearFromStock(
   id: string,
   overrideSilver?: number,
+  includeCape?: boolean,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   const tDm = await getTranslations('discordDm')
@@ -130,7 +145,7 @@ export async function approveRegearFromStock(
 
     const { data: pending } = await db
       .from('regear_requests')
-      .select('claimed_silver, build_snapshot, fulfillment_mode, status')
+      .select('claimed_silver, build_snapshot, craft_requested_slots, fulfillment_mode, status')
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
@@ -146,7 +161,10 @@ export async function approveRegearFromStock(
     }
 
     // 사전 충분 여부 체크 — 어차피 RPC 가 또 한 번 검증하지만 명확한 에러를 내려고.
-    const stockCheck = await checkBuildSnapshotStock(guildId, buildSnapshot)
+    const includedSlots = resolveCraftIncludedSlots(pending.craft_requested_slots, includeCape)
+    const stockCheck = await checkBuildSnapshotStock(guildId, buildSnapshot, {
+      includedSlots,
+    })
     if (!stockCheck.allSufficient) {
       const missing = stockCheck.perItem.filter((p) => !p.sufficient).map((p) => p.itemId)
       return { error: tErr('regearInsufficientStock', { items: missing.join(', ') }) }
@@ -172,6 +190,7 @@ export async function approveRegearFromStock(
       p_guild_id: guildId,
       p_payout_silver: payout,
       p_item_ids: stockCheck.itemIdsForRpc,
+      p_included_slots: includedSlots,
     })
     if (error) {
       const msg = error.message
@@ -212,7 +231,7 @@ export async function approveRegearFromStock(
       targetId: id,
       targetKind: 'regear',
       targetDiscordId: row?.discord_id ?? null,
-      details: { mode: 'stock', claimedSilver: claimed, payoutSilver: payout, eventTitle: row?.event_title_snapshot ?? null },
+      details: { mode: 'stock', claimedSilver: claimed, payoutSilver: payout, includedSlots, eventTitle: row?.event_title_snapshot ?? null },
     })
     return {}
   } catch (e) {
@@ -227,6 +246,7 @@ export async function approveRegearFromStock(
 export async function approveRegearAsCrafted(
   id: string,
   overrideSilver?: number,
+  includeCape?: boolean,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
@@ -237,7 +257,7 @@ export async function approveRegearAsCrafted(
 
     const { data: pending } = await db
       .from('regear_requests')
-      .select('claimed_silver, build_snapshot, fulfillment_mode, status')
+      .select('claimed_silver, build_snapshot, craft_requested_slots, fulfillment_mode, status')
       .eq('guild_id', guildId)
       .eq('id', id)
       .maybeSingle()
@@ -264,6 +284,7 @@ export async function approveRegearAsCrafted(
       return { error: tErr('payoutExceedsClaim', { claimed: claimed.toLocaleString() }) }
     }
     const payout = payoutResult.payoutSilver
+    const includedSlots = resolveCraftIncludedSlots(pending.craft_requested_slots, includeCape)
 
     const { error } = await db.rpc('approve_regear_as_crafted', {
       p_id: id,
@@ -271,6 +292,7 @@ export async function approveRegearAsCrafted(
       p_admin_username: session.username,
       p_guild_id: guildId,
       p_payout_silver: payout,
+      p_included_slots: includedSlots,
     })
     if (error) {
       const msg = error.message
@@ -305,7 +327,7 @@ export async function approveRegearAsCrafted(
       targetId: id,
       targetKind: 'regear',
       targetDiscordId: row?.discord_id ?? null,
-      details: { mode: 'crafted', claimedSilver: claimed, payoutSilver: payout, eventTitle: row?.event_title_snapshot ?? null },
+      details: { mode: 'crafted', claimedSilver: claimed, payoutSilver: payout, includedSlots, eventTitle: row?.event_title_snapshot ?? null },
     })
     return {}
   } catch (e) {

@@ -315,9 +315,15 @@ function ScreenshotSlot({ entryId, slot, label, file, onChange, onHover }: Scree
 
 interface FulfillmentModeNoticeProps {
   craftEnabled: boolean
+  includeCape?: boolean
+  onIncludeCapeChange?: (includeCape: boolean) => void
 }
 
-export function FulfillmentModeNotice({ craftEnabled }: FulfillmentModeNoticeProps) {
+export function FulfillmentModeNotice({
+  craftEnabled,
+  includeCape,
+  onIncludeCapeChange,
+}: FulfillmentModeNoticeProps) {
   const t = useTranslations('regear')
   const label = craftEnabled ? t('modeCraftedLabel') : t('modeSilverLabel')
   const hint = craftEnabled ? t('modeCraftedHint') : t('modeSilverHint')
@@ -326,6 +332,24 @@ export function FulfillmentModeNotice({ craftEnabled }: FulfillmentModeNoticePro
       <p className="text-amber-300 text-[11px] font-semibold">{t('modeNoticeLabel')}</p>
       <p className="text-xs font-bold text-amber-200">{label}</p>
       <p className="text-[10px] text-gray-400 leading-relaxed">{hint}</p>
+      {craftEnabled && includeCape != null && onIncludeCapeChange && (
+        <label className="mt-2 flex items-start gap-2 rounded-lg border border-gray-700 bg-gray-950/60 px-2.5 py-2">
+          <input
+            type="checkbox"
+            checked={includeCape}
+            onChange={(e) => onIncludeCapeChange(e.target.checked)}
+            className="mt-0.5 h-4 w-4"
+          />
+          <span className="min-w-0">
+            <span className="block text-[11px] font-semibold text-gray-200">
+              {t('craftIncludeCapeLabel')}
+            </span>
+            <span className="block text-[10px] text-gray-500 leading-relaxed">
+              {t('craftIncludeCapeHint')}
+            </span>
+          </span>
+        </label>
+      )}
     </div>
   )
 }

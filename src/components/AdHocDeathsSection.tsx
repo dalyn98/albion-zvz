@@ -8,6 +8,7 @@ import { listRegearRoleOptions } from '@/app/actions/regear-windows'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
+import { getAppSetting } from '@/lib/app-settings'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import AdHocDeathSubmitButton from './AdHocDeathSubmitButton'
 import AdHocDeathBuildStrip from './AdHocDeathBuildStrip'
@@ -57,12 +58,23 @@ export default async function AdHocDeathsSection() {
   if (!session?.isMember) return null
 
   const guildId = await getSessionGuildId(session)
-  const [{ deaths, error }, { options }, t, tz] = await Promise.all([
+  const [
+    { deaths, error },
+    { options },
+    t,
+    tz,
+    craftEnabledRaw,
+    craftIncludeCapeRaw,
+  ] = await Promise.all([
     listMyTrackedAdHocDeaths(),
     listRegearRoleOptions(),
     getTranslations('regearTrackedDeaths'),
     getTenantTimezone(guildId),
+    getAppSetting('craft_regear_enabled', 'false', guildId),
+    getAppSetting('craft_regear_include_cape', 'false', guildId),
   ])
+  const craftEnabled = craftEnabledRaw === 'true'
+  const craftIncludeCapeDefault = craftIncludeCapeRaw === 'true'
 
   if (error) {
     return (
@@ -139,6 +151,8 @@ export default async function AdHocDeathsSection() {
                   roleOptions={options}
                   battleAtLabel={dt}
                   opponentLabel={opponentLabel}
+                  craftEnabled={craftEnabled}
+                  craftIncludeCapeDefault={craftIncludeCapeDefault}
                 />
               </div>
               <AdHocDeathBuildStrip snapshot={d.buildSnapshot} />

@@ -26,6 +26,7 @@ import {
 } from '@/app/actions/regear-admin'
 import type { RegearAnomalyFlag } from '@/lib/regear-anomaly'
 import type { StockCheckResult } from '@/lib/inventory'
+import { craftRegearSlotsIncludeCape } from '@/lib/regear-craft-slots'
 import { formatSilver } from '@/lib/silver'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 import { calcPayoutSilver } from '@/lib/regear-payout'
@@ -57,6 +58,7 @@ interface Props {
   timezone: string
   anomalyFlags?: RegearAnomalyFlag[]
   stockCheck?: StockCheckResult
+  stockCheckWithCape?: StockCheckResult
 }
 
 export default function RegearReviewRow({
@@ -66,6 +68,7 @@ export default function RegearReviewRow({
   timezone,
   anomalyFlags,
   stockCheck,
+  stockCheckWithCape,
 }: Props) {
   const router = useRouter()
   const t = useTranslations('adminRegearReview')
@@ -89,6 +92,9 @@ export default function RegearReviewRow({
   // 관리자가 요율 적용 전 기준 금액을 조정해서 승인할 수 있게 — 빈 값 = 기존 청구액.
   const [overrideMode, setOverrideMode] = useState(false)
   const [overrideInput, setOverrideInput] = useState('')
+  const [includeCape, setIncludeCape] = useState(
+    craftRegearSlotsIncludeCape(request.craft_requested_slots),
+  )
 
   const statusLabel = (status: string): string => {
     if (status === 'pending') return t('statusPending')
@@ -108,6 +114,7 @@ export default function RegearReviewRow({
     Number.isInteger(overrideBasis) && overrideBasis >= 0 && overrideBasis <= claimed
       ? calcPayoutSilver(overrideBasis, ratePercent)
       : null
+  const currentStockCheck = includeCape ? stockCheckWithCape ?? stockCheck : stockCheck
 
   const loadScreenshot = () => {
     if (loadingScreenshot || screenshotUrl || !request.screenshot_path) return
@@ -155,7 +162,7 @@ export default function RegearReviewRow({
   const approveFromStock = () => {
     setError('')
     startTransition(async () => {
-      const result = await approveRegearFromStock(request.id)
+      const result = await approveRegearFromStock(request.id, undefined, includeCape)
       if (result.error) {
         setError(result.error)
         return
@@ -168,7 +175,7 @@ export default function RegearReviewRow({
   const approveAsCrafted = () => {
     setError('')
     startTransition(async () => {
-      const result = await approveRegearAsCrafted(request.id)
+      const result = await approveRegearAsCrafted(request.id, undefined, includeCape)
       if (result.error) {
         setError(result.error)
         return
@@ -366,6 +373,24 @@ export default function RegearReviewRow({
 
       {request.build_snapshot && <BuildSnapshotStrip snapshot={request.build_snapshot} />}
 
+      {request.status === 'pending'
+        && request.fulfillment_mode === 'crafted'
+        && request.build_snapshot && (
+          <label className="flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs text-amber-100">
+            <input
+              type="checkbox"
+              checked={includeCape}
+              onChange={(e) => setIncludeCape(e.target.checked)}
+              disabled={pending || rejectMode || overrideMode}
+              className="mt-0.5 h-4 w-4 rounded border-amber-500/60 bg-gray-950 text-amber-500 focus:ring-amber-500"
+            />
+            <span className="space-y-0.5">
+              <span className="block font-semibold">{t('includeCapeLabel')}</span>
+              <span className="block text-[11px] text-amber-100/70">{t('includeCapeHint')}</span>
+            </span>
+          </label>
+        )}
+
       {request.auto_generated && request.breakdown_items.length > 0 && (
         <RegearBreakdownPreview
           items={request.breakdown_items}
@@ -521,10 +546,10 @@ export default function RegearReviewRow({
 
       {request.status === 'pending'
         && request.fulfillment_mode === 'crafted'
-        && stockCheck
-        && stockCheck.perItem.length > 0 && (
+        && currentStockCheck
+        && currentStockCheck.perItem.length > 0 && (
           <StockSection
-            stockCheck={stockCheck}
+            stockCheck={currentStockCheck}
             payoutSilver={pendingPayout}
             onIssue={approveFromStock}
             disabled={pending || rejectMode || overrideMode}

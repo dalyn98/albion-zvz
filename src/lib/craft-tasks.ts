@@ -12,6 +12,11 @@ export type CraftTaskStatus =
   | 'expired'
   | 'cancelled'
 
+export type CraftReimbursementStatus =
+  | 'not_required'
+  | 'pending'
+  | 'approved'
+
 export interface CraftTaskRow {
   id: string
   guild_id: string
@@ -24,6 +29,10 @@ export interface CraftTaskRow {
   material_silver_cost: number | null
   premium_silver: number
   reimbursement_silver: number | null
+  reimbursement_status: CraftReimbursementStatus
+  reimbursement_approved_at: string | null
+  reimbursement_approved_by: string | null
+  reimbursement_approved_by_username: string | null
   compensation_mode: 'volunteer' | 'paid' | null
   claimed_at: string | null
   delivered_at: string | null
@@ -159,6 +168,23 @@ export async function collectCraftTask(
 export async function expireOverdueCraftTasks(): Promise<number> {
   const supabase = getAdminClient()
   const { data, error } = await supabase.rpc('expire_craft_tasks')
+  if (error) throw new Error(error.message)
+  return typeof data === 'number' ? data : 0
+}
+
+export async function approveCraftReimbursement(
+  taskId: string,
+  guildId: string,
+  adminDiscordId: string,
+  adminUsername: string,
+): Promise<number> {
+  const supabase = getAdminClient()
+  const { data, error } = await supabase.rpc('approve_craft_reimbursement', {
+    p_task_id: taskId,
+    p_guild_id: guildId,
+    p_admin_id: adminDiscordId,
+    p_admin_username: adminUsername,
+  })
   if (error) throw new Error(error.message)
   return typeof data === 'number' ? data : 0
 }

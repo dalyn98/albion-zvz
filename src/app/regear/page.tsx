@@ -52,6 +52,7 @@ export default async function RegearPage() {
     noticeImageUrl,
     tz,
     craftEnabledRaw,
+    craftIncludeCapeRaw,
     overchargeEnabledRaw,
   ] = await Promise.all([
     listMyRegearEligibleEvents(),
@@ -65,9 +66,11 @@ export default async function RegearPage() {
     getAppSetting('regear_notice_image_url', '', guildId),
     getTenantTimezone(guildId),
     getAppSetting('craft_regear_enabled', 'false', guildId),
+    getAppSetting('craft_regear_include_cape', 'false', guildId),
     getAppSetting('regear_overcharge_enabled', 'false', guildId),
   ])
   const craftEnabled = craftEnabledRaw === 'true'
+  const craftIncludeCapeDefault = craftIncludeCapeRaw === 'true'
   const overchargeEnabled = overchargeEnabledRaw === 'true'
 
   return (
@@ -191,6 +194,7 @@ export default async function RegearPage() {
                               windowOpenAt={event.window_open_at}
                               windowMinutes={limits.windowMinutes}
                               craftEnabled={craftEnabled}
+                              craftIncludeCapeDefault={craftIncludeCapeDefault}
                               overchargeEnabled={overchargeEnabled}
                             />
                           )}

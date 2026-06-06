@@ -16,6 +16,7 @@ import {
 } from '@/app/actions/regear-admin'
 import { getRegearPayoutRatePercent } from '@/app/actions/regear-admin-types'
 import { checkBuildSnapshotStockBatch } from '@/lib/inventory'
+import { craftRegearSlots } from '@/lib/regear-craft-slots'
 import type { BuildSnapshot } from '@/types'
 import { listDonationRequests } from '@/app/actions/donation-admin'
 import { listShopOrders } from '@/app/actions/shop-admin'
@@ -378,15 +379,30 @@ async function RegearSection({
     getRegearRelationCounts(scope, origin),
     getTenantTimezone(guildId),
   ])
-  // pending+crafted+build_snapshot 만 재고 체크 대상. 한 번의 묶인 쿼리로 N+1 회피.
-  const stockEntries: Array<{ regearId: string; snapshot: BuildSnapshot }> = requests
+  // pending+crafted+build_snapshot 만 재고 체크 대상. 망토 토글에 따라 재고
+  // 충분 여부가 달라지므로 cape 제외/포함 결과를 둘 다 계산한다.
+  const craftedRequests = requests
     .filter((r) => r.status === 'pending' && r.fulfillment_mode === 'crafted' && r.build_snapshot)
-    .map((r) => ({ regearId: r.id, snapshot: r.build_snapshot as BuildSnapshot }))
-  const [avatarMap, anomalies, stockChecks] = await Promise.all([
+  const stockEntriesWithoutCape = craftedRequests
+    .map((r) => ({
+      regearId: r.id,
+      snapshot: r.build_snapshot as BuildSnapshot,
+      includedSlots: craftRegearSlots(false),
+    }))
+  const stockEntriesWithCape = craftedRequests
+    .map((r) => ({
+      regearId: r.id,
+      snapshot: r.build_snapshot as BuildSnapshot,
+      includedSlots: craftRegearSlots(true),
+    }))
+  const [avatarMap, anomalies, stockChecks, stockChecksWithCape] = await Promise.all([
     getAvatarsByDiscordIds(guildId, requests.map((r) => r.discord_id)),
     getRegearAnomalyMap(requests),
-    stockEntries.length > 0
-      ? checkBuildSnapshotStockBatch(guildId, stockEntries)
+    stockEntriesWithoutCape.length > 0
+      ? checkBuildSnapshotStockBatch(guildId, stockEntriesWithoutCape)
+      : Promise.resolve({}),
+    stockEntriesWithCape.length > 0
+      ? checkBuildSnapshotStockBatch(guildId, stockEntriesWithCape)
       : Promise.resolve({}),
   ])
   const avatars = Object.fromEntries(avatarMap)
@@ -444,6 +460,7 @@ async function RegearSection({
           sortRowsByMember={origin === 'auto'}
           anomalies={anomalies}
           stockChecks={stockChecks}
+          stockChecksWithCape={stockChecksWithCape}
         />
       )}
     </div>

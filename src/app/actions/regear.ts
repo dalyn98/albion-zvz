@@ -44,6 +44,10 @@ import {
   buildRegearEventRoleMap,
 } from '@/lib/regear-eligible-events'
 import { resolveManualRegearPolicy, type EventRegearPolicy } from '@/lib/regear-event-policy'
+import {
+  craftRegearSlots,
+  parseCraftIncludeCapeFormValue,
+} from '@/lib/regear-craft-slots'
 
 // User-facing regear actions. Admin-side lives in `regear-admin.ts`,
 // member-side inline edit actions in `regear-edit.ts`.
@@ -251,6 +255,9 @@ async function requestRegearInner(
   const craftEnabled =
     (await getAppSetting('craft_regear_enabled', 'false', guildId)) === 'true'
   const fulfillmentMode: 'silver' | 'crafted' = craftEnabled ? 'crafted' : 'silver'
+  const craftRequestedSlots = craftEnabled
+    ? craftRegearSlots(parseCraftIncludeCapeFormValue(formData.get('craftIncludeCape')))
+    : null
   if (!eventId) return { error: tErr('missingEventInfo') }
   const image = await validateImageUploadFile(file, {
     allowedTypes: ALLOWED_MIME,
@@ -500,6 +507,7 @@ async function requestRegearInner(
       admin_notes: killboardNote, // Shown to admin as the killboard hint.
       build_snapshot: buildSnapshot,
       fulfillment_mode: fulfillmentMode,
+      craft_requested_slots: craftRequestedSlots,
       requester_relation: requesterRelation,
     })
     .select('id')

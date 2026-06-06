@@ -12,7 +12,7 @@ import MyCraftPickupCollectButton from './MyCraftPickupCollectButton'
 
 // /me 페이지의 "보관함 픽업 대기" 섹션. craft_regear_enabled = true 인 길드에서
 // 본인의 status='delivered' 작업만 노출. 회수 후 collected 토글이 끝나면
-// 자동으로 사라지고 ledger 에 reimbursement_silver 가 기록된다.
+// 자동으로 사라지고 점유하던 박스 번호가 비워진다.
 export default async function MyCraftPickupsSection() {
   const session = await getSession()
   if (!session?.isMember) return null

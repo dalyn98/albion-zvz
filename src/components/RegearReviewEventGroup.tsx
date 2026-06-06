@@ -27,6 +27,7 @@ interface EventGroupProps {
   forceExpanded: boolean
   anomalies: Record<string, RegearAnomalyFlag[]>
   stockChecks: Record<string, StockCheckResult>
+  stockChecksWithCape: Record<string, StockCheckResult>
 }
 
 export default function EventGroup({
@@ -37,6 +38,7 @@ export default function EventGroup({
   forceExpanded,
   anomalies,
   stockChecks,
+  stockChecksWithCape,
 }: EventGroupProps) {
   const t = useTranslations('adminRegearReview')
   const tToast = useTranslations('toast')
@@ -191,6 +193,7 @@ export default function EventGroup({
                       timezone={timezone}
                       anomalyFlags={anomalies[c.rows[0].id]}
                       stockCheck={stockChecks[c.rows[0].id]}
+                      stockCheckWithCape={stockChecksWithCape[c.rows[0].id]}
                     />
                   </li>
                 ) : (
@@ -202,6 +205,7 @@ export default function EventGroup({
                     timezone={timezone}
                     anomalies={anomalies}
                     stockChecks={stockChecks}
+                    stockChecksWithCape={stockChecksWithCape}
                     forceExpanded={forceExpanded}
                     onBulkApprove={runBulkApprove}
                     bulkPending={bulkPending}
@@ -220,6 +224,7 @@ export default function EventGroup({
                   timezone={timezone}
                   anomalyFlags={anomalies[r.id]}
                   stockCheck={stockChecks[r.id]}
+                  stockCheckWithCape={stockChecksWithCape[r.id]}
                 />
               ))}
             </ul>
@@ -237,6 +242,7 @@ interface ClaimerGroupProps {
   timezone: string
   anomalies: Record<string, RegearAnomalyFlag[]>
   stockChecks: Record<string, StockCheckResult>
+  stockChecksWithCape: Record<string, StockCheckResult>
   forceExpanded: boolean
   onBulkApprove: (ids: string[]) => void
   bulkPending: boolean
@@ -249,6 +255,7 @@ function ClaimerGroup({
   timezone,
   anomalies,
   stockChecks,
+  stockChecksWithCape,
   forceExpanded,
   onBulkApprove,
   bulkPending,
@@ -318,6 +325,7 @@ function ClaimerGroup({
               timezone={timezone}
               anomalyFlags={anomalies[r.id]}
               stockCheck={stockChecks[r.id]}
+              stockCheckWithCape={stockChecksWithCape[r.id]}
             />
           ))}
         </ul>

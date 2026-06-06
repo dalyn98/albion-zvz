@@ -26,6 +26,7 @@ import {
 } from './regear-admin-types'
 import { isAlbionIdentityRelation } from '@/lib/account-albion-identity'
 import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
+import { normalizeCraftRegearSlots } from '@/lib/regear-craft-slots'
 
 const REGEAR_REVIEW_CAPS = [CAP.REGEAR_APPROVE, CAP.REGEAR_EDIT_PRICE, CAP.REGEAR_BULK_ACTION] as const
 
@@ -54,6 +55,8 @@ interface RegearRequestListRow {
   handled_by: string | null
   handled_by_username: string | null
   build_snapshot: unknown
+  craft_requested_slots: unknown
+  craft_included_slots: unknown
   gear_breakdown: unknown
   auto_generated: boolean | null
   price_warning_level: string | null
@@ -78,7 +81,7 @@ export async function listRegearRequests(
         let query = db
           .from('regear_requests')
           .select(
-            'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, requester_relation, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
+            'id, event_id, regear_window_id, event_title_snapshot, discord_id, username, requester_relation, role_name, silver, request_type, claimed_silver, payout_silver, screenshot_path, screenshot_path_2, killboard_verified, killboard_event_id, status, admin_notes, reject_reason_code, created_at, resolved_at, handled_by, handled_by_username, build_snapshot, craft_requested_slots, craft_included_slots, gear_breakdown, auto_generated, price_warning_level, fulfillment_mode, events(title)',
           )
           .eq('guild_id', guildId)
         if (scope === 'pending') query = query.eq('status', 'pending')
@@ -201,6 +204,10 @@ export async function listRegearRequests(
         handled_by: row.handled_by ?? null,
         handled_by_username: row.handled_by_username ?? null,
         build_snapshot: (row.build_snapshot as BuildSnapshot | null) ?? null,
+        craft_requested_slots: normalizeCraftRegearSlots(row.craft_requested_slots, false),
+        craft_included_slots: Array.isArray(row.craft_included_slots)
+          ? normalizeCraftRegearSlots(row.craft_included_slots, false)
+          : null,
         estimated_silver: estimatedSilver,
         price_warning_level:
           (row.price_warning_level as AdminRegearRequest['price_warning_level']) ?? null,

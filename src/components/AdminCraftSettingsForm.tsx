@@ -21,11 +21,13 @@ export default function AdminCraftSettingsForm({ initial }: Props) {
   const toast = useToast()
   const router = useRouter()
   const [enabled, setEnabled] = useState(initial.enabled)
+  const [includeCape, setIncludeCape] = useState(initial.includeCape)
   const [rangeMin, setRangeMin] = useState(String(initial.rangeMin))
   const [rangeMax, setRangeMax] = useState(String(initial.rangeMax))
   const [expiryDays, setExpiryDays] = useState(String(initial.expiryDays))
   // 저장 성공 시 saved* 를 새 값으로 sync — router.refresh 동안의 false-alarm 방지.
   const [savedEnabled, setSavedEnabled] = useState(initial.enabled)
+  const [savedIncludeCape, setSavedIncludeCape] = useState(initial.includeCape)
   const [savedRangeMin, setSavedRangeMin] = useState(String(initial.rangeMin))
   const [savedRangeMax, setSavedRangeMax] = useState(String(initial.rangeMax))
   const [savedExpiryDays, setSavedExpiryDays] = useState(String(initial.expiryDays))
@@ -33,6 +35,7 @@ export default function AdminCraftSettingsForm({ initial }: Props) {
 
   const dirty =
     enabled !== savedEnabled ||
+    includeCape !== savedIncludeCape ||
     rangeMin !== savedRangeMin ||
     rangeMax !== savedRangeMax ||
     expiryDays !== savedExpiryDays
@@ -59,6 +62,7 @@ export default function AdminCraftSettingsForm({ initial }: Props) {
     startTransition(async () => {
       const r = await updateCraftSettingsAdmin({
         enabled,
+        includeCape,
         rangeMin: min,
         rangeMax: max,
         expiryDays: expiry,
@@ -68,6 +72,7 @@ export default function AdminCraftSettingsForm({ initial }: Props) {
         return
       }
       setSavedEnabled(enabled)
+      setSavedIncludeCape(includeCape)
       setSavedRangeMin(String(min))
       setSavedRangeMax(String(max))
       setSavedExpiryDays(String(expiry))
@@ -93,6 +98,20 @@ export default function AdminCraftSettingsForm({ initial }: Props) {
           checked={enabled}
           onChange={(e) => setEnabled(e.target.checked)}
           disabled={pending}
+          className="w-4 h-4"
+        />
+      </label>
+
+      <label className="flex items-center justify-between gap-2 bg-gray-950 border border-gray-700 rounded-lg px-3 py-2.5">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-white font-semibold">{t('includeCapeLabel')}</p>
+          <p className="text-[11px] text-gray-500 mt-0.5">{t('includeCapeHint')}</p>
+        </div>
+        <input
+          type="checkbox"
+          checked={includeCape}
+          onChange={(e) => setIncludeCape(e.target.checked)}
+          disabled={pending || !enabled}
           className="w-4 h-4"
         />
       </label>

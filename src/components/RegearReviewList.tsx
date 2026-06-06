@@ -32,6 +32,7 @@ interface RegearReviewListProps {
   // pending+crafted 리기어 id → 길드 재고 가용성. 마이그 111 이후 추가.
   // 키가 없거나 result.itemIdsForRpc 가 비면 "재고로 지급" 버튼은 안 보인다.
   stockChecks?: Record<string, StockCheckResult>
+  stockChecksWithCape?: Record<string, StockCheckResult>
 }
 
 export default function RegearReviewList({
@@ -43,6 +44,7 @@ export default function RegearReviewList({
   sortRowsByMember = false,
   anomalies = {},
   stockChecks = {},
+  stockChecksWithCape = {},
 }: RegearReviewListProps) {
   const t = useTranslations('adminRegearReview')
   const tCommon = useTranslations('common')
@@ -102,6 +104,7 @@ export default function RegearReviewList({
               forceExpanded={searchActive}
               anomalies={anomalies}
               stockChecks={stockChecks}
+              stockChecksWithCape={stockChecksWithCape}
             />
           ))}
         </ul>
@@ -116,6 +119,7 @@ export default function RegearReviewList({
               timezone={timezone}
               anomalyFlags={anomalies[r.id]}
               stockCheck={stockChecks[r.id]}
+              stockCheckWithCape={stockChecksWithCape[r.id]}
             />
           ))}
         </ul>
