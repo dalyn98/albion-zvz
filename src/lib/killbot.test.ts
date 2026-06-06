@@ -8,6 +8,7 @@ import {
   classifyKillbotEvent,
   fetchRecentKillbotEvents,
   isKillbotEventInsideProcessWindow,
+  killbotNotificationSettingsToFeedMode,
   type AlbionKillbotEvent,
   type KillbotConfig,
   type KillbotTarget,
@@ -204,6 +205,38 @@ describe('isKillbotEventInsideProcessWindow', () => {
         '2026-05-27T12:25:00Z',
       ),
     ).toBe(false)
+  })
+})
+
+describe('killbotNotificationSettingsToFeedMode', () => {
+  it('maps separate individual-log and battle-summary settings to the persisted feed mode', () => {
+    expect(
+      killbotNotificationSettingsToFeedMode({
+        individualLogsEnabled: false,
+        battleSummariesEnabled: true,
+      }),
+    ).toBe('battle')
+    expect(
+      killbotNotificationSettingsToFeedMode({
+        individualLogsEnabled: true,
+        battleSummariesEnabled: false,
+      }),
+    ).toBe('event')
+    expect(
+      killbotNotificationSettingsToFeedMode({
+        individualLogsEnabled: true,
+        battleSummariesEnabled: true,
+      }),
+    ).toBe('both')
+  })
+
+  it('keeps at least one feed enabled when both separate settings are off', () => {
+    expect(
+      killbotNotificationSettingsToFeedMode({
+        individualLogsEnabled: false,
+        battleSummariesEnabled: false,
+      }),
+    ).toBe('battle')
   })
 })
 
