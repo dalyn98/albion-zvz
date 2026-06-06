@@ -4,6 +4,10 @@
 // 카운트해 보여주는 게 끝이다. 청부 제작 시 재료 BoM 은 사이트가 계산하지 않는다.
 
 import { SLOT_KEYS, type BuildSnapshot, type SlotKey } from '@/types'
+import {
+  CRAFT_REGEAR_SLOTS_WITH_CAPE,
+  type CraftRegearSlot,
+} from './regear-craft-slots'
 
 export interface CraftItemAggregateRow {
   itemId: string
@@ -28,9 +32,33 @@ interface AggregateOptions {
 }
 
 const DEFAULT_EXCLUDED_SLOTS: readonly SlotKey[] = ['mount', 'food', 'potion']
+const SLOT_ORDER = new Map<SlotKey, number>(
+  SLOT_KEYS.map((slot, index) => [slot, index]),
+)
+
+function firstSlotOrder(slots: readonly SlotKey[]): number {
+  return Math.min(
+    ...slots.map((slot) => SLOT_ORDER.get(slot) ?? Number.MAX_SAFE_INTEGER),
+  )
+}
+
+export interface CraftBuildAggregateInput {
+  snapshot: BuildSnapshot | null
+  includedSlots?: readonly CraftRegearSlot[]
+}
 
 export function aggregateBuildSnapshots(
   snapshots: readonly (BuildSnapshot | null)[],
+  options: AggregateOptions = {},
+): CraftAggregateBreakdown {
+  return aggregateCraftBuilds(
+    snapshots.map((snapshot) => ({ snapshot })),
+    options,
+  )
+}
+
+export function aggregateCraftBuilds(
+  builds: readonly CraftBuildAggregateInput[],
   options: AggregateOptions = {},
 ): CraftAggregateBreakdown {
   const excluded = new Set<SlotKey>(options.excludeSlots ?? DEFAULT_EXCLUDED_SLOTS)
@@ -39,11 +67,12 @@ export function aggregateBuildSnapshots(
     { count: number; slots: Set<SlotKey>; itemName: string | null }
   >()
 
-  for (const snap of snapshots) {
-    if (!snap) continue
-    for (const slot of SLOT_KEYS) {
+  for (const build of builds) {
+    if (!build.snapshot) continue
+    const slots = build.includedSlots ?? CRAFT_REGEAR_SLOTS_WITH_CAPE
+    for (const slot of slots) {
       if (excluded.has(slot)) continue
-      const item = snap[slot]
+      const item = build.snapshot[slot]
       if (!item || !item.id) continue
       const cur = itemMap.get(item.id)
       if (cur) {
@@ -64,12 +93,21 @@ export function aggregateBuildSnapshots(
       itemId,
       itemName: info.itemName,
       count: info.count,
-      slots: Array.from(info.slots),
+      slots: Array.from(info.slots).sort(
+        (a, b) =>
+          (SLOT_ORDER.get(a) ?? Number.MAX_SAFE_INTEGER) -
+          (SLOT_ORDER.get(b) ?? Number.MAX_SAFE_INTEGER),
+      ),
     }))
-    .sort((a, b) => b.count - a.count || a.itemId.localeCompare(b.itemId))
+    .sort(
+      (a, b) =>
+        b.count - a.count ||
+        firstSlotOrder(a.slots) - firstSlotOrder(b.slots) ||
+        a.itemId.localeCompare(b.itemId),
+    )
 
   return {
-    taskCount: snapshots.length,
+    taskCount: builds.length,
     items,
   }
 }

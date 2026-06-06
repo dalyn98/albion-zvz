@@ -11,7 +11,7 @@ import {
   type CrafterProfile,
 } from '@/app/actions/craft'
 import { releaseCraftQueueItem } from '@/app/actions/craft-queue'
-import { SLOT_KEYS, type BuildSnapshot, type SlotKey } from '@/types'
+import { type BuildSnapshot } from '@/types'
 import { formatSilver } from '@/lib/silver'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import {
@@ -24,6 +24,8 @@ import {
   getTaskCities,
   type CraftCity,
 } from '@/lib/crafting-cities'
+import { getCraftSlotDisplayEntries } from '@/lib/craft-slot-display'
+import type { CraftRegearSlot } from '@/lib/regear-craft-slots'
 import ItemImage from './ItemImage'
 import { useToast } from './ToastProvider'
 
@@ -105,7 +107,10 @@ interface TaskHeaderProps {
 
 export function TaskHeader({ item, tRole }: TaskHeaderProps) {
   const t = useTranslations('craftQueue')
-  const cities = useMemo(() => getTaskCities(item.buildSnapshot), [item.buildSnapshot])
+  const cities = useMemo(
+    () => getTaskCities(item.buildSnapshot, item.craftIncludedSlots),
+    [item.buildSnapshot, item.craftIncludedSlots],
+  )
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -208,18 +213,22 @@ export function CityFilterBar({
 
 interface BuildPreviewProps {
   snapshot: BuildSnapshot | null
+  includedSlots: readonly CraftRegearSlot[]
   stockByItemId: Record<string, number>
 }
 
-export function BuildPreview({ snapshot, stockByItemId }: BuildPreviewProps) {
+export function BuildPreview({ snapshot, includedSlots, stockByItemId }: BuildPreviewProps) {
   const tGear = useTranslations('gear')
   const t = useTranslations('craftQueue')
-  if (!snapshot) return null
+  const entries = getCraftSlotDisplayEntries(snapshot, includedSlots)
+  if (entries.length === 0) return null
   return (
-    <div className="flex items-center gap-1.5 flex-wrap border-t border-gray-800 pt-2.5">
-      {SLOT_KEYS.map((key: SlotKey) => {
-        const item = snapshot[key]
-        if (!item) return null
+    <div className="border-t border-gray-800 pt-2.5 space-y-1.5">
+      <p className="text-[10px] text-gray-500 uppercase tracking-wider">
+        {t('fulfillmentSlotsLabel')}
+      </p>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {entries.map(({ slot, item }) => {
         // 재고 키 자체가 없으면 tracked 안 되는 부위 (가방 등) — 배지 미노출.
         // 0 이상이면 항상 표시 (색은 stock 0 이면 회색, > 0 이면 emerald).
         // item.id 가 null 인 경우 (자유 선택 슬롯) 도 배지 미노출.
@@ -227,7 +236,7 @@ export function BuildPreview({ snapshot, stockByItemId }: BuildPreviewProps) {
         const tracked = stock != null
         const inStock = tracked && stock > 0
         return (
-          <div key={key} className="flex flex-col items-center" title={tGear(key)}>
+          <div key={slot} className="flex flex-col items-center" title={tGear(slot)}>
             <ItemImage itemId={item.id} itemName={item.name} size={36} hoverPreview />
             {tracked && (
               <span
@@ -243,7 +252,8 @@ export function BuildPreview({ snapshot, stockByItemId }: BuildPreviewProps) {
             )}
           </div>
         )
-      })}
+        })}
+      </div>
     </div>
   )
 }

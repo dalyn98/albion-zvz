@@ -3,15 +3,28 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Box, ListChecks, X, Coins, ChevronDown, Undo2, CheckCircle2 } from 'lucide-react'
+import {
+  Ban,
+  Box,
+  CheckCheck,
+  CheckCircle2,
+  ChevronDown,
+  Coins,
+  ListChecks,
+  Pencil,
+  Undo2,
+  X,
+} from 'lucide-react'
 import { type CraftQueueItem } from '@/app/actions/craft'
 import {
   approveCraftReimbursementAdmin,
+  approveCraftReimbursementAdjustedAdmin,
+  bulkApproveCraftReimbursementsAdmin,
   cancelCraftTaskAdmin,
   convertCraftTaskToSilverAdmin,
+  rejectCraftReimbursementAdmin,
   revertCraftTaskToPendingAdmin,
 } from '@/app/actions/craft-admin'
-import { SLOT_KEYS, type SlotKey } from '@/types'
 import { formatSilver } from '@/lib/silver'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import {
@@ -20,6 +33,7 @@ import {
   NO_EVENT_KEY,
   type EventGroup,
 } from '@/lib/craft-grouping'
+import { getCraftSlotDisplayEntries } from '@/lib/craft-slot-display'
 import ItemImage from './ItemImage'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { useToast } from './ToastProvider'
@@ -40,9 +54,21 @@ export default function AdminCraftTasksList({ initialTasks }: Props) {
   const [pendingTarget, setPendingTarget] = useState<string | null>(null)
   const [, startTransition] = useTransition()
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+  const [adjustTarget, setAdjustTarget] = useState<{ taskId: string; amount: string } | null>(null)
+  const [rejectTarget, setRejectTarget] = useState<{ taskId: string; reason: string } | null>(null)
   const askConfirm = useConfirm()
 
   const groups = useMemo(() => groupByEvent(initialTasks), [initialTasks])
+  const pendingReimbursementTaskIds = useMemo(
+    () =>
+      initialTasks
+        .filter(
+          (task) =>
+            task.reimbursementStatus === 'pending' && (task.reimbursementSilver ?? 0) > 0,
+        )
+        .map((task) => task.taskId),
+    [initialTasks],
+  )
 
   const toggleGroupCollapsed = (key: string) => {
     setCollapsedGroups((prev) => {
@@ -117,15 +143,108 @@ export default function AdminCraftTasksList({ initialTasks }: Props) {
     })
   }
 
+  const onAdjustReimbursement = async (taskId: string, amountRaw: string) => {
+    const normalized = amountRaw.trim().replace(/,/g, '')
+    const amount = Number(normalized)
+    if (!Number.isInteger(amount) || amount < 0) {
+      toast.error(t('reimbursementAdjustInvalid'))
+      return
+    }
+    const ok = await askConfirm({
+      body: t('confirmAdjustReimbursement', { amount: formatSilver(amount) }),
+      destructive: false,
+    })
+    if (!ok) return
+    setPendingTarget(taskId)
+    startTransition(async () => {
+      const r = await approveCraftReimbursementAdjustedAdmin(taskId, amount)
+      setPendingTarget(null)
+      if (r.error) {
+        toast.error(r.error)
+        return
+      }
+      setAdjustTarget(null)
+      toast.success(t('toastReimbursementApproved', { amount: formatSilver(r.amount ?? 0) }))
+      router.refresh()
+    })
+  }
+
+  const onRejectReimbursement = async (taskId: string, reason: string) => {
+    const ok = await askConfirm({ body: t('confirmRejectReimbursement'), destructive: true })
+    if (!ok) return
+    setPendingTarget(taskId)
+    startTransition(async () => {
+      const r = await rejectCraftReimbursementAdmin(taskId, reason)
+      setPendingTarget(null)
+      if (r.error) {
+        toast.error(r.error)
+        return
+      }
+      setRejectTarget(null)
+      toast.success(t('toastReimbursementRejected'))
+      router.refresh()
+    })
+  }
+
+  const onBulkApproveReimbursements = async () => {
+    if (pendingReimbursementTaskIds.length === 0) return
+    const ok = await askConfirm({
+      body: t('confirmBulkApproveReimbursement', {
+        count: pendingReimbursementTaskIds.length,
+      }),
+      destructive: false,
+    })
+    if (!ok) return
+    setPendingTarget('__bulk_reimbursement__')
+    startTransition(async () => {
+      const r = await bulkApproveCraftReimbursementsAdmin(pendingReimbursementTaskIds)
+      setPendingTarget(null)
+      if (r.error) {
+        toast.error(r.error)
+        return
+      }
+      if (r.failed > 0) {
+        toast.error(t('toastBulkReimbursementPartial', { ok: r.ok, failed: r.failed }))
+      } else {
+        toast.success(t('toastBulkReimbursementApproved', { count: r.ok }))
+      }
+      router.refresh()
+    })
+  }
+
   return (
     <section className="bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-5 space-y-3">
-      <div>
-        <h2 className="text-base font-bold text-white flex items-center gap-2">
-          <ListChecks size={16} className="text-amber-400" />
-          {t('tasksTitle')}
-          <span className="text-xs text-gray-500">({initialTasks.length})</span>
-        </h2>
-        <p className="text-xs text-gray-500 mt-1">{t('tasksHint')}</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-base font-bold text-white flex items-center gap-2 flex-wrap">
+            <ListChecks size={16} className="text-amber-400" />
+            {t('tasksTitle')}
+            <span className="text-xs text-gray-500">({initialTasks.length})</span>
+            {pendingReimbursementTaskIds.length > 0 && (
+              <span className="text-[10px] font-bold rounded bg-amber-500/15 text-amber-200 border border-amber-500/30 px-2 py-0.5">
+                {t('pendingReimbursementBadge', {
+                  count: pendingReimbursementTaskIds.length,
+                })}
+              </span>
+            )}
+          </h2>
+          <p className="text-xs text-gray-500 mt-1">{t('tasksHint')}</p>
+        </div>
+        {pendingReimbursementTaskIds.length > 0 && (
+          <button
+            type="button"
+            onClick={onBulkApproveReimbursements}
+            disabled={pendingTarget === '__bulk_reimbursement__'}
+            className="text-[11px] text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 hover:border-emerald-500/60 rounded px-2.5 py-1.5 inline-flex items-center gap-1 disabled:opacity-50"
+          >
+            <CheckCheck size={12} />
+            {pendingTarget === '__bulk_reimbursement__'
+              ? t('processing')
+              : t('bulkApproveReimbursement', {
+                  count: pendingReimbursementTaskIds.length,
+                })}
+          </button>
+        )}
       </div>
       {initialTasks.length === 0 ? (
         <p className="text-gray-500 text-sm bg-gray-950 border border-gray-800 rounded-lg px-3 py-6 text-center">
@@ -144,6 +263,12 @@ export default function AdminCraftTasksList({ initialTasks }: Props) {
               onConvert={onConvert}
               onRevert={onRevert}
               onApproveReimbursement={onApproveReimbursement}
+              onAdjustReimbursement={onAdjustReimbursement}
+              onRejectReimbursement={onRejectReimbursement}
+              adjustTarget={adjustTarget}
+              rejectTarget={rejectTarget}
+              setAdjustTarget={setAdjustTarget}
+              setRejectTarget={setRejectTarget}
               tRole={tRole}
               t={t}
             />
@@ -163,6 +288,12 @@ interface GroupSectionProps {
   onConvert: (id: string) => void
   onRevert: (id: string) => void
   onApproveReimbursement: (id: string) => void
+  onAdjustReimbursement: (id: string, amount: string) => void
+  onRejectReimbursement: (id: string, reason: string) => void
+  adjustTarget: { taskId: string; amount: string } | null
+  rejectTarget: { taskId: string; reason: string } | null
+  setAdjustTarget: (target: { taskId: string; amount: string } | null) => void
+  setRejectTarget: (target: { taskId: string; reason: string } | null) => void
   tRole: ReturnType<typeof useTranslations>
   t: ReturnType<typeof useTranslations>
 }
@@ -176,6 +307,12 @@ function GroupSection({
   onConvert,
   onRevert,
   onApproveReimbursement,
+  onAdjustReimbursement,
+  onRejectReimbursement,
+  adjustTarget,
+  rejectTarget,
+  setAdjustTarget,
+  setRejectTarget,
   tRole,
   t,
 }: GroupSectionProps) {
@@ -226,9 +363,14 @@ function GroupSection({
             const canCancelOrConvert =
               task.status === 'queued' || task.status === 'claimed'
             const canApproveReimbursement =
-              task.status === 'delivered' &&
               task.reimbursementStatus === 'pending' &&
               (task.reimbursementSilver ?? 0) > 0
+            const slotEntries = getCraftSlotDisplayEntries(
+              task.buildSnapshot,
+              task.craftIncludedSlots,
+            )
+            const isAdjusting = adjustTarget?.taskId === task.taskId
+            const isRejecting = rejectTarget?.taskId === task.taskId
             return (
               <li key={task.taskId} className="bg-gray-950 p-3 space-y-2">
                 <div className="flex items-start justify-between gap-2 flex-wrap">
@@ -252,21 +394,22 @@ function GroupSection({
                   </span>
                 </div>
 
-                {task.buildSnapshot && (
-                  <div className="flex items-center gap-1.5 flex-wrap border-t border-gray-800 pt-2">
-                    {SLOT_KEYS.map((key: SlotKey) => {
-                      const item = task.buildSnapshot?.[key]
-                      if (!item) return null
-                      return (
+                {slotEntries.length > 0 && (
+                  <div className="border-t border-gray-800 pt-2 space-y-1.5">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider">
+                      {t('fulfillmentSlotsLabel')}
+                    </p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {slotEntries.map(({ slot, item }) => (
                         <ItemImage
-                          key={key}
+                          key={slot}
                           itemId={item.id}
                           itemName={item.name}
                           size={28}
                           hoverPreview
                         />
-                      )
-                    })}
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -300,23 +443,121 @@ function GroupSection({
                         ? t('reimbursementPending', { silver: formatSilver(task.reimbursementSilver ?? 0) })
                         : task.reimbursementStatus === 'approved'
                           ? t('reimbursementApproved', { silver: formatSilver(task.reimbursementSilver ?? 0) })
-                          : formatSilver(task.reimbursementSilver ?? 0)}
+                          : task.reimbursementStatus === 'rejected'
+                            ? t('reimbursementRejected', { silver: formatSilver(task.reimbursementSilver ?? 0) })
+                            : formatSilver(task.reimbursementSilver ?? 0)}
                     </span>
                   )}
                 </div>
 
+                {isAdjusting && (
+                  <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-2 flex flex-wrap items-center gap-2">
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={task.reimbursementSilver ?? undefined}
+                      value={adjustTarget?.amount ?? ''}
+                      onChange={(e) =>
+                        setAdjustTarget({ taskId: task.taskId, amount: e.target.value })
+                      }
+                      disabled={isPending}
+                      className="w-32 bg-gray-950 border border-gray-700 rounded px-2 py-1 text-xs text-white font-mono focus:outline-none focus:border-amber-500"
+                      aria-label={t('reimbursementAdjustAmount')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onAdjustReimbursement(task.taskId, adjustTarget?.amount ?? '')
+                      }
+                      disabled={isPending}
+                      className="text-[11px] text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 hover:border-emerald-500/60 rounded px-2 py-1 disabled:opacity-50"
+                    >
+                      {t('reimbursementAdjustSubmit')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAdjustTarget(null)}
+                      disabled={isPending}
+                      className="text-[11px] text-gray-400 hover:text-white px-1 py-1 disabled:opacity-50"
+                    >
+                      {t('cancelInline')}
+                    </button>
+                  </div>
+                )}
+
+                {isRejecting && (
+                  <div className="rounded-lg border border-rose-500/25 bg-rose-500/5 p-2 space-y-2">
+                    <textarea
+                      value={rejectTarget?.reason ?? ''}
+                      onChange={(e) =>
+                        setRejectTarget({ taskId: task.taskId, reason: e.target.value })
+                      }
+                      disabled={isPending}
+                      maxLength={500}
+                      placeholder={t('reimbursementRejectReasonPlaceholder')}
+                      className="w-full min-h-16 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-rose-500"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setRejectTarget(null)}
+                        disabled={isPending}
+                        className="text-[11px] text-gray-400 hover:text-white px-1 py-1 disabled:opacity-50"
+                      >
+                        {t('cancelInline')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onRejectReimbursement(task.taskId, rejectTarget?.reason ?? '')
+                        }
+                        disabled={isPending}
+                        className="text-[11px] text-rose-300 hover:text-rose-200 border border-rose-500/30 hover:border-rose-500/60 rounded px-2 py-1 disabled:opacity-50"
+                      >
+                        {t('reimbursementRejectSubmit')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {(canCancelOrConvert || canApproveReimbursement) && (
                   <div className="flex items-center justify-end gap-2 pt-1">
                     {canApproveReimbursement && (
-                      <button
-                        type="button"
-                        onClick={() => onApproveReimbursement(task.taskId)}
-                        disabled={isPending}
-                        className="text-[11px] text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 hover:border-emerald-500/60 rounded px-2 py-1 inline-flex items-center gap-1 disabled:opacity-50"
-                      >
-                        <CheckCircle2 size={11} />
-                        {isPending ? t('processing') : t('approveReimbursement')}
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => onApproveReimbursement(task.taskId)}
+                          disabled={isPending}
+                          className="text-[11px] text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 hover:border-emerald-500/60 rounded px-2 py-1 inline-flex items-center gap-1 disabled:opacity-50"
+                        >
+                          <CheckCircle2 size={11} />
+                          {isPending ? t('processing') : t('approveReimbursement')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAdjustTarget({
+                              taskId: task.taskId,
+                              amount: String(task.reimbursementSilver ?? 0),
+                            })
+                          }
+                          disabled={isPending}
+                          className="text-[11px] text-amber-300 hover:text-amber-200 border border-amber-500/30 hover:border-amber-500/60 rounded px-2 py-1 inline-flex items-center gap-1 disabled:opacity-50"
+                        >
+                          <Pencil size={11} />
+                          {t('adjustReimbursement')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRejectTarget({ taskId: task.taskId, reason: '' })}
+                          disabled={isPending}
+                          className="text-[11px] text-rose-300 hover:text-rose-200 border border-rose-500/30 hover:border-rose-500/60 rounded px-2 py-1 inline-flex items-center gap-1 disabled:opacity-50"
+                        >
+                          <Ban size={11} />
+                          {t('rejectReimbursement')}
+                        </button>
+                      </>
                     )}
                     {canCancelOrConvert && (
                       <>

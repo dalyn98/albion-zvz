@@ -16,6 +16,7 @@ export type CraftReimbursementStatus =
   | 'not_required'
   | 'pending'
   | 'approved'
+  | 'rejected'
 
 export interface CraftTaskRow {
   id: string
@@ -33,6 +34,10 @@ export interface CraftTaskRow {
   reimbursement_approved_at: string | null
   reimbursement_approved_by: string | null
   reimbursement_approved_by_username: string | null
+  reimbursement_rejected_at: string | null
+  reimbursement_rejected_by: string | null
+  reimbursement_rejected_by_username: string | null
+  reimbursement_reject_reason: string | null
   compensation_mode: 'volunteer' | 'paid' | null
   claimed_at: string | null
   delivered_at: string | null
@@ -184,6 +189,44 @@ export async function approveCraftReimbursement(
     p_guild_id: guildId,
     p_admin_id: adminDiscordId,
     p_admin_username: adminUsername,
+  })
+  if (error) throw new Error(error.message)
+  return typeof data === 'number' ? data : 0
+}
+
+export async function approveCraftReimbursementAdjusted(
+  taskId: string,
+  guildId: string,
+  adminDiscordId: string,
+  adminUsername: string,
+  reimbursementSilver: number,
+): Promise<number> {
+  const supabase = getAdminClient()
+  const { data, error } = await supabase.rpc('approve_craft_reimbursement_adjusted', {
+    p_task_id: taskId,
+    p_guild_id: guildId,
+    p_admin_id: adminDiscordId,
+    p_admin_username: adminUsername,
+    p_reimbursement_silver: reimbursementSilver,
+  })
+  if (error) throw new Error(error.message)
+  return typeof data === 'number' ? data : 0
+}
+
+export async function rejectCraftReimbursement(
+  taskId: string,
+  guildId: string,
+  adminDiscordId: string,
+  adminUsername: string,
+  rejectReason: string,
+): Promise<number> {
+  const supabase = getAdminClient()
+  const { data, error } = await supabase.rpc('reject_craft_reimbursement', {
+    p_task_id: taskId,
+    p_guild_id: guildId,
+    p_admin_id: adminDiscordId,
+    p_admin_username: adminUsername,
+    p_reject_reason: rejectReason,
   })
   if (error) throw new Error(error.message)
   return typeof data === 'number' ? data : 0

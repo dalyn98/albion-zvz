@@ -6,7 +6,7 @@ import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import { formatDateTime } from '@/lib/format-datetime'
-import { SLOT_KEYS, type SlotKey } from '@/types'
+import { getCraftSlotDisplayEntries } from '@/lib/craft-slot-display'
 import ItemImage from './ItemImage'
 import MyCraftPickupCollectButton from './MyCraftPickupCollectButton'
 
@@ -64,12 +64,10 @@ export default async function MyCraftPickupsSection() {
             </div>
             {p.buildSnapshot && (
               <div className="flex items-center gap-1.5 flex-wrap border-t border-gray-800 pt-2.5">
-                {SLOT_KEYS.map((key: SlotKey) => {
-                  const item = p.buildSnapshot?.[key]
-                  if (!item) return null
+                {getCraftSlotDisplayEntries(p.buildSnapshot, p.craftIncludedSlots).map(({ slot, item }) => {
                   return (
                     <ItemImage
-                      key={key}
+                      key={slot}
                       itemId={item.id}
                       itemName={item.name}
                       size={36}

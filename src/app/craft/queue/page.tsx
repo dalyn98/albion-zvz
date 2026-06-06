@@ -8,7 +8,7 @@ import {
   getCraftConfig,
 } from '@/app/actions/craft'
 import { listCraftQueueForCrafter } from '@/app/actions/craft-queue'
-import { aggregateBuildSnapshots } from '@/lib/craft-aggregation'
+import { aggregateCraftBuilds } from '@/lib/craft-aggregation'
 import CraftQueueClient from '@/components/CraftQueueClient'
 import CraftQueueAggregationCard from '@/components/CraftQueueAggregationCard'
 
@@ -64,7 +64,12 @@ export default async function CraftQueuePage() {
 
   // 길드 단위 집계: queued task 들의 buildSnapshot 합산. claimed/delivered 는
   // 이미 다른 제작자가 잡았거나 마무리됐으므로 "지금 만들어야 할 것" 만 보여준다.
-  const aggregateBreakdown = aggregateBuildSnapshots(queued.map((q) => q.buildSnapshot))
+  const aggregateBreakdown = aggregateCraftBuilds(
+    queued.map((q) => ({
+      snapshot: q.buildSnapshot,
+      includedSlots: q.craftIncludedSlots,
+    })),
+  )
   const myClaimedCount = mine.filter((m) => m.status === 'claimed').length
 
   return (

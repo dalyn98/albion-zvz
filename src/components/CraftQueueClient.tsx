@@ -110,7 +110,7 @@ export default function CraftQueueClient({
   const filteredQueued = useMemo(() => {
     if (cityFilter.size === 0) return queued
     return queued.filter((item) => {
-      const cities = getTaskCities(item.buildSnapshot)
+      const cities = getTaskCities(item.buildSnapshot, item.craftIncludedSlots)
       for (const c of cities) if (cityFilter.has(c)) return true
       return false
     })
@@ -119,7 +119,7 @@ export default function CraftQueueClient({
   const filteredMine = useMemo(() => {
     if (cityFilter.size === 0) return mine
     return mine.filter((item) => {
-      const cities = getTaskCities(item.buildSnapshot)
+      const cities = getTaskCities(item.buildSnapshot, item.craftIncludedSlots)
       for (const c of cities) if (cityFilter.has(c)) return true
       return false
     })
@@ -321,6 +321,7 @@ export default function CraftQueueClient({
                                   <TaskHeader item={item} tRole={tRole} />
                                   <BuildPreview
                                     snapshot={item.buildSnapshot}
+                                    includedSlots={item.craftIncludedSlots}
                                     stockByItemId={stockByItemId}
                                   />
                                   <div className="flex items-center justify-end gap-2">
@@ -427,6 +428,7 @@ export default function CraftQueueClient({
                                 <TaskHeader item={item} tRole={tRole} />
                                 <BuildPreview
                                   snapshot={item.buildSnapshot}
+                                  includedSlots={item.craftIncludedSlots}
                                   stockByItemId={stockByItemId}
                                 />
                                 <ClaimedActions
@@ -464,6 +466,7 @@ export default function CraftQueueClient({
                           <TaskHeader item={item} tRole={tRole} />
                           <BuildPreview
                             snapshot={item.buildSnapshot}
+                            includedSlots={item.craftIncludedSlots}
                             stockByItemId={stockByItemId}
                           />
                           <div className="flex flex-wrap items-center gap-3 text-[11px] text-gray-400">
@@ -481,12 +484,16 @@ export default function CraftQueueClient({
                                 className={
                                   item.reimbursementStatus === 'approved'
                                     ? 'text-emerald-300 font-mono'
+                                    : item.reimbursementStatus === 'rejected'
+                                      ? 'text-rose-300 font-mono'
                                     : 'text-amber-300 font-mono'
                                 }
                               >
                                 · {item.reimbursementStatus === 'approved'
                                   ? t('reimbursementApproved', { silver: formatSilver(item.reimbursementSilver ?? 0) })
-                                  : t('reimbursementPending', { silver: formatSilver(item.reimbursementSilver ?? 0) })}
+                                  : item.reimbursementStatus === 'rejected'
+                                    ? t('reimbursementRejected', { silver: formatSilver(item.reimbursementSilver ?? 0) })
+                                    : t('reimbursementPending', { silver: formatSilver(item.reimbursementSilver ?? 0) })}
                               </span>
                             )}
                             <Link

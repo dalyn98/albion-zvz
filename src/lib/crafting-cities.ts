@@ -8,7 +8,11 @@
 // 도시가 다르다. 풀 플레이트 셋도 헬멧→FS, 체스트→BW, 슈즈→ML 로 흩어짐.
 
 import { extractWeaponCategory } from './weapon-category'
-import type { BuildSnapshot, SlotKey } from '@/types'
+import type { BuildSnapshot } from '@/types'
+import {
+  CRAFT_REGEAR_SLOTS_WITH_CAPE,
+  type CraftRegearSlot,
+} from './regear-craft-slots'
 
 export type CraftCity =
   | 'bridgewatch'
@@ -281,18 +285,13 @@ export function getCraftBonusCity(
 
 // 한 task 가 도시 보너스를 받는 슬롯들의 도시 집합.
 // 같은 도시가 여러 슬롯에 걸치면 한 번만 카운트.
-export function getTaskCities(snapshot: BuildSnapshot | null): Set<CraftCity> {
+export function getTaskCities(
+  snapshot: BuildSnapshot | null,
+  includedSlots: readonly CraftRegearSlot[] = CRAFT_REGEAR_SLOTS_WITH_CAPE,
+): Set<CraftCity> {
   const out = new Set<CraftCity>()
   if (!snapshot) return out
-  const slots: readonly SlotKey[] = [
-    'weapon',
-    'head',
-    'armor',
-    'shoes',
-    'offhand',
-    'cape',
-  ]
-  for (const slot of slots) {
+  for (const slot of includedSlots) {
     const item = snapshot[slot]
     const city = getCraftBonusCity(item?.id)
     if (city) out.add(city)

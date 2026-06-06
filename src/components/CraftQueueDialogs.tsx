@@ -141,6 +141,7 @@ export function DeliverDialog({ item, config, onClose, onSuccess }: DeliverDialo
   const t = useTranslations('craftQueue')
   const toast = useToast()
   const [boxNumber, setBoxNumber] = useState('')
+  const [availableBoxes, setAvailableBoxes] = useState<number[]>([])
   const [autoAssignReason, setAutoAssignReason] = useState<AutoAssignReason | null>(null)
   const [materialCost, setMaterialCost] = useState<string>('')
   const [submitting, startSubmit] = useTransition()
@@ -153,6 +154,7 @@ export function DeliverDialog({ item, config, onClose, onSuccess }: DeliverDialo
     void computeAutoAssignBox(item.taskId).then((res) => {
       if (cancelled) return
       setAutoAssignReason(res.reason)
+      setAvailableBoxes(res.availableBoxes)
       if (res.boxNumber != null) setBoxNumber(String(res.boxNumber))
     })
     return () => {
@@ -227,6 +229,30 @@ export function DeliverDialog({ item, config, onClose, onSuccess }: DeliverDialo
           >
             {t(`autoAssignReason.${autoAssignReason}`)}
           </p>
+        )}
+        {availableBoxes.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {availableBoxes.slice(0, 12).map((box) => (
+              <button
+                key={box}
+                type="button"
+                onClick={() => setBoxNumber(String(box))}
+                disabled={pending}
+                className={`text-[11px] font-mono rounded border px-2 py-1 ${
+                  boxNumber === String(box)
+                    ? 'border-emerald-400 bg-emerald-500/10 text-emerald-200'
+                    : 'border-gray-700 bg-gray-950 text-gray-300 hover:border-gray-500'
+                } disabled:opacity-50`}
+              >
+                #{box}
+              </button>
+            ))}
+            {availableBoxes.length > 12 && (
+              <span className="text-[10px] text-gray-500 self-center">
+                {t('availableBoxesMore', { count: availableBoxes.length - 12 })}
+              </span>
+            )}
+          </div>
         )}
       </div>
 

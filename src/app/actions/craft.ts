@@ -23,7 +23,10 @@ import {
   parseRangeBoundary,
 } from '@/lib/craft-task-mapping'
 import type { BuildSnapshot } from '@/types'
-import type { CraftRegearSlot } from '@/lib/regear-craft-slots'
+import {
+  normalizeCraftRegearSlots,
+  type CraftRegearSlot,
+} from '@/lib/regear-craft-slots'
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -73,10 +76,14 @@ export interface CraftQueueItem {
   materialSilverCost: number | null
   premiumSilver: number
   reimbursementSilver: number | null
-  reimbursementStatus: 'not_required' | 'pending' | 'approved'
+  reimbursementStatus: 'not_required' | 'pending' | 'approved' | 'rejected'
   reimbursementApprovedAt: string | null
   reimbursementApprovedBy: string | null
   reimbursementApprovedByUsername: string | null
+  reimbursementRejectedAt: string | null
+  reimbursementRejectedBy: string | null
+  reimbursementRejectedByUsername: string | null
+  reimbursementRejectReason: string | null
   compensationMode: CraftCompensationMode | null
 }
 
@@ -85,6 +92,7 @@ export interface MyCraftPickup {
   eventTitle: string
   roleName: string
   buildSnapshot: BuildSnapshot | null
+  craftIncludedSlots: CraftRegearSlot[]
   boxNumber: number
   craftCity: string | null
   deliveredAt: string
@@ -173,7 +181,7 @@ export async function listMyCraftPickups(): Promise<{ pickups: MyCraftPickup[]; 
   const { data, error } = await db
     .from('craft_tasks')
     .select(
-      'id, regear_request_id, status, crafter_username, box_number, craft_city, delivered_at, expires_at, created_at, regear_requests!inner(discord_id, role_name, event_title_snapshot, build_snapshot)',
+      'id, regear_request_id, status, crafter_username, box_number, craft_city, delivered_at, expires_at, created_at, regear_requests!inner(discord_id, role_name, event_title_snapshot, build_snapshot, craft_included_slots)',
     )
     .eq('guild_id', guildId)
     .eq('status', 'delivered')
@@ -190,6 +198,10 @@ export async function listMyCraftPickups(): Promise<{ pickups: MyCraftPickup[]; 
       eventTitle: r?.event_title_snapshot ?? '',
       roleName: r?.role_name ?? '',
       buildSnapshot: (r?.build_snapshot as BuildSnapshot | null) ?? null,
+      craftIncludedSlots: normalizeCraftRegearSlots(
+        (r as { craft_included_slots?: unknown } | null)?.craft_included_slots,
+        false,
+      ),
       boxNumber: (row.box_number as number | null) ?? 0,
       craftCity: row.craft_city as string | null,
       deliveredAt: row.delivered_at as string,
@@ -282,6 +294,7 @@ export type AutoAssignReason =
 
 export interface AutoAssignResult {
   boxNumber: number | null
+  availableBoxes: number[]
   reason: AutoAssignReason
 }
 
@@ -291,7 +304,7 @@ export async function computeAutoAssignBox(
   const tErr = await getTranslations('memberActionError')
   const session = await getSession()
   if (!session) {
-    return { boxNumber: null, reason: 'noRange', error: tErr('loginRequired') }
+    return { boxNumber: null, availableBoxes: [], reason: 'noRange', error: tErr('loginRequired') }
   }
   const guildId = await getSessionGuildId(session)
   const db = getAdminClient()
@@ -305,10 +318,10 @@ export async function computeAutoAssignBox(
     .eq('guild_id', guildId)
     .maybeSingle()
   if (taskErr || !task) {
-    return { boxNumber: null, reason: 'noRange', error: tErr('craftTaskNotFound') }
+    return { boxNumber: null, availableBoxes: [], reason: 'noRange', error: tErr('craftTaskNotFound') }
   }
   if (task.crafter_discord_id !== session.discordId && !session.isAdmin) {
-    return { boxNumber: null, reason: 'noRange', error: tErr('craftNotClaimer') }
+    return { boxNumber: null, availableBoxes: [], reason: 'noRange', error: tErr('craftNotClaimer') }
   }
   // 크래프터의 범위 조회. 미지정이면 noRange.
   const { data: crafter } = await db
@@ -320,7 +333,7 @@ export async function computeAutoAssignBox(
   const rangeStart = parseRangeBoundary(crafter?.craft_box_range_start)
   const rangeEnd = parseRangeBoundary(crafter?.craft_box_range_end)
   if (rangeStart == null || rangeEnd == null) {
-    return { boxNumber: null, reason: 'noRange' }
+    return { boxNumber: null, availableBoxes: [], reason: 'noRange' }
   }
 
   // DB unique invariant 는 (guild_id, box_number) 이므로 delivered 상태에서
@@ -338,10 +351,12 @@ export async function computeAutoAssignBox(
     if (typeof n === 'number') occupied.add(n)
   }
 
+  const availableBoxes: number[] = []
   for (let n = rangeStart; n <= rangeEnd; n++) {
-    if (!occupied.has(n)) {
-      return { boxNumber: n, reason: 'rangeFree' }
-    }
+    if (!occupied.has(n)) availableBoxes.push(n)
   }
-  return { boxNumber: null, reason: 'rangeFull' }
+  if (availableBoxes.length > 0) {
+    return { boxNumber: availableBoxes[0], availableBoxes, reason: 'rangeFree' }
+  }
+  return { boxNumber: null, availableBoxes: [], reason: 'rangeFull' }
 }

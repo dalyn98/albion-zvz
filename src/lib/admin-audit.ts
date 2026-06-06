@@ -58,6 +58,7 @@ export const ADMIN_ACTIONS = [
   'craft.task.complete',
   'craft.task.cancel',
   'craft.reimbursement.approve',
+  'craft.reimbursement.reject',
   'permission.role.update',
   'permission.role.delete',
   'permission.user.update',

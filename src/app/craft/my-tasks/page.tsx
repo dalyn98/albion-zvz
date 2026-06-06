@@ -8,7 +8,7 @@ import {
   getCraftConfig,
 } from '@/app/actions/craft'
 import { listCraftQueueForCrafter } from '@/app/actions/craft-queue'
-import { aggregateBuildSnapshots } from '@/lib/craft-aggregation'
+import { aggregateCraftBuilds } from '@/lib/craft-aggregation'
 import CraftQueueClient from '@/components/CraftQueueClient'
 import CraftQueueAggregationCard from '@/components/CraftQueueAggregationCard'
 
@@ -64,10 +64,13 @@ export default async function CraftMyTasksPage() {
 
   // 본인이 claimed 한 task 들의 buildSnapshot 만 합산. delivered 는 이미 박스에
   // 넣었으므로 재료가 소진되어 새로 살 게 없다.
-  const myClaimedSnapshots = mine
+  const myClaimedBuilds = mine
     .filter((m) => m.status === 'claimed')
-    .map((m) => m.buildSnapshot)
-  const myAggregateBreakdown = aggregateBuildSnapshots(myClaimedSnapshots)
+    .map((m) => ({
+      snapshot: m.buildSnapshot,
+      includedSlots: m.craftIncludedSlots,
+    }))
+  const myAggregateBreakdown = aggregateCraftBuilds(myClaimedBuilds)
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-6 sm:py-8 space-y-6">

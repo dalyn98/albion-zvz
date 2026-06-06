@@ -22,12 +22,14 @@ import {
   deliverCraftQueueItem,
   type CraftQueueTaskDetail,
 } from '@/app/actions/craft-queue'
-import { SLOT_KEYS, type BuildSnapshot, type SlotKey } from '@/types'
+import { type BuildSnapshot, type SlotKey } from '@/types'
 import { formatSilver } from '@/lib/silver'
 import { getLocalizedItemNameWithEnchant } from '@/lib/item-names'
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/locales'
 import { translateSlotRole } from '@/lib/slot-role-i18n'
 import { toZonedParts } from '@/lib/timezone'
+import { getCraftSlotDisplayEntries } from '@/lib/craft-slot-display'
+import type { CraftRegearSlot } from '@/lib/regear-craft-slots'
 import ItemImage from './ItemImage'
 import { useToast } from './ToastProvider'
 
@@ -73,6 +75,7 @@ export default function CraftTaskDetail({ detail, profile, config, timezone }: P
 
       <SlotsCard
         buildSnapshot={task.buildSnapshot}
+        includedSlots={task.craftIncludedSlots}
         locale={locale}
         t={t}
       />
@@ -282,24 +285,25 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
 
 function SlotsCard({
   buildSnapshot,
+  includedSlots,
   locale,
   t,
 }: {
   buildSnapshot: BuildSnapshot | null
+  includedSlots: readonly CraftRegearSlot[]
   locale: Locale
   t: ReturnType<typeof useTranslations>
 }) {
   const tGear = useTranslations('gear')
   const slots = useMemo(() => {
-    if (!buildSnapshot) return []
-    return SLOT_KEYS.flatMap((key) => {
-      const item = buildSnapshot[key]
+    const entries = getCraftSlotDisplayEntries(buildSnapshot, includedSlots)
+    return entries.flatMap(({ slot, item }) => {
       if (!item || !item.id) return []
       const displayName =
         getLocalizedItemNameWithEnchant(item.id, locale, item.name) ?? item.id
-      return [{ key, id: item.id, name: displayName }]
+      return [{ key: slot, id: item.id, name: displayName }]
     })
-  }, [buildSnapshot, locale])
+  }, [buildSnapshot, includedSlots, locale])
 
   if (slots.length === 0) {
     return (
@@ -600,12 +604,18 @@ function DeliveredSummary({ task }: { task: CraftQueueTaskDetail['task'] }) {
       {(task.reimbursementSilver ?? 0) > 0 && (
         <p
           className={`text-xs font-mono ${
-            task.reimbursementStatus === 'approved' ? 'text-emerald-300' : 'text-amber-300'
+            task.reimbursementStatus === 'approved'
+              ? 'text-emerald-300'
+              : task.reimbursementStatus === 'rejected'
+                ? 'text-rose-300'
+                : 'text-amber-300'
           }`}
         >
           {task.reimbursementStatus === 'approved'
             ? t('reimbursementApproved', { silver: formatSilver(task.reimbursementSilver ?? 0) })
-            : t('reimbursementPending', { silver: formatSilver(task.reimbursementSilver ?? 0) })}
+            : task.reimbursementStatus === 'rejected'
+              ? t('reimbursementRejected', { silver: formatSilver(task.reimbursementSilver ?? 0) })
+              : t('reimbursementPending', { silver: formatSilver(task.reimbursementSilver ?? 0) })}
         </p>
       )}
     </section>

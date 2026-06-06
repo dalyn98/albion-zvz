@@ -12,12 +12,14 @@ import { requireAnyCapability } from '@/lib/auth'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { CAP } from '@/lib/permissions'
 import {
-  aggregateBuildSnapshots,
+  aggregateCraftBuilds,
+  type CraftBuildAggregateInput,
   type CraftItemAggregateRow,
 } from '@/lib/craft-aggregation'
 import { getCurrentWeekStartIso } from '@/lib/timezone'
 import type { CraftTaskStatus } from '@/lib/craft-tasks'
 import type { BuildSnapshot } from '@/types'
+import { normalizeCraftRegearSlots } from '@/lib/regear-craft-slots'
 
 export interface CraftDemandTopItem {
   itemId: string
@@ -96,8 +98,8 @@ export async function loadCraftDemandStatsAdmin(
 }
 
 interface DemandSnapshotResult {
-  lifetimeSnapshots: (BuildSnapshot | null)[]
-  weeklySnapshots: (BuildSnapshot | null)[]
+  lifetimeSnapshots: CraftBuildAggregateInput[]
+  weeklySnapshots: CraftBuildAggregateInput[]
   error?: string
 }
 
@@ -111,7 +113,7 @@ async function fetchAllDemandSnapshots(
   // status 필터를 걸지 않는다.
   const { data, error } = await db
     .from('regear_requests')
-    .select('build_snapshot, created_at')
+    .select('build_snapshot, craft_requested_slots, craft_included_slots, created_at')
     .eq('guild_id', guildId)
   if (error) {
     return { lifetimeSnapshots: [], weeklySnapshots: [], error: error.message }
@@ -119,15 +121,23 @@ async function fetchAllDemandSnapshots(
 
   const rows = (data ?? []) as Array<{
     build_snapshot: unknown
+    craft_requested_slots?: unknown
+    craft_included_slots?: unknown
     created_at: string
   }>
 
-  const lifetimeSnapshots: (BuildSnapshot | null)[] = []
-  const weeklySnapshots: (BuildSnapshot | null)[] = []
+  const lifetimeSnapshots: CraftBuildAggregateInput[] = []
+  const weeklySnapshots: CraftBuildAggregateInput[] = []
   for (const row of rows) {
-    const snap = (row.build_snapshot as BuildSnapshot | null) ?? null
-    lifetimeSnapshots.push(snap)
-    if (row.created_at >= weekSinceIso) weeklySnapshots.push(snap)
+    const build = {
+      snapshot: (row.build_snapshot as BuildSnapshot | null) ?? null,
+      includedSlots: normalizeCraftRegearSlots(
+        row.craft_included_slots ?? row.craft_requested_slots,
+        false,
+      ),
+    }
+    lifetimeSnapshots.push(build)
+    if (row.created_at >= weekSinceIso) weeklySnapshots.push(build)
   }
 
   return { lifetimeSnapshots, weeklySnapshots }
@@ -143,7 +153,7 @@ async function fetchDeliveredDemandSnapshots(
   // 의미를 살리기 위해 regear_requests.created_at 대신 사용.
   const { data, error } = await db
     .from('craft_tasks')
-    .select('delivered_at, regear_requests!inner(build_snapshot)')
+    .select('delivered_at, regear_requests!inner(build_snapshot, craft_included_slots)')
     .eq('guild_id', guildId)
     .in('status', ['delivered', 'collected'])
     .not('delivered_at', 'is', null)
@@ -154,29 +164,32 @@ async function fetchDeliveredDemandSnapshots(
   const rows = (data ?? []) as Array<{
     delivered_at: string | null
     regear_requests:
-      | { build_snapshot: unknown }
-      | { build_snapshot: unknown }[]
+      | { build_snapshot: unknown; craft_included_slots?: unknown }
+      | { build_snapshot: unknown; craft_included_slots?: unknown }[]
       | null
   }>
 
-  const lifetimeSnapshots: (BuildSnapshot | null)[] = []
-  const weeklySnapshots: (BuildSnapshot | null)[] = []
+  const lifetimeSnapshots: CraftBuildAggregateInput[] = []
+  const weeklySnapshots: CraftBuildAggregateInput[] = []
   for (const row of rows) {
     const r = Array.isArray(row.regear_requests)
       ? row.regear_requests[0]
       : row.regear_requests
-    const snap = (r?.build_snapshot as BuildSnapshot | null) ?? null
-    lifetimeSnapshots.push(snap)
+    const build = {
+      snapshot: (r?.build_snapshot as BuildSnapshot | null) ?? null,
+      includedSlots: normalizeCraftRegearSlots(r?.craft_included_slots, false),
+    }
+    lifetimeSnapshots.push(build)
     if (row.delivered_at && row.delivered_at >= weekSinceIso) {
-      weeklySnapshots.push(snap)
+      weeklySnapshots.push(build)
     }
   }
 
   return { lifetimeSnapshots, weeklySnapshots }
 }
 
-function bucketFromSnapshots(snapshots: (BuildSnapshot | null)[]): CraftDemandBucket {
-  const breakdown = aggregateBuildSnapshots(snapshots)
+function bucketFromSnapshots(snapshots: CraftBuildAggregateInput[]): CraftDemandBucket {
+  const breakdown = aggregateCraftBuilds(snapshots)
   const slotTotalsMap = new Map<string, number>()
   for (const item of breakdown.items) {
     for (const slot of item.slots) {
@@ -235,30 +248,33 @@ export async function loadCraftActiveMaterialStatsAdmin(): Promise<{
     const db = getAdminClient()
     const { data, error } = await db
       .from('craft_tasks')
-      .select('status, regear_requests!inner(build_snapshot)')
+      .select('status, regear_requests!inner(build_snapshot, craft_included_slots)')
       .eq('guild_id', guildId)
       .in('status', ['queued', 'claimed'])
     if (error) return { result: null, error: error.message }
 
-    const snapshots: (BuildSnapshot | null)[] = []
+    const snapshots: CraftBuildAggregateInput[] = []
     let queuedCount = 0
     let claimedCount = 0
     for (const row of (data ?? []) as Array<{
       status: CraftTaskStatus
       regear_requests:
-        | { build_snapshot: unknown }
-        | { build_snapshot: unknown }[]
+        | { build_snapshot: unknown; craft_included_slots?: unknown }
+        | { build_snapshot: unknown; craft_included_slots?: unknown }[]
         | null
     }>) {
       const r = Array.isArray(row.regear_requests)
         ? row.regear_requests[0]
         : row.regear_requests
-      snapshots.push((r?.build_snapshot as BuildSnapshot | null) ?? null)
+      snapshots.push({
+        snapshot: (r?.build_snapshot as BuildSnapshot | null) ?? null,
+        includedSlots: normalizeCraftRegearSlots(r?.craft_included_slots, false),
+      })
       if (row.status === 'queued') queuedCount++
       else if (row.status === 'claimed') claimedCount++
     }
 
-    const breakdown = aggregateBuildSnapshots(snapshots)
+    const breakdown = aggregateCraftBuilds(snapshots)
     const items: CraftActiveItemRow[] = breakdown.items.map(
       (it: CraftItemAggregateRow) => ({
         itemId: it.itemId,

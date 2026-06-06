@@ -11,8 +11,10 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { requireAnyCapability } from '@/lib/auth'
 import {
   approveCraftReimbursement,
+  approveCraftReimbursementAdjusted,
   cancelCraftTask,
   convertCraftTaskToSilver,
+  rejectCraftReimbursement,
   type CraftTaskStatus,
 } from '@/lib/craft-tasks'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
@@ -224,10 +226,14 @@ export async function listAllCraftTasksAdmin(
         let query = db
           .from('craft_tasks')
           .select(
-            'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, reimbursement_status, reimbursement_approved_at, reimbursement_approved_by, reimbursement_approved_by_username, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot, craft_included_slots)',
+            'id, regear_request_id, status, crafter_discord_id, crafter_username, box_number, craft_city, material_silver_cost, premium_silver, reimbursement_silver, reimbursement_status, reimbursement_approved_at, reimbursement_approved_by, reimbursement_approved_by_username, reimbursement_rejected_at, reimbursement_rejected_by, reimbursement_rejected_by_username, reimbursement_reject_reason, compensation_mode, claimed_at, delivered_at, collected_at, expired_at, cancelled_at, expires_at, created_at, guild_id, regear_requests!inner(id, discord_id, username, role_name, event_id, event_title_snapshot, claimed_silver, build_snapshot, craft_included_slots)',
           )
           .eq('guild_id', guildId)
-        if (scope === 'active') query = query.in('status', activeStatuses as string[])
+        if (scope === 'active') {
+          query = query.or(
+            `status.in.(${activeStatuses.join(',')}),reimbursement_status.eq.pending`,
+          )
+        }
         return query
           .order('created_at', { ascending: false })
           .order('id', { ascending: false }) as unknown as SupabasePagedQuery<CraftTaskJoinedRow>
@@ -475,6 +481,167 @@ export async function approveCraftReimbursementAdmin(
     return { amount }
   } catch (e) {
     return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function approveCraftReimbursementAdjustedAdmin(
+  taskId: string,
+  reimbursementSilver: number,
+): Promise<{ error?: string; amount?: number }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    await requireAnyCapability(CRAFT_ADMIN_CAPS)
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+
+    if (!Number.isInteger(reimbursementSilver) || reimbursementSilver < 0) {
+      return { error: tErr('nonNegativeInteger') }
+    }
+
+    let amount = 0
+    try {
+      amount = await approveCraftReimbursementAdjusted(
+        taskId,
+        guildId,
+        session.discordId,
+        session.username,
+        reimbursementSilver,
+      )
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : tErr('serverError')
+      if (msg.includes('CRAFT_REIMBURSEMENT_NOT_PENDING')) {
+        return { error: tErr('craftReimbursementNotPending') }
+      }
+      if (msg.includes('CRAFT_REIMBURSEMENT_INVALID_AMOUNT')) {
+        return { error: tErr('nonNegativeInteger') }
+      }
+      if (msg.includes('CRAFT_REIMBURSEMENT_AMOUNT_EXCEEDS_REQUESTED')) {
+        return { error: tErr('craftReimbursementAmountExceeds') }
+      }
+      if (msg.includes('CRAFT_TASK_NOT_FOUND')) {
+        return { error: tErr('craftTaskNotFound') }
+      }
+      return { error: msg }
+    }
+
+    revalidatePath('/admin/dashboard/craft')
+    revalidatePath('/craft/queue')
+    revalidatePath('/craft/my-tasks')
+    revalidatePath('/me')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'craft.reimbursement.approve',
+      targetId: taskId,
+      targetKind: 'craft_task',
+      details: { amount, adjusted: true },
+    })
+    return { amount }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+export async function rejectCraftReimbursementAdmin(
+  taskId: string,
+  reason: string,
+): Promise<{ error?: string; amount?: number }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    await requireAnyCapability(CRAFT_ADMIN_CAPS)
+    const session = await getSession()
+    if (!session) return { error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+    const normalizedReason = reason.trim()
+    if (normalizedReason.length > 500) return { error: tErr('adminNoteTooLong', { max: 500 }) }
+
+    let amount = 0
+    try {
+      amount = await rejectCraftReimbursement(
+        taskId,
+        guildId,
+        session.discordId,
+        session.username,
+        normalizedReason,
+      )
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : tErr('serverError')
+      if (msg.includes('CRAFT_REIMBURSEMENT_NOT_PENDING')) {
+        return { error: tErr('craftReimbursementNotPending') }
+      }
+      if (msg.includes('CRAFT_TASK_NOT_FOUND')) {
+        return { error: tErr('craftTaskNotFound') }
+      }
+      return { error: msg }
+    }
+
+    revalidatePath('/admin/dashboard/craft')
+    revalidatePath('/craft/queue')
+    revalidatePath('/craft/my-tasks')
+    revalidatePath('/me')
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'craft.reimbursement.reject',
+      targetId: taskId,
+      targetKind: 'craft_task',
+      details: { amount, reason: normalizedReason || null },
+    })
+    return { amount }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : tErr('serverError') }
+  }
+}
+
+const BULK_REIMBURSEMENT_LIMIT = 50
+
+export async function bulkApproveCraftReimbursementsAdmin(
+  taskIds: string[],
+): Promise<{ ok: number; failed: number; error?: string }> {
+  const tErr = await getTranslations('adminActionError')
+  try {
+    await requireAnyCapability(CRAFT_ADMIN_CAPS)
+    const session = await getSession()
+    if (!session) return { ok: 0, failed: 0, error: tErr('unauthorized') }
+    const guildId = await getSessionGuildId(session)
+
+    const uniqueIds = Array.from(new Set(taskIds.filter((id) => typeof id === 'string' && id)))
+    if (uniqueIds.length === 0 || uniqueIds.length > BULK_REIMBURSEMENT_LIMIT) {
+      return { ok: 0, failed: 0, error: tErr('invalidInput') }
+    }
+
+    let ok = 0
+    let failed = 0
+    for (const taskId of uniqueIds) {
+      try {
+        await approveCraftReimbursement(taskId, guildId, session.discordId, session.username)
+        ok += 1
+      } catch {
+        failed += 1
+      }
+    }
+
+    if (ok > 0) {
+      revalidatePath('/admin/dashboard/craft')
+      revalidatePath('/craft/queue')
+      revalidatePath('/craft/my-tasks')
+      revalidatePath('/me')
+      await logAdminAction({
+        guildId,
+        adminDiscordId: session.discordId,
+        action: 'craft.reimbursement.approve',
+        targetKind: 'craft_task',
+        details: { bulk: true, ok, failed },
+      })
+    }
+    return { ok, failed }
+  } catch (e) {
+    return {
+      ok: 0,
+      failed: 0,
+      error: e instanceof Error ? e.message : tErr('serverError'),
+    }
   }
 }
 

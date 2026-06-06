@@ -72,12 +72,18 @@ export function toQueueItem(
     premiumSilver: row.premium_silver,
     reimbursementSilver: row.reimbursement_silver,
     reimbursementStatus:
-      row.reimbursement_status === 'pending' || row.reimbursement_status === 'approved'
+      row.reimbursement_status === 'pending' ||
+      row.reimbursement_status === 'approved' ||
+      row.reimbursement_status === 'rejected'
         ? row.reimbursement_status
         : 'not_required',
     reimbursementApprovedAt: row.reimbursement_approved_at,
     reimbursementApprovedBy: row.reimbursement_approved_by,
     reimbursementApprovedByUsername: row.reimbursement_approved_by_username,
+    reimbursementRejectedAt: row.reimbursement_rejected_at,
+    reimbursementRejectedBy: row.reimbursement_rejected_by,
+    reimbursementRejectedByUsername: row.reimbursement_rejected_by_username,
+    reimbursementRejectReason: row.reimbursement_reject_reason,
     compensationMode: row.compensation_mode as CraftCompensationMode | null,
   }
 }
