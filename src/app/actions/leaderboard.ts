@@ -16,8 +16,12 @@ import {
 } from '@/lib/tracked-kills'
 import { getAppSetting } from '@/lib/app-settings'
 import { getCurrentWeekStartIso } from '@/lib/timezone'
-import { isMissingRpcError } from '@/lib/supabase-rpc-errors'
 import { selectPagedRowsOrThrow, type SupabasePagedQuery } from '@/lib/supabase-pagination'
+import {
+  fetchMemberLeaderboardRollups,
+  numberFromRollupValue,
+  type MemberLeaderboardRollupRow,
+} from '@/lib/member-leaderboard-rollups'
 
 export type LeaderboardWindow = 'week' | 'month' | 'all'
 
@@ -101,16 +105,6 @@ interface Agg {
   losses: number
   winRate: number | null
   evaluatedOutcomeEvents: number
-}
-
-interface MemberLeaderboardRollupRow {
-  albion_player_id: string | null
-  kills: number | string | null
-  deaths: number | string | null
-  participations: number | string | null
-  death_battles: number | string | null
-  wins: number | string | null
-  losses: number | string | null
 }
 
 // killboard sync 가 분 단위로 도므로 60s revalidate 면 두 가지 다 잡힌다:
@@ -265,31 +259,6 @@ async function computeLeaderboardCards(
   return leaderboardCardsFromAggs(aggs)
 }
 
-async function fetchMemberLeaderboardRollups(
-  db: ReturnType<typeof getAdminClient>,
-  guildId: string,
-  cutoff: string,
-  bundleSplits: boolean,
-): Promise<MemberLeaderboardRollupRow[] | null> {
-  const { data, error } = await db.rpc('member_leaderboard_rollups', {
-    p_guild_id: guildId,
-    p_since: cutoff,
-    p_bundle_splits: bundleSplits,
-  })
-  if (!error) return (data ?? []) as MemberLeaderboardRollupRow[]
-  if (isMissingRpcError(error, 'member_leaderboard_rollups')) return null
-  throw new Error(error.message)
-}
-
-function num(value: number | string | null | undefined): number {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
-  if (typeof value === 'string') {
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : 0
-  }
-  return 0
-}
-
 function aggsFromRpcRollups(
   rows: readonly MemberLeaderboardRollupRow[],
   metaByAlbionId: ReadonlyMap<string, { discord_id: string; username: string; avatar: string | null }>,
@@ -299,19 +268,19 @@ function aggsFromRpcRollups(
     if (!row.albion_player_id) continue
     const meta = metaByAlbionId.get(row.albion_player_id)
     if (!meta) continue
-    const participations = num(row.participations)
+    const participations = numberFromRollupValue(row.participations)
     if (participations === 0) continue
-    const wins = num(row.wins)
-    const losses = num(row.losses)
-    const deathBattles = num(row.death_battles)
+    const wins = numberFromRollupValue(row.wins)
+    const losses = numberFromRollupValue(row.losses)
+    const deathBattles = numberFromRollupValue(row.death_battles)
     const evaluatedOutcomeEvents = wins + losses
     aggs.push({
       albion_player_id: row.albion_player_id,
       discord_id: meta.discord_id,
       username: meta.username,
       avatar: meta.avatar,
-      kills: num(row.kills),
-      deaths: num(row.deaths),
+      kills: numberFromRollupValue(row.kills),
+      deaths: numberFromRollupValue(row.deaths),
       participations,
       survivalRate: (participations - deathBattles) / participations,
       evaluatedEvents: participations,

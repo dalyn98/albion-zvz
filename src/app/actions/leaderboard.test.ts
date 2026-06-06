@@ -66,7 +66,7 @@ describe('getLeaderboard', () => {
       if (table !== 'guild_avatars') throw new Error(`unexpected table: ${table}`)
       return avatarsQuery
     })
-    const rpc = vi.fn(async () => ({
+    const range = vi.fn(async () => ({
       data: [{
         albion_player_id: 'player-1',
         kills: '10',
@@ -78,6 +78,7 @@ describe('getLeaderboard', () => {
       }],
       error: null,
     }))
+    const rpc = vi.fn(() => ({ range }))
     mocks.getAdminClient.mockReturnValue({ from, rpc })
 
     const data = await getLeaderboard('week')
@@ -98,5 +99,6 @@ describe('getLeaderboard', () => {
       p_since: '2026-06-01T00:00:00.000Z',
       p_bundle_splits: false,
     })
+    expect(range).toHaveBeenCalledWith(0, 999)
   })
 })

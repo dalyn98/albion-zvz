@@ -11,6 +11,11 @@ import { getAppSetting } from '@/lib/app-settings'
 import { isHighEngagement } from '@/lib/low-engagement-cut'
 import { getCurrentWeekStartIso } from '@/lib/timezone'
 import {
+  fetchMemberLeaderboardRollups,
+  numberFromRollupValue,
+  type MemberLeaderboardRollupRow,
+} from '@/lib/member-leaderboard-rollups'
+import {
   fetchMemberBattleParticipations,
   fetchTrackedBattleWindows,
   groupMemberKillsByBattle,
@@ -41,6 +46,12 @@ export interface TopContributorSummary {
   name: string
   avatarUrl: string | null
   kills: number
+}
+
+interface TopContributorMemberMeta {
+  discordId: string
+  username: string
+  avatar: string | null
 }
 
 export interface RecentTrackedBattleRow extends BundleableRow {
@@ -186,13 +197,7 @@ export async function loadTopContributorsThisWeek(
   // killboard_events 는 discord_id IS NOT NULL 게이트로 "사이트 가입 이후
   // 발생한 kill" 만 통과시킨다. 리더보드/멤버 상세/RPC 와 동일 정책.
   // (관련 메모: feedback_albion_zvz_stats_membership_policy)
-  type KillRow = {
-    albion_player_id: string | null
-    role: string | null
-    occurred_at: string | null
-    battle_id: number | null
-  }
-  const [avatarsRes, killboardRows, trackedBattles, participations] =
+  const [avatarsRes, rpcRollups] =
     await Promise.all([
       db
         .from('guild_avatars')
@@ -200,28 +205,10 @@ export async function loadTopContributorsThisWeek(
         .eq('guild_id', guildId)
         .is('withdrawn_at', null)
         .not('albion_player_id', 'is', null),
-      selectPagedRowsOrThrow<KillRow>({
-        label: 'weekly top contributors killboard events',
-        buildQuery: () =>
-          db
-            .from('killboard_events')
-            .select('albion_player_id, role, occurred_at, battle_id')
-            .eq('guild_id', guildId)
-            .gte('occurred_at', sinceIso)
-            .not('discord_id', 'is', null)
-            .order('occurred_at', { ascending: true })
-            .order('event_id', { ascending: true }) as unknown as SupabasePagedQuery<KillRow>,
-      }),
-      fetchTrackedBattleWindows(db, guildId, sinceIso, { bundleSplits }),
-      fetchMemberBattleParticipations(db, guildId, sinceIso),
+      fetchMemberLeaderboardRollups(db, guildId, sinceIso, bundleSplits),
     ])
 
-  interface MemberMeta {
-    discordId: string
-    username: string
-    avatar: string | null
-  }
-  const metaByAlbionId = new Map<string, MemberMeta>()
+  const metaByAlbionId = new Map<string, TopContributorMemberMeta>()
   for (const av of avatarsRes.data ?? []) {
     if (!av.albion_player_id || !av.discord_id || !av.username) continue
     metaByAlbionId.set(av.albion_player_id as string, {
@@ -230,6 +217,69 @@ export async function loadTopContributorsThisWeek(
       avatar: (av.avatar as string | null) ?? null,
     })
   }
+
+  if (rpcRollups) {
+    return topContributorsFromRollups(rpcRollups, metaByAlbionId, limit)
+  }
+
+  return loadTopContributorsThisWeekFallback(db, guildId, sinceIso, bundleSplits, metaByAlbionId, limit)
+}
+
+export function topContributorsFromRollups(
+  rows: readonly MemberLeaderboardRollupRow[],
+  metaByAlbionId: ReadonlyMap<string, TopContributorMemberMeta>,
+  limit: number,
+): TopContributorSummary[] {
+  const contributors: TopContributorSummary[] = []
+  for (const row of rows) {
+    if (!row.albion_player_id) continue
+    const meta = metaByAlbionId.get(row.albion_player_id)
+    if (!meta) continue
+    const kills = numberFromRollupValue(row.kills)
+    if (kills === 0) continue
+    contributors.push({
+      albionPlayerId: row.albion_player_id,
+      discordId: meta.discordId,
+      name: meta.username,
+      avatarUrl: discordAvatarUrl(meta.discordId, meta.avatar, 64),
+      kills,
+    })
+  }
+  return contributors
+    .sort((a, b) => b.kills - a.kills)
+    .slice(0, limit)
+}
+
+async function loadTopContributorsThisWeekFallback(
+  db: ReturnType<typeof getAdminClient>,
+  guildId: string,
+  sinceIso: string,
+  bundleSplits: boolean,
+  metaByAlbionId: ReadonlyMap<string, TopContributorMemberMeta>,
+  limit: number,
+): Promise<TopContributorSummary[]> {
+  type KillRow = {
+    albion_player_id: string | null
+    role: string | null
+    occurred_at: string | null
+    battle_id: number | null
+  }
+  const [killboardRows, trackedBattles, participations] = await Promise.all([
+    selectPagedRowsOrThrow<KillRow>({
+      label: 'weekly top contributors killboard events',
+      buildQuery: () =>
+        db
+          .from('killboard_events')
+          .select('albion_player_id, role, occurred_at, battle_id')
+          .eq('guild_id', guildId)
+          .gte('occurred_at', sinceIso)
+          .not('discord_id', 'is', null)
+          .order('occurred_at', { ascending: true })
+          .order('event_id', { ascending: true }) as unknown as SupabasePagedQuery<KillRow>,
+    }),
+    fetchTrackedBattleWindows(db, guildId, sinceIso, { bundleSplits }),
+    fetchMemberBattleParticipations(db, guildId, sinceIso),
+  ])
 
   const killsByMember = new Map<string, KillRow[]>()
   for (const ke of killboardRows) {
@@ -250,7 +300,7 @@ export async function loadTopContributorsThisWeek(
     ...participations.byAlbionPlayerId.keys(),
   ])
 
-  const aggs: Array<{ albionPlayerId: string; meta: MemberMeta; kills: number }> = []
+  const aggs: Array<{ albionPlayerId: string; meta: TopContributorMemberMeta; kills: number }> = []
   for (const albionId of allAlbionIds) {
     const meta = metaByAlbionId.get(albionId)
     // 탈퇴자 + Discord 미연동 Albion 멤버 모두 제외 — guild_avatars 에 활성 행이
