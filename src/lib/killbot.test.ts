@@ -8,6 +8,7 @@ import {
   classifyKillbotEvent,
   fetchRecentKillbotEvents,
   isKillbotEventInsideProcessWindow,
+  resolveKillbotFeedChannels,
   killbotNotificationSettingsToFeedMode,
   type AlbionKillbotEvent,
   type KillbotConfig,
@@ -46,6 +47,8 @@ const fullConfig: KillbotConfig = {
   guildId: 'guild-1',
   enabled: true,
   channelId: '12345',
+  individualLogChannelId: null,
+  battleSummaryChannelId: '12345',
   minFame: 1,
   juicyFameThreshold: 1000,
   includeKills: true,
@@ -239,6 +242,36 @@ describe('killbotNotificationSettingsToFeedMode', () => {
         battleSummariesEnabled: false,
       }),
     ).toBe('battle')
+  })
+})
+
+describe('resolveKillbotFeedChannels', () => {
+  it('falls back legacy channel settings to both feed channels', () => {
+    expect(
+      resolveKillbotFeedChannels({
+        channelId: 'legacy-channel',
+        individualLogChannelId: null,
+        battleSummaryChannelId: null,
+      }),
+    ).toEqual({
+      individualLogChannelId: 'legacy-channel',
+      battleSummaryChannelId: 'legacy-channel',
+      hasAnyChannel: true,
+    })
+  })
+
+  it('uses separate channels for individual logs and battle summaries', () => {
+    expect(
+      resolveKillbotFeedChannels({
+        channelId: 'legacy-channel',
+        individualLogChannelId: 'log-channel',
+        battleSummaryChannelId: 'battle-channel',
+      }),
+    ).toEqual({
+      individualLogChannelId: 'log-channel',
+      battleSummaryChannelId: 'battle-channel',
+      hasAnyChannel: true,
+    })
   })
 })
 
