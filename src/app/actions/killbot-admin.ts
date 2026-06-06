@@ -11,6 +11,7 @@ import {
   saveKillbotConfig,
   sendKillbotTestMessage,
   type KillbotAdminState,
+  type KillbotTestMessageKind,
   type SaveKillbotConfigInput,
 } from '@/lib/killbot'
 
@@ -55,11 +56,13 @@ export async function saveKillbotSettings(
   }
 }
 
-export async function sendKillbotTest(): Promise<{ ok?: boolean; error?: string }> {
+export async function sendKillbotTest(
+  kind?: KillbotTestMessageKind,
+): Promise<{ ok?: boolean; error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
     const guildId = await requireKillbotManager()
-    await sendKillbotTestMessage(getAdminClient(), guildId)
+    await sendKillbotTestMessage(getAdminClient(), guildId, kind ? { kind } : undefined)
     revalidatePath('/admin/dashboard/killbot')
     return { ok: true }
   } catch (err) {

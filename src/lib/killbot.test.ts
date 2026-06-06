@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildKillbotBattleDiscordPayload,
+  buildKillbotBattleTestSummary,
   buildKillbotBattleSummary,
   buildKillbotDiscordMessage,
   buildKillbotDiscordPayload,
@@ -327,7 +328,9 @@ describe('buildKillbotDiscordPayload', () => {
     })
     const payload = buildKillbotBattleDiscordPayload(summary, fullConfig, target)
 
-    expect(payload.content).toBe('<@&99999>')
+    expect(payload.content).toBe(
+      '<@&99999>\nhttps://menhera.albion-guildmanager.com/battles/battle-row',
+    )
     expect(payload.embeds).toHaveLength(1)
     expect(payload.embeds[0]).toMatchObject({
       title: 'Menhera 18K / 7D vs Enemy Alliance',
@@ -349,6 +352,22 @@ describe('buildKillbotDiscordPayload', () => {
     expect(payload.embeds[0]?.fields?.[2]?.value).toContain(
       '[TopKiller](https://menhera.albion-guildmanager.com/battles/battle-row?event=101#killbot-event-101) 1.8M fame',
     )
+  })
+
+  it('builds a battle summary test payload with a visible battle link', () => {
+    const summary = buildKillbotBattleTestSummary(fullConfig, target)
+    const payload = buildKillbotBattleDiscordPayload(
+      summary,
+      { ...fullConfig, mentionRoleId: null },
+      target,
+    )
+
+    expect(payload.content).toBe('https://menhera.albion-guildmanager.com/battles')
+    expect(payload.embeds[0]).toMatchObject({
+      title: 'AlbionGuildManager battle summary test',
+      url: 'https://menhera.albion-guildmanager.com/battles',
+    })
+    expect(payload.embeds[0]?.fields?.[0]?.value).toContain('Test Caller')
   })
 
   it('builds a compact Discord embed for a kill', () => {

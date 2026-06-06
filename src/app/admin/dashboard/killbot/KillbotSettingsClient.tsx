@@ -10,7 +10,11 @@ import {
 } from '@/app/actions/killbot-admin'
 import { listGuildChannels, type DiscordChannelOption } from '@/app/actions/notifications'
 import { formatDateTimeShort } from '@/lib/format-datetime'
-import type { KillbotAdminState, KillbotDeliveryStatus } from '@/lib/killbot'
+import type {
+  KillbotAdminState,
+  KillbotDeliveryStatus,
+  KillbotTestMessageKind,
+} from '@/lib/killbot'
 
 interface Props {
   initialState: KillbotAdminState
@@ -118,10 +122,10 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
     })
   }
 
-  const sendTest = () => {
+  const sendTest = (kind: KillbotTestMessageKind) => {
     setMessage('')
     startTransition(async () => {
-      const result = await sendKillbotTest()
+      const result = await sendKillbotTest(kind)
       if (result.error) {
         setMessage(result.error)
         return
@@ -134,6 +138,8 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
 
   const targetReady = !!state.target.server && !!(state.target.homeGuildId || state.target.homeGuildName)
   const deliveryRows = state.deliveries
+  const canSendIndividualTest = !!(config.individualLogChannelId || config.channelId)
+  const canSendBattleTest = !!(config.battleSummaryChannelId || config.channelId)
 
   return (
     <div className="space-y-5">
@@ -331,12 +337,21 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
             </button>
             <button
               type="button"
-              onClick={sendTest}
-              disabled={isPending || !(config.battleSummaryChannelId || config.individualLogChannelId || config.channelId)}
+              onClick={() => sendTest('event')}
+              disabled={isPending || !canSendIndividualTest}
               className="inline-flex items-center gap-2 rounded-lg border border-gray-600 px-4 py-2 text-sm font-semibold text-gray-100 hover:border-amber-400 disabled:opacity-50"
             >
               <Send size={16} />
-              {t('sendTest')}
+              {t('sendIndividualTest')}
+            </button>
+            <button
+              type="button"
+              onClick={() => sendTest('battle')}
+              disabled={isPending || !canSendBattleTest}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-600 px-4 py-2 text-sm font-semibold text-gray-100 hover:border-amber-400 disabled:opacity-50"
+            >
+              <Send size={16} />
+              {t('sendBattleTest')}
             </button>
             {message && <span className="text-sm text-gray-300">{message}</span>}
           </div>

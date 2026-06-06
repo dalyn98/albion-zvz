@@ -6083,6 +6083,8 @@
     "includeKills": "우리 길드 킬 알림",
     "includeDeaths": "우리 길드 데스 알림",
     "sendTest": "테스트 전송",
+    "sendIndividualTest": "개별 로그 테스트",
+    "sendBattleTest": "전투 요약 테스트",
     "saveFailed": "저장에 실패했습니다.",
     "saveSuccess": "저장했습니다.",
     "testSuccess": "테스트 메시지를 전송했습니다.",

@@ -4,7 +4,7 @@ import { ALBION_GAMEINFO_ENDPOINTS } from '@/lib/albion-endpoints'
 import { type AlbionServer } from '@/lib/albion-gameinfo'
 import { fetchJsonWithRetry } from '@/lib/http-retry'
 import { resolveAlbionServer } from '@/lib/killboard'
-import { tenantUrl } from '@/lib/tenant-resolver'
+import { buildTenantHostUrl, tenantUrl } from '@/lib/tenant-resolver'
 import type { EquipmentItem } from '@/lib/auto-regear-equipment'
 import {
   estimateKillbotVictimValue,
@@ -36,12 +36,14 @@ const KILLBOT_EVENTS_FETCH_LOOKBACK_MS = 20 * 60 * 1000
 const KILLBOT_EVENTS_PROCESS_OVERLAP_MS = 8 * 60 * 1000
 const KILLBOT_EVENTS_MAX_PAGES = 20
 const KILLBOT_BATTLE_SUMMARY_LOOKBACK_MS = 6 * 60 * 60 * 1000
+const KILLBOT_BATTLE_TEST_LOOKBACK_MS = 90 * 24 * 60 * 60 * 1000
 const DEFAULT_MIN_FAME = 1
 const DEFAULT_JUICY_FAME = 1_000_000
 const MAX_FAME_SETTING = 2_147_483_647
 
 export type KillbotFeedType = 'kill' | 'death' | 'battle' | 'test'
 export type KillbotDeliveryStatus = 'pending' | 'sent' | 'failed' | 'skipped'
+export type KillbotTestMessageKind = 'event' | 'battle'
 type KillbotDeliverySourceType = 'event' | 'battle' | 'test'
 
 export interface KillbotNotificationSettings {
@@ -211,6 +213,17 @@ interface KillbotBattleDeliveryCandidate {
   eventOccurredAt: string
   fame: number
   summary: KillbotBattleSummary
+}
+
+interface LoadKillbotBattleCandidatesOptions {
+  lookbackMs?: number
+  limit?: number
+  ascending?: boolean
+}
+
+interface SendKillbotTestMessageOptions {
+  channelIdOverride?: string | null
+  kind?: KillbotTestMessageKind
 }
 
 interface KillbotBattleRecordRow {
@@ -652,6 +665,11 @@ function appendKillbotEventUrl(baseUrl: string, eventId: string): string {
   return `${baseUrl}?event=${encoded}#killbot-event-${encoded}`
 }
 
+function killbotTenantUrl(target: KillbotTarget, path: string): string {
+  if (target.tenantSlug) return buildTenantHostUrl(target.tenantSlug, path)
+  return tenantUrl(null, path)
+}
+
 function battleRecord(row: KillbotBattleRecordRow): Exclude<KillbotBattleRecordRow['battle_records'], null | unknown[]> | null {
   return Array.isArray(row.battle_records) ? row.battle_records[0] ?? null : row.battle_records
 }
@@ -661,15 +679,17 @@ async function loadKillbotBattleCandidates(
   config: KillbotConfig,
   target: KillbotTarget,
   polledAt: string,
+  options: LoadKillbotBattleCandidatesOptions = {},
 ): Promise<KillbotBattleDeliveryCandidate[]> {
   if (!target.server) return []
   const polledAtMs = new Date(polledAt).getTime()
+  const lookbackMs = options.lookbackMs ?? KILLBOT_BATTLE_SUMMARY_LOOKBACK_MS
   const since = new Date(
     (Number.isFinite(polledAtMs) ? polledAtMs : Date.now()) -
-      KILLBOT_BATTLE_SUMMARY_LOOKBACK_MS,
+      lookbackMs,
   ).toISOString()
 
-  const { data: battleRows, error: battleErr } = await db
+  let battleQuery = db
     .from('tenant_zvz_battle_records')
     .select(
       'id, battle_record_id, home_guild_name, home_team_size, home_kills, home_deaths, home_kill_fame, main_opponent_force_name, main_opponent_team_size, primary_opponent_name, opponent_team_size, started_at, outcome, battle_records!inner(albion_server, albion_battle_id, cluster_name, ended_at)',
@@ -677,7 +697,11 @@ async function loadKillbotBattleCandidates(
     .eq('guild_id', config.guildId)
     .gte('started_at', since)
     .eq('battle_records.albion_server', target.server)
-    .order('started_at', { ascending: true })
+    .order('started_at', { ascending: options.ascending ?? true })
+  if (options.limit && options.limit > 0) {
+    battleQuery = battleQuery.limit(Math.floor(options.limit))
+  }
+  const { data: battleRows, error: battleErr } = await battleQuery
   if (battleErr) throw new Error(`killbot battle rows query failed: ${battleErr.message}`)
 
   type BattleGroup = {
@@ -754,7 +778,7 @@ async function loadKillbotBattleCandidates(
       if (!br) return null
       const battleEvents = eventsByBattleId.get(group.albionBattleId) ?? []
       if (battleEvents.length === 0) return null
-      const detailUrl = tenantUrl(target.tenantSlug, `/battles/${canonical.id}`)
+      const detailUrl = killbotTenantUrl(target, `/battles/${canonical.id}`)
       const summary = buildKillbotBattleSummary({
         battleDetailUrl: detailUrl,
         battleEventUrl: (eventId) => appendKillbotEventUrl(detailUrl, eventId),
@@ -1097,24 +1121,177 @@ export async function runKillbotFeed(db: SupabaseClient): Promise<KillbotRunResu
   return result
 }
 
+function normalizeKillbotTestMessageKind(value: unknown): KillbotTestMessageKind {
+  return value === 'battle' ? 'battle' : 'event'
+}
+
+function normalizeKillbotTestMessageOptions(
+  options?: SendKillbotTestMessageOptions | string | null,
+): { channelIdOverride: string | null; kind: KillbotTestMessageKind | null } {
+  if (typeof options === 'string' || options === null) {
+    return {
+      channelIdOverride: options ?? null,
+      kind: null,
+    }
+  }
+  return {
+    channelIdOverride: options?.channelIdOverride ?? null,
+    kind: options?.kind ? normalizeKillbotTestMessageKind(options.kind) : null,
+  }
+}
+
+function resolveKillbotTestChannelId(
+  config: KillbotConfig,
+  kind: KillbotTestMessageKind,
+  channelIdOverride: string | null,
+): string | null {
+  const channels = resolveKillbotFeedChannels(config)
+  if (kind === 'battle') {
+    return normalizeSnowflake(channelIdOverride) ?? channels.battleSummaryChannelId
+  }
+  return normalizeSnowflake(channelIdOverride) ?? channels.individualLogChannelId
+}
+
+export function buildKillbotBattleTestSummary(
+  config: KillbotConfig,
+  target: KillbotTarget,
+): KillbotBattleSummary {
+  const detailUrl = killbotTenantUrl(target, '/battles')
+  const homeGuildName = target.homeGuildName || 'Configured guild'
+  const startedAt = new Date().toISOString()
+  const summary = buildKillbotBattleSummary({
+    battleDetailUrl: detailUrl,
+    battleEventUrl: () => detailUrl,
+    albionBattleId: 123456789,
+    clusterName: 'Test Cluster',
+    startedAt,
+    homeGuildName,
+    opponentName: 'Enemy Alliance',
+    homeTeamSize: 36,
+    opponentTeamSize: 32,
+    homeKills: 84,
+    homeDeaths: 22,
+    homeKillFame: 62_500_000,
+    resultLabel: 'Test',
+    minFame: 0,
+    juicyFameThreshold: config.juicyFameThreshold || DEFAULT_JUICY_FAME,
+    events: [
+      {
+        eventId: 900001,
+        role: 'killer',
+        playerName: 'Test Caller',
+        fame: 1_900_000,
+        occurredAt: startedAt,
+      },
+      {
+        eventId: 900002,
+        role: 'killer',
+        playerName: 'Test Caller',
+        fame: 850_000,
+        occurredAt: startedAt,
+      },
+      {
+        eventId: 900003,
+        role: 'victim',
+        playerName: 'Test Caller',
+        fame: 720_000,
+        occurredAt: startedAt,
+      },
+      {
+        eventId: 900004,
+        role: 'victim',
+        playerName: 'Downed Healer',
+        fame: 2_100_000,
+        occurredAt: startedAt,
+      },
+      {
+        eventId: 900005,
+        role: 'killer',
+        playerName: 'Burst Bomber',
+        fame: config.juicyFameThreshold || DEFAULT_JUICY_FAME,
+        occurredAt: startedAt,
+      },
+    ],
+  })
+  return {
+    ...summary,
+    title: 'AlbionGuildManager battle summary test',
+  }
+}
+
+async function insertKillbotTestDelivery(
+  db: SupabaseClient,
+  input: {
+    guildId: string
+    channelId: string
+    discordMessageId: string
+    kind: KillbotTestMessageKind
+    payload: Record<string, unknown>
+  },
+): Promise<void> {
+  const eventId = Date.now()
+  await db.from('killbot_deliveries').insert({
+    guild_id: input.guildId,
+    event_id: eventId,
+    feed_type: 'test',
+    source_type: 'test',
+    source_key: `${input.kind}-test:${eventId}`,
+    channel_id: input.channelId,
+    discord_message_id: input.discordMessageId,
+    status: 'sent',
+    event_occurred_at: new Date().toISOString(),
+    fame: 0,
+    payload: input.payload,
+  })
+}
+
 export async function sendKillbotTestMessage(
   db: SupabaseClient,
   guildId: string,
-  channelIdOverride?: string | null,
+  options?: SendKillbotTestMessageOptions | string | null,
 ): Promise<{ channelId: string; discordMessageId: string }> {
+  const { channelIdOverride, kind: requestedKind } = normalizeKillbotTestMessageOptions(options)
   const [config, target] = await Promise.all([
     getKillbotConfig(db, guildId),
     loadKillbotTarget(db, guildId),
   ])
-  const channels = resolveKillbotFeedChannels(config)
-  const channelId =
-    normalizeSnowflake(channelIdOverride) ??
-    (isBattleFeedEnabled(config.feedMode) ? channels.battleSummaryChannelId : null) ??
-    (isEventFeedEnabled(config.feedMode) ? channels.individualLogChannelId : null) ??
-    channels.battleSummaryChannelId ??
-    channels.individualLogChannelId ??
-    config.channelId
+  const kind =
+    requestedKind ?? (isBattleFeedEnabled(config.feedMode) ? 'battle' : 'event')
+  const channelId = resolveKillbotTestChannelId(config, kind, channelIdOverride)
   if (!channelId) throw new Error('killbot channel is not configured')
+
+  if (kind === 'battle') {
+    const [candidate] = await loadKillbotBattleCandidates(
+      db,
+      config,
+      target,
+      new Date().toISOString(),
+      {
+        lookbackMs: KILLBOT_BATTLE_TEST_LOOKBACK_MS,
+        ascending: false,
+        limit: 80,
+      },
+    ).catch(() => [])
+    const summary = candidate?.summary ?? buildKillbotBattleTestSummary(config, target)
+    const payload = buildKillbotBattleDiscordPayload(
+      summary,
+      { ...config, mentionRoleId: null },
+      target,
+    )
+    const discordMessageId = await sendDiscordChannelMessage(channelId, payload)
+    await insertKillbotTestDelivery(db, {
+      guildId,
+      channelId,
+      discordMessageId,
+      kind,
+      payload: payload as unknown as Record<string, unknown>,
+    })
+    await updateConfigRuntimeStatus(db, guildId, {
+      lastSentAt: new Date().toISOString(),
+      lastError: null,
+    })
+    return { channelId, discordMessageId }
+  }
 
   const testGuildName = target.homeGuildName || 'Configured guild'
   const sampleValueEstimate: KillbotVictimValueEstimate = {
@@ -1206,18 +1383,11 @@ export async function sendKillbotTestMessage(
   const testMessage = { ...message, payload }
 
   const discordMessageId = await sendDiscordChannelMessage(channelId, testMessage)
-  const eventId = Date.now()
-  await db.from('killbot_deliveries').insert({
-    guild_id: guildId,
-    event_id: eventId,
-    feed_type: 'test',
-    source_type: 'test',
-    source_key: String(eventId),
-    channel_id: channelId,
-    discord_message_id: discordMessageId,
-    status: 'sent',
-    event_occurred_at: new Date().toISOString(),
-    fame: 0,
+  await insertKillbotTestDelivery(db, {
+    guildId,
+    channelId,
+    discordMessageId,
+    kind,
     payload,
   })
   await updateConfigRuntimeStatus(db, guildId, {

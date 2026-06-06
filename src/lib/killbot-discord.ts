@@ -218,6 +218,17 @@ function fieldValue(lines: string[]): string | null {
   return truncateDiscord(lines.join('\n'), DISCORD_FIELD_VALUE_LIMIT)
 }
 
+function contentWithOptionalMentionLink(
+  mentionRoleId: string | null,
+  url: string,
+): string | undefined {
+  const parts = [
+    mentionRoleId ? `<@&${mentionRoleId}>` : null,
+    url.trim() || null,
+  ].filter((part): part is string => !!part)
+  return parts.length > 0 ? parts.join('\n') : undefined
+}
+
 export function buildKillbotBattleDiscordPayload(
   summary: KillbotBattleSummary,
   config: KillbotConfig,
@@ -242,7 +253,7 @@ export function buildKillbotBattleDiscordPayload(
 
   const homeGuild = target.homeGuildName || 'Home guild'
   return {
-    content: config.mentionRoleId ? `<@&${config.mentionRoleId}>` : undefined,
+    content: contentWithOptionalMentionLink(config.mentionRoleId, summary.detailUrl),
     allowed_mentions: config.mentionRoleId
       ? { parse: [], roles: [config.mentionRoleId] }
       : { parse: [] },
