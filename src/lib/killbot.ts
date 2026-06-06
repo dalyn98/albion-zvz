@@ -45,6 +45,11 @@ export type KillbotFeedType = 'kill' | 'death' | 'battle' | 'test'
 export type KillbotDeliveryStatus = 'pending' | 'sent' | 'failed' | 'skipped'
 type KillbotDeliverySourceType = 'event' | 'battle' | 'test'
 
+export interface KillbotNotificationSettings {
+  individualLogsEnabled: boolean
+  battleSummariesEnabled: boolean
+}
+
 export interface KillbotConfig {
   guildId: string
   enabled: boolean
@@ -54,6 +59,8 @@ export interface KillbotConfig {
   includeKills: boolean
   includeDeaths: boolean
   feedMode: KillbotFeedMode
+  individualLogsEnabled: boolean
+  battleSummariesEnabled: boolean
   mentionRoleId: string | null
   lastPolledAt: string | null
   lastSentAt: string | null
@@ -169,6 +176,8 @@ export interface SaveKillbotConfigInput {
   includeKills: boolean
   includeDeaths: boolean
   feedMode?: KillbotFeedMode
+  individualLogsEnabled?: boolean
+  battleSummariesEnabled?: boolean
   mentionRoleId?: string | null
 }
 
@@ -227,6 +236,7 @@ interface KillbotBattleEventRow {
 }
 
 function defaultConfig(guildId: string): KillbotConfig {
+  const feedMode: KillbotFeedMode = 'battle'
   return {
     guildId,
     enabled: false,
@@ -235,7 +245,8 @@ function defaultConfig(guildId: string): KillbotConfig {
     juicyFameThreshold: DEFAULT_JUICY_FAME,
     includeKills: true,
     includeDeaths: true,
-    feedMode: 'battle',
+    feedMode,
+    ...killbotFeedModeToNotificationSettings(feedMode),
     mentionRoleId: null,
     lastPolledAt: null,
     lastSentAt: null,
@@ -245,6 +256,7 @@ function defaultConfig(guildId: string): KillbotConfig {
 }
 
 function rowToConfig(row: KillbotConfigRow): KillbotConfig {
+  const feedMode = normalizeKillbotFeedMode(row.feed_mode)
   return {
     guildId: row.guild_id,
     enabled: row.enabled ?? false,
@@ -253,7 +265,8 @@ function rowToConfig(row: KillbotConfigRow): KillbotConfig {
     juicyFameThreshold: clampFameSetting(row.juicy_fame_threshold, DEFAULT_JUICY_FAME),
     includeKills: row.include_kills ?? true,
     includeDeaths: row.include_deaths ?? true,
-    feedMode: normalizeKillbotFeedMode(row.feed_mode),
+    feedMode,
+    ...killbotFeedModeToNotificationSettings(feedMode),
     mentionRoleId: row.mention_role_id ?? null,
     lastPolledAt: row.last_polled_at ?? null,
     lastSentAt: row.last_sent_at ?? null,
@@ -286,6 +299,23 @@ function isBattleFeedEnabled(mode: KillbotFeedMode): boolean {
   return mode === 'battle' || mode === 'both'
 }
 
+function killbotFeedModeToNotificationSettings(
+  feedMode: KillbotFeedMode,
+): KillbotNotificationSettings {
+  return {
+    individualLogsEnabled: isEventFeedEnabled(feedMode),
+    battleSummariesEnabled: isBattleFeedEnabled(feedMode),
+  }
+}
+
+export function killbotNotificationSettingsToFeedMode(
+  settings: KillbotNotificationSettings,
+): KillbotFeedMode {
+  if (settings.individualLogsEnabled && settings.battleSummariesEnabled) return 'both'
+  if (settings.individualLogsEnabled) return 'event'
+  return 'battle'
+}
+
 function clampFameSetting(value: unknown, fallback: number): number {
   const n = Number(value)
   if (!Number.isFinite(n)) return fallback
@@ -307,6 +337,16 @@ function normalizeSaveInput(input: SaveKillbotConfigInput): SaveKillbotConfigInp
     input.juicyFameThreshold,
     DEFAULT_JUICY_FAME,
   )
+  const hasSplitFeedSettings =
+    input.individualLogsEnabled !== undefined ||
+    input.battleSummariesEnabled !== undefined
+  const feedMode = hasSplitFeedSettings
+    ? killbotNotificationSettingsToFeedMode({
+        individualLogsEnabled: !!input.individualLogsEnabled,
+        battleSummariesEnabled: !!input.battleSummariesEnabled,
+      })
+    : normalizeKillbotFeedMode(input.feedMode)
+  const feedSettings = killbotFeedModeToNotificationSettings(feedMode)
   return {
     enabled: !!input.enabled,
     channelId: normalizeSnowflake(input.channelId),
@@ -314,7 +354,8 @@ function normalizeSaveInput(input: SaveKillbotConfigInput): SaveKillbotConfigInp
     juicyFameThreshold,
     includeKills: !!input.includeKills,
     includeDeaths: !!input.includeDeaths,
-    feedMode: normalizeKillbotFeedMode(input.feedMode),
+    feedMode,
+    ...feedSettings,
     mentionRoleId: normalizeSnowflake(input.mentionRoleId),
   }
 }

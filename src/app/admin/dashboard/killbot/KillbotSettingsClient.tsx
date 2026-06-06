@@ -10,7 +10,7 @@ import {
 } from '@/app/actions/killbot-admin'
 import { listGuildChannels, type DiscordChannelOption } from '@/app/actions/notifications'
 import { formatDateTimeShort } from '@/lib/format-datetime'
-import type { KillbotAdminState, KillbotDeliveryStatus, KillbotFeedMode } from '@/lib/killbot'
+import type { KillbotAdminState, KillbotDeliveryStatus } from '@/lib/killbot'
 
 interface Props {
   initialState: KillbotAdminState
@@ -45,7 +45,12 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
   const [channelId, setChannelId] = useState(config.channelId ?? '')
   const [includeKills, setIncludeKills] = useState(config.includeKills)
   const [includeDeaths, setIncludeDeaths] = useState(config.includeDeaths)
-  const [feedMode, setFeedMode] = useState<KillbotFeedMode>(config.feedMode)
+  const [individualLogsEnabled, setIndividualLogsEnabled] = useState(
+    config.individualLogsEnabled,
+  )
+  const [battleSummariesEnabled, setBattleSummariesEnabled] = useState(
+    config.battleSummariesEnabled,
+  )
   const [minFame, setMinFame] = useState(String(config.minFame))
   const [juicyFameThreshold, setJuicyFameThreshold] = useState(
     String(config.juicyFameThreshold),
@@ -74,7 +79,8 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
     setChannelId(next.config.channelId ?? '')
     setIncludeKills(next.config.includeKills)
     setIncludeDeaths(next.config.includeDeaths)
-    setFeedMode(next.config.feedMode)
+    setIndividualLogsEnabled(next.config.individualLogsEnabled)
+    setBattleSummariesEnabled(next.config.battleSummariesEnabled)
     setMinFame(String(next.config.minFame))
     setJuicyFameThreshold(String(next.config.juicyFameThreshold))
   }
@@ -87,7 +93,8 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
         channelId: channelId || null,
         includeKills,
         includeDeaths,
-        feedMode,
+        individualLogsEnabled,
+        battleSummariesEnabled,
         minFame: Number(minFame),
         juicyFameThreshold: Number(juicyFameThreshold),
       })
@@ -209,23 +216,27 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
             </select>
           </label>
 
-          <div className="space-y-1">
-            <span className="text-sm font-medium text-gray-200">{t('feedModeLabel')}</span>
-            <div className="grid grid-cols-3 overflow-hidden rounded-lg border border-gray-700 bg-gray-950">
-              {(['battle', 'event', 'both'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setFeedMode(mode)}
-                  className={`px-3 py-2 text-xs font-semibold transition-colors ${
-                    feedMode === mode
-                      ? 'bg-amber-500 text-gray-950'
-                      : 'text-gray-300 hover:bg-gray-800'
-                  }`}
-                >
-                  {t(`feedMode.${mode}`)}
-                </button>
-              ))}
+          <div className="space-y-2">
+            <span className="text-sm font-medium text-gray-200">{t('notificationTypesLabel')}</span>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-950/40 px-3 py-3 text-sm text-gray-200">
+                <input
+                  type="checkbox"
+                  checked={individualLogsEnabled}
+                  onChange={(e) => setIndividualLogsEnabled(e.target.checked)}
+                  className="h-4 w-4 accent-emerald-500"
+                />
+                {t('individualLogsLabel')}
+              </label>
+              <label className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-950/40 px-3 py-3 text-sm text-gray-200">
+                <input
+                  type="checkbox"
+                  checked={battleSummariesEnabled}
+                  onChange={(e) => setBattleSummariesEnabled(e.target.checked)}
+                  className="h-4 w-4 accent-amber-500"
+                />
+                {t('battleSummariesLabel')}
+              </label>
             </div>
           </div>
 

@@ -51,6 +51,8 @@ const fullConfig: KillbotConfig = {
   includeKills: true,
   includeDeaths: true,
   feedMode: 'battle',
+  individualLogsEnabled: false,
+  battleSummariesEnabled: true,
   mentionRoleId: '99999',
   lastPolledAt: null,
   lastSentAt: null,
