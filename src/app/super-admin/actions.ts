@@ -14,6 +14,11 @@ import { logSuperAdminAction } from '@/lib/super-admin-audit'
 import { getSuperAdminPath } from '@/lib/super-admin-path'
 import { normalizePublicImageUrl } from '@/lib/public-image-url'
 import {
+  normalizeDiscordId,
+  normalizeSiteNickname,
+  SITE_NICKNAME_REASON_MAX_LENGTH,
+} from '@/lib/site-nickname'
+import {
   IMPERSONATION_COOKIE_NAME,
   impersonationCookieOptions,
   signImpersonation,
@@ -24,6 +29,10 @@ type TenantStatus = (typeof VALID_STATUSES)[number]
 
 function isValidStatus(s: string): s is TenantStatus {
   return (VALID_STATUSES as readonly string[]).includes(s)
+}
+
+function uniqueStrings(values: readonly unknown[]): string[] {
+  return Array.from(new Set(values.filter((value): value is string => typeof value === 'string')))
 }
 
 export async function setTenantStatus(formData: FormData): Promise<void> {
@@ -132,6 +141,107 @@ export async function createSystemNotice(formData: FormData): Promise<void> {
 
   revalidatePath(`${getSuperAdminPath()}/notices`)
   revalidatePath('/', 'layout')
+}
+
+export async function updateSiteNicknameOverride(formData: FormData): Promise<void> {
+  const session = await requireSuperAdmin()
+  const discordId = normalizeDiscordId(String(formData.get('discordId') ?? ''))
+  const nickname = normalizeSiteNickname(String(formData.get('nickname') ?? ''))
+  const reasonRaw = String(formData.get('reason') ?? '').trim()
+  const reason = reasonRaw.length > 0 ? reasonRaw : null
+
+  if (!discordId) throw new Error('discordId must be a numeric snowflake')
+  if (!nickname) throw new Error('nickname must be 1-32 chars without control characters')
+  if (reason && reason.length > SITE_NICKNAME_REASON_MAX_LENGTH) {
+    throw new Error(`reason must be ${SITE_NICKNAME_REASON_MAX_LENGTH} chars or less`)
+  }
+
+  const db = getAdminClient()
+  const nowIso = new Date().toISOString()
+  const [prevOverrideResult, memberRowsResult, guestRowsResult] = await Promise.all([
+    db
+      .from('site_user_nickname_overrides')
+      .select('nickname, updated_by_discord_id, reason, updated_at')
+      .eq('discord_id', discordId)
+      .maybeSingle(),
+    db.from('guild_avatars').select('guild_id, username').eq('discord_id', discordId),
+    db.from('guests').select('guild_id, username').eq('discord_id', discordId),
+  ])
+
+  if (prevOverrideResult.error) {
+    throw new Error(`previous override lookup failed: ${prevOverrideResult.error.message}`)
+  }
+  if (memberRowsResult.error) {
+    throw new Error(`member lookup failed: ${memberRowsResult.error.message}`)
+  }
+  if (guestRowsResult.error) {
+    throw new Error(`guest lookup failed: ${guestRowsResult.error.message}`)
+  }
+
+  const { error: upsertError } = await db.from('site_user_nickname_overrides').upsert(
+    {
+      discord_id: discordId,
+      nickname,
+      updated_by_discord_id: session.discordId,
+      reason,
+      updated_at: nowIso,
+    },
+    { onConflict: 'discord_id' },
+  )
+  if (upsertError) throw new Error(`nickname override upsert failed: ${upsertError.message}`)
+
+  const [memberUpdateResult, guestUpdateResult] = await Promise.all([
+    db
+      .from('guild_avatars')
+      .update({ username: nickname, updated_at: nowIso })
+      .eq('discord_id', discordId),
+    db.from('guests').update({ username: nickname }).eq('discord_id', discordId),
+  ])
+  if (memberUpdateResult.error) {
+    throw new Error(`member username update failed: ${memberUpdateResult.error.message}`)
+  }
+  if (guestUpdateResult.error) {
+    throw new Error(`guest username update failed: ${guestUpdateResult.error.message}`)
+  }
+
+  const memberRows = (memberRowsResult.data ?? []) as Array<{
+    guild_id: string | null
+    username: string | null
+  }>
+  const guestRows = (guestRowsResult.data ?? []) as Array<{
+    guild_id: string | null
+    username: string | null
+  }>
+  const affectedTenantIds = uniqueStrings([
+    ...memberRows.map((row) => row.guild_id),
+    ...guestRows.map((row) => row.guild_id),
+  ])
+  const previousUsernames = uniqueStrings([
+    ...memberRows.map((row) => row.username),
+    ...guestRows.map((row) => row.username),
+  ]).slice(0, 20)
+
+  await logSuperAdminAction({
+    superAdminDiscordId: session.discordId,
+    action: 'user.nickname.update',
+    targetDiscordId: discordId,
+    details: {
+      from: prevOverrideResult.data?.nickname ?? null,
+      to: nickname,
+      reason,
+      affectedTenantIds,
+      affectedMemberRows: memberRows.length,
+      affectedGuestRows: guestRows.length,
+      previousUsernames,
+    },
+  })
+
+  const basePath = getSuperAdminPath()
+  revalidatePath(`${basePath}/users`)
+  revalidatePath(`${basePath}/audit`)
+  revalidatePath('/members')
+  revalidatePath('/', 'layout')
+  redirect(`${basePath}/users?discordId=${encodeURIComponent(discordId)}`)
 }
 
 export async function startImpersonation(formData: FormData): Promise<void> {

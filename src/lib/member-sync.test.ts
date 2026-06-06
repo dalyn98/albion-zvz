@@ -54,6 +54,7 @@ vi.mock('next/cache', () => ({
 let avatarRows: AvatarRow[] = []
 let adminOverrideRows: Array<{ discord_id: string }> = []
 let accountLinkRows: Array<{ discord_id: string; relation: string; trust_status: string }> = []
+let nicknameOverrideRows: Array<{ discord_id: string; nickname: string }> = []
 let avatarsError: { message: string } | null = null
 const updates: Array<{ patch: Record<string, unknown>; discord_ids: string[] }> = []
 const upserts: Array<{ key: string; value: string }> = []
@@ -85,6 +86,17 @@ vi.mock('@/lib/supabase-admin', () => ({
         return {
           select: () => ({
             eq: () => Promise.resolve({ data: adminOverrideRows, error: null }),
+          }),
+        }
+      }
+      if (table === 'site_user_nickname_overrides') {
+        return {
+          select: () => ({
+            in: (_col: string, ids: string[]) =>
+              Promise.resolve({
+                data: nicknameOverrideRows.filter((row) => ids.includes(row.discord_id)),
+                error: null,
+              }),
           }),
         }
       }
@@ -122,6 +134,7 @@ beforeEach(() => {
   avatarRows = []
   adminOverrideRows = []
   accountLinkRows = []
+  nicknameOverrideRows = []
   avatarsError = null
   updates.length = 0
   upserts.length = 0
@@ -366,6 +379,33 @@ describe('runMemberSync withdraw / rejoin transitions', () => {
         is_admin: false,
         is_bomb_squad_caller: true,
         withdrawn_at: null,
+      }),
+    )
+  })
+
+  it('applies site nickname overrides to missing caller-role upserts', async () => {
+    const callerDiscordId = '123456789012345678'
+    settings.bomb_squad_caller_role_ids = JSON.stringify(['role-bomb'])
+    nicknameOverrideRows = [{ discord_id: callerDiscordId, nickname: 'Site Caller' }]
+    listGuildMembersBulkMock.mockResolvedValueOnce([
+      {
+        user: {
+          id: callerDiscordId,
+          username: 'caller',
+          global_name: 'Caller One',
+          avatar: 'avatar-hash',
+        },
+        nick: null,
+        roles: ['role-bomb'],
+      },
+    ])
+
+    const r = await runMemberSync('tenant-1', { skipThrottle: true })
+    if (r.kind === 'ok') expect(r.result.bombSquadCallerUpdated).toBe(1)
+    expect(avatarUpserts).toContainEqual(
+      expect.objectContaining({
+        discord_id: callerDiscordId,
+        username: 'Site Caller',
       }),
     )
   })

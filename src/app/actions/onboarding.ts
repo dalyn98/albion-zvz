@@ -29,6 +29,7 @@ import {
   refreshMemberAlbionIdentity,
 } from '@/lib/account-albion-identity'
 import { removeGuestRecordForMember } from '@/lib/guest-membership-transition'
+import { resolveEffectiveSiteUsername } from '@/lib/site-nickname-override'
 
 // 드롭다운에서 유저가 고르기 편하도록 정리한 후보 구조.
 export interface AlbionPlayerCandidate {
@@ -353,7 +354,10 @@ async function upsertAlbionIdentity(
   const upsertRow: Record<string, string | null> = {
     guild_id: sessionGuildId,
     discord_id: discordId,
-    username: payload.syncSiteUsername ? payload.nickname : payload.fallbackUsername,
+    username: await resolveEffectiveSiteUsername(
+      discordId,
+      payload.syncSiteUsername ? payload.nickname : payload.fallbackUsername,
+    ),
     avatar: payload.fallbackAvatar,
     albion_server: payload.server,
     albion_player_id: payload.playerId,

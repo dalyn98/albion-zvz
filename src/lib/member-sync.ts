@@ -17,6 +17,8 @@ import {
   type AlbionIdentityRelation,
   type AlbionIdentityTrustStatus,
 } from '@/lib/account-albion-identity'
+import { applySiteNicknameOverride } from '@/lib/site-nickname'
+import { listSiteNicknameOverridesByDiscordIds } from '@/lib/site-nickname-override'
 
 // 직전 성공 후 20시간 내면 skip — cron 재시도가 하루 2회 이상 돌지 않게 수렴.
 // KST 04:00 스케줄이 약간 앞당겨져도 다음날 실행이 건너뛰지 않도록 20h.
@@ -146,7 +148,7 @@ export async function runMemberSync(
   }
 
   const existingAvatarIds = new Set((avatars ?? []).map((row) => row.discord_id as string))
-  const callerRowsToUpsert = members
+  const callerRowsBase = members
     .filter((m) => {
       if (!m.user || existingAvatarIds.has(m.user.id)) return false
       return bombSquadCallerRoleIds.some((id) => m.roles.includes(id))
@@ -161,6 +163,13 @@ export async function runMemberSync(
       withdrawn_at: null,
       updated_at: nowIso,
     }))
+  const callerNicknameOverrides = await listSiteNicknameOverridesByDiscordIds(
+    callerRowsBase.map((row) => row.discord_id),
+  )
+  const callerRowsToUpsert = callerRowsBase.map((row) => ({
+    ...row,
+    username: applySiteNicknameOverride(row.username, callerNicknameOverrides.get(row.discord_id)),
+  }))
 
   const toWithdraw: string[] = []
   const toRejoin: string[] = []

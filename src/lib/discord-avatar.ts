@@ -1,4 +1,5 @@
 import { getAdminClient } from './supabase-admin'
+import { resolveEffectiveSiteUsername } from './site-nickname-override'
 export { discordAvatarUrl } from './discord-avatar-url'
 
 // Server-side batch lookup. Reads from `guild_avatars` (populated on each
@@ -69,13 +70,14 @@ export async function upsertGuildAvatar(
   isBombSquadCaller: boolean,
 ): Promise<void> {
   const db = getAdminClient()
+  const siteUsername = await resolveEffectiveSiteUsername(discordId, username)
   await db
     .from('guild_avatars')
     .upsert(
       {
         guild_id: guildId,
         discord_id: discordId,
-        username,
+        username: siteUsername,
         avatar,
         is_admin: isAdmin,
         is_bomb_squad_caller: isBombSquadCaller,

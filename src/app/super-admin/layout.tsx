@@ -9,6 +9,7 @@ import {
   ExternalLink,
   ImageIcon,
   Wrench,
+  Users,
 } from 'lucide-react'
 import { requireSuperAdmin } from '@/lib/super-admin'
 import { getSuperAdminPath } from '@/lib/super-admin-path'
@@ -31,6 +32,7 @@ function buildNav(basePath: string): NavItem[] {
   return [
     { href: basePath, label: '대시보드', Icon: LayoutDashboard },
     { href: `${basePath}/tenants`, label: '테넌트', Icon: Building2 },
+    { href: `${basePath}/users`, label: '사용자', Icon: Users },
     { href: `${basePath}/notices`, label: '시스템 공지', Icon: Megaphone },
     { href: `${basePath}/marketing-screenshots`, label: '마케팅 스크린샷', Icon: ImageIcon },
     { href: `${basePath}/diagnostics`, label: '진단/백필', Icon: Wrench },

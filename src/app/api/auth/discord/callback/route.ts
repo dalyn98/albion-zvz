@@ -39,6 +39,7 @@ import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
 import { withNoStore } from '@/lib/no-store-response'
 import { redactUrlSearch } from '@/lib/redact-search-params'
 import { removeGuestRecordForMember } from '@/lib/guest-membership-transition'
+import { resolveEffectiveSiteUsername } from '@/lib/site-nickname-override'
 
 // Onboarding cookie stays on the canonical domain (it's consumed by /onboard
 // which is served from the canonical host until the new tenant exists).
@@ -174,9 +175,10 @@ async function onboardingResponse(
   // so there's no subdomain to hop to. Once bot-callback creates the tenant,
   // later logins go through the canonical hop to that new subdomain.
   const response = NextResponse.redirect(new URL('/onboard', canonicalOrigin))
+  const username = await resolveEffectiveSiteUsername(user.id, user.global_name || user.username)
   const sessionCookie = await signSession({
     discordId: user.id,
-    username: user.global_name || user.username,
+    username,
     avatar: user.avatar,
     isMember: false,
     isAdmin: false,
@@ -388,7 +390,8 @@ export async function GET(request: NextRequest) {
               ]
             : []
         const canCreateEvents = isAdmin || eventCreatorCategories.length > 0
-        const displayName = identity?.username ?? member.nick ?? user.global_name ?? user.username
+        const fallbackDisplayName = identity?.username ?? member.nick ?? user.global_name ?? user.username
+        const displayName = await resolveEffectiveSiteUsername(user.id, fallbackDisplayName)
 
         const db = getAdminClient()
 
@@ -558,7 +561,7 @@ export async function GET(request: NextRequest) {
       .eq('guild_id', guestGuildId)
       .eq('discord_id', user.id)
       .maybeSingle()
-    const displayName = user.global_name || user.username
+    const displayName = await resolveEffectiveSiteUsername(user.id, user.global_name || user.username)
 
     if (existingGuest) {
       await db
