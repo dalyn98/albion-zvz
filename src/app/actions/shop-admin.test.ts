@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { importChestLog, listShopOrders } from './shop-admin'
+import { approveShopOrder, importChestLog, listShopOrders } from './shop-admin'
 
 const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
@@ -203,6 +203,7 @@ function createListOrdersDb() {
       status: 'pending',
       member_note: null,
       admin_note: null,
+      pickup_note: 'Guild chest tab 2',
       created_at: '2026-06-03T00:00:00.000Z',
       resolved_at: null,
       resolved_by: null,
@@ -301,6 +302,7 @@ describe('listShopOrders', () => {
           status: 'pending',
           memberNote: null,
           adminNote: null,
+          pickupNote: 'Guild chest tab 2',
           createdAt: '2026-06-03T00:00:00.000Z',
           resolvedAt: null,
           resolvedBy: null,
@@ -332,6 +334,81 @@ describe('listShopOrders', () => {
     expect(orderQuery.eq).toHaveBeenCalledWith('status', 'pending')
     expect(itemsQuery.eq).toHaveBeenCalledWith('guild_id', 'guild-1')
     expect(inventoryQuery.eq).toHaveBeenCalledWith('guild_id', 'guild-1')
+  })
+})
+
+function createApproveOrderDb() {
+  const orderQuery = {
+    select: vi.fn(() => orderQuery),
+    eq: vi.fn(() => orderQuery),
+    maybeSingle: vi.fn().mockResolvedValue({
+      data: { total_points: 100 },
+      error: null,
+    }),
+  }
+  const from = vi.fn((table: string) => {
+    if (table === 'shop_orders') return orderQuery
+    throw new Error(`Unexpected table: ${table}`)
+  })
+  const rpc = vi.fn().mockResolvedValue({ error: null })
+  return { db: { from, rpc }, from, rpc, orderQuery }
+}
+
+describe('approveShopOrder', () => {
+  beforeEach(() => {
+    mocks.revalidatePath.mockReset()
+    mocks.getTranslations.mockReset()
+    mocks.requireAnyCapability.mockReset()
+    mocks.getSession.mockReset()
+    mocks.getSessionGuildId.mockReset()
+    mocks.logAdminAction.mockReset()
+
+    mocks.getTranslations.mockResolvedValue(
+      (key: string, values?: Record<string, unknown>) =>
+        values?.max ? `${key}:${values.max}` : key,
+    )
+    mocks.getSession.mockResolvedValue({ discordId: 'admin-1' })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+  })
+
+  it('passes pickup note to the approval RPC and audit log', async () => {
+    const { db, rpc } = createApproveOrderDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(
+      approveShopOrder('order-1', ' internal memo ', 70, ' Guild chest tab 2 '),
+    ).resolves.toEqual({})
+
+    expect(rpc).toHaveBeenCalledWith('approve_shop_order', {
+      p_id: 'order-1',
+      p_admin_id: 'admin-1',
+      p_guild_id: 'guild-1',
+      p_admin_note: 'internal memo',
+      p_total_points_override: 70,
+      p_pickup_note: 'Guild chest tab 2',
+    })
+    expect(mocks.logAdminAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'shop.order.approve',
+        details: expect.objectContaining({
+          adminNote: 'internal memo',
+          pickupNote: 'Guild chest tab 2',
+          requestedTotalPoints: 100,
+          approvedTotalPoints: 70,
+        }),
+      }),
+    )
+  })
+
+  it('rejects pickup notes that are too long before calling the RPC', async () => {
+    const { db, rpc } = createApproveOrderDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await expect(
+      approveShopOrder('order-1', undefined, null, 'x'.repeat(301)),
+    ).resolves.toEqual({ error: 'pickupNoteTooLong:300' })
+
+    expect(rpc).not.toHaveBeenCalled()
   })
 })
 

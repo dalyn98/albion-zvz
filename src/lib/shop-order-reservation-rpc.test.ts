@@ -43,6 +43,8 @@ describe('shop order reservation RPCs', () => {
     const sql = latestFunctionDefinition('approve_shop_order')
 
     expect(sql).toContain('v_stock_reserved_at')
+    expect(sql).toContain('p_pickup_note')
+    expect(sql).toContain('pickup_note')
     expect(sql).toMatch(/if\s+v_stock_reserved_at\s+is\s+null\s+then[\s\S]*stock\s*=\s*stock\s*-\s*v_line\.quantity/i)
     expect(sql).toContain('total_points = v_charge_total')
     expect(sql).toContain("'shop_purchase'")

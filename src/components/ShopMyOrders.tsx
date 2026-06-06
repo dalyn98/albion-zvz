@@ -171,6 +171,11 @@ function OrderCard({
           {t('memberNotePrefix', { note: order.memberNote })}
         </p>
       )}
+      {order.pickupNote && (
+        <p className="text-[11px] text-emerald-200/90 bg-emerald-500/10 border border-emerald-500/25 rounded px-2 py-1">
+          {t('pickupNotePrefix', { note: order.pickupNote })}
+        </p>
+      )}
       {order.adminNote && (
         <p className="text-[11px] text-amber-200/80 bg-amber-500/5 border border-amber-500/20 rounded px-2 py-1">
           {t('adminNotePrefix', { note: order.adminNote })}

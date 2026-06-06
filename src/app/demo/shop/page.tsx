@@ -44,6 +44,7 @@ function getDemoOrders(nowMs: number): MyOrderRow[] {
     priceReviewRequired: false,
     memberNote: 'Mercia CTA before reset',
     adminNote: null,
+    pickupNote: null,
     createdAt: new Date(nowMs - 2 * HOUR_MS).toISOString(),
     resolvedAt: null,
     items: [
@@ -57,7 +58,8 @@ function getDemoOrders(nowMs: number): MyOrderRow[] {
     totalPoints: 112,
     priceReviewRequired: false,
     memberNote: null,
-    adminNote: 'Delivered to guild chest tab 2',
+    adminNote: null,
+    pickupNote: 'Guild chest tab 2',
     createdAt: new Date(nowMs - DAY_MS - HOUR_MS).toISOString(),
     resolvedAt: new Date(nowMs - DAY_MS - 35 * 60 * 1000).toISOString(),
     items: [
@@ -73,6 +75,7 @@ function getDemoOrders(nowMs: number): MyOrderRow[] {
     priceReviewRequired: false,
     memberNote: null,
     adminNote: 'Stock reserved for next CTA',
+    pickupNote: null,
     createdAt: new Date(nowMs - 3 * DAY_MS).toISOString(),
     resolvedAt: new Date(nowMs - 3 * DAY_MS + 35 * 60 * 1000).toISOString(),
     items: [

@@ -71,6 +71,7 @@ const IMPORT_ROW_LIMIT = 5000
 // 승인/거절 시 admin 메모 최대 길이. 컬럼 자체에는 길이 제약이 없지만 UI 와
 // DB 양쪽에서 비정상적으로 큰 입력을 막아 두면 페이지 렌더가 깨지지 않는다.
 const ADMIN_NOTE_MAX_LENGTH = 1000
+const PICKUP_NOTE_MAX_LENGTH = 300
 const MAX_ORDER_TOTAL_POINTS = 2_147_483_647
 const SHOP_IMPORT_CAPS = [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
 const SHOP_REVIEW_CAPS = [CAP.INVENTORY_MANAGE, CAP.INVENTORY_DELIVER] as const
@@ -835,6 +836,7 @@ export interface AdminShopOrder {
   status: 'pending' | 'approved' | 'rejected' | 'cancelled'
   memberNote: string | null
   adminNote: string | null
+  pickupNote: string | null
   createdAt: string
   resolvedAt: string | null
   resolvedBy: string | null
@@ -874,7 +876,7 @@ export async function listShopOrders(
     const q = db
       .from('shop_orders')
       .select(
-        'id, discord_id, username, total_points, price_review_required, stock_reserved_at, status, member_note, admin_note, created_at, resolved_at, resolved_by',
+        'id, discord_id, username, total_points, price_review_required, stock_reserved_at, status, member_note, admin_note, pickup_note, created_at, resolved_at, resolved_by',
       )
       .eq('guild_id', guildId)
       .order('created_at', { ascending: false })
@@ -971,6 +973,7 @@ export async function listShopOrders(
           status: o.status as AdminShopOrder['status'],
           memberNote: (o.member_note as string | null) ?? null,
           adminNote: (o.admin_note as string | null) ?? null,
+          pickupNote: (o.pickup_note as string | null) ?? null,
           createdAt: o.created_at as string,
           resolvedAt: (o.resolved_at as string | null) ?? null,
           resolvedBy: (o.resolved_by as string | null) ?? null,
@@ -987,6 +990,7 @@ export async function approveShopOrder(
   orderId: string,
   adminNote?: string,
   totalPointsOverride?: number | null,
+  pickupNote?: string | null,
 ): Promise<{ error?: string }> {
   const tErr = await getTranslations('adminActionError')
   try {
@@ -995,6 +999,10 @@ export async function approveShopOrder(
     const trimmedNote = adminNote?.trim() || null
     if (trimmedNote && trimmedNote.length > ADMIN_NOTE_MAX_LENGTH) {
       return { error: tErr('adminNoteTooLong', { max: ADMIN_NOTE_MAX_LENGTH }) }
+    }
+    const trimmedPickupNote = pickupNote?.trim() || null
+    if (trimmedPickupNote && trimmedPickupNote.length > PICKUP_NOTE_MAX_LENGTH) {
+      return { error: tErr('pickupNoteTooLong', { max: PICKUP_NOTE_MAX_LENGTH }) }
     }
     let normalizedTotalOverride: number | null = null
     if (totalPointsOverride !== undefined && totalPointsOverride !== null) {
@@ -1028,6 +1036,7 @@ export async function approveShopOrder(
       p_guild_id: guildId,
       p_admin_note: trimmedNote,
       p_total_points_override: normalizedTotalOverride,
+      p_pickup_note: trimmedPickupNote,
     })
     if (error) {
       // RPC raise exception 메시지를 사용자 친화 문구로.
@@ -1058,6 +1067,7 @@ export async function approveShopOrder(
       targetKind: 'shop_order',
       details: {
         adminNote: trimmedNote,
+        pickupNote: trimmedPickupNote,
         ...(normalizedTotalOverride !== null
           ? {
               requestedTotalPoints,

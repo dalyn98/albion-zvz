@@ -333,6 +333,7 @@ export interface MyOrderRow {
   status: 'pending' | 'approved' | 'rejected' | 'cancelled'
   memberNote: string | null
   adminNote: string | null
+  pickupNote: string | null
   createdAt: string
   resolvedAt: string | null
   items: Array<{
@@ -353,7 +354,7 @@ export async function listMyShopOrders(limit = 20): Promise<MyOrderRow[]> {
   const db = getAdminClient()
   const { data: orders } = await db
     .from('shop_orders')
-    .select('id, total_points, price_review_required, status, member_note, admin_note, created_at, resolved_at')
+    .select('id, total_points, price_review_required, status, member_note, admin_note, pickup_note, created_at, resolved_at')
     .eq('guild_id', guildId)
     .eq('discord_id', session.discordId)
     .order('created_at', { ascending: false })
@@ -386,6 +387,7 @@ export async function listMyShopOrders(limit = 20): Promise<MyOrderRow[]> {
     status: o.status as MyOrderRow['status'],
     memberNote: (o.member_note as string | null) ?? null,
     adminNote: (o.admin_note as string | null) ?? null,
+    pickupNote: (o.pickup_note as string | null) ?? null,
     createdAt: o.created_at as string,
     resolvedAt: (o.resolved_at as string | null) ?? null,
     items: itemsByOrder.get(o.id as string) ?? [],

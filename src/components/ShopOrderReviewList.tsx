@@ -100,6 +100,7 @@ function OrderRow({
   const [adjustMode, setAdjustMode] = useState(false)
   const [totalInput, setTotalInput] = useState('')
   const [note, setNote] = useState('')
+  const [pickupNote, setPickupNote] = useState(order.pickupNote ?? '')
 
   const statusLabel = (status: string) => {
     if (status === 'pending') return t('statusPending')
@@ -124,7 +125,12 @@ function OrderRow({
   const approve = (totalPointsOverride?: number) => {
     setError('')
     startTransition(async () => {
-      const result = await approveShopOrder(order.id, note, totalPointsOverride ?? null)
+      const result = await approveShopOrder(
+        order.id,
+        note,
+        totalPointsOverride ?? null,
+        pickupNote,
+      )
       if (result.error) {
         setError(result.error)
         return
@@ -340,6 +346,11 @@ function OrderRow({
           {order.memberNote}
         </p>
       )}
+      {order.pickupNote && (
+        <p className="text-xs text-emerald-200/90 bg-emerald-500/10 border border-emerald-500/30 rounded px-3 py-2">
+          {t('pickupNotePrefix', { note: order.pickupNote })}
+        </p>
+      )}
       {order.adminNote && (
         <p className="text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/30 rounded px-3 py-2">
           {t('adminNotePrefix', { note: order.adminNote })}
@@ -355,6 +366,14 @@ function OrderRow({
 
       {order.status === 'pending' && !rejectMode && (
         <div className="flex items-center gap-2 flex-wrap">
+          <input
+            type="text"
+            value={pickupNote}
+            onChange={(e) => setPickupNote(e.target.value)}
+            placeholder={t('pickupNotePlaceholder')}
+            maxLength={300}
+            className="flex-[1.2] min-w-[190px] bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
+          />
           <input
             type="text"
             value={note}
