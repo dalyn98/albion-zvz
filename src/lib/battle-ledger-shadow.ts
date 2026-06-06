@@ -7,6 +7,12 @@ import {
   type SizeCategory,
 } from './albion-battles'
 import type { AlbionServer } from './albion-gameinfo'
+import {
+  battleActivityViewPolicy,
+  classifyBattleActivity,
+  type BattleActivityKind,
+  type BattleActivitySource,
+} from './battle-activity-classification'
 
 export type RegistryEntityType = 'guild' | 'alliance' | 'player'
 export type BattleParticipantType = RegistryEntityType
@@ -107,6 +113,9 @@ export interface GuildBattleViewProjectionRow {
   evidenceSource: BattleProjectionEvidenceSource
   isMeaningful: boolean
   viewPolicy: BattleViewPolicy
+  activityKind: BattleActivityKind
+  activitySource: BattleActivitySource
+  activityReason: string
   resultEstimate: BattleResultEstimate
   sizeCategory: SizeCategory | null
   legacyOutcome: Outcome | null
@@ -449,6 +458,13 @@ function legacyOutcomeFromEstimate(estimate: BattleResultEstimate): Outcome | nu
   return null
 }
 
+function battleDurationSeconds(battle: AlbionBattle): number | null {
+  const startedAt = Date.parse(battle.startTime)
+  const endedAt = Date.parse(battle.endTime)
+  if (!Number.isFinite(startedAt) || !Number.isFinite(endedAt)) return null
+  return Math.max(0, Math.round((endedAt - startedAt) / 1000))
+}
+
 export function buildGuildBattleViewProjections(
   input: GuildBattleViewProjectionInput,
 ): GuildBattleViewProjectionRow[] {
@@ -456,6 +472,10 @@ export function buildGuildBattleViewProjections(
   if (!subject) return []
   const forces = opposingForces(input.battle, subject.side.guildIds)
   if (forces.length === 0) return []
+  const durationSeconds = battleDurationSeconds(input.battle)
+  const smallOpponentForceCount = forces.filter(
+    (force) => force.teamSize < MEANINGFUL_FORCE_MIN_SIZE,
+  ).length
 
   return forces.map((force) => {
     const scaleSize = Math.max(subject.side.teamSize, force.teamSize)
@@ -464,6 +484,17 @@ export function buildGuildBattleViewProjections(
       sizeCategory !== null &&
       subject.side.teamSize >= MEANINGFUL_FORCE_MIN_SIZE &&
       force.teamSize >= MEANINGFUL_FORCE_MIN_SIZE
+    const activity = classifyBattleActivity({
+      subjectTeamSize: subject.side.teamSize,
+      subjectKills: subject.side.kills,
+      subjectDeaths: subject.side.deaths,
+      opponentTeamSize: force.teamSize,
+      opponentKills: force.kills,
+      opponentDeaths: force.deaths,
+      battleDurationSeconds: durationSeconds,
+      opponentForceCount: forces.length,
+      smallOpponentForceCount,
+    })
     const estimate = resultEstimate(subject.side.killFame, force.killFame)
     return {
       battleRecordId: input.battleRecordId,
@@ -489,7 +520,12 @@ export function buildGuildBattleViewProjections(
       status: 'provisional',
       evidenceSource: 'battle_summary',
       isMeaningful,
-      viewPolicy: isMeaningful ? 'default_meaningful' : 'small_or_low_engagement',
+      viewPolicy: isMeaningful
+        ? battleActivityViewPolicy(activity.kind)
+        : 'small_or_low_engagement',
+      activityKind: isMeaningful ? activity.kind : 'low_engagement',
+      activitySource: activity.source,
+      activityReason: isMeaningful ? activity.reason : 'low_engagement_or_force_floor',
       resultEstimate: estimate,
       sizeCategory,
       legacyOutcome: legacyOutcomeFromEstimate(estimate),

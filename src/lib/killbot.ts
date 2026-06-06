@@ -22,7 +22,6 @@ import {
   type KillbotBattleSummary,
   type KillbotFeedMode,
 } from '@/lib/killbot-battle'
-import { isHighEngagement } from '@/lib/low-engagement-cut'
 
 export {
   buildKillbotBattleDiscordPayload,
@@ -671,7 +670,7 @@ async function loadKillbotBattleCandidates(
   ).toISOString()
 
   const { data: battleRows, error: battleErr } = await db
-    .from('tenant_battle_records')
+    .from('tenant_zvz_battle_records')
     .select(
       'id, battle_record_id, home_guild_name, home_team_size, home_kills, home_deaths, home_kill_fame, main_opponent_force_name, main_opponent_team_size, primary_opponent_name, opponent_team_size, started_at, outcome, battle_records!inner(albion_server, albion_battle_id, cluster_name, ended_at)',
     )
@@ -714,16 +713,10 @@ async function loadKillbotBattleCandidates(
     })
   }
 
-  const meaningfulGroups = Array.from(groups.values()).filter((group) =>
-    isHighEngagement({
-      homeKills: group.homeKills,
-      homeDeaths: group.homeDeaths,
-      homeTeamSize: group.homeTeamSize,
-    }),
-  )
-  if (meaningfulGroups.length === 0) return []
+  const zvzGroups = Array.from(groups.values())
+  if (zvzGroups.length === 0) return []
 
-  const battleIds = meaningfulGroups.map((group) => group.albionBattleId)
+  const battleIds = zvzGroups.map((group) => group.albionBattleId)
   const { data: eventRows, error: eventErr } = await db
     .from('killboard_events')
     .select('event_id, battle_id, role, player_name, fame, occurred_at')
@@ -754,7 +747,7 @@ async function loadKillbotBattleCandidates(
     ])
   }
 
-  return meaningfulGroups
+  return zvzGroups
     .map<KillbotBattleDeliveryCandidate | null>((group) => {
       const canonical = group.canonical
       const br = battleRecord(canonical)

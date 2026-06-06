@@ -5,6 +5,10 @@ import type {
   BattleResultEstimate,
   BattleViewPolicy,
 } from './battle-ledger-shadow'
+import type {
+  BattleActivityKind,
+  BattleActivitySource,
+} from './battle-activity-classification'
 import type { AlbionServer } from './albion-gameinfo'
 import { categorizeSize, type Outcome, type SizeCategory } from './albion-battles'
 
@@ -54,6 +58,11 @@ export interface GuildBattleViewDbRow {
   evidence_source: BattleProjectionEvidenceSource
   is_meaningful: boolean
   view_policy: BattleViewPolicy
+  activity_kind: BattleActivityKind
+  activity_source: BattleActivitySource
+  activity_reason: string
+  automatic_activity_kind: BattleActivityKind
+  automatic_activity_reason: string
   result_estimate: BattleResultEstimate
   size_category: SizeCategory | null
   legacy_outcome: Outcome | null
@@ -90,6 +99,11 @@ export interface GuildBattleListRow {
   evidenceSource: BattleProjectionEvidenceSource
   isMeaningful: boolean
   viewPolicy: BattleViewPolicy
+  activityKind: BattleActivityKind
+  activitySource: BattleActivitySource
+  activityReason: string
+  automaticActivityKind: BattleActivityKind
+  automaticActivityReason: string
   resultEstimate: BattleResultEstimate
   sizeCategory: SizeCategory | null
   legacyOutcome: Outcome | null
@@ -105,6 +119,7 @@ export interface GuildBattleListRow {
 export interface GuildBattleListGroup {
   key: string
   id: string
+  battleRecordId: string
   primaryRow: GuildBattleListRow
   rows: GuildBattleListRow[]
   albionBattleId: number
@@ -123,6 +138,9 @@ export interface GuildBattleListGroup {
   status: BattleProjectionStatus
   evidenceSource: BattleProjectionEvidenceSource
   viewPolicy: BattleViewPolicy
+  activityKind: BattleActivityKind
+  activitySource: BattleActivitySource
+  activityReason: string
   resultEstimate: BattleResultEstimate
   sizeCategory: SizeCategory | null
   hasActiveDiff: boolean
@@ -178,6 +196,11 @@ export function toGuildBattleListRow(row: GuildBattleViewDbRow): GuildBattleList
     evidenceSource: row.evidence_source,
     isMeaningful: row.is_meaningful,
     viewPolicy: row.view_policy,
+    activityKind: row.activity_kind,
+    activitySource: row.activity_source,
+    activityReason: row.activity_reason,
+    automaticActivityKind: row.automatic_activity_kind,
+    automaticActivityReason: row.automatic_activity_reason,
     resultEstimate: row.result_estimate,
     sizeCategory: row.size_category,
     legacyOutcome: row.legacy_outcome,
@@ -241,6 +264,7 @@ function toGuildBattleListGroup(
   return {
     key,
     id: primaryRow.id,
+    battleRecordId: primaryRow.battleRecordId,
     primaryRow,
     rows: sorted,
     albionBattleId: primaryRow.albionBattleId,
@@ -261,6 +285,15 @@ function toGuildBattleListGroup(
     viewPolicy: sorted.some((row) => row.viewPolicy === 'default_meaningful')
       ? 'default_meaningful'
       : 'small_or_low_engagement',
+    activityKind: sorted.some((row) => row.activityKind === 'zvz')
+      ? 'zvz'
+      : primaryRow.activityKind,
+    activitySource: sorted.some((row) => row.activitySource === 'manual')
+      ? 'manual'
+      : sorted.some((row) => row.activitySource === 'event_intent')
+        ? 'event_intent'
+        : 'automatic',
+    activityReason: primaryRow.activityReason,
     resultEstimate: estimateGroupedResult(subjectKillFame, opponentKillFame),
     sizeCategory,
     hasActiveDiff: sorted.some((row) => row.hasActiveDiff),

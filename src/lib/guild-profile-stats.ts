@@ -1,6 +1,6 @@
 // 공개 길드 프로필 (`/g/<slug>`) 의 자동 추출 통계 — 어드민이 자유 텍스트로
 // 채우는 hero / event-schedule 섹션과 달리 이 파일의 값들은 길드 활동 데이터
-// (tenant_battle_records, killboard_events, albion_guild_members, guild_avatars)
+// (tenant_zvz_battle_records, killboard_events, albion_guild_members, guild_avatars)
 // 에서 그대로 합산해 노출한다.
 //
 // 가시성 게이팅은 호출자가 결정 (settings.show* + enabled 토글). 이 모듈은
@@ -88,7 +88,7 @@ export async function loadTopWeaponCategoriesLast30d(
 ): Promise<WeaponCategoryUsage[]> {
   const db = getAdminClient()
   const cutoffIso = new Date(Date.now() - ROLLING_WINDOW_DAYS * DAY_MS).toISOString()
-  // tracked battle 안에서 발생한 killer 이벤트만 집계 — /battles 에 잡히지 않는
+  // tracked ZvZ battle 안에서 발생한 killer 이벤트만 집계 — /battles 에 잡히지 않는
   // 1:1 갱킹·소규모 전투의 무기는 "주력 무기" 라기엔 노이즈에 가깝다. 통계 카운트
   // 과 동일하게 bundle_split 토글을 따라 매치업 분리 row 들을 1전투로 묶고,
   // 같은 전투에서 같은 카테고리가 여러 킬을 내도 "사용 전투 1회" 로 센다.
@@ -216,10 +216,9 @@ export async function loadTopRivalsLast30d(
     label: 'guild top rivals',
     buildQuery: () =>
       db
-        .from('tenant_battle_records')
+        .from('tenant_zvz_battle_records')
         .select('primary_opponent_name, outcome')
         .eq('guild_id', guildId)
-        .eq('is_high_engagement', true)
         .gte('started_at', cutoff)
         .order('started_at', { ascending: true })
         .order('battle_record_id', { ascending: true }) as unknown as SupabasePagedQuery<Row>,

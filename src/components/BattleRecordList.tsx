@@ -1,10 +1,11 @@
 'use client'
 
-import { Fragment, useState } from 'react'
+import { Fragment, useState, useTransition, type MouseEvent } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   AlertTriangle,
+  Ban,
   ChevronDown,
   ChevronRight,
   CornerDownRight,
@@ -12,10 +13,13 @@ import {
   GitBranch,
   Hourglass,
   Minus,
+  RotateCcw,
   Shield,
   Skull,
+  Swords,
   Trophy,
 } from 'lucide-react'
+import { setBattleActivityOverride } from '@/app/actions/battles'
 import type {
   GuildBattleListGroup,
   GuildBattleListMode,
@@ -29,6 +33,10 @@ import type {
   BattleResultEstimate,
   BattleViewPolicy,
 } from '@/lib/battle-ledger-shadow'
+import type {
+  BattleActivityKind,
+  BattleActivitySource,
+} from '@/lib/battle-activity-classification'
 import type { SizeCategory } from '@/lib/albion-battles'
 import { formatDateTimeShort } from '@/lib/format-datetime'
 
@@ -41,6 +49,7 @@ const RESULTS: GuildBattleResultFilter[] = ['advantage', 'disadvantage', 'even',
 interface Props {
   groups: GuildBattleListGroup[]
   timezone: string
+  canManageActivityOverrides: boolean
   activeMode: GuildBattleListMode
   resultFilter: GuildBattleResultFilter | null
   emptyLabel: string
@@ -50,6 +59,14 @@ interface Props {
   sizeLabels: Record<SizeCategory, string>
   relationLabels: Record<BattleRelationScope, string>
   policyLabels: Record<BattleViewPolicy, string>
+  activityLabels: Record<BattleActivityKind, string>
+  activitySourceLabels: Record<BattleActivitySource, string>
+  activityOverrideLabels: {
+    markGanking: string
+    markZvZ: string
+    reset: string
+    updating: string
+  }
   resultLabels: Record<BattleResultEstimate, string>
   statusLabels: Record<BattleProjectionStatus, string>
   evidenceLabels: Record<BattleProjectionEvidenceSource, string>
@@ -84,6 +101,7 @@ function formatOpponentNames(names: ReadonlyArray<string>): string {
 export default function BattleRecordList({
   groups,
   timezone,
+  canManageActivityOverrides,
   activeMode,
   resultFilter,
   emptyLabel,
@@ -93,6 +111,9 @@ export default function BattleRecordList({
   sizeLabels,
   relationLabels,
   policyLabels,
+  activityLabels,
+  activitySourceLabels,
+  activityOverrideLabels,
   resultLabels,
   statusLabels,
   evidenceLabels,
@@ -109,6 +130,8 @@ export default function BattleRecordList({
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set())
+  const [isOverridePending, startOverrideTransition] = useTransition()
+  const [overrideError, setOverrideError] = useState<string | null>(null)
 
   const selectMode = (next: GuildBattleListMode) => {
     if (next === activeMode) return
@@ -135,6 +158,26 @@ export default function BattleRecordList({
       if (next.has(key)) next.delete(key)
       else next.add(key)
       return next
+    })
+  }
+
+  const applyActivityOverride = (
+    battleRecordId: string,
+    relationScope: BattleRelationScope,
+    action: 'mark_ganking' | 'mark_zvz' | 'reset',
+  ) => {
+    setOverrideError(null)
+    startOverrideTransition(async () => {
+      const result = await setBattleActivityOverride({
+        battleRecordId,
+        relationScope,
+        action,
+      })
+      if (!result.ok) {
+        setOverrideError(result.error ?? 'Failed to update battle classification')
+        return
+      }
+      router.refresh()
     })
   }
 
@@ -180,6 +223,12 @@ export default function BattleRecordList({
         </div>
       </div>
 
+      {overrideError && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          {overrideError}
+        </div>
+      )}
+
       {groups.length === 0 ? (
         <div className="bg-gray-900 border border-gray-700 rounded-xl p-12 text-center">
           <p className="text-gray-400 text-sm">{emptyLabel}</p>
@@ -212,6 +261,12 @@ export default function BattleRecordList({
                       resultLabel={resultLabels[group.resultEstimate]}
                       statusLabel={statusLabels[group.status]}
                       evidenceLabel={evidenceLabels[group.evidenceSource]}
+                      activityLabel={activityLabels[group.activityKind]}
+                      activitySourceLabel={activitySourceLabels[group.activitySource]}
+                      canManageActivityOverrides={canManageActivityOverrides}
+                      overrideLabels={activityOverrideLabels}
+                      isOverridePending={isOverridePending}
+                      onOverride={applyActivityOverride}
                       matchupLabel={matchupLabel}
                       expandMatchupsLabel={expandMatchupsLabel}
                       collapseMatchupsLabel={collapseMatchupsLabel}
@@ -231,6 +286,8 @@ export default function BattleRecordList({
                           resultLabel={resultLabels[row.resultEstimate]}
                           statusLabel={statusLabels[row.status]}
                           evidenceLabel={evidenceLabels[row.evidenceSource]}
+                          activityLabel={activityLabels[row.activityKind]}
+                          activitySourceLabel={activitySourceLabels[row.activitySource]}
                           opponentKindLabel={opponentKindLabels[row.opponentForceKind]}
                           sameBattleLabel={sameBattleLabel}
                           diffLabel={diffLabel}
@@ -275,6 +332,21 @@ interface BattleGroupRowProps {
   resultLabel: string
   statusLabel: string
   evidenceLabel: string
+  activityLabel: string
+  activitySourceLabel: string
+  canManageActivityOverrides: boolean
+  overrideLabels: {
+    markGanking: string
+    markZvZ: string
+    reset: string
+    updating: string
+  }
+  isOverridePending: boolean
+  onOverride: (
+    battleRecordId: string,
+    relationScope: BattleRelationScope,
+    action: 'mark_ganking' | 'mark_zvz' | 'reset',
+  ) => void
   matchupLabel: string
   expandMatchupsLabel: string
   collapseMatchupsLabel: string
@@ -294,6 +366,12 @@ function BattleGroupRow({
   resultLabel,
   statusLabel,
   evidenceLabel,
+  activityLabel,
+  activitySourceLabel,
+  canManageActivityOverrides,
+  overrideLabels,
+  isOverridePending,
+  onOverride,
   matchupLabel,
   expandMatchupsLabel,
   collapseMatchupsLabel,
@@ -354,6 +432,12 @@ function BattleGroupRow({
               {policyLabel}
             </span>
           )}
+          <span className="inline-flex items-center gap-1 rounded border border-cyan-500/25 bg-cyan-500/10 px-1.5 py-0.5 text-[11px] text-cyan-100">
+            {activityLabel}
+            {group.activitySource !== 'automatic' && (
+              <span className="text-cyan-300/70">({activitySourceLabel})</span>
+            )}
+          </span>
           {group.hasActiveDiff && (
             <span className="inline-flex items-center gap-1 rounded border border-violet-500/35 bg-violet-500/10 px-1.5 py-0.5 text-[11px] text-violet-200">
               <GitBranch size={11} />
@@ -370,6 +454,15 @@ function BattleGroupRow({
             <span className="rounded border border-sky-500/25 bg-sky-500/10 px-1.5 py-0.5 text-[11px] text-sky-200">
               {ledgerOnlyLabel}
             </span>
+          )}
+          {canManageActivityOverrides && group.relationScope === 'direct' && (
+            <ActivityOverrideButtons
+              battleRecordId={group.battleRecordId}
+              relationScope={group.relationScope}
+              labels={overrideLabels}
+              disabled={isOverridePending}
+              onOverride={onOverride}
+            />
           )}
         </div>
       </td>
@@ -419,6 +512,77 @@ function BattleGroupRow({
   )
 }
 
+interface ActivityOverrideButtonsProps {
+  battleRecordId: string
+  relationScope: BattleRelationScope
+  labels: {
+    markGanking: string
+    markZvZ: string
+    reset: string
+    updating: string
+  }
+  disabled: boolean
+  onOverride: (
+    battleRecordId: string,
+    relationScope: BattleRelationScope,
+    action: 'mark_ganking' | 'mark_zvz' | 'reset',
+  ) => void
+}
+
+function ActivityOverrideButtons({
+  battleRecordId,
+  relationScope,
+  labels,
+  disabled,
+  onOverride,
+}: ActivityOverrideButtonsProps) {
+  const buttonClass =
+    'inline-flex h-6 w-6 items-center justify-center rounded border border-gray-600 bg-gray-900 text-gray-300 hover:border-amber-500/60 hover:text-amber-200 disabled:cursor-wait disabled:opacity-60'
+
+  const handleClick = (
+    event: MouseEvent<HTMLButtonElement>,
+    action: 'mark_ganking' | 'mark_zvz' | 'reset',
+  ) => {
+    event.stopPropagation()
+    onOverride(battleRecordId, relationScope, action)
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 rounded border border-gray-700 bg-gray-950/80 px-1 py-0.5">
+      <button
+        type="button"
+        className={buttonClass}
+        disabled={disabled}
+        title={disabled ? labels.updating : labels.markGanking}
+        aria-label={labels.markGanking}
+        onClick={(event) => handleClick(event, 'mark_ganking')}
+      >
+        <Ban size={12} />
+      </button>
+      <button
+        type="button"
+        className={buttonClass}
+        disabled={disabled}
+        title={disabled ? labels.updating : labels.markZvZ}
+        aria-label={labels.markZvZ}
+        onClick={(event) => handleClick(event, 'mark_zvz')}
+      >
+        <Swords size={12} />
+      </button>
+      <button
+        type="button"
+        className={buttonClass}
+        disabled={disabled}
+        title={disabled ? labels.updating : labels.reset}
+        aria-label={labels.reset}
+        onClick={(event) => handleClick(event, 'reset')}
+      >
+        <RotateCcw size={12} />
+      </button>
+    </span>
+  )
+}
+
 interface BattleMatchupRowProps {
   row: GuildBattleListRow
   sizeLabel: string | null
@@ -427,6 +591,8 @@ interface BattleMatchupRowProps {
   resultLabel: string
   statusLabel: string
   evidenceLabel: string
+  activityLabel: string
+  activitySourceLabel: string
   opponentKindLabel: string
   sameBattleLabel: string
   diffLabel: string
@@ -442,6 +608,8 @@ function BattleMatchupRow({
   resultLabel,
   statusLabel,
   evidenceLabel,
+  activityLabel,
+  activitySourceLabel,
   opponentKindLabel,
   sameBattleLabel,
   diffLabel,
@@ -483,6 +651,12 @@ function BattleMatchupRow({
               {policyLabel}
             </span>
           )}
+          <span className="inline-flex items-center gap-1 rounded border border-cyan-500/25 bg-cyan-500/10 px-1.5 py-0.5 text-[11px] text-cyan-100">
+            {activityLabel}
+            {row.activitySource !== 'automatic' && (
+              <span className="text-cyan-300/70">({activitySourceLabel})</span>
+            )}
+          </span>
           {row.hasActiveDiff && (
             <span className="inline-flex items-center gap-1 rounded border border-violet-500/35 bg-violet-500/10 px-1.5 py-0.5 text-[11px] text-violet-200">
               <GitBranch size={11} />

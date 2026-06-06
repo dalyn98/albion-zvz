@@ -1,6 +1,5 @@
 import { getAppSetting } from '@/lib/app-settings'
 import { bundleSplitBattles, type BundleableRow } from '@/lib/battle-bundling'
-import { isHighEngagement } from '@/lib/low-engagement-cut'
 import { getAdminClient } from '@/lib/supabase-admin'
 import { isMissingRpcError } from '@/lib/supabase-rpc-errors'
 import { selectPagedRowsOrThrow, type SupabasePagedQuery } from '@/lib/supabase-pagination'
@@ -77,7 +76,7 @@ async function loadGuildBattleRollupFallback(
     label: 'guild battle rollup fallback',
     buildQuery: () => {
       let q = db
-        .from('tenant_battle_records')
+        .from('tenant_zvz_battle_records')
         .select(
           'battle_record_id, outcome, home_kills, home_deaths, home_team_size, main_opponent_team_size',
         )
@@ -112,7 +111,6 @@ async function loadGuildBattleRollupFallback(
       }))
 
   for (const battle of evaluated) {
-    if (!isHighEngagement(battle)) continue
     rollup.battleCount += 1
     rollup.totalKills += battle.homeKills ?? 0
     rollup.totalDeaths += battle.homeDeaths ?? 0

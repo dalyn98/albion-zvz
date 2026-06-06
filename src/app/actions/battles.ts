@@ -1,8 +1,12 @@
 'use server'
 
-import { getSession } from '@/lib/session'
+import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
+import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { CAP } from '@/lib/permissions'
+import { logAdminAction } from '@/lib/admin-audit'
 import {
   buildBattlePlayerSummaries,
   categorizeSize,
@@ -24,11 +28,111 @@ import type {
 } from '@/lib/battle-ledger-shadow'
 import { resolveGuildBattleDisplayStatus } from '@/lib/guild-battle-view'
 
+const battleActivityOverrideSchema = z.object({
+  battleRecordId: z.string().uuid(),
+  relationScope: z.enum(['direct', 'alliance']).default('direct'),
+  action: z.enum(['mark_ganking', 'mark_zvz', 'reset']),
+})
+
 // 1~2명 스트래글러는 "집계 규모에 맞는 길드" 가 아니다 — small 카테고리 최소
 // 인원 (10) 과 동일한 컷을 적용해 노이즈를 잘라낸다. tenant_battle_records 자체가
 // 이미 opponent 측 합계 인원 < 10 이면 기록되지 않으므로, 같은 임계로 개별 길드도
 // 거른다.
 const OPPONENT_GUILD_MIN_TEAM_SIZE = 10
+
+export interface BattleActivityOverrideResult {
+  ok: boolean
+  error?: string
+}
+
+export async function setBattleActivityOverride(
+  input: unknown,
+): Promise<BattleActivityOverrideResult> {
+  const parsed = battleActivityOverrideSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, error: 'Invalid input' }
+
+  const session = await getSession()
+  if (!session || !sessionHas(session, CAP.BATTLES_MANAGE)) {
+    return { ok: false, error: 'Unauthorized' }
+  }
+
+  const guildId = await getSessionGuildId(session)
+  const db = getAdminClient()
+  const { battleRecordId, relationScope, action } = parsed.data
+
+  const { data: scopedRow, error: scopeErr } = await db
+    .from('guild_battle_views')
+    .select('id, battle_record_id, relation_scope, activity_kind, opponent_force_name')
+    .eq('tenant_id', guildId)
+    .eq('battle_record_id', battleRecordId)
+    .eq('relation_scope', relationScope)
+    .limit(1)
+    .maybeSingle()
+
+  if (scopeErr) return { ok: false, error: scopeErr.message }
+  if (!scopedRow) return { ok: false, error: 'Battle not found' }
+
+  if (action === 'reset') {
+    const { error } = await db
+      .from('battle_activity_overrides')
+      .delete()
+      .eq('guild_id', guildId)
+      .eq('battle_record_id', battleRecordId)
+      .eq('relation_scope', relationScope)
+    if (error) return { ok: false, error: error.message }
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'battle.activity_override.reset',
+      targetId: battleRecordId,
+      targetKind: 'battle',
+      details: {
+        relationScope,
+        previousActivityKind: scopedRow.activity_kind,
+      },
+    })
+  } else {
+    const activityKind = action === 'mark_zvz' ? 'zvz' : 'ganking'
+    const reason = action === 'mark_zvz'
+      ? 'manual_mark_zvz'
+      : 'manual_mark_ganking'
+    const { error } = await db
+      .from('battle_activity_overrides')
+      .upsert(
+        {
+          guild_id: guildId,
+          battle_record_id: battleRecordId,
+          relation_scope: relationScope,
+          activity_kind: activityKind,
+          reason,
+          created_by_discord_id: session.discordId,
+          updated_by_discord_id: session.discordId,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'guild_id,battle_record_id,relation_scope' },
+      )
+    if (error) return { ok: false, error: error.message }
+    await logAdminAction({
+      guildId,
+      adminDiscordId: session.discordId,
+      action: 'battle.activity_override.update',
+      targetId: battleRecordId,
+      targetKind: 'battle',
+      details: {
+        relationScope,
+        activityKind,
+        previousActivityKind: scopedRow.activity_kind,
+      },
+    })
+  }
+
+  revalidatePath('/battles')
+  revalidatePath(`/battles/${scopedRow.id}`)
+  revalidatePath('/leaderboard')
+  revalidatePath('/me')
+  revalidatePath('/', 'layout')
+  return { ok: true }
+}
 
 function normalizeBattleId(raw: unknown): number | null {
   if (typeof raw !== 'number' && typeof raw !== 'string') return null

@@ -67,6 +67,8 @@ export const ADMIN_ACTIONS = [
   'siphon.log.reset',
   'loot_audit.create',
   'loot_audit.finding.resolve',
+  'battle.activity_override.update',
+  'battle.activity_override.reset',
 ] as const
 
 export type AdminAction = (typeof ADMIN_ACTIONS)[number]
@@ -88,6 +90,7 @@ export const ADMIN_AUDIT_TARGET_KINDS = [
   'siphon_ledger',
   'loot_audit',
   'loot_audit_finding',
+  'battle',
 ] as const
 
 export type AdminAuditTargetKind = (typeof ADMIN_AUDIT_TARGET_KINDS)[number]

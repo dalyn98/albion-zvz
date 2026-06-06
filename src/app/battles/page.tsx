@@ -1,9 +1,10 @@
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { Swords, Info, ChevronRight } from 'lucide-react'
-import { getSession } from '@/lib/session'
+import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { CAP } from '@/lib/permissions'
 import BattleRecordList from '@/components/BattleRecordList'
 import { getTenantTimezone } from '@/lib/timezone-server'
 import {
@@ -52,7 +53,7 @@ export default async function BattlesPage({
   let query = db
     .from('guild_battle_views')
     .select(
-      'id, tenant_id, battle_record_id, legacy_tenant_battle_record_id, albion_server, albion_battle_id, started_at, ended_at, cluster_name, subject_name, subject_alliance_name, relation_scope, opponent_force_kind, opponent_force_name, subject_team_size, subject_kills, subject_deaths, subject_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, status, evidence_source, is_meaningful, view_policy, result_estimate, size_category, legacy_outcome, legacy_row_outcome, legacy_is_provisional, match_index, match_total, has_active_diff, active_diff_types, evaluated_at',
+      'id, tenant_id, battle_record_id, legacy_tenant_battle_record_id, albion_server, albion_battle_id, started_at, ended_at, cluster_name, subject_name, subject_alliance_name, relation_scope, opponent_force_kind, opponent_force_name, subject_team_size, subject_kills, subject_deaths, subject_kill_fame, opponent_team_size, opponent_kills, opponent_deaths, opponent_kill_fame, status, evidence_source, is_meaningful, view_policy, activity_kind, activity_source, activity_reason, automatic_activity_kind, automatic_activity_reason, result_estimate, size_category, legacy_outcome, legacy_row_outcome, legacy_is_provisional, match_index, match_total, has_active_diff, active_diff_types, evaluated_at',
     )
     .eq('tenant_id', guildId)
     .order('started_at', { ascending: false })
@@ -61,7 +62,10 @@ export default async function BattlesPage({
     .limit(LIST_ROW_FETCH_LIMIT)
 
   if (activeMode === 'default') {
-    query = query.eq('relation_scope', 'direct').eq('view_policy', 'default_meaningful')
+    query = query
+      .eq('relation_scope', 'direct')
+      .eq('view_policy', 'default_meaningful')
+      .eq('activity_kind', 'zvz')
   } else if (activeMode === 'direct') {
     query = query.eq('relation_scope', 'direct')
   } else if (activeMode === 'alliance') {
@@ -168,6 +172,7 @@ export default async function BattlesPage({
       <BattleRecordList
         groups={groups}
         timezone={tenantTimezone}
+        canManageActivityOverrides={sessionHas(session, CAP.BATTLES_MANAGE)}
         activeMode={activeMode}
         resultFilter={resultFilter}
         emptyLabel={t('empty')}
@@ -193,6 +198,25 @@ export default async function BattlesPage({
         policyLabels={{
           default_meaningful: t('policyDefault'),
           small_or_low_engagement: t('policyExcluded'),
+        }}
+        activityLabels={{
+          zvz: t('activity_zvz'),
+          smallscale: t('activity_smallscale'),
+          ganking: t('activity_ganking'),
+          low_engagement: t('activity_lowEngagement'),
+          review: t('activity_review'),
+          excluded: t('activity_excluded'),
+        }}
+        activitySourceLabels={{
+          automatic: t('activitySource_automatic'),
+          event_intent: t('activitySource_eventIntent'),
+          manual: t('activitySource_manual'),
+        }}
+        activityOverrideLabels={{
+          markGanking: t('activityMarkGanking'),
+          markZvZ: t('activityMarkZvZ'),
+          reset: t('activityResetOverride'),
+          updating: t('activityOverrideUpdating'),
         }}
         resultLabels={{
           advantage: t('result_advantage'),

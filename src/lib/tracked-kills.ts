@@ -1,7 +1,7 @@
-// tenant_battle_records 필터를 통과한 "진짜 전투" 의 시간창 + 정확 매칭 인덱스.
+// tenant_zvz_battle_records 필터를 통과한 "진짜 전투" 의 시간창 + 정확 매칭 인덱스.
 // 업적/통계 (리더보드, 내 홈, 멤버 상세 등) 에 집계할 killboard_events 를 이
-// 트래킹 배틀들로 제한하는 용도. 1:1 갱킹/소규모 전투는 애초에 tenant_battle_records
-// 에 못 들어오므로 자동으로 제외된다.
+// 트래킹 배틀들로 제한하는 용도. 1:1 갱킹/소규모 전투는 ZvZ 분류 뷰에서
+// 자동으로 제외된다.
 //
 // 매칭 우선순위:
 //   1. killboard_events.battle_id 가 있고 tracked battle_id 집합에 포함되면 정확 매칭.
@@ -12,7 +12,6 @@
 // 관련 메모: feedback_albion_zvz_achievement_rules.md (규칙 1)
 
 import type { getAdminClient } from '@/lib/supabase-admin'
-import { isHighEngagement } from '@/lib/low-engagement-cut'
 import { selectPagedRowsOrThrow, type SupabasePagedQuery } from '@/lib/supabase-pagination'
 import { isMissingRpcError, type SupabaseRpcErrorLike } from '@/lib/supabase-rpc-errors'
 
@@ -63,8 +62,8 @@ export async function fetchTrackedBattleWindows(
   sinceIso?: string | null,
   options?: FetchTrackedBattleWindowsOptions,
 ): Promise<TrackedBattles> {
-  // home_kills/deaths/team_size 는 low-engagement 컷 평가용. raw 적재는 그대로
-  // 두고 windows 단계에서만 hide — 통계/업적/킬로그 모든 집계에서 자동 제외.
+  // tenant_zvz_battle_records 가 자동/수동 ZvZ 분류를 반영한다. raw 적재는 그대로
+  // 두고 windows 단계에서는 ZvZ 후보만 받아 통계/업적/킬로그 모집단을 통일한다.
   // main_opponent_team_size 는 bundleSplits=true 일 때 canonical row 선정용.
   type Row = {
     started_at: string
@@ -82,7 +81,7 @@ export async function fetchTrackedBattleWindows(
     label: 'tracked battle windows',
     buildQuery: () => {
       let q = db
-        .from('tenant_battle_records')
+        .from('tenant_zvz_battle_records')
         .select(
           'started_at, outcome, home_kills, home_deaths, home_team_size, main_opponent_team_size, battle_records!inner(ended_at, albion_battle_id)',
         )
@@ -103,15 +102,6 @@ export async function fetchTrackedBattleWindows(
   for (const row of rows) {
     const br = Array.isArray(row.battle_records) ? row.battle_records[0] : row.battle_records
     if (!br?.ended_at) continue
-    if (
-      !isHighEngagement({
-        homeKills: row.home_kills,
-        homeDeaths: row.home_deaths,
-        homeTeamSize: row.home_team_size,
-      })
-    ) {
-      continue
-    }
     const startMs = Date.parse(row.started_at)
     const endMs = Date.parse(br.ended_at)
     if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) continue
@@ -141,8 +131,8 @@ export async function fetchTrackedBattleWindows(
 
 // bundleSplits=true 분기 — 같은 albion_battle_id 안의 row 들을 묶어
 // 1 window/1 byBattleId entry 로 변환. canonical row 는 main_opponent_team_size
-// 가 가장 큰 row (가장 큰 상대 force 와의 매치업). engagement 컷은 묶음 K/D
-// 합산에 max(home_team_size) 로 재평가. albion_battle_id 가 NULL 인 legacy row
+// 가 가장 큰 row (가장 큰 상대 force 와의 매치업). row 집합은 이미 ZvZ 분류
+// 뷰를 통과했다. albion_battle_id 가 NULL 인 legacy row
 // 는 묶을 키가 없어 row 별 독립 window 로 유지 (시간창 폴백 매칭이 살아있도록).
 function buildBundledTrackedBattles(
   rows: ReadonlyArray<{
@@ -180,16 +170,7 @@ function buildBundledTrackedBattles(
           ? Number(rawBattleId)
           : null
     if (albionBattleId === null || !Number.isFinite(albionBattleId)) {
-      // legacy NULL: 묶을 키가 없으니 row 별로 처리 (engagement 컷은 row 단위).
-      if (
-        !isHighEngagement({
-          homeKills: row.home_kills,
-          homeDeaths: row.home_deaths,
-          homeTeamSize: row.home_team_size,
-        })
-      ) {
-        continue
-      }
+      // legacy NULL: 묶을 키가 없으니 row 별로 처리.
       const startMs = Date.parse(row.started_at)
       const endMs = Date.parse(br.ended_at)
       if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) continue
@@ -232,15 +213,6 @@ function buildBundledTrackedBattles(
   const byBattleId = new Map<number, TrackedBattleWindow>()
 
   for (const [albionBattleId, group] of grouped) {
-    if (
-      !isHighEngagement({
-        homeKills: group.homeKillsSum,
-        homeDeaths: group.homeDeathsSum,
-        homeTeamSize: group.homeTeamSizeMax,
-      })
-    ) {
-      continue
-    }
     const startMs = Date.parse(group.canonical.started_at)
     const endMs = Date.parse(group.canonicalEndedAt)
     if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) continue
@@ -550,7 +522,7 @@ function pickSingleMemberParticipations(
 // killCount=0, deathCount=0, hadDeath=false 로 추가. 같은 startedAt 이 양쪽 다
 // 있으면 killboard 쪽을 우선 (더 풍부한 정보).
 //
-// tracked 인자: low-engagement 컷이 이미 적용된 windows. participations RPC 는
+// tracked 인자: ZvZ 분류가 이미 적용된 windows. participations RPC 는
 // 컷 미적용이므로 여기서 tracked.windows 의 rawStartedAt 집합과 교집합만 유지
 // 해야 멤버별 집계도 일관된다 (killBattles 는 이미 groupMemberKillsByBattle 가
 // tracked 로 필터링했으므로 안전).
@@ -560,10 +532,10 @@ export function mergeMemberBattles(
   tracked: TrackedBattles,
 ): MemberBattleOutcome[] {
   // tracked.windows 가 진실 — bundleSplits=true 일 때 main_opponent canonical
-  // outcome 을 들고 있고, 그 외 케이스에서도 engagement 컷이 적용된 결과다.
+  // outcome 을 들고 있고, 그 외 케이스에서도 ZvZ 분류가 적용된 결과다.
   // RPC 의 outcome 은 매치업 분리 row 들 중 임의의 한 개 (순서 보장 없음) 라
   // 일관성을 위해 windows 측을 우선 채택. windows 에 없는 rawStartedAt 은
-  // engagement 컷 제외 → skip.
+      // ZvZ 분류 제외 → skip.
   const trackedOutcomeByRawStart = new Map<string, string>()
   for (const w of tracked.windows) trackedOutcomeByRawStart.set(w.rawStartedAt, w.outcome)
   const byStart = new Map<string, MemberBattleOutcome>()

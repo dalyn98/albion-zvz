@@ -50,7 +50,7 @@ describe('loadGuildBattleRollup', () => {
     })
   })
 
-  it('falls back to paged tenant_battle_records aggregation before the RPC is deployed', async () => {
+  it('falls back to paged tenant_zvz_battle_records aggregation before the RPC is deployed', async () => {
     const rows = [
       {
         battle_record_id: 'battle-1',
@@ -59,14 +59,6 @@ describe('loadGuildBattleRollup', () => {
         home_deaths: 2,
         home_team_size: 20,
         main_opponent_team_size: 20,
-      },
-      {
-        battle_record_id: 'battle-2',
-        outcome: 'loss',
-        home_kills: 1,
-        home_deaths: 0,
-        home_team_size: 50,
-        main_opponent_team_size: 10,
       },
     ]
     const query = {
@@ -83,9 +75,10 @@ describe('loadGuildBattleRollup', () => {
       data: null,
       error: { code: 'PGRST202', message: 'rpc not deployed' },
     }))
+    const from = vi.fn(() => query)
     mocks.getAdminClient.mockReturnValue({
       rpc,
-      from: vi.fn(() => query),
+      from,
     })
 
     await expect(loadGuildBattleRollup('guild-1')).resolves.toEqual({
@@ -96,5 +89,6 @@ describe('loadGuildBattleRollup', () => {
       totalKills: 10,
       totalDeaths: 2,
     })
+    expect(from).toHaveBeenCalledWith('tenant_zvz_battle_records')
   })
 })

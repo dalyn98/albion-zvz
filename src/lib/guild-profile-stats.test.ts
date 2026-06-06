@@ -112,7 +112,7 @@ vi.mock('@/lib/supabase-admin', () => ({
       ),
     from: (table: string) => {
       fromCalls.push(table)
-      if (table === 'tenant_battle_records') {
+      if (table === 'tenant_battle_records' || table === 'tenant_zvz_battle_records') {
         return chain(() => ({ data: battleRecords, error: null }))
       }
       if (table === 'killboard_events') {

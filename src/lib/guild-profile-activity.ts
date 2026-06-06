@@ -1,5 +1,5 @@
 // 공개 길드 프로필 (`/g/<slug>`) 활동 섹션 — 최근 추적된 전투 1건 + 이번 주
-// 탑킬러 3명. tenant_battle_records 와 killboard_events 를 직접 읽어 라이브
+// 탑킬러 3명. tenant_zvz_battle_records 와 killboard_events 를 직접 읽어 라이브
 // 활동 시그널을 노출한다. 호출 페이지에서 공개 공통 데이터는 짧게 캐시한다.
 //
 // 가시성 게이팅은 호출자(공개 페이지)가 settings.showBattles / showLeaderboard
@@ -9,7 +9,6 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import { discordAvatarUrl } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
 import { loadActiveGuildProfileAvatars } from '@/lib/guild-profile-avatars'
-import { isHighEngagement } from '@/lib/low-engagement-cut'
 import { getCurrentWeekStartIso } from '@/lib/timezone'
 import {
   fetchMemberLeaderboardRollups,
@@ -87,15 +86,6 @@ export function selectRecentTrackedBattleSummary(
           mainRow = row
         }
       }
-      if (
-        !isHighEngagement({
-          homeKills,
-          homeDeaths,
-          homeTeamSize,
-        })
-      ) {
-        continue
-      }
       summaries.push({
         startedAt: mainRow.started_at,
         outcome: mainRow.outcome as BattleOutcome,
@@ -110,13 +100,6 @@ export function selectRecentTrackedBattleSummary(
   }
 
   const latest = [...rows]
-    .filter((row) =>
-      isHighEngagement({
-        homeKills: row.home_kills,
-        homeDeaths: row.home_deaths,
-        homeTeamSize: row.home_team_size,
-      }),
-    )
     .sort((a, b) => b.started_at.localeCompare(a.started_at))[0]
   if (!latest) return null
   return {
@@ -130,10 +113,10 @@ export function selectRecentTrackedBattleSummary(
   }
 }
 
-// 공개 페이지 "전투기록" 카운트. /battles 와 동일하게 low-engagement 컷 + 길드별
+// 공개 페이지 "전투기록" 카운트. /battles 와 동일하게 ZvZ 분류 + 길드별
 // bundle_split_battles_in_stats 토글을 적용한다. 기존에 events 테이블을 세던
-// 로직은 자동시작 이벤트가 모두 잡혀 실제 전투 수와 어긋났음 — tenant_battle_records
-// 가 진실 소스. 라이프타임 수라 row 가 많아질 수 있어 1000건 단위로 페이지 조회한다.
+// 로직은 자동시작 이벤트가 모두 잡혀 실제 전투 수와 어긋났음 — 전투 record 기반
+// ZvZ 분류 뷰가 진실 소스. 라이프타임 수라 row 가 많아질 수 있어 1000건 단위로 페이지 조회한다.
 export async function loadTrackedBattleLifetimeCount(guildId: string): Promise<number> {
   return (await loadGuildBattleRollup(guildId)).battleCount
 }
@@ -146,12 +129,11 @@ export async function loadRecentTrackedBattle(
     (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
   if (!bundleEnabled) {
     const { data } = await db
-      .from('tenant_battle_records')
+      .from('tenant_zvz_battle_records')
       .select(
         'battle_record_id, started_at, outcome, home_kills, home_deaths, home_team_size, main_opponent_team_size, primary_opponent_name, size_category',
       )
       .eq('guild_id', guildId)
-      .eq('is_high_engagement', true)
       .order('started_at', { ascending: false })
       .limit(1)
 
@@ -162,7 +144,7 @@ export async function loadRecentTrackedBattle(
     label: 'recent tracked battle bundled rows',
     buildQuery: () =>
       db
-        .from('tenant_battle_records')
+        .from('tenant_zvz_battle_records')
         .select(
           'battle_record_id, started_at, outcome, home_kills, home_deaths, home_team_size, main_opponent_team_size, primary_opponent_name, size_category',
         )

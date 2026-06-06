@@ -41,7 +41,7 @@ export interface MemberRegearEntry {
   created_at: string
 }
 
-// 본인 참여 최근 전투 한 건. battleId 는 tenant_battle_records.id 로,
+// 본인 참여 최근 전투 한 건. battleId 는 tenant_zvz_battle_records.id 로,
 // /battles/[id] 라우팅 키. myKills/myDeaths 는 본인의 K/D, homeKills/Deaths
 // 는 길드 전체 합산 — 카드에서 둘 다 노출.
 export interface MemberRecentBattleEntry {
@@ -177,7 +177,7 @@ export async function loadMemberDashboardSummary(
 // 반환. 계산 흐름은 me-dashboard / members-admin / leaderboard 와 동일하게
 // (1) tracked windows 로 engagement 컷 + bundleSplits 처리, (2) killboard 로
 // 본인 K/D, (3) raw_battle.players RPC 로 0K0D 참여까지 수합. 그 뒤 최근 5건만
-// tenant_battle_records 에서 길드 K/D · 상대 정보를 보강. 본인 참여가 없는 길드
+// tenant_zvz_battle_records 에서 길드 K/D · 상대 정보를 보강. 본인 참여가 없는 길드
 // 전투는 자동 제외.
 async function loadRecentMemberBattles(
   guildId: string,
@@ -220,7 +220,7 @@ async function loadRecentMemberBattles(
 
   const startedAts = topN.map((b) => b.startedAt)
   const { data: enrichRaw } = await db
-    .from('tenant_battle_records')
+    .from('tenant_zvz_battle_records')
     .select(
       'id, battle_record_id, started_at, home_kills, home_deaths, home_team_size, primary_opponent_name, size_category, main_opponent_team_size',
     )
