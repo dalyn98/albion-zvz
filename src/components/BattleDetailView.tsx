@@ -48,9 +48,15 @@ interface Props {
   // tenant 의 row id 라 cross 시점일 땐 다른 값일 수 있어서 별도 prop 으로 받는다.
   battleId: string
   timezone: string
+  highlightedEventId?: string
 }
 
-export default async function BattleDetailView({ detail, battleId, timezone }: Props) {
+export default async function BattleDetailView({
+  detail,
+  battleId,
+  timezone,
+  highlightedEventId,
+}: Props) {
   const [t, tList, rawLocale] = await Promise.all([
     getTranslations('battleDetail'),
     getTranslations('battleTracking'),
@@ -447,6 +453,7 @@ export default async function BattleDetailView({ detail, battleId, timezone }: P
                 itemPowerLabel={(value) => t('eventItemPower', { value })}
                 fameLabel={(fame) => t('eventFame', { fame })}
                 timezone={timezone}
+                highlightedEventId={highlightedEventId}
               />
             ))}
           </ul>
@@ -859,6 +866,7 @@ interface ParticipantRowProps {
   itemPowerLabel: (value: number) => string
   fameLabel: (fame: string) => string
   timezone: string
+  highlightedEventId?: string
 }
 
 function ParticipantRow({
@@ -873,13 +881,16 @@ function ParticipantRow({
   itemPowerLabel,
   fameLabel,
   timezone,
+  highlightedEventId,
 }: ParticipantRowProps) {
+  const hasHighlightedEvent = !!highlightedEventId &&
+    participant.events.some((event) => event.event_id === highlightedEventId)
   return (
     <li className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
       {/* native <details> 로 접힘/펼침 상태 관리. summary 는 아바타+유저명+K/D
           요약 한 줄, 펼치면 아래 이벤트 리스트가 드러남. list-none 으로
           기본 삼각형을 지우고 우측 ChevronDown 이 open 시 180° 회전. */}
-      <details className="group">
+      <details className="group" open={hasHighlightedEvent || undefined}>
         <summary className="flex items-center gap-3 p-3 cursor-pointer list-none hover:bg-gray-800/40 transition-colors">
           {anonymized || !participant.discordId ? (
             <span className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center flex-shrink-0">
@@ -932,7 +943,12 @@ function ParticipantRow({
             return (
               <li
                 key={`${e.event_id}-${e.role}`}
-                className="flex items-center gap-2 text-xs"
+                id={`killbot-event-${e.event_id}`}
+                className={`scroll-mt-24 rounded px-1 py-0.5 flex items-center gap-2 text-xs ${
+                  e.event_id === highlightedEventId
+                    ? 'bg-amber-500/15 ring-1 ring-amber-500/40'
+                    : ''
+                }`}
               >
                 <span
                   className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${roleBadgeClass}`}

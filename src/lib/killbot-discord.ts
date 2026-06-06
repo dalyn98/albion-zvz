@@ -1,5 +1,11 @@
 import { EQUIPMENT_SLOTS, type EquipmentItem } from '@/lib/auto-regear-equipment'
 import { renderKillbotCardPng } from '@/lib/killbot-card'
+import {
+  formatKillbotCompactFame,
+  type KillbotBattlePlayerLine,
+  type KillbotBattleSummary,
+  type KillbotBattleJuicyLine,
+} from '@/lib/killbot-battle'
 import type { KillbotVictimValueEstimate } from '@/lib/killbot-value'
 import type {
   AlbionKillbotEvent,
@@ -11,6 +17,7 @@ import type {
 const DISCORD_API = 'https://discord.com/api/v10'
 const DISCORD_TITLE_LIMIT = 256
 const DISCORD_INLINE_FIELD_LIMIT = 25
+const DISCORD_FIELD_VALUE_LIMIT = 1024
 const KILLBOT_CARD_FILENAME = 'killbot-card.png'
 
 interface DiscordEmbed {
@@ -76,6 +83,16 @@ function playerTitle(
 function truncateDiscord(value: string, limit: number): string {
   if (value.length <= limit) return value
   return `${value.slice(0, Math.max(0, limit - 1))}…`
+}
+
+function markdownLink(label: string, url: string): string {
+  const safeLabel = label
+    .replace(/\\/g, '\\\\')
+    .replace(/\[/g, '\\[')
+    .replace(/\]/g, '\\]')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)')
+  return `[${safeLabel}](${url})`
 }
 
 function itemImageUrl(itemId: string): string {
@@ -172,6 +189,77 @@ export function buildKillbotDiscordPayload(
         timestamp: eventTimeOrNull(event) ?? undefined,
         thumbnail: primaryItem ? { url: itemImageUrl(primaryItem.itemId) } : undefined,
         description: compactDescription({ event, match, homeGuild, participants }),
+        footer: { text: 'Powered by Albion Guild Manager · Killbot' },
+      },
+    ],
+  }
+}
+
+function battleSummaryColor(summary: KillbotBattleSummary): number {
+  if (summary.homeKills > summary.homeDeaths) return 0x22c55e
+  if (summary.homeDeaths > summary.homeKills) return 0xef4444
+  return 0xf59e0b
+}
+
+function formatBattlePlayerLine(
+  line: KillbotBattlePlayerLine,
+  fameKind: 'fame' | 'lost',
+): string {
+  const fame = fameKind === 'fame' ? line.killFame : line.deathFame
+  return `${markdownLink(line.playerName, line.url)} ${line.kills}K / ${line.deaths}D · ${formatKillbotCompactFame(fame)} ${fameKind}`
+}
+
+function formatJuicyLine(line: KillbotBattleJuicyLine): string {
+  return `${markdownLink(line.playerName, line.url)} ${formatKillbotCompactFame(line.fame)} fame`
+}
+
+function fieldValue(lines: string[]): string | null {
+  if (lines.length === 0) return null
+  return truncateDiscord(lines.join('\n'), DISCORD_FIELD_VALUE_LIMIT)
+}
+
+export function buildKillbotBattleDiscordPayload(
+  summary: KillbotBattleSummary,
+  config: KillbotConfig,
+  target: KillbotTarget,
+): DiscordPayload {
+  const fields = [
+    {
+      name: 'Top Kills',
+      value: fieldValue(summary.topKills.map((line) => formatBattlePlayerLine(line, 'fame'))),
+    },
+    {
+      name: 'Top Deaths',
+      value: fieldValue(summary.topDeaths.map((line) => formatBattlePlayerLine(line, 'lost'))),
+    },
+    {
+      name: 'Juicy Kills',
+      value: fieldValue(summary.juicyKills.map(formatJuicyLine)),
+    },
+  ]
+    .filter((field): field is { name: string; value: string } => !!field.value)
+    .slice(0, DISCORD_INLINE_FIELD_LIMIT)
+
+  const homeGuild = target.homeGuildName || 'Home guild'
+  return {
+    content: config.mentionRoleId ? `<@&${config.mentionRoleId}>` : undefined,
+    allowed_mentions: config.mentionRoleId
+      ? { parse: [], roles: [config.mentionRoleId] }
+      : { parse: [] },
+    embeds: [
+      {
+        title: truncateDiscord(summary.title, DISCORD_TITLE_LIMIT),
+        url: summary.detailUrl,
+        color: battleSummaryColor(summary),
+        author: { name: `${homeGuild} Killbot` },
+        timestamp: eventTimeOrNull({
+          EventId: 0,
+          TimeStamp: summary.startedAt,
+        }) ?? undefined,
+        thumbnail: undefined,
+        image: undefined,
+        description: truncateDiscord(summary.description, 512),
+        fields,
         footer: { text: 'Powered by Albion Guild Manager · Killbot' },
       },
     ],

@@ -31,6 +31,7 @@ const target: KillbotTarget = {
   server: 'east',
   homeGuildId: 'guild-home',
   homeGuildName: 'Menhera',
+  tenantSlug: 'menhera',
 }
 
 const config = {
@@ -48,6 +49,7 @@ const fullConfig: KillbotConfig = {
   juicyFameThreshold: 1000,
   includeKills: true,
   includeDeaths: true,
+  feedMode: 'battle',
   mentionRoleId: '99999',
   lastPolledAt: null,
   lastSentAt: null,
@@ -269,7 +271,7 @@ describe('buildKillbotDiscordPayload', () => {
     expect(payload.embeds[0]?.description).toContain('42v39 · Fame 12.4M')
     expect(payload.embeds[0]?.fields?.[0]).toMatchObject({ name: 'Top Kills' })
     expect(payload.embeds[0]?.fields?.[0]?.value).toContain(
-      '[TopKiller](https://menhera.albion-guildmanager.com/battles/battle-row?event=101#killbot-event-101) 2K / 1D · 2.5M fame',
+      '[TopKiller](https://menhera.albion-guildmanager.com/battles/battle-row?event=101#killbot-event-101) 2K / 1D · 2.7M fame',
     )
     expect(payload.embeds[0]?.fields?.[1]).toMatchObject({ name: 'Top Deaths' })
     expect(payload.embeds[0]?.fields?.[1]?.value).toContain(

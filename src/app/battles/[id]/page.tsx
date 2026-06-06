@@ -12,6 +12,7 @@ export const dynamic = 'force-dynamic'
 
 interface SearchParams {
   perspective?: string
+  event?: string
 }
 
 export default async function BattleDetailPage({
@@ -25,8 +26,11 @@ export default async function BattleDetailPage({
 
   const session = await getSession()
   if (!session) {
-    const returnTo = sp.perspective
-      ? `/battles/${id}?perspective=${encodeURIComponent(sp.perspective)}`
+    const query = new URLSearchParams()
+    if (sp.perspective) query.set('perspective', sp.perspective)
+    if (sp.event) query.set('event', sp.event)
+    const returnTo = query.size > 0
+      ? `/battles/${id}?${query.toString()}`
       : `/battles/${id}`
     redirect(`/api/auth/discord/start?returnTo=${encodeURIComponent(returnTo)}`)
   }
@@ -61,7 +65,14 @@ export default async function BattleDetailPage({
         </div>
       )}
 
-      {detail && <BattleDetailView detail={detail} battleId={id} timezone={tenantTimezone} />}
+      {detail && (
+        <BattleDetailView
+          detail={detail}
+          battleId={id}
+          timezone={tenantTimezone}
+          highlightedEventId={sp.event}
+        />
+      )}
     </main>
   )
 }

@@ -10,7 +10,7 @@ import {
 } from '@/app/actions/killbot-admin'
 import { listGuildChannels, type DiscordChannelOption } from '@/app/actions/notifications'
 import { formatDateTimeShort } from '@/lib/format-datetime'
-import type { KillbotAdminState, KillbotDeliveryStatus } from '@/lib/killbot'
+import type { KillbotAdminState, KillbotDeliveryStatus, KillbotFeedMode } from '@/lib/killbot'
 
 interface Props {
   initialState: KillbotAdminState
@@ -45,6 +45,7 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
   const [channelId, setChannelId] = useState(config.channelId ?? '')
   const [includeKills, setIncludeKills] = useState(config.includeKills)
   const [includeDeaths, setIncludeDeaths] = useState(config.includeDeaths)
+  const [feedMode, setFeedMode] = useState<KillbotFeedMode>(config.feedMode)
   const [minFame, setMinFame] = useState(String(config.minFame))
   const [juicyFameThreshold, setJuicyFameThreshold] = useState(
     String(config.juicyFameThreshold),
@@ -73,6 +74,7 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
     setChannelId(next.config.channelId ?? '')
     setIncludeKills(next.config.includeKills)
     setIncludeDeaths(next.config.includeDeaths)
+    setFeedMode(next.config.feedMode)
     setMinFame(String(next.config.minFame))
     setJuicyFameThreshold(String(next.config.juicyFameThreshold))
   }
@@ -85,6 +87,7 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
         channelId: channelId || null,
         includeKills,
         includeDeaths,
+        feedMode,
         minFame: Number(minFame),
         juicyFameThreshold: Number(juicyFameThreshold),
       })
@@ -206,6 +209,26 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
             </select>
           </label>
 
+          <div className="space-y-1">
+            <span className="text-sm font-medium text-gray-200">{t('feedModeLabel')}</span>
+            <div className="grid grid-cols-3 overflow-hidden rounded-lg border border-gray-700 bg-gray-950">
+              {(['battle', 'event', 'both'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setFeedMode(mode)}
+                  className={`px-3 py-2 text-xs font-semibold transition-colors ${
+                    feedMode === mode
+                      ? 'bg-amber-500 text-gray-950'
+                      : 'text-gray-300 hover:bg-gray-800'
+                  }`}
+                >
+                  {t(`feedMode.${mode}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block space-y-1">
               <span className="text-sm font-medium text-gray-200">{t('minFameLabel')}</span>
@@ -326,9 +349,9 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
               </thead>
               <tbody className="divide-y divide-gray-800">
                 {deliveryRows.map((row) => (
-                  <tr key={`${row.feedType}-${row.eventId}`} className="text-gray-200">
+                  <tr key={`${row.sourceType}-${row.sourceKey}-${row.feedType}`} className="text-gray-200">
                     <td className="px-3 py-3 font-mono text-xs">
-                      {row.feedType} #{row.eventId}
+                      {row.feedType} #{row.sourceKey || row.eventId}
                     </td>
                     <td className="px-3 py-3 font-mono text-xs">
                       {row.fame.toLocaleString()}
