@@ -15,16 +15,19 @@ import { getAppSetting } from '@/lib/app-settings'
 import { getSession, sessionHas } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
 import { CAP } from '@/lib/permissions'
-import ShopImportForm from '@/components/ShopImportForm'
-import ShopResetPanel from '@/components/ShopResetPanel'
-import ShopImportTierFilterForm from '@/components/ShopImportTierFilterForm'
-import ShopBlacklistEditor from '@/components/ShopBlacklistEditor'
-import ShopSilverRateForm from '@/components/ShopSilverRateForm'
-import ShopInventoryEditor, { type InventoryRow } from '@/components/ShopInventoryEditor'
-import NoticeSettingForm, { NOTICE_MAX_LENGTH } from '@/components/NoticeSettingForm'
-import AodpSettingsForm from '@/components/AodpSettingsForm'
+import {
+  AodpSettingsFormLazy as AodpSettingsForm,
+  LogOperatingStartSettingsFormLazy as LogOperatingStartSettingsForm,
+  NoticeSettingFormLazy as NoticeSettingForm,
+  ShopBlacklistEditorLazy as ShopBlacklistEditor,
+  ShopImportFormLazy as ShopImportForm,
+  ShopImportTierFilterFormLazy as ShopImportTierFilterForm,
+  ShopInventoryEditorLazy as ShopInventoryEditor,
+  ShopResetPanelLazy as ShopResetPanel,
+  ShopSilverRateFormLazy as ShopSilverRateForm,
+} from '@/components/AdminShopClientSections'
+import type { InventoryRow } from '@/components/ShopInventoryEditor'
 import ShopAnomalyPanel from '@/components/ShopAnomalyPanel'
-import LogOperatingStartSettingsForm from '@/components/LogOperatingStartSettingsForm'
 import { parseShopDiscountRate } from '@/lib/shop/price'
 import { AODP_ALLOWED_CITIES } from '@/lib/shop/aodp-constants'
 import { categoryRank } from '@/lib/shop/category-order'
@@ -53,6 +56,7 @@ const SHOP_PAGE_CAPS = [
   CAP.SHOP_PRICING,
   CAP.CHEST_LOG_PASTE,
 ] as const
+const NOTICE_MAX_LENGTH = 500
 
 export default async function AdminShopPage() {
   const db = await requireAnyCapability(SHOP_PAGE_CAPS)

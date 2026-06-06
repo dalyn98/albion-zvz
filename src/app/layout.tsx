@@ -27,6 +27,7 @@ import { classifyHost, getCanonicalRootDomain, resolveTenantBySlug } from '@/lib
 import { displayNameFromSlug } from '@/lib/tenant-slug'
 import { isIndexablePathname, isPublicPathname } from '@/lib/app-route-classification'
 import { getLocalGuildAccountBySubject } from '@/lib/local-guild-account'
+import { getClientMessages } from '@/lib/client-messages'
 import { pretendard } from './font'
 
 // 마케팅 페이지(/public/(marketing)/*) 는 자체 헤더(MarketingNav) + 푸터를
@@ -291,6 +292,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   ])
 
   const pathname = headersList.get('x-pathname') ?? ''
+  const clientMessages = getClientMessages(messages)
   const isPublic = isPublicPathname(pathname)
   const isMarketingRaw = isMarketingPathname(pathname)
   const isStandalonePublic = isStandalonePublicPathname(pathname)
@@ -635,7 +637,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale} className={`h-full antialiased ${pretendard.variable}`}>
       <body className="min-h-full text-foreground">
-        <NextIntlClientProvider locale={locale} messages={messages}>
+        <NextIntlClientProvider locale={locale} messages={clientMessages}>
           {appBody}
         </NextIntlClientProvider>
       </body>

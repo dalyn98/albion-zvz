@@ -63,7 +63,6 @@ export default async function AppShell({
   let publicProfileHref: string | null = null
   let userStatus: UserStatusSummary | null = null
   let memberTourScope: string | null = null
-  let memberTourEventHref: string | null = null
   if (session) {
     const guildId = await getSessionGuildId(session)
     const isBombSquadCallerOnly =
@@ -95,7 +94,7 @@ export default async function AppShell({
       CAP.CRAFT_TASK_DELIVER,
       CAP.CRAFT_MASTER,
     ])
-    const [badges, tenantCfg, craftEnabledRaw, isCrafter, guildProfileEnabledRaw, statusSummary, tourEventHref] =
+    const [badges, tenantCfg, craftEnabledRaw, isCrafter, guildProfileEnabledRaw, statusSummary] =
       await Promise.all([
         canReviewQueues ? getAdminBadgeCounts(guildId) : Promise.resolve(null),
         getTenantDiscordConfig(guildId),
@@ -107,11 +106,9 @@ export default async function AppShell({
         isBombSquadCallerOnly || isAllianceEventOnly || isAllianceCandidateOnly
           ? Promise.resolve(null)
           : loadUserStatusSummary(guildId, session),
-        session.isMember ? loadMemberTourEventHref(guildId) : Promise.resolve(null),
       ])
     adminBadges = badges
     userStatus = statusSummary
-    memberTourEventHref = tourEventHref
     if (session.isMember && !session.isGuest && !session.isLocalGuildAccount) {
       memberTourScope = `${guildId}:${session.discordId}`
     }
@@ -182,26 +179,11 @@ export default async function AppShell({
       {memberTourScope && (
         <MemberGuidedTour
           storageScope={memberTourScope}
-          eventDetailHref={memberTourEventHref}
+          eventDetailHref={null}
         />
       )}
     </div>
   )
-}
-
-async function loadMemberTourEventHref(guildId: string): Promise<string | null> {
-  const db = getAdminClient()
-  const { data } = await db
-    .from('events')
-    .select('id')
-    .eq('guild_id', guildId)
-    .neq('status', 'draft')
-    .order('gather_at', { ascending: true, nullsFirst: false })
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  return data?.id ? `/events/${data.id}` : null
 }
 
 async function loadUserStatusSummary(

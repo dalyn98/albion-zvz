@@ -64,6 +64,26 @@ function buildAlbionOnboardingHref(returnTo: string): string {
   return `/onboarding/albion?return=${encodeURIComponent(returnTo)}`
 }
 
+const IN_PROGRESS_EVENT_POLL_MS = 45_000
+const IMMINENT_EVENT_POLL_MS = 60_000
+const UPCOMING_EVENT_POLL_MS = 120_000
+const FAR_FUTURE_EVENT_POLL_MS = 5 * 60_000
+const IMMINENT_EVENT_WINDOW_MS = 30 * 60_000
+const UPCOMING_EVENT_WINDOW_MS = 2 * 60 * 60_000
+
+function resolveEventPollIntervalMs(event: Pick<Event, 'battle_started_at' | 'gather_at'>): number {
+  if (event.battle_started_at) return IN_PROGRESS_EVENT_POLL_MS
+  if (!event.gather_at) return UPCOMING_EVENT_POLL_MS
+
+  const gatherAt = new Date(event.gather_at).getTime()
+  if (!Number.isFinite(gatherAt)) return UPCOMING_EVENT_POLL_MS
+
+  const msUntilGather = gatherAt - Date.now()
+  if (msUntilGather > UPCOMING_EVENT_WINDOW_MS) return FAR_FUTURE_EVENT_POLL_MS
+  if (msUntilGather > IMMINENT_EVENT_WINDOW_MS) return UPCOMING_EVENT_POLL_MS
+  return IMMINENT_EVENT_POLL_MS
+}
+
 function EventAccessGate({
   title,
   description,
@@ -473,16 +493,12 @@ export default async function EventDetailPage({
     (interactionSession?.isGuest && interactionSession.eventScope === id && !guestProfile) ||
     (hasGuestInvite && (!interactionSession || interactionSession.isGuest))
 
-  // Pre-battle & in-progress battles get live polling. Once the battle is
-  // finished (battle_started_at + 1h), slots are frozen — no reason to keep
-  // hammering the DB or draining mobile batteries.
-  // 페이즈별 폴링 간격을 분리한다. 모집 단계 (pre-battle) 에서 슬롯 변경은
-  // 비교적 느려서 30s 면 사용자 체감 지연 없음 — 이 단계가 RSC 재렌더의
-  // 대부분을 차지하므로 50% 감축이 부하 절감 효과가 가장 크다. 전투 개시
-  // 후 1h 까지는 staff 라이브 모니터링용으로 30s polling 만 유지.
+  // Poll only while the event can still change, and slow down far-future events
+  // so users who keep an event tab open do not trigger a full RSC refresh every
+  // minute for hours.
   const shouldPoll = !event.battle_started_at || !isEnded(event.battle_started_at)
   const battleEnded = !!event.battle_started_at && isEnded(event.battle_started_at)
-  const pollIntervalMs = event.battle_started_at ? 30_000 : 60_000
+  const pollIntervalMs = resolveEventPollIntervalMs(event)
   let myAssigned:
     | { partyName: string; slotNumber: number; roleName: string | null }
     | null = null

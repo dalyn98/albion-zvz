@@ -1,7 +1,7 @@
 import { getAppSetting } from '@/lib/app-settings'
 import { listRoleRewards } from '@/app/actions/regear-admin'
 import type { LocalGuildAccountSummary } from '@/app/actions/local-guild-account'
-import SettingsTabs from '@/components/SettingsTabs'
+import SettingsTabs from '@/components/SettingsTabsLazy'
 import { getGuild, isAlbionServer, type AlbionServer } from '@/lib/albion-gameinfo'
 import { getTranslations } from 'next-intl/server'
 import { SLOT_ROLES, SLOT_KEYS, type SlotRole, type SlotKey } from '@/types'
