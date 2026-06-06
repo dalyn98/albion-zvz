@@ -12,6 +12,7 @@
 import { getAdminClient } from '@/lib/supabase-admin'
 import { getAppSetting } from '@/lib/app-settings'
 import { discordAvatarUrl } from '@/lib/discord-avatar'
+import { loadActiveGuildProfileAvatars } from '@/lib/guild-profile-avatars'
 import { extractWeaponCategory } from '@/lib/weapon-category'
 import { loadGuildBattleRollup } from '@/lib/guild-battle-rollup'
 import { fetchTrackedBattleWindows, findTrackedBattleKey } from '@/lib/tracked-kills'
@@ -23,6 +24,15 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const ROLLING_WINDOW_DAYS = 30
 const TOP_WEAPONS = 5
 const TOP_RIVALS = 3
+
+function numberFromRpc(value: number | string | null | undefined): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  return 0
+}
 
 export interface LifetimeBattleStats {
   // 합산 킬 / 사망 (high-engagement 컷 + 옵션 번들 적용 후).
@@ -84,6 +94,27 @@ export async function loadTopWeaponCategoriesLast30d(
   // 같은 전투에서 같은 카테고리가 여러 킬을 내도 "사용 전투 1회" 로 센다.
   const bundleEnabled =
     (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
+  const { data, error } = await db.rpc('guild_top_weapon_categories', {
+    p_guild_id: guildId,
+    p_cutoff: cutoffIso,
+    p_bundle_splits: bundleEnabled,
+    p_limit: TOP_WEAPONS,
+  })
+  if (!error) {
+    return ((data ?? []) as Array<{
+      category: string | null
+      sample_item_id: string | null
+      battle_count: number | string | null
+    }>).map((row) => ({
+      category: row.category ?? '',
+      sampleItemId: row.sample_item_id ?? '',
+      count: numberFromRpc(row.battle_count),
+    })).filter((row) => row.category.length > 0 && row.sampleItemId.length > 0)
+  }
+  if (!isMissingRpcError(error, 'guild_top_weapon_categories')) {
+    throw new Error(error.message)
+  }
+
   const tracked = await fetchTrackedBattleWindows(db, guildId, cutoffIso, {
     bundleSplits: bundleEnabled,
   })
@@ -170,10 +201,10 @@ export async function loadTopRivalsLast30d(
       ties: number | string | null
     }>).map((row) => ({
       guildName: row.guild_name ?? '',
-      battleCount: Number(row.battle_count ?? 0),
-      wins: Number(row.wins ?? 0),
-      losses: Number(row.losses ?? 0),
-      ties: Number(row.ties ?? 0),
+      battleCount: numberFromRpc(row.battle_count),
+      wins: numberFromRpc(row.wins),
+      losses: numberFromRpc(row.losses),
+      ties: numberFromRpc(row.ties),
     })).filter((row) => row.guildName.length > 0)
   }
   if (!isMissingRpcError(error, 'guild_top_rivals')) {
@@ -224,29 +255,15 @@ export interface AdminTeamMember {
 }
 
 export async function loadAdminTeam(guildId: string): Promise<AdminTeamMember[]> {
-  const db = getAdminClient()
-  const { data } = await db
-    .from('guild_avatars')
-    .select('discord_id, username, avatar, public_discord_handle')
-    .eq('guild_id', guildId)
-    .eq('is_admin', true)
-    .is('withdrawn_at', null)
-    .order('username', { ascending: true })
-
-  type Row = {
-    discord_id: string | null
-    username: string | null
-    avatar: string | null
-    public_discord_handle: string | null
-  }
+  const avatars = await loadActiveGuildProfileAvatars(guildId)
   const out: AdminTeamMember[] = []
-  for (const row of (data ?? []) as Row[]) {
-    if (!row.discord_id || !row.username) continue
-    const handle = (row.public_discord_handle ?? '').trim()
+  for (const row of avatars) {
+    if (!row.isAdmin) continue
+    const handle = (row.publicDiscordHandle ?? '').trim()
     out.push({
-      discordId: row.discord_id,
+      discordId: row.discordId,
       username: row.username,
-      avatarUrl: discordAvatarUrl(row.discord_id, row.avatar, 64),
+      avatarUrl: discordAvatarUrl(row.discordId, row.avatar, 64),
       publicDiscordHandle: handle.length > 0 ? handle : null,
     })
   }

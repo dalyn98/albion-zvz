@@ -18,6 +18,10 @@ import * as Sentry from '@sentry/nextjs'
 
 type LogContext = Record<string, unknown>
 
+function shouldEmitInfoLogs(): boolean {
+  return process.env.NODE_ENV !== 'production' || process.env.AGM_VERBOSE_INFO_LOGS === 'true'
+}
+
 function formatPrefix(message: string): string {
   return message
 }
@@ -64,6 +68,9 @@ function safeStringify(v: unknown): string {
 
 export const log = {
   info(message: string, ctx?: LogContext): void {
+    // Normal success logs are the largest source of avoidable Vercel Observability
+    // events. Keep them in dev/test, and make production info logs explicit opt-in.
+    if (!shouldEmitInfoLogs()) return
     dispatchConsole('info', message, ctx)
   },
   warn(message: string, ctx?: LogContext): void {

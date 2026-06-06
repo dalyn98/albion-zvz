@@ -32,6 +32,7 @@ describe('loadTopContributorsThisWeek', () => {
       eq: vi.fn(() => avatarsQuery),
       is: vi.fn(() => avatarsQuery),
       not: vi.fn(() => avatarsQuery),
+      order: vi.fn(() => avatarsQuery),
       then: (resolve: (value: unknown) => void, reject?: (reason: unknown) => void) =>
         Promise.resolve({
           data: [

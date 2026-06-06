@@ -65,6 +65,8 @@ type Row = Record<string, unknown>
 let battleRecords: Row[] = []
 let killboardEvents: Row[] = []
 let adminAvatars: Row[] = []
+let rpcResponses: Record<string, QueryShape> = {}
+let fromCalls: string[] = []
 
 interface QueryShape {
   data: Row[] | null
@@ -101,11 +103,15 @@ function chain(resolver: () => QueryShape): QueryChain {
 
 vi.mock('@/lib/supabase-admin', () => ({
   getAdminClient: () => ({
-    rpc: () => Promise.resolve({
-      data: null,
-      error: { code: 'PGRST202', message: 'rpc not deployed' },
-    }),
+    rpc: (name: string) =>
+      Promise.resolve(
+        rpcResponses[name] ?? {
+          data: null,
+          error: { code: 'PGRST202', message: 'rpc not deployed' },
+        },
+      ),
     from: (table: string) => {
+      fromCalls.push(table)
       if (table === 'tenant_battle_records') {
         return chain(() => ({ data: battleRecords, error: null }))
       }
@@ -134,6 +140,9 @@ beforeEach(() => {
   battleRecords = []
   killboardEvents = []
   adminAvatars = []
+  rpcResponses = {}
+  fromCalls = []
+  fetchTrackedBattleWindowsMock.mockClear()
   getGuildMock.mockReset()
 })
 
@@ -179,6 +188,25 @@ describe('loadLifetimeBattleStats', () => {
 })
 
 describe('loadTopWeaponCategoriesLast30d', () => {
+  it('uses the SQL weapon category rollup RPC when available', async () => {
+    rpcResponses.guild_top_weapon_categories = {
+      data: [
+        { category: 'FIRESTAFF', sample_item_id: 'T8_MAIN_FIRESTAFF@2', battle_count: '4' },
+        { category: 'HOLYSTAFF', sample_item_id: 'T8_2H_HOLYSTAFF', battle_count: 2 },
+      ],
+      error: null,
+    }
+
+    const r = await loadTopWeaponCategoriesLast30d('tenant-1')
+
+    expect(r).toEqual([
+      { category: 'FIRESTAFF', sampleItemId: 'T8_MAIN_FIRESTAFF@2', count: 4 },
+      { category: 'HOLYSTAFF', sampleItemId: 'T8_2H_HOLYSTAFF', count: 2 },
+    ])
+    expect(fromCalls).not.toContain('killboard_events')
+    expect(fetchTrackedBattleWindowsMock).not.toHaveBeenCalled()
+  })
+
   it('returns empty when there are no tracked windows', async () => {
     fetchTrackedBattleWindowsMock.mockResolvedValueOnce({ windows: [] })
     killboardEvents = [
@@ -273,16 +301,17 @@ describe('loadTopRivalsLast30d', () => {
 
 describe('loadAdminTeam', () => {
   it('returns empty when no admins', async () => {
-    expect(await loadAdminTeam('tenant-1')).toEqual([])
+    expect(await loadAdminTeam('tenant-empty')).toEqual([])
   })
 
   it('maps admins to public team entries', async () => {
     adminAvatars = [
-      { discord_id: 'a', username: 'admin-a', avatar: null, public_discord_handle: 'admin#1' },
-      { discord_id: 'b', username: 'admin-b', avatar: null, public_discord_handle: null },
-      { discord_id: null, username: 'should-skip', avatar: null, public_discord_handle: null },
+      { discord_id: 'a', username: 'admin-a', avatar: null, is_admin: true, public_discord_handle: 'admin#1' },
+      { discord_id: 'b', username: 'admin-b', avatar: null, is_admin: true, public_discord_handle: null },
+      { discord_id: 'c', username: 'member-c', avatar: null, is_admin: false, public_discord_handle: null },
+      { discord_id: null, username: 'should-skip', avatar: null, is_admin: true, public_discord_handle: null },
     ]
-    const r = await loadAdminTeam('tenant-1')
+    const r = await loadAdminTeam('tenant-admins')
     expect(r.length).toBe(2)
     expect(r[0].publicDiscordHandle).toBe('admin#1')
     expect(r[1].publicDiscordHandle).toBeNull()
@@ -291,9 +320,9 @@ describe('loadAdminTeam', () => {
 
   it('treats whitespace-only public_discord_handle as null', async () => {
     adminAvatars = [
-      { discord_id: 'a', username: 'admin-a', avatar: null, public_discord_handle: '   ' },
+      { discord_id: 'a', username: 'admin-a', avatar: null, is_admin: true, public_discord_handle: '   ' },
     ]
-    const r = await loadAdminTeam('tenant-1')
+    const r = await loadAdminTeam('tenant-admin-whitespace')
     expect(r[0].publicDiscordHandle).toBeNull()
   })
 })

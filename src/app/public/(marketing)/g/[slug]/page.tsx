@@ -98,10 +98,15 @@ interface PublicGuildProfileCachedData {
 
 async function loadPublicGuildProfileData(
   guildId: string,
+  showActivity: boolean,
+  showStats: boolean,
   showMembers: boolean,
   showBattles: boolean,
   showRegearStats: boolean,
   showLeaderboard: boolean,
+  showAdminTeam: boolean,
+  showWeapons: boolean,
+  showRivals: boolean,
   weeklyStatsEnabled: boolean,
   serverOverride: string,
 ): Promise<PublicGuildProfileCachedData> {
@@ -119,21 +124,21 @@ async function loadPublicGuildProfileData(
     alliance,
   ] = await Promise.all([
     loadSectionStats(guildId, {
-      showMembers,
-      showBattles,
-      showRegearStats,
+      showMembers: showStats && showMembers,
+      showBattles: showStats && showBattles,
+      showRegearStats: showStats && showRegearStats,
     }),
     loadGalleryItems(guildId),
-    showBattles ? loadRecentTrackedBattle(guildId) : Promise.resolve(null),
-    showLeaderboard ? loadTopContributorsThisWeek(guildId, 3) : Promise.resolve([]),
-    weeklyStatsEnabled
+    showActivity && showBattles ? loadRecentTrackedBattle(guildId) : Promise.resolve(null),
+    showActivity && showLeaderboard ? loadTopContributorsThisWeek(guildId, 3) : Promise.resolve([]),
+    showActivity && weeklyStatsEnabled
       ? loadGuildWeeklyStats(guildId)
       : Promise.resolve<GuildWeeklyStats | null>(null),
     resolveProfileServer(guildId, serverOverride),
-    showBattles ? loadLifetimeBattleStats(guildId) : Promise.resolve(null),
-    showBattles ? loadTopWeaponCategoriesLast30d(guildId) : Promise.resolve<WeaponCategoryUsage[]>([]),
-    showBattles ? loadTopRivalsLast30d(guildId) : Promise.resolve<RivalGuild[]>([]),
-    loadAdminTeam(guildId),
+    showStats && showBattles ? loadLifetimeBattleStats(guildId) : Promise.resolve(null),
+    showWeapons && showBattles ? loadTopWeaponCategoriesLast30d(guildId) : Promise.resolve<WeaponCategoryUsage[]>([]),
+    showRivals && showBattles ? loadTopRivalsLast30d(guildId) : Promise.resolve<RivalGuild[]>([]),
+    showAdminTeam ? loadAdminTeam(guildId) : Promise.resolve([]),
     loadAllianceInfo(guildId, serverOverride),
   ])
 
@@ -254,20 +259,25 @@ export default async function GuildProfilePage({
 
   // 멤버 대시보드 섹션은 길드별 토글(`member_dashboard_enabled`) 로 게이트한다.
   // 'true' 인 길드만 본인 카드 + 비로그인 CTA 배너를 노출한다.
-  const memberDashboardEnabled =
-    (await getAppSetting('member_dashboard_enabled', 'false', tenant.tenantId)) === 'true'
-  const [localAccountsEnabledRaw, localInviteHash] = await Promise.all([
+  const [
+    memberDashboardEnabledRaw,
+    localAccountsEnabledRaw,
+    localInviteHash,
+    weeklyStatsEnabledRaw,
+  ] = await Promise.all([
+    getAppSetting('member_dashboard_enabled', 'false', tenant.tenantId),
     getAppSetting('local_guild_accounts_enabled', 'false', tenant.tenantId),
     getAppSetting('local_guild_invite_hash', '', tenant.tenantId),
+    getAppSetting('home_weekly_stats_enabled', 'false', tenant.tenantId),
   ])
+  const memberDashboardEnabled = memberDashboardEnabledRaw === 'true'
   const localLoginEnabled =
     localAccountsEnabledRaw === 'true' && localInviteHash.trim().length > 0
 
   // 이번 주 활동 KPI 위젯도 같은 길드별 토글(`home_weekly_stats_enabled`) — 원래
   // 홈(`/`) 페이지에 있던 위젯이 길드 공개 페이지로 이동했다 (#208). 설정 키는
   // 그대로 유지해 기존 길드의 'true' 가 즉시 반영되게 한다.
-  const weeklyStatsEnabled =
-    (await getAppSetting('home_weekly_stats_enabled', 'false', tenant.tenantId)) === 'true'
+  const weeklyStatsEnabled = weeklyStatsEnabledRaw === 'true'
 
   // 세션이 보고 있는 길드 = 페이지 길드 + isMember 일 때만 멤버 카드 데이터를
   // 페치한다. 다른 길드의 멤버나 비로그인은 페치 자체를 건너뛰어 비용 0.
@@ -309,10 +319,15 @@ export default async function GuildProfilePage({
   const [publicData, memberSummary, adminBadges] = await Promise.all([
     loadPublicGuildProfileDataCached(
       tenant.tenantId,
+      settings.showActivity,
+      settings.showStats,
       settings.showMembers,
       settings.showBattles,
       settings.showRegearStats,
       settings.showLeaderboard,
+      settings.showAdminTeam,
+      settings.showWeapons,
+      settings.showRivals,
       weeklyStatsEnabled,
       settings.serverOverride,
     ),

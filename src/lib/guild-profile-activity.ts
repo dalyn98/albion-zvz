@@ -8,6 +8,7 @@
 import { getAdminClient } from '@/lib/supabase-admin'
 import { discordAvatarUrl } from '@/lib/discord-avatar'
 import { getAppSetting } from '@/lib/app-settings'
+import { loadActiveGuildProfileAvatars } from '@/lib/guild-profile-avatars'
 import { isHighEngagement } from '@/lib/low-engagement-cut'
 import { getCurrentWeekStartIso } from '@/lib/timezone'
 import {
@@ -197,24 +198,19 @@ export async function loadTopContributorsThisWeek(
   // killboard_events 는 discord_id IS NOT NULL 게이트로 "사이트 가입 이후
   // 발생한 kill" 만 통과시킨다. 리더보드/멤버 상세/RPC 와 동일 정책.
   // (관련 메모: feedback_albion_zvz_stats_membership_policy)
-  const [avatarsRes, rpcRollups] =
+  const [avatars, rpcRollups] =
     await Promise.all([
-      db
-        .from('guild_avatars')
-        .select('discord_id, username, avatar, albion_player_id')
-        .eq('guild_id', guildId)
-        .is('withdrawn_at', null)
-        .not('albion_player_id', 'is', null),
+      loadActiveGuildProfileAvatars(guildId),
       fetchMemberLeaderboardRollups(db, guildId, sinceIso, bundleSplits),
     ])
 
   const metaByAlbionId = new Map<string, TopContributorMemberMeta>()
-  for (const av of avatarsRes.data ?? []) {
-    if (!av.albion_player_id || !av.discord_id || !av.username) continue
-    metaByAlbionId.set(av.albion_player_id as string, {
-      discordId: av.discord_id as string,
-      username: av.username as string,
-      avatar: (av.avatar as string | null) ?? null,
+  for (const av of avatars) {
+    if (!av.albionPlayerId) continue
+    metaByAlbionId.set(av.albionPlayerId, {
+      discordId: av.discordId,
+      username: av.username,
+      avatar: av.avatar,
     })
   }
 

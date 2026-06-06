@@ -27,6 +27,11 @@ const memberParticipationSingleSql = readFileSync(
   'utf8',
 )
 
+const guildTopWeaponCategoriesSql = readFileSync(
+  join(process.cwd(), 'supabase/migrations/201_guild_top_weapon_categories_rpc.sql'),
+  'utf8',
+)
+
 describe('server/db aggregate RPC migrations', () => {
   it('keeps siphon balances tenant scoped and service-role only', () => {
     expect(sql).toMatch(/create or replace function public\.get_siphon_balances/i)
@@ -49,6 +54,16 @@ describe('server/db aggregate RPC migrations', () => {
     expect(sql).toMatch(/where tbr\.guild_id = p_guild_id/i)
     expect(sql).toMatch(/and tbr\.is_high_engagement = true/i)
     expect(sql).toMatch(/grant execute on function public\.guild_top_rivals\(uuid, timestamptz, integer\) to service_role/i)
+  })
+
+  it('keeps top weapon categories scoped and battle-window filtered', () => {
+    expect(guildTopWeaponCategoriesSql).toMatch(/create or replace function public\.guild_top_weapon_categories/i)
+    expect(guildTopWeaponCategoriesSql).toMatch(/where tbr\.guild_id = p_guild_id/i)
+    expect(guildTopWeaponCategoriesSql).toMatch(/where ke\.guild_id = p_guild_id/i)
+    expect(guildTopWeaponCategoriesSql).toMatch(/ke\.role = 'killer'/i)
+    expect(guildTopWeaponCategoriesSql).toMatch(/ke\.discord_id is not null/i)
+    expect(guildTopWeaponCategoriesSql).toMatch(/ke\.battle_id = tk\.albion_battle_id/i)
+    expect(guildTopWeaponCategoriesSql).toMatch(/grant execute on function public\.guild_top_weapon_categories\(uuid, timestamptz, boolean, integer\) to service_role/i)
   })
 
   it('keeps member leaderboard rollups scoped and battle-window filtered', () => {
