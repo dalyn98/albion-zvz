@@ -180,6 +180,26 @@ describe('submitShopOrder', () => {
         },
       ],
     })
+    expect(mocks.sendAdminNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        topic: 'shop',
+        sourceTable: 'shop_orders',
+        sourceId: 'order-1',
+        title: 'shopTitle',
+        body: 'shopBody:{"user":"MemberOne","points":"200"}',
+        fields: [
+          {
+            name: 'shopItemsField',
+            value: 'shopItemLine:{"item":"테스트 장비","quantity":"2","points":"200"}',
+          },
+          {
+            name: 'shopSummaryField',
+            value: 'shopSummaryValue:{"points":"200","types":1,"quantity":"2"}',
+            inline: true,
+          },
+        ],
+      }),
+    )
   })
 
   it('allows an unpriced inventory item when the member provides a quote', async () => {
@@ -233,6 +253,21 @@ describe('submitShopOrder', () => {
         },
       ],
     })
+    expect(mocks.sendAdminNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fields: expect.arrayContaining([
+          {
+            name: 'shopItemsField',
+            value: 'shopItemLine:{"item":"테스트 장비","quantity":"2","points":"300"}',
+          },
+          {
+            name: 'shopPriceReviewField',
+            value: 'shopPriceReviewValue',
+            inline: true,
+          },
+        ]),
+      }),
+    )
   })
 
   it('uses a member quote as the requested total even when the item already has a catalog price', async () => {

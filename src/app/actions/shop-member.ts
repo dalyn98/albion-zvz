@@ -35,6 +35,8 @@ const QUOTE_CITY_MAX = 40
 const QUOTE_NOTE_MAX = 200
 const QUOTE_EVIDENCE_URL_MAX = 300
 const POSTGRES_INT_MAX = 2147483647
+const SHOP_ADMIN_NOTIFICATION_ITEM_LIMIT = 8
+const SHOP_ADMIN_NOTIFICATION_ITEM_NAME_MAX = 80
 
 interface NormalizedQuote {
   unitSilver: number
@@ -49,11 +51,33 @@ interface NormalizedOrderInputLine {
   quote: NormalizedQuote | null
 }
 
+interface ShopOrderLine {
+  uniqueName: string
+  enchant: number
+  quality: number
+  nameKo: string
+  quantity: number
+  unitPoints: number
+  subtotalPoints: number
+  pricingSource: 'catalog' | 'member_quote'
+  catalogUnitSilverSnapshot: number | null
+  memberQuoteUnitSilver: number | null
+  memberQuoteUnitPoints: number | null
+  memberQuoteCity: string | null
+  memberQuoteNote: string | null
+  memberQuoteEvidenceUrl: string | null
+}
+
 function trimOptionalString(value: unknown): string | null {
   if (value === null || value === undefined) return null
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
   return trimmed ? trimmed : null
+}
+
+function compactText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value
+  return `${value.slice(0, Math.max(0, maxLength - 1))}…`
 }
 
 function isHttpUrl(value: string): boolean {
@@ -192,22 +216,7 @@ export async function submitShopOrder(
     )
 
     // 라인 검증 + 총액 계산.
-    const orderLines: Array<{
-      uniqueName: string
-      enchant: number
-      quality: number
-      nameKo: string
-      quantity: number
-      unitPoints: number
-      subtotalPoints: number
-      pricingSource: 'catalog' | 'member_quote'
-      catalogUnitSilverSnapshot: number | null
-      memberQuoteUnitSilver: number | null
-      memberQuoteUnitPoints: number | null
-      memberQuoteCity: string | null
-      memberQuoteNote: string | null
-      memberQuoteEvidenceUrl: string | null
-    }> = []
+    const orderLines: ShopOrderLine[] = []
     let total = 0
     let priceReviewRequired = false
     for (const line of lineByInventoryId.values()) {
@@ -308,6 +317,47 @@ export async function submitShopOrder(
     revalidatePath('/me')
     revalidatePath('/admin/dashboard/approvals')
     revalidatePath('/', 'layout')
+    const visibleOrderLines = orderLines.slice(0, SHOP_ADMIN_NOTIFICATION_ITEM_LIMIT)
+    const itemSummaryLines = visibleOrderLines.map((line) => {
+      const item = compactText(
+        line.enchant > 0 ? `${line.nameKo} .${line.enchant}` : line.nameKo,
+        SHOP_ADMIN_NOTIFICATION_ITEM_NAME_MAX,
+      )
+      return tAdminNotify('shopItemLine', {
+        item,
+        quantity: line.quantity.toLocaleString('en-US'),
+        points: line.subtotalPoints.toLocaleString('en-US'),
+      })
+    })
+    const hiddenItemCount = orderLines.length - visibleOrderLines.length
+    if (hiddenItemCount > 0) {
+      itemSummaryLines.push(tAdminNotify('shopItemsMore', { count: hiddenItemCount }))
+    }
+    const totalQuantity = orderLines.reduce((sum, line) => sum + line.quantity, 0)
+    const notificationFields = [
+      {
+        name: tAdminNotify('shopItemsField'),
+        value: itemSummaryLines.join('\n'),
+      },
+      {
+        name: tAdminNotify('shopSummaryField'),
+        value: tAdminNotify('shopSummaryValue', {
+          points: total.toLocaleString('en-US'),
+          types: orderLines.length,
+          quantity: totalQuantity.toLocaleString('en-US'),
+        }),
+        inline: true,
+      },
+      ...(priceReviewRequired
+        ? [
+            {
+              name: tAdminNotify('shopPriceReviewField'),
+              value: tAdminNotify('shopPriceReviewValue'),
+              inline: true,
+            },
+          ]
+        : []),
+    ]
     void sendAdminNotification({
       guildId,
       topic: 'shop',
@@ -319,6 +369,7 @@ export async function submitShopOrder(
         points: total.toLocaleString('en-US'),
       }),
       url: '/admin/dashboard/approvals?tab=shop',
+      fields: notificationFields,
     })
     return { ok: true, orderId: orderId as string }
   } catch (e) {
