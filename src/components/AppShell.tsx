@@ -13,8 +13,10 @@ import { canAccessAnyOfficerAdminRoute } from '@/lib/admin-route-access'
 import { CAP } from '@/lib/permissions'
 import { getAlbionOnboardingGateState } from '@/lib/albion-identity'
 import { resolveSiphonPlayer } from '@/lib/siphon/member-siphon'
+import { loadMemberSiphonAccount } from '@/lib/siphon/member-siphon-account-server'
 import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 import { getMemberPointBalance } from '@/lib/point-ledger'
+import { getMemberPendingRequestCounts } from '@/lib/member-pending-counts'
 import AppSidebar from './AppSidebar'
 import UserStatusChip, {
   type UserStatusSiphonState,
@@ -26,7 +28,6 @@ import MemberGuidedTour from './MemberGuidedTour'
 // 로 하드코딩돼 있었으나 multi-tenant SaaS 가 되면서 다른 길드에 멘헤라 라벨이
 // 노출되는 문제 → 제품명으로 대체.
 const DEFAULT_BRAND_NAME = 'Albion ZvZ'
-const SIPHON_PAGE_SIZE = 1000
 
 export default async function AppShell({
   children,
@@ -221,7 +222,7 @@ async function loadUserStatusSummary(
   }
 
   const db = getAdminClient()
-  const [avatarRes, identityGate, pointBalance, regearRes, exchangeRes, donationRes] = await Promise.all([
+  const [avatarRes, identityGate, pointBalance, pendingCounts] = await Promise.all([
     db
       .from('guild_avatars')
       .select('username')
@@ -230,24 +231,7 @@ async function loadUserStatusSummary(
       .maybeSingle(),
     getAlbionOnboardingGateState(session.discordId, guildId),
     getMemberPointBalance(db, guildId, session.discordId),
-    db
-      .from('regear_requests')
-      .select('id', { head: true, count: 'exact' })
-      .eq('guild_id', guildId)
-      .eq('discord_id', session.discordId)
-      .eq('status', 'pending'),
-    db
-      .from('exchange_requests')
-      .select('id', { head: true, count: 'exact' })
-      .eq('guild_id', guildId)
-      .eq('discord_id', session.discordId)
-      .eq('status', 'pending'),
-    db
-      .from('donation_requests')
-      .select('id', { head: true, count: 'exact' })
-      .eq('guild_id', guildId)
-      .eq('discord_id', session.discordId)
-      .eq('status', 'pending'),
+    getMemberPendingRequestCounts(db, guildId, session.discordId),
   ])
 
   const avatar = avatarRes.data as {
@@ -259,9 +243,9 @@ async function loadUserStatusSummary(
     avatar?.username?.trim() ||
     session.username
   const balance = pointBalance.error ? 0 : pointBalance.balance
-  const pendingRegearCount = regearRes.count ?? 0
-  const pendingExchangeCount = exchangeRes.count ?? 0
-  const pendingDonationCount = donationRes.count ?? 0
+  const pendingRegearCount = pendingCounts.regear
+  const pendingExchangeCount = pendingCounts.exchange
+  const pendingDonationCount = pendingCounts.donation
   const siphon = await loadUserSiphonSummary(db, guildId, siphonPlayer)
 
   return {
@@ -285,32 +269,20 @@ async function loadUserSiphonSummary(
     return { balance: null, state: 'unverified' }
   }
 
-  let balance = 0
-  let from = 0
   const operatingStart = await getLogOperatingStart('siphon', guildId)
+  const result = await loadMemberSiphonAccount({
+    db,
+    guildId,
+    player: player.player,
+    operatingStart,
+    recentLimit: 0,
+  })
 
-  while (true) {
-    let q = db
-      .from('siphon_ledger')
-      .select('quantity')
-      .eq('guild_id', guildId)
-      .eq('player', player.player)
-    if (operatingStart) q = q.gte('logged_at', operatingStart.toISOString())
-    const { data, error } = await q
-      .order('id', { ascending: true })
-      .range(from, from + SIPHON_PAGE_SIZE - 1)
-
-    if (error) return { balance: null, state: 'unavailable' }
-
-    const rows = data ?? []
-    for (const row of rows) {
-      balance += Number(row.quantity) || 0
-    }
-    if (rows.length < SIPHON_PAGE_SIZE) break
-    from += SIPHON_PAGE_SIZE
+  if ('error' in result) {
+    return { balance: null, state: 'unavailable' }
   }
 
-  return { balance, state: 'ready' }
+  return { balance: result.account.net, state: 'ready' }
 }
 
 // guild_avatars.is_crafter 직접 조회. craft.ts 의 loadIsCrafter 와 동일 — 'use server'

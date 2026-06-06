@@ -20,6 +20,7 @@ import { getCurrentWeekStartIso } from '@/lib/timezone'
 import { getAppSetting } from '@/lib/app-settings'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
 import { selectPagedRowsOrThrow, type SupabasePagedQuery } from '@/lib/supabase-pagination'
+import { getMemberPendingRequestCounts } from '@/lib/member-pending-counts'
 
 export type MyDashboardNextEventKind = 'assigned' | 'pending' | 'tentative' | 'available'
 
@@ -152,9 +153,7 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     openEventsRes,
     avatarRes,
     killboardRows,
-    regearRes,
-    exchangeRes,
-    donationRes,
+    pendingCounts,
     trackedBattles,
     participationsByMember,
   ] = await Promise.all([
@@ -217,24 +216,7 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
           .order('occurred_at', { ascending: true })
           .order('event_id', { ascending: true }) as unknown as SupabasePagedQuery<MyDashboardKillboardRow>,
     }),
-    db
-      .from('regear_requests')
-      .select('id', { head: true, count: 'exact' })
-      .eq('guild_id', guildId)
-      .eq('discord_id', session.discordId)
-      .eq('status', 'pending'),
-    db
-      .from('exchange_requests')
-      .select('id', { head: true, count: 'exact' })
-      .eq('guild_id', guildId)
-      .eq('discord_id', session.discordId)
-      .eq('status', 'pending'),
-    db
-      .from('donation_requests')
-      .select('id', { head: true, count: 'exact' })
-      .eq('guild_id', guildId)
-      .eq('discord_id', session.discordId)
-      .eq('status', 'pending'),
+    getMemberPendingRequestCounts(db, guildId, session.discordId),
     fetchTrackedBattleWindows(db, guildId, null, { bundleSplits }),
     fetchMemberBattleParticipations(db, guildId),
   ])
@@ -396,8 +378,8 @@ export async function getMyDashboard(): Promise<MyDashboardData | null> {
     weekLosses,
     nextUpcomingEvent: upcoming,
     nextActionEvent,
-    pendingRegearCount: regearRes.count ?? 0,
-    pendingExchangeCount: exchangeRes.count ?? 0,
-    pendingDonationCount: donationRes.count ?? 0,
+    pendingRegearCount: pendingCounts.regear,
+    pendingExchangeCount: pendingCounts.exchange,
+    pendingDonationCount: pendingCounts.donation,
   }
 }
