@@ -45,21 +45,41 @@ interface Props {
   orders: AdminShopOrder[]
   timezone: string
   avatars?: Record<string, string | null>
+  focusedOrderId?: string
 }
 
-export default function ShopOrderReviewList({ orders, timezone, avatars = {} }: Props) {
+export default function ShopOrderReviewList({
+  orders,
+  timezone,
+  avatars = {},
+  focusedOrderId = '',
+}: Props) {
   const t = useTranslations('adminShopOrderReview')
-  const [search, setSearch] = useState('')
+  const locale = useLocale() as Locale
+  const [search, setSearch] = useState(focusedOrderId)
   const filtered = useMemo(() => {
     const q = normalizeQuery(search)
     if (!q) return orders
-    return orders.filter(
-      (o) =>
+    return orders.filter((o) => {
+      if (
         matchesName(o.username, q) ||
         matchesDate(o.createdAt, q) ||
-        matchesDate(o.resolvedAt, q),
-    )
-  }, [orders, search])
+        matchesDate(o.resolvedAt, q) ||
+        o.id.toLowerCase().includes(q)
+      ) {
+        return true
+      }
+      return o.items.some((item) => {
+        const localizedName =
+          getLocalizedItemName(item.uniqueName, locale, item.nameKo) ?? item.nameKo
+        return (
+          normalizeQuery(item.uniqueName).includes(q) ||
+          normalizeQuery(item.nameKo).includes(q) ||
+          normalizeQuery(localizedName).includes(q)
+        )
+      })
+    })
+  }, [locale, orders, search])
 
   return (
     <div className="space-y-3">
@@ -74,6 +94,7 @@ export default function ShopOrderReviewList({ orders, timezone, avatars = {} }: 
               order={o}
               avatar={avatars[o.discordId] ?? null}
               timezone={timezone}
+              highlighted={focusedOrderId === o.id}
             />
           ))}
         </ul>
@@ -86,10 +107,12 @@ function OrderRow({
   order,
   avatar,
   timezone,
+  highlighted,
 }: {
   order: AdminShopOrder
   avatar: string | null
   timezone: string
+  highlighted: boolean
 }) {
   const router = useRouter()
   const t = useTranslations('adminShopOrderReview')
@@ -189,7 +212,14 @@ function OrderRow({
   }
 
   return (
-    <li className="bg-gray-900 border border-gray-800 rounded-lg p-4 space-y-3">
+    <li
+      id={`shop-order-${order.id}`}
+      className={`scroll-mt-24 rounded-lg border p-4 space-y-3 ${
+        highlighted
+          ? 'border-amber-400/70 bg-amber-500/10 ring-1 ring-amber-400/40'
+          : 'bg-gray-900 border-gray-800'
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

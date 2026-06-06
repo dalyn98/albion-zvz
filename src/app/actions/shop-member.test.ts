@@ -187,6 +187,7 @@ describe('submitShopOrder', () => {
         sourceId: 'order-1',
         title: 'shopTitle',
         body: 'shopBody:{"user":"MemberOne","points":"200"}',
+        url: '/admin/dashboard/approvals?tab=shop&order=order-1#shop-order-order-1',
         fields: [
           {
             name: 'shopItemsField',

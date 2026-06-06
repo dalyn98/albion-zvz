@@ -47,6 +47,7 @@ interface SearchParams {
   scope?: string
   origin?: string
   relation?: string
+  order?: string
 }
 
 function resolveType(v: string | undefined): TypeKey {
@@ -227,7 +228,12 @@ export default async function ApprovalsPage({
         <DonationSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
       )}
       {type === 'shop' && (
-        <ShopSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
+        <ShopSection
+          scope={scope}
+          scopeOrder={scopeOrder}
+          guildId={guildId}
+          focusedOrderId={sp.order ?? ''}
+        />
       )}
       {type === 'event_payout' && (
         <EventPayoutSection scope={scope} scopeOrder={scopeOrder} guildId={guildId} />
@@ -601,10 +607,12 @@ async function ShopSection({
   scope,
   scopeOrder,
   guildId,
+  focusedOrderId,
 }: {
   scope: Scope
   scopeOrder: readonly Scope[]
   guildId: string
+  focusedOrderId: string
 }) {
   const [{ orders, error }, t, timezone] = await Promise.all([
     listShopOrders(scope),
@@ -634,7 +642,12 @@ async function ShopSection({
           {scope === 'pending' ? t('noPending') : t('noRequests')}
         </p>
       ) : (
-        <ShopOrderReviewList orders={orders} avatars={avatars} timezone={timezone} />
+        <ShopOrderReviewList
+          orders={orders}
+          avatars={avatars}
+          timezone={timezone}
+          focusedOrderId={focusedOrderId}
+        />
       )}
     </div>
   )

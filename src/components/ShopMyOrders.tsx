@@ -32,22 +32,41 @@ const STATUS_LABEL_KEY: Record<MyOrderRow['status'], string> = {
 
 export default function ShopMyOrders({ orders, timezone, interactionMode = 'live' }: Props) {
   const t = useTranslations('shopMyOrders')
-  const [expanded, setExpanded] = useState(false)
+  const [manualExpanded, setManualExpanded] = useState(false)
   const [demoCancelledIds, setDemoCancelledIds] = useState<Set<string>>(() => new Set())
   const visibleOrders =
     interactionMode === 'demo'
       ? orders.filter((order) => !demoCancelledIds.has(order.id))
       : orders
 
-  if (visibleOrders.length === 0) return null
-
   const pendingCount = visibleOrders.filter((o) => o.status === 'pending').length
+  const pickupReadyOrders = visibleOrders.filter((o) => o.status === 'approved' && o.pickupNote)
+  const firstPickupReadyOrder = pickupReadyOrders[0]
+  const expanded = pickupReadyOrders.length > 0 || manualExpanded
+
+  if (visibleOrders.length === 0) return null
 
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-xl overflow-hidden">
+      {firstPickupReadyOrder && (
+        <button
+          type="button"
+          onClick={() => setManualExpanded(true)}
+          className="w-full border-b border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-left hover:bg-emerald-500/15"
+        >
+          <span className="block text-xs font-semibold text-emerald-200">
+            {pickupReadyOrders.length === 1
+              ? t('pickupReadySingle')
+              : t('pickupReadyMultiple', { count: pickupReadyOrders.length })}
+          </span>
+          <span className="mt-0.5 block truncate text-[11px] text-emerald-100/80">
+            {t('pickupNotePrefix', { note: firstPickupReadyOrder.pickupNote ?? '' })}
+          </span>
+        </button>
+      )}
       <button
         type="button"
-        onClick={() => setExpanded((v) => !v)}
+        onClick={() => setManualExpanded((v) => (firstPickupReadyOrder ? true : !v))}
         className="w-full flex items-center gap-2 px-4 py-3 hover:bg-gray-800/60 transition-colors"
       >
         <History size={14} className="text-gray-400" />

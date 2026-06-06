@@ -312,6 +312,7 @@ export async function submitShopOrder(
     })
     if (rpcErr) return { ok: false, error: rpcErr.message }
     if (!orderId) return { ok: false, error: 'Server error' }
+    const orderIdString = orderId as string
 
     revalidatePath('/shop')
     revalidatePath('/me')
@@ -362,16 +363,16 @@ export async function submitShopOrder(
       guildId,
       topic: 'shop',
       sourceTable: 'shop_orders',
-      sourceId: orderId as string,
+      sourceId: orderIdString,
       title: tAdminNotify('shopTitle'),
       body: tAdminNotify('shopBody', {
         user: session.username,
         points: total.toLocaleString('en-US'),
       }),
-      url: '/admin/dashboard/approvals?tab=shop',
+      url: `/admin/dashboard/approvals?tab=shop&order=${encodeURIComponent(orderIdString)}#shop-order-${encodeURIComponent(orderIdString)}`,
       fields: notificationFields,
     })
-    return { ok: true, orderId: orderId as string }
+    return { ok: true, orderId: orderIdString }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Server error' }
   }

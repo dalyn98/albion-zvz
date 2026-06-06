@@ -30,6 +30,7 @@ export type ShopPriceWarning = 'quality' | 'window' | 'bluezone' | 'redzone' | n
 // 서버측 shop-member.ts 의 MEMO_MAX 와 동기. 사용자가 입력 한도를 미리 보고
 // 잘못 잘려나가는 일을 막기 위해 카운터로 노출.
 const SHOP_NOTE_MAX = 500
+const CATALOG_PAGE_SIZE = 80
 
 export interface CatalogItem {
   id: string
@@ -162,7 +163,12 @@ export default function ShopCatalog({
   const [cartOpen, setCartOpen] = useState(false)
   const [note, setNote] = useState('')
   const [pending, startTransition] = useTransition()
-  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [result, setResult] = useState<{ ok: boolean; message: string; refreshed?: boolean } | null>(null)
+  const filterKey = `${query}\u0000${tier}`
+  const [visibleWindow, setVisibleWindow] = useState<{ filterKey: string; limit: number }>({
+    filterKey: '',
+    limit: CATALOG_PAGE_SIZE,
+  })
 
   const localizedItems = useMemo<CatalogDisplayItem[]>(() => {
     return items.map((it) => {
@@ -193,6 +199,11 @@ export default function ShopCatalog({
       )
     })
   }, [localizedItems, query, tier])
+
+  const visibleLimit =
+    visibleWindow.filterKey === filterKey ? visibleWindow.limit : CATALOG_PAGE_SIZE
+  const visibleItems = filtered.slice(0, visibleLimit)
+  const hasMoreItems = visibleLimit < filtered.length
 
   const totalQty = cart.reduce((s, l) => s + l.qty, 0)
   const totalPoints = cart.reduce((sum, line) => {
@@ -235,10 +246,8 @@ export default function ShopCatalog({
           },
         ]
       }
-      // 재고만큼 담긴 상태에서 또 클릭하면 "초과"로 보고 장바구니에서 완전히 뺀다.
-      // 0 → 1 → … → stock → 0 사이클 — 잘못 담았을 때 빠르게 리셋하는 용도.
       if (existing.qty >= item.stock) {
-        return prev.filter((l) => l.item.id !== item.id)
+        return prev
       }
       return prev.map((l) => (l.item.id === item.id ? { ...l, qty: l.qty + 1 } : l))
     })
@@ -305,7 +314,12 @@ export default function ShopCatalog({
         setResult({ ok: true, message: t('orderSuccess') })
         router.refresh()
       } else {
-        setResult({ ok: false, message: res.error ?? t('orderFailedDefault') })
+        setResult({
+          ok: false,
+          message: res.error ?? t('orderFailedDefault'),
+          refreshed: true,
+        })
+        router.refresh()
       }
     })
   }
@@ -383,6 +397,11 @@ export default function ShopCatalog({
             }`}
           >
             {result.message}
+            {!result.ok && result.refreshed && (
+              <p className="mt-1 text-[11px] text-red-200/80">
+                {t('orderFailedRefreshHint')}
+              </p>
+            )}
           </div>
         )}
 
@@ -393,15 +412,45 @@ export default function ShopCatalog({
             </p>
           ) : (
             <div className="divide-y divide-gray-800">
-              {filtered.map((item) => (
-                <ShopItemRow
-                  key={item.id}
-                  item={item}
-                  cartQty={cart.find((l) => l.item.id === item.id)?.qty ?? 0}
-                  onAdd={() => addToCart(item)}
-                  disabled={!isMember}
-                />
-              ))}
+              {visibleItems.map((item) => {
+                const cartQty = cart.find((l) => l.item.id === item.id)?.qty ?? 0
+                return (
+                  <ShopItemRow
+                    key={item.id}
+                    item={item}
+                    cartQty={cartQty}
+                    onAdd={() => addToCart(item)}
+                    disabled={!isMember || cartQty >= item.stock}
+                  />
+                )
+              })}
+              {(hasMoreItems || filtered.length > CATALOG_PAGE_SIZE) && (
+                <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-gray-500">
+                    {t('showingCount', {
+                      visible: visibleItems.length.toLocaleString(),
+                      total: filtered.length.toLocaleString(),
+                    })}
+                  </p>
+                  {hasMoreItems && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setVisibleWindow((window) => ({
+                          filterKey,
+                          limit:
+                            (window.filterKey === filterKey
+                              ? window.limit
+                              : CATALOG_PAGE_SIZE) + CATALOG_PAGE_SIZE,
+                        }))
+                      }
+                      className="self-start rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-semibold text-gray-300 hover:border-amber-500/60 hover:text-amber-200 sm:self-auto"
+                    >
+                      {t('showMoreButton')}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -501,12 +550,12 @@ function ShopItemRow({
 
   const stockLabel = tc('tile.stockPrefix', { stock: item.stock.toLocaleString() })
   const cartLabel = inCart ? ` / ${tc('tile.cartPrefix', { qty: cartQty })}` : ''
-  const resetLabel = atMax ? ` / ${tc('tile.resetHint')}` : ''
+  const maxLabel = atMax ? ` / ${tc('tile.maxHint')}` : ''
   const priceLabel =
     item.pointPrice === null
       ? tc('quoteRequired')
       : `${item.pointPrice.toLocaleString()}p`
-  const ariaLabel = `${tierEnchant} ${item.displayName} / ${typeLabel} / ${priceLabel} / ${stockLabel}${cartLabel}${resetLabel}`
+  const ariaLabel = `${tierEnchant} ${item.displayName} / ${typeLabel} / ${priceLabel} / ${stockLabel}${cartLabel}${maxLabel}`
   const itemImageSrcs = imageSrcs(item.uniqueName, item.enchant, 64)
 
   return (
@@ -603,13 +652,14 @@ function ShopItemRow({
         onClick={onAdd}
         disabled={disabled}
         aria-label={ariaLabel}
+        title={atMax ? tc('tile.maxHint') : undefined}
         className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
           atMax
-            ? 'bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25'
+            ? 'bg-gray-800 text-gray-500'
             : 'bg-amber-500 text-black hover:bg-amber-400'
         } disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed`}
       >
-        {atMax ? <X size={15} /> : <Plus size={15} />}
+        <Plus size={15} />
       </button>
     </div>
   )
