@@ -42,9 +42,14 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
 
   const config = state.config
   const [enabled, setEnabled] = useState(config.enabled)
-  const [channelId, setChannelId] = useState(config.channelId ?? '')
   const [includeKills, setIncludeKills] = useState(config.includeKills)
   const [includeDeaths, setIncludeDeaths] = useState(config.includeDeaths)
+  const [individualLogChannelId, setIndividualLogChannelId] = useState(
+    config.individualLogChannelId ?? '',
+  )
+  const [battleSummaryChannelId, setBattleSummaryChannelId] = useState(
+    config.battleSummaryChannelId ?? '',
+  )
   const [individualLogsEnabled, setIndividualLogsEnabled] = useState(
     config.individualLogsEnabled,
   )
@@ -68,15 +73,20 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
     }
   }, [])
 
-  const selectedChannel = useMemo(
-    () => channels.find((channel) => channel.id === channelId) ?? null,
-    [channels, channelId],
+  const selectedIndividualLogChannel = useMemo(
+    () => channels.find((channel) => channel.id === individualLogChannelId) ?? null,
+    [channels, individualLogChannelId],
+  )
+  const selectedBattleSummaryChannel = useMemo(
+    () => channels.find((channel) => channel.id === battleSummaryChannelId) ?? null,
+    [channels, battleSummaryChannelId],
   )
 
   const syncForm = (next: KillbotAdminState) => {
     setState(next)
     setEnabled(next.config.enabled)
-    setChannelId(next.config.channelId ?? '')
+    setIndividualLogChannelId(next.config.individualLogChannelId ?? '')
+    setBattleSummaryChannelId(next.config.battleSummaryChannelId ?? '')
     setIncludeKills(next.config.includeKills)
     setIncludeDeaths(next.config.includeDeaths)
     setIndividualLogsEnabled(next.config.individualLogsEnabled)
@@ -90,7 +100,8 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
     startTransition(async () => {
       const result = await saveKillbotSettings({
         enabled,
-        channelId: channelId || null,
+        individualLogChannelId: individualLogChannelId || null,
+        battleSummaryChannelId: battleSummaryChannelId || null,
         includeKills,
         includeDeaths,
         individualLogsEnabled,
@@ -152,10 +163,12 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
         <div className="rounded-lg border border-gray-700 bg-gray-900/60 p-4">
           <div className="flex items-center gap-2 text-xs text-gray-400">
             <Hash size={15} className="text-violet-300" />
-            {t('channel')}
+            {t('channels')}
           </div>
-          <p className="mt-2 truncate text-lg font-semibold text-white">
-            {selectedChannel?.name ?? (config.channelId ? `#${config.channelId}` : t('notConfigured'))}
+          <p className="mt-2 truncate text-sm font-semibold text-white">
+            {selectedBattleSummaryChannel?.name ??
+              selectedIndividualLogChannel?.name ??
+              (config.channelId ? `#${config.channelId}` : t('notConfigured'))}
           </p>
         </div>
         <div className="rounded-lg border border-gray-700 bg-gray-900/60 p-4">
@@ -200,44 +213,66 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
             />
           </label>
 
-          <label className="block space-y-1">
-            <span className="text-sm font-medium text-gray-200">{t('channelLabel')}</span>
-            <select
-              value={channelId}
-              onChange={(e) => setChannelId(e.target.value)}
-              className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-400"
-            >
-              <option value="">{t('selectChannel')}</option>
-              {channels.map((channel) => (
-                <option key={channel.id} value={channel.id}>
-                  #{channel.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="space-y-2">
-            <span className="text-sm font-medium text-gray-200">{t('notificationTypesLabel')}</span>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-950/40 px-3 py-3 text-sm text-gray-200">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <section className="space-y-3 rounded-lg border border-gray-700 bg-gray-950/30 p-3">
+              <label className="flex items-center gap-2 text-sm font-semibold text-white">
                 <input
                   type="checkbox"
                   checked={individualLogsEnabled}
                   onChange={(e) => setIndividualLogsEnabled(e.target.checked)}
                   className="h-4 w-4 accent-emerald-500"
                 />
-                {t('individualLogsLabel')}
+                {t('individualLogsTitle')}
               </label>
-              <label className="flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-950/40 px-3 py-3 text-sm text-gray-200">
+              <p className="text-xs text-gray-500">{t('individualLogsDescription')}</p>
+              <label className="block space-y-1">
+                <span className="text-xs font-medium text-gray-300">
+                  {t('individualLogsChannelLabel')}
+                </span>
+                <select
+                  value={individualLogChannelId}
+                  onChange={(e) => setIndividualLogChannelId(e.target.value)}
+                  className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-400"
+                >
+                  <option value="">{t('selectChannel')}</option>
+                  {channels.map((channel) => (
+                    <option key={channel.id} value={channel.id}>
+                      #{channel.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </section>
+
+            <section className="space-y-3 rounded-lg border border-gray-700 bg-gray-950/30 p-3">
+              <label className="flex items-center gap-2 text-sm font-semibold text-white">
                 <input
                   type="checkbox"
                   checked={battleSummariesEnabled}
                   onChange={(e) => setBattleSummariesEnabled(e.target.checked)}
                   className="h-4 w-4 accent-amber-500"
                 />
-                {t('battleSummariesLabel')}
+                {t('battleSummariesTitle')}
               </label>
-            </div>
+              <p className="text-xs text-gray-500">{t('battleSummariesDescription')}</p>
+              <label className="block space-y-1">
+                <span className="text-xs font-medium text-gray-300">
+                  {t('battleSummariesChannelLabel')}
+                </span>
+                <select
+                  value={battleSummaryChannelId}
+                  onChange={(e) => setBattleSummaryChannelId(e.target.value)}
+                  className="w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-amber-400"
+                >
+                  <option value="">{t('selectChannel')}</option>
+                  {channels.map((channel) => (
+                    <option key={channel.id} value={channel.id}>
+                      #{channel.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </section>
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -297,7 +332,7 @@ export default function KillbotSettingsClient({ initialState, tenantTimezone }: 
             <button
               type="button"
               onClick={sendTest}
-              disabled={isPending || !config.channelId}
+              disabled={isPending || !(config.battleSummaryChannelId || config.individualLogChannelId || config.channelId)}
               className="inline-flex items-center gap-2 rounded-lg border border-gray-600 px-4 py-2 text-sm font-semibold text-gray-100 hover:border-amber-400 disabled:opacity-50"
             >
               <Send size={16} />

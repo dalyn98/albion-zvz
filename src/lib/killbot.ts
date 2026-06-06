@@ -50,10 +50,24 @@ export interface KillbotNotificationSettings {
   battleSummariesEnabled: boolean
 }
 
+export interface KillbotFeedChannelSettings {
+  channelId: string | null
+  individualLogChannelId: string | null
+  battleSummaryChannelId: string | null
+}
+
+export interface ResolvedKillbotFeedChannels {
+  individualLogChannelId: string | null
+  battleSummaryChannelId: string | null
+  hasAnyChannel: boolean
+}
+
 export interface KillbotConfig {
   guildId: string
   enabled: boolean
   channelId: string | null
+  individualLogChannelId: string | null
+  battleSummaryChannelId: string | null
   minFame: number
   juicyFameThreshold: number
   includeKills: boolean
@@ -142,6 +156,8 @@ interface KillbotConfigRow {
   guild_id: string
   enabled: boolean | null
   channel_id: string | null
+  individual_log_channel_id?: string | null
+  battle_summary_channel_id?: string | null
   min_fame: number | null
   juicy_fame_threshold: number | null
   include_kills: boolean | null
@@ -170,7 +186,9 @@ interface KillbotDeliveryRow {
 
 export interface SaveKillbotConfigInput {
   enabled: boolean
-  channelId: string | null
+  channelId?: string | null
+  individualLogChannelId?: string | null
+  battleSummaryChannelId?: string | null
   minFame: number
   juicyFameThreshold: number
   includeKills: boolean
@@ -241,6 +259,8 @@ function defaultConfig(guildId: string): KillbotConfig {
     guildId,
     enabled: false,
     channelId: null,
+    individualLogChannelId: null,
+    battleSummaryChannelId: null,
     minFame: DEFAULT_MIN_FAME,
     juicyFameThreshold: DEFAULT_JUICY_FAME,
     includeKills: true,
@@ -261,6 +281,8 @@ function rowToConfig(row: KillbotConfigRow): KillbotConfig {
     guildId: row.guild_id,
     enabled: row.enabled ?? false,
     channelId: row.channel_id ?? null,
+    individualLogChannelId: row.individual_log_channel_id ?? null,
+    battleSummaryChannelId: row.battle_summary_channel_id ?? null,
     minFame: clampFameSetting(row.min_fame, DEFAULT_MIN_FAME),
     juicyFameThreshold: clampFameSetting(row.juicy_fame_threshold, DEFAULT_JUICY_FAME),
     includeKills: row.include_kills ?? true,
@@ -316,6 +338,21 @@ export function killbotNotificationSettingsToFeedMode(
   return 'battle'
 }
 
+export function resolveKillbotFeedChannels(
+  settings: KillbotFeedChannelSettings,
+): ResolvedKillbotFeedChannels {
+  const legacyChannelId = settings.channelId?.trim() || null
+  const individualLogChannelId =
+    settings.individualLogChannelId?.trim() || legacyChannelId
+  const battleSummaryChannelId =
+    settings.battleSummaryChannelId?.trim() || legacyChannelId
+  return {
+    individualLogChannelId,
+    battleSummaryChannelId,
+    hasAnyChannel: !!(individualLogChannelId || battleSummaryChannelId),
+  }
+}
+
 function clampFameSetting(value: unknown, fallback: number): number {
   const n = Number(value)
   if (!Number.isFinite(n)) return fallback
@@ -347,9 +384,19 @@ function normalizeSaveInput(input: SaveKillbotConfigInput): SaveKillbotConfigInp
       })
     : normalizeKillbotFeedMode(input.feedMode)
   const feedSettings = killbotFeedModeToNotificationSettings(feedMode)
+  const individualLogChannelId = normalizeSnowflake(input.individualLogChannelId)
+  const battleSummaryChannelId = normalizeSnowflake(input.battleSummaryChannelId)
+  const legacyChannelId =
+    normalizeSnowflake(input.channelId) ??
+    (feedSettings.battleSummariesEnabled ? battleSummaryChannelId : null) ??
+    (feedSettings.individualLogsEnabled ? individualLogChannelId : null) ??
+    battleSummaryChannelId ??
+    individualLogChannelId
   return {
     enabled: !!input.enabled,
-    channelId: normalizeSnowflake(input.channelId),
+    channelId: legacyChannelId,
+    individualLogChannelId,
+    battleSummaryChannelId,
     minFame,
     juicyFameThreshold,
     includeKills: !!input.includeKills,
@@ -392,6 +439,8 @@ export async function saveKillbotConfig(
         guild_id: guildId,
         enabled: normalized.enabled,
         channel_id: normalized.channelId,
+        individual_log_channel_id: normalized.individualLogChannelId,
+        battle_summary_channel_id: normalized.battleSummaryChannelId,
         min_fame: normalized.minFame,
         juicy_fame_threshold: normalized.juicyFameThreshold,
         include_kills: normalized.includeKills,
@@ -877,12 +926,11 @@ export async function runKillbotFeed(db: SupabaseClient): Promise<KillbotRunResu
     .from('killbot_configs')
     .select('*')
     .eq('enabled', true)
-    .not('channel_id', 'is', null)
 
   if (error) throw new Error(`killbot config list failed: ${error.message}`)
   const configs = ((data ?? []) as KillbotConfigRow[])
     .map(rowToConfig)
-    .filter((config) => !!config.channelId)
+    .filter((config) => resolveKillbotFeedChannels(config).hasAnyChannel)
   result.configs_total = configs.length
 
   const targets = await Promise.all(
@@ -906,7 +954,12 @@ export async function runKillbotFeed(db: SupabaseClient): Promise<KillbotRunResu
       })
       continue
     }
-    if (isEventFeedEnabled(config.feedMode) && !eventsByServer.has(target.server)) {
+    const channels = resolveKillbotFeedChannels(config)
+    if (
+      isEventFeedEnabled(config.feedMode) &&
+      channels.individualLogChannelId &&
+      !eventsByServer.has(target.server)
+    ) {
       const events = await fetchRecentKillbotEvents(target.server)
       eventsByServer.set(target.server, events.slice().reverse())
       result.events_fetched += events.length
@@ -914,8 +967,13 @@ export async function runKillbotFeed(db: SupabaseClient): Promise<KillbotRunResu
   }
 
   for (const { config, target } of targets) {
-    const channelId = config.channelId
-    if (!channelId || !target.server || (!target.homeGuildId && !target.homeGuildName)) {
+    const channels = resolveKillbotFeedChannels(config)
+    const individualLogChannelId = channels.individualLogChannelId
+    const battleSummaryChannelId = channels.battleSummaryChannelId
+    const hasActiveFeedChannel =
+      (isEventFeedEnabled(config.feedMode) && !!individualLogChannelId) ||
+      (isBattleFeedEnabled(config.feedMode) && !!battleSummaryChannelId)
+    if (!hasActiveFeedChannel || !target.server || (!target.homeGuildId && !target.homeGuildName)) {
       continue
     }
     result.tenants_ready += 1
@@ -926,7 +984,7 @@ export async function runKillbotFeed(db: SupabaseClient): Promise<KillbotRunResu
     let lastSentAt: string | null = null
     let lastError: string | null = null
 
-    if (isBattleFeedEnabled(config.feedMode)) {
+    if (isBattleFeedEnabled(config.feedMode) && battleSummaryChannelId) {
       let candidates: KillbotBattleDeliveryCandidate[] = []
       try {
         candidates = await loadKillbotBattleCandidates(db, config, target, polledAt)
@@ -944,7 +1002,7 @@ export async function runKillbotFeed(db: SupabaseClient): Promise<KillbotRunResu
             feedType: 'battle',
             sourceType: 'battle',
             sourceKey: candidate.sourceKey,
-            channelId,
+            channelId: battleSummaryChannelId,
             eventOccurredAt: candidate.eventOccurredAt,
             fame: candidate.fame,
             payload: candidate.summary as unknown as Record<string, unknown>,
@@ -961,7 +1019,7 @@ export async function runKillbotFeed(db: SupabaseClient): Promise<KillbotRunResu
         }
         try {
           const discordMessageId = await sendDiscordChannelMessage(
-            channelId,
+            battleSummaryChannelId,
             buildKillbotBattleDiscordPayload(candidate.summary, config, target),
           )
           await markDeliverySource(db, config.guildId, 'battle', candidate.sourceKey, 'battle', {
@@ -984,12 +1042,12 @@ export async function runKillbotFeed(db: SupabaseClient): Promise<KillbotRunResu
       }
     }
 
-    if (isEventFeedEnabled(config.feedMode)) {
+    if (isEventFeedEnabled(config.feedMode) && individualLogChannelId) {
       for (const event of events) {
         for (const match of classifyKillbotEvent(event, target, config)) {
           let reserved = false
           try {
-            reserved = await reserveDelivery(db, config.guildId, event, match, channelId)
+            reserved = await reserveDelivery(db, config.guildId, event, match, individualLogChannelId)
           } catch (err) {
             result.failed += 1
             lastError = err instanceof Error ? err.message : String(err)
@@ -1006,7 +1064,7 @@ export async function runKillbotFeed(db: SupabaseClient): Promise<KillbotRunResu
               config.guildId,
             ).catch(() => null)
             const discordMessageId = await sendDiscordChannelMessage(
-              channelId,
+              individualLogChannelId,
               await buildKillbotDiscordMessage(
                 event,
                 match,
@@ -1055,7 +1113,14 @@ export async function sendKillbotTestMessage(
     getKillbotConfig(db, guildId),
     loadKillbotTarget(db, guildId),
   ])
-  const channelId = normalizeSnowflake(channelIdOverride) ?? config.channelId
+  const channels = resolveKillbotFeedChannels(config)
+  const channelId =
+    normalizeSnowflake(channelIdOverride) ??
+    (isBattleFeedEnabled(config.feedMode) ? channels.battleSummaryChannelId : null) ??
+    (isEventFeedEnabled(config.feedMode) ? channels.individualLogChannelId : null) ??
+    channels.battleSummaryChannelId ??
+    channels.individualLogChannelId ??
+    config.channelId
   if (!channelId) throw new Error('killbot channel is not configured')
 
   const testGuildName = target.homeGuildName || 'Configured guild'
