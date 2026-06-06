@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server'
 import { syncKillboard } from '@/lib/killboard-sync'
 import { listActiveTenants } from '@/lib/tenant'
 import { withCronRun } from '@/lib/cron-run'
+import {
+  IDLE_KILLBOARD_SYNC_INTERVAL_MS,
+  loadEventActivityByTenant,
+  loadTenantCronSettings,
+  shouldRunIdleCron,
+} from '@/lib/cron-cost-control'
 
 // 킬보드 동기화 cron. Vercel Pro native cron (vercel.json) 으로 5분 주기 호출 →
 // 모든 활성 테넌트에 대해 sync 를 실행한다. battle-tracker 와 동일한 tick 으로
@@ -44,13 +50,43 @@ function tenantTimeoutSignal(tenantSlug: string): {
 
 export async function GET(request: Request) {
   return withCronRun(request, { jobName: 'killboard-sync', leaseSeconds: 600 }, async ({ db }) => {
+    const url = new URL(request.url)
+    const force = url.searchParams.get('force') === '1' || url.searchParams.get('force') === 'true'
     const tenants = await listActiveTenants()
     const nowIso = new Date().toISOString()
     const startedAt = Date.now()
+    const tenantIds = tenants.map((tenant) => tenant.id)
+    const [settingsByTenant, activeTenantIds] = await Promise.all([
+      loadTenantCronSettings(db, tenantIds, ['last_killboard_sync_at']),
+      loadEventActivityByTenant(db, tenantIds, startedAt),
+    ])
     const results: Array<Record<string, unknown>> = []
-    const skipped: Array<{ tenant: string; reason: string }> = []
+    const skipped: Array<{
+      tenant: string
+      reason: string
+      last_run_at?: string | null
+      age_ms?: number | null
+    }> = []
 
     async function processTenant(tenant: { id: string; slug: string }): Promise<void> {
+      const lastRunAt = settingsByTenant.get(tenant.id)?.get('last_killboard_sync_at') ?? null
+      const decision = shouldRunIdleCron({
+        force,
+        hasActivity: activeTenantIds.has(tenant.id),
+        lastRunAt,
+        nowMs: startedAt,
+        idleIntervalMs: IDLE_KILLBOARD_SYNC_INTERVAL_MS,
+      })
+      if (!decision.run) {
+        skipped.push({
+          tenant: tenant.slug,
+          reason: decision.reason,
+          last_run_at: lastRunAt,
+          age_ms: decision.ageMs,
+        })
+        return
+      }
+
       const timeout = tenantTimeoutSignal(tenant.slug)
       try {
         const result = await Promise.race([
@@ -87,6 +123,13 @@ export async function GET(request: Request) {
       await Promise.all(chunk.map(processTenant))
     }
 
-    return NextResponse.json({ tenants: results, skipped, started_at: nowIso })
+    return NextResponse.json({
+      tenants: results,
+      skipped,
+      force,
+      idle_interval_minutes: IDLE_KILLBOARD_SYNC_INTERVAL_MS / 60_000,
+      active_tenants: activeTenantIds.size,
+      started_at: nowIso,
+    })
   })
 }

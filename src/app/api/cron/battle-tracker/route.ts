@@ -30,6 +30,12 @@ import {
   resolveBattleTrackerProjectionDiffSyncEnabled,
   resolveBattleTrackerShadowSyncEnabled,
 } from '@/lib/battle-tracker-flags'
+import {
+  IDLE_BATTLE_TRACKER_INTERVAL_MS,
+  loadEventActivityByTenant,
+  loadTenantCronSettings,
+  shouldRunIdleCron,
+} from '@/lib/cron-cost-control'
 
 // killboard_events 가 hint 한 battle_id 중 battle_records 에 없는 것을 ID 로
 // 직접 fetch 해 채우는 백필 윈도. /battles?sort=recent 가 인스턴스 간 결과
@@ -141,7 +147,7 @@ export async function GET(request: Request) {
   const tenants = await listActiveTenants()
   const settingsByTenant = await loadTrackingSettings(db, tenants.map((tenant) => tenant.id))
 
-  const tracking: TenantTrackingInfo[] = []
+  let tracking: TenantTrackingInfo[] = []
   for (const tenant of tenants) {
     const settings = settingsByTenant.get(tenant.id)
     const homeGuildId = settings?.get('albion_home_guild_id')?.trim() ?? ''
@@ -164,6 +170,57 @@ export async function GET(request: Request) {
 
   if (tracking.length === 0) {
     return NextResponse.json({ skipped: 'no-tracked-tenants' })
+  }
+
+  const force =
+    url.searchParams.get('force') === '1' ||
+    url.searchParams.get('force') === 'true' ||
+    pages !== 6 ||
+    shadowSyncEnabled ||
+    projectionDiffSyncEnabled
+  const initialTrackedTenants = tracking.length
+  const [cronSettingsByTenant, activeTenantIds] = await Promise.all([
+    loadTenantCronSettings(db, tracking.map((tenant) => tenant.tenantId), [
+      'last_battle_tracker_sync_at',
+    ]),
+    loadEventActivityByTenant(db, tracking.map((tenant) => tenant.tenantId)),
+  ])
+  const idleSkipped: Array<{
+    tenant_id: string
+    reason: string
+    last_run_at: string | null
+    age_ms: number | null
+  }> = []
+  if (!force) {
+    tracking = tracking.filter((tenant) => {
+      const lastRunAt =
+        cronSettingsByTenant.get(tenant.tenantId)?.get('last_battle_tracker_sync_at') ?? null
+      const decision = shouldRunIdleCron({
+        force,
+        hasActivity: activeTenantIds.has(tenant.tenantId),
+        lastRunAt,
+        nowMs: Date.now(),
+        idleIntervalMs: IDLE_BATTLE_TRACKER_INTERVAL_MS,
+      })
+      if (decision.run) return true
+      idleSkipped.push({
+        tenant_id: tenant.tenantId,
+        reason: decision.reason,
+        last_run_at: lastRunAt,
+        age_ms: decision.ageMs,
+      })
+      return false
+    })
+  }
+
+  if (tracking.length === 0) {
+    return NextResponse.json({
+      skipped: 'idle-throttle',
+      tracked_tenants: initialTrackedTenants,
+      idle_skipped: idleSkipped,
+      active_tenants: activeTenantIds.size,
+      idle_interval_minutes: IDLE_BATTLE_TRACKER_INTERVAL_MS / 60_000,
+    })
   }
 
   const serversInUse: AlbionServer[] = ALBION_SERVERS.filter((s) =>
@@ -556,6 +613,11 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     tracked_tenants: tracking.length,
+    initial_tracked_tenants: initialTrackedTenants,
+    idle_skipped: idleSkipped,
+    active_tenants: activeTenantIds.size,
+    force,
+    idle_interval_minutes: IDLE_BATTLE_TRACKER_INTERVAL_MS / 60_000,
     sync_timestamped_tenants: syncTimestampTenants.length,
     pages,
     shadow_sync_enabled: shadowSyncEnabled,

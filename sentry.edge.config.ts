@@ -3,9 +3,13 @@
 // 각 runtime 별로 별도 init 이 필요해 분리.
 
 import * as Sentry from '@sentry/nextjs'
+import { resolveSentryTraceSampleRate } from '@/lib/sentry-sampling'
 
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
-  tracesSampleRate: process.env.VERCEL_ENV === 'production' ? 0.1 : 1.0,
+  tracesSampleRate: resolveSentryTraceSampleRate(
+    process.env.SENTRY_TRACES_SAMPLE_RATE,
+    process.env.VERCEL_ENV === 'production' ? 0.05 : 1.0,
+  ),
 })

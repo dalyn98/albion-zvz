@@ -4,6 +4,9 @@ const mocks = vi.hoisted(() => ({
   listActiveTenants: vi.fn(),
   syncKillboard: vi.fn(),
   withCronRun: vi.fn(),
+  loadTenantCronSettings: vi.fn(),
+  loadEventActivityByTenant: vi.fn(),
+  shouldRunIdleCron: vi.fn(),
 }))
 
 vi.mock('@/lib/tenant', () => ({
@@ -18,6 +21,13 @@ vi.mock('@/lib/cron-run', () => ({
   withCronRun: mocks.withCronRun,
 }))
 
+vi.mock('@/lib/cron-cost-control', () => ({
+  IDLE_KILLBOARD_SYNC_INTERVAL_MS: 60 * 60 * 1000,
+  loadTenantCronSettings: mocks.loadTenantCronSettings,
+  loadEventActivityByTenant: mocks.loadEventActivityByTenant,
+  shouldRunIdleCron: mocks.shouldRunIdleCron,
+}))
+
 import { GET } from './route'
 
 describe('GET /api/cron/killboard-sync', () => {
@@ -26,6 +36,12 @@ describe('GET /api/cron/killboard-sync', () => {
     mocks.listActiveTenants.mockReset()
     mocks.syncKillboard.mockReset()
     mocks.withCronRun.mockReset()
+    mocks.loadTenantCronSettings.mockReset()
+    mocks.loadTenantCronSettings.mockReturnValue(new Map())
+    mocks.loadEventActivityByTenant.mockReset()
+    mocks.loadEventActivityByTenant.mockReturnValue(new Set())
+    mocks.shouldRunIdleCron.mockReset()
+    mocks.shouldRunIdleCron.mockReturnValue({ run: true, reason: 'no-previous-run', ageMs: null })
   })
 
   afterEach(() => {
@@ -39,7 +55,7 @@ describe('GET /api/cron/killboard-sync', () => {
     mocks.withCronRun.mockImplementation(async (_request, _options, handler) =>
       handler({ db, runId: 'run-1' }),
     )
-    mocks.listActiveTenants.mockResolvedValue([{ id: 'tenant-1', slug: 'slow-tenant' }])
+    mocks.listActiveTenants.mockReturnValue([{ id: 'tenant-1', slug: 'slow-tenant' }])
     mocks.syncKillboard.mockImplementation(async (_db, _tenantId, options) => {
       capturedSignal = options.signal
       return new Promise((_resolve, reject) => {
@@ -48,8 +64,7 @@ describe('GET /api/cron/killboard-sync', () => {
     })
 
     const pending = GET(new Request('https://example.test/api/cron/killboard-sync'))
-    await Promise.resolve()
-    await Promise.resolve()
+    await vi.advanceTimersByTimeAsync(0)
 
     expect(capturedSignal).toBeDefined()
     await vi.advanceTimersByTimeAsync(90_000)

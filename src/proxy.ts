@@ -252,9 +252,9 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // 일반 페이지 라우트(+ OAuth 콜백/start 경로) 에서 실행. 페이지는 x-pathname
   // 헤더가 필요하고 /api/auth 는 legacy-host 리다이렉트가 필요. 그 외 api/정적
-  // 자원은 제외해 불필요한 proxy 호출을 줄인다.
+  // 자원/Sentry tunnel 은 제외해 불필요한 proxy 호출과 Observability event 를 줄인다.
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|icon|apple-icon|manifest).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|icon|apple-icon|manifest|robots.txt|sitemap.xml|monitoring|.*\\..*).*)',
     '/api/auth/:path*',
   ],
 }

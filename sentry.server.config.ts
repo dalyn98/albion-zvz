@@ -5,13 +5,17 @@
 // 별도 분기 불필요. prod 에서만 DSN 을 Vercel env 에 채워 넣는다.
 
 import * as Sentry from '@sentry/nextjs'
+import { resolveSentryTraceSampleRate } from '@/lib/sentry-sampling'
 
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
   // 트랜잭션 샘플링: prod 에서 모든 RSC/route 호출을 트레이스로 보내면 비용 폭증.
-  // 10% 만 샘플링해도 cron/regear 같은 핫패스의 p95/p99 분포는 충분히 잡힌다.
-  tracesSampleRate: process.env.VERCEL_ENV === 'production' ? 0.1 : 1.0,
+  // 기본 5% 로 낮추고, 장애 분석 시 SENTRY_TRACES_SAMPLE_RATE 로 일시 상향한다.
+  tracesSampleRate: resolveSentryTraceSampleRate(
+    process.env.SENTRY_TRACES_SAMPLE_RATE,
+    process.env.VERCEL_ENV === 'production' ? 0.05 : 1.0,
+  ),
   // 5xx/timeout 같은 경고는 console.warn 으로도 남기는데, Sentry 의 기본 console
   // 통합이 이걸 breadcrumb 로 자동 첨부 → exception 이 발생하면 직전 retry 흔적이
   // 같이 보인다.

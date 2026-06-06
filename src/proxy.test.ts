@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { getRewrittenUrl, isRewrite } from 'next/experimental/testing/server'
 import { NextRequest } from 'next/server'
-import { proxy } from './proxy'
+import { config, proxy } from './proxy'
 
 function forwardedPathname(response: Response): string | null {
   return response.headers.get('x-middleware-request-x-pathname')
@@ -101,5 +101,13 @@ describe('proxy pathname forwarding', () => {
       'https://albion-guildmanager-git-main-dalyn8690.vercel.app/public/g/menhera',
     )
     expect(forwardedPathname(response)).toBe('/public/g/menhera')
+  })
+
+  it('keeps static assets and the Sentry tunnel out of the proxy matcher', () => {
+    expect(config.matcher[0]).toContain('.*\\..*')
+    expect(config.matcher[0]).toContain('monitoring')
+    expect(config.matcher[0]).toContain('robots.txt')
+    expect(config.matcher[0]).toContain('sitemap.xml')
+    expect(config.matcher).toContain('/api/auth/:path*')
   })
 })

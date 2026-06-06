@@ -466,10 +466,10 @@ export default async function EventDetailPage({
   // 페이즈별 폴링 간격을 분리한다. 모집 단계 (pre-battle) 에서 슬롯 변경은
   // 비교적 느려서 30s 면 사용자 체감 지연 없음 — 이 단계가 RSC 재렌더의
   // 대부분을 차지하므로 50% 감축이 부하 절감 효과가 가장 크다. 전투 개시
-  // 후 1h 까지는 staff 라이브 모니터링용으로 15s 유지.
+  // 후 1h 까지는 staff 라이브 모니터링용으로 30s polling 만 유지.
   const shouldPoll = !event.battle_started_at || !isEnded(event.battle_started_at)
   const battleEnded = !!event.battle_started_at && isEnded(event.battle_started_at)
-  const pollIntervalMs = event.battle_started_at ? 15_000 : 30_000
+  const pollIntervalMs = event.battle_started_at ? 30_000 : 60_000
   let myAssigned:
     | { partyName: string; slotNumber: number; roleName: string | null }
     | null = null
