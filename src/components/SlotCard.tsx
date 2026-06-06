@@ -159,6 +159,7 @@ export default function SlotCard({
   const isLoggedIn = currentDiscordId !== null
   const roleStyle = getRoleStyle(slot.role_name)
   const isSoloBomb = !!slot.is_solo_bomb
+  const canSelfCancelAfterStart = eventCategory === 'FF' || eventCategory === '갱킹'
   // Bomb squad pending request state. Only relevant when the slot is empty
   // (requested_* is cleared once approve_slot_request moves data to assigned_*).
   const hasPendingRequest = !isTaken && slot.requested_discord_id !== null
@@ -214,7 +215,10 @@ export default function SlotCard({
       return
     }
     if (battleStarted) {
-      const ok = await askConfirm({ body: t('confirmBattleStarted'), destructive: false })
+      const ok = await askConfirm({
+        body: t(canSelfCancelAfterStart ? 'confirmBattleStartedFlexible' : 'confirmBattleStarted'),
+        destructive: false,
+      })
       if (!ok) return
     }
     if (needsPicks) {
@@ -505,7 +509,7 @@ export default function SlotCard({
       )
     }
     if (isMine) {
-      if (battleStarted) {
+      if (battleStarted && !canSelfCancelAfterStart) {
         return (
           <button
             disabled
@@ -521,6 +525,7 @@ export default function SlotCard({
         <button
           onClick={handleCancel}
           disabled={pending}
+          title={battleStarted ? t('cancelAfterStartTooltip') : undefined}
           className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 transition-colors disabled:opacity-50"
         >
           <UserX size={11} />
@@ -554,10 +559,23 @@ export default function SlotCard({
     if (isMyPending) {
       // The requestor withdraws their own pending signup. RPC routes to the
       // pending branch automatically, so we reuse cancelSlot.
+      if (battleStarted && !canSelfCancelAfterStart) {
+        return (
+          <button
+            disabled
+            title={t('battleStartedTooltip')}
+            className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-medium bg-gray-800/60 text-gray-400 border border-gray-700 cursor-not-allowed"
+          >
+            <Lock size={11} />
+            {t('battleStartedLocked')}
+          </button>
+        )
+      }
       return (
         <button
           onClick={handleCancel}
           disabled={pending}
+          title={battleStarted ? t('cancelAfterStartTooltip') : undefined}
           className="w-full flex items-center justify-center gap-1 py-1 rounded-md text-[13px] font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-200 border border-rose-500/30 transition-colors disabled:opacity-50"
         >
           <UserX size={11} />

@@ -2572,8 +2572,11 @@
     "roleLabel": "补装职业",
     "saveButton": "添加",
     "toastAdded": "补装对象已添加。",
+    "toastRoleUpdated": "补装职责已更新。",
     "toastRemoved": "补装对象已删除。",
     "confirmRemove": "将 {name} 从补装对象中删除吗?",
+    "removeButtonLabel": "移除 {name}",
+    "roleUpdateLabel": "更改 {name} 的补装职责",
     "memberRequired": "请选择成员。",
     "roleRequired": "请选择补装职业。"
   },
@@ -2599,6 +2602,7 @@
     "viewReport": "查看报告",
     "ended": "活动已结束",
     "startedNotice": "战斗已开始。您<bold>仍可申请</bold>槽位,但<bold>不能取消</bold>。申请即视为正式参战。请在左侧<bold>装备补偿</bold>页签提交补装申请。",
+    "startedNoticeFlexible": "活动已开始。槽位<bold>仍可报名和取消</bold>。实际补装对象由管理员在活动结束后确认。",
     "applicants": "已申请 {assigned}/{total}",
     "noParties": "尚未登记小队。",
     "partyNumber": "{number}号小队",
@@ -2734,6 +2738,7 @@
     "loginToApply": "登录后申请",
     "battleStartedLocked": "战斗已开始 · 无法取消",
     "battleStartedTooltip": "无法取消 — 战斗已开始。",
+    "cancelAfterStartTooltip": "FF/抓人活动在开始后仍可取消槽位。",
     "eventFinalizedLocked": "活动已结束",
     "eventFinalizedTooltip": "此活动已结束,报名已关闭。",
     "cancelling": "取消中...",
@@ -2793,6 +2798,7 @@
       "assigning": "分配中…"
     },
     "confirmBattleStarted": "此活动的战斗已开始。\n申请后将无法取消,是否继续?",
+    "confirmBattleStartedFlexible": "活动已开始。\nFF/抓人活动申请后仍可取消槽位,是否继续?",
     "picker": {
       "title": "选择装备",
       "close": "关闭",

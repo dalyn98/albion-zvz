@@ -2572,8 +2572,11 @@
     "roleLabel": "リギアロール",
     "saveButton": "追加",
     "toastAdded": "リギア対象者を追加しました。",
+    "toastRoleUpdated": "リギアロールを変更しました。",
     "toastRemoved": "リギア対象者を削除しました。",
     "confirmRemove": "{name} さんをリギア対象者から削除しますか？",
+    "removeButtonLabel": "{name} さんを削除",
+    "roleUpdateLabel": "{name} さんのリギアロールを変更",
     "memberRequired": "メンバーを選択してください。",
     "roleRequired": "リギアロールを選択してください。"
   },
@@ -2599,6 +2602,7 @@
     "viewReport": "事後レポート",
     "ended": "イベント終了",
     "startedNotice": "戦闘はすでに開始されています。スロットの<bold>申請は可能</bold>ですが、<bold>キャンセルはできません</bold>。申請した時点で参加確定とみなされます。リギア申請は左側の<bold>リギア申請</bold>タブから行えます。",
+    "startedNoticeFlexible": "イベントはすでに開始されています。スロットの<bold>申請とキャンセルは可能</bold>です。実際のリギア対象者はイベント終了後に管理者が確定します。",
     "applicants": "申請 {assigned}/{total}",
     "noParties": "登録されたパーティーはありません。",
     "partyNumber": "パーティー {number}",
@@ -2734,6 +2738,7 @@
     "loginToApply": "ログインして申請",
     "battleStartedLocked": "戦闘開始 · キャンセル不可",
     "battleStartedTooltip": "戦闘が始まったためキャンセルできません。",
+    "cancelAfterStartTooltip": "FF/ギャンクイベントは開始後でもスロットをキャンセルできます。",
     "eventFinalizedLocked": "イベント終了",
     "eventFinalizedTooltip": "イベントが終了しているため、これ以上参加できません。",
     "cancelling": "キャンセル中...",
@@ -2793,6 +2798,7 @@
       "assigning": "指定中…"
     },
     "confirmBattleStarted": "すでに戦闘が始まっているイベントです。\n申請後はキャンセルできません。続行しますか?",
+    "confirmBattleStartedFlexible": "イベントはすでに開始されています。\nFF/ギャンクイベントは申請後でもスロットをキャンセルできます。続行しますか?",
     "picker": {
       "title": "装備選択",
       "close": "閉じる",

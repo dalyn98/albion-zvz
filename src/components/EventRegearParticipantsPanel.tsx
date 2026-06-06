@@ -41,7 +41,6 @@ export default function EventRegearParticipantsPanel({
 }: Props) {
   const t = useTranslations('eventRegearParticipants')
   const tRole = useTranslations('slotRole')
-  const tCommon = useTranslations('common')
 
   return (
     <section className="rounded-2xl border border-gray-800 bg-gray-900 p-4 sm:p-5 space-y-3">
@@ -71,7 +70,6 @@ export default function EventRegearParticipantsPanel({
               canManage={canManage}
               t={t}
               tRole={tRole}
-              tCommon={tCommon}
             />
           ))}
         </ul>
@@ -84,7 +82,6 @@ export default function EventRegearParticipantsPanel({
           memberDirectory={memberDirectory}
           t={t}
           tRole={tRole}
-          tCommon={tCommon}
         />
       )}
     </section>
@@ -98,7 +95,6 @@ function ParticipantRow({
   canManage,
   t,
   tRole,
-  tCommon,
 }: {
   eventId: string
   row: EventRegearParticipantRow
@@ -106,7 +102,6 @@ function ParticipantRow({
   canManage: boolean
   t: ReturnType<typeof useTranslations<'eventRegearParticipants'>>
   tRole: ReturnType<typeof useTranslations<'slotRole'>>
-  tCommon: ReturnType<typeof useTranslations<'common'>>
 }) {
   const [pending, startTransition] = useTransition()
   const router = useRouter()
@@ -132,6 +127,20 @@ function ParticipantRow({
     })
   }
 
+  const updateRole = (role: SlotRole) => {
+    if (role === row.role_name) return
+
+    startTransition(async () => {
+      const result = await upsertEventRegearParticipant(eventId, row.discord_id, role)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      toast.success(t('toastRoleUpdated'))
+      router.refresh()
+    })
+  }
+
   return (
     <li className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-800/40">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -141,13 +150,29 @@ function ParticipantRow({
           username={row.username}
           className="truncate text-sm font-medium text-white"
         />
-        <span
-          className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-            style?.badge ?? 'bg-gray-700 text-gray-200'
-          }`}
-        >
-          {translateSlotRole(row.role_name, tRole)}
-        </span>
+        {canManage ? (
+          <select
+            value={row.role_name}
+            onChange={(event) => updateRole(event.target.value as SlotRole)}
+            disabled={pending}
+            aria-label={t('roleUpdateLabel', { name: row.username })}
+            className="min-h-6 rounded border border-gray-700 bg-gray-900 px-1.5 text-[11px] font-semibold text-gray-100 focus:border-emerald-500 focus:outline-none disabled:opacity-50"
+          >
+            {SLOT_ROLES.map((role) => (
+              <option key={role} value={role}>
+                {translateSlotRole(role, tRole)}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span
+            className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+              style?.badge ?? 'bg-gray-700 text-gray-200'
+            }`}
+          >
+            {translateSlotRole(row.role_name, tRole)}
+          </span>
+        )}
       </div>
       {canManage && (
         <button
@@ -155,7 +180,7 @@ function ParticipantRow({
           onClick={remove}
           disabled={pending}
           className="shrink-0 rounded p-1 text-rose-300/80 hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-50"
-          aria-label={tCommon('delete')}
+          aria-label={t('removeButtonLabel', { name: row.username })}
         >
           {pending ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
         </button>
@@ -170,16 +195,13 @@ function AddParticipantPanel({
   memberDirectory,
   t,
   tRole,
-  tCommon,
 }: {
   eventId: string
   rows: EventRegearParticipantRow[]
   memberDirectory: DirectoryMember[]
   t: ReturnType<typeof useTranslations<'eventRegearParticipants'>>
   tRole: ReturnType<typeof useTranslations<'slotRole'>>
-  tCommon: ReturnType<typeof useTranslations<'common'>>
 }) {
-  const [open, setOpen] = useState(false)
   const [selectedMember, setSelectedMember] = useState('')
   const [selectedRole, setSelectedRole] = useState<SlotRole | ''>('')
   const [memberQuery, setMemberQuery] = useState('')
@@ -213,14 +235,6 @@ function AddParticipantPanel({
   )
   const selectedMemberInfo = eligible.find((member) => member.discord_id === selectedMember) ?? null
 
-  const close = () => {
-    setOpen(false)
-    setError('')
-    setMemberQuery('')
-    setSelectedMember('')
-    setSelectedRole('')
-  }
-
   const submit = () => {
     setError('')
     const member = eligible.find((candidate) => candidate.discord_id === selectedMember)
@@ -240,27 +254,19 @@ function AddParticipantPanel({
         return
       }
       toast.success(t('toastAdded'))
-      close()
+      setError('')
+      setMemberQuery('')
+      setSelectedMember('')
       router.refresh()
     })
   }
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 self-start rounded-full border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-700"
-      >
-        <UserPlus size={12} />
-        {t('addButton')}
-      </button>
-    )
-  }
-
   return (
     <div className="space-y-2.5 rounded-lg border border-gray-800 bg-gray-950/60 p-3">
-      <p className="text-xs font-semibold text-gray-200">{t('addTitle')}</p>
+      <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-200">
+        <UserPlus size={12} className="text-emerald-300" />
+        {t('addTitle')}
+      </p>
       <div className="space-y-2">
         <label className="block text-[11px] text-gray-400">{t('memberLabel')}</label>
         <div className="relative">
@@ -378,19 +384,11 @@ function AddParticipantPanel({
         <button
           type="button"
           onClick={submit}
-          disabled={pending}
+          disabled={pending || eligible.length === 0}
           className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-bold text-black hover:bg-emerald-400 disabled:opacity-50"
         >
           {pending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
           {t('saveButton')}
-        </button>
-        <button
-          type="button"
-          onClick={close}
-          disabled={pending}
-          className="px-3 py-1.5 text-xs text-gray-400 hover:text-white"
-        >
-          {tCommon('cancel')}
         </button>
       </div>
     </div>

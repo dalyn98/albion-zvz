@@ -109,7 +109,7 @@ export default async function DemoEventDetailPage({
             <div className="bg-rose-500/10 border border-rose-500/30 rounded-lg p-3 flex items-start gap-2">
               <Info size={14} className="text-rose-300 flex-shrink-0 mt-0.5" />
               <p className="text-rose-200 text-sm leading-relaxed">
-                {tEvent.rich('startedNotice', {
+                {tEvent.rich(listEvent.category === '전투' ? 'startedNotice' : 'startedNoticeFlexible', {
                   bold: (chunks) => <span className="font-bold">{chunks}</span>,
                 })}
               </p>

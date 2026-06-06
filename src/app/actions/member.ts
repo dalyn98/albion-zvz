@@ -191,12 +191,12 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
 
   const db = getAdminClient()
 
-  // Once the admin starts the battle, assignments are locked in — members
-  // cannot cancel. UI also disables the button but the server guard is what
-  // actually matters if someone crafts the request by hand.
+  // Combat events keep assignments locked after battle start because slot state
+  // feeds participation/stats. FF and ganking rosters are intentionally fluid,
+  // so members may still leave their own slot after gather/start.
   let slotLookup = db
     .from('slots')
-    .select('guild_id, party_id, parties!inner(event_id, party_number, events(battle_started_at))')
+    .select('guild_id, party_id, parties!inner(event_id, party_number, events(battle_started_at, category))')
     .eq('id', slotId)
 
   slotLookup = session.eventScope
@@ -211,21 +211,29 @@ export async function cancelSlot(slotId: string): Promise<{ error?: string }> {
     | {
         event_id: string
         party_number: number
-        events: { battle_started_at: string | null } | { battle_started_at: string | null }[] | null
+        events:
+          | { battle_started_at: string | null; category: string | null }
+          | { battle_started_at: string | null; category: string | null }[]
+          | null
       }
     | {
         event_id: string
         party_number: number
-        events: { battle_started_at: string | null } | { battle_started_at: string | null }[] | null
+        events:
+          | { battle_started_at: string | null; category: string | null }
+          | { battle_started_at: string | null; category: string | null }[]
+          | null
       }[]
     | null
   const partyRow = Array.isArray(partyJoin) ? partyJoin[0] : partyJoin
   const eventJoin = partyRow?.events as
-    | { battle_started_at: string | null }
-    | { battle_started_at: string | null }[]
+    | { battle_started_at: string | null; category: string | null }
+    | { battle_started_at: string | null; category: string | null }[]
     | null
   const eventState = Array.isArray(eventJoin) ? eventJoin[0] : eventJoin
-  if (eventState?.battle_started_at) {
+  const canSelfCancelAfterStart =
+    eventState?.category === 'FF' || eventState?.category === '갱킹'
+  if (eventState?.battle_started_at && !canSelfCancelAfterStart) {
     return { error: tAction('battleAlreadyStarted') }
   }
   // 이벤트 스코프 게스트는 자기 이벤트의 슬롯만 취소 가능.

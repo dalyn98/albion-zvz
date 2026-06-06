@@ -39,7 +39,7 @@ vi.mock('next-intl/server', () => ({
   getTranslations: vi.fn(async () => (key: string) => key),
 }))
 
-import { adminCancelSlot, assignSlot } from './member'
+import { adminCancelSlot, assignSlot, cancelSlot } from './member'
 
 interface QueryCall {
   method: string
@@ -250,6 +250,73 @@ describe('adminCancelSlot', () => {
 
     await expect(assignSlot('slot-1')).resolves.toEqual({
       error: 'albionVerificationRequired',
+    })
+
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('allows a member to cancel their own FF slot after the event has started', async () => {
+    const { query } = createSlotQuery({
+      guild_id: 'guild-1',
+      party_id: 'party-1',
+      parties: {
+        event_id: 'event-1',
+        party_number: 1,
+        events: {
+          battle_started_at: '2026-01-01T12:00:00.000Z',
+          category: 'FF',
+        },
+      },
+    })
+    const rpc = vi.fn().mockResolvedValue({ error: null })
+
+    mocks.getSession.mockResolvedValue({
+      discordId: 'member-1',
+      username: 'Member',
+      isAdmin: false,
+      isMember: true,
+      isGuest: false,
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
+
+    await expect(cancelSlot('slot-1')).resolves.toEqual({})
+
+    expect(rpc).toHaveBeenCalledWith('cancel_slot', {
+      p_slot_id: 'slot-1',
+      p_discord_id: 'member-1',
+    })
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/events/event-1')
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/events/event-1/party/1')
+  })
+
+  it('keeps started combat event slots locked for member self-cancel', async () => {
+    const { query } = createSlotQuery({
+      guild_id: 'guild-1',
+      party_id: 'party-1',
+      parties: {
+        event_id: 'event-1',
+        party_number: 1,
+        events: {
+          battle_started_at: '2026-01-01T12:00:00.000Z',
+          category: '전투',
+        },
+      },
+    })
+    const rpc = vi.fn().mockResolvedValue({ error: null })
+
+    mocks.getSession.mockResolvedValue({
+      discordId: 'member-1',
+      username: 'Member',
+      isAdmin: false,
+      isMember: true,
+      isGuest: false,
+    })
+    mocks.getSessionGuildId.mockResolvedValue('guild-1')
+    mocks.getAdminClient.mockReturnValue({ from: vi.fn(() => query), rpc })
+
+    await expect(cancelSlot('slot-1')).resolves.toEqual({
+      error: 'battleAlreadyStarted',
     })
 
     expect(rpc).not.toHaveBeenCalled()

@@ -2572,8 +2572,11 @@
     "roleLabel": "Regear role",
     "saveButton": "Add",
     "toastAdded": "Regear participant added.",
+    "toastRoleUpdated": "Regear role updated.",
     "toastRemoved": "Regear participant removed.",
     "confirmRemove": "Remove {name} from regear participants?",
+    "removeButtonLabel": "Remove {name}",
+    "roleUpdateLabel": "Change {name}'s regear role",
     "memberRequired": "Select a member.",
     "roleRequired": "Select a regear role."
   },
@@ -2599,6 +2602,7 @@
     "viewReport": "View Report",
     "ended": "Event ended",
     "startedNotice": "The battle has already started. You <bold>can still apply</bold> to slots, but you <bold>cannot cancel</bold>. Applying counts as committed participation. Submit regear requests from the <bold>Regear</bold> tab on the left.",
+    "startedNoticeFlexible": "This event has already started. Slot <bold>sign-up and cancellation remain open</bold>. Admins finalize the actual regear participant list after the event.",
     "applicants": "Applied {assigned}/{total}",
     "noParties": "No parties registered.",
     "partyNumber": "Party {number}",
@@ -2734,6 +2738,7 @@
     "loginToApply": "Log in to apply",
     "battleStartedLocked": "Battle started · no cancel",
     "battleStartedTooltip": "Cannot cancel — the battle has started.",
+    "cancelAfterStartTooltip": "FF/ganking events allow slot cancellation even after the event starts.",
     "eventFinalizedLocked": "Event ended",
     "eventFinalizedTooltip": "This event has ended; sign-ups are closed.",
     "cancelling": "Cancelling...",
@@ -2793,6 +2798,7 @@
       "assigning": "Assigning…"
     },
     "confirmBattleStarted": "This event's battle has already started.\nYou can't cancel after applying. Continue?",
+    "confirmBattleStartedFlexible": "This event has already started.\nFF/ganking events still allow slot cancellation after applying. Continue?",
     "picker": {
       "title": "Pick gear",
       "close": "Close",
