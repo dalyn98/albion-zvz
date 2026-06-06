@@ -825,7 +825,7 @@
     "lootAudit": {
       "title": "拾取日志核验",
       "cta": "打开拾取核验",
-      "body": "将 ZvZ 后的个人拾取 CSV 与公会箱子入库日志对比，找出疑似未归还物品。拾取核验页面的日志运营开始时间之前的行会从官方核验中排除；历史日志不完整的公会应先设置起点，再创建新的核验。"
+      "body": "将 ZvZ 后的个人拾取 CSV 与公会箱子入库日志对比，找出疑似未归还物品。每次核验的第一条拾取时间会作为基准点，只有早于该时间的公会箱子存入日志会被排除。"
     },
     "notifications": {
       "title": "Discord 通知",
@@ -1404,14 +1404,12 @@
   },
   "adminLogOperatingStart": {
     "title": "日志运营开始时间",
-    "description": "早于此时间的游戏内日志会从新导入、虹吸余额和官方拾取核验结果中排除。现有数据不会删除。",
+    "description": "早于此时间的公会箱子/虹吸日志会从新导入和虹吸余额中排除。现有数据不会删除。",
     "timezoneHint": "输入基准：公会时间（{timezone}）。保存和筛选会自动转换为 UTC。",
     "shopChestLabel": "公会箱子",
     "shopChestHint": "影响商店库存的银行日志开始时间。",
     "siphonLabel": "虹吸",
     "siphonHint": "成员虹吸余额与历史的官方开始时间。",
-    "lootAuditLabel": "拾取核验",
-    "lootAuditHint": "匹配拾取 CSV 与公会箱子存入日志时使用的开始时间。",
     "clear": "清空"
   },
   "eventGuestInvite": {
@@ -4867,7 +4865,7 @@
     "statExternalRows": "其他行",
     "statDepositRows": "存入行",
     "statIgnoredRows": "忽略行",
-    "statSkippedBeforeStart": "开始前跳过",
+    "statSkippedBeforeStart": "开始前存入",
     "statFindings": "疑似项",
     "statTotalValue": "核验目标估值",
     "statTargetValue": "核验目标估值",
@@ -4885,7 +4883,7 @@
     "parseErrorReasonChestDate": "无法读取箱子日志日期。",
     "parseErrorReasonChestNumericFields": "箱子日志的附魔、品质、数量必须是数字。",
     "parseErrorReasonUnknown": "未知解析错误。",
-    "skippedBeforeStartNotice": "已排除早于基准时间的日志：拾取 {loot} 行，存入 {deposit} 行。",
+    "skippedBeforeStartNotice": "已排除早于第一条拾取时间的公会箱子存入日志：存入 {deposit} 行。",
     "unresolvedDepositItems": "有 {count} 种箱子日志物品名无法匹配: {names}",
     "recentTitle": "最近核验",
     "recentCount": "{count} 项",

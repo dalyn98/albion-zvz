@@ -15,7 +15,6 @@ import { useReportDirty } from './UnsavedChangesProvider'
 interface Props {
   initialShopChestStartAt: string
   initialSiphonStartAt: string
-  initialLootAuditStartAt?: string
   timezone: string
   domains?: readonly LogOperatingStartDomain[]
   embedded?: boolean
@@ -26,13 +25,11 @@ type Values = Record<LogOperatingStartDomain, string>
 const DOMAINS: readonly LogOperatingStartDomain[] = [
   'shopChest',
   'siphon',
-  'lootAudit',
 ] as const
 
 export default function LogOperatingStartSettingsForm({
   initialShopChestStartAt,
   initialSiphonStartAt,
-  initialLootAuditStartAt = '',
   timezone,
   domains,
   embedded = false,
@@ -45,9 +42,8 @@ export default function LogOperatingStartSettingsForm({
     () => ({
       shopChest: formatLogOperatingStartInput(initialShopChestStartAt, timezone),
       siphon: formatLogOperatingStartInput(initialSiphonStartAt, timezone),
-      lootAudit: formatLogOperatingStartInput(initialLootAuditStartAt, timezone),
     }),
-    [initialLootAuditStartAt, initialShopChestStartAt, initialSiphonStartAt, timezone],
+    [initialShopChestStartAt, initialSiphonStartAt, timezone],
   )
   const [values, setValues] = useState<Values>(initialValues)
   const [savedValues, setSavedValues] = useState<Values>(initialValues)

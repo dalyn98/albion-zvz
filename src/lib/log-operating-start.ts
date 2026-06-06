@@ -1,12 +1,11 @@
 import type { AppSettingKey } from '@/lib/app-settings'
 import { DEFAULT_TENANT_TIMEZONE, toZonedParts, zonedPartsToUtc } from '@/lib/timezone'
 
-export type LogOperatingStartDomain = 'shopChest' | 'siphon' | 'lootAudit'
+export type LogOperatingStartDomain = 'shopChest' | 'siphon'
 
 export const LOG_OPERATING_START_KEYS = {
   shopChest: 'log_start_shop_chest_at',
   siphon: 'log_start_siphon_at',
-  lootAudit: 'log_start_loot_audit_at',
 } as const satisfies Record<LogOperatingStartDomain, AppSettingKey>
 
 const LOCAL_DATE_TIME_RE =

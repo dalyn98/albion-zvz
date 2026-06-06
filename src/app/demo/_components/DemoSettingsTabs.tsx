@@ -95,7 +95,6 @@ export default function DemoSettingsTabs({ initialTab = 'guild' }: Props) {
             >
               <DemoFormRow label={tLogStart('shopChestLabel')} value="2026-05-01 00:00" />
               <DemoFormRow label={tLogStart('siphonLabel')} value="2026-05-24 00:00" />
-              <DemoFormRow label={tLogStart('lootAuditLabel')} value="2026-05-24 00:00" />
             </DemoSettingsGroup>
           </div>
         )}

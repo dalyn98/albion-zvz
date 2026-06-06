@@ -21,7 +21,6 @@ describe('settings access', () => {
 
     expect(getAvailableSettingsTabs(access)).toEqual(['guild'])
     expect(access.shopChestLogStart).toBe(true)
-    expect(access.lootAuditLogStart).toBe(true)
     expect(access.siphonLogStart).toBe(false)
   })
 

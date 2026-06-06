@@ -825,7 +825,7 @@
     "lootAudit": {
       "title": "ルートログ検証",
       "cta": "ルート検証を開く",
-      "body": "ZvZ 後の個人ルート CSV とギルド金庫入庫ログを照合し、未返却の疑いがある項目を探します。ルート検証画面のログ運用開始時刻より前の行は公式検証から除外されるため、過去ログが不完全なギルドは先に開始点を合わせてから新しい検証を作成してください。"
+      "body": "ZvZ 後の個人ルート CSV とギルド金庫入庫ログを照合し、未返却の疑いがある項目を探します。各検証の最初のルート時刻が基準点になり、それより前のギルド金庫入庫ログだけが除外されます。"
     },
     "notifications": {
       "title": "Discord 通知",
@@ -1404,14 +1404,12 @@
   },
   "adminLogOperatingStart": {
     "title": "ログ運用開始時刻",
-    "description": "この時刻より前のゲーム内ログは、新規インポート、サイフォン残高、ルート検証の公式結果から除外します。既存データは削除しません。",
+    "description": "この時刻より前のギルド金庫/サイフォンログは、新規インポートとサイフォン残高から除外します。既存データは削除しません。",
     "timezoneHint": "入力基準: ギルド基準時刻({timezone})。保存とフィルタはUTCへ自動変換されます。",
     "shopChestLabel": "ギルド金庫",
     "shopChestHint": "ショップ在庫に反映する銀行ログの開始時刻です。",
     "siphonLabel": "サイフォン",
     "siphonHint": "メンバー別サイフォン残高と履歴の公式開始時刻です。",
-    "lootAuditLabel": "ルート検証",
-    "lootAuditHint": "ルートCSVとギルド金庫入庫ログを照合する開始時刻です。",
     "clear": "クリア"
   },
   "eventGuestInvite": {
@@ -4867,7 +4865,7 @@
     "statExternalRows": "その他行",
     "statDepositRows": "入庫行",
     "statIgnoredRows": "無視行",
-    "statSkippedBeforeStart": "開始前スキップ",
+    "statSkippedBeforeStart": "開始前入庫",
     "statFindings": "疑い項目",
     "statTotalValue": "監査対象推定額",
     "statTargetValue": "監査対象推定額",
@@ -4885,7 +4883,7 @@
     "parseErrorReasonChestDate": "金庫ログの日付を読み取れません。",
     "parseErrorReasonChestNumericFields": "金庫ログのエンチャント、品質、数量は数値である必要があります。",
     "parseErrorReasonUnknown": "不明な解析エラーです。",
-    "skippedBeforeStartNotice": "基準時刻より前のログを除外しました: ルート {loot} 件、入庫 {deposit} 件。",
+    "skippedBeforeStartNotice": "最初のルート時刻より前のギルド金庫入庫ログを除外しました: 入庫 {deposit} 件。",
     "unresolvedDepositItems": "金庫ログのアイテム名 {count} 種を照合できませんでした: {names}",
     "recentTitle": "最近の検証",
     "recentCount": "{count} 件",

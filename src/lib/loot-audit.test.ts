@@ -489,13 +489,13 @@ describe('selectLootAuditEntries', () => {
 
     const selected = selectLootAuditEntries(loot, deposits)
 
-    expect(selected.operatingStartAt).toBe('2026-05-24T05:00:00.000Z')
+    expect(selected.auditStartAt).toBe('2026-05-24T05:00:00.000Z')
     expect(selected.lootEntries).toHaveLength(2)
     expect(selected.depositEntries).toHaveLength(1)
     expect(selected.skippedBeforeStart).toEqual({ lootRows: 0, depositRows: 1 })
   })
 
-  it('applies configured loot-audit operating start before the per-audit loot timestamp', () => {
+  it('uses the earliest loot row even when historical loot rows predate deposits', () => {
     const loot = parseLootLogCsv(
       [
         'timestamp_utc;looted_by__name;item_id;item_name;quantity;average_est_market_value',
@@ -520,15 +520,11 @@ describe('selectLootAuditEntries', () => {
       },
     ]
 
-    const selected = selectLootAuditEntries(
-      loot,
-      deposits,
-      new Date('2026-05-24T05:00:00.000Z'),
-    )
+    const selected = selectLootAuditEntries(loot, deposits)
 
-    expect(selected.operatingStartAt).toBe('2026-05-24T05:10:00.000Z')
-    expect(selected.lootEntries).toHaveLength(1)
-    expect(selected.depositEntries).toHaveLength(1)
-    expect(selected.skippedBeforeStart).toEqual({ lootRows: 1, depositRows: 1 })
+    expect(selected.auditStartAt).toBe('2026-05-24T04:59:59.000Z')
+    expect(selected.lootEntries).toHaveLength(2)
+    expect(selected.depositEntries).toHaveLength(2)
+    expect(selected.skippedBeforeStart).toEqual({ lootRows: 0, depositRows: 0 })
   })
 })

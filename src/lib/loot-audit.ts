@@ -183,7 +183,7 @@ export interface LootAuditSummary {
 export interface LootAuditEntrySelection {
   lootEntries: LootLogEntry[]
   depositEntries: DepositLogEntry[]
-  operatingStartAt: string | null
+  auditStartAt: string | null
   skippedBeforeStart: {
     lootRows: number
     depositRows: number
@@ -549,38 +549,23 @@ export function parseDepositLog(
 export function selectLootAuditEntries(
   lootEntries: readonly LootLogEntry[],
   depositEntries: readonly DepositLogEntry[],
-  operatingStart: Date | null = null,
 ): LootAuditEntrySelection {
-  const selectedLoot = filterByLogOperatingStart(
-    lootEntries,
-    (entry) => entry.lootedAt,
-    operatingStart,
-  )
-  const depositStart = maxDate(
-    operatingStart,
-    getEarliestLootedAt(selectedLoot.entries),
-  )
+  const auditStart = getEarliestLootedAt(lootEntries)
   const selectedDeposits = filterByLogOperatingStart(
     depositEntries,
     (entry) => entry.depositedAt,
-    depositStart,
+    auditStart,
   )
 
   return {
-    lootEntries: selectedLoot.entries,
+    lootEntries: [...lootEntries],
     depositEntries: selectedDeposits.entries,
-    operatingStartAt: depositStart?.toISOString() ?? null,
+    auditStartAt: auditStart?.toISOString() ?? null,
     skippedBeforeStart: {
-      lootRows: selectedLoot.skippedBeforeStart,
+      lootRows: 0,
       depositRows: selectedDeposits.skippedBeforeStart,
     },
   }
-}
-
-function maxDate(a: Date | null, b: Date | null): Date | null {
-  if (!a) return b
-  if (!b) return a
-  return a.getTime() >= b.getTime() ? a : b
 }
 
 export function buildLootAuditSummary(

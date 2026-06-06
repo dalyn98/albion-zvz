@@ -16,7 +16,6 @@ export interface SettingsAccessFlags {
   guildProfile: boolean
   shopChestLogStart: boolean
   siphonLogStart: boolean
-  lootAuditLogStart: boolean
   roleRewards: boolean
 }
 
@@ -46,7 +45,6 @@ export function getSettingsAccessFlags(
     guildProfile: can([CAP.SETTINGS_GUILD_PROFILE]),
     shopChestLogStart: can([CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE]),
     siphonLogStart: can([CAP.SIPHON_MANAGE]),
-    lootAuditLogStart: can([CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE]),
     // 역할 보상 액션은 아직 legacy admin gate 를 사용한다.
     roleRewards: isAdmin,
   }
@@ -61,8 +59,7 @@ export function getAvailableSettingsTabs(
     access.general ||
     access.toggles ||
     access.shopChestLogStart ||
-    access.siphonLogStart ||
-    access.lootAuditLogStart
+    access.siphonLogStart
   ) {
     tabs.push('guild')
   }

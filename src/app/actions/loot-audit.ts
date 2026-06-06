@@ -29,7 +29,6 @@ import {
   type LootLogParseError,
 } from '@/lib/loot-audit'
 import { getGuild, isAlbionServer } from '@/lib/albion-gameinfo'
-import { getLogOperatingStart } from '@/lib/log-operating-start-server'
 
 const LOOT_AUDIT_CAPS = [CAP.INVENTORY_MANAGE, CAP.CHEST_LOG_PASTE] as const
 const RAW_MAX_LENGTH = 2_000_000
@@ -59,7 +58,7 @@ export interface LootAuditPreviewResult {
   depositParseErrors: LootLogParseError[]
   unresolvedDepositItemNames: string[]
   skippedBeforeStart: {
-    operatingStartAt: string | null
+    auditStartAt: string | null
     lootRows: number
     depositRows: number
   }
@@ -142,12 +141,9 @@ export async function previewLootAudit(
     if (!session) return previewError(tErr('unauthorized'))
     await requireAnyCapability(LOOT_AUDIT_CAPS)
     const guildId = await getSessionGuildId(session)
-    const [auditContext, operatingStart] = await Promise.all([
-      getLootAuditScopeContext(guildId),
-      getLogOperatingStart('lootAudit', guildId),
-    ])
+    const auditContext = await getLootAuditScopeContext(guildId)
 
-    return parseAuditInput(parsed.data, tErr, auditContext, operatingStart).preview
+    return parseAuditInput(parsed.data, tErr, auditContext).preview
   } catch (e) {
     return previewError(e instanceof Error ? e.message : tErr('serverError'))
   }
@@ -168,12 +164,9 @@ export async function createLootAudit(
     if (!session) return { ...previewError(tErr('unauthorized')) }
     const db = await requireAnyCapability(LOOT_AUDIT_CAPS)
     guildId = await getSessionGuildId(session)
-    const [auditContext, operatingStart] = await Promise.all([
-      getLootAuditScopeContext(guildId),
-      getLogOperatingStart('lootAudit', guildId),
-    ])
+    const auditContext = await getLootAuditScopeContext(guildId)
 
-    const parsedAudit = parseAuditInput(parsed.data, tErr, auditContext, operatingStart)
+    const parsedAudit = parseAuditInput(parsed.data, tErr, auditContext)
     if (parsedAudit.preview.error) return { ...parsedAudit.preview }
 
     const { summary } = parsedAudit.preview
@@ -212,6 +205,7 @@ export async function createLootAudit(
       targetKind: 'loot_audit',
       details: {
         title: parsed.data.title,
+        auditStartAt: parsedAudit.preview.skippedBeforeStart.auditStartAt,
         lootRows: summary.totalLootRows,
         depositRows: summary.totalDepositRows,
         lootRowsBeforeStart: parsedAudit.preview.skippedBeforeStart.lootRows,
@@ -454,17 +448,15 @@ function parseAuditInput(
   input: z.infer<typeof auditInputSchema>,
   tErr: Awaited<ReturnType<typeof getTranslations>>,
   auditContext: LootAuditScopeContext,
-  operatingStart: Date | null,
 ): ParsedAuditInput {
   const lootResult = parseLootLogCsv(input.lootLogRaw)
   const depositResult = parseDepositLog(input.depositLogRaw)
   const selectedEntries = selectLootAuditEntries(
     lootResult.entries,
     depositResult.entries,
-    operatingStart,
   )
   const skippedBeforeStart = {
-    operatingStartAt: selectedEntries.operatingStartAt,
+    auditStartAt: selectedEntries.auditStartAt,
     lootRows: selectedEntries.skippedBeforeStart.lootRows,
     depositRows: selectedEntries.skippedBeforeStart.depositRows,
   }
@@ -540,7 +532,7 @@ function parseAuditInput(
 function previewError(
   error: string,
   skippedBeforeStart: LootAuditPreviewResult['skippedBeforeStart'] = {
-    operatingStartAt: null,
+    auditStartAt: null,
     lootRows: 0,
     depositRows: 0,
   },

@@ -825,7 +825,7 @@
     "lootAudit": {
       "title": "루팅 로그 검증",
       "cta": "루팅 검증 열기",
-      "body": "ZvZ 후 개인 루팅 CSV와 길드 금고 입금 로그를 대조해 미반납 의심 항목을 찾습니다. 루팅 검증 화면의 로그 운영 시작시간 이전 행은 공식 검증에서 제외되므로, 기존 누적 로그가 불완전한 길드는 먼저 시작점을 맞춘 뒤 새 검증을 만드세요."
+      "body": "ZvZ 후 개인 루팅 CSV와 길드 금고 입금 로그를 대조해 미반납 의심 항목을 찾습니다. 각 검증의 첫 루팅 로그 시각이 기준점이 되며, 그보다 이른 길드 금고 입금 로그만 제외됩니다."
     },
     "notifications": {
       "title": "Discord 알림",
@@ -1404,14 +1404,12 @@
   },
   "adminLogOperatingStart": {
     "title": "로그 운영 시작시간",
-    "description": "기준 시각 이전의 인게임 로그는 새 import, 사이펀 잔액, 루팅 검증 공식 결과에서 제외합니다. 기존 데이터는 삭제하지 않습니다.",
+    "description": "기준 시각 이전의 길드 상자/사이펀 로그는 새 import와 사이펀 잔액에서 제외합니다. 기존 데이터는 삭제하지 않습니다.",
     "timezoneHint": "입력 기준: 길드 기준시간({timezone}). 저장과 필터는 UTC로 자동 변환합니다.",
     "shopChestLabel": "길드 상자",
     "shopChestHint": "상점 재고에 반영할 은행 로그의 시작 시각입니다.",
     "siphonLabel": "사이펀",
     "siphonHint": "개인별 사이펀 잔액과 히스토리의 공식 시작 시각입니다.",
-    "lootAuditLabel": "루팅 검증",
-    "lootAuditHint": "루팅 CSV와 길드 금고 입금 로그 대조에 사용할 시작 시각입니다.",
     "clear": "비우기"
   },
   "eventGuestInvite": {
@@ -4867,7 +4865,7 @@
     "statExternalRows": "그 외 행",
     "statDepositRows": "입금 행",
     "statIgnoredRows": "무시 행",
-    "statSkippedBeforeStart": "기준전 스킵",
+    "statSkippedBeforeStart": "기준전 입금",
     "statFindings": "의심 항목",
     "statTotalValue": "감사 대상 추정가",
     "statTargetValue": "감사 대상 추정가",
@@ -4885,7 +4883,7 @@
     "parseErrorReasonChestDate": "금고 로그 날짜를 읽을 수 없습니다.",
     "parseErrorReasonChestNumericFields": "금고 로그의 인챈트, 품질, 수량은 숫자여야 합니다.",
     "parseErrorReasonUnknown": "알 수 없는 파싱 오류입니다.",
-    "skippedBeforeStartNotice": "기준 시각 이전 로그를 제외했습니다: 루팅 {loot}행, 입금 {deposit}행.",
+    "skippedBeforeStartNotice": "첫 루팅 시각 이전의 길드 금고 입금 로그를 제외했습니다: 입금 {deposit}행.",
     "unresolvedDepositItems": "금고 로그 아이템명 {count}종을 매칭하지 못했습니다: {names}",
     "recentTitle": "최근 검증",
     "recentCount": "{count}건",
