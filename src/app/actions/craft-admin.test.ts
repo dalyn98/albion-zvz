@@ -73,6 +73,10 @@ function createQuery(result: QueryResult, calls: QueryCall[]) {
       calls.push({ method: 'in', args: [column, values] })
       return query
     },
+    or(filter: string) {
+      calls.push({ method: 'or', args: [filter] })
+      return query
+    },
     order(column: string, options: Record<string, unknown>) {
       calls.push({ method: 'order', args: [column, options] })
       return query
@@ -167,5 +171,21 @@ describe('listAllCraftTasksAdmin', () => {
 
     expect(eventCalls).toContainEqual({ method: 'eq', args: ['guild_id', 'guild-1'] })
     expect(eventCalls).toContainEqual({ method: 'in', args: ['id', ['event-1']] })
+  })
+
+  it('keeps pending reimbursements visible in the active admin list after pickup or expiry', async () => {
+    const { db, taskCalls } = createDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+
+    await listAllCraftTasksAdmin('active')
+
+    expect(taskCalls).toContainEqual({
+      method: 'or',
+      args: ['status.in.(queued,claimed,delivered),reimbursement_status.eq.pending'],
+    })
+    expect(taskCalls).not.toContainEqual({
+      method: 'in',
+      args: ['status', ['queued', 'claimed', 'delivered']],
+    })
   })
 })

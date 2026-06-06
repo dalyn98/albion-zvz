@@ -116,4 +116,37 @@ describe('crafted regear RPC tenant scope', () => {
       'grant execute on function public.approve_craft_reimbursement(uuid, uuid, text, text) to service_role;',
     )
   })
+
+  it('allows pending crafter reimbursement approval after pickup or expiry', () => {
+    const functionDefinition = latestFunctionDefinition('approve_craft_reimbursement')
+
+    expect(functionDefinition).toMatch(
+      /status\s+in\s*\(\s*'delivered'\s*,\s*'collected'\s*,\s*'expired'\s*\)/i,
+    )
+    expect(functionDefinition).not.toContain("and status = 'delivered'")
+  })
+
+  it('adds service-role-only adjusted approval and rejection RPCs for reimbursements', () => {
+    const adjustedSql = latestMigrationWithFunction('approve_craft_reimbursement_adjusted')
+    const adjustedFunction = latestFunctionDefinition('approve_craft_reimbursement_adjusted')
+    const rejectSql = latestMigrationWithFunction('reject_craft_reimbursement')
+    const rejectFunction = latestFunctionDefinition('reject_craft_reimbursement')
+
+    expect(adjustedFunction).toContain('p_reimbursement_silver integer')
+    expect(adjustedFunction).toContain('security definer')
+    expect(adjustedFunction).toContain("reimbursement_status = 'approved'")
+    expect(adjustedFunction).toContain("insert into point_ledger")
+    expect(adjustedFunction).toContain("'craft_reimbursement'")
+    expect(adjustedSql).toContain(
+      'grant execute on function public.approve_craft_reimbursement_adjusted(uuid, uuid, text, text, integer) to service_role;',
+    )
+
+    expect(rejectFunction).toContain('p_reject_reason text')
+    expect(rejectFunction).toContain('security definer')
+    expect(rejectFunction).toContain("reimbursement_status = 'rejected'")
+    expect(rejectFunction).not.toContain('insert into point_ledger')
+    expect(rejectSql).toContain(
+      'grant execute on function public.reject_craft_reimbursement(uuid, uuid, text, text, text) to service_role;',
+    )
+  })
 })
