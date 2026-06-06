@@ -112,7 +112,7 @@ describe('extractGearItemIdsFromBuild', () => {
     expect(extractGearItemIdsFromBuild(empty())).toEqual([])
   })
 
-  it('only extracts tracked equipment slots (weapon/head/armor/shoes/offhand/cape)', () => {
+  it('extracts core equipment slots and can exclude cape from craft fulfillment', () => {
     const snap: BuildSnapshot = {
       ...empty(),
       weapon: { name: 'sword', id: 'T8_2H_SWORD' },
@@ -125,14 +125,30 @@ describe('extractGearItemIdsFromBuild', () => {
       food: { name: 'food', id: 'T8_MEAL_BEEFSTEW' },
       mount: { name: 'mount', id: 'T8_MOUNT_HORSE' },
     }
-    const ids = extractGearItemIdsFromBuild(snap)
-    expect(ids).toHaveLength(6)
+    const ids = extractGearItemIdsFromBuild(snap, {
+      includedSlots: ['weapon', 'head', 'armor', 'shoes', 'offhand'],
+    })
+    expect(ids).toHaveLength(5)
     expect(ids).toContain('T8_2H_SWORD')
     expect(ids).toContain('T8_HEAD_PLATE_SET1')
-    expect(ids).toContain('T8_CAPEITEM_FW_BRIDGEWATCH')
+    expect(ids).not.toContain('T8_CAPEITEM_FW_BRIDGEWATCH')
     expect(ids).not.toContain('T8_POTION_HEAL')
     expect(ids).not.toContain('T8_MEAL_BEEFSTEW')
     expect(ids).not.toContain('T8_MOUNT_HORSE')
+  })
+
+  it('includes cape when the craft fulfillment slots explicitly contain cape', () => {
+    const snap: BuildSnapshot = {
+      ...empty(),
+      weapon: { name: 'sword', id: 'T8_2H_SWORD' },
+      cape: { name: 'cape', id: 'T8_CAPEITEM_FW_BRIDGEWATCH' },
+    }
+
+    const ids = extractGearItemIdsFromBuild(snap, {
+      includedSlots: ['weapon', 'head', 'armor', 'shoes', 'offhand', 'cape'],
+    })
+
+    expect(ids).toEqual(['T8_2H_SWORD', 'T8_CAPEITEM_FW_BRIDGEWATCH'])
   })
 
   it('drops slots whose id is empty/whitespace', () => {

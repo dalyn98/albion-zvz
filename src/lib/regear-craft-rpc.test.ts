@@ -58,4 +58,53 @@ describe('crafted regear RPC tenant scope', () => {
       'grant execute on function public.approve_regear_as_crafted(uuid, text, text, uuid, integer) to service_role;',
     )
   })
+
+  it('persists the final included craft slots when enqueuing crafted regear', () => {
+    const sql = latestFunctionDefinition('approve_regear_as_crafted')
+
+    expect(sql).toContain('p_included_slots text[]')
+    expect(sql).toContain('craft_included_slots')
+    expect(sql).toContain('to_jsonb(p_included_slots)')
+  })
+
+  it('persists the final included craft slots when approving from stock', () => {
+    const sql = latestFunctionDefinition('approve_regear_from_stock')
+
+    expect(sql).toContain('p_included_slots text[]')
+    expect(sql).toContain('craft_included_slots')
+    expect(sql).toContain('to_jsonb(p_included_slots)')
+  })
+
+  it('does not credit crafter reimbursement during delivery', () => {
+    const sql = latestFunctionDefinition('deliver_craft_task')
+
+    expect(sql).toContain("reimbursement_status = 'pending'")
+    expect(sql).not.toContain("values (p_guild_id, p_crafter_discord_id, v_reimbursement")
+    expect(sql).not.toContain("'craft_reimbursement', p_task_id")
+  })
+
+  it('expires only regear craft tasks so guild-order claims are not swept', () => {
+    const sql = latestFunctionDefinition('expire_craft_tasks')
+
+    expect(sql).toContain("task_kind = 'regear'")
+  })
+
+  it('adds a service-role-only reimbursement approval RPC', () => {
+    const sql = latestMigrationWithFunction('approve_craft_reimbursement')
+    const functionDefinition = latestFunctionDefinition('approve_craft_reimbursement')
+
+    expect(functionDefinition).toContain('security definer')
+    expect(functionDefinition).toContain('set search_path = public')
+    expect(functionDefinition).toContain("insert into point_ledger")
+    expect(functionDefinition).toContain("'craft_reimbursement'")
+    expect(sql).toContain(
+      'revoke all on function public.approve_craft_reimbursement(uuid, uuid, text, text) from public;',
+    )
+    expect(sql).toContain(
+      'revoke all on function public.approve_craft_reimbursement(uuid, uuid, text, text) from anon, authenticated;',
+    )
+    expect(sql).toContain(
+      'grant execute on function public.approve_craft_reimbursement(uuid, uuid, text, text) to service_role;',
+    )
+  })
 })
