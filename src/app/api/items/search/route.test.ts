@@ -29,6 +29,24 @@ describe('GET /api/items/search', () => {
     expect(body.length).toBeLessThanOrEqual(30)
   })
 
+  it('keeps the T8 greataxe discoverable by common slot names', async () => {
+    const queries = ['그레이트액스', 'great axe', 'greataxe']
+
+    for (const q of queries) {
+      const response = GET(
+        new NextRequest(`https://example.test/api/items/search?q=${encodeURIComponent(q)}&category=weapon&tier=8`),
+      )
+      const body = await response.json()
+
+      expect(body).toContainEqual(
+        expect.objectContaining({
+          uniqueName: 'T8_2H_AXE',
+          displayName: '장로의 그레이트액스',
+        }),
+      )
+    }
+  })
+
   it('marks locale-cookie dependent search responses as varying by cookie', () => {
     const response = GET(new NextRequest('https://example.test/api/items/search?q=sword'))
 

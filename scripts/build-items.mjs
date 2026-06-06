@@ -95,6 +95,22 @@ const MOUNT_OVERRIDES = {
   'T7_MOUNT_SWAMPDRAGON_BATTLE':          { d: '플레임 바실리스크', kExtra: '화염의 바실리스크 플레임바실리스크 바실리스크' },
 }
 
+// Upstream currently localizes the T8 greataxe as "The Hand of Khor", but ZvZ
+// callers and admins search the weapon line by its common name. Keep the
+// canonical UniqueName while making the picker/display use the expected line.
+const ITEM_OVERRIDES = {
+  'T8_2H_AXE': {
+    d: '장로의 그레이트액스',
+    de: "Elder's Greataxe",
+    dj: '大斧（老熟）',
+    dz: '禅师级巨斧',
+    eExtra: "elder's greataxe greataxe great axe the hand of khor",
+    kExtra: '장로의 그레이트액스 그레이트액스 그레이트 액스 코르의 손',
+    jExtra: '大斧 老熟 ハンド・オブ・Khor',
+    zExtra: '禅师级巨斧 巨斧 Khor之手',
+  },
+}
+
 function categoryOf(uniqueName) {
   for (const [cat, regex] of Object.entries(CATEGORY_PATTERNS)) {
     if (regex.test(uniqueName)) return cat
@@ -188,23 +204,24 @@ async function main() {
     const ko = names['KO-KR']
     const ja = names['JA-JP']
     const zh = names['ZH-CN']
+    const itemOverride = ITEM_OVERRIDES[uniqueName]
     if (!en && !ko && !ja && !zh) continue
     processed.push({
       u: uniqueName,
       c: category,
       // Precomputed lowercase fields skip work on every search keystroke.
-      e: en ? en.toLowerCase() : '',
-      k: ko ? ko.toLowerCase() : '',
-      j: ja ? ja.toLowerCase() : '',
-      z: zh ? zh.toLowerCase() : '',
+      e: [en, itemOverride?.eExtra].filter(Boolean).join(' ').toLowerCase(),
+      k: [ko, itemOverride?.kExtra].filter(Boolean).join(' ').toLowerCase(),
+      j: [ja, itemOverride?.jExtra].filter(Boolean).join(' ').toLowerCase(),
+      z: [zh, itemOverride?.zExtra].filter(Boolean).join(' ').toLowerCase(),
       // Display name prefers Korean, falls back to English, then raw id.
-      d: ko || en || uniqueName,
+      d: itemOverride?.d || ko || en || uniqueName,
       // Japanese display prefers JA, then EN, then raw id. Serves ja locale.
-      dj: ja || en || uniqueName,
+      dj: itemOverride?.dj || ja || en || uniqueName,
       // English display prefers EN, falls back to raw id. Serves en locale.
-      de: en || uniqueName,
+      de: itemOverride?.de || en || uniqueName,
       // Simplified Chinese display prefers ZH-CN, then EN, then raw id.
-      dz: zh || en || uniqueName,
+      dz: itemOverride?.dz || zh || en || uniqueName,
     })
   }
 

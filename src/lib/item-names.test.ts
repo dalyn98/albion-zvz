@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getLocalizedBaseItemName, stripLocalizedTierName } from './item-names'
+import { getLocalizedBaseItemName, getLocalizedItemName, stripLocalizedTierName } from './item-names'
 
 describe('stripLocalizedTierName', () => {
   it('removes Korean tier prefixes', () => {
@@ -46,5 +46,12 @@ describe('getLocalizedBaseItemName', () => {
     expect(getLocalizedBaseItemName('T8_OFF_TORCH_CRYSTAL', 'ja', null)).toBe(
       '青い炎のたいまつ',
     )
+  })
+})
+
+describe('getLocalizedItemName', () => {
+  it('uses the common greataxe line name for T8_2H_AXE', () => {
+    expect(getLocalizedItemName('T8_2H_AXE', 'ko', null)).toBe('장로의 그레이트액스')
+    expect(getLocalizedItemName('T8_2H_AXE', 'en', null)).toBe("Elder's Greataxe")
   })
 })
