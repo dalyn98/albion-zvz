@@ -1,6 +1,8 @@
 import { existsSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  buildKillbotBattleDiscordPayload,
+  buildKillbotBattleSummary,
   buildKillbotDiscordMessage,
   buildKillbotDiscordPayload,
   classifyKillbotEvent,
@@ -204,6 +206,81 @@ describe('isKillbotEventInsideProcessWindow', () => {
 })
 
 describe('buildKillbotDiscordPayload', () => {
+  it('builds a text-only battle summary embed with linked top K/D rows', () => {
+    const summary = buildKillbotBattleSummary({
+      battleDetailUrl: 'https://menhera.albion-guildmanager.com/battles/battle-row',
+      battleEventUrl: (eventId) =>
+        `https://menhera.albion-guildmanager.com/battles/battle-row?event=${eventId}#killbot-event-${eventId}`,
+      albionBattleId: 77,
+      clusterName: 'Darkbough Snag',
+      startedAt: '2026-05-26T12:00:00Z',
+      homeGuildName: 'Menhera',
+      opponentName: 'Enemy Alliance',
+      homeTeamSize: 42,
+      opponentTeamSize: 39,
+      homeKills: 18,
+      homeDeaths: 7,
+      homeKillFame: 12_400_000,
+      resultLabel: 'Win',
+      minFame: 1,
+      juicyFameThreshold: 1_000_000,
+      events: [
+        {
+          eventId: 101,
+          role: 'killer',
+          playerName: 'TopKiller',
+          fame: 1_800_000,
+          occurredAt: '2026-05-26T12:03:00Z',
+        },
+        {
+          eventId: 102,
+          role: 'killer',
+          playerName: 'TopKiller',
+          fame: 900_000,
+          occurredAt: '2026-05-26T12:04:00Z',
+        },
+        {
+          eventId: 103,
+          role: 'victim',
+          playerName: 'TopKiller',
+          fame: 700_000,
+          occurredAt: '2026-05-26T12:06:00Z',
+        },
+        {
+          eventId: 104,
+          role: 'victim',
+          playerName: 'DownedCaller',
+          fame: 2_100_000,
+          occurredAt: '2026-05-26T12:07:00Z',
+        },
+      ],
+    })
+    const payload = buildKillbotBattleDiscordPayload(summary, fullConfig, target)
+
+    expect(payload.content).toBe('<@&99999>')
+    expect(payload.embeds).toHaveLength(1)
+    expect(payload.embeds[0]).toMatchObject({
+      title: 'Menhera 18K / 7D vs Enemy Alliance',
+      url: 'https://menhera.albion-guildmanager.com/battles/battle-row',
+      thumbnail: undefined,
+      image: undefined,
+    })
+    expect(payload.embeds[0]?.description).toContain('Battle 77 · Darkbough Snag · Win')
+    expect(payload.embeds[0]?.description).toContain('42v39 · Fame 12.4M')
+    expect(payload.embeds[0]?.fields?.[0]).toMatchObject({ name: 'Top Kills' })
+    expect(payload.embeds[0]?.fields?.[0]?.value).toContain(
+      '[TopKiller](https://menhera.albion-guildmanager.com/battles/battle-row?event=101#killbot-event-101) 2K / 1D · 2.5M fame',
+    )
+    expect(payload.embeds[0]?.fields?.[1]).toMatchObject({ name: 'Top Deaths' })
+    expect(payload.embeds[0]?.fields?.[1]?.value).toContain(
+      '[DownedCaller](https://menhera.albion-guildmanager.com/battles/battle-row?event=104#killbot-event-104) 0K / 1D · 2.1M lost',
+    )
+    expect(payload.embeds[0]?.fields?.[2]).toMatchObject({ name: 'Juicy Kills' })
+    expect(payload.embeds[0]?.fields?.[2]?.value).toContain(
+      '[TopKiller](https://menhera.albion-guildmanager.com/battles/battle-row?event=101#killbot-event-101) 1.8M fame',
+    )
+  })
+
   it('builds a compact Discord embed for a kill', () => {
     const payload = buildKillbotDiscordPayload(
       event({
