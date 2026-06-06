@@ -9,6 +9,7 @@ import {
 function row(input: {
   at: string
   quantity: number
+  quality?: number
   resolved?: boolean
   blacklisted?: boolean
 }): AggregateRow {
@@ -18,7 +19,7 @@ function row(input: {
       player: 'Quartermaster',
       itemName: '테스트 장비',
       enchant: 0,
-      quality: 1,
+      quality: input.quality ?? 1,
       quantity: input.quantity,
     },
     resolved: input.resolved === false
@@ -33,8 +34,10 @@ function row(input: {
   }
 }
 
-function candidate(input: Partial<ShopOrderFulfillmentCandidate> = {}): ShopOrderFulfillmentCandidate {
-  return {
+function candidate(
+  input: Partial<ShopOrderFulfillmentCandidate> & { stockReservedAt?: Date } = {},
+): ShopOrderFulfillmentCandidate {
+  const base: ShopOrderFulfillmentCandidate = {
     orderId: input.orderId ?? 'order-1',
     orderItemId: input.orderItemId ?? 'order-item-1',
     uniqueName: input.uniqueName ?? 'T4_TEST_ITEM',
@@ -43,8 +46,10 @@ function candidate(input: Partial<ShopOrderFulfillmentCandidate> = {}): ShopOrde
     quantity: input.quantity ?? 1,
     fulfilledQuantity: input.fulfilledQuantity ?? 0,
     createdAt: input.createdAt ?? new Date('2026-05-01T00:00:00.000Z'),
+    stockReservedAt: input.stockReservedAt ?? null,
     resolvedAt: input.resolvedAt ?? new Date('2026-05-01T01:00:00.000Z'),
   }
+  return base
 }
 
 describe('shop order fulfillment reconciliation', () => {
@@ -81,15 +86,46 @@ describe('shop order fulfillment reconciliation', () => {
     expect(buildOrderedStockReplayDeltas([reconciled]).map((delta) => delta.delta)).toEqual([-2])
   })
 
-  it('does not match withdrawals that happened before approval', () => {
+  it('matches withdrawals after stock reservation even when approval happens later', () => {
     const [reconciled] = reconcileShopOrderFulfillmentRows(
       [row({ at: '2026-05-01T00:30:00.000Z', quantity: -1 })],
-      [candidate({ resolvedAt: new Date('2026-05-01T01:00:00.000Z') })],
+      [
+        candidate({
+          stockReservedAt: new Date('2026-05-01T00:00:00.000Z'),
+          resolvedAt: new Date('2026-05-01T01:00:00.000Z'),
+        }),
+      ],
+    )
+
+    expect(reconciled.appliedQuantity).toBe(0)
+    expect(reconciled.ignoredReason).toBe('shop_order_fulfillment')
+    expect(buildOrderedStockReplayDeltas([reconciled])).toEqual([])
+  })
+
+  it('does not match withdrawals that happened before reservation', () => {
+    const [reconciled] = reconcileShopOrderFulfillmentRows(
+      [row({ at: '2026-05-01T00:30:00.000Z', quantity: -1 })],
+      [
+        candidate({
+          stockReservedAt: new Date('2026-05-01T01:00:00.000Z'),
+          resolvedAt: new Date('2026-05-01T02:00:00.000Z'),
+        }),
+      ],
     )
 
     expect(reconciled.appliedQuantity).toBeUndefined()
     expect(reconciled.ignoredReason).toBeUndefined()
     expect(buildOrderedStockReplayDeltas([reconciled]).map((delta) => delta.delta)).toEqual([-1])
+  })
+
+  it('matches order fulfillment regardless of item quality', () => {
+    const [reconciled] = reconcileShopOrderFulfillmentRows(
+      [row({ at: '2026-05-01T02:00:00.000Z', quantity: -1, quality: 5 })],
+      [candidate({ quality: 1 })],
+    )
+
+    expect(reconciled.appliedQuantity).toBe(0)
+    expect(reconciled.ignoredReason).toBe('shop_order_fulfillment')
   })
 
   it('does not over-match order quantities already fulfilled by earlier logs', () => {

@@ -16,11 +16,16 @@ export interface ShopOrderFulfillmentCandidate {
   quantity: number
   fulfilledQuantity: number
   createdAt: Date
+  stockReservedAt: Date | null
   resolvedAt: Date
 }
 
 interface MutableCandidate extends ShopOrderFulfillmentCandidate {
   remainingQuantity: number
+}
+
+function candidateMatchAvailableAt(candidate: ShopOrderFulfillmentCandidate): Date {
+  return candidate.stockReservedAt ?? candidate.resolvedAt
 }
 
 export function reconcileShopOrderFulfillmentRows<T extends AggregateRow>(
@@ -41,6 +46,9 @@ export function reconcileShopOrderFulfillmentRows<T extends AggregateRow>(
 
   for (const bucket of candidatesByKey.values()) {
     bucket.sort((a, b) => {
+      const byAvailable =
+        candidateMatchAvailableAt(a).getTime() - candidateMatchAvailableAt(b).getTime()
+      if (byAvailable !== 0) return byAvailable
       const byResolved = a.resolvedAt.getTime() - b.resolvedAt.getTime()
       if (byResolved !== 0) return byResolved
       const byCreated = a.createdAt.getTime() - b.createdAt.getTime()
@@ -54,7 +62,6 @@ export function reconcileShopOrderFulfillmentRows<T extends AggregateRow>(
     const key = stockReplayKey({
       uniqueName: row.resolved.uniqueName,
       enchant: row.entry.enchant,
-      quality: row.entry.quality,
     })
     const candidatesForItem = candidatesByKey.get(key)
     if (!candidatesForItem) return row
@@ -64,7 +71,7 @@ export function reconcileShopOrderFulfillmentRows<T extends AggregateRow>(
     for (const candidate of candidatesForItem) {
       if (remainingWithdrawal <= 0) break
       if (candidate.remainingQuantity <= 0) continue
-      if (candidate.resolvedAt.getTime() > row.entry.loggedAt.getTime()) continue
+      if (candidateMatchAvailableAt(candidate).getTime() > row.entry.loggedAt.getTime()) continue
 
       const matchedQuantity = Math.min(remainingWithdrawal, candidate.remainingQuantity)
       candidate.remainingQuantity -= matchedQuantity

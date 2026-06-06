@@ -16,6 +16,7 @@ import { parseChestLog, type ChestLogEntry } from '@/lib/shop/parse-chest-log'
 import { resolveKoItem } from '@/lib/shop/resolve-item'
 import { logAdminAction } from '@/lib/admin-audit'
 import { CAP } from '@/lib/permissions'
+import { canonicalShopQuality, shopSkuKey } from '@/lib/shop/quality'
 
 export interface BaselineItem {
   uniqueName: string
@@ -116,7 +117,7 @@ function aggregateDeposits(entries: ChestLogEntry[]): {
       continue
     }
     totalItems += e.quantity
-    const key = `${resolved.uniqueName}|${e.enchant}|${e.quality}`
+    const key = shopSkuKey({ uniqueName: resolved.uniqueName, enchant: e.enchant })
     const existing = bucket.get(key)
     if (existing) {
       existing.quantity += e.quantity
@@ -128,7 +129,7 @@ function aggregateDeposits(entries: ChestLogEntry[]): {
       category: resolved.category ?? null,
       tier: resolved.tier,
       enchant: e.enchant,
-      quality: e.quality,
+      quality: canonicalShopQuality(),
       quantity: e.quantity,
     })
   }

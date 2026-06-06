@@ -146,7 +146,6 @@ function AnomalySection({ title, hint, rows, showUpdatedAt, tone, tTime, tAnomal
             <tr>
               <th className="p-2 text-left">{tAnomaly('itemHeader')}</th>
               <th className="p-2 text-center w-12">E</th>
-              <th className="p-2 text-center w-12">Q</th>
               <th className="p-2 text-right w-20">{tAnomaly('stockHeader')}</th>
               {showUpdatedAt && <th className="p-2 text-right w-32">{tAnomaly('updatedHeader')}</th>}
             </tr>
@@ -154,7 +153,7 @@ function AnomalySection({ title, hint, rows, showUpdatedAt, tone, tTime, tAnomal
           <tbody>
             {rows.map((r) => (
               <tr
-                key={`${r.uniqueName}|${r.enchant}|${r.quality}`}
+                key={`${r.uniqueName}|${r.enchant}`}
                 className="border-t border-zinc-800 text-zinc-200"
               >
                 <td className="p-2">
@@ -162,7 +161,6 @@ function AnomalySection({ title, hint, rows, showUpdatedAt, tone, tTime, tAnomal
                   <div className="text-[10px] text-zinc-600">{r.uniqueName}</div>
                 </td>
                 <td className="p-2 text-center">{r.enchant}</td>
-                <td className="p-2 text-center">{r.quality}</td>
                 <td className={`p-2 text-right font-mono ${stockColor}`}>
                   {r.stock.toLocaleString('ko-KR')}
                 </td>

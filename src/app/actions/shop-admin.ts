@@ -125,6 +125,7 @@ interface ExistingChestLogRow {
 interface ApprovedShopOrderRow {
   id: string
   created_at: string
+  stock_reserved_at: string | null
   resolved_at: string | null
 }
 
@@ -250,7 +251,7 @@ async function loadShopOrderFulfillmentCandidates(
 
   const { data: orders, error: ordersError } = await db
     .from('shop_orders')
-    .select('id, created_at, resolved_at')
+    .select('id, created_at, stock_reserved_at, resolved_at')
     .eq('guild_id', guildId)
     .eq('status', 'approved')
     .not('resolved_at', 'is', null)
@@ -308,6 +309,7 @@ async function loadShopOrderFulfillmentCandidates(
       quantity: item.quantity,
       fulfilledQuantity: fulfilledByItemId.get(item.id) ?? 0,
       createdAt: new Date(order.created_at),
+      stockReservedAt: order.stock_reserved_at ? new Date(order.stock_reserved_at) : null,
       resolvedAt: new Date(order.resolved_at),
     })
   }
@@ -388,14 +390,11 @@ async function loadCurrentStockByKey(
     .eq('guild_id', guildId)
     .in('unique_name', uniqueNames)
   for (const row of data ?? []) {
-    stockByKey.set(
-      stockReplayKey({
-        uniqueName: row.unique_name as string,
-        enchant: row.enchant as number,
-        quality: row.quality as number,
-      }),
-      row.stock as number,
-    )
+    const key = stockReplayKey({
+      uniqueName: row.unique_name as string,
+      enchant: row.enchant as number,
+    })
+    stockByKey.set(key, (stockByKey.get(key) ?? 0) + (row.stock as number))
   }
   return stockByKey
 }
@@ -895,11 +894,7 @@ export async function listShopOrders(
       .in('order_id', ids)
     if (itemsErr) return { orders: [], error: itemsErr.message }
 
-    // 재고 확인 — 각 (unique_name, enchant, quality) 조합을 모아 한 번에 조회.
-    const itemKeySet = new Set<string>()
-    for (const it of items ?? []) {
-      itemKeySet.add(`${it.unique_name}|${it.enchant}|${it.quality}`)
-    }
+    // 재고 확인 — 상점 SKU 는 품질을 무시하고 (unique_name, enchant) 로 조회한다.
     const uniqueNames = Array.from(new Set((items ?? []).map((i) => i.unique_name as string)))
     const { data: invRows } = await db
       .from('shop_inventory')
@@ -908,10 +903,12 @@ export async function listShopOrders(
       .in('unique_name', uniqueNames)
     const inventoryByKey = new Map<string, { id: string; stock: number }>()
     for (const r of invRows ?? []) {
-      inventoryByKey.set(
-        `${r.unique_name}|${r.enchant}|${r.quality}`,
-        { id: r.id as string, stock: r.stock as number },
-      )
+      const key = `${r.unique_name}|${r.enchant}`
+      const existing = inventoryByKey.get(key)
+      inventoryByKey.set(key, {
+        id: existing?.id ?? (r.id as string),
+        stock: (existing?.stock ?? 0) + (r.stock as number),
+      })
     }
 
     // 잔액 — 전부 한 번에.
@@ -924,7 +921,7 @@ export async function listShopOrders(
     for (const it of items ?? []) {
       const key = it.order_id as string
       const arr = itemsByOrder.get(key) ?? []
-      const inventory = inventoryByKey.get(`${it.unique_name}|${it.enchant}|${it.quality}`) ?? null
+      const inventory = inventoryByKey.get(`${it.unique_name}|${it.enchant}`) ?? null
       arr.push({
         inventoryId: inventory?.id ?? null,
         nameKo: it.name_ko as string,

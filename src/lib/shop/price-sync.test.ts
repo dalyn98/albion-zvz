@@ -100,7 +100,7 @@ describe('syncTenantShopPrices', () => {
       rows.map((r) => ({
         uniqueName: r.unique_name,
         enchant: r.enchant,
-        quality: r.quality,
+        quality: 1,
       })),
       { server: 'west' },
     )

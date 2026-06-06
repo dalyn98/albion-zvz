@@ -19,6 +19,7 @@ import { computePointPrice } from '@/lib/shop/price'
 import { formatRelativeFine } from '@/lib/relative-time'
 import { getLocalizedItemName } from '@/lib/item-names'
 import { buildAlbionItemImageUrlCandidates } from '@/lib/albion-render'
+import { SHOP_CANONICAL_QUALITY } from '@/lib/shop/quality'
 import type { Locale } from '@/i18n/locales'
 import { useConfirm } from '@/components/ConfirmDialog'
 import AlbionItemImage from './AlbionItemImage'
@@ -67,8 +68,13 @@ function qualityKey(idx: number): QualityKey {
   return QUALITY_KEYS[idx] ?? 'unknown'
 }
 
-function imageSrcs(uniqueName: string, enchant: number, quality: number, size = 60): string[] {
-  return buildAlbionItemImageUrlCandidates({ uniqueName, enchant, quality, size })
+function imageSrcs(uniqueName: string, enchant: number, size = 60): string[] {
+  return buildAlbionItemImageUrlCandidates({
+    uniqueName,
+    enchant,
+    quality: SHOP_CANONICAL_QUALITY,
+    size,
+  })
 }
 
 // price_source 는 `aodp:{city}[:spot][:q{n}]` 또는 `manual`.
@@ -465,7 +471,7 @@ function InventoryListItem({
       onDone()
     })
   }
-  const itemImageSrcs = imageSrcs(row.uniqueName, row.enchant, row.quality, 48)
+  const itemImageSrcs = imageSrcs(row.uniqueName, row.enchant, 48)
 
   return (
     <div className="flex items-center gap-2 bg-gray-800/40 border border-gray-800 rounded-lg px-2 py-1.5">
@@ -485,11 +491,6 @@ function InventoryListItem({
           {row.enchant > 0 && (
             <span className="text-[10px] text-amber-300 font-mono flex-shrink-0">
               .{row.enchant}
-            </span>
-          )}
-          {row.quality > 1 && (
-            <span className="text-[10px] text-gray-400 flex-shrink-0">
-              {tShop(`quality.${qualityKey(row.quality)}`)}
             </span>
           )}
         </div>

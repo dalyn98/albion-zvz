@@ -34,6 +34,8 @@ describe('shop order reservation RPCs', () => {
     expect(sql).toContain('stock_reserved_at')
     expect(sql).toMatch(/update\s+public\.shop_inventory[\s\S]*stock\s*=\s*stock\s*-\s*v_line\.quantity/i)
     expect(sql).toMatch(/and\s+stock\s*>=\s*v_line\.quantity/i)
+    expect(sql).toMatch(/group\s+by\s+unique_name,\s*enchant/i)
+    expect(sql).not.toMatch(/group\s+by\s+unique_name,\s*enchant,\s*quality/i)
     expect(sql).toContain('INSUFFICIENT_STOCK')
   })
 
@@ -44,6 +46,15 @@ describe('shop order reservation RPCs', () => {
     expect(sql).toMatch(/if\s+v_stock_reserved_at\s+is\s+null\s+then[\s\S]*stock\s*=\s*stock\s*-\s*v_line\.quantity/i)
     expect(sql).toContain('total_points = v_charge_total')
     expect(sql).toContain("'shop_purchase'")
+  })
+
+  it('reconciles reserved-order delivery logs imported before approval', () => {
+    const sql = latestFunctionDefinition('approve_shop_order')
+
+    expect(sql).toContain('matched_order_items')
+    expect(sql).toContain('v_match_qty')
+    expect(sql).toMatch(/l\.logged_at\s*>=\s*v_stock_reserved_at/i)
+    expect(sql).toMatch(/perform\s+public\.apply_shop_stock_delta[\s\S]*v_match_qty/i)
   })
 
   it('restores reserved stock when an order is rejected or cancelled', () => {
@@ -71,5 +82,12 @@ describe('shop order reservation RPCs', () => {
 
     expect(sql).toContain('coalesce(l.applied_quantity, l.quantity)::int as delta')
     expect(sql).not.toContain('l.quantity::int as delta')
+  })
+
+  it('uses a tenant-scoped quality-agnostic unique key for shop inventory', () => {
+    const sql = allMigrationSql()
+
+    expect(sql).toContain('on public.shop_inventory (guild_id, unique_name, enchant)')
+    expect(sql).toContain('quality is raw-log metadata; shop stock is keyed by guild_id, unique_name, enchant')
   })
 })

@@ -419,7 +419,6 @@ function DriftPanel({ drift }: { drift: DriftReport }) {
               <tr>
                 <th className="p-2 text-left">{t('colItem')}</th>
                 <th className="p-2 text-center">E</th>
-                <th className="p-2 text-center">Q</th>
                 <th className="p-2 text-right">{t('colBefore')}</th>
                 <th className="p-2 text-right">{t('colAfter')}</th>
                 <th className="p-2 text-right">{t('colDelta')}</th>
@@ -433,7 +432,7 @@ function DriftPanel({ drift }: { drift: DriftReport }) {
                   c.uniqueName
                 return (
                 <tr
-                  key={`${c.uniqueName}|${c.enchant}|${c.quality}`}
+                  key={`${c.uniqueName}|${c.enchant}`}
                   className="border-t border-zinc-800 text-zinc-200"
                 >
                   <td className="p-2">
@@ -441,7 +440,6 @@ function DriftPanel({ drift }: { drift: DriftReport }) {
                     <div className="text-[10px] text-zinc-600">{c.uniqueName}</div>
                   </td>
                   <td className="p-2 text-center">{c.enchant}</td>
-                  <td className="p-2 text-center">{c.quality}</td>
                   <td className="p-2 text-right font-mono text-zinc-400">
                     {c.beforeStock.toLocaleString()}
                   </td>
@@ -507,7 +505,6 @@ function ItemsTable({ items }: { items: BaselineItem[] }) {
           <tr>
             <th className="p-2 text-left">{t('colItem')}</th>
             <th className="p-2 text-center">E</th>
-            <th className="p-2 text-center">Q</th>
             <th className="p-2 text-right">{t('colQty')}</th>
           </tr>
         </thead>
@@ -517,7 +514,7 @@ function ItemsTable({ items }: { items: BaselineItem[] }) {
               getLocalizedItemName(item.uniqueName, locale, item.nameKo) ?? item.nameKo
             return (
               <tr
-                key={`${item.uniqueName}|${item.enchant}|${item.quality}`}
+                key={`${item.uniqueName}|${item.enchant}`}
                 className="border-t border-zinc-800 text-zinc-200"
               >
                 <td className="p-2">
@@ -525,7 +522,6 @@ function ItemsTable({ items }: { items: BaselineItem[] }) {
                   <div className="text-[10px] text-zinc-600">{item.uniqueName}</div>
                 </td>
                 <td className="p-2 text-center">{item.enchant}</td>
-                <td className="p-2 text-center">{item.quality}</td>
                 <td className="p-2 text-right font-mono">{item.quantity.toLocaleString()}</td>
               </tr>
             )

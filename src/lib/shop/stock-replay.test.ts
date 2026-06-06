@@ -10,6 +10,7 @@ function row(input: {
   at: string
   quantity: number
   sequenceName?: string
+  quality?: number
   resolved?: boolean
   blacklisted?: boolean
 }): AggregateRow {
@@ -19,7 +20,7 @@ function row(input: {
       player: 'Tester',
       itemName: input.sequenceName ?? '테스트 아이템',
       enchant: 1,
-      quality: 2,
+      quality: input.quality ?? 2,
       quantity: input.quantity,
     },
     resolved: input.resolved === false
@@ -76,6 +77,24 @@ describe('stock replay helpers', () => {
     expect(changes[0]).toMatchObject({
       delta: 1,
       newStock: 5,
+    })
+  })
+
+  it('treats shop stock as quality-agnostic while preserving chronological deltas', () => {
+    const deltas = buildOrderedStockReplayDeltas([
+      row({ at: '2026-05-02T00:00:00Z', quantity: 2, quality: 1 }),
+      row({ at: '2026-05-02T00:01:00Z', quantity: 3, quality: 5 }),
+    ])
+
+    expect(deltas.map((d) => d.quality)).toEqual([1, 1])
+
+    const changes = summarizeStockReplayChanges(new Map([[stockReplayKey(deltas[0]), 4]]), deltas)
+
+    expect(changes).toHaveLength(1)
+    expect(changes[0]).toMatchObject({
+      quality: 1,
+      delta: 5,
+      newStock: 9,
     })
   })
 })

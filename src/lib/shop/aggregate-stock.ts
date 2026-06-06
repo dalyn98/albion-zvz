@@ -1,9 +1,10 @@
-// 상자 로그 행들을 (item × enchant × quality) 단위로 합산해 재고 델타를 만든다.
+// 상자 로그 행들을 (item × enchant) 단위로 합산해 재고 델타를 만든다.
 // 블랙리스트/미해결 행은 원본 보존용 삽입 목록에는 남지만 재고 합산에선 제외.
 
 import type { ChestLogEntry } from './parse-chest-log'
 import type { ResolvedItem } from './resolve-item'
 import type { MatchedShopOrderFulfillment } from './order-fulfillment-reconciliation'
+import { canonicalShopQuality, shopSkuKey } from './quality'
 
 export interface StockDelta {
   uniqueName: string
@@ -82,7 +83,7 @@ export function aggregateStock(rows: AggregateRow[]): AggregateResult {
       continue
     }
 
-    const key = `${resolved.uniqueName}|${entry.enchant}|${entry.quality}`
+    const key = shopSkuKey({ uniqueName: resolved.uniqueName, enchant: entry.enchant })
     const existing = bucket.get(key)
     if (existing) {
       existing.delta += appliedQuantity
@@ -91,7 +92,7 @@ export function aggregateStock(rows: AggregateRow[]): AggregateResult {
     bucket.set(key, {
       uniqueName: resolved.uniqueName,
       enchant: entry.enchant,
-      quality: entry.quality,
+      quality: canonicalShopQuality(),
       delta: appliedQuantity,
       nameKo: resolved.nameKo || entry.itemName,
       category: resolved.category ?? null,

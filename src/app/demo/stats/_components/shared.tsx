@@ -3,13 +3,18 @@
 // `@/data/demo-seed` 의 정적 데이터를 쓴다는 점이 다르다.
 
 import type { getTranslations } from 'next-intl/server'
+import { SHOP_CANONICAL_QUALITY } from '@/lib/shop/quality'
 
 export type StatsTranslator = Awaited<ReturnType<typeof getTranslations<'adminStats'>>>
 export type CommonTranslator = Awaited<ReturnType<typeof getTranslations<'common'>>>
 
 export const STATS_COLLAPSED_ROWS = 8
 
-export function itemImageUrl(uniqueName: string, enchant: number, quality: number): string {
+export function itemImageUrl(
+  uniqueName: string,
+  enchant: number,
+  quality = SHOP_CANONICAL_QUALITY,
+): string {
   const id = enchant > 0 ? `${uniqueName}@${enchant}` : uniqueName
   const params = new URLSearchParams({ quality: String(quality), size: '48' })
   return `https://render.albiononline.com/v1/item/${id}.png?${params.toString()}`

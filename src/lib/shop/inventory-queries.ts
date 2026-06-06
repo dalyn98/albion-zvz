@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { selectPagedRows, type SupabasePagedQuery } from '@/lib/supabase-pagination'
+import { canonicalShopQuality } from '@/lib/shop/quality'
 
 type ShopInventoryDb = Pick<SupabaseClient, 'from'>
 
@@ -13,7 +14,7 @@ export async function loadShopInventoryPriceKeyRows(
   db: ShopInventoryDb,
   guildId: string,
 ): Promise<{ rows: ShopInventoryPriceKeyRow[]; error?: string }> {
-  return selectPagedRows<ShopInventoryPriceKeyRow>({
+  const result = await selectPagedRows<ShopInventoryPriceKeyRow>({
     label: 'shop inventory price keys',
     buildQuery: () =>
       db
@@ -24,6 +25,19 @@ export async function loadShopInventoryPriceKeyRows(
         .order('enchant', { ascending: true })
         .order('quality', { ascending: true }) as unknown as SupabasePagedQuery<ShopInventoryPriceKeyRow>,
   })
+  if (result.error) return result
+  const byKey = new Map<string, ShopInventoryPriceKeyRow>()
+  for (const row of result.rows) {
+    const key = `${row.unique_name}|${row.enchant}`
+    if (!byKey.has(key)) {
+      byKey.set(key, {
+        unique_name: row.unique_name,
+        enchant: row.enchant,
+        quality: canonicalShopQuality(),
+      })
+    }
+  }
+  return { rows: [...byKey.values()] }
 }
 
 export interface PublicShopCatalogRow {

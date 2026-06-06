@@ -22,6 +22,7 @@ import {
   listGuildPointBalanceSummaries,
   listGuildPointFlowRowsSince,
 } from '@/lib/point-ledger'
+import { canonicalShopQuality } from '@/lib/shop/quality'
 
 export interface TopHolder {
   discordId: string
@@ -393,7 +394,7 @@ export async function getShopRegearStats(): Promise<{
       }
     }
 
-    // (unique_name, enchant, quality) 단위로 묶어 수량·포인트 합산.
+    // (unique_name, enchant) 단위로 묶어 수량·포인트 합산.
     interface ItemAgg {
       uniqueName: string
       enchant: number
@@ -406,8 +407,7 @@ export async function getShopRegearStats(): Promise<{
     for (const row of approvedItemsRes.data ?? []) {
       const uniqueName = row.unique_name as string
       const enchant = row.enchant as number
-      const quality = row.quality as number
-      const key = `${uniqueName}@${enchant}#${quality}`
+      const key = `${uniqueName}@${enchant}`
       const qty = Number(row.quantity ?? 0)
       const pts = Number(row.subtotal_points ?? 0)
       const cur = bucket.get(key)
@@ -418,7 +418,7 @@ export async function getShopRegearStats(): Promise<{
         bucket.set(key, {
           uniqueName,
           enchant,
-          quality,
+          quality: canonicalShopQuality(),
           nameKo: row.name_ko as string,
           quantity: qty,
           points: pts,

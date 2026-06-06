@@ -4,6 +4,7 @@
 // 그 과정에서 공통 타입을 한 곳으로 모았다.
 
 import type { getTranslations } from 'next-intl/server'
+import { SHOP_CANONICAL_QUALITY } from '@/lib/shop/quality'
 
 export type StatsTranslator = Awaited<ReturnType<typeof getTranslations<'adminStats'>>>
 export type CommonTranslator = Awaited<ReturnType<typeof getTranslations<'common'>>>
@@ -11,7 +12,11 @@ export type CommonTranslator = Awaited<ReturnType<typeof getTranslations<'common
 // 통계 페이지의 모든 상위 N 목록이 공유하는 기본 접힘 행수. 바꾸려면 여기만.
 export const STATS_COLLAPSED_ROWS = 8
 
-export function itemImageUrl(uniqueName: string, enchant: number, quality: number): string {
+export function itemImageUrl(
+  uniqueName: string,
+  enchant: number,
+  quality = SHOP_CANONICAL_QUALITY,
+): string {
   const id = enchant > 0 ? `${uniqueName}@${enchant}` : uniqueName
   const params = new URLSearchParams({ quality: String(quality), size: '48' })
   return `https://render.albiononline.com/v1/item/${id}.png?${params.toString()}`

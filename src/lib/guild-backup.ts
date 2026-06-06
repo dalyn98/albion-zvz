@@ -6,7 +6,7 @@
 //     entry 를 1건 추가. 기존 history 는 보존.
 //   - 템플릿(events/slots): (guild_id, name) 기준 upsert. 백업에 없는 기존 템플릿
 //     은 그대로 둔다.
-//   - 길드재고: (guild_id, unique_name, enchant, quality) 기준 upsert.
+//   - 길드재고: (guild_id, unique_name, enchant) 기준 upsert.
 //     stock + manual_price + price_source(='manual') 만 갱신. 자동 시세 컬럼은
 //     건드리지 않음. 백업에 없는 행은 그대로 둔다.
 //
@@ -18,6 +18,7 @@ import type { TemplateData } from '@/app/actions/templates'
 import type { SlotTemplateData } from '@/app/actions/slot-templates'
 import { EVENT_CATEGORIES, type EventCategory } from '@/types'
 import { listGuildPointDeltas } from './point-ledger'
+import { canonicalShopQuality } from './shop/quality'
 
 export const BACKUP_VERSION = 1
 const POINT_MEMO_PREFIX = 'backup_restore'
@@ -226,7 +227,7 @@ export function parseGuildBackup(input: unknown): { backup?: GuildBackup; error?
     isPlainObject(input.inventory) && Array.isArray(input.inventory.items)
       ? dedupeByLast(
           input.inventory.items.flatMap(normalizeInventoryEntry),
-          (entry) => inventoryKey(entry.uniqueName, entry.enchant, entry.quality),
+          (entry) => inventoryKey(entry.uniqueName, entry.enchant),
         )
       : []
 
@@ -551,7 +552,7 @@ async function planInventory(
   let added = 0
   let updated = 0
   for (const e of entries) {
-    const key = inventoryKey(e.uniqueName, e.enchant, e.quality)
+    const key = inventoryKey(e.uniqueName, e.enchant)
     if (existing.has(key)) updated += 1
     else added += 1
   }
@@ -566,13 +567,13 @@ async function fetchInventoryKeySet(db: Db, guildId: string): Promise<Set<string
   if (error) throw new Error(error.message)
   return new Set(
     ((data ?? []) as Array<{ unique_name: string; enchant: number; quality: number }>).map((r) =>
-      inventoryKey(r.unique_name, r.enchant, r.quality),
+      inventoryKey(r.unique_name, r.enchant),
     ),
   )
 }
 
-function inventoryKey(uniqueName: string, enchant: number, quality: number): string {
-  return `${uniqueName}|${enchant}|${quality}`
+function inventoryKey(uniqueName: string, enchant: number): string {
+  return `${uniqueName}|${enchant}`
 }
 
 async function applyInventory(
@@ -601,7 +602,6 @@ async function applyInventory(
       .eq('guild_id', guildId)
       .eq('unique_name', e.uniqueName)
       .eq('enchant', e.enchant)
-      .eq('quality', e.quality)
       .maybeSingle()
     if (lookupErr) throw new Error(lookupErr.message)
     if (existing) {
@@ -616,7 +616,7 @@ async function applyInventory(
         guild_id: guildId,
         unique_name: e.uniqueName,
         enchant: e.enchant,
-        quality: e.quality,
+        quality: canonicalShopQuality(),
         stock: e.stock,
         name_ko: e.nameKo ?? e.uniqueName,
         category: e.category,

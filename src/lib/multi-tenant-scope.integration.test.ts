@@ -21,7 +21,7 @@ import {
 
 const describeIntegration = hasTestEnv() ? describe : describe.skip
 
-describeIntegration('shop_inventory tenant scope (mig 130)', () => {
+describeIntegration('shop_inventory tenant scope (mig 130/200)', () => {
   let tenantA: TestTenant
   let tenantB: TestTenant
 
@@ -35,7 +35,7 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
     await tenantB?.cleanup()
   })
 
-  it('allows the same (unique_name, enchant, quality) across different tenants', async () => {
+  it('allows the same (unique_name, enchant) across different tenants', async () => {
     const client = getTestServiceClient()
     const row = {
       unique_name: 'T8_MAIN_FIRESTAFF',
@@ -56,7 +56,7 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
     expect(errB).toBeNull()
   })
 
-  it('rejects duplicate (unique_name, enchant, quality) within the same tenant', async () => {
+  it('rejects duplicate (unique_name, enchant) within the same tenant even when quality differs', async () => {
     const client = getTestServiceClient()
     const row = {
       unique_name: 'T8_MAIN_HOLYSTAFF',
@@ -73,12 +73,12 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
 
     const { error: errDup } = await client
       .from('shop_inventory')
-      .insert({ guild_id: tenantA.guildId, ...row })
+      .insert({ guild_id: tenantA.guildId, ...row, quality: 5 })
     // Postgres unique_violation
     expect(errDup?.code).toBe('23505')
   })
 
-  it('ON CONFLICT (guild_id, unique_name, enchant, quality) upserts within tenant scope', async () => {
+  it('ON CONFLICT (guild_id, unique_name, enchant) upserts within tenant scope', async () => {
     // ON CONFLICT 컬럼셋 ↔ unique 인덱스 컬럼셋 일치 검증. shop_inventory_guild_unique
     // 에 정확히 매칭되는 onConflict 문자열이 아니면 PostgREST 가 42P10 으로 거절한다.
     const client = getTestServiceClient()
@@ -98,7 +98,7 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
       .from('shop_inventory')
       .upsert(
         { guild_id: tenantA.guildId, ...baseRow, stock: 99 },
-        { onConflict: 'guild_id,unique_name,enchant,quality' },
+        { onConflict: 'guild_id,unique_name,enchant' },
       )
       .select()
       .single()
@@ -111,7 +111,7 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
       .from('shop_inventory')
       .upsert(
         { guild_id: tenantB.guildId, ...baseRow, stock: 7 },
-        { onConflict: 'guild_id,unique_name,enchant,quality' },
+        { onConflict: 'guild_id,unique_name,enchant' },
       )
     expect(errUpsertB).toBeNull()
 
@@ -121,7 +121,7 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
       .eq('guild_id', tenantA.guildId)
       .eq('unique_name', baseRow.unique_name)
       .eq('enchant', baseRow.enchant)
-      .eq('quality', baseRow.quality)
+      .eq('quality', 1)
     expect(aRows?.[0]?.stock).toBe(99) // tenant A 의 값은 보존
   })
 
@@ -297,7 +297,7 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
       .eq('guild_id', tenantA.guildId)
       .eq('unique_name', itemKey.unique_name)
       .eq('enchant', itemKey.enchant)
-      .eq('quality', itemKey.quality)
+      .eq('quality', 1)
       .single()
     expect(stock?.stock).toBe(1)
 
@@ -725,7 +725,7 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
       .eq('guild_id', tenantA.guildId)
       .eq('unique_name', key.unique_name)
       .eq('enchant', key.enchant)
-      .eq('quality', key.quality)
+      .eq('quality', 1)
       .single()
 
     expect(row?.stock).toBe(3)
@@ -743,7 +743,7 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
       .eq('guild_id', tenantA.guildId)
       .eq('unique_name', zeroKey.unique_name)
       .eq('enchant', zeroKey.enchant)
-      .eq('quality', zeroKey.quality)
+      .eq('quality', 1)
       .single()
 
     expect(zeroRow?.stock).toBe(0)
@@ -822,7 +822,7 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
       .eq('guild_id', tenantA.guildId)
       .eq('unique_name', key.unique_name)
       .eq('enchant', key.enchant)
-      .eq('quality', key.quality)
+      .eq('quality', 1)
     expect(corruptErr).toBeNull()
 
     const { data: drift, error } = await client.rpc('rebuild_shop_inventory_from_chest_logs', {
@@ -840,7 +840,7 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
       .eq('guild_id', tenantA.guildId)
       .eq('unique_name', key.unique_name)
       .eq('enchant', key.enchant)
-      .eq('quality', key.quality)
+      .eq('quality', 1)
       .single()
 
     expect(row?.stock).toBe(7)
@@ -853,7 +853,7 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
       .eq('guild_id', tenantA.guildId)
       .eq('unique_name', key.unique_name)
       .eq('enchant', key.enchant)
-      .eq('quality', key.quality)
+      .eq('quality', 1)
     expect(recorruptErr).toBeNull()
 
     const { data: startAfterBaselineDrift, error: startAfterBaselineErr } = await client.rpc(
@@ -874,7 +874,7 @@ describeIntegration('shop_inventory tenant scope (mig 130)', () => {
       .eq('guild_id', tenantA.guildId)
       .eq('unique_name', key.unique_name)
       .eq('enchant', key.enchant)
-      .eq('quality', key.quality)
+      .eq('quality', 1)
       .single()
 
     expect(rowAfterMovedStart?.stock).toBe(0)

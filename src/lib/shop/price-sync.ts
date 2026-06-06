@@ -73,7 +73,6 @@ async function applyPriceUpdatesIndividually(
       .eq('guild_id', guildId)
       .eq('unique_name', update.unique_name)
       .eq('enchant', update.enchant)
-      .eq('quality', update.quality)
     if (error) return { updated, error: error.message }
     updated += 1
   }

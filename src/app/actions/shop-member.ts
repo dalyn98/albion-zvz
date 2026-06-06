@@ -12,6 +12,7 @@ import { getAppSetting } from '@/lib/app-settings'
 import { getMemberPointBalance } from '@/lib/point-ledger'
 import { isLocalGuildAccountRestrictedFromResources } from '@/lib/local-guild-account'
 import { sendAdminNotification } from '@/lib/admin-notifications'
+import { canonicalShopQuality } from '@/lib/shop/quality'
 
 export interface OrderLineInput {
   inventoryId: string
@@ -249,7 +250,7 @@ export async function submitShopOrder(
       orderLines.push({
         uniqueName: inv.unique_name as string,
         enchant: inv.enchant as number,
-        quality: inv.quality as number,
+        quality: canonicalShopQuality(),
         nameKo: inv.name_ko as string,
         quantity: line.quantity,
         unitPoints: unit,

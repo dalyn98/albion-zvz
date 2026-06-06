@@ -1,4 +1,5 @@
 import type { AggregateRow, StockDelta } from './aggregate-stock'
+import { canonicalShopQuality, shopSkuKey } from './quality'
 
 export interface StockReplayDelta extends StockDelta {
   loggedAt: Date
@@ -12,9 +13,9 @@ export interface StockReplayChange extends StockDelta {
 export function stockReplayKey(row: {
   uniqueName: string
   enchant: number
-  quality: number
+  quality?: number
 }): string {
-  return `${row.uniqueName}|${row.enchant}|${row.quality}`
+  return shopSkuKey(row)
 }
 
 export function buildOrderedStockReplayDeltas(rows: AggregateRow[]): StockReplayDelta[] {
@@ -26,7 +27,7 @@ export function buildOrderedStockReplayDeltas(rows: AggregateRow[]): StockReplay
       return {
         uniqueName: row.resolved.uniqueName,
         enchant: row.entry.enchant,
-        quality: row.entry.quality,
+        quality: canonicalShopQuality(),
         delta,
         nameKo: row.resolved.nameKo || row.entry.itemName,
         category: row.resolved.category ?? null,

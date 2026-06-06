@@ -464,13 +464,13 @@ function aggregateTotals(batches: StagedBatch[]): Totals {
 }
 
 function aggregateStockChanges(batches: StagedBatch[]): AggregatedStockChange[] {
-  // 여러 배치의 (uniqueName, enchant, quality) 델타를 합산. newStock 은 가장 마지막
+  // 여러 배치의 (uniqueName, enchant) 델타를 합산. newStock 은 가장 마지막
   // 배치의 기준값 위에 이후 델타가 더해진 형태로 근사 — commit 시 DB 에서 정확한
   // 값이 재계산되므로 미리보기는 "현재재고 + 총델타" 만 맞춰 보이면 충분.
   const byKey = new Map<string, AggregatedStockChange>()
   for (const b of batches) {
     for (const c of b.preview.stockChanges) {
-      const key = `${c.uniqueName}|${c.enchant}|${c.quality}`
+      const key = `${c.uniqueName}|${c.enchant}`
       const prev = byKey.get(key)
       if (prev) {
         prev.delta += c.delta
@@ -805,7 +805,6 @@ function StockPreviewCard({
             <tr className="text-gray-500 text-xs border-b border-gray-800">
               <th className="text-left font-normal pb-2">{t('stockItemHeader')}</th>
               <th className="text-center font-normal pb-2 w-16">@</th>
-              <th className="text-center font-normal pb-2 w-16">Q</th>
               <th className="text-right font-normal pb-2 w-20">{t('stockDeltaHeader')}</th>
               <th className="text-right font-normal pb-2 w-24">{t('stockAfterHeader')}</th>
             </tr>
@@ -816,12 +815,11 @@ function StockPreviewCard({
                 getLocalizedItemName(c.uniqueName, locale, c.nameKo) ?? c.nameKo
               return (
               <tr
-                key={`${c.uniqueName}|${c.enchant}|${c.quality}`}
+                key={`${c.uniqueName}|${c.enchant}`}
                 className="border-b border-gray-800/50"
               >
                 <td className="py-1.5 text-gray-200 text-xs">{displayName}</td>
                 <td className="py-1.5 text-gray-500 text-center text-xs">{c.enchant}</td>
-                <td className="py-1.5 text-gray-500 text-center text-xs">{c.quality}</td>
                 <td
                   className={`py-1.5 text-right text-xs font-mono ${
                     c.delta > 0 ? 'text-emerald-400' : 'text-rose-400'

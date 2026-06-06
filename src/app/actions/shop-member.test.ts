@@ -53,10 +53,12 @@ import { cancelMyOrder, submitShopOrder } from './shop-member'
 
 function createShopOrderDb(options: {
   stock?: number
+  quality?: number
   manualPrice?: number | null
   autoPriceSilver?: number | null
 } = {}) {
   const stock = options.stock ?? 1
+  const quality = options.quality ?? 1
   const manualPrice = options.manualPrice === undefined ? 100 : options.manualPrice
   const autoPriceSilver = options.autoPriceSilver === undefined ? null : options.autoPriceSilver
   const inventoryQuery = {
@@ -68,7 +70,7 @@ function createShopOrderDb(options: {
           id: 'inventory-1',
           unique_name: 'T4_TEST_ITEM',
           enchant: 0,
-          quality: 1,
+          quality,
           stock,
           name_ko: '테스트 장비',
           manual_price: manualPrice,
@@ -277,6 +279,28 @@ describe('submitShopOrder', () => {
         },
       ],
     })
+  })
+
+  it('submits shop order lines with canonical quality regardless of the inventory row quality', async () => {
+    const { db, rpc } = createShopOrderDb({ quality: 5, stock: 1, manualPrice: 100 })
+    mocks.getAdminClient.mockReturnValue(db)
+
+    await expect(
+      submitShopOrder([{ inventoryId: 'inventory-1', quantity: 1 }], ''),
+    ).resolves.toEqual({ ok: true, orderId: 'order-1' })
+
+    expect(rpc).toHaveBeenCalledWith(
+      'submit_shop_order',
+      expect.objectContaining({
+        p_lines: [
+          expect.objectContaining({
+            unique_name: 'T4_TEST_ITEM',
+            enchant: 0,
+            quality: 1,
+          }),
+        ],
+      }),
+    )
   })
 })
 

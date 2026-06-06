@@ -166,4 +166,49 @@ describe('confirmBaseline', () => {
       args: ['id', 'baseline-1'],
     })
   })
+
+  it('collapses baseline deposits across item quality before calling the RPC', async () => {
+    const { db, rpc } = createBaselineDb()
+    mocks.requireAnyCapability.mockResolvedValue(db)
+    mocks.parseChestLog.mockReturnValue({
+      entries: [
+        {
+          loggedAt: new Date('2026-05-01T00:00:00.000Z'),
+          player: 'PlayerOne',
+          itemName: '테스트 장비',
+          enchant: 0,
+          quality: 1,
+          quantity: 2,
+        },
+        {
+          loggedAt: new Date('2026-05-01T00:01:00.000Z'),
+          player: 'PlayerOne',
+          itemName: '테스트 장비',
+          enchant: 0,
+          quality: 5,
+          quantity: 3,
+        },
+      ],
+      errors: [],
+    })
+
+    await expect(confirmBaseline({ raw: 'raw chest log' })).resolves.toMatchObject({
+      appliedItems: 1,
+      totalItems: 5,
+    })
+
+    expect(rpc).toHaveBeenCalledWith(
+      'apply_shop_baseline',
+      expect.objectContaining({
+        p_snapshot: [
+          expect.objectContaining({
+            uniqueName: 'T4_TEST_ITEM',
+            enchant: 0,
+            quality: 1,
+            quantity: 5,
+          }),
+        ],
+      }),
+    )
+  })
 })

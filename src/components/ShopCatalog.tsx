@@ -20,6 +20,7 @@ import { submitShopOrder } from '@/app/actions/shop-member'
 import { getLocalizedItemName, stripLocalizedTierName } from '@/lib/item-names'
 import { categorizeGearItem, type GearSlot } from '@/lib/inventory-types'
 import { buildAlbionItemImageUrlCandidates } from '@/lib/albion-render'
+import { SHOP_CANONICAL_QUALITY } from '@/lib/shop/quality'
 import type { Locale } from '@/i18n/locales'
 import AlbionItemImage from './AlbionItemImage'
 import HoverTip from './HoverTip'
@@ -52,13 +53,6 @@ const PRICE_WARNING_COLOR: Record<NonNullable<ShopPriceWarning>, string> = {
   redzone: 'bg-red-600 text-white',
 }
 
-// quality 인덱스(0~5) → i18n 키 매핑. 0 / out-of-range 는 'unknown' 으로 폴백.
-const QUALITY_KEYS = ['unknown', 'normal', 'good', 'outstanding', 'excellent', 'masterpiece'] as const
-type QualityKey = (typeof QUALITY_KEYS)[number]
-function qualityKey(idx: number): QualityKey {
-  return QUALITY_KEYS[idx] ?? 'unknown'
-}
-
 interface Props {
   items: CatalogItem[]
   balance: number
@@ -85,14 +79,6 @@ interface CatalogDisplayItem extends CatalogItem {
   originalName: string
 }
 
-const QUALITY_RING: Record<number, string> = {
-  1: 'ring-gray-500/60',
-  2: 'ring-sky-300/70',
-  3: 'ring-blue-400/80',
-  4: 'ring-purple-400/80',
-  5: 'ring-amber-300/90',
-}
-
 type ShopItemTypeKey =
   | GearSlot
   | 'mount'
@@ -113,8 +99,13 @@ const SHOP_ITEM_TYPE_KEYS = new Set<string>([
   'other',
 ])
 
-function imageSrcs(uniqueName: string, enchant: number, quality: number, size = 96): string[] {
-  return buildAlbionItemImageUrlCandidates({ uniqueName, enchant, quality, size })
+function imageSrcs(uniqueName: string, enchant: number, size = 96): string[] {
+  return buildAlbionItemImageUrlCandidates({
+    uniqueName,
+    enchant,
+    quality: SHOP_CANONICAL_QUALITY,
+    size,
+  })
 }
 
 function tierEnchantLabel(item: CatalogItem): string {
@@ -503,10 +494,8 @@ function ShopItemRow({
 }) {
   const t = useTranslations('shop')
   const tc = useTranslations('shopCatalog')
-  const quality = t(`quality.${qualityKey(item.quality)}`)
   const typeLabel = tc(`itemType.${shopItemTypeKey(item)}`)
   const tierEnchant = tierEnchantLabel(item)
-  const qualityRing = QUALITY_RING[item.quality] ?? QUALITY_RING[1]
   const inCart = cartQty > 0
   const atMax = cartQty >= item.stock
 
@@ -517,16 +506,16 @@ function ShopItemRow({
     item.pointPrice === null
       ? tc('quoteRequired')
       : `${item.pointPrice.toLocaleString()}p`
-  const ariaLabel = `${tierEnchant} ${item.displayName} / ${typeLabel} / ${quality} / ${priceLabel} / ${stockLabel}${cartLabel}${resetLabel}`
-  const itemImageSrcs = imageSrcs(item.uniqueName, item.enchant, item.quality, 64)
+  const ariaLabel = `${tierEnchant} ${item.displayName} / ${typeLabel} / ${priceLabel} / ${stockLabel}${cartLabel}${resetLabel}`
+  const itemImageSrcs = imageSrcs(item.uniqueName, item.enchant, 64)
 
   return (
     <div
-      className={`grid grid-cols-[2.75rem_minmax(0,1fr)_auto_auto] items-center gap-3 px-3 py-2.5 sm:grid-cols-[3rem_minmax(0,1fr)_5rem_5.5rem_4.75rem_auto] sm:px-4 transition-colors ${
+      className={`grid grid-cols-[2.75rem_minmax(0,1fr)_auto_auto] items-center gap-3 px-3 py-2.5 sm:grid-cols-[3rem_minmax(0,1fr)_5.5rem_4.75rem_auto] sm:px-4 transition-colors ${
         inCart ? 'bg-emerald-500/5' : 'hover:bg-gray-800/35'
       }`}
     >
-      <div className={`relative h-11 w-11 sm:h-12 sm:w-12 rounded-md overflow-hidden bg-gray-950 ring-1 ${qualityRing} flex-shrink-0`}>
+      <div className="relative h-11 w-11 sm:h-12 sm:w-12 rounded-md overflow-hidden bg-gray-950 ring-1 ring-gray-500/60 flex-shrink-0">
         <AlbionItemImage
           src={itemImageSrcs[0]}
           fallbackSrcs={itemImageSrcs.slice(1)}
@@ -555,7 +544,6 @@ function ShopItemRow({
           <span className="rounded border border-gray-700 bg-gray-950/60 px-1.5 py-0.5 text-gray-300">
             {typeLabel}
           </span>
-          <span className="sm:hidden">{quality}</span>
           <span className="sm:hidden">{stockLabel}</span>
           {item.priceWarning && (
             <HoverTip
@@ -576,11 +564,6 @@ function ShopItemRow({
             </span>
           )}
         </div>
-      </div>
-
-      <div className="hidden sm:block min-w-0">
-        <p className="text-[11px] text-gray-500">{tc('qualityLabel')}</p>
-        <p className="truncate text-xs font-medium text-gray-300">{quality}</p>
       </div>
 
       <div className="hidden sm:block text-right">
@@ -833,7 +816,7 @@ function CartLineRow({
   const quoteOpen = quoteRequired || line.quoteOpen
   const quoteInvalid = line.quoteUnitSilver.trim() !== '' && quotePoints === null
   const effectiveUnitPoints = quotePoints ?? line.item.pointPrice
-  const itemImageSrcs = imageSrcs(line.item.uniqueName, line.item.enchant, line.item.quality, 48)
+  const itemImageSrcs = imageSrcs(line.item.uniqueName, line.item.enchant, 48)
   return (
     <div className="bg-gray-800/60 border border-gray-800 rounded-lg px-2 py-1.5 space-y-2">
       <div className="flex items-center gap-2">

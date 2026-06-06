@@ -120,13 +120,13 @@ export default async function ShopRegearSection({
                 getLocalizedItemName(item.uniqueName, locale, item.nameKo) ?? item.nameKo
               return (
               <li
-                key={`${item.uniqueName}@${item.enchant}#${item.quality}`}
+                key={`${item.uniqueName}@${item.enchant}`}
                 className="flex items-center gap-3 px-4 py-2 hover:bg-gray-800/40"
               >
                 <span className="text-xs text-gray-500 font-mono w-6 text-right">{idx + 1}</span>
                 <div className="relative w-8 h-8 rounded bg-gray-950 flex-shrink-0">
                   <AlbionItemImage
-                    src={itemImageUrl(item.uniqueName, item.enchant, item.quality)}
+                    src={itemImageUrl(item.uniqueName, item.enchant)}
                     alt={displayName}
                     fill
                     className="object-contain pixel-img"

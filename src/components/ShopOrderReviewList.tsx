@@ -17,6 +17,7 @@ import MemberLink from './MemberLink'
 import { matchesDate, matchesName, normalizeQuery } from '@/lib/search-match'
 import { getLocalizedItemName } from '@/lib/item-names'
 import { buildAlbionItemImageUrlCandidates } from '@/lib/albion-render'
+import { SHOP_CANONICAL_QUALITY } from '@/lib/shop/quality'
 import {
   hasBlockingShopOrderLineStockShortage,
   hasBlockingShopOrderStockShortage,
@@ -31,8 +32,13 @@ const STATUS_CLASS: Record<string, string> = {
   cancelled: 'bg-gray-700 text-gray-300',
 }
 
-function imageSrcs(uniqueName: string, enchant: number, quality: number): string[] {
-  return buildAlbionItemImageUrlCandidates({ uniqueName, enchant, quality, size: 48 })
+function imageSrcs(uniqueName: string, enchant: number): string[] {
+  return buildAlbionItemImageUrlCandidates({
+    uniqueName,
+    enchant,
+    quality: SHOP_CANONICAL_QUALITY,
+    size: 48,
+  })
 }
 
 interface Props {
@@ -236,7 +242,7 @@ function OrderRow({
             quoteDelta !== null && it.catalogUnitSilverSnapshot && it.catalogUnitSilverSnapshot > 0
               ? Math.round((quoteDelta / it.catalogUnitSilverSnapshot) * 100)
               : null
-          const itemImageSrcs = imageSrcs(it.uniqueName, it.enchant, it.quality)
+          const itemImageSrcs = imageSrcs(it.uniqueName, it.enchant)
           return (
             <div
               key={idx}

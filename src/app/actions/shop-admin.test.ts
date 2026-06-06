@@ -67,7 +67,12 @@ vi.mock('./shop-inventory', () => ({
 function createImportDb(options: {
   batchStockError?: { code?: string; message: string }
   insertResults?: Array<{ error: { code?: string; message: string } | null }>
-  approvedOrders?: Array<{ id: string; created_at: string; resolved_at: string | null }>
+  approvedOrders?: Array<{
+    id: string
+    created_at: string
+    stock_reserved_at?: string | null
+    resolved_at: string | null
+  }>
   orderItems?: Array<{
     id: string
     order_id: string
@@ -247,7 +252,7 @@ function createListOrdersDb() {
           id: 'inventory-1',
           unique_name: 'T4_TEST_ITEM',
           enchant: 0,
-          quality: 1,
+          quality: 5,
           stock: 3,
         },
       ],
@@ -458,6 +463,7 @@ describe('importChestLog', () => {
         {
           id: 'order-1',
           created_at: '2026-05-01T00:00:00.000Z',
+          stock_reserved_at: '2026-05-01T00:00:00.000Z',
           resolved_at: '2026-05-01T01:00:00.000Z',
         },
       ],
@@ -531,6 +537,64 @@ describe('importChestLog', () => {
     ]])
     expect(rpc).not.toHaveBeenCalledWith('apply_shop_stock_deltas', expect.anything())
     expect(rpc).not.toHaveBeenCalledWith('apply_shop_stock_delta', expect.anything())
+  })
+
+  it('matches reserved order fulfillment even when delivery log quality differs and approval happens later', async () => {
+    const { db, rpc, insertCalls } = createImportDb({
+      approvedOrders: [
+        {
+          id: 'order-1',
+          created_at: '2026-05-01T00:00:00.000Z',
+          stock_reserved_at: '2026-05-01T00:10:00.000Z',
+          resolved_at: '2026-05-01T02:00:00.000Z',
+        },
+      ],
+      orderItems: [
+        {
+          id: 'order-item-1',
+          order_id: 'order-1',
+          unique_name: 'T4_TEST_ITEM',
+          enchant: 0,
+          quality: 1,
+          quantity: 1,
+        },
+      ],
+      fulfilledLogs: [],
+    })
+    const loggedAt = new Date('2026-05-01T01:00:00.000Z')
+    mocks.requireAnyCapability.mockResolvedValue(db)
+    mocks.parseChestLog.mockReturnValue({
+      entries: [
+        {
+          loggedAt,
+          player: 'Quartermaster',
+          itemName: '테스트 장비',
+          enchant: 0,
+          quality: 5,
+          quantity: -1,
+        },
+      ],
+      errors: [],
+    })
+    mocks.resolveKoItem.mockReturnValue({
+      uniqueName: 'T4_TEST_ITEM',
+      category: 'armor',
+      nameKo: '테스트 장비',
+      tier: 4,
+    })
+
+    const result = await importChestLog('raw chest log')
+
+    expect(result.error).toBeUndefined()
+    expect(result.stockChanges).toEqual([])
+    expect(insertCalls[0]?.[0]).toMatchObject({
+      quality: 5,
+      applied_quantity: 0,
+      ignored_quantity: -1,
+      ignored_reason: 'shop_order_fulfillment',
+      matched_order_item_id: 'order-item-1',
+    })
+    expect(rpc).not.toHaveBeenCalledWith('apply_shop_stock_deltas', expect.anything())
   })
 
   it('falls back to per-row stock RPC while the batch migration is not applied', async () => {
