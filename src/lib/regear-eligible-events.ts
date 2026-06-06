@@ -10,6 +10,15 @@ export interface RegearEligibleEventCandidate {
   category: EventCategory | string | null | undefined
 }
 
+export interface EventStatusRegearCandidate {
+  isMember: boolean
+  battleStarted: boolean
+  category: EventCategory | string | null | undefined
+  hasCurrentSlot: boolean
+  hasEventRegearParticipant: boolean
+  regearPolicy: string | null | undefined
+}
+
 export function buildRegearEventRoleMap(
   slots: readonly RegearAssignedSlotCandidate[],
 ): Map<string, string> {
@@ -44,4 +53,12 @@ export function buildManualRegearEligibilityRoleMap(
     if (role !== undefined) eventToRole.set(event.eventId, role)
   }
   return eventToRole
+}
+
+export function canRequestRegearFromEventStatus(input: EventStatusRegearCandidate): boolean {
+  if (!input.isMember || !input.battleStarted) return false
+  const category = normalizeEventCategory(input.category)
+  if (category === '전투') return input.hasCurrentSlot
+  if (input.regearPolicy === 'disabled') return false
+  return input.hasEventRegearParticipant
 }

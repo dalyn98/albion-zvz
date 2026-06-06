@@ -46,6 +46,7 @@ import { buildDiscordStartHref } from '@/lib/discord-auth-url'
 import { resolveEventGuestInviteScope, resolvePublicEventPageGuildId } from '@/lib/event-guest-auth'
 import { getAlbionEventAccessGateState } from '@/lib/albion-identity'
 import { loadEventRoleExperienceCounts } from '@/lib/event-role-experience-server'
+import { canRequestRegearFromEventStatus } from '@/lib/regear-eligible-events'
 
 function formatStartedAt(iso: string, tz: string): string {
   // "MM-DD HH:mm" → "MM/DD HH:mm" (in tenant tz).
@@ -504,6 +505,17 @@ export default async function EventDetailPage({
       }
     }
   }
+  const myEventRegearParticipantResult =
+    interactionSession?.isMember && event.category !== '전투'
+      ? await db
+          .from('event_regear_participants')
+          .select('discord_id')
+          .eq('guild_id', guildId)
+          .eq('event_id', id)
+          .eq('discord_id', interactionSession.discordId)
+          .maybeSingle()
+      : { data: null }
+  const hasMyEventRegearParticipant = !!myEventRegearParticipantResult.data
   const myTentative = interactionSession
     ? tentativeRows.find((row) => row.discord_id === interactionSession.discordId) ?? null
     : null
@@ -567,7 +579,14 @@ export default async function EventDetailPage({
           : isBombSquadCallerOnly
             ? t('myStatusCallerBody')
           : t('myStatusNoneBody')
-  const canRequestRegear = !!interactionSession?.isMember && !!myAssigned && !!event.battle_started_at
+  const canRequestRegear = canRequestRegearFromEventStatus({
+    isMember: interactionSession?.isMember === true,
+    battleStarted: !!event.battle_started_at,
+    category: event.category,
+    hasCurrentSlot: !!myAssigned,
+    hasEventRegearParticipant: hasMyEventRegearParticipant,
+    regearPolicy: event.regear_policy,
+  })
   const myStatusPrimaryAction = !interactionSession
     ? { href: loginHref, label: t('myStatusLogin') }
     : canRequestRegear
