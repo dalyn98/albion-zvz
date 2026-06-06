@@ -1,6 +1,5 @@
-/* Pretendard 폰트는 layout.tsx 의 <link rel="stylesheet"> 로 병렬 로드.
-   예전엔 여기서 @import 했는데, CSS @import 는 항상 렌더 블로킹 + 순차이라
-   LCP 가 200-300ms 늦어졌다. link preconnect + stylesheet 로 옮겨 병렬화. */
+/* Pretendard 폰트는 layout.tsx 의 next/font/local 로 self-host 한다.
+   외부 stylesheet 왕복을 피하고 fallback swap 을 Next 에 맡긴다. */
 @import "tailwindcss";
 
 /* =============================================================================
@@ -145,7 +144,7 @@ body {
   background-attachment: fixed;
   color: var(--foreground);
   font-family:
-    'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+    var(--font-pretendard), Pretendard, -apple-system, BlinkMacSystemFont,
     system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans KR', sans-serif;
   /* 모던 sans-serif는 antialiasing을 켜야 더 깔끔하게 렌더된다. */
   -webkit-font-smoothing: antialiased;

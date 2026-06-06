@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import Image from 'next/image'
 import {
   Crown,
   ShieldAlert,
@@ -105,11 +106,12 @@ function GalleryFigure({ item, fallbackAlt, accent, fillParent }: GalleryFigureP
     <figure
       className={`group relative rounded-xl overflow-hidden border ${accent.border} bg-gray-900/50 ${sizing} transition-all hover:-translate-y-0.5 hover:shadow-2xl`}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <Image
         src={item.imageUrl}
         alt={item.caption || fallbackAlt}
-        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+        fill
+        sizes={fillParent ? '(min-width: 640px) 33vw, 100vw' : '100vw'}
+        className="object-cover transition-transform duration-700 group-hover:scale-105"
       />
       {item.caption && (
         <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent px-4 py-3 text-sm text-white font-medium">
@@ -273,11 +275,13 @@ export function TopContributorsCard({
           <li key={c.albionPlayerId} className="flex items-center gap-3">
             <div className="relative shrink-0">
               {c.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <Image
                   src={c.avatarUrl}
                   alt=""
-                  className="w-9 h-9 rounded-full bg-gray-800 object-cover"
+                  width={36}
+                  height={36}
+                  sizes="36px"
+                  className="rounded-full bg-gray-800 object-cover"
                 />
               ) : (
                 <div className="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center">

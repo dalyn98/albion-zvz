@@ -27,6 +27,7 @@ import { classifyHost, getCanonicalRootDomain, resolveTenantBySlug } from '@/lib
 import { displayNameFromSlug } from '@/lib/tenant-slug'
 import { isIndexablePathname, isPublicPathname } from '@/lib/app-route-classification'
 import { getLocalGuildAccountBySubject } from '@/lib/local-guild-account'
+import { pretendard } from './font'
 
 // 마케팅 페이지(/public/(marketing)/*) 는 자체 헤더(MarketingNav) + 푸터를
 // 갖고 있어 PublicShell/AppShell 의 sticky 헤더를 한 번 더 깔면 시각적 충돌이
@@ -612,32 +613,30 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         : isPublic && !session
           ? <PublicShell>{children}</PublicShell>
           : <AppShell allianceEventAllowed={allianceEventAllowed}>{children}</AppShell>
+  const chrome = (
+    <>
+      <ImpersonationBanner />
+      <SystemNoticesBanner />
+      {body}
+      {onboardingModalProps && <AlbionOnboardingModal {...onboardingModalProps} />}
+    </>
+  )
+  const shouldUseInteractionProviders = !(isDemo || isMarketing || isStandalonePublic)
+  const appBody = shouldUseInteractionProviders ? (
+    <ToastProvider>
+      <ConfirmDialogProvider>
+        <UnsavedChangesProvider>{chrome}</UnsavedChangesProvider>
+      </ConfirmDialogProvider>
+    </ToastProvider>
+  ) : (
+    chrome
+  )
 
   return (
-    <html lang={locale} className="h-full antialiased">
-      <head>
-        {/* Pretendard 가변 폰트. jsdelivr CDN 에 별도 preconnect 해두면
-            TLS/DNS 가 CSS 다운로드 전에 끝난다. stylesheet 는 render-blocking
-            이지만 globals.css 와 병렬로 받아오므로 globals 내부 @import 보다
-            빠르다 (~200ms 체감). */}
-        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
-        <link
-          rel="stylesheet"
-          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/variable/pretendardvariable.css"
-        />
-      </head>
+    <html lang={locale} className={`h-full antialiased ${pretendard.variable}`}>
       <body className="min-h-full text-foreground">
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <ToastProvider>
-            <ConfirmDialogProvider>
-              <UnsavedChangesProvider>
-                <ImpersonationBanner />
-                <SystemNoticesBanner />
-                {body}
-                {onboardingModalProps && <AlbionOnboardingModal {...onboardingModalProps} />}
-              </UnsavedChangesProvider>
-            </ConfirmDialogProvider>
-          </ToastProvider>
+          {appBody}
         </NextIntlClientProvider>
       </body>
     </html>

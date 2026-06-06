@@ -35,4 +35,14 @@ describe('GET /api/items/spells', () => {
     expect(Object.keys(body)).toHaveLength(64)
     expect(body).not.toHaveProperty('T4_MAIN_SWORD<script>')
   })
+
+  it('marks static spell lookups as CDN-cacheable', () => {
+    const response = GET(
+      new NextRequest('https://example.test/api/items/spells?id=T4_MAIN_SWORD'),
+    )
+
+    expect(response.headers.get('cache-control')).toBe(
+      'public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800',
+    )
+  })
 })

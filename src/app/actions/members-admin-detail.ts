@@ -61,12 +61,10 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
   detail: GuildMemberDetail | null
   error?: string
 }> {
-  const tCommon = await getTranslations('common')
-  const tErr = await getTranslations('adminActionError')
+  const tCommonPromise = getTranslations('common')
+  const tErrPromise = getTranslations('adminActionError').catch(() => null)
   try {
     const db = getAdminClient()
-    const bundleSplits =
-      (await getAppSetting('bundle_split_battles_in_stats', 'false', guildId)) === 'true'
 
     // avatar 를 먼저 단건 조회 — albion_player_id 를 확보해야 killboard_events
     // 를 albion_player_id 기준으로 조회할 수 있다. (guild_id, discord_id) PK
@@ -79,12 +77,18 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
     // 페이지 / 멤버 상세 / member_ranking_counts RPC 모두 동일 정책으로
     // 일치 — "사이트 가입자 + 가입 이후 기록" 만 통계 모집단.
     // (관련 메모: feedback_albion_zvz_stats_membership_policy)
-    const avatarRes = await db
-      .from('guild_avatars')
-      .select('discord_id, username, avatar, albion_player_id, updated_at, preferred_language')
-      .eq('guild_id', guildId)
-      .eq('discord_id', discordId)
-      .maybeSingle()
+    const [tCommon, , bundleSplitsRaw, avatarRes] = await Promise.all([
+      tCommonPromise,
+      tErrPromise,
+      getAppSetting('bundle_split_battles_in_stats', 'false', guildId),
+      db
+        .from('guild_avatars')
+        .select('discord_id, username, avatar, albion_player_id, updated_at, preferred_language')
+        .eq('guild_id', guildId)
+        .eq('discord_id', discordId)
+        .maybeSingle(),
+    ])
+    const bundleSplits = bundleSplitsRaw === 'true'
     if (avatarRes.error) return { detail: null, error: avatarRes.error.message }
     const avatar = avatarRes.data
     if (!avatar) return { detail: null }
@@ -360,7 +364,11 @@ async function fetchMemberDetail(discordId: string, guildId: string): Promise<{
       },
     }
   } catch (e) {
-    return { detail: null, error: e instanceof Error ? e.message : tErr('serverError') }
+    const tErr = await tErrPromise
+    return {
+      detail: null,
+      error: e instanceof Error ? e.message : tErr?.('serverError') ?? 'Server error',
+    }
   }
 }
 

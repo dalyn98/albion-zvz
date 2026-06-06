@@ -4,6 +4,7 @@ import { getTranslations, getLocale } from 'next-intl/server'
 import { Compass, Home } from 'lucide-react'
 import type { Metadata } from 'next'
 import { getCanonicalRootDomain } from '@/lib/tenant-resolver'
+import { pretendard } from './font'
 
 // 어떤 layout 도 매칭되지 않은 URL (e.g. `/this-does-not-exist`) 진입 시 노출.
 // RootLayout 의 `locked` 분기가 AppGate 를 강제로 띄우는 것을 우회하기 위해
@@ -37,14 +38,7 @@ export default async function GlobalNotFound() {
   const homeHref = isTenantSubdomain ? `https://${canonical}/` : '/'
 
   return (
-    <html lang={locale} className="h-full antialiased">
-      <head>
-        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
-        <link
-          rel="stylesheet"
-          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/variable/pretendardvariable.css"
-        />
-      </head>
+    <html lang={locale} className={`h-full antialiased ${pretendard.variable}`}>
       <body className="min-h-full bg-[#0f1117] text-white">
         <main className="min-h-screen flex items-center justify-center px-4 py-16">
           <div className="max-w-md w-full bg-gray-900 border border-gray-700 rounded-2xl p-6 space-y-4 text-center">

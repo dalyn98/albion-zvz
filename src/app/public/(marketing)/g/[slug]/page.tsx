@@ -55,13 +55,14 @@ import { getLocale } from 'next-intl/server'
 import { isLocale } from '@/i18n/locales'
 import { getLocalizedItemName } from '@/lib/item-names'
 import { canonicalT8WeaponId, stripTierPrefix } from '@/lib/weapon-display'
-import InlineEditableField from '@/components/guild/InlineEditableField'
 import AdminTeamGridClient from '@/components/AdminTeamGridClient'
-import SectionVisibilityPin from '@/components/guild/SectionVisibilityPin'
-import GalleryInlineEdit from '@/components/guild/GalleryInlineEdit'
-import HiddenSectionsAdminBar, {
+import {
+  EditableField,
+  GalleryEditControl,
+  HiddenSectionsControl,
+  SectionVisibilityControl,
   type HiddenSectionEntry,
-} from '@/components/guild/HiddenSectionsAdminBar'
+} from '@/components/guild/GuildProfileEditControls'
 import GuildProfileHero from '@/components/guild/GuildProfileHero'
 import GuildProfileDisabledState from '@/components/guild/GuildProfileDisabledState'
 import {
@@ -409,7 +410,7 @@ export default async function GuildProfilePage({
     ? weaponDistribution.reduce((sum, w) => sum + w.count, 0)
     : 0
   // serverCode 가 null 이면 (override/albion_server 둘 다 미설정) HeroChip 자체를
-  // 숨긴다. 어드민이 본인 길드를 볼 때는 InlineEditableField 의 emptyLabel 로
+  // 숨긴다. 어드민이 본인 길드를 볼 때는 EditableField 의 emptyLabel 로
   // "+ 서버 설정" 어퍼던스가 노출되어 직접 채울 수 있다.
   const serverLabel = serverCode ? t(`server_${serverCode}`) : null
   const localeRaw = await getLocale()
@@ -493,7 +494,7 @@ export default async function GuildProfilePage({
             카드(전투/탑 킬러) 둘 중 하나만 있어도 자연스럽게 풀카드로 확장. */}
         {hasActivity && (
           <section className="relative group space-y-4">
-            <SectionVisibilityPin
+            <SectionVisibilityControl
               enabled={isOwnGuildAdmin}
               settingKey="guild_profile_show_activity"
             />
@@ -551,7 +552,7 @@ export default async function GuildProfilePage({
             어드민 본인이면 비어 있어도 "편집" 핀을 노출해 첫 항목을 추가할 수 있게 한다. */}
         {(galleryItems.length > 0 || isOwnGuildAdmin) && (
           <section className="relative group space-y-4">
-            <GalleryInlineEdit enabled={isOwnGuildAdmin} items={galleryItems} />
+            <GalleryEditControl enabled={isOwnGuildAdmin} items={galleryItems} />
             <SectionHeader
               icon={<ImageIcon size={14} />}
               label={t('galleryHeading')}
@@ -599,7 +600,7 @@ export default async function GuildProfilePage({
         {/* 통계 카드 — 큰 숫자 + 아이콘 칩 + 코너 글로우 */}
         {hasStats && (
           <section className="relative group space-y-4">
-            <SectionVisibilityPin
+            <SectionVisibilityControl
               enabled={isOwnGuildAdmin}
               settingKey="guild_profile_show_stats"
             />
@@ -685,7 +686,7 @@ export default async function GuildProfilePage({
               accent={accent}
             />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <InlineEditableField
+              <EditableField
                 enabled={isOwnGuildAdmin}
                 settingKey="guild_profile_recruiting_roles"
                 currentValue={settings.recruitingRoles}
@@ -703,8 +704,8 @@ export default async function GuildProfilePage({
                     accent={accent}
                   />
                 )}
-              </InlineEditableField>
-              <InlineEditableField
+              </EditableField>
+              <EditableField
                 enabled={isOwnGuildAdmin}
                 settingKey="guild_profile_join_steps"
                 currentValue={settings.joinSteps}
@@ -722,7 +723,7 @@ export default async function GuildProfilePage({
                     accent={accent}
                   />
                 )}
-              </InlineEditableField>
+              </EditableField>
             </div>
           </section>
         )}
@@ -736,7 +737,7 @@ export default async function GuildProfilePage({
               label={t('eventScheduleHeading')}
               accent={accent}
             />
-            <InlineEditableField
+            <EditableField
               enabled={isOwnGuildAdmin}
               settingKey="guild_profile_event_schedule"
               currentValue={settings.eventSchedule}
@@ -755,14 +756,14 @@ export default async function GuildProfilePage({
                   </p>
                 </div>
               )}
-            </InlineEditableField>
+            </EditableField>
           </section>
         )}
 
         {/* 어드민 팀 — guild_avatars.is_admin = true 인 활성 길드원. 자동 추출. */}
         {showAdminTeam && (
           <section className="relative group space-y-4">
-            <SectionVisibilityPin
+            <SectionVisibilityControl
               enabled={isOwnGuildAdmin}
               settingKey="guild_profile_show_admin_team"
             />
@@ -791,7 +792,7 @@ export default async function GuildProfilePage({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {showWeapons && (
                 <div className="relative group">
-                  <SectionVisibilityPin
+                  <SectionVisibilityControl
                     enabled={isOwnGuildAdmin}
                     settingKey="guild_profile_show_weapons"
                     size="sm"
@@ -820,7 +821,7 @@ export default async function GuildProfilePage({
               )}
               {showRivals && (
                 <div className="relative group">
-                  <SectionVisibilityPin
+                  <SectionVisibilityControl
                     enabled={isOwnGuildAdmin}
                     settingKey="guild_profile_show_rivals"
                     size="sm"
@@ -843,7 +844,7 @@ export default async function GuildProfilePage({
           <p className="text-gray-500 text-sm text-center py-12">{t('emptySections')}</p>
         )}
 
-        <HiddenSectionsAdminBar enabled={isOwnGuildAdmin} hiddenSections={hiddenSections} />
+        <HiddenSectionsControl enabled={isOwnGuildAdmin} hiddenSections={hiddenSections} />
 
         <div className="border-t border-gray-900 pt-6 flex items-center justify-between gap-3 flex-wrap">
           <p className="text-gray-600 text-xs flex items-center gap-2">

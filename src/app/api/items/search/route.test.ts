@@ -51,5 +51,6 @@ describe('GET /api/items/search', () => {
     const response = GET(new NextRequest('https://example.test/api/items/search?q=sword'))
 
     expect(response.headers.get('vary')).toBe('Cookie')
+    expect(response.headers.get('cache-control')).toBe('private, max-age=3600')
   })
 })

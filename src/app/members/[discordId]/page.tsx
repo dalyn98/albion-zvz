@@ -7,7 +7,7 @@ import { getSessionGuildId } from '@/lib/tenant'
 import { getGuildMemberDetail } from '@/app/actions/members-admin-detail'
 import MemberDetailView from '@/components/MemberDetailView'
 import AdminPointAdjuster from '@/components/AdminPointAdjuster'
-import RealtimeKillboardListener from '@/components/RealtimeKillboardListener'
+import RealtimeKillboardListenerLazy from '@/components/RealtimeKillboardListenerLazy'
 import { getTenantTimezone } from '@/lib/timezone-server'
 
 export const dynamic = 'force-dynamic'
@@ -62,7 +62,7 @@ export default async function MemberDetailPage({
       )}
 
       {detail && <MemberDetailView detail={detail} timezone={timezone} />}
-      <RealtimeKillboardListener guildId={guildId} />
+      <RealtimeKillboardListenerLazy guildId={guildId} />
     </main>
   )
 }

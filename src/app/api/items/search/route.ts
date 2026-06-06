@@ -27,6 +27,7 @@ const MAX_CATEGORY_FILTERS = 8
 const MAX_CATEGORY_LENGTH = 32
 const CATEGORY_RE = /^[a-z0-9_-]+$/
 const TIER_RE = /^[1-8]$/
+const SEARCH_CACHE_CONTROL = 'private, max-age=3600'
 
 function readLocale(request: NextRequest): Locale {
   const value = request.cookies.get(LOCALE_COOKIE)?.value
@@ -54,6 +55,7 @@ function normalizeCategories(value: string | null): string[] {
 function jsonWithLocaleVary(body: unknown) {
   const response = NextResponse.json(body)
   response.headers.set('Vary', 'Cookie')
+  response.headers.set('Cache-Control', SEARCH_CACHE_CONTROL)
   return response
 }
 

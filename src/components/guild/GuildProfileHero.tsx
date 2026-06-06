@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server'
+import Image from 'next/image'
 import {
   Clock,
   ExternalLink,
@@ -8,10 +9,11 @@ import {
 } from 'lucide-react'
 import { type GuildProfileSettings, type ACCENT_CLASS_MAP } from '@/lib/guild-profile'
 import type { AllianceInfo } from '@/lib/guild-profile-stats'
-import BannerInlineEdit from '@/components/guild/BannerInlineEdit'
-import InlineEditableField, {
+import {
+  BannerEditControl,
+  EditableField,
   type EditorOption,
-} from '@/components/guild/InlineEditableField'
+} from '@/components/guild/GuildProfileEditControls'
 import { HeroChip } from '@/components/guild/GuildProfileSections'
 
 type AccentClasses = (typeof ACCENT_CLASS_MAP)[keyof typeof ACCENT_CLASS_MAP]
@@ -60,7 +62,7 @@ export default async function GuildProfileHero({
 
   return (
     <header className="relative overflow-hidden">
-      <BannerInlineEdit
+      <BannerEditControl
         enabled={isOwnGuildAdmin}
         currentUrl={settings.bannerUrl}
         currentOpacity={settings.bannerOpacity}
@@ -71,11 +73,13 @@ export default async function GuildProfileHero({
       />
       {settings.bannerUrl && (
         <div className="absolute inset-0 overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={settings.bannerUrl}
             alt=""
-            className="w-full h-full object-cover"
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
             style={{ opacity: settings.bannerOpacity / 100 }}
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-[#08090d]" />
@@ -116,7 +120,7 @@ export default async function GuildProfileHero({
             </div>
           )}
           <div className="flex items-center gap-3 flex-wrap">
-            <InlineEditableField
+            <EditableField
               enabled={isOwnGuildAdmin}
               settingKey="guild_profile_recruitment_status"
               currentValue={settings.recruitmentStatus}
@@ -138,7 +142,7 @@ export default async function GuildProfileHero({
                 </span>
                 {t(`recruitment_${settings.recruitmentStatus}`)}
               </span>
-            </InlineEditableField>
+            </EditableField>
             <span className="text-gray-500 text-[11px] font-mono tracking-[0.2em] uppercase">
               /g/{tenantSlug}
             </span>
@@ -148,7 +152,7 @@ export default async function GuildProfileHero({
           >
             {displayName}
           </h1>
-          <InlineEditableField
+          <EditableField
             enabled={isOwnGuildAdmin}
             settingKey="guild_profile_description"
             currentValue={settings.description}
@@ -163,13 +167,13 @@ export default async function GuildProfileHero({
                 {settings.description}
               </p>
             )}
-          </InlineEditableField>
+          </EditableField>
           {/* hero 칩 — 서버 (항상 표시), 활동 시간대 (admin 입력 시), 언어 (admin 입력 시).
               glass + ring 으로 hero 톤 유지. Lucide 아이콘으로 시각 라벨 보강.
               어드민이 본인 길드를 볼 때는 각 칩이 인라인 편집 가능. 빈 칩은
               "+ 추가" 버튼으로 대체된다 (server 는 fallback 이 있어 늘 표시). */}
           <div className="flex flex-wrap items-center gap-2">
-            <InlineEditableField
+            <EditableField
               enabled={isOwnGuildAdmin}
               settingKey="guild_profile_server"
               currentValue={settings.serverOverride}
@@ -182,8 +186,8 @@ export default async function GuildProfileHero({
               {serverLabel && (
                 <HeroChip icon={<Globe size={12} />} label={serverLabel} accent={accent} />
               )}
-            </InlineEditableField>
-            <InlineEditableField
+            </EditableField>
+            <EditableField
               enabled={isOwnGuildAdmin}
               settingKey="guild_profile_active_hours"
               currentValue={settings.activeHours}
@@ -201,8 +205,8 @@ export default async function GuildProfileHero({
                   accent={accent}
                 />
               )}
-            </InlineEditableField>
-            <InlineEditableField
+            </EditableField>
+            <EditableField
               enabled={isOwnGuildAdmin}
               settingKey="guild_profile_languages"
               currentValue={settings.languages.join(',')}
@@ -219,7 +223,7 @@ export default async function GuildProfileHero({
                   accent={accent}
                 />
               )}
-            </InlineEditableField>
+            </EditableField>
           </div>
           {/* Discord CTA — 모집 중이고 invite URL 이 채워졌을 때 노출. 어드민
               본인일 때는 url 이 비어 있어도 "+ 추가" 버튼으로 보여 직접 채우게
@@ -228,7 +232,7 @@ export default async function GuildProfileHero({
           {settings.recruitmentStatus !== 'closed' &&
             (isOwnGuildAdmin || settings.discordInviteUrl.length > 0) && (
               <div className="pt-3">
-                <InlineEditableField
+                <EditableField
                   enabled={isOwnGuildAdmin}
                   settingKey="guild_profile_discord_invite_url"
                   currentValue={settings.discordInviteUrl}
@@ -252,7 +256,7 @@ export default async function GuildProfileHero({
                       />
                     </a>
                   )}
-                </InlineEditableField>
+                </EditableField>
               </div>
             )}
         </div>

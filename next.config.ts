@@ -78,11 +78,12 @@ const nextConfig: NextConfig = {
         pathname: '/avatars/**',
       },
       // Supabase storage — 마케팅 캐러셀(`MarketingScreenshotCarousel`) 의
-      // 스크린샷 호스트. 프로젝트 ref 는 env 별로 다르므로 와일드카드.
+      // 스크린샷/길드 프로필 배너/갤러리 호스트. 프로젝트 ref 는 env 별로
+      // 다르므로 와일드카드.
       {
         protocol: 'https',
         hostname: '*.supabase.co',
-        pathname: '/storage/v1/object/public/marketing-screenshots/**',
+        pathname: '/storage/v1/object/public/**',
       },
     ],
   },

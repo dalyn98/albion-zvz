@@ -15,10 +15,17 @@ function stripEnchantment(id: string): string {
 }
 
 const POOL = itemSpells as Record<string, SpellPoolEntry[]>
+const SPELLS_CACHE_CONTROL = 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=604800'
+
+function jsonWithStaticCache(body: unknown) {
+  const response = NextResponse.json(body)
+  response.headers.set('Cache-Control', SPELLS_CACHE_CONTROL)
+  return response
+}
 
 export function GET(request: NextRequest) {
   const ids = normalizeSpellItemIds(request.nextUrl.searchParams.getAll('id'))
-  if (ids.length === 0) return NextResponse.json({})
+  if (ids.length === 0) return jsonWithStaticCache({})
 
   const out: Record<string, SpellPoolEntry[]> = {}
   for (const id of ids) {
@@ -26,5 +33,5 @@ export function GET(request: NextRequest) {
     const pool = POOL[base]
     out[id] = Array.isArray(pool) ? pool : []
   }
-  return NextResponse.json(out)
+  return jsonWithStaticCache(out)
 }
