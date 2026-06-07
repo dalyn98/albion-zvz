@@ -8,6 +8,7 @@ import {
   buildKillbotDiscordPayload,
   classifyKillbotEvent,
   fetchRecentKillbotEvents,
+  isKillbotBattleSummaryReady,
   isKillbotEventInsideProcessWindow,
   resolveKillbotFeedChannels,
   killbotNotificationSettingsToFeedMode,
@@ -210,6 +211,63 @@ describe('isKillbotEventInsideProcessWindow', () => {
         '2026-05-27T12:24:00Z',
         '2026-05-27T12:25:00Z',
       ),
+    ).toBe(false)
+  })
+})
+
+describe('isKillbotBattleSummaryReady', () => {
+  const endedAt = '2026-05-27T12:00:00.000Z'
+  const settleMs = 30 * 60 * 1000
+
+  it('waits until the battle end buffer has passed', () => {
+    expect(
+      isKillbotBattleSummaryReady({
+        endedAt,
+        lastKillboardSyncAt: '2026-05-27T12:35:00.000Z',
+        nowIso: '2026-05-27T12:29:59.000Z',
+        settleMs,
+      }),
+    ).toBe(false)
+  })
+
+  it('waits for killboard sync to catch up after the buffer point', () => {
+    expect(
+      isKillbotBattleSummaryReady({
+        endedAt,
+        lastKillboardSyncAt: '2026-05-27T12:29:59.000Z',
+        nowIso: '2026-05-27T12:35:00.000Z',
+        settleMs,
+      }),
+    ).toBe(false)
+  })
+
+  it('allows summaries once time and killboard sync both passed the buffer point', () => {
+    expect(
+      isKillbotBattleSummaryReady({
+        endedAt,
+        lastKillboardSyncAt: '2026-05-27T12:30:00.000Z',
+        nowIso: '2026-05-27T12:30:01.000Z',
+        settleMs,
+      }),
+    ).toBe(true)
+  })
+
+  it('rejects missing or invalid battle end timestamps', () => {
+    expect(
+      isKillbotBattleSummaryReady({
+        endedAt: null,
+        lastKillboardSyncAt: '2026-05-27T12:35:00.000Z',
+        nowIso: '2026-05-27T12:35:00.000Z',
+        settleMs,
+      }),
+    ).toBe(false)
+    expect(
+      isKillbotBattleSummaryReady({
+        endedAt: 'not-a-date',
+        lastKillboardSyncAt: '2026-05-27T12:35:00.000Z',
+        nowIso: '2026-05-27T12:35:00.000Z',
+        settleMs,
+      }),
     ).toBe(false)
   })
 })
