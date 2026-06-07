@@ -81,6 +81,7 @@ export default async function DashboardPage({
           title={tOnboard('completionBannerTitle')}
           description={tOnboard('completionBannerDescription')}
           linkLabel={tOnboard('completionBannerLink')}
+          guideLinkLabel={tOnboard('completionBannerGuideLink')}
           dismissLabel={tOnboard('completionBannerDismiss')}
         />
       )}

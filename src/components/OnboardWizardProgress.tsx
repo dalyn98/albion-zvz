@@ -3,6 +3,12 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Check } from 'lucide-react'
+import {
+  ONBOARD_SETUP_STEPS,
+  onboardSetupHref,
+  resolveOnboardSetupStep,
+  resolveOnboardStepState,
+} from '@/lib/onboard-guide'
 
 interface Props {
   tenantId: string
@@ -10,23 +16,9 @@ interface Props {
   labels: [string, string, string]
 }
 
-// 현재 경로에서 스텝 인덱스를 유도. pathname 이 /onboard/setup/[id] 형태면 1,
-// /onboard/setup/[id]/albion 이면 2, /onboard/setup/[id]/rewards 이면 3.
-function resolveStepIndex(pathname: string, tenantId: string): 1 | 2 | 3 {
-  if (pathname.endsWith(`/onboard/setup/${tenantId}/rewards`)) return 3
-  if (pathname.endsWith(`/onboard/setup/${tenantId}/albion`)) return 2
-  return 1
-}
-
-function stepHref(tenantId: string, idx: 1 | 2 | 3): string {
-  if (idx === 1) return `/onboard/setup/${tenantId}`
-  if (idx === 2) return `/onboard/setup/${tenantId}/albion`
-  return `/onboard/setup/${tenantId}/rewards`
-}
-
 export default function OnboardWizardProgress({ tenantId, stepOf, labels }: Props) {
   const pathname = usePathname() ?? ''
-  const current = resolveStepIndex(pathname, tenantId)
+  const current = resolveOnboardSetupStep(pathname, tenantId)
   const total = labels.length
 
   return (
@@ -35,10 +27,9 @@ export default function OnboardWizardProgress({ tenantId, stepOf, labels }: Prop
         {stepOf.replace('{current}', String(current)).replace('{total}', String(total))}
       </p>
       <ol className="flex items-center gap-2 text-xs">
-        {labels.map((label, i) => {
-          const idx = (i + 1) as 1 | 2 | 3
-          const state: 'done' | 'active' | 'upcoming' =
-            idx < current ? 'done' : idx === current ? 'active' : 'upcoming'
+        {ONBOARD_SETUP_STEPS.map((idx, i) => {
+          const label = labels[i]
+          const state = resolveOnboardStepState(idx, current)
           // 완료된 스텝만 링크화 — 미래 스텝은 레이아웃이 ownership 만 검증하지
           // 진행 순서를 강제하지 않으므로 굳이 점프 가능하게 하지 않는다.
           const isClickable = state === 'done'
@@ -68,7 +59,7 @@ export default function OnboardWizardProgress({ tenantId, stepOf, labels }: Prop
             <li key={label} className="flex items-center gap-2 flex-1 min-w-0">
               {isClickable ? (
                 <Link
-                  href={stepHref(tenantId, idx)}
+                  href={onboardSetupHref(tenantId, idx)}
                   className="flex items-center gap-2 min-w-0 flex-1"
                 >
                   {inner}

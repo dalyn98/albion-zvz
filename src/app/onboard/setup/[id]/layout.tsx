@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
+import OnboardStartGuide from '@/components/OnboardStartGuide'
 import OnboardWizardProgress from '@/components/OnboardWizardProgress'
 
 export const dynamic = 'force-dynamic'
@@ -33,6 +34,47 @@ export default async function OnboardSetupLayout({ children, params }: LayoutPro
 
   return (
     <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-10 sm:py-14">
+      <OnboardStartGuide
+        tenantId={id}
+        eyebrow={t('startGuideEyebrow')}
+        title={t('startGuideTitle')}
+        description={t('startGuideDescription')}
+        currentStepLabel={t('startGuideCurrentLabel')}
+        afterSetupLabel={t('startGuideAfterLabel')}
+        statusLabels={{
+          done: t('startGuideDoneLabel'),
+          active: t('startGuideActiveLabel'),
+          upcoming: t('startGuideUpcomingLabel'),
+        }}
+        steps={[
+          {
+            title: t('startGuideStep1Title'),
+            body: t('startGuideStep1Body'),
+          },
+          {
+            title: t('startGuideStep2Title'),
+            body: t('startGuideStep2Body'),
+          },
+          {
+            title: t('startGuideStep3Title'),
+            body: t('startGuideStep3Body'),
+          },
+        ]}
+        afterItems={[
+          {
+            title: t('startGuideAfterInviteTitle'),
+            body: t('startGuideAfterInviteBody'),
+          },
+          {
+            title: t('startGuideAfterEventTitle'),
+            body: t('startGuideAfterEventBody'),
+          },
+          {
+            title: t('startGuideAfterGuideTitle'),
+            body: t('startGuideAfterGuideBody'),
+          },
+        ]}
+      />
       <OnboardWizardProgress
         tenantId={id}
         stepOf={t('stepOf')}

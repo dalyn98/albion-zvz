@@ -2,12 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { PartyPopper, Settings, X } from 'lucide-react'
+import { BookOpen, PartyPopper, Settings, X } from 'lucide-react'
 
 interface Props {
   title: string
   description: string
   linkLabel: string
+  guideLinkLabel: string
   dismissLabel: string
 }
 
@@ -18,6 +19,7 @@ export default function OnboardCompletionBanner({
   title,
   description,
   linkLabel,
+  guideLinkLabel,
   dismissLabel,
 }: Props) {
   const [dismissed, setDismissed] = useState(false)
@@ -31,13 +33,22 @@ export default function OnboardCompletionBanner({
           <h2 className="text-sm font-semibold text-emerald-200">{title}</h2>
           <p className="text-xs text-emerald-100/80 mt-1 leading-relaxed">{description}</p>
         </div>
-        <Link
-          href="/admin/dashboard/settings"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-100 hover:text-white underline-offset-4 hover:underline"
-        >
-          <Settings size={12} />
-          {linkLabel}
-        </Link>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <Link
+            href="/admin/dashboard/guide"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-100 hover:text-white underline-offset-4 hover:underline"
+          >
+            <BookOpen size={12} />
+            {guideLinkLabel}
+          </Link>
+          <Link
+            href="/admin/dashboard/settings"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-100 hover:text-white underline-offset-4 hover:underline"
+          >
+            <Settings size={12} />
+            {linkLabel}
+          </Link>
+        </div>
       </div>
       <button
         type="button"
