@@ -28,6 +28,11 @@ import { displayNameFromSlug } from '@/lib/tenant-slug'
 import { isIndexablePathname, isPublicPathname } from '@/lib/app-route-classification'
 import { getLocalGuildAccountBySubject } from '@/lib/local-guild-account'
 import { getClientMessages } from '@/lib/client-messages'
+import {
+  buildRootStructuredData,
+  getCanonicalUrlForPathname,
+  serializeJsonLd,
+} from '@/lib/seo-metadata'
 import { pretendard } from './font'
 
 // 마케팅 페이지(/public/(marketing)/*) 는 자체 헤더(MarketingNav) + 푸터를
@@ -203,6 +208,8 @@ export async function generateMetadata(): Promise<Metadata> {
   // 검색 결과는 항상 root 도메인의 canonical URL 로 모은다.
   const indexable =
     classification.kind === 'root' && isIndexablePathname(pathname)
+  const canonicalUrl =
+    classification.kind === 'root' ? getCanonicalUrlForPathname(pathname) : null
   const robots = indexable
     ? { index: true, follow: true }
     : {
@@ -245,6 +252,7 @@ export async function generateMetadata(): Promise<Metadata> {
     ],
     applicationName: ogSiteName,
     robots,
+    ...(canonicalUrl ? { alternates: { canonical: canonicalUrl } } : {}),
     openGraph: {
       type: 'website',
       siteName: ogSiteName,
@@ -298,6 +306,22 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const isStandalonePublic = isStandalonePublicPathname(pathname)
   const isOnboard = isOnboardPathname(pathname)
   const hostClassification = classifyHost(headersList.get('host'))
+  const canonicalUrl =
+    hostClassification.kind === 'root' ? getCanonicalUrlForPathname(pathname) : null
+  let structuredDataScript: React.ReactNode = null
+  if (canonicalUrl) {
+    const tMeta = await getTranslations('meta')
+    structuredDataScript = (
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: serializeJsonLd(buildRootStructuredData({
+            description: tMeta('description'),
+          })),
+        }}
+      />
+    )
+  }
   const hostTenant =
     hostClassification.kind === 'tenant'
       ? await resolveTenantBySlug(hostClassification.slug)
@@ -617,6 +641,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           : <AppShell allianceEventAllowed={allianceEventAllowed}>{children}</AppShell>
   const chrome = (
     <>
+      {structuredDataScript}
       <ImpersonationBanner />
       <SystemNoticesBanner />
       {body}

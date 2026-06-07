@@ -123,8 +123,9 @@ interface ExistingChestLogRow {
   quantity: number
 }
 
-interface ApprovedShopOrderRow {
+interface ReservedShopOrderRow {
   id: string
+  status: string
   created_at: string
   stock_reserved_at: string | null
   resolved_at: string | null
@@ -252,15 +253,18 @@ async function loadShopOrderFulfillmentCandidates(
 
   const { data: orders, error: ordersError } = await db
     .from('shop_orders')
-    .select('id, created_at, stock_reserved_at, resolved_at')
+    .select('id, status, created_at, stock_reserved_at, resolved_at')
     .eq('guild_id', guildId)
-    .eq('status', 'approved')
-    .not('resolved_at', 'is', null)
-    .order('resolved_at', { ascending: true })
+    .in('status', ['pending', 'approved'])
+    .order('created_at', { ascending: true })
     .limit(1000)
   if (ordersError) return { candidates: [], error: ordersError.message }
 
-  const orderRows = (orders ?? []) as ApprovedShopOrderRow[]
+  const orderRows = ((orders ?? []) as ReservedShopOrderRow[]).filter((order) => {
+    if (order.status === 'pending') return order.stock_reserved_at !== null
+    if (order.status === 'approved') return order.stock_reserved_at !== null || order.resolved_at !== null
+    return false
+  })
   const orderIds = orderRows.map((order) => order.id)
   if (orderIds.length === 0) return { candidates: [] }
 
@@ -300,7 +304,8 @@ async function loadShopOrderFulfillmentCandidates(
   const candidates: ShopOrderFulfillmentCandidate[] = []
   for (const item of itemRows) {
     const order = ordersById.get(item.order_id)
-    if (!order?.resolved_at) continue
+    const matchAvailableAt = order?.stock_reserved_at ?? order?.resolved_at
+    if (!order || !matchAvailableAt) continue
     candidates.push({
       orderId: item.order_id,
       orderItemId: item.id,
@@ -311,7 +316,7 @@ async function loadShopOrderFulfillmentCandidates(
       fulfilledQuantity: fulfilledByItemId.get(item.id) ?? 0,
       createdAt: new Date(order.created_at),
       stockReservedAt: order.stock_reserved_at ? new Date(order.stock_reserved_at) : null,
-      resolvedAt: new Date(order.resolved_at),
+      resolvedAt: order.resolved_at ? new Date(order.resolved_at) : new Date(matchAvailableAt),
     })
   }
 

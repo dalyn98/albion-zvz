@@ -70,6 +70,7 @@ function createImportDb(options: {
   approvedOrders?: Array<{
     id: string
     created_at: string
+    status?: 'pending' | 'approved' | 'rejected' | 'cancelled'
     stock_reserved_at?: string | null
     resolved_at: string | null
   }>
@@ -120,13 +121,34 @@ function createImportDb(options: {
     eq: vi.fn(() => inventoryQuery),
     in: vi.fn().mockResolvedValue({ data: [], error: null }),
   }
+  let orderStatusFilter: string[] | null = null
+  let requireResolvedAt = false
   const approvedOrdersQuery = {
     select: vi.fn(() => approvedOrdersQuery),
-    eq: vi.fn(() => approvedOrdersQuery),
-    not: vi.fn(() => approvedOrdersQuery),
+    eq: vi.fn((column: string, value: unknown) => {
+      if (column === 'status' && typeof value === 'string') {
+        orderStatusFilter = [value]
+      }
+      return approvedOrdersQuery
+    }),
+    in: vi.fn((column: string, values: unknown[]) => {
+      if (column === 'status') {
+        orderStatusFilter = values.filter((value): value is string => typeof value === 'string')
+      }
+      return approvedOrdersQuery
+    }),
+    not: vi.fn((column: string, operator: string, value: unknown) => {
+      if (column === 'resolved_at' && operator === 'is' && value === null) {
+        requireResolvedAt = true
+      }
+      return approvedOrdersQuery
+    }),
     order: vi.fn(() => approvedOrdersQuery),
     limit: vi.fn().mockResolvedValue({
-      data: options.approvedOrders ?? [],
+      data: (options.approvedOrders ?? [])
+        .map((order) => ({ status: 'approved', ...order }))
+        .filter((order) => !orderStatusFilter || orderStatusFilter.includes(order.status))
+        .filter((order) => !requireResolvedAt || order.resolved_at !== null),
       error: null,
     }),
   }
@@ -669,6 +691,65 @@ describe('importChestLog', () => {
       applied_quantity: 0,
       ignored_quantity: -1,
       ignored_reason: 'shop_order_fulfillment',
+      matched_order_item_id: 'order-item-1',
+    })
+    expect(rpc).not.toHaveBeenCalledWith('apply_shop_stock_deltas', expect.anything())
+  })
+
+  it('matches pending reserved order fulfillment before approval to avoid double stock subtraction', async () => {
+    const { db, rpc, insertCalls } = createImportDb({
+      approvedOrders: [
+        {
+          id: 'order-1',
+          created_at: '2026-05-01T00:00:00.000Z',
+          status: 'pending',
+          stock_reserved_at: '2026-05-01T00:10:00.000Z',
+          resolved_at: null,
+        },
+      ],
+      orderItems: [
+        {
+          id: 'order-item-1',
+          order_id: 'order-1',
+          unique_name: 'T4_TEST_ITEM',
+          enchant: 0,
+          quality: 1,
+          quantity: 1,
+        },
+      ],
+      fulfilledLogs: [],
+    })
+    const loggedAt = new Date('2026-05-01T01:00:00.000Z')
+    mocks.requireAnyCapability.mockResolvedValue(db)
+    mocks.parseChestLog.mockReturnValue({
+      entries: [
+        {
+          loggedAt,
+          player: 'Quartermaster',
+          itemName: '테스트 장비',
+          enchant: 0,
+          quality: 5,
+          quantity: -1,
+        },
+      ],
+      errors: [],
+    })
+    mocks.resolveKoItem.mockReturnValue({
+      uniqueName: 'T4_TEST_ITEM',
+      category: 'armor',
+      nameKo: '테스트 장비',
+      tier: 4,
+    })
+
+    const result = await importChestLog('raw chest log')
+
+    expect(result.error).toBeUndefined()
+    expect(result.stockChanges).toEqual([])
+    expect(insertCalls[0]?.[0]).toMatchObject({
+      applied_quantity: 0,
+      ignored_quantity: -1,
+      ignored_reason: 'shop_order_fulfillment',
+      matched_order_id: 'order-1',
       matched_order_item_id: 'order-item-1',
     })
     expect(rpc).not.toHaveBeenCalledWith('apply_shop_stock_deltas', expect.anything())

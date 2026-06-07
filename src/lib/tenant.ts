@@ -12,6 +12,8 @@ import { getAdminClient } from '@/lib/supabase-admin'
 import type { SessionPayload } from '@/lib/session'
 import { isSuperAdmin } from '@/lib/super-admin'
 import { getImpersonationFromCookies } from '@/lib/super-admin-impersonation'
+import { log } from '@/lib/log'
+import { SupabaseQueryError } from '@/lib/supabase-query-error'
 
 let primaryTenantCache: { id: string; expiresAt: number } | null = null
 const PRIMARY_TENANT_TTL_MS = 60 * 1000
@@ -23,11 +25,15 @@ export async function getTenantIdByDiscordGuildId(
   discordGuildId: string,
 ): Promise<string | null> {
   const db = getAdminClient()
-  const { data } = await db
+  const { data, error } = await db
     .from('tenants')
     .select('id')
     .eq('discord_guild_id', discordGuildId)
     .maybeSingle()
+  if (error) {
+    log.error('[tenant] tenant lookup failed', error, { discord_guild_id: discordGuildId })
+    throw new SupabaseQueryError('Tenant lookup failed', error)
+  }
   return (data?.id as string | undefined) ?? null
 }
 
@@ -95,13 +101,17 @@ export interface TenantDiscordConfig {
 export const getTenantDiscordConfig = cache(
   async (tenantId: string): Promise<TenantDiscordConfig | null> => {
     const db = getAdminClient()
-    const { data } = await db
+    const { data, error } = await db
       .from('tenants')
       .select(
         'id, discord_guild_id, slug, name, created_by_discord_id, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at',
       )
       .eq('id', tenantId)
       .maybeSingle()
+    if (error) {
+      log.error('[tenant] discord config lookup failed', error, { tenant_id: tenantId })
+      throw new SupabaseQueryError('Tenant Discord config lookup failed', error)
+    }
     if (!data) return null
     return {
       id: data.id as string,
@@ -121,13 +131,19 @@ export async function getTenantDiscordConfigByDiscordGuildId(
   discordGuildId: string,
 ): Promise<TenantDiscordConfig | null> {
   const db = getAdminClient()
-  const { data } = await db
+  const { data, error } = await db
     .from('tenants')
     .select(
       'id, discord_guild_id, slug, name, created_by_discord_id, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at',
     )
     .eq('discord_guild_id', discordGuildId)
     .maybeSingle()
+  if (error) {
+    log.error('[tenant] discord guild config lookup failed', error, {
+      discord_guild_id: discordGuildId,
+    })
+    throw new SupabaseQueryError('Tenant Discord guild config lookup failed', error)
+  }
   if (!data) return null
   return {
     id: data.id as string,
@@ -148,12 +164,16 @@ export async function listActiveTenants(): Promise<TenantDiscordConfig[]> {
     return activeTenantsCache.tenants
   }
   const db = getAdminClient()
-  const { data } = await db
+  const { data, error } = await db
     .from('tenants')
     .select(
       'id, discord_guild_id, slug, name, created_by_discord_id, member_role_ids, admin_role_ids, event_channel_id, bot_installed_at',
     )
     .eq('status', 'active')
+  if (error) {
+    log.error('[tenant] active tenant list failed', error)
+    throw new SupabaseQueryError('Active tenant list failed', error)
+  }
   const tenants = (data ?? []).map((r) => ({
     id: r.id as string,
     discordGuildId: r.discord_guild_id as string,

@@ -52,10 +52,11 @@ describe('getAppSetting', () => {
     expect(result).toBe('east')
   })
 
-  it('returns fallback on DB error', async () => {
-    nextResult = { data: null, error: { message: 'db down' } }
-    const result = await getAppSetting('albion_server', 'west', 'tenant-1')
-    expect(result).toBe('west')
+  it('throws on DB error instead of hiding it behind fallback', async () => {
+    nextResult = { data: null, error: { code: 'PGRST002', message: 'db down' } }
+    await expect(getAppSetting('albion_server', 'west', 'tenant-1')).rejects.toThrow(
+      /App settings lookup failed \(PGRST002\): db down/,
+    )
   })
 
   it('scopes lookup by guildId (tenant isolation)', async () => {

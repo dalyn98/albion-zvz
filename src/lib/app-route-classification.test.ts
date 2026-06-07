@@ -45,6 +45,8 @@ describe('app route classification', () => {
   it('does not index redirect-only marketing helper routes', () => {
     expect(isIndexablePathname('/features')).toBe(false)
     expect(isIndexablePathname('/public/features')).toBe(false)
+    expect(isIndexablePathname('/g')).toBe(false)
+    expect(isIndexablePathname('/public/g')).toBe(false)
   })
 
   it('keeps operational app routes out of search indexing', () => {

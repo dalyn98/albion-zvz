@@ -11,7 +11,7 @@
 | 층 | 대상 | 환경 | 실행 명령 | CI |
 |----|------|------|-----------|----|
 | 단위 (Phase 0+1) | `src/lib/*.ts` 순수 함수 | node (외부 의존 0) | `npm test` | 매 push/PR (GitHub Actions) |
-| 통합 (Phase 2) | 실 Postgres 가 결정하는 invariant | 로컬 supabase (docker) | `npm run test:integration` | env 없으면 자동 skip |
+| 통합 (Phase 2) | 실 Postgres 가 결정하는 invariant | 로컬 supabase (docker) | `npm run test:integration` | GitHub Actions 로컬 Supabase job |
 | 원격 마이그 드리프트 | 로컬 migration 파일과 linked Supabase 적용 상태 | Supabase CLI + 운영 프로젝트 secrets | `npm run check:migrations:remote` | main push 에서 secrets 설정 시 실행, 불일치 시 실패 |
 
 선택 기준: **"실 Postgres 동작이 결과를 결정하는가?"** YES → 통합, NO → 단위.
@@ -190,7 +190,9 @@ npm run check:migrations:remote
 
 CI 조건:
 
-- PR 에서는 운영 Supabase secrets 를 쓰지 않는다. 대신 `npm test` 안의 migration 정적 검사로 중복 번호/누락 번호를 막는다.
+- PR 에서는 운영 Supabase secrets 를 쓰지 않는다. `integration` job 이 GitHub Actions 안에서 로컬 Supabase 를 띄우고 `supabase db reset` 후 `npm run test:integration` 을 실행한다.
+- `supabase status -o env` 의 `API_URL` / `SERVICE_ROLE_KEY` 를 `TEST_SUPABASE_URL` / `TEST_SUPABASE_SERVICE_KEY` 로 매핑하므로 production secret 과 섞이지 않는다.
+- `npm test` 안의 migration 정적 검사는 중복 번호/누락 번호를 빠르게 막는다.
 - `main` push 에서는 `.github/workflows/test.yml` 의 `migration-drift` job 이 실행된다.
 - `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF` secrets 가 있으면 Supabase CLI 를 설치하고 원격 drift 를 검사한다. `SUPABASE_DB_PASSWORD` 는 필요할 때만 선택적으로 쓴다.
 - repo secrets 가 아직 없으면 job 은 warning 을 남기고 원격 drift 단계만 skip 한다. 이 경우 push 전 로컬에서 `npm run check:migrations:remote` 를 반드시 실행한다.

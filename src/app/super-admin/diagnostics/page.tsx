@@ -2,12 +2,15 @@ import Link from 'next/link'
 import {
   Activity,
   AlertTriangle,
+  CheckCircle2,
   DatabaseZap,
   Eye,
   RefreshCw,
   ShieldCheck,
+  XCircle,
   type LucideIcon,
 } from 'lucide-react'
+import { getDependencyHealth, type DependencyStatus } from '@/lib/dependency-health'
 
 export const dynamic = 'force-dynamic'
 
@@ -117,7 +120,15 @@ const RISK_STYLE: Record<Risk, { label: string; className: string; Icon: LucideI
   },
 }
 
-export default function SuperAdminDiagnosticsPage() {
+const DEPENDENCY_STATUS_STYLE: Record<DependencyStatus, { label: string; className: string }> = {
+  ok: { label: '정상', className: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' },
+  degraded: { label: '저하', className: 'border-amber-500/30 bg-amber-500/10 text-amber-200' },
+  down: { label: '장애', className: 'border-red-500/30 bg-red-500/10 text-red-200' },
+}
+
+export default async function SuperAdminDiagnosticsPage() {
+  const dependencyHealth = await getDependencyHealth({ includeCron: true })
+
   return (
     <div className="space-y-6">
       <div>
@@ -126,6 +137,8 @@ export default function SuperAdminDiagnosticsPage() {
           운영용 API를 목적, 파라미터, 위험도 기준으로 정리했습니다.
         </p>
       </div>
+
+      <DependencyHealthPanel health={dependencyHealth} />
 
       <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-100">
         <div className="flex items-start gap-2">
@@ -143,6 +156,88 @@ export default function SuperAdminDiagnosticsPage() {
         ))}
       </section>
     </div>
+  )
+}
+
+function DependencyHealthPanel({
+  health,
+}: {
+  health: Awaited<ReturnType<typeof getDependencyHealth>>
+}) {
+  const style = DEPENDENCY_STATUS_STYLE[health.status]
+  const StatusIcon = health.ok ? CheckCircle2 : XCircle
+  return (
+    <section className="rounded-lg border border-gray-700 bg-gray-900 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <StatusIcon size={16} className={health.ok ? 'text-emerald-300' : 'text-red-300'} />
+            <h2 className="text-base font-semibold text-white">서비스 의존성 상태</h2>
+          </div>
+          <p className="mt-1 text-sm text-gray-400">
+            Supabase REST, 설정 테이블, cron 기록 조회를 실제로 호출합니다.
+          </p>
+        </div>
+        <span className={`inline-flex rounded-md border px-2 py-1 text-xs font-semibold ${style.className}`}>
+          {style.label}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+        {health.checks.map((check) => {
+          const checkStyle = DEPENDENCY_STATUS_STYLE[check.status]
+          return (
+            <div key={check.name} className="rounded-md border border-gray-700 bg-gray-950/50 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-xs text-gray-300">{check.name}</span>
+                <span className={`rounded border px-2 py-0.5 text-[11px] ${checkStyle.className}`}>
+                  {checkStyle.label}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-gray-300">{check.message}</p>
+              <p className="mt-2 text-xs text-gray-500">
+                {check.latencyMs}ms{check.code ? ` · ${check.code}` : ''}
+              </p>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <div className="rounded-md bg-gray-800/70 px-3 py-2 text-xs text-gray-400">
+          공개 모니터링: <span className="font-mono text-gray-200">/api/health/dependencies</span>
+          {' '}가 장애 시 503을 반환합니다.
+        </div>
+        <div className="rounded-md bg-gray-800/70 px-3 py-2 text-xs text-gray-400">
+          기준 시각: {new Date(health.ts).toLocaleString('ko-KR')}
+        </div>
+      </div>
+
+      {health.cronRuns && health.cronRuns.length > 0 && (
+        <div className="mt-4 overflow-x-auto">
+          <table className="min-w-full text-left text-xs">
+            <thead className="text-gray-500">
+              <tr>
+                <th className="py-2 pr-3 font-medium">Job</th>
+                <th className="py-2 pr-3 font-medium">Status</th>
+                <th className="py-2 pr-3 font-medium">Started</th>
+                <th className="py-2 pr-3 font-medium">Error</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800 text-gray-300">
+              {health.cronRuns.map((run) => (
+                <tr key={`${run.jobName}-${run.startedAt}`}>
+                  <td className="py-2 pr-3 font-mono">{run.jobName}</td>
+                  <td className="py-2 pr-3">{run.status}</td>
+                  <td className="py-2 pr-3">{new Date(run.startedAt).toLocaleString('ko-KR')}</td>
+                  <td className="py-2 pr-3 text-gray-400">{run.error ?? '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   )
 }
 

@@ -6,9 +6,10 @@
 
 import { revalidatePath } from 'next/cache'
 import { getTranslations } from 'next-intl/server'
-import { requireAdmin } from '@/lib/auth'
+import { requireAnyCapability } from '@/lib/auth'
 import { getSession } from '@/lib/session'
 import { getSessionGuildId } from '@/lib/tenant'
+import { APPROVAL_REVIEW_CAPS } from '@/lib/admin-approval-permissions'
 import { sendDiscordDmToUser } from '@/lib/discord-dm'
 import { formatSilver } from '@/lib/silver'
 import { logAdminAction } from '@/lib/admin-audit'
@@ -37,7 +38,7 @@ export async function listExchangeRequests(
   try {
     const session = await getSession()
     if (!session) return { requests: [], error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
     const page = await selectPagedRows<ExchangeRequestRow>({
       label: 'exchange requests',
@@ -87,9 +88,9 @@ export async function approveExchangeRequest(id: string): Promise<{ error?: stri
   const tErr = await getTranslations('adminActionError')
   const tDm = await getTranslations('discordDm')
   try {
-    const db = await requireAdmin()
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
+    const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
     const { error } = await db.rpc('approve_exchange_request', {
       p_id: id,
@@ -144,9 +145,9 @@ export async function rejectExchangeRequest(
   const tErr = await getTranslations('adminActionError')
   const tDm = await getTranslations('discordDm')
   try {
-    const db = await requireAdmin()
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
+    const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
     const { error } = await db.rpc('reject_exchange_request', {
       p_id: id,
@@ -200,7 +201,7 @@ export async function listRoleRewards(): Promise<{
   try {
     const session = await getSession()
     if (!session) return { rewards: [], error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
     const { data, error } = await db
       .from('role_rewards')
@@ -225,7 +226,7 @@ export async function updateRoleReward(
     }
     const session = await getSession()
     if (!session) return { error: tErr('unauthorized') }
-    const db = await requireAdmin()
+    const db = await requireAnyCapability(APPROVAL_REVIEW_CAPS)
     const guildId = await getSessionGuildId(session)
     const { error } = await db
       .from('role_rewards')

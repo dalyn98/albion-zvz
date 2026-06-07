@@ -16,7 +16,7 @@ vi.mock('@/lib/super-admin-impersonation', () => ({
 interface TenantRow {
   id?: string
 }
-let nextMaybeSingle: { data: TenantRow | null } = { data: null }
+let nextMaybeSingle: { data: TenantRow | null; error: unknown } = { data: null, error: null }
 const eqCalls: Array<{ column: string; value: unknown }> = []
 
 vi.mock('@/lib/supabase-admin', () => ({
@@ -52,20 +52,27 @@ const baseSession = (guildId: string | null = null, discordId = 'user-123'): Ses
 describe('getTenantIdByDiscordGuildId', () => {
   beforeEach(() => {
     eqCalls.length = 0
-    nextMaybeSingle = { data: null }
+    nextMaybeSingle = { data: null, error: null }
   })
 
   it('returns tenant id by discord_guild_id', async () => {
-    nextMaybeSingle = { data: { id: 'tenant-abc' } }
+    nextMaybeSingle = { data: { id: 'tenant-abc' }, error: null }
     const result = await getTenantIdByDiscordGuildId('999')
     expect(result).toBe('tenant-abc')
     expect(eqCalls).toEqual([{ column: 'discord_guild_id', value: '999' }])
   })
 
   it('returns null when no tenant matches', async () => {
-    nextMaybeSingle = { data: null }
+    nextMaybeSingle = { data: null, error: null }
     const result = await getTenantIdByDiscordGuildId('unknown')
     expect(result).toBe(null)
+  })
+
+  it('throws lookup errors instead of returning null', async () => {
+    nextMaybeSingle = { data: null, error: { code: 'PGRST002', message: 'schema cache down' } }
+    await expect(getTenantIdByDiscordGuildId('999')).rejects.toThrow(
+      /Tenant lookup failed \(PGRST002\): schema cache down/,
+    )
   })
 })
 
@@ -74,7 +81,7 @@ describe('getSessionGuildId fallback chain', () => {
     eqCalls.length = 0
     isSuperAdminMock.mockReset().mockReturnValue(false)
     getImpersonationFromCookiesMock.mockReset().mockResolvedValue(null)
-    nextMaybeSingle = { data: null }
+    nextMaybeSingle = { data: null, error: null }
   })
 
   it('returns session.guildId when present and user is not impersonating', async () => {
@@ -101,7 +108,7 @@ describe('getSessionGuildId fallback chain', () => {
 
   it('falls back to primary tenant lookup when session has no guildId', async () => {
     process.env.DISCORD_GUILD_ID = '12345'
-    nextMaybeSingle = { data: { id: 'primary-tenant' } }
+    nextMaybeSingle = { data: { id: 'primary-tenant' }, error: null }
     const session = baseSession(null)
     const result = await getSessionGuildId(session)
     expect(result).toBe('primary-tenant')

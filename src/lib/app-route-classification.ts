@@ -4,6 +4,28 @@ function normalizePathname(pathname: string): string {
   return pathOnly.replace(/\/+$/, '')
 }
 
+const DIRECT_INDEXABLE_PATHS = new Set([
+  '/',
+  '/pricing',
+  '/faq',
+  '/privacy',
+  '/terms',
+  '/docs',
+  '/demo',
+])
+
+function normalizePublicCanonicalPathname(pathname: string): string | null {
+  if (pathname === '/public/landing') return '/'
+  if (pathname === '/public/pricing') return '/pricing'
+  if (pathname === '/public/faq') return '/faq'
+  if (pathname === '/public/privacy') return '/privacy'
+  if (pathname === '/public/terms') return '/terms'
+  if (pathname === '/public/docs') return '/docs'
+  if (pathname.startsWith('/public/docs/')) return pathname.slice('/public'.length)
+  if (pathname.startsWith('/public/g/')) return pathname.slice('/public'.length)
+  return null
+}
+
 export function isPublicEventDetailPathname(pathname: string): boolean {
   const segments = normalizePathname(pathname).split('/').filter(Boolean)
   return segments.length === 2 && segments[0] === 'events' && segments[1].length > 0
@@ -24,28 +46,17 @@ export function isPublicPathname(pathname: string): boolean {
 
 // canonical root host의 마케팅/공개 surface만 검색 인덱싱을 허용한다.
 // headers(), sitemap(), metadata() 정책이 같은 path 집합을 유지해야 한다.
-export function isIndexablePathname(pathname: string): boolean {
+export function getCanonicalIndexablePathname(pathname: string): string | null {
   const normalized = normalizePathname(pathname)
-  if (normalized === '/') return true
-  if (
-    normalized === '/pricing' ||
-    normalized === '/faq' ||
-    normalized === '/privacy' ||
-    normalized === '/terms' ||
-    normalized === '/docs' ||
-    normalized.startsWith('/docs/')
-  ) return true
-  if (normalized === '/g' || normalized.startsWith('/g/')) return true
-  if (normalized === '/demo' || normalized.startsWith('/demo/')) return true
-  // 캐노니컬 호스트에서 proxy rewrite가 안 걸린 직접 path도 동일하게 허용.
-  if (
-    normalized === '/public/landing' ||
-    normalized === '/public/pricing' ||
-    normalized === '/public/faq' ||
-    normalized === '/public/privacy' ||
-    normalized === '/public/terms'
-  ) return true
-  if (normalized === '/public/docs' || normalized.startsWith('/public/docs/')) return true
-  if (normalized === '/public/g' || normalized.startsWith('/public/g/')) return true
-  return false
+  const publicCanonical = normalizePublicCanonicalPathname(normalized)
+  if (publicCanonical) return publicCanonical
+  if (DIRECT_INDEXABLE_PATHS.has(normalized)) return normalized
+  if (normalized.startsWith('/docs/')) return normalized
+  if (normalized.startsWith('/g/')) return normalized
+  if (normalized.startsWith('/demo/')) return normalized
+  return null
+}
+
+export function isIndexablePathname(pathname: string): boolean {
+  return getCanonicalIndexablePathname(pathname) !== null
 }

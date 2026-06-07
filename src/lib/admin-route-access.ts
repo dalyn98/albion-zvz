@@ -1,6 +1,7 @@
 import { CAP, hasAnyCapability, parseCapabilities } from '@/lib/permissions'
 import { REGEAR_WINDOW_MANAGE_CAPS } from '@/lib/regear-window-permissions'
 import { SETTINGS_PAGE_CAPABILITIES } from '@/lib/settings-access'
+import { APPROVAL_REVIEW_CAPS } from '@/lib/admin-approval-permissions'
 
 interface AdminRouteAccessRule {
   href: string
@@ -30,16 +31,6 @@ const OFFICER_DASHBOARD_CAPABILITIES = [
   CAP.AUDIT_VIEW,
   CAP.SETTINGS_PERMISSIONS,
   CAP.STATS_VIEW,
-] as const
-
-const APPROVALS_PAGE_CAPABILITIES = [
-  CAP.REGEAR_APPROVE,
-  CAP.REGEAR_EDIT_PRICE,
-  CAP.REGEAR_BULK_ACTION,
-  CAP.INVENTORY_DELIVER,
-  CAP.EVENT_MANAGE,
-  CAP.CRAFT_TASK_DELIVER,
-  CAP.CRAFT_MASTER,
 ] as const
 
 export const ADMIN_ROUTE_ACCESS_RULES: readonly AdminRouteAccessRule[] = [
@@ -82,19 +73,19 @@ export const ADMIN_ROUTE_ACCESS_RULES: readonly AdminRouteAccessRule[] = [
   },
   {
     href: '/admin/dashboard/approvals',
-    capabilities: APPROVALS_PAGE_CAPABILITIES,
+    capabilities: APPROVAL_REVIEW_CAPS,
   },
   {
     href: '/admin/dashboard/exchanges',
-    capabilities: APPROVALS_PAGE_CAPABILITIES,
+    capabilities: APPROVAL_REVIEW_CAPS,
   },
   {
     href: '/admin/dashboard/donations',
-    capabilities: APPROVALS_PAGE_CAPABILITIES,
+    capabilities: APPROVAL_REVIEW_CAPS,
   },
   {
     href: '/admin/dashboard/settlements',
-    capabilities: APPROVALS_PAGE_CAPABILITIES,
+    capabilities: APPROVAL_REVIEW_CAPS,
   },
   {
     href: '/admin/dashboard/regear',

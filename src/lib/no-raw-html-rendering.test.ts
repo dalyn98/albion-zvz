@@ -10,6 +10,7 @@ const RAW_HTML_PATTERNS = [
   /\bouterHTML\s*=/,
   /\binsertAdjacentHTML\s*\(/,
 ]
+const REVIEW_WINDOW_CHARS = 320
 
 function sourceFiles(dir: string): string[] {
   const files: string[] = []
@@ -29,6 +30,13 @@ function lineNumberFor(source: string, index: number): number {
   return source.slice(0, index).split('\n').length
 }
 
+function isReviewedRawHtmlException(source: string, index: number): boolean {
+  const start = Math.max(0, index - REVIEW_WINDOW_CHARS)
+  const end = Math.min(source.length, index + REVIEW_WINDOW_CHARS)
+  const context = source.slice(start, end)
+  return context.includes('type="application/ld+json"') && context.includes('serializeJsonLd(')
+}
+
 describe('raw HTML rendering', () => {
   it('does not render raw HTML without an explicit reviewed exception', () => {
     const violations: string[] = []
@@ -39,6 +47,7 @@ describe('raw HTML rendering', () => {
         for (const pattern of RAW_HTML_PATTERNS) {
           const match = pattern.exec(source)
           if (!match) continue
+          if (isReviewedRawHtmlException(source, match.index)) continue
           violations.push(`${relative(process.cwd(), filePath)}:${lineNumberFor(source, match.index)}`)
         }
       }

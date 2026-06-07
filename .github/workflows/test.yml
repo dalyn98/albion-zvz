@@ -33,6 +33,43 @@ jobs:
       - name: Unit tests
         run: npm test
 
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.104.0
+
+      - name: Start local Supabase
+        run: |
+          supabase start
+          supabase db reset
+          supabase status -o env > supabase.env
+          set -a
+          . ./supabase.env
+          set +a
+          if [ -z "${API_URL:-}" ] || [ -z "${SERVICE_ROLE_KEY:-}" ]; then
+            echo "Local Supabase status did not expose API_URL or SERVICE_ROLE_KEY" >&2
+            exit 1
+          fi
+          echo "TEST_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "TEST_SUPABASE_SERVICE_KEY=$SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
+          echo "ALLOW_REMOTE_TEST_SUPABASE=0" >> "$GITHUB_ENV"
+
+      - name: Integration tests
+        run: npm run test:integration
+
   migration-drift:
     runs-on: ubuntu-latest
     timeout-minutes: 10

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  requireAdmin: vi.fn(),
+  requireAnyCapability: vi.fn(),
   getSession: vi.fn(),
   getSessionGuildId: vi.fn(),
   revalidatePath: vi.fn(),
@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/auth', () => ({
-  requireAdmin: mocks.requireAdmin,
+  requireAnyCapability: mocks.requireAnyCapability,
 }))
 
 vi.mock('@/lib/session', () => ({
@@ -36,7 +36,7 @@ import { updateRoleReward } from './exchange-admin'
 
 describe('updateRoleReward', () => {
   beforeEach(() => {
-    mocks.requireAdmin.mockReset()
+    mocks.requireAnyCapability.mockReset()
     mocks.getSession.mockReset()
     mocks.getSessionGuildId.mockReset()
     mocks.revalidatePath.mockReset()
@@ -49,6 +49,6 @@ describe('updateRoleReward', () => {
     })
 
     expect(mocks.getSession).not.toHaveBeenCalled()
-    expect(mocks.requireAdmin).not.toHaveBeenCalled()
+    expect(mocks.requireAnyCapability).not.toHaveBeenCalled()
   })
 })

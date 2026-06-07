@@ -1,5 +1,7 @@
 import { cache } from 'react'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { log } from '@/lib/log'
+import { SupabaseQueryError } from '@/lib/supabase-query-error'
 
 export type AppSettingKey =
   | 'event_notification_message'
@@ -299,15 +301,18 @@ export type AppSettingKey =
 // write 경로(server action)는 revalidatePath 로 다음 render cycle 의 cache 가
 // 새로 만들어지므로 stale 우려 없음.
 const getAllAppSettings = cache(
-  async (guildId: string): Promise<Map<string, string> | null> => {
+  async (guildId: string): Promise<Map<string, string>> => {
     const db = getAdminClient()
     const { data, error } = await db
       .from('app_settings')
       .select('key, value')
       .eq('guild_id', guildId)
-    if (error || !data) return null
+    if (error) {
+      log.error('[app-settings] lookup failed', error, { tenant_id: guildId })
+      throw new SupabaseQueryError('App settings lookup failed', error)
+    }
     const map = new Map<string, string>()
-    for (const row of data) {
+    for (const row of data ?? []) {
       if (typeof row.key === 'string' && typeof row.value === 'string') {
         map.set(row.key, row.value)
       }
@@ -322,6 +327,5 @@ export async function getAppSetting(
   guildId: string,
 ): Promise<string> {
   const all = await getAllAppSettings(guildId)
-  if (!all) return fallback
   return all.get(key) ?? fallback
 }

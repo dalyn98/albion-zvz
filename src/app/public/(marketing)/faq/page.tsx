@@ -4,6 +4,11 @@ import { getTranslations } from 'next-intl/server'
 import Link from 'next/link'
 import MarketingNav from '@/components/MarketingNav'
 import { getMarketingPaths } from '@/lib/marketing-paths'
+import {
+  buildFaqStructuredData,
+  getCanonicalOrigin,
+  serializeJsonLd,
+} from '@/lib/seo-metadata'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,8 +51,20 @@ export default async function PublicFaqPage() {
     getTranslations('publicFaq'),
     getMarketingPaths(),
   ])
+  const faqStructuredData = buildFaqStructuredData({
+    url: `${getCanonicalOrigin()}/faq`,
+    items: FAQ_KEYS.map((qKey) => ({
+      question: tFaq(qKey),
+      answer: tFaq(FAQ_ANSWER_KEY[qKey]),
+    })),
+  })
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(faqStructuredData) }}
+      />
       <MarketingNav active="faq" />
       <div className="bg-[#0b0d12] text-gray-100 min-h-screen">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-8">
