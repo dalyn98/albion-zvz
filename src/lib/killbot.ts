@@ -37,6 +37,7 @@ const KILLBOT_EVENTS_PROCESS_OVERLAP_MS = 8 * 60 * 1000
 const KILLBOT_EVENTS_MAX_PAGES = 20
 const KILLBOT_BATTLE_SUMMARY_LOOKBACK_MS = 6 * 60 * 60 * 1000
 const KILLBOT_BATTLE_TEST_LOOKBACK_MS = 90 * 24 * 60 * 60 * 1000
+const KILLBOT_BATTLE_SUMMARY_SETTLE_MS = 30 * 60 * 1000
 const DEFAULT_MIN_FAME = 1
 const DEFAULT_JUICY_FAME = 1_000_000
 const MAX_FAME_SETTING = 2_147_483_647
@@ -219,6 +220,9 @@ interface LoadKillbotBattleCandidatesOptions {
   lookbackMs?: number
   limit?: number
   ascending?: boolean
+  includeUnsettled?: boolean
+  lastKillboardSyncAt?: string | null
+  settleMs?: number
 }
 
 interface SendKillbotTestMessageOptions {
@@ -283,7 +287,7 @@ function defaultConfig(guildId: string): KillbotConfig {
     lastPolledAt: null,
     lastSentAt: null,
     lastError: null,
-    updatedAt: null,
+  updatedAt: null,
   }
 }
 
@@ -641,6 +645,26 @@ export function isKillbotEventInsideProcessWindow(
   return eventMs >= killbotProcessWindowStart(lastPolledAt, polledAt)
 }
 
+export function isKillbotBattleSummaryReady(input: {
+  endedAt: string | null
+  lastKillboardSyncAt: string | null
+  nowIso: string
+  settleMs?: number
+}): boolean {
+  const endedAtMs = Date.parse(input.endedAt ?? '')
+  const nowMs = Date.parse(input.nowIso)
+  const syncMs = Date.parse(input.lastKillboardSyncAt ?? '')
+  if (!Number.isFinite(endedAtMs) || !Number.isFinite(nowMs) || !Number.isFinite(syncMs)) {
+    return false
+  }
+  const settleMs = Math.max(
+    0,
+    Math.floor(input.settleMs ?? KILLBOT_BATTLE_SUMMARY_SETTLE_MS),
+  )
+  const readyAtMs = endedAtMs + settleMs
+  return nowMs >= readyAtMs && syncMs >= readyAtMs
+}
+
 function normalizeBattleId(value: unknown): number | null {
   if (typeof value !== 'number' && typeof value !== 'string') return null
   if (value === '') return null
@@ -712,6 +736,7 @@ async function loadKillbotBattleCandidates(
     homeKills: number
     homeDeaths: number
     homeKillFame: number
+    endedAt: string | null
   }
   const groups = new Map<string, BattleGroup>()
   for (const row of (battleRows ?? []) as KillbotBattleRecordRow[]) {
@@ -734,10 +759,20 @@ async function loadKillbotBattleCandidates(
       homeKills: (existing?.homeKills ?? 0) + homeKills,
       homeDeaths: (existing?.homeDeaths ?? 0) + homeDeaths,
       homeKillFame: (existing?.homeKillFame ?? 0) + homeKillFame,
+      endedAt: br.ended_at ?? existing?.endedAt ?? null,
     })
   }
 
-  const zvzGroups = Array.from(groups.values())
+  const zvzGroups = Array.from(groups.values()).filter(
+    (group) =>
+      options.includeUnsettled ||
+      isKillbotBattleSummaryReady({
+        endedAt: group.endedAt,
+        lastKillboardSyncAt: options.lastKillboardSyncAt ?? null,
+        nowIso: polledAt,
+        settleMs: options.settleMs,
+      }),
+  )
   if (zvzGroups.length === 0) return []
 
   const battleIds = zvzGroups.map((group) => group.albionBattleId)
@@ -1004,7 +1039,14 @@ export async function runKillbotFeed(db: SupabaseClient): Promise<KillbotRunResu
     if (isBattleFeedEnabled(config.feedMode) && battleSummaryChannelId) {
       let candidates: KillbotBattleDeliveryCandidate[] = []
       try {
-        candidates = await loadKillbotBattleCandidates(db, config, target, polledAt)
+        const lastKillboardSyncAt = await getAppSetting(
+          'last_killboard_sync_at',
+          '',
+          config.guildId,
+        )
+        candidates = await loadKillbotBattleCandidates(db, config, target, polledAt, {
+          lastKillboardSyncAt,
+        })
       } catch (err) {
         result.failed += 1
         lastError = err instanceof Error ? err.message : String(err)
@@ -1270,6 +1312,7 @@ export async function sendKillbotTestMessage(
         lookbackMs: KILLBOT_BATTLE_TEST_LOOKBACK_MS,
         ascending: false,
         limit: 80,
+        includeUnsettled: true,
       },
     ).catch(() => [])
     const summary = candidate?.summary ?? buildKillbotBattleTestSummary(config, target)
