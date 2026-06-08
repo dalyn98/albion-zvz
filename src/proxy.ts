@@ -108,14 +108,21 @@ function redirectPublicToCanonical(request: NextRequest): NextResponse | null {
 
 function rewriteCanonicalMarketing(request: NextRequest): NextResponse | null {
   const pathname = request.nextUrl.pathname
+  const featureTarget = resolveFeaturesRewriteTarget(pathname)
   const target =
-    CANONICAL_MARKETING_REWRITES[pathname] ??
-    resolveFeaturesRewriteTarget(pathname) ??
-    resolveDocsRewriteTarget(pathname)
+    CANONICAL_MARKETING_REWRITES[pathname] ?? featureTarget ?? resolveDocsRewriteTarget(pathname)
   if (!target) return null
   const host = request.headers.get('host')
   const classification = classifyHost(host)
-  if (classification.kind !== 'root') return null
+  if (
+    classification.kind !== 'root' &&
+    !(
+      featureTarget &&
+      (classification.kind === 'localhost' || classification.kind === 'preview')
+    )
+  ) {
+    return null
+  }
   const rewritten = new URL(target, request.url)
   rewritten.search = request.nextUrl.search
   // layout 의 isPublicPathname 분기는 x-pathname 헤더를 본다. rewrite target 인

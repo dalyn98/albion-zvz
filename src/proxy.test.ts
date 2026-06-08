@@ -55,6 +55,35 @@ describe('proxy pathname forwarding', () => {
     expect(forwardedPathname(response)).toBe('/public/features/auto-regear')
   })
 
+  it('rewrites clean feature SEO pages on localhost for local QA', async () => {
+    const response = await proxy(
+      new NextRequest('http://localhost:3000/features/auto-regear', {
+        headers: { host: 'localhost:3000' },
+      }),
+    )
+
+    expect(isRewrite(response)).toBe(true)
+    expect(getRewrittenUrl(response)).toBe(
+      'http://localhost:3000/public/features/auto-regear',
+    )
+    expect(forwardedPathname(response)).toBe('/public/features/auto-regear')
+  })
+
+  it('rewrites clean feature SEO pages on Vercel previews', async () => {
+    const response = await proxy(
+      new NextRequest(
+        'https://albion-guildmanager-git-main-dalyn8690.vercel.app/features',
+        { headers: { host: 'albion-guildmanager-git-main-dalyn8690.vercel.app' } },
+      ),
+    )
+
+    expect(isRewrite(response)).toBe(true)
+    expect(getRewrittenUrl(response)).toBe(
+      'https://albion-guildmanager-git-main-dalyn8690.vercel.app/public/features',
+    )
+    expect(forwardedPathname(response)).toBe('/public/features')
+  })
+
   it('redirects direct public feature URLs to the clean canonical URL', async () => {
     const response = await proxy(
       new NextRequest('https://albion-guildmanager.com/public/features/auto-regear?from=preview'),
