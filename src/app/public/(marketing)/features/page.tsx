@@ -11,6 +11,7 @@ import {
   Swords,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
+import MarketingAttributionTracker from '@/components/MarketingAttributionTracker'
 import MarketingNav from '@/components/MarketingNav'
 import { getMarketingPaths, resolveMarketingHref } from '@/lib/marketing-paths'
 import {
@@ -72,6 +73,7 @@ export default async function PublicFeaturesPage() {
 
   return (
     <>
+      <MarketingAttributionTracker />
       <MarketingNav active="features" />
       <div className="bg-[#0b0d12] text-gray-100 min-h-screen">
         <main className="mx-auto max-w-6xl px-5 sm:px-8 py-12 sm:py-16 space-y-12">
@@ -95,6 +97,8 @@ export default async function PublicFeaturesPage() {
                 <Link
                   key={page.slug}
                   href={href}
+                  data-seo-event="feature_card_click"
+                  data-seo-target={page.slug}
                   className="group rounded-xl border border-gray-800 bg-gray-900/60 p-5 transition-colors hover:border-amber-300/60 hover:bg-gray-900"
                 >
                   <div className="flex items-center gap-3">
@@ -139,6 +143,8 @@ export default async function PublicFeaturesPage() {
               </div>
               <Link
                 href={paths.docs}
+                data-seo-event="cta_docs_click"
+                data-seo-target="/docs"
                 className="inline-flex items-center justify-center rounded-lg bg-sky-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-200 transition-colors"
               >
                 {t('indexDocsCta')}

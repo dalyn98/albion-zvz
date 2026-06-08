@@ -13,6 +13,7 @@ import {
   Swords,
 } from 'lucide-react'
 import { getTranslations } from 'next-intl/server'
+import MarketingAttributionTracker from '@/components/MarketingAttributionTracker'
 import MarketingNav from '@/components/MarketingNav'
 import MarketingScreenshotCarousel from '@/components/MarketingScreenshotCarousel'
 import { getMarketingPaths, resolveMarketingHref } from '@/lib/marketing-paths'
@@ -125,6 +126,7 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
 
   return (
     <>
+      <MarketingAttributionTracker />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(structuredData) }}
@@ -161,12 +163,16 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
               <div className="flex flex-col sm:flex-row gap-2 pt-2">
                 <Link
                   href={paths.demo}
+                  data-seo-event="cta_demo_click"
+                  data-seo-target="/demo"
                   className="inline-flex items-center justify-center rounded-lg bg-amber-300 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-amber-200 transition-colors"
                 >
                   {t('primaryCta')}
                 </Link>
                 <Link
                   href={paths.docs}
+                  data-seo-event="cta_docs_click"
+                  data-seo-target="/docs"
                   className="inline-flex items-center justify-center rounded-lg border border-gray-700 bg-gray-900/70 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-800 transition-colors"
                 >
                   {t('secondaryCta')}
@@ -236,6 +242,8 @@ export default async function PublicFeatureDetailPage({ params }: PageProps) {
                   <Link
                     key={doc.href}
                     href={resolveMarketingHref(paths, doc.href)}
+                    data-seo-event="cta_docs_click"
+                    data-seo-target={doc.href}
                     className="block rounded-lg border border-sky-300/20 px-3 py-2 text-sm text-sky-100 hover:bg-sky-300/10"
                   >
                     {tDocs(doc.labelKey as 'intro')}

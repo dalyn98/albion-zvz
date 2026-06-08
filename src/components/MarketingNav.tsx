@@ -99,6 +99,8 @@ export default async function MarketingNav({ active }: MarketingNavProps) {
             !session && (
               <a
                 href="/api/auth/discord/start?returnTo=/onboard"
+                data-seo-event="cta_bot_install_click"
+                data-seo-target="/api/auth/discord/start"
                 className="inline-flex items-center gap-1 bg-[#5865F2] hover:bg-[#4752c4] text-white text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap"
               >
                 <LogIn size={12} />

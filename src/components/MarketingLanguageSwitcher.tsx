@@ -32,6 +32,8 @@ export default function MarketingLanguageSwitcher() {
           type="submit"
           aria-label={switchLabel}
           title={switchLabel}
+          data-seo-event="language_switch"
+          data-seo-target={nextLocale}
           className="p-2 text-gray-400 hover:text-white"
         >
           <Globe size={16} />
@@ -52,6 +54,8 @@ export default function MarketingLanguageSwitcher() {
             <button
               type="submit"
               aria-current={currentLocale === loc ? 'true' : undefined}
+              data-seo-event="language_switch"
+              data-seo-target={loc}
               className={`text-xs px-2.5 py-1 rounded-md transition-colors ${
                 currentLocale === loc
                   ? 'bg-amber-500/15 text-amber-200 font-semibold'

@@ -10,6 +10,7 @@ import {
 } from '@/lib/discord-reauth'
 import { recordAuthStart } from '@/lib/auth-telemetry'
 import { sanitizeInternalReturnTo } from '@/lib/safe-return-to'
+import { recordSeoAttributionEventFromRequest } from '@/lib/seo-attribution'
 import { withNoStore } from '@/lib/no-store-response'
 
 function inviteFromReturnTo(returnTo: string): string {
@@ -67,6 +68,10 @@ export async function GET(request: NextRequest) {
     has_invite: invite.length > 0,
     prompt: useConsentPrompt ? 'consent' : 'none',
     return_to: returnTo,
+  })
+  await recordSeoAttributionEventFromRequest(request, {
+    eventType: 'discord_oauth_start',
+    target: '/api/auth/discord/start',
   })
   if (reauthCookieValue) {
     response.cookies.set(DISCORD_REAUTH_COOKIE_NAME, '', clearDiscordReauthCookieOptions())

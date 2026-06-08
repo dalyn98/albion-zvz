@@ -11,6 +11,7 @@ import { log } from '@/lib/log'
 import { recordAuthSuccess } from '@/lib/auth-telemetry'
 import { withNoStore } from '@/lib/no-store-response'
 import { redactSearchParams } from '@/lib/redact-search-params'
+import { captureTenantAcquisitionSourceFromRequest } from '@/lib/seo-attribution'
 import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
 import { SLOT_ROLES, EVENT_CATEGORIES } from '@/types'
 
@@ -275,6 +276,7 @@ export async function GET(request: NextRequest) {
         createdTenant,
       },
     })
+    await captureTenantAcquisitionSourceFromRequest(request, { tenantId })
     return withNoStore(response)
   } catch (e) {
     log.error('[bot-callback] unhandled', e, { guild_id: guildId })

@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session'
 import { buildBotInstallUrl } from '@/lib/discord'
 import { shouldUseDiscordInstallBridge } from '@/lib/discord-install-bridge'
 import { recordAuthStart } from '@/lib/auth-telemetry'
+import { recordSeoAttributionEventFromRequest } from '@/lib/seo-attribution'
 import { withNoStore } from '@/lib/no-store-response'
 
 // 봇 설치 흐름의 시작점. /onboard 의 길드 목록에서 "봇 설치" 를 누르면 이쪽으로
@@ -38,6 +39,10 @@ export async function GET(request: NextRequest) {
   recordAuthStart(request, 'bot_install', {
     bridge,
     guild_id: guildId,
+  })
+  await recordSeoAttributionEventFromRequest(request, {
+    eventType: 'bot_install_start',
+    target: '/api/auth/discord/bot-install',
   })
 
   if (bridge) {

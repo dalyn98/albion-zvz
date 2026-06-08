@@ -7,7 +7,23 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/seo-attribution', () => ({
   SEO_SESSION_COOKIE: 'agm_seo_session',
+  isClientSeoAttributionEventType: (value: unknown) =>
+    [
+      'landing_view',
+      'feature_card_click',
+      'cta_demo_click',
+      'cta_docs_click',
+      'cta_bot_install_click',
+      'language_switch',
+    ].includes(String(value)),
   recordClientSeoAttributionEvent: mocks.recordClientSeoAttributionEvent,
+  seoSessionCookieOptions: () => ({
+    httpOnly: true,
+    secure: false,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60,
+  }),
 }))
 
 import { POST } from './route'
