@@ -33,6 +33,7 @@ import {
   getCanonicalUrlForPathname,
   serializeJsonLd,
 } from '@/lib/seo-metadata'
+import { normalizeGoogleSiteVerificationToken } from '@/lib/google-site-verification'
 import { getSeoFeatureCanonicalPathname } from '@/lib/seo-locale-paths'
 import { pretendard } from './font'
 
@@ -232,6 +233,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const metadataBase = tenantOverride
     ? new URL(tenantOverride.canonicalUrl)
     : new URL('https://albion-guildmanager.com')
+  const googleSiteVerification = normalizeGoogleSiteVerificationToken(
+    process.env.GOOGLE_SITE_VERIFICATION,
+  )
 
   // OG/Twitter 카드 — Discord/Slack/Twitter 임베드 시 노출. 페이지 단위
   // generateMetadata (예: /g/<slug>) 가 같은 키를 다시 export 하면 자동
@@ -252,6 +256,7 @@ export async function generateMetadata(): Promise<Metadata> {
     ],
     applicationName: ogSiteName,
     robots,
+    ...(googleSiteVerification ? { verification: { google: googleSiteVerification } } : {}),
     ...(canonicalUrl ? { alternates: { canonical: canonicalUrl } } : {}),
     openGraph: {
       type: 'website',

@@ -56,6 +56,8 @@ npm run lint
 | `ENABLE_TEST_AUTH` / `TEST_AUTH_SECRET` | 선택. 로컬/프리뷰에서 Discord OAuth 없이 테스트 세션을 발급할 때 사용. production 에서는 항상 비활성 |
 | `SUPER_ADMIN_DISCORD_IDS` / `SUPER_ADMIN_PATH` | 운영자 전용 임퍼소네이션 진입점 |
 | `DISCORD_GUILD_ID` | 레거시 세션의 primary tenant fallback 용도. 신규 기능은 per-tenant DB 설정을 사용 |
+| `GOOGLE_SEARCH_CONSOLE_SITE_URL` / `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `GOOGLE_OAUTH_REFRESH_TOKEN` | 선택. Search Console URL-prefix 또는 Domain property 의 검색 성과 수집 |
+| `GOOGLE_SITE_VERIFICATION` | 선택. Search Console URL-prefix HTML meta tag 인증용 verification token |
 | `SUPABASE_ACCESS_TOKEN` | 선택. `./scripts/safe-db-push.sh` 의 pre-migration 백업 및 Supabase CLI 작업용 |
 
 ## 데이터베이스 마이그레이션
