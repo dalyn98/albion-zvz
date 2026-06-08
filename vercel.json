@@ -9,6 +9,7 @@
     { "path": "/api/cron/albion-roster-sync", "schedule": "0 */6 * * *" },
     { "path": "/api/cron/account-albion-sync", "schedule": "30 19 * * *" },
     { "path": "/api/cron/member-sync", "schedule": "0 19 * * *" },
+    { "path": "/api/cron/search-console-sync", "schedule": "20 20 * * *" },
     { "path": "/api/cron/cleanup-screenshots", "schedule": "0 17 * * *" },
     { "path": "/api/cron/craft-expire", "schedule": "0 18 * * *" },
     { "path": "/api/cron/shop-price-sync", "schedule": "0 * * * *" }

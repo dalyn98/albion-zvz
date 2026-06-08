@@ -51,6 +51,8 @@ export interface SeoAcquisitionReportInput {
   sessions: SeoReportSession[]
   events: SeoReportEvent[]
   acquisitions: SeoReportAcquisition[]
+  searchConsolePages?: SeoSearchConsolePageMetric[]
+  searchConsoleQueries?: SeoSearchConsoleQueryMetric[]
 }
 
 export interface SeoReportGroupRow {
@@ -68,11 +70,22 @@ export interface SeoAcquisitionSummary {
     botInstallStartSessions: number
     acquiredTenants: number
   }
+  searchConsoleTotals: SeoSearchConsoleTotals
   byLocale: SeoReportGroupRow[]
   byFeature: SeoReportGroupRow[]
+  landingPages: SeoLandingPageRow[]
+  topQueries: SeoSearchConsoleQueryRow[]
 }
 
 export interface SeoAcquisitionReport extends SeoAcquisitionSummary {
+  syncStatus: {
+    configured: boolean
+    lastStatus: string | null
+    lastCompletedAt: string | null
+    lastError: string | null
+    missing: string[]
+  }
+  indexInspections: SeoIndexInspectionRow[]
   recentAcquisitions: Array<{
     tenantId: string
     tenantSlug: string | null
@@ -85,6 +98,69 @@ export interface SeoAcquisitionReport extends SeoAcquisitionSummary {
     setupCompleted: boolean
     firstEventCreated: boolean
   }>
+}
+
+export interface SeoSearchConsolePageMetric {
+  date: string
+  pagePath: string
+  locale: Locale | null
+  featureSlug: string | null
+  clicks: number
+  impressions: number
+  ctr: number
+  position: number
+}
+
+export interface SeoSearchConsoleQueryMetric extends SeoSearchConsolePageMetric {
+  query: string
+  country: string
+  device: string
+}
+
+export interface SeoSearchConsoleTotals {
+  clicks: number
+  impressions: number
+  averageCtr: number
+  averagePosition: number
+}
+
+export interface SeoLandingPageRow extends SeoSearchConsoleTotals {
+  pagePath: string
+  locale: string
+  featureSlug: string | null
+  sessions: number
+  ctaClickSessions: number
+  botInstallStartSessions: number
+  acquiredTenants: number
+}
+
+export interface SeoSearchConsoleQueryRow extends SeoSearchConsoleTotals {
+  query: string
+  pagePath: string
+  country: string
+  device: string
+}
+
+export interface SeoSearchConsoleSyncRun {
+  id: string
+  status: string
+  completedAt: string | null
+  error: string | null
+  metadata: Record<string, unknown>
+}
+
+export interface SeoIndexInspectionRow {
+  inspectedUrl: string
+  pagePath: string
+  locale: string
+  featureSlug: string | null
+  verdict: string | null
+  coverageState: string | null
+  indexingState: string | null
+  robotsTxtState: string | null
+  pageFetchState: string | null
+  lastCrawlTime: string | null
+  inspectedAt: string
 }
 
 const CTA_EVENT_TYPES = new Set<SeoAttributionEventType>([
@@ -104,6 +180,94 @@ function featureKey(featureSlug: string | null): string {
 
 function uniqueSessionCount(events: SeoReportEvent[], predicate: (event: SeoReportEvent) => boolean): number {
   return new Set(events.filter(predicate).map((event) => event.seoSessionId)).size
+}
+
+function weightedTotals(rows: Array<Pick<SeoSearchConsolePageMetric, 'clicks' | 'impressions' | 'ctr' | 'position'>>): SeoSearchConsoleTotals {
+  const clicks = rows.reduce((sum, row) => sum + row.clicks, 0)
+  const impressions = rows.reduce((sum, row) => sum + row.impressions, 0)
+  if (impressions <= 0) {
+    return { clicks, impressions, averageCtr: 0, averagePosition: 0 }
+  }
+  return {
+    clicks,
+    impressions,
+    averageCtr: rows.reduce((sum, row) => sum + row.ctr * row.impressions, 0) / impressions,
+    averagePosition:
+      rows.reduce((sum, row) => sum + row.position * row.impressions, 0) / impressions,
+  }
+}
+
+function landingPageRows(input: SeoAcquisitionReportInput): SeoLandingPageRow[] {
+  const searchConsolePages = input.searchConsolePages ?? []
+  const pageKeys = new Set<string>([
+    ...searchConsolePages.map((row) => row.pagePath),
+    ...input.sessions.map((session) => session.firstLandingPath),
+    ...input.events.map((event) => event.path),
+    ...input.acquisitions.map((acquisition) => acquisition.firstLandingPath),
+  ])
+
+  return [...pageKeys]
+    .map((pagePath) => {
+      const pageMetrics = searchConsolePages.filter((row) => row.pagePath === pagePath)
+      const sessions = input.sessions.filter((session) => session.firstLandingPath === pagePath)
+      const events = input.events.filter((event) => event.path === pagePath)
+      const acquisitions = input.acquisitions.filter(
+        (acquisition) => acquisition.firstLandingPath === pagePath,
+      )
+      const firstPageMetric = pageMetrics[0]
+      const firstSession = sessions[0]
+      const totals = weightedTotals(pageMetrics)
+      return {
+        pagePath,
+        locale: localeKey(firstPageMetric?.locale ?? firstSession?.firstLocale ?? null),
+        featureSlug: firstPageMetric?.featureSlug ?? firstSession?.firstFeatureSlug ?? null,
+        ...totals,
+        sessions: sessions.length,
+        ctaClickSessions: uniqueSessionCount(events, (event) => CTA_EVENT_TYPES.has(event.eventType)),
+        botInstallStartSessions: uniqueSessionCount(
+          events,
+          (event) => event.eventType === 'bot_install_start',
+        ),
+        acquiredTenants: acquisitions.length,
+      }
+    })
+    .filter(
+      (row) =>
+        row.impressions > 0 ||
+        row.clicks > 0 ||
+        row.sessions > 0 ||
+        row.ctaClickSessions > 0 ||
+        row.acquiredTenants > 0,
+    )
+    .sort(
+      (a, b) =>
+        b.impressions - a.impressions ||
+        b.clicks - a.clicks ||
+        b.sessions - a.sessions ||
+        b.acquiredTenants - a.acquiredTenants,
+    )
+}
+
+function topQueryRows(input: SeoAcquisitionReportInput): SeoSearchConsoleQueryRow[] {
+  const grouped = new Map<string, SeoSearchConsoleQueryMetric[]>()
+  for (const row of input.searchConsoleQueries ?? []) {
+    const key = `${row.query}\u0000${row.pagePath}\u0000${row.country}\u0000${row.device}`
+    grouped.set(key, [...(grouped.get(key) ?? []), row])
+  }
+
+  return [...grouped.values()]
+    .map((rows) => {
+      const first = rows[0]
+      return {
+        query: first.query,
+        pagePath: first.pagePath,
+        country: first.country,
+        device: first.device,
+        ...weightedTotals(rows),
+      }
+    })
+    .sort((a, b) => b.clicks - a.clicks || b.impressions - a.impressions)
+    .slice(0, 20)
 }
 
 function groupRows(
@@ -147,6 +311,7 @@ export function summarizeSeoAcquisitionReport(
       botInstallStartSessions: uniqueSessionCount(input.events, (event) => event.eventType === 'bot_install_start'),
       acquiredTenants: input.acquisitions.length,
     },
+    searchConsoleTotals: weightedTotals(input.searchConsolePages ?? []),
     byLocale: groupRows(
       localeKeys,
       (key) => input.sessions.filter((session) => localeKey(session.firstLocale) === key),
@@ -159,11 +324,17 @@ export function summarizeSeoAcquisitionReport(
       (key) => input.events.filter((event) => featureKey(event.featureSlug) === key),
       (key) => input.acquisitions.filter((acquisition) => featureKey(acquisition.firstFeatureSlug) === key),
     ),
+    landingPages: landingPageRows(input),
+    topQueries: topQueryRows(input),
   }
 }
 
 function daysAgoIso(days: number): string {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+}
+
+function daysAgoDate(days: number): string {
+  return daysAgoIso(days).slice(0, 10)
 }
 
 function mapSession(row: Record<string, unknown>): SeoReportSession {
@@ -220,10 +391,68 @@ function mapOnboardingEvent(row: Record<string, unknown>): SeoReportOnboardingEv
   }
 }
 
+function mapSearchConsolePageMetric(row: Record<string, unknown>): SeoSearchConsolePageMetric {
+  return {
+    date: row.date as string,
+    pagePath: row.page_path as string,
+    locale: (row.locale as Locale | null) ?? null,
+    featureSlug: (row.feature_slug as string | null) ?? null,
+    clicks: Number(row.clicks ?? 0),
+    impressions: Number(row.impressions ?? 0),
+    ctr: Number(row.ctr ?? 0),
+    position: Number(row.position ?? 0),
+  }
+}
+
+function mapSearchConsoleQueryMetric(row: Record<string, unknown>): SeoSearchConsoleQueryMetric {
+  return {
+    ...mapSearchConsolePageMetric(row),
+    query: row.query as string,
+    country: row.country as string,
+    device: row.device as string,
+  }
+}
+
+function mapSyncRun(row: Record<string, unknown>): SeoSearchConsoleSyncRun {
+  return {
+    id: row.id as string,
+    status: row.status as string,
+    completedAt: (row.completed_at as string | null) ?? null,
+    error: (row.error as string | null) ?? null,
+    metadata: (row.metadata as Record<string, unknown> | null) ?? {},
+  }
+}
+
+function mapIndexInspection(row: Record<string, unknown>): SeoIndexInspectionRow {
+  return {
+    inspectedUrl: row.inspected_url as string,
+    pagePath: row.page_path as string,
+    locale: localeKey((row.locale as Locale | null) ?? null),
+    featureSlug: (row.feature_slug as string | null) ?? null,
+    verdict: (row.verdict as string | null) ?? null,
+    coverageState: (row.coverage_state as string | null) ?? null,
+    indexingState: (row.indexing_state as string | null) ?? null,
+    robotsTxtState: (row.robots_txt_state as string | null) ?? null,
+    pageFetchState: (row.page_fetch_state as string | null) ?? null,
+    lastCrawlTime: (row.last_crawl_time as string | null) ?? null,
+    inspectedAt: row.inspected_at as string,
+  }
+}
+
 export async function loadSeoAcquisitionReport(days: number = 30): Promise<SeoAcquisitionReport> {
   const db = getAdminClient()
   const since = daysAgoIso(days)
-  const [sessionsRes, eventsRes, acquisitionsRes, onboardingRes] = await Promise.all([
+  const sinceDate = daysAgoDate(days)
+  const [
+    sessionsRes,
+    eventsRes,
+    acquisitionsRes,
+    onboardingRes,
+    searchConsolePagesRes,
+    searchConsoleQueriesRes,
+    searchConsoleSyncRunsRes,
+    indexInspectionsRes,
+  ] = await Promise.all([
     db
       .from('seo_sessions')
       .select('id, first_landing_path, first_locale, first_feature_slug, first_source, created_at')
@@ -248,17 +477,51 @@ export async function loadSeoAcquisitionReport(days: number = 30): Promise<SeoAc
       .gte('created_at', since)
       .order('created_at', { ascending: false })
       .limit(10000),
+    db
+      .from('seo_search_console_daily_pages')
+      .select('date, page_path, locale, feature_slug, clicks, impressions, ctr, position')
+      .gte('date', sinceDate)
+      .order('date', { ascending: false })
+      .limit(5000),
+    db
+      .from('seo_search_console_daily_queries')
+      .select('date, page_path, query, country, device, locale, feature_slug, clicks, impressions, ctr, position')
+      .gte('date', sinceDate)
+      .order('date', { ascending: false })
+      .limit(5000),
+    db
+      .from('seo_search_console_sync_runs')
+      .select('id, status, completed_at, error, metadata')
+      .order('started_at', { ascending: false })
+      .limit(5),
+    db
+      .from('seo_index_inspections')
+      .select('inspected_url, page_path, locale, feature_slug, verdict, coverage_state, indexing_state, robots_txt_state, page_fetch_state, last_crawl_time, inspected_at')
+      .order('inspected_at', { ascending: false })
+      .limit(20),
   ])
 
   if (sessionsRes.error) throw new Error(sessionsRes.error.message)
   if (eventsRes.error) throw new Error(eventsRes.error.message)
   if (acquisitionsRes.error) throw new Error(acquisitionsRes.error.message)
   if (onboardingRes.error) throw new Error(onboardingRes.error.message)
+  if (searchConsolePagesRes.error) throw new Error(searchConsolePagesRes.error.message)
+  if (searchConsoleQueriesRes.error) throw new Error(searchConsoleQueriesRes.error.message)
+  if (searchConsoleSyncRunsRes.error) throw new Error(searchConsoleSyncRunsRes.error.message)
+  if (indexInspectionsRes.error) throw new Error(indexInspectionsRes.error.message)
 
   const sessions = ((sessionsRes.data ?? []) as Record<string, unknown>[]).map(mapSession)
   const events = ((eventsRes.data ?? []) as Record<string, unknown>[]).map(mapEvent)
   const acquisitions = ((acquisitionsRes.data ?? []) as Record<string, unknown>[]).map(mapAcquisition)
   const onboardingEvents = ((onboardingRes.data ?? []) as Record<string, unknown>[]).map(mapOnboardingEvent)
+  const searchConsolePages =
+    ((searchConsolePagesRes.data ?? []) as Record<string, unknown>[]).map(mapSearchConsolePageMetric)
+  const searchConsoleQueries =
+    ((searchConsoleQueriesRes.data ?? []) as Record<string, unknown>[]).map(mapSearchConsoleQueryMetric)
+  const syncRuns =
+    ((searchConsoleSyncRunsRes.data ?? []) as Record<string, unknown>[]).map(mapSyncRun)
+  const indexInspections =
+    ((indexInspectionsRes.data ?? []) as Record<string, unknown>[]).map(mapIndexInspection)
   const tenantIds = [...new Set(acquisitions.map((acquisition) => acquisition.tenantId))]
   const tenantsRes = tenantIds.length > 0
     ? await db
@@ -280,9 +543,27 @@ export async function loadSeoAcquisitionReport(days: number = 30): Promise<SeoAc
     onboardingByTenant.set(event.guildId, existing)
   }
 
-  const summary = summarizeSeoAcquisitionReport({ sessions, events, acquisitions })
+  const latestSyncRun = syncRuns[0] ?? null
+  const missing = Array.isArray(latestSyncRun?.metadata.missing)
+    ? (latestSyncRun.metadata.missing.filter((value) => typeof value === 'string') as string[])
+    : []
+  const summary = summarizeSeoAcquisitionReport({
+    sessions,
+    events,
+    acquisitions,
+    searchConsolePages,
+    searchConsoleQueries,
+  })
   return {
     ...summary,
+    syncStatus: {
+      configured: latestSyncRun?.metadata.configured === true,
+      lastStatus: latestSyncRun?.status ?? null,
+      lastCompletedAt: latestSyncRun?.completedAt ?? null,
+      lastError: latestSyncRun?.error ?? null,
+      missing,
+    },
+    indexInspections,
     recentAcquisitions: acquisitions.slice(0, 20).map((acquisition) => {
       const tenant = tenantsById.get(acquisition.tenantId)
       const onboarding = onboardingByTenant.get(acquisition.tenantId) ?? new Set<string>()
