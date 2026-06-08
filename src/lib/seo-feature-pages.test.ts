@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   FEATURE_PAGE_SLUGS,
+  FEATURE_LOCALIZED_SITEMAP_ROUTES,
   FEATURE_SITEMAP_ROUTES,
   getSeoFeaturePage,
 } from './seo-feature-pages'
@@ -28,6 +29,16 @@ describe('SEO feature pages', () => {
       '/features/guild-shop',
       '/features/guild-stats',
     ])
+  })
+
+  it('maps every supported locale into feature sitemap routes', () => {
+    expect(FEATURE_LOCALIZED_SITEMAP_ROUTES).toContain('/ko/features')
+    expect(FEATURE_LOCALIZED_SITEMAP_ROUTES).toContain('/en/features/auto-regear')
+    expect(FEATURE_LOCALIZED_SITEMAP_ROUTES).toContain('/ja/features/guild-shop')
+    expect(FEATURE_LOCALIZED_SITEMAP_ROUTES).toContain('/zh/features/guild-stats')
+    expect(FEATURE_LOCALIZED_SITEMAP_ROUTES).toHaveLength(
+      FEATURE_SITEMAP_ROUTES.length * 4,
+    )
   })
 
   it('keeps every page tied to related docs and search terms', () => {

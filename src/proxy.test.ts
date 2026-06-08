@@ -7,6 +7,10 @@ function forwardedPathname(response: Response): string | null {
   return response.headers.get('x-middleware-request-x-pathname')
 }
 
+function forwardedSeoLocale(response: Response): string | null {
+  return response.headers.get('x-middleware-request-x-seo-locale')
+}
+
 function forwardedHeaderKeys(response: Response): string[] {
   return (response.headers.get('x-middleware-override-headers') ?? '')
     .split(',')
@@ -53,6 +57,20 @@ describe('proxy pathname forwarding', () => {
       'https://albion-guildmanager.com/public/features/auto-regear',
     )
     expect(forwardedPathname(response)).toBe('/public/features/auto-regear')
+  })
+
+  it('rewrites locale-prefixed feature SEO pages while preserving the clean pathname', async () => {
+    const response = await proxy(
+      new NextRequest('https://albion-guildmanager.com/ko/features/auto-regear'),
+    )
+
+    expect(isRewrite(response)).toBe(true)
+    expect(getRewrittenUrl(response)).toBe(
+      'https://albion-guildmanager.com/public/features/auto-regear',
+    )
+    expect(forwardedPathname(response)).toBe('/ko/features/auto-regear')
+    expect(forwardedSeoLocale(response)).toBe('ko')
+    expect(forwardedHeaderKeys(response)).toContain('x-seo-locale')
   })
 
   it('rewrites clean feature SEO pages on localhost for local QA', async () => {

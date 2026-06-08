@@ -45,6 +45,10 @@ describe('app route classification', () => {
   it('indexes feature marketing pages for SEO landing traffic', () => {
     expect(isIndexablePathname('/features')).toBe(true)
     expect(isIndexablePathname('/features/auto-regear')).toBe(true)
+    expect(isPublicPathname('/ko/features')).toBe(true)
+    expect(isPublicPathname('/en/features/auto-regear')).toBe(true)
+    expect(isIndexablePathname('/ko/features')).toBe(true)
+    expect(isIndexablePathname('/en/features/auto-regear')).toBe(true)
     expect(isIndexablePathname('/public/features')).toBe(true)
     expect(isIndexablePathname('/public/features/auto-regear')).toBe(true)
   })

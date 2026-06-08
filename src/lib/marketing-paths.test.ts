@@ -22,6 +22,22 @@ describe('getMarketingPathsForHost', () => {
     })
   })
 
+  it('uses locale-prefixed feature paths on the official root domain when SEO locale is active', () => {
+    vi.stubEnv('TENANT_ROOT_DOMAIN', 'albion-guildmanager.com')
+
+    expect(getMarketingPathsForHost('albion-guildmanager.com', 'en')).toEqual({
+      home: '/',
+      features: '/en/features',
+      pricing: '/pricing',
+      faq: '/faq',
+      docs: '/docs',
+      demo: '/demo',
+      privacy: '/privacy',
+      terms: '/terms',
+      guildPage: '/g',
+    })
+  })
+
   it('uses official root absolute URLs on tenant subdomains', () => {
     vi.stubEnv('TENANT_ROOT_DOMAIN', 'albion-guildmanager.com')
 
@@ -36,6 +52,14 @@ describe('getMarketingPathsForHost', () => {
       terms: 'https://albion-guildmanager.com/terms',
       guildPage: 'https://albion-guildmanager.com/g',
     })
+  })
+
+  it('uses localized official root feature URLs on tenant subdomains when SEO locale is active', () => {
+    vi.stubEnv('TENANT_ROOT_DOMAIN', 'albion-guildmanager.com')
+
+    expect(getMarketingPathsForHost('menhera.albion-guildmanager.com', 'ja').features).toBe(
+      'https://albion-guildmanager.com/ja/features',
+    )
   })
 
   it('keeps direct public paths on localhost and previews', () => {
@@ -55,6 +79,12 @@ describe('getMarketingPathsForHost', () => {
     expect(getMarketingPathsForHost('albion-guildmanager-git-main.vercel.app').home).toBe(
       '/public/landing',
     )
+  })
+
+  it('keeps locale-prefixed feature paths on localhost for local SEO QA', () => {
+    vi.stubEnv('TENANT_ROOT_DOMAIN', 'albion-guildmanager.com')
+
+    expect(getMarketingPathsForHost('localhost:3000', 'zh').features).toBe('/zh/features')
   })
 
   it('normalizes clean docs links for localhost and preview public routes', () => {
