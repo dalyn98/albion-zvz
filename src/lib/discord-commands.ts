@@ -8,10 +8,15 @@
 // point_ledger append-only 경로를 사용한다.
 
 import { getAdminClient } from '@/lib/supabase-admin'
+import { getDiscordGuild } from '@/lib/discord'
 import { buildDiscordStartHref } from '@/lib/discord-auth-url'
 import { tenantUrl } from '@/lib/tenant-resolver'
+import { isValidTenantSlug } from '@/lib/tenant-slug'
 import { isLocale, type Locale } from '@/i18n/locales'
 import { killbotDashboardUrl } from '@/lib/killbot'
+import { log } from '@/lib/log'
+import { logTenantOnboardingEvent } from '@/lib/tenant-onboarding-events'
+import { SLOT_ROLES } from '@/types'
 import {
   ADMIN_POINT_ADJUSTMENT_MEMO_MAX_LENGTH,
   POINT_LEDGER_DELTA_ABS_MAX,
@@ -30,8 +35,12 @@ export const DEFAULT_DISCORD_COMMAND_LOCALE = 'en' satisfies Locale
 const DISCORD_OPTION_TYPE_USER = 6
 const DISCORD_OPTION_TYPE_INTEGER = 4
 const DISCORD_OPTION_TYPE_STRING = 3
+const DISCORD_PERMISSION_ADMINISTRATOR = 1n << 3n
+const DISCORD_PERMISSION_MANAGE_GUILD = 1n << 5n
+const MAX_SETUP_SLUG_ATTEMPTS = 5
 
 export const AGM_SUBCOMMANDS = [
+  'setup',
   'home',
   'me',
   'verify',
@@ -58,6 +67,10 @@ export interface DiscordBotMessages {
   guildNotLinked: string
   adminOnly: string
   unknownCommand: string
+  setupActive: string
+  setupResume: string
+  setupCreated: string
+  setupManageGuildRequired: string
   guideReady: string
   homeReady: string
   meReady: string
@@ -94,6 +107,10 @@ export async function loadDiscordBotMessages(
     guildNotLinked: ns.guildNotLinked ?? '',
     adminOnly: ns.adminOnly ?? '',
     unknownCommand: ns.unknownCommand ?? '',
+    setupActive: ns.setupActive ?? '',
+    setupResume: ns.setupResume ?? '',
+    setupCreated: ns.setupCreated ?? '',
+    setupManageGuildRequired: ns.setupManageGuildRequired ?? '',
     guideReady: ns.guideReady ?? '',
     homeReady: ns.homeReady ?? '',
     meReady: ns.meReady ?? '',
@@ -127,6 +144,10 @@ interface TenantBindResult {
   adminRoleIds: string[]
 }
 
+interface SetupTenantBindResult extends TenantBindResult {
+  status: string
+}
+
 // Discord guild_id 로 active tenant 를 찾는다. status 가 active 가 아닌
 // (suspended/onboarding) 길드는 미연동과 동일하게 취급 — 공식 가이드로 폴백.
 async function findTenantByDiscordGuild(
@@ -144,6 +165,26 @@ async function findTenantByDiscordGuild(
     id: data.id as string,
     slug: data.slug as string,
     name: data.name as string,
+    createdByDiscordId: (data.created_by_discord_id as string | null) ?? null,
+    adminRoleIds: (data.admin_role_ids as string[] | null) ?? [],
+  }
+}
+
+async function findSetupTenantByDiscordGuild(
+  discordGuildId: string,
+): Promise<SetupTenantBindResult | null> {
+  const db = getAdminClient()
+  const { data } = await db
+    .from('tenants')
+    .select('id, slug, name, status, created_by_discord_id, admin_role_ids')
+    .eq('discord_guild_id', discordGuildId)
+    .maybeSingle()
+  if (!data) return null
+  return {
+    id: data.id as string,
+    slug: data.slug as string,
+    name: data.name as string,
+    status: (data.status as string | null) ?? 'pending',
     createdByDiscordId: (data.created_by_discord_id as string | null) ?? null,
     adminRoleIds: (data.admin_role_ids as string[] | null) ?? [],
   }
@@ -196,6 +237,20 @@ export async function resolveDiscordCommandLocale(
 
 function isAdminOnlySubcommand(destination: AgmSubcommand): boolean {
   return (ADMIN_ONLY_AGM_SUBCOMMANDS as readonly string[]).includes(destination)
+}
+
+function canManageDiscordGuild(payload: DiscordInteractionPayload): boolean {
+  const raw = payload.member?.permissions
+  if (!raw) return false
+  try {
+    const permissions = BigInt(raw)
+    return (
+      (permissions & DISCORD_PERMISSION_ADMINISTRATOR) === DISCORD_PERMISSION_ADMINISTRATOR ||
+      (permissions & DISCORD_PERMISSION_MANAGE_GUILD) === DISCORD_PERMISSION_MANAGE_GUILD
+    )
+  } catch {
+    return false
+  }
 }
 
 async function isSiteAdminForTenant(
@@ -350,6 +405,10 @@ export async function handleSlashCommand(
     return ephemeralReply(messages.notInGuild)
   }
 
+  if (destination === 'setup') {
+    return handleSetup(payload, tenant, messages)
+  }
+
   if (!tenant) {
     const docsUrl = tenantUrl(null, '/faq')
     return ephemeralReply(format(messages.guildNotLinked, { docsUrl }))
@@ -393,6 +452,155 @@ export async function handleSlashCommand(
       return replyWithTenantLink(messages.walletReady, tenant, '/me/wallet')
     case 'admin':
       return replyWithTenantLink(messages.adminReady, tenant, '/admin/dashboard')
+  }
+}
+
+async function handleSetup(
+  payload: DiscordInteractionPayload,
+  activeTenant: TenantBindResult | null,
+  messages: DiscordBotMessages,
+): Promise<DiscordInteractionResponse> {
+  if (!payload.guild_id) return ephemeralReply(messages.notInGuild)
+  if (activeTenant) {
+    return ephemeralReply(
+      format(messages.setupActive, {
+        name: activeTenant.name,
+        url: tenantCommandUrl(activeTenant, '/admin/dashboard'),
+      }),
+    )
+  }
+
+  const discordId = getInvokerDiscordId(payload)
+  const setupTenant = await findSetupTenantByDiscordGuild(payload.guild_id)
+  if (setupTenant) {
+    const canResume =
+      !!discordId &&
+      (setupTenant.createdByDiscordId === discordId || canManageDiscordGuild(payload))
+    if (!canResume) return ephemeralReply(messages.setupManageGuildRequired)
+
+    const setupUrl =
+      setupTenant.status === 'active'
+        ? tenantCommandUrl(setupTenant, '/admin/dashboard')
+        : tenantUrl(null, `/onboard/setup/${setupTenant.id}`)
+    return ephemeralReply(
+      format(setupTenant.status === 'active' ? messages.setupActive : messages.setupResume, {
+        name: setupTenant.name,
+        url: setupUrl,
+      }),
+    )
+  }
+
+  if (!discordId || !canManageDiscordGuild(payload)) {
+    return ephemeralReply(messages.setupManageGuildRequired)
+  }
+
+  const createdTenant = await createPendingSetupTenant({
+    discordGuildId: payload.guild_id,
+    installerDiscordId: discordId,
+  })
+  if (!createdTenant) return ephemeralReply(messages.handlerFailed)
+
+  return ephemeralReply(
+    format(messages.setupCreated, {
+      name: createdTenant.name,
+      url: tenantUrl(null, `/onboard/setup/${createdTenant.id}`),
+    }),
+  )
+}
+
+function slugifyDiscordGuildName(name: string): string {
+  const suffix = Math.random().toString(36).slice(2, 6)
+  const base = name
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 24)
+  const candidate = base.length > 0 ? `${base}-${suffix}` : `guild-${suffix}`
+  return isValidTenantSlug(candidate) ? candidate : `guild-${suffix}`
+}
+
+async function createPendingSetupTenant(input: {
+  discordGuildId: string
+  installerDiscordId: string
+}): Promise<SetupTenantBindResult | null> {
+  const guild = await getDiscordGuild(input.discordGuildId)
+  if (!guild) {
+    log.warn('[discord-commands] setup command could not load Discord guild', {
+      discord_guild_id: input.discordGuildId,
+    })
+    return null
+  }
+
+  const db = getAdminClient()
+  let tenantRow: { id: string; slug: string } | null = null
+  let lastInsertError: unknown = null
+  const now = new Date().toISOString()
+
+  for (let attempt = 0; attempt < MAX_SETUP_SLUG_ATTEMPTS; attempt += 1) {
+    const { data: inserted, error } = await db
+      .from('tenants')
+      .insert({
+        discord_guild_id: input.discordGuildId,
+        slug: slugifyDiscordGuildName(guild.name),
+        name: guild.name,
+        status: 'pending',
+        bot_installed_at: now,
+        created_by_discord_id: input.installerDiscordId,
+      })
+      .select('id, slug')
+      .single()
+    if (inserted && !error) {
+      tenantRow = inserted as { id: string; slug: string }
+      break
+    }
+    lastInsertError = error
+    if ((error as { code?: string } | null)?.code !== '23505') break
+  }
+
+  if (!tenantRow) {
+    log.error('[discord-commands] setup command tenant insert failed', lastInsertError, {
+      discord_guild_id: input.discordGuildId,
+      installer_discord_id: input.installerDiscordId,
+    })
+    return null
+  }
+
+  const seedRows = SLOT_ROLES.map((role_name) => ({
+    guild_id: tenantRow.id,
+    role_name,
+    silver: 0,
+    updated_at: now,
+  }))
+  const { error: seedError } = await db
+    .from('role_rewards')
+    .upsert(seedRows, { onConflict: 'guild_id,role_name' })
+  if (seedError) {
+    log.error('[discord-commands] setup command role_rewards seed failed', seedError, {
+      tenant_id: tenantRow.id,
+    })
+  }
+
+  await logTenantOnboardingEvent({
+    guildId: tenantRow.id,
+    actorDiscordId: input.installerDiscordId,
+    eventType: 'bot_installed',
+    details: {
+      discordGuildId: input.discordGuildId,
+      guildName: guild.name,
+      createdTenant: true,
+      source: 'discord_setup_command',
+    },
+  })
+
+  return {
+    id: tenantRow.id,
+    slug: tenantRow.slug,
+    name: guild.name,
+    status: 'pending',
+    createdByDiscordId: input.installerDiscordId,
+    adminRoleIds: [],
   }
 }
 

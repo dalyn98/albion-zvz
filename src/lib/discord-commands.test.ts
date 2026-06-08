@@ -416,7 +416,7 @@ describe('agm slash command navigation', () => {
       expect.arrayContaining([
         expect.objectContaining({
           guild_id: 'tenant-created',
-          role_name: 'Main Tank',
+          role_name: 'Caller',
           silver: 0,
         }),
       ]),

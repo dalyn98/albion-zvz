@@ -24,6 +24,11 @@ const COMMANDS = [
     type: 1,
     options: [
       {
+        name: 'setup',
+        description: 'Create or resume your guild page setup',
+        type: 1,
+      },
+      {
         name: 'home',
         description: 'Open your guild home',
         type: 1,

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { getSession } from '@/lib/session'
 import { getAdminClient } from '@/lib/supabase-admin'
+import { tenantUrl } from '@/lib/tenant-resolver'
 import OnboardStartGuide from '@/components/OnboardStartGuide'
 import OnboardWizardProgress from '@/components/OnboardWizardProgress'
 
@@ -18,12 +19,14 @@ interface LayoutProps {
 export default async function OnboardSetupLayout({ children, params }: LayoutProps) {
   const { id } = await params
   const session = await getSession()
-  if (!session) redirect('/api/auth/discord/start?returnTo=/onboard')
+  if (!session) {
+    redirect(`/api/auth/discord/start?returnTo=${encodeURIComponent(`/onboard/setup/${id}`)}`)
+  }
 
   const db = getAdminClient()
   const { data: tenant } = await db
     .from('tenants')
-    .select('id, created_by_discord_id')
+    .select('id, name, slug, status, created_by_discord_id')
     .eq('id', id)
     .maybeSingle()
   if (!tenant || tenant.created_by_discord_id !== session.discordId) {
@@ -74,6 +77,22 @@ export default async function OnboardSetupLayout({ children, params }: LayoutPro
             body: t('startGuideAfterGuideBody'),
           },
         ]}
+        pageCreation={{
+          title: t('siteCreationTitle', { name: tenant.name as string }),
+          description: t('siteCreationDescription'),
+          statusLabel: t('siteCreationStatusLabel'),
+          statusValue:
+            tenant.status === 'active'
+              ? t('siteCreationStatusActive')
+              : t('siteCreationStatusPending'),
+          addressLabel: t('siteCreationAddressLabel'),
+          address: tenantUrl(tenant.slug as string, '/'),
+          visibilityLabel: t('siteCreationVisibilityLabel'),
+          visibilityValue:
+            tenant.status === 'active'
+              ? t('siteCreationVisibilityActive')
+              : t('siteCreationVisibilityHidden'),
+        }}
       />
       <OnboardWizardProgress
         tenantId={id}

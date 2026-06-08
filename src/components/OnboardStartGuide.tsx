@@ -8,6 +8,7 @@ import {
   Circle,
   CircleDot,
   Flag,
+  LockKeyhole,
   ListChecks,
 } from 'lucide-react'
 import {
@@ -23,6 +24,17 @@ interface GuideCopy {
   body: string
 }
 
+interface PageCreationContext {
+  title: string
+  description: string
+  statusLabel: string
+  statusValue: string
+  addressLabel: string
+  address: string
+  visibilityLabel: string
+  visibilityValue: string
+}
+
 interface Props {
   tenantId: string
   eyebrow: string
@@ -33,6 +45,7 @@ interface Props {
   statusLabels: Record<OnboardStepState, string>
   steps: [GuideCopy, GuideCopy, GuideCopy]
   afterItems: [GuideCopy, GuideCopy, GuideCopy]
+  pageCreation?: PageCreationContext
 }
 
 function statusIcon(state: OnboardStepState) {
@@ -57,6 +70,7 @@ export default function OnboardStartGuide({
   statusLabels,
   steps,
   afterItems,
+  pageCreation,
 }: Props) {
   const pathname = usePathname() ?? ''
   const current = resolveOnboardSetupStep(pathname, tenantId)
@@ -78,6 +92,42 @@ export default function OnboardStartGuide({
           <p className="mt-1 text-sm leading-relaxed text-gray-400">{description}</p>
         </div>
       </div>
+
+      {pageCreation && (
+        <div className="mt-4 border-y border-white/10 py-4">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-emerald-400/25 bg-emerald-500/10 text-emerald-200">
+              <LockKeyhole size={15} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-white">{pageCreation.title}</p>
+              <p className="mt-1 text-xs leading-relaxed text-gray-400">
+                {pageCreation.description}
+              </p>
+              <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-3">
+                <div>
+                  <dt className="text-gray-500">{pageCreation.statusLabel}</dt>
+                  <dd className="mt-1 font-semibold text-emerald-200">
+                    {pageCreation.statusValue}
+                  </dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-gray-500">{pageCreation.addressLabel}</dt>
+                  <dd className="mt-1 truncate font-semibold text-gray-200">
+                    {pageCreation.address}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">{pageCreation.visibilityLabel}</dt>
+                  <dd className="mt-1 font-semibold text-[#CAD2FF]">
+                    {pageCreation.visibilityValue}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(220px,0.75fr)]">
         <div>
